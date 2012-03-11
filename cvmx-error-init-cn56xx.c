@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -124,7 +124,7 @@
  *     cvmx_npei_rsl_int_blocks:asxpcs1:e -> cvmx_pcs1_int2_reg [label="asxpcs1"];
  *     cvmx_pcs1_int3_reg [label="PCSX_INTX_REG(3,1)|<an_err>an_err|<txfifu>txfifu|<txfifo>txfifo|<txbad>txbad|<rxbad>rxbad|<rxlock>rxlock|<an_bad>an_bad|<sync_bad>sync_bad"];
  *     cvmx_npei_rsl_int_blocks:asxpcs1:e -> cvmx_pcs1_int3_reg [label="asxpcs1"];
- *     cvmx_pcsx1_int_reg [label="PCSXX_INT_REG(1)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<synlos>synlos|<algnlos>algnlos"];
+ *     cvmx_pcsx1_int_reg [label="PCSXX_INT_REG(1)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<bitlckls>bitlckls|<synlos>synlos|<algnlos>algnlos"];
  *     cvmx_npei_rsl_int_blocks:asxpcs1:e -> cvmx_pcsx1_int_reg [label="asxpcs1"];
  *     cvmx_pcs0_int0_reg [label="PCSX_INTX_REG(0,0)|<an_err>an_err|<txfifu>txfifu|<txfifo>txfifo|<txbad>txbad|<rxbad>rxbad|<rxlock>rxlock|<an_bad>an_bad|<sync_bad>sync_bad"];
  *     cvmx_npei_rsl_int_blocks:asxpcs0:e -> cvmx_pcs0_int0_reg [label="asxpcs0"];
@@ -134,7 +134,7 @@
  *     cvmx_npei_rsl_int_blocks:asxpcs0:e -> cvmx_pcs0_int2_reg [label="asxpcs0"];
  *     cvmx_pcs0_int3_reg [label="PCSX_INTX_REG(3,0)|<an_err>an_err|<txfifu>txfifu|<txfifo>txfifo|<txbad>txbad|<rxbad>rxbad|<rxlock>rxlock|<an_bad>an_bad|<sync_bad>sync_bad"];
  *     cvmx_npei_rsl_int_blocks:asxpcs0:e -> cvmx_pcs0_int3_reg [label="asxpcs0"];
- *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<synlos>synlos|<algnlos>algnlos"];
+ *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<bitlckls>bitlckls|<synlos>synlos|<algnlos>algnlos"];
  *     cvmx_npei_rsl_int_blocks:asxpcs0:e -> cvmx_pcsx0_int_reg [label="asxpcs0"];
  *     cvmx_key_int_sum [label="KEY_INT_SUM|<ked0_sbe>ked0_sbe|<ked0_dbe>ked0_dbe|<ked1_sbe>ked1_sbe|<ked1_dbe>ked1_dbe"];
  *     cvmx_npei_rsl_int_blocks:key:e -> cvmx_key_int_sum [label="key"];
@@ -5552,6 +5552,22 @@ int cvmx_error_initialize_cn56xx(void)
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
     info.status_addr        = CVMX_PCSXX_INT_REG(1);
+    info.status_mask        = 1ull<<3 /* bitlckls */;
+    info.enable_addr        = CVMX_PCSXX_INT_EN_REG(1);
+    info.enable_mask        = 1ull<<3 /* bitlckls_en */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_ETHERNET;
+    info.group_index        = 16;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_PEXP_NPEI_RSL_INT_BLOCKS;
+    info.parent.status_mask = 1ull<<23 /* asxpcs1 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR PCSXX_INT_REG(1)[BITLCKLS]: Set when Bit lock lost on 1 or more xaui lanes\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_PCSXX_INT_REG(1);
     info.status_mask        = 1ull<<4 /* synlos */;
     info.enable_addr        = CVMX_PCSXX_INT_EN_REG(1);
     info.enable_mask        = 1ull<<4 /* synlos_en */;
@@ -6178,6 +6194,22 @@ int cvmx_error_initialize_cn56xx(void)
     info.user_info          = (long)
         "ERROR PCSXX_INT_REG(0)[RXSYNBAD]: Set when RX code grp sync st machine in bad state\n"
         "    in one of the 4 xaui lanes\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_PCSXX_INT_REG(0);
+    info.status_mask        = 1ull<<3 /* bitlckls */;
+    info.enable_addr        = CVMX_PCSXX_INT_EN_REG(0);
+    info.enable_mask        = 1ull<<3 /* bitlckls_en */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_ETHERNET;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_PEXP_NPEI_RSL_INT_BLOCKS;
+    info.parent.status_mask = 1ull<<22 /* asxpcs0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR PCSXX_INT_REG(0)[BITLCKLS]: Set when Bit lock lost on 1 or more xaui lanes\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;

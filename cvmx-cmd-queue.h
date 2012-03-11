@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -88,7 +88,7 @@
  * internal cycle counter to completely eliminate any causes of
  * bus traffic.
  *
- * <hr> $Revision: 50049 $ <hr>
+ * <hr> $Revision: 70030 $ <hr>
  */
 
 #ifndef __CVMX_CMD_QUEUE_H__
@@ -125,6 +125,7 @@ typedef enum
     CVMX_CMD_QUEUE_PKO_BASE = 0x00000,
 #define CVMX_CMD_QUEUE_PKO(queue) ((cvmx_cmd_queue_id_t)(CVMX_CMD_QUEUE_PKO_BASE + (0xffff&(queue))))
     CVMX_CMD_QUEUE_ZIP      = 0x10000,
+#define CVMX_CMD_QUEUE_ZIP_QUE(queue) ((cvmx_cmd_queue_id_t)(CVMX_CMD_QUEUE_ZIP + (0xffff&(queue))))
     CVMX_CMD_QUEUE_DFA      = 0x20000,
     CVMX_CMD_QUEUE_RAID     = 0x30000,
     CVMX_CMD_QUEUE_DMA_BASE = 0x40000,
@@ -231,7 +232,7 @@ void *cvmx_cmd_queue_buffer(cvmx_cmd_queue_id_t queue_id);
 static inline int __cvmx_cmd_queue_get_index(cvmx_cmd_queue_id_t queue_id)
 {
     /* Warning: This code currently only works with devices that have 256 queues
-        or less. Devices with more than 16 queues are layed out in memory to allow
+        or less. Devices with more than 16 queues are laid out in memory to allow
         cores quick access to every 16th queue. This reduces cache thrashing
         when you are running 16 queues per port to support lockless operation */
     int unit = queue_id>>16;

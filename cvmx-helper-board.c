@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2011  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,7 +49,7 @@
  * Helper functions to abstract board specific data about
  * network ports from the rest of the cvmx-helper files.
  *
- * <hr>$Revision: 49627 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <linux/module.h>
@@ -72,6 +72,13 @@
 #include "cvmx-helper.h"
 #include "cvmx-helper-util.h"
 #include "cvmx-helper-board.h"
+#include "cvmx-gpio.h"
+#ifdef __U_BOOT__
+# include <libfdt.h>
+#else
+# include "libfdt/libfdt.h"
+#endif
+#include "cvmx-swap.h"
 #endif
 
 /**
@@ -83,6 +90,245 @@
  * operations.
  */
 CVMX_SHARED cvmx_helper_link_info_t (*cvmx_override_board_link_get)(int ipd_port) = NULL;
+
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
+
+static void cvmx_retry_i2c_write(int twsi_id, uint8_t dev_addr, uint16_t internal_addr, int num_bytes, int ia_width_bytes, uint64_t data)
+{
+    int tries = 3;
+    int r;
+    do {
+        r = cvmx_twsix_write_ia(twsi_id, dev_addr, internal_addr, num_bytes, ia_width_bytes, data);
+    } while (tries-- > 0 && r < 0);
+}
+
+int __pip_eth_node(const void *fdt_addr, int aliases, int ipd_port)
+{
+    char name_buffer[20];
+    const char*pip_path;
+    int pip, iface, eth;
+    int interface_num    = cvmx_helper_get_interface_num(ipd_port);
+    int interface_index  = cvmx_helper_get_interface_index_num(ipd_port);
+
+    pip_path = fdt_getprop(fdt_addr, aliases, "pip", NULL);
+    if (!pip_path)
+    {
+        cvmx_dprintf("ERROR: pip path not found in device tree\n");
+        return -1;
+    }
+    pip = fdt_path_offset(fdt_addr, pip_path);
+    if (pip < 0)
+    {
+        cvmx_dprintf("ERROR: pip not found in device tree\n");
+        return -1;
+    }
+#ifdef __U_BOOT__
+    sprintf(name_buffer, "interface@%d", interface_num);
+#else
+    snprintf(name_buffer, sizeof(name_buffer), "interface@%d", interface_num);
+#endif
+    iface =  fdt_subnode_offset(fdt_addr, pip, name_buffer);
+    if (iface < 0)
+    {
+        cvmx_dprintf("ERROR : pip intf %d not found in device tree \n",
+                     interface_num);
+        return -1;
+    }
+#ifdef __U_BOOT__
+    sprintf(name_buffer, "ethernet@%x", interface_index);
+#else
+    snprintf(name_buffer, sizeof(name_buffer), "ethernet@%x", interface_index);
+#endif
+    eth = fdt_subnode_offset(fdt_addr, iface, name_buffer);
+    if (eth < 0)
+    {
+        cvmx_dprintf("ERROR : pip interface@%d ethernet@%d not found in device "
+                     "tree\n", interface_num, interface_index);
+        return -1;
+    }
+    return eth;
+}
+
+int __mix_eth_node(const void *fdt_addr, int aliases, int interface_index)
+{
+    char name_buffer[20];
+    const char*mix_path;
+    int mix;
+
+#ifdef __U_BOOT__
+    sprintf(name_buffer, "mix%d", interface_index);
+#else
+    snprintf(name_buffer, sizeof(name_buffer), "mix%d", interface_index);
+#endif
+    mix_path = fdt_getprop(fdt_addr, aliases, name_buffer, NULL);
+    if (!mix_path)
+    {
+        cvmx_dprintf("ERROR: mix%d path not found in device tree\n",interface_index);
+    }
+    mix = fdt_path_offset(fdt_addr, mix_path);
+    if (mix < 0)
+    {
+        cvmx_dprintf("ERROR: %s not found in device tree\n", mix_path);
+        return -1;
+    }
+    return mix;
+}
+
+typedef struct cvmx_phy_info
+{
+    int phy_addr;
+    int direct_connect;
+    cvmx_phy_type_t phy_type;
+}cvmx_phy_info_t;
+
+
+static int __mdiobus_addr_to_unit(uint32_t addr)
+{
+    int unit = (addr >> 7) & 3;
+    if (!OCTEON_IS_MODEL(OCTEON_CN68XX))
+        unit >>= 1;
+    return unit;
+}
+/**
+ * Return the MII PHY address associated with the given IPD
+ * port. The phy address is obtained from the device tree.
+ *
+ * @param ipd_port Octeon IPD port to get the MII address for.
+ *
+ * @return MII PHY address and bus number or -1.
+ */
+
+cvmx_phy_info_t __get_phy_info_from_dt(int ipd_port)
+{
+    const void *fdt_addr = CASTPTR(const void *, cvmx_sysinfo_get()->fdt_addr);
+    uint32_t *phy_handle;
+    int aliases, eth, phy, phy_parent, phandle, ret;
+    cvmx_phy_info_t phy_info;
+    int mdio_unit=-1;
+    const char *phy_comaptible_str;
+    uint32_t *phy_addr_ptr;
+
+    phy_info.phy_addr = -1;
+    phy_info.direct_connect = -1;
+    phy_info.phy_type = (cvmx_phy_type_t) -1;
+
+    if (!fdt_addr)
+    {
+        cvmx_dprintf("No device tree found.\n");
+        return phy_info;
+    }
+    aliases = fdt_path_offset(fdt_addr, "/aliases");
+    if (aliases < 0) {
+        cvmx_dprintf("Error: No /aliases node in device tree.\n");
+        return phy_info;
+    }
+    if (ipd_port < 0)
+    {
+        int interface_index = ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT;
+        eth = __mix_eth_node(fdt_addr, aliases, interface_index) ;
+    }
+    else
+    {
+        eth = __pip_eth_node(fdt_addr, aliases, ipd_port);
+    }
+    if (eth < 0 )
+    {
+        cvmx_dprintf("ERROR : cannot find interface for ipd_port=%d\n", ipd_port);
+        return phy_info;
+    }
+    /* Get handle to phy */
+    phy_handle = (uint32_t *) fdt_getprop(fdt_addr, eth, "phy-handle", NULL);
+    if (!phy_handle)
+    {
+        cvmx_dprintf("ERROR : phy handle not found in device tree ipd_port=%d"
+                     "\n", ipd_port);
+        return phy_info;
+    }
+    phandle = cvmx_be32_to_cpu(*phy_handle);
+    phy = fdt_node_offset_by_phandle(fdt_addr, phandle);
+    if (phy < 0)
+    {
+        cvmx_dprintf("ERROR : cannot find phy for ipd_port=%d ret=%d\n",
+                     ipd_port, phy);
+        return phy_info;
+    }
+    phy_comaptible_str = (const char *) fdt_getprop(fdt_addr, phy,
+                                                    "compatible", NULL);
+    if (!phy_comaptible_str)
+    {
+        cvmx_dprintf("ERROR : no compatible prop in phy\n");
+        return phy_info;
+    }
+    if (memcmp("marvell", phy_comaptible_str, strlen("marvell")) == 0)
+    {
+        phy_info.phy_type = MARVELL_GENERIC_PHY;
+    }
+    else if (memcmp("broadcom", phy_comaptible_str, strlen("broadcom")) == 0)
+    {
+        phy_info.phy_type = BROADCOM_GENERIC_PHY;
+    }
+    else
+    {
+        phy_info.phy_type = -1;
+    }
+
+    /* Check if PHY parent is the octeon MDIO bus. Some boards are connected
+       though a MUX and for them direct_connect_to_phy will be 0 */
+    phy_parent = fdt_parent_offset(fdt_addr, phy);
+    if (phy_parent < 0)
+    {
+        cvmx_dprintf("ERROR : cannot find phy parent for ipd_port=%d ret=%d\n",
+                     ipd_port, phy_parent);
+        return phy_info;
+    }
+    ret = fdt_node_check_compatible(fdt_addr, phy_parent,
+                                    "cavium,octeon-3860-mdio");
+    if (ret == 0)
+    {
+        phy_info.direct_connect = 1 ;
+        uint32_t *mdio_reg_base = (uint32_t *) fdt_getprop(fdt_addr, phy_parent,"reg",0);
+        if (mdio_reg_base == 0)
+        {
+            cvmx_dprintf("ERROR : unable to get reg property in phy mdio\n");
+            return phy_info;
+        }
+        mdio_unit = __mdiobus_addr_to_unit(mdio_reg_base[1]);
+        //cvmx_dprintf("phy parent=%s reg_base=%08x unit=%d \n",
+        //             fdt_get_name(fdt_addr,phy_parent, NULL), mdio_reg_base[1], mdio_unit);
+    }
+    else
+    {
+        phy_info.direct_connect = 0;
+        /* The PHY is not directly connected to the Octeon MDIO bus.
+           SE doesn't  have abstractions for MDIO MUX or MDIO MUX drivers and
+           hence for the non direct cases code will be needed which is
+           board specific.
+           For now the the MDIO Unit is defaulted to 1.
+        */
+        mdio_unit = 1;
+    }
+
+    phy_addr_ptr = (uint32_t *) fdt_getprop(fdt_addr, phy, "reg", NULL);
+    phy_info.phy_addr = cvmx_be32_to_cpu(*phy_addr_ptr) | mdio_unit << 8;
+    return phy_info;
+
+}
+
+/**
+ * Return the MII PHY address associated with the given IPD
+ * port. The phy address is obtained from the device tree.
+ *
+ * @param ipd_port Octeon IPD port to get the MII address for.
+ *
+ * @return MII PHY address and bus number or -1.
+ */
+
+int cvmx_helper_board_get_mii_address_from_dt(int ipd_port)
+{
+        cvmx_phy_info_t phy_info = __get_phy_info_from_dt(ipd_port);
+        return phy_info.phy_addr;
+}
+#endif
 
 /**
  * Return the MII PHY address associated with the given IPD
@@ -102,6 +348,16 @@ CVMX_SHARED cvmx_helper_link_info_t (*cvmx_override_board_link_get)(int ipd_port
  */
 int cvmx_helper_board_get_mii_address(int ipd_port)
 {
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
+        return -1;
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
+    if (cvmx_sysinfo_get()->fdt_addr)
+    {
+        cvmx_phy_info_t phy_info = __get_phy_info_from_dt(ipd_port);
+        //cvmx_dprintf("ipd_port=%d phy_addr=%d\n", ipd_port, phy_info.phy_addr);
+        if (phy_info.phy_addr >= 0) return phy_info.phy_addr;
+    }
+#endif
     switch (cvmx_sysinfo_get()->board_type)
     {
         case CVMX_BOARD_TYPE_SIM:
@@ -139,14 +395,6 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return 4;
             else if (ipd_port == 1)
                 return 9;
-            else
-                return -1;
-        case CVMX_BOARD_TYPE_NAC38:
-            /* Board has 8 RGMII ports PHYs are 0-7 */
-            if ((ipd_port >= 0) && (ipd_port < 4))
-                return ipd_port;
-            else if ((ipd_port >= 16) && (ipd_port < 20))
-                return ipd_port - 16 + 4;
             else
                 return -1;
         case CVMX_BOARD_TYPE_EBH3000:
@@ -221,6 +469,37 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return ipd_port + 1 + (1<<8);
             else
                 return -1;
+        case CVMX_BOARD_TYPE_EBB6800:
+            /* Board has 1 management ports */
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                return 6;
+            if (ipd_port >= 0x800 && ipd_port < 0x900) /* QLM 0*/
+                return 0x101 + ((ipd_port >> 4) & 3); /* SMI 1*/
+            if (ipd_port >= 0xa00 && ipd_port < 0xb00) /* QLM 2*/
+                return 0x201 + ((ipd_port >> 4) & 3); /* SMI 2*/
+            if (ipd_port >= 0xb00 && ipd_port < 0xc00) /* QLM 3*/
+                return 0x301 + ((ipd_port >> 4) & 3); /* SMI 3*/
+            if (ipd_port >= 0xc00 && ipd_port < 0xd00) /* QLM 4*/
+                return 0x001 + ((ipd_port >> 4) & 3); /* SMI 0*/
+            return -1;
+        case CVMX_BOARD_TYPE_EP6300C:
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                return 0x01;
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT+1)
+                return 0x02;
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+            {
+                int interface = cvmx_helper_get_interface_num(ipd_port);
+                int mode = cvmx_helper_interface_get_mode(interface);
+                if (mode == CVMX_HELPER_INTERFACE_MODE_XAUI)
+                    return ipd_port;
+                else if ((ipd_port >= 0) && (ipd_port < 4))
+                    return ipd_port + 3;
+                else
+                    return -1;
+            }
+#endif
+            break;
         case CVMX_BOARD_TYPE_CUST_NB5:
             if (ipd_port == 2)
                 return 4;
@@ -233,7 +512,20 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
             else
                 return -1;
         case CVMX_BOARD_TYPE_NIC_XLE_10G:
+        case CVMX_BOARD_TYPE_NIC10E:
             return -1;  /* We don't use clause 45 MDIO for anything */
+        case CVMX_BOARD_TYPE_NIC4E:
+            if (ipd_port >= 0 && ipd_port <= 3)
+                return (ipd_port + 0x1f) & 0x1f;
+            else
+                return -1;
+        case CVMX_BOARD_TYPE_NIC2E:
+            if (ipd_port >= 0 && ipd_port <= 1)
+                return (ipd_port + 1);
+            else
+                return -1;
+        case CVMX_BOARD_TYPE_REDWING:
+	    return -1;  /* No PHYs connected to Octeon */
         case CVMX_BOARD_TYPE_BBGW_REF:
             return -1;  /* No PHYs are connected to Octeon, everything is through switch */
 	case CVMX_BOARD_TYPE_CUST_WSX16:
@@ -254,10 +546,331 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 EXPORT_SYMBOL(cvmx_helper_board_get_mii_address);
 #endif
 
+/**
+ * @INTERNAL
+ * Get link state of marvell PHY
+ */
+static cvmx_helper_link_info_t __get_marvell_phy_link_state(int phy_addr)
+{
+    cvmx_helper_link_info_t  result;
+    int phy_status;
+
+    result.u64 = 0;
+    /*All the speed information can be read from register 17 in one go.*/
+    phy_status = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, 17);
+
+    /* If the resolve bit 11 isn't set, see if autoneg is turned off
+       (bit 12, reg 0). The resolve bit doesn't get set properly when
+       autoneg is off, so force it */
+    if ((phy_status & (1<<11)) == 0)
+    {
+        int auto_status = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, 0);
+        if ((auto_status & (1<<12)) == 0)
+            phy_status |= 1<<11;
+    }
+
+    /* Only return a link if the PHY has finished auto negotiation
+       and set the resolved bit (bit 11) */
+    if (phy_status & (1<<11))
+    {
+        result.s.link_up = 1;
+        result.s.full_duplex = ((phy_status>>13)&1);
+        switch ((phy_status>>14)&3)
+        {
+            case 0: /* 10 Mbps */
+                result.s.speed = 10;
+                break;
+            case 1: /* 100 Mbps */
+                result.s.speed = 100;
+                break;
+            case 2: /* 1 Gbps */
+                result.s.speed = 1000;
+                break;
+            case 3: /* Illegal */
+                result.u64 = 0;
+                break;
+        }
+    }
+    return result;
+}
 
 /**
  * @INTERNAL
- * This function is the board specific method of determining an
+ * Get link state of broadcom PHY
+ */
+static cvmx_helper_link_info_t __get_broadcom_phy_link_state(int phy_addr)
+{
+    cvmx_helper_link_info_t  result;
+    int phy_status;
+
+    result.u64 = 0;
+    /* Below we are going to read SMI/MDIO register 0x19 which works
+       on Broadcom parts */
+    phy_status = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, 0x19);
+    switch ((phy_status>>8) & 0x7)
+    {
+        case 0:
+            result.u64 = 0;
+            break;
+        case 1:
+            result.s.link_up = 1;
+            result.s.full_duplex = 0;
+            result.s.speed = 10;
+            break;
+        case 2:
+            result.s.link_up = 1;
+            result.s.full_duplex = 1;
+            result.s.speed = 10;
+            break;
+        case 3:
+            result.s.link_up = 1;
+            result.s.full_duplex = 0;
+            result.s.speed = 100;
+            break;
+        case 4:
+            result.s.link_up = 1;
+            result.s.full_duplex = 1;
+            result.s.speed = 100;
+            break;
+        case 5:
+            result.s.link_up = 1;
+            result.s.full_duplex = 1;
+            result.s.speed = 100;
+            break;
+        case 6:
+            result.s.link_up = 1;
+            result.s.full_duplex = 0;
+            result.s.speed = 1000;
+            break;
+        case 7:
+            result.s.link_up = 1;
+            result.s.full_duplex = 1;
+            result.s.speed = 1000;
+            break;
+    }
+    return result;
+}
+
+
+/**
+ * @INTERNAL
+ * Get link state using inband status
+ */
+static cvmx_helper_link_info_t __get_inband_link_state(int ipd_port)
+{
+    cvmx_helper_link_info_t  result;
+    cvmx_gmxx_rxx_rx_inbnd_t inband_status;
+    int interface = cvmx_helper_get_interface_num(ipd_port);
+    int index = cvmx_helper_get_interface_index_num(ipd_port);
+
+    result.u64 = 0;
+    inband_status.u64 = cvmx_read_csr(CVMX_GMXX_RXX_RX_INBND(index, interface));
+    result.s.link_up = inband_status.s.status;
+    result.s.full_duplex = inband_status.s.duplex;
+    switch (inband_status.s.speed)
+    {
+        case 0: /* 10 Mbps */
+            result.s.speed = 10;
+            break;
+        case 1: /* 100 Mbps */
+            result.s.speed = 100;
+            break;
+        case 2: /* 1 Gbps */
+            result.s.speed = 1000;
+            break;
+        case 3: /* Illegal */
+            result.u64 = 0;
+            break;
+    }
+    return result;
+}
+
+/**
+ * @INTERNAL
+ * Switch MDIO mux to the specified port.
+ */
+int __switch_mdio_mux(int ipd_port)
+{
+    /* This method is board specific and doesn't use the device tree
+       information as SE doesn't implement MDIO MUX abstration */
+    switch (cvmx_sysinfo_get()->board_type)
+    {
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
+        case CVMX_BOARD_TYPE_EBB5600:
+        {
+            static unsigned char qlm_switch_addr = 0;
+            /* Board has 1 management port */
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                return 0;
+            /* Board has 8 SGMII ports. 4 connected QLM1, 4 connected QLM3 */
+            if ((ipd_port >= 0) && (ipd_port < 4))
+            {
+                if (qlm_switch_addr != 0x3)
+                {
+                    qlm_switch_addr = 0x3;  /* QLM1 */
+                    cvmx_twsix_write_ia(0, 0x71, 0, 1, 1, qlm_switch_addr);
+                    cvmx_wait_usec(11000); /* Let the write complete */
+                }
+                return ipd_port+1 + (1<<8);
+            }
+            else if ((ipd_port >= 16) && (ipd_port < 20))
+            {
+                if (qlm_switch_addr != 0xC)
+                {
+                    qlm_switch_addr = 0xC;  /* QLM3 */
+                    cvmx_twsix_write_ia(0, 0x71, 0, 1, 1, qlm_switch_addr);
+                    cvmx_wait_usec(11000); /* Let the write complete */
+                }
+                return ipd_port-16+1 + (1<<8);
+            }
+            else
+                return -1;
+        }
+        case CVMX_BOARD_TYPE_EBB6600:
+        {
+            static unsigned char qlm_switch_addr = 0;
+            int old_twsi_switch_reg;
+            /* Board has 2 management ports */
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) &&
+                (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+                return ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT + 4;
+            if ((ipd_port >= 0) && (ipd_port < 4)) /* QLM 2 */
+            {
+                if (qlm_switch_addr != 2)
+                {
+                    int tries;
+                    qlm_switch_addr = 2;
+                    tries = 3;
+                    do {
+                        old_twsi_switch_reg = cvmx_twsix_read8(0, 0x70, 0);
+                    } while (tries-- > 0 && old_twsi_switch_reg < 0);
+                    /* Set I2C MUX to enable port expander */
+                    cvmx_retry_i2c_write(0, 0x70, 0, 1, 0, 8);
+                    /* Set selecter to QLM 1 */
+                    cvmx_retry_i2c_write(0, 0x38, 0, 1, 0, 0xff);
+                    /* disable port expander */
+                    cvmx_retry_i2c_write(0, 0x70, 0, 1, 0, old_twsi_switch_reg);
+                }
+                return 0x101 + ipd_port;
+            }
+            else if ((ipd_port >= 16) && (ipd_port < 20)) /* QLM 1 */
+            {
+                if (qlm_switch_addr != 1)
+                {
+                    int tries;
+                    qlm_switch_addr = 1;
+                    tries = 3;
+                    do {
+                            old_twsi_switch_reg = cvmx_twsix_read8(0, 0x70, 0);
+                    } while (tries-- > 0 && old_twsi_switch_reg < 0);
+                    /* Set I2C MUX to enable port expander */
+                    cvmx_retry_i2c_write(0, 0x70, 0, 1, 0, 8);
+                    /* Set selecter to QLM 2 */
+                    cvmx_retry_i2c_write(0, 0x38, 0, 1, 0, 0xf7);
+                    /* disable port expander */
+                    cvmx_retry_i2c_write(0, 0x70, 0, 1, 0, old_twsi_switch_reg);
+                }
+                return 0x101 + (ipd_port - 16);
+            } else
+                return -1;
+        }
+        case CVMX_BOARD_TYPE_EBB6100:
+        {
+            static char gpio_configured = 0;
+
+            if (!gpio_configured)
+            {
+                cvmx_gpio_cfg(3, 1);
+                gpio_configured = 1;
+            }
+            /* Board has 2 management ports */
+            if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) &&
+                (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+                return ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT + 4;
+            if ((ipd_port >= 0) && (ipd_port < 4)) /* QLM 2 */
+            {
+                cvmx_gpio_set(1ull << 3);
+                return 0x101 + ipd_port;
+            }
+            else if ((ipd_port >= 16) && (ipd_port < 20)) /* QLM 0 */
+            {
+                cvmx_gpio_clear(1ull << 3);
+                return 0x101 + (ipd_port - 16);
+            }
+            else
+            {
+                printf("%s: Unknown ipd port 0x%x\n", __func__, ipd_port);
+                return -1;
+            }
+        }
+#endif /* CVMX_BUILD_FOR_LINUX_KERNEL */
+        default:
+        {
+            cvmx_dprintf("ERROR : unexpected mdio switch for board=%08x\n",
+                         cvmx_sysinfo_get()->board_type);
+            return -1;
+        }
+    }
+    /* should never get here */
+    return -1;
+}
+
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
+/**
+ * @INTERNAL
+ * This function is used ethernet ports link speed. This functions uses the
+ * device tree information to determine the phy address and type of PHY.
+ * The only supproted PHYs are Marvell and Broadcom.
+ *
+ * @param ipd_port IPD input port associated with the port we want to get link
+ *                 status for.
+ *
+ * @return The ports link status. If the link isn't fully resolved, this must
+ *         return zero.
+ */
+
+cvmx_helper_link_info_t __cvmx_helper_board_link_get_from_dt(int ipd_port)
+{
+    cvmx_helper_link_info_t  result;
+    cvmx_phy_info_t phy_info;
+
+    result.u64 = 0;
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
+    {
+        /* The simulator gives you a simulated 1Gbps full duplex link */
+        result.s.link_up = 1;
+        result.s.full_duplex = 1;
+        result.s.speed = 1000;
+        return result;
+    }
+    phy_info = __get_phy_info_from_dt(ipd_port);
+    //cvmx_dprintf("ipd_port=%d phy_addr=%d dc=%d type=%d \n", ipd_port,
+    //             phy_info.phy_addr, phy_info.direct_connect, phy_info.phy_type);
+    if (phy_info.phy_addr < 0) return result;
+
+    if (phy_info.direct_connect == 0)
+        __switch_mdio_mux(ipd_port);
+    switch(phy_info.phy_type)
+    {
+        case BROADCOM_GENERIC_PHY:
+            result = __get_broadcom_phy_link_state(phy_info.phy_addr);
+            break;
+        case MARVELL_GENERIC_PHY:
+            result = __get_marvell_phy_link_state(phy_info.phy_addr);
+            break;
+        default:
+            result = __get_inband_link_state(ipd_port);
+    }
+    return result;
+
+}
+#endif
+
+/**
+ * @INTERNAL
+ * This function invokes  __cvmx_helper_board_link_get_from_dt when device tree
+ * info is available. When the device tree information is not available then
+ * this function is the board specific method of determining an
  * ethernet ports link speed. Most Octeon boards have Marvell PHYs
  * and are handled by the fall through case. This function must be
  * updated for boards that don't have the normal Marvell PHYs.
@@ -279,6 +892,13 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
     cvmx_helper_link_info_t result;
     int phy_addr;
     int is_broadcom_phy = 0;
+
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
+    if (cvmx_sysinfo_get()->fdt_addr)
+    {
+        return __cvmx_helper_board_link_get_from_dt(ipd_port);
+    }
+#endif
 
     /* Give the user a chance to override the processing of this function */
     if (cvmx_override_board_link_get)
@@ -329,10 +949,15 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
             if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
                 is_broadcom_phy = 1;
             break;
+        case CVMX_BOARD_TYPE_EBB6100:
         case CVMX_BOARD_TYPE_EBB6300:   /* Only for MII mode, with PHY addresses 0/1. Default is RGMII*/
+        case CVMX_BOARD_TYPE_EBB6600:   /* Only for MII mode, with PHY addresses 0/1. Default is RGMII*/
             if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) && (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2))
                 && cvmx_helper_board_get_mii_address(ipd_port) >= 0 && cvmx_helper_board_get_mii_address(ipd_port) <= 1)
                 is_broadcom_phy = 1;
+            break;
+        case CVMX_BOARD_TYPE_EP6300C:
+            is_broadcom_phy = 1;
             break;
         case CVMX_BOARD_TYPE_CUST_NB5:
             /* Port 1 on these boards is always Gigabit */
@@ -362,128 +987,34 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
                 result.s.speed = 1000;
                 return result;
             }
+        case CVMX_BOARD_TYPE_NIC4E:
+        case CVMX_BOARD_TYPE_NIC2E:
+            is_broadcom_phy = 1;
             break;
     }
 
     phy_addr = cvmx_helper_board_get_mii_address(ipd_port);
+    //cvmx_dprintf("ipd_port=%d phy_addr=%d broadcom=%d\n",
+    //             ipd_port, phy_addr, is_broadcom_phy);
     if (phy_addr != -1)
     {
         if (is_broadcom_phy)
         {
-            /* Below we are going to read SMI/MDIO register 0x19 which works
-                on Broadcom parts */
-            int phy_status = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, 0x19);
-            switch ((phy_status>>8) & 0x7)
-            {
-                case 0:
-                    result.u64 = 0;
-                    break;
-                case 1:
-                    result.s.link_up = 1;
-                    result.s.full_duplex = 0;
-                    result.s.speed = 10;
-                    break;
-                case 2:
-                    result.s.link_up = 1;
-                    result.s.full_duplex = 1;
-                    result.s.speed = 10;
-                    break;
-                case 3:
-                    result.s.link_up = 1;
-                    result.s.full_duplex = 0;
-                    result.s.speed = 100;
-                    break;
-                case 4:
-                    result.s.link_up = 1;
-                    result.s.full_duplex = 1;
-                    result.s.speed = 100;
-                    break;
-                case 5:
-                    result.s.link_up = 1;
-                    result.s.full_duplex = 1;
-                    result.s.speed = 100;
-                    break;
-                case 6:
-                    result.s.link_up = 1;
-                    result.s.full_duplex = 0;
-                    result.s.speed = 1000;
-                    break;
-                case 7:
-                    result.s.link_up = 1;
-                    result.s.full_duplex = 1;
-                    result.s.speed = 1000;
-                    break;
-            }
+            result =  __get_broadcom_phy_link_state(phy_addr);
         }
         else
         {
-            /* This code assumes we are using a Marvell Gigabit PHY. All the
-                speed information can be read from register 17 in one go. Somebody
-                using a different PHY will need to handle it above in the board
-                specific area */
-            int phy_status = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, 17);
-
-            /* If the resolve bit 11 isn't set, see if autoneg is turned off
-                (bit 12, reg 0). The resolve bit doesn't get set properly when
-                autoneg is off, so force it */
-            if ((phy_status & (1<<11)) == 0)
-            {
-                int auto_status = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, 0);
-                if ((auto_status & (1<<12)) == 0)
-                    phy_status |= 1<<11;
-            }
-
-            /* Only return a link if the PHY has finished auto negotiation
-                and set the resolved bit (bit 11) */
-            if (phy_status & (1<<11))
-            {
-                result.s.link_up = 1;
-                result.s.full_duplex = ((phy_status>>13)&1);
-                switch ((phy_status>>14)&3)
-                {
-                    case 0: /* 10 Mbps */
-                        result.s.speed = 10;
-                        break;
-                    case 1: /* 100 Mbps */
-                        result.s.speed = 100;
-                        break;
-                    case 2: /* 1 Gbps */
-                        result.s.speed = 1000;
-                        break;
-                    case 3: /* Illegal */
-                        result.u64 = 0;
-                        break;
-                }
-            }
+            /* This code assumes we are using a Marvell Gigabit PHY. */
+            result = __get_marvell_phy_link_state(phy_addr);
         }
     }
-    else if (OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN50XX))
+    else if (OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN58XX)
+             || OCTEON_IS_MODEL(OCTEON_CN50XX))
     {
         /* We don't have a PHY address, so attempt to use in-band status. It is
             really important that boards not supporting in-band status never get
             here. Reading broken in-band status tends to do bad things */
-        cvmx_gmxx_rxx_rx_inbnd_t inband_status;
-        int interface = cvmx_helper_get_interface_num(ipd_port);
-        int index = cvmx_helper_get_interface_index_num(ipd_port);
-        inband_status.u64 = cvmx_read_csr(CVMX_GMXX_RXX_RX_INBND(index, interface));
-
-        result.s.link_up = inband_status.s.status;
-        result.s.full_duplex = inband_status.s.duplex;
-        switch (inband_status.s.speed)
-        {
-            case 0: /* 10 Mbps */
-                result.s.speed = 10;
-                break;
-            case 1: /* 100 Mbps */
-                result.s.speed = 100;
-                break;
-            case 2: /* 1 Gbps */
-                result.s.speed = 1000;
-                break;
-            case 3: /* Illegal */
-                result.u64 = 0;
-                break;
-        }
+        result = __get_inband_link_state(ipd_port);
     }
     else
     {
@@ -565,7 +1096,6 @@ int cvmx_helper_board_link_set_phy(int phy_addr, cvmx_helper_board_set_phy_link_
         cvmx_mdio_phy_reg_control_t reg_control;
         cvmx_mdio_phy_reg_status_t reg_status;
         cvmx_mdio_phy_reg_autoneg_adver_t reg_autoneg_adver;
-        cvmx_mdio_phy_reg_extended_status_t reg_extended_status;
         cvmx_mdio_phy_reg_control_1000_t reg_control_1000;
 
         reg_status.u16 = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, CVMX_MDIO_PHY_REG_STATUS);
@@ -577,7 +1107,6 @@ int cvmx_helper_board_link_set_phy(int phy_addr, cvmx_helper_board_set_phy_link_
         reg_autoneg_adver.s.advert_100base_tx_half = 0;
         if (reg_status.s.capable_extended_status)
         {
-            reg_extended_status.u16 = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, CVMX_MDIO_PHY_REG_EXTENDED_STATUS);
             reg_control_1000.u16 = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, CVMX_MDIO_PHY_REG_CONTROL_1000);
             reg_control_1000.s.advert_1000base_t_full = 0;
             reg_control_1000.s.advert_1000base_t_half = 0;
@@ -689,6 +1218,9 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
         case CVMX_BOARD_TYPE_EBT5810:
             return 1;  /* Two ports on each SPI: 1 hooked to MAC, 1 loopback
                        ** Loopback disabled by default. */
+        case CVMX_BOARD_TYPE_NIC2E:
+            if (interface == 0)
+                return 2;
     }
 #ifdef CVMX_BUILD_FOR_UBOOT
     if (CVMX_HELPER_INTERFACE_MODE_SPI == cvmx_helper_interface_get_mode(interface) && getenv("disable_spi"))
@@ -777,14 +1309,74 @@ int __cvmx_helper_board_hardware_enable(int interface)
  */
 cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
 {
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
+    const void *fdt_addr = CASTPTR(const void *, cvmx_sysinfo_get()->fdt_addr);
+    int nodeoffset;
+    const void *nodep;
+    int len;
+    uint32_t speed = 0;
+    const char *type = NULL;
+
+    if (fdt_addr)
+    {
+        nodeoffset = fdt_path_offset(fdt_addr, "/soc/uctl");
+        if (nodeoffset < 0)
+            nodeoffset = fdt_path_offset(fdt_addr, "/soc/usbn");
+
+        if (nodeoffset >= 0)
+        {
+            nodep = fdt_getprop(fdt_addr, nodeoffset, "refclk-type", &len);
+            if (nodep != NULL && len > 0)
+                type = (const char *)nodep;
+            else
+                type = "unknown";
+            nodep = fdt_getprop(fdt_addr, nodeoffset, "refclk-frequency", &len);
+            if (nodep != NULL && len == sizeof(uint32_t))
+                speed = fdt32_to_cpu(*(int *)nodep);
+            else
+                speed = 0;
+            if (!strcmp(type, "crystal"))
+            {
+                if (speed == 0 || speed == 12000000)
+                    return USB_CLOCK_TYPE_CRYSTAL_12;
+                else
+                    printf("Warning: invalid crystal speed for USB clock type in FDT\n");
+            }
+            else if (!strcmp(type, "external"))
+            {
+                switch (speed) {
+                case 12000000:
+                    return USB_CLOCK_TYPE_REF_12;
+                case 24000000:
+                    return USB_CLOCK_TYPE_REF_24;
+                case 0:
+                case 48000000:
+                    return USB_CLOCK_TYPE_REF_48;
+                default:
+                    printf("Warning: invalid USB clock speed of %u hz in FDT\n", speed);
+                }
+            }
+            else
+                printf("Warning: invalid USB reference clock type \"%s\" in FDT\n", type ? type : "NULL");
+        }
+    }
+#endif
     switch (cvmx_sysinfo_get()->board_type)
     {
         case CVMX_BOARD_TYPE_BBGW_REF:
         case CVMX_BOARD_TYPE_LANAI2_A:
         case CVMX_BOARD_TYPE_LANAI2_U:
         case CVMX_BOARD_TYPE_LANAI2_G:
+        case CVMX_BOARD_TYPE_NIC10E_66:
             return USB_CLOCK_TYPE_CRYSTAL_12;
+        case CVMX_BOARD_TYPE_NIC10E:
+            return USB_CLOCK_TYPE_REF_12;
+        default:
+            break;
     }
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX)	/* Most boards except NIC10e use a 12MHz crystal */
+        || OCTEON_IS_MODEL(OCTEON_CNF7XXX))
+        return USB_CLOCK_TYPE_CRYSTAL_12;
     return USB_CLOCK_TYPE_REF_48;
 }
 
@@ -806,6 +1398,7 @@ int __cvmx_helper_board_usb_get_num_ports(int supported_ports)
     switch (cvmx_sysinfo_get()->board_type)
     {
         case CVMX_BOARD_TYPE_NIC_XLE_4G:
+        case CVMX_BOARD_TYPE_NIC2E:
             return 0;
     }
 

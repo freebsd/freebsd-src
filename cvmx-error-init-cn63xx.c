@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -67,10 +67,8 @@
  *     cvmx_root:root:e -> cvmx_ciu_int_sum1 [label="root"];
  *     cvmx_ciu_block_int [label="CIU_BLOCK_INT|<l2c>l2c|<ipd>ipd|<pow>pow|<rad>rad|<asxpcs0>asxpcs0|<pip>pip|<pko>pko|<pem0>pem0|<pem1>pem1|<fpa>fpa|<usb>usb|<mio>mio|<dfm>dfm|<tim>tim|<lmc0>lmc0|<key>key|<gmx0>gmx0|<iob>iob|<agl>agl|<zip>zip|<dfa>dfa|<srio0>srio0|<srio1>srio1|<sli>sli|<dpi>dpi"];
  *     cvmx_l2c_int_reg [label="L2C_INT_REG|<holerd>holerd|<holewr>holewr|<vrtwr>vrtwr|<vrtidrng>vrtidrng|<vrtadrng>vrtadrng|<vrtpe>vrtpe|<bigwr>bigwr|<bigrd>bigrd|<tad0>tad0"];
- *     cvmx_l2c_err_tdt0 [label="L2C_ERR_TDTX(0)|<vsbe>vsbe|<vdbe>vdbe|<sbe>sbe|<dbe>dbe"];
- *     cvmx_l2c_int_reg:tad0:e -> cvmx_l2c_err_tdt0 [label="tad0"];
- *     cvmx_l2c_err_ttg0 [label="L2C_ERR_TTGX(0)|<noway>noway|<sbe>sbe|<dbe>dbe"];
- *     cvmx_l2c_int_reg:tad0:e -> cvmx_l2c_err_ttg0 [label="tad0"];
+ *     cvmx_l2c_tad0_int [label="L2C_TADX_INT(0)|<l2dsbe>l2dsbe|<l2ddbe>l2ddbe|<tagsbe>tagsbe|<tagdbe>tagdbe|<vbfsbe>vbfsbe|<vbfdbe>vbfdbe|<noway>noway|<rddislmc>rddislmc|<wrdislmc>wrdislmc"];
+ *     cvmx_l2c_int_reg:tad0:e -> cvmx_l2c_tad0_int [label="tad0"];
  *     cvmx_ciu_block_int:l2c:e -> cvmx_l2c_int_reg [label="l2c"];
  *     cvmx_ipd_int_sum [label="IPD_INT_SUM|<prc_par0>prc_par0|<prc_par1>prc_par1|<prc_par2>prc_par2|<prc_par3>prc_par3|<bp_sub>bp_sub|<dc_ovr>dc_ovr|<cc_ovr>cc_ovr|<c_coll>c_coll|<d_coll>d_coll|<bc_ovr>bc_ovr"];
  *     cvmx_ciu_block_int:ipd:e -> cvmx_ipd_int_sum [label="ipd"];
@@ -86,7 +84,7 @@
  *     cvmx_ciu_block_int:asxpcs0:e -> cvmx_pcs0_int2_reg [label="asxpcs0"];
  *     cvmx_pcs0_int3_reg [label="PCSX_INTX_REG(3,0)|<an_err>an_err|<txfifu>txfifu|<txfifo>txfifo|<txbad>txbad|<rxbad>rxbad|<rxlock>rxlock|<an_bad>an_bad|<sync_bad>sync_bad|<dbg_sync>dbg_sync"];
  *     cvmx_ciu_block_int:asxpcs0:e -> cvmx_pcs0_int3_reg [label="asxpcs0"];
- *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<synlos>synlos|<algnlos>algnlos|<dbg_sync>dbg_sync"];
+ *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<bitlckls>bitlckls|<synlos>synlos|<algnlos>algnlos|<dbg_sync>dbg_sync"];
  *     cvmx_ciu_block_int:asxpcs0:e -> cvmx_pcsx0_int_reg [label="asxpcs0"];
  *     cvmx_pip_int_reg [label="PIP_INT_REG|<prtnxa>prtnxa|<badtag>badtag|<skprunt>skprunt|<todoovr>todoovr|<feperr>feperr|<beperr>beperr|<punyerr>punyerr"];
  *     cvmx_ciu_block_int:pip:e -> cvmx_pip_int_reg [label="pip"];
@@ -142,9 +140,9 @@
  *     cvmx_ciu_block_int:zip:e -> cvmx_zip_error [label="zip"];
  *     cvmx_dfa_error [label="DFA_ERROR|<dblovf>dblovf|<dc0perr>dc0perr"];
  *     cvmx_ciu_block_int:dfa:e -> cvmx_dfa_error [label="dfa"];
- *     cvmx_srio0_int_reg [label="SRIOX_INT_REG(0)|<bar_err>bar_err|<deny_wr>deny_wr|<sli_err>sli_err|<mce_rx>mce_rx|<log_erb>log_erb|<phy_erb>phy_erb|<omsg_err>omsg_err|<pko_err>pko_err|<rtry_err>rtry_err|<f_error>f_error|<mac_buf>mac_buf|<degrad>degrad|<fail>fail|<ttl_tout>ttl_tout"];
+ *     cvmx_srio0_int_reg [label="SRIOX_INT_REG(0)|<bar_err>bar_err|<deny_wr>deny_wr|<sli_err>sli_err|<mce_rx>mce_rx|<log_erb>log_erb|<phy_erb>phy_erb|<omsg_err>omsg_err|<pko_err>pko_err|<rtry_err>rtry_err|<f_error>f_error|<mac_buf>mac_buf|<degrad>degrad|<fail>fail|<ttl_tout>ttl_tout|<zero_pkt>zero_pkt"];
  *     cvmx_ciu_block_int:srio0:e -> cvmx_srio0_int_reg [label="srio0"];
- *     cvmx_srio1_int_reg [label="SRIOX_INT_REG(1)|<bar_err>bar_err|<deny_wr>deny_wr|<sli_err>sli_err|<mce_rx>mce_rx|<log_erb>log_erb|<phy_erb>phy_erb|<omsg_err>omsg_err|<pko_err>pko_err|<rtry_err>rtry_err|<f_error>f_error|<mac_buf>mac_buf|<degrad>degrad|<fail>fail|<ttl_tout>ttl_tout"];
+ *     cvmx_srio1_int_reg [label="SRIOX_INT_REG(1)|<bar_err>bar_err|<deny_wr>deny_wr|<sli_err>sli_err|<mce_rx>mce_rx|<log_erb>log_erb|<phy_erb>phy_erb|<omsg_err>omsg_err|<pko_err>pko_err|<rtry_err>rtry_err|<f_error>f_error|<mac_buf>mac_buf|<degrad>degrad|<fail>fail|<ttl_tout>ttl_tout|<zero_pkt>zero_pkt"];
  *     cvmx_ciu_block_int:srio1:e -> cvmx_srio1_int_reg [label="srio1"];
  *     cvmx_sli_int_sum [label="PEXP_SLI_INT_SUM|<rml_to>rml_to|<reserved_1_1>reserved_1_1|<bar0_to>bar0_to|<iob2big>iob2big|<reserved_6_7>reserved_6_7|<m0_up_b0>m0_up_b0|<m0_up_wi>m0_up_wi|<m0_un_b0>m0_un_b0|<m0_un_wi>m0_un_wi|<m1_up_b0>m1_up_b0|<m1_up_wi>m1_up_wi|<m1_un_b0>m1_un_b0|<m1_un_wi>m1_un_wi|<pidbof>pidbof|<psldbof>psldbof|<pout_err>pout_err|<pin_bp>pin_bp|<pgl_err>pgl_err|<pdi_err>pdi_err|<pop_err>pop_err|<pins_err>pins_err|<sprt0_err>sprt0_err|<sprt1_err>sprt1_err|<ill_pad>ill_pad"];
  *     cvmx_ciu_block_int:sli:e -> cvmx_sli_int_sum [label="sli"];
@@ -767,12 +765,12 @@ int cvmx_error_initialize_cn63xx(void)
     info.user_info          = 0;
     fail |= cvmx_error_add(&info);
 
-    /* CVMX_L2C_ERR_TDTX(0) */
+    /* CVMX_L2C_TADX_INT(0) */
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_L2C_ERR_TDTX(0);
-    info.status_mask        = 1ull<<60 /* vsbe */;
-    info.enable_addr        = 0;
-    info.enable_mask        = 0;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<0 /* l2dsbe */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<0 /* l2dsbe */;
     info.flags              = 0;
     info.group              = CVMX_ERROR_GROUP_INTERNAL;
     info.group_index        = 0;
@@ -781,14 +779,16 @@ int cvmx_error_initialize_cn63xx(void)
     info.parent.status_mask = 1ull<<16 /* tad0 */;
     info.func               = __cvmx_error_display;
     info.user_info          = (long)
-        "ERROR L2C_ERR_TDTX(0)[VSBE]: VBF Single-Bit error has occurred\n";
+        "ERROR L2C_TADX_INT(0)[L2DSBE]: L2D Single-Bit Error\n"
+        "    Shadow copy of L2C_ERR_TDTX[SBE]\n"
+        "    Writes of 1 also clear L2C_ERR_TDTX[SBE]\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_L2C_ERR_TDTX(0);
-    info.status_mask        = 1ull<<61 /* vdbe */;
-    info.enable_addr        = 0;
-    info.enable_mask        = 0;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<1 /* l2ddbe */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<1 /* l2ddbe */;
     info.flags              = 0;
     info.group              = CVMX_ERROR_GROUP_INTERNAL;
     info.group_index        = 0;
@@ -797,14 +797,16 @@ int cvmx_error_initialize_cn63xx(void)
     info.parent.status_mask = 1ull<<16 /* tad0 */;
     info.func               = __cvmx_error_display;
     info.user_info          = (long)
-        "ERROR L2C_ERR_TDTX(0)[VDBE]: VBF Double-Bit error has occurred\n";
+        "ERROR L2C_TADX_INT(0)[L2DDBE]: L2D Double-Bit Error\n"
+        "    Shadow copy of L2C_ERR_TDTX[DBE]\n"
+        "    Writes of 1 also clear L2C_ERR_TDTX[DBE]\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_L2C_ERR_TDTX(0);
-    info.status_mask        = 1ull<<62 /* sbe */;
-    info.enable_addr        = 0;
-    info.enable_mask        = 0;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<2 /* tagsbe */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<2 /* tagsbe */;
     info.flags              = 0;
     info.group              = CVMX_ERROR_GROUP_INTERNAL;
     info.group_index        = 0;
@@ -813,14 +815,16 @@ int cvmx_error_initialize_cn63xx(void)
     info.parent.status_mask = 1ull<<16 /* tad0 */;
     info.func               = __cvmx_error_display;
     info.user_info          = (long)
-        "ERROR L2C_ERR_TDTX(0)[SBE]: L2D Single-Bit error has occurred\n";
+        "ERROR L2C_TADX_INT(0)[TAGSBE]: TAG Single-Bit Error\n"
+        "    Shadow copy of L2C_ERR_TTGX[SBE]\n"
+        "    Writes of 1 also clear L2C_ERR_TTGX[SBE]\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_L2C_ERR_TDTX(0);
-    info.status_mask        = 1ull<<63 /* dbe */;
-    info.enable_addr        = 0;
-    info.enable_mask        = 0;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<3 /* tagdbe */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<3 /* tagdbe */;
     info.flags              = 0;
     info.group              = CVMX_ERROR_GROUP_INTERNAL;
     info.group_index        = 0;
@@ -829,44 +833,16 @@ int cvmx_error_initialize_cn63xx(void)
     info.parent.status_mask = 1ull<<16 /* tad0 */;
     info.func               = __cvmx_error_display;
     info.user_info          = (long)
-        "ERROR L2C_ERR_TDTX(0)[DBE]: L2D Double-Bit error has occurred\n";
-    fail |= cvmx_error_add(&info);
-
-    /* CVMX_L2C_ERR_TTGX(0) */
-    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_L2C_ERR_TTGX(0);
-    info.status_mask        = 1ull<<61 /* noway */;
-    info.enable_addr        = 0;
-    info.enable_mask        = 0;
-    info.flags              = 0;
-    info.group              = CVMX_ERROR_GROUP_INTERNAL;
-    info.group_index        = 0;
-    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
-    info.parent.status_addr = CVMX_L2C_INT_REG;
-    info.parent.status_mask = 1ull<<16 /* tad0 */;
-    info.func               = __cvmx_error_display;
-    info.user_info          = (long)
-        "ERROR L2C_ERR_TTGX(0)[NOWAY]: No way was available for allocation.\n"
-        "    L2C sets NOWAY during its processing of a\n"
-        "    transaction whenever it needed/wanted to allocate\n"
-        "    a WAY in the L2 cache, but was unable to. NOWAY==1\n"
-        "    is (generally) not an indication that L2C failed to\n"
-        "    complete transactions. Rather, it is a hint of\n"
-        "    possible performance degradation. (For example, L2C\n"
-        "    must read-modify-write DRAM for every transaction\n"
-        "    that updates some, but not all, of the bytes in a\n"
-        "    cache block, misses in the L2 cache, and cannot\n"
-        "    allocate a WAY.) There is one \"failure\" case where\n"
-        "    L2C will set NOWAY: when it cannot leave a block\n"
-        "    locked in the L2 cache as part of a LCKL2\n"
-        "    transaction.\n";
+        "ERROR L2C_TADX_INT(0)[TAGDBE]: TAG Double-Bit Error\n"
+        "    Shadow copy of L2C_ERR_TTGX[DBE]\n"
+        "    Writes of 1 also clear L2C_ERR_TTGX[DBE]\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_L2C_ERR_TTGX(0);
-    info.status_mask        = 1ull<<62 /* sbe */;
-    info.enable_addr        = 0;
-    info.enable_mask        = 0;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<4 /* vbfsbe */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<4 /* vbfsbe */;
     info.flags              = 0;
     info.group              = CVMX_ERROR_GROUP_INTERNAL;
     info.group_index        = 0;
@@ -875,14 +851,16 @@ int cvmx_error_initialize_cn63xx(void)
     info.parent.status_mask = 1ull<<16 /* tad0 */;
     info.func               = __cvmx_error_display;
     info.user_info          = (long)
-        "ERROR L2C_ERR_TTGX(0)[SBE]: Single-Bit ECC error\n";
+        "ERROR L2C_TADX_INT(0)[VBFSBE]: VBF Single-Bit Error\n"
+        "    Shadow copy of L2C_ERR_TDTX[VSBE]\n"
+        "    Writes of 1 also clear L2C_ERR_TDTX[VSBE]\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_L2C_ERR_TTGX(0);
-    info.status_mask        = 1ull<<63 /* dbe */;
-    info.enable_addr        = 0;
-    info.enable_mask        = 0;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<5 /* vbfdbe */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<5 /* vbfdbe */;
     info.flags              = 0;
     info.group              = CVMX_ERROR_GROUP_INTERNAL;
     info.group_index        = 0;
@@ -891,7 +869,61 @@ int cvmx_error_initialize_cn63xx(void)
     info.parent.status_mask = 1ull<<16 /* tad0 */;
     info.func               = __cvmx_error_display;
     info.user_info          = (long)
-        "ERROR L2C_ERR_TTGX(0)[DBE]: Double-Bit ECC error\n";
+        "ERROR L2C_TADX_INT(0)[VBFDBE]: VBF Double-Bit Error\n"
+        "    Shadow copy of L2C_ERR_TDTX[VDBE]\n"
+        "    Writes of 1 also clear L2C_ERR_TDTX[VDBE]\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<6 /* noway */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<6 /* noway */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_INTERNAL;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_L2C_INT_REG;
+    info.parent.status_mask = 1ull<<16 /* tad0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR L2C_TADX_INT(0)[NOWAY]: No way available interrupt\n"
+        "    Shadow copy of L2C_ERR_TTGX[NOWAY]\n"
+        "    Writes of 1 also clear L2C_ERR_TTGX[NOWAY]\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<7 /* rddislmc */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<7 /* rddislmc */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_INTERNAL;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_L2C_INT_REG;
+    info.parent.status_mask = 1ull<<16 /* tad0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR L2C_TADX_INT(0)[RDDISLMC]: Illegal Read  to Disabled LMC Error\n"
+        "    A DRAM read  arrived before the LMC(s) were enabled\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_L2C_TADX_INT(0);
+    info.status_mask        = 1ull<<8 /* wrdislmc */;
+    info.enable_addr        = CVMX_L2C_TADX_IEN(0);
+    info.enable_mask        = 1ull<<8 /* wrdislmc */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_INTERNAL;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_L2C_INT_REG;
+    info.parent.status_mask = 1ull<<16 /* tad0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR L2C_TADX_INT(0)[WRDISLMC]: Illegal Write to Disabled LMC Error\n"
+        "    A DRAM write arrived before the LMC(s) were enabled\n";
     fail |= cvmx_error_add(&info);
 
     /* CVMX_IPD_INT_SUM */
@@ -1804,6 +1836,22 @@ int cvmx_error_initialize_cn63xx(void)
     info.user_info          = (long)
         "ERROR PCSXX_INT_REG(0)[RXSYNBAD]: Set when RX code grp sync st machine in bad state\n"
         "    in one of the 4 xaui lanes\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_PCSXX_INT_REG(0);
+    info.status_mask        = 1ull<<3 /* bitlckls */;
+    info.enable_addr        = CVMX_PCSXX_INT_EN_REG(0);
+    info.enable_mask        = 1ull<<3 /* bitlckls_en */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_ETHERNET;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_CIU_BLOCK_INT;
+    info.parent.status_mask = 1ull<<22 /* asxpcs0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR PCSXX_INT_REG(0)[BITLCKLS]: Set when Bit lock lost on 1 or more xaui lanes\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
@@ -4419,7 +4467,7 @@ int cvmx_error_initialize_cn63xx(void)
     info.enable_addr        = CVMX_DFM_FNT_IENA;
     info.enable_mask        = 1ull<<0 /* sbe_intena */;
     info.flags              = 0;
-    info.group              = CVMX_ERROR_GROUP_INTERNAL;
+    info.group              = CVMX_ERROR_GROUP_DFM;
     info.group_index        = 0;
     info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
     info.parent.status_addr = CVMX_CIU_BLOCK_INT;
@@ -4437,7 +4485,7 @@ int cvmx_error_initialize_cn63xx(void)
     info.enable_addr        = CVMX_DFM_FNT_IENA;
     info.enable_mask        = 1ull<<1 /* dbe_intena */;
     info.flags              = 0;
-    info.group              = CVMX_ERROR_GROUP_INTERNAL;
+    info.group              = CVMX_ERROR_GROUP_DFM;
     info.group_index        = 0;
     info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
     info.parent.status_addr = CVMX_CIU_BLOCK_INT;
@@ -6247,6 +6295,22 @@ int cvmx_error_initialize_cn63xx(void)
         "    See SRIOMAINT(0..1)_DROP_PACKET\n";
     fail |= cvmx_error_add(&info);
 
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_SRIOX_INT_REG(0);
+    info.status_mask        = 1ull<<26 /* zero_pkt */;
+    info.enable_addr        = CVMX_SRIOX_INT_ENABLE(0);
+    info.enable_mask        = 1ull<<26 /* zero_pkt */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_SRIO;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_CIU_BLOCK_INT;
+    info.parent.status_mask = 1ull<<32 /* srio0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR SRIOX_INT_REG(0)[ZERO_PKT]: Received Incoming SRIO Zero byte packet (Pass 2)\n";
+    fail |= cvmx_error_add(&info);
+
     /* CVMX_SRIOX_INT_REG(1) */
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
     info.status_addr        = CVMX_SRIOX_INT_REG(1);
@@ -6482,6 +6546,22 @@ int cvmx_error_initialize_cn63xx(void)
     info.user_info          = (long)
         "ERROR SRIOX_INT_REG(1)[TTL_TOUT]: Outgoing Packet Time to Live Timeout (Pass 2)\n"
         "    See SRIOMAINT(0..1)_DROP_PACKET\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_SRIOX_INT_REG(1);
+    info.status_mask        = 1ull<<26 /* zero_pkt */;
+    info.enable_addr        = CVMX_SRIOX_INT_ENABLE(1);
+    info.enable_mask        = 1ull<<26 /* zero_pkt */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_SRIO;
+    info.group_index        = 1;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_CIU_BLOCK_INT;
+    info.parent.status_mask = 1ull<<33 /* srio1 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR SRIOX_INT_REG(1)[ZERO_PKT]: Received Incoming SRIO Zero byte packet (Pass 2)\n";
     fail |= cvmx_error_add(&info);
 
     /* CVMX_PEXP_SLI_INT_SUM */

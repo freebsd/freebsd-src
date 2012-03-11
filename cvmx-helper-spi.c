@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -47,7 +47,7 @@
  * Functions for SPI initialization, configuration,
  * and monitoring.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <asm/octeon/cvmx.h>
@@ -79,6 +79,14 @@
 #define CVMX_HELPER_SPI_TIMEOUT 10
 #endif
 
+int __cvmx_helper_spi_enumerate(int interface)
+{
+	if ((cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) &&
+	    cvmx_spi4000_is_present(interface))
+		return 10;
+	else
+		return 16;
+}
 
 /**
  * @INTERNAL
@@ -92,26 +100,22 @@
  */
 int __cvmx_helper_spi_probe(int interface)
 {
-    int num_ports = 0;
+	int num_ports = __cvmx_helper_spi_enumerate(interface);
 
-    if ((cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) &&
-        cvmx_spi4000_is_present(interface))
-    {
-        num_ports = 10;
-    }
-    else
-    {
-        cvmx_pko_reg_crc_enable_t enable;
-        num_ports = 16;
-        /* Unlike the SPI4000, most SPI devices don't automatically
-            put on the L2 CRC. For everything except for the SPI4000
-            have PKO append the L2 CRC to the packet */
-        enable.u64 = cvmx_read_csr(CVMX_PKO_REG_CRC_ENABLE);
-        enable.s.enable |= 0xffff << (interface*16);
-        cvmx_write_csr(CVMX_PKO_REG_CRC_ENABLE, enable.u64);
-    }
-    __cvmx_helper_setup_gmx(interface, num_ports);
-    return num_ports;
+	if (num_ports == 16) {
+		cvmx_pko_reg_crc_enable_t enable;
+		/*
+		 * Unlike the SPI4000, most SPI devices don't
+		 * automatically put on the L2 CRC. For everything
+		 * except for the SPI4000 have PKO append the L2 CRC
+		 * to the packet
+		 */
+		enable.u64 = cvmx_read_csr(CVMX_PKO_REG_CRC_ENABLE);
+		enable.s.enable |= 0xffff << (interface*16);
+		cvmx_write_csr(CVMX_PKO_REG_CRC_ENABLE, enable.u64);
+	}
+	__cvmx_helper_setup_gmx(interface, num_ports);
+	return num_ports;
 }
 
 

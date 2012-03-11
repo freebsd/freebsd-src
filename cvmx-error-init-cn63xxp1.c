@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -86,7 +86,7 @@
  *     cvmx_ciu_block_int:asxpcs0:e -> cvmx_pcs0_int2_reg [label="asxpcs0"];
  *     cvmx_pcs0_int3_reg [label="PCSX_INTX_REG(3,0)|<an_err>an_err|<txfifu>txfifu|<txfifo>txfifo|<txbad>txbad|<rxbad>rxbad|<rxlock>rxlock|<an_bad>an_bad|<sync_bad>sync_bad|<dbg_sync>dbg_sync"];
  *     cvmx_ciu_block_int:asxpcs0:e -> cvmx_pcs0_int3_reg [label="asxpcs0"];
- *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<synlos>synlos|<algnlos>algnlos|<dbg_sync>dbg_sync"];
+ *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<bitlckls>bitlckls|<synlos>synlos|<algnlos>algnlos|<dbg_sync>dbg_sync"];
  *     cvmx_ciu_block_int:asxpcs0:e -> cvmx_pcsx0_int_reg [label="asxpcs0"];
  *     cvmx_pip_int_reg [label="PIP_INT_REG|<prtnxa>prtnxa|<badtag>badtag|<skprunt>skprunt|<todoovr>todoovr|<feperr>feperr|<beperr>beperr|<punyerr>punyerr"];
  *     cvmx_ciu_block_int:pip:e -> cvmx_pip_int_reg [label="pip"];
@@ -1772,6 +1772,22 @@ int cvmx_error_initialize_cn63xxp1(void)
     info.user_info          = (long)
         "ERROR PCSXX_INT_REG(0)[RXSYNBAD]: Set when RX code grp sync st machine in bad state\n"
         "    in one of the 4 xaui lanes\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_PCSXX_INT_REG(0);
+    info.status_mask        = 1ull<<3 /* bitlckls */;
+    info.enable_addr        = CVMX_PCSXX_INT_EN_REG(0);
+    info.enable_mask        = 1ull<<3 /* bitlckls_en */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_ETHERNET;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_CIU_BLOCK_INT;
+    info.parent.status_mask = 1ull<<22 /* asxpcs0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR PCSXX_INT_REG(0)[BITLCKLS]: Set when Bit lock lost on 1 or more xaui lanes\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
@@ -4115,7 +4131,7 @@ int cvmx_error_initialize_cn63xxp1(void)
     info.enable_addr        = CVMX_DFM_FNT_IENA;
     info.enable_mask        = 1ull<<0 /* sbe_intena */;
     info.flags              = 0;
-    info.group              = CVMX_ERROR_GROUP_INTERNAL;
+    info.group              = CVMX_ERROR_GROUP_DFM;
     info.group_index        = 0;
     info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
     info.parent.status_addr = CVMX_CIU_BLOCK_INT;
@@ -4133,7 +4149,7 @@ int cvmx_error_initialize_cn63xxp1(void)
     info.enable_addr        = CVMX_DFM_FNT_IENA;
     info.enable_mask        = 1ull<<1 /* dbe_intena */;
     info.flags              = 0;
-    info.group              = CVMX_ERROR_GROUP_INTERNAL;
+    info.group              = CVMX_ERROR_GROUP_DFM;
     info.group_index        = 0;
     info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
     info.parent.status_addr = CVMX_CIU_BLOCK_INT;
