@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -67,6 +67,8 @@ typedef enum
     CVMX_ERROR_GROUP_SRIO,      /* All errors related to SRIO when the bus is up. Index by port number (0-1) */
     CVMX_ERROR_GROUP_USB,       /* All errors related to USB when the port is enabled. Index by port number (0-1) */
     CVMX_ERROR_GROUP_LMC,       /* All errors related to LMC when the controller is enabled. Index by controller number (0-1) */
+    CVMX_ERROR_GROUP_ILK,       /* All errors related to ILK when the controller is enabled. Index by controller number (0-1) */
+    CVMX_ERROR_GROUP_DFM,       /* All errors related to DFM when the controller is enabled. */
 } cvmx_error_group_t;
 
 /**
@@ -310,6 +312,16 @@ int __cvmx_error_decode(const cvmx_error_info_t *info);
  * @return
  */
 int __cvmx_error_display(const cvmx_error_info_t *info);
+
+/**
+ * Find the handler for a specific status register and mask
+ *
+ * @param status_addr
+ *                Status register address
+ *
+ * @return  Return the handler on success or null on failure.
+ */
+cvmx_error_info_t *cvmx_error_get_index(uint64_t status_addr);
 
 #ifdef	__cplusplus
 }
