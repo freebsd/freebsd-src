@@ -59,7 +59,7 @@
  * Notes about locking:
  *   - fi_pipe is invariant since init time.
  *   - fi_readers and fi_writers are protected by the vnode lock.
- *   - fi_wgen is protected by the pipe mutex.
+ *   - fi_wgen and fi_seqcount are protected by the pipe mutex.
  */
 struct fifoinfo {
 	struct pipe *fi_pipe;
