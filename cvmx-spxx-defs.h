@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_SPXX_TYPEDEFS_H__
-#define __CVMX_SPXX_TYPEDEFS_H__
+#ifndef __CVMX_SPXX_DEFS_H__
+#define __CVMX_SPXX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SPXX_BCKPRS_CNT(unsigned long block_id)
@@ -248,12 +248,10 @@ static inline uint64_t CVMX_SPXX_TRN4_CTL(unsigned long block_id)
 /**
  * cvmx_spx#_bckprs_cnt
  */
-union cvmx_spxx_bckprs_cnt
-{
+union cvmx_spxx_bckprs_cnt {
 	uint64_t u64;
-	struct cvmx_spxx_bckprs_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_bckprs_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Counts the number of core clock cycles in which
                                                          the SPI-4.2 receiver receives data once the TPA
@@ -281,12 +279,10 @@ typedef union cvmx_spxx_bckprs_cnt cvmx_spxx_bckprs_cnt_t;
  * - 0: good (or bist in progress/never run)
  * - 1: bad
  */
-union cvmx_spxx_bist_stat
-{
+union cvmx_spxx_bist_stat {
 	uint64_t u64;
-	struct cvmx_spxx_bist_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_bist_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t stat2                        : 1;  /**< Bist Results/No Repair (Tx calendar table)
                                                          (spx.stx.cal.calendar) */
@@ -378,12 +374,10 @@ typedef union cvmx_spxx_bist_stat cvmx_spxx_bist_stat_t;
  *   sequence, the data bus will not send any data to the core.  The
  *   interface will hang.
  */
-union cvmx_spxx_clk_ctl
-{
+union cvmx_spxx_clk_ctl {
 	uint64_t u64;
-	struct cvmx_spxx_clk_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_clk_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t seetrn                       : 1;  /**< Force the Spi4 receive into seeing a traing
                                                          sequence */
@@ -428,12 +422,10 @@ typedef union cvmx_spxx_clk_ctl cvmx_spxx_clk_ctl_t;
 /**
  * cvmx_spx#_clk_stat
  */
-union cvmx_spxx_clk_stat
-{
+union cvmx_spxx_clk_stat {
 	uint64_t u64;
-	struct cvmx_spxx_clk_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_clk_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_11_63               : 53;
 	uint64_t stxcal                       : 1;  /**< The transistion from Sync to Calendar on status
                                                          channel */
@@ -567,12 +559,10 @@ typedef union cvmx_spxx_clk_stat cvmx_spxx_clk_stat_t;
  *   This bit should not be changed dynamically while the link is
  *   operational.
  */
-union cvmx_spxx_dbg_deskew_ctl
-{
+union cvmx_spxx_dbg_deskew_ctl {
 	uint64_t u64;
-	struct cvmx_spxx_dbg_deskew_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_dbg_deskew_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_30_63               : 34;
 	uint64_t fallnop                      : 1;  /**< Training fallout on NOP matches instead of
                                                          non-training matches.
@@ -645,12 +635,10 @@ typedef union cvmx_spxx_dbg_deskew_ctl cvmx_spxx_dbg_deskew_ctl_t;
  * These bits are meant as a backdoor to control Spi4 per-bit deskew.  See
  * that Spec for more details.
  */
-union cvmx_spxx_dbg_deskew_state
-{
+union cvmx_spxx_dbg_deskew_state {
 	uint64_t u64;
-	struct cvmx_spxx_dbg_deskew_state_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_dbg_deskew_state_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t testres                      : 1;  /**< Training Test Mode Result
                                                          (srx_spi4__test_mode_result) */
@@ -684,20 +672,17 @@ typedef union cvmx_spxx_dbg_deskew_state cvmx_spxx_dbg_deskew_state_t;
  * These bits all come from Duke - he will provide documentation and
  * explanation.  I'll just butcher it.
  */
-union cvmx_spxx_drv_ctl
-{
+union cvmx_spxx_drv_ctl {
 	uint64_t u64;
-	struct cvmx_spxx_drv_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_drv_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_0_63                : 64;
 #else
 	uint64_t reserved_0_63                : 64;
 #endif
 	} s;
-	struct cvmx_spxx_drv_ctl_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_drv_ctl_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t stx4ncmp                     : 4;  /**< Duke (spx__spi4_tx_nctl_comp) */
 	uint64_t stx4pcmp                     : 4;  /**< Duke (spx__spi4_tx_pctl_comp) */
@@ -710,14 +695,19 @@ union cvmx_spxx_drv_ctl
 #endif
 	} cn38xx;
 	struct cvmx_spxx_drv_ctl_cn38xx       cn38xxp2;
-	struct cvmx_spxx_drv_ctl_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_drv_ctl_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
-	uint64_t stx4ncmp                     : 4;  /**< Duke (spx__spi4_tx_nctl_comp) */
-	uint64_t stx4pcmp                     : 4;  /**< Duke (spx__spi4_tx_pctl_comp) */
+	uint64_t stx4ncmp                     : 4;  /**< Not used in CN58XX (spx__spi4_tx_nctl_comp) */
+	uint64_t stx4pcmp                     : 4;  /**< Not used in CN58XX (spx__spi4_tx_pctl_comp) */
 	uint64_t reserved_10_15               : 6;
-	uint64_t srx4cmp                      : 10; /**< Duke (spx__spi4_rx_rctl_comp) */
+	uint64_t srx4cmp                      : 10; /**< Suresh (spx__spi4_rx_rctl_comp)
+                                                         Can be used to bypass the RX termination resistor
+                                                         value. We have an on-chip RX termination resistor
+                                                         compensation control block, which adjusts the
+                                                         resistor value to a nominal 100 ohms. This
+                                                         register can be used to bypass this automatically
+                                                         computed value. */
 #else
 	uint64_t srx4cmp                      : 10;
 	uint64_t reserved_10_15               : 6;
@@ -744,12 +734,10 @@ typedef union cvmx_spxx_drv_ctl cvmx_spxx_drv_ctl_t;
  * pass through the ERR bit without modifying it in anyway - the error bit
  * may or may not have been set by the transmitter device.
  */
-union cvmx_spxx_err_ctl
-{
+union cvmx_spxx_err_ctl {
 	uint64_t u64;
-	struct cvmx_spxx_err_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_err_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t prtnxa                       : 1;  /**< Spi4 - set the ERR bit on packets in which the
                                                          port is out-of-range */
@@ -804,12 +792,10 @@ typedef union cvmx_spxx_err_ctl cvmx_spxx_err_ctl_t;
  * The MUL bit will be cleared once all outstanding errors have been
  * cleared by software (not just MUL errors - all errors).
  */
-union cvmx_spxx_int_dat
-{
+union cvmx_spxx_int_dat {
 	uint64_t u64;
-	struct cvmx_spxx_int_dat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_int_dat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t mul                          : 1;  /**< Multiple errors have occured */
 	uint64_t reserved_14_30               : 17;
@@ -838,12 +824,10 @@ typedef union cvmx_spxx_int_dat cvmx_spxx_int_dat_t;
  * SPX_INT_MSK - Interrupt Mask Register
  *
  */
-union cvmx_spxx_int_msk
-{
+union cvmx_spxx_int_msk {
 	uint64_t u64;
-	struct cvmx_spxx_int_msk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_int_msk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t calerr                       : 1;  /**< Spi4 Calendar table parity error */
 	uint64_t syncerr                      : 1;  /**< Consecutive Spi4 DIP4 errors have exceeded
@@ -1011,12 +995,10 @@ typedef union cvmx_spxx_int_msk cvmx_spxx_int_msk_t;
  *   that are contained to a single packet which allows the interface to drop
  *   a single packet and remain up and stable.
  */
-union cvmx_spxx_int_reg
-{
+union cvmx_spxx_int_reg {
 	uint64_t u64;
-	struct cvmx_spxx_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t spf                          : 1;  /**< Spi interface down */
 	uint64_t reserved_12_30               : 19;
@@ -1071,12 +1053,10 @@ typedef union cvmx_spxx_int_reg cvmx_spxx_int_reg_t;
  * free to synchronize the bus on other conditions, but this is the minimum
  * recommended set.
  */
-union cvmx_spxx_int_sync
-{
+union cvmx_spxx_int_sync {
 	uint64_t u64;
-	struct cvmx_spxx_int_sync_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_int_sync_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t calerr                       : 1;  /**< Spi4 Calendar table parity error */
 	uint64_t syncerr                      : 1;  /**< Consecutive Spi4 DIP4 errors have exceeded
@@ -1126,12 +1106,10 @@ typedef union cvmx_spxx_int_sync cvmx_spxx_int_sync_t;
  * increment until the TPA for the port is asserted.  At that point the CNT
  * value is frozen until software clears the interrupt bit.
  */
-union cvmx_spxx_tpa_acc
-{
+union cvmx_spxx_tpa_acc {
 	uint64_t u64;
-	struct cvmx_spxx_tpa_acc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_tpa_acc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< TPA watcher accumulate count */
 #else
@@ -1159,12 +1137,10 @@ typedef union cvmx_spxx_tpa_acc cvmx_spxx_tpa_acc_t;
  * ticks, then the interrupt is conditionally raised (based on interrupt mask
  * bits).  This feature will be disabled if the programmed count is zero.
  */
-union cvmx_spxx_tpa_max
-{
+union cvmx_spxx_tpa_max {
 	uint64_t u64;
-	struct cvmx_spxx_tpa_max_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_tpa_max_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t max                          : 32; /**< TPA watcher TPA threshold */
 #else
@@ -1202,12 +1178,10 @@ typedef union cvmx_spxx_tpa_max cvmx_spxx_tpa_max_t;
  * 2) The GMX inbound FIFO is filling up and should BP
  * 3) User has out an override on the TPA wires
  */
-union cvmx_spxx_tpa_sel
-{
+union cvmx_spxx_tpa_sel {
 	uint64_t u64;
-	struct cvmx_spxx_tpa_sel_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_tpa_sel_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t prtsel                       : 4;  /**< TPA watcher port select */
 #else
@@ -1384,12 +1358,10 @@ typedef union cvmx_spxx_tpa_sel cvmx_spxx_tpa_sel_t;
  *    SRXX_COM_CTL[INF_EN].  At this point, the Spi4 packets will begin to
  *    be sent into the N2K core and processed by the chip.
  */
-union cvmx_spxx_trn4_ctl
-{
+union cvmx_spxx_trn4_ctl {
 	uint64_t u64;
-	struct cvmx_spxx_trn4_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_spxx_trn4_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t trntest                      : 1;  /**< Training Test Mode
                                                          This bit is only for initial bringup

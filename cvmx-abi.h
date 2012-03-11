@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -39,20 +39,20 @@
 
 
 
-
-
-
-
 /**
  * @file
  *
  * This file defines macros for use in determining the current calling ABI.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
 */
 
 #ifndef __CVMX_ABI_H__
 #define __CVMX_ABI_H__
+
+#ifndef __U_BOOT__
+#include <endian.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -85,6 +85,20 @@ extern "C" {
     #else
         #error Unable to determine Endian mode
     #endif
+#endif
+
+/* For compatibility with Linux definitions... */
+#if __BYTE_ORDER == __BIG_ENDIAN
+# ifndef __BIG_ENDIAN_BITFIELD
+#  define __BIG_ENDIAN_BITFIELD
+# endif
+#else
+# ifndef __LITTLE_ENDIAN_BITFIELD
+#  define __LITTLE_ENDIAN_BITFIELD
+# endif
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD) && defined(__LITTLE_ENDIAN_BITFIELD)
+# error Cannot define both __BIG_ENDIAN_BITFIELD and __LITTLE_ENDIAN_BITFIELD
 #endif
 
 #ifdef	__cplusplus

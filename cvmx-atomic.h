@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * This file provides atomic operations
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  *
  */
@@ -355,7 +355,7 @@ static inline int64_t cvmx_atomic_fetch_and_add64_nosync(int64_t *ptr, int64_t i
 {
     uint64_t tmp, ret;
 
-    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX))
     {
 	CVMX_PUSH_OCTEON2;
 	if (__builtin_constant_p(incr) && incr == 1)
@@ -436,7 +436,7 @@ static inline int32_t cvmx_atomic_fetch_and_add32_nosync(int32_t *ptr, int32_t i
 {
     uint32_t tmp, ret;
 
-    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX))
     {
 	CVMX_PUSH_OCTEON2;
 	if (__builtin_constant_p(incr) && incr == 1)
@@ -648,7 +648,7 @@ static inline uint64_t cvmx_atomic_swap64_nosync(uint64_t *ptr, uint64_t new_val
 {
     uint64_t tmp, ret;
 
-    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX))
     {
 	CVMX_PUSH_OCTEON2;
 	if (__builtin_constant_p(new_val) && new_val == 0)
@@ -706,7 +706,7 @@ static inline uint32_t cvmx_atomic_swap32_nosync(uint32_t *ptr, uint32_t new_val
 {
     uint32_t tmp, ret;
 
-    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX))
     {
 	CVMX_PUSH_OCTEON2;
 	if (__builtin_constant_p(new_val) && new_val == 0)
@@ -746,22 +746,6 @@ static inline uint32_t cvmx_atomic_swap32_nosync(uint32_t *ptr, uint32_t new_val
 
     return (ret);
 }
-
-/**
- * This atomic operation is now named cvmx_atomic_compare_and_store32_nosync
- * and the (deprecated) macro is provided for backward compatibility.
- * @deprecated
- */
-#define cvmx_atomic_compare_and_store_nosync32 cvmx_atomic_compare_and_store32_nosync
-
-/**
- * This atomic operation is now named cvmx_atomic_compare_and_store64_nosync
- * and the (deprecated) macro is provided for backward compatibility.
- * @deprecated
- */
-#define cvmx_atomic_compare_and_store_nosync64 cvmx_atomic_compare_and_store64_nosync
-
-
 
 #ifdef	__cplusplus
 }

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,14 +48,26 @@
  *
  * Small helper utilities.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_HELPER_UTIL_H__
 #define __CVMX_HELPER_UTIL_H__
 
+#include "cvmx.h"
+#include "cvmx-mio-defs.h"
 
 #ifdef CVMX_ENABLE_HELPER_FUNCTIONS
+
+typedef char cvmx_pknd_t;
+typedef char cvmx_bpid_t;
+
+#define CVMX_INVALID_PKND	((cvmx_pknd_t) -1)
+#define CVMX_INVALID_BPID	((cvmx_bpid_t) -1)
+#define CVMX_MAX_PKND		((cvmx_pknd_t) 64)
+#define CVMX_MAX_BPID		((cvmx_bpid_t) 64)
+
+#define CVMX_HELPER_MAX_IFACE		9
 
 /**
  * Convert a interface mode into a human readable string
@@ -125,16 +137,99 @@ extern const char *cvmx_helper_get_version(void);
 extern int __cvmx_helper_setup_gmx(int interface, int num_ports);
 
 /**
- * Returns the IPD/PKO port number for a port on the given
+ * @INTERNAL
+ * Get the number of ipd_ports on an interface.
+ *
+ * @param interface
+ *
+ * @return the number of ipd_ports on the interface and -1 for error.
+ */
+extern int __cvmx_helper_get_num_ipd_ports(int interface);
+
+/**
+ * @INTERNAL
+ * Get the number of pko_ports on an interface.
+ *
+ * @param interface
+ *
+ * @return the number of pko_ports on the interface.
+ */
+extern int __cvmx_helper_get_num_pko_ports(int interface);
+
+/*
+ * @INTERNAL
+ *
+ * @param interface
+ * @param port
+ * @param link_info
+ *
+ * @return 0 for success and -1 for failure
+ */
+extern int __cvmx_helper_set_link_info(int interface, int port,
+    cvmx_helper_link_info_t link_info);
+
+/**
+ * @INTERNAL
+ *
+ * @param interface
+ * @param port
+ *
+ * @return valid link_info on success or -1 on failure
+ */
+extern cvmx_helper_link_info_t __cvmx_helper_get_link_info(int interface,
+    int port);
+
+enum cvmx_pko_padding {
+	CVMX_PKO_PADDING_NONE = 0,
+	CVMX_PKO_PADDING_60 = 1,
+};
+
+/**
+ * @INTERNAL
+ *
+ * @param interface
+ * @param num_ipd_ports is the number of ipd_ports on the interface
+ * @param has_fcs indicates if PKO does FCS for the ports on this
+ * @param pad The padding that PKO should apply.
+ * interface.
+ *
+ * @return 0 for success and -1 for failure
+ */
+extern int __cvmx_helper_init_interface(int interface, int num_ipd_ports, int has_fcs, enum cvmx_pko_padding pad);
+
+/**
+ * @INTERNAL
+ *
+ * @param interface
+ *
+ * @return 0 if PKO does not do FCS and 1 otherwise.
+ */
+extern int __cvmx_helper_get_has_fcs(int interface);
+
+
+extern enum cvmx_pko_padding __cvmx_helper_get_pko_padding(int interface);
+
+/**
+ * Returns the IPD port number for a port on the given
  * interface.
  *
  * @param interface Interface to use
  * @param port      Port on the interface
  *
- * @return IPD/PKO port number
+ * @return IPD port number
  */
 extern int cvmx_helper_get_ipd_port(int interface, int port);
 
+/**
+ * Returns the PKO port number for a port on the given interface,
+ * This is the base pko_port for o68 and ipd_port for older models.
+ *
+ * @param interface Interface to use
+ * @param port      Port on the interface
+ *
+ * @return PKO port number and -1 on error.
+ */
+extern int cvmx_helper_get_pko_port(int interface, int port);
 
 /**
  * Returns the IPD/PKO port number for the first port on the given
@@ -219,7 +314,6 @@ static inline void cvmx_helper_free_packet_data(cvmx_wqe_t *work)
  */
 extern int cvmx_helper_get_interface_num(int ipd_port);
 
-
 /**
  * Returns the interface index number for an IPD/PKO port
  * number.
@@ -229,5 +323,34 @@ extern int cvmx_helper_get_interface_num(int ipd_port);
  * @return Interface index number
  */
 extern int cvmx_helper_get_interface_index_num(int ipd_port);
+
+/**
+ * Get port kind for a given port in an interface.
+ *
+ * @param interface  Interface
+ * @param port       index of the port in the interface
+ *
+ * @return port kind on sucicess  and -1 on failure
+ */
+extern int cvmx_helper_get_pknd(int interface, int port);
+
+/**
+ * Get bpid for a given port in an interface.
+ *
+ * @param interface  Interface
+ * @param port       index of the port in the interface
+ *
+ * @return port kind on sucicess  and -1 on failure
+ */
+extern int cvmx_helper_get_bpid(int interface, int port);
+
+
+/**
+ * Internal functions.
+ */
+extern int __cvmx_helper_post_init_interfaces(void);
+extern void __cvmx_helper_shutdown_interfaces(void);
+
+extern void cvmx_helper_show_stats(int port);
 
 #endif  /* __CVMX_HELPER_H__ */

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,15 +49,17 @@
  * Functions for SGMII initialization, configuration,
  * and monitoring.
  *
- * <hr>$Revision: 52004 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <asm/octeon/cvmx.h>
 #include <asm/octeon/cvmx-config.h>
 #include <asm/octeon/cvmx-clock.h>
+#include <asm/octeon/cvmx-qlm.h>
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
+#include <asm/octeon/cvmx-helper-cfg.h>
 #endif
 #include <asm/octeon/cvmx-pcsx-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
@@ -72,6 +74,8 @@
 #include "cvmx-mdio.h"
 #include "cvmx-helper.h"
 #include "cvmx-helper-board.h"
+#include "cvmx-helper-cfg.h"
+#include "cvmx-qlm.h"
 #endif
 #endif
 
@@ -134,12 +138,21 @@ static int __cvmx_helper_sgmii_hardware_init_one_time(int interface, int index)
     }
     else
     {
+#ifdef CVMX_HELPER_CONFIG_NO_PHY
+        /* If the interface does not have PHY, then set explicitly in PHY mode
+           so that link will be set during auto negotiation. */
+        if (!pcsx_miscx_ctl_reg.s.mac_phy) 
+        {
+            cvmx_dprintf("SGMII%d%d: Forcing PHY mode as PHY address is not set\n", interface, index);
+            pcsx_miscx_ctl_reg.s.mac_phy = 1;
+            cvmx_write_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface), pcsx_miscx_ctl_reg.u64);
+        }
+#endif
         if (pcsx_miscx_ctl_reg.s.mac_phy)
         {
             /* PHY Mode */
             cvmx_pcsx_sgmx_an_adv_reg_t pcsx_sgmx_an_adv_reg;
             pcsx_sgmx_an_adv_reg.u64 = cvmx_read_csr(CVMX_PCSX_SGMX_AN_ADV_REG(index, interface));
-            pcsx_sgmx_an_adv_reg.s.link = 1;
             pcsx_sgmx_an_adv_reg.s.dup = 1;
             pcsx_sgmx_an_adv_reg.s.speed= 2;
             cvmx_write_csr(CVMX_PCSX_SGMX_AN_ADV_REG(index, interface), pcsx_sgmx_an_adv_reg.u64);
@@ -152,6 +165,18 @@ static int __cvmx_helper_sgmii_hardware_init_one_time(int interface, int index)
     return 0;
 }
 
+static int __cvmx_helper_need_g15618(void)
+{
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM
+        || OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X)
+        || OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0)
+        || OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_1)
+        || OCTEON_IS_MODEL(OCTEON_CN66XX_PASS1_X)
+        || OCTEON_IS_MODEL(OCTEON_CN68XX_PASS1_X))
+	return 1;
+    else
+	return 0;
+ }
 
 /**
  * @INTERNAL
@@ -173,7 +198,9 @@ static int __cvmx_helper_sgmii_hardware_init_link(int interface, int index)
             the other PCS*_MR*_CONTROL_REG bits).
         Read PCS*_MR*_CONTROL_REG[RESET] until it changes value to zero. */
     control_reg.u64 = cvmx_read_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface));
-    if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM)
+
+    /* Errata G-15618 requires disabling PCS soft reset in CN63XX pass upto 2.1. */
+    if (!__cvmx_helper_need_g15618())
     {
         control_reg.s.reset = 1;
         cvmx_write_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface), control_reg.u64);
@@ -312,6 +339,7 @@ static int __cvmx_helper_sgmii_hardware_init_link_speed(int interface, int index
 static int __cvmx_helper_sgmii_hardware_init(int interface, int num_ports)
 {
     int index;
+    int do_link_set = 1;
 
     /* CN63XX Pass 1.0 errata G-14395 requires the QLM De-emphasis be programmed */
     if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_0))
@@ -324,19 +352,53 @@ static int __cvmx_helper_sgmii_hardware_init(int interface, int num_ports)
         cvmx_write_csr(CVMX_CIU_QLM2, ciu_qlm.u64);
     }
 
+    /* CN63XX Pass 2.0 and 2.1 errata G-15273 requires the QLM De-emphasis be
+        programmed when using a 156.25Mhz ref clock */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0) ||
+        OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_1))
+    {
+        /* Read the QLM speed pins */
+        cvmx_mio_rst_boot_t mio_rst_boot;
+        mio_rst_boot.u64 = cvmx_read_csr(CVMX_MIO_RST_BOOT);
+
+        if (mio_rst_boot.cn63xx.qlm2_spd == 4)
+        {
+            cvmx_ciu_qlm2_t ciu_qlm;
+            ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM2);
+            ciu_qlm.s.txbypass = 1;
+            ciu_qlm.s.txdeemph = 0x0;
+            ciu_qlm.s.txmargin = 0xf;
+            cvmx_write_csr(CVMX_CIU_QLM2, ciu_qlm.u64);
+        }
+    }
+
     __cvmx_helper_setup_gmx(interface, num_ports);
 
     for (index=0; index<num_ports; index++)
     {
         int ipd_port = cvmx_helper_get_ipd_port(interface, index);
         __cvmx_helper_sgmii_hardware_init_one_time(interface, index);
-        __cvmx_helper_sgmii_link_set(ipd_port, __cvmx_helper_sgmii_link_get(ipd_port));
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+        /* Linux kernel driver will call ....link_set with the proper link
+           state. In the simulator there is no link state polling and
+           hence it is set from here. */
+        if (!(cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM))
+            do_link_set = 0;
+#endif
+        if (do_link_set)
+            __cvmx_helper_sgmii_link_set(ipd_port, __cvmx_helper_sgmii_link_get(ipd_port));
     }
 
     return 0;
 }
 
+int __cvmx_helper_sgmii_enumerate(int interface)
+{
+    if (OCTEON_IS_MODEL(OCTEON_CNF71XX))
+        return 2;
+
+    return 4;
+}
 
 /**
  * @INTERNAL
@@ -352,13 +414,24 @@ int __cvmx_helper_sgmii_probe(int interface)
 {
     cvmx_gmxx_inf_mode_t mode;
 
+    /* Check if QLM is configured correct for SGMII, verify the speed 
+       as well as mode */
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+        int qlm = cvmx_qlm_interface(interface);
+
+        if (cvmx_qlm_get_status(qlm) != 1)
+            return 0;
+    }
+
     /* Due to errata GMX-700 on CN56XXp1.x and CN52XXp1.x, the interface
-        needs to be enabled before IPD otherwise per port backpressure
-        may not work properly */
+       needs to be enabled before IPD otherwise per port backpressure
+       may not work properly */
     mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
     mode.s.en = 1;
     cvmx_write_csr(CVMX_GMXX_INF_MODE(interface), mode.u64);
-    return 4;
+
+    return __cvmx_helper_sgmii_enumerate(interface);
 }
 
 
@@ -377,11 +450,63 @@ int __cvmx_helper_sgmii_enable(int interface)
     int num_ports = cvmx_helper_ports_on_interface(interface);
     int index;
 
+    /* Setup PKND and BPID */
+    if (octeon_has_feature(OCTEON_FEATURE_PKND))
+    {
+        for (index = 0; index < num_ports; index++)
+        {
+            cvmx_gmxx_bpid_msk_t bpid_msk;
+            cvmx_gmxx_bpid_mapx_t bpid_map;
+            cvmx_gmxx_prtx_cfg_t gmxx_prtx_cfg;
+
+            /* Setup PKIND */
+            gmxx_prtx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+            gmxx_prtx_cfg.s.pknd = cvmx_helper_get_pknd(interface, index);
+            cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmxx_prtx_cfg.u64);
+
+            /* Setup BPID */
+            bpid_map.u64 = cvmx_read_csr(CVMX_GMXX_BPID_MAPX(index, interface));
+            bpid_map.s.val = 1;
+            bpid_map.s.bpid = cvmx_helper_get_bpid(interface, index);
+            cvmx_write_csr(CVMX_GMXX_BPID_MAPX(index, interface), bpid_map.u64);
+
+            bpid_msk.u64 = cvmx_read_csr(CVMX_GMXX_BPID_MSK(interface));
+            bpid_msk.s.msk_or |= (1<<index);
+            bpid_msk.s.msk_and &= ~(1<<index);
+            cvmx_write_csr(CVMX_GMXX_BPID_MSK(interface), bpid_msk.u64);
+        }
+    }
+
     __cvmx_helper_sgmii_hardware_init(interface, num_ports);
+
+    /* CN68XX adds the padding and FCS in PKO, not GMX */
+    if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+    {
+	cvmx_gmxx_txx_append_t gmxx_txx_append_cfg;
+
+        for (index = 0; index < num_ports; index++)
+	{
+	    gmxx_txx_append_cfg.u64 = cvmx_read_csr(
+	        CVMX_GMXX_TXX_APPEND(index, interface));
+	    gmxx_txx_append_cfg.s.fcs = 0;
+	    gmxx_txx_append_cfg.s.pad = 0;
+            cvmx_write_csr(CVMX_GMXX_TXX_APPEND(index, interface), 
+	        gmxx_txx_append_cfg.u64);
+	}
+    }
 
     for (index=0; index<num_ports; index++)
     {
+        cvmx_gmxx_txx_append_t append_cfg;
+        cvmx_gmxx_txx_sgmii_ctl_t sgmii_ctl;
         cvmx_gmxx_prtx_cfg_t gmxx_prtx_cfg;
+
+        /* Clear the align bit if preamble is set to attain maximum tx rate. */
+        append_cfg.u64 = cvmx_read_csr(CVMX_GMXX_TXX_APPEND(index, interface));
+        sgmii_ctl.u64 = cvmx_read_csr(CVMX_GMXX_TXX_SGMII_CTL(index, interface));
+        sgmii_ctl.s.align = append_cfg.s.preamble ? 0 : 1;
+        cvmx_write_csr(CVMX_GMXX_TXX_SGMII_CTL(index, interface), sgmii_ctl.u64);
+
         gmxx_prtx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
         gmxx_prtx_cfg.s.en = 1;
         cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmxx_prtx_cfg.u64);
@@ -408,17 +533,35 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
     int interface = cvmx_helper_get_interface_num(ipd_port);
     int index = cvmx_helper_get_interface_index_num(ipd_port);
     cvmx_pcsx_mrx_control_reg_t pcsx_mrx_control_reg;
-
-    result.u64 = 0;
+    int speed = 1000;
+    int qlm;
 
     if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
     {
         /* The simulator gives you a simulated 1Gbps full duplex link */
         result.s.link_up = 1;
         result.s.full_duplex = 1;
-        result.s.speed = 1000;
+        result.s.speed = speed;
         return result;
     }
+
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+    {
+        cvmx_gmxx_inf_mode_t inf_mode;
+        inf_mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
+        if (inf_mode.s.rate & (1<<index))
+            speed = 2500;
+        else
+            speed = 1000;
+    }
+    else if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+        qlm = cvmx_qlm_interface(interface);
+
+        speed = cvmx_qlm_get_gbaud_mhz(qlm) * 8 / 10;
+    }
+
+    result.u64 = 0;
 
     pcsx_mrx_control_reg.u64 = cvmx_read_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface));
     if (pcsx_mrx_control_reg.s.loopbck1)
@@ -426,7 +569,7 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
         /* Force 1Gbps full duplex link for internal loopback */
         result.s.link_up = 1;
         result.s.full_duplex = 1;
-        result.s.speed = 1000;
+        result.s.speed = speed;
         return result;
     }
 
@@ -463,13 +606,13 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
                 switch (pcsx_anx_results_reg.s.spd)
                 {
                     case 0:
-                        result.s.speed = 10;
+                        result.s.speed = speed / 100;
                         break;
                     case 1:
-                        result.s.speed = 100;
+                        result.s.speed = speed / 10;
                         break;
                     case 2:
-                        result.s.speed = 1000;
+                        result.s.speed = speed;
                         break;
                     default:
                         result.s.speed = 0;
@@ -510,7 +653,23 @@ int __cvmx_helper_sgmii_link_set(int ipd_port, cvmx_helper_link_info_t link_info
 {
     int interface = cvmx_helper_get_interface_num(ipd_port);
     int index = cvmx_helper_get_interface_index_num(ipd_port);
-    __cvmx_helper_sgmii_hardware_init_link(interface, index);
+
+    if (link_info.s.link_up || !__cvmx_helper_need_g15618()) {
+	__cvmx_helper_sgmii_hardware_init_link(interface, index);
+    } else {
+	cvmx_pcsx_mrx_control_reg_t control_reg;
+	cvmx_pcsx_miscx_ctl_reg_t pcsx_miscx_ctl_reg;
+
+	control_reg.u64 = cvmx_read_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface));
+	control_reg.s.an_en = 0;
+	cvmx_write_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface), control_reg.u64);
+	cvmx_read_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface));
+	/* Use GMXENO to force the link down it will get reenabled later... */
+	pcsx_miscx_ctl_reg.s.gmxeno = 1;
+	cvmx_write_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface), pcsx_miscx_ctl_reg.u64);
+	cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
+	return 0;
+    }
     return __cvmx_helper_sgmii_hardware_init_link_speed(interface, index, link_info);
 }
 

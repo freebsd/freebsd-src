@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_USBNX_TYPEDEFS_H__
-#define __CVMX_USBNX_TYPEDEFS_H__
+#ifndef __CVMX_USBNX_DEFS_H__
+#define __CVMX_USBNX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_USBNX_BIST_STATUS(unsigned long block_id)
@@ -405,12 +405,10 @@ static inline uint64_t CVMX_USBNX_USBP_CTL_STATUS(unsigned long block_id)
  *
  * Contain general control bits and status information for the USBN.
  */
-union cvmx_usbnx_bist_status
-{
+union cvmx_usbnx_bist_status {
 	uint64_t u64;
-	struct cvmx_usbnx_bist_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_bist_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t u2nc_bis                     : 1;  /**< Bist status U2N CTL FIFO Memory. */
 	uint64_t u2nf_bis                     : 1;  /**< Bist status U2N FIFO Memory. */
@@ -430,9 +428,8 @@ union cvmx_usbnx_bist_status
 	uint64_t reserved_7_63                : 57;
 #endif
 	} s;
-	struct cvmx_usbnx_bist_status_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_bist_status_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t usbc_bis                     : 1;  /**< Bist status USBC FIFO Memory. */
 	uint64_t nif_bis                      : 1;  /**< Bist status for Inbound Memory. */
@@ -460,12 +457,10 @@ typedef union cvmx_usbnx_bist_status cvmx_usbnx_bist_status_t;
  *
  * This register is used to control the frequency of the hclk and the hreset and phy_rst signals.
  */
-union cvmx_usbnx_clk_ctl
-{
+union cvmx_usbnx_clk_ctl {
 	uint64_t u64;
-	struct cvmx_usbnx_clk_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_clk_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t divide2                      : 2;  /**< The 'hclk' used by the USB subsystem is derived
                                                          from the eclk.
@@ -554,9 +549,8 @@ union cvmx_usbnx_clk_ctl
 	uint64_t reserved_20_63               : 44;
 #endif
 	} s;
-	struct cvmx_usbnx_clk_ctl_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_clk_ctl_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t hclk_rst                     : 1;  /**< When this field is '0' the HCLK-DIVIDER used to
                                                          generate the hclk in the USB Subsystem is held
@@ -640,9 +634,8 @@ union cvmx_usbnx_clk_ctl
 #endif
 	} cn30xx;
 	struct cvmx_usbnx_clk_ctl_cn30xx      cn31xx;
-	struct cvmx_usbnx_clk_ctl_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_clk_ctl_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t divide2                      : 2;  /**< The 'hclk' used by the USB subsystem is derived
                                                          from the eclk.
@@ -748,12 +741,10 @@ typedef union cvmx_usbnx_clk_ctl cvmx_usbnx_clk_ctl_t;
  *
  * Contains general control and status information for the USBN block.
  */
-union cvmx_usbnx_ctl_status
-{
+union cvmx_usbnx_ctl_status {
 	uint64_t u64;
-	struct cvmx_usbnx_ctl_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_ctl_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t dma_0pag                     : 1;  /**< When '1' sets the DMA engine will set the zero-Page
                                                          bit in the L2C store operation to the IOB. */
@@ -798,12 +789,10 @@ typedef union cvmx_usbnx_ctl_status cvmx_usbnx_ctl_status_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel0.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn0
-{
+union cvmx_usbnx_dma0_inb_chn0 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -829,12 +818,10 @@ typedef union cvmx_usbnx_dma0_inb_chn0 cvmx_usbnx_dma0_inb_chn0_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel1.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn1
-{
+union cvmx_usbnx_dma0_inb_chn1 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -860,12 +847,10 @@ typedef union cvmx_usbnx_dma0_inb_chn1 cvmx_usbnx_dma0_inb_chn1_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel2.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn2
-{
+union cvmx_usbnx_dma0_inb_chn2 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -891,12 +876,10 @@ typedef union cvmx_usbnx_dma0_inb_chn2 cvmx_usbnx_dma0_inb_chn2_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel3.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn3
-{
+union cvmx_usbnx_dma0_inb_chn3 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -922,12 +905,10 @@ typedef union cvmx_usbnx_dma0_inb_chn3 cvmx_usbnx_dma0_inb_chn3_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel4.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn4
-{
+union cvmx_usbnx_dma0_inb_chn4 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -953,12 +934,10 @@ typedef union cvmx_usbnx_dma0_inb_chn4 cvmx_usbnx_dma0_inb_chn4_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel5.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn5
-{
+union cvmx_usbnx_dma0_inb_chn5 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn5_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn5_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -984,12 +963,10 @@ typedef union cvmx_usbnx_dma0_inb_chn5 cvmx_usbnx_dma0_inb_chn5_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel6.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn6
-{
+union cvmx_usbnx_dma0_inb_chn6 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn6_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn6_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -1015,12 +992,10 @@ typedef union cvmx_usbnx_dma0_inb_chn6 cvmx_usbnx_dma0_inb_chn6_t;
  * Contains the starting address for use when USB0 writes to L2C via Channel7.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_inb_chn7
-{
+union cvmx_usbnx_dma0_inb_chn7 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_inb_chn7_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_inb_chn7_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Write to L2C. */
 #else
@@ -1046,12 +1021,10 @@ typedef union cvmx_usbnx_dma0_inb_chn7 cvmx_usbnx_dma0_inb_chn7_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel0.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn0
-{
+union cvmx_usbnx_dma0_outb_chn0 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1077,12 +1050,10 @@ typedef union cvmx_usbnx_dma0_outb_chn0 cvmx_usbnx_dma0_outb_chn0_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel1.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn1
-{
+union cvmx_usbnx_dma0_outb_chn1 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1108,12 +1079,10 @@ typedef union cvmx_usbnx_dma0_outb_chn1 cvmx_usbnx_dma0_outb_chn1_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel2.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn2
-{
+union cvmx_usbnx_dma0_outb_chn2 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1139,12 +1108,10 @@ typedef union cvmx_usbnx_dma0_outb_chn2 cvmx_usbnx_dma0_outb_chn2_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel3.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn3
-{
+union cvmx_usbnx_dma0_outb_chn3 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1170,12 +1137,10 @@ typedef union cvmx_usbnx_dma0_outb_chn3 cvmx_usbnx_dma0_outb_chn3_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel4.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn4
-{
+union cvmx_usbnx_dma0_outb_chn4 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1201,12 +1166,10 @@ typedef union cvmx_usbnx_dma0_outb_chn4 cvmx_usbnx_dma0_outb_chn4_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel5.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn5
-{
+union cvmx_usbnx_dma0_outb_chn5 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn5_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn5_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1232,12 +1195,10 @@ typedef union cvmx_usbnx_dma0_outb_chn5 cvmx_usbnx_dma0_outb_chn5_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel6.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn6
-{
+union cvmx_usbnx_dma0_outb_chn6 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn6_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn6_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1263,12 +1224,10 @@ typedef union cvmx_usbnx_dma0_outb_chn6 cvmx_usbnx_dma0_outb_chn6_t;
  * Contains the starting address for use when USB0 reads from L2C via Channel7.
  * Writing of this register sets the base address.
  */
-union cvmx_usbnx_dma0_outb_chn7
-{
+union cvmx_usbnx_dma0_outb_chn7 {
 	uint64_t u64;
-	struct cvmx_usbnx_dma0_outb_chn7_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma0_outb_chn7_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< Base address for DMA Read from L2C. */
 #else
@@ -1293,12 +1252,10 @@ typedef union cvmx_usbnx_dma0_outb_chn7 cvmx_usbnx_dma0_outb_chn7_t;
  *
  * This register can cause the external DMA engine to the USB-Core to make transfers from/to L2C/USB-FIFOs
  */
-union cvmx_usbnx_dma_test
-{
+union cvmx_usbnx_dma_test {
 	uint64_t u64;
-	struct cvmx_usbnx_dma_test_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_dma_test_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t done                         : 1;  /**< This field is set when a DMA completes. Writing a
                                                          '1' to this field clears this bit. */
@@ -1337,12 +1294,10 @@ typedef union cvmx_usbnx_dma_test cvmx_usbnx_dma_test_t;
  *
  * The USBN's interrupt enable register.
  */
-union cvmx_usbnx_int_enb
-{
+union cvmx_usbnx_int_enb {
 	uint64_t u64;
-	struct cvmx_usbnx_int_enb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_int_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t nd4o_dpf                     : 1;  /**< When set (1) and bit 37 of the USBN_INT_SUM
                                                          register is asserted the USBN will assert an
@@ -1502,9 +1457,8 @@ union cvmx_usbnx_int_enb
 	} s;
 	struct cvmx_usbnx_int_enb_s           cn30xx;
 	struct cvmx_usbnx_int_enb_s           cn31xx;
-	struct cvmx_usbnx_int_enb_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_int_enb_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t nd4o_dpf                     : 1;  /**< When set (1) and bit 37 of the USBN_INT_SUM
                                                          register is asserted the USBN will assert an
@@ -1654,12 +1608,10 @@ typedef union cvmx_usbnx_int_enb cvmx_usbnx_int_enb_t;
  *
  * Contains the diffrent interrupt summary bits of the USBN.
  */
-union cvmx_usbnx_int_sum
-{
+union cvmx_usbnx_int_sum {
 	uint64_t u64;
-	struct cvmx_usbnx_int_sum_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_int_sum_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t nd4o_dpf                     : 1;  /**< NCB DMA Out Data Fifo Push Full. */
 	uint64_t nd4o_dpe                     : 1;  /**< NCB DMA Out Data Fifo Pop Empty. */
@@ -1743,9 +1695,8 @@ union cvmx_usbnx_int_sum
 	} s;
 	struct cvmx_usbnx_int_sum_s           cn30xx;
 	struct cvmx_usbnx_int_sum_s           cn31xx;
-	struct cvmx_usbnx_int_sum_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_int_sum_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t nd4o_dpf                     : 1;  /**< NCB DMA Out Data Fifo Push Full. */
 	uint64_t nd4o_dpe                     : 1;  /**< NCB DMA Out Data Fifo Pop Empty. */
@@ -1831,12 +1782,10 @@ typedef union cvmx_usbnx_int_sum cvmx_usbnx_int_sum_t;
  *
  * Contains general control and status information for the USBN block.
  */
-union cvmx_usbnx_usbp_ctl_status
-{
+union cvmx_usbnx_usbp_ctl_status {
 	uint64_t u64;
-	struct cvmx_usbnx_usbp_ctl_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_usbp_ctl_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
 	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment */
 	uint64_t txfslstune                   : 4;  /**< FS/LS Source Impedence Adjustment */
@@ -1986,9 +1935,8 @@ union cvmx_usbnx_usbp_ctl_status
 	uint64_t txrisetune                   : 1;
 #endif
 	} s;
-	struct cvmx_usbnx_usbp_ctl_status_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_usbp_ctl_status_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t bist_done                    : 1;  /**< PHY Bist Done.
                                                          Asserted at the end of the PHY BIST sequence. */
@@ -2107,9 +2055,8 @@ union cvmx_usbnx_usbp_ctl_status
 #endif
 	} cn30xx;
 	struct cvmx_usbnx_usbp_ctl_status_cn30xx cn31xx;
-	struct cvmx_usbnx_usbp_ctl_status_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_usbp_ctl_status_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
 	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment */
 	uint64_t txfslstune                   : 4;  /**< FS/LS Source Impedence Adjustment */
@@ -2239,9 +2186,8 @@ union cvmx_usbnx_usbp_ctl_status
 	uint64_t txrisetune                   : 1;
 #endif
 	} cn50xx;
-	struct cvmx_usbnx_usbp_ctl_status_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbnx_usbp_ctl_status_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
 	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment */
 	uint64_t txfslstune                   : 4;  /**< FS/LS Source Impedence Adjustment */

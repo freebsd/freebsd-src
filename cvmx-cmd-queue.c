@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,7 +49,7 @@
  * Support functions for managing command queues used for
  * various hardware blocks.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <linux/module.h>
@@ -286,7 +286,10 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
             {
                 cvmx_pko_mem_debug8_t debug8;
                 debug8.u64 = cvmx_read_csr(CVMX_PKO_MEM_DEBUG8);
-                return debug8.cn58xx.doorbell;
+                if (octeon_has_feature(OCTEON_FEATURE_PKND))
+                    return debug8.cn68xx.doorbell;
+                else
+                    return debug8.cn58xx.doorbell;
             }
         case CVMX_CMD_QUEUE_ZIP:
         case CVMX_CMD_QUEUE_DFA:

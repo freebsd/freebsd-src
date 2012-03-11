@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Module to support operations on core such as TLB config, etc.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 
@@ -134,12 +134,12 @@ typedef union
     uint32_t u32;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint32_t m              : 1; /**< Set to 1 for sel 0 and 0 for sel 2, indicating there are two performance counters */
-        uint32_t w              : 1; /**< Set to 1 indicating coutners are 64 bit */
+        uint32_t w              : 1; /**< Set to 1 indicating counters are 64 bit */
         uint32_t reserved_11_29 :15;
         cvmx_core_perf_t event  :10; /**< Selects the event to be counted by the corresponding Counter Register */
-        uint32_t ie             : 1; /**< Count in interrupt context */
+        uint32_t ie             : 1; /**< Interrupt Enable */
         uint32_t u              : 1; /**< Count in user mode */
         uint32_t s              : 1; /**< Count in supervisor mode */
         uint32_t k              : 1; /**< Count in kernel mode */
