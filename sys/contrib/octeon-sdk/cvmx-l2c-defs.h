@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,14 +49,14 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_L2C_TYPEDEFS_H__
-#define __CVMX_L2C_TYPEDEFS_H__
+#ifndef __CVMX_L2C_DEFS_H__
+#define __CVMX_L2C_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_BIG_CTL CVMX_L2C_BIG_CTL_FUNC()
 static inline uint64_t CVMX_L2C_BIG_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_BIG_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180080800030ull);
 }
@@ -67,7 +67,7 @@ static inline uint64_t CVMX_L2C_BIG_CTL_FUNC(void)
 #define CVMX_L2C_BST CVMX_L2C_BST_FUNC()
 static inline uint64_t CVMX_L2C_BST_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_BST not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800808007F8ull);
 }
@@ -111,34 +111,46 @@ static inline uint64_t CVMX_L2C_BST2_FUNC(void)
 static inline uint64_t CVMX_L2C_BST_MEMX(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_BST_MEMX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080C007F8ull);
+	return CVMX_ADD_IO_SEG(0x0001180080C007F8ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_BST_MEMX(block_id) (CVMX_ADD_IO_SEG(0x0001180080C007F8ull))
+#define CVMX_L2C_BST_MEMX(block_id) (CVMX_ADD_IO_SEG(0x0001180080C007F8ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_BST_TDTX(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_BST_TDTX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A007F0ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A007F0ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_BST_TDTX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007F0ull))
+#define CVMX_L2C_BST_TDTX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007F0ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_BST_TTGX(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_BST_TTGX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A007F8ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A007F8ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_BST_TTGX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007F8ull))
+#define CVMX_L2C_BST_TTGX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007F8ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_CFG CVMX_L2C_CFG_FUNC()
@@ -155,7 +167,11 @@ static inline uint64_t CVMX_L2C_CFG_FUNC(void)
 static inline uint64_t CVMX_L2C_COP0_MAPX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1535) || ((offset >= 16128) && (offset <= 16383))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1023) || ((offset >= 16128) && (offset <= 16383)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1535) || ((offset >= 16128) && (offset <= 16383)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 2559) || ((offset >= 16128) && (offset <= 16383)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 8191) || ((offset >= 16128) && (offset <= 16383)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1023) || ((offset >= 16128) && (offset <= 16383))))))
 		cvmx_warn("CVMX_L2C_COP0_MAPX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001180080940000ull) + ((offset) & 16383) * 8;
 }
@@ -166,7 +182,7 @@ static inline uint64_t CVMX_L2C_COP0_MAPX(unsigned long offset)
 #define CVMX_L2C_CTL CVMX_L2C_CTL_FUNC()
 static inline uint64_t CVMX_L2C_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180080800000ull);
 }
@@ -199,51 +215,67 @@ static inline uint64_t CVMX_L2C_DUT_FUNC(void)
 static inline uint64_t CVMX_L2C_DUT_MAPX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1535)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1023))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1535))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 2559))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 8191))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1023)))))
 		cvmx_warn("CVMX_L2C_DUT_MAPX(%lu) is invalid on this chip\n", offset);
-	return CVMX_ADD_IO_SEG(0x0001180080E00000ull) + ((offset) & 2047) * 8;
+	return CVMX_ADD_IO_SEG(0x0001180080E00000ull) + ((offset) & 8191) * 8;
 }
 #else
-#define CVMX_L2C_DUT_MAPX(offset) (CVMX_ADD_IO_SEG(0x0001180080E00000ull) + ((offset) & 2047) * 8)
+#define CVMX_L2C_DUT_MAPX(offset) (CVMX_ADD_IO_SEG(0x0001180080E00000ull) + ((offset) & 8191) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_ERR_TDTX(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_ERR_TDTX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A007E0ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A007E0ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_ERR_TDTX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007E0ull))
+#define CVMX_L2C_ERR_TDTX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007E0ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_ERR_TTGX(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_ERR_TTGX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A007E8ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A007E8ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_ERR_TTGX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007E8ull))
+#define CVMX_L2C_ERR_TTGX(block_id) (CVMX_ADD_IO_SEG(0x0001180080A007E8ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_ERR_VBFX(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_ERR_VBFX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080C007F0ull);
+	return CVMX_ADD_IO_SEG(0x0001180080C007F0ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_ERR_VBFX(block_id) (CVMX_ADD_IO_SEG(0x0001180080C007F0ull))
+#define CVMX_L2C_ERR_VBFX(block_id) (CVMX_ADD_IO_SEG(0x0001180080C007F0ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_ERR_XMC CVMX_L2C_ERR_XMC_FUNC()
 static inline uint64_t CVMX_L2C_ERR_XMC_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_ERR_XMC not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800808007D8ull);
 }
@@ -287,7 +319,7 @@ static inline uint64_t CVMX_L2C_INT_EN_FUNC(void)
 #define CVMX_L2C_INT_ENA CVMX_L2C_INT_ENA_FUNC()
 static inline uint64_t CVMX_L2C_INT_ENA_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_INT_ENA not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180080800020ull);
 }
@@ -298,7 +330,7 @@ static inline uint64_t CVMX_L2C_INT_ENA_FUNC(void)
 #define CVMX_L2C_INT_REG CVMX_L2C_INT_REG_FUNC()
 static inline uint64_t CVMX_L2C_INT_REG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_INT_REG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180080800018ull);
 }
@@ -320,7 +352,11 @@ static inline uint64_t CVMX_L2C_INT_STAT_FUNC(void)
 static inline uint64_t CVMX_L2C_IOCX_PFC(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_IOCX_PFC(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x0001180080800420ull);
 }
@@ -331,7 +367,11 @@ static inline uint64_t CVMX_L2C_IOCX_PFC(unsigned long block_id)
 static inline uint64_t CVMX_L2C_IORX_PFC(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_IORX_PFC(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x0001180080800428ull);
 }
@@ -492,32 +532,40 @@ static inline uint64_t CVMX_L2C_PPGRP_FUNC(void)
 #define CVMX_L2C_PPGRP (CVMX_ADD_IO_SEG(0x00011800800000C0ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
-static inline uint64_t CVMX_L2C_QOS_IOBX(unsigned long block_id)
+static inline uint64_t CVMX_L2C_QOS_IOBX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_L2C_QOS_IOBX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080880200ull);
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset == 0)))))
+		cvmx_warn("CVMX_L2C_QOS_IOBX(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x0001180080880200ull) + ((offset) & 1) * 8;
 }
 #else
-#define CVMX_L2C_QOS_IOBX(block_id) (CVMX_ADD_IO_SEG(0x0001180080880200ull))
+#define CVMX_L2C_QOS_IOBX(offset) (CVMX_ADD_IO_SEG(0x0001180080880200ull) + ((offset) & 1) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_QOS_PPX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 9))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 3)))))
 		cvmx_warn("CVMX_L2C_QOS_PPX(%lu) is invalid on this chip\n", offset);
-	return CVMX_ADD_IO_SEG(0x0001180080880000ull) + ((offset) & 7) * 8;
+	return CVMX_ADD_IO_SEG(0x0001180080880000ull) + ((offset) & 31) * 8;
 }
 #else
-#define CVMX_L2C_QOS_PPX(offset) (CVMX_ADD_IO_SEG(0x0001180080880000ull) + ((offset) & 7) * 8)
+#define CVMX_L2C_QOS_PPX(offset) (CVMX_ADD_IO_SEG(0x0001180080880000ull) + ((offset) & 31) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_QOS_WGT CVMX_L2C_QOS_WGT_FUNC()
 static inline uint64_t CVMX_L2C_QOS_WGT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_QOS_WGT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180080800008ull);
 }
@@ -525,26 +573,34 @@ static inline uint64_t CVMX_L2C_QOS_WGT_FUNC(void)
 #define CVMX_L2C_QOS_WGT (CVMX_ADD_IO_SEG(0x0001180080800008ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
-static inline uint64_t CVMX_L2C_RSCX_PFC(unsigned long block_id)
+static inline uint64_t CVMX_L2C_RSCX_PFC(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_L2C_RSCX_PFC(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080800410ull);
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset == 0)))))
+		cvmx_warn("CVMX_L2C_RSCX_PFC(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x0001180080800410ull) + ((offset) & 3) * 64;
 }
 #else
-#define CVMX_L2C_RSCX_PFC(block_id) (CVMX_ADD_IO_SEG(0x0001180080800410ull))
+#define CVMX_L2C_RSCX_PFC(offset) (CVMX_ADD_IO_SEG(0x0001180080800410ull) + ((offset) & 3) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
-static inline uint64_t CVMX_L2C_RSDX_PFC(unsigned long block_id)
+static inline uint64_t CVMX_L2C_RSDX_PFC(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_L2C_RSDX_PFC(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080800418ull);
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset == 0)))))
+		cvmx_warn("CVMX_L2C_RSDX_PFC(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x0001180080800418ull) + ((offset) & 3) * 64;
 }
 #else
-#define CVMX_L2C_RSDX_PFC(block_id) (CVMX_ADD_IO_SEG(0x0001180080800418ull))
+#define CVMX_L2C_RSDX_PFC(offset) (CVMX_ADD_IO_SEG(0x0001180080800418ull) + ((offset) & 3) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_SPAR0 CVMX_L2C_SPAR0_FUNC()
@@ -605,117 +661,157 @@ static inline uint64_t CVMX_L2C_SPAR4_FUNC(void)
 static inline uint64_t CVMX_L2C_TADX_ECC0(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_ECC0(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00018ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00018ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_ECC0(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00018ull))
+#define CVMX_L2C_TADX_ECC0(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00018ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_ECC1(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_ECC1(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00020ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00020ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_ECC1(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00020ull))
+#define CVMX_L2C_TADX_ECC1(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00020ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_IEN(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_IEN(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00000ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00000ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_IEN(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00000ull))
+#define CVMX_L2C_TADX_IEN(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00000ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_INT(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_INT(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00028ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00028ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_INT(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00028ull))
+#define CVMX_L2C_TADX_INT(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00028ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_PFC0(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_PFC0(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00400ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00400ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_PFC0(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00400ull))
+#define CVMX_L2C_TADX_PFC0(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00400ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_PFC1(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_PFC1(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00408ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00408ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_PFC1(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00408ull))
+#define CVMX_L2C_TADX_PFC1(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00408ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_PFC2(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_PFC2(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00410ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00410ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_PFC2(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00410ull))
+#define CVMX_L2C_TADX_PFC2(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00410ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_PFC3(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_PFC3(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00418ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00418ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_PFC3(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00418ull))
+#define CVMX_L2C_TADX_PFC3(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00418ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_PRF(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_PRF(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00008ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00008ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_PRF(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00008ull))
+#define CVMX_L2C_TADX_PRF(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00008ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_TADX_TAG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_L2C_TADX_TAG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080A00010ull);
+	return CVMX_ADD_IO_SEG(0x0001180080A00010ull) + ((block_id) & 3) * 0x40000ull;
 }
 #else
-#define CVMX_L2C_TADX_TAG(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00010ull))
+#define CVMX_L2C_TADX_TAG(block_id) (CVMX_ADD_IO_SEG(0x0001180080A00010ull) + ((block_id) & 3) * 0x40000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_VER_ID CVMX_L2C_VER_ID_FUNC()
 static inline uint64_t CVMX_L2C_VER_ID_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_VER_ID not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800808007E0ull);
 }
@@ -726,7 +822,7 @@ static inline uint64_t CVMX_L2C_VER_ID_FUNC(void)
 #define CVMX_L2C_VER_IOB CVMX_L2C_VER_IOB_FUNC()
 static inline uint64_t CVMX_L2C_VER_IOB_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_VER_IOB not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800808007F0ull);
 }
@@ -737,7 +833,7 @@ static inline uint64_t CVMX_L2C_VER_IOB_FUNC(void)
 #define CVMX_L2C_VER_MSC CVMX_L2C_VER_MSC_FUNC()
 static inline uint64_t CVMX_L2C_VER_MSC_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_VER_MSC not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800808007D0ull);
 }
@@ -748,7 +844,7 @@ static inline uint64_t CVMX_L2C_VER_MSC_FUNC(void)
 #define CVMX_L2C_VER_PP CVMX_L2C_VER_PP_FUNC()
 static inline uint64_t CVMX_L2C_VER_PP_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_VER_PP not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800808007E8ull);
 }
@@ -756,32 +852,40 @@ static inline uint64_t CVMX_L2C_VER_PP_FUNC(void)
 #define CVMX_L2C_VER_PP (CVMX_ADD_IO_SEG(0x00011800808007E8ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
-static inline uint64_t CVMX_L2C_VIRTID_IOBX(unsigned long block_id)
+static inline uint64_t CVMX_L2C_VIRTID_IOBX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_L2C_VIRTID_IOBX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800808C0200ull);
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset == 0)))))
+		cvmx_warn("CVMX_L2C_VIRTID_IOBX(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x00011800808C0200ull) + ((offset) & 1) * 8;
 }
 #else
-#define CVMX_L2C_VIRTID_IOBX(block_id) (CVMX_ADD_IO_SEG(0x00011800808C0200ull))
+#define CVMX_L2C_VIRTID_IOBX(offset) (CVMX_ADD_IO_SEG(0x00011800808C0200ull) + ((offset) & 1) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_VIRTID_PPX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 9))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 3)))))
 		cvmx_warn("CVMX_L2C_VIRTID_PPX(%lu) is invalid on this chip\n", offset);
-	return CVMX_ADD_IO_SEG(0x00011800808C0000ull) + ((offset) & 7) * 8;
+	return CVMX_ADD_IO_SEG(0x00011800808C0000ull) + ((offset) & 31) * 8;
 }
 #else
-#define CVMX_L2C_VIRTID_PPX(offset) (CVMX_ADD_IO_SEG(0x00011800808C0000ull) + ((offset) & 7) * 8)
+#define CVMX_L2C_VIRTID_PPX(offset) (CVMX_ADD_IO_SEG(0x00011800808C0000ull) + ((offset) & 31) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_VRT_CTL CVMX_L2C_VRT_CTL_FUNC()
 static inline uint64_t CVMX_L2C_VRT_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_VRT_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180080800010ull);
 }
@@ -792,7 +896,11 @@ static inline uint64_t CVMX_L2C_VRT_CTL_FUNC(void)
 static inline uint64_t CVMX_L2C_VRT_MEMX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1023)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1023))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1023))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1023))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1023))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1023)))))
 		cvmx_warn("CVMX_L2C_VRT_MEMX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001180080900000ull) + ((offset) & 1023) * 8;
 }
@@ -800,43 +908,55 @@ static inline uint64_t CVMX_L2C_VRT_MEMX(unsigned long offset)
 #define CVMX_L2C_VRT_MEMX(offset) (CVMX_ADD_IO_SEG(0x0001180080900000ull) + ((offset) & 1023) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
-static inline uint64_t CVMX_L2C_WPAR_IOBX(unsigned long block_id)
+static inline uint64_t CVMX_L2C_WPAR_IOBX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_L2C_WPAR_IOBX(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080840200ull);
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset == 0)))))
+		cvmx_warn("CVMX_L2C_WPAR_IOBX(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x0001180080840200ull) + ((offset) & 1) * 8;
 }
 #else
-#define CVMX_L2C_WPAR_IOBX(block_id) (CVMX_ADD_IO_SEG(0x0001180080840200ull))
+#define CVMX_L2C_WPAR_IOBX(offset) (CVMX_ADD_IO_SEG(0x0001180080840200ull) + ((offset) & 1) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_L2C_WPAR_PPX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 5))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 9))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 3)))))
 		cvmx_warn("CVMX_L2C_WPAR_PPX(%lu) is invalid on this chip\n", offset);
-	return CVMX_ADD_IO_SEG(0x0001180080840000ull) + ((offset) & 7) * 8;
+	return CVMX_ADD_IO_SEG(0x0001180080840000ull) + ((offset) & 31) * 8;
 }
 #else
-#define CVMX_L2C_WPAR_PPX(offset) (CVMX_ADD_IO_SEG(0x0001180080840000ull) + ((offset) & 7) * 8)
+#define CVMX_L2C_WPAR_PPX(offset) (CVMX_ADD_IO_SEG(0x0001180080840000ull) + ((offset) & 31) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
-static inline uint64_t CVMX_L2C_XMCX_PFC(unsigned long block_id)
+static inline uint64_t CVMX_L2C_XMCX_PFC(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_L2C_XMCX_PFC(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080800400ull);
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset == 0)))))
+		cvmx_warn("CVMX_L2C_XMCX_PFC(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x0001180080800400ull) + ((offset) & 3) * 64;
 }
 #else
-#define CVMX_L2C_XMCX_PFC(block_id) (CVMX_ADD_IO_SEG(0x0001180080800400ull))
+#define CVMX_L2C_XMCX_PFC(offset) (CVMX_ADD_IO_SEG(0x0001180080800400ull) + ((offset) & 3) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2C_XMC_CMD CVMX_L2C_XMC_CMD_FUNC()
 static inline uint64_t CVMX_L2C_XMC_CMD_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_L2C_XMC_CMD not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180080800028ull);
 }
@@ -844,15 +964,19 @@ static inline uint64_t CVMX_L2C_XMC_CMD_FUNC(void)
 #define CVMX_L2C_XMC_CMD (CVMX_ADD_IO_SEG(0x0001180080800028ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
-static inline uint64_t CVMX_L2C_XMDX_PFC(unsigned long block_id)
+static inline uint64_t CVMX_L2C_XMDX_PFC(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_L2C_XMDX_PFC(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180080800408ull);
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset == 0)))))
+		cvmx_warn("CVMX_L2C_XMDX_PFC(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x0001180080800408ull) + ((offset) & 3) * 64;
 }
 #else
-#define CVMX_L2C_XMDX_PFC(block_id) (CVMX_ADD_IO_SEG(0x0001180080800408ull))
+#define CVMX_L2C_XMDX_PFC(offset) (CVMX_ADD_IO_SEG(0x0001180080800408ull) + ((offset) & 3) * 64)
 #endif
 
 /**
@@ -868,12 +992,10 @@ static inline uint64_t CVMX_L2C_XMDX_PFC(unsigned long block_id)
  * (2) When HOLEWR/BIGWR blocks a store L2C_VER_ID, L2C_VER_PP, L2C_VER_IOB, and L2C_VER_MSC will be
  *     loaded just like a store which is blocked by VRTWR.  Additionally, L2C_ERR_XMC will be loaded.
  */
-union cvmx_l2c_big_ctl
-{
+union cvmx_l2c_big_ctl {
 	uint64_t u64;
-	struct cvmx_l2c_big_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_big_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t maxdram                      : 4;  /**< Amount of configured DRAM
                                                              0 = reserved
@@ -901,7 +1023,12 @@ union cvmx_l2c_big_ctl
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
+	struct cvmx_l2c_big_ctl_s             cn61xx;
 	struct cvmx_l2c_big_ctl_s             cn63xx;
+	struct cvmx_l2c_big_ctl_s             cn66xx;
+	struct cvmx_l2c_big_ctl_s             cn68xx;
+	struct cvmx_l2c_big_ctl_s             cn68xxp1;
+	struct cvmx_l2c_big_ctl_s             cnf71xx;
 };
 typedef union cvmx_l2c_big_ctl cvmx_l2c_big_ctl_t;
 
@@ -911,12 +1038,62 @@ typedef union cvmx_l2c_big_ctl cvmx_l2c_big_ctl_t;
  * L2C_BST = L2C BIST Status
  *
  */
-union cvmx_l2c_bst
-{
+union cvmx_l2c_bst {
 	uint64_t u64;
-	struct cvmx_l2c_bst_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t dutfl                        : 32; /**< BIST failure status for PP0-3 DUT */
+	uint64_t rbffl                        : 4;  /**< BIST failure status for RBF0-3 */
+	uint64_t xbffl                        : 4;  /**< BIST failure status for XBF0-3 */
+	uint64_t tdpfl                        : 4;  /**< BIST failure status for TDP0-3 */
+	uint64_t ioccmdfl                     : 4;  /**< BIST failure status for IOCCMD */
+	uint64_t iocdatfl                     : 4;  /**< BIST failure status for IOCDAT */
+	uint64_t dutresfl                     : 4;  /**< BIST failure status for DUTRES */
+	uint64_t vrtfl                        : 4;  /**< BIST failure status for VRT0 */
+	uint64_t tdffl                        : 4;  /**< BIST failure status for TDF0 */
+#else
+	uint64_t tdffl                        : 4;
+	uint64_t vrtfl                        : 4;
+	uint64_t dutresfl                     : 4;
+	uint64_t iocdatfl                     : 4;
+	uint64_t ioccmdfl                     : 4;
+	uint64_t tdpfl                        : 4;
+	uint64_t xbffl                        : 4;
+	uint64_t rbffl                        : 4;
+	uint64_t dutfl                        : 32;
+#endif
+	} s;
+	struct cvmx_l2c_bst_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_36_63               : 28;
+	uint64_t dutfl                        : 4;  /**< BIST failure status for PP0-3 DUT */
+	uint64_t reserved_17_31               : 15;
+	uint64_t ioccmdfl                     : 1;  /**< BIST failure status for IOCCMD */
+	uint64_t reserved_13_15               : 3;
+	uint64_t iocdatfl                     : 1;  /**< BIST failure status for IOCDAT */
+	uint64_t reserved_9_11                : 3;
+	uint64_t dutresfl                     : 1;  /**< BIST failure status for DUTRES */
+	uint64_t reserved_5_7                 : 3;
+	uint64_t vrtfl                        : 1;  /**< BIST failure status for VRT0 */
+	uint64_t reserved_1_3                 : 3;
+	uint64_t tdffl                        : 1;  /**< BIST failure status for TDF0 */
+#else
+	uint64_t tdffl                        : 1;
+	uint64_t reserved_1_3                 : 3;
+	uint64_t vrtfl                        : 1;
+	uint64_t reserved_5_7                 : 3;
+	uint64_t dutresfl                     : 1;
+	uint64_t reserved_9_11                : 3;
+	uint64_t iocdatfl                     : 1;
+	uint64_t reserved_13_15               : 3;
+	uint64_t ioccmdfl                     : 1;
+	uint64_t reserved_17_31               : 15;
+	uint64_t dutfl                        : 4;
+	uint64_t reserved_36_63               : 28;
+#endif
+	} cn61xx;
+	struct cvmx_l2c_bst_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t dutfl                        : 6;  /**< BIST failure status for PP0-5 DUT */
 	uint64_t reserved_17_31               : 15;
@@ -943,9 +1120,40 @@ union cvmx_l2c_bst
 	uint64_t dutfl                        : 6;
 	uint64_t reserved_38_63               : 26;
 #endif
-	} s;
-	struct cvmx_l2c_bst_s                 cn63xx;
-	struct cvmx_l2c_bst_s                 cn63xxp1;
+	} cn63xx;
+	struct cvmx_l2c_bst_cn63xx            cn63xxp1;
+	struct cvmx_l2c_bst_cn66xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_42_63               : 22;
+	uint64_t dutfl                        : 10; /**< BIST failure status for PP0-9 DUT */
+	uint64_t reserved_17_31               : 15;
+	uint64_t ioccmdfl                     : 1;  /**< BIST failure status for IOCCMD */
+	uint64_t reserved_13_15               : 3;
+	uint64_t iocdatfl                     : 1;  /**< BIST failure status for IOCDAT */
+	uint64_t reserved_9_11                : 3;
+	uint64_t dutresfl                     : 1;  /**< BIST failure status for DUTRES */
+	uint64_t reserved_5_7                 : 3;
+	uint64_t vrtfl                        : 1;  /**< BIST failure status for VRT0 */
+	uint64_t reserved_1_3                 : 3;
+	uint64_t tdffl                        : 1;  /**< BIST failure status for TDF0 */
+#else
+	uint64_t tdffl                        : 1;
+	uint64_t reserved_1_3                 : 3;
+	uint64_t vrtfl                        : 1;
+	uint64_t reserved_5_7                 : 3;
+	uint64_t dutresfl                     : 1;
+	uint64_t reserved_9_11                : 3;
+	uint64_t iocdatfl                     : 1;
+	uint64_t reserved_13_15               : 3;
+	uint64_t ioccmdfl                     : 1;
+	uint64_t reserved_17_31               : 15;
+	uint64_t dutfl                        : 10;
+	uint64_t reserved_42_63               : 22;
+#endif
+	} cn66xx;
+	struct cvmx_l2c_bst_s                 cn68xx;
+	struct cvmx_l2c_bst_s                 cn68xxp1;
+	struct cvmx_l2c_bst_cn61xx            cnf71xx;
 };
 typedef union cvmx_l2c_bst cvmx_l2c_bst_t;
 
@@ -955,12 +1163,10 @@ typedef union cvmx_l2c_bst cvmx_l2c_bst_t;
  * L2C_BST0 = L2C BIST 0 CTL/STAT
  *
  */
-union cvmx_l2c_bst0
-{
+union cvmx_l2c_bst0 {
 	uint64_t u64;
-	struct cvmx_l2c_bst0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t dtbnk                        : 1;  /**< DuTag Bank#
                                                          When DT=1(BAD), this field provides additional information
@@ -992,9 +1198,8 @@ union cvmx_l2c_bst0
 	uint64_t reserved_24_63               : 40;
 #endif
 	} s;
-	struct cvmx_l2c_bst0_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst0_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t wlb_msk                      : 4;  /**< Bist Results for WLB-MSK RAM [DP0-3]
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1021,9 +1226,8 @@ union cvmx_l2c_bst0
 	uint64_t reserved_23_63               : 41;
 #endif
 	} cn30xx;
-	struct cvmx_l2c_bst0_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst0_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t wlb_msk                      : 4;  /**< Bist Results for WLB-MSK RAM [DP0-3]
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1053,9 +1257,8 @@ union cvmx_l2c_bst0
 	uint64_t reserved_23_63               : 41;
 #endif
 	} cn31xx;
-	struct cvmx_l2c_bst0_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst0_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t dtcnt                        : 13; /**< DuTag BiST Counter (used to help isolate the failure)
                                                          [12]:    i (0=FORWARD/1=REVERSE pass)
@@ -1080,9 +1283,8 @@ union cvmx_l2c_bst0
 #endif
 	} cn38xx;
 	struct cvmx_l2c_bst0_cn38xx           cn38xxp2;
-	struct cvmx_l2c_bst0_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst0_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t dtbnk                        : 1;  /**< DuTag Bank#
                                                          When DT=1(BAD), this field provides additional information
@@ -1131,12 +1333,10 @@ typedef union cvmx_l2c_bst0 cvmx_l2c_bst0_t;
  * L2C_BST1 = L2C BIST 1 CTL/STAT
  *
  */
-union cvmx_l2c_bst1
-{
+union cvmx_l2c_bst1 {
 	uint64_t u64;
-	struct cvmx_l2c_bst1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t l2t                          : 9;  /**< Bist Results for L2T (USE+8SET RAMs)
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1146,9 +1346,8 @@ union cvmx_l2c_bst1
 	uint64_t reserved_9_63                : 55;
 #endif
 	} s;
-	struct cvmx_l2c_bst1_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst1_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t vwdf                         : 4;  /**< Bist Results for VWDF RAMs
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1173,9 +1372,8 @@ union cvmx_l2c_bst1
 #endif
 	} cn30xx;
 	struct cvmx_l2c_bst1_cn30xx           cn31xx;
-	struct cvmx_l2c_bst1_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst1_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t vwdf                         : 4;  /**< Bist Results for VWDF RAMs
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1199,9 +1397,8 @@ union cvmx_l2c_bst1
 	} cn38xx;
 	struct cvmx_l2c_bst1_cn38xx           cn38xxp2;
 	struct cvmx_l2c_bst1_cn38xx           cn50xx;
-	struct cvmx_l2c_bst1_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst1_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t plc2                         : 1;  /**< Bist Results for PLC2 RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1238,9 +1435,8 @@ union cvmx_l2c_bst1
 #endif
 	} cn52xx;
 	struct cvmx_l2c_bst1_cn52xx           cn52xxp1;
-	struct cvmx_l2c_bst1_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst1_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t plc2                         : 1;  /**< Bist Results for LRF RAMs (ILC)
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1294,12 +1490,10 @@ typedef union cvmx_l2c_bst1 cvmx_l2c_bst1_t;
  * L2C_BST2 = L2C BIST 2 CTL/STAT
  *
  */
-union cvmx_l2c_bst2
-{
+union cvmx_l2c_bst2 {
 	uint64_t u64;
-	struct cvmx_l2c_bst2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mrb                          : 4;  /**< Bist Results for MRB RAMs
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1325,9 +1519,8 @@ union cvmx_l2c_bst2
 	uint64_t reserved_16_63               : 48;
 #endif
 	} s;
-	struct cvmx_l2c_bst2_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst2_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mrb                          : 4;  /**< Bist Results for MRB RAMs
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1358,9 +1551,8 @@ union cvmx_l2c_bst2
 #endif
 	} cn30xx;
 	struct cvmx_l2c_bst2_cn30xx           cn31xx;
-	struct cvmx_l2c_bst2_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst2_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mrb                          : 4;  /**< Bist Results for MRB RAMs
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1396,9 +1588,8 @@ union cvmx_l2c_bst2
 	struct cvmx_l2c_bst2_cn30xx           cn50xx;
 	struct cvmx_l2c_bst2_cn30xx           cn52xx;
 	struct cvmx_l2c_bst2_cn30xx           cn52xxp1;
-	struct cvmx_l2c_bst2_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst2_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mrb                          : 4;  /**< Bist Results for MRB RAMs
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1448,12 +1639,10 @@ typedef union cvmx_l2c_bst2 cvmx_l2c_bst2_t;
  * (2) CLEAR_BIST must not be changed after writing START_BIST to 1 until the BIST operation completes
  *     (indicated by START_BIST returning to 0) or operation is undefined.
  */
-union cvmx_l2c_bst_memx
-{
+union cvmx_l2c_bst_memx {
 	uint64_t u64;
-	struct cvmx_l2c_bst_memx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst_memx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t start_bist                   : 1;  /**< When written to 1, starts BIST.  Will read 1 until
                                                          BIST is complete (see Note). */
 	uint64_t clear_bist                   : 1;  /**< When BIST is triggered, run clear BIST (see Note) */
@@ -1468,8 +1657,13 @@ union cvmx_l2c_bst_memx
 	uint64_t start_bist                   : 1;
 #endif
 	} s;
+	struct cvmx_l2c_bst_memx_s            cn61xx;
 	struct cvmx_l2c_bst_memx_s            cn63xx;
 	struct cvmx_l2c_bst_memx_s            cn63xxp1;
+	struct cvmx_l2c_bst_memx_s            cn66xx;
+	struct cvmx_l2c_bst_memx_s            cn68xx;
+	struct cvmx_l2c_bst_memx_s            cn68xxp1;
+	struct cvmx_l2c_bst_memx_s            cnf71xx;
 };
 typedef union cvmx_l2c_bst_memx cvmx_l2c_bst_memx_t;
 
@@ -1479,16 +1673,14 @@ typedef union cvmx_l2c_bst_memx cvmx_l2c_bst_memx_t;
  * L2C_BST_TDT = L2C TAD DaTa BIST Status
  *
  */
-union cvmx_l2c_bst_tdtx
-{
+union cvmx_l2c_bst_tdtx {
 	uint64_t u64;
-	struct cvmx_l2c_bst_tdtx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst_tdtx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t fbfrspfl                     : 8;  /**< BIST failure status for quad 0-7 FBF RSP read port */
 	uint64_t sbffl                        : 8;  /**< BIST failure status for quad 0-7 SBF */
-	uint64_t fbffl                        : 8;  /**< BIST failure status for quad 0-7 FBF */
+	uint64_t fbffl                        : 8;  /**< BIST failure status for quad 0-7 FBF WRP read port */
 	uint64_t l2dfl                        : 8;  /**< BIST failure status for quad 0-7 L2D */
 #else
 	uint64_t l2dfl                        : 8;
@@ -1498,10 +1690,10 @@ union cvmx_l2c_bst_tdtx
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
+	struct cvmx_l2c_bst_tdtx_s            cn61xx;
 	struct cvmx_l2c_bst_tdtx_s            cn63xx;
-	struct cvmx_l2c_bst_tdtx_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst_tdtx_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t sbffl                        : 8;  /**< BIST failure status for quad 0-7 SBF */
 	uint64_t fbffl                        : 8;  /**< BIST failure status for quad 0-7 FBF */
@@ -1513,6 +1705,10 @@ union cvmx_l2c_bst_tdtx
 	uint64_t reserved_24_63               : 40;
 #endif
 	} cn63xxp1;
+	struct cvmx_l2c_bst_tdtx_s            cn66xx;
+	struct cvmx_l2c_bst_tdtx_s            cn68xx;
+	struct cvmx_l2c_bst_tdtx_s            cn68xxp1;
+	struct cvmx_l2c_bst_tdtx_s            cnf71xx;
 };
 typedef union cvmx_l2c_bst_tdtx cvmx_l2c_bst_tdtx_t;
 
@@ -1522,12 +1718,10 @@ typedef union cvmx_l2c_bst_tdtx cvmx_l2c_bst_tdtx_t;
  * L2C_BST_TTG = L2C TAD TaG BIST Status
  *
  */
-union cvmx_l2c_bst_ttgx
-{
+union cvmx_l2c_bst_ttgx {
 	uint64_t u64;
-	struct cvmx_l2c_bst_ttgx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_bst_ttgx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t lrufl                        : 1;  /**< BIST failure status for tag LRU */
 	uint64_t tagfl                        : 16; /**< BIST failure status for tag ways 0-15 */
@@ -1537,8 +1731,13 @@ union cvmx_l2c_bst_ttgx
 	uint64_t reserved_17_63               : 47;
 #endif
 	} s;
+	struct cvmx_l2c_bst_ttgx_s            cn61xx;
 	struct cvmx_l2c_bst_ttgx_s            cn63xx;
 	struct cvmx_l2c_bst_ttgx_s            cn63xxp1;
+	struct cvmx_l2c_bst_ttgx_s            cn66xx;
+	struct cvmx_l2c_bst_ttgx_s            cn68xx;
+	struct cvmx_l2c_bst_ttgx_s            cn68xxp1;
+	struct cvmx_l2c_bst_ttgx_s            cnf71xx;
 };
 typedef union cvmx_l2c_bst_ttgx cvmx_l2c_bst_ttgx_t;
 
@@ -1551,12 +1750,10 @@ typedef union cvmx_l2c_bst_ttgx cvmx_l2c_bst_ttgx_t;
  *
  * Description:
  */
-union cvmx_l2c_cfg
-{
+union cvmx_l2c_cfg {
 	uint64_t u64;
-	struct cvmx_l2c_cfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_cfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t bstrun                       : 1;  /**< L2 Data Store Bist Running
                                                          Indicates when the L2C HW Bist sequence(short or long) is
@@ -1696,9 +1893,8 @@ union cvmx_l2c_cfg
 	uint64_t reserved_20_63               : 44;
 #endif
 	} s;
-	struct cvmx_l2c_cfg_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_cfg_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t fpexp                        : 4;  /**< [CYA] Forward Progress Counter Exponent
                                                          NOTE: Should NOT be exposed to customer! [FOR DEBUG ONLY]
@@ -1784,9 +1980,8 @@ union cvmx_l2c_cfg
 	struct cvmx_l2c_cfg_cn30xx            cn31xx;
 	struct cvmx_l2c_cfg_cn30xx            cn38xx;
 	struct cvmx_l2c_cfg_cn30xx            cn38xxp2;
-	struct cvmx_l2c_cfg_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_cfg_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t bstrun                       : 1;  /**< L2 Data Store Bist Running
                                                          Indicates when the L2C HW Bist sequence(short or long) is
@@ -1889,9 +2084,8 @@ union cvmx_l2c_cfg
 	struct cvmx_l2c_cfg_cn50xx            cn52xxp1;
 	struct cvmx_l2c_cfg_s                 cn56xx;
 	struct cvmx_l2c_cfg_s                 cn56xxp1;
-	struct cvmx_l2c_cfg_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_cfg_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t bstrun                       : 1;  /**< L2 Data Store Bist Running
                                                          Indicates when the L2C HW Bist sequence(short or long) is
@@ -1999,9 +2193,8 @@ union cvmx_l2c_cfg
 	uint64_t reserved_20_63               : 44;
 #endif
 	} cn58xx;
-	struct cvmx_l2c_cfg_cn58xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_cfg_cn58xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t dfill_dis                    : 1;  /**< L2C Dual Fill Disable
                                                          When set, the L2C dual-fill performance feature is
@@ -2101,7 +2294,7 @@ typedef union cvmx_l2c_cfg cvmx_l2c_cfg_t;
  *
  * Description: PP COP0 register mapped region.
  *
- * NOTE: for 63xx, if the PPID is outside the range of 0-5,63 the write will be ignored and reads
+ * NOTE: for 63xx, if the PPID is outside the range of 0-3,63 the write will be ignored and reads
  * will return 0x2bad2bad2bad2bad
  *
  * Notes:
@@ -2118,7 +2311,7 @@ typedef union cvmx_l2c_cfg cvmx_l2c_cfg_t;
  * (2) if a COP0 register cannot be accessed by this mechanism the write be silently ignored and the
  *     read data will be 0xBADDEED.
  *
- * (3) for 63xx, if the PPID is outside the range of 0-5,63 or if the PP in question is in reset a
+ * (3) for 61xx, if the PPID is outside the range of 0-3,63 or if the PP in question is in reset a
  *     write will be ignored and reads will timeout the RSL bus.
  *
  * (4) Referring to note (1) above, the following rd/sel values are supported:
@@ -2149,6 +2342,7 @@ typedef union cvmx_l2c_cfg cvmx_l2c_cfg_t;
  *       18      0       RO          COP0 WatchLo0                                 RW
  *       19      0       RO          COP0 WatchHi0                                 RW
  *       22      0       RO          COP0 MultiCoreDebug                           RW
+ *       22      1                   COP0 VoltageMonitor                           RW
  *       23      0       RO          COP0 Debug                                    RW
  *       23      6       RO          COP0 Debug2                                   RO
  *       24      0       RO          COP0 DEPC                                     RW
@@ -2196,20 +2390,23 @@ typedef union cvmx_l2c_cfg cvmx_l2c_cfg_t;
  *          1 waiting_for_pfill_4a // when waiting_for_ifill_4a is set, indicates whether instruction cache fill is due to a prefetch
  *          0 waiting_for_ifill_4a // set when there is an outstanding instruction cache fill
  */
-union cvmx_l2c_cop0_mapx
-{
+union cvmx_l2c_cop0_mapx {
 	uint64_t u64;
-	struct cvmx_l2c_cop0_mapx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_cop0_mapx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t data                         : 64; /**< Data to write to/read from designated PP's COP0
                                                          register. */
 #else
 	uint64_t data                         : 64;
 #endif
 	} s;
+	struct cvmx_l2c_cop0_mapx_s           cn61xx;
 	struct cvmx_l2c_cop0_mapx_s           cn63xx;
 	struct cvmx_l2c_cop0_mapx_s           cn63xxp1;
+	struct cvmx_l2c_cop0_mapx_s           cn66xx;
+	struct cvmx_l2c_cop0_mapx_s           cn68xx;
+	struct cvmx_l2c_cop0_mapx_s           cn68xxp1;
+	struct cvmx_l2c_cop0_mapx_s           cnf71xx;
 };
 typedef union cvmx_l2c_cop0_mapx cvmx_l2c_cop0_mapx_t;
 
@@ -2236,12 +2433,150 @@ typedef union cvmx_l2c_cop0_mapx cvmx_l2c_cop0_mapx_t;
  *     without the error must change the block to dirty.  Then, a subsequent WBL2/WBIL2/victim will
  *     trigger the VBFSBE/VBFDBE error.
  */
-union cvmx_l2c_ctl
-{
+union cvmx_l2c_ctl {
 	uint64_t u64;
-	struct cvmx_l2c_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_30_63               : 34;
+	uint64_t sepcmt                       : 1;  /**< Sends all invals before the corresponding commit. */
+	uint64_t rdf_fast                     : 1;  /**< When 0, delay read data fifo from DCLK to RCLK by one
+                                                         cycle.  Needed when DCLK:RCLK ratio > 3:1.  Should be
+                                                         set before DDR traffic begins and only changed when
+                                                         memory traffic is idle. */
+	uint64_t disstgl2i                    : 1;  /**< Disable STGL2I's from changing the tags */
+	uint64_t l2dfsbe                      : 1;  /**< Force single bit ECC error on PL2 allocates (2) */
+	uint64_t l2dfdbe                      : 1;  /**< Force double bit ECC error on PL2 allocates (2) */
+	uint64_t discclk                      : 1;  /**< Disable conditional clocking in L2C PNR blocks */
+	uint64_t maxvab                       : 4;  /**< Maximum VABs in use at once
+                                                         (0 means 16, 1-15 as expected) */
+	uint64_t maxlfb                       : 4;  /**< Maximum LFBs in use at once
+                                                         (0 means 16, 1-15 as expected) */
+	uint64_t rsp_arb_mode                 : 1;  /**< Arbitration mode for RSC/RSD bus
+                                                         == 0, round-robin
+                                                         == 1, static priority
+                                                             1. IOR data
+                                                             2. STIN/FILLs
+                                                             3. STDN/SCDN/SCFL */
+	uint64_t xmc_arb_mode                 : 1;  /**< Arbitration mode for XMC QOS queues
+                                                         == 0, fully determined through QOS
+                                                         == 1, QOS0 highest priority, QOS1-3 use normal mode */
+	uint64_t ef_ena                       : 1;  /**< LMC early fill enable */
+	uint64_t ef_cnt                       : 7;  /**< LMC early fill count
+                                                         Specifies the number of cycles after the first LMC
+                                                         fill cycle to wait before requesting a fill on the
+                                                         RSC/RSD bus.
+                                                           // 7 dclks (we've received 1st out of 8
+                                                           // by the time we start counting)
+                                                           ef_cnt = ((LMCn_CONFIG[MODE32b] ? 14 : 7) *
+                                                                     dclk0_period) / rclk_period;
+                                                           // + 1 rclk if the dclk and rclk edges don't
+                                                           // stay in the same position
+                                                           if ((dclk0_gen.period % rclk_gen.period) != 0)
+                                                              ef_cnt = ef_cnt + 1;
+                                                           // + 2 rclk synchronization uncertainty
+                                                           ef_cnt = ef_cnt + 2;
+                                                           // - 3 rclks to recognize first write
+                                                           ef_cnt = ef_cnt - 3;
+                                                           // + 3 rclks to perform first write
+                                                           ef_cnt = ef_cnt + 3;
+                                                           // - 9 rclks minimum latency from counter expire
+                                                           // to final fbf read
+                                                           ef_cnt = ef_cnt - 9; */
+	uint64_t vab_thresh                   : 4;  /**< VAB Threshold
+                                                         When the number of valid VABs exceeds this number the
+                                                         L2C increases the priority of all writes in the LMC. */
+	uint64_t disecc                       : 1;  /**< Tag and Data ECC Disable */
+	uint64_t disidxalias                  : 1;  /**< Index Alias Disable */
+#else
+	uint64_t disidxalias                  : 1;
+	uint64_t disecc                       : 1;
+	uint64_t vab_thresh                   : 4;
+	uint64_t ef_cnt                       : 7;
+	uint64_t ef_ena                       : 1;
+	uint64_t xmc_arb_mode                 : 1;
+	uint64_t rsp_arb_mode                 : 1;
+	uint64_t maxlfb                       : 4;
+	uint64_t maxvab                       : 4;
+	uint64_t discclk                      : 1;
+	uint64_t l2dfdbe                      : 1;
+	uint64_t l2dfsbe                      : 1;
+	uint64_t disstgl2i                    : 1;
+	uint64_t rdf_fast                     : 1;
+	uint64_t sepcmt                       : 1;
+	uint64_t reserved_30_63               : 34;
+#endif
+	} s;
+	struct cvmx_l2c_ctl_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_29_63               : 35;
+	uint64_t rdf_fast                     : 1;  /**< When 0, delay read data fifo from DCLK to RCLK by one
+                                                         cycle.  Needed when DCLK:RCLK ratio > 3:1.  Should be
+                                                         set before DDR traffic begins and only changed when
+                                                         memory traffic is idle. */
+	uint64_t disstgl2i                    : 1;  /**< Disable STGL2I's from changing the tags */
+	uint64_t l2dfsbe                      : 1;  /**< Force single bit ECC error on PL2 allocates (2) */
+	uint64_t l2dfdbe                      : 1;  /**< Force double bit ECC error on PL2 allocates (2) */
+	uint64_t discclk                      : 1;  /**< Disable conditional clocking in L2C PNR blocks */
+	uint64_t maxvab                       : 4;  /**< Maximum VABs in use at once
+                                                         (0 means 16, 1-15 as expected) */
+	uint64_t maxlfb                       : 4;  /**< Maximum LFBs in use at once
+                                                         (0 means 16, 1-15 as expected) */
+	uint64_t rsp_arb_mode                 : 1;  /**< Arbitration mode for RSC/RSD bus
+                                                         == 0, round-robin
+                                                         == 1, static priority
+                                                             1. IOR data
+                                                             2. STIN/FILLs
+                                                             3. STDN/SCDN/SCFL */
+	uint64_t xmc_arb_mode                 : 1;  /**< Arbitration mode for XMC QOS queues
+                                                         == 0, fully determined through QOS
+                                                         == 1, QOS0 highest priority, QOS1-3 use normal mode */
+	uint64_t ef_ena                       : 1;  /**< LMC early fill enable */
+	uint64_t ef_cnt                       : 7;  /**< LMC early fill count
+                                                         Specifies the number of cycles after the first LMC
+                                                         fill cycle to wait before requesting a fill on the
+                                                         RSC/RSD bus.
+                                                           // 7 dclks (we've received 1st out of 8
+                                                           // by the time we start counting)
+                                                           ef_cnt = ((LMCn_CONFIG[MODE32b] ? 14 : 7) *
+                                                                     dclk0_period) / rclk_period;
+                                                           // + 1 rclk if the dclk and rclk edges don't
+                                                           // stay in the same position
+                                                           if ((dclk0_gen.period % rclk_gen.period) != 0)
+                                                              ef_cnt = ef_cnt + 1;
+                                                           // + 2 rclk synchronization uncertainty
+                                                           ef_cnt = ef_cnt + 2;
+                                                           // - 3 rclks to recognize first write
+                                                           ef_cnt = ef_cnt - 3;
+                                                           // + 3 rclks to perform first write
+                                                           ef_cnt = ef_cnt + 3;
+                                                           // - 9 rclks minimum latency from counter expire
+                                                           // to final fbf read
+                                                           ef_cnt = ef_cnt - 9; */
+	uint64_t vab_thresh                   : 4;  /**< VAB Threshold
+                                                         When the number of valid VABs exceeds this number the
+                                                         L2C increases the priority of all writes in the LMC. */
+	uint64_t disecc                       : 1;  /**< Tag and Data ECC Disable */
+	uint64_t disidxalias                  : 1;  /**< Index Alias Disable */
+#else
+	uint64_t disidxalias                  : 1;
+	uint64_t disecc                       : 1;
+	uint64_t vab_thresh                   : 4;
+	uint64_t ef_cnt                       : 7;
+	uint64_t ef_ena                       : 1;
+	uint64_t xmc_arb_mode                 : 1;
+	uint64_t rsp_arb_mode                 : 1;
+	uint64_t maxlfb                       : 4;
+	uint64_t maxvab                       : 4;
+	uint64_t discclk                      : 1;
+	uint64_t l2dfdbe                      : 1;
+	uint64_t l2dfsbe                      : 1;
+	uint64_t disstgl2i                    : 1;
+	uint64_t rdf_fast                     : 1;
+	uint64_t reserved_29_63               : 35;
+#endif
+	} cn61xx;
+	struct cvmx_l2c_ctl_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t disstgl2i                    : 1;  /**< Disable STGL2I's from changing the tags */
 	uint64_t l2dfsbe                      : 1;  /**< Force single bit ECC error on PL2 allocates (2) */
@@ -2302,11 +2637,9 @@ union cvmx_l2c_ctl
 	uint64_t disstgl2i                    : 1;
 	uint64_t reserved_28_63               : 36;
 #endif
-	} s;
-	struct cvmx_l2c_ctl_s                 cn63xx;
-	struct cvmx_l2c_ctl_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	} cn63xx;
+	struct cvmx_l2c_ctl_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_25_63               : 39;
 	uint64_t discclk                      : 1;  /**< Disable conditional clocking in L2C PNR blocks */
 	uint64_t maxvab                       : 4;  /**< Maximum VABs in use at once
@@ -2362,6 +2695,10 @@ union cvmx_l2c_ctl
 	uint64_t reserved_25_63               : 39;
 #endif
 	} cn63xxp1;
+	struct cvmx_l2c_ctl_cn61xx            cn66xx;
+	struct cvmx_l2c_ctl_s                 cn68xx;
+	struct cvmx_l2c_ctl_cn63xx            cn68xxp1;
+	struct cvmx_l2c_ctl_cn61xx            cnf71xx;
 };
 typedef union cvmx_l2c_ctl cvmx_l2c_ctl_t;
 
@@ -2380,12 +2717,10 @@ typedef union cvmx_l2c_ctl cvmx_l2c_ctl_t;
  * (4) L2 Cache Lock Down feature MUST BE disabled (L2C_LCKBASE[LCK_ENA]=0) if ANY of the L2C debug
  *     features (L2T, L2D, FINV) are enabled.
  */
-union cvmx_l2c_dbg
-{
+union cvmx_l2c_dbg {
 	uint64_t u64;
-	struct cvmx_l2c_dbg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_dbg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t lfb_enum                     : 4;  /**< Specifies the LFB Entry# which is to be captured. */
 	uint64_t lfb_dmp                      : 1;  /**< LFB Dump Enable: When written(=1), the contents of
@@ -2479,9 +2814,8 @@ union cvmx_l2c_dbg
 	uint64_t reserved_15_63               : 49;
 #endif
 	} s;
-	struct cvmx_l2c_dbg_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_dbg_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t lfb_enum                     : 2;  /**< Specifies the LFB Entry# which is to be captured. */
 	uint64_t lfb_dmp                      : 1;  /**< LFB Dump Enable: When written(=1), the contents of
@@ -2576,9 +2910,8 @@ union cvmx_l2c_dbg
 	uint64_t reserved_13_63               : 51;
 #endif
 	} cn30xx;
-	struct cvmx_l2c_dbg_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_dbg_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t lfb_enum                     : 3;  /**< Specifies the LFB Entry# which is to be captured. */
 	uint64_t lfb_dmp                      : 1;  /**< LFB Dump Enable: When written(=1), the contents of
@@ -2676,9 +3009,8 @@ union cvmx_l2c_dbg
 	} cn31xx;
 	struct cvmx_l2c_dbg_s                 cn38xx;
 	struct cvmx_l2c_dbg_s                 cn38xxp2;
-	struct cvmx_l2c_dbg_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_dbg_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t lfb_enum                     : 3;  /**< Specifies the LFB Entry# which is to be captured. */
 	uint64_t lfb_dmp                      : 1;  /**< LFB Dump Enable: When written(=1), the contents of
@@ -2772,9 +3104,8 @@ union cvmx_l2c_dbg
 	uint64_t reserved_14_63               : 50;
 #endif
 	} cn50xx;
-	struct cvmx_l2c_dbg_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_dbg_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t lfb_enum                     : 3;  /**< Specifies the LFB Entry# which is to be captured. */
 	uint64_t lfb_dmp                      : 1;  /**< LFB Dump Enable: When written(=1), the contents of
@@ -2891,12 +3222,10 @@ typedef union cvmx_l2c_dbg cvmx_l2c_dbg_t;
  *     dirty data to memory to maintain coherency. (A side effect of FINV is that an LDD L2 fill is
  *     launched which fills data into the L2 DS).
  */
-union cvmx_l2c_dut
-{
+union cvmx_l2c_dut {
 	uint64_t u64;
-	struct cvmx_l2c_dut_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_dut_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t dtena                        : 1;  /**< DuTag Diagnostic read enable.
                                                          When L2C_DUT[DTENA]=1, all LDD(L1 load-miss)
@@ -2964,8 +3293,8 @@ typedef union cvmx_l2c_dut cvmx_l2c_dut_t;
  *
  * This base address should be combined with PP virtual ID, L1 way and L1 set to produce the final
  * address as follows:
- *     addr<63:14>      L2C_DUT_MAP<63:14>
- *     addr<13:11>      PP VID
+ *     addr<63:13>      L2C_DUT_MAP<63:13>
+ *     addr<12:11>      PP VID
  *     addr<10:6>       L1 way
  *     addr<5:3>        L1 set
  *     addr<2:0>        UNUSED
@@ -2974,12 +3303,10 @@ typedef union cvmx_l2c_dut cvmx_l2c_dut_t;
  * (1) The tag is 37:10 from the 38-bit OCTEON physical address after hole removal. (The hole is between DR0
  * and DR1. Remove the hole by subtracting 256MB from 38-bit OCTEON L2/DRAM physical addresses >= 512 MB.)
  */
-union cvmx_l2c_dut_mapx
-{
+union cvmx_l2c_dut_mapx {
 	uint64_t u64;
-	struct cvmx_l2c_dut_mapx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_dut_mapx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t tag                          : 28; /**< The tag value (see Note 1) */
 	uint64_t reserved_1_9                 : 9;
@@ -2991,8 +3318,13 @@ union cvmx_l2c_dut_mapx
 	uint64_t reserved_38_63               : 26;
 #endif
 	} s;
+	struct cvmx_l2c_dut_mapx_s            cn61xx;
 	struct cvmx_l2c_dut_mapx_s            cn63xx;
 	struct cvmx_l2c_dut_mapx_s            cn63xxp1;
+	struct cvmx_l2c_dut_mapx_s            cn66xx;
+	struct cvmx_l2c_dut_mapx_s            cn68xx;
+	struct cvmx_l2c_dut_mapx_s            cn68xxp1;
+	struct cvmx_l2c_dut_mapx_s            cnf71xx;
 };
 typedef union cvmx_l2c_dut_mapx cvmx_l2c_dut_mapx_t;
 
@@ -3019,12 +3351,64 @@ typedef union cvmx_l2c_dut_mapx cvmx_l2c_dut_mapx_t;
  *
  * (4) The syndrome is recorded for DBE errors, though the utility of the value is not clear.
  */
-union cvmx_l2c_err_tdtx
-{
+union cvmx_l2c_err_tdtx {
 	uint64_t u64;
-	struct cvmx_l2c_err_tdtx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_err_tdtx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t dbe                          : 1;  /**< L2D Double-Bit error has occurred */
+	uint64_t sbe                          : 1;  /**< L2D Single-Bit error has occurred */
+	uint64_t vdbe                         : 1;  /**< VBF Double-Bit error has occurred */
+	uint64_t vsbe                         : 1;  /**< VBF Single-Bit error has occurred */
+	uint64_t syn                          : 10; /**< L2D syndrome (valid only for SBE/DBE, not VSBE/VDBE) */
+	uint64_t reserved_22_49               : 28;
+	uint64_t wayidx                       : 18; /**< Way, index, OW of the L2 block containing the error */
+	uint64_t reserved_2_3                 : 2;
+	uint64_t type                         : 2;  /**< The type of error the WAYIDX,SYN were latched for.
+                                                         0 - VSBE
+                                                         1 - VDBE
+                                                         2 - SBE
+                                                         3 - DBE */
+#else
+	uint64_t type                         : 2;
+	uint64_t reserved_2_3                 : 2;
+	uint64_t wayidx                       : 18;
+	uint64_t reserved_22_49               : 28;
+	uint64_t syn                          : 10;
+	uint64_t vsbe                         : 1;
+	uint64_t vdbe                         : 1;
+	uint64_t sbe                          : 1;
+	uint64_t dbe                          : 1;
+#endif
+	} s;
+	struct cvmx_l2c_err_tdtx_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t dbe                          : 1;  /**< L2D Double-Bit error has occurred */
+	uint64_t sbe                          : 1;  /**< L2D Single-Bit error has occurred */
+	uint64_t vdbe                         : 1;  /**< VBF Double-Bit error has occurred */
+	uint64_t vsbe                         : 1;  /**< VBF Single-Bit error has occurred */
+	uint64_t syn                          : 10; /**< L2D syndrome (valid only for SBE/DBE, not VSBE/VDBE) */
+	uint64_t reserved_20_49               : 30;
+	uint64_t wayidx                       : 16; /**< Way, index, OW of the L2 block containing the error */
+	uint64_t reserved_2_3                 : 2;
+	uint64_t type                         : 2;  /**< The type of error the WAYIDX,SYN were latched for.
+                                                         0 - VSBE
+                                                         1 - VDBE
+                                                         2 - SBE
+                                                         3 - DBE */
+#else
+	uint64_t type                         : 2;
+	uint64_t reserved_2_3                 : 2;
+	uint64_t wayidx                       : 16;
+	uint64_t reserved_20_49               : 30;
+	uint64_t syn                          : 10;
+	uint64_t vsbe                         : 1;
+	uint64_t vdbe                         : 1;
+	uint64_t sbe                          : 1;
+	uint64_t dbe                          : 1;
+#endif
+	} cn61xx;
+	struct cvmx_l2c_err_tdtx_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t dbe                          : 1;  /**< L2D Double-Bit error has occurred */
 	uint64_t sbe                          : 1;  /**< L2D Single-Bit error has occurred */
 	uint64_t vdbe                         : 1;  /**< VBF Double-Bit error has occurred */
@@ -3049,9 +3433,12 @@ union cvmx_l2c_err_tdtx
 	uint64_t sbe                          : 1;
 	uint64_t dbe                          : 1;
 #endif
-	} s;
-	struct cvmx_l2c_err_tdtx_s            cn63xx;
-	struct cvmx_l2c_err_tdtx_s            cn63xxp1;
+	} cn63xx;
+	struct cvmx_l2c_err_tdtx_cn63xx       cn63xxp1;
+	struct cvmx_l2c_err_tdtx_cn63xx       cn66xx;
+	struct cvmx_l2c_err_tdtx_s            cn68xx;
+	struct cvmx_l2c_err_tdtx_s            cn68xxp1;
+	struct cvmx_l2c_err_tdtx_cn61xx       cnf71xx;
 };
 typedef union cvmx_l2c_err_tdtx cvmx_l2c_err_tdtx_t;
 
@@ -3077,12 +3464,90 @@ typedef union cvmx_l2c_err_tdtx cvmx_l2c_err_tdtx_t;
  *     priority, SBE error occuring.  If the SBE arrives prior to the DBE clear the WAYIDX/SYN fields
  *     will still be locked, but the new SBE error status bit will still be set.
  */
-union cvmx_l2c_err_ttgx
-{
+union cvmx_l2c_err_ttgx {
 	uint64_t u64;
-	struct cvmx_l2c_err_ttgx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_err_ttgx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t dbe                          : 1;  /**< Double-Bit ECC error */
+	uint64_t sbe                          : 1;  /**< Single-Bit ECC error */
+	uint64_t noway                        : 1;  /**< No way was available for allocation.
+                                                         L2C sets NOWAY during its processing of a
+                                                         transaction whenever it needed/wanted to allocate
+                                                         a WAY in the L2 cache, but was unable to. NOWAY==1
+                                                         is (generally) not an indication that L2C failed to
+                                                         complete transactions. Rather, it is a hint of
+                                                         possible performance degradation. (For example, L2C
+                                                         must read-modify-write DRAM for every transaction
+                                                         that updates some, but not all, of the bytes in a
+                                                         cache block, misses in the L2 cache, and cannot
+                                                         allocate a WAY.) There is one "failure" case where
+                                                         L2C will set NOWAY: when it cannot leave a block
+                                                         locked in the L2 cache as part of a LCKL2
+                                                         transaction. */
+	uint64_t reserved_56_60               : 5;
+	uint64_t syn                          : 6;  /**< Syndrome for the single-bit error */
+	uint64_t reserved_22_49               : 28;
+	uint64_t wayidx                       : 15; /**< Way and index of the L2 block containing the error */
+	uint64_t reserved_2_6                 : 5;
+	uint64_t type                         : 2;  /**< The type of error the WAYIDX,SYN were latched for.
+                                                         0 - not valid
+                                                         1 - NOWAY
+                                                         2 - SBE
+                                                         3 - DBE */
+#else
+	uint64_t type                         : 2;
+	uint64_t reserved_2_6                 : 5;
+	uint64_t wayidx                       : 15;
+	uint64_t reserved_22_49               : 28;
+	uint64_t syn                          : 6;
+	uint64_t reserved_56_60               : 5;
+	uint64_t noway                        : 1;
+	uint64_t sbe                          : 1;
+	uint64_t dbe                          : 1;
+#endif
+	} s;
+	struct cvmx_l2c_err_ttgx_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t dbe                          : 1;  /**< Double-Bit ECC error */
+	uint64_t sbe                          : 1;  /**< Single-Bit ECC error */
+	uint64_t noway                        : 1;  /**< No way was available for allocation.
+                                                         L2C sets NOWAY during its processing of a
+                                                         transaction whenever it needed/wanted to allocate
+                                                         a WAY in the L2 cache, but was unable to. NOWAY==1
+                                                         is (generally) not an indication that L2C failed to
+                                                         complete transactions. Rather, it is a hint of
+                                                         possible performance degradation. (For example, L2C
+                                                         must read-modify-write DRAM for every transaction
+                                                         that updates some, but not all, of the bytes in a
+                                                         cache block, misses in the L2 cache, and cannot
+                                                         allocate a WAY.) There is one "failure" case where
+                                                         L2C will set NOWAY: when it cannot leave a block
+                                                         locked in the L2 cache as part of a LCKL2
+                                                         transaction. */
+	uint64_t reserved_56_60               : 5;
+	uint64_t syn                          : 6;  /**< Syndrome for the single-bit error */
+	uint64_t reserved_20_49               : 30;
+	uint64_t wayidx                       : 13; /**< Way and index of the L2 block containing the error */
+	uint64_t reserved_2_6                 : 5;
+	uint64_t type                         : 2;  /**< The type of error the WAYIDX,SYN were latched for.
+                                                         0 - not valid
+                                                         1 - NOWAY
+                                                         2 - SBE
+                                                         3 - DBE */
+#else
+	uint64_t type                         : 2;
+	uint64_t reserved_2_6                 : 5;
+	uint64_t wayidx                       : 13;
+	uint64_t reserved_20_49               : 30;
+	uint64_t syn                          : 6;
+	uint64_t reserved_56_60               : 5;
+	uint64_t noway                        : 1;
+	uint64_t sbe                          : 1;
+	uint64_t dbe                          : 1;
+#endif
+	} cn61xx;
+	struct cvmx_l2c_err_ttgx_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t dbe                          : 1;  /**< Double-Bit ECC error */
 	uint64_t sbe                          : 1;  /**< Single-Bit ECC error */
 	uint64_t noway                        : 1;  /**< No way was available for allocation.
@@ -3120,9 +3585,12 @@ union cvmx_l2c_err_ttgx
 	uint64_t sbe                          : 1;
 	uint64_t dbe                          : 1;
 #endif
-	} s;
-	struct cvmx_l2c_err_ttgx_s            cn63xx;
-	struct cvmx_l2c_err_ttgx_s            cn63xxp1;
+	} cn63xx;
+	struct cvmx_l2c_err_ttgx_cn63xx       cn63xxp1;
+	struct cvmx_l2c_err_ttgx_cn63xx       cn66xx;
+	struct cvmx_l2c_err_ttgx_s            cn68xx;
+	struct cvmx_l2c_err_ttgx_s            cn68xxp1;
+	struct cvmx_l2c_err_ttgx_cn61xx       cnf71xx;
 };
 typedef union cvmx_l2c_err_ttgx cvmx_l2c_err_ttgx_t;
 
@@ -3149,12 +3617,10 @@ typedef union cvmx_l2c_err_ttgx cvmx_l2c_err_ttgx_t;
  *     VSBE error occuring.  If the VSBE arrives prior to the VDBE clear the SYN field will still be
  *     locked, but the new VSBE error status bit will still be set.
  */
-union cvmx_l2c_err_vbfx
-{
+union cvmx_l2c_err_vbfx {
 	uint64_t u64;
-	struct cvmx_l2c_err_vbfx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_err_vbfx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_62_63               : 2;
 	uint64_t vdbe                         : 1;  /**< VBF Double-Bit error has occurred */
 	uint64_t vsbe                         : 1;  /**< VBF Single-Bit error has occurred */
@@ -3172,8 +3638,13 @@ union cvmx_l2c_err_vbfx
 	uint64_t reserved_62_63               : 2;
 #endif
 	} s;
+	struct cvmx_l2c_err_vbfx_s            cn61xx;
 	struct cvmx_l2c_err_vbfx_s            cn63xx;
 	struct cvmx_l2c_err_vbfx_s            cn63xxp1;
+	struct cvmx_l2c_err_vbfx_s            cn66xx;
+	struct cvmx_l2c_err_vbfx_s            cn68xx;
+	struct cvmx_l2c_err_vbfx_s            cn68xxp1;
+	struct cvmx_l2c_err_vbfx_s            cnf71xx;
 };
 typedef union cvmx_l2c_err_vbfx cvmx_l2c_err_vbfx_t;
 
@@ -3196,12 +3667,25 @@ typedef union cvmx_l2c_err_vbfx cvmx_l2c_err_vbfx_t;
  *
  * (4) For 63xx pass 2.0 and all 68xx ADDR<15:0> will ALWAYS be zero.
  */
-union cvmx_l2c_err_xmc
-{
+union cvmx_l2c_err_xmc {
 	uint64_t u64;
-	struct cvmx_l2c_err_xmc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_err_xmc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t cmd                          : 6;  /**< XMC command or request causing error */
+	uint64_t reserved_54_57               : 4;
+	uint64_t sid                          : 6;  /**< XMC sid of request causing error */
+	uint64_t reserved_38_47               : 10;
+	uint64_t addr                         : 38; /**< XMC address causing the error (see Notes 2 and 3) */
+#else
+	uint64_t addr                         : 38;
+	uint64_t reserved_38_47               : 10;
+	uint64_t sid                          : 6;
+	uint64_t reserved_54_57               : 4;
+	uint64_t cmd                          : 6;
+#endif
+	} s;
+	struct cvmx_l2c_err_xmc_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t cmd                          : 6;  /**< XMC command or request causing error */
 	uint64_t reserved_52_57               : 6;
 	uint64_t sid                          : 4;  /**< XMC sid of request causing error */
@@ -3214,9 +3698,27 @@ union cvmx_l2c_err_xmc
 	uint64_t reserved_52_57               : 6;
 	uint64_t cmd                          : 6;
 #endif
-	} s;
-	struct cvmx_l2c_err_xmc_s             cn63xx;
-	struct cvmx_l2c_err_xmc_s             cn63xxp1;
+	} cn61xx;
+	struct cvmx_l2c_err_xmc_cn61xx        cn63xx;
+	struct cvmx_l2c_err_xmc_cn61xx        cn63xxp1;
+	struct cvmx_l2c_err_xmc_cn66xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t cmd                          : 6;  /**< XMC command or request causing error */
+	uint64_t reserved_53_57               : 5;
+	uint64_t sid                          : 5;  /**< XMC sid of request causing error */
+	uint64_t reserved_38_47               : 10;
+	uint64_t addr                         : 38; /**< XMC address causing the error (see Notes 2 and 3) */
+#else
+	uint64_t addr                         : 38;
+	uint64_t reserved_38_47               : 10;
+	uint64_t sid                          : 5;
+	uint64_t reserved_53_57               : 5;
+	uint64_t cmd                          : 6;
+#endif
+	} cn66xx;
+	struct cvmx_l2c_err_xmc_s             cn68xx;
+	struct cvmx_l2c_err_xmc_s             cn68xxp1;
+	struct cvmx_l2c_err_xmc_cn61xx        cnf71xx;
 };
 typedef union cvmx_l2c_err_xmc cvmx_l2c_err_xmc_t;
 
@@ -3231,12 +3733,10 @@ typedef union cvmx_l2c_err_xmc cvmx_l2c_err_xmc_t;
  * - Starvation of a group 'could' occur, unless SW takes the precaution to ensure that each GROUP
  * participates in at least 1(of 32) rounds (ie: At least 1 bit(of 32) should be clear).
  */
-union cvmx_l2c_grpwrr0
-{
+union cvmx_l2c_grpwrr0 {
 	uint64_t u64;
-	struct cvmx_l2c_grpwrr0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_grpwrr0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t plc1rmsk                     : 32; /**< PLC1 Group#1 Weighted Round Mask
                                                          Each bit represents 1 of 32 rounds
                                                          for Group \#1's participation. When a 'round' bit is
@@ -3272,12 +3772,10 @@ typedef union cvmx_l2c_grpwrr0 cvmx_l2c_grpwrr0_t;
  * - Starvation of a group 'could' occur, unless SW takes the precaution to ensure that each GROUP
  * participates in at least 1(of 32) rounds (ie: At least 1 bit(of 32) should be clear).
  */
-union cvmx_l2c_grpwrr1
-{
+union cvmx_l2c_grpwrr1 {
 	uint64_t u64;
-	struct cvmx_l2c_grpwrr1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_grpwrr1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t ilcrmsk                      : 32; /**< ILC (IOB) Weighted Round Mask
                                                          Each bit represents 1 of 32 rounds
                                                          for IOB participation. When a 'round' bit is
@@ -3309,12 +3807,10 @@ typedef union cvmx_l2c_grpwrr1 cvmx_l2c_grpwrr1_t;
  *
  * Description:
  */
-union cvmx_l2c_int_en
-{
+union cvmx_l2c_int_en {
 	uint64_t u64;
-	struct cvmx_l2c_int_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_int_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t lck2ena                      : 1;  /**< L2 Tag Lock Error2 Interrupt Enable bit
                                                          NOTE: This is the 'same' bit as L2T_ERR[LCK_INTENA2] */
@@ -3364,12 +3860,10 @@ typedef union cvmx_l2c_int_en cvmx_l2c_int_en_t;
  * L2C_INT_ENA = L2C Interrupt Enable
  *
  */
-union cvmx_l2c_int_ena
-{
+union cvmx_l2c_int_ena {
 	uint64_t u64;
-	struct cvmx_l2c_int_ena_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_int_ena_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t bigrd                        : 1;  /**< Read reference past MAXDRAM enable */
 	uint64_t bigwr                        : 1;  /**< Write reference past MAXDRAM enable */
@@ -3391,10 +3885,10 @@ union cvmx_l2c_int_ena
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
+	struct cvmx_l2c_int_ena_s             cn61xx;
 	struct cvmx_l2c_int_ena_s             cn63xx;
-	struct cvmx_l2c_int_ena_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_int_ena_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t vrtpe                        : 1;  /**< Virtualization memory parity error */
 	uint64_t vrtadrng                     : 1;  /**< Address outside of virtualization range enable */
@@ -3412,6 +3906,10 @@ union cvmx_l2c_int_ena
 	uint64_t reserved_6_63                : 58;
 #endif
 	} cn63xxp1;
+	struct cvmx_l2c_int_ena_s             cn66xx;
+	struct cvmx_l2c_int_ena_s             cn68xx;
+	struct cvmx_l2c_int_ena_s             cn68xxp1;
+	struct cvmx_l2c_int_ena_s             cnf71xx;
 };
 typedef union cvmx_l2c_int_ena cvmx_l2c_int_ena_t;
 
@@ -3421,15 +3919,59 @@ typedef union cvmx_l2c_int_ena cvmx_l2c_int_ena_t;
  * L2C_INT_REG = L2C Interrupt Register
  *
  */
-union cvmx_l2c_int_reg
-{
+union cvmx_l2c_int_reg {
 	uint64_t u64;
-	struct cvmx_l2c_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_20_63               : 44;
+	uint64_t tad3                         : 1;  /**< When set, the enabled interrupt is in
+                                                         the L2C_TAD3_INT CSR */
+	uint64_t tad2                         : 1;  /**< When set, the enabled interrupt is in
+                                                         the L2C_TAD2_INT CSR */
+	uint64_t tad1                         : 1;  /**< When set, the enabled interrupt is in
+                                                         the L2C_TAD1_INT CSR */
+	uint64_t tad0                         : 1;  /**< When set, the enabled interrupt is in
+                                                         the L2C_TAD0_INT CSR */
+	uint64_t reserved_8_15                : 8;
+	uint64_t bigrd                        : 1;  /**< Read reference past L2C_BIG_CTL[MAXDRAM] occurred */
+	uint64_t bigwr                        : 1;  /**< Write reference past L2C_BIG_CTL[MAXDRAM] occurred */
+	uint64_t vrtpe                        : 1;  /**< L2C_VRT_MEM read found a parity error
+                                                         Whenever an L2C_VRT_MEM read finds a parity error,
+                                                         that L2C_VRT_MEM cannot cause stores to be blocked.
+                                                         Software should correct the error. */
+	uint64_t vrtadrng                     : 1;  /**< Address outside of virtualization range
+                                                         Set when a L2C_VRT_CTL[MEMSZ] violation blocked a
+                                                         store.
+                                                         L2C_VRT_CTL[OOBERR] must be set for L2C to set this. */
+	uint64_t vrtidrng                     : 1;  /**< Virtualization ID out of range
+                                                         Set when a L2C_VRT_CTL[NUMID] violation blocked a
+                                                         store. */
+	uint64_t vrtwr                        : 1;  /**< Virtualization ID prevented a write
+                                                         Set when L2C_VRT_MEM blocked a store. */
+	uint64_t holewr                       : 1;  /**< Write reference to 256MB hole occurred */
+	uint64_t holerd                       : 1;  /**< Read reference to 256MB hole occurred */
+#else
+	uint64_t holerd                       : 1;
+	uint64_t holewr                       : 1;
+	uint64_t vrtwr                        : 1;
+	uint64_t vrtidrng                     : 1;
+	uint64_t vrtadrng                     : 1;
+	uint64_t vrtpe                        : 1;
+	uint64_t bigwr                        : 1;
+	uint64_t bigrd                        : 1;
+	uint64_t reserved_8_15                : 8;
+	uint64_t tad0                         : 1;
+	uint64_t tad1                         : 1;
+	uint64_t tad2                         : 1;
+	uint64_t tad3                         : 1;
+	uint64_t reserved_20_63               : 44;
+#endif
+	} s;
+	struct cvmx_l2c_int_reg_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
-	uint64_t tad0                         : 1;  /**< When set, the enabled interrupt is in either
-                                                         the L2C_ERR_TDT0 or L2C_ERR_TTG0 CSR */
+	uint64_t tad0                         : 1;  /**< When set, the enabled interrupt is in
+                                                         the L2C_TAD0_INT CSR */
 	uint64_t reserved_8_15                : 8;
 	uint64_t bigrd                        : 1;  /**< Read reference past L2C_BIG_CTL[MAXDRAM] occurred */
 	uint64_t bigwr                        : 1;  /**< Write reference past L2C_BIG_CTL[MAXDRAM] occurred */
@@ -3461,11 +4003,10 @@ union cvmx_l2c_int_reg
 	uint64_t tad0                         : 1;
 	uint64_t reserved_17_63               : 47;
 #endif
-	} s;
-	struct cvmx_l2c_int_reg_s             cn63xx;
-	struct cvmx_l2c_int_reg_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	} cn61xx;
+	struct cvmx_l2c_int_reg_cn61xx        cn63xx;
+	struct cvmx_l2c_int_reg_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t tad0                         : 1;  /**< When set, the enabled interrupt is in either
                                                          the L2C_ERR_TDT0 or L2C_ERR_TTG0 CSR */
@@ -3497,6 +4038,10 @@ union cvmx_l2c_int_reg
 	uint64_t reserved_17_63               : 47;
 #endif
 	} cn63xxp1;
+	struct cvmx_l2c_int_reg_cn61xx        cn66xx;
+	struct cvmx_l2c_int_reg_s             cn68xx;
+	struct cvmx_l2c_int_reg_s             cn68xxp1;
+	struct cvmx_l2c_int_reg_cn61xx        cnf71xx;
 };
 typedef union cvmx_l2c_int_reg cvmx_l2c_int_reg_t;
 
@@ -3507,12 +4052,10 @@ typedef union cvmx_l2c_int_reg cvmx_l2c_int_reg_t;
  *
  * Description:
  */
-union cvmx_l2c_int_stat
-{
+union cvmx_l2c_int_stat {
 	uint64_t u64;
-	struct cvmx_l2c_int_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_int_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t lck2                         : 1;  /**< HW detected a case where a Rd/Wr Miss from PP#n
                                                          could not find an available/unlocked set (for
@@ -3585,19 +4128,22 @@ typedef union cvmx_l2c_int_stat cvmx_l2c_int_stat_t;
  * L2C_IOC_PFC = L2C IOC Performance Counter(s)
  *
  */
-union cvmx_l2c_iocx_pfc
-{
+union cvmx_l2c_iocx_pfc {
 	uint64_t u64;
-	struct cvmx_l2c_iocx_pfc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_iocx_pfc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_iocx_pfc_s            cn61xx;
 	struct cvmx_l2c_iocx_pfc_s            cn63xx;
 	struct cvmx_l2c_iocx_pfc_s            cn63xxp1;
+	struct cvmx_l2c_iocx_pfc_s            cn66xx;
+	struct cvmx_l2c_iocx_pfc_s            cn68xx;
+	struct cvmx_l2c_iocx_pfc_s            cn68xxp1;
+	struct cvmx_l2c_iocx_pfc_s            cnf71xx;
 };
 typedef union cvmx_l2c_iocx_pfc cvmx_l2c_iocx_pfc_t;
 
@@ -3607,19 +4153,22 @@ typedef union cvmx_l2c_iocx_pfc cvmx_l2c_iocx_pfc_t;
  * L2C_IOR_PFC = L2C IOR Performance Counter(s)
  *
  */
-union cvmx_l2c_iorx_pfc
-{
+union cvmx_l2c_iorx_pfc {
 	uint64_t u64;
-	struct cvmx_l2c_iorx_pfc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_iorx_pfc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_iorx_pfc_s            cn61xx;
 	struct cvmx_l2c_iorx_pfc_s            cn63xx;
 	struct cvmx_l2c_iorx_pfc_s            cn63xxp1;
+	struct cvmx_l2c_iorx_pfc_s            cn66xx;
+	struct cvmx_l2c_iorx_pfc_s            cn68xx;
+	struct cvmx_l2c_iorx_pfc_s            cn68xxp1;
+	struct cvmx_l2c_iorx_pfc_s            cnf71xx;
 };
 typedef union cvmx_l2c_iorx_pfc cvmx_l2c_iorx_pfc_t;
 
@@ -3640,12 +4189,10 @@ typedef union cvmx_l2c_iorx_pfc cvmx_l2c_iorx_pfc_t;
  * (3) To 'unlock' a locked cache line, SW can use the FLUSH-INVAL CSR mechanism (see L2C_DBG[FINV]).
  * (4) LCK_ENA MUST only be activated when debug modes are disabled (L2C_DBG[L2T], L2C_DBG[L2D], L2C_DBG[FINV]).
  */
-union cvmx_l2c_lckbase
-{
+union cvmx_l2c_lckbase {
 	uint64_t u64;
-	struct cvmx_l2c_lckbase_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lckbase_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_31_63               : 33;
 	uint64_t lck_base                     : 27; /**< Base Memory block address[33:7]. Specifies the
                                                          starting address of the lockdown region. */
@@ -3717,12 +4264,10 @@ typedef union cvmx_l2c_lckbase cvmx_l2c_lckbase_t;
  * (1) The generation of the end lockdown block address will 'wrap'.
  * (2) The minimum granularity for lockdown is 1 cache line (= 128B block)
  */
-union cvmx_l2c_lckoff
-{
+union cvmx_l2c_lckoff {
 	uint64_t u64;
-	struct cvmx_l2c_lckoff_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lckoff_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t lck_offset                   : 10; /**< LockDown block Offset. Used in determining
                                                          the ending block address of the lockdown
@@ -3755,12 +4300,10 @@ typedef union cvmx_l2c_lckoff cvmx_l2c_lckoff_t;
  *
  * Description: L2C LFB Contents (Status Bits)
  */
-union cvmx_l2c_lfb0
-{
+union cvmx_l2c_lfb0 {
 	uint64_t u64;
-	struct cvmx_l2c_lfb0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t stcpnd                       : 1;  /**< LFB STC Pending Status */
 	uint64_t stpnd                        : 1;  /**< LFB ST* Pending Status */
@@ -3792,9 +4335,8 @@ union cvmx_l2c_lfb0
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
-	struct cvmx_l2c_lfb0_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb0_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t stcpnd                       : 1;  /**< LFB STC Pending Status */
 	uint64_t stpnd                        : 1;  /**< LFB ST* Pending Status */
@@ -3832,9 +4374,8 @@ union cvmx_l2c_lfb0
 	uint64_t reserved_32_63               : 32;
 #endif
 	} cn30xx;
-	struct cvmx_l2c_lfb0_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb0_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t stcpnd                       : 1;  /**< LFB STC Pending Status */
 	uint64_t stpnd                        : 1;  /**< LFB ST* Pending Status */
@@ -3874,9 +4415,8 @@ union cvmx_l2c_lfb0
 	} cn31xx;
 	struct cvmx_l2c_lfb0_s                cn38xx;
 	struct cvmx_l2c_lfb0_s                cn38xxp2;
-	struct cvmx_l2c_lfb0_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb0_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t stcpnd                       : 1;  /**< LFB STC Pending Status */
 	uint64_t stpnd                        : 1;  /**< LFB ST* Pending Status */
@@ -3928,12 +4468,10 @@ typedef union cvmx_l2c_lfb0 cvmx_l2c_lfb0_t;
  *
  * Description: L2C LFB Contents (Wait Bits)
  */
-union cvmx_l2c_lfb1
-{
+union cvmx_l2c_lfb1 {
 	uint64_t u64;
-	struct cvmx_l2c_lfb1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t dsgoing                      : 1;  /**< LFB DS Going (in flight) */
 	uint64_t bid                          : 2;  /**< LFB DS Bid# */
@@ -3998,20 +4536,17 @@ typedef union cvmx_l2c_lfb1 cvmx_l2c_lfb1_t;
  *
  * Description: L2C LFB Contents Tag/Index
  */
-union cvmx_l2c_lfb2
-{
+union cvmx_l2c_lfb2 {
 	uint64_t u64;
-	struct cvmx_l2c_lfb2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_0_63                : 64;
 #else
 	uint64_t reserved_0_63                : 64;
 #endif
 	} s;
-	struct cvmx_l2c_lfb2_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb2_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t lfb_tag                      : 19; /**< LFB TAG[33:15] */
 	uint64_t lfb_idx                      : 8;  /**< LFB IDX[14:7] */
@@ -4021,9 +4556,8 @@ union cvmx_l2c_lfb2
 	uint64_t reserved_27_63               : 37;
 #endif
 	} cn30xx;
-	struct cvmx_l2c_lfb2_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb2_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t lfb_tag                      : 17; /**< LFB TAG[33:16] */
 	uint64_t lfb_idx                      : 10; /**< LFB IDX[15:7] */
@@ -4035,9 +4569,8 @@ union cvmx_l2c_lfb2
 	} cn31xx;
 	struct cvmx_l2c_lfb2_cn31xx           cn38xx;
 	struct cvmx_l2c_lfb2_cn31xx           cn38xxp2;
-	struct cvmx_l2c_lfb2_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb2_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t lfb_tag                      : 20; /**< LFB TAG[33:14] */
 	uint64_t lfb_idx                      : 7;  /**< LFB IDX[13:7] */
@@ -4047,9 +4580,8 @@ union cvmx_l2c_lfb2
 	uint64_t reserved_27_63               : 37;
 #endif
 	} cn50xx;
-	struct cvmx_l2c_lfb2_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb2_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t lfb_tag                      : 18; /**< LFB TAG[33:16] */
 	uint64_t lfb_idx                      : 9;  /**< LFB IDX[15:7] */
@@ -4060,9 +4592,8 @@ union cvmx_l2c_lfb2
 #endif
 	} cn52xx;
 	struct cvmx_l2c_lfb2_cn52xx           cn52xxp1;
-	struct cvmx_l2c_lfb2_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb2_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t lfb_tag                      : 16; /**< LFB TAG[33:18] */
 	uint64_t lfb_idx                      : 11; /**< LFB IDX[17:7] */
@@ -4085,12 +4616,10 @@ typedef union cvmx_l2c_lfb2 cvmx_l2c_lfb2_t;
  *
  * Description: LFB High Water Mark Register
  */
-union cvmx_l2c_lfb3
-{
+union cvmx_l2c_lfb3 {
 	uint64_t u64;
-	struct cvmx_l2c_lfb3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t stpartdis                    : 1;  /**< STP/C Performance Enhancement Disable
                                                          When clear, all STP/C(store partials) will take 2 cycles
@@ -4110,9 +4639,8 @@ union cvmx_l2c_lfb3
 	uint64_t reserved_5_63                : 59;
 #endif
 	} s;
-	struct cvmx_l2c_lfb3_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb3_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t stpartdis                    : 1;  /**< STP/C Performance Enhancement Disable
                                                          When clear, all STP/C(store partials) will take 2 cycles
@@ -4134,9 +4662,8 @@ union cvmx_l2c_lfb3
 	uint64_t reserved_5_63                : 59;
 #endif
 	} cn30xx;
-	struct cvmx_l2c_lfb3_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_lfb3_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t stpartdis                    : 1;  /**< STP/C Performance Enhancement Disable
                                                          When clear, all STP/C(store partials) will take 2 cycles
@@ -4177,12 +4704,10 @@ typedef union cvmx_l2c_lfb3 cvmx_l2c_lfb3_t;
  *
  * Description: Defines DMA "Out of Bounds" global enables.
  */
-union cvmx_l2c_oob
-{
+union cvmx_l2c_oob {
 	uint64_t u64;
-	struct cvmx_l2c_oob_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_oob_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t dwbena                       : 1;  /**< DMA Out of Bounds Range Checker for DMA DWB
                                                          commands (Don't WriteBack).
@@ -4219,12 +4744,10 @@ typedef union cvmx_l2c_oob cvmx_l2c_oob_t;
  * Description: Defines DMA "Out of Bounds" region \#1. If a DMA initiated write transaction generates an address
  * within the specified region, the write is 'ignored' and an interrupt is generated to alert software.
  */
-union cvmx_l2c_oob1
-{
+union cvmx_l2c_oob1 {
 	uint64_t u64;
-	struct cvmx_l2c_oob1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_oob1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t fadr                         : 27; /**< DMA initated Memory Range Checker Failing Address
                                                          When L2C_INT_STAT[OOB1]=1, this field indicates the
                                                          DMA cacheline address.
@@ -4273,12 +4796,10 @@ typedef union cvmx_l2c_oob1 cvmx_l2c_oob1_t;
  * Description: Defines DMA "Out of Bounds" region \#2. If a DMA initiated write transaction generates an address
  * within the specified region, the write is 'ignored' and an interrupt is generated to alert software.
  */
-union cvmx_l2c_oob2
-{
+union cvmx_l2c_oob2 {
 	uint64_t u64;
-	struct cvmx_l2c_oob2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_oob2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t fadr                         : 27; /**< DMA initated Memory Range Checker Failing Address
                                                          When L2C_INT_STAT[OOB2]=1, this field indicates the
                                                          DMA cacheline address.
@@ -4327,12 +4848,10 @@ typedef union cvmx_l2c_oob2 cvmx_l2c_oob2_t;
  * Description: Defines DMA "Out of Bounds" region \#3. If a DMA initiated write transaction generates an address
  * within the specified region, the write is 'ignored' and an interrupt is generated to alert software.
  */
-union cvmx_l2c_oob3
-{
+union cvmx_l2c_oob3 {
 	uint64_t u64;
-	struct cvmx_l2c_oob3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_oob3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t fadr                         : 27; /**< DMA initated Memory Range Checker Failing Address
                                                          When L2C_INT_STAT[OOB3]=1, this field indicates the
                                                          DMA cacheline address.
@@ -4380,12 +4899,10 @@ typedef union cvmx_l2c_oob3 cvmx_l2c_oob3_t;
  *
  * Description:
  */
-union cvmx_l2c_pfcx
-{
+union cvmx_l2c_pfcx {
 	uint64_t u64;
-	struct cvmx_l2c_pfcx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_pfcx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t pfcnt0                       : 36; /**< Performance Counter \#0 */
 #else
@@ -4474,12 +4991,10 @@ typedef union cvmx_l2c_pfcx cvmx_l2c_pfcx_t;
  *            52       | DT RD-ALLOC (LDD/PSL1 Commands)
  *            53       | DT WR-INVAL (ST* Commands)
  */
-union cvmx_l2c_pfctl
-{
+union cvmx_l2c_pfctl {
 	uint64_t u64;
-	struct cvmx_l2c_pfctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_pfctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t cnt3rdclr                    : 1;  /**< Performance Counter 3 Read Clear
                                                          When set, all CSR reads of the L2C_PFC3
@@ -4586,12 +5101,10 @@ typedef union cvmx_l2c_pfctl cvmx_l2c_pfctl_t;
  *
  * Description: Defines the PP(Packet Processor) PLC Group \# (0,1,2)
  */
-union cvmx_l2c_ppgrp
-{
+union cvmx_l2c_ppgrp {
 	uint64_t u64;
-	struct cvmx_l2c_ppgrp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_ppgrp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t pp11grp                      : 2;  /**< PP11 PLC Group# (0,1,2) */
 	uint64_t pp10grp                      : 2;  /**< PP10 PLC Group# (0,1,2) */
@@ -4621,9 +5134,8 @@ union cvmx_l2c_ppgrp
 	uint64_t reserved_24_63               : 40;
 #endif
 	} s;
-	struct cvmx_l2c_ppgrp_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_ppgrp_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t pp3grp                       : 2;  /**< PP3 PLC Group# (0,1,2) */
 	uint64_t pp2grp                       : 2;  /**< PP2 PLC Group# (0,1,2) */
@@ -4650,12 +5162,23 @@ typedef union cvmx_l2c_ppgrp cvmx_l2c_ppgrp_t;
  *
  * Description:
  */
-union cvmx_l2c_qos_iobx
-{
+union cvmx_l2c_qos_iobx {
 	uint64_t u64;
-	struct cvmx_l2c_qos_iobx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_qos_iobx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_7_63                : 57;
+	uint64_t dwblvl                       : 3;  /**< QOS level for DWB commands. */
+	uint64_t reserved_3_3                 : 1;
+	uint64_t lvl                          : 3;  /**< QOS level for non-DWB commands. */
+#else
+	uint64_t lvl                          : 3;
+	uint64_t reserved_3_3                 : 1;
+	uint64_t dwblvl                       : 3;
+	uint64_t reserved_7_63                : 57;
+#endif
+	} s;
+	struct cvmx_l2c_qos_iobx_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t dwblvl                       : 2;  /**< QOS level for DWB commands. */
 	uint64_t reserved_2_3                 : 2;
@@ -4666,9 +5189,13 @@ union cvmx_l2c_qos_iobx
 	uint64_t dwblvl                       : 2;
 	uint64_t reserved_6_63                : 58;
 #endif
-	} s;
-	struct cvmx_l2c_qos_iobx_s            cn63xx;
-	struct cvmx_l2c_qos_iobx_s            cn63xxp1;
+	} cn61xx;
+	struct cvmx_l2c_qos_iobx_cn61xx       cn63xx;
+	struct cvmx_l2c_qos_iobx_cn61xx       cn63xxp1;
+	struct cvmx_l2c_qos_iobx_cn61xx       cn66xx;
+	struct cvmx_l2c_qos_iobx_s            cn68xx;
+	struct cvmx_l2c_qos_iobx_s            cn68xxp1;
+	struct cvmx_l2c_qos_iobx_cn61xx       cnf71xx;
 };
 typedef union cvmx_l2c_qos_iobx cvmx_l2c_qos_iobx_t;
 
@@ -4679,21 +5206,32 @@ typedef union cvmx_l2c_qos_iobx cvmx_l2c_qos_iobx_t;
  *
  * Description:
  */
-union cvmx_l2c_qos_ppx
-{
+union cvmx_l2c_qos_ppx {
 	uint64_t u64;
-	struct cvmx_l2c_qos_ppx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_qos_ppx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_3_63                : 61;
+	uint64_t lvl                          : 3;  /**< QOS level to use for this PP. */
+#else
+	uint64_t lvl                          : 3;
+	uint64_t reserved_3_63                : 61;
+#endif
+	} s;
+	struct cvmx_l2c_qos_ppx_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t lvl                          : 2;  /**< QOS level to use for this PP. */
 #else
 	uint64_t lvl                          : 2;
 	uint64_t reserved_2_63                : 62;
 #endif
-	} s;
-	struct cvmx_l2c_qos_ppx_s             cn63xx;
-	struct cvmx_l2c_qos_ppx_s             cn63xxp1;
+	} cn61xx;
+	struct cvmx_l2c_qos_ppx_cn61xx        cn63xx;
+	struct cvmx_l2c_qos_ppx_cn61xx        cn63xxp1;
+	struct cvmx_l2c_qos_ppx_cn61xx        cn66xx;
+	struct cvmx_l2c_qos_ppx_s             cn68xx;
+	struct cvmx_l2c_qos_ppx_s             cn68xxp1;
+	struct cvmx_l2c_qos_ppx_cn61xx        cnf71xx;
 };
 typedef union cvmx_l2c_qos_ppx cvmx_l2c_qos_ppx_t;
 
@@ -4703,12 +5241,31 @@ typedef union cvmx_l2c_qos_ppx cvmx_l2c_qos_ppx_t;
  * L2C_QOS_WGT = L2C QOS weights
  *
  */
-union cvmx_l2c_qos_wgt
-{
+union cvmx_l2c_qos_wgt {
 	uint64_t u64;
-	struct cvmx_l2c_qos_wgt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_qos_wgt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t wgt7                         : 8;  /**< Weight for QOS level 7 */
+	uint64_t wgt6                         : 8;  /**< Weight for QOS level 6 */
+	uint64_t wgt5                         : 8;  /**< Weight for QOS level 5 */
+	uint64_t wgt4                         : 8;  /**< Weight for QOS level 4 */
+	uint64_t wgt3                         : 8;  /**< Weight for QOS level 3 */
+	uint64_t wgt2                         : 8;  /**< Weight for QOS level 2 */
+	uint64_t wgt1                         : 8;  /**< Weight for QOS level 1 */
+	uint64_t wgt0                         : 8;  /**< Weight for QOS level 0 */
+#else
+	uint64_t wgt0                         : 8;
+	uint64_t wgt1                         : 8;
+	uint64_t wgt2                         : 8;
+	uint64_t wgt3                         : 8;
+	uint64_t wgt4                         : 8;
+	uint64_t wgt5                         : 8;
+	uint64_t wgt6                         : 8;
+	uint64_t wgt7                         : 8;
+#endif
+	} s;
+	struct cvmx_l2c_qos_wgt_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t wgt3                         : 8;  /**< Weight for QOS level 3 */
 	uint64_t wgt2                         : 8;  /**< Weight for QOS level 2 */
@@ -4721,9 +5278,13 @@ union cvmx_l2c_qos_wgt
 	uint64_t wgt3                         : 8;
 	uint64_t reserved_32_63               : 32;
 #endif
-	} s;
-	struct cvmx_l2c_qos_wgt_s             cn63xx;
-	struct cvmx_l2c_qos_wgt_s             cn63xxp1;
+	} cn61xx;
+	struct cvmx_l2c_qos_wgt_cn61xx        cn63xx;
+	struct cvmx_l2c_qos_wgt_cn61xx        cn63xxp1;
+	struct cvmx_l2c_qos_wgt_cn61xx        cn66xx;
+	struct cvmx_l2c_qos_wgt_s             cn68xx;
+	struct cvmx_l2c_qos_wgt_s             cn68xxp1;
+	struct cvmx_l2c_qos_wgt_cn61xx        cnf71xx;
 };
 typedef union cvmx_l2c_qos_wgt cvmx_l2c_qos_wgt_t;
 
@@ -4733,19 +5294,22 @@ typedef union cvmx_l2c_qos_wgt cvmx_l2c_qos_wgt_t;
  * L2C_RSC_PFC = L2C RSC Performance Counter(s)
  *
  */
-union cvmx_l2c_rscx_pfc
-{
+union cvmx_l2c_rscx_pfc {
 	uint64_t u64;
-	struct cvmx_l2c_rscx_pfc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_rscx_pfc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_rscx_pfc_s            cn61xx;
 	struct cvmx_l2c_rscx_pfc_s            cn63xx;
 	struct cvmx_l2c_rscx_pfc_s            cn63xxp1;
+	struct cvmx_l2c_rscx_pfc_s            cn66xx;
+	struct cvmx_l2c_rscx_pfc_s            cn68xx;
+	struct cvmx_l2c_rscx_pfc_s            cn68xxp1;
+	struct cvmx_l2c_rscx_pfc_s            cnf71xx;
 };
 typedef union cvmx_l2c_rscx_pfc cvmx_l2c_rscx_pfc_t;
 
@@ -4755,19 +5319,22 @@ typedef union cvmx_l2c_rscx_pfc cvmx_l2c_rscx_pfc_t;
  * L2C_RSD_PFC = L2C RSD Performance Counter(s)
  *
  */
-union cvmx_l2c_rsdx_pfc
-{
+union cvmx_l2c_rsdx_pfc {
 	uint64_t u64;
-	struct cvmx_l2c_rsdx_pfc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_rsdx_pfc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_rsdx_pfc_s            cn61xx;
 	struct cvmx_l2c_rsdx_pfc_s            cn63xx;
 	struct cvmx_l2c_rsdx_pfc_s            cn63xxp1;
+	struct cvmx_l2c_rsdx_pfc_s            cn66xx;
+	struct cvmx_l2c_rsdx_pfc_s            cn68xx;
+	struct cvmx_l2c_rsdx_pfc_s            cn68xxp1;
+	struct cvmx_l2c_rsdx_pfc_s            cnf71xx;
 };
 typedef union cvmx_l2c_rsdx_pfc cvmx_l2c_rsdx_pfc_t;
 
@@ -4785,12 +5352,10 @@ typedef union cvmx_l2c_rsdx_pfc cvmx_l2c_rsdx_pfc_t;
  * - NOTES: When L2C FUSE[136] is blown(CRIP_256K), then SETS#7-4 are SET in all UMSK'x' registers
  *          When L2C FUSE[137] is blown(CRIP_128K), then SETS#7-2 are SET in all UMSK'x' registers
  */
-union cvmx_l2c_spar0
-{
+union cvmx_l2c_spar0 {
 	uint64_t u64;
-	struct cvmx_l2c_spar0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t umsk3                        : 8;  /**< PP[3] L2 'DO NOT USE' set partition mask */
 	uint64_t umsk2                        : 8;  /**< PP[2] L2 'DO NOT USE' set partition mask */
@@ -4804,9 +5369,8 @@ union cvmx_l2c_spar0
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
-	struct cvmx_l2c_spar0_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar0_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t umsk0                        : 4;  /**< PP[0] L2 'DO NOT USE' set partition mask */
 #else
@@ -4814,9 +5378,8 @@ union cvmx_l2c_spar0
 	uint64_t reserved_4_63                : 60;
 #endif
 	} cn30xx;
-	struct cvmx_l2c_spar0_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar0_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t umsk1                        : 4;  /**< PP[1] L2 'DO NOT USE' set partition mask */
 	uint64_t reserved_4_7                 : 4;
@@ -4830,9 +5393,8 @@ union cvmx_l2c_spar0
 	} cn31xx;
 	struct cvmx_l2c_spar0_s               cn38xx;
 	struct cvmx_l2c_spar0_s               cn38xxp2;
-	struct cvmx_l2c_spar0_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar0_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t umsk1                        : 8;  /**< PP[1] L2 'DO NOT USE' set partition mask */
 	uint64_t umsk0                        : 8;  /**< PP[0] L2 'DO NOT USE' set partition mask */
@@ -4865,12 +5427,10 @@ typedef union cvmx_l2c_spar0 cvmx_l2c_spar0_t;
  * - NOTES: When L2C FUSE[136] is blown(CRIP_1024K), then SETS#7-4 are SET in all UMSK'x' registers
  *          When L2C FUSE[137] is blown(CRIP_512K), then SETS#7-2 are SET in all UMSK'x' registers
  */
-union cvmx_l2c_spar1
-{
+union cvmx_l2c_spar1 {
 	uint64_t u64;
-	struct cvmx_l2c_spar1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t umsk7                        : 8;  /**< PP[7] L2 'DO NOT USE' set partition mask */
 	uint64_t umsk6                        : 8;  /**< PP[6] L2 'DO NOT USE' set partition mask */
@@ -4907,12 +5467,10 @@ typedef union cvmx_l2c_spar1 cvmx_l2c_spar1_t;
  * - NOTES: When L2C FUSE[136] is blown(CRIP_1024K), then SETS#7-4 are SET in all UMSK'x' registers
  *          When L2C FUSE[137] is blown(CRIP_512K), then SETS#7-2 are SET in all UMSK'x' registers
  */
-union cvmx_l2c_spar2
-{
+union cvmx_l2c_spar2 {
 	uint64_t u64;
-	struct cvmx_l2c_spar2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t umsk11                       : 8;  /**< PP[11] L2 'DO NOT USE' set partition mask */
 	uint64_t umsk10                       : 8;  /**< PP[10] L2 'DO NOT USE' set partition mask */
@@ -4949,12 +5507,10 @@ typedef union cvmx_l2c_spar2 cvmx_l2c_spar2_t;
  * - NOTES: When L2C FUSE[136] is blown(CRIP_1024K), then SETS#7-4 are SET in all UMSK'x' registers
  *          When L2C FUSE[137] is blown(CRIP_512K), then SETS#7-2 are SET in all UMSK'x' registers
  */
-union cvmx_l2c_spar3
-{
+union cvmx_l2c_spar3 {
 	uint64_t u64;
-	struct cvmx_l2c_spar3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t umsk15                       : 8;  /**< PP[15] L2 'DO NOT USE' set partition mask */
 	uint64_t umsk14                       : 8;  /**< PP[14] L2 'DO NOT USE' set partition mask */
@@ -4989,12 +5545,10 @@ typedef union cvmx_l2c_spar3 cvmx_l2c_spar3_t;
  * - NOTES: When L2C FUSE[136] is blown(CRIP_256K), then SETS#7-4 are SET in all UMSK'x' registers
  *          When L2C FUSE[137] is blown(CRIP_128K), then SETS#7-2 are SET in all UMSK'x' registers
  */
-union cvmx_l2c_spar4
-{
+union cvmx_l2c_spar4 {
 	uint64_t u64;
-	struct cvmx_l2c_spar4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t umskiob                      : 8;  /**< IOB L2 'DO NOT USE' set partition mask */
 #else
@@ -5002,9 +5556,8 @@ union cvmx_l2c_spar4
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
-	struct cvmx_l2c_spar4_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_spar4_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t umskiob                      : 4;  /**< IOB L2 'DO NOT USE' set partition mask */
 #else
@@ -5032,12 +5585,10 @@ typedef union cvmx_l2c_spar4 cvmx_l2c_spar4_t;
  *
  * Description: holds the syndromes for a L2D read generated from L2C_XMC_CMD
  */
-union cvmx_l2c_tadx_ecc0
-{
+union cvmx_l2c_tadx_ecc0 {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_ecc0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_ecc0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_58_63               : 6;
 	uint64_t ow3ecc                       : 10; /**< ECC for OW3 of cache block */
 	uint64_t reserved_42_47               : 6;
@@ -5057,8 +5608,13 @@ union cvmx_l2c_tadx_ecc0
 	uint64_t reserved_58_63               : 6;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_ecc0_s           cn61xx;
 	struct cvmx_l2c_tadx_ecc0_s           cn63xx;
 	struct cvmx_l2c_tadx_ecc0_s           cn63xxp1;
+	struct cvmx_l2c_tadx_ecc0_s           cn66xx;
+	struct cvmx_l2c_tadx_ecc0_s           cn68xx;
+	struct cvmx_l2c_tadx_ecc0_s           cn68xxp1;
+	struct cvmx_l2c_tadx_ecc0_s           cnf71xx;
 };
 typedef union cvmx_l2c_tadx_ecc0 cvmx_l2c_tadx_ecc0_t;
 
@@ -5069,12 +5625,10 @@ typedef union cvmx_l2c_tadx_ecc0 cvmx_l2c_tadx_ecc0_t;
  *
  * Description: holds the syndromes for a L2D read generated from L2C_XMC_CMD
  */
-union cvmx_l2c_tadx_ecc1
-{
+union cvmx_l2c_tadx_ecc1 {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_ecc1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_ecc1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_58_63               : 6;
 	uint64_t ow7ecc                       : 10; /**< ECC for OW7 of cache block */
 	uint64_t reserved_42_47               : 6;
@@ -5094,8 +5648,13 @@ union cvmx_l2c_tadx_ecc1
 	uint64_t reserved_58_63               : 6;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_ecc1_s           cn61xx;
 	struct cvmx_l2c_tadx_ecc1_s           cn63xx;
 	struct cvmx_l2c_tadx_ecc1_s           cn63xxp1;
+	struct cvmx_l2c_tadx_ecc1_s           cn66xx;
+	struct cvmx_l2c_tadx_ecc1_s           cn68xx;
+	struct cvmx_l2c_tadx_ecc1_s           cn68xxp1;
+	struct cvmx_l2c_tadx_ecc1_s           cnf71xx;
 };
 typedef union cvmx_l2c_tadx_ecc1 cvmx_l2c_tadx_ecc1_t;
 
@@ -5105,12 +5664,10 @@ typedef union cvmx_l2c_tadx_ecc1 cvmx_l2c_tadx_ecc1_t;
  * L2C_TAD_IEN = L2C TAD Interrupt Enable
  *
  */
-union cvmx_l2c_tadx_ien
-{
+union cvmx_l2c_tadx_ien {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_ien_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_ien_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t wrdislmc                     : 1;  /**< Illegal Write to Disabled LMC Error enable
                                                          Enables L2C_TADX_INT[WRDISLMC] to
@@ -5119,26 +5676,26 @@ union cvmx_l2c_tadx_ien
                                                          Enables L2C_TADX_INT[RDDISLMC] to
                                                          assert L2C_INT_REG[TADX] (and cause an interrupt) */
 	uint64_t noway                        : 1;  /**< No way available interrupt enable
-                                                         Enables L2C_ERR_TTGX[NOWAY] to assert
-                                                         L2C_INT_REG[TADX] (and cause an interrupt) */
+                                                         Enables L2C_ERR_TTGX[NOWAY]/L2C_TADX_INT[NOWAY] to
+                                                         assert L2C_INT_REG[TADX] (and cause an interrupt) */
 	uint64_t vbfdbe                       : 1;  /**< VBF Double-Bit Error enable
-                                                         Enables L2C_ERR_TDTX[VSBE] to assert
-                                                         L2C_INT_REG[TADX] (and cause an interrupt) */
+                                                         Enables L2C_ERR_TDTX[VDBE]/L2C_TADX_INT[VBFSBE] to
+                                                         assert L2C_INT_REG[TADX] (and cause an interrupt) */
 	uint64_t vbfsbe                       : 1;  /**< VBF Single-Bit Error enable
-                                                         Enables L2C_ERR_TDTX[VSBE] to assert
-                                                         L2C_INT_REG[TADX] (and cause an interrupt) */
+                                                         Enables L2C_ERR_TDTX[VSBE]/L2C_TADX_INT[VBFSBE] to
+                                                         assert L2C_INT_REG[TADX] (and cause an interrupt) */
 	uint64_t tagdbe                       : 1;  /**< TAG Double-Bit Error enable
-                                                         Enables L2C_ERR_TTGX[DBE] to assert
-                                                         L2C_INT_REG[TADX] (and cause an interrupt) */
+                                                         Enables L2C_ERR_TTGX[DBE]/L2C_TADX_INT[TAGDBE] to
+                                                         assert L2C_INT_REG[TADX] (and cause an interrupt) */
 	uint64_t tagsbe                       : 1;  /**< TAG Single-Bit Error enable
-                                                         Enables L2C_ERR_TTGX[SBE] to assert
-                                                         L2C_INT_REG[TADX] (and cause an interrupt) */
+                                                         Enables L2C_ERR_TTGX[SBE]/L2C_TADX_INT[TAGSBE] to
+                                                         assert L2C_INT_REG[TADX] (and cause an interrupt) */
 	uint64_t l2ddbe                       : 1;  /**< L2D Double-Bit Error enable
-                                                         Enables L2C_ERR_TDTX[DBE] to assert
-                                                         L2C_INT_REG[TADX] (and cause an interrupt) */
+                                                         Enables L2C_ERR_TDTX[DBE]/L2C_TADX_INT[L2DDBE] to
+                                                         assert L2C_INT_REG[TADX] (and cause an interrupt) */
 	uint64_t l2dsbe                       : 1;  /**< L2D Single-Bit Error enable
-                                                         Enables L2C_ERR_TDTX[SBE] to assert
-                                                         L2C_INT_REG[TADX] (and cause an interrupt) */
+                                                         Enables L2C_ERR_TDTX[SBE]/L2C_TADX_INT[L2DSBE] to
+                                                         assert L2C_INT_REG[TADX] (and cause an interrupt) */
 #else
 	uint64_t l2dsbe                       : 1;
 	uint64_t l2ddbe                       : 1;
@@ -5152,10 +5709,10 @@ union cvmx_l2c_tadx_ien
 	uint64_t reserved_9_63                : 55;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_ien_s            cn61xx;
 	struct cvmx_l2c_tadx_ien_s            cn63xx;
-	struct cvmx_l2c_tadx_ien_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_ien_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t noway                        : 1;  /**< No way available interrupt enable
                                                          Enables L2C_ERR_TTGX[NOWAY] to assert
@@ -5189,6 +5746,10 @@ union cvmx_l2c_tadx_ien
 	uint64_t reserved_7_63                : 57;
 #endif
 	} cn63xxp1;
+	struct cvmx_l2c_tadx_ien_s            cn66xx;
+	struct cvmx_l2c_tadx_ien_s            cn68xx;
+	struct cvmx_l2c_tadx_ien_s            cn68xxp1;
+	struct cvmx_l2c_tadx_ien_s            cnf71xx;
 };
 typedef union cvmx_l2c_tadx_ien cvmx_l2c_tadx_ien_t;
 
@@ -5202,12 +5763,10 @@ typedef union cvmx_l2c_tadx_ien cvmx_l2c_tadx_ien_t;
  * L2C_TAD_IEN is the interrupt enable register corresponding to this register.
  *
  */
-union cvmx_l2c_tadx_int
-{
+union cvmx_l2c_tadx_int {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_int_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_int_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t wrdislmc                     : 1;  /**< Illegal Write to Disabled LMC Error
                                                          A DRAM write arrived before the LMC(s) were enabled */
@@ -5247,7 +5806,12 @@ union cvmx_l2c_tadx_int
 	uint64_t reserved_9_63                : 55;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_int_s            cn61xx;
 	struct cvmx_l2c_tadx_int_s            cn63xx;
+	struct cvmx_l2c_tadx_int_s            cn66xx;
+	struct cvmx_l2c_tadx_int_s            cn68xx;
+	struct cvmx_l2c_tadx_int_s            cn68xxp1;
+	struct cvmx_l2c_tadx_int_s            cnf71xx;
 };
 typedef union cvmx_l2c_tadx_int cvmx_l2c_tadx_int_t;
 
@@ -5257,19 +5821,22 @@ typedef union cvmx_l2c_tadx_int cvmx_l2c_tadx_int_t;
  * L2C_TAD_PFC0 = L2C TAD Performance Counter 0
  *
  */
-union cvmx_l2c_tadx_pfc0
-{
+union cvmx_l2c_tadx_pfc0 {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_pfc0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_pfc0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_pfc0_s           cn61xx;
 	struct cvmx_l2c_tadx_pfc0_s           cn63xx;
 	struct cvmx_l2c_tadx_pfc0_s           cn63xxp1;
+	struct cvmx_l2c_tadx_pfc0_s           cn66xx;
+	struct cvmx_l2c_tadx_pfc0_s           cn68xx;
+	struct cvmx_l2c_tadx_pfc0_s           cn68xxp1;
+	struct cvmx_l2c_tadx_pfc0_s           cnf71xx;
 };
 typedef union cvmx_l2c_tadx_pfc0 cvmx_l2c_tadx_pfc0_t;
 
@@ -5279,19 +5846,22 @@ typedef union cvmx_l2c_tadx_pfc0 cvmx_l2c_tadx_pfc0_t;
  * L2C_TAD_PFC1 = L2C TAD Performance Counter 1
  *
  */
-union cvmx_l2c_tadx_pfc1
-{
+union cvmx_l2c_tadx_pfc1 {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_pfc1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_pfc1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_pfc1_s           cn61xx;
 	struct cvmx_l2c_tadx_pfc1_s           cn63xx;
 	struct cvmx_l2c_tadx_pfc1_s           cn63xxp1;
+	struct cvmx_l2c_tadx_pfc1_s           cn66xx;
+	struct cvmx_l2c_tadx_pfc1_s           cn68xx;
+	struct cvmx_l2c_tadx_pfc1_s           cn68xxp1;
+	struct cvmx_l2c_tadx_pfc1_s           cnf71xx;
 };
 typedef union cvmx_l2c_tadx_pfc1 cvmx_l2c_tadx_pfc1_t;
 
@@ -5301,19 +5871,22 @@ typedef union cvmx_l2c_tadx_pfc1 cvmx_l2c_tadx_pfc1_t;
  * L2C_TAD_PFC2 = L2C TAD Performance Counter 2
  *
  */
-union cvmx_l2c_tadx_pfc2
-{
+union cvmx_l2c_tadx_pfc2 {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_pfc2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_pfc2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_pfc2_s           cn61xx;
 	struct cvmx_l2c_tadx_pfc2_s           cn63xx;
 	struct cvmx_l2c_tadx_pfc2_s           cn63xxp1;
+	struct cvmx_l2c_tadx_pfc2_s           cn66xx;
+	struct cvmx_l2c_tadx_pfc2_s           cn68xx;
+	struct cvmx_l2c_tadx_pfc2_s           cn68xxp1;
+	struct cvmx_l2c_tadx_pfc2_s           cnf71xx;
 };
 typedef union cvmx_l2c_tadx_pfc2 cvmx_l2c_tadx_pfc2_t;
 
@@ -5323,19 +5896,22 @@ typedef union cvmx_l2c_tadx_pfc2 cvmx_l2c_tadx_pfc2_t;
  * L2C_TAD_PFC3 = L2C TAD Performance Counter 3
  *
  */
-union cvmx_l2c_tadx_pfc3
-{
+union cvmx_l2c_tadx_pfc3 {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_pfc3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_pfc3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_pfc3_s           cn61xx;
 	struct cvmx_l2c_tadx_pfc3_s           cn63xx;
 	struct cvmx_l2c_tadx_pfc3_s           cn63xxp1;
+	struct cvmx_l2c_tadx_pfc3_s           cn66xx;
+	struct cvmx_l2c_tadx_pfc3_s           cn68xx;
+	struct cvmx_l2c_tadx_pfc3_s           cn68xxp1;
+	struct cvmx_l2c_tadx_pfc3_s           cnf71xx;
 };
 typedef union cvmx_l2c_tadx_pfc3 cvmx_l2c_tadx_pfc3_t;
 
@@ -5376,12 +5952,10 @@ typedef union cvmx_l2c_tadx_pfc3 cvmx_l2c_tadx_pfc3_t;
  *         0xB2 -- Quad 3 \# banks inuse (0-4/cycle)
  *         0xB3 -- Quad 3 wdat flops inuse (0-4/cycle)
  */
-union cvmx_l2c_tadx_prf
-{
+union cvmx_l2c_tadx_prf {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_prf_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_prf_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt3sel                      : 8;  /**< Selects event to count for L2C_TAD_PFC3 */
 	uint64_t cnt2sel                      : 8;  /**< Selects event to count for L2C_TAD_PFC2 */
@@ -5395,8 +5969,13 @@ union cvmx_l2c_tadx_prf
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_prf_s            cn61xx;
 	struct cvmx_l2c_tadx_prf_s            cn63xx;
 	struct cvmx_l2c_tadx_prf_s            cn63xxp1;
+	struct cvmx_l2c_tadx_prf_s            cn66xx;
+	struct cvmx_l2c_tadx_prf_s            cn68xx;
+	struct cvmx_l2c_tadx_prf_s            cn68xxp1;
+	struct cvmx_l2c_tadx_prf_s            cnf71xx;
 };
 typedef union cvmx_l2c_tadx_prf cvmx_l2c_tadx_prf_t;
 
@@ -5415,12 +5994,10 @@ typedef union cvmx_l2c_tadx_prf cvmx_l2c_tadx_prf_t;
  *
  * (3) The tag is the corresponding bits from the L2C+LMC internal L2/DRAM byte address.
  */
-union cvmx_l2c_tadx_tag
-{
+union cvmx_l2c_tadx_tag {
 	uint64_t u64;
-	struct cvmx_l2c_tadx_tag_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_tadx_tag_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_46_63               : 18;
 	uint64_t ecc                          : 6;  /**< The tag ECC */
 	uint64_t reserved_36_39               : 4;
@@ -5442,8 +6019,13 @@ union cvmx_l2c_tadx_tag
 	uint64_t reserved_46_63               : 18;
 #endif
 	} s;
+	struct cvmx_l2c_tadx_tag_s            cn61xx;
 	struct cvmx_l2c_tadx_tag_s            cn63xx;
 	struct cvmx_l2c_tadx_tag_s            cn63xxp1;
+	struct cvmx_l2c_tadx_tag_s            cn66xx;
+	struct cvmx_l2c_tadx_tag_s            cn68xx;
+	struct cvmx_l2c_tadx_tag_s            cn68xxp1;
+	struct cvmx_l2c_tadx_tag_s            cnf71xx;
 };
 typedef union cvmx_l2c_tadx_tag cvmx_l2c_tadx_tag_t;
 
@@ -5454,19 +6036,23 @@ typedef union cvmx_l2c_tadx_tag cvmx_l2c_tadx_tag_t;
  *
  * Description: records virtualization IDs associated with HOLEWR/BIGWR/VRTWR/VRTIDRNG/VRTADRNG interrupts.
  */
-union cvmx_l2c_ver_id
-{
+union cvmx_l2c_ver_id {
 	uint64_t u64;
-	struct cvmx_l2c_ver_id_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
-	uint64_t mask                         : 64; /**< Mask of virtualization IDs which had an error */
+	struct cvmx_l2c_ver_id_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t mask                         : 64; /**< Mask of virtualization IDs which had a
+                                                         HOLEWR/BIGWR/VRTWR error */
 #else
 	uint64_t mask                         : 64;
 #endif
 	} s;
+	struct cvmx_l2c_ver_id_s              cn61xx;
 	struct cvmx_l2c_ver_id_s              cn63xx;
 	struct cvmx_l2c_ver_id_s              cn63xxp1;
+	struct cvmx_l2c_ver_id_s              cn66xx;
+	struct cvmx_l2c_ver_id_s              cn68xx;
+	struct cvmx_l2c_ver_id_s              cn68xxp1;
+	struct cvmx_l2c_ver_id_s              cnf71xx;
 };
 typedef union cvmx_l2c_ver_id cvmx_l2c_ver_id_t;
 
@@ -5477,21 +6063,32 @@ typedef union cvmx_l2c_ver_id cvmx_l2c_ver_id_t;
  *
  * Description: records IOBs associated with HOLEWR/BIGWR/VRTWR/VRTIDRNG/VRTADRNG interrupts.
  */
-union cvmx_l2c_ver_iob
-{
+union cvmx_l2c_ver_iob {
 	uint64_t u64;
-	struct cvmx_l2c_ver_iob_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_ver_iob_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_2_63                : 62;
+	uint64_t mask                         : 2;  /**< Mask of IOBs which had a HOLEWR/BIGWR/VRTWR error */
+#else
+	uint64_t mask                         : 2;
+	uint64_t reserved_2_63                : 62;
+#endif
+	} s;
+	struct cvmx_l2c_ver_iob_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
-	uint64_t mask                         : 1;  /**< Mask of IOBs which had a virtualization error */
+	uint64_t mask                         : 1;  /**< Mask of IOBs which had a HOLEWR/BIGWR/VRTWR error */
 #else
 	uint64_t mask                         : 1;
 	uint64_t reserved_1_63                : 63;
 #endif
-	} s;
-	struct cvmx_l2c_ver_iob_s             cn63xx;
-	struct cvmx_l2c_ver_iob_s             cn63xxp1;
+	} cn61xx;
+	struct cvmx_l2c_ver_iob_cn61xx        cn63xx;
+	struct cvmx_l2c_ver_iob_cn61xx        cn63xxp1;
+	struct cvmx_l2c_ver_iob_cn61xx        cn66xx;
+	struct cvmx_l2c_ver_iob_s             cn68xx;
+	struct cvmx_l2c_ver_iob_s             cn68xxp1;
+	struct cvmx_l2c_ver_iob_cn61xx        cnf71xx;
 };
 typedef union cvmx_l2c_ver_iob cvmx_l2c_ver_iob_t;
 
@@ -5502,12 +6099,10 @@ typedef union cvmx_l2c_ver_iob cvmx_l2c_ver_iob_t;
  *
  * Description: records type of command associated with HOLEWR/BIGWR/VRTWR/VRTIDRNG/VRTADRNG interrupts
  */
-union cvmx_l2c_ver_msc
-{
+union cvmx_l2c_ver_msc {
 	uint64_t u64;
-	struct cvmx_l2c_ver_msc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_ver_msc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t invl2                        : 1;  /**< If set, a INVL2 caused HOLEWR/BIGWR/VRT* to set */
 	uint64_t dwb                          : 1;  /**< If set, a DWB caused HOLEWR/BIGWR/VRT* to set */
@@ -5517,7 +6112,12 @@ union cvmx_l2c_ver_msc
 	uint64_t reserved_2_63                : 62;
 #endif
 	} s;
+	struct cvmx_l2c_ver_msc_s             cn61xx;
 	struct cvmx_l2c_ver_msc_s             cn63xx;
+	struct cvmx_l2c_ver_msc_s             cn66xx;
+	struct cvmx_l2c_ver_msc_s             cn68xx;
+	struct cvmx_l2c_ver_msc_s             cn68xxp1;
+	struct cvmx_l2c_ver_msc_s             cnf71xx;
 };
 typedef union cvmx_l2c_ver_msc cvmx_l2c_ver_msc_t;
 
@@ -5528,21 +6128,48 @@ typedef union cvmx_l2c_ver_msc cvmx_l2c_ver_msc_t;
  *
  * Description: records PPs associated with HOLEWR/BIGWR/VRTWR/VRTIDRNG/VRTADRNG interrupts.
  */
-union cvmx_l2c_ver_pp
-{
+union cvmx_l2c_ver_pp {
 	uint64_t u64;
-	struct cvmx_l2c_ver_pp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_ver_pp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_32_63               : 32;
+	uint64_t mask                         : 32; /**< Mask of PPs which had a HOLEWR/BIGWR/VRTWR error */
+#else
+	uint64_t mask                         : 32;
+	uint64_t reserved_32_63               : 32;
+#endif
+	} s;
+	struct cvmx_l2c_ver_pp_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_4_63                : 60;
+	uint64_t mask                         : 4;  /**< Mask of PPs which had a HOLEWR/BIGWR/VRTWR error */
+#else
+	uint64_t mask                         : 4;
+	uint64_t reserved_4_63                : 60;
+#endif
+	} cn61xx;
+	struct cvmx_l2c_ver_pp_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
-	uint64_t mask                         : 6;  /**< Mask of PPs which had a virtualization error */
+	uint64_t mask                         : 6;  /**< Mask of PPs which had a HOLEWR/BIGWR/VRTWR error */
 #else
 	uint64_t mask                         : 6;
 	uint64_t reserved_6_63                : 58;
 #endif
-	} s;
-	struct cvmx_l2c_ver_pp_s              cn63xx;
-	struct cvmx_l2c_ver_pp_s              cn63xxp1;
+	} cn63xx;
+	struct cvmx_l2c_ver_pp_cn63xx         cn63xxp1;
+	struct cvmx_l2c_ver_pp_cn66xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_10_63               : 54;
+	uint64_t mask                         : 10; /**< Mask of PPs which had a HOLEWR/BIGWR/VRTWR error */
+#else
+	uint64_t mask                         : 10;
+	uint64_t reserved_10_63               : 54;
+#endif
+	} cn66xx;
+	struct cvmx_l2c_ver_pp_s              cn68xx;
+	struct cvmx_l2c_ver_pp_s              cn68xxp1;
+	struct cvmx_l2c_ver_pp_cn61xx         cnf71xx;
 };
 typedef union cvmx_l2c_ver_pp cvmx_l2c_ver_pp_t;
 
@@ -5553,12 +6180,10 @@ typedef union cvmx_l2c_ver_pp cvmx_l2c_ver_pp_t;
  *
  * Description:
  */
-union cvmx_l2c_virtid_iobx
-{
+union cvmx_l2c_virtid_iobx {
 	uint64_t u64;
-	struct cvmx_l2c_virtid_iobx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_virtid_iobx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t dwbid                        : 6;  /**< Virtualization ID to use for DWB commands */
 	uint64_t reserved_6_7                 : 2;
@@ -5570,8 +6195,13 @@ union cvmx_l2c_virtid_iobx
 	uint64_t reserved_14_63               : 50;
 #endif
 	} s;
+	struct cvmx_l2c_virtid_iobx_s         cn61xx;
 	struct cvmx_l2c_virtid_iobx_s         cn63xx;
 	struct cvmx_l2c_virtid_iobx_s         cn63xxp1;
+	struct cvmx_l2c_virtid_iobx_s         cn66xx;
+	struct cvmx_l2c_virtid_iobx_s         cn68xx;
+	struct cvmx_l2c_virtid_iobx_s         cn68xxp1;
+	struct cvmx_l2c_virtid_iobx_s         cnf71xx;
 };
 typedef union cvmx_l2c_virtid_iobx cvmx_l2c_virtid_iobx_t;
 
@@ -5582,12 +6212,10 @@ typedef union cvmx_l2c_virtid_iobx cvmx_l2c_virtid_iobx_t;
  *
  * Description:
  */
-union cvmx_l2c_virtid_ppx
-{
+union cvmx_l2c_virtid_ppx {
 	uint64_t u64;
-	struct cvmx_l2c_virtid_ppx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_virtid_ppx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t id                           : 6;  /**< Virtualization ID to use for this PP. */
 #else
@@ -5595,8 +6223,13 @@ union cvmx_l2c_virtid_ppx
 	uint64_t reserved_6_63                : 58;
 #endif
 	} s;
+	struct cvmx_l2c_virtid_ppx_s          cn61xx;
 	struct cvmx_l2c_virtid_ppx_s          cn63xx;
 	struct cvmx_l2c_virtid_ppx_s          cn63xxp1;
+	struct cvmx_l2c_virtid_ppx_s          cn66xx;
+	struct cvmx_l2c_virtid_ppx_s          cn68xx;
+	struct cvmx_l2c_virtid_ppx_s          cn68xxp1;
+	struct cvmx_l2c_virtid_ppx_s          cnf71xx;
 };
 typedef union cvmx_l2c_virtid_ppx cvmx_l2c_virtid_ppx_t;
 
@@ -5606,12 +6239,10 @@ typedef union cvmx_l2c_virtid_ppx cvmx_l2c_virtid_ppx_t;
  * L2C_VRT_CTL = L2C Virtualization control register
  *
  */
-union cvmx_l2c_vrt_ctl
-{
+union cvmx_l2c_vrt_ctl {
 	uint64_t u64;
-	struct cvmx_l2c_vrt_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_vrt_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t ooberr                       : 1;  /**< Whether out of bounds writes are an error
                                                          Determines virtualization hardware behavior for
@@ -5652,8 +6283,13 @@ union cvmx_l2c_vrt_ctl
 	uint64_t reserved_9_63                : 55;
 #endif
 	} s;
+	struct cvmx_l2c_vrt_ctl_s             cn61xx;
 	struct cvmx_l2c_vrt_ctl_s             cn63xx;
 	struct cvmx_l2c_vrt_ctl_s             cn63xxp1;
+	struct cvmx_l2c_vrt_ctl_s             cn66xx;
+	struct cvmx_l2c_vrt_ctl_s             cn68xx;
+	struct cvmx_l2c_vrt_ctl_s             cn68xxp1;
+	struct cvmx_l2c_vrt_ctl_s             cnf71xx;
 };
 typedef union cvmx_l2c_vrt_ctl cvmx_l2c_vrt_ctl_t;
 
@@ -5704,12 +6340,10 @@ typedef union cvmx_l2c_vrt_ctl cvmx_l2c_vrt_ctl_t;
  *   For L2/DRAM physical address 0x51000000 with virtID=5:
  *      L2C_VRT_MEM648[DATA<4>] determines when the store is allowed (648 is decimal, not hex)
  */
-union cvmx_l2c_vrt_memx
-{
+union cvmx_l2c_vrt_memx {
 	uint64_t u64;
-	struct cvmx_l2c_vrt_memx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_vrt_memx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t parity                       : 4;  /**< Parity to write into (or read from) the
                                                          virtualization memory.
@@ -5722,8 +6356,13 @@ union cvmx_l2c_vrt_memx
 	uint64_t reserved_36_63               : 28;
 #endif
 	} s;
+	struct cvmx_l2c_vrt_memx_s            cn61xx;
 	struct cvmx_l2c_vrt_memx_s            cn63xx;
 	struct cvmx_l2c_vrt_memx_s            cn63xxp1;
+	struct cvmx_l2c_vrt_memx_s            cn66xx;
+	struct cvmx_l2c_vrt_memx_s            cn68xx;
+	struct cvmx_l2c_vrt_memx_s            cn68xxp1;
+	struct cvmx_l2c_vrt_memx_s            cnf71xx;
 };
 typedef union cvmx_l2c_vrt_memx cvmx_l2c_vrt_memx_t;
 
@@ -5737,12 +6376,10 @@ typedef union cvmx_l2c_vrt_memx cvmx_l2c_vrt_memx_t;
  * (1) The read value of MASK will include bits set because of the L2C cripple fuses.
  *
  */
-union cvmx_l2c_wpar_iobx
-{
+union cvmx_l2c_wpar_iobx {
 	uint64_t u64;
-	struct cvmx_l2c_wpar_iobx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_wpar_iobx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mask                         : 16; /**< Way partitioning mask. (1 means do not use) */
 #else
@@ -5750,8 +6387,13 @@ union cvmx_l2c_wpar_iobx
 	uint64_t reserved_16_63               : 48;
 #endif
 	} s;
+	struct cvmx_l2c_wpar_iobx_s           cn61xx;
 	struct cvmx_l2c_wpar_iobx_s           cn63xx;
 	struct cvmx_l2c_wpar_iobx_s           cn63xxp1;
+	struct cvmx_l2c_wpar_iobx_s           cn66xx;
+	struct cvmx_l2c_wpar_iobx_s           cn68xx;
+	struct cvmx_l2c_wpar_iobx_s           cn68xxp1;
+	struct cvmx_l2c_wpar_iobx_s           cnf71xx;
 };
 typedef union cvmx_l2c_wpar_iobx cvmx_l2c_wpar_iobx_t;
 
@@ -5765,12 +6407,10 @@ typedef union cvmx_l2c_wpar_iobx cvmx_l2c_wpar_iobx_t;
  * (1) The read value of MASK will include bits set because of the L2C cripple fuses.
  *
  */
-union cvmx_l2c_wpar_ppx
-{
+union cvmx_l2c_wpar_ppx {
 	uint64_t u64;
-	struct cvmx_l2c_wpar_ppx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_wpar_ppx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mask                         : 16; /**< Way partitioning mask. (1 means do not use) */
 #else
@@ -5778,8 +6418,13 @@ union cvmx_l2c_wpar_ppx
 	uint64_t reserved_16_63               : 48;
 #endif
 	} s;
+	struct cvmx_l2c_wpar_ppx_s            cn61xx;
 	struct cvmx_l2c_wpar_ppx_s            cn63xx;
 	struct cvmx_l2c_wpar_ppx_s            cn63xxp1;
+	struct cvmx_l2c_wpar_ppx_s            cn66xx;
+	struct cvmx_l2c_wpar_ppx_s            cn68xx;
+	struct cvmx_l2c_wpar_ppx_s            cn68xxp1;
+	struct cvmx_l2c_wpar_ppx_s            cnf71xx;
 };
 typedef union cvmx_l2c_wpar_ppx cvmx_l2c_wpar_ppx_t;
 
@@ -5789,19 +6434,22 @@ typedef union cvmx_l2c_wpar_ppx cvmx_l2c_wpar_ppx_t;
  * L2C_XMC_PFC = L2C XMC Performance Counter(s)
  *
  */
-union cvmx_l2c_xmcx_pfc
-{
+union cvmx_l2c_xmcx_pfc {
 	uint64_t u64;
-	struct cvmx_l2c_xmcx_pfc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_xmcx_pfc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_xmcx_pfc_s            cn61xx;
 	struct cvmx_l2c_xmcx_pfc_s            cn63xx;
 	struct cvmx_l2c_xmcx_pfc_s            cn63xxp1;
+	struct cvmx_l2c_xmcx_pfc_s            cn66xx;
+	struct cvmx_l2c_xmcx_pfc_s            cn68xx;
+	struct cvmx_l2c_xmcx_pfc_s            cn68xxp1;
+	struct cvmx_l2c_xmcx_pfc_s            cnf71xx;
 };
 typedef union cvmx_l2c_xmcx_pfc cvmx_l2c_xmcx_pfc_t;
 
@@ -5838,12 +6486,10 @@ typedef union cvmx_l2c_xmcx_pfc cvmx_l2c_xmcx_pfc_t;
  *     index aliasing (if enabled) on the written address and uses that for the command. This hole
  *     removed/index aliased 38-bit address is what is returned on a read of the L2C_XMC_CMD register.
  */
-union cvmx_l2c_xmc_cmd
-{
+union cvmx_l2c_xmc_cmd {
 	uint64_t u64;
-	struct cvmx_l2c_xmc_cmd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_xmc_cmd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t inuse                        : 1;  /**< Set to 1 by HW upon receiving a write, cleared when
                                                          command has issued (not necessarily completed, but
                                                          ordered relative to other traffic) and HW can accept
@@ -5859,8 +6505,13 @@ union cvmx_l2c_xmc_cmd
 	uint64_t inuse                        : 1;
 #endif
 	} s;
+	struct cvmx_l2c_xmc_cmd_s             cn61xx;
 	struct cvmx_l2c_xmc_cmd_s             cn63xx;
 	struct cvmx_l2c_xmc_cmd_s             cn63xxp1;
+	struct cvmx_l2c_xmc_cmd_s             cn66xx;
+	struct cvmx_l2c_xmc_cmd_s             cn68xx;
+	struct cvmx_l2c_xmc_cmd_s             cn68xxp1;
+	struct cvmx_l2c_xmc_cmd_s             cnf71xx;
 };
 typedef union cvmx_l2c_xmc_cmd cvmx_l2c_xmc_cmd_t;
 
@@ -5870,19 +6521,22 @@ typedef union cvmx_l2c_xmc_cmd cvmx_l2c_xmc_cmd_t;
  * L2C_XMD_PFC = L2C XMD Performance Counter(s)
  *
  */
-union cvmx_l2c_xmdx_pfc
-{
+union cvmx_l2c_xmdx_pfc {
 	uint64_t u64;
-	struct cvmx_l2c_xmdx_pfc_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2c_xmdx_pfc_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t count                        : 64; /**< Current counter value */
 #else
 	uint64_t count                        : 64;
 #endif
 	} s;
+	struct cvmx_l2c_xmdx_pfc_s            cn61xx;
 	struct cvmx_l2c_xmdx_pfc_s            cn63xx;
 	struct cvmx_l2c_xmdx_pfc_s            cn63xxp1;
+	struct cvmx_l2c_xmdx_pfc_s            cn66xx;
+	struct cvmx_l2c_xmdx_pfc_s            cn68xx;
+	struct cvmx_l2c_xmdx_pfc_s            cn68xxp1;
+	struct cvmx_l2c_xmdx_pfc_s            cnf71xx;
 };
 typedef union cvmx_l2c_xmdx_pfc cvmx_l2c_xmdx_pfc_t;
 

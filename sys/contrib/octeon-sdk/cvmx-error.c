@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -51,6 +51,9 @@
 #include <asm/octeon/cvmx-error-custom.h>
 #include <asm/octeon/cvmx-pcie.h>
 #include <asm/octeon/cvmx-srio.h>
+#include <asm/octeon/cvmx-ciu2-defs.h>
+#include <asm/octeon/cvmx-dfm-defs.h>
+#include <asm/octeon/cvmx-lmcx-defs.h>
 #include <asm/octeon/cvmx-pexp-defs.h>
 #else
 #include "cvmx.h"
@@ -63,8 +66,13 @@
 
 #define MAX_TABLE_SIZE 1024   /* Max number of error status bits we can support */
 
+extern int cvmx_error_initialize_cnf71xx(void);
+extern int cvmx_error_initialize_cn68xx(void);
+extern int cvmx_error_initialize_cn68xxp1(void);
+extern int cvmx_error_initialize_cn66xx(void);
 extern int cvmx_error_initialize_cn63xx(void);
 extern int cvmx_error_initialize_cn63xxp1(void);
+extern int cvmx_error_initialize_cn61xx(void);
 extern int cvmx_error_initialize_cn58xxp1(void);
 extern int cvmx_error_initialize_cn58xx(void);
 extern int cvmx_error_initialize_cn56xxp1(void);
@@ -221,6 +229,17 @@ int __cvmx_error_display(const cvmx_error_info_t *info)
     /* This assumes that all bits in the status register are RO or R/W1C */
     __cvmx_error_write_hw(info->reg_type, info->status_addr, info->status_mask);
     cvmx_safe_printf("%s", message);
+
+    /* Clear the source to reduce the chance for spurious interrupts.  */
+                                                                                
+    /* CN68XX has an CIU-15786 errata that accessing the ACK registers
+     * can stop interrupts from propagating
+     */
+    if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+        cvmx_read_csr(CVMX_CIU2_INTR_CIU_READY);
+    else if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+        cvmx_read_csr(CVMX_CIU2_ACK_PPX_IP4(cvmx_get_core_num()));
+
     return 1;
 }
 
@@ -237,7 +256,27 @@ int __cvmx_error_display(const cvmx_error_info_t *info)
 int cvmx_error_initialize(cvmx_error_flags_t flags)
 {
     __cvmx_error_flags = flags;
-    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_X))
+    if (OCTEON_IS_MODEL(OCTEON_CNF71XX))
+    {
+        if (cvmx_error_initialize_cnf71xx())
+            return -1;
+    }
+    else if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+    {
+        if (cvmx_error_initialize_cn68xx())
+            return -1;
+    }
+    else if (OCTEON_IS_MODEL(OCTEON_CN68XX_PASS1_X))
+    {
+        if (cvmx_error_initialize_cn68xxp1())
+            return -1;
+    }
+    else if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+    {
+        if (cvmx_error_initialize_cn66xx())
+            return -1;
+    }
+    else if (OCTEON_IS_MODEL(OCTEON_CN63XX))
     {
         if (cvmx_error_initialize_cn63xx())
             return -1;
@@ -245,6 +284,11 @@ int cvmx_error_initialize(cvmx_error_flags_t flags)
     else if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
     {
         if (cvmx_error_initialize_cn63xxp1())
+            return -1;
+    }
+    else if (OCTEON_IS_MODEL(OCTEON_CN61XX))
+    {
+        if (cvmx_error_initialize_cn61xx())
             return -1;
     }
     else if (OCTEON_IS_MODEL(OCTEON_CN58XX_PASS1_X))
@@ -314,6 +358,11 @@ int cvmx_error_initialize(cvmx_error_flags_t flags)
     /* Enable all of the purely internal error sources by default */
     cvmx_error_enable_group(CVMX_ERROR_GROUP_INTERNAL, 0);
 
+    /* According to workaround for errata KEY-14814 in cn63xx, clearing 
+       SLI_INT_SUM[RML_TO] after enabling KEY interrupts */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+        cvmx_write_csr(CVMX_PEXP_SLI_INT_SUM, 1);
+
     /* Enable DDR error reporting based on the memory controllers */
     if (OCTEON_IS_MODEL(OCTEON_CN56XX))
     {
@@ -327,6 +376,32 @@ int cvmx_error_initialize(cvmx_error_flags_t flags)
     else
         cvmx_error_enable_group(CVMX_ERROR_GROUP_LMC, 0);
 
+    /* Enable error interrupts for other LMC only if it is
+       available. */
+    if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+    {
+        int i;
+        for (i = 1; i < 4; i++)
+        {
+            cvmx_lmcx_dll_ctl2_t ctl2;
+            ctl2.u64 = cvmx_read_csr(CVMX_LMCX_DLL_CTL2(i));
+            if (ctl2.s.intf_en)
+                cvmx_error_enable_group(CVMX_ERROR_GROUP_LMC, i);
+        } 
+    }
+
+    /* Enable DFM error reporting based on feature availablility */
+    if (octeon_has_feature(OCTEON_FEATURE_DFM))
+    {
+        /* Only configure interrupts if DFM clock is enabled. */
+        cvmx_dfm_fnt_sclk_t dfm_fnt_sclk;
+        dfm_fnt_sclk.u64 = cvmx_read_csr(CVMX_DFM_FNT_SCLK);
+        if (!dfm_fnt_sclk.s.sclkdis)
+        {
+            cvmx_error_enable_group(CVMX_ERROR_GROUP_DFM, 0);
+        }
+    }
+
     /* Old PCI parts don't have a common PCI init, so enable error
         reporting if the bootloader told us we are a PCI host. PCIe
         is handled when cvmx_pcie_rc_initialize is called */
@@ -334,9 +409,8 @@ int cvmx_error_initialize(cvmx_error_flags_t flags)
         (cvmx_sysinfo_get()->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_PCI_HOST))
         cvmx_error_enable_group(CVMX_ERROR_GROUP_PCI, 0);
 
-    /* FIXME: Why is this needed for CN63XX? */
-    if (OCTEON_IS_MODEL(OCTEON_CN63XX))
-        cvmx_write_csr(CVMX_PEXP_SLI_INT_SUM, 1);
+    /* Call poll once to clear out any pending interrupts */
+    cvmx_error_poll();
 
     return 0;
 }
@@ -501,6 +575,24 @@ int cvmx_error_enable_group(cvmx_error_group_t group, int group_index)
     for (i = 0; i < __cvmx_error_table_size; i++)
     {
         const cvmx_error_info_t *h = &__cvmx_error_table[i];
+        /* SGMII and XAUI has different ipd_port, use the same group_index
+           for both the interfaces */
+        switch(group_index)
+        {
+            case 0x840:
+                group_index = 0x800;
+                break;
+            case 0xa40:
+                group_index = 0xa00;
+                break;
+            case 0xb40:
+                group_index = 0xb00;
+                break;
+            case 0xc40:
+                group_index = 0xc00;
+                break;
+        }
+            
         /* Skip entries that have a different group or group index. We
             also skip entries that don't have an enable */
         if ((h->group != group) || (h->group_index != group_index) || (!h->enable_addr))
@@ -544,6 +636,24 @@ int cvmx_error_disable_group(cvmx_error_group_t group, int group_index)
     for (i = 0; i < __cvmx_error_table_size; i++)
     {
         const cvmx_error_info_t *h = &__cvmx_error_table[i];
+
+        /* SGMII and XAUI has different ipd_port, use the same group_index
+           for both the interfaces */
+        switch(group_index)
+        {
+            case 0x840:
+                group_index = 0x800;
+                break;
+            case 0xa40:
+                group_index = 0xa00;
+                break;
+            case 0xb40:
+                group_index = 0xb00;
+                break;
+            case 0xc40:
+                group_index = 0xc00;
+                break;
+        }
         /* Skip entries that have a different group or group index. We
             also skip entries that don't have an enable */
         if ((h->group != group) || (h->group_index != group_index) || (!h->enable_addr))
@@ -641,3 +751,23 @@ int cvmx_error_disable(cvmx_error_register_t reg_type,
     }
 }
 
+
+/**
+ * Find the handler for a specific status register and mask
+ *
+ * @param status_addr
+ *                Status register address
+ *
+ * @return  Return the handler on success or null on failure.
+ */
+cvmx_error_info_t *cvmx_error_get_index(uint64_t status_addr)
+{
+    int i;
+    for (i = 0; i < __cvmx_error_table_size; i++)
+    {
+        if (__cvmx_error_table[i].status_addr == status_addr)
+            return &__cvmx_error_table[i];
+    }
+
+    return NULL;
+}

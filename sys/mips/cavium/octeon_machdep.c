@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
 #include <contrib/octeon-sdk/cvmx-version.h>
 
+#include <mips/cavium/octeon_irq.h>
+
 #if defined(__mips_n64) 
 #define MAX_APP_DESC_ADDR     0xffffffffafffffff
 #else
@@ -112,6 +114,16 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_DFA,			"DFA" },
 	{ OCTEON_FEATURE_MDIO_CLAUSE_45,	"MDIO_CLAUSE_45" },
 	{ OCTEON_FEATURE_NPEI,			"NPEI" },
+	{ OCTEON_FEATURE_ILK,			"ILK" },
+	{ OCTEON_FEATURE_HFA,			"HFA" },
+	{ OCTEON_FEATURE_DFM,			"DFM" },
+	{ OCTEON_FEATURE_CIU2,			"CIU2" },
+	{ OCTEON_FEATURE_DICI_MODE,		"DICI_MODE" },
+	{ OCTEON_FEATURE_BIT_EXTRACTOR,		"BIT_EXTRACTOR" },
+	{ OCTEON_FEATURE_NAND,			"NAND" },
+	{ OCTEON_FEATURE_MMC,			"MMC" },
+	{ OCTEON_FEATURE_PKND,			"PKND" },
+	{ OCTEON_FEATURE_CN68XX_WQE,		"CN68XX_WQE" },
 	{ 0,					NULL }
 };
 
@@ -257,8 +269,8 @@ octeon_ciu_reset(void)
 #ifdef SMP
 	/* Enable the MBOX interrupts.  */
 	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2+1),
-		       (1ull << (CVMX_IRQ_MBOX0 - 8)) |
-		       (1ull << (CVMX_IRQ_MBOX1 - 8)));
+		       (1ull << (OCTEON_IRQ_MBOX0 - 8)) |
+		       (1ull << (OCTEON_IRQ_MBOX1 - 8)));
 #endif
 }
 

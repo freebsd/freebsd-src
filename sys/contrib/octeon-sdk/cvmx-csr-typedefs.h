@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -46,7 +46,7 @@
  *
  * This file is auto generated. Do not edit.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 69515 $<hr>
  *
  */
 #ifndef __CVMX_CSR_TYPEDEFS_H__
@@ -54,14 +54,19 @@
 #include "cvmx-agl-defs.h"
 #include "cvmx-asxx-defs.h"
 #include "cvmx-asx0-defs.h"
+#include "cvmx-ciu2-defs.h"
 #include "cvmx-ciu-defs.h"
 #include "cvmx-dbg-defs.h"
 #include "cvmx-dfa-defs.h"
 #include "cvmx-dfm-defs.h"
 #include "cvmx-dpi-defs.h"
+#include "cvmx-endor-defs.h"
+#include "cvmx-eoi-defs.h"
 #include "cvmx-fpa-defs.h"
 #include "cvmx-gmxx-defs.h"
 #include "cvmx-gpio-defs.h"
+#include "cvmx-ilk-defs.h"
+#include "cvmx-iob1-defs.h"
 #include "cvmx-iob-defs.h"
 #include "cvmx-ipd-defs.h"
 #include "cvmx-key-defs.h"
@@ -98,9 +103,10 @@
 #include "cvmx-sriox-defs.h"
 #include "cvmx-sriomaintx-defs.h"
 #include "cvmx-srxx-defs.h"
+#include "cvmx-sso-defs.h"
 #include "cvmx-stxx-defs.h"
 #include "cvmx-tim-defs.h"
-#include "cvmx-tra-defs.h"
+#include "cvmx-trax-defs.h"
 #include "cvmx-uahcx-defs.h"
 #include "cvmx-uctlx-defs.h"
 #include "cvmx-usbcx-defs.h"

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -100,7 +100,7 @@
  *     cvmx_npei_rsl_int_blocks:pow:e -> cvmx_pow_ecc_err [label="pow"];
  *     cvmx_usbn1_int_sum [label="USBNX_INT_SUM(1)|<pr_po_e>pr_po_e|<pr_pu_f>pr_pu_f|<nr_po_e>nr_po_e|<nr_pu_f>nr_pu_f|<lr_po_e>lr_po_e|<lr_pu_f>lr_pu_f|<pt_po_e>pt_po_e|<pt_pu_f>pt_pu_f|<nt_po_e>nt_po_e|<nt_pu_f>nt_pu_f|<lt_po_e>lt_po_e|<lt_pu_f>lt_pu_f|<dcred_e>dcred_e|<dcred_f>dcred_f|<l2c_s_e>l2c_s_e|<l2c_a_f>l2c_a_f|<lt_fi_e>lt_fi_e|<lt_fi_f>lt_fi_f|<rg_fi_e>rg_fi_e|<rg_fi_f>rg_fi_f|<rq_q2_f>rq_q2_f|<rq_q2_e>rq_q2_e|<rq_q3_f>rq_q3_f|<rq_q3_e>rq_q3_e|<uod_pe>uod_pe|<uod_pf>uod_pf|<ltl_f_pe>ltl_f_pe|<ltl_f_pf>ltl_f_pf|<nd4o_rpe>nd4o_rpe|<nd4o_rpf>nd4o_rpf|<nd4o_dpe>nd4o_dpe|<nd4o_dpf>nd4o_dpf"];
  *     cvmx_npei_rsl_int_blocks:usb1:e -> cvmx_usbn1_int_sum [label="usb1"];
- *     cvmx_npei_int_sum [label="PEXP_NPEI_INT_SUM|<c0_ldwn>c0_ldwn|<c0_se>c0_se|<c0_un_b0>c0_un_b0|<c0_un_b1>c0_un_b1|<c0_un_b2>c0_un_b2|<c0_un_bx>c0_un_bx|<c0_un_wf>c0_un_wf|<c0_un_wi>c0_un_wi|<c0_up_b0>c0_up_b0|<c0_up_b1>c0_up_b1|<c0_up_b2>c0_up_b2|<c0_up_bx>c0_up_bx|<c0_up_wf>c0_up_wf|<c0_up_wi>c0_up_wi|<c0_wake>c0_wake|<crs0_dr>crs0_dr|<crs0_er>crs0_er|<c1_ldwn>c1_ldwn|<c1_se>c1_se|<c1_un_b0>c1_un_b0|<c1_un_b1>c1_un_b1|<c1_un_b2>c1_un_b2|<c1_un_bx>c1_un_bx|<c1_un_wf>c1_un_wf|<c1_un_wi>c1_un_wi|<c1_up_b0>c1_up_b0|<c1_up_b1>c1_up_b1|<c1_up_b2>c1_up_b2|<c1_up_bx>c1_up_bx|<c1_up_wf>c1_up_wf|<c1_up_wi>c1_up_wi|<c1_wake>c1_wake|<crs1_dr>crs1_dr|<crs1_er>crs1_er|<bar0_to>bar0_to|<dma0dbo>dma0dbo|<dma1dbo>dma1dbo|<dma2dbo>dma2dbo|<dma3dbo>dma3dbo|<iob2big>iob2big|<rml_rto>rml_rto|<rml_wto>rml_wto|<c0_exc>c0_exc|<c1_exc>c1_exc"];
+ *     cvmx_npei_int_sum [label="PEXP_NPEI_INT_SUM|<c0_se>c0_se|<c0_un_b0>c0_un_b0|<c0_un_b1>c0_un_b1|<c0_un_b2>c0_un_b2|<c0_un_bx>c0_un_bx|<c0_un_wf>c0_un_wf|<c0_un_wi>c0_un_wi|<c0_up_b0>c0_up_b0|<c0_up_b1>c0_up_b1|<c0_up_b2>c0_up_b2|<c0_up_bx>c0_up_bx|<c0_up_wf>c0_up_wf|<c0_up_wi>c0_up_wi|<c0_wake>c0_wake|<crs0_dr>crs0_dr|<crs0_er>crs0_er|<c1_se>c1_se|<c1_un_b0>c1_un_b0|<c1_un_b1>c1_un_b1|<c1_un_b2>c1_un_b2|<c1_un_bx>c1_un_bx|<c1_un_wf>c1_un_wf|<c1_un_wi>c1_un_wi|<c1_up_b0>c1_up_b0|<c1_up_b1>c1_up_b1|<c1_up_b2>c1_up_b2|<c1_up_bx>c1_up_bx|<c1_up_wf>c1_up_wf|<c1_up_wi>c1_up_wi|<c1_wake>c1_wake|<crs1_dr>crs1_dr|<crs1_er>crs1_er|<bar0_to>bar0_to|<dma0dbo>dma0dbo|<dma1dbo>dma1dbo|<dma2dbo>dma2dbo|<dma3dbo>dma3dbo|<iob2big>iob2big|<rml_rto>rml_rto|<rml_wto>rml_wto|<c0_exc>c0_exc|<c1_exc>c1_exc"];
  *     cvmx_pesc0_dbg_info [label="PESCX_DBG_INFO(0)|<spoison>spoison|<rtlplle>rtlplle|<recrce>recrce|<rpoison>rpoison|<rcemrc>rcemrc|<rnfemrc>rnfemrc|<rfemrc>rfemrc|<rpmerc>rpmerc|<rptamrc>rptamrc|<rumep>rumep|<rvdm>rvdm|<acto>acto|<rte>rte|<mre>mre|<rdwdle>rdwdle|<rtwdle>rtwdle|<dpeoosd>dpeoosd|<fcpvwt>fcpvwt|<rpe>rpe|<fcuv>fcuv|<rqo>rqo|<rauc>rauc|<racur>racur|<racca>racca|<caar>caar|<rarwdns>rarwdns|<ramtlp>ramtlp|<racpp>racpp|<rawwpp>rawwpp|<ecrc_e>ecrc_e"];
  *     cvmx_npei_int_sum:c0_exc:e -> cvmx_pesc0_dbg_info [label="c0_exc"];
  *     cvmx_pesc1_dbg_info [label="PESCX_DBG_INFO(1)|<spoison>spoison|<rtlplle>rtlplle|<recrce>recrce|<rpoison>rpoison|<rcemrc>rcemrc|<rnfemrc>rnfemrc|<rfemrc>rfemrc|<rpmerc>rpmerc|<rptamrc>rptamrc|<rumep>rumep|<rvdm>rvdm|<acto>acto|<rte>rte|<mre>mre|<rdwdle>rdwdle|<rtwdle>rtwdle|<dpeoosd>dpeoosd|<fcpvwt>fcpvwt|<rpe>rpe|<fcuv>fcuv|<rqo>rqo|<rauc>rauc|<racur>racur|<racca>racca|<caar>caar|<rarwdns>rarwdns|<ramtlp>ramtlp|<racpp>racpp|<rawwpp>rawwpp|<ecrc_e>ecrc_e"];
@@ -118,7 +118,7 @@
  *     cvmx_npei_rsl_int_blocks:asxpcs0:e -> cvmx_pcs0_int2_reg [label="asxpcs0"];
  *     cvmx_pcs0_int3_reg [label="PCSX_INTX_REG(3,0)|<an_err>an_err|<txfifu>txfifu|<txfifo>txfifo|<txbad>txbad|<rxbad>rxbad|<rxlock>rxlock|<an_bad>an_bad|<sync_bad>sync_bad"];
  *     cvmx_npei_rsl_int_blocks:asxpcs0:e -> cvmx_pcs0_int3_reg [label="asxpcs0"];
- *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<synlos>synlos|<algnlos>algnlos"];
+ *     cvmx_pcsx0_int_reg [label="PCSXX_INT_REG(0)|<txflt>txflt|<rxbad>rxbad|<rxsynbad>rxsynbad|<bitlckls>bitlckls|<synlos>synlos|<algnlos>algnlos"];
  *     cvmx_npei_rsl_int_blocks:asxpcs0:e -> cvmx_pcsx0_int_reg [label="asxpcs0"];
  *     cvmx_pip_int_reg [label="PIP_INT_REG|<prtnxa>prtnxa|<badtag>badtag|<skprunt>skprunt|<todoovr>todoovr|<feperr>feperr|<beperr>beperr|<punyerr>punyerr"];
  *     cvmx_npei_rsl_int_blocks:pip:e -> cvmx_pip_int_reg [label="pip"];
@@ -2826,22 +2826,6 @@ int cvmx_error_initialize_cn52xxp1(void)
     /* CVMX_PEXP_NPEI_INT_SUM */
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
     info.status_addr        = CVMX_PEXP_NPEI_INT_SUM;
-    info.status_mask        = 1ull<<59 /* c0_ldwn */;
-    info.enable_addr        = CVMX_PEXP_NPEI_INT_ENB2;
-    info.enable_mask        = 1ull<<59 /* c0_ldwn */;
-    info.flags              = 0;
-    info.group              = CVMX_ERROR_GROUP_PCI;
-    info.group_index        = 0;
-    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
-    info.parent.status_addr = CVMX_PEXP_NPEI_RSL_INT_BLOCKS;
-    info.parent.status_mask = 1ull<<3 /* npei */;
-    info.func               = __cvmx_error_display;
-    info.user_info          = (long)
-        "ERROR PEXP_NPEI_INT_SUM[C0_LDWN]: Reset request due to link0 down status.\n";
-    fail |= cvmx_error_add(&info);
-
-    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_PEXP_NPEI_INT_SUM;
     info.status_mask        = 1ull<<21 /* c0_se */;
     info.enable_addr        = CVMX_PEXP_NPEI_INT_ENB2;
     info.enable_mask        = 1ull<<21 /* c0_se */;
@@ -3109,22 +3093,6 @@ int cvmx_error_initialize_cn52xxp1(void)
     info.func               = __cvmx_error_display;
     info.user_info          = (long)
         "ERROR PEXP_NPEI_INT_SUM[CRS0_ER]: Had a CRS Timeout when Retries were enabled.\n";
-    fail |= cvmx_error_add(&info);
-
-    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
-    info.status_addr        = CVMX_PEXP_NPEI_INT_SUM;
-    info.status_mask        = 1ull<<60 /* c1_ldwn */;
-    info.enable_addr        = CVMX_PEXP_NPEI_INT_ENB2;
-    info.enable_mask        = 1ull<<60 /* c1_ldwn */;
-    info.flags              = 0;
-    info.group              = CVMX_ERROR_GROUP_PCI;
-    info.group_index        = 1;
-    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
-    info.parent.status_addr = CVMX_PEXP_NPEI_RSL_INT_BLOCKS;
-    info.parent.status_mask = 1ull<<3 /* npei */;
-    info.func               = __cvmx_error_display;
-    info.user_info          = (long)
-        "ERROR PEXP_NPEI_INT_SUM[C1_LDWN]: Reset request due to link1 down status.\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
@@ -5252,6 +5220,22 @@ int cvmx_error_initialize_cn52xxp1(void)
     info.user_info          = (long)
         "ERROR PCSXX_INT_REG(0)[RXSYNBAD]: Set when RX code grp sync st machine in bad state\n"
         "    in one of the 4 xaui lanes\n";
+    fail |= cvmx_error_add(&info);
+
+    info.reg_type           = CVMX_ERROR_REGISTER_IO64;
+    info.status_addr        = CVMX_PCSXX_INT_REG(0);
+    info.status_mask        = 1ull<<3 /* bitlckls */;
+    info.enable_addr        = CVMX_PCSXX_INT_EN_REG(0);
+    info.enable_mask        = 1ull<<3 /* bitlckls_en */;
+    info.flags              = 0;
+    info.group              = CVMX_ERROR_GROUP_ETHERNET;
+    info.group_index        = 0;
+    info.parent.reg_type    = CVMX_ERROR_REGISTER_IO64;
+    info.parent.status_addr = CVMX_PEXP_NPEI_RSL_INT_BLOCKS;
+    info.parent.status_mask = 1ull<<22 /* asxpcs0 */;
+    info.func               = __cvmx_error_display;
+    info.user_info          = (long)
+        "ERROR PCSXX_INT_REG(0)[BITLCKLS]: Set when Bit lock lost on 1 or more xaui lanes\n";
     fail |= cvmx_error_add(&info);
 
     info.reg_type           = CVMX_ERROR_REGISTER_IO64;
