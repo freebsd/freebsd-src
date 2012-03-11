@@ -129,8 +129,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
-#include <fs/fifofs/fifo.h>
-
 /*
  * Use this define if you want to disable *fancy* VM things.  Expect an
  * approx 30% decrease in transfer rate.  This could be useful for
