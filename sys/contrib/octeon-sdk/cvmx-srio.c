@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -60,6 +60,7 @@
 #include <asm/octeon/cvmx-dpi-defs.h>
 #include <asm/octeon/cvmx-pexp-defs.h>
 #include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-qlm.h>
 #else
 #include "cvmx.h"
 #include "cvmx-srio.h"
@@ -70,9 +71,10 @@
 #include "cvmx-error.h"
 #include "cvmx-helper-errata.h"
 #endif
+#include "cvmx-qlm.h"
+#include "cvmx-helper.h"
 #endif
 
-#define CVMX_SRIO_USE_FIFO_FOR_MAINT    1
 #define CVMX_SRIO_CONFIG_TIMEOUT        10000 /* 10ms */
 #define CVMX_SRIO_DOORBELL_TIMEOUT      10000 /* 10ms */
 #define CVMX_SRIO_CONFIG_PRIORITY       0
@@ -83,7 +85,7 @@ typedef union
     uint64_t    u64;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    upper           : 2;    /* Normally 2 for XKPHYS */
         uint64_t    reserved_49_61  : 13;   /* Must be zero */
         uint64_t    io              : 1;    /* 1 for IO space access */
@@ -109,7 +111,7 @@ typedef union
     } config;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    upper           : 2;    /* Normally 2 for XKPHYS */
         uint64_t    reserved_49_61  : 13;   /* Must be zero */
         uint64_t    io              : 1;    /* 1 for IO space access */
@@ -138,7 +140,7 @@ typedef struct
     int32_t s2m_ref_count[16];   /* Reference count for SRIOX_S2M_TYPE[0-15]. */
 } __cvmx_srio_state_t;
 
-static CVMX_SHARED __cvmx_srio_state_t __cvmx_srio_state[2];
+static CVMX_SHARED __cvmx_srio_state_t __cvmx_srio_state[4];
 
 
 #ifndef CVMX_BUILD_FOR_LINUX_HOST
@@ -170,6 +172,8 @@ static int __cvmx_srio_alloc_s2m(int srio_port, cvmx_sriox_s2m_typex_t s2m)
         {
             /* Unused location. Write our value */
             cvmx_write_csr(CVMX_SRIOX_S2M_TYPEX(s2m_index, srio_port), s2m.u64);
+            /* Read back to make sure the update is complete */
+            cvmx_read_csr(CVMX_SRIOX_S2M_TYPEX(s2m_index, srio_port));
             return s2m_index;
         }
         else
@@ -223,6 +227,8 @@ static int __cvmx_srio_alloc_subid(cvmx_sli_mem_access_subidx_t subid)
         {
             /* Unused location. Write our value */
             cvmx_write_csr(CVMX_PEXP_SLI_MEM_ACCESS_SUBIDX(mem_index), subid.u64);
+            /* Read back the value to make sure the update is complete */
+            cvmx_read_csr(CVMX_PEXP_SLI_MEM_ACCESS_SUBIDX(mem_index));
             return mem_index;
         }
         else
@@ -357,6 +363,49 @@ static int __cvmx_srio_local_write32(int srio_port, uint32_t offset, uint32_t da
 
 
 /**
+ * Reset SRIO to link partner
+ *
+ * @param srio_port  SRIO port to initialize
+ *
+ * @return Zero on success
+ */
+int cvmx_srio_link_rst(int srio_port)
+{
+    cvmx_sriomaintx_port_0_link_resp_t link_resp;
+
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+        return -1;
+
+    /* Generate a symbol reset to the link partner by writing 0x3. */
+    if (cvmx_srio_config_write32(srio_port, 0, -1, 0, 0,
+        CVMX_SRIOMAINTX_PORT_0_LINK_REQ(srio_port), 3))
+        return -1;
+
+    if (cvmx_srio_config_read32(srio_port, 0, -1, 0, 0,
+        CVMX_SRIOMAINTX_PORT_0_LINK_RESP(srio_port), &link_resp.u32))
+        return -1;
+
+    /* Poll until link partner has received the reset. */
+    while (link_resp.s.valid == 0)
+    {
+        //cvmx_dprintf("Waiting for Link Response\n");
+        if (cvmx_srio_config_read32(srio_port, 0, -1, 0, 0,
+            CVMX_SRIOMAINTX_PORT_0_LINK_RESP(srio_port), &link_resp.u32))
+            return -1;
+    }
+
+    /* Valid response, Asserting MAC reset */
+    cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x1);
+
+    cvmx_wait(10);
+
+    /* De-asserting MAC Reset */
+    cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x0);
+
+    return 0;
+}
+
+/**
  * Initialize a SRIO port for use.
  *
  * @param srio_port SRIO port to initialize
@@ -376,9 +425,21 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
     cvmx_sriox_imsg_vport_thr_t sriox_imsg_vport_thr;
     cvmx_dpi_sli_prtx_cfg_t prt_cfg;
     cvmx_sli_s2m_portx_ctl_t sli_s2m_portx_ctl;
+    cvmx_sli_mem_access_ctl_t sli_mem_access_ctl;
+    cvmx_sriomaintx_port_0_ctl2_t port_0_ctl2;
 
     sriox_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(srio_port));
-    if (!sriox_status_reg.s.srio)
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+    {
+        /* All SRIO ports are connected to QLM0 */ 
+        int status = cvmx_qlm_get_status(0);
+        if (status < 4 || status > 6)
+        {
+            cvmx_dprintf("SRIO%d: Initialization called on a port not in SRIO mode\n", srio_port);
+            return -1;
+        }
+    }
+    else if (!sriox_status_reg.s.srio)
     {
         cvmx_dprintf("SRIO%d: Initialization called on a port not in SRIO mode\n", srio_port);
         return -1;
@@ -410,40 +471,145 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
         }
     }
 
-    mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(srio_port));
+    /* Don't receive or drive reset signals for the SRIO QLM */
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+    {
+        /* The reset signals are available only for srio_port == 0. */
+        if (srio_port == 0 || (OCTEON_IS_MODEL(OCTEON_CN66XX_PASS1_2) && srio_port == 1))
+        {
+            cvmx_mio_rst_cntlx_t mio_rst_cntl;
+            mio_rst_cntl.u64 = cvmx_read_csr(CVMX_MIO_RST_CNTLX(srio_port));
+            mio_rst_cntl.s.rst_drv = 0;
+            mio_rst_cntl.s.rst_rcv = 0;
+            mio_rst_cntl.s.rst_chip = 0;
+            cvmx_write_csr(CVMX_MIO_RST_CNTLX(srio_port), mio_rst_cntl.u64);
+        }
+        /* MIO_RST_CNTL2<prtmode> is initialized to 0 on cold reset */
+        mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CNTLX(srio_port));
+    }
+    else
+    {
+        mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(srio_port));
+        mio_rst_ctl.s.rst_drv = 0;
+        mio_rst_ctl.s.rst_rcv = 0;
+        mio_rst_ctl.s.rst_chip = 0;
+        cvmx_write_csr(CVMX_MIO_RST_CTLX(srio_port), mio_rst_ctl.u64);
+
+        mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(srio_port));
+    }
+
     cvmx_dprintf("SRIO%d: Port in %s mode\n", srio_port,
         (mio_rst_ctl.s.prtmode) ? "host" : "endpoint");
 
     /* Bring the port out of reset if necessary */
-    if (srio_port)
+    switch (srio_port)
     {
-        cvmx_ciu_soft_prst1_t prst;
-        prst.u64 = cvmx_read_csr(CVMX_CIU_SOFT_PRST1);
-        if (prst.s.soft_prst)
+        case 0:
         {
-            prst.s.soft_prst = 0;
-            cvmx_write_csr(CVMX_CIU_SOFT_PRST1, prst.u64);
-            cvmx_wait_usec(10000); /* 10ms for new link to stabalize */
+            cvmx_ciu_soft_prst_t prst;
+            prst.u64 = cvmx_read_csr(CVMX_CIU_SOFT_PRST);
+            if (prst.s.soft_prst)
+            {
+                prst.s.soft_prst = 0;
+                cvmx_write_csr(CVMX_CIU_SOFT_PRST, prst.u64);
+                /* Wait up to 250ms for the port to come out of reset */
+                if (CVMX_WAIT_FOR_FIELD64(CVMX_SRIOX_STATUS_REG(srio_port), cvmx_sriox_status_reg_t, access, ==, 1, 250000))
+                    return -1;
+            }
+            break;
         }
-    }
-    else
-    {
-        cvmx_ciu_soft_prst_t prst;
-        prst.u64 = cvmx_read_csr(CVMX_CIU_SOFT_PRST);
-        if (prst.s.soft_prst)
+        case 1:
         {
-            prst.s.soft_prst = 0;
-            cvmx_write_csr(CVMX_CIU_SOFT_PRST, prst.u64);
-            cvmx_wait_usec(10000); /* 10ms for new link to stabalize */
+            cvmx_ciu_soft_prst1_t prst;
+            prst.u64 = cvmx_read_csr(CVMX_CIU_SOFT_PRST1);
+            if (prst.s.soft_prst)
+            {
+                prst.s.soft_prst = 0;
+                cvmx_write_csr(CVMX_CIU_SOFT_PRST1, prst.u64);
+                /* Wait up to 250ms for the port to come out of reset */
+                if (CVMX_WAIT_FOR_FIELD64(CVMX_SRIOX_STATUS_REG(srio_port), cvmx_sriox_status_reg_t, access, ==, 1, 250000))
+                    return -1;
+            }
+            break;
+        }
+        case 2:
+        {
+            cvmx_ciu_soft_prst2_t prst;
+            prst.u64 = cvmx_read_csr(CVMX_CIU_SOFT_PRST2);
+            if (prst.s.soft_prst)
+            {
+                prst.s.soft_prst = 0;
+                cvmx_write_csr(CVMX_CIU_SOFT_PRST2, prst.u64);
+                /* Wait up to 250ms for the port to come out of reset */
+                if (CVMX_WAIT_FOR_FIELD64(CVMX_SRIOX_STATUS_REG(srio_port), cvmx_sriox_status_reg_t, access, ==, 1, 250000))
+                    return -1;
+            }
+            break;
         }
     }
 
     /* Disable the link while we make changes */
     if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PORT_0_CTL(srio_port), &port_0_ctl.u32))
         return -1;
-    port_0_ctl.s.disable = 1;
+    port_0_ctl.s.o_enable = 0;
+    port_0_ctl.s.i_enable = 0;
+    port_0_ctl.s.prt_lock = 1;
+    port_0_ctl.s.disable = 0;
     if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_0_CTL(srio_port), port_0_ctl.u32))
         return -1;
+
+    /* CN63XX Pass 2.0 and 2.1 errata G-15273 requires the QLM De-emphasis be
+        programmed when using a 156.25Mhz ref clock */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0) ||
+        OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_1))
+    {
+        cvmx_mio_rst_boot_t mio_rst_boot;
+        cvmx_sriomaintx_lane_x_status_0_t lane_x_status;
+
+        /* Read the QLM config and speed pins */
+        mio_rst_boot.u64 = cvmx_read_csr(CVMX_MIO_RST_BOOT);
+        if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_LANE_X_STATUS_0(0, srio_port), &lane_x_status.u32))
+            return -1;
+
+        if (srio_port)
+        {
+            cvmx_ciu_qlm1_t ciu_qlm;
+            ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM1);
+            switch (mio_rst_boot.cn63xx.qlm1_spd)
+            {
+                case 0x4: /* 1.25 Gbaud, 156.25MHz */
+                    ciu_qlm.s.txbypass = 1;
+                    ciu_qlm.s.txdeemph = 0x0;
+                    ciu_qlm.s.txmargin = (lane_x_status.s.rx_type == 0) ? 0x11 : 0x1c; /* short or med/long */
+                    break;
+                case 0xb: /* 5.0 Gbaud, 156.25MHz */
+                    ciu_qlm.s.txbypass = 1;
+                    ciu_qlm.s.txdeemph = (lane_x_status.s.rx_type == 0) ? 0xa : 0xf; /* short or med/long */
+                    ciu_qlm.s.txmargin = (lane_x_status.s.rx_type == 0) ? 0xf : 0x1a; /* short or med/long */
+                    break;
+            }
+            cvmx_write_csr(CVMX_CIU_QLM1, ciu_qlm.u64);
+        }
+        else
+        {
+            cvmx_ciu_qlm0_t ciu_qlm;
+            ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM0);
+            switch (mio_rst_boot.cn63xx.qlm0_spd)
+            {
+                case 0x4: /* 1.25 Gbaud, 156.25MHz */
+                    ciu_qlm.s.txbypass = 1;
+                    ciu_qlm.s.txdeemph = 0x0;
+                    ciu_qlm.s.txmargin = (lane_x_status.s.rx_type == 0) ? 0x11 : 0x1c; /* short or med/long */
+                    break;
+                case 0xb: /* 5.0 Gbaud, 156.25MHz */
+                    ciu_qlm.s.txbypass = 1;
+                    ciu_qlm.s.txdeemph = (lane_x_status.s.rx_type == 0) ? 0xa : 0xf; /* short or med/long */
+                    ciu_qlm.s.txmargin = (lane_x_status.s.rx_type == 0) ? 0xf : 0x1a; /* short or med/long */
+                    break;
+            }
+            cvmx_write_csr(CVMX_CIU_QLM0, ciu_qlm.u64);
+        }
+    }
 
     /* Errata SRIO-14485: Link speed is reported incorrectly in CN63XX
         pass 1.x */
@@ -481,19 +647,31 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
             return -1;
     }
 
-    /* Set the link layer timeout to 10us. The default is too high and causes
+    /* Errata SRIO-15351: Turn off SRIOMAINTX_MAC_CTRL[TYPE_MRG] as it may
+        cause packet ACCEPT to be lost */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_0) || OCTEON_IS_MODEL(OCTEON_CN63XX_PASS2_1))
+    {
+        cvmx_sriomaintx_mac_ctrl_t mac_ctrl;
+        if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_MAC_CTRL(srio_port), &mac_ctrl.u32))
+            return -1;
+        mac_ctrl.s.type_mrg = 0;
+        if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_MAC_CTRL(srio_port), mac_ctrl.u32))
+            return -1;
+    }
+
+    /* Set the link layer timeout to 1ms. The default is too high and causes
         core bus errors */
     if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PORT_LT_CTL(srio_port), &port_lt_ctl.u32))
         return -1;
-    port_lt_ctl.s.timeout = 10000 / 200; /* 10us = 10000ns / 200ns */
+    port_lt_ctl.s.timeout = 1000000 / 200; /* 1ms = 1000000ns / 200ns */
     if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_LT_CTL(srio_port), port_lt_ctl.u32))
         return -1;
 
-    /* Set the logical layer timeout to 10ms. The default is too high and causes
+    /* Set the logical layer timeout to 100ms. The default is too high and causes
         core bus errors */
     if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PORT_RT_CTL(srio_port), &port_rt_ctl.u32))
         return -1;
-    port_rt_ctl.s.timeout = 10000000 / 200; /* 10ms = 10000000ns / 200ns */
+    port_rt_ctl.s.timeout = 100000000 / 200; /* 100ms = 100000000ns / 200ns */
     if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_RT_CTL(srio_port), port_rt_ctl.u32))
         return -1;
 
@@ -516,6 +694,11 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
     prt_cfg.u64 = cvmx_read_csr(CVMX_DPI_SLI_PRTX_CFG(srio_port));
     prt_cfg.s.mps = 1;
     prt_cfg.s.mrrs = 1;
+    prt_cfg.s.molr = 32;
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+        prt_cfg.s.molr = ((prt_cfg.s.qlm_cfg == 1 || prt_cfg.s.qlm_cfg == 3) ? 8
+                          : (prt_cfg.s.qlm_cfg == 4 || prt_cfg.s.qlm_cfg == 6) ? 16
+                          : 32);
     cvmx_write_csr(CVMX_DPI_SLI_PRTX_CFG(srio_port), prt_cfg.u64);
 
     sli_s2m_portx_ctl.u64 = cvmx_read_csr(CVMX_PEXP_SLI_S2M_PORTX_CTL(srio_port));
@@ -524,7 +707,10 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
 
     /* Setup RX messaging thresholds */
     sriox_imsg_vport_thr.u64 = cvmx_read_csr(CVMX_SRIOX_IMSG_VPORT_THR(srio_port));
-    sriox_imsg_vport_thr.s.max_tot = 48;
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+        sriox_imsg_vport_thr.s.max_tot = ((prt_cfg.s.qlm_cfg == 1 || prt_cfg.s.qlm_cfg == 3) ? 44 : 46);
+    else
+        sriox_imsg_vport_thr.s.max_tot = 48;
     sriox_imsg_vport_thr.s.max_s1 = 24;
     sriox_imsg_vport_thr.s.max_s0 = 24;
     sriox_imsg_vport_thr.s.sp_vport = 1;
@@ -532,6 +718,16 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
     sriox_imsg_vport_thr.s.max_p1 = 12;
     sriox_imsg_vport_thr.s.max_p0 = 12;
     cvmx_write_csr(CVMX_SRIOX_IMSG_VPORT_THR(srio_port), sriox_imsg_vport_thr.u64);
+
+    /* Setup RX messaging thresholds for other virtual ports. */
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+    {
+        cvmx_sriox_imsg_vport_thr2_t sriox_imsg_vport_thr2;
+        sriox_imsg_vport_thr2.u64 = cvmx_read_csr(CVMX_SRIOX_IMSG_VPORT_THR2(srio_port));
+        sriox_imsg_vport_thr2.s.max_s2 = 24;
+        sriox_imsg_vport_thr2.s.max_s3 = 24;
+        cvmx_write_csr(CVMX_SRIOX_IMSG_VPORT_THR2(srio_port), sriox_imsg_vport_thr2.u64);
+    }
 
     /* Errata SRIO-X: SRIO error behavior may not be optimal in CN63XX pass 1.x */
     if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
@@ -543,6 +739,32 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
         sriox_tx_ctrl.s.tag_th0 = 4;
         cvmx_write_csr(CVMX_SRIOX_TX_CTRL(srio_port), sriox_tx_ctrl.u64);
     }
+
+    /* Errata SLI-15954: SLI relaxed order issues */
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX_PASS1_X))
+    {
+        cvmx_sli_ctl_portx_t sli_ctl_portx;
+        sli_ctl_portx.u64 = cvmx_read_csr(CVMX_PEXP_SLI_CTL_PORTX(srio_port));
+        sli_ctl_portx.s.ptlp_ro = 1;    /* Set to same value for all MACs. */
+        sli_ctl_portx.s.ctlp_ro = 1;    /* Set to same value for all MACs. */
+        sli_ctl_portx.s.wait_com = 0;   /* So that no inbound stores wait for a commit */
+        sli_ctl_portx.s.waitl_com = 0;
+        cvmx_write_csr(CVMX_PEXP_SLI_CTL_PORTX(srio_port), sli_ctl_portx.u64);
+    }
+
+    if (!OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+    {
+        /* Clear the ACK state */
+        if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_0_LOCAL_ACKID(srio_port), 0))
+            return -1;
+    }
+
+    /* Bring the link down, then up, by writing to the SRIO port's
+       PORT_0_CTL2 CSR. */
+    if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PORT_0_CTL2(srio_port), &port_0_ctl2.u32))
+        return -1;
+    if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_0_CTL2(srio_port), port_0_ctl2.u32))
+        return -1;
 
     /* Clear any pending interrupts */
     cvmx_write_csr(CVMX_SRIOX_INT_REG(srio_port), cvmx_read_csr(CVMX_SRIOX_INT_REG(srio_port)));
@@ -561,6 +783,74 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
     port_0_ctl.s.prt_lock = 0;
     if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_0_CTL(srio_port), port_0_ctl.u32))
         return -1;
+
+    /* Store merge control (SLI_MEM_ACCESS_CTL[TIMER,MAX_WORD]) */
+    sli_mem_access_ctl.u64 = cvmx_read_csr(CVMX_PEXP_SLI_MEM_ACCESS_CTL);
+    sli_mem_access_ctl.s.max_word = 0;     /* Allow 16 words to combine */
+    sli_mem_access_ctl.s.timer = 127;      /* Wait up to 127 cycles for more data */
+    cvmx_write_csr(CVMX_PEXP_SLI_MEM_ACCESS_CTL, sli_mem_access_ctl.u64);
+
+    /* FIXME: Disable sending a link request when the SRIO link is
+        brought up. For unknown reasons this code causes issues with some SRIO
+        devices. As we currently don't support hotplug in software, this code
+        should never be needed.  Without link down/up events, the ACKs should
+        start off and stay synchronized */
+#if 0
+    /* Ask for a link and align our ACK state. CN63XXp1 didn't support this */
+    if (!OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+    {
+        uint64_t stop_cycle;
+        cvmx_sriomaintx_port_0_err_stat_t sriomaintx_port_0_err_stat;
+
+        /* Clear the SLI_CTL_PORTX[DIS_PORT[ bit to re-enable traffic-flow
+           to the SRIO MACs. */
+        cvmx_write_csr(CVMX_PEXP_SLI_CTL_PORTX(srio_port), cvmx_read_csr(CVMX_PEXP_SLI_CTL_PORTX(srio_port)));
+
+        /* Wait a little to see if the link comes up */
+        stop_cycle = cvmx_clock_get_rate(CVMX_CLOCK_CORE)/4 + cvmx_clock_get_count(CVMX_CLOCK_CORE);
+        do
+        {
+            /* Read the port link status */
+            if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PORT_0_ERR_STAT(srio_port), &sriomaintx_port_0_err_stat.u32))
+                return -1;
+        } while (!sriomaintx_port_0_err_stat.s.pt_ok && (cvmx_clock_get_count(CVMX_CLOCK_CORE) < stop_cycle));
+
+        /* Send link request if link is up */
+        if (sriomaintx_port_0_err_stat.s.pt_ok)
+        {
+            cvmx_sriomaintx_port_0_link_req_t link_req;
+            cvmx_sriomaintx_port_0_link_resp_t link_resp;
+            link_req.u32 = 0;
+            link_req.s.cmd = 4;
+
+            /* Send the request */
+            if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_0_LINK_REQ(srio_port), link_req.u32))
+                return -1;
+
+            /* Wait for the response */
+            stop_cycle = cvmx_clock_get_rate(CVMX_CLOCK_CORE)/8 + cvmx_clock_get_count(CVMX_CLOCK_CORE);
+            do
+            {
+                if (__cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PORT_0_LINK_RESP(srio_port), &link_resp.u32))
+                    return -1;
+            } while (!link_resp.s.valid && (cvmx_clock_get_count(CVMX_CLOCK_CORE) < stop_cycle));
+
+            /* Set our ACK state if we got a response */
+            if (link_resp.s.valid)
+            {
+                cvmx_sriomaintx_port_0_local_ackid_t local_ackid;
+                local_ackid.u32 = 0;
+                local_ackid.s.i_ackid = 0;
+                local_ackid.s.e_ackid = link_resp.s.ackid;
+                local_ackid.s.o_ackid = link_resp.s.ackid;
+                if (__cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_PORT_0_LOCAL_ACKID(srio_port), local_ackid.u32))
+                    return -1;
+            }
+            else 
+                return -1;
+        }
+    }
+#endif
 
     return 0;
 }
@@ -596,138 +886,146 @@ int cvmx_srio_config_read32(int srio_port, int srcid_index, int destid,
     }
     else
     {
-#if CVMX_SRIO_USE_FIFO_FOR_MAINT
-        int return_code;
-        uint32_t pkt = 0;
-        uint32_t sourceid;
-        uint64_t stop_cycle;
-        char rx_buffer[64];
-
-        /* Tell the user */
-        if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-            cvmx_dprintf("SRIO%d: Remote read [id=0x%04x hop=%3d offset=0x%06x] <= ", srio_port, destid, hopcount, (unsigned int)offset);
-
-        /* Read the proper source ID */
-        if (srcid_index)
-            __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_SEC_DEV_ID(srio_port), &sourceid);
-        else
-            __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PRI_DEV_ID(srio_port), &sourceid);
-
-        if (is16bit)
+        if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
         {
-            /* Use the 16bit source ID */
-            sourceid &= 0xffff;
+            int return_code;
+            uint32_t pkt = 0;
+            uint32_t sourceid;
+            uint64_t stop_cycle;
+            char rx_buffer[64];
 
-            /* MAINT Reads are 11 bytes */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 11<<16);
+            /* Tell the user */
+            if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                cvmx_dprintf("SRIO%d: Remote read [id=0x%04x hop=%3d offset=0x%06x] <= ", srio_port, destid, hopcount, (unsigned int)offset);
 
-            pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
-            pkt |= 1 << 28;                         /* tt       [29:28] */
-            pkt |= 0x8 << 24;                       /* ftype    [27:24] */
-            pkt |= destid << 8;                     /* destID   [23:8] */
-            pkt |= sourceid >> 8;                   /* sourceID [7:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= sourceid << 24;                  /* sourceID [31:24] */
-            pkt |= 0 << 20;                         /* transaction [23:20] */
-            pkt |= 8 << 16;                         /* rdsize [19:16] */
-            pkt |= 0xc0 << 8;                       /* srcTID [15:8] */
-            pkt |= hopcount;                        /* hopcount [7:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= offset << 8;                     /* offset [31:11, wdptr[10], reserved[9:8] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-        }
-        else
-        {
-            /* Use the 8bit source ID */
-            sourceid = (sourceid >> 16) & 0xff;
+            /* Read the proper source ID */
+            if (srcid_index)
+                __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_SEC_DEV_ID(srio_port), &sourceid);
+            else
+                __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PRI_DEV_ID(srio_port), &sourceid);
 
-            /* MAINT Reads are 9 bytes */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 9<<16);
-
-            pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
-            pkt |= 0 << 28;                         /* tt       [29:28] */
-            pkt |= 0x8 << 24;                       /* ftype    [27:24] */
-            pkt |= destid << 16;                    /* destID   [23:16] */
-            pkt |= sourceid << 8;                   /* sourceID [15:8] */
-            pkt |= 0 << 4;                          /* transaction [7:4] */
-            pkt |= 8 << 0;                          /* rdsize [3:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= 0xc0 << 24;                      /* srcTID [31:24] */
-            pkt |= hopcount << 16;                  /* hopcount [23:16] */
-            pkt |= offset >> 8;                     /* offset [15:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= offset << 24;                    /* offset [31:27, wdptr[26], reserved[25:24] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-        }
-
-        stop_cycle = cvmx_clock_get_rate(CVMX_CLOCK_CORE)/10 + cvmx_clock_get_count(CVMX_CLOCK_CORE);
-        do
-        {
-            return_code = cvmx_srio_receive_spf(srio_port, rx_buffer, sizeof(rx_buffer));
-            if ((return_code == 0) && (cvmx_clock_get_count(CVMX_CLOCK_CORE) > stop_cycle))
-            {
-                if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-                    cvmx_dprintf("timeout\n");
-                return_code = -1;
-            }
-        } while (return_code == 0);
-
-        if (return_code == ((is16bit) ? 23 : 19))
-        {
             if (is16bit)
             {
-                if (offset & 4)
-                    *result = *(uint32_t*)(rx_buffer + 15);
-                else
-                    *result = *(uint32_t*)(rx_buffer + 11);
+                /* Use the 16bit source ID */
+                sourceid &= 0xffff;
+
+                /* MAINT Reads are 11 bytes */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 11<<16);
+
+                pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
+                pkt |= 1 << 28;                         /* tt       [29:28] */
+                pkt |= 0x8 << 24;                       /* ftype    [27:24] */
+                pkt |= destid << 8;                     /* destID   [23:8] */
+                pkt |= sourceid >> 8;                   /* sourceID [7:0] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                pkt = 0;
+                pkt |= sourceid << 24;                  /* sourceID [31:24] */
+                pkt |= 0 << 20;                         /* transaction [23:20] */
+                pkt |= 8 << 16;                         /* rdsize [19:16] */
+                pkt |= 0xc0 << 8;                       /* srcTID [15:8] */
+                pkt |= hopcount;                        /* hopcount [7:0] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                pkt = 0;
+                pkt |= offset << 8;                     /* offset [31:11, wdptr[10], reserved[9:8] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
             }
             else
             {
-                if (offset & 4)
-                    *result = *(uint32_t*)(rx_buffer + 13);
-                else
-                    *result = *(uint32_t*)(rx_buffer + 9);
+                /* Use the 8bit source ID */
+                sourceid = (sourceid >> 16) & 0xff;
+
+                /* MAINT Reads are 9 bytes */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 9<<16);
+
+                pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
+                pkt |= 0 << 28;                         /* tt       [29:28] */
+                pkt |= 0x8 << 24;                       /* ftype    [27:24] */
+                pkt |= destid << 16;                    /* destID   [23:16] */
+                pkt |= sourceid << 8;                   /* sourceID [15:8] */
+                pkt |= 0 << 4;                          /* transaction [7:4] */
+                pkt |= 8 << 0;                          /* rdsize [3:0] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                pkt = 0;
+                pkt |= 0xc0 << 24;                      /* srcTID [31:24] */
+                pkt |= hopcount << 16;                  /* hopcount [23:16] */
+                pkt |= offset >> 8;                     /* offset [15:0] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                pkt = 0;
+                pkt |= offset << 24;                    /* offset [31:27, wdptr[26], reserved[25:24] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
             }
-            if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-                cvmx_dprintf("0x%08x\n", (unsigned int)*result);
-            return_code = 0;
+
+            stop_cycle = cvmx_clock_get_rate(CVMX_CLOCK_CORE)/10 + cvmx_clock_get_count(CVMX_CLOCK_CORE);
+            do
+            {
+                return_code = cvmx_srio_receive_spf(srio_port, rx_buffer, sizeof(rx_buffer));
+                if ((return_code == 0) && (cvmx_clock_get_count(CVMX_CLOCK_CORE) > stop_cycle))
+                {
+                    if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                        cvmx_dprintf("timeout\n");
+                    return_code = -1;
+                }
+            } while (return_code == 0);
+
+            if (return_code == ((is16bit) ? 23 : 19))
+            {
+                if (is16bit)
+                {
+                    if (offset & 4)
+                        *result = *(uint32_t*)(rx_buffer + 15);
+                    else
+                        *result = *(uint32_t*)(rx_buffer + 11);
+                }
+                else
+                {
+                    if (offset & 4)
+                        *result = *(uint32_t*)(rx_buffer + 13);
+                    else
+                        *result = *(uint32_t*)(rx_buffer + 9);
+                }
+                if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                    cvmx_dprintf("0x%08x\n", (unsigned int)*result);
+                return_code = 0;
+            }
+            else
+            {
+                *result = 0xffffffff;
+                return_code = -1;
+            }
+
+            return return_code;
         }
         else
         {
-            *result = 0xffffffff;
-            return_code = -1;
-        }
+#if !defined(CVMX_BUILD_FOR_LINUX_HOST)
+            uint64_t physical;
+            physical = cvmx_srio_physical_map(srio_port,
+                CVMX_SRIO_WRITE_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
+                CVMX_SRIO_READ_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
+                srcid_index, destid, is16bit, offset + (hopcount<<24), 4);
+            if (!physical)
+                return -1;
 
-        return return_code;
-#elif !defined(CVMX_BUILD_FOR_LINUX_HOST)
-        uint64_t physical;
-        physical = cvmx_srio_physical_map(srio_port,
-            CVMX_SRIO_WRITE_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
-            CVMX_SRIO_READ_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
-            srcid_index, destid, is16bit, offset + (hopcount<<24), 4);
-        if (!physical)
-            return -1;
+            if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                cvmx_dprintf("SRIO%d: Remote read [id=0x%04x hop=%3d offset=0x%06x] <= ", srio_port, destid, hopcount, (unsigned int)offset);
 
-        if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-            cvmx_dprintf("SRIO%d: Remote read [id=0x%04x hop=%3d offset=0x%06x] <= ", srio_port, destid, hopcount, offset);
+            /* Finally do the maintenance read to complete the config request */
+            *result = cvmx_read64_uint32(CVMX_ADD_IO_SEG(physical));
+            cvmx_srio_physical_unmap(physical, 4);
 
-        /* Finally do the maintenance read to complete the config request */
-        *result = cvmx_read64_uint32(CVMX_ADD_IO_SEG(physical));
-        cvmx_srio_physical_unmap(physical, 4);
+            if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                cvmx_dprintf("0x%08x\n", (unsigned int)*result);
 
-        if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-            cvmx_dprintf("0x%08x\n", *result);
-
-        return 0;
+            return 0;
 #else
-        return -1;
+            return -1;
 #endif
+        }
     }
 }
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_srio_config_read32);
+#endif
 
 
 /**
@@ -758,142 +1056,147 @@ int cvmx_srio_config_write32(int srio_port, int srcid_index, int destid,
     }
     else
     {
-#if CVMX_SRIO_USE_FIFO_FOR_MAINT
-        int return_code;
-        uint32_t pkt = 0;
-        uint32_t sourceid;
-        uint64_t stop_cycle;
-        char rx_buffer[64];
-
-        /* Tell the user */
-        if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-            cvmx_dprintf("SRIO%d: Remote write[id=0x%04x hop=%3d offset=0x%06x] => 0x%08x\n", srio_port, destid, hopcount, (unsigned int)offset, (unsigned int)data);
-
-        /* Read the proper source ID */
-        if (srcid_index)
-            __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_SEC_DEV_ID(srio_port), &sourceid);
-        else
-            __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PRI_DEV_ID(srio_port), &sourceid);
-
-        if (is16bit)
+        if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
         {
-            /* Use the 16bit source ID */
-            sourceid &= 0xffff;
+            int return_code;
+            uint32_t pkt = 0;
+            uint32_t sourceid;
+            uint64_t stop_cycle;
+            char rx_buffer[64];
 
-            /* MAINT Writes are 19 bytes */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 19<<16);
+            /* Tell the user */
+            if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                cvmx_dprintf("SRIO%d: Remote write[id=0x%04x hop=%3d offset=0x%06x] => 0x%08x\n", srio_port, destid, hopcount, (unsigned int)offset, (unsigned int)data);
 
-            pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
-            pkt |= 1 << 28;                         /* tt       [29:28] */
-            pkt |= 0x8 << 24;                       /* ftype    [27:24] */
-            pkt |= destid << 8;                     /* destID   [23:8] */
-            pkt |= sourceid >> 8;                   /* sourceID [7:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= sourceid << 24;                  /* sourceID [31:24] */
-            pkt |= 1 << 20;                         /* transaction [23:20] */
-            pkt |= 8 << 16;                         /* wrsize [19:16] */
-            pkt |= 0xc0 << 8;                       /* srcTID [15:8] */
-            pkt |= hopcount;                        /* hopcount [7:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= offset << 8;                     /* offset [31:11, wdptr[10], reserved[9:8] */
-            if ((offset & 4) == 0)
-                pkt |= 0xff & (data >> 24);       /* data [7:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            if (offset & 4)
+            /* Read the proper source ID */
+            if (srcid_index)
+                __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_SEC_DEV_ID(srio_port), &sourceid);
+            else
+                __cvmx_srio_local_read32(srio_port, CVMX_SRIOMAINTX_PRI_DEV_ID(srio_port), &sourceid);
+
+            if (is16bit)
             {
-                pkt = 0xff & (data >> 24);
+                /* Use the 16bit source ID */
+                sourceid &= 0xffff;
+
+                /* MAINT Writes are 19 bytes */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 19<<16);
+
+                pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
+                pkt |= 1 << 28;                         /* tt       [29:28] */
+                pkt |= 0x8 << 24;                       /* ftype    [27:24] */
+                pkt |= destid << 8;                     /* destID   [23:8] */
+                pkt |= sourceid >> 8;                   /* sourceID [7:0] */
                 __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-                pkt = data << 8;
+                pkt = 0;
+                pkt |= sourceid << 24;                  /* sourceID [31:24] */
+                pkt |= 1 << 20;                         /* transaction [23:20] */
+                pkt |= 8 << 16;                         /* wrsize [19:16] */
+                pkt |= 0xc0 << 8;                       /* srcTID [15:8] */
+                pkt |= hopcount;                        /* hopcount [7:0] */
                 __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                pkt = 0;
+                pkt |= offset << 8;                     /* offset [31:11, wdptr[10], reserved[9:8] */
+                if ((offset & 4) == 0)
+                    pkt |= 0xff & (data >> 24);       /* data [7:0] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                if (offset & 4)
+                {
+                    pkt = 0xff & (data >> 24);
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                    pkt = data << 8;
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                }
+                else
+                {
+                    pkt = data << 8;
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), 0);
+                }
             }
             else
             {
-                pkt = data << 8;
+                /* Use the 8bit source ID */
+                sourceid = (sourceid >> 16) & 0xff;
+
+                /* MAINT Writes are 17 bytes */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 17<<16);
+
+                pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
+                pkt |= 0 << 28;                         /* tt       [29:28] */
+                pkt |= 0x8 << 24;                       /* ftype    [27:24] */
+                pkt |= destid << 16;                    /* destID   [23:16] */
+                pkt |= sourceid << 8;                   /* sourceID [15:8] */
+                pkt |= 1 << 4;                          /* transaction [7:4] */
+                pkt |= 8 << 0;                          /* wrsize [3:0] */
                 __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), 0);
+                pkt = 0;
+                pkt |= 0xc0 << 24;                      /* srcTID [31:24] */
+                pkt |= hopcount << 16;                  /* hopcount [23:16] */
+                pkt |= offset >> 8;                     /* offset [15:0] */
+                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                pkt = 0;
+                pkt |= offset << 24;                    /* offset [31:27, wdptr[26], reserved[25:24] */
+                if (offset & 4)
+                {
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                    pkt = data >> 8;
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                    pkt = data << 24;
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                }
+                else
+                {
+                    pkt |= data >> 8;                    /* data [23:0] */
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                    pkt = data << 24;                    /* data [31:24] */
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
+                    __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), 0);
+                }
             }
-        }
-        else
-        {
-            /* Use the 8bit source ID */
-            sourceid = (sourceid >> 16) & 0xff;
 
-            /* MAINT Writes are 17 bytes */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_CTRL(srio_port), 17<<16);
-
-            pkt |= CVMX_SRIO_CONFIG_PRIORITY << 30; /* priority [31:30] */
-            pkt |= 0 << 28;                         /* tt       [29:28] */
-            pkt |= 0x8 << 24;                       /* ftype    [27:24] */
-            pkt |= destid << 16;                    /* destID   [23:16] */
-            pkt |= sourceid << 8;                   /* sourceID [15:8] */
-            pkt |= 1 << 4;                          /* transaction [7:4] */
-            pkt |= 8 << 0;                          /* wrsize [3:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= 0xc0 << 24;                      /* srcTID [31:24] */
-            pkt |= hopcount << 16;                  /* hopcount [23:16] */
-            pkt |= offset >> 8;                     /* offset [15:0] */
-            __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            pkt = 0;
-            pkt |= offset << 24;                    /* offset [31:27, wdptr[26], reserved[25:24] */
-            if (offset & 4)
+            stop_cycle = cvmx_clock_get_rate(CVMX_CLOCK_CORE)/10 + cvmx_clock_get_count(CVMX_CLOCK_CORE);
+            do
             {
-                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-                pkt = data >> 8;
-                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-                pkt = data << 24;
-                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-            }
+                return_code = cvmx_srio_receive_spf(srio_port, rx_buffer, sizeof(rx_buffer));
+                if ((return_code == 0) && (cvmx_clock_get_count(CVMX_CLOCK_CORE) > stop_cycle))
+                {
+                    if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                        cvmx_dprintf("timeout\n");
+                    return_code = -1;
+                }
+            } while (return_code == 0);
+
+            if (return_code == ((is16bit) ? 15 : 11))
+                return_code = 0;
             else
             {
-                pkt |= data >> 8;                    /* data [23:0] */
-                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-                pkt = data << 24;                    /* data [31:24] */
-                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), pkt);
-                __cvmx_srio_local_write32(srio_port, CVMX_SRIOMAINTX_IR_SP_TX_DATA(srio_port), 0);
-            }
-        }
-
-        stop_cycle = cvmx_clock_get_rate(CVMX_CLOCK_CORE)/10 + cvmx_clock_get_count(CVMX_CLOCK_CORE);
-        do
-        {
-            return_code = cvmx_srio_receive_spf(srio_port, rx_buffer, sizeof(rx_buffer));
-            if ((return_code == 0) && (cvmx_clock_get_count(CVMX_CLOCK_CORE) > stop_cycle))
-            {
-                if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-                    cvmx_dprintf("timeout\n");
+                cvmx_dprintf("SRIO%d: Remote write failed\n", srio_port);
                 return_code = -1;
             }
-        } while (return_code == 0);
 
-        if (return_code == ((is16bit) ? 15 : 11))
-            return_code = 0;
+            return return_code;
+        }
         else
         {
-            cvmx_dprintf("SRIO%d: Remote write failed\n", srio_port);
-            return_code = -1;
-        }
+#if !defined(CVMX_BUILD_FOR_LINUX_HOST)
+            uint64_t physical = cvmx_srio_physical_map(srio_port,
+                    CVMX_SRIO_WRITE_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
+                    CVMX_SRIO_READ_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
+                    srcid_index, destid, is16bit, offset + (hopcount<<24), 4);
+            if (!physical)
+                return -1;
 
-        return return_code;
-#elif !defined(CVMX_BUILD_FOR_LINUX_HOST)
-        uint64_t physical = cvmx_srio_physical_map(srio_port,
-                CVMX_SRIO_WRITE_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
-                CVMX_SRIO_READ_MODE_MAINTENANCE, CVMX_SRIO_CONFIG_PRIORITY,
-                srcid_index, destid, is16bit, offset + (hopcount<<24), 4);
-        if (!physical)
-            return -1;
+            if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
+                cvmx_dprintf("SRIO%d: Remote write[id=0x%04x hop=%3d offset=0x%06x] => 0x%08x\n", srio_port, destid, hopcount, (unsigned int)offset, (unsigned int)data);
 
-        if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
-            cvmx_dprintf("SRIO%d: Remote write[id=0x%04x hop=%3d offset=0x%06x] => 0x%08x\n", srio_port, destid, hopcount, offset, data);
-
-        /* Finally do the maintenance write to complete the config request */
-        cvmx_write64_uint32(CVMX_ADD_IO_SEG(physical), data);
-        return cvmx_srio_physical_unmap(physical, 4);
+            /* Finally do the maintenance write to complete the config request */
+            cvmx_write64_uint32(CVMX_ADD_IO_SEG(physical), data);
+            return cvmx_srio_physical_unmap(physical, 4);
 #else
-        return -1;
+            return -1;
 #endif
+        }
     }
 }
 
@@ -938,7 +1241,9 @@ int cvmx_srio_send_doorbell(int srio_port, int srcid_index, int destid, int is16
     cvmx_write_csr(CVMX_SRIOX_TX_BELL(srio_port), tx_bell.u64);
     return 0;
 }
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_srio_send_doorbell);
+#endif
 
 /**
  * Get the status of the last doorbell sent. If the dooorbell
@@ -974,7 +1279,9 @@ cvmx_srio_doorbell_status_t cvmx_srio_send_doorbell_status(int srio_port)
         if (__cvmx_srio_state[srio_port].flags & CVMX_SRIO_INITIALIZE_DEBUG)
             cvmx_dprintf("SRIO%d: Send doorbell failed\n", srio_port);
         tx_bell_info.u64 = cvmx_read_csr(CVMX_SRIOX_TX_BELL_INFO(srio_port));
-        if (tx_bell_info.s.timeout || tx_bell_info.s.error)
+        if (tx_bell_info.s.timeout)
+            return CVMX_SRIO_DOORBELL_TMOUT;
+        if (tx_bell_info.s.error)
             return CVMX_SRIO_DOORBELL_ERROR;
         if (tx_bell_info.s.retry)
             return CVMX_SRIO_DOORBELL_RETRY;
@@ -1141,7 +1448,7 @@ uint64_t cvmx_srio_physical_map(int srio_port, cvmx_srio_write_mode_t write_op,
     /* Build the needed SubID config */
     needed_subid.u64 = 0;
     needed_subid.s.port = srio_port;
-    needed_subid.s.nmerge = 1;
+    needed_subid.s.nmerge = 0;
 
     /* FIXME: We might want to use the device ID swapping modes so the device
         ID is part of the lower address bits. This would allow many more
@@ -1149,14 +1456,14 @@ uint64_t cvmx_srio_physical_map(int srio_port, cvmx_srio_write_mode_t write_op,
         to fit in bits [17:0] or bits[25:0] for 8 bits of device ID */
     if (base < (1ull<<34))
     {
-        needed_subid.s.ba = destid;
+        needed_subid.cn63xx.ba = destid;
         needed_s2m_type.s.iaow_sel = 0;
     }
     else if (base < (1ull<<42))
     {
-        needed_subid.s.ba = (base>>34) & 0xff;
-        needed_subid.s.ba |= ((uint64_t)destid & 0xff) << (42-34);
-        needed_subid.s.ba |= (((uint64_t)destid>>8) & 0xff) << (51-34);
+        needed_subid.cn63xx.ba = (base>>34) & 0xff;
+        needed_subid.cn63xx.ba |= ((uint64_t)destid & 0xff) << (42-34);
+        needed_subid.cn63xx.ba |= (((uint64_t)destid>>8) & 0xff) << (51-34);
         needed_s2m_type.s.iaow_sel = 1;
     }
     else
@@ -1171,8 +1478,8 @@ uint64_t cvmx_srio_physical_map(int srio_port, cvmx_srio_write_mode_t write_op,
             cvmx_dprintf("SRIO%d: Attempt to map address 0x%llx using 66bit addressing\n", srio_port, (ULL)base);
             return 0;
         }
-        needed_subid.s.ba = (base>>34) & 0xffff;
-        needed_subid.s.ba |= ((uint64_t)destid & 0xff) << (51-34);
+        needed_subid.cn63xx.ba = (base>>34) & 0xffff;
+        needed_subid.cn63xx.ba |= ((uint64_t)destid & 0xff) << (51-34);
         needed_s2m_type.s.iaow_sel = 2;
     }
 
@@ -1184,8 +1491,8 @@ uint64_t cvmx_srio_physical_map(int srio_port, cvmx_srio_write_mode_t write_op,
     /* Attach the SubID to the S2M_TYPE index */
     needed_subid.s.rtype = s2m_index & 3;
     needed_subid.s.wtype = s2m_index & 3;
-    needed_subid.s.ba |= (((uint64_t)s2m_index >> 2) & 1) << (50-34);
-    needed_subid.s.ba |= (((uint64_t)s2m_index >> 3) & 1) << (59-34);
+    needed_subid.cn63xx.ba |= (((uint64_t)s2m_index >> 2) & 1) << (50-34);
+    needed_subid.cn63xx.ba |= (((uint64_t)s2m_index >> 3) & 1) << (59-34);
 
     /* Allocate a SubID for use */
     subdid = __cvmx_srio_alloc_subid(needed_subid);
@@ -1230,10 +1537,84 @@ int cvmx_srio_physical_unmap(uint64_t physical_address, uint64_t size)
        Type[1] is mapped to the No Snoop
        Type[2] is mapped directly to bit 50 of the SLI address
        Type[3] is mapped directly to bit 59 of the SLI address */
-    read_s2m_type = ((subid.s.ba>>(50-34))&1<<2) | ((subid.s.ba>>(59-34))&1<<3);
+    read_s2m_type = ((subid.cn63xx.ba>>(50-34))&1<<2) | ((subid.cn63xx.ba>>(59-34))&1<<3);
     read_s2m_type |= subid.s.rtype;
     __cvmx_srio_free_subid(mem_index);
     __cvmx_srio_free_s2m(subid.s.port, read_s2m_type);
     return 0;
 }
+
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+/**
+ * fill out outbound message descriptor
+ *
+ * @param port        pip/ipd port number
+ * @param buf_ptr     pointer to a buffer pointer. the buffer pointer points
+ *                    to a chain of buffers that hold an outbound srio packet.
+ *                    the packet can take the format of (1) a pip/ipd inbound
+ *                    message or (2) an application-generated outbound message
+ * @param desc_ptr    pointer to an outbound message descriptor. should be null
+ *                    if *buf_ptr is in the format (1)
+ *
+ * @return           0 on success; negative of failure.
+ */
+int cvmx_srio_omsg_desc (uint64_t port, cvmx_buf_ptr_t *buf_ptr,
+                         cvmx_srio_tx_message_header_t *desc_ptr)
+{
+    int ret_val = -1;
+    int intf_num;
+    cvmx_helper_interface_mode_t imode;
+
+    uint64_t *desc_addr, *hdr_addr;
+    cvmx_srio_rx_message_header_t rx_msg_hdr;
+    cvmx_srio_tx_message_header_t *tx_msg_hdr_ptr;
+
+    if (buf_ptr == NULL)
+        return ret_val;
+
+    /* check if port is an srio port */
+    intf_num = cvmx_helper_get_interface_num (port);
+    imode = cvmx_helper_interface_get_mode (intf_num);
+    if (imode !=  CVMX_HELPER_INTERFACE_MODE_SRIO)
+        return ret_val;
+
+    /* app-generated outbound message. descriptor space pre-allocated */
+    if (desc_ptr != NULL)
+    {
+        desc_addr = (uint64_t *) cvmx_phys_to_ptr ((*buf_ptr).s.addr);
+        *desc_addr = *(uint64_t *) desc_ptr;
+        ret_val = 0;
+        return ret_val;
+    }
+
+    /* pip/ipd inbound message. 16-byte srio message header is present */
+    hdr_addr = (uint64_t *) cvmx_phys_to_ptr ((*buf_ptr).s.addr);
+    rx_msg_hdr.word0.u64 = *hdr_addr;
+
+    /* adjust buffer pointer to get rid of srio message header word 0 */
+    (*buf_ptr).s.addr += 8;
+    (*buf_ptr).s.size -= 8; /* last buffer or not */
+    if ((*buf_ptr).s.addr >> 7 > ((*buf_ptr).s.addr - 8) >> 7)
+        (*buf_ptr).s.back++;
+    tx_msg_hdr_ptr = (cvmx_srio_tx_message_header_t *)
+                         cvmx_phys_to_ptr ((*buf_ptr).s.addr);
+
+    /* transfer values from rx to tx */
+    tx_msg_hdr_ptr->s.prio = rx_msg_hdr.word0.s.prio;
+    tx_msg_hdr_ptr->s.tt = rx_msg_hdr.word0.s.tt; /* called id in hrm */
+    tx_msg_hdr_ptr->s.sis = rx_msg_hdr.word0.s.dis;
+    tx_msg_hdr_ptr->s.ssize = rx_msg_hdr.word0.s.ssize;
+    tx_msg_hdr_ptr->s.did = rx_msg_hdr.word0.s.sid;
+    tx_msg_hdr_ptr->s.mbox = rx_msg_hdr.word0.s.mbox;
+
+    /* other values we have to decide */
+    tx_msg_hdr_ptr->s.xmbox = 0;  /* multi-segement in general */
+    tx_msg_hdr_ptr->s.letter = 0; /* fake like traffic gen */
+    tx_msg_hdr_ptr->s.lns = 0;    /* not use sriox_omsg_ctrly[] */
+    tx_msg_hdr_ptr->s.intr = 1;   /* get status */
+
+    ret_val = 0;
+    return ret_val;
+}
+#endif
 #endif

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Utility functions for working with the CSR database
  *
- * <hr>$Revision: 49507 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #define PRINTF printk
@@ -87,8 +87,16 @@ int cvmx_db_get_chipindex(int identifier)
             return 2;
         case 0x000d0700: /* CN52XX */
             return 10;
-        case 0x000d9000: /* CN63XX */
+        case 0x000d9300: /* CN61XX */
             return 11;
+        case 0x000d9000: /* CN63XX */
+            return 13;
+        case 0x000d9200: /* CN66XX */
+            return 14;
+        case 0x000d9100: /* CN68XX */
+            return 16;
+        case 0x000d9400: /* CNF71XX */
+            return 17;
     }
 
     /* Next try PCI device IDs */
@@ -114,8 +122,16 @@ int cvmx_db_get_chipindex(int identifier)
             return 8;
         case 0x0080177d: /* CN52XX Pass 2 */
             return 10;
-        case 0x0090177d: /* CN63XX Pass 1 */
+        case 0x0093177d: /* CN61XX Pass 2 */
             return 11;
+        case 0x0090177d: /* CN63XX Pass 2 */
+            return 13;
+        case 0x0092177d: /* CN66XX Pass 1 */
+            return 14;
+        case 0x0091177d: /* CN68XX Pass 2 */
+            return 16;
+        case 0x0094177d: /* CNF71XX Pass 1 */
+            return 17;
     }
 
     /* Default to Pass 3 if we don't know */

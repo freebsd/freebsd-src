@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_PESCX_TYPEDEFS_H__
-#define __CVMX_PESCX_TYPEDEFS_H__
+#ifndef __CVMX_PESCX_DEFS_H__
+#define __CVMX_PESCX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PESCX_BIST_STATUS(unsigned long block_id)
@@ -252,12 +252,10 @@ static inline uint64_t CVMX_PESCX_TLP_CREDITS(unsigned long block_id)
  *
  * Contains the diffrent interrupt summary bits of the PESC.
  */
-union cvmx_pescx_bist_status
-{
+union cvmx_pescx_bist_status {
 	uint64_t u64;
-	struct cvmx_pescx_bist_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_bist_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t rqdata5                      : 1;  /**< Rx Queue Data Memory5. */
 	uint64_t ctlp_or                      : 1;  /**< C-TLP Order Fifo. */
@@ -290,9 +288,8 @@ union cvmx_pescx_bist_status
 #endif
 	} s;
 	struct cvmx_pescx_bist_status_s       cn52xx;
-	struct cvmx_pescx_bist_status_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_bist_status_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t ctlp_or                      : 1;  /**< C-TLP Order Fifo. */
 	uint64_t ntlp_or                      : 1;  /**< N-TLP Order Fifo. */
@@ -334,12 +331,10 @@ typedef union cvmx_pescx_bist_status cvmx_pescx_bist_status_t;
  *
  * Results from BIST runs of PESC's memories.
  */
-union cvmx_pescx_bist_status2
-{
+union cvmx_pescx_bist_status2 {
 	uint64_t u64;
-	struct cvmx_pescx_bist_status2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_bist_status2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t cto_p2e                      : 1;  /**< BIST Status for the cto_p2e_fifo */
 	uint64_t e2p_cpl                      : 1;  /**< BIST Status for the e2p_cpl_fifo */
@@ -387,12 +382,10 @@ typedef union cvmx_pescx_bist_status2 cvmx_pescx_bist_status2_t;
  *
  * Allows read access to the configuration in the PCIe Core.
  */
-union cvmx_pescx_cfg_rd
-{
+union cvmx_pescx_cfg_rd {
 	uint64_t u64;
-	struct cvmx_pescx_cfg_rd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_cfg_rd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t data                         : 32; /**< Data. */
 	uint64_t addr                         : 32; /**< Address to read. A write to this register
                                                          starts a read operation. */
@@ -415,12 +408,10 @@ typedef union cvmx_pescx_cfg_rd cvmx_pescx_cfg_rd_t;
  *
  * Allows write access to the configuration in the PCIe Core.
  */
-union cvmx_pescx_cfg_wr
-{
+union cvmx_pescx_cfg_wr {
 	uint64_t u64;
-	struct cvmx_pescx_cfg_wr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_cfg_wr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t data                         : 32; /**< Data to write. A write to this register starts
                                                          a write operation. */
 	uint64_t addr                         : 32; /**< Address to write. A write to this register starts
@@ -444,12 +435,10 @@ typedef union cvmx_pescx_cfg_wr cvmx_pescx_cfg_wr_t;
  *
  * Bit set for outstanding tag read.
  */
-union cvmx_pescx_cpl_lut_valid
-{
+union cvmx_pescx_cpl_lut_valid {
 	uint64_t u64;
-	struct cvmx_pescx_cpl_lut_valid_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_cpl_lut_valid_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t tag                          : 32; /**< Bit vector set cooresponds to an outstanding tag
                                                          expecting a completion. */
@@ -472,12 +461,10 @@ typedef union cvmx_pescx_cpl_lut_valid cvmx_pescx_cpl_lut_valid_t;
  *
  * General control and status of the PESC.
  */
-union cvmx_pescx_ctl_status
-{
+union cvmx_pescx_ctl_status {
 	uint64_t u64;
-	struct cvmx_pescx_ctl_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_ctl_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t dnum                         : 5;  /**< Primary bus device number. */
 	uint64_t pbus                         : 8;  /**< Primary bus number. */
@@ -525,9 +512,8 @@ union cvmx_pescx_ctl_status
 	} s;
 	struct cvmx_pescx_ctl_status_s        cn52xx;
 	struct cvmx_pescx_ctl_status_s        cn52xxp1;
-	struct cvmx_pescx_ctl_status_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_ctl_status_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t dnum                         : 5;  /**< Primary bus device number. */
 	uint64_t pbus                         : 8;  /**< Primary bus number. */
@@ -584,12 +570,10 @@ typedef union cvmx_pescx_ctl_status cvmx_pescx_ctl_status_t;
  *
  * Results from BIST runs of PESC's memories.
  */
-union cvmx_pescx_ctl_status2
-{
+union cvmx_pescx_ctl_status2 {
 	uint64_t u64;
-	struct cvmx_pescx_ctl_status2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_ctl_status2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t pclk_run                     : 1;  /**< When the pce_clk is running this bit will be '1'.
                                                          Writing a '1' to this location will cause the
@@ -603,9 +587,8 @@ union cvmx_pescx_ctl_status2
 #endif
 	} s;
 	struct cvmx_pescx_ctl_status2_s       cn52xx;
-	struct cvmx_pescx_ctl_status2_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_ctl_status2_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t pcierst                      : 1;  /**< Set to '1' when PCIe is in reset. */
 #else
@@ -625,12 +608,10 @@ typedef union cvmx_pescx_ctl_status2 cvmx_pescx_ctl_status2_t;
  *
  * General debug info.
  */
-union cvmx_pescx_dbg_info
-{
+union cvmx_pescx_dbg_info {
 	uint64_t u64;
-	struct cvmx_pescx_dbg_info_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_dbg_info_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_31_63               : 33;
 	uint64_t ecrc_e                       : 1;  /**< Received a ECRC error.
                                                          radm_ecrc_err */
@@ -756,12 +737,10 @@ typedef union cvmx_pescx_dbg_info cvmx_pescx_dbg_info_t;
  *
  * Allows PESC_DBG_INFO to generate interrupts when cooresponding enable bit is set.
  */
-union cvmx_pescx_dbg_info_en
-{
+union cvmx_pescx_dbg_info_en {
 	uint64_t u64;
-	struct cvmx_pescx_dbg_info_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_dbg_info_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_31_63               : 33;
 	uint64_t ecrc_e                       : 1;  /**< Allows PESC_DBG_INFO[30] to generate an interrupt. */
 	uint64_t rawwpp                       : 1;  /**< Allows PESC_DBG_INFO[29] to generate an interrupt. */
@@ -843,12 +822,10 @@ typedef union cvmx_pescx_dbg_info_en cvmx_pescx_dbg_info_en_t;
  *
  * Selection control for the cores diagnostic bus.
  */
-union cvmx_pescx_diag_status
-{
+union cvmx_pescx_diag_status {
 	uint64_t u64;
-	struct cvmx_pescx_diag_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_diag_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t pm_dst                       : 1;  /**< Current power management DSTATE. */
 	uint64_t pm_stat                      : 1;  /**< Power Management Status. */
@@ -876,12 +853,10 @@ typedef union cvmx_pescx_diag_status cvmx_pescx_diag_status_t;
  *
  * The starting address for addresses to forwarded to the NPEI in RC Mode.
  */
-union cvmx_pescx_p2n_bar0_start
-{
+union cvmx_pescx_p2n_bar0_start {
 	uint64_t u64;
-	struct cvmx_pescx_p2n_bar0_start_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_p2n_bar0_start_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t addr                         : 50; /**< The starting address of the 16KB address space that
                                                          is the BAR0 address space. */
 	uint64_t reserved_0_13                : 14;
@@ -904,12 +879,10 @@ typedef union cvmx_pescx_p2n_bar0_start cvmx_pescx_p2n_bar0_start_t;
  *
  * The starting address for addresses to forwarded to the NPEI in RC Mode.
  */
-union cvmx_pescx_p2n_bar1_start
-{
+union cvmx_pescx_p2n_bar1_start {
 	uint64_t u64;
-	struct cvmx_pescx_p2n_bar1_start_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_p2n_bar1_start_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t addr                         : 38; /**< The starting address of the 64KB address space
                                                          that is the BAR1 address space. */
 	uint64_t reserved_0_25                : 26;
@@ -932,12 +905,10 @@ typedef union cvmx_pescx_p2n_bar1_start cvmx_pescx_p2n_bar1_start_t;
  *
  * The starting address for addresses to forwarded to the NPEI in RC Mode.
  */
-union cvmx_pescx_p2n_bar2_start
-{
+union cvmx_pescx_p2n_bar2_start {
 	uint64_t u64;
-	struct cvmx_pescx_p2n_bar2_start_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_p2n_bar2_start_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t addr                         : 25; /**< The starting address of the 2^39 address space
                                                          that is the BAR2 address space. */
 	uint64_t reserved_0_38                : 39;
@@ -960,12 +931,10 @@ typedef union cvmx_pescx_p2n_bar2_start cvmx_pescx_p2n_bar2_start_t;
  *
  * The ending address for addresses to forwarded to the PCIe peer port.
  */
-union cvmx_pescx_p2p_barx_end
-{
+union cvmx_pescx_p2p_barx_end {
 	uint64_t u64;
-	struct cvmx_pescx_p2p_barx_end_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_p2p_barx_end_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t addr                         : 52; /**< The ending address of the address window created
                                                          this field and the PESC_P2P_BAR0_START[63:12]
                                                          field. The full 64-bits of address are created by:
@@ -990,12 +959,10 @@ typedef union cvmx_pescx_p2p_barx_end cvmx_pescx_p2p_barx_end_t;
  *
  * The starting address and enable for addresses to forwarded to the PCIe peer port.
  */
-union cvmx_pescx_p2p_barx_start
-{
+union cvmx_pescx_p2p_barx_start {
 	uint64_t u64;
-	struct cvmx_pescx_p2p_barx_start_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_p2p_barx_start_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t addr                         : 52; /**< The starting address of the address window created
                                                          this field and the PESC_P2P_BAR0_END[63:12] field.
                                                          The full 64-bits of address are created by:
@@ -1021,20 +988,17 @@ typedef union cvmx_pescx_p2p_barx_start cvmx_pescx_p2p_barx_start_t;
  * Specifies the number of credits the PESC for use in moving TLPs. When this register is written the credit values are
  * reset to the register value. A write to this register should take place BEFORE traffic flow starts.
  */
-union cvmx_pescx_tlp_credits
-{
+union cvmx_pescx_tlp_credits {
 	uint64_t u64;
-	struct cvmx_pescx_tlp_credits_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_tlp_credits_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_0_63                : 64;
 #else
 	uint64_t reserved_0_63                : 64;
 #endif
 	} s;
-	struct cvmx_pescx_tlp_credits_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_tlp_credits_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_56_63               : 8;
 	uint64_t peai_ppf                     : 8;  /**< TLP credits for Completion TLPs in the Peer.
                                                          Legal values are 0x24 to 0x80. */
@@ -1061,9 +1025,8 @@ union cvmx_pescx_tlp_credits
 	uint64_t reserved_56_63               : 8;
 #endif
 	} cn52xx;
-	struct cvmx_pescx_tlp_credits_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pescx_tlp_credits_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t peai_ppf                     : 8;  /**< TLP credits in core clk pre-buffer that holds TLPs
                                                          being sent from PCIe Core to NPEI or PEER. */

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,13 +48,21 @@
  *
  * Interface to RAID block. This is not available on all chips.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-cmd-queue.h>
+#include <asm/octeon/cvmx-raid.h>
+#else
 #include "executive-config.h"
 #include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-cmd-queue.h"
 #include "cvmx-raid.h"
+#endif
 
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
 
@@ -86,7 +94,9 @@ int cvmx_raid_initialize(cvmx_rad_reg_polynomial_t polynomial)
     cvmx_write_csr(CVMX_RAD_REG_CMD_BUF, rad_reg_cmd_buf.u64);
     return 0;
 }
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_raid_initialize);
+#endif
 
 /**
  * Shutdown the RAID block. RAID must be idle when
@@ -113,7 +123,9 @@ int cvmx_raid_shutdown(void)
     cvmx_write_csr(CVMX_RAD_REG_CMD_BUF, 0);
     return 0;
 }
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_raid_shutdown);
+#endif
 
 /**
  * Submit a command to the RAID block
@@ -130,5 +142,7 @@ int cvmx_raid_submit(int num_words, cvmx_raid_word_t words[])
         cvmx_write_csr(CVMX_ADDR_DID(CVMX_FULL_DID(14, 0)), num_words);
     return result;
 }
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_raid_submit);
+#endif
 #endif

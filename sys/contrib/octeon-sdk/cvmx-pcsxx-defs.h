@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,204 +49,339 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_PCSXX_TYPEDEFS_H__
-#define __CVMX_PCSXX_TYPEDEFS_H__
+#ifndef __CVMX_PCSXX_DEFS_H__
+#define __CVMX_PCSXX_DEFS_H__
 
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_10GBX_STATUS_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_10GBX_STATUS_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000828ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000828ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000828ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000828ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_10GBX_STATUS_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000828ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_10GBX_STATUS_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000828ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_BIST_STATUS_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_BIST_STATUS_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000870ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000870ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000870ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000870ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_BIST_STATUS_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000870ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_BIST_STATUS_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000870ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_BIT_LOCK_STATUS_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_BIT_LOCK_STATUS_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000850ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000850ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000850ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000850ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_BIT_LOCK_STATUS_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000850ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_BIT_LOCK_STATUS_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000850ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_CONTROL1_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_CONTROL1_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000800ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000800ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000800ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000800ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_CONTROL1_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000800ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_CONTROL1_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000800ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_CONTROL2_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_CONTROL2_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000818ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000818ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000818ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000818ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_CONTROL2_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000818ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_CONTROL2_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000818ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_INT_EN_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_INT_EN_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000860ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000860ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000860ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000860ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_INT_EN_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000860ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_INT_EN_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000860ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_INT_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_INT_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000858ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000858ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000858ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000858ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_INT_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000858ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_INT_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000858ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_LOG_ANL_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_LOG_ANL_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000868ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000868ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000868ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000868ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_LOG_ANL_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000868ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_LOG_ANL_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000868ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_MISC_CTL_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_MISC_CTL_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000848ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000848ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000848ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000848ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_MISC_CTL_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000848ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_MISC_CTL_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000848ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_RX_SYNC_STATES_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_RX_SYNC_STATES_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000838ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000838ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000838ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000838ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_RX_SYNC_STATES_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000838ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_RX_SYNC_STATES_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000838ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_SPD_ABIL_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_SPD_ABIL_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000810ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000810ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000810ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000810ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_SPD_ABIL_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000810ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_SPD_ABIL_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000810ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_STATUS1_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_STATUS1_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000808ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000808ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000808ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000808ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_STATUS1_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000808ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_STATUS1_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000808ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_STATUS2_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_STATUS2_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000820ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000820ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000820ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000820ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_STATUS2_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000820ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_STATUS2_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000820ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_TX_RX_POLARITY_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_TX_RX_POLARITY_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000840ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000840ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000840ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000840ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_TX_RX_POLARITY_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000840ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_TX_RX_POLARITY_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000840ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCSXX_TX_RX_STATES_REG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_PCSXX_TX_RX_STATES_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800B0000830ull) + ((block_id) & 1) * 0x8000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800B0000830ull) + ((block_id) & 1) * 0x8000000ull;
+			break;
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800B0000830ull) + ((block_id) & 0) * 0x8000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 4))
+				return CVMX_ADD_IO_SEG(0x00011800B0000830ull) + ((block_id) & 7) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_PCSXX_TX_RX_STATES_REG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800B0000830ull) + ((block_id) & 7) * 0x1000000ull;
 }
-#else
-#define CVMX_PCSXX_TX_RX_STATES_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800B0000830ull) + ((block_id) & 1) * 0x8000000ull)
-#endif
 
 /**
  * cvmx_pcsx#_10gbx_status_reg
@@ -254,12 +389,10 @@ static inline uint64_t CVMX_PCSXX_TX_RX_STATES_REG(unsigned long block_id)
  * PCSX_10GBX_STATUS_REG = 10gbx_status_reg
  *
  */
-union cvmx_pcsxx_10gbx_status_reg
-{
+union cvmx_pcsxx_10gbx_status_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_10gbx_status_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_10gbx_status_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t alignd                       : 1;  /**< 1=Lane alignment achieved, 0=Lanes not aligned */
 	uint64_t pattst                       : 1;  /**< Always at 0, no pattern testing capability */
@@ -283,8 +416,12 @@ union cvmx_pcsxx_10gbx_status_reg
 	struct cvmx_pcsxx_10gbx_status_reg_s  cn52xxp1;
 	struct cvmx_pcsxx_10gbx_status_reg_s  cn56xx;
 	struct cvmx_pcsxx_10gbx_status_reg_s  cn56xxp1;
+	struct cvmx_pcsxx_10gbx_status_reg_s  cn61xx;
 	struct cvmx_pcsxx_10gbx_status_reg_s  cn63xx;
 	struct cvmx_pcsxx_10gbx_status_reg_s  cn63xxp1;
+	struct cvmx_pcsxx_10gbx_status_reg_s  cn66xx;
+	struct cvmx_pcsxx_10gbx_status_reg_s  cn68xx;
+	struct cvmx_pcsxx_10gbx_status_reg_s  cn68xxp1;
 };
 typedef union cvmx_pcsxx_10gbx_status_reg cvmx_pcsxx_10gbx_status_reg_t;
 
@@ -299,12 +436,10 @@ typedef union cvmx_pcsxx_10gbx_status_reg cvmx_pcsxx_10gbx_status_reg_t;
  *
  *  PCSX Bist Status Register
  */
-union cvmx_pcsxx_bist_status_reg
-{
+union cvmx_pcsxx_bist_status_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_bist_status_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_bist_status_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t bist_status                  : 1;  /**< 1=bist failure, 0=bisted memory ok or bist in progress
                                                          pcsx.tx_sm.drf8x36m1_async_bist */
@@ -317,8 +452,12 @@ union cvmx_pcsxx_bist_status_reg
 	struct cvmx_pcsxx_bist_status_reg_s   cn52xxp1;
 	struct cvmx_pcsxx_bist_status_reg_s   cn56xx;
 	struct cvmx_pcsxx_bist_status_reg_s   cn56xxp1;
+	struct cvmx_pcsxx_bist_status_reg_s   cn61xx;
 	struct cvmx_pcsxx_bist_status_reg_s   cn63xx;
 	struct cvmx_pcsxx_bist_status_reg_s   cn63xxp1;
+	struct cvmx_pcsxx_bist_status_reg_s   cn66xx;
+	struct cvmx_pcsxx_bist_status_reg_s   cn68xx;
+	struct cvmx_pcsxx_bist_status_reg_s   cn68xxp1;
 };
 typedef union cvmx_pcsxx_bist_status_reg cvmx_pcsxx_bist_status_reg_t;
 
@@ -330,12 +469,10 @@ typedef union cvmx_pcsxx_bist_status_reg cvmx_pcsxx_bist_status_reg_t;
  *
  * PCSX Bit Lock Status Register
  */
-union cvmx_pcsxx_bit_lock_status_reg
-{
+union cvmx_pcsxx_bit_lock_status_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_bit_lock_status_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_bit_lock_status_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t bitlck3                      : 1;  /**< Receive Lane 3 bit lock status */
 	uint64_t bitlck2                      : 1;  /**< Receive Lane 2 bit lock status */
@@ -353,8 +490,12 @@ union cvmx_pcsxx_bit_lock_status_reg
 	struct cvmx_pcsxx_bit_lock_status_reg_s cn52xxp1;
 	struct cvmx_pcsxx_bit_lock_status_reg_s cn56xx;
 	struct cvmx_pcsxx_bit_lock_status_reg_s cn56xxp1;
+	struct cvmx_pcsxx_bit_lock_status_reg_s cn61xx;
 	struct cvmx_pcsxx_bit_lock_status_reg_s cn63xx;
 	struct cvmx_pcsxx_bit_lock_status_reg_s cn63xxp1;
+	struct cvmx_pcsxx_bit_lock_status_reg_s cn66xx;
+	struct cvmx_pcsxx_bit_lock_status_reg_s cn68xx;
+	struct cvmx_pcsxx_bit_lock_status_reg_s cn68xxp1;
 };
 typedef union cvmx_pcsxx_bit_lock_status_reg cvmx_pcsxx_bit_lock_status_reg_t;
 
@@ -372,12 +513,10 @@ typedef union cvmx_pcsxx_bit_lock_status_reg cvmx_pcsxx_bit_lock_status_reg_t;
  *
  *  PCSX_CONTROL1_REG = Control Register1
  */
-union cvmx_pcsxx_control1_reg
-{
+union cvmx_pcsxx_control1_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_control1_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_control1_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t reset                        : 1;  /**< 1=SW PCSX Reset, the bit will return to 0 after pcs
                                                          has been reset. Takes 32 eclk cycles to reset pcs
@@ -412,8 +551,12 @@ union cvmx_pcsxx_control1_reg
 	struct cvmx_pcsxx_control1_reg_s      cn52xxp1;
 	struct cvmx_pcsxx_control1_reg_s      cn56xx;
 	struct cvmx_pcsxx_control1_reg_s      cn56xxp1;
+	struct cvmx_pcsxx_control1_reg_s      cn61xx;
 	struct cvmx_pcsxx_control1_reg_s      cn63xx;
 	struct cvmx_pcsxx_control1_reg_s      cn63xxp1;
+	struct cvmx_pcsxx_control1_reg_s      cn66xx;
+	struct cvmx_pcsxx_control1_reg_s      cn68xx;
+	struct cvmx_pcsxx_control1_reg_s      cn68xxp1;
 };
 typedef union cvmx_pcsxx_control1_reg cvmx_pcsxx_control1_reg_t;
 
@@ -423,12 +566,10 @@ typedef union cvmx_pcsxx_control1_reg cvmx_pcsxx_control1_reg_t;
  * PCSX_CONTROL2_REG = Control Register2
  *
  */
-union cvmx_pcsxx_control2_reg
-{
+union cvmx_pcsxx_control2_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_control2_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_control2_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t type                         : 2;  /**< Always 2'b01, 10GBASE-X only supported */
 #else
@@ -440,8 +581,12 @@ union cvmx_pcsxx_control2_reg
 	struct cvmx_pcsxx_control2_reg_s      cn52xxp1;
 	struct cvmx_pcsxx_control2_reg_s      cn56xx;
 	struct cvmx_pcsxx_control2_reg_s      cn56xxp1;
+	struct cvmx_pcsxx_control2_reg_s      cn61xx;
 	struct cvmx_pcsxx_control2_reg_s      cn63xx;
 	struct cvmx_pcsxx_control2_reg_s      cn63xxp1;
+	struct cvmx_pcsxx_control2_reg_s      cn66xx;
+	struct cvmx_pcsxx_control2_reg_s      cn68xx;
+	struct cvmx_pcsxx_control2_reg_s      cn68xxp1;
 };
 typedef union cvmx_pcsxx_control2_reg cvmx_pcsxx_control2_reg_t;
 
@@ -456,12 +601,10 @@ typedef union cvmx_pcsxx_control2_reg cvmx_pcsxx_control2_reg_t;
  *
  * PCSX Interrupt Enable Register
  */
-union cvmx_pcsxx_int_en_reg
-{
+union cvmx_pcsxx_int_en_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_int_en_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_int_en_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t dbg_sync_en                  : 1;  /**< Code Group sync failure debug help */
 	uint64_t algnlos_en                   : 1;  /**< Enable ALGNLOS interrupt */
@@ -481,9 +624,8 @@ union cvmx_pcsxx_int_en_reg
 	uint64_t reserved_7_63                : 57;
 #endif
 	} s;
-	struct cvmx_pcsxx_int_en_reg_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_int_en_reg_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t algnlos_en                   : 1;  /**< Enable ALGNLOS interrupt */
 	uint64_t synlos_en                    : 1;  /**< Enable SYNLOS interrupt */
@@ -504,8 +646,12 @@ union cvmx_pcsxx_int_en_reg
 	struct cvmx_pcsxx_int_en_reg_cn52xx   cn52xxp1;
 	struct cvmx_pcsxx_int_en_reg_cn52xx   cn56xx;
 	struct cvmx_pcsxx_int_en_reg_cn52xx   cn56xxp1;
+	struct cvmx_pcsxx_int_en_reg_s        cn61xx;
 	struct cvmx_pcsxx_int_en_reg_s        cn63xx;
 	struct cvmx_pcsxx_int_en_reg_s        cn63xxp1;
+	struct cvmx_pcsxx_int_en_reg_s        cn66xx;
+	struct cvmx_pcsxx_int_en_reg_s        cn68xx;
+	struct cvmx_pcsxx_int_en_reg_s        cn68xxp1;
 };
 typedef union cvmx_pcsxx_int_en_reg cvmx_pcsxx_int_en_reg_t;
 
@@ -515,12 +661,10 @@ typedef union cvmx_pcsxx_int_en_reg cvmx_pcsxx_int_en_reg_t;
  * PCSX Interrupt Register
  *
  */
-union cvmx_pcsxx_int_reg
-{
+union cvmx_pcsxx_int_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t dbg_sync                     : 1;  /**< Code Group sync failure debug help, see Note below */
 	uint64_t algnlos                      : 1;  /**< Set when XAUI lanes lose alignment */
@@ -541,9 +685,8 @@ union cvmx_pcsxx_int_reg
 	uint64_t reserved_7_63                : 57;
 #endif
 	} s;
-	struct cvmx_pcsxx_int_reg_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_int_reg_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t algnlos                      : 1;  /**< Set when XAUI lanes lose alignment */
 	uint64_t synlos                       : 1;  /**< Set when Code group sync lost on 1 or more  lanes */
@@ -565,8 +708,12 @@ union cvmx_pcsxx_int_reg
 	struct cvmx_pcsxx_int_reg_cn52xx      cn52xxp1;
 	struct cvmx_pcsxx_int_reg_cn52xx      cn56xx;
 	struct cvmx_pcsxx_int_reg_cn52xx      cn56xxp1;
+	struct cvmx_pcsxx_int_reg_s           cn61xx;
 	struct cvmx_pcsxx_int_reg_s           cn63xx;
 	struct cvmx_pcsxx_int_reg_s           cn63xxp1;
+	struct cvmx_pcsxx_int_reg_s           cn66xx;
+	struct cvmx_pcsxx_int_reg_s           cn68xx;
+	struct cvmx_pcsxx_int_reg_s           cn68xxp1;
 };
 typedef union cvmx_pcsxx_int_reg cvmx_pcsxx_int_reg_t;
 
@@ -576,12 +723,10 @@ typedef union cvmx_pcsxx_int_reg cvmx_pcsxx_int_reg_t;
  * PCSX Logic Analyzer Register
  *
  */
-union cvmx_pcsxx_log_anl_reg
-{
+union cvmx_pcsxx_log_anl_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_log_anl_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_log_anl_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t enc_mode                     : 1;  /**< 1=send xaui encoded data, 0=send xaui raw data to GMX
                                                          See .../rtl/pcs/readme_logic_analyzer.txt for details */
@@ -613,8 +758,12 @@ union cvmx_pcsxx_log_anl_reg
 	struct cvmx_pcsxx_log_anl_reg_s       cn52xxp1;
 	struct cvmx_pcsxx_log_anl_reg_s       cn56xx;
 	struct cvmx_pcsxx_log_anl_reg_s       cn56xxp1;
+	struct cvmx_pcsxx_log_anl_reg_s       cn61xx;
 	struct cvmx_pcsxx_log_anl_reg_s       cn63xx;
 	struct cvmx_pcsxx_log_anl_reg_s       cn63xxp1;
+	struct cvmx_pcsxx_log_anl_reg_s       cn66xx;
+	struct cvmx_pcsxx_log_anl_reg_s       cn68xx;
+	struct cvmx_pcsxx_log_anl_reg_s       cn68xxp1;
 };
 typedef union cvmx_pcsxx_log_anl_reg cvmx_pcsxx_log_anl_reg_t;
 
@@ -631,12 +780,10 @@ typedef union cvmx_pcsxx_log_anl_reg cvmx_pcsxx_log_anl_reg_t;
  *
  * PCSX Misc Control Register
  */
-union cvmx_pcsxx_misc_ctl_reg
-{
+union cvmx_pcsxx_misc_ctl_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_misc_ctl_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_misc_ctl_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t tx_swap                      : 1;  /**< 0=do not swap xaui lanes going out to qlm's
                                                          1=swap lanes 3 <-> 0   and   2 <-> 1 */
@@ -658,8 +805,12 @@ union cvmx_pcsxx_misc_ctl_reg
 	struct cvmx_pcsxx_misc_ctl_reg_s      cn52xxp1;
 	struct cvmx_pcsxx_misc_ctl_reg_s      cn56xx;
 	struct cvmx_pcsxx_misc_ctl_reg_s      cn56xxp1;
+	struct cvmx_pcsxx_misc_ctl_reg_s      cn61xx;
 	struct cvmx_pcsxx_misc_ctl_reg_s      cn63xx;
 	struct cvmx_pcsxx_misc_ctl_reg_s      cn63xxp1;
+	struct cvmx_pcsxx_misc_ctl_reg_s      cn66xx;
+	struct cvmx_pcsxx_misc_ctl_reg_s      cn68xx;
+	struct cvmx_pcsxx_misc_ctl_reg_s      cn68xxp1;
 };
 typedef union cvmx_pcsxx_misc_ctl_reg cvmx_pcsxx_misc_ctl_reg_t;
 
@@ -669,12 +820,10 @@ typedef union cvmx_pcsxx_misc_ctl_reg cvmx_pcsxx_misc_ctl_reg_t;
  * PCSX_RX_SYNC_STATES_REG = Receive Sync States Register
  *
  */
-union cvmx_pcsxx_rx_sync_states_reg
-{
+union cvmx_pcsxx_rx_sync_states_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_rx_sync_states_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_rx_sync_states_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t sync3st                      : 4;  /**< Receive lane 3 code grp sync state machine state */
 	uint64_t sync2st                      : 4;  /**< Receive lane 2 code grp sync state machine state */
@@ -692,8 +841,12 @@ union cvmx_pcsxx_rx_sync_states_reg
 	struct cvmx_pcsxx_rx_sync_states_reg_s cn52xxp1;
 	struct cvmx_pcsxx_rx_sync_states_reg_s cn56xx;
 	struct cvmx_pcsxx_rx_sync_states_reg_s cn56xxp1;
+	struct cvmx_pcsxx_rx_sync_states_reg_s cn61xx;
 	struct cvmx_pcsxx_rx_sync_states_reg_s cn63xx;
 	struct cvmx_pcsxx_rx_sync_states_reg_s cn63xxp1;
+	struct cvmx_pcsxx_rx_sync_states_reg_s cn66xx;
+	struct cvmx_pcsxx_rx_sync_states_reg_s cn68xx;
+	struct cvmx_pcsxx_rx_sync_states_reg_s cn68xxp1;
 };
 typedef union cvmx_pcsxx_rx_sync_states_reg cvmx_pcsxx_rx_sync_states_reg_t;
 
@@ -703,12 +856,10 @@ typedef union cvmx_pcsxx_rx_sync_states_reg cvmx_pcsxx_rx_sync_states_reg_t;
  * PCSX_SPD_ABIL_REG = Speed ability register
  *
  */
-union cvmx_pcsxx_spd_abil_reg
-{
+union cvmx_pcsxx_spd_abil_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_spd_abil_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_spd_abil_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t tenpasst                     : 1;  /**< Always 0, no 10PASS-TS/2BASE-TL capability support */
 	uint64_t tengb                        : 1;  /**< Always 1, 10Gb/s supported */
@@ -722,8 +873,12 @@ union cvmx_pcsxx_spd_abil_reg
 	struct cvmx_pcsxx_spd_abil_reg_s      cn52xxp1;
 	struct cvmx_pcsxx_spd_abil_reg_s      cn56xx;
 	struct cvmx_pcsxx_spd_abil_reg_s      cn56xxp1;
+	struct cvmx_pcsxx_spd_abil_reg_s      cn61xx;
 	struct cvmx_pcsxx_spd_abil_reg_s      cn63xx;
 	struct cvmx_pcsxx_spd_abil_reg_s      cn63xxp1;
+	struct cvmx_pcsxx_spd_abil_reg_s      cn66xx;
+	struct cvmx_pcsxx_spd_abil_reg_s      cn68xx;
+	struct cvmx_pcsxx_spd_abil_reg_s      cn68xxp1;
 };
 typedef union cvmx_pcsxx_spd_abil_reg cvmx_pcsxx_spd_abil_reg_t;
 
@@ -733,12 +888,10 @@ typedef union cvmx_pcsxx_spd_abil_reg cvmx_pcsxx_spd_abil_reg_t;
  * PCSX_STATUS1_REG = Status Register1
  *
  */
-union cvmx_pcsxx_status1_reg
-{
+union cvmx_pcsxx_status1_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_status1_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_status1_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t flt                          : 1;  /**< 1=Fault condition detected, 0=No fault condition
                                                          This bit is a logical OR of Status2 reg bits 11,10 */
@@ -761,8 +914,12 @@ union cvmx_pcsxx_status1_reg
 	struct cvmx_pcsxx_status1_reg_s       cn52xxp1;
 	struct cvmx_pcsxx_status1_reg_s       cn56xx;
 	struct cvmx_pcsxx_status1_reg_s       cn56xxp1;
+	struct cvmx_pcsxx_status1_reg_s       cn61xx;
 	struct cvmx_pcsxx_status1_reg_s       cn63xx;
 	struct cvmx_pcsxx_status1_reg_s       cn63xxp1;
+	struct cvmx_pcsxx_status1_reg_s       cn66xx;
+	struct cvmx_pcsxx_status1_reg_s       cn68xx;
+	struct cvmx_pcsxx_status1_reg_s       cn68xxp1;
 };
 typedef union cvmx_pcsxx_status1_reg cvmx_pcsxx_status1_reg_t;
 
@@ -772,12 +929,10 @@ typedef union cvmx_pcsxx_status1_reg cvmx_pcsxx_status1_reg_t;
  * PCSX_STATUS2_REG = Status Register2
  *
  */
-union cvmx_pcsxx_status2_reg
-{
+union cvmx_pcsxx_status2_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_status2_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_status2_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t dev                          : 2;  /**< Always at 2'b10, means a Device present at the addr */
 	uint64_t reserved_12_13               : 2;
@@ -805,8 +960,12 @@ union cvmx_pcsxx_status2_reg
 	struct cvmx_pcsxx_status2_reg_s       cn52xxp1;
 	struct cvmx_pcsxx_status2_reg_s       cn56xx;
 	struct cvmx_pcsxx_status2_reg_s       cn56xxp1;
+	struct cvmx_pcsxx_status2_reg_s       cn61xx;
 	struct cvmx_pcsxx_status2_reg_s       cn63xx;
 	struct cvmx_pcsxx_status2_reg_s       cn63xxp1;
+	struct cvmx_pcsxx_status2_reg_s       cn66xx;
+	struct cvmx_pcsxx_status2_reg_s       cn68xx;
+	struct cvmx_pcsxx_status2_reg_s       cn68xxp1;
 };
 typedef union cvmx_pcsxx_status2_reg cvmx_pcsxx_status2_reg_t;
 
@@ -816,12 +975,10 @@ typedef union cvmx_pcsxx_status2_reg cvmx_pcsxx_status2_reg_t;
  * PCSX_POLARITY_REG = TX_RX polarity reg
  *
  */
-union cvmx_pcsxx_tx_rx_polarity_reg
-{
+union cvmx_pcsxx_tx_rx_polarity_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_tx_rx_polarity_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_tx_rx_polarity_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t xor_rxplrt                   : 4;  /**< Per lane RX polarity control */
 	uint64_t xor_txplrt                   : 4;  /**< Per lane TX polarity control */
@@ -836,9 +993,8 @@ union cvmx_pcsxx_tx_rx_polarity_reg
 #endif
 	} s;
 	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn52xx;
-	struct cvmx_pcsxx_tx_rx_polarity_reg_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_tx_rx_polarity_reg_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t rxplrt                       : 1;  /**< 1 is inverted polarity, 0 is normal polarity */
 	uint64_t txplrt                       : 1;  /**< 1 is inverted polarity, 0 is normal polarity */
@@ -850,8 +1006,12 @@ union cvmx_pcsxx_tx_rx_polarity_reg
 	} cn52xxp1;
 	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn56xx;
 	struct cvmx_pcsxx_tx_rx_polarity_reg_cn52xxp1 cn56xxp1;
+	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn61xx;
 	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn63xx;
 	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn63xxp1;
+	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn66xx;
+	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn68xx;
+	struct cvmx_pcsxx_tx_rx_polarity_reg_s cn68xxp1;
 };
 typedef union cvmx_pcsxx_tx_rx_polarity_reg cvmx_pcsxx_tx_rx_polarity_reg_t;
 
@@ -861,12 +1021,10 @@ typedef union cvmx_pcsxx_tx_rx_polarity_reg cvmx_pcsxx_tx_rx_polarity_reg_t;
  * PCSX_TX_RX_STATES_REG = Transmit Receive States Register
  *
  */
-union cvmx_pcsxx_tx_rx_states_reg
-{
+union cvmx_pcsxx_tx_rx_states_reg {
 	uint64_t u64;
-	struct cvmx_pcsxx_tx_rx_states_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_tx_rx_states_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t term_err                     : 1;  /**< 1=Check end function detected error in packet
                                                          terminate ||T|| column or the one after it */
@@ -892,9 +1050,8 @@ union cvmx_pcsxx_tx_rx_states_reg
 #endif
 	} s;
 	struct cvmx_pcsxx_tx_rx_states_reg_s  cn52xx;
-	struct cvmx_pcsxx_tx_rx_states_reg_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pcsxx_tx_rx_states_reg_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t syn3bad                      : 1;  /**< 1=lane 3 code grp sync state machine in bad state */
 	uint64_t syn2bad                      : 1;  /**< 1=lane 2 code grp sync state machine in bad state */
@@ -918,8 +1075,12 @@ union cvmx_pcsxx_tx_rx_states_reg
 	} cn52xxp1;
 	struct cvmx_pcsxx_tx_rx_states_reg_s  cn56xx;
 	struct cvmx_pcsxx_tx_rx_states_reg_cn52xxp1 cn56xxp1;
+	struct cvmx_pcsxx_tx_rx_states_reg_s  cn61xx;
 	struct cvmx_pcsxx_tx_rx_states_reg_s  cn63xx;
 	struct cvmx_pcsxx_tx_rx_states_reg_s  cn63xxp1;
+	struct cvmx_pcsxx_tx_rx_states_reg_s  cn66xx;
+	struct cvmx_pcsxx_tx_rx_states_reg_s  cn68xx;
+	struct cvmx_pcsxx_tx_rx_states_reg_s  cn68xxp1;
 };
 typedef union cvmx_pcsxx_tx_rx_states_reg cvmx_pcsxx_tx_rx_states_reg_t;
 
