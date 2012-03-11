@@ -782,6 +782,9 @@ extern struct vop_vector default_vnodeops;
 #define VOP_ENOENT	((void*)(uintptr_t)vop_enoent)
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
 
+/* fifo_vnops.c */
+int	fifo_printinfo(struct vnode *);
+
 /* vfs_hash.c */
 typedef int vfs_hash_cmp_t(struct vnode *vp, void *arg);
 
