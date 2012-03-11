@@ -133,9 +133,11 @@ ffs_update(vp, waitfor)
 	else
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
-	if ((waitfor && !DOINGASYNC(vp)) ||
-	    (vm_page_count_severe() || buf_dirty_count_severe())) {
+	if ((waitfor && !DOINGASYNC(vp)))
 		error = bwrite(bp);
+	else if (vm_page_count_severe() || buf_dirty_count_severe()) {
+		bawrite(bp);
+		error = 0;
 	} else {
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
