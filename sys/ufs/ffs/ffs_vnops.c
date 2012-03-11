@@ -305,7 +305,7 @@ next:
 		if (noupdate)
 			return (0);
 		else
-			return (ffs_update(vp, waitfor));
+			return (ffs_update(vp, 0));
 	}
 	/* Drain IO to see if we're done. */
 	bufobj_wwait(bo, 0, 0);
