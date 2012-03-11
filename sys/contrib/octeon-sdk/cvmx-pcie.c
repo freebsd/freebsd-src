@@ -81,7 +81,9 @@
 #include "cvmx-sysinfo.h"
 #include "cvmx-swap.h"
 #include "cvmx-wqe.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"
+#endif
 #include "cvmx-helper-errata.h"
 #include "cvmx-qlm.h"
 #endif
@@ -1193,7 +1195,7 @@ int cvmx_pcie_rc_initialize(int pcie_port)
         result = __cvmx_pcie_rc_initialize_gen1(pcie_port);
     else
         result = __cvmx_pcie_rc_initialize_gen2(pcie_port);
-#if !defined(CVMX_BUILD_FOR_LINUX_KERNEL) || defined(CONFIG_CAVIUM_DECODE_RSL)
+#if (!defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)) || defined(CONFIG_CAVIUM_DECODE_RSL)
     if (result == 0)
         cvmx_error_enable_group(CVMX_ERROR_GROUP_PCI, pcie_port);
 #endif
@@ -1210,7 +1212,7 @@ int cvmx_pcie_rc_initialize(int pcie_port)
  */
 int cvmx_pcie_rc_shutdown(int pcie_port)
 {
-#if !defined(CVMX_BUILD_FOR_LINUX_KERNEL) || defined(CONFIG_CAVIUM_DECODE_RSL)
+#if (!defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)) || defined(CONFIG_CAVIUM_DECODE_RSL)
     cvmx_error_disable_group(CVMX_ERROR_GROUP_PCI, pcie_port);
 #endif
     /* Wait for all pending operations to complete */
