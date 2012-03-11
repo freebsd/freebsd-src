@@ -52,7 +52,6 @@
 #include <sys/un.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <fs/fifofs/fifo.h>
 
 /*
  * This structure is associated with the FIFO vnode and stores
