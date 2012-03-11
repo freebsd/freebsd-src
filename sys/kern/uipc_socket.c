@@ -2728,6 +2728,10 @@ integer:
 			optval = so->so_type;
 			goto integer;
 
+		case SO_PROTOCOL:
+			optval = so->so_proto->pr_protocol;
+			goto integer;
+
 		case SO_ERROR:
 			SOCK_LOCK(so);
 			optval = so->so_error;
