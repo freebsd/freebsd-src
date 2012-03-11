@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120309: Remove fifofs header files.
+OLD_FILES+=usr/include/fs/fifofs/fifo.h
+OLD_DIRS+=usr/include/fs/fifofs
 # 20120225: libarchive 3.0.3
 OLD_FILES+=usr/share/man/man3/archive_read_data_into_buffer.3.gz \
 	usr/share/man/man3/archive_read_support_compression_all.3.gz \

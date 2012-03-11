@@ -71,8 +71,6 @@
 
 #include "opt_directio.h"
 
-#include <fs/fifofs/fifo.h>
-
 #include <ufs/ufs/dir.h>
 
 #include <fs/ext2fs/fs.h>
