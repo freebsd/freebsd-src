@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2011
+.Dd March 8, 2012
 .Dt PS 1
 .Os
 .Sh NAME
@@ -317,6 +317,7 @@ the include file
 .It Dv "P_SINGLE_BOUNDARY" Ta No "0x400000	Threads should suspend at user boundary"
 .It Dv "P_HWPMC" Ta No "0x800000	Process is using HWPMCs"
 .It Dv "P_JAILED" Ta No "0x1000000	Process is in jail"
+.It Dv "P_ORPHAN" Ta No "0x2000000	Orphaned by original parent, reparented to debugger"
 .It Dv "P_INEXEC" Ta No "0x4000000	Process is in execve()"
 .It Dv "P_STATCHILD" Ta No "0x8000000	Child process stopped or exited"
 .It Dv "P_INMEM" Ta No "0x10000000	Loaded into memory"
