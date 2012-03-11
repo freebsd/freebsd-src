@@ -61,7 +61,7 @@
 #endif
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 #include <contrib/octeon-sdk/cvmx-mgmt-port.h>
 
 struct octm_softc {
@@ -163,10 +163,10 @@ octm_attach(device_t dev)
 
 	switch (sc->sc_port) {
 	case 0:
-		irq = CVMX_IRQ_MII;
+		irq = OCTEON_IRQ_MII;
 		break;
 	case 1:
-		irq = CVMX_IRQ_MII1;
+		irq = OCTEON_IRQ_MII1;
 		break;
 	default:
 		device_printf(dev, "unsupported management port %u.\n", sc->sc_port);

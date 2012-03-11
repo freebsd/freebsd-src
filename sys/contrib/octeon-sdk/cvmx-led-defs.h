@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_LED_TYPEDEFS_H__
-#define __CVMX_LED_TYPEDEFS_H__
+#ifndef __CVMX_LED_DEFS_H__
+#define __CVMX_LED_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_LED_BLINK CVMX_LED_BLINK_FUNC()
@@ -212,12 +212,10 @@ static inline uint64_t CVMX_LED_UDD_DAT_SETX(unsigned long offset)
  * LED_BLINK = LED Blink Rate (in led_clks)
  *
  */
-union cvmx_led_blink
-{
+union cvmx_led_blink {
 	uint64_t u64;
-	struct cvmx_led_blink_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_blink_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t rate                         : 8;  /**< LED Blink rate in led_latch clks
                                                          RATE must be > 0 */
@@ -248,12 +246,10 @@ typedef union cvmx_led_blink cvmx_led_blink_t;
  * or 256ns which is 3.9MHz.  The default value of 4, yields an led_clk
  * period of 64*4*2ns*2 = 1024ns or ~1MHz (977KHz).
  */
-union cvmx_led_clk_phase
-{
+union cvmx_led_clk_phase {
 	uint64_t u64;
-	struct cvmx_led_clk_phase_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_clk_phase_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t phase                        : 7;  /**< Number of 64 eclks in order to create the led_clk */
 #else
@@ -276,12 +272,10 @@ typedef union cvmx_led_clk_phase cvmx_led_clk_phase_t;
  * LED_CYLON = LED CYLON Effect (should remain undocumented)
  *
  */
-union cvmx_led_cylon
-{
+union cvmx_led_cylon {
 	uint64_t u64;
-	struct cvmx_led_cylon_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_cylon_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t rate                         : 16; /**< LED Cylon Effect when RATE!=0
                                                          Changes at RATE*LATCH period */
@@ -305,12 +299,10 @@ typedef union cvmx_led_cylon cvmx_led_cylon_t;
  * LED_DBG = LED Debug Port information
  *
  */
-union cvmx_led_dbg
-{
+union cvmx_led_dbg {
 	uint64_t u64;
-	struct cvmx_led_dbg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_dbg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t dbg_en                       : 1;  /**< Add Debug Port Data to the LED shift chain
                                                          Debug Data is shifted out LSB to MSB */
@@ -363,12 +355,10 @@ typedef union cvmx_led_dbg cvmx_led_dbg_t;
  * The UDD trailer data is identical to the header data, but uses LED_UDD_CNT1
  * and LED_UDD_DAT1.
  */
-union cvmx_led_en
-{
+union cvmx_led_en {
 	uint64_t u64;
-	struct cvmx_led_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t en                           : 1;  /**< Enable the LED interface shift-chain */
 #else
@@ -391,12 +381,10 @@ typedef union cvmx_led_en cvmx_led_en_t;
  * LED_POLARITY = LED Polarity
  *
  */
-union cvmx_led_polarity
-{
+union cvmx_led_polarity {
 	uint64_t u64;
-	struct cvmx_led_polarity_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_polarity_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t polarity                     : 1;  /**< LED active polarity
                                                          0 = active HIGH LED
@@ -426,12 +414,10 @@ typedef union cvmx_led_polarity cvmx_led_polarity_t;
  * the PRT vector enables information of the 8 RGMII ports connected to
  * Octane.  It does not reflect the actual programmed PHY addresses.
  */
-union cvmx_led_prt
-{
+union cvmx_led_prt {
 	uint64_t u64;
-	struct cvmx_led_prt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_prt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t prt_en                       : 8;  /**< Which ports are enabled to display status
                                                          PRT_EN<3:0> coresponds to RGMII ports 3-0 on int0
@@ -464,12 +450,10 @@ typedef union cvmx_led_prt cvmx_led_prt_t;
  *
  * For short transfers, LEDs will remain on for at least one blink cycle
  */
-union cvmx_led_prt_fmt
-{
+union cvmx_led_prt_fmt {
 	uint64_t u64;
-	struct cvmx_led_prt_fmt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_prt_fmt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t format                       : 4;  /**< Port Status Information for each enabled port in
                                                          LED_PRT.  The formats are below
@@ -503,12 +487,10 @@ typedef union cvmx_led_prt_fmt cvmx_led_prt_fmt_t;
  * LED_PRT_STATUS = LED Port Status information
  *
  */
-union cvmx_led_prt_statusx
-{
+union cvmx_led_prt_statusx {
 	uint64_t u64;
-	struct cvmx_led_prt_statusx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_prt_statusx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t status                       : 6;  /**< Bits that software can set to be added to the
                                                          LED shift chain - depending on LED_PRT_FMT
@@ -537,12 +519,10 @@ typedef union cvmx_led_prt_statusx cvmx_led_prt_statusx_t;
  * LED_UDD_CNT = LED UDD Counts
  *
  */
-union cvmx_led_udd_cntx
-{
+union cvmx_led_udd_cntx {
 	uint64_t u64;
-	struct cvmx_led_udd_cntx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_udd_cntx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t cnt                          : 6;  /**< Number of bits of user-defined data to include in
                                                          the LED shift chain.  Legal values: 0-32. */
@@ -571,12 +551,10 @@ typedef union cvmx_led_udd_cntx cvmx_led_udd_cntx_t;
  * then the bits comes out LED_UDD_DAT[0], LED_UDD_DAT[1], LED_UDD_DAT[2],
  * LED_UDD_DAT[3].
  */
-union cvmx_led_udd_datx
-{
+union cvmx_led_udd_datx {
 	uint64_t u64;
-	struct cvmx_led_udd_datx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_udd_datx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t dat                          : 32; /**< Header or trailer UDD data to be displayed on
                                                          the LED shift chain.  Number of bits to include
@@ -601,12 +579,10 @@ typedef union cvmx_led_udd_datx cvmx_led_udd_datx_t;
  * LED_UDD_DAT_CLR = User defined data (header or trailer)
  *
  */
-union cvmx_led_udd_dat_clrx
-{
+union cvmx_led_udd_dat_clrx {
 	uint64_t u64;
-	struct cvmx_led_udd_dat_clrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_udd_dat_clrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t clr                          : 32; /**< Bitwise clear for the Header or trailer UDD data to
                                                          be displayed on the LED shift chain. */
@@ -630,12 +606,10 @@ typedef union cvmx_led_udd_dat_clrx cvmx_led_udd_dat_clrx_t;
  * LED_UDD_DAT_SET = User defined data (header or trailer)
  *
  */
-union cvmx_led_udd_dat_setx
-{
+union cvmx_led_udd_dat_setx {
 	uint64_t u64;
-	struct cvmx_led_udd_dat_setx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_led_udd_dat_setx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t set                          : 32; /**< Bitwise set for the Header or trailer UDD data to
                                                          be displayed on the LED shift chain. */
