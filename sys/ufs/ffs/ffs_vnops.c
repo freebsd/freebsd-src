@@ -409,7 +409,6 @@ ffs_lock(ap)
 /*
  * Vnode op for reading.
  */
-/* ARGSUSED */
 static int
 ffs_read(ap)
 	struct vop_read_args /* {
