@@ -74,7 +74,9 @@
 #include "cvmx-helper-board.h"
 #include "cvmx-csr-db.h"
 #include "cvmx-swap.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"
+#endif
 #endif
 
 #define MAX_RETRIES         3   /* Maximum number of times to retry failed transactions */

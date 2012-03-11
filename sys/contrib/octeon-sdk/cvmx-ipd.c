@@ -74,8 +74,8 @@
 #include "cvmx-bootmem.h"
 #include "cvmx-version.h"
 #include "cvmx-helper-check-defines.h"
-#include "cvmx-error.h"
 #if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "cvmx-error.h"
 #include "cvmx-config.h"
 #endif
 
