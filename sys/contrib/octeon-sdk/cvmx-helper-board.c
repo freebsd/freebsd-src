@@ -73,10 +73,12 @@
 #include "cvmx-helper-util.h"
 #include "cvmx-helper-board.h"
 #include "cvmx-gpio.h"
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
 #ifdef __U_BOOT__
 # include <libfdt.h>
 #else
 # include "libfdt/libfdt.h"
+#endif
 #endif
 #include "cvmx-swap.h"
 #endif
