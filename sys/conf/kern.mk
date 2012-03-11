@@ -131,6 +131,9 @@ CFLAGS+=	-mcall-aixdesc
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
+# XXX Disable -Winline.  This is needed because of the monstrous code that is
+#     the Cavium Octeon Simple Executive.
+CWARNFLAGS:=	${CWARNFLAGS:N-Winline}
 .endif
 
 #
