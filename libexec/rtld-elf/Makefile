@@ -10,6 +10,7 @@ SRCS=		rtld_start.S \
 MAN=		rtld.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
+CFLAGS+=	-I${.CURDIR}/../../lib/csu/common
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 RTLD_ARCH=	${MACHINE_ARCH}
 .else

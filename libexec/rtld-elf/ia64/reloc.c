@@ -586,6 +586,18 @@ call_initfini_pointer(const Obj_Entry *obj, Elf_Addr target)
 	((InitFunc) &fptr)();
 }
 
+void
+call_init_pointer(const Obj_Entry *obj, Elf_Addr target)
+{
+	struct fptr fptr;
+
+	fptr.gp = (Elf_Addr) obj->pltgot;
+	fptr.target = target;
+	dbg(" initfini: target=%p, gp=%p",
+	    (void *) fptr.target, (void *) fptr.gp);
+	((InitArrFunc) &fptr)(main_argc, main_argv, environ);
+}
+
 /* Initialize the special PLT entries. */
 void
 init_pltgot(Obj_Entry *obj)
