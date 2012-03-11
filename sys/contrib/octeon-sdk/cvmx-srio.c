@@ -68,7 +68,9 @@
 #include "cvmx-helper.h"
 #ifndef CVMX_BUILD_FOR_LINUX_HOST
 #include "cvmx-atomic.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"
+#endif
 #include "cvmx-helper-errata.h"
 #endif
 #include "cvmx-qlm.h"
@@ -770,7 +772,7 @@ int cvmx_srio_initialize(int srio_port, cvmx_srio_initialize_flags_t flags)
     cvmx_write_csr(CVMX_SRIOX_INT_REG(srio_port), cvmx_read_csr(CVMX_SRIOX_INT_REG(srio_port)));
 
     /* Enable error reporting */
-#if (!defined(CVMX_BUILD_FOR_LINUX_HOST) && !defined(CVMX_BUILD_FOR_LINUX_KERNEL)) || defined(CONFIG_CAVIUM_DECODE_RSL)
+#if (!defined(CVMX_BUILD_FOR_LINUX_HOST) && !defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)) || defined(CONFIG_CAVIUM_DECODE_RSL)
     cvmx_error_enable_group(CVMX_ERROR_GROUP_SRIO, srio_port);
 #endif
 

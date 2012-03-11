@@ -51,7 +51,9 @@
 #include "cvmx-coremask.h"
 #include "cvmx-spinlock.h"
 #include "cvmx-atomic.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"
+#endif
 #include "cvmx-asm.h"
 #include "cvmx-bootmem.h"
 #include "cvmx-profiler.h"

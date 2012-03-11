@@ -56,7 +56,9 @@
 #include "cvmx-mdio.h"
 #include "cvmx-mgmt-port.h"
 #include "cvmx-sysinfo.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"
+#endif
 
 /**
  * Enum of MIX interface modes
@@ -389,7 +391,9 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
             cvmx_write_csr(CVMX_AGL_GMX_DRV_CTL, drv_ctl.u64);
         }
     }
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
     cvmx_error_enable_group(CVMX_ERROR_GROUP_MGMT_PORT, port);
+#endif
     return CVMX_MGMT_PORT_SUCCESS;
 }
 
@@ -408,7 +412,9 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_shutdown(int port)
     if ((port < 0) || (port >= __cvmx_mgmt_port_num_ports()))
         return CVMX_MGMT_PORT_INVALID_PARAM;
 
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
     cvmx_error_disable_group(CVMX_ERROR_GROUP_MGMT_PORT, port);
+#endif
 
     /* Stop packets from comming in */
     cvmx_mgmt_port_disable(port);
