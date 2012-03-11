@@ -133,7 +133,7 @@ ffs_update(vp, waitfor)
 	else
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
-	if ((waitfor && !DOINGASYNC(vp)))
+	if (waitfor && !DOINGASYNC(vp))
 		error = bwrite(bp);
 	else if (vm_page_count_severe() || buf_dirty_count_severe()) {
 		bawrite(bp);
