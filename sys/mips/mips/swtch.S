@@ -56,7 +56,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_cputype.h"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>

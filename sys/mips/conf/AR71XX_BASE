@@ -10,7 +10,6 @@
 machine		mips mipseb
 ident		AR71XX_BASE
 cpu		CPU_MIPS4KC
-options 	ISA_MIPS32
 makeoptions	TARGET_BIG_ENDIAN
 makeoptions	KERNLOADADDR=0x80050000
 options		HZ=1000
