@@ -645,33 +645,9 @@ init_mbr_full_disk()
   echo_log "Running gpart on ${_intDISK}"
   rc_halt "gpart create -s mbr -f active ${_intDISK}"
 
-  # Lets figure out disk size in blocks
-  # Get the cyl of this disk
-  get_disk_cyl "${_intDISK}"
-  cyl="${VAL}"
-
-  # Get the heads of this disk
-  get_disk_heads "${_intDISK}"
-  head="${VAL}"
-
-  # Get the tracks/sectors of this disk
-  get_disk_sectors "${_intDISK}"
-  sec="${VAL}"
-
-  # Multiply them all together to get our total blocks
-  totalblocks="`expr ${cyl} \* ${head} 2>/dev/null`"
-  totalblocks="`expr ${totalblocks} \* ${sec} 2>/dev/null`"
-  if [ -z "${totalblocks}" ]
-  then
-    totalblocks=`gpart show "${_intDISK}"|tail -2|head -1|awk '{ print $2 }'`
-  fi
-
-  # Now set the ending block to the total disk block size
-  sizeblock="`expr ${totalblocks} - ${startblock}`"
-
   # Install new partition setup
   echo_log "Running gpart add on ${_intDISK}"
-  rc_halt "gpart add -b ${startblock} -s ${sizeblock} -t freebsd -i 1 ${_intDISK}"
+  rc_halt "gpart add -a 4k -t freebsd -i 1 ${_intDISK}"
   sleep 2
   
   echo_log "Cleaning up ${_intDISK}s1"
@@ -847,44 +823,9 @@ run_gpart_free()
     rc_halt "gpart create -s mbr ${DISK}"
   fi
 
-  # Lets get the starting block first
-  if [ "${slicenum}" = "1" ]
-  then
-     startblock="63"
-  else
-     # Lets figure out where the prior slice ends
-     checkslice=$((slicenum-1))
-
-     # Get starting block of this slice
-     sblk=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 2`
-     blksize=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 3`
-     startblock=$((sblk+blksiz))
-  fi
-
-  # No slice after the new slice, lets figure out the free space remaining and use it
-  # Get the cyl of this disk
-  get_disk_cyl "${DISK}"
-  cyl="${VAL}"
-
-  # Get the heads of this disk
-  get_disk_heads "${DISK}"
-  head="${VAL}"
-
-  # Get the tracks/sectors of this disk
-  get_disk_sectors "${DISK}"
-  sec="${VAL}"
-
-  # Multiply them all together to get our total blocks
-  totalblocks=$((cyl*head))
-  totalblocks=$((totalblocks*sec))
-
-
-  # Now set the ending block to the total disk block size
-  sizeblock=$((totalblocks-startblock))
-
   # Install new partition setup
   echo_log "Running gpart on ${DISK}"
-  rc_halt "gpart add -b ${startblock} -s ${sizeblock} -t freebsd -i ${slicenum} ${DISK}"
+  rc_halt "gpart add -a 4k -t freebsd -i ${slicenum} ${DISK}"
   sleep 2
   
   echo_log "Cleaning up $slice"
