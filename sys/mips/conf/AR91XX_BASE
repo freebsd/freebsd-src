@@ -13,7 +13,6 @@
 machine         mips mipseb
 ident		AR91XX_BASE
 cpu		CPU_MIPS4KC
-options 	ISA_MIPS32
 makeoptions	KERNLOADADDR=0x80050000
 options		HZ=1000
 
