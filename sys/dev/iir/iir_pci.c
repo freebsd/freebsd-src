@@ -318,7 +318,8 @@ iir_pci_attach(device_t dev)
 
     /* Allocate a dmatag representing the capabilities of this attachment */
     /* XXX Should be a child of the PCI bus dma tag */
-    if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
+    if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev),
+                           /*alignemnt*/1, /*boundary*/0,
                            /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
                            /*highaddr*/BUS_SPACE_MAXADDR,
                            /*filter*/NULL, /*filterarg*/NULL,
