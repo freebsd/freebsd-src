@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/cputypes.h>
 #include <machine/pmc_mdep.h>
 
 /*
