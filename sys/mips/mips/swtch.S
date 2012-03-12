@@ -608,16 +608,6 @@ LEAF(MipsSaveCurFPState)
 END(MipsSaveCurFPState)
 
 /*
- * When starting init, call this to configure the process for user
- * mode.  This will be inherited by other processes.
- */
-LEAF_NOPROFILE(prepare_usermode)
-	j	ra
-	nop
-END(prepare_usermode)
-
-
-/*
  * This code is copied the user's stack for returning from signal handlers
  * (see sendsig() and sigreturn()). We have to compute the address
  * of the sigcontext struct for the sigreturn call.
