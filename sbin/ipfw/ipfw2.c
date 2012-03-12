@@ -42,6 +42,7 @@
 #include <timeconv.h>	/* _long_to_time */
 #include <unistd.h>
 #include <fcntl.h>
+#include <stddef.h>	/* offsetof */
 
 #include <net/ethernet.h>
 #include <net/if.h>		/* only IFNAMSIZ */
@@ -56,6 +57,12 @@
 struct cmdline_opts co;	/* global options */
 
 int resvd_set_number = RESVD_SET;
+
+int ipfw_socket = -1;
+
+#ifndef s6_addr32
+#define s6_addr32 __u6_addr.__u6_addr32
+#endif
 
 #define GET_UINT_ARG(arg, min, max, tok, s_x) do {			\
 	if (!av[0])							\
@@ -370,31 +377,63 @@ safe_realloc(void *ptr, size_t size)
 int
 do_cmd(int optname, void *optval, uintptr_t optlen)
 {
-	static int s = -1;	/* the socket */
 	int i;
 
 	if (co.test_only)
 		return 0;
 
-	if (s == -1)
-		s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-	if (s < 0)
+	if (ipfw_socket == -1)
+		ipfw_socket = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (ipfw_socket < 0)
 		err(EX_UNAVAILABLE, "socket");
 
 	if (optname == IP_FW_GET || optname == IP_DUMMYNET_GET ||
-	    optname == IP_FW_ADD || optname == IP_FW_TABLE_LIST ||
-	    optname == IP_FW_TABLE_GETSIZE ||
+	    optname == IP_FW_ADD || optname == IP_FW3 ||
 	    optname == IP_FW_NAT_GET_CONFIG ||
 	    optname < 0 ||
 	    optname == IP_FW_NAT_GET_LOG) {
 		if (optname < 0)
 			optname = -optname;
-		i = getsockopt(s, IPPROTO_IP, optname, optval,
+		i = getsockopt(ipfw_socket, IPPROTO_IP, optname, optval,
 			(socklen_t *)optlen);
 	} else {
-		i = setsockopt(s, IPPROTO_IP, optname, optval, optlen);
+		i = setsockopt(ipfw_socket, IPPROTO_IP, optname, optval, optlen);
 	}
 	return i;
+}
+
+/*
+ * do_setcmd3 - pass ipfw control cmd to kernel
+ * @optname: option name
+ * @optval: pointer to option data
+ * @optlen: option length
+ *
+ * Function encapsulates option value in IP_FW3 socket option
+ * and calls setsockopt().
+ * Function returns 0 on success or -1 otherwise.
+ */
+int
+do_setcmd3(int optname, void *optval, socklen_t optlen)
+{
+	socklen_t len;
+	ip_fw3_opheader *op3;
+
+	if (co.test_only)
+		return (0);
+
+	if (ipfw_socket == -1)
+		ipfw_socket = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (ipfw_socket < 0)
+		err(EX_UNAVAILABLE, "socket");
+
+	len = sizeof(ip_fw3_opheader) + optlen;
+	op3 = alloca(len);
+	/* Zero reserved fields */
+	memset(op3, 0, sizeof(ip_fw3_opheader));
+	memcpy(op3 + 1, optval, optlen);
+	op3->opcode = optname;
+
+	return setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, len);
 }
 
 /**
@@ -1411,6 +1450,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				if (cmdif->name[0] == '\0')
 					printf(" %s %s", s,
 					    inet_ntoa(cmdif->p.ip));
+				else if (cmdif->name[0] == '\1') /* interface table */
+					printf(" %s table(%d)", s, cmdif->p.glob);
 				else
 					printf(" %s %s", s, cmdif->name);
 
@@ -2332,7 +2373,13 @@ fill_iface(ipfw_insn_if *cmd, char *arg)
 	/* Parse the interface or address */
 	if (strcmp(arg, "any") == 0)
 		cmd->o.len = 0;		/* effectively ignore this command */
-	else if (!isdigit(*arg)) {
+	else if (strncmp(arg, "table(", 6) == 0) {
+		char *p = strchr(arg + 6, ',');
+		if (p)
+			*p++ = '\0';
+		cmd->name[0] = '\1'; /* Special value indicating table */
+		cmd->p.glob = strtoul(arg + 6, NULL, 0);
+	} else if (!isdigit(*arg)) {
 		strlcpy(cmd->name, arg, sizeof(cmd->name));
 		cmd->p.glob = strpbrk(arg, "*?[") != NULL ? 1 : 0;
 	} else if (!inet_aton(arg, &cmd->p.ip))
@@ -3863,7 +3910,7 @@ ipfw_flush(int force)
 }
 
 
-static void table_list(ipfw_table_entry ent, int need_header);
+static void table_list(uint16_t num, int need_header);
 
 /*
  * This one handles all table-related commands
@@ -3875,12 +3922,12 @@ static void table_list(ipfw_table_entry ent, int need_header);
 void
 ipfw_table_handler(int ac, char *av[])
 {
-	ipfw_table_entry ent;
+	ipfw_table_xentry xent;
 	int do_add;
 	int is_all;
 	size_t len;
 	char *p;
-	uint32_t a;
+	uint32_t a, type, mask, addrlen;
 	uint32_t tables_max;
 
 	len = sizeof(tables_max);
@@ -3895,18 +3942,20 @@ ipfw_table_handler(int ac, char *av[])
 #endif
 	}
 
+	memset(&xent, 0, sizeof(xent));
+
 	ac--; av++;
 	if (ac && isdigit(**av)) {
-		ent.tbl = atoi(*av);
+		xent.tbl = atoi(*av);
 		is_all = 0;
 		ac--; av++;
 	} else if (ac && _substrcmp(*av, "all") == 0) {
-		ent.tbl = 0;
+		xent.tbl = 0;
 		is_all = 1;
 		ac--; av++;
 	} else
 		errx(EX_USAGE, "table number or 'all' keyword required");
-	if (ent.tbl >= tables_max)
+	if (xent.tbl >= tables_max)
 		errx(EX_USAGE, "The table number exceeds the maximum allowed "
 			"value (%d)", tables_max - 1);
 	NEED1("table needs command");
@@ -3919,104 +3968,181 @@ ipfw_table_handler(int ac, char *av[])
 		do_add = **av == 'a';
 		ac--; av++;
 		if (!ac)
-			errx(EX_USAGE, "IP address required");
-		p = strchr(*av, '/');
-		if (p) {
-			*p++ = '\0';
-			ent.masklen = atoi(p);
-			if (ent.masklen > 32)
-				errx(EX_DATAERR, "bad width ``%s''", p);
-		} else
-			ent.masklen = 32;
-		if (lookup_host(*av, (struct in_addr *)&ent.addr) != 0)
-			errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
+			errx(EX_USAGE, "address required");
+		/* 
+		 * Let's try to guess type by agrument.
+		 * Possible types: 
+		 * 1) IPv4[/mask]
+		 * 2) IPv6[/mask]
+		 * 3) interface name
+		 * 4) port ?
+		 */
+		type = 0;
+		if (ishexnumber(*av[0])) {
+			/* Remove / if exists */
+			if ((p = strchr(*av, '/')) != NULL) {
+				*p = '\0';
+				mask = atoi(p + 1);
+			}
+
+			if (inet_pton(AF_INET, *av, &xent.k.addr6) == 1) {
+				type = IPFW_TABLE_CIDR;
+				if ((p != NULL) && (mask > 32))
+					errx(EX_DATAERR, "bad IPv4 mask width: %s", p + 1);
+				xent.masklen = p ? mask : 32;
+				addrlen = sizeof(struct in_addr);
+			} else if (inet_pton(AF_INET6, *av, &xent.k.addr6) == 1) {
+				type = IPFW_TABLE_CIDR;
+				if ((p != NULL) && (mask > 128))
+					errx(EX_DATAERR, "bad IPv6 mask width: %s", p + 1);
+				xent.masklen = p ? mask : 128;
+				addrlen = sizeof(struct in6_addr);
+			}
+		}
+
+		if ((type == 0) && (strchr(*av, '.') == NULL)) {
+			/* Assume interface name. Copy significant data only */
+			mask = MIN(strlen(*av), IF_NAMESIZE - 1);
+			memcpy(xent.k.iface, *av, mask);
+			/* Set mask to exact match */
+			xent.masklen = 8 * IF_NAMESIZE;
+			type = IPFW_TABLE_INTERFACE;
+			addrlen = IF_NAMESIZE;
+		}
+
+		if (type == 0) {
+			if (lookup_host(*av, (struct in_addr *)&xent.k.addr6) != 0)
+				errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
+			xent.masklen = 32;
+			type = IPFW_TABLE_CIDR;
+			addrlen = sizeof(struct in_addr);
+		}
+
+		xent.type = type;
+		xent.len = offsetof(ipfw_table_xentry, k) + addrlen;
+
 		ac--; av++;
 		if (do_add && ac) {
 			unsigned int tval;
 			/* isdigit is a bit of a hack here.. */
 			if (strchr(*av, (int)'.') == NULL && isdigit(**av))  {
-				ent.value = strtoul(*av, NULL, 0);
+				xent.value = strtoul(*av, NULL, 0);
 			} else {
 				if (lookup_host(*av, (struct in_addr *)&tval) == 0) {
 					/* The value must be stored in host order	 *
 					 * so that the values < 65k can be distinguished */
-		       			ent.value = ntohl(tval);
+		       			xent.value = ntohl(tval);
 				} else {
 					errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
 				}
 			}
 		} else
-			ent.value = 0;
-		if (do_cmd(do_add ? IP_FW_TABLE_ADD : IP_FW_TABLE_DEL,
-		    &ent, sizeof(ent)) < 0) {
+			xent.value = 0;
+		if (do_setcmd3(do_add ? IP_FW_TABLE_XADD : IP_FW_TABLE_XDEL,
+		    &xent, xent.len) < 0) {
 			/* If running silent, don't bomb out on these errors. */
 			if (!(co.do_quiet && (errno == (do_add ? EEXIST : ESRCH))))
 				err(EX_OSERR, "setsockopt(IP_FW_TABLE_%s)",
-				    do_add ? "ADD" : "DEL");
+				    do_add ? "XADD" : "XDEL");
 			/* In silent mode, react to a failed add by deleting */
 			if (do_add) {
-				do_cmd(IP_FW_TABLE_DEL, &ent, sizeof(ent));
-				if (do_cmd(IP_FW_TABLE_ADD,
-				    &ent, sizeof(ent)) < 0)
+				do_setcmd3(IP_FW_TABLE_XDEL, &xent, xent.len);
+				if (do_setcmd3(IP_FW_TABLE_XADD, &xent, xent.len) < 0)
 					err(EX_OSERR,
-					    "setsockopt(IP_FW_TABLE_ADD)");
+					    "setsockopt(IP_FW_TABLE_XADD)");
 			}
 		}
 	} else if (_substrcmp(*av, "flush") == 0) {
-		a = is_all ? tables_max : (uint32_t)(ent.tbl + 1);
+		a = is_all ? tables_max : (uint32_t)(xent.tbl + 1);
 		do {
-			if (do_cmd(IP_FW_TABLE_FLUSH, &ent.tbl,
-			    sizeof(ent.tbl)) < 0)
+			if (do_cmd(IP_FW_TABLE_FLUSH, &xent.tbl,
+			    sizeof(xent.tbl)) < 0)
 				err(EX_OSERR, "setsockopt(IP_FW_TABLE_FLUSH)");
-		} while (++ent.tbl < a);
+		} while (++xent.tbl < a);
 	} else if (_substrcmp(*av, "list") == 0) {
-		a = is_all ? tables_max : (uint32_t)(ent.tbl + 1);
+		a = is_all ? tables_max : (uint32_t)(xent.tbl + 1);
 		do {
-			table_list(ent, is_all);
-		} while (++ent.tbl < a);
+			table_list(xent.tbl, is_all);
+		} while (++xent.tbl < a);
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
 }
 
 static void
-table_list(ipfw_table_entry ent, int need_header)
+table_list(uint16_t num, int need_header)
 {
-	ipfw_table *tbl;
+	ipfw_xtable *tbl;
+	ipfw_table_xentry *xent;
 	socklen_t l;
-	uint32_t a;
+	uint32_t *a, sz, tval;
+	char tbuf[128];
+	struct in6_addr *addr6;
+	ip_fw3_opheader *op3;
 
-	a = ent.tbl;
-	l = sizeof(a);
-	if (do_cmd(IP_FW_TABLE_GETSIZE, &a, (uintptr_t)&l) < 0)
-		err(EX_OSERR, "getsockopt(IP_FW_TABLE_GETSIZE)");
+	/* Prepend value with IP_FW3 header */
+	l = sizeof(ip_fw3_opheader) + sizeof(uint32_t);
+	op3 = alloca(l);
+	/* Zero reserved fields */
+	memset(op3, 0, sizeof(ip_fw3_opheader));
+	a = (uint32_t *)(op3 + 1);
+	*a = num;
+	op3->opcode = IP_FW_TABLE_XGETSIZE;
+	if (do_cmd(IP_FW3, op3, (uintptr_t)&l) < 0)
+		err(EX_OSERR, "getsockopt(IP_FW_TABLE_XGETSIZE)");
 
 	/* If a is zero we have nothing to do, the table is empty. */
-	if (a == 0)
+	if (*a == 0)
 		return;
 
-	l = sizeof(*tbl) + a * sizeof(ipfw_table_entry);
+	l = *a;
 	tbl = safe_calloc(1, l);
-	tbl->tbl = ent.tbl;
-	if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
-		err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
+	tbl->opheader.opcode = IP_FW_TABLE_XLIST;
+	tbl->tbl = num;
+	if (do_cmd(IP_FW3, tbl, (uintptr_t)&l) < 0)
+		err(EX_OSERR, "getsockopt(IP_FW_TABLE_XLIST)");
 	if (tbl->cnt && need_header)
 		printf("---table(%d)---\n", tbl->tbl);
-	for (a = 0; a < tbl->cnt; a++) {
-		unsigned int tval;
-		tval = tbl->ent[a].value;
-		if (co.do_value_as_ip) {
-			char tbuf[128];
-			strncpy(tbuf, inet_ntoa(*(struct in_addr *)
-				&tbl->ent[a].addr), 127);
-			/* inet_ntoa expects network order */
-			tval = htonl(tval);
-			printf("%s/%u %s\n", tbuf, tbl->ent[a].masklen,
-				inet_ntoa(*(struct in_addr *)&tval));
-		} else {
-			printf("%s/%u %u\n",
-				inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
-				tbl->ent[a].masklen, tval);
+	sz = tbl->size - sizeof(ipfw_xtable);
+	xent = &tbl->xent[0];
+	while (sz > 0) {
+		switch (tbl->type) {
+		case IPFW_TABLE_CIDR:
+			/* IPv4 or IPv6 prefixes */
+			tval = xent->value;
+			addr6 = &xent->k.addr6;
+
+			if ((addr6->s6_addr32[0] == 0) && (addr6->s6_addr32[1] == 0) && 
+			    (addr6->s6_addr32[2] == 0)) {
+				/* IPv4 address */
+				inet_ntop(AF_INET, &addr6->s6_addr32[3], tbuf, sizeof(tbuf));
+			} else {
+				/* IPv6 address */
+				inet_ntop(AF_INET6, addr6, tbuf, sizeof(tbuf));
+			}
+
+			if (co.do_value_as_ip) {
+				tval = htonl(tval);
+				printf("%s/%u %s\n", tbuf, xent->masklen,
+				    inet_ntoa(*(struct in_addr *)&tval));
+			} else
+				printf("%s/%u %u\n", tbuf, xent->masklen, tval);
+			break;
+		case IPFW_TABLE_INTERFACE:
+			/* Interface names */
+			tval = xent->value;
+			if (co.do_value_as_ip) {
+				tval = htonl(tval);
+				printf("%s %s\n", xent->k.iface,
+				    inet_ntoa(*(struct in_addr *)&tval));
+			} else
+				printf("%s %u\n", xent->k.iface, tval);
 		}
+
+		if (sz < xent->len)
+			break;
+		sz -= xent->len;
+		xent = (void *)xent + xent->len;
 	}
+
 	free(tbl);
 }
