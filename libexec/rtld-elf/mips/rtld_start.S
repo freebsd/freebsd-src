@@ -68,11 +68,11 @@ LEAF(rtld_start)
 	move	a0, s0			/* sp */
 	PTR_ADDU a1, sp, 2*PTR_SIZE	/* &our atexit function */
 	PTR_ADDU a2, sp, 3*PTR_SIZE	/* obj_main entry */
-	subu	sp, 4*SZREG		/* ABI requires to reserve memory for 4 regs */
+	PTR_SUBU sp, 4*SZREG		/* ABI requires to reserve memory for 4 regs */
 	PTR_LA	t9, _C_LABEL(_rtld)
 	jalr	t9			/* v0 = _rtld(sp, cleanup, objp) */
 	nop
-	addu	sp, 4*SZREG
+	PTR_ADDU sp, 4*SZREG
 
 	PTR_L	a1, 2*PTR_SIZE(sp)	/* our atexit function */
 	PTR_L	a2, 3*PTR_SIZE(sp)	/* obj_main entry */
