@@ -797,7 +797,7 @@ trap_pfault(frame, usermode, eva)
 	vm_offset_t eva;
 {
 	vm_offset_t va;
-	struct vmspace *vm = NULL;
+	struct vmspace *vm;
 	vm_map_t map;
 	int rv = 0;
 	vm_prot_t ftype;
@@ -816,7 +816,7 @@ trap_pfault(frame, usermode, eva)
 		 */
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 		if ((eva == (unsigned int)&idt[6]) && has_f00f_bug)
-			return -2;
+			return (-2);
 #endif
 		if (usermode)
 			goto nogo;
@@ -824,17 +824,21 @@ trap_pfault(frame, usermode, eva)
 		map = kernel_map;
 	} else {
 		/*
-		 * This is a fault on non-kernel virtual memory.
-		 * vm is initialized above to NULL. If curproc is NULL
-		 * or curproc->p_vmspace is NULL the fault is fatal.
+		 * This is a fault on non-kernel virtual memory.  If either
+		 * p or p->p_vmspace is NULL, then the fault is fatal.
 		 */
-		if (p != NULL)
-			vm = p->p_vmspace;
-
-		if (vm == NULL)
+		if (p == NULL || (vm = p->p_vmspace) == NULL)
 			goto nogo;
 
 		map = &vm->vm_map;
+
+		/*
+		 * When accessing a user-space address, kernel must be
+		 * ready to accept the page fault, and provide a
+		 * handling routine.  Since accessing the address
+		 * without the handler is a bug, do not try to handle
+		 * it normally, and panic immediately.
+		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
 		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
@@ -889,8 +893,7 @@ nogo:
 		trap_fatal(frame, eva);
 		return (-1);
 	}
-
-	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+	return ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
 
 static void
