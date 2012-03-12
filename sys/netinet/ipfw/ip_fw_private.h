@@ -209,8 +209,8 @@ VNET_DECLARE(u_int32_t, set_disable);
 VNET_DECLARE(int, autoinc_step);
 #define V_autoinc_step		VNET(autoinc_step)
 
-VNET_DECLARE(int, fw_tables_max);
-#define V_fw_tables_max		VNET(fw_tables_max)
+extern int fw_tables_max;
+#define V_fw_tables_max		fw_tables_max
 
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
