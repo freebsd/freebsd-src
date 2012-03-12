@@ -184,6 +184,7 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 	case IFT_IP:
 	case IFT_IPOVERCDLC:
 	case IFT_IPOVERCLAW:
+	case IFT_PROPVIRTUAL:	/* NetGraph Virtual too */
 	case IFT_VIRTUALIPADDRESS:
 		result = 1;
 		break;
