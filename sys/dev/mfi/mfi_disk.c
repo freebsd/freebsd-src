@@ -265,7 +265,7 @@ mfi_disk_strategy(struct bio *bio)
 		bio->bio_error = EBUSY;
 		return;
 	}
-	
+
 	if (controller->issuepend_done == 0){
 		bio->bio_error = EBUSY;
 		return;

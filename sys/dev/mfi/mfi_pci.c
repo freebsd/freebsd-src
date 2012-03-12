@@ -108,7 +108,7 @@ static devclass_t	mfi_devclass;
 DRIVER_MODULE(mfi, pci, mfi_pci_driver, mfi_devclass, 0, 0);
 MODULE_VERSION(mfi, 1);
 
-static int	mfi_msi = 0;
+static int	mfi_msi = 1;
 TUNABLE_INT("hw.mfi.msi", &mfi_msi);
 SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
     "Enable use of MSI interrupts");
@@ -277,8 +277,6 @@ static int
 mfi_pci_detach(device_t dev)
 {
 	struct mfi_softc *sc;
-	//struct mfi_disk *ld;
-	//struct mfi_system_pd *syspd = NULL;
 	int error, devcount, i;
 	device_t *devlist;
 
@@ -293,41 +291,14 @@ mfi_pci_detach(device_t dev)
 	}
 	sc->mfi_detaching = 1;
 	mtx_unlock(&sc->mfi_io_lock);
-	/*
-	  BHARAT: Fixed Kernel Corruption while unloading the driver
-	*/
-	if((error = device_get_children(sc->mfi_dev, &devlist, &devcount)) != 0)
-	{
+
+	if ((error = device_get_children(sc->mfi_dev, &devlist, &devcount)) != 0) {
 		sx_xunlock(&sc->mfi_config_lock);
 		return error;
 	}
-	for(i=0; i < devcount; i++)
+	for (i = 0; i < devcount; i++)
 		device_delete_child(sc->mfi_dev, devlist[i]);
 	free(devlist, M_TEMP);
-	/* 
-	   BHARAT: Following code causes Kernel corruption during 
-	   multiple driver load/unload, this cleanup code was not
-	   getting called up in normal run hence OS was maintaining stale dev
-	   entries which were resulting to crash, so added above 
-	   cleanup code. 
-	*/
-
-	/*while ((ld = TAILQ_FIRST(&sc->mfi_ld_tqh)) != NULL) {
-		if ((error = device_delete_child(dev, ld->ld_dev)) != 0) {
-			sc->mfi_detaching = 0;
-			sx_xunlock(&sc->mfi_config_lock);
-			return (error);
-		}
-	}
-
-	if(!TAILQ_EMPTY(&sc->mfi_syspd_tqh))
-	while ((syspd = TAILQ_FIRST(&sc->mfi_syspd_tqh)) != NULL) {
-		if ((error = device_delete_child(dev,syspd->pd_dev)) != 0) {
-			sc->mfi_detaching = 0;
-			sx_xunlock(&sc->mfi_config_lock);
-			return (error);
-		}
-	}*/
 	sx_xunlock(&sc->mfi_config_lock);
 
 	EVENTHANDLER_DEREGISTER(shutdown_final, sc->mfi_eh);

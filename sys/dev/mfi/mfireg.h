@@ -228,7 +228,7 @@ typedef enum {
 	MFI_DCMD_CFG_ADD =		0x04020000,
 	MFI_DCMD_CFG_CLEAR =		0x04030000,
 	MFI_DCMD_CFG_MAKE_SPARE =	0x04040000,
-	MFI_DCMD_CFG_REMOVE_SPARE =	0x04050000,	
+	MFI_DCMD_CFG_REMOVE_SPARE =	0x04050000,
 	MFI_DCMD_CFG_FOREIGN_IMPORT =	0x04060400,
 	MFI_DCMD_BBU_GET_STATUS =	0x05010000,
 	MFI_DCMD_BBU_GET_CAPACITY_INFO =0x05020000,
@@ -283,8 +283,6 @@ typedef enum {
 
 #define MPI2_FUNCTION_PASSTHRU_IO_REQUEST       0xF0
 #define MPI2_FUNCTION_LD_IO_REQUEST             0xF1
-/* TODO remove this and place the right AEN */
-#define MR_EVT_LD_FAST_PATH_IO_STATUS_CHANGED   (0xFFFF)
 
 #define MR_INTERNAL_MFI_FRAMES_SMID             1
 #define MR_CTRL_EVENT_WAIT_SMID                 2
@@ -401,6 +399,10 @@ typedef enum {
 	MR_EVT_ARGS_TIME,
 	MR_EVT_ARGS_ECC
 } mfi_evt_args;
+
+#define MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED	0x0152
+#define MR_EVT_PD_REMOVED			0x0070
+#define MR_EVT_PD_INSERTED			0x005b
 
 typedef enum {
 	MR_LD_CACHE_WRITE_BACK =	0x01,
@@ -1358,7 +1360,7 @@ struct mfi_bbu_status {
 	uint8_t			battery_type;
 #define	MFI_BBU_TYPE_NONE	0
 #define	MFI_BBU_TYPE_IBBU	1
-#define	MFI_BBU_TYPE_BBU	2	
+#define	MFI_BBU_TYPE_BBU	2
 	uint8_t			reserved;
 	uint16_t		voltage;
 	int16_t			current;
