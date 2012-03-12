@@ -478,19 +478,6 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 * that are needed.
 	 */
 }
-/*
- * Convert kernel VA to physical address
- */
-u_long
-kvtop(void *addr)
-{
-	vm_offset_t va;
-
-	va = pmap_kextract((vm_offset_t)addr);
-	if (va == 0)
-		panic("kvtop: zero page frame");
-	return((intptr_t)va);
-}
 
 /*
  * Implement the pre-zeroed page mechanism.

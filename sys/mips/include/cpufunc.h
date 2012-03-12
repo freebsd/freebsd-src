@@ -468,6 +468,5 @@ void insl(uint32_t *, uint32_t *,int);
 void outsb(uint8_t *, const uint8_t *,int);
 void outsw(uint16_t *, const uint16_t *,int);
 void outsl(uint32_t *, const uint32_t *,int);
-u_int loadandclear(volatile u_int *addr);
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

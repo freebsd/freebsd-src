@@ -80,11 +80,6 @@ struct mdproc {
 };
 
 #ifdef _KERNEL
-struct thread;
-
-void	mips_cpu_switch(struct thread *, struct thread *, struct mtx *);
-void	mips_cpu_throw(struct thread *, struct thread *);
-
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
