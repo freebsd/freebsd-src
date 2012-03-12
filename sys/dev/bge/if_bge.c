@@ -380,6 +380,7 @@ static void bge_dma_free(struct bge_softc *);
 static int bge_dma_ring_alloc(struct bge_softc *, bus_size_t, bus_size_t,
     bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *, const char *);
 
+static void bge_devinfo(struct bge_softc *);
 static int bge_mbox_reorder(struct bge_softc *);
 
 static int bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[]);
@@ -2803,6 +2804,59 @@ bge_mbox_reorder(struct bge_softc *sc)
 	return (0);
 }
 
+static void
+bge_devinfo(struct bge_softc *sc)
+{
+	uint32_t cfg, clk;
+
+	device_printf(sc->bge_dev,
+	    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; ",
+	    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev);
+	if (sc->bge_flags & BGE_FLAG_PCIE)
+		printf("PCI-E\n");
+	else if (sc->bge_flags & BGE_FLAG_PCIX) {
+		printf("PCI-X ");
+		cfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID_MASK;
+		if (cfg == BGE_MISCCFG_BOARD_ID_5704CIOBE)
+			clk = 133;
+		else {
+			clk = CSR_READ_4(sc, BGE_PCI_CLKCTL) & 0x1F;
+			switch (clk) {
+			case 0:
+				clk = 33;
+				break;
+			case 2:
+				clk = 50;
+				break;
+			case 4:
+				clk = 66;
+				break;
+			case 6:
+				clk = 100;
+				break;
+			case 7:
+				clk = 133;
+				break;
+			}
+		}
+		printf("%u MHz\n", clk);
+	} else {
+		if (sc->bge_pcixcap != 0)
+			printf("PCI on PCI-X ");
+		else
+			printf("PCI ");
+		cfg = pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4);
+		if (cfg & BGE_PCISTATE_PCI_BUSSPEED)
+			clk = 66;
+		else
+			clk = 33;
+		if (cfg & BGE_PCISTATE_32BIT_BUS)
+			printf("%u MHz; 32bit\n", clk);
+		else
+			printf("%u MHz; 64bit\n", clk);
+	}
+}
+
 static int
 bge_attach(device_t dev)
 {
@@ -3031,7 +3085,7 @@ bge_attach(device_t dev)
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5719)
 		sc->bge_flags |= BGE_FLAG_4K_RDMA_BUG;
 
-	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
+	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID_MASK;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
 		if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
 		    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
@@ -3171,11 +3225,7 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-	device_printf(dev,
-	    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
-	    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
-	    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
-	    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
+	bge_devinfo(sc);
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
