@@ -4489,6 +4489,12 @@ bge_stats_update(struct bge_softc *sc)
 	ifp->if_collisions += (uint32_t)(cnt - sc->bge_tx_collisions);
 	sc->bge_tx_collisions = cnt;
 
+	cnt = READ_STAT(sc, stats, nicNoMoreRxBDs.bge_addr_lo);
+	ifp->if_ierrors += (uint32_t)(cnt - sc->bge_rx_nobds);
+	sc->bge_rx_nobds = cnt;
+	cnt = READ_STAT(sc, stats, ifInErrors.bge_addr_lo);
+	ifp->if_ierrors += (uint32_t)(cnt - sc->bge_rx_inerrs);
+	sc->bge_rx_inerrs = cnt;
 	cnt = READ_STAT(sc, stats, ifInDiscards.bge_addr_lo);
 	ifp->if_ierrors += (uint32_t)(cnt - sc->bge_rx_discards);
 	sc->bge_rx_discards = cnt;
