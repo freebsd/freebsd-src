@@ -1134,12 +1134,18 @@ network6_default_interface_setup()
 	route add -inet6 fe80:: -prefixlen 10 ::1 -reject
 	case ${ipv6_default_interface} in
 	[Nn][Oo] | '')
-		i=0
-		while test ${i} -lt ${fibs}; do
-			setfib -F ${i} \
-			    route add -inet6 ff02:: -prefixlen 16 ::1 -reject
-			i=$((i + 1))
-		done
+		route add -inet6 ff02:: -prefixlen 16 ::1 -reject
+		i=1
+		if test ${i} -lt ${fibs}; then
+			printf "Also installing reject routes for FIBs"
+			while test ${i} -lt ${fibs}; do
+				setfib -F ${i} route add -inet6 \
+				    ff02:: -prefixlen 16 ::1 -reject
+				printf " %d" ${i}
+				i=$((i + 1))
+			done
+			printf "\n"
+		fi
 		;;
 	*)
 		laddr=`network6_getladdr ${ipv6_default_interface}`
@@ -1147,11 +1153,16 @@ network6_default_interface_setup()
 		# route to all others.
 		route add -inet6 ff02:: ${laddr} -prefixlen 16 -interface
 		i=1
-		while test ${i} -lt ${fibs}; do
-			setfib -F ${i} \
-			    route add -inet6 ff02:: -prefixlen 16 ::1 -reject
-			i=$((i + 1))
-		done
+		if test ${i} -lt ${fibs}; then
+			printf "Also installing reject routes for FIBs"
+			while test ${i} -lt ${fibs}; do
+				setfib -F ${i} route add -inet6 \
+				    ff02:: -prefixlen 16 ::1 -reject
+				printf " %d" ${i}
+				i=$((i + 1))
+			done
+			printf "\n"
+		fi
 
 		# Disable installing the default interface with the
 		# case net.inet6.ip6.forwarding=0 and
