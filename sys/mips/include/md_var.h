@@ -76,9 +76,6 @@ void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
 void	mips_postboot_fixup(void);
 
-/* Platform call-downs. */
-void	platform_identify(void);
-
 extern int busdma_swi_pending;
 void	busdma_swi(void);
 

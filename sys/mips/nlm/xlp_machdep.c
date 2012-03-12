@@ -561,22 +561,6 @@ platform_cpu_init()
 }
 
 void
-platform_identify(void)
-{
-
-	printf("XLP Eval Board\n");
-}
-
-/*
- * XXX Maybe return the state of the watchdog in enter, and pass it to
- * exit?  Like spl().
- */
-void
-platform_trap_enter(void)
-{
-}
-
-void
 platform_reset(void)
 {
 	uint64_t sysbase = nlm_get_sys_regbase(0);
@@ -584,11 +568,6 @@ platform_reset(void)
 	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
 	for( ; ; )
 		__asm __volatile("wait");
-}
-
-void
-platform_trap_exit(void)
-{
 }
 
 #ifdef SMP
