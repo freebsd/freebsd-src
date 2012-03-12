@@ -2861,6 +2861,8 @@ struct bge_softc {
 	int			bge_csum_features;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;
+	uint32_t		bge_rx_inerrs;
+	uint32_t		bge_rx_nobds;
 	uint32_t		bge_tx_discards;
 	uint32_t		bge_tx_collisions;
 #ifdef DEVICE_POLLING
