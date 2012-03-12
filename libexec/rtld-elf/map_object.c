@@ -149,7 +149,10 @@ map_object(int fd, const char *path, const struct stat *sb)
 	    break;
 
 	case PT_NOTE:
-	    note_start = (Elf_Addr)obj->relocbase + phdr->p_offset;
+	    if (phdr->p_offset > PAGE_SIZE ||
+	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE)
+		break;
+	    note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
 	    note_end = note_start + phdr->p_filesz;
 	    digest_notes(obj, note_start, note_end);
 	    break;
