@@ -1547,7 +1547,7 @@ alloc(void)
 	 * block here which we have to relocate a couple of seconds later again
 	 * again, and we are not prepared to to this anyway.
 	 */
-	blkno =- 1;
+	blkno = -1;
 	dlower = cgsblock(&sblock, acg.cg_cgx) - cgbase(&sblock, acg.cg_cgx);
 	dupper = cgdmin(&sblock, acg.cg_cgx) - cgbase(&sblock, acg.cg_cgx);
 	dmax = cgbase(&sblock, acg.cg_cgx) + sblock.fs_fpg;
