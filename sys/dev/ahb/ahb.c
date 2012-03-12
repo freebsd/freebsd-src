@@ -291,7 +291,6 @@ ahbattach(device_t dev)
 	 * need to perform during normal operation.
 	 */
 	/* DMA tag for mapping buffers into device visible space. */
-	/* XXX Should be a child of the EISA bus dma tag */
 	if (bus_dma_tag_create(	/* parent	*/ bus_get_dma_tag(dev),
 				/* alignment	*/ 1,
 				/* boundary	*/ 0,
