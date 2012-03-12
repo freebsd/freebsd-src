@@ -626,21 +626,21 @@ uaudio_attach(device_t dev)
 	    sc->sc_mixer_count);
 
 	if (sc->sc_play_chan.valid) {
-		device_printf(dev, "Play: %d Hz, %d ch, %s format\n",
+		device_printf(dev, "Play: %d Hz, %d ch, %s format.\n",
 		    sc->sc_play_chan.sample_rate,
 		    sc->sc_play_chan.p_asf1d->bNrChannels,
 		    sc->sc_play_chan.p_fmt->description);
 	} else {
-		device_printf(dev, "No playback!\n");
+		device_printf(dev, "No playback.\n");
 	}
 
 	if (sc->sc_rec_chan.valid) {
-		device_printf(dev, "Record: %d Hz, %d ch, %s format\n",
+		device_printf(dev, "Record: %d Hz, %d ch, %s format.\n",
 		    sc->sc_rec_chan.sample_rate,
 		    sc->sc_rec_chan.p_asf1d->bNrChannels,
 		    sc->sc_rec_chan.p_fmt->description);
 	} else {
-		device_printf(dev, "No recording!\n");
+		device_printf(dev, "No recording.\n");
 	}
 
 	if (sc->sc_midi_chan.valid) {
@@ -648,9 +648,9 @@ uaudio_attach(device_t dev)
 		if (umidi_probe(dev)) {
 			goto detach;
 		}
-		device_printf(dev, "MIDI sequencer\n");
+		device_printf(dev, "MIDI sequencer.\n");
 	} else {
-		device_printf(dev, "No midi sequencer\n");
+		device_printf(dev, "No midi sequencer.\n");
 	}
 
 	DPRINTF("doing child attach\n");
@@ -659,13 +659,21 @@ uaudio_attach(device_t dev)
 
 	sc->sc_sndcard_func.func = SCF_PCM;
 
-	child = device_add_child(dev, "pcm", -1);
+	/*
+	 * Only attach a PCM device if we have a playback, recording
+	 * or mixer device present:
+	 */
+	if (sc->sc_play_chan.valid ||
+	    sc->sc_rec_chan.valid ||
+	    sc->sc_mix_info) {
+		child = device_add_child(dev, "pcm", -1);
 
-	if (child == NULL) {
-		DPRINTF("out of memory\n");
-		goto detach;
+		if (child == NULL) {
+			DPRINTF("out of memory\n");
+			goto detach;
+		}
+		device_set_ivars(child, &sc->sc_sndcard_func);
 	}
-	device_set_ivars(child, &sc->sc_sndcard_func);
 
 	if (bus_generic_attach(dev)) {
 		DPRINTF("child attach failed\n");
