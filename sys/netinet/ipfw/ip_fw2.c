@@ -117,7 +117,7 @@ VNET_DEFINE(int, autoinc_step);
 VNET_DEFINE(int, fw_one_pass) = 1;
 
 /* Use 128 tables by default */
-VNET_DEFINE(int, fw_tables_max) = IPFW_TABLES_MAX;
+int fw_tables_max = IPFW_TABLES_MAX;
 
 /*
  * Each rule belongs to one of 32 different sets (0..31).
