@@ -89,10 +89,15 @@ TUNABLE_INT("hw.usb.no_boot_wait", &usb_no_boot_wait);
 SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RDTUN, &usb_no_boot_wait, 0,
     "No USB device enumerate waiting at boot.");
 
+static int usb_no_suspend_wait = 0;
+TUNABLE_INT("hw.usb.no_suspend_wait", &usb_no_suspend_wait);
+SYSCTL_INT(_hw_usb, OID_AUTO, no_suspend_wait, CTLFLAG_RW|CTLFLAG_TUN,
+    &usb_no_suspend_wait, 0, "No USB device waiting at system suspend.");
+
 static int usb_no_shutdown_wait = 0;
 TUNABLE_INT("hw.usb.no_shutdown_wait", &usb_no_shutdown_wait);
-SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RW|CTLFLAG_TUN, &usb_no_shutdown_wait, 0,
-    "No USB device waiting at system shutdown.");
+SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RW|CTLFLAG_TUN,
+    &usb_no_shutdown_wait, 0, "No USB device waiting at system shutdown.");
 
 static devclass_t usb_devclass;
 
@@ -239,6 +244,11 @@ usb_suspend(device_t dev)
 	USB_BUS_LOCK(bus);
 	usb_proc_msignal(&bus->explore_proc,
 	    &bus->suspend_msg[0], &bus->suspend_msg[1]);
+	if (usb_no_suspend_wait == 0) {
+		/* wait for suspend callback to be executed */
+		usb_proc_mwait(&bus->explore_proc,
+		    &bus->suspend_msg[0], &bus->suspend_msg[1]);
+	}
 	USB_BUS_UNLOCK(bus);
 
 	return (0);
@@ -405,6 +415,15 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 		return;
 
 	USB_BUS_UNLOCK(bus);
+
+	/*
+	 * We use the shutdown event here because the suspend and
+	 * resume events are reserved for the USB port suspend and
+	 * resume. The USB system suspend is implemented like full
+	 * shutdown and all connected USB devices will be disconnected
+	 * subsequently. At resume all USB devices will be
+	 * re-connected again.
+	 */
 
 	bus_generic_shutdown(bus->bdev);
 
