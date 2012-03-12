@@ -678,6 +678,7 @@ vendor QISDA		0x1da5  Qisda
 vendor METAGEEK2	0x1dd5	MetaGeek
 vendor ALINK		0x1e0e  Alink
 vendor AIRTIES		0x1eda	AirTies
+vendor VERTEX		0x1fe7  Vertex Wireless Co., Ltd.
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
 vendor HAUPPAUGE2	0x2040	Hauppauge Computer Works
@@ -2666,6 +2667,7 @@ product QUALCOMM2 MF330		0x6613	MF330
 product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMM2 AC8700	0x6000	AC8700
+product QUALCOMM2 VW110L	0x1000	Vertex Wireless 110L modem
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
 product QUALCOMMINC E0002	0x0002	3G modem
 product QUALCOMMINC E0003	0x0003	3G modem
@@ -2733,6 +2735,7 @@ product QUALCOMMINC E0078	0x0078	3G modem
 product QUALCOMMINC E0082	0x0082	3G modem
 product QUALCOMMINC E0086	0x0086	3G modem
 product QUALCOMMINC SURFSTICK	0x0117	1&1 Surf Stick
+product QUALCOMMINC K3772_Z	0x1179	3G modem
 product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 product QUALCOMMINC E2002	0x2002	3G modem
 product QUALCOMMINC E2003	0x2003	3G modem
@@ -3360,6 +3363,9 @@ product VIA USB2IDEBRIDGE	0x6204	USB 2.0 IDE Bridge
 
 /* Vaisala products */
 product VAISALA CABLE		0x0200	USB Interface cable
+
+/* Vertex products */
+product VERTEX VW110L		0x0100	Vertex VW110L modem
 
 /* VidzMedia products */
 product VIDZMEDIA MONSTERTV	0x4fb1	MonsterTV P2H
