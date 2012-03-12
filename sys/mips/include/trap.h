@@ -118,10 +118,4 @@ void MipsUserIntr(void);
 
 register_t trap(struct trapframe *);
 
-#ifndef LOCORE /* XXX */
-int check_address(void *);
-void platform_trap_enter(void);
-void platform_trap_exit(void);
-#endif
-
 #endif /* !_MACHINE_TRAP_H_ */
