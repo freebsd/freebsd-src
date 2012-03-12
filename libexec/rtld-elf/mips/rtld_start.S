@@ -79,7 +79,7 @@ LEAF(rtld_start)
 	PTR_ADDU sp, 4*PTR_SIZE		/* readjust stack */
 	move	a0, s0			/* stack pointer */
 	move	t9, v0
-	subu	sp, 4*SZREG		/* ABI requires to reserve memory for 4 regs */
+	PTR_SUBU sp, 4*SZREG		/* ABI requires to reserve memory for 4 regs */
 	jr	t9			/* _start(sp, cleanup, obj); */
 	move	a3, s3			/* restore ps_strings */
 END(rtld_start)
