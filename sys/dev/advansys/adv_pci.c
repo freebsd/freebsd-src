@@ -187,7 +187,6 @@ adv_pci_attach(device_t dev)
 	}
 
 	/* Allocate a dmatag for our transfer DMA maps */
-	/* XXX Should be a child of the PCI bus dma tag */
 	error = bus_dma_tag_create(
 			/* parent	*/ bus_get_dma_tag(dev),
 			/* alignment	*/ 1,
