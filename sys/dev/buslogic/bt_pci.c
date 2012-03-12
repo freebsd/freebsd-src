@@ -172,7 +172,6 @@ bt_pci_attach(device_t dev)
 	}
 
 	/* Allocate a dmatag for our CCB DMA maps */
-	/* XXX Should be a child of the PCI bus dma tag */
 	if (bus_dma_tag_create(	/* PCI parent	*/ bus_get_dma_tag(dev),
 				/* alignemnt	*/ 1,
 				/* boundary	*/ 0,
