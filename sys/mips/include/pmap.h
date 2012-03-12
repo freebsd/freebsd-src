@@ -163,7 +163,6 @@ void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr);
 void pmap_kremove(vm_offset_t va);
 void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
-int pmap_compute_pages_to_dump(void);
 void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
 void pmap_grow_direct_page_cache(void);

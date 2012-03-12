@@ -397,17 +397,6 @@ mips_postboot_fixup(void)
 #endif
 }
 
-/*
- * Many SoCs have a means to reset the core itself.  Others do not, or
- * the method is unknown to us.  For those cases, we jump to the mips
- * reset vector and hope for the best.  This works well in practice.
- */
-void
-mips_generic_reset()
-{
-	((void(*)(void))MIPS_RESET_EXC_VEC)();
-}
-
 #ifdef SMP
 void
 mips_pcpu_tlb_init(struct pcpu *pcpu)
