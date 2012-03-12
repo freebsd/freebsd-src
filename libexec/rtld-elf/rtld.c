@@ -1895,7 +1895,7 @@ preinit_main(void)
     int index;
 
     preinit_addr = (Elf_Addr *)obj_main->preinit_array;
-    if (preinit_addr == (Elf_Addr)NULL)
+    if (preinit_addr == (Elf_Addr *)NULL)
 	return;
 
     for (index = 0; index < obj_main->preinit_array_num; index++) {
@@ -2036,7 +2036,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	    call_initfini_pointer(elm->obj, elm->obj->init);
 	}
 	init_addr = (Elf_Addr *)elm->obj->init_array;
-	if (init_addr != (Elf_Addr)NULL) {
+	if (init_addr != (Elf_Addr *)NULL) {
 	    for (index = 0; index < elm->obj->init_array_num; index++) {
 		if (init_addr[index] != 0 && init_addr[index] != 1) {
 		    dbg("calling init function for %s at %p", elm->obj->path,
