@@ -152,6 +152,7 @@
 
 #define	MCS7730	0x0001
 #define	MCS7830	0x0002
+#define	MCS7832	0x0004
 
 #define	MOS_INC(x, y)           (x) = (x + 1) % y
 
