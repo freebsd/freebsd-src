@@ -54,15 +54,12 @@
  *	assembly language support routines.
  */
 
-#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pte.h>
-
-#include "opt_cputype.h"
 
 #include "assym.s"
 

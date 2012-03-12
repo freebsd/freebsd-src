@@ -31,7 +31,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_cputype.h"
 
 #define __ELF_WORD_SIZE 32
 
