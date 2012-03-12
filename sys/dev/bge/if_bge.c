@@ -380,6 +380,8 @@ static void bge_dma_free(struct bge_softc *);
 static int bge_dma_ring_alloc(struct bge_softc *, bus_size_t, bus_size_t,
     bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *, const char *);
 
+static int bge_mbox_reorder(struct bge_softc *);
+
 static int bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[]);
 static int bge_get_eaddr_mem(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr_nvram(struct bge_softc *, uint8_t[]);
@@ -635,6 +637,8 @@ bge_writembx(struct bge_softc *sc, int off, int val)
 		off += BGE_LPMBX_IRQ0_HI - BGE_MBX_IRQ0_HI;
 
 	CSR_WRITE_4(sc, off, val);
+	if ((sc->bge_flags & BGE_FLAG_MBOX_REORDER) != 0)
+		CSR_READ_4(sc, off);
 }
 
 /*
@@ -2584,10 +2588,10 @@ bge_dma_alloc(struct bge_softc *sc)
 		 * XXX
 		 * watchdog timeout issue was observed on BCM5704 which
 		 * lives behind PCI-X bridge(e.g AMD 8131 PCI-X bridge).
-		 * Limiting DMA address space to 32bits seems to address
-		 * it.
+		 * Both limiting DMA address space to 32bits and flushing
+		 * mailbox write seem to address the issue.
 		 */
-		if (sc->bge_flags & BGE_FLAG_PCIX)
+		if (sc->bge_pcixcap != 0)
 			lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	}
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev), 1, 0, lowaddr,
@@ -2747,6 +2751,56 @@ bge_can_use_msi(struct bge_softc *sc)
 			can_use_msi = 1;
 	}
 	return (can_use_msi);
+}
+
+static int
+bge_mbox_reorder(struct bge_softc *sc)
+{
+	/* Lists of PCI bridges that are known to reorder mailbox writes. */
+	static const struct mbox_reorder {
+		const uint16_t vendor;
+		const uint16_t device;
+		const char *desc;
+	} const mbox_reorder_lists[] = {
+		{ 0x1022, 0x7450, "AMD-8131 PCI-X Bridge" },
+	};
+	devclass_t pci, pcib;
+	device_t bus, dev;
+	int count, i;
+
+	count = sizeof(mbox_reorder_lists) / sizeof(mbox_reorder_lists[0]);
+	pci = devclass_find("pci");
+	pcib = devclass_find("pcib");
+	dev = sc->bge_dev;
+	bus = device_get_parent(dev);
+	for (;;) {
+		dev = device_get_parent(bus);
+		bus = device_get_parent(dev);
+		device_printf(sc->bge_dev, "dev : %s%d, bus : %s%d\n",
+		    device_get_name(dev), device_get_unit(dev),
+		    device_get_name(bus), device_get_unit(bus));
+		if (device_get_devclass(dev) != pcib)
+			break;
+		for (i = 0; i < count; i++) {
+			device_printf(sc->bge_dev,
+			    "probing dev : %s%d, vendor : 0x%04x "
+			    "device : 0x%04x\n",
+			    device_get_name(dev), device_get_unit(dev),
+			    pci_get_vendor(dev), pci_get_device(dev));
+			if (pci_get_vendor(dev) ==
+			    mbox_reorder_lists[i].vendor &&
+			    pci_get_device(dev) ==
+			    mbox_reorder_lists[i].device) {
+				device_printf(sc->bge_dev,
+				    "enabling MBOX workaround for %s\n",
+				    mbox_reorder_lists[i].desc);
+				return (1);
+			}
+		}
+		if (device_get_devclass(bus) != pci)
+			break;
+	}
+	return (0);
 }
 
 static int
@@ -3068,6 +3122,16 @@ bge_attach(device_t dev)
 	 */
 	if (BGE_IS_5714_FAMILY(sc) && (sc->bge_flags & BGE_FLAG_PCIX))
 		sc->bge_flags |= BGE_FLAG_40BIT_BUG;
+	/*
+	 * Some PCI-X bridges are known to trigger write reordering to
+	 * the mailbox registers. Typical phenomena is watchdog timeouts
+	 * caused by out-of-order TX completions.  Enable workaround for
+	 * PCI-X devices that live behind these bridges.
+	 * Note, PCI-X controllers can run in PCI mode so we can't use
+	 * BGE_FLAG_PCIX flag to detect PCI-X controllers.
+	 */
+	if (sc->bge_pcixcap != 0 && bge_mbox_reorder(sc) != 0)
+		sc->bge_flags |= BGE_FLAG_MBOX_REORDER;
 	/*
 	 * Allocate the interrupt, using MSI if possible.  These devices
 	 * support 8 MSI messages, but only the first one is used in
