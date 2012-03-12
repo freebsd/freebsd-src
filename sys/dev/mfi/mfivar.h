@@ -140,7 +140,6 @@ struct mfi_system_pd {
 
 struct mfi_evt_queue_elm {
 	TAILQ_ENTRY(mfi_evt_queue_elm)	link;
-	uint8_t				probe_sys_pd;
 	struct mfi_evt_detail		detail;
 };
 
@@ -223,6 +222,7 @@ struct mfi_softc {
 	struct mfi_command		*mfi_skinny_cm;
 	uint32_t			mfi_aen_triggered;
 	uint32_t			mfi_poll_waiting;
+	uint32_t			mfi_boot_seq_num;
 	struct selinfo			mfi_select;
 	int				mfi_delete_busy_volumes;
 	int				mfi_keep_deleted_volumes;
@@ -263,7 +263,7 @@ struct mfi_softc {
 	 */
 	int				mfi_max_fw_cmds;
 	/*
-	 * How many S/G elements we'll ever actually use 
+	 * How many S/G elements we'll ever actually use
 	 */
 	int				mfi_max_sge;
 	/*
@@ -340,8 +340,6 @@ struct mfi_softc {
 	uint8_t				max_SGEs_in_main_message;
 	uint8_t				chain_offset_value_for_main_message;
 	uint8_t				chain_offset_value_for_mpt_ptmsg;
-	uint64_t			fast_path_io_AEN_data;
-	uint8_t				shutdown_issued;
 };
 
 union desc_value {

@@ -279,7 +279,7 @@ mfip_start(void *data)
 
 	/* Zero out the MFI frame */
 	context = cm->cm_frame->header.context;
-	bzero(cm->cm_frame,sizeof(union mfi_frame));
+	bzero(cm->cm_frame, sizeof(union mfi_frame));
 	cm->cm_frame->header.context = context;
 
 	pt = &cm->cm_frame->pass;

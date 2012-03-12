@@ -4,8 +4,8 @@
  * are met:
  *
  *            Copyright 1994-2009 The FreeBSD Project.
- *            All rights reserved.   
- *                 
+ *            All rights reserved.
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -14,19 +14,19 @@
  *
  *    THIS SOFTWARE IS PROVIDED BY THE FREEBSD PROJECT``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR 
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FREEBSD PROJECT OR 
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
- * EXEMPLARY,OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FREEBSD PROJECT OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY,OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION)HOWEVER CAUSED AND ON ANY THEORY 
+ * PROFITS; OR BUSINESS INTERRUPTION)HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * The views and conclusions contained in the software and documentation 
- * are those of the authors and should not be interpreted as representing 
- * official policies,either expressed or implied, of the FreeBSD Project.	
+ * The views and conclusions contained in the software and documentation
+ * are those of the authors and should not be interpreted as representing
+ * official policies,either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -155,7 +155,7 @@ mfi_syspd_detach(device_t dev)
 	    (sc->pd_controller->mfi_keep_deleted_volumes ||
 	    sc->pd_controller->mfi_detaching)) {
 		mtx_unlock(&sc->pd_controller->mfi_io_lock);
-		device_printf(dev,"Cant detach syspd\n");
+		device_printf(dev, "Cant detach syspd\n");
 		return (EBUSY);
 	}
 	mtx_unlock(&sc->pd_controller->mfi_io_lock);
@@ -203,12 +203,13 @@ int
 mfi_syspd_disable(struct mfi_system_pd *sc)
 {
 
-	device_printf(sc->pd_dev,"syspd disable \n");
+	device_printf(sc->pd_dev, "syspd disable \n");
 	mtx_assert(&sc->pd_controller->mfi_io_lock, MA_OWNED);
 	if (sc->pd_flags & MFI_DISK_FLAGS_OPEN) {
 		if (sc->pd_controller->mfi_delete_busy_volumes)
 			return (0);
-		device_printf(sc->pd_dev, "Unable to delete busy syspd device\n");
+		device_printf(sc->pd_dev,
+		    "Unable to delete busy syspd device\n");
 		return (EBUSY);
 	}
 	sc->pd_flags |= MFI_DISK_FLAGS_DISABLED;
@@ -219,7 +220,7 @@ void
 mfi_syspd_enable(struct mfi_system_pd *sc)
 {
 
-	device_printf(sc->pd_dev,"syspd enable \n");
+	device_printf(sc->pd_dev, "syspd enable \n");
 	mtx_assert(&sc->pd_controller->mfi_io_lock, MA_OWNED);
 	sc->pd_flags &= ~MFI_DISK_FLAGS_DISABLED;
 }
@@ -251,30 +252,10 @@ mfi_syspd_strategy(struct bio *bio)
 	return;
 }
 
-#if 0
-void
-mfi_disk_complete(struct bio *bio)
-{
-	struct mfi_system_pd *sc;
-	struct mfi_frame_header *hdr;
-
-	sc = bio->bio_disk->d_drv1;
-	hdr = bio->bio_driver1;
-
-	if (bio->bio_flags & BIO_ERROR) {
-		if (bio->bio_error == 0)
-			bio->bio_error = EIO;
-		disk_err(bio, "hard error", -1, 1);
-	} else {
-		bio->bio_resid = 0;
-	}
-	biodone(bio);
-}
-#endif
 static int
-mfi_syspd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
+mfi_syspd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset,
+    size_t len)
 {
-	
 	struct mfi_system_pd *sc;
 	struct mfi_softc *parent_sc;
 	struct disk *dp;
@@ -285,8 +266,8 @@ mfi_syspd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len
 	parent_sc = sc->pd_controller;
 
 	if (len > 0) {
-		if ((error = mfi_dump_syspd_blocks(parent_sc, sc->pd_id, offset /
-		    MFI_SECTOR_LEN, virt, len)) != 0)
+		if ((error = mfi_dump_syspd_blocks(parent_sc,
+		    sc->pd_id, offset / MFI_SECTOR_LEN, virt, len)) != 0)
 			return (error);
 	} else {
 		/* mfi_sync_cache(parent_sc, sc->ld_id); */

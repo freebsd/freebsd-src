@@ -1,4 +1,3 @@
-
  /*-
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,7 +89,6 @@ uint8_t mfi_tbolt_get_map_info(struct mfi_softc *sc);
 void
 mfi_tbolt_enable_intr_ppc(struct mfi_softc *sc)
 {
-	//MFI_WRITE4(sc, MFI_ODCR0, 0xFFFFFFFF);
 	MFI_WRITE4(sc, MFI_OMSK, ~MFI_FUSION_ENABLE_INTERRUPT_MASK);
 	MFI_READ4(sc, MFI_OMSK);
 }
@@ -115,17 +113,16 @@ mfi_tbolt_check_clear_intr_ppc(struct mfi_softc *sc)
 
 	status = MFI_READ4(sc, MFI_OSTS);
 
-	if (status & 1)
-	{
+	if (status & 1) {
 		MFI_WRITE4(sc, MFI_OSTS, status);
 		MFI_READ4(sc, MFI_OSTS);
-		if (status & MFI_STATE_CHANGE_INTERRUPT){
+		if (status & MFI_STATE_CHANGE_INTERRUPT) {
 			mfi_status |= MFI_FIRMWARE_STATE_CHANGE;
 		}
 
 		return mfi_status;
 	}
-	if(!(status & MFI_FUSION_ENABLE_INTERRUPT_MASK))
+	if (!(status & MFI_FUSION_ENABLE_INTERRUPT_MASK))
 		return 1;
 
 	MFI_READ4(sc, MFI_OSTS);
@@ -149,52 +146,49 @@ mfi_tbolt_issue_cmd_ppc(struct mfi_softc *sc, bus_addr_t bus_add,
  */
 int mfi_tbolt_adp_reset(struct mfi_softc *sc)
 {
-    int retry = 0, i = 0;
-    int HostDiag;
+	int retry = 0, i = 0;
+	int HostDiag;
 
-    MFI_WRITE4(sc, MFI_WSR, 0xF);
-    MFI_WRITE4(sc, MFI_WSR, 4);
-    MFI_WRITE4(sc, MFI_WSR, 0xB);
-    MFI_WRITE4(sc, MFI_WSR, 2);
-    MFI_WRITE4(sc, MFI_WSR, 7);
-    MFI_WRITE4(sc, MFI_WSR, 0xD);
+	MFI_WRITE4(sc, MFI_WSR, 0xF);
+	MFI_WRITE4(sc, MFI_WSR, 4);
+	MFI_WRITE4(sc, MFI_WSR, 0xB);
+	MFI_WRITE4(sc, MFI_WSR, 2);
+	MFI_WRITE4(sc, MFI_WSR, 7);
+	MFI_WRITE4(sc, MFI_WSR, 0xD);
 
-    for (i=0;i<10000;i++) ;
+	for (i = 0; i < 10000; i++) ;
 
-    HostDiag = (uint32_t)MFI_READ4(sc, MFI_HDR);
+	HostDiag = (uint32_t)MFI_READ4(sc, MFI_HDR);
 
-    while ( !( HostDiag & DIAG_WRITE_ENABLE) )
-    {
-        for (i=0;i<1000;i++) ;
-        HostDiag = (uint32_t)MFI_READ4(sc, MFI_HDR);
-        device_printf(sc->mfi_dev,"ADP_RESET_TBOLT: retry time=%x, "
-	    "hostdiag=%x\n", retry, HostDiag);
+	while (!( HostDiag & DIAG_WRITE_ENABLE)) {
+		for (i = 0; i < 1000; i++);
+		HostDiag = (uint32_t)MFI_READ4(sc, MFI_HDR);
+		device_printf(sc->mfi_dev, "ADP_RESET_TBOLT: retry time=%x, "
+		    "hostdiag=%x\n", retry, HostDiag);
 
-        if (retry++ >= 100)
-            return 1;
+		if (retry++ >= 100)
+			return 1;
+	}
 
-    }
+	device_printf(sc->mfi_dev, "ADP_RESET_TBOLT: HostDiag=%x\n", HostDiag);
 
-    device_printf(sc->mfi_dev,"ADP_RESET_TBOLT: HostDiag=%x\n", HostDiag);
+	MFI_WRITE4(sc, MFI_HDR, (HostDiag | DIAG_RESET_ADAPTER));
 
-    MFI_WRITE4(sc, MFI_HDR, (HostDiag | DIAG_RESET_ADAPTER));
+	for (i=0; i < 10; i++) {
+		for (i = 0; i < 10000; i++);
+	}
 
-    for (i=0; i < 10; i++) {
-        for (i = 0; i < 10000; i++);
-    }
+	HostDiag = (uint32_t)MFI_READ4(sc, MFI_RSR);
+	while (HostDiag & DIAG_RESET_ADAPTER) {
+		for (i = 0; i < 1000; i++) ;
+		HostDiag = (uint32_t)MFI_READ4(sc, MFI_RSR);
+		device_printf(sc->mfi_dev, "ADP_RESET_TBOLT: retry time=%x, "
+		    "hostdiag=%x\n", retry, HostDiag);
 
-    HostDiag = (uint32_t)MFI_READ4(sc, MFI_RSR);
-    while (HostDiag & DIAG_RESET_ADAPTER)
-    {
-        for (i=0;i<1000;i++) ;
-        HostDiag = (uint32_t)MFI_READ4(sc, MFI_RSR);
-        device_printf(sc->mfi_dev,"ADP_RESET_TBOLT: retry time=%x, "
-	    "hostdiag=%x\n", retry, HostDiag);
-
-        if (retry++ >= 1000)
-            return 1;
-    }
-    return 0;
+		if (retry++ >= 1000)
+			return 1;
+	}
+	return 0;
 }
 
 /*
@@ -242,8 +236,6 @@ void mfi_tbolt_init_globals(struct mfi_softc *sc)
 	    = offsetof(struct mfi_mpi2_request_raid_scsi_io, SGL)/16;
 	sc->mfi_cmd_pool_tbolt = NULL;
 	sc->request_desc_pool = NULL;
-
-
 }
 
 /*
@@ -259,10 +251,10 @@ void mfi_tbolt_init_globals(struct mfi_softc *sc)
 uint32_t mfi_tbolt_get_memory_requirement(struct mfi_softc *sc)
 {
 	uint32_t size;
-	size = MEGASAS_THUNDERBOLT_MSG_ALLIGNMENT;	// for Alignment
+	size = MEGASAS_THUNDERBOLT_MSG_ALLIGNMENT;	/* for Alignment */
 	size += sc->raid_io_msg_size * (sc->mfi_max_fw_cmds + 1);
 	size += sc->reply_size * sc->mfi_max_fw_cmds;
-	// this is for SGL's
+	/* this is for SGL's */
 	size += MEGASAS_MAX_SZ_CHAIN_FRAME * sc->mfi_max_fw_cmds;
 	return size;
 }
@@ -289,7 +281,7 @@ int mfi_tbolt_init_desc_pool(struct mfi_softc *sc, uint8_t* mem_location,
 
 	/* For Request Decriptors Virtual Memory */
 	/* Initialise the aligned IO Frames Virtual Memory Pointer */
-	if (((uintptr_t)addr) & (0xFF))	{
+	if (((uintptr_t)addr) & (0xFF)) {
 		addr = &addr[sc->raid_io_msg_size];
 		addr = (uint8_t *)((uintptr_t)addr & (~0xFF));
 		sc->request_message_pool_align = addr;
@@ -304,7 +296,7 @@ int mfi_tbolt_init_desc_pool(struct mfi_softc *sc, uint8_t* mem_location,
 	addr = &addr[sc->raid_io_msg_size * (sc->mfi_max_fw_cmds + 1)];
 	/* Reply Frame Pool is initialized */
 	sc->reply_frame_pool = (struct mfi_mpi2_reply_header *) addr;
-	if (((uintptr_t)addr) & (0xFF))	{
+	if (((uintptr_t)addr) & (0xFF)) {
 		addr = &addr[sc->reply_size];
 		addr = (uint8_t *)((uintptr_t)addr & (~0xFF));
 	}
@@ -329,8 +321,8 @@ int mfi_tbolt_init_desc_pool(struct mfi_softc *sc, uint8_t* mem_location,
 	sc->last_reply_idx = 0;
 	offset = (sc->sg_frame_busaddr + (MEGASAS_MAX_SZ_CHAIN_FRAME *
 	    sc->mfi_max_fw_cmds)) - sc->mfi_tb_busaddr;
-	if(offset > tbolt_contg_length)
-		device_printf(sc->mfi_dev,"Error:Initialized more than "
+	if (offset > tbolt_contg_length)
+		device_printf(sc->mfi_dev, "Error:Initialized more than "
 		    "allocated\n");
 	return 0;
 }
@@ -355,7 +347,7 @@ mfi_tbolt_init_MFI_queue(struct mfi_softc *sc)
 
 	mpi2IocInit = (struct MPI2_IOC_INIT_REQUEST *)sc->mfi_tb_ioc_init_desc;
 	/* Check if initialization is already completed */
-	if(sc->MFA_enabled) {
+	if (sc->MFA_enabled) {
 		return 1;
 	}
 
@@ -404,7 +396,7 @@ mfi_tbolt_init_MFI_queue(struct mfi_softc *sc)
 	mfiAddressTemp = (MFI_ADDRESS *)&mpi2IocInit->SystemRequestFrameBaseAddress;
 	mfiAddressTemp->u.addressLow = (uint32_t)phyAddress;
 	mfiAddressTemp->u.addressHigh = (uint32_t)((uint64_t)phyAddress >> 32);
-	mpi2IocInit->ReplyFreeQueueAddress =  0; // Not supported by MR.
+	mpi2IocInit->ReplyFreeQueueAddress =  0; /* Not supported by MR. */
 	mpi2IocInit->TimeStamp = time_uptime;
 
 	if (sc->verbuf) {
@@ -437,7 +429,7 @@ mfi_tbolt_init_MFI_queue(struct mfi_softc *sc)
 	mfi_release_command(cm);
 	mtx_unlock(&sc->mfi_io_lock);
 
-	if(mfi_init->header.cmd_status == 0) {
+	if (mfi_init->header.cmd_status == 0) {
 		sc->MFA_enabled = 1;
 	}
 	else {
@@ -528,25 +520,24 @@ int mfi_tbolt_reset(struct mfi_softc *sc)
 	uint32_t fw_state;
 
 	mtx_lock(&sc->mfi_io_lock);
-	if (atomic_read(&sc->fw_reset_no_pci_access)){
-		device_printf(sc->mfi_dev,"NO PCI ACCESS\n");
+	if (atomic_read(&sc->fw_reset_no_pci_access)) {
+		device_printf(sc->mfi_dev, "NO PCI ACCESS\n");
 		mtx_unlock(&sc->mfi_io_lock);
 		return 1;
 	}
 
-	if (sc->hw_crit_error){
-		device_printf(sc->mfi_dev,"HW CRITICAL ERROR\n");
+	if (sc->hw_crit_error) {
+		device_printf(sc->mfi_dev, "HW CRITICAL ERROR\n");
 		mtx_unlock(&sc->mfi_io_lock);
 		return 1;
 	}
 
-	if (sc->mfi_flags & MFI_FLAGS_TBOLT){
+	if (sc->mfi_flags & MFI_FLAGS_TBOLT) {
 		fw_state = sc->mfi_read_fw_status(sc);
-		if((fw_state & MFI_FWSTATE_FAULT) == MFI_FWSTATE_FAULT)
-		{
-			if((sc->disableOnlineCtrlReset == 0)
-			    && (sc->adpreset == 0)){
-				device_printf(sc->mfi_dev,"Adapter RESET "
+		if ((fw_state & MFI_FWSTATE_FAULT) == MFI_FWSTATE_FAULT) {
+			if ((sc->disableOnlineCtrlReset == 0)
+			    && (sc->adpreset == 0)) {
+				device_printf(sc->mfi_dev, "Adapter RESET "
 				    "condition is detected\n");
 				sc->adpreset = 1;
 				sc->issuepend_done = 0;
@@ -569,15 +560,14 @@ void mfi_intr_tbolt(void *arg)
 {
 	struct mfi_softc *sc = (struct mfi_softc *)arg;
 
-	if(sc->mfi_check_clear_intr(sc) == 1)
-	{
+	if (sc->mfi_check_clear_intr(sc) == 1) {
 		return;
 	}
-	if(sc->shutdown_issued)
+	if (sc->mfi_detaching)
 		return;
 	mtx_lock(&sc->mfi_io_lock);
 	mfi_tbolt_complete_cmd(sc);
-	if(sc->mfi_flags & MFI_FLAGS_QFRZN)
+	if (sc->mfi_flags & MFI_FLAGS_QFRZN)
 		sc->mfi_flags &= ~MFI_FLAGS_QFRZN;
 	mfi_startio(sc);
 	mtx_unlock(&sc->mfi_io_lock);
@@ -666,7 +656,7 @@ void mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 		smid = reply_desc->SMID;
 		if (!smid || smid > sc->mfi_max_fw_cmds + 1) {
 			device_printf(sc->mfi_dev, "smid is %x. Cannot "
-			    "proceed. Returning \n",smid);
+			    "proceed. Returning \n", smid);
 			return;
 		}
 
@@ -678,26 +668,7 @@ void mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 		status = cmd_mfi->cm_frame->dcmd.header.cmd_status;
 		extStatus = cmd_mfi->cm_frame->dcmd.header.scsi_status;
 
-		/*
-		switch (scsi_io_req->Function)
-		{
-		case MPI2_FUNCTION_SCSI_IO_REQUEST :
-			printf("HELLO MPI2_FUNCTION_SCSI_IO_REQUEST\n");
-			break;
-		case MPI2_FUNCTION_LD_IO_REQUEST :
-			printf("HELLO MPI2_FUNCTION_LD_IO_REQUEST\n");
-			break;
-		case MPI2_FUNCTION_PASSTHRU_IO_REQUEST:
-			printf("HELLO MPI2_FUNCTION_PASSTHRU_IO_REQUEST\n");
-			break;
-		default:
-			printf("HELLO default\n");
-			break;
-		}
-		*/
-
-		switch (scsi_io_req->Function)
-		{
+		switch (scsi_io_req->Function) {
 		case MPI2_FUNCTION_LD_IO_REQUEST:
 			/* Regular Path IO. */
 			/* Map the Fw Error Status. */
@@ -705,14 +676,15 @@ void mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 			    extStatus);
 			if ((cmd_mfi->cm_frame->dcmd.opcode
 			    == MFI_DCMD_LD_MAP_GET_INFO)
-			    && (cmd_mfi->cm_frame->dcmd.mbox[1] == 1))
-				{
+			    && (cmd_mfi->cm_frame->dcmd.mbox[1] == 1)) {
 					if (cmd_mfi->cm_frame->header.cmd_status
 					    != 0)
-						device_printf(sc->mfi_dev,"map sync failed\n");
+						device_printf(sc->mfi_dev,
+						    "map sync failed\n");
 					else {
 						sc->map_id++;
-						device_printf(sc->mfi_dev,"map sync completed\n");
+						device_printf(sc->mfi_dev,
+						    "map sync completed\n");
 						mfi_release_command(cmd_mfi);
 					}
 				}
@@ -731,11 +703,13 @@ void mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 			if ((cmd_mfi->cm_frame->dcmd.opcode
 			    == MFI_DCMD_LD_MAP_GET_INFO)
 			    && (cmd_mfi->cm_frame->dcmd.mbox[1] == 1)) {
-				if(cmd_mfi->cm_frame->header.cmd_status != 0)
-					device_printf(sc->mfi_dev,"map sync failed\n");
+				if (cmd_mfi->cm_frame->header.cmd_status != 0)
+					device_printf(sc->mfi_dev,
+					    "map sync failed\n");
 				else {
 					sc->map_id++;
-					device_printf(sc->mfi_dev,"map sync completed\n");
+					device_printf(sc->mfi_dev,
+					    "map sync completed\n");
 					mfi_release_command(cmd_mfi);
 				}
 			}
@@ -770,7 +744,7 @@ void mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 		val.word = ((union mfi_mpi2_reply_descriptor*)desc)->words;
 		reply_descript_type = reply_desc->ReplyFlags
 		    & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
-		if(reply_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+		if (reply_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 			break;
 	}
 
@@ -778,7 +752,7 @@ void mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 		return;
 
 	/* update replyIndex to FW */
-	if(sc->last_reply_idx)
+	if (sc->last_reply_idx)
 		MFI_WRITE4(sc, MFI_RPI, sc->last_reply_idx);
 
 	return;
@@ -819,7 +793,6 @@ mfi_tbolt_return_cmd(struct mfi_softc *sc, struct mfi_cmd_tbolt *cmd)
 	TAILQ_INSERT_TAIL(&sc->mfi_cmd_tbolt_tqh, cmd, next);
 }
 
-
 union mfi_mpi2_request_descriptor *
 mfi_tbolt_get_request_descriptor(struct mfi_softc *sc, uint16_t index)
 {
@@ -837,7 +810,7 @@ mfi_tbolt_get_request_descriptor(struct mfi_softc *sc, uint16_t index)
 }
 
 
-// Used to build IOCTL cmd
+/* Used to build IOCTL cmd */
 uint8_t
 mfi_build_mpt_pass_thru(struct mfi_softc *sc, struct mfi_command *mfi_cmd)
 {
@@ -848,7 +821,7 @@ mfi_build_mpt_pass_thru(struct mfi_softc *sc, struct mfi_command *mfi_cmd)
 	cmd = mfi_tbolt_get_cmd(sc);
 	if (!cmd)
 		return EBUSY;
-	mfi_cmd->cm_extra_frames = cmd->index; // Frame count used as SMID
+	mfi_cmd->cm_extra_frames = cmd->index; /* Frame count used as SMID */
 	cmd->sync_cmd_idx = mfi_cmd->cm_index;
 	io_req = cmd->io_request;
 	mpi25_ieee_chain = (MPI25_IEEE_SGE_CHAIN64 *)&io_req->SGL.IeeeChain;
@@ -905,7 +878,7 @@ mfi_tbolt_build_ldio(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		cmd->request_desc->header.RequestFlags
 		    = (MFI_REQ_DESCRIPT_FLAGS_LD_IO
 		    << MFI_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-	if((io_request->IoFlags == 6) && (io_info.numBlocks == 0))
+	if ((io_request->IoFlags == 6) && (io_info.numBlocks == 0))
 		io_request->RaidContext.RegLockLength = 0x100;
 	io_request->DataLength = mfi_cmd->cm_frame->io.header.data_len
 	    * MFI_SECTOR_LEN;
@@ -913,13 +886,12 @@ mfi_tbolt_build_ldio(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 
 int mfi_tbolt_is_ldio(struct mfi_command *mfi_cmd)
 {
-	if(mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_READ
+	if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_READ
 	    || mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
 		return 1;
 	else
 		return 0;
 }
-
 
 int
 mfi_tbolt_build_io(struct mfi_softc *sc, struct mfi_command *mfi_cmd, struct mfi_cmd_tbolt *cmd)
@@ -934,7 +906,7 @@ mfi_tbolt_build_io(struct mfi_softc *sc, struct mfi_command *mfi_cmd, struct mfi
 	device_id = mfi_cmd->cm_frame->header.target_id;
 
 	/* Have to build CDB here for TB as BSD don't have a scsi layer */
-	if((cdb_len = mfi_tbolt_build_cdb(sc, mfi_cmd, cdb)) == 1)
+	if ((cdb_len = mfi_tbolt_build_cdb(sc, mfi_cmd, cdb)) == 1)
 		return 1;
 
 	/* Just the CDB length,rest of the Flags are zero */
@@ -979,14 +951,13 @@ mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 	uint32_t lba_lo, lba_hi, num_lba;
 	uint8_t cdb_len;
 
-	if(mfi_cmd == NULL || cdb == NULL)
+	if (mfi_cmd == NULL || cdb == NULL)
 		return 1;
 	num_lba = mfi_cmd->cm_frame->io.header.data_len;
 	lba_lo = mfi_cmd->cm_frame->io.lba_lo;
 	lba_hi = mfi_cmd->cm_frame->io.lba_hi;
 
-	if((num_lba <= 0xFF) && (lba_lo <= 0x1FFFFF))
-	{
+	if ((num_lba <= 0xFF) && (lba_lo <= 0x1FFFFF)) {
 		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
 			/* Read 6 or Write 6 */
 			cdb[0] = (uint8_t) (0x0A);
@@ -999,8 +970,7 @@ mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		cdb[1] = (uint8_t) ((lba_lo >> 16) & 0x1F);
 		cdb_len = 6;
 	}
-	else if((num_lba <= 0xFFFF) && (lba_lo <= 0xFFFFFFFF))
-	{
+	else if ((num_lba <= 0xFFFF) && (lba_lo <= 0xFFFFFFFF)) {
 		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
 			/* Read 10 or Write 10 */
 			cdb[0] = (uint8_t) (0x2A);
@@ -1014,8 +984,7 @@ mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		cdb[2] = (uint8_t) (lba_lo >> 24);
 		cdb_len = 10;
 	}
-	else if((num_lba > 0xFFFF) && (lba_hi == 0))
-	{
+	else if ((num_lba > 0xFFFF) && (lba_hi == 0)) {
 		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
 			/* Read 12 or Write 12 */
 			cdb[0] = (uint8_t) (0xAA);
@@ -1030,25 +999,23 @@ mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		cdb[3] = (uint8_t) (lba_lo >> 16);
 		cdb[2] = (uint8_t) (lba_lo >> 24);
 		cdb_len = 12;
-	}
-	else
-	{
+	} else {
 		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
 			cdb[0] = (uint8_t) (0x8A);
 		else
 			cdb[0] = (uint8_t) (0x88);
 		cdb[13] = (uint8_t) (num_lba & 0xFF);
-                cdb[12] = (uint8_t) (num_lba >> 8);
-                cdb[11] = (uint8_t) (num_lba >> 16);
-                cdb[10] = (uint8_t) (num_lba >> 24);
+		cdb[12] = (uint8_t) (num_lba >> 8);
+		cdb[11] = (uint8_t) (num_lba >> 16);
+		cdb[10] = (uint8_t) (num_lba >> 24);
 		cdb[9] = (uint8_t) (lba_lo & 0xFF);
 		cdb[8] = (uint8_t) (lba_lo >> 8);
-                cdb[7] = (uint8_t) (lba_lo >> 16);
-                cdb[6] = (uint8_t) (lba_lo >> 24);
+		cdb[7] = (uint8_t) (lba_lo >> 16);
+		cdb[6] = (uint8_t) (lba_lo >> 24);
 		cdb[5] = (uint8_t) (lba_hi & 0xFF);
-                cdb[4] = (uint8_t) (lba_hi >> 8);
-                cdb[3] = (uint8_t) (lba_hi >> 16);
-                cdb[2] = (uint8_t) (lba_hi >> 24);
+		cdb[4] = (uint8_t) (lba_hi >> 8);
+		cdb[3] = (uint8_t) (lba_hi >> 16);
+		cdb[2] = (uint8_t) (lba_hi >> 24);
 		cdb_len = 16;
 	}
 	return cdb_len;
@@ -1056,9 +1023,9 @@ mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 
 static int
 mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
-		   pMpi25IeeeSgeChain64_t sgl_ptr,struct mfi_cmd_tbolt *cmd)
+		   pMpi25IeeeSgeChain64_t sgl_ptr, struct mfi_cmd_tbolt *cmd)
 {
-	uint8_t i, sg_processed,sg_to_process;
+	uint8_t i, sg_processed, sg_to_process;
 	uint8_t sge_count, sge_idx;
 	union mfi_sgl *os_sgl;
 
@@ -1074,7 +1041,7 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 
 	if (sge_count > sc->mfi_max_sge) {
 		device_printf(sc->mfi_dev, "sgl ptr %p sg_cnt %d \n",
-		    os_sgl,sge_count);
+		    os_sgl, sge_count);
 		return sge_count;
 	}
 
@@ -1086,16 +1053,10 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 
 	for (i = 0; i < sge_idx; i++) {
 		/*
-		  For 32bit BSD we are getting 32 bit SGL's from OS
-		  but FW only take 64 bit SGL's so copying from 32 bit
-		  SGL's to 64.
-		*/
-		/*if((sc->mfi_flags & MFI_FLAGS_SG64) == 0)
-		{
-			sgl_ptr->Length = (uint32_t) os_sgl->sg64[0].len;
-			sgl_ptr->Address = (os_sgl->sg64[0].addr);
-		}
-		else*/
+		 * For 32bit BSD we are getting 32 bit SGL's from OS
+		 * but FW only take 64 bit SGL's so copying from 32 bit
+		 * SGL's to 64.
+		 */
 		if (sc->mfi_flags & MFI_FLAGS_SKINNY) {
 			sgl_ptr->Length = os_sgl->sg_skinny[i].len;
 			sgl_ptr->Address = os_sgl->sg_skinny[i].addr;
@@ -1153,8 +1114,7 @@ mfi_build_and_issue_cmd(struct mfi_softc *sc, struct mfi_command *mfi_cmd)
 
 	index = cmd->index;
 	req_desc = mfi_tbolt_get_request_descriptor(sc, index-1);
-	//req_desc->Words = 0;
-	if(mfi_tbolt_build_io(sc, mfi_cmd, cmd))
+	if (mfi_tbolt_build_io(sc, mfi_cmd, cmd))
 		return NULL;
 	req_desc->header.SMID = index;
 	return req_desc;
@@ -1174,7 +1134,7 @@ mfi_tbolt_build_mpt_cmd(struct mfi_softc *sc, struct mfi_command *cmd)
 	index = cmd->cm_extra_frames;
 
 	req_desc = mfi_tbolt_get_request_descriptor(sc, index - 1);
-	if(!req_desc)
+	if (!req_desc)
 		return NULL;
 
 	bzero(req_desc, sizeof(req_desc));
@@ -1194,7 +1154,7 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 
 	hdr = &cm->cm_frame->header;
 	cdb = cm->cm_frame->pass.cdb;
-	if(sc->adpreset)
+	if (sc->adpreset)
 		return 1;
 	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
 		cm->cm_timestamp = time_uptime;
@@ -1254,10 +1214,10 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 
 static void mfi_issue_pending_cmds_again (struct mfi_softc *sc)
 {
-	struct mfi_command *cm,*tmp;
+	struct mfi_command *cm, *tmp;
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
-	TAILQ_FOREACH_REVERSE_SAFE(cm, &sc->mfi_busy, BUSYQ, cm_link, tmp){
+	TAILQ_FOREACH_REVERSE_SAFE(cm, &sc->mfi_busy, BUSYQ, cm_link, tmp) {
 
 		cm->retry_for_fw_reset++;
 
@@ -1267,7 +1227,7 @@ static void mfi_issue_pending_cmds_again (struct mfi_softc *sc)
 		 * should be performed on the controller
 		 */
 		if (cm->retry_for_fw_reset == 3) {
-			device_printf(sc->mfi_dev,"megaraid_sas: command %d "
+			device_printf(sc->mfi_dev, "megaraid_sas: command %d "
 			    "was tried multiple times during adapter reset"
 			    "Shutting down the HBA\n", cm->cm_index);
 			mfi_kill_hba(sc);
@@ -1312,30 +1272,30 @@ static void mfi_process_fw_state_chg_isr(void *arg)
 	int error, status;
 
 	if (sc->adpreset == 1) {
-		device_printf(sc->mfi_dev,"First stage of FW reset "
+		device_printf(sc->mfi_dev, "First stage of FW reset "
 		     "initiated...\n");
 
 		sc->mfi_adp_reset(sc);
 		sc->mfi_enable_intr(sc);
 
-		device_printf(sc->mfi_dev,"First stage of reset complete, "
+		device_printf(sc->mfi_dev, "First stage of reset complete, "
 		    "second stage initiated...\n");
 
 		sc->adpreset = 2;
 
 		/* waiting for about 20 second before start the second init */
-		for(int wait = 0; wait < 20000; wait++)
+		for (int wait = 0; wait < 20000; wait++)
 			DELAY(1000);
-		device_printf(sc->mfi_dev,"Second stage of FW reset "
+		device_printf(sc->mfi_dev, "Second stage of FW reset "
 		     "initiated...\n");
-		while((status = MFI_READ4(sc, MFI_RSR)) & 0x04);
+		while ((status = MFI_READ4(sc, MFI_RSR)) & 0x04);
 
 		sc->mfi_disable_intr(sc);
 
 		/* We expect the FW state to be READY */
 		if (mfi_transition_firmware(sc)) {
-			device_printf(sc->mfi_dev,"controller is not in ready "
-			    "state\n");
+			device_printf(sc->mfi_dev, "controller is not in "
+			    "ready state\n");
 			mfi_kill_hba(sc);
 			sc->hw_crit_error= 1;
 			return ;
@@ -1373,10 +1333,10 @@ static void mfi_process_fw_state_chg_isr(void *arg)
 			 */
 			mfi_aen_setup(sc, sc->last_seq_num);
 			sc->issuepend_done = 1;
-			device_printf(sc->mfi_dev,"second stage of reset "
+			device_printf(sc->mfi_dev, "second stage of reset "
 			    "complete, FW is ready now.\n");
 		} else {
-			device_printf(sc->mfi_dev,"second stage of reset "
+			device_printf(sc->mfi_dev, "second stage of reset "
 			     "never completed, hba was marked offline.\n");
 		}
 	} else {
@@ -1385,4 +1345,3 @@ static void mfi_process_fw_state_chg_isr(void *arg)
 	}
 	mtx_unlock(&sc->mfi_io_lock);
 }
-
