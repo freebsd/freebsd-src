@@ -132,7 +132,6 @@ dpt_pci_attach (device_t dev)
 	dpt_alloc(dev);
 
 	/* Allocate a dmatag representing the capabilities of this attachment */
-	/* XXX Should be a child of the PCI bus dma tag */
 	if (bus_dma_tag_create(	/* PCI parent */ bus_get_dma_tag(dev),
 				/* alignemnt */	1,
 				/* boundary  */	0,
