@@ -2303,6 +2303,7 @@ product MOSCHIP MCS7703		0x7703	MCS7703 Serial Port Adapter
 product MOSCHIP MCS7730		0x7730  MCS7730 Ethernet
 product MOSCHIP MCS7820		0x7820	MCS7820 Serial Port Adapter
 product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
+product MOSCHIP MCS7832		0x7832	MCS7832 Ethernet
 product MOSCHIP MCS7840		0x7840	MCS7840 Serial Port Adapter
 
 /* Motorola products */
