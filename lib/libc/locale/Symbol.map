@@ -60,9 +60,13 @@ FBSD_1.0 {
 	nextwctype;
 	nl_langinfo;
 	__maskrune;
+	__maskrune_l;
 	__sbmaskrune;
+	__sbmaskrune_l;
 	__istype;
+	__istype_l;
 	__sbistype;
+	__sbistype_l;
 	__isctype;
 	__toupper;
 	__sbtoupper;
