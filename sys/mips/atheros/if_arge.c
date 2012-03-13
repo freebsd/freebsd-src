@@ -118,6 +118,7 @@ static int arge_probe(device_t);
 static void arge_reset_dma(struct arge_softc *);
 static int arge_resume(device_t);
 static int arge_rx_ring_init(struct arge_softc *);
+static void arge_rx_ring_free(struct arge_softc *sc);
 static int arge_tx_ring_init(struct arge_softc *);
 #ifdef DEVICE_POLLING
 static int arge_poll(struct ifnet *, enum poll_cmd, int);
@@ -807,6 +808,12 @@ arge_reset_dma(struct arge_softc *sc)
 	    DMA_RX_STATUS_BUS_ERROR | DMA_RX_STATUS_OVERFLOW);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS,
 	    DMA_TX_STATUS_BUS_ERROR | DMA_TX_STATUS_UNDERRUN);
+
+	/*
+	 * Force a DDR flush so any pending data is properly
+	 * flushed to RAM before underlying buffers are freed.
+	 */
+	arge_flush_ddr(sc);
 }
 
 
@@ -1083,6 +1090,10 @@ arge_stop(struct arge_softc *sc)
 	ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
 
 	arge_reset_dma(sc);
+
+	/* Flush FIFO and free any existing mbufs */
+	arge_flush_ddr(sc);
+	arge_rx_ring_free(sc);
 }
 
 
@@ -1531,6 +1542,12 @@ arge_rx_ring_init(struct arge_softc *sc)
 	bzero(rd->arge_rx_ring, sizeof(rd->arge_rx_ring));
 	for (i = 0; i < ARGE_RX_RING_COUNT; i++) {
 		rxd = &sc->arge_cdata.arge_rxdesc[i];
+		if (rxd->rx_m != NULL) {
+			device_printf(sc->arge_dev,
+			    "%s: ring[%d] rx_m wasn't free?\n",
+			    __func__,
+			    i);
+		}
 		rxd->rx_m = NULL;
 		rxd->desc = &rd->arge_rx_ring[i];
 		if (i == ARGE_RX_RING_COUNT - 1)
@@ -1548,6 +1565,32 @@ arge_rx_ring_init(struct arge_softc *sc)
 	    BUS_DMASYNC_PREWRITE);
 
 	return (0);
+}
+
+/*
+ * Free all the buffers in the RX ring.
+ *
+ * TODO: ensure that DMA is disabled and no pending DMA
+ * is lurking in the FIFO.
+ */
+static void
+arge_rx_ring_free(struct arge_softc *sc)
+{
+	int i;
+	struct arge_rxdesc	*rxd;
+
+	ARGE_LOCK_ASSERT(sc);
+
+	for (i = 0; i < ARGE_RX_RING_COUNT; i++) {
+		rxd = &sc->arge_cdata.arge_rxdesc[i];
+		/* Unmap the mbuf */
+		if (rxd->rx_m != NULL) {
+			bus_dmamap_unload(sc->arge_cdata.arge_rx_tag,
+			    rxd->rx_dmamap);
+			m_free(rxd->rx_m);
+			rxd->rx_m = NULL;
+		}
+	}
 }
 
 /*
