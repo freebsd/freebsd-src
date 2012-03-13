@@ -110,6 +110,7 @@ static int arge_ioctl(struct ifnet *, u_long, caddr_t);
 static void arge_init(void *);
 static void arge_init_locked(struct arge_softc *);
 static void arge_link_task(void *, int);
+static void arge_update_link_locked(struct arge_softc *sc);
 static void arge_set_pll(struct arge_softc *, int, int);
 static int arge_miibus_readreg(device_t, int, int);
 static void arge_miibus_statchg(device_t);
@@ -684,13 +685,20 @@ static void
 arge_link_task(void *arg, int pending)
 {
 	struct arge_softc	*sc;
+	sc = (struct arge_softc *)arg;
+
+	ARGE_LOCK(sc);
+	arge_update_link_locked(sc);
+	ARGE_UNLOCK(sc);
+}
+
+static void
+arge_update_link_locked(struct arge_softc *sc)
+{
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
 	uint32_t		media, duplex;
 
-	sc = (struct arge_softc *)arg;
-
-	ARGE_LOCK(sc);
 	mii = device_get_softc(sc->arge_miibus);
 	ifp = sc->arge_ifp;
 	if (mii == NULL || ifp == NULL ||
@@ -708,10 +716,10 @@ arge_link_task(void *arg, int pending)
 			duplex = mii->mii_media_active & IFM_GMASK;
 			arge_set_pll(sc, media, duplex);
 		}
-	} else
+	} else {
 		sc->arge_link_status = 0;
+	}
 
-	ARGE_UNLOCK(sc);
 }
 
 static void
@@ -853,7 +861,6 @@ arge_init_locked(struct arge_softc *sc)
 
 
 	if (sc->arge_miibus) {
-		sc->arge_link_status = 0;
 		mii = device_get_softc(sc->arge_miibus);
 		mii_mediachg(mii);
 	}
@@ -867,8 +874,10 @@ arge_init_locked(struct arge_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	if (sc->arge_miibus)
+	if (sc->arge_miibus) {
 		callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
+		arge_update_link_locked(sc);
+	}
 
 	ARGE_WRITE(sc, AR71XX_DMA_TX_DESC, ARGE_TX_RING_ADDR(sc, 0));
 	ARGE_WRITE(sc, AR71XX_DMA_RX_DESC, ARGE_RX_RING_ADDR(sc, 0));
