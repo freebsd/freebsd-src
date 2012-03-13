@@ -28,7 +28,7 @@ CFLAGS		+= -std=${CSTD}
 . if defined(WARNS)
 .  if ${WARNS} >= 1
 CWARNFLAGS	+=	-Wsystem-headers
-.   if !defined(NO_WERROR)
+.   if !defined(NO_WERROR) && (${CC:T:Mclang} != "clang" || !defined(NO_WERROR.clang))
 CWARNFLAGS	+=	-Werror
 .   endif
 .  endif
@@ -42,7 +42,7 @@ CWARNFLAGS	+=	-W -Wno-unused-parameter -Wstrict-prototypes\
 .  if ${WARNS} >= 4
 CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch\
 			-Wshadow -Wunused-parameter
-.   if !defined(NO_WCAST_ALIGN)
+.   if !defined(NO_WCAST_ALIGN) && (${CC:T:Mclang} != "clang" || !defined(NO_WCAST_ALIGN.clang))
 CWARNFLAGS	+=	-Wcast-align
 .   endif
 .  endif
@@ -84,18 +84,24 @@ WFORMAT		=	1
 .  if ${WFORMAT} > 0
 #CWARNFLAGS	+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CWARNFLAGS	+=	-Wformat=2 -Wno-format-extra-args
-.   if !defined(NO_WERROR)
+.   if !defined(NO_WERROR) && (${CC:T:Mclang} != "clang" || !defined(NO_WERROR.clang))
 CWARNFLAGS	+=	-Werror
 .   endif
 .  endif
 . endif
-. if defined(NO_WFORMAT)
+. if defined(NO_WFORMAT) || (${CC:T:Mclang} == "clang" && defined(NO_WFORMAT.clang))
 CWARNFLAGS	+=	-Wno-format
 . endif
 .endif
 
 .if defined(IGNORE_PRAGMA)
 CWARNFLAGS	+=	-Wno-unknown-pragmas
+.endif
+
+.if ${CC:T:Mclang} == "clang"
+CLANG_NO_IAS	=	-no-integrated-as
+CLANG_OPT_SMALL	=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3 \
+			-mllvm -enable-load-pre=false
 .endif
 
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
