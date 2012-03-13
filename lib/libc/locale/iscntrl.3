@@ -44,6 +44,8 @@
 .In ctype.h
 .Ft int
 .Fn iscntrl "int c"
+.Ft int
+.Fn iscntrl_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn iscntrl
@@ -65,6 +67,12 @@ In the ASCII character set, this includes the following characters
 .It "\&031\ EM \t032\ SUB \t033\ ESC \t034\ FS \t035\ GS"
 .It "\&036\ RS \t037\ US \t177\ DEL"
 .El
+.Pp
+The 
+.Fn iscntrl_l
+function takes an explicit locale argument, whereas the
+.Fn iscntrl
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn iscntrl
@@ -83,9 +91,14 @@ function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr iswcntrl 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
 .Fn iscntrl
 function conforms to
 .St -isoC .
+The
+.Fn iscntrl_l
+function conforms to
+.St -p1003.1-2008 .
