@@ -324,7 +324,7 @@ next:
 		/* Write the inode after sync passes to flush deps. */
 		if (wait && DOINGSOFTDEP(vp) && noupdate == 0) {
 			BO_UNLOCK(bo);
-			ffs_update(vp, MNT_WAIT);
+			ffs_update(vp, 1);
 			BO_LOCK(bo);
 		}
 		/* switch between sync/async. */
@@ -339,7 +339,7 @@ next:
 	BO_UNLOCK(bo);
 	error = 0;
 	if (noupdate == 0)
-		error = ffs_update(vp, MNT_WAIT);
+		error = ffs_update(vp, 1);
 	if (DOINGSUJ(vp))
 		softdep_journal_fsync(VTOI(vp));
 	return (error);
