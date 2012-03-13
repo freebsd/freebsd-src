@@ -89,6 +89,11 @@ __istype_l(__ct_rune_t __c, unsigned long __f, locale_t __loc)
 		{ return __istype_l(__c, cat, __l); }
 #else
 _XLOCALE_INLINE int
+__sbmaskrune_l(__ct_rune_t __c, unsigned long __f, locale_t __loc);
+_XLOCALE_INLINE int
+__sbistype_l(__ct_rune_t __c, unsigned long __f, locale_t __loc);
+
+_XLOCALE_INLINE int
 __sbmaskrune_l(__ct_rune_t __c, unsigned long __f, locale_t __loc)
 {
 	int __limit;
