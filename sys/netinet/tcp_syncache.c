@@ -844,7 +844,15 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 */
 	if (sc->sc_rxmits > 1)
 		tp->snd_cwnd = tp->t_maxseg;
-	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
+
+	/*
+	 * Copy and activate timers.
+	 */
+	tp->t_keepinit = sototcpcb(lso)->t_keepinit;
+	tp->t_keepidle = sototcpcb(lso)->t_keepidle;
+	tp->t_keepintvl = sototcpcb(lso)->t_keepintvl;
+	tp->t_keepcnt = sototcpcb(lso)->t_keepcnt;
+	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
 	INP_WUNLOCK(inp);
 

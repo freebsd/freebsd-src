@@ -38,7 +38,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2011
+.Dd February 5, 2012
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -146,6 +146,65 @@ connection.
 See
 .Xr mod_cc 4
 for details.
+.It Dv TCP_KEEPINIT
+This write-only 
+.Xr setsockopt 2
+option accepts a per-socket timeout argument of
+.Vt "u_int"
+in seconds, for new, non-established
+.Tn TCP
+connections.
+For the global default in milliseconds see
+.Va keepinit
+in the
+.Sx MIB Variables
+section further down.
+.It Dv TCP_KEEPIDLE
+This write-only 
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+for the amount of time, in seconds, that the connection must be idle
+before keepalive probes (if enabled) are sent for the connection of this
+socket.
+If set on a listening socket, the value is inherited by the newly created
+socket upon
+.Xr accept 2 .
+For the global default in milliseconds see
+.Va keepidle
+in the
+.Sx MIB Variables
+section further down.
+.It Dv TCP_KEEPINTVL
+This write-only 
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+to set the per-socket interval, in seconds, between keepalive probes sent
+to a peer.
+If set on a listening socket, the value is inherited by the newly created
+socket upon
+.Xr accept 2 .
+For the global default in milliseconds see
+.Va keepintvl
+in the
+.Sx MIB Variables
+section further down.
+.It Dv TCP_KEEPCNT
+This write-only 
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+and allows a per-socket tuning of the number of probes sent, with no response,
+before the connection will be dropped.
+If set on a listening socket, the value is inherited by the newly created
+socket upon
+.Xr accept 2 .
+For the global default see the
+.Va keepcnt
+in the
+.Sx MIB Variables
+section further down.
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -304,17 +363,21 @@ The Maximum Segment Lifetime, in milliseconds, for a packet.
 Timeout, in milliseconds, for new, non-established
 .Tn TCP
 connections.
+The default is 75000 msec.
 .It Va keepidle
 Amount of time, in milliseconds, that the connection must be idle
 before keepalive probes (if enabled) are sent.
+The default is 7200000 msec (2 hours).
 .It Va keepintvl
 The interval, in milliseconds, between keepalive probes sent to remote
 machines, when no response is received on a
 .Va keepidle
 probe.
-After
-.Dv TCPTV_KEEPCNT
-(default 8) probes are sent, with no response, the connection is dropped.
+The default is 75000 msec.
+.It Va keepcnt
+Number of probes sent, with no response, before a connection
+is dropped.
+The default is 8 packets.
 .It Va always_keepalive
 Assume that
 .Dv SO_KEEPALIVE
