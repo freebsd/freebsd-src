@@ -69,6 +69,11 @@ _RuneLocale	*__runes_for_locale(locale_t, int*);
 
 #ifdef _XLOCALE_WCTYPES
 _XLOCALE_INLINE int
+__maskrune_l(__ct_rune_t __c, unsigned long __f, locale_t __loc);
+_XLOCALE_INLINE __inline int
+__istype_l(__ct_rune_t __c, unsigned long __f, locale_t __loc);
+
+_XLOCALE_INLINE int
 __maskrune_l(__ct_rune_t __c, unsigned long __f, locale_t __loc)
 {
 	int __limit;
