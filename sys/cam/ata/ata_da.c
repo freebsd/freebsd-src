@@ -493,13 +493,6 @@ adaclose(struct disk *dp)
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 			xpt_print(periph->path, "Synchronize cache failed\n");
-
-		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb->ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
 		xpt_release_ccb(ccb);
 	}
 
