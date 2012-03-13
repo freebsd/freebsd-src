@@ -620,7 +620,18 @@ map_tbolt_cmd_status(struct mfi_command *mfi_cmd, uint8_t status,
 		}
 }
 
+/**
+ * mfi_tbolt_return_cmd -	Return a cmd to free command pool
+ * @instance:		Adapter soft state
+ * @cmd:		Command packet to be returned to free command pool
+ */
+static inline void
+mfi_tbolt_return_cmd(struct mfi_softc *sc, struct mfi_cmd_tbolt *cmd)
+{
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
+	TAILQ_INSERT_TAIL(&sc->mfi_cmd_tbolt_tqh, cmd, next);
+}
 
 void mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 {
@@ -778,19 +789,6 @@ struct mfi_cmd_tbolt *mfi_tbolt_get_cmd(struct mfi_softc
 	memset((uint8_t *)cmd->io_request, 0,
 	    MEGASAS_THUNDERBOLT_NEW_MSG_SIZE);
 	return cmd;
-}
-
-/**
- * mfi_tbolt_return_cmd -	Return a cmd to free command pool
- * @instance:		Adapter soft state
- * @cmd:		Command packet to be returned to free command pool
- */
-static inline void
-mfi_tbolt_return_cmd(struct mfi_softc *sc, struct mfi_cmd_tbolt *cmd)
-{
-	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
-
-	TAILQ_INSERT_TAIL(&sc->mfi_cmd_tbolt_tqh, cmd, next);
 }
 
 union mfi_mpi2_request_descriptor *
