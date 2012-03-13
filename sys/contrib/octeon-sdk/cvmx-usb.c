@@ -72,7 +72,9 @@
 #include "cvmx-usb.h"
 #include "cvmx-helper.h"
 #include "cvmx-helper-board.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-csr-db.h"
+#endif
 #include "cvmx-swap.h"
 #if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"

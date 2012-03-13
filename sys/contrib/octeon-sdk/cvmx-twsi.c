@@ -59,7 +59,9 @@
 #else
 #include "cvmx.h"
 #include "cvmx-twsi.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-csr-db.h"
+#endif
 #endif
 
 //#define PRINT_TWSI_CONFIG
