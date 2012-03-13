@@ -40,14 +40,8 @@ CFLAGS=	-Os \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline --param max-inline-insns-single=100
-
-.if ${CC:T:Mclang} == "clang"
-CFLAGS+=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3 \
-		-mllvm -enable-load-pre=false
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS+=	${.IMPSRC:T:Mboot1.S:C/^.+$/-no-integrated-as/}
-.endif
+	-Winline --param max-inline-insns-single=100 \
+	${CLANG_OPT_SMALL}
 
 LDFLAGS=-static -N --gc-sections
 
@@ -89,9 +83,7 @@ boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 boot2.o: boot2.s
-.if ${CC:T:Mclang} == "clang"
 	${CC} ${ACFLAGS} -c boot2.s
-.endif
 
 SRCS=	boot2.c boot2.h
 
@@ -115,3 +107,7 @@ machine:
 .endif
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.boot1.S=		${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

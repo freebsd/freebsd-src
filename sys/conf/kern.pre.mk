@@ -101,6 +101,10 @@ WERROR?= -Werror
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
+.if ${CC:T:Mclang} == "clang"
+CLANG_NO_IAS= -no-integrated-as
+.endif
+
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
