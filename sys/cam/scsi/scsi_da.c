@@ -988,13 +988,6 @@ daclose(struct disk *dp)
 			}
 		}
 
-		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb->ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
-
 		xpt_release_ccb(ccb);
 
 	}
@@ -2207,14 +2200,6 @@ dagetcapacity(struct cam_periph *periph)
 				  /*cam_flags*/CAM_RETRY_SELTO,
 				  sense_flags,
 				  softc->disk->d_devstat);
-
-		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-
 		if (error == 0)
 			goto rc16ok;
 
@@ -2252,14 +2237,6 @@ dagetcapacity(struct cam_periph *periph)
 				  /*cam_flags*/CAM_RETRY_SELTO,
 				  sense_flags,
 				  softc->disk->d_devstat);
-
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-
 	if (error == 0) {
 		block_len = scsi_4btoul(rcap->length);
 		maxsector = scsi_4btoul(rcap->addr);
@@ -2286,14 +2263,6 @@ dagetcapacity(struct cam_periph *periph)
 				  /*cam_flags*/CAM_RETRY_SELTO,
 				  sense_flags,
 				  softc->disk->d_devstat);
-
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-
 	if (error == 0) {
 rc16ok:
 		block_len = scsi_4btoul(rcaplong->length);
