@@ -1397,6 +1397,17 @@ struct scsi_read_capacity_data_long
 {
 	uint8_t addr[8];
 	uint8_t length[4];
+#define	SRC16_PROT_EN		0x01
+#define	SRC16_P_TYPE		0x0e
+	uint8_t prot;
+#define	SRC16_LBPPBE		0x0f
+#define	SRC16_PI_EXPONENT	0xf0
+#define	SRC16_PI_EXPONENT_SHIFT	4
+	uint8_t prot_lbppbe;
+#define	SRC16_LALBA		0x3fff
+#define	SRC16_LBPRZ		0x4000
+#define	SRC16_LBPME		0x8000
+	uint8_t lalba_lbp[2];
 };
 
 struct scsi_report_luns
