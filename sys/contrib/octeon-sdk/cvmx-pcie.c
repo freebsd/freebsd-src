@@ -76,7 +76,9 @@
 #include <asm/octeon/cvmx-wqe.h>
 #else
 #include "cvmx.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-csr-db.h"
+#endif
 #include "cvmx-pcie.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-swap.h"
