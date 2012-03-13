@@ -703,7 +703,6 @@ arge_update_link_locked(struct arge_softc *sc)
 	ifp = sc->arge_ifp;
 	if (mii == NULL || ifp == NULL ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		ARGE_UNLOCK(sc);
 		return;
 	}
 
@@ -719,7 +718,6 @@ arge_update_link_locked(struct arge_softc *sc)
 	} else {
 		sc->arge_link_status = 0;
 	}
-
 }
 
 static void
@@ -858,7 +856,6 @@ arge_init_locked(struct arge_softc *sc)
 	arge_tx_ring_init(sc);
 
 	arge_reset_dma(sc);
-
 
 	if (sc->arge_miibus) {
 		mii = device_get_softc(sc->arge_miibus);
