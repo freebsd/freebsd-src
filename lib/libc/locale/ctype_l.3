@@ -1,5 +1,8 @@
-.\" Copyright (c) 1991, 1993
-.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This documentation was written by David Chisnall under sponsorship from
+.\" the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,9 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -25,89 +25,88 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)ctype.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2004
-.Dt CTYPE 3
+.Dd March 6, 2012
+.Dt CTYPE_L 3
 .Os
 .Sh NAME
-.Nm digittoint ,
-.Nm isalnum ,
-.Nm isalpha ,
-.Nm isascii ,
-.Nm isblank ,
-.Nm iscntrl ,
-.Nm isdigit ,
-.Nm isgraph ,
-.Nm ishexnumber ,
-.Nm isideogram ,
-.Nm islower ,
-.Nm isnumber ,
-.Nm isphonogram ,
-.Nm isprint ,
-.Nm ispunct ,
-.Nm isrune ,
-.Nm isspace ,
-.Nm isspecial ,
-.Nm isupper ,
-.Nm isxdigit ,
-.Nm toascii ,
-.Nm tolower ,
-.Nm toupper
-.Nd character classification functions 
+.Nm digittoint_l ,
+.Nm isalnum_l ,
+.Nm isalpha_l ,
+.Nm isascii_l ,
+.Nm isblank_l ,
+.Nm iscntrl_l ,
+.Nm isdigit_l ,
+.Nm isgraph_l ,
+.Nm ishexnumber_l ,
+.Nm isideogram_l ,
+.Nm islower_l ,
+.Nm isnumber_l ,
+.Nm isphonogram_l ,
+.Nm isprint_l ,
+.Nm ispunct_l ,
+.Nm isrune_l ,
+.Nm isspace_l ,
+.Nm isspecial_l ,
+.Nm isupper_l ,
+.Nm isxdigit_l ,
+.Nm tolower_l ,
+.Nm toupper_l
+.Nd character classification functions
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In ctype.h
 .Ft int
-.Fn digittoint "int c"
+.Fn digittoint_l "int c" "locale_t loc"
 .Ft int
-.Fn isalnum "int c"
+.Fn isalnum_l "int c" "locale_t loc"
 .Ft int
-.Fn isalpha "int c"
+.Fn isalpha_l "int c" "locale_t loc"
 .Ft int
-.Fn isascii "int c"
+.Fn isascii_l "int c" "locale_t loc"
 .Ft int
-.Fn iscntrl "int c"
+.Fn iscntrl_l "int c" "locale_t loc"
 .Ft int
-.Fn isdigit "int c"
+.Fn isdigit_l "int c" "locale_t loc"
 .Ft int
-.Fn isgraph "int c"
+.Fn isgraph_l "int c" "locale_t loc"
 .Ft int
-.Fn ishexnumber "int c"
+.Fn ishexnumber_l "int c" "locale_t loc"
 .Ft int
-.Fn isideogram "int c"
+.Fn isideogram_l "int c" "locale_t loc"
 .Ft int
-.Fn islower "int c"
+.Fn islower_l "int c" "locale_t loc"
 .Ft int
-.Fn isnumber "int c"
+.Fn isnumber_l "int c" "locale_t loc"
 .Ft int
-.Fn isphonogram "int c"
+.Fn isphonogram_l "int c" "locale_t loc"
 .Ft int
-.Fn isspecial "int c"
+.Fn isspecial_l "int c" "locale_t loc"
 .Ft int
-.Fn isprint "int c"
+.Fn isprint_l "int c" "locale_t loc"
 .Ft int
-.Fn ispunct "int c"
+.Fn ispunct_l "int c" "locale_t loc"
 .Ft int
-.Fn isrune "int c"
+.Fn isrune_l "int c" "locale_t loc"
 .Ft int
-.Fn isspace "int c"
+.Fn isspace_l "int c" "locale_t loc"
 .Ft int
-.Fn isupper "int c"
+.Fn isupper_l "int c" "locale_t loc"
 .Ft int
-.Fn isxdigit "int c"
+.Fn isxdigit_l "int c" "locale_t loc"
 .Ft int
-.Fn toascii "int c"
+.Fn tolower_l "int c" "locale_t loc"
 .Ft int
-.Fn tolower "int c"
-.Ft int
-.Fn toupper "int c"
+.Fn toupper_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The above functions perform character tests and conversions on the integer
-.Fa c .
-They are available as macros, defined in the include file
+.Fa c 
+in the locale
+.Fa loc .
+They behave in the same way as the versions without the _l suffix, but use the
+specified locale rather than the global or per-thread locale.  
 .In ctype.h ,
 or as true functions in the C library.
 See the specific manual pages for more information.
@@ -130,22 +129,10 @@ See the specific manual pages for more information.
 .Xr isspecial 3 ,
 .Xr isupper 3 ,
 .Xr isxdigit 3 ,
-.Xr toascii 3 ,
 .Xr tolower 3 ,
 .Xr toupper 3 ,
 .Xr wctype 3 ,
-.Xr ascii 7
+.Xr xlocale 3
 .Sh STANDARDS
-These functions, except for
-.Fn digittoint ,
-.Fn isascii ,
-.Fn ishexnumber ,
-.Fn isideogram ,
-.Fn isnumber ,
-.Fn isphonogram ,
-.Fn isrune ,
-.Fn isspecial
-and
-.Fn toascii ,
-conform to
-.St -isoC .
+These functions conform to
+.St -p1003.1-2008 .
