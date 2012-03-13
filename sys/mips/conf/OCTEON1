@@ -27,6 +27,9 @@ makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 makeoptions	MODULES_OVERRIDE=""
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
+# We don't need to build a trampolined version of the kernel.
+makeoptions	WITHOUT_KERNEL_TRAMPOLINE=1
+
 include		"../cavium/std.octeon1"
 
 hints		"OCTEON1.hints"		#Default places to look for devices.
