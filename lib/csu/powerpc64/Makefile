@@ -6,7 +6,8 @@ SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		Scrt1.o gcrt1.o
 CFLAGS+=	-I${.CURDIR}/../common \
-		-I${.CURDIR}/../../libc/include
+		-I${.CURDIR}/../../libc/include \
+		-mlongcall
 
 all: ${OBJS}
 
