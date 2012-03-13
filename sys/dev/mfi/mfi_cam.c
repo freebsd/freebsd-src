@@ -123,7 +123,11 @@ mfip_attach(device_t dev)
 	if ((sc->devq = cam_simq_alloc(MFI_SCSI_MAX_CMDS)) == NULL)
 		return (ENOMEM);
 
+#if __FreeBSD_version < 700000
+	sc->sim = cam_sim_alloc_mtx(mfip_cam_action, mfip_cam_poll, "mfi", sc,
+#else
 	sc->sim = cam_sim_alloc(mfip_cam_action, mfip_cam_poll, "mfi", sc,
+#endif
 				device_get_unit(dev), &mfisc->mfi_io_lock, 1,
 				MFI_SCSI_MAX_CMDS, sc->devq);
 	if (sc->sim == NULL) {
@@ -133,7 +137,11 @@ mfip_attach(device_t dev)
 	}
 
 	mtx_lock(&mfisc->mfi_io_lock);
+#if __FreeBSD_version < 700000
+	if (xpt_bus_register(sc->sim, 0) != 0) {
+#else
 	if (xpt_bus_register(sc->sim, dev, 0) != 0) {
+#endif
 		device_printf(dev, "XPT bus registration failed\n");
 		cam_sim_free(sc->sim, FALSE);
 		cam_simq_free(sc->devq);
@@ -194,10 +202,12 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 150000;
+#if __FreeBSD_version > 700000
 		cpi->transport = XPORT_SAS;
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
+#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -209,6 +219,10 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_GET_TRAN_SETTINGS:
 	{
+#if __FreeBSD_version < 700000
+		ccb->cts.flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
+		ccb->cts.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+#else
 		struct ccb_trans_settings_sas *sas =
 		    &ccb->cts.xport_specific.sas;
 
@@ -221,6 +235,7 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		sas->bitrate = 150000;
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
+#endif
 		break;
 	}
 	case XPT_SET_TRAN_SETTINGS:

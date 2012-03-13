@@ -533,6 +533,7 @@ mfi_dequeue_bio(struct mfi_softc *sc)
 	return (bp);
 }
 
+#if __FreeBSD_version > 999999
 /*
  * This is from the original scsi_extract_sense() in CAM.  It's copied
  * here because CAM now uses a non-inline version that follows more complex
@@ -549,13 +550,18 @@ mfi_extract_sense(struct scsi_sense_data_fixed *sense,
 	*asc = (sense->extra_len >= 5) ? sense->add_sense_code : 0;
 	*ascq = (sense->extra_len >= 6) ? sense->add_sense_code_qual : 0;
 }
+#endif
 
 static __inline void
 mfi_print_sense(struct mfi_softc *sc, void *sense)
 {
 	int error, key, asc, ascq;
 
+#if __FreeBSD_version > 999999
 	mfi_extract_sense((struct scsi_sense_data_fixed *)sense,
+#else
+	scsi_extract_sense((struct scsi_sense_data *)sense,
+#endif
 	    &error, &key, &asc, &ascq);
 	device_printf(sc->mfi_dev, "sense error %d, sense_key %d, "
 	    "asc %d, ascq %d\n", error, key, asc, ascq);

@@ -690,7 +690,11 @@ mfi_attach(struct mfi_softc *sc)
 		if ((error = mfi_tbolt_alloc_cmd(sc)) != 0)
 			return error;
 		if (bus_setup_intr(sc->mfi_dev, sc->mfi_irq,
+#if __FreeBSD_version < 700000
+		    INTR_MPSAFE|INTR_TYPE_BIO, mfi_intr_tbolt, sc,
+#else
 		    INTR_MPSAFE|INTR_TYPE_BIO, NULL, mfi_intr_tbolt, sc,
+#endif
 		    &sc->mfi_intr)) {
 			device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
 			return (EINVAL);
@@ -702,7 +706,11 @@ mfi_attach(struct mfi_softc *sc)
 			return (error);
 
 		if (bus_setup_intr(sc->mfi_dev, sc->mfi_irq,
+#if __FreeBSD_version < 700000
+		    INTR_MPSAFE|INTR_TYPE_BIO, mfi_intr, sc, &sc->mfi_intr)) {
+#else
 		    INTR_MPSAFE|INTR_TYPE_BIO, NULL, mfi_intr, sc, &sc->mfi_intr)) {
+#endif
 			device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
 			return (EINVAL);
 		}
@@ -1676,7 +1684,11 @@ mfi_aen_complete(struct mfi_command *cm)
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
 			    aen_link);
 			PROC_LOCK(mfi_aen_entry->p);
+#if __FreeBSD_version < 900000
+			psignal(mfi_aen_entry->p, SIGIO);
+#else
 			kern_psignal(mfi_aen_entry->p, SIGIO);
+#endif
 			PROC_UNLOCK(mfi_aen_entry->p);
 			free(mfi_aen_entry, M_MFIBUF);
 		}
