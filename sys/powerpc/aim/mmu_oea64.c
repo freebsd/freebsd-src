@@ -2039,7 +2039,7 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 void
 moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	struct	pvo_entry *pvo;
+	struct	pvo_entry *pvo, *tpvo;
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
@@ -2050,7 +2050,7 @@ moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 				moea64_pvo_remove(mmu, pvo);
 		}
 	} else {
-		LIST_FOREACH(pvo, &pm->pmap_pvo, pvo_plink) {
+		LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
 			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
 				continue;
 			moea64_pvo_remove(mmu, pvo);
