@@ -13,6 +13,8 @@
 
 #include "typeinfo"
 
+#if !(defined(_LIBCPPABI_VERSION) || defined(LIBCXXRT))
+
 std::bad_cast::bad_cast() _NOEXCEPT
 {
 }
@@ -48,3 +50,4 @@ std::bad_typeid::what() const _NOEXCEPT
   void __cxxabiv1::__cxa_bad_cast() { throw std::bad_cast(); }
 #endif
 
+#endif  // _LIBCPPABI_VERSION
