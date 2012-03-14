@@ -196,6 +196,7 @@ struct pci_quirk {
 #define	PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 #define	PCI_QUIRK_DISABLE_MSI	2 /* MSI/MSI-X doesn't work */
 #define	PCI_QUIRK_ENABLE_MSI_VM	3 /* Older chipset in VM where MSI works */
+#define	PCI_QUIRK_UNMAP_REG	4 /* Ignore PCI map register */
 	int	arg1;
 	int	arg2;
 };
@@ -243,6 +244,16 @@ static const struct pci_quirk const pci_quirks[] = {
 	 * but support MSI just fine.  QEMU uses the Intel 82440.
 	 */
 	{ 0x12378086, PCI_QUIRK_ENABLE_MSI_VM,	0,	0 },
+
+	/*
+	 * HPET MMIO base address may appear in Bar1 for AMD SB600 SMBus
+	 * controller depending on SoftPciRst register (PM_IO 0x55 [7]).
+	 * It prevents us from attaching hpet(4) when the bit is unset.
+	 * Note this quirk only affects SB600 revision A13 and earlier.
+	 * For SB600 A21 and later, firmware must set the bit to hide it.
+	 * For SB700 and later, it is unused and hardcoded to zero.
+	 */
+	{ 0x43851002, PCI_QUIRK_UNMAP_REG,	0x14,	0 },
 
 	{ 0 }
 };
@@ -3111,11 +3122,17 @@ xhci_early_takeover(device_t self)
 void
 pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	pcicfgregs *cfg = &dinfo->cfg;
-	struct resource_list *rl = &dinfo->resources;
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+	struct resource_list *rl;
 	const struct pci_quirk *q;
+	uint32_t devid;
 	int i;
+
+	dinfo = device_get_ivars(dev);
+	cfg = &dinfo->cfg;
+	rl = &dinfo->resources;
+	devid = (cfg->device << 16) | cfg->vendor;
 
 	/* ATA devices needs special map treatment */
 	if ((pci_get_class(dev) == PCIC_STORAGE) &&
@@ -3125,18 +3142,29 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 	      !pci_read_config(dev, PCIR_BAR(2), 4))) )
 		pci_ata_maps(bus, dev, rl, force, prefetchmask);
 	else
-		for (i = 0; i < cfg->nummaps;)
+		for (i = 0; i < cfg->nummaps;) {
+			/*
+			 * Skip quirked resources.
+			 */
+			for (q = &pci_quirks[0]; q->devid != 0; q++)
+				if (q->devid == devid &&
+				    q->type == PCI_QUIRK_UNMAP_REG &&
+				    q->arg1 == PCIR_BAR(i))
+					break;
+			if (q->devid != 0) {
+				i++;
+				continue;
+			}
 			i += pci_add_map(bus, dev, PCIR_BAR(i), rl, force,
 			    prefetchmask & (1 << i));
+		}
 
 	/*
 	 * Add additional, quirked resources.
 	 */
-	for (q = &pci_quirks[0]; q->devid; q++) {
-		if (q->devid == ((cfg->device << 16) | cfg->vendor)
-		    && q->type == PCI_QUIRK_MAP_REG)
+	for (q = &pci_quirks[0]; q->devid != 0; q++)
+		if (q->devid == devid && q->type == PCI_QUIRK_MAP_REG)
 			pci_add_map(bus, dev, q->arg1, rl, force, 0);
-	}
 
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
 #ifdef __PCI_REROUTE_INTERRUPT
