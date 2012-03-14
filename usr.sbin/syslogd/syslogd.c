@@ -128,7 +128,7 @@ const char	ctty[] = _PATH_CONSOLE;
  */
 struct funix {
 	int			s;
-	char			*name;
+	const char		*name;
 	mode_t			mode;
 	STAILQ_ENTRY(funix)	next;
 };
@@ -277,6 +277,7 @@ static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 static int	MarkSeq;	/* mark sequence number */
+static int	NoBind;		/* don't bind() as suggested by RFC 3164 */
 static int	SecureMode;	/* when true, receive only unix domain socks */
 #ifdef INET6
 static int	family = PF_UNSPEC; /* protocol family (IPv4, IPv6 or both) */
@@ -293,6 +294,7 @@ static char	bootfile[MAXLINE+1]; /* booted kernel file */
 
 struct allowedpeer *AllowedPeers; /* List of allowed peers */
 static int	NumAllowed;	/* Number of entries in AllowedPeers */
+static int	RemoteAddDate;	/* Always set the date on remote messages */
 
 static int	UniquePriority;	/* Only log specified priority? */
 static int	LogFacPri;	/* Put facility and priority in log message: */
@@ -322,7 +324,7 @@ static void	logmsg(int, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
 static int	skip_message(const char *, const char *, int);
-static void	printline(const char *, char *);
+static void	printline(const char *, char *, int);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
 static void	readklog(void);
@@ -352,7 +354,8 @@ main(int argc, char *argv[])
 	socklen_t len;
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nop:P:sS:uv")) != -1)
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nNop:P:sS:Tuv"))
+	    != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -430,6 +433,10 @@ main(int argc, char *argv[])
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
 			break;
+		case 'N':
+			NoBind = 1;
+			SecureMode = 1;
+			break;
 		case 'n':
 			resolve = 0;
 			break;
@@ -451,6 +458,9 @@ main(int argc, char *argv[])
 			if (strlen(optarg) >= sizeof(sunx.sun_path))
 				errx(1, "%s path too long, exiting", optarg);
 			funix_secure.name = optarg;
+			break;
+		case 'T':
+			RemoteAddDate = 1;
 			break;
 		case 'u':		/* only log specified priority */
 			UniquePriority++;
@@ -644,7 +654,7 @@ main(int argc, char *argv[])
 						hname = cvthname((struct sockaddr *)&frominet);
 						unmapped((struct sockaddr *)&frominet);
 						if (validate((struct sockaddr *)&frominet, hname))
-							printline(hname, line);
+							printline(hname, line, RemoteAddDate ? ADDDATE : 0);
 					} else if (l < 0 && errno != EINTR)
 						logerror("recvfrom inet");
 				}
@@ -657,7 +667,7 @@ main(int argc, char *argv[])
 				    (struct sockaddr *)&fromunix, &len);
 				if (l > 0) {
 					line[l] = '\0';
-					printline(LocalHostName, line);
+					printline(LocalHostName, line, 0);
 				} else if (l < 0 && errno != EINTR)
 					logerror("recvfrom unix");
 			}
@@ -697,7 +707,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: syslogd [-468ACcdknosuv] [-a allowed_peer]",
+		"usage: syslogd [-468ACcdknosTuv] [-a allowed_peer]",
 		"               [-b bind_address] [-f config_file]",
 		"               [-l [mode:]path] [-m mark_interval]",
 		"               [-P pid_file] [-p log_socket]");
@@ -709,7 +719,7 @@ usage(void)
  * on the appropriate log files.
  */
 static void
-printline(const char *hname, char *msg)
+printline(const char *hname, char *msg, int flags)
 {
 	char *p, *q;
 	long n;
@@ -762,7 +772,7 @@ printline(const char *hname, char *msg)
 	}
 	*q = '\0';
 
-	logmsg(pri, line, hname, 0);
+	logmsg(pri, line, hname, flags);
 }
 
 /*
@@ -2180,10 +2190,13 @@ allowaddr(char *s)
 	char *cp1, *cp2;
 	struct allowedpeer ap;
 	struct servent *se;
-	int masklen = -1, i;
+	int masklen = -1;
 	struct addrinfo hints, *res;
 	struct in_addr *addrp, *maskp;
+#ifdef INET6
+	int i;
 	u_int32_t *addr6p, *mask6p;
+#endif
 	char ip[NI_MAXHOST];
 
 #ifdef INET6
@@ -2339,12 +2352,15 @@ allowaddr(char *s)
 static int
 validate(struct sockaddr *sa, const char *hname)
 {
-	int i, j, reject;
+	int i;
 	size_t l1, l2;
 	char *cp, name[NI_MAXHOST], ip[NI_MAXHOST], port[NI_MAXSERV];
 	struct allowedpeer *ap;
 	struct sockaddr_in *sin4, *a4p = NULL, *m4p = NULL;
+#ifdef INET6
+	int j, reject;
 	struct sockaddr_in6 *sin6, *a6p = NULL, *m6p = NULL;
+#endif
 	struct addrinfo hints, *res;
 	u_short sport;
 
@@ -2647,13 +2663,24 @@ socksetup(int af, const char *bindhostname)
 			close(*s);
 			continue;
 		}
-		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
-			close(*s);
-			logerror("bind");
-			continue;
-		}
+		/*
+		 * RFC 3164 recommends that client side message
+		 * should come from the privileged syslogd port.
+		 *
+		 * If the system administrator choose not to obey
+		 * this, we can skip the bind() step so that the
+		 * system will choose a port for us.
+		 */
+		if (!NoBind) {
+			if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
+				close(*s);
+				logerror("bind");
+				continue;
+			}
 
-		double_rbuf(*s);
+			if (!SecureMode)
+				double_rbuf(*s);
+		}
 
 		(*socks)++;
 		s++;
