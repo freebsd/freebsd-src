@@ -224,16 +224,6 @@ get_disk_mediasize()
   export VAL="${mediasize}"
 };
 
-# Function which exports all zpools, making them safe to overwrite potentially
-export_all_zpools()
-{
-  # Export any zpools
-  for i in `zpool list -H -o name`
-  do
-    zpool export -f ${i}
-  done
-};
-
 # Function to delete all gparts before starting an install
 delete_all_gpart()
 {
@@ -268,10 +258,15 @@ delete_all_gpart()
 # Function to export all zpools before starting an install
 stop_all_zfs()
 {
-  # Export all zpools again, so that we can overwrite these partitions potentially
+  local DISK="`echo ${1} | sed 's|/dev/||g'`"
+
+  # Export any zpools using this device so we can overwrite
   for i in `zpool list -H -o name`
   do
-    zpool export -f ${i}
+    ztst=`zpool status ${i} | grep "ONLINE" | awk '{print $1}' | grep -q ${DISK}`
+    if [ "$ztst" = "$DISK" ] ; then
+      zpool export -f ${i}
+    fi
   done
 };
 
@@ -324,9 +319,6 @@ setup_disk_slice()
   disknum="0"
   gmnum="0"
 
-  # Make sure all zpools are exported
-  export_all_zpools
-
   # We are ready to start setting up the disks, lets read the config and do the actions
   while read line
   do
@@ -354,7 +346,7 @@ setup_disk_slice()
       stop_all_geli ${DISK}
 
       # Make sure we don't have any zpools loaded
-      stop_all_zfs
+      stop_all_zfs ${DISK}
 
      fi
 
@@ -375,6 +367,16 @@ setup_disk_slice()
       then
         exit_err "ERROR: The mirror disk ${MIRRORDISK} does not exist!"
       fi
+
+      # Make sure we stop any gmirrors on this mirror disk
+      stop_all_gmirror ${MIRRORDISK}
+
+      # Make sure we stop any geli stuff on this mirror disk
+      stop_all_geli ${MIRRORDISK}
+
+      # Make sure we don't have any zpools mirror loaded
+      stop_all_zfs ${MIRRORDISK}
+
     fi
 
     # Lets see if we have been given a mirror balance choice
@@ -641,35 +643,11 @@ init_mbr_full_disk()
   sleep 2
 
   echo_log "Running gpart on ${_intDISK}"
-  rc_halt "gpart create -s mbr ${_intDISK}"
-
-  # Lets figure out disk size in blocks
-  # Get the cyl of this disk
-  get_disk_cyl "${_intDISK}"
-  cyl="${VAL}"
-
-  # Get the heads of this disk
-  get_disk_heads "${_intDISK}"
-  head="${VAL}"
-
-  # Get the tracks/sectors of this disk
-  get_disk_sectors "${_intDISK}"
-  sec="${VAL}"
-
-  # Multiply them all together to get our total blocks
-  totalblocks="`expr ${cyl} \* ${head} 2>/dev/null`"
-  totalblocks="`expr ${totalblocks} \* ${sec} 2>/dev/null`"
-  if [ -z "${totalblocks}" ]
-  then
-    totalblocks=`gpart show "${_intDISK}"|tail -2|head -1|awk '{ print $2 }'`
-  fi
-
-  # Now set the ending block to the total disk block size
-  sizeblock="`expr ${totalblocks} - ${startblock}`"
+  rc_halt "gpart create -s mbr -f active ${_intDISK}"
 
   # Install new partition setup
   echo_log "Running gpart add on ${_intDISK}"
-  rc_halt "gpart add -b ${startblock} -s ${sizeblock} -t freebsd -i 1 ${_intDISK}"
+  rc_halt "gpart add -a 4k -t freebsd -i 1 ${_intDISK}"
   sleep 2
   
   echo_log "Cleaning up ${_intDISK}s1"
@@ -845,44 +823,9 @@ run_gpart_free()
     rc_halt "gpart create -s mbr ${DISK}"
   fi
 
-  # Lets get the starting block first
-  if [ "${slicenum}" = "1" ]
-  then
-     startblock="63"
-  else
-     # Lets figure out where the prior slice ends
-     checkslice=$((slicenum-1))
-
-     # Get starting block of this slice
-     sblk=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 2`
-     blksize=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 3`
-     startblock=$((sblk+blksiz))
-  fi
-
-  # No slice after the new slice, lets figure out the free space remaining and use it
-  # Get the cyl of this disk
-  get_disk_cyl "${DISK}"
-  cyl="${VAL}"
-
-  # Get the heads of this disk
-  get_disk_heads "${DISK}"
-  head="${VAL}"
-
-  # Get the tracks/sectors of this disk
-  get_disk_sectors "${DISK}"
-  sec="${VAL}"
-
-  # Multiply them all together to get our total blocks
-  totalblocks=$((cyl*head))
-  totalblocks=$((totalblocks*sec))
-
-
-  # Now set the ending block to the total disk block size
-  sizeblock=$((totalblocks-startblock))
-
   # Install new partition setup
   echo_log "Running gpart on ${DISK}"
-  rc_halt "gpart add -b ${startblock} -s ${sizeblock} -t freebsd -i ${slicenum} ${DISK}"
+  rc_halt "gpart add -a 4k -t freebsd -i ${slicenum} ${DISK}"
   sleep 2
   
   echo_log "Cleaning up $slice"

@@ -61,6 +61,7 @@
 #include "libmap.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
+#include "notes.h"
 
 #ifndef COMPAT_32BIT
 #define PATH_RTLD	"/libexec/ld-elf.so.1"
@@ -139,6 +140,7 @@ static void ref_dag(Obj_Entry *);
 static int origin_subst_one(char **, const char *, const char *,
   const char *, char *);
 static char *origin_subst(const char *, const char *);
+static void preinit_main(void);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
@@ -194,6 +196,8 @@ extern Elf_Dyn _DYNAMIC;
 
 int osreldate, pagesize;
 
+long __stack_chk_guard[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
 static int stack_prot = PROT_READ | PROT_WRITE | RTLD_DEFAULT_STACK_EXEC;
 static int max_stack_flags;
 
@@ -203,6 +207,12 @@ static int max_stack_flags;
  */
 char *__progname;
 char **environ;
+
+/*
+ * Used to pass argc, argv to init functions.
+ */
+int main_argc;
+char **main_argv;
 
 /*
  * Globals to control TLS allocation.
@@ -303,6 +313,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Obj_Entry **preload_tail;
     Objlist initlist;
     RtldLockState lockstate;
+    int mib[2];
+    size_t len;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -335,6 +347,28 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     __progname = obj_rtld.path;
     argv0 = argv[0] != NULL ? argv[0] : "(null)";
     environ = env;
+    main_argc = argc;
+    main_argv = argv;
+
+    if (aux_info[AT_CANARY]->a_un.a_ptr != NULL) {
+	    i = aux_info[AT_CANARYLEN]->a_un.a_val;
+	    if (i > sizeof(__stack_chk_guard))
+		    i = sizeof(__stack_chk_guard);
+	    memcpy(__stack_chk_guard, aux_info[AT_CANARY]->a_un.a_ptr, i);
+    } else {
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+
+	len = sizeof(__stack_chk_guard);
+	if (sysctl(mib, 2, __stack_chk_guard, &len, NULL, 0) == -1 ||
+	    len != sizeof(__stack_chk_guard)) {
+		/* If sysctl was unsuccessful, use the "terminator canary". */
+		((unsigned char *)(void *)__stack_chk_guard)[0] = 0;
+		((unsigned char *)(void *)__stack_chk_guard)[1] = 0;
+		((unsigned char *)(void *)__stack_chk_guard)[2] = '\n';
+		((unsigned char *)(void *)__stack_chk_guard)[3] = 255;
+	}
+    }
 
     trust = !issetugid();
 
@@ -458,8 +492,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     obj_tail = &obj_main->next;
     obj_count++;
     obj_loads++;
-    /* Make sure we don't call the main program's init and fini functions. */
-    obj_main->init = obj_main->fini = (Elf_Addr)NULL;
 
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
@@ -551,7 +583,20 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
       ld_bind_now != NULL && *ld_bind_now != '\0', NULL) == -1)
 	die();
 
+    if (!obj_main->crt_no_init) {
+	/*
+	 * Make sure we don't call the main program's init and fini
+	 * functions for binaries linked with old crt1 which calls
+	 * _init itself.
+	 */
+	obj_main->init = obj_main->fini = (Elf_Addr)NULL;
+	obj_main->preinit_array = obj_main->init_array =
+	    obj_main->fini_array = (Elf_Addr)NULL;
+    }
+
     wlock_acquire(rtld_bind_lock, &lockstate);
+    if (obj_main->crt_no_init)
+	preinit_main();
     objlist_call_init(&initlist, &lockstate);
     objlist_clear(&initlist);
     dbg("loading filtees");
@@ -936,8 +981,32 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	    obj->init = (Elf_Addr) (obj->relocbase + dynp->d_un.d_ptr);
 	    break;
 
+	case DT_PREINIT_ARRAY:
+	    obj->preinit_array = (Elf_Addr)(obj->relocbase + dynp->d_un.d_ptr);
+	    break;
+
+	case DT_PREINIT_ARRAYSZ:
+	    obj->preinit_array_num = dynp->d_un.d_val / sizeof(Elf_Addr);
+	    break;
+
+	case DT_INIT_ARRAY:
+	    obj->init_array = (Elf_Addr)(obj->relocbase + dynp->d_un.d_ptr);
+	    break;
+
+	case DT_INIT_ARRAYSZ:
+	    obj->init_array_num = dynp->d_un.d_val / sizeof(Elf_Addr);
+	    break;
+
 	case DT_FINI:
 	    obj->fini = (Elf_Addr) (obj->relocbase + dynp->d_un.d_ptr);
+	    break;
+
+	case DT_FINI_ARRAY:
+	    obj->fini_array = (Elf_Addr)(obj->relocbase + dynp->d_un.d_ptr);
+	    break;
+
+	case DT_FINI_ARRAYSZ:
+	    obj->fini_array_num = dynp->d_un.d_val / sizeof(Elf_Addr);
 	    break;
 
 	/*
@@ -1065,6 +1134,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
     Obj_Entry *obj;
     const Elf_Phdr *phlimit = phdr + phnum;
     const Elf_Phdr *ph;
+    Elf_Addr note_start, note_end;
     int nsegs = 0;
 
     obj = obj_new();
@@ -1120,6 +1190,12 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    obj->relro_page = obj->relocbase + trunc_page(ph->p_vaddr);
 	    obj->relro_size = round_page(ph->p_memsz);
 	    break;
+
+	case PT_NOTE:
+	    note_start = (Elf_Addr)obj->relocbase + ph->p_vaddr;
+	    note_end = note_start + ph->p_filesz;
+	    digest_notes(obj, note_start, note_end);
+	    break;
 	}
     }
     if (nsegs < 1) {
@@ -1129,6 +1205,44 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 
     obj->entry = entry;
     return obj;
+}
+
+void
+digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
+{
+	const Elf_Note *note;
+	const char *note_name;
+	uintptr_t p;
+
+	for (note = (const Elf_Note *)note_start; (Elf_Addr)note < note_end;
+	    note = (const Elf_Note *)((const char *)(note + 1) +
+	      roundup2(note->n_namesz, sizeof(Elf32_Addr)) +
+	      roundup2(note->n_descsz, sizeof(Elf32_Addr)))) {
+		if (note->n_namesz != sizeof(NOTE_FREEBSD_VENDOR) ||
+		    note->n_descsz != sizeof(int32_t))
+			continue;
+		if (note->n_type != ABI_NOTETYPE &&
+		    note->n_type != CRT_NOINIT_NOTETYPE)
+			continue;
+		note_name = (const char *)(note + 1);
+		if (strncmp(NOTE_FREEBSD_VENDOR, note_name,
+		    sizeof(NOTE_FREEBSD_VENDOR)) != 0)
+			continue;
+		switch (note->n_type) {
+		case ABI_NOTETYPE:
+			/* FreeBSD osrel note */
+			p = (uintptr_t)(note + 1);
+			p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+			obj->osrel = *(const int32_t *)(p);
+			dbg("note osrel %d", obj->osrel);
+			break;
+		case CRT_NOINIT_NOTETYPE:
+			/* FreeBSD 'crt does not call init' note */
+			obj->crt_no_init = true;
+			dbg("note crt_no_init");
+			break;
+		}
+	}
 }
 
 static Obj_Entry *
@@ -1504,11 +1618,13 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 	initlist_add_neededs(obj->needed, list);
 
     /* Add the object to the init list. */
-    if (obj->init != (Elf_Addr)NULL)
+    if (obj->preinit_array != (Elf_Addr)NULL || obj->init != (Elf_Addr)NULL ||
+      obj->init_array != (Elf_Addr)NULL)
 	objlist_push_tail(list, obj);
 
     /* Add the object to the global fini list in the reverse order. */
-    if (obj->fini != (Elf_Addr)NULL && !obj->on_fini_list) {
+    if ((obj->fini != (Elf_Addr)NULL || obj->fini_array != (Elf_Addr)NULL)
+      && !obj->on_fini_list) {
 	objlist_push_head(&list_fini, obj);
 	obj->on_fini_list = true;
     }
@@ -1796,6 +1912,27 @@ obj_from_addr(const void *addr)
     return NULL;
 }
 
+static void
+preinit_main(void)
+{
+    Elf_Addr *preinit_addr;
+    int index;
+
+    preinit_addr = (Elf_Addr *)obj_main->preinit_array;
+    if (preinit_addr == NULL)
+	return;
+
+    for (index = 0; index < obj_main->preinit_array_num; index++) {
+	if (preinit_addr[index] != 0 && preinit_addr[index] != 1) {
+	    dbg("calling preinit function for %s at %p", obj_main->path,
+	      (void *)preinit_addr[index]);
+	    LD_UTRACE(UTRACE_INIT_CALL, obj_main, (void *)preinit_addr[index],
+	      0, 0, obj_main->path);
+	    call_init_pointer(obj_main, preinit_addr[index]);
+	}
+    }
+}
+
 /*
  * Call the finalization functions for each of the objects in "list"
  * belonging to the DAG of "root" and referenced once. If NULL "root"
@@ -1808,6 +1945,8 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 {
     Objlist_Entry *elm;
     char *saved_msg;
+    Elf_Addr *fini_addr;
+    int index;
 
     assert(root == NULL || root->refcount == 1);
 
@@ -1821,10 +1960,6 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 	    if (root != NULL && (elm->obj->refcount != 1 ||
 	      objlist_find(&root->dagmembers, elm->obj) == NULL))
 		continue;
-	    dbg("calling fini function for %s at %p", elm->obj->path,
-	        (void *)elm->obj->fini);
-	    LD_UTRACE(UTRACE_FINI_CALL, elm->obj, (void *)elm->obj->fini, 0, 0,
-		elm->obj->path);
 	    /* Remove object from fini list to prevent recursive invocation. */
 	    STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
 	    /*
@@ -1835,7 +1970,31 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 	     * called.
 	     */
 	    lock_release(rtld_bind_lock, lockstate);
-	    call_initfini_pointer(elm->obj, elm->obj->fini);
+
+	    /*
+	     * It is legal to have both DT_FINI and DT_FINI_ARRAY defined.
+	     * When this happens, DT_FINI_ARRAY is processed first.
+	     */
+	    fini_addr = (Elf_Addr *)elm->obj->fini_array;
+	    if (fini_addr != NULL && elm->obj->fini_array_num > 0) {
+		for (index = elm->obj->fini_array_num - 1; index >= 0;
+		  index--) {
+		    if (fini_addr[index] != 0 && fini_addr[index] != 1) {
+			dbg("calling fini function for %s at %p",
+			    elm->obj->path, (void *)fini_addr[index]);
+			LD_UTRACE(UTRACE_FINI_CALL, elm->obj,
+			    (void *)fini_addr[index], 0, 0, elm->obj->path);
+			call_initfini_pointer(elm->obj, fini_addr[index]);
+		    }
+		}
+	    }
+	    if (elm->obj->fini != (Elf_Addr)NULL) {
+		dbg("calling fini function for %s at %p", elm->obj->path,
+		    (void *)elm->obj->fini);
+		LD_UTRACE(UTRACE_FINI_CALL, elm->obj, (void *)elm->obj->fini,
+		    0, 0, elm->obj->path);
+		call_initfini_pointer(elm->obj, elm->obj->fini);
+	    }
 	    wlock_acquire(rtld_bind_lock, lockstate);
 	    /* No need to free anything if process is going down. */
 	    if (root != NULL)
@@ -1862,6 +2021,8 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
     Objlist_Entry *elm;
     Obj_Entry *obj;
     char *saved_msg;
+    Elf_Addr *init_addr;
+    int index;
 
     /*
      * Clean init_scanned flag so that objects can be rechecked and
@@ -1879,10 +2040,6 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
     STAILQ_FOREACH(elm, list, link) {
 	if (elm->obj->init_done) /* Initialized early. */
 	    continue;
-	dbg("calling init function for %s at %p", elm->obj->path,
-	    (void *)elm->obj->init);
-	LD_UTRACE(UTRACE_INIT_CALL, elm->obj, (void *)elm->obj->init, 0, 0,
-	    elm->obj->path);
 	/*
 	 * Race: other thread might try to use this object before current
 	 * one completes the initilization. Not much can be done here
@@ -1890,7 +2047,30 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	 */
 	elm->obj->init_done = true;
 	lock_release(rtld_bind_lock, lockstate);
-	call_initfini_pointer(elm->obj, elm->obj->init);
+
+        /*
+         * It is legal to have both DT_INIT and DT_INIT_ARRAY defined.
+         * When this happens, DT_INIT is processed first.
+         */
+	if (elm->obj->init != (Elf_Addr)NULL) {
+	    dbg("calling init function for %s at %p", elm->obj->path,
+	        (void *)elm->obj->init);
+	    LD_UTRACE(UTRACE_INIT_CALL, elm->obj, (void *)elm->obj->init,
+	        0, 0, elm->obj->path);
+	    call_initfini_pointer(elm->obj, elm->obj->init);
+	}
+	init_addr = (Elf_Addr *)elm->obj->init_array;
+	if (init_addr != NULL) {
+	    for (index = 0; index < elm->obj->init_array_num; index++) {
+		if (init_addr[index] != 0 && init_addr[index] != 1) {
+		    dbg("calling init function for %s at %p", elm->obj->path,
+			(void *)init_addr[index]);
+		    LD_UTRACE(UTRACE_INIT_CALL, elm->obj,
+			(void *)init_addr[index], 0, 0, elm->obj->path);
+		    call_init_pointer(elm->obj, init_addr[index]);
+		}
+	    }
+	}
 	wlock_acquire(rtld_bind_lock, lockstate);
     }
     errmsg_restore(saved_msg);
@@ -3507,17 +3687,17 @@ unref_dag(Obj_Entry *root)
 /*
  * Common code for MD __tls_get_addr().
  */
-void *
-tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
+static void *tls_get_addr_slow(Elf_Addr **, int, size_t) __noinline;
+static void *
+tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
 {
-    Elf_Addr* dtv = *dtvp;
+    Elf_Addr *newdtv, *dtv;
     RtldLockState lockstate;
+    int to_copy;
 
+    dtv = *dtvp;
     /* Check dtv generation in case new modules have arrived */
     if (dtv[0] != tls_dtv_generation) {
-	Elf_Addr* newdtv;
-	int to_copy;
-
 	wlock_acquire(rtld_bind_lock, &lockstate);
 	newdtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
 	to_copy = dtv[1];
@@ -3532,14 +3712,27 @@ tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
     }
 
     /* Dynamically allocate module TLS if necessary */
-    if (!dtv[index + 1]) {
+    if (dtv[index + 1] == 0) {
 	/* Signal safe, wlock will block out signals. */
-	    wlock_acquire(rtld_bind_lock, &lockstate);
+	wlock_acquire(rtld_bind_lock, &lockstate);
 	if (!dtv[index + 1])
 	    dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
 	lock_release(rtld_bind_lock, &lockstate);
     }
-    return (void*) (dtv[index + 1] + offset);
+    return ((void *)(dtv[index + 1] + offset));
+}
+
+void *
+tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
+{
+	Elf_Addr *dtv;
+
+	dtv = *dtvp;
+	/* Check dtv generation in case new modules have arrived */
+	if (__predict_true(dtv[0] == tls_dtv_generation &&
+	    dtv[index + 1] != 0))
+		return ((void *)(dtv[index + 1] + offset));
+	return (tls_get_addr_slow(dtvp, index, offset));
 }
 
 #if defined(__arm__) || defined(__ia64__) || defined(__mips__) || defined(__powerpc__)
@@ -4143,4 +4336,20 @@ __getosreldate(void)
 void
 __pthread_cxa_finalize(struct dl_phdr_info *a)
 {
+}
+
+void
+__stack_chk_fail(void)
+{
+
+	_rtld_error("stack overflow detected; terminated");
+	die();
+}
+
+void
+__chk_fail(void)
+{
+
+	_rtld_error("buffer overflow detected; terminated");
+	die();
 }

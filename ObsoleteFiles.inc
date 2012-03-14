@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120309: Remove fifofs header files.
+OLD_FILES+=usr/include/fs/fifofs/fifo.h
+OLD_DIRS+=usr/include/fs/fifofs
 # 20120225: libarchive 3.0.3
 OLD_FILES+=usr/share/man/man3/archive_read_data_into_buffer.3.gz \
 	usr/share/man/man3/archive_read_support_compression_all.3.gz \
@@ -417,6 +420,9 @@ OLD_FILES+=usr/share/man/man5/lastlog.5.gz
 OLD_FILES+=usr/share/man/man5/utmp.5.gz
 OLD_FILES+=usr/share/man/man5/wtmp.5.gz
 OLD_LIBS+=lib/libutil.so.8
+.if ${TARGET_ARCH} == "amd64"
+OLB_LIBS+=usr/lib32/libutil.so.8
+.endif
 # 20100105: new userland semaphore implementation
 OLD_FILES+=usr/include/sys/semaphore.h
 # 20100103: ntptrace(8) removed

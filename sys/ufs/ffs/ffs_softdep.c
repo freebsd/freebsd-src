@@ -2368,8 +2368,7 @@ softdep_mount(devvp, mp, fs, cred)
 	mp->mnt_flag = (mp->mnt_flag & ~MNT_ASYNC) | MNT_SOFTDEP;
 	if ((mp->mnt_kern_flag & MNTK_SOFTDEP) == 0) {
 		mp->mnt_kern_flag = (mp->mnt_kern_flag & ~MNTK_ASYNC) | 
-			MNTK_SOFTDEP;
-		mp->mnt_noasync++;
+			MNTK_SOFTDEP | MNTK_NOASYNC;
 	}
 	MNT_IUNLOCK(mp);
 	ump = VFSTOUFS(mp);
@@ -6312,7 +6311,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		DIP_SET(ip, i_size, length);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, frags);
-		ffs_update(vp, MNT_NOWAIT);
+		ffs_update(vp, 0);
 		bawrite(bp);
 	} else if (lastoff != 0 && vp->v_type != VDIR) {
 		int size;
@@ -12347,7 +12346,7 @@ flush_newblk_dep(vp, mp, lbn)
 		 * point at the newdirblk before the dependency
 		 * will go away.
 		 */
-		error = ffs_update(vp, MNT_WAIT);
+		error = ffs_update(vp, 1);
 		if (error)
 			break;
 		ACQUIRE_LOCK(&lk);
@@ -12383,7 +12382,7 @@ restart:
 		 */
 		if (dap->da_state & MKDIR_PARENT) {
 			FREE_LOCK(&lk);
-			if ((error = ffs_update(pvp, MNT_WAIT)) != 0)
+			if ((error = ffs_update(pvp, 1)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -12425,7 +12424,7 @@ restart:
 			 * disk.
 			 */
 			if (error == 0 && dap == LIST_FIRST(diraddhdp))
-				error = ffs_update(vp, MNT_WAIT);
+				error = ffs_update(vp, 1);
 			vput(vp);
 			if (error != 0)
 				break;
@@ -12482,7 +12481,7 @@ retry:
 			if ((error = ffs_vgetf(mp, inum, LK_EXCLUSIVE, &vp,
 			    FFSV_FORCEINSMQ)))
 				break;
-			error = ffs_update(vp, MNT_WAIT);
+			error = ffs_update(vp, 1);
 			vput(vp);
 			if (error)
 				break;

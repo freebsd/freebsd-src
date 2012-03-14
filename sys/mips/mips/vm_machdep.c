@@ -42,7 +42,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_cputype.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -406,12 +405,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td->td_frame;
 	/* Dont set IE bit in SR. sched lock release will take care of it */
 	pcb2->pcb_context[PCB_REG_SR] = mips_rd_status() &
-	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
-
-#ifdef CPU_CNMIPS
-	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_0_BIT |
-	  MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
-#endif
+	    (MIPS_SR_PX | MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
 
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
@@ -475,10 +469,6 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 #elif  defined(__mips_n64)
 	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
 #endif
-#ifdef CPU_CNMIPS
-	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_PX | MIPS_SR_UX |
-	  MIPS_SR_KX;
-#endif
 /*	tf->sr |= (ALL_INT_MASK & idle_mask) | SR_INT_ENAB; */
 	/**XXX the above may now be wrong -- mips2 implements this as panic */
 	/*
@@ -486,19 +476,6 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 * Setup any other CPU-Specific registers (Not MIPS Standard)
 	 * that are needed.
 	 */
-}
-/*
- * Convert kernel VA to physical address
- */
-u_long
-kvtop(void *addr)
-{
-	vm_offset_t va;
-
-	va = pmap_kextract((vm_offset_t)addr);
-	if (va == 0)
-		panic("kvtop: zero page frame");
-	return((intptr_t)va);
 }
 
 /*

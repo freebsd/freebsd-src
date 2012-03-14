@@ -623,19 +623,22 @@ void
 ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
+	struct ath_buf *bf, *bf_last;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/* This is always going to be cleared, empty or not */
 	txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
 
+	/* XXX make this ATH_TXQ_FIRST */
 	bf = TAILQ_FIRST(&txq->axq_q);
+	bf_last = ATH_TXQ_LAST(txq, axq_q_s);
+
 	if (bf == NULL)
 		return;
 
 	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-	txq->axq_link = &bf->bf_lastds->ds_link;
+	txq->axq_link = &bf_last->bf_lastds->ds_link;
 	ath_hal_txstart(ah, txq->axq_qnum);
 }
 
@@ -1159,6 +1162,11 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * (or) if there is some mcast data waiting on the mcast
 	 * queue (to prevent out of order delivery) multicast
 	 * frames must be buffered until after the beacon.
+	 *
+	 * XXX This likely means that if there's a station in power
+	 * save mode, we won't be doing any kind of aggregation towards
+	 * anyone.  This is likely a very suboptimal way of dealing
+	 * with things.
 	 */
 	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
 		txq = &avp->av_mcastq;
@@ -1361,7 +1369,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_vap *avp = ATH_VAP(vap);
-	int r;
+	int r = 0;
 	u_int pri;
 	int tid;
 	struct ath_txq *txq;
@@ -1394,6 +1402,27 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
+	/*
+	 * Enforce how deep the multicast queue can grow.
+	 *
+	 * XXX duplicated in ath_raw_xmit().
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		ATH_TXQ_LOCK(sc->sc_cabq);
+
+		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
+			sc->sc_stats.ast_tx_mcastq_overflow++;
+			r = ENOBUFS;
+		}
+
+		ATH_TXQ_UNLOCK(sc->sc_cabq);
+
+		if (r != 0) {
+			m_freem(m0);
+			return r;
+		}
+	}
+
 	/* A-MPDU TX */
 	is_ampdu_tx = ath_tx_ampdu_running(sc, ATH_NODE(ni), tid);
 	is_ampdu_pending = ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid);
@@ -1406,6 +1435,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (ismcast)
 		txq = &avp->av_mcastq;
 
+	/*
+	 * XXX This likely means that if there's a station in power
+	 * save mode, we won't be doing any kind of aggregation towards
+	 * anyone.  This is likely a very suboptimal way of dealing
+	 * with things.
+	 */
 	if ((! is_ampdu) && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
 		txq = &avp->av_mcastq;
 
@@ -1720,7 +1755,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ath_softc *sc = ifp->if_softc;
 	struct ath_buf *bf;
-	int error;
+	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
+	int error = 0;
 
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
@@ -1741,6 +1777,28 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = ENETDOWN;
 		goto bad;
 	}
+
+	/*
+	 * Enforce how deep the multicast queue can grow.
+	 *
+	 * XXX duplicated in ath_tx_start().
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		ATH_TXQ_LOCK(sc->sc_cabq);
+
+		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
+			sc->sc_stats.ast_tx_mcastq_overflow++;
+			error = ENOBUFS;
+		}
+
+		ATH_TXQ_UNLOCK(sc->sc_cabq);
+
+		if (error != 0) {
+			m_freem(m);
+			goto bad;
+		}
+	}
+
 	/*
 	 * Grab a TX buffer and associated resources.
 	 */

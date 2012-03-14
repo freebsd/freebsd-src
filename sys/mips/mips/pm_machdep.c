@@ -39,7 +39,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_cputype.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -490,10 +489,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	td->td_frame->sr |= MIPS_SR_PX;
 #elif  defined(__mips_n64)
 	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
-#endif
-#ifdef CPU_CNMIPS
-	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX |
-	    MIPS_SR_KX | MIPS_SR_SX;
 #endif
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:

@@ -272,19 +272,6 @@ mips_init(void)
 }
 
 void
-platform_halt(void)
-{
-
-}
-
-
-void
-platform_identify(void)
-{
-
-}
-
-void
 platform_reset(void)
 {
 	
@@ -293,18 +280,6 @@ platform_reset(void)
 	 * XXX flush data caches
 	 */
 	sb_system_reset();
-}
-
-void
-platform_trap_enter(void)
-{
-
-}
-
-void
-platform_trap_exit(void)
-{
-
 }
 
 static void

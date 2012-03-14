@@ -54,15 +54,12 @@
  *	assembly language support routines.
  */
 
-#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pte.h>
-
-#include "opt_cputype.h"
 
 #include "assym.s"
 
@@ -71,7 +68,7 @@
 /*
  * Reasonable limit
  */
-#define	INTRCNT_COUNT	128
+#define	INTRCNT_COUNT	256
 
 
 /*
@@ -1188,14 +1185,14 @@ sintrnames:
 	.int  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 #endif
 
-	.align	4
+	.align	(_MIPS_SZLONG / 8)
 intrcnt:
-	.space  INTRCNT_COUNT * 4 * 2
+	.space  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 sintrcnt:
 #ifdef __mips_n64
-	.quad  INTRCNT_COUNT * 4 * 2
+	.quad  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #else
-	.int  INTRCNT_COUNT * 4 * 2
+	.int  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #endif
 
 

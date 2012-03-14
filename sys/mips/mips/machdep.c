@@ -42,7 +42,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include "opt_md.h"
 
@@ -347,8 +346,7 @@ mips_vector_init(void)
 	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
-/* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
+#ifdef __mips_n64
 	bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 #endif
@@ -396,17 +394,6 @@ mips_postboot_fixup(void)
 		ksym_end = kernel_kseg0_end;
 	}
 #endif
-}
-
-/*
- * Many SoCs have a means to reset the core itself.  Others do not, or
- * the method is unknown to us.  For those cases, we jump to the mips
- * reset vector and hope for the best.  This works well in practice.
- */
-void
-mips_generic_reset()
-{
-	((void(*)(void))MIPS_RESET_EXC_VEC)();
 }
 
 #ifdef SMP

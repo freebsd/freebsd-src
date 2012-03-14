@@ -723,6 +723,10 @@ restart:
 	    if (!interactive)
 	    {
 		sleep(delay);
+		if (leaveflag) {
+		    end_screen();
+		    exit(0);
+		}
 	    }
 	    else while (no_command)
 	    {

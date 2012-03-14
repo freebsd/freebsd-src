@@ -116,6 +116,9 @@ static int default_to_accept;
 VNET_DEFINE(int, autoinc_step);
 VNET_DEFINE(int, fw_one_pass) = 1;
 
+/* Use 128 tables by default */
+int fw_tables_max = IPFW_TABLES_MAX;
+
 /*
  * Each rule belongs to one of 32 different sets (0..31).
  * The variable set_disable contains one bit per set.
@@ -145,7 +148,6 @@ ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
 #ifdef SYSCTL_NODE
 uint32_t dummy_def = IPFW_DEFAULT_RULE;
-uint32_t dummy_tables_max = IPFW_TABLES_MAX;
 
 SYSBEGIN(f3)
 
@@ -166,12 +168,13 @@ SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     &dummy_def, 0,
     "The default/max possible rule number.");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
-    &dummy_tables_max, 0,
+    &V_fw_tables_max, 0,
     "The maximum number of tables.");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
     "Make the default rule accept all packets.");
 TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
+TUNABLE_INT("net.inet.ip.fw.tables_max", &V_fw_tables_max);
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
     CTLFLAG_RD, &VNET_NAME(layer3_chain.n_rules), 0,
     "Number of static rules");
@@ -341,12 +344,15 @@ tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 }
 
 static int
-iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
+iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uint32_t *tablearg)
 {
 	if (ifp == NULL)	/* no iface with this packet, match fails */
 		return 0;
 	/* Check by name or by IP address */
 	if (cmd->name[0] != '\0') { /* match by name */
+		if (cmd->name[0] == '\1') /* use tablearg to match */
+			return ipfw_lookup_table_extended(chain, cmd->p.glob,
+				ifp->if_xname, tablearg, IPFW_TABLE_INTERFACE);
 		/* Check name */
 		if (cmd->p.glob) {
 			if (fnmatch(cmd->name, ifp->if_xname, 0) == 0)
@@ -1312,16 +1318,18 @@ do {								\
 
 			case O_RECV:
 				match = iface_match(m->m_pkthdr.rcvif,
-				    (ipfw_insn_if *)cmd);
+				    (ipfw_insn_if *)cmd, chain, &tablearg);
 				break;
 
 			case O_XMIT:
-				match = iface_match(oif, (ipfw_insn_if *)cmd);
+				match = iface_match(oif, (ipfw_insn_if *)cmd,
+				    chain, &tablearg);
 				break;
 
 			case O_VIA:
 				match = iface_match(oif ? oif :
-				    m->m_pkthdr.rcvif, (ipfw_insn_if *)cmd);
+				    m->m_pkthdr.rcvif, (ipfw_insn_if *)cmd,
+				    chain, &tablearg);
 				break;
 
 			case O_MACADDR2:
@@ -1448,6 +1456,17 @@ do {								\
 					    ((ipfw_insn_u32 *)cmd)->d[0] == v;
 				    else
 					tablearg = v;
+				} else if (is_ipv6) {
+					uint32_t v = 0;
+					void *pkey = (cmd->opcode == O_IP_DST_LOOKUP) ?
+						&args->f_id.dst_ip6: &args->f_id.src_ip6;
+					match = ipfw_lookup_table_extended(chain,
+							cmd->arg1, pkey, &v,
+							IPFW_TABLE_CIDR);
+					if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
+						match = ((ipfw_insn_u32 *)cmd)->d[0] == v;
+					if (match)
+						tablearg = v;
 				}
 				break;
 
@@ -2566,22 +2585,24 @@ vnet_ipfw_init(const void *unused)
 	LIST_INIT(&chain->nat);
 #endif
 
+	/* Check user-supplied number for validness */
+	if (V_fw_tables_max < 0)
+	  V_fw_tables_max = IPFW_TABLES_MAX;
+	if (V_fw_tables_max > 65534)
+	  V_fw_tables_max = 65534;
+
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
 	chain->static_len = sizeof(struct ip_fw);
-	chain->map = malloc(sizeof(struct ip_fw *), M_IPFW, M_NOWAIT | M_ZERO);
+	chain->map = malloc(sizeof(struct ip_fw *), M_IPFW, M_WAITOK | M_ZERO);
 	if (chain->map)
-		rule = malloc(chain->static_len, M_IPFW, M_NOWAIT | M_ZERO);
-	if (rule == NULL) {
-		if (chain->map)
-			free(chain->map, M_IPFW);
-		printf("ipfw2: ENOSPC initializing default rule "
-			"(support disabled)\n");
-		return (ENOSPC);
-	}
+		rule = malloc(chain->static_len, M_IPFW, M_WAITOK | M_ZERO);
 	error = ipfw_init_tables(chain);
 	if (error) {
-		panic("init_tables"); /* XXX Marko fix this ! */
+		printf("ipfw2: setting up tables failed\n");
+		free(chain->map, M_IPFW);
+		free(rule, M_IPFW);
+		return (ENOSPC);
 	}
 
 	/* fill and insert the default rule */
@@ -2644,12 +2665,12 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_UH_WLOCK(chain);
 
 	IPFW_WLOCK(chain);
-	IPFW_WUNLOCK(chain);
-	IPFW_WLOCK(chain);
-
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
+	IPFW_WUNLOCK(chain);
+
 	ipfw_destroy_tables(chain);
 	reap = NULL;
+	IPFW_WLOCK(chain);
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
 		rule->x_next = reap;

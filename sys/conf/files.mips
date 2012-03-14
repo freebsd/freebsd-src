@@ -30,7 +30,6 @@ mips/mips/cpu.c			standard
 mips/mips/elf_machdep.c		standard
 mips/mips/exception.S		standard
 mips/mips/gdb_machdep.c		standard
-# mips/mips/mainbus.c		standard
 mips/mips/pmap.c		standard
 mips/mips/trap.c		standard
 mips/mips/vm_machdep.c		standard
@@ -57,6 +56,7 @@ mips/mips/in_cksum.c		optional	inet | inet6
 mips/mips/locore.S		standard	no-obj
 mips/mips/minidump_machdep.c	standard
 mips/mips/mem.c			optional	mem
+mips/mips/libkern_machdep.c	standard
 mips/mips/nexus.c		standard
 mips/mips/stack_machdep.c	optional	ddb | stack
 mips/mips/support.S		standard
@@ -73,18 +73,13 @@ geom/geom_mbr_enc.c		optional	geom_mbr
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
 libkern/cmpdi2.c		standard
-libkern/divdi3.c		optional	isa_mips32
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/lshrdi3.c		standard
 libkern/memchr.c		optional	fdt
 libkern/memmove.c		standard
-libkern/moddi3.c		optional	isa_mips32
-libkern/qdivrem.c		optional	isa_mips32
 libkern/ucmpdi2.c		standard
-libkern/udivdi3.c		optional	isa_mips32
-libkern/umoddi3.c		optional	isa_mips32
 
 #XXX: We can't use these versions, as strcmp.c is included conf/files
 #libkern/mips/strcmp.S		standard
