@@ -1960,7 +1960,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					scsi_extract_sense(sense, &error_code,
 							   &sense_key, 
 							   &asc, &ascq);
-				}
+				} else
+					error_code = sense_key = asc = ascq = 0;
 				/*
 				 * If we tried READ CAPACITY(16) and failed,
 				 * fallback to READ CAPACITY(10).
