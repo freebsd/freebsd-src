@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2012
+.Dd March 14, 2012
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -293,22 +293,22 @@ as follows:
 file
 .El
 .Sh FILES
-.Bl -tag -width /etc/rc.shutdown -compact
+.Bl -tag -width /var/log/init.log -compact
 .It Pa /dev/console
 system console device
 .It Pa /dev/tty*
 terminal ports found in
 .Xr ttys 5
-.It Pa /var/run/utx.active
-record of current users on the system
-.It Pa /var/log/utx.log
-record of all logins and logouts
 .It Pa /etc/ttys
 the terminal initialization information file
 .It Pa /etc/rc
 system startup commands
 .It Pa /etc/rc.shutdown
 system shutdown commands
+.It Pa /var/log/init.log
+log of
+.Xr rc 8
+output if the system console device is not available
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
