@@ -9,13 +9,12 @@ reflect.c
 	Makefile just builds reflect, a program to echo data on a TCP or UDP
 	socket in very simplistic ways.  It has a couple of options to provide
 	an address or port, a FIB to bind to or a FIB to add to a reflected
-	message as well as some "magic" keyword handling to let the intiators
+	message as well as some "magic" keyword handling to let the initiators
 	control it.
 
 initiator.sh and reflector.sh
 
-	intiator.sh runs two local test cases, one which shows a documented
-	limitation.
+	initiator.sh runs two local test cases.
 
 	All further tests are either exercising the sending or receiving of
 	ICMP6, TCP or UDP packets with multiple FIBs.  initiator.sh and
@@ -28,7 +27,7 @@ initiator.sh and reflector.sh
 	depend on ping6, netcat, awk, tr and ipfw.  The interface to use can
 	be set from the environment.  The commands can be run like:
 	
-	env IFACE=ifname sh intiator.sh
+	env IFACE=ifname sh initiator.sh
 	env IFACE=ifname sh reflector.sh
 	
 	Both scripts also support a DEBUG environment variable for additional
@@ -42,6 +41,17 @@ initiator.sh and reflector.sh
 	are used to mitigate the problem some but are not always good enough.
 	It is suggested to run one test case at a time manually disabling
 	the others in both scripts.
+
+checknd6.sh
+
+	Check seeding of neighbor table (netstat and ndp) for each FIB
+	individually by changing to that FIB ping6ing the reflector host
+	from initiator and in addition to checking the ping6 result code
+	grep the netstat -rnf inet6 and ndp -an output for the address.
+	Run as:
+
+	env IFACE=ifname sh checknd6.sh initiator
+	env IFACE=ifname sh checknd6.sh reflector
 
 forwarding.sh
 

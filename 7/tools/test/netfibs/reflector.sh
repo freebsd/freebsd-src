@@ -109,6 +109,17 @@ die()
 	exit 1
 }
 
+clean_ndp_cn()
+{
+	local cn
+
+	cn=0
+	while test ${cn} -lt ${RT_NUMFIBS}; do
+		setfib -F ${cn} ndp -cn > /dev/null 2>&1
+		cn=$((cn + 1))
+	done
+}
+
 #
 # Test functions.
 #
@@ -310,6 +321,12 @@ testtx_ulp6_connected_transfernets()
 		fib=$((fib + 1))
 	done
 
+	clean_ndp_cn
+
+	# Let things settle.
+	print_debug "Waiting 2 seconds for things to settle"
+	sleep 2
+
 	fib=0
 	while test ${fib} -lt ${RT_NUMFIBS}; do
 		print_debug "./reflect -p ${CTRLPORT} -T ${_o} -t ${_n}${fib} ${_opts}"
@@ -382,6 +399,12 @@ testtx_ulp6_gateway()
 	delay
 	ifconfig lo0 inet6 2001:2:ff01::2 alias
 
+	clean_ndp_cn
+
+	# Let things settle.
+	print_debug "Waiting 1 seconds for things to settle"
+	sleep 1
+
 	_opts=""
 	case ${DEBUG} in
 	''|0)	;;
@@ -444,6 +467,12 @@ testtx_ulp6_transfernets_gateways()
 	ifconfig lo0 inet6 2001:2:ff01::2 -alias > /dev/null 2>&1 || true
 	delay
 	ifconfig lo0 inet6 2001:2:ff01::2 alias
+
+	clean_ndp_cn
+
+	# Let things settle.
+	print_debug "Waiting 1 seconds for things to settle"
+	sleep 1
 
 	# Reflect requests.
 	print_debug "./reflect -p ${CTRLPORT} -T ${_o} " \
@@ -512,6 +541,12 @@ testtx_ulp6_transfernets_gateway()
 	ifconfig lo0 inet6 2001:2:ff01::2 -alias > /dev/null 2>&1 || true
 	delay
 	ifconfig lo0 inet6 2001:2:ff01::2 alias
+
+	clean_ndp_cn
+
+	# Let things settle.
+	print_debug "Waiting 1 seconds for things to settle"
+	sleep 1
 
 	# Reflect requests.
 	fib=0
@@ -585,6 +620,12 @@ textrx_ipfw_setup()
 	    via ${IFACE} in > /dev/null 2>&1
 	ipfw add 100 setfib ${_fib} ipv6-icmp \
 	    from ${PEERLINKLOCAL%\%*} to ${OURLINKLOCAL%\%*} \
+	    via ${IFACE} in > /dev/null 2>&1
+	ipfw add 100 setfib ${_fib} ipv6-icmp \
+	    from ${PEERLINKLOCAL%\%*} to ff02::/16 \
+	    via ${IFACE} in > /dev/null 2>&1
+	ipfw add 100 setfib ${_fib} ipv6-icmp \
+	    from :: to ff02::/16 \
 	    via ${IFACE} in > /dev/null 2>&1
 
 	# Always also do a setfib for the control port so that OOB
@@ -798,6 +839,12 @@ testrx_cleanup_connected()
 		delay
 		ifconfig ${IFACE} inet6 ${OURADDR}/64 alias up
 	fi
+
+	clean_ndp_cn
+
+	# Let things settle.
+	print_debug "Waiting 1 seconds for things to settle"
+	sleep 1
 }
 
 testrx_setup_transfer_networks()
@@ -812,6 +859,12 @@ testrx_setup_transfer_networks()
 		ifconfig ${IFACE} inet6 2001:2:${i}::2/64 alias
 		i=$((i + 1))
 	done
+
+	clean_ndp_cn
+
+	# Let things settle.
+	print_debug "Waiting 1 seconds for things to settle"
+	sleep 1
 }
 
 testrx_run_one()
@@ -881,6 +934,7 @@ testrx_run_multiple()
 testrx_run_test()
 {
 	local _n _t _fib _o _txt i _f _instance _destructive _transfer
+	local cn
 	_n="$1"
 	_t="$2"
 	_fib=$3
@@ -928,6 +982,8 @@ testrx_run_test()
 	case ${_destructive} in
 	1)	testrx_remove_connected ${_fib} ${_transfer} ;;
 	esac
+
+	clean_ndp_cn
 
 	# Setup to get result counts.
 	textrx_count_setup
@@ -1046,32 +1102,53 @@ wait_remote_ready
 for uso in 0 1; do
 
 	# Only run ICMP6 tests for the first loop.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_connected
+	clean_ndp_cn
 	testtx_tcp6_connected
+	clean_ndp_cn
 	testtx_udp6_connected
 
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_connected_blackhole
+	clean_ndp_cn
 	testtx_tcp6_connected_blackhole
+	clean_ndp_cn
 	testtx_udp6_connected_blackhole
 
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_connected_transfernets
+	clean_ndp_cn
 	testtx_tcp6_connected_transfernets
+	clean_ndp_cn
 	testtx_udp6_connected_transfernets
 
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_connected_ifconfig_transfernets
+	clean_ndp_cn
 	testtx_tcp6_connected_ifconfig_transfernets
+	clean_ndp_cn
 	testtx_udp6_connected_ifconfig_transfernets
 
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_gateway
+	clean_ndp_cn
 	testtx_tcp6_gateway
+	clean_ndp_cn
 	testtx_udp6_gateway
 
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_transfernets_gateways
+	clean_ndp_cn
 	testtx_tcp6_transfernets_gateways
+	clean_ndp_cn
 	testtx_udp6_transfernets_gateways
 
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_transfernets_gateway
+	clean_ndp_cn
 	testtx_tcp6_transfernets_gateway
+	clean_ndp_cn
 	testtx_udp6_transfernets_gateway
 done
 
@@ -1084,13 +1161,17 @@ for uso in 0 1; do
 	USE_SOSETFIB=${uso}
 	
 	# Only expect ICMP6 tests for the first loop.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testrx_icmp6_same_addr_one_fib_a_time
+	clean_ndp_cn
 	testrx_tcp6_same_addr_one_fib_a_time
+	clean_ndp_cn
 	testrx_udp6_same_addr_one_fib_a_time
 
+	clean_ndp_cn
 	testrx_tcp6_same_addr_all_fibs_a_time
+	clean_ndp_cn
 	testrx_udp6_same_addr_all_fibs_a_time
-
 done
 
 cleanup

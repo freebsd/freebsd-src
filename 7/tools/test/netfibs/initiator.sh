@@ -100,6 +100,18 @@ die()
 	exit 1
 }
 
+clean_ndp_cn()
+{
+	local cn
+
+	cn=0
+	while test ${cn} -lt ${RT_NUMFIBS}; do
+		setfib -F ${cn} ndp -cn > /dev/null 2>&1
+		cn=$((cn + 1))
+	done
+}
+
+
 #
 # Test functions.
 #
@@ -167,7 +179,8 @@ check_local_tun()
 		print_debug "Testing FIB ${i}"
 		if test ${i} -gt 0; then
 			# Flag the well known behaviour as such.
-			_msg="TODO "
+			# Is fine on 7.x
+			#_msg="TODO "
 		fi
 
 		setfib -F${i} ping6 -n -c1 ${_l} > /dev/null 2>&1
@@ -198,9 +211,6 @@ check_remote_up()
 	# Let things settle.
 	print_debug "Waiting 4 seconds for things to settle"
 	sleep 4
-
-
-
 }
 
 send_greeting()
@@ -382,14 +392,14 @@ testtx_tcp_udp()
 		eval _rc="\${rc_${i}_l}"
 		_fibtxt="${_n}_${i}_l ${_f} ${i} ${PEERLINKLOCAL}"
 		nc_send_recv ${i} 1 "${_fibtxt}" "${_fibtxt}" ${PEERLINKLOCAL} \
-		    ${CTRLPORT} "-6 ${_o} -w1"
+		    ${CTRLPORT} "-6 ${_o} -w2"
 		check_rc $? ${_rc} ${testno} "${_fibtxt}"
 		testno=$((testno + 1))
 
 		eval _rc="\${rc_${i}_a}"
 		_fibtxt="${_n}_${i}_a ${_f} ${i} ${PEERADDR}"
 		nc_send_recv ${i} 1 "${_fibtxt}" "${_fibtxt}" ${PEERADDR} \
-		    ${CTRLPORT} "-6 ${_o} -w1"
+		    ${CTRLPORT} "-6 ${_o} -w2"
 		check_rc $? ${_rc} ${testno} "${_fibtxt}"
 		testno=$((testno + 1))
 
@@ -427,7 +437,7 @@ testtx_ulp6_connected()
 	# Let peer know that we are about to start.
 	_msg="START ${_n}"
 	nc_send_recv ${_fib} ${WAITS} "${_msg}" "${_msg}" ${PEERADDR} \
-	    ${CTRLPORT} "-6 ${_opts} -w1"
+	    ${CTRLPORT} "-6 ${_opts} -w2"
 	case $? in
 	0)	;;
 	*)	die "Got invalid reply from peer." \
@@ -443,7 +453,7 @@ testtx_ulp6_connected()
 	# This must immediately succeed.
 	_msg="DONE ${_n}"
 	nc_send_recv ${_fib} ${WAITS} "${_msg}" "${_msg}" ${PEERADDR} \
-	    ${CTRLPORT} "-6 ${_opts} -w1"
+	    ${CTRLPORT} "-6 ${_opts} -w2"
 	case $? in
 	0)	;;
 	*)	die "Got invalid reply from peer." \
@@ -613,6 +623,9 @@ testtx_ulp6_connected_transfernets()
 		fib=$((fib + 1))
 	done
 
+	# Let things settle.
+	sleep 5
+
 	# Save PEERADDR
 	_p=${PEERADDR}
 
@@ -711,6 +724,9 @@ testtx_ulp6_connected_ifconfig_transfernets()
 
 	# Save PEERADDR
 	_p=${PEERADDR}
+
+	# Let things settle.
+	sleep 5
 
 	# Run tests.
 	fib=0
@@ -890,6 +906,9 @@ testtx_ulp6_transfernets_gateways()
 	_p=${PEERADDR}
 	PEERADDR="2001:2:ff01::2"
 
+	# Let things settle.
+	sleep 4
+
 	# Setup expected return values.
 	i=0
 	while test ${i} -lt ${RT_NUMFIBS}; do
@@ -987,6 +1006,9 @@ testtx_ulp6_transfernets_gateway()
 	# Save PEERADDR
 	_p=${PEERADDR}
 	PEERADDR="2001:2:ff01::2"
+
+	# Let things settle.
+	sleep 4
 
 	# Run tests.
 	fib=0
@@ -1200,6 +1222,9 @@ testrx_setup_transfer_networks()
 		ifconfig ${IFACE} inet6 2001:2:${i}::1/64 alias
 		i=$((i + 1))
 	done
+
+	# Let things settle.
+	sleep 4
 }
 
 testrx_cleanup_transfer_networks()
@@ -1218,6 +1243,7 @@ testrx_cleanup_transfer_networks()
 testrx_run_test()
 {
 	local _n _t _fib _o _txt _msg i _reply _instances _destructive _transfer
+	local cn
 	_n="$1"
 	_t="$2"
 	_fib=$3
@@ -1246,8 +1272,14 @@ testrx_run_test()
 	1)	testrx_setup_transfer_networks ;;
 	esac
 
+	cn=0
+	while test ${cn} -lt ${RT_NUMFIBS}; do
+		setfib -F ${cn} ndp -cn > /dev/null 2>&1
+		cn=$((cn + 1))
+	done
+
 	# Let the other side a chance to get ready as well.
-	sleep 1
+	sleep 2
 
 	set +e
 	# Let peer know that we are about to start.
@@ -1261,7 +1293,7 @@ testrx_run_test()
 	esac
 
 	# Let the other side a chance to get ready as well.
-	sleep 1
+	sleep 2
 
 	# Send probe.
 	case "${_o}" in
@@ -1282,10 +1314,10 @@ testrx_run_test()
 	esac
 
 	# Collect and validate the results.   Always use TCP.
-	sleep 1
+	sleep 2
 	set +e
 	nc_send_recv ${_fib} 1 "RESULT REQUEST" "" ${PEERADDR} \
-	    ${CTRLPORT} "-6 -w1"
+	    ${CTRLPORT} "-6 -w3"
 	case "${_reply}" in
 	RESULT\ *) testrx_results ${_fib} "${_txt}_" "${_reply}" ${_instances} \
 			${_transfer} "${_o}"
@@ -1332,14 +1364,32 @@ testrx_main_setup_rc()
 				case "${_o}" in
 				-i)	case ${_transfer} in
 					0) eval rc_${i}_a=0 ;;
-					1) eval rc_${i}_a=1 ;;
+					1) # 7.x always ok in this case
+					   if test ${_instances} -eq 1 -a \
+					      "${_t}" = "ifconfig"; then
+						eval rc_${i}_a=0
+					   elif test ${_fib} -eq 0 -a \
+					      "${_t}" = "ipfw" -a \
+					      "${_instances}" -eq 1; then
+						eval rc_${i}_a=0
+					   else
+						eval rc_${i}_a=1
+					   fi
+						;;
 					esac
 					;;
 				*)	if test ${_instances} -eq 1 -a \
 					    ${_transfer} -eq 0; then
 						eval rc_${i}_a=0
-					else
+					elif test ${_instances} -eq \
+					    ${RT_NUMFIBS} -a \
+					    ${i} -ne 0; then
+						# 7.x returns 0 for FIB0 and
+					        # the FIB-UT, 1 otherwise.
 						eval rc_${i}_a=1
+					else
+						# 7.x also returns 0 here.
+						eval rc_${i}_a=0
 					fi
 					;;
 				esac
@@ -1460,39 +1510,60 @@ for uso in 0 1; do
 
 	# Only run ICMP6 tests for the first loop.
 	# 160 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_connected && sleep 1
+	clean_ndp_cn
 	testtx_tcp6_connected && sleep 1
+	clean_ndp_cn
 	testtx_udp6_connected && sleep 1
 
 	# 2560 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_connected_blackhole && sleep 1
+	clean_ndp_cn
 	testtx_tcp6_connected_blackhole && sleep 1
+	clean_ndp_cn
 	testtx_udp6_connected_blackhole && sleep 1
 
 	# 2560 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_connected_transfernets && sleep 1
+	clean_ndp_cn
 	testtx_tcp6_connected_transfernets && sleep 1
+	clean_ndp_cn
 	testtx_udp6_connected_transfernets && sleep 1
 
 	# 2560 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || \
 	    testtx_icmp6_connected_ifconfig_transfernets && sleep 1
+	clean_ndp_cn
 	testtx_tcp6_connected_ifconfig_transfernets && sleep 1
+	clean_ndp_cn
 	testtx_udp6_connected_ifconfig_transfernets && sleep 1
 
 	# 160 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_gateway && sleep 1
+	clean_ndp_cn
 	testtx_tcp6_gateway && sleep 1
+	clean_ndp_cn
 	testtx_udp6_gateway && sleep 1
 
 	# 160 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_transfernets_gateways && sleep 1
+	clean_ndp_cn
 	testtx_tcp6_transfernets_gateways && sleep 1
+	clean_ndp_cn
 	testtx_udp6_transfernets_gateways && sleep 1
 
 	# 2560 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testtx_icmp6_transfernets_gateway && sleep 1
+	clean_ndp_cn
 	testtx_tcp6_transfernets_gateway && sleep 1
+	clean_ndp_cn
 	testtx_udp6_transfernets_gateway && sleep 1
 done
 
@@ -1503,15 +1574,21 @@ for uso in 0 1; do
 
 	# Only expect ICMP6 tests for the first loop.
 	# 6144 cases at 16 FIBs.
+	clean_ndp_cn
 	test ${uso} -ne 0 || testrx_icmp6_same_addr_one_fib_a_time && sleep 1
+
 	# 12288 cases at 16 FIBs.
+	clean_ndp_cn
 	testrx_tcp6_same_addr_one_fib_a_time && sleep 1
 	# 12288 cases at 16 FIBs.
+	clean_ndp_cn
 	testrx_udp6_same_addr_one_fib_a_time && sleep 1
 
 	# 12288 cases at 16 FIBs.
+	clean_ndp_cn
 	testrx_tcp6_same_addr_all_fibs_a_time && sleep 1
 	# 12288 cases at 16 FIBs.
+	clean_ndp_cn
 	testrx_udp6_same_addr_all_fibs_a_time && sleep 1
 
 done
