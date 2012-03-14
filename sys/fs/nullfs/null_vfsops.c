@@ -50,6 +50,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/jail.h>
 
 #include <fs/nullfs/null.h>
 
@@ -75,11 +76,15 @@ nullfs_mount(struct mount *mp)
 	struct vnode *lowerrootvp, *vp;
 	struct vnode *nullm_rootvp;
 	struct null_mount *xmp;
+	struct thread *td = curthread;
 	char *target;
 	int isvnunlocked = 0, len;
 	struct nameidata nd, *ndp = &nd;
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_NULLFS))
+		return (EPERM);
 
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
@@ -157,8 +162,7 @@ nullfs_mount(struct mount *mp)
 	 * Make sure the node alias worked
 	 */
 	if (error) {
-		vrele(lowerrootvp);
-		free(xmp, M_NULLFSMNT);	/* XXX */
+		free(xmp, M_NULLFSMNT);
 		return (error);
 	}
 
@@ -181,9 +185,10 @@ nullfs_mount(struct mount *mp)
 		MNT_IUNLOCK(mp);
 	}
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE;
+	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
+	    (MNTK_MPSAFE | MNTK_SHARED_WRITES);
 	MNT_IUNLOCK(mp);
-	mp->mnt_data =  xmp;
+	mp->mnt_data = xmp;
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, target);
@@ -219,7 +224,7 @@ nullfs_unmount(mp, mntflags)
 	 * Finally, throw away the null_mount structure
 	 */
 	mntdata = mp->mnt_data;
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 	free(mntdata, M_NULLFSMNT);
 	return 0;
 }
@@ -308,6 +313,12 @@ nullfs_vget(mp, ino, flags, vpp)
 	struct vnode **vpp;
 {
 	int error;
+
+	KASSERT((flags & LK_TYPE_MASK) != 0,
+	    ("nullfs_vget: no lock requested"));
+	flags &= ~LK_TYPE_MASK;
+	flags |= LK_EXCLUSIVE;
+
 	error = VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, flags, vpp);
 	if (error)
 		return (error);
@@ -358,4 +369,4 @@ static struct vfsops null_vfsops = {
 	.vfs_vget =		nullfs_vget,
 };
 
-VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK);
+VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK | VFCF_JAIL);

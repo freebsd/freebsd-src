@@ -2696,6 +2696,17 @@ find_a_file (const struct path_prefix *pprefix, const char *name, int mode,
     return xstrdup (DEFAULT_LINKER);
 #endif
 
+#ifdef FREEBSD_NATIVE
+  if (! strcmp(name, "include"))
+    {
+#ifdef CROSS_INCLUDE_DIR
+      return xstrdup(CROSS_INCLUDE_DIR);
+#else
+      return xstrdup(STANDARD_INCLUDE_DIR);
+#endif
+    }
+#endif
+
   /* Determine the filename to execute (special case for absolute paths).  */
 
   if (IS_ABSOLUTE_PATH (name))

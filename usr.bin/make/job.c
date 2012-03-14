@@ -954,17 +954,19 @@ JobFinish(Job *job, int *status)
 						lastNode = job->node;
 					}
 					fprintf(out,
-					    "*** Completed successfully\n");
+					    "*** [%s] Completed successfully\n",
+					    job->node->name);
 				}
 			} else {
 				if (usePipes && job->node != lastNode) {
 					MESSAGE(out, job->node);
 					lastNode = job->node;
 				}
-				fprintf(out, "*** Error code %d%s\n",
+				fprintf(out, "*** [%s] Error code %d%s\n",
+					job->node->name,
 					WEXITSTATUS(*status),
 					(job->flags & JOB_IGNERR) ?
-					"(ignored)" : "");
+					" (ignored)" : "");
 
 				if (job->flags & JOB_IGNERR) {
 					*status = 0;
@@ -1005,7 +1007,8 @@ JobFinish(Job *job, int *status)
 						MESSAGE(out, job->node);
 						lastNode = job->node;
 					}
-					fprintf(out, "*** Continued\n");
+					fprintf(out, "*** [%s] Continued\n",
+					    job->node->name);
 				}
 				if (!(job->flags & JOB_CONTINUING)) {
 					DEBUGF(JOB, ("Warning: process %jd was not "
@@ -1029,7 +1032,8 @@ JobFinish(Job *job, int *status)
 					lastNode = job->node;
 				}
 				fprintf(out,
-				    "*** Signal %d\n", WTERMSIG(*status));
+				    "*** [%s] Signal %d\n", job->node->name,
+				    WTERMSIG(*status));
 				fflush(out);
 			}
 		}
@@ -1056,7 +1060,8 @@ JobFinish(Job *job, int *status)
 			MESSAGE(out, job->node);
 			lastNode = job->node;
 		}
-		fprintf(out, "*** Stopped -- signal %d\n", WSTOPSIG(*status));
+		fprintf(out, "*** [%s] Stopped -- signal %d\n",
+		    job->node->name, WSTOPSIG(*status));
 		job->flags |= JOB_RESUME;
 		TAILQ_INSERT_TAIL(&stoppedJobs, job, link);
 		fflush(out);
@@ -1897,7 +1902,7 @@ JobOutput(Job *job, char *cp, char *endp, int msg)
  *	this makes up a line, we print it tagged by the job's identifier,
  *	as necessary.
  *	If output has been collected in a temporary file, we open the
- *	file and read it line by line, transfering it to our own
+ *	file and read it line by line, transferring it to our own
  *	output channel until the file is empty. At which point we
  *	remove the temporary file.
  *	In both cases, however, we keep our figurative eye out for the
@@ -3034,13 +3039,15 @@ Compat_RunCommand(LstNode *cmdNode, GNode *gn)
 			if (status == 0) {
 				return (0);
   			} else {
-				printf("*** Error code %d", status);
+				printf("*** [%s] Error code %d",
+				    gn->name, status);
   			}
 		} else if (WIFSTOPPED(reason)) {
 			status = WSTOPSIG(reason);
 		} else {
 			status = WTERMSIG(reason);
-			printf("*** Signal %d", status);
+			printf("*** [%s] Signal %d",
+			    gn->name, status);
   		}
   
 		if (ps.errCheck) {

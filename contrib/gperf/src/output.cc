@@ -1300,7 +1300,7 @@ Output::output_lookup_array () const
 
           if (option[DEBUG])
             fprintf (stderr,
-                     "dup_ptr[%d]: hash_value = %d, index = %d, count = %d\n",
+                     "dup_ptr[%td]: hash_value = %d, index = %d, count = %d\n",
                      dup_ptr - duplicates,
                      dup_ptr->hash_value, dup_ptr->index, dup_ptr->count);
 

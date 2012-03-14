@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-static void rulespec_infp(FILE *fp, unsigned long reqest, devfs_rsnum rsnum);
+static void rulespec_infp(FILE *fp, unsigned long request, devfs_rsnum rsnum);
 static void rulespec_instr(struct devfs_rule *dr, const char *str,
     devfs_rsnum rsnum);
 static void rulespec_intok(struct devfs_rule *dr, int ac, char **av,

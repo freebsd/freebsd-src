@@ -28,7 +28,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2011
+.Dd December 17, 2011
 .Dt DU 1
 .Os
 .Sh NAME
@@ -155,6 +155,13 @@ or
 .Fl L
 option is specified, storage used by any symbolic links which are
 followed is not counted (or displayed).
+The
+.Fl H ,
+.Fl L
+and
+.Fl P
+options override each other and the command's actions are determined
+by the last one specified.
 .Pp
 The
 .Fl h, k

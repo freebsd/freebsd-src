@@ -206,7 +206,7 @@ opendisk(const char *devnam)
 	    &real_dev_bsize) == -1)
 		real_dev_bsize = secsize;
 	if (debug)
-		printf("dev_bsize %ld\n", real_dev_bsize);
+		printf("dev_bsize %u\n", real_dev_bsize);
 }
 
 /*

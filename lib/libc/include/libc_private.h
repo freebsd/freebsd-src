@@ -44,6 +44,26 @@
 extern int	__isthreaded;
 
 /*
+ * Elf_Auxinfo *__elf_aux_vector, the pointer to the ELF aux vector
+ * provided by kernel. Either set for us by rtld, or found at runtime
+ * on stack for static binaries.
+ *
+ * Type is void to avoid polluting whole libc with ELF types.
+ */
+extern void	*__elf_aux_vector;
+
+/*
+ * libc should use libc_dlopen internally, which respects a global
+ * flag where loading of new shared objects can be restricted.
+ */
+void *libc_dlopen(const char *, int);
+
+/*
+ * For dynamic linker.
+ */
+void _rtld_error(const char *fmt, ...);
+
+/*
  * File lock contention is difficult to diagnose without knowing
  * where locks were set. Allow a debug library to be built which
  * records the source file and line number of each lock call.
@@ -218,6 +238,7 @@ int _execvpe(const char *, char * const *, char * const *);
 int _elf_aux_info(int aux, void *buf, int buflen);
 struct dl_phdr_info;
 int __elf_phdr_match_addr(struct dl_phdr_info *, void *);
+void __init_elf_aux_vector(void);
 
 void	_pthread_cancel_enter(int);
 void	_pthread_cancel_leave(int);

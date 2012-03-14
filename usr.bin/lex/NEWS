@@ -1,3 +1,5 @@
+$FreeBSD$
+
 Changes between release 2.5.4 (11Sep96) and release 2.5.3:
 
 	- Fixed a bug introduced in 2.5.3 that blew it when a call
@@ -944,7 +946,7 @@ Changes between 2.3 (full) release of 28Jun90 and 2.2 (alpha) release:
 	  given.  To specify an end-of-file action for just the initial
 	  state, use <INITIAL><<EOF>>.
 
-	- -d debug output is now contigent on the global yy_flex_debug
+	- -d debug output is now contingent on the global yy_flex_debug
 	  being set to a non-zero value, which it is by default.
 
 	- A new macro, YY_USER_INIT, is provided for the user to specify
@@ -987,7 +989,7 @@ Changes between 2.3 (full) release of 28Jun90 and 2.2 (alpha) release:
 	- yy_switch_to_buffer() can be used in the yywrap() macro/routine.
 
 	- flex scanners do not use stdio for their input, and hence when
-	  writing an interactive scanner one must explictly call fflush()
+	  writing an interactive scanner one must explicitly call fflush()
 	  after writing out a prompt.
 
 	- flex scanner can be made reentrant (after a fashion) by using

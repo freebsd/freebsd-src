@@ -142,24 +142,24 @@ cache_init(struct pcpu *pcpu)
 	    "l2-cache-line-size", pcpu->pc_cache.ec_linesize) == -1 ||
 	    OF_GET(pcpu->pc_node, !use_new_prop ? "ecache-associativity" :
 	    "l2-cache-associativity", pcpu->pc_cache.ec_assoc) == -1)
-		panic("cache_init: could not retrieve cache parameters");
+		OF_panic("%s: could not retrieve cache parameters", __func__);
 
 	set = pcpu->pc_cache.ic_size / pcpu->pc_cache.ic_assoc;
 	if ((set & ~(1UL << (ffs(set) - 1))) != 0)
-		panic("cache_init: I$ set size not a power of 2");
+		OF_panic("%s: I$ set size not a power of 2", __func__);
 	if ((pcpu->pc_cache.dc_size &
 	    ~(1UL << (ffs(pcpu->pc_cache.dc_size) - 1))) != 0)
-		panic("cache_init: D$ size not a power of 2");
+		OF_panic("%s: D$ size not a power of 2", __func__);
 	/*
 	 * For CPUs which don't support unaliasing in hardware ensure that
 	 * the data cache doesn't have too many virtual colors.
 	 */
 	if (dcache_color_ignore == 0 && ((pcpu->pc_cache.dc_size /
 	    pcpu->pc_cache.dc_assoc) / PAGE_SIZE) != DCACHE_COLORS)
-		panic("cache_init: too many D$ colors");
+		OF_panic("%s: too many D$ colors", __func__);
 	set = pcpu->pc_cache.ec_size / pcpu->pc_cache.ec_assoc;
 	if ((set & ~(1UL << (ffs(set) - 1))) != 0)
-		panic("cache_init: E$ set size not a power of 2");
+		OF_panic("%s: E$ set size not a power of 2", __func__);
 
 	if (pcpu->pc_impl >= CPU_IMPL_ULTRASPARCIII) {
 		cache_enable = cheetah_cache_enable;
@@ -184,5 +184,5 @@ cache_init(struct pcpu *pcpu)
 		tlb_flush_nonlocked = spitfire_tlb_flush_nonlocked;
 		tlb_flush_user = spitfire_tlb_flush_user;
 	} else
-		panic("cache_init: unknown CPU");
+		OF_panic("%s: unknown CPU", __func__);
 }

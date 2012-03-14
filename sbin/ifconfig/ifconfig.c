@@ -66,7 +66,9 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef JAIL
 #include <jail.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -255,6 +257,7 @@ main(int argc, char *argv[])
 				ifconfig(argc, argv, 1, NULL);
 				exit(0);
 			}
+#ifdef JAIL
 			/*
 			 * NOTE:  We have to special-case the `-vnet' command
 			 * right here as we would otherwise fail when trying
@@ -268,6 +271,7 @@ main(int argc, char *argv[])
 				ifconfig(argc, argv, 0, NULL);
 				exit(0);
 			}
+#endif
 			errx(1, "interface %s does not exist", ifname);
 		}
 	}
@@ -688,6 +692,7 @@ deletetunnel(const char *vname, int param, int s, const struct afswtch *afp)
 		err(1, "SIOCDIFPHYADDR");
 }
 
+#ifdef JAIL
 static void
 setifvnet(const char *jname, int dummy __unused, int s,
     const struct afswtch *afp)
@@ -715,6 +720,7 @@ setifrvnet(const char *jname, int dummy __unused, int s,
 	if (ioctl(s, SIOCSIFRVNET, &my_ifr) < 0)
 		err(1, "SIOCSIFRVNET(%d, %s)", my_ifr.ifr_jid, my_ifr.ifr_name);
 }
+#endif
 
 static void
 setifnetmask(const char *addr, int dummy __unused, int s,
@@ -1078,6 +1084,21 @@ printb(const char *s, unsigned v, const char *bits)
 }
 
 void
+print_vhid(const struct ifaddrs *ifa, const char *s)
+{
+	struct if_data *ifd;
+
+	if (ifa->ifa_data == NULL)
+		return;
+
+	ifd = ifa->ifa_data;
+	if (ifd->ifi_vhid == 0)
+		return;
+	
+	printf("vhid %d ", ifd->ifi_vhid);
+}
+
+void
 ifmaybeload(const char *name)
 {
 #define MOD_PREFIX_LEN		3	/* "if_" */
@@ -1158,8 +1179,10 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG2("tunnel",			settunnel),
 	DEF_CMD("-tunnel", 0,			deletetunnel),
 	DEF_CMD("deletetunnel", 0,		deletetunnel),
+#ifdef JAIL
 	DEF_CMD_ARG("vnet",			setifvnet),
 	DEF_CMD_ARG("-vnet",			setifrvnet),
+#endif
 	DEF_CMD("link0",	IFF_LINK0,	setifflags),
 	DEF_CMD("-link0",	-IFF_LINK0,	setifflags),
 	DEF_CMD("link1",	IFF_LINK1,	setifflags),

@@ -266,8 +266,8 @@ int cvm_oct_spi_init(struct ifnet *ifp)
 
 		rid = 0;
 		sc->sc_spi_irq = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ,
-						    &rid, CVMX_IRQ_RML,
-						    CVMX_IRQ_RML, 1,
+						    &rid, OCTEON_IRQ_RML,
+						    OCTEON_IRQ_RML, 1,
 						    RF_ACTIVE);
 		if (sc->sc_spi_irq == NULL) {
 			device_printf(sc->sc_dev, "could not allocate SPI irq");
@@ -289,7 +289,8 @@ int cvm_oct_spi_init(struct ifnet *ifp)
 		cvm_oct_spi_enable_error_reporting(INTERFACE(priv->port));
 		priv->poll = cvm_oct_spi_poll;
 	}
-	cvm_oct_common_init(ifp);
+	if (cvm_oct_common_init(ifp) != 0)
+	    return ENXIO;
 	return 0;
 }
 

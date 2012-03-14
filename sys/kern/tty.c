@@ -1229,7 +1229,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			dev = make_dev_cred(&ttyil_cdevsw, 
+			dev = make_dev_cred(&ttyil_cdevsw,
 			    TTYUNIT_CALLOUT | TTYUNIT_INIT, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
 			dev_depends(tp->t_dev, dev);
@@ -1481,6 +1481,8 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		 */
 		if ((t->c_cflag & CIGNORE) == 0 &&
 		    (tp->t_termios.c_cflag != t->c_cflag ||
+		    ((tp->t_termios.c_iflag ^ t->c_iflag) &
+		    (IXON|IXOFF|IXANY)) ||
 		    tp->t_termios.c_ispeed != t->c_ispeed ||
 		    tp->t_termios.c_ospeed != t->c_ospeed)) {
 			error = ttydevsw_param(tp, t);

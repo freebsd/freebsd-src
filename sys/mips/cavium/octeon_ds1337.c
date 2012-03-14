@@ -81,9 +81,9 @@ static int validate_ct_struct(struct clocktime *ct)
     CT_CHECK(ct->min < 0  || ct->min > 59,  "minute");
     CT_CHECK(ct->hour < 0 || ct->hour > 23, "hour");
     CT_CHECK(ct->day < 1 || ct->day > 31, "day");
-    CT_CHECK(ct->dow < 0 || ct->dow > 6,  "day of week");
-    CT_CHECK(ct->mon < 0  || ct->mon > 11,  "month");
-    CT_CHECK(ct->year < 0 || ct->year > 200,"year");
+    CT_CHECK(ct->dow < 1 || ct->dow > 7,  "day of week");
+    CT_CHECK(ct->mon < 1  || ct->mon > 12,  "month");
+    CT_CHECK(ct->year > 2037,"year");
 
     return rc;
 }
@@ -124,10 +124,17 @@ uint32_t cvmx_rtc_ds1337_read(void)
     {
 	ct.hour = (ct.hour + 12) % 24;
     }
-    ct.dow = (reg[3] & 0x7) - 1;         /* Day of week field is 0..6 */
+    ct.dow = (reg[3] & 0x7);         /* Day of week field is 1..7 */
     ct.day = bcd2bin(reg[4] & 0x3f);
-    ct.mon  = bcd2bin(reg[5] & 0x1f) - 1; /* Month field is 0..11 */
-    ct.year = ((reg[5] & 0x80) ? 100 : 0) + bcd2bin(reg[6]);
+    ct.mon  = bcd2bin(reg[5] & 0x1f); /* Month field is 1..12 */
+#if defined(OCTEON_BOARD_CAPK_0100ND)
+    /*
+     * CAPK-0100ND uses DS1307 that does not have century bit
+     */
+    ct.year = 2000 + bcd2bin(reg[6]);
+#else
+    ct.year = ((reg[5] & 0x80) ? 2000 : 1900) + bcd2bin(reg[6]);
+#endif
 
 
     if (validate_ct_struct(&ct))
@@ -166,11 +173,11 @@ int cvmx_rtc_ds1337_write(uint32_t time)
 
     reg[0] = bin2bcd(ct.sec);
     reg[1] = bin2bcd(ct.min);
-    reg[2] = bin2bcd(ct.hour);      /* Force 0..23 format even if using AM/PM */
-    reg[3] = bin2bcd(ct.dow + 1);
+    reg[2] = bin2bcd(ct.hour);       /* Force 0..23 format even if using AM/PM */
+    reg[3] = bin2bcd(ct.dow);
     reg[4] = bin2bcd(ct.day);
-    reg[5] = bin2bcd(ct.mon + 1);
-    if (ct.year >= 100)             /* Set century bit*/
+    reg[5] = bin2bcd(ct.mon);
+    if (ct.year >= 2000)             /* Set century bit*/
     {
 	reg[5] |= 0x80;
     }

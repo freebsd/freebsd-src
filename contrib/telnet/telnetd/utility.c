@@ -847,22 +847,22 @@ printsub(char direction, unsigned char *pointer, int length)
 		    for (i = 2; i < length; i++ ) {
 			switch (pointer[i]) {
 			case NEW_ENV_VAR:
-			    output_data("\" VAR " + noquote);
+			    output_data("%s", "\" VAR " + noquote);
 			    noquote = 2;
 			    break;
 
 			case NEW_ENV_VALUE:
-			    output_data("\" VALUE " + noquote);
+			    output_data("%s", "\" VALUE " + noquote);
 			    noquote = 2;
 			    break;
 
 			case ENV_ESC:
-			    output_data("\" ESC " + noquote);
+			    output_data("%s", "\" ESC " + noquote);
 			    noquote = 2;
 			    break;
 
 			case ENV_USERVAR:
-			    output_data("\" USERVAR " + noquote);
+			    output_data("%s", "\" USERVAR " + noquote);
 			    noquote = 2;
 			    break;
 

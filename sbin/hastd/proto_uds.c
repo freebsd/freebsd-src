@@ -144,7 +144,7 @@ uds_connect(void *ctx, int timeout)
 	PJDLOG_ASSERT(timeout >= -1);
 
 	if (connect(uctx->uc_fd, (struct sockaddr *)&uctx->uc_sun,
-	    sizeof(uctx->uc_sun)) < 0) {
+	    sizeof(uctx->uc_sun)) == -1) {
 		return (errno);
 	}
 
@@ -179,13 +179,13 @@ uds_server(const char *addr, void **ctxp)
 
 	(void)unlink(uctx->uc_sun.sun_path);
 	if (bind(uctx->uc_fd, (struct sockaddr *)&uctx->uc_sun,
-	    sizeof(uctx->uc_sun)) < 0) {
+	    sizeof(uctx->uc_sun)) == -1) {
 		ret = errno;
 		uds_close(uctx);
 		return (ret);
 	}
 	uctx->uc_owner = getpid();
-	if (listen(uctx->uc_fd, 8) < 0) {
+	if (listen(uctx->uc_fd, 8) == -1) {
 		ret = errno;
 		uds_close(uctx);
 		return (ret);
@@ -214,7 +214,7 @@ uds_accept(void *ctx, void **newctxp)
 	fromlen = sizeof(newuctx->uc_sun);
 	newuctx->uc_fd = accept(uctx->uc_fd,
 	    (struct sockaddr *)&newuctx->uc_sun, &fromlen);
-	if (newuctx->uc_fd < 0) {
+	if (newuctx->uc_fd == -1) {
 		ret = errno;
 		free(newuctx);
 		return (ret);
@@ -274,7 +274,7 @@ uds_local_address(const void *ctx, char *addr, size_t size)
 	PJDLOG_ASSERT(addr != NULL);
 
 	sunlen = sizeof(sun);
-	if (getsockname(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) < 0) {
+	if (getsockname(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) == -1) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
@@ -298,7 +298,7 @@ uds_remote_address(const void *ctx, char *addr, size_t size)
 	PJDLOG_ASSERT(addr != NULL);
 
 	sunlen = sizeof(sun);
-	if (getpeername(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) < 0) {
+	if (getpeername(uctx->uc_fd, (struct sockaddr *)&sun, &sunlen) == -1) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}

@@ -441,32 +441,6 @@ ll_addrlist(struct ifaddr *ifap)
 #ifdef INET6
 
 static void
-in6_ifinfo(struct mld_ifinfo *mli)
-{
-
-	printf("\t");
-	switch (mli->mli_version) {
-	case MLD_VERSION_1:
-	case MLD_VERSION_2:
-		printf("mldv%d", mli->mli_version);
-		break;
-	default:
-		printf("mldv?(%d)", mli->mli_version);
-		break;
-	}
-	printb(" flags", mli->mli_flags, "\020\1SILENT");
-	if (mli->mli_version == MLD_VERSION_2) {
-		printf(" rv %u qi %u qri %u uri %u",
-		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
-	}
-	if (vflag >= 2) {
-		printf(" v1timer %u v2timer %u", mli->mli_v1_timer,
-		   mli->mli_v2_timer);
-	}
-	printf("\n");
-}
-
-static void
 if6_addrlist(struct ifaddr *ifap)
 {
 	struct ifnet ifnet;
@@ -763,6 +737,33 @@ in_multientry(struct in_multi *pinm)
 #endif /* WITH_KVM */
 
 #ifdef INET6
+
+static void
+in6_ifinfo(struct mld_ifinfo *mli)
+{
+
+	printf("\t");
+	switch (mli->mli_version) {
+	case MLD_VERSION_1:
+	case MLD_VERSION_2:
+		printf("mldv%d", mli->mli_version);
+		break;
+	default:
+		printf("mldv?(%d)", mli->mli_version);
+		break;
+	}
+	printb(" flags", mli->mli_flags, "\020\1SILENT");
+	if (mli->mli_version == MLD_VERSION_2) {
+		printf(" rv %u qi %u qri %u uri %u",
+		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
+	}
+	if (vflag >= 2) {
+		printf(" v1timer %u v2timer %u", mli->mli_v1_timer,
+		   mli->mli_v2_timer);
+	}
+	printf("\n");
+}
+
 static const char *
 inet6_n2a(struct in6_addr *p)
 {
@@ -888,7 +889,7 @@ out_free:
 /*
  * Retrieve MLD per-group source filter mode and lists via sysctl.
  *
- * Note: The 128-bit IPv6 group addres needs to be segmented into
+ * Note: The 128-bit IPv6 group address needs to be segmented into
  * 32-bit pieces for marshaling to sysctl. So the MIB name ends
  * up looking like this:
  *  a.b.c.d.e.ifindex.g[0].g[1].g[2].g[3]

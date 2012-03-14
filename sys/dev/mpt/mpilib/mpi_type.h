@@ -84,7 +84,7 @@ typedef uint32_t U32;
 
 #else
 
-#if defined(unix) || defined(__arm) || defined(ALPHA) || defined(__PPC__) || defined(__ppc)
+#if defined(__unix__) || defined(__arm) || defined(ALPHA) || defined(__PPC__) || defined(__ppc)
 
     typedef signed   int   S32;
     typedef unsigned int   U32;

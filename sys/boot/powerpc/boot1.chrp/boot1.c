@@ -77,6 +77,8 @@ static int __sputc(char c, void *arg);
 static char *__uitoa(char *buf, u_int val, int base);
 static char *__ultoa(char *buf, u_long val, int base);
 
+void __syncicache(void *, int);
+
 /*
  * Open Firmware interface functions
  */
@@ -523,6 +525,7 @@ load(const char *fname)
 		}
 		if (ph.p_filesz != ph.p_memsz)
 			bzero(p + ph.p_filesz, ph.p_memsz - ph.p_filesz);
+		__syncicache(p, ph.p_memsz);
 	}
 	ofw_close(bootdev);
 	(*(void (*)(void *, int, ofwfp_t, char *, int))eh.e_entry)(NULL, 0, 

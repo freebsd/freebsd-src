@@ -862,7 +862,7 @@ pmcpl_ct_node_printchild(struct pmcpl_ct_node *ct)
 
 	/*
 	 * Child cost.
-	 * TODO: attach child cost to the real position in the funtion.
+	 * TODO: attach child cost to the real position in the function.
 	 * TODO: cfn=<fn> / call <ncall> addr(<fn>) / addr(call <fn>) <arccost>
 	 */
 	for (i=0 ; i<ct->pct_narc; i++) {

@@ -92,7 +92,7 @@ int cvm_oct_do_interrupt(void *dev_id)
  */
 static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 {
-	if ((work->word2.snoip.err_code == 10) && (work->len <= 64)) {
+	if ((work->word2.snoip.err_code == 10) && (work->word1.s.len <= 64)) {
 		/* Ignore length errors on min size packets. Some equipment
 		   incorrectly pads packets to 64+4FCS instead of 60+4FCS.
 		   Note these packets still get counted as frame errors. */
@@ -104,8 +104,8 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 		   10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK} off. If this is the
 		   case we need to parse the packet to determine if we can
 		   remove a non spec preamble and generate a correct packet */
-		int interface = cvmx_helper_get_interface_num(work->ipprt);
-		int index = cvmx_helper_get_interface_index_num(work->ipprt);
+		int interface = cvmx_helper_get_interface_num(work->word1.cn38xx.ipprt);
+		int index = cvmx_helper_get_interface_index_num(work->word1.cn38xx.ipprt);
 		cvmx_gmxx_rxx_frm_ctl_t gmxx_rxx_frm_ctl;
 		gmxx_rxx_frm_ctl.u64 = cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL(index, interface));
 		if (gmxx_rxx_frm_ctl.s.pre_chk == 0) {
@@ -113,7 +113,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 			uint8_t *ptr = cvmx_phys_to_ptr(work->packet_ptr.s.addr);
 			int i = 0;
 
-			while (i < work->len-1) {
+			while (i < work->word1.s.len-1) {
 				if (*ptr != 0x55)
 					break;
 				ptr++;
@@ -122,23 +122,23 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 
 			if (*ptr == 0xd5) {
 				/*
-				DEBUGPRINT("Port %d received 0xd5 preamble\n", work->ipprt);
+				DEBUGPRINT("Port %d received 0xd5 preamble\n", work->word1.cn38xx.ipprt);
 				*/
 				work->packet_ptr.s.addr += i+1;
-				work->len -= i+5;
+				work->word1.s.len -= i+5;
 			} else
 			if ((*ptr & 0xf) == 0xd) {
 				/*
-				DEBUGPRINT("Port %d received 0x?d preamble\n", work->ipprt);
+				DEBUGPRINT("Port %d received 0x?d preamble\n", work->word1.cn38xx.ipprt);
 				*/
 				work->packet_ptr.s.addr += i;
-				work->len -= i+4;
-				for (i = 0; i < work->len; i++) {
+				work->word1.s.len -= i+4;
+				for (i = 0; i < work->word1.s.len; i++) {
 					*ptr = ((*ptr&0xf0)>>4) | ((*(ptr+1)&0xf)<<4);
 					ptr++;
 				}
 			} else {
-				DEBUGPRINT("Port %d unknown preamble, packet dropped\n", work->ipprt);
+				DEBUGPRINT("Port %d unknown preamble, packet dropped\n", work->word1.cn38xx.ipprt);
 				/*
 				cvmx_helper_dump_packet(work);
 				*/
@@ -147,7 +147,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 			}
 		}
 	} else {
-		DEBUGPRINT("Port %d receive error code %d, packet dropped\n", work->ipprt, work->word2.snoip.err_code);
+		DEBUGPRINT("Port %d receive error code %d, packet dropped\n", work->word1.cn38xx.ipprt, work->word2.snoip.err_code);
 		cvm_oct_free_work(work);
 		return 1;
 	}
@@ -199,7 +199,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			CVMX_PREFETCH(m, offsetof(struct mbuf, m_data));
 			CVMX_PREFETCH(m, offsetof(struct mbuf, m_pkthdr));
 		}
-		CVMX_PREFETCH(cvm_oct_device[work->ipprt], 0);
+		CVMX_PREFETCH(cvm_oct_device[work->word1.cn38xx.ipprt], 0);
 		//CVMX_PREFETCH(m, 0);
 
 
@@ -215,7 +215,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 		if ((mbuf_in_hw)) {
 			CVMX_PREFETCH(m->m_data, 0);
 
-			m->m_pkthdr.len = m->m_len = work->len;
+			m->m_pkthdr.len = m->m_len = work->word1.s.len;
 
 			packet_not_copied = 1;
 
@@ -230,7 +230,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			   mbuf for it */
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL) {
-				DEBUGPRINT("Port %d failed to allocate mbuf, packet dropped\n", work->ipprt);
+				DEBUGPRINT("Port %d failed to allocate mbuf, packet dropped\n", work->word1.cn38xx.ipprt);
 				cvm_oct_free_work(work);
 				continue;
 			}
@@ -253,7 +253,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			} else {
 				int segments = work->word2.s.bufs;
 				cvmx_buf_ptr_t segment_ptr = work->packet_ptr;
-				int len = work->len;
+				int len = work->word1.s.len;
 
 				while (segments--) {
 					cvmx_buf_ptr_t next_ptr = *(cvmx_buf_ptr_t *)cvmx_phys_to_ptr(segment_ptr.s.addr-8);
@@ -283,9 +283,9 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			packet_not_copied = 0;
 		}
 
-		if (((work->ipprt < TOTAL_NUMBER_OF_PORTS) &&
-		    cvm_oct_device[work->ipprt])) {
-			struct ifnet *ifp = cvm_oct_device[work->ipprt];
+		if (((work->word1.cn38xx.ipprt < TOTAL_NUMBER_OF_PORTS) &&
+		    cvm_oct_device[work->word1.cn38xx.ipprt])) {
+			struct ifnet *ifp = cvm_oct_device[work->word1.cn38xx.ipprt];
 
 			/* Only accept packets for devices
 			   that are currently up */
@@ -317,7 +317,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 		} else {
 			/* Drop any packet received for a device that
 			   doesn't exist */
-			DEBUGPRINT("Port %d not controlled by Linux, packet dropped\n", work->ipprt);
+			DEBUGPRINT("Port %d not controlled by Linux, packet dropped\n", work->word1.cn38xx.ipprt);
 			m_freem(m);
 		}
 

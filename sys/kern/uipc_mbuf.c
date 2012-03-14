@@ -1410,6 +1410,11 @@ m_print(const struct mbuf *m, int maxlen)
 	int pdata;
 	const struct mbuf *m2;
 
+	if (m == NULL) {
+		printf("mbuf: %p\n", m);
+		return;
+	}
+
 	if (m->m_flags & M_PKTHDR)
 		len = m->m_pkthdr.len;
 	else
@@ -1721,7 +1726,8 @@ struct mbuf *
 m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 {
 	struct mbuf *m, *mb;
-	int error, length, total;
+	int error, length;
+	ssize_t total;
 	int progress = 0;
 
 	/*

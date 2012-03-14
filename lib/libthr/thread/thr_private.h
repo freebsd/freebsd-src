@@ -343,6 +343,7 @@ struct pthread_key {
  * Thread structure.
  */
 struct pthread {
+#define _pthread_startzero	tid
 	/* Kernel thread id. */
 	long			tid;
 #define	TID_TERMINATED		1
@@ -506,12 +507,6 @@ struct pthread {
 	/* Event */
 	td_event_msg_t		event_buf;
 
-	struct wake_addr	*wake_addr;
-#define WAKE_ADDR(td)           ((td)->wake_addr)
-
-	/* Sleep queue */
-	struct	sleepqueue	*sleepqueue;
-
 	/* Wait channel */
 	void			*wchan;
 
@@ -526,6 +521,14 @@ struct pthread {
 
 	/* Deferred threads from pthread_cond_signal. */
 	unsigned int 		*defer_waiters[MAX_DEFER_WAITERS];
+#define _pthread_endzero	wake_addr
+
+	struct wake_addr	*wake_addr;
+#define WAKE_ADDR(td)           ((td)->wake_addr)
+
+	/* Sleep queue */
+	struct	sleepqueue	*sleepqueue;
+
 };
 
 #define THR_SHOULD_GC(thrd) 						\

@@ -2,7 +2,7 @@
  * Copyright 2000 Hans Reiser
  * See README for licensing and copyright details
  * 
- * Ported to FreeBSD by Jean-Sébastien Pédron <jspedron@club-internet.fr>
+ * Ported to FreeBSD by Jean-SÃ©bastien PÃ©dron <jspedron@club-internet.fr>
  * 
  * $FreeBSD$
  */
@@ -49,7 +49,7 @@ MALLOC_DEFINE(M_REISERFSNODE, "reiserfs_node", "ReiserFS vnode private part");
  * -------------------------------------------------------------------*/
 
 static int
-reiserfs_cmount(struct mntarg *ma, void *data, int flags)
+reiserfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct reiserfs_args args;
 	struct export_args exp;

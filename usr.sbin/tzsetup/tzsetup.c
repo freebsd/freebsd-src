@@ -57,6 +57,13 @@ __FBSDID("$FreeBSD$");
 #define	_PATH_DB		"/var/db/zoneinfo"
 #define	_PATH_WALL_CMOS_CLOCK	"/etc/wall_cmos_clock"
 
+#ifdef PATH_MAX
+#define	SILLY_BUFFER_SIZE	2*PATH_MAX
+#else
+#warning "Somebody needs to fix this to dynamically size this buffer."
+#define	SILLY_BUFFER_SIZE	2048
+#endif
+
 /* special return codes for `fire' actions */
 #define DITEM_FAILURE           1
 
@@ -638,7 +645,7 @@ static int
 install_zoneinfo_file(const char *zoneinfo_file)
 {
 	char		buf[1024];
-	char		title[64], prompt[64];
+	char		title[64], prompt[SILLY_BUFFER_SIZE];
 	struct stat	sb;
 	ssize_t		len;
 	int		fd1, fd2, copymode;
@@ -652,16 +659,19 @@ install_zoneinfo_file(const char *zoneinfo_file)
 		copymode = 1;
 
 #ifdef VERBOSE
-	if (copymode)
+	snprintf(title, sizeof(title), "Info");
+	if (zoneinfo_file == NULL)
+		snprintf(prompt, sizeof(prompt),
+		    "Removing %s", path_localtime);
+	else if (copymode)
 		snprintf(prompt, sizeof(prompt),
 		    "Copying %s to %s", zoneinfo_file, path_localtime);
 	else
 		snprintf(prompt, sizeof(prompt),
 		    "Creating symbolic link %s to %s",
-		    path_localtime,
-		    zoneinfo_file == NULL ? "(UTC)" : zoneinfo_file);
+		    path_localtime, zoneinfo_file);
 	if (usedialog)
-		dialog_notify(prompt);
+		dialog_msgbox(title, prompt, 8, 72, 1);
 	else
 		fprintf(stderr, "%s\n", prompt);
 #endif
@@ -692,6 +702,10 @@ install_zoneinfo_file(const char *zoneinfo_file)
 
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
+#ifdef VERBOSE
+			snprintf(prompt, sizeof(prompt),
+			    "Removed %s", path_localtime);
+#endif
 			return (DITEM_LEAVE_MENU);
 		}
 
@@ -709,7 +723,18 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 
-			unlink(path_localtime);
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not unlink %s: %s",
+				    path_localtime, strerror(errno));
+				if (usedialog) {
+					snprintf(title, sizeof(title), "Error");
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				} else
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
 			fd2 = open(path_localtime, O_CREAT | O_EXCL | O_WRONLY,
 			    S_IRUSR | S_IRGRP | S_IROTH);
 			if (fd2 < 0) {
@@ -755,7 +780,17 @@ install_zoneinfo_file(const char *zoneinfo_file)
 					fprintf(stderr, "%s\n", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
-			unlink(path_localtime);
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not unlink %s: %s",
+				    path_localtime, strerror(errno));
+				if (usedialog) {
+					snprintf(title, sizeof(title), "Error");
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				} else
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
 			if (symlink(zoneinfo_file, path_localtime) < 0) {
 				snprintf(title, sizeof(title), "Error");
 				snprintf(prompt, sizeof(prompt),
@@ -769,23 +804,23 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 		}
-	}
 
 #ifdef VERBOSE
-	snprintf(title, sizeof(title), "Done");
-	if (copymode)
-		snprintf(prompt, sizeof(prompt),
-		    "Copied timezone file from %s to %s", zoneinfo_file,
-		    path_localtime);
-	else
-		snprintf(prompt, sizeof(prompt),
-		    "Created symbolic link from %s to %s", zoneinfo_file,
-		    path_localtime);
-	if (usedialog)
-		dialog_msgbox(title, prompt, 8, 72, 1);
-	else
-		fprintf(stderr, "%s\n", prompt);
+		snprintf(title, sizeof(title), "Done");
+		if (copymode)
+			snprintf(prompt, sizeof(prompt),
+			    "Copied timezone file from %s to %s",
+			    zoneinfo_file, path_localtime);
+		else
+			snprintf(prompt, sizeof(prompt),
+			    "Created symbolic link from %s to %s",
+			    zoneinfo_file, path_localtime);
+		if (usedialog)
+			dialog_msgbox(title, prompt, 8, 72, 1);
+		else
+			fprintf(stderr, "%s\n", prompt);
 #endif
+	} /* reallydoit */
 
 	return (DITEM_LEAVE_MENU);
 }
@@ -801,9 +836,11 @@ install_zoneinfo(const char *zoneinfo)
 	rv = install_zoneinfo_file(path_zoneinfo_file);
 
 	/* Save knowledge for later */
-	if ((f = fopen(path_db, "w")) != NULL) {
-		fprintf(f, "%s\n", zoneinfo);
-		fclose(f);
+	if (reallydoit && (rv & DITEM_FAILURE) == 0) {
+		if ((f = fopen(path_db, "w")) != NULL) {
+			fprintf(f, "%s\n", zoneinfo);
+			fclose(f);
+		}
 	}
 
 	return (rv);
@@ -914,32 +951,16 @@ main(int argc, char **argv)
 	/* Override the user-supplied umask. */
 	(void)umask(S_IWGRP | S_IWOTH);
 
-	read_iso3166_table();
-	read_zones();
-	sort_countries();
-	make_menus();
-
 	if (reinstall == 1) {
 		FILE *f;
-		char zonefile[MAXPATHLEN];
-		char path_db[MAXPATHLEN];
-
-		zonefile[0] = '\0';
-		path_db[0] = '\0';
-		if (chrootenv != NULL) {
-			sprintf(zonefile, "%s/", chrootenv);
-			sprintf(path_db, "%s/", chrootenv);
-		}
-		strcat(zonefile, _PATH_ZONEINFO);
-		strcat(zonefile, "/");
-		strcat(path_db, _PATH_DB);
+		char zoneinfo[MAXPATHLEN];
 
 		if ((f = fopen(path_db, "r")) != NULL) {
-			if (fgets(zonefile, sizeof(zonefile), f) != NULL) {
-				zonefile[sizeof(zonefile) - 1] = 0;
-				if (strlen(zonefile) > 0) {
-					zonefile[strlen(zonefile) - 1] = 0;
-					rv = install_zoneinfo(zonefile);
+			if (fgets(zoneinfo, sizeof(zoneinfo), f) != NULL) {
+				zoneinfo[sizeof(zoneinfo) - 1] = 0;
+				if (strlen(zoneinfo) > 0) {
+					zoneinfo[strlen(zoneinfo) - 1] = 0;
+					rv = install_zoneinfo(zoneinfo);
 					exit(rv & ~DITEM_LEAVE_MENU);
 				}
 				errx(1, "Error reading %s.\n", path_db);
@@ -947,7 +968,7 @@ main(int argc, char **argv)
 			fclose(f);
 			errx(1,
 			    "Unable to determine earlier installed zoneinfo "
-			    "file. Check %s", path_db);
+			    "name. Check %s", path_db);
 		}
 		errx(1, "Cannot open %s for reading. Does it exist?", path_db);
 	}
@@ -966,6 +987,11 @@ main(int argc, char **argv)
 		}
 		/* FALLTHROUGH */
 	}
+
+	read_iso3166_table();
+	read_zones();
+	sort_countries();
+	make_menus();
 
 	init_dialog(stdin, stdout);
 	if (skiputc == 0) {

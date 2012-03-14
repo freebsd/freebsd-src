@@ -44,11 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#ifdef DEV_BPF
-#define		NBPFILTER	DEV_BPF
-#else
-#define		NBPFILTER	0
-#endif
+#define		NPFSYNC		1
 
 #ifdef DEV_PFLOG
 #define		NPFLOG		DEV_PFLOG
@@ -56,16 +52,10 @@ __FBSDID("$FreeBSD$");
 #define		NPFLOG		0
 #endif
 
-#ifdef DEV_PFSYNC
-#define		NPFSYNC		DEV_PFSYNC
-#else
-#define		NPFSYNC		0
-#endif
-
-#else
+#else /* !__FreeBSD__ */
 #include "pfsync.h"
 #include "pflog.h"
-#endif
+#endif /* __FreeBSD__ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1764,7 +1754,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		}
 
 #ifdef __FreeBSD__ /* ROUTING */
-		if (rule->rtableid > 0 && rule->rtableid > rt_numfibs)
+		if (rule->rtableid > 0 && rule->rtableid >= rt_numfibs)
 #else
 		if (rule->rtableid > 0 && !rtable_exists(rule->rtableid))
 #endif
@@ -2045,7 +2035,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 			if (newrule->rtableid > 0 &&
 #ifdef __FreeBSD__ /* ROUTING */
-			    newrule->rtableid > rt_numfibs)
+			    newrule->rtableid >= rt_numfibs)
 #else
 			    !rtable_exists(newrule->rtableid))
 #endif
@@ -4328,57 +4318,25 @@ dehook_pf(void)
 	return (0);
 }
 
-/* Vnet accessors */
-static int
-vnet_pf_init(const void *unused) 
-{
-
-	V_pf_pfil_hooked = 0;
-	V_pf_end_threads = 0;
-
-	V_debug_pfugidhack = 0;
-
-	TAILQ_INIT(&V_pf_tags);
-	TAILQ_INIT(&V_pf_qids);
-
-	pf_load();
-
-	return (0);
-}
-
-static int
-vnet_pf_uninit(const void *unused)
-{
-
-	pf_unload();
-
-	return (0);
-}
-
-/* Define startup order. */
-#define	PF_SYSINIT_ORDER	SI_SUB_PROTO_BEGIN
-#define	PF_MODEVENT_ORDER	(SI_ORDER_FIRST) /* On boot slot in here. */
-#define	PF_VNET_ORDER		(PF_MODEVENT_ORDER + 2) /* Later still. */
-
-/*
- * Starting up.
- * VNET_SYSINIT is called for each existing vnet and each new vnet.
- */
-VNET_SYSINIT(vnet_pf_init, PF_SYSINIT_ORDER, PF_VNET_ORDER,
-    vnet_pf_init, NULL);
-
-/*
- * Closing up shop. These are done in REVERSE ORDER,
- * Not called on reboot.
- * VNET_SYSUNINIT is called for each exiting vnet as it exits.
- */
-VNET_SYSUNINIT(vnet_pf_uninit, PF_SYSINIT_ORDER, PF_VNET_ORDER,
-    vnet_pf_uninit, NULL);
-
 static int
 pf_load(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		V_pf_pfil_hooked = 0;
+		V_pf_end_threads = 0;
+		V_debug_pfugidhack = 0;
+		TAILQ_INIT(&V_pf_tags);
+		TAILQ_INIT(&V_pf_qids);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
+
+	init_pf_mutex();
+	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
 	init_zone_var();
 	sx_init(&V_pf_consistency_lock, "pf_statetbl_lock");
 	if (pfattach() < 0)
@@ -4395,6 +4353,7 @@ pf_unload(void)
 	PF_LOCK();
 	V_pf_status.running = 0;
 	PF_UNLOCK();
+	m_addr_chg_pf_p = NULL;
 	error = dehook_pf();
 	if (error) {
 		/*
@@ -4417,6 +4376,8 @@ pf_unload(void)
 	pf_osfp_cleanup();
 	cleanup_pf_zone();
 	PF_UNLOCK();
+	destroy_dev(pf_dev);
+	destroy_pf_mutex();
 	sx_destroy(&V_pf_consistency_lock);
 	return error;
 }
@@ -4428,12 +4389,16 @@ pf_modevent(module_t mod, int type, void *data)
 
 	switch(type) {
 	case MOD_LOAD:
-		init_pf_mutex();
-		pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
+		error = pf_load();
+		break;
+	case MOD_QUIESCE:
+		/*
+		 * Module should not be unloaded due to race conditions.
+		 */
+		error = EPERM;
 		break;
 	case MOD_UNLOAD:
-		destroy_dev(pf_dev);
-		destroy_pf_mutex();
+		error = pf_unload();
 		break;
 	default:
 		error = EINVAL;

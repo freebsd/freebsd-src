@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995-1998 Søren Schmidt
+ * Copyright (c) 1995-1998 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
@@ -301,7 +301,9 @@ typedef struct scr_stat {
 	void		*ts;
 
 	int	 	status;			/* status (bitfield) */
+	int		grabbed;
 	int		kbd_mode;		/* keyboard I/O mode */
+	int		kbd_prev_mode;		/* keyboard I/O mode */
 
 	int		cursor_pos;		/* cursor buffer position */
 	int		cursor_oldpos;		/* cursor old buffer position */

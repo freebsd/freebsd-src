@@ -329,6 +329,13 @@ static struct
     { 0x103C, 0x3249, CISS_BOARD_SA5,	"HP Smart Array P812" },
     { 0x103C, 0x324A, CISS_BOARD_SA5,	"HP Smart Array P712m" },
     { 0x103C, 0x324B, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3350, CISS_BOARD_SA5,   "HP Smart Array P222" },
+    { 0x103C, 0x3351, CISS_BOARD_SA5,   "HP Smart Array P420" },
+    { 0x103C, 0x3352, CISS_BOARD_SA5,   "HP Smart Array P421" },
+    { 0x103C, 0x3353, CISS_BOARD_SA5,   "HP Smart Array P822" },
+    { 0x103C, 0x3354, CISS_BOARD_SA5,   "HP Smart Array P420i" },
+    { 0x103C, 0x3355, CISS_BOARD_SA5,   "HP Smart Array P220i" },
+    { 0x103C, 0x3356, CISS_BOARD_SA5,   "HP Smart Array P721m" },
     { 0, 0, 0, NULL }
 };
 
@@ -789,7 +796,7 @@ setup:
      * Note that "simple" adapters can only address within a 32-bit
      * span.
      */
-    if (bus_dma_tag_create(NULL, 			/* parent */
+    if (bus_dma_tag_create(bus_get_dma_tag(sc->ciss_dev),/* PCI parent */
 			   1, 0, 			/* alignment, boundary */
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
@@ -1614,7 +1621,7 @@ ciss_inquiry_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
     inq->opcode = INQUIRY;
     inq->byte2 = SI_EVPD;
     inq->page_code = CISS_VPD_LOGICAL_DRIVE_GEOMETRY;
-    inq->length = sizeof(ld->cl_geometry);
+    scsi_ulto2b(sizeof(ld->cl_geometry), inq->length);
 
     if ((error = ciss_synch_request(cr, 60 * 1000)) != 0) {
 	ciss_printf(sc, "error getting geometry (%d)\n", error);
@@ -4535,7 +4542,8 @@ ciss_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thre
 
 	pis->bus = pci_get_bus(sc->ciss_dev);
 	pis->dev_fn = pci_get_slot(sc->ciss_dev);
-	pis->board_id = pci_get_devid(sc->ciss_dev);
+        pis->board_id = (pci_get_subvendor(sc->ciss_dev) << 16) |
+                pci_get_subdevice(sc->ciss_dev);
 
 	break;
     }

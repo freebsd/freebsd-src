@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2011
+.Dd February 8, 2012
 .Dt PIDFILE 3
 .Os
 .Sh NAME
@@ -36,7 +36,6 @@
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
-.In sys/param.h
 .In libutil.h
 .Ft "struct pidfh *"
 .Fn pidfile_open "const char *path" "mode_t mode" "pid_t *pidptr"
@@ -46,6 +45,8 @@
 .Fn pidfile_close "struct pidfh *pfh"
 .Ft int
 .Fn pidfile_remove "struct pidfh *pfh"
+.Ft int
+.Fn pidfile_fileno "struct pidfh *pfh"
 .Sh DESCRIPTION
 The
 .Nm pidfile
@@ -77,10 +78,16 @@ argument is
 .Dv NULL ,
 .Pa /var/run/ Ns Ao Va progname Ac Ns Pa .pid
 file will be used.
+The
+.Fn pidfile_open
+function sets the O_CLOEXEC close-on-exec flag when opening the pidfile.
 .Pp
 The
 .Fn pidfile_write
 function writes process' PID into a previously opened file.
+The file is truncated before write, so calling the
+.Fn pidfile_write
+function multiple times is supported.
 .Pp
 The
 .Fn pidfile_close
@@ -92,6 +99,10 @@ to start a child process.
 The
 .Fn pidfile_remove
 function closes and removes a pidfile.
+.Pp
+The
+.Fn pidfile_fileno
+function returns the file descriptor for the open pidfile.
 .Sh RETURN VALUES
 The
 .Fn pidfile_open
@@ -105,15 +116,27 @@ If an error occurs,
 will be set.
 .Pp
 .Rv -std pidfile_write pidfile_close pidfile_remove
+.Pp
+The
+.Fn pidfile_fileno
+function returns the low-level file descriptor.
+It returns
+.Li -1
+and sets
+.Va errno
+if a NULL
+.Vt pidfh
+is specified, or if the pidfile is no longer open.
 .Sh EXAMPLES
 The following example shows in which order these functions should be used.
 Note that it is safe to pass
 .Dv NULL
 to
 .Fn pidfile_write ,
-.Fn pidfile_remove
-and
+.Fn pidfile_remove ,
 .Fn pidfile_close
+and
+.Fn pidfile_fileno
 functions.
 .Bd -literal
 struct pidfh *pfh;
@@ -127,6 +150,11 @@ if (pfh == NULL) {
 	}
 	/* If we cannot create pidfile from other reasons, only warn. */
 	warn("Cannot open or create pidfile");
+	/*
+	 * Eventhough pfh is NULL we can continue, as the other pidfile_*
+	 * function can handle such situation by doing nothing except setting
+	 * errno to EDOOFUS.
+	 */
 }
 
 if (daemon(0, 0) == -1) {
@@ -244,6 +272,16 @@ and
 system calls and the
 .Xr flopen 3
 library function.
+.Pp
+The
+.Fn pidfile_fileno
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+Improper function use.
+Probably called not from the process which used
+.Fn pidfile_open .
+.El
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr daemon 3 ,

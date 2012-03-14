@@ -94,7 +94,7 @@ main(int argc, char **argv)
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
 	int ch, failures, sectimeout, usemine, vtylock;
-	char *ap, *mypw, *ttynam, *tzn;
+	char *ap, *cryptpw, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
 
 	openlog("lock", LOG_ODELAY, LOG_AUTH);
@@ -222,7 +222,8 @@ main(int argc, char **argv)
 		}
 		if (usemine) {
 			s[strlen(s) - 1] = '\0';
-			if (!strcmp(mypw, crypt(s, mypw)))
+			cryptpw = crypt(s, mypw);
+			if (cryptpw == NULL || !strcmp(mypw, cryptpw))
 				break;
 		}
 		else if (!strcmp(s, s1))

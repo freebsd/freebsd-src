@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -298,7 +298,8 @@ typedef struct acpi_table_fadt
     ACPI_GENERIC_ADDRESS    XPmTimerBlock;      /* 64-bit Extended Power Mgt Timer Ctrl Reg Blk address */
     ACPI_GENERIC_ADDRESS    XGpe0Block;         /* 64-bit Extended General Purpose Event 0 Reg Blk address */
     ACPI_GENERIC_ADDRESS    XGpe1Block;         /* 64-bit Extended General Purpose Event 1 Reg Blk address */
-    ACPI_GENERIC_ADDRESS    SleepRegister;      /* 64-bit address of the Sleep register */
+    ACPI_GENERIC_ADDRESS    SleepControl;       /* 64-bit Sleep Control register */
+    ACPI_GENERIC_ADDRESS    SleepStatus;        /* 64-bit Sleep Status register */
 
 } ACPI_TABLE_FADT;
 
@@ -335,8 +336,7 @@ typedef struct acpi_table_fadt
 #define ACPI_FADT_APIC_CLUSTER      (1<<18)     /* 18: [V4] All local APICs must use cluster model (ACPI 3.0) */
 #define ACPI_FADT_APIC_PHYSICAL     (1<<19)     /* 19: [V4] All local xAPICs must use physical dest mode (ACPI 3.0) */
 #define ACPI_FADT_HW_REDUCED        (1<<20)     /* 20: [V5] ACPI hardware is not implemented (ACPI 5.0) */
-#define ACPI_FADT_PREFER_S0_IDLE    (1<<21)     /* 21: [V5] Use advanced idle capabilities (ACPI 5.0) */
-#define ACPI_FADT_USE_SLEEP_REG     (1<<22)     /* 22: [V5] Use the sleep register for sleep (ACPI 5.0) */
+#define ACPI_FADT_LOW_POWER_S0      (1<<21)     /* 21: [V5] S0 power savings are equal or better than S3 (ACPI 5.0) */
 
 
 /* Values for PreferredProfile (Prefered Power Management Profiles) */
@@ -351,8 +351,15 @@ enum AcpiPreferedPmProfiles
     PM_SOHO_SERVER          = 5,
     PM_APPLIANCE_PC         = 6,
     PM_PERFORMANCE_SERVER   = 7,
-    PM_SLATE                = 8
+    PM_TABLET               = 8
 };
+
+/* Values for SleepStatus and SleepControl registers (V5 FADT) */
+
+#define ACPI_X_WAKE_STATUS          0x80
+#define ACPI_X_SLEEP_TYPE_MASK      0x1C
+#define ACPI_X_SLEEP_TYPE_POSITION  0x02
+#define ACPI_X_SLEEP_ENABLE         0x20
 
 
 /* Reset to default packing */
@@ -403,7 +410,7 @@ typedef struct acpi_table_desc
 
 /* Macros used to generate offsets to specific table fields */
 
-#define ACPI_FADT_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_FADT, f)
+#define ACPI_FADT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_FADT, f)
 
 /*
  * Sizes of the various flavors of FADT. We need to look closely
@@ -417,11 +424,11 @@ typedef struct acpi_table_desc
  *     FADT V2  size: 0x084
  *     FADT V3  size: 0x0F4
  *     FADT V4  size: 0x0F4
- *     FADT V5  size: 0x100
+ *     FADT V5  size: 0x10C
  */
 #define ACPI_FADT_V1_SIZE       (UINT32) (ACPI_FADT_OFFSET (Flags) + 4)
 #define ACPI_FADT_V2_SIZE       (UINT32) (ACPI_FADT_OFFSET (Reserved4[0]) + 3)
-#define ACPI_FADT_V3_SIZE       (UINT32) (ACPI_FADT_OFFSET (SleepRegister))
+#define ACPI_FADT_V3_SIZE       (UINT32) (ACPI_FADT_OFFSET (SleepControl))
 #define ACPI_FADT_V5_SIZE       (UINT32) (sizeof (ACPI_TABLE_FADT))
 
 #endif /* __ACTBL_H__ */

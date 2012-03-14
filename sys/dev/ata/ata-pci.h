@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -236,6 +236,7 @@ struct ata_pci_controller {
 #define ATA_PBG_AH1		0x1d028086
 #define ATA_PBG_R1		0x1d048086
 #define ATA_PBG_R2		0x1d068086
+#define ATA_PBG_R3		0x28268086
 #define ATA_PBG_S2		0x1d088086
 
 #define ATA_PPT_S1		0x1e008086
@@ -277,12 +278,12 @@ struct ata_pci_controller {
 #define ATA_M88SX6042           0x604211ab
 #define ATA_M88SX6081           0x608111ab
 #define ATA_M88SX7042           0x704211ab
-#define ATA_M88SX6101           0x610111ab
-#define ATA_M88SX6102           0x610211ab
-#define ATA_M88SX6111           0x611111ab
-#define ATA_M88SX6121           0x612111ab
-#define ATA_M88SX6141           0x614111ab
-#define ATA_M88SX6145           0x614511ab
+#define ATA_M88SE6101           0x610111ab
+#define ATA_M88SE6102           0x610211ab
+#define ATA_M88SE6111           0x611111ab
+#define ATA_M88SE6121           0x612111ab
+#define ATA_M88SE6141           0x614111ab
+#define ATA_M88SE6145           0x614511ab
 #define ATA_MARVELL2_ID         0x1b4b
 
 #define ATA_MICRON_ID           0x1042

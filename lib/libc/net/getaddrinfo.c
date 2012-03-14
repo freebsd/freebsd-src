@@ -1576,7 +1576,8 @@ ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
 	if (*scope == '\0')
 		return -1;
 
-	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) {
+	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6) ||
+	    IN6_IS_ADDR_MC_NODELOCAL(a6)) {
 		/*
 		 * We currently assume a one-to-one mapping between links
 		 * and interfaces, so we simply use interface indices for

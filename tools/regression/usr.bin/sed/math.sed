@@ -57,7 +57,7 @@ x
 	s//\1(\2)/
 	b loop
 }
-# pull any burried exponents
+# pull any buried exponents
 /^\(.*[^0-9]\)\([0-9][0-9]*^[0-9][0-9]*\)$/{
 	s//\1(\2)/
 	b loop

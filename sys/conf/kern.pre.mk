@@ -34,7 +34,11 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
 COPTFLAGS?=-O2 -frename-registers -pipe
+.else
+COPTFLAGS?=-O2 -pipe
+.endif
 .else
 COPTFLAGS?=${_MINUS_O} -pipe
 .endif
@@ -67,10 +71,10 @@ INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
-# .. and the same for twa
+# ... and the same for twa
 INCLUDES+= -I$S/dev/twa
 
-# ...  and XFS
+# ... and the same for XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
 # ... and the same for cxgb and cxgbe
@@ -80,7 +84,7 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${CC:T:Mclang} != "clang"
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
@@ -96,6 +100,10 @@ WERROR?= -Werror
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
+
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+CLANG_NO_IAS= -no-integrated-as
+.endif
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF -falign-functions=16

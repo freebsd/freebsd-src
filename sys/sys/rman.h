@@ -50,7 +50,7 @@
 
 #define	RF_ALIGNMENT_SHIFT	10 /* alignment size bit starts bit 10 */
 #define	RF_ALIGNMENT_MASK	(0x003F << RF_ALIGNMENT_SHIFT)
-				/* resource address alignemnt size bit mask */
+				/* resource address alignment size bit mask */
 #define	RF_ALIGNMENT_LOG2(x)	((x) << RF_ALIGNMENT_SHIFT)
 #define	RF_ALIGNMENT(x)		(((x) & RF_ALIGNMENT_MASK) >> RF_ALIGNMENT_SHIFT)
 

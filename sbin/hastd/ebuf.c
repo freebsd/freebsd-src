@@ -116,7 +116,7 @@ ebuf_add_head(struct ebuf *eb, const void *data, size_t size)
 		 * We can't add more entries at the front, so we have to extend
 		 * our buffer.
 		 */
-		if (ebuf_head_extend(eb, size) < 0)
+		if (ebuf_head_extend(eb, size) == -1)
 			return (-1);
 	}
 	PJDLOG_ASSERT(size <= (size_t)(eb->eb_used - eb->eb_start));
@@ -143,7 +143,7 @@ ebuf_add_tail(struct ebuf *eb, const void *data, size_t size)
 		 * We can't add more entries at the back, so we have to extend
 		 * our buffer.
 		 */
-		if (ebuf_tail_extend(eb, size) < 0)
+		if (ebuf_tail_extend(eb, size) == -1)
 			return (-1);
 	}
 	PJDLOG_ASSERT(size <=

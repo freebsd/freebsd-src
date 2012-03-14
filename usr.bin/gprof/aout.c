@@ -134,7 +134,7 @@ getsymtab(FILE *nfile, const char *filename)
     askfor = nname + 1;
     nl = (nltype *) calloc( askfor , sizeof(nltype) );
     if (nl == 0)
-	errx( 1 , "no room for %d bytes of symbol table" ,
+	errx( 1 , "no room for %zu bytes of symbol table" ,
 		askfor * sizeof(nltype) );
 
     /* pass2 - read symbols */
@@ -175,7 +175,7 @@ gettextspace(FILE *nfile)
 
     textspace = (u_char *) malloc( xbuf.a_text );
     if ( textspace == 0 ) {
-	warnx("no room for %lu bytes of text space: can't do -c" ,
+	warnx("no room for %u bytes of text space: can't do -c" ,
 		  xbuf.a_text );
 	return;
     }

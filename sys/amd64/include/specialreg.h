@@ -66,6 +66,7 @@
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
 #define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
@@ -74,6 +75,18 @@
 #define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
 #define	EFER_LMA 0x000000400	/* Long mode active (R) */
 #define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+
+/*
+ * Intel Extended Features registers
+ */
+#define	XCR0	0		/* XFEATURE_ENABLED_MASK register */
+
+#define	XFEATURE_ENABLED_X87	0x00000001
+#define	XFEATURE_ENABLED_SSE	0x00000002
+#define	XFEATURE_ENABLED_AVX	0x00000004
+
+#define	XFEATURE_AVX					\
+    (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE | XFEATURE_ENABLED_AVX)
 
 /*
  * CPUID instruction features register

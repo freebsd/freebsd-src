@@ -7,8 +7,8 @@ CFLAGS+= -I${.CURDIR}/locale
 
 # machine-independent string sources
 MISRCS+=bcmp.c bcopy.c bzero.c ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
-	index.c memccpy.c memchr.c memrchr.c memcmp.c \
-	memcpy.c memmem.c memmove.c memset.c rindex.c \
+	memccpy.c memchr.c memrchr.c memcmp.c \
+	memcpy.c memmem.c memmove.c memset.c \
 	stpcpy.c stpncpy.c strcasecmp.c \
 	strcat.c strcasestr.c strchr.c strcmp.c strcoll.c strcpy.c strcspn.c \
 	strdup.c strerror.c strlcat.c strlcpy.c strlen.c strmode.c strncat.c \

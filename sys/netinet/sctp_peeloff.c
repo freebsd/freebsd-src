@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -55,9 +55,18 @@ sctp_can_peel_off(struct socket *head, sctp_assoc_t assoc_id)
 	struct sctp_tcb *stcb;
 	uint32_t state;
 
+	if (head == NULL) {
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EBADF);
+		return (EBADF);
+	}
+	if ((head->so_proto->pr_protocol != IPPROTO_SCTP) ||
+	    (head->so_type != SOCK_SEQPACKET)) {
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EOPNOTSUPP);
+		return (EOPNOTSUPP);
+	}
 	inp = (struct sctp_inpcb *)head->so_pcb;
 	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
 		return (EFAULT);
 	}
 	stcb = sctp_findassociation_ep_asocid(inp, assoc_id, 1);

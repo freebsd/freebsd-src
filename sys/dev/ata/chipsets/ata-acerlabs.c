@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -213,6 +213,10 @@ ata_ali_ch_attach(device_t dev)
 	if (ch->dma.max_iosize > 256 * 512)
 		ch->dma.max_iosize = 256 * 512;
     }
+#ifdef ATA_CAM
+	if (ctlr->chip->cfg2 & ALI_NEW)
+		ch->flags |= ATA_NO_ATAPI_DMA;
+#endif
 
     return 0;
 }

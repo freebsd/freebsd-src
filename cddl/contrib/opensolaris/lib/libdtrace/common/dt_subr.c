@@ -27,6 +27,7 @@
 #if defined(sun)
 #include <sys/sysmacros.h>
 #endif
+#include <sys/isa_defs.h>
 
 #include <strings.h>
 #include <unistd.h>

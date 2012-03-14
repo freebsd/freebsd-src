@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2002 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,7 @@ static int	*ports;
 struct sock {
 	void *socket;
 	void *pcb;
+	int shown;
 	int vflag;
 	int family;
 	int proto;
@@ -295,7 +296,7 @@ gather_inet(int proto)
 				break;
 			if (errno == ENOENT)
 				goto out;
-			if (errno != ENOMEM)
+			if (errno != ENOMEM || len != bufsize)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
 		}
@@ -423,7 +424,7 @@ gather_unix(int proto)
 			len = bufsize;
 			if (sysctlbyname(varname, buf, &len, NULL, 0) == 0)
 				break;
-			if (errno != ENOMEM)
+			if (errno != ENOMEM || len != bufsize)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
 		}
@@ -475,14 +476,15 @@ out:
 static void
 getfiles(void)
 {
-	size_t len;
+	size_t len, olen;
 
-	if ((xfiles = malloc(len = sizeof *xfiles)) == NULL)
+	olen = len = sizeof *xfiles;
+	if ((xfiles = malloc(len)) == NULL)
 		err(1, "malloc()");
 	while (sysctlbyname("kern.file", xfiles, &len, 0, 0) == -1) {
-		if (errno != ENOMEM)
+		if (errno != ENOMEM || len != olen)
 			err(1, "sysctlbyname()");
-		len *= 2;
+		olen = len *= 2;
 		if ((xfiles = realloc(xfiles, len)) == NULL)
 			err(1, "realloc()");
 	}
@@ -571,12 +573,67 @@ check_ports(struct sock *s)
 }
 
 static void
+displaysock(struct sock *s, int pos)
+{
+	void *p;
+	int hash;
+
+	while (pos < 29)
+		pos += xprintf(" ");
+	pos += xprintf("%s", s->protoname);
+	if (s->vflag & INP_IPV4)
+		pos += xprintf("4 ");
+	if (s->vflag & INP_IPV6)
+		pos += xprintf("6 ");
+	while (pos < 36)
+		pos += xprintf(" ");
+	switch (s->family) {
+	case AF_INET:
+	case AF_INET6:
+		pos += printaddr(s->family, &s->laddr);
+		if (s->family == AF_INET6 && pos >= 58)
+			pos += xprintf(" ");
+		while (pos < 58)
+			pos += xprintf(" ");
+		pos += printaddr(s->family, &s->faddr);
+		break;
+	case AF_UNIX:
+		/* server */
+		if (s->laddr.ss_len > 0) {
+			pos += printaddr(s->family, &s->laddr);
+			break;
+		}
+		/* client */
+		p = *(void **)&s->faddr;
+		if (p == NULL) {
+			pos += xprintf("(not connected)");
+			break;
+		}
+		pos += xprintf("-> ");
+		for (hash = 0; hash < HASHSIZE; ++hash) {
+			for (s = sockhash[hash]; s != NULL; s = s->next)
+				if (s->pcb == p)
+					break;
+			if (s != NULL)
+				break;
+		}
+		if (s == NULL || s->laddr.ss_len == 0)
+			pos += xprintf("??");
+		else
+			pos += printaddr(s->family, &s->laddr);
+		break;
+	default:
+		abort();
+	}
+	xprintf("\n");
+}
+
+static void
 display(void)
 {
 	struct passwd *pwd;
 	struct xfile *xf;
 	struct sock *s;
-	void *p;
 	int hash, n, pos;
 
 	printf("%-8s %-10s %-5s %-2s %-6s %-21s %-21s\n",
@@ -594,6 +651,7 @@ display(void)
 			continue;
 		if (!check_ports(s))
 			continue;
+		s->shown = 1;
 		pos = 0;
 		if ((pwd = getpwuid(xf->xf_uid)) == NULL)
 			pos += xprintf("%lu ", (u_long)xf->xf_uid);
@@ -608,54 +666,19 @@ display(void)
 		while (pos < 26)
 			pos += xprintf(" ");
 		pos += xprintf("%d ", xf->xf_fd);
-		while (pos < 29)
-			pos += xprintf(" ");
-		pos += xprintf("%s", s->protoname);
-		if (s->vflag & INP_IPV4)
-			pos += xprintf("4 ");
-		if (s->vflag & INP_IPV6)
-			pos += xprintf("6 ");
-		while (pos < 36)
-			pos += xprintf(" ");
-		switch (s->family) {
-		case AF_INET:
-		case AF_INET6:
-			pos += printaddr(s->family, &s->laddr);
-			if (s->family == AF_INET6 && pos >= 58)
-				pos += xprintf(" ");
-			while (pos < 58)
-				pos += xprintf(" ");
-			pos += printaddr(s->family, &s->faddr);
-			break;
-		case AF_UNIX:
-			/* server */
-			if (s->laddr.ss_len > 0) {
-				pos += printaddr(s->family, &s->laddr);
-				break;
-			}
-			/* client */
-			p = *(void **)&s->faddr;
-			if (p == NULL) {
-				pos += xprintf("(not connected)");
-				break;
-			}
-			pos += xprintf("-> ");
-			for (hash = 0; hash < HASHSIZE; ++hash) {
-				for (s = sockhash[hash]; s != NULL; s = s->next)
-					if (s->pcb == p)
-						break;
-				if (s != NULL)
-					break;
-			}
-			if (s == NULL || s->laddr.ss_len == 0)
-				pos += xprintf("??");
-			else
-				pos += printaddr(s->family, &s->laddr);
-			break;
-		default:
-			abort();
+		displaysock(s, pos);
+	}
+	for (hash = 0; hash < HASHSIZE; hash++) {
+		for (s = sockhash[hash]; s != NULL; s = s->next) {
+			if (s->shown)
+				continue;
+			if (!check_ports(s))
+				continue;
+			pos = 0;
+			pos += xprintf("%-8s %-10s %-5s %-2s ",
+			    "?", "?", "?", "?");
+			displaysock(s, pos);
 		}
-		xprintf("\n");
 	}
 }
 

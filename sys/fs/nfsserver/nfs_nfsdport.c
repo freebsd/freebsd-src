@@ -319,11 +319,7 @@ nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 }
 
 /*
- * Set up nameidata for a lookup() call and do it
- * For the cases where we are crossing mount points
- * (looking up the public fh path or the v4 root path when
- *  not using a pseudo-root fs), set/release the Giant lock,
- * as required.
+ * Set up nameidata for a lookup() call and do it.
  */
 int
 nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
@@ -399,6 +395,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	cnp->cn_thread = p;
 	ndp->ni_startdir = dp;
 	ndp->ni_rootdir = rootvnode;
+	ndp->ni_topdir = NULL;
 
 	if (!lockleaf)
 		cnp->cn_flags |= LOCKLEAF;
@@ -1254,7 +1251,13 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 {
 	int error = 0;
 
-	if (cnt > MAX_COMMIT_COUNT) {
+	/*
+	 * RFC 1813 3.3.21: if count is 0, a flush from offset to the end of
+	 * file is done.  At this time VOP_FSYNC does not accept offset and
+	 * byte count parameters so call VOP_FSYNC the whole file for now.
+	 * The same is true for NFSv4: RFC 3530 Sec. 14.2.3.
+	 */
+	if (cnt == 0 || cnt > MAX_COMMIT_COUNT) {
 		/*
 		 * Give up and do the whole thing
 		 */

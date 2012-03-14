@@ -497,7 +497,7 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	oldpri = td->td_user_pri;
 	sched_user_prio(td, newpri);
 	if (td->td_user_pri != oldpri && (td == curthread ||
-	    td->td_priority == oldpri || td->td_user_pri >= PRI_MAX_REALTIME))
+	    td->td_priority == oldpri || td->td_user_pri <= PRI_MAX_REALTIME))
 		sched_prio(td, td->td_user_pri);
 	if (TD_ON_UPILOCK(td) && oldpri != newpri) {
 		critical_enter();
@@ -649,13 +649,17 @@ lim_cb(void *arg)
 }
 
 int
-kern_setrlimit(td, which, limp)
-	struct thread *td;
-	u_int which;
-	struct rlimit *limp;
+kern_setrlimit(struct thread *td, u_int which, struct rlimit *limp)
+{
+
+	return (kern_proc_setrlimit(td, td->td_proc, which, limp));
+}
+
+int
+kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
+    struct rlimit *limp)
 {
 	struct plimit *newlim, *oldlim;
-	struct proc *p;
 	register struct rlimit *alimp;
 	struct rlimit oldssiz;
 	int error;
@@ -672,7 +676,6 @@ kern_setrlimit(td, which, limp)
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz.rlim_cur = 0;
-	p = td->td_proc;
 	newlim = lim_alloc();
 	PROC_LOCK(p);
 	oldlim = p->p_limit;

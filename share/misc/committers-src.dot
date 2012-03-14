@@ -101,6 +101,7 @@ antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
+bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
 bms [label="Bruce M Simpson\nbms@FreeBSD.org\n2003/08/06"]
@@ -117,6 +118,7 @@ cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 csjp [label="Christian S.J. Peron\ncsjp@FreeBSD.org\n2004/05/04"]
 das [label="David Schultz\ndas@FreeBSD.org\n2003/02/21"]
+davide [label="Davide Italiano\ndavide@FreeBSD.org\n2012/01/27"]
 davidxu [label="David Xu\ndavidxu@FreeBSD.org\n2002/09/02"]
 dchagin [label="Dmitry Chagin\ndchagin@FreeBSD.org\n2009/02/28"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
@@ -283,6 +285,8 @@ adrian -> rmh
 
 ae -> melifaro
 
+alc -> davide
+
 andre -> qingli
 
 anholt -> jkim
@@ -333,6 +337,7 @@ des -> hmp
 des -> mike
 des -> olli
 des -> ru
+des -> bapt
 
 dds -> versus
 
@@ -374,6 +379,7 @@ gnn -> ivoras
 gnn -> vanhu
 gnn -> lstewart
 gnn -> np
+gnn -> davide
 
 grog -> edwin
 grog -> le

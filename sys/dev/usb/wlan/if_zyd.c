@@ -118,9 +118,9 @@ static usb_callback_t zyd_bulk_read_callback;
 static usb_callback_t zyd_bulk_write_callback;
 
 static struct ieee80211vap *zyd_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	zyd_vap_delete(struct ieee80211vap *);
 static void	zyd_tx_free(struct zyd_tx_data *, int);
 static void	zyd_setup_tx_list(struct zyd_softc *);
@@ -456,10 +456,10 @@ zyd_detach(device_t dev)
 }
 
 static struct ieee80211vap *
-zyd_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+zyd_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct zyd_vap *zvp;
 	struct ieee80211vap *vap;

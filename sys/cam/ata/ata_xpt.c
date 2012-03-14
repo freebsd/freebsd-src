@@ -186,6 +186,12 @@ static void	 ata_dev_async(u_int32_t async_code,
 static void	 ata_action(union ccb *start_ccb);
 static void	 ata_announce_periph(struct cam_periph *periph);
 
+static int ata_dma = 1;
+static int atapi_dma = 1;
+
+TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
+TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
+
 static struct xpt_xport ata_xport = {
 	.alloc_device = ata_alloc_device,
 	.action = ata_action,
@@ -355,6 +361,13 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_MODE)
 				mode = cts.xport_specific.sata.mode;
+		}
+		if (periph->path->device->protocol == PROTO_ATA) {
+			if (ata_dma == 0 && (mode == 0 || mode > ATA_PIO_MAX))
+				mode = ATA_PIO_MAX;
+		} else {
+			if (atapi_dma == 0 && (mode == 0 || mode > ATA_PIO_MAX))
+				mode = ATA_PIO_MAX;
 		}
 negotiate:
 		/* Honor device capabilities. */

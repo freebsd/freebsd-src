@@ -645,7 +645,7 @@ trap_pfault(frame, usermode)
 	int usermode;
 {
 	vm_offset_t va;
-	struct vmspace *vm = NULL;
+	struct vmspace *vm;
 	vm_map_t map;
 	int rv = 0;
 	vm_prot_t ftype;
@@ -664,14 +664,10 @@ trap_pfault(frame, usermode)
 		map = kernel_map;
 	} else {
 		/*
-		 * This is a fault on non-kernel virtual memory.
-		 * vm is initialized above to NULL. If curproc is NULL
-		 * or curproc->p_vmspace is NULL the fault is fatal.
+		 * This is a fault on non-kernel virtual memory.  If either
+		 * p or p->p_vmspace is NULL, then the fault is fatal.
 		 */
-		if (p != NULL)
-			vm = p->p_vmspace;
-
-		if (vm == NULL)
+		if (p == NULL || (vm = p->p_vmspace) == NULL)
 			goto nogo;
 
 		map = &vm->vm_map;
@@ -735,8 +731,7 @@ nogo:
 		trap_fatal(frame, eva);
 		return (-1);
 	}
-
-	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+	return ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
 
 static void
@@ -934,7 +929,7 @@ amd64_syscall(struct thread *td, int traced)
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("System call %s returing with kernel FPU ctx leaked",
 	     syscallname(td->td_proc, sa.code)));
-	KASSERT(td->td_pcb->pcb_save == &td->td_pcb->pcb_user_save,
+	KASSERT(td->td_pcb->pcb_save == get_pcb_user_save_td(td),
 	    ("System call %s returning with mangled pcb_save",
 	     syscallname(td->td_proc, sa.code)));
 

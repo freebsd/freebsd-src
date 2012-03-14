@@ -315,6 +315,8 @@ kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
 	if (flags & M_ZERO)
 		pflags |= VM_ALLOC_ZERO;
+	if (flags & M_NODUMP)
+		pflags |= VM_ALLOC_NODUMP;
 	VM_OBJECT_LOCK(object);
 	tries = 0;
 retry:

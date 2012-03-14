@@ -287,6 +287,17 @@ struct	in6_aliasreq {
 	struct	sockaddr_in6 ifra_prefixmask;
 	int	ifra_flags;
 	struct in6_addrlifetime ifra_lifetime;
+	int	ifra_vhid;
+};
+
+/* pre-10.x compat */
+struct	oin6_aliasreq {
+	char	ifra_name[IFNAMSIZ];
+	struct	sockaddr_in6 ifra_addr;
+	struct	sockaddr_in6 ifra_dstaddr;
+	struct	sockaddr_in6 ifra_prefixmask;
+	int	ifra_flags;
+	struct in6_addrlifetime ifra_lifetime;
 };
 
 /* prefix type macro */
@@ -409,7 +420,8 @@ struct	in6_rrenumreq {
 #define SIOCGIFNETMASK_IN6	_IOWR('i', 37, struct in6_ifreq)
 
 #define SIOCDIFADDR_IN6		 _IOW('i', 25, struct in6_ifreq)
-#define SIOCAIFADDR_IN6		 _IOW('i', 26, struct in6_aliasreq)
+#define OSIOCAIFADDR_IN6	 _IOW('i', 26, struct oin6_aliasreq)
+#define SIOCAIFADDR_IN6		 _IOW('i', 27, struct in6_aliasreq)
 
 #define SIOCSIFPHYADDR_IN6       _IOW('i', 70, struct in6_aliasreq)
 #define	SIOCGIFPSRCADDR_IN6	_IOWR('i', 71, struct in6_ifreq)
@@ -704,9 +716,9 @@ in6m_lookup(struct ifnet *ifp, const struct in6_addr *mcaddr)
 	struct in6_multi *inm;
 
 	IN6_MULTI_LOCK();
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	inm = in6m_lookup_locked(ifp, mcaddr);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 	IN6_MULTI_UNLOCK();
 
 	return (inm);
@@ -779,8 +791,18 @@ void	in6_ifremloop(struct ifaddr *);
 void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
-struct inpcb;
-int in6_src_ioctl __P((u_long, caddr_t));
+int	in6_src_ioctl __P((u_long, caddr_t));
+
+/*
+ * Extended API for IPv6 FIB support.
+ */
+void	in6_rtredirect(struct sockaddr *, struct sockaddr *, struct sockaddr *,
+	    int, struct sockaddr *, u_int);
+int	in6_rtrequest(int, struct sockaddr *, struct sockaddr *,
+	    struct sockaddr *, int, struct rtentry **, u_int);
+void	in6_rtalloc(struct route_in6 *, u_int);
+void	in6_rtalloc_ign(struct route_in6 *, u_long, u_int);
+struct rtentry *in6_rtalloc1(struct sockaddr *, int, u_long, u_int);
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */

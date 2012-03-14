@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_NPEI_TYPEDEFS_H__
-#define __CVMX_NPEI_TYPEDEFS_H__
+#ifndef __CVMX_NPEI_DEFS_H__
+#define __CVMX_NPEI_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_NPEI_BAR1_INDEXX(unsigned long offset)
@@ -421,10 +421,10 @@ static inline uint64_t CVMX_NPEI_MEM_ACCESS_SUBIDX(unsigned long offset)
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && (((offset >= 12) && (offset <= 27)))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && (((offset >= 12) && (offset <= 27))))))
 		cvmx_warn("CVMX_NPEI_MEM_ACCESS_SUBIDX(%lu) is invalid on this chip\n", offset);
-	return 0x0000000000000340ull + ((offset) & 31) * 16 - 16*12;
+	return 0x0000000000000280ull + ((offset) & 31) * 16 - 16*12;
 }
 #else
-#define CVMX_NPEI_MEM_ACCESS_SUBIDX(offset) (0x0000000000000340ull + ((offset) & 31) * 16 - 16*12)
+#define CVMX_NPEI_MEM_ACCESS_SUBIDX(offset) (0x0000000000000280ull + ((offset) & 31) * 16 - 16*12)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_NPEI_MSI_ENB0 CVMX_NPEI_MSI_ENB0_FUNC()
@@ -1253,12 +1253,10 @@ static inline uint64_t CVMX_NPEI_WIN_WR_MASK_FUNC(void)
  * NPEI_BAR1_INDEX0 through NPEI_BAR1_INDEX15 is used for transactions orginating with PCIE-PORT0 and NPEI_BAR1_INDEX16
  * through NPEI_BAR1_INDEX31 is used for transactions originating with PCIE-PORT1.
  */
-union cvmx_npei_bar1_indexx
-{
+union cvmx_npei_bar1_indexx {
 	uint32_t u32;
-	struct cvmx_npei_bar1_indexx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_bar1_indexx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_18_31               : 14;
 	uint32_t addr_idx                     : 14; /**< Address bits [35:22] sent to L2C */
 	uint32_t ca                           : 1;  /**< Set '1' when access is not to be cached in L2. */
@@ -1286,12 +1284,10 @@ typedef union cvmx_npei_bar1_indexx cvmx_npei_bar1_indexx_t;
  *
  * Results from BIST runs of NPEI's memories.
  */
-union cvmx_npei_bist_status
-{
+union cvmx_npei_bist_status {
 	uint64_t u64;
-	struct cvmx_npei_bist_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_bist_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pkt_rdf                      : 1;  /**< BIST Status for PKT Read FIFO */
 	uint64_t reserved_60_62               : 3;
 	uint64_t pcr_gim                      : 1;  /**< BIST Status for PKT Gather Instr MEM */
@@ -1393,9 +1389,8 @@ union cvmx_npei_bist_status
 	uint64_t pkt_rdf                      : 1;
 #endif
 	} s;
-	struct cvmx_npei_bist_status_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_bist_status_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pkt_rdf                      : 1;  /**< BIST Status for PKT Read FIFO */
 	uint64_t reserved_60_62               : 3;
 	uint64_t pcr_gim                      : 1;  /**< BIST Status for PKT Gather Instr MEM */
@@ -1515,9 +1510,8 @@ union cvmx_npei_bist_status
 	uint64_t pkt_rdf                      : 1;
 #endif
 	} cn52xx;
-	struct cvmx_npei_bist_status_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_bist_status_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_46_63               : 18;
 	uint64_t d0_mem0                      : 1;  /**< BIST Status for DMA0 Memory */
 	uint64_t d1_mem1                      : 1;  /**< BIST Status for DMA1 Memory */
@@ -1616,9 +1610,8 @@ union cvmx_npei_bist_status
 #endif
 	} cn52xxp1;
 	struct cvmx_npei_bist_status_cn52xx   cn56xx;
-	struct cvmx_npei_bist_status_cn56xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_bist_status_cn56xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_58_63               : 6;
 	uint64_t pcsr_int                     : 1;  /**< BIST Status for PKT pout_int_bstatus */
 	uint64_t pcsr_im                      : 1;  /**< BIST Status for PKT pcsr_instr_mem_bstatus */
@@ -1750,12 +1743,10 @@ typedef union cvmx_npei_bist_status cvmx_npei_bist_status_t;
  *
  * Results from BIST runs of NPEI's memories.
  */
-union cvmx_npei_bist_status2
-{
+union cvmx_npei_bist_status2 {
 	uint64_t u64;
-	struct cvmx_npei_bist_status2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_bist_status2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t prd_tag                      : 1;  /**< BIST Status for DMA PCIE RD Tag MEM */
 	uint64_t prd_st0                      : 1;  /**< BIST Status for DMA PCIE RD state MEM 0 */
@@ -1801,12 +1792,10 @@ typedef union cvmx_npei_bist_status2 cvmx_npei_bist_status2_t;
  *
  * Contains control for access for Port0
  */
-union cvmx_npei_ctl_port0
-{
+union cvmx_npei_ctl_port0 {
 	uint64_t u64;
-	struct cvmx_npei_ctl_port0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_ctl_port0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_21_63               : 43;
 	uint64_t waitl_com                    : 1;  /**< When set '1' casues the NPI to wait for a commit
                                                          from the L2C before sending additional completions
@@ -1876,12 +1865,10 @@ typedef union cvmx_npei_ctl_port0 cvmx_npei_ctl_port0_t;
  *
  * Contains control for access for Port1
  */
-union cvmx_npei_ctl_port1
-{
+union cvmx_npei_ctl_port1 {
 	uint64_t u64;
-	struct cvmx_npei_ctl_port1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_ctl_port1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_21_63               : 43;
 	uint64_t waitl_com                    : 1;  /**< When set '1' casues the NPI to wait for a commit
                                                          from the L2C before sending additional completions
@@ -1952,12 +1939,10 @@ typedef union cvmx_npei_ctl_port1 cvmx_npei_ctl_port1_t;
  * To ensure that a write has completed the user must read the register before making an access(i.e. PCIe memory space)
  * that requires the value of this register to be updated.
  */
-union cvmx_npei_ctl_status
-{
+union cvmx_npei_ctl_status {
 	uint64_t u64;
-	struct cvmx_npei_ctl_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_ctl_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_44_63               : 20;
 	uint64_t p1_ntags                     : 6;  /**< Number of tags avaiable for PCIe Port1.
                                                          In RC mode 1 tag is needed for each outbound TLP
@@ -2011,9 +1996,8 @@ union cvmx_npei_ctl_status
 #endif
 	} s;
 	struct cvmx_npei_ctl_status_s         cn52xx;
-	struct cvmx_npei_ctl_status_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_ctl_status_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_44_63               : 20;
 	uint64_t p1_ntags                     : 6;  /**< Number of tags avaiable for PCIe Port1.
                                                          In RC mode 1 tag is needed for each outbound TLP
@@ -2062,9 +2046,8 @@ union cvmx_npei_ctl_status
 #endif
 	} cn52xxp1;
 	struct cvmx_npei_ctl_status_s         cn56xx;
-	struct cvmx_npei_ctl_status_cn56xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_ctl_status_cn56xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t lnk_rst                      : 1;  /**< Set when PCIe Core 0 request a link reset due to
                                                          link down state. This bit is only reset on raw
@@ -2098,12 +2081,10 @@ typedef union cvmx_npei_ctl_status cvmx_npei_ctl_status_t;
  * To ensure that a write has completed the user must read the register before
  * making an access(i.e. PCI memory space) that requires the value of this register to be updated.
  */
-union cvmx_npei_ctl_status2
-{
+union cvmx_npei_ctl_status2 {
 	uint64_t u64;
-	struct cvmx_npei_ctl_status2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_ctl_status2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mps                          : 1;  /**< Max Payload Size
                                                                   0  = 128B
@@ -2210,12 +2191,10 @@ typedef union cvmx_npei_ctl_status2 cvmx_npei_ctl_status2_t;
  *
  * The EXEC data out fifo-count and the data unload counter.
  */
-union cvmx_npei_data_out_cnt
-{
+union cvmx_npei_data_out_cnt {
 	uint64_t u64;
-	struct cvmx_npei_data_out_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_data_out_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_44_63               : 20;
 	uint64_t p1_ucnt                      : 16; /**< PCIE-Port1 Fifo Unload Count. This counter is
                                                          incremented by '1' every time a word is removed
@@ -2253,12 +2232,10 @@ typedef union cvmx_npei_data_out_cnt cvmx_npei_data_out_cnt_t;
  *
  * Value returned on the debug-data lines from the RSLs
  */
-union cvmx_npei_dbg_data
-{
+union cvmx_npei_dbg_data {
 	uint64_t u64;
-	struct cvmx_npei_dbg_data_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dbg_data_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t qlm0_rev_lanes               : 1;  /**< Lane reversal for PCIe port 0 */
 	uint64_t reserved_25_26               : 2;
@@ -2282,9 +2259,8 @@ union cvmx_npei_dbg_data
 	uint64_t reserved_28_63               : 36;
 #endif
 	} s;
-	struct cvmx_npei_dbg_data_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dbg_data_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t qlm0_link_width              : 1;  /**< Link width of PCIe port 0
                                                          0 = PCIe port 0 is 2 lanes,
@@ -2319,9 +2295,8 @@ union cvmx_npei_dbg_data
 #endif
 	} cn52xx;
 	struct cvmx_npei_dbg_data_cn52xx      cn52xxp1;
-	struct cvmx_npei_dbg_data_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dbg_data_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t qlm2_rev_lanes               : 1;  /**< Lane reversal for PCIe port 1 */
 	uint64_t qlm0_rev_lanes               : 1;  /**< Lane reversal for PCIe port 0 */
@@ -2362,12 +2337,10 @@ typedef union cvmx_npei_dbg_data cvmx_npei_dbg_data_t;
  *
  * Contains the debug select value last written to the RSLs.
  */
-union cvmx_npei_dbg_select
-{
+union cvmx_npei_dbg_select {
 	uint64_t u64;
-	struct cvmx_npei_dbg_select_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dbg_select_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t dbg_sel                      : 16; /**< When this register is written its value is sent to
                                                          all RSLs. */
@@ -2390,12 +2363,10 @@ typedef union cvmx_npei_dbg_select cvmx_npei_dbg_select_t;
  *
  * Values for determing the number of instructions for DMA[0..4] in the NPEI.
  */
-union cvmx_npei_dmax_counts
-{
+union cvmx_npei_dmax_counts {
 	uint64_t u64;
-	struct cvmx_npei_dmax_counts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dmax_counts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_39_63               : 25;
 	uint64_t fcnt                         : 7;  /**< Number of words in the Instruction FIFO. */
 	uint64_t dbell                        : 32; /**< Number of available words of Instructions to read. */
@@ -2419,12 +2390,10 @@ typedef union cvmx_npei_dmax_counts cvmx_npei_dmax_counts_t;
  *
  * The door bell register for DMA[0..4] queue.
  */
-union cvmx_npei_dmax_dbell
-{
+union cvmx_npei_dmax_dbell {
 	uint32_t u32;
-	struct cvmx_npei_dmax_dbell_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dmax_dbell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t dbell                        : 16; /**< The value written to this register is added to the
                                                          number of 8byte words to be read and processes for
@@ -2448,12 +2417,10 @@ typedef union cvmx_npei_dmax_dbell cvmx_npei_dmax_dbell_t;
  *
  * The address to start reading Instructions from for DMA[0..4].
  */
-union cvmx_npei_dmax_ibuff_saddr
-{
+union cvmx_npei_dmax_ibuff_saddr {
 	uint64_t u64;
-	struct cvmx_npei_dmax_ibuff_saddr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dmax_ibuff_saddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_37_63               : 27;
 	uint64_t idle                         : 1;  /**< DMA Engine IDLE state */
 	uint64_t saddr                        : 29; /**< The 128 byte aligned starting address to read the
@@ -2468,9 +2435,8 @@ union cvmx_npei_dmax_ibuff_saddr
 #endif
 	} s;
 	struct cvmx_npei_dmax_ibuff_saddr_s   cn52xx;
-	struct cvmx_npei_dmax_ibuff_saddr_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dmax_ibuff_saddr_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t saddr                        : 29; /**< The 128 byte aligned starting address to read the
                                                          first instruction. SADDR is address bit 35:7 of the
@@ -2494,12 +2460,10 @@ typedef union cvmx_npei_dmax_ibuff_saddr cvmx_npei_dmax_ibuff_saddr_t;
  *
  * Place NPEI will read the next Ichunk data from. This is valid when state is 0
  */
-union cvmx_npei_dmax_naddr
-{
+union cvmx_npei_dmax_naddr {
 	uint64_t u64;
-	struct cvmx_npei_dmax_naddr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dmax_naddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t addr                         : 36; /**< The next L2C address to read DMA# instructions
                                                          from. */
@@ -2522,12 +2486,10 @@ typedef union cvmx_npei_dmax_naddr cvmx_npei_dmax_naddr_t;
  *
  * Thresholds for DMA count and timer interrupts for DMA0.
  */
-union cvmx_npei_dma0_int_level
-{
+union cvmx_npei_dma0_int_level {
 	uint64_t u64;
-	struct cvmx_npei_dma0_int_level_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma0_int_level_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t time                         : 32; /**< Whenever the DMA_CNT0 timer exceeds
                                                          this value, NPEI_INT_SUM[DTIME0] is set.
                                                          The DMA_CNT0 timer increments every core clock
@@ -2554,12 +2516,10 @@ typedef union cvmx_npei_dma0_int_level cvmx_npei_dma0_int_level_t;
  *
  * Thresholds for DMA count and timer interrupts for DMA1.
  */
-union cvmx_npei_dma1_int_level
-{
+union cvmx_npei_dma1_int_level {
 	uint64_t u64;
-	struct cvmx_npei_dma1_int_level_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma1_int_level_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t time                         : 32; /**< Whenever the DMA_CNT1 timer exceeds
                                                          this value, NPEI_INT_SUM[DTIME1] is set.
                                                          The DMA_CNT1 timer increments every core clock
@@ -2586,12 +2546,10 @@ typedef union cvmx_npei_dma1_int_level cvmx_npei_dma1_int_level_t;
  *
  * The DMA Count values for DMA0 and DMA1.
  */
-union cvmx_npei_dma_cnts
-{
+union cvmx_npei_dma_cnts {
 	uint64_t u64;
-	struct cvmx_npei_dma_cnts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_cnts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t dma1                         : 32; /**< The DMA counter 1.
                                                          Writing this field will cause the written value to
                                                          be subtracted from DMA1. SW should use a 4-byte
@@ -2631,12 +2589,10 @@ typedef union cvmx_npei_dma_cnts cvmx_npei_dma_cnts_t;
  *
  * Controls operation of the DMA IN/OUT.
  */
-union cvmx_npei_dma_control
-{
+union cvmx_npei_dma_control {
 	uint64_t u64;
-	struct cvmx_npei_dma_control_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t p_32b_m                      : 1;  /**< DMA PCIE 32-bit word read disable bit
                                                          When 0, enable the feature */
@@ -2704,9 +2660,8 @@ union cvmx_npei_dma_control
 #endif
 	} s;
 	struct cvmx_npei_dma_control_s        cn52xx;
-	struct cvmx_npei_dma_control_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_control_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t dma3_enb                     : 1;  /**< DMA# enable. Enables the operation of the DMA
                                                          engine. After being enabled a DMA engine should not
@@ -2767,9 +2722,8 @@ union cvmx_npei_dma_control
 #endif
 	} cn52xxp1;
 	struct cvmx_npei_dma_control_s        cn56xx;
-	struct cvmx_npei_dma_control_cn56xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_control_cn56xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_39_63               : 25;
 	uint64_t dma4_enb                     : 1;  /**< DMA# enable. Enables the operation of the DMA
                                                          engine. After being enabled a DMA engine should not
@@ -2843,12 +2797,10 @@ typedef union cvmx_npei_dma_control cvmx_npei_dma_control_t;
  *
  * Outstanding PCIE read request number for DMAs and Packet, maximum number is 16
  */
-union cvmx_npei_dma_pcie_req_num
-{
+union cvmx_npei_dma_pcie_req_num {
 	uint64_t u64;
-	struct cvmx_npei_dma_pcie_req_num_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_pcie_req_num_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t dma_arb                      : 1;  /**< DMA_PKT Read Request Arbitration
                                                          - 1: DMA0-4 and PKT are round robin. i.e.
                                                              DMA0-DMA1-DMA2-DMA3-DMA4-PKT...
@@ -2930,12 +2882,10 @@ typedef union cvmx_npei_dma_pcie_req_num cvmx_npei_dma_pcie_req_num_t;
  *
  * Results from DMA state register 1
  */
-union cvmx_npei_dma_state1
-{
+union cvmx_npei_dma_state1 {
 	uint64_t u64;
-	struct cvmx_npei_dma_state1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t d4_dwe                       : 8;  /**< DMA4 PICe Write State */
 	uint64_t d3_dwe                       : 8;  /**< DMA3 PICe Write State */
@@ -2962,12 +2912,10 @@ typedef union cvmx_npei_dma_state1 cvmx_npei_dma_state1_t;
  *
  * DMA engine Debug information.
  */
-union cvmx_npei_dma_state1_p1
-{
+union cvmx_npei_dma_state1_p1 {
 	uint64_t u64;
-	struct cvmx_npei_dma_state1_p1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state1_p1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t d0_difst                     : 7;  /**< DMA engine 0 dif instruction read state */
 	uint64_t d1_difst                     : 7;  /**< DMA engine 1 dif instruction read state */
@@ -2993,9 +2941,8 @@ union cvmx_npei_dma_state1_p1
 	uint64_t reserved_60_63               : 4;
 #endif
 	} s;
-	struct cvmx_npei_dma_state1_p1_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state1_p1_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t d0_difst                     : 7;  /**< DMA engine 0 dif instruction read state */
 	uint64_t d1_difst                     : 7;  /**< DMA engine 1 dif instruction read state */
@@ -3032,12 +2979,10 @@ typedef union cvmx_npei_dma_state1_p1 cvmx_npei_dma_state1_p1_t;
  *
  * Results from DMA state register 2
  */
-union cvmx_npei_dma_state2
-{
+union cvmx_npei_dma_state2 {
 	uint64_t u64;
-	struct cvmx_npei_dma_state2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t ndwe                         : 4;  /**< DMA L2C Write State */
 	uint64_t reserved_21_23               : 3;
@@ -3064,12 +3009,10 @@ typedef union cvmx_npei_dma_state2 cvmx_npei_dma_state2_t;
  *
  * DMA engine Debug information.
  */
-union cvmx_npei_dma_state2_p1
-{
+union cvmx_npei_dma_state2_p1 {
 	uint64_t u64;
-	struct cvmx_npei_dma_state2_p1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state2_p1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_45_63               : 19;
 	uint64_t d0_dffst                     : 9;  /**< DMA engine 0 dif instruction fetch state */
 	uint64_t d1_dffst                     : 9;  /**< DMA engine 1 dif instruction fetch state */
@@ -3085,9 +3028,8 @@ union cvmx_npei_dma_state2_p1
 	uint64_t reserved_45_63               : 19;
 #endif
 	} s;
-	struct cvmx_npei_dma_state2_p1_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state2_p1_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_45_63               : 19;
 	uint64_t d0_dffst                     : 9;  /**< DMA engine 0 dif instruction fetch state */
 	uint64_t d1_dffst                     : 9;  /**< DMA engine 1 dif instruction fetch state */
@@ -3114,12 +3056,10 @@ typedef union cvmx_npei_dma_state2_p1 cvmx_npei_dma_state2_p1_t;
  *
  * DMA engine Debug information.
  */
-union cvmx_npei_dma_state3_p1
-{
+union cvmx_npei_dma_state3_p1 {
 	uint64_t u64;
-	struct cvmx_npei_dma_state3_p1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state3_p1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t d0_drest                     : 15; /**< DMA engine 0 dre state */
 	uint64_t d1_drest                     : 15; /**< DMA engine 1 dre state */
@@ -3145,12 +3085,10 @@ typedef union cvmx_npei_dma_state3_p1 cvmx_npei_dma_state3_p1_t;
  *
  * DMA engine Debug information.
  */
-union cvmx_npei_dma_state4_p1
-{
+union cvmx_npei_dma_state4_p1 {
 	uint64_t u64;
-	struct cvmx_npei_dma_state4_p1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state4_p1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_52_63               : 12;
 	uint64_t d0_dwest                     : 13; /**< DMA engine 0 dwe state */
 	uint64_t d1_dwest                     : 13; /**< DMA engine 1 dwe state */
@@ -3176,12 +3114,10 @@ typedef union cvmx_npei_dma_state4_p1 cvmx_npei_dma_state4_p1_t;
  *
  * DMA engine Debug information.
  */
-union cvmx_npei_dma_state5_p1
-{
+union cvmx_npei_dma_state5_p1 {
 	uint64_t u64;
-	struct cvmx_npei_dma_state5_p1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_dma_state5_p1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t d4_drest                     : 15; /**< DMA engine 4 dre state */
 	uint64_t d4_dwest                     : 13; /**< DMA engine 4 dwe state */
@@ -3202,12 +3138,10 @@ typedef union cvmx_npei_dma_state5_p1 cvmx_npei_dma_state5_p1_t;
  *
  * Used to allow the generation of interrupts (MSI/INTA) to the PCIe CoresUsed to enable the various interrupting conditions of NPEI
  */
-union cvmx_npei_int_a_enb
-{
+union cvmx_npei_int_a_enb {
 	uint64_t u64;
-	struct cvmx_npei_int_a_enb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_a_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t pout_err                     : 1;  /**< Enables NPEI_INT_A_SUM[9] to generate an
                                                          interrupt to the PCIE core for MSI/inta. */
@@ -3244,9 +3178,8 @@ union cvmx_npei_int_a_enb
 #endif
 	} s;
 	struct cvmx_npei_int_a_enb_s          cn52xx;
-	struct cvmx_npei_int_a_enb_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_a_enb_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t dma1_cpl                     : 1;  /**< Enables NPEI_INT_A_SUM[1] to generate an
                                                          interrupt to the PCIE core for MSI/inta. */
@@ -3269,12 +3202,10 @@ typedef union cvmx_npei_int_a_enb cvmx_npei_int_a_enb_t;
  *
  * Used to enable the various interrupting conditions of NPEI
  */
-union cvmx_npei_int_a_enb2
-{
+union cvmx_npei_int_a_enb2 {
 	uint64_t u64;
-	struct cvmx_npei_int_a_enb2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_a_enb2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t pout_err                     : 1;  /**< Enables NPEI_INT_A_SUM[9] to generate an
                                                          interrupt on the RSL. */
@@ -3311,9 +3242,8 @@ union cvmx_npei_int_a_enb2
 #endif
 	} s;
 	struct cvmx_npei_int_a_enb2_s         cn52xx;
-	struct cvmx_npei_int_a_enb2_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_a_enb2_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t dma1_cpl                     : 1;  /**< Enables NPEI_INT_A_SUM[1] to generate an
                                                          interrupt to the PCIE core for MSI/inta. */
@@ -3337,12 +3267,10 @@ typedef union cvmx_npei_int_a_enb2 cvmx_npei_int_a_enb2_t;
  * Set when an interrupt condition occurs, write '1' to clear. When an interrupt bitin this register is set and
  * the cooresponding bit in the NPEI_INT_A_ENB register is set, then NPEI_INT_SUM[61] will be set.
  */
-union cvmx_npei_int_a_sum
-{
+union cvmx_npei_int_a_sum {
 	uint64_t u64;
-	struct cvmx_npei_int_a_sum_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_a_sum_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t pout_err                     : 1;  /**< Set when PKO sends packet data with the error bit
                                                          set. */
@@ -3377,9 +3305,8 @@ union cvmx_npei_int_a_sum
 #endif
 	} s;
 	struct cvmx_npei_int_a_sum_s          cn52xx;
-	struct cvmx_npei_int_a_sum_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_a_sum_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t dma1_cpl                     : 1;  /**< Set each time any PCIe DMA engine recieves a UR/CA
                                                          response from PCIe Port 1 */
@@ -3402,12 +3329,10 @@ typedef union cvmx_npei_int_a_sum cvmx_npei_int_a_sum_t;
  *
  * Used to allow the generation of interrupts (MSI/INTA) to the PCIe CoresUsed to enable the various interrupting conditions of NPI
  */
-union cvmx_npei_int_enb
-{
+union cvmx_npei_int_enb {
 	uint64_t u64;
-	struct cvmx_npei_int_enb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mio_inta                     : 1;  /**< Enables NPEI_INT_SUM[63] to generate an
                                                          interrupt to the PCIE core for MSI/inta. */
 	uint64_t reserved_62_62               : 1;
@@ -3603,9 +3528,8 @@ union cvmx_npei_int_enb
 #endif
 	} s;
 	struct cvmx_npei_int_enb_s            cn52xx;
-	struct cvmx_npei_int_enb_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_enb_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mio_inta                     : 1;  /**< Enables NPEI_INT_SUM[63] to generate an
                                                          interrupt to the PCIE core for MSI/inta. */
 	uint64_t reserved_62_62               : 1;
@@ -3800,9 +3724,8 @@ union cvmx_npei_int_enb
 #endif
 	} cn52xxp1;
 	struct cvmx_npei_int_enb_s            cn56xx;
-	struct cvmx_npei_int_enb_cn56xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_enb_cn56xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mio_inta                     : 1;  /**< Enables NPEI_INT_SUM[63] to generate an
                                                          interrupt to the PCIE core for MSI/inta. */
 	uint64_t reserved_61_62               : 2;
@@ -4000,12 +3923,10 @@ typedef union cvmx_npei_int_enb cvmx_npei_int_enb_t;
  *
  * Used to enable the various interrupting conditions of NPI
  */
-union cvmx_npei_int_enb2
-{
+union cvmx_npei_int_enb2 {
 	uint64_t u64;
-	struct cvmx_npei_int_enb2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_enb2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_62_63               : 2;
 	uint64_t int_a                        : 1;  /**< Enables NPEI_INT_SUM2[61] to generate an
                                                          interrupt on the RSL. */
@@ -4198,9 +4119,8 @@ union cvmx_npei_int_enb2
 #endif
 	} s;
 	struct cvmx_npei_int_enb2_s           cn52xx;
-	struct cvmx_npei_int_enb2_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_enb2_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_62_63               : 2;
 	uint64_t int_a                        : 1;  /**< Enables NPEI_INT_SUM2[61] to generate an
                                                          interrupt on the RSL. */
@@ -4392,9 +4312,8 @@ union cvmx_npei_int_enb2
 #endif
 	} cn52xxp1;
 	struct cvmx_npei_int_enb2_s           cn56xx;
-	struct cvmx_npei_int_enb2_cn56xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_enb2_cn56xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_61_63               : 3;
 	uint64_t c1_ldwn                      : 1;  /**< Enables NPEI_INT_SUM[60] to generate an
                                                          interrupt on the RSL. */
@@ -4589,12 +4508,10 @@ typedef union cvmx_npei_int_enb2 cvmx_npei_int_enb2_t;
  *
  * Contains information about some of the interrupt condition that can occur in the NPEI_INTERRUPT_SUM register.
  */
-union cvmx_npei_int_info
-{
+union cvmx_npei_int_info {
 	uint64_t u64;
-	struct cvmx_npei_int_info_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_info_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t pidbof                       : 6;  /**< Field set when the NPEI_INTERRUPT_SUM[PIDBOF] bit
                                                          is set. This field when set will not change again
@@ -4633,12 +4550,10 @@ typedef union cvmx_npei_int_info cvmx_npei_int_info_t;
  * <31>    P0_PTOUT R/W1C    0x0         0         Port-0 output had a read timeout on a DATA/INFO         $R     NS
  *                                                 pair.
  */
-union cvmx_npei_int_sum
-{
+union cvmx_npei_int_sum {
 	uint64_t u64;
-	struct cvmx_npei_int_sum_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_sum_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mio_inta                     : 1;  /**< Interrupt from MIO. */
 	uint64_t reserved_62_62               : 1;
 	uint64_t int_a                        : 1;  /**< Set when a bit in the NPEI_INT_A_SUM register and
@@ -4839,9 +4754,8 @@ union cvmx_npei_int_sum
 #endif
 	} s;
 	struct cvmx_npei_int_sum_s            cn52xx;
-	struct cvmx_npei_int_sum_cn52xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_sum_cn52xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mio_inta                     : 1;  /**< Interrupt from MIO. */
 	uint64_t reserved_62_62               : 1;
 	uint64_t int_a                        : 1;  /**< Set when a bit in the NPEI_INT_A_SUM register and
@@ -5031,9 +4945,8 @@ union cvmx_npei_int_sum
 #endif
 	} cn52xxp1;
 	struct cvmx_npei_int_sum_s            cn56xx;
-	struct cvmx_npei_int_sum_cn56xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_sum_cn56xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mio_inta                     : 1;  /**< Interrupt from MIO. */
 	uint64_t reserved_61_62               : 2;
 	uint64_t c1_ldwn                      : 1;  /**< Reset request due to link1 down status. */
@@ -5229,12 +5142,10 @@ typedef union cvmx_npei_int_sum cvmx_npei_int_sum_t;
  *
  * This is a read only copy of the NPEI_INTERRUPT_SUM register with bit variances.
  */
-union cvmx_npei_int_sum2
-{
+union cvmx_npei_int_sum2 {
 	uint64_t u64;
-	struct cvmx_npei_int_sum2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_int_sum2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mio_inta                     : 1;  /**< Equal to the cooresponding bit if the
                                                          NPEI_INT_SUM register. */
 	uint64_t reserved_62_62               : 1;
@@ -5432,12 +5343,10 @@ typedef union cvmx_npei_int_sum2 cvmx_npei_int_sum2_t;
  *
  * The data from the last initiated window read.
  */
-union cvmx_npei_last_win_rdata0
-{
+union cvmx_npei_last_win_rdata0 {
 	uint64_t u64;
-	struct cvmx_npei_last_win_rdata0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_last_win_rdata0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t data                         : 64; /**< Last window read data. */
 #else
 	uint64_t data                         : 64;
@@ -5457,12 +5366,10 @@ typedef union cvmx_npei_last_win_rdata0 cvmx_npei_last_win_rdata0_t;
  *
  * The data from the last initiated window read.
  */
-union cvmx_npei_last_win_rdata1
-{
+union cvmx_npei_last_win_rdata1 {
 	uint64_t u64;
-	struct cvmx_npei_last_win_rdata1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_last_win_rdata1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t data                         : 64; /**< Last window read data. */
 #else
 	uint64_t data                         : 64;
@@ -5482,12 +5389,10 @@ typedef union cvmx_npei_last_win_rdata1 cvmx_npei_last_win_rdata1_t;
  *
  * Contains control for access to the PCIe address space.
  */
-union cvmx_npei_mem_access_ctl
-{
+union cvmx_npei_mem_access_ctl {
 	uint64_t u64;
-	struct cvmx_npei_mem_access_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_mem_access_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t max_word                     : 4;  /**< The maximum number of words to merge into a single
                                                          write operation from the PPs to the PCIe. Legal
@@ -5517,12 +5422,10 @@ typedef union cvmx_npei_mem_access_ctl cvmx_npei_mem_access_ctl_t;
  *
  * Contains address index and control bits for access to memory from Core PPs.
  */
-union cvmx_npei_mem_access_subidx
-{
+union cvmx_npei_mem_access_subidx {
 	uint64_t u64;
-	struct cvmx_npei_mem_access_subidx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_mem_access_subidx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_42_63               : 22;
 	uint64_t zero                         : 1;  /**< Causes all byte reads to be zero length reads.
                                                          Returns to the EXEC a zero for all read data. */
@@ -5563,12 +5466,10 @@ typedef union cvmx_npei_mem_access_subidx cvmx_npei_mem_access_subidx_t;
  *
  * Used to enable the interrupt generation for the bits in the NPEI_MSI_RCV0.
  */
-union cvmx_npei_msi_enb0
-{
+union cvmx_npei_msi_enb0 {
 	uint64_t u64;
-	struct cvmx_npei_msi_enb0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_enb0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t enb                          : 64; /**< Enables bit [63:0] of NPEI_MSI_RCV0. */
 #else
 	uint64_t enb                          : 64;
@@ -5588,12 +5489,10 @@ typedef union cvmx_npei_msi_enb0 cvmx_npei_msi_enb0_t;
  *
  * Used to enable the interrupt generation for the bits in the NPEI_MSI_RCV1.
  */
-union cvmx_npei_msi_enb1
-{
+union cvmx_npei_msi_enb1 {
 	uint64_t u64;
-	struct cvmx_npei_msi_enb1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_enb1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t enb                          : 64; /**< Enables bit [63:0] of NPEI_MSI_RCV1. */
 #else
 	uint64_t enb                          : 64;
@@ -5613,12 +5512,10 @@ typedef union cvmx_npei_msi_enb1 cvmx_npei_msi_enb1_t;
  *
  * Used to enable the interrupt generation for the bits in the NPEI_MSI_RCV2.
  */
-union cvmx_npei_msi_enb2
-{
+union cvmx_npei_msi_enb2 {
 	uint64_t u64;
-	struct cvmx_npei_msi_enb2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_enb2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t enb                          : 64; /**< Enables bit [63:0] of NPEI_MSI_RCV2. */
 #else
 	uint64_t enb                          : 64;
@@ -5638,12 +5535,10 @@ typedef union cvmx_npei_msi_enb2 cvmx_npei_msi_enb2_t;
  *
  * Used to enable the interrupt generation for the bits in the NPEI_MSI_RCV3.
  */
-union cvmx_npei_msi_enb3
-{
+union cvmx_npei_msi_enb3 {
 	uint64_t u64;
-	struct cvmx_npei_msi_enb3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_enb3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t enb                          : 64; /**< Enables bit [63:0] of NPEI_MSI_RCV3. */
 #else
 	uint64_t enb                          : 64;
@@ -5663,12 +5558,10 @@ typedef union cvmx_npei_msi_enb3 cvmx_npei_msi_enb3_t;
  *
  * Contains bits [63:0] of the 256 bits oof MSI interrupts.
  */
-union cvmx_npei_msi_rcv0
-{
+union cvmx_npei_msi_rcv0 {
 	uint64_t u64;
-	struct cvmx_npei_msi_rcv0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_rcv0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t intr                         : 64; /**< Bits 63-0 of the 256 bits of MSI interrupt. */
 #else
 	uint64_t intr                         : 64;
@@ -5688,12 +5581,10 @@ typedef union cvmx_npei_msi_rcv0 cvmx_npei_msi_rcv0_t;
  *
  * Contains bits [127:64] of the 256 bits oof MSI interrupts.
  */
-union cvmx_npei_msi_rcv1
-{
+union cvmx_npei_msi_rcv1 {
 	uint64_t u64;
-	struct cvmx_npei_msi_rcv1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_rcv1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t intr                         : 64; /**< Bits 127-64 of the 256 bits of MSI interrupt. */
 #else
 	uint64_t intr                         : 64;
@@ -5713,12 +5604,10 @@ typedef union cvmx_npei_msi_rcv1 cvmx_npei_msi_rcv1_t;
  *
  * Contains bits [191:128] of the 256 bits oof MSI interrupts.
  */
-union cvmx_npei_msi_rcv2
-{
+union cvmx_npei_msi_rcv2 {
 	uint64_t u64;
-	struct cvmx_npei_msi_rcv2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_rcv2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t intr                         : 64; /**< Bits 191-128 of the 256 bits of MSI interrupt. */
 #else
 	uint64_t intr                         : 64;
@@ -5738,12 +5627,10 @@ typedef union cvmx_npei_msi_rcv2 cvmx_npei_msi_rcv2_t;
  *
  * Contains bits [255:192] of the 256 bits oof MSI interrupts.
  */
-union cvmx_npei_msi_rcv3
-{
+union cvmx_npei_msi_rcv3 {
 	uint64_t u64;
-	struct cvmx_npei_msi_rcv3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_rcv3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t intr                         : 64; /**< Bits 255-192 of the 256 bits of MSI interrupt. */
 #else
 	uint64_t intr                         : 64;
@@ -5763,12 +5650,10 @@ typedef union cvmx_npei_msi_rcv3 cvmx_npei_msi_rcv3_t;
  *
  * Used to read the mapping function of the NPEI_PCIE_MSI_RCV to NPEI_MSI_RCV registers.
  */
-union cvmx_npei_msi_rd_map
-{
+union cvmx_npei_msi_rd_map {
 	uint64_t u64;
-	struct cvmx_npei_msi_rd_map_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_rd_map_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t rd_int                       : 8;  /**< The value of the map at the location PREVIOUSLY
                                                          written to the MSI_INT field of this register. */
@@ -5794,12 +5679,10 @@ typedef union cvmx_npei_msi_rd_map cvmx_npei_msi_rd_map_t;
  *
  * Used to clear bits in NPEI_MSI_ENB0. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1c_enb0
-{
+union cvmx_npei_msi_w1c_enb0 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1c_enb0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1c_enb0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t clr                          : 64; /**< A write of '1' to a vector will clear the
                                                          cooresponding bit in NPEI_MSI_ENB0.
                                                          A read to this address will return 0. */
@@ -5819,12 +5702,10 @@ typedef union cvmx_npei_msi_w1c_enb0 cvmx_npei_msi_w1c_enb0_t;
  *
  * Used to clear bits in NPEI_MSI_ENB1. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1c_enb1
-{
+union cvmx_npei_msi_w1c_enb1 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1c_enb1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1c_enb1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t clr                          : 64; /**< A write of '1' to a vector will clear the
                                                          cooresponding bit in NPEI_MSI_ENB1.
                                                          A read to this address will return 0. */
@@ -5844,12 +5725,10 @@ typedef union cvmx_npei_msi_w1c_enb1 cvmx_npei_msi_w1c_enb1_t;
  *
  * Used to clear bits in NPEI_MSI_ENB2. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1c_enb2
-{
+union cvmx_npei_msi_w1c_enb2 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1c_enb2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1c_enb2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t clr                          : 64; /**< A write of '1' to a vector will clear the
                                                          cooresponding bit in NPEI_MSI_ENB2.
                                                          A read to this address will return 0. */
@@ -5869,12 +5748,10 @@ typedef union cvmx_npei_msi_w1c_enb2 cvmx_npei_msi_w1c_enb2_t;
  *
  * Used to clear bits in NPEI_MSI_ENB3. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1c_enb3
-{
+union cvmx_npei_msi_w1c_enb3 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1c_enb3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1c_enb3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t clr                          : 64; /**< A write of '1' to a vector will clear the
                                                          cooresponding bit in NPEI_MSI_ENB3.
                                                          A read to this address will return 0. */
@@ -5894,12 +5771,10 @@ typedef union cvmx_npei_msi_w1c_enb3 cvmx_npei_msi_w1c_enb3_t;
  *
  * Used to set bits in NPEI_MSI_ENB0. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1s_enb0
-{
+union cvmx_npei_msi_w1s_enb0 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1s_enb0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1s_enb0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t set                          : 64; /**< A write of '1' to a vector will set the
                                                          cooresponding bit in NPEI_MSI_ENB0.
                                                          A read to this address will return 0. */
@@ -5919,12 +5794,10 @@ typedef union cvmx_npei_msi_w1s_enb0 cvmx_npei_msi_w1s_enb0_t;
  *
  * Used to set bits in NPEI_MSI_ENB1. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1s_enb1
-{
+union cvmx_npei_msi_w1s_enb1 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1s_enb1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1s_enb1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t set                          : 64; /**< A write of '1' to a vector will set the
                                                          cooresponding bit in NPEI_MSI_ENB1.
                                                          A read to this address will return 0. */
@@ -5944,12 +5817,10 @@ typedef union cvmx_npei_msi_w1s_enb1 cvmx_npei_msi_w1s_enb1_t;
  *
  * Used to set bits in NPEI_MSI_ENB2. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1s_enb2
-{
+union cvmx_npei_msi_w1s_enb2 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1s_enb2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1s_enb2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t set                          : 64; /**< A write of '1' to a vector will set the
                                                          cooresponding bit in NPEI_MSI_ENB2.
                                                          A read to this address will return 0. */
@@ -5969,12 +5840,10 @@ typedef union cvmx_npei_msi_w1s_enb2 cvmx_npei_msi_w1s_enb2_t;
  *
  * Used to set bits in NPEI_MSI_ENB3. This is a PASS2 register.
  */
-union cvmx_npei_msi_w1s_enb3
-{
+union cvmx_npei_msi_w1s_enb3 {
 	uint64_t u64;
-	struct cvmx_npei_msi_w1s_enb3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_w1s_enb3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t set                          : 64; /**< A write of '1' to a vector will set the
                                                          cooresponding bit in NPEI_MSI_ENB3.
                                                          A read to this address will return 0. */
@@ -5994,12 +5863,10 @@ typedef union cvmx_npei_msi_w1s_enb3 cvmx_npei_msi_w1s_enb3_t;
  *
  * Used to write the mapping function of the NPEI_PCIE_MSI_RCV to NPEI_MSI_RCV registers.
  */
-union cvmx_npei_msi_wr_map
-{
+union cvmx_npei_msi_wr_map {
 	uint64_t u64;
-	struct cvmx_npei_msi_wr_map_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_msi_wr_map_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t ciu_int                      : 8;  /**< Selects which bit in the NPEI_MSI_RCV# (0-255)
                                                          will be set when the value specified in the
@@ -6029,12 +5896,10 @@ typedef union cvmx_npei_msi_wr_map cvmx_npei_msi_wr_map_t;
  * flow from NPEI to PCIE Ports starts. A write to this register will cause the credit counts in the NPEI for the two
  * PCIE ports to be reset to the value in this register.
  */
-union cvmx_npei_pcie_credit_cnt
-{
+union cvmx_npei_pcie_credit_cnt {
 	uint64_t u64;
-	struct cvmx_npei_pcie_credit_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pcie_credit_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t p1_ccnt                      : 8;  /**< Port1 C-TLP FIFO Credits.
                                                          Legal values are 0x25 to 0x80. */
@@ -6070,12 +5935,10 @@ typedef union cvmx_npei_pcie_credit_cnt cvmx_npei_pcie_credit_cnt_t;
  *
  * Register where MSI writes are directed from the PCIe.
  */
-union cvmx_npei_pcie_msi_rcv
-{
+union cvmx_npei_pcie_msi_rcv {
 	uint64_t u64;
-	struct cvmx_npei_pcie_msi_rcv_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pcie_msi_rcv_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t intr                         : 8;  /**< A write to this register will result in a bit in
                                                          one of the NPEI_MSI_RCV# registers being set.
@@ -6101,12 +5964,10 @@ typedef union cvmx_npei_pcie_msi_rcv cvmx_npei_pcie_msi_rcv_t;
  *
  * Register where MSI writes are directed from the PCIe.
  */
-union cvmx_npei_pcie_msi_rcv_b1
-{
+union cvmx_npei_pcie_msi_rcv_b1 {
 	uint64_t u64;
-	struct cvmx_npei_pcie_msi_rcv_b1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pcie_msi_rcv_b1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t intr                         : 8;  /**< A write to this register will result in a bit in
                                                          one of the NPEI_MSI_RCV# registers being set.
@@ -6134,12 +5995,10 @@ typedef union cvmx_npei_pcie_msi_rcv_b1 cvmx_npei_pcie_msi_rcv_b1_t;
  *
  * Register where MSI writes are directed from the PCIe.
  */
-union cvmx_npei_pcie_msi_rcv_b2
-{
+union cvmx_npei_pcie_msi_rcv_b2 {
 	uint64_t u64;
-	struct cvmx_npei_pcie_msi_rcv_b2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pcie_msi_rcv_b2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t intr                         : 8;  /**< A write to this register will result in a bit in
                                                          one of the NPEI_MSI_RCV# registers being set.
@@ -6167,12 +6026,10 @@ typedef union cvmx_npei_pcie_msi_rcv_b2 cvmx_npei_pcie_msi_rcv_b2_t;
  *
  * Register where MSI writes are directed from the PCIe.
  */
-union cvmx_npei_pcie_msi_rcv_b3
-{
+union cvmx_npei_pcie_msi_rcv_b3 {
 	uint64_t u64;
-	struct cvmx_npei_pcie_msi_rcv_b3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pcie_msi_rcv_b3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t intr                         : 8;  /**< A write to this register will result in a bit in
                                                          one of the NPEI_MSI_RCV# registers being set.
@@ -6200,12 +6057,10 @@ typedef union cvmx_npei_pcie_msi_rcv_b3 cvmx_npei_pcie_msi_rcv_b3_t;
  *
  * The counters for output rings.
  */
-union cvmx_npei_pktx_cnts
-{
+union cvmx_npei_pktx_cnts {
 	uint64_t u64;
-	struct cvmx_npei_pktx_cnts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_cnts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_54_63               : 10;
 	uint64_t timer                        : 22; /**< Timer incremented every 1024 core clocks
                                                          when NPEI_PKTS#_CNTS[CNT] is non zero. Field
@@ -6241,12 +6096,10 @@ typedef union cvmx_npei_pktx_cnts cvmx_npei_pktx_cnts_t;
  *
  * The counters and thresholds for input packets to apply backpressure to processing of the packets.
  */
-union cvmx_npei_pktx_in_bp
-{
+union cvmx_npei_pktx_in_bp {
 	uint64_t u64;
-	struct cvmx_npei_pktx_in_bp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_in_bp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t wmark                        : 32; /**< When CNT is greater than this threshold no more
                                                          packets will be processed for this ring.
                                                          When writing this field of the NPEI_PKT#_IN_BP
@@ -6277,12 +6130,10 @@ typedef union cvmx_npei_pktx_in_bp cvmx_npei_pktx_in_bp_t;
  *
  * Start of Instruction for input packets.
  */
-union cvmx_npei_pktx_instr_baddr
-{
+union cvmx_npei_pktx_instr_baddr {
 	uint64_t u64;
-	struct cvmx_npei_pktx_instr_baddr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_instr_baddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t addr                         : 61; /**< Base address for Instructions. */
 	uint64_t reserved_0_2                 : 3;
 #else
@@ -6302,12 +6153,10 @@ typedef union cvmx_npei_pktx_instr_baddr cvmx_npei_pktx_instr_baddr_t;
  *
  * The doorbell and base address offset for next read.
  */
-union cvmx_npei_pktx_instr_baoff_dbell
-{
+union cvmx_npei_pktx_instr_baoff_dbell {
 	uint64_t u64;
-	struct cvmx_npei_pktx_instr_baoff_dbell_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_instr_baoff_dbell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t aoff                         : 32; /**< The offset from the NPEI_PKT[0..31]_INSTR_BADDR
                                                          where the next instruction will be read. */
 	uint64_t dbell                        : 32; /**< Instruction doorbell count. Writes to this field
@@ -6331,12 +6180,10 @@ typedef union cvmx_npei_pktx_instr_baoff_dbell cvmx_npei_pktx_instr_baoff_dbell_
  *
  * Fifo field and ring size for Instructions.
  */
-union cvmx_npei_pktx_instr_fifo_rsize
-{
+union cvmx_npei_pktx_instr_fifo_rsize {
 	uint64_t u64;
-	struct cvmx_npei_pktx_instr_fifo_rsize_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_instr_fifo_rsize_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t max                          : 9;  /**< Max Fifo Size. */
 	uint64_t rrp                          : 9;  /**< Fifo read pointer. */
 	uint64_t wrp                          : 9;  /**< Fifo write pointer. */
@@ -6362,12 +6209,10 @@ typedef union cvmx_npei_pktx_instr_fifo_rsize cvmx_npei_pktx_instr_fifo_rsize_t;
  *
  * VAlues used to build input packet header.
  */
-union cvmx_npei_pktx_instr_header
-{
+union cvmx_npei_pktx_instr_header {
 	uint64_t u64;
-	struct cvmx_npei_pktx_instr_header_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_instr_header_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_44_63               : 20;
 	uint64_t pbp                          : 1;  /**< Enable Packet-by-packet mode. */
 	uint64_t reserved_38_42               : 5;
@@ -6414,12 +6259,10 @@ typedef union cvmx_npei_pktx_instr_header cvmx_npei_pktx_instr_header_t;
  *
  * Start of Scatter List for output packet pointers - MUST be 16 byte alligned
  */
-union cvmx_npei_pktx_slist_baddr
-{
+union cvmx_npei_pktx_slist_baddr {
 	uint64_t u64;
-	struct cvmx_npei_pktx_slist_baddr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_slist_baddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t addr                         : 60; /**< Base address for scatter list pointers. */
 	uint64_t reserved_0_3                 : 4;
 #else
@@ -6439,12 +6282,10 @@ typedef union cvmx_npei_pktx_slist_baddr cvmx_npei_pktx_slist_baddr_t;
  *
  * The doorbell and base address offset for next read.
  */
-union cvmx_npei_pktx_slist_baoff_dbell
-{
+union cvmx_npei_pktx_slist_baoff_dbell {
 	uint64_t u64;
-	struct cvmx_npei_pktx_slist_baoff_dbell_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_slist_baoff_dbell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t aoff                         : 32; /**< The offset from the NPEI_PKT[0..31]_SLIST_BADDR
                                                          where the next SList pointer will be read.
                                                          A write of 0xFFFFFFFF to the DBELL field will
@@ -6472,12 +6313,10 @@ typedef union cvmx_npei_pktx_slist_baoff_dbell cvmx_npei_pktx_slist_baoff_dbell_
  *
  * The number of scatter pointer pairs in the scatter list.
  */
-union cvmx_npei_pktx_slist_fifo_rsize
-{
+union cvmx_npei_pktx_slist_fifo_rsize {
 	uint64_t u64;
-	struct cvmx_npei_pktx_slist_fifo_rsize_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pktx_slist_fifo_rsize_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t rsize                        : 32; /**< The number of scatter pointer pairs contained in
                                                          the scatter list ring. */
@@ -6498,12 +6337,10 @@ typedef union cvmx_npei_pktx_slist_fifo_rsize cvmx_npei_pktx_slist_fifo_rsize_t;
  *
  * The packets rings that are interrupting because of Packet Counters.
  */
-union cvmx_npei_pkt_cnt_int
-{
+union cvmx_npei_pkt_cnt_int {
 	uint64_t u64;
-	struct cvmx_npei_pkt_cnt_int_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_cnt_int_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t port                         : 32; /**< Bit vector cooresponding to ring number is set when
                                                          NPEI_PKT#_CNTS[CNT] is greater
@@ -6525,12 +6362,10 @@ typedef union cvmx_npei_pkt_cnt_int cvmx_npei_pkt_cnt_int_t;
  *
  * Enable for the packets rings that are interrupting because of Packet Counters.
  */
-union cvmx_npei_pkt_cnt_int_enb
-{
+union cvmx_npei_pkt_cnt_int_enb {
 	uint64_t u64;
-	struct cvmx_npei_pkt_cnt_int_enb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_cnt_int_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t port                         : 32; /**< Bit vector cooresponding to ring number when set
                                                          allows NPEI_PKT_CNT_INT to generate an interrupt. */
@@ -6551,12 +6386,10 @@ typedef union cvmx_npei_pkt_cnt_int_enb cvmx_npei_pkt_cnt_int_enb_t;
  *
  * The Endian Swap for writing Data Out.
  */
-union cvmx_npei_pkt_data_out_es
-{
+union cvmx_npei_pkt_data_out_es {
 	uint64_t u64;
-	struct cvmx_npei_pkt_data_out_es_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_data_out_es_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t es                           : 64; /**< The endian swap mode for Packet rings 0 through 31.
                                                          Two bits are used per ring (i.e. ring 0 [1:0],
                                                          ring 1 [3:2], ....). */
@@ -6576,12 +6409,10 @@ typedef union cvmx_npei_pkt_data_out_es cvmx_npei_pkt_data_out_es_t;
  *
  * The NS field for the TLP when writing packet data.
  */
-union cvmx_npei_pkt_data_out_ns
-{
+union cvmx_npei_pkt_data_out_ns {
 	uint64_t u64;
-	struct cvmx_npei_pkt_data_out_ns_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_data_out_ns_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t nsr                          : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring will enable NS in TLP header. */
@@ -6602,12 +6433,10 @@ typedef union cvmx_npei_pkt_data_out_ns cvmx_npei_pkt_data_out_ns_t;
  *
  * The ROR field for the TLP when writing Packet Data.
  */
-union cvmx_npei_pkt_data_out_ror
-{
+union cvmx_npei_pkt_data_out_ror {
 	uint64_t u64;
-	struct cvmx_npei_pkt_data_out_ror_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_data_out_ror_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ror                          : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring will enable ROR in TLP header. */
@@ -6628,12 +6457,10 @@ typedef union cvmx_npei_pkt_data_out_ror cvmx_npei_pkt_data_out_ror_t;
  *
  * Used to detemine address and attributes for packet data writes.
  */
-union cvmx_npei_pkt_dpaddr
-{
+union cvmx_npei_pkt_dpaddr {
 	uint64_t u64;
-	struct cvmx_npei_pkt_dpaddr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_dpaddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t dptr                         : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring will use:
@@ -6661,12 +6488,10 @@ typedef union cvmx_npei_pkt_dpaddr cvmx_npei_pkt_dpaddr_t;
  *
  * Which input rings have backpressure applied.
  */
-union cvmx_npei_pkt_in_bp
-{
+union cvmx_npei_pkt_in_bp {
 	uint64_t u64;
-	struct cvmx_npei_pkt_in_bp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_in_bp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t bp                           : 32; /**< A packet input  ring that has its count greater
                                                          than its WMARK will have backpressure applied.
@@ -6691,12 +6516,10 @@ typedef union cvmx_npei_pkt_in_bp cvmx_npei_pkt_in_bp_t;
  *
  * Counters for instructions completed on Input rings.
  */
-union cvmx_npei_pkt_in_donex_cnts
-{
+union cvmx_npei_pkt_in_donex_cnts {
 	uint64_t u64;
-	struct cvmx_npei_pkt_in_donex_cnts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_in_donex_cnts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< This field is incrmented by '1' when an instruction
                                                          is completed. This field is incremented as the
@@ -6718,12 +6541,10 @@ typedef union cvmx_npei_pkt_in_donex_cnts cvmx_npei_pkt_in_donex_cnts_t;
  *
  * Keeps track of the number of instructions read into the FIFO and Packets sent to IPD.
  */
-union cvmx_npei_pkt_in_instr_counts
-{
+union cvmx_npei_pkt_in_instr_counts {
 	uint64_t u64;
-	struct cvmx_npei_pkt_in_instr_counts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_in_instr_counts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t wr_cnt                       : 32; /**< Shows the number of packets sent to the IPD. */
 	uint64_t rd_cnt                       : 32; /**< Shows the value of instructions that have had reads
                                                          issued for them.
@@ -6745,12 +6566,10 @@ typedef union cvmx_npei_pkt_in_instr_counts cvmx_npei_pkt_in_instr_counts_t;
  *
  * Assigns Packet Input rings to PCIe ports.
  */
-union cvmx_npei_pkt_in_pcie_port
-{
+union cvmx_npei_pkt_in_pcie_port {
 	uint64_t u64;
-	struct cvmx_npei_pkt_in_pcie_port_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_in_pcie_port_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pp                           : 64; /**< The PCIe port that the Packet ring number is
                                                          assigned. Two bits are used per ring (i.e. ring 0
                                                          [1:0], ring 1 [3:2], ....). A value of '0 means
@@ -6772,12 +6591,10 @@ typedef union cvmx_npei_pkt_in_pcie_port cvmx_npei_pkt_in_pcie_port_t;
  *
  * Control for reads for gather list and instructions.
  */
-union cvmx_npei_pkt_input_control
-{
+union cvmx_npei_pkt_input_control {
 	uint64_t u64;
-	struct cvmx_npei_pkt_input_control_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_input_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t pkt_rr                       : 1;  /**< When set '1' the input packet selection will be
                                                          made with a Round Robin arbitration. When '0'
@@ -6827,12 +6644,10 @@ typedef union cvmx_npei_pkt_input_control cvmx_npei_pkt_input_control_t;
  *
  * Enables the instruction fetch for a Packet-ring.
  */
-union cvmx_npei_pkt_instr_enb
-{
+union cvmx_npei_pkt_instr_enb {
 	uint64_t u64;
-	struct cvmx_npei_pkt_instr_enb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_instr_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t enb                          : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring is enabled. */
@@ -6853,12 +6668,10 @@ typedef union cvmx_npei_pkt_instr_enb cvmx_npei_pkt_instr_enb_t;
  *
  * The number of instruction allowed to be read at one time.
  */
-union cvmx_npei_pkt_instr_rd_size
-{
+union cvmx_npei_pkt_instr_rd_size {
 	uint64_t u64;
-	struct cvmx_npei_pkt_instr_rd_size_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_instr_rd_size_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t rdsize                       : 64; /**< Number of instructions to be read in one PCIe read
                                                          request for the 4 PKOport - 8 rings. Every two bits
                                                          (i.e. 1:0, 3:2, 5:4..) are assign to the port/ring
@@ -6886,12 +6699,10 @@ typedef union cvmx_npei_pkt_instr_rd_size cvmx_npei_pkt_instr_rd_size_t;
  *
  * Determines if instructions are 64 or 32 byte in size for a Packet-ring.
  */
-union cvmx_npei_pkt_instr_size
-{
+union cvmx_npei_pkt_instr_size {
 	uint64_t u64;
-	struct cvmx_npei_pkt_instr_size_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_instr_size_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t is_64b                       : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring is a 64-byte instruction. */
@@ -6915,12 +6726,10 @@ typedef union cvmx_npei_pkt_instr_size cvmx_npei_pkt_instr_size_t;
  *
  * Output packet interrupt levels.
  */
-union cvmx_npei_pkt_int_levels
-{
+union cvmx_npei_pkt_int_levels {
 	uint64_t u64;
-	struct cvmx_npei_pkt_int_levels_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_int_levels_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_54_63               : 10;
 	uint64_t time                         : 22; /**< When NPEI_PKT#_CNTS[TIMER] is greater than this
                                                          value an interrupt is generated. */
@@ -6944,12 +6753,10 @@ typedef union cvmx_npei_pkt_int_levels cvmx_npei_pkt_int_levels_t;
  *
  * Controls using the Info-Pointer to store length and data.
  */
-union cvmx_npei_pkt_iptr
-{
+union cvmx_npei_pkt_iptr {
 	uint64_t u64;
-	struct cvmx_npei_pkt_iptr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_iptr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t iptr                         : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring will use the Info-Pointer to
@@ -6971,12 +6778,10 @@ typedef union cvmx_npei_pkt_iptr cvmx_npei_pkt_iptr_t;
  *
  * Control the updating of the NPEI_PKT#_CNT register.
  */
-union cvmx_npei_pkt_out_bmode
-{
+union cvmx_npei_pkt_out_bmode {
 	uint64_t u64;
-	struct cvmx_npei_pkt_out_bmode_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_out_bmode_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t bmode                        : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring will have its NPEI_PKT#_CNT
@@ -7000,12 +6805,10 @@ typedef union cvmx_npei_pkt_out_bmode cvmx_npei_pkt_out_bmode_t;
  *
  * Enables the output packet engines.
  */
-union cvmx_npei_pkt_out_enb
-{
+union cvmx_npei_pkt_out_enb {
 	uint64_t u64;
-	struct cvmx_npei_pkt_out_enb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_out_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t enb                          : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring is enabled.
@@ -7029,12 +6832,10 @@ typedef union cvmx_npei_pkt_out_enb cvmx_npei_pkt_out_enb_t;
  *
  * Value that when the NPEI_PKT#_SLIST_BAOFF_DBELL[DBELL] value is less then that backpressure for the rings will be applied.
  */
-union cvmx_npei_pkt_output_wmark
-{
+union cvmx_npei_pkt_output_wmark {
 	uint64_t u64;
-	struct cvmx_npei_pkt_output_wmark_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_output_wmark_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t wmark                        : 32; /**< Value when DBELL count drops below backpressure
                                                          for the ring will be applied to the PKO. */
@@ -7055,12 +6856,10 @@ typedef union cvmx_npei_pkt_output_wmark cvmx_npei_pkt_output_wmark_t;
  *
  * Assigns Packet Ports to PCIe ports.
  */
-union cvmx_npei_pkt_pcie_port
-{
+union cvmx_npei_pkt_pcie_port {
 	uint64_t u64;
-	struct cvmx_npei_pkt_pcie_port_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_pcie_port_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pp                           : 64; /**< The PCIe port that the Packet ring number is
                                                          assigned. Two bits are used per ring (i.e. ring 0
                                                          [1:0], ring 1 [3:2], ....). A value of '0 means
@@ -7082,12 +6881,10 @@ typedef union cvmx_npei_pkt_pcie_port cvmx_npei_pkt_pcie_port_t;
  *
  * Vector bits related to ring-port for ones that are reset.
  */
-union cvmx_npei_pkt_port_in_rst
-{
+union cvmx_npei_pkt_port_in_rst {
 	uint64_t u64;
-	struct cvmx_npei_pkt_port_in_rst_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_port_in_rst_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t in_rst                       : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the inbound Packet-ring is in reset. */
 	uint64_t out_rst                      : 32; /**< When asserted '1' the vector bit cooresponding
@@ -7109,12 +6906,10 @@ typedef union cvmx_npei_pkt_port_in_rst cvmx_npei_pkt_port_in_rst_t;
  *
  * The Endian Swap for Scatter List Read.
  */
-union cvmx_npei_pkt_slist_es
-{
+union cvmx_npei_pkt_slist_es {
 	uint64_t u64;
-	struct cvmx_npei_pkt_slist_es_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_slist_es_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t es                           : 64; /**< The endian swap mode for Packet rings 0 through 31.
                                                          Two bits are used per ring (i.e. ring 0 [1:0],
                                                          ring 1 [3:2], ....). */
@@ -7134,12 +6929,10 @@ typedef union cvmx_npei_pkt_slist_es cvmx_npei_pkt_slist_es_t;
  *
  * The Size of the information and data fields pointed to by Scatter List pointers.
  */
-union cvmx_npei_pkt_slist_id_size
-{
+union cvmx_npei_pkt_slist_id_size {
 	uint64_t u64;
-	struct cvmx_npei_pkt_slist_id_size_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_slist_id_size_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t isize                        : 7;  /**< Information size. Legal sizes are 0 to 120. */
 	uint64_t bsize                        : 16; /**< Data size. */
@@ -7161,12 +6954,10 @@ typedef union cvmx_npei_pkt_slist_id_size cvmx_npei_pkt_slist_id_size_t;
  *
  * The NS field for the TLP when fetching Scatter List.
  */
-union cvmx_npei_pkt_slist_ns
-{
+union cvmx_npei_pkt_slist_ns {
 	uint64_t u64;
-	struct cvmx_npei_pkt_slist_ns_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_slist_ns_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t nsr                          : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring will enable NS in TLP header. */
@@ -7187,12 +6978,10 @@ typedef union cvmx_npei_pkt_slist_ns cvmx_npei_pkt_slist_ns_t;
  *
  * The ROR field for the TLP when fetching Scatter List.
  */
-union cvmx_npei_pkt_slist_ror
-{
+union cvmx_npei_pkt_slist_ror {
 	uint64_t u64;
-	struct cvmx_npei_pkt_slist_ror_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_slist_ror_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ror                          : 32; /**< When asserted '1' the vector bit cooresponding
                                                          to the Packet-ring will enable ROR in TLP header. */
@@ -7213,12 +7002,10 @@ typedef union cvmx_npei_pkt_slist_ror cvmx_npei_pkt_slist_ror_t;
  *
  * The packets rings that are interrupting because of Packet Timers.
  */
-union cvmx_npei_pkt_time_int
-{
+union cvmx_npei_pkt_time_int {
 	uint64_t u64;
-	struct cvmx_npei_pkt_time_int_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_time_int_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t port                         : 32; /**< Bit vector cooresponding to ring number is set when
                                                          NPEI_PKT#_CNTS[TIMER] is greater than
@@ -7240,12 +7027,10 @@ typedef union cvmx_npei_pkt_time_int cvmx_npei_pkt_time_int_t;
  *
  * The packets rings that are interrupting because of Packet Timers.
  */
-union cvmx_npei_pkt_time_int_enb
-{
+union cvmx_npei_pkt_time_int_enb {
 	uint64_t u64;
-	struct cvmx_npei_pkt_time_int_enb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_pkt_time_int_enb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t port                         : 32; /**< Bit vector cooresponding to ring number when set
                                                          allows NPEI_PKT_TIME_INT to generate an interrupt. */
@@ -7268,12 +7053,10 @@ typedef union cvmx_npei_pkt_time_int_enb cvmx_npei_pkt_time_int_enb_t;
  * that presently has an interrupt pending. The Field Description below supplies the name of the
  * register that software should read to find out why that intterupt bit is set.
  */
-union cvmx_npei_rsl_int_blocks
-{
+union cvmx_npei_rsl_int_blocks {
 	uint64_t u64;
-	struct cvmx_npei_rsl_int_blocks_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_rsl_int_blocks_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_31_63               : 33;
 	uint64_t iob                          : 1;  /**< IOB_INT_SUM */
 	uint64_t lmc1                         : 1;  /**< LMC1_MEM_CFG0 */
@@ -7349,12 +7132,10 @@ typedef union cvmx_npei_rsl_int_blocks cvmx_npei_rsl_int_blocks_t;
  *
  * A general purpose 64 bit register for SW use.
  */
-union cvmx_npei_scratch_1
-{
+union cvmx_npei_scratch_1 {
 	uint64_t u64;
-	struct cvmx_npei_scratch_1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_scratch_1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t data                         : 64; /**< The value in this register is totaly SW dependent. */
 #else
 	uint64_t data                         : 64;
@@ -7374,12 +7155,10 @@ typedef union cvmx_npei_scratch_1 cvmx_npei_scratch_1_t;
  *
  * State machines in NPEI. For debug.
  */
-union cvmx_npei_state1
-{
+union cvmx_npei_state1 {
 	uint64_t u64;
-	struct cvmx_npei_state1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_state1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t cpl1                         : 12; /**< CPL1 State */
 	uint64_t cpl0                         : 12; /**< CPL0 State */
 	uint64_t arb                          : 1;  /**< ARB State */
@@ -7405,12 +7184,10 @@ typedef union cvmx_npei_state1 cvmx_npei_state1_t;
  *
  * State machines in NPEI. For debug.
  */
-union cvmx_npei_state2
-{
+union cvmx_npei_state2 {
 	uint64_t u64;
-	struct cvmx_npei_state2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_state2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t npei                         : 1;  /**< NPEI State */
 	uint64_t rac                          : 1;  /**< RAC State */
@@ -7442,12 +7219,10 @@ typedef union cvmx_npei_state2 cvmx_npei_state2_t;
  *
  * State machines in NPEI. For debug.
  */
-union cvmx_npei_state3
-{
+union cvmx_npei_state3 {
 	uint64_t u64;
-	struct cvmx_npei_state3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_state3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_56_63               : 8;
 	uint64_t psm1                         : 15; /**< PSM1 State */
 	uint64_t psm0                         : 15; /**< PSM0 State */
@@ -7475,12 +7250,10 @@ typedef union cvmx_npei_state3 cvmx_npei_state3_t;
  *
  * The address to be read when the NPEI_WIN_RD_DATA register is read.
  */
-union cvmx_npei_win_rd_addr
-{
+union cvmx_npei_win_rd_addr {
 	uint64_t u64;
-	struct cvmx_npei_win_rd_addr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_win_rd_addr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_51_63               : 13;
 	uint64_t ld_cmd                       : 2;  /**< The load command sent wit hthe read.
                                                          0x0 == Load 8-bytes, 0x1 == Load 4-bytes,
@@ -7518,12 +7291,10 @@ typedef union cvmx_npei_win_rd_addr cvmx_npei_win_rd_addr_t;
  * Reading this register causes a window read operation to take place. Address read is taht contained in the NPEI_WIN_RD_ADDR
  * register.
  */
-union cvmx_npei_win_rd_data
-{
+union cvmx_npei_win_rd_data {
 	uint64_t u64;
-	struct cvmx_npei_win_rd_data_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_win_rd_data_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t rd_data                      : 64; /**< The read data. */
 #else
 	uint64_t rd_data                      : 64;
@@ -7548,12 +7319,10 @@ typedef union cvmx_npei_win_rd_data cvmx_npei_win_rd_data_t;
  * Even though address bit [2] can be set, it should always be kept to '0'.
  *
  */
-union cvmx_npei_win_wr_addr
-{
+union cvmx_npei_win_wr_addr {
 	uint64_t u64;
-	struct cvmx_npei_win_wr_addr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_win_wr_addr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_49_63               : 15;
 	uint64_t iobit                        : 1;  /**< A 1 or 0 can be written here but this will always
                                                          read as '0'. */
@@ -7589,12 +7358,10 @@ typedef union cvmx_npei_win_wr_addr cvmx_npei_win_wr_addr_t;
  * Contains the data to write to the address located in the NPEI_WIN_WR_ADDR Register.
  * Writing the least-significant-byte of this register will cause a write operation to take place.
  */
-union cvmx_npei_win_wr_data
-{
+union cvmx_npei_win_wr_data {
 	uint64_t u64;
-	struct cvmx_npei_win_wr_data_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_win_wr_data_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t wr_data                      : 64; /**< The data to be written. Whenever the LSB of this
                                                          register is written, the Window Write will take
                                                          place. */
@@ -7616,12 +7383,10 @@ typedef union cvmx_npei_win_wr_data cvmx_npei_win_wr_data_t;
  *
  * Contains the mask for the data in the NPEI_WIN_WR_DATA Register.
  */
-union cvmx_npei_win_wr_mask
-{
+union cvmx_npei_win_wr_mask {
 	uint64_t u64;
-	struct cvmx_npei_win_wr_mask_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_win_wr_mask_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t wr_mask                      : 8;  /**< The data to be written. When a bit is '0'
                                                          the corresponding byte will be written. */
@@ -7649,12 +7414,10 @@ typedef union cvmx_npei_win_wr_mask cvmx_npei_win_wr_mask_t;
  * The value of this register should be set to a minimum of 0x200000 to ensure that a timeout to an RML register
  * occurs on the RML 0xFFFF timer before the timeout for a BAR0 access from the PCIE#.
  */
-union cvmx_npei_window_ctl
-{
+union cvmx_npei_window_ctl {
 	uint64_t u64;
-	struct cvmx_npei_window_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_npei_window_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t time                         : 32; /**< Time to wait in core clocks to wait for a
                                                          BAR0 access to completeon the NCB

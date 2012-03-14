@@ -70,7 +70,6 @@ int pcpu_stats = No;
 
 /* signal handling routines */
 sigret_t leave();
-sigret_t onalrm();
 sigret_t tstop();
 #ifdef SIGWINCH
 sigret_t winch();
@@ -723,12 +722,11 @@ restart:
 	    no_command = Yes;
 	    if (!interactive)
 	    {
-		/* set up alarm */
-		(void) signal(SIGALRM, onalrm);
-		(void) alarm((unsigned)delay);
-    
-		/* wait for the rest of it .... */
-		pause();
+		sleep(delay);
+		if (leaveflag) {
+		    end_screen();
+		    exit(0);
+		}
 	    }
 	    else while (no_command)
 	    {
@@ -1174,11 +1172,3 @@ int status;
     exit(status);
     /*NOTREACHED*/
 }
-
-sigret_t onalrm()	/* SIGALRM handler */
-
-{
-    /* this is only used in batch mode to break out of the pause() */
-    /* return; */
-}
-

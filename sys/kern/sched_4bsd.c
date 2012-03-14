@@ -1572,14 +1572,14 @@ sched_throw(struct thread *td)
 	if (td == NULL) {
 		mtx_lock_spin(&sched_lock);
 		spinlock_exit();
+		PCPU_SET(switchtime, cpu_ticks());
+		PCPU_SET(switchticks, ticks);
 	} else {
 		lock_profile_release_lock(&sched_lock.lock_object);
 		MPASS(td->td_lock == &sched_lock);
 	}
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
 	cpu_throw(td, choosethread());	/* doesn't return */
 }
 
@@ -1613,6 +1613,17 @@ sched_tdname(struct thread *td)
 	return (td->td_name);
 #endif
 }
+
+#ifdef KTR
+void
+sched_clear_tdname(struct thread *td)
+{
+	struct td_sched *ts;
+
+	ts = td->td_sched;
+	ts->ts_name[0] = '\0';
+}
+#endif
 
 void
 sched_affinity(struct thread *td)

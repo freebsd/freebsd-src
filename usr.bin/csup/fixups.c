@@ -38,7 +38,7 @@
 /*
  * A synchronized queue to implement fixups.  The updater thread adds
  * fixup requests to the queue with fixups_put() when a checksum
- * mismatch error occured.  It then calls fixups_close() when he's
+ * mismatch error occurred.  It then calls fixups_close() when he's
  * done requesting fixups.  The detailer thread gets the fixups with
  * fixups_get() and then send the requests to the server.
  *

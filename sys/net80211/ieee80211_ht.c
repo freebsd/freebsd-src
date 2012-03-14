@@ -307,7 +307,8 @@ ieee80211_ht_vdetach(struct ieee80211vap *vap)
 }
 
 static int
-ht_getrate(struct ieee80211com *ic, int index, int mode, int ratetype)
+ht_getrate(struct ieee80211com *ic, int index, enum ieee80211_phymode mode,
+    int ratetype)
 {
 	int mword, rate;
 
@@ -350,7 +351,7 @@ static struct printranges {
 };
 
 static void
-ht_rateprint(struct ieee80211com *ic, int mode, int ratetype)
+ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	int minrate, maxrate;
@@ -379,7 +380,7 @@ ht_rateprint(struct ieee80211com *ic, int mode, int ratetype)
 }
 
 static void
-ht_announce(struct ieee80211com *ic, int mode)
+ht_announce(struct ieee80211com *ic, enum ieee80211_phymode mode)
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	const char *modestr = ieee80211_phymode_name[mode];
@@ -432,7 +433,7 @@ ieee80211_get_suphtrates(struct ieee80211com *ic,
 		ADDRATE(i);
 	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
 	    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32))
-		ADDRATE(i);
+		ADDRATE(32);
 	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
 		if (ic->ic_txstream >= 2) {
 			 for (i = 33; i <= 38; i++)

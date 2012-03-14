@@ -99,7 +99,7 @@ tcpp_client_newconn(void)
 	int fd, i;
 
 	/*
-	 * Spread load over available IPs, roating through them as we go.  No
+	 * Spread load over available IPs, rotating through them as we go.  No
 	 * attempt to localize IPs to particular workers.
 	 */
 	sin = localipbase;

@@ -2870,7 +2870,7 @@ g_journal_do_switch(struct g_class *classp)
 	struct mount *mp;
 	struct bintime bt;
 	char *mountpoint;
-	int error, vfslocked;
+	int error, save, vfslocked;
 
 	DROP_GIANT();
 	g_topology_lock();
@@ -2932,10 +2932,7 @@ g_journal_do_switch(struct g_class *classp)
 			goto next;
 		}
 
-		MNT_ILOCK(mp);
-		mp->mnt_noasync++;
-		mp->mnt_kern_flag &= ~MNTK_ASYNC;
-		MNT_IUNLOCK(mp);
+		save = curthread_pflags_set(TDP_SYNCIO);
 
 		GJ_TIMER_START(1, &bt);
 		vfs_msync(mp, MNT_NOWAIT);
@@ -2950,11 +2947,7 @@ g_journal_do_switch(struct g_class *classp)
 			    mountpoint, error);
 		}
 
-		MNT_ILOCK(mp);
-		mp->mnt_noasync--;
-		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
-			mp->mnt_kern_flag |= MNTK_ASYNC;
-		MNT_IUNLOCK(mp);
+		curthread_pflags_restore(save);
 
 		vn_finished_write(mp);
 

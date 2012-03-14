@@ -153,6 +153,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/sr.h>
 #include <machine/mmuvar.h>
+#include <machine/trap_aim.h>
 
 #include "mmu_if.h"
 
@@ -759,6 +760,38 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		phys_avail_count++;
 		physsz += regions[i].mr_size;
 	}
+
+	/* Check for overlap with the kernel and exception vectors */
+	for (j = 0; j < 2*phys_avail_count; j+=2) {
+		if (phys_avail[j] < EXC_LAST)
+			phys_avail[j] += EXC_LAST;
+
+		if (kernelstart >= phys_avail[j] &&
+		    kernelstart < phys_avail[j+1]) {
+			if (kernelend < phys_avail[j+1]) {
+				phys_avail[2*phys_avail_count] =
+				    (kernelend & ~PAGE_MASK) + PAGE_SIZE;
+				phys_avail[2*phys_avail_count + 1] =
+				    phys_avail[j+1];
+				phys_avail_count++;
+			}
+
+			phys_avail[j+1] = kernelstart & ~PAGE_MASK;
+		}
+
+		if (kernelend >= phys_avail[j] &&
+		    kernelend < phys_avail[j+1]) {
+			if (kernelstart > phys_avail[j]) {
+				phys_avail[2*phys_avail_count] = phys_avail[j];
+				phys_avail[2*phys_avail_count + 1] =
+				    kernelstart & ~PAGE_MASK;
+				phys_avail_count++;
+			}
+
+			phys_avail[j] = (kernelend & ~PAGE_MASK) + PAGE_SIZE;
+		}
+	}
+
 	physmem = btoc(physsz);
 
 	/*
@@ -829,44 +862,43 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*
 	 * Set up the Open Firmware mappings
 	 */
-	if ((chosen = OF_finddevice("/chosen")) == -1)
-		panic("moea_bootstrap: can't find /chosen");
-	OF_getprop(chosen, "mmu", &mmui, 4);
-	if ((mmu = OF_instance_to_package(mmui)) == -1)
-		panic("moea_bootstrap: can't get mmu package");
-	if ((sz = OF_getproplen(mmu, "translations")) == -1)
-		panic("moea_bootstrap: can't get ofw translation count");
-	translations = NULL;
-	for (i = 0; phys_avail[i] != 0; i += 2) {
-		if (phys_avail[i + 1] >= sz) {
-			translations = (struct ofw_map *)phys_avail[i];
-			break;
+	chosen = OF_finddevice("/chosen");
+	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1 &&
+	    (mmu = OF_instance_to_package(mmui)) != -1 && 
+	    (sz = OF_getproplen(mmu, "translations")) != -1) {
+		translations = NULL;
+		for (i = 0; phys_avail[i] != 0; i += 2) {
+			if (phys_avail[i + 1] >= sz) {
+				translations = (struct ofw_map *)phys_avail[i];
+				break;
+			}
 		}
-	}
-	if (translations == NULL)
-		panic("moea_bootstrap: no space to copy translations");
-	bzero(translations, sz);
-	if (OF_getprop(mmu, "translations", translations, sz) == -1)
-		panic("moea_bootstrap: can't get ofw translations");
-	CTR0(KTR_PMAP, "moea_bootstrap: translations");
-	sz /= sizeof(*translations);
-	qsort(translations, sz, sizeof (*translations), om_cmp);
-	for (i = 0; i < sz; i++) {
-		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
-		    translations[i].om_pa, translations[i].om_va,
-		    translations[i].om_len);
+		if (translations == NULL)
+			panic("moea_bootstrap: no space to copy translations");
+		bzero(translations, sz);
+		if (OF_getprop(mmu, "translations", translations, sz) == -1)
+			panic("moea_bootstrap: can't get ofw translations");
+		CTR0(KTR_PMAP, "moea_bootstrap: translations");
+		sz /= sizeof(*translations);
+		qsort(translations, sz, sizeof (*translations), om_cmp);
+		for (i = 0; i < sz; i++) {
+			CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
+			    translations[i].om_pa, translations[i].om_va,
+			    translations[i].om_len);
 
-		/*
-		 * If the mapping is 1:1, let the RAM and device on-demand
-		 * BAT tables take care of the translation.
-		 */
-		if (translations[i].om_va == translations[i].om_pa)
-			continue;
+			/*
+			 * If the mapping is 1:1, let the RAM and device
+			 * on-demand BAT tables take care of the translation.
+			 */
+			if (translations[i].om_va == translations[i].om_pa)
+				continue;
 
-		/* Enter the pages */
-		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE)
-			moea_kenter(mmup, translations[i].om_va + off, 
-				    translations[i].om_pa + off);
+			/* Enter the pages */
+			for (off = 0; off < translations[i].om_len;
+			    off += PAGE_SIZE)
+				moea_kenter(mmup, translations[i].om_va + off, 
+					    translations[i].om_pa + off);
+		}
 	}
 
 	/*

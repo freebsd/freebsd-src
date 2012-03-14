@@ -18,13 +18,14 @@
 # reinstallkernel.debug
 # kernel              - buildkernel + installkernel.
 # kernel-toolchain    - Builds the subset of world necessary to build a kernel
+# kernel-toolchains   - Build kernel-toolchain for all universe targets.
 # doxygen             - Build API documentation of the kernel, needs doxygen.
 # update              - Convenient way to update your source tree(s).
 # check-old           - List obsolete directories/files/libraries.
 # check-old-dirs      - List obsolete directories.
 # check-old-files     - List obsolete files.
 # check-old-libs      - List obsolete libraries.
-# delete-old          - Delete obsolete directories/files/libraries.
+# delete-old          - Delete obsolete directories/files.
 # delete-old-dirs     - Delete obsolete directories.
 # delete-old-files    - Delete obsolete files.
 # delete-old-libs     - Delete obsolete libraries.
@@ -316,6 +317,9 @@ tinderbox:
 
 toolchains:
 	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=toolchain universe
+
+kernel-toolchains:
+	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=kernel-toolchain universe
 
 #
 # universe

@@ -312,15 +312,24 @@ _libc_sem_unlink_compat(const char *name)
 }
 
 static int
-_umtx_wait_uint(volatile unsigned *mtx, unsigned id, const struct timespec *timeout)
+_umtx_wait_uint(volatile unsigned *mtx, unsigned id, const struct timespec *abstime)
 {
-	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
-	    timeout->tv_nsec <= 0))) {
-		errno = ETIMEDOUT;
-		return (-1);
+	struct _umtx_time *tm_p, timeout;
+	size_t tm_size;
+
+	if (abstime == NULL) {
+		tm_p = NULL;
+		tm_size = 0;
+	} else {
+		timeout._clockid = CLOCK_REALTIME;
+		timeout._flags = UMTX_ABSTIME;
+		timeout._timeout = *abstime;
+		tm_p = &timeout;
+		tm_size = sizeof(timeout);
 	}
 	return _umtx_op(__DEVOLATILE(void *, mtx),
-		UMTX_OP_WAIT_UINT_PRIVATE, id, NULL, __DECONST(void*, timeout));
+		UMTX_OP_WAIT_UINT_PRIVATE, id, 
+		(void *)tm_size, __DECONST(void*, tm_p));
 }
 
 static int
@@ -355,7 +364,6 @@ int
 _libc_sem_timedwait_compat(sem_t * __restrict sem,
 	const struct timespec * __restrict abstime)
 {
-	struct timespec ts, ts2;
 	int val, retval;
 
 	if (sem_check_validity(sem) != 0)
@@ -384,13 +392,11 @@ _libc_sem_timedwait_compat(sem_t * __restrict sem,
 				errno = EINVAL;
 				return (-1);
 			}
-			clock_gettime(CLOCK_REALTIME, &ts);
-	                TIMESPEC_SUB(&ts2, abstime, &ts);
 		}
 		atomic_add_int(&(*sem)->nwaiters, 1);
 		pthread_cleanup_push(sem_cancel_handler, sem);
 		_pthread_cancel_enter(1);
-		retval = _umtx_wait_uint(&(*sem)->count, 0, abstime ? &ts2 : NULL);
+		retval = _umtx_wait_uint(&(*sem)->count, 0, abstime);
 		_pthread_cancel_leave(0);
 		pthread_cleanup_pop(0);
 		atomic_add_int(&(*sem)->nwaiters, -1);
@@ -434,7 +440,7 @@ _libc_sem_post_compat(sem_t *sem)
 		return ksem_post((*sem)->semid);
 
 	atomic_add_rel_int(&(*sem)->count, 1);
-
+	rmb();
 	if ((*sem)->nwaiters)
 		return _umtx_wake(&(*sem)->count);
 	return (0);

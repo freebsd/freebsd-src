@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org>
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
@@ -80,6 +80,12 @@
 #include "zfs_ioctl_compat.h"
 
 CTASSERT(sizeof(zfs_cmd_t) < IOCPARM_MAX);
+
+static int snapshot_list_prefetch;
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.snapshot_list_prefetch", &snapshot_list_prefetch);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, snapshot_list_prefetch, CTLFLAG_RW,
+    &snapshot_list_prefetch, 0, "Prefetch data when listing snapshots");
 
 static struct cdev *zfsdev;
 
@@ -2030,6 +2036,7 @@ top:
  * zc_name		name of filesystem
  * zc_cookie		zap cursor
  * zc_nvlist_dst_size	size of buffer for property nvlist
+ * zc_simple		when set, only name is requested
  *
  * outputs:
  * zc_name		name of next snapshot
@@ -2044,7 +2051,7 @@ zfs_ioc_snapshot_list_next(zfs_cmd_t *zc)
 	int error;
 
 top:
-	if (zc->zc_cookie == 0)
+	if (snapshot_list_prefetch && zc->zc_cookie == 0 && !zc->zc_simple)
 		(void) dmu_objset_find(zc->zc_name, dmu_objset_prefetch,
 		    NULL, DS_FIND_SNAPSHOTS);
 
@@ -2066,7 +2073,7 @@ top:
 	    zc->zc_name + strlen(zc->zc_name), &zc->zc_obj, &zc->zc_cookie,
 	    NULL);
 
-	if (error == 0) {
+	if (error == 0 && !zc->zc_simple) {
 		dsl_dataset_t *ds;
 		dsl_pool_t *dp = os->os_dsl_dataset->ds_dir->dd_pool;
 

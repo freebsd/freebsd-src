@@ -180,6 +180,9 @@ ithread_update(struct intr_thread *ithd)
 
 	/* Update name and priority. */
 	strlcpy(td->td_name, ie->ie_fullname, sizeof(td->td_name));
+#ifdef KTR
+	sched_clear_tdname(td);
+#endif
 	thread_lock(td);
 	sched_prio(td, pri);
 	thread_unlock(td);
@@ -633,7 +636,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		mtx_lock(&ie->ie_lock);
 		it->it_event = ie; 
 		ih->ih_thread = it;
-		ithread_update(it); // XXX - do we really need this?!?!?
+		ithread_update(it); /* XXX - do we really need this?!?!? */
 	} else { /* Create the global per-event thread if we need one. */
 		while (ie->ie_thread == NULL && handler != NULL) {
 			if (ie->ie_flags & IE_ADDING_THREAD)
@@ -693,9 +696,9 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	 * description at that point.  If one is not found, find the
 	 * end of the name to use as the insertion point.
 	 */
-	start = index(ih->ih_name, ':');
+	start = strchr(ih->ih_name, ':');
 	if (start == NULL)
-		start = index(ih->ih_name, 0);
+		start = strchr(ih->ih_name, 0);
 
 	/*
 	 * See if there is enough remaining room in the string for the
@@ -1832,8 +1835,8 @@ DB_SHOW_COMMAND(intr, db_show_intr)
 	struct intr_event *ie;
 	int all, verbose;
 
-	verbose = index(modif, 'v') != NULL;
-	all = index(modif, 'a') != NULL;
+	verbose = strchr(modif, 'v') != NULL;
+	all = strchr(modif, 'a') != NULL;
 	TAILQ_FOREACH(ie, &event_list, ie_list) {
 		if (!all && TAILQ_EMPTY(&ie->ie_handlers))
 			continue;
@@ -1878,6 +1881,24 @@ SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
 static int
 sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
+#ifdef SCTL_MASK32
+	uint32_t *intrcnt32;
+	unsigned i;
+	int error;
+
+	if (req->flags & SCTL_MASK32) {
+		if (!req->oldptr)
+			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
+		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
+		if (intrcnt32 == NULL)
+			return (ENOMEM);
+		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
+			intrcnt32[i] = intrcnt[i];
+		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
+		free(intrcnt32, M_TEMP);
+		return (error);
+	}
+#endif
 	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
 }
 

@@ -35,7 +35,6 @@
 #include <netinet/in.h>
 
 #include <ctype.h>
-#include <openssl/md5.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -254,7 +253,7 @@ auth_makesecret(struct srvrecord *auth, char *secret)
 	MD5_Update(&md5, ":", 1);
 	MD5_Update(&md5, auth->password, strlen(auth->password));
 	MD5_Final(md5sum, &md5);
-	memset(secret, 0, sizeof(secret));
+	memset(secret, 0, MD5_CHARS_MAX);
 	strcpy(secret, md5salt);
 	auth_readablesum(md5sum, secret + strlen(md5salt));
 }
@@ -294,7 +293,7 @@ auth_makechallenge(struct config *config, char *challenge)
 	gettimeofday(&tv, NULL);
 	pid = getpid();
 	ppid = getppid();
-	srand(tv.tv_usec ^ tv.tv_sec ^ pid);
+	srandom(tv.tv_usec ^ tv.tv_sec ^ pid);
 	addrlen = sizeof(laddr);
 	error = getsockname(config->socket, (struct sockaddr *)&laddr, &addrlen);
 	if (error < 0) {
@@ -302,8 +301,9 @@ auth_makechallenge(struct config *config, char *challenge)
 	}
 	gettimeofday(&tv, NULL);
 	MD5_Init(&md5);
-	snprintf(buf, sizeof(buf), "%s:%ld:%ld:%ld:%d:%d",
-	    inet_ntoa(laddr.sin_addr), tv.tv_sec, tv.tv_usec, random(), pid, ppid);
+	snprintf(buf, sizeof(buf), "%s:%jd:%ld:%ld:%d:%d",
+	    inet_ntoa(laddr.sin_addr), (intmax_t)tv.tv_sec, tv.tv_usec,
+	    random(), pid, ppid);
 	MD5_Update(&md5, buf, strlen(buf));
 	MD5_Final(md5sum, &md5);
 	auth_readablesum(md5sum, challenge);

@@ -1,4 +1,4 @@
-$ $tcsh: set7,v 1.3 2006/03/02 18:46:48 christos Exp $
+$ $tcsh: set7,v 1.4 2011/02/04 18:19:45 christos Exp $
 $ ed.screen.c
 $set 7
 1 \n\tTcsh thinks your terminal has the\n
@@ -14,15 +14,15 @@ $set 7
 11 does not have
 12 \tIt %s magic margins\n
 13 (empty)
-14 так
-15 н╕
-16 ПОМИЛКА: cannot delete\r\n
+14 я┌п╟п╨
+15 п╫я√
+16 п÷п·п°п≤п⌡п п░: cannot delete\r\n
 17 DeleteChars: num is riduculous: %d\r\n
-18 ПОМИЛКА: cannot insert\r\n
+18 п÷п·п°п≤п⌡п п░: cannot insert\r\n
 19 StartInsert: num is riduculous: %d\r\n
 20 %s: Cannot open /etc/termcap.\n
 21 %s: No entry for terminal type "%s"\n
-22 %s: використання настройок тупого терм╕налу.\n
+22 %s: п╡п╦п╨п╬я─п╦я│я┌п╟п╫п╫я▐ п╫п╟я│я┌я─п╬п╧п╬п╨ я┌я┐п©п╬пЁп╬ я┌п╣я─п╪я√п╫п╟п╩я┐.\n
 23 %s: WARNING: Your terminal cannot move up.\n
 24 Editing may be odd for long lines.\n
 25 no clear EOL capability.\n

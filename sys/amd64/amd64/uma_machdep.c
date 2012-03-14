@@ -65,7 +65,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			break;
 	}
 	pa = m->phys_addr;
-	dump_add_page(pa);
+	if ((wait & M_NODUMP) == 0)
+		dump_add_page(pa);
 	va = (void *)PHYS_TO_DMAP(pa);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		pagezero(va);

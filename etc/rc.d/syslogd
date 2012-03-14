@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="syslogd"
-rcvar=`set_rcvar`
+rcvar="syslogd_enable"
 pidfile="/var/run/syslog.pid"
 command="/usr/sbin/${name}"
 required_files="/etc/syslog.conf"
@@ -41,7 +41,7 @@ syslogd_precmd()
 	#
 	for _l in $altlog_proglist; do
 		eval _ldir=\$${_l}_chrootdir
-		if checkyesno `set_rcvar $_l` && [ -n "$_ldir" ]; then
+		if checkyesno ${_l}_enable && [ -n "$_ldir" ]; then
 			echo "${_ldir}/var/run/log" >> $sockfile
 		fi
 	done

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -603,7 +604,7 @@ pass2:
 /*
  * Print a file.
  * Set up the chain [ PR [ | {IF, OF} ] ] or {IF, RF, TF, NF, DF, CF, VF}.
- * Return -1 if a non-recoverable error occured,
+ * Return -1 if a non-recoverable error occurred,
  * 2 if the filter detected some errors (but printed the job anyway),
  * 1 if we should try to reprint this job and
  * 0 if all is well.
@@ -886,7 +887,7 @@ start:
 
 /*
  * Send the daemon control file (cf) and any data files.
- * Return -1 if a non-recoverable error occured, 1 if a recoverable error and
+ * Return -1 if a non-recoverable error occurred, 1 if a recoverable error and
  * 0 if all is well.
  */
 static int
@@ -1138,9 +1139,10 @@ sendagain:
 	copycnt++;
 
 	if (copycnt < 2)
-		(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
+		(void) sprintf(buf, "%c%" PRId64 " %s\n", type, stb.st_size,
+		    file);
 	else
-		(void) sprintf(buf, "%c%qd %s_c%d\n", type, stb.st_size,
+		(void) sprintf(buf, "%c%" PRId64 " %s_c%d\n", type, stb.st_size,
 		    file, copycnt);
 	amt = strlen(buf);
 	for (i = 0;  ; i++) {

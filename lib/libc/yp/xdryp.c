@@ -82,10 +82,21 @@ xdr_ypresp_all_seq(XDR *xdrs, u_long *objp)
 		switch (status) {
 		case YP_TRUE:
 			key = (char *)malloc(out.ypresp_all_u.val.key.keydat_len + 1);
+			if (key == NULL) {
+				xdr_free((xdrproc_t)xdr_ypresp_all, &out);
+				*objp = YP_YPERR;
+				return (FALSE);
+			}
 			bcopy(out.ypresp_all_u.val.key.keydat_val, key,
 				out.ypresp_all_u.val.key.keydat_len);
 			key[out.ypresp_all_u.val.key.keydat_len] = '\0';
 			val = (char *)malloc(out.ypresp_all_u.val.val.valdat_len + 1);
+			if (val == NULL) {
+				free(key);
+				xdr_free((xdrproc_t)xdr_ypresp_all, &out);
+				*objp = YP_YPERR;
+				return (FALSE);
+			}
 			bcopy(out.ypresp_all_u.val.val.valdat_val, val,
 				out.ypresp_all_u.val.val.valdat_len);
 			val[out.ypresp_all_u.val.val.valdat_len] = '\0';

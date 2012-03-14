@@ -984,7 +984,7 @@ static driver_t ofwfb_sc_driver = {
 
 static devclass_t	sc_devclass;
 
-DRIVER_MODULE(sc, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
+DRIVER_MODULE(ofwfb, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
 
 /*
  * Define a stub keyboard driver in case one hasn't been

@@ -1118,6 +1118,7 @@ struct ccb_dev_advinfo {
 #define	CDAI_TYPE_SCSI_DEVID	1
 #define	CDAI_TYPE_SERIAL_NUM	2
 #define	CDAI_TYPE_PHYS_PATH	3
+#define	CDAI_TYPE_RCAPLONG	4
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */

@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 
 static char	*args2line(int argc, char **argv);
 static int	 doarg(char *_job);
-static int	 doselect(struct dirent *_d);
+static int	 doselect(const struct dirent *_d);
 static int	 kill_qtask(const char *lf);
 static int	 sortq(const void *_a, const void *_b);
 static int	 touch(struct jobqueue *_jq);
@@ -376,7 +376,7 @@ upstat(struct printer *pp, const char *msg, int notifyuser)
 		return;
 	}
 	(void) ftruncate(fd, 0);
-	if (msg == (char *)NULL)
+	if (msg == NULL)
 		(void) write(fd, "\n", 1);
 	else
 		(void) write(fd, msg, strlen(msg));
@@ -451,7 +451,7 @@ static int	 cln_queuecnt;		/* number of queues checked */
 static int 	 cln_testonly;		/* remove-files vs just-print-info */
 
 static int
-doselect(struct dirent *d)
+doselect(const struct dirent *d)
 {
 	int c = d->d_name[0];
 
@@ -496,7 +496,7 @@ sortq(const void *a, const void *b)
 	fname_b = (*(const struct dirent * const *)b)->d_name;
 
 	/*
-	 * First separate filenames into cagatories.  Catagories are
+	 * First separate filenames into categories.  Categories are
 	 * legitimate `cf', `df', `rf' & `tf' filenames, and "other" - in
 	 * that order.  It is critical that the mapping be exactly the
 	 * same for 'a' vs 'b', so define a macro for the job.
@@ -562,7 +562,7 @@ sortq(const void *a, const void *b)
 
 	/*
 	 * We have two files which belong to the same job.  Sort based
-	 * on the catagory of file (`c' before `d', etc).
+	 * on the category of file (`c' before `d', etc).
 	 */
 	if (cat_a < cat_b) {
 		res = a_lt_b;
@@ -573,8 +573,8 @@ sortq(const void *a, const void *b)
 	}
 
 	/*
-	 * Two files in the same catagory for a single job.  Sort based
-	 * on the sequence letter(s).  (usually `A' thru `Z', etc).
+	 * Two files in the same category for a single job.  Sort based
+	 * on the sequence letter(s).  (usually `A' through `Z', etc).
 	 */
 	if (seq_a < seq_b) {
 		res = a_lt_b;

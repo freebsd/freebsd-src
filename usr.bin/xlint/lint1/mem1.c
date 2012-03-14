@@ -133,7 +133,7 @@ getfnid(const char *s)
 /*
  * Memory for declarations and other things which must be available
  * until the end of a block (or the end of the translation unit)
- * are assoziated with the level (mblklev) of the block (or wiht 0).
+ * are associated with the level (mblklev) of the block (or with 0).
  * Because these memory is allocated in large blocks associated with
  * a given level it can be freed easily at the end of a block.
  */

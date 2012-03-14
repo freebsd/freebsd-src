@@ -908,21 +908,23 @@ mls_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_mls *mm;
+	const char *dn;
 	int mls_type;
 
 	mm = SLOT(delabel);
-	if (strcmp(dev->si_name, "null") == 0 ||
-	    strcmp(dev->si_name, "zero") == 0 ||
-	    strcmp(dev->si_name, "random") == 0 ||
-	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0)
+	dn = devtoname(dev);
+	if (strcmp(dn, "null") == 0 ||
+	    strcmp(dn, "zero") == 0 ||
+	    strcmp(dn, "random") == 0 ||
+	    strncmp(dn, "fd/", strlen("fd/")) == 0)
 		mls_type = MAC_MLS_TYPE_EQUAL;
-	else if (strcmp(dev->si_name, "kmem") == 0 ||
-	    strcmp(dev->si_name, "mem") == 0)
+	else if (strcmp(dn, "kmem") == 0 ||
+	    strcmp(dn, "mem") == 0)
 		mls_type = MAC_MLS_TYPE_HIGH;
 	else if (ptys_equal &&
-	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
-	    strncmp(dev->si_name, "pts/", strlen("pts/")) == 0 ||
-	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+	    (strncmp(dn, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dn, "pts/", strlen("pts/")) == 0 ||
+	    strncmp(dn, "ptyp", strlen("ptyp")) == 0))
 		mls_type = MAC_MLS_TYPE_EQUAL;
 	else
 		mls_type = MAC_MLS_TYPE_LOW;

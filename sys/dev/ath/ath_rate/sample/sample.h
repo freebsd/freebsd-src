@@ -86,6 +86,8 @@ struct sample_node {
 	uint32_t ratemask;		/* bit mask of valid rate indices */
 	const struct txschedule *sched;	/* tx schedule table */
 
+	const HAL_RATE_TABLE *currates;
+
 	struct rate_stats stats[NUM_PACKET_SIZE_BINS][SAMPLE_MAXRATES];
 	int last_sample_rix[NUM_PACKET_SIZE_BINS];
 

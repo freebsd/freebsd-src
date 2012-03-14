@@ -550,24 +550,27 @@ xhci_uninit(struct xhci_softc *sc)
 	sx_destroy(&sc->sc_cmd_sx);
 }
 
-void
-xhci_suspend(struct xhci_softc *sc)
+static void
+xhci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 {
-	/* XXX TODO */
-}
+	struct xhci_softc *sc = XHCI_BUS2SC(bus);
 
-void
-xhci_resume(struct xhci_softc *sc)
-{
-	/* XXX TODO */
-}
-
-void
-xhci_shutdown(struct xhci_softc *sc)
-{
-	DPRINTF("Stopping the XHCI\n");
-
-	xhci_halt_controller(sc);
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		DPRINTF("Stopping the XHCI\n");
+		xhci_halt_controller(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		DPRINTF("Stopping the XHCI\n");
+		xhci_halt_controller(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		DPRINTF("Starting the XHCI\n");
+		xhci_start_controller(sc);
+		break;
+	default:
+		break;
+	}
 }
 
 static usb_error_t
@@ -2208,9 +2211,10 @@ xhci_configure_device(struct usb_device *udev)
 	struct usb_device *hubdev;
 	uint32_t temp;
 	uint32_t route;
+	uint32_t rh_port;
 	uint8_t is_hub;
 	uint8_t index;
-	uint8_t rh_port;
+	uint8_t depth;
 
 	index = udev->controller_slot_id;
 
@@ -2232,6 +2236,8 @@ xhci_configure_device(struct usb_device *udev)
 		if (hubdev->parent_hub == NULL)
 			break;
 
+		depth = hubdev->parent_hub->depth;
+
 		/*
 		 * NOTE: HS/FS/LS devices and the SS root HUB can have
 		 * more than 15 ports
@@ -2239,16 +2245,17 @@ xhci_configure_device(struct usb_device *udev)
 
 		rh_port = hubdev->port_no;
 
-		if (hubdev->parent_hub->parent_hub == NULL)
+		if (depth == 0)
 			break;
 
-		route *= 16;
-
 		if (rh_port > 15)
-			route |= 15;
-		else
-			route |= rh_port;
+			rh_port = 15;
+
+		if (depth < 6)
+			route |= rh_port << (4 * (depth - 1));
 	}
+
+	DPRINTF("Route=0x%08x\n", route);
 
 	temp = XHCI_SCTX_0_ROUTE_SET(route);
 
@@ -2257,7 +2264,7 @@ xhci_configure_device(struct usb_device *udev)
 		temp |= XHCI_SCTX_0_CTX_NUM_SET(XHCI_MAX_ENDPOINTS - 1);
 		break;
 	default:
-		temp = XHCI_SCTX_0_CTX_NUM_SET(1);
+		temp |= XHCI_SCTX_0_CTX_NUM_SET(1);
 		break;
 	}
 
@@ -3060,6 +3067,7 @@ xhci_roothub_exec(struct usb_device *udev,
 		case UHF_C_PORT_CONFIG_ERROR:
 			XWRITE4(sc, oper, port, v | XHCI_PS_CEC);
 			break;
+		case UHF_C_PORT_SUSPEND:
 		case UHF_C_PORT_LINK_STATE:
 			XWRITE4(sc, oper, port, v | XHCI_PS_PLC);
 			break;
@@ -3186,8 +3194,13 @@ xhci_roothub_exec(struct usb_device *udev,
 			i |= UPS_OVERCURRENT_INDICATOR;
 		if (v & XHCI_PS_PR)
 			i |= UPS_RESET;
-		if (v & XHCI_PS_PP)
+		if (v & XHCI_PS_PP) {
+			/*
+			 * The USB 3.0 RH is using the
+			 * USB 2.0's power bit
+			 */
 			i |= UPS_PORT_POWER;
+		}
 		USETW(sc->sc_hub_desc.ps.wPortStatus, i);
 
 		i = 0;
@@ -3928,4 +3941,5 @@ struct usb_bus_methods xhci_bus_methods = {
 	.set_address = xhci_set_address,
 	.clear_stall = xhci_ep_clear_stall,
 	.device_state_change = xhci_device_state_change,
+	.set_hw_power_sleep = xhci_set_hw_power_sleep,
 };

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -754,6 +754,17 @@ typedef union acpi_generic_state
 typedef
 ACPI_STATUS (*ACPI_EXECUTE_OP) (
     struct acpi_walk_state          *WalkState);
+
+/* Address Range info block */
+
+typedef struct acpi_address_range
+{
+    struct acpi_address_range   *Next;
+    ACPI_NAMESPACE_NODE         *RegionNode;
+    ACPI_PHYSICAL_ADDRESS       StartAddress;
+    ACPI_PHYSICAL_ADDRESS       EndAddress;
+
+} ACPI_ADDRESS_RANGE;
 
 
 /*****************************************************************************

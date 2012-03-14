@@ -1028,6 +1028,7 @@ pw_pwcrypt(char *password)
 {
 	int             i;
 	char            salt[SALTSIZE + 1];
+	char		*cryptpw;
 
 	static char     buf[256];
 
@@ -1038,7 +1039,10 @@ pw_pwcrypt(char *password)
 		salt[i] = chars[arc4random_uniform(sizeof(chars) - 1)];
 	salt[SALTSIZE] = '\0';
 
-	return strcpy(buf, crypt(password, salt));
+	cryptpw = crypt(password, salt);
+	if (cryptpw == NULL)
+		errx(EX_CONFIG, "crypt(3) failure");
+	return strcpy(buf, cryptpw);
 }
 
 
@@ -1208,7 +1212,7 @@ pw_checkname(u_char *name, int gecos)
 	if (reject) {
 		snprintf(showch, sizeof(showch), (*ch >= ' ' && *ch < 127)
 		    ? "`%c'" : "0x%02x", *ch);
-		errx(EX_DATAERR, "invalid character %s at position %d in %s",
+		errx(EX_DATAERR, "invalid character %s at position %td in %s",
 		    showch, (ch - name), showtype);
 	}
 	if (!gecos && (ch - name) > LOGNAMESIZE)

@@ -68,7 +68,7 @@ main(int argc, char **argv)
 	int (*cfncn)(int, uint32_t *, off_t *);
 	void (*pfncn)(char *, uint32_t, off_t);
 
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		++p;

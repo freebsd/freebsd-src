@@ -20,7 +20,6 @@
 machine 	mips mips64eb
 ident           XLP64
 
-options 	ISA_MIPS64
 makeoptions	ARCH_FLAGS="-march=mips64r2 -mabi=64"
 makeoptions	KERNLOADADDR=0xffffffff80100000
 

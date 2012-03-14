@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Interface to the hardware work queue timers.
  *
-`* <hr>$Revision: 49448 $<hr>
+`* <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_TIM_H__
@@ -67,7 +67,7 @@
 extern "C" {
 #endif
 
-#define CVMX_TIM_NUM_TIMERS   16
+#define CVMX_TIM_NUM_TIMERS   (OCTEON_IS_MODEL(OCTEON_CN68XX) ? 64 : 16)
 #define CVMX_TIM_NUM_BUCKETS  2048
 
 typedef enum
@@ -205,7 +205,6 @@ extern void cvmx_tim_shutdown(void);
 static inline cvmx_tim_status_t cvmx_tim_add_entry(cvmx_wqe_t *work_entry, uint64_t ticks_from_now, cvmx_tim_delete_t *delete_info)
 {
     cvmx_tim_bucket_entry_t*    work_bucket_ptr;
-    uint64_t                    current_bucket;
     uint64_t                    work_bucket;
     volatile uint64_t         * tim_entry_ptr;  /* pointer to wqe address in timer chunk */
     uint64_t                    entries_per_chunk;
@@ -230,8 +229,6 @@ static inline cvmx_tim_status_t cvmx_tim_add_entry(cvmx_wqe_t *work_entry, uint6
 
     /* Get the bucket this work queue entry should be in. Remember the bucket
         array is circular */
-    current_bucket = ((cycles - cvmx_tim.start_time)
-		   >> cvmx_tim.bucket_shift);
     work_bucket = (((ticks_from_now * cvmx_tim.tick_cycles) + cycles - cvmx_tim.start_time)
 		   >> cvmx_tim.bucket_shift);
 

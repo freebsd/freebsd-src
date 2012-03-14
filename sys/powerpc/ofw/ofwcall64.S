@@ -56,7 +56,7 @@ GLOBAL(rtas_entry)
  * Open Firmware Real-mode Entry Point. This is a huge pain.
  */
 
-ASENTRY(ofwcall)
+ASENTRY_NOPROF(ofwcall)
 	mflr	%r0
 	std	%r0,16(%r1)
 	stdu	%r1,-208(%r1)
@@ -175,7 +175,7 @@ ASENTRY(ofwcall)
  * C prototype: int rtascall(void *callbuffer, void *rtas_privdat);
  */
 
-ASENTRY(rtascall)
+ASENTRY_NOPROF(rtascall)
 	mflr	%r0
 	std	%r0,16(%r1)
 	stdu	%r1,-208(%r1)

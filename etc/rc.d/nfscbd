@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="nfscbd"
-rcvar=`set_rcvar`
+rcvar="nfscbd_enable"
 command="/usr/sbin/${name}"
 sig_stop="USR1"
 

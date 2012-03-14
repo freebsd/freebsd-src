@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_hal/ah_diagcodes.h>
 
 #include <dev/ath/if_ath_debug.h>
+#include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
@@ -151,10 +152,7 @@ ath_sysctl_softled(SYSCTL_HANDLER_ARGS)
 	if (softled != sc->sc_softled) {
 		if (softled) {
 			/* NB: handle any sc_ledpin change */
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
+			ath_led_config(sc);
 		}
 		sc->sc_softled = softled;
 	}
@@ -174,11 +172,29 @@ ath_sysctl_ledpin(SYSCTL_HANDLER_ARGS)
 	if (ledpin != sc->sc_ledpin) {
 		sc->sc_ledpin = ledpin;
 		if (sc->sc_softled) {
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
+			ath_led_config(sc);
 		}
+	}
+	return 0;
+}
+
+static int
+ath_sysctl_hardled(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int hardled = sc->sc_hardled;
+	int error;
+
+	error = sysctl_handle_int(oidp, &hardled, 0, req);
+	if (error || !req->newptr)
+		return error;
+	hardled = (hardled != 0);
+	if (hardled != sc->sc_hardled) {
+		if (hardled) {
+			/* NB: handle any sc_ledpin change */
+			ath_led_config(sc);
+		}
+		sc->sc_hardled = hardled;
 	}
 	return 0;
 }
@@ -496,6 +512,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ctstimeout", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_ctstimeout, "I", "802.11 CTS timeout (us)");
+
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_softled, "I", "enable/disable software LED support");
@@ -508,6 +525,18 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
 		"idle time for inactivity LED (ticks)");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hardled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_hardled, "I", "enable/disable hardware LED support");
+	/* XXX Laziness - configure pins, then flip hardled off/on */
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"led_net_pin", CTLFLAG_RW, &sc->sc_led_net_pin, 0,
+		"MAC Network LED pin, or -1 to disable");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"led_pwr_pin", CTLFLAG_RW, &sc->sc_led_pwr_pin, 0,
+		"MAC Power LED pin, or -1 to disable");
+
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_txantenna, "I", "antenna switch");
@@ -575,6 +604,17 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
+
+#if 0
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
+		0, "Minimum free buffers before adding a data frame"
+		" to the TX queue");
+#endif
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_mcastq_maxdepth", CTLFLAG_RW,
+		&sc->sc_txq_mcastq_maxdepth, 0,
+		"Maximum buffer depth for multicast/broadcast frames");
 
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
@@ -856,7 +896,10 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_intr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_intr, 0, "TX interrupts");
-
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_mcastq_overflow",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tx_mcastq_overflow, 0,
+	    "Number of multicast frames exceeding maximum mcast queue depth");
+	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
 }
@@ -883,7 +926,7 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	sc->sc_ah->ah_config.ah_ar5416_biasadj = 0;
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "ar5416_biasadj", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_ar5416_biasadj, 0,
-	    "Enable 2ghz AR5416 direction sensitivity bias adjust");
+	    "Enable 2GHz AR5416 direction sensitivity bias adjust");
 
 	sc->sc_ah->ah_config.ah_dma_beacon_response_time = 2;
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "dma_brt", CTLFLAG_RW,

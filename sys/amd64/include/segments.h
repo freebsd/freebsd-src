@@ -213,8 +213,8 @@ struct region_descriptor {
 #define	IDT_MC		18	/* #MC: Machine Check */
 #define	IDT_XF		19	/* #XF: SIMD Floating-Point Exception */
 #define	IDT_IO_INTS	NRSVIDT	/* Base of IDT entries for I/O interrupts. */
-#define	IDT_SYSCALL	0x80	/* System Call Interrupt Vector */
 #define	IDT_DTRACE_RET	0x20	/* DTrace pid provider Interrupt Vector */
+#define	IDT_SYSCALL	0x80	/* System Call Interrupt Vector */
 
 /*
  * Entries in the Global Descriptor Table (GDT)

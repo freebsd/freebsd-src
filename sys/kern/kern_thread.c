@@ -381,7 +381,7 @@ thread_free(struct thread *td)
 void
 thread_exit(void)
 {
-	uint64_t new_switchtime;
+	uint64_t runtime, new_switchtime;
 	struct thread *td;
 	struct thread *td2;
 	struct proc *p;
@@ -410,15 +410,6 @@ thread_exit(void)
 	 */
 	cpu_thread_exit(td);	/* XXXSMP */
 
-	/* Do the same timestamp bookkeeping that mi_switch() would do. */
-	new_switchtime = cpu_ticks();
-	p->p_rux.rux_runtime += (new_switchtime - PCPU_GET(switchtime));
-	PCPU_SET(switchtime, new_switchtime);
-	PCPU_SET(switchticks, ticks);
-	PCPU_INC(cnt.v_swtch);
-	/* Save our resource usage in our process. */
-	td->td_ru.ru_nvcsw++;
-	rucollect(&p->p_ru, &td->td_ru);
 	/*
 	 * The last thread is left attached to the process
 	 * So that the whole bundle gets recycled. Skip
@@ -467,7 +458,21 @@ thread_exit(void)
 		PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 	PROC_UNLOCK(p);
+
+	/* Do the same timestamp bookkeeping that mi_switch() would do. */
+	new_switchtime = cpu_ticks();
+	runtime = new_switchtime - PCPU_GET(switchtime);
+	td->td_runtime += runtime;
+	td->td_incruntime += runtime;
+	PCPU_SET(switchtime, new_switchtime);
+	PCPU_SET(switchticks, ticks);
+	PCPU_INC(cnt.v_swtch);
+
+	/* Save our resource usage in our process. */
+	td->td_ru.ru_nvcsw++;
 	ruxagg(p, td);
+	rucollect(&p->p_ru, &td->td_ru);
+
 	thread_lock(td);
 	PROC_SUNLOCK(p);
 	td->td_state = TDS_INACTIVE;

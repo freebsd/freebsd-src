@@ -512,17 +512,29 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
+	vfs_ref(mp);
+	vfs_unbusy(mp);
 	error = vn_open(&nd, &flags, 0, NULL);
-	if (error)
+	if (error != 0) {
+		vfs_rel(mp);
 		return (error);
+	}
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
-	if (vp->v_type != VREG) {
+	error = vfs_busy(mp, MBF_NOWAIT);
+	vfs_rel(mp);
+	if (error == 0) {
+		if (vp->v_type != VREG) {
+			error = EACCES;
+			vfs_unbusy(mp);
+		}
+	}
+	if (error != 0) {
 		VOP_UNLOCK(vp, 0);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
-		return (EACCES);
+		return (error);
 	}
 
 	UFS_LOCK(ump);
@@ -531,6 +543,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		VOP_UNLOCK(vp, 0);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
+		vfs_unbusy(mp);
 		return (EALREADY);
 	}
 	ump->um_qflags[type] |= QTF_OPENING|QTF_CLOSING;
@@ -542,6 +555,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		UFS_UNLOCK(ump);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
+		vfs_unbusy(mp);
 		return (error);
 	}
 	VOP_UNLOCK(vp, 0);
@@ -619,6 +633,7 @@ again:
 		("quotaon: leaking flags"));
 	UFS_UNLOCK(ump);
 
+	vfs_unbusy(mp);
 	return (error);
 }
 
@@ -1454,6 +1469,7 @@ dqrele(struct vnode *vp, struct dquot *dq)
 	if (dq == NODQUOT)
 		return;
 	DQH_LOCK();
+	KASSERT(dq->dq_cnt > 0, ("Lost dq %p reference 1", dq));
 	if (dq->dq_cnt > 1) {
 		dq->dq_cnt--;
 		DQH_UNLOCK();
@@ -1464,6 +1480,7 @@ sync:
 	(void) dqsync(vp, dq);
 
 	DQH_LOCK();
+	KASSERT(dq->dq_cnt > 0, ("Lost dq %p reference 2", dq));
 	if (--dq->dq_cnt > 0)
 	{
 		DQH_UNLOCK();
@@ -1643,6 +1660,7 @@ quotaref(vp, qrp)
 	 */
 	found = 0;
 	ip = VTOI(vp);
+	mtx_lock(&dqhlock);
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if ((dq = ip->i_dquot[i]) == NODQUOT)
 			continue;
@@ -1650,6 +1668,7 @@ quotaref(vp, qrp)
 		qrp[i] = dq;
 		found++;
 	}
+	mtx_unlock(&dqhlock);
 	return (found);
 }
 

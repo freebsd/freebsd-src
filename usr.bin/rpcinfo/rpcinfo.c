@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * We are for now defining PORTMAP here.  It doesnt even compile
+ * We are for now defining PORTMAP here.  It doesn't even compile
  * unless it is defined.
  */
 #ifndef	PORTMAP

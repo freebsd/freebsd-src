@@ -208,7 +208,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(LOGITEC,		RT2870_1),
     RUN_DEV(LOGITEC,		RT2870_2),
     RUN_DEV(LOGITEC,		RT2870_3),
-    RUN_DEV(LOGITECH,		LANW300NU2),
+    RUN_DEV(LOGITEC,		LANW300NU2),
     RUN_DEV(MELCO,		RT2870_1),
     RUN_DEV(MELCO,		RT2870_2),
     RUN_DEV(MELCO,		WLIUCAG300N),
@@ -315,9 +315,9 @@ static usb_callback_t	run_bulk_tx_callback5;
 static void	run_bulk_tx_callbackN(struct usb_xfer *xfer,
 		    usb_error_t error, unsigned int index);
 static struct ieee80211vap *run_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode, int flags,
-		    const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t
-		    mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	run_vap_delete(struct ieee80211vap *);
 static void	run_cmdq_cb(void *, int);
 static void	run_setup_tx_list(struct run_softc *,
@@ -748,8 +748,8 @@ run_detach(device_t self)
 }
 
 static struct ieee80211vap *
-run_vap_create(struct ieee80211com *ic,
-    const char name[IFNAMSIZ], int unit, int opmode, int flags,
+run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {

@@ -89,17 +89,13 @@ static int ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin);
 static void
 ar71xx_gpio_function_enable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_LOCK(sc);
 	GPIO_SET_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
-	GPIO_UNLOCK(sc);
 }
 
 static void
 ar71xx_gpio_function_disable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_LOCK(sc);
 	GPIO_CLEAR_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
-	GPIO_UNLOCK(sc);
 }
 
 static void
@@ -109,7 +105,6 @@ ar71xx_gpio_pin_configure(struct ar71xx_gpio_softc *sc, struct gpio_pin *pin,
 	uint32_t mask;
 
 	mask = 1 << pin->gp_pin;
-	GPIO_LOCK(sc);
 
 	/*
 	 * Manage input/output
@@ -125,8 +120,6 @@ ar71xx_gpio_pin_configure(struct ar71xx_gpio_softc *sc, struct gpio_pin *pin,
 			GPIO_CLEAR_BITS(sc, AR71XX_GPIO_OE, mask);
 		}
 	}
-
-	GPIO_UNLOCK(sc);
 }
 
 static int
@@ -253,12 +246,10 @@ ar71xx_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	if (value)
 		GPIO_WRITE(sc, AR71XX_GPIO_SET, (1 << pin));
 	else
 		GPIO_WRITE(sc, AR71XX_GPIO_CLEAR, (1 << pin));
-	GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -277,9 +268,7 @@ ar71xx_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	*val = (GPIO_READ(sc, AR71XX_GPIO_IN) & (1 << pin)) ? 1 : 0;
-	GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -298,13 +287,11 @@ ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	res = (GPIO_READ(sc, AR71XX_GPIO_IN) & (1 << pin)) ? 1 : 0;
 	if (res)
 		GPIO_WRITE(sc, AR71XX_GPIO_CLEAR, (1 << pin));
 	else
 		GPIO_WRITE(sc, AR71XX_GPIO_SET, (1 << pin));
-	GPIO_UNLOCK(sc);
 
 	return (0);
 }

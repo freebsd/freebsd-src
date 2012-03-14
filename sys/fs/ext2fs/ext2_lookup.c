@@ -1001,8 +1001,9 @@ ext2_dirempty(ip, parentino, cred)
 	off_t off;
 	struct dirtemplate dbuf;
 	struct ext2fs_direct_2 *dp = (struct ext2fs_direct_2 *)&dbuf;
-	int error, count, namlen;
-#define	MINDIRSIZ (sizeof (struct dirtemplate) / 2)
+	int error, namlen;
+	ssize_t count;
+#define	MINDIRSIZ (sizeof(struct dirtemplate) / 2)
 
 	for (off = 0; off < ip->i_size; off += dp->e2d_reclen) {
 		error = vn_rdwr(UIO_READ, ITOV(ip), (caddr_t)dp, MINDIRSIZ,
@@ -1070,7 +1071,7 @@ ext2_checkpath(source, target, cred)
 			break;
 		}
 		error = vn_rdwr(UIO_READ, vp, (caddr_t)&dirbuf,
-			sizeof (struct dirtemplate), (off_t)0, UIO_SYSSPACE,
+			sizeof(struct dirtemplate), (off_t)0, UIO_SYSSPACE,
 			IO_NODELOCKED | IO_NOMACCHECK, cred, NOCRED, NULL,
 			NULL);
 		if (error != 0)

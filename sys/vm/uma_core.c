@@ -845,6 +845,9 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 	else
 		wait &= ~M_ZERO;
 
+	if (keg->uk_flags & UMA_ZONE_NODUMP)
+		wait |= M_NODUMP;
+
 	/* zone is passed for legacy reasons. */
 	mem = allocf(zone, keg->uk_ppera * UMA_SLAB_SIZE, &flags, wait);
 	if (mem == NULL) {

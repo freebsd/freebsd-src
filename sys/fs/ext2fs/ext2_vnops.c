@@ -71,8 +71,6 @@
 
 #include "opt_directio.h"
 
-#include <fs/fifofs/fifo.h>
-
 #include <ufs/ufs/dir.h>
 
 #include <fs/ext2fs/fs.h>
@@ -360,11 +358,15 @@ ext2_getattr(ap)
 	vap->va_rdev = ip->i_rdev;
 	vap->va_size = ip->i_size;
 	vap->va_atime.tv_sec = ip->i_atime;
-	vap->va_atime.tv_nsec = ip->i_atimensec;
+	vap->va_atime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_atimensec : 0;
 	vap->va_mtime.tv_sec = ip->i_mtime;
-	vap->va_mtime.tv_nsec = ip->i_mtimensec;
+	vap->va_mtime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_mtimensec : 0;
 	vap->va_ctime.tv_sec = ip->i_ctime;
-	vap->va_ctime.tv_nsec = ip->i_ctimensec;
+	vap->va_ctime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_ctimensec : 0;
+	if E2DI_HAS_XTIME(ip) {
+		vap->va_birthtime.tv_sec = ip->i_birthtime;
+		vap->va_birthtime.tv_nsec = ip->i_birthnsec;
+	}
 	vap->va_flags = ip->i_flags;
 	vap->va_gen = ip->i_gen;
 	vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
@@ -501,6 +503,8 @@ ext2_setattr(ap)
 			ip->i_mtime = vap->va_mtime.tv_sec;
 			ip->i_mtimensec = vap->va_mtime.tv_nsec;
 		}
+		ip->i_birthtime = vap->va_birthtime.tv_sec;
+		ip->i_birthnsec = vap->va_birthtime.tv_nsec;
 		error = ext2_update(vp, 0);
 		if (error)
 			return (error);
@@ -1080,7 +1084,7 @@ abortit:
 			dp->i_nlink--;
 			dp->i_flag |= IN_CHANGE;
 			error = vn_rdwr(UIO_READ, fvp, (caddr_t)&dirbuf,
-				sizeof (struct dirtemplate), (off_t)0,
+				sizeof(struct dirtemplate), (off_t)0,
 				UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
 				tcnp->cn_cred, NOCRED, NULL, NULL);
 			if (error == 0) {
@@ -1095,7 +1099,7 @@ abortit:
 					dirbuf.dotdot_ino = newparent;
 					(void) vn_rdwr(UIO_WRITE, fvp,
 					    (caddr_t)&dirbuf,
-					    sizeof (struct dirtemplate),
+					    sizeof(struct dirtemplate),
 					    (off_t)0, UIO_SYSSPACE,
 					    IO_NODELOCKED | IO_SYNC |
 					    IO_NOMACCHECK, tcnp->cn_cred,
@@ -1233,7 +1237,7 @@ ext2_mkdir(ap)
 #define DIRBLKSIZ  VTOI(dvp)->i_e2fs->e2fs_bsize
 	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
 	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
-	    sizeof (dirtemplate), (off_t)0, UIO_SYSSPACE,
+	    sizeof(dirtemplate), (off_t)0, UIO_SYSSPACE,
 	    IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred, NOCRED,
 	    NULL, NULL);
 	if (error) {

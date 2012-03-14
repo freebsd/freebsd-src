@@ -362,7 +362,7 @@ again:
 #ifdef IPFIREWALL_FORWARD
 again2:
 #endif
-	rin6.ro_rt = rtalloc1((struct sockaddr *)dst, 0, 0);
+	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
 	if (rin6.ro_rt != NULL)
 		RT_UNLOCK(rin6.ro_rt);
 	else {

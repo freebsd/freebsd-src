@@ -159,7 +159,7 @@ cmpndewey(int d1[], int n1, int d2[], int n2)
 	if (i == n2)
 		return 1;
 
-	errx(1, "cmpndewey: cant happen");
+	errx(1, "cmpndewey: can't happen");
 	return 0;
 }
 

@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
  * copy data between mbuf chains and uio lists.
  */
 #ifndef APPLEKEXT
+#include "opt_inet6.h"
+
 #include <fs/nfs/nfsport.h>
 
 /*

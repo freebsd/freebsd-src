@@ -471,12 +471,11 @@ iface_Descr(struct cmdargs const *arg)
 void
 iface_Clear(struct iface *iface, struct ncp *ncp, int family, int how)
 {
-  int addrs, af, inskip, in6skip, s4 = -1, s6 = -1, *s;
+  int af, inskip, in6skip, s4 = -1, s6 = -1, *s;
   unsigned n;
 
   if (iface->addrs) {
     inskip = in6skip = how == IFACE_CLEAR_ALL ? 0 : 1;
-    addrs = 0;
 
     for (n = 0; n < iface->addrs; n++) {
       af = ncprange_family(&iface->addr[n].ifa);

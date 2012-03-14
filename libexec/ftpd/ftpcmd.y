@@ -1718,7 +1718,7 @@ exptilde(char *s)
  * Avoid expanding to a pathname including '\r' or '\n' in order to
  * not disrupt the FTP protocol.
  * The expansion found must be unique.
- * Return the result as a malloced string, or NULL if an error occured.
+ * Return the result as a malloced string, or NULL if an error occurred.
  *
  * Problem: this production is used for all pathname
  * processing, but only gives a 550 error reply.

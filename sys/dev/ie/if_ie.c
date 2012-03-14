@@ -157,6 +157,9 @@ static int	ie_debug = IED_RNR;
 
 #define IE_BUF_LEN	ETHER_MAX_LEN	/* length of transmit buffer */
 
+/* XXX this driver uses `volatile' and `caddr_t' to a fault. */
+typedef	volatile char *v_caddr_t;	/* core address, pointer to volatile */
+
 /* Forward declaration */
 struct ie_softc;
 
@@ -313,7 +316,6 @@ ie_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = iestart;
 	ifp->if_ioctl = ieioctl;

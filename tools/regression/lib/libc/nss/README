@@ -5,7 +5,7 @@ A brief how-to
 
 Each nsswitch regression test does 2 kinds of actions:
 1. It runs a series of queries and tests the correctness of results.
-   There are 2 basic criterias which are used for that:
+   There are 2 basic criteria which are used for that:
       - numbers must be in the correct range
       - certain pointers should not be NULL
 

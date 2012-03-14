@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 1999 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 1999 Dag-Erling CoÃ¯dan SmÃ¸rgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2009
+.Dd January 24, 2012
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -137,19 +137,10 @@ The address the foreign end of the socket is bound to (see
 .Xr getpeername 2 ) .
 .El
 .Pp
-Note that TCP sockets in the
-.Dv AF_INET
-or
-.Dv AF_INET6
-domains that are not in one of the
-.Dv LISTEN , SYN_SENT ,
-or
-.Dv ESTABLISHED
-states may not be shown by
-.Nm ;
-use
-.Xr netstat 1
-to examine them instead.
+If a socket is associated with more than one file descriptor,
+it is shown multiple times.
+If a socket is not associated with any file descriptor,
+the first four columns have no meaning.
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr netstat 1 ,
@@ -167,10 +158,3 @@ The
 .Nm
 command and this manual page were written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
-.Sh BUGS
-Unlike
-.Xr netstat 1 ,
-.Nm
-lists sockets by walking file descriptor tables and will not output
-the ones owned by the kernel, e.g. NLM sockets created by
-.Xr rpc.lockd 8 .

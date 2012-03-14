@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifndef APPLEKEXT
+#include "opt_inet6.h"
+
 #include <fs/nfs/nfsport.h>
 
 /*
@@ -1232,8 +1234,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	newcred = cred;
 	if (NFSHASNFSV4(nmp)) {
 		nfhp = np->n_fhp;
-		if (p == NULL)
-			newcred = NFSNEWCRED(cred);
+		newcred = NFSNEWCRED(cred);
 	}
 	retrycnt = 0;
 	do {
@@ -1263,7 +1264,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
 	if (error && retrycnt >= 4)
 		error = EIO;
-	if (NFSHASNFSV4(nmp) && p == NULL)
+	if (NFSHASNFSV4(nmp))
 		NFSFREECRED(newcred);
 	return (error);
 }
@@ -1384,8 +1385,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		clidrev = nmp->nm_clp->nfsc_clientidrev;
 	newcred = cred;
 	if (NFSHASNFSV4(nmp)) {
-		if (p == NULL)
-			newcred = NFSNEWCRED(cred);
+		newcred = NFSNEWCRED(cred);
 		nfhp = np->n_fhp;
 	}
 	retrycnt = 0;
@@ -1435,7 +1435,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	    ((error == NFSERR_STALESTATEID ||
 	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy != 0)))
 		error = EIO;
-	if (NFSHASNFSV4(nmp) && p == NULL)
+	if (NFSHASNFSV4(nmp))
 		NFSFREECRED(newcred);
 	return (error);
 }
@@ -2951,10 +2951,12 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	nfsattrbit_t attrbits, dattrbits;
 	size_t tresid;
 	u_int32_t *tl2 = NULL, fakefileno = 0xffffffff, rderr;
+	struct timespec dctime;
 
 	KASSERT(uiop->uio_iovcnt == 1 &&
 	    (uio_uio_resid(uiop) & (DIRBLKSIZ - 1)) == 0,
 	    ("nfs readdirplusrpc bad uio"));
+	timespecclear(&dctime);
 	*attrflagp = 0;
 	if (eofp != NULL)
 		*eofp = 0;
@@ -2997,6 +2999,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 #endif
 			if (error)
 			    return (error);
+			dctime = nfsva.na_ctime;
 			dotfileid = nfsva.na_fileid;
 			NFSCL_REQSTART(nd, NFSPROC_LOOKUPP, vp);
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
@@ -3134,6 +3137,8 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				error = nd->nd_repstat;
 			goto nfsmout;
 		}
+		if ((nd->nd_flag & ND_NFSV3) != 0 && *attrflagp != 0)
+			dctime = nap->na_ctime;
 		NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 		NFSLOCKNODE(dnp);
 		dnp->n_cookieverf.nfsuquad[0] = *tl++;
@@ -3316,9 +3321,14 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 					vtonfs_dtype(np->n_vattr.na_type);
 				    ndp->ni_vp = newvp;
 				    NFSCNHASH(cnp, HASHINIT);
-				    if (cnp->cn_namelen <= NCHNAMLEN) {
-					np->n_ctime = np->n_vattr.na_ctime;
-					cache_enter(ndp->ni_dvp,ndp->ni_vp,cnp);
+				    if (cnp->cn_namelen <= NCHNAMLEN &&
+					(newvp->v_type != VDIR ||
+					 dctime.tv_sec != 0)) {
+					cache_enter_time(ndp->ni_dvp,
+					    ndp->ni_vp, cnp,
+					    &nfsva.na_ctime,
+					    newvp->v_type != VDIR ? NULL :
+					    &dctime);
 				    }
 				    if (unlocknewvp)
 					vput(newvp);

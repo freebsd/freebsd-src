@@ -1454,7 +1454,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 			return (ENOBUFS);
 		}
 		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
-		m = m_pullup(m, poff + sizeof(struct tcphdr) + tcp->th_off);
+		m = m_pullup(m, poff + (tcp->th_off << 2));
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
@@ -2555,7 +2555,7 @@ fxp_ifmedia_upd(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
-		struct mii_softc	*miisc;
+	struct mii_softc	*miisc;
 
 	mii = device_get_softc(sc->miibus);
 	FXP_LOCK(sc);

@@ -954,7 +954,7 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 
 	PROC_UNLOCK(p);
 
-	ret = proc_getargv(td, p, sb, ARG_MAX);
+	ret = proc_getargv(td, p, sb);
 	return (ret);
 }
 
@@ -988,7 +988,7 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 
 	PROC_UNLOCK(p);
 
-	ret = proc_getenvv(td, p, sb, ARG_MAX);
+	ret = proc_getenvv(td, p, sb);
 	return (ret);
 }
 
@@ -1460,7 +1460,7 @@ linprocfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linprocfs, 1);
+PSEUDOFS(linprocfs, 1, 0);
 MODULE_DEPEND(linprocfs, linux, 1, 1, 1);
 MODULE_DEPEND(linprocfs, procfs, 1, 1, 1);
 MODULE_DEPEND(linprocfs, sysvmsg, 1, 1, 1);

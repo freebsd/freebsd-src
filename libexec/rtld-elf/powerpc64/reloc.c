@@ -313,9 +313,12 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 	}
 	r = 0;
 done:
-	if (cache) {
+	if (cache)
 		munmap(cache, bytes);
-	}
+
+	/* Synchronize icache for text seg in case we made any changes */
+	__syncicache(obj->mapbase, obj->textsize);
+
 	return (r);
 }
 

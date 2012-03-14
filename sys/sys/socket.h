@@ -138,6 +138,8 @@ typedef	__uid_t		uid_t;
 #define	SO_LISTENINCQLEN	0x1013	/* socket's incomplete queue length */
 #define	SO_SETFIB	0x1014		/* use this FIB to route */
 #define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
+#define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
+#define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
 #endif
 
 /*
@@ -396,7 +398,9 @@ struct sockproto {
 #define NET_RT_FLAGS	2		/* by flags, e.g. RESOLVING */
 #define NET_RT_IFLIST	3		/* survey interface list */
 #define	NET_RT_IFMALIST	4		/* return multicast address list */
-#define	NET_RT_MAXID	5
+#define	NET_RT_IFLISTL	5		/* Survey interface list, using 'l'en
+					 * versions of msghdr structs. */
+#define	NET_RT_MAXID	6
 
 #define CTL_NET_RT_NAMES { \
 	{ 0, 0 }, \
@@ -404,6 +408,7 @@ struct sockproto {
 	{ "flags", CTLTYPE_STRUCT }, \
 	{ "iflist", CTLTYPE_STRUCT }, \
 	{ "ifmalist", CTLTYPE_STRUCT }, \
+	{ "iflistl", CTLTYPE_STRUCT }, \
 }
 #endif /* __BSD_VISIBLE */
 

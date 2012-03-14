@@ -66,8 +66,6 @@ static struct {
 #error "Resource limits have grown. Add new entries to rlimit_param[]."
 #endif
 
-static struct rlimit rlimit[RLIM_NLIMITS];
-
 static
 const char *humanize_rlimit(int indx, rlim_t limit)
 {
@@ -90,30 +88,32 @@ const char *humanize_rlimit(int indx, rlim_t limit)
 void
 procstat_rlimit(struct kinfo_proc *kipp)
 {
-	int error, i, name[4];
+	struct rlimit rlimit;
+	int error, i, name[5];
 	size_t len;
 
 	if (!hflag) {
 		printf("%5s %-16s %-16s %16s %16s\n",
 		    "PID", "COMM", "RLIMIT", "SOFT     ", "HARD     ");
 	}
+	len = sizeof(struct rlimit);
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_RLIMIT;
 	name[3] = kipp->ki_pid;
-	len = sizeof(rlimit);
-	error = sysctl(name, 4, rlimit, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.rlimit: %d", kipp->ki_pid);
-		return;
-	}
-	if (error < 0 || len != sizeof(rlimit))
-		return;
-
 	for (i = 0; i < RLIM_NLIMITS; i++) {
+		name[4] = i;
+		error = sysctl(name, 5, &rlimit, &len, NULL, 0);
+		if (error < 0 && errno != ESRCH) {
+			warn("sysctl: kern.proc.rlimit: %d", kipp->ki_pid);
+			return;
+		}
+		if (error < 0 || len != sizeof(struct rlimit))
+			return;
+
 		printf("%5d %-16s %-16s ", kipp->ki_pid, kipp->ki_comm,
 		    rlimit_param[i].name);
-		printf("%16s ", humanize_rlimit(i, rlimit[i].rlim_cur));
-		printf("%16s\n", humanize_rlimit(i, rlimit[i].rlim_max));
-        }
+		printf("%16s ", humanize_rlimit(i, rlimit.rlim_cur));
+		printf("%16s\n", humanize_rlimit(i, rlimit.rlim_max));
+	}
 }

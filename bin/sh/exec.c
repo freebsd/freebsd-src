@@ -100,6 +100,7 @@ static void tryexec(char *, char **, char **);
 static void printentry(struct tblentry *, int);
 static struct tblentry *cmdlookup(const char *, int);
 static void delete_cmd_entry(void);
+static void addcmdentry(const char *, struct cmdentry *);
 
 
 
@@ -230,7 +231,9 @@ hashcmd(int argc __unused, char **argv __unused)
 	int verbose;
 	struct cmdentry entry;
 	char *name;
+	int errors;
 
+	errors = 0;
 	verbose = 0;
 	while ((c = nextopt("rv")) != '\0') {
 		if (c == 'r') {
@@ -253,19 +256,21 @@ hashcmd(int argc __unused, char **argv __unused)
 		 && cmdp->cmdtype == CMDNORMAL)
 			delete_cmd_entry();
 		find_command(name, &entry, DO_ERR, pathval());
-		if (verbose) {
-			if (entry.cmdtype != CMDUNKNOWN) {	/* if no error msg */
-				cmdp = cmdlookup(name, 0);
-				if (cmdp != NULL)
-					printentry(cmdp, verbose);
-				else
-					outfmt(out2, "%s: not found\n", name);
+		if (entry.cmdtype == CMDUNKNOWN)
+			errors = 1;
+		else if (verbose) {
+			cmdp = cmdlookup(name, 0);
+			if (cmdp != NULL)
+				printentry(cmdp, verbose);
+			else {
+				outfmt(out2, "%s: not found\n", name);
+				errors = 1;
 			}
 			flushall();
 		}
 		argptr++;
 	}
-	return 0;
+	return errors;
 }
 
 
@@ -492,7 +497,7 @@ hashcd(void)
  */
 
 void
-changepath(const char *newval)
+changepath(const char *newval __unused)
 {
 	clearcmdentry();
 }
@@ -593,7 +598,7 @@ delete_cmd_entry(void)
  * the same name.
  */
 
-void
+static void
 addcmdentry(const char *name, struct cmdentry *entry)
 {
 	struct tblentry *cmdp;

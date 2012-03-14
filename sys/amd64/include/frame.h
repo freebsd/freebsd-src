@@ -81,6 +81,7 @@ struct trapframe {
 };
 
 #define	TF_HASSEGS	0x1
-/* #define	_MC_HASBASES	0x2 */
+#define	TF_HASBASES	0x2
+#define	TF_HASFPXSTATE	0x4
 
 #endif /* _MACHINE_FRAME_H_ */

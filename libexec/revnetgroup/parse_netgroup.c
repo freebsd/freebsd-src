@@ -199,8 +199,8 @@ parse_netgrp(char *group)
 	if (lp->l_parsed) {
 #ifdef DEBUG
 		/*
-		 * This error message is largely superflous since the
-		 * code handles the error condition sucessfully, and
+		 * This error message is largely superfluous since the
+		 * code handles the error condition successfully, and
 		 * spewing it out from inside libc can actually hose
 		 * certain programs.
 		 */

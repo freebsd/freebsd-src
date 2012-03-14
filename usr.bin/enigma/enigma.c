@@ -41,9 +41,15 @@ setup(char *pw)
 	char salt[3];
 	unsigned rnd;
 	int32_t seed;
+	char *cryptpw;
 
 	strlcpy(salt, pw, sizeof(salt));
-	memcpy(buf, crypt(pw, salt), sizeof(buf));
+	cryptpw = crypt(pw, salt);
+	if (cryptpw == NULL) {
+		fprintf(stderr, "crypt(3) failure\n");
+		exit(1);
+	}
+	memcpy(buf, cryptpw, sizeof(buf));
 	seed = 123;
 	for (i=0; i<13; i++)
 		seed = seed*buf[i] + i;

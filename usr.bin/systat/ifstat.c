@@ -58,7 +58,6 @@ static const int col3 = C3;
 static const int col4 = C4;
 static const int col5 = C5;
 
-
 SLIST_HEAD(, if_stat)		curlist;
 SLIST_HEAD(, if_stat_disp)	displist;
 
@@ -85,7 +84,7 @@ static	 void  sort_interface_list(void);
 static	 u_int getifnum(void);
 
 #define IFSTAT_ERR(n, s)	do {					\
-	putchar('');							\
+	putchar('\014');						\
 	closeifstat(wnd);						\
 	err((n), (s));							\
 } while (0)
@@ -143,7 +142,6 @@ static	 u_int getifnum(void);
 	mvprintw(p->if_ypos+1, col2-3, "%s", (const char *)"out");	\
 } while (0)
 
-
 WINDOW *
 openifstat(void)
 {
@@ -169,7 +167,6 @@ closeifstat(WINDOW *w)
 
 	return;
 }
-
 
 void
 labelifstat(void)
@@ -253,7 +250,6 @@ fetchifstat(void)
 		if (gettimeofday(&new_tv, (struct timezone *)0) != 0)
 			IFSTAT_ERR(2, "error getting time of day");
 		(void)getifmibdata(ifp->if_row, &ifp->if_mib);
-
 
 		new_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
 		new_outb = ifp->if_mib.ifmd_data.ifi_obytes;

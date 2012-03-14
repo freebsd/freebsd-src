@@ -133,7 +133,6 @@ devfs_alloc(int flags)
 
 	cdev = &cdp->cdp_c;
 
-	cdev->si_name = cdev->__si_namebuf;
 	LIST_INIT(&cdev->si_children);
 	vfs_timestamp(&ts);
 	cdev->si_atime = cdev->si_mtime = cdev->si_ctime = ts;

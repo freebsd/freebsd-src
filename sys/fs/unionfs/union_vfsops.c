@@ -352,7 +352,7 @@ unionfs_unmount(struct mount *mp, int mntflags)
 		return (error);
 
 	free(ump, M_UNIONFSMNT);
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 
 	return (0);
 }

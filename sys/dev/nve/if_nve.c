@@ -371,7 +371,8 @@ nve_attach(device_t dev)
 		goto fail;
 	}
 	/* Allocate DMA tags */
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
+		     4, 0, BUS_SPACE_MAXADDR_32BIT,
 		     BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * NV_MAX_FRAGS,
 				   NV_MAX_FRAGS, MCLBYTES, 0,
 				   busdma_lock_mutex, &Giant,
@@ -380,7 +381,8 @@ nve_attach(device_t dev)
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
 	}
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
+	    4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct nve_rx_desc) * RX_RING_SIZE, 1,
 	    sizeof(struct nve_rx_desc) * RX_RING_SIZE, 0,
@@ -390,7 +392,8 @@ nve_attach(device_t dev)
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
 	}
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
+	    4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct nve_tx_desc) * TX_RING_SIZE, 1,
 	    sizeof(struct nve_tx_desc) * TX_RING_SIZE, 0,
@@ -529,7 +532,6 @@ nve_attach(device_t dev)
 	ifp->if_ioctl = nve_ioctl;
 	ifp->if_start = nve_ifstart;
 	ifp->if_init = nve_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = IF_Mbps(100);
 	IFQ_SET_MAXLEN(&ifp->if_snd, TX_RING_SIZE - 1);
 	ifp->if_snd.ifq_drv_maxlen = TX_RING_SIZE - 1;

@@ -74,8 +74,21 @@ struct smu_fan {
 	device_t dev;
 	cell_t	reg;
 
+	enum {
+		SMU_FAN_RPM,
+		SMU_FAN_PWM
+	} type;
 	int	old_style;
 	int	setpoint;
+	int     rpm;
+};
+
+/* We can read the PWM and the RPM from a PWM controlled fan.
+ * Offer both values via sysctl.
+ */
+enum {
+	SMU_PWM_SYSCTL_PWM   = 1 << 8,
+	SMU_PWM_SYSCTL_RPM   = 2 << 8
 };
 
 struct smu_sensor {
@@ -205,6 +218,10 @@ static MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 /* Command types */
 #define SMU_ADC			0xd8
 #define SMU_FAN			0x4a
+#define SMU_RPM_STATUS		0x01
+#define SMU_RPM_SETPOINT	0x02
+#define SMU_PWM_STATUS		0x11
+#define SMU_PWM_SETPOINT	0x12
 #define SMU_I2C			0x9a
 #define  SMU_I2C_SIMPLE		0x00
 #define  SMU_I2C_NORMAL		0x01
@@ -303,18 +320,20 @@ smu_attach(device_t dev)
 	EVENTHANDLER_REGISTER(cpufreq_post_change, smu_cpufreq_post_change, dev,
 	    EVENTHANDLER_PRI_ANY);
 
-	/*
-	 * Detect and attach child devices.
-	 */
 	node = ofw_bus_get_node(dev);
+
+	/* Some SMUs have RPM and PWM controlled fans which do not sit
+	 * under the same node. So we have to attach them separately.
+	 */
+	smu_attach_fans(dev, node);
+
+	/*
+	 * Now detect and attach the other child devices.
+	 */
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		char name[32];
 		memset(name, 0, sizeof(name));
 		OF_getprop(child, "name", name, sizeof(name));
-
-		if (strncmp(name, "rpm-fans", 9) == 0 ||
-		    strncmp(name, "fans", 5) == 0)
-			smu_attach_fans(dev, child);
 
 		if (strncmp(name, "sensors", 8) == 0)
 			smu_attach_sensors(dev, child);
@@ -660,7 +679,7 @@ smu_fan_set_rpm(struct smu_fan *fan, int rpm)
 		cmd.data[1] = fan->reg;
 		cmd.data[2] = (rpm >> 8) & 0xff;
 		cmd.data[3] = rpm & 0xff;
-	
+
 		error = smu_run_cmd(smu, &cmd, 1);
 		if (error && error != EWOULDBLOCK)
 			fan->old_style = 1;
@@ -668,7 +687,7 @@ smu_fan_set_rpm(struct smu_fan *fan, int rpm)
 
 	if (fan->old_style) {
 		cmd.len = 14;
-		cmd.data[0] = 0;
+		cmd.data[0] = 0x00; /* RPM fan. */
 		cmd.data[1] = 1 << fan->reg;
 		cmd.data[2 + 2*fan->reg] = (rpm >> 8) & 0xff;
 		cmd.data[3 + 2*fan->reg] = rpm & 0xff;
@@ -704,7 +723,7 @@ smu_fan_read_rpm(struct smu_fan *fan)
 	if (fan->old_style) {
 		cmd.cmd = SMU_FAN;
 		cmd.len = 1;
-		cmd.data[0] = 1;
+		cmd.data[0] = SMU_RPM_STATUS;
 
 		error = smu_run_cmd(smu, &cmd, 1);
 		if (error)
@@ -715,6 +734,98 @@ smu_fan_read_rpm(struct smu_fan *fan)
 
 	return (rpm);
 }
+static int
+smu_fan_set_pwm(struct smu_fan *fan, int pwm)
+{
+	device_t smu = fan->dev;
+	struct smu_cmd cmd;
+	int error;
+
+	cmd.cmd = SMU_FAN;
+	error = EIO;
+
+	/* Clamp to allowed range */
+	pwm = max(fan->fan.min_rpm, pwm);
+	pwm = min(fan->fan.max_rpm, pwm);
+
+	/*
+	 * Apple has two fan control mechanisms. We can't distinguish
+	 * them except by seeing if the new one fails. If the new one
+	 * fails, use the old one.
+	 */
+	
+	if (!fan->old_style) {
+		cmd.len = 4;
+		cmd.data[0] = 0x30;
+		cmd.data[1] = fan->reg;
+		cmd.data[2] = (pwm >> 8) & 0xff;
+		cmd.data[3] = pwm & 0xff;
+	
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error && error != EWOULDBLOCK)
+			fan->old_style = 1;
+	}
+
+	if (fan->old_style) {
+		cmd.len = 14;
+		cmd.data[0] = 0x10; /* PWM fan. */
+		cmd.data[1] = 1 << fan->reg;
+		cmd.data[2 + 2*fan->reg] = (pwm >> 8) & 0xff;
+		cmd.data[3 + 2*fan->reg] = pwm & 0xff;
+		error = smu_run_cmd(smu, &cmd, 1);
+	}
+
+	if (error == 0)
+		fan->setpoint = pwm;
+
+	return (error);
+}
+
+static int
+smu_fan_read_pwm(struct smu_fan *fan, int *pwm, int *rpm)
+{
+	device_t smu = fan->dev;
+	struct smu_cmd cmd;
+	int error;
+
+	if (!fan->old_style) {
+		cmd.cmd = SMU_FAN;
+		cmd.len = 2;
+		cmd.data[0] = 0x31;
+		cmd.data[1] = fan->reg;
+
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error && error != EWOULDBLOCK)
+			fan->old_style = 1;
+
+		*rpm = (cmd.data[0] << 8) | cmd.data[1];
+	}
+
+	if (fan->old_style) {
+		cmd.cmd = SMU_FAN;
+		cmd.len = 1;
+		cmd.data[0] = SMU_PWM_STATUS;
+
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error)
+			return (error);
+
+		*rpm = (cmd.data[fan->reg*2+1] << 8) | cmd.data[fan->reg*2+2];
+	}
+	if (fan->old_style) {
+		cmd.cmd = SMU_FAN;
+		cmd.len = 14;
+		cmd.data[0] = SMU_PWM_SETPOINT;
+		cmd.data[1] = 1 << fan->reg;
+
+		error = smu_run_cmd(smu, &cmd, 1);
+		if (error)
+			return (error);
+
+		*pwm = cmd.data[fan->reg*2+2];
+	}
+	return (0);
+}
 
 static int
 smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
@@ -722,24 +833,127 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t smu;
 	struct smu_softc *sc;
 	struct smu_fan *fan;
-	int rpm, error;
+	int pwm = 0, rpm, error = 0;
 
 	smu = arg1;
 	sc = device_get_softc(smu);
-	fan = &sc->sc_fans[arg2];
+	fan = &sc->sc_fans[arg2 & 0xff];
 
-	rpm = smu_fan_read_rpm(fan);
-	if (rpm < 0)
-		return (rpm);
+	if (fan->type == SMU_FAN_RPM) {
+		rpm = smu_fan_read_rpm(fan);
+		if (rpm < 0)
+			return (rpm);
 
-	error = sysctl_handle_int(oidp, &rpm, 0, req);
+		error = sysctl_handle_int(oidp, &rpm, 0, req);
+	} else {
+		error = smu_fan_read_pwm(fan, &pwm, &rpm);
+		if (error < 0)
+			return (EIO);
+
+		switch (arg2 & 0xff00) {
+		case SMU_PWM_SYSCTL_PWM:
+			error = sysctl_handle_int(oidp, &pwm, 0, req);
+			break;
+		case SMU_PWM_SYSCTL_RPM:
+			error = sysctl_handle_int(oidp, &rpm, 0, req);
+			break;
+		default:
+			/* This should never happen */
+			return (EINVAL);
+		};
+	}
+	/* We can only read the RPM from a PWM controlled fan, so return. */
+	if ((arg2 & 0xff00) == SMU_PWM_SYSCTL_RPM)
+		return (0);
 
 	if (error || !req->newptr)
 		return (error);
 
 	sc->sc_lastuserchange = time_uptime;
 
-	return (smu_fan_set_rpm(fan, rpm));
+	if (fan->type == SMU_FAN_RPM)
+		return (smu_fan_set_rpm(fan, rpm));
+	else
+		return (smu_fan_set_pwm(fan, pwm));
+}
+
+static void
+smu_fill_fan_prop(device_t dev, phandle_t child, int id)
+{
+	struct smu_fan *fan;
+	struct smu_softc *sc;
+	char type[32];
+
+	sc = device_get_softc(dev);
+	fan = &sc->sc_fans[id];
+
+	OF_getprop(child, "device_type", type, sizeof(type));
+	/* We have either RPM or PWM controlled fans. */
+	if (strcmp(type, "fan-rpm-control") == 0)
+		fan->type = SMU_FAN_RPM;
+	else
+		fan->type = SMU_FAN_PWM;
+
+	fan->dev = dev;
+	fan->old_style = 0;
+	OF_getprop(child, "reg", &fan->reg,
+		   sizeof(cell_t));
+	OF_getprop(child, "min-value", &fan->fan.min_rpm,
+		   sizeof(int));
+	OF_getprop(child, "max-value", &fan->fan.max_rpm,
+		   sizeof(int));
+	OF_getprop(child, "zone", &fan->fan.zone,
+		   sizeof(int));
+
+	if (OF_getprop(child, "unmanaged-value",
+		       &fan->fan.default_rpm,
+		       sizeof(int)) != sizeof(int))
+		fan->fan.default_rpm = fan->fan.max_rpm;
+
+	OF_getprop(child, "location", fan->fan.name,
+		   sizeof(fan->fan.name));
+
+	if (fan->type == SMU_FAN_RPM)
+		fan->setpoint = smu_fan_read_rpm(fan);
+	else
+		smu_fan_read_pwm(fan, &fan->setpoint, &fan->rpm);
+}
+
+/* On the first call count the number of fans. In the second call,
+ * after allocating the fan struct, fill the properties of the fans.
+ */
+static int
+smu_count_fans(device_t dev)
+{
+	struct smu_softc *sc;
+	phandle_t child, node, root;
+	int nfans = 0;
+
+	node = ofw_bus_get_node(dev);
+	sc = device_get_softc(dev);
+
+	/* First find the fanroots and count the number of fans. */
+	for (root = OF_child(node); root != 0; root = OF_peer(root)) {
+		char name[32];
+		memset(name, 0, sizeof(name));
+		OF_getprop(root, "name", name, sizeof(name));
+		if (strncmp(name, "rpm-fans", 9) == 0 ||
+		    strncmp(name, "pwm-fans", 9) == 0 ||
+		    strncmp(name, "fans", 5) == 0)
+			for (child = OF_child(root); child != 0;
+			     child = OF_peer(child)) {
+				nfans++;
+				/* When allocated, fill the fan properties. */
+				if (sc->sc_fans != NULL)
+					smu_fill_fan_prop(dev, child,
+							  nfans - 1);
+			}
+	}
+	if (nfans == 0) {
+		device_printf(dev, "WARNING: No fans detected!\n");
+		return (0);
+	}
+	return (nfans);
 }
 
 static void
@@ -749,79 +963,92 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 	struct smu_softc *sc;
 	struct sysctl_oid *oid, *fanroot_oid;
 	struct sysctl_ctx_list *ctx;
-	phandle_t child;
-	char type[32], sysctl_name[32];
-	int i;
+	char sysctl_name[32];
+	int i, j;
 
 	sc = device_get_softc(dev);
-	sc->sc_nfans = 0;
 
-	for (child = OF_child(fanroot); child != 0; child = OF_peer(child))
-		sc->sc_nfans++;
-
-	if (sc->sc_nfans == 0) {
-		device_printf(dev, "WARNING: No fans detected!\n");
+	/* Get the number of fans. */
+	sc->sc_nfans = smu_count_fans(dev);
+	if (sc->sc_nfans == 0)
 		return;
-	}
 
+	/* Now we're able to allocate memory for the fans struct. */
 	sc->sc_fans = malloc(sc->sc_nfans * sizeof(struct smu_fan), M_SMU,
 	    M_WAITOK | M_ZERO);
 
-	fan = sc->sc_fans;
-	sc->sc_nfans = 0;
+	/* Now fill in the properties. */
+	smu_count_fans(dev);
+	
+	/* Register fans with pmac_thermal */
+	for (i = 0; i < sc->sc_nfans; i++)
+		pmac_thermal_fan_register(&sc->sc_fans[i].fan);
 
 	ctx = device_get_sysctl_ctx(dev);
 	fanroot_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "fans",
 	    CTLFLAG_RD, 0, "SMU Fan Information");
 
-	for (child = OF_child(fanroot); child != 0; child = OF_peer(child)) {
-		OF_getprop(child, "device_type", type, sizeof(type));
-		if (strcmp(type, "fan-rpm-control") != 0)
-			continue;
-
-		fan->dev = dev;
-		fan->old_style = 0;
-		OF_getprop(child, "reg", &fan->reg, sizeof(cell_t));
-		OF_getprop(child, "min-value", &fan->fan.min_rpm, sizeof(int));
-		OF_getprop(child, "max-value", &fan->fan.max_rpm, sizeof(int));
-		OF_getprop(child, "zone", &fan->fan.zone, sizeof(int));
-
-		if (OF_getprop(child, "unmanaged-value", &fan->fan.default_rpm,
-		    sizeof(int)) != sizeof(int))
-			fan->fan.default_rpm = fan->fan.max_rpm;
-
-		fan->setpoint = smu_fan_read_rpm(fan);
-
-		OF_getprop(child, "location", fan->fan.name,
-		    sizeof(fan->fan.name));
-	
-		/* Add sysctls */
-		for (i = 0; i < strlen(fan->fan.name); i++) {
-			sysctl_name[i] = tolower(fan->fan.name[i]);
-			if (isspace(sysctl_name[i]))
-				sysctl_name[i] = '_';
+	/* Add sysctls */
+	for (i = 0; i < sc->sc_nfans; i++) {
+		fan = &sc->sc_fans[i];
+		for (j = 0; j < strlen(fan->fan.name); j++) {
+			sysctl_name[j] = tolower(fan->fan.name[j]);
+			if (isspace(sysctl_name[j]))
+				sysctl_name[j] = '_';
 		}
-		sysctl_name[i] = 0;
+		sysctl_name[j] = 0;
+		if (fan->type == SMU_FAN_RPM) {
+			oid = SYSCTL_ADD_NODE(ctx,
+					      SYSCTL_CHILDREN(fanroot_oid),
+					      OID_AUTO, sysctl_name,
+					      CTLFLAG_RD, 0, "Fan Information");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "minrpm", CTLTYPE_INT | CTLFLAG_RD,
+				       &fan->fan.min_rpm, sizeof(int),
+				       "Minimum allowed RPM");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "maxrpm", CTLTYPE_INT | CTLFLAG_RD,
+				       &fan->fan.max_rpm, sizeof(int),
+				       "Maximum allowed RPM");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+					"rpm",CTLTYPE_INT | CTLFLAG_RW |
+					CTLFLAG_MPSAFE, dev, i,
+					smu_fanrpm_sysctl, "I", "Fan RPM");
 
-		oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(fanroot_oid),
-		    OID_AUTO, sysctl_name, CTLFLAG_RD, 0, "Fan Information");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "minrpm",
-		    CTLTYPE_INT | CTLFLAG_RD, &fan->fan.min_rpm, sizeof(int),
-		    "Minimum allowed RPM");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "maxrpm",
-		    CTLTYPE_INT | CTLFLAG_RD, &fan->fan.max_rpm, sizeof(int),
-		    "Maximum allowed RPM");
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "rpm",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
-		    sc->sc_nfans, smu_fanrpm_sysctl, "I", "Fan RPM");
+			fan->fan.read = (int (*)(struct pmac_fan *))smu_fan_read_rpm;
+			fan->fan.set = (int (*)(struct pmac_fan *, int))smu_fan_set_rpm;
 
-		fan->fan.read = (int (*)(struct pmac_fan *))smu_fan_read_rpm;
-		fan->fan.set = (int (*)(struct pmac_fan *, int))smu_fan_set_rpm;
-		pmac_thermal_fan_register(&fan->fan);
+		} else {
+			oid = SYSCTL_ADD_NODE(ctx,
+					      SYSCTL_CHILDREN(fanroot_oid),
+					      OID_AUTO, sysctl_name,
+					      CTLFLAG_RD, 0, "Fan Information");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "minpwm", CTLTYPE_INT | CTLFLAG_RD,
+				       &fan->fan.min_rpm, sizeof(int),
+				       "Minimum allowed PWM in %");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "maxpwm", CTLTYPE_INT | CTLFLAG_RD,
+				       &fan->fan.max_rpm, sizeof(int),
+				       "Maximum allowed PWM in %");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+					"pwm",CTLTYPE_INT | CTLFLAG_RW |
+					CTLFLAG_MPSAFE, dev,
+					SMU_PWM_SYSCTL_PWM | i,
+					smu_fanrpm_sysctl, "I", "Fan PWM in %");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+					"rpm",CTLTYPE_INT | CTLFLAG_RD |
+					CTLFLAG_MPSAFE, dev,
+					SMU_PWM_SYSCTL_RPM | i,
+					smu_fanrpm_sysctl, "I", "Fan RPM");
+			fan->fan.read = NULL;
+			fan->fan.set = (int (*)(struct pmac_fan *, int))smu_fan_set_pwm;
 
-		fan++;
-		sc->sc_nfans++;
+		}
+		if (bootverbose)
+			device_printf(dev, "Fan: %s type: %d\n",
+				      fan->fan.name, fan->type);
 	}
 }
 

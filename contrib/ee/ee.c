@@ -307,7 +307,7 @@ void undel_word P_((void));
 void del_line P_((void));
 void undel_line P_((void));
 void adv_word P_((void));
-void move_rel P_((char direction, int lines));
+void move_rel P_((int direction, int lines));
 void eol P_((void));
 void bol P_((void));
 void adv_line P_((void));
@@ -2105,10 +2105,10 @@ char *arguments[];
 		else if (!strcmp("-?", buff))
 		{
 			fprintf(stderr, usage0, arguments[0]);
-			fprintf(stderr, usage1);
-			fprintf(stderr, usage2);
-			fprintf(stderr, usage3);
-			fprintf(stderr, usage4);
+			fputs(usage1, stderr);
+			fputs(usage2, stderr);
+			fputs(usage3, stderr);
+			fputs(usage4, stderr);
 			exit(1);
 		}
 		else if ((*buff == '+') && (start_at_line == NULL))
@@ -2939,7 +2939,7 @@ while ((position < curr_line->line_length) && ((*point == 32) || (*point == 9)))
 
 void 
 move_rel(direction, lines)	/* move relative to current line	*/
-char direction;
+int direction;
 int lines;
 {
 	int i;
@@ -3242,7 +3242,7 @@ char *string;		/* string containing user command		*/
 	}
 	if (shell_fork)
 	{
-		printf(continue_msg);
+		fputs(continue_msg, stdout);
 		fflush(stdout);
 		while ((in = getchar()) != '\n')
 			;

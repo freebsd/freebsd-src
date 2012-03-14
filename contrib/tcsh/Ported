@@ -7,7 +7,7 @@ find it out-of-date, or you have additions or changes, please let me know.
 christos
 
 
-VENDOR	:	sun
+VENDOR	:	Sun
 MODELS	:	sun3, sun4, sun386i
 COMPILER:	cc, gcc, acc
 CFLAGS	:	normal
@@ -18,7 +18,7 @@ ENVIRON	:	n/a
 NOTES	:	Don't compile with /usr/5bin/cc
 VERSION	:	6.08
 
-VENDOR	:	sun
+VENDOR	:	Sun
 MODELS	:	sun4, ultra
 COMPILER:	cc, gcc
 CFLAGS	:	normal
@@ -34,18 +34,29 @@ NOTES	:	The sunpro compiler cannot compile tcsh with -O, it crashes
 	:	point failures of programs exec'ed from tcsh.
 VERSION	:	6.08
 
-VENDOR	:	sun
+VENDOR	:	Sun
 MODELS	:	ultra
 COMPILER:	WorkShop cc
 CFLAGS	:	normal
 LIBES	:	-lcurses -lsocket -lnsl
-OS	:	solaris 2.6
+OS	:	solaris 2.6, 2.7, 8
 CONFIG	:	sol26
 ENVIRON	:	n/a
 NOTES	:	none
 VERSION	:	6.08
 
-VENDOR	:	sun
+VENDOR	:	Sun
+MODELS	:	ultra, i686, x86_64
+COMPILER:	Sun Studio cc
+CFLAGS	:	normal
+LIBES	:	-lcurses -lsocket -lnsl
+OS	:	solaris 9, 10
+CONFIG	:	sol29
+ENVIRON	:	n/a
+NOTES	:	none
+VERSION	:	6.18
+
+VENDOR	:	Sun
 MODELS	:	i386
 COMPILER:	cc, gcc
 CFLAGS	:	-D__STDC__=0
@@ -56,7 +67,7 @@ ENVIRON	:	n/a
 NOTES	:	n/a
 VERSION	:	6.04.13
 
-VENDOR	:	sun
+VENDOR	:	Sun
 MODELS	:	sun4
 COMPILER:	gcc
 CFLAGS	:	normal

@@ -116,9 +116,9 @@ static int	iwn5000_attach(struct iwn_softc *, uint16_t);
 static void	iwn_radiotap_attach(struct iwn_softc *);
 static void	iwn_sysctlattach(struct iwn_softc *);
 static struct ieee80211vap *iwn_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	iwn_vap_delete(struct ieee80211vap *);
 static int	iwn_detach(device_t);
 static int	iwn_shutdown(device_t);
@@ -845,8 +845,8 @@ iwn_sysctlattach(struct iwn_softc *sc)
 }
 
 static struct ieee80211vap *
-iwn_vap_create(struct ieee80211com *ic,
-    const char name[IFNAMSIZ], int unit, int opmode, int flags,
+iwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
@@ -2128,7 +2128,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 					plcp |= IWN_RFLAG_SGI;
 			} else if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
 				plcp |= IWN_RFLAG_SGI;
-			if (i > 7)
+			if (RV(ni->ni_htrates.rs_rates[i]) > 7)
 				plcp |= IWN_RFLAG_ANT(txant1 | txant2);
 			else
 				plcp |= IWN_RFLAG_ANT(txant1);
@@ -2813,11 +2813,13 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		bitmap |= 1ULL << bit;
 	}
 	tap = sc->qid2tap[qid];
-	tid = WME_AC_TO_TID(tap->txa_ac);
-	wn = (void *)tap->txa_ni;
-	wn->agg[tid].bitmap = bitmap;
-	wn->agg[tid].startidx = start;
-	wn->agg[tid].nframes = nframes;
+	if (tap != NULL) {
+		tid = WME_AC_TO_TID(tap->txa_ac);
+		wn = (void *)tap->txa_ni;
+		wn->agg[tid].bitmap = bitmap;
+		wn->agg[tid].startidx = start;
+		wn->agg[tid].nframes = nframes;
+	}
 
 	seqno = le32toh(*(status + nframes)) & 0xfff;
 	for (lastidx = (seqno & 0xff); ring->read != lastidx;) {

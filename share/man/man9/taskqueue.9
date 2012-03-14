@@ -80,6 +80,7 @@ struct timeout_task;
 .Ft void
 .Fn taskqueue_run "struct taskqueue *queue"
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t func" "void *context"
+.Fn TASK_INITIALIZER "int priority" "task_fn_t func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
 .Fn TASKQUEUE_FAST_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
@@ -243,9 +244,14 @@ A convenience macro,
 is provided to initialise a
 .Va task
 structure.
+The
+.Fn TASK_INITIALIZER
+macro generates an initializer for a task structure.
 A macro
 .Fn TIMEOUT_TASK_INIT "queue" "timeout_task" "priority" "func" "context"
-initializes the timeout_task structure.
+initializes the
+.Va timeout_task
+structure.
 The values of
 .Va priority ,
 .Va func ,

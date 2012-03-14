@@ -397,7 +397,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 
 #if defined(INET) || defined(INET6)
 	if (ifp->if_carp &&
-	    (error = (*carp_output_p)(ifp, m, dst, NULL)))
+	    (error = (*carp_output_p)(ifp, m, dst)))
 		goto bad;
 #endif
 
@@ -661,8 +661,10 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		m = (*lagg_input_p)(ifp, m);
 		if (m != NULL)
 			ifp = m->m_pkthdr.rcvif;
-		else 
+		else {
+			CURVNET_RESTORE();
 			return;
+		}
 	}
 
 	/*
@@ -681,6 +683,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 #endif
 			ifp->if_ierrors++;
 			m_freem(m);
+			CURVNET_RESTORE();
 			return;
 		}
 

@@ -248,6 +248,10 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
 					 * backend pages and can fail early.
 					 */
 #define	UMA_ZONE_VTOSLAB	0x2000	/* Zone uses vtoslab for lookup. */
+#define	UMA_ZONE_NODUMP		0x4000	/*
+					 * Zone's pages will not be included in
+					 * mini-dumps.
+					 */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add

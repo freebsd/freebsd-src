@@ -2,8 +2,8 @@
 # $FreeBSD$
 
 SRCS+=	_ctx_start.S _setjmp.S _set_tp.c alloca.S fabs.c \
-	infinity.c ldexp.c makecontext.c \
-	setjmp.S signalcontext.c sigsetjmp.S
+	getcontextx.c infinity.c ldexp.c makecontext.c \
+	__aeabi_read_tp.c setjmp.S signalcontext.c sigsetjmp.S flt_rounds.c
 
 #SRCS+=	divsi3.S
 

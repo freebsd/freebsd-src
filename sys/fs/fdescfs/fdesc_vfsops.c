@@ -65,7 +65,7 @@ static vfs_root_t	fdesc_root;
  * Compatibility shim for old mount(2) system call.
  */
 int
-fdesc_cmount(struct mntarg *ma, void *data, int flags)
+fdesc_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	return kernel_mount(ma, flags);
 }
@@ -98,7 +98,7 @@ fdesc_mount(struct mount *mp)
 	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp);
 	if (error) {
 		free(fmp, M_FDESCMNT);
-		mp->mnt_data = 0;
+		mp->mnt_data = NULL;
 		return (error);
 	}
 	rvp->v_type = VDIR;
@@ -152,7 +152,7 @@ fdesc_unmount(mp, mntflags)
 	 */
 	mtx_lock(&fdesc_hashmtx);
 	data = mp->mnt_data;
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 	mtx_unlock(&fdesc_hashmtx);
 	free(data, M_FDESCMNT);	/* XXX */
 

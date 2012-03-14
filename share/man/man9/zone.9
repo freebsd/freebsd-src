@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2010
+.Dd February 25, 2012
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@
 .Fo uma_zcreate
 .Fa "char *name" "int size"
 .Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init uminit" "uma_fini fini"
-.Fa "int align" "u_int16_t flags"
+.Fa "int align" "uint16_t flags"
 .Fc
 .Ft "void *"
 .Fn uma_zalloc "uma_zone_t zone" "int flags"
@@ -210,7 +210,7 @@ The
 .Fn uma_zone_get_cur
 function returns the approximate current occupancy of the zone.
 The returned value is approximate because appropriate synchronisation to
-determine an exact value is not performend by the implementation.
+determine an exact value is not performed by the implementation.
 This ensures low overhead at the expense of potentially stale data being used
 in the calculation.
 .Sh RETURN VALUES

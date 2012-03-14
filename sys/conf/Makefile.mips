@@ -63,6 +63,7 @@ TRAMP_ELFSIZE=32
 # XXX hardcoded kernel entry point
 ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
 
+.if !defined(WITHOUT_KERNEL_TRAMPOLINE)
 KERNEL_EXTRA=trampoline
 trampoline: ${KERNEL_KO}.tramp.bin
 ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
@@ -78,6 +79,7 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 		-o ${KERNEL_KO}.tramp.elf
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.elf \
 		${KERNEL_KO}.tramp.bin
+.endif
 
 %BEFORE_DEPEND
 

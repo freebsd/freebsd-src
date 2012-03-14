@@ -623,7 +623,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 4);
 		} else if (target >= 0 && target < (1L<<32)) {
 			/*
-			 * We're withing 32-bits of address zero.
+			 * We're within 32-bits of address zero.
 			 *
 			 * The resulting code in the jump slot is:
 			 *
@@ -643,7 +643,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 4);
 		} else if (target <= 0 && target > -(1L<<32)) {
 			/*
-			 * We're withing 32-bits of address -1.
+			 * We're within 32-bits of address -1.
 			 *
 			 * The resulting code in the jump slot is:
 			 *
@@ -665,7 +665,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 4);
 		} else if (offset <= (1L<<32) && offset >= -((1L<<32) - 4)) {
 			/*
-			 * We're withing 32-bits -- we can use a direct call
+			 * We're within 32-bits -- we can use a direct call
 			 * insn
 			 *
 			 * The resulting code in the jump slot is:
@@ -688,7 +688,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 4);
 		} else if (offset >= 0 && offset < (1L<<44)) {
 			/*
-			 * We're withing 44 bits.  We can generate this
+			 * We're within 44 bits.  We can generate this
 			 * pattern:
 			 *
 			 * The resulting code in the jump slot is:
@@ -713,7 +713,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 4);
 		} else if (offset < 0 && offset > -(1L<<44)) {
 			/*
-			 * We're withing 44 bits.  We can generate this
+			 * We're within 44 bits.  We can generate this
 			 * pattern:
 			 *
 			 * The resulting code in the jump slot is:

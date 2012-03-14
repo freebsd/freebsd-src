@@ -38,6 +38,33 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120309: Remove fifofs header files.
+OLD_FILES+=usr/include/fs/fifofs/fifo.h
+OLD_DIRS+=usr/include/fs/fifofs
+# 20120225: libarchive 3.0.3
+OLD_FILES+=usr/share/man/man3/archive_read_data_into_buffer.3.gz \
+	usr/share/man/man3/archive_read_support_compression_all.3.gz \
+	usr/share/man/man3/archive_read_support_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_read_support_compression_compress.3.gz \
+	usr/share/man/man3/archive_read_support_compression_gzip.3.gz \
+	usr/share/man/man3/archive_read_support_compression_lzma.3.gz \
+	usr/share/man/man3/archive_read_support_compression_none.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program_signature.3.gz \
+	usr/share/man/man3/archive_read_support_compression_xz.3.gz \
+	usr/share/man/man3/archive_write_set_callbacks.3.gz \
+	usr/share/man/man3/archive_write_set_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_write_set_compression_compress.3.gz \
+	usr/share/man/man3/archive_write_set_compression_gzip.3.gz \
+	usr/share/man/man3/archive_write_set_compression_none.3.gz \
+	usr/share/man/man3/archive_write_set_compression_program.3.gz
+OLD_LIBS+=usr/lib/libarchive.so.5
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_LIBS+=usr/lib32/libarchive.so.5
+.endif
+# 20120113: removal of wtmpcvt(1)
+OLD_FILES+=usr/bin/wtmpcvt
+OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
 # 20111214: eventtimers(7) moved to eventtimers(4)
 OLD_FILES+=usr/share/man/man7/eventtimers.7.gz
 # 20111125: amd(4) removed
@@ -393,6 +420,9 @@ OLD_FILES+=usr/share/man/man5/lastlog.5.gz
 OLD_FILES+=usr/share/man/man5/utmp.5.gz
 OLD_FILES+=usr/share/man/man5/wtmp.5.gz
 OLD_LIBS+=lib/libutil.so.8
+.if ${TARGET_ARCH} == "amd64"
+OLB_LIBS+=usr/lib32/libutil.so.8
+.endif
 # 20100105: new userland semaphore implementation
 OLD_FILES+=usr/include/sys/semaphore.h
 # 20100103: ntptrace(8) removed
@@ -704,6 +734,8 @@ OLD_LIBS+=usr/lib32/pam_unix.so.4
 .endif
 # 20090718: the gdm pam.d file is no longer required.
 OLD_FILES+=etc/pam.d/gdm
+# 20090714: net_add_domain(9) renamed to domain_add(9)
+OLD_FILES+=usr/share/man/man9/net_add_domain.9.gz
 # 20090713: vimage container structs removed.
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h

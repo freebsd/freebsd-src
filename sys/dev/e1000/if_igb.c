@@ -299,11 +299,17 @@ MODULE_DEPEND(igb, ether, 1, 1, 1);
  *  Tunable default values.
  *********************************************************************/
 
+static SYSCTL_NODE(_hw, OID_AUTO, igb, CTLFLAG_RD, 0, "IGB driver parameters");
+
 /* Descriptor defaults */
 static int igb_rxd = IGB_DEFAULT_RXD;
 static int igb_txd = IGB_DEFAULT_TXD;
 TUNABLE_INT("hw.igb.rxd", &igb_rxd);
 TUNABLE_INT("hw.igb.txd", &igb_txd);
+SYSCTL_INT(_hw_igb, OID_AUTO, rxd, CTLFLAG_RDTUN, &igb_rxd, 0,
+    "Number of receive descriptors per queue");
+SYSCTL_INT(_hw_igb, OID_AUTO, txd, CTLFLAG_RDTUN, &igb_txd, 0,
+    "Number of transmit descriptors per queue");
 
 /*
 ** AIM: Adaptive Interrupt Moderation
@@ -313,6 +319,8 @@ TUNABLE_INT("hw.igb.txd", &igb_txd);
 */
 static int igb_enable_aim = TRUE;
 TUNABLE_INT("hw.igb.enable_aim", &igb_enable_aim);
+SYSCTL_INT(_hw_igb, OID_AUTO, enable_aim, CTLFLAG_RW, &igb_enable_aim, 0,
+    "Enable adaptive interrupt moderation");
 
 /*
  * MSIX should be the default for best performance,
@@ -320,12 +328,16 @@ TUNABLE_INT("hw.igb.enable_aim", &igb_enable_aim);
  */         
 static int igb_enable_msix = 1;
 TUNABLE_INT("hw.igb.enable_msix", &igb_enable_msix);
+SYSCTL_INT(_hw_igb, OID_AUTO, enable_msix, CTLFLAG_RDTUN, &igb_enable_msix, 0,
+    "Enable MSI-X interrupts");
 
 /*
 ** Tuneable Interrupt rate
 */
 static int igb_max_interrupt_rate = 8000;
 TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
+SYSCTL_INT(_hw_igb, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
+    &igb_max_interrupt_rate, 0, "Maximum interrupts per second");
 
 /*
 ** Header split causes the packet header to
@@ -337,6 +349,8 @@ TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
 */
 static int igb_header_split = FALSE;
 TUNABLE_INT("hw.igb.hdr_split", &igb_header_split);
+SYSCTL_INT(_hw_igb, OID_AUTO, header_split, CTLFLAG_RDTUN, &igb_header_split, 0,
+    "Enable receive mbuf header split");
 
 /*
 ** This will autoconfigure based on
@@ -344,7 +358,19 @@ TUNABLE_INT("hw.igb.hdr_split", &igb_header_split);
 */
 static int igb_num_queues = 0;
 TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
+SYSCTL_INT(_hw_igb, OID_AUTO, num_queues, CTLFLAG_RDTUN, &igb_num_queues, 0,
+    "Number of queues to configure, 0 indicates autoconfigure");
 
+/* How many packets rxeof tries to clean at a time */
+static int igb_rx_process_limit = 100;
+TUNABLE_INT("hw.igb.rx_process_limit", &igb_rx_process_limit);
+SYSCTL_INT(_hw_igb, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
+    &igb_rx_process_limit, 0,
+    "Maximum number of received packets to process at a time, -1 means unlimited");
+
+#ifdef DEV_NETMAP	/* see ixgbe.c for details */
+#include <dev/netmap/if_igb_netmap.h>
+#endif /* DEV_NETMAP */
 /*********************************************************************
  *  Device identification routine
  *
@@ -430,10 +456,9 @@ igb_attach(device_t dev)
 	    OID_AUTO, "nvm", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
 	    igb_sysctl_nvm_info, "I", "NVM Information");
 
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
-	    &igb_enable_aim, 1, "Interrupt Moderation");
+	igb_set_sysctl_value(adapter, "enable_aim",
+	    "Interrupt Moderation", &adapter->enable_aim,
+	    igb_enable_aim);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -464,7 +489,7 @@ igb_attach(device_t dev)
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	igb_set_sysctl_value(adapter, "rx_processing_limit",
 	    "max number of rx packets to process",
-	    &adapter->rx_process_limit, 100);
+	    &adapter->rx_process_limit, igb_rx_process_limit);
 
 	/*
 	 * Validate number of transmit and receive descriptors. It
@@ -642,6 +667,9 @@ igb_attach(device_t dev)
 	if (error)
 		goto err_late;
 
+#ifdef DEV_NETMAP
+	igb_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("igb_attach: end");
 
 	return (0);
@@ -720,6 +748,9 @@ igb_detach(device_t dev)
 
 	callout_drain(&adapter->timer);
 
+#ifdef DEV_NETMAP
+	netmap_detach(adapter->ifp);
+#endif /* DEV_NETMAP */
 	igb_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(ifp);
@@ -1463,7 +1494,7 @@ igb_msix_que(void *arg)
 
 	more_rx = igb_rxeof(que, adapter->rx_process_limit, NULL);
 
-	if (igb_enable_aim == FALSE)
+	if (adapter->enable_aim == FALSE)
 		goto no_calc;
 	/*
 	** Do Adaptive Interrupt Moderation:
@@ -2680,7 +2711,7 @@ igb_setup_msix(struct adapter *adapter)
 		    "MSIX Configuration Problem, "
 		    "%d vectors configured, but %d queues wanted!\n",
 		    msgs, want);
-		return (ENXIO);
+		return (0);
 	}
 	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
@@ -2690,9 +2721,11 @@ igb_setup_msix(struct adapter *adapter)
 	}
 msi:
        	msgs = pci_msi_count(dev);
-       	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0)
-               	device_printf(adapter->dev,"Using MSI interrupt\n");
-	return (msgs);
+	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0) {
+		device_printf(adapter->dev," Using MSI interrupt\n");
+		return (msgs);
+	}
+	return (0);
 }
 
 /*********************************************************************
@@ -2868,7 +2901,6 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  igb_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -3257,9 +3289,16 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 	struct adapter *adapter = txr->adapter;
 	struct igb_tx_buffer *txbuf;
 	int i;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	/* Clear the old descriptor contents */
 	IGB_TX_LOCK(txr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_TX, txr->me, 0);
+#endif /* DEV_NETMAP */
 	bzero((void *)txr->tx_base,
 	      (sizeof(union e1000_adv_tx_desc)) * adapter->num_tx_desc);
 	/* Reset indices */
@@ -3276,6 +3315,13 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 			m_freem(txbuf->m_head);
 			txbuf->m_head = NULL;
 		}
+#ifdef DEV_NETMAP
+		if (slot) {
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
+			/* no need to set the address */
+			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
+		}
+#endif /* DEV_NETMAP */
 		/* clear the watch index */
 		txbuf->next_eop = -1;
         }
@@ -3642,6 +3688,19 @@ igb_txeof(struct tx_ring *txr)
 
 	IGB_TX_LOCK_ASSERT(txr);
 
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
+		IGB_TX_UNLOCK(txr);
+		IGB_CORE_LOCK(adapter);
+		selwakeuppri(&na->tx_si, PI_NET);
+		IGB_CORE_UNLOCK(adapter);
+		IGB_TX_LOCK(txr);
+		return FALSE;
+	}
+#endif /* DEV_NETMAP */
         if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = IGB_QUEUE_IDLE;
                 return FALSE;
@@ -3965,6 +4024,10 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 	bus_dma_segment_t	pseg[1], hseg[1];
 	struct lro_ctrl		*lro = &rxr->lro;
 	int			rsize, nsegs, error = 0;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(rxr->adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	adapter = rxr->adapter;
 	dev = adapter->dev;
@@ -3972,6 +4035,9 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 
 	/* Clear the ring contents */
 	IGB_RX_LOCK(rxr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_RX, rxr->me, 0);
+#endif /* DEV_NETMAP */
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(union e1000_adv_rx_desc), IGB_DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
@@ -3990,6 +4056,20 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		struct mbuf	*mh, *mp;
 
 		rxbuf = &rxr->rx_buffers[j];
+#ifdef DEV_NETMAP
+		if (slot) {
+			/* slot sj is mapped to the i-th NIC-ring entry */
+			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
+			uint64_t paddr;
+			void *addr;
+
+			addr = PNMB(slot + sj, &paddr);
+			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			/* Update descriptor */
+			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
+			continue;
+		}
+#endif /* DEV_NETMAP */
 		if (rxr->hdr_split == FALSE)
 			goto skip_head;
 
@@ -4274,6 +4354,26 @@ igb_initialize_receive_units(struct adapter *adapter)
 	for (int i = 0; i < adapter->num_queues; i++) {
 		rxr = &adapter->rx_rings[i];
 		E1000_WRITE_REG(hw, E1000_RDH(i), rxr->next_to_check);
+#ifdef DEV_NETMAP
+		/*
+		 * an init() while a netmap client is active must
+		 * preserve the rx buffers passed to userspace.
+		 * In this driver it means we adjust RDT to
+		 * somthing different from next_to_refresh
+		 * (which is not used in netmap mode).
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = rxr->next_to_refresh - kring->nr_hwavail;
+
+			if (t >= adapter->num_rx_desc)
+				t -= adapter->num_rx_desc;
+			else if (t < 0)
+				t += adapter->num_rx_desc;
+			E1000_WRITE_REG(hw, E1000_RDT(i), t);
+		} else
+#endif /* DEV_NETMAP */
 		E1000_WRITE_REG(hw, E1000_RDT(i), rxr->next_to_refresh);
 	}
 	return;
@@ -4451,6 +4551,20 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	/* Sync the ring. */
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
+		IGB_RX_UNLOCK(rxr);
+		IGB_CORE_LOCK(adapter);
+		selwakeuppri(&na->rx_si, PI_NET);
+		IGB_CORE_UNLOCK(adapter);
+		return (0);
+	}
+#endif /* DEV_NETMAP */
 
 	/* Main clean loop */
 	for (i = rxr->next_to_check; count != 0;) {

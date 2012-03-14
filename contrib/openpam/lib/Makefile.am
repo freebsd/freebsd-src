@@ -1,4 +1,4 @@
-# $Id: Makefile.am 395 2007-06-03 20:26:18Z des $
+# $Id: Makefile.am 499 2011-11-22 11:51:50Z des $
 
 NULL =
 
@@ -6,11 +6,18 @@ INCLUDES = -I$(top_srcdir)/include
 
 lib_LTLIBRARIES = libpam.la
 
-noinst_HEADERS = openpam_impl.h
+noinst_HEADERS = \
+	openpam_constants.h \
+	openpam_debug.h \
+	openpam_impl.h \
+	openpam_strlcmp.h \
+	openpam_strlcpy.h
 
 libpam_la_SOURCES = \
 	openpam_borrow_cred.c \
+	openpam_check_owner_perms.c \
 	openpam_configure.c \
+	openpam_constants.c \
 	openpam_dispatch.c \
 	openpam_dynamic.c \
 	openpam_findenv.c \
@@ -24,6 +31,7 @@ libpam_la_SOURCES = \
 	openpam_restore_cred.c \
 	openpam_set_option.c \
 	openpam_static.c \
+	openpam_subst.c \
 	openpam_ttyconv.c \
 	pam_acct_mgmt.c \
 	pam_authenticate.c \
@@ -52,9 +60,8 @@ libpam_la_SOURCES = \
 	pam_vprompt.c \
 	$(NULL)
 
-libpam_la_CFLAGS = -DOPENPAM_MODULES_DIR='"@OPENPAM_MODULES_DIR@/"'
-
-libpam_la_LDFLAGS = -no-undefined -version-info @LIB_MAJ@ @DL_LIBS@
+libpam_la_LDFLAGS = -no-undefined -version-info @LIB_MAJ@
+libpam_la_LIBADD = @DL_LIBS@
 
 EXTRA_DIST = \
 	pam_authenticate_secondary.c \

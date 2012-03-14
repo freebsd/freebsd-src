@@ -228,10 +228,10 @@ struct ieee80211com {
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,
-				    const char name[IFNAMSIZ], int unit,
-				    int opmode, int flags,
-				    const uint8_t bssid[IEEE80211_ADDR_LEN],
-				    const uint8_t macaddr[IEEE80211_ADDR_LEN]);
+				    const char [IFNAMSIZ], int,
+				    enum ieee80211_opmode, int,
+				    const uint8_t [IEEE80211_ADDR_LEN],
+				    const uint8_t [IEEE80211_ADDR_LEN]);
 	void			(*ic_vap_delete)(struct ieee80211vap *);
 	/* operating mode attachment */
 	ieee80211vap_attach	ic_vattach[IEEE80211_OPMODE_MAX];
@@ -662,7 +662,8 @@ void	ieee80211_ifattach(struct ieee80211com *,
 		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 void	ieee80211_ifdetach(struct ieee80211com *);
 int	ieee80211_vap_setup(struct ieee80211com *, struct ieee80211vap *,
-		const char name[IFNAMSIZ], int unit, int opmode, int flags,
+		const char name[IFNAMSIZ], int unit,
+		enum ieee80211_opmode opmode, int flags,
 		const uint8_t bssid[IEEE80211_ADDR_LEN],
 		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 int	ieee80211_vap_attach(struct ieee80211vap *,

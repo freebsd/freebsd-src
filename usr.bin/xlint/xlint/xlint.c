@@ -80,7 +80,7 @@ static	char	*p2out;
 /* flags always passed to cc(1) */
 static	char	**cflags;
 
-/* flags for cc(1), controled by sflag/tflag */
+/* flags for cc(1), controlled by sflag/tflag */
 static	char	**lcflags;
 
 /* flags for lint1 */

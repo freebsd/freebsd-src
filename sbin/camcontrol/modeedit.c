@@ -869,7 +869,6 @@ mode_list(struct cam_device *device, int page_control, int dbd,
 	  int retry_count, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
-	u_int8_t *mode_pars;		/* Pointer to modepage params. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
 	struct pagename *nameentry;
@@ -895,7 +894,6 @@ mode_list(struct cam_device *device, int page_control, int dbd,
 		/* Locate the next mode page header. */
 		mph = (struct scsi_mode_page_header *)
 		    ((intptr_t)mh + sizeof(*mh) + len);
-		mode_pars = MODE_PAGE_DATA(mph);
 
 		mph->page_code &= SMS_PAGE_CODE;
 		nameentry = nameentry_lookup(mph->page_code);

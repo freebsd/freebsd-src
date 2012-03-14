@@ -30,9 +30,8 @@
 .Dt SHM_MAP 9
 .Os
 .Sh NAME
-.Nm shm_map ,
-.Nm shm_unmap
-.Nd map shared memory objects into the kernel's address space
+.Nm shm_map , shm_unmap
+.Nd "map shared memory objects into the kernel's address space"
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/mman.h
@@ -42,9 +41,9 @@
 .Fn shm_unmap "struct file *fp" "void *mem" "size_t size"
 .Sh DESCRIPTION
 The
-.Nm shm_map
+.Fn shm_map
 and
-.Nm shm_unmap
+.Fn shm_unmap
 functions provide an API for mapping shared memory objects into the kernel.
 Shared memory objects are created by
 .Xr shm_open 2 .
@@ -57,13 +56,13 @@ Shared memory objects can still be grown while mapped into the kernel.
 .Pp
 To simplify the accounting needed to enforce the above requirement,
 callers of this API are required to unmap the entire region mapped by
-.Nm shm_map
+.Fn shm_map
 when calling
-.Nm shm_unmap .
+.Fn shm_unmap .
 Unmapping only a portion of the region is not permitted.
 .Pp
 The
-.Nm shm_map
+.Fn shm_map
 function locates the shared memory object associated with the open file
 .Fa fp .
 It maps the region of that object described by
@@ -77,9 +76,9 @@ will be set to the start of the mapping.
 All pages for the range will be wired into memory upon successful return.
 .Pp
 The
-.Nm shm_unmap
+.Fn shm_unmap
 function unmaps a region previously mapped by
-.Nm shm_map .
+.Fn shm_map .
 The
 .Fa mem
 argument should match the value previously returned in
@@ -87,22 +86,22 @@ argument should match the value previously returned in
 and the
 .Fa size
 argument should match the value passed to
-.Nm shm_map .
+.Fn shm_map .
 .Pp
 Note that
-.Nm shm_map
+.Fn shm_map
 will not hold an extra reference on the open file
 .Fa fp
 for the lifetime of the mapping.
 Instead,
 the calling code is required to do this if it wishes to use
-.Nm shm_unmap
+.Fn shm_unmap
 on the region in the future.
 .Sh RETURN VALUES
 The
-.Nm shm_map
+.Fn shm_map
 and
-.Nm shm_unmap
+.Fn shm_unmap
 functions return zero on success or an error on failure.
 .Sh EXAMPLES
 The following function accepts a file descriptor for a shared memory
@@ -110,7 +109,7 @@ object.
 It maps the first sixteen kilobytes of the object into the kernel,
 performs some work on that address,
 and then unmaps the address before returning.
-.Bd -literal
+.Bd -literal -offset indent
 int
 shm_example(int fd)
 {
@@ -118,7 +117,7 @@ shm_example(int fd)
 	void *mem;
 	int error;
 
-	error = fget(curthread, fd, CAP_MMAP, &fp)
+	error = fget(curthread, fd, CAP_MMAP, &fp);
 	if (error)
 		return (error);
 	error = shm_map(fp, 16384, 0, &mem);
@@ -136,7 +135,7 @@ shm_example(int fd)
 .Ed
 .Sh ERRORS
 The
-.Nm shm_map
+.Fn shm_map
 function returns the following errors on failure:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -158,7 +157,7 @@ The shared memory object could not be mapped due to some other VM error.
 .El
 .Pp
 The
-.Nm shm_unmap
+.Fn shm_unmap
 function returns the following errors on failure:
 .Bl -tag -width Er
 .It Bq Er EINVAL

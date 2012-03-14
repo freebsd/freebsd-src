@@ -62,6 +62,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 
 #include <sys/param.h>
@@ -108,10 +110,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/wi/if_wireg.h>
 #include <dev/wi/if_wivar.h>
 
-static struct ieee80211vap *wi_vap_create(struct ieee80211com *ic,
-		const char name[IFNAMSIZ], int unit, int opmode, int flags,
-		const uint8_t bssid[IEEE80211_ADDR_LEN],
-		const uint8_t mac[IEEE80211_ADDR_LEN]);
+static struct ieee80211vap *wi_vap_create(struct ieee80211com *,
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void wi_vap_delete(struct ieee80211vap *vap);
 static void wi_stop_locked(struct wi_softc *sc, int disable);
 static void wi_start_locked(struct ifnet *);
@@ -507,10 +509,10 @@ wi_detach(device_t dev)
 }
 
 static struct ieee80211vap *
-wi_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+wi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct wi_softc *sc = ic->ic_ifp->if_softc;
 	struct wi_vap *wvp;
@@ -1509,6 +1511,10 @@ wi_info_intr(struct wi_softc *sc)
 	case WI_INFO_LINK_STAT:
 		wi_read_bap(sc, fid, sizeof(ltbuf), &stat, sizeof(stat));
 		DPRINTF(("wi_info_intr: LINK_STAT 0x%x\n", le16toh(stat)));
+
+		if (vap == NULL)
+			goto finish;
+
 		switch (le16toh(stat)) {
 		case WI_INFO_LINK_STAT_CONNECTED:
 			if (vap->iv_state == IEEE80211_S_RUN &&
@@ -1564,6 +1570,7 @@ wi_info_intr(struct wi_softc *sc)
 		    le16toh(ltbuf[1]), le16toh(ltbuf[0])));
 		break;
 	}
+finish:
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_INFO);
 }
 

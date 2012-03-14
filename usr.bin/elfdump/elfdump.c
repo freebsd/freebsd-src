@@ -904,7 +904,6 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	u_int64_t name;
 	u_int32_t namesz;
 	u_int32_t descsz;
-	u_int32_t type;
 	u_int32_t desc;
 	char *n, *s;
 
@@ -916,7 +915,6 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
  	while (n < ((char *)e + offset + size)) {
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
-		type = elf_get_word(e, n, N_TYPE);
  		s = n + sizeof(Elf_Note);
  		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
 		fprintf(out, "\t%s %d\n", s, desc);
