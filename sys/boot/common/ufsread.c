@@ -46,6 +46,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
+
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
@@ -262,15 +264,28 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 			}
 			n = (lbn - NDADDR) & (n - 1);
 #if defined(UFS1_ONLY)
+#if BYTE_ORDER == BIG_ENDIAN
+			memcpy((char *)&addr + sizeof(addr) -
+			    sizeof(ufs1_daddr_t), (ufs1_daddr_t *)indbuf + n,
+			    sizeof(ufs1_daddr_t));
+#else
 			memcpy(&addr, (ufs1_daddr_t *)indbuf + n,
 			    sizeof(ufs1_daddr_t));
+#endif
 #elif defined(UFS2_ONLY)
 			memcpy(&addr, (ufs2_daddr_t *)indbuf + n,
 			    sizeof(ufs2_daddr_t));
 #else
 			if (fs.fs_magic == FS_UFS1_MAGIC)
+#if BYTE_ORDER == BIG_ENDIAN
+				memcpy((char *)&addr + sizeof(addr) -
+				    sizeof(ufs1_daddr_t),
+				    (ufs1_daddr_t *)indbuf + n,
+			    	sizeof(ufs1_daddr_t));
+#else
 				memcpy(&addr, (ufs1_daddr_t *)indbuf + n,
 				    sizeof(ufs1_daddr_t));
+#endif
 			else
 				memcpy(&addr, (ufs2_daddr_t *)indbuf + n,
 				    sizeof(ufs2_daddr_t));
