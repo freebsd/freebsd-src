@@ -681,7 +681,8 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 	error = bus_dmamap_load(sc->fxp_stag, sc->fxp_smap, sc->fxp_stats,
-	    sizeof(struct fxp_stats), fxp_dma_map_addr, &sc->stats_addr, 0);
+	    sizeof(struct fxp_stats), fxp_dma_map_addr, &sc->stats_addr,
+	    BUS_DMA_NOWAIT);
 	if (error) {
 		device_printf(dev, "could not load the stats DMA buffer\n");
 		goto fail;
@@ -705,7 +706,7 @@ fxp_attach(device_t dev)
 
 	error = bus_dmamap_load(sc->cbl_tag, sc->cbl_map,
 	    sc->fxp_desc.cbl_list, FXP_TXCB_SZ, fxp_dma_map_addr,
-	    &sc->fxp_desc.cbl_addr, 0);
+	    &sc->fxp_desc.cbl_addr, BUS_DMA_NOWAIT);
 	if (error) {
 		device_printf(dev, "could not load TxCB DMA buffer\n");
 		goto fail;
@@ -729,7 +730,8 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 	error = bus_dmamap_load(sc->mcs_tag, sc->mcs_map, sc->mcsp,
-	    sizeof(struct fxp_cb_mcs), fxp_dma_map_addr, &sc->mcs_addr, 0);
+	    sizeof(struct fxp_cb_mcs), fxp_dma_map_addr, &sc->mcs_addr,
+	    BUS_DMA_NOWAIT);
 	if (error) {
 		device_printf(dev,
 		    "can't load the multicast setup DMA buffer\n");
