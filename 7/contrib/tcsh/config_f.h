@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/config_f.h,v 3.42 2009/06/25 12:10:56 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/config_f.h,v 3.47 2011/02/05 20:34:55 christos Exp $ */
 /*
  * config_f.h -- configure various defines for tcsh
  *
@@ -50,19 +50,11 @@
  * WIDE_STRINGS	Represent strings using wide characters
  *		Allows proper function in multibyte encodings like UTF-8
  */
-#if defined (SHORT_STRINGS) && defined (NLS) && SIZEOF_WCHAR_T >= 4 && defined (HAVE_MBRTOWC) && !defined (WINNT_NATIVE) && !defined(_OSD_POSIX)
+#if defined (SHORT_STRINGS) && defined (NLS) && !defined (WINNT_NATIVE) && !defined(_OSD_POSIX)
 # define WIDE_STRINGS
-#endif
-
-/*
- * NLS_CATALOGS:Use Native Language System catalogs for
- *		international messages.
- *		Routines like catopen() are needed
- *		if you don't have <nl_types.h>, you don't want
- *		to define this.
- */
-#if defined (NLS) && defined (HAVE_CATGETS)
-# define NLS_CATALOGS
+# if SIZEOF_WCHAR_T < 4
+#  define UTF16_STRINGS
+# endif
 #endif
 
 /*
@@ -143,7 +135,7 @@
  *		This can be much slower and no memory statistics will be
  *		provided.
  */
-#if defined(__MACHTEN__) || defined(PURIFY) || defined(MALLOC_TRACE) || defined(_OSD_POSIX) || defined(__MVS__)
+#if defined(__MACHTEN__) || defined(PURIFY) || defined(MALLOC_TRACE) || defined(_OSD_POSIX) || defined(__MVS__) || defined (__CYGWIN__) || defined(__GLIBC__)
 # define SYSMALLOC
 #else
 # undef SYSMALLOC
@@ -197,10 +189,6 @@
 
 /* Consistency checks */
 #ifdef WIDE_STRINGS
-# if SIZEOF_WCHAR_T < 4
-    #error "wchar_t must be at least 4 bytes for WIDE_STRINGS"
-# endif
-
 # ifdef WINNT_NATIVE
     #error "WIDE_STRINGS cannot be used together with WINNT_NATIVE"
 # endif

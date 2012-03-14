@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.refresh.c,v 3.46 2006/08/23 15:03:14 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.refresh.c,v 3.47 2011/02/27 00:14:51 christos Exp $ */
 /*
  * ed.refresh.c: Lower level screen refreshing functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: ed.refresh.c,v 3.46 2006/08/23 15:03:14 christos Exp $")
+RCSID("$tcsh: ed.refresh.c,v 3.47 2011/02/27 00:14:51 christos Exp $")
 
 #include "ed.h"
 /* #define DEBUG_UPDATE */
@@ -61,31 +61,31 @@ extern
 	void    PutPlusOne      (Char, int);
 static	void	cpy_pad_spaces		(Char *, Char *, int);
 #if defined(DEBUG_UPDATE) || defined(DEBUG_REFRESH) || defined(DEBUG_LITERAL)
-static	void	dprintf			(char *, ...);
+static	void	reprintf			(char *, ...);
 #ifdef DEBUG_UPDATE
 static	void	dprintstr		(char *, const Char *, const Char *);
 
 static void
 dprintstr(char *str, const Char *f, const Char *t)
 {
-    dprintf("%s:\"", str);
+    reprintf("%s:\"", str);
     while (f < t) {
 	if (ASC(*f) & ~ASCII)
-	  dprintf("[%x]", *f++);
+	  reprintf("[%x]", *f++);
 	else
-	  dprintf("%c", CTL_ESC(ASCII & ASC(*f++)));
+	  reprintf("%c", CTL_ESC(ASCII & ASC(*f++)));
     }
-    dprintf("\"\r\n");
+    reprintf("\"\r\n");
 }
 #endif /* DEBUG_UPDATE */
 
-/* dprintf():
+/* reprintf():
  *	Print to $DEBUGTTY, so that we can test editing on one pty, and 
  *      print debugging stuff on another. Don't interrupt the shell while
  *	debugging cause you'll mangle up the file descriptors!
  */
 static void
-dprintf(char *fmt, ...)
+reprintf(char *fmt, ...)
 {
     static int fd = -1;
     char *dtty;
@@ -242,9 +242,9 @@ Vdraw(Char c, int width)	/* draw char c onto V lines */
 {
 #ifdef DEBUG_REFRESH
 # ifdef SHORT_STRINGS
-    dprintf("Vdrawing %6.6o '%c' %d\r\n", (unsigned)c, (int)(c & ASCII), width);
+    reprintf("Vdrawing %6.6o '%c' %d\r\n", (unsigned)c, (int)(c & ASCII), width);
 # else
-    dprintf("Vdrawing %3.3o '%c' %d\r\n", (unsigned)c, (int)c, width);
+    reprintf("Vdrawing %3.3o '%c' %d\r\n", (unsigned)c, (int)c, width);
 # endif /* SHORT_STRNGS */
 #endif  /* DEBUG_REFRESH */
 
@@ -263,7 +263,7 @@ Vdraw(Char c, int width)	/* draw char c onto V lines */
 	vcursor_v++;
 #ifdef DEBUG_REFRESH
 	if (vcursor_v >= TermV) {	/* should NEVER happen. */
-	    dprintf("\r\nVdraw: vcursor_v overflow! Vcursor_v == %d > %d\r\n",
+	    reprintf("\r\nVdraw: vcursor_v overflow! Vcursor_v == %d > %d\r\n",
 		    vcursor_v, TermV);
 	    abort();
 	}
@@ -328,8 +328,8 @@ Refresh(void)
     Char    oldgetting;
 
 #ifdef DEBUG_REFRESH
-    dprintf("Prompt = :%s:\r\n", short2str(Prompt));
-    dprintf("InputBuf = :%s:\r\n", short2str(InputBuf));
+    reprintf("Prompt = :%s:\r\n", short2str(Prompt));
+    reprintf("InputBuf = :%s:\r\n", short2str(InputBuf));
 #endif /* DEBUG_REFRESH */
     oldgetting = GettingInput;
     GettingInput = 0;		/* avoid re-entrance via SIGWINCH */
@@ -382,12 +382,12 @@ Refresh(void)
     Vdraw('\0', 1);		/* put NUL on end */
 
 #if defined (DEBUG_REFRESH)
-    dprintf("TermH=%d, vcur_h=%d, vcur_v=%d, Vdisplay[0]=\r\n:%80.80s:\r\n",
+    reprintf("TermH=%d, vcur_h=%d, vcur_v=%d, Vdisplay[0]=\r\n:%80.80s:\r\n",
 	    TermH, vcursor_h, vcursor_v, short2str(Vdisplay[0]));
 #endif /* DEBUG_REFRESH */
 
 #ifdef DEBUG_UPDATE
-    dprintf("updating %d lines.\r\n", new_vcv);
+    reprintf("updating %d lines.\r\n", new_vcv);
 #endif  /* DEBUG_UPDATE */
     for (cur_line = 0; cur_line <= new_vcv; cur_line++) {
 	/* NOTE THAT update_line MAY CHANGE Display[cur_line] */
@@ -405,7 +405,7 @@ Refresh(void)
 	cpy_pad_spaces(Display[cur_line], Vdisplay[cur_line], TermH);
     }
 #ifdef DEBUG_REFRESH
-    dprintf("\r\nvcursor_v = %d, OldvcV = %d, cur_line = %d\r\n",
+    reprintf("\r\nvcursor_v = %d, OldvcV = %d, cur_line = %d\r\n",
 	    vcursor_v, OldvcV, cur_line);
 #endif /* DEBUG_REFRESH */
     if (OldvcV > new_vcv) {
@@ -416,7 +416,7 @@ Refresh(void)
     }
     OldvcV = new_vcv;		/* set for next time */
 #ifdef DEBUG_REFRESH
-    dprintf("\r\nCursorH = %d, CursorV = %d, cur_h = %d, cur_v = %d\r\n",
+    reprintf("\r\nCursorH = %d, CursorV = %d, cur_h = %d, cur_v = %d\r\n",
 	    CursorH, CursorV, cur_h, cur_v);
 #endif /* DEBUG_REFRESH */
 #ifdef WINNT_NATIVE
@@ -461,9 +461,9 @@ str_insert(Char *d, int dat, int dlen, Char *s, int num)
 	num = dlen - dat;
 
 #ifdef DEBUG_REFRESH
-    dprintf("str_insert() starting: %d at %d max %d, d == \"%s\"\n",
+    reprintf("str_insert() starting: %d at %d max %d, d == \"%s\"\n",
 	    num, dat, dlen, short2str(d));
-    dprintf("s == \"%s\"n", short2str(s));
+    reprintf("s == \"%s\"n", short2str(s));
 #endif /* DEBUG_REFRESH */
 
     /* open up the space for num chars */
@@ -475,9 +475,9 @@ str_insert(Char *d, int dat, int dlen, Char *s, int num)
 	d[dlen] = '\0';		/* just in case */
     }
 #ifdef DEBUG_REFRESH
-    dprintf("str_insert() after insert: %d at %d max %d, d == \"%s\"\n",
+    reprintf("str_insert() after insert: %d at %d max %d, d == \"%s\"\n",
 	    num, dat, dlen, short2str(d));
-    dprintf("s == \"%s\"n", short2str(s));
+    reprintf("s == \"%s\"n", short2str(s));
 #endif /* DEBUG_REFRESH */
 
     /* copy the characters */
@@ -485,9 +485,9 @@ str_insert(Char *d, int dat, int dlen, Char *s, int num)
 	*a++ = *s++;
 
 #ifdef DEBUG_REFRESH
-    dprintf("str_insert() after copy: %d at %d max %d, d == \"%s\"\n",
+    reprintf("str_insert() after copy: %d at %d max %d, d == \"%s\"\n",
 	    num, dat, dlen, d, short2str(s));
-    dprintf("s == \"%s\"n", short2str(s));
+    reprintf("s == \"%s\"n", short2str(s));
 #endif /* DEBUG_REFRESH */
 }
 
@@ -505,7 +505,7 @@ str_delete(Char *d, int dat, int dlen, int num)
     }
 
 #ifdef DEBUG_REFRESH
-    dprintf("str_delete() starting: %d at %d max %d, d == \"%s\"\n",
+    reprintf("str_delete() starting: %d at %d max %d, d == \"%s\"\n",
 	    num, dat, dlen, short2str(d));
 #endif /* DEBUG_REFRESH */
 
@@ -518,7 +518,7 @@ str_delete(Char *d, int dat, int dlen, int num)
 	d[dlen] = '\0';		/* just in case */
     }
 #ifdef DEBUG_REFRESH
-    dprintf("str_delete() after delete: %d at %d max %d, d == \"%s\"\n",
+    reprintf("str_delete() after delete: %d at %d max %d, d == \"%s\"\n",
 	    num, dat, dlen, short2str(d));
 #endif /* DEBUG_REFRESH */
 }
@@ -608,7 +608,7 @@ update_line(Char *old, Char *new, int cur_line)
      */
     if (*ofd == '\0' && *nfd == '\0') {
 #ifdef DEBUG_UPDATE
-	dprintf("no difference.\r\n");
+	reprintf("no difference.\r\n");
 #endif /* DEBUG_UPDATE */
 	return;
     }
@@ -768,13 +768,13 @@ update_line(Char *old, Char *new, int cur_line)
     sx = (int) ((nls - nse) - (ols - ose));
 
 #ifdef DEBUG_UPDATE
-    dprintf("\n");
-    dprintf("ofd %d, osb %d, ose %d, ols %d, oe %d\n",
+    reprintf("\n");
+    reprintf("ofd %d, osb %d, ose %d, ols %d, oe %d\n",
 	    ofd - old, osb - old, ose - old, ols - old, oe - old);
-    dprintf("nfd %d, nsb %d, nse %d, nls %d, ne %d\n",
+    reprintf("nfd %d, nsb %d, nse %d, nls %d, ne %d\n",
 	    nfd - new, nsb - new, nse - new, nls - new, ne - new);
-    dprintf("xxx-xxx:\"00000000001111111111222222222233333333334\"\r\n");
-    dprintf("xxx-xxx:\"01234567890123456789012345678901234567890\"\r\n");
+    reprintf("xxx-xxx:\"00000000001111111111222222222233333333334\"\r\n");
+    reprintf("xxx-xxx:\"01234567890123456789012345678901234567890\"\r\n");
     dprintstr("old- oe", old, oe);
     dprintstr("new- ne", new, ne);
     dprintstr("old-ofd", old, ofd);
@@ -837,7 +837,7 @@ update_line(Char *old, Char *new, int cur_line)
      */
     if ((nsb != nfd) && fx > 0 && ((p - old) + fx < TermH)) {
 #ifdef DEBUG_UPDATE
-	dprintf("first diff insert at %d...\r\n", nfd - new);
+	reprintf("first diff insert at %d...\r\n", nfd - new);
 #endif  /* DEBUG_UPDATE */
 	/*
 	 * Move to the first char to insert, where the first diff is.
@@ -848,7 +848,7 @@ update_line(Char *old, Char *new, int cur_line)
 	 */
 	if (nsb != ne) {
 #ifdef DEBUG_UPDATE
-	    dprintf("with stuff to keep at end\r\n");
+	    reprintf("with stuff to keep at end\r\n");
 #endif  /* DEBUG_UPDATE */
 	    /*
 	     * insert fx chars of new starting at nfd
@@ -856,7 +856,7 @@ update_line(Char *old, Char *new, int cur_line)
 	    if (fx > 0) {
 #ifdef DEBUG_UPDATE
 		if (!T_CanIns)
-		    dprintf("   ERROR: cannot insert in early first diff\n");
+		    reprintf("   ERROR: cannot insert in early first diff\n");
 #endif  /* DEBUG_UPDATE */
 		Insert_write(nfd, fx);
 		str_insert(old, (int) (ofd - old), TermH, nfd, fx);
@@ -869,7 +869,7 @@ update_line(Char *old, Char *new, int cur_line)
 	}
 	else {
 #ifdef DEBUG_UPDATE
-	    dprintf("without anything to save\r\n");
+	    reprintf("without anything to save\r\n");
 #endif  /* DEBUG_UPDATE */
 	    so_write(nfd, (nsb - nfd));
 	    str_cp(ofd, nfd, (int) (nsb - nfd));
@@ -881,7 +881,7 @@ update_line(Char *old, Char *new, int cur_line)
     }
     else if (fx < 0) {
 #ifdef DEBUG_UPDATE
-	dprintf("first diff delete at %d...\r\n", ofd - old);
+	reprintf("first diff delete at %d...\r\n", ofd - old);
 #endif  /* DEBUG_UPDATE */
 	/*
 	 * move to the first char to delete where the first diff is
@@ -892,7 +892,7 @@ update_line(Char *old, Char *new, int cur_line)
 	 */
 	if (osb != oe) {
 #ifdef DEBUG_UPDATE
-	    dprintf("with stuff to save at end\r\n");
+	    reprintf("with stuff to save at end\r\n");
 #endif  /* DEBUG_UPDATE */
 	    /*
 	     * fx is less than zero *always* here but we check for code
@@ -901,7 +901,7 @@ update_line(Char *old, Char *new, int cur_line)
 	    if (fx < 0) {
 #ifdef DEBUG_UPDATE
 		if (!T_CanDel)
-		    dprintf("   ERROR: cannot delete in first diff\n");
+		    reprintf("   ERROR: cannot delete in first diff\n");
 #endif /* DEBUG_UPDATE */
 		DeleteChars(-fx);
 		str_delete(old, (int) (ofd - old), TermH, -fx);
@@ -915,14 +915,14 @@ update_line(Char *old, Char *new, int cur_line)
 	}
 	else {
 #ifdef DEBUG_UPDATE
-	    dprintf("but with nothing left to save\r\n");
+	    reprintf("but with nothing left to save\r\n");
 #endif  /* DEBUG_UPDATE */
 	    /*
 	     * write (nsb-nfd) chars of new starting at nfd
 	     */
 	    so_write(nfd, (nsb - nfd));
 #ifdef DEBUG_REFRESH
-	    dprintf("cleareol %d\n", (oe - old) - (ne - new));
+	    reprintf("cleareol %d\n", (oe - old) - (ne - new));
 #endif  /* DEBUG_UPDATE */
 #ifndef WINNT_NATIVE
 	    ClearEOL((oe - old) - (ne - new));
@@ -943,7 +943,7 @@ update_line(Char *old, Char *new, int cur_line)
 
     if (sx < 0) {
 #ifdef DEBUG_UPDATE
-	dprintf("second diff delete at %d...\r\n", (ose - old) + fx);
+	reprintf("second diff delete at %d...\r\n", (ose - old) + fx);
 #endif  /* DEBUG_UPDATE */
 	/*
 	 * Check if we have stuff to delete
@@ -958,7 +958,7 @@ update_line(Char *old, Char *new, int cur_line)
 	 */
 	if (ols != oe) {
 #ifdef DEBUG_UPDATE
-	    dprintf("with stuff to save at end\r\n");
+	    reprintf("with stuff to save at end\r\n");
 #endif  /* DEBUG_UPDATE */
 	    /*
 	     * Again a duplicate test.
@@ -966,7 +966,7 @@ update_line(Char *old, Char *new, int cur_line)
 	    if (sx < 0) {
 #ifdef DEBUG_UPDATE
 		if (!T_CanDel)
-		    dprintf("   ERROR: cannot delete in second diff\n");
+		    reprintf("   ERROR: cannot delete in second diff\n");
 #endif  /* DEBUG_UPDATE */
 		DeleteChars(-sx);
 	    }
@@ -981,11 +981,11 @@ update_line(Char *old, Char *new, int cur_line)
 	    if (olen > TermH)
 		olen = TermH;
 #ifdef DEBUG_UPDATE
-	    dprintf("but with nothing left to save\r\n");
+	    reprintf("but with nothing left to save\r\n");
 #endif /* DEBUG_UPDATE */
 	    so_write(nse, (nls - nse));
 #ifdef DEBUG_REFRESH
-	    dprintf("cleareol %d\n", olen - (ne - new));
+	    reprintf("cleareol %d\n", olen - (ne - new));
 #endif /* DEBUG_UPDATE */
 #ifndef WINNT_NATIVE
 	    ClearEOL(olen - (ne - new));
@@ -1003,7 +1003,7 @@ update_line(Char *old, Char *new, int cur_line)
      */
     if ((nsb != nfd) && (osb - ofd) <= (nsb - nfd) && (fx == 0)) {
 #ifdef DEBUG_UPDATE
-	dprintf("late first diff insert at %d...\r\n", nfd - new);
+	reprintf("late first diff insert at %d...\r\n", nfd - new);
 #endif /* DEBUG_UPDATE */
 
 	MoveToChar(nfd - new);
@@ -1012,7 +1012,7 @@ update_line(Char *old, Char *new, int cur_line)
 	 */
 	if (nsb != ne) {
 #ifdef DEBUG_UPDATE
-	    dprintf("with stuff to keep at end\r\n");
+	    reprintf("with stuff to keep at end\r\n");
 #endif /* DEBUG_UPDATE */
 	    /* 
 	     * We have to recalculate fx here because we set it
@@ -1026,7 +1026,7 @@ update_line(Char *old, Char *new, int cur_line)
 		 */
 #ifdef DEBUG_UPDATE
 		if (!T_CanIns)
-		    dprintf("   ERROR: cannot insert in late first diff\n");
+		    reprintf("   ERROR: cannot insert in late first diff\n");
 #endif /* DEBUG_UPDATE */
 		Insert_write(nfd, fx);
 		str_insert(old, (int) (ofd - old), TermH, nfd, fx);
@@ -1040,7 +1040,7 @@ update_line(Char *old, Char *new, int cur_line)
 	}
 	else {
 #ifdef DEBUG_UPDATE
-	    dprintf("without anything to save\r\n");
+	    reprintf("without anything to save\r\n");
 #endif /* DEBUG_UPDATE */
 	    so_write(nfd, (nsb - nfd));
 	    str_cp(ofd, nfd, (int) (nsb - nfd));
@@ -1052,18 +1052,18 @@ update_line(Char *old, Char *new, int cur_line)
      */
     if (sx >= 0) {
 #ifdef DEBUG_UPDATE
-	dprintf("second diff insert at %d...\r\n", nse - new);
+	reprintf("second diff insert at %d...\r\n", nse - new);
 #endif /* DEBUG_UPDATE */
 	MoveToChar(nse - new);
 	if (ols != oe) {
 #ifdef DEBUG_UPDATE
-	    dprintf("with stuff to keep at end\r\n");
+	    reprintf("with stuff to keep at end\r\n");
 #endif /* DEBUG_UPDATE */
 	    if (sx > 0) {
 		/* insert sx chars of new starting at nse */
 #ifdef DEBUG_UPDATE
 		if (!T_CanIns)
-		    dprintf("   ERROR: cannot insert in second diff\n");
+		    reprintf("   ERROR: cannot insert in second diff\n");
 #endif /* DEBUG_UPDATE */
 		Insert_write(nse, sx);
 	    }
@@ -1075,7 +1075,7 @@ update_line(Char *old, Char *new, int cur_line)
 	}
 	else {
 #ifdef DEBUG_UPDATE
-	    dprintf("without anything to save\r\n");
+	    reprintf("without anything to save\r\n");
 #endif /* DEBUG_UPDATE */
 	    so_write(nse, (nls - nse));
 
@@ -1087,7 +1087,7 @@ update_line(Char *old, Char *new, int cur_line)
 	}
     }
 #ifdef DEBUG_UPDATE
-    dprintf("done.\r\n");
+    reprintf("done.\r\n");
 #endif /* DEBUG_UPDATE */
 }
 

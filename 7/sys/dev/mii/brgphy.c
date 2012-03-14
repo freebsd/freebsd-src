@@ -145,6 +145,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT2, BCM5719C),
 	MII_PHY_DESC(xxBROADCOM_ALT2, BCM5720C),
 	MII_PHY_DESC(xxBROADCOM_ALT2, BCM57765),
+	MII_PHY_DESC(xxBROADCOM_ALT2, BCM57780),
 	MII_PHY_DESC(BROADCOM2, BCM5906),
 	MII_PHY_END
 };
@@ -242,7 +243,8 @@ brgphy_attach(device_t dev)
 				sc->mii_flags |= MIIF_HAVEFIBER;
 			}
 			break;
-		} break;
+		}
+		break;
 	case MII_OUI_xxBROADCOM_ALT1:
 		switch (bsc->mii_model) {
 		case MII_MODEL_xxBROADCOM_ALT1_BCM5708S:
@@ -964,7 +966,8 @@ brgphy_reset(struct mii_softc *sc)
 		if (bge_sc->bge_phy_flags & BGE_PHY_JITTER_BUG)
 			brgphy_fixup_jitter_bug(sc);
 
-		brgphy_jumbo_settings(sc, ifp->if_mtu);
+		if (bge_sc->bge_flags & BGE_FLAG_JUMBO)
+			brgphy_jumbo_settings(sc, ifp->if_mtu);
 
 		if ((bge_sc->bge_phy_flags & BGE_PHY_NO_WIRESPEED) == 0)
 			brgphy_ethernet_wirespeed(sc);

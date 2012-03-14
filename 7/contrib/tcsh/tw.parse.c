@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.parse.c,v 3.124 2007/07/02 15:48:48 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.parse.c,v 3.133 2011/04/14 14:33:05 christos Exp $ */
 /*
  * tw.parse.c: Everyone has taken a shot in this futile effort to
  *	       lexically analyze a csh line... Well we cannot good
@@ -35,7 +35,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tw.parse.c,v 3.124 2007/07/02 15:48:48 christos Exp $")
+RCSID("$tcsh: tw.parse.c,v 3.133 2011/04/14 14:33:05 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -124,7 +124,8 @@ static  int      tw_collect_items	(COMMAND, int, struct Strbuf *,
 static  int      tw_collect		(COMMAND, int, struct Strbuf *,
 					 struct Strbuf *, Char *, Char *, int,
 					 DIR *);
-static	Char 	 tw_suffix		(int, const Char *, Char *);
+static	Char 	 tw_suffix		(int, struct Strbuf *,const Char *,
+					 Char *);
 static	void 	 tw_fixword		(int, struct Strbuf *, Char *, Char *);
 static	void	 tw_list_items		(int, int, int);
 static 	void	 add_scroll_tab		(Char *);
@@ -205,9 +206,11 @@ tenematch(Char *inputline, int num_read, COMMAND command)
 	/* Don't quote '/' to make the recognize stuff work easily */
 	/* Don't quote '$' in double quotes */
 
-	if (cmap(*cp, _ESC) && cp < str_end - 1 && cp[1] == HIST)
+	if (cmap(*cp, _ESC) && cp < str_end - 1 && cp[1] == HIST &&
+	    HIST != '\0')
 	    Strbuf_append1(&qline, *++cp | QUOTE);
-	else if (qu && (tricky(*cp) || *cp == '~') && !(qu == '\"' && tricky_dq(*cp)))
+	else if (qu && (tricky(*cp) || *cp == '~') &&
+	    !(qu == '\"' && tricky_dq(*cp)))
 	    Strbuf_append1(&qline, *cp | QUOTE);
 	else
 	    Strbuf_append1(&qline, *cp);
@@ -350,6 +353,20 @@ tenematch(Char *inputline, int num_read, COMMAND command)
 	Strbuf_append(&wordbuf, qline.s + wordp);
 	Strbuf_terminate(&wordbuf);
 	cleanup_push(&wordbuf, Strbuf_cleanup);
+
+	/*
+	 * Don't try to spell things that we know they are correct.
+	 * Trying to spell can hang when we have NFS mounted hung
+	 * volumes.
+	 */
+	if ((looking == TW_COMMAND) && Strchr(wordbuf.s, '/') != NULL) {
+	    if (executable(NULL, wordbuf.s, 0)) {
+		cleanup_until(&wordbuf);
+		search_ret = 0;
+		goto end;
+	    }
+	}
+
 	search_ret = spell_me(&wordbuf, looking, pat, suf);
 	qline.len = wordp;
 	Strbuf_append(&qline, wordbuf.s);
@@ -640,8 +657,9 @@ insert_meta(const Char *cp, const Char *cpend, const Char *word,
 	    Strbuf_append1(&buffer, w);
 	    Strbuf_append1(&buffer, qu);
 	} else if (wq &&
-		   ((!qu && (tricky(w) || (w == HISTSUB && buffer.len == 0))) ||
-		    (!cmap(qu, _ESC) && w == HIST))) {
+		   ((!qu && (tricky(w) || (w == HISTSUB && HISTSUB != '\0'
+		       && buffer.len == 0))) ||
+		    (!cmap(qu, _ESC) && w == HIST && HIST != '\0'))) {
 	    in_sync = 0;
 	    Strbuf_append1(&buffer, '\\');
 	    Strbuf_append1(&buffer, w);
@@ -688,37 +706,40 @@ is_prefix(Char *check, Char *template)
  * and matches on shortening of commands
  */
 static int
-is_prefixmatch(Char *check, Char *template, int igncase)
+is_prefixmatch(Char *check, Char *template, int enhanced)
 {
-    Char MCH1, MCH2;
+    Char MCH1, MCH2, LCH1, LCH2;
 
     for (; *check; check++, template++) {
 	if ((*check & TRIM) != (*template & TRIM)) {
-            MCH1 = (*check & TRIM);
-            MCH2 = (*template & TRIM);
-            MCH1 = Isupper(MCH1) ? Tolower(MCH1) : MCH1;
-            MCH2 = Isupper(MCH2) ? Tolower(MCH2) : MCH2;
-            if (MCH1 != MCH2) {
-                if (!igncase && ((*check & TRIM) == '-' || 
+	    MCH1 = (*check & TRIM);
+	    MCH2 = (*template & TRIM);
+            LCH1 = Isupper(MCH1) ? Tolower(MCH1) : 
+		enhanced == 2 && MCH1 == '_' ? '-' : MCH1;
+            LCH2 = Isupper(MCH2) ? Tolower(MCH2) :
+		enhanced == 2 && MCH2 == '_' ? '-' : MCH2;
+	    if (MCH1 != MCH2 && MCH1 != LCH2 &&
+		(LCH1 != MCH2 || enhanced == 2)) {
+		if (enhanced && ((*check & TRIM) == '-' || 
 				 (*check & TRIM) == '.' ||
 				 (*check & TRIM) == '_')) {
-                    MCH1 = MCH2 = (*check & TRIM);
-                    if (MCH1 == '_') {
-                        MCH2 = '-';
-                    } else if (MCH1 == '-') {
-                        MCH2 = '_';
-                    }
-                    for (;*template && (*template & TRIM) != MCH1 &&
-				       (*template & TRIM) != MCH2; template++)
+		    MCH1 = MCH2 = (*check & TRIM);
+		    if (MCH1 == '_' && enhanced != 2) {
+			MCH2 = '-';
+		    } else if (MCH1 == '-') {
+			MCH2 = '_';
+		    }
+		    for (; *template && (*template & TRIM) != MCH1 &&
+					(*template & TRIM) != MCH2; template++)
 			continue;
-                    if (!*template) {
+		    if (!*template) {
 	                return (FALSE);
-                    }
-                } else {
-	            return (FALSE);
-                }
-            }
-        }
+		    }
+		} else {
+		    return (FALSE);
+		}
+	    }
+	}
     }
     return (TRUE);
 } /* end is_prefixmatch */
@@ -853,7 +874,7 @@ static int
 recognize(struct Strbuf *exp_name, const Char *item, size_t name_length,
 	  int numitems, int enhanced, int igncase)
 {
-    Char MCH1, MCH2;
+    Char MCH1, MCH2, LCH1, LCH2;
     Char *x;
     const Char *ent;
     size_t len = 0;
@@ -872,18 +893,21 @@ recognize(struct Strbuf *exp_name, const Char *item, size_t name_length,
 	for (x = exp_name->s, ent = item; *x; x++, ent++) {
 	    MCH1 = *x & TRIM;
 	    MCH2 = *ent & TRIM;
-            MCH1 = Isupper(MCH1) ? Tolower(MCH1) : MCH1;
-            MCH2 = Isupper(MCH2) ? Tolower(MCH2) : MCH2;
-	    if (MCH1 != MCH2)
-		break;
+	    LCH1 = Isupper(MCH1) ? Tolower(MCH1) : MCH1;
+	    LCH2 = Isupper(MCH2) ? Tolower(MCH2) : MCH2;
+	    if (MCH1 != MCH2) {
+		if (LCH1 == MCH2 || (MCH1 == '_' && MCH2 == '-'))
+		    *x = *ent;
+		else if (LCH1 != LCH2)
+		    break;
+	    }
 	    len++;
 	}
-	if (*x || !*ent)	/* Shorter or exact match */
-	    memcpy(exp_name->s, item, len * sizeof(*exp_name->s));
     }
     *x = '\0';		/* Shorten at 1st char diff */
     exp_name->len = x - exp_name->s;
-    if (!(match_unique_match || is_set(STRrecexact) || (enhanced && *ent)) && len == name_length)	/* Ambiguous to prefix? */
+    if (!(match_unique_match || is_set(STRrecexact) || (enhanced && *ent)) &&
+	len == name_length)	/* Ambiguous to prefix? */
 	return (-1);	/* So stop now and save time */
     return (0);
 } /* end recognize */
@@ -915,6 +939,7 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
     int gpat       = flags & TW_PAT_OK;	 /* Match against a pattern */
     int ignoring   = flags & TW_IGN_OK;	 /* Use fignore? */
     int d = 4, nd;			 /* Spelling distance */
+    Char **cp;
     Char *ptr;
     struct varent *vp;
     struct Strbuf buf = Strbuf_INIT, item = Strbuf_INIT;
@@ -936,6 +961,17 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
 		showdots = DOT_NOT;
 		break;
 	    default:
+		break;
+	    }
+
+    if (looking == TW_COMMAND
+	&& (vp = adrof(STRautorehash)) != NULL && vp->vec != NULL)
+	for (cp = vp->vec; *cp; cp++)
+	    if (Strcmp(*cp, STRalways) == 0
+		|| (Strcmp(*cp, STRcorrect) == 0 && command == SPELL)
+		|| (Strcmp(*cp, STRcomplete) == 0 && command != SPELL)) {
+		tw_cmd_free();
+		tw_cmd_start(NULL, NULL);
 		break;
 	    }
 
@@ -966,9 +1002,15 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
 	    /*
 	     * Turn foo.{exe,com,bat,cmd} into foo since UWIN's readdir returns
 	     * the file with the .exe, .com, .bat, .cmd extension
+	     *
+	     * Same for Cygwin, but only for .exe and .com extension.
 	     */
 	    {
+#ifdef __CYGWIN__
+		static const char *rext[] = { ".exe", ".com" };
+#else
 		static const char *rext[] = { ".exe", ".bat", ".com", ".cmd" };
+#endif
 		size_t exti = Strlen(item.s);
 
 		if (exti > 4) {
@@ -1047,18 +1089,18 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
 	case RECOGNIZE_ALL:
 	case RECOGNIZE_SCROLL:
 
-	    if ((vp = adrof(STRcomplete)) != NULL && vp->vec != NULL) {
-		Char **cp;
+	    if ((vp = adrof(STRcomplete)) != NULL && vp->vec != NULL)
 		for (cp = vp->vec; *cp; cp++) {
-		    if (Strcmp(*cp, STRigncase) == 0)
+		    if (Strcmp(*cp, STREnhance) == 0)
+			enhanced = 2;
+		    else if (Strcmp(*cp, STRigncase) == 0)
 			igncase = 1;
-		    if (Strcmp(*cp, STRenhance) == 0)
+		    else if (Strcmp(*cp, STRenhance) == 0)
 			enhanced = 1;
 		}
-	    }
 
 	    if (enhanced || igncase) {
-	        if (!is_prefixmatch(target, item.s, igncase))
+	        if (!is_prefixmatch(target, item.s, enhanced))
 		    break;
      	    } else {
 	        if (!is_prefix(target, item.s))
@@ -1191,9 +1233,10 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
  */
 /*ARGSUSED*/
 static Char
-tw_suffix(int looking, const Char *exp_dir, Char *exp_name)
+tw_suffix(int looking, struct Strbuf *word, const Char *exp_dir, Char *exp_name)
 {
     Char *ptr;
+    Char *dollar;
     struct varent *vp;
 
     (void) strip(exp_name);
@@ -1214,6 +1257,10 @@ tw_suffix(int looking, const Char *exp_dir, Char *exp_name)
 	}
 	else if ((ptr = tgetenv(exp_name)) == NULL || *ptr == '\0')
 	    return ' ';
+
+	if ((dollar = Strrchr(word->s, '$')) != 0 && 
+	    dollar[1] == '{' && Strchr(dollar, '}') == NULL)
+	  return '}';
 
 	return isadirectory(exp_dir, ptr) ? '/' : ' ';
 
@@ -1262,6 +1309,7 @@ tw_fixword(int looking, struct Strbuf *word, Char *dir, Char *exp_name)
 
     case TW_VARIABLE:
 	if ((ptr = Strrchr(word->s, '$')) != NULL) {
+	    if (ptr[1] == '{') ptr++;
 	    word->len = ptr + 1 - word->s; /* Delete after the dollar */
 	} else
 	    word->len = 0;
@@ -1497,8 +1545,10 @@ t_search(struct Strbuf *word, COMMAND command, int looking, int list_max,
 	gpat = 0;	/* Override pattern mechanism */
     }
     else if ((target = Strrchr(name, '$')) != 0 && 
+	     (target[1] != '{' || Strchr(target, '}') == NULL) &&
 	     (Strchr(name, '/') == NULL)) {
 	target++;
+	if (target[0] == '{') target++;
 	looking = TW_VARIABLE;
 	gpat = 0;	/* Override pattern mechanism */
     }
@@ -1741,7 +1791,7 @@ t_search(struct Strbuf *word, COMMAND command, int looking, int list_max,
 	    switch (suf) {
 	    case 0: 	/* Automatic suffix */
 		Strbuf_append1(word,
-			       tw_suffix(looking, exp_dir.s, exp_name.s));
+			       tw_suffix(looking, word, exp_dir.s, exp_name.s));
 		break;
 
 	    case CHAR_ERR:	/* No suffix */

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.h,v 3.150 2009/06/25 21:27:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.h,v 3.165 2011/04/14 18:25:25 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -75,6 +75,10 @@ typedef unsigned long intptr_t;
 # define INIT_ZERO_STRUCT
 # define force_read xread
 #endif /*!WINNT_NATIVE */
+
+#if defined(KANJI) && defined(WIDE_STRINGS) && defined(HAVE_NL_LANGINFO) && defined(CODESET)
+#define AUTOSET_KANJI
+#endif
 /*
  * Sanity
  */
@@ -86,15 +90,21 @@ typedef unsigned long intptr_t;
 # define BSDJOBS
 #endif 
 
+#define TMP_TEMPLATE ".XXXXXX"
+
 #ifdef SHORT_STRINGS
 # ifdef WIDE_STRINGS
 #include <wchar.h>
+#  ifdef UTF16_STRINGS
+typedef wint_t Char;
+#  else
 typedef wchar_t Char;
+#endif
 typedef unsigned long uChar;
 typedef wint_t eChar; /* Can contain any Char value or CHAR_ERR */
 #define CHAR_ERR WEOF /* Pretty please, use bit 31... */
 #define normal_mbtowc(PWC, S, N) rt_mbtowc(PWC, S, N)
-#define reset_mbtowc() IGNORE(mbtowc(NULL, NULL, 0))
+#define reset_mbtowc() TCSH_IGNORE(mbtowc(NULL, NULL, 0))
 # else
 typedef short Char;
 typedef unsigned short uChar;
@@ -114,10 +124,13 @@ typedef int eChar;
 # define SAVE(a) (strsave(a))
 #endif
 
+#if !defined(__inline) && !defined(__GNUC__) && !defined(_MSC_VER)
+#define __inline
+#endif
 /* Elide unused argument warnings */
 #define USE(a)	(void) (a)
-#define IGNORE(a)	ignore((intptr_t)a)
-static inline void ignore(intptr_t a)
+#define TCSH_IGNORE(a)	tcsh_ignore((intptr_t)a)
+static __inline void tcsh_ignore(intptr_t a)
 {
     USE(a);
 }
@@ -219,6 +232,11 @@ static inline void ignore(intptr_t a)
 # define lstat lstat64
 #endif /* __HP_CXD_SPP && !__hpux */
 
+#ifdef HAVE_LONG_LONG
+typedef long long tcsh_number_t;
+#else
+typedef long tcsh_number_t;
+#endif
 /*
  * This macro compares the st_dev field of struct stat. On aix on ibmESA
  * st_dev is a structure, so comparison does not work. 
@@ -237,7 +255,6 @@ static inline void ignore(intptr_t a)
 #ifdef NLS
 # include <locale.h>
 #endif /* NLS */
-
 
 #if !defined(_MINIX) && !defined(_VMS_POSIX) && !defined(WINNT_NATIVE) && !defined(__MVS__)
 # include <sys/param.h>
@@ -272,7 +289,7 @@ static inline void ignore(intptr_t a)
 #  else
 #   include <termio.h>
 #  endif /* _UWIN */
-#  if SYSVREL > 3
+#  if SYSVREL > 3 || defined(__linux__)
 #   undef TIOCGLTC	/* we don't need those, since POSIX has them */
 #   undef TIOCSLTC
 #   undef CSWTCH
@@ -293,7 +310,7 @@ static inline void ignore(intptr_t a)
  * redefines malloc(), so we define the following
  * to avoid it.
  */
-# if defined(SYSMALLOC) || defined(linux) || defined(__GNU__) || defined(__GLIBC__) || defined(sgi) || defined(_OSD_POSIX)
+# if defined(SYSMALLOC) || defined(__linux__) || defined(__GNU__) || defined(__GLIBC__) || defined(sgi) || defined(_OSD_POSIX)
 #  define NO_FIX_MALLOC
 #  include <stdlib.h>
 # else /* glibc */
@@ -311,7 +328,7 @@ static inline void ignore(intptr_t a)
 #endif /* POSIX && !WINNT_NATIVE */
 #include <limits.h>
 
-#if SYSVREL > 0 || defined(_IBMR2) || defined(_MINIX) || defined(linux) || defined(__GNU__) || defined(__GLIBC__)
+#if SYSVREL > 0 || defined(_IBMR2) || defined(_MINIX) || defined(__linux__) || defined(__GNU__) || defined(__GLIBC__)
 # if !defined(pyr) && !defined(stellar)
 #  include <time.h>
 #  ifdef _MINIX
@@ -326,6 +343,12 @@ static inline void ignore(intptr_t a)
 #if !((defined(SUNOS4) || defined(_MINIX) /* || defined(DECOSF1) */) && defined(TERMIO))
 # if !defined(_VMS_POSIX) && !defined(WINNT_NATIVE)
 #  include <sys/ioctl.h>
+#  if SYSVREL > 3 || defined(__linux__)
+#   undef TIOCGLTC	/* we don't need those, since POSIX has them */
+#   undef TIOCSLTC
+#   undef CSWTCH
+#   define CSWTCH _POSIX_VDISABLE	/* So job control works */
+#  endif /* SYSVREL > 3 */
 # endif
 #endif 
 
@@ -345,9 +368,6 @@ static inline void ignore(intptr_t a)
 #if !defined(O_RDONLY) || !defined(O_NDELAY)
 # include <fcntl.h>
 #endif 
-#ifndef O_LARGEFILE
-# define O_LARGEFILE 0
-#endif
 
 #include <errno.h>
 
@@ -553,10 +573,12 @@ EXTERN int    neednote IZERO;	/* Need to pnotify() */
 EXTERN int    noexec IZERO;	/* Don't execute, just syntax check */
 EXTERN int    pjobs IZERO;	/* want to print jobs if interrupted */
 EXTERN int    setintr IZERO;	/* Set interrupts on/off -> Wait intr... */
+EXTERN int    handle_intr IZERO;/* Are we currently handling an interrupt? */
 EXTERN int    havhash IZERO;	/* path hashing is available */
 EXTERN int    editing IZERO;	/* doing filename expansion and line editing */
 EXTERN int    noediting IZERO;	/* initial $term defaulted to noedit */
 EXTERN int    bslash_quote IZERO;/* PWP: tcsh-style quoting?  (in sh.c) */
+EXTERN int    anyerror IZERO;	/* propagate errors from pipelines/backq */
 EXTERN int    compat_expr IZERO;/* csh-style expressions? */
 EXTERN int    isoutatty IZERO;	/* is SHOUT a tty */
 EXTERN int    isdiagatty IZERO;/* is SHDIAG a tty */
@@ -646,7 +668,7 @@ EXTERN int   SHDIAG IZERO;	/* Diagnostic output... shell errs go here */
 EXTERN int   OLDSTD IZERO;	/* Old standard input (def for cmds) */
 
 
-#if SYSVREL == 4 && defined(_UTS)
+#if (SYSVREL == 4 && defined(_UTS)) || defined(__linux__)
 /* 
  * From: fadden@uts.amdahl.com (Andy McFadden)
  * we need sigsetjmp for UTS4, but not UTS2.1
@@ -664,7 +686,7 @@ EXTERN int   OLDSTD IZERO;	/* Old standard input (def for cmds) */
 
 #ifdef SIGSETJMP
    typedef struct { sigjmp_buf j; } jmp_buf_t;
-# define setexit()  sigsetjmp(reslab.j)
+# define setexit()  sigsetjmp(reslab.j, 1)
 # define _reset()    siglongjmp(reslab.j, 1)
 #else
    typedef struct { jmp_buf j; } jmp_buf_t;
@@ -1035,11 +1057,12 @@ extern struct limits {
  */
 EXTERN struct Hist {
     struct wordent Hlex;
-    int     Hnum;
+    int     Hnum;		 /* eventno when inserted into history list  */
     int     Href;
     time_t  Htime;
     Char   *histline;
-    struct Hist *Hnext;
+    struct Hist *Hnext, *Hprev;         /* doubly linked list */
+    unsigned Hhash;                     /* hash value of command line */
 }       Histlist IZERO_STRUCT;
 
 EXTERN struct wordent paraml;	/* Current lexical word list */
@@ -1091,7 +1114,7 @@ EXTERN Char    PRCHROOT;	/* Prompt symbol for root */
 #define short2blk(a) 		saveblk(a)
 #define short2str(a) 		caching_strip(a)
 #else
-#ifdef WIDE_STRINGS
+#if defined(WIDE_STRINGS) && !defined(UTF16_STRINGS)
 #define Strchr(a, b)		wcschr(a, b)
 #define Strrchr(a, b)		wcsrchr(a, b)
 #define Strcat(a, b)  		wcscat(a, b)
@@ -1187,33 +1210,18 @@ extern char   **environ;
 
 #ifndef WINNT_NATIVE
 # ifdef NLS_CATALOGS
-#  if defined(linux) || defined(__GNU__) || defined(__GLIBC__)
-#   include <locale.h>
-#   ifdef notdef
-#    include <localeinfo.h>	/* Has this changed ? */
-#   endif
+#  ifdef HAVE_FEATURES_H
 #   include <features.h>
 #  endif
-#  ifdef SUNOS4
-   /* Who stole my nl_types.h? :-( 
-    * All this stuff is in the man pages, but nowhere else?
-    * This does not link right now...
-    */
-   typedef void *nl_catd; 
-   extern const char * catgets (nl_catd, int, int, const char *);
-   nl_catd catopen (const char *, int);
-   int catclose (nl_catd);
-#  else
-#   ifdef __uxps__
-#    define gettxt gettxt_ds
-#   endif
-#   include <nl_types.h>
-#   ifdef __uxps__
-#    undef gettxt
-#   endif
+#  ifdef HAVE_NL_LANGINFO
+#   include <langinfo.h>
 #  endif
-#  ifndef MCLoadBySet
-#   define MCLoadBySet 0
+#  ifdef __uxps__
+#   define gettxt gettxt_ds
+#  endif
+#  include <nl_types.h>
+#  ifdef __uxps__
+#   undef gettxt
 #  endif
 EXTERN nl_catd catd;
 #  if defined(HAVE_ICONV) && defined(HAVE_NL_LANGINFO)

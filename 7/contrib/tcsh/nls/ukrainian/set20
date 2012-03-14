@@ -1,4 +1,4 @@
-$ $tcsh: set20,v 1.3 2006/03/02 18:46:48 christos Exp $
+$ $tcsh: set20,v 1.4 2011/02/04 18:19:44 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Invalid key name `%S'\n
@@ -10,9 +10,9 @@ $set 20
 7 Alternative key bindings\n
 8 Multi-character bindings\n
 9 Arrow key bindings\n
-10 %-15s->  не визначено\n
+10 %-15s->  п╫п╣ п╡п╦п╥п╫п╟я┤п╣п╫п╬\n
 11 BUG!!! %s isn't bound to anything.\n
-12 Використання: bindkey [параметри] [--] [КЛЮЧ [КОМАНДА]]\n
+12 п▓п╦п╨п╬я─п╦я│я┌п╟п╫п╫я▐: bindkey [п©п╟я─п╟п╪п╣я┌я─п╦] [--] [п п⌡п╝п╖ [п п·п°п░п²п■п░]]\n
 13     -a   list or bind KEY in alternative key map\n
 14     -b   interpret KEY as a C-, M-, F- or X- key name\n
 15     -s   interpret COMMAND as a literal string to be output\n
@@ -36,6 +36,6 @@ $set 20
 33 Bad function-key specification.\n
 34 Null key not allowed\n
 35 bad key specification -- unknown name "%S"\n
-36 Використання: bind [KEY | COMMAND KEY | "emacs" | "vi" | "-a"]\n
-37 Нев╕рна функц╕я
-38  %s\t\tне визначено\n
+36 п▓п╦п╨п╬я─п╦я│я┌п╟п╫п╫я▐: bind [KEY | COMMAND KEY | "emacs" | "vi" | "-a"]\n
+37 п²п╣п╡я√я─п╫п╟ я└я┐п╫п╨я├я√я▐
+38  %s\t\tп╫п╣ п╡п╦п╥п╫п╟я┤п╣п╫п╬\n

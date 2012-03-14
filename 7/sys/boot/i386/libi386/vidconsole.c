@@ -623,10 +623,10 @@ probe_keyboard(void)
 #endif
 	if (i == KBD_ECHO) {
 	    /* got the right answer */
-	    return (0);
+	    return (1);
 	}
     }
 
-    return (1);
+    return (0);
 }
 #endif /* KEYBOARD_PROBE */
