@@ -58,6 +58,7 @@ STD_HEADERS=    __bit_reference\
                 __tree\
                 __tuple\
                 __tuple_03\
+                __undef_min_max\
                 algorithm\
                 array\
                 atomic\
