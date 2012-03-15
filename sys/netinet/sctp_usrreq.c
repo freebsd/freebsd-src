@@ -451,7 +451,7 @@ sctp_abort(struct socket *so)
 	uint32_t flags;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		return;
 	}
 sctp_must_try_again:
@@ -569,7 +569,7 @@ sctp_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		return (EINVAL);
 	}
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
@@ -585,7 +585,7 @@ sctp_close(struct socket *so)
 	uint32_t flags;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0)
+	if (inp == NULL)
 		return;
 
 	/*
@@ -650,7 +650,7 @@ sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	int error;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		if (control) {
 			sctp_m_freem(control);
 			control = NULL;
@@ -979,7 +979,7 @@ sctp_shutdown(struct socket *so)
 	struct sctp_inpcb *inp;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
@@ -1639,7 +1639,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 		return (EINVAL);
 	}
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return EINVAL;
 	}
@@ -3317,7 +3317,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		return (EINVAL);
 	}
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_PRINTF("inp is NULL?\n");
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
@@ -5765,12 +5765,6 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 	void *p;
 	int error = 0;
 
-	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
-		/* I made the same as TCP since we are not setup? */
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-		return (ECONNRESET);
-	}
 	if (sopt->sopt_level != IPPROTO_SCTP) {
 		/* wrong proto level... send back up to IP */
 #ifdef INET6
@@ -5785,6 +5779,7 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 #endif
 		return (error);
 	}
+	inp = (struct sctp_inpcb *)so->so_pcb;
 	optsize = sopt->sopt_valsize;
 	if (optsize) {
 		SCTP_MALLOC(optval, void *, optsize, SCTP_M_SOCKOPT);
@@ -5828,7 +5823,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	struct sctp_tcb *stcb = NULL;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		/* I made the same as TCP since we are not setup? */
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (ECONNRESET);
@@ -5988,7 +5983,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 	struct sctp_inpcb *inp;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		/* I made the same as TCP since we are not setup? */
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (ECONNRESET);
@@ -6152,7 +6147,7 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 #endif
 	inp = (struct sctp_inpcb *)so->so_pcb;
 
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (ECONNRESET);
 	}
