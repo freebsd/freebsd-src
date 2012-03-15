@@ -1317,8 +1317,8 @@ mfi_syspdprobe(struct mfi_softc *sc)
 	struct mfi_frame_header *hdr;
 	struct mfi_command *cm = NULL;
 	struct mfi_pd_list *pdlist = NULL;
-	struct mfi_system_pd *syspd;
-	int error, i;
+	struct mfi_system_pd *syspd, *tmp;
+	int error, i, found;
 
 	sx_assert(&sc->mfi_config_lock, SA_XLOCKED);
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
@@ -1352,24 +1352,30 @@ mfi_syspdprobe(struct mfi_softc *sc)
 	for (i = 0; i < pdlist->count; i++) {
 		if (pdlist->addr[i].device_id ==
 		    pdlist->addr[i].encl_device_id)
-			goto skip_sys_pd_add;
-		TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh,pd_link) {
+			continue;
+		found = 0;
+		TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh, pd_link) {
 			if (syspd->pd_id == pdlist->addr[i].device_id)
-				goto skip_sys_pd_add;
+				found = 1;
 		}
-		mfi_add_sys_pd(sc, pdlist->addr[i].device_id);
-skip_sys_pd_add:;
+		if (found == 0)
+			mfi_add_sys_pd(sc, pdlist->addr[i].device_id);
 	}
 	/* Delete SYSPD's whose state has been changed */
-	TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh,pd_link) {
+	TAILQ_FOREACH_SAFE(syspd, &sc->mfi_syspd_tqh, pd_link, tmp) {
+		found = 0;
 		for (i = 0; i < pdlist->count; i++) {
 			if (syspd->pd_id == pdlist->addr[i].device_id)
-				goto skip_sys_pd_delete;
+				found = 1;
 		}
-		mtx_lock(&Giant);
-		device_delete_child(sc->mfi_dev, syspd->pd_dev);
-		mtx_unlock(&Giant);
-skip_sys_pd_delete:;
+		if (found == 0) {
+			printf("DELETE\n");
+			mtx_unlock(&sc->mfi_io_lock);
+			mtx_lock(&Giant);
+			device_delete_child(sc->mfi_dev, syspd->pd_dev);
+			mtx_unlock(&Giant);
+			mtx_lock(&sc->mfi_io_lock);
+		}
 	}
 out:
 	if (pdlist)
@@ -1541,9 +1547,9 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 						device_delete_child(
 						    sc->mfi_dev,
 						    syspd->pd_dev);
-					mtx_unlock(&Giant);
-					break;
-				}
+						mtx_unlock(&Giant);
+						break;
+					}
 				}
 			}
 		}
@@ -2604,7 +2610,7 @@ mfi_check_command_pre(struct mfi_softc *sc, struct mfi_command *cm)
 		mbox = (uint16_t *) cm->cm_frame->dcmd.mbox;
 		syspd_id = mbox[0];
 		if (mbox[2] == MFI_PD_STATE_UNCONFIGURED_GOOD) {
-			TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh,pd_link) {
+			TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh, pd_link) {
 				if (syspd->pd_id == syspd_id)
 					break;
 			}
