@@ -308,6 +308,7 @@ void moea64_qenter(mmu_t, vm_offset_t, vm_page_t *, int);
 void moea64_qremove(mmu_t, vm_offset_t, int);
 void moea64_release(mmu_t, pmap_t);
 void moea64_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
+void moea64_remove_pages(mmu_t, pmap_t);
 void moea64_remove_all(mmu_t, vm_page_t);
 void moea64_remove_write(mmu_t, vm_page_t);
 void moea64_zero_page(mmu_t, vm_page_t);
@@ -350,6 +351,7 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_qremove,		moea64_qremove),
 	MMUMETHOD(mmu_release,		moea64_release),
 	MMUMETHOD(mmu_remove,		moea64_remove),
+	MMUMETHOD(mmu_remove_pages,	moea64_remove_pages),
 	MMUMETHOD(mmu_remove_all,      	moea64_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea64_remove_write),
 	MMUMETHOD(mmu_sync_icache,	moea64_sync_icache),
@@ -2043,6 +2045,22 @@ moea64_release(mmu_t mmu, pmap_t pmap)
     #endif
 
 	PMAP_LOCK_DESTROY(pmap);
+}
+
+/*
+ * Remove all pages mapped by the specified pmap
+ */
+void
+moea64_remove_pages(mmu_t mmu, pmap_t pm)
+{
+	struct	pvo_entry *pvo, *tpvo;
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pm);
+	LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo)
+		moea64_pvo_remove(mmu, pvo);
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pm);
 }
 
 /*
