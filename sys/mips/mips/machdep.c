@@ -384,46 +384,41 @@ mips_postboot_fixup(void)
 	caddr_t preload_ptr = (caddr_t)&fake_preload[0];
 	size_t size = 0;
 
+#define PRELOAD_PUSH_VALUE(type, value) do {		\
+	*(type *)(preload_ptr + size) = (value);	\
+	size += sizeof(type);				\
+} while (0);
+
 	/*
 	 * Provide kernel module file information
 	 */
-	*(uint32_t*)(preload_ptr + size) = MODINFO_NAME;
-	size += sizeof(uint32_t);
-	*(uint32_t*)(preload_ptr + size) = strlen("kernel") + 1;
-	size += sizeof(uint32_t);
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_NAME);
+	PRELOAD_PUSH_VALUE(uint32_t, strlen("kernel") + 1);
 	strcpy((char*)(preload_ptr + size), "kernel");
 	size += strlen("kernel") + 1;
 	size = roundup(size, sizeof(u_long));
 
-	*(uint32_t*)(preload_ptr + size) = MODINFO_TYPE;
-	size += sizeof(uint32_t);
-	*(uint32_t*)(preload_ptr + size) = strlen("elf kernel") + 1;
-	size += sizeof(uint32_t);
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
+	PRELOAD_PUSH_VALUE(uint32_t, strlen("elf kernel") + 1);
 	strcpy((char*)(preload_ptr + size), "elf kernel");
 	size += strlen("elf kernel") + 1;
 	size = roundup(size, sizeof(u_long));
 
-	*(uint32_t*)(preload_ptr + size) = MODINFO_ADDR;
-	size += sizeof(uint32_t);
-	*(uint32_t*)(preload_ptr + size) = sizeof(vm_offset_t);
-	size += sizeof(uint32_t);
-	*(vm_offset_t*)(preload_ptr + size) = KERNLOADADDR;
-	size += sizeof(vm_offset_t);
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_ADDR);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
+	PRELOAD_PUSH_VALUE(vm_offset_t, KERNLOADADDR);
 	size = roundup(size, sizeof(u_long));
 
-	*(uint32_t*)(preload_ptr + size) = MODINFO_SIZE;
-	size += sizeof(uint32_t);
-	*(uint32_t*)(preload_ptr + size) = sizeof(size_t);
-	size += sizeof(uint32_t);
-	*(vm_offset_t*)(preload_ptr + size) = (size_t)&end - KERNLOADADDR;
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_SIZE);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
+	PRELOAD_PUSH_VALUE(size_t, (size_t)&end - KERNLOADADDR);
 	size = roundup(size, sizeof(u_long));
-	size += sizeof(size_t);
 
 	/* End marker */
-	*(uint32_t*)(preload_ptr + size) = 0;
-	size += sizeof(uint32_t);
-	*(uint32_t*)(preload_ptr + size) = 0;
-	size += sizeof(uint32_t);
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+
+#undef	PRELOAD_PUSH_VALUE
 
 	KASSERT((size < sizeof(fake_preload)),
 		("fake preload size is more thenallocated"));
