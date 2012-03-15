@@ -93,7 +93,7 @@ ofw_pcib_pci_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 
 	device_set_desc(dev, "OFW PCI-PCI bridge");
