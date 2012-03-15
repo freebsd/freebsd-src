@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "extern.h"
 #include "pathnames.h"
@@ -1093,7 +1094,7 @@ sigchld(int signo)
 	switch (signo) {
 	default:
 		for (;;) {
-			pid = waitpid(dc, &status, WCONTINUED);
+			pid = waitpid(dc, &status, WUNTRACED);
 			if (pid == -1) {
 				if (errno == EINTR)
 					continue;
@@ -1181,16 +1182,6 @@ main(int argc, char *argv[])
 			dup(p[1]);
 			close(p[0]);
 			close(p[1]);
-			if (interactive) {
-				el = el_init("bc", stdin, stderr, stderr);
-				hist = history_init();
-				history(hist, &he, H_SETSIZE, 100);
-				el_set(el, EL_HIST, history, hist);
-				el_set(el, EL_EDITOR, "emacs");
-				el_set(el, EL_SIGNAL, 1);
-				el_set(el, EL_PROMPT, dummy_prompt);
-				el_source(el, NULL);
-			}
 		} else {
 			close(STDIN_FILENO);
 			dup(p[0]);
@@ -1199,6 +1190,16 @@ main(int argc, char *argv[])
 			execl(_PATH_DC, "dc", "-x", (char *)NULL);
 			err(1, "cannot find dc");
 		}
+	}
+	if (interactive) {
+		el = el_init("bc", stdin, stderr, stderr);
+		hist = history_init();
+		history(hist, &he, H_SETSIZE, 100);
+		el_set(el, EL_HIST, history, hist);
+		el_set(el, EL_EDITOR, "emacs");
+		el_set(el, EL_SIGNAL, 1);
+		el_set(el, EL_PROMPT, dummy_prompt);
+		el_source(el, NULL);
 	}
 	yywrap();
 	return (yyparse());
