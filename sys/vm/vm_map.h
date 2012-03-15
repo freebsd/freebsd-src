@@ -139,6 +139,7 @@ struct vm_map_entry {
 #define	MAP_ENTRY_GROWS_UP		0x2000	/* Bottom-up stacks */
 
 #define	MAP_ENTRY_WIRE_SKIPPED		0x4000
+#define	MAP_ENTRY_VN_WRITECNT		0x8000	/* writeable vnode mapping */
 
 #ifdef	_KERNEL
 static __inline u_char
@@ -315,6 +316,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define MAP_DISABLE_SYNCER	0x0020
 #define MAP_DISABLE_COREDUMP	0x0100
 #define MAP_PREFAULT_MADVISE	0x0200	/* from (user) madvise request */
+#define	MAP_VN_WRITECOUNT	0x0400
 #define	MAP_STACK_GROWS_DOWN	0x1000
 #define	MAP_STACK_GROWS_UP	0x2000
 #define	MAP_ACC_CHARGED		0x4000
