@@ -44,7 +44,7 @@ MKMODULESENV+=	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH}
 # We default to the MIPS32 ISA, if none specified in the
 # kernel configuration file.
 ARCH_FLAGS?=-march=mips32
-EXTRA_FLAGS=-fno-pic -mno-abicalls -G0
+EXTRA_FLAGS=-fno-pic -mno-abicalls -G0 -DKERNLOADADDR=${KERNLOADADDR}
 
 HACK_EXTRA_FLAGS=-shared
 
