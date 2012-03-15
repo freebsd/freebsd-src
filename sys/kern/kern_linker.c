@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 int kld_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW,
         &kld_debug, 0, "Set various levels of KLD debug");
+TUNABLE_INT("debug.kld_debug", &kld_debug);
 #endif
 
 #define	KLD_LOCK()		sx_xlock(&kld_sx)
