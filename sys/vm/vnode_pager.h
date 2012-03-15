@@ -46,7 +46,11 @@ int vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *m,
 					  int count, boolean_t sync,
 					  int *rtvals);
 
+void vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end);
 void vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written);
+void vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end);
 
 #endif				/* _KERNEL */
 #endif				/* _VNODE_PAGER_ */
