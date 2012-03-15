@@ -28,7 +28,7 @@
 .\"     @(#)kill.2	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2012
+.Dd March 15, 2012
 .Dt KILL 2
 .Os
 .Sh NAME
@@ -123,9 +123,6 @@ is not a valid signal number.
 .It Bq Er ESRCH
 No process can be found corresponding to that specified by
 .Fa pid .
-.It Bq Er ESRCH
-The process id was given as 0
-but the sending process does not have a process group.
 .It Bq Er EPERM
 The sending process is not the super-user and its effective
 user id does not match the effective user-id of the receiving process.
