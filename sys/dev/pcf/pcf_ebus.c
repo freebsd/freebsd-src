@@ -147,7 +147,7 @@ pcf_ebus_attach(device_t dev)
 	mtx_init(&sc->pcf_lock, device_get_nameunit(dev), "pcf", MTX_DEF);
 
 	/* get OFW node of the pcf */
-	if ((node = ofw_bus_get_node(dev)) <= 0) {
+	if ((node = ofw_bus_get_node(dev)) == -1) {
 		device_printf(dev, "cannot get OFW node\n");
 		goto error;
 	}
