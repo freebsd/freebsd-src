@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
+#include <vm/vnode_pager.h>
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -93,7 +94,7 @@ struct sbrk_args {
 #endif
 
 static int vm_mmap_vnode(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
-    int *, struct vnode *, vm_ooffset_t *, vm_object_t *);
+    int *, struct vnode *, vm_ooffset_t *, vm_object_t *, boolean_t *);
 static int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct cdev *, vm_ooffset_t *, vm_object_t *);
 static int vm_mmap_shm(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
@@ -1218,28 +1219,33 @@ sys_munlock(td, uap)
 /*
  * vm_mmap_vnode()
  *
- * MPSAFE
- *
  * Helper function for vm_mmap.  Perform sanity check specific for mmap
  * operations on vnodes.
+ *
+ * For VCHR vnodes, the vnode lock is held over the call to
+ * vm_mmap_cdev() to keep vp->v_rdev valid.
  */
 int
 vm_mmap_vnode(struct thread *td, vm_size_t objsize,
     vm_prot_t prot, vm_prot_t *maxprotp, int *flagsp,
-    struct vnode *vp, vm_ooffset_t *foffp, vm_object_t *objp)
+    struct vnode *vp, vm_ooffset_t *foffp, vm_object_t *objp,
+    boolean_t *writecounted)
 {
 	struct vattr va;
 	vm_object_t obj;
 	vm_offset_t foff;
 	struct mount *mp;
 	struct ucred *cred;
-	int error, flags;
-	int vfslocked;
+	int error, flags, locktype, vfslocked;
 
 	mp = vp->v_mount;
 	cred = td->td_ucred;
+	if ((*maxprotp & VM_PROT_WRITE) && (*flagsp & MAP_SHARED))
+		locktype = LK_EXCLUSIVE;
+	else
+		locktype = LK_SHARED;
 	vfslocked = VFS_LOCK_GIANT(mp);
-	if ((error = vget(vp, LK_SHARED, td)) != 0) {
+	if ((error = vget(vp, locktype, td)) != 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
@@ -1256,8 +1262,20 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		}
 		if (obj->handle != vp) {
 			vput(vp);
-			vp = (struct vnode*)obj->handle;
-			vget(vp, LK_SHARED, td);
+			vp = (struct vnode *)obj->handle;
+			/*
+			 * Bypass filesystems obey the mpsafety of the
+			 * underlying fs.
+			 */
+			error = vget(vp, locktype, td);
+			if (error != 0) {
+				VFS_UNLOCK_GIANT(vfslocked);
+				return (error);
+			}
+		}
+		if (locktype == LK_EXCLUSIVE) {
+			*writecounted = TRUE;
+			vnode_pager_update_writecount(obj, 0, objsize);
 		}
 	} else if (vp->v_type == VCHR) {
 		error = vm_mmap_cdev(td, objsize, prot, maxprotp, flagsp,
@@ -1293,7 +1311,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	objsize = round_page(va.va_size);
 	if (va.va_nlink == 0)
 		flags |= MAP_NOSYNC;
-	obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff, td->td_ucred);
+	obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff, cred);
 	if (obj == NULL) {
 		error = ENOMEM;
 		goto done;
@@ -1432,6 +1450,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	int rv = KERN_SUCCESS;
 	int docow, error;
 	struct thread *td = curthread;
+	boolean_t writecounted;
 
 	if (size == 0)
 		return (0);
@@ -1470,6 +1489,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			return (EINVAL);
 		fitit = FALSE;
 	}
+	writecounted = FALSE;
+
 	/*
 	 * Lookup/allocate object.
 	 */
@@ -1480,7 +1501,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		break;
 	case OBJT_VNODE:
 		error = vm_mmap_vnode(td, size, prot, &maxprot, &flags,
-		    handle, &foff, &object);
+		    handle, &foff, &object, &writecounted);
 		break;
 	case OBJT_SWAP:
 		error = vm_mmap_shm(td, size, prot, &maxprot, &flags,
@@ -1520,6 +1541,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	/* Shared memory is also shared with children. */
 	if (flags & MAP_SHARED)
 		docow |= MAP_INHERIT_SHARE;
+	if (writecounted)
+		docow |= MAP_VN_WRITECOUNT;
 
 	if (flags & MAP_STACK)
 		rv = vm_map_stack(map, *addr, size, prot, maxprot,
@@ -1537,7 +1560,12 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		 * Lose the object reference. Will destroy the
 		 * object if it's an unnamed anonymous mapping
 		 * or named anonymous without other references.
+		 *
+		 * If this mapping was accounted for in the vnode's
+		 * writecount, then undo that now.
 		 */
+		if (writecounted)
+			vnode_pager_release_writecount(object, 0, size);
 		vm_object_deallocate(object);
 	}
 
