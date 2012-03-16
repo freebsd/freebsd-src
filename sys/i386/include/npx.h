@@ -43,14 +43,14 @@
 
 /* Environment information of floating point unit */
 struct env87 {
-	long	en_cw;		/* control word (16bits) */
-	long	en_sw;		/* status word (16bits) */
-	long	en_tw;		/* tag word (16bits) */
-	long	en_fip;		/* floating point instruction pointer */
-	u_short	en_fcs;		/* floating code segment selector */
-	u_short	en_opcode;	/* opcode last executed (11 bits ) */
-	long	en_foo;		/* floating operand offset */
-	long	en_fos;		/* floating operand segment selector */
+	int32_t		en_cw;		/* control word (16bits) */
+	int32_t		en_sw;		/* status word (16bits) */
+	int32_t		en_tw;		/* tag word (16bits) */
+	int32_t		en_fip;		/* fp instruction pointer */
+	uint16_t	en_fcs;		/* fp code segment selector */
+	uint16_t	en_opcode;	/* opcode last executed (11 bits ) */
+	int32_t		en_foo;		/* fp operand offset */
+	int32_t		en_fos;		/* fp operand segment selector */
 };
 
 /* Contents of each floating point accumulator */
