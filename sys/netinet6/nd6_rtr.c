@@ -504,8 +504,7 @@ defrouter_lookup(struct in6_addr *addr, struct ifnet *ifp)
 {
 	struct nd_defrouter *dr;
 
-	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
-	     dr = TAILQ_NEXT(dr, dr_entry)) {
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 		if (dr->ifp == ifp && IN6_ARE_ADDR_EQUAL(addr, &dr->rtaddr))
 			return (dr);
 	}
@@ -552,8 +551,7 @@ defrouter_reset(void)
 {
 	struct nd_defrouter *dr;
 
-	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
-	     dr = TAILQ_NEXT(dr, dr_entry))
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry)
 		defrouter_delreq(dr);
 
 	/*
@@ -584,7 +582,7 @@ defrtrlist_del(struct nd_defrouter *dr)
 	/*
 	 * Also delete all the pointers to the router in each prefix lists.
 	 */
-	for (pr = V_nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		struct nd_pfxrouter *pfxrtr;
 		if ((pfxrtr = pfxrtr_lookup(pr, dr)) != NULL)
 			pfxrtr_del(pfxrtr);
@@ -634,7 +632,7 @@ defrouter_select(void)
 	 * Let's handle easy case (3) first:
 	 * If default router list is empty, there's nothing to be done.
 	 */
-	if (!TAILQ_FIRST(&V_nd_defrouter)) {
+	if (TAILQ_EMPTY(&V_nd_defrouter)) {
 		splx(s);
 		return;
 	}
@@ -644,8 +642,7 @@ defrouter_select(void)
 	 * We just pick up the first reachable one (if any), assuming that
 	 * the ordering rule of the list described in defrtrlist_update().
 	 */
-	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
-	     dr = TAILQ_NEXT(dr, dr_entry)) {
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 		IF_AFDATA_LOCK(dr->ifp);
 		if (selected_dr == NULL &&
 		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
@@ -802,8 +799,7 @@ insert:
 	 */
 
 	/* insert at the end of the group */
-	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
-	     dr = TAILQ_NEXT(dr, dr_entry)) {
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 		if (rtpref(n) > rtpref(dr))
 			break;
 	}
@@ -824,7 +820,7 @@ pfxrtr_lookup(struct nd_prefix *pr, struct nd_defrouter *dr)
 {
 	struct nd_pfxrouter *search;
 
-	for (search = pr->ndpr_advrtrs.lh_first; search; search = search->pfr_next) {
+	LIST_FOREACH(search, &pr->ndpr_advrtrs, pfr_entry) {
 		if (search->router == dr)
 			break;
 	}
@@ -860,8 +856,7 @@ nd6_prefix_lookup(struct nd_prefixctl *key)
 {
 	struct nd_prefix *search;
 
-	for (search = V_nd_prefix.lh_first;
-	    search; search = search->ndpr_next) {
+	LIST_FOREACH(search, &V_nd_prefix, ndpr_entry) {
 		if (key->ndpr_ifp == search->ndpr_ifp &&
 		    key->ndpr_plen == search->ndpr_plen &&
 		    in6_are_prefix_equal(&key->ndpr_prefix.sin6_addr,
@@ -967,9 +962,7 @@ prelist_remove(struct nd_prefix *pr)
 	LIST_REMOVE(pr, ndpr_entry);
 
 	/* free list of routers that adversed the prefix */
-	for (pfr = pr->ndpr_advrtrs.lh_first; pfr; pfr = next) {
-		next = pfr->pfr_next;
-
+	LIST_FOREACH_SAFE(pfr, &pr->ndpr_advrtrs, pfr_entry, next) {
 		free(pfr, M_IP6NDP);
 	}
 	splx(s);
@@ -1332,8 +1325,7 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 	struct llentry *ln;
 	int canreach;
 
-	for (pfxrtr = LIST_FIRST(&pr->ndpr_advrtrs); pfxrtr != NULL;
-	     pfxrtr = LIST_NEXT(pfxrtr, pfr_entry)) {
+	LIST_FOREACH(pfxrtr, &pr->ndpr_advrtrs, pfr_entry) {
 		IF_AFDATA_LOCK(pfxrtr->router->ifp);
 		ln = nd6_lookup(&pfxrtr->router->rtaddr, 0, pfxrtr->router->ifp);
 		IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
@@ -1372,7 +1364,7 @@ pfxlist_onlink_check()
 	 * Check if there is a prefix that has a reachable advertising
 	 * router.
 	 */
-	for (pr = V_nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		if (pr->ndpr_raf_onlink && find_pfxlist_reachable_router(pr))
 			break;
 	}
@@ -1382,12 +1374,10 @@ pfxlist_onlink_check()
 	 * that does not advertise any prefixes.
 	 */
 	if (pr == NULL) {
-		for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
-		    dr = TAILQ_NEXT(dr, dr_entry)) {
+		TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 			struct nd_prefix *pr0;
 
-			for (pr0 = V_nd_prefix.lh_first; pr0;
-			    pr0 = pr0->ndpr_next) {
+			LIST_FOREACH(pr0, &V_nd_prefix, ndpr_entry) {
 				if ((pfxrtr = pfxrtr_lookup(pr0, dr)) != NULL)
 					break;
 			}
@@ -1395,7 +1385,7 @@ pfxlist_onlink_check()
 				break;
 		}
 	}
-	if (pr != NULL || (TAILQ_FIRST(&V_nd_defrouter) && pfxrtr == NULL)) {
+	if (pr != NULL || (!TAILQ_EMPTY(&V_nd_defrouter) && pfxrtr == NULL)) {
 		/*
 		 * There is at least one prefix that has a reachable router,
 		 * or at least a router which probably does not advertise
@@ -1405,7 +1395,7 @@ pfxlist_onlink_check()
 		 * Detach prefixes which have no reachable advertising
 		 * router, and attach other prefixes.
 		 */
-		for (pr = V_nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 			/* XXX: a link-local prefix should never be detached */
 			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
 				continue;
@@ -1429,7 +1419,7 @@ pfxlist_onlink_check()
 		}
 	} else {
 		/* there is no prefix that has a reachable router */
-		for (pr = V_nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
 				continue;
 
@@ -1452,7 +1442,7 @@ pfxlist_onlink_check()
 	 * interfaces.  Such cases will be handled in nd6_prefix_onlink,
 	 * so we don't have to care about them.
 	 */
-	for (pr = V_nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		int e;
 		char ip6buf[INET6_ADDRSTRLEN];
 
@@ -1653,7 +1643,7 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	 * Although such a configuration is expected to be rare, we explicitly
 	 * allow it.
 	 */
-	for (opr = V_nd_prefix.lh_first; opr; opr = opr->ndpr_next) {
+	LIST_FOREACH(opr, &V_nd_prefix, ndpr_entry) {
 		if (opr == pr)
 			continue;
 
@@ -1765,7 +1755,7 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		 * If there's one, try to make the prefix on-link on the
 		 * interface.
 		 */
-		for (opr = V_nd_prefix.lh_first; opr; opr = opr->ndpr_next) {
+		LIST_FOREACH(opr, &V_nd_prefix, ndpr_entry) {
 			if (opr == pr)
 				continue;
 
