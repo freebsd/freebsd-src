@@ -81,23 +81,23 @@ typedef struct adp_state adp_state_t;
 static struct mtx vesa_lock;
 
 static int vesa_state;
-static void *vesa_state_buf = NULL;
-static uint32_t vesa_state_buf_offs = 0;
-static ssize_t vesa_state_buf_size = 0;
+static void *vesa_state_buf;
+static uint32_t vesa_state_buf_offs;
+static ssize_t vesa_state_buf_size;
 
-static u_char *vesa_palette = NULL;
-static uint32_t vesa_palette_offs = 0;
+static u_char *vesa_palette;
+static uint32_t vesa_palette_offs;
 
-static void *vesa_bios = NULL;
-static uint32_t vesa_bios_offs = VESA_BIOS_OFFSET;
-static uint32_t vesa_bios_int10 = 0;
-static size_t vesa_bios_size = 0;
+static void *vesa_bios;
+static uint32_t vesa_bios_offs;
+static uint32_t vesa_bios_int10;
+static size_t vesa_bios_size;
 
 /* VESA video adapter */
-static video_adapter_t *vesa_adp = NULL;
+static video_adapter_t *vesa_adp;
 
 static SYSCTL_NODE(_debug, OID_AUTO, vesa, CTLFLAG_RD, NULL, "VESA debugging");
-static int vesa_shadow_rom = 0;
+static int vesa_shadow_rom;
 TUNABLE_INT("debug.vesa.shadow_rom", &vesa_shadow_rom);
 SYSCTL_INT(_debug_vesa, OID_AUTO, shadow_rom, CTLFLAG_RDTUN, &vesa_shadow_rom,
     0, "Enable video BIOS shadow");
@@ -171,18 +171,16 @@ static video_switch_t *prevvidsw;
 
 #define MODE_TABLE_DELTA 8
 
-static int vesa_vmode_max = 0;
-static video_info_t vesa_vmode_empty = { EOT };
-static video_info_t *vesa_vmode = &vesa_vmode_empty;
+static int vesa_vmode_max;
+static video_info_t *vesa_vmode;
 
-static int vesa_init_done = FALSE;
-static int has_vesa_bios = FALSE;
-static struct vesa_info *vesa_adp_info = NULL;
-static u_int16_t *vesa_vmodetab = NULL;
-static char *vesa_oemstr = NULL;
-static char *vesa_venderstr = NULL;
-static char *vesa_prodstr = NULL;
-static char *vesa_revstr = NULL;
+static int vesa_init_done;
+static struct vesa_info *vesa_adp_info;
+static u_int16_t *vesa_vmodetab;
+static char *vesa_oemstr;
+static char *vesa_venderstr;
+static char *vesa_prodstr;
+static char *vesa_revstr;
 
 /* local macros and functions */
 #define BIOS_SADDRTOLADDR(p) ((((p) & 0xffff0000) >> 12) + ((p) & 0x0000ffff))
@@ -221,6 +219,7 @@ static int vesa_translate_flags(u_int16_t vflags);
 static int vesa_translate_mmodel(u_int8_t vmodel);
 static int vesa_get_bpscanline(struct vesa_mode *vmode);
 static int vesa_bios_init(void);
+static void vesa_bios_uninit(void);
 static void vesa_clear_modes(video_info_t *info, int color);
 
 #if 0
@@ -773,11 +772,7 @@ vesa_bios_init(void)
 	if (vesa_init_done)
 		return (0);
 
-	has_vesa_bios = FALSE;
-	vesa_adp_info = NULL;
 	vesa_bios_offs = VESA_BIOS_OFFSET;
-	vesa_vmode_max = 0;
-	vesa_vmode[0].vi_mode = EOT;
 
 	/*
 	 * If the VBE real mode interrupt vector is not found, try BIOS POST.
@@ -804,7 +799,7 @@ vesa_bios_init(void)
 			    vesa_bios_size > (vesa_bios_int10 & 0xffff)) {
 				vesa_bios = x86bios_alloc(&vesa_bios_offs,
 				    vesa_bios_size, M_WAITOK);
-				memcpy(vesa_bios, vbios, vesa_bios_size);
+				bcopy(vbios, vesa_bios, vesa_bios_size);
 				offs = ((vesa_bios_offs << 12) & 0xffff0000) +
 				    (vesa_bios_int10 & 0xffff);
 				x86bios_set_intr(0x10, offs);
@@ -1030,8 +1025,7 @@ vesa_bios_init(void)
 	if (bootverbose)
 		printf("VESA: %d mode(s) found\n", modes);
 
-	has_vesa_bios = (modes > 0);
-	if (!has_vesa_bios)
+	if (modes == 0)
 		goto fail;
 
 	x86bios_free(vmbuf, sizeof(*buf));
@@ -1052,14 +1046,21 @@ vesa_bios_init(void)
 	return (0);
 
 fail:
+	x86bios_free(vmbuf, sizeof(buf));
+	vesa_bios_uninit();
+	return (1);
+}
+
+static void
+vesa_bios_uninit(void)
+{
+
 	if (vesa_bios != NULL) {
 		x86bios_set_intr(0x10, vesa_bios_int10);
 		vesa_bios_offs = VESA_BIOS_OFFSET;
 		x86bios_free(vesa_bios, vesa_bios_size);
 		vesa_bios = NULL;
 	}
-	if (vmbuf != NULL)
-		x86bios_free(vmbuf, sizeof(buf));
 	if (vesa_adp_info != NULL) {
 		free(vesa_adp_info, M_DEVBUF);
 		vesa_adp_info = NULL;
@@ -1080,7 +1081,15 @@ fail:
 		free(vesa_revstr, M_DEVBUF);
 		vesa_revstr = NULL;
 	}
-	return (1);
+	if (vesa_vmode != NULL) {
+		free(vesa_vmode, M_DEVBUF);
+		vesa_vmode = NULL;
+	}
+	if (vesa_palette != NULL) {
+		x86bios_free(vesa_palette,
+		    VESA_PALETTE_SIZE + vesa_state_buf_size);
+		vesa_palette = NULL;
+	}
 }
 
 static void
@@ -1911,26 +1920,7 @@ vesa_unload(void)
 		}
 	}
 
-	if (vesa_bios != NULL) {
-		x86bios_set_intr(0x10, vesa_bios_int10);
-		x86bios_free(vesa_bios, vesa_bios_size);
-	}
-	if (vesa_adp_info != NULL)
-		free(vesa_adp_info, M_DEVBUF);
-	if (vesa_oemstr != NULL)
-		free(vesa_oemstr, M_DEVBUF);
-	if (vesa_venderstr != NULL)
-		free(vesa_venderstr, M_DEVBUF);
-	if (vesa_prodstr != NULL)
-		free(vesa_prodstr, M_DEVBUF);
-	if (vesa_revstr != NULL)
-		free(vesa_revstr, M_DEVBUF);
-	if (vesa_vmode != &vesa_vmode_empty)
-		free(vesa_vmode, M_DEVBUF);
-	if (vesa_palette != NULL)
-		x86bios_free(vesa_palette,
-		    VESA_PALETTE_SIZE + vesa_state_buf_size);
-
+	vesa_bios_uninit();
 	mtx_destroy(&vesa_lock);
 
 	return (error);
