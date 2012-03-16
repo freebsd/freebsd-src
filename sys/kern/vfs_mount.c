@@ -836,7 +836,8 @@ vfs_domount_first(
 	mp->mnt_optnew = NULL;
 
 	MNT_ILOCK(mp);
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+	    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
@@ -976,7 +977,8 @@ vfs_domount_update(
 		 */
 		mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	}
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+	    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
@@ -1336,7 +1338,8 @@ dounmount(mp, flags, td)
 		}
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		mp->mnt_flag |= async_flag;
-		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+		if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+		    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 			mp->mnt_kern_flag |= MNTK_ASYNC;
 		if (mp->mnt_kern_flag & MNTK_MWAIT) {
 			mp->mnt_kern_flag &= ~MNTK_MWAIT;
