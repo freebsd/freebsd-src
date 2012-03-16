@@ -827,3 +827,7 @@ static moduledata_t wlan_mod = {
 DECLARE_MODULE(wlan, wlan_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(wlan, 1);
 MODULE_DEPEND(wlan, ether, 1, 1, 1);
+#ifdef	IEEE80211_ALQ
+MODULE_DEPEND(wlan, alq, 1, 1, 1);
+#endif	/* IEEE80211_ALQ */
+
