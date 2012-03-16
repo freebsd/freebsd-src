@@ -351,17 +351,14 @@ newfile(void)
 {
 	long i, maxfiles, tfnum;
 	static long fnum;
-	static int defname;
 	static char *fpnt;
 
 	if (ofd == -1) {
 		if (fname[0] == '\0') {
 			fname[0] = 'x';
 			fpnt = fname + 1;
-			defname = 1;
 		} else {
 			fpnt = fname + strlen(fname);
-			defname = 0;
 		}
 		ofd = fileno(stdout);
 	}

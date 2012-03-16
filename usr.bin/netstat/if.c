@@ -192,7 +192,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 	} ifaddr;
 	u_long ifaddraddr;
 	u_long ifaddrfound;
-	u_long ifnetfound;
 	u_long opackets;
 	u_long ipackets;
 	u_long obytes;
@@ -256,7 +255,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 		link_layer = 0;
 
 		if (ifaddraddr == 0) {
-			ifnetfound = ifnetaddr;
 			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) != 0)
 				return;
 			strlcpy(name, ifnet.if_xname, sizeof(name));
