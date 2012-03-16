@@ -30,15 +30,22 @@ __FBSDID("$FreeBSD$");
 #include <fenv.h>
 #include <float.h>
 
+#ifndef __ARM_EABI__
 #include "softfloat-for-gcc.h"
 #include "milieu.h"
 #include "softfloat.h"
+#endif
 
 int
 __flt_rounds(void)
 {
 
-#ifndef ARM_HARD_FLOAT
+#ifdef __ARM_EABI__
+	/*
+	 * We use compiler-rt which uses round to nearest.
+	 */
+	return (1);
+#elif !defined(ARM_HARD_FLOAT)
 	/*
 	 * Translate our rounding modes to the unnamed
 	 * manifest constants required by C99 et. al.
