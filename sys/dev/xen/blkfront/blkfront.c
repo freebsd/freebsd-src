@@ -650,7 +650,7 @@ blkfront_initialize(struct xb_softc *sc)
 	sc->max_request_blocks = BLKIF_SEGS_TO_BLOCKS(sc->max_request_segments);
 
 	/* Allocate datastructures based on negotiated values. */
-	error = bus_dma_tag_create(NULL,		/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->xb_dev),	/* parent */
 				   512, PAGE_SIZE,	/* algnmnt, boundary */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
