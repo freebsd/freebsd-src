@@ -182,9 +182,11 @@ struct pthread_cond_attr {
 struct pthread_barrier {
 	struct umutex		b_lock;
 	struct ucond		b_cv;
-	volatile int64_t	b_cycle;
-	volatile int		b_count;
-	volatile int		b_waiters;
+	int64_t			b_cycle;
+	int			b_count;
+	int			b_waiters;
+	int			b_refcount;
+	int			b_destroying;
 };
 
 struct pthread_barrierattr {
