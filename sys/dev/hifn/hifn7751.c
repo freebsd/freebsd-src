@@ -430,7 +430,7 @@ hifn_attach(device_t dev)
 	 * Setup the area where the Hifn DMA's descriptors
 	 * and associated data structures.
 	 */
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* PCI parent */
 			       1, 0,			/* alignment,boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
