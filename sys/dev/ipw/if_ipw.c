@@ -526,9 +526,21 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	int error, i;
 
 	/*
+	 * Allocate parent DMA tag for subsequent allocations.
+	 */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, BUS_SPACE_UNRESTRICTED,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL, &sc->parent_dmat);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not create parent DMA tag\n");
+		goto fail;
+	}
+
+	/*
 	 * Allocate and map tx ring.
 	 */
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(sc->parent_dmat, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, IPW_TBD_SZ, 1, IPW_TBD_SZ, 0, NULL,
 	    NULL, &sc->tbd_dmat);
 	if (error != 0) {
@@ -554,7 +566,7 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	/*
 	 * Allocate and map rx ring.
 	 */
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(sc->parent_dmat, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, IPW_RBD_SZ, 1, IPW_RBD_SZ, 0, NULL,
 	    NULL, &sc->rbd_dmat);
 	if (error != 0) {
@@ -580,7 +592,7 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	/*
 	 * Allocate and map status ring.
 	 */
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(sc->parent_dmat, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, IPW_STATUS_SZ, 1, IPW_STATUS_SZ, 0,
 	    NULL, NULL, &sc->status_dmat);
 	if (error != 0) {
@@ -609,7 +621,7 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	/*
 	 * Allocate command DMA map.
 	 */
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(sc->parent_dmat, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof (struct ipw_cmd), 1,
 	    sizeof (struct ipw_cmd), 0, NULL, NULL, &sc->cmd_dmat);
 	if (error != 0) {
@@ -627,7 +639,7 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	/*
 	 * Allocate headers DMA maps.
 	 */
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(sc->parent_dmat, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof (struct ipw_hdr), 1,
 	    sizeof (struct ipw_hdr), 0, NULL, NULL, &sc->hdr_dmat);
 	if (error != 0) {
@@ -650,7 +662,7 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	/*
 	 * Allocate tx buffers DMA maps.
 	 */
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(sc->parent_dmat, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, IPW_MAX_NSEG, MCLBYTES, 0,
 	    NULL, NULL, &sc->txbuf_dmat);
 	if (error != 0) {
@@ -682,7 +694,7 @@ ipw_dma_alloc(struct ipw_softc *sc)
 	/*
 	 * Pre-allocate rx buffers and DMA maps.
 	 */
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(sc->parent_dmat, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, NULL,
 	    NULL, &sc->rxbuf_dmat);
 	if (error != 0) {
@@ -738,6 +750,10 @@ ipw_release(struct ipw_softc *sc)
 {
 	struct ipw_soft_buf *sbuf;
 	int i;
+
+	if (sc->parent_dmat != NULL) {
+		bus_dma_tag_destroy(sc->parent_dmat);
+	}
 
 	if (sc->tbd_dmat != NULL) {
 		if (sc->stbd_list != NULL) {
