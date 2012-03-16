@@ -47,6 +47,48 @@
 #define	ICU_IMR_OFFSET	1
 #endif
 
+/*
+ * PC-98 machines wire the slave 8259A to pin 7 on the master PIC, and
+ * PC-AT machines wire the slave PIC to pin 2 on the master PIC.
+ */
+#ifdef PC98
+#define	ICU_SLAVEID	7
+#else
+#define	ICU_SLAVEID	2
+#endif
+
+/*
+ * Determine the base master and slave modes not including auto EOI support.
+ * All machines that FreeBSD supports use 8086 mode.
+ */
+#ifdef PC98
+/*
+ * PC-98 machines do not support auto EOI on the second PIC.  Also, it
+ * seems that PC-98 machine PICs use buffered mode, and the master PIC
+ * uses special fully nested mode.
+ */
+#define	BASE_MASTER_MODE	(ICW4_SFNM | ICW4_BUF | ICW4_MS | ICW4_8086)
+#define	BASE_SLAVE_MODE		(ICW4_BUF | ICW4_8086)
+#else
+#define	BASE_MASTER_MODE	ICW4_8086
+#define	BASE_SLAVE_MODE		ICW4_8086
+#endif
+
+/* Enable automatic EOI if requested. */
+#ifdef AUTO_EOI_1
+#define	MASTER_MODE		(BASE_MASTER_MODE | ICW4_AEOI)
+#else
+#define	MASTER_MODE		BASE_MASTER_MODE
+#endif
+#ifdef AUTO_EOI_2
+#define	SLAVE_MODE		(BASE_SLAVE_MODE | ICW4_AEOI)
+#else
+#define	SLAVE_MODE		BASE_SLAVE_MODE
+#endif
+
+#define	IRQ_MASK(irq)		(1 << (irq))
+#define	IMEN_MASK(ai)		(IRQ_MASK((ai)->at_irq))
+
 void	atpic_handle_intr(u_int vector, struct trapframe *frame);
 void	atpic_startup(void);
 
