@@ -405,7 +405,7 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 
 	/* next, try to get it from some other hardware interface */
 	IFNET_RLOCK_NOSLEEP();
-	for (ifp = V_ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		if (ifp == ifp0)
 			continue;
 		if (in6_get_hw_ifid(ifp, in6) != 0)
@@ -816,7 +816,7 @@ in6_ifdetach(struct ifnet *ifp)
 		/*
 		 * leave from multicast groups we have joined for the interface
 		 */
-		while ((imm = ia->ia6_memberships.lh_first) != NULL) {
+		while ((imm = LIST_FIRST(&ia->ia6_memberships)) != NULL) {
 			LIST_REMOVE(imm, i6mm_chain);
 			in6_leavegroup(imm);
 		}
@@ -916,8 +916,7 @@ in6_tmpaddrtimer(void *arg)
 	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
 
 	bzero(nullbuf, sizeof(nullbuf));
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
-	    ifp = TAILQ_NEXT(ifp, if_list)) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		ndi = ND_IFINFO(ifp);
 		if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) != 0) {
 			/*
