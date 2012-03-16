@@ -49,12 +49,30 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#ifndef UMA_MD_SMALL_ALLOC
+#include <vm/vm_map.h>
+#endif
 #include <vm/vm_radix.h>
 #include <vm/vm_object.h>
 
 #include <sys/kdb.h>
 
+#ifndef UMA_MD_SMALL_ALLOC
+#define	VM_RADIX_RNODE_MAP_SCALE	(1024 * 1024 / 2)
+#define	VM_RADIX_WIDTH	4
+
+/*
+ * Bits of height in root.
+ * The mask of smaller power of 2 containing VM_RADIX_LIMIT.
+ */
+#define	VM_RADIX_HEIGHT	0x1f
+#else
 #define	VM_RADIX_WIDTH	5
+
+/* See the comment above. */
+#define	VM_RADIX_HEIGHT	0xf
+#endif
+
 #define	VM_RADIX_COUNT	(1 << VM_RADIX_WIDTH)
 #define	VM_RADIX_MASK	(VM_RADIX_COUNT - 1)
 #define	VM_RADIX_MAXVAL	((vm_pindex_t)-1)
@@ -62,9 +80,6 @@
 
 /* Flag bits stored in node pointers. */
 #define VM_RADIX_FLAGS	0x3
-
-/* Bits of height in root. */
-#define VM_RADIX_HEIGHT	0xf
 
 /* Calculates maximum value for a tree of height h. */
 #define	VM_RADIX_MAX(h)							\
@@ -84,6 +99,9 @@ CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
 static uma_zone_t vm_radix_node_zone;
 
 #ifndef UMA_MD_SMALL_ALLOC
+static vm_map_t rnode_map;
+static u_long rnode_map_scale;
+
 static void *
 vm_radix_node_zone_allocf(uma_zone_t zone, int size, uint8_t *flags, int wait)
 {
@@ -91,7 +109,7 @@ vm_radix_node_zone_allocf(uma_zone_t zone, int size, uint8_t *flags, int wait)
 	vm_page_t m;
 	int pflags;
 
-	/* Inform UMA that this allocator uses kernel_map. */
+	/* Inform UMA that this allocator uses rnode_map. */
 	*flags = UMA_SLAB_KERNEL;
 
 	pflags = VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
@@ -104,7 +122,7 @@ vm_radix_node_zone_allocf(uma_zone_t zone, int size, uint8_t *flags, int wait)
 	    VM_ALLOC_SYSTEM;
 	if ((wait & M_ZERO) != 0)
 		pflags |= VM_ALLOC_ZERO; 
-	addr = kmem_alloc_nofault(kernel_map, size);
+	addr = kmem_alloc_nofault(rnode_map, size);
 	if (addr == 0)
 		return (NULL);
 
@@ -112,7 +130,7 @@ vm_radix_node_zone_allocf(uma_zone_t zone, int size, uint8_t *flags, int wait)
 	m = vm_page_alloc(NULL, OFF_TO_IDX(addr - VM_MIN_KERNEL_ADDRESS),
 	    pflags);
 	if (m == NULL) {
-		kmem_free(kernel_map, addr, size);
+		kmem_free(rnode_map, addr, size);
 		return (NULL);
 	}
 	if ((wait & M_ZERO) != 0 && (m->flags & PG_ZERO) == 0)
@@ -133,14 +151,18 @@ vm_radix_node_zone_freef(void *item, int size, uint8_t flags)
 	voitem = (vm_offset_t)item;
 	m = PHYS_TO_VM_PAGE(pmap_kextract(voitem));
 	pmap_qremove(voitem, 1);
+	vm_page_lock(m);
+	vm_page_unwire(m, 0);
 	vm_page_free(m);
-	kmem_free(kernel_map, voitem, size);
+	vm_page_unlock(m);
+	kmem_free(rnode_map, voitem, size);
 }
 
 static void
 init_vm_radix_alloc(void *dummy __unused)
 {
 
+	uma_zone_set_max(vm_radix_node_zone, rnode_map_scale);
 	uma_zone_set_allocf(vm_radix_node_zone, vm_radix_node_zone_allocf);
 	uma_zone_set_freef(vm_radix_node_zone, vm_radix_node_zone_freef);
 }
@@ -193,9 +215,31 @@ vm_radix_slot(vm_pindex_t index, int level)
 	return ((index >> (level * VM_RADIX_WIDTH)) & VM_RADIX_MASK);
 }
 
+/*
+ * Initialize the radix node submap (for architectures not supporting
+ * direct-mapping) and the radix node zone.
+ *
+ * WITNESS reports a lock order reversal, for architectures not
+ * supporting direct-mapping,  between the "system map" lock
+ * and the "vm object" lock.  This is because the well established ordering
+ * "system map" -> "vm object" is not honoured in this case as allocating
+ * from the radix node submap ends up adding a mapping entry to it, meaning
+ * it is necessary to lock the submap.  However, the radix node submap is
+ * a leaf and self-contained, thus a deadlock cannot happen here and
+ * adding MTX_NOWITNESS to all map locks would be largerly sub-optimal.
+ */
 void
 vm_radix_init(void)
 {
+#ifndef UMA_MD_SMALL_ALLOC
+	vm_offset_t maxaddr, minaddr;
+
+	rnode_map_scale = VM_RADIX_RNODE_MAP_SCALE;
+	TUNABLE_ULONG_FETCH("hw.rnode_map_scale", &rnode_map_scale);
+	rnode_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
+	    rnode_map_scale * sizeof(struct vm_radix_node), FALSE);
+	rnode_map->system_map = 1;
+#endif
 
 	vm_radix_node_zone = uma_zcreate("RADIX NODE",
 	    sizeof(struct vm_radix_node), NULL,

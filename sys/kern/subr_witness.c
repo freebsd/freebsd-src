@@ -602,6 +602,7 @@ static struct witness_order_list_entry order_lists[] = {
 	 * VM
 	 * 
 	 */
+	{ "system map", &lock_class_mtx_sleep },
 	{ "vm object", &lock_class_mtx_sleep },
 	{ "page lock", &lock_class_mtx_sleep },
 	{ "vm page queue mutex", &lock_class_mtx_sleep },
