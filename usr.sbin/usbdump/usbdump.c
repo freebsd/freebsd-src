@@ -92,6 +92,26 @@ struct usbcap_filehdr {
 	uint8_t		reserved[26];
 } __packed;
 
+#define	HEADER_ALIGN(x,a) (((x) + (a) - 1) & ~((a) - 1))
+
+struct header_32 {
+	uint32_t ts_sec;
+	uint32_t ts_usec;
+	uint32_t caplen;
+	uint32_t datalen;
+	uint16_t hdrlen;
+	uint16_t dummy;
+} __packed;
+
+struct header_64 {
+	uint64_t ts_sec;
+	uint64_t ts_usec;
+	uint32_t caplen;
+	uint32_t datalen;
+	uint16_t hdrlen;
+	uint16_t dummy;
+} __packed;
+
 static int doexit = 0;
 static int pkt_captured = 0;
 static int verbose = 0;
@@ -413,7 +433,7 @@ hexdump(const uint8_t *region, uint32_t len)
 }
 
 static void
-print_apacket(const struct bpf_hdr *hdr, const uint8_t *ptr, int ptr_len)
+print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 {
 	struct tm *tm;
 	struct usbpf_pkthdr up_temp;
@@ -448,8 +468,8 @@ print_apacket(const struct bpf_hdr *hdr, const uint8_t *ptr, int ptr_len)
 	up->up_packet_count = le32toh(up->up_packet_count);
 	up->up_endpoint = le32toh(up->up_endpoint);
 
-	tv.tv_sec = hdr->bh_tstamp.tv_sec;
-	tv.tv_usec = hdr->bh_tstamp.tv_usec;
+	tv.tv_sec = hdr->ts_sec;
+	tv.tv_usec = hdr->ts_usec;
 	tm = localtime(&tv.tv_sec);
 
 	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
@@ -516,17 +536,86 @@ print_apacket(const struct bpf_hdr *hdr, const uint8_t *ptr, int ptr_len)
 static void
 print_packets(uint8_t *data, const int datalen)
 {
-	const struct bpf_hdr *hdr;
+	struct header_32 temp;
 	uint8_t *ptr;
 	uint8_t *next;
 
 	for (ptr = data; ptr < (data + datalen); ptr = next) {
-		hdr = (const struct bpf_hdr *)ptr;
-		next = ptr + BPF_WORDALIGN(hdr->bh_hdrlen + hdr->bh_caplen);
+
+		/* automatically figure out endian and size of header */
+
+		if (r_arg != NULL) {
+
+			const struct header_32 *hdr32;
+			const struct header_64 *hdr64;
+
+			hdr32 = (const struct header_32 *)ptr;
+			hdr64 = (const struct header_64 *)ptr;
+
+			temp.hdrlen = le16toh(hdr32->hdrlen);
+			temp.dummy = le16toh(hdr32->dummy);
+
+			if ((temp.hdrlen != 18 && temp.hdrlen != 20) || (temp.dummy != 0)) {
+				temp.hdrlen = be16toh(hdr32->hdrlen);
+				temp.dummy = be16toh(hdr32->dummy);
+
+				if ((temp.hdrlen != 18 && temp.hdrlen != 20) || (temp.dummy != 0)) {
+					temp.hdrlen = le16toh(hdr64->hdrlen);
+					temp.dummy = le16toh(hdr64->dummy);
+
+					if ((temp.hdrlen != 28 && temp.hdrlen != 32) || (temp.dummy != 0)) {
+						temp.hdrlen = be16toh(hdr64->hdrlen);
+						temp.dummy = be16toh(hdr64->dummy);
+
+						if ((temp.hdrlen != 28 && temp.hdrlen != 32) || (temp.dummy != 0)) {
+							err(EXIT_FAILURE, "Invalid header detected");
+							next = NULL;
+						} else {
+							temp.ts_sec = be64toh(hdr64->ts_sec);
+							temp.ts_usec = be64toh(hdr64->ts_usec);
+							temp.caplen = be32toh(hdr64->caplen);
+							temp.datalen = be32toh(hdr64->datalen);
+							next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 8);
+						}
+					} else {
+						temp.ts_sec = le64toh(hdr64->ts_sec);
+						temp.ts_usec = le64toh(hdr64->ts_usec);
+						temp.caplen = le32toh(hdr64->caplen);
+						temp.datalen = le32toh(hdr64->datalen);
+						next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 8);
+					}
+				} else {
+					temp.ts_sec = be32toh(hdr32->ts_sec);
+					temp.ts_usec = be32toh(hdr32->ts_usec);
+					temp.caplen = be32toh(hdr32->caplen);
+					temp.datalen = be32toh(hdr32->datalen);
+					next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 4);
+				}
+			} else {
+				temp.ts_sec = le32toh(hdr32->ts_sec);
+				temp.ts_usec = le32toh(hdr32->ts_usec);
+				temp.caplen = le32toh(hdr32->caplen);
+				temp.datalen = le32toh(hdr32->datalen);
+				next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 4);
+			}
+		} else {
+			const struct bpf_hdr *hdr;
+
+			hdr = (const struct bpf_hdr *)ptr;
+			temp.ts_sec = hdr->bh_tstamp.tv_sec;
+			temp.ts_usec = hdr->bh_tstamp.tv_usec;
+			temp.caplen = hdr->bh_caplen;
+			temp.datalen = hdr->bh_datalen;
+			temp.hdrlen = hdr->bh_hdrlen;
+			next = ptr + BPF_WORDALIGN(temp.hdrlen + temp.caplen);
+		}
+
+		if (next <= ptr)
+			err(EXIT_FAILURE, "Invalid header length");
 
 		if (w_arg == NULL) {
-			print_apacket(hdr, ptr +
-			    hdr->bh_hdrlen, hdr->bh_caplen);
+			print_apacket(&temp, ptr +
+			    temp.hdrlen, temp.caplen);
 		}
 		pkt_captured++;
 	}
