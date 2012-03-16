@@ -404,7 +404,7 @@ patm_attach(device_t dev)
 	 * Don't use BUS_DMA_ALLOCNOW, because we never need bouncing with
 	 * bus_dmamem_alloc()
 	 */
-	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, sizeof(struct patm_scd), 1,
 	    sizeof(struct patm_scd), 0, NULL, NULL, &sc->scd_tag);
@@ -774,7 +774,8 @@ patm_sq_init(struct patm_softc *sc)
 	 * Don't use BUS_DMA_ALLOCNOW, because we never need bouncing with
 	 * bus_dmamem_alloc()
 	 */
-	error = bus_dma_tag_create(NULL, PATM_SQ_ALIGNMENT, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),
+	    PATM_SQ_ALIGNMENT, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, sc->sq_size, 1, sc->sq_size,
 	    0, NULL, NULL, &sc->sq_tag);
@@ -827,7 +828,7 @@ patm_rbuf_init(struct patm_softc *sc)
 	 * Don't use BUS_DMA_ALLOCNOW, because we never need bouncing with
 	 * bus_dmamem_alloc()
 	 */
-	if ((error = bus_dma_tag_create(NULL, PAGE_SIZE, 0,
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    SMBUF_PAGE_SIZE, 1, SMBUF_PAGE_SIZE, 0,
 	    NULL, NULL, &sc->sbuf_tag)) != 0) {
@@ -855,7 +856,7 @@ patm_rbuf_init(struct patm_softc *sc)
 	 * maps using one tag. Rather use BUS_DMA_NOWAIT when loading the map
 	 * to prevent EINPROGRESS.
 	 */
-	if ((error = bus_dma_tag_create(NULL, 4, 0,
+	if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MCLBYTES, 1, MCLBYTES, 0, 
 	    NULL, NULL, &sc->lbuf_tag)) != 0) {
@@ -900,7 +901,7 @@ patm_txmap_init(struct patm_softc *sc)
 	struct patm_txmap *map;
 
 	/* get transmission tag */
-	error = bus_dma_tag_create(NULL, 1, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, 65536, IDT_SCQ_SIZE - 1, 65536,
 	    0, NULL, NULL, &sc->tx_tag);
