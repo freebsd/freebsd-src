@@ -95,26 +95,20 @@ struct usbcap_filehdr {
 #define	HEADER_ALIGN(x,a) (((x) + (a) - 1) & ~((a) - 1))
 
 struct header_32 {
+	/* capture timestamp */
 	uint32_t ts_sec;
 	uint32_t ts_usec;
+	/* data length and alignment information */
 	uint32_t caplen;
 	uint32_t datalen;
-	uint16_t hdrlen;
-	uint16_t dummy;
-} __packed;
-
-struct header_64 {
-	uint64_t ts_sec;
-	uint64_t ts_usec;
-	uint32_t caplen;
-	uint32_t datalen;
-	uint16_t hdrlen;
-	uint16_t dummy;
+	uint8_t hdrlen;
+	uint8_t align;
 } __packed;
 
 static int doexit = 0;
 static int pkt_captured = 0;
 static int verbose = 0;
+static int uf_minor;
 static const char *i_arg = "usbus0";
 static const char *r_arg = NULL;
 static const char *w_arg = NULL;
@@ -534,6 +528,46 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 }
 
 static void
+fix_packets(uint8_t *data, const int datalen)
+{
+	struct header_32 temp;
+	uint8_t *ptr;
+	uint8_t *next;
+	uint32_t hdrlen;
+	uint32_t caplen;
+
+	for (ptr = data; ptr < (data + datalen); ptr = next) {
+
+		const struct bpf_hdr *hdr;
+
+		hdr = (const struct bpf_hdr *)ptr;
+
+		temp.ts_sec = htole32(hdr->bh_tstamp.tv_sec);
+		temp.ts_usec = htole32(hdr->bh_tstamp.tv_usec);
+		temp.caplen = htole32(hdr->bh_caplen);
+		temp.datalen = htole32(hdr->bh_datalen);
+		temp.hdrlen = hdr->bh_hdrlen;
+		temp.align = BPF_WORDALIGN(1);
+
+		hdrlen = hdr->bh_hdrlen;
+		caplen = hdr->bh_caplen;
+
+		if ((hdrlen >= sizeof(temp)) && (hdrlen <= 255) &&
+		    ((ptr + hdrlen) <= (data + datalen))) {
+			memcpy(ptr, &temp, sizeof(temp));
+			memset(ptr + sizeof(temp), 0, hdrlen - sizeof(temp));
+		} else {
+			err(EXIT_FAILURE, "Invalid header length %d", hdrlen);
+		}
+
+		next = ptr + BPF_WORDALIGN(hdrlen + caplen);
+
+		if (next <= ptr)
+			err(EXIT_FAILURE, "Invalid length");
+	}
+}
+
+static void
 print_packets(uint8_t *data, const int datalen)
 {
 	struct header_32 temp;
@@ -542,78 +576,23 @@ print_packets(uint8_t *data, const int datalen)
 
 	for (ptr = data; ptr < (data + datalen); ptr = next) {
 
-		/* automatically figure out endian and size of header */
+		const struct header_32 *hdr32;
 
-		if (r_arg != NULL) {
+		hdr32 = (const struct header_32 *)ptr;
 
-			const struct header_32 *hdr32;
-			const struct header_64 *hdr64;
+		temp.ts_sec = le32toh(hdr32->ts_sec);
+		temp.ts_usec = le32toh(hdr32->ts_usec);
+		temp.caplen = le32toh(hdr32->caplen);
+		temp.datalen = le32toh(hdr32->datalen);
+		temp.hdrlen = hdr32->hdrlen;
+		temp.align = hdr32->align;
 
-			hdr32 = (const struct header_32 *)ptr;
-			hdr64 = (const struct header_64 *)ptr;
-
-			temp.hdrlen = le16toh(hdr32->hdrlen);
-			temp.dummy = le16toh(hdr32->dummy);
-
-			if ((temp.hdrlen != 18 && temp.hdrlen != 20) || (temp.dummy != 0)) {
-				temp.hdrlen = be16toh(hdr32->hdrlen);
-				temp.dummy = be16toh(hdr32->dummy);
-
-				if ((temp.hdrlen != 18 && temp.hdrlen != 20) || (temp.dummy != 0)) {
-					temp.hdrlen = le16toh(hdr64->hdrlen);
-					temp.dummy = le16toh(hdr64->dummy);
-
-					if ((temp.hdrlen != 28 && temp.hdrlen != 32) || (temp.dummy != 0)) {
-						temp.hdrlen = be16toh(hdr64->hdrlen);
-						temp.dummy = be16toh(hdr64->dummy);
-
-						if ((temp.hdrlen != 28 && temp.hdrlen != 32) || (temp.dummy != 0)) {
-							err(EXIT_FAILURE, "Invalid header detected");
-							next = NULL;
-						} else {
-							temp.ts_sec = be64toh(hdr64->ts_sec);
-							temp.ts_usec = be64toh(hdr64->ts_usec);
-							temp.caplen = be32toh(hdr64->caplen);
-							temp.datalen = be32toh(hdr64->datalen);
-							next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 8);
-						}
-					} else {
-						temp.ts_sec = le64toh(hdr64->ts_sec);
-						temp.ts_usec = le64toh(hdr64->ts_usec);
-						temp.caplen = le32toh(hdr64->caplen);
-						temp.datalen = le32toh(hdr64->datalen);
-						next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 8);
-					}
-				} else {
-					temp.ts_sec = be32toh(hdr32->ts_sec);
-					temp.ts_usec = be32toh(hdr32->ts_usec);
-					temp.caplen = be32toh(hdr32->caplen);
-					temp.datalen = be32toh(hdr32->datalen);
-					next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 4);
-				}
-			} else {
-				temp.ts_sec = le32toh(hdr32->ts_sec);
-				temp.ts_usec = le32toh(hdr32->ts_usec);
-				temp.caplen = le32toh(hdr32->caplen);
-				temp.datalen = le32toh(hdr32->datalen);
-				next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, 4);
-			}
-		} else {
-			const struct bpf_hdr *hdr;
-
-			hdr = (const struct bpf_hdr *)ptr;
-			temp.ts_sec = hdr->bh_tstamp.tv_sec;
-			temp.ts_usec = hdr->bh_tstamp.tv_usec;
-			temp.caplen = hdr->bh_caplen;
-			temp.datalen = hdr->bh_datalen;
-			temp.hdrlen = hdr->bh_hdrlen;
-			next = ptr + BPF_WORDALIGN(temp.hdrlen + temp.caplen);
-		}
+		next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, temp.align);
 
 		if (next <= ptr)
-			err(EXIT_FAILURE, "Invalid header length");
+			err(EXIT_FAILURE, "Invalid length");
 
-		if (w_arg == NULL) {
+		if (w_arg == NULL || r_arg != NULL) {
 			print_apacket(&temp, ptr +
 			    temp.hdrlen, temp.caplen);
 		}
@@ -656,6 +635,9 @@ read_file(struct usbcap *p)
 			err(EXIT_FAILURE, "Could not read complete "
 			    "USB data payload");
 		}
+		if (uf_minor == 2)
+			fix_packets(data, datalen);
+
 		print_packets(data, datalen);
 		free(data);
 	}
@@ -680,6 +662,9 @@ do_loop(struct usbcap *p)
 		}
 		if (cc == 0)
 			continue;
+
+		fix_packets(p->buffer, cc);
+
 		if (w_arg != NULL)
 			write_packets(p, p->buffer, cc);
 		print_packets(p->buffer, cc);
@@ -711,7 +696,10 @@ init_rfile(struct usbcap *p)
 		errx(EX_SOFTWARE, "Invalid major version(%d) "
 		    "field in USB capture file header.", (int)uf.major);
 	}
-	if (uf.minor != 2) {
+
+	uf_minor = uf.minor;
+
+	if (uf.minor != 3 && uf.minor != 2) {
 		errx(EX_SOFTWARE, "Invalid minor version(%d) "
 		    "field in USB capture file header.", (int)uf.minor);
 	}
@@ -726,12 +714,12 @@ init_wfile(struct usbcap *p)
 	p->wfd = open(w_arg, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (p->wfd < 0) {
 		err(EXIT_FAILURE, "Could not open "
-		    "'%s' for write", r_arg);
+		    "'%s' for write", w_arg);
 	}
 	memset(&uf, 0, sizeof(uf));
 	uf.magic = htole32(USBCAP_FILEHDR_MAGIC);
 	uf.major = 0;
-	uf.minor = 2;
+	uf.minor = 3;
 	ret = write(p->wfd, (const void *)&uf, sizeof(uf));
 	if (ret != sizeof(uf)) {
 		err(EXIT_FAILURE, "Could not write "
