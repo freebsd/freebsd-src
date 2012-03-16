@@ -814,6 +814,8 @@ proc_to_reap(struct thread *td, struct proc *p, pid_t pid, int *status,
 {
 	struct proc *q;
 
+	sx_assert(&proctree_lock, SA_XLOCKED);
+
 	q = td->td_proc;
 	PROC_LOCK(p);
 	if (pid != WAIT_ANY && p->p_pid != pid && p->p_pgid != -pid) {

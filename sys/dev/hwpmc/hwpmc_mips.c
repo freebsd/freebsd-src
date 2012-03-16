@@ -150,6 +150,15 @@ pmc_next_frame(register_t *pc, register_t *sp)
 
 		case OP_SW:
 		case OP_SD:
+			/* 
+			 * SP is being saved using S8(FP). Most likely it indicates
+			 * that SP is modified in the function and we can't get
+			 * its value safely without emulating code backward
+			 * So just bail out on functions like this
+			 */
+			if ((i.IType.rs == 30) && (i.IType.rt = 29))
+				return (-1);
+
 			/* look for saved registers on the stack */
 			if (i.IType.rs != 29)
 				break;
@@ -327,9 +336,9 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes,
 	register_t pc, ra, sp;
 	int frames = 0;
 
-	pc = (uint64_t)tf->pc;
-	sp = (uint64_t)tf->sp;
-	ra = (uint64_t)tf->ra;
+	pc = tf->pc;
+	sp = tf->sp;
+	ra = tf->ra;
 
 	/*
 	 * Unwind, and unwind, and unwind
@@ -353,9 +362,9 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes,
 	register_t pc, ra, sp;
 	int frames = 0;
 
-	pc = (uint64_t)tf->pc;
-	sp = (uint64_t)tf->sp;
-	ra = (uint64_t)tf->ra;
+	pc = tf->pc;
+	sp = tf->sp;
+	ra = tf->ra;
 
 	/*
 	 * Unwind, and unwind, and unwind

@@ -223,7 +223,7 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind, int domain)
 {
 	struct vm_phys_seg *seg;
 #ifdef VM_PHYSSEG_SPARSE
-	long pages;
+	vm_pindex_t pages;
 	int segind;
 
 	pages = 0;

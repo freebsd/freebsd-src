@@ -146,6 +146,7 @@ static struct g_class g_part_class = {
 };
 
 DECLARE_GEOM_CLASS(g_part_class, g_part);
+MODULE_VERSION(g_part, 0);
 
 /*
  * Support functions.

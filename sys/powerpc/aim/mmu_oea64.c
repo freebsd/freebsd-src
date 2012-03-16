@@ -308,6 +308,7 @@ void moea64_qenter(mmu_t, vm_offset_t, vm_page_t *, int);
 void moea64_qremove(mmu_t, vm_offset_t, int);
 void moea64_release(mmu_t, pmap_t);
 void moea64_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
+void moea64_remove_pages(mmu_t, pmap_t);
 void moea64_remove_all(mmu_t, vm_page_t);
 void moea64_remove_write(mmu_t, vm_page_t);
 void moea64_zero_page(mmu_t, vm_page_t);
@@ -350,6 +351,7 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_qremove,		moea64_qremove),
 	MMUMETHOD(mmu_release,		moea64_release),
 	MMUMETHOD(mmu_remove,		moea64_remove),
+	MMUMETHOD(mmu_remove_pages,	moea64_remove_pages),
 	MMUMETHOD(mmu_remove_all,      	moea64_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea64_remove_write),
 	MMUMETHOD(mmu_sync_icache,	moea64_sync_icache),
@@ -1909,16 +1911,51 @@ moea64_pinit0(mmu_t mmu, pmap_t pm)
 /*
  * Set the physical protection on the specified range of this map as requested.
  */
+static void
+moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
+{
+	uintptr_t pt;
+
+	/*
+	 * Grab the PTE pointer before we diddle with the cached PTE
+	 * copy.
+	 */
+	LOCK_TABLE();
+	pt = MOEA64_PVO_TO_PTE(mmu, pvo);
+
+	/*
+	 * Change the protection of the page.
+	 */
+	pvo->pvo_pte.lpte.pte_lo &= ~LPTE_PP;
+	pvo->pvo_pte.lpte.pte_lo |= LPTE_BR;
+	pvo->pvo_pte.lpte.pte_lo &= ~LPTE_NOEXEC;
+	if ((prot & VM_PROT_EXECUTE) == 0) 
+		pvo->pvo_pte.lpte.pte_lo |= LPTE_NOEXEC;
+
+	/*
+	 * If the PVO is in the page table, update that pte as well.
+	 */
+	if (pt != -1) {
+		MOEA64_PTE_CHANGE(mmu, pt, &pvo->pvo_pte.lpte,
+		    pvo->pvo_vpn);
+		if ((pvo->pvo_pte.lpte.pte_lo & 
+		    (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
+			moea64_syncicache(mmu, pm, PVO_VADDR(pvo),
+			    pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN,
+			    PAGE_SIZE);
+		}
+	}
+	UNLOCK_TABLE();
+}
+
 void
 moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
     vm_prot_t prot)
 {
-	struct	pvo_entry *pvo;
-	uintptr_t pt;
+	struct	pvo_entry *pvo, *tpvo;
 
-	CTR4(KTR_PMAP, "moea64_protect: pm=%p sva=%#x eva=%#x prot=%#x", pm, sva,
-	    eva, prot);
-
+	CTR4(KTR_PMAP, "moea64_protect: pm=%p sva=%#x eva=%#x prot=%#x", pm,
+	    sva, eva, prot);
 
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("moea64_protect: non current pmap"));
@@ -1930,41 +1967,18 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = moea64_pvo_find_va(pm, sva);
-		if (pvo == NULL)
-			continue;
-
-		/*
-		 * Grab the PTE pointer before we diddle with the cached PTE
-		 * copy.
-		 */
-		LOCK_TABLE();
-		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
-
-		/*
-		 * Change the protection of the page.
-		 */
-		pvo->pvo_pte.lpte.pte_lo &= ~LPTE_PP;
-		pvo->pvo_pte.lpte.pte_lo |= LPTE_BR;
-		pvo->pvo_pte.lpte.pte_lo &= ~LPTE_NOEXEC;
-		if ((prot & VM_PROT_EXECUTE) == 0) 
-			pvo->pvo_pte.lpte.pte_lo |= LPTE_NOEXEC;
-
-		/*
-		 * If the PVO is in the page table, update that pte as well.
-		 */
-		if (pt != -1) {
-			MOEA64_PTE_CHANGE(mmu, pt, &pvo->pvo_pte.lpte,
-			    pvo->pvo_vpn);
-			if ((pvo->pvo_pte.lpte.pte_lo & 
-			    (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
-				moea64_syncicache(mmu, pm, sva,
-				    pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN,
-				    PAGE_SIZE);
-			}
+	if ((eva - sva)/PAGE_SIZE < pm->pm_stats.resident_count) {
+		for (; sva < eva; sva += PAGE_SIZE) {
+			pvo = moea64_pvo_find_va(pm, sva);
+			if (pvo != NULL)
+				moea64_pvo_protect(mmu, pm, pvo, prot);
 		}
-		UNLOCK_TABLE();
+	} else {
+		LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
+			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
+				continue;
+			moea64_pvo_protect(mmu, pm, pvo, prot);
+		}
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
@@ -2034,23 +2048,45 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 }
 
 /*
+ * Remove all pages mapped by the specified pmap
+ */
+void
+moea64_remove_pages(mmu_t mmu, pmap_t pm)
+{
+	struct	pvo_entry *pvo, *tpvo;
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pm);
+	LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo)
+		moea64_pvo_remove(mmu, pvo);
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pm);
+}
+
+/*
  * Remove the given range of addresses from the specified map.
  */
 void
 moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	struct	pvo_entry *pvo;
+	struct	pvo_entry *pvo, *tpvo;
+
+	/*
+	 * Perform an unsynchronized read.  This is, however, safe.
+	 */
+	if (pm->pm_stats.resident_count == 0)
+		return;
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	if ((eva - sva)/PAGE_SIZE < 10) {
+	if ((eva - sva)/PAGE_SIZE < pm->pm_stats.resident_count) {
 		for (; sva < eva; sva += PAGE_SIZE) {
 			pvo = moea64_pvo_find_va(pm, sva);
 			if (pvo != NULL)
 				moea64_pvo_remove(mmu, pvo);
 		}
 	} else {
-		LIST_FOREACH(pvo, &pm->pmap_pvo, pvo_plink) {
+		LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
 			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
 				continue;
 			moea64_pvo_remove(mmu, pvo);
