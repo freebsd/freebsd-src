@@ -78,33 +78,6 @@ struct dbreg32 {
 	unsigned int  dr[8];	/* debug registers */
 };
 
-/* Environment information of floating point unit */
-struct env87 {
-	int	en_cw;		/* control word (16bits) */
-	int	en_sw;		/* status word (16bits) */
-	int	en_tw;		/* tag word (16bits) */
-	int	en_fip;		/* floating point instruction pointer */
-	u_short	en_fcs;		/* floating code segment selector */
-	u_short	en_opcode;	/* opcode last executed (11 bits ) */
-	int	en_foo;		/* floating operand offset */
-	int	en_fos;		/* floating operand segment selector */
-};
-
-#ifdef __ia64__
-/* Layout of an x87 fpu register (amd64 gets this elsewhere) */
-struct fpacc87 {
-	u_char  fp_bytes[10];
-};
-#endif
-
-/* Floating point context */
-struct save87 {
-	struct	env87 sv_env;	/* floating point control/status */
-	struct	fpacc87 sv_ac[8];	/* accumulator contents, 0-7 */
-	u_char	sv_pad0[4];	/* padding for (now unused) saved status word */
-	u_char	sv_pad[64];	/* padding; used by emulators */
-};
-
 /*
  * Wrappers and converters.
  */
