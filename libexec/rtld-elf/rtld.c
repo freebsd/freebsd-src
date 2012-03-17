@@ -3116,17 +3116,17 @@ unref_dag(Obj_Entry *root)
 /*
  * Common code for MD __tls_get_addr().
  */
-void *
-tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
+static void *tls_get_addr_slow(Elf_Addr **, int, size_t) __noinline;
+static void *
+tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
 {
-    Elf_Addr* dtv = *dtvp;
+    Elf_Addr *newdtv, *dtv;
     int lockstate;
+    int to_copy;
 
+    dtv = *dtvp;
     /* Check dtv generation in case new modules have arrived */
     if (dtv[0] != tls_dtv_generation) {
-	Elf_Addr* newdtv;
-	int to_copy;
-
 	lockstate = wlock_acquire(rtld_bind_lock);
 	newdtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
 	to_copy = dtv[1];
@@ -3141,14 +3141,27 @@ tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
     }
 
     /* Dynamically allocate module TLS if necessary */
-    if (!dtv[index + 1]) {
+    if (dtv[index + 1] == 0) {
 	/* Signal safe, wlock will block out signals. */
 	lockstate = wlock_acquire(rtld_bind_lock);
 	if (!dtv[index + 1])
 	    dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
 	wlock_release(rtld_bind_lock, lockstate);
     }
-    return (void*) (dtv[index + 1] + offset);
+    return ((void *)(dtv[index + 1] + offset));
+}
+
+void *
+tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
+{
+	Elf_Addr *dtv;
+
+	dtv = *dtvp;
+	/* Check dtv generation in case new modules have arrived */
+	if (__predict_true(dtv[0] == tls_dtv_generation &&
+	    dtv[index + 1] != 0))
+		return ((void *)(dtv[index + 1] + offset));
+	return (tls_get_addr_slow(dtvp, index, offset));
 }
 
 /* XXX not sure what variants to use for arm. */
