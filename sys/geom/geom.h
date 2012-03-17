@@ -309,6 +309,8 @@ struct bio *g_alloc_bio(void);
 void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error);
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 int g_delete_data(struct g_consumer *cp, off_t offset, off_t length);
+void *g_read_oob(struct g_consumer *cp, off_t offset, off_t length, int *error);
+int g_write_oob(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 void g_print_bio(struct bio *bp);
 
 /* geom_kern.c / geom_kernsim.c */

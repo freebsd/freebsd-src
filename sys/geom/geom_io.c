@@ -289,11 +289,13 @@ g_io_check(struct bio *bp)
 	/* Fail if access counters dont allow the operation */
 	switch(bp->bio_cmd) {
 	case BIO_READ:
+	case BIO_READOOB:
 	case BIO_GETATTR:
 		if (cp->acr == 0)
 			return (EPERM);
 		break;
 	case BIO_WRITE:
+	case BIO_WRITEOOB:
 	case BIO_DELETE:
 	case BIO_FLUSH:
 		if (cp->acw == 0)
@@ -755,6 +757,52 @@ g_delete_data(struct g_consumer *cp, off_t offset, off_t length)
 	bp->bio_data = NULL;
 	g_io_request(bp, cp);
 	error = biowait(bp, "gdelete");
+	g_destroy_bio(bp);
+	return (error);
+}
+
+void *
+g_read_oob(struct g_consumer *cp, off_t offset, off_t length, int *error)
+{
+	struct bio *bp;
+	void *ptr;
+	int errorc;
+
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_READOOB;
+	bp->bio_done = NULL;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	ptr = g_malloc(length, M_WAITOK);
+	bp->bio_data = ptr;
+	g_io_request(bp, cp);
+	errorc = biowait(bp, "groob");
+	if (error != NULL)
+		*error = errorc;
+
+	g_destroy_bio(bp);
+	if (errorc) {
+		g_free(ptr);
+		ptr = NULL;
+	}
+
+	return (ptr);
+}
+
+int
+g_write_oob(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
+{
+	struct bio *bp;
+	int error;
+
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_WRITEOOB;
+	bp->bio_done = NULL;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	bp->bio_data = ptr;
+	g_io_request(bp, cp);
+	error = biowait(bp, "gwoob");
 	g_destroy_bio(bp);
 	return (error);
 }

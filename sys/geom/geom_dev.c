@@ -311,8 +311,10 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_kerneldump kd;
+	struct nand_oob_request *nand_req;
 	off_t offset, length, chunk;
 	int i, error;
+	void *buf;
 	u_int u;
 
 	gp = dev->si_drv1;
@@ -342,6 +344,16 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		break;
 	case DIOCGFWHEADS:
 		error = g_io_getattr("GEOM::fwheads", cp, &i, data);
+		if (error == 0 && *(u_int *)data == 0)
+			error = ENOENT;
+		break;
+	case DIOCNOOBSIZE:
+		error = g_io_getattr("NAND::oobsize", cp, &i, data);
+		if (error == 0 && *(u_int *)data == 0)
+			error = ENOENT;
+		break;
+	case DIOCNBLKSIZE:
+		error = g_io_getattr("NAND::blocksize", cp, &i, data);
 		if (error == 0 && *(u_int *)data == 0)
 			error = ENOENT;
 		break;
@@ -395,6 +407,28 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			if (SIGPENDING(td))
 				break;
 		}
+		break;
+	case DIOCNREADOOB:
+		nand_req = (struct nand_oob_request *)data;
+
+		buf = g_read_oob(cp, nand_req->offset, nand_req->length,
+		    &error);
+		if (error)
+			break;
+
+		error = copyout(buf, nand_req->ubuf, nand_req->length);
+		break;
+	case DIOCNWRITEOOB:
+		nand_req = (struct nand_oob_request *)data;
+
+		buf = g_malloc(nand_req->length, M_WAITOK);
+		error = copyin(nand_req->ubuf, buf, nand_req->length);
+
+		if (error)
+			break;
+
+		error = g_write_oob(cp, nand_req->offset, buf,
+		    nand_req->length);
 		break;
 	case DIOCGIDENT:
 		error = g_io_getattr("GEOM::ident", cp, &i, data);
