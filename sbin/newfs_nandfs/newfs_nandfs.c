@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nandfs/nandfs_fs.h>
 
 #define DEBUG
-//#undef DEBUG
+#undef DEBUG
 #ifdef DEBUG
 #define debug(fmt, args...) do { \
 	printf("nandfs:" fmt "\n", ##args); } while (0)
