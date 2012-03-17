@@ -85,6 +85,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libmemstat \
 	${_libmilter} \
 	${_libmp} \
+	${_libnandfs} \
 	${_libncp} \
 	${_libngatm} \
 	libopie \
@@ -169,6 +170,10 @@ _libipx=	libipx
 
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
+.endif
+
+.if ${MK_NAND} != "no"
+_libnandfs=	libnandfs
 .endif
 
 .if ${MK_NETGRAPH} != "no"
