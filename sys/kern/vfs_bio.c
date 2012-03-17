@@ -2672,7 +2672,8 @@ loop:
 		else if ((bp->b_flags & (B_VMIO | B_INVAL)) == 0)
 			bp->b_flags |= B_CACHE;
 		BO_LOCK(bo);
-		bremfree(bp);
+		if (!(bp->b_flags & B_MANAGED))
+			bremfree(bp);
 		BO_UNLOCK(bo);
 
 		/*
