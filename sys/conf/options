@@ -883,6 +883,7 @@ OFED		opt_ofed.h
 OFED_DEBUG_INIT	opt_ofed.h
 SDP		opt_ofed.h
 SDP_DEBUG	opt_ofed.h
+IPOIB		opt_ofed.h
 IPOIB_DEBUG	opt_ofed.h
 IPOIB_CM	opt_ofed.h
 
