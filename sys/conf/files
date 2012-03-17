@@ -2134,6 +2134,19 @@ fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
 fs/msdosfs/msdosfs_vnops.c	optional msdosfs
+fs/nandfs/bmap.c		optional nandfs
+fs/nandfs/nandfs_alloc.c	optional nandfs
+fs/nandfs/nandfs_bmap.c		optional nandfs
+fs/nandfs/nandfs_buffer.c	optional nandfs
+fs/nandfs/nandfs_cpfile.c	optional nandfs
+fs/nandfs/nandfs_dat.c		optional nandfs
+fs/nandfs/nandfs_dir.c		optional nandfs
+fs/nandfs/nandfs_ifile.c	optional nandfs
+fs/nandfs/nandfs_segment.c	optional nandfs
+fs/nandfs/nandfs_subr.c		optional nandfs
+fs/nandfs/nandfs_sufile.c	optional nandfs
+fs/nandfs/nandfs_vfsops.c	optional nandfs
+fs/nandfs/nandfs_vnops.c	optional nandfs
 fs/nfs/nfs_commonkrpc.c		optional nfscl | nfsd
 fs/nfs/nfs_commonsubs.c		optional nfscl | nfsd
 fs/nfs/nfs_commonport.c		optional nfscl | nfsd
