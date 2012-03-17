@@ -657,7 +657,7 @@
 #define	__has_builtin(x) 0
 #endif
 
-#if defined(__mips) || defined(__powerpc64__)
+#if defined(__mips) || defined(__powerpc64__) || defined(__arm__)
 #define __NO_TLS 1
 #endif
 
