@@ -2074,7 +2074,7 @@ it is removed from the bridge.
 .It Cm maxaddr Ar size
 Set the size of the bridge address cache to
 .Ar size .
-The default is 100 entries.
+The default is 2000 entries.
 .It Cm timeout Ar seconds
 Set the timeout of address cache entries to
 .Ar seconds
@@ -2082,7 +2082,7 @@ seconds.
 If
 .Ar seconds
 is zero, then address cache entries will not be expired.
-The default is 240 seconds.
+The default is 1200 seconds.
 .It Cm addr
 Display the addresses that have been learned by the bridge.
 .It Cm static Ar interface-name Ar address
