@@ -1103,6 +1103,10 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
+_gcc_tools= gnu/usr.bin/cc/cc_tools
+.endif
+
 .if ${MK_KERBEROS} != "no"
 _kerberos5_tools= kerberos5/tools
 .endif
@@ -1131,7 +1135,7 @@ build-tools:
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
-    gnu/usr.bin/cc/cc_tools \
+    ${_gcc_tools} \
     ${_kerberos5_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
 		cd ${.CURDIR}/${_tool}; \
@@ -1161,14 +1165,12 @@ _kgzip=		usr.sbin/kgzip
 _binutils=	gnu/usr.bin/binutils
 .endif
 
-.if ${MK_CLANG} != "no"
-.if ${CC:T:Mclang} == "clang"
+.if ${MK_CLANG} != "no" && (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .endif
-.endif
 
-.if ${MK_GCC} != "no"
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
 _cc=		gnu/usr.bin/cc
 .endif
 
