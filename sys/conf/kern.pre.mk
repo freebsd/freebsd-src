@@ -34,7 +34,7 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${CC:T:Mclang} != "clang"
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
 COPTFLAGS?=-O2 -frename-registers -pipe
 .else
 COPTFLAGS?=-O2 -pipe
@@ -84,7 +84,7 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${CC:T:Mclang} != "clang"
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
@@ -101,7 +101,7 @@ WERROR?= -Werror
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
-.if ${CC:T:Mclang} == "clang"
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 CLANG_NO_IAS= -no-integrated-as
 .endif
 
