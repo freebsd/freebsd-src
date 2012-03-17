@@ -91,6 +91,12 @@ SUBDIR+=	ipfw
 SUBDIR+=	natd
 .endif
 
+.if ${MK_NAND} != "no"
+SUBDIR+=	mount_nandfs
+SUBDIR+=	nandfs
+SUBDIR+=	newfs_nandfs
+.endif
+
 .if ${MK_PF} != "no"
 SUBDIR+=	pfctl
 SUBDIR+=	pflogd
