@@ -414,6 +414,7 @@ __DEFAULT_NO_OPTIONS = \
     BIND_SIGCHASE \
     BIND_XML \
     CLANG_EXTRAS \
+    CLANG_IS_CC \
     HESIOD \
     ICONV \
     IDEA \
@@ -564,6 +565,10 @@ MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_IS_CC:= no
 .endif
 
 #

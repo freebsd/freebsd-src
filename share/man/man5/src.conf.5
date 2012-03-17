@@ -271,6 +271,8 @@ When set, it also enforces the following options:
 .Bl -item -compact
 .It
 .Va WITHOUT_CLANG_EXTRAS
+.It
+.Va WITHOUT_CLANG_IS_CC
 .El
 .It Va WITH_CLANG
 .\" from FreeBSD: head/tools/build/options/WITH_CLANG 221730 2011-05-10 11:14:40Z ru
@@ -281,6 +283,15 @@ amd64/amd64, i386/i386, pc98/i386 and powerpc/powerpc.
 .It Va WITH_CLANG_EXTRAS
 .\" from FreeBSD: head/tools/build/options/WITH_CLANG_EXTRAS 231057 2012-02-05 23:56:22Z dim
 Set to build additional clang and llvm tools, such as bugpoint.
+.It Va WITH_CLANG_IS_CC
+.\" from FreeBSD: head/tools/build/options/WITH_CLANG_IS_CC 232322 2012-02-29 22:58:51Z dim
+Set to install the Clang C/C++ compiler as
+.Pa /usr/bin/cc
+,
+.Pa /usr/bin/c++
+and
+.Pa /usr/bin/cpp
+.
 .It Va WITHOUT_CPP
 .\" from FreeBSD: head/tools/build/options/WITHOUT_CPP 156932 2006-03-21 07:50:50Z ru
 Set to not build
@@ -331,6 +342,8 @@ When set, it also enforces the following options:
 .Bl -item -compact
 .It
 .Va WITHOUT_CLANG
+.It
+.Va WITHOUT_CLANG_IS_CC
 .It
 .Va WITHOUT_GROFF
 .El
@@ -917,6 +930,8 @@ When set, it also enforces the following options:
 .Va WITHOUT_BINUTILS
 .It
 .Va WITHOUT_CLANG
+.It
+.Va WITHOUT_CLANG_IS_CC
 .It
 .Va WITHOUT_GCC
 .It
