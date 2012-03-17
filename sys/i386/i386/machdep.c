@@ -40,6 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_apic.h"
 #include "opt_atalk.h"
 #include "opt_atpic.h"
 #include "opt_compat.h"
@@ -134,6 +135,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef SMP
 #include <machine/smp.h>
+#endif
+
+#ifdef DEV_APIC
+#include <machine/apicvar.h>
 #endif
 
 #ifdef DEV_ISA

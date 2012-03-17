@@ -305,6 +305,9 @@ wtap_bmiss(struct ieee80211vap *vap)
 	avp->av_bmiss(vap);
 }
 
+/* XXX */
+#define	msecs_to_ticks(ms)	(((ms) * hz) / 1000)
+
 static struct ieee80211vap *
 wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
     int unit, enum ieee80211_opmode opmode, int flags,
@@ -322,7 +325,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	    M_80211_VAP, M_NOWAIT | M_ZERO);
 	avp->id = sc->id;
 	avp->av_md = sc->sc_md;
-	avp->av_bcinterval = BEACON_INTRERVAL + 100*sc->id;
+	avp->av_bcinterval = msecs_to_ticks(BEACON_INTRERVAL + 100*sc->id);
 	vap = (struct ieee80211vap *) avp;
 	error = ieee80211_vap_setup(ic, vap, name, unit, IEEE80211_M_MBSS,
 	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
@@ -346,6 +349,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vap->iv_bss->ni_txrate = 130;
 	return vap;
 }
+#undef	msecs_to_ticks
 
 static void
 wtap_vap_delete(struct ieee80211vap *vap)

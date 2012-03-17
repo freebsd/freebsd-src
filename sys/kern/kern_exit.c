@@ -738,10 +738,12 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	LIST_REMOVE(p, p_list);	/* off zombproc */
 	sx_xunlock(&allproc_lock);
 	LIST_REMOVE(p, p_sibling);
+	PROC_LOCK(p);
 	if (p->p_flag & P_ORPHAN) {
 		LIST_REMOVE(p, p_orphan);
 		p->p_flag &= ~P_ORPHAN;
 	}
+	PROC_UNLOCK(p);
 	leavepgrp(p);
 #ifdef PROCDESC
 	if (p->p_procdesc != NULL)
@@ -811,6 +813,8 @@ proc_to_reap(struct thread *td, struct proc *p, pid_t pid, int *status,
     int options, struct rusage *rusage)
 {
 	struct proc *q;
+
+	sx_assert(&proctree_lock, SA_XLOCKED);
 
 	q = td->td_proc;
 	PROC_LOCK(p);

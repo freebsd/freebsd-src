@@ -380,6 +380,51 @@ mips_vector_init(void)
 void
 mips_postboot_fixup(void)
 {
+	static char fake_preload[256];
+	caddr_t preload_ptr = (caddr_t)&fake_preload[0];
+	size_t size = 0;
+
+#define PRELOAD_PUSH_VALUE(type, value) do {		\
+	*(type *)(preload_ptr + size) = (value);	\
+	size += sizeof(type);				\
+} while (0);
+
+	/*
+	 * Provide kernel module file information
+	 */
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_NAME);
+	PRELOAD_PUSH_VALUE(uint32_t, strlen("kernel") + 1);
+	strcpy((char*)(preload_ptr + size), "kernel");
+	size += strlen("kernel") + 1;
+	size = roundup(size, sizeof(u_long));
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
+	PRELOAD_PUSH_VALUE(uint32_t, strlen("elf kernel") + 1);
+	strcpy((char*)(preload_ptr + size), "elf kernel");
+	size += strlen("elf kernel") + 1;
+	size = roundup(size, sizeof(u_long));
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_ADDR);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
+	PRELOAD_PUSH_VALUE(vm_offset_t, KERNLOADADDR);
+	size = roundup(size, sizeof(u_long));
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_SIZE);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
+	PRELOAD_PUSH_VALUE(size_t, (size_t)&end - KERNLOADADDR);
+	size = roundup(size, sizeof(u_long));
+
+	/* End marker */
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+
+#undef	PRELOAD_PUSH_VALUE
+
+	KASSERT((size < sizeof(fake_preload)),
+		("fake preload size is more thenallocated"));
+
+	preload_metadata = (void *)fake_preload;
+
 #ifdef DDB
 	Elf_Size *trampoline_data = (Elf_Size*)kernel_kseg0_end;
 	Elf_Size symtabsize = 0;

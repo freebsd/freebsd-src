@@ -459,12 +459,12 @@ mcast:
 	/*
 	 * Resolve the link local address.
 	 */
-	if (dst_in->sa_family == AF_INET)
-		error = arpresolve(ifp, rte, NULL, dst_in, edst, &lle);
 #ifdef INET6
-	else
+	if (dst_in->sa_family == AF_INET6)
 		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, &lle);
+	else
 #endif
+		error = arpresolve(ifp, rte, NULL, dst_in, edst, &lle);
 	RTFREE(rte);
 	if (error == 0)
 		return rdma_copy_addr(addr, ifp, edst);
