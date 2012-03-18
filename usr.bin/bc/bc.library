@@ -46,7 +46,9 @@ define e(x) {
 	r = ibase
 	ibase = A
 	t = scale
-	scale = t + .434*x + 1
+	scale = 0
+	if (x > 0) scale = (0.435*x)/1
+	scale = scale + t + 1
 
 	w = 0
 	if (x < 0) {
@@ -95,26 +97,33 @@ define l(x) {
 	t = scale
 
 	f = 1
-	scale = scale + scale(x) - length(x) + 1
-	s = scale
+	if (x < 1) {
+		s = scale(x)
+	} else {
+		s = length(x) - scale(x)
+	}
+	scale = 0
+	a = (2.31*s)/1 /* estimated integer part of the answer */
+	s = t + length(a) + 2 /* estimated length of the answer */
 	while (x > 2) {
-		s = s + (length(x) - scale(x))/2 + 1
-		if (s > 0) scale = s
+		scale=0
+		scale = (length(x) + scale(x))/2 + 1
+		if (scale < s) scale = s
 		x = sqrt(x)
 		f = f*2
 	}
 	while (x < .5) {
-		s = s + (length(x) - scale(x))/2 + 1
-		if (s > 0) scale = s
+		scale = 0
+		scale = scale(x)/2 + 1
+		if (scale < s) scale = s
 		x = sqrt(x)
 		f = f*2
 	}
 
-	scale = t + length(f) - scale(f) + 1
+	scale = t + length(f) + length(t + length(f)) + 1
 	u = (x - 1)/(x + 1)
-
-	scale = scale + 1.1*length(t) - 1.1*scale(t)
 	s = u*u
+	scale = t + 2
 	b = 2*f
 	c = b
 	d = 1
@@ -261,3 +270,4 @@ define j(n,x) {
 		e = g
 	}
 }
+/* vim: set filetype=bc shiftwidth=8 noexpandtab: */
