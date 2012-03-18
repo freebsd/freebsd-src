@@ -36,6 +36,7 @@
 #ifndef _COMPAT_IA32_IA32_REG_H_
 #define	_COMPAT_IA32_IA32_REG_H_
 
+#ifdef __ia64__
 /*
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
@@ -77,6 +78,7 @@ struct fpreg32 {
 struct dbreg32 {
 	unsigned int  dr[8];	/* debug registers */
 };
+#endif
 
 /*
  * Wrappers and converters.
