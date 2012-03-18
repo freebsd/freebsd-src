@@ -2939,8 +2939,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pdp_entry_t *pdpe;
 	pd_entry_t ptpaddr, *pde;
 	pt_entry_t *pte;
-	int anychanged;
-	boolean_t pv_lists_locked;
+	boolean_t anychanged, pv_lists_locked;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
@@ -2953,7 +2952,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	pv_lists_locked = FALSE;
 resume:
-	anychanged = 0;
+	anychanged = FALSE;
 
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
@@ -3001,7 +3000,7 @@ resume:
 				 * invalidated by pmap_protect_pde().
 				 */
 				if (pmap_protect_pde(pmap, pde, sva, prot))
-					anychanged = 1;
+					anychanged = TRUE;
 				continue;
 			} else {
 				if (!pv_lists_locked) {
@@ -3055,7 +3054,7 @@ retry:
 				if (obits & PG_G)
 					pmap_invalidate_page(pmap, sva);
 				else
-					anychanged = 1;
+					anychanged = TRUE;
 			}
 		}
 	}
