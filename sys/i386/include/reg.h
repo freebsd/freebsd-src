@@ -36,6 +36,8 @@
 #ifndef _MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
+#include <machine/_types.h>
+
 /*
  * Indices for registers in `struct trapframe' and `struct regs'.
  *
@@ -78,25 +80,25 @@
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
 struct reg {
-	unsigned int	r_fs;
-	unsigned int	r_es;
-	unsigned int	r_ds;
-	unsigned int	r_edi;
-	unsigned int	r_esi;
-	unsigned int	r_ebp;
-	unsigned int	r_isp;
-	unsigned int	r_ebx;
-	unsigned int	r_edx;
-	unsigned int	r_ecx;
-	unsigned int	r_eax;
-	unsigned int	r_trapno;
-	unsigned int	r_err;
-	unsigned int	r_eip;
-	unsigned int	r_cs;
-	unsigned int	r_eflags;
-	unsigned int	r_esp;
-	unsigned int	r_ss;
-	unsigned int	r_gs;
+	__uint32_t	r_fs;
+	__uint32_t	r_es;
+	__uint32_t	r_ds;
+	__uint32_t	r_edi;
+	__uint32_t	r_esi;
+	__uint32_t	r_ebp;
+	__uint32_t	r_isp;
+	__uint32_t	r_ebx;
+	__uint32_t	r_edx;
+	__uint32_t	r_ecx;
+	__uint32_t	r_eax;
+	__uint32_t	r_trapno;
+	__uint32_t	r_err;
+	__uint32_t	r_eip;
+	__uint32_t	r_cs;
+	__uint32_t	r_eflags;
+	__uint32_t	r_esp;
+	__uint32_t	r_ss;
+	__uint32_t	r_gs;
 };
 
 /*
@@ -108,10 +110,10 @@ struct fpreg {
 	 * simplified struct.  This may be too much detail.  Perhaps
 	 * an array of unsigned longs is best.
 	 */
-	unsigned long	fpr_env[7];
-	unsigned char	fpr_acc[8][10];
-	unsigned long	fpr_ex_sw;
-	unsigned char	fpr_pad[64];
+	__uint32_t	fpr_env[7];
+	__uint8_t	fpr_acc[8][10];
+	__uint32_t	fpr_ex_sw;
+	__uint8_t	fpr_pad[64];
 };
 
 struct xmmreg {
@@ -120,17 +122,17 @@ struct xmmreg {
 	 * simplified struct.  This may be too much detail.  Perhaps
 	 * an array of unsigned longs is best.
 	 */
-	unsigned long	xmm_env[8];
-	unsigned char	xmm_acc[8][16];
-	unsigned char	xmm_reg[8][16];
-	unsigned char	xmm_pad[224];
+	__uint32_t	xmm_env[8];
+	__uint8_t	xmm_acc[8][16];
+	__uint8_t	xmm_reg[8][16];
+	__uint8_t	xmm_pad[224];
 };
 
 /*
  * Register set accessible via /proc/$pid/dbregs.
  */
 struct dbreg {
-	unsigned int  dr[8];	/* debug registers */
+	__uint32_t	dr[8];	/* debug registers */
 				/* Index 0-3: debug address registers */
 				/* Index 4-5: reserved */
 				/* Index 6: debug status */
