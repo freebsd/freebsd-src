@@ -27,12 +27,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/procfs.h>
-
-#include <compat/ia32/ia32_reg.h>
 
 int
 fill_regs32(struct thread *td, struct reg32 *regs)
