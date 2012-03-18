@@ -693,7 +693,7 @@ count_digits(const struct number *n)
 	u_int i;
 
 	if (BN_is_zero(n->number))
-		return (1);
+		return (n->scale ? n->scale : 1);
 
 	int_part = new_number();
 	fract_part = new_number();
