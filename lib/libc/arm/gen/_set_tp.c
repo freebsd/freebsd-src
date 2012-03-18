@@ -27,7 +27,7 @@
  */
 
 #include <string.h>
-#include <stdint.h>
+#include <sys/types.h>
 
 #include <machine/sysarch.h>
 
