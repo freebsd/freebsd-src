@@ -1965,7 +1965,6 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 		return;
 	}
 
-	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	if ((eva - sva)/PAGE_SIZE < pm->pm_stats.resident_count) {
 		for (; sva < eva; sva += PAGE_SIZE) {
@@ -1980,7 +1979,6 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 			moea64_pvo_protect(mmu, pm, pvo, prot);
 		}
 	}
-	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
 
