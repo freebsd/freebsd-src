@@ -41,4 +41,6 @@ EXPORT_SYMS=	dtrace_register \
 		dtrace_unregister \
 		dtrace_probe_lookup
 
+dtrace_asm.o:  assym.s
+
 .include <bsd.kmod.mk>
