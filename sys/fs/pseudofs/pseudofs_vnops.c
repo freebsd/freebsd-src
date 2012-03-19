@@ -433,6 +433,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	struct pfs_vdata *pvd = vn->v_data;
 	struct pfs_node *pd = pvd->pvd_pn;
 	struct pfs_node *pn, *pdn = NULL;
+	struct mount *mp;
 	pid_t pid = pvd->pvd_pid;
 	char *pname;
 	int error, i, namelen, visible;
@@ -475,10 +476,26 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		PFS_RETURN (0);
 	}
 
+	mp = vn->v_mount;
+
 	/* parent */
 	if (cnp->cn_flags & ISDOTDOT) {
 		if (pd->pn_type == pfstype_root)
 			PFS_RETURN (EIO);
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error != 0) {
+			vfs_ref(mp);
+			VOP_UNLOCK(vn, 0);
+			error = vfs_busy(mp, 0);
+			vn_lock(vn, LK_EXCLUSIVE | LK_RETRY);
+			vfs_rel(mp);
+			if (error != 0)
+				PFS_RETURN(ENOENT);
+			if (vn->v_iflag & VI_DOOMED) {
+				vfs_unbusy(mp);
+				PFS_RETURN(ENOENT);
+			}
+		}
 		VOP_UNLOCK(vn, 0);
 		KASSERT(pd->pn_parent != NULL,
 		    ("%s(): non-root directory has no parent", __func__));
@@ -536,18 +553,28 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		goto failed;
 	}
 
-	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
+	error = pfs_vncache_alloc(mp, vpp, pn, pid);
 	if (error)
 		goto failed;
 
-	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY);
+	if (cnp->cn_flags & ISDOTDOT) {
+		vfs_unbusy(mp);
+		vn_lock(vn, LK_EXCLUSIVE | LK_RETRY);
+		if (vn->v_iflag & VI_DOOMED) {
+			vput(*vpp);
+			*vpp = NULL;
+			PFS_RETURN(ENOENT);
+		}
+	}
 	if (cnp->cn_flags & MAKEENTRY && !(vn->v_iflag & VI_DOOMED))
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
  failed:
-	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY);
+	if (cnp->cn_flags & ISDOTDOT) {
+		vfs_unbusy(mp);
+		vn_lock(vn, LK_EXCLUSIVE | LK_RETRY);
+		*vpp = NULL;
+	}
 	PFS_RETURN(error);
 }
 
