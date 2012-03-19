@@ -50,14 +50,14 @@ get_fs_line_xvars()
   ACTIVEDEV="${1}"
   LINE="${2}"
 
-  echo $LINE | grep -q ' (' 2>/dev/null
+  echo $LINE | cut -d ' ' -f 4 | grep -q ' (' 2>/dev/null
   if [ $? -eq 0 ] ; then
 
     # See if we are looking for ZFS specific options
     echo $LINE | grep -q '^ZFS' 2>/dev/null
     if [ $? -eq 0 ] ; then
       ZTYPE="NONE"
-      ZFSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
+      ZFSVARS="`echo $LINE | cut -d ' ' -f 4 |cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
 
       echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2)?|spare|log|cache):" 2>/dev/null
 	  if [ $? -eq 0 ] ; then
@@ -126,9 +126,9 @@ gen_glabel_name()
   NUM="0"
   MAXNUM="20"
 
-  # Check if we are doing /, and rename it
-  if [ "$MOUNT" = "/" ]
-  then
+  if [ "$TYPE" = "ZFS" ] ; then
+    NAME="zpool"
+  elif [ "$MOUNT" = "/" ] ; then
     NAME="rootfs"
   else
     # If doing a swap partition, also rename it
@@ -341,7 +341,7 @@ setup_gpart_partitions()
       # Save this data to our partition config dir
       if [ "${_pType}" = "gpt" ] ; then
 	_dFile="`echo $_pDisk | sed 's|/|-|g'`"
-        echo "${FS}:${MNT}:${ENC}:${PLABEL}:GPT:${XTRAOPTS}" >${PARTDIR}/${_dFile}p${CURPART}
+        echo "${FS}#${MNT}#${ENC}#${PLABEL}#GPT#${XTRAOPTS}" >${PARTDIR}/${_dFile}p${CURPART}
 
         # Clear out any headers
         sleep 2
@@ -354,7 +354,7 @@ setup_gpart_partitions()
       else
 	# MBR Partition or GPT slice
 	_dFile="`echo $_wSlice | sed 's|/|-|g'`"
-        echo "${FS}:${MNT}:${ENC}:${PLABEL}:MBR:${XTRAOPTS}:${IMAGE}" >${PARTDIR}/${_dFile}${PARTLETTER}
+        echo "${FS}#${MNT}#${ENC}#${PLABEL}#MBR#${XTRAOPTS}#${IMAGE}" >${PARTDIR}/${_dFile}${PARTLETTER}
         # Clear out any headers
         sleep 2
         dd if=/dev/zero of=${_wSlice}${PARTLETTER} count=2048 2>/dev/null
@@ -409,7 +409,7 @@ setup_gpart_partitions()
       fi
 
       # Found our flag to commit this label setup, check that we found at least 1 partition
-      if [ "${CURPART}" = "2" ] ; then
+      if [ "${CURPART}" = "1" ] ; then
         exit_err "ERROR: commitDiskLabel was called without any partition entries for it!"
       fi
 
