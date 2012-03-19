@@ -46,16 +46,16 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 # Setting -mno-sse implies -mno-sse2, -mno-sse3 and -mno-ssse3
 #
 # clang:
-# Setting -mno-mmx implies -mno-3dnow, -mno-3dnowa, -mno-sse, -mno-sse2,
-#                          -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
+# Setting -mno-mmx implies -mno-3dnow and -mno-3dnowa
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 #
 .if ${MACHINE_CPUARCH} == "i386"
 .if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 -mno-sse
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
 .else
 CFLAGS+=	-mno-aes -mno-avx
 .endif
-CFLAGS+=	-mno-mmx -msoft-float
+CFLAGS+=	-mno-mmx -mno-sse -msoft-float
 INLINE_LIMIT?=	8000
 .endif
 
@@ -93,17 +93,15 @@ INLINE_LIMIT?=	15000
 # Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3 and -mfpmath=387
 #
 # clang:
-# Setting -mno-mmx implies -mno-3dnow, -mno-3dnowa, -mno-sse, -mno-sse2,
-#                          -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
+# Setting -mno-mmx implies -mno-3dnow and -mno-3dnowa
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
-CFLAGS+=	-mno-sse
-.else
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 CFLAGS+=	-mno-aes -mno-avx
 .endif
-CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -msoft-float \
+CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -msoft-float \
 		-fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
 .endif
