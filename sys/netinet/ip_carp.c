@@ -279,7 +279,7 @@ carp_hmac_prepare(struct carp_softc *sc)
 		found = 0;
 		last = cur;
 		cur.s_addr = 0xffffffff;
-		IF_ADDR_LOCK(SC2IFP(sc));
+		IF_ADDR_RLOCK(SC2IFP(sc));
 		TAILQ_FOREACH(ifa, &SC2IFP(sc)->if_addrlist, ifa_list) {
 			in.s_addr = ifatoia(ifa)->ia_addr.sin_addr.s_addr;
 			if (ifa->ifa_addr->sa_family == AF_INET &&
@@ -289,7 +289,7 @@ carp_hmac_prepare(struct carp_softc *sc)
 				found++;
 			}
 		}
-		IF_ADDR_UNLOCK(SC2IFP(sc));
+		IF_ADDR_RUNLOCK(SC2IFP(sc));
 		if (found)
 			SHA1Update(&sc->sc_sha1, (void *)&cur, sizeof(cur));
 	} while (found);
@@ -300,7 +300,7 @@ carp_hmac_prepare(struct carp_softc *sc)
 		found = 0;
 		last6 = cur6;
 		memset(&cur6, 0xff, sizeof(cur6));
-		IF_ADDR_LOCK(SC2IFP(sc));
+		IF_ADDR_RLOCK(SC2IFP(sc));
 		TAILQ_FOREACH(ifa, &SC2IFP(sc)->if_addrlist, ifa_list) {
 			in6 = ifatoia6(ifa)->ia_addr.sin6_addr;
 			if (IN6_IS_SCOPE_EMBED(&in6))
@@ -312,7 +312,7 @@ carp_hmac_prepare(struct carp_softc *sc)
 				found++;
 			}
 		}
-		IF_ADDR_UNLOCK(SC2IFP(sc));
+		IF_ADDR_RUNLOCK(SC2IFP(sc));
 		if (found)
 			SHA1Update(&sc->sc_sha1, (void *)&cur6, sizeof(cur6));
 	} while (found);
@@ -1138,7 +1138,7 @@ carp_addrcount(struct carp_if *cif, struct in_ifaddr *ia, int type)
 		    (SC2IFP(vh)->if_flags & IFF_UP) &&
 		    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING)) ||
 		    (type == CARP_COUNT_MASTER && vh->sc_state == MASTER)) {
-			IF_ADDR_LOCK(SC2IFP(vh));
+			IF_ADDR_RLOCK(SC2IFP(vh));
 			TAILQ_FOREACH(ifa, &SC2IFP(vh)->if_addrlist,
 			    ifa_list) {
 				if (ifa->ifa_addr->sa_family == AF_INET &&
@@ -1146,7 +1146,7 @@ carp_addrcount(struct carp_if *cif, struct in_ifaddr *ia, int type)
 				    ifatoia(ifa)->ia_addr.sin_addr.s_addr)
 					count++;
 			}
-			IF_ADDR_UNLOCK(SC2IFP(vh));
+			IF_ADDR_RUNLOCK(SC2IFP(vh));
 		}
 	}
 	return (count);
@@ -1186,7 +1186,7 @@ carp_iamatch(struct ifnet *ifp, struct in_ifaddr *ia,
 		TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
 			if ((SC2IFP(vh)->if_flags & IFF_UP) &&
 			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING)) {
-				IF_ADDR_LOCK(SC2IFP(vh));
+				IF_ADDR_RLOCK(SC2IFP(vh));
 				TAILQ_FOREACH(ifa, &SC2IFP(vh)->if_addrlist,
 				    ifa_list) {
 					if (ifa->ifa_addr->sa_family ==
@@ -1197,11 +1197,11 @@ carp_iamatch(struct ifnet *ifp, struct in_ifaddr *ia,
 							if (vh->sc_state ==
 							    MASTER) {
 								*enaddr = IF_LLADDR(vh->sc_ifp);
-								IF_ADDR_UNLOCK(SC2IFP(vh));
+								IF_ADDR_RUNLOCK(SC2IFP(vh));
 								CARP_UNLOCK(cif);
 								return (1);
 							} else {
-								IF_ADDR_UNLOCK(SC2IFP(vh));
+								IF_ADDR_RUNLOCK(SC2IFP(vh));
 								CARP_UNLOCK(cif);
 								return (0);
 							}
@@ -1209,7 +1209,7 @@ carp_iamatch(struct ifnet *ifp, struct in_ifaddr *ia,
 						count++;
 					}
 				}
-				IF_ADDR_UNLOCK(SC2IFP(vh));
+				IF_ADDR_RUNLOCK(SC2IFP(vh));
 			}
 		}
 	} else {
@@ -1239,7 +1239,7 @@ carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
-		IF_ADDR_LOCK(SC2IFP(vh));
+		IF_ADDR_RLOCK(SC2IFP(vh));
 		TAILQ_FOREACH(ifa, &SC2IFP(vh)->if_addrlist, ifa_list) {
 			if (IN6_ARE_ADDR_EQUAL(taddr,
 			    &ifatoia6(ifa)->ia_addr.sin6_addr) &&
@@ -1247,12 +1247,12 @@ carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
 			    vh->sc_state == MASTER) {
 				ifa_ref(ifa);
-				IF_ADDR_UNLOCK(SC2IFP(vh));
+				IF_ADDR_RUNLOCK(SC2IFP(vh));
 			    	CARP_UNLOCK(cif);
 				return (ifa);
 			}
 		}
-		IF_ADDR_UNLOCK(SC2IFP(vh));
+		IF_ADDR_RUNLOCK(SC2IFP(vh));
 	}
 	CARP_UNLOCK(cif);
 	
@@ -1270,7 +1270,7 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 	cif = ifp->if_carp;
 	CARP_LOCK(cif);
 	TAILQ_FOREACH(sc, &cif->vhif_vrs, sc_list) {
-		IF_ADDR_LOCK(SC2IFP(sc));
+		IF_ADDR_RLOCK(SC2IFP(sc));
 		TAILQ_FOREACH(ifa, &SC2IFP(sc)->if_addrlist, ifa_list) {
 			if (IN6_ARE_ADDR_EQUAL(taddr,
 			    &ifatoia6(ifa)->ia_addr.sin6_addr) &&
@@ -1281,7 +1281,7 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 				    sizeof(struct ifnet *), M_NOWAIT);
 				if (mtag == NULL) {
 					/* better a bit than nothing */
-					IF_ADDR_UNLOCK(SC2IFP(sc));
+					IF_ADDR_RUNLOCK(SC2IFP(sc));
 					CARP_UNLOCK(cif);
 					return (IF_LLADDR(sc->sc_ifp));
 				}
@@ -1289,12 +1289,12 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 				    sizeof(struct ifnet *));
 				m_tag_prepend(m, mtag);
 
-				IF_ADDR_UNLOCK(SC2IFP(sc));
+				IF_ADDR_RUNLOCK(SC2IFP(sc));
 				CARP_UNLOCK(cif);
 				return (IF_LLADDR(sc->sc_ifp));
 			}
 		}
-		IF_ADDR_UNLOCK(SC2IFP(sc));
+		IF_ADDR_RUNLOCK(SC2IFP(sc));
 	}
 	CARP_UNLOCK(cif);
 

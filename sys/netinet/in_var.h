@@ -396,9 +396,9 @@ inm_lookup(struct ifnet *ifp, const struct in_addr ina)
 	struct in_multi *inm;
 
 	IN_MULTI_LOCK_ASSERT();
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	inm = inm_lookup_locked(ifp, ina);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return (inm);
 }
