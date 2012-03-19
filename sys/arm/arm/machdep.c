@@ -44,6 +44,7 @@
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_timer.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -349,15 +350,19 @@ void
 cpu_idle(int busy)
 {
 	
+#ifndef NO_EVENTTIMERS
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
 	}
+#endif
 	cpu_sleep(0);
+#ifndef NO_EVENTTIMERS
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
 	}
+#endif
 }
 
 int
