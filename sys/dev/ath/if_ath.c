@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 /*
  * This is needed for register operations which are performed
  * by the driver - eg, calls to ath_hal_gettsf32().
+ *
+ * It's also required for any AH_DEBUG checks in here, eg the
+ * module dependencies.
  */
 #include "opt_ah.h"
 #include "opt_wlan.h"
@@ -4792,10 +4795,16 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 
 	if (bf->bf_state.bfs_dobaw)
 		device_printf(sc->sc_dev,
-		    "%s: dobaw should've been cleared!\n", __func__);
+		    "%s: bf %p: seqno %d: dobaw should've been cleared!\n",
+		    __func__,
+		    bf,
+		    SEQNO(bf->bf_state.bfs_seqno));
 	if (bf->bf_next != NULL)
 		device_printf(sc->sc_dev,
-		    "%s: bf_next not NULL!\n", __func__);
+		    "%s: bf %p: seqno %d: bf_next not NULL!\n",
+		    __func__,
+		    bf,
+		    SEQNO(bf->bf_state.bfs_seqno));
 
 	/*
 	 * Do any tx complete callback.  Note this must
@@ -5349,8 +5358,11 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 		struct ath_buf *bf;
 		u_int ix;
 
-		printf("%s: rx queue %p, link %p\n", __func__,
-			(caddr_t)(uintptr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink);
+		device_printf(sc->sc_dev,
+		    "%s: rx queue %p, link %p\n",
+		    __func__,
+		    (caddr_t)(uintptr_t) ath_hal_getrxbuf(ah),
+		    sc->sc_rxlink);
 		ix = 0;
 		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 			struct ath_desc *ds = bf->bf_desc;
@@ -6817,3 +6829,6 @@ ath_dfs_tasklet(void *p, int npending)
 
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
+#if	defined(IEEE80211_ALQ) || defined(AH_DEBUG_ALQ)
+MODULE_DEPEND(if_ath, alq, 1, 1, 1);
+#endif

@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <x86/reg.h>
+#include <x86/fpu.h>

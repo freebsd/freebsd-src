@@ -159,6 +159,7 @@ options 	GEOM_PART_BSD		# BSD disklabel
 options 	GEOM_PART_EBR		# Extended Boot Records
 options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
+options 	GEOM_PART_LDM		# Logical Disk Manager
 options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PART_PC98		# PC-9800 disk partitioning
 options 	GEOM_PART_VTOC8		# SMI VTOC8 disk label
@@ -274,6 +275,8 @@ options 	SX_NOINLINE
 #	  frequency.
 # TURNSTILE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active lock queues.
+# UMTX_PROFILING enables rudimentary profiling of the hash table used 
+	  to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
 # WITNESS_KDB causes the witness code to drop into the kernel debugger if
@@ -297,8 +300,8 @@ options 	MPROF_HASH_SIZE="1543"
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING
 options 	TURNSTILE_PROFILING
+options		UMTX_PROFILING
 
-
 #####################################################################
 # COMPATIBILITY OPTIONS
 

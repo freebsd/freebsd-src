@@ -5437,6 +5437,13 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	}
     }
 
+  /* Default 64-bit objects to N64 instead of O32.  */
+  if (found_abi == MIPS_ABI_UNKNOWN
+      && info.abfd != NULL
+      && bfd_get_flavour (info.abfd) == bfd_target_elf_flavour
+      && elf_elfheader (info.abfd)->e_ident[EI_CLASS] == ELFCLASS64)
+    found_abi = MIPS_ABI_N64;
+
   if (gdbarch_debug)
     fprintf_unfiltered (gdb_stdlog, "mips_gdbarch_init: found_abi = %d\n",
 			found_abi);

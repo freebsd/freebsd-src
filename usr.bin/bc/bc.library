@@ -48,7 +48,7 @@ define e(x) {
 	t = scale
 	scale = 0
 	if (x > 0) scale = (0.435*x)/1
-	scale = scale + t + 1
+	scale = scale + t + length(scale + t) + 1
 
 	w = 0
 	if (x < 0) {
@@ -120,7 +120,8 @@ define l(x) {
 		f = f*2
 	}
 
-	scale = t + length(f) + length(t + length(f)) + 1
+	scale = 0
+	scale = t + length(f) + length((1.05*(t+length(f))/1)) + 1
 	u = (x - 1)/(x + 1)
 	s = u*u
 	scale = t + 2
