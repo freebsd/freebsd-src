@@ -935,6 +935,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				kldunloadfflagsname ((int)*ip);
 				ip++;
 				narg--;
+			} else if (ktr->ktr_code == SYS_posix_fadvise) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				fadvisebehavname((int)*ip);
+				ip++;
+				narg--;
 			}
 		}
 		while (narg > 0) {
