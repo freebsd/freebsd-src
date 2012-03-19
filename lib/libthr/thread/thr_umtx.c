@@ -202,7 +202,7 @@ _thr_umtx_timedwait_uint(volatile u_int *mtx, u_int id, int clockid,
 		tm_p = NULL;
 		tm_size = 0;
 	} else {
-		timeout._clockid = CLOCK_REALTIME;
+		timeout._clockid = clockid;
 		timeout._flags = UMTX_ABSTIME;
 		timeout._timeout = *abstime;
 		tm_p = &timeout;
