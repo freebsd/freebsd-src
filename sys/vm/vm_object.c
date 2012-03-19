@@ -1065,16 +1065,16 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
  *	    without I/O.
  */
 void
-vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
+vm_object_madvise(vm_object_t object, vm_pindex_t pindex, vm_pindex_t end,
+    int advise)
 {
-	vm_pindex_t end, tpindex;
+	vm_pindex_t tpindex;
 	vm_object_t backing_object, tobject;
 	vm_page_t m;
 
 	if (object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
-	end = pindex + count;
 	/*
 	 * Locate and adjust resident pages
 	 */
