@@ -703,7 +703,7 @@ icmp_reflect(struct mbuf *m)
 	 */
 	ifp = m->m_pkthdr.rcvif;
 	if (ifp != NULL && ifp->if_flags & IFF_BROADCAST) {
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -711,11 +711,11 @@ icmp_reflect(struct mbuf *m)
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    t.s_addr) {
 				t = IA_SIN(ia)->sin_addr;
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				goto match;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of
@@ -724,16 +724,16 @@ icmp_reflect(struct mbuf *m)
 	 * criteria apply.
 	 */
 	if (V_icmp_rfi && ifp != NULL) {
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
 			t = IA_SIN(ia)->sin_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto match;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 	/*
 	 * If the incoming packet was not addressed directly to us, use
@@ -742,16 +742,16 @@ icmp_reflect(struct mbuf *m)
 	 * with normal source selection.
 	 */
 	if (V_reply_src[0] != '\0' && (ifp = ifunit(V_reply_src))) {
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			ia = ifatoia(ifa);
 			t = IA_SIN(ia)->sin_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto match;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 	/*
 	 * If the packet was transiting through us, use the address of

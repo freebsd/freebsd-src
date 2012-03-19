@@ -617,15 +617,15 @@ in_arpinput(struct mbuf *m)
 	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ia = ifatoia(ifa);
 			ifa_ref(ifa);
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto match;
 		}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	/*
 	 * If bridging, fall back to using any inet address.
