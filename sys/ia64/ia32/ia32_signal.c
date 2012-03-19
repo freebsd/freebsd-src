@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/ia32/ia32_signal.h>
 #include <x86/include/psl.h>
 #include <x86/include/segments.h>
-#include <i386/include/specialreg.h>
+#include <x86/include/specialreg.h>
 
 char ia32_sigcode[] = {
 	0xff, 0x54, 0x24, 0x10,		/* call *SIGF_HANDLER(%esp) */
