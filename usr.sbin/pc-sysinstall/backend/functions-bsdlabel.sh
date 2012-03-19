@@ -59,7 +59,7 @@ get_fs_line_xvars()
       ZTYPE="NONE"
       ZFSVARS="`echo $LINE | cut -d ' ' -f 4 |cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
 
-      echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2)?|spare|log|cache):" 2>/dev/null
+      echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2|3)?|spare|log|cache):" 2>/dev/null
 	  if [ $? -eq 0 ] ; then
        ZTYPE=`echo $ZFSVARS | cut -f1 -d:`
        ZFSVARS=`echo $ZFSVARS | sed "s|$ZTYPE: ||g" | sed "s|$ZTYPE:||g"`
