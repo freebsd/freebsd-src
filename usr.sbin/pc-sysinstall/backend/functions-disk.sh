@@ -641,7 +641,7 @@ init_mbr_full_disk()
   sleep 2
 
   echo_log "Running gpart on ${_intDISK}"
-  rc_halt "gpart create -s mbr ${_intDISK}"
+  rc_halt "gpart create -s mbr -f active ${_intDISK}"
 
   # Lets figure out disk size in blocks
   # Get the cyl of this disk
