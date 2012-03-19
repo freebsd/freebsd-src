@@ -236,10 +236,3 @@ and the return status of the call should be tested for failure.
 This will ensure that the program does not continue blindly
 in the event that an attacker has already created the file
 with the intention of manipulating or reading its contents.
-.Pp
-The implementation of these functions calls
-.Xr arc4random 3 ,
-which is not reentrant.
-You must provide your own locking around this and other consumers of the
-.Xr arc4random 3
-API.
