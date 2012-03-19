@@ -542,7 +542,7 @@ mld_ifdetach(struct ifnet *ifp)
 
 	mli = MLD_IFINFO(ifp);
 	if (mli->mli_version == MLD_VERSION_2) {
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
@@ -554,7 +554,7 @@ mld_ifdetach(struct ifnet *ifp)
 			}
 			in6m_clear_recorded(inm);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		SLIST_FOREACH_SAFE(inm, &mli->mli_relinmhead, in6m_nrele,
 		    tinm) {
 			SLIST_REMOVE_HEAD(&mli->mli_relinmhead, in6m_nrele);
@@ -693,7 +693,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	if (timer == 0)
 		timer = 1;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	if (is_general_query) {
 		/*
 		 * For each reporting group joined on this
@@ -725,7 +725,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		in6_clearscope(&mld->mld_addr);
 	}
 
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 	MLD_UNLOCK();
 	IN6_MULTI_UNLOCK();
 
@@ -936,10 +936,10 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * Queries for groups we are not a member of on this
 		 * link are simply ignored.
 		 */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		inm = in6m_lookup_locked(ifp, &mld->mld_addr);
 		if (inm == NULL) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto out_locked;
 		}
 		if (nsrc > 0) {
@@ -947,7 +947,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 			    &V_mld_gsrdelay)) {
 				CTR1(KTR_MLD, "%s: GS query throttled.",
 				    __func__);
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				goto out_locked;
 			}
 		}
@@ -965,7 +965,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 		/* XXX Clear embedded scope ID as userland won't expect it. */
 		in6_clearscope(&mld->mld_addr);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 
 out_locked:
@@ -1175,7 +1175,7 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 
 	/*
 	 * MLDv1 report suppression.
@@ -1223,8 +1223,8 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	}
 
 out_locked:
+	IF_ADDR_RUNLOCK(ifp);
 	MLD_UNLOCK();
-	IF_ADDR_UNLOCK(ifp);
 	IN6_MULTI_UNLOCK();
 
 	/* XXX Clear embedded scope ID as userland won't expect it. */
@@ -1400,7 +1400,7 @@ mld_fasttimo_vnet(void)
 			IFQ_SET_MAXLEN(&scq, MLD_MAX_STATE_CHANGE_PACKETS);
 		}
 
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
@@ -1416,7 +1416,7 @@ mld_fasttimo_vnet(void)
 				break;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		switch (mli->mli_version) {
 		case MLD_VERSION_1:
@@ -1684,7 +1684,7 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 
 	ifp = mli->mli_ifp;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6)
 			continue;
@@ -1721,7 +1721,7 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 			break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 	SLIST_FOREACH_SAFE(inm, &mli->mli_relinmhead, in6m_nrele, tinm) {
 		SLIST_REMOVE_HEAD(&mli->mli_relinmhead, in6m_nrele);
 		in6m_release_locked(inm);
@@ -2995,7 +2995,7 @@ mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 
 	ifp = mli->mli_ifp;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
@@ -3026,7 +3026,7 @@ mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 			break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	mld_dispatch_queue(&mli->mli_gq, MLD_MAX_RESPONSE_BURST);
 

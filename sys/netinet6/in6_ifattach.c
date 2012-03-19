@@ -243,7 +243,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	static u_int8_t allone[8] =
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
@@ -255,7 +255,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 		goto found;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return -1;
 
@@ -282,7 +282,7 @@ found:
 
 		/* look at IEEE802/EUI64 only */
 		if (addrlen != 8 && addrlen != 6) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 
@@ -292,11 +292,11 @@ found:
 		 * card insertion.
 		 */
 		if (bcmp(addr, allzero, addrlen) == 0) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 		if (bcmp(addr, allone, addrlen) == 0) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 
@@ -317,11 +317,11 @@ found:
 
 	case IFT_ARCNET:
 		if (addrlen != 1) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 		if (!addr[0]) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 
@@ -345,17 +345,17 @@ found:
 		 * identifier source (can be renumbered).
 		 * we don't do this.
 		 */
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 
 	default:
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 	}
 
 	/* sanity check: g bit must not indicate "group" */
 	if (EUI64_GROUP(in6)) {
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 	}
 
@@ -368,11 +368,11 @@ found:
 	 */
 	if ((in6->s6_addr[8] & ~(EUI64_GBIT | EUI64_UBIT)) == 0x00 &&
 	    bcmp(&in6->s6_addr[9], allzero, 7) == 0) {
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 	}
 
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 	return 0;
 }
 
@@ -820,9 +820,9 @@ in6_ifdetach(struct ifnet *ifp)
 			(void)rtinit(&ia->ia_ifa, RTM_DELETE, ia->ia_flags);
 
 		/* remove from the linked list */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_WLOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		ifa_free(ifa);				/* if_addrhead */
 
 		IN6_IFADDR_WLOCK();
@@ -941,7 +941,7 @@ in6_purgemaddrs(struct ifnet *ifp)
 	 * We need to do this as IF_ADDR_LOCK() may be re-acquired
 	 * by code further down.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
@@ -949,7 +949,7 @@ in6_purgemaddrs(struct ifnet *ifp)
 		inm = (struct in6_multi *)ifma->ifma_protospec;
 		LIST_INSERT_HEAD(&purgeinms, inm, in6m_entry);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	LIST_FOREACH_SAFE(inm, &purgeinms, in6m_entry, tinm) {
 		LIST_REMOVE(inm, in6m_entry);

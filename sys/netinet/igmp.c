@@ -617,7 +617,7 @@ igmp_ifdetach(struct ifnet *ifp)
 
 	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
 	if (igi->igi_version == IGMP_VERSION_3) {
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET ||
 			    ifma->ifma_protospec == NULL)
@@ -633,7 +633,7 @@ igmp_ifdetach(struct ifnet *ifp)
 			}
 			inm_clear_recorded(inm);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		/*
 		 * Free the in_multi reference(s) for this IGMP lifecycle.
 		 */
@@ -750,7 +750,7 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip,
 	 * for the interface on which the query arrived,
 	 * except those which are already running.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
@@ -778,7 +778,7 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip,
 			break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 out_locked:
 	IGMP_UNLOCK();
@@ -851,7 +851,7 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 		 */
 		CTR2(KTR_IGMPV3, "process v2 general query on ifp %p(%s)",
 		    ifp, ifp->if_xname);
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET ||
 			    ifma->ifma_protospec == NULL)
@@ -859,7 +859,7 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 			inm = (struct in_multi *)ifma->ifma_protospec;
 			igmp_v2_update_group(inm, timer);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	} else {
 		/*
 		 * Group-specific IGMPv2 query, we need only
@@ -1707,7 +1707,7 @@ igmp_fasttimo_vnet(void)
 			IFQ_SET_MAXLEN(&scq, IGMP_MAX_STATE_CHANGE_PACKETS);
 		}
 
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET ||
 			    ifma->ifma_protospec == NULL)
@@ -1725,7 +1725,7 @@ igmp_fasttimo_vnet(void)
 				break;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		if (igi->igi_version == IGMP_VERSION_3) {
 			struct in_multi		*tinm;
@@ -2022,7 +2022,7 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 	 * for all memberships scoped to this link.
 	 */
 	ifp = igi->igi_ifp;
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
@@ -2067,7 +2067,7 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 		inm->inm_timer = 0;
 		_IF_DRAIN(&inm->inm_scq);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 	SLIST_FOREACH_SAFE(inm, &igi->igi_relinmhead, inm_nrele, tinm) {
 		SLIST_REMOVE_HEAD(&igi->igi_relinmhead, inm_nrele);
 		inm_release_locked(inm);
@@ -3330,7 +3330,7 @@ igmp_v3_dispatch_general_query(struct igmp_ifinfo *igi)
 
 	ifp = igi->igi_ifp;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
@@ -3361,7 +3361,7 @@ igmp_v3_dispatch_general_query(struct igmp_ifinfo *igi)
 			break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	loop = (igi->igi_flags & IGIF_LOOPBACK) ? 1 : 0;
 	igmp_dispatch_queue(&igi->igi_gq, IGMP_MAX_RESPONSE_BURST, loop);
