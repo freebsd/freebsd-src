@@ -1754,6 +1754,8 @@ dev/sound/pci/hda/hdaa_patches.c	optional snd_hda pci
 dev/sound/pci/hda/hdac.c	optional snd_hda pci
 dev/sound/pci/hda/hdac_if.m	optional snd_hda pci
 dev/sound/pci/hda/hdacc.c	optional snd_hda pci
+dev/sound/pci/hdspe.c		optional snd_hdspe pci
+dev/sound/pci/hdspe-pcm.c	optional snd_hdspe pci
 dev/sound/pcm/ac97.c		optional sound
 dev/sound/pcm/ac97_if.m		optional sound
 dev/sound/pcm/ac97_patch.c	optional sound

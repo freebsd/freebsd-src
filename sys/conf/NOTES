@@ -2246,6 +2246,7 @@ device		sound
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
+# snd_hdspe:		RME HDSPe AIO and RayDAT.
 # snd_ich:		Intel ICH AC'97 and some more audio controllers
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
@@ -2285,6 +2286,7 @@ device		snd_ess
 device		snd_fm801
 device		snd_gusc
 device		snd_hda
+device		snd_hdspe
 device		snd_ich
 device		snd_maestro
 device		snd_maestro3
