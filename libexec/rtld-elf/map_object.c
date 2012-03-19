@@ -65,7 +65,6 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Phdr *phtls;
     caddr_t mapbase;
     size_t mapsize;
-    Elf_Off base_offset;
     Elf_Addr base_vaddr;
     Elf_Addr base_vlimit;
     caddr_t base_addr;
@@ -161,7 +160,6 @@ map_object(int fd, const char *path, const struct stat *sb)
      * Map the entire address space of the object, to stake out our
      * contiguous region, and to establish the base address for relocation.
      */
-    base_offset = trunc_page(segs[0]->p_offset);
     base_vaddr = trunc_page(segs[0]->p_vaddr);
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
