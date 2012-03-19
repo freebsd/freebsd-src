@@ -1478,7 +1478,8 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 		vesa_vmem_buf = malloc(bsize, M_DEVBUF, M_NOWAIT);
 		if (vesa_vmem_buf != NULL)
 			bcopy((void *)buf, vesa_vmem_buf, bsize);
-	}
+	} else
+		vesa_vmem_buf = NULL;
 	((adp_state_t *)p)->sig = V_STATE_SIG;
 	bzero(((adp_state_t *)p)->regs, vesa_state_buf_size);
 	return (vesa_bios_save_restore(STATE_SAVE, ((adp_state_t *)p)->regs));
@@ -1496,7 +1497,6 @@ vesa_load_state(video_adapter_t *adp, void *p)
 
 	/* Try BIOS POST to restore a sane state. */
 	(void)vesa_bios_post();
-	buf = adp->va_buffer;
 	bsize = adp->va_buffer_size;
 	mode = adp->va_mode;
 	(void)vesa_set_mode(adp, adp->va_initial_mode);
@@ -1505,8 +1505,10 @@ vesa_load_state(video_adapter_t *adp, void *p)
 
 	if (((adp_state_t *)p)->sig != V_STATE_SIG)
 		return ((*prevvidsw->load_state)(adp, p));
-	if (buf != 0 && vesa_vmem_buf != NULL) {
-		bcopy(vesa_vmem_buf, (void *)buf, bsize);
+	if (vesa_vmem_buf != NULL) {
+		buf = adp->va_buffer;
+		if (buf != 0)
+			bcopy(vesa_vmem_buf, (void *)buf, bsize);
 		free(vesa_vmem_buf, M_DEVBUF);
 	}
 	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs));
