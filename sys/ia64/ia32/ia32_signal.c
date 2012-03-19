@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/ia32/ia32_signal.h>
-#include <i386/include/psl.h>
+#include <x86/include/psl.h>
 #include <x86/include/segments.h>
 #include <i386/include/specialreg.h>
 
