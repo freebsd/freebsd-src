@@ -235,8 +235,6 @@ _startC(void)
 	if ((cpufunc_id() & 0x0000f000) == 0x00009000)
 		arm9_setup();
 #endif
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 #endif
 	__start();
 }
