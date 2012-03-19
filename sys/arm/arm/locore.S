@@ -229,6 +229,10 @@ Lend:
 	.word	_edata
 Lstartup_pagetable:
 	.word	STARTUP_PAGETABLE_ADDR
+#ifdef SMP
+Lstartup_pagetable_secondary:
+	.word	temp_pagetable
+#endif
 mmu_init_table:
 	/* fill all table VA==PA */
 	/* map SDRAM VA==PA, WT cacheable */
@@ -240,6 +244,7 @@ mmu_init_table:
 	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
+	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
 #endif
 	.word 0	/* end of table */
 #endif
@@ -278,13 +283,16 @@ svcstk:
 Lsramaddr:
 	.word	0xffff0080
 
-/* Use carefully!!! Changes r0, r1 */
+#if 0
 #define	AP_DEBUG(tmp)			\
 	mrc	p15, 0, r1, c0, c0, 5;	\
 	ldr	r0, Lsramaddr;		\
 	add	r0, r1, lsl #2;		\
 	mov	r1, tmp;		\
 	str	r1, [r0], #0x0000;
+#else
+#define AP_DEBUG(tmp)
+#endif
 
 
 ASENTRY_NP(mptramp)
@@ -322,6 +330,11 @@ ASENTRY_NP(mpentry)
 	orr	r7, r7, #(I32_bit|F32_bit)
 	msr	cpsr_c, r7
 
+
+	adr     r7, Ltag
+	bic     r7, r7, #0xf0000000
+	orr     r7, r7, #PHYSADDR
+			
 	/* Disable MMU for a while */
 	mrc	p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
@@ -337,14 +350,17 @@ ASENTRY_NP(mpentry)
 	AP_DEBUG(#3)
 
 Ltag:
-	ldr	r0, Lstartup_pagetable
+	ldr	r0, Lstartup_pagetable_secondary
+	bic	r0, r0, #0xf0000000
+	orr	r0, r0, #PHYSADDR
+	ldr	r0, [r0]
 #if defined(SMP)
-	orr 	r0, r0, #2		/* Set TTB shared memory flag */
+	orr 	r0, r0, #0		/* Set TTB shared memory flag */
 #endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -356,7 +372,7 @@ Ltag:
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
@@ -369,6 +385,7 @@ Ltag:
 	adr	r1, .Lstart
 	ldmia	r1, {r1, r2, sp}	/* Set initial stack and */
 	mrc	p15, 0, r0, c0, c0, 5
+	and	r0, r0, #15
 	mov	r1, #2048
 	mul	r2, r1, r0
 	sub	sp, sp, r2
