@@ -88,15 +88,14 @@ __FBSDID("$FreeBSD$");
 #define DOMAIN_CLIENT	0x01
 
 #ifdef _ARM_ARCH_6
-#define GET_PCB(tmp) \
-	mrc p15, 0, tmp, c13, c0, 4; \
-	add	tmp, tmp, #(PC_CURPCB)
+#define GET_PCPU(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4;
 #else
-.Lcurpcb:
-	.word	_C_LABEL(__pcpu) + PC_CURPCB
+.Lcurpcpu:
+	.word	_C_LABEL(__pcpu)
 
-#define GET_PCB(tmp) \
-	ldr	tmp, .Lcurpcb
+#define GET_PCPU(tmp) \
+	ldr	tmp, .Lcurpcpu
 #endif
 
 .Lcpufuncs:	
@@ -108,11 +107,26 @@ ENTRY(cpu_throw)
 	mov	r5, r1
 
 	/*
+	 * r0 = oldtd
 	 * r5 = newtd
 	 */
 
-	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
+	GET_PCPU(r7)
 
+#ifdef ARM_VFP_SUPPORT
+	/*
+	 * vfp_discard will clear pcpu->pc_vfpcthread, and modify
+	 * and modify the control as needed.
+	 */
+	ldr     r4, [r7, #(PC_VFPCTHREAD)]      /* this thread using vfp? */
+	cmp     r0, r4
+	bne     3f
+	bl      _C_LABEL(vfp_discard)           /* yes, shut down vfp */
+3:
+#endif		/* ARM_VFP_SUPPORT */
+
+	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
+  
 	/* Switch to lwp0 context */
 
 	ldr	r9, .Lcpufuncs
@@ -182,7 +196,7 @@ ENTRY(cpu_throw)
 
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
-#ifndef SMP
+#ifdef ARM_TP_ADDRESS
 	ldr	r4, =ARM_TP_ADDRESS
 	str	r6, [r4]
 	ldr	r6, [r5, #(TD_MD + MD_RAS_START)]
@@ -193,8 +207,8 @@ ENTRY(cpu_throw)
 	mcr p15, 0, r6, c13, c0, 3
 #endif
 	/* Hook in a new pcb */
-	GET_PCB(r6)
-	str	r7, [r6]
+	GET_PCPU(r6)
+	str	r7, [r6, #PC_CURPCB]
 
 	ldmfd	sp!, {r4-r7, pc}
 
@@ -212,9 +226,9 @@ ENTRY(cpu_switch)
 	str	r1, [r7]
 
 	/* Hook in a new pcb */
-	GET_PCB(r7)
+	GET_PCPU(r7)
 	ldr	r2, [r1, #TD_PCB]
-	str	r2, [r7]
+	str	r2, [r7, #PC_CURPCB]
 
 	/* rem: r1 = new process */
 	/* rem: interrupts are enabled */
@@ -240,7 +254,7 @@ ENTRY(cpu_switch)
 	 * NOTE: We can now use r8-r13 until it is time to restore
 	 * them for the new process.
 	 */
-#ifndef SMP
+#ifdef ARM_TP_ADDRESS
 	/* Store the old tp */
 	ldr	r3, =ARM_TP_ADDRESS
 	ldr	r9, [r3]
@@ -270,8 +284,6 @@ ENTRY(cpu_switch)
 	/* Get the user structure for the new process in r9 */
 	ldr	r9, [r1, #(TD_PCB)]
 
-	/* r1 now free! */
-
         mrs	r3, cpsr
 	/*
 	 * We can do that, since 
@@ -283,15 +295,39 @@ ENTRY(cpu_switch)
 	str	sp, [r2, #(PCB_UND_SP)]
 
         msr	cpsr_c, r3		/* Restore the old mode */
-	/* rem: r8 = old PCB */
+	/* rem: r2 = old PCB */
 	/* rem: r9 = new PCB */
 	/* rem: interrupts are enabled */
 
-	/* What else needs to be saved  Only FPA stuff when that is supported */
+#ifdef ARM_VFP_SUPPORT
+	/*
+	 * vfp_store will clear pcpu->pc_vfpcthread, save 
+	 * registers and state, and modify the control as needed.
+	 * a future exception will bounce the backup settings in the fp unit.
+	 * XXX vfp_store can't change r4
+	 */
+	GET_PCPU(r7)
+	ldr	r8, [r7, #(PC_VFPCTHREAD)]
+	cmp	r4, r8				/* old thread used vfp? */
+	bne	1f				/* no, don't save */
+	cmp	r1, r4				/* same thread ? */
+	beq	1f				/* yes, skip vfp store */
+#ifdef SMP
+	ldr	r8, [r7, #(PC_CPU)]		/* last used on this cpu? */
+	ldr	r3, [r2, #(PCB_VFPCPU)]
+	cmp	r8, r3		/* last cpu to use these registers? */
+	bne	1f		/* no. these values are stale */
+#endif
+	add	r0, r2, #(PCB_VFPSTATE)
+	bl	_C_LABEL(vfp_store)
+1:
+#endif		/* ARM_VFP_SUPPORT */
+
+	/* r1 now free! */
 
 	/* Third phase : restore saved context */
 
-	/* rem: r8 = old PCB */
+	/* rem: r2 = old PCB */
 	/* rem: r9 = new PCB */
 	/* rem: interrupts are enabled */
 
@@ -459,6 +495,27 @@ ENTRY(savectx)
 	/* Store all the registers in the process's pcb */
 	add	r2, r0, #(PCB_R8)
 	stmia	r2, {r8-r13}
+#ifdef ARM_VFP_SUPPORT
+	/*
+	 * vfp_store will clear pcpu->pc_vfpcthread, save 
+	 * registers and state, and modify the control as needed.
+	 * a future exception will bounce the backup settings in the fp unit.
+	 */
+	GET_PCPU(r7)
+	ldr	r4, [r7, #(PC_VFPCTHREAD)]      /* vfp thread */
+	ldr	r2, [r7, #(PC_CURTHREAD)]       /* current thread */
+	cmp	r4, r2
+	bne	1f
+#ifdef SMP
+	ldr	r2, [r7, #(PC_CPU)]     /* last used on this cpu? */
+	ldr	r3, [r0, #(PCB_VFPCPU)]
+	cmp	r2, r3
+	bne	1f              /* no. these values are stale */
+#endif
+	add	r0, r0, #(PCB_VFPSTATE)
+	bl	_C_LABEL(vfp_store)
+1:
+#endif		/* ARM_VFP_SUPPORT */
 	ldmfd	sp!, {r4-r7, pc}
 
 ENTRY(fork_trampoline)

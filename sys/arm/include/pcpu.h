@@ -41,7 +41,18 @@ struct vmspace;
 
 #endif	/* _KERNEL */
 
-#define	PCPU_MD_FIELDS
+#ifdef ARM_VFP_SUPPORT
+#define PCPU_MD_FIELDS							\
+	unsigned int pc_cpu;						\
+	unsigned int pc_vfpsid;						\
+	unsigned int pc_vfpmvfr0;					\
+	unsigned int pc_vfpmvfr1;					\
+	struct thread *pc_vfpcthread;					\
+	struct pmap *pc_curpmap;
+#else
+#define PCPU_MD_FIELDS
+#endif
+
 
 #ifdef _KERNEL
 
@@ -50,6 +61,7 @@ struct pcpu;
 
 extern struct pcpu *pcpup;
 #if ARM_ARCH_6 || ARM_ARCH_7A
+/* or ARM_TP_ADDRESS 	mark REMOVE ME NOTE */
 static inline struct pcpu *
 get_pcpu(void)
 {
