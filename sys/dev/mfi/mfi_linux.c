@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if __FreeBSD_version > 999999
+#if __FreeBSD_version >= 900000
 #include <sys/capability.h>
 #endif
 #include <sys/conf.h>
@@ -99,7 +99,7 @@ mfi_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 		break;
 	}
 
-#if __FreeBSD_version > 999999
+#if __FreeBSD_version >= 900000
 	if ((error = fget(p, args->fd, CAP_IOCTL, &fp)) != 0)
 #else
 	if ((error = fget(p, args->fd, &fp)) != 0)
