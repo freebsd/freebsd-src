@@ -195,28 +195,34 @@ handleevents(struct bintime *now, int fake)
 		pc = TRAPF_PC(frame);
 	}
 
-	runs = 0;
 	state = DPCPU_PTR(timerstate);
 
+	runs = 0;
 	while (bintime_cmp(now, &state->nexthard, >=)) {
 		bintime_add(&state->nexthard, &hardperiod);
 		runs++;
 	}
 	if (runs && fake < 2) {
-		hardclock_anycpu(runs, usermode);
+		hardclock_cnt(runs, usermode);
 		done = 1;
 	}
+	runs = 0;
 	while (bintime_cmp(now, &state->nextstat, >=)) {
-		if (fake < 2)
-			statclock(usermode);
 		bintime_add(&state->nextstat, &statperiod);
+		runs++;
+	}
+	if (runs && fake < 2) {
+		statclock_cnt(runs, usermode);
 		done = 1;
 	}
 	if (profiling) {
+		runs = 0;
 		while (bintime_cmp(now, &state->nextprof, >=)) {
-			if (!fake)
-				profclock(usermode, pc);
 			bintime_add(&state->nextprof, &profperiod);
+			runs++;
+		}
+		if (runs && !fake) {
+			profclock_cnt(runs, usermode, pc);
 			done = 1;
 		}
 	} else
