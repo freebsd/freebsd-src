@@ -32,6 +32,7 @@ void whencename (int);
 void rlimitname (int);
 void shutdownhowname (int);
 void prioname (int);
+void fadvisebehavname (int);
 void madvisebehavname (int);
 void msyncflagsname (int);
 void schedpolicyname (int);
