@@ -314,7 +314,7 @@ setup_gpart_partitions()
 	if [ "$CURPART" = "2" ] ; then
 	  # If this is GPT, make sure first partition is aligned to 4k
           sleep 2
-          rc_halt "gpart add -b 2016 ${SOUT} -t ${PARTYPE} ${_pDisk}"
+          rc_halt "gpart add -a 4k ${SOUT} -t ${PARTYPE} ${_pDisk}"
 	else
           sleep 2
           rc_halt "gpart add ${SOUT} -t ${PARTYPE} ${_pDisk}"
