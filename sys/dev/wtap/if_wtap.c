@@ -305,9 +305,6 @@ wtap_bmiss(struct ieee80211vap *vap)
 	avp->av_bmiss(vap);
 }
 
-/* XXX */
-#define	msecs_to_ticks(ms)	(((ms) * hz) / 1000)
-
 static struct ieee80211vap *
 wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
     int unit, enum ieee80211_opmode opmode, int flags,
@@ -349,7 +346,6 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vap->iv_bss->ni_txrate = 130;
 	return vap;
 }
-#undef	msecs_to_ticks
 
 static void
 wtap_vap_delete(struct ieee80211vap *vap)
