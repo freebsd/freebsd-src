@@ -47,7 +47,7 @@ The
 argument
 must be greater than or equal to 0
 and less than the current system maximum which
-may be retrieved by the 
+may be retrieved by the
 .Va net.fibs
 sysctl.
 The system maximum is set in the kernel configuration file with
@@ -67,7 +67,7 @@ However, this maximum is capped at 16 due to the implementation storing
 the fib number in a 4-bit field in
 .Xr mbuf 9
 flags.
-The default fib of the process will be applied to all protocol families 
+The default fib of the process will be applied to all protocol families
 that support multiple fibs, and ignored by those that do not.
 The default fib for a process may be overridden for a socket with the use
 of the
