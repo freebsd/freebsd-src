@@ -224,16 +224,6 @@ get_disk_mediasize()
   export VAL="${mediasize}"
 };
 
-# Function which exports all zpools, making them safe to overwrite potentially
-export_all_zpools()
-{
-  # Export any zpools
-  for i in `zpool list -H -o name`
-  do
-    zpool export -f ${i}
-  done
-};
-
 # Function to delete all gparts before starting an install
 delete_all_gpart()
 {
@@ -268,10 +258,15 @@ delete_all_gpart()
 # Function to export all zpools before starting an install
 stop_all_zfs()
 {
-  # Export all zpools again, so that we can overwrite these partitions potentially
+  local DISK="`echo ${1} | sed 's|/dev/||g'`"
+
+  # Export any zpools using this device so we can overwrite
   for i in `zpool list -H -o name`
   do
-    zpool export -f ${i}
+    ztst=`zpool status ${i} | grep "ONLINE" | awk '{print $1}' | grep -q ${DISK}`
+    if [ "$ztst" = "$DISK" ] ; then
+      zpool export -f ${i}
+    fi
   done
 };
 
@@ -324,9 +319,6 @@ setup_disk_slice()
   disknum="0"
   gmnum="0"
 
-  # Make sure all zpools are exported
-  export_all_zpools
-
   # We are ready to start setting up the disks, lets read the config and do the actions
   while read line
   do
@@ -354,7 +346,7 @@ setup_disk_slice()
       stop_all_geli ${DISK}
 
       # Make sure we don't have any zpools loaded
-      stop_all_zfs
+      stop_all_zfs ${DISK}
 
      fi
 
@@ -375,6 +367,16 @@ setup_disk_slice()
       then
         exit_err "ERROR: The mirror disk ${MIRRORDISK} does not exist!"
       fi
+
+      # Make sure we stop any gmirrors on this mirror disk
+      stop_all_gmirror ${MIRRORDISK}
+
+      # Make sure we stop any geli stuff on this mirror disk
+      stop_all_geli ${MIRRORDISK}
+
+      # Make sure we don't have any zpools mirror loaded
+      stop_all_zfs ${MIRRORDISK}
+
     fi
 
     # Lets see if we have been given a mirror balance choice
