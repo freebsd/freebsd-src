@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <fdt.h>
 #include <libfdt.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <machine/elf.h>
 
 #include "bootstrap.h"
 #include "glue.h"
@@ -55,6 +58,10 @@ __FBSDID("$FreeBSD$");
 #define STRINGIFY(number) STR(number)
 
 #define MIN(num1, num2)	(((num1) < (num2)) ? (num1):(num2))
+
+#define COPYOUT(s,d,l)	archsw.arch_copyout((vm_offset_t)(s), d, l)
+
+#define FDT_STATIC_DTB_SYMBOL	"fdt_static_dtb"
 
 static struct fdt_header *fdtp = NULL;
 
@@ -92,6 +99,86 @@ static const struct cmdtab commands[] = {
 
 static char cwd[FDT_CWD_LEN] = "/";
 
+static vm_offset_t
+fdt_find_static_dtb(void)
+{
+	Elf_Sym sym;
+	vm_offset_t dyntab, esym;
+	uint64_t offs;
+	struct preloaded_file *kfp;
+	struct file_metadata *md;
+	Elf_Sym *symtab;
+	Elf_Dyn *dyn;
+	char *strtab, *strp;
+	int i;
+
+	esym = strtab = symtab = 0;
+
+	offs = __elfN(relocation_offset);
+
+	kfp = file_findfile(NULL, NULL);
+	if (kfp == NULL)
+		return (0);
+
+	md = file_findmetadata(kfp, MODINFOMD_ESYM);
+	if (md == NULL)
+		return (0);
+	COPYOUT(md->md_data, &esym, sizeof(esym));
+
+	md = file_findmetadata(kfp, MODINFOMD_DYNAMIC);
+	if (md == NULL)
+		return (0);
+	COPYOUT(md->md_data, &dyntab, sizeof(dyntab));
+	dyntab += offs;
+
+	/* Locate STRTAB and DYNTAB */
+	for (dyn = (Elf_Dyn *)dyntab; dyn->d_tag != DT_NULL; dyn++) {
+		if (dyn->d_tag == DT_STRTAB) {
+			strtab = (char *)(uintptr_t)(dyn->d_un.d_ptr + offs);
+			continue;
+		} else if (dyn->d_tag == DT_SYMTAB) {
+			symtab = (Elf_Sym *)(uintptr_t)
+			    (dyn->d_un.d_ptr + offs);
+			continue;
+		}
+	}
+
+	if (symtab == NULL || strtab == NULL) {
+		/*
+		 * No symtab? No strtab? That should not happen here,
+		 * and should have been verified during __elfN(loadimage).
+		 * This must be some kind of a bug.
+		 */
+		return (0);
+	}
+
+	/*
+	 * The most efficent way to find a symbol would be to calculate a
+	 * hash, find proper bucket and chain, and thus find a symbol.
+	 * However, that would involve code duplication (e.g. for hash
+	 * function). So we're using simpler and a bit slower way: we're
+	 * iterating through symbols, searching for the one which name is
+	 * 'equal' to 'fdt_static_dtb'. To speed up the process a little bit,
+	 * we are eliminating symbols type of which is not STT_NOTYPE, or(and)
+	 * those which binding attribute is not STB_GLOBAL.
+	 */
+	for (i = 0; (vm_offset_t)(symtab + i) < esym; i++) {
+		COPYOUT(symtab + i, &sym, sizeof(sym));
+		if (ELF_ST_BIND(sym.st_info) != STB_GLOBAL ||
+		    ELF_ST_TYPE(sym.st_info) != STT_NOTYPE)
+			continue;
+
+		strp = strdupout((vm_offset_t)(strtab + sym.st_name));
+		if (strcmp(strp, FDT_STATIC_DTB_SYMBOL) == 0) {
+			/* Found a match ! */
+			free(strp);
+			return ((vm_offset_t)(sym.st_value + offs));
+		}
+		free(strp);
+	}
+	return (0);
+}
+
 static int
 fdt_setup_fdtp()
 {
@@ -103,10 +190,14 @@ fdt_setup_fdtp()
 	 */
 	bfp = file_findfile(NULL, "dtb");
 	if (bfp == NULL) {
-		command_errmsg = "no device tree blob loaded";
-		return (CMD_ERROR);
+		if ((fdtp = (struct fdt_head *)fdt_find_static_dtb()) == 0) {
+			command_errmsg = "no device tree blob found!";
+			return (CMD_ERROR);
+		}
+	} else {
+		/* Dynamic blob has precedence over static. */
+		fdtp = (struct fdt_header *)bfp->f_addr;
 	}
-	fdtp = (struct fdt_header *)bfp->f_addr;
 
 	/*
 	 * Validate the blob.
@@ -448,7 +539,10 @@ fixup_stdout(const char *env)
 	}
 }
 
-int
+/*
+ * Locate the blob, fix it up and return its location.
+ */
+void *
 fdt_fixup(void)
 {
 	const char *env;
@@ -461,13 +555,10 @@ fdt_fixup(void)
 	ethstr = NULL;
 	len = 0;
 
-	if (!fdtp) {
-		err = fdt_setup_fdtp();
-		if (err) {
-			sprintf(command_errbuf, "Could not perform blob "
-			    "fixups. Error code: %d\n", err);
-			return (err);
-		}
+	err = fdt_setup_fdtp();
+	if (err) {
+		sprintf(command_errbuf, "No valid device tree blob found!");
+		return (NULL);
 	}
 
 	/* Create /chosen node (if not exists) */
@@ -477,7 +568,7 @@ fdt_fixup(void)
 
 	/* Value assigned to fixup-applied does not matter. */
 	if (fdt_getprop(fdtp, chosen, "fixup-applied", NULL))
-		return (CMD_OK);
+		goto success;
 
 	/* Acquire sys_info */
 	si = ub_get_sys_info();
@@ -521,7 +612,8 @@ fdt_fixup(void)
 
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
 
-	return (CMD_OK);
+success:
+	return (fdtp);
 }
 
 int
@@ -539,7 +631,8 @@ command_fdt_internal(int argc, char *argv[])
 	/*
 	 * Check if uboot env vars were parsed already. If not, do it now.
 	 */
-	fdt_fixup();
+	if (fdt_fixup() == NULL)
+		return (CMD_ERROR);
 
 	/*
 	 * Validate fdt <command>.
@@ -559,10 +652,6 @@ command_fdt_internal(int argc, char *argv[])
 		command_errmsg = "unknown command";
 		return (CMD_ERROR);
 	}
-
-	if (!fdtp)
-		if (fdt_setup_fdtp())
-			return (CMD_ERROR);
 
 	/*
 	 * Call command handler.
