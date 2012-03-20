@@ -53,7 +53,7 @@
  *
  * FUNCTION:    AcpiHwExecuteSleepMethod
  *
- * PARAMETERS:  MethodName          - Pathname of method to execute
+ * PARAMETERS:  MethodPathname      - Pathname of method to execute
  *              IntegerArgument     - Argument to pass to the method
  *
  * RETURN:      None
@@ -65,7 +65,7 @@
 
 void
 AcpiHwExecuteSleepMethod (
-    char                    *MethodName,
+    char                    *MethodPathname,
     UINT32                  IntegerArgument)
 {
     ACPI_OBJECT_LIST        ArgList;
@@ -83,11 +83,11 @@ AcpiHwExecuteSleepMethod (
     Arg.Type = ACPI_TYPE_INTEGER;
     Arg.Integer.Value = (UINT64) IntegerArgument;
 
-    Status = AcpiEvaluateObject (NULL, MethodName, &ArgList, NULL);
+    Status = AcpiEvaluateObject (NULL, MethodPathname, &ArgList, NULL);
     if (ACPI_FAILURE (Status) && Status != AE_NOT_FOUND)
     {
         ACPI_EXCEPTION ((AE_INFO, Status, "While executing method %s",
-            MethodName));
+            MethodPathname));
     }
 
     return_VOID;
@@ -99,6 +99,7 @@ AcpiHwExecuteSleepMethod (
  * FUNCTION:    AcpiHwExtendedSleep
  *
  * PARAMETERS:  SleepState          - Which sleep state to enter
+ *              Flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -110,7 +111,8 @@ AcpiHwExecuteSleepMethod (
 
 ACPI_STATUS
 AcpiHwExtendedSleep (
-    UINT8                   SleepState)
+    UINT8                   SleepState,
+    UINT8                   Flags)
 {
     ACPI_STATUS             Status;
     UINT8                   SleepTypeValue;
@@ -138,9 +140,12 @@ AcpiHwExtendedSleep (
 
     AcpiGbl_SystemAwakeAndRunning = FALSE;
 
-    /* Execute the _GTS method (Going To Sleep) */
+    /* Optionally execute _GTS (Going To Sleep) */
 
-    AcpiHwExecuteSleepMethod (METHOD_NAME__GTS, SleepState);
+    if (Flags & ACPI_EXECUTE_GTS)
+    {
+        AcpiHwExecuteSleepMethod (METHOD_PATHNAME__GTS, SleepState);
+    }
 
     /* Flush caches, as per ACPI specification */
 
@@ -186,6 +191,7 @@ AcpiHwExtendedSleep (
  * FUNCTION:    AcpiHwExtendedWakePrep
  *
  * PARAMETERS:  SleepState          - Which sleep state we just exited
+ *              Flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -196,7 +202,8 @@ AcpiHwExtendedSleep (
 
 ACPI_STATUS
 AcpiHwExtendedWakePrep (
-    UINT8                   SleepState)
+    UINT8                   SleepState,
+    UINT8                   Flags)
 {
     ACPI_STATUS             Status;
     UINT8                   SleepTypeValue;
@@ -216,7 +223,12 @@ AcpiHwExtendedWakePrep (
             &AcpiGbl_FADT.SleepControl);
     }
 
-    AcpiHwExecuteSleepMethod (METHOD_NAME__BFS, SleepState);
+    /* Optionally execute _BFS (Back From Sleep) */
+
+    if (Flags & ACPI_EXECUTE_BFS)
+    {
+        AcpiHwExecuteSleepMethod (METHOD_PATHNAME__BFS, SleepState);
+    }
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -226,6 +238,7 @@ AcpiHwExtendedWakePrep (
  * FUNCTION:    AcpiHwExtendedWake
  *
  * PARAMETERS:  SleepState          - Which sleep state we just exited
+ *              Flags               - Reserved, set to zero
  *
  * RETURN:      Status
  *
@@ -236,7 +249,8 @@ AcpiHwExtendedWakePrep (
 
 ACPI_STATUS
 AcpiHwExtendedWake (
-    UINT8                   SleepState)
+    UINT8                   SleepState,
+    UINT8                   Flags)
 {
     ACPI_FUNCTION_TRACE (HwExtendedWake);
 
@@ -247,8 +261,8 @@ AcpiHwExtendedWake (
 
     /* Execute the wake methods */
 
-    AcpiHwExecuteSleepMethod (METHOD_NAME__SST, ACPI_SST_WAKING);
-    AcpiHwExecuteSleepMethod (METHOD_NAME__WAK, SleepState);
+    AcpiHwExecuteSleepMethod (METHOD_PATHNAME__SST, ACPI_SST_WAKING);
+    AcpiHwExecuteSleepMethod (METHOD_PATHNAME__WAK, SleepState);
 
     /*
      * Some BIOS code assumes that WAK_STS will be cleared on resume
@@ -258,6 +272,6 @@ AcpiHwExtendedWake (
     (void) AcpiWrite (ACPI_X_WAKE_STATUS, &AcpiGbl_FADT.SleepStatus);
     AcpiGbl_SystemAwakeAndRunning = TRUE;
 
-    AcpiHwExecuteSleepMethod (METHOD_NAME__SST, ACPI_SST_WORKING);
+    AcpiHwExecuteSleepMethod (METHOD_PATHNAME__SST, ACPI_SST_WORKING);
     return_ACPI_STATUS (AE_OK);
 }

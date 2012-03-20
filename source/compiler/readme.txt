@@ -1,7 +1,8 @@
 
-Instructions for integrating iASL compiler into MS VC++ 6.0 environment.
+Instructions for integrating iASL compiler into MS VC++ environment.
 
-Part 1.  Integration as a custom tool
+1a) Integration as a custom tool
+-------------------------------
 
 This procedure adds the iASL compiler as a custom tool that can be used
 to compile ASL source files.  The output is sent to the VC output 
@@ -38,7 +39,8 @@ automatically displayed by VC.  Also, you can use F4 to step through
 the messages and the corresponding source line(s).
 
 
-Part 2.  Integration into a project build
+1b) Integration into a project build
+------------------------------------
 
 This procedure creates a project that compiles ASL files to AML.
 
@@ -55,24 +57,49 @@ $(InputDir)\$(InputPath).aml
 
 
 
-Compiler Generation From Source
+2) Compiler Generation From Source
+-------------------------------
 
 Generation of the ASL compiler from source code requires these items:
 
 
-Required Tools
+2a) Required Tools
+--------------
+
 1) The Flex (or Lex) lexical analyzer generator.
 2) The Bison (or Yacc) parser generator.
 3) An ANSI C compiler.
 
 
-Required Source Code.
+Windows GNU Flex and GNU Bison Notes:
+
+GNU Flex/Bison must be installed in a directory that has no embedded
+spaces in the name. They cannot be installed in the default
+c:\"Program Files" directory. This is a bug in Bison. The default
+Windows project file for iASL assumes that these tools are
+installed at c:\GnuWin32.
+
+When installed, ensure that c:\GnuWin32\bin is added to the default
+system $PATH environment variable.
+
+iASL has been generated with these versions on Windows:
+
+    Flex for Windows:  V2.5.4
+    Bison for Windows: V2.4.1
+
+
+Flex is available at:  http://gnuwin32.sourceforge.net/packages/flex.htm
+Bison is available at: http://gnuwin32.sourceforge.net/packages/bison.htm
+
+
+2b) Required Source Code
+--------------------
 
 There are three major source code components that are required to 
 generate the compiler:
 
 1) The ASL compiler source.
-2) The ACPI CA Core Subsystem source.  In particular, the Namespace Manager
+2) The ACPICA Core Subsystem source.  In particular, the Namespace Manager
      component is used to create an internal ACPI namespace and symbol table,
      and the AML Interpreter is used to evaluate constant expressions.
 3) The Common source for all ACPI components.

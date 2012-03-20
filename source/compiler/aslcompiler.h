@@ -75,6 +75,7 @@
 #include "asltypes.h"
 #include "aslmessages.h"
 #include "aslglobal.h"
+#include "preprocess.h"
 
 
 /*******************************************************************************
@@ -84,7 +85,7 @@
  ******************************************************************************/
 
 /*
- * parser - generated from flex/bison, lex/yacc, etc.
+ * Main ASL parser - generated from flex/bison, lex/yacc, etc.
  */
 int
 AslCompilerparse(
@@ -299,6 +300,16 @@ AslCommonError (
     UINT32                  LogicalLineNumber,
     UINT32                  LogicalByteOffset,
     UINT32                  Column,
+    char                    *Filename,
+    char                    *ExtraMessage);
+
+void
+AslCommonError2 (
+    UINT8                   Level,
+    UINT8                   MessageId,
+    UINT32                  LineNumber,
+    UINT32                  Column,
+    char                    *SourceLine,
     char                    *Filename,
     char                    *ExtraMessage);
 

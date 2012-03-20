@@ -141,7 +141,7 @@ AcpiNsDumpRootDevices (
         return;
     }
 
-    Status = AcpiGetHandle (NULL, ACPI_NS_SYSTEM_BUS, &SysBusHandle);
+    Status = AcpiGetHandle (NULL, METHOD_NAME__SB_, &SysBusHandle);
     if (ACPI_FAILURE (Status))
     {
         return;

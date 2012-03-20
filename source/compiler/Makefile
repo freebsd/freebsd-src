@@ -64,13 +64,16 @@ vpath %.c \
 HEADERS = \
     $(wildcard $(ASL_COMPILER)/*.h) \
     aslcompiler.y.h \
-    dtparser.y.h
+    dtparser.y.h \
+    prparser.y.h
 
 OBJECTS = \
 	aslcompilerlex.o \
 	aslcompilerparse.o \
 	dtparserlex.o \
 	dtparserparse.o \
+	prparserlex.o \
+	prparserparse.o \
 	adfile.o \
 	adisasm.o \
 	adwalk.o \
@@ -174,6 +177,10 @@ OBJECTS = \
 	nswalk.o \
 	nsxfobj.o \
 	osunixxf.o \
+	prexpress.o \
+	prmacros.o \
+	prscan.o \
+	prutils.o \
 	psargs.o \
 	psloop.o \
 	psopcode.o \
@@ -209,7 +216,9 @@ INTERMEDIATES = \
 	aslcompilerlex.c \
 	aslcompilerparse.c \
 	dtparserlex.c \
-	dtparserparse.c
+	dtparserparse.c \
+	prparserlex.c \
+	prparserparse.c
 
 MISC = \
     aslcompilerparse.h \
@@ -217,7 +226,10 @@ MISC = \
 	aslcompilerparse.output \
     dtparserparse.h \
 	dtparser.y.h \
-	dtparserparse.output
+	dtparserparse.output \
+   	prparserparse.h \
+	prparser.y.h \
+	prparserparse.output
 
 CFLAGS+= \
     -D$(HOST) \
@@ -289,15 +301,26 @@ dtparserlex.c :      $(ASL_COMPILER)/dtparser.l
 dtparserparse.c dtparserparse.h : $(ASL_COMPILER)/dtparser.y
 	${YACC} ${YFLAGS} -pDtParser -o$@ $?
 
+prparserlex.c :      $(ASL_COMPILER)/prparser.l
+	${LEX} ${LFLAGS} -PPrParser -o$@ $?
+
+prparserparse.c prparserparse.h : $(ASL_COMPILER)/prparser.y
+	${YACC} ${YFLAGS} -pPrParser -o$@ $?
+
+
 # Rename headers produced by bison/yacc
+
+aslcompiler.y.h : aslcompilerparse.h
+	@echo Copy intermediate file:
+	@cp -f -v aslcompilerparse.h aslcompiler.y.h
 
 dtparser.y.h: dtparserparse.h
 	@echo Copy intermediate file:
 	@cp -f -v dtparserparse.h dtparser.y.h
 
-aslcompiler.y.h : aslcompilerparse.h
+prparser.y.h: prparserparse.h
 	@echo Copy intermediate file:
-	@cp -f -v aslcompilerparse.h aslcompiler.y.h
+	@cp -f -v prparserparse.h prparser.y.h
 
 
 #
@@ -316,6 +339,12 @@ dtparserlex.o :      dtparserlex.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -Wstrict-aliasing=0 -o$@ $?
 
 dtparserparse.o :    dtparserparse.c
+	$(CC) -c $(CFLAGS) -Wall -Werror -Wstrict-aliasing=0 -o$@ $?
+
+prparserlex.o :      prparserlex.c
+	$(CC) -c $(CFLAGS) -Wall -Werror -Wstrict-aliasing=0 -o$@ $?
+
+prparserparse.o :    prparserparse.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -Wstrict-aliasing=0 -o$@ $?
 
 

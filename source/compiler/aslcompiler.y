@@ -78,6 +78,11 @@ void *                      AslLocalAllocate (unsigned int Size);
 #define YYDEBUG             1               /* Enable debug output */
 #define YYERROR_VERBOSE     1               /* Verbose error messages */
 
+/* Define YYMALLOC/YYFREE to prevent redefinition errors  */
+
+#define YYMALLOC            malloc
+#define YYFREE              free
+
 /*
  * The windows version of bison defines this incorrectly as "32768" (Not negative).
  * We use a custom (edited binary) version of bison that defines YYFLAG as YYFBAD
