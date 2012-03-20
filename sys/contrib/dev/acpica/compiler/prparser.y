@@ -1,7 +1,7 @@
 %{
 /******************************************************************************
  *
- * Module Name: dtparser.y - Bison input file for table compiler parser
+ * Module Name: prparser.y - Bison input file for preprocessor parser
  *
  *****************************************************************************/
 
@@ -45,20 +45,19 @@
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
 
-#define _COMPONENT          DT_COMPILER
-        ACPI_MODULE_NAME    ("dtparser")
+#define _COMPONENT          ASL_PREPROCESSOR
+        ACPI_MODULE_NAME    ("prparser")
 
-int                         DtParserlex (void);
-int                         DtParserparse (void);
-void                        DtParsererror (char const *msg);
-extern char                 *DtParsertext;
-extern DT_FIELD             *Gbl_CurrentField;
+int                         PrParserlex (void);
+int                         PrParserparse (void);
+void                        PrParsererror (char const *msg);
+extern char                 *PrParsertext;
 
-UINT64                      DtParserResult; /* Expression return value */
+UINT64                      PrParserResult; /* Expression return value */
 
 /* Bison/yacc configuration */
 
-#define yytname             DtParsername
+#define yytname             PrParsername
 #define YYDEBUG             1               /* Enable debug output */
 #define YYERROR_VERBOSE     1               /* Verbose error messages */
 #define YYFLAG              -32768
@@ -73,6 +72,7 @@ UINT64                      DtParserResult; /* Expression return value */
 {
      UINT64                 value;
      UINT32                 op;
+     char                   *str;
 }
 
 /*! [Begin] no source code translation */
@@ -83,8 +83,8 @@ UINT64                      DtParserResult; /* Expression return value */
 %token <op>     EXPOP_NEW_LINE
 %token <op>     EXPOP_NUMBER
 %token <op>     EXPOP_HEX_NUMBER
-%token <op>     EXPOP_DECIMAL_NUMBER
-%token <op>     EXPOP_LABEL
+%token <op>     EXPOP_RESERVED1
+%token <op>     EXPOP_RESERVED2
 %token <op>     EXPOP_PAREN_OPEN
 %token <op>     EXPOP_PAREN_CLOSE
 
@@ -99,6 +99,11 @@ UINT64                      DtParserResult; /* Expression return value */
 %left <op>      EXPOP_ADD EXPOP_SUBTRACT
 %left <op>      EXPOP_MULTIPLY EXPOP_DIVIDE EXPOP_MODULO
 %right <op>     EXPOP_ONES_COMPLIMENT EXPOP_LOGICAL_NOT
+
+/* Tokens above must be kept in synch with dtparser.y */
+
+%token <op>     EXPOP_DEFINE
+%token <op>     EXPOP_IDENTIFIER
 
 %%
 
@@ -118,9 +123,12 @@ UINT64                      DtParserResult; /* Expression return value */
  *  11)     &&
  *  12)     ||
  */
+
+/*! [End] no source code translation !*/
+
 Value
-    : Expression EXPOP_NEW_LINE                     { DtParserResult=$1; return 0; } /* End of line (newline) */
-    | Expression EXPOP_EOF                          { DtParserResult=$1; return 0; } /* End of string (0) */
+    : Expression EXPOP_NEW_LINE                     { PrParserResult=$1; return 0; } /* End of line (newline) */
+    | Expression EXPOP_EOF                          { PrParserResult=$1; return 0; } /* End of string (0) */
     ;
 
 Expression
@@ -156,25 +164,24 @@ Expression
     | EXPOP_PAREN_OPEN          Expression
         EXPOP_PAREN_CLOSE                           { $$ = $2;}
 
-      /* Label references (prefixed with $) */
+      /* #if defined (ID) or #if defined ID */
 
-    | EXPOP_LABEL                                   { $$ = DtResolveLabel (DtParsertext);}
+    | EXPOP_DEFINE EXPOP_PAREN_OPEN EXPOP_IDENTIFIER
+        EXPOP_PAREN_CLOSE                           { $$ = PrIsDefined (PrParserlval.str);}
 
-      /* Default base for a non-prefixed integer is 16 */
+    | EXPOP_DEFINE EXPOP_IDENTIFIER                 { $$ = PrIsDefined (PrParserlval.str);}
 
-    | EXPOP_NUMBER                                  { UtStrtoul64 (DtParsertext, 16, &$$);}
+    | EXPOP_IDENTIFIER                              { $$ = PrResolveDefine (PrParserlval.str);}
+
+      /* Default base for a non-prefixed integer is 10 */
+
+    | EXPOP_NUMBER                                  { UtStrtoul64 (PrParsertext, 10, &$$);}
 
       /* Standard hex number (0x1234) */
 
-    | EXPOP_HEX_NUMBER                              { UtStrtoul64 (DtParsertext, 16, &$$);}
-
-      /* TBD: Decimal number with prefix (0d1234) - Not supported by UtStrtoul64 at this time */
-
-    | EXPOP_DECIMAL_NUMBER                          { UtStrtoul64 (DtParsertext, 10, &$$);}
+    | EXPOP_HEX_NUMBER                              { UtStrtoul64 (PrParsertext, 16, &$$);}
     ;
 %%
-
-/*! [End] no source code translation !*/
 
 /*
  * Local support functions, including parser entry point
@@ -185,7 +192,7 @@ Expression
 
 /******************************************************************************
  *
- * FUNCTION:    DtParsererror
+ * FUNCTION:    PrParsererror
  *
  * PARAMETERS:  Message             - Parser-generated error message
  *
@@ -196,17 +203,17 @@ Expression
  *****************************************************************************/
 
 void
-DtParsererror (
+PrParsererror (
     char const              *Message)
 {
     DtError (ASL_ERROR, ASL_MSG_SYNTAX,
-        Gbl_CurrentField, (char *) Message);
+        NULL, (char *) Message);
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    DtGetOpName
+ * FUNCTION:    PrGetOpName
  *
  * PARAMETERS:  ParseOpcode         - Parser token (EXPOP_*)
  *
@@ -217,7 +224,7 @@ DtParsererror (
  *****************************************************************************/
 
 char *
-DtGetOpName (
+PrGetOpName (
     UINT32                  ParseOpcode)
 {
 #ifdef ASL_YYTNAME_START
@@ -235,7 +242,7 @@ DtGetOpName (
 
 /******************************************************************************
  *
- * FUNCTION:    DtEvaluateExpression
+ * FUNCTION:    PrEvaluateExpression
  *
  * PARAMETERS:  ExprString          - Expression to be evaluated. Must be
  *                                    terminated by either a newline or a NUL
@@ -248,30 +255,30 @@ DtGetOpName (
  *****************************************************************************/
 
 UINT64
-DtEvaluateExpression (
+PrEvaluateExpression (
     char                    *ExprString)
 {
 
     DbgPrint (ASL_DEBUG_OUTPUT,
-        "**** Input expression: %s  (Base 16)\n", ExprString);
+        "**** Input expression: %s\n", ExprString);
 
     /* Point lexer to the input string */
 
-    if (DtInitLexer (ExprString))
+    if (PrInitLexer (ExprString))
     {
         DtError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
-            Gbl_CurrentField, "Could not initialize lexer");
+            NULL, "Could not initialize lexer");
         return (0);
     }
 
-    /* Parse/Evaluate the input string (value returned in DtParserResult) */
+    /* Parse/Evaluate the input string (value returned in PrParserResult) */
 
-    DtParserparse ();
-    DtTerminateLexer ();
+    PrParserparse ();
+    PrTerminateLexer ();
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "**** Parser returned value: %u (%8.8X%8.8X)\n",
-        (UINT32) DtParserResult, ACPI_FORMAT_UINT64 (DtParserResult));
+        (UINT32) PrParserResult, ACPI_FORMAT_UINT64 (PrParserResult));
 
-    return (DtParserResult);
+    return (PrParserResult);
 }
