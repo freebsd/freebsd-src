@@ -223,6 +223,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef SMP
 	cpuset_t	wakeup_cpus;
 #endif
+	register_t	rf;
 	ACPI_STATUS	status;
 	int		ret;
 
@@ -241,8 +242,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
+	rf = intr_disable();
 	intr_suspend();
-	spinlock_enter();
 
 	if (savectx(susppcbs[0])) {
 		ctx_fpusave(suspfpusave[0]);
@@ -299,8 +300,8 @@ out:
 #endif
 
 	mca_resume();
-	spinlock_exit();
 	intr_resume();
+	intr_restore(rf);
 
 	AcpiSetFirmwareWakingVector(0);
 
