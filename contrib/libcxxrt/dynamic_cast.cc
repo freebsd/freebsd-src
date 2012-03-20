@@ -46,9 +46,65 @@ struct vtable_header
  */
 #define ADD_TO_PTR(x, off) (__typeof__(x))(((char*)x) + off)
 
-bool __class_type_info::can_cast_to(const struct __class_type_info *other) const
+bool std::type_info::__do_catch(std::type_info const *ex_type,
+                                void **exception_object,
+                                unsigned int outer) const
 {
-    return this == other;
+	const type_info *type = this;
+
+	if (type == ex_type)
+	{
+		return true;
+	}
+	if (const __class_type_info *cti = dynamic_cast<const __class_type_info *>(type))
+	{
+		return ex_type->__do_upcast(cti, exception_object);
+	}
+	return false;
+}
+
+bool __pbase_type_info::__do_catch(std::type_info const *ex_type,
+                                   void **exception_object,
+                                   unsigned int outer) const
+{
+	if (ex_type == this)
+	{
+		return true;
+	}
+	if (!ex_type->__is_pointer_p())
+	{
+		// Can't catch a non-pointer type in a pointer catch
+		return false;
+	}
+
+	if (!(outer & 1))
+	{
+		// If the low bit is cleared on this means that we've gone
+		// through a pointer that is not const qualified.
+		return false;
+	}
+	// Clear the low bit on outer if we're not const qualified.
+	if (!(__flags & __const_mask))
+	{
+		outer &= ~1;
+	}
+
+	const __pbase_type_info *ptr_type =
+	        static_cast<const __pbase_type_info*>(ex_type);
+
+	if (ptr_type->__flags & ~__flags)
+	{
+		// Handler pointer is less qualified
+		return false;
+	}
+
+	// Special case for void* handler.  
+	if(*__pointee == typeid(void))
+	{
+		return true;
+	}
+
+	return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
 }
 
 void *__class_type_info::cast_to(void *obj, const struct __class_type_info *other) const
@@ -60,12 +116,6 @@ void *__class_type_info::cast_to(void *obj, const struct __class_type_info *othe
 	return 0;
 }
 
-
-bool __si_class_type_info::can_cast_to(const struct __class_type_info *other) const
-{
-    return this == other || __base_type->can_cast_to(other);
-}
-
 void *__si_class_type_info::cast_to(void *obj, const struct __class_type_info *other) const
 {
 	if (this == other)
@@ -74,30 +124,31 @@ void *__si_class_type_info::cast_to(void *obj, const struct __class_type_info *o
 	}
 	return __base_type->cast_to(obj, other);
 }
-
-
-bool __vmi_class_type_info::can_cast_to(const struct __class_type_info *other) const
+bool __si_class_type_info::__do_upcast(const __class_type_info *target,
+                                     void **thrown_object) const
 {
-	if (this == other)
+	if (this == target)
 	{
 		return true;
 	}
-	for (unsigned int i=0 ; i<__base_count ; i++)
-	{
-		const __base_class_type_info *info = &__base_info[i];
-        if(info->isPublic() && info->__base_type->can_cast_to(other))
-        {
-            return true;
-        }
-	}
-	return false;
+	return __base_type->__do_upcast(target, thrown_object);
 }
 
 void *__vmi_class_type_info::cast_to(void *obj, const struct __class_type_info *other) const
 {
-	if (this == other)
+	if (__do_upcast(other, &obj))
 	{
 		return obj;
+	}
+	return 0;
+}
+
+bool __vmi_class_type_info::__do_upcast(const __class_type_info *target,
+		                      void **thrown_object) const
+{
+	if (this == target)
+	{
+		return true;
 	}
 	for (unsigned int i=0 ; i<__base_count ; i++)
 	{
@@ -111,6 +162,7 @@ void *__vmi_class_type_info::cast_to(void *obj, const struct __class_type_info *
 		// virtual table of the virtual base offset for the virtual base
 		// referenced (negative).'
 
+		void *obj = *thrown_object;
 		if (info->isVirtual())
 		{
 			// Object's vtable
@@ -121,17 +173,16 @@ void *__vmi_class_type_info::cast_to(void *obj, const struct __class_type_info *
 		}
 		void *cast = ADD_TO_PTR(obj, offset);
 
-		if (info->__base_type == other)
+		if (info->__base_type == target ||
+		    (info->__base_type->__do_upcast(target, &cast)))
 		{
-			return cast;
-		}
-		if ((cast = info->__base_type->cast_to(cast, other)))
-		{
-			return cast;
+			*thrown_object = cast;
+			return true;
 		}
 	}
 	return 0;
 }
+
 
 /**
  * ABI function used to implement the dynamic_cast<> operator.  Some cases of

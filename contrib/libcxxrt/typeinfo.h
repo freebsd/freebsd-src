@@ -26,7 +26,86 @@
 
 #include <stddef.h>
 #include "abi_namespace.h"
-#include "typeinfo"
+
+namespace ABI_NAMESPACE
+{
+	struct __class_type_info;
+}
+namespace std
+{
+	/**
+	  * Standard type info class.  The layout of this class is specified by the
+	  * ABI.  The layout of the vtable is not, but is intended to be
+	  * compatible with the GNU ABI.
+	  *
+	  * Unlike the GNU version, the vtable layout is considered semi-private.
+	  */
+	class type_info
+	{
+		public:
+		/**
+		 * Virtual destructor.  This class must have one virtual function to
+		 * ensure that it has a vtable.
+		 */
+		virtual ~type_info();
+		bool operator==(const type_info &) const;
+		bool operator!=(const type_info &) const;
+		bool before(const type_info &) const;
+		const char* name() const;
+		type_info();
+		private:
+		type_info(const type_info& rhs);
+		type_info& operator= (const type_info& rhs);
+		const char *__type_name;
+		/*
+		 * The following functions are in this order to match the
+		 * vtable layout of libsupc++.  This allows libcxxrt to be used
+		 * with libraries that depend on this.
+		 *
+		 * These functions are in the public headers for libstdc++, so
+		 * we have to assume that someone will probably call them and
+		 * expect them to work.  Their names must also match the names used in
+		 * libsupc++, so that code linking against this library can subclass
+		 * type_info and correctly fill in the values in the vtables.
+		 */
+		public:
+		/**
+		 * Catch function.  Allows external libraries to implement
+		 * their own basic types.  This is used, for example, in the
+		 * GNUstep Objective-C runtime to allow Objective-C types to be
+		 * caught in G++ catch blocks.
+		 *
+		 * The outer parameter indicates the number of outer pointers
+		 * in the high bits.  The low bit indicates whether the
+		 * pointers are const qualified.
+		 */
+		virtual bool __do_catch(const type_info *thrown_type,
+		                        void **thrown_object,
+		                        unsigned outer) const;
+		/**
+		 * Performs an upcast.  This is used in exception handling to
+		 * cast from subclasses to superclasses.  If the upcast is
+		 * possible, it returns true and adjusts the pointer.  If the
+		 * upcast is not possible, it returns false and does not adjust
+		 * the pointer.
+		 */
+		virtual bool __do_upcast(
+		                const ABI_NAMESPACE::__class_type_info *target,
+		                void **thrown_object) const
+		{
+			return false;
+		}
+		/**
+		 * Returns true if this is some pointer type, false otherwise.
+		 */
+		virtual bool __is_pointer_p() const { return false; }
+		/**
+		 * Returns true if this is some function type, false otherwise.
+		 */
+		virtual bool __is_function_p() const { return false; }
+	};
+}
+
 
 namespace ABI_NAMESPACE
 {
@@ -50,6 +129,7 @@ namespace ABI_NAMESPACE
 	struct __function_type_info : public std::type_info
 	{
 		virtual ~__function_type_info();
+		virtual bool __is_function_p() const { return true; }
 	};
 	/**
 	 * Type info for enums.
@@ -68,13 +148,12 @@ namespace ABI_NAMESPACE
 		/**
 		 * Function implementing dynamic casts.
 		 */
-		virtual void *cast_to(void *obj,
-		                      const struct __class_type_info *other) const;
-		/**
-		 * Function returning whether a cast from this type to another type is
-		 * possible.
-		 */
-		virtual bool can_cast_to(const struct __class_type_info *other) const;
+		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
+		virtual bool __do_upcast(const __class_type_info *target,
+		                       void **thrown_object) const
+		{
+			return this == target;
+		}
 	};
 
 	/**
@@ -85,8 +164,10 @@ namespace ABI_NAMESPACE
 	{
 		virtual ~__si_class_type_info();
 		const __class_type_info *__base_type;
+		virtual bool __do_upcast(
+		                const ABI_NAMESPACE::__class_type_info *target,
+		                void **thrown_object) const;
 		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
-        virtual bool can_cast_to(const struct __class_type_info *other) const;
 	};
 
 	/**
@@ -166,8 +247,10 @@ namespace ABI_NAMESPACE
 			/** The class is diamond shaped. */
 			__diamond_shaped_mask = 0x2
 		};
+		virtual bool __do_upcast(
+		                const ABI_NAMESPACE::__class_type_info *target,
+		                void **thrown_object) const;
 		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
-        virtual bool can_cast_to(const struct __class_type_info *other) const;
 	};
 
 	/**
@@ -201,6 +284,10 @@ namespace ABI_NAMESPACE
 			/** Pointer is a pointer to a member of an incomplete class. */
 			__incomplete_class_mask = 0x10
 		};
+		virtual bool __is_pointer_p() const { return true; }
+		virtual bool __do_catch(const type_info *thrown_type,
+		                        void **thrown_object,
+		                        unsigned outer) const;
 	};
 
 	/**
