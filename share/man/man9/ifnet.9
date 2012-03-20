@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2012
+.Dd March 20, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -229,6 +229,18 @@ A pointer to the driver's private state block.
 A pointer to the common data for the interface's layer 2 protocol.
 (Initialized by
 .Fn if_alloc . )
+.It Va if_vnet
+.Pq Vt "struct vnet *"
+A pointer to the virtual network stack instance.
+(Initialized by
+.Fn if_attach . )
+.It Va if_home_vnet
+.Pq Vt "struct vnet *"
+A pointer to the parent virtual network stack, where this
+.Vt "struct ifnet"
+originates from.
+(Initialized by
+.Fn if_attach . )
 .It Va if_link
 .Pq Fn TAILQ_ENTRY ifnet
 .Xr queue 3
@@ -276,6 +288,13 @@ A count of promiscuous listeners on this interface, used to
 reference-count the
 .Dv IFF_PROMISC
 flag.
+.It Va if_carp
+.Pq Vt "struct carp_if *"
+A pointer to the CARP interface structure,
+.Xr carp 4 .
+(Initialized by the driver-specific
+.Fn if_ioctl
+routine.)
 .It Va if_bpf
 .Pq Vt "struct bpf_if *"
 Opaque per-interface data for the packet filter,
@@ -293,6 +312,13 @@ to refer to a particular interface by index
 .Xr link_addr 3 ) .
 (Initialized by
 .Fn if_alloc . )
+.It Va if_vlantrunk
+.Pq Vt struct ifvlantrunk *
+A pointer to 802.1Q trunk structure,
+.Xr vlan 4 .
+(Initialized by the driver-specific
+.Fn if_ioctl
+routine.)
 .It Va if_flags
 .Pq Vt int
 Flags describing operational parameters of this interface (see below).
@@ -307,17 +333,6 @@ Flags describing the capabilities the interface supports (see below).
 .It Va if_capenable
 .Pq Vt int
 Flags describing the enabled capabilities of the interface (see below).
-.\" .It Va if_ipending
-.\" Interrupt-pending bits for polled operation:
-.\" .Dv IFI_XMIT
-.\" (transmit complete interrupt)
-.\" and
-.\" .Dv IFI_RECV
-.\" (received packet ready interrupt).
-.\" See the
-.\" .Sx Polling
-.\" section, below.
-.\" (Manipulated by driver.)
 .It Va if_linkmib
 .Pq Vt "void *"
 A pointer to an interface-specific MIB structure exported by
@@ -334,18 +349,97 @@ More statistics and information; see
 below.
 (Initialized by driver, manipulated by both driver and generic
 code.)
+.It Va if_multiaddrs
+.Pq Vt struct ifmultihead
+The head of the
+.Xr queue 3
+.Li TAILQ
+containing the list of multicast addresses assigned to this interface.
+.It Va if_amcount
+.Pq Vt int
+A number of multicast requests on this interface, used to
+reference-count the
+.Dv IFF_ALLMULTI
+flag.
+.It Va if_addr
+.Pq Vt "struct ifaddr *"
+A pointer to the link-level interface address.
+(Initialized by
+.Fn if_alloc . )
+.\" .It Va if_llsoftc
+.\" .Pq Vt "void *"
+.\" The purpose of the field is unclear.
 .It Va if_snd
-.Pq Vt "struct ifqueue"
+.Pq Vt "struct ifaltq"
 The output queue.
 (Manipulated by driver.)
-.\".It Va if_poll_slowq
-.\".Pq Vt "struct ifqueue *"
-.\"A pointer to the input queue for devices which do not support polling
-.\"well.
-.\"See the
-.\".Sx Polling
-.\"section, below.
-.\"(Initialized by driver.)
+.It Va if_broadcastaddr
+.Pq Vt "const u_int8_t *"
+A link-level broadcast bytestring for protocols with variable address
+length.
+.It Va if_bridge
+.Pq Vt "void *"
+A pointer to the bridge interface structure,
+.Xr if_bridge 4 .
+(Initialized by the driver-specific
+.Fn if_ioctl
+routine.)
+.It Va if_label
+.Pq Vt "struct label *"
+A pointer to the MAC Framework label structure,
+.Xr mac 4 .
+(Initialized by
+.Fn if_alloc . )
+.It Va if_afdata
+.Pq Vt "void *"
+An address family dependent data region.
+.It Va if_afdata_initialized
+.Pq Vt int
+Used to track the current state of address family initialization.
+.It Va if_afdata_lock
+.Pq Vt "struct rwlock"
+An
+.Xr rwlock 9
+lock used to protect
+.Va if_afdata
+internals.
+.It Va if_linktask
+.Pq Vt "struct task"
+A
+.Xr taskqueue 9
+task scheduled for link state change events of the interface.
+.It Va if_addr_lock
+.Pq Vt "struct rwlock"
+An
+.Xr rwlock 9
+lock used to protect interface-related address lists.
+.It Va if_clones
+.Pq Fn LIST_ENTRY ifnet
+.Xr queue 3
+macro glue for the list of clonable network interfaces.
+.It Va if_groups
+.Pq Fn TAILQ_HEAD ", ifg_list"
+The head of the
+.Xr queue 3
+.Li TAILQ
+containing the list of groups per interface.
+.It Va if_pf_kif
+.Pq Vt "void *"
+A pointer to the structure used for interface abstraction by
+.Xr pf 4 .
+.It Va if_lagg
+.Pq Vt "void *"
+A pointer to the
+.Xr lagg 4
+interface structure.
+.It Va if_alloctype
+.Pq Vt u_char
+The type of the interface as it was at the time of its allocation.
+It is used to cache the type passed to
+.Fn if_alloc ,
+but unlike
+.Va if_type ,
+it would not be changed by drivers.
 .El
 .Pp
 References to
@@ -416,10 +510,6 @@ flag is not set.
 does not literally mean that output is active, but rather that the
 device's internal output queue is full.) Please note that this function
 will soon be deprecated.
-.It Fn if_done
-Not used.
-We are not even sure what it was ever for.
-The prototype is faked.
 .It Fn if_ioctl
 Process interface-related
 .Xr ioctl 2
@@ -434,13 +524,6 @@ flags and flushing queues.
 See the description of
 .Fn ifioctl
 below for more information.
-.\" .It Fn if_poll_recv
-.\" .It Fn if_poll_xmit
-.\" .It Fn if_poll_slowinput
-.\" .It Fn if_poll_intren
-.\" See the
-.\" .Sx Polling
-.\" section, below.
 .It Fn if_init
 Initialize and bring up the hardware,
 e.g., reset the chip and enable the receiver unit.
