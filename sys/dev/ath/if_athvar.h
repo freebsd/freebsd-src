@@ -215,6 +215,8 @@ struct ath_buf {
 		int bfs_ismrr:1;	/* do multi-rate TX retry */
 		int bfs_doprot:1;	/* do RTS/CTS based protection */
 		int bfs_doratelookup:1;	/* do rate lookup before each TX */
+		int bfs_need_seqno:1;	/* need to assign a seqno for aggregation */
+		int bfs_seqno_assigned:1;	/* seqno has been assigned */
 		int bfs_nfl;		/* next fragment length */
 
 		/*
