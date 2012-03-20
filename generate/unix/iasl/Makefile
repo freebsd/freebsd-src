@@ -32,13 +32,16 @@ vpath %.c \
 HEADERS = \
     $(wildcard $(ASL_COMPILER)/*.h) \
     $(OBJDIR)/aslcompiler.y.h \
-    $(OBJDIR)/dtparser.y.h
+    $(OBJDIR)/dtparser.y.h \
+    $(OBJDIR)/prparser.y.h
 
 OBJECTS = \
 	$(OBJDIR)/aslcompilerlex.o \
 	$(OBJDIR)/aslcompilerparse.o \
 	$(OBJDIR)/dtparserlex.o \
 	$(OBJDIR)/dtparserparse.o \
+	$(OBJDIR)/prparserlex.o \
+	$(OBJDIR)/prparserparse.o \
 	$(OBJDIR)/adfile.o \
 	$(OBJDIR)/adisasm.o \
 	$(OBJDIR)/adwalk.o \
@@ -142,6 +145,10 @@ OBJECTS = \
 	$(OBJDIR)/nswalk.o \
 	$(OBJDIR)/nsxfobj.o \
 	$(OBJDIR)/osunixxf.o \
+	$(OBJDIR)/prexpress.o \
+	$(OBJDIR)/prmacros.o \
+	$(OBJDIR)/prscan.o \
+	$(OBJDIR)/prutils.o \
 	$(OBJDIR)/psargs.o \
 	$(OBJDIR)/psloop.o \
 	$(OBJDIR)/psopcode.o \
@@ -177,7 +184,9 @@ INTERMEDIATES = \
 	$(OBJDIR)/aslcompilerlex.c \
 	$(OBJDIR)/aslcompilerparse.c \
 	$(OBJDIR)/dtparserlex.c \
-	$(OBJDIR)/dtparserparse.c
+	$(OBJDIR)/dtparserparse.c \
+	$(OBJDIR)/prparserlex.c \
+	$(OBJDIR)/prparserparse.c
 
 MISC = \
    	$(OBJDIR)/aslcompilerparse.h \
@@ -185,7 +194,10 @@ MISC = \
 	$(OBJDIR)/aslcompilerparse.output \
    	$(OBJDIR)/dtparserparse.h \
 	$(OBJDIR)/dtparser.y.h \
-	$(OBJDIR)/dtparserparse.output
+	$(OBJDIR)/dtparserparse.output \
+   	$(OBJDIR)/prparserparse.h \
+	$(OBJDIR)/prparser.y.h \
+	$(OBJDIR)/prparserparse.output
 
 #
 # Flags specific to iASL compiler
@@ -217,15 +229,26 @@ $(OBJDIR)/dtparserlex.c :      $(ASL_COMPILER)/dtparser.l
 $(OBJDIR)/dtparserparse.c $(OBJDIR)/dtparserparse.h : $(ASL_COMPILER)/dtparser.y
 	${YACC} ${YFLAGS} -pDtParser -o$@ $?
 
+$(OBJDIR)/prparserlex.c :      $(ASL_COMPILER)/prparser.l
+	${LEX} ${LFLAGS} -PPrParser -o$@ $?
+
+$(OBJDIR)/prparserparse.c $(OBJDIR)/prparserparse.h : $(ASL_COMPILER)/prparser.y
+	${YACC} ${YFLAGS} -pPrParser -o$@ $?
+
+
 # Rename headers produced by bison/yacc
+
+$(OBJDIR)/aslcompiler.y.h : $(OBJDIR)/aslcompilerparse.h
+	@echo Copy intermediate file:
+	@cp -f -v $(OBJDIR)/aslcompilerparse.h $(OBJDIR)/aslcompiler.y.h
 
 $(OBJDIR)/dtparser.y.h: $(OBJDIR)/dtparserparse.h
 	@echo Copy intermediate file:
 	@cp -f -v $(OBJDIR)/dtparserparse.h $(OBJDIR)/dtparser.y.h
 
-$(OBJDIR)/aslcompiler.y.h : $(OBJDIR)/aslcompilerparse.h
+$(OBJDIR)/prparser.y.h: $(OBJDIR)/prparserparse.h
 	@echo Copy intermediate file:
-	@cp -f -v $(OBJDIR)/aslcompilerparse.h $(OBJDIR)/aslcompiler.y.h
+	@cp -f -v $(OBJDIR)/prparserparse.h $(OBJDIR)/prparser.y.h
 
 
 #
@@ -244,6 +267,12 @@ $(OBJDIR)/dtparserlex.o :      $(OBJDIR)/dtparserlex.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
 $(OBJDIR)/dtparserparse.o :    $(OBJDIR)/dtparserparse.c
+	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
+
+$(OBJDIR)/prparserlex.o :      $(OBJDIR)/prparserlex.c
+	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
+
+$(OBJDIR)/prparserparse.o :    $(OBJDIR)/prparserparse.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
 

@@ -68,6 +68,7 @@ static const char       *AslFileTypeNames [ASL_NUM_FILES] =
     "Table Input:  ",
     "Binary Output:",
     "Source Output:",
+    "Preprocessor: ",
     "Listing File: ",
     "Hex Dump:     ",
     "Namespace:    ",
@@ -532,6 +533,13 @@ UtDisplaySummary (
         /* .SRC is a temp file unless specifically requested */
 
         if ((i == ASL_FILE_SOURCE_OUTPUT) && (!Gbl_SourceOutputFlag))
+        {
+            continue;
+        }
+
+        /* .I is a temp file unless specifically requested */
+
+        if ((i == ASL_FILE_PREPROCESSOR) && (!Gbl_PreprocessorOutputFlag))
         {
             continue;
         }

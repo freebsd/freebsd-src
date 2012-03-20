@@ -492,8 +492,9 @@ AcpiTbInstallTable (
      *
      * NOTE: If the table is overridden, then FinalTable will contain a
      * mapped pointer to the full new table. If the table is not overridden,
-     * then the table will be fully mapped elsewhere (in verify table).
-     * In any case, we must unmap the header that was mapped above.
+     * or if there has been a physical override, then the table will be
+     * fully mapped later (in verify table). In any case, we must
+     * unmap the header that was mapped above.
      */
     FinalTable = AcpiTbTableOverride (Table, TableDesc);
     if (!FinalTable)
@@ -509,6 +510,20 @@ AcpiTbInstallTable (
     {
         AcpiUtSetIntegerWidth (FinalTable->Revision);
     }
+
+    /*
+     * If we have a physical override during this early loading of the ACPI
+     * tables, unmap the table for now. It will be mapped again later when
+     * it is actually used. This supports very early loading of ACPI tables,
+     * before virtual memory is fully initialized and running within the
+     * host OS. Note: A logical override has the ACPI_TABLE_ORIGIN_OVERRIDE
+     * flag set and will not be deleted below.
+     */
+    if (FinalTable != Table)
+    {
+        AcpiTbDeleteTable (TableDesc);
+    }
+
 
 UnmapAndExit:
 

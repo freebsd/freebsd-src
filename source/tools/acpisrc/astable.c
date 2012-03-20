@@ -600,6 +600,15 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"DT_SUBTABLE",                         SRC_TYPE_STRUCT},
     {"DT_WALK_CALLBACK",                    SRC_TYPE_SIMPLE},
 
+    /* iASL preprocessor */
+
+    {"PR_DEFINE_INFO",                      SRC_TYPE_STRUCT},
+    {"PR_DIRECTIVE_INFO",                   SRC_TYPE_STRUCT},
+    {"PR_FILE_NODE",                        SRC_TYPE_STRUCT},
+    {"PR_LINE_MAPPING",                     SRC_TYPE_STRUCT},
+    {"PR_MACRO_ARG",                        SRC_TYPE_STRUCT},
+    {"PR_OPERATOR_INFO",                    SRC_TYPE_STRUCT},
+
     /* AcpiHelp utility */
 
     {"AH_AML_OPCODE",                       SRC_TYPE_STRUCT},
