@@ -180,6 +180,7 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 	case IFT_SLIP:
 	case IFT_GIF:
 	case IFT_L2VLAN:
+	case IFT_STF:
 	case IFT_IP:
 	case IFT_IPOVERCDLC:
 	case IFT_IPOVERCLAW:
