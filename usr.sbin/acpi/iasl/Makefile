@@ -20,7 +20,8 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslutils.c asluuid.c aslwalks.c dtcompile.c dtexpress.c	\
 	dtfield.c dtio.c dtparser.y.h dtparserlex.c		\
 	dtparserparse.c dtsubtable.c dttable.c dttemplate.c	\
-	dtutils.c
+	dtutils.c prexpress.c prmacros.c prparser.y.h		\
+	prparserlex.c prparserparse.c prscan.c prutils.c
 
 # components/debugger
 SRCS+=	dbfileio.c
@@ -90,6 +91,16 @@ dtparserparse.c dtparserparse.h: dtparser.y
 	${YACC} ${YFLAGS} -pDtParser -odtparserparse.c ${.ALLSRC}
 
 dtparser.y.h: dtparserparse.h
+	ln -f ${.ALLSRC} ${.TARGET}
+
+prparserlex.c: prparser.l
+	${LEX} ${LFLAGS} -PPrParser -o${.TARGET} ${.ALLSRC}
+
+.ORDER: prparserparse.c prparserparse.h
+prparserparse.c prparserparse.h: prparser.y
+	${YACC} ${YFLAGS} -pPrParser -oprparserparse.c ${.ALLSRC}
+
+prparser.y.h: prparserparse.h
 	ln -f ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

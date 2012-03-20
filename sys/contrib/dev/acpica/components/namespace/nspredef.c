@@ -681,7 +681,7 @@ AcpiNsCheckPackage (
         {
             /* Create the new outer package and populate it */
 
-            Status = AcpiNsRepairPackageList (Data, ReturnObjectPtr);
+            Status = AcpiNsWrapWithPackage (Data, *Elements, ReturnObjectPtr);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
