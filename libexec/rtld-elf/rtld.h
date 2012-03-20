@@ -229,6 +229,7 @@ typedef struct Struct_Obj_Entry {
 
     bool mainprog : 1;		/* True if this is the main program */
     bool rtld : 1;		/* True if this is the dynamic linker */
+    bool relocated : 1;		/* True if processed by relocate_objects() */
     bool textrel : 1;		/* True if there are relocations to text seg */
     bool symbolic : 1;		/* True if generated with "-Bsymbolic" */
     bool bind_now : 1;		/* True if all relocations should be made first */
@@ -267,6 +268,7 @@ typedef struct Struct_Obj_Entry {
 #define SYMLOOK_IN_PLT	0x01	/* Lookup for PLT symbol */
 #define SYMLOOK_DLSYM	0x02	/* Return newest versioned symbol. Used by
 				   dlsym. */
+#define	SYMLOOK_EARLY	0x04	/* Symlook is done during initialization. */
 
 /* Flags for load_object(). */
 #define	RTLD_LO_NOLOAD	0x01	/* dlopen() specified RTLD_NOLOAD. */
@@ -274,6 +276,8 @@ typedef struct Struct_Obj_Entry {
 #define	RTLD_LO_TRACE	0x04	/* Only tracing. */
 #define	RTLD_LO_NODELETE 0x08	/* Loaded object cannot be closed. */
 #define	RTLD_LO_FILTEES 0x10	/* Loading filtee. */
+#define	RTLD_LO_EARLY	0x20	/* Do not call ctors, postpone it to the
+				   initialization during the image start. */
 
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups
@@ -353,11 +357,12 @@ const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);
  * MD function declarations.
  */
 int do_copy_relocations(Obj_Entry *);
-int reloc_non_plt(Obj_Entry *, Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_non_plt(Obj_Entry *, Obj_Entry *, int flags,
+    struct Struct_RtldLockState *);
 int reloc_plt(Obj_Entry *);
-int reloc_jmpslots(Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_jmpslots(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
-int reloc_gnu_ifunc(Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 void allocate_initial_tls(Obj_Entry *);
 
 #endif /* } */
