@@ -349,8 +349,7 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				}
 				pp = NULL;
 			}
-		} else
-			pp = NULL;
+		}
 		break;
 	}
 	return (pp);
