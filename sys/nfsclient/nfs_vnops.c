@@ -912,8 +912,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct mount *mp = dvp->v_mount;
-	struct vattr vattr;
-	struct timespec dmtime;
+	struct vattr dvattr, vattr;
+	struct timespec nctime;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
@@ -922,7 +922,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	long len;
 	nfsfh_t *fhp;
 	struct nfsnode *np, *newnp;
-	int error = 0, attrflag, fhsize, ltype;
+	int error = 0, attrflag, dattrflag, fhsize, ltype, ncticks;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
 
@@ -938,10 +938,23 @@ nfs_lookup(struct vop_lookup_args *ap)
 		*vpp = NULLVP;
 		return (error);
 	}
-	error = cache_lookup(dvp, vpp, cnp);
+	error = cache_lookup_times(dvp, vpp, cnp, &nctime, &ncticks);
 	if (error > 0 && error != ENOENT)
 		return (error);
 	if (error == -1) {
+		/*
+		 * Lookups of "." are special and always return the
+		 * current directory.  cache_lookup() already handles
+		 * associated locking bookkeeping, etc.
+		 */
+		if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
+			/* XXX: Is this really correct? */
+			if (cnp->cn_nameiop != LOOKUP &&
+			    (flags & ISLASTCN))
+				cnp->cn_flags |= SAVENAME;
+			return (0);
+		}
+
 		/*
 		 * We only accept a positive hit in the cache if the
 		 * change time of the file matches our cached copy.
@@ -968,7 +981,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			mtx_unlock(&newnp->n_mtx);
 		}
 		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
-		    timespeccmp(&vattr.va_ctime, &newnp->n_ctime, ==)) {
+		    timespeccmp(&vattr.va_ctime, &nctime, ==)) {
 			nfsstats.lookupcache_hits++;
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))
@@ -987,36 +1000,22 @@ nfs_lookup(struct vop_lookup_args *ap)
 		/*
 		 * We only accept a negative hit in the cache if the
 		 * modification time of the parent directory matches
-		 * our cached copy.  Otherwise, we discard all of the
-		 * negative cache entries for this directory. We also
-		 * only trust -ve cache entries for less than
-		 * nm_negative_namecache_timeout seconds.
+		 * the cached copy in the name cache entry.
+		 * Otherwise, we discard all of the negative cache
+		 * entries for this directory.  We also only trust
+		 * negative cache entries for up to nm_negnametimeo
+		 * seconds.
 		 */
-		if ((u_int)(ticks - np->n_dmtime_ticks) <
-		    (nmp->nm_negnametimeo * hz) &&
+		if ((u_int)(ticks - ncticks) < (nmp->nm_negnametimeo * hz) &&
 		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
-		    timespeccmp(&vattr.va_mtime, &np->n_dmtime, ==)) {
+		    timespeccmp(&vattr.va_mtime, &nctime, ==)) {
 			nfsstats.lookupcache_hits++;
 			return (ENOENT);
 		}
 		cache_purge_negative(dvp);
-		mtx_lock(&np->n_mtx);
-		timespecclear(&np->n_dmtime);
-		mtx_unlock(&np->n_mtx);
 	}
 
-	/*
-	 * Cache the modification time of the parent directory in case
-	 * the lookup fails and results in adding the first negative
-	 * name cache entry for the directory.  Since this is reading
-	 * a single time_t, don't bother with locking.  The
-	 * modification time may be a bit stale, but it must be read
-	 * before performing the lookup RPC to prevent a race where
-	 * another lookup updates the timestamp on the directory after
-	 * the lookup RPC has been performed on the server but before
-	 * n_dmtime is set at the end of this function.
-	 */
-	dmtime = np->n_vattr.va_mtime;
+	attrflag = dattrflag = 0;
 	error = 0;
 	newvp = NULLVP;
 	nfsstats.lookupcache_misses++;
@@ -1031,7 +1030,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	nfsm_request(dvp, NFSPROC_LOOKUP, cnp->cn_thread, cnp->cn_cred);
 	if (error) {
 		if (v3) {
-			nfsm_postop_attr(dvp, attrflag);
+			nfsm_postop_attr_va(dvp, dattrflag, &vattr);
 			m_freem(mrep);
 		}
 		goto nfsmout;
@@ -1127,17 +1126,19 @@ nfs_lookup(struct vop_lookup_args *ap)
 		}
 	}
 	if (v3) {
-		nfsm_postop_attr(newvp, attrflag);
-		nfsm_postop_attr(dvp, attrflag);
-	} else
-		nfsm_loadattr(newvp, NULL);
+		nfsm_postop_attr_va(newvp, attrflag, &vattr);
+		nfsm_postop_attr_va(dvp, dattrflag, &dvattr);
+	} else {
+		nfsm_loadattr(newvp, &vattr);
+		attrflag = 1;
+	}
 	if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
-	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN))) {
-		np->n_ctime = np->n_vattr.va_ctime;
-		cache_enter(dvp, newvp, cnp);
-	}
+	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) &&
+	    attrflag != 0 && (newvp->v_type != VDIR || dattrflag != 0))
+		cache_enter_time(dvp, newvp, cnp, &vattr.va_ctime,
+		    newvp->v_type != VDIR ? NULL : &dvattr.va_ctime);
 	*vpp = newvp;
 	m_freem(mrep);
 nfsmout:
@@ -1164,30 +1165,22 @@ nfsmout:
 			return (EJUSTRETURN);
 		}
 
-		if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE) {
+		if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE &&
+		    dattrflag) {
 			/*
-			 * Maintain n_dmtime as the modification time
-			 * of the parent directory when the oldest -ve
-			 * name cache entry for this directory was
-			 * added.  If a -ve cache entry has already
-			 * been added with a newer modification time
-			 * by a concurrent lookup, then don't bother
-			 * adding a cache entry.  The modification
-			 * time of the directory might have changed
-			 * due to the file this lookup failed to find
-			 * being created.  In that case a subsequent
-			 * lookup would incorrectly use the entry
-			 * added here instead of doing an extra
-			 * lookup.
+			 * Cache the modification time of the parent
+			 * directory from the post-op attributes in
+			 * the name cache entry.  The negative cache
+			 * entry will be ignored once the directory
+			 * has changed.  Don't bother adding the entry
+			 * if the directory has already changed.
 			 */
 			mtx_lock(&np->n_mtx);
-			if (timespeccmp(&np->n_dmtime, &dmtime, <=)) {
-				if (!timespecisset(&np->n_dmtime)) {
-					np->n_dmtime = dmtime;
-					np->n_dmtime_ticks = ticks;
-				}
+			if (timespeccmp(&np->n_vattr.va_mtime,
+			    &vattr.va_mtime, ==)) {
 				mtx_unlock(&np->n_mtx);
-				cache_enter(dvp, NULL, cnp);
+				cache_enter_time(dvp, NULL, cnp,
+				    &vattr.va_mtime, NULL);
 			} else
 				mtx_unlock(&np->n_mtx);
 		}
@@ -1538,8 +1531,6 @@ nfsmout:
 		if (newvp)
 			vput(newvp);
 	} else {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
 		*vpp = newvp;
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
@@ -1678,8 +1669,6 @@ nfsmout:
 			vput(newvp);
 	}
 	if (!error) {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
@@ -2473,10 +2462,11 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	nfsuint64 cookie;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *dnp = VTONFS(vp), *np;
+	struct vattr vattr, dvattr;
 	nfsfh_t *fhp;
 	u_quad_t fileno;
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, doit, bigenough = 1, i;
-	int attrflag, fhsize;
+	int attrflag, dattrflag, fhsize;
 
 #ifndef nolint
 	dp = NULL;
@@ -2522,7 +2512,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		*tl++ = txdr_unsigned(nmp->nm_readdirsize);
 		*tl = txdr_unsigned(nmp->nm_rsize);
 		nfsm_request(vp, NFSPROC_READDIRPLUS, uiop->uio_td, cred);
-		nfsm_postop_attr(vp, attrflag);
+		nfsm_postop_attr_va(vp, dattrflag, &dvattr);
 		if (error) {
 			m_freem(mrep);
 			goto nfsmout;
@@ -2653,18 +2643,16 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				dpos = dpossav1;
 				mdsav2 = md;
 				md = mdsav1;
-				nfsm_loadattr(newvp, NULL);
+				nfsm_loadattr(newvp, &vattr);
 				dpos = dpossav2;
 				md = mdsav2;
-				dp->d_type =
-				    IFTODT(VTTOIF(np->n_vattr.va_type));
+				dp->d_type = IFTODT(VTTOIF(vattr.va_type));
 				ndp->ni_vp = newvp;
-				/*
-				 * Update n_ctime so subsequent lookup
-				 * doesn't purge entry.
-				 */
-				np->n_ctime = np->n_vattr.va_ctime;
-			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
+				if (newvp->v_type != VDIR || dattrflag != 0)
+				    cache_enter_time(ndp->ni_dvp, ndp->ni_vp,
+					cnp, &vattr.va_ctime,
+					newvp->v_type != VDIR ? NULL :
+					&dvattr.va_ctime);
 			    }
 			} else {
 			    /* Just skip over the file handle */
