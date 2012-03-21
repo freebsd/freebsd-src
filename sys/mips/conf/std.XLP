@@ -59,7 +59,6 @@ options 	GEOM_UZIP
 device		loop
 device		random
 device		md
-device		pty
 device		bpf
 
 # Network

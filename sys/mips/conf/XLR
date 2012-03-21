@@ -112,7 +112,6 @@ device 		uart
 device 		loop
 device 		random
 device 		md
-device 		pty
 device		bpf
 
 # Network
