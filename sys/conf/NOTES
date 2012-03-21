@@ -1715,12 +1715,12 @@ device		siis
 # For example to build a system which only supports a VIA chipset,
 # omit 'ata' and include the 'atacore', 'atapci' and 'atavia' drivers.
 device		ata
-device		atadisk		# ATA disk drives
-device		ataraid		# ATA RAID drives
-device		atapicd		# ATAPI CDROM drives
-device		atapifd		# ATAPI floppy drives
-device		atapist		# ATAPI tape drives
-device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
+#device		atadisk		# ATA disk drives
+#device		ataraid		# ATA RAID drives
+#device		atapicd		# ATAPI CDROM drives
+#device		atapifd		# ATAPI floppy drives
+#device		atapist		# ATAPI tape drives
+#device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
 				# needs CAM to be present (scbus & pass)
 
 # Modular ATA
