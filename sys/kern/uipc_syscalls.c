@@ -2300,6 +2300,10 @@ sctp_peeloff(td, uap)
 	error = fgetsock(td, uap->sd, &head, &fflag);
 	if (error)
 		goto done2;
+	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
+		error = EOPNOTSUPP;
+		goto done2;
+	}
 	error = sctp_can_peel_off(head, (sctp_assoc_t)uap->name);
 	if (error)
 		goto done2;
@@ -2418,6 +2422,10 @@ sctp_generic_sendmsg (td, uap)
 	iov[0].iov_len = uap->mlen;
 
 	so = (struct socket *)fp->f_data;
+	if (so->so_proto->pr_protocol != IPPROTO_SCTP) {
+		error = EOPNOTSUPP;
+		goto sctp_bad;
+	}
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
 	if (error)
@@ -2528,6 +2536,10 @@ sctp_generic_sendmsg_iov(td, uap)
 #endif
 
 	so = (struct socket *)fp->f_data;
+	if (so->so_proto->pr_protocol != IPPROTO_SCTP) {
+		error = EOPNOTSUPP;
+		goto sctp_bad;
+	}
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
 	if (error)
@@ -2632,6 +2644,10 @@ sctp_generic_recvmsg(td, uap)
 		goto out1;
 
 	so = fp->f_data;
+	if (so->so_proto->pr_protocol != IPPROTO_SCTP) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
 #ifdef MAC
 	error = mac_socket_check_receive(td->td_ucred, so);
 	if (error) {
