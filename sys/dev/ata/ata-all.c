@@ -79,9 +79,11 @@ static void ataaction(struct cam_sim *sim, union ccb *ccb);
 static void atapoll(struct cam_sim *sim);
 #endif
 static void ata_conn_event(void *, int);
+#ifndef ATA_CAM
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
+#endif
 static void ata_interrupt_locked(void *data);
 #ifdef ATA_CAM
 static void ata_periodic_poll(void *data);
@@ -90,27 +92,36 @@ static void ata_periodic_poll(void *data);
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
+#ifndef ATA_CAM
 struct intr_config_hook *ata_delayed_attach = NULL;
+#endif
 devclass_t ata_devclass;
 uma_zone_t ata_request_zone;
 uma_zone_t ata_composite_zone;
+#ifndef ATA_CAM
 int ata_wc = 1;
 int ata_setmax = 0;
+#endif
 int ata_dma_check_80pin = 1;
 
 /* local vars */
+#ifndef ATA_CAM
 static int ata_dma = 1;
 static int atapi_dma = 1;
+#endif
 
 /* sysctl vars */
 static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+#ifndef ATA_CAM
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
 	   "ATA disk DMA mode control");
+#endif
 TUNABLE_INT("hw.ata.ata_dma_check_80pin", &ata_dma_check_80pin);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma_check_80pin,
 	   CTLFLAG_RW, &ata_dma_check_80pin, 1,
 	   "Check for 80pin cable before setting ATA DMA mode");
+#ifndef ATA_CAM
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RDTUN, &atapi_dma, 0,
 	   "ATAPI device DMA mode control");
@@ -120,6 +131,7 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
 TUNABLE_INT("hw.ata.setmax", &ata_setmax);
 SYSCTL_INT(_hw_ata, OID_AUTO, setmax, CTLFLAG_RDTUN, &ata_setmax, 0,
 	   "ATA disk set max native address");
+#endif
 #ifdef ATA_CAM
 FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
 #endif
@@ -186,13 +198,13 @@ ata_attach(device_t dev)
 	callout_init(&ch->poll_callout, 1);
 #endif
 
+#ifndef ATA_CAM
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	pause("ataatch", 1);
-#ifndef ATA_CAM
     ATA_RESET(dev);
-#endif
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
+#endif
 
     /* allocate DMA resources if DMA HW present*/
     if (ch->dma.alloc)
@@ -606,6 +618,7 @@ ata_print_cable(device_t dev, u_int8_t *who)
                   "DMA limited to UDMA33, %s found non-ATA66 cable\n", who);
 }
 
+#ifndef ATA_CAM
 int
 ata_check_80pin(device_t dev, int mode)
 {
@@ -623,7 +636,9 @@ ata_check_80pin(device_t dev, int mode)
     }
     return mode;
 }
+#endif
 
+#ifndef ATA_CAM
 void
 ata_setmode(device_t dev)
 {
@@ -644,6 +659,7 @@ ata_setmode(device_t dev)
 		    (error) ? "FAILURE " : "", ata_mode2str(mode));
 	atadev->mode = mode;
 }
+#endif
 
 /*
  * device related interfaces
@@ -732,6 +748,7 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 }
 #endif
 
+#ifndef ATA_CAM
 int
 ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 {
@@ -830,6 +847,7 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 	return ENOTTY;
     }
 }
+#endif
 
 #ifndef ATA_CAM
 static void
@@ -878,6 +896,7 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 }
 #endif
 
+#ifndef ATA_CAM
 int
 ata_getparam(struct ata_device *atadev, int init)
 {
@@ -983,6 +1002,7 @@ ata_getparam(struct ata_device *atadev, int init)
     }
     return error;
 }
+#endif
 
 #ifndef ATA_CAM
 int
@@ -1188,6 +1208,7 @@ ata_udelay(int interval)
 	pause("ataslp", interval/(1000000/hz));
 }
 
+#ifndef ATA_CAM
 char *
 ata_unit2str(struct ata_device *atadev)
 {
@@ -1200,6 +1221,7 @@ ata_unit2str(struct ata_device *atadev)
 	sprintf(str, "%s", atadev->unit == ATA_MASTER ? "master" : "slave");
     return str;
 }
+#endif
 
 const char *
 ata_mode2str(int mode)
@@ -1260,6 +1282,7 @@ ata_str2mode(const char *str)
 	return (-1);
 }
 
+#ifndef ATA_CAM
 const char *
 ata_satarev2str(int rev)
 {
@@ -1272,6 +1295,7 @@ ata_satarev2str(int rev)
 	default: return "???";
 	}
 }
+#endif
 
 int
 ata_atapi(device_t dev, int target)
@@ -1281,6 +1305,7 @@ ata_atapi(device_t dev, int target)
     return (ch->devices & (ATA_ATAPI_MASTER << target));
 }
 
+#ifndef ATA_CAM
 int
 ata_pmode(struct ata_params *ap)
 {
@@ -1304,7 +1329,9 @@ ata_pmode(struct ata_params *ap)
 	return ATA_PIO0;
     return ATA_PIO0;
 }
+#endif
 
+#ifndef ATA_CAM
 int
 ata_wmode(struct ata_params *ap)
 {
@@ -1316,7 +1343,9 @@ ata_wmode(struct ata_params *ap)
 	return ATA_WDMA0;
     return -1;
 }
+#endif
 
+#ifndef ATA_CAM
 int
 ata_umode(struct ata_params *ap)
 {
@@ -1338,7 +1367,9 @@ ata_umode(struct ata_params *ap)
     }
     return -1;
 }
+#endif
 
+#ifndef ATA_CAM
 int
 ata_limit_mode(device_t dev, int mode, int maxmode)
 {
@@ -1358,7 +1389,9 @@ ata_limit_mode(device_t dev, int mode, int maxmode)
 
     return mode;
 }
+#endif
 
+#ifndef ATA_CAM
 static void
 bswap(int8_t *buf, int len)
 {
@@ -1367,7 +1400,9 @@ bswap(int8_t *buf, int len)
     while (--ptr >= (u_int16_t*)buf)
 	*ptr = ntohs(*ptr);
 }
+#endif
 
+#ifndef ATA_CAM
 static void
 btrim(int8_t *buf, int len)
 {
@@ -1379,7 +1414,9 @@ btrim(int8_t *buf, int len)
     for (ptr = buf + len - 1; ptr >= buf && *ptr == ' '; --ptr)
 	*ptr = 0;
 }
+#endif
 
+#ifndef ATA_CAM
 static void
 bpack(int8_t *src, int8_t *dst, int len)
 {
@@ -1402,6 +1439,7 @@ bpack(int8_t *src, int8_t *dst, int len)
     if (j < len)
 	dst[j] = 0x00;
 }
+#endif
 
 #ifdef ATA_CAM
 void
