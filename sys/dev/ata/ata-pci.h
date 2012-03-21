@@ -62,7 +62,9 @@ struct ata_pci_controller {
     int                 (*ch_detach)(device_t);
     int                 (*ch_suspend)(device_t);
     int                 (*ch_resume)(device_t);
+#ifndef ATA_CAM
     int                 (*locking)(device_t, int);
+#endif
     void                (*reset)(device_t);
     int                 (*setmode)(device_t, int, int);
     int                 (*getrev)(device_t, int);
