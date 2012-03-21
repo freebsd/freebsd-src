@@ -76,8 +76,6 @@ device		smcphy
 device		uart
 device		uart_ns8250
 
-device		pty
-
 # Debugging for use in -current
 options 	KDB
 options 	DDB			#Enable the kernel debugger
