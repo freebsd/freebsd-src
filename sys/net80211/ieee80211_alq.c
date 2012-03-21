@@ -152,7 +152,7 @@ ieee80211_alq_log(struct ieee80211vap *vap, uint8_t op, u_char *p, int l)
 	r->r_version = 1;
 	r->r_wlan = htons(vap->iv_ifp->if_dunit);
 	r->r_op = op;
-	r->r_threadid = (uint32_t) curthread->td_tid;
+	r->r_threadid = htonl((uint32_t) curthread->td_tid);
 	memcpy(&r->r_payload, p, MIN(l, sizeof(r->r_payload)));
 	alq_post(ieee80211_alq, ale);
 }
