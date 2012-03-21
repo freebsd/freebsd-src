@@ -48,6 +48,7 @@
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
  * 1.128 - cleanups
+ * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
  */
 
@@ -2020,6 +2021,7 @@ pfsync_out_upd_c(struct pf_state *st, struct mbuf *m, int offset)
 {
 	struct pfsync_upd_c *up = (struct pfsync_upd_c *)(m->m_data + offset);
 
+	bzero(up, sizeof(*up));
 	up->id = st->id;
 	pf_state_peer_hton(&st->src, &up->src);
 	pf_state_peer_hton(&st->dst, &up->dst);
@@ -2031,8 +2033,6 @@ pfsync_out_upd_c(struct pf_state *st, struct mbuf *m, int offset)
 	else
 		up->expire = htonl(up->expire - time_second);
 	up->timeout = st->timeout;
-
-	bzero(up->_pad, sizeof(up->_pad)); /* XXX */
 
 	return (sizeof(*up));
 }
