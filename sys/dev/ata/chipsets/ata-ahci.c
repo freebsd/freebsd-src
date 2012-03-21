@@ -1056,11 +1056,12 @@ static device_method_t ata_ahci_ata_methods[] = {
     DEVMETHOD(bus_deactivate_resource,  bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,           ata_pci_setup_intr),
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 static driver_t ata_ahci_ata_driver = {
         "atapci",
         ata_ahci_ata_methods,
         sizeof(struct ata_pci_controller)
 };
-DRIVER_MODULE(ata_ahci_ata, atapci, ata_ahci_ata_driver, ata_pci_devclass, 0, 0);
+DRIVER_MODULE(ata_ahci_ata, atapci, ata_ahci_ata_driver, ata_pci_devclass,
+    NULL, NULL);
