@@ -148,10 +148,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-#ifndef PMAP_SHPGPERPROC
-#define PMAP_SHPGPERPROC 200
-#endif
-
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
 #define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
@@ -206,9 +202,8 @@ static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
 /*
  * Data for the pv entry allocation mechanism
  */
-static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
+static int pv_entry_count;
 static struct md_page *pv_table;
-static int shpgperproc = PMAP_SHPGPERPROC;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -222,7 +217,7 @@ caddr_t CADDR1 = 0;
 static caddr_t crashdumpmap;
 
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
-static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
+static pv_entry_t get_pv_entry(pmap_t locked_pmap, boolean_t try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static void	pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
@@ -731,16 +726,6 @@ pmap_init(void)
 	}
 
 	/*
-	 * Initialize the address space (zone) for the pv entries.  Set a
-	 * high water mark so that the system can recover from excessive
-	 * numbers of pv entries.
-	 */
-	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
-	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
-	pv_entry_high_water = 9 * (pv_entry_max / 10);
-
-	/*
 	 * If the kernel is running in a virtual machine on an AMD Family 10h
 	 * processor, then it must assume that MCA is enabled by the virtual
 	 * machine monitor.
@@ -774,36 +759,6 @@ pmap_init(void)
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 }
-
-static int
-pmap_pventry_proc(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0 && req->newptr) {
-		shpgperproc = (pv_entry_max - cnt.v_page_count) / maxproc;
-		pv_entry_high_water = 9 * (pv_entry_max / 10);
-	}
-	return (error);
-}
-SYSCTL_PROC(_vm_pmap, OID_AUTO, pv_entry_max, CTLTYPE_INT|CTLFLAG_RW, 
-    &pv_entry_max, 0, pmap_pventry_proc, "IU", "Max number of PV entries");
-
-static int
-pmap_shpgperproc_proc(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0 && req->newptr) {
-		pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
-		pv_entry_high_water = 9 * (pv_entry_max / 10);
-	}
-	return (error);
-}
-SYSCTL_PROC(_vm_pmap, OID_AUTO, shpgperproc, CTLTYPE_INT|CTLFLAG_RW, 
-    &shpgperproc, 0, pmap_shpgperproc_proc, "IU", "Page share factor per proc");
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
     "2MB page mapping counters");
@@ -2184,10 +2139,8 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
  * when needed.
  */
 static pv_entry_t
-get_pv_entry(pmap_t pmap, int try)
+get_pv_entry(pmap_t pmap, boolean_t try)
 {
-	static const struct timeval printinterval = { 60, 0 };
-	static struct timeval lastprint;
 	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
@@ -2197,12 +2150,6 @@ get_pv_entry(pmap_t pmap, int try)
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PV_STAT(pv_entry_allocs++);
-	pv_entry_count++;
-	if (pv_entry_count > pv_entry_high_water)
-		if (ratecheck(&lastprint, &printinterval))
-			printf("Approaching the limit on PV entries, consider "
-			    "increasing either the vm.pmap.shpgperproc or the "
-			    "vm.pmap.pv_entry_max sysctl.\n");
 	pq = NULL;
 retry:
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
@@ -2220,8 +2167,10 @@ retry:
 			if (pc->pc_map[0] == 0 && pc->pc_map[1] == 0 &&
 			    pc->pc_map[2] == 0) {
 				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_list);
+				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc,
+				    pc_list);
 			}
+			pv_entry_count++;
 			PV_STAT(pv_entry_spare--);
 			return (pv);
 		}
@@ -2232,7 +2181,6 @@ retry:
 	    VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (try) {
-			pv_entry_count--;
 			PV_STAT(pc_chunk_tryfail++);
 			return (NULL);
 		}
@@ -2248,7 +2196,7 @@ retry:
 			PV_STAT(pmap_collect_active++);
 			pq = &vm_page_queues[PQ_ACTIVE];
 		} else
-			panic("get_pv_entry: increase vm.pmap.shpgperproc");
+			panic("get_pv_entry: allocation failed");
 		pmap_collect(pmap, pq);
 		goto retry;
 	}
@@ -2262,6 +2210,7 @@ retry:
 	pc->pc_map[2] = PC_FREE2;
 	pv = &pc->pc_pventry[0];
 	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+	pv_entry_count++;
 	PV_STAT(pv_entry_spare += _NPCPV - 1);
 	return (pv);
 }
@@ -2419,8 +2368,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if (pv_entry_count < pv_entry_high_water && 
-	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
+	if ((pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 		return (TRUE);
@@ -2438,8 +2386,7 @@ pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	pv_entry_t pv;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if (pv_entry_count < pv_entry_high_water && 
-	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
+	if ((pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		pvh = pa_to_pvh(pa);
 		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_list);
