@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd February 25, 2011
+.Dd March 21, 2012
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -130,7 +130,7 @@ Additionally, the format may also be constructed with a
 sign along with a rotation time specification of once
 a day, once a week, or once a month.
 .Pp
-If a time is specified, the log file will only be trimmed if
+Time based trimming happens only if
 .Xr newsyslog 8
 is run within one hour of the specified time.
 If an interval is specified, the log file will be trimmed if that many
