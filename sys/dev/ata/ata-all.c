@@ -1209,7 +1209,7 @@ ata_udelay(int interval)
 }
 
 #ifndef ATA_CAM
-char *
+const char *
 ata_unit2str(struct ata_device *atadev)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(atadev->dev));

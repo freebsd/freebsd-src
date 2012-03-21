@@ -75,7 +75,7 @@ static int
 ata_serverworks_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_ROSB4,     0x00, SWKS_33,  0, ATA_WDMA2, "ROSB4" },
      { ATA_CSB5,      0x92, SWKS_100, 0, ATA_UDMA5, "CSB5" },
      { ATA_CSB5,      0x00, SWKS_66,  0, ATA_UDMA4, "CSB5" },
@@ -350,8 +350,8 @@ ata_serverworks_setmode(device_t dev, int target, int mode)
         int devno = (ch->unit << 1) + target;
         int offset = (devno ^ 0x01) << 3;
 	int piomode;
-	u_int8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
-	u_int8_t dmatimings[] = { 0x77, 0x21, 0x20 };
+	static const uint8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
+	static const uint8_t dmatimings[] = { 0x77, 0x21, 0x20 };
 
 	mode = min(mode, ctlr->chip->max_dma);
 	if (mode >= ATA_UDMA0) {
