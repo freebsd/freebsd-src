@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-uint32_t crc32_tab[] = {
+const uint32_t const crc32_tab[] = {
 	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
 	0xe963a535, 0x9e6495a3,	0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
 	0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91, 0x1db71064, 0x6ab020f2,
@@ -134,7 +134,7 @@ uint32_t crc32_tab[] = {
 /*                                                               */
 /*****************************************************************/
 
-static uint32_t crc32Table[256] = {
+static const uint32_t const crc32Table[256] = {
 	0x00000000L, 0xF26B8303L, 0xE13B70F7L, 0x1350F3F4L,
 	0xC79A971FL, 0x35F1141CL, 0x26A1E7E8L, 0xD4CA64EBL,
 	0x8AD958CFL, 0x78B2DBCCL, 0x6BE22838L, 0x9989AB3BL,
@@ -240,7 +240,7 @@ singletable_crc32c(uint32_t crc, const void *buf, size_t size)
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o32[256] =
+static const uint32_t const sctp_crc_tableil8_o32[256] =
 {
 	0x00000000, 0xF26B8303, 0xE13B70F7, 0x1350F3F4, 0xC79A971F, 0x35F1141C, 0x26A1E7E8, 0xD4CA64EB,
 	0x8AD958CF, 0x78B2DBCC, 0x6BE22838, 0x9989AB3B, 0x4D43CFD0, 0xBF284CD3, 0xAC78BF27, 0x5E133C24,
@@ -296,7 +296,7 @@ static uint32_t sctp_crc_tableil8_o32[256] =
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o40[256] =
+static const uint32_t const sctp_crc_tableil8_o40[256] =
 {
 	0x00000000, 0x13A29877, 0x274530EE, 0x34E7A899, 0x4E8A61DC, 0x5D28F9AB, 0x69CF5132, 0x7A6DC945,
 	0x9D14C3B8, 0x8EB65BCF, 0xBA51F356, 0xA9F36B21, 0xD39EA264, 0xC03C3A13, 0xF4DB928A, 0xE7790AFD,
@@ -352,7 +352,7 @@ static uint32_t sctp_crc_tableil8_o40[256] =
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o48[256] =
+static const uint32_t const sctp_crc_tableil8_o48[256] =
 {
 	0x00000000, 0xA541927E, 0x4F6F520D, 0xEA2EC073, 0x9EDEA41A, 0x3B9F3664, 0xD1B1F617, 0x74F06469,
 	0x38513EC5, 0x9D10ACBB, 0x773E6CC8, 0xD27FFEB6, 0xA68F9ADF, 0x03CE08A1, 0xE9E0C8D2, 0x4CA15AAC,
@@ -408,7 +408,7 @@ static uint32_t sctp_crc_tableil8_o48[256] =
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o56[256] =
+static const uint32_t const sctp_crc_tableil8_o56[256] =
 {
 	0x00000000, 0xDD45AAB8, 0xBF672381, 0x62228939, 0x7B2231F3, 0xA6679B4B, 0xC4451272, 0x1900B8CA,
 	0xF64463E6, 0x2B01C95E, 0x49234067, 0x9466EADF, 0x8D665215, 0x5023F8AD, 0x32017194, 0xEF44DB2C,
@@ -464,7 +464,7 @@ static uint32_t sctp_crc_tableil8_o56[256] =
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o64[256] =
+static const uint32_t const sctp_crc_tableil8_o64[256] =
 {
 	0x00000000, 0x38116FAC, 0x7022DF58, 0x4833B0F4, 0xE045BEB0, 0xD854D11C, 0x906761E8, 0xA8760E44,
 	0xC5670B91, 0xFD76643D, 0xB545D4C9, 0x8D54BB65, 0x2522B521, 0x1D33DA8D, 0x55006A79, 0x6D1105D5,
@@ -520,7 +520,7 @@ static uint32_t sctp_crc_tableil8_o64[256] =
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o72[256] =
+static const uint32_t const sctp_crc_tableil8_o72[256] =
 {
 	0x00000000, 0xEF306B19, 0xDB8CA0C3, 0x34BCCBDA, 0xB2F53777, 0x5DC55C6E, 0x697997B4, 0x8649FCAD,
 	0x6006181F, 0x8F367306, 0xBB8AB8DC, 0x54BAD3C5, 0xD2F32F68, 0x3DC34471, 0x097F8FAB, 0xE64FE4B2,
@@ -576,7 +576,7 @@ static uint32_t sctp_crc_tableil8_o72[256] =
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o80[256] =
+static const uint32_t const sctp_crc_tableil8_o80[256] =
 {
 	0x00000000, 0x68032CC8, 0xD0065990, 0xB8057558, 0xA5E0C5D1, 0xCDE3E919, 0x75E69C41, 0x1DE5B089,
 	0x4E2DFD53, 0x262ED19B, 0x9E2BA4C3, 0xF628880B, 0xEBCD3882, 0x83CE144A, 0x3BCB6112, 0x53C84DDA,
@@ -632,7 +632,7 @@ static uint32_t sctp_crc_tableil8_o80[256] =
  * File Name = ............................ 8x256_tables.c
  */
 
-static uint32_t sctp_crc_tableil8_o88[256] =
+static const uint32_t const sctp_crc_tableil8_o88[256] =
 {
 	0x00000000, 0x493C7D27, 0x9278FA4E, 0xDB448769, 0x211D826D, 0x6821FF4A, 0xB3657823, 0xFA590504,
 	0x423B04DA, 0x0B0779FD, 0xD043FE94, 0x997F83B3, 0x632686B7, 0x2A1AFB90, 0xF15E7CF9, 0xB86201DE,
