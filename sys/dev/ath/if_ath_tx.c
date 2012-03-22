@@ -663,6 +663,15 @@ ath_tx_tag_crypto(struct ath_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m0, int iswep, int isfrag, int *hdrlen, int *pktlen,
     int *keyix)
 {
+	DPRINTF(sc, ATH_DEBUG_XMIT,
+	    "%s: hdrlen=%d, pktlen=%d, isfrag=%d, iswep=%d, m0=%p\n",
+	    __func__,
+	    *hdrlen,
+	    *pktlen,
+	    isfrag,
+	    iswep,
+	    m0);
+
 	if (iswep) {
 		const struct ieee80211_cipher *cip;
 		struct ieee80211_key *k;
@@ -1473,6 +1482,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		/* No AMPDU TX, we've been assigned a sequence number. */
 		if (IEEE80211_QOS_HAS_SEQ(wh)) {
 			bf->bf_state.bfs_seqno_assigned = 1;
+			/* XXX we should store the frag+seqno in bfs_seqno */
 			bf->bf_state.bfs_seqno =
 			    M_SEQNO_GET(m0) << IEEE80211_SEQ_SEQ_SHIFT;
 		}
@@ -2635,6 +2645,15 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 		}
 
 		if (t == 0) {
+			device_printf(sc->sc_dev,
+			    "%s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
+			    "seqno_assign=%d, seqno_required=%d, seqno=%d\n",
+			    __func__, ni, bf,
+			    bf->bf_state.bfs_addedbaw,
+			    bf->bf_state.bfs_dobaw,
+			    bf->bf_state.bfs_need_seqno,
+			    bf->bf_state.bfs_seqno_assigned,
+			    SEQNO(bf->bf_state.bfs_seqno));
 			device_printf(sc->sc_dev,
 			    "%s: node %p: bf=%p: tid %d: txq_depth=%d, "
 			    "txq_aggr_depth=%d, sched=%d, paused=%d, "
