@@ -3733,7 +3733,7 @@ tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
     /* Check dtv generation in case new modules have arrived */
     if (dtv[0] != tls_dtv_generation) {
 	wlock_acquire(rtld_bind_lock, &lockstate);
-	newdtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
+	newdtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 	to_copy = dtv[1];
 	if (to_copy > tls_max_index)
 	    to_copy = tls_max_index;
@@ -3788,7 +3788,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	return (oldtcb);
 
     assert(tcbsize >= TLS_TCB_SIZE);
-    tcb = calloc(1, tls_static_space - TLS_TCB_SIZE + tcbsize);
+    tcb = xcalloc(1, tls_static_space - TLS_TCB_SIZE + tcbsize);
     tls = (Elf_Addr **)(tcb + tcbsize - TLS_TCB_SIZE);
 
     if (oldtcb != NULL) {
@@ -3804,7 +3804,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	    }
 	}
     } else {
-	dtv = calloc(tls_max_index + 2, sizeof(Elf_Addr));
+	dtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 	tls[0] = dtv;
 	dtv[0] = tls_dtv_generation;
 	dtv[1] = tls_max_index;
@@ -3868,8 +3868,8 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
     size = round(tls_static_space, tcbalign);
 
     assert(tcbsize >= 2*sizeof(Elf_Addr));
-    tls = calloc(1, size + tcbsize);
-    dtv = calloc(1, (tls_max_index + 2) * sizeof(Elf_Addr));
+    tls = xcalloc(1, size + tcbsize);
+    dtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 
     segbase = (Elf_Addr)(tls + size);
     ((Elf_Addr*)segbase)[0] = segbase;
@@ -4209,7 +4209,7 @@ rtld_verify_object_versions(Obj_Entry *obj)
      * way.
      */
     obj->vernum = maxvernum + 1;
-    obj->vertab = calloc(obj->vernum, sizeof(Ver_Entry));
+    obj->vertab = xcalloc(obj->vernum, sizeof(Ver_Entry));
 
     vd = obj->verdef;
     while (vd != NULL) {
