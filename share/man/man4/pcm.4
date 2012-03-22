@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2012
+.Dd March 22, 2012
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -85,11 +85,11 @@ The following bridge device drivers are available:
 .It
 .Xr snd_audiocs 4 (enabled by default on sparc64)
 .It
-.Xr snd_cmi 4
+.Xr snd_cmi 4 (enabled by default on amd64, i386) 
 .It
 .Xr snd_cs4281 4
 .It
-.Xr snd_csa 4
+.Xr snd_csa 4 (enabled by default on amd64, i386)
 .It
 .Xr snd_davbus 4 (enabled by default on powerpc)
 .It
@@ -97,7 +97,7 @@ The following bridge device drivers are available:
 .It
 .Xr snd_emu10k1 4
 .It
-.Xr snd_emu10kx 4
+.Xr snd_emu10kx 4 (enabled by default on amd64, i386)
 .It
 .Xr snd_envy24 4
 .It
