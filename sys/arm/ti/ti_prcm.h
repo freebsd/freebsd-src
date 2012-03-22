@@ -128,6 +128,9 @@ typedef enum {
 	/* CPSW modules */
 	CPSW_CLK = 1000,
 
+	/* Mentor USB modules */
+	MUSB0_CLK = 1100,
+
 	INVALID_CLK_IDENT
 
 } clk_ident_t;

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_L3S_CLKSTCTRL		(CM_PER + 0x004)
 #define CM_PER_L3_CLKSTCTRL		(CM_PER + 0x00C)
 #define CM_PER_CPGMAC0_CLKCTRL		(CM_PER + 0x014)
+#define CM_PER_USB0_CLKCTRL		(CM_PER + 0x01C)
 #define CM_PER_I2C2_CLKCTRL		(CM_PER + 0x044)
 #define CM_PER_I2C1_CLKCTRL		(CM_PER + 0x048)
 #define CM_PER_TIMER7_CLKCTRL		(CM_PER + 0x07C)
@@ -78,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #define CM_WKUP_CONTROL_CLKCTRL		(CM_WKUP + 0x004)
 #define CM_WKUP_CM_L3_AON_CLKSTCTRL	(CM_WKUP + 0x01C)
 #define CM_WKUP_CM_CLKSEL_DPLL_MPU	(CM_WKUP + 0x02C)
+#define CM_WKUP_CM_CLKDCOLDO_DPLL_PER	(CM_WKUP + 0x07C)
 #define CM_WKUP_I2C0_CLKCTRL		(CM_WKUP + 0x0B8)
 
 #define CM_DPLL				0x500
@@ -111,6 +113,7 @@ static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int 
 static int am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static void am335x_prcm_reset(void);
 static int am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev);
+static int am335x_clk_musb0_activate(struct ti_clock_dev *clkdev);
 
 #define AM335X_GENERIC_CLOCK_DEV(i) \
 	{	.id = (i), \
@@ -141,6 +144,15 @@ struct ti_clock_dev ti_clk_devmap[] = {
 	/* CPSW Ethernet Switch core clocks */
 	{	.id                  = CPSW_CLK,
 		.clk_activate        = am335x_clk_cpsw_activate,
+		.clk_deactivate      = NULL,
+		.clk_set_source      = NULL,
+		.clk_accessible      = NULL,
+		.clk_get_source_freq = NULL,
+	},
+
+	/* Mentor USB HS controller core clocks */
+	{	.id                  = MUSB0_CLK,
+		.clk_activate        = am335x_clk_musb0_activate,
 		.clk_deactivate      = NULL,
 		.clk_set_source      = NULL,
 		.clk_accessible      = NULL,
@@ -416,19 +428,12 @@ static int
 am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev)
 {
 	struct am335x_prcm_softc *sc = am335x_prcm_sc;
-	struct am335x_clk_details* clk_details;
 
 	if (sc == NULL)
 		return ENXIO;
 
-	clk_details = am335x_clk_details(clkdev->id);
-
-	if (clk_details == NULL)
-		return (ENXIO);
-
-
 	/* set MODULENAME to ENABLE */
-        prcm_write_4(CM_PER_CPGMAC0_CLKCTRL, 2);
+	prcm_write_4(CM_PER_CPGMAC0_CLKCTRL, 2);
 
 	/* wait for IDLEST to become Func(0) */
 	while(prcm_read_4(CM_PER_CPGMAC0_CLKCTRL) & (3<<16));
@@ -438,6 +443,32 @@ am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev)
 
 	/* wait for 125 MHz OCP clock to become active */
 	while((prcm_read_4(CM_PER_CPSW_CLKSTCTRL) & (1<<4)) == 0);
+	return(0);
+}
+
+static int
+am335x_clk_musb0_activate(struct ti_clock_dev *clkdev)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
+
+	if (sc == NULL)
+		return ENXIO;
+
+	/* set ST_DPLL_CLKDCOLDO(9) to CLK_GATED(1) */
+	/* set DPLL_CLKDCOLDO_GATE_CTRL(8) to CLK_ENABLE(1)*/
+        prcm_write_4(CM_WKUP_CM_CLKDCOLDO_DPLL_PER, 0x300);
+
+	/*set MODULEMODE to ENABLE(2) */
+	prcm_write_4(CM_PER_USB0_CLKCTRL, 2);
+
+	/* wait for MODULEMODE to become ENABLE(2) */
+	while ((prcm_read_4(CM_PER_USB0_CLKCTRL) & 0x3) != 2)
+		DELAY(10);
+
+	/* wait for IDLEST to become Func(0) */
+	while(prcm_read_4(CM_PER_USB0_CLKCTRL) & (3<<16))
+		DELAY(10);
+
 	return(0);
 }
 
