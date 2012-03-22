@@ -1879,7 +1879,7 @@ DECL_CMD_FUNC(set80211meshttl, val, d)
 static
 DECL_CMD_FUNC(set80211meshforward, val, d)
 {
-	set80211(s, IEEE80211_IOC_MESH_FWRD, atoi(val), 0, NULL);
+	set80211(s, IEEE80211_IOC_MESH_FWRD, d, 0, NULL);
 }
 
 static
