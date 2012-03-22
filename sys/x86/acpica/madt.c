@@ -53,12 +53,12 @@ __FBSDID("$FreeBSD$");
 struct ioapic_info {
 	void *io_apic;
 	UINT32 io_vector;
-} ioapics[MAX_APIC_ID + 1];
+} static ioapics[MAX_APIC_ID + 1];
 
 struct lapic_info {
 	u_int la_enabled:1;
 	u_int la_acpi_id:8;
-} lapics[MAX_APIC_ID + 1];
+} static lapics[MAX_APIC_ID + 1];
 
 static int madt_found_sci_override;
 static ACPI_TABLE_MADT *madt;
