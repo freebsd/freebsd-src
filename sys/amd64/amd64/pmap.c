@@ -202,7 +202,7 @@ static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
 /*
  * Data for the pv entry allocation mechanism
  */
-static int pv_entry_count;
+static long pv_entry_count;
 static struct md_page *pv_table;
 
 /*
@@ -2005,7 +2005,7 @@ pv_to_chunk(pv_entry_t pv)
 
 static uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
-SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
+SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 	"Current number of pv entries");
 
 #ifdef PV_STATS
