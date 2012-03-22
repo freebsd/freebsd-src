@@ -79,7 +79,7 @@ static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
 #endif
 
 #if defined(__mips__)
-static int mips24k_allocate_pmc(enum pmc_event _pe, char* ctrspec,
+static int mips_allocate_pmc(enum pmc_event _pe, char* ctrspec,
 			     struct pmc_op_pmcallocate *_pmc_config);
 #endif /* __mips__ */
 
@@ -279,7 +279,7 @@ PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 #endif
 
 #if defined(__mips__)
-PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips24k);
+PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips);
 #endif /* __mips__ */
 
 #if defined(__powerpc__)
@@ -2208,12 +2208,12 @@ static struct pmc_event_alias mips24k_aliases[] = {
 	EV_ALIAS(NULL, NULL)
 };
 
-#define	MIPS24K_KW_OS		"os"
-#define	MIPS24K_KW_USR		"usr"
-#define	MIPS24K_KW_ANYTHREAD	"anythread"
+#define	MIPS_KW_OS		"os"
+#define	MIPS_KW_USR		"usr"
+#define	MIPS_KW_ANYTHREAD	"anythread"
 
 static int
-mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+mips_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 		  struct pmc_op_pmcallocate *pmc_config __unused)
 {
 	char *p;
@@ -2223,11 +2223,11 @@ mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	
 	while ((p = strsep(&ctrspec, ",")) != NULL) {
-		if (KWMATCH(p, MIPS24K_KW_OS))
+		if (KWMATCH(p, MIPS_KW_OS))
 			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
-		else if (KWMATCH(p, MIPS24K_KW_USR))
+		else if (KWMATCH(p, MIPS_KW_USR))
 			pmc_config->pm_caps |= PMC_CAP_USER;
-		else if (KWMATCH(p, MIPS24K_KW_ANYTHREAD))
+		else if (KWMATCH(p, MIPS_KW_ANYTHREAD))
 			pmc_config->pm_caps |= (PMC_CAP_USER | PMC_CAP_SYSTEM);
 		else
 			return (-1);
@@ -2235,6 +2235,7 @@ mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 
 	return (0);
 }
+
 #endif /* __mips__ */
 
 #if defined(__powerpc__)
