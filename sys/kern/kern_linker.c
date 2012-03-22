@@ -312,7 +312,7 @@ linker_file_unregister_sysctls(linker_file_t lf)
 {
 	struct sysctl_oid **start, **stop, **oidp;
 
-	KLD_DPF(FILE, ("linker_file_unregister_sysctls: registering SYSCTLs"
+	KLD_DPF(FILE, ("linker_file_unregister_sysctls: unregistering SYSCTLs"
 	    " for %s\n", lf->filename));
 
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
