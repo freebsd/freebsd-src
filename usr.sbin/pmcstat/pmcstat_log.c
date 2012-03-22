@@ -697,8 +697,8 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 				        ph.p_offset);
 				break;
 			case PT_LOAD:
-				if (ph.p_offset == 0)
-					image->pi_vaddr = ph.p_vaddr;
+				if ((ph.p_offset & (-ph.p_align)) == 0)
+					image->pi_vaddr = ph.p_vaddr & (-ph.p_align);
 				break;
 			}
 		}
