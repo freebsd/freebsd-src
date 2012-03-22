@@ -589,7 +589,7 @@ struct pmc_op_getmsr {
  */
 
 struct pmc_syscall_args {
-	uint32_t	pmop_code;	/* one of PMC_OP_* */
+	register_t	pmop_code;	/* one of PMC_OP_* */
 	void		*pmop_data;	/* syscall parameter */
 };
 
