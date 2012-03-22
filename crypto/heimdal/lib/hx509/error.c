@@ -1,38 +1,37 @@
 /*
- * Copyright (c) 2006 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
-RCSID("$Id: error.c 22332 2007-12-17 01:03:22Z lha $");
 
 /**
  * @page page_error Hx509 error reporting functions
@@ -68,8 +67,10 @@ free_error_string(hx509_error msg)
 void
 hx509_clear_error_string(hx509_context context)
 {
-    free_error_string(context->error);
-    context->error = NULL;
+    if (context) {
+	free_error_string(context->error);
+	context->error = NULL;
+    }
 }
 
 /**
@@ -87,10 +88,13 @@ hx509_clear_error_string(hx509_context context)
  */
 
 void
-hx509_set_error_stringv(hx509_context context, int flags, int code, 
+hx509_set_error_stringv(hx509_context context, int flags, int code,
 			const char *fmt, va_list ap)
 {
     hx509_error msg;
+
+    if (context == NULL)
+	return;
 
     msg = calloc(1, sizeof(*msg));
     if (msg == NULL) {
@@ -115,7 +119,7 @@ hx509_set_error_stringv(hx509_context context, int flags, int code,
 }
 
 /**
- * See hx509_set_error_stringv(). 
+ * See hx509_set_error_stringv().
  *
  * @param context A hx509 context.
  * @param flags
@@ -172,7 +176,7 @@ hx509_get_error_string(hx509_context context, int error_code)
     }
 
     for (msg = context->error; msg; msg = msg->next)
-	p = rk_strpoolprintf(p, "%s%s", msg->msg, 
+	p = rk_strpoolprintf(p, "%s%s", msg->msg,
 			     msg->next != NULL ? "; " : "");
 
     return rk_strpoolcollect(p);
@@ -205,7 +209,7 @@ hx509_free_error_string(char *str)
  */
 
 void
-hx509_err(hx509_context context, int exit_code, 
+hx509_err(hx509_context context, int exit_code,
 	  int error_code, const char *fmt, ...)
 {
     va_list ap;

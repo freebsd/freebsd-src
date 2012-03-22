@@ -34,7 +34,7 @@
 #define PRINTOPTIONS
 #include "telnetd.h"
 
-RCSID("$Id: utility.c 15844 2005-08-08 13:36:16Z lha $");
+RCSID("$Id$");
 
 /*
  * utility functions performing io related tasks
@@ -116,7 +116,7 @@ ptyflush(void)
     int n;
 
     if ((n = pfrontp - pbackp) > 0) {
-	DIAG((TD_REPORT | TD_PTYDATA), { 
+	DIAG((TD_REPORT | TD_PTYDATA), {
 	    output_data("td: ptyflush %d chars\r\n", n);
 	});
 	DIAG(TD_PTYDATA, printdata("pd", pbackp, n));
@@ -367,7 +367,7 @@ void
 fatalperror_errno(int f, const char *msg, int error)
 {
     char buf[BUFSIZ];
-    
+
     snprintf(buf, sizeof(buf), "%s: %s", msg, strerror(error));
     fatal(f, buf);
 }
@@ -445,10 +445,10 @@ void putf(char *cp, char *where)
     char db[100];
 
     /* if we don't have uname, set these to sensible values */
-    char *sysname = "Unix", 
-	*machine = "", 
+    char *sysname = "Unix",
+	*machine = "",
 	*release = "",
-	*version = ""; 
+	*version = "";
 
 #ifdef HAVE_UNAME
     uname(&name);
@@ -532,7 +532,7 @@ printoption(char *fmt, int option)
 }
 
 void
-printsub(int direction, unsigned char *pointer, int length)
+printsub(int direction, unsigned char *pointer, size_t length)
         		          	/* '<' or '>' */
                  	         	/* where suboption data sits */
        			       		/* length of suboption data */
@@ -587,7 +587,7 @@ printsub(int direction, unsigned char *pointer, int length)
 	switch (pointer[1]) {
 	case TELQUAL_IS:
 	    output_data("IS \"%.*s\"",
-			length-2,
+			(int)(length-2),
 			(char *)pointer+2);
 	    break;
 	case TELQUAL_SEND:
@@ -606,7 +606,7 @@ printsub(int direction, unsigned char *pointer, int length)
 	}
 	switch (pointer[1]) {
 	case TELQUAL_IS:
-	    output_data(" IS %.*s", length-2, (char *)pointer+2);
+	    output_data(" IS %.*s", (int)(length-2), (char *)pointer+2);
 	    break;
 	default:
 	    if (pointer[1] == 1)
@@ -884,7 +884,7 @@ printsub(int direction, unsigned char *pointer, int length)
 	switch (pointer[1]) {
 	case TELQUAL_IS:
 	    output_data("IS \"%.*s\"",
-			length-2,
+			(int)(length-2),
 			(char *)pointer+2);
 	    break;
 	case TELQUAL_SEND:
@@ -913,46 +913,53 @@ printsub(int direction, unsigned char *pointer, int length)
 	    output_data("INFO ");
 	env_common:
 	    {
-		int noquote = 2;
+		int quote = 0;
 		for (i = 2; i < length; i++ ) {
 		    switch (pointer[i]) {
 		    case NEW_ENV_VAR:
-			output_data("\" VAR " + noquote);
-			noquote = 2;
+			if (quote)
+			    output_data("\" ");
+			output_data("VAR ");
+			quote = 0;
 			break;
 
 		    case NEW_ENV_VALUE:
-			output_data("\" VALUE " + noquote);
-			noquote = 2;
+			if (quote)
+			    output_data("\" ");
+			output_data("VALUE ");
+			quote = 0;
 			break;
 
 		    case ENV_ESC:
-			output_data("\" ESC " + noquote);
-			noquote = 2;
+			if (quote)
+			    output_data("\" ");
+			output_data("ESC ");
+			quote = 0;
 			break;
 
 		    case ENV_USERVAR:
-			output_data("\" USERVAR " + noquote);
-			noquote = 2;
+			if (quote)
+			    output_data("\" ");
+			output_data("USERVAR ");
+			quote = 0;
 			break;
 
 		    default:
 			if (isprint(pointer[i]) && pointer[i] != '"') {
-			    if (noquote) {
-				output_data ("\"");
-				noquote = 0;
+			    if (!quote) {
+				output_data("\"");
+				quote = 1;
 			    }
-			    output_data ("%c", pointer[i]);
+			    output_data("%c", pointer[i]);
 			} else {
-			    output_data("\" %03o " + noquote,
-					pointer[i]);
-			    noquote = 2;
+			    output_data("%03o ", pointer[i]);
+			    quote = 0;
 			}
 			break;
 		    }
 		}
-		if (!noquote)
-		    output_data ("\"");
+		if (quote)
+		    output_data("\"");
 		break;
 	    }
 	}
@@ -1019,7 +1026,7 @@ printsub(int direction, unsigned char *pointer, int length)
 	case TELQUAL_NAME:
 	    i = 2;
 	    output_data(" NAME \"%.*s\"",
-			length - 2,
+			(int)(length - 2),
 			pointer);
 	    break;
 
@@ -1130,9 +1137,9 @@ printsub(int direction, unsigned char *pointer, int length)
  * Dump a data buffer in hex and ascii to the output data stream.
  */
 void
-printdata(char *tag, char *ptr, int cnt)
+printdata(char *tag, char *ptr, size_t cnt)
 {
-    int i;
+    size_t i;
     char xbuf[30];
 
     while (cnt) {
