@@ -32,6 +32,8 @@ CFLAGS+=-D_FREEFALL_CONFIG
 WARNS?=	3
 .endif
 
+NO_WERROR=	yes
+
 DPADD=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
 LDADD=	-lkrb5 -lhx509 -lasn1 -lroken -lcom_err -lcrypt -lcrypto
 

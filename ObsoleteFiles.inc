@@ -38,6 +38,39 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 201203XX: Update heimdal to 1.5.1.
+OLD_FILES+=usr/include/krb5-v4compat.h \
+	usr/include/krb_err.h \
+	usr/include/hdb-private.h \
+        usr/share/man/man3/krb5_addresses.3.gz \
+        usr/share/man/man3/krb5_cc_cursor.3.gz \
+        usr/share/man/man3/krb5_cc_ops.3.gz \
+        usr/share/man/man3/krb5_config.3.gz \
+        usr/share/man/man3/krb5_config_get_int_default.3.gz \
+        usr/share/man/man3/krb5_context.3.gz \
+        usr/share/man/man3/krb5_data.3.gz \
+        usr/share/man/man3/krb5_err.3.gz \
+        usr/share/man/man3/krb5_errx.3.gz \
+        usr/share/man/man3/krb5_keyblock.3.gz \
+        usr/share/man/man3/krb5_keytab_entry.3.gz \
+        usr/share/man/man3/krb5_kt_cursor.3.gz \
+        usr/share/man/man3/krb5_kt_ops.3.gz \
+        usr/share/man/man3/krb5_set_warn_dest.3.gz \
+        usr/share/man/man3/krb5_verify_user.3.gz \
+        usr/share/man/man3/krb5_verr.3.gz \
+        usr/share/man/man3/krb5_verrx.3.gz \
+        usr/share/man/man3/krb5_vwarnx.3.gz \
+        usr/share/man/man3/krb5_warn.3.gz \
+        usr/share/man/man3/krb5_warnx.3.gz
+OLD_LIBS+=usr/lib/libasn1.so.10 \
+	usr/lib/libhdb.so.10 \
+	usr/lib/libheimntlm.so.10 \
+	usr/lib/libhx509.so.10 \
+	usr/lib/libkadm5clnt.so.10 \
+	usr/lib/libkadm5srv.so.10 \
+	usr/lib/libkafs5.so.10 \
+	usr/lib/libkrb5.so.10 \
+	usr/lib/libroken.so.10
 # 20120309: Remove fifofs header files.
 OLD_FILES+=usr/include/fs/fifofs/fifo.h
 OLD_DIRS+=usr/include/fs/fifofs

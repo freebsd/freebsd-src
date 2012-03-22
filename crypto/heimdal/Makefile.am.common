@@ -1,4 +1,4 @@
-# $Id: Makefile.am.common 10998 2002-05-19 18:35:37Z joda $
+# $Id$
 
 include $(top_srcdir)/cf/Makefile.am.common
 

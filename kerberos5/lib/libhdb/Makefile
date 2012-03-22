@@ -1,12 +1,37 @@
 # $FreeBSD$
 
 LIB=	hdb
-LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}
-LDADD=	-lasn1 -lcom_err -lkrb5 -lroken ${LDAPLDADD}
-DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN} ${LDAPDPADD}
+LDFLAGS=	-Wl,--no-undefined
+VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map
+LDADD=	-lasn1 -lcom_err -lkrb5 -lroken -lheimsqlite
+DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN} ${LIBHEIMSQLITE} ${LDAPDPADD}
 
-INCS=	hdb-private.h \
-	hdb-protos.h \
+MAN=	HDB.3 hdb_entry_ex.3
+
+MLINKS=	HDB.3 hdb__del.3 \
+	HDB.3 hdb__get.3 \
+	HDB.3 hdb__put.3 \
+	HDB.3 hdb_auth_status.3 \
+	HDB.3 hdb_check_constrained_delegation.3 \
+	HDB.3 hdb_check_pkinit_ms_upn_match.3 \
+	HDB.3 hdb_check_s4u2self.3 \
+	HDB.3 hdb_close.3 \
+	HDB.3 hdb_destroy.3 \
+	HDB.3 hdb_fetch_kvno.3 \
+	HDB.3 hdb_firstkey.3 \
+	HDB.3 hdb_free.3 \
+	HDB.3 hdb_get_realms.3 \
+	HDB.3 hdb_lock.3 \
+	HDB.3 hdb_name.3 \
+	HDB.3 hdb_nextkey.3 \
+	HDB.3 hdb_open.3 \
+	HDB.3 hdb_password.3 \
+	HDB.3 hdb_remove.3 \
+	HDB.3 hdb_rename.3 \
+	HDB.3 hdb_store.3 \
+	HDB.3 hdb_unlock.3
+
+INCS=	hdb-protos.h \
 	hdb.h \
 	hdb_asn1.h \
 	hdb_err.h
@@ -18,18 +43,24 @@ SRCS=	common.c \
 	ext.c \
 	hdb-ldap.c \
 	hdb.c \
-	hdb_asn1.h \
 	hdb_err.c \
 	hdb_err.h \
+	hdb-sqlite.c \
+	hdb-keytab.c \
+	hdb-mitdb.c \
+	hdb_locl.h \
+	hdb-private.h \
 	keys.c \
 	keytab.c \
 	mkey.c \
 	ndbm.c \
 	print.c \
-	${GEN:S/.x$/.c/}
+	${GEN:S/.x$/.c/:S/.hx$/.h/}
 
 CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 \
-	-I${KRB5DIR}/lib/roken -I. ${LDAPCFLAGS}
+	-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sqlite \
+	-I${KRB5DIR}/lib/krb5 \
+	-I. ${LDAPCFLAGS}
 CFLAGS+=-DHDB_DB_DIR="\"/var/heimdal\""
 
 GEN=	asn1_Salt.x \
@@ -38,6 +69,7 @@ GEN=	asn1_Salt.x \
 	asn1_HDBFlags.x \
 	asn1_GENERATION.x \
 	asn1_HDB_Ext_PKINIT_acl.x \
+	asn1_HDB_Ext_PKINIT_cert.x \
 	asn1_HDB_Ext_PKINIT_hash.x \
 	asn1_HDB_Ext_Constrained_delegation_acl.x \
 	asn1_HDB_Ext_Lan_Manager_OWF.x \
@@ -46,22 +78,29 @@ GEN=	asn1_Salt.x \
 	asn1_HDB_extension.x \
 	asn1_HDB_extensions.x \
 	asn1_hdb_entry.x \
-	asn1_hdb_entry_alias.x
+	asn1_hdb_entry_alias.x \
+	asn1_hdb_keyset.x \
+	hdb_asn1.hx \
+	hdb_asn1-priv.hx
 
-CLEANFILES= ${GEN} ${GEN:S/.x$/.c/} hdb_asn1.h asn1_files
+CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} hdb_asn1_files \
+		hdb_asn1-template.[ch]*
 
-.ORDER: ${GEN} hdb_asn1.h
-${GEN} hdb_asn1.h: hdb.asn1 ../../tools/asn1_compile/asn1_compile
-	../../tools/asn1_compile/asn1_compile ${.ALLSRC:M*.asn1} hdb_asn1
+ASN1_COMPILE=	asn1_compile
 
-../../tools/asn1_compile/asn1_compile:
-	cd ${.CURDIR}/../../tools/asn1_compile && ${MAKE}
+${GEN}: hdb.asn1
+	${ASN1_COMPILE} ${.ALLSRC:M*.asn1} hdb_asn1
 
-.for I in ${GEN}
-${I:R}.c: ${I}
-	cat ${.ALLSRC} > ${.TARGET}
-.endfor
+.SUFFIXES: .h .c .x .hx
+
+.x.c:   
+	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+
+.hx.h:
+	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/hdb
+.SUFFIXES: .h .c .x .hx
+
+.PATH: ${KRB5DIR}/lib/hdb ${KRB5DIR}/doc/doxyout/hdb/man/man3/
