@@ -91,7 +91,7 @@ fixfsfile()
 	struct stat sb;
 	struct statfs sf;
 
-	if (_fs_fstab.fs_file != NULL &&strcmp(_fs_fstab.fs_file, "/") != 0)
+	if (_fs_fstab.fs_file != NULL && strcmp(_fs_fstab.fs_file, "/") != 0)
 		return;
 	if (statfs("/", &sf) != 0)
 		return;
