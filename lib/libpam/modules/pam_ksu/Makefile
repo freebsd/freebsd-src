@@ -31,6 +31,4 @@ MAN=	pam_ksu.8
 DPADD=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
 LDADD=	-lkrb5 -lhx509 -lasn1 -lroken -lcom_err -lcrypt -lcrypto
 
-NO_WERROR=	yes
-
 .include <bsd.lib.mk>
