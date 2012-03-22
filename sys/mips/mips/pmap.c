@@ -3209,7 +3209,7 @@ pmap_emulate_modified(pmap_t pmap, vm_offset_t va)
  *		Extract the physical page address associated
  *		virtual address.
  */
- /* PMAP_INLINE */ vm_offset_t
+vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 	int mapped;
