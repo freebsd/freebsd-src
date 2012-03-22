@@ -338,7 +338,7 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 	reloff = rela - obj->pltrela;
 
 	if (obj->priv == NULL)
-		obj->priv = malloc(obj->pltrelasize);
+		obj->priv = xmalloc(obj->pltrelasize);
 	glink = obj->priv + reloff*sizeof(Elf_Addr)*2;
 
 	dbg(" reloc_plt_object: where=%p,reloff=%lx,glink=%p", (void *)where, reloff, glink);

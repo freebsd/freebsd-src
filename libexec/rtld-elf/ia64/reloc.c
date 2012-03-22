@@ -87,7 +87,7 @@ alloc_fptr(Elf_Addr target, Elf_Addr gp)
 	struct fptr* fptr;
 
 	if (next_fptr == last_fptr) {
-		current_chunk = malloc(sizeof(struct fptr_chunk));
+		current_chunk = xmalloc(sizeof(struct fptr_chunk));
 		next_fptr = &current_chunk->fptrs[0];
 		last_fptr = &current_chunk->fptrs[FPTR_CHUNK_SIZE];
 	}
@@ -116,9 +116,7 @@ alloc_fptrs(Obj_Entry *obj, bool mapped)
 		if (fptrs == MAP_FAILED)
 			fptrs = NULL;
 	} else {
-		fptrs = malloc(fbytes);
-		if (fptrs != NULL)
- 			memset(fptrs, 0, fbytes);
+		fptrs = xcalloc(1, fbytes);
 	}
 
 	/*
