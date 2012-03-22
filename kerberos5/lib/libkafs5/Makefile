@@ -1,11 +1,19 @@
 # $FreeBSD$
 
 LIB=	kafs5
-LDFLAGS=	-Wl,--no-undefined
-LDADD=	-lasn1 -lkrb5 -lroken
+LDADD=	-lasn1 -lroken
 DPADD=	${LIBASN1} ${LIBKRB5} ${LIBROKEN}
 INCS=	kafs.h
 MAN=	kafs5.3
+
+#
+# Linking with libkrb5 uncovers a bug in binutils.
+# See http://repo.or.cz/w/binutils.git/commit/ee05170bf71819c99cb5a36a44735c231ae03c56 .
+#
+.if ${MACHINE_ARCH} != "mipsn32eb" && ${MACHINE_ARCH} != "mipsel" && ${MACHINE_ARCH} != "mipseb"
+LDADD+=	-lkrb5
+LDFLAGS=	-Wl,--no-undefined
+.endif
 
 MLINKS=	kafs5.3 k_afs_cell_of_file.3 \
 	kafs5.3 k_hasafs.3 \
@@ -23,7 +31,16 @@ MLINKS=	kafs5.3 k_afs_cell_of_file.3 \
 	kafs5.3 krb_afslog_uid.3
 
 SRCS=	afssys.c afskrb5.c common.c krb5_err.h
-CFLAGS+=-I${KRB5DIR}/lib/kafs -I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/roken
+SRCS=	afssys.c \
+	afskrb5.c \
+	common.c \
+	kafs_locl.h \
+	afssysdefs.h \
+	roken_rename.h
+CFLAGS+=	-I${KRB5DIR}/lib/kafs \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${.OBJDIR}/../libkrb5/ \
+		-I${KRB5DIR}/lib/roken
 
 CLEANFILES= kafs5.3
 

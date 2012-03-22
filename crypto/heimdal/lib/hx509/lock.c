@@ -1,38 +1,37 @@
 /*
- * Copyright (c) 2005 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2005 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
-RCSID("$Id: lock.c 22327 2007-12-15 04:49:37Z lha $");
 
 /**
  * @page page_lock Locking and unlocking certificates and encrypted data.
@@ -69,8 +68,8 @@ hx509_lock_init(hx509_context context, hx509_lock *lock)
     if (l == NULL)
 	return ENOMEM;
 
-    ret = hx509_certs_init(context, 
-			   "MEMORY:locks-internal", 
+    ret = hx509_certs_init(context,
+			   "MEMORY:locks-internal",
 			   0,
 			   NULL,
 			   &l->certs);
@@ -122,7 +121,7 @@ _hx509_lock_unlock_certs(hx509_lock lock)
 void
 hx509_lock_reset_passwords(hx509_lock lock)
 {
-    int i;
+    size_t i;
     for (i = 0; i < lock->password.len; i++)
 	free(lock->password.val[i]);
     free(lock->password.val);
@@ -147,8 +146,8 @@ hx509_lock_reset_certs(hx509_context context, hx509_lock lock)
 {
     hx509_certs certs = lock->certs;
     int ret;
-    
-    ret = hx509_certs_init(context, 
+
+    ret = hx509_certs_init(context,
 			   "MEMORY:locks-internal",
 			   0,
 			   NULL,
@@ -181,7 +180,7 @@ hx509_lock_reset_promper(hx509_lock lock)
     lock->prompt_data = NULL;
 }
 
-static int 
+static int
 default_prompter(void *data, const hx509_prompt *prompter)
 {
     if (hx509_prompt_hidden(prompter->type)) {
@@ -215,10 +214,12 @@ hx509_lock_prompt(hx509_lock lock, hx509_prompt *prompt)
 void
 hx509_lock_free(hx509_lock lock)
 {
-    hx509_certs_free(&lock->certs);
-    hx509_lock_reset_passwords(lock);
-    memset(lock, 0, sizeof(*lock));
-    free(lock);
+    if (lock) {
+	hx509_certs_free(&lock->certs);
+	hx509_lock_reset_passwords(lock);
+	memset(lock, 0, sizeof(*lock));
+	free(lock);
+    }
 }
 
 int

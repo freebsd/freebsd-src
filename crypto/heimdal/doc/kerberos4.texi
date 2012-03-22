@@ -1,6 +1,6 @@
-@c $Id: kerberos4.texi 16370 2005-12-12 12:11:51Z lha $
+@c $Id$
 
-@node Kerberos 4 issues, Windows 2000 compatability, Things in search for a better place, Top
+@node Kerberos 4 issues, Windows compatibility, Things in search for a better place, Top
 @comment  node-name,  next,  previous,  up
 @chapter Kerberos 4 issues
 
@@ -9,6 +9,8 @@ see setup how to set it up.
 
 The KDC will also have kaserver emulation and be able to handle
 AFS-clients that use @code{klog}.
+
+For more about AFS, see the section @xref{AFS}.
 
 @menu
 * Principal conversion issues::  
@@ -174,22 +176,6 @@ server:
 hprop -n --source=krb4-db -d /var/kerberos/principal --master-key=/.m | hpropd -n
 @end example
 
-@section Version 4 Kadmin
-
-@samp{kadmind} can act as a version 4 kadmind, and you can do most
-operations, but with some restrictions (since the version 4 kadmin
-protocol is, lets say, very ad hoc.) One example is that it only passes
-des keys when creating principals and changing passwords (modern kpasswd
-clients do send the password, so it's possible to to password quality
-checks). Because of this you can only create principals with des keys,
-and you can't set any flags or do any other fancy stuff.
-
-To get this to work, you have to add another entry to inetd (since
-version 4 uses port 751, not 749).
-
-@emph{And then there are a many more things you can do; more on this in
-a later version of this manual. Until then, UTSL.}
-
 @node kaserver, , Converting a version 4 database, Kerberos 4 issues
 @section kaserver
 
@@ -214,6 +200,8 @@ is no salting of the password at all. To make sure AFS-compatible keys
 are added to each principals when they are created or their password are
 changed, @samp{afs3-salt} should be added to
 @samp{[kadmin]default_keys}.
+
+For more about AFS, see the section @xref{AFS}.
 
 @subsection Transarc AFS Windows client
 

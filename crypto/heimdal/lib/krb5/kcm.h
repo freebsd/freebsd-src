@@ -2,6 +2,8 @@
  * Copyright (c) 2005, PADL Software Pty Ltd.
  * All rights reserved.
  *
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -37,8 +39,10 @@
  * KCM protocol definitions
  */
 
-#define KCM_PROTOCOL_VERSION_MAJOR	1
+#define KCM_PROTOCOL_VERSION_MAJOR	2
 #define KCM_PROTOCOL_VERSION_MINOR	0
+
+typedef unsigned char kcmuuid_t[16];
 
 typedef enum kcm_operation {
     KCM_OP_NOOP,
@@ -50,20 +54,37 @@ typedef enum kcm_operation {
     KCM_OP_STORE,
     KCM_OP_RETRIEVE,
     KCM_OP_GET_PRINCIPAL,
-    KCM_OP_GET_FIRST,
-    KCM_OP_GET_NEXT,
-    KCM_OP_END_GET,
+    KCM_OP_GET_CRED_UUID_LIST,
+    KCM_OP_GET_CRED_BY_UUID,
     KCM_OP_REMOVE_CRED,
     KCM_OP_SET_FLAGS,
     KCM_OP_CHOWN,
     KCM_OP_CHMOD,
     KCM_OP_GET_INITIAL_TICKET,
     KCM_OP_GET_TICKET,
+    KCM_OP_MOVE_CACHE,
+    KCM_OP_GET_CACHE_UUID_LIST,
+    KCM_OP_GET_CACHE_BY_UUID,
+    KCM_OP_GET_DEFAULT_CACHE,
+    KCM_OP_SET_DEFAULT_CACHE,
+    KCM_OP_GET_KDC_OFFSET,
+    KCM_OP_SET_KDC_OFFSET,
+    /* NTLM operations */
+    KCM_OP_ADD_NTLM_CRED,
+    KCM_OP_HAVE_NTLM_CRED,
+    KCM_OP_DEL_NTLM_CRED,
+    KCM_OP_DO_NTLM_AUTH,
+    KCM_OP_GET_NTLM_USER_LIST,
     KCM_OP_MAX
 } kcm_operation;
 
 #define _PATH_KCM_SOCKET      "/var/run/.kcm_socket"
 #define _PATH_KCM_DOOR      "/var/run/.kcm_door"
+
+#define KCM_NTLM_FLAG_SESSIONKEY 1
+#define KCM_NTLM_FLAG_NTLM2_SESSION 2
+#define KCM_NTLM_FLAG_KEYEX 4
+#define KCM_NTLM_FLAG_AV_GUEST 8
 
 #endif /* __KCM_H__ */
 

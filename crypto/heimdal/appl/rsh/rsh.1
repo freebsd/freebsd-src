@@ -1,43 +1,42 @@
-.\" Copyright (c) 2002 - 2003 Kungliga Tekniska Högskolan
-.\" (Royal Institute of Technology, Stockholm, Sweden). 
-.\" All rights reserved. 
+.\" Copyright (c) 2002 - 2003 Kungliga Tekniska HÃ¶gskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
 .\"
-.\" Redistribution and use in source and binary forms, with or without 
-.\" modification, are permitted provided that the following conditions 
-.\" are met: 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
 .\"
-.\" 1. Redistributions of source code must retain the above copyright 
-.\"    notice, this list of conditions and the following disclaimer. 
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
 .\"
-.\" 2. Redistributions in binary form must reproduce the above copyright 
-.\"    notice, this list of conditions and the following disclaimer in the 
-.\"    documentation and/or other materials provided with the distribution. 
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" 3. Neither the name of the Institute nor the names of its contributors 
-.\"    may be used to endorse or promote products derived from this software 
-.\"    without specific prior written permission. 
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
-.\" SUCH DAMAGE. 
-.\" 
-.\"	$Id: rsh.1 13394 2004-02-20 12:21:42Z joda $
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
 .\"
 .Dd February 20, 2004
 .Dt RSH 1
 .Os HEIMDAL
 .Sh NAME
 .Nm rsh
-.Nd
-remote shell
+.Nd remote shell
 .Sh SYNOPSIS
 .Nm
 .Op Fl 45FGKdefnuxz
@@ -63,7 +62,7 @@ Valid options are:
 .Bl -tag -width Ds
 .It Xo
 .Fl 4 ,
-.Fl -krb4
+.Fl Fl krb4
 .Xc
 The
 .Fl 4
@@ -72,7 +71,7 @@ authentication mechanisms will be tried, but in some cases more
 explicit control is desired.
 .It Xo
 .Fl 5 ,
-.Fl -krb5
+.Fl Fl krb5
 .Xc
 The
 .Fl 5
@@ -81,7 +80,7 @@ option requests Kerberos 5 authentication. This is analogous to the
 option.
 .It Xo
 .Fl K ,
-.Fl -broken
+.Fl Fl broken
 .Xc
 The
 .Fl K
@@ -90,7 +89,7 @@ mode relies on reserved ports. The long name is an indication of how
 good this is.
 .It Xo
 .Fl n ,
-.Fl -no-input
+.Fl Fl no-input
 .Xc
 The
 .Fl n
@@ -105,13 +104,13 @@ Enable
 socket debugging.
 .It Xo
 .Fl e ,
-.Fl -no-stderr
+.Fl Fl no-stderr
 .Xc
 Don't use a separate socket for the stderr stream. This can be
 necessary if rsh-ing through a NAT bridge.
 .It Xo
 .Fl x ,
-.Fl -encrypt
+.Fl Fl encrypt
 .Xc
 The
 .Fl x
@@ -127,12 +126,12 @@ The opposite of
 This is the default, and is mainly useful if encryption has been
 enabled by default, for instance in the
 .Li appdefaults
-section of 
+section of
 .Pa /etc/krb5.conf
 when using Kerberos 5.
 .It Xo
 .Fl f ,
-.Fl -forward
+.Fl Fl forward
 .Xc
 Forward Kerberos 5 credentials to the remote host.
 Also settable via
@@ -141,16 +140,16 @@ Also settable via
 .Xr krb5.conf ) .
 .It Xo
 .Fl F ,
-.Fl -forwardable
+.Fl Fl forwardable
 .Xc
-Make the forwarded credentials re-forwardable. 
+Make the forwarded credentials re-forwardable.
 Also settable via
 .Li appdefaults
 (see
 .Xr krb5.conf ) .
 .It Xo
 .Fl l Ar string ,
-.Fl -user= Ns Ar string
+.Fl Fl user= Ns Ar string
 .Xc
 By default the remote username is the same as the local. The
 .Fl l
@@ -159,16 +158,16 @@ option or the
 format allow the remote name to be specified.
 .It Xo
 .Fl n ,
-.Fl -no-input
+.Fl Fl no-input
 .Xc
-Direct input from 
+Direct input from
 .Pa /dev/null
 (see the
 .Sx BUGS
 section).
 .It Xo
 .Fl p Ar number-or-service ,
-.Fl -port= Ns Ar number-or-service
+.Fl Fl port= Ns Ar number-or-service
 .Xc
 Connect to this port instead of the default (which is 514 when using
 old port based authentication, 544 for Kerberos 5 and non-encrypted
@@ -177,13 +176,13 @@ the contents of
 .Pa /etc/services ) .
 .It Xo
 .Fl P Ar N|O|1|2 ,
-.Fl -protocol= Ns Ar N|O|1|2
+.Fl Fl protocol= Ns Ar N|O|1|2
 .Xc
 Specifies the protocol version to use with Kerberos 5.
 .Ar N
 and
 .Ar 2
-select protocol version 2, while 
+select protocol version 2, while
 .Ar O
 and
 .Ar 1
@@ -193,20 +192,20 @@ default. Unless asked for a specific version,
 will try both.  This behaviour may change in the future.
 .It Xo
 .Fl u ,
-.Fl -unique
+.Fl Fl unique
 .Xc
 Make sure the remote credentials cache is unique, that is, don't reuse
 any existing cache. Mutually exclusive to
 .Fl U .
 .It Xo
 .Fl U Pa string ,
-.Fl -tkfile= Ns Pa string
+.Fl Fl tkfile= Ns Pa string
 .Xc
 Name of the remote credentials cache. Mutually exclusive to
 .Fl u .
 .It Xo
 .Fl x ,
-.Fl -encrypt
+.Fl Fl encrypt
 .Xc
 The
 .Fl x

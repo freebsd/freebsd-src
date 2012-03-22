@@ -468,13 +468,6 @@ build32:
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if ${MK_KERBEROS} != "no"
-.for _t in obj depend all
-	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=kerberos5/tools/ ${_t}
-.endfor
-.endif
 .for _t in obj includes
 	cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
 	cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
@@ -1065,12 +1058,22 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
 _dtc= gnu/usr.bin/dtc
 .endif
 
+.if ${MK_KERBEROS} != "no"
+_kerberos5_bootstrap_tools= \
+	kerberos5/tools/make-roken \
+	kerberos5/lib/libroken \
+	kerberos5/lib/libvers \
+	kerberos5/tools/asn1_compile \
+	kerberos5/tools/slc
+.endif
+
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
 bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen} \
+    ${_kerberos5_bootstrap_tools} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
@@ -1112,10 +1115,6 @@ _share=	share/syscons/scrnmaps
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
-.if ${MK_KERBEROS} != "no"
-_kerberos5_tools= kerberos5/tools
-.endif
-
 .if ${MK_RESCUE} != "no"
 _rescue= rescue/rescue
 .endif
@@ -1140,8 +1139,7 @@ build-tools:
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
-    ${_gcc_tools} \
-    ${_kerberos5_tools}
+    ${_gcc_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1247,10 +1245,15 @@ gnu/lib/libgcc__L: lib/libc__L
 lib/libcxxrt__L: gnu/lib/libgcc__L
 .endif
 
-_prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
+_prebuild_libs=	${_kerberos5_lib_libasn1} \
+		${_kerberos5_lib_libhdb} \
+		${_kerberos5_lib_libheimbase} \
 		${_kerberos5_lib_libheimntlm} \
+		${_kerberos5_lib_libheimsqlite} \
+		${_kerberos5_lib_libheimipcc} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
+		${_kerberos5_lib_libwind} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
 		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
@@ -1301,14 +1304,21 @@ _secure_lib=	secure/lib
 .if ${MK_KERBEROS} != "no"
 kerberos5/lib/libasn1__L: lib/libcom_err__L kerberos5/lib/libroken__L
 kerberos5/lib/libhdb__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
-    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L
-kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L
+    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L \
+    kerberos5/lib/libwind__L kerberos5/lib/libheimsqlite__L 
+kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L \
+    kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libhx509__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
-    secure/lib/libcrypto__L kerberos5/lib/libroken__L
+    secure/lib/libcrypto__L kerberos5/lib/libroken__L kerberos5/lib/libwind__L
 kerberos5/lib/libkrb5__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libcrypt__L secure/lib/libcrypto__L kerberos5/lib/libhx509__L \
-    kerberos5/lib/libroken__L
+    kerberos5/lib/libroken__L kerberos5/lib/libwind__L \
+    kerberos5/lib/libheimbase__L kerberos5/lib/libheimipcc__L
 kerberos5/lib/libroken__L: lib/libcrypt__L
+kerberos5/lib/libwind__L: kerberos5/lib/libroken__L lib/libcom_err__L
+kerberos5/lib/libheimbase__L: lib/libthr__L
+kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbase__L lib/libthr__L
+kerberos5/lib/libheimsqlite__L: lib/libthr__L
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -1323,10 +1333,14 @@ _lib_libipx=	lib/libipx
 _kerberos5_lib=	kerberos5/lib
 _kerberos5_lib_libasn1= kerberos5/lib/libasn1
 _kerberos5_lib_libhdb= kerberos5/lib/libhdb
+_kerberos5_lib_libheimbase= kerberos5/lib/libheimbase
 _kerberos5_lib_libkrb5= kerberos5/lib/libkrb5
 _kerberos5_lib_libhx509= kerberos5/lib/libhx509
 _kerberos5_lib_libroken= kerberos5/lib/libroken
 _kerberos5_lib_libheimntlm= kerberos5/lib/libheimntlm
+_kerberos5_lib_libheimsqlite= kerberos5/lib/libheimsqlite
+_kerberos5_lib_libheimipcc= kerberos5/lib/libheimipcc
+_kerberos5_lib_libwind= kerberos5/lib/libwind
 .endif
 
 .if ${MK_NIS} != "no"
