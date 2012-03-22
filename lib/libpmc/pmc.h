@@ -98,7 +98,7 @@ int	pmc_npmc(int _cpu);
 int	pmc_cpuinfo(const struct pmc_cpuinfo **_cpu_info);
 int	pmc_pmcinfo(int _cpu, struct pmc_pmcinfo **_pmc_info);
 
-const char	*pmc_name_of_capability(uint32_t _c);
+const char	*pmc_name_of_capability(enum pmc_caps _c);
 const char	*pmc_name_of_class(enum pmc_class _pc);
 const char	*pmc_name_of_cputype(enum pmc_cputype _cp);
 const char	*pmc_name_of_disposition(enum pmc_disp _pd);
