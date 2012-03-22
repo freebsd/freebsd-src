@@ -1,38 +1,39 @@
 /*
- * Copyright (c) 2004 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2004 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
-RCSID("$Id: keyset.c 22466 2008-01-16 14:26:35Z lha $");
 
 /**
  * @page page_keyset Certificate store operations
@@ -40,7 +41,7 @@ RCSID("$Id: keyset.c 22466 2008-01-16 14:26:35Z lha $");
  * Type of certificates store:
  * - MEMORY
  *   In memory based format. Doesnt support storing.
- * - FILE 
+ * - FILE
  *   FILE supports raw DER certicates and PEM certicates. When PEM is
  *   used the file can contain may certificates and match private
  *   keys. Support storing the certificates. DER format only supports
@@ -59,7 +60,7 @@ RCSID("$Id: keyset.c 22466 2008-01-16 14:26:35Z lha $");
  */
 
 struct hx509_certs_data {
-    int ref;
+    unsigned int ref;
     struct hx509_keyset_ops *ops;
     void *ops_data;
 };
@@ -84,7 +85,7 @@ _hx509_ks_register(hx509_context context, struct hx509_keyset_ops *ops)
     if (_hx509_ks_type(context, ops->name))
 	return;
 
-    val = realloc(context->ks_ops, 
+    val = realloc(context->ks_ops,
 		  (context->ks_num_ops + 1) * sizeof(context->ks_ops[0]));
     if (val == NULL)
 	return;
@@ -138,10 +139,10 @@ hx509_certs_init(hx509_context context,
 	hx509_clear_error_string(context);
 	return ENOMEM;
     }
-    
+
     ops = _hx509_ks_type(context, type);
     if (ops == NULL) {
-	hx509_set_error_string(context, 0, ENOENT, 
+	hx509_set_error_string(context, 0, ENOENT,
 			       "Keyset type %s is not supported", type);
 	free(type);
 	return ENOENT;
@@ -199,15 +200,15 @@ hx509_certs_store(hx509_context context,
 
 
 hx509_certs
-_hx509_certs_ref(hx509_certs certs)
+hx509_certs_ref(hx509_certs certs)
 {
     if (certs == NULL)
 	return NULL;
-    if (certs->ref <= 0)
-	_hx509_abort("certs refcount <= 0");
-    certs->ref++;
     if (certs->ref == 0)
-	_hx509_abort("certs refcount == 0");
+	_hx509_abort("certs refcount == 0 on ref");
+    if (certs->ref == UINT_MAX)
+	_hx509_abort("certs refcount == UINT_MAX on ref");
+    certs->ref++;
     return certs;
 }
 
@@ -223,8 +224,8 @@ void
 hx509_certs_free(hx509_certs *certs)
 {
     if (*certs) {
-	if ((*certs)->ref <= 0)
-	    _hx509_abort("refcount <= 0");
+	if ((*certs)->ref == 0)
+	    _hx509_abort("cert refcount == 0 on free");
 	if (--(*certs)->ref > 0)
 	    return;
 
@@ -257,8 +258,8 @@ hx509_certs_start_seq(hx509_context context,
     int ret;
 
     if (certs->ops->iter_start == NULL) {
-	hx509_set_error_string(context, 0, HX509_UNSUPPORTED_OPERATION, 
-			       "Keyset type %s doesn't support iteration", 
+	hx509_set_error_string(context, 0, HX509_UNSUPPORTED_OPERATION,
+			       "Keyset type %s doesn't support iteration",
 			       certs->ops->name);
 	return HX509_UNSUPPORTED_OPERATION;
     }
@@ -324,7 +325,7 @@ hx509_certs_end_seq(hx509_context context,
  * @param certs certificate store to iterate over.
  * @param func function to call for each certificate. The function
  * should return non-zero to abort the iteration, that value is passed
- * back to te caller of hx509_certs_iter().
+ * back to the caller of hx509_certs_iter_f().
  * @param ctx context variable that will passed to the function.
  *
  * @return Returns an hx509 error code.
@@ -333,10 +334,10 @@ hx509_certs_end_seq(hx509_context context,
  */
 
 int
-hx509_certs_iter(hx509_context context, 
-		 hx509_certs certs, 
-		 int (*func)(hx509_context, void *, hx509_cert),
-		 void *ctx)
+hx509_certs_iter_f(hx509_context context,
+		   hx509_certs certs,
+		   int (*func)(hx509_context, void *, hx509_cert),
+		   void *ctx)
 {
     hx509_cursor cursor;
     hx509_cert c;
@@ -345,7 +346,7 @@ hx509_certs_iter(hx509_context context,
     ret = hx509_certs_start_seq(context, certs, &cursor);
     if (ret)
 	return ret;
-    
+
     while (1) {
 	ret = hx509_certs_next_cert(context, certs, cursor, &c);
 	if (ret)
@@ -365,13 +366,61 @@ hx509_certs_iter(hx509_context context,
     return ret;
 }
 
-
 /**
- * Function to use to hx509_certs_iter() as a function argument, the
- * ctx variable to hx509_certs_iter() should be a FILE file descriptor.
+ * Iterate over all certificates in a keystore and call an function
+ * for each fo them.
  *
  * @param context a hx509 context.
- * @param ctx used by hx509_certs_iter().
+ * @param certs certificate store to iterate over.
+ * @param func function to call for each certificate. The function
+ * should return non-zero to abort the iteration, that value is passed
+ * back to the caller of hx509_certs_iter().
+ *
+ * @return Returns an hx509 error code.
+ *
+ * @ingroup hx509_keyset
+ */
+
+#ifdef __BLOCKS__
+
+static int
+certs_iter(hx509_context context, void *ctx, hx509_cert cert)
+{
+    int (^func)(hx509_cert) = ctx;
+    return func(cert);
+}
+
+/**
+ * Iterate over all certificates in a keystore and call an block
+ * for each fo them.
+ *
+ * @param context a hx509 context.
+ * @param certs certificate store to iterate over.
+ * @param func block to call for each certificate. The function
+ * should return non-zero to abort the iteration, that value is passed
+ * back to the caller of hx509_certs_iter().
+ *
+ * @return Returns an hx509 error code.
+ *
+ * @ingroup hx509_keyset
+ */
+
+int
+hx509_certs_iter(hx509_context context,
+		 hx509_certs certs,
+		 int (^func)(hx509_cert))
+{
+    return hx509_certs_iter_f(context, certs, certs_iter, func);
+}
+#endif
+
+
+/**
+ * Function to use to hx509_certs_iter_f() as a function argument, the
+ * ctx variable to hx509_certs_iter_f() should be a FILE file descriptor.
+ *
+ * @param context a hx509 context.
+ * @param ctx used by hx509_certs_iter_f().
  * @param c a certificate
  *
  * @return Returns an hx509 error code.
@@ -420,8 +469,8 @@ int
 hx509_certs_add(hx509_context context, hx509_certs certs, hx509_cert cert)
 {
     if (certs->ops->add == NULL) {
-	hx509_set_error_string(context, 0, ENOENT, 
-			       "Keyset type %s doesn't support add operation", 
+	hx509_set_error_string(context, 0, ENOENT,
+			       "Keyset type %s doesn't support add operation",
 			       certs->ops->name);
 	return ENOENT;
     }
@@ -445,7 +494,7 @@ hx509_certs_add(hx509_context context, hx509_certs certs, hx509_cert cert)
 
 int
 hx509_certs_find(hx509_context context,
-		 hx509_certs certs, 
+		 hx509_certs certs,
 		 const hx509_query *q,
 		 hx509_cert *r)
 {
@@ -481,6 +530,10 @@ hx509_certs_find(hx509_context context,
     hx509_certs_end_seq(context, certs, cursor);
     if (ret)
 	return ret;
+    /**
+     * Return HX509_CERT_NOT_FOUND if no certificate in certs matched
+     * the query.
+     */
     if (c == NULL) {
 	hx509_clear_error_string(context);
 	return HX509_CERT_NOT_FOUND;
@@ -488,6 +541,77 @@ hx509_certs_find(hx509_context context,
 
     return 0;
 }
+
+/**
+ * Filter certificate matching the query.
+ *
+ * @param context a hx509 context.
+ * @param certs certificate store to search.
+ * @param q query allocated with @ref hx509_query functions.
+ * @param result the filtered certificate store, caller must free with
+ *        hx509_certs_free().
+ *
+ * @return Returns an hx509 error code.
+ *
+ * @ingroup hx509_keyset
+ */
+
+int
+hx509_certs_filter(hx509_context context,
+		   hx509_certs certs,
+		   const hx509_query *q,
+		   hx509_certs *result)
+{
+    hx509_cursor cursor;
+    hx509_cert c;
+    int ret, found = 0;
+
+    _hx509_query_statistic(context, 0, q);
+
+    ret = hx509_certs_init(context, "MEMORY:filter-certs", 0,
+			   NULL, result);
+    if (ret)
+	return ret;
+
+    ret = hx509_certs_start_seq(context, certs, &cursor);
+    if (ret) {
+	hx509_certs_free(result);
+	return ret;
+    }
+
+    c = NULL;
+    while (1) {
+	ret = hx509_certs_next_cert(context, certs, cursor, &c);
+	if (ret)
+	    break;
+	if (c == NULL)
+	    break;
+	if (_hx509_query_match_cert(context, q, c)) {
+	    hx509_certs_add(context, *result, c);
+	    found = 1;
+	}
+	hx509_cert_free(c);
+    }
+
+    hx509_certs_end_seq(context, certs, cursor);
+    if (ret) {
+	hx509_certs_free(result);
+	return ret;
+    }
+
+    /**
+     * Return HX509_CERT_NOT_FOUND if no certificate in certs matched
+     * the query.
+     */
+    if (!found) {
+	hx509_certs_free(result);
+	hx509_clear_error_string(context);
+	return HX509_CERT_NOT_FOUND;
+    }
+
+    return 0;
+}
+
 
 static int
 certs_merge_func(hx509_context context, void *ctx, hx509_cert c)
@@ -513,7 +637,7 @@ hx509_certs_merge(hx509_context context, hx509_certs to, hx509_certs from)
 {
     if (from == NULL)
 	return 0;
-    return hx509_certs_iter(context, from, certs_merge_func, to);
+    return hx509_certs_iter_f(context, from, certs_merge_func, to);
 }
 
 /**
@@ -604,7 +728,7 @@ certs_info_stdio(void *ctx, const char *str)
  */
 
 int
-hx509_certs_info(hx509_context context, 
+hx509_certs_info(hx509_context context,
 		 hx509_certs certs,
 		 int (*func)(void *, const char *),
 		 void *ctx)
@@ -639,8 +763,8 @@ _hx509_pi_printf(int (*func)(void *, const char *), void *ctx,
 }
 
 int
-_hx509_certs_keys_get(hx509_context context, 
-		      hx509_certs certs, 
+_hx509_certs_keys_get(hx509_context context,
+		      hx509_certs certs,
 		      hx509_private_key **keys)
 {
     if (certs->ops->getkeys == NULL) {
@@ -651,8 +775,8 @@ _hx509_certs_keys_get(hx509_context context,
 }
 
 int
-_hx509_certs_keys_add(hx509_context context, 
-		      hx509_certs certs, 
+_hx509_certs_keys_add(hx509_context context,
+		      hx509_certs certs,
 		      hx509_private_key key)
 {
     if (certs->ops->addkey == NULL) {
@@ -672,6 +796,6 @@ _hx509_certs_keys_free(hx509_context context,
 {
     int i;
     for (i = 0; keys[i]; i++)
-	_hx509_private_key_free(&keys[i]);
+	hx509_private_key_free(&keys[i]);
     free(keys);
 }

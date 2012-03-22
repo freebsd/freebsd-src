@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include "krb5/gsskrb5_locl.h"
+#include "gsskrb5_locl.h"
 
-RCSID("$Id: verify_mic.c 19031 2006-11-13 18:02:57Z lha $");
+#ifdef HEIM_WEAK_CRYPTO
 
 static OM_uint32
 verify_mic_des
@@ -44,13 +44,14 @@ verify_mic_des
             const gss_buffer_t token_buffer,
             gss_qop_t * qop_state,
 	    krb5_keyblock *key,
-	    char *type
+	    const char *type
 	    )
 {
   u_char *p;
-  MD5_CTX md5;
+  EVP_MD_CTX *md5;
   u_char hash[16], *seq;
   DES_key_schedule schedule;
+  EVP_CIPHER_CTX des_ctx;
   DES_cblock zero;
   DES_cblock deskey;
   uint32_t seq_number;
@@ -74,32 +75,35 @@ verify_mic_des
   p += 16;
 
   /* verify checksum */
-  MD5_Init (&md5);
-  MD5_Update (&md5, p - 24, 8);
-  MD5_Update (&md5, message_buffer->value,
-	     message_buffer->length);
-  MD5_Final (hash, &md5);
+  md5 = EVP_MD_CTX_create();
+  EVP_DigestInit_ex(md5, EVP_md5(), NULL);
+  EVP_DigestUpdate(md5, p - 24, 8);
+  EVP_DigestUpdate(md5, message_buffer->value, message_buffer->length);
+  EVP_DigestFinal_ex(md5, hash, NULL);
+  EVP_MD_CTX_destroy(md5);
 
   memset (&zero, 0, sizeof(zero));
   memcpy (&deskey, key->keyvalue.data, sizeof(deskey));
 
-  DES_set_key (&deskey, &schedule);
+  DES_set_key_unchecked (&deskey, &schedule);
   DES_cbc_cksum ((void *)hash, (void *)hash, sizeof(hash),
 		 &schedule, &zero);
-  if (memcmp (p - 8, hash, 8) != 0) {
+  if (ct_memcmp (p - 8, hash, 8) != 0) {
     memset (deskey, 0, sizeof(deskey));
     memset (&schedule, 0, sizeof(schedule));
     return GSS_S_BAD_MIC;
   }
 
   /* verify sequence number */
-  
+
   HEIMDAL_MUTEX_lock(&context_handle->ctx_id_mutex);
 
   p -= 16;
-  DES_set_key (&deskey, &schedule);
-  DES_cbc_encrypt ((void *)p, (void *)p, 8,
-		   &schedule, (DES_cblock *)hash, DES_DECRYPT);
+
+  EVP_CIPHER_CTX_init(&des_ctx);
+  EVP_CipherInit_ex(&des_ctx, EVP_des_cbc(), NULL, key->keyvalue.data, hash, 0);
+  EVP_Cipher(&des_ctx, p, p, 8);
+  EVP_CIPHER_CTX_cleanup(&des_ctx);
 
   memset (deskey, 0, sizeof(deskey));
   memset (&schedule, 0, sizeof(schedule));
@@ -108,9 +112,9 @@ verify_mic_des
   _gsskrb5_decode_om_uint32(seq, &seq_number);
 
   if (context_handle->more_flags & LOCAL)
-      cmp = memcmp(&seq[4], "\xff\xff\xff\xff", 4);
+      cmp = ct_memcmp(&seq[4], "\xff\xff\xff\xff", 4);
   else
-      cmp = memcmp(&seq[4], "\x00\x00\x00\x00", 4);
+      cmp = ct_memcmp(&seq[4], "\x00\x00\x00\x00", 4);
 
   if (cmp != 0) {
     HEIMDAL_MUTEX_unlock(&context_handle->ctx_id_mutex);
@@ -127,6 +131,7 @@ verify_mic_des
 
   return GSS_S_COMPLETE;
 }
+#endif
 
 static OM_uint32
 verify_mic_des3
@@ -137,7 +142,7 @@ verify_mic_des3
             const gss_buffer_t token_buffer,
             gss_qop_t * qop_state,
 	    krb5_keyblock *key,
-	    char *type
+	    const char *type
 	    )
 {
   u_char *p;
@@ -150,7 +155,7 @@ verify_mic_des3
   Checksum csum;
   char *tmp;
   char ivec[8];
-  
+
   p = token_buffer->value;
   ret = _gsskrb5_verify_header (&p,
 				   token_buffer->length,
@@ -209,9 +214,9 @@ retry:
   _gsskrb5_decode_om_uint32(seq, &seq_number);
 
   if (context_handle->more_flags & LOCAL)
-      cmp = memcmp(&seq[4], "\xff\xff\xff\xff", 4);
+      cmp = ct_memcmp(&seq[4], "\xff\xff\xff\xff", 4);
   else
-      cmp = memcmp(&seq[4], "\x00\x00\x00\x00", 4);
+      cmp = ct_memcmp(&seq[4], "\x00\x00\x00\x00", 4);
 
   krb5_data_free (&seq_data);
   if (cmp != 0) {
@@ -266,21 +271,26 @@ retry:
 OM_uint32
 _gsskrb5_verify_mic_internal
            (OM_uint32 * minor_status,
-            const gsskrb5_ctx context_handle,
+            const gsskrb5_ctx ctx,
 	    krb5_context context,
             const gss_buffer_t message_buffer,
             const gss_buffer_t token_buffer,
             gss_qop_t * qop_state,
-	    char * type
+	    const char * type
 	    )
 {
     krb5_keyblock *key;
     OM_uint32 ret;
     krb5_keytype keytype;
 
-    HEIMDAL_MUTEX_lock(&context_handle->ctx_id_mutex);
-    ret = _gsskrb5i_get_token_key(context_handle, context, &key);
-    HEIMDAL_MUTEX_unlock(&context_handle->ctx_id_mutex);
+    if (ctx->more_flags & IS_CFX)
+        return _gssapi_verify_mic_cfx (minor_status, ctx,
+				       context, message_buffer, token_buffer,
+				       qop_state);
+
+    HEIMDAL_MUTEX_lock(&ctx->ctx_id_mutex);
+    ret = _gsskrb5i_get_token_key(ctx, context, &key);
+    HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
     if (ret) {
 	*minor_status = ret;
 	return GSS_S_FAILURE;
@@ -289,35 +299,35 @@ _gsskrb5_verify_mic_internal
     krb5_enctype_to_keytype (context, key->keytype, &keytype);
     switch (keytype) {
     case KEYTYPE_DES :
-	ret = verify_mic_des (minor_status, context_handle, context,
+#ifdef HEIM_WEAK_CRYPTO
+	ret = verify_mic_des (minor_status, ctx, context,
 			      message_buffer, token_buffer, qop_state, key,
 			      type);
+#else
+      ret = GSS_S_FAILURE;
+#endif
 	break;
     case KEYTYPE_DES3 :
-	ret = verify_mic_des3 (minor_status, context_handle, context,
+	ret = verify_mic_des3 (minor_status, ctx, context,
 			       message_buffer, token_buffer, qop_state, key,
 			       type);
 	break;
     case KEYTYPE_ARCFOUR :
     case KEYTYPE_ARCFOUR_56 :
-	ret = _gssapi_verify_mic_arcfour (minor_status, context_handle,
+	ret = _gssapi_verify_mic_arcfour (minor_status, ctx,
 					  context,
 					  message_buffer, token_buffer,
 					  qop_state, key, type);
 	break;
     default :
-	ret = _gssapi_verify_mic_cfx (minor_status, context_handle,
-				      context,
-				      message_buffer, token_buffer, qop_state,
-				      key);
-	break;
+        abort();
     }
     krb5_free_keyblock (context, key);
-    
+
     return ret;
 }
 
-OM_uint32
+OM_uint32 GSSAPI_CALLCONV
 _gsskrb5_verify_mic
            (OM_uint32 * minor_status,
             const gss_ctx_id_t context_handle,
@@ -334,11 +344,11 @@ _gsskrb5_verify_mic
     if (qop_state != NULL)
 	*qop_state = GSS_C_QOP_DEFAULT;
 
-    ret = _gsskrb5_verify_mic_internal(minor_status, 
+    ret = _gsskrb5_verify_mic_internal(minor_status,
 				       (gsskrb5_ctx)context_handle,
 				       context,
 				       message_buffer, token_buffer,
-				       qop_state, "\x01\x01");
+				       qop_state, (void *)(intptr_t)"\x01\x01");
 
     return ret;
 }

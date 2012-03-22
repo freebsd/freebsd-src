@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-realinstall:
+BINDIR?=	/usr/bin
 
 .include "../Makefile.inc"

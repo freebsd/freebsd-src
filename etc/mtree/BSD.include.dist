@@ -235,6 +235,8 @@
     ..
     kadm5
     ..
+    krb5
+    ..
     libmilter
     ..
     lwres

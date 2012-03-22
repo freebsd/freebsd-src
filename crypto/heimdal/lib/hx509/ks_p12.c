@@ -1,38 +1,37 @@
 /*
- * Copyright (c) 2004 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2004 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
-RCSID("$Id: ks_p12.c 21146 2007-06-18 21:37:25Z lha $");
 
 struct ks_pkcs12 {
     hx509_certs certs;
@@ -45,19 +44,19 @@ typedef int (*collector_func)(hx509_context,
 			      const PKCS12_Attributes *);
 
 struct type {
-    const heim_oid * (*oid)(void);
+    const heim_oid *oid;
     collector_func func;
 };
 
 static void
-parse_pkcs12_type(hx509_context, struct hx509_collector *, const heim_oid *, 
+parse_pkcs12_type(hx509_context, struct hx509_collector *, const heim_oid *,
 		  const void *, size_t, const PKCS12_Attributes *);
 
 
 static const PKCS12_Attribute *
 find_attribute(const PKCS12_Attributes *attrs, const heim_oid *oid)
 {
-    int i;
+    size_t i;
     if (attrs == NULL)
 	return NULL;
     for (i = 0; i < attrs->len; i++)
@@ -68,7 +67,7 @@ find_attribute(const PKCS12_Attributes *attrs, const heim_oid *oid)
 
 static int
 keyBag_parser(hx509_context context,
-	      struct hx509_collector *c, 
+	      struct hx509_collector *c,
 	      const void *data, size_t length,
 	      const PKCS12_Attributes *attrs)
 {
@@ -77,14 +76,14 @@ keyBag_parser(hx509_context context,
     const heim_octet_string *os = NULL;
     int ret;
 
-    attr = find_attribute(attrs, oid_id_pkcs_9_at_localKeyId());
+    attr = find_attribute(attrs, &asn1_oid_id_pkcs_9_at_localKeyId);
     if (attr)
 	os = &attr->attrValues;
 
     ret = decode_PKCS8PrivateKeyInfo(data, length, &ki, NULL);
     if (ret)
 	return ret;
-    
+
     _hx509_collector_private_key_add(context,
 				     c,
 				     &ki.privateKeyAlgorithm,
@@ -97,16 +96,16 @@ keyBag_parser(hx509_context context,
 
 static int
 ShroudedKeyBag_parser(hx509_context context,
-		      struct hx509_collector *c, 
+		      struct hx509_collector *c,
 		      const void *data, size_t length,
 		      const PKCS12_Attributes *attrs)
 {
     PKCS8EncryptedPrivateKeyInfo pk;
     heim_octet_string content;
     int ret;
-    
+
     memset(&pk, 0, sizeof(pk));
-    
+
     ret = decode_PKCS8EncryptedPrivateKeyInfo(data, length, &pk, NULL);
     if (ret)
 	return ret;
@@ -127,7 +126,7 @@ ShroudedKeyBag_parser(hx509_context context,
 
 static int
 certBag_parser(hx509_context context,
-	       struct hx509_collector *c, 
+	       struct hx509_collector *c,
 	       const void *data, size_t length,
 	       const PKCS12_Attributes *attrs)
 {
@@ -140,12 +139,12 @@ certBag_parser(hx509_context context,
     if (ret)
 	return ret;
 
-    if (der_heim_oid_cmp(oid_id_pkcs_9_at_certTypes_x509(), &cb.certType)) {
+    if (der_heim_oid_cmp(&asn1_oid_id_pkcs_9_at_certTypes_x509, &cb.certType)) {
 	free_PKCS12_CertBag(&cb);
 	return 0;
     }
 
-    ret = decode_PKCS12_OctetString(cb.certValue.data, 
+    ret = decode_PKCS12_OctetString(cb.certValue.data,
 				    cb.certValue.length,
 				    &os,
 				    NULL);
@@ -166,18 +165,18 @@ certBag_parser(hx509_context context,
 
     {
 	const PKCS12_Attribute *attr;
-	const heim_oid * (*oids[])(void) = {
-	    oid_id_pkcs_9_at_localKeyId, oid_id_pkcs_9_at_friendlyName
+	const heim_oid *oids[] = {
+	    &asn1_oid_id_pkcs_9_at_localKeyId, &asn1_oid_id_pkcs_9_at_friendlyName
 	};
-	int i;
+	size_t i;
 
-	for (i = 0; i < sizeof(oids)/sizeof(oids[0]); i++) {
-	    const heim_oid *oid = (*(oids[i]))();
+	for  (i = 0; i < sizeof(oids)/sizeof(oids[0]); i++) {
+	    const heim_oid *oid = oids[i];
 	    attr = find_attribute(attrs, oid);
 	    if (attr)
 		_hx509_set_cert_attribute(context, cert, oid,
 					  &attr->attrValues);
-	}	
+	}
     }
 
     hx509_cert_free(cert);
@@ -187,11 +186,12 @@ certBag_parser(hx509_context context,
 
 static int
 parse_safe_content(hx509_context context,
-		   struct hx509_collector *c, 
+		   struct hx509_collector *c,
 		   const unsigned char *p, size_t len)
 {
     PKCS12_SafeContents sc;
-    int ret, i;
+    int ret;
+    size_t i;
 
     memset(&sc, 0, sizeof(sc));
 
@@ -213,7 +213,7 @@ parse_safe_content(hx509_context context,
 
 static int
 safeContent_parser(hx509_context context,
-		   struct hx509_collector *c, 
+		   struct hx509_collector *c,
 		   const void *data, size_t length,
 		   const PKCS12_Attributes *attrs)
 {
@@ -237,7 +237,7 @@ encryptedData_parser(hx509_context context,
     heim_octet_string content;
     heim_oid contentType;
     int ret;
-		
+
     memset(&contentType, 0, sizeof(contentType));
 
     ret = hx509_cms_decrypt_encrypted(context,
@@ -248,7 +248,7 @@ encryptedData_parser(hx509_context context,
     if (ret)
 	return ret;
 
-    if (der_heim_oid_cmp(&contentType, oid_id_pkcs7_data()) == 0)
+    if (der_heim_oid_cmp(&contentType, &asn1_oid_id_pkcs7_data) == 0)
 	ret = parse_safe_content(context, c, content.data, content.length);
 
     der_free_octet_string(&content);
@@ -266,7 +266,7 @@ envelopedData_parser(hx509_context context,
     heim_oid contentType;
     hx509_lock lock;
     int ret;
-		
+
     memset(&contentType, 0, sizeof(contentType));
 
     lock = _hx509_collector_get_lock(c);
@@ -276,15 +276,16 @@ envelopedData_parser(hx509_context context,
 			       0,
 			       data, length,
 			       NULL,
+			       0,
 			       &contentType,
 			       &content);
     if (ret) {
-	hx509_set_error_string(context, HX509_ERROR_APPEND, ret, 
+	hx509_set_error_string(context, HX509_ERROR_APPEND, ret,
 			       "PKCS12 failed to unenvelope");
 	return ret;
     }
 
-    if (der_heim_oid_cmp(&contentType, oid_id_pkcs7_data()) == 0)
+    if (der_heim_oid_cmp(&contentType, &asn1_oid_id_pkcs7_data) == 0)
 	ret = parse_safe_content(context, c, content.data, content.length);
 
     der_free_octet_string(&content);
@@ -295,31 +296,31 @@ envelopedData_parser(hx509_context context,
 
 
 struct type bagtypes[] = {
-    { oid_id_pkcs12_keyBag, keyBag_parser },
-    { oid_id_pkcs12_pkcs8ShroudedKeyBag, ShroudedKeyBag_parser },
-    { oid_id_pkcs12_certBag, certBag_parser },
-    { oid_id_pkcs7_data, safeContent_parser },
-    { oid_id_pkcs7_encryptedData, encryptedData_parser },
-    { oid_id_pkcs7_envelopedData, envelopedData_parser }
+    { &asn1_oid_id_pkcs12_keyBag, keyBag_parser },
+    { &asn1_oid_id_pkcs12_pkcs8ShroudedKeyBag, ShroudedKeyBag_parser },
+    { &asn1_oid_id_pkcs12_certBag, certBag_parser },
+    { &asn1_oid_id_pkcs7_data, safeContent_parser },
+    { &asn1_oid_id_pkcs7_encryptedData, encryptedData_parser },
+    { &asn1_oid_id_pkcs7_envelopedData, envelopedData_parser }
 };
 
 static void
 parse_pkcs12_type(hx509_context context,
 		  struct hx509_collector *c,
-		  const heim_oid *oid, 
+		  const heim_oid *oid,
 		  const void *data, size_t length,
 		  const PKCS12_Attributes *attrs)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < sizeof(bagtypes)/sizeof(bagtypes[0]); i++)
-	if (der_heim_oid_cmp((*bagtypes[i].oid)(), oid) == 0)
+	if (der_heim_oid_cmp(bagtypes[i].oid, oid) == 0)
 	    (*bagtypes[i].func)(context, c, data, length, attrs);
 }
 
 static int
 p12_init(hx509_context context,
-	 hx509_certs certs, void **data, int flags, 
+	 hx509_certs certs, void **data, int flags,
 	 const char *residue, hx509_lock lock)
 {
     struct ks_pkcs12 *p12;
@@ -327,7 +328,8 @@ p12_init(hx509_context context,
     void *buf;
     PKCS12_PFX pfx;
     PKCS12_AuthenticatedSafe as;
-    int ret, i;
+    int ret;
+    size_t i;
     struct hx509_collector *c;
 
     *data = NULL;
@@ -361,21 +363,21 @@ p12_init(hx509_context context,
 	goto out;
     }
 
-    ret = _hx509_map_file(residue, &buf, &len, NULL);
+    ret = rk_undumpdata(residue, &buf, &len);
     if (ret) {
 	hx509_clear_error_string(context);
 	goto out;
     }
 
     ret = decode_PKCS12_PFX(buf, len, &pfx, NULL);
-    _hx509_unmap_file(buf, len);
+    rk_xfree(buf);
     if (ret) {
 	hx509_set_error_string(context, 0, ret,
 			       "Failed to decode the PFX in %s", residue);
 	goto out;
     }
 
-    if (der_heim_oid_cmp(&pfx.authSafe.contentType, oid_id_pkcs7_data()) != 0) {
+    if (der_heim_oid_cmp(&pfx.authSafe.contentType, &asn1_oid_id_pkcs7_data) != 0) {
 	free_PKCS12_PFX(&pfx);
 	ret = EINVAL;
 	hx509_set_error_string(context, 0, ret,
@@ -403,7 +405,7 @@ p12_init(hx509_context context,
 	    hx509_clear_error_string(context);
 	    goto out;
 	}
-	ret = decode_PKCS12_AuthenticatedSafe(asdata.data, 
+	ret = decode_PKCS12_AuthenticatedSafe(asdata.data,
 					      asdata.length,
 					      &as,
 					      NULL);
@@ -464,7 +466,7 @@ addBag(hx509_context context,
 	hx509_set_error_string(context, 0, ret, "out of memory");
 	return ret;
     }
-    
+
     as->val[as->len].content = calloc(1, sizeof(*as->val[0].content));
     if (as->val[as->len].content == NULL) {
 	der_free_oid(&as->val[as->len].contentType);
@@ -505,7 +507,7 @@ store_func(hx509_context context, void *ctx, hx509_cert c)
     free(os.data);
     if (ret)
 	goto out;
-    ret = der_copy_oid(oid_id_pkcs_9_at_certTypes_x509(), &cb.certType);
+    ret = der_copy_oid(&asn1_oid_id_pkcs_9_at_certTypes_x509, &cb.certType);
     if (ret) {
 	free_PKCS12_CertBag(&cb);
 	goto out;
@@ -516,7 +518,7 @@ store_func(hx509_context context, void *ctx, hx509_cert c)
     if (ret)
 	goto out;
 
-    ret = addBag(context, as, oid_id_pkcs12_certBag(), os.data, os.length);
+    ret = addBag(context, as, &asn1_oid_id_pkcs12_certBag, os.data, os.length);
 
     if (_hx509_cert_private_key_exportable(c)) {
 	hx509_private_key key = _hx509_cert_private_key(c);
@@ -527,7 +529,7 @@ store_func(hx509_context context, void *ctx, hx509_cert c)
 	ret = der_parse_hex_heim_integer("00", &pki.version);
 	if (ret)
 	    return ret;
-	ret = _hx509_private_key_oid(context, key, 
+	ret = _hx509_private_key_oid(context, key,
 				     &pki.privateKeyAlgorithm.algorithm);
 	if (ret) {
 	    free_PKCS8PrivateKeyInfo(&pki);
@@ -535,12 +537,13 @@ store_func(hx509_context context, void *ctx, hx509_cert c)
 	}
 	ret = _hx509_private_key_export(context,
 					_hx509_cert_private_key(c),
+					HX509_KEY_FORMAT_DER,
 					&pki.privateKey);
 	if (ret) {
 	    free_PKCS8PrivateKeyInfo(&pki);
 	    return ret;
 	}
-	/* set attribute, oid_id_pkcs_9_at_localKeyId() */
+	/* set attribute, asn1_oid_id_pkcs_9_at_localKeyId */
 
 	ASN1_MALLOC_ENCODE(PKCS8PrivateKeyInfo, os.data, os.length,
 			   &pki, &size, ret);
@@ -548,7 +551,7 @@ store_func(hx509_context context, void *ctx, hx509_cert c)
 	if (ret)
 	    return ret;
 
-	ret = addBag(context, as, oid_id_pkcs12_keyBag(), os.data, os.length);
+	ret = addBag(context, as, &asn1_oid_id_pkcs12_keyBag, os.data, os.length);
 	if (ret)
 	    return ret;
     }
@@ -558,7 +561,7 @@ out:
 }
 
 static int
-p12_store(hx509_context context, 
+p12_store(hx509_context context,
 	  hx509_certs certs, void *data, int flags, hx509_lock lock)
 {
     struct ks_pkcs12 *p12 = data;
@@ -571,7 +574,7 @@ p12_store(hx509_context context,
     memset(&as, 0, sizeof(as));
     memset(&pfx, 0, sizeof(pfx));
 
-    ret = hx509_certs_iter(context, p12->certs, store_func, &as);
+    ret = hx509_certs_iter_f(context, p12->certs, store_func, &as);
     if (ret)
 	goto out;
 
@@ -580,7 +583,7 @@ p12_store(hx509_context context,
     free_PKCS12_AuthenticatedSafe(&as);
     if (ret)
 	return ret;
-		       
+
     ret = der_parse_hex_heim_integer("03", &pfx.version);
     if (ret) {
 	free(asdata.data);
@@ -589,7 +592,7 @@ p12_store(hx509_context context,
 
     pfx.authSafe.content = calloc(1, sizeof(*pfx.authSafe.content));
 
-    ASN1_MALLOC_ENCODE(PKCS12_OctetString, 
+    ASN1_MALLOC_ENCODE(PKCS12_OctetString,
 		       pfx.authSafe.content->data,
 		       pfx.authSafe.content->length,
 		       &asdata, &size, ret);
@@ -597,7 +600,7 @@ p12_store(hx509_context context,
     if (ret)
 	goto out;
 
-    ret = der_copy_oid(oid_id_pkcs7_data(), &pfx.authSafe.contentType);
+    ret = der_copy_oid(&asn1_oid_id_pkcs7_data, &pfx.authSafe.contentType);
     if (ret)
 	goto out;
 
@@ -646,14 +649,14 @@ p12_free(hx509_certs certs, void *data)
     return 0;
 }
 
-static int 
+static int
 p12_add(hx509_context context, hx509_certs certs, void *data, hx509_cert c)
 {
     struct ks_pkcs12 *p12 = data;
     return hx509_certs_add(context, p12->certs, c);
 }
 
-static int 
+static int
 p12_iter_start(hx509_context context,
 	       hx509_certs certs,
 	       void *data,

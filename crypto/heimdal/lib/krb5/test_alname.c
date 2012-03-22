@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2003 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2003 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -34,11 +34,9 @@
 #include <getarg.h>
 #include <err.h>
 
-RCSID("$Id: test_alname.c 15474 2005-06-17 04:48:02Z lha $");
-
 static void
 test_alname(krb5_context context, krb5_const_realm realm,
-	    const char *user, const char *inst, 
+	    const char *user, const char *inst,
 	    const char *localuser, int ok)
 {
     krb5_principal p;
@@ -60,20 +58,20 @@ test_alname(krb5_context context, krb5_const_realm realm,
     if (ret) {
 	if (!ok)
 	    return;
-	krb5_err(context, 1, ret, "krb5_aname_to_localname: %s -> %s", 
+	krb5_err(context, 1, ret, "krb5_aname_to_localname: %s -> %s",
 		 princ, localuser);
     }
 
     if (strcmp(localname, localuser) != 0) {
 	if (ok)
-	    errx(1, "compared failed %s != %s (should have succeded)", 
+	    errx(1, "compared failed %s != %s (should have succeded)",
 		 localname, localuser);
     } else {
 	if (!ok)
-	    errx(1, "compared failed %s == %s (should have failed)", 
+	    errx(1, "compared failed %s == %s (should have failed)",
 		 localname, localuser);
     }
-    
+
 }
 
 static int version_flag = 0;
@@ -109,7 +107,7 @@ main(int argc, char **argv)
 
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 
@@ -140,12 +138,12 @@ main(int argc, char **argv)
     test_alname(context, "FOO.BAR.BAZ.KAKA", user, NULL, user, 0);
     test_alname(context, "FOO.BAR.BAZ.KAKA", user, "root", "root", 0);
 
-    test_alname(context, realm, user, NULL, 
+    test_alname(context, realm, user, NULL,
 		"not-same-as-user", 0);
     test_alname(context, realm, user, "root",
 		"not-same-as-user", 0);
 
-    test_alname(context, "FOO.BAR.BAZ.KAKA", user, NULL, 
+    test_alname(context, "FOO.BAR.BAZ.KAKA", user, NULL,
 		"not-same-as-user", 0);
     test_alname(context, "FOO.BAR.BAZ.KAKA", user, "root",
 		"not-same-as-user", 0);

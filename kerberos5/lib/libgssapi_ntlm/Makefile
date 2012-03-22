@@ -4,6 +4,7 @@ LIB=	gssapi_ntlm
 LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
 LDADD=	-lcrypto -lgssapi -lkrb5 -lhx509 -lheimntlm -lroken
 DPADD=	${LIBCRYPTO} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBHEIMNTLM} ${LIBROKEN}
+SHLIB_MAJOR=	10
 
 SRCS=	accept_sec_context.c \
 	acquire_cred.c \
@@ -11,6 +12,7 @@ SRCS=	accept_sec_context.c \
 	canonicalize_name.c \
 	compare_name.c \
 	context_time.c \
+	creds.c \
 	crypto.c \
 	delete_sec_context.c \
 	display_name.c \
@@ -26,19 +28,24 @@ SRCS=	accept_sec_context.c \
 	indicate_mechs.c \
 	init_sec_context.c \
 	inquire_context.c \
-	inquire_cred.c \
 	inquire_cred_by_mech.c \
 	inquire_mechs_for_name.c \
 	inquire_names_for_mech.c \
+	inquire_sec_context_by_oid.c \
+	iter_cred.c \
+	kdc.c \
 	prefix.c \
 	process_context_token.c \
 	release_cred.c \
 	release_name.c \
-	digest.c
+	gss_oid.c
 
 CFLAGS+=-I${KRB5DIR}/lib/gssapi
+CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
+CFLAGS+=-I${KRB5DIR}/lib/gssapi/ntlm
+CFLAGS+=-I${KRB5DIR}/lib/krb5
 CFLAGS+=-I${KRB5DIR}/lib/ntlm
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/gssapi/ntlm ${.CURDIR}/../../../lib/libgssapi
+.PATH: ${KRB5DIR}/lib/gssapi/ntlm ${.CURDIR}/../../../lib/libgssapi ${.CURDIR}/../libgssapi_krb5
