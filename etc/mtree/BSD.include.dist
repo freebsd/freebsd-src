@@ -152,8 +152,6 @@
         ..
         fdescfs
         ..
-        fifofs
-        ..
         msdosfs
         ..
         nfs
