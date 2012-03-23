@@ -8,6 +8,7 @@ mips/cavium/octeon_ds1337.c			standard
 mips/cavium/octeon_ebt3000_cf.c			optional cf
 mips/cavium/octeon_machdep.c			standard
 mips/cavium/octeon_mp.c				optional smp
+mips/cavium/octeon_pmc.c			optional hwpmc
 mips/cavium/octeon_rtc.c			standard
 mips/cavium/uart_bus_octeonusart.c		optional uart
 mips/cavium/uart_cpu_octeonusart.c		optional uart
@@ -88,3 +89,6 @@ contrib/octeon-sdk/cvmx-thunder.c		standard
 contrib/octeon-sdk/cvmx-twsi.c			standard
 contrib/octeon-sdk/cvmx-warn.c			standard
 contrib/octeon-sdk/octeon-model.c		standard
+
+# HWPMC 
+dev/hwpmc/hwpmc_octeon.c			optional hwpmc
