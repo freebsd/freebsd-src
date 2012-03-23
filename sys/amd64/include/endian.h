@@ -119,8 +119,8 @@ __bswap16_var(__uint16_t _x)
 	    __bswap32_const((__uint32_t)(_x)) : __bswap32_var(_x))
 
 #define	__bswap16(_x)					\
-	(__builtin_constant_p(_x) ?			\
-	    __bswap16_const((__uint16_t)(_x)) : __bswap16_var(_x))
+	((__uint16_t)(__builtin_constant_p(_x) ?	\
+	    __bswap16_const((__uint16_t)(_x)) : __bswap16_var(_x)))
 
 #define	__htonl(x)	__bswap32(x)
 #define	__htons(x)	__bswap16(x)
