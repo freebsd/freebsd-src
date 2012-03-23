@@ -11,3 +11,6 @@ SRCS+=	device_if.h bus_if.h pci_if.h
 #CFLAGS += -DMPS_DEBUG
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.mps_sas.c=	${NO_WUNNEEDED_INTERNAL_DECL}
+CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}
