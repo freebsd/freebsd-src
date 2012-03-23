@@ -6,7 +6,7 @@ SEARCH_DIR(/usr/lib);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = kernbase + kernload + SIZEOF_HEADERS;
+  . = kernbase + kernload + 256;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
