@@ -685,13 +685,7 @@ Userland code shall use
 .Xr ioctl 2 .
 .Pp
 The following capabilities are currently supported by the system:
-.Bl -tag -width ".Dv IFCAP_VLAN_HWTAGGING" -offset indent
-.It Dv IFCAP_NETCONS
-This interface can be a network console.
-.It Dv IFCAP_POLLING
-This interface supports
-.Xr polling 4 .
-See below for details.
+.Bl -tag -width ".Dv IFCAP_POLLING_NOCOUNT" -offset indent
 .It Dv IFCAP_RXCSUM
 This interface can do checksum validation on receiving data.
 Some interfaces do not have sufficient buffer storage to store frames
@@ -703,9 +697,8 @@ This interface can do checksum calculation on transmitting data.
 .It Dv IFCAP_HWCSUM
 A shorthand for
 .Pq Dv IFCAP_RXCSUM | IFCAP_TXCSUM .
-.It Dv IFCAP_VLAN_HWTAGGING
-This interface can do VLAN tagging on output and
-demultiplex frames by their VLAN tag on input.
+.It Dv IFCAP_NETCONS
+This interface can be a network console.
 .It Dv IFCAP_VLAN_MTU
 The
 .Xr vlan 4
@@ -715,11 +708,24 @@ without having to decrease MTU on
 interfaces below 1500 bytes.
 This implies the ability of this interface to cope with frames somewhat
 longer than permitted by the Ethernet specification.
+.It Dv IFCAP_VLAN_HWTAGGING
+This interface can do VLAN tagging on output and
+demultiplex frames by their VLAN tag on input.
 .It Dv IFCAP_JUMBO_MTU
 This Ethernet interface can transmit and receive frames up to
 9000 bytes long.
+.It Dv IFCAP_POLLING
+This interface supports
+.Xr polling 4 .
+See below for details.
+.It Dv IFCAP_VLAN_HWCSUM
+This interface can do checksum calculation on both transmitting
+and receiving data on
+.Xr vlan 4
+interfaces (implies
+.Dv IFCAP_HWCSUM ) .
 .It Dv IFCAP_TSO4
-This Ethernet interface supports TCP Segmentation offloading.
+This Ethernet interface supports TCP4 Segmentation offloading.
 .It Dv IFCAP_TSO6
 This Ethernet interface supports TCP6 Segmentation offloading.
 .It Dv IFCAP_TSO
@@ -729,7 +735,7 @@ A shorthand for
 This Ethernet interface supports TCP offloading.
 .It Dv IFCAP_TOE6
 This Ethernet interface supports TCP6 offloading.
-.It Dv ICAP_TOE
+.It Dv IFCAP_TOE
 A shorthand for
 .Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
 .It Dv IFCAP_WOL_UCAST
@@ -743,6 +749,27 @@ as those sent by
 .It Dv IFCAP_WOL
 A shorthand for
 .Pq Dv IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC .
+.It Dv IFCAP_TOE4
+This Ethernet interface supports TCP4 Offload Engine.
+.It Dv IFCAP_TOE6
+This Ethernet interface supports TCP6 Offload Engine.
+.It Dv IFCAP_TOE
+A shorthand for
+.Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
+.It Dv IFCAP_VLAN_HWFILTER
+This interface supports frame filtering in hardware on
+.Xr vlan 4
+interfaces.
+.It Dv IFCAP_POLLING_NOCOUNT
+The return value for the number of processed packets should be
+skipped for this interface.
+.It Dv IFCAP_VLAN_HWTSO
+This interface supports TCP Segmentation offloading on
+.Xr vlan 4
+interfaces (implies
+.Dv IFCAP_TSO ) .
+.It Dv IFCAP_LINKSTATE
+This Ethernet interface supports dynamic link state changes.
 .El
 .Pp
 The ability of advanced network interfaces to offload certain
