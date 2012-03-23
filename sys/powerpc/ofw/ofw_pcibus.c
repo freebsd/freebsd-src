@@ -95,8 +95,8 @@ struct ofw_pcibus_devinfo {
 
 static devclass_t pci_devclass;
 
-DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods, 1 /* no softc */,
-    pci_driver);
+DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
+    sizeof(struct pci_softc), pci_driver);
 DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
@@ -116,12 +116,13 @@ static int
 ofw_pcibus_attach(device_t dev)
 {
 	u_int busno, domain;
+	int error;
 
+	error = pci_attach_common(dev);
+	if (error)
+		return (error);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	if (bootverbose)
-		device_printf(dev, "domain=%d, physical bus=%d\n",
-		    domain, busno);
 
 	/*
 	 * Attach those children represented in the device tree.
