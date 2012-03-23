@@ -195,7 +195,7 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 
     blocks = DIP(dp, di_blocks);
     gen = DIP(dp, di_gen);
-    printf("LINKCNT=%hd FLAGS=%#x BLKCNT=%jx GEN=%jx\n", DIP(dp, di_nlink),
+    printf("LINKCNT=%d FLAGS=%#x BLKCNT=%jx GEN=%jx\n", DIP(dp, di_nlink),
 	DIP(dp, di_flags), (intmax_t)blocks, (intmax_t)gen);
 }
 
