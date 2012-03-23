@@ -4462,3 +4462,22 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 }
+
+/* Wrapper APIs suitable for device driver use. */
+void
+pci_save_state(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	pci_cfg_save(dev, dinfo, 0);
+}
+
+void
+pci_restore_state(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	pci_cfg_restore(dev, dinfo);
+}
