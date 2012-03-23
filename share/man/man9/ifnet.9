@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2012
+.Dd March 23, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -583,6 +583,14 @@ The interface is a loopback device.
 The interface is point-to-point;
 .Dq broadcast
 address is actually the address of the other end.
+.It Dv IFF_SMART
+.Aq S*
+The interface manages its own routes, rather than using the generic
+code in
+.Fn if_up
+and
+.Fn if_down .
+This is probably useful for serial lines.
 .It Dv IFF_DRV_RUNNING
 .Aq D*
 The interface has been configured and dynamic resources were
@@ -619,14 +627,31 @@ multiple physical layers on some devices.)
 .It Dv IFF_MULTICAST
 .Aq S*
 This interface supports multicast.
-.It Dv IFF_POLLING
+.It Dv IFF_CANTCONFIG
+.Aq S*
+The interface isn't configurable in a meaningful way.
+Primarily useful for
+.Dv IFT_USB
+interfaces registered at the interface list.
+.It Dv IFF_MONITOR
+.Aq D
+This interface blocks transmission of packets and discards incoming
+packets after BPF processing.
+Used to monitor network trafic but not interact
+with the network in question.
+.It Dv IFF_STATICARP
+.Aq D
+Used to enable/disable ARP requests on this interface.
+.It Dv IFF_DYING
 .Aq D*
-The interface is in
-.Xr polling 4
-mode.
-See
-.Sx Interface Capabilities Flags
-for details.
+Set when the
+.Vt ifnet
+structure of this interface is being released and still has
+.Va if_refcount
+references.
+.It Dv IFF_RENAMING
+.Aq D*
+Set when this interface is being renamed.
 .El
 .Ss "Interface Capabilities Flags"
 Interface capabilities are specialized features an interface may
