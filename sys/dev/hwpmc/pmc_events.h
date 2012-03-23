@@ -3411,6 +3411,67 @@ __PMC_EV_ALIAS("IMPC_C0H_TRK_REQUEST.ALL", UCP_EVENT_84H_01H)
 #define	PMC_EV_MIPS24K_FIRST	PMC_EV_MIPS24K_CYCLE
 #define	PMC_EV_MIPS24K_LAST	PMC_EV_MIPS24K_WBB_FULL_PIPELINE_STALLS
 
+/*
+ * Cavium Octeon counters. Obtained from cvmx-core.h
+ */
+#define __PMC_EV_OCTEON()                         \
+    __PMC_EV(OCTEON, CLK)                         \
+    __PMC_EV(OCTEON, ISSUE)                       \
+    __PMC_EV(OCTEON, RET)                         \
+    __PMC_EV(OCTEON, NISSUE)                      \
+    __PMC_EV(OCTEON, SISSUE)                      \
+    __PMC_EV(OCTEON, DISSUE)                      \
+    __PMC_EV(OCTEON, IFI)                         \
+    __PMC_EV(OCTEON, BR)                          \
+    __PMC_EV(OCTEON, BRMIS)                       \
+    __PMC_EV(OCTEON, J)                           \
+    __PMC_EV(OCTEON, JMIS)                        \
+    __PMC_EV(OCTEON, REPLAY)                      \
+    __PMC_EV(OCTEON, IUNA)                        \
+    __PMC_EV(OCTEON, TRAP)                        \
+    __PMC_EV(OCTEON, UULOAD)                      \
+    __PMC_EV(OCTEON, UUSTORE)                     \
+    __PMC_EV(OCTEON, ULOAD)                       \
+    __PMC_EV(OCTEON, USTORE)                      \
+    __PMC_EV(OCTEON, EC)                          \
+    __PMC_EV(OCTEON, MC)                          \
+    __PMC_EV(OCTEON, CC)                          \
+    __PMC_EV(OCTEON, CSRC)                        \
+    __PMC_EV(OCTEON, CFETCH)                      \
+    __PMC_EV(OCTEON, CPREF)                       \
+    __PMC_EV(OCTEON, ICA)                         \
+    __PMC_EV(OCTEON, II)                          \
+    __PMC_EV(OCTEON, IP)                          \
+    __PMC_EV(OCTEON, CIMISS)                      \
+    __PMC_EV(OCTEON, WBUF)                        \
+    __PMC_EV(OCTEON, WDAT)                        \
+    __PMC_EV(OCTEON, WBUFLD)                      \
+    __PMC_EV(OCTEON, WBUFFL)                      \
+    __PMC_EV(OCTEON, WBUFTR)                      \
+    __PMC_EV(OCTEON, BADD)                        \
+    __PMC_EV(OCTEON, BADDL2)                      \
+    __PMC_EV(OCTEON, BFILL)                       \
+    __PMC_EV(OCTEON, DDIDS)                       \
+    __PMC_EV(OCTEON, IDIDS)                       \
+    __PMC_EV(OCTEON, DIDNA)                       \
+    __PMC_EV(OCTEON, LDS)                         \
+    __PMC_EV(OCTEON, LMLDS)                       \
+    __PMC_EV(OCTEON, IOLDS)                       \
+    __PMC_EV(OCTEON, DMLDS)                       \
+    __PMC_EV(OCTEON, STS)                         \
+    __PMC_EV(OCTEON, LMSTS)                       \
+    __PMC_EV(OCTEON, IOSTS)                       \
+    __PMC_EV(OCTEON, IOBDMA)                      \
+    __PMC_EV(OCTEON, DTLB)                        \
+    __PMC_EV(OCTEON, DTLBAD)                      \
+    __PMC_EV(OCTEON, ITLB)                        \
+    __PMC_EV(OCTEON, SYNC)                        \
+    __PMC_EV(OCTEON, SYNCIOB)                     \
+    __PMC_EV(OCTEON, SYNCW)
+
+#define	PMC_EV_OCTEON_FIRST	PMC_EV_OCTEON_CLK
+#define	PMC_EV_OCTEON_LAST	PMC_EV_OCTEON_SYNCW
+
 #define __PMC_EV_PPC7450() \
 	__PMC_EV(PPC7450, CYCLE)	\
 	__PMC_EV(PPC7450, INSTR_COMPLETED)	\
@@ -3677,6 +3738,8 @@ __PMC_EV_ALIAS("IMPC_C0H_TRK_REQUEST.ALL", UCP_EVENT_84H_01H)
 	__PMC_EV_XSCALE()                       \
 	__PMC_EV_BLOCK(MIPS24K,	0x11300)	\
 	__PMC_EV_MIPS24K()			\
+	__PMC_EV_BLOCK(OCTEON,	0x11400)	\
+	__PMC_EV_OCTEON()			\
 	__PMC_EV_BLOCK(UCF,	0x12000)	\
 	__PMC_EV_UCF()				\
 	__PMC_EV_BLOCK(UCP,	0x12080)	\
