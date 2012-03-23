@@ -860,10 +860,11 @@ cpu_new_callout(int cpu, int ticks)
 	 * If timer is global - there is chance it is already programmed.
 	 */
 	if (periodic || (timer->et_flags & ET_FLAGS_PERCPU) == 0) {
-		state->nextevent = state->nexthard;
 		tmp = hardperiod;
 		bintime_mul(&tmp, ticks - 1);
-		bintime_add(&state->nextevent, &tmp);
+		bintime_add(&tmp, &state->nexthard);
+		if (bintime_cmp(&tmp, &state->nextevent, <))
+			state->nextevent = tmp;
 		if (periodic ||
 		    bintime_cmp(&state->nextevent, &nexttick, >=)) {
 			ET_HW_UNLOCK(state);
