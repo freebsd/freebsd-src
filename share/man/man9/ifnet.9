@@ -798,20 +798,7 @@ The capability of a network interface to operate in
 .Xr polling 4
 mode involves several flags in different
 global variables and per-interface fields.
-First, there is a system-wide
-.Xr sysctl 8
-master switch named
-.Va kern.polling.enable ,
-which can toggle
-.Xr polling 4
-globally.
-If that variable is set to non-zero,
-.Xr polling 4
-will be used on those devices where it is enabled individually.
-Otherwise,
-.Xr polling 4
-will not be used in the system.
-Second, the capability flag
+The capability flag
 .Dv IFCAP_POLLING
 set in interface's
 .Va if_capabilities
@@ -821,20 +808,19 @@ on the particular interface.
 If set in
 .Va if_capabilities ,
 the same flag can be marked or cleared in the interface's
-.Va if_capenable ,
+.Va if_capenable
+within
+.Fn ifioctl ,
 thus initiating switch of the interface to
 .Xr polling 4
 mode or interrupt
 mode, respectively.
-The actual mode change will occur at an implementation-specific moment
-in the future, e.g., during the next interrupt or
-.Xr polling 4
-cycle.
-And finally, if the mode transition has been successful, the flag
-.Dv IFF_POLLING
-is marked or cleared in the interface's
-.Va if_flags
-to indicate the current mode of the interface.
+The actual mode change is managed by the driver-specific
+.Fn if_ioctl
+routine.
+The
+.Xr polling
+handler returns the number of packets processed.
 .Ss The Vt if_data Ss Structure
 The
 .Vt if_data
@@ -880,18 +866,6 @@ to attempt to ensure that there is always
 sufficient space to prepend a link-layer header without allocating an
 additional
 .Vt mbuf .
-.\" (See
-.\" .Xr mbuf 9 . )
-.\" .It Va ifi_recvquota
-.\" .Pq Vt u_char
-.\" Number of packets the interface is permitted to receive at one time
-.\" when in polled mode.
-.\" .It Va ifi_xmitquota
-.\" .Pq Vt u_char
-.\" Number of packets the interface is permitted to queue for transmission
-.\" at one time when in polled mode.
-.\" There is some controversy over
-.\" whether such a restriction makes any sense at all.
 .It Va ifi_datalen
 .Pq Vt u_char
 Length of the
@@ -972,18 +946,6 @@ Number of packets dropped on input.
 Rarely implemented.
 .It Va ifi_noproto
 Number of packets received for unknown network-layer protocol.
-.\" .It Va ifi_recvtiming
-.\" Amount of time, in microseconds, spent to receive an average packet on
-.\" this interface.
-.\" See the
-.\" .Sx Polling
-.\" section, below.
-.\" .It Va ifi_xmittiming
-.\" Amount of time, in microseconds, spent to service a transmit-complete
-.\" interrupt on this interface.
-.\" See the
-.\" .Sx Polling
-.\" section, below.
 .It Va ifi_lastchange
 .Pq Vt "struct timeval"
 The time of the last administrative change to the interface (as required
