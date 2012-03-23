@@ -33,7 +33,6 @@ SUBDIR_ORDERED=	${_csu} \
 	libc \
 	libbsm \
 	libauditd \
-	libcom_err \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
@@ -51,6 +50,10 @@ SUBDIR_ORDERED=	${_csu} \
 	${_libypclnt} \
 	${_libcxxrt} \
 	${_libcplusplus}
+
+.if ${MK_KERBEROS_SUPPORT} != "no"
+SUBDIR_ORDERED+=	libcom_err
+.endif
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
