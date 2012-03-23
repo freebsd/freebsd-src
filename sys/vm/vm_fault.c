@@ -222,6 +222,9 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	struct vnode *vp;
 	int locked, error;
 
+	if ((curthread->td_pflags & TDP_NOFAULTING) != 0)
+		return (KERN_PROTECTION_FAILURE);
+
 	hardfault = 0;
 	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
@@ -1404,4 +1407,18 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	/* return number of pages */
 	return i;
+}
+
+int
+vm_fault_disable_pagefaults(void)
+{
+
+	return (curthread_pflags_set(TDP_NOFAULTING));
+}
+
+void
+vm_fault_enable_pagefaults(int save)
+{
+
+	curthread_pflags_restore(save);
 }
