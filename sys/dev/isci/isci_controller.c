@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/malloc.h>
 
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_periph.h>
+
 #include <dev/isci/scil/sci_memory_descriptor_list.h>
 #include <dev/isci/scil/sci_memory_descriptor_list_decorator.h>
 
@@ -300,6 +303,16 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 	TUNABLE_INT_FETCH("hw.isci.io_shortage", &io_shortage);
 	controller->sim_queue_depth += io_shortage;
 
+	/* Attach to CAM using xpt_bus_register now, then immediately freeze
+	 *  the simq.  It will get released later when initial domain discovery
+	 *  is complete.
+	 */
+	controller->has_been_scanned = FALSE;
+	mtx_lock(&controller->lock);
+	isci_controller_attach_to_cam(controller);
+	xpt_freeze_simq(controller->sim, 1);
+	mtx_unlock(&controller->lock);
+
 	return (scif_controller_initialize(controller->scif_controller_handle));
 }
 
@@ -441,13 +454,13 @@ void isci_controller_start(void *controller_handle)
 void isci_controller_domain_discovery_complete(
     struct ISCI_CONTROLLER *isci_controller, struct ISCI_DOMAIN *isci_domain)
 {
-	if (isci_controller->sim == NULL)
+	if (!isci_controller->has_been_scanned)
 	{
-		/* Controller has not been attached to CAM yet.  We'll clear
+		/* Controller has not been scanned yet.  We'll clear
 		 *  the discovery bit for this domain, then check if all bits
 		 *  are now clear.  That would indicate that all domains are
-		 *  done with discovery and we can then attach the controller
-		 *  to CAM.
+		 *  done with discovery and we can then proceed with initial
+		 *  scan.
 		 */
 
 		isci_controller->initial_discovery_mask &=
@@ -457,7 +470,25 @@ void isci_controller_domain_discovery_complete(
 			struct isci_softc *driver = isci_controller->isci;
 			uint8_t next_index = isci_controller->index + 1;
 
-			isci_controller_attach_to_cam(isci_controller);
+			isci_controller->has_been_scanned = TRUE;
+
+			/* Unfreeze simq to allow initial scan to proceed. */
+			xpt_release_simq(isci_controller->sim, TRUE);
+
+#if __FreeBSD_version < 800000
+			/* When driver is loaded after boot, we need to
+			 *  explicitly rescan here for versions <8.0, because
+			 *  CAM only automatically scans new buses at boot
+			 *  time.
+			 */
+			union ccb *ccb = xpt_alloc_ccb_nowait();
+
+			xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			    cam_sim_path(isci_controller->sim),
+			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
+
+			xpt_rescan(ccb);
+#endif
 
 			if (next_index < driver->controller_count) {
 				/*  There are more controllers that need to

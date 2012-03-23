@@ -122,6 +122,7 @@ struct ISCI_CONTROLLER
 	SCI_CONTROLLER_HANDLE_T	scif_controller_handle;
 	struct ISCI_DOMAIN	domain[SCI_MAX_DOMAINS];
 	BOOL			is_started;
+	BOOL			has_been_scanned;
 	uint32_t		initial_discovery_mask;
 	BOOL			is_frozen;
 	uint8_t			*remote_device_memory;
