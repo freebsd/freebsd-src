@@ -2702,7 +2702,7 @@ igb_setup_msix(struct adapter *adapter)
 		    "MSIX Configuration Problem, "
 		    "%d vectors configured, but %d queues wanted!\n",
 		    msgs, want);
-		return (ENXIO);
+		return (0);
 	}
 	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
@@ -2712,9 +2712,11 @@ igb_setup_msix(struct adapter *adapter)
 	}
 msi:
        	msgs = pci_msi_count(dev);
-       	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0)
-               	device_printf(adapter->dev,"Using MSI interrupt\n");
-	return (msgs);
+	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0) {
+		device_printf(adapter->dev," Using MSI interrupt\n");
+		return (msgs);
+	}
+	return (0);
 }
 
 /*********************************************************************
