@@ -460,6 +460,8 @@ int	pci_msi_device_blacklisted(device_t dev);
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
 int	pci_get_max_read_req(device_t dev);
+void	pci_restore_state(device_t dev);
+void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
 
 #endif	/* _SYS_BUS_H_ */

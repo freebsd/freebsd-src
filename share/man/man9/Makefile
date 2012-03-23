@@ -944,6 +944,8 @@ MLINKS+=pci.9 pci_disable_busmaster.9 \
 	pci.9 pci_find_device.9 \
 	pci.9 pci_get_powerstate.9 \
 	pci.9 pci_read_config.9 \
+	pci.9 pci_restore_state.9 \
+	pci.9 pci_save_state.9 \
 	pci.9 pci_set_powerstate.9 \
 	pci.9 pci_write_config.9
 MLINKS+=pfil.9 pfil_add_hook.9 \
