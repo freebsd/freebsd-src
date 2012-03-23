@@ -935,18 +935,30 @@ MLINKS+=namei.9 NDFREE.9 \
 MLINKS+=pbuf.9 getpbuf.9 \
 	pbuf.9 relpbuf.9 \
 	pbuf.9 trypbuf.9
-MLINKS+=pci.9 pci_disable_busmaster.9 \
+MLINKS+=pci.9 pci_alloc_msi.9 \
+	pci.9 pci_alloc_msix.9 \
+	pci.9 pci_disable_busmaster.9 \
 	pci.9 pci_disable_io.9 \
 	pci.9 pci_enable_busmaster.9 \
 	pci.9 pci_enable_io.9 \
 	pci.9 pci_find_bsf.9 \
+	pci.9 pci_find_cap.9 \
 	pci.9 pci_find_dbsf.9 \
 	pci.9 pci_find_device.9 \
+	pci.9 pci_get_max_read_req.9 \
 	pci.9 pci_get_powerstate.9 \
+	pci.9 pci_get_vpd_ident.9 \
+	pci.9 pci_get_vpd_readonly.9 \
+	pci.9 pci_msi_count.9 \
+	pci.9 pci_msix_count.9 \
+	pci.9 pci_pending_msix.9 \
 	pci.9 pci_read_config.9 \
+	pci.9 pci_release_msi.9 \
+	pci.9 pci_remap_msix.9 \
 	pci.9 pci_restore_state.9 \
 	pci.9 pci_save_state.9 \
 	pci.9 pci_set_powerstate.9 \
+	pci.9 pci_set_max_read_req.9 \
 	pci.9 pci_write_config.9
 MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_hook_get.9 \
