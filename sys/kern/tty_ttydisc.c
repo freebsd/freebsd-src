@@ -180,7 +180,7 @@ static int
 ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 {
 	size_t vmin = tp->t_termios.c_cc[VMIN];
-	int oresid = uio->uio_resid;
+	ssize_t oresid = uio->uio_resid;
 	int error;
 
 	MPASS(tp->t_termios.c_cc[VTIME] == 0);
@@ -265,7 +265,7 @@ static int
 ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 {
 	size_t vmin = tp->t_termios.c_cc[VMIN];
-	int oresid = uio->uio_resid;
+	ssize_t oresid = uio->uio_resid;
 	int error;
 
 	MPASS(tp->t_termios.c_cc[VMIN] != 0);
@@ -1174,7 +1174,7 @@ int
 ttydisc_getc_uio(struct tty *tp, struct uio *uio)
 {
 	int error = 0;
-	int obytes = uio->uio_resid;
+	ssize_t obytes = uio->uio_resid;
 	size_t len;
 	char buf[TTY_STACKBUF];
 

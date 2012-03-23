@@ -656,7 +656,7 @@ void	vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
-	    struct ucred *active_cred, struct ucred *file_cred, int *aresid,
+	    struct ucred *active_cred, struct ucred *file_cred, ssize_t *aresid,
 	    struct thread *td);
 int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,

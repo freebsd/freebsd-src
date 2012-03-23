@@ -616,7 +616,8 @@ pfs_read(struct vop_read_args *va)
 	struct proc *proc;
 	struct sbuf *sb = NULL;
 	int error, locked;
-	unsigned int buflen, offset, resid;
+	off_t offset;
+	ssize_t buflen, resid;
 
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);

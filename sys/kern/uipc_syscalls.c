@@ -756,8 +756,8 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	struct uio auio;
 	struct iovec *iov;
 	struct socket *so;
-	int i;
-	int len, error;
+	int i, error;
+	ssize_t len;
 	cap_rights_t rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
@@ -956,7 +956,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	struct uio auio;
 	struct iovec *iov;
 	int i;
-	socklen_t len;
+	ssize_t len;
 	int error;
 	struct mbuf *m, *control = 0;
 	caddr_t ctlbuf;
@@ -1007,19 +1007,19 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
 	if (error) {
-		if (auio.uio_resid != (int)len && (error == ERESTART ||
+		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	}
 #ifdef KTRACE
 	if (ktruio != NULL) {
-		ktruio->uio_resid = (int)len - auio.uio_resid;
+		ktruio->uio_resid = len - auio.uio_resid;
 		ktrgenio(s, UIO_READ, ktruio, error);
 	}
 #endif
 	if (error)
 		goto out;
-	td->td_retval[0] = (int)len - auio.uio_resid;
+	td->td_retval[0] = len - auio.uio_resid;
 	if (mp->msg_name) {
 		len = mp->msg_namelen;
 		if (len <= 0 || fromsa == 0)
@@ -2086,7 +2086,8 @@ retry_space:
 			else if (uap->flags & SF_NODISKIO)
 				error = EBUSY;
 			else {
-				int bsize, resid;
+				int bsize;
+				ssize_t resid;
 
 				/*
 				 * Ensure that our page is still around
@@ -2518,7 +2519,8 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
-	int error=0, len, i;
+	int error=0, i;
+	ssize_t len;
 	struct sockaddr *to = NULL;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
@@ -2649,7 +2651,8 @@ sys_sctp_generic_recvmsg(td, uap)
 	struct file *fp = NULL;
 	struct sockaddr *fromsa;
 	int fromlen;
-	int len, i, msg_flags;
+	ssize_t len;
+	int i, msg_flags;
 	int error = 0;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
@@ -2727,7 +2730,7 @@ sys_sctp_generic_recvmsg(td, uap)
 		    (struct sctp_sndrcvinfo *)&sinfo, 1);
 	CURVNET_RESTORE();
 	if (error) {
-		if (auio.uio_resid != (int)len && (error == ERESTART ||
+		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	} else {
@@ -2736,13 +2739,13 @@ sys_sctp_generic_recvmsg(td, uap)
 	}
 #ifdef KTRACE
 	if (ktruio != NULL) {
-		ktruio->uio_resid = (int)len - auio.uio_resid;
+		ktruio->uio_resid = len - auio.uio_resid;
 		ktrgenio(uap->sd, UIO_READ, ktruio, error);
 	}
 #endif /* KTRACE */
 	if (error)
 		goto out;
-	td->td_retval[0] = (int)len - auio.uio_resid;
+	td->td_retval[0] = len - auio.uio_resid;
 
 	if (fromlen && uap->from) {
 		len = fromlen;
@@ -2750,7 +2753,7 @@ sys_sctp_generic_recvmsg(td, uap)
 			len = 0;
 		else {
 			len = MIN(len, fromsa->sa_len);
-			error = copyout(fromsa, uap->from, (unsigned)len);
+			error = copyout(fromsa, uap->from, (size_t)len);
 			if (error)
 				goto out;
 		}
