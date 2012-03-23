@@ -1254,7 +1254,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
-		lib/libbz2 lib/libcom_err lib/libcrypt \
+		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
@@ -1341,6 +1341,7 @@ _kerberos5_lib_libheimntlm= kerberos5/lib/libheimntlm
 _kerberos5_lib_libheimsqlite= kerberos5/lib/libheimsqlite
 _kerberos5_lib_libheimipcc= kerberos5/lib/libheimipcc
 _kerberos5_lib_libwind= kerberos5/lib/libwind
+_libcom_err= lib/libcom_err
 .endif
 
 .if ${MK_NIS} != "no"

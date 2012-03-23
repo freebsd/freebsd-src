@@ -2184,6 +2184,7 @@ OLD_FILES+=usr/share/man/man8/jls.8.gz
 .endif
 
 .if ${MK_KERBEROS} == no
+OLD_FILES+=usr/bin/compile_et
 OLD_FILES+=usr/bin/hxtool
 OLD_FILES+=usr/bin/kadmin
 OLD_FILES+=usr/bin/kdestroy
@@ -2266,6 +2267,11 @@ OLD_FILES+=usr/lib/libasn1.a
 OLD_FILES+=usr/lib/libasn1.so
 OLD_LIBS+=usr/lib/libasn1.so.10
 OLD_FILES+=usr/lib/libasn1_p.a
+OLD_FILES+=usr/lib/libcom_err.a
+OLD_FILES+=usr/lib/libcom_err.so
+OLD_LIBS+=usr/lib/libcom_err.so.5
+OLD_FILES+=usr/lib/libcom_err_p.a
+OLD_FILES+=usr/lib/libcom_err_p.a
 OLD_FILES+=usr/lib/libgssapi_krb5.a
 OLD_FILES+=usr/lib/libgssapi_krb5.so
 OLD_LIBS+=usr/lib/libgssapi_krb5.so.10
