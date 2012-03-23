@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 201203XX: Update heimdal to 1.5.1.
+# 20120322: Update heimdal to 1.5.1.
 OLD_FILES+=usr/include/krb5-v4compat.h \
 	usr/include/krb_err.h \
 	usr/include/hdb-private.h \
