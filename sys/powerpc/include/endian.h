@@ -124,8 +124,8 @@ __bswap64_var(__uint64_t _x)
 	    ((_x << 40) & ((__uint64_t)0xff << 48)) | ((_x << 56)));
 }
 
-#define	__bswap16(x)	(__is_constant(x) ? __bswap16_const(x) : \
-	__bswap16_var(x))
+#define	__bswap16(x)	((__uint16_t)(__is_constant(x) ? __bswap16_const(x) : \
+	__bswap16_var(x)))
 #define	__bswap32(x)	(__is_constant(x) ? __bswap32_const(x) : \
 	__bswap32_var(x))
 #define	__bswap64(x)	(__is_constant(x) ? __bswap64_const(x) : \
