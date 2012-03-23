@@ -99,7 +99,8 @@ static device_method_t acpi_pci_methods[] = {
 
 static devclass_t pci_devclass;
 
-DEFINE_CLASS_1(pci, acpi_pci_driver, acpi_pci_methods, 0, pci_driver);
+DEFINE_CLASS_1(pci, acpi_pci_driver, acpi_pci_methods, sizeof(struct pci_softc),
+    pci_driver);
 DRIVER_MODULE(acpi_pci, pcib, acpi_pci_driver, pci_devclass, 0, 0);
 MODULE_DEPEND(acpi_pci, acpi, 1, 1, 1);
 MODULE_DEPEND(acpi_pci, pci, 1, 1, 1);
@@ -288,7 +289,11 @@ acpi_pci_probe(device_t dev)
 static int
 acpi_pci_attach(device_t dev)
 {
-	int busno, domain;
+	int busno, domain, error;
+
+	error = pci_attach_common(dev);
+	if (error)
+		return (error);
 
 	/*
 	 * Since there can be multiple independantly numbered PCI
@@ -298,9 +303,6 @@ acpi_pci_attach(device_t dev)
 	 */
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	if (bootverbose)
-		device_printf(dev, "domain=%d, physical bus=%d\n",
-		    domain, busno);
 
 	/*
 	 * First, PCI devices are added as in the normal PCI bus driver.

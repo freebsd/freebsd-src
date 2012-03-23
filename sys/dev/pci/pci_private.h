@@ -38,11 +38,16 @@
  */
 DECLARE_CLASS(pci_driver);
 
+struct pci_softc {
+	bus_dma_tag_t sc_dma_tag;
+};
+
 void		pci_add_children(device_t dev, int domain, int busno,
 		    size_t dinfo_size);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
+int		pci_attach_common(device_t dev);
 void		pci_driver_added(device_t dev, driver_t *driver);
 int		pci_print_child(device_t dev, device_t child);
 void		pci_probe_nomatch(device_t dev, device_t child);
