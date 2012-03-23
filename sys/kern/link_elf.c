@@ -655,7 +655,8 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	Elf_Addr base_vaddr;
 	Elf_Addr base_vlimit;
 	int error = 0;
-	int resid, flags;
+	ssize_t resid;
+	int flags;
 	elf_file_t ef;
 	linker_file_t lf;
 	Elf_Shdr *shdr;

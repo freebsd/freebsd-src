@@ -373,7 +373,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	int ioflg;
 	struct ucred *active_cred;
 	struct ucred *file_cred;
-	int *aresid;
+	ssize_t *aresid;
 	struct thread *td;
 {
 	struct uio auio;
@@ -470,7 +470,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 	struct thread *td;
 {
 	int error = 0;
-	int iaresid;
+	ssize_t iaresid;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 

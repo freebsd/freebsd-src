@@ -318,8 +318,7 @@ cd9660_read(ap)
 	do {
 		lbn = lblkno(imp, uio->uio_offset);
 		on = blkoff(imp, uio->uio_offset);
-		n = min((u_int)(imp->logical_block_size - on),
-			uio->uio_resid);
+		n = MIN(imp->logical_block_size - on, uio->uio_resid);
 		diff = (off_t)ip->i_size - uio->uio_offset;
 		if (diff <= 0)
 			return (0);
@@ -343,7 +342,7 @@ cd9660_read(ap)
 			} else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		}
-		n = min(n, size - bp->b_resid);
+		n = MIN(n, size - bp->b_resid);
 		if (error) {
 			brelse(bp);
 			return (error);

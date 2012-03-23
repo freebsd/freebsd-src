@@ -68,7 +68,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	int flags;
 	int i;
 	int nbytes;
-	int resid;
+	ssize_t resid;
 	int vfslocked;
 	size_t sz;
 	struct nameidata nd;

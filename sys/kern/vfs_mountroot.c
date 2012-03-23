@@ -871,9 +871,8 @@ vfs_mountroot_readconf(struct thread *td, struct sbuf *sb)
 	static char buf[128];
 	struct nameidata nd;
 	off_t ofs;
-	int error, flags;
-	int len, resid;
-	int vfslocked;
+	ssize_t resid;
+	int error, flags, len, vfslocked;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE,
 	    "/.mount.conf", td);

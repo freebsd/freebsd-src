@@ -1747,7 +1747,8 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	struct vattr vattr, mattr;
 	u_char *hints = NULL;
 	u_char *cp, *recptr, *bufend, *result, *best, *pathbuf, *sep;
-	int error, ival, bestver, *intp, reclen, found, flags, clen, blen;
+	int error, ival, bestver, *intp, found, flags, clen, blen;
+	ssize_t reclen;
 	int vfslocked = 0;
 
 	result = NULL;
@@ -1792,7 +1793,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	VFS_UNLOCK_GIANT(vfslocked);
 	nd.ni_vp = NULL;
 	if (reclen != 0) {
-		printf("can't read %d\n", reclen);
+		printf("can't read %zd\n", reclen);
 		goto bad;
 	}
 	intp = (int *)hints;
