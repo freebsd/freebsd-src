@@ -56,7 +56,6 @@ OLD_FILES+=usr/include/krb5-v4compat.h \
         usr/share/man/man3/krb5_kt_cursor.3.gz \
         usr/share/man/man3/krb5_kt_ops.3.gz \
         usr/share/man/man3/krb5_set_warn_dest.3.gz \
-        usr/share/man/man3/krb5_verify_user.3.gz \
         usr/share/man/man3/krb5_verr.3.gz \
         usr/share/man/man3/krb5_verrx.3.gz \
         usr/share/man/man3/krb5_vwarnx.3.gz \
@@ -70,7 +69,16 @@ OLD_LIBS+=usr/lib/libasn1.so.10 \
 	usr/lib/libkadm5srv.so.10 \
 	usr/lib/libkafs5.so.10 \
 	usr/lib/libkrb5.so.10 \
-	usr/lib/libroken.so.10
+	usr/lib/libroken.so.10 \
+	usr/lib32/libasn1.so.10 \
+	usr/lib32/libhdb.so.10 \
+	usr/lib32/libheimntlm.so.10 \
+	usr/lib32/libhx509.so.10 \
+	usr/lib32/libkadm5clnt.so.10 \
+	usr/lib32/libkadm5srv.so.10 \
+	usr/lib32/libkafs5.so.10 \
+	usr/lib32/libkrb5.so.10 \
+	usr/lib32/libroken.so.10
 # 20120309: Remove fifofs header files.
 OLD_FILES+=usr/include/fs/fifofs/fifo.h
 OLD_DIRS+=usr/include/fs/fifofs
