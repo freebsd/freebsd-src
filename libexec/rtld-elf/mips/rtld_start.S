@@ -80,7 +80,8 @@ LEAF(rtld_start)
 	move	a0, s0			/* stack pointer */
 	move	t9, v0
 	PTR_SUBU sp, 4*SZREG		/* ABI requires to reserve memory for 4 regs */
-	jr	t9			/* _start(sp, cleanup, obj); */
+	move	ra,t9			/* RA == PC signals backtrace routine to stop */
+	j	t9			/* _start(sp, cleanup, obj); */
 	move	a3, s3			/* restore ps_strings */
 END(rtld_start)
 
