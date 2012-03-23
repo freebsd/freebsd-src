@@ -2180,7 +2180,8 @@ nfs_readdir(struct vop_readdir_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct uio *uio = ap->a_uio;
-	int tresid, error = 0;
+	ssize_t tresid;
+	int error = 0;
 	struct vattr vattr;
 	
 	if (vp->v_type != VDIR) 

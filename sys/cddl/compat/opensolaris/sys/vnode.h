@@ -223,7 +223,8 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
     ssize_t *residp)
 {
 	struct thread *td = curthread;
-	int error, vfslocked, resid;
+	int error, vfslocked;
+	ssize_t resid;
 
 	ASSERT(ioflag == 0);
 	ASSERT(ulimit == RLIM64_INFINITY);

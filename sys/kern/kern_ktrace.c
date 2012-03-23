@@ -682,7 +682,7 @@ ktrgenio(fd, rw, uio, error)
 	}
 	uio->uio_offset = 0;
 	uio->uio_rw = UIO_WRITE;
-	datalen = imin(uio->uio_resid, ktr_geniosize);
+	datalen = MIN(uio->uio_resid, ktr_geniosize);
 	buf = malloc(datalen, M_KTRACE, M_WAITOK);
 	error = uiomove(buf, datalen, uio);
 	free(uio, M_IOV);
