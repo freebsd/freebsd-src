@@ -152,6 +152,7 @@ PMC_CLASSDEP_TABLE(p5, P5);
 PMC_CLASSDEP_TABLE(p6, P6);
 PMC_CLASSDEP_TABLE(xscale, XSCALE);
 PMC_CLASSDEP_TABLE(mips24k, MIPS24K);
+PMC_CLASSDEP_TABLE(octeon, OCTEON);
 PMC_CLASSDEP_TABLE(ucf, UCF);
 PMC_CLASSDEP_TABLE(ppc7450, PPC7450);
 
@@ -227,6 +228,7 @@ PMC_MDEP_TABLE(p5, P5, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_XSCALE);
 PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_MIPS24K);
+PMC_MDEP_TABLE(octeon, OCTEON, PMC_CLASS_OCTEON);
 PMC_MDEP_TABLE(ppc7450, PPC7450, PMC_CLASS_PPC7450);
 
 static const struct pmc_event_descr tsc_event_table[] =
@@ -280,6 +282,7 @@ PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 
 #if defined(__mips__)
 PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips);
+PMC_CLASS_TABLE_DESC(octeon, OCTEON, octeon, mips);
 #endif /* __mips__ */
 
 #if defined(__powerpc__)
@@ -2208,6 +2211,13 @@ static struct pmc_event_alias mips24k_aliases[] = {
 	EV_ALIAS(NULL, NULL)
 };
 
+static struct pmc_event_alias octeon_aliases[] = {
+	EV_ALIAS("instructions",	"RET"),
+	EV_ALIAS("branches",		"BR"),
+	EV_ALIAS("branch-mispredicts",	"BRMIS"),
+	EV_ALIAS(NULL, NULL)
+};
+
 #define	MIPS_KW_OS		"os"
 #define	MIPS_KW_USR		"usr"
 #define	MIPS_KW_ANYTHREAD	"anythread"
@@ -2645,6 +2655,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = mips24k_event_table;
 		count = PMC_EVENT_TABLE_SIZE(mips24k);
 		break;
+	case PMC_CLASS_OCTEON:
+		ev = octeon_event_table;
+		count = PMC_EVENT_TABLE_SIZE(octeon);
+		break;
 	case PMC_CLASS_PPC7450:
 		ev = ppc7450_event_table;
 		count = PMC_EVENT_TABLE_SIZE(ppc7450);
@@ -2864,6 +2878,10 @@ pmc_init(void)
 		PMC_MDEP_INIT(mips24k);
 		pmc_class_table[n] = &mips24k_class_table_descr;
 		break;
+	case PMC_CPU_MIPS_OCTEON:
+		PMC_MDEP_INIT(octeon);
+		pmc_class_table[n] = &octeon_class_table_descr;
+		break;
 #endif /* __mips__ */
 #if defined(__powerpc__)
 	case PMC_CPU_PPC_7450:
@@ -3019,6 +3037,9 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		ev = mips24k_event_table;
 		evfence = mips24k_event_table + PMC_EVENT_TABLE_SIZE(mips24k
 );
+	} else if (pe >= PMC_EV_OCTEON_FIRST && pe <= PMC_EV_OCTEON_LAST) {
+		ev = octeon_event_table;
+		evfence = octeon_event_table + PMC_EVENT_TABLE_SIZE(octeon);
 	} else if (pe >= PMC_EV_PPC7450_FIRST && pe <= PMC_EV_PPC7450_LAST) {
 		ev = ppc7450_event_table;
 		evfence = ppc7450_event_table + PMC_EVENT_TABLE_SIZE(ppc7450
