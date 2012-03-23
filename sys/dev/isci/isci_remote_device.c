@@ -74,13 +74,12 @@ scif_cb_remote_device_ready(SCI_CONTROLLER_HANDLE_T controller,
 		isci_controller->remote_device[device_index] =
 		    isci_remote_device;
 
-		if (isci_controller->sim != NULL) {
-			/* The sim object is not NULL, meaning we have attached
-			 *  the controller to CAM already.  In that case, create
-			 *  a CCB to instruct CAM to rescan this device.
-			 * If the sim object is NULL, this device will get
-			 *  scanned as part of the initial scan when the
-			 *  controller is attached to CAM.
+		if (isci_controller->has_been_scanned) {
+			/* The sim object has been scanned at least once
+			 *  already.  In that case, create a CCB to instruct
+			 *  CAM to rescan this device.
+			 * If the sim object has not been scanned, this device
+			 *  will get scanned as part of the initial scan.
 			 */
 			union ccb *ccb = xpt_alloc_ccb_nowait();
 
