@@ -2211,23 +2211,32 @@ g_part_unload_event(void *arg, int flag)
 int
 g_part_modevent(module_t mod, int type, struct g_part_scheme *scheme)
 {
+	struct g_part_scheme *iter;
 	uintptr_t arg;
 	int error;
 
+	error = 0;
 	switch (type) {
 	case MOD_LOAD:
-		TAILQ_INSERT_TAIL(&g_part_schemes, scheme, scheme_list);
-
-		error = g_retaste(&g_part_class);
-		if (error)
-			TAILQ_REMOVE(&g_part_schemes, scheme, scheme_list);
+		TAILQ_FOREACH(iter, &g_part_schemes, scheme_list) {
+			if (scheme == iter) {
+				printf("GEOM_PART: scheme %s is already "
+				    "registered!\n", scheme->name);
+				break;
+			}
+		}
+		if (iter == NULL) {
+			TAILQ_INSERT_TAIL(&g_part_schemes, scheme,
+			    scheme_list);
+			g_retaste(&g_part_class);
+		}
 		break;
 	case MOD_UNLOAD:
 		arg = (uintptr_t)scheme;
 		error = g_waitfor_event(g_part_unload_event, &arg, M_WAITOK,
 		    NULL);
-		if (!error)
-			error = (arg == (uintptr_t)scheme) ? EDOOFUS : arg;
+		if (error == 0)
+			error = arg;
 		break;
 	default:
 		error = EOPNOTSUPP;
