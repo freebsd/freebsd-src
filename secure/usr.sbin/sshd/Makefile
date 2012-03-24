@@ -43,6 +43,10 @@ LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lasn1
 DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
 LDADD+=	-lcrypto -lcrypt
 
+.if defined(LOCALBASE)
+CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
+.endif
+
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
