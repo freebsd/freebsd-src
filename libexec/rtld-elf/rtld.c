@@ -4390,6 +4390,7 @@ __stack_chk_fail(void)
 	_rtld_error("stack overflow detected; terminated");
 	die();
 }
+__weak_reference(__stack_chk_fail, __stack_chk_fail_local);
 
 void
 __chk_fail(void)
