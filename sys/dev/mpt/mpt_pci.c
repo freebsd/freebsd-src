@@ -105,8 +105,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpt_cam.h>
 #include <dev/mpt/mpt_raid.h>
 
-#include <dev/mpt/mpilib/mpi_cnfg.h>
-
 #if __FreeBSD_version < 700000
 #define	pci_msix_count(x)	0
 #define	pci_msi_count(x)	0
