@@ -57,8 +57,6 @@ static int		octeon_pmc_probe(device_t);
 static int		octeon_pmc_attach(device_t);
 static int		octeon_pmc_intr(void *);
 
-#define	OCTEON_PMC_IRQ	4
-
 static void
 octeon_pmc_identify(driver_t *drv, device_t parent)
 {
@@ -82,7 +80,6 @@ octeon_pmc_attach(device_t dev)
 	struct octeon_pmc_softc *sc;
 	int error;
 	int rid;
-	uint64_t cvmctl;
 
 	sc = device_get_softc(dev);
 
@@ -102,14 +99,6 @@ octeon_pmc_attach(device_t dev)
 		device_printf(dev, "bus_setup_intr failed: %d\n", error);
 		return (error);
 	}
-
-	/* 
-	 * Move the Performance Counter interrupt to OCTEON_PMC_IRQ
-	 */
-	cvmctl = mips_rd_cvmctl();
-	cvmctl &= ~(7 << 7);
-	cvmctl |= (OCTEON_PMC_IRQ + 2) << 7;
-	mips_wr_cvmctl(cvmctl);
 
 	return (0);
 }
