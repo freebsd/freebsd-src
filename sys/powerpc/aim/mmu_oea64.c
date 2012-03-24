@@ -1889,6 +1889,7 @@ static void
 moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 {
 	uintptr_t pt;
+	uint64_t oldlo;
 
 	/*
 	 * Grab the PTE pointer before we diddle with the cached PTE
@@ -1900,11 +1901,15 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	/*
 	 * Change the protection of the page.
 	 */
+	oldlo = pvo->pvo_pte.lpte.pte_lo;
 	pvo->pvo_pte.lpte.pte_lo &= ~LPTE_PP;
-	pvo->pvo_pte.lpte.pte_lo |= LPTE_BR;
 	pvo->pvo_pte.lpte.pte_lo &= ~LPTE_NOEXEC;
 	if ((prot & VM_PROT_EXECUTE) == 0) 
 		pvo->pvo_pte.lpte.pte_lo |= LPTE_NOEXEC;
+	if (prot & VM_PROT_WRITE) 
+		pvo->pvo_pte.lpte.pte_lo |= LPTE_BW;
+	else
+		pvo->pvo_pte.lpte.pte_lo |= LPTE_BR;
 
 	/*
 	 * If the PVO is in the page table, update that pte as well.
@@ -1921,9 +1926,11 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	}
 
 	/*
-	 * Update vm about the REF/CHG bits if the page is managed.
+	 * Update vm about the REF/CHG bits if the page is managed and we have
+	 * removed write access.
 	 */
-	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
+	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED && 
+	    (oldlo & LPTE_PP) != LPTE_BR && !(prot && VM_PROT_WRITE)) {
 		struct	vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
@@ -2345,7 +2352,8 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 	/*
 	 * Update vm about the REF/CHG bits if the page is managed.
 	 */
-	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
+	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED &&
+	    (pvo->pvo_pte.lpte.pte_lo & LPTE_PP) != LPTE_BR) {
 		struct	vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
