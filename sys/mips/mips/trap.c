@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_global.h"
 #include "opt_ktrace.h"
+#include "opt_kdtrace.h"
 
 #define	NO_REG_DEFS	1	/* Prevent asm.h from including regdef.h */
 #include <sys/param.h>
@@ -91,6 +92,33 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+/*
+ * This is a hook which is initialised by the dtrace module
+ * to handle traps which might occur during DTrace probe
+ * execution.
+ */
+dtrace_trap_func_t	dtrace_trap_func;
+
+dtrace_doubletrap_func_t	dtrace_doubletrap_func;
+
+/*
+ * This is a hook which is initialised by the systrace module
+ * when it is loaded. This keeps the DTrace syscall provider
+ * implementation opaque. 
+ */
+systrace_probe_func_t	systrace_probe_func;
+
+/*
+ * These hooks are necessary for the pid, usdt and fasttrap providers.
+ */
+dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
+dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
+dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
 #ifdef TRAP_DEBUG
@@ -529,6 +557,29 @@ trap(struct trapframe *trapframe)
 		}
 	}
 #endif
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * A trap can occur while DTrace executes a probe. Before
+	 * executing the probe, DTrace blocks re-scheduling and sets
+	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * want to fault. On returning from the probe, the no-fault
+	 * flag is cleared and finally re-scheduling is enabled.
+	 *
+	 * If the DTrace kernel module has registered a trap handler,
+	 * call it and if it returns non-zero, assume that it has
+	 * handled the trap and modified the trap frame so that this
+	 * function can return normally.
+	 */
+	/*
+	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
+	 */
+	if (!usermode) {
+		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(trapframe, type))
+			return (trapframe->pc);
+	}
+#endif
+
 	switch (type) {
 	case T_MCHECK:
 #ifdef DDB
@@ -633,6 +684,9 @@ dofault:
 			PROC_LOCK(p);
 			--p->p_lock;
 			PROC_UNLOCK(p);
+			/*
+			 * XXXDTRACE: add dtrace_doubletrap_func here?
+			 */
 #ifdef VMFAULT_TRACE
 			printf("vm_fault(%p (pmap %p), %p (%p), %x, %d) -> %x at pc %p\n",
 			    map, &vm->vm_pmap, (void *)va, (void *)(intptr_t)trapframe->badvaddr,
