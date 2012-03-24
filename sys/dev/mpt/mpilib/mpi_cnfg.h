@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
+ * Copyright (c) 2000-2010, LSI Logic Corporation and its contributors.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
  *          Title:  MPI Config message, structures, and Pages
  *  Creation Date:  July 27, 2000
  *
- *    mpi_cnfg.h Version:  01.05.15
+ *    mpi_cnfg.h Version:  01.05.19
  *
  *  Version History
  *  ---------------
@@ -335,6 +335,28 @@
  *                      Expander Page 0 Flags field.
  *                      Fixed define for
  *                      MPI_SAS_EXPANDER1_DISCINFO_BAD_PHY_DISABLED.
+ *  08-07-07  01.05.16  Added MPI_IOCPAGE6_CAP_FLAGS_MULTIPORT_DRIVE_SUPPORT
+ *                      define.
+ *                      Added BIOS Page 4 structure.
+ *                      Added MPI_RAID_PHYS_DISK1_PATH_MAX define for RAID
+ *                      Physcial Disk Page 1.
+ *  01-15-07  01.05.17  Added additional bit defines for ExtFlags field of
+ *                      Manufacturing Page 4.
+ *                      Added Solid State Drives Supported bit to IOC Page 6
+ *                      Capabilities Flags.
+ *                      Added new value for AccessStatus field of SAS Device
+ *                      Page 0 (_SATA_NEEDS_INITIALIZATION).
+ *  03-28-08  01.05.18  Defined new bits in Manufacturing Page 4 ExtFlags field
+ *                      to control coercion size and the mixing of SAS and SATA
+ *                      SSD drives.
+ *  07-11-08  01.05.19  Added defines MPI_MANPAGE4_EXTFLAGS_RAID0_SINGLE_DRIVE
+ *                      and MPI_MANPAGE4_EXTFLAGS_SSD_SCRUB_DISABLE for ExtFlags
+ *                      field of Manufacturing Page 4.
+ *                      Added defines for a new bit in BIOS Page 1 BiosOptions
+ *                      field to control adapter scan order.
+ *                      Added BootDeviceWaitTime field to SAS IO Unit Page 2.
+ *                      Added MPI_SAS_PHY0_PHYINFO_PHY_VACANT for use in PhyInfo
+ *                      field of SAS Expander Page 1.
  *  --------------------------------------------------------------------------
  */
 
@@ -713,6 +735,16 @@ typedef struct _CONFIG_PAGE_MANUFACTURING_4
 #define MPI_MANPAGE4_IR_NO_MIX_SAS_SATA                 (0x01)
 
 /* defines for the ExtFlags field */
+#define MPI_MANPAGE4_EXTFLAGS_RAID0_SINGLE_DRIVE        (0x0400)
+#define MPI_MANPAGE4_EXTFLAGS_SSD_SCRUB_DISABLE         (0x0200)
+#define MPI_MANPAGE4_EXTFLAGS_MASK_COERCION_SIZE        (0x0180)
+#define MPI_MANPAGE4_EXTFLAGS_SHIFT_COERCION_SIZE       (7)
+#define MPI_MANPAGE4_EXTFLAGS_1GB_COERCION_SIZE         (0)
+#define MPI_MANPAGE4_EXTFLAGS_128MB_COERCION_SIZE       (1)
+
+#define MPI_MANPAGE4_EXTFLAGS_NO_MIX_SSD_SAS_SATA       (0x0040)
+#define MPI_MANPAGE4_EXTFLAGS_MIX_SSD_AND_NON_SSD       (0x0020)
+#define MPI_MANPAGE4_EXTFLAGS_DUAL_PORT_SUPPORT         (0x0010)
 #define MPI_MANPAGE4_EXTFLAGS_HIDE_NON_IR_METADATA      (0x0008)
 #define MPI_MANPAGE4_EXTFLAGS_SAS_CACHE_DISABLE         (0x0004)
 #define MPI_MANPAGE4_EXTFLAGS_SATA_CACHE_DISABLE        (0x0002)
@@ -1186,6 +1218,8 @@ typedef struct _CONFIG_PAGE_IOC_6
 
 /* IOC Page 6 Capabilities Flags */
 
+#define MPI_IOCPAGE6_CAP_FLAGS_SSD_SUPPORT              (0x00000020)
+#define MPI_IOCPAGE6_CAP_FLAGS_MULTIPORT_DRIVE_SUPPORT  (0x00000010)
 #define MPI_IOCPAGE6_CAP_FLAGS_DISABLE_SMART_POLLING    (0x00000008)
 
 #define MPI_IOCPAGE6_CAP_FLAGS_MASK_METADATA_SIZE       (0x00000006)
@@ -1222,6 +1256,10 @@ typedef struct _CONFIG_PAGE_BIOS_1
 #define MPI_BIOSPAGE1_OPTIONS_SPI_ENABLE                (0x00000400)
 #define MPI_BIOSPAGE1_OPTIONS_FC_ENABLE                 (0x00000200)
 #define MPI_BIOSPAGE1_OPTIONS_SAS_ENABLE                (0x00000100)
+
+#define MPI_BIOSPAGE1_OPTIONS_SCAN_HIGH_TO_LOW          (0x00000002)
+#define MPI_BIOSPAGE1_OPTIONS_SCAN_LOW_TO_HIGH          (0x00000000)
+
 #define MPI_BIOSPAGE1_OPTIONS_DISABLE_BIOS              (0x00000001)
 
 /* values for the IOCSettings field */
@@ -1454,6 +1492,15 @@ typedef struct _CONFIG_PAGE_BIOS_2
 #define MPI_BIOSPAGE2_FORM_FC_WWN                       (0x04)
 #define MPI_BIOSPAGE2_FORM_SAS_WWN                      (0x05)
 #define MPI_BIOSPAGE2_FORM_ENCLOSURE_SLOT               (0x06)
+
+typedef struct _CONFIG_PAGE_BIOS_4
+{
+    CONFIG_PAGE_HEADER      Header;                     /* 00h */
+    U64                     ReassignmentBaseWWID;       /* 04h */
+} CONFIG_PAGE_BIOS_4, MPI_POINTER PTR_CONFIG_PAGE_BIOS_4,
+  BIOSPage4_t, MPI_POINTER pBIOSPage4_t;
+
+#define MPI_BIOSPAGE4_PAGEVERSION                       (0x00)
 
 
 /****************************************************************************
@@ -2446,6 +2493,15 @@ typedef struct _RAID_PHYS_DISK1_PATH
 #define MPI_RAID_PHYSDISK1_FLAG_BROKEN          (0x0002)
 #define MPI_RAID_PHYSDISK1_FLAG_INVALID         (0x0001)
 
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check Header.PageLength or NumPhysDiskPaths at runtime.
+ */
+#ifndef MPI_RAID_PHYS_DISK1_PATH_MAX
+#define MPI_RAID_PHYS_DISK1_PATH_MAX    (1)
+#endif
+
 typedef struct _CONFIG_PAGE_RAID_PHYS_DISK_1
 {
     CONFIG_PAGE_HEADER              Header;             /* 00h */
@@ -2453,7 +2509,7 @@ typedef struct _CONFIG_PAGE_RAID_PHYS_DISK_1
     U8                              PhysDiskNum;        /* 05h */
     U16                             Reserved2;          /* 06h */
     U32                             Reserved1;          /* 08h */
-    RAID_PHYS_DISK1_PATH            Path[1];            /* 0Ch */
+    RAID_PHYS_DISK1_PATH            Path[MPI_RAID_PHYS_DISK1_PATH_MAX];/* 0Ch */
 } CONFIG_PAGE_RAID_PHYS_DISK_1, MPI_POINTER PTR_CONFIG_PAGE_RAID_PHYS_DISK_1,
   RaidPhysDiskPage1_t, MPI_POINTER pRaidPhysDiskPage1_t;
 
@@ -2578,6 +2634,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 #define MPI_SAS_IOUNIT0_RATE_SATA_OOB_COMPLETE              (0x03)
 #define MPI_SAS_IOUNIT0_RATE_1_5                            (0x08)
 #define MPI_SAS_IOUNIT0_RATE_3_0                            (0x09)
+#define MPI_SAS_IOUNIT0_RATE_6_0                            (0x0A)
 
 /* see mpi_sas.h for values for SAS IO Unit Page 0 ControllerPhyDeviceInfo values */
 
@@ -2697,7 +2754,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_2
 {
     CONFIG_EXTENDED_PAGE_HEADER         Header;                 /* 00h */
     U8                                  NumDevsPerEnclosure;    /* 08h */
-    U8                                  Reserved1;              /* 09h */
+    U8                                  BootDeviceWaitTime;     /* 09h */
     U16                                 Reserved2;              /* 0Ah */
     U16                                 MaxPersistentIDs;       /* 0Ch */
     U16                                 NumPersistentIDsUsed;   /* 0Eh */
@@ -2707,7 +2764,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_2
 } CONFIG_PAGE_SAS_IO_UNIT_2, MPI_POINTER PTR_CONFIG_PAGE_SAS_IO_UNIT_2,
   SasIOUnitPage2_t, MPI_POINTER pSasIOUnitPage2_t;
 
-#define MPI_SASIOUNITPAGE2_PAGEVERSION      (0x06)
+#define MPI_SASIOUNITPAGE2_PAGEVERSION      (0x07)
 
 /* values for SAS IO Unit Page 2 Status field */
 #define MPI_SAS_IOUNIT2_STATUS_DEVICE_LIMIT_EXCEEDED        (0x08)
@@ -2871,6 +2928,7 @@ typedef struct _CONFIG_PAGE_SAS_DEVICE_0
 #define MPI_SAS_DEVICE0_ASTATUS_SATA_INIT_FAILED            (0x01)
 #define MPI_SAS_DEVICE0_ASTATUS_SATA_CAPABILITY_FAILED      (0x02)
 #define MPI_SAS_DEVICE0_ASTATUS_SATA_AFFILIATION_CONFLICT   (0x03)
+#define MPI_SAS_DEVICE0_ASTATUS_SATA_NEEDS_INITIALIZATION   (0x04)
 /* specific values for SATA Init failures */
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_UNKNOWN                 (0x10)
 #define MPI_SAS_DEVICE0_ASTATUS_SIF_AFFILIATION_CONFLICT    (0x11)
@@ -2981,6 +3039,7 @@ typedef struct _CONFIG_PAGE_SAS_PHY_0
 #define MPI_SAS_PHY0_FLAGS_SGPIO_DIRECT_ATTACH_ENC              (0x01)
 
 /* values for SAS PHY Page 0 PhyInfo field */
+#define MPI_SAS_PHY0_PHYINFO_PHY_VACANT                         (0x80000000)
 #define MPI_SAS_PHY0_PHYINFO_SATA_PORT_ACTIVE                   (0x00004000)
 #define MPI_SAS_PHY0_PHYINFO_SATA_PORT_SELECTOR                 (0x00002000)
 #define MPI_SAS_PHY0_PHYINFO_VIRTUAL_PHY                        (0x00001000)
