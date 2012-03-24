@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
+ * Copyright (c) 2000-2010, LSI Logic Corporation and its contributors.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
