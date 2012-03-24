@@ -197,6 +197,11 @@ _libefi=	libefi
 _libsmb=	libsmb
 .endif
 
+.if ${MACHINE_CPUARCH} == "mips"
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
