@@ -396,29 +396,6 @@ vm_page_to_pvoh(vm_page_t m)
 }
 
 static __inline void
-moea64_attr_clear(vm_page_t m, u_int64_t ptebit)
-{
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	m->md.mdpg_attrs &= ~ptebit;
-}
-
-static __inline u_int64_t
-moea64_attr_fetch(vm_page_t m)
-{
-
-	return (m->md.mdpg_attrs);
-}
-
-static __inline void
-moea64_attr_save(vm_page_t m, u_int64_t ptebit)
-{
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	m->md.mdpg_attrs |= ptebit;
-}
-
-static __inline void
 moea64_pte_create(struct lpte *pt, uint64_t vsid, vm_offset_t va, 
     uint64_t pte_lo, int flags)
 {
@@ -1555,7 +1532,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	struct	pvo_entry *pvo;
 	uintptr_t pt;
 	pmap_t	pmap;
-	uint64_t lo;
+	uint64_t lo = 0;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_remove_write: page %p is not managed", m));
@@ -1570,7 +1547,6 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
-	lo = moea64_attr_fetch(m);
 	powerpc_sync();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		pmap = pvo->pvo_pmap;
@@ -1593,10 +1569,8 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 		UNLOCK_TABLE();
 		PMAP_UNLOCK(pmap);
 	}
-	if ((lo & LPTE_CHG) != 0) {
-		moea64_attr_clear(m, LPTE_CHG);
+	if ((lo & LPTE_CHG) != 0) 
 		vm_page_dirty(m);
-	}
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
@@ -1945,6 +1919,21 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 			    PAGE_SIZE);
 		}
 	}
+
+	/*
+	 * Update vm about the REF/CHG bits if the page is managed.
+	 */
+	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
+		struct	vm_page *pg;
+
+		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
+		if (pg != NULL) {
+			if (pvo->pvo_pte.lpte.pte_lo & LPTE_CHG)
+				vm_page_dirty(pg);
+			if (pvo->pvo_pte.lpte.pte_lo & LPTE_REF)
+				vm_page_aflag_set(pg, PGA_REFERENCED);
+		}
+	}
 	UNLOCK_TABLE();
 }
 
@@ -2055,8 +2044,10 @@ moea64_remove_pages(mmu_t mmu, pmap_t pm)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo)
-		moea64_pvo_remove(mmu, pvo);
+	LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
+		if (!(pvo->pvo_vaddr & PVO_WIRED))
+			moea64_pvo_remove(mmu, pvo);
+	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
 }
@@ -2115,10 +2106,8 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		moea64_pvo_remove(mmu, pvo);
 		PMAP_UNLOCK(pmap);
 	}
-	if ((m->aflags & PGA_WRITEABLE) && moea64_is_modified(mmu, m)) {
-		moea64_attr_clear(m, LPTE_CHG);
+	if ((m->aflags & PGA_WRITEABLE) && moea64_is_modified(mmu, m))
 		vm_page_dirty(m);
-	}
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
@@ -2354,15 +2343,17 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*
-	 * Save the REF/CHG bits into their cache if the page is managed.
+	 * Update vm about the REF/CHG bits if the page is managed.
 	 */
 	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
 		struct	vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
 		if (pg != NULL) {
-			moea64_attr_save(pg, pvo->pvo_pte.lpte.pte_lo &
-			    (LPTE_REF | LPTE_CHG));
+			if (pvo->pvo_pte.lpte.pte_lo & LPTE_CHG)
+				vm_page_dirty(pg);
+			if (pvo->pvo_pte.lpte.pte_lo & LPTE_REF)
+				vm_page_aflag_set(pg, PGA_REFERENCED);
 		}
 	}
 
@@ -2436,19 +2427,13 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	struct	pvo_entry *pvo;
 	uintptr_t pt;
 
-	if (moea64_attr_fetch(m) & ptebit)
-		return (TRUE);
-
 	vm_page_lock_queues();
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-
 		/*
-		 * See if we saved the bit off.  If so, cache it and return
-		 * success.
+		 * See if we saved the bit off.  If so, return success.
 		 */
 		if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
-			moea64_attr_save(m, ptebit);
 			vm_page_unlock_queues();
 			return (TRUE);
 		}
@@ -2465,7 +2450,7 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 		/*
 		 * See if this pvo has a valid PTE.  if so, fetch the
 		 * REF/CHG bits from the valid PTE.  If the appropriate
-		 * ptebit is set, cache it and return success.
+		 * ptebit is set, return success.
 		 */
 		LOCK_TABLE();
 		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
@@ -2473,8 +2458,6 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 			MOEA64_PTE_SYNCH(mmu, pt, &pvo->pvo_pte.lpte);
 			if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
 				UNLOCK_TABLE();
-
-				moea64_attr_save(m, ptebit);
 				vm_page_unlock_queues();
 				return (TRUE);
 			}
@@ -2494,11 +2477,6 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	uintptr_t pt;
 
 	vm_page_lock_queues();
-
-	/*
-	 * Clear the cached value.
-	 */
-	moea64_attr_clear(m, ptebit);
 
 	/*
 	 * Sync so that any pending REF/CHG bits are flushed to the PTEs (so
