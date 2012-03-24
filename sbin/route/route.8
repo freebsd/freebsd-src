@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2005
+.Dd March 24, 2012
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -107,6 +107,10 @@ Lookup and display the route for a destination.
 .It Cm monitor
 Continuously report any changes to the routing information base,
 routing lookup misses, or suspected network partitionings.
+.It Cm show
+Another name for the
+.Cm get
+command.
 .El
 .Pp
 The monitor command has the syntax:
@@ -344,6 +348,37 @@ As such, only the super-user may modify
 the routing tables.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Add a default route to the network routing table.
+This will send all packets for destinations not available in the routing table
+to the default gateway at 192.168.1.1:
+.Pp
+.Dl route add -net 0.0.0.0/0 192.168.1.1
+.Pp
+A shorter version of adding a default route can also be written as:
+.Pp
+.Dl route add default 192.168.1.1
+.Pp
+Add a static route to the 172.16.10.0/24 network via the 172.16.1.1 gateway:
+.Pp
+.Dl route add -net 172.16.10.0/24 172.16.1.1
+.Pp
+Change the gateway of an already established static route in the routing table:
+.Pp
+.Dl route change -net 172.16.10.0/24 172.16.1.2
+.Pp
+Display the route for a destination network:
+.Pp
+.Dl route show 172.16.10.0
+.Pp
+Delete a static route from the routing table:
+.Pp
+.Dl route delete -net 172.16.10.0/24 172.16.1.2
+.Pp
+Remove all routes from the routing table:
+.Pp
+.Dl route flush
+.Pp
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "add [host \&| network ] %s: gateway %s flags %x"
