@@ -32,6 +32,7 @@ complete pkg_delete     'c/-/(i v D n p d f G x X r)/' 'n@*@`ls /var/db/pkg`@'
 complete pkg_info       'c/-/(a b v p q Q c d D f g i I j k K r R m L s o G O x X e E l t V P)/' 'n@*@`\ls -1 /var/db/pkg | sed svar/db/pkg/%%`@"
 complete kill		'c/-/S/' 'c/%/j/' 'n/*/`ps -ax | awk '"'"'{print $1}'"'"'`/'
 complete killall	'c/-/S/' 'c/%/j/' 'n/*/`ps -ax | awk '"'"'{print $5}'"'"'`/'
+complete dd		'c/[io]f=/f/ n/*/"(if of ibs obs bs skip seek count)"/='
 alias _PKGS_PkGs_PoRtS_ 'awk -F\| \{sub\(\"\/usr\/ports\/\"\,\"\"\,\$2\)\;print\ \$2\} /usr/ports/INDEX-name -r | cut -d . -f 1A
 alias _PKGS_PkGs_PoRtS_ 'awk -F\| \{sub\(\"\/usr\/ports\/\"\,\"\"\,\$2\)\;print\ \$2\} /usr/ports/INDEX-`uname -r | cut -d . -f 1`&& pkg_info -E \*'
 complete portmaster   'c/--/(always-fetch check-depends check-port-dbdir clean-distfiles \
@@ -55,6 +56,9 @@ set ellipsis
 # Color ls
 alias ll	ls -lAhG
 alias ls	ls -G
+
+# Color on many system utilities
+setenv CLICOLOR 1
 
 # other autolist options
 set		autolist = TAB
