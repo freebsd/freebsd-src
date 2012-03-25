@@ -199,6 +199,7 @@ static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
 static void	ath_set_channel(struct ieee80211com *);
+static void	ath_update_chw(struct ieee80211com *);
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
@@ -794,6 +795,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
+	ic->ic_update_chw = ath_update_chw;
 
 	/* 802.11n specific - but just override anyway */
 	sc->sc_addba_request = ic->ic_addba_request;
@@ -5715,6 +5717,31 @@ ath_scan_end(struct ieee80211com *ic)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: RX filter 0x%x bssid %s aid 0x%x\n",
 		 __func__, rfilt, ether_sprintf(sc->sc_curbssid),
 		 sc->sc_curaid);
+}
+
+/*
+ * For now, just do a channel change.
+ *
+ * Later, we'll go through the hard slog of suspending tx/rx, changing rate
+ * control state and resetting the hardware without dropping frames out
+ * of the queue.
+ *
+ * The unfortunate trouble here is making absolutely sure that the
+ * channel width change has propagated enough so the hardware
+ * absolutely isn't handed bogus frames for it's current operating
+ * mode. (Eg, 40MHz frames in 20MHz mode.) Since TX and RX can and
+ * does occur in parallel, we need to make certain we've blocked
+ * any further ongoing TX (and RX, that can cause raw TX)
+ * before we do this.
+ */
+static void
+ath_update_chw(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
+
+	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
+	ath_set_channel(ic);
 }
 
 static void
