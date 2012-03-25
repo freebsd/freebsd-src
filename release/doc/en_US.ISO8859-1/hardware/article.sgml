@@ -1415,6 +1415,8 @@
 
       &hwlist.snd.hda;
 
+      &hwlist.snd.hdspe;
+
       &hwlist.snd.ich;
 
       &hwlist.snd.maestro;
