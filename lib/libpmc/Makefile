@@ -42,6 +42,9 @@ MAN+=	pmc.westmereuc.3
 MAN+=	pmc.tsc.3
 .elif ${MACHINE_CPUARCH} == "arm" && ${CPUTYPE} == "xscale"
 MAN+=	pmc.xscale.3
+.elif ${MACHINE_CPUARCH} == "mips"
+MAN+=	pmc.mips24k.3
+MAN+=	pmc.octeon.3
 .endif
 
 MLINKS+= \
