@@ -227,7 +227,6 @@ Specify the target (almost always 0) and LUN number to operate on.
 Many of the primary functions of the
 .Nm
 utility take the following optional arguments:
-.Pp
 .Bl -tag -width 10n
 .It Fl C Ar retries
 Specify the number of times to retry a command in the event of failure.
@@ -905,7 +904,6 @@ Display the list of mode pages supported by LUN 1.
 Display the saved version of the Control mode page (page 10) on LUN 0.
 Disable fetching block descriptors, and use a 10 byte MODE SENSE command
 instead of the default 6 byte command.
-.Pp
 .Bd -literal
 ctladm read 0:2 -l 0 -d 1 -b 512 -f - > foo
 .Ed
@@ -966,7 +964,6 @@ ioctl port.
 .Pp
 Inject a medium error on LUN 6 for every read that covers the first 512
 blocks of the LUN.
-.Pp
 .Bd -literal -offset indent
 ctladm inject 0:6 -i custom -p tur -s 18 "f0 0 02 s12 04 02"
 .Ed
