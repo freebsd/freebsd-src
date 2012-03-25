@@ -40,14 +40,12 @@ in-kernel NAT.
 .Nm
 .Cm set show
 .Ss SYSCTL SHORTCUTS
-.Pp
 .Nm
 .Cm enable
 .Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
 .Nm
 .Cm disable
 .Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
-.Pp
 .Ss LOOKUP TABLES
 .Nm
 .Cm table Ar number Cm add Ar addr Ns Oo / Ns Ar masklen Oc Op Ar value
@@ -61,7 +59,6 @@ in-kernel NAT.
 .Cm table
 .Brq Ar number | all
 .Cm list
-.Pp
 .Ss DUMMYNET CONFIGURATION (TRAFFIC SHAPER AND PACKET SCHEDULER)
 .Nm
 .Brq Cm pipe | queue | sched
@@ -73,7 +70,6 @@ in-kernel NAT.
 .Brq Cm pipe | queue | sched
 .Brq Cm delete | list | show
 .Op Ar number ...
-.Pp
 .Ss IN-KERNEL NAT
 .Nm
 .Op Fl q
@@ -285,7 +281,6 @@ When listing, show last match timestamp converted with ctime().
 When listing, show last match timestamp as seconds from the epoch.
 This form can be more convenient for postprocessing by scripts.
 .El
-.Pp
 .Ss LIST OF RULES AND PREPROCESSING
 To ease configuration, rules can be put into a file which is
 processed using
@@ -325,7 +320,6 @@ for interpretation.
 This allows for flexible configuration files (like conditionalizing
 them on the local hostname) and the use of macros to centralize
 frequently required arguments like IP addresses.
-.Pp
 .Ss TRAFFIC SHAPER CONFIGURATION
 The
 .Nm
@@ -884,7 +878,6 @@ for readability.
 A workaround for this is to use new syntax and
 .Fl c
 switch:
-.Pp
 .Bd -literal -offset indent
 # Add a rule without actual body
 ipfw add 2999 return via any
@@ -2471,7 +2464,6 @@ If no socket is bound to the destination port, or if the divert module is
 not loaded, or if the kernel was not compiled with divert socket support,
 the packets are dropped.
 .Sh NETWORK ADDRESS TRANSLATION (NAT)
-.Pp
 .Nm
 support in-kernel NAT using the kernel version of
 .Xr libalias 3 .
@@ -2869,7 +2861,6 @@ Controls whether bridged packets are passed to
 .Nm .
 Default is no.
 .El
-.Pp
 .Sh EXAMPLES
 There are far too many possible uses of
 .Nm
@@ -3007,7 +2998,6 @@ Next rule diverts all incoming packets from 192.168.2.0/24
 to divert port 5000:
 .Pp
 .Dl ipfw divert 5000 ip from 192.168.2.0/24 to any in
-.Pp
 .Ss TRAFFIC SHAPING
 The following rules show some of the applications of
 .Nm
@@ -3224,7 +3214,6 @@ or it could be split in:
 .Dl "				         10.0.0.100"
 .Dl "ipfw nat 5 config redirect_port tcp"
 .Dl "			192.168.0.1:80,192.168.0.10:22,192.168.0.20:25 500"
-.Pp
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr m4 1 ,
