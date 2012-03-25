@@ -28,7 +28,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2009
+.Dd March 18, 2012
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -798,3 +798,13 @@ functions were introduced in
 principally to provide for alternative interfaces to the
 .Nm
 functionality using different data structures.
+.Sh BUGS
+The 
+.Fn fts_open
+function will automatically set the
+.Dv FTS_NOCHDIR
+option if the 
+.Dv FTS_LOGICAL
+option is provided, or if it cannot 
+.Xr open 2
+the current directory.
