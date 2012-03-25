@@ -23,13 +23,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
-.Dt PMC.MIPS 3
+.Dd March 24, 2012
+.Dt PMC.MIPS24K 3
 .Os
 .Sh NAME
-.Nm pmc.mips
+.Nm pmc.mips24k
 .Nd measurement events for
-.Tn MIPS
+.Tn MIPS24K
 family CPUs
 .Sh LIBRARY
 .Lb libpmc
@@ -388,6 +388,7 @@ and the underlying hardware events used.
 .Xr pmc.iaf 3 ,
 .Xr pmc.k7 3 ,
 .Xr pmc.k8 3 ,
+.Xr pmc.octeon 3 ,
 .Xr pmc.p4 3 ,
 .Xr pmc.p5 3 ,
 .Xr pmc.p6 3 ,
@@ -409,5 +410,3 @@ library was written by
 MIPS support was added by
 .An "George Neville-Neil"
 .Aq gnn@FreeBSD.org .
-.Sh CAVEATS
-The MIPS code does not yet support sampling.
