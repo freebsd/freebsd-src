@@ -362,7 +362,7 @@ restart:
 			goto out;
 		bawrite(nbp);
 		if (cg % 10 == 0)
-			ffs_syncvnode(vp, MNT_WAIT);
+			ffs_syncvnode(vp, MNT_WAIT, 0);
 	}
 	/*
 	 * Copy all the cylinder group maps. Although the
@@ -385,7 +385,7 @@ restart:
 		error = cgaccount(cg, vp, nbp, 1);
 		bawrite(nbp);
 		if (cg % 10 == 0)
-			ffs_syncvnode(vp, MNT_WAIT);
+			ffs_syncvnode(vp, MNT_WAIT, 0);
 		if (error)
 			goto out;
 	}
@@ -400,7 +400,7 @@ restart:
 	 * Since we have marked it as a snapshot it is safe to
 	 * unlock it as no process will be allowed to write to it.
 	 */
-	if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+	if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 		goto out;
 	VOP_UNLOCK(vp, 0);
 	/*
@@ -861,7 +861,7 @@ out:
 	MNT_IUNLOCK(mp);
 	if (error)
 		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
-	(void) ffs_syncvnode(vp, MNT_WAIT);
+	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	if (error)
 		vput(vp);
 	else
@@ -1714,7 +1714,7 @@ ffs_snapremove(vp)
 	 * may find indirect pointers using the magic BLK_* values.
 	 */
 	if (DOINGSOFTDEP(vp))
-		ffs_syncvnode(vp, MNT_WAIT);
+		ffs_syncvnode(vp, MNT_WAIT, 0);
 #ifdef QUOTA
 	/*
 	 * Reenable disk quotas for ex-snapshot file.
@@ -1908,7 +1908,7 @@ retry:
 			bawrite(cbp);
 			if ((vtype == VDIR || dopersistence) &&
 			    ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT|NO_INO_UPDT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			continue;
 		}
 		/*
@@ -1919,7 +1919,7 @@ retry:
 			bawrite(cbp);
 			if ((vtype == VDIR || dopersistence) &&
 			    ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT|NO_INO_UPDT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			break;
 		}
 		savedcbp = cbp;
@@ -1937,7 +1937,7 @@ retry:
 		bawrite(savedcbp);
 		if ((vtype == VDIR || dopersistence) &&
 		    VTOI(vp)->i_effnlink > 0)
-			(void) ffs_syncvnode(vp, MNT_WAIT|NO_INO_UPDT);
+			(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 	}
 	/*
 	 * If we have been unable to allocate a block in which to do
@@ -2000,7 +2000,7 @@ ffs_snapshot_mount(mp)
 			} else {
 				reason = "old format snapshot";
 				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
-				(void)ffs_syncvnode(vp, MNT_WAIT);
+				(void)ffs_syncvnode(vp, MNT_WAIT, 0);
 			}
 			printf("ffs_snapshot_mount: %s inode %d\n",
 			    reason, fs->fs_snapinum[snaploc]);
@@ -2401,7 +2401,7 @@ ffs_copyonwrite(devvp, bp)
 			bawrite(cbp);
 			if ((devvp == bp->b_vp || bp->b_vp->v_type == VDIR ||
 			    dopersistence) && ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT|NO_INO_UPDT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			else
 				launched_async_io = 1;
 			continue;
@@ -2414,7 +2414,7 @@ ffs_copyonwrite(devvp, bp)
 			bawrite(cbp);
 			if ((devvp == bp->b_vp || bp->b_vp->v_type == VDIR ||
 			    dopersistence) && ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT|NO_INO_UPDT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			else
 				launched_async_io = 1;
 			break;
@@ -2434,7 +2434,7 @@ ffs_copyonwrite(devvp, bp)
 		bawrite(savedcbp);
 		if ((devvp == bp->b_vp || bp->b_vp->v_type == VDIR ||
 		    dopersistence) && VTOI(vp)->i_effnlink > 0)
-			(void) ffs_syncvnode(vp, MNT_WAIT|NO_INO_UPDT);
+			(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 		else
 			launched_async_io = 1;
 	}
@@ -2484,7 +2484,7 @@ ffs_sync_snap(mp, waitfor)
 	}
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
-		ffs_syncvnode(vp, waitfor|NO_INO_UPDT);
+		ffs_syncvnode(vp, waitfor, NO_INO_UPDT);
 	}
 	lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 }
