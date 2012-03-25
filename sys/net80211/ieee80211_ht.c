@@ -1428,12 +1428,13 @@ ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
  * required channel change is done (e.g. in sta mode when
  * parsing the contents of a beacon frame).
  */
-static void
+static int
 htinfo_update_chw(struct ieee80211_node *ni, int htflags)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_channel *c;
 	int chanflags;
+	int ret = 0;
 
 	chanflags = (ni->ni_chan->ic_flags &~ IEEE80211_CHAN_HT) | htflags;
 	if (chanflags != ni->ni_chan->ic_flags) {
@@ -1460,11 +1461,13 @@ htinfo_update_chw(struct ieee80211_node *ni, int htflags)
 			    IEEE80211_IS_CHAN_HT40(c) ? 40 : 20,
 			    c->ic_freq, c->ic_flags);
 			ni->ni_chan = c;
+			ret = 1;
 		}
 		/* NB: caller responsible for forcing any channel change */
 	}
 	/* update node's tx channel width */
 	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan)? 40 : 20;
+	return (ret);
 }
 
 /*
@@ -1515,13 +1518,14 @@ htcap_update_shortgi(struct ieee80211_node *ni)
  * Parse and update HT-related state extracted from
  * the HT cap and info ie's.
  */
-void
+int
 ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	const uint8_t *htcapie, const uint8_t *htinfoie)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_ie_htinfo *htinfo;
 	int htflags;
+	int ret = 0;
 
 	ieee80211_parse_htcap(ni, htcapie);
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
@@ -1543,13 +1547,16 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 		else if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_BELOW)
 			htflags = IEEE80211_CHAN_HT40D;
 	}
-	htinfo_update_chw(ni, htflags);
+	if (htinfo_update_chw(ni, htflags))
+		ret = 1;
 
 	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_RIFSMODE_PERM) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_RIFS))
 		ni->ni_flags |= IEEE80211_NODE_RIFS;
 	else
 		ni->ni_flags &= ~IEEE80211_NODE_RIFS;
+
+	return (ret);
 }
 
 /*
@@ -1578,7 +1585,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 		else if (IEEE80211_IS_CHAN_HT40D(vap->iv_bss->ni_chan))
 			htflags = IEEE80211_CHAN_HT40D;
 	}
-	htinfo_update_chw(ni, htflags);
+	(void) htinfo_update_chw(ni, htflags);
 }
 
 /*
