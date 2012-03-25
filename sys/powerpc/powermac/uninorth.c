@@ -262,9 +262,11 @@ unin_chip_attach(device_t dev)
 	struct unin_chip_devinfo *dinfo;
 	phandle_t  root;
 	phandle_t  child;
+	phandle_t  iparent;
 	device_t   cdev;
 	char compat[32];
-	u_int reg[3];
+	char name[32];
+	u_int irq, reg[3];
 	int error, i = 0;
 
 	sc = device_get_softc(dev);
@@ -314,6 +316,33 @@ unin_chip_attach(device_t dev)
 		resource_list_init(&dinfo->udi_resources);
 		dinfo->udi_ninterrupts = 0;
 		unin_chip_add_intr(child, dinfo);
+
+		/*
+		 * Some Apple machines do have a bug in OF, they miss
+		 * the interrupt entries on the U3 I2C node. That means they
+		 * do not have an entry with number of interrupts nor the
+		 * entry of the interrupt parent handle.
+		 * We define an interrupt and hardwire it to the /u3/mpic
+		 * handle.
+		 */
+
+		if (OF_getprop(child, "name", name, sizeof(name)) <= 0)
+			device_printf(dev, "device has no name!\n");
+		if (dinfo->udi_ninterrupts == 0 &&
+		    (strcmp(name, "i2c-bus") == 0 ||
+		     strcmp(name, "i2c")  == 0)) {
+			if (OF_getprop(child, "interrupt-parent", &iparent,
+				       sizeof(iparent)) <= 0) {
+				iparent = OF_finddevice("/u3/mpic");
+				device_printf(dev, "Set /u3/mpic as iparent!\n");
+			}
+			/* Add an interrupt number 0 to the parent. */
+			irq = MAP_IRQ(iparent, 0);
+			resource_list_add(&dinfo->udi_resources, SYS_RES_IRQ,
+					  dinfo->udi_ninterrupts, irq, irq, 1);
+			dinfo->udi_interrupts[dinfo->udi_ninterrupts] = irq;
+			dinfo->udi_ninterrupts++;
+		}
 
 		unin_chip_add_reg(child, dinfo);
 
