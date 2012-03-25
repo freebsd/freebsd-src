@@ -3932,15 +3932,9 @@ ipfw_table_handler(int ac, char *av[])
 
 	len = sizeof(tables_max);
 	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
-		NULL, 0) == -1) {
-#ifdef IPFW_TABLES_MAX
-		warn("Warn: Failed to get the max tables number via sysctl. "
-		     "Using the compiled in defaults. \nThe reason was");
-		tables_max = IPFW_TABLES_MAX;
-#else
-		errx(1, "Failed sysctlbyname(\"net.inet.ip.fw.tables_max\")");
-#endif
-	}
+		NULL, 0) == -1)
+		errx(1, "Can't determine maximum number of ipfw tables. "
+		    "Perhaps you forgot to load ipfw module?");
 
 	memset(&xent, 0, sizeof(xent));
 
