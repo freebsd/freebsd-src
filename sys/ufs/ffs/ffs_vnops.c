@@ -300,7 +300,7 @@ next:
 	}
 	if (waitfor != MNT_WAIT) {
 		BO_UNLOCK(bo);
-		return (ffs_update(vp, waitfor));
+		return (ffs_update(vp, 0));
 	}
 	/* Drain IO to see if we're done. */
 	bufobj_wwait(bo, 0, 0);
