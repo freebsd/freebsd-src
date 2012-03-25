@@ -1,5 +1,5 @@
 # <pre>
-# @(#)northamerica	8.50
+# @(#)northamerica	8.51
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -2690,6 +2690,20 @@ Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
 # <a href="http://www.timeanddate.com/news/time/cuba-starts-dst-2011.html">
 # http://www.timeanddate.com/news/time/cuba-starts-dst-2011.html
 # </a>
+#
+# From Steffen Thorsen (2011-10-30)
+# Cuba will end DST two weeks later this year. Instead of going back 
+# tonight, it has been delayed to 2011-11-13 at 01:00.
+#
+# One source (Spanish)
+# <a href="http://www.radioangulo.cu/noticias/cuba/17105-cuba-restablecera-el-horario-del-meridiano-de-greenwich.html">
+# http://www.radioangulo.cu/noticias/cuba/17105-cuba-restablecera-el-horario-del-meridiano-de-greenwich.html
+# </a>
+#
+# Our page:
+# <a href="http://www.timeanddate.com/news/time/cuba-time-changes-2011.html">
+# http://www.timeanddate.com/news/time/cuba-time-changes-2011.html
+# </a>
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cuba	1928	only	-	Jun	10	0:00	1:00	D
@@ -2721,12 +2735,14 @@ Rule	Cuba	1997	only	-	Oct	12	0:00s	0	S
 Rule	Cuba	1998	1999	-	Mar	lastSun	0:00s	1:00	D
 Rule	Cuba	1998	2003	-	Oct	lastSun	0:00s	0	S
 Rule	Cuba	2000	2004	-	Apr	Sun>=1	0:00s	1:00	D
-Rule	Cuba	2006	max	-	Oct	lastSun	0:00s	0	S
+Rule	Cuba	2006	2010	-	Oct	lastSun	0:00s	0	S
 Rule	Cuba	2007	only	-	Mar	Sun>=8	0:00s	1:00	D
 Rule	Cuba	2008	only	-	Mar	Sun>=15	0:00s	1:00	D
 Rule	Cuba	2009	2010	-	Mar	Sun>=8	0:00s	1:00	D
 Rule	Cuba	2011	only	-	Mar	Sun>=15	0:00s	1:00	D
+Rule	Cuba	2011	only	-	Nov	13	0:00s	0	S
 Rule	Cuba	2012	max	-	Mar	Sun>=8	0:00s	1:00	D
+Rule	Cuba	2012	max	-	Oct	lastSun	0:00s	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
