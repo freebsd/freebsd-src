@@ -2357,6 +2357,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	/* paused? queue */
 	if (tid->paused) {
 		ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
+		/* XXX don't sched - we're paused! */
 		return;
 	}
 
@@ -2647,13 +2648,19 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 		if (t == 0) {
 			device_printf(sc->sc_dev,
 			    "%s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
-			    "seqno_assign=%d, seqno_required=%d, seqno=%d\n",
+			    "seqno_assign=%d, seqno_required=%d, seqno=%d, retry=%d\n",
 			    __func__, ni, bf,
 			    bf->bf_state.bfs_addedbaw,
 			    bf->bf_state.bfs_dobaw,
 			    bf->bf_state.bfs_need_seqno,
 			    bf->bf_state.bfs_seqno_assigned,
-			    SEQNO(bf->bf_state.bfs_seqno));
+			    SEQNO(bf->bf_state.bfs_seqno),
+			    bf->bf_state.bfs_retries);
+			device_printf(sc->sc_dev,
+			    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d\n",
+			    __func__, ni, bf,
+			    tid->axq_depth,
+			    tid->hwq_depth);
 			device_printf(sc->sc_dev,
 			    "%s: node %p: bf=%p: tid %d: txq_depth=%d, "
 			    "txq_aggr_depth=%d, sched=%d, paused=%d, "
