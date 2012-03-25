@@ -116,8 +116,9 @@ static int default_to_accept;
 VNET_DEFINE(int, autoinc_step);
 VNET_DEFINE(int, fw_one_pass) = 1;
 
+VNET_DEFINE(unsigned int, fw_tables_max);
 /* Use 128 tables by default */
-int fw_tables_max = IPFW_TABLES_MAX;
+static unsigned int default_fw_tables = IPFW_TABLES_DEFAULT;
 
 /*
  * Each rule belongs to one of 32 different sets (0..31).
@@ -148,6 +149,7 @@ ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
 #ifdef SYSCTL_NODE
 uint32_t dummy_def = IPFW_DEFAULT_RULE;
+static int sysctl_ipfw_table_num(SYSCTL_HANDLER_ARGS);
 
 SYSBEGIN(f3)
 
@@ -167,14 +169,14 @@ SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit,
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     &dummy_def, 0,
     "The default/max possible rule number.");
-SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
-    &V_fw_tables_max, 0,
-    "The maximum number of tables.");
+SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, tables_max,
+    CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_table_num, "IU",
+    "Maximum number of tables");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
     "Make the default rule accept all packets.");
 TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
-TUNABLE_INT("net.inet.ip.fw.tables_max", &V_fw_tables_max);
+TUNABLE_INT("net.inet.ip.fw.tables_max", &default_fw_tables);
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
     CTLFLAG_RD, &VNET_NAME(layer3_chain.n_rules), 0,
     "Number of static rules");
@@ -2488,6 +2490,26 @@ pullup_failed:
 }
 
 /*
+ * Set maximum number of tables that can be used in given VNET ipfw instance.
+ */
+#ifdef SYSCTL_NODE
+static int
+sysctl_ipfw_table_num(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	unsigned int ntables;
+
+	ntables = V_fw_tables_max;
+
+	error = sysctl_handle_int(oidp, &ntables, 0, req);
+	/* Read operation or some error */
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	return (ipfw_resize_tables(&V_layer3_chain, ntables));
+}
+#endif
+/*
  * Module and VNET glue
  */
 
@@ -2543,6 +2565,10 @@ ipfw_init(void)
 		printf("limited to %d packets/entry by default\n",
 		    V_verbose_limit);
 
+	/* Check user-supplied table count for validness */
+	if (default_fw_tables > IPFW_TABLES_MAX)
+	  default_fw_tables = IPFW_TABLES_MAX;
+
 	ipfw_log_bpf(1); /* init */
 	return (error);
 }
@@ -2585,18 +2611,15 @@ vnet_ipfw_init(const void *unused)
 	LIST_INIT(&chain->nat);
 #endif
 
-	/* Check user-supplied number for validness */
-	if (V_fw_tables_max < 0)
-	  V_fw_tables_max = IPFW_TABLES_MAX;
-	if (V_fw_tables_max > 65534)
-	  V_fw_tables_max = 65534;
-
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
 	chain->static_len = sizeof(struct ip_fw);
 	chain->map = malloc(sizeof(struct ip_fw *), M_IPFW, M_WAITOK | M_ZERO);
 	if (chain->map)
 		rule = malloc(chain->static_len, M_IPFW, M_WAITOK | M_ZERO);
+
+	/* Set initial number of tables */
+	V_fw_tables_max = default_fw_tables;
 	error = ipfw_init_tables(chain);
 	if (error) {
 		printf("ipfw2: setting up tables failed\n");
