@@ -138,7 +138,7 @@ __FBSDID("$FreeBSD$");
  * Just to add to the fun, exceptions must be off as well
  * so that we can't trap in 64-bit mode. What a pain.
  */
-struct mtx	tlbie_mutex;
+static struct mtx	tlbie_mutex;
 
 static __inline void
 TLBIE(uint64_t vpn) {
@@ -151,8 +151,8 @@ TLBIE(uint64_t vpn) {
 	vpn <<= ADDR_PIDX_SHFT;
 	vpn &= ~(0xffffULL << 48);
 
-	mtx_lock_spin(&tlbie_mutex);
 #ifdef __powerpc64__
+	mtx_lock(&tlbie_mutex);
 	__asm __volatile("\
 	    ptesync; \
 	    tlbie %0; \
@@ -160,10 +160,13 @@ TLBIE(uint64_t vpn) {
 	    tlbsync; \
 	    ptesync;" 
 	:: "r"(vpn) : "memory");
+	mtx_unlock(&tlbie_mutex);
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
 
+	/* Note: spin mutex is to disable exceptions while fiddling MSR */
+	mtx_lock_spin(&tlbie_mutex);
 	__asm __volatile("\
 	    mfmsr %0; \
 	    mr %1, %0; \
@@ -181,8 +184,8 @@ TLBIE(uint64_t vpn) {
 	    ptesync;" 
 	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32), "r"(1)
 	    : "memory");
-#endif
 	mtx_unlock_spin(&tlbie_mutex);
+#endif
 }
 
 #define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR)
@@ -413,7 +416,11 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	/*
 	 * Initialize the TLBIE lock. TLBIE can only be executed by one CPU.
 	 */
-	mtx_init(&tlbie_mutex, "tlbie mutex", NULL, MTX_SPIN);
+#ifdef __powerpc64__
+	mtx_init(&tlbie_mutex, "tlbie", NULL, MTX_DEF);
+#else
+	mtx_init(&tlbie_mutex, "tlbie", NULL, MTX_SPIN);
+#endif
 
 	moea64_mid_bootstrap(mmup, kernelstart, kernelend);
 
