@@ -184,7 +184,7 @@ void	ieee80211_htprot_update(struct ieee80211com *, int protmode);
 void	ieee80211_ht_timeout(struct ieee80211com *);
 void	ieee80211_parse_htcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
-void	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
+int	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
 		const uint8_t *);
 void	ieee80211_ht_updatehtcap(struct ieee80211_node *, const uint8_t *);
 int	ieee80211_ampdu_request(struct ieee80211_node *,
