@@ -59,15 +59,6 @@ locale.
 .Pt
 The locale returned by this call must be freed with
 .Xr freelocale 3 .
-.Sh BUGS
-Ideally,
-.Xr uselocale 3
-should make a copy of the
-.Fa locale_t
-implicitly to ensure thread safety,
-and a copy of the global locale should be installed lazily on each thread.
-The FreeBSD implementation does not do this,
-for compatibility with Darwin.
 .Sh SEE ALSO
 .Xr freelocale 3 ,
 .Xr localeconv 3 ,
@@ -78,3 +69,12 @@ for compatibility with Darwin.
 .Sh STANDARDS
 This function, conforms to
 .St -p1003.1-2008
+.Sh BUGS
+Ideally,
+.Xr uselocale 3
+should make a copy of the
+.Fa locale_t
+implicitly to ensure thread safety,
+and a copy of the global locale should be installed lazily on each thread.
+The FreeBSD implementation does not do this,
+for compatibility with Darwin.
