@@ -209,8 +209,8 @@ VNET_DECLARE(u_int32_t, set_disable);
 VNET_DECLARE(int, autoinc_step);
 #define V_autoinc_step		VNET(autoinc_step)
 
-extern int fw_tables_max;
-#define V_fw_tables_max		fw_tables_max
+VNET_DECLARE(unsigned int, fw_tables_max);
+#define V_fw_tables_max		VNET(fw_tables_max)
 
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
@@ -292,6 +292,7 @@ int ipfw_dump_table_entry(struct radix_node *rn, void *arg);
 int ipfw_dump_table(struct ip_fw_chain *ch, ipfw_table *tbl);
 int ipfw_count_xtable(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt);
 int ipfw_dump_xtable(struct ip_fw_chain *ch, ipfw_xtable *tbl);
+int ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables);
 
 /* In ip_fw_nat.c -- XXX to be moved to ip_var.h */
 
