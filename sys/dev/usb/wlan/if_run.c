@@ -600,12 +600,6 @@ run_attach(device_t self)
 	    sc->mac_ver, sc->mac_rev, run_get_rf(sc->rf_rev),
 	    sc->ntxchains, sc->nrxchains, ether_sprintf(sc->sc_bssid));
 
-	if ((error = run_load_microcode(sc)) != 0) {
-		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
-		RUN_UNLOCK(sc);
-		goto detach;
-	}
-
 	RUN_UNLOCK(sc);
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
@@ -1050,8 +1044,9 @@ run_load_microcode(struct run_softc *sc)
 		error = ETIMEDOUT;
 		goto fail;
 	}
-	device_printf(sc->sc_dev, "firmware %s loaded\n",
-	    (base == fw->data) ? "RT2870" : "RT3071");
+	device_printf(sc->sc_dev, "firmware %s ver. %u.%u loaded\n",
+	    (base == fw->data) ? "RT2870" : "RT3071",
+	    *(base + 4092), *(base + 4093));
 
 fail:
 	firmware_put(fw, FIRMWARE_UNLOAD);
@@ -4676,6 +4671,11 @@ run_init_locked(struct run_softc *sc)
 		return;
 
 	run_stop(sc);
+
+	if (run_load_microcode(sc) != 0) {
+		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
+		goto fail;
+	}
 
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (run_read(sc, RT2860_ASIC_VER_ID, &tmp) != 0)
