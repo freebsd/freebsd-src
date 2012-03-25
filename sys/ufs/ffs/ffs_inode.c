@@ -217,7 +217,7 @@ ffs_truncate(vp, length, flags, cred, td)
 				ip->i_din2->di_extb[i] = 0;
 			}
 			ip->i_flag |= IN_CHANGE;
-			if ((error = ffs_update(vp, 1)))
+			if ((error = ffs_update(vp, !DOINGASYNC(vp))))
 				return (error);
 			for (i = 0; i < NXADDR; i++) {
 				if (oldblks[i] == 0)
@@ -243,13 +243,13 @@ ffs_truncate(vp, length, flags, cred, td)
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (needextclean)
 			goto extclean;
-		return ffs_update(vp, 1);
+		return (ffs_update(vp, !DOINGASYNC(vp)));
 	}
 	if (ip->i_size == length) {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (needextclean)
 			goto extclean;
-		return ffs_update(vp, 0);
+		return (ffs_update(vp, 0));
 	}
 	if (fs->fs_ronly)
 		panic("ffs_truncate: read-only filesystem");
@@ -276,10 +276,12 @@ ffs_truncate(vp, length, flags, cred, td)
 			bp->b_flags |= B_CLUSTEROK;
 		if (flags & IO_SYNC)
 			bwrite(bp);
+		else if (DOINGASYNC(vp))
+			bdwrite(bp);
 		else
 			bawrite(bp);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return ffs_update(vp, 1);
+		return (ffs_update(vp, !DOINGASYNC(vp)));
 	}
 	if (DOINGSOFTDEP(vp)) {
 		if (softdeptrunc == 0 && journaltrunc == 0) {
@@ -351,6 +353,8 @@ ffs_truncate(vp, length, flags, cred, td)
 			bp->b_flags |= B_CLUSTEROK;
 		if (flags & IO_SYNC)
 			bwrite(bp);
+		else if (DOINGASYNC(vp))
+			bdwrite(bp);
 		else
 			bawrite(bp);
 	}
@@ -384,7 +388,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			DIP_SET(ip, i_db[i], 0);
 	}
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = ffs_update(vp, 1);
+	allerror = ffs_update(vp, !DOINGASYNC(vp));
 	
 	/*
 	 * Having written the new inode to disk, save its new configuration
@@ -516,7 +520,7 @@ extclean:
 		softdep_journal_freeblocks(ip, cred, length, IO_EXT);
 	else
 		softdep_setup_freeblocks(ip, length, IO_EXT);
-	return ffs_update(vp, MNT_WAIT);
+	return (ffs_update(vp, !DOINGASYNC(vp)));
 }
 
 /*
@@ -597,7 +601,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			else
 				bap2[i] = 0;
 		if (DOINGASYNC(vp)) {
-			bawrite(bp);
+			bdwrite(bp);
 		} else {
 			error = bwrite(bp);
 			if (error)
