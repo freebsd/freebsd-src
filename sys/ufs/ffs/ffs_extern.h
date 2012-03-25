@@ -92,7 +92,7 @@ void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
 void	process_deferred_inactive(struct mount *mp);
 void	ffs_sync_snap(struct mount *, int);
-int	ffs_syncvnode(struct vnode *vp, int waitfor);
+int	ffs_syncvnode(struct vnode *vp, int waitfor, int flags);
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 int	ffs_update(struct vnode *, int);
 int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
@@ -168,12 +168,11 @@ void	softdep_freework(struct workhead *);
 #define FLUSH_BLOCKS		3
 #define FLUSH_BLOCKS_WAIT	4
 /*
- * Flag to ffs_syncinode() to request flushing of data only,
+ * Flag to ffs_syncvnode() to request flushing of data only,
  * but skip the ffs_update() on the inode itself. Used to avoid
  * deadlock when flushing snapshot inodes while holding snaplk.
- * Avoid bit conflicts with MNT_WAIT values in sys/mount.h
  */
-#define	NO_INO_UPDT		0x10
+#define	NO_INO_UPDT		0x00000001
 
 int	ffs_rdonly(struct inode *);
 
