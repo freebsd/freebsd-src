@@ -65,21 +65,6 @@ LC_GLOBAL_LOCALE refers to the global locale.
 The global locale is the locale set with the
 .Xr setlocale 3
 function.
-.Sh CAVEATS
-The
-.Xr setlocale 3
-function, and others in the family, refer to the global locale.
-Other functions that depend on the locale, however,
-will take the thread-local locale if one has been set.
-This means that the idiom of setting the locale using
-.Xr setlocale 3 ,
-calling a locale-dependent function,
-and then restoring the locale will not
-have the expected behavior if the current thread has had a locale set using
-.Xr uselocale 3 .
-You should avoid this idiom and prefer to use the
-.Fa _l
-suffixed versions instead.
 .Sh SEE ALSO
 .Xr duplocale 3 ,
 .Xr freelocale 3 ,
@@ -278,3 +263,18 @@ The xlocale APIs first appeared in Darwin 8.0.
 This implementation was written by David Chisnall,
 under sponsorship from the FreeBSD Foundation and first appeared in
 .Fx 9.1 .
+.Sh CAVEATS
+The
+.Xr setlocale 3
+function, and others in the family, refer to the global locale.
+Other functions that depend on the locale, however,
+will take the thread-local locale if one has been set.
+This means that the idiom of setting the locale using
+.Xr setlocale 3 ,
+calling a locale-dependent function,
+and then restoring the locale will not
+have the expected behavior if the current thread has had a locale set using
+.Xr uselocale 3 .
+You should avoid this idiom and prefer to use the
+.Fa _l
+suffixed versions instead.
