@@ -263,9 +263,21 @@ Internet service numbers.
 Current directory typically used by the TFTP server and
 .Nm .
 .El
-.Sh BUGS
-Individual host entries must not exceed 1024 characters.
-.Sh CREDITS
+.Sh "SEE ALSO"
+.Xr bootptab 5 ,
+.Xr inetd 8 ,
+.Xr tftpd 8
+.Pp
+DARPA Internet Request For Comments:
+.Bl -tag -width RFC1533 -compact
+.It RFC951
+Bootstrap Protocol
+.It RFC1532
+Clarifications and Extensions for the Bootstrap Protocol
+.It RFC1533
+DHCP Options and BOOTP Vendor Extensions
+.El
+.Sh AUTHORS
 This distribution is currently maintained by
 .An Walter L. Wimer Aq walt+@cmu.edu .
 .Pp
@@ -294,17 +306,5 @@ Enhancements and bug-fixes have been contributed by:
 .An Jim McKim Aq mckim@lerc.nasa.gov
 .An Gordon W. Ross Aq gwr@mc.com
 .An Jason Zions Aq jazz@hal.com .
-.Sh "SEE ALSO"
-.Xr bootptab 5 ,
-.Xr inetd 8 ,
-.Xr tftpd 8
-.Pp
-DARPA Internet Request For Comments:
-.Bl -tag -width RFC1533 -compact
-.It RFC951
-Bootstrap Protocol
-.It RFC1532
-Clarifications and Extensions for the Bootstrap Protocol
-.It RFC1533
-DHCP Options and BOOTP Vendor Extensions
-.El
+.Sh BUGS
+Individual host entries must not exceed 1024 characters.
