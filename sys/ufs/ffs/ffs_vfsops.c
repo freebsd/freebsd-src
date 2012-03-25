@@ -1505,7 +1505,7 @@ loop:
 			}
 			continue;
 		}
-		if ((error = ffs_syncvnode(vp, waitfor)) != 0)
+		if ((error = ffs_syncvnode(vp, waitfor, 0)) != 0)
 			allerror = error;
 		vput(vp);
 		MNT_ILOCK(mp);
