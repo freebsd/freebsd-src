@@ -1228,7 +1228,6 @@ camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
 Negotiate a sync rate of 20MHz and an offset of 15 with da3.
 Then send a
 Test Unit Ready command to make the settings take effect.
-.Pp
 .Bd -literal -offset indent
 camcontrol smpcmd ses0 -v -r 4 "40 0 00 0" -R 1020 "s9 i1"
 .Ed
