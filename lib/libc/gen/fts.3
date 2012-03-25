@@ -419,14 +419,17 @@ be provided to the
 .Fn fts_open
 function.
 .It Dv FTS_NOCHDIR
-As a performance optimization, the
+To allow descending to arbitrary depths
+(independent of
+.Brq Dv PATH_MAX )
+and improve performance, the
 .Nm
 functions change directories as they walk the file hierarchy.
 This has the side-effect that an application cannot rely on being
 in any particular directory during the traversal.
 The
 .Dv FTS_NOCHDIR
-option turns off this optimization, and the
+option turns off this feature, and the
 .Nm
 functions will not change the current directory.
 Note that applications should not themselves change their current directory
