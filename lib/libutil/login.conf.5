@@ -177,20 +177,20 @@ The usual convention to interpolate capability entries using the special
 notation may be used.
 .Sh RESOURCE LIMITS
 .Bl -column pseudoterminals indent indent
-.It Sy "Name	Type	Notes	Description
-.It "coredumpsize	size		Maximum coredump size limit.
-.It "cputime	time		CPU usage limit.
-.It "datasize	size		Maximum data size limit.
-.It "filesize	size		Maximum file size limit.
-.It "maxproc	number		Maximum number of processes.
-.It "memorylocked	size		Maximum locked in core memory size limit.
-.It "memoryuse	size		Maximum of core memory use size limit.
-.It "openfiles	number		Maximum number of open files per process.
-.It "sbsize	size		Maximum permitted socketbuffer size.
-.It "vmemoryuse	size		Maximum permitted total VM usage per process.
-.It "stacksize	size		Maximum stack size limit.
-.It "pseudoterminals	number		Maximum number of pseudo-terminals.
-.It "swapuse	size		Maximum swap space size limit.
+.It Sy "Name	Type	Notes	Description"
+.It "coredumpsize	size		Maximum coredump size limit."
+.It "cputime	time		CPU usage limit."
+.It "datasize	size		Maximum data size limit."
+.It "filesize	size		Maximum file size limit."
+.It "maxproc	number		Maximum number of processes."
+.It "memorylocked	size		Maximum locked in core memory size limit."
+.It "memoryuse	size		Maximum of core memory use size limit."
+.It "openfiles	number		Maximum number of open files per process."
+.It "sbsize	size		Maximum permitted socketbuffer size."
+.It "vmemoryuse	size		Maximum permitted total VM usage per process."
+.It "stacksize	size		Maximum stack size limit."
+.It "pseudoterminals	number		Maximum number of pseudo-terminals."
+.It "swapuse	size		Maximum swap space size limit."
 .El
 .Pp
 These resource limit entries actually specify both the maximum
@@ -202,10 +202,10 @@ The maximum and current limits may be specified individually by appending a
 -max or -cur to the capability name.
 .Sh ENVIRONMENT
 .Bl -column ignorenologin indent xbinxxusrxbin
-.It Sy "Name	Type	Notes	Description
-.It "charset	string		Set $MM_CHARSET environment variable to the specified
+.It Sy "Name	Type	Notes	Description"
+.It charset	string		Set $MM_CHARSET environment variable to the specified
 value.
-.It "cpumask	string		List of cpus to bind the user to.
+.It "cpumask	string		List of cpus to bind the user to."
 The syntax is the same as for the
 .Fl l
 argument of
@@ -214,9 +214,9 @@ argument of
 If set to
 .Ql default
 no action is taken.
-.It "hushlogin	bool	false	Same as having a ~/.hushlogin file.
-.It "ignorenologin	bool	false	Login not prevented by nologin.
-.It "ftp-chroot	bool	false	Limit FTP access with
+.It "hushlogin	bool	false	Same as having a ~/.hushlogin file."
+.It "ignorenologin	bool	false	Login not prevented by nologin."
+.It "ftp-chroot	bool	false	Limit FTP access with"
 .Xr chroot 2
 to the
 .Ev HOME
@@ -224,7 +224,7 @@ directory of the user.
 See
 .Xr ftpd 8
 for details.
-.It "label	string			Default MAC policy; see
+.It "label	string			Default MAC policy; see"
 .Xr maclabel 7 .
 .It "lang	string		Set $LANG environment variable to the specified value.
 .It "manpath	path		Default search path for manpages.
