@@ -158,7 +158,7 @@ uint32_t
 dtrace_fuword32_nocheck(void *addr)
 */
 LEAF(dtrace_fuword32_nocheck)
-	lwu	v0, 0(a0)
+	lw	v0, 0(a0)
 	j	ra
 	nop
 END(dtrace_fuword32_nocheck)
@@ -189,9 +189,9 @@ LEAF(dtrace_copy)
 	nop
 	lbu	t0, 0(a0)
 	sb	t0, 0(a1)
-	daddu	a0, a0, 1
-	daddu	a1, a1, 1
-	dsubu	a2, a2, 1
+	PTR_ADDU	a0, a0, 1
+	PTR_ADDU	a1, a1, 1
+	INT_SUBU	a2, a2, 1
 	j	1b
 	nop
 2:
@@ -209,9 +209,9 @@ LEAF(dtrace_copystr)
 1:
 	lbu	t0, 0(a0)
 	sb	t0, 0(a1)
-	daddu	a0, a0, 1
-	daddu	a1, a1, 1
-	dsubu	a2, a2, 1
+	PTR_ADDU	a0, a0, 1
+	PTR_ADDU	a1, a1, 1
+	INT_SUBU	a2, a2, 1
 	beqz	t0, 2f
 	nop
 	lhu	t1, (a3)
@@ -231,9 +231,9 @@ void dtrace_invop_init(void)
 */
 LEAF(dtrace_invop_init)
 	/* XXX: impement it properly */
-	dla	t0, dtrace_invop_jump_addr
+	PTR_LA	t0, dtrace_invop_jump_addr
 	/* dla	t1, dtrace_invop_start */
-	sd	zero, 0(t0)
+	PTR_S	zero, 0(t0)
 	j	ra
 	nop
 END(dtrace_invop_init)
@@ -242,8 +242,8 @@ END(dtrace_invop_init)
 void dtrace_invop_uninit(void)
 */
 LEAF(dtrace_invop_uninit)
-	dla	t0, dtrace_invop_jump_addr
-	sd	zero, 0(t0)
+	PTR_LA	t0, dtrace_invop_jump_addr
+	PTR_S	zero, 0(t0)
 	j	ra
 	nop
 END(dtrace_invop_uninit)
