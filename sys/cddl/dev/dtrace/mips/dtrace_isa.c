@@ -487,6 +487,19 @@ dtrace_next_frame(register_t *pc, register_t *sp,
 	*pc = ra;
 	*sp += stksize;
 
+#if defined(__mips_o32)
+	/*
+	 * For MIPS32 fill out arguments 5..8 from the stack
+	 */
+	for (arg = 4; arg < 8; arg++) {
+		addr = (vm_offset_t)(*sp + arg*sizeof(register_t));
+		if (args)
+			args[arg] = kdbpeekd((int *)addr);
+		if (valid_args)
+			valid_args[arg] = 1;
+	}
+#endif
+
 	return (0);
 error:
 	return (-1);
@@ -501,6 +514,9 @@ dtrace_next_uframe(register_t *pc, register_t *sp, register_t *ra)
 	int stksize;
 	InstFmt i;
 
+	volatile uint16_t *flags =
+	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
+
 	registers_on_stack = 0;
 	mask = 0;
 	function_start = 0;
@@ -509,6 +525,9 @@ dtrace_next_uframe(register_t *pc, register_t *sp, register_t *ra)
 
 	while (offset < MAX_FUNCTION_SIZE) {
 		opcode = dtrace_fuword32((void *)(vm_offset_t)(*pc - offset));
+
+		if (*flags & CPU_DTRACE_FAULT)
+			goto fault;
 
 		/* [d]addiu sp, sp, -X*/
 		if (((opcode & 0xffff8000) == 0x27bd8000)
@@ -593,6 +612,9 @@ dtrace_next_uframe(register_t *pc, register_t *sp, register_t *ra)
 			}
 
 			offset += sizeof(int);
+
+			if (*flags & CPU_DTRACE_FAULT)
+				goto fault;
 		}
 	}
 
@@ -606,6 +628,12 @@ dtrace_next_uframe(register_t *pc, register_t *sp, register_t *ra)
 	*sp += stksize;
 
 	return (0);
+fault:
+	/*
+	 * We just got lost in backtrace, no big deal
+	 */
+	*flags &= ~CPU_DTRACE_FAULT;
+	return (-1);
 }
 
 static int
