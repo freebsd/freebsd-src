@@ -1578,19 +1578,6 @@ re_attach(device_t dev)
 		re_gmii_writereg(dev, 1, 0x0e, 0);
 	}
 
-#define	RE_PHYAD_INTERNAL	 0
-
-	/* Do MII setup. */
-	phy = RE_PHYAD_INTERNAL;
-	if (sc->rl_type == RL_8169)
-		phy = 1;
-	error = mii_attach(dev, &sc->rl_miibus, ifp, re_ifmedia_upd,
-	    re_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, MIIF_DOPAUSE);
-	if (error != 0) {
-		device_printf(dev, "attaching PHYs failed\n");
-		goto fail;
-	}
-
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -1614,6 +1601,19 @@ re_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
+
+#define	RE_PHYAD_INTERNAL	 0
+
+	/* Do MII setup. */
+	phy = RE_PHYAD_INTERNAL;
+	if (sc->rl_type == RL_8169)
+		phy = 1;
+	error = mii_attach(dev, &sc->rl_miibus, ifp, re_ifmedia_upd,
+	    re_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, MIIF_DOPAUSE);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
+		goto fail;
+	}
 
 	/*
 	 * Call MI attach routine.

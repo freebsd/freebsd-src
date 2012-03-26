@@ -122,6 +122,8 @@ rgephy_attach(device_t dev)
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
 	sc->mii_flags = miibus_get_flags(dev);
+	if (strcmp(ma->mii_data->mii_ifp->if_dname, "re") == 0)
+		sc->mii_flags |= MIIF_PHYPRIV0;
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = rgephy_service;
@@ -268,7 +270,8 @@ setit:
 		 * Check to see if we have link.  If we do, we don't
 		 * need to restart the autonegotiation process.
 		 */
-		if (rsc->mii_revision >= 2) {
+		if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 &&
+		    rsc->mii_revision >= 2) {
 			/* RTL8211B(L) */
 			reg = PHY_READ(sc, RGEPHY_MII_SSR);
 			if (reg & RGEPHY_SSR_LINK) {
@@ -325,7 +328,7 @@ rgephy_status(struct mii_softc *sc)
 	mii->mii_media_active = IFM_ETHER;
 
 	rsc = (struct rgephy_softc *)sc;
-	if (rsc->mii_revision >= 2) {
+	if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 && rsc->mii_revision >= 2) {
 		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
 		if (ssr & RGEPHY_SSR_LINK)
 			mii->mii_media_status |= IFM_ACTIVE;
@@ -355,7 +358,7 @@ rgephy_status(struct mii_softc *sc)
 		}
 	}
 
-	if (rsc->mii_revision >= 2) {
+	if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 && rsc->mii_revision >= 2) {
 		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
 		switch (ssr & RGEPHY_SSR_SPD_MASK) {
 		case RGEPHY_SSR_S1000:
@@ -517,7 +520,7 @@ rgephy_reset(struct mii_softc *sc)
 	uint16_t ssr;
 
 	rsc = (struct rgephy_softc *)sc;
-	if (rsc->mii_revision == 3) {
+	if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 && rsc->mii_revision == 3) {
 		/* RTL8211C(L) */
 		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
 		if ((ssr & RGEPHY_SSR_ALDPS) != 0) {
