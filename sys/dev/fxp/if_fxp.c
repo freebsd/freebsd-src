@@ -236,11 +236,11 @@ static int		fxp_ioctl(struct ifnet *ifp, u_long command,
 			    caddr_t data);
 static void 		fxp_watchdog(struct fxp_softc *sc);
 static void		fxp_add_rfabuf(struct fxp_softc *sc,
-    			    struct fxp_rx *rxp);
+			    struct fxp_rx *rxp);
 static void		fxp_discard_rfabuf(struct fxp_softc *sc,
-    			    struct fxp_rx *rxp);
+			    struct fxp_rx *rxp);
 static int		fxp_new_rfabuf(struct fxp_softc *sc,
-    			    struct fxp_rx *rxp);
+			    struct fxp_rx *rxp);
 static int		fxp_mc_addrs(struct fxp_softc *sc);
 static void		fxp_mc_setup(struct fxp_softc *sc);
 static uint16_t		fxp_eeprom_getword(struct fxp_softc *sc, int offset,
@@ -272,7 +272,7 @@ static int		sysctl_hw_fxp_int_delay(SYSCTL_HANDLER_ARGS);
 static void 		fxp_scb_wait(struct fxp_softc *sc);
 static void		fxp_scb_cmd(struct fxp_softc *sc, int cmd);
 static void		fxp_dma_wait(struct fxp_softc *sc,
-    			    volatile uint16_t *status, bus_dma_tag_t dmat,
+			    volatile uint16_t *status, bus_dma_tag_t dmat,
 			    bus_dmamap_t map);
 
 static device_method_t fxp_methods[] = {
@@ -681,7 +681,8 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 	error = bus_dmamap_load(sc->fxp_stag, sc->fxp_smap, sc->fxp_stats,
-	    sizeof(struct fxp_stats), fxp_dma_map_addr, &sc->stats_addr, 0);
+	    sizeof(struct fxp_stats), fxp_dma_map_addr, &sc->stats_addr,
+	    BUS_DMA_NOWAIT);
 	if (error) {
 		device_printf(dev, "could not load the stats DMA buffer\n");
 		goto fail;
@@ -705,7 +706,7 @@ fxp_attach(device_t dev)
 
 	error = bus_dmamap_load(sc->cbl_tag, sc->cbl_map,
 	    sc->fxp_desc.cbl_list, FXP_TXCB_SZ, fxp_dma_map_addr,
-	    &sc->fxp_desc.cbl_addr, 0);
+	    &sc->fxp_desc.cbl_addr, BUS_DMA_NOWAIT);
 	if (error) {
 		device_printf(dev, "could not load TxCB DMA buffer\n");
 		goto fail;
@@ -729,7 +730,8 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 	error = bus_dmamap_load(sc->mcs_tag, sc->mcs_map, sc->mcsp,
-	    sizeof(struct fxp_cb_mcs), fxp_dma_map_addr, &sc->mcs_addr, 0);
+	    sizeof(struct fxp_cb_mcs), fxp_dma_map_addr, &sc->mcs_addr,
+	    BUS_DMA_NOWAIT);
 	if (error) {
 		device_printf(dev,
 		    "can't load the multicast setup DMA buffer\n");
@@ -900,7 +902,7 @@ fxp_attach(device_t dev)
 		FXP_LOCK(sc);
 		/* Clear wakeup events. */
 		CSR_WRITE_1(sc, FXP_CSR_PMDR, CSR_READ_1(sc, FXP_CSR_PMDR));
-		fxp_init_body(sc, 1);
+		fxp_init_body(sc, 0);
 		fxp_stop(sc);
 		FXP_UNLOCK(sc);
 	}
@@ -1541,7 +1543,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		}
 		*m_head = m;
 		error = bus_dmamap_load_mbuf_sg(sc->fxp_txmtag, txp->tx_map,
-	    	    *m_head, segs, &nseg, 0);
+		    *m_head, segs, &nseg, 0);
 		if (error != 0) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -2048,7 +2050,7 @@ fxp_update_stats(struct fxp_softc *sc)
 			 */
 			sc->rx_idle_secs++;
 		}
-		ifp->if_ierrors += 
+		ifp->if_ierrors +=
 		    le32toh(sp->rx_crc_errors) +
 		    le32toh(sp->rx_alignment_errors) +
 		    le32toh(sp->rx_rnr_errors) +
@@ -2175,7 +2177,7 @@ fxp_stop(struct fxp_softc *sc)
 	txp = sc->fxp_desc.tx_list;
 	if (txp != NULL) {
 		for (i = 0; i < FXP_NTXCB; i++) {
- 			if (txp[i].tx_mbuf != NULL) {
+			if (txp[i].tx_mbuf != NULL) {
 				bus_dmamap_sync(sc->fxp_txmtag, txp[i].tx_map,
 				    BUS_DMASYNC_POSTWRITE);
 				bus_dmamap_unload(sc->fxp_txmtag,
@@ -2808,7 +2810,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) &&
 			    ((ifp->if_flags ^ sc->if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0)
-				fxp_init_body(sc, 1);
+				fxp_init_body(sc, 0);
 			else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				fxp_init_body(sc, 1);
 		} else {
@@ -2914,7 +2916,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			reinit++;
 		}
 		if (reinit > 0 && ifp->if_flags & IFF_UP)
-			fxp_init_body(sc, 1);
+			fxp_init_body(sc, 0);
 		FXP_UNLOCK(sc);
 		VLAN_CAPABILITIES(ifp);
 		break;
