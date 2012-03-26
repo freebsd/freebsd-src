@@ -652,7 +652,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 	int status = ATH_AGGR_DONE;
 	int prev_frames = 0;	/* XXX for AR5416 burst, not done here */
 	int prev_al = 0;	/* XXX also for AR5416 burst */
-	int seqno;
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
@@ -747,13 +746,32 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 * see ath_tx_xmit_aggr() for more info.
 		 */
 		if (bf->bf_state.bfs_dobaw) {
+			ieee80211_seq seqno;
+
+			/*
+			 * If the sequence number is allocated, use it.
+			 * Otherwise, use the sequence number we WOULD
+			 * allocate.
+			 */
+			if (bf->bf_state.bfs_seqno_assigned)
+				seqno = SEQNO(bf->bf_state.bfs_seqno);
+			else
+				seqno = ni->ni_txseqs[bf->bf_state.bfs_tid];
+
+			/*
+			 * Check whether either the currently allocated
+			 * sequence number _OR_ the to-be allocated
+			 * sequence number is inside the BAW.
+			 */
 			if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
-			    ni->ni_txseqs[bf->bf_state.bfs_tid])) {
+			    seqno)) {
 				status = ATH_AGGR_BAW_CLOSED;
 				break;
 			}
+
 			/* XXX check for bfs_need_seqno? */
 			if (! bf->bf_state.bfs_seqno_assigned) {
+				int seqno;
 				seqno = ath_tx_tid_seqno_assign(sc, ni, bf, bf->bf_m);
 				if (seqno < 0) {
 					device_printf(sc->sc_dev,
