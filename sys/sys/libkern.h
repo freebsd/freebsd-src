@@ -121,7 +121,7 @@ size_t	 strspn(const char *, const char *);
 char	*strstr(const char *, const char *);
 int	 strvalid(const char *, size_t);
 
-extern const uint32_t const crc32_tab[];
+extern const uint32_t crc32_tab[];
 
 static __inline uint32_t
 crc32_raw(const void *buf, size_t size, uint32_t crc)
@@ -143,8 +143,8 @@ crc32(const void *buf, size_t size)
 }
 
 uint32_t
-calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, 
-        unsigned int length);
+calculate_crc32c(uint32_t crc32c, const unsigned char *buffer,
+    unsigned int length);
 
 
 LIBKERN_INLINE void *memset(void *, int, size_t);
