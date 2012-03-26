@@ -856,6 +856,13 @@ rl_attach(device_t dev)
 		goto fail;
 	}
 
+	sc->rl_cfg0 = RL_8139_CFG0;
+	sc->rl_cfg1 = RL_8139_CFG1;
+	sc->rl_cfg2 = 0;
+	sc->rl_cfg3 = RL_8139_CFG3;
+	sc->rl_cfg4 = RL_8139_CFG4;
+	sc->rl_cfg5 = RL_8139_CFG5;
+
 	/*
 	 * Reset the adapter. Only take the lock here as it's needed in
 	 * order to call rl_reset().
@@ -957,6 +964,7 @@ rl_attach(device_t dev)
 		}
 	}
 	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_capenable &= ~(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST);
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
@@ -1886,7 +1894,7 @@ rl_init_locked(struct rl_softc *sc)
 	sc->rl_flags &= ~RL_FLAG_LINK;
 	mii_mediachg(mii);
 
-	CSR_WRITE_1(sc, RL_CFG1, RL_CFG1_DRVLOAD|RL_CFG1_FULLDUPLEX);
+	CSR_WRITE_1(sc, sc->rl_cfg1, RL_CFG1_DRVLOAD|RL_CFG1_FULLDUPLEX);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -2187,22 +2195,19 @@ rl_setwol(struct rl_softc *sc)
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
 	/* Enable PME. */
-	v = CSR_READ_1(sc, RL_CFG1);
+	v = CSR_READ_1(sc, sc->rl_cfg1);
 	v &= ~RL_CFG1_PME;
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		v |= RL_CFG1_PME;
-	CSR_WRITE_1(sc, RL_CFG1, v);
+	CSR_WRITE_1(sc, sc->rl_cfg1, v);
 
-	v = CSR_READ_1(sc, RL_CFG3);
+	v = CSR_READ_1(sc, sc->rl_cfg3);
 	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
 	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
 		v |= RL_CFG3_WOL_MAGIC;
-	CSR_WRITE_1(sc, RL_CFG3, v);
+	CSR_WRITE_1(sc, sc->rl_cfg3, v);
 
-	/* Config register write done. */
-	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
-
-	v = CSR_READ_1(sc, RL_CFG5);
+	v = CSR_READ_1(sc, sc->rl_cfg5);
 	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
 	v &= ~RL_CFG5_WOL_LANWAKE;
 	if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
@@ -2211,7 +2216,11 @@ rl_setwol(struct rl_softc *sc)
 		v |= RL_CFG5_WOL_MCAST | RL_CFG5_WOL_BCAST;
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		v |= RL_CFG5_WOL_LANWAKE;
-	CSR_WRITE_1(sc, RL_CFG5, v);
+	CSR_WRITE_1(sc, sc->rl_cfg5, v);
+
+	/* Config register write done. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
+
 	/* Request PME if WOL is requested. */
 	pmstat = pci_read_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
@@ -2233,15 +2242,15 @@ rl_clrwol(struct rl_softc *sc)
 	/* Enable config register write. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
-	v = CSR_READ_1(sc, RL_CFG3);
+	v = CSR_READ_1(sc, sc->rl_cfg3);
 	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
-	CSR_WRITE_1(sc, RL_CFG3, v);
+	CSR_WRITE_1(sc, sc->rl_cfg3, v);
 
 	/* Config register write done. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
-	v = CSR_READ_1(sc, RL_CFG5);
+	v = CSR_READ_1(sc, sc->rl_cfg5);
 	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
 	v &= ~RL_CFG5_WOL_LANWAKE;
-	CSR_WRITE_1(sc, RL_CFG5, v);
+	CSR_WRITE_1(sc, sc->rl_cfg5, v);
 }

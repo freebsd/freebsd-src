@@ -74,6 +74,14 @@
 #define	RL_TIMERCNT	0x0048		/* timer count register */
 #define	RL_MISSEDPKT	0x004C		/* missed packet counter */
 #define	RL_EECMD	0x0050		/* EEPROM command register */
+
+/* RTL8139/RTL8139C+ only */
+#define	RL_8139_CFG0	0x0051		/* config register #0 */
+#define	RL_8139_CFG1	0x0052		/* config register #1 */
+#define	RL_8139_CFG3	0x0059		/* config register #3 */
+#define	RL_8139_CFG4	0x005A		/* config register #4 */
+#define	RL_8139_CFG5	0x00D8		/* config register #5 */
+
 #define	RL_CFG0		0x0051		/* config register #0 */
 #define	RL_CFG1		0x0052		/* config register #1 */
 #define	RL_CFG2		0x0053		/* config register #2 */
@@ -890,6 +898,12 @@ struct rl_softc {
 	int			rl_eewidth;
 	int			rl_expcap;
 	int			rl_txthresh;
+	bus_size_t		rl_cfg0;
+	bus_size_t		rl_cfg1;
+	bus_size_t		rl_cfg2;
+	bus_size_t		rl_cfg3;
+	bus_size_t		rl_cfg4;
+	bus_size_t		rl_cfg5;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
 	struct callout		rl_stat_callout;
