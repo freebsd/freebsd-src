@@ -2348,7 +2348,6 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
 	struct ath_txq *txq = bf->bf_state.bfs_txq;
 	struct ieee80211_tx_ampdu *tap;
-	int seqno;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -2384,13 +2383,31 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 	 * the TIDs that map to it.  Ugh.
 	 */
 	if (bf->bf_state.bfs_dobaw) {
-		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
-		    ni->ni_txseqs[bf->bf_state.bfs_tid])) {
+		ieee80211_seq seqno;
+
+		/*
+		 * If the sequence number is allocated, use it.
+		 * Otherwise, use the sequence number we WOULD
+		 * allocate.
+		 */
+		if (bf->bf_state.bfs_seqno_assigned)
+			seqno = SEQNO(bf->bf_state.bfs_seqno);
+		else
+			seqno = ni->ni_txseqs[bf->bf_state.bfs_tid];
+
+		/*
+		 * Check whether either the currently allocated
+		 * sequence number _OR_ the to-be allocated
+		 * sequence number is inside the BAW.
+		 */
+		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd, seqno)) {
 			ATH_TXQ_INSERT_TAIL(tid, bf, bf_list);
 			ath_tx_tid_sched(sc, tid);
 			return;
 		}
 		if (! bf->bf_state.bfs_seqno_assigned) {
+			int seqno;
+
 			seqno = ath_tx_tid_seqno_assign(sc, ni, bf, bf->bf_m);
 			if (seqno < 0) {
 				device_printf(sc->sc_dev,
