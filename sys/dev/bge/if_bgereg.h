@@ -1989,7 +1989,9 @@
 /* Misc. config register */
 #define	BGE_MISCCFG_RESET_CORE_CLOCKS	0x00000001
 #define	BGE_MISCCFG_TIMER_PRESCALER	0x000000FE
-#define	BGE_MISCCFG_BOARD_ID		0x0001E000
+#define	BGE_MISCCFG_BOARD_ID_MASK	0x0001E000
+#define	BGE_MISCCFG_BOARD_ID_5704	0x00000000
+#define	BGE_MISCCFG_BOARD_ID_5704CIOBE	0x00004000
 #define	BGE_MISCCFG_BOARD_ID_5788	0x00010000
 #define	BGE_MISCCFG_BOARD_ID_5788M	0x00018000
 #define	BGE_MISCCFG_EPHY_IDDQ		0x00200000
@@ -2869,6 +2871,8 @@ struct bge_softc {
 	int			bge_csum_features;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;
+	uint32_t		bge_rx_inerrs;
+	uint32_t		bge_rx_nobds;
 	uint32_t		bge_tx_discards;
 	uint32_t		bge_tx_collisions;
 #ifdef DEVICE_POLLING
