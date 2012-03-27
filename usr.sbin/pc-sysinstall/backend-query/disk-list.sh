@@ -63,10 +63,7 @@ if [ -d "/dev/raid" ] ; then
   cd /dev/raid
   for i in `ls`
   do
-    case ${i} in
-      r0|r1|r2|r3|r4|r5) SYSDISK="${SYSDISK} ${i}" ;;
-      *) ;;
-    esac
+      SYSDISK="${SYSDISK} ${i}"
   done
 fi
 
