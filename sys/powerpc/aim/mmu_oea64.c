@@ -1582,11 +1582,11 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 					isync();
 			}
 		}
+		if ((lo & LPTE_CHG) != 0) 
+			vm_page_dirty(m);
 		PMAP_UNLOCK(pmap);
 	}
 	UNLOCK_TABLE_RD();
-	if ((lo & LPTE_CHG) != 0) 
-		vm_page_dirty(m);
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 }
 
