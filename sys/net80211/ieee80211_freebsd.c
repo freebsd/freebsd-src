@@ -572,7 +572,7 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 
 	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 	    "%s replay detected tid %d <rsc %ju, csc %ju, keyix %u rxkeyix %u>",
-	    tid, k->wk_cipher->ic_name, (intmax_t) rsc,
+	    k->wk_cipher->ic_name, tid, (intmax_t) rsc,
 	    (intmax_t) k->wk_keyrsc[tid],
 	    k->wk_keyix, k->wk_rxkeyix);
 
