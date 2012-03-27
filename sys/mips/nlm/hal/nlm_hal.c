@@ -37,22 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/sys.h>
-#include <mips/nlm/hal/pic.h>
 #include <mips/nlm/xlp.h>
-
-#include <mips/nlm/hal/uart.h>
-#include <mips/nlm/hal/mmu.h>
-#include <mips/nlm/hal/pcibus.h>
-#include <mips/nlm/hal/usb.h>
-
-int pic_irt_ehci0;
-int pic_irt_ehci1;
-int pic_irt_uart0;
-int pic_irt_uart1;
-int pic_irt_pcie_lnk0;
-int pic_irt_pcie_lnk1;
-int pic_irt_pcie_lnk2;
-int pic_irt_pcie_lnk3;
 
 uint32_t
 xlp_get_cpu_frequency(int node, int core)
@@ -66,9 +51,9 @@ xlp_get_cpu_frequency(int node, int core)
 	pll_divf = ((rstval >> 10) & 0x7f) + 1;
 	pll_divr = ((rstval >> 8)  & 0x3) + 1;
 	if (!nlm_is_xlp8xx_ax())
-		ext_div  = ((rstval >> 30) & 0x3) + 1;
+		ext_div = ((rstval >> 30) & 0x3) + 1;
 	else
-		ext_div  = 1;
+		ext_div = 1;
 	dfs_div  = ((dfsval >> (core << 2)) & 0xf) + 1;
 
 	return ((800000000ULL * pll_divf)/(3 * pll_divr * ext_div * dfs_div));
@@ -121,99 +106,4 @@ nlm_set_device_frequency(int node, int devtype, int frequency)
 		cur_freq = nlm_get_device_frequency(sysbase, devtype);
 	}
 	return (nlm_get_device_frequency(sysbase, devtype));
-}
-
-void
-nlm_pic_irt_init(int node)
-{
-	pic_irt_ehci0 = nlm_irtstart(nlm_get_usb_pcibase(node, 0));
-	pic_irt_ehci1 = nlm_irtstart(nlm_get_usb_pcibase(node, 3));
-	pic_irt_uart0 = nlm_irtstart(nlm_get_uart_pcibase(node, 0));
-	pic_irt_uart1 = nlm_irtstart(nlm_get_uart_pcibase(node, 1));
-
-	/* Hardcoding the PCIE IRT information as PIC doesn't 
-	   understand any value other than 78,79,80,81 for PCIE0/1/2/3 */
-	pic_irt_pcie_lnk0 = 78;
-	pic_irt_pcie_lnk1 = 79;
-	pic_irt_pcie_lnk2 = 80;
-	pic_irt_pcie_lnk3 = 81;
-}
-/*
- * Find the IRQ for the link, each link has a different interrupt 
- * at the XLP pic
- */
-int xlp_pcie_link_irt(int link)
-{
-
-	if( (link < 0) || (link > 3))
-		return (-1);
-
-	return (pic_irt_pcie_lnk0 + link);
-}
-
-int
-xlp_irt_to_irq(int irt)
-{
-	if (irt == pic_irt_ehci0)
-		return PIC_EHCI_0_IRQ;
-	else if (irt == pic_irt_ehci1)
-		return PIC_EHCI_1_IRQ;
-	else if (irt == pic_irt_uart0)
-		return PIC_UART_0_IRQ;
-	else if (irt == pic_irt_uart1)
-		return PIC_UART_1_IRQ;
-	else if (irt == pic_irt_pcie_lnk0)
-		return PIC_PCIE_0_IRQ;
-	else if (irt == pic_irt_pcie_lnk1)
-		return PIC_PCIE_1_IRQ;
-	else if (irt == pic_irt_pcie_lnk2)
-		return PIC_PCIE_2_IRQ;
-	else if (irt == pic_irt_pcie_lnk3)
-		return PIC_PCIE_3_IRQ;
-	else {
-		if (bootverbose)
-			printf("Cannot find irq for IRT %d\n", irt);
-		return 0;
-	 }
-}
-
-int
-xlp_irq_to_irt(int irq)
-{
-	switch (irq) {
- 		case PIC_EHCI_0_IRQ :
- 			return pic_irt_ehci0;
- 		case PIC_EHCI_1_IRQ :
- 			return pic_irt_ehci1;
-		case PIC_UART_0_IRQ :
-			return pic_irt_uart0;
-		case PIC_UART_1_IRQ :
-			return pic_irt_uart1;
-		case PIC_PCIE_0_IRQ :
-			return pic_irt_pcie_lnk0;
-		case PIC_PCIE_1_IRQ :
-			return pic_irt_pcie_lnk1;
-		case PIC_PCIE_2_IRQ :
-			return pic_irt_pcie_lnk2;
-		case PIC_PCIE_3_IRQ :
-			return pic_irt_pcie_lnk3;
-		default: panic("Bad IRQ %d\n", irq);
-	}
-}
-
-int
-xlp_irq_is_picintr(int irq)
-{
-	switch (irq) {
- 		case PIC_EHCI_0_IRQ :
- 		case PIC_EHCI_1_IRQ :
-		case PIC_UART_0_IRQ :
-		case PIC_UART_1_IRQ :
-		case PIC_PCIE_0_IRQ :
-		case PIC_PCIE_1_IRQ :
-		case PIC_PCIE_2_IRQ :
-		case PIC_PCIE_3_IRQ :
-			return (1);
-		default: return (0);
-	}
 }
