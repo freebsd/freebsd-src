@@ -57,16 +57,26 @@
 
 #define	MSI_MIPS_DATA_INTVEC		0x000000ff
 
-#define	PCIE_BRIDGE_CMD		0x1
-#define	PCIE_BRIDGE_MSI_CAP	0x14
-#define	PCIE_BRIDGE_MSI_ADDRL	0x15
-#define	PCIE_BRIDGE_MSI_ADDRH	0x16
-#define	PCIE_BRIDGE_MSI_DATA	0x17
+/* PCIE Memory and IO regions */
+#define	PCIE_MEM_BASE			0xd0000000ULL
+#define	PCIE_MEM_LIMIT			0xdfffffffULL
+#define	PCIE_IO_BASE			0x14000000ULL
+#define	PCIE_IO_LIMIT			0x15ffffffULL
+
+#define	PCIE_BRIDGE_CMD			0x1
+#define	PCIE_BRIDGE_MSI_CAP		0x14
+#define	PCIE_BRIDGE_MSI_ADDRL		0x15
+#define	PCIE_BRIDGE_MSI_ADDRH		0x16
+#define	PCIE_BRIDGE_MSI_DATA		0x17
 
 /* XLP Global PCIE configuration space registers */
-#define	PCIE_MSI_STATUS		0x25A
-#define	PCIE_MSI_EN		0x25B
-#define	PCIE_INT_EN0		0x261
+#define	PCIE_BYTE_SWAP_MEM_BASE		0x247
+#define	PCIE_BYTE_SWAP_MEM_LIM		0x248
+#define	PCIE_BYTE_SWAP_IO_BASE		0x249
+#define	PCIE_BYTE_SWAP_IO_LIM		0x24A
+#define	PCIE_MSI_STATUS			0x25A
+#define	PCIE_MSI_EN			0x25B
+#define	PCIE_INT_EN0			0x261
 
 /* PCIE_MSI_EN */
 #define	PCIE_MSI_VECTOR_INT_EN		0xFFFFFFFF

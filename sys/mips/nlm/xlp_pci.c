@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/pic.h>
+#include <mips/nlm/hal/bridge.h>
 #include <mips/nlm/hal/pcibus.h>
 #include <mips/nlm/hal/uart.h>
 #include <mips/nlm/xlp.h>
@@ -77,7 +78,6 @@ static struct rman irq_rman, port_rman, mem_rman, emul_rman;
 static void
 xlp_pci_init_resources(void)
 {
-
 	irq_rman.rm_start = 0;
 	irq_rman.rm_end = 255;
 	irq_rman.rm_type = RMAN_ARRAY;
@@ -91,7 +91,7 @@ xlp_pci_init_resources(void)
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
-	    || rman_manage_region(&port_rman, 0x14000000UL, 0x15ffffffUL))
+	    || rman_manage_region(&port_rman, PCIE_IO_BASE, PCIE_IO_LIMIT))
 		panic("pci_init_resources port_rman");
 
 	mem_rman.rm_start = 0;
@@ -99,15 +99,19 @@ xlp_pci_init_resources(void)
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
-	    || rman_manage_region(&mem_rman, 0xd0000000ULL, 0xdfffffffULL))
+	    || rman_manage_region(&mem_rman, PCIE_MEM_BASE, PCIE_MEM_LIMIT))
 		panic("pci_init_resources mem_rman");
 
+	/*
+	 * This includes the GBU (nor flash) memory range and the PCIe
+	 * memory area. 
+	 */
 	emul_rman.rm_start = 0;
 	emul_rman.rm_end = ~0ul;
 	emul_rman.rm_type = RMAN_ARRAY;
 	emul_rman.rm_descr = "Emulated MEMIO";
 	if (rman_init(&emul_rman)
-	    || rman_manage_region(&emul_rman, 0x18000000ULL, 0x18ffffffULL))
+	    || rman_manage_region(&emul_rman, 0x16000000UL, 0x18ffffffUL))
 		panic("pci_init_resources emul_rman");
 }
 
@@ -220,15 +224,48 @@ xlp_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
 	return;
 }
 
+/*
+ * Enable byte swap in hardware. Program a link's PCIe SWAP regions
+ * from the link's IO and MEM address ranges.
+ */
+static void
+xlp_pci_hardware_swap_enable(int node, int link)
+{
+	uint64_t bbase, linkpcibase;
+	uint32_t bar;
+	int pcieoffset;
+
+	pcieoffset = XLP_IO_PCIE_OFFSET(node, link);
+	if (!nlm_dev_exists(pcieoffset))
+		return;
+
+	bbase = nlm_get_bridge_regbase(node);
+	linkpcibase = nlm_pcicfg_base(pcieoffset);
+	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEMEM_BASE0 + link);
+	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_MEM_BASE, bar);
+
+	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEMEM_LIMIT0 + link);
+	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_MEM_LIM, bar);
+
+	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEIO_BASE0 + link);
+	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_IO_BASE, bar);
+
+	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEIO_LIMIT0 + link);
+	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_IO_LIM, bar);
+}
+
 static int 
 xlp_pcib_attach(device_t dev)
 {
-	struct xlp_pcib_softc *sc;
-	sc = device_get_softc(dev);
+	int node, link;
+
+	/* enable hardware swap on all nodes/links */
+	for (node = 0; node < XLP_MAX_NODES; node++)
+		for (link = 0; link < 4; link++)
+			xlp_pci_hardware_swap_enable(node, link);
 
 	device_add_child(dev, "pci", 0);
 	bus_generic_attach(dev);
-
 	return (0);
 }
 
@@ -249,10 +286,6 @@ xlp_pcie_link(device_t pcib, device_t dev)
 	device_t parent, tmp;
 
 	/* find the lane on which the slot is connected to */
-#if 0 /* Debug */
-	printf("xlp_pcie_link : bus %s dev %s\n", device_get_nameunit(pcib),
-		device_get_nameunit(dev));
-#endif
 	tmp = dev;
 	while (1) {
 		parent = device_get_parent(tmp);
@@ -295,8 +328,6 @@ xlp_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 static int
 xlp_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 {
-	device_printf(dev, "%s: msi release %d\n", device_get_nameunit(pcib),
-	    count);
 	return (0);
 }
 
@@ -369,7 +400,6 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		return (EINVAL);
 	}
 	xlpirq = rman_get_start(irq);
-	device_printf(dev, "setup intr %d\n", xlpirq);
 
 	if (strcmp(device_get_name(dev), "pcib") != 0) {
 		device_printf(dev, "ret 0 on dev\n");
@@ -389,7 +419,7 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 			return (0);
 
 		node = nlm_nodeid();
-		link = (xlpirq / 32);
+		link = xlpirq / 32;
 		base = nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node,link));
 
 		/* MSI Interrupt Vector enable at bridge's configuration */
@@ -398,24 +428,23 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		val = nlm_read_pci_reg(base, PCIE_INT_EN0);
 		/* MSI Interrupt enable at bridge's configuration */
 		nlm_write_pci_reg(base, PCIE_INT_EN0,
-				(val | PCIE_MSI_INT_EN));
+		    (val | PCIE_MSI_INT_EN));
 
 		/* legacy interrupt disable at bridge */
 		val = nlm_read_pci_reg(base, PCIE_BRIDGE_CMD);
 		nlm_write_pci_reg(base, PCIE_BRIDGE_CMD,
-				(val | PCIM_CMD_INTxDIS));
+		    (val | PCIM_CMD_INTxDIS));
 
 		/* MSI address update at bridge */
-		val = nlm_read_pci_reg(base, PCIE_BRIDGE_MSI_ADDRL);
 		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_ADDRL,
-				(val | MSI_MIPS_ADDR_BASE));
+		    MSI_MIPS_ADDR_BASE);
+		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_ADDRH, 0);
 
 		val = nlm_read_pci_reg(base, PCIE_BRIDGE_MSI_CAP);
 		/* MSI capability enable at bridge */
 		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_CAP, 
-				(val |
-				(PCIM_MSICTRL_MSI_ENABLE << 16) |
-				(PCIM_MSICTRL_MMC_32 << 16)));
+		    (val | (PCIM_MSICTRL_MSI_ENABLE << 16) |
+		        (PCIM_MSICTRL_MMC_32 << 16)));
 
 		xlpirq = xlp_pcie_link_irt(xlpirq / 32);
 		if (xlpirq == -1)
@@ -423,12 +452,10 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		xlpirq = xlp_irt_to_irq(xlpirq);
 	}
 	/* Set all irqs to CPU 0 for now */
-	printf("set up intr %d->%d(%d)\n", xlp_irq_to_irt(xlpirq), xlpirq, (int)rman_get_start(irq));
 	nlm_pic_write_irt_direct(xlp_pic_base, xlp_irq_to_irt(xlpirq), 1, 0,
-				 PIC_LOCAL_SCHEDULING, xlpirq, 0);
+	    PIC_LOCAL_SCHEDULING, xlpirq, 0);
 	extra_ack = NULL;
-	if (xlpirq >= PIC_PCIE_0_IRQ &&
-	    xlpirq <= PIC_PCIE_3_IRQ)
+	if (xlpirq >= PIC_PCIE_0_IRQ && xlpirq <= PIC_PCIE_3_IRQ)
 		extra_ack = bridge_pcie_ack;
 	xlp_establish_intr(device_get_name(child), filt,
 	    intr, arg, xlpirq, flags, cookiep, extra_ack);
@@ -451,34 +478,37 @@ static void
 assign_soc_resource(device_t child, int type, u_long *startp, u_long *endp,
     u_long *countp, struct rman **rm, bus_space_tag_t *bst, vm_offset_t *va)
 {
-	int devid = pci_get_device(child);
-	int inst = pci_get_function(child);
-	int node = pci_get_slot(child) / 8;
-	int dev = pci_get_slot(child) % 8;
+	int devid, inst, node, unit;
+
+	devid = pci_get_device(child);
+	inst = pci_get_function(child);
+	node = pci_get_slot(child) / 8;
+	unit = device_get_unit(child);
 
 	*rm = NULL;
 	*va = 0;
 	*bst = 0;
-	if (type == SYS_RES_IRQ) {
-		printf("%s: %d %d %d : start %d, end %d\n", __func__,
-				node, dev, inst, (int)*startp, (int)*endp);
-	} else if (type == SYS_RES_MEMORY) {
+	if (type == SYS_RES_MEMORY) { 
 		switch (devid) {
 		case PCI_DEVICE_ID_NLM_UART:
 			*va = nlm_get_uart_regbase(node, inst);
-			*startp = MIPS_KSEG1_TO_PHYS(va);
+			*startp = MIPS_KSEG1_TO_PHYS(*va);
 			*countp = 0x100;
 			*rm = &emul_rman;
 			*bst = uart_bus_space_mem;
 			break;
 		}
-
-	} else
+		/* calculate end if allocated */
+		if (*rm)
+			*endp = *startp + *countp - 1;
+	} else if (type != SYS_RES_IRQ) {
+		/*
+		 * IRQ allocation is done by route_interrupt,
+		 * for any other request print warning.
+		 */
 		printf("Unknown type %d in req for [%x%x]\n",
 			type, devid, inst);
-	/* default to rmi_bus_space for SoC resources */
-	if (type == SYS_RES_MEMORY && *bst == 0)
-		*bst = rmi_bus_space;
+	}
 }
 
 static struct resource *
@@ -529,7 +559,7 @@ xlp_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (va == 0)
 			va = (vm_offset_t)pmap_mapdev(start, count);
 		if (bst == 0)
-			bst = rmi_pci_bus_space;
+			bst = rmi_bus_space;
 
 		rman_set_bushandle(rv, va);
 		rman_set_virtual(rv, (void *)va);
@@ -590,7 +620,6 @@ mips_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	if ((pin < 1) || (pin > 4))
 		return (255);
 
-	device_printf(bus, "route  %s %d", device_get_nameunit(dev), pin);
 	if (pci_get_bus(dev) == 0 &&
 	    pci_get_vendor(dev) == PCI_VENDOR_NETLOGIC) {
 		/* SoC devices */
