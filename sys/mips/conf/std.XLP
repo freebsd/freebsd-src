@@ -95,3 +95,13 @@ device		iic
 device		iicbus
 device		iicoc
 device		ds1374			# RTC on XLP boards
+
+# Crypto
+device		crypto
+device		cryptodev
+device		nlmsec
+device		nlmrsa
+
+# Options that use crypto
+options 	IPSEC
+options 	GEOM_ELI

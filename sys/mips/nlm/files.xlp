@@ -14,3 +14,9 @@ mips/nlm/intern_dev.c				optional pci
 mips/nlm/uart_pci_xlp.c				optional uart
 mips/nlm/uart_cpu_xlp.c				optional uart
 mips/nlm/usb_init.c				optional usb
+#
+# Security Driver
+#
+mips/nlm/dev/sec/nlmsec.c			optional nlmsec
+mips/nlm/dev/sec/nlmseclib.c			optional nlmsec
+mips/nlm/dev/sec/nlmrsa.c			optional nlmrsa
