@@ -32,6 +32,13 @@
 #ifndef _NLM_MSGRING_H
 #define	_NLM_MSGRING_H
 #define	CMS_DEFAULT_CREDIT	50
+/*
+ * packets are sent to VC 0 of a thread
+ * freebacks are sent to VC 3 of a thread
+ */
+#define	XLPGE_RX_VC		0
+#define	XLPGE_FB_VC		3
+
 extern uint32_t xlp_msg_thread_mask;
 
 struct nlm_fmn_msg;
