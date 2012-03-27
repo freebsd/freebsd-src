@@ -358,14 +358,14 @@ mips_init(void)
 	mips_cpu_init();
 	cpuinfo.cache_coherent_dma = TRUE;
 	pmap_bootstrap();
+	mips_proc0_init();
+	mutex_init();
 #ifdef DDB
 	kdb_init();
 	if (boothowto & RB_KDB) {
 		kdb_enter("Boot flags requested debugger", NULL);
 	}
 #endif
-	mips_proc0_init();
-	mutex_init();
 }
 
 unsigned int
@@ -433,8 +433,12 @@ xlp_mem_init(void)
 
 		/* first bar, start a bit after end */
 		if (base == 0) {
-			base = (vm_paddr_t)MIPS_KSEG0_TO_PHYS(&_end) + 0x20000;
-			lim  = 0x0c000000;  /* TODO : hack to avoid uboot packet mem */
+			base = (vm_paddr_t)MIPS_KSEG0_TO_PHYS(&_end);
+			base = round_page(base) + 0x20000; /* round up */
+			/* TODO : hack to avoid uboot packet mem, network
+			 * interface will write here if not reset correctly
+			 * by u-boot */
+			lim  = 0x0c000000;
 		}
 		if (base >= XLP_MEM_LIM) {
 			printf("Mem [%d]: Ignore %#jx - %#jx\n", i,
@@ -456,7 +460,7 @@ xlp_mem_init(void)
 		 * Exclude reset entry memory range 0x1fc00000 - 0x20000000
 		 * from free memory
 		 */
-		if (base <= 0x1fc00000 && (base + lim) > 0x1fc00000) {
+		if (base < 0x20000000 && lim > 0x1fc00000) {
 			uint64_t base0, lim0, base1, lim1;
 
 			base0 = base;
@@ -542,6 +546,9 @@ platform_start(__register_t a0 __unused,
 	/* setup for the startup core */
 	xlp_setup_mmu();
 
+	/* Read/Guess/setup board information */
+	nlm_board_info_setup();
+
 	/* MIPS generic init */
 	mips_init();
 
@@ -549,7 +556,6 @@ platform_start(__register_t a0 __unused,
 	 * XLP specific post initialization
  	 * initialize other on chip stuff
 	 */
-	nlm_board_info_setup();
 	xlp_pic_init();
 
 	mips_timer_init_params(xlp_cpu_frequency, 0);
