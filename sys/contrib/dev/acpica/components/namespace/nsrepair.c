@@ -74,10 +74,11 @@
  * Buffer  -> String
  * Buffer  -> Package of Integers
  * Package -> Package of one Package
- * An incorrect standalone object is wrapped with required outer package
  *
  * Additional possible repairs:
+ *
  * Required package elements that are NULL replaced by Integer/String/Buffer
+ * Incorrect standalone package wrapped with required outer package
  *
  ******************************************************************************/
 
@@ -96,6 +97,11 @@ AcpiNsConvertToString (
 
 static ACPI_STATUS
 AcpiNsConvertToBuffer (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+static ACPI_STATUS
+AcpiNsConvertToPackage (
     ACPI_OPERAND_OBJECT     *OriginalObject,
     ACPI_OPERAND_OBJECT     **ReturnObject);
 
@@ -166,24 +172,10 @@ AcpiNsRepairObject (
     }
     if (ExpectedBtypes & ACPI_RTYPE_PACKAGE)
     {
-        /*
-         * A package is expected. We will wrap the existing object with a
-         * new package object. It is often the case that if a variable-length
-         * package is required, but there is only a single object needed, the
-         * BIOS will return that object instead of wrapping it with a Package
-         * object. Note: after the wrapping, the package will be validated
-         * for correct contents (expected object type or types).
-         */
-        Status = AcpiNsWrapWithPackage (Data, ReturnObject, &NewObject);
+        Status = AcpiNsConvertToPackage (ReturnObject, &NewObject);
         if (ACPI_SUCCESS (Status))
         {
-            /*
-             * The original object just had its reference count
-             * incremented for being inserted into the new package.
-             */
-            *ReturnObjectPtr = NewObject;       /* New Package object */
-            Data->Flags |= ACPI_OBJECT_REPAIRED;
-            return (AE_OK);
+            goto ObjectRepaired;
         }
     }
 
@@ -196,27 +188,24 @@ ObjectRepaired:
 
     /* Object was successfully repaired */
 
+    /*
+     * If the original object is a package element, we need to:
+     * 1. Set the reference count of the new object to match the
+     *    reference count of the old object.
+     * 2. Decrement the reference count of the original object.
+     */
     if (PackageIndex != ACPI_NOT_PACKAGE_ELEMENT)
     {
-        /*
-         * The original object is a package element. We need to
-         * decrement the reference count of the original object,
-         * for removing it from the package.
-         *
-         * However, if the original object was just wrapped with a
-         * package object as part of the repair, we don't need to
-         * change the reference count.
-         */
-        if (!(Data->Flags & ACPI_OBJECT_WRAPPED))
+        NewObject->Common.ReferenceCount =
+            ReturnObject->Common.ReferenceCount;
+
+        if (ReturnObject->Common.ReferenceCount > 1)
         {
-            if (ReturnObject->Common.ReferenceCount > 1)
-            {
-                ReturnObject->Common.ReferenceCount--;
-            }
+            ReturnObject->Common.ReferenceCount--;
         }
 
         ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
-            "%s: Converted %s to expected %s at Package index %u\n",
+            "%s: Converted %s to expected %s at index %u\n",
             Data->Pathname, AcpiUtGetObjectTypeName (ReturnObject),
             AcpiUtGetObjectTypeName (NewObject), PackageIndex));
     }
@@ -509,6 +498,71 @@ AcpiNsConvertToBuffer (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiNsConvertToPackage
+ *
+ * PARAMETERS:  OriginalObject      - Object to be converted
+ *              ReturnObject        - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful.
+ *
+ * DESCRIPTION: Attempt to convert a Buffer object to a Package. Each byte of
+ *              the buffer is converted to a single integer package element.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiNsConvertToPackage (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject)
+{
+    ACPI_OPERAND_OBJECT     *NewObject;
+    ACPI_OPERAND_OBJECT     **Elements;
+    UINT32                  Length;
+    UINT8                   *Buffer;
+
+
+    switch (OriginalObject->Common.Type)
+    {
+    case ACPI_TYPE_BUFFER:
+
+        /* Buffer-to-Package conversion */
+
+        Length = OriginalObject->Buffer.Length;
+        NewObject = AcpiUtCreatePackageObject (Length);
+        if (!NewObject)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        /* Convert each buffer byte to an integer package element */
+
+        Elements = NewObject->Package.Elements;
+        Buffer = OriginalObject->Buffer.Pointer;
+
+        while (Length--)
+        {
+            *Elements = AcpiUtCreateIntegerObject ((UINT64) *Buffer);
+            if (!*Elements)
+            {
+                AcpiUtRemoveReference (NewObject);
+                return (AE_NO_MEMORY);
+            }
+            Elements++;
+            Buffer++;
+        }
+        break;
+
+    default:
+        return (AE_AML_OPERAND_TYPE);
+    }
+
+    *ReturnObject = NewObject;
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiNsRepairNullElement
  *
  * PARAMETERS:  Data                - Pointer to validation data structure
@@ -691,43 +745,42 @@ AcpiNsRemoveNullElements (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsWrapWithPackage
+ * FUNCTION:    AcpiNsRepairPackageList
  *
  * PARAMETERS:  Data                - Pointer to validation data structure
- *              OriginalObject      - Pointer to the object to repair.
- *              ObjDescPtr          - The new package object is returned here
+ *              ObjDescPtr          - Pointer to the object to repair. The new
+ *                                    package object is returned here,
+ *                                    overwriting the old object.
  *
  * RETURN:      Status, new object in *ObjDescPtr
  *
- * DESCRIPTION: Repair a common problem with objects that are defined to
- *              return a variable-length Package of sub-objects. If there is
- *              only one sub-object, some BIOS code mistakenly simply declares
- *              the single object instead of a Package with one sub-object.
- *              This function attempts to repair this error by wrapping a
- *              Package object around the original object, creating the
- *              correct and expected Package with one sub-object.
+ * DESCRIPTION: Repair a common problem with objects that are defined to return
+ *              a variable-length Package of Packages. If the variable-length
+ *              is one, some BIOS code mistakenly simply declares a single
+ *              Package instead of a Package with one sub-Package. This
+ *              function attempts to repair this error by wrapping a Package
+ *              object around the original Package, creating the correct
+ *              Package with one sub-Package.
  *
  *              Names that can be repaired in this manner include:
- *              _ALR, _CSD, _HPX, _MLS, _PLD, _PRT, _PSS, _TRT, _TSS,
- *              _BCL, _DOD, _FIX, _Sx
+ *              _ALR, _CSD, _HPX, _MLS, _PRT, _PSS, _TRT, TSS
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiNsWrapWithPackage (
+AcpiNsRepairPackageList (
     ACPI_PREDEFINED_DATA    *Data,
-    ACPI_OPERAND_OBJECT     *OriginalObject,
     ACPI_OPERAND_OBJECT     **ObjDescPtr)
 {
     ACPI_OPERAND_OBJECT     *PkgObjDesc;
 
 
-    ACPI_FUNCTION_NAME (NsWrapWithPackage);
+    ACPI_FUNCTION_NAME (NsRepairPackageList);
 
 
     /*
      * Create the new outer package and populate it. The new package will
-     * have a single element, the lone sub-object.
+     * have a single element, the lone subpackage.
      */
     PkgObjDesc = AcpiUtCreatePackageObject (1);
     if (!PkgObjDesc)
@@ -735,15 +788,15 @@ AcpiNsWrapWithPackage (
         return (AE_NO_MEMORY);
     }
 
-    PkgObjDesc->Package.Elements[0] = OriginalObject;
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
-        "%s: Wrapped %s with expected Package object\n",
-        Data->Pathname, AcpiUtGetObjectTypeName (OriginalObject)));
+    PkgObjDesc->Package.Elements[0] = *ObjDescPtr;
 
     /* Return the new object in the object pointer */
 
     *ObjDescPtr = PkgObjDesc;
-    Data->Flags |= ACPI_OBJECT_REPAIRED | ACPI_OBJECT_WRAPPED;
+    Data->Flags |= ACPI_OBJECT_REPAIRED;
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
+        "%s: Repaired incorrectly formed Package\n", Data->Pathname));
+
     return (AE_OK);
 }
