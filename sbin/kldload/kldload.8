@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2009
+.Dd March 18, 2012
 .Dt KLDLOAD 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd load a file into the kernel
 .Sh SYNOPSIS
 .Nm
-.Op Fl qv
+.Op Fl nqv
 .Ar
 .Sh DESCRIPTION
 The
@@ -62,6 +62,8 @@ in the current directory.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl n
+Don't try to load module if already loaded.
 .It Fl v
 Be more verbose.
 .It Fl q
