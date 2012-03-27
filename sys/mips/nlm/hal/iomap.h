@@ -190,6 +190,16 @@ nlm_uenginenum(uint64_t pcibase)
 	return nlm_read_reg(pcibase, XLP_PCI_UCODEINFO_REG);
 }
 
+/*
+ * Find node on which a given Soc device is located.
+ * input is the pci device (slot) number.
+ */
+static __inline__ int
+nlm_get_device_node(int device)
+{
+	return (device / 8);
+}
+
 #endif /* !LOCORE or !__ASSEMBLY */
 
 #endif /* __NLM_HAL_IOMAP_H__ */
