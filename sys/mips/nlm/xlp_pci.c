@@ -165,8 +165,22 @@ xlp_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			/* no emulation for IO ports */
 			if (type == SYS_RES_IOPORT)
 				return (NULL);
+
 			start = xlp_devinfo->mem_res_start;
 			count = XLP_PCIE_CFG_SIZE - XLP_IO_PCI_HDRSZ;
+
+			/* MMC needs to 2 slots with rids 16 and 20 and a
+			 * fixup for size */
+			if (pci_get_device(child) == PCI_DEVICE_ID_NLM_MMC) {
+				count = 0x100;
+				if (*rid == 16)
+					; /* first slot already setup */
+				else if (*rid == 20)
+					start += 0x100; /* second slot */
+				else
+					return (NULL);
+			}
+
 			end = start + count - 1;
 			r = BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
 			    type, rid, start, end, count, flags);
@@ -254,6 +268,8 @@ xlp_add_soc_child(device_t pcib, device_t dev, int b, int s, int f)
 	xlp_dinfo = (struct xlp_devinfo *)dinfo;
 	xlp_dinfo->irq = irq;
 	xlp_dinfo->flags = flags;
+
+	/* memory resource from ecfg space, if MEM_RES_EMUL is set */
 	if ((flags & MEM_RES_EMUL) != 0)
 		xlp_dinfo->mem_res_start = XLP_DEFAULT_IO_BASE + devoffset +
 		    XLP_IO_PCI_HDRSZ;
