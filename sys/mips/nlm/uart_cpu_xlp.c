@@ -58,7 +58,10 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
+#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/uart.h>
+
+#include <mips/nlm/board.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
@@ -66,7 +69,7 @@ bus_space_tag_t uart_bus_space_mem;
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
-	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
+	return (b1->bsh == b2->bsh && b1->bst == b2->bst);
 }
 
 int
@@ -75,12 +78,12 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;
 	di->bas.bst = rmi_uart_bus_space;
-	di->bas.bsh = nlm_get_uart_regbase(0, 0);
+	di->bas.bsh = nlm_get_uart_regbase(0, BOARD_CONSOLE_UART);
 	
 	di->bas.regshft = 2;
 	/* divisor = rclk / (baudrate * 16); */
-	di->bas.rclk = 133000000;
-	di->baudrate = 115200;
+	di->bas.rclk = XLP_IO_CLK;
+	di->baudrate = BOARD_CONSOLE_SPEED;
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
