@@ -497,6 +497,15 @@ assign_soc_resource(device_t child, int type, u_long *startp, u_long *endp,
 			*rm = &emul_rman;
 			*bst = uart_bus_space_mem;
 			break;
+
+		case PCI_DEVICE_ID_NLM_I2C:
+			*va = nlm_pcicfg_base(XLP_IO_I2C_OFFSET(node, unit)) +
+			    XLP_IO_PCI_HDRSZ;
+			*startp = MIPS_KSEG1_TO_PHYS(*va);
+			*countp = 0x100;
+			*rm = &emul_rman;
+			*bst = uart_bus_space_mem;
+			break;
 		}
 		/* calculate end if allocated */
 		if (*rm)

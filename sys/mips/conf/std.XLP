@@ -5,6 +5,8 @@ makeoptions	MODULES_OVERRIDE=""
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 #profile 	2
 
+hints		"XLP.hints"
+
 options 	SCHED_ULE		# ULE scheduler
 #options 	VERBOSE_SYSINIT
 #options 	SCHED_4BSD		# 4BSD scheduler
@@ -55,6 +57,11 @@ options 	ALT_BREAK_TO_DEBUGGER
 
 options 	GEOM_UZIP
 
+# Device tree
+options 	FDT
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=xlp-basic.dts
+
 # Pseudo
 device		loop
 device		random
@@ -83,6 +90,8 @@ device		ehci			# EHCI PCI->USB interface (USB 2.0)
 #device		uhid			# "Human Interface Devices"
 device		umass			# Requires scbus and da
 
-options 	FDT
-options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=xlp-basic.dts
+# i2c driver and devices
+device		iic
+device		iicbus
+device		iicoc
+device		ds1374			# RTC on XLP boards
