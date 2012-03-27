@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/pic.h>
 #include <mips/nlm/hal/bridge.h>
+#include <mips/nlm/hal/gbu.h>
 #include <mips/nlm/hal/pcibus.h>
 #include <mips/nlm/hal/uart.h>
 #include <mips/nlm/xlp.h>
@@ -479,6 +480,7 @@ assign_soc_resource(device_t child, int type, u_long *startp, u_long *endp,
     u_long *countp, struct rman **rm, bus_space_tag_t *bst, vm_offset_t *va)
 {
 	int devid, inst, node, unit;
+	uint32_t val;
 
 	devid = pci_get_device(child);
 	inst = pci_get_function(child);
@@ -505,6 +507,15 @@ assign_soc_resource(device_t child, int type, u_long *startp, u_long *endp,
 			*countp = 0x100;
 			*rm = &emul_rman;
 			*bst = uart_bus_space_mem;
+			break;
+		case PCI_DEVICE_ID_NLM_NOR:
+			/* XXXJC: support multiple chip selects */
+			val = nlm_read_pci_reg(nlm_get_gbu_regbase(node), 0);
+			*startp = val << 8;
+			*va = MIPS_PHYS_TO_KSEG1(*startp);
+			/* XXXJC: count is not correct */
+			*countp = 0x100;
+			*rm = &emul_rman;
 			break;
 		}
 		/* calculate end if allocated */
