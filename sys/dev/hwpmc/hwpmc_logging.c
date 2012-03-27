@@ -285,6 +285,7 @@ pmclog_loop(void *arg)
 			if ((lb = TAILQ_FIRST(&po->po_logbuffers)) == NULL) {
 				mtx_unlock_spin(&po->po_mtx);
 
+				/* No more buffers and shutdown required. */
 				if (po->po_flags & PMC_PO_SHUTDOWN) {
 					mtx_unlock(&pmc_kthread_mtx);
 					/*
@@ -293,6 +294,7 @@ pmclog_loop(void *arg)
 					 */
 					fo_close(po->po_file, curthread);
 					mtx_lock(&pmc_kthread_mtx);
+					break;
 				}
 
 				(void) msleep(po, &pmc_kthread_mtx, PWAIT,
@@ -355,6 +357,7 @@ pmclog_loop(void *arg)
 		lb = NULL;
 	}
 
+	wakeup_one(po->po_kthread);
 	po->po_kthread = NULL;
 
 	mtx_unlock(&pmc_kthread_mtx);
@@ -653,8 +656,7 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 	    ("[pmclog,%d] po=%p no log file", __LINE__, po));
 
 	/* stop the kthread, this will reset the 'OWNS_LOGFILE' flag */
-	if (po->po_kthread)
-		pmclog_stop_kthread(po);
+	pmclog_stop_kthread(po);
 
 	KASSERT(po->po_kthread == NULL,
 	    ("[pmclog,%d] po=%p kthread not stopped", __LINE__, po));
