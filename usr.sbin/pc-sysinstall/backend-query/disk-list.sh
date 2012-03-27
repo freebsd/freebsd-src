@@ -86,7 +86,7 @@ do
   fi
 
   # Try and find some identification information with camcontrol or atacontrol
-  NEWLINE=$(camcontrol identify $DEV | sed -ne 's/^device model *//p')
+  NEWLINE=$(camcontrol identify $DEV 2>/dev/null | sed -ne 's/^device model *//p')
   if [ -z "$NEWLINE" ]; then
 	# Now try atacontrol
   	NEWLINE=$(atacontrol list 2>/dev/null | sed -n "s|^.*$DEV <\(.*\)>.*|\1|p")
