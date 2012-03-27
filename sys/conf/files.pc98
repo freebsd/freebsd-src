@@ -38,6 +38,7 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
+cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_emul.c	optional compat_linux
@@ -204,7 +205,6 @@ i386/svr4/svr4_locore.s		optional compat_svr4	\
 	dependency	"svr4_assym.h"	\
 	warning "COMPAT_SVR4 is broken and should be avoided"
 i386/svr4/svr4_machdep.c	optional compat_svr4
-#
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
