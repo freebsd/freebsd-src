@@ -331,7 +331,8 @@ static device_method_t xlp_pci_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pci, xlp_pci_driver, xlp_pci_methods, 0, pci_driver);
+DEFINE_CLASS_1(pci, xlp_pci_driver, xlp_pci_methods, sizeof(struct pci_softc),
+    pci_driver);
 DRIVER_MODULE(xlp_pci, pcib, xlp_pci_driver, pci_devclass, 0, 0);
 
 static devclass_t pcib_devclass;
