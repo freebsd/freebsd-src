@@ -110,3 +110,8 @@ options 	GEOM_ELI
 # NOR
 device		cfi
 device		cfid
+
+# MMC/SD
+device		mmc			# MMC/SD bus
+device		mmcsd			# MMC/SD memory card
+device		sdhci			# Generic PCI SD Host Controller
