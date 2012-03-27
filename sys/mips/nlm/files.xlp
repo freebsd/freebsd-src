@@ -17,6 +17,23 @@ mips/nlm/uart_pci_xlp.c				optional uart
 mips/nlm/uart_cpu_xlp.c				optional uart
 mips/nlm/usb_init.c				optional usb
 #
+# Network driver and micro-core code
+#
+mips/nlm/dev/net/nae.c				optional xlpge
+mips/nlm/dev/net/mdio.c				optional xlpge
+mips/nlm/dev/net/sgmii.c			optional xlpge
+mips/nlm/dev/net/xaui.c				optional xlpge
+mips/nlm/dev/net/xlpge.c			optional xlpge
+ucore_app.bin					optional xlpge	\
+	compile-with	"${CC} -march=mips32 -mabi=32 -msoft-float -I. -I$S -O3 -funroll-loops -finline-limit=20000 -fno-tree-loop-optimize -fomit-frame-pointer -mno-branch-likely -fno-pic -mno-abicalls -ffunction-sections -fdata-sections -G0 -Wall -Werror -c $S/$M/nlm/dev/net/ucore/crt0_basic.S  $S/$M/nlm/dev/net/ucore/ucore_app.c && ${LD} -melf32btsmip_fbsd -d -warn-common -T$S/$M/nlm/dev/net/ucore/ld.ucore.S crt0_basic.o ucore_app.o -o ucore_app && ${OBJCOPY} -S -O binary -R .note -R .comment ucore_app ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend			\
+	clean		"crt0_basic.o ucore_app.o ucore_app ucore_app.bin"
+ucore_app_bin.h					optional xlpge	\
+	dependency	"ucore_app.bin"				\
+	compile-with	"file2c -sx 'static char ucore_app_bin[] = {' '};' < ucore_app.bin > ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend			\
+	clean		"ucore_app_bin.h"
+#
 # Security Driver
 #
 mips/nlm/dev/sec/nlmsec.c			optional nlmsec
