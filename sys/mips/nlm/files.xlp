@@ -18,6 +18,7 @@ mips/nlm/usb_init.c				optional usb
 #
 # Simple SoC devices
 mips/nlm/dev/uart_pci_xlp.c			optional uart
+mips/nlm/dev/cfi_pci_xlp.c			optional cfi
 #
 # Network driver and micro-core code
 mips/nlm/dev/net/nae.c				optional xlpge
