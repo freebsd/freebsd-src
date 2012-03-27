@@ -43,6 +43,10 @@
 #define	EEPROM_SIZE	 	48
 #define	EEPROM_MACADDR_OFFSET	2
 
+/* used if there is no FDT */
+#define	BOARD_CONSOLE_SPEED	115200
+#define	BOARD_CONSOLE_UART	0
+
 /*
  * EVP board CPLD chip select and daughter card info field
  */
