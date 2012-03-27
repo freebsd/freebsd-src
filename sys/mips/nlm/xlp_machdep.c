@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 char boot1_env[4096];
 
 uint64_t xlp_cpu_frequency;
-uint64_t xlp_io_base = MIPS_PHYS_TO_KSEG1(XLP_DEFAULT_IO_BASE);
+uint64_t xlp_io_base = MIPS_PHYS_TO_DIRECT_UNCACHED(XLP_DEFAULT_IO_BASE);
 
 int xlp_ncores;
 int xlp_threads_per_core;
@@ -521,7 +521,6 @@ platform_start(__register_t a0 __unused,
 	/* initialize console so that we have printf */
 	boothowto |= (RB_SERIAL | RB_MULTIPLE);	/* Use multiple consoles */
 
-	nlm_pic_irt_init(0); /* complete before interrupts or console init */
 	init_static_kenv(boot1_env, sizeof(boot1_env));
 	xlp_bootargs_init(a0);
 
