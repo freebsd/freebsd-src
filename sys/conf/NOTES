@@ -2547,9 +2547,11 @@ device		iicsmb		# smb over i2c bridge
 # I2C peripheral devices
 #
 # ds133x	Dallas Semiconductor DS1337, DS1338 and DS1339 RTC
+# ds1374	Dallas Semiconductor DS1374 RTC
 # ds1672	Dallas Semiconductor DS1672 RTC
 #
 device		ds133x
+device		ds1374
 device		ds1672
 
 # Parallel-Port Bus
