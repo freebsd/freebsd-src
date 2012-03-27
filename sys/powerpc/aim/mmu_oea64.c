@@ -126,6 +126,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -173,9 +174,20 @@ uintptr_t moea64_get_unique_vsid(void);
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
 #define	VSID_HASH_MASK		0x0000007fffffffffULL
 
-#define LOCK_TABLE() mtx_lock(&moea64_table_mutex)
-#define UNLOCK_TABLE() mtx_unlock(&moea64_table_mutex);
-#define ASSERT_TABLE_LOCK() mtx_assert(&moea64_table_mutex, MA_OWNED)
+/*
+ * Locking semantics:
+ * -- Read lock: if no modifications are being made to either the PVO lists
+ *    or page table or if any modifications being made result in internal
+ *    changes (e.g. wiring, protection) such that the existence of the PVOs
+ *    is unchanged and they remain associated with the same pmap (in which
+ *    case the changes should be protected by the pmap lock)
+ * -- Write lock: required if PTEs/PVOs are being inserted or removed.
+ */
+
+#define LOCK_TABLE_RD() rw_rlock(&moea64_table_lock)
+#define UNLOCK_TABLE_RD() rw_runlock(&moea64_table_lock)
+#define LOCK_TABLE_WR() rw_wlock(&moea64_table_lock)
+#define UNLOCK_TABLE_WR() rw_wunlock(&moea64_table_lock)
 
 struct ofw_map {
 	cell_t	om_va;
@@ -198,7 +210,7 @@ extern void bs_remap_earlyboot(void);
 /*
  * Lock for the pteg and pvo tables.
  */
-struct mtx	moea64_table_mutex;
+struct rwlock	moea64_table_lock;
 struct mtx	moea64_slb_mutex;
 
 /*
@@ -400,8 +412,6 @@ moea64_pte_create(struct lpte *pt, uint64_t vsid, vm_offset_t va,
     uint64_t pte_lo, int flags)
 {
 
-	ASSERT_TABLE_LOCK();
-
 	/*
 	 * Construct a PTE.  Default to IMB initially.  Valid bit only gets
 	 * set when the real pte is set in memory.
@@ -594,6 +604,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 
 	DISABLE_TRANS(msr);
 	if (hw_direct_map) {
+		LOCK_TABLE_WR();
 		PMAP_LOCK(kernel_pmap);
 		for (i = 0; i < pregions_sz; i++) {
 		  for (pa = pregions[i].mr_start; pa < pregions[i].mr_start +
@@ -618,6 +629,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 		  }
 		}
 		PMAP_UNLOCK(kernel_pmap);
+		UNLOCK_TABLE_WR();
 	} else {
 		size = sizeof(struct pvo_head) * moea64_pteg_count;
 		off = (vm_offset_t)(moea64_pvo_table);
@@ -776,8 +788,7 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Initialize the lock that synchronizes access to the pteg and pvo
 	 * tables.
 	 */
-	mtx_init(&moea64_table_mutex, "pmap table", NULL, MTX_DEF |
-	    MTX_RECURSE);
+	rw_init_flags(&moea64_table_lock, "pmap tables", RW_RECURSE);
 	mtx_init(&moea64_slb_mutex, "SLB table", NULL, MTX_DEF);
 
 	/*
@@ -956,7 +967,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 
 			moea64_scratchpage_pvo[i] = moea64_pvo_find_va(
 			    kernel_pmap, (vm_offset_t)moea64_scratchpage_va[i]);
-			LOCK_TABLE();
+			LOCK_TABLE_RD();
 			moea64_scratchpage_pte[i] = MOEA64_PVO_TO_PTE(
 			    mmup, moea64_scratchpage_pvo[i]);
 			moea64_scratchpage_pvo[i]->pvo_pte.lpte.pte_hi
@@ -964,7 +975,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 			MOEA64_PTE_CHANGE(mmup, moea64_scratchpage_pte[i],
 			    &moea64_scratchpage_pvo[i]->pvo_pte.lpte,
 			    moea64_scratchpage_pvo[i]->pvo_vpn);
-			UNLOCK_TABLE();
+			UNLOCK_TABLE_RD();
 		}
 	}
 }
@@ -1010,11 +1021,11 @@ moea64_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
 	uint64_t vsid;
 	int	i, ptegidx;
 
+	LOCK_TABLE_WR();
 	PMAP_LOCK(pm);
 	pvo = moea64_pvo_find_va(pm, va & ~ADDR_POFF);
 
 	if (pvo != NULL) {
-		LOCK_TABLE();
 		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 
 		if (wired) {
@@ -1050,8 +1061,8 @@ moea64_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
 			}
 		}
 			
-		UNLOCK_TABLE();
 	}
+	UNLOCK_TABLE_WR();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1162,10 +1173,10 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
 
-	vm_page_lock_queues();
+	LOCK_TABLE_WR();
 	PMAP_LOCK(pmap);
 	moea64_enter_locked(mmu, pmap, va, m, prot, wired);
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_WR();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1174,7 +1185,7 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
  * target pmap with the protection requested.  If specified the page
  * will be wired down.
  *
- * The page queues and pmap must be locked.
+ * The table (write) and pmap must be locked.
  */
 
 static void
@@ -1200,8 +1211,6 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pvo_flags = PVO_MANAGED;
 	}
 
-	if (pmap_bootstrapped)
-		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
 	    VM_OBJECT_LOCKED(m->object),
@@ -1299,14 +1308,14 @@ moea64_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
-	vm_page_lock_queues();
+	LOCK_TABLE_WR();
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		moea64_enter_locked(mmu, pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_WR();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1315,11 +1324,11 @@ moea64_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
     vm_prot_t prot)
 {
 
-	vm_page_lock_queues();
+	LOCK_TABLE_WR();
 	PMAP_LOCK(pm);
 	moea64_enter_locked(mmu, pm, va, m,
 	    prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_WR();
 	PMAP_UNLOCK(pm);
 }
 
@@ -1329,6 +1338,7 @@ moea64_extract(mmu_t mmu, pmap_t pm, vm_offset_t va)
 	struct	pvo_entry *pvo;
 	vm_paddr_t pa;
 
+	LOCK_TABLE_RD();
 	PMAP_LOCK(pm);
 	pvo = moea64_pvo_find_va(pm, va);
 	if (pvo == NULL)
@@ -1336,6 +1346,7 @@ moea64_extract(mmu_t mmu, pmap_t pm, vm_offset_t va)
 	else
 		pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) |
 		    (va - PVO_VADDR(pvo));
+	UNLOCK_TABLE_RD();
 	PMAP_UNLOCK(pm);
 	return (pa);
 }
@@ -1354,6 +1365,7 @@ moea64_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
         
 	m = NULL;
 	pa = 0;
+	LOCK_TABLE_RD();
 	PMAP_LOCK(pmap);
 retry:
 	pvo = moea64_pvo_find_va(pmap, va & ~ADDR_POFF);
@@ -1367,6 +1379,7 @@ retry:
 		vm_page_hold(m);
 	}
 	PA_UNLOCK_COND(pa);
+	UNLOCK_TABLE_RD();
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -1390,9 +1403,6 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	*flags = UMA_SLAB_PRIV;
 	needed_lock = !PMAP_LOCKED(kernel_pmap);
 
-	if (needed_lock)
-		PMAP_LOCK(kernel_pmap);
-
         if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
                 pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
         else
@@ -1412,12 +1422,17 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 
 	va = VM_PAGE_TO_PHYS(m);
 
+	LOCK_TABLE_WR();
+	if (needed_lock)
+		PMAP_LOCK(kernel_pmap);
+
 	moea64_pvo_enter(installed_mmu, kernel_pmap, moea64_upvo_zone,
 	    &moea64_pvo_kunmanaged, va, VM_PAGE_TO_PHYS(m), LPTE_M,
 	    PVO_WIRED | PVO_BOOTSTRAP);
 
 	if (needed_lock)
 		PMAP_UNLOCK(kernel_pmap);
+	UNLOCK_TABLE_WR();
 	
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
                 bzero((void *)va, PAGE_SIZE);
@@ -1487,10 +1502,12 @@ moea64_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 	struct pvo_entry *pvo;
 	boolean_t rv;
 
+	LOCK_TABLE_RD();
 	PMAP_LOCK(pmap);
 	pvo = moea64_pvo_find_va(pmap, va & ~ADDR_POFF);
 	rv = pvo == NULL || (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) == 0;
 	PMAP_UNLOCK(pmap);
+	UNLOCK_TABLE_RD();
 	return (rv);
 }
 
@@ -1546,12 +1563,11 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
-	vm_page_lock_queues();
 	powerpc_sync();
+	LOCK_TABLE_RD();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
-		LOCK_TABLE();
 		if ((pvo->pvo_pte.lpte.pte_lo & LPTE_PP) != LPTE_BR) {
 			pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 			pvo->pvo_pte.lpte.pte_lo &= ~LPTE_PP;
@@ -1566,13 +1582,12 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 					isync();
 			}
 		}
-		UNLOCK_TABLE();
 		PMAP_UNLOCK(pmap);
 	}
+	UNLOCK_TABLE_RD();
 	if ((lo & LPTE_CHG) != 0) 
 		vm_page_dirty(m);
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1613,13 +1628,12 @@ moea64_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
 		return;
 	}
 
-	vm_page_lock_queues();
 	pvo_head = vm_page_to_pvoh(m);
 	lo = moea64_calc_wimg(VM_PAGE_TO_PHYS(m), ma);
+	LOCK_TABLE_RD();
 	LIST_FOREACH(pvo, pvo_head, pvo_vlink) {
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
-		LOCK_TABLE();
 		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 		pvo->pvo_pte.lpte.pte_lo &= ~LPTE_WIMG;
 		pvo->pvo_pte.lpte.pte_lo |= lo;
@@ -1629,11 +1643,10 @@ moea64_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
 			if (pvo->pvo_pmap == kernel_pmap)
 				isync();
 		}
-		UNLOCK_TABLE();
 		PMAP_UNLOCK(pmap);
 	}
+	UNLOCK_TABLE_RD();
 	m->md.mdpg_cache_attrs = ma;
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1647,9 +1660,12 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 
 	pte_lo = moea64_calc_wimg(pa, ma);
 
+	LOCK_TABLE_WR();
 	PMAP_LOCK(kernel_pmap);
 	error = moea64_pvo_enter(mmu, kernel_pmap, moea64_upvo_zone,
 	    &moea64_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
+	PMAP_UNLOCK(kernel_pmap);
+	UNLOCK_TABLE_WR();
 
 	if (error != 0 && error != ENOENT)
 		panic("moea64_kenter: failed to enter va %#zx pa %#zx: %d", va,
@@ -1660,7 +1676,6 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 	 */
 	if ((pte_lo & (LPTE_I | LPTE_G)) == 0)
 		__syncicache((void *)va, PAGE_SIZE);
-	PMAP_UNLOCK(kernel_pmap);
 }
 
 void
@@ -1687,11 +1702,13 @@ moea64_kextract(mmu_t mmu, vm_offset_t va)
 	if (va < VM_MIN_KERNEL_ADDRESS)
 		return (va);
 
+	LOCK_TABLE_RD();
 	PMAP_LOCK(kernel_pmap);
 	pvo = moea64_pvo_find_va(kernel_pmap, va);
 	KASSERT(pvo != NULL, ("moea64_kextract: no addr found for %#" PRIxPTR,
 	    va));
 	pa = (pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) | (va - PVO_VADDR(pvo));
+	UNLOCK_TABLE_RD();
 	PMAP_UNLOCK(kernel_pmap);
 	return (pa);
 }
@@ -1747,7 +1764,7 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	    ("moea64_page_exists_quick: page %p is not managed", m));
 	loops = 0;
 	rv = FALSE;
-	vm_page_lock_queues();
+	LOCK_TABLE_RD();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		if (pvo->pvo_pmap == pmap) {
 			rv = TRUE;
@@ -1756,7 +1773,7 @@ moea64_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 		if (++loops >= 16)
 			break;
 	}
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_RD();
 	return (rv);
 }
 
@@ -1773,11 +1790,11 @@ moea64_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	count = 0;
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
-	vm_page_lock_queues();
+	LOCK_TABLE_RD();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
 		if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
 			count++;
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_RD();
 	return (count);
 }
 
@@ -1891,11 +1908,12 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	uintptr_t pt;
 	uint64_t oldlo;
 
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+
 	/*
 	 * Grab the PTE pointer before we diddle with the cached PTE
 	 * copy.
 	 */
-	LOCK_TABLE();
 	pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 
 	/*
@@ -1941,7 +1959,6 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 				vm_page_aflag_set(pg, PGA_REFERENCED);
 		}
 	}
-	UNLOCK_TABLE();
 }
 
 void
@@ -1961,6 +1978,7 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 		return;
 	}
 
+	LOCK_TABLE_RD();
 	PMAP_LOCK(pm);
 	if ((eva - sva)/PAGE_SIZE < pm->pm_stats.resident_count) {
 		for (; sva < eva; sva += PAGE_SIZE) {
@@ -1975,6 +1993,7 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 			moea64_pvo_protect(mmu, pm, pvo, prot);
 		}
 	}
+	UNLOCK_TABLE_RD();
 	PMAP_UNLOCK(pm);
 }
 
@@ -2049,13 +2068,13 @@ moea64_remove_pages(mmu_t mmu, pmap_t pm)
 {
 	struct	pvo_entry *pvo, *tpvo;
 
-	vm_page_lock_queues();
+	LOCK_TABLE_WR();
 	PMAP_LOCK(pm);
 	LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
 		if (!(pvo->pvo_vaddr & PVO_WIRED))
 			moea64_pvo_remove(mmu, pvo);
 	}
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_WR();
 	PMAP_UNLOCK(pm);
 }
 
@@ -2073,7 +2092,7 @@ moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	if (pm->pm_stats.resident_count == 0)
 		return;
 
-	vm_page_lock_queues();
+	LOCK_TABLE_WR();
 	PMAP_LOCK(pm);
 	if ((eva - sva)/PAGE_SIZE < pm->pm_stats.resident_count) {
 		for (; sva < eva; sva += PAGE_SIZE) {
@@ -2088,7 +2107,7 @@ moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			moea64_pvo_remove(mmu, pvo);
 		}
 	}
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_WR();
 	PMAP_UNLOCK(pm);
 }
 
@@ -2103,8 +2122,8 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 	struct	pvo_entry *pvo, *next_pvo;
 	pmap_t	pmap;
 
-	vm_page_lock_queues();
 	pvo_head = vm_page_to_pvoh(m);
+	LOCK_TABLE_WR();
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 
@@ -2113,10 +2132,10 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 		moea64_pvo_remove(mmu, pvo);
 		PMAP_UNLOCK(pmap);
 	}
+	UNLOCK_TABLE_WR();
 	if ((m->aflags & PGA_WRITEABLE) && moea64_is_modified(mmu, m))
 		vm_page_dirty(m);
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
-	vm_page_unlock_queues();
 }
 
 /*
@@ -2192,6 +2211,9 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	if (!moea64_initialized)
 		bootstrap = 1;
 
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+	rw_assert(&moea64_table_lock, RA_WLOCKED);
+
 	/*
 	 * Compute the PTE Group index.
 	 */
@@ -2203,8 +2225,6 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	 * Remove any existing mapping for this page.  Reuse the pvo entry if
 	 * there is a mapping.
 	 */
-	LOCK_TABLE();
-
 	moea64_pvo_enter_calls++;
 
 	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
@@ -2220,7 +2240,6 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 						PVO_PTEGIDX_SET(pvo, i);
 					moea64_pte_overflow--;
 				}
-				UNLOCK_TABLE();
 				return (0);
 			}
 			moea64_pvo_remove(mmu, pvo);
@@ -2247,15 +2266,11 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 		 * table. The mapping we are working with is already
 		 * protected by the PMAP lock.
 		 */
-		UNLOCK_TABLE();
 		pvo = uma_zalloc(zone, M_NOWAIT);
-		LOCK_TABLE();
 	}
 
-	if (pvo == NULL) {
-		UNLOCK_TABLE();
+	if (pvo == NULL)
 		return (ENOMEM);
-	}
 
 	moea64_pvo_entries++;
 	pvo->pvo_vaddr = va;
@@ -2310,8 +2325,6 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	if (pm == kernel_pmap)
 		isync();
 
-	UNLOCK_TABLE();
-
 #ifdef __powerpc64__
 	/*
 	 * Make sure all our bootstrap mappings are in the SLB as soon
@@ -2329,11 +2342,13 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 {
 	uintptr_t pt;
 
+	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
+	rw_assert(&moea64_table_lock, RA_WLOCKED);
+
 	/*
 	 * If there is an active pte entry, we need to deactivate it (and
 	 * save the ref & cfg bits).
 	 */
-	LOCK_TABLE();
 	pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 	if (pt != -1) {
 		MOEA64_PTE_UNSET(mmu, pt, &pvo->pvo_pte.lpte, pvo->pvo_vpn);
@@ -2350,6 +2365,18 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*
+	 * Remove this PVO from the PV and pmap lists.
+	 */
+	LIST_REMOVE(pvo, pvo_vlink);
+	LIST_REMOVE(pvo, pvo_plink);
+
+	/*
+	 * Remove this from the overflow list and return it to the pool
+	 * if we aren't going to reuse it.
+	 */
+	LIST_REMOVE(pvo, pvo_olink);
+
+	/*
 	 * Update vm about the REF/CHG bits if the page is managed.
 	 */
 	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED &&
@@ -2362,25 +2389,13 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 				vm_page_dirty(pg);
 			if (pvo->pvo_pte.lpte.pte_lo & LPTE_REF)
 				vm_page_aflag_set(pg, PGA_REFERENCED);
+			if (LIST_EMPTY(vm_page_to_pvoh(pg)))
+				vm_page_aflag_clear(pg, PGA_WRITEABLE);
 		}
 	}
 
-	/*
-	 * Remove this PVO from the PV and pmap lists.
-	 */
-	LIST_REMOVE(pvo, pvo_vlink);
-	LIST_REMOVE(pvo, pvo_plink);
-
-	/*
-	 * Remove this from the overflow list and return it to the pool
-	 * if we aren't going to reuse it.
-	 */
-	LIST_REMOVE(pvo, pvo_olink);
-
 	moea64_pvo_entries--;
 	moea64_pvo_remove_calls++;
-
-	UNLOCK_TABLE();
 
 	if (!(pvo->pvo_vaddr & PVO_BOOTSTRAP))
 		uma_zfree((pvo->pvo_vaddr & PVO_MANAGED) ? moea64_mpvo_zone :
@@ -2419,12 +2434,10 @@ moea64_pvo_find_va(pmap_t pm, vm_offset_t va)
 	ptegidx = va_to_pteg(vsid, va, 0);
 	#endif
 
-	LOCK_TABLE();
 	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va)
 			break;
 	}
-	UNLOCK_TABLE();
 
 	return (pvo);
 }
@@ -2435,14 +2448,13 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	struct	pvo_entry *pvo;
 	uintptr_t pt;
 
-	vm_page_lock_queues();
-
+	LOCK_TABLE_RD();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		/*
 		 * See if we saved the bit off.  If so, return success.
 		 */
 		if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
-			vm_page_unlock_queues();
+			UNLOCK_TABLE_RD();
 			return (TRUE);
 		}
 	}
@@ -2460,20 +2472,20 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 		 * REF/CHG bits from the valid PTE.  If the appropriate
 		 * ptebit is set, return success.
 		 */
-		LOCK_TABLE();
+		PMAP_LOCK(pvo->pvo_pmap);
 		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 		if (pt != -1) {
 			MOEA64_PTE_SYNCH(mmu, pt, &pvo->pvo_pte.lpte);
 			if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
-				UNLOCK_TABLE();
-				vm_page_unlock_queues();
+				PMAP_UNLOCK(pvo->pvo_pmap);
+				UNLOCK_TABLE_RD();
 				return (TRUE);
 			}
 		}
-		UNLOCK_TABLE();
+		PMAP_UNLOCK(pvo->pvo_pmap);
 	}
 
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_RD();
 	return (FALSE);
 }
 
@@ -2483,8 +2495,6 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	u_int	count;
 	struct	pvo_entry *pvo;
 	uintptr_t pt;
-
-	vm_page_lock_queues();
 
 	/*
 	 * Sync so that any pending REF/CHG bits are flushed to the PTEs (so
@@ -2500,9 +2510,9 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	 * valid pte clear the ptebit from the valid pte.
 	 */
 	count = 0;
+	LOCK_TABLE_RD();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-
-		LOCK_TABLE();
+		PMAP_LOCK(pvo->pvo_pmap);
 		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 		if (pt != -1) {
 			MOEA64_PTE_SYNCH(mmu, pt, &pvo->pvo_pte.lpte);
@@ -2513,10 +2523,10 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 			}
 		}
 		pvo->pvo_pte.lpte.pte_lo &= ~ptebit;
-		UNLOCK_TABLE();
+		PMAP_UNLOCK(pvo->pvo_pmap);
 	}
 
-	vm_page_unlock_queues();
+	UNLOCK_TABLE_RD();
 	return (count);
 }
 
@@ -2527,6 +2537,7 @@ moea64_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 	vm_offset_t ppa;
 	int error = 0;
 
+	LOCK_TABLE_RD();
 	PMAP_LOCK(kernel_pmap);
 	for (ppa = pa & ~ADDR_POFF; ppa < pa + size; ppa += PAGE_SIZE) {
 		pvo = moea64_pvo_find_va(kernel_pmap, ppa);
@@ -2536,6 +2547,7 @@ moea64_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 			break;
 		}
 	}
+	UNLOCK_TABLE_RD();
 	PMAP_UNLOCK(kernel_pmap);
 
 	return (error);
@@ -2598,6 +2610,7 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 	vm_paddr_t pa;
 	vm_size_t len;
 
+	LOCK_TABLE_RD();
 	PMAP_LOCK(pm);
 	while (sz > 0) {
 		lim = round_page(va);
@@ -2611,5 +2624,6 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		va += len;
 		sz -= len;
 	}
+	UNLOCK_TABLE_RD();
 	PMAP_UNLOCK(pm);
 }
