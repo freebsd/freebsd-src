@@ -84,6 +84,9 @@
 /* PCIE_INT_EN0 */
 #define	PCIE_MSI_INT_EN			(1 << 9)
 
+/* XXXJC: Ax workaround */
+#define	PCIE_LINK0_IRT			78
+
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
 #define	nlm_read_pcie_reg(b, r)		nlm_read_reg(b, r)
@@ -92,6 +95,15 @@
 				nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node, inst))
 #define	nlm_get_pcie_regbase(node, inst)	\
 				(nlm_get_pcie_base(node, inst) + XLP_IO_PCI_HDRSZ)
+
+static __inline int
+xlp_pcie_link_irt(int link)
+{
+	if ((link < 0) || (link > 3))
+		return (-1);
+
+	return (PCIE_LINK0_IRT + link);
+}
 
 /*
  * Build Intel MSI message and data values from a source.  AMD64 systems
@@ -105,9 +117,5 @@
         (MSI_MIPS_DATA_TRGRLVL | MSI_MIPS_DATA_DELFIXED |	       \
 	 MSI_MIPS_DATA_ASSERT | (irq))
 
-#endif
-
-#ifndef LOCORE
-int xlp_pcie_link_irt(int link);
 #endif
 #endif /* __XLP_PCIBUS_H__ */
