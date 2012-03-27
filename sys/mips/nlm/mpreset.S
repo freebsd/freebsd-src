@@ -55,24 +55,24 @@
 	.set	noreorder
 	li	$8, LSU_DEBUG_DATA0 /* use register number to handle */
 	li	$9, LSU_DEBUG_ADDR  /* different ABIs */
-	li	t2, 0
-	li	t3, 0x200
+	li	t2, 0		/* index */
+	li	t3, 0x1000	/* loop count, 512 sets * 8 whatever? */
 1:
 	sll	v0, t2, 5
 	MTCR(0, 8)
-	ori	v1, v0, 0x3
+	ori	v1, v0, 0x3	/* way0 | write_enable | write_active */
 	MTCR(3, 9)
 2:
 	MFCR(3, 9)
-	andi	v1, 0x1
+	andi	v1, 0x1		/* wait for write_active == 0 */
 	bnez	v1, 2b
 	nop
 	MTCR(0, 8)
-	ori	v1, v0, 0x7
+	ori	v1, v0, 0x7	/* way1 | write_enable | write_active */
 	MTCR(3, 9)
 3:
 	MFCR(3, 9)
-	andi	v1, 0x1
+	andi	v1, 0x1		/* wait for write_active == 0 */
 	bnez	v1, 3b
 	nop
 	addi	t2, 1
@@ -195,7 +195,7 @@ LEAF(xlp_enable_threads)
 	mfc0	t1, MIPS_COP_0_STATUS
 
 	move	sp, t0		/* Restore the real SP */
-	jr	ra
+	jr.hb	ra
 	nop
 END(xlp_enable_threads)
 #endif
