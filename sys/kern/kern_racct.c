@@ -736,7 +736,8 @@ racctd(void)
 			mtx_lock(&racct_lock);
 			racct_set_locked(p, RACCT_CPU, runtime);
 			racct_set_locked(p, RACCT_WALLCLOCK,
-			    wallclock.tv_sec * 1000000 + wallclock.tv_usec);
+			    (uint64_t)wallclock.tv_sec * 1000000 +
+			    wallclock.tv_usec);
 			mtx_unlock(&racct_lock);
 			PROC_UNLOCK(p);
 		}
