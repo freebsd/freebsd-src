@@ -186,7 +186,7 @@ nlm_irtnum(uint64_t pcibase)
 }
 
 static __inline__ int
-nlm_uenginenum(uint64_t pcibase)
+nlm_num_uengines(uint64_t pcibase)
 {
 	return nlm_read_reg(pcibase, XLP_PCI_UCODEINFO_REG);
 }

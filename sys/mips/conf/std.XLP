@@ -71,6 +71,7 @@ device		bpf
 # Network
 device		miibus
 device		ether
+device		xlpge
 #device		re
 device		msk
 device		em
