@@ -85,7 +85,7 @@ typedef struct _ns_dtab {
 	void		*mdata;
 } ns_dtab;
 .Ed
-.Bd -ragged -offset indent
+.Pp
 The
 .Fa dtab
 array should consist of one entry for each source type that is
@@ -105,7 +105,6 @@ values for
 .Va method ,
 and
 .Va mdata .
-.Ed
 .Pp
 Additionally, methods may be implemented in NSS modules, in
 which case they are selected using the
@@ -132,7 +131,7 @@ typedef struct _ns_src {
 	uint32_t	 flags;
 } ns_src;
 .Ed
-.Bd -ragged -offset indent
+.Pp
 The
 .Fa defaults
 array should consist of one entry for each source to be configured by
@@ -157,12 +156,13 @@ and
 set to 0.
 .Pp
 For convenience, a global variable defined as:
+.Pp
 .Dl extern const ns_src __nsdefaultsrc[];
+.Pp
 exists which contains a single default entry for the source
 .Sq files
 that may be used by callers which do not require complicated default
 rules.
-.Ed
 .Pp
 .Sq Va ...
 are optional extra arguments, which are passed to the appropriate method
