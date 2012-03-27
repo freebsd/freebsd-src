@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- *
+ * 
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -32,15 +32,19 @@
 #ifndef __NLM_BOARD_H__
 #define __NLM_BOARD_H__
 
-#define XLP_NAE_NBLOCKS		5
-#define XLP_NAE_NPORTS		4
+#define	XLP_NAE_NBLOCKS		5
+#define	XLP_NAE_NPORTS		4
 #define	XLP_I2C_MAXDEVICES	8
 
-struct xlp_i2c_devinfo {
-	u_int	addr;		/* keep first, for i2c ivars to work */
-	int	bus;
-	char	*device;
-};
+/*
+ * EVP board EEPROM info
+ */
+#define	EEPROM_I2CBUS		1
+#define	EEPROM_I2CADDR		0xAE
+#define	EEPROM_SIZE	 	48
+#define	EEPROM_MACADDR_OFFSET	2
+
+#if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
 struct xlp_port_ivars {
 	int	port;
@@ -65,12 +69,19 @@ struct xlp_nae_ivars {
 struct xlp_board_info {
 	u_int	nodemask;
 	struct xlp_node_info {
-		struct xlp_i2c_devinfo	i2c_devs[XLP_I2C_MAXDEVICES];
 		struct xlp_nae_ivars	nae_ivars;
 	} nodes[XLP_MAX_NODES];
 };
 
-extern struct xlp_board_info xlp_board_info;
 int nlm_board_info_setup(void);
+
+int nlm_board_eeprom_read(int node, int i2cbus, int addr, int offs,
+    uint8_t *buf,int sz);
+uint64_t nlm_board_cpld_base(int node, int chipselect);
+int nlm_board_cpld_majorversion(uint64_t cpldbase);
+int nlm_board_cpld_minorversion(uint64_t cpldbase);
+void nlm_board_cpld_reset(uint64_t cpldbase);
+int nlm_board_cpld_dboard_type(uint64_t cpldbase, int slot);
+#endif
 
 #endif
