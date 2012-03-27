@@ -85,6 +85,7 @@ libkern/ucmpdi2.c		standard
 #libkern/mips/strcmp.S		standard
 #libkern/mips/strncmp.S		standard
 
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs compile-with "${ZFS_C}"
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
