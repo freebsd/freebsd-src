@@ -1479,7 +1479,7 @@ loop:
 
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		/*
-		 * Depend on the mntvnode_slock to keep things stable enough
+		 * Depend on the vnode interlock to keep things stable enough
 		 * for a quick test.  Since there might be hundreds of
 		 * thousands of vnodes, we cannot afford even a subroutine
 		 * call unless there's a good chance that we have work to do.
