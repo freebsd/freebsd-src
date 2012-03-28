@@ -81,7 +81,7 @@ ffs_update(vp, waitfor)
 	struct fs *fs;
 	struct buf *bp;
 	struct inode *ip;
-	int error;
+	int flags, error;
 
 	ASSERT_VOP_ELOCKED(vp, "ffs_update");
 	ufs_itimes(vp);
@@ -92,11 +92,51 @@ ffs_update(vp, waitfor)
 	fs = ip->i_fs;
 	if (fs->fs_ronly && ip->i_ump->um_fsckpid == 0)
 		return (0);
-	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		(int)fs->fs_bsize, NOCRED, &bp);
-	if (error) {
-		brelse(bp);
-		return (error);
+	/*
+	 * If we are updating a snapshot and another process is currently
+	 * writing the buffer containing the inode for this snapshot then
+	 * a deadlock can occur when it tries to check the snapshot to see
+	 * if that block needs to be copied. Thus when updating a snapshot
+	 * we check to see if the buffer is already locked, and if it is
+	 * we drop the snapshot lock until the buffer has been written
+	 * and is available to us. We have to grab a reference to the
+	 * snapshot vnode to prevent it from being removed while we are
+	 * waiting for the buffer.
+	 */
+	flags = 0;
+	if (IS_SNAPSHOT(ip))
+		flags = GB_LOCK_NOWAIT;
+loop:
+	error = breadn_flags(ip->i_devvp,
+	     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	     (int) fs->fs_bsize, 0, 0, 0, NOCRED, flags, &bp);
+	if (error != 0) {
+		if (error != EBUSY) {
+			brelse(bp);
+			return (error);
+		}
+		KASSERT((IS_SNAPSHOT(ip)), ("EBUSY from non-snapshot"));
+		/*
+		 * Wait for our inode block to become available.
+		 *
+		 * Hold a reference to the vnode to protect against
+		 * ffs_snapgone(). Since we hold a reference, it can only
+		 * get reclaimed (VI_DOOMED flag) in a forcible downgrade
+		 * or unmount. For an unmount, the entire filesystem will be
+		 * gone, so we cannot attempt to touch anything associated
+		 * with it while the vnode is unlocked; all we can do is 
+		 * pause briefly and try again. If when we relock the vnode
+		 * we discover that it has been reclaimed, updating it is no
+		 * longer necessary and we can just return an error.
+		 */
+		vref(vp);
+		VOP_UNLOCK(vp, 0);
+		pause("ffsupd", 1);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vrele(vp);
+		if ((vp->v_iflag & VI_DOOMED) != 0)
+			return (ENOENT);
+		goto loop;
 	}
 	if (DOINGSOFTDEP(vp))
 		softdep_update_inodeblock(ip, bp, waitfor);
@@ -108,16 +148,16 @@ ffs_update(vp, waitfor)
 	else
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
-	if (waitfor && !DOINGASYNC(vp)) {
-		return (bwrite(bp));
-	} else if (vm_page_count_severe() || buf_dirty_count_severe()) {
-		return (bwrite(bp));
+	if ((waitfor && !DOINGASYNC(vp)) ||
+	    (vm_page_count_severe() || buf_dirty_count_severe())) {
+		error = bwrite(bp);
 	} else {
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
 		bdwrite(bp);
-		return (0);
+		error = 0;
 	}
+	return (error);
 }
 
 #define	SINGLE	0	/* index of single indirect block */
@@ -201,7 +241,7 @@ ffs_truncate(vp, length, flags, cred, td)
 				goto extclean;
 			needextclean = 1;
 		} else {
-			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 				return (error);
 #ifdef QUOTA
 			(void) chkdq(ip, -extblocks, NOCRED, 0);
@@ -253,7 +293,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	}
 	if (fs->fs_ronly)
 		panic("ffs_truncate: read-only filesystem");
-	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+	if (IS_SNAPSHOT(ip))
 		ffs_snapremove(vp);
 	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
 	osize = ip->i_size;
@@ -294,7 +334,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			 * rarely, we solve the problem by syncing the file
 			 * so that it will have no data structures left.
 			 */
-			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 				return (error);
 		} else {
 			flags = IO_NORMAL | (needextclean ? IO_EXT: 0);
@@ -339,7 +379,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		 */
 		if (DOINGSOFTDEP(vp) && lbn < NDADDR &&
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
-		    (error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+		    (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 			return (error);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);

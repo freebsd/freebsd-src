@@ -184,7 +184,7 @@ ffs_fsync(struct vop_fsync_args *ap)
 	vp = ap->a_vp;
 	bo = &vp->v_bufobj;
 retry:
-	error = ffs_syncvnode(vp, ap->a_waitfor);
+	error = ffs_syncvnode(vp, ap->a_waitfor, 0);
 	if (error)
 		return (error);
 	if (ap->a_waitfor == MNT_WAIT && DOINGSOFTDEP(vp)) {
@@ -209,7 +209,7 @@ retry:
 }
 
 int
-ffs_syncvnode(struct vnode *vp, int waitfor)
+ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 {
 	struct inode *ip;
 	struct bufobj *bo;
@@ -300,7 +300,10 @@ next:
 	}
 	if (waitfor != MNT_WAIT) {
 		BO_UNLOCK(bo);
-		return (ffs_update(vp, 0));
+		if ((flags & NO_INO_UPDT) != 0)
+			return (0);
+		else
+			return (ffs_update(vp, 0));
 	}
 	/* Drain IO to see if we're done. */
 	bufobj_wwait(bo, 0, 0);
@@ -317,7 +320,7 @@ next:
 	 */
 	if (bo->bo_dirty.bv_cnt > 0) {
 		/* Write the inode after sync passes to flush deps. */
-		if (wait && DOINGSOFTDEP(vp)) {
+		if (wait && DOINGSOFTDEP(vp) && (flags & NO_INO_UPDT) == 0) {
 			BO_UNLOCK(bo);
 			ffs_update(vp, MNT_WAIT);
 			BO_LOCK(bo);
@@ -332,7 +335,9 @@ next:
 #endif
 	}
 	BO_UNLOCK(bo);
-	error = ffs_update(vp, MNT_WAIT);
+	error = 0;
+	if ((flags & NO_INO_UPDT) == 0)
+		error = ffs_update(vp, MNT_WAIT);
 	if (DOINGSUJ(vp))
 		softdep_journal_fsync(VTOI(vp));
 	return (error);

@@ -203,6 +203,7 @@ ffs_snapshot(mp, snapfile)
 	ufs2_daddr_t numblks, blkno, *blkp, *snapblklist;
 	int error, cg, snaploc;
 	int i, size, len, loc;
+	ufs2_daddr_t blockno;
 	uint64_t flag;
 	struct timespec starttime = {0, 0}, endtime;
 	char saved_nice = 0;
@@ -361,7 +362,7 @@ restart:
 			goto out;
 		bawrite(nbp);
 		if (cg % 10 == 0)
-			ffs_syncvnode(vp, MNT_WAIT);
+			ffs_syncvnode(vp, MNT_WAIT, 0);
 	}
 	/*
 	 * Copy all the cylinder group maps. Although the
@@ -384,7 +385,7 @@ restart:
 		error = cgaccount(cg, vp, nbp, 1);
 		bawrite(nbp);
 		if (cg % 10 == 0)
-			ffs_syncvnode(vp, MNT_WAIT);
+			ffs_syncvnode(vp, MNT_WAIT, 0);
 		if (error)
 			goto out;
 	}
@@ -399,7 +400,7 @@ restart:
 	 * Since we have marked it as a snapshot it is safe to
 	 * unlock it as no process will be allowed to write to it.
 	 */
-	if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+	if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 		goto out;
 	VOP_UNLOCK(vp, 0);
 	/*
@@ -529,7 +530,7 @@ loop:
 		    (xvp->v_usecount == 0 &&
 		     (xvp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == 0) ||
 		    xvp->v_type == VNON ||
-		    (VTOI(xvp)->i_flags & SF_SNAPSHOT)) {
+		    IS_SNAPSHOT(VTOI(xvp))) {
 			VI_UNLOCK(xvp);
 			MNT_ILOCK(mp);
 			continue;
@@ -815,21 +816,26 @@ out1:
 	if (space != NULL)
 		free(space, M_UFSMNT);
 	/*
-	 * If another process is currently writing the buffer containing
-	 * the inode for this snapshot then a deadlock can occur. Drop
-	 * the snapshot lock until the buffer has been written.
+	 * Preallocate all the direct blocks in the snapshot inode so
+	 * that we never have to write the inode itself to commit an
+	 * update to the contents of the snapshot. Note that once
+	 * created, the size of the snapshot will never change, so
+	 * there will never be a need to write the inode except to
+	 * update the non-integrity-critical time fields and
+	 * allocated-block count.
 	 */
-	VREF(vp);	/* Protect against ffs_snapgone() */
-	VOP_UNLOCK(vp, 0);
-	(void) bread(ip->i_devvp,
-		     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		     (int) fs->fs_bsize, NOCRED, &nbp);
-	brelse(nbp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	if (ip->i_effnlink == 0)
-		error = ENOENT;		/* Snapshot file unlinked */
-	else
-		vrele(vp);		/* Drop extra reference */
+	for (blockno = 0; blockno < NDADDR; blockno++) {
+		if (DIP(ip, i_db[blockno]) != 0)
+			continue;
+		error = UFS_BALLOC(vp, lblktosize(fs, blockno),
+		    fs->fs_bsize, KERNCRED, BA_CLRBUF, &bp);
+		if (error)
+			break;
+		error = readblock(vp, bp, blockno);
+		bawrite(bp);
+		if (error != 0)
+			break;
+	}
 done:
 	free(copy_fs->fs_csp, M_UFSMNT);
 	free(copy_fs, M_UFSMNT);
@@ -855,7 +861,7 @@ out:
 	MNT_IUNLOCK(mp);
 	if (error)
 		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
-	(void) ffs_syncvnode(vp, MNT_WAIT);
+	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	if (error)
 		vput(vp);
 	else
@@ -1708,7 +1714,7 @@ ffs_snapremove(vp)
 	 * may find indirect pointers using the magic BLK_* values.
 	 */
 	if (DOINGSOFTDEP(vp))
-		ffs_syncvnode(vp, MNT_WAIT);
+		ffs_syncvnode(vp, MNT_WAIT, 0);
 #ifdef QUOTA
 	/*
 	 * Reenable disk quotas for ex-snapshot file.
@@ -1902,7 +1908,7 @@ retry:
 			bawrite(cbp);
 			if ((vtype == VDIR || dopersistence) &&
 			    ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			continue;
 		}
 		/*
@@ -1913,7 +1919,7 @@ retry:
 			bawrite(cbp);
 			if ((vtype == VDIR || dopersistence) &&
 			    ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			break;
 		}
 		savedcbp = cbp;
@@ -1931,7 +1937,7 @@ retry:
 		bawrite(savedcbp);
 		if ((vtype == VDIR || dopersistence) &&
 		    VTOI(vp)->i_effnlink > 0)
-			(void) ffs_syncvnode(vp, MNT_WAIT);
+			(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 	}
 	/*
 	 * If we have been unable to allocate a block in which to do
@@ -1987,14 +1993,14 @@ ffs_snapshot_mount(mp)
 			continue;
 		}
 		ip = VTOI(vp);
-		if ((ip->i_flags & SF_SNAPSHOT) == 0 || ip->i_size ==
+		if (!IS_SNAPSHOT(ip) || ip->i_size ==
 		    lblktosize(fs, howmany(fs->fs_size, fs->fs_frag))) {
-			if ((ip->i_flags & SF_SNAPSHOT) == 0) {
+			if (!IS_SNAPSHOT(ip)) {
 				reason = "non-snapshot";
 			} else {
 				reason = "old format snapshot";
 				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
-				(void)ffs_syncvnode(vp, MNT_WAIT);
+				(void)ffs_syncvnode(vp, MNT_WAIT, 0);
 			}
 			printf("ffs_snapshot_mount: %s inode %d\n",
 			    reason, fs->fs_snapinum[snaploc]);
@@ -2250,7 +2256,7 @@ ffs_copyonwrite(devvp, bp)
 	int launched_async_io, prev_norunningbuf;
 	long saved_runningbufspace;
 
-	if (devvp != bp->b_vp && (VTOI(bp->b_vp)->i_flags & SF_SNAPSHOT) != 0)
+	if (devvp != bp->b_vp && IS_SNAPSHOT(VTOI(bp->b_vp)))
 		return (0);		/* Update on a snapshot file */
 	if (td->td_pflags & TDP_COWINPROGRESS)
 		panic("ffs_copyonwrite: recursive call");
@@ -2395,7 +2401,7 @@ ffs_copyonwrite(devvp, bp)
 			bawrite(cbp);
 			if ((devvp == bp->b_vp || bp->b_vp->v_type == VDIR ||
 			    dopersistence) && ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			else
 				launched_async_io = 1;
 			continue;
@@ -2408,7 +2414,7 @@ ffs_copyonwrite(devvp, bp)
 			bawrite(cbp);
 			if ((devvp == bp->b_vp || bp->b_vp->v_type == VDIR ||
 			    dopersistence) && ip->i_effnlink > 0)
-				(void) ffs_syncvnode(vp, MNT_WAIT);
+				(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 			else
 				launched_async_io = 1;
 			break;
@@ -2428,7 +2434,7 @@ ffs_copyonwrite(devvp, bp)
 		bawrite(savedcbp);
 		if ((devvp == bp->b_vp || bp->b_vp->v_type == VDIR ||
 		    dopersistence) && VTOI(vp)->i_effnlink > 0)
-			(void) ffs_syncvnode(vp, MNT_WAIT);
+			(void) ffs_syncvnode(vp, MNT_WAIT, NO_INO_UPDT);
 		else
 			launched_async_io = 1;
 	}
@@ -2478,7 +2484,7 @@ ffs_sync_snap(mp, waitfor)
 	}
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
-		ffs_syncvnode(vp, waitfor);
+		ffs_syncvnode(vp, waitfor, NO_INO_UPDT);
 	}
 	lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 }
