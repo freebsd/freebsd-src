@@ -1158,6 +1158,12 @@ enum mfi_pd_state {
 	MFI_PD_STATE_SYSTEM = 0x40
 };
 
+/*
+ * "SYSTEM" disk appears to be "JBOD" support from the RAID controller.
+ * Adding a #define to denote this.
+ */
+#define MFI_PD_STATE_JBOD MFI_PD_STATE_SYSTEM
+
 union mfi_ld_ref {
 	struct {
 		uint8_t		target_id;
@@ -1259,7 +1265,7 @@ struct mfi_ld_info {
 	uint8_t			reserved2[16];
 } __packed;
 
-#define MAX_ARRAYS 128
+#define MFI_MAX_ARRAYS 16
 struct mfi_spare {
 	union mfi_pd_ref	ref;
 	uint8_t			spare_type;
@@ -1268,9 +1274,10 @@ struct mfi_spare {
 #define	MFI_SPARE_ENCL_AFFINITY	(1 << 2)
 	uint8_t			reserved[2];
 	uint8_t			array_count;
-	uint16_t		array_ref[MAX_ARRAYS];
+	uint16_t		array_ref[MFI_MAX_ARRAYS];
 } __packed;
 
+#define MFI_MAX_ROW_SIZE 32
 struct mfi_array {
 	uint64_t			size;
 	uint8_t				num_drives;
@@ -1284,7 +1291,7 @@ struct mfi_array {
 			uint8_t		pd;
 			uint8_t		slot;
 		} encl;
-	} pd[0];
+	} pd[MFI_MAX_ROW_SIZE];
 } __packed;
 
 struct mfi_config_data {
@@ -1435,8 +1442,6 @@ typedef struct _MPI2_SCSI_IO_VENDOR_UNIQUE {
 	uint8_t		spanArm;	/* 0x1C */
 	uint8_t		resvd2[3];	/* 0x1D - 0x1F */
 } MPI2_SCSI_IO_VENDOR_UNIQUE, MPI25_SCSI_IO_VENDOR_UNIQUE;
-
-/*** DJA *****/
 
 /*****************************************************************************
 *
