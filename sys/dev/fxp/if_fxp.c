@@ -194,7 +194,7 @@ static const struct fxp_ident const fxp_ident_table[] = {
     { 0x1229,	0x08,	0, "Intel 82559 Pro/100 Ethernet" },
     { 0x1229,	0x09,	0, "Intel 82559ER Pro/100 Ethernet" },
     { 0x1229,	0x0c,	0, "Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0d,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0d,	0, "Intel 82550C Pro/100 Ethernet" },
     { 0x1229,	0x0e,	0, "Intel 82550 Pro/100 Ethernet" },
     { 0x1229,	0x0f,	0, "Intel 82551 Pro/100 Ethernet" },
     { 0x1229,	0x10,	0, "Intel 82551 Pro/100 Ethernet" },
@@ -523,6 +523,18 @@ fxp_attach(device_t dev)
 		if ((data & 0x20) != 0 &&
 		    pci_find_cap(sc->dev, PCIY_PMG, &pmc) == 0)
 			sc->flags |= FXP_FLAG_WOLCAP;
+	}
+
+	if (sc->revision == FXP_REV_82550_C) {
+		/*
+		 * 82550C with server extension requires microcode to
+		 * receive fragmented UDP datagrams.  However if the
+		 * microcode is used for client-only featured 82550C
+		 * it locks up controller.
+		 */
+		fxp_read_eeprom(sc, &data, 3, 1);
+		if ((data & 0x0400) == 0)
+			sc->flags |= FXP_FLAG_NO_UCODE;
 	}
 
 	/* Receiver lock-up workaround detection. */
@@ -3014,10 +3026,8 @@ static uint32_t fxp_ucode_d101a[] = D101_A_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101b0[] = D101_B0_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101ma[] = D101M_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101s[] = D101S_RCVBUNDLE_UCODE;
-#ifdef notyet
 static uint32_t fxp_ucode_d102[] = D102_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d102c[] = D102_C_RCVBUNDLE_UCODE;
-#endif
 static uint32_t fxp_ucode_d102e[] = D102_E_RCVBUNDLE_UCODE;
 
 #define UCODE(x)	x, sizeof(x)/sizeof(uint32_t)
@@ -3035,12 +3045,10 @@ static const struct ucode {
 	    D101M_CPUSAVER_DWORD, D101M_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82559S_A, UCODE(fxp_ucode_d101s),
 	    D101S_CPUSAVER_DWORD, D101S_CPUSAVER_BUNDLE_MAX_DWORD },
-#ifdef notyet
 	{ FXP_REV_82550, UCODE(fxp_ucode_d102),
 	    D102_B_CPUSAVER_DWORD, D102_B_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82550_C, UCODE(fxp_ucode_d102c),
 	    D102_C_CPUSAVER_DWORD, D102_C_CPUSAVER_BUNDLE_MAX_DWORD },
-#endif
 	{ FXP_REV_82551_F, UCODE(fxp_ucode_d102e),
 	    D102_E_CPUSAVER_DWORD, D102_E_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82551_10, UCODE(fxp_ucode_d102e),
@@ -3054,6 +3062,9 @@ fxp_load_ucode(struct fxp_softc *sc)
 	const struct ucode *uc;
 	struct fxp_cb_ucode *cbp;
 	int i;
+
+	if (sc->flags & FXP_FLAG_NO_UCODE)
+		return;
 
 	for (uc = ucode_table; uc->ucode != NULL; uc++)
 		if (sc->revision == uc->revision)
@@ -3087,6 +3098,7 @@ fxp_load_ucode(struct fxp_softc *sc)
 	    sc->tunable_int_delay,
 	    uc->bundle_max_offset == 0 ? 0 : sc->tunable_bundle_max);
 	sc->flags |= FXP_FLAG_UCODE;
+	bzero(cbp, FXP_TXCB_SZ);
 }
 
 #define FXP_SYSCTL_STAT_ADD(c, h, n, p, d)	\
