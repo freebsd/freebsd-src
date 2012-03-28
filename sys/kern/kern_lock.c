@@ -28,6 +28,7 @@
 
 #include "opt_adaptive_lockmgrs.h"
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 
 #include <sys/cdefs.h>
@@ -51,6 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
+#endif
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+PMC_SOFT_DECLARE( , , lock, failed);
 #endif
 
 CTASSERT(((LK_ADAPTIVE | LK_NOSHARE) & LO_CLASSFLAGS) ==
@@ -514,6 +520,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					break;
 				continue;
 			}
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&lk->lock_object,
 			    &contested, &waittime);
 
@@ -744,6 +753,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 		while (!atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED,
 		    tid)) {
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&lk->lock_object,
 			    &contested, &waittime);
 
@@ -1056,6 +1068,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		}
 
 		while (!atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED, tid)) {
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&lk->lock_object,
 			    &contested, &waittime);
 
