@@ -1443,10 +1443,9 @@ ffs_sync_lazy(mp)
 		/*
 		 * The IN_ACCESS flag is converted to IN_MODIFIED by
 		 * ufs_close() and ufs_getattr() by the calls to
-		 * ufs_itimes_locked(), without subsequent
-		 * UFS_UPDATE().  Test also all the other timestamp
-		 * flags too, to pick up any other cases that could be
-		 * missed.
+		 * ufs_itimes_locked(), without subsequent UFS_UPDATE().
+		 * Test also all the other timestamp flags too, to pick up
+		 * any other cases that could be missed.
 		 */
 		if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
 		    IN_UPDATE)) == 0) {
