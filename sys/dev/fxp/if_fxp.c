@@ -592,13 +592,11 @@ fxp_attach(device_t dev)
 			    "EEPROM checksum @ 0x%x: 0x%x -> 0x%x\n",
 			    i, sc->eeprom[i], cksum);
 			sc->eeprom[i] = cksum;
-#if 1
 			/*
 			 * If the user elects to continue, try the software
 			 * workaround, as it is better than nothing.
 			 */
 			sc->flags |= FXP_FLAG_CU_RESUME_BUG;
-#endif
 		}
 	}
 
@@ -2611,12 +2609,6 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	if (IFM_SUBTYPE(ifmr->ifm_active) == IFM_10_T &&
-	    sc->flags & FXP_FLAG_CU_RESUME_BUG)
-		sc->cu_resume_bug = 1;
-	else
-		sc->cu_resume_bug = 0;
 	FXP_UNLOCK(sc);
 }
 
@@ -2809,6 +2801,11 @@ fxp_miibus_statchg(device_t dev)
 	    (IFM_AVALID | IFM_ACTIVE))
 		return;
 
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T &&
+	    sc->flags & FXP_FLAG_CU_RESUME_BUG)
+		sc->cu_resume_bug = 1;
+	else
+		sc->cu_resume_bug = 0;
 	/*
 	 * Call fxp_init_body in order to adjust the flow control settings.
 	 * Note that the 82557 doesn't support hardware flow control.
