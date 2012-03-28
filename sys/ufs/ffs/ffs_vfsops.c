@@ -407,6 +407,8 @@ ffs_mount(struct mount *mp)
 				vn_finished_write(mp);
 				return (error);
 			}
+			if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
+				devvp->v_rdev->si_mountpt = mp;
 			if (fs->fs_snapinum[0] != 0)
 				ffs_snapshot_mount(mp);
 			vn_finished_write(mp);
@@ -1050,6 +1052,8 @@ ffs_mountfs(devvp, mp, td)
 			ffs_flushfiles(mp, FORCECLOSE, td);
 			goto out;
 		}
+		if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
+			devvp->v_rdev->si_mountpt = mp;
 		if (fs->fs_snapinum[0] != 0)
 			ffs_snapshot_mount(mp);
 		fs->fs_fmod = 1;
@@ -1295,6 +1299,8 @@ ffs_unmount(mp, mntflags)
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
+	if (ump->um_devvp->v_type == VCHR && ump->um_devvp->v_rdev != NULL)
+		ump->um_devvp->v_rdev->si_mountpt = NULL;
 	vrele(ump->um_devvp);
 	dev_rel(ump->um_dev);
 	mtx_destroy(UFS_MTX(ump));
