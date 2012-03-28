@@ -483,6 +483,8 @@ int	bread(struct vnode *, daddr_t, int, struct ucred *, struct buf **);
 void	breada(struct vnode *, daddr_t *, int *, int, struct ucred *);
 int	breadn(struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, struct buf **);
+int	breadn_flags(struct vnode *, daddr_t, int, daddr_t *, int *, int,
+	    struct ucred *, int, struct buf **);
 void	bdwrite(struct buf *);
 void	bawrite(struct buf *);
 void	bdirty(struct buf *);
