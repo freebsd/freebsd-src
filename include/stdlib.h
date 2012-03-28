@@ -72,6 +72,9 @@ typedef struct {
 #define	RAND_MAX	0x7fffffff
 
 __BEGIN_DECLS
+#ifdef _XLOCALE_H_
+#include <xlocale/_stdlib.h>
+#endif
 extern int __mb_cur_max;
 extern int ___mb_cur_max(void);
 #define	MB_CUR_MAX	(___mb_cur_max())
