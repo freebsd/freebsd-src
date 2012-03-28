@@ -219,6 +219,7 @@ struct fxp_softc {
 	int if_flags;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
+	uint16_t eeprom[256];
 };
 
 #define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */

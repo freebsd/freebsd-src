@@ -248,6 +248,7 @@ static uint16_t		fxp_eeprom_getword(struct fxp_softc *sc, int offset,
 static void 		fxp_eeprom_putword(struct fxp_softc *sc, int offset,
 			    uint16_t data);
 static void		fxp_autosize_eeprom(struct fxp_softc *sc);
+static void		fxp_load_eeprom(struct fxp_softc *sc);
 static void		fxp_read_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
 static void		fxp_write_eeprom(struct fxp_softc *sc, u_short *data,
@@ -426,7 +427,7 @@ fxp_attach(device_t dev)
 	struct fxp_rx *rxp;
 	struct ifnet *ifp;
 	uint32_t val;
-	uint16_t data, myea[ETHER_ADDR_LEN / 2];
+	uint16_t data;
 	u_char eaddr[ETHER_ADDR_LEN];
 	int error, flags, i, pmc, prefer_iomap;
 
@@ -498,6 +499,7 @@ fxp_attach(device_t dev)
 	 * Find out how large of an SEEPROM we have.
 	 */
 	fxp_autosize_eeprom(sc);
+	fxp_load_eeprom(sc);
 
 	/*
 	 * Find out the chip revision; lump all 82557 revs together.
@@ -507,7 +509,7 @@ fxp_attach(device_t dev)
 		/* Assume ICH controllers are 82559. */
 		sc->revision = FXP_REV_82559_A0;
 	} else {
-		fxp_read_eeprom(sc, &data, 5, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_CNTR];
 		if ((data >> 8) == 1)
 			sc->revision = FXP_REV_82557;
 		else
@@ -519,7 +521,7 @@ fxp_attach(device_t dev)
 	 */
 	if (sc->revision >= FXP_REV_82558_A4 &&
 	    sc->revision != FXP_REV_82559S_A) {
-		fxp_read_eeprom(sc, &data, 10, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_ID];
 		if ((data & 0x20) != 0 &&
 		    pci_find_cap(sc->dev, PCIY_PMG, &pmc) == 0)
 			sc->flags |= FXP_FLAG_WOLCAP;
@@ -532,14 +534,14 @@ fxp_attach(device_t dev)
 		 * microcode is used for client-only featured 82550C
 		 * it locks up controller.
 		 */
-		fxp_read_eeprom(sc, &data, 3, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_COMPAT];
 		if ((data & 0x0400) == 0)
 			sc->flags |= FXP_FLAG_NO_UCODE;
 	}
 
 	/* Receiver lock-up workaround detection. */
 	if (sc->revision < FXP_REV_82558_A4) {
-		fxp_read_eeprom(sc, &data, 3, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_COMPAT];
 		if ((data & 0x03) != 0x03) {
 			sc->flags |= FXP_FLAG_RXBUG;
 			device_printf(dev, "Enabling Rx lock-up workaround\n");
@@ -549,7 +551,7 @@ fxp_attach(device_t dev)
 	/*
 	 * Determine whether we must use the 503 serial interface.
 	 */
-	fxp_read_eeprom(sc, &data, 6, 1);
+	data = sc->eeprom[FXP_EEPROM_MAP_PRI_PHY];
 	if (sc->revision == FXP_REV_82557 && (data & FXP_PHY_DEVICE_MASK) != 0
 	    && (data & FXP_PHY_SERIAL_ONLY))
 		sc->flags |= FXP_FLAG_SERIAL_MEDIA;
@@ -569,7 +571,7 @@ fxp_attach(device_t dev)
 	 */
 	if ((sc->ident->ich >= 2 && sc->ident->ich <= 3) ||
 	    (sc->ident->ich == 0 && sc->revision >= FXP_REV_82559_A0)) {
-		fxp_read_eeprom(sc, &data, 10, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_ID];
 		if (data & 0x02) {			/* STB enable */
 			uint16_t cksum;
 			int i;
@@ -577,20 +579,19 @@ fxp_attach(device_t dev)
 			device_printf(dev,
 			    "Disabling dynamic standby mode in EEPROM\n");
 			data &= ~0x02;
-			fxp_write_eeprom(sc, &data, 10, 1);
+			sc->eeprom[FXP_EEPROM_MAP_ID] = data;
+			fxp_write_eeprom(sc, &data, FXP_EEPROM_MAP_ID, 1);
 			device_printf(dev, "New EEPROM ID: 0x%x\n", data);
 			cksum = 0;
-			for (i = 0; i < (1 << sc->eeprom_size) - 1; i++) {
-				fxp_read_eeprom(sc, &data, i, 1);
-				cksum += data;
-			}
+			for (i = 0; i < (1 << sc->eeprom_size) - 1; i++)
+				cksum += sc->eeprom[i];
 			i = (1 << sc->eeprom_size) - 1;
 			cksum = 0xBABA - cksum;
-			fxp_read_eeprom(sc, &data, i, 1);
 			fxp_write_eeprom(sc, &cksum, i, 1);
 			device_printf(dev,
 			    "EEPROM checksum @ 0x%x: 0x%x -> 0x%x\n",
-			    i, data, cksum);
+			    i, sc->eeprom[i], cksum);
+			sc->eeprom[i] = cksum;
 #if 1
 			/*
 			 * If the user elects to continue, try the software
@@ -791,21 +792,20 @@ fxp_attach(device_t dev)
 	/*
 	 * Read MAC address.
 	 */
-	fxp_read_eeprom(sc, myea, 0, 3);
-	eaddr[0] = myea[0] & 0xff;
-	eaddr[1] = myea[0] >> 8;
-	eaddr[2] = myea[1] & 0xff;
-	eaddr[3] = myea[1] >> 8;
-	eaddr[4] = myea[2] & 0xff;
-	eaddr[5] = myea[2] >> 8;
+	eaddr[0] = sc->eeprom[FXP_EEPROM_MAP_IA0] & 0xff;
+	eaddr[1] = sc->eeprom[FXP_EEPROM_MAP_IA0] >> 8;
+	eaddr[2] = sc->eeprom[FXP_EEPROM_MAP_IA1] & 0xff;
+	eaddr[3] = sc->eeprom[FXP_EEPROM_MAP_IA1] >> 8;
+	eaddr[4] = sc->eeprom[FXP_EEPROM_MAP_IA2] & 0xff;
+	eaddr[5] = sc->eeprom[FXP_EEPROM_MAP_IA2] >> 8;
 	if (bootverbose) {
 		device_printf(dev, "PCI IDs: %04x %04x %04x %04x %04x\n",
 		    pci_get_vendor(dev), pci_get_device(dev),
 		    pci_get_subvendor(dev), pci_get_subdevice(dev),
 		    pci_get_revid(dev));
-		fxp_read_eeprom(sc, &data, 10, 1);
 		device_printf(dev, "Dynamic Standby mode is %s\n",
-		    data & 0x02 ? "enabled" : "disabled");
+		    sc->eeprom[FXP_EEPROM_MAP_ID] & 0x02 ? "enabled" :
+		    "disabled");
 	}
 
 	/*
@@ -1299,6 +1299,23 @@ fxp_write_eeprom(struct fxp_softc *sc, u_short *data, int offset, int words)
 
 	for (i = 0; i < words; i++)
 		fxp_eeprom_putword(sc, offset + i, data[i]);
+}
+
+static void
+fxp_load_eeprom(struct fxp_softc *sc)
+{
+	int i;
+	uint16_t cksum;
+
+	fxp_read_eeprom(sc, sc->eeprom, 0, 1 << sc->eeprom_size);
+	cksum = 0;
+	for (i = 0; i < (1 << sc->eeprom_size) - 1; i++)
+		cksum += sc->eeprom[i];
+	cksum = 0xBABA - cksum;
+	if (cksum != sc->eeprom[(1 << sc->eeprom_size) - 1])
+		device_printf(sc->dev,
+		    "EEPROM checksum mismatch! (0x%04x -> 0x%04x)\n",
+		    cksum, sc->eeprom[(1 << sc->eeprom_size) - 1]);
 }
 
 /*
