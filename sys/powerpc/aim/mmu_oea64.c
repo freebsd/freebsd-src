@@ -1981,10 +1981,18 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 	LOCK_TABLE_RD();
 	PMAP_LOCK(pm);
 	if ((eva - sva)/PAGE_SIZE < pm->pm_stats.resident_count) {
-		for (; sva < eva; sva += PAGE_SIZE) {
+		while (sva < eva) {
+			#ifdef __powerpc64__
+			if (pm != kernel_pmap &&
+			    user_va_to_slb_entry(pm, sva) == NULL) {
+				sva = roundup2(sva + 1, SEGMENT_LENGTH);
+				continue;
+			}
+			#endif
 			pvo = moea64_pvo_find_va(pm, sva);
 			if (pvo != NULL)
 				moea64_pvo_protect(mmu, pm, pvo, prot);
+			sva += PAGE_SIZE;
 		}
 	} else {
 		LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
@@ -2095,10 +2103,18 @@ moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	LOCK_TABLE_WR();
 	PMAP_LOCK(pm);
 	if ((eva - sva)/PAGE_SIZE < pm->pm_stats.resident_count) {
-		for (; sva < eva; sva += PAGE_SIZE) {
+		while (sva < eva) {
+			#ifdef __powerpc64__
+			if (pm != kernel_pmap &&
+			    user_va_to_slb_entry(pm, sva) == NULL) {
+				sva = roundup2(sva + 1, SEGMENT_LENGTH);
+				continue;
+			}
+			#endif
 			pvo = moea64_pvo_find_va(pm, sva);
 			if (pvo != NULL)
 				moea64_pvo_remove(mmu, pvo);
+			sva += PAGE_SIZE;
 		}
 	} else {
 		LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
@@ -2566,7 +2582,7 @@ moea64_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 
 	ppa = trunc_page(pa);
 	offset = pa & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = roundup2(offset + size, PAGE_SIZE);
 
 	va = kmem_alloc_nofault(kernel_map, size);
 
@@ -2597,7 +2613,7 @@ moea64_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = roundup2(offset + size, PAGE_SIZE);
 
 	kmem_free(kernel_map, base, size);
 }

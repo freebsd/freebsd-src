@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -152,15 +153,13 @@ TLBIE(uint64_t vpn) {
 	vpn &= ~(0xffffULL << 48);
 
 #ifdef __powerpc64__
+	sched_pin();
+	__asm __volatile("ptesync");
 	mtx_lock(&tlbie_mutex);
-	__asm __volatile("\
-	    ptesync; \
-	    tlbie %0; \
-	    eieio; \
-	    tlbsync; \
-	    ptesync;" 
-	:: "r"(vpn) : "memory");
+	__asm __volatile("tlbie %0" :: "r"(vpn) : "memory");
 	mtx_unlock(&tlbie_mutex);
+	__asm __volatile("eieio; tlbsync; ptesync");
+	sched_unpin();
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
