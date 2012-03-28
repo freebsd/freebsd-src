@@ -1260,6 +1260,7 @@ dev/hme/if_hme_sbus.c		optional hme sbus
 dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
+dev/hwpmc/hwpmc_soft.c		optional hwpmc
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida

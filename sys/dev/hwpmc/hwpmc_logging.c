@@ -129,6 +129,7 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
 
 /* Emit a string.  Caution: does NOT update _le, so needs to be last */
 #define	PMCLOG_EMITSTRING(S,L)	do { bcopy((S), _le, (L)); } while (0)
+#define	PMCLOG_EMITNULLSTRING(L) do { bzero(_le, (L)); } while (0)
 
 #define	PMCLOG_DESPATCH(PO)						\
 		pmclog_release((PO));					\
@@ -835,16 +836,33 @@ void
 pmclog_process_pmcallocate(struct pmc *pm)
 {
 	struct pmc_owner *po;
+	struct pmc_soft *ps;
 
 	po = pm->pm_owner;
 
 	PMCDBG(LOG,ALL,1, "pm=%p", pm);
 
-	PMCLOG_RESERVE(po, PMCALLOCATE, sizeof(struct pmclog_pmcallocate));
-	PMCLOG_EMIT32(pm->pm_id);
-	PMCLOG_EMIT32(pm->pm_event);
-	PMCLOG_EMIT32(pm->pm_flags);
-	PMCLOG_DESPATCH(po);
+	if (PMC_TO_CLASS(pm) == PMC_CLASS_SOFT) {
+		PMCLOG_RESERVE(po, PMCALLOCATEDYN,
+		    sizeof(struct pmclog_pmcallocatedyn));
+		PMCLOG_EMIT32(pm->pm_id);
+		PMCLOG_EMIT32(pm->pm_event);
+		PMCLOG_EMIT32(pm->pm_flags);
+		ps = pmc_soft_ev_acquire(pm->pm_event);
+		if (ps != NULL)
+			PMCLOG_EMITSTRING(ps->ps_ev.pm_ev_name,PMC_NAME_MAX);
+		else
+			PMCLOG_EMITNULLSTRING(PMC_NAME_MAX);
+		pmc_soft_ev_release(ps);
+		PMCLOG_DESPATCH(po);
+	} else {
+		PMCLOG_RESERVE(po, PMCALLOCATE,
+		    sizeof(struct pmclog_pmcallocate));
+		PMCLOG_EMIT32(pm->pm_id);
+		PMCLOG_EMIT32(pm->pm_event);
+		PMCLOG_EMIT32(pm->pm_flags);
+		PMCLOG_DESPATCH(po);
+	}
 }
 
 void
