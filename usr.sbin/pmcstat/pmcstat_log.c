@@ -1491,6 +1491,15 @@ pmcstat_analyze_log(void)
 			    pmcstat_string_intern(ev.pl_u.pl_a.pl_evname));
 			break;
 
+		case PMCLOG_TYPE_PMCALLOCATEDYN:
+			/*
+			 * Record the association pmc id between this
+			 * PMC and its name.
+			 */
+			pmcstat_pmcid_add(ev.pl_u.pl_ad.pl_pmcid,
+			    pmcstat_string_intern(ev.pl_u.pl_ad.pl_evname));
+			break;
+
 		case PMCLOG_TYPE_PROCEXEC:
 
 			/*
@@ -1640,6 +1649,12 @@ pmcstat_print_log(void)
 			    ev.pl_u.pl_a.pl_pmcid,
 			    ev.pl_u.pl_a.pl_evname,
 			    ev.pl_u.pl_a.pl_flags);
+			break;
+		case PMCLOG_TYPE_PMCALLOCATEDYN:
+			PMCSTAT_PRINT_ENTRY("allocatedyn","0x%x \"%s\" 0x%x",
+			    ev.pl_u.pl_ad.pl_pmcid,
+			    ev.pl_u.pl_ad.pl_evname,
+			    ev.pl_u.pl_ad.pl_flags);
 			break;
 		case PMCLOG_TYPE_PMCATTACH:
 			PMCSTAT_PRINT_ENTRY("attach","0x%x %d \"%s\"",
