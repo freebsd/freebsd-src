@@ -490,6 +490,7 @@ struct ath_softc {
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
+	struct task		sc_txqtask;	/* tx proc processing */
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
