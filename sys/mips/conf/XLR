@@ -45,7 +45,7 @@
 #
 # $FreeBSD$
 
-machine 	mips mipseb
+machine 	mips mips
 ident 		XLR
 include		"../rmi/std.xlr"
 
