@@ -3894,7 +3894,7 @@ pci_describe_device(device_t dev)
 	if ((desc = malloc(strlen(vp) + strlen(dp) + 3, M_DEVBUF, M_NOWAIT)) !=
 	    NULL)
 		sprintf(desc, "%s, %s", vp, dp);
- out:
+out:
 	if (vp != NULL)
 		free(vp, M_DEVBUF);
 	if (dp != NULL)
@@ -4170,7 +4170,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 		    count, *rid, type, rman_get_start(res));
 	map = rman_get_start(res);
 	pci_write_bar(child, pm, map);
-out:;
+out:
 	return (res);
 }
 
