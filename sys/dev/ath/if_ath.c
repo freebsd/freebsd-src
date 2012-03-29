@@ -191,6 +191,7 @@ static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
+static void	ath_txq_sched_tasklet(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_stoprecv(struct ath_softc *, int);
@@ -398,6 +399,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
+	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -5130,6 +5132,38 @@ ath_tx_proc(void *arg, int npending)
 	ath_start(ifp);
 }
 #undef	TXQACTIVE
+
+/*
+ * Deferred processing of TXQ rescheduling.
+ */
+static void
+ath_txq_sched_tasklet(void *arg, int npending)
+{
+	struct ath_softc *sc = arg;
+	int i;
+
+	/* XXX is skipping ok? */
+	ATH_PCU_LOCK(sc);
+#if 0
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+#endif
+	sc->sc_txproc_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		if (ATH_TXQ_SETUP(sc, i))
+			ath_txq_sched(sc, &sc->sc_txq[i]);
+	}
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
+}
 
 /*
  * Return a buffer to the pool and update the 'busy' flag on the

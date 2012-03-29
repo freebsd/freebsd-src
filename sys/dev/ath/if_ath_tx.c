@@ -2623,7 +2623,8 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 
 	ath_tx_tid_sched(sc, tid);
 	/* Punt some frames to the hardware if needed */
-	ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
+	//ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
 }
 
 /*
