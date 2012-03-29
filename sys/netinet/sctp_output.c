@@ -11716,7 +11716,7 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
 }
 
 static void
-sctp_add_a_stream(struct sctp_tmit_chunk *chk,
+sctp_add_an_out_stream(struct sctp_tmit_chunk *chk,
     uint32_t seq,
     uint16_t adding)
 {
@@ -11733,7 +11733,7 @@ sctp_add_a_stream(struct sctp_tmit_chunk *chk,
 	len = sizeof(struct sctp_stream_reset_add_strm);
 
 	/* Fill it out. */
-	addstr->ph.param_type = htons(SCTP_STR_RESET_ADD_STREAMS);
+	addstr->ph.param_type = htons(SCTP_STR_RESET_ADD_OUT_STREAMS);
 	addstr->ph.param_length = htons(len);
 	addstr->request_seq = htonl(seq);
 	addstr->number_of_streams = htons(adding);
@@ -11748,15 +11748,49 @@ sctp_add_a_stream(struct sctp_tmit_chunk *chk,
 	return;
 }
 
+static void
+sctp_add_an_in_stream(struct sctp_tmit_chunk *chk,
+    uint32_t seq,
+    uint16_t adding)
+{
+	int len, old_len;
+	struct sctp_chunkhdr *ch;
+	struct sctp_stream_reset_add_strm *addstr;
+
+	ch = mtod(chk->data, struct sctp_chunkhdr *);
+	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
+
+	/* get to new offset for the param. */
+	addstr = (struct sctp_stream_reset_add_strm *)((caddr_t)ch + len);
+	/* now how long will this param be? */
+	len = sizeof(struct sctp_stream_reset_add_strm);
+	/* Fill it out. */
+	addstr->ph.param_type = htons(SCTP_STR_RESET_ADD_IN_STREAMS);
+	addstr->ph.param_length = htons(len);
+	addstr->request_seq = htonl(seq);
+	addstr->number_of_streams = htons(adding);
+	addstr->reserved = 0;
+
+	/* now fix the chunk length */
+	ch->chunk_length = htons(len + old_len);
+	chk->send_size = len + old_len;
+	chk->book_size = SCTP_SIZE32(chk->send_size);
+	chk->book_size_scale = 0;
+	SCTP_BUF_LEN(chk->data) = SCTP_SIZE32(chk->send_size);
+	return;
+}
+
+
+
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
     int number_entries, uint16_t * list,
     uint8_t send_out_req,
-    uint32_t resp_seq,
     uint8_t send_in_req,
     uint8_t send_tsn_req,
     uint8_t add_stream,
-    uint16_t adding
+    uint16_t adding_o,
+    uint16_t adding_i, uint8_t peer_asked
 )
 {
 
@@ -11823,18 +11857,86 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 	seq = stcb->asoc.str_reset_seq_out;
 	if (send_out_req) {
 		sctp_add_stream_reset_out(chk, number_entries, list,
-		    seq, resp_seq, (stcb->asoc.sending_seq - 1));
+		    seq, (stcb->asoc.str_reset_seq_in - 1), (stcb->asoc.sending_seq - 1));
 		asoc->stream_reset_out_is_outstanding = 1;
 		seq++;
 		asoc->stream_reset_outstanding++;
 	}
-	if (add_stream) {
-		sctp_add_a_stream(chk, seq, adding);
+	if ((add_stream & 1) &&
+	    ((stcb->asoc.strm_realoutsize - stcb->asoc.streamoutcnt) < adding_o)) {
+		/* Need to allocate more */
+		struct sctp_stream_out *oldstream;
+		struct sctp_stream_queue_pending *sp, *nsp;
+		int i;
+
+		oldstream = stcb->asoc.strmout;
+		/* get some more */
+		SCTP_MALLOC(stcb->asoc.strmout, struct sctp_stream_out *,
+		    ((stcb->asoc.streamoutcnt + adding_o) * sizeof(struct sctp_stream_out)),
+		    SCTP_M_STRMO);
+		if (stcb->asoc.strmout == NULL) {
+			uint8_t x;
+
+			stcb->asoc.strmout = oldstream;
+			/* Turn off the bit */
+			x = add_stream & 0xfe;
+			add_stream = x;
+			goto skip_stuff;
+		}
+		/*
+		 * Ok now we proceed with copying the old out stuff and
+		 * initializing the new stuff.
+		 */
+		SCTP_TCB_SEND_LOCK(stcb);
+		stcb->asoc.ss_functions.sctp_ss_clear(stcb, &stcb->asoc, 0, 1);
+		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
+			stcb->asoc.strmout[i].next_sequence_sent = oldstream[i].next_sequence_sent;
+			stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
+			stcb->asoc.strmout[i].stream_no = i;
+			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], &oldstream[i]);
+			/* now anything on those queues? */
+			TAILQ_FOREACH_SAFE(sp, &oldstream[i].outqueue, next, nsp) {
+				TAILQ_REMOVE(&oldstream[i].outqueue, sp, next);
+				TAILQ_INSERT_TAIL(&stcb->asoc.strmout[i].outqueue, sp, next);
+			}
+			/* Now move assoc pointers too */
+			if (stcb->asoc.last_out_stream == &oldstream[i]) {
+				stcb->asoc.last_out_stream = &stcb->asoc.strmout[i];
+			}
+			if (stcb->asoc.locked_on_sending == &oldstream[i]) {
+				stcb->asoc.locked_on_sending = &stcb->asoc.strmout[i];
+			}
+		}
+		/* now the new streams */
+		stcb->asoc.ss_functions.sctp_ss_init(stcb, &stcb->asoc, 1);
+		for (i = stcb->asoc.streamoutcnt; i < (stcb->asoc.streamoutcnt + adding_o); i++) {
+			stcb->asoc.strmout[i].next_sequence_sent = 0x0;
+			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
+			stcb->asoc.strmout[i].stream_no = i;
+			stcb->asoc.strmout[i].last_msg_incomplete = 0;
+			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
+		}
+		stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt + adding_o;
+		SCTP_FREE(oldstream, SCTP_M_STRMO);
+		SCTP_TCB_SEND_UNLOCK(stcb);
+	}
+skip_stuff:
+	if ((add_stream & 1) && (adding_o > 0)) {
+		asoc->strm_pending_add_size = adding_o;
+		asoc->peer_req_out = peer_asked;
+		sctp_add_an_out_stream(chk, seq, adding_o);
+		seq++;
+		asoc->stream_reset_outstanding++;
+	}
+	if ((add_stream & 2) && (adding_i > 0)) {
+		sctp_add_an_in_stream(chk, seq, adding_i);
 		seq++;
 		asoc->stream_reset_outstanding++;
 	}
 	if (send_in_req) {
 		sctp_add_stream_reset_in(chk, number_entries, list, seq);
+		seq++;
 		asoc->stream_reset_outstanding++;
 	}
 	if (send_tsn_req) {
@@ -11842,7 +11944,6 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		asoc->stream_reset_outstanding++;
 	}
 	asoc->str_reset = chk;
-
 	/* insert the chunk for sending */
 	TAILQ_INSERT_TAIL(&asoc->control_send_queue,
 	    chk,
