@@ -2590,27 +2590,6 @@ pci_write_bar(device_t dev, struct pci_map *pm, pci_addr_t base)
 	struct pci_devinfo *dinfo;
 	int ln2range;
 
-	/*
-	 * Don't disable BARs on AGP devices. In general: Don't
-	 * disable BARs on any PCI display devices, because doing that
-	 * can sometimes cause the main memory bus to stop working,
-	 * causing all memory reads to return nothing but 0xFFFFFFFF,
-	 * even though the memory location was previously written.
-	 * After a while a privileged instruction fault will appear
-	 * and then nothing more can be debugged.
-	 * The reason for this behaviour is unknown.
-	 */
-	if (base == 0 && pci_get_class(dev) == PCIC_DISPLAY) {
-		device_printf(device_get_parent(dev),
-		    "pci%d:%d:%d:%d BARs on display devices "
-		    "should not be disabled.\n",
-		    pci_get_domain(dev),
-		    pci_get_bus(dev),
-		    pci_get_slot(dev),
-		    pci_get_function(dev));
-		return;
-	}
-
 	/* The device ROM BAR is always a 32-bit memory BAR. */
 	dinfo = device_get_ivars(dev);
 	if (PCIR_IS_BIOS(&dinfo->cfg, pm->pm_reg))
@@ -2838,16 +2817,15 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	    prefetch ? RF_PREFETCHABLE : 0);
 	if (res == NULL) {
 		/*
-		 * If the allocation fails, clear the BAR and delete
-		 * the resource list entry to force
-		 * pci_alloc_resource() to allocate resources from the
-		 * parent.
+		 * If the allocation fails, delete the resource list entry
+		 * to force pci_alloc_resource() to allocate resources
+		 * from the parent.
 		 */
 		resource_list_delete(rl, type, reg);
-		start = 0;
-	} else
+	} else {
 		start = rman_get_start(res);
-	pci_write_bar(dev, pm, start);
+		pci_write_bar(dev, pm, start);
+	}
 	return (barlen);
 }
 
@@ -4381,19 +4359,6 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			    type, rid, rman_get_start(rle->res));
 			return;
 		}
-
-#ifndef __PCI_BAR_ZERO_VALID
-		/*
-		 * If this is a BAR, clear the BAR so it stops
-		 * decoding before releasing the resource.
-		 */
-		switch (type) {
-		case SYS_RES_IOPORT:
-		case SYS_RES_MEMORY:
-			pci_write_bar(child, pci_find_bar(child, rid), 0);
-			break;
-		}
-#endif
 		resource_list_unreserve(rl, dev, child, type, rid);
 	}
 	resource_list_delete(rl, type, rid);
