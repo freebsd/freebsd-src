@@ -290,6 +290,20 @@ static int allow_unaligned_acc = 1;
 SYSCTL_INT(_vm, OID_AUTO, allow_unaligned_acc, CTLFLAG_RW,
     &allow_unaligned_acc, 0, "Allow unaligned accesses");
 
+/*
+ * FP emulation is assumed to work on O32, but the code is outdated and crufty
+ * enough that it's a more sensible default to have it disabled when using
+ * other ABIs.  At the very least, it needs a lot of help in using
+ * type-semantic ABI-oblivious macros for everything it does.
+ */
+#if defined(__mips_o32)
+static int emulate_fp = 1;
+#else
+static int emulate_fp = 0;
+#endif
+SYSCTL_INT(_machdep, OID_AUTO, emulate_fp, CTLFLAG_RW,
+    &allow_unaligned_acc, 0, "Emulate unimplemented FPU instructions");
+
 static int emulate_unaligned_access(struct trapframe *frame, int mode);
 
 extern void fswintrberr(void); /* XXX */
@@ -988,6 +1002,11 @@ dofault:
 #endif
 
 	case T_FPE + T_USER:
+		if (!emulate_fp) {
+			i = SIGILL;
+			addr = trapframe->pc;
+			break;
+		}
 		MipsFPTrap(trapframe->sr, trapframe->cause, trapframe->pc);
 		goto out;
 
