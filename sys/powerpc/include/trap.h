@@ -6,7 +6,3 @@
 #include <machine/trap_booke.h>
 #endif
 
-#ifndef LOCORE
-struct trapframe;
-void    trap(struct trapframe *);
-#endif
