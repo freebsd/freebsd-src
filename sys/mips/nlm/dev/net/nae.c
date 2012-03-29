@@ -194,7 +194,7 @@ nlm_reset_nae(int node)
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 	if (nlm_is_xlp8xx_ax()) {
-		uchar_t	val;
+		uint8_t	val;
 		/* membar fixup */
 		val = (bar0 >> 24) & 0xff;
 		bar0 = (val << 24) | (val << 16) | (val << 8) | val;
