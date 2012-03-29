@@ -1,7 +1,7 @@
-.\" 
+.\"
 .\" Copyright (c) 2003 Silicon Graphics International Corp.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -13,7 +13,7 @@
 .\"    ("Disclaimer") and any redistribution must be conditioned upon
 .\"    including a substantially similar Disclaimer requirement for further
 .\"    binary redistribution.
-.\" 
+.\"
 .\" NO WARRANTY
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,7 +26,7 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGES.
-.\" 
+.\"
 .\" ctladm utility man page.
 .\"
 .\" Author: Ken Merry <ken@FreeBSD.org>
@@ -295,7 +295,7 @@ device, so the transfer length
 can be calculated accurately.  The blocksize can be obtained via the
 .Tn SCSI
 READ CAPACITY command.
-.It Fl N 
+.It Fl N
 Do not copy data to
 .Nm
 from the kernel when doing a read, just execute the command without copying
@@ -459,7 +459,7 @@ the proper error.
 .It Fl o
 Set the Copan proprietary on/offline bit in the CDB.  When this flag is
 used, the LUN will be spun down and taken offline ("Logical unit not ready,
-manual intervention required").  See the description of the 
+manual intervention required").  See the description of the
 .Ic shutdown
 and
 .Ic startup
@@ -467,7 +467,7 @@ options.
 .El
 .It Ic synccache
 Send the
-.Tn SCSI 
+.Tn SCSI
 SYNCHRONIZE CACHE command to the device.  By default, SYNCHRONIZE
 CACHE(10) is used.  If the specified starting LBA is greater than
 0xffffffff or the length is greater than 0xffff, though,
@@ -550,7 +550,7 @@ may be delayed currently: before data is transferred
 and just prior to sending status to the host
 .Pq Dq done .
 One of the two must be supplied as an argument to the
-.Fl l 
+.Fl l
 option.  The
 .Fl t
 option must also be specified.
@@ -584,7 +584,7 @@ argument
 will show whether SYNCHRONIZE CACHE commands are being sent to the backend
 or not.
 The default is to send SYNCHRONIZE CACHE commands to the backend.
-The 
+The
 .Sq on
 argument will cause all SYNCHRONIZE CACHE commands sent to all LUNs to be
 sent to the backend.
@@ -626,7 +626,7 @@ If the
 .Fl c
 flag is specified, all commands matching the pattern will be returned with
 the specified error until the error injection command is deleted with
-.Fl d 
+.Fl d
 flag.
 .Bl -tag -width 17n
 .It Fl i Ar action
@@ -709,7 +709,7 @@ for a given port.
 One of
 .Fl l ,
 .Fl o ,
-or 
+or
 .Fl w
 or
 .Fl W
@@ -723,7 +723,7 @@ List all CTL frontend ports or a specific port type or number.
 Turn the specified CTL frontend ports off or on.
 If no port number or port type is specified, all ports are turned on or
 off.
-.It Fl p Ar targ_port 
+.It Fl p Ar targ_port
 Specify the frontend port number.
 The port numbers can be found in the frontend port list.
 .It Fl q
@@ -743,7 +743,7 @@ and
 .It Fl w Ar wwnn
 Set the World Wide Node Name for the given port.
 The
-.Fl n 
+.Fl n
 argument must be specified, since this is only possible to implement on a
 single port.
 As a general rule, the WWNN should be the same across all ports on the
@@ -957,7 +957,7 @@ This works when the Front End Target Drivers are enabled or disabled.
 .Dl ctladm lunlist
 .Pp
 List all LUNs in the system, along with their inquiry data and device type.
-This only works when the FETDs are enabled, since the commands go through the 
+This only works when the FETDs are enabled, since the commands go through the
 ioctl port.
 .Pp
 .Dl ctladm inject 0:6 -i mediumerr -p read -r 0,512 -c

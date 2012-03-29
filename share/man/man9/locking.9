@@ -82,7 +82,7 @@ since it may modify protected data.
 Reader/writer locks can be treated as mutexes (see above and
 .Xr mutex 9 )
 with shared/exclusive semantics.
-More specifically, regular mutexes can be 
+More specifically, regular mutexes can be
 considered to be equivalent to a write-lock on an
 .Em rw_lock.
 The
@@ -94,7 +94,7 @@ are anonymous.
 Another important property is that shared holders of
 .Em rw_lock
 can recurse, but exclusive locks are not allowed to recurse.
-This ability should not be used lightly and 
+This ability should not be used lightly and
 .Em may go away.
 .Pp
 See
@@ -122,7 +122,7 @@ and read-mostly locks.
 They don't support priority propagation.
 They should be considered to be closely related to
 .Xr sleep 9 .
-In fact it could in some cases be 
+In fact it could in some cases be
 considered a conditional sleep.
 .Pp
 See
@@ -339,10 +339,10 @@ At this time this is a rather easy to remember table.
 .It Xo
 .Em "Context:"  Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
 .Xc
-.It interrupt filter:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no 
-.It interrupt thread:  Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok Ta \&no 
-.It callout:    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&no Ta \&no 
-.It syscall:    Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok 
+.It interrupt filter:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no
+.It interrupt thread:  Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok Ta \&no
+.It callout:    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&no Ta \&no
+.It syscall:    Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok
 .El
 .Sh SEE ALSO
 .Xr witness 4 ,
