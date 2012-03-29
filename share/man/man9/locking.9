@@ -293,7 +293,7 @@ running inside an interrupt thread.
 The following table shows what you can and can not do while holding
 one of the synchronization primitives discussed:
 .Bl -column ".Ic xxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXX" -offset indent
-.It .Em "You have: You want:" Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
+.It Em "You have: You want:" Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
 .It spin mtx  Ta \&ok-1 Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no-3
 .It mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
 .It sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
@@ -334,7 +334,7 @@ for details.
 The next table shows what can be used in different contexts.
 At this time this is a rather easy to remember table.
 .Bl -column ".Ic Xxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXX" -offset indent
-.It .Em "Context:"  Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
+.It Em "Context:"  Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
 .It interrupt filter:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no
 .It interrupt thread:  Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok Ta \&no
 .It callout:    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&no Ta \&no
