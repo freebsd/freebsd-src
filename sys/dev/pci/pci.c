@@ -2590,6 +2590,27 @@ pci_write_bar(device_t dev, struct pci_map *pm, pci_addr_t base)
 	struct pci_devinfo *dinfo;
 	int ln2range;
 
+	/*
+	 * Don't disable BARs on AGP devices. In general: Don't
+	 * disable BARs on any PCI display devices, because doing that
+	 * can sometimes cause the main memory bus to stop working,
+	 * causing all memory reads to return nothing but 0xFFFFFFFF,
+	 * even though the memory location was previously written.
+	 * After a while a privileged instruction fault will appear
+	 * and then nothing more can be debugged.
+	 * The reason for this behaviour is unknown.
+	 */
+	if (base == 0 && pci_get_class(dev) == PCIC_DISPLAY) {
+		device_printf(device_get_parent(dev),
+		    "pci%d:%d:%d:%d BARs on display devices "
+		    "should not be disabled.\n",
+		    pci_get_domain(dev),
+		    pci_get_bus(dev),
+		    pci_get_slot(dev),
+		    pci_get_function(dev));
+		return;
+	}
+
 	/* The device ROM BAR is always a 32-bit memory BAR. */
 	dinfo = device_get_ivars(dev);
 	if (PCIR_IS_BIOS(&dinfo->cfg, pm->pm_reg))
