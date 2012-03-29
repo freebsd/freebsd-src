@@ -86,6 +86,9 @@ __FBSDID("$FreeBSD$");
 
 #define KEYCODE_BS		0x0e		/* "<-- Backspace" key, XXX */
 
+/* NULL-safe version of "tty_opened()" */
+#define	tty_opened_ns(tp)	((tp) != NULL && tty_opened(tp))
+
 typedef struct default_attr {
 	int		std_color;		/* normal hardware color */
 	int		rev_color;		/* reverse hardware color */
