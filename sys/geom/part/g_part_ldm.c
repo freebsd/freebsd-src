@@ -495,7 +495,7 @@ ldm_privhdr_check(struct ldm_db *db, struct g_consumer *cp, int is_gpt)
 		g_free(buf);
 		if (hdr.start > last ||
 		    hdr.start + hdr.size - 1 > last ||
-		    (hdr.start + hdr.size - 1 > hdr.db_offset && is_gpt) ||
+		    (hdr.start + hdr.size - 1 > hdr.db_offset && !is_gpt) ||
 		    hdr.db_size != LDM_DB_SIZE ||
 		    hdr.db_offset + LDM_DB_SIZE - 1 > last ||
 		    hdr.th_offset[0] >= LDM_DB_SIZE ||
