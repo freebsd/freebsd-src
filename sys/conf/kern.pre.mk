@@ -6,7 +6,7 @@
 .include <bsd.own.mk>
 
 # backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
