@@ -23,18 +23,28 @@ if 'PKG_VERBOSE' in os.environ:
 else:
     verbose = 0
 
+if 'PKG_MEMSTICK' in os.environ:
+    doing_memstick = 1
+else:
+    doing_memstick = 0
+
 if 'PKG_DVD' in os.environ:
     doing_dvd = 1
 else:
     doing_dvd = 0
 
-# List of packages for disc1.
+# List of packages.  At this point only the English documentation fits
+# on disc1.  Add in the rest of the documentation for the memstick image.
+# And add in enough packages to make a basic graphical workstation for the
+# dvd image.
 def disc1_packages():
-    pkgs = ['misc/freebsd-doc-bn', 
+    pkgs = ['misc/freebsd-doc-en'] 
+
+    if doing_memstick or doing_dvd:
+        pkgs.extend(['misc/freebsd-doc-bn', 
 	    'misc/freebsd-doc-da',
 	    'misc/freebsd-doc-de',
 	    'misc/freebsd-doc-el',
-	    'misc/freebsd-doc-en',
 	    'misc/freebsd-doc-es',
 	    'misc/freebsd-doc-fr',
 	    'misc/freebsd-doc-hu',
@@ -48,22 +58,24 @@ def disc1_packages():
 	    'misc/freebsd-doc-sr',
 	    'misc/freebsd-doc-tr',
 	    'misc/freebsd-doc-zh_cn',
-	    'misc/freebsd-doc-zh_tw']
+	    'misc/freebsd-doc-zh_tw'])
 
     if doing_dvd:
 	pkgs.extend(['archivers/unzip',
 	    'emulators/linux_base-f10',
-	    'lang/perl5.10',
+	    'lang/perl5.12',
+	    'misc/freebsd-doc-all',
 	    'net/mpd5',
 	    'net/rsync',
-	    'ports-mgmt/p5-FreeBSD-Portindex',
 	    'ports-mgmt/portaudit',
 	    'ports-mgmt/portmaster',
-	    'ports-mgmt/portupgrade',
 	    'shells/bash',
 	    'shells/zsh',
 	    'security/sudo',
 	    'sysutils/screen',
+	    'www/firefox',
+	    'www/links',
+	    'x11-drivers/xf86-video-vmware',
 	    'x11/gnome2',
 	    'x11/kde4',
 	    'x11/xorg'])
