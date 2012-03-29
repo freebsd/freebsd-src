@@ -197,6 +197,8 @@ void	tty_hiwat_in_block(struct tty *tp);
 void	tty_hiwat_in_unblock(struct tty *tp);
 dev_t	tty_udev(struct tty *tp);
 #define	tty_opened(tp)		((tp)->t_flags & TF_OPENED)
+/* NULL-safe version of "tty_opened()" */
+#define	tty_opened_ns(tp)	((tp) != NULL && tty_opened(tp))
 #define	tty_gone(tp)		((tp)->t_flags & TF_GONE)
 #define	tty_softc(tp)		((tp)->t_devswsoftc)
 #define	tty_devname(tp)		devtoname((tp)->t_dev)
