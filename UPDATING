@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120328:
+	Big-endian MIPS TARGET_ARCH values no longer end in "eb".  mips64eb
+	is now spelled mips64.  mipsn32eb is now spelled mipsn32.  mipseb is
+	now spelled mips.  This is to aid compatibility with third-party
+	software that expects this naming scheme in uname(3).  Little-endian
+	settings are unchanged.
+
 20120306:
 	Disable by default the option VFS_ALLOW_NONMPSAFE for all supported
 	platforms.

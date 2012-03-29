@@ -10,8 +10,7 @@ MAN=	kafs5.3
 # Linking with libkrb5 uncovers a bug in binutils.
 # See http://repo.or.cz/w/binutils.git/commit/ee05170bf71819c99cb5a36a44735c231ae03c56 .
 #
-.if ${MACHINE_ARCH} != "mipsn32eb" && ${MACHINE_ARCH} != "mipsel" && \
-    ${MACHINE_ARCH} != "mipseb" && ${MACHINE_ARCH} != "mips"
+.if ${MACHINE} != "mips"
 LDADD+=	-lkrb5
 LDFLAGS=	-Wl,--no-undefined
 .endif
