@@ -38,7 +38,7 @@ int main(void)
 	int intf, hw_parser_error, context;
 #endif
 	unsigned int pktrdy;
-	int num_cachelines = 1518 >> 6; /* pktsize / L3 cacheline size */
+	int num_cachelines = 1518 / 64 ; /* pktsize / L3 cacheline size */
 
 
 	/* Spray packets to using distribution vector */
