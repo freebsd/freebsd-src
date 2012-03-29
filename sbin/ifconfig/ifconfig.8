@@ -675,7 +675,7 @@ and DAD will be performed when this flag is cleared.
 .It Cm -ifdisabled
 Clear a flag
 .Cm ifdisabled .
-When this flag is cleared and 
+When this flag is cleared and
 .Cm auto_linklocal
 flag is enabled, automatic configuration of a link-local address is
 performed.
@@ -706,7 +706,7 @@ Specify the operating mode for this cloned device.
 .Ar mode
 is one of
 .Cm sta ,
-.Cm ahdemo 
+.Cm ahdemo
 (or
 .Cm adhoc-demo ),
 .Cm ibss ,
@@ -744,7 +744,7 @@ the device (if supported).
 Mark a
 .Cm wds
 device as operating in ``legacy mode''.
-Legacy 
+Legacy
 .Cm wds
 devices have a fixed peer relationship and do not, for example, roam
 if their peer stops communicating.
@@ -760,9 +760,9 @@ Mark the cloned interface as depending on hardware support to
 track received beacons.
 To have beacons tracked in software use
 .Fl beacons .
-For 
+For
 .Cm hostap
-mode 
+mode
 .Fl beacons
 can also be used to indicate no beacons should
 be transmitted; this can be useful when creating a WDS configuration but
@@ -897,7 +897,7 @@ The
 .Ar interval
 parameter is specified in seconds.
 By default a background scan is considered every 300 seconds (5 minutes).
-The 
+The
 .Ar interval
 may not be set to less than 15 seconds.
 .It Cm bintval Ar interval
@@ -998,19 +998,19 @@ and
 .Cm t
 (Atheros Dynamic Turbo mode, or appended to ``st'' and ``dt'').
 The full set of channel widths following a '/' are:
-.Cm 5 
+.Cm 5
 (5MHz aka quarter-rate channel),
-.Cm 10 
+.Cm 10
 (10MHz aka half-rate channel),
-.Cm 20 
+.Cm 20
 (20MHz mostly for use in specifying ht20),
 and
-.Cm 40 
+.Cm 40
 (40MHz mostly for use in specifying ht40).
 In addition,
 a 40MHz HT channel specification may include the location
 of the extension channel by appending ``+'' or ``-'' for above and below,
-respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation 
+respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation
 with the center channel at frequency 2437 and the extension channel above.
 .It Cm country Ar name
 Set the country code to use in calculating the regulatory constraints
@@ -2021,7 +2021,7 @@ Nodes on the mesh without a path to this root mesh station with try to
 discover a path to us.
 .El
 By default
-.Cm hwmprootmode 
+.Cm hwmprootmode
 is set to
 .Ar DISABLED .
 .It Cm hwmpmaxhops Ar cnt
@@ -2569,7 +2569,7 @@ For example, the values of 802.11 WEP keys and
 passphrases will be printed, if accessible to the current user.
 This information is not printed by default, as it may be considered
 sensitive.
-.Pp 
+.Pp
 If the network interface driver is not present in the kernel then
 .Nm
 will attempt to load it.

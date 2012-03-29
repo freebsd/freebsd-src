@@ -62,14 +62,14 @@ is used to transmit a message to another SCTP endpoint.
 .Fn sctp_send
 may be used to send data to an existing association for both
 one-to-many (SOCK_SEQPACKET) and one-to-one (SOCK_STREAM) socket types.
-The length of the message 
+The length of the message
 .Fa msg
 is given by
 .Fa len .
 If the message is too long to pass atomically through the
 underlying protocol,
 .Va errno
-is set to 
+is set to
 .Er EMSGSIZE ,
 -1 is returned, and
 the message is not transmitted.
@@ -88,7 +88,7 @@ The
 system call may be used to determine when it is possible to
 send more data on one-to-one type (SOCK_STREAM) sockets.
 .Pp
-The 
+The
 .Fa sinfo
 structure is used to control various SCTP features
 and has the following format:
@@ -106,7 +106,7 @@ struct sctp_sndrcvinfo {
 };
 .Ed
 .Pp
-The 
+The
 .Fa sinfo->sinfo_ppid
 argument is an opaque 32 bit value that is passed transparently
 through the stack to the peer endpoint. It will be available on
@@ -131,7 +131,7 @@ argument may include one or more of the following:
 #define SCTP_PR_SCTP_RTX  0x0003	/* Number of retransmissions based PR-SCTP */
 .Ed
 .Pp
-The flag 
+The flag
 .Dv SCTP_EOF
 is used to instruct the SCTP stack to queue this message
 and then start a graceful shutdown of the association.
@@ -158,7 +158,7 @@ is used to specify that a specific address should be used.
 Normally
 SCTP will use only one of a multi-homed peers addresses as the primary
 address to send to.
-By default, no matter what the 
+By default, no matter what the
 .Fa to
 argument is, this primary address is used to send data.
 By specifying
@@ -193,14 +193,14 @@ skipped and no longer transmitted.
 Note that this policy does
 not even assure that the data will ever be sent.
 In times of a congestion
-with large amounts of data being queued, the 
+with large amounts of data being queued, the
 .Fa sinfo->sinfo_timetolive
 may expire before the first transmission is ever made.
 .Pp
 The
 .Dv SCTP_PR_SCTP_BUF
 based policy transforms the
-.Fa sinfo->sinfo_timetolive 
+.Fa sinfo->sinfo_timetolive
 field into a total number of bytes allowed on the outbound
 send queue.
 If that number or more bytes are in queue, then
@@ -208,19 +208,19 @@ other buffer-based sends are looked to be removed and
 skipped.
 Note that this policy may also result in the data
 never being sent if no buffer based sends are in queue and
-the maximum specified by 
-.Fa timetolive 
+the maximum specified by
+.Fa timetolive
 bytes is in queue.
 .Pp
 The
 .Dv SCTP_PR_SCTP_RTX
 policy transforms the
-.Fa sinfo->sinfo_timetolive 
+.Fa sinfo->sinfo_timetolive
 into a number of retransmissions to allow.
 This policy
 always assures that at a minimum one send attempt is
 made of the data.
-After which no more than 
+After which no more than
 .Fa sinfo->sinfo_timetolive
 retransmissions will be made before the data is skipped.
 .Pp
@@ -228,11 +228,11 @@ retransmissions will be made before the data is skipped.
 is the SCTP stream that you wish to send the
 message on.
 Streams in SCTP are reliable (or partially reliable) flows of ordered
-messages. 
+messages.
 .Pp
 The
 .Fa sinfo->sinfo_assoc_id
-field is used to 
+field is used to
 select the association to send to on a one-to-many socket.
 For a one-to-one socket, this field is ignored.
 .Pp
@@ -256,16 +256,16 @@ The fields
 .Fa sinfo->sinfo_ssn ,
 .Fa sinfo->sinfo_tsn ,
 and
-.Fa sinfo->sinfo_cumtsn 
+.Fa sinfo->sinfo_cumtsn
 are used only when receiving messages and are thus ignored by
 .Fn sctp_send .
 The function
-.Fn sctp_sendx 
-has the same properties as 
+.Fn sctp_sendx
+has the same properties as
 .Fn sctp_send
 with the additional arguments of an array of sockaddr structures
 passed in.
-With the 
+With the
 .Fa addrs
 argument being given as an array of addresses to be sent to and
 the
@@ -277,7 +277,7 @@ when an implicit association is being set up.
 This allows the
 user the equivalent behavior as doing a
 .Fn sctp_connectx
-followed by a 
+followed by a
 .Fn sctp_send
 to the association.
 Note that if the
