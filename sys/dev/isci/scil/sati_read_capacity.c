@@ -308,6 +308,10 @@ void sati_read_capacity_16_translate_data(
    sati_set_data_byte(sequence, scsi_io, 10, (U8)((sector_size >> 8)  & 0xFF));
    sati_set_data_byte(sequence, scsi_io, 11, (U8)(sector_size & 0xFF));
 
+   //Explicitly set byte 12 to 0.  SATI requires that all bytes in the data
+   //response be explicitly set to some value.
+   sati_set_data_byte(sequence, scsi_io, 12, 0);
+
    //Check Bit 13 of ATA_IDENTIFY_DEVICE_DATA physical_logical_sector_info
    //(Word 106) is enabled
    physical_per_logical_enable_bit = (identify_device_data->physical_logical_sector_info
