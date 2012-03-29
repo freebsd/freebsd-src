@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-machine 	mips mipsn32eb
+machine 	mips mipsn32
 ident           XLPN32
 
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=n32"

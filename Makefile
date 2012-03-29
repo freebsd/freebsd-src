@@ -132,20 +132,19 @@ _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/mips/mipsel/}
+_TARGET_ARCH=	${TARGET:S/pc98/i386/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips.*e[lb]/mips/:C/armeb/arm/}
+_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/}
 .endif
-# Legacy names, for a transition period mips:mips -> mipsel:mips
+# Legacy names, for another transition period mips:mips(n32|64)?eb -> mips:mips\1
 .if defined(TARGET) && defined(TARGET_ARCH) && \
-    ${TARGET_ARCH} == "mips" && ${TARGET} == "mips"
-.warning "TARGET_ARCH of mips is deprecated in favor of mipsel or mipseb"
-.if defined(TARGET_BIG_ENDIAN)
-_TARGET_ARCH=mipseb
-.else
-_TARGET_ARCH=mipsel
+    ${TARGET} == "mips" && ${TARGET_ARCH:Mmips*eb}
+_TARGET_ARCH=		${TARGET_ARCH:C/eb$//}
+.warning "TARGET_ARCH of ${TARGET_ARCH} is deprecated in favor of ${_TARGET_ARCH}"
 .endif
+.if defined(TARGET) && ${TARGET} == "mips" && defined(TARGET_BIG_ENDIAN)
+.warning "TARGET_BIG_ENDIAN is no longer necessary for MIPS.  Big-endian is not the default."
 .endif
 # arm with TARGET_BIG_ENDIAN -> armeb
 .if defined(TARGET_ARCH) && ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
@@ -331,7 +330,7 @@ kernel-toolchains:
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
 TARGET_ARCHES_arm?=	arm armeb
-TARGET_ARCHES_mips?=	mipsel mipseb mips64el mips64eb mipsn32eb
+TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
 .for target in ${TARGETS}

@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-machine 	mips mipsn32eb
+machine 	mips mipsn32
 ident 		XLRN32
 include		"../rmi/std.xlr"
 
