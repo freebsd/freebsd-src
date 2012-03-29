@@ -5156,8 +5156,11 @@ ath_txq_sched_tasklet(void *arg, int npending)
 	ATH_PCU_UNLOCK(sc);
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i))
+		if (ATH_TXQ_SETUP(sc, i)) {
+			ATH_TXQ_LOCK(&sc->sc_txq[i]);
 			ath_txq_sched(sc, &sc->sc_txq[i]);
+			ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+		}
 	}
 
 	ATH_PCU_LOCK(sc);
