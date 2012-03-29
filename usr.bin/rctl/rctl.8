@@ -142,7 +142,6 @@ A filter that matches all defined rules for maxproc resource would be
 .It shmsize Ta "SysV shared memory size, in bytes"
 .It wallclock Ta "wallclock time, in seconds"
 .El
-.Pp
 .Sh ACTIONS
 .Bl -column -offset 3n "pseudoterminals"
 .It deny Ta "deny the allocation; not supported for cpu and wallclock"
@@ -161,7 +160,6 @@ Attempt to add rule with action not supported by a given resouce will result
 in error.
 .Pp
 Note that limiting RSS may kill the machine due to thrashing.
-.Pp
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
