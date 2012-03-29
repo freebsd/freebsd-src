@@ -72,7 +72,6 @@ device		loop
 device		random
 device		ether
 device		vlan
-device		pty
 device		uart
 device		ate
 device		mii

@@ -80,7 +80,6 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 		}
 	}
 	net->ssthresh = assoc->peers_rwnd;
-
 	SDT_PROBE(sctp, cwnd, net, init,
 	    stcb->asoc.my_vtag, ((stcb->sctp_ep->sctp_lport << 16) | (stcb->rport)), net,
 	    0, net->cwnd);
@@ -339,7 +338,6 @@ cc_bw_same(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw,
 	    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
 	    net->flight_size,
 	    probepoint);
-
 	if ((net->cc_mod.rtcc.steady_step) && (inst_ind != SCTP_INST_LOOSING)) {
 		if (net->cc_mod.rtcc.last_step_state == 5)
 			net->cc_mod.rtcc.step_cnt++;
@@ -389,7 +387,6 @@ cc_bw_decrease(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw, uint6
 			    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
 			    net->flight_size,
 			    probepoint);
-
 			if (net->cc_mod.rtcc.ret_from_eq) {
 				/*
 				 * Switch over to CA if we are less
@@ -408,7 +405,6 @@ cc_bw_decrease(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw, uint6
 		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
 		    net->flight_size,
 		    probepoint);
-
 		/* Someone else - fight for more? */
 		if (net->cc_mod.rtcc.steady_step) {
 			oth = net->cc_mod.rtcc.vol_reduce;
@@ -553,7 +549,8 @@ cc_bw_increase(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw, uint6
 static int
 cc_bw_limit(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw)
 {
-	uint64_t bw_offset, rtt_offset, rtt, vtag, probepoint;
+	uint64_t bw_offset, rtt_offset;
+	uint64_t probepoint, rtt, vtag;
 	uint64_t bytes_for_this_rtt, inst_bw;
 	uint64_t div, inst_off;
 	int bw_shift;
@@ -619,15 +616,15 @@ cc_bw_limit(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw)
 					inst_ind = SCTP_INST_NEUTRAL;
 				probepoint |= ((0xb << 16) | inst_ind);
 			} else {
+				inst_ind = net->cc_mod.rtcc.last_inst_ind;
 				inst_bw = bytes_for_this_rtt / (uint64_t) (net->rtt);
 				/* Can't determine do not change */
-				inst_ind = net->cc_mod.rtcc.last_inst_ind;
 				probepoint |= ((0xc << 16) | inst_ind);
 			}
 		} else {
+			inst_ind = net->cc_mod.rtcc.last_inst_ind;
 			inst_bw = bytes_for_this_rtt;
 			/* Can't determine do not change */
-			inst_ind = net->cc_mod.rtcc.last_inst_ind;
 			probepoint |= ((0xd << 16) | inst_ind);
 		}
 		SDT_PROBE(sctp, cwnd, net, rttvar,
@@ -702,14 +699,17 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
 				}
 			}
 		}
-		if (t_ucwnd_sbw == 0) {
-			t_ucwnd_sbw = 1;
-		}
 		if (t_path_mptcp > 0) {
 			mptcp_like_alpha = max_path / (t_path_mptcp * t_path_mptcp);
 		} else {
 			mptcp_like_alpha = 1;
 		}
+	}
+	if (t_ssthresh == 0) {
+		t_ssthresh = 1;
+	}
+	if (t_ucwnd_sbw == 0) {
+		t_ucwnd_sbw = 1;
 	}
 	/******************************/
 	/* update cwnd and Early FR   */
@@ -1011,6 +1011,9 @@ sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 			if (srtt > 0) {
 				t_ucwnd_sbw += (uint64_t) lnet->cwnd / (uint64_t) srtt;
 			}
+		}
+		if (t_ssthresh < 1) {
+			t_ssthresh = 1;
 		}
 		if (t_ucwnd_sbw < 1) {
 			t_ucwnd_sbw = 1;
@@ -1841,19 +1844,19 @@ static int use_bandwidth_switch = 1;
 static inline int
 between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 {
-	return seq3 - seq2 >= seq1 - seq2;
+	return (seq3 - seq2 >= seq1 - seq2);
 }
 
 static inline uint32_t
 htcp_cong_time(struct htcp *ca)
 {
-	return sctp_get_tick_count() - ca->last_cong;
+	return (sctp_get_tick_count() - ca->last_cong);
 }
 
 static inline uint32_t
 htcp_ccount(struct htcp *ca)
 {
-	return htcp_cong_time(ca) / ca->minRTT;
+	return (htcp_cong_time(ca) / ca->minRTT);
 }
 
 static inline void
@@ -1873,7 +1876,7 @@ htcp_cwnd_undo(struct sctp_tcb *stcb, struct sctp_nets *net)
 	net->cc_mod.htcp_ca.last_cong = net->cc_mod.htcp_ca.undo_last_cong;
 	net->cc_mod.htcp_ca.maxRTT = net->cc_mod.htcp_ca.undo_maxRTT;
 	net->cc_mod.htcp_ca.old_maxB = net->cc_mod.htcp_ca.undo_old_maxB;
-	return max(net->cwnd, ((net->ssthresh / net->mtu << 7) / net->cc_mod.htcp_ca.beta) * net->mtu);
+	return (max(net->cwnd, ((net->ssthresh / net->mtu << 7) / net->cc_mod.htcp_ca.beta) * net->mtu));
 }
 
 #endif
@@ -2017,7 +2020,7 @@ static uint32_t
 htcp_recalc_ssthresh(struct sctp_nets *net)
 {
 	htcp_param_update(net);
-	return max(((net->cwnd / net->mtu * net->cc_mod.htcp_ca.beta) >> 7) * net->mtu, 2U * net->mtu);
+	return (max(((net->cwnd / net->mtu * net->cc_mod.htcp_ca.beta) >> 7) * net->mtu, 2U * net->mtu));
 }
 
 static void
@@ -2087,7 +2090,7 @@ htcp_cong_avoid(struct sctp_tcb *stcb, struct sctp_nets *net)
 static uint32_t
 htcp_min_cwnd(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
-	return net->ssthresh;
+	return (net->ssthresh);
 }
 
 #endif

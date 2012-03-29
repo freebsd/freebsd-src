@@ -87,7 +87,17 @@ SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
 static int usb_no_boot_wait = 0;
 TUNABLE_INT("hw.usb.no_boot_wait", &usb_no_boot_wait);
 SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RDTUN, &usb_no_boot_wait, 0,
-    "No device enumerate waiting at boot.");
+    "No USB device enumerate waiting at boot.");
+
+static int usb_no_suspend_wait = 0;
+TUNABLE_INT("hw.usb.no_suspend_wait", &usb_no_suspend_wait);
+SYSCTL_INT(_hw_usb, OID_AUTO, no_suspend_wait, CTLFLAG_RW|CTLFLAG_TUN,
+    &usb_no_suspend_wait, 0, "No USB device waiting at system suspend.");
+
+static int usb_no_shutdown_wait = 0;
+TUNABLE_INT("hw.usb.no_shutdown_wait", &usb_no_shutdown_wait);
+SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RW|CTLFLAG_TUN,
+    &usb_no_shutdown_wait, 0, "No USB device waiting at system shutdown.");
 
 static devclass_t usb_devclass;
 
@@ -117,6 +127,7 @@ DRIVER_MODULE(usbus, xhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uss820, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, octusb, usb_driver, usb_devclass, 0, 0);
 
 /*------------------------------------------------------------------------*
  *	usb_probe
@@ -234,6 +245,11 @@ usb_suspend(device_t dev)
 	USB_BUS_LOCK(bus);
 	usb_proc_msignal(&bus->explore_proc,
 	    &bus->suspend_msg[0], &bus->suspend_msg[1]);
+	if (usb_no_suspend_wait == 0) {
+		/* wait for suspend callback to be executed */
+		usb_proc_mwait(&bus->explore_proc,
+		    &bus->suspend_msg[0], &bus->suspend_msg[1]);
+	}
 	USB_BUS_UNLOCK(bus);
 
 	return (0);
@@ -277,10 +293,19 @@ usb_shutdown(device_t dev)
 		return (0);
 	}
 
+	device_printf(bus->bdev, "Controller shutdown\n");
+
 	USB_BUS_LOCK(bus);
 	usb_proc_msignal(&bus->explore_proc,
 	    &bus->shutdown_msg[0], &bus->shutdown_msg[1]);
+	if (usb_no_shutdown_wait == 0) {
+		/* wait for shutdown callback to be executed */
+		usb_proc_mwait(&bus->explore_proc,
+		    &bus->shutdown_msg[0], &bus->shutdown_msg[1]);
+	}
 	USB_BUS_UNLOCK(bus);
+
+	device_printf(bus->bdev, "Controller shutdown complete\n");
 
 	return (0);
 }
@@ -390,6 +415,17 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 	if (udev == NULL || bus->bdev == NULL)
 		return;
 
+	USB_BUS_UNLOCK(bus);
+
+	/*
+	 * We use the shutdown event here because the suspend and
+	 * resume events are reserved for the USB port suspend and
+	 * resume. The USB system suspend is implemented like full
+	 * shutdown and all connected USB devices will be disconnected
+	 * subsequently. At resume all USB devices will be
+	 * re-connected again.
+	 */
+
 	bus_generic_shutdown(bus->bdev);
 
 	usbd_enum_lock(udev);
@@ -410,6 +446,8 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SUSPEND);
 
 	usbd_enum_unlock(udev);
+
+	USB_BUS_LOCK(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -429,6 +467,8 @@ usb_bus_resume(struct usb_proc_msg *pm)
 
 	if (udev == NULL || bus->bdev == NULL)
 		return;
+
+	USB_BUS_UNLOCK(bus);
 
 	usbd_enum_lock(udev);
 #if 0
@@ -452,11 +492,21 @@ usb_bus_resume(struct usb_proc_msg *pm)
 	if (bus->methods->set_hw_power != NULL)
 		(bus->methods->set_hw_power) (bus);
 
+	/* restore USB configuration to index 0 */
 	err = usbd_set_config_index(udev, 0);
 	if (err)
 		device_printf(bus->bdev, "Could not configure root HUB\n");
 
+	/* probe and attach */
+	err = usb_probe_and_attach(udev, USB_IFACE_INDEX_ANY);
+	if (err) {
+		device_printf(bus->bdev, "Could not probe and "
+		    "attach root HUB\n");
+	}
+
 	usbd_enum_unlock(udev);
+
+	USB_BUS_LOCK(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -476,6 +526,8 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 
 	if (udev == NULL || bus->bdev == NULL)
 		return;
+
+	USB_BUS_UNLOCK(bus);
 
 	bus_generic_shutdown(bus->bdev);
 
@@ -497,6 +549,8 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SHUTDOWN);
 
 	usbd_enum_unlock(udev);
+
+	USB_BUS_LOCK(bus);
 }
 
 static void

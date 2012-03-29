@@ -21,14 +21,14 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
 .\" $FreeBSD$
 .\" $Id: netmap.4 9662 2011-11-16 13:18:06Z luigi $: stable/8/share/man/man4/bpf.4 181694 2008-08-13 17:45:06Z ed $
 .\"
-.Dd November 16, 2011
+.Dd February 27, 2012
 .Dt NETMAP 4
 .Os
 .Sh NAME
@@ -43,14 +43,13 @@ is a framework for fast and safe access to network devices
 .Nm
 uses memory mapped buffers and metadata
 (buffer indexes and lengths) to communicate with the kernel,
-which is in charge of validating information through 
+which is in charge of validating information through
 .Pa ioctl()
 and
 .Pa select()/poll().
 .Nm
 can exploit the parallelism in multiqueue devices and
 multicore systems.
-.Pp
 .Pp
 .Nm
 requires explicit support in device drivers.
@@ -66,7 +65,7 @@ to bind the file descriptor to a network device.
 When a device is put in
 .Nm
 mode, its data path is disconnected from the host stack.
-The processes owning the file descriptor 
+The processes owning the file descriptor
 can exchange packets with the device, or with the host stack,
 through an mmapped memory region that contains pre-allocated
 buffers and metadata.
@@ -89,7 +88,6 @@ are relative (offsets or indexes). Some macros help converting
 them into actual pointers.
 .Pp
 The data structures in shared memory are the following:
-.Pp
 .Bl -tag -width XXX
 .It Dv struct netmap_if (one per interface)
 indicates the number of rings supported by an interface, their
@@ -123,8 +121,9 @@ one ring pair (numbered N) for packets from/to the host stack.
 struct netmap_ring {
     const ssize_t buf_ofs;
     const uint32_t num_slots; /* number of slots in the ring. */
-    uint32_t avail; /* number of usable slots */
-    uint32_t cur; /* 'current' index for the user side */
+    uint32_t avail;           /* number of usable slots */
+    uint32_t cur;             /* 'current' index for the user side */
+    uint32_t reserved;        /* not refilled before current */
 
     const uint16_t nr_buf_size;
     uint16_t flags;
@@ -161,7 +160,6 @@ int i = txring->slot[txring->cur].buf_idx;
 char *buf = NETMAP_BUF(txring, i);
 .Ed
 .Ss IOCTLS
-.Pp
 .Nm
 supports some ioctl() to synchronize the state of the rings
 between the kernel and the user processes, plus some
@@ -173,10 +171,14 @@ defined as follows:
 .Bd -literal
 struct nmreq {
         char      nr_name[IFNAMSIZ];
+        uint32_t  nr_version;     /* API version */
+#define NETMAP_API      2         /* current version */
         uint32_t  nr_offset;      /* nifp offset in the shared region */
         uint32_t  nr_memsize;     /* size of the shared region */
-        uint32_t  nr_numdescs;    /* descriptors per queue */
-        uint16_t  nr_numqueues;
+        uint32_t  nr_tx_slots;    /* slots in tx rings */
+        uint32_t  nr_rx_slots;    /* slots in rx rings */
+        uint16_t  nr_tx_rings;    /* number of tx rings */
+        uint16_t  nr_rx_rings;    /* number of tx rings */
         uint16_t  nr_ringid;      /* ring(s) we care about */
 #define NETMAP_HW_RING  0x4000    /* low bits indicate one hw ring */
 #define NETMAP_SW_RING  0x2000    /* we process the sw ring */
@@ -199,8 +201,10 @@ and are:
 returns information about the interface named in nr_name.
 On return, nr_memsize indicates the size of the shared netmap
 memory region (this is device-independent),
-nr_numslots indicates how many buffers are in a ring,
-nr_numrings indicates the number of rings supported by the hardware.
+nr_tx_slots and nr_rx_slots indicates how many buffers are in a
+transmit and receive ring,
+nr_tx_rings and nr_rx_rings indicates the number of transmit
+and receive rings supported by the hardware.
 .Pp
 If the device does not support netmap, the ioctl returns EINVAL.
 .It Dv NIOCREGIF
@@ -266,6 +270,7 @@ struct netmap_request nmr;
 fd = open("/dev/netmap", O_RDWR);
 bzero(&nmr, sizeof(nmr));
 strcpy(nmr.nm_name, "ix0");
+nmr.nm_version = NETMAP_API;
 ioctl(fd, NIOCREG, &nmr);
 p = mmap(0, nmr.memsize, fd);
 nifp = NETMAP_IF(p, nmr.offset);

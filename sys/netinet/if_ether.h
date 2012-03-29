@@ -115,6 +115,8 @@ struct ifaddr;
 int	arpresolve(struct ifnet *ifp, struct rtentry *rt,
 		    struct mbuf *m, struct sockaddr *dst, u_char *desten,
 		    struct llentry **lle);
+void	arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
+		    u_char *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
 void	arp_ifinit2(struct ifnet *, struct ifaddr *, u_char *);
 void	arp_ifscrub(struct ifnet *, uint32_t);

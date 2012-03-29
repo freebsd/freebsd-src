@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #define	POINTER		0x10	/* weird %p pointer (`fake hex') */
 #define	NOSKIP		0x20	/* do not skip blanks */
 #define	QUAD		0x400
+#define	SHORTSHORT	0x4000	/** hh: char */
 
 /*
  * The following are used in numeric conversions only:
@@ -160,13 +161,23 @@ literal:
 			flags |= SUPPRESS;
 			goto again;
 		case 'l':
-			flags |= LONG;
+			if (flags & LONG){
+				flags &= ~LONG;
+				flags |= QUAD;
+			} else {
+				flags |= LONG;
+			}
 			goto again;
 		case 'q':
 			flags |= QUAD;
 			goto again;
 		case 'h':
-			flags |= SHORT;
+			if (flags & SHORT){
+				flags &= ~SHORT;
+				flags |= SHORTSHORT;
+			} else {
+				flags |= SHORT;
+			}
 			goto again;
 
 		case '0': case '1': case '2': case '3': case '4':
@@ -235,7 +246,9 @@ literal:
 			nconversions++;
 			if (flags & SUPPRESS)	/* ??? */
 				continue;
-			if (flags & SHORT)
+			if (flags & SHORTSHORT)
+				*va_arg(ap, char *) = nread;
+			else if (flags & SHORT)
 				*va_arg(ap, short *) = nread;
 			else if (flags & LONG)
 				*va_arg(ap, long *) = nread;
@@ -510,6 +523,8 @@ literal:
 				if (flags & POINTER)
 					*va_arg(ap, void **) =
 						(void *)(uintptr_t)res;
+				else if (flags & SHORTSHORT)
+					*va_arg(ap, char *) = res;
 				else if (flags & SHORT)
 					*va_arg(ap, short *) = res;
 				else if (flags & LONG)

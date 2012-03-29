@@ -1055,7 +1055,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 #endif
 		case BIOCGETIF:
 		case BIOCGRTIMEOUT:
-#ifdef COMPAT_FREEBSD32
+#if defined(COMPAT_FREEBSD32) && !defined(__mips__)
 		case BIOCGRTIMEOUT32:
 #endif
 		case BIOCGSTATS:
@@ -1067,7 +1067,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		case FIONREAD:
 		case BIOCLOCK:
 		case BIOCSRTIMEOUT:
-#ifdef COMPAT_FREEBSD32
+#if defined(COMPAT_FREEBSD32) && !defined(__mips__)
 		case BIOCSRTIMEOUT32:
 #endif
 		case BIOCIMMEDIATE:
@@ -1262,12 +1262,12 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set read timeout.
 	 */
 	case BIOCSRTIMEOUT:
-#ifdef COMPAT_FREEBSD32
+#if defined(COMPAT_FREEBSD32) && !defined(__mips__)
 	case BIOCSRTIMEOUT32:
 #endif
 		{
 			struct timeval *tv = (struct timeval *)addr;
-#ifdef COMPAT_FREEBSD32
+#if defined(COMPAT_FREEBSD32) && !defined(__mips__)
 			struct timeval32 *tv32;
 			struct timeval tv64;
 
@@ -1293,12 +1293,12 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get read timeout.
 	 */
 	case BIOCGRTIMEOUT:
-#ifdef COMPAT_FREEBSD32
+#if defined(COMPAT_FREEBSD32) && !defined(__mips__)
 	case BIOCGRTIMEOUT32:
 #endif
 		{
 			struct timeval *tv;
-#ifdef COMPAT_FREEBSD32
+#if defined(COMPAT_FREEBSD32) && !defined(__mips__)
 			struct timeval32 *tv32;
 			struct timeval tv64;
 
@@ -1310,7 +1310,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 			tv->tv_sec = d->bd_rtout / hz;
 			tv->tv_usec = (d->bd_rtout % hz) * tick;
-#ifdef COMPAT_FREEBSD32
+#if defined(COMPAT_FREEBSD32) && !defined(__mips__)
 			if (cmd == BIOCGRTIMEOUT32) {
 				tv32 = (struct timeval32 *)addr;
 				tv32->tv_sec = tv->tv_sec;
@@ -2253,33 +2253,42 @@ bpfdetach(struct ifnet *ifp)
 {
 	struct bpf_if	*bp;
 	struct bpf_d	*d;
+#ifdef INVARIANTS
+	int ndetached;
 
-	/* Locate BPF interface information */
-	mtx_lock(&bpf_mtx);
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
-		if (ifp == bp->bif_ifp)
-			break;
-	}
+	ndetached = 0;
+#endif
 
-	/* Interface wasn't attached */
-	if ((bp == NULL) || (bp->bif_ifp == NULL)) {
+	/* Find all bpf_if struct's which reference ifp and detach them. */
+	do {
+		mtx_lock(&bpf_mtx);
+		LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+			if (ifp == bp->bif_ifp)
+				break;
+		}
+		if (bp != NULL)
+			LIST_REMOVE(bp, bif_next);
 		mtx_unlock(&bpf_mtx);
+
+		if (bp != NULL) {
+#ifdef INVARIANTS
+			ndetached++;
+#endif
+			while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
+				bpf_detachd(d);
+				BPFD_LOCK(d);
+				bpf_wakeup(d);
+				BPFD_UNLOCK(d);
+			}
+			mtx_destroy(&bp->bif_mtx);
+			free(bp, M_BPF);
+		}
+	} while (bp != NULL);
+
+#ifdef INVARIANTS
+	if (ndetached == 0)
 		printf("bpfdetach: %s was not attached\n", ifp->if_xname);
-		return;
-	}
-
-	LIST_REMOVE(bp, bif_next);
-	mtx_unlock(&bpf_mtx);
-
-	while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
-		bpf_detachd(d);
-		BPFD_LOCK(d);
-		bpf_wakeup(d);
-		BPFD_UNLOCK(d);
-	}
-
-	mtx_destroy(&bp->bif_mtx);
-	free(bp, M_BPF);
+#endif
 }
 
 /*

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@
 typedef const struct acpi_dmtable_info
 {
     UINT8                       Opcode;
-    UINT8                       Offset;
+    UINT16                      Offset;
     char                        *Name;
     UINT8                       Flags;
 

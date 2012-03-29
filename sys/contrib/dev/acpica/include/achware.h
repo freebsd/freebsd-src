@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -110,6 +110,49 @@ AcpiHwClearAcpiStatus (
 
 
 /*
+ * hwsleep - sleep/wake support (Legacy sleep registers)
+ */
+ACPI_STATUS
+AcpiHwLegacySleep (
+    UINT8                   SleepState,
+    UINT8                   Flags);
+
+ACPI_STATUS
+AcpiHwLegacyWakePrep (
+    UINT8                   SleepState,
+    UINT8                   Flags);
+
+ACPI_STATUS
+AcpiHwLegacyWake (
+    UINT8                   SleepState,
+    UINT8                   Flags);
+
+
+/*
+ * hwesleep - sleep/wake support (Extended FADT-V5 sleep registers)
+ */
+void
+AcpiHwExecuteSleepMethod (
+    char                    *MethodName,
+    UINT32                  IntegerArgument);
+
+ACPI_STATUS
+AcpiHwExtendedSleep (
+    UINT8                   SleepState,
+    UINT8                   Flags);
+
+ACPI_STATUS
+AcpiHwExtendedWakePrep (
+    UINT8                   SleepState,
+    UINT8                   Flags);
+
+ACPI_STATUS
+AcpiHwExtendedWake (
+    UINT8                   SleepState,
+    UINT8                   Flags);
+
+
+/*
  * hwvalid - Port I/O with validation
  */
 ACPI_STATUS
@@ -186,24 +229,6 @@ AcpiHwDerivePciId (
     ACPI_PCI_ID             *PciId,
     ACPI_HANDLE             RootPciDevice,
     ACPI_HANDLE             PciRegion);
-
-
-/*
- * hwtimer - ACPI Timer prototypes
- */
-ACPI_STATUS
-AcpiGetTimerResolution (
-    UINT32                  *Resolution);
-
-ACPI_STATUS
-AcpiGetTimer (
-    UINT32                  *Ticks);
-
-ACPI_STATUS
-AcpiGetTimerDuration (
-    UINT32                  StartTicks,
-    UINT32                  EndTicks,
-    UINT32                  *TimeElapsed);
 
 
 #endif /* __ACHWARE_H__ */

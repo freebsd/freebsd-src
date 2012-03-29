@@ -383,7 +383,6 @@ rt_attach(device_t dev)
 	ifp->if_init = rt_init;
 	ifp->if_ioctl = rt_ioctl;
 	ifp->if_start = rt_start;
-	ifp->if_mtu = ETHERMTU;
 #define	RT_TX_QLEN	256
 
 	IFQ_SET_MAXLEN(&ifp->if_snd, RT_TX_QLEN);

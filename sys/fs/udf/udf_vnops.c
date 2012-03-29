@@ -48,7 +48,6 @@
 
 #include <vm/uma.h>
 
-#include <fs/fifofs/fifo.h>
 #include <fs/udf/ecma167-udf.h>
 #include <fs/udf/osta.h>
 #include <fs/udf/udf.h>
@@ -439,8 +438,9 @@ udf_read(struct vop_read_args *ap)
 	uint8_t *data;
 	daddr_t lbn, rablock;
 	off_t diff, fsize;
+	ssize_t n;
 	int error = 0;
-	long size, n, on;
+	long size, on;
 
 	if (uio->uio_resid == 0)
 		return (0);

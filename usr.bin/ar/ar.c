@@ -386,13 +386,13 @@ ranlib_usage(void)
 static void
 bsdar_version(void)
 {
-	(void)printf("BSD ar %s - %s\n", BSDAR_VERSION, archive_version());
+	(void)printf("BSD ar %s - %s\n", BSDAR_VERSION, archive_version_string());
 	exit(EX_OK);
 }
 
 static void
 ranlib_version(void)
 {
-	(void)printf("ranlib %s - %s\n", BSDAR_VERSION, archive_version());
+	(void)printf("ranlib %s - %s\n", BSDAR_VERSION, archive_version_string());
 	exit(EX_OK);
 }

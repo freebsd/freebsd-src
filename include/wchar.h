@@ -224,6 +224,10 @@ wchar_t	*fgetwln(FILE * __restrict, size_t * __restrict);
 size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
 size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #endif
+
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
+#include <xlocale/_wchar.h>
+#endif
 __END_DECLS
 
 #endif /* !_WCHAR_H_ */

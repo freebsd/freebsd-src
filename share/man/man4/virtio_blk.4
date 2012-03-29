@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2011
+.Dd January 22, 2012
 .Dt VIRTIO_BLK 4
 .Os
 .Sh NAME
@@ -48,7 +48,6 @@ virtio_blk_load="YES"
 The
 .Nm
 device driver provides support for VirtIO block devices.
-.Pp
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
@@ -57,7 +56,8 @@ prompt before booting the kernel or stored in
 .Bl -tag -width "xxxxxx"
 .It Va hw.vtblk.no_ident
 This tunable disables retrieving the device identification string
-from the hypervisor. The default value is 0.
+from the hypervisor.
+The default value is 0.
 .El
 .Sh SEE ALSO
 .Xr virtio 4

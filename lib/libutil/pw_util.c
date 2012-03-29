@@ -347,7 +347,8 @@ pw_edit(int notsetuid)
 	sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 	if (stat(tempname, &st2) == -1)
 		return (-1);
-	return (st1.st_mtime != st2.st_mtime);
+	return (st1.st_mtim.tv_sec != st2.st_mtim.tv_sec ||
+	    st1.st_mtim.tv_nsec != st2.st_mtim.tv_nsec);
 }
 
 /*
@@ -406,7 +407,21 @@ pw_make(const struct passwd *pw)
 	    pw->pw_passwd, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid,
 	    pw->pw_class, (uintmax_t)pw->pw_change, (uintmax_t)pw->pw_expire,
 	    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
-	return line;
+	return (line);
+}
+
+/*
+ * Make a passwd line (in v7 format) out of a struct passwd
+ */
+char *
+pw_make_v7(const struct passwd *pw)
+{
+	char *line;
+
+	asprintf(&line, "%s:*:%ju:%ju:%s:%s:%s", pw->pw_name,
+	    (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid,
+	    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
+	return (line);
 }
 
 /*

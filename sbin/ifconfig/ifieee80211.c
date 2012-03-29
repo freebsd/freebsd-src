@@ -884,7 +884,7 @@ set80211wepkey(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 /*
- * This function is purely a NetBSD compatability interface.  The NetBSD
+ * This function is purely a NetBSD compatibility interface.  The NetBSD
  * interface is too inflexible, but it's there so we'll support it since
  * it's not all that hard.
  */
@@ -1879,13 +1879,13 @@ DECL_CMD_FUNC(set80211meshttl, val, d)
 static
 DECL_CMD_FUNC(set80211meshforward, val, d)
 {
-	set80211(s, IEEE80211_IOC_MESH_FWRD, atoi(val), 0, NULL);
+	set80211(s, IEEE80211_IOC_MESH_FWRD, d, 0, NULL);
 }
 
 static
 DECL_CMD_FUNC(set80211meshpeering, val, d)
 {
-	set80211(s, IEEE80211_IOC_MESH_AP, atoi(val), 0, NULL);
+	set80211(s, IEEE80211_IOC_MESH_AP, d, 0, NULL);
 }
 
 static
@@ -4383,7 +4383,6 @@ ieee80211_status(int s)
 
 	if (get80211val(s, IEEE80211_IOC_WEP, &wepmode) != -1 &&
 	    wepmode != IEEE80211_WEP_NOSUP) {
-		int firstkey;
 
 		switch (wepmode) {
 		case IEEE80211_WEP_OFF:
@@ -4419,7 +4418,6 @@ ieee80211_status(int s)
 			goto end;
 		}
 
-		firstkey = 1;
 		for (i = 0; i < num; i++) {
 			struct ieee80211req_key ik;
 
@@ -4433,7 +4431,6 @@ ieee80211_status(int s)
 				if (verbose)
 					LINE_BREAK();
 				printkey(&ik);
-				firstkey = 0;
 			}
 		}
 end:

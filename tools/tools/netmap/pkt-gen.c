@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: pkt-gen.c 9827 2011-12-05 11:29:34Z luigi $
+ * $Id: pkt-gen.c 10637 2012-02-24 16:36:25Z luigi $
  *
  * Example program to show how to build a multithreaded packet
  * source/sink using the netmap device.
@@ -124,7 +124,7 @@ struct pkt {
 	struct ether_header eh;
 	struct ip ip;
 	struct udphdr udp;
-	uint8_t body[NETMAP_BUF_SIZE];
+	uint8_t body[2048];	// XXX hardwired
 } __attribute__((__packed__));
 
 /*
@@ -432,7 +432,7 @@ sender_body(void *data)
 
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
-	/* setup poll(2) machanism. */
+	/* setup poll(2) mechanism. */
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = targ->fd;
 	fds[0].events = (POLLOUT);
@@ -543,7 +543,7 @@ receiver_body(void *data)
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
 
-	/* setup poll(2) machanism. */
+	/* setup poll(2) mechanism. */
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = targ->fd;
 	fds[0].events = (POLLIN);
@@ -568,7 +568,7 @@ receiver_body(void *data)
 		   before quitting. */
 		if (poll(fds, 1, 1 * 1000) <= 0) {
 			gettimeofday(&targ->toc, NULL);
-			targ->toc.tv_sec -= 1; /* Substract timeout time. */
+			targ->toc.tv_sec -= 1; /* Subtract timeout time. */
 			break;
 		}
 
@@ -776,6 +776,7 @@ main(int arc, char **argv)
 	}
 
 	bzero(&nmr, sizeof(nmr));
+	nmr.nr_version = NETMAP_API;
 	/*
 	 * Open the netmap device to fetch the number of queues of our
 	 * interface.
@@ -796,11 +797,12 @@ main(int arc, char **argv)
 			D("map size is %d Kb", nmr.nr_memsize >> 10);
 		}
 		bzero(&nmr, sizeof(nmr));
+		nmr.nr_version = NETMAP_API;
 		strncpy(nmr.nr_name, ifname, sizeof(nmr.nr_name));
 		if ((ioctl(fd, NIOCGINFO, &nmr)) == -1) {
 			D("Unable to get if info for %s", ifname);
 		}
-		devqueues = nmr.nr_numrings;
+		devqueues = nmr.nr_rx_rings;
 	}
 
 	/* validate provided nthreads. */
@@ -841,6 +843,7 @@ main(int arc, char **argv)
 	 * We decide to put the first interface registration here to
 	 * give time to cards that take a long time to reset the PHY.
 	 */
+	nmr.nr_version = NETMAP_API;
 	if (ioctl(fd, NIOCREGIF, &nmr) == -1) {
 		D("Unable to register interface %s", ifname);
 		//continue, fail later
@@ -904,6 +907,7 @@ main(int arc, char **argv)
 
 		bzero(&tifreq, sizeof(tifreq));
 		strncpy(tifreq.nr_name, ifname, sizeof(tifreq.nr_name));
+		tifreq.nr_version = NETMAP_API;
 		tifreq.nr_ringid = (g.nthreads > 1) ? (i | NETMAP_HW_RING) : 0;
 
 		/*
@@ -930,7 +934,8 @@ main(int arc, char **argv)
 		targs[i].nmr = tifreq;
 		targs[i].nifp = tnifp;
 		targs[i].qfirst = (g.nthreads > 1) ? i : 0;
-		targs[i].qlast = (g.nthreads > 1) ? i+1 : tifreq.nr_numrings;
+		targs[i].qlast = (g.nthreads > 1) ? i+1 :
+			(td_body == receiver_body ? tifreq.nr_rx_rings : tifreq.nr_tx_rings);
 		targs[i].me = i;
 		targs[i].affinity = g.cpus ? i % g.cpus : -1;
 		if (td_body == sender_body) {
@@ -994,8 +999,8 @@ main(int arc, char **argv)
 			continue;
 
 		/*
-		 * Collect threads o1utput and extract information about
-		 * how log it took to send all the packets.
+		 * Collect threads output and extract information about
+		 * how long it took to send all the packets.
 		 */
 		count += targs[i].count;
 		if (!timerisset(&tic) || timercmp(&targs[i].tic, &tic, <))

@@ -10,8 +10,8 @@
 . /etc/rc.subr
 
 name="routed"
+rcvar="routed_enable"
 desc="network RIP and router discovery routing daemon"
-rcvar=`set_rcvar`
 
 set_rcvar_obsolete router_enable routed_enable
 set_rcvar_obsolete router routed_program

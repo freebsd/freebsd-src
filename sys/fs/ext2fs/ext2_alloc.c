@@ -344,6 +344,7 @@ ext2_valloc(pvp, mode, cred, vpp)
 	struct ucred *cred;
 	struct vnode **vpp;
 {
+	struct timespec ts;
 	struct inode *pip;
 	struct m_ext2fs *fs;
 	struct inode *ip;
@@ -385,14 +386,14 @@ ext2_valloc(pvp, mode, cred, vpp)
 	}
 	ip = VTOI(*vpp);
 
-	/* 
-	  the question is whether using VGET was such good idea at all -
-	  Linux doesn't read the old inode in when it's allocating a
-	  new one. I will set at least i_size & i_blocks the zero. 
-	*/ 
-	ip->i_mode = 0;
+	/*
+	 * The question is whether using VGET was such good idea at all:
+	 * Linux doesn't read the old inode in when it is allocating a
+	 * new one. I will set at least i_size and i_blocks to zero.
+	 */
 	ip->i_size = 0;
 	ip->i_blocks = 0;
+	ip->i_mode = 0;
 	ip->i_flags = 0;
         /* now we want to make sure that the block pointers are zeroed out */
         for (i = 0; i < NDADDR; i++)
@@ -406,6 +407,11 @@ ext2_valloc(pvp, mode, cred, vpp)
 	 */
 	if (ip->i_gen == 0 || ++ip->i_gen == 0)
 		ip->i_gen = random() / 2 + 1;
+
+	vfs_timestamp(&ts);
+	ip->i_birthtime = ts.tv_sec;
+	ip->i_birthnsec = ts.tv_nsec;
+
 /*
 printf("ext2_valloc: allocated inode %d\n", ino);
 */
@@ -886,8 +892,8 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	struct ext2mount *ump;
-	int error, start, len, loc, map, i;
-	char *ibp;
+	int error, start, len;
+	char *ibp, *loc;
 	ipref--; /* to avoid a lot of (ipref -1) */
 	if (ipref == -1)
 		ipref = 0;
@@ -921,25 +927,19 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 	}
 	start = ipref / NBBY;
 	len = howmany(fs->e2fs->e2fs_ipg - ipref, NBBY);
-	loc = skpc(0xff, len, &ibp[start]);
-	if (loc == 0) {
+	loc = memcchr(&ibp[start], 0xff, len);
+	if (loc == NULL) {
 		len = start + 1;
 		start = 0;
-		loc = skpc(0xff, len, &ibp[0]);
-		if (loc == 0) {
+		loc = memcchr(&ibp[start], 0xff, len);
+		if (loc == NULL) {
 			printf("cg = %d, ipref = %lld, fs = %s\n",
 				cg, (long long)ipref, fs->e2fs_fsmnt);
 			panic("ext2fs_nodealloccg: map corrupted");
 			/* NOTREACHED */
 		}
 	} 
-	i = start + len - loc;
-	map = ibp[i] ^ 0xff;
-	if (map == 0) {
-		printf("fs = %s\n", fs->e2fs_fsmnt);
-		panic("ext2fs_nodealloccg: block not in map");
-	}
-	ipref = i * NBBY + ffs(map) - 1;
+	ipref = (loc - ibp) * NBBY + ffs(~*loc) - 1;
 gotit:
 	setbit(ibp, ipref);
 	EXT2_LOCK(ump);
@@ -1068,7 +1068,8 @@ ext2_vfree(pvp, ino, mode)
 static daddr_t
 ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 {
-	int start, len, loc, i, map;
+	char *loc;
+	int start, len;
 
 	/*
 	 * find the fragment by searching through the free block
@@ -1079,25 +1080,19 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 	else
 		start = 0;
 	len = howmany(fs->e2fs->e2fs_fpg, NBBY) - start;
-	loc = skpc(0xff, len, &bbp[start]);
-	if (loc == 0) {
+	loc = memcchr(&bbp[start], 0xff, len);
+	if (loc == NULL) {
 		len = start + 1;
 		start = 0;
-		loc = skpc(0xff, len, &bbp[start]);
-		if (loc == 0) {
+		loc = memcchr(&bbp[start], 0xff, len);
+		if (loc == NULL) {
 			printf("start = %d, len = %d, fs = %s\n",
 				start, len, fs->e2fs_fsmnt);
 			panic("ext2fs_alloccg: map corrupted");
 			/* NOTREACHED */
 		}
 	}
-	i = start + len - loc;
-	map = bbp[i] ^ 0xff;
-	if (map == 0) {
-		printf("fs = %s\n", fs->e2fs_fsmnt);
-		panic("ext2fs_mapsearch: block not in map");
-	}
-	return (i * NBBY + ffs(map) - 1);
+	return ((loc - bbp) * NBBY + ffs(~*loc) - 1);
 }
 
 /*

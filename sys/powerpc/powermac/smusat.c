@@ -202,33 +202,46 @@ static int
 smusat_updatecache(device_t dev)
 {
 	uint8_t reg = 0x3f;
+	uint8_t	value[16];
 	struct smusat_softc *sc = device_get_softc(dev);
+	int error;
 	struct iic_msg msgs[2] = {
 	    {0, IIC_M_WR | IIC_M_NOSTOP, 1, &reg},
-	    {0, IIC_M_RD, 16, sc->sc_cache},
+	    {0, IIC_M_RD, 16, value},
 	};
 
 	msgs[0].slave = msgs[1].slave = iicbus_get_addr(dev);
-	sc->sc_last_update = time_uptime;
+	error = iicbus_transfer(dev, msgs, 2);
+	if (error)
+		return (error);
 
-	return (iicbus_transfer(dev, msgs, 2));
+	sc->sc_last_update = time_uptime;
+	memcpy(sc->sc_cache, value, sizeof(value));
+	return (0);
 }
 
 static int
 smusat_sensor_read(struct smu_sensor *sens)
 {
-	int value;
+	int value, error;
 	device_t dev;
 	struct smusat_softc *sc;
 
 	dev = sens->dev;
 	sc = device_get_softc(dev);
+	error = 0;
 
 	if (time_uptime - sc->sc_last_update > 1)
-		smusat_updatecache(dev);
+		error = smusat_updatecache(dev);
+	if (error)
+		return (-error);
 
 	value = (sc->sc_cache[sens->reg*2] << 8) +
 	    sc->sc_cache[sens->reg*2 + 1];
+	if (value == 0xffff) {
+		sc->sc_last_update = 0; /* Result was bad, don't cache */
+		return (-EINVAL);
+	}
 
 	switch (sens->type) {
 	case SMU_TEMP_SENSOR:

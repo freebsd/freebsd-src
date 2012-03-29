@@ -79,7 +79,7 @@ db_copy_in(DB **mdb, const char *dbname, const char *uname, BTREEINFO *bti,
 
 	/* Obtain/set version. */
 	version = 1;
-	key.data = &VERSION_KEY;
+	key.data = (void*)&VERSION_KEY;
 	key.size = sizeof(VERSION_KEY);
 
 	rv = DB_GET(ddb, &key, &data, 0);
@@ -175,7 +175,7 @@ db_copy_out(DB *mdb, const char *dbname, const char *uname, BTREEINFO *bti)
 
 out:
 	/* Add a version record. */
-	key.data = &VERSION_KEY;
+	key.data = (void*)&VERSION_KEY;
 	key.size = sizeof(VERSION_KEY);
 	version = 2;
 	data.data = &version;

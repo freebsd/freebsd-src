@@ -1039,7 +1039,7 @@ smbfs_pathcheck(struct smbmount *smp, const char *name, int nmlen, int nameiop)
 	 * Backslash characters, being a path delimiter, are prohibited
 	 * within a path component even for LOOKUP operations.
 	 */
-	if (index(name, '\\') != NULL)
+	if (strchr(name, '\\') != NULL)
 		return ENOENT;
 
 	if (nameiop == LOOKUP)
@@ -1051,20 +1051,20 @@ smbfs_pathcheck(struct smbmount *smp, const char *name, int nmlen, int nameiop)
 		 */
 		if (nmlen > 12)
 			return ENAMETOOLONG;
-		cp = index(name, '.');
+		cp = strchr(name, '.');
 		if (cp == NULL)
 			return error;
 		if (cp == name || (cp - name) > 8)
 			return error;
-		cp = index(cp + 1, '.');
+		cp = strchr(cp + 1, '.');
 		if (cp != NULL)
 			return error;
 		for (cp = name, i = 0; i < nmlen; i++, cp++)
-			if (index(badchars83, *cp) != NULL)
+			if (strchr(badchars83, *cp) != NULL)
 				return error;
 	}
 	for (cp = name, i = 0; i < nmlen; i++, cp++)
-		if (index(badchars, *cp) != NULL)
+		if (strchr(badchars, *cp) != NULL)
 			return error;
 	return 0;
 }
@@ -1131,7 +1131,7 @@ smbfs_lookup(ap)
 	if (error) 
 		return ENOENT;
 
-	error = cache_lookup(dvp, vpp, cnp);
+	error = cache_lookup(dvp, vpp, cnp, NULL, NULL);
 	SMBVDEBUG("cache_lookup returned %d\n", error);
 	if (error > 0)
 		return error;

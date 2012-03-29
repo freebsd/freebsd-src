@@ -9,7 +9,7 @@
 . /etc/rc.subr
 
 name="cleanvar"
-rcvar=`set_rcvar`
+rcvar="cleanvar_enable"
 
 start_precmd="${name}_prestart"
 start_cmd="${name}_start"
@@ -58,8 +58,6 @@ cleanvar_start ()
 {
 	if [ -d /var/run -a ! -f /var/run/clean_var ]; then
 		purgedir /var/run
-		# And an initial utmpx active session file
-		(cd /var/run && cp /dev/null utx.active && chmod 644 utx.active)
 		>/var/run/clean_var
 	fi
 	if [ -d /var/spool/lock -a ! -f /var/spool/lock/clean_var ]; then

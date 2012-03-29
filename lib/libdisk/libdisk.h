@@ -293,8 +293,6 @@ int Fixup_Names(struct disk *);
 int MakeDevChunk(const struct chunk *, const char *);
 __END_DECLS
 
-#define dprintf	printf
-
 /* TODO
  *
  * Need an error string mechanism from the functions instead of warn()

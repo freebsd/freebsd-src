@@ -2,7 +2,7 @@
 
 LIB=	llvmpowerpcinfo
 
-SRCDIR=	lib/Target/PowerPC/TargetInfo/
+SRCDIR=	lib/Target/PowerPC/TargetInfo
 INCDIR=	lib/Target/PowerPC
 SRCS=	PowerPCTargetInfo.cpp
 

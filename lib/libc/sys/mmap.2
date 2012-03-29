@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2010
+.Dd March 18, 2012
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -205,7 +205,7 @@ command and
 system call generally do not flush dirty NOSYNC VM data.
 The
 .Xr msync 2
-system call is obsolete since
+system call is usually not needed since
 .Bx
 implements a coherent file system buffer cache.
 However, it may be
@@ -356,8 +356,7 @@ was specified and insufficient memory was available.
 .Xr msync 2 ,
 .Xr munlock 2 ,
 .Xr munmap 2 ,
-.Xr getpagesize 3 ,
-.Xr make.conf 5
+.Xr getpagesize 3
 .Sh BUGS
 The
 .Fa len

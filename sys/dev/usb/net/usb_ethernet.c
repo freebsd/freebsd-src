@@ -219,7 +219,6 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 		ue->ue_ifp = ifp;
 		error = ue->ue_methods->ue_attach_post_sub(ue);
 	} else {
-		ifp->if_mtu = ETHERMTU;
 		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 		if (ue->ue_methods->ue_ioctl != NULL)
 			ifp->if_ioctl = ue->ue_methods->ue_ioctl;

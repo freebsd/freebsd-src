@@ -420,6 +420,6 @@ void ficlCompileFile(FICL_SYSTEM *pSys)
     ficlSetEnv(pSys, "file-ext", FICL_TRUE);
 #endif /* FICL_HAVE_FTRUNCATE */
 #else
-    &pSys;
+    (void)pSys;
 #endif /* FICL_WANT_FILE */
 }

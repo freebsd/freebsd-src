@@ -644,7 +644,7 @@ ATH_AGGR_STATUS
 ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
     ath_bufhead *bf_q)
 {
-	//struct ieee80211_node *ni = &an->an_node;
+	struct ieee80211_node *ni = &an->an_node;
 	struct ath_buf *bf, *bf_first = NULL, *bf_prev = NULL;
 	int nframes = 0;
 	uint16_t aggr_limit = 0, al = 0, bpad = 0, al_delta, h_baw;
@@ -707,16 +707,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 */
 
 		/*
-		 * If the packet has a sequence number, do not
-		 * step outside of the block-ack window.
-		 */
-		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
-		    SEQNO(bf->bf_state.bfs_seqno))) {
-		    status = ATH_AGGR_BAW_CLOSED;
-		    break;
-		}
-
-		/*
 		 * XXX TODO: AR5416 has an 8K aggregation size limit
 		 * when RTS is enabled, and RTS is required for dual-stream
 		 * rates.
@@ -740,6 +730,77 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		if ((nframes + prev_frames) >= MIN((h_baw),
 		    IEEE80211_AMPDU_SUBFRAME_DEFAULT)) {
 			status = ATH_AGGR_LIMITED;
+			break;
+		}
+
+		/*
+		 * TODO: If it's _before_ the BAW left edge, complain very loudly.
+		 * This means something (else) has slid the left edge along
+		 * before we got a chance to be TXed.
+		 */
+
+		/*
+		 * Check if we have space in the BAW for this frame before
+		 * we add it.
+		 *
+		 * see ath_tx_xmit_aggr() for more info.
+		 */
+		if (bf->bf_state.bfs_dobaw) {
+			ieee80211_seq seqno;
+
+			/*
+			 * If the sequence number is allocated, use it.
+			 * Otherwise, use the sequence number we WOULD
+			 * allocate.
+			 */
+			if (bf->bf_state.bfs_seqno_assigned)
+				seqno = SEQNO(bf->bf_state.bfs_seqno);
+			else
+				seqno = ni->ni_txseqs[bf->bf_state.bfs_tid];
+
+			/*
+			 * Check whether either the currently allocated
+			 * sequence number _OR_ the to-be allocated
+			 * sequence number is inside the BAW.
+			 */
+			if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
+			    seqno)) {
+				status = ATH_AGGR_BAW_CLOSED;
+				break;
+			}
+
+			/* XXX check for bfs_need_seqno? */
+			if (! bf->bf_state.bfs_seqno_assigned) {
+				int seqno;
+				seqno = ath_tx_tid_seqno_assign(sc, ni, bf, bf->bf_m);
+				if (seqno < 0) {
+					device_printf(sc->sc_dev,
+					    "%s: bf=%p, huh, seqno=-1?\n",
+					    __func__,
+					    bf);
+					/* XXX what can we even do here? */
+				}
+				/* Flush seqno update to RAM */
+				/*
+				 * XXX This is required because the dmasetup
+				 * XXX is done early rather than at dispatch
+				 * XXX time. Ew, we should fix this!
+				 */
+				bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+				    BUS_DMASYNC_PREWRITE);
+			}
+		}
+
+		/*
+		 * If the packet has a sequence number, do not
+		 * step outside of the block-ack window.
+		 */
+		if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
+		    SEQNO(bf->bf_state.bfs_seqno))) {
+			device_printf(sc->sc_dev,
+			    "%s: bf=%p, seqno=%d, outside?!\n",
+			    __func__, bf, SEQNO(bf->bf_state.bfs_seqno));
+			status = ATH_AGGR_BAW_CLOSED;
 			break;
 		}
 

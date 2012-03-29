@@ -66,6 +66,7 @@ struct	nfsmount {
 	u_int64_t nm_maxfilesize;	/* maximum file size */
 	int	nm_tprintf_initial_delay; /* initial delay */
 	int	nm_tprintf_delay;	/* interval for messages */
+	int	nm_nametimeo;		/* timeout for +ve entries (sec) */
 	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* Newnfs additions */
@@ -105,6 +106,10 @@ struct	nfsmount {
  * Convert mount ptr to nfsmount ptr.
  */
 #define	VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
+
+#ifndef NFS_DEFAULT_NAMETIMEO
+#define NFS_DEFAULT_NAMETIMEO		60
+#endif
 
 #ifndef NFS_DEFAULT_NEGNAMETIMEO
 #define NFS_DEFAULT_NEGNAMETIMEO	60

@@ -105,7 +105,7 @@ main(argc, argv)
 			printf("timedc> ");
 			(void) fflush(stdout);
 		}
-		if (fgets(cmdline, sizeof(cmdline), stdin) == 0)
+		if (fgets(cmdline, sizeof(cmdline), stdin) == NULL)
 			quit();
 		if (cmdline[0] == 0)
 			break;

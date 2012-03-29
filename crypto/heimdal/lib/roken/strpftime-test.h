@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -44,5 +44,12 @@
 
 #define strftime test_strftime
 #define strptime test_strptime
+
+ROKEN_LIB_FUNCTION size_t ROKEN_LIB_CALL
+strftime (char *buf, size_t maxsize, const char *format,
+          const struct tm *tm);
+
+ROKEN_LIB_FUNCTION char * ROKEN_LIB_CALL
+strptime (const char *buf, const char *format, struct tm *timeptr);
 
 #endif /* __STRFTIME_TEST_H__ */

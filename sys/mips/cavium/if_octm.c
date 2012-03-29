@@ -61,7 +61,7 @@
 #endif
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 #include <contrib/octeon-sdk/cvmx-mgmt-port.h>
 
 struct octm_softc {
@@ -163,10 +163,10 @@ octm_attach(device_t dev)
 
 	switch (sc->sc_port) {
 	case 0:
-		irq = CVMX_IRQ_MII;
+		irq = OCTEON_IRQ_MII;
 		break;
 	case 1:
-		irq = CVMX_IRQ_MII1;
+		irq = OCTEON_IRQ_MII1;
 		break;
 	default:
 		device_printf(dev, "unsupported management port %u.\n", sc->sc_port);
@@ -179,6 +179,7 @@ octm_attach(device_t dev)
 	mac = 0;
 	memcpy((u_int8_t *)&mac + 2, cvmx_sysinfo_get()->mac_addr_base, 6);
 	mac += sc->sc_port;
+
 	cvmx_mgmt_port_set_mac(sc->sc_port, mac);
 
 	/* No watermark for input ring.  */
@@ -297,18 +298,26 @@ octm_init(void *arg)
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	}
 
-	if (((ifp->if_flags ^ sc->sc_flags) & (IFF_ALLMULTI | IFF_MULTICAST | IFF_PROMISC)) != 0) {
-		flags = 0;
-		if ((ifp->if_flags & IFF_ALLMULTI) != 0)
-			flags |= CVMX_IFF_ALLMULTI;
-		if ((ifp->if_flags & IFF_PROMISC) != 0)
-			flags |= CVMX_IFF_PROMISC;
-		cvmx_mgmt_port_set_multicast_list(sc->sc_port, flags);
-	}
-
+	/*
+	 * NB:
+	 * MAC must be set before allmulti and promisc below, as
+	 * cvmx_mgmt_port_set_mac will always enable the CAM, and turning on
+	 * promiscuous mode only works with the CAM disabled.
+	 */
 	mac = 0;
 	memcpy((u_int8_t *)&mac + 2, IF_LLADDR(ifp), 6);
 	cvmx_mgmt_port_set_mac(sc->sc_port, mac);
+
+	/*
+	 * This is done unconditionally, rather than only if sc_flags have
+	 * changed because of set_mac's effect on the CAM noted above.
+	 */
+	flags = 0;
+	if ((ifp->if_flags & IFF_ALLMULTI) != 0)
+		flags |= CVMX_IFF_ALLMULTI;
+	if ((ifp->if_flags & IFF_PROMISC) != 0)
+		flags |= CVMX_IFF_PROMISC;
+	cvmx_mgmt_port_set_multicast_list(sc->sc_port, flags);
 
 	/* XXX link state?  */
 
@@ -443,8 +452,7 @@ octm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (ifp->if_flags == sc->sc_flags)
 			return (0);
 		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-				octm_init(sc);
+			octm_init(sc);
 		} else {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 				cvmx_mgmt_port_disable(sc->sc_port);

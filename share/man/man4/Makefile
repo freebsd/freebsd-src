@@ -38,6 +38,7 @@ MAN=	aac.4 \
 	${_amdtemp.4} \
 	amr.4 \
 	an.4 \
+	${_apic.4} \
 	arcmsr.4 \
 	${_asmc.4} \
 	asr.4 \
@@ -149,6 +150,7 @@ MAN=	aac.4 \
 	hifn.4 \
 	hme.4 \
 	hpet.4 \
+	${_hpt27xx.4} \
 	${_hptiop.4} \
 	${_hptmv.4} \
 	${_hptrr.4} \
@@ -180,6 +182,7 @@ MAN=	aac.4 \
 	ipsec.4 \
 	ipw.4 \
 	ipwfw.4 \
+	isci.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
@@ -325,6 +328,7 @@ MAN=	aac.4 \
 	${_nvram.4} \
 	${_nvram2env.4} \
 	${_nxge.4} \
+	oce.4 \
 	ohci.4 \
 	orm.4 \
 	${_padlock.4} \
@@ -410,6 +414,7 @@ MAN=	aac.4 \
 	snd_fm801.4 \
 	snd_gusc.4 \
 	snd_hda.4 \
+	snd_hdspe.4 \
 	snd_ich.4 \
 	snd_maestro3.4 \
 	snd_maestro.4 \
@@ -444,6 +449,7 @@ MAN=	aac.4 \
 	termios.4 \
 	textdump.4 \
 	ti.4 \
+	timecounters.4 \
 	tl.4 \
 	tnt4882.4 \
 	${_tpm.4} \
@@ -502,11 +508,15 @@ MAN=	aac.4 \
 	viapm.4 \
 	${_viawd.4} \
 	vinum.4 \
+	${_virtio.4} \
+	${_virtio_balloon.4} \
+	${_virtio_blk.4} \
 	vkbd.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
 	vte.4 \
+	${_vtnet.4} \
 	${_vxge.4} \
 	watchdog.4 \
 	wb.4 \
@@ -524,6 +534,7 @@ MAN=	aac.4 \
 	${_xen.4} \
 	xhci.4 \
 	xl.4 \
+	${_xnb.4} \
 	xpt.4 \
 	zero.4 \
 	zyd.4
@@ -653,6 +664,7 @@ MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
+MLINKS+=${_vtnet.4} ${_if_vtnet.4}
 MLINKS+=${_vxge.4} ${_if_vxge.4}
 MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=wb.4 if_wb.4
@@ -673,6 +685,7 @@ _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
 _aesni.4=	aesni.4
+_apic.4=	apic.4
 _atrtc.4=	atrtc.4
 _attimer.4=	attimer.4
 _aibs.4=	aibs.4
@@ -684,6 +697,7 @@ _atp.4=		atp.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
+_hpt27xx.4=	hpt27xx.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
@@ -694,6 +708,7 @@ _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_urtw.4=	if_urtw.4
+_if_vtnet.4=	if_vtnet.4
 _if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
@@ -706,6 +721,10 @@ _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
 _nvram.4=	nvram.4
 _nxge.4=	nxge.4
+_virtio.4=	virtio.4
+_virtio_balloon.4=virtio_balloon.4
+_virtio_blk.4=	virtio_blk.4
+_vtnet.4=	vtnet.4
 _vxge.4=	vxge.4
 _padlock.4=	padlock.4
 _rr232x.4=	rr232x.4
@@ -716,6 +735,7 @@ _urtw.4=	urtw.4
 _viawd.4=	viawd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
+_xnb.4=		xnb.4
 
 MLINKS+=lindev.4 full.4
 .endif

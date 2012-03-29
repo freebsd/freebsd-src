@@ -2,7 +2,7 @@
  * Copyright 2000 Hans Reiser
  * See README for licensing and copyright details
  * 
- * Ported to FreeBSD by Jean-Sébastien Pédron <dumbbell@FreeBSD.org>
+ * Ported to FreeBSD by Jean-SÃ©bastien PÃ©dron <dumbbell@FreeBSD.org>
  * 
  * $FreeBSD$
  */

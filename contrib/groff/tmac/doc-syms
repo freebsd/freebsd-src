@@ -605,6 +605,8 @@
 .ds doc-str-St--isoC           \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1990
 .as doc-str-St--isoC           " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^90\*[doc-str-St]\*[Rq])
 .als doc-str-St--isoC-90 doc-str-St--isoC
+.ds doc-str-St--isoC-2011      \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:2011
+.as doc-str-St--isoC-2011      " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^11\*[doc-str-St]\*[Rq])
 .ds doc-str-St--isoC-99        \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1999
 .as doc-str-St--isoC-99        " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^99\*[doc-str-St]\*[Rq])
 .ds doc-str-St--isoC-amd1       \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899/AMD1:1995
@@ -812,6 +814,7 @@
 .ds doc-str-Lb-librt       \*[Px] \*[doc-str-Lb]Real-time Library (librt, \-lrt)
 .ds doc-str-Lb-libsdp      Bluetooth Service Discovery Protocol User Library (libsdp, \-lsdp)
 .ds doc-str-Lb-libssp      Buffer Overflow Protection Library (libssp, \-lssp)
+.ds doc-str-Lb-libstdthreads C11 Threads Library (libstdthreads, \-lstdthreads)
 .ds doc-str-Lb-libSystem   System Library (libSystem, \-lSystem)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
 .ds doc-str-Lb-libterminfo Terminal Information Library (libterminfo, \-lterminfo)

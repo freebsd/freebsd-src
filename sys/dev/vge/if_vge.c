@@ -2022,11 +2022,9 @@ static void
 vge_init_locked(struct vge_softc *sc)
 {
 	struct ifnet *ifp = sc->vge_ifp;
-	struct mii_data *mii;
 	int error, i;
 
 	VGE_LOCK_ASSERT(sc);
-	mii = device_get_softc(sc->vge_miibus);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;

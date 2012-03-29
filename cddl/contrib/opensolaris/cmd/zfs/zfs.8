@@ -1,5 +1,5 @@
 '\" te
-.\" Copyright (c) 2011, Martin Matuska <mm@FreeBSD.org>.
+.\" Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>.
 .\" All Rights Reserved.
 .\"
 .\" The contents of this file are subject to the terms of the
@@ -18,13 +18,13 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
 .\" Copyright (c) 2011 by Delphix. All rights reserved.
+.\" Copyright (c) 2012 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2011
+.Dd February 26, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -113,6 +113,7 @@
 .Op Fl r Ns | Ns Fl d Ar depth
 .Op Fl Hp
 .Op Fl o Ar all | field Ns Op , Ns Ar ...
+.Op Fl t Ar type Ns Op , Ns Ar ...
 .Op Fl s Ar source Ns Op , Ns Ar ...
 .Ar all | property Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
@@ -412,9 +413,15 @@ subcommand. You cannot attach a dataset to one jail and the children of the
 same dataset to another jails. To allow management of the dataset from within
 a jail, the
 .Sy jailed
-property has to be set. The
+property has to be set and the jail needs access to the
+.Pa /dev/zfs
+device. The
 .Sy quota
-property cannot be changed from within a jail.
+property cannot be changed from within a jail. See
+.Xr jail 8
+for information on how to allow mounting
+.Tn ZFS
+datasets from within a jail.
 .Pp
 .No A Tn ZFS
 dataset can be detached from a jail using the
@@ -1753,7 +1760,7 @@ A comma-separated list of types to display, where
 is one of
 .Sy filesystem , snapshot , volume , No or Sy all .
 For example, specifying
-.Fl o Cm snapshot
+.Fl t Cm snapshot
 displays only snapshots.
 .It Fl s Ar property
 A property for sorting the output by column in ascending order based on the
@@ -1811,6 +1818,7 @@ section.
 .Op Fl r Ns | Ns Fl d Ar depth
 .Op Fl Hp
 .Op Fl o Ar all | field Ns Op , Ns Ar ...
+.Op Fl t Ar type Ns Op , Ns Ar ...
 .Op Fl s Ar source Ns Op , Ns Ar ...
 .Ar all | property Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
@@ -1871,6 +1879,14 @@ Default values are
 The keyword
 .Cm all
 specifies all columns.
+.It Fl t Ar type Ns Op , Ns Ar ...
+A comma-separated list of types to display, where
+.Ar type
+is one of
+.Sy filesystem , snapshot , volume , No or Sy all .
+For example, specifying
+.Fl t Cm snapshot
+displays only snapshots.
 .It Fl s Ar source Ns Op , Ns Ar ...
 A comma-separated list of sources to display. Those properties coming from a
 source other than those in this list are ignored. Each source must be one of
@@ -2705,13 +2721,12 @@ to the jail identified by JID
 From now on this file system tree can be managed from within a jail if the
 .Sy jailed
 property has been set. To use this functionality, the jail needs the
-.Va enforce_statfs
-parameter set to
-.Sy 0
-and the
 .Va allow.mount
-parameter set to
-.Sy 1 .
+and
+.Va allow.mount.zfs
+parameters set to 1 and the
+.Va enforce_statfs
+parameter set to a value lower than 2.
 .Pp
 See
 .Xr jail 8

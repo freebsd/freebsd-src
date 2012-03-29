@@ -133,28 +133,12 @@ struct carpreq {
 #define	CARP_STATES	"INIT", "BACKUP", "MASTER"
 #define	CARP_MAXSTATE	2
 	int		carpr_advskew;
+#define	CARP_MAXSKEW	240
 	int		carpr_advbase;
 	unsigned char	carpr_key[CARP_KEY_LEN];
 };
 #define	SIOCSVH	_IOWR('i', 245, struct ifreq)
 #define	SIOCGVH	_IOWR('i', 246, struct ifreq)
-
-/*
- * Names for CARP sysctl objects
- */
-#define	CARPCTL_ALLOW		1	/* accept incoming CARP packets */
-#define	CARPCTL_PREEMPT		2	/* high-pri backup preemption mode */
-#define	CARPCTL_LOG		3	/* log bad packets */
-#define	CARPCTL_STATS		4	/* statistics (read-only) */
-#define	CARPCTL_MAXID		5
-
-#define	CARPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "allow", CTLTYPE_INT }, \
-	{ "preempt", CTLTYPE_INT }, \
-	{ "log", CTLTYPE_INT }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-}
 
 #ifdef _KERNEL
 int		carp_ioctl(struct ifreq *, u_long, struct thread *);
@@ -175,6 +159,7 @@ extern int (*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);
 extern int (*carp_attach_p)(struct ifaddr *, int);
 extern void (*carp_detach_p)(struct ifaddr *);
 extern void (*carp_linkstate_p)(struct ifnet *);
+extern void (*carp_demote_adj_p)(int, char *);
 /* net/if_bridge.c net/if_ethersubr.c */
 extern int (*carp_forus_p)(struct ifnet *, u_char *);
 /* net/if_ethersubr.c */

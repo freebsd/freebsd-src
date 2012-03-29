@@ -139,7 +139,7 @@ typedef enum xge_hal_channel_reopen_e {
  * Channel callback gets called by HAL if, and only if, there is at least
  * one new completion on a given ring or fifo channel. Upon processing the
  * first @dtrh ULD is _supposed_ to continue consuming completions
- * usingáone of the following HAL APIs:
+ * using one of the following HAL APIs:
  *    - xge_hal_fifo_dtr_next_completed()
  *      or
  *    - xge_hal_ring_dtr_next_completed().

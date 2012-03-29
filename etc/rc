@@ -38,7 +38,7 @@
 # first before contemplating any changes here.  If you do need to change
 # this file for some reason, we would like to know about it.
 
-stty status '^T'
+stty status '^T' 2> /dev/null
 
 # Set shell to ignore SIGINT (2), but not children;
 # shell catches SIGQUIT (3) and returns to single user.

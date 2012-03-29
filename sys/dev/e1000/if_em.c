@@ -2898,7 +2898,6 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  em_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -3297,17 +3296,14 @@ em_setup_transmit_ring(struct tx_ring *txr)
 		}
 #ifdef DEV_NETMAP
 		if (slot) {
-			int si = i + na->tx_rings[txr->me].nkr_hwofs;
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
+			uint64_t paddr;
 			void *addr;
 
-			if (si >= na->num_tx_desc)
-				si -= na->num_tx_desc;
-			addr = NMB(slot + si);
-			txr->tx_base[i].buffer_addr =
-			    htole64(vtophys(addr));
+			addr = PNMB(slot + si, &paddr);
+			txr->tx_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(txr->txtag,
-			    txbuf->map, addr, na->buff_size);
+			netmap_load_map(txr->txtag, txbuf->map, addr);
 		}
 #endif /* DEV_NETMAP */
 
@@ -3763,7 +3759,7 @@ em_txeof(struct tx_ring *txr)
 		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 		EM_TX_UNLOCK(txr);
 		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->tx_si, PI_NET);
 		EM_CORE_UNLOCK(adapter);
 		EM_TX_LOCK(txr);
 		return (FALSE);
@@ -4021,6 +4017,10 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	struct em_buffer	*rxbuf;
 	bus_dma_segment_t	seg[1];
 	int			rsize, nsegs, error;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot;
+#endif
 
 
 	/* Clear the ring contents */
@@ -4028,6 +4028,9 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_RX, 0, 0);
+#endif
 
 	/*
 	** Free current RX buffer structs and their mbufs
@@ -4039,12 +4042,26 @@ em_setup_receive_ring(struct rx_ring *rxr)
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
 			m_freem(rxbuf->m_head);
+			rxbuf->m_head = NULL; /* mark as freed */
 		}
 	}
 
 	/* Now replenish the mbufs */
         for (int j = 0; j != adapter->num_rx_desc; ++j) {
 		rxbuf = &rxr->rx_buffers[j];
+#ifdef DEV_NETMAP
+		if (slot) {
+			int si = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
+			uint64_t paddr;
+			void *addr;
+
+			addr = PNMB(slot + si, &paddr);
+			netmap_load_map(rxr->rxtag, rxbuf->map, addr);
+			/* Update descriptor */
+			rxr->rx_base[j].buffer_addr = htole64(paddr);
+			continue;
+		}
+#endif /* DEV_NETMAP */
 		rxbuf->m_head = m_getjcl(M_DONTWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_head == NULL) {
@@ -4074,58 +4091,6 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	rxr->next_to_refresh = 0;
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
-#ifdef DEV_NETMAP
-    {
-	/*
-	 * This driver is slightly different from the standard:
-	 * it refills the rings in blocks of 8, so the while()
-	 * above completes any leftover work. Also, after if_init()
-	 * the ring starts at rxr->next_to_check instead of 0.
-	 *
-	 * Currently: we leave the mbufs allocated even in netmap
-	 * mode, and simply make the NIC ring point to the
-	 * correct buffer (netmap_buf or mbuf) depending on
-	 * the mode. To avoid mbuf leaks, when in netmap mode we
-	 * must make sure that next_to_refresh == next_to_check - 1
-	 * so that the above while() loop is never run on init.
-	 *
-	 * A better way would be to free the mbufs when entering
-	 * netmap mode, and set next_to_refresh/check in
-	 * a way that the mbufs are completely reallocated
-	 * when going back to standard mode.
-	 */
-	struct netmap_adapter *na = NA(adapter->ifp);
-	struct netmap_slot *slot = netmap_reset(na,
-		NR_RX, rxr->me, rxr->next_to_check);
-	int sj = slot ? na->rx_rings[rxr->me].nkr_hwofs : 0;
-
-	/* slot sj corresponds to entry j in the NIC ring */
-	if (sj < 0)
-		sj += adapter->num_rx_desc;
-
-	for (int j = 0; j != adapter->num_rx_desc; j++, sj++) {
-		void *addr;
-		int sz;
-
-		rxbuf = &rxr->rx_buffers[j];
-		/* no mbuf and regular mode -> skip this entry */
-		if (rxbuf->m_head == NULL && !slot)
-			continue;
-		/* Handle wrap. Cannot use "na" here, could be NULL */
-		if (sj >= adapter->num_rx_desc)
-			sj -= adapter->num_rx_desc;
-		/* see comment, set slot addr and map */
-		addr = slot ? NMB(slot + sj) : rxbuf->m_head->m_data;
-		sz = slot ? na->buff_size : adapter->rx_mbuf_sz;
-		// XXX load or reload ?
-		netmap_load_map(rxr->rxtag, rxbuf->map, addr, sz);
-		/* Update descriptor */
-		rxr->rx_base[j].buffer_addr = htole64(vtophys(addr));
-		bus_dmamap_sync(rxr->rxtag, rxbuf->map, BUS_DMASYNC_PREREAD);
-	}
-    }
-#endif /* DEV_NETMAP */
 
 fail:
 	EM_RX_UNLOCK(rxr);
@@ -4310,21 +4275,18 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RDBAL(i), (u32)bus_addr);
 		/* Setup the Head and Tail Descriptor Pointers */
 		E1000_WRITE_REG(hw, E1000_RDH(i), 0);
-		E1000_WRITE_REG(hw, E1000_RDT(i), adapter->num_rx_desc - 1);
 #ifdef DEV_NETMAP
 		/*
 		 * an init() while a netmap client is active must
 		 * preserve the rx buffers passed to userspace.
 		 * In this driver it means we adjust RDT to
-		 * something different from next_to_refresh.
+		 * something different from na->num_rx_desc - 1.
 		 */
 		if (ifp->if_capenable & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(adapter->ifp);
 			struct netmap_kring *kring = &na->rx_rings[i];
-			int t = rxr->next_to_refresh - kring->nr_hwavail;
+			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
 
-			if (t < 0)
-				t += na->num_rx_desc;
 			E1000_WRITE_REG(hw, E1000_RDT(i), t);
 		} else
 #endif /* DEV_NETMAP */
@@ -4408,10 +4370,11 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	if (ifp->if_capenable & IFCAP_NETMAP) {
 		struct netmap_adapter *na = NA(ifp);
 
+		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
 		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
 		EM_RX_UNLOCK(rxr);
 		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->rx_si, PI_NET);
 		EM_CORE_UNLOCK(adapter);
 		return (0);
 	}
@@ -4480,8 +4443,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 #endif
 			if (status & E1000_RXD_STAT_VP) {
 				sendmp->m_pkthdr.ether_vtag =
-				    (le16toh(cur->special) &
-				    E1000_RXD_SPC_VLAN_MASK);
+				    le16toh(cur->special);
 				sendmp->m_flags |= M_VLANTAG;
 			}
 #ifndef __NO_STRICT_ALIGNMENT

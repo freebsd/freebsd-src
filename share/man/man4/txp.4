@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2009
+.Dd January 26, 2012
 .Dt TXP 4
 .Os
 .Sh NAME
@@ -76,17 +76,6 @@ checksum offloading,
 segmentation, nor
 .Xr ipsec 4
 acceleration.
-.Pp
-Each of the host's network addresses
-is specified at boot time with an
-.Dv SIOCSIFADDR
-.Xr ioctl 2 .
-The
-.Nm
-interface employs the address resolution protocol described in
-.Xr arp 4
-to dynamically map between Internet and Ethernet addresses on the local
-network.
 .Pp
 When a
 .Nm

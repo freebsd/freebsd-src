@@ -74,7 +74,6 @@ device		md
 device		miibus
 device		pass
 device		pci
-device		pty
 device		quicc
 device		random
 #device		rl

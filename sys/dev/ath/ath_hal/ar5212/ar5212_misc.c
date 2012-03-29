@@ -574,7 +574,7 @@ ar5212SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 	struct ath_hal_5212 *ahp = AH5212(ah);
 
         if (keyidx >= HAL_DECOMP_MASK_SIZE)
-                return HAL_EINVAL; 
+                return AH_FALSE;
         OS_REG_WRITE(ah, AR_DCM_A, keyidx);
         OS_REG_WRITE(ah, AR_DCM_D, en ? AR_DCM_D_EN : 0);
         ahp->ah_decompMask[keyidx] = en;
@@ -1232,4 +1232,14 @@ HAL_BOOL
 ar5212IsFastClockEnabled(struct ath_hal *ah)
 {
 	return AH_FALSE;
+}
+
+/*
+ * Return what percentage of the extension channel is busy.
+ * This is always disabled for AR5212 series NICs.
+ */
+uint32_t
+ar5212Get11nExtBusy(struct ath_hal *ah)
+{
+	return 0;
 }

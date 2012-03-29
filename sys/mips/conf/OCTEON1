@@ -27,6 +27,9 @@ makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 makeoptions	MODULES_OVERRIDE=""
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
+# We don't need to build a trampolined version of the kernel.
+makeoptions	WITHOUT_KERNEL_TRAMPOLINE=1
+
 include		"../cavium/std.octeon1"
 
 hints		"OCTEON1.hints"		#Default places to look for devices.
@@ -36,9 +39,6 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 # Board-specific support that cannot be auto-detected at runtime.
 #options 	OCTEON_VENDOR_LANNER		# Support for Lanner boards.
 #options 	OCTEON_BOARD_CAPK_0100ND	# Support for CAPK-0100nd.
-
-# XXX This option is very nearly irrelevant.
-options 	ISA_MIPS64
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -61,7 +61,7 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-#options 	COMPAT_FREEBSD32	# Compatible with o32 binaries (not yet)
+options 	COMPAT_FREEBSD32	# Compatible with o32 binaries
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -237,6 +237,7 @@ device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
 device		an		# Aironet 4500/4800 802.11 wireless NICs.
 device		ath		# Atheros NIC's
+device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
@@ -249,7 +250,6 @@ device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
-device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)

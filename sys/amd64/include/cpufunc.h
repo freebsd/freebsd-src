@@ -727,7 +727,7 @@ uint64_t rdr5(void);
 uint64_t rdr6(void);
 uint64_t rdr7(void);
 uint64_t rdtsc(void);
-u_int	read_rflags(void);
+u_long	read_rflags(void);
 u_int	rfs(void);
 u_int	rgs(void);
 void	wbinvd(void);

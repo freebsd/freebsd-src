@@ -133,6 +133,7 @@ typedef struct {
 	int	visual_host_key;
 
 	int	use_roaming;
+
 	int	request_tty;
 
 	int	hpn_disabled;	/* Switch to disable HPN buffer management. */

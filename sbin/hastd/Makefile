@@ -20,6 +20,7 @@ SRCS+=	y.tab.h
 MAN=	hastd.8 hast.conf.5
 
 NO_WFORMAT=
+NO_WCAST_ALIGN=
 CFLAGS+=-I${.CURDIR}
 CFLAGS+=-DHAVE_CAPSICUM
 CFLAGS+=-DPROTO_TCP_DEFAULT_PORT=8457
@@ -27,9 +28,6 @@ CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
-# This is needed to have WARNS > 1.
-CFLAGS+=-DYY_NO_UNPUT
-CFLAGS+=-DYY_NO_INPUT
 
 DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} ${LIBL} ${LIBPTHREAD} ${LIBUTIL}
 LDADD=	-lgeom -lbsdxml -lsbuf -ll -lpthread -lutil

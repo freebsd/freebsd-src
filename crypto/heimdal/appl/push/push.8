@@ -1,4 +1,4 @@
-.\" $Id: push.8 11176 2002-08-20 17:07:29Z joda $
+.\" $Id$
 .\"
 .Dd May 31, 1998
 .Dt PUSH 8
@@ -8,16 +8,15 @@
 .Nd fetch mail via POP
 .Sh SYNOPSIS
 .Nm
-.Op Fl 4 | Fl -krb4
-.Op Fl 5 | Fl -krb5
-.Op Fl v | Fl -verbose
-.Op Fl f | Fl -fork
+.Op Fl 5 | Fl Fl krb5
+.Op Fl v | Fl Fl verbose
+.Op Fl f | Fl Fl fork
 .Op Fl l | -leave
-.Op Fl -from
+.Op Fl Fl from
 .Op Fl c | -count
-.Op Fl -headers Ns = Ns Ar headers
+.Op Fl Fl headers Ns = Ns Ar headers
 .Oo Fl p Ar port-spec  \*(Ba Xo
-.Fl -port Ns = Ns Ar port-spec
+.Fl Fl port Ns = Ns Ar port-spec
 .Xc
 .Oc
 .Ar po-box
@@ -51,41 +50,36 @@ environment variable.
 Supported options:
 .Bl -tag -width Ds
 .It Xo
-.Fl 4 ,
-.Fl -krb4
-.Xc
-use Kerberos 4 (if compiled with support for Kerberos 4)
-.It Xo
 .Fl 5 ,
-.Fl -krb5
+.Fl Fl krb5
 .Xc
 use Kerberos 5 (if compiled with support for Kerberos 5)
 .It Xo
 .Fl f ,
-.Fl -fork
+.Fl Fl fork
 .Xc
 fork before starting to delete messages
 .It Xo
 .Fl l ,
-.Fl -leave
+.Fl Fl leave
 .Xc
 don't delete fetched mail
 .It Xo
-.Fl -from
+.Fl Fl from
 .Xc
 behave like from.
 .It Xo
 .Fl c ,
-.Fl -count
+.Fl Fl count
 .Xc
 first print how many messages and bytes there are.
 .It Xo
-.Fl -headers Ns = Ns Ar headers
+.Fl Fl headers Ns = Ns Ar headers
 .Xc
 a list of comma-separated headers that should get printed.
 .It Xo
 .Fl p Ar port-spec ,
-.Fl -port Ns = Ns Ar port-spec
+.Fl Fl port Ns = Ns Ar port-spec
 .Xc
 use this port instead of the default
 .Ql kpop

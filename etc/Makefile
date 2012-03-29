@@ -8,17 +8,46 @@ SUBDIR=	sendmail
 .endif
 
 BIN1=	auth.conf \
-	crontab devd.conf devfs.conf \
-	ddb.conf dhclient.conf disktab fbtab \
-	ftpusers geom-events.conf gettytab group \
-	hosts hosts.allow hosts.equiv \
-	inetd.conf libalias.conf login.access login.conf mac.conf motd \
-	netconfig network.subr networks newsyslog.conf nsswitch.conf \
-	phones profile protocols \
-	rc rc.bsdextended rc.firewall rc.initdiskless \
-	rc.sendmail rc.shutdown \
-	rc.subr remote rpc services shells \
-	sysctl.conf syslog.conf termcap.small
+	devfs.conf \
+	ddb.conf \
+	dhclient.conf \
+	disktab \
+	fbtab \
+	ftpusers \
+	geom-events.conf \
+	gettytab \
+	group \
+	hosts \
+	hosts.allow \
+	hosts.equiv \
+	inetd.conf \
+	libalias.conf \
+	login.access \
+	login.conf \
+	mac.conf \
+	motd \
+	netconfig \
+	network.subr \
+	networks \
+	newsyslog.conf \
+	nsswitch.conf \
+	phones \
+	profile \
+	protocols \
+	rc \
+	rc.bsdextended \
+	rc.firewall \
+	rc.initdiskless \
+	rc.sendmail \
+	rc.shutdown \
+	rc.subr \
+	remote \
+	rpc \
+	services \
+	shells \
+	sysctl.conf \
+	syslog.conf \
+	termcap.small
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys

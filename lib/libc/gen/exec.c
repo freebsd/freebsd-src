@@ -159,7 +159,7 @@ execvPe(const char *name, const char *path, char * const *argv,
 	eacces = 0;
 
 	/* If it's an absolute or relative path name, it's easy. */
-	if (index(name, '/')) {
+	if (strchr(name, '/')) {
 		bp = name;
 		cur = NULL;
 		goto retry;

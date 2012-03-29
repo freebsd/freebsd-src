@@ -8,7 +8,7 @@
 #
 # csu must be built before all shared libaries for ELF.
 # libc must be built before all other shared libraries.
-# libbsm must be built before ibauditd.
+# libbsm must be built before libauditd.
 # libcom_err must be built before libpam.
 # libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
@@ -33,7 +33,6 @@ SUBDIR_ORDERED=	${_csu} \
 	libc \
 	libbsm \
 	libauditd \
-	libcom_err \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
@@ -51,6 +50,10 @@ SUBDIR_ORDERED=	${_csu} \
 	${_libypclnt} \
 	${_libcxxrt} \
 	${_libcplusplus}
+
+.if ${MK_KERBEROS_SUPPORT} != "no"
+SUBDIR_ORDERED+=	libcom_err
+.endif
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
@@ -101,6 +104,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
+	libstdthreads \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
@@ -191,6 +195,11 @@ _librtld_db=	librtld_db
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 _libsmb=	libsmb
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"

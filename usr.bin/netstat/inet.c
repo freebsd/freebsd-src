@@ -1247,7 +1247,7 @@ inetprint(struct in_addr *in, int port, const char *proto, int num_port)
 	    sprintf(line, "%s.", inetname(in));
 	else
 	    sprintf(line, "%.*s.", (Aflag && !num_port) ? 12 : 16, inetname(in));
-	cp = index(line, '\0');
+	cp = strchr(line, '\0');
 	if (!num_port && port)
 		sp = getservbyport((int)port, proto);
 	if (sp || port == 0)

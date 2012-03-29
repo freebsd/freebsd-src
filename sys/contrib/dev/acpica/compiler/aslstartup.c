@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,6 +95,8 @@ AslInitializeGlobals (
     Gbl_LogicalLineNumber = 1;
     Gbl_CurrentLineOffset = 0;
     Gbl_InputFieldCount = 0;
+    Gbl_InputByteCount = 0;
+    Gbl_NsLookupCount = 0;
     Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
 
     Gbl_ErrorLog = NULL;
@@ -102,17 +104,26 @@ AslInitializeGlobals (
     Gbl_Signature = NULL;
     Gbl_FileType = 0;
 
+    TotalExecutableOpcodes = 0;
+    TotalNamedObjects = 0;
+    TotalKeywords = 0;
+    TotalParseNodes = 0;
+    TotalMethods = 0;
+    TotalAllocations = 0;
+    TotalAllocated = 0;
+    TotalFolds = 0;
+
     AslGbl_NextEvent = 0;
     for (i = 0; i < ASL_NUM_REPORT_LEVELS; i++)
     {
         Gbl_ExceptionCount[i] = 0;
     }
 
-    Gbl_Files[ASL_FILE_AML_OUTPUT].Filename = NULL;
-    Gbl_Files[ASL_FILE_AML_OUTPUT].Handle = NULL;
-
-    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename = NULL;
-    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle = NULL;
+    for (i = ASL_FILE_INPUT; i <= ASL_MAX_FILE_TYPE; i++)
+    {
+        Gbl_Files[i].Handle = NULL;
+        Gbl_Files[i].Filename = NULL;
+    }
 }
 
 
@@ -282,11 +293,12 @@ AslDoOneFile (
     ACPI_STATUS             Status;
 
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
-
-    /* Re-initialize "some" compiler globals */
+    /* Re-initialize "some" compiler/preprocessor globals */
 
     AslInitializeGlobals ();
+    PrInitializeGlobals ();
+
+    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
 
     /*
      * AML Disassembly (Optional)
@@ -399,6 +411,7 @@ AslDoOneFile (
             Gbl_Signature = NULL;
         }
         AeClearErrorLog ();
+        PrTerminatePreprocessor ();
         return (Status);
 
     /*
@@ -427,6 +440,7 @@ AslDoOneFile (
         }
 
         AeClearErrorLog ();
+        PrTerminatePreprocessor ();
         return (AE_OK);
 
     case ASL_INPUT_TYPE_BINARY:

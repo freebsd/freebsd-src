@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -103,11 +103,13 @@ ata_national_setmode(device_t dev, int target, int mode)
 	struct ata_channel *ch = device_get_softc(dev);
 	int devno = (ch->unit << 1) + target;
 	int piomode;
-	u_int32_t piotiming[] =
+	static const uint32_t piotiming[] =
 	    { 0x9172d132, 0x21717121, 0x00803020, 0x20102010, 0x00100010,
 	      0x9172d132, 0x20102010, 0x00100010 };
-	u_int32_t dmatiming[] = { 0x80077771, 0x80012121, 0x80002020 };
-	u_int32_t udmatiming[] = { 0x80921250, 0x80911140, 0x80911030 };
+	static const uint32_t dmatiming[] =
+	    { 0x80077771, 0x80012121, 0x80002020 };
+	static const uint32_t udmatiming[] =
+	    { 0x80921250, 0x80911140, 0x80911030 };
 
 	mode = min(mode, ATA_UDMA2);
 

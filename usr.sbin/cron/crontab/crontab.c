@@ -194,6 +194,17 @@ parse_args(argc, argv)
 	}
 
 	if (Option == opt_replace) {
+		/* relinquish the setuid status of the binary during
+		 * the open, lest nonroot users read files they should
+		 * not be able to read.  we can't use access() here
+		 * since there's a race condition.  thanks go out to
+		 * Arnt Gulbrandsen <agulbra@pvv.unit.no> for spotting
+		 * the race.
+		 */
+
+		if (swap_uids() < OK)
+			err(ERROR_EXIT, "swapping uids");
+
 		/* we have to open the file here because we're going to
 		 * chdir(2) into /var/cron before we get around to
 		 * reading the file.
@@ -204,21 +215,11 @@ parse_args(argc, argv)
 		    !strcmp(resolved_path, SYSCRONTAB)) {
 			err(ERROR_EXIT, SYSCRONTAB " must be edited manually");
 		} else {
-			/* relinquish the setuid status of the binary during
-			 * the open, lest nonroot users read files they should
-			 * not be able to read.  we can't use access() here
-			 * since there's a race condition.  thanks go out to
-			 * Arnt Gulbrandsen <agulbra@pvv.unit.no> for spotting
-			 * the race.
-			 */
-
-			if (swap_uids() < OK)
-				err(ERROR_EXIT, "swapping uids");
 			if (!(NewCrontab = fopen(Filename, "r")))
 				err(ERROR_EXIT, "%s", Filename);
-			if (swap_uids_back() < OK)
-				err(ERROR_EXIT, "swapping uids back");
 		}
+		if (swap_uids_back() < OK)
+			err(ERROR_EXIT, "swapping uids back");
 	}
 
 	Debug(DMISC, ("user=%s, file=%s, option=%s\n",
@@ -363,11 +364,15 @@ edit_cmd() {
 		goto fatal;
 	}
  again:
+	if (swap_uids() < OK)
+		err(ERROR_EXIT, "swapping uids");
 	if (stat(Filename, &statbuf) < 0) {
 		warn("stat");
  fatal:		unlink(Filename);
 		exit(ERROR_EXIT);
 	}
+	if (swap_uids_back() < OK)
+		err(ERROR_EXIT, "swapping uids back");
 	if (statbuf.st_dev != fsbuf.st_dev || statbuf.st_ino != fsbuf.st_ino)
 		errx(ERROR_EXIT, "temp file must be edited in place");
 	if (MD5File(Filename, orig_md5) == NULL) {
@@ -433,6 +438,8 @@ edit_cmd() {
 			editor, WTERMSIG(waiter), WCOREDUMP(waiter) ?"" :"no ");
 		goto fatal;
 	}
+	if (swap_uids() < OK)
+		err(ERROR_EXIT, "swapping uids");
 	if (stat(Filename, &statbuf) < 0) {
 		warn("stat");
 		goto fatal;
@@ -443,6 +450,8 @@ edit_cmd() {
 		warn("MD5");
 		goto fatal;
 	}
+	if (swap_uids_back() < OK)
+		err(ERROR_EXIT, "swapping uids back");
 	if (strcmp(orig_md5, new_md5) == 0 && !syntax_error) {
 		warnx("no changes made to crontab");
 		goto remove;

@@ -30,6 +30,10 @@
 #include <net80211/_ieee80211.h>
 #include "opt_ah.h"			/* needed for AH_SUPPORT_AR5416 */
 
+#ifndef	AH_SUPPORT_AR5416
+#define	AH_SUPPORT_AR5416	1
+#endif
+
 #ifndef NBBY
 #define	NBBY	8			/* number of bits/byte */
 #endif

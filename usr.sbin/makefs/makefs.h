@@ -94,6 +94,8 @@ typedef struct _fsnode {
 	fsinode		*inode;		/* actual inode data */
 	char		*symlink;	/* symlink target */
 	char		*contents;	/* file to provide contents */
+	const char	*root;		/* root path */
+	char		*path;		/* directory name */
 	char		*name;		/* file name */
 	int		flags;		/* misc flags */
 } fsnode;
@@ -147,11 +149,11 @@ typedef struct {
 
 
 void		apply_specfile(const char *, const char *, fsnode *, int);
-void		dump_fsnodes(const char *, fsnode *);
+void		dump_fsnodes(fsnode *);
 const char *	inode_type(mode_t);
 fsnode *	read_mtree(const char *, fsnode *);
 int		set_option(option_t *, const char *, const char *);
-fsnode *	walk_dir(const char *, fsnode *);
+fsnode *	walk_dir(const char *, const char *, fsnode *, fsnode *);
 void		free_fsnodes(fsnode *);
 
 void		ffs_prep_opts(fsinfo_t *);

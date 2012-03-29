@@ -253,7 +253,7 @@ mlx_scsi_inquiry(int unit, int channel, int target, char **vendor, char **device
 
     /* build the cdb */
     inq_cmd->opcode = INQUIRY;
-    inq_cmd->length = SHORT_INQUIRY_LENGTH;
+    scsi_ulto2b(SHORT_INQUIRY_LENGTH, inq_cmd->length);
     
     /* hand it off for processing */
     mlx_perform(unit, mlx_command, &cmd);

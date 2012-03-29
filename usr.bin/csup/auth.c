@@ -35,7 +35,6 @@
 #include <netinet/in.h>
 
 #include <ctype.h>
-#include <openssl/md5.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -294,7 +293,7 @@ auth_makechallenge(struct config *config, char *challenge)
 	gettimeofday(&tv, NULL);
 	pid = getpid();
 	ppid = getppid();
-	srand(tv.tv_usec ^ tv.tv_sec ^ pid);
+	srandom(tv.tv_usec ^ tv.tv_sec ^ pid);
 	addrlen = sizeof(laddr);
 	error = getsockname(config->socket, (struct sockaddr *)&laddr, &addrlen);
 	if (error < 0) {

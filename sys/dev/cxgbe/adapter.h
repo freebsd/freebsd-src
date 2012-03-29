@@ -66,6 +66,17 @@ prefetch(void *x)
 #define prefetch(x)
 #endif
 
+#ifndef SYSCTL_ADD_UQUAD
+#define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
+#define sysctl_handle_64 sysctl_handle_quad
+#define CTLTYPE_U64 CTLTYPE_QUAD
+#endif
+
+#if (__FreeBSD_version >= 900030) || \
+    ((__FreeBSD_version >= 802507) && (__FreeBSD_version < 900000))
+#define SBUF_DRAIN 1
+#endif
+
 #ifdef __amd64__
 /* XXX: need systemwide bus_space_read_8/bus_space_write_8 */
 static __inline uint64_t

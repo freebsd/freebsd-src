@@ -232,15 +232,6 @@ phys_to_machine_mapping_valid(unsigned long pfn)
 	return xen_phys_machine[pfn] != INVALID_P2M_ENTRY;
 }
 
-#elif defined(XENHVM)
-
-#define	set_phys_to_machine(pfn, mfn)		((void)0)
-#define	phys_to_machine_mapping_valid(pfn)	(TRUE)
-
-#if !defined(PAE)
-#define	vtomach(va)	pmap_kextract((vm_offset_t) (va))
-#endif
-
-#endif /* !XEN && !XENHVM */
+#endif /* !XEN */
 
 #endif /* _XEN_XENPMAP_H_ */

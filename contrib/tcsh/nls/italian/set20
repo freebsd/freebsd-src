@@ -1,4 +1,4 @@
-$ $tcsh: set20,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set20,v 1.3 2011/02/04 18:19:39 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Nome di tasto non corretto `%S'\n
@@ -8,10 +8,10 @@ $set 20
 5 Stringa di specificazione sbagliata\n
 6 Definizione dei tasti standard\n
 7 Definizione dei tasti alternativi\n
-8 Definizione delle combinazioni di più tasti\n
+8 Definizione delle combinazioni di piÃ¹ tasti\n
 9 Definizione dei tasti freccia\n
-10 %-15s->  non è definita\n
-11 BACO!!! %s non è definita da nessuna parte.\n
+10 %-15s->  non Ã¨ definita\n
+11 BACO!!! %s non Ã¨ definita da nessuna parte.\n
 12 Utilizzo: bindkey [opzioni] [--] [TASTO [COMANDO]]\n
 13     -a   elenca o definisce un tasto nella tabella dei tasti alternativi\n
 14     -b   interpreta TASTO come C-, M-, F- o X- tasto\n
@@ -29,13 +29,13 @@ $set 20
 26 Senza COMANDO, stampa la definizione di TASTO.\n
 27 specificazione di tasto sbagliata -- stringa nulla\n
 28 specificazione di tasto sbagliata -- stringa vuota\n
-29 Specificazione di tasto funzione sbagliata.  Il tasto nullo non si può usare\n
+29 Specificazione di tasto funzione sbagliata.  Il tasto nullo non si puÃ² usare\n
 30 specificazione di tasto sbagliata -- numero esadecimale non corretto\n
 31 specificazione di tasto sbagliata -- numero ottale non corretto\n
 32 specificazione di tasto sbagliata -- numero decimale non corretto\n
 33 Specificazione di tasto funzione sbagliata.\n
-34 Il tasto nullo non si può usare\n
+34 Il tasto nullo non si puÃ² usare\n
 35 specificazione di tasto sbagliata -- nome "%S" sconosciuto\n
 36 utilizzo: bind [TASTO | COMANDO TASTO | "emacs" | "vi" | "-a"]\n
 37 Funzione non corretta
-38  %s\t\tnon è definita\n
+38  %s\t\tnon Ã¨ definita\n

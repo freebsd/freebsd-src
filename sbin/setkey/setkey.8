@@ -567,7 +567,6 @@ See
 .Xr ipsec_set_policy 3
 for details.
 .El
-.Pp
 .\"
 .Sh ALGORITHMS
 The following list shows the supported algorithms.
@@ -652,48 +651,48 @@ deflate		rfc2394
 .Sh EXAMPLES
 Add an ESP SA between two IPv6 addresses using the
 des-cbc encryption algorithm.
-.Bd -literal -offset
+.Bd -literal -offset indent
 add 3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
 	-E des-cbc 0x3ffe05014819ffff ;
 
 .Ed
 .\"
 Add an authentication SA between two FQDN specified hosts:
-.Bd -literal -offset
+.Bd -literal -offset indent
 add -6 myhost.example.com yourhost.example.com ah 123456
 	-A hmac-sha1 "AH SA configuration!" ;
 
 .Ed
 Use both ESP and AH between two numerically specified hosts:
-.Bd -literal -offset
+.Bd -literal -offset indent
 add 10.0.11.41 10.0.11.33 esp 0x10001
 	-E des-cbc 0x3ffe05014819ffff
 	-A hmac-md5 "authentication!!" ;
 
 .Ed
 Get the SA information associated with first example above:
-.Bd -literal -offset
+.Bd -literal -offset indent
 get 3ffe:501:4819::1 3ffe:501:481d::1 ah 123456 ;
 
 .Ed
 Flush all entries from the database:
-.Bd -literal -offset
+.Bd -literal -offset indent
 flush ;
 
 .Ed
 Dump the ESP entries from the database:
-.Bd -literal -offset
+.Bd -literal -offset indent
 dump esp ;
 
 .Ed
 Add a security policy between two networks that uses ESP in tunnel mode:
-.Bd -literal -offset
+.Bd -literal -offset indent
 spdadd 10.0.11.41/32[21] 10.0.11.33/32[any] any
 	-P out ipsec esp/tunnel/192.168.0.1-192.168.1.2/require ;
 
 .Ed
 Use TCP MD5 between two numerically specified hosts:
-.Bd -literal -offset
+.Bd -literal -offset indent
 add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
 
 .Ed

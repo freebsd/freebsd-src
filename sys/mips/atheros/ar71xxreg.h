@@ -268,6 +268,17 @@
 #define		AR91XX_REV_ID_REVISION_SHIFT	2
 
 /*
+ * AR71xx MII control region
+ */
+#define	AR71XX_MII0_CTRL	0x18070000
+#define	AR71XX_MII1_CTRL	0x18070004
+#define			MII_CTRL_SPEED_SHIFT	4
+#define			MII_CTRL_SPEED_MASK	3
+#define			MII_CTRL_SPEED_10	0
+#define			MII_CTRL_SPEED_100	1
+#define			MII_CTRL_SPEED_1000	2
+
+/*
  * GigE adapters region
  */
 #define AR71XX_MAC0_BASE	0x19000000

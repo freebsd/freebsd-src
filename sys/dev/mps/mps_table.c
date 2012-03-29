@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 /* Debugging tables for MPT2 */
 
+/* TODO Move headers to mpsvar */
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/queue.h>
+#include <sys/kthread.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -53,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/mps/mpi/mpi2_ioc.h>
 #include <dev/mps/mpi/mpi2_cnfg.h>
 #include <dev/mps/mpi/mpi2_init.h>
+#include <dev/mps/mpi/mpi2_tool.h>
+#include <dev/mps/mps_ioctl.h>
 #include <dev/mps/mpsvar.h>
 #include <dev/mps/mps_table.h>
 

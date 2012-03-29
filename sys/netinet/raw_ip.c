@@ -544,6 +544,8 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
  *
  * When adding new socket options here, make sure to add access control
  * checks here as necessary.
+ *
+ * XXX-BZ inp locking?
  */
 int
 rip_ctloutput(struct socket *so, struct sockopt *sopt)

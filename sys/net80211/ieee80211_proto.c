@@ -105,6 +105,7 @@ static void parent_updown(void *, int);
 static void update_mcast(void *, int);
 static void update_promisc(void *, int);
 static void update_channel(void *, int);
+static void update_chw(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 static int ieee80211_new_state_locked(struct ieee80211vap *,
 	enum ieee80211_state, int);
@@ -144,6 +145,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	TASK_INIT(&ic->ic_promisc_task, 0, update_promisc, ic);
 	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
 	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
+	TASK_INIT(&ic->ic_chw_task, 0, update_chw, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
 		AGGRESSIVE_MODE_SWITCH_HYSTERESIS;
@@ -1147,6 +1149,17 @@ update_channel(void *arg, int npending)
 	ieee80211_radiotap_chan_change(ic);
 }
 
+static void
+update_chw(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	/*
+	 * XXX should we defer the channel width _config_ update until now?
+	 */
+	ic->ic_update_chw(ic);
+}
+
 /*
  * Block until the parent is in a known state.  This is
  * used after any operations that dispatch a task (e.g.
@@ -1161,6 +1174,7 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 	ieee80211_draintask(ic, &ic->ic_promisc_task);
 	ieee80211_draintask(ic, &ic->ic_chan_task);
 	ieee80211_draintask(ic, &ic->ic_bmiss_task);
+	ieee80211_draintask(ic, &ic->ic_chw_task);
 	taskqueue_unblock(ic->ic_tq);
 }
 
@@ -1615,6 +1629,7 @@ markwaiting(struct ieee80211vap *vap0)
 		if (vap->iv_state != IEEE80211_S_INIT) {
 			/* NB: iv_newstate may drop the lock */
 			vap->iv_newstate(vap, IEEE80211_S_INIT, 0);
+			IEEE80211_LOCK_ASSERT(ic);
 			vap->iv_flags_ext |= IEEE80211_FEXT_SCANWAIT;
 		}
 	}
@@ -1649,6 +1664,7 @@ wakeupwaiting(struct ieee80211vap *vap0)
 			vap->iv_newstate(vap,
 			    vap->iv_opmode == IEEE80211_M_STA ?
 			        IEEE80211_S_SCAN : IEEE80211_S_RUN, 0);
+			IEEE80211_LOCK_ASSERT(ic);
 		}
 	}
 }
@@ -1678,6 +1694,7 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		    ieee80211_state_name[vap->iv_state],
 		    ieee80211_state_name[IEEE80211_S_INIT], arg);
 		vap->iv_newstate(vap, IEEE80211_S_INIT, arg);
+		IEEE80211_LOCK_ASSERT(ic);
 		vap->iv_flags_ext &= ~IEEE80211_FEXT_REINIT;
 	}
 
@@ -1699,6 +1716,7 @@ ieee80211_newstate_cb(void *xvap, int npending)
 	    ieee80211_state_name[ostate], ieee80211_state_name[nstate], arg);
 
 	rc = vap->iv_newstate(vap, nstate, arg);
+	IEEE80211_LOCK_ASSERT(ic);
 	vap->iv_flags_ext &= ~IEEE80211_FEXT_STATEWAIT;
 	if (rc != 0) {
 		/* State transition failed */
@@ -1724,7 +1742,9 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 * Note this can also happen as a result of SLEEP->RUN
 		 * (i.e. coming out of power save mode).
 		 */
+		IF_LOCK(&vap->iv_ifp->if_snd);
 		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		IF_UNLOCK(&vap->iv_ifp->if_snd);
 		if_start(vap->iv_ifp);
 
 		/* bring up any vaps waiting on us */

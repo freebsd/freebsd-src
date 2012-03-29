@@ -362,6 +362,7 @@ create_service(const int sock, const struct netconfig *nconf,
 						    strerror(errno));
 						freeaddrinfo(res0);
 						close(s);
+						free(sname);
 						return -1;
 					}
 					error = getnameinfo(sap, slen,
@@ -373,6 +374,7 @@ create_service(const int sock, const struct netconfig *nconf,
 						    strerror(errno));
 						freeaddrinfo(res0);
 						close(s);
+						free(sname);
 						return -1;
 					}
 					servname = sname;
@@ -441,7 +443,6 @@ create_service(const int sock, const struct netconfig *nconf,
 	}
 	/* XXX: ignore error intentionally */
 	rpcb_set(YPPROG, YPVERS, nconf, &svcaddr);
-
 	freeaddrinfo(res0);
 	return 0;
 }

@@ -648,8 +648,8 @@ msk_rx_fill(struct msk_if_softc *sc_if, int jumbo)
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
 	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 		/* Wait until controller executes OP_TCPSTART command. */
-		for (i = 10; i > 0; i--) {
-			DELAY(10);
+		for (i = 100; i > 0; i--) {
+			DELAY(100);
 			idx = CSR_READ_2(sc_if->msk_softc,
 			    Y2_PREF_Q_ADDR(sc_if->msk_rxq,
 			    PREF_UNIT_GET_IDX_REG));
@@ -1636,7 +1636,6 @@ msk_attach(device_t dev)
 	}
 	ifp->if_softc = sc_if;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
 	/*

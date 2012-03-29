@@ -104,6 +104,20 @@ XENBUS_ACCESSOR(otherend_path,	OTHEREND_PATH,		const char *)
 XenbusState xenbus_read_driver_state(const char *path);
 
 /**
+ * Return the state of the "other end" (peer) of a XenBus device.
+ *
+ * \param dev   The XenBus device whose peer to query.
+ *
+ * \return  The current state of the peer device or XenbusStateClosed if no
+ *          state can be read.
+ */
+static inline XenbusState
+xenbus_get_otherend_state(device_t dev)
+{
+	return (xenbus_read_driver_state(xenbus_get_otherend_path(dev)));
+}
+
+/**
  * Initialize and register a watch on the given path (client suplied storage).
  *
  * \param dev       The XenBus device requesting the watch service.

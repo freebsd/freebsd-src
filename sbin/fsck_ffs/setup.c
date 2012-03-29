@@ -194,7 +194,7 @@ setup(char *dev)
 				"-b OPTION TO FSCK TO SPECIFY THE",
 				"LOCATION OF AN ALTERNATE",
 				"SUPER-BLOCK TO SUPPLY NEEDED",
-				"INFORMATION; SEE fsck(8).");
+				"INFORMATION; SEE fsck_ffs(8).");
 			bflag = 0;
 			return(0);
 		}

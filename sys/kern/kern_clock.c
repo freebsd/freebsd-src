@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+PMC_SOFT_DEFINE( , , clock, hard);
+PMC_SOFT_DEFINE( , , clock, stat);
 #endif
 
 #ifdef DEVICE_POLLING
@@ -446,9 +448,11 @@ hardclock_cpu(int usermode)
 	td->td_flags |= flags;
 	thread_unlock(td);
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
+	if (td->td_intr_frame != NULL)
+		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
 	callout_tick();
 }
@@ -483,7 +487,7 @@ hardclock(int usermode, uintfptr_t pc)
 }
 
 void
-hardclock_anycpu(int cnt, int usermode)
+hardclock_cnt(int cnt, int usermode)
 {
 	struct pstats *pstats;
 	struct thread *td = curthread;
@@ -537,6 +541,8 @@ hardclock_anycpu(int cnt, int usermode)
 #ifdef	HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
+	if (td->td_intr_frame != NULL)
+		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
 	callout_tick();
 	/* We are in charge to handle this tick duty. */
@@ -688,6 +694,13 @@ stopprofclock(p)
 void
 statclock(int usermode)
 {
+
+	statclock_cnt(1, usermode);
+}
+
+void
+statclock_cnt(int cnt, int usermode)
+{
 	struct rusage *ru;
 	struct vmspace *vm;
 	struct thread *td;
@@ -703,11 +716,11 @@ statclock(int usermode)
 		/*
 		 * Charge the time as appropriate.
 		 */
-		td->td_uticks++;
+		td->td_uticks += cnt;
 		if (p->p_nice > NZERO)
-			cp_time[CP_NICE]++;
+			cp_time[CP_NICE] += cnt;
 		else
-			cp_time[CP_USER]++;
+			cp_time[CP_USER] += cnt;
 	} else {
 		/*
 		 * Came from kernel mode, so we were:
@@ -723,15 +736,15 @@ statclock(int usermode)
 		 */
 		if ((td->td_pflags & TDP_ITHREAD) ||
 		    td->td_intr_nesting_level >= 2) {
-			td->td_iticks++;
-			cp_time[CP_INTR]++;
+			td->td_iticks += cnt;
+			cp_time[CP_INTR] += cnt;
 		} else {
-			td->td_pticks++;
-			td->td_sticks++;
+			td->td_pticks += cnt;
+			td->td_sticks += cnt;
 			if (!TD_IS_IDLETHREAD(td))
-				cp_time[CP_SYS]++;
+				cp_time[CP_SYS] += cnt;
 			else
-				cp_time[CP_IDLE]++;
+				cp_time[CP_IDLE] += cnt;
 		}
 	}
 
@@ -739,21 +752,33 @@ statclock(int usermode)
 	MPASS(p->p_vmspace != NULL);
 	vm = p->p_vmspace;
 	ru = &td->td_ru;
-	ru->ru_ixrss += pgtok(vm->vm_tsize);
-	ru->ru_idrss += pgtok(vm->vm_dsize);
-	ru->ru_isrss += pgtok(vm->vm_ssize);
+	ru->ru_ixrss += pgtok(vm->vm_tsize) * cnt;
+	ru->ru_idrss += pgtok(vm->vm_dsize) * cnt;
+	ru->ru_isrss += pgtok(vm->vm_ssize) * cnt;
 	rss = pgtok(vmspace_resident_count(vm));
 	if (ru->ru_maxrss < rss)
 		ru->ru_maxrss = rss;
 	KTR_POINT2(KTR_SCHED, "thread", sched_tdname(td), "statclock",
 	    "prio:%d", td->td_priority, "stathz:%d", (stathz)?stathz:hz);
 	thread_lock_flags(td, MTX_QUIET);
-	sched_clock(td);
+	for ( ; cnt > 0; cnt--)
+		sched_clock(td);
 	thread_unlock(td);
+#ifdef HWPMC_HOOKS
+	if (td->td_intr_frame != NULL)
+		PMC_SOFT_CALL_TF( , , clock, stat, td->td_intr_frame);
+#endif
 }
 
 void
 profclock(int usermode, uintfptr_t pc)
+{
+
+	profclock_cnt(1, usermode, pc);
+}
+
+void
+profclock_cnt(int cnt, int usermode, uintfptr_t pc)
 {
 	struct thread *td;
 #ifdef GPROF
@@ -770,7 +795,7 @@ profclock(int usermode, uintfptr_t pc)
 		 * bother trying to count it.
 		 */
 		if (td->td_proc->p_flag & P_PROFIL)
-			addupc_intr(td, pc, 1);
+			addupc_intr(td, pc, cnt);
 	}
 #ifdef GPROF
 	else {
@@ -781,7 +806,7 @@ profclock(int usermode, uintfptr_t pc)
 		if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
 			i = PC_TO_I(g, pc);
 			if (i < g->textsize) {
-				KCOUNT(g, i)++;
+				KCOUNT(g, i) += cnt;
 			}
 		}
 	}

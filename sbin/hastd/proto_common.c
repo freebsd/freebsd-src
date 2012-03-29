@@ -116,7 +116,7 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 		done = send(sock, data, sendsize, MSG_NOSIGNAL);
 		if (done == 0) {
 			return (ENOTCONN);
-		} else if (done < 0) {
+		} else if (done == -1) {
 			if (errno == EINTR)
 				continue;
 			if (errno == ENOBUFS) {
@@ -215,7 +215,7 @@ proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp)
 	} while (done == -1 && errno == EINTR);
 	if (done == 0) {
 		return (ENOTCONN);
-	} else if (done < 0) {
+	} else if (done == -1) {
 		/*
 		 * If this is blocking socket and we got EAGAIN, this
 		 * means the request timed out. Translate errno to

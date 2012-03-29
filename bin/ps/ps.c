@@ -625,7 +625,7 @@ main(int argc, char *argv[])
 
 			ks = STAILQ_FIRST(&kinfo[i].ki_ks);
 			STAILQ_REMOVE_HEAD(&kinfo[i].ki_ks, ks_next);
-			/* Truncate rightmost column if neccessary.  */
+			/* Truncate rightmost column if necessary.  */
 			if (STAILQ_NEXT(vent, next_ve) == NULL &&
 			   termwidth != UNLIMITED && ks->ks_str != NULL) {
 				left = termwidth - linelen;

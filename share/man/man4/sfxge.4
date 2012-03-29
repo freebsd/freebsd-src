@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd February 8, 2012
 .Dt SFXGE 4
 .Os
 .Sh NAME
@@ -52,12 +52,12 @@ Solarflare SFC9000 family controllers.
 The driver supports jumbo
 frames, transmit/receive checksum offload, TCP Segmentation Offload
 (TSO), Large Receive Offload (LRO), VLAN checksum offload, VLAN TSO,
-and Receive Side Scaling (RSS) using MSI-X interrupts.  
+and Receive Side Scaling (RSS) using MSI-X interrupts.
 .Pp
 The driver allocates 1 receive queue, transmit queue, event queue and
 IRQ per CPU up to a maximum of 64.
 IRQ affinities should be spread out using
-.Xr cpuset 8 .
+.Xr cpuset 1 .
 Interrupt moderation may be controlled through the sysctl
 .Va dev.sfxge.%d.int_mod
 (units are microseconds).
@@ -85,7 +85,7 @@ go to the Solarflare support website at:
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
-.Xr cpuset 8 ,
+.Xr cpuset 1 ,
 .Xr ifconfig 8
 .Sh AUTHORS
 The

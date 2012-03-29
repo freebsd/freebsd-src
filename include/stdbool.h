@@ -26,9 +26,6 @@
  * $FreeBSD$
  */
 
-#ifndef _STDBOOL_H_
-#define	_STDBOOL_H_	
-
 #ifndef __bool_true_false_are_defined
 #define	__bool_true_false_are_defined	1
 
@@ -44,5 +41,3 @@ typedef	int	_Bool;
 
 #endif /* !__cplusplus */
 #endif /* __bool_true_false_are_defined */
-
-#endif /* !_STDBOOL_H_ */

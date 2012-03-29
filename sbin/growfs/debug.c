@@ -44,7 +44,6 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-/* ********************************************************** INCLUDES ***** */
 #include <sys/param.h>
 
 #include <limits.h>
@@ -57,15 +56,13 @@ static const char rcsid[] =
 
 #ifdef FS_DEBUG
 
-/* *********************************************************** GLOBALS ***** */
-static FILE	*dbg_log=NULL;
-static unsigned int	indent=0;
+static FILE		*dbg_log = NULL;
+static unsigned int	indent = 0;
 
 /*
  * prototypes not done here, as they come with debug.h
  */
 
-/* ********************************************************** dbg_open ***** */
 /*
  * Open the filehandle where all debug output has to go.
  */
@@ -74,14 +71,13 @@ dbg_open(const char *fn)
 {
 
 	if (strcmp(fn, "-") == 0)
-		dbg_log=fopen("/dev/stdout", "a");
+		dbg_log = fopen("/dev/stdout", "a");
 	else
-		dbg_log=fopen(fn, "a");
+		dbg_log = fopen(fn, "a");
 
 	return;
 }
 
-/* ********************************************************* dbg_close ***** */
 /*
  * Close the filehandle where all debug output went to.
  */
@@ -89,15 +85,14 @@ void
 dbg_close(void)
 {
 
-	if(dbg_log) {
+	if (dbg_log) {
 		fclose(dbg_log);
-		dbg_log=NULL;
+		dbg_log = NULL;
 	}
 
 	return;
 }
 
-/* ****************************************************** dbg_dump_hex ***** */
 /*
  * Dump out a full file system block in hex.
  */
@@ -106,17 +101,16 @@ dbg_dump_hex(struct fs *sb, const char *comment, unsigned char *mem)
 {
 	int i, j, k;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
+
 	fprintf(dbg_log, "===== START HEXDUMP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)mem, comment);
 	indent++;
-	for (i=0; i<sb->fs_bsize; i+=24) {
-		for (j=0; j<3; j++) {
-			for (k=0; k<8; k++) {
+	for (i = 0; i < sb->fs_bsize; i += 24) {
+		for (j = 0; j < 3; j++) {
+			for (k = 0; k < 8; k++)
 				fprintf(dbg_log, "%02x ", *mem++);
-			}
 			fprintf(dbg_log, "  ");
 		}
 		fprintf(dbg_log, "\n");
@@ -127,7 +121,6 @@ dbg_dump_hex(struct fs *sb, const char *comment, unsigned char *mem)
 	return;
 }
 
-/* ******************************************************* dbg_dump_fs ***** */
 /*
  * Dump the superblock.
  */
@@ -135,12 +128,11 @@ void
 dbg_dump_fs(struct fs *sb, const char *comment)
 {
 #ifdef FSMAXSNAP
-	int	j;
+	int j;
 #endif /* FSMAXSNAP */
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START SUPERBLOCK =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)sb, comment);
@@ -308,10 +300,10 @@ dbg_dump_fs(struct fs *sb, const char *comment)
 	    sb->fs_pendinginodes);
 
 #ifdef FSMAXSNAP
-	for(j=0; j<FSMAXSNAP; j++) {
+	for (j = 0; j < FSMAXSNAP; j++) {
 		fprintf(dbg_log, "snapinum          int32_t[%2d]      0x%08x\n",
 		    j, sb->fs_snapinum[j]);
-		if(!sb->fs_snapinum[j]) { /* list is dense */
+		if (!sb->fs_snapinum[j]) { /* list is dense */
 			break;
 		}
 	}
@@ -356,7 +348,6 @@ dbg_dump_fs(struct fs *sb, const char *comment)
 	return;
 }
 
-/* ******************************************************* dbg_dump_cg ***** */
 /*
  * Dump a cylinder group.
  */
@@ -365,9 +356,8 @@ dbg_dump_cg(const char *comment, struct cg *cgr)
 {
 	int j;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START CYLINDER GROUP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
@@ -383,7 +373,7 @@ dbg_dump_cg(const char *comment, struct cg *cgr)
 	fprintf(dbg_log, "rotor         int32_t    0x%08x\n", cgr->cg_rotor);
 	fprintf(dbg_log, "frotor        int32_t    0x%08x\n", cgr->cg_frotor);
 	fprintf(dbg_log, "irotor        int32_t    0x%08x\n", cgr->cg_irotor);
-	for(j=0; j<MAXFRAG; j++) {
+	for (j = 0; j < MAXFRAG; j++) {
 		fprintf(dbg_log, "frsum         int32_t[%d] 0x%08x\n", j,
 		    cgr->cg_frsum[j]);
 	}
@@ -411,7 +401,6 @@ dbg_dump_cg(const char *comment, struct cg *cgr)
 	return;
 }
 
-/* ***************************************************** dbg_dump_csum ***** */
 /*
  * Dump a cylinder summary.
  */
@@ -419,9 +408,8 @@ void
 dbg_dump_csum(const char *comment, struct csum *cs)
 {
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START CYLINDER SUMMARY =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cs, comment);
@@ -438,7 +426,6 @@ dbg_dump_csum(const char *comment, struct csum *cs)
 	return;
 }
 
-/* ************************************************ dbg_dump_csum_total ***** */
 /*
  * Dump a cylinder summary.
  */
@@ -446,9 +433,8 @@ void
 dbg_dump_csum_total(const char *comment, struct csum_total *cs)
 {
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START CYLINDER SUMMARY TOTAL =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cs, comment);
@@ -475,7 +461,6 @@ dbg_dump_csum_total(const char *comment, struct csum_total *cs)
 
 	return;
 }
-/* **************************************************** dbg_dump_inmap ***** */
 /*
  * Dump the inode allocation map in one cylinder group.
  */
@@ -485,30 +470,29 @@ dbg_dump_inmap(struct fs *sb, const char *comment, struct cg *cgr)
 	int j,k,l,e;
 	unsigned char *cp;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START INODE ALLOCATION MAP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
 	indent++;
 
-	cp=(unsigned char *)cg_inosused(cgr);
-	e=sb->fs_ipg/8;
-	for(j=0; j<e; j+=32) {
+	cp = (unsigned char *)cg_inosused(cgr);
+	e = sb->fs_ipg / 8;
+	for (j = 0; j < e; j += 32) {
 		fprintf(dbg_log, "%08x: ", j);
-		for(k=0; k<32; k+=8) {
-			if(j+k+8<e) {
+		for (k = 0; k < 32; k += 8) {
+			if (j + k + 8 < e) {
 				fprintf(dbg_log,
 				    "%02x%02x%02x%02x%02x%02x%02x%02x ", 
 				    cp[0], cp[1], cp[2], cp[3],
 				    cp[4], cp[5], cp[6], cp[7]);
 			} else {
-				for(l=0; (l<8)&&(j+k+l<e); l++) {
+				for (l = 0; (l < 8) && (j + k + l < e); l++) {
 					fprintf(dbg_log, "%02x", cp[l]);
 				}
 			}
-			cp+=8;
+			cp += 8;
 		}
 		fprintf(dbg_log, "\n");
 	}
@@ -520,7 +504,6 @@ dbg_dump_inmap(struct fs *sb, const char *comment, struct cg *cgr)
 }
 
 
-/* **************************************************** dbg_dump_frmap ***** */
 /*
  * Dump the fragment allocation map in one cylinder group.
  */
@@ -530,33 +513,32 @@ dbg_dump_frmap(struct fs *sb, const char *comment, struct cg *cgr)
 	int j,k,l,e;
 	unsigned char *cp;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START FRAGMENT ALLOCATION MAP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
 	indent++;
 
-	cp=(unsigned char *)cg_blksfree(cgr);
+	cp = (unsigned char *)cg_blksfree(cgr);
 	if (sb->fs_old_nspf)
-		e=howmany((sb->fs_old_cpg * sb->fs_old_spc / sb->fs_old_nspf), CHAR_BIT);
+		e = howmany((sb->fs_old_cpg * sb->fs_old_spc / sb->fs_old_nspf), CHAR_BIT);
 	else
 		e = 0;
-	for(j=0; j<e; j+=32) {
+	for (j = 0; j < e; j += 32) {
 		fprintf(dbg_log, "%08x: ", j);
-		for(k=0; k<32; k+=8) {
-			if(j+k+8<e) {
+		for (k = 0; k < 32; k += 8) {
+			if (j + k + 8 <e) {
 				fprintf(dbg_log,
 				    "%02x%02x%02x%02x%02x%02x%02x%02x ", 
 				    cp[0], cp[1], cp[2], cp[3],
 				    cp[4], cp[5], cp[6], cp[7]);
 			} else {
-				for(l=0; (l<8)&&(j+k+l<e); l++) {
+				for (l = 0; (l < 8) && (j + k + l < e); l++) {
 					fprintf(dbg_log, "%02x", cp[l]);
 				}
 			}
-			cp+=8;
+			cp += 8;
 		}
 		fprintf(dbg_log, "\n");
 	}
@@ -567,7 +549,6 @@ dbg_dump_frmap(struct fs *sb, const char *comment, struct cg *cgr)
 	return;
 }
 
-/* **************************************************** dbg_dump_clmap ***** */
 /*
  * Dump the cluster allocation map in one cylinder group.
  */
@@ -577,33 +558,32 @@ dbg_dump_clmap(struct fs *sb, const char *comment, struct cg *cgr)
 	int j,k,l,e;
 	unsigned char *cp;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START CLUSTER ALLOCATION MAP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
 	indent++;
 
-	cp=(unsigned char *)cg_clustersfree(cgr);
+	cp = (unsigned char *)cg_clustersfree(cgr);
 	if (sb->fs_old_nspf)
-		e=howmany(sb->fs_old_cpg * sb->fs_old_spc / (sb->fs_old_nspf << sb->fs_fragshift), CHAR_BIT);
+		e = howmany(sb->fs_old_cpg * sb->fs_old_spc / (sb->fs_old_nspf << sb->fs_fragshift), CHAR_BIT);
 	else
 		e = 0;
-	for(j=0; j<e; j+=32) {
+	for (j = 0; j < e; j += 32) {
 		fprintf(dbg_log, "%08x: ", j);
-		for(k=0; k<32; k+=8) {
-			if(j+k+8<e) {
+		for (k = 0; k < 32; k += 8) {
+			if (j + k + 8 < e) {
 				fprintf(dbg_log,
 				    "%02x%02x%02x%02x%02x%02x%02x%02x ", 
 				    cp[0], cp[1], cp[2], cp[3],
 				    cp[4], cp[5], cp[6], cp[7]);
 			} else {
-				for(l=0; (l<8)&&(j+k+l<e); l++) {
+				for (l = 0; (l < 8) && (j + k + l <e); l++) {
 					fprintf(dbg_log, "%02x", cp[l]);
 				}
 			}
-			cp+=8;
+			cp += 8;
 		}
 		fprintf(dbg_log, "\n");
 	}
@@ -614,7 +594,6 @@ dbg_dump_clmap(struct fs *sb, const char *comment, struct cg *cgr)
 	return;
 }
 
-/* **************************************************** dbg_dump_clsum ***** */
 /*
  * Dump the cluster availability summary of one cylinder group.
  */
@@ -624,16 +603,15 @@ dbg_dump_clsum(struct fs *sb, const char *comment, struct cg *cgr)
 	int j;
 	int *ip;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START CLUSTER SUMMARY =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
 	indent++;
 
-	ip=(int *)cg_clustersum(cgr);
-	for(j=0; j<=sb->fs_contigsumsize; j++) {
+	ip = (int *)cg_clustersum(cgr);
+	for (j = 0; j <= sb->fs_contigsumsize; j++) {
 		fprintf(dbg_log, "%02d: %8d\n", j, *ip++);
 	}
 
@@ -651,7 +629,6 @@ dbg_dump_clsum(struct fs *sb, const char *comment, struct cg *cgr)
  * will leave it disabled for now; it should probably be re-enabled
  * specifically for UFS1.
  */
-/* **************************************************** dbg_dump_sptbl ***** */
 /*
  * Dump the block summary, and the rotational layout table.
  */
@@ -661,23 +638,21 @@ dbg_dump_sptbl(struct fs *sb, const char *comment, struct cg *cgr)
 	int j,k;
 	int *ip;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log,
 	    "===== START BLOCK SUMMARY AND POSITION TABLE =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cgr, comment);
 	indent++;
 
-	ip=(int *)cg_blktot(cgr);
-	for(j=0; j<sb->fs_old_cpg; j++) {
+	ip = (int *)cg_blktot(cgr);
+	for (j = 0; j < sb->fs_old_cpg; j++) {
 		fprintf(dbg_log, "%2d: %5d = ", j, *ip++);
-		for(k=0; k<sb->fs_old_nrpos; k++) {
+		for (k = 0; k < sb->fs_old_nrpos; k++) {
 			fprintf(dbg_log, "%4d", cg_blks(sb, cgr, j)[k]);
-			if(k<sb->fs_old_nrpos-1) {
+			if (k < sb->fs_old_nrpos - 1)
 				fprintf(dbg_log, " + ");
-			}
 		}
 		fprintf(dbg_log, "\n");
 	}
@@ -689,7 +664,6 @@ dbg_dump_sptbl(struct fs *sb, const char *comment, struct cg *cgr)
 }
 #endif
 
-/* ************************************************** dbg_dump_ufs1_ino ***** */
 /*
  * Dump a UFS1 inode structure.
  */
@@ -699,9 +673,8 @@ dbg_dump_ufs1_ino(struct fs *sb, const char *comment, struct ufs1_dinode *ino)
 	int ictr;
 	int remaining_blocks;
 	
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START UFS1 INODE DUMP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)ino, comment);
@@ -723,25 +696,25 @@ dbg_dump_ufs1_ino(struct fs *sb, const char *comment, struct ufs1_dinode *ino)
 	fprintf(dbg_log, "ctimensec  int32_t        0x%08x\n",
 	    ino->di_ctimensec);
 
-	remaining_blocks=howmany(ino->di_size, sb->fs_bsize); /* XXX ts - +1? */
-	for(ictr=0; ictr < MIN(NDADDR, remaining_blocks); ictr++) {
+	remaining_blocks = howmany(ino->di_size, sb->fs_bsize); /* XXX ts - +1? */
+	for (ictr = 0; ictr < MIN(NDADDR, remaining_blocks); ictr++) {
 		fprintf(dbg_log, "db         ufs_daddr_t[%x] 0x%08x\n", ictr,
 		    ino->di_db[ictr]);
 	}
-	remaining_blocks-=NDADDR;
-	if(remaining_blocks>0) {
+	remaining_blocks -= NDADDR;
+	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs_daddr_t[0] 0x%08x\n",
 		    ino->di_ib[0]);
 	}
-	remaining_blocks-=howmany(sb->fs_bsize, sizeof(ufs1_daddr_t));
-	if(remaining_blocks>0) {
+	remaining_blocks -= howmany(sb->fs_bsize, sizeof(ufs1_daddr_t));
+	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs_daddr_t[1] 0x%08x\n",
 		    ino->di_ib[1]);
 	}
-#define SQUARE(a) ((a)*(a))
-	remaining_blocks-=SQUARE(howmany(sb->fs_bsize, sizeof(ufs1_daddr_t)));
+#define SQUARE(a) ((a) * (a))
+	remaining_blocks -= SQUARE(howmany(sb->fs_bsize, sizeof(ufs1_daddr_t)));
 #undef SQUARE
-	if(remaining_blocks>0) {
+	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs_daddr_t[2] 0x%08x\n",
 		    ino->di_ib[2]);
 	}
@@ -758,7 +731,6 @@ dbg_dump_ufs1_ino(struct fs *sb, const char *comment, struct ufs1_dinode *ino)
 	return;
 }
 
-/* ************************************************** dbg_dump_ufs2_ino ***** */
 /*
  * Dump a UFS2 inode structure.
  */
@@ -768,9 +740,8 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 	int ictr;
 	int remaining_blocks;
 	
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START UFS2 INODE DUMP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)ino, comment);
@@ -785,8 +756,8 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 	    ((unsigned int *)&(ino->di_size))[1],
 	    ((unsigned int *)&(ino->di_size))[0]);
 	fprintf(dbg_log, "blocks     u_int64_t      0x%08x%08x\n", 
-		((unsigned int *)&(ino->di_blocks))[1],
-		((unsigned int *)&(ino->di_blocks))[0]);
+	    ((unsigned int *)&(ino->di_blocks))[1],
+	    ((unsigned int *)&(ino->di_blocks))[0]);
 	fprintf(dbg_log, "atime      ufs_time_t     %10jd\n", ino->di_atime);
 	fprintf(dbg_log, "mtime      ufs_time_t     %10jd\n", ino->di_mtime);
 	fprintf(dbg_log, "ctime      ufs_time_t     %10jd\n", ino->di_ctime);
@@ -802,25 +773,25 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 
 	/* XXX: What do we do with di_extb[NXADDR]? */
 
-	remaining_blocks=howmany(ino->di_size, sb->fs_bsize); /* XXX ts - +1? */
-	for(ictr=0; ictr < MIN(NDADDR, remaining_blocks); ictr++) {
+	remaining_blocks = howmany(ino->di_size, sb->fs_bsize); /* XXX ts - +1? */
+	for (ictr = 0; ictr < MIN(NDADDR, remaining_blocks); ictr++) {
 		fprintf(dbg_log, "db         ufs2_daddr_t[%x] 0x%16jx\n", ictr,
 		    ino->di_db[ictr]);
 	}
-	remaining_blocks-=NDADDR;
-	if(remaining_blocks>0) {
+	remaining_blocks -= NDADDR;
+	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs2_daddr_t[0] 0x%16jx\n",
 		    ino->di_ib[0]);
 	}
-	remaining_blocks-=howmany(sb->fs_bsize, sizeof(ufs2_daddr_t));
-	if(remaining_blocks>0) {
+	remaining_blocks -= howmany(sb->fs_bsize, sizeof(ufs2_daddr_t));
+	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs2_daddr_t[1] 0x%16jx\n",
 		    ino->di_ib[1]);
 	}
-#define SQUARE(a) ((a)*(a))
-	remaining_blocks-=SQUARE(howmany(sb->fs_bsize, sizeof(ufs2_daddr_t)));
+#define SQUARE(a) ((a) * (a))
+	remaining_blocks -= SQUARE(howmany(sb->fs_bsize, sizeof(ufs2_daddr_t)));
 #undef SQUARE
-	if(remaining_blocks>0) {
+	if (remaining_blocks > 0) {
 		fprintf(dbg_log, "ib         ufs2_daddr_t[2] 0x%16jx\n",
 		    ino->di_ib[2]);
 	}
@@ -831,7 +802,6 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 	return;
 }
 
-/* ***************************************************** dbg_dump_iblk ***** */
 /*
  * Dump an indirect block. The iteration to dump a full file has to be
  * written around.
@@ -841,9 +811,8 @@ dbg_dump_iblk(struct fs *sb, const char *comment, char *block, size_t length)
 {
 	unsigned int *mem, i, j, size;
 
-	if(!dbg_log) {
+	if (!dbg_log)
 		return;
-	}
 
 	fprintf(dbg_log, "===== START INDIRECT BLOCK DUMP =====\n");
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)block,
@@ -855,14 +824,13 @@ dbg_dump_iblk(struct fs *sb, const char *comment, char *block, size_t length)
 	else
 		size = sizeof(ufs2_daddr_t);
 
-	mem=(unsigned int *)block;
-	for (i=0; (size_t)i<MIN(howmany(sb->fs_bsize, size),
-	    length); i+=8) {
+	mem = (unsigned int *)block;
+	for (i = 0; (size_t)i < MIN(howmany(sb->fs_bsize, size), length);
+	    i += 8) {
 		fprintf(dbg_log, "%04x: ", i);
-		for (j=0; j<8; j++) {
-			if((size_t)(i+j)<length) {
+		for (j = 0; j < 8; j++) {
+			if ((size_t)(i + j) < length)
 				fprintf(dbg_log, "%08X ", *mem++);
-			}
 		}
 		fprintf(dbg_log, "\n");
 	}

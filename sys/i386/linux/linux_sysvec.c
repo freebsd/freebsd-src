@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1996 Søren Schmidt
+ * Copyright (c) 1994-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -227,11 +227,11 @@ linux_fixup(register_t **stack_base, struct image_params *imgp)
 	argv = *stack_base;
 	envp = *stack_base + (imgp->args->argc + 1);
 	(*stack_base)--;
-	**stack_base = (intptr_t)(void *)envp;
+	suword(*stack_base, (intptr_t)(void *)envp);
 	(*stack_base)--;
-	**stack_base = (intptr_t)(void *)argv;
+	suword(*stack_base, (intptr_t)(void *)argv);
 	(*stack_base)--;
-	**stack_base = imgp->args->argc;
+	suword(*stack_base, imgp->args->argc);
 	return (0);
 }
 
@@ -286,7 +286,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	(*stack_base)--;
-	**stack_base = (register_t)imgp->args->argc;
+	suword(*stack_base, (register_t)imgp->args->argc);
 	return (0);
 }
 

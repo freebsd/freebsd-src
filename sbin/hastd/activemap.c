@@ -219,7 +219,7 @@ keepdirty_add(struct activemap *amp, int extent)
 	kd = keepdirty_find(amp, extent);
 	if (kd != NULL) {
 		/*
-		 * Only move element at the begining.
+		 * Only move element at the beginning.
 		 */
 		TAILQ_REMOVE(&amp->am_keepdirty, kd, kd_next);
 		TAILQ_INSERT_HEAD(&amp->am_keepdirty, kd, kd_next);
@@ -573,7 +573,7 @@ activemap_sync_rewind(struct activemap *amp)
 		return;
 	}
 	/*
-	 * Mark that we want to start synchronization from the begining.
+	 * Mark that we want to start synchronization from the beginning.
 	 */
 	amp->am_syncoff = -1;
 }

@@ -36,7 +36,7 @@ LIBAMUDIR=	${.CURDIR}/../libamu
 .endif
 LIBAMU=		${LIBAMUDIR}/libamu.a
 
-RPCCOM=		rpcgen
+RPCCOM=		RPCGEN_CPP=${CPP:Q} rpcgen
 MOUNT_X=	${DESTDIR}/usr/include/rpcsvc/mount.x
 NFS_PROT_X=	${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
 

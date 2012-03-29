@@ -388,6 +388,10 @@ device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
 #
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
 # Highpoint RocketRAID 182x.
 device		hptmv
 
@@ -403,6 +407,11 @@ device		hptiop
 #
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
+
+#
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options		ISCI_LOGGING	# enable debugging in isci HAL
 
 #
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
@@ -455,10 +464,13 @@ device		tpm
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
+# wbwd: Winbond watchdog timer
 #
 device		ichwd
 device		amdsbwd
 device		viawd
+device		wbwd
 
 #
 # Temperature sensors:
@@ -479,19 +491,6 @@ device		cpuctl
 # System Management Bus (SMB)
 #
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
-
-#
-# Set the number of PV entries per process.  Increasing this can
-# stop panics related to heavy use of shared memory.  However, that can
-# (combined with large amounts of physical memory) cause panics at
-# boot time due the kernel running out of VM space.
-#
-# If you're tweaking this, you might also want to increase the sysctls
-# "vm.v_free_min", "vm.v_free_reserved", and "vm.v_free_target".
-#
-# The value below is the one more than the default.
-#
-options 	PMAP_SHPGPERPROC=201
 
 #
 # Number of initial kernel page table pages used for early bootstrap.
@@ -559,6 +558,10 @@ options 	LINSYSFS
 # stack of each thread.
 
 options 	KSTACK_PAGES=5
+
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
 
 #####################################################################
 

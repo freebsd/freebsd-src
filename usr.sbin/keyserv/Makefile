@@ -15,7 +15,7 @@ RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
 CLEANFILES= crypt_svc.c crypt.h
 
-RPCGEN= rpcgen -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 crypt_svc.c: ${RPCDIR}/crypt.x
 	${RPCGEN} -m -o ${.TARGET} ${RPCDIR}/crypt.x

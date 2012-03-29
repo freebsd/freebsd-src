@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2001 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2001 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -32,8 +32,6 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: store-test.c 16344 2005-12-02 15:15:43Z lha $");
-
 static void
 print_data(unsigned char *data, size_t len)
 {
@@ -51,7 +49,8 @@ compare(const char *name, krb5_storage *sp, void *expected, size_t len)
 {
     int ret = 0;
     krb5_data data;
-    krb5_storage_to_data(sp, &data);
+    if (krb5_storage_to_data(sp, &data))
+	errx(1, "krb5_storage_to_data failed");
     krb5_storage_free(sp);
     if(data.length != len || memcmp(data.data, expected, len) != 0) {
 	printf("%s mismatch\n", name);
@@ -72,7 +71,7 @@ main(int argc, char **argv)
     krb5_storage *sp;
     krb5_context context;
     krb5_principal principal;
-	
+
 
     krb5_init_context(&context);
 
@@ -96,9 +95,9 @@ main(int argc, char **argv)
     {
 	int test = 1;
 	void *data;
-	if(*(char*)&test) 
+	if(*(char*)&test)
 	    data = "\x4\x3\x2\x1";
-	else 
+	else
 	    data = "\x1\x2\x3\x4";
 	nerr += compare("Integer (host)", sp, data, 4);
     }
@@ -111,7 +110,7 @@ main(int argc, char **argv)
 		    "\x0\x0\x0\x1"
 		    "\x0\x0\x0\x4TEST"
 		    "\x0\x0\x0\x6""foobar", 26);
-    
+
     krb5_free_context(context);
 
     return nerr ? 1 : 0;

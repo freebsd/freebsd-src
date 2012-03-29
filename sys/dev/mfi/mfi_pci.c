@@ -216,7 +216,7 @@ mfi_pci_attach(device_t dev)
 	error = ENOMEM;
 
 	/* Allocate parent DMA tag */
-	if (bus_dma_tag_create(	NULL,			/* parent */
+	if (bus_dma_tag_create(	bus_get_dma_tag(dev),	/* PCI parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */

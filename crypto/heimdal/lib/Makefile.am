@@ -1,9 +1,9 @@
-# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
-if KRB4
-dir_45 = 45
+if LIBEDIT
+dir_editline = libedit
 endif
 if OTP
 dir_otp = otp
@@ -17,6 +17,29 @@ endif
 if !HAVE_OPENSSL
 dir_hcrypto = hcrypto
 endif
+if !SQLITE3
+dir_sqlite = sqlite
+endif
 
-SUBDIRS = roken vers editline $(dir_com_err) sl asn1 $(dir_hcrypto) hx509 \
-	krb5 ntlm kafs gssapi hdb kadm5 auth $(dir_45) $(dir_otp) $(dir_dce)
+SUBDIRS = \
+	roken \
+	vers \
+	$(dir_editline) \
+	$(dir_com_err) \
+	sl \
+	wind \
+	asn1 \
+	$(dir_sqlite) \
+	$(dir_hcrypto) \
+	ipc \
+	hx509 \
+	krb5 \
+	ntlm \
+	kafs \
+	gssapi \
+	hdb \
+	kadm5 \
+	$(dir_otp) \
+	$(dir_dce)
+
+EXTRA_DIST = NTMakefile heimdal

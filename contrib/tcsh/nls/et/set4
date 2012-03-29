@@ -1,45 +1,45 @@
-$ $tcsh: set4,v 1.2 2006/03/02 18:46:45 christos Exp $
+$ $tcsh: set4,v 1.3 2011/02/04 18:19:33 christos Exp $
 $ Termcap strings
 $set 4
-1 lisa uus tühi rida
+1 lisa uus tÃ¼hi rida
 2 kuuldav kell
-3 puhasta põhjani
-4 puhasta rea lõpuni
+3 puhasta pÃµhjani
+4 puhasta rea lÃµpuni
 5 kursori horisontaal positsioon
 6 ekraani puhastamine
-7 sümboli kustutamine
+7 sÃ¼mboli kustutamine
 8 rea kustutamine
 9 alusta kustutamis mood
-10 lõpeta kustutamis mood
-11 lõpeta vahelekirjutamise mood
+10 lÃµpeta kustutamis mood
+11 lÃµpeta vahelekirjutamise mood
 12 kursor olekurealt
 13 kursor koju
-14 lisa sümbol
+14 lisa sÃ¼mbol
 15 alusta vahelekirjutamise mood
-16 lisa täide
+16 lisa tÃ¤ide
 17 saadab kursori alla
 18 saadab kursori vasakule
 19 saadab kursori paremale
-20 saadab kursori üles
+20 saadab kursori Ã¼les
 21 alusta rasvast
-22 atribuutide lõpp
-23 mitte-purustav tühik
-24 lõpeta rõhutatud
-25 alusta rõhutatud
+22 atribuutide lÃµpp
+23 mitte-purustav tÃ¼hik
+24 lÃµpeta rÃµhutatud
+25 alusta rÃµhutatud
 26 kursor olekureale
-27 kursor ühe võrra üles
+27 kursor Ã¼he vÃµrra Ã¼les
 28 alusta allajoonimist
-29 lõpeta allajoonimine
-30 nähtav kell
-31 kustuta mitu sümbolit
+29 lÃµpeta allajoonimine
+30 nÃ¤htav kell
+31 kustuta mitu sÃ¼mbolit
 32 kursor korduvalt alla
-33 lisa mitu sümbolit
+33 lisa mitu sÃ¼mbolit
 34 kursor korduvalt vasakule
 35 kursor korduvalt paremale
-36 kursor korduvalt üles
-37 Omab automaatseid ääri
-38 Saab kasutada füüsilist tabulaatorit
+36 kursor korduvalt Ã¼les
+37 Omab automaatseid Ã¤Ã¤ri
+38 Saab kasutada fÃ¼Ã¼silist tabulaatorit
 39 Ridade arv
 40 Veergude arv
 41 Omab meta klahvi
-42 Parem äär ignoreerib uut rida
+42 Parem Ã¤Ã¤r ignoreerib uut rida

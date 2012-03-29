@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,6 +99,17 @@ DtDoCompile (
     {
         printf ("Error during compiler initialization, 0x%X\n", Status);
         return (Status);
+    }
+
+    /* Preprocessor */
+
+    Event = UtBeginEvent ("Preprocess input file");
+    PrDoPreprocess ();
+    UtEndEvent (Event);
+
+    if (Gbl_PreprocessOnly)
+    {
+        return AE_OK;
     }
 
     /*

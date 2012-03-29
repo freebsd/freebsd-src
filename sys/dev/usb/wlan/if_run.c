@@ -208,7 +208,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(LOGITEC,		RT2870_1),
     RUN_DEV(LOGITEC,		RT2870_2),
     RUN_DEV(LOGITEC,		RT2870_3),
-    RUN_DEV(LOGITECH,		LANW300NU2),
+    RUN_DEV(LOGITEC,		LANW300NU2),
     RUN_DEV(MELCO,		RT2870_1),
     RUN_DEV(MELCO,		RT2870_2),
     RUN_DEV(MELCO,		WLIUCAG300N),
@@ -599,12 +599,6 @@ run_attach(device_t self)
 	    "MAC/BBP RT%04X (rev 0x%04X), RF %s (MIMO %dT%dR), address %s\n",
 	    sc->mac_ver, sc->mac_rev, run_get_rf(sc->rf_rev),
 	    sc->ntxchains, sc->nrxchains, ether_sprintf(sc->sc_bssid));
-
-	if ((error = run_load_microcode(sc)) != 0) {
-		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
-		RUN_UNLOCK(sc);
-		goto detach;
-	}
 
 	RUN_UNLOCK(sc);
 
@@ -1050,8 +1044,9 @@ run_load_microcode(struct run_softc *sc)
 		error = ETIMEDOUT;
 		goto fail;
 	}
-	device_printf(sc->sc_dev, "firmware %s loaded\n",
-	    (base == fw->data) ? "RT2870" : "RT3071");
+	device_printf(sc->sc_dev, "firmware %s ver. %u.%u loaded\n",
+	    (base == fw->data) ? "RT2870" : "RT3071",
+	    *(base + 4092), *(base + 4093));
 
 fail:
 	firmware_put(fw, FIRMWARE_UNLOAD);
@@ -4676,6 +4671,11 @@ run_init_locked(struct run_softc *sc)
 		return;
 
 	run_stop(sc);
+
+	if (run_load_microcode(sc) != 0) {
+		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
+		goto fail;
+	}
 
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (run_read(sc, RT2860_ASIC_VER_ID, &tmp) != 0)

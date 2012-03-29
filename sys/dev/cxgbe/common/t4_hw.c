@@ -4314,7 +4314,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 				V_FW_VI_MAC_CMD_IDX(idx));
 	memcpy(p->macaddr, addr, sizeof(p->macaddr));
 
-	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	ret = t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0) {
 		ret = G_FW_VI_MAC_CMD_IDX(ntohs(p->valid_to_idx));
 		if (ret >= FW_CLS_TCAM_NUM_ENTRIES)

@@ -215,7 +215,9 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 	int error;
 	int rid;
 
-	cvm_oct_common_init(ifp);
+	if (cvm_oct_common_init(ifp) != 0)
+	    return ENXIO;
+
 	priv->open = cvm_oct_common_open;
 	priv->stop = cvm_oct_common_stop;
 	priv->stop(ifp);
@@ -230,8 +232,8 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 
 		rid = 0;
 		sc->sc_rgmii_irq = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ,
-						      &rid, CVMX_IRQ_RML,
-						      CVMX_IRQ_RML, 1,
+						      &rid, OCTEON_IRQ_RML,
+						      OCTEON_IRQ_RML, 1,
 						      RF_ACTIVE);
 		if (sc->sc_rgmii_irq == NULL) {
 			device_printf(sc->sc_dev, "could not allocate RGMII irq");

@@ -28,13 +28,13 @@
 #
 
 # PROVIDE: watchdogd
-# REQUIRE: DAEMON cleanvar
+# REQUIRE: FILESYSTEMS cleanvar syslogd
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
 name="watchdogd"
-rcvar="`set_rcvar`"
+rcvar="watchdogd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 

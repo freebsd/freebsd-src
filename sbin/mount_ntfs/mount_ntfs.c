@@ -160,10 +160,11 @@ main(int argc, char *argv[])
 	}
 
 	/*
-	 * Resolve the mountpoint with realpath(3) and remove unnecessary 
+	 * Resolve the mountpoint with realpath(3) and remove unnecessary
 	 * slashes from the devicename if there are any.
 	 */
-	(void)checkpath(dir, mntpath);
+	if (checkpath(dir, mntpath) != 0)
+		err(EX_USAGE, "%s", mntpath);
 	(void)rmslashes(dev, dev);
 
 	args.fspec = dev;

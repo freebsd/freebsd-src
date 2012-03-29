@@ -67,7 +67,9 @@ struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *);
 int t4_l2t_set_switching(struct adapter *, struct l2t_entry *, uint16_t,
     uint8_t, uint8_t *);
 void t4_l2t_release(struct l2t_entry *);
+#ifdef SBUF_DRAIN
 int sysctl_l2t(SYSCTL_HANDLER_ARGS);
+#endif
 
 #ifndef TCP_OFFLOAD_DISABLE
 struct l2t_entry *t4_l2t_get(struct port_info *, struct ifnet *,

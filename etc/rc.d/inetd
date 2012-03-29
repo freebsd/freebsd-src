@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="inetd"
-rcvar=`set_rcvar`
+rcvar="inetd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/${name}.conf"

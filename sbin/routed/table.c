@@ -2071,7 +2071,7 @@ walk_age(struct radix_node *rn,
 	/* try to switch to an alternative */
 	rtswitch(RT, 0);
 
-	/* Delete a dead route after it has been publically mourned. */
+	/* Delete a dead route after it has been publicly mourned. */
 	if (now_garbage > RT->rt_time) {
 		rtdelete(RT);
 		return 0;

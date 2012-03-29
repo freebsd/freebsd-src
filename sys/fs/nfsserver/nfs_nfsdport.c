@@ -319,11 +319,7 @@ nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 }
 
 /*
- * Set up nameidata for a lookup() call and do it
- * For the cases where we are crossing mount points
- * (looking up the public fh path or the v4 root path when
- *  not using a pseudo-root fs), set/release the Giant lock,
- * as required.
+ * Set up nameidata for a lookup() call and do it.
  */
 int
 nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
@@ -399,6 +395,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	cnp->cn_thread = p;
 	ndp->ni_startdir = dp;
 	ndp->ni_rootdir = rootvnode;
+	ndp->ni_topdir = NULL;
 
 	if (!lockleaf)
 		cnp->cn_flags |= LOCKLEAF;

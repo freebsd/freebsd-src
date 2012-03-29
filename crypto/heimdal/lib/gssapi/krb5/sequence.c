@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 2003 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2003 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include "krb5/gsskrb5_locl.h"
-
-RCSID("$Id: sequence.c 18334 2006-10-07 22:16:04Z lha $");
+#include "gsskrb5_locl.h"
 
 #define DEFAULT_JITTER_WINDOW 20
 
@@ -57,19 +55,19 @@ msg_order_alloc(OM_uint32 *minor_status,
 		OM_uint32 jitter_window)
 {
     size_t len;
-    
+
     len = jitter_window * sizeof((*o)->elem[0]);
     len += sizeof(**o);
     len -= sizeof((*o)->elem[0]);
-    
+
     *o = calloc(1, len);
     if (*o == NULL) {
 	*minor_status = ENOMEM;
 	return GSS_S_FAILURE;
-    }	
-    
+    }
+
     *minor_status = 0;
-    return GSS_S_COMPLETE;    
+    return GSS_S_COMPLETE;
 }
 
 /*
@@ -78,9 +76,9 @@ msg_order_alloc(OM_uint32 *minor_status,
 
 OM_uint32
 _gssapi_msg_order_create(OM_uint32 *minor_status,
-			 struct gss_msg_order **o, 
-			 OM_uint32 flags, 
-			 OM_uint32 seq_num, 
+			 struct gss_msg_order **o,
+			 OM_uint32 flags,
+			 OM_uint32 seq_num,
 			 OM_uint32 jitter_window,
 			 int use_64)
 {
@@ -118,7 +116,7 @@ elem_set(struct gss_msg_order *o, unsigned int slot, OM_uint32 val)
 }
 
 static void
-elem_insert(struct gss_msg_order *o, 
+elem_insert(struct gss_msg_order *o,
 	    unsigned int after_slot,
 	    OM_uint32 seq_num)
 {
@@ -143,7 +141,7 @@ OM_uint32
 _gssapi_msg_order_check(struct gss_msg_order *o, OM_uint32 seq_num)
 {
     OM_uint32 r;
-    int i;
+    size_t i;
 
     if (o == NULL)
 	return GSS_S_COMPLETE;
@@ -159,11 +157,11 @@ _gssapi_msg_order_check(struct gss_msg_order *o, OM_uint32 seq_num)
 
     r = (o->flags & (GSS_C_REPLAY_FLAG|GSS_C_SEQUENCE_FLAG))==GSS_C_REPLAY_FLAG;
 
-    /* sequence number larger then largest sequence number 
+    /* sequence number larger then largest sequence number
      * or smaller then the first sequence number */
     if (seq_num > o->elem[0]
 	|| seq_num < o->first_seq
-	|| o->length == 0) 
+	|| o->length == 0)
     {
 	elem_insert(o, 0, seq_num);
 	if (r) {
@@ -217,7 +215,7 @@ _gssapi_msg_order_export(krb5_storage *sp, struct gss_msg_order *o)
 {
     krb5_error_code kret;
     OM_uint32 i;
-    
+
     kret = krb5_store_int32(sp, o->flags);
     if (kret)
         return kret;
@@ -233,51 +231,51 @@ _gssapi_msg_order_export(krb5_storage *sp, struct gss_msg_order *o)
     kret = krb5_store_int32(sp, o->first_seq);
     if (kret)
         return kret;
-    
+
     for (i = 0; i < o->jitter_window; i++) {
         kret = krb5_store_int32(sp, o->elem[i]);
 	if (kret)
 	    return kret;
     }
-    
+
     return 0;
 }
 
 OM_uint32
 _gssapi_msg_order_import(OM_uint32 *minor_status,
-			 krb5_storage *sp, 
+			 krb5_storage *sp,
 			 struct gss_msg_order **o)
 {
     OM_uint32 ret;
     krb5_error_code kret;
     int32_t i, flags, start, length, jitter_window, first_seq;
-    
+
     kret = krb5_ret_int32(sp, &flags);
     if (kret)
 	goto failed;
-    ret = krb5_ret_int32(sp, &start);
+    kret = krb5_ret_int32(sp, &start);
     if (kret)
 	goto failed;
-    ret = krb5_ret_int32(sp, &length);
+    kret = krb5_ret_int32(sp, &length);
     if (kret)
 	goto failed;
-    ret = krb5_ret_int32(sp, &jitter_window);
+    kret = krb5_ret_int32(sp, &jitter_window);
     if (kret)
 	goto failed;
-    ret = krb5_ret_int32(sp, &first_seq);
+    kret = krb5_ret_int32(sp, &first_seq);
     if (kret)
 	goto failed;
-    
+
     ret = msg_order_alloc(minor_status, o, jitter_window);
     if (ret != GSS_S_COMPLETE)
         return ret;
-    
+
     (*o)->flags = flags;
     (*o)->start = start;
     (*o)->length = length;
     (*o)->jitter_window = jitter_window;
     (*o)->first_seq = first_seq;
-    
+
     for( i = 0; i < jitter_window; i++ ) {
         kret = krb5_ret_int32(sp, (int32_t*)&((*o)->elem[i]));
 	if (kret)

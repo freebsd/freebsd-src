@@ -1,17 +1,17 @@
-$ $tcsh: set23,v 1.3 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set23,v 1.4 2011/02/04 18:19:35 christos Exp $
 $ tc.os.c
 $set 23 
 1 Mauvais nom de cpu/site
 2 Chemin du site trop mong
 3 inconnu
 4 site: %s\n
-5 %d: Site pas trouvé\n
+5 %d: Site pas trouvÃ©\n
 6 setlocal: %s: %s\n
-7 Site pas trouvé
-8 Vous êtes piégé dans un univers que vous n'avez jamais créé
-9 Getwarp a échoué
+7 Site pas trouvÃ©
+8 Vous Ãªtes piÃ©gÃ© dans un univers que vous n'avez jamais crÃ©Ã©
+9 Getwarp a Ã©chouÃ©
 10 warp invalide
-11 Setwarp a échoué
+11 Setwarp a Ã©chouÃ©
 12 Univers incorrect
 13 Erreur inconnue : %d
 14 sysname:  %s\n
@@ -22,13 +22,13 @@ $set 23
 19 getwd: Ne peut ouvrir ".." (%s)
 20 getwd: Ne peut effectuer chdir vers ".." (%s)
 21 getwd: Erreur en lecture dans ".." (%s)
-22 getwd: Ne peut revenir à "." (%s)
+22 getwd: Ne peut revenir Ã  "." (%s)
 23 getwd: Ne peut effectuer stat "/" (%s)
 24 getwd: Ne peut effectuer stat "." (%s)
-25 getwd: Ne peut effectuer stat sur répertoire "%s" (%s)
-26 getwd: Ne peut ouvrir le répertoire "%s" (%s)
+25 getwd: Ne peut effectuer stat sur rÃ©pertoire "%s" (%s)
+26 getwd: Ne peut ouvrir le rÃ©pertoire "%s" (%s)
 27 getwd: Ne peut trouver "." dans ".." (%s)
-28 Type de système incorrect
-29 Le type de système n'est pas défini
+28 Type de systÃ¨me incorrect
+29 Le type de systÃ¨me n'est pas dÃ©fini
 30 XXX: Too many arguments 
 31 XXX: Invalid argument

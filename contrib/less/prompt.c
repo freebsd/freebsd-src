@@ -394,9 +394,9 @@ protochar(c, where, iseditproto)
  * where to resume parsing the string.
  * We must keep track of nested IFs and skip them properly.
  */
-	static char *
+	static char constant *
 skipcond(p)
-	register char *p;
+	register char constant *p;
 {
 	register int iflevel;
 
@@ -452,9 +452,9 @@ skipcond(p)
 /*
  * Decode a char that represents a position on the screen.
  */
-	static char *
+	static char constant *
 wherechar(p, wp)
-	char *p;
+	char constant *p;
 	int *wp;
 {
 	switch (*p)
@@ -478,10 +478,10 @@ wherechar(p, wp)
  */
 	public char *
 pr_expand(proto, maxwidth)
-	char *proto;
+	char constant *proto;
 	int maxwidth;
 {
-	register char *p;
+	register char constant *p;
 	register int c;
 	int where;
 
@@ -555,7 +555,7 @@ pr_expand(proto, maxwidth)
 	public char *
 eq_message()
 {
-	return (pr_expand((char*)eqproto, 0));
+	return (pr_expand(eqproto, 0));
 }
 
 /*
@@ -572,7 +572,7 @@ pr_string()
 
 	type = (!less_is_more) ? pr_type : pr_type ? 0 : 1;
 	prompt = pr_expand((ch_getflags() & CH_HELPFILE) ?
-				(char*)hproto : prproto[type],
+				hproto : prproto[type],
 			sc_width-so_s_width-so_e_width-2);
 	new_file = 0;
 	return (prompt);
@@ -584,5 +584,5 @@ pr_string()
 	public char *
 wait_message()
 {
-	return (pr_expand((char*)wproto, sc_width-so_s_width-so_e_width-2));
+	return (pr_expand(wproto, sc_width-so_s_width-so_e_width-2));
 }

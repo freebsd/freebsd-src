@@ -49,9 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "fdt_common.h"
 #include "ofw_bus_if.h"
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)

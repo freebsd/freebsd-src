@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1899,7 +1899,7 @@ static device_method_t acd_methods[] = {
     /* ATA methods */
     DEVMETHOD(ata_reinit,       acd_reinit),
     
-    { 0, 0 }
+    DEVMETHOD_END
 };
     
 static driver_t acd_driver = {

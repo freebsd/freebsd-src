@@ -145,12 +145,12 @@ struct fs {
 	int8_t   fs_old_flags;     /* old FS_ flags */
 	u_char	 fs_fsmnt[MAXMNTLEN]; /* name mounted on */
 	u_char	 fs_volname[MAXVOLLEN]; /* volume name */
-	u_int64_t fs_swuid;        /* system-wide uid */
+	uint64_t fs_swuid;         /* system-wide uid */
 	int32_t  fs_pad;           /* due to alignment of fs_swuid */
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;       /* last cg searched */
 	void 	*fs_ocsp[NOCSPTRS]; /* padding; was list of fs_cs buffers */
-	u_int8_t *fs_contigdirs;   /* # of contiguously allocated dirs */
+	uint8_t *fs_contigdirs;    /* # of contiguously allocated dirs */
 	struct	csum *fs_csp;      /* cg summary info buffer for fs_cs */
 	int32_t	*fs_maxcluster;    /* max cluster in each cyl group */
 	u_int	*fs_active;        /* used by snapshots to track fs */
@@ -175,7 +175,7 @@ struct fs {
 	int32_t	 fs_contigsumsize; /* size of cluster summary array */
 	int32_t	 fs_maxsymlinklen; /* max length of an internal symlink */
 	int32_t	 fs_old_inodefmt;  /* format of on-disk inodes */
-	u_int64_t fs_maxfilesize;  /* maximum representable file size */
+	uint64_t fs_maxfilesize;   /* maximum representable file size */
 	int64_t	 fs_qbmask;        /* ~fs_bmask for use with 64-bit size */
 	int64_t	 fs_qfmask;        /* ~fs_fmask for use with 64-bit size */
 	int32_t	 fs_state;         /* validate fs_clean field */
@@ -408,10 +408,10 @@ Each macro takes a pointer to an extattr structure.
 Returns a pointer to the next extended attribute following
 .Fa eap .
 .It Dv EXTATTR_CONTENT(eap)
-Returns a pointer to the extended attribute content referenced by 
+Returns a pointer to the extended attribute content referenced by
 .Fa eap .
 .It Dv EXTATTR_CONTENT_SIZE(eap)
-Returns the size of the extended attribute content referenced by 
+Returns the size of the extended attribute content referenced by
 .Fa eap .
 .It Dv EXTATTR_SET_LENGTHS(eap, size)
 Called with the size of the attribute content after initializing

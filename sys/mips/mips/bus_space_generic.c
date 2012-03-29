@@ -197,7 +197,6 @@ static struct bus_space generic_space = {
 };
 
 /* Ultra-gross kludge */
-#include "opt_cputype.h"
 #if defined(CPU_CNMIPS) && (defined(__mips_n32) || defined(__mips_o32))
 #include <contrib/octeon-sdk/cvmx.h>
 #define rd8(a) cvmx_read64_uint8(a)
@@ -245,13 +244,12 @@ generic_bs_unmap(void *t __unused, bus_space_handle_t bh __unused,
 }
 
 int
-generic_bs_subregion(void *t __unused, bus_space_handle_t handle __unused,
-	      bus_size_t offset __unused, bus_size_t size __unused,
-	      bus_space_handle_t *nhandle __unused)
+generic_bs_subregion(void *t __unused, bus_space_handle_t handle,
+	      bus_size_t offset, bus_size_t size __unused,
+	      bus_space_handle_t *bshp)
 {
 
-	printf("SUBREGION?!?!?!\n");
-	/* Do nothing */
+	*bshp = handle + offset;
 	return (0);
 }
 

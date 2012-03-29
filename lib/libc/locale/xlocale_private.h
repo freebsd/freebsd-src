@@ -8,16 +8,16 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 1.  Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -85,14 +85,14 @@ struct _xlocale {
 	struct xlocale_refcounted header;
 	/** Components for the locale.  */
 	struct xlocale_component *components[XLC_LAST];
-	/** Flag indicating if components[XLC_MONETARY] has changed since the last
-	 * call to localeconv_l() with this locale. */
+	/** Flag indicating if components[XLC_MONETARY] has changed since the
+	 * last call to localeconv_l() with this locale. */
 	int monetary_locale_changed;
 	/** Flag indicating whether this locale is actually using a locale for
 	 * LC_MONETARY (1), or if it should use the C default instead (0). */
 	int using_monetary_locale;
-	/** Flag indicating if components[XLC_NUMERIC] has changed since the last
-	 * call to localeconv_l() with this locale. */
+	/** Flag indicating if components[XLC_NUMERIC] has changed since the
+	 * last call to localeconv_l() with this locale. */
 	int numeric_locale_changed;
 	/** Flag indicating whether this locale is actually using a locale for
 	 * LC_NUMERIC (1), or if it should use the C default instead (0). */
@@ -170,12 +170,38 @@ extern struct _xlocale __xlocale_global_locale;
 extern struct _xlocale __xlocale_C_locale;
 
 /**
+ * Caches the rune table in TLS for fast access.
+ */
+void __set_thread_rune_locale(locale_t loc);
+/**
+ * Flag indicating whether a per-thread locale has been set.  If no per-thread
+ * locale has ever been set, then we always use the global locale.
+ */
+extern int __has_thread_locale;
+#ifndef __NO_TLS
+/**
+ * The per-thread locale.  Avoids the need to use pthread lookup functions when
+ * getting the per-thread locale.
+ */
+extern _Thread_local locale_t __thread_locale;
+
+/**
  * Returns the current locale for this thread, or the global locale if none is
  * set.  The caller does not have to free the locale.  The return value from
  * this call is not guaranteed to remain valid after the locale changes.  As
  * such, this should only be called within libc functions.
  */
+static inline locale_t __get_locale(void)
+{
+
+	if (!__has_thread_locale) {
+		return (&__xlocale_global_locale);
+	}
+	return (__thread_locale ? __thread_locale : &__xlocale_global_locale);
+}
+#else
 locale_t __get_locale(void);
+#endif
 
 /**
  * Two magic values are allowed for locale_t objects.  NULL and -1.  This

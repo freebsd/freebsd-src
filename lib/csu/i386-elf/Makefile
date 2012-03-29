@@ -18,7 +18,7 @@ CLEANFILES+=	crt1_c.s gcrt1_c.s Scrt1_c.s
 
 gcrt1_c.s: crt1_c.c
 	${CC} ${CFLAGS} -DGCRT -S -o ${.TARGET} ${.CURDIR}/crt1_c.c
-	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
+	sed ${SED_FIX_NOTE} ${.TARGET}
 
 gcrt1_c.o: gcrt1_c.s
 	${CC} ${CFLAGS} -c -o ${.TARGET} gcrt1_c.s
@@ -28,7 +28,7 @@ gcrt1.o: gcrt1_c.o crt1_s.o
 
 crt1_c.s: crt1_c.c
 	${CC} ${CFLAGS} -S -o ${.TARGET} ${.CURDIR}/crt1_c.c
-	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
+	sed ${SED_FIX_NOTE} ${.TARGET}
 
 crt1_c.o: crt1_c.s
 	${CC} ${CFLAGS} -c -o ${.TARGET} crt1_c.s
@@ -39,7 +39,7 @@ crt1.o:	crt1_c.o crt1_s.o
 
 Scrt1_c.s: crt1_c.c
 	${CC} ${CFLAGS} -fPIC -DPIC -S -o ${.TARGET} ${.CURDIR}/crt1_c.c
-	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
+	sed ${SED_FIX_NOTE} ${.TARGET}
 
 Scrt1_c.o: Scrt1_c.s
 	${CC} ${CFLAGS} -c -o ${.TARGET} Scrt1_c.s

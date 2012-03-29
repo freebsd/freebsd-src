@@ -392,6 +392,6 @@ int	bstp_set_edge(struct bstp_port *, int);
 int	bstp_set_autoedge(struct bstp_port *, int);
 int	bstp_set_ptp(struct bstp_port *, int);
 int	bstp_set_autoptp(struct bstp_port *, int);
-struct mbuf *bstp_input(struct bstp_port *, struct ifnet *, struct mbuf *);
+void	bstp_input(struct bstp_port *, struct ifnet *, struct mbuf *);
 
 #endif /* _KERNEL */

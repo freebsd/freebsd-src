@@ -324,6 +324,11 @@ sub parse {
 	    } elsif (/^Fx/) {
 		dlog(3, "Got Fx command");
 		parabuf_addline(\%mdocvars, "FreeBSD");
+	    } elsif (/^Em (.+)$/) {
+		my ($txt, $punct_str) = split_punct_chars($1);
+
+		parabuf_addline(\%mdocvars,
+				normalize("<emphasis>$txt</emphasis>$punct_str"));
 	    } else {
 		# Ignore all other commands.
 		dlog(3, "Ignoring unknown command $cmd");

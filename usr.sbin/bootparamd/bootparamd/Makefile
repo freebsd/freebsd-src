@@ -18,12 +18,12 @@ CLEANFILES= ${GENSRCS}
 RPCSRC=	${DESTDIR}/usr/include/rpcsvc/bootparam_prot.x
 
 bootparam_prot_svc.c: ${RPCSRC}
-	rpcgen -C -m -o ${.TARGET} ${RPCSRC}
+	RPCGEN_CPP=${CPP:Q} rpcgen -C -m -o ${.TARGET} ${RPCSRC}
 
 bootparam_prot_xdr.c: ${RPCSRC}
-	rpcgen -C -c -o ${.TARGET} ${RPCSRC}
+	RPCGEN_CPP=${CPP:Q} rpcgen -C -c -o ${.TARGET} ${RPCSRC}
 
 bootparam_prot.h: ${RPCSRC}
-	rpcgen -C -h -o ${.TARGET} ${RPCSRC}
+	RPCGEN_CPP=${CPP:Q} rpcgen -C -h -o ${.TARGET} ${RPCSRC}
 
 .include <bsd.prog.mk>

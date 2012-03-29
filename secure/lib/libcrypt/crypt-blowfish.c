@@ -72,7 +72,6 @@ static void encode_base64(u_int8_t *, u_int8_t *, u_int16_t);
 static void decode_base64(u_int8_t *, u_int16_t, const u_int8_t *);
 
 static char    encrypted[_PASSWORD_LEN];
-static char    error[] = ":";
 
 static const u_int8_t Base64Code[] =
 "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -160,8 +159,8 @@ crypt_blowfish(const char *key, const char *salt)
 		salt++;
 
 		if (*salt > BCRYPT_VERSION) {
-			/* How do I handle errors ? Return ':' */
-			return error;
+			/* How do I handle errors ? Return NULL */
+			return NULL;
 		}
 
 		/* Check for minor versions */
@@ -173,7 +172,7 @@ crypt_blowfish(const char *key, const char *salt)
 				 salt++;
 				 break;
 			 default:
-				 return error;
+				 return NULL;
 			 }
 		} else
 			 minr = 0;
@@ -183,13 +182,13 @@ crypt_blowfish(const char *key, const char *salt)
 
 		if (salt[2] != '$')
 			/* Out of sync with passwd entry */
-			return error;
+			return NULL;
 
 		/* Computer power doesnt increase linear, 2^x should be fine */
 		logr = (u_int8_t)atoi(salt);
 		rounds = 1 << logr;
 		if (rounds < BCRYPT_MINROUNDS)
-			return error;
+			return NULL;
 
 		/* Discard num rounds + "$" identifier */
 		salt += 3;

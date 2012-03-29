@@ -1028,6 +1028,7 @@ pw_pwcrypt(char *password)
 {
 	int             i;
 	char            salt[SALTSIZE + 1];
+	char		*cryptpw;
 
 	static char     buf[256];
 
@@ -1038,7 +1039,10 @@ pw_pwcrypt(char *password)
 		salt[i] = chars[arc4random_uniform(sizeof(chars) - 1)];
 	salt[SALTSIZE] = '\0';
 
-	return strcpy(buf, crypt(password, salt));
+	cryptpw = crypt(password, salt);
+	if (cryptpw == NULL)
+		errx(EX_CONFIG, "crypt(3) failure");
+	return strcpy(buf, cryptpw);
 }
 
 

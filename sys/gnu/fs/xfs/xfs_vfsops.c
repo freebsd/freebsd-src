@@ -1743,8 +1743,7 @@ xfs_parseargs(
 	while ((this_char = strsep(&options, ",")) != NULL) {
 		if (!*this_char)
 			continue;
-
-		if ((value = index(this_char, '=')) != NULL)
+		if ((value = strchr(this_char, '=')) != NULL)
 			*value++ = 0;
 
 		if (!strcmp(this_char, MNTOPT_LOGBUFS)) {

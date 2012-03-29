@@ -4,11 +4,13 @@
 .include <bsd.own.mk>
 
 MAN=		assert.3 \
+		ATOMIC_VAR_INIT.3 \
 		bitstring.3 \
 		end.3 \
 		fpgetround.3 \
 		intro.3 \
 		makedev.3 \
+		offsetof.3 \
 		${PTHREAD_MAN} \
 		queue.3 \
 		siginfo.3 \
@@ -18,7 +20,29 @@ MAN=		assert.3 \
 		timeradd.3 \
 		tree.3
 
-MLINKS=		bitstring.3 bit_alloc.3 \
+MLINKS=		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
+		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_compare_exchange_weak.3 \
+		ATOMIC_VAR_INIT.3 atomic_compare_exchange_weak_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_exchange.3 \
+		ATOMIC_VAR_INIT.3 atomic_exchange_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_add.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_add_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_and.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_and_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_or.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_or_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_sub.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_sub_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_xor.3 \
+		ATOMIC_VAR_INIT.3 atomic_fetch_xor_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_init.3 \
+		ATOMIC_VAR_INIT.3 atomic_is_lock_free.3 \
+		ATOMIC_VAR_INIT.3 atomic_load.3 \
+		ATOMIC_VAR_INIT.3 atomic_load_explicit.3 \
+		ATOMIC_VAR_INIT.3 atomic_store.3 \
+		ATOMIC_VAR_INIT.3 atomic_store_explicit.3
+MLINKS+=	bitstring.3 bit_alloc.3 \
 		bitstring.3 bit_clear.3 \
 		bitstring.3 bit_decl.3 \
 		bitstring.3 bit_ffc.3 \

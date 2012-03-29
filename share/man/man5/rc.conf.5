@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2011
+.Dd February 27, 2012
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -149,6 +149,19 @@ and before changing it one should ensure that there are
 adequate provisions to recover from a failed boot
 (such as physical contact with the machine,
 or reliable remote console access).
+.It Va always_force_depends
+.Pq Vt bool
+Various
+.Pa rc.d
+scripts use the force_depend function to check whether required
+services are already running, and to start them if necessary.
+By default during boot time this check is bypassed if the
+required service is enabled in
+.Pa /etc/rc.conf[.local] .
+Setting this option will bypass that check at boot time and
+always test whether or not the service is actually running.
+Enabling this option is likely to increase your boot time if
+services are enabled that utilize the force_depend check.
 .It Va swapfile
 .Pq Vt str
 If set to
@@ -187,7 +200,7 @@ to handle device added, removed or unknown events from the kernel.
 .Pq Vt bool
 Run
 .Xr ddb 8
-to install 
+to install
 .Xr ddb 4
 scripts at boot time.
 .It Va ddb_config
@@ -1260,7 +1273,7 @@ options in this variable, in addition to the
 file.
 For instance, to configure an
 .Xr ath 4
-wireless device in station mode with an address obtained 
+wireless device in station mode with an address obtained
 via DHCP, using WPA authentication and 802.11b mode, it is
 possible to use something like:
 .Bd -literal
@@ -1414,7 +1427,7 @@ Note that ICMPv6 Router Advertisement messages will be
 accepted even when
 .Va net.inet6.ip6.forwarding
 is 1
-.Pq packet fowarding is enabled
+.Pq packet forwarding is enabled
 when
 .Va net.inet6.ip6.rfc6204w3
 is set to 1.
@@ -1436,7 +1449,8 @@ Aliases should be set by
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 with
 .Dq Li inet6
-keyword.  For example:
+keyword.
+For example:
 .Bd -literal
 ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
 ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
@@ -1539,14 +1553,17 @@ If
 .Dq Li AUTO
 is specified, it attempts to read a file
 .Pa /etc/ip6addrctl.conf
-first.  If this file is found,
+first.
+If this file is found,
 .Xr ip6addrctl 8
-reads and installs it.  If not found, a policy is automatically set
+reads and installs it.
+If not found, a policy is automatically set
 according to
 .Va ipv6_activate_all_interfaces
 variable; if the variable is set to
 .Dq Li YES
-the IPv6-preferred one is used.  Otherwise IPv4-preferred.
+the IPv6-preferred one is used.
+Otherwise IPv4-preferred.
 .Pp
 The default value of
 .Va ip6addrctl_enable
@@ -3673,6 +3690,25 @@ is set to
 these are the flags passed to the
 .Xr watchdogd 8
 daemon.
+.It Va devfs_rulesets
+.Pq Vt str
+List of files containing sets of rules for
+.Xr devfs 8 .
+.It Va devfs_system_ruleset
+.Pq Vt str
+Rule name(s) to apply to the system
+.Pa /dev
+itself.
+.It Va devfs_set_rulesets
+.Pq Vt str
+Pairs of already-mounted
+.Pa dev
+directories and rulesets that should be applied to them.
+For example: /mount/dev=ruleset_name
+.It Va devfs_load_rulesets
+.Pq Vt bool
+If set, always load the default rulesets listed in
+.Va devfs_rulesets .
 .It Va performance_cx_lowest
 .Pq Vt str
 CPU idle state to use while on AC power.
@@ -3718,11 +3754,11 @@ indicates that the highest frequency (less power savings) should be used.
 If set to
 .Dq Li NO ,
 any configured jails will not be started.
-.It jail_parallel_start
+.It Va jail_parallel_start
 .Pq Vt bool
 If set to
-.Dq Li YES
-all configured jails will be started in the background (= in parallel).
+.Dq Li YES ,
+all configured jails will be started in the background (in parallel).
 .It Va jail_list
 .Pq Vt str
 A space separated list of names for jails.
@@ -4532,6 +4568,7 @@ The default is 30.
 .Xr chkprintcap 8 ,
 .Xr chown 8 ,
 .Xr cron 8 ,
+.Xr devfs 8 ,
 .Xr dhclient 8 ,
 .Xr ftpd 8 ,
 .Xr geli 8 ,

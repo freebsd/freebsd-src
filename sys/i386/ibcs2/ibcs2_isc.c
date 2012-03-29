@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994 Søren Schmidt
+ * Copyright (c) 1994 SÃ¸ren Schmidt
  * Copyright (c) 1994 Sean Eric Fagan
  * Copyright (c) 1995 Steven Wallace
  * All rights reserved.

@@ -217,6 +217,11 @@ extern int	acpi_quirks;
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 
 /*
+ * Sleep flags.  See actypes.h for available flags.
+ */
+extern int	acpi_sleep_flags;
+
+/*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
@@ -339,7 +344,6 @@ ACPI_STATUS	acpi_SetIntrModel(int model);
 int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
 int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
-void		acpi_resync_clock(struct acpi_softc *sc);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 ACPI_STATUS	acpi_Startup(void);
@@ -473,7 +477,7 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
  * probe order sorted so that things like sysresource are available before
  * their children need them.
  */
-#define	ACPI_DEV_BASE_ORDER	10
+#define	ACPI_DEV_BASE_ORDER	100
 
 /* Default maximum number of tasks to enqueue. */
 #ifndef ACPI_MAX_TASKS

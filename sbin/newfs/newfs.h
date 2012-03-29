@@ -70,7 +70,7 @@
  * We allocate one inode slot per NFPI fragments, expecting this
  * to be far more than we will ever need.
  */
-#define	NFPI		4
+#define	NFPI		2
 
 /*
  * variables set up by front end.

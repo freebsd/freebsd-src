@@ -396,7 +396,7 @@ __FBSDID("$FreeBSD$");
 /* SCTP chunk types are moved sctp.h for application (NAT, FW) use */
 
 /* align to 32-bit sizes */
-#define SCTP_SIZE32(x)	((((x)+3) >> 2) << 2)
+#define SCTP_SIZE32(x)	((((x) + 3) >> 2) << 2)
 
 #define IS_SCTP_CONTROL(a) ((a)->chunk_type != SCTP_DATA)
 #define IS_SCTP_DATA(a) ((a)->chunk_type == SCTP_DATA)
@@ -418,7 +418,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_STR_RESET_IN_REQUEST	0x000e
 #define SCTP_STR_RESET_TSN_REQUEST	0x000f
 #define SCTP_STR_RESET_RESPONSE		0x0010
-#define SCTP_STR_RESET_ADD_STREAMS	0x0011
+#define SCTP_STR_RESET_ADD_OUT_STREAMS	0x0011
+#define SCTP_STR_RESET_ADD_IN_STREAMS   0x0012
 
 #define SCTP_MAX_RESET_PARAMS 2
 #define SCTP_STREAM_RESET_TSN_DELTA    0x1000
@@ -933,7 +934,7 @@ __FBSDID("$FreeBSD$");
 					} else { \
 						gap = (MAX_TSN - mapping_tsn) + tsn + 1; \
 					} \
-                  } while(0)
+                  } while (0)
 
 
 #define SCTP_RETRAN_DONE -1

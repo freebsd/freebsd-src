@@ -24,8 +24,8 @@
 .\" $FreeBSD$
 .\"
 .Dd November 28, 2010
-.Os
 .Dt AR 5
+.Os
 .Sh NAME
 .Nm ar
 .Nd archive file format for
@@ -126,7 +126,7 @@ The BSD and SVR4/GNU variants use different schemes for encoding file
 names for members.
 .Bl -tag -width "SVR4/GNU"
 .It "BSD"
-File names that are upto 16 bytes long and which do not contain
+File names that are up to 16 bytes long and which do not contain
 embedded spaces are stored directly in the
 .Ar ar_name
 field of the archive header.
@@ -164,7 +164,7 @@ ASCII
 .Dq "A BC D"
 .Pc .
 .It "SVR4/GNU"
-File names that are upto 15 characters long are stored directly in the
+File names that are up to 15 characters long are stored directly in the
 .Ar ar_name
 field of the header, terminated by a
 .Dq Li /
@@ -237,7 +237,7 @@ the ASCII string
 No padding is used to separate adjacent file names.
 .Ss "Archive Symbol Tables"
 Archive symbol tables are used to speed up link editing by providing a
-mapping between the program symbols defined in the archive 
+mapping between the program symbols defined in the archive
 and the corresponding archive members.
 Archive symbol tables are managed by the
 .Xr ranlib 1

@@ -77,6 +77,7 @@
 #define	MPT_OFFSET_REPLY_Q	0x44
 #define	MPT_OFFSET_HOST_INDEX	0x50
 #define	MPT_OFFSET_FUBAR	0x90
+#define	MPT_OFFSET_RESET_1078	0x10fc
 
 /* Bit Maps for DOORBELL register */
 enum DB_STATE_BITS {

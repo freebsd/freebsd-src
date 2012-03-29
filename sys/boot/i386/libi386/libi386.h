@@ -97,6 +97,7 @@ extern vm_offset_t	high_heap_base;	/* for use as the heap */
 int biospci_find_devclass(uint32_t class, int index, uint32_t *locator);
 int biospci_write_config(uint32_t locator, int offset, int width, uint32_t val);
 int biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);
+uint32_t biospci_locator(int8_t bus, uint8_t device, uint8_t function);
 
 void	biosacpi_detect(void);
 

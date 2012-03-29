@@ -152,7 +152,7 @@ ibcs2_getipdomainname(td, uap)
 	/* Get the domain name. */
 	getcredhostname(td->td_ucred, hname, sizeof(hname));
 
-	dptr = index(hname, '.');
+	dptr = strchr(hname, '.');
 	if ( dptr )
 		dptr++;
 	else
@@ -182,7 +182,7 @@ ibcs2_setipdomainname(td, uap)
 		return EINVAL;
 
 	/* Get the host's unqualified name (strip off the domain) */
-	ptr = index(hname, '.');
+	ptr = strchr(hname, '.');
 	if ( ptr != NULL ) {
 		ptr++;
 		*ptr = '\0';

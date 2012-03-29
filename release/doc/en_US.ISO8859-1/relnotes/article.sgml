@@ -314,9 +314,8 @@
         on behalf of an NFS client.</para>
 
       <para role="merged">The <application>ZFS</application> file system
-        has been upgraded to version 14.  Additional changes include
-        support for NFSv4 ACLs, a speedup of zfs send and an improved L2ARC.
-        New statistics for prefetch and L2ARC have been introduced.</para>
+        has been upgraded to version 28.  Changes include Data
+        Deduplication, Triple parity RAIDZ, and zfs diff.</para>
 
     </sect3>
   </sect2>
@@ -340,7 +339,7 @@
       with the same semantics as (for example)
       &man.chmod.1;.</para>
 
-    <para>For compatiblity with other implementations, &man.cp.1; now
+    <para>For compatibility with other implementations, &man.cp.1; now
       supports a <option>-a</option> flag, which is equivalent to
       specifying the <option>-RrP</option> flags.</para>
 
@@ -367,10 +366,6 @@
       of primaries that were present in GNU find but not &os;
       &man.find.1;.</para>
 
-    <para>&man.jexec.8; now supports <option>-h
-      <replaceable>hostname</replaceable></option> option to specify the
-      jail where the command will be executed.</para>
-
     <para>&man.kgdb.1; now supports a new <command>add-kld</command>
       command to make it easier to debug crash dumps with kernel
       modules.</para>
@@ -396,6 +391,11 @@
     <para role="merged">The &man.realpath.1; utility now supports
       a <option>-q</option> flag to suppress warnings; it now also
       accepts multiple paths on its command line.</para>
+
+    <para>&man.sh.1; has many bug fixes, some new features, and will now
+      refuse to parse some invalid scripts.  Additionally, it now
+      has filename completion and defaults to the &quot;emacs&quot; editing
+      mode.</para>
 
     <para>The &man.split.1; utility now supports a <option>-n</option>
       flag to split a file into a certain number of chunks.</para>
@@ -548,12 +548,6 @@
     SMP kernels distributed as a part of an official &os; release.
     The &man.freebsd-update.8; utility requires that the host being
     upgraded have Internet connectivity.</para>
-
-  <para>An older form of binary upgrade is supported through the
-    <command>Upgrade</command> option from the main &man.sysinstall.8;
-    menu on CDROM distribution media.  This type of binary upgrade
-    may be useful on non-&arch.i386;, non-&arch.amd64; machines
-    or on systems with no Internet connectivity.</para>
 
   <para>Source-based upgrades (those based on recompiling the &os;
     base system from source code) from previous versions are
