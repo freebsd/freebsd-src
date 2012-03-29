@@ -560,7 +560,7 @@ is set to 0 (default), one can use
 .Xr bpf 4
 attached to the
 .Li ipfw0
-pseudo interface. There is no overhead if no 
+pseudo interface. There is no overhead if no
 .Xr bpf 4
 is attached to the pseudo interface.
 .Pp
@@ -808,13 +808,13 @@ Skip all subsequent rules numbered less than
 The search continues with the first rule numbered
 .Ar number
 or higher.
-It is possible to use the 
+It is possible to use the
 .Cm tablearg
-keyword with a skipto for a 
+keyword with a skipto for a
 .Em computed
 skipto, but care should be used, as no destination caching
 is possible in this case so the rules are always walked to find it,
-starting from the 
+starting from the
 .Cm skipto .
 .It Cm call Ar number | tablearg
 The current rule number is saved in the internal stack and
@@ -943,7 +943,7 @@ in any subsequent forwarding decisions.
 Initially this is limited to the values 0 through 15, see
 .Xr setfib 1 .
 Processing continues at the next rule.
-It is possible to use the 
+It is possible to use the
 .Cm tablearg
 keyword with a setfib. If tablearg value is not within compiled FIB range packet fib is set to 0.
 .It Cm reass
@@ -964,7 +964,7 @@ the maximum number of fragments per packet (default: 16).
 NOTA BENE: since fragments do not contain port numbers, they should be avoided with the
 .Nm reass
 rule.
-Alternatively, direction-based (like 
+Alternatively, direction-based (like
 .Nm in
 /
 .Nm out
@@ -1799,7 +1799,7 @@ When used with the
 .Cm skipto
 action, the user should be aware that the code will walk the ruleset
 up to a rule equal to, or past, the given number, and should therefore try keep the
-ruleset compact between the skipto and the target rules. 
+ruleset compact between the skipto and the target rules.
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
 .Em sets
@@ -2471,9 +2471,9 @@ support in-kernel NAT using the kernel version of
 The nat configuration command is the following:
 .Bd -ragged -offset indent
 .Bk -words
-.Cm nat 
-.Ar nat_number 
-.Cm config 
+.Cm nat
+.Ar nat_number
+.Cm config
 .Ar nat-configuration
 .Ek
 .Ed
@@ -2525,7 +2525,7 @@ section below for more information on lookup tables.
 .El
 .Pp
 To let the packet continue after being (de)aliased, set the sysctl variable
-.Va net.inet.ip.fw.one_pass 
+.Va net.inet.ip.fw.one_pass
 to 0.
 For more information about aliasing modes, refer to
 .Xr libalias 3 .
@@ -2534,7 +2534,7 @@ See Section
 for some examples about nat usage.
 .Ss REDIRECT AND LSNAT SUPPORT IN IPFW
 Redirect and LSNAT support follow closely the syntax used in
-.Xr natd 8 . 
+.Xr natd 8 .
 See Section
 .Sx EXAMPLES
 for some examples on how to do redirect and lsnat.
@@ -2542,16 +2542,16 @@ for some examples on how to do redirect and lsnat.
 SCTP nat can be configured in a similar manner to TCP through the
 .Nm
 command line tool.
-The main difference is that 
-.Nm sctp nat 
+The main difference is that
+.Nm sctp nat
 does not do port translation.
 Since the local and global side ports will be the same,
 there is no need to specify both.
 Ports are redirected as follows:
 .Bd -ragged -offset indent
 .Bk -words
-.Cm nat 
-.Ar nat_number 
+.Cm nat
+.Ar nat_number
 .Cm config if
 .Ar nic
 .Cm redirect_port sctp
@@ -2569,9 +2569,9 @@ change for new
 .Nm nat
 instances.
 See
-.Sx SYSCTL VARIABLES 
+.Sx SYSCTL VARIABLES
 for more info.
-.Sh LOADER TUNABLES 
+.Sh LOADER TUNABLES
 Tunables can be set in
 .Xr loader 8
 prompt,
@@ -2599,15 +2599,15 @@ These are shown below together with their default value
 command what value is actually in use) and meaning:
 .Bl -tag -width indent
 .It Va net.inet.ip.alias.sctp.accept_global_ootb_addip: No 0
-Defines how the 
-.Nm nat 
+Defines how the
+.Nm nat
 responds to receipt of global OOTB ASCONF-AddIP:
 .Bl -tag -width indent
 .It Cm 0
 No response (unless a partially matching association exists -
 ports and vtags match but global address does not)
 .It Cm 1
-.Nm nat 
+.Nm nat
 will accept and process all OOTB global AddIP messages.
 .El
 .Pp
@@ -2617,18 +2617,18 @@ establish multiple fake associations by sending AddIP messages.
 .It Va net.inet.ip.alias.sctp.chunk_proc_limit: No 5
 Defines the maximum number of chunks in an SCTP packet that will be parsed for a
 packet that matches an existing association.
-This value is enforced to be greater or equal than 
-.Cm net.inet.ip.alias.sctp.initialising_chunk_proc_limit . 
+This value is enforced to be greater or equal than
+.Cm net.inet.ip.alias.sctp.initialising_chunk_proc_limit .
 A high value is
 a DoS risk yet setting too low a value may result in important control chunks in
 the packet not being located and parsed.
 .It Va net.inet.ip.alias.sctp.error_on_ootb: No 1
 Defines when the
-.Nm nat 
+.Nm nat
 responds to any Out-of-the-Blue (OOTB) packets with ErrorM packets.
 An OOTB packet is a packet that arrives with no existing association
 registered in the
-.Nm nat 
+.Nm nat
 and is not an INIT or ASCONF-AddIP packet:
 .Bl -tag -width indent
 .It Cm 0
@@ -2638,8 +2638,8 @@ ErrorM is only sent to OOTB packets received on the local side.
 .It Cm 2
 ErrorM is sent to the local side and on the global side ONLY if there is a
 partial match (ports and vtags match but the source global IP does not).
-This value is only useful if the 
-.Nm nat 
+This value is only useful if the
+.Nm nat
 is tracking global IP addresses.
 .It Cm 3
 ErrorM is sent in response to all OOTB packets on both the local and global side
@@ -2650,24 +2650,24 @@ At the moment the default is 0, since the ErrorM packet is not yet
 supported by most SCTP stacks.
 When it is supported, and if not tracking
 global addresses, we recommend setting this value to 1 to allow
-multi-homed local hosts to function with the 
+multi-homed local hosts to function with the
 .Nm nat .
 To track global addresses, we recommend setting this value to 2 to
 allow global hosts to be informed when they need to (re)send an
 ASCONF-AddIP.
 Value 3 should never be chosen (except for debugging) as the
-.Nm nat 
+.Nm nat
 will respond to all OOTB global packets (a DoS risk).
 .It Va net.inet.ip.alias.sctp.hashtable_size: No 2003
-Size of hash tables used for 
-.Nm nat 
-lookups (100 < prime_number > 1000001).
-This value sets the 
-.Nm hash table 
-size for any future created 
+Size of hash tables used for
 .Nm nat
-instance and therefore must be set prior to creating a 
-.Nm nat 
+lookups (100 < prime_number > 1000001).
+This value sets the
+.Nm hash table
+size for any future created
+.Nm nat
+instance and therefore must be set prior to creating a
+.Nm nat
 instance.
 The table sizes may be changed to suit specific needs.
 If there will be few
@@ -2696,7 +2696,7 @@ risk as malformed packets can consume processing resources.
 Defines the maximum number of parameters within a chunk that will be parsed in a
 packet.
 As for other similar sysctl variables, larger values pose a DoS risk.
-.It Va net.inet.ip.alias.sctp.log_level: No 0 
+.It Va net.inet.ip.alias.sctp.log_level: No 0
 Level of detail in the system log messages (0 \- minimal, 1 \- event,
 2 \- info, 3 \- detail, 4 \- debug, 5 \- max debug). May be a good
 option in high loss environments.
@@ -2704,8 +2704,8 @@ option in high loss environments.
 Timeout value while waiting for SHUTDOWN-COMPLETE.
 This value cannot be 0.
 .It Va net.inet.ip.alias.sctp.track_global_addresses: No 0
-Enables/disables global IP address tracking within the 
-.Nm nat 
+Enables/disables global IP address tracking within the
+.Nm nat
 and places an
 upper limit on the number of addresses tracked for each association:
 .Bl -tag -width indent
@@ -2718,16 +2718,16 @@ association is limited to this value
 .Pp
 This variable is fully dynamic, the new value will be adopted for all newly
 arriving associations, existing associations are treated as they were previously.
-Global tracking will decrease the number of collisions within the 
-.Nm nat 
+Global tracking will decrease the number of collisions within the
+.Nm nat
 at a cost
-of increased processing load, memory usage, complexity, and possible 
-.Nm nat 
+of increased processing load, memory usage, complexity, and possible
+.Nm nat
 state
-problems in complex networks with multiple 
-.Nm nats . 
+problems in complex networks with multiple
+.Nm nats .
 We recommend not tracking
-global IP addresses, this will still result in a fully functional 
+global IP addresses, this will still result in a fully functional
 .Nm nat .
 .It Va net.inet.ip.alias.sctp.up_timer: No 300
 Timeout value to keep an association up with no traffic.
@@ -3173,7 +3173,7 @@ First redirect all the traffic to nat instance 123:
 .Pp
 Then to configure nat instance 123 to alias all the outgoing traffic with ip
 192.168.0.123, blocking all incoming connections, trying to keep
-same ports on both sides, clearing aliasing table on address change 
+same ports on both sides, clearing aliasing table on address change
 and keeping a log of traffic/link statistics:
 .Pp
 .Dl "ipfw nat 123 config ip 192.168.0.123 log deny_in reset same_ports"
@@ -3202,7 +3202,7 @@ Or a redirect rule with mixed modes could looks like:
 .Dl "			 redirect_proto udp 192.168.1.43 192.168.1.1"
 .Dl "			 redirect_addr 192.168.0.10,192.168.0.11"
 .Dl "			 	    10.0.0.100	# LSNAT"
-.Dl "			 redirect_port tcp 192.168.0.1:80,192.168.0.10:22" 
+.Dl "			 redirect_port tcp 192.168.0.1:80,192.168.0.10:22"
 .Dl "			 	    500		# LSNAT"
 .Pp
 or it could be split in:
@@ -3210,7 +3210,7 @@ or it could be split in:
 .Dl "ipfw nat 1 config redirect_addr 10.0.0.1 10.0.0.66"
 .Dl "ipfw nat 2 config redirect_port tcp 192.168.0.1:80 500"
 .Dl "ipfw nat 3 config redirect_proto udp 192.168.1.43 192.168.1.1"
-.Dl "ipfw nat 4 config redirect_addr 192.168.0.10,192.168.0.11,192.168.0.12" 
+.Dl "ipfw nat 4 config redirect_addr 192.168.0.10,192.168.0.11,192.168.0.12"
 .Dl "				         10.0.0.100"
 .Dl "ipfw nat 5 config redirect_port tcp"
 .Dl "			192.168.0.1:80,192.168.0.10:22,192.168.0.20:25 500"
@@ -3330,8 +3330,8 @@ Rule syntax is subject to the command line environment and some patterns
 may need to be escaped with the backslash character
 or quoted appropriately.
 .Pp
-Due to the architecture of 
-.Xr libalias 3 , 
+Due to the architecture of
+.Xr libalias 3 ,
 ipfw nat is not compatible with the TCP segmentation offloading (TSO).
 Thus, to reliably nat your network traffic, please disable TSO
 on your NICs using
