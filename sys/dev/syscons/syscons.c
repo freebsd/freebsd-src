@@ -740,7 +740,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
     while ((c = scgetc(sc, SCGETC_NONBLOCK)) != NOKEY) {
 
 	cur_tty = SC_DEV(sc, sc->cur_scp->index);
-	if (!tty_opened(cur_tty))
+	if (!tty_opened_ns(cur_tty))
 	    continue;
 
 	if ((*sc->cur_scp->tsw->te_input)(sc->cur_scp, c, cur_tty))
@@ -1134,7 +1134,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     case VT_OPENQRY:    	/* return free virtual console */
 	for (i = sc->first_vty; i < sc->first_vty + sc->vtys; i++) {
 	    tp = SC_DEV(sc, i);
-	    if (!tty_opened(tp)) {
+	    if (!tty_opened_ns(tp)) {
 		*(int *)data = i + 1;
 		return 0;
 	    }
@@ -1694,6 +1694,7 @@ sc_cnputc(struct consdev *cd, int c)
 	 * spinlock.
 	 */
 	tp = SC_DEV(scp->sc, scp->index);
+	/* XXX "tp" can be NULL */
 	tty_lock(tp);
 	if (tty_opened(tp))
 	    sctty_outwakeup(tp);
@@ -2414,7 +2415,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
      */
     tp = SC_DEV(sc, cur_scp->index);
     if ((cur_scp->index != next_scr)
-	&& tty_opened(tp)
+	&& tty_opened_ns(tp)
 	&& (cur_scp->smode.mode == VT_AUTO)
 	&& ISGRAPHSC(cur_scp)) {
 	splx(s);
@@ -2431,7 +2432,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
      */
     if ((sc_console == NULL) || (next_scr != sc_console->index)) {
 	tp = SC_DEV(sc, next_scr);
-	if (!tty_opened(tp)) {
+	if (!tty_opened_ns(tp)) {
 	    splx(s);
 	    sc_bell(cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
@@ -3470,7 +3471,7 @@ next_code:
 			    sc_draw_cursor_image(scp);
 			}
 			tp = SC_DEV(sc, scp->index);
-			if (!kdb_active && tty_opened(tp))
+			if (!kdb_active && tty_opened_ns(tp))
 			    sctty_outwakeup(tp);
 #endif
 		    }
@@ -3565,7 +3566,7 @@ next_code:
 			sc->first_vty + i != this_scr; 
 			i = (i + 1)%sc->vtys) {
 		    struct tty *tp = SC_DEV(sc, sc->first_vty + i);
-		    if (tty_opened(tp)) {
+		    if (tty_opened_ns(tp)) {
 			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -3578,7 +3579,7 @@ next_code:
 			sc->first_vty + i != this_scr;
 			i = (i + sc->vtys - 1)%sc->vtys) {
 		    struct tty *tp = SC_DEV(sc, sc->first_vty + i);
-		    if (tty_opened(tp)) {
+		    if (tty_opened_ns(tp)) {
 			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -3774,7 +3775,7 @@ sc_paste(scr_stat *scp, const u_char *p, int count)
     u_char *rmap;
 
     tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
-    if (!tty_opened(tp))
+    if (!tty_opened_ns(tp))
 	return;
     rmap = scp->sc->scr_rmap;
     for (; count > 0; --count)
@@ -3788,7 +3789,7 @@ sc_respond(scr_stat *scp, const u_char *p, int count, int wakeup)
     struct tty *tp;
 
     tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
-    if (!tty_opened(tp))
+    if (!tty_opened_ns(tp))
 	return;
     ttydisc_rint_simple(tp, p, count);
     if (wakeup) {
@@ -3830,7 +3831,7 @@ blink_screen(void *arg)
 	scp->sc->blink_in_progress = 0;
     	mark_all(scp);
 	tp = SC_DEV(scp->sc, scp->index);
-	if (tty_opened(tp))
+	if (tty_opened_ns(tp))
 	    sctty_outwakeup(tp);
 	if (scp->sc->delayed_next_scr)
 	    sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
