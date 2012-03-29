@@ -409,6 +409,7 @@ do {									\
 #define	TDP_CALLCHAIN	0x00400000 /* Capture thread's callchain */
 #define	TDP_IGNSUSP	0x00800000 /* Permission to ignore the MNTK_SUSPEND* */
 #define	TDP_AUDITREC	0x01000000 /* Audit record pending on thread */
+#define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
 
 /*
  * Reasons that the current thread can not be run yet.

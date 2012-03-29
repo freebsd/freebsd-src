@@ -1409,11 +1409,17 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	return i;
 }
 
+/*
+ * Block entry into the machine-independent layer's page fault handler by
+ * the calling thread.  Subsequent calls to vm_fault() by that thread will
+ * return KERN_PROTECTION_FAILURE.  Enable machine-dependent handling of
+ * spurious page faults. 
+ */
 int
 vm_fault_disable_pagefaults(void)
 {
 
-	return (curthread_pflags_set(TDP_NOFAULTING));
+	return (curthread_pflags_set(TDP_NOFAULTING | TDP_RESETSPUR));
 }
 
 void

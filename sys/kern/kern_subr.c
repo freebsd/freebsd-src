@@ -190,8 +190,12 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 
 	/* XXX does it make a sense to set TDP_DEADLKTREAT for UIO_SYSSPACE ? */
 	newflags = TDP_DEADLKTREAT;
-	if (uio->uio_segflg == UIO_USERSPACE && nofault)
-		newflags |= TDP_NOFAULTING;
+	if (uio->uio_segflg == UIO_USERSPACE && nofault) {
+		/*
+		 * Fail if a non-spurious page fault occurs.
+		 */
+		newflags |= TDP_NOFAULTING | TDP_RESETSPUR;
+	}
 	save = curthread_pflags_set(newflags);
 
 	while (n > 0 && uio->uio_resid) {
