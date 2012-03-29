@@ -45,8 +45,8 @@
 #define	UCORE_FR_FIFOEMPTY	0x802c
 #define	UCORE_PKT_DISTR		0x8030
 
-#define	PACKET_MEMORY		(0xFFE00)
-#define	PACKET_DATA_OFFSET	(64)
+#define	PACKET_MEMORY		0xFFE00
+#define	PACKET_DATA_OFFSET	64
 #define	SHARED_SCRATCH_MEM	0x18000
 
 /* Distribution mode */
@@ -57,8 +57,8 @@
 #define	VAL_PDL(x)		(((x) & 0xf) << 4)
 
 /*output buffer done*/
-#define	VAL_FSV(x)		(x<<19)
-#define	VAL_FFS(x)		(x<<14)
+#define	VAL_FSV(x)		(x << 19)
+#define	VAL_FFS(x)		(x << 14)
 
 #define	FWD_DEST_ONLY		1
 #define	FWD_ENQ_DIST_VEC	2
@@ -69,37 +69,33 @@
 
 #define	USE_HASH_DST		(1 << 20)
 
+static __inline unsigned int
+nlm_read_ucore_reg(int reg)
+{
+	volatile unsigned int *addr = (volatile void *)reg;
+
+	return (*addr);
+}
+
+static __inline void
+nlm_write_ucore_reg(int reg, unsigned int val)
+{
+	volatile unsigned int *addr = (volatile void *)reg;
+
+	*addr = val;
+}
 
 #define	NLM_DEFINE_UCORE(name, reg)				\
-static __inline__ unsigned int nlm_read_ucore_##name(void)	\
+static __inline unsigned int					\
+nlm_read_ucore_##name(void)					\
 {								\
-	unsigned int __rv;                                      \
-	__asm__ __volatile__ (                                  \
-	".set	push\n"                                         \
-	".set	noreorder\n"                                    \
-	".set	mips32\n"                                       \
-	"li	$8, %1\n"					\
-	"lw	%0, ($8)\n"					\
-	".set	pop\n"                                          \
-	: "=r" (__rv)						\
-	: "i" (reg)						\
-	: "$8"							\
-	); 		                			\
-        return __rv;						\
+	return nlm_read_ucore_reg(reg);				\
 }								\
 								\
-static __inline__ void nlm_write_ucore_##name(unsigned int val)	\
+static __inline void						\
+nlm_write_ucore_##name(unsigned int v)				\
 {								\
-	__asm__ __volatile__(                                   \
-	".set	push\n"                                         \
-	".set	noreorder\n"                                    \
-	".set	mips32\n"                                       \
-	"li	$8, %1\n"					\
-	"sw	%0, ($8)\n"					\
-	".set	pop\n"                                          \
-	:: "r" (val), "i" (reg)					\
-	: "$8"							\
-	);							\
+	nlm_write_ucore_reg(reg, v);				\
 } struct __hack
 
 
