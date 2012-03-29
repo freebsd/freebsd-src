@@ -125,7 +125,7 @@ shm_example(int fd)
 		fdrop(fp, curthread);
 		return (error);
 	}
-	
+
 	/* Do something with 'mem'. */
 
 	error = shm_unmap(fp, mem, 16384);
