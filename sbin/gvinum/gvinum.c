@@ -557,7 +557,7 @@ find_pattern(char *line, char *pattern)
 	return (NULL);
 }
 
-/* Find a free name for an object given a a prefix. */
+/* Find a free name for an object given a prefix. */
 char *
 find_name(const char *prefix, int type, int namelen)
 {
