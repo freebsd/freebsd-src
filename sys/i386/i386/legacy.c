@@ -58,7 +58,9 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_LEGACYDEV, "legacydrv", "legacy system device");
 struct legacy_device {
-	int			lg_pcibus;
+	int	lg_pcibus;
+	int	lg_pcislot;
+	int	lg_pcifunc;
 };
 
 #define DEVTOAT(dev)	((struct legacy_device *)device_get_ivars(dev))
@@ -182,6 +184,8 @@ legacy_add_child(device_t bus, u_int order, const char *name, int unit)
 	if (atdev == NULL)
 		return(NULL);
 	atdev->lg_pcibus = -1;
+	atdev->lg_pcislot = -1;
+	atdev->lg_pcifunc = -1;
 
 	child = device_add_child_ordered(bus, order, name, unit);
 	if (child == NULL)
@@ -205,6 +209,12 @@ legacy_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case LEGACY_IVAR_PCIBUS:
 		*result = atdev->lg_pcibus;
 		break;
+	case LEGACY_IVAR_PCISLOT:
+		*result = atdev->lg_pcislot;
+		break;
+	case LEGACY_IVAR_PCIFUNC:
+		*result = atdev->lg_pcifunc;
+		break;
 	default:
 		return ENOENT;
 	}
@@ -222,6 +232,12 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 		return EINVAL;
 	case LEGACY_IVAR_PCIBUS:
 		atdev->lg_pcibus = value;
+		break;
+	case LEGACY_IVAR_PCISLOT:
+		atdev->lg_pcislot = value;
+		break;
+	case LEGACY_IVAR_PCIFUNC:
+		atdev->lg_pcifunc = value;
 		break;
 	default:
 		return ENOENT;
