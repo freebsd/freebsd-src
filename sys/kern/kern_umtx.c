@@ -1030,6 +1030,42 @@ tstohz(const struct timespec *tsp)
 	return tvtohz(&tv);
 }
 
+static int
+umtxq_nanosleep(struct thread *td, int clockid, int absolute,
+	struct timespec *timeout, const char *mesg)
+{
+	struct umtx_q *uq;
+	struct timespec ets, cts, tts;
+	int error;
+
+	uq = td->td_umtxq;
+	umtxq_unlock(&uq->uq_key);
+	if (!absolute) {
+		kern_clock_gettime(td, clockid, &ets);
+		timespecadd(&ets, timeout);
+		tts = *timeout;
+	} else { /* absolute time */
+		ets = *timeout;
+		tts = *timeout;
+		kern_clock_gettime(td, clockid, &cts);
+		timespecsub(&tts, &cts);
+	}
+	umtxq_lock(&uq->uq_key);
+	for (;;) {
+		error = umtxq_sleep(uq, mesg, tstohz(&tts));
+		if (error != ETIMEDOUT)
+			break;
+		kern_clock_gettime(td, clockid, &cts);
+		if (timespeccmp(&cts, &ets, >=)) {
+			error = ETIMEDOUT;
+			break;
+		}
+		tts = ets;
+		timespecsub(&tts, &cts);
+	}
+	return (error);
+}
+
 /*
  * Fetch and compare value, sleep on the address if value is not changed.
  */
@@ -1038,7 +1074,6 @@ do_wait(struct thread *td, void *addr, u_long id,
 	struct _umtx_time *timeout, int compat32, int is_private)
 {
 	struct umtx_q *uq;
-	struct timespec ets, cts, tts;
 	u_long tmp;
 	int error = 0;
 
@@ -1054,45 +1089,21 @@ do_wait(struct thread *td, void *addr, u_long id,
 		tmp = fuword(addr);
         else
 		tmp = (unsigned int)fuword32(addr);
-	if (tmp != id) {
-		umtxq_lock(&uq->uq_key);
-		umtxq_remove(uq);
-		umtxq_unlock(&uq->uq_key);
-	} else if (timeout == NULL) {
-		umtxq_lock(&uq->uq_key);
-		error = umtxq_sleep(uq, "uwait", 0);
-		umtxq_remove(uq);
-		umtxq_unlock(&uq->uq_key);
-	} else {
-		kern_clock_gettime(td, timeout->_clockid, &cts);
-		if ((timeout->_flags & UMTX_ABSTIME) == 0) {
-			ets = cts;
-			timespecadd(&ets, &timeout->_timeout);
-		} else {
-			ets = timeout->_timeout;
-		}
-		umtxq_lock(&uq->uq_key);
-		for (;;) {
-			if (timespeccmp(&cts, &ets, >=)) {
-				error = ETIMEDOUT;
-				break;
-			}
-			tts = ets;
-			timespecsub(&tts, &cts);
-			error = umtxq_sleep(uq, "uwait", tstohz(&tts));
-			if (!(uq->uq_flags & UQF_UMTXQ)) {
-				error = 0;
-				break;
-			}
-			if (error != ETIMEDOUT)
-				break;
-			umtxq_unlock(&uq->uq_key);
-			kern_clock_gettime(td, timeout->_clockid, &cts);
-			umtxq_lock(&uq->uq_key);
-		}
-		umtxq_remove(uq);
-		umtxq_unlock(&uq->uq_key);
+	umtxq_lock(&uq->uq_key);
+	if (tmp == id) {
+		if (timeout == NULL)
+			error = umtxq_sleep(uq, "uwait", 0);
+		else
+			error = umtxq_nanosleep(td, timeout->_clockid, 
+		   		((timeout->_flags & UMTX_ABSTIME) != 0),
+				&timeout->_timeout, "uwait");
 	}
+
+	if ((uq->uq_flags & UQF_UMTXQ) == 0)
+		error = 0;
+	else
+		umtxq_remove(uq);
+	umtxq_unlock(&uq->uq_key);
 	umtx_key_release(&uq->uq_key);
 	if (error == ERESTART)
 		error = EINTR;
@@ -2340,7 +2351,6 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	struct timespec *timeout, u_long wflags)
 {
 	struct umtx_q *uq;
-	struct timespec cts, ets, tts;
 	uint32_t flags;
 	uint32_t clockid;
 	int error;
@@ -2382,32 +2392,12 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	
 	umtxq_lock(&uq->uq_key);
 	if (error == 0) {
-		if (timeout == NULL) {
+		if (timeout == NULL)
 			error = umtxq_sleep(uq, "ucond", 0);
-		} else {
-			if ((wflags & CVWAIT_ABSTIME) == 0) {
-				kern_clock_gettime(td, clockid, &ets);
-				timespecadd(&ets, timeout);
-				tts = *timeout;
-			} else { /* absolute time */
-				ets = *timeout;
-				tts = *timeout;
-				kern_clock_gettime(td, clockid, &cts);
-				timespecsub(&tts, &cts);
-			}
-			for (;;) {
-				error = umtxq_sleep(uq, "ucond", tstohz(&tts));
-				if (error != ETIMEDOUT)
-					break;
-				kern_clock_gettime(td, clockid, &cts);
-				if (timespeccmp(&cts, &ets, >=)) {
-					error = ETIMEDOUT;
-					break;
-				}
-				tts = ets;
-				timespecsub(&tts, &cts);
-			}
-		}
+		else
+			error = umtxq_nanosleep(td, clockid, 
+			    ((wflags & CVWAIT_ABSTIME) != 0),
+			    timeout, "ucond");
 	}
 
 	if ((uq->uq_flags & UQF_UMTXQ) == 0)
@@ -2856,7 +2846,6 @@ static int
 do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 {
 	struct umtx_q *uq;
-	struct timespec cts, ets, tts;
 	uint32_t flags, count;
 	int error;
 
@@ -2881,37 +2870,15 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 		umtx_key_release(&uq->uq_key);
 		return (0);
 	}
-
 	umtxq_lock(&uq->uq_key);
 	umtxq_unbusy(&uq->uq_key);
 
-	if (timeout == NULL) {
+	if (timeout == NULL)
 		error = umtxq_sleep(uq, "usem", 0);
-	} else {
-		umtxq_unlock(&uq->uq_key);
-		kern_clock_gettime(td, timeout->_clockid, &cts);
-		if ((timeout->_flags & UMTX_ABSTIME) == 0) {
-			ets = cts;
-			timespecadd(&ets, &timeout->_timeout);
-		} else {
-			ets = timeout->_timeout;
-		}
-		umtxq_lock(&uq->uq_key);
-		for (;;) {
-			if (timespeccmp(&cts, &ets, >=)) {
-				error = ETIMEDOUT;
-				break;
-			}
-			tts = ets;
-			timespecsub(&tts, &cts);
-			error = umtxq_sleep(uq, "usem", tstohz(&tts));
-			if (error != ETIMEDOUT)
-				break;
-			umtxq_unlock(&uq->uq_key);
-			kern_clock_gettime(td, timeout->_clockid, &cts);
-			umtxq_lock(&uq->uq_key);
-		}
-	}
+	else
+		error = umtxq_nanosleep(td, timeout->_clockid,
+	   	    ((timeout->_flags & UMTX_ABSTIME) != 0),
+		    &timeout->_timeout, "usem");
 
 	if ((uq->uq_flags & UQF_UMTXQ) == 0)
 		error = 0;
