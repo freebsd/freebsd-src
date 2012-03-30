@@ -115,7 +115,6 @@ static void	ale_init_tx_ring(struct ale_softc *);
 static void	ale_int_task(void *, int);
 static int	ale_intr(void *);
 static int	ale_ioctl(struct ifnet *, u_long, caddr_t);
-static void	ale_link_task(void *, int);
 static void	ale_mac_config(struct ale_softc *);
 static int	ale_miibus_readreg(device_t, int, int);
 static void	ale_miibus_statchg(device_t);
@@ -253,10 +252,45 @@ static void
 ale_miibus_statchg(device_t dev)
 {
 	struct ale_softc *sc;
+	struct mii_data *mii;
+	struct ifnet *ifp;
+	uint32_t reg;
 
 	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->ale_miibus);
+	ifp = sc->ale_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 
-	taskqueue_enqueue(taskqueue_swi, &sc->ale_link_task);
+	sc->ale_flags &= ~ALE_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->ale_flags |= ALE_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+			if ((sc->ale_flags & ALE_FLAG_FASTETHER) == 0)
+				sc->ale_flags |= ALE_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* Stop Rx/Tx MACs. */
+	ale_stop_mac(sc);
+
+	/* Program MACs with resolved speed/duplex/flow-control. */
+	if ((sc->ale_flags & ALE_FLAG_LINK) != 0) {
+		ale_mac_config(sc);
+		/* Reenable Tx/Rx MACs. */
+		reg = CSR_READ_4(sc, ALE_MAC_CFG);
+		reg |= MAC_CFG_TX_ENB | MAC_CFG_RX_ENB;
+		CSR_WRITE_4(sc, ALE_MAC_CFG, reg);
+	}
 }
 
 static void
@@ -425,7 +459,6 @@ ale_attach(device_t dev)
 	    MTX_DEF);
 	callout_init_mtx(&sc->ale_tick_ch, &sc->ale_mtx, 0);
 	TASK_INIT(&sc->ale_int_task, 0, ale_int_task, sc);
-	TASK_INIT(&sc->ale_link_task, 0, ale_link_task, sc);
 
 	/* Map the device. */
 	pci_enable_busmaster(dev);
@@ -679,7 +712,6 @@ ale_detach(device_t dev)
 		ALE_UNLOCK(sc);
 		callout_drain(&sc->ale_tick_ch);
 		taskqueue_drain(sc->ale_tq, &sc->ale_int_task);
-		taskqueue_drain(taskqueue_swi, &sc->ale_link_task);
 	}
 
 	if (sc->ale_tq != NULL) {
@@ -2076,57 +2108,6 @@ ale_mac_config(struct ale_softc *sc)
 }
 
 static void
-ale_link_task(void *arg, int pending)
-{
-	struct ale_softc *sc;
-	struct mii_data *mii;
-	struct ifnet *ifp;
-	uint32_t reg;
-
-	sc = (struct ale_softc *)arg;
-
-	ALE_LOCK(sc);
-	mii = device_get_softc(sc->ale_miibus);
-	ifp = sc->ale_ifp;
-	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		ALE_UNLOCK(sc);
-		return;
-	}
-
-	sc->ale_flags &= ~ALE_FLAG_LINK;
-	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
-	    (IFM_ACTIVE | IFM_AVALID)) {
-		switch (IFM_SUBTYPE(mii->mii_media_active)) {
-		case IFM_10_T:
-		case IFM_100_TX:
-			sc->ale_flags |= ALE_FLAG_LINK;
-			break;
-		case IFM_1000_T:
-			if ((sc->ale_flags & ALE_FLAG_FASTETHER) == 0)
-				sc->ale_flags |= ALE_FLAG_LINK;
-			break;
-		default:
-			break;
-		}
-	}
-
-	/* Stop Rx/Tx MACs. */
-	ale_stop_mac(sc);
-
-	/* Program MACs with resolved speed/duplex/flow-control. */
-	if ((sc->ale_flags & ALE_FLAG_LINK) != 0) {
-		ale_mac_config(sc);
-		/* Reenable Tx/Rx MACs. */
-		reg = CSR_READ_4(sc, ALE_MAC_CFG);
-		reg |= MAC_CFG_TX_ENB | MAC_CFG_RX_ENB;
-		CSR_WRITE_4(sc, ALE_MAC_CFG, reg);
-	}
-
-	ALE_UNLOCK(sc);
-}
-
-static void
 ale_stats_clear(struct ale_softc *sc)
 {
 	struct smb sb;
@@ -2876,14 +2857,14 @@ ale_init_locked(struct ale_softc *sc)
 	CSR_WRITE_4(sc, ALE_INTR_STATUS, 0xFFFFFFFF);
 	CSR_WRITE_4(sc, ALE_INTR_STATUS, 0);
 
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
 	sc->ale_flags &= ~ALE_FLAG_LINK;
 	/* Switch to the current media. */
 	mii_mediachg(mii);
 
 	callout_reset(&sc->ale_tick_ch, hz, ale_tick, sc);
-
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
