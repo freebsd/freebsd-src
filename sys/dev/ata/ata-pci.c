@@ -600,7 +600,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(bus_print_child,		ata_pci_print_child),
     DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 devclass_t ata_pci_devclass;
@@ -611,7 +611,7 @@ static driver_t ata_pci_driver = {
     sizeof(struct ata_pci_controller),
 };
 
-DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_pci_devclass, 0, 0);
+DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_pci_devclass, NULL, NULL);
 MODULE_VERSION(atapci, 1);
 MODULE_DEPEND(atapci, ata, 1, 1, 1);
 
@@ -778,7 +778,7 @@ static device_method_t ata_pcichannel_methods[] = {
 #endif
     DEVMETHOD(ata_reset,        ata_pcichannel_reset),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 driver_t ata_pcichannel_driver = {
@@ -787,7 +787,7 @@ driver_t ata_pcichannel_driver = {
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, NULL, NULL);
 
 /*
  * misc support fucntions
@@ -868,8 +868,8 @@ ata_set_desc(device_t dev)
     device_set_desc_copy(dev, buffer);
 }
 
-struct ata_chip_id *
-ata_match_chip(device_t dev, struct ata_chip_id *index)
+const struct ata_chip_id *
+ata_match_chip(device_t dev, const struct ata_chip_id *index)
 {
     uint32_t devid;
     uint8_t revid;
@@ -884,10 +884,10 @@ ata_match_chip(device_t dev, struct ata_chip_id *index)
     return (NULL);
 }
 
-struct ata_chip_id *
-ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
+const struct ata_chip_id *
+ata_find_chip(device_t dev, const struct ata_chip_id *index, int slot)
 {
-    struct ata_chip_id *idx;
+    const struct ata_chip_id *idx;
     device_t *children;
     int nchildren, i;
     uint8_t s;
@@ -909,7 +909,7 @@ ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
     return (NULL);
 }
 
-char *
+const char *
 ata_pcivendor2str(device_t dev)
 {
     switch (pci_get_vendor(dev)) {

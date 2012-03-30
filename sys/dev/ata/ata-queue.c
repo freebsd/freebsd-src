@@ -684,7 +684,7 @@ ata_sort_queue(struct ata_channel *ch, struct ata_request *request)
 }
 #endif
 
-char *
+const char *
 ata_cmd2str(struct ata_request *request)
 {
     static char buffer[20];

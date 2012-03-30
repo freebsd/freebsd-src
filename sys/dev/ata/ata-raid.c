@@ -4546,7 +4546,7 @@ static device_method_t ata_raid_sub_methods[] = {
     DEVMETHOD(device_probe,     ata_raid_subdisk_probe),
     DEVMETHOD(device_attach,    ata_raid_subdisk_attach),
     DEVMETHOD(device_detach,    ata_raid_subdisk_detach),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_raid_sub_driver = {
