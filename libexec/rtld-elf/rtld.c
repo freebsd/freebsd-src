@@ -2163,7 +2163,7 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	    if (mprotect(obj->mapbase, obj->textsize,
 	      PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
 		_rtld_error("%s: Cannot write-enable text segment: %s",
-		  obj->path, strerror(errno));
+		  obj->path, rtld_strerror(errno));
 		return -1;
 	    }
 	}
@@ -2176,7 +2176,7 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	    if (mprotect(obj->mapbase, obj->textsize,
 	      PROT_READ|PROT_EXEC) == -1) {
 		_rtld_error("%s: Cannot write-protect text segment: %s",
-		  obj->path, strerror(errno));
+		  obj->path, rtld_strerror(errno));
 		return -1;
 	    }
 	}
@@ -2196,7 +2196,7 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	if (obj->relro_size > 0) {
 	    if (mprotect(obj->relro_page, obj->relro_size, PROT_READ) == -1) {
 		_rtld_error("%s: Cannot enforce relro protection: %s",
-		  obj->path, strerror(errno));
+		  obj->path, rtld_strerror(errno));
 		return -1;
 	    }
 	}
@@ -4355,4 +4355,13 @@ __chk_fail(void)
 
 	_rtld_error("buffer overflow detected; terminated");
 	die();
+}
+
+const char *
+rtld_strerror(int errnum)
+{
+
+	if (errnum < 0 || errnum >= sys_nerr)
+		return ("Unknown error");
+	return (sys_errlist[errnum]);
 }
