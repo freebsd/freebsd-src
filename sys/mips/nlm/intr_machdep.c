@@ -141,13 +141,13 @@ xlp_establish_intr(const char *name, driver_filter_t filt,
 		 * PIC based interrupts need ack in PIC, and some SoC
 		 * components need additional acks (e.g. PCI)
 		 */
-		if (xlp_irq_is_picintr(irq))
+		if (XLP_IRQ_IS_PICINTR(irq))
 			errcode = intr_event_create(&ie, src, 0, irq,
 			    xlp_pre_ithread, xlp_post_ithread, xlp_post_filter,
 			    NULL, "hard intr%d:", irq);
 		else {
 			if (filt == NULL)
-				panic("Not supported - non filter percpu intr");
+				panic("Unsupported non filter percpu intr %d", irq);
 			errcode = intr_event_create(&ie, src, 0, irq,
 			    NULL, NULL, NULL, NULL, "hard intr%d:", irq);
 		}

@@ -33,9 +33,9 @@
 #ifndef __HEADERS_H__
 #define __HEADERS_H__
 
-#ifdef HAVE_CONFIG_H
+
 #include <config.h>
-#endif
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,20 +70,21 @@
 #ifdef HAVE_LIBUTIL_H
 #include <libutil.h>
 #endif
-#ifdef HAVE_GETPEERUCRED
-#include <ucred.h>
-#endif
-#ifdef HAVE_DOOR_CREATE
-#include <door.h>
-#include <alloca.h>
-#endif
+#include <ctype.h>
 #include <err.h>
 #include <roken.h>
 #include <getarg.h>
 #include <base64.h>
 #include <parse_units.h>
+#include <parse_time.h>
+
+
 #include <krb5.h>
-#include <krb5_locl.h>
+#include <heim_threads.h>
+
+#include <heim-ipc.h>
+
+#include "crypto-headers.h"
 
 #endif /* __HEADERS_H__ */
 

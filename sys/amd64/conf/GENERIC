@@ -218,9 +218,12 @@ device		ale		# Atheros AR8121/AR8113/AR8114 Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
+device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		dc		# DEC/Intel 21143 and various workalikes
 device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		gem		# Sun GEM/Sun ERI/Apple GMAC
+device		hme		# Sun HME (Happy Meal Ethernet)
 device		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
@@ -285,7 +288,6 @@ device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
-device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)
@@ -317,6 +319,9 @@ device		dcons_crom	# Configuration ROM for dcons
 
 # Sound support
 device		sound		# Generic sound driver (required)
+device		snd_cmi		# CMedia CMI8338/CMI8738
+device		snd_csa		# Crystal Semiconductor CS461x/428x
+device		snd_emu10kx	# Creative SoundBlaster Live! and Audigy
 device		snd_es137x	# Ensoniq AudioPCI ES137x
 device		snd_hda		# Intel High Definition Audio
 device		snd_ich		# Intel, NVidia and other ICH AC'97 Audio

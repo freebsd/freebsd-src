@@ -45,7 +45,7 @@
 #
 # $FreeBSD$
 
-machine 	mips mipseb
+machine 	mips mips
 ident 		XLR
 include		"../rmi/std.xlr"
 
@@ -112,7 +112,6 @@ device 		uart
 device 		loop
 device 		random
 device 		md
-device 		pty
 device		bpf
 
 # Network

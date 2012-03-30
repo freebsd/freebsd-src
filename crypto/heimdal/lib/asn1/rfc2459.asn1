@@ -6,7 +6,7 @@ RFC2459 DEFINITIONS ::= BEGIN
 IMPORTS heim_any FROM heim;
 
 Version ::=  INTEGER {
-	rfc3280_version_1(0), 
+	rfc3280_version_1(0),
 	rfc3280_version_2(1),
 	rfc3280_version_3(2)
 }
@@ -29,7 +29,7 @@ id-pkcs2-md2 OBJECT IDENTIFIER ::=		{ id-pkcs-2 2 }
 id-pkcs2-md4 OBJECT IDENTIFIER ::=		{ id-pkcs-2 4 }
 id-pkcs2-md5 OBJECT IDENTIFIER ::=		{ id-pkcs-2 5 }
 
-id-rsa-digestAlgorithm OBJECT IDENTIFIER ::= 
+id-rsa-digestAlgorithm OBJECT IDENTIFIER ::=
 { iso(1) member-body(2) us(840) rsadsi(113549) 2 }
 
 id-rsa-digest-md2 OBJECT IDENTIFIER ::= { id-rsa-digestAlgorithm 2 }
@@ -52,9 +52,12 @@ id-rsadsi-des-ede3-cbc OBJECT IDENTIFIER ::=	{ id-rsadsi-encalg 7 }
 id-secsig-sha-1 OBJECT IDENTIFIER ::= { iso(1) identified-organization(3)
 	oiw(14) secsig(3) algorithm(2) 26 }
 
+id-secsig-sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { iso(1) identified-organization(3)
+	oiw(14) secsig(3) algorithm(2) 29 }
+
 id-nistAlgorithm OBJECT IDENTIFIER ::= {
    joint-iso-itu-t(2) country(16) us(840) organization(1) gov(101) csor(3) 4 }
-   
+  
 id-nist-aes-algs OBJECT IDENTIFIER ::= { id-nistAlgorithm 1 }
 
 id-aes-128-cbc OBJECT IDENTIFIER ::=		{ id-nist-aes-algs 2 }
@@ -72,9 +75,42 @@ id-dhpublicnumber OBJECT IDENTIFIER ::= {
         iso(1) member-body(2) us(840) ansi-x942(10046)
         number-type(2) 1 }
 
+-- ECC
+
+id-ecPublicKey OBJECT IDENTIFIER ::= {
+       iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
+
+id-ecDH OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) schemes(1)
+       ecdh(12) }
+
+id-ecMQV OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) schemes(1)
+       ecmqv(13) }
+
+id-ecdsa-with-SHA256 OBJECT IDENTIFIER ::= {
+     iso(1) member-body(2) us(840) ansi-X9-62(10045) signatures(4)
+     ecdsa-with-SHA2(3) 2 }
+
+id-ecdsa-with-SHA1 OBJECT IDENTIFIER ::= {
+     iso(1) member-body(2) us(840) ansi-X9-62(10045) signatures(4) 1 }
+
+-- some EC group ids
+
+id-ec-group-secp256r1 OBJECT IDENTIFIER ::= {
+       iso(1) member-body(2) us(840) ansi-X9-62(10045) curves(3)
+       prime(1) 7 }
+
+id-ec-group-secp160r1 OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) 0 8 }
+
+id-ec-group-secp160r2 OBJECT IDENTIFIER ::= {
+       iso(1) identified-organization(3) certicom(132) 0 30 }
+
+-- DSA
+
 id-x9-57 OBJECT IDENTIFIER ::= {
-        iso(1) member-body(2) us(840) ansi-x942(10046)
-	4 }
+        iso(1) member-body(2) us(840) ansi-x942(10046) 4 }
 
 id-dsa OBJECT IDENTIFIER ::=		{ id-x9-57 1 }
 id-dsa-with-sha1 OBJECT IDENTIFIER ::=		{ id-x9-57 3 }
@@ -117,11 +153,9 @@ AttributeType ::=   OBJECT IDENTIFIER
 
 AttributeValue ::=   heim_any
 
-TeletexStringx ::= [UNIVERSAL 20] IMPLICIT OCTET STRING
-
 DirectoryString ::= CHOICE {
 	ia5String	IA5String,
-	teletexString	TeletexStringx,
+	teletexString	TeletexString,
 	printableString	PrintableString,
 	universalString UniversalString,
 	utf8String	UTF8String,
@@ -210,6 +244,13 @@ DomainParameters ::= SEQUENCE {
 	validationParms	ValidationParms OPTIONAL -- ValidationParms
 }
 
+-- As defined by PKCS3
+DHParameter ::= SEQUENCE {
+	prime		INTEGER, -- odd prime, p=jq +1
+	base		INTEGER, -- generator, g
+	privateValueLength INTEGER OPTIONAL
+}
+
 DHPublicKey ::= INTEGER
 
 OtherName ::= SEQUENCE {
@@ -256,8 +297,8 @@ KeyIdentifier ::= OCTET STRING
 
 AuthorityKeyIdentifier ::= SEQUENCE {
 	keyIdentifier             [0] IMPLICIT OCTET STRING OPTIONAL,
-	authorityCertIssuer       [1] IMPLICIT -- GeneralName -- 
-		SEQUENCE -- SIZE (1..MAX) -- OF GeneralName OPTIONAL, 
+	authorityCertIssuer       [1] IMPLICIT -- GeneralName --
+		SEQUENCE -- SIZE (1..MAX) -- OF GeneralName OPTIONAL,
 	authorityCertSerialNumber [2] IMPLICIT INTEGER OPTIONAL
 }
 
@@ -269,7 +310,7 @@ id-x509-ce-basicConstraints OBJECT IDENTIFIER ::=  { id-x509-ce 19 }
 
 BasicConstraints ::= SEQUENCE {
 	cA                      BOOLEAN OPTIONAL -- DEFAULT FALSE --,
-	pathLenConstraint	INTEGER (0..4294967295) OPTIONAL 
+	pathLenConstraint	INTEGER (0..4294967295) OPTIONAL
 }
 
 id-x509-ce-nameConstraints OBJECT IDENTIFIER ::=  { id-x509-ce 30 }
@@ -350,6 +391,21 @@ DSAParams  ::=  SEQUENCE {
 	g	INTEGER
 }
 
+-- draft-ietf-pkix-ecc-subpubkeyinfo-11
+
+ECPoint ::= OCTET STRING
+
+ECParameters ::= CHOICE {
+	namedCurve         OBJECT IDENTIFIER
+	-- implicitCurve   NULL
+	-- specifiedCurve  SpecifiedECDomain
+}
+
+ECDSA-Sig-Value ::= SEQUENCE {
+     r  INTEGER,
+     s  INTEGER
+}
+
 -- really pkcs1
 
 RSAPublicKey ::= SEQUENCE {
@@ -382,7 +438,7 @@ DigestInfo ::= SEQUENCE {
 
 -- szOID_CERTIFICATE_TEMPLATE "1.3.6.1.4.1.311.21.7" is Encoded as:
 
--- TemplateVersion ::= INTEGER (0..4294967295) 
+-- TemplateVersion ::= INTEGER (0..4294967295)
 
 -- CertificateTemplate ::= SEQUENCE {
 --	templateID OBJECT IDENTIFIER,
@@ -393,7 +449,7 @@ DigestInfo ::= SEQUENCE {
 
 --
 -- CRL
--- 
+--
 
 TBSCRLCertList ::=  SEQUENCE  {
 	version			Version OPTIONAL, -- if present, MUST be v2
@@ -489,16 +545,16 @@ id-uspkicommon-piv-interim OBJECT IDENTIFIER ::= { 2 16 840 1 101 3 6 9 1 }
 
 --- Netscape extentions
 
-id-netscape OBJECT IDENTIFIER ::= 
+id-netscape OBJECT IDENTIFIER ::=
     { joint-iso-itu-t(2) country(16) us(840) organization(1) netscape(113730) }
 id-netscape-cert-comment OBJECT IDENTIFIER ::= { id-netscape 1 13 }
 
 --- MS extentions
 
-id-ms-cert-enroll-domaincontroller OBJECT IDENTIFIER ::= 
+id-ms-cert-enroll-domaincontroller OBJECT IDENTIFIER ::=
     { 1 3 6 1 4 1 311 20 2 }
 
-id-ms-client-authentication OBJECT IDENTIFIER ::= 
+id-ms-client-authentication OBJECT IDENTIFIER ::=
  { 1 3 6 1 5 5 7 3 2 }
 
 -- DER:1e:20:00:44:00:6f:00:6d:00:61:00:69:00:6e:00:43:00:6f:00:6e:00:74:00:72:00:6f:00:6c:00:6c:00:65:00:72

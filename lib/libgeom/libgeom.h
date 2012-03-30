@@ -71,7 +71,8 @@ struct gident {
 	enum {	ISCLASS,
 		ISGEOM,
 		ISPROVIDER,
-		ISCONSUMER }	lg_what;
+		ISCONSUMER,
+		ISUNRESOLVED }	lg_what;
 };
 
 struct gmesh {

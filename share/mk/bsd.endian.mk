@@ -10,6 +10,6 @@ TARGET_ENDIANNESS= 1234
     ${MACHINE_ARCH} == "powerpc64" || \
     ${MACHINE_ARCH} == "sparc64" || \
     ${MACHINE_ARCH} == "armeb" || \
-    ${MACHINE_ARCH:Mmips*eb} != ""
+    ${MACHINE_ARCH:Mmips*} != ""
 TARGET_ENDIANNESS= 4321
 .endif

@@ -23,6 +23,7 @@ NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 NO_WUNUSED_VALUE=		-Wno-unused-value
 NO_WSELF_ASSIGN=		-Wno-self-assign
 NO_WFORMAT_SECURITY=		-Wno-format-security
+NO_WUNNEEDED_INTERNAL_DECL=	-Wno-unneeded-internal-declaration
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.

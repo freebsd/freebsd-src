@@ -99,7 +99,7 @@ typedef struct pmap *pmap_t;
 #ifdef	_KERNEL
 
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
-vm_offset_t pmap_kextract(vm_offset_t va);
+vm_paddr_t pmap_kextract(vm_offset_t va);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 #define	pmap_asid(pmap)	(pmap)->pm_asid[PCPU_GET(cpuid)].asid

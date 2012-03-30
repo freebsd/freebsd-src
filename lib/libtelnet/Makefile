@@ -14,6 +14,7 @@ SRCS=		genget.c getent.c misc.c
 CFLAGS+=	-I${TELNETDIR}
 
 WARNS?=		2
+NO_WERROR=	yes
 
 .if !defined(RELEASE_CRUNCH)
 .if ${MK_OPENSSL} != "no"

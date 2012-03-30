@@ -260,6 +260,8 @@ octeon_debug_symbol(void)
 void
 octeon_ciu_reset(void)
 {
+	uint64_t cvmctl;
+
 	/* Disable all CIU interrupts by default */
 	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2), 0);
 	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2+1), 0);
@@ -272,6 +274,14 @@ octeon_ciu_reset(void)
 		       (1ull << (OCTEON_IRQ_MBOX0 - 8)) |
 		       (1ull << (OCTEON_IRQ_MBOX1 - 8)));
 #endif
+
+	/* 
+	 * Move the Performance Counter interrupt to OCTEON_PMC_IRQ
+	 */
+	cvmctl = mips_rd_cvmctl();
+	cvmctl &= ~(7 << 7);
+	cvmctl |= (OCTEON_PMC_IRQ + 2) << 7;
+	mips_wr_cvmctl(cvmctl);
 }
 
 static void
@@ -362,6 +372,8 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	 * and somehow handle the PCI console, which we lack code for
 	 * entirely.
 	 */
+
+	mips_postboot_fixup();
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();

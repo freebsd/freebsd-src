@@ -495,7 +495,7 @@ ldm_privhdr_check(struct ldm_db *db, struct g_consumer *cp, int is_gpt)
 		g_free(buf);
 		if (hdr.start > last ||
 		    hdr.start + hdr.size - 1 > last ||
-		    (hdr.start + hdr.size - 1 > hdr.db_offset && is_gpt) ||
+		    (hdr.start + hdr.size - 1 > hdr.db_offset && !is_gpt) ||
 		    hdr.db_size != LDM_DB_SIZE ||
 		    hdr.db_offset + LDM_DB_SIZE - 1 > last ||
 		    hdr.th_offset[0] >= LDM_DB_SIZE ||
@@ -1371,14 +1371,15 @@ g_part_ldm_read(struct g_part_table *basetable, struct g_consumer *cp)
 	/* Read and parse LDM private headers. */
 	error = ldm_privhdr_check(&db, cp, table->is_gpt);
 	if (error != 0)
-		return (error);
+		goto gpt_cleanup;
 	basetable->gpt_first = table->is_gpt ? 0: db.ph.start;
 	basetable->gpt_last = basetable->gpt_first + db.ph.size - 1;
 	table->db_offset = db.ph.db_offset;
 	/* Make additional checks for GPT */
 	if (table->is_gpt) {
-		if (ldm_gpt_check(&db, cp) != 0)
-			return (ENXIO);
+		error = ldm_gpt_check(&db, cp);
+		if (error != 0)
+			goto gpt_cleanup;
 		/*
 		 * Now we should reset database offset to zero, because our
 		 * consumer cp is attached to the ms-ldm-metadata partition
@@ -1389,12 +1390,25 @@ g_part_ldm_read(struct g_part_table *basetable, struct g_consumer *cp)
 	/* Read and parse LDM TOC headers. */
 	error = ldm_tochdr_check(&db, cp);
 	if (error != 0)
-		return (error);
+		goto gpt_cleanup;
 	/* Read and parse LDM VMDB header. */
 	error = ldm_vmdbhdr_check(&db, cp);
 	if (error != 0)
-		return (error);
+		goto gpt_cleanup;
 	error = ldm_vmdb_parse(&db, cp);
+	/*
+	 * For the GPT case we must detach and destroy
+	 * second consumer before return.
+	 */
+gpt_cleanup:
+	if (table->is_gpt) {
+		g_topology_lock();
+		g_access(cp, -1, 0, 0);
+		g_detach(cp);
+		g_destroy_consumer(cp);
+		g_topology_unlock();
+		cp = cp2;
+	}
 	if (error != 0)
 		return (error);
 	/* Search current disk in the disk list. */
@@ -1407,15 +1421,6 @@ g_part_ldm_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    cp->provider->name);
 		ldm_vmdb_free(&db);
 		return (ENXIO);
-	}
-	if (table->is_gpt) {
-		/* Second consumer is no longer needed. */
-		g_topology_lock();
-		g_access(cp, -1, 0, 0);
-		g_detach(cp);
-		g_destroy_consumer(cp);
-		g_topology_unlock();
-		cp = cp2;
 	}
 	index = 1;
 	LIST_FOREACH(vol, &db.volumes, entry) {

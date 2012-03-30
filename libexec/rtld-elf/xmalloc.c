@@ -32,14 +32,17 @@
 #include "rtld.h"
 #include "rtld_printf.h"
 
-void *xcalloc(size_t);
-void *xmalloc(size_t);
-char *xstrdup(const char *);
-
 void *
-xcalloc(size_t size)
+xcalloc(size_t number, size_t size)
 {
-    return memset(xmalloc(size), 0, size);
+	void *p;
+
+	p = calloc(number, size);
+	if (p == NULL) {
+		rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
+		_exit(1);
+	}
+	return (p);
 }
 
 void *
@@ -54,12 +57,13 @@ xmalloc(size_t size)
 }
 
 char *
-xstrdup(const char *s)
+xstrdup(const char *str)
 {
-    char *p = strdup(s);
-    if (p == NULL) {
-	 rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
-	 _exit(1);
-    }
-    return p;
+	char *copy;
+	size_t len;
+
+	len = strlen(str) + 1;
+	copy = xmalloc(len);
+	memcpy(copy, str, len);
+	return (copy);
 }

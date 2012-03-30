@@ -191,6 +191,7 @@ static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
+static void	ath_txq_sched_tasklet(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_stoprecv(struct ath_softc *, int);
@@ -199,6 +200,7 @@ static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
 static void	ath_set_channel(struct ieee80211com *);
+static void	ath_update_chw(struct ieee80211com *);
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
@@ -397,6 +399,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
+	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -794,6 +797,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
+	ic->ic_update_chw = ath_update_chw;
 
 	/* 802.11n specific - but just override anyway */
 	sc->sc_addba_request = ic->ic_addba_request;
@@ -5130,6 +5134,41 @@ ath_tx_proc(void *arg, int npending)
 #undef	TXQACTIVE
 
 /*
+ * Deferred processing of TXQ rescheduling.
+ */
+static void
+ath_txq_sched_tasklet(void *arg, int npending)
+{
+	struct ath_softc *sc = arg;
+	int i;
+
+	/* XXX is skipping ok? */
+	ATH_PCU_LOCK(sc);
+#if 0
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+#endif
+	sc->sc_txproc_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		if (ATH_TXQ_SETUP(sc, i)) {
+			ATH_TXQ_LOCK(&sc->sc_txq[i]);
+			ath_txq_sched(sc, &sc->sc_txq[i]);
+			ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+		}
+	}
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
+}
+
+/*
  * Return a buffer to the pool and update the 'busy' flag on the
  * previous 'tail' entry.
  *
@@ -5715,6 +5754,31 @@ ath_scan_end(struct ieee80211com *ic)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: RX filter 0x%x bssid %s aid 0x%x\n",
 		 __func__, rfilt, ether_sprintf(sc->sc_curbssid),
 		 sc->sc_curaid);
+}
+
+/*
+ * For now, just do a channel change.
+ *
+ * Later, we'll go through the hard slog of suspending tx/rx, changing rate
+ * control state and resetting the hardware without dropping frames out
+ * of the queue.
+ *
+ * The unfortunate trouble here is making absolutely sure that the
+ * channel width change has propagated enough so the hardware
+ * absolutely isn't handed bogus frames for it's current operating
+ * mode. (Eg, 40MHz frames in 20MHz mode.) Since TX and RX can and
+ * does occur in parallel, we need to make certain we've blocked
+ * any further ongoing TX (and RX, that can cause raw TX)
+ * before we do this.
+ */
+static void
+ath_update_chw(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
+
+	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
+	ath_set_channel(ic);
 }
 
 static void

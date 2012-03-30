@@ -1,38 +1,37 @@
 /*
- * Copyright (c) 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
-RCSID("$Id: ks_keychain.c 22084 2007-11-16 20:12:30Z lha $");
 
 #ifdef HAVE_FRAMEWORK_SECURITY
 
@@ -44,13 +43,14 @@ OSStatus SecKeyGetCSPHandle(SecKeyRef, CSSM_CSP_HANDLE *);
 OSStatus SecKeyGetCredentials(SecKeyRef, CSSM_ACL_AUTHORIZATION_TAG,
 			      int, const CSSM_ACCESS_CREDENTIALS **);
 #define kSecCredentialTypeDefault 0
+#define CSSM_SIZE uint32_t
 #endif
 
 
 static int
 getAttribute(SecKeychainItemRef itemRef, SecItemAttr item,
 	     SecKeychainAttributeList **attrs)
-{	     
+{
     SecKeychainAttributeInfo attrInfo;
     UInt32 attrFormat = 0;
     OSStatus ret;
@@ -60,7 +60,7 @@ getAttribute(SecKeychainItemRef itemRef, SecItemAttr item,
     attrInfo.count = 1;
     attrInfo.tag = &item;
     attrInfo.format = &attrFormat;
-  
+
     ret = SecKeychainItemCopyAttributesAndData(itemRef, &attrInfo, NULL,
 					       attrs, NULL, NULL);
     if (ret)
@@ -101,7 +101,7 @@ kc_rsa_public_decrypt(int flen,
 
 
 static int
-kc_rsa_private_encrypt(int flen, 
+kc_rsa_private_encrypt(int flen,
 		       const unsigned char *from,
 		       unsigned char *to,
 		       RSA *rsa,
@@ -119,6 +119,8 @@ kc_rsa_private_encrypt(int flen,
     CSSM_DATA sig, in;
     int fret = 0;
 
+    if (padding != RSA_PKCS1_PADDING)
+	return -1;
 
     cret = SecKeyGetCSSMKey(privKeyRef, &cssmKey);
     if(cret) abort();
@@ -136,10 +138,10 @@ kc_rsa_private_encrypt(int flen,
 
     in.Data = (uint8 *)from;
     in.Length = flen;
-	
+
     sig.Data = (uint8 *)to;
     sig.Length = kc->keysize;
-	
+
     cret = CSSM_SignData(sigHandle, &in, 1, CSSM_ALGID_NONE, &sig);
     if(cret) {
 	/* cssmErrorString(cret); */
@@ -157,10 +159,65 @@ static int
 kc_rsa_private_decrypt(int flen, const unsigned char *from, unsigned char *to,
 		       RSA * rsa, int padding)
 {
-    return -1;
+    struct kc_rsa *kc = RSA_get_app_data(rsa);
+
+    CSSM_RETURN cret;
+    OSStatus ret;
+    const CSSM_ACCESS_CREDENTIALS *creds;
+    SecKeyRef privKeyRef = (SecKeyRef)kc->item;
+    CSSM_CSP_HANDLE cspHandle;
+    const CSSM_KEY *cssmKey;
+    CSSM_CC_HANDLE handle = 0;
+    CSSM_DATA out, in, rem;
+    int fret = 0;
+    CSSM_SIZE outlen = 0;
+    char remdata[1024];
+
+    if (padding != RSA_PKCS1_PADDING)
+	return -1;
+
+    cret = SecKeyGetCSSMKey(privKeyRef, &cssmKey);
+    if(cret) abort();
+
+    cret = SecKeyGetCSPHandle(privKeyRef, &cspHandle);
+    if(cret) abort();
+
+    ret = SecKeyGetCredentials(privKeyRef, CSSM_ACL_AUTHORIZATION_DECRYPT,
+			       kSecCredentialTypeDefault, &creds);
+    if(ret) abort();
+
+
+    ret = CSSM_CSP_CreateAsymmetricContext (cspHandle,
+					    CSSM_ALGID_RSA,
+					    creds,
+					    cssmKey,
+					    CSSM_PADDING_PKCS1,
+					    &handle);
+    if(ret) abort();
+
+    in.Data = (uint8 *)from;
+    in.Length = flen;
+
+    out.Data = (uint8 *)to;
+    out.Length = kc->keysize;
+
+    rem.Data = (uint8 *)remdata;
+    rem.Length = sizeof(remdata);
+
+    cret = CSSM_DecryptData(handle, &in, 1, &out, 1, &outlen, &rem);
+    if(cret) {
+	/* cssmErrorString(cret); */
+	fret = -1;
+    } else
+	fret = out.Length;
+
+    if(handle)
+	CSSM_DeleteContext(handle);
+
+    return fret;
 }
 
-static int 
+static int
 kc_rsa_init(RSA *rsa)
 {
     return 1;
@@ -202,7 +259,7 @@ set_private_key(hx509_context context,
     RSA *rsa;
     int ret;
 
-    ret = _hx509_private_key_init(&key, NULL, NULL);
+    ret = hx509_private_key_init(&key, NULL, NULL);
     if (ret)
 	return ret;
 
@@ -245,7 +302,7 @@ set_private_key(hx509_context context,
     if (ret != 1)
 	_hx509_abort("RSA_set_app_data");
 
-    _hx509_private_key_assign_rsa(key, rsa);
+    hx509_private_key_assign_rsa(key, rsa);
     _hx509_cert_assign_key(cert, key);
 
     return 0;
@@ -281,12 +338,12 @@ keychain_init(hx509_context context,
 
 	    ret = SecKeychainOpen(residue + 5, &ctx->keychain);
 	    if (ret != noErr) {
-		hx509_set_error_string(context, 0, ENOENT, 
+		hx509_set_error_string(context, 0, ENOENT,
 				       "Failed to open %s", residue);
 		return ENOENT;
 	    }
 	} else {
-	    hx509_set_error_string(context, 0, ENOENT, 
+	    hx509_set_error_string(context, 0, ENOENT,
 				   "Unknown subtype %s", residue);
 	    return ENOENT;
 	}
@@ -321,7 +378,7 @@ struct iter {
     SecKeychainSearchRef searchRef;
 };
 
-static int 
+static int
 keychain_iter_start(hx509_context context,
 		    hx509_certs certs, void *data, void **cursor)
 {
@@ -339,7 +396,7 @@ keychain_iter_start(hx509_context context,
 	int ret;
 	int i;
 
-	ret = hx509_certs_init(context, "MEMORY:ks-file-create", 
+	ret = hx509_certs_init(context, "MEMORY:ks-file-create",
 			       0, NULL, &iter->certs);
 	if (ret) {
 	    free(iter);
@@ -350,12 +407,12 @@ keychain_iter_start(hx509_context context,
 	if (ret != 0) {
 	    hx509_certs_free(&iter->certs);
 	    free(iter);
-	    hx509_set_error_string(context, 0, ENOMEM, 
+	    hx509_set_error_string(context, 0, ENOMEM,
 				   "Can't get trust anchors from Keychain");
 	    return ENOMEM;
 	}
 	for (i = 0; i < CFArrayGetCount(anchors); i++) {
-	    SecCertificateRef cr; 
+	    SecCertificateRef cr;
 	    hx509_cert cert;
 	    CSSM_DATA cssm;
 
@@ -390,7 +447,7 @@ keychain_iter_start(hx509_context context,
 						    &iter->searchRef);
 	if (ret) {
 	    free(iter);
-	    hx509_set_error_string(context, 0, ret, 
+	    hx509_set_error_string(context, 0, ret,
 				   "Failed to start search for attributes");
 	    return ENOMEM;
 	}
@@ -428,7 +485,7 @@ keychain_iter(hx509_context context,
 	return 0;
     else if (ret != 0)
 	return EINVAL;
-	
+
     /*
      * Pick out certificate and matching "keyid"
      */
@@ -438,7 +495,7 @@ keychain_iter(hx509_context context,
     attrInfo.count = 1;
     attrInfo.tag = item;
     attrInfo.format = attrFormat;
-  
+
     ret = SecKeychainItemCopyAttributesAndData(itemRef, &attrInfo, NULL,
 					       &attrs, &len, &ptr);
     if (ret)
@@ -448,7 +505,7 @@ keychain_iter(hx509_context context,
     if (ret)
 	goto out;
 
-    /* 
+    /*
      * Find related private key if there is one by looking at
      * kSecPublicKeyHashItemAttr == kSecKeyLabel
      */
@@ -460,7 +517,7 @@ keychain_iter(hx509_context context,
 	attrKeyid.tag = kSecKeyLabel;
 	attrKeyid.length = attrs->attr[0].length;
 	attrKeyid.data = attrs->attr[0].data;
-	
+
 	attrList.count = 1;
 	attrList.attr = &attrKeyid;
 
@@ -504,8 +561,7 @@ keychain_iter_end(hx509_context context,
     struct iter *iter = cursor;
 
     if (iter->certs) {
-	int ret;
-	ret = hx509_certs_end_seq(context, iter->certs, iter->cursor);
+	hx509_certs_end_seq(context, iter->certs, iter->cursor);
 	hx509_certs_free(&iter->certs);
     } else {
 	CFRelease(iter->searchRef);

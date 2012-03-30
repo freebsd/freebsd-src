@@ -93,7 +93,7 @@ then the thread will be made
 runnable with the specified
 .Fa priority
 when it resumes.
-.Dv PZERO 
+.Dv PZERO
 should never be used, as it is for compatibility only.
 A new priority of 0 means to use the thread's current priority when
 it is made runnable again.
@@ -243,7 +243,7 @@ It is the programmer's responsibility to choose a unique
 value.
 The older
 .Fn wakeup
-function did not require this, though it was never good practice 
+function did not require this, though it was never good practice
 for threads to share a
 .Fa chan
 value.

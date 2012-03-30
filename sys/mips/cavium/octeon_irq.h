@@ -176,4 +176,6 @@ typedef enum
     /* Interrupts 129 - 135 are reserved */
 } octeon_irq_t;
 
+#define	OCTEON_PMC_IRQ	OCTEON_IRQ_4
+
 #endif

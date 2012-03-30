@@ -723,7 +723,7 @@ static device_method_t ast_methods[] = {
     /* ATA methods */
     DEVMETHOD(ata_reinit,       ast_reinit),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 	    
 static driver_t ast_driver = {

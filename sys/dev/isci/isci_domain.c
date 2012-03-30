@@ -202,10 +202,14 @@ scif_cb_domain_da_device_added(SCI_CONTROLLER_HANDLE_T controller,
 	struct ISCI_REMOTE_DEVICE *remote_device;
 	struct ISCI_DOMAIN *isci_domain =
 	    (struct ISCI_DOMAIN *)sci_object_get_association(domain);
-	struct ISCI_CONTROLLER *isci_controller =
-	    (struct ISCI_CONTROLLER *)sci_object_get_association(controller);
 
-	sci_pool_get(isci_controller->remote_device_pool, remote_device);
+	/*
+	 * For direct-attached devices, do not pull the device object from
+	 *  the pool.  Rather, use the one stored in the domain object which
+	 *  will ensure that we always get consistent target ids for direct
+	 *  attached devices.
+	 */
+	remote_device = isci_domain->da_remote_device;
 
 	scif_remote_device_construct(domain,
 	    (uint8_t*)remote_device + sizeof(struct ISCI_REMOTE_DEVICE),
@@ -287,6 +291,8 @@ scif_cb_domain_device_removed(SCI_CONTROLLER_HANDLE_T controller,
 {
 	struct ISCI_REMOTE_DEVICE *isci_remote_device =
 	    (struct ISCI_REMOTE_DEVICE *)sci_object_get_association(remote_device);
+	struct ISCI_DOMAIN *isci_domain =
+	    (struct ISCI_DOMAIN *)sci_object_get_association(domain);
 	struct ISCI_CONTROLLER *isci_controller =
 	    (struct ISCI_CONTROLLER *)sci_object_get_association(controller);
 	uint32_t path = cam_sim_path(isci_controller->sim);
@@ -301,7 +307,13 @@ scif_cb_domain_device_removed(SCI_CONTROLLER_HANDLE_T controller,
 
 	scif_remote_device_destruct(remote_device);
 
-	sci_pool_put(isci_controller->remote_device_pool, isci_remote_device);
+	/*
+	 * Only put the remote device back into the pool if it was an
+	 *  expander-attached device.
+	 */
+	if (isci_remote_device != isci_domain->da_remote_device)
+		sci_pool_put(isci_controller->remote_device_pool,
+		    isci_remote_device);
 }
 
 void

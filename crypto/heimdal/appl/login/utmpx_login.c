@@ -18,7 +18,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: utmpx_login.c 10020 2001-06-04 14:10:19Z assar $");
+RCSID("$Id$");
 
 /* utmpx_login - update utmp and wtmp after login */
 
@@ -51,7 +51,7 @@ utmpx_update(struct utmpx *ut, char *line, const char *user, const char *host)
 #ifdef WTMPX_FILE
     updwtmpx(WTMPX_FILE, ut);
 #elif defined(WTMP_FILE)
-    {
+    { /* XXX should be removed, just drop wtmp support */
 	struct utmp utmp;
 	int fd;
 

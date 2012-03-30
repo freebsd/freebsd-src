@@ -152,9 +152,10 @@ typedef enum
 {
     ASL_FILE_STDOUT             = 0,
     ASL_FILE_STDERR,
-    ASL_FILE_INPUT,
+    ASL_FILE_INPUT,             /* Don't move these first 3 file types */
     ASL_FILE_AML_OUTPUT,
     ASL_FILE_SOURCE_OUTPUT,
+    ASL_FILE_PREPROCESSOR,
     ASL_FILE_LISTING_OUTPUT,
     ASL_FILE_HEX_OUTPUT,
     ASL_FILE_NAMESPACE_OUTPUT,
@@ -167,7 +168,7 @@ typedef enum
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       12
+#define ASL_MAX_FILE_TYPE       13
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 
@@ -190,6 +191,7 @@ typedef struct asl_error_msg
     char                        *Message;
     struct asl_error_msg        *Next;
     char                        *Filename;
+    char                        *SourceLine;
     UINT32                      FilenameLength;
     UINT8                       MessageId;
     UINT8                       Level;

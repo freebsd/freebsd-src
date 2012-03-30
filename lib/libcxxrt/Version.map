@@ -301,6 +301,11 @@ CXXRT_1.0 {
         "typeinfo name for std::exception";
         "typeinfo name for std::type_info";
 
+        "std::type_info::__is_function_p() const";
+        "std::type_info::__do_upcast(__cxxabiv1::__class_type_info const*, void**) const";
+        "std::type_info::__is_pointer_p() const";
+
+
         "operator delete[](void*)";
         "operator delete(void*)";
         "operator new[](unsigned long)";

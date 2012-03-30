@@ -847,14 +847,11 @@ static bool check_type_signature(__cxa_exception *ex,
                                  const std::type_info *type,
                                  void *&adjustedPtr)
 {
-	// TODO: For compatibility with the GNU implementation, we should move this
-	// out into a __do_catch() virtual function in std::type_info
 	void *exception_ptr = (void*)(ex+1);
-    const std::type_info *ex_type = ex->exceptionType;
+	const std::type_info *ex_type = ex->exceptionType;
 
-	const __pointer_type_info *ptr_type =
-		dynamic_cast<const __pointer_type_info*>(ex_type);
-	if (0 != ptr_type)
+	bool is_ptr = ex_type->__is_pointer_p();
+	if (is_ptr)
 	{
 		exception_ptr = *(void**)exception_ptr;
 	}
@@ -862,11 +859,6 @@ static bool check_type_signature(__cxa_exception *ex,
 	//
 	// Note: A 0 here is a catchall, not a cleanup, so we return true to
 	// indicate that we found a catch.
-	//
-	// TODO: Provide a class for matching against foreign exceptions.  This is
-	// already done in libobjc2, allowing C++ exceptions to be boxed as
-	// Objective-C objects.  We should do something similar, allowing foreign
-	// exceptions to be wrapped in a C++ exception and delivered.
 	if (0 == type)
 	{
 		if (ex)
@@ -878,28 +870,6 @@ static bool check_type_signature(__cxa_exception *ex,
 
 	if (0 == ex) { return false; }
 
-	const __pointer_type_info *target_ptr_type =
-		dynamic_cast<const __pointer_type_info*>(type);
-
-	if (0 != ptr_type && 0 != target_ptr_type)
-	{
-		if (ptr_type->__flags & ~target_ptr_type->__flags)
-		{
-			// Handler pointer is less qualified
-			return false;
-		}
-
-		// Special case for void* handler.  
-		if(*target_ptr_type->__pointee == typeid(void))
-		{
-			adjustedPtr = exception_ptr;
-			return true;
-		}
-
-		ex_type = ptr_type->__pointee;
-		type = target_ptr_type->__pointee;
-	}
-
 	// If the types are the same, no casting is needed.
 	if (*type == *ex_type)
 	{
@@ -907,18 +877,13 @@ static bool check_type_signature(__cxa_exception *ex,
 		return true;
 	}
 
-	const __class_type_info *cls_type =
-		dynamic_cast<const __class_type_info*>(ex_type);
-	const __class_type_info *target_cls_type =
-		dynamic_cast<const __class_type_info*>(type);
 
-	if (0 != cls_type &&
-		0 != target_cls_type &&
-		cls_type->can_cast_to(target_cls_type))
+	if (type->__do_catch(ex_type, &exception_ptr, 1))
 	{
-		adjustedPtr = cls_type->cast_to(exception_ptr, target_cls_type);
+		adjustedPtr = exception_ptr;
 		return true;
 	}
+
 	return false;
 }
 /**

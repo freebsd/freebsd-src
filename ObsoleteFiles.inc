@@ -38,6 +38,47 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120322: Update heimdal to 1.5.1.
+OLD_FILES+=usr/include/krb5-v4compat.h \
+	usr/include/krb_err.h \
+	usr/include/hdb-private.h \
+        usr/share/man/man3/krb5_addresses.3.gz \
+        usr/share/man/man3/krb5_cc_cursor.3.gz \
+        usr/share/man/man3/krb5_cc_ops.3.gz \
+        usr/share/man/man3/krb5_config.3.gz \
+        usr/share/man/man3/krb5_config_get_int_default.3.gz \
+        usr/share/man/man3/krb5_context.3.gz \
+        usr/share/man/man3/krb5_data.3.gz \
+        usr/share/man/man3/krb5_err.3.gz \
+        usr/share/man/man3/krb5_errx.3.gz \
+        usr/share/man/man3/krb5_keyblock.3.gz \
+        usr/share/man/man3/krb5_keytab_entry.3.gz \
+        usr/share/man/man3/krb5_kt_cursor.3.gz \
+        usr/share/man/man3/krb5_kt_ops.3.gz \
+        usr/share/man/man3/krb5_set_warn_dest.3.gz \
+        usr/share/man/man3/krb5_verr.3.gz \
+        usr/share/man/man3/krb5_verrx.3.gz \
+        usr/share/man/man3/krb5_vwarnx.3.gz \
+        usr/share/man/man3/krb5_warn.3.gz \
+        usr/share/man/man3/krb5_warnx.3.gz
+OLD_LIBS+=usr/lib/libasn1.so.10 \
+	usr/lib/libhdb.so.10 \
+	usr/lib/libheimntlm.so.10 \
+	usr/lib/libhx509.so.10 \
+	usr/lib/libkadm5clnt.so.10 \
+	usr/lib/libkadm5srv.so.10 \
+	usr/lib/libkafs5.so.10 \
+	usr/lib/libkrb5.so.10 \
+	usr/lib/libroken.so.10 \
+	usr/lib32/libasn1.so.10 \
+	usr/lib32/libhdb.so.10 \
+	usr/lib32/libheimntlm.so.10 \
+	usr/lib32/libhx509.so.10 \
+	usr/lib32/libkadm5clnt.so.10 \
+	usr/lib32/libkadm5srv.so.10 \
+	usr/lib32/libkafs5.so.10 \
+	usr/lib32/libkrb5.so.10 \
+	usr/lib32/libroken.so.10
 # 20120309: Remove fifofs header files.
 OLD_FILES+=usr/include/fs/fifofs/fifo.h
 OLD_DIRS+=usr/include/fs/fifofs
@@ -4567,9 +4608,7 @@ OLD_FILES+=usr/share/man/man1/x509.1.gz
 OLD_FILES+=usr/share/man/man3/SSL_COMP_add_compression_method.3.gz
 OLD_FILES+=usr/share/man/man3/SSL_CTX_get_ex_new_index.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_dup.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_hardlink_w.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_set_tartype.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_symlink_w.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_tartype.3.gz
 OLD_FILES+=usr/share/man/man3/archive_read_data_into_file.3.gz
 OLD_FILES+=usr/share/man/man3/archive_read_open_tar.3.gz

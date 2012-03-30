@@ -215,6 +215,8 @@ struct ath_buf {
 		int bfs_ismrr:1;	/* do multi-rate TX retry */
 		int bfs_doprot:1;	/* do RTS/CTS based protection */
 		int bfs_doratelookup:1;	/* do rate lookup before each TX */
+		int bfs_need_seqno:1;	/* need to assign a seqno for aggregation */
+		int bfs_seqno_assigned:1;	/* seqno has been assigned */
 		int bfs_nfl;		/* next fragment length */
 
 		/*
@@ -488,6 +490,7 @@ struct ath_softc {
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
+	struct task		sc_txqtask;	/* tx proc processing */
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
