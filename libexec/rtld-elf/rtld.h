@@ -313,6 +313,7 @@ typedef struct Struct_SymLook {
 } SymLook;
 
 extern void _rtld_error(const char *, ...) __printflike(1, 2);
+extern const char *rtld_strerror(int);
 extern Obj_Entry *map_object(int, const char *, const struct stat *);
 extern void *xcalloc(size_t);
 extern void *xmalloc(size_t);

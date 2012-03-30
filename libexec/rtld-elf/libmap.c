@@ -71,20 +71,20 @@ lm_init(char *libmap_override)
 	fd = open(_PATH_LIBMAP_CONF, O_RDONLY);
 	if (fd == -1) {
 		dbg("lm_init: open(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
-		    strerror(errno));
+		    rtld_strerror(errno));
 		goto override;
 	}
 	if (fstat(fd, &st) == -1) {
 		close(fd);
 		dbg("lm_init: fstat(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
-		    strerror(errno));
+		    rtld_strerror(errno));
 		goto override;
 	}
 	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (lm_map == (const char *)MAP_FAILED) {
 		close(fd);
 		dbg("lm_init: mmap(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
-		    strerror(errno));
+		    rtld_strerror(errno));
 		goto override;
 	}
 	close(fd);
