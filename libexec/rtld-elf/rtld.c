@@ -196,6 +196,8 @@ extern Elf_Dyn _DYNAMIC;
 
 int osreldate, pagesize;
 
+long __stack_chk_guard[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
 static int stack_prot = PROT_READ | PROT_WRITE | RTLD_DEFAULT_STACK_EXEC;
 static int max_stack_flags;
 
@@ -311,6 +313,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Obj_Entry **preload_tail;
     Objlist initlist;
     RtldLockState lockstate;
+    int mib[2];
+    size_t len;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -345,6 +349,26 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     environ = env;
     main_argc = argc;
     main_argv = argv;
+
+    if (aux_info[AT_CANARY]->a_un.a_ptr != NULL) {
+	    i = aux_info[AT_CANARYLEN]->a_un.a_val;
+	    if (i > sizeof(__stack_chk_guard))
+		    i = sizeof(__stack_chk_guard);
+	    memcpy(__stack_chk_guard, aux_info[AT_CANARY]->a_un.a_ptr, i);
+    } else {
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+
+	len = sizeof(__stack_chk_guard);
+	if (sysctl(mib, 2, __stack_chk_guard, &len, NULL, 0) == -1 ||
+	    len != sizeof(__stack_chk_guard)) {
+		/* If sysctl was unsuccessful, use the "terminator canary". */
+		((unsigned char *)(void *)__stack_chk_guard)[0] = 0;
+		((unsigned char *)(void *)__stack_chk_guard)[1] = 0;
+		((unsigned char *)(void *)__stack_chk_guard)[2] = '\n';
+		((unsigned char *)(void *)__stack_chk_guard)[3] = 255;
+	}
+    }
 
     trust = !issetugid();
 
@@ -4315,4 +4339,20 @@ __getosreldate(void)
 void
 __pthread_cxa_finalize(struct dl_phdr_info *a)
 {
+}
+
+void
+__stack_chk_fail(void)
+{
+
+	_rtld_error("stack overflow detected; terminated");
+	die();
+}
+
+void
+__chk_fail(void)
+{
+
+	_rtld_error("buffer overflow detected; terminated");
+	die();
 }
