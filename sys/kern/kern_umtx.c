@@ -1167,7 +1167,7 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 		 * If we caught a signal, we have retried and now
 		 * exit immediately.
 		 */
-		if (error != 0) 
+		if (error != 0)
 			return (error);
 
 		if ((error = umtx_key_get(m, TYPE_NORMAL_UMUTEX,
