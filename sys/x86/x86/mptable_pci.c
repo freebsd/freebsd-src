@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcib_private.h>
 #include <x86/mptable.h>
-#include <machine/legacyvar.h>
+#include <x86/legacyvar.h>
 #include <machine/pci_cfgreg.h>
 
 #include "pcib_if.h"
