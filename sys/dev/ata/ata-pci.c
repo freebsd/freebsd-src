@@ -704,6 +704,7 @@ ata_pcichannel_resume(device_t dev)
 }
 
 
+#ifndef ATA_CAM
 static int
 ata_pcichannel_locking(device_t dev, int mode)
 {
@@ -715,6 +716,7 @@ ata_pcichannel_locking(device_t dev, int mode)
     else
 	return ch->unit;
 }
+#endif
 
 static void
 ata_pcichannel_reset(device_t dev)
@@ -771,7 +773,9 @@ static device_method_t ata_pcichannel_methods[] = {
     /* ATA methods */
     DEVMETHOD(ata_setmode,      ata_pcichannel_setmode),
     DEVMETHOD(ata_getrev,       ata_pcichannel_getrev),
+#ifndef ATA_CAM
     DEVMETHOD(ata_locking,      ata_pcichannel_locking),
+#endif
     DEVMETHOD(ata_reset,        ata_pcichannel_reset),
 
     { 0, 0 }
