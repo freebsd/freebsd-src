@@ -339,11 +339,14 @@ static int
 ata_cbuschannel_banking(device_t dev, int flags)
 {
     struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
+#ifndef ATA_CAM
     struct ata_channel *ch = device_get_softc(dev);
+#endif
     int res;
 
     mtx_lock(&ctlr->bank_mtx);
     switch (flags) {
+#ifndef ATA_CAM
     case ATA_LF_LOCK:
 	if (ctlr->locked_bank == -1)
 	    ctlr->locked_bank = ch->unit;
@@ -368,6 +371,7 @@ ata_cbuschannel_banking(device_t dev, int flags)
 	    }
 	}
 	break;
+#endif
 
     case ATA_LF_WHICH:
 	break;
@@ -385,8 +389,10 @@ static device_method_t ata_cbuschannel_methods[] = {
     DEVMETHOD(device_suspend,   ata_cbuschannel_suspend),
     DEVMETHOD(device_resume,    ata_cbuschannel_resume),
 
+#ifndef ATA_CAM
     /* ATA methods */
     DEVMETHOD(ata_locking,      ata_cbuschannel_banking),
+#endif
     { 0, 0 }
 };
 
