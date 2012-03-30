@@ -957,7 +957,7 @@ do_lock_umtx32(struct thread *td, uint32_t *m, uint32_t id,
 		umtxq_lock(&uq->uq_key);
 		if (old == owner)
 			error = umtxq_sleep(uq, "umtx", timeout == NULL ?
-			    NULL : timo);
+			    NULL : &timo);
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 		umtx_key_release(&uq->uq_key);
@@ -3372,7 +3372,7 @@ __umtx_op_rw_rdlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		error = do_rw_rdlock2(td, uap->obj, uap->val, &timeout);
+		error = do_rw_rdlock(td, uap->obj, uap->val, &timeout);
 	}
 	return (error);
 }
@@ -3391,7 +3391,7 @@ __umtx_op_rw_wrlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		error = do_rw_wrlock2(td, uap->obj, &timeout);
+		error = do_rw_wrlock(td, uap->obj, &timeout);
 	}
 	return (error);
 }
