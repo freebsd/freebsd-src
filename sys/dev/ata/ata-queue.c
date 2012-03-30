@@ -43,11 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 #include <ata_if.h>
 
+#ifndef ATA_CAM
 /* prototypes */
 static void ata_completed(void *, int);
 static void ata_sort_queue(struct ata_channel *ch, struct ata_request *request);
-static char *ata_skey2str(u_int8_t);
+static const char *ata_skey2str(u_int8_t);
+#endif
 
+#ifndef ATA_CAM
 void
 ata_queue_request(struct ata_request *request)
 {
@@ -123,7 +126,9 @@ ata_queue_request(struct ata_request *request)
 	sema_destroy(&request->done);
     }
 }
+#endif
 
+#ifndef ATA_CAM
 int
 ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	       u_int64_t lba, u_int16_t count)
@@ -153,7 +158,9 @@ ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
     }
     return error;
 }
+#endif
 
+#ifndef ATA_CAM
 int
 ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data,
 	     int count, int flags, int timeout)
@@ -176,7 +183,9 @@ ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data,
     }
     return error;
 }
+#endif
 
+#ifndef ATA_CAM
 void
 ata_start(device_t dev)
 {
@@ -235,7 +244,9 @@ ata_start(device_t dev)
 	}
     }
 }
+#endif
 
+#ifndef ATA_CAM
 void
 ata_finish(struct ata_request *request)
 {
@@ -263,7 +274,9 @@ ata_finish(struct ata_request *request)
 	}
     }
 }
+#endif
 
+#ifndef ATA_CAM
 static void
 ata_completed(void *context, int dummy)
 {
@@ -495,6 +508,7 @@ ata_completed(void *context, int dummy)
     if (ch)
 	ata_start(ch->dev);
 }
+#endif
 
 void
 ata_timeout(struct ata_request *request)
@@ -520,8 +534,8 @@ ata_timeout(struct ata_request *request)
 	ata_cam_end_transaction(ch->dev, request);
 #endif
 	mtx_unlock(&ch->state_mtx);
-	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 #ifndef ATA_CAM
+	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	ata_finish(request);
 #endif
     }
@@ -530,6 +544,7 @@ ata_timeout(struct ata_request *request)
     }
 }
 
+#ifndef ATA_CAM
 void
 ata_fail_requests(device_t dev)
 {
@@ -568,7 +583,9 @@ ata_fail_requests(device_t dev)
         ata_finish(request);
     }
 }
+#endif
 
+#ifndef ATA_CAM
 /*
  * Rudely drop all requests queued to the channel of specified device.
  * XXX: The requests are leaked, use only in fatal case.
@@ -586,7 +603,9 @@ ata_drop_requests(device_t dev)
     }
     mtx_unlock(&ch->queue_mtx);
 }
+#endif
 
+#ifndef ATA_CAM
 static u_int64_t
 ata_get_lba(struct ata_request *request)
 {
@@ -608,7 +627,9 @@ ata_get_lba(struct ata_request *request)
     else
 	return request->u.ata.lba;
 }
+#endif
 
+#ifndef ATA_CAM
 static void
 ata_sort_queue(struct ata_channel *ch, struct ata_request *request)
 {
@@ -661,6 +682,7 @@ ata_sort_queue(struct ata_channel *ch, struct ata_request *request)
 	ch->freezepoint = request;
     TAILQ_INSERT_AFTER(&ch->ata_queue, this, request, chain);
 }
+#endif
 
 char *
 ata_cmd2str(struct ata_request *request)
@@ -776,7 +798,8 @@ ata_cmd2str(struct ata_request *request)
     return buffer;
 }
 
-static char *
+#ifndef ATA_CAM
+static const char *
 ata_skey2str(u_int8_t skey)
 {
     switch (skey) {
@@ -799,3 +822,4 @@ ata_skey2str(u_int8_t skey)
     default: return("UNKNOWN");
     }
 }
+#endif
