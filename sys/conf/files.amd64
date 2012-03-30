@@ -113,7 +113,6 @@ amd64/amd64/identcpu.c		standard
 amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
-amd64/amd64/legacy.c		standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/machdep.c		standard
 amd64/amd64/mem.c		optional	mem
@@ -477,6 +476,7 @@ x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
+x86/x86/legacy.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional	mptable
