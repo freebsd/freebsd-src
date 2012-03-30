@@ -48,6 +48,9 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define call_initfini_pointer(obj, target) \
 	(((InitFunc)(target))())
 	
+#define call_init_pointer(obj, target) \
+	(((InitArrFunc)(target))(main_argc, main_argv, environ))
+
 typedef struct {
 	unsigned long ti_module;
 	unsigned long ti_offset;

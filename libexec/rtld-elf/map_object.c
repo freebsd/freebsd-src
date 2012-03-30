@@ -85,6 +85,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Word stack_flags;
     Elf_Addr relro_page;
     size_t relro_size;
+    Elf_Addr note_start;
+    Elf_Addr note_end;
 
     hdr = get_elf_header(fd, path);
     if (hdr == NULL)
@@ -103,6 +105,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     phdr_vaddr = 0;
     relro_page = 0;
     relro_size = 0;
+    note_start = 0;
+    note_end = 0;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
     stack_flags = RTLD_DEFAULT_STACK_PF_EXEC | PF_R | PF_W;
     while (phdr < phlimit) {
@@ -141,6 +145,15 @@ map_object(int fd, const char *path, const struct stat *sb)
 	case PT_GNU_RELRO:
 	    relro_page = phdr->p_vaddr;
 	    relro_size = phdr->p_memsz;
+	    break;
+
+	case PT_NOTE:
+	    if (phdr->p_offset > PAGE_SIZE ||
+	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE)
+		break;
+	    note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+	    note_end = note_start + phdr->p_filesz;
+	    digest_notes(obj, note_start, note_end);
 	    break;
 	}
 

@@ -71,6 +71,10 @@ extern size_t tls_static_space;
 extern int tls_dtv_generation;
 extern int tls_max_index;
 
+extern int main_argc;
+extern char **main_argv;
+extern char **environ;
+
 struct stat;
 struct Struct_Obj_Entry;
 
@@ -84,6 +88,7 @@ typedef STAILQ_HEAD(Struct_Objlist, Struct_Objlist_Entry) Objlist;
 
 /* Types of init and fini functions */
 typedef void (*InitFunc)(void);
+typedef void (*InitArrFunc)(int, char **, char **);
 
 /* Lists of shared object dependencies */
 typedef struct Struct_Needed_Entry {
@@ -213,6 +218,14 @@ typedef struct Struct_Obj_Entry {
 
     Elf_Addr init;		/* Initialization function to call */
     Elf_Addr fini;		/* Termination function to call */
+    Elf_Addr preinit_array;	/* Pre-initialization array of functions */
+    Elf_Addr init_array;	/* Initialization array of functions */
+    Elf_Addr fini_array;	/* Termination array of functions */
+    int preinit_array_num;	/* Number of entries in preinit_array */
+    int init_array_num; 	/* Number of entries in init_array */
+    int fini_array_num; 	/* Number of entries in fini_array */
+
+    int32_t osrel;		/* OSREL note value */
 
     bool mainprog : 1;		/* True if this is the main program */
     bool rtld : 1;		/* True if this is the dynamic linker */
@@ -235,6 +248,7 @@ typedef struct Struct_Obj_Entry {
     bool filtees_loaded : 1;	/* Filtees loaded */
     bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
     bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
+    bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
@@ -319,6 +333,7 @@ const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, int, SymCache *, struct Struct_RtldLockState *);
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
+void digest_notes(Obj_Entry *, Elf_Addr, Elf_Addr);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 void _rtld_bind_start(void);
