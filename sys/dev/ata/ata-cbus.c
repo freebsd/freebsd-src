@@ -248,7 +248,7 @@ static device_method_t ata_cbus_methods[] = {
     DEVMETHOD(bus_setup_intr,           ata_cbus_setup_intr),
     DEVMETHOD(bus_print_child,          ata_cbus_print_child),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_cbus_driver = {
@@ -393,7 +393,7 @@ static device_method_t ata_cbuschannel_methods[] = {
     /* ATA methods */
     DEVMETHOD(ata_locking,      ata_cbuschannel_banking),
 #endif
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_cbuschannel_driver = {
@@ -402,5 +402,5 @@ static driver_t ata_cbuschannel_driver = {
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atacbus, ata_cbuschannel_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, atacbus, ata_cbuschannel_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
