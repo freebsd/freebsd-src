@@ -2346,7 +2346,7 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 
 	error = do_unlock_umutex(td, m);
 
-	if (timeout != NULL);
+	if (timeout != NULL)
 		abs_timeout_init(&timo, clockid, ((wflags & CVWAIT_ABSTIME) != 0),
 			timeout);
 	
