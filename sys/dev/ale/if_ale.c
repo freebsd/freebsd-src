@@ -301,6 +301,10 @@ ale_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 	ALE_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		ALE_UNLOCK(sc);
+		return;
+	}
 	mii = device_get_softc(sc->ale_miibus);
 
 	mii_pollstat(mii);
