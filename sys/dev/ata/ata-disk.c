@@ -583,7 +583,7 @@ static device_method_t ad_methods[] = {
     /* ATA methods */
     DEVMETHOD(ata_reinit,       ad_reinit),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ad_driver = {

@@ -105,7 +105,7 @@ static int
 ata_intel_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_I82371FB,     0,          0, 2, ATA_WDMA2, "PIIX" },
      { ATA_I82371SB,     0,          0, 2, ATA_WDMA2, "PIIX3" },
      { ATA_I82371AB,     0,          0, 2, ATA_UDMA2, "PIIX4" },
@@ -519,8 +519,10 @@ ata_intel_new_setmode(device_t dev, int target, int mode)
 	u_int16_t reg54 = pci_read_config(parent, 0x54, 2);
 	u_int32_t mask40 = 0, new40 = 0;
 	u_int8_t mask44 = 0, new44 = 0;
-	u_int8_t timings[] = { 0x00, 0x00, 0x10, 0x21, 0x23, 0x00, 0x21, 0x23 };
-	u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
+	static const uint8_t timings[] =
+	    { 0x00, 0x00, 0x10, 0x21, 0x23, 0x00, 0x21, 0x23 };
+	static const uint8_t utimings[] =
+	    { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
 
 	/* In combined mode, skip PATA stuff for SATA channel. */
 	if (ch->flags & ATA_SATA)
