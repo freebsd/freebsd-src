@@ -764,7 +764,7 @@ fire_attach(device_t dev)
 	if (sc->sc_pci_cfgt == NULL)
 		panic("%s: could not allocate PCI configuration space tag",
 		    __func__);
-	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0x100000000,
 	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
 	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
 		panic("%s: could not create PCI DMA tag", __func__);
