@@ -301,7 +301,7 @@ trap(struct trapframe *tf)
 			sig = trap_cecc();
 			break;
 		default:
-			if (tf->tf_type < 0 || tf->tf_type > T_MAX)
+			if (tf->tf_type > T_MAX)
 				panic("trap: bad trap type %#lx (user)",
 				    tf->tf_type);
 			else if (trap_sig[tf->tf_type] == -1)
@@ -405,7 +405,7 @@ trap(struct trapframe *tf)
 
 		if (error != 0) {
 			tf->tf_type &= ~T_KERNEL;
-			if (tf->tf_type < 0 || tf->tf_type > T_MAX)
+			if (tf->tf_type > T_MAX)
 				panic("trap: bad trap type %#lx (kernel)",
 				    tf->tf_type);
 			panic("trap: %s (kernel)", trap_msg[tf->tf_type]);
