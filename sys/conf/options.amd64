@@ -5,7 +5,6 @@ AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
 MAXMEM
 PERFMON
-PMAP_SHPGPERPROC	opt_pmap.h
 MPTABLE_FORCE_HTT
 MP_WATCHDOG
 NKPT			opt_pmap.h
