@@ -113,104 +113,36 @@ __FBSDID("$FreeBSD$");
 #define	pci_release_msi(x)	do { ; } while (0)
 #endif
 
-#ifndef	PCI_VENDOR_LSI
-#define	PCI_VENDOR_LSI			0x1000
+/*
+ * XXX it seems no other MPT driver knows about the following chips.
+ */
+
+#ifndef	MPI_MANUFACTPAGE_DEVICEID_FC909_FB
+#define	MPI_MANUFACTPAGE_DEVICEID_FC909_FB	0x0620
 #endif
 
-#ifndef	PCI_PRODUCT_LSI_FC909
-#define	PCI_PRODUCT_LSI_FC909		0x0620
+#ifndef	MPI_MANUFACTPAGE_DEVICEID_FC919_LAN_FB
+#define	MPI_MANUFACTPAGE_DEVICEID_FC919_LAN_FB	0x0625
 #endif
 
-#ifndef	PCI_PRODUCT_LSI_FC909A
-#define	PCI_PRODUCT_LSI_FC909A		0x0621
+#ifndef	MPI_MANUFACTPAGE_DEVICEID_FC929_LAN_FB
+#define	MPI_MANUFACTPAGE_DEVICEID_FC929_LAN_FB	0x0623
 #endif
 
-#ifndef	PCI_PRODUCT_LSI_FC919
-#define	PCI_PRODUCT_LSI_FC919		0x0624
+#ifndef	MPI_MANUFACTPAGE_DEVICEID_FC929X_LAN_FB
+#define	MPI_MANUFACTPAGE_DEVICEID_FC929X_LAN_FB	0x0627
 #endif
 
-#ifndef	PCI_PRODUCT_LSI_FC919_LAN
-#define	PCI_PRODUCT_LSI_FC919_LAN	0x0625
+#ifndef	MPI_MANUFACTPAGE_DEVICEID_FC919X_LAN_FB
+#define	MPI_MANUFACTPAGE_DEVICEID_FC919X_LAN_FB	0x0629
 #endif
 
-#ifndef	PCI_PRODUCT_LSI_FC929
-#define	PCI_PRODUCT_LSI_FC929		0x0622
+#ifndef MPI_MANUFACTPAGE_DEVID_SAS1068A_FB
+#define MPI_MANUFACTPAGE_DEVID_SAS1068A_FB	0x0055
 #endif
 
-#ifndef	PCI_PRODUCT_LSI_FC929_LAN
-#define	PCI_PRODUCT_LSI_FC929_LAN	0x0623
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_FC929X
-#define	PCI_PRODUCT_LSI_FC929X		0x0626
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_FC929X_LAN
-#define	PCI_PRODUCT_LSI_FC929X_LAN	0x0627
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_FC919X
-#define	PCI_PRODUCT_LSI_FC919X		0x0628
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_FC919X_LAN
-#define	PCI_PRODUCT_LSI_FC919X_LAN	0x0629
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_FC7X04X
-#define	PCI_PRODUCT_LSI_FC7X04X		0x0640
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_FC646
-#define	PCI_PRODUCT_LSI_FC646		0x0646
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_1030
-#define	PCI_PRODUCT_LSI_1030		0x0030
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_1030ZC
-#define	PCI_PRODUCT_LSI_1030ZC		0x0031
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_SAS1064
-#define PCI_PRODUCT_LSI_SAS1064		0x0050
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1064A
-#define PCI_PRODUCT_LSI_SAS1064A	0x005C
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1064E
-#define PCI_PRODUCT_LSI_SAS1064E	0x0056
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1066
-#define PCI_PRODUCT_LSI_SAS1066		0x005E
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1066E
-#define PCI_PRODUCT_LSI_SAS1066E	0x005A
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1068
-#define PCI_PRODUCT_LSI_SAS1068		0x0054
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1068A
-#define PCI_PRODUCT_LSI_SAS1068A	0x0055
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1068E
-#define PCI_PRODUCT_LSI_SAS1068E	0x0058
-#endif
-
-#ifndef PCI_PRODUCT_LSI_SAS1078
-#define PCI_PRODUCT_LSI_SAS1078		0x0062
-#endif
-
-#ifndef	PCI_PRODUCT_LSI_SAS1078DE
-#define	PCI_PRODUCT_LSI_SAS1078DE	0x007C
+#ifndef	MPI_MANUFACTPAGE_DEVID_SAS1078DE_FB
+#define	MPI_MANUFACTPAGE_DEVID_SAS1078DE_FB	0x007C
 #endif
 
 #ifndef	PCIM_CMD_SERRESPEN
@@ -224,8 +156,8 @@ static int mpt_pci_detach(device_t);
 static int mpt_pci_shutdown(device_t);
 static int mpt_dma_mem_alloc(struct mpt_softc *mpt);
 static void mpt_dma_mem_free(struct mpt_softc *mpt);
-static void mpt_read_config_regs(struct mpt_softc *mpt);
 #if 0
+static void mpt_read_config_regs(struct mpt_softc *mpt);
 static void mpt_set_config_regs(struct mpt_softc *mpt);
 #endif
 static void mpt_pci_intr(void *);
@@ -236,77 +168,76 @@ static device_method_t mpt_methods[] = {
 	DEVMETHOD(device_attach,	mpt_pci_attach),
 	DEVMETHOD(device_detach,	mpt_pci_detach),
 	DEVMETHOD(device_shutdown,	mpt_pci_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t mpt_driver = {
 	"mpt", mpt_methods, sizeof(struct mpt_softc)
 };
 static devclass_t mpt_devclass;
-DRIVER_MODULE(mpt, pci, mpt_driver, mpt_devclass, 0, 0);
+DRIVER_MODULE(mpt, pci, mpt_driver, mpt_devclass, NULL, NULL);
 MODULE_DEPEND(mpt, pci, 1, 1, 1);
 MODULE_VERSION(mpt, 1);
 
 static int
 mpt_pci_probe(device_t dev)
 {
-	char *desc;
+	const char *desc;
 
-	if (pci_get_vendor(dev) != PCI_VENDOR_LSI) {
+	if (pci_get_vendor(dev) != MPI_MANUFACTPAGE_VENDORID_LSILOGIC)
 		return (ENXIO);
-	}
 
 	switch (pci_get_device(dev)) {
-	case PCI_PRODUCT_LSI_FC909:
+	case MPI_MANUFACTPAGE_DEVICEID_FC909_FB:
 		desc = "LSILogic FC909 FC Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC909A:
+	case MPI_MANUFACTPAGE_DEVICEID_FC909:
 		desc = "LSILogic FC909A FC Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC919:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919:
 		desc = "LSILogic FC919 FC Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC919_LAN:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919_LAN_FB:
 		desc = "LSILogic FC919 LAN Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC929:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929:
 		desc = "Dual LSILogic FC929 FC Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC929_LAN:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929_LAN_FB:
 		desc = "Dual LSILogic FC929 LAN Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC919X:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919X:
 		desc = "LSILogic FC919 FC PCI-X Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC919X_LAN:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919X_LAN_FB:
 		desc = "LSILogic FC919 LAN PCI-X Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC929X:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929X:
 		desc = "Dual LSILogic FC929X 2Gb/s FC PCI-X Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC929X_LAN:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929X_LAN_FB:
 		desc = "Dual LSILogic FC929X LAN PCI-X Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC646:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949E:
 		desc = "Dual LSILogic FC7X04X 4Gb/s FC PCI-Express Adapter";
 		break;
-	case PCI_PRODUCT_LSI_FC7X04X:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949X:
 		desc = "Dual LSILogic FC7X04X 4Gb/s FC PCI-X Adapter";
 		break;
-	case PCI_PRODUCT_LSI_1030:
-	case PCI_PRODUCT_LSI_1030ZC:
+	case MPI_MANUFACTPAGE_DEVID_53C1030:
+	case MPI_MANUFACTPAGE_DEVID_53C1030ZC:
 		desc = "LSILogic 1030 Ultra4 Adapter";
 		break;
-	case PCI_PRODUCT_LSI_SAS1064:
-	case PCI_PRODUCT_LSI_SAS1064A:
-	case PCI_PRODUCT_LSI_SAS1064E:
-	case PCI_PRODUCT_LSI_SAS1066:
-	case PCI_PRODUCT_LSI_SAS1066E:
-	case PCI_PRODUCT_LSI_SAS1068:
-	case PCI_PRODUCT_LSI_SAS1068A:
-	case PCI_PRODUCT_LSI_SAS1068E:
-	case PCI_PRODUCT_LSI_SAS1078:
-	case PCI_PRODUCT_LSI_SAS1078DE:
+	case MPI_MANUFACTPAGE_DEVID_SAS1064:
+	case MPI_MANUFACTPAGE_DEVID_SAS1064A:
+	case MPI_MANUFACTPAGE_DEVID_SAS1064E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1066:
+	case MPI_MANUFACTPAGE_DEVID_SAS1066E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068A_FB:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1078:
+	case MPI_MANUFACTPAGE_DEVID_SAS1078DE_FB:
 		desc = "LSILogic SAS/SATA Adapter";
 		break;
 	default:
@@ -459,40 +390,35 @@ mpt_pci_attach(device_t dev)
 	uint32_t	  data, cmd;
 	int		  mpt_io_bar, mpt_mem_bar;
 
-	/* Allocate the softc structure */
 	mpt  = (struct mpt_softc*)device_get_softc(dev);
-	if (mpt == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENOMEM);
-	}
-	memset(mpt, 0, sizeof(struct mpt_softc));
+
 	switch (pci_get_device(dev)) {
-	case PCI_PRODUCT_LSI_FC909:
-	case PCI_PRODUCT_LSI_FC909A:
-	case PCI_PRODUCT_LSI_FC919:
-	case PCI_PRODUCT_LSI_FC919_LAN:
-	case PCI_PRODUCT_LSI_FC929:
-	case PCI_PRODUCT_LSI_FC929_LAN:
-	case PCI_PRODUCT_LSI_FC929X:
-	case PCI_PRODUCT_LSI_FC929X_LAN:
-	case PCI_PRODUCT_LSI_FC919X:
-	case PCI_PRODUCT_LSI_FC919X_LAN:
-	case PCI_PRODUCT_LSI_FC646:
-	case PCI_PRODUCT_LSI_FC7X04X:
+	case MPI_MANUFACTPAGE_DEVICEID_FC909_FB:
+	case MPI_MANUFACTPAGE_DEVICEID_FC909:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919_LAN_FB:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929_LAN_FB:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929X:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929X_LAN_FB:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919X:
+	case MPI_MANUFACTPAGE_DEVICEID_FC919X_LAN_FB:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949E:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949X:
 		mpt->is_fc = 1;
 		break;
-	case PCI_PRODUCT_LSI_SAS1078:
-	case PCI_PRODUCT_LSI_SAS1078DE:
+	case MPI_MANUFACTPAGE_DEVID_SAS1078:
+	case MPI_MANUFACTPAGE_DEVID_SAS1078DE_FB:
 		mpt->is_1078 = 1;
 		/* FALLTHROUGH */
-	case PCI_PRODUCT_LSI_SAS1064:
-	case PCI_PRODUCT_LSI_SAS1064A:
-	case PCI_PRODUCT_LSI_SAS1064E:
-	case PCI_PRODUCT_LSI_SAS1066:
-	case PCI_PRODUCT_LSI_SAS1066E:
-	case PCI_PRODUCT_LSI_SAS1068:
-	case PCI_PRODUCT_LSI_SAS1068A:
-	case PCI_PRODUCT_LSI_SAS1068E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1064:
+	case MPI_MANUFACTPAGE_DEVID_SAS1064A:
+	case MPI_MANUFACTPAGE_DEVID_SAS1064E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1066:
+	case MPI_MANUFACTPAGE_DEVID_SAS1066E:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068A_FB:
+	case MPI_MANUFACTPAGE_DEVID_SAS1068E:
 		mpt->is_sas = 1;
 		break;
 	default:
@@ -544,12 +470,12 @@ mpt_pci_attach(device_t dev)
 	 * If so, link with our partner (around yet)
 	 */
 	switch (pci_get_device(dev)) {
-	case PCI_PRODUCT_LSI_FC929:
-	case PCI_PRODUCT_LSI_FC929_LAN:
-	case PCI_PRODUCT_LSI_FC646:
-	case PCI_PRODUCT_LSI_FC7X04X:
-	case PCI_PRODUCT_LSI_1030:
-	case PCI_PRODUCT_LSI_1030ZC:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929:
+	case MPI_MANUFACTPAGE_DEVICEID_FC929_LAN_FB:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949E:
+	case MPI_MANUFACTPAGE_DEVICEID_FC949X:
+	case MPI_MANUFACTPAGE_DEVID_53C1030:
+	case MPI_MANUFACTPAGE_DEVID_53C1030ZC:
 		mpt_link_peer(mpt);
 		break;
 	default:
@@ -588,7 +514,6 @@ mpt_pci_attach(device_t dev)
 		mpt->pci_pio_sh = rman_get_bushandle(mpt->pci_pio_reg);
 	}
 
-	/* Allocate kernel virtual memory for the 9x9's Mem0 region */
 	mpt_mem_bar = PCIR_BAR(mpt_mem_bar);
 	mpt->pci_reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &mpt_mem_bar, RF_ACTIVE);
@@ -660,6 +585,7 @@ mpt_pci_attach(device_t dev)
 		goto bad;
 	}
 
+#if 0
 	/*
 	 * Save the PCI config register values
  	 *
@@ -671,6 +597,7 @@ mpt_pci_attach(device_t dev)
 	 */
 
 	mpt_read_config_regs(mpt);
+#endif
 
 	/*
 	 * Disable PIO until we need it
@@ -888,6 +815,7 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 	mpt->request_pool = NULL;
 }
 
+#if 0
 /* Reads modifiable (via PCI transactions) config registers */
 static void
 mpt_read_config_regs(struct mpt_softc *mpt)
@@ -906,7 +834,6 @@ mpt_read_config_regs(struct mpt_softc *mpt)
 	mpt->pci_cfg.PMCSR = pci_read_config(mpt->dev, 0x44, 4);
 }
 
-#if 0
 /* Sets modifiable config registers */
 static void
 mpt_set_config_regs(struct mpt_softc *mpt)
