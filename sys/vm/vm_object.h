@@ -228,7 +228,7 @@ void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_page_cache(vm_object_t object, vm_pindex_t start,
     vm_pindex_t end);
-void vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
+boolean_t vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
     vm_ooffset_t end, int flags);
 void vm_object_page_remove(vm_object_t object, vm_pindex_t start,
     vm_pindex_t end, int options);
@@ -239,7 +239,7 @@ void vm_object_reference_locked(vm_object_t);
 int  vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr);
 void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
-void vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
+boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
 void vm_object_madvise (vm_object_t, vm_pindex_t, int, int);
 #endif				/* _KERNEL */
