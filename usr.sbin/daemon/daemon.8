@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2007
+.Dd February 19, 2012
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -59,12 +59,40 @@ Write the ID of the created process into the
 using the
 .Xr pidfile 3
 functionality.
-Note, that the file will be created shortly before the process is
-actually executed, and will remain after the process exits (although
-it will be removed if the execution fails).
+The program is executed in a spawned child process while the
+.Nm
+waits until it terminates to keep the
+.Ar file
+locked and removes it after the process exits.
+The
+.Ar file
+owner is the user who runs the
+.Nm
+regardless of whether the
+.Fl u
+option is used or not.
+.It Fl r
+Supervise and restart the program if it has been terminated.
 .It Fl u Ar user
-Run the program with the rights of user specified, requires privilege.
+Login name of the user to execute the program under.
+Requires adequate superuser privileges.
 .El
+.Pp
+If the
+.Fl p
+or
+.Fl r
+option is specified the program is executed in a spawned child process.
+The
+.Nm
+waits until it terminates to keep the pid file locked and removes it
+after the process exits or restarts the program.
+In this case if the monitoring
+.Nm
+receives software termination signal (SIGTERM) it forwards it to the
+spawned process.
+Normally it will cause the child to exit followed by the termination
+of the supervising process after removing the pidfile.
 .Sh EXIT STATUS
 The
 .Nm
