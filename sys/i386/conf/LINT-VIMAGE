@@ -1,0 +1,3 @@
+include LINT
+ident LINT-VIMAGE
+options VIMAGE
