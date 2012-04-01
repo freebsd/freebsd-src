@@ -222,6 +222,10 @@ int newnfs_directio_enable = 0;
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &newnfs_directio_enable, 0, "Enable NFS directio");
 
+int newnfs_keep_dirty_on_error;
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_keep_dirty_on_error, CTLFLAG_RW,
+    &newnfs_keep_dirty_on_error, 0, "Retry pageout if error returned");
+
 /*
  * This sysctl allows other processes to mmap a file that has been opened
  * O_DIRECT by a process.  In general, having processes mmap the file while
