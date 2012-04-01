@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2012 Ian Lepore <freebsd@damnhippie.dyndns.org>
+/*
+ * Copyright (C) 2012 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,44 +22,91 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <fenv.h>
-#include <float.h>
-
 #include "softfloat-for-gcc.h"
 #include "milieu.h"
 #include "softfloat.h"
 
-int
-__flt_rounds(void)
-{
+float64 __adddf3(float64 a, float64 b);
+float64 __divdf3(float64 a, float64 b);
+float64 __muldf3(float64 a, float64 b);
+float64 __subdf3(float64 a, float64 b);
 
-#ifndef ARM_HARD_FLOAT
-	/*
-	 * Translate our rounding modes to the unnamed
-	 * manifest constants required by C99 et. al.
-	 */
-	switch (__softfloat_float_rounding_mode) {
-	case FE_TOWARDZERO:
-		return (0);
-	case FE_TONEAREST:
-		return (1);
-	case FE_UPWARD:
-		return (2);
-	case FE_DOWNWARD:
-		return (3);
-	}
-	return (-1);
-#else /* ARM_HARD_FLOAT */
-	/*
-	 * Apparently, the rounding mode is specified as part of the
-	 * instruction format on ARM, so the dynamic rounding mode is
-	 * indeterminate.  Some FPUs may differ.
-	 */
-	return (-1);
-#endif /* ARM_HARD_FLOAT */
+float32 __truncdfsf2(float64 a);
+
+int32 __fixdfsi(float64);
+float64 __floatsidf(int32 a);
+flag __gedf2(float64, float64);
+flag __ledf2(float64, float64);
+flag __unorddf2(float64, float64);
+
+int __aeabi_dcmpeq(double a, double b)
+{
+	return __ledf2(a, b) == 0;
 }
+
+int __aeabi_dcmplt(double a, double b)
+{
+	return __ledf2(a, b) < 0;
+}
+
+int __aeabi_dcmple(double a, double b)
+{
+	return __ledf2(a, b) <= 0;
+}
+
+int __aeabi_dcmpge(double a, double b)
+{
+	return __gedf2(a, b) >= 0;
+}
+
+int __aeabi_dcmpgt(double a, double b)
+{
+	return __gedf2(a, b) > 0;
+}
+
+int __aeabi_dcmpun(double a, double b)
+{
+	return __unorddf2(a, b);
+}
+
+int __aeabi_d2iz(double a)
+{
+	return __fixdfsi(a);
+}
+
+float __aeabi_d2f(double a)
+{
+	return __truncdfsf2(a);
+}
+
+double __aeabi_i2d(int a)
+{
+	return __floatsidf(a);
+}
+
+double __aeabi_dadd(double a, double b)
+{
+	return __adddf3(a, b);
+}
+
+double __aeabi_ddiv(double a, double b)
+{
+	return __divdf3(a, b);
+}
+
+double __aeabi_dmul(double a, double b)
+{
+	return __muldf3(a, b);
+}
+
+double __aeabi_dsub(double a, double b)
+{
+	return __subdf3(a, b);
+}
+

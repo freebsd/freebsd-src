@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2012 Ian Lepore <freebsd@damnhippie.dyndns.org>
+/*
+ * Copyright (C) 2012 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,44 +22,91 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <fenv.h>
-#include <float.h>
-
 #include "softfloat-for-gcc.h"
 #include "milieu.h"
 #include "softfloat.h"
 
-int
-__flt_rounds(void)
-{
+float32 __addsf3(float32 a, float32 b);
+float32 __divsf3(float32 a, float32 b);
+float32 __mulsf3(float32 a, float32 b);
+float32 __subsf3(float32 a, float32 b);
 
-#ifndef ARM_HARD_FLOAT
-	/*
-	 * Translate our rounding modes to the unnamed
-	 * manifest constants required by C99 et. al.
-	 */
-	switch (__softfloat_float_rounding_mode) {
-	case FE_TOWARDZERO:
-		return (0);
-	case FE_TONEAREST:
-		return (1);
-	case FE_UPWARD:
-		return (2);
-	case FE_DOWNWARD:
-		return (3);
-	}
-	return (-1);
-#else /* ARM_HARD_FLOAT */
-	/*
-	 * Apparently, the rounding mode is specified as part of the
-	 * instruction format on ARM, so the dynamic rounding mode is
-	 * indeterminate.  Some FPUs may differ.
-	 */
-	return (-1);
-#endif /* ARM_HARD_FLOAT */
+float64 __extendsfdf2(float32 a);
+
+int32 __fixsfsi(float32);
+float32 __floatsisf(int32 a);
+flag __gesf2(float32, float32);
+flag __lesf2(float32, float32);
+flag __unordsf2(float32, float32);
+
+int __aeabi_fcmpeq(float a, float b)
+{
+	return __lesf2(a, b) == 0;
 }
+
+int __aeabi_fcmplt(float a, float b)
+{
+	return __lesf2(a, b) < 0;
+}
+
+int __aeabi_fcmple(float a, float b)
+{
+	return __lesf2(a, b) <= 0;
+}
+
+int __aeabi_fcmpge(float a, float b)
+{
+	return __gesf2(a, b) >= 0;
+}
+
+int __aeabi_fcmpgt(float a, float b)
+{
+	return __gesf2(a, b) > 0;
+}
+
+int __aeabi_fcmpun(float a, float b)
+{
+	return __unordsf2(a, b);
+}
+
+int __aeabi_f2iz(float a)
+{
+	return __fixsfsi(a);
+}
+
+double __aeabi_f2d(float a)
+{
+	return __extendsfdf2(a);
+}
+
+float __aeabi_i2f(int a)
+{
+	return __floatsisf(a);
+}
+
+float __aeabi_fadd(float a, float b)
+{
+	return __addsf3(a, b);
+}
+
+float __aeabi_fdiv(float a, float b)
+{
+	return __divsf3(a, b);
+}
+
+float __aeabi_fmul(float a, float b)
+{
+	return __mulsf3(a, b);
+}
+
+float __aeabi_fsub(float a, float b)
+{
+	return __subsf3(a, b);
+}
+

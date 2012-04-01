@@ -127,23 +127,26 @@ SRCF=	absvdi2 \
 	umodti3
 
 # These are already shipped by libc.a on arm and mips
-.if ${MACHINE_CPUARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 SRCF+=	adddf3 \
 	addsf3 \
 	divdf3 \
 	divsf3 \
-	divsi3 \
 	extendsfdf2 \
 	fixdfsi \
 	fixsfsi \
 	floatsidf \
 	floatsisf \
-	modsi3 \
 	muldf3 \
 	mulsf3 \
 	subdf3 \
 	subsf3 \
-	truncdfsf2 \
+	truncdfsf2
+.endif
+
+.if ${MACHINE_CPUARCH} != "mips"
+SRCF+=	divsi3 \
+	modsi3 \
 	udivsi3 \
 	umodsi3
 .endif
