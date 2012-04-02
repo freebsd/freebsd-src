@@ -78,6 +78,27 @@ SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
 	&via_feature_xcrypt, 0, "VIA C3/C7 xcrypt feature available in CPU");
 
+static void
+init_amd(void)
+{
+
+	/*
+	 * Work around Erratum 721 for Family 10h and 12h processors.
+	 * These processors may incorrectly update the stack pointer
+	 * after a long series of push and/or near-call instructions,
+	 * or a long series of pop and/or near-return instructions.
+	 *
+	 * http://support.amd.com/us/Processor_TechDocs/41322_10h_Rev_Gd.pdf
+	 * http://support.amd.com/us/Processor_TechDocs/44739_12h_Rev_Gd.pdf
+	 */
+	switch (CPUID_TO_FAMILY(cpu_id)) {
+	case 0x10:
+	case 0x12:
+		wrmsr(0xc0011029, rdmsr(0xc0011029) | 1);
+		break;
+	}
+}
+
 /*
  * Initialize special VIA C3/C7 features
  */
@@ -159,10 +180,16 @@ initializecpu(void)
 		wrmsr(MSR_EFER, msr);
 		pg_nx = PG_NX;
 	}
-	if (cpu_vendor_id == CPU_VENDOR_CENTAUR &&
-	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-	    CPUID_TO_MODEL(cpu_id) >= 0xf)
-		init_via();
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_AMD:
+		init_amd();
+		break;
+	case CPU_VENDOR_CENTAUR:
+		if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xf)
+			init_via();
+		break;
+	}
 }
 
 void
