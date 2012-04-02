@@ -430,11 +430,27 @@ exit1(struct thread *td, int rv)
 		if (q->p_flag & P_TRACED) {
 			struct thread *temp;
 
+			/*
+			 * Since q was found on our children list, the
+			 * proc_reparent() call moved q to the orphan
+			 * list due to present P_TRACED flag. Clear
+			 * orphan link for q now while q is locked.
+			 */
+			clear_orphan(q);
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 			FOREACH_THREAD_IN_PROC(q, temp)
 				temp->td_dbgflags &= ~TDB_SUSPEND;
 			kern_psignal(q, SIGKILL);
 		}
+		PROC_UNLOCK(q);
+	}
+
+	/*
+	 * Also get rid of our orphans.
+	 */
+	while ((q = LIST_FIRST(&p->p_orphans)) != NULL) {
+		PROC_LOCK(q);
+		clear_orphan(q);
 		PROC_UNLOCK(q);
 	}
 
