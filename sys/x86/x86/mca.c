@@ -457,9 +457,9 @@ mca_record_entry(enum scan_mode mode, const struct mca_record *record)
 		mtx_lock_spin(&mca_lock);
 		rec = STAILQ_FIRST(&mca_freelist);
 		if (rec == NULL) {
-			mtx_unlock_spin(&mca_lock);
 			printf("MCA: Unable to allocate space for an event.\n");
 			mca_log(record);
+			mtx_unlock_spin(&mca_lock);
 			return;
 		}
 		STAILQ_REMOVE_HEAD(&mca_freelist, link);
@@ -589,7 +589,9 @@ mca_scan(enum scan_mode mode)
 			count++;
 			if (rec.mr_status & ucmask) {
 				recoverable = 0;
+				mtx_lock_spin(&mca_lock);
 				mca_log(&rec);
+				mtx_unlock_spin(&mca_lock);
 			}
 			mca_record_entry(mode, &rec);
 		}
@@ -636,9 +638,7 @@ mca_scan_cpus(void *arg)
 		STAILQ_FOREACH(mca, &mca_records, link) {
 			if (!mca->logged) {
 				mca->logged = 1;
-				mtx_unlock_spin(&mca_lock);
 				mca_log(&mca->rec);
-				mtx_lock_spin(&mca_lock);
 			}
 		}
 		mtx_unlock_spin(&mca_lock);
@@ -924,7 +924,7 @@ mca_init_bsp(void *arg __unused)
 SYSINIT(mca_init_bsp, SI_SUB_CPU, SI_ORDER_ANY, mca_init_bsp, NULL);
 
 /* Called when a machine check exception fires. */
-int
+void
 mca_intr(void)
 {
 	uint64_t mcg_status;
@@ -938,7 +938,7 @@ mca_intr(void)
 		printf("MC Type: 0x%jx  Address: 0x%jx\n",
 		    (uintmax_t)rdmsr(MSR_P5_MC_TYPE),
 		    (uintmax_t)rdmsr(MSR_P5_MC_ADDR));
-		return (0);
+		panic("Machine check");
 	}
 
 	/* Scan the banks and check for any non-recoverable errors. */
@@ -949,7 +949,8 @@ mca_intr(void)
 
 	/* Clear MCIP. */
 	wrmsr(MSR_MCG_STATUS, mcg_status & ~MCG_STATUS_MCIP);
-	return (recoverable);
+	if (!recoverable)
+		panic("Unrecoverable machine check exception");
 }
 
 #ifdef DEV_APIC
@@ -972,9 +973,7 @@ cmc_intr(void)
 		STAILQ_FOREACH(mca, &mca_records, link) {
 			if (!mca->logged) {
 				mca->logged = 1;
-				mtx_unlock_spin(&mca_lock);
 				mca_log(&mca->rec);
-				mtx_lock_spin(&mca_lock);
 			}
 		}
 		mtx_unlock_spin(&mca_lock);
