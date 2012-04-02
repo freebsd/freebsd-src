@@ -547,6 +547,9 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	if (ttd == NULL)
 		return (ESRCH);
 	strcpy(ttd->td_name, name);
+#ifdef KTR
+	sched_clear_tdname(ttd);
+#endif
 	PROC_UNLOCK(p);
 	return (error);
 }

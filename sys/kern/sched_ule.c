@@ -2684,6 +2684,17 @@ sched_tdname(struct thread *td)
 #endif
 }
 
+#ifdef KTR
+void
+sched_clear_tdname(struct thread *td)
+{
+	struct td_sched *ts;
+
+	ts = td->td_sched;
+	ts->ts_name[0] = '\0';
+}
+#endif
+
 #ifdef SMP
 
 /*
