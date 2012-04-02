@@ -67,6 +67,7 @@ oui PMCSIERRA			0x00e004	PMC-Sierra
 oui QUALSEMI			0x006051	Quality Semiconductor
 oui RDC				0x00d02d	RDC Semiconductor
 oui REALTEK			0x00e04c	RealTek Semicondctor
+oui SMC				0x00800f	SMC
 oui SEEQ			0x00a07d	Seeq Technology
 oui SIS				0x00e006	Silicon Integrated Systems
 oui TI				0x080028	Texas Instruments
@@ -320,3 +321,6 @@ model xxTSC 78Q2121		0x0015 78Q2121 100BASE-TX media interface
 
 /* XaQti Corp. PHYs */
 model xxXAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
+
+/* SMC */
+model SMC LAN8710A		0x000F SMC LAN8710A 10/100 interface

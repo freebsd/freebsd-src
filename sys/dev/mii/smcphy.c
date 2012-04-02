@@ -79,6 +79,7 @@ DRIVER_MODULE(smcphy, miibus, smcphy_driver, smcphy_devclass, 0, 0);
 static const struct mii_phydesc smcphys[] = {
 	MII_PHY_DESC(SEEQ, 80220),
 	MII_PHY_DESC(SEEQ, 84220),
+	MII_PHY_DESC(SMC, LAN8710A),
 	MII_PHY_END
 };
 
