@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/refcount.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
 #include <sys/lock.h>
@@ -51,7 +52,6 @@
 
 struct ip;
 struct ip6_hdr;
-struct inpcb;
 
 #define	PF_TCPS_PROXY_SRC	((TCP_NSTATES)+0)
 #define	PF_TCPS_PROXY_DST	((TCP_NSTATES)+1)
@@ -208,23 +208,21 @@ extern struct mtx pf_mtx;
 #define	PF_LOCK()		mtx_lock(&pf_mtx)
 #define	PF_UNLOCK()		mtx_unlock(&pf_mtx)
 
-extern struct mtx pf_state_keys_mtx;
-#define	PF_KEYS_ASSERT()	mtx_assert(&pf_state_keys_mtx, MA_OWNED)
-#define	PF_KEYS_LOCK()		mtx_lock(&pf_state_keys_mtx)
-#define	PF_KEYS_UNLOCK()	mtx_unlock(&pf_state_keys_mtx)
+#define	PF_HASHROW_ASSERT(h)	mtx_assert(&(h)->lock, MA_OWNED)
+#define	PF_HASHROW_LOCK(h)	mtx_lock(&(h)->lock)
+#define	PF_HASHROW_UNLOCK(h)	mtx_unlock(&(h)->lock)
 
-extern struct mtx pf_state_ids_mtx;
-#define	PF_IDS_ASSERT()		mtx_assert(&pf_state_ids_mtx, MA_OWNED)
-#define	PF_IDS_LOCK()		mtx_lock(&pf_state_ids_mtx)
-#define	PF_IDS_UNLOCK()		mtx_unlock(&pf_state_ids_mtx)
+#define	PF_STATE_LOCK(s)						\
+	do {								\
+		struct pf_idhash *_ih = &V_pf_idhash[PF_IDHASH(s)];	\
+		PF_HASHROW_LOCK(_ih);					\
+	} while (0)
 
-extern struct rwlock pf_state_list_lock;
-#define	PF_LIST_RASSERT()	rw_assert(&pf_state_list_lock, RA_RLOCKED)
-#define	PF_LIST_RLOCK()		rw_rlock(&pf_state_list_lock)
-#define	PF_LIST_RUNLOCK()	rw_runlock(&pf_state_list_lock)
-#define	PF_LIST_WASSERT()	rw_assert(&pf_state_list_lock, RA_WLOCKED)
-#define	PF_LIST_WLOCK()		rw_wlock(&pf_state_list_lock)
-#define	PF_LIST_WUNLOCK()	rw_wunlock(&pf_state_list_lock)
+#define	PF_STATE_UNLOCK(s)						\
+	do {								\
+		struct pf_idhash *_ih = &V_pf_idhash[PF_IDHASH((s))];	\
+		PF_HASHROW_UNLOCK(_ih);					\
+	} while (0)
 
 extern struct rwlock pf_rules_lock;
 #define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
@@ -771,9 +769,7 @@ struct pf_state_peer {
 	u_int8_t	pad[1];
 };
 
-TAILQ_HEAD(pf_state_queue, pf_state);
-
-/* keep synced with struct pf_state_key, used in RB_FIND */
+/* Keep synced with struct pf_state_key. */
 struct pf_state_key_cmp {
 	struct pf_addr	 addr[2];
 	u_int16_t	 port[2];
@@ -789,13 +785,14 @@ struct pf_state_key {
 	u_int8_t	 proto;
 	u_int8_t	 pad[2];
 
-	RB_ENTRY(pf_state_key)	 entry;
+	LIST_ENTRY(pf_state_key) entry;
 	TAILQ_HEAD(, pf_state)	 states[2];
+#if 0	/* XXXGL: TODO */
 	struct pf_state_key	*reverse;
-	struct inpcb		*inp;
+#endif
 };
 
-/* keep synced with struct pf_state, used in RB_FIND */
+/* Keep synced with struct pf_state. */
 struct pf_state_cmp {
 	u_int64_t		 id;
 	u_int32_t		 creatorid;
@@ -808,10 +805,11 @@ struct pf_state {
 	u_int32_t		 creatorid;
 	u_int8_t		 direction;
 	u_int8_t		 pad[3];
+
+	u_int			 refs;
 	TAILQ_ENTRY(pf_state)	 sync_list;
-	TAILQ_ENTRY(pf_state)	 entry_list;
 	TAILQ_ENTRY(pf_state)	 key_list[2];
-	RB_ENTRY(pf_state)	 entry_id;
+	LIST_ENTRY(pf_state)	 entry;
 	struct pf_state_peer	 src;
 	struct pf_state_peer	 dst;
 	union pf_rule_ptr	 rule;
@@ -906,7 +904,6 @@ typedef	void		pfsync_insert_state_t(struct pf_state *);
 typedef	void		pfsync_update_state_t(struct pf_state *);
 typedef	void		pfsync_delete_state_t(struct pf_state *);
 typedef void		pfsync_clear_states_t(u_int32_t, const char *);
-typedef int		pfsync_state_in_use_t(struct pf_state *);
 typedef int		pfsync_defer_t(struct pf_state *, struct mbuf *);
 typedef	int		pfsync_up_t(void);
 
@@ -915,7 +912,6 @@ extern pfsync_insert_state_t	*pfsync_insert_state_ptr;
 extern pfsync_update_state_t	*pfsync_update_state_ptr;
 extern pfsync_delete_state_t	*pfsync_delete_state_ptr;
 extern pfsync_clear_states_t	*pfsync_clear_states_ptr;
-extern pfsync_state_in_use_t	*pfsync_state_in_use_ptr;
 extern pfsync_defer_t		*pfsync_defer_ptr;
 extern pfsync_up_t		*pfsync_up_ptr;
 
@@ -1165,20 +1161,7 @@ struct pfr_ktable {
 #define pfrkt_nomatch	pfrkt_ts.pfrts_nomatch
 #define pfrkt_tzero	pfrkt_ts.pfrts_tzero
 
-RB_HEAD(pf_state_tree, pf_state_key);
-RB_PROTOTYPE(pf_state_tree, pf_state_key, entry, pf_state_compare_key);
-
-RB_HEAD(pf_state_tree_ext_gwy, pf_state_key);
-RB_PROTOTYPE(pf_state_tree_ext_gwy, pf_state_key,
-    entry_ext_gwy, pf_state_compare_ext_gwy);
-
 RB_HEAD(pfi_ifhead, pfi_kif);
-
-/* state tables */
-#ifdef _KERNEL
-VNET_DECLARE(struct pf_state_tree,	 pf_statetbl);
-#define	V_pf_statetbl			 VNET(pf_statetbl)
-#endif
 
 /* keep synced with pfi_kif, used in RB_FIND */
 struct pfi_kif_cmp {
@@ -1723,13 +1706,28 @@ RB_PROTOTYPE(pf_src_tree, pf_src_node, entry, pf_src_compare);
 VNET_DECLARE(struct pf_src_tree,	 tree_src_tracking);
 #define	V_tree_src_tracking		 VNET(tree_src_tracking)
 
-RB_HEAD(pf_state_tree_id, pf_state);
-RB_PROTOTYPE(pf_state_tree_id, pf_state,
-    entry_id, pf_state_compare_id);
-VNET_DECLARE(struct pf_state_tree_id,	 tree_id);
-#define	V_tree_id			 VNET(tree_id)
-VNET_DECLARE(struct pf_state_queue,	 state_list);
-#define	V_state_list			 VNET(state_list)
+LIST_HEAD(pf_state_list, pf_state);
+TAILQ_HEAD(pf_state_queue, pf_state);
+
+struct pf_keyhash {
+	LIST_HEAD(, pf_state_key)	keys;
+	struct mtx			lock;
+};
+
+struct pf_idhash {
+	struct pf_state_list		states;
+	struct mtx			lock;
+};
+
+#define	PF_HASHSIZ	(262144)	/* now 2^18 XXXGL: grow? */
+VNET_DECLARE(struct pf_keyhash *, pf_keyhash);
+VNET_DECLARE(struct pf_idhash *, pf_idhash);
+VNET_DECLARE(u_long, pf_hashmask);
+#define V_pf_keyhash	VNET(pf_keyhash)
+#define	V_pf_idhash	VNET(pf_idhash)
+#define	V_pf_hashmask	VNET(pf_hashmask)
+
+#define PF_IDHASH(s)	(be64toh((s)->id) % (V_pf_hashmask + 1))
 
 TAILQ_HEAD(pf_poolqueue, pf_pool);
 VNET_DECLARE(struct pf_poolqueue,	 pf_pools[2]);
@@ -1756,6 +1754,9 @@ VNET_DECLARE(struct pf_poolqueue *,	 pf_pools_active);
 #define	V_pf_pools_active		 VNET(pf_pools_active)
 VNET_DECLARE(struct pf_poolqueue *,	 pf_pools_inactive);
 #define	V_pf_pools_inactive		 VNET(pf_pools_inactive)
+
+void				 pf_initialize(void);
+void				 pf_cleanup(void);
 
 extern int			 pf_tbladdr_setup(struct pf_ruleset *,
 				    struct pf_addr_wrap *);
@@ -1787,12 +1788,32 @@ VNET_DECLARE(uma_zone_t,	 pfi_addr_z);
 #define	V_pfi_addr_z		 VNET(pfi_addr_z)
 
 extern void			 pf_purge_thread(void *);
-extern int			 pf_purge_expired_src_nodes(int);
-extern void			 pf_unlink_state(struct pf_state *, int);
+extern void			 pf_purge_expired_src_nodes(void);
+
+extern void			 pf_unlink_state(struct pf_state *, u_int);
+#define	PF_ENTER_LOCKED		0x00000001
+#define	PF_RETURN_LOCKED	0x00000002
 extern int			 pf_state_insert(struct pfi_kif *,
 				    struct pf_state_key *,
 				    struct pf_state_key *,
 				    struct pf_state *);
+extern void			 pf_free_state(struct pf_state *);
+
+static __inline void
+pf_ref_state(struct pf_state *s)
+{
+
+	refcount_acquire(&s->refs);
+}
+
+static __inline void
+pf_release_state(struct pf_state *s)
+{
+
+	if (refcount_release(&s->refs))
+		pf_free_state(s);
+}
+
 extern struct pf_state		*pf_find_state_byid(struct pf_state_cmp *);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
@@ -1920,9 +1941,6 @@ void		 pf_qid2qname(u_int32_t, char *);
 
 VNET_DECLARE(struct pf_status,		 pf_status);
 #define	V_pf_status			 VNET(pf_status)
-
-VNET_DECLARE(struct sx,			 pf_consistency_lock);
-#define	V_pf_consistency_lock		 VNET(pf_consistency_lock)
 
 struct pf_pool_limit {
 	void		*pp;

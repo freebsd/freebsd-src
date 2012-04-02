@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
-#define	betoh64		be64toh
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
@@ -124,8 +123,6 @@ extern int ip_optcopy(struct ip *, struct ip *);
  */
 
 /* state tables */
-VNET_DEFINE(struct pf_state_tree,	 pf_statetbl);
-
 VNET_DEFINE(struct pf_altqqueue,	 pf_altqs[2]);
 VNET_DEFINE(struct pf_palist,		 pf_pabuf);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_active);
@@ -191,8 +188,9 @@ static void		 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
 			    sa_family_t, struct pf_rule *);
 static void		 pf_detach_state(struct pf_state *);
 static int		 pf_state_key_attach(struct pf_state_key *,
-			    struct pf_state *, int);
+			    struct pf_state_key *, struct pf_state *);
 static void		 pf_state_key_detach(struct pf_state *, int);
+static int		 pf_state_key_ini(void *, int, int);
 static u_int32_t	 pf_tcp_iss(struct pf_pdesc *);
 static int		 pf_test_rule(struct pf_rule **, struct pf_state **,
 			    int, struct pfi_kif *, struct mbuf *, int,
@@ -250,16 +248,17 @@ static void		 pf_print_state_parts(struct pf_state *,
 			    struct pf_state_key *, struct pf_state_key *);
 static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
 			    struct pf_addr_wrap *);
+#if 0
 static int		 pf_compare_state_keys(struct pf_state_key *,
 			    struct pf_state_key *, struct pfi_kif *, u_int);
+#endif
 static struct pf_state	*pf_find_state(struct pfi_kif *,
-			    struct pf_state_key_cmp *, u_int, struct mbuf *,
-			    struct pf_mtag *);
+			    struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_state **);
 static int		 pf_insert_src_node(struct pf_src_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
 static int		 pf_check_congestion(struct ifqueue *);
-static int		 pf_purge_expired_states(u_int32_t , int);
+static void		 pf_purge_expired_states(int);
 
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 
@@ -267,26 +266,22 @@ VNET_DECLARE(int, pf_end_threads);
 
 VNET_DEFINE(struct pf_pool_limit, pf_pool_limits[PF_LIMIT_MAX]);
 
-#define	PPACKET_LOOPED()						\
-	(pd->pf_mtag->flags & PF_PACKET_LOOPED)
+#define	PACKET_LOOPED(pd)	((pd)->pf_mtag->flags & PF_PACKET_LOOPED)
 
-#define	PACKET_LOOPED()							\
-	(pd.pf_mtag->flags & PF_PACKET_LOOPED)
-
-#define	STATE_LOOKUP(i, k, d, s, m, pt)					\
+#define	STATE_LOOKUP(i, k, d, s, pd)					\
 	do {								\
-		s = pf_find_state(i, k, d, m, pt);			\
-		if (s == NULL || (s)->timeout == PFTM_PURGE)		\
+		(s) = pf_find_state((i), (k), (d));			\
+		if ((s) == NULL || (s)->timeout == PFTM_PURGE)		\
 			return (PF_DROP);				\
-		if (PPACKET_LOOPED())					\
+		if (PACKET_LOOPED(pd))					\
 			return (PF_PASS);				\
-		if (d == PF_OUT &&					\
+		if ((d) == PF_OUT &&					\
 		    (((s)->rule.ptr->rt == PF_ROUTETO &&		\
 		    (s)->rule.ptr->direction == PF_OUT) ||		\
 		    ((s)->rule.ptr->rt == PF_REPLYTO &&			\
 		    (s)->rule.ptr->direction == PF_IN)) &&		\
 		    (s)->rt_kif != NULL &&				\
-		    (s)->rt_kif != i)					\
+		    (s)->rt_kif != (i))					\
 			return (PF_PASS);				\
 	} while (0)
 
@@ -317,20 +312,16 @@ VNET_DEFINE(struct pf_pool_limit, pf_pool_limits[PF_LIMIT_MAX]);
 	} while (0)
 
 static __inline int pf_src_compare(struct pf_src_node *, struct pf_src_node *);
-static __inline int pf_state_compare_key(struct pf_state_key *,
-	struct pf_state_key *);
-static __inline int pf_state_compare_id(struct pf_state *,
-	struct pf_state *);
 
 VNET_DEFINE(struct pf_src_tree,	 	 tree_src_tracking);
 
-VNET_DEFINE(struct pf_state_tree_id,	 tree_id);
-VNET_DEFINE(struct pf_state_queue,	 state_list);
+MALLOC_DEFINE(M_PFHASH, "pf hashes", "pf(4) hash header structures");
+/* XXXGL: make static? */
+VNET_DEFINE(struct pf_keyhash *, pf_keyhash);
+VNET_DEFINE(struct pf_idhash *, pf_idhash);
+VNET_DEFINE(u_long, pf_hashmask);
 
 RB_GENERATE(pf_src_tree, pf_src_node, entry, pf_src_compare);
-RB_GENERATE(pf_state_tree, pf_state_key, entry, pf_state_compare_key);
-RB_GENERATE(pf_state_tree_id, pf_state,
-    entry_id, pf_state_compare_id);
 
 static __inline int
 pf_src_compare(struct pf_src_node *a, struct pf_src_node *b)
@@ -484,37 +475,42 @@ pf_src_connlimit(struct pf_state **state)
 
 		/* kill existing states if that's required. */
 		if ((*state)->rule.ptr->flush) {
-			struct pf_state_key *sk;
-			struct pf_state *st;
 
 			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
-			PF_IDS_LOCK();
 			/* XXXGL: this cycle should go into a separate taskq */
-			RB_FOREACH(st, pf_state_tree_id, &V_tree_id) {
-				sk = st->key[PF_SK_WIRE];
-				/*
-				 * Kill states from this source.  (Only those
-				 * from the same rule if PF_FLUSH_GLOBAL is not
-				 * set)
-				 */
-				if (sk->af ==
-				    (*state)->key[PF_SK_WIRE]->af &&
-				    (((*state)->direction == PF_OUT &&
-				    PF_AEQ(&(*state)->src_node->addr,
-					&sk->addr[0], sk->af)) ||
-				    ((*state)->direction == PF_IN &&
-				    PF_AEQ(&(*state)->src_node->addr,
-					&sk->addr[1], sk->af))) &&
-				    ((*state)->rule.ptr->flush &
-				    PF_FLUSH_GLOBAL ||
-				    (*state)->rule.ptr == st->rule.ptr)) {
-					st->timeout = PFTM_PURGE;
-					st->src.state = st->dst.state =
-					    TCPS_CLOSED;
-					killed++;
+			for (int i = 0; i <= V_pf_hashmask; i++) {
+				struct pf_idhash *ih = &V_pf_idhash[i];
+				struct pf_state_key *sk;
+				struct pf_state *s;
+
+				PF_HASHROW_LOCK(ih);
+				LIST_FOREACH(s, &ih->states, entry) {
+					sk = s->key[PF_SK_WIRE];
+					/*
+					 * Kill states from this source.
+					 * (Only those from the same rule if
+					 * PF_FLUSH_GLOBAL is not set)
+					 */
+					if (sk->af ==
+					    (*state)->key[PF_SK_WIRE]->af &&
+					    (((*state)->direction == PF_OUT &&
+					    PF_AEQ(&(*state)->src_node->addr,
+						&sk->addr[0], sk->af)) ||
+					    ((*state)->direction == PF_IN &&
+					    PF_AEQ(&(*state)->src_node->addr,
+						&sk->addr[1], sk->af))) &&
+					    ((*state)->rule.ptr->flush &
+					    PF_FLUSH_GLOBAL ||
+					    (*state)->rule.ptr == s->rule.ptr))
+					{
+						s->timeout = PFTM_PURGE;
+						s->src.state = s->dst.state =
+						    TCPS_CLOSED;
+						killed++;
+					}
 				}
+				PF_HASHROW_UNLOCK(ih);
 			}
-			PF_IDS_UNLOCK();
 			if (V_pf_status.debug >= PF_DEBUG_MISC)
 				printf(", %u states killed", killed);
 		}
@@ -591,103 +587,184 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 	return (0);
 }
 
-/* state table stuff */
-
-static __inline int
-pf_state_compare_key(struct pf_state_key *a, struct pf_state_key *b)
+/*
+ * Hash function shamelessly taken from ng_netflow(4), trusting
+ * mav@ and melifaro@ data on its decent distribution.
+ */
+static __inline u_int
+pf_hashkey(struct pf_state_key *sk)
 {
-	int	diff;
+	u_int h;
 
-	if ((diff = a->proto - b->proto) != 0)
-		return (diff);
-	if ((diff = a->af - b->af) != 0)
-		return (diff);
-	switch (a->af) {
-#ifdef INET
+#define	FULL_HASH(a1, a2, p1, p2)	\
+	(((a1) ^ ((a1) >> 16) ^		\
+	htons((a2) ^ ((a2) >> 16))) ^	\
+	(p1) ^ htons(p2))
+ 
+#define	ADDR_HASH(a1, a2)		\
+	((a1) ^ ((a1) >> 16) ^		\
+	htons((a2) ^ ((a2) >> 16)))
+
+	switch (sk->af) {
 	case AF_INET:
-		if (a->addr[0].addr32[0] > b->addr[0].addr32[0])
-			return (1);
-		if (a->addr[0].addr32[0] < b->addr[0].addr32[0])
-			return (-1);
-		if (a->addr[1].addr32[0] > b->addr[1].addr32[0])
-			return (1);
-		if (a->addr[1].addr32[0] < b->addr[1].addr32[0])
-			return (-1);
+		switch (sk->proto) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+			h = FULL_HASH(sk->addr[0].v4.s_addr,
+			    sk->addr[1].v4.s_addr, sk->port[0], sk->port[1]);
+			break;
+		default:
+			h = ADDR_HASH(sk->addr[0].v4.s_addr,
+			    sk->addr[1].v4.s_addr);
+			break;
+		}
 		break;
-#endif /* INET */
-#ifdef INET6
 	case AF_INET6:
-		if (a->addr[0].addr32[3] > b->addr[0].addr32[3])
-			return (1);
-		if (a->addr[0].addr32[3] < b->addr[0].addr32[3])
-			return (-1);
-		if (a->addr[1].addr32[3] > b->addr[1].addr32[3])
-			return (1);
-		if (a->addr[1].addr32[3] < b->addr[1].addr32[3])
-			return (-1);
-		if (a->addr[0].addr32[2] > b->addr[0].addr32[2])
-			return (1);
-		if (a->addr[0].addr32[2] < b->addr[0].addr32[2])
-			return (-1);
-		if (a->addr[1].addr32[2] > b->addr[1].addr32[2])
-			return (1);
-		if (a->addr[1].addr32[2] < b->addr[1].addr32[2])
-			return (-1);
-		if (a->addr[0].addr32[1] > b->addr[0].addr32[1])
-			return (1);
-		if (a->addr[0].addr32[1] < b->addr[0].addr32[1])
-			return (-1);
-		if (a->addr[1].addr32[1] > b->addr[1].addr32[1])
-			return (1);
-		if (a->addr[1].addr32[1] < b->addr[1].addr32[1])
-			return (-1);
-		if (a->addr[0].addr32[0] > b->addr[0].addr32[0])
-			return (1);
-		if (a->addr[0].addr32[0] < b->addr[0].addr32[0])
-			return (-1);
-		if (a->addr[1].addr32[0] > b->addr[1].addr32[0])
-			return (1);
-		if (a->addr[1].addr32[0] < b->addr[1].addr32[0])
-			return (-1);
+		switch (sk->proto) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+			h = FULL_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
+			    sk->addr[1].v6.__u6_addr.__u6_addr32[3],
+			    sk->port[0], sk->port[1]);
+			break;
+		default:
+			h = ADDR_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
+			    sk->addr[1].v6.__u6_addr.__u6_addr32[3]);
+			break;
+		}
 		break;
-#endif /* INET6 */
+	default:
+		panic("%s: unknown address family %u", __func__, sk->af);
 	}
 
-	if ((diff = a->port[0] - b->port[0]) != 0)
-		return (diff);
-	if ((diff = a->port[1] - b->port[1]) != 0)
-		return (diff);
-
-	return (0);
+	return (h & V_pf_hashmask);
 }
 
-static __inline int
-pf_state_compare_id(struct pf_state *a, struct pf_state *b)
+/* Data storage structures initialization. */
+void
+pf_initialize()
 {
-	if (a->id > b->id)
-		return (1);
-	if (a->id < b->id)
-		return (-1);
-	if (a->creatorid > b->creatorid)
-		return (1);
-	if (a->creatorid < b->creatorid)
-		return (-1);
+	struct pf_keyhash	*kh;
+	struct pf_idhash	*ih;
+	u_int i;
 
-	return (0);
+	/* States and state keys storage. */
+	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_pf_pool_limits[PF_LIMIT_STATES].pp = V_pf_state_z;
+        uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
+
+	V_pf_state_key_z = uma_zcreate("pf state keys",
+	    sizeof(struct pf_state_key), NULL, NULL, pf_state_key_ini, NULL,
+	    UMA_ALIGN_PTR, 0);
+	V_pf_keyhash = malloc(PF_HASHSIZ * sizeof(struct pf_keyhash), M_PFHASH,
+	    M_WAITOK|M_ZERO);
+	V_pf_idhash = malloc(PF_HASHSIZ * sizeof(struct pf_idhash), M_PFHASH,
+	    M_WAITOK|M_ZERO);
+	V_pf_hashmask = PF_HASHSIZ - 1;
+	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= V_pf_hashmask;
+	    i++, kh++, ih++) {
+		mtx_init(&kh->lock, "pf_keyhash", NULL, MTX_DEF);
+		mtx_init(&ih->lock, "pf_idhash", NULL, MTX_DEF);
+	}
+
+	/* Source nodes. */
+	V_pf_src_tree_z = uma_zcreate("pf src nodes",
+	    sizeof(struct pf_src_node), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_src_tree_z;
+	RB_INIT(&V_tree_src_tracking);
+
+	/* ALTQ */
+	V_pf_altq_z = uma_zcreate("pf altq", sizeof(struct pf_altq),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	TAILQ_INIT(&V_pf_altqs[0]);
+	TAILQ_INIT(&V_pf_altqs[1]);
+	TAILQ_INIT(&V_pf_pabuf);
+	V_pf_altqs_active = &V_pf_altqs[0];
+	V_pf_altqs_inactive = &V_pf_altqs[1];
+
+	/* XXXGL: sort this out */
+	V_pf_rule_z = uma_zcreate("pf rules", sizeof(struct pf_rule),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_pf_pooladdr_z = uma_zcreate("pf pool addresses",
+	    sizeof(struct pf_pooladdr), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pfr_ktable_z = uma_zcreate("pf tables",
+	    sizeof(struct pfr_ktable), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pf_pool_limits[PF_LIMIT_TABLES].pp = V_pfr_ktable_z;
+	V_pfr_kentry_z = uma_zcreate("pf table entries",
+	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].pp = V_pfr_kentry_z;
+	V_pfi_addr_z = uma_zcreate("pf pfi_dynaddr", sizeof(struct pfi_dynaddr),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+}
+
+void
+pf_cleanup()
+{
+	struct pf_keyhash	*kh;
+	struct pf_idhash	*ih;
+	u_int i;
+
+	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= V_pf_hashmask;
+	    i++, kh++, ih++) {
+		KASSERT(LIST_EMPTY(&kh->keys), ("%s: key hash not empty",
+		    __func__));
+		KASSERT(LIST_EMPTY(&ih->states), ("%s: id hash not empty",
+		    __func__));
+		mtx_destroy(&kh->lock);
+		mtx_destroy(&ih->lock);
+	}
+	free(V_pf_keyhash, M_PFHASH);
+	free(V_pf_idhash, M_PFHASH);
+
+	uma_zdestroy(V_pf_src_tree_z);
+	uma_zdestroy(V_pf_rule_z);
+	uma_zdestroy(V_pf_state_z);
+	uma_zdestroy(V_pf_state_key_z);
+	uma_zdestroy(V_pf_altq_z);
+	uma_zdestroy(V_pf_pooladdr_z);
+	uma_zdestroy(V_pfr_ktable_z);
+	uma_zdestroy(V_pfr_kentry_z);
+	uma_zdestroy(V_pfi_addr_z);
 }
 
 static int
-pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
+pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
+    struct pf_state *s)
 {
-	struct pf_state_key	*cur;
+	struct pf_keyhash	*kh;
+	struct pf_state_key	*sk, *cur;
 	struct pf_state		*si, *olds = NULL;
+	int idx;
 
-	PF_KEYS_ASSERT();
-	KASSERT(s->key[idx] == NULL, ("%s: a key already attached", __func__));
+	KASSERT(s->refs == 0, ("%s: state not pristine", __func__));
+	KASSERT(s->key[PF_SK_WIRE] == NULL, ("%s: state has key", __func__));
+	KASSERT(s->key[PF_SK_STACK] == NULL, ("%s: state has key", __func__));
 
-	if ((cur = RB_INSERT(pf_state_tree, &V_pf_statetbl, sk)) != NULL) {
-		/* key exists. check for same kif, if none, add to key */
-		TAILQ_FOREACH(si, &cur->states[idx], key_list[idx])
+	/*
+	 * First run: start with wire key.
+	 */
+	sk = skw;
+	idx = PF_SK_WIRE;
+
+keyattach:
+	kh = &V_pf_keyhash[pf_hashkey(sk)];
+
+	PF_HASHROW_LOCK(kh);
+	LIST_FOREACH(cur, &kh->keys, entry)
+		if (bcmp(cur, sk, sizeof(struct pf_state_key_cmp)) == 0)
+			break;
+
+	if (cur != NULL) {
+		/* Key exists. Check for same kif, if none, add to key. */
+		TAILQ_FOREACH(si, &cur->states[idx], key_list[idx]) {
+			struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(si)];
+
+			PF_HASHROW_LOCK(ih);
 			if (si->kif == s->kif &&
 			    si->direction == s->direction) {
 				if (sk->proto == IPPROTO_TCP &&
@@ -696,6 +773,7 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 					si->src.state = si->dst.state =
 					    TCPS_CLOSED;
 					/* Unlink later or cur can go away. */
+					pf_ref_state(si);
 					olds = si;
 				} else {
 					if (V_pf_status.debug >= PF_DEBUG_MISC) {
@@ -717,29 +795,63 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 						    sk : NULL);
 						printf("\n");
 					}
+					PF_HASHROW_UNLOCK(ih);
+					PF_HASHROW_UNLOCK(kh);
 					uma_zfree(V_pf_state_key_z, sk);
+					if (idx == PF_SK_STACK)
+						pf_detach_state(s);
 					return (-1);	/* collision! */
 				}
 			}
-		/*
-		 * Collided key may be the same we are trying to attach,
-		 * this happens for non-NAT states, they are attached
-		 * twice: via PF_SK_WIRE and PF_SK_STACK tailqs.
-		 */
-		if (cur != sk)
-			uma_zfree(V_pf_state_key_z, sk);
+			PF_HASHROW_UNLOCK(ih);
+		}
+		uma_zfree(V_pf_state_key_z, sk);
 		s->key[idx] = cur;
-	} else
+	} else {
+		LIST_INSERT_HEAD(&kh->keys, sk, entry);
 		s->key[idx] = sk;
+	}
 
-	/* list is sorted, if-bound states before floating */
+stateattach:
+	/* List is sorted, if-bound states before floating. */
 	if (s->kif == V_pfi_all)
 		TAILQ_INSERT_TAIL(&s->key[idx]->states[idx], s, key_list[idx]);
 	else
 		TAILQ_INSERT_HEAD(&s->key[idx]->states[idx], s, key_list[idx]);
 
-	if (olds)
+	/*
+	 * Attach done. See how should we (or should not?)
+	 * attach a second key.
+	 */
+	if (sks == skw) {
+		s->key[PF_SK_STACK] = s->key[PF_SK_WIRE];
+		idx = PF_SK_STACK;
+		sks = NULL;
+		goto stateattach;
+	} else if (sks != NULL) {
+		PF_HASHROW_UNLOCK(kh);
+		if (olds) {
+			pf_unlink_state(olds, 0);
+			pf_release_state(olds);
+			olds = NULL;
+		}
+		/*
+		 * Continue attaching with stack key.
+		 */
+		sk = sks;
+		idx = PF_SK_STACK;
+		sks = NULL;
+		goto keyattach;
+	} else
+		PF_HASHROW_UNLOCK(kh);
+
+	if (olds) {
 		pf_unlink_state(olds, 0);
+		pf_release_state(olds);
+	}
+
+	KASSERT(s->key[PF_SK_WIRE] != NULL && s->key[PF_SK_STACK] != NULL,
+	    ("%s failure", __func__));
 
 	return (0);
 }
@@ -747,32 +859,65 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 static void
 pf_detach_state(struct pf_state *s)
 {
+	struct pf_state_key *sks = s->key[PF_SK_STACK];
+	struct pf_keyhash *kh;
 
-	PF_KEYS_ASSERT();
+	if (sks != NULL) {
+		kh = &V_pf_keyhash[pf_hashkey(sks)];
+		PF_HASHROW_LOCK(kh);
+		if (s->key[PF_SK_STACK] != NULL)
+			pf_state_key_detach(s, PF_SK_STACK);
+		/*
+		 * If both point to same key, then we are done.
+		 */
+		if (sks == s->key[PF_SK_WIRE]) {
+			pf_state_key_detach(s, PF_SK_WIRE);
+			PF_HASHROW_UNLOCK(kh);
+			return;
+		}
+		PF_HASHROW_UNLOCK(kh);
+	}
 
-	if (s->key[PF_SK_STACK] != NULL)
-		pf_state_key_detach(s, PF_SK_STACK);
-
-	if (s->key[PF_SK_WIRE] != NULL)
-		pf_state_key_detach(s, PF_SK_WIRE);
+	if (s->key[PF_SK_WIRE] != NULL) {
+		kh = &V_pf_keyhash[pf_hashkey(s->key[PF_SK_WIRE])];
+		PF_HASHROW_LOCK(kh);
+		if (s->key[PF_SK_WIRE] != NULL)
+			pf_state_key_detach(s, PF_SK_WIRE);
+		PF_HASHROW_UNLOCK(kh);
+	}
 }
 
 static void
 pf_state_key_detach(struct pf_state *s, int idx)
 {
 	struct pf_state_key *sk = s->key[idx];
+#ifdef INVARIANTS
+	struct pf_keyhash *kh = &V_pf_keyhash[pf_hashkey(sk)];
 
-	PF_KEYS_ASSERT();
-
+	PF_HASHROW_ASSERT(kh);
+#endif
 	TAILQ_REMOVE(&sk->states[idx], s, key_list[idx]);
 	s->key[idx] = NULL;
 
 	if (TAILQ_EMPTY(&sk->states[0]) && TAILQ_EMPTY(&sk->states[1])) {
-		RB_REMOVE(pf_state_tree, &V_pf_statetbl, sk);
+		LIST_REMOVE(sk, entry);
+#if 0	/* XXXGL: TODO */
 		if (sk->reverse)
 			sk->reverse->reverse = NULL;
+#endif
 		uma_zfree(V_pf_state_key_z, sk);
 	}
+}
+
+static int
+pf_state_key_ini(void *mem, int size, int flags)
+{
+	struct pf_state_key *sk = mem;
+
+	bzero(sk, sizeof(*sk));
+	TAILQ_INIT(&sk->states[PF_SK_WIRE]);
+	TAILQ_INIT(&sk->states[PF_SK_STACK]);
+	return (0);
 }
 
 struct pf_state_key *
@@ -813,75 +958,81 @@ int
 pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
     struct pf_state_key *sks, struct pf_state *s)
 {
-	int samekeys;
+	struct pf_idhash *ih;
+	struct pf_state *cur;
 
-	if (sks == skw)
-		samekeys = 1;
-	else
-		samekeys = 0;
+	KASSERT(TAILQ_EMPTY(&sks->states[0]) && TAILQ_EMPTY(&sks->states[1]),
+	    ("%s: sks not pristine", __func__));
+	KASSERT(TAILQ_EMPTY(&skw->states[0]) && TAILQ_EMPTY(&skw->states[1]),
+	    ("%s: skw not pristine", __func__));
+	KASSERT(s->refs == 0, ("%s: state not pristine", __func__));
 
 	s->kif = kif;
 
-	PF_KEYS_LOCK();
-	if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
-		PF_KEYS_UNLOCK();
-		if (!samekeys)
-			uma_zfree(V_pf_state_key_z, sks);
+	if (pf_state_key_attach(skw, sks, s))
 		return (-1);
-	}
-	/* In case if pf_state_key_attach() used another key. */
-	if (samekeys)
-		sks = s->key[PF_SK_WIRE];
-
-	if (pf_state_key_attach(sks, s, PF_SK_STACK)) {
-		pf_state_key_detach(s, PF_SK_WIRE);
-		PF_KEYS_UNLOCK();
-		return (-1);
-	}
 
 	if (s->id == 0 && s->creatorid == 0) {
+		/* XXXGL: we need locking here */
 		s->id = htobe64(V_pf_status.stateid++);
 		s->creatorid = V_pf_status.hostid;
 	}
-	PF_IDS_LOCK();
-	if (RB_INSERT(pf_state_tree_id, &V_tree_id, s) != NULL) {
-		PF_IDS_UNLOCK();
+
+	ih = &V_pf_idhash[PF_IDHASH(s)];
+	PF_HASHROW_LOCK(ih);
+	LIST_FOREACH(cur, &ih->states, entry)
+		if (bcmp(cur, s, sizeof(struct pf_state_cmp)) == 0)
+			break;
+
+	if (cur != NULL) {
+		PF_HASHROW_UNLOCK(ih);
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf: state insert failed: "
 			    "id: %016llx creatorid: %08x",
-			    (unsigned long long)betoh64(s->id), ntohl(s->creatorid));
+			    (unsigned long long)be64toh(s->id),
+			    ntohl(s->creatorid));
 			printf("\n");
 		}
 		pf_detach_state(s);
 		return (-1);
 	}
-	PF_IDS_UNLOCK();
-	PF_KEYS_UNLOCK();
-	PF_LIST_WLOCK();
-	TAILQ_INSERT_TAIL(&V_state_list, s, entry_list);
-	PF_LIST_WUNLOCK();
+	LIST_INSERT_HEAD(&ih->states, s, entry);
+	/* One for keys, one for ID hash. */
+	refcount_init(&s->refs, 2);
+
 	V_pf_status.fcounters[FCNT_STATE_INSERT]++;
 	V_pf_status.states++;
 	pfi_kif_ref(kif, PFI_KIF_REF_STATE);
 	if (pfsync_insert_state_ptr != NULL)
 		pfsync_insert_state_ptr(s);
 
+	/* Returns locked. */
 	return (0);
 }
 
+/*
+ * Find state by ID: returns with locked row on success.
+ */
 struct pf_state *
 pf_find_state_byid(struct pf_state_cmp *key)
 {
+	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(key)];
 	struct pf_state *s;
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
-	PF_IDS_LOCK();
-	s = RB_FIND(pf_state_tree_id, &V_tree_id, (struct pf_state *)key);
-	PF_IDS_UNLOCK();
+
+	PF_HASHROW_LOCK(ih);
+	LIST_FOREACH(s, &ih->states, entry)
+		if (bcmp(s, key, sizeof(struct pf_state_cmp)) == 0)
+			break;
+
+	if (s == NULL)
+		PF_HASHROW_UNLOCK(ih);
 
 	return (s);
 }
 
+#if 0
 /* XXX debug function, intended to be removed one day */
 static int
 pf_compare_state_keys(struct pf_state_key *a, struct pf_state_key *b,
@@ -912,25 +1063,29 @@ pf_compare_state_keys(struct pf_state_key *a, struct pf_state_key *b,
 		return (-1);
 	}
 }
+#endif
 
+/*
+ * Find state by key.
+ * Returns with ID hash slot locked on success.
+ */
 static struct pf_state *
-pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir,
-    struct mbuf *m, struct pf_mtag *pftag)
+pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir)
 {
+	struct pf_keyhash	*kh;
 	struct pf_state_key	*sk;
-	struct pf_state		*si;
+	struct pf_state		*s;
 	int idx;
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
-	PF_KEYS_LOCK();
+#if 0 /* XXXGL: to do reverse */
 	if (dir == PF_OUT && pftag->statekey &&
 	    ((struct pf_state_key *)pftag->statekey)->reverse)
 		sk = ((struct pf_state_key *)pftag->statekey)->reverse;
 	else {
 		if ((sk = RB_FIND(pf_state_tree, &V_pf_statetbl,
 		    (struct pf_state_key *)key)) == NULL) {
-			PF_KEYS_UNLOCK();
 			return (NULL);
 		}
 		if (dir == PF_OUT && pftag->statekey &&
@@ -944,16 +1099,28 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir,
 
 	if (dir == PF_OUT)
 		pftag->statekey = NULL;
+#endif
+	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
+
+	PF_HASHROW_LOCK(kh);
+	LIST_FOREACH(sk, &kh->keys, entry)
+		if (bcmp(sk, key, sizeof(struct pf_state_key_cmp)) == 0)
+			break;
+	if (sk == NULL) {
+		PF_HASHROW_UNLOCK(kh);
+		return (NULL);
+	}
 
 	idx = (dir == PF_IN ? PF_SK_WIRE : PF_SK_STACK);
 
-	/* list is sorted, if-bound states before floating ones */
-	TAILQ_FOREACH(si, &sk->states[idx], key_list[idx])
-		if (si->kif == V_pfi_all || si->kif == kif) {
-			PF_KEYS_UNLOCK();
-			return (si);
+	/* List is sorted, if-bound states before floating ones. */
+	TAILQ_FOREACH(s, &sk->states[idx], key_list[idx])
+		if (s->kif == V_pfi_all || s->kif == kif) {
+			PF_STATE_LOCK(s);
+			PF_HASHROW_UNLOCK(kh);
+			return (s);
 		}
-	PF_KEYS_UNLOCK();
+	PF_HASHROW_UNLOCK(kh);
 
 	return (NULL);
 }
@@ -961,16 +1128,21 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir,
 struct pf_state *
 pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 {
+	struct pf_keyhash	*kh;
 	struct pf_state_key	*sk;
 	struct pf_state		*s, *ret = NULL;
 	int			 idx, inout = 0;
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
-	PF_KEYS_LOCK();
-	sk = RB_FIND(pf_state_tree, &V_pf_statetbl, (struct pf_state_key *)key);
+	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
+
+	PF_HASHROW_LOCK(kh);
+	LIST_FOREACH(sk, &kh->keys, entry)
+		if (bcmp(sk, key, sizeof(struct pf_state_key_cmp)) == 0)
+			break;
 	if (sk == NULL) {
-		PF_KEYS_UNLOCK();
+		PF_HASHROW_UNLOCK(kh);
 		return (NULL);
 	}
 	switch (dir) {
@@ -990,7 +1162,7 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 second_run:
 	TAILQ_FOREACH(s, &sk->states[idx], key_list[idx]) {
 		if (more == NULL) {
-			PF_KEYS_UNLOCK();
+			PF_HASHROW_UNLOCK(kh);
 			return (s);
 		}
 
@@ -1004,7 +1176,7 @@ second_run:
 		idx = PF_SK_STACK;
 		goto second_run;
 	}
-	PF_KEYS_UNLOCK();
+	PF_HASHROW_UNLOCK(kh);
 
 	return (ret);
 }
@@ -1016,60 +1188,38 @@ void
 pf_purge_thread(void *v)
 {
 	int nloops = 0;
-	int locked;
 
 	CURVNET_SET((struct vnet *)v);
 
 	for (;;) {
 		tsleep(pf_purge_thread, PWAIT, "pftm", 1 * hz);
 
-		sx_slock(&V_pf_consistency_lock);
 		PF_LOCK();
-		locked = 0;
 
 		if (V_pf_end_threads) {
-			PF_UNLOCK();
-			sx_sunlock(&V_pf_consistency_lock);
-			sx_xlock(&V_pf_consistency_lock);
-			PF_LOCK();
-
-			pf_purge_expired_states(V_pf_status.states, 1);
+			pf_purge_expired_states(V_pf_hashmask + 1);
 			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes(1);
+			pf_purge_expired_src_nodes();
 			V_pf_end_threads++;
-
-			sx_xunlock(&V_pf_consistency_lock);
 			PF_UNLOCK();
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
 		}
 
-		/* process a fraction of the state table every second */
-		if (!pf_purge_expired_states(1 + (V_pf_status.states /
-		    V_pf_default_rule.timeout[PFTM_INTERVAL]), 0)) {
-			PF_UNLOCK();
-			sx_sunlock(&V_pf_consistency_lock);
-			sx_xlock(&V_pf_consistency_lock);
-			PF_LOCK();
-			locked = 1;
+		/* Process a fraction of the state table every second. */
+		pf_purge_expired_states(V_pf_hashmask /
+			    V_pf_default_rule.timeout[PFTM_INTERVAL]);
 
-			pf_purge_expired_states(1 + (V_pf_status.states /
-			    V_pf_default_rule.timeout[PFTM_INTERVAL]), 1);
-		}
-
-		/* purge other expired types every PFTM_INTERVAL seconds */
+		/* Purge other expired types every PFTM_INTERVAL seconds. */
 		if (++nloops >= V_pf_default_rule.timeout[PFTM_INTERVAL]) {
 			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes(0);
+			pf_purge_expired_src_nodes();
 			nloops = 0;
 		}
 
 		PF_UNLOCK();
-		if (locked)
-			sx_xunlock(&V_pf_consistency_lock);
-		else
-			sx_sunlock(&V_pf_consistency_lock);
 	}
+	/* not reached */
 	CURVNET_RESTORE();
 }
 
@@ -1112,23 +1262,15 @@ pf_state_expires(const struct pf_state *state)
 	return (state->expire + timeout);
 }
 
-int
-pf_purge_expired_src_nodes(int waslocked)
+void
+pf_purge_expired_src_nodes()
 {
-	struct pf_src_node		*cur, *next;
-	int				 locked = waslocked;
+	struct pf_src_node	*cur, *next;
 
 	for (cur = RB_MIN(pf_src_tree, &V_tree_src_tracking); cur; cur = next) {
-	next = RB_NEXT(pf_src_tree, &V_tree_src_tracking, cur);
+		next = RB_NEXT(pf_src_tree, &V_tree_src_tracking, cur);
 
 		if (cur->states <= 0 && cur->expire <= time_second) {
-			if (! locked) {
-				if (!sx_try_upgrade(&V_pf_consistency_lock))
-					return (0);	/* XXXGL */
-				next = RB_NEXT(pf_src_tree,
-				    &V_tree_src_tracking, cur);
-				locked = 1;
-			}
 			if (cur->rule.ptr != NULL) {
 				cur->rule.ptr->src_nodes--;
 				if (cur->rule.ptr->states_cur <= 0 &&
@@ -1141,12 +1283,6 @@ pf_purge_expired_src_nodes(int waslocked)
 			uma_zfree(V_pf_src_tree_z, cur);
 		}
 	}
-
-	if (locked && !waslocked)
-	{
-		sx_downgrade(&V_pf_consistency_lock);
-	}
-	return (1);
 }
 
 static void
@@ -1177,53 +1313,57 @@ pf_src_tree_remove_state(struct pf_state *s)
 	s->src_node = s->nat_src_node = NULL;
 }
 
+/*
+ * Unlink and potentilly free a state. Function may be
+ * called with ID hash row locked, but always returns
+ * unlocked, since it needs to go through key hash locking.
+ */
 void
-pf_unlink_state(struct pf_state *cur, int idslocked)
+pf_unlink_state(struct pf_state *s, u_int flags)
 {
+	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(s)];
 
-	PF_KEYS_ASSERT();
+	if ((flags & PF_ENTER_LOCKED) == 0)
+		PF_HASHROW_LOCK(ih);
+	else
+		PF_HASHROW_ASSERT(ih);
 
-	if (cur->src.state == PF_TCPS_PROXY_DST) {
+	if (s->src.state == PF_TCPS_PROXY_DST) {
 		/* XXX wire key the right one? */
-		pf_send_tcp(NULL, cur->rule.ptr, cur->key[PF_SK_WIRE]->af,
-		    &cur->key[PF_SK_WIRE]->addr[1],
-		    &cur->key[PF_SK_WIRE]->addr[0],
-		    cur->key[PF_SK_WIRE]->port[1],
-		    cur->key[PF_SK_WIRE]->port[0],
-		    cur->src.seqhi, cur->src.seqlo + 1,
-		    TH_RST|TH_ACK, 0, 0, 0, 1, cur->tag, NULL, NULL);
+		pf_send_tcp(NULL, s->rule.ptr, s->key[PF_SK_WIRE]->af,
+		    &s->key[PF_SK_WIRE]->addr[1],
+		    &s->key[PF_SK_WIRE]->addr[0],
+		    s->key[PF_SK_WIRE]->port[1],
+		    s->key[PF_SK_WIRE]->port[0],
+		    s->src.seqhi, s->src.seqlo + 1,
+		    TH_RST|TH_ACK, 0, 0, 0, 1, s->tag, NULL, NULL);
 	}
-	if (!idslocked)
-		PF_IDS_LOCK();
-	RB_REMOVE(pf_state_tree_id, &V_tree_id, cur);
-	if (!idslocked)
-		PF_IDS_UNLOCK();
+
+	LIST_REMOVE(s, entry);
 #if NPFLOW > 0
-	if (cur->state_flags & PFSTATE_PFLOW)
+	if (s->state_flags & PFSTATE_PFLOW)
 		if (export_pflow_ptr != NULL)
-			export_pflow_ptr(cur);
+			export_pflow_ptr(s);
 #endif
 	if (pfsync_delete_state_ptr != NULL)
-		pfsync_delete_state_ptr(cur);
-	cur->timeout = PFTM_UNLINKED;
-	pf_src_tree_remove_state(cur);
-	pf_detach_state(cur);
+		pfsync_delete_state_ptr(s);
+	s->timeout = PFTM_UNLINKED;
+	pf_src_tree_remove_state(s);
+	PF_HASHROW_UNLOCK(ih);
+
+	pf_detach_state(s);
+	refcount_release(&s->refs);
+
+	pf_release_state(s);
 }
 
-/* callers should hold the
- * write_lock on pf_consistency_lock */
-static void
+void
 pf_free_state(struct pf_state *cur)
 {
 
-	PF_LIST_WASSERT();
-
-	if (pfsync_state_in_use_ptr != NULL &&
-		pfsync_state_in_use_ptr(cur))
-		return;
-
-	KASSERT(cur->timeout == PFTM_UNLINKED,
-	    ("pf_free_state: cur->timeout != PFTM_UNLINKED"));
+	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
+	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
+	    cur->timeout));
 	if (--cur->rule.ptr->states_cur <= 0 &&
 	    cur->rule.ptr->src_nodes <= 0)
 		pf_rm_rule(NULL, cur->rule.ptr);
@@ -1236,7 +1376,6 @@ pf_free_state(struct pf_state *cur)
 			pf_rm_rule(NULL, cur->anchor.ptr);
 	pf_normalize_tcp_cleanup(cur);
 	pfi_kif_unref(cur->kif, PFI_KIF_REF_STATE);
-	TAILQ_REMOVE(&V_state_list, cur, entry_list);
 	if (cur->tag)
 		pf_tag_unref(cur->tag);
 	uma_zfree(V_pf_state_z, cur);
@@ -1244,57 +1383,39 @@ pf_free_state(struct pf_state *cur)
 	V_pf_status.states--;
 }
 
-static int
-pf_purge_expired_states(u_int32_t maxcheck, int waslocked)
+/*
+ * Called only from pf_purge_thread(), thus serialized.
+ */
+static void
+pf_purge_expired_states(int maxcheck)
 {
-	static struct pf_state	*cur = NULL;
-	struct pf_state		*next;
-	int			 locked = waslocked;
+	static u_int i = 0;
 
-	PF_LIST_WLOCK();
-	while (maxcheck--) {
-		/* wrap to start of list when we hit the end */
-		if (cur == NULL) {
-			cur = TAILQ_FIRST(&V_state_list);
-			if (cur == NULL)
-				break;	/* list empty */
-		}
+	struct pf_idhash *ih;
+	struct pf_state *s;
 
-		/* get next state, as cur may get deleted */
-		next = TAILQ_NEXT(cur, entry_list);
+	/*
+	 * Go through hash and unlink states that expire now.
+	 */
+	while (maxcheck > 0) {
 
-		if (cur->timeout == PFTM_UNLINKED) {
-			/* free unlinked state */
-			if (! locked) {
-				if (!sx_try_upgrade(&V_pf_consistency_lock)) {
-					PF_LIST_WUNLOCK();
-					return (0);	/* XXXGL */
-				}
-				locked = 1;
+		/* Wrap to start of hash when we hit the end. */
+		if (i > V_pf_hashmask)
+			i = 0;
+
+		ih = &V_pf_idhash[i];
+relock:
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			if (pf_state_expires(s) <= time_second) {
+				pf_unlink_state(s, PF_ENTER_LOCKED);
+				goto relock;
 			}
-			pf_free_state(cur);
-		} else if (pf_state_expires(cur) <= time_second) {
-			PF_KEYS_LOCK();
-			/* unlink and free expired state */
-			pf_unlink_state(cur, 0);
-			PF_KEYS_UNLOCK();
-			if (! locked) {
-				if (!sx_try_upgrade(&V_pf_consistency_lock)) {
-					PF_LIST_WUNLOCK();
-					return (0);	/* XXXGL */
-				}
-				locked = 1;
-			}
-			pf_free_state(cur);
 		}
-		cur = next;
+		PF_HASHROW_UNLOCK(ih);
+		i++;
+		maxcheck--;
 	}
-	PF_LIST_WUNLOCK();
-
-	if (!waslocked && locked)
-		sx_downgrade(&V_pf_consistency_lock);
-
-	return (1);
 }
 
 int
@@ -3817,6 +3938,7 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 	struct pf_state_peer	*src, *dst;
 	struct pf_state_key	*sk;
 
+	bzero(&key, sizeof(key));
 	key.af = pd->af;
 	key.proto = IPPROTO_TCP;
 	if (direction == PF_IN)	{	/* wire side, straight */
@@ -3831,7 +3953,7 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		key.port[0] = th->th_dport;
 	}
 
-	STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+	STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 	if (direction == (*state)->direction) {
 		src = &(*state)->src;
@@ -3936,7 +4058,7 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		}
 		/* XXX make sure it's the same direction ?? */
 		(*state)->src.state = (*state)->dst.state = TCPS_CLOSED;
-		pf_unlink_state(*state, 0);
+		pf_unlink_state(*state, PF_ENTER_LOCKED);
 		*state = NULL;
 		return (PF_DROP);
 	}
@@ -3983,6 +4105,7 @@ pf_test_state_udp(struct pf_state **state, int direction, struct pfi_kif *kif,
 	struct pf_state_key_cmp	 key;
 	struct udphdr		*uh = pd->hdr.udp;
 
+	bzero(&key, sizeof(key));
 	key.af = pd->af;
 	key.proto = IPPROTO_UDP;
 	if (direction == PF_IN)	{	/* wire side, straight */
@@ -3997,7 +4120,7 @@ pf_test_state_udp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		key.port[0] = uh->uh_dport;
 	}
 
-	STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+	STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 	if (direction == (*state)->direction) {
 		src = &(*state)->src;
@@ -4051,6 +4174,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 	int		 state_icmp = 0;
 	struct pf_state_key_cmp key;
 
+	bzero(&key, sizeof(key));
 	switch (pd->proto) {
 #ifdef INET
 	case IPPROTO_ICMP:
@@ -4098,7 +4222,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			PF_ACPY(&key.addr[0], pd->dst, key.af);
 		}
 
-		STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+		STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 		(*state)->expire = time_second;
 		(*state)->timeout = PFTM_ICMP_ERROR_REPLY;
@@ -4295,7 +4419,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			key.port[pd2.sidx] = th.th_sport;
 			key.port[pd2.didx] = th.th_dport;
 
-			STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+			STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 			if (direction == (*state)->direction) {
 				src = &(*state)->dst;
@@ -4417,7 +4541,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			key.port[pd2.sidx] = uh.uh_sport;
 			key.port[pd2.didx] = uh.uh_dport;
 
-			STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+			STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -4485,7 +4609,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			PF_ACPY(&key.addr[pd2.didx], pd2.dst, key.af);
 			key.port[0] = key.port[1] = iih.icmp_id;
 
-			STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+			STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -4538,7 +4662,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			PF_ACPY(&key.addr[pd2.didx], pd2.dst, key.af);
 			key.port[0] = key.port[1] = iih.icmp6_id;
 
-			STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+			STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -4582,7 +4706,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			PF_ACPY(&key.addr[pd2.didx], pd2.dst, key.af);
 			key.port[0] = key.port[1] = 0;
 
-			STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+			STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -4638,6 +4762,7 @@ pf_test_state_other(struct pf_state **state, int direction, struct pfi_kif *kif,
 	struct pf_state_peer	*src, *dst;
 	struct pf_state_key_cmp	 key;
 
+	bzero(&key, sizeof(key));
 	key.af = pd->af;
 	key.proto = pd->proto;
 	if (direction == PF_IN)	{
@@ -4650,7 +4775,7 @@ pf_test_state_other(struct pf_state **state, int direction, struct pfi_kif *kif,
 		key.port[1] = key.port[0] = 0;
 	}
 
-	STATE_LOOKUP(kif, &key, direction, *state, m, pd->pf_mtag);
+	STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 	if (direction == (*state)->direction) {
 		src = &(*state)->src;
@@ -5608,8 +5733,10 @@ done:
 	if ((s && s->tag) || r->rtableid >= 0)
 		pf_tag_packet(m, s ? s->tag : 0, r->rtableid, pd.pf_mtag);
 
+#if 0	/* XXXGL: to do reverse */
 	if (dir == PF_IN && s && s->key[PF_SK_STACK])
 		pd.pf_mtag->statekey = s->key[PF_SK_STACK];
+#endif
 
 #ifdef ALTQ
 	if (action == PF_PASS && r->qid) {
@@ -5636,7 +5763,7 @@ done:
 		m->m_flags |= M_SKIP_FIREWALL;
 
 	if (action == PF_PASS && r->divert.port && ip_divert_ptr != NULL &&
-	    !PACKET_LOOPED()) {
+	    !PACKET_LOOPED(&pd)) {
 
 		ipfwtag = m_tag_alloc(MTAG_IPFW_RULE, 0,
 		    sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
@@ -5645,6 +5772,8 @@ done:
 			    ntohs(r->divert.port);
 			((struct ipfw_rule_ref *)(ipfwtag+1))->rulenum = dir;
 
+			if (s)
+				PF_STATE_UNLOCK(s);
 			PF_RULES_RUNLOCK();
 			PF_UNLOCK();
 
@@ -5740,6 +5869,8 @@ done:
 			pf_route(m0, r, dir, kif->pfik_ifp, s, &pd);
 		break;
 	}
+	if (s)
+		PF_STATE_UNLOCK(s);
 	PF_RULES_RUNLOCK();
 	PF_UNLOCK();
 
@@ -6023,8 +6154,10 @@ done:
 	if ((s && s->tag) || r->rtableid >= 0)
 		pf_tag_packet(m, s ? s->tag : 0, r->rtableid, pd.pf_mtag);
 
+#if 0	/* XXXGL: to do reverse */
 	if (dir == PF_IN && s && s->key[PF_SK_STACK])
 		pd.pf_mtag->statekey = s->key[PF_SK_STACK];
+#endif
 
 #ifdef ALTQ
 	if (action == PF_PASS && r->qid) {
@@ -6120,6 +6253,8 @@ done:
 		break;
 	}
 
+	if (s)
+		PF_STATE_UNLOCK(s);
 	PF_RULES_RUNLOCK();
 	PF_UNLOCK();
 	return (action);
