@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pioctl.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/sf_buf.h>
 #include <sys/syscallsubr.h>
@@ -609,6 +610,9 @@ interpret:
 	else if (vn_commname(binvp, p->p_comm, sizeof(p->p_comm)) != 0)
 		bcopy(fexecv_proc_title, p->p_comm, sizeof(fexecv_proc_title));
 	bcopy(p->p_comm, td->td_name, sizeof(td->td_name));
+#ifdef KTR
+	sched_clear_tdname(td);
+#endif
 
 	/*
 	 * mark as execed, wakeup the process that vforked (if any) and tell
