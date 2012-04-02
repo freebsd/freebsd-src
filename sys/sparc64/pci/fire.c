@@ -444,10 +444,11 @@ fire_attach(device_t dev)
 			lw = 0;
 		}
 		mps = (FIRE_PCI_READ_8(sc, FO_PCI_TLU_CTRL) &
-		    FO_PCI_TLU_CTRL_CFG_MASK) >> FO_PCI_TLU_CTRL_CFG_SHFT;
+		    FO_PCI_TLU_CTRL_CFG_MPS_MASK) >>
+		    FO_PCI_TLU_CTRL_CFG_MPS_SHFT;
 		i = sizeof(fire_freq_nak_tmr_thrs) /
 		    sizeof(*fire_freq_nak_tmr_thrs);
-		if (mps >= i);
+		if (mps >= i)
 			mps = i - 1;
 		FIRE_PCI_SET(sc, FO_PCI_LPU_TXLNK_FREQ_LAT_TMR_THRS,
 		    (fire_freq_nak_tmr_thrs[mps][lw] <<
