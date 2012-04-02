@@ -82,6 +82,7 @@ static driver_t atkbdc_isa_driver = {
 
 static struct isa_pnp_id atkbdc_ids[] = {
 	{ 0x0303d041, "Keyboard controller (i8042)" },	/* PNP0303 */
+	{ 0x2003d041, "Keyboard controller (i8042)" },	/* PNP0320 */
 	{ 0 }
 };
 
