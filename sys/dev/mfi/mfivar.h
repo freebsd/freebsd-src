@@ -149,16 +149,16 @@ struct mfi_aen {
 };
 
 struct mfi_skinny_dma_info {
-	bus_dma_tag_t	dmat[514];
-	bus_dmamap_t	dmamap[514];
-	uint32_t	mem[514];
-	int		noofmaps;
+	bus_dma_tag_t			dmat[514];
+	bus_dmamap_t			dmamap[514];
+	uint32_t			mem[514];
+	int				noofmaps;
 };
 
 struct mfi_cmd_tbolt;
-typedef struct {
-	volatile unsigned int val;
-} atomic_t;
+struct mfi_atomic {
+	volatile unsigned int		val;
+};
 
 #define	atomic_read(v)	((v)->val)
 #define	atomic_set(v,i)	((v)->val - (i))
@@ -240,7 +240,7 @@ struct mfi_softc {
 	struct intr_config_hook		mfi_ich;
 	eventhandler_tag		eh;
 	/* OCR flags */
-	atomic_t fw_reset_no_pci_access;
+	struct mfi_atomic		fw_reset_no_pci_access;
 	uint8_t adpreset;
 	uint8_t issuepend_done;
 	uint8_t disableOnlineCtrlReset;
