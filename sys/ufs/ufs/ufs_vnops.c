@@ -1006,6 +1006,14 @@ ufs_link(ap)
 		error = EMLINK;
 		goto out;
 	}
+	/*
+	 * The file may have been removed after namei droped the original
+	 * lock.
+	 */
+	if (ip->i_effnlink == 0) {
+		error = ENOENT;
+		goto out;
+	}
 	if (ip->i_flags & (IMMUTABLE | APPEND)) {
 		error = EPERM;
 		goto out;

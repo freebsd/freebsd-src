@@ -4323,6 +4323,7 @@ inodedep_lookup_ip(ip)
 	(void) inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags,
 	    &inodedep);
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
+	KASSERT((inodedep->id_state & UNLINKED) == 0, ("inode unlinked"));
 
 	return (inodedep);
 }
@@ -8455,6 +8456,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	if (inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, 0,
 	    &inodedep) == 0)
 		panic("softdep_setup_remove: Lost inodedep.");
+	KASSERT((inodedep->id_state & UNLINKED) == 0, ("inode unlinked"));
 	dirrem->dm_state |= ONDEPLIST;
 	LIST_INSERT_HEAD(&inodedep->id_dirremhd, dirrem, dm_inonext);
 
@@ -8987,6 +8989,7 @@ first_unlinked_inodedep(ump)
 	struct inodedep *inodedep;
 	struct inodedep *idp;
 
+	mtx_assert(&lk, MA_OWNED);
 	for (inodedep = TAILQ_LAST(&ump->softdep_unlinked, inodedeplst);
 	    inodedep; inodedep = idp) {
 		if ((inodedep->id_state & UNLINKNEXT) == 0)
@@ -8995,11 +8998,8 @@ first_unlinked_inodedep(ump)
 		if (idp == NULL || (idp->id_state & UNLINKNEXT) == 0)
 			break;
 		if ((inodedep->id_state & UNLINKPREV) == 0)
-			panic("first_unlinked_inodedep: prev != next");
+			break;
 	}
-	if (inodedep == NULL)
-		return (NULL);
-
 	return (inodedep);
 }
 
@@ -9038,8 +9038,12 @@ handle_written_sbdep(sbdep, bp)
 	struct mount *mp;
 	struct fs *fs;
 
+	mtx_assert(&lk, MA_OWNED);
 	fs = sbdep->sb_fs;
 	mp = UFSTOVFS(sbdep->sb_ump);
+	/*
+	 * If the superblock doesn't match the in-memory list start over.
+	 */
 	inodedep = first_unlinked_inodedep(sbdep->sb_ump);
 	if ((inodedep && fs->fs_sujfree != inodedep->id_ino) ||
 	    (inodedep == NULL && fs->fs_sujfree != 0)) {
@@ -9049,8 +9053,6 @@ handle_written_sbdep(sbdep, bp)
 	WORKITEM_FREE(sbdep, D_SBDEP);
 	if (fs->fs_sujfree == 0)
 		return (0);
-	if (inodedep_lookup(mp, fs->fs_sujfree, 0, &inodedep) == 0)
-		panic("handle_written_sbdep: lost inodedep");
 	/*
 	 * Now that we have a record of this inode in stable store allow it
 	 * to be written to free up pending work.  Inodes may see a lot of
@@ -9078,10 +9080,13 @@ unlinked_inodedep(mp, inodedep)
 {
 	struct ufsmount *ump;
 
+	mtx_assert(&lk, MA_OWNED);
 	if (MOUNTEDSUJ(mp) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	ump->um_fs->fs_fmod = 1;
+	if (inodedep->id_state & UNLINKED)
+		panic("unlinked_inodedep: %p already unlinked\n", inodedep);
 	inodedep->id_state |= UNLINKED;
 	TAILQ_INSERT_HEAD(&ump->softdep_unlinked, inodedep, id_unlinked);
 }
@@ -9109,6 +9114,10 @@ clear_unlinked_inodedep(inodedep)
 	ino = inodedep->id_ino;
 	error = 0;
 	for (;;) {
+		mtx_assert(&lk, MA_OWNED);
+		KASSERT((inodedep->id_state & UNLINKED) != 0,
+		    ("clear_unlinked_inodedep: inodedep %p not unlinked",
+		    inodedep));
 		/*
 		 * If nothing has yet been written simply remove us from
 		 * the in memory list and return.  This is the most common
@@ -9166,36 +9175,19 @@ clear_unlinked_inodedep(inodedep)
 			ACQUIRE_LOCK(&lk);
 			continue;
 		}
+		nino = 0;
+		idn = TAILQ_NEXT(inodedep, id_unlinked);
+		if (idn)
+			nino = idn->id_ino;
 		/*
 		 * Remove us from the in memory list.  After this we cannot
 		 * access the inodedep.
 		 */
-		idn = TAILQ_NEXT(inodedep, id_unlinked);
-		inodedep->id_state &= ~(UNLINKED | UNLINKLINKS);
+		KASSERT((inodedep->id_state & UNLINKED) != 0,
+		    ("clear_unlinked_inodedep: inodedep %p not unlinked",
+		    inodedep));
+		inodedep->id_state &= ~(UNLINKED | UNLINKLINKS | UNLINKONLIST);
 		TAILQ_REMOVE(&ump->softdep_unlinked, inodedep, id_unlinked);
-		/*
-		 * Determine the next inode number.
-		 */
-		nino = 0;
-		if (idn) {
-			/*
-			 * If next isn't on the list we can just clear prev's
-			 * state and schedule it to be fixed later.  No need
-			 * to synchronously write if we're not in the real
-			 * list.
-			 */
-			if ((idn->id_state & UNLINKPREV) == 0 && pino != 0) {
-				idp->id_state &= ~UNLINKNEXT;
-				if ((idp->id_state & ONWORKLIST) == 0)
-					WORKLIST_INSERT(&bp->b_dep,
-					    &idp->id_list);
-				FREE_LOCK(&lk);
-				bawrite(bp);
-				ACQUIRE_LOCK(&lk);
-				return;
-			}
-			nino = idn->id_ino;
-		}
 		FREE_LOCK(&lk);
 		/*
 		 * The predecessor's next pointer is manually updated here
@@ -9234,13 +9226,14 @@ clear_unlinked_inodedep(inodedep)
 			bwrite(bp);
 			ACQUIRE_LOCK(&lk);
 		}
+
 		if (fs->fs_sujfree != ino)
 			return;
 		panic("clear_unlinked_inodedep: Failed to clear free head");
 	}
 	if (inodedep->id_ino == fs->fs_sujfree)
 		panic("clear_unlinked_inodedep: Freeing head of free list");
-	inodedep->id_state &= ~(UNLINKED | UNLINKLINKS);
+	inodedep->id_state &= ~(UNLINKED | UNLINKLINKS | UNLINKONLIST);
 	TAILQ_REMOVE(&ump->softdep_unlinked, inodedep, id_unlinked);
 	return;
 }
@@ -9838,18 +9831,6 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 
 		inon = TAILQ_NEXT(inodedep, id_unlinked);
 		dp->di_freelink = inon ? inon->id_ino : 0;
-	}
-	if ((inodedep->id_state & (UNLINKED | UNLINKNEXT)) ==
-	    (UNLINKED | UNLINKNEXT)) {
-		struct inodedep *inon;
-		ino_t freelink;
-
-		inon = TAILQ_NEXT(inodedep, id_unlinked);
-		freelink = inon ? inon->id_ino : 0;
-		if (freelink != dp->di_freelink)
-			panic("ino %p(0x%X) %d, %d != %d",
-			    inodedep, inodedep->id_state, inodedep->id_ino,
-			    freelink, dp->di_freelink);
 	}
 	/*
 	 * If the bitmap is not yet written, then the allocated
@@ -10849,10 +10830,9 @@ handle_written_inodeblock(inodedep, bp)
 		freelink = dp2->di_freelink;
 	}
 	/*
-	 * If we wrote a valid freelink pointer during the last write
-	 * record it here.
+	 * Leave this inodeblock dirty until it's in the list.
 	 */
-	if ((inodedep->id_state & (UNLINKED | UNLINKNEXT)) == UNLINKED) {
+	if ((inodedep->id_state & (UNLINKED | UNLINKONLIST)) == UNLINKED) {
 		struct inodedep *inon;
 
 		inon = TAILQ_NEXT(inodedep, id_unlinked);
@@ -10861,12 +10841,9 @@ handle_written_inodeblock(inodedep, bp)
 			if (inon)
 				inon->id_state |= UNLINKPREV;
 			inodedep->id_state |= UNLINKNEXT;
-		} else
-			hadchanges = 1;
-	}
-	/* Leave this inodeblock dirty until it's in the list. */
-	if ((inodedep->id_state & (UNLINKED | UNLINKONLIST)) == UNLINKED)
+		}
 		hadchanges = 1;
+	}
 	/*
 	 * If we had to rollback the inode allocation because of
 	 * bitmaps being incomplete, then simply restore it.
