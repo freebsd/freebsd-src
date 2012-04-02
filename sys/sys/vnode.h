@@ -796,6 +796,8 @@ int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
 
 int vfs_unixify_accmode(accmode_t *accmode);
 
+void vfs_unp_reclaim(struct vnode *vp);
+
 int setfmode(struct thread *td, struct ucred *cred, struct vnode *vp, int mode);
 int setfown(struct thread *td, struct ucred *cred, struct vnode *vp, uid_t uid,
     gid_t gid);
