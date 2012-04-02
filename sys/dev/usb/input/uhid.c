@@ -170,10 +170,10 @@ uhid_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		 * If the ID byte is non zero we allow descriptors
 		 * having multiple sizes:
 		 */
-		if ((actlen >= sc->sc_isize) ||
+		if ((actlen >= (int)sc->sc_isize) ||
 		    ((actlen > 0) && (sc->sc_iid != 0))) {
 			/* limit report length to the maximum */
-			if (actlen > sc->sc_isize)
+			if (actlen > (int)sc->sc_isize)
 				actlen = sc->sc_isize;
 			usb_fifo_put_data(sc->sc_fifo.fp[USB_FIFO_RX], pc,
 			    0, actlen, 1);
@@ -768,7 +768,7 @@ uhid_attach(device_t dev)
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &uhid_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    unit, -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;

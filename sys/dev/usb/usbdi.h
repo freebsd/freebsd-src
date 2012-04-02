@@ -567,7 +567,7 @@ void	usbd_start_re_enumerate(struct usb_device *udev);
 
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,
-	    struct usb_fifo_sc *f_sc, uint16_t unit, uint16_t subunit,
+	    struct usb_fifo_sc *f_sc, uint16_t unit, int16_t subunit,
 	    uint8_t iface_index, uid_t uid, gid_t gid, int mode);
 void	usb_fifo_detach(struct usb_fifo_sc *f_sc);
 int	usb_fifo_alloc_buffer(struct usb_fifo *f, uint32_t bufsize,
