@@ -155,13 +155,19 @@ struct mfi_skinny_dma_info {
 	int				noofmaps;
 };
 
+struct megasas_sge
+{
+	bus_addr_t			phys_addr;
+	uint32_t			length;
+};
+
 struct mfi_cmd_tbolt;
 struct mfi_atomic {
 	volatile unsigned int		val;
 };
 
-#define	atomic_read(v)	((v)->val)
-#define	atomic_set(v,i)	((v)->val - (i))
+#define	mfi_atomic_read(v)	((v)->val)
+#define	mfi_atomic_set(v,i)	((v)->val - (i))
 
 struct mfi_softc {
 	device_t			mfi_dev;
@@ -582,7 +588,7 @@ SYSCTL_DECL(_hw_mfi);
 #define MFI_CMD_TIMEOUT 30
 #define MFI_SYS_PD_IO	0
 #define MFI_LD_IO	1
-#define SKINNY_MEMORY 0x02000000
+#define MFI_SKINNY_MEMORY 0x02000000
 #define MFI_MAXPHYS (128 * 1024)
 
 #ifdef MFI_DEBUG
