@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/stack.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
@@ -2471,6 +2472,33 @@ sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * This sysctl allows a process to retrieve umask of another process.
+ */
+static int
+sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	int error;
+	u_short fd_cmask;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	if (error != 0)
+		return (error);
+
+	FILEDESC_SLOCK(p->p_fd);
+	fd_cmask = p->p_fd->fd_cmask;
+	FILEDESC_SUNLOCK(p->p_fd);
+	PRELE(p);
+	error = SYSCTL_OUT(req, &fd_cmask, sizeof(fd_cmask));
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2572,3 +2600,6 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RW |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_ps_strings,
 	"Process ps_strings location");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_UMASK, umask, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_umask, "Process umask");
