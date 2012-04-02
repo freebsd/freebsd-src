@@ -179,6 +179,9 @@ ithread_update(struct intr_thread *ithd)
 
 	/* Update name and priority. */
 	strlcpy(td->td_name, ie->ie_fullname, sizeof(td->td_name));
+#ifdef KTR
+	sched_clear_tdname(td);
+#endif
 	thread_lock(td);
 	sched_prio(td, pri);
 	thread_unlock(td);
