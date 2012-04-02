@@ -195,7 +195,7 @@ while ((getline < srcfile) > 0) {
 		continue;
 	if ($1 ~ /^%%/) {
 		if (NF != 6 ||
-		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  ||
+		    $2 !~ /^[a-z_]+$/  ||  $3 !~ /^[a-z]+$/  ||
 		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/) {
 			die("Invalid %s construction", "%%");
 			continue;
