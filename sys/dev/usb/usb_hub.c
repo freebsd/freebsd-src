@@ -1431,7 +1431,7 @@ static uint8_t
 usb_intr_find_best_slot(usb_size_t *ptr, uint8_t start,
     uint8_t end, uint8_t mask)
 {
-	usb_size_t min = 0 - 1;
+	usb_size_t min = (usb_size_t)-1;
 	usb_size_t sum;
 	uint8_t x;
 	uint8_t y;
@@ -2149,7 +2149,7 @@ usb_bus_powerd(struct usb_bus *bus)
 
 	/* reset counters */
 
-	mintime = 0 - 1;
+	mintime = (usb_ticks_t)-1;
 	type_refs[0] = 0;
 	type_refs[1] = 0;
 	type_refs[2] = 0;
@@ -2186,7 +2186,7 @@ usb_bus_powerd(struct usb_bus *bus)
 		}
 	}
 
-	if (mintime >= (1 * hz)) {
+	if (mintime >= (usb_ticks_t)(1 * hz)) {
 		/* recompute power masks */
 		DPRINTF("Recomputing power masks\n");
 		bus->hw_power_state = 0;
