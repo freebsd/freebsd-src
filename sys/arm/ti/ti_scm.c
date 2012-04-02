@@ -465,6 +465,17 @@ ti_scm_reg_read_4(uint32_t reg, uint32_t *val)
 	return (0);
 }
 
+int
+ti_scm_reg_write_4(uint32_t reg, uint32_t val)
+{
+	if (!ti_scm_sc)
+		return (ENXIO);
+
+	ti_scm_write_4(ti_scm_sc, reg, val);
+	return (0);
+}
+
+
 static device_method_t ti_scm_methods[] = {
 	DEVMETHOD(device_probe,		ti_scm_probe),
 	DEVMETHOD(device_attach,	ti_scm_attach),
