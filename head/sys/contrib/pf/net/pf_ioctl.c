@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/endian.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
@@ -104,8 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <net/pfil.h>
 
-static void		 cleanup_pf_zone(void);
-int			 pfattach(void);
+static int		 pfattach(void);
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
 
@@ -135,8 +135,9 @@ static void		 pf_pkt_addr_changed(struct mbuf *);
 
 #define	TAGID_MAX	 50000
 
-VNET_DEFINE(struct pf_rule,	 pf_default_rule);
-VNET_DEFINE(struct sx,		 pf_consistency_lock);
+VNET_DEFINE(struct pf_rule,	pf_default_rule);
+VNET_DEFINE(struct sx,		pf_consistency_lock);
+#define V_pf_consistency_lock	VNET(pf_consistency_lock)
 
 #ifdef ALTQ
 static VNET_DEFINE(int,		pf_altq_running);
@@ -171,7 +172,7 @@ struct cdev *pf_dev;
  */
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
-static void		 pf_clear_srcnodes(void);
+static void		 pf_clear_srcnodes(struct pf_src_node *);
  
 /*
  * Wrapper functions for pfil(9) hooks
@@ -206,9 +207,6 @@ static volatile VNET_DEFINE(int, pf_pfil_hooked);
 VNET_DEFINE(int,		pf_end_threads);
 
 struct mtx			pf_mtx;
-struct mtx			pf_state_keys_mtx;
-struct mtx			pf_state_ids_mtx;
-struct rwlock			pf_state_list_lock;
 struct rwlock			pf_rules_lock;
 
 /* pfsync */
@@ -217,7 +215,6 @@ pfsync_insert_state_t		*pfsync_insert_state_ptr = NULL;
 pfsync_update_state_t		*pfsync_update_state_ptr = NULL;
 pfsync_delete_state_t		*pfsync_delete_state_ptr = NULL;
 pfsync_clear_states_t		*pfsync_clear_states_ptr = NULL;
-pfsync_state_in_use_t		*pfsync_state_in_use_ptr = NULL;
 pfsync_defer_t			*pfsync_defer_ptr = NULL;
 pfsync_up_t			*pfsync_up_ptr = NULL;
 /* pflow */
@@ -235,12 +232,8 @@ init_pf_mutex(void)
 {
 
 	mtx_init(&pf_mtx, "pf Giant", NULL, MTX_DEF);
-	mtx_init(&pf_state_keys_mtx, "pf state keys", NULL, MTX_DEF);
-	mtx_init(&pf_state_ids_mtx, "pf state ids", NULL, MTX_DEF);
-	rw_init(&pf_state_list_lock, "pf state list");
 	rw_init(&pf_rules_lock, "pf rulesets");
-	/* XXXGL: name */
-	sx_init(&V_pf_consistency_lock, "pf_statetbl_lock");
+	sx_init(&V_pf_consistency_lock, "pfioctl");
 }
 
 static void
@@ -248,93 +241,29 @@ destroy_pf_mutex(void)
 {
 
 	mtx_destroy(&pf_mtx);
-	mtx_destroy(&pf_state_keys_mtx);
-	mtx_destroy(&pf_state_ids_mtx);
-	rw_destroy(&pf_state_list_lock);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&V_pf_consistency_lock);
 }
 
-static void
-cleanup_pf_zone(void)
-{
-
-	uma_zdestroy(V_pf_src_tree_z);
-	uma_zdestroy(V_pf_rule_z);
-	uma_zdestroy(V_pf_state_z);
-	uma_zdestroy(V_pf_state_key_z);
-	uma_zdestroy(V_pf_altq_z);
-	uma_zdestroy(V_pf_pooladdr_z);
-	uma_zdestroy(V_pfr_ktable_z);
-	uma_zdestroy(V_pfr_kentry_z);
-	uma_zdestroy(V_pfi_addr_z);
-}
-
 static int
-pf_state_key_ini(void *mem, int size, int flags)
-{
-	struct pf_state_key *sk = mem;
-
-	bzero(sk, sizeof(*sk));
-	TAILQ_INIT(&sk->states[PF_SK_WIRE]);
-	TAILQ_INIT(&sk->states[PF_SK_STACK]);
-	return (0);
-}
-
-int
 pfattach(void)
 {
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
 
-	V_pf_src_tree_z = uma_zcreate("pf src nodes",
-	    sizeof(struct pf_src_node), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    0);
-	V_pf_rule_z = uma_zcreate("pf rules", sizeof(struct pf_rule),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_state_key_z = uma_zcreate("pf state keys",
-	    sizeof(struct pf_state_key), NULL, NULL, pf_state_key_ini, NULL,
-	    UMA_ALIGN_PTR, 0);
-	V_pf_altq_z = uma_zcreate("pf altq", sizeof(struct pf_altq),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_pooladdr_z = uma_zcreate("pf pool addresses",
-	    sizeof(struct pf_pooladdr), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    0);
-	V_pfr_ktable_z = uma_zcreate("pf tables",
-	    sizeof(struct pfr_ktable), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    0);
-	V_pfr_kentry_z = uma_zcreate("pf table entries",
-	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    0);
-	V_pfi_addr_z = uma_zcreate("pf pfi_dynaddr", sizeof(struct pfi_dynaddr),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	pf_initialize();
 	pfr_initialize();
 	pfi_initialize();
 	pf_osfp_initialize();
 	pf_normalize_init();
 
-	V_pf_pool_limits[PF_LIMIT_STATES].pp = V_pf_state_z;
 	V_pf_pool_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_src_tree_z;
 	V_pf_pool_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_TABLES].pp = V_pfr_ktable_z;
 	V_pf_pool_limits[PF_LIMIT_TABLES].limit = PFR_KTABLE_HIWAT;
 	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].pp = V_pfr_kentry_z;
 	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].limit = PFR_KENTRY_HIWAT;
-	uma_zone_set_max(V_pf_pool_limits[PF_LIMIT_STATES].pp,
-	    V_pf_pool_limits[PF_LIMIT_STATES].limit);
 
-	RB_INIT(&V_tree_src_tracking);
 	RB_INIT(&V_pf_anchors);
 	pf_init_ruleset(&pf_main_ruleset);
-
-	TAILQ_INIT(&V_pf_altqs[0]);
-	TAILQ_INIT(&V_pf_altqs[1]);
-	TAILQ_INIT(&V_pf_pabuf);
-	V_pf_altqs_active = &V_pf_altqs[0];
-	V_pf_altqs_inactive = &V_pf_altqs[1];
-	TAILQ_INIT(&V_state_list);
 
 	/* default rule should never be garbage collected */
 	V_pf_default_rule.entries.tqe_prev = &V_pf_default_rule.entries.tqe_next;
@@ -1190,15 +1119,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			return (EACCES);
 		}
 
-	if (flags & FWRITE)
-		sx_xlock(&V_pf_consistency_lock);
-	else
-		sx_slock(&V_pf_consistency_lock);
+	sx_xlock(&V_pf_consistency_lock);
 
-	PF_LOCK();
 	switch (cmd) {
-
 	case DIOCSTART:
+		PF_LOCK();
 		if (V_pf_status.running)
 			error = EEXIST;
 		else {
@@ -1208,6 +1133,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (error) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: pfil registeration fail\n"));
+				PF_UNLOCK();
 				break;
 			}
 			V_pf_status.running = 1;
@@ -1219,9 +1145,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			}
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
 		}
+		PF_UNLOCK();
 		break;
 
 	case DIOCSTOP:
+		PF_LOCK();
 		if (!V_pf_status.running)
 			error = ENOENT;
 		else {
@@ -1237,6 +1165,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			V_pf_status.since = time_second;
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
+		PF_UNLOCK();
 		break;
 
 	case DIOCADDRULE: {
@@ -1246,22 +1175,27 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_pooladdr	*pa;
 		int			 rs_num;
 
+		PF_LOCK();
 		pr->anchor[sizeof(pr->anchor) - 1] = 0;
 		ruleset = pf_find_ruleset(pr->anchor);
 		if (ruleset == NULL) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		if (pr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		if (pr->ticket != ruleset->rules[rs_num].inactive.ticket) {
+			PF_UNLOCK();
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("ticket: %d != [%d]%d\n", pr->ticket, rs_num,
 			    ruleset->rules[rs_num].inactive.ticket));
@@ -1269,6 +1203,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			break;
 		}
 		if (pr->pool_ticket != V_ticket_pabuf) {
+			PF_UNLOCK();
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pool_ticket: %d != %d\n", pr->pool_ticket,
 			    V_ticket_pabuf));
@@ -1277,6 +1212,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 		rule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
 		if (rule == NULL) {
+			PF_UNLOCK();
 			error = ENOMEM;
 			break;
 		}
@@ -1292,6 +1228,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		rule->entries.tqe_prev = NULL;
 #ifndef INET
 		if (rule->af == AF_INET) {
+			PF_UNLOCK();
 			uma_zfree(V_pf_rule_z, rule);
 			error = EAFNOSUPPORT;
 			break;
@@ -1299,6 +1236,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #endif /* INET */
 #ifndef INET6
 		if (rule->af == AF_INET6) {
+			PF_UNLOCK();
 			uma_zfree(V_pf_rule_z, rule);
 			error = EAFNOSUPPORT;
 			break;
@@ -1313,6 +1251,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (rule->ifname[0]) {
 			rule->kif = pfi_kif_get(rule->ifname);
 			if (rule->kif == NULL) {
+				PF_UNLOCK();
 				uma_zfree(V_pf_rule_z, rule);
 				error = EINVAL;
 				break;
@@ -1382,6 +1321,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 		if (error) {
 			pf_rm_rule(NULL, rule);
+			PF_UNLOCK();
 			break;
 		}
 
@@ -1397,6 +1337,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 		    rule, entries);
 		ruleset->rules[rs_num].inactive.rcount++;
+		PF_UNLOCK();
 		break;
 	}
 
@@ -1406,14 +1347,17 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_rule		*tail;
 		int			 rs_num;
 
+		PF_LOCK();
 		pr->anchor[sizeof(pr->anchor) - 1] = 0;
 		ruleset = pf_find_ruleset(pr->anchor);
 		if (ruleset == NULL) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
@@ -1424,6 +1368,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		else
 			pr->nr = 0;
 		pr->ticket = ruleset->rules[rs_num].active.ticket;
+		PF_UNLOCK();
 		break;
 	}
 
@@ -1433,18 +1378,22 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_rule		*rule;
 		int			 rs_num, i;
 
+		PF_LOCK();
 		pr->anchor[sizeof(pr->anchor) - 1] = 0;
 		ruleset = pf_find_ruleset(pr->anchor);
 		if (ruleset == NULL) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		if (pr->ticket != ruleset->rules[rs_num].active.ticket) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -1452,11 +1401,13 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		while ((rule != NULL) && (rule->nr != pr->nr))
 			rule = TAILQ_NEXT(rule, entries);
 		if (rule == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 		bcopy(rule, &pr->rule, sizeof(struct pf_rule));
 		if (pf_anchor_copyout(ruleset, rule, pr)) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -1475,6 +1426,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			rule->bytes[0] = rule->bytes[1] = 0;
 			rule->states_tot = 0;
 		}
+		PF_UNLOCK();
 		break;
 	}
 
@@ -1485,39 +1437,47 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		u_int32_t		 nr = 0;
 		int			 rs_num;
 
+		PF_LOCK();
 		if (!(pcr->action == PF_CHANGE_REMOVE ||
 		    pcr->action == PF_CHANGE_GET_TICKET) &&
 		    pcr->pool_ticket != V_ticket_pabuf) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 
 		if (pcr->action < PF_CHANGE_ADD_HEAD ||
 		    pcr->action > PF_CHANGE_GET_TICKET) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		ruleset = pf_find_ruleset(pcr->anchor);
 		if (ruleset == NULL) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pcr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 
 		if (pcr->action == PF_CHANGE_GET_TICKET) {
 			pcr->ticket = ++ruleset->rules[rs_num].active.ticket;
+			PF_UNLOCK();
 			break;
 		} else {
 			if (pcr->ticket !=
 			    ruleset->rules[rs_num].active.ticket) {
+				PF_UNLOCK();
 				error = EINVAL;
 				break;
 			}
 			if (pcr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
+				PF_UNLOCK();
 				error = EINVAL;
 				break;
 			}
@@ -1526,6 +1486,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pcr->action != PF_CHANGE_REMOVE) {
 			newrule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
 			if (newrule == NULL) {
+				PF_UNLOCK();
 				error = ENOMEM;
 				break;
 			}
@@ -1538,6 +1499,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			newrule->entries.tqe_prev = NULL;
 #ifndef INET
 			if (newrule->af == AF_INET) {
+				PF_UNLOCK();
 				uma_zfree(V_pf_rule_z, newrule);
 				error = EAFNOSUPPORT;
 				break;
@@ -1545,6 +1507,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #endif /* INET */
 #ifndef INET6
 			if (newrule->af == AF_INET6) {
+				PF_UNLOCK();
 				uma_zfree(V_pf_rule_z, newrule);
 				error = EAFNOSUPPORT;
 				break;
@@ -1553,6 +1516,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (newrule->ifname[0]) {
 				newrule->kif = pfi_kif_get(newrule->ifname);
 				if (newrule->kif == NULL) {
+					PF_UNLOCK();
 					uma_zfree(V_pf_rule_z, newrule);
 					error = EINVAL;
 					break;
@@ -1629,6 +1593,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 			if (error) {
 				pf_rm_rule(NULL, newrule);
+				PF_UNLOCK();
 				break;
 			}
 
@@ -1661,6 +1626,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (oldrule == NULL) {
 				if (newrule != NULL)
 					pf_rm_rule(NULL, newrule);
+				PF_UNLOCK();
 				error = EINVAL;
 				break;
 			}
@@ -1694,100 +1660,116 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		pf_calc_skip_steps(ruleset->rules[rs_num].active.ptr);
 		pf_remove_if_empty_ruleset(ruleset);
 
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCCLRSTATES: {
-		struct pf_state		*s, *nexts;
+		struct pf_state		*s;
 		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
-		u_int			 killed = 0;
+		u_int			 i, killed = 0;
 
-		PF_KEYS_LOCK();
-		PF_IDS_LOCK();
-		for (s = RB_MIN(pf_state_tree_id, &V_tree_id); s; s = nexts) {
-			nexts = RB_NEXT(pf_state_tree_id, &V_tree_id, s);
+		PF_LOCK();
+		for (i = 0; i <= V_pf_hashmask; i++) {
+			struct pf_idhash *ih = &V_pf_idhash[i];
 
-			if (!psk->psk_ifname[0] || !strcmp(psk->psk_ifname,
-			    s->kif->pfik_name)) {
-				/* don't send out individual delete messages */
-				SET(s->state_flags, PFSTATE_NOSYNC);
-				pf_unlink_state(s, 1);
-				killed++;
-			}
+relock_DIOCCLRSTATES:
+			PF_HASHROW_LOCK(ih);
+			LIST_FOREACH(s, &ih->states, entry)
+				if (!psk->psk_ifname[0] ||
+				    !strcmp(psk->psk_ifname,
+				    s->kif->pfik_name)) {
+					/*
+					 * Don't send out individual
+					 * delete messages.
+					 */
+					s->state_flags |= PFSTATE_NOSYNC;
+					pf_unlink_state(s, PF_ENTER_LOCKED);
+					killed++;
+					goto relock_DIOCCLRSTATES;
+				}
+			PF_HASHROW_UNLOCK(ih);
 		}
-		PF_IDS_UNLOCK();
-		PF_KEYS_UNLOCK();
 		psk->psk_killed = killed;
 		if (pfsync_clear_states_ptr != NULL)
 			pfsync_clear_states_ptr(V_pf_status.hostid, psk->psk_ifname);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCKILLSTATES: {
-		struct pf_state		*s, *nexts;
+		struct pf_state		*s;
 		struct pf_state_key	*sk;
 		struct pf_addr		*srcaddr, *dstaddr;
 		u_int16_t		 srcport, dstport;
 		struct pfioc_state_kill	*psk = (struct pfioc_state_kill *)addr;
-		u_int			 killed = 0;
+		u_int			 i, killed = 0;
 
+		PF_LOCK();
 		if (psk->psk_pfcmp.id) {
 			if (psk->psk_pfcmp.creatorid == 0)
 				psk->psk_pfcmp.creatorid = V_pf_status.hostid;
 			if ((s = pf_find_state_byid(&psk->psk_pfcmp))) {
-				pf_unlink_state(s, 0);
+				pf_unlink_state(s, PF_ENTER_LOCKED);
 				psk->psk_killed = 1;
 			}
+			PF_UNLOCK();
 			break;
 		}
 
-		PF_KEYS_LOCK();
-		PF_IDS_LOCK();
-		for (s = RB_MIN(pf_state_tree_id, &V_tree_id); s;
-		    s = nexts) {
-			nexts = RB_NEXT(pf_state_tree_id, &V_tree_id, s);
-			sk = s->key[PF_SK_WIRE];
+		for (i = 0; i <= V_pf_hashmask; i++) {
+			struct pf_idhash *ih = &V_pf_idhash[i];
 
-			if (s->direction == PF_OUT) {
-				srcaddr = &sk->addr[1];
-				dstaddr = &sk->addr[0];
-				srcport = sk->port[0];
-				dstport = sk->port[0];
-			} else {
-				srcaddr = &sk->addr[0];
-				dstaddr = &sk->addr[1];
-				srcport = sk->port[0];
-				dstport = sk->port[0];
+relock_DIOCKILLSTATES:
+			PF_HASHROW_LOCK(ih);
+			LIST_FOREACH(s, &ih->states, entry) {
+				sk = s->key[PF_SK_WIRE];
+				if (s->direction == PF_OUT) {
+					srcaddr = &sk->addr[1];
+					dstaddr = &sk->addr[0];
+					srcport = sk->port[0];
+					dstport = sk->port[0];
+				} else {
+					srcaddr = &sk->addr[0];
+					dstaddr = &sk->addr[1];
+					srcport = sk->port[0];
+					dstport = sk->port[0];
+				}
+
+				if ((!psk->psk_af || sk->af == psk->psk_af)
+				    && (!psk->psk_proto || psk->psk_proto ==
+				    sk->proto) &&
+				    PF_MATCHA(psk->psk_src.neg,
+				    &psk->psk_src.addr.v.a.addr,
+				    &psk->psk_src.addr.v.a.mask,
+				    srcaddr, sk->af) &&
+				    PF_MATCHA(psk->psk_dst.neg,
+				    &psk->psk_dst.addr.v.a.addr,
+				    &psk->psk_dst.addr.v.a.mask,
+				    dstaddr, sk->af) &&
+				    (psk->psk_src.port_op == 0 ||
+				    pf_match_port(psk->psk_src.port_op,
+				    psk->psk_src.port[0], psk->psk_src.port[1],
+				    srcport)) &&
+				    (psk->psk_dst.port_op == 0 ||
+				    pf_match_port(psk->psk_dst.port_op,
+				    psk->psk_dst.port[0], psk->psk_dst.port[1],
+				    dstport)) &&
+				    (!psk->psk_label[0] ||
+				    (s->rule.ptr->label[0] &&
+				    !strcmp(psk->psk_label,
+				    s->rule.ptr->label))) &&
+				    (!psk->psk_ifname[0] ||
+				    !strcmp(psk->psk_ifname,
+				    s->kif->pfik_name))) {
+					pf_unlink_state(s, PF_ENTER_LOCKED);
+					killed++;
+					goto relock_DIOCKILLSTATES;
+				}
 			}
-			if ((!psk->psk_af || sk->af == psk->psk_af)
-			    && (!psk->psk_proto || psk->psk_proto ==
-			    sk->proto) &&
-			    PF_MATCHA(psk->psk_src.neg,
-			    &psk->psk_src.addr.v.a.addr,
-			    &psk->psk_src.addr.v.a.mask,
-			    srcaddr, sk->af) &&
-			    PF_MATCHA(psk->psk_dst.neg,
-			    &psk->psk_dst.addr.v.a.addr,
-			    &psk->psk_dst.addr.v.a.mask,
-			    dstaddr, sk->af) &&
-			    (psk->psk_src.port_op == 0 ||
-			    pf_match_port(psk->psk_src.port_op,
-			    psk->psk_src.port[0], psk->psk_src.port[1],
-			    srcport)) &&
-			    (psk->psk_dst.port_op == 0 ||
-			    pf_match_port(psk->psk_dst.port_op,
-			    psk->psk_dst.port[0], psk->psk_dst.port[1],
-			    dstport)) &&
-			    (!psk->psk_label[0] || (s->rule.ptr->label[0] &&
-			    !strcmp(psk->psk_label, s->rule.ptr->label))) &&
-			    (!psk->psk_ifname[0] || !strcmp(psk->psk_ifname,
-			    s->kif->pfik_name))) {
-				pf_unlink_state(s, 1);
-				killed++;
-			}
+			PF_HASHROW_UNLOCK(ih);
 		}
-		PF_IDS_UNLOCK();
-		PF_KEYS_UNLOCK();
+		PF_UNLOCK();
 		psk->psk_killed = killed;
 		break;
 	}
@@ -1801,8 +1783,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EINVAL;
 			break;
 		}
+		PF_LOCK();
 		if (pfsync_state_import_ptr != NULL)
 			error = pfsync_state_import_ptr(sp, PFSYNC_SI_IOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -1814,81 +1798,99 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		bcopy(ps->state.id, &id_key.id, sizeof(id_key.id));
 		id_key.creatorid = ps->state.creatorid;
 
+		PF_LOCK();
 		s = pf_find_state_byid(&id_key);
 		if (s == NULL) {
+			PF_UNLOCK();
 			error = ENOENT;
 			break;
 		}
 
 		pfsync_state_export(&ps->state, s);
+		PF_STATE_UNLOCK(s);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCGETSTATES: {
 		struct pfioc_states	*ps = (struct pfioc_states *)addr;
-		struct pf_state		*state;
-		struct pfsync_state	*p, pstore;
-		u_int32_t		 nr = 0;
+		struct pf_state		*s;
+		struct pfsync_state	*pstore, *p;
+		int i, nr;
 
 		if (ps->ps_len == 0) {
-			nr = V_pf_status.states;
+			nr = uma_zone_get_cur(V_pf_state_z);
 			ps->ps_len = sizeof(struct pfsync_state) * nr;
 			break;
 		}
 
-		p = ps->ps_states;
+		p = pstore = malloc(ps->ps_len, M_TEMP, M_WAITOK);
+		nr = 0;
 
-		PF_LIST_RLOCK();
-		state = TAILQ_FIRST(&V_state_list);
-		while (state) {
-			if (state->timeout != PFTM_UNLINKED) {
-				if ((nr+1) * sizeof(*p) > (unsigned)ps->ps_len)
-					break;
-				pfsync_state_export(&pstore, state);
-				PF_LIST_RUNLOCK(); /* XXXGL: ref state? */
-				PF_UNLOCK();
-				error = copyout(&pstore, p, sizeof(*p));
-				PF_LOCK();
-				if (error)
-					goto fail;
-				PF_LIST_RLOCK();
+		for (i = 0; i <= V_pf_hashmask; i++) {
+			struct pf_idhash *ih = &V_pf_idhash[i];
+
+			PF_HASHROW_LOCK(ih);
+			LIST_FOREACH(s, &ih->states, entry) {
+
+				if (s->timeout == PFTM_UNLINKED)
+					continue;
+
+				if ((nr+1) * sizeof(*p) > ps->ps_len) {
+					PF_HASHROW_UNLOCK(ih);
+					goto DIOCGETSTATES_full;
+				}
+				pfsync_state_export(p, s);
 				p++;
 				nr++;
 			}
-			state = TAILQ_NEXT(state, entry_list);
+			PF_HASHROW_UNLOCK(ih);
 		}
-		PF_LIST_RUNLOCK();
-
+DIOCGETSTATES_full:
+		error = copyout(pstore, ps->ps_states,
+		    sizeof(struct pfsync_state) * nr);
+		if (error) {
+			free(p, M_TEMP);
+			goto fail;
+		}
 		ps->ps_len = sizeof(struct pfsync_state) * nr;
+		free(pstore, M_TEMP);
 
 		break;
 	}
 
 	case DIOCGETSTATUS: {
 		struct pf_status *s = (struct pf_status *)addr;
+		PF_LOCK();
 		bcopy(&V_pf_status, s, sizeof(struct pf_status));
 		pfi_update_status(s->ifname, s);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCSETSTATUSIF: {
 		struct pfioc_if	*pi = (struct pfioc_if *)addr;
 
+		PF_LOCK();
 		if (pi->ifname[0] == 0) {
 			bzero(V_pf_status.ifname, IFNAMSIZ);
+			PF_UNLOCK();
 			break;
 		}
 		strlcpy(V_pf_status.ifname, pi->ifname, IFNAMSIZ);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCCLRSTATUS: {
+		PF_LOCK();
 		bzero(V_pf_status.counters, sizeof(V_pf_status.counters));
 		bzero(V_pf_status.fcounters, sizeof(V_pf_status.fcounters));
 		bzero(V_pf_status.scounters, sizeof(V_pf_status.scounters));
 		V_pf_status.since = time_second;
 		if (*V_pf_status.ifname)
 			pfi_update_status(V_pf_status.ifname, NULL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -1900,6 +1902,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		int			 m = 0, direction = pnl->direction;
 		int			 sidx, didx;
 
+		PF_LOCK();
 		/* NATLOOK src and dst are reversed, so reverse sidx/didx */
 		sidx = (direction == PF_IN) ? 1 : 0;
 		didx = (direction == PF_IN) ? 0 : 1;
@@ -1924,6 +1927,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (m > 1)
 				error = E2BIG;	/* more than one state */
 			else if (state != NULL) {
+				/* XXXGL: not locked read */
 				sk = state->key[sidx];
 				PF_ACPY(&pnl->rsaddr, &sk->addr[sidx], sk->af);
 				pnl->rsport = sk->port[sidx];
@@ -1932,6 +1936,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			} else
 				error = ENOENT;
 		}
+		PF_UNLOCK();
 		break;
 	}
 
@@ -1944,6 +1949,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EINVAL;
 			goto fail;
 		}
+		PF_LOCK();
 		old = V_pf_default_rule.timeout[pt->timeout];
 		if (pt->timeout == PFTM_INTERVAL && pt->seconds == 0)
 			pt->seconds = 1;
@@ -1951,6 +1957,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pt->timeout == PFTM_INTERVAL && pt->seconds < old)
 			wakeup(pf_purge_thread);
 		pt->seconds = old;
+		PF_UNLOCK();
 		break;
 	}
 
@@ -1980,8 +1987,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pfioc_limit	*pl = (struct pfioc_limit *)addr;
 		int			 old_limit;
 
+		PF_LOCK();
 		if (pl->index < 0 || pl->index >= PF_LIMIT_MAX ||
 		    V_pf_pool_limits[pl->index].pp == NULL) {
+			PF_UNLOCK();
 			error = EINVAL;
 			goto fail;
 		}
@@ -1989,6 +1998,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		old_limit = V_pf_pool_limits[pl->index].limit;
 		V_pf_pool_limits[pl->index].limit = pl->limit;
 		pl->limit = old_limit;
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2004,12 +2014,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_ruleset	*ruleset = &pf_main_ruleset;
 		struct pf_rule		*rule;
 
+		PF_LOCK();
 		TAILQ_FOREACH(rule,
 		    ruleset->rules[PF_RULESET_FILTER].active.ptr, entries) {
 			rule->evaluations = 0;
 			rule->packets[0] = rule->packets[1] = 0;
 			rule->bytes[0] = rule->bytes[1] = 0;
 		}
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2035,6 +2047,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	case DIOCSTARTALTQ: {
 		struct pf_altq		*altq;
 
+		PF_LOCK();
 		/* enable all altq interfaces on active list */
 		TAILQ_FOREACH(altq, V_pf_altqs_active, entries) {
 			if (altq->qname[0] == 0 && (altq->local_flags &
@@ -2046,6 +2059,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 		if (error == 0)
 			V_pf_altq_running = 1;
+		PF_UNLOCK();
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: started\n"));
 		break;
 	}
@@ -2053,6 +2067,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	case DIOCSTOPALTQ: {
 		struct pf_altq		*altq;
 
+		PF_LOCK();
 		/* disable all altq interfaces on active list */
 		TAILQ_FOREACH(altq, V_pf_altqs_active, entries) {
 			if (altq->qname[0] == 0 && (altq->local_flags &
@@ -2064,6 +2079,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 		if (error == 0)
 			V_pf_altq_running = 0;
+		PF_UNLOCK();
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: stopped\n"));
 		break;
 	}
@@ -2071,13 +2087,17 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	case DIOCADDALTQ: {
 		struct pfioc_altq	*pa = (struct pfioc_altq *)addr;
 		struct pf_altq		*altq, *a;
+		struct ifnet		*ifp;
 
+		PF_LOCK();
 		if (pa->ticket != V_ticket_altqs_inactive) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 		altq = uma_zalloc(V_pf_altq_z, M_NOWAIT);
 		if (altq == NULL) {
+			PF_UNLOCK();
 			error = ENOMEM;
 			break;
 		}
@@ -2090,6 +2110,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		 */
 		if (altq->qname[0] != 0) {
 			if ((altq->qid = pf_qname2qid(altq->qname)) == 0) {
+				PF_UNLOCK();
 				error = EBUSY;
 				uma_zfree(V_pf_altq_z, altq);
 				break;
@@ -2104,22 +2125,22 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			}
 		}
 
-		struct ifnet *ifp;
-
 		if ((ifp = ifunit(altq->ifname)) == NULL) {
 			altq->local_flags |= PFALTQ_FLAG_IF_REMOVED;
 		} else {
-			PF_UNLOCK();
+			PF_UNLOCK();	/* XXX */
 		error = altq_add(altq);
 			PF_LOCK();
 		}
 		if (error) {
+			PF_UNLOCK();
 			uma_zfree(V_pf_altq_z, altq);
 			break;
 		}
 
 		TAILQ_INSERT_TAIL(V_pf_altqs_inactive, altq, entries);
 		bcopy(altq, &pa->altq, sizeof(struct pf_altq));
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2127,10 +2148,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pfioc_altq	*pa = (struct pfioc_altq *)addr;
 		struct pf_altq		*altq;
 
+		PF_LOCK();
 		pa->nr = 0;
 		TAILQ_FOREACH(altq, V_pf_altqs_active, entries)
 			pa->nr++;
 		pa->ticket = V_ticket_altqs_active;
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2139,7 +2162,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_altq		*altq;
 		u_int32_t		 nr;
 
+		PF_LOCK();
 		if (pa->ticket != V_ticket_altqs_active) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -2150,10 +2175,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			nr++;
 		}
 		if (altq == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 		bcopy(altq, &pa->altq, sizeof(struct pf_altq));
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2168,7 +2195,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		u_int32_t		 nr;
 		int			 nbytes;
 
+		PF_LOCK();
 		if (pq->ticket != V_ticket_altqs_active) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -2180,21 +2209,24 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			nr++;
 		}
 		if (altq == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 
 		if ((altq->local_flags & PFALTQ_FLAG_IF_REMOVED) != 0) {
+			PF_UNLOCK();
 			error = ENXIO;
 			break;
 		}
-		PF_UNLOCK();
+		PF_UNLOCK();	/* XXX */
 		error = altq_getqstats(altq, pq->buf, &nbytes);
 		PF_LOCK();
 		if (error == 0) {
 			pq->scheduler = altq->scheduler;
 			pq->nbytes = nbytes;
 		}
+		PF_UNLOCK();
 		break;
 	}
 #endif /* ALTQ */
@@ -2202,26 +2234,32 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	case DIOCBEGINADDRS: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 
+		PF_LOCK();
 		pf_empty_pool(&V_pf_pabuf);
 		pp->ticket = ++V_ticket_pabuf;
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCADDADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 
+		PF_LOCK();
 		if (pp->ticket != V_ticket_pabuf) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 #ifndef INET
 		if (pp->af == AF_INET) {
+			PF_UNLOCK();
 			error = EAFNOSUPPORT;
 			break;
 		}
 #endif /* INET */
 #ifndef INET6
 		if (pp->af == AF_INET6) {
+			PF_UNLOCK();
 			error = EAFNOSUPPORT;
 			break;
 		}
@@ -2229,11 +2267,13 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pp->addr.addr.type != PF_ADDR_ADDRMASK &&
 		    pp->addr.addr.type != PF_ADDR_DYNIFTL &&
 		    pp->addr.addr.type != PF_ADDR_TABLE) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
 		pa = uma_zalloc(V_pf_pooladdr_z, M_NOWAIT);
 		if (pa == NULL) {
+			PF_UNLOCK();
 			error = ENOMEM;
 			break;
 		}
@@ -2241,6 +2281,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pa->ifname[0]) {
 			pa->kif = pfi_kif_get(pa->ifname);
 			if (pa->kif == NULL) {
+				PF_UNLOCK();
 				uma_zfree(V_pf_pooladdr_z, pa);
 				error = EINVAL;
 				break;
@@ -2250,26 +2291,31 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pfi_dynaddr_setup(&pa->addr, pp->af)) {
 			pfi_dynaddr_remove(&pa->addr);
 			pfi_kif_unref(pa->kif, PFI_KIF_REF_RULE);
+			PF_UNLOCK();
 			uma_zfree(V_pf_pooladdr_z, pa);
 			error = EINVAL;
 			break;
 		}
 		TAILQ_INSERT_TAIL(&V_pf_pabuf, pa, entries);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCGETADDRS: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 
+		PF_LOCK();
 		pp->nr = 0;
 		pool = pf_get_pool(pp->anchor, pp->ticket, pp->r_action,
 		    pp->r_num, 0, 1, 0);
 		if (pool == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 		TAILQ_FOREACH(pa, &pool->list, entries)
 			pp->nr++;
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2277,9 +2323,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 		u_int32_t		 nr = 0;
 
+		PF_LOCK();
 		pool = pf_get_pool(pp->anchor, pp->ticket, pp->r_action,
 		    pp->r_num, 0, 1, 1);
 		if (pool == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -2289,11 +2337,13 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			nr++;
 		}
 		if (pa == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 		bcopy(pa, &pp->addr, sizeof(struct pf_pooladdr));
 		pf_addr_copyout(&pp->addr.addr);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2314,14 +2364,17 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			break;
 		}
 
+		PF_LOCK();
 		ruleset = pf_find_ruleset(pca->anchor);
 		if (ruleset == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
 		pool = pf_get_pool(pca->anchor, pca->ticket, pca->r_action,
 		    pca->r_num, pca->r_last, 1, 1);
 		if (pool == NULL) {
+			PF_UNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -2329,12 +2382,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			newpa = uma_zalloc(V_pf_pooladdr_z,
 			    M_NOWAIT);
 			if (newpa == NULL) {
+				PF_UNLOCK();
 				error = ENOMEM;
 				break;
 			}
 			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 #ifndef INET
 			if (pca->af == AF_INET) {
+				PF_UNLOCK();
 				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EAFNOSUPPORT;
 				break;
@@ -2342,6 +2397,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #endif /* INET */
 #ifndef INET6
 			if (pca->af == AF_INET6) {
+				PF_UNLOCK();
 				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EAFNOSUPPORT;
 				break;
@@ -2350,6 +2406,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (newpa->ifname[0]) {
 				newpa->kif = pfi_kif_get(newpa->ifname);
 				if (newpa->kif == NULL) {
+					PF_UNLOCK();
 					uma_zfree(V_pf_pooladdr_z, newpa);
 					error = EINVAL;
 					break;
@@ -2361,6 +2418,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			    pf_tbladdr_setup(ruleset, &newpa->addr)) {
 				pfi_dynaddr_remove(&newpa->addr);
 				pfi_kif_unref(newpa->kif, PFI_KIF_REF_RULE);
+				PF_UNLOCK();
 				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EINVAL;
 				break;
@@ -2380,6 +2438,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				i++;
 			}
 			if (oldpa == NULL) {
+				PF_UNLOCK();
 				error = EINVAL;
 				break;
 			}
@@ -2405,6 +2464,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		pool->cur = TAILQ_FIRST(&pool->list);
 		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr,
 		    pca->af);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2413,8 +2473,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_ruleset	*ruleset;
 		struct pf_anchor	*anchor;
 
+		PF_LOCK();
 		pr->path[sizeof(pr->path) - 1] = 0;
 		if ((ruleset = pf_find_ruleset(pr->path)) == NULL) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
@@ -2429,6 +2491,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			    &ruleset->anchor->children)
 				pr->nr++;
 		}
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2438,8 +2501,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_anchor	*anchor;
 		u_int32_t		 nr = 0;
 
+		PF_LOCK();
 		pr->path[sizeof(pr->path) - 1] = 0;
 		if ((ruleset = pf_find_ruleset(pr->path)) == NULL) {
+			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
@@ -2463,6 +2528,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 		if (!pr->name[0])
 			error = EBUSY;
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2473,8 +2539,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_clr_tables(&io->pfrio_table, &io->pfrio_ndel,
 		    io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2485,8 +2553,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_add_tables(io->pfrio_buffer, io->pfrio_size,
 		    &io->pfrio_nadd, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2497,8 +2567,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_del_tables(io->pfrio_buffer, io->pfrio_size,
 		    &io->pfrio_ndel, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2509,8 +2581,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_get_tables(&io->pfrio_table, io->pfrio_buffer,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2521,8 +2595,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_get_tstats(&io->pfrio_table, io->pfrio_buffer,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2533,8 +2609,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_clr_tstats(io->pfrio_buffer, io->pfrio_size,
 		    &io->pfrio_nzero, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2545,9 +2623,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_set_tflags(io->pfrio_buffer, io->pfrio_size,
 		    io->pfrio_setflag, io->pfrio_clrflag, &io->pfrio_nchange,
 		    &io->pfrio_ndel, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2558,8 +2638,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_clr_addrs(&io->pfrio_table, &io->pfrio_ndel,
 		    io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2570,9 +2652,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_add_addrs(&io->pfrio_table, io->pfrio_buffer,
 		    io->pfrio_size, &io->pfrio_nadd, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2583,9 +2667,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_del_addrs(&io->pfrio_table, io->pfrio_buffer,
 		    io->pfrio_size, &io->pfrio_ndel, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2596,10 +2682,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_set_addrs(&io->pfrio_table, io->pfrio_buffer,
 		    io->pfrio_size, &io->pfrio_size2, &io->pfrio_nadd,
 		    &io->pfrio_ndel, &io->pfrio_nchange, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL, 0);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2610,8 +2698,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_get_addrs(&io->pfrio_table, io->pfrio_buffer,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2622,8 +2712,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_get_astats(&io->pfrio_table, io->pfrio_buffer,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2634,9 +2726,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_clr_astats(&io->pfrio_table, io->pfrio_buffer,
 		    io->pfrio_size, &io->pfrio_nzero, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2647,9 +2741,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_tst_addrs(&io->pfrio_table, io->pfrio_buffer,
 		    io->pfrio_size, &io->pfrio_nmatch, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2660,21 +2756,27 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfr_ina_define(&io->pfrio_table, io->pfrio_buffer,
 		    io->pfrio_size, &io->pfrio_nadd, &io->pfrio_naddr,
 		    io->pfrio_ticket, io->pfrio_flags | PFR_FLAG_USERIOCTL);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCOSFPADD: {
 		struct pf_osfp_ioctl *io = (struct pf_osfp_ioctl *)addr;
+		PF_LOCK();
 		error = pf_osfp_add(io);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCOSFPGET: {
 		struct pf_osfp_ioctl *io = (struct pf_osfp_ioctl *)addr;
+		PF_LOCK();
 		error = pf_osfp_get(io);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -2688,13 +2790,13 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			goto fail;
 		}
-		PF_UNLOCK();
 		ioe = malloc(sizeof(*ioe), M_TEMP, M_WAITOK);
 		table = malloc(sizeof(*table), M_TEMP, M_WAITOK);
 		PF_LOCK();
 		for (i = 0; i < io->size; i++) {
-		PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
-		if (error) {
+			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
+			if (error) {
+				PF_UNLOCK();
 				free(table, M_TEMP);
 				free(ioe, M_TEMP);
 				error = EFAULT;
@@ -2704,12 +2806,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if ((error = pf_begin_altq(&ioe->ticket))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail;
@@ -2722,6 +2826,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				    sizeof(table->pfrt_anchor));
 				if ((error = pfr_ina_begin(table,
 				    &ioe->ticket, NULL, 0))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail;
@@ -2730,6 +2835,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			default:
 				if ((error = pf_begin_rules(&ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail;
@@ -2739,12 +2845,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			PF_COPYOUT(ioe, io->array+i, sizeof(io->array[i]),
 			    error);
 			if (error) {
+				PF_UNLOCK();
 				free(table, M_TEMP);
 				free(ioe, M_TEMP);
 				error = EFAULT;
 				goto fail;
 			}
 		}
+		PF_UNLOCK();
 		free(table, M_TEMP);
 		free(ioe, M_TEMP);
 		break;
@@ -2760,13 +2868,13 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			goto fail;
 		}
-		PF_UNLOCK();
 		ioe = malloc(sizeof(*ioe), M_TEMP, M_WAITOK);
 		table = malloc(sizeof(*table), M_TEMP, M_WAITOK);
 		PF_LOCK();
 		for (i = 0; i < io->size; i++) {
 			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
 			if (error) {
+				PF_UNLOCK();
 				free(table, M_TEMP);
 				free(ioe, M_TEMP);
 				error = EFAULT;
@@ -2776,12 +2884,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if ((error = pf_rollback_altq(ioe->ticket))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail; /* really bad */
@@ -2794,6 +2904,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				    sizeof(table->pfrt_anchor));
 				if ((error = pfr_ina_rollback(table,
 				    ioe->ticket, NULL, 0))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail; /* really bad */
@@ -2802,6 +2913,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			default:
 				if ((error = pf_rollback_rules(ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail; /* really bad */
@@ -2809,6 +2921,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				break;
 			}
 		}
+		PF_UNLOCK();
 		free(table, M_TEMP);
 		free(ioe, M_TEMP);
 		break;
@@ -2825,7 +2938,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			goto fail;
 		}
-		PF_UNLOCK();
 		ioe = malloc(sizeof(*ioe), M_TEMP, M_WAITOK);
 		table = malloc(sizeof(*table), M_TEMP, M_WAITOK);
 		PF_LOCK();
@@ -2833,6 +2945,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		for (i = 0; i < io->size; i++) {
 			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
 			if (error) {
+				PF_UNLOCK();
 				free(table, M_TEMP);
 				free(ioe, M_TEMP);
 				error = EFAULT;
@@ -2842,6 +2955,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					error = EINVAL;
@@ -2849,6 +2963,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				}
 				if (!V_altqs_inactive_open || ioe->ticket !=
 				    V_ticket_altqs_inactive) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					error = EBUSY;
@@ -2860,6 +2975,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				rs = pf_find_ruleset(ioe->anchor);
 				if (rs == NULL || !rs->topen || ioe->ticket !=
 				    rs->tticket) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					error = EBUSY;
@@ -2869,6 +2985,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			default:
 				if (ioe->rs_num < 0 || ioe->rs_num >=
 				    PF_RULESET_MAX) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					error = EINVAL;
@@ -2879,6 +2996,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				    !rs->rules[ioe->rs_num].inactive.open ||
 				    rs->rules[ioe->rs_num].inactive.ticket !=
 				    ioe->ticket) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					error = EBUSY;
@@ -2891,6 +3009,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		for (i = 0; i < io->size; i++) {
 			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
 			if (error) {
+				PF_UNLOCK();
 				free(table, M_TEMP);
 				free(ioe, M_TEMP);
 				error = EFAULT;
@@ -2900,6 +3019,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if ((error = pf_commit_altq(ioe->ticket))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail; /* really bad */
@@ -2912,6 +3032,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				    sizeof(table->pfrt_anchor));
 				if ((error = pfr_ina_commit(table, ioe->ticket,
 				    NULL, NULL, 0))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail; /* really bad */
@@ -2920,6 +3041,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			default:
 				if ((error = pf_commit_rules(ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
+					PF_UNLOCK();
 					free(table, M_TEMP);
 					free(ioe, M_TEMP);
 					goto fail; /* really bad */
@@ -2927,6 +3049,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				break;
 			}
 		}
+		PF_UNLOCK();
 		free(table, M_TEMP);
 		free(ioe, M_TEMP);
 		break;
@@ -2939,13 +3062,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		int			 space = psn->psn_len;
 
 		if (space == 0) {
+			PF_LOCK();
 			RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking)
 				nr++;
+			PF_UNLOCK();
 			psn->psn_len = sizeof(struct pf_src_node) * nr;
 			break;
 		}
 
-		PF_UNLOCK();
 		pstore = malloc(sizeof(*pstore), M_TEMP, M_WAITOK);
 		PF_LOCK();
 		p = psn->psn_src_nodes;
@@ -2975,47 +3099,36 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 			PF_COPYOUT(pstore, p, sizeof(*p), error);
 			if (error) {
+				PF_UNLOCK();
 				free(pstore, M_TEMP);
 				goto fail;
 			}
 			p++;
 			nr++;
 		}
+		PF_UNLOCK();
 		psn->psn_len = sizeof(struct pf_src_node) * nr;
-
 		free(pstore, M_TEMP);
 		break;
 	}
 
 	case DIOCCLRSRCNODES: {
-		struct pf_src_node	*n;
-		struct pf_state		*state;
 
-		PF_IDS_LOCK();
-		RB_FOREACH(state, pf_state_tree_id, &V_tree_id) {
-			state->src_node = NULL;
-			state->nat_src_node = NULL;
-		}
-		PF_IDS_UNLOCK();
-		PF_KEYS_LOCK();
-		RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
-			n->expire = 1;
-			n->states = 0;
-		}
-		PF_KEYS_UNLOCK();
-		pf_purge_expired_src_nodes(1);
+		PF_LOCK();
+		pf_clear_srcnodes(NULL);
+		pf_purge_expired_src_nodes();
 		V_pf_status.src_nodes = 0;
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCKILLSRCNODES: {
 		struct pf_src_node	*sn;
-		struct pf_state		*s;
 		struct pfioc_src_node_kill *psnk =
 		    (struct pfioc_src_node_kill *)addr;
 		u_int			killed = 0;
 
-		PF_KEYS_LOCK();
+		PF_LOCK();
 		RB_FOREACH(sn, pf_src_tree, &V_tree_src_tracking) {
 			if (PF_MATCHA(psnk->psnk_src.neg,
 				&psnk->psnk_src.addr.v.a.addr,
@@ -3026,27 +3139,17 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				&psnk->psnk_dst.addr.v.a.mask,
 				&sn->raddr, sn->af)) {
 				/* Handle state to src_node linkage */
-				if (sn->states != 0) {
-					PF_IDS_LOCK();
-					RB_FOREACH(s, pf_state_tree_id,
-					    &V_tree_id) {
-						if (s->src_node == sn)
-							s->src_node = NULL;
-						if (s->nat_src_node == sn)
-							s->nat_src_node = NULL;
-					}
-					PF_IDS_UNLOCK();
-					sn->states = 0;
-				}
+				if (sn->states != 0)
+					pf_clear_srcnodes(sn);
 				sn->expire = 1;
 				killed++;
 			}
 		}
-		PF_KEYS_UNLOCK();
 
 		if (killed > 0)
-			pf_purge_expired_src_nodes(1);
+			pf_purge_expired_src_nodes();
 
+		PF_UNLOCK();
 		psnk->psnk_killed = killed;
 		break;
 	}
@@ -3054,15 +3157,19 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	case DIOCSETHOSTID: {
 		u_int32_t	*hostid = (u_int32_t *)addr;
 
+		PF_LOCK();
 		if (*hostid == 0)
 			V_pf_status.hostid = arc4random();
 		else
 			V_pf_status.hostid = *hostid;
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCOSFPFLUSH:
+		PF_LOCK();
 		pf_osfp_flush();
+		PF_UNLOCK();
 		break;
 
 	case DIOCIGETIFACES: {
@@ -3072,22 +3179,28 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = ENODEV;
 			break;
 		}
+		PF_LOCK();
 		error = pfi_get_ifaces(io->pfiio_name, io->pfiio_buffer,
 		    &io->pfiio_size);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCSETIFFLAG: {
 		struct pfioc_iface *io = (struct pfioc_iface *)addr;
 
+		PF_LOCK();
 		error = pfi_set_flags(io->pfiio_name, io->pfiio_flags);
+		PF_UNLOCK();
 		break;
 	}
 
 	case DIOCCLRIFFLAG: {
 		struct pfioc_iface *io = (struct pfioc_iface *)addr;
 
+		PF_LOCK();
 		error = pfi_clear_flags(io->pfiio_name, io->pfiio_flags);
+		PF_UNLOCK();
 		break;
 	}
 
@@ -3096,13 +3209,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		break;
 	}
 fail:
-	PF_UNLOCK();
-
-	if (flags & FWRITE)
-		sx_xunlock(&V_pf_consistency_lock);
-	else
-		sx_sunlock(&V_pf_consistency_lock);
-
+	sx_xunlock(&V_pf_consistency_lock);
 	CURVNET_RESTORE();
 
 	return (error);
@@ -3175,25 +3282,22 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 static void
 pf_clear_states(void)
 {
-	struct pf_state	*state;
+	struct pf_state	*s;
+	u_int i;
 
-	PF_KEYS_LOCK();
-	PF_IDS_LOCK(); 
-	RB_FOREACH(state, pf_state_tree_id, &V_tree_id) {
-		state->timeout = PFTM_PURGE;
-		/* don't send out individual delete messages */
-		state->sync_state = PFSTATE_NOSYNC;
-		pf_unlink_state(state, 1);
+	for (i = 0; i <= V_pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+relock:
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			s->timeout = PFTM_PURGE;
+			/* Don't send out individual delete messages. */
+			s->sync_state = PFSTATE_NOSYNC;
+			pf_unlink_state(s, PF_ENTER_LOCKED);
+			goto relock;
+		}
+		PF_HASHROW_UNLOCK(ih);
 	}
-	PF_IDS_UNLOCK();
-	PF_KEYS_UNLOCK();
- 
-#if 0 /* NPFSYNC */
-/*
- * XXX This is called on module unload, we do not want to sync that over? */
- */
-	pfsync_clear_states(V_pf_status.hostid, psk->psk_ifname);
-#endif
 }
 
 static int
@@ -3211,23 +3315,35 @@ pf_clear_tables(void)
 }
 
 static void
-pf_clear_srcnodes(void)
+pf_clear_srcnodes(struct pf_src_node *n)
 {
-	struct pf_src_node	*n;
-	struct pf_state		*state;
+	struct pf_state *s;
+	int i;
 
-	PF_IDS_LOCK();
-	RB_FOREACH(state, pf_state_tree_id, &V_tree_id) {
-		state->src_node = NULL;
-		state->nat_src_node = NULL;
+	for (i = 0; i <= V_pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			PF_STATE_LOCK(s);
+			if (n == NULL || n == s->src_node)
+				s->src_node = NULL;
+			if (n == NULL || n == s->nat_src_node)
+				s->nat_src_node = NULL;
+			PF_STATE_UNLOCK(s);
+		}
+		PF_HASHROW_UNLOCK(ih);
 	}
-	PF_IDS_UNLOCK();
-	PF_KEYS_LOCK();
-	RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
+
+	if (n == NULL) {
+		RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
+			n->expire = 1;
+			n->states = 0;
+		}
+	} else {
 		n->expire = 1;
 		n->states = 0;
 	}
-	PF_KEYS_UNLOCK();
 }
 /*
  * XXX - Check for version missmatch!!!
@@ -3291,7 +3407,7 @@ shutdown_pf(void)
 
 		pf_clear_states();
 
-		pf_clear_srcnodes();
+		pf_clear_srcnodes(NULL);
 
 		/* status does not use malloced mem so no need to cleanup */
 		/* fingerprints and interfaces have thier own cleanup code */
@@ -3522,10 +3638,11 @@ dehook_pf(void)
 static void
 pf_pkt_addr_changed(struct mbuf *m)
 {
+#if 0	/* XXXGL */
 	struct pf_mtag	*pf_tag;
-
 	if ((pf_tag = pf_find_mtag(m)) != NULL)
 		pf_tag->statekey = NULL;
+#endif
 }
 
 static int
@@ -3585,7 +3702,7 @@ pf_unload(void)
 	pfi_cleanup();
 	pf_osfp_flush();
 	pf_osfp_cleanup();
-	cleanup_pf_zone();
+	pf_cleanup();
 	PF_UNLOCK();
 	destroy_dev(pf_dev);
 	destroy_pf_mutex();
