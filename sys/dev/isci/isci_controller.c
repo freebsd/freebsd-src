@@ -430,7 +430,18 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 		remote_device->frozen_lun_mask = 0;
 		sci_fast_list_element_init(remote_device,
 		    &remote_device->pending_device_reset_element);
-		sci_pool_put(controller->remote_device_pool, remote_device);
+
+		/*
+		 * For the first SCI_MAX_DOMAINS device objects, do not put
+		 *  them in the pool, rather assign them to each domain.  This
+		 *  ensures that any device attached directly to port "i" will
+		 *  always get CAM target id "i".
+		 */
+		if (i < SCI_MAX_DOMAINS)
+			controller->domain[i].da_remote_device = remote_device;
+		else
+			sci_pool_put(controller->remote_device_pool,
+			    remote_device);
 		remote_device_memory_ptr += remote_device_size;
 	}
 
