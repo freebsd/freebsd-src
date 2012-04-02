@@ -1312,7 +1312,7 @@ usbd_req_get_config_desc(struct usb_device *udev, struct mtx *mtx,
 		goto done;
 	}
 	/* Extra sanity checking */
-	if (UGETW(d->wTotalLength) < sizeof(*d)) {
+	if (UGETW(d->wTotalLength) < (uint16_t)sizeof(*d)) {
 		err = USB_ERR_INVAL;
 	}
 done:
