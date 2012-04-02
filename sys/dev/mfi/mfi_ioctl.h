@@ -28,17 +28,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <dev/mfi/mfireg.h>
-#include <machine/bus.h>
 
 struct iovec32 {
 	u_int32_t	iov_base;
 	int		iov_len;
-};
-
-struct megasas_sge
-{
-	bus_addr_t phys_addr;
-	uint32_t length;
 };
 
 #define MFIQ_FREE	0

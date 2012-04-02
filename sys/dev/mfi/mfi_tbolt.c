@@ -520,7 +520,7 @@ int mfi_tbolt_reset(struct mfi_softc *sc)
 	uint32_t fw_state;
 
 	mtx_lock(&sc->mfi_io_lock);
-	if (atomic_read(&sc->fw_reset_no_pci_access)) {
+	if (mfi_atomic_read(&sc->fw_reset_no_pci_access)) {
 		device_printf(sc->mfi_dev, "NO PCI ACCESS\n");
 		mtx_unlock(&sc->mfi_io_lock);
 		return 1;
