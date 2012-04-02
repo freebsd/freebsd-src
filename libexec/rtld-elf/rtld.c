@@ -2585,7 +2585,10 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	name);
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
-    map_stacks_exec(&lockstate);
+
+    if (!(lo_flags & RTLD_LO_EARLY)) {
+	map_stacks_exec(&lockstate);
+    }
 
     if (initlist_objects_ifunc(&initlist, (mode & RTLD_MODEMASK) == RTLD_NOW,
       (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
