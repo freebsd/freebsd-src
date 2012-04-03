@@ -131,6 +131,12 @@ typedef enum {
 	/* Mentor USB modules */
 	MUSB0_CLK = 1100,
 
+	/* EDMA module */
+	EDMA_TPCC_CLK = 1200,
+	EDMA_TPTC0_CLK,
+	EDMA_TPTC1_CLK,
+	EDMA_TPTC2_CLK,
+
 	INVALID_CLK_IDENT
 
 } clk_ident_t;
