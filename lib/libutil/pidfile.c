@@ -41,10 +41,17 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 
+struct pidfh {
+	int	pf_fd;
+	char	pf_path[MAXPATHLEN + 1];
+	dev_t	pf_dev;
+	ino_t	pf_ino;
+};
+
 static int _pidfile_remove(struct pidfh *pfh, int freeit);
 
 static int
-pidfile_verify(struct pidfh *pfh)
+pidfile_verify(const struct pidfh *pfh)
 {
 	struct stat sb;
 
@@ -254,7 +261,7 @@ pidfile_remove(struct pidfh *pfh)
 }
 
 int
-pidfile_fileno(struct pidfh *pfh)
+pidfile_fileno(const struct pidfh *pfh)
 {
 	if (pfh == NULL || pfh->pf_fd == -1) {
 		errno = EDOOFUS;
