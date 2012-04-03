@@ -252,3 +252,13 @@ pidfile_remove(struct pidfh *pfh)
 
 	return (_pidfile_remove(pfh, 1));
 }
+
+int
+pidfile_fileno(struct pidfh *pfh)
+{
+	if (pfh == NULL || pfh->pf_fd == -1) {
+		errno = EDOOFUS;
+		return (-1);
+	}
+	return (pfh->pf_fd);
+}
