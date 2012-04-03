@@ -584,6 +584,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 
 	int offset;
 	int rv;
+	uint16_t count;
 
 	V_pfsyncstats.pfsyncs_ipackets++;
 
@@ -644,8 +645,9 @@ pfsync_input(struct mbuf *m, __unused int off)
 			goto done;
 		}
 
-		rv = (*pfsync_acts[subh.action])(&pkt, m, offset,
-		    ntohs(subh.count));
+		count = ntohs(subh.count);
+		V_pfsyncstats.pfsyncs_iacts[subh.action] += count;
+		rv = (*pfsync_acts[subh.action])(&pkt, m, offset, count);
 		if (rv == -1)
 			return;
 
@@ -1571,6 +1573,7 @@ pfsync_sendout(int schedswi)
 		bzero(subh, sizeof(*subh));
 		subh->action = pfsync_qs[q].action;
 		subh->count = htons(count);
+		V_pfsyncstats.pfsyncs_oacts[pfsync_qs[q].action] += count;
 	}
 
 	if (!TAILQ_EMPTY(&sc->sc_upd_req_list)) {
@@ -1593,6 +1596,7 @@ pfsync_sendout(int schedswi)
 		bzero(subh, sizeof(*subh));
 		subh->action = PFSYNC_ACT_UPD_REQ;
 		subh->count = htons(count);
+		V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_UPD_REQ] += count;
 	}
 
 	/* has someone built a custom region for us to add? */
@@ -1609,6 +1613,7 @@ pfsync_sendout(int schedswi)
 	bzero(subh, sizeof(*subh));
 	subh->action = PFSYNC_ACT_EOF;
 	subh->count = htons(1);
+	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_EOF]++;
 
 	/* XXX write checksum in EOF here */
 
@@ -1955,6 +1960,7 @@ pfsync_clear_states(u_int32_t creatorid, const char *ifname)
 
 	r.subh.action = PFSYNC_ACT_CLR;
 	r.subh.count = htons(1);
+	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_CLR]++;
 
 	strlcpy(r.clr.ifname, ifname, sizeof(r.clr.ifname));
 	r.clr.creatorid = creatorid;
@@ -2104,6 +2110,7 @@ pfsync_bulk_status(u_int8_t status)
 
 	r.subh.action = PFSYNC_ACT_BUS;
 	r.subh.count = htons(1);
+	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_BUS]++;
 
 	r.bus.creatorid = V_pf_status.hostid;
 	r.bus.endtime = htonl(time_uptime - sc->sc_ureq_received);
