@@ -41,12 +41,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef DEV_BPF
-#define	NBPFILTER	DEV_BPF
-#else
-#define	NBPFILTER	0
-#endif
-
 #ifdef DEV_PFLOG
 #define	NPFLOG		DEV_PFLOG
 #else
@@ -152,9 +146,7 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_hdrlen = PFLOG_HDRLEN;
 	if_attach(ifp);
 
-#if NBPFILTER > 0
 	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
-#endif
 
 	/* XXX: Why pf(4) lock?! Better add a pflog lock?! */
 	PF_LOCK();
@@ -175,9 +167,7 @@ pflog_clone_destroy(struct ifnet *ifp)
 	LIST_REMOVE(pflogif, sc_list);
 	PF_UNLOCK();
 
-#if NBPFILTER > 0
 	bpfdetach(ifp);
-#endif
 	if_detach(ifp);
 	if_free(ifp);
 	free(pflogif, M_DEVBUF);
@@ -235,7 +225,6 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
     u_int8_t reason, struct pf_rule *rm, struct pf_rule *am,
     struct pf_ruleset *ruleset, struct pf_pdesc *pd)
 {
-#if NBPFILTER > 0
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
 
@@ -292,7 +281,6 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	ifn->if_opackets++;
 	ifn->if_obytes += m->m_pkthdr.len;
 	BPF_MTAP2(ifn, &hdr, PFLOG_HDRLEN, m);
-#endif
 
 	return (0);
 }
