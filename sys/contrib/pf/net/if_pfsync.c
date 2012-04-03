@@ -196,10 +196,6 @@ TAILQ_HEAD(pfsync_deferrals, pfsync_deferral);
 #define PFSYNC_PLSIZE	MAX(sizeof(struct pfsync_upd_req_item), \
 			    sizeof(struct pfsync_deferral))
 
-#ifdef notyet
-static int	pfsync_out_tdb(struct tdb *, struct mbuf *, int);
-#endif
-
 struct pfsync_softc {
 	struct ifnet		*sc_ifp;
 	struct ifnet		*sc_sync_if;
@@ -233,8 +229,6 @@ struct pfsync_softc {
 	int			 sc_bulk_hash_id;
 	struct pf_state_cmp	 sc_bulk_state;
 	struct callout		 sc_bulk_tmo;
-
-	TAILQ_HEAD(, tdb)	 sc_tdb_q;
 
 	struct callout		 sc_tmo;
 };
@@ -323,8 +317,6 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	TAILQ_INIT(&sc->sc_upd_req_list);
 	TAILQ_INIT(&sc->sc_deferrals);
 	sc->sc_deferred = 0;
-
-	TAILQ_INIT(&sc->sc_tdb_q);
 
 	sc->sc_len = PFSYNC_MINPKT;
 	sc->sc_maxupdates = 128;
@@ -1487,9 +1479,6 @@ pfsync_drop(struct pfsync_softc *sc)
 {
 	struct pf_state *st;
 	struct pfsync_upd_req_item *ur;
-#ifdef notyet
-	struct tdb *t;
-#endif
 	int q;
 
 	for (q = 0; q < PFSYNC_S_COUNT; q++) {
@@ -1497,11 +1486,9 @@ pfsync_drop(struct pfsync_softc *sc)
 			continue;
 
 		TAILQ_FOREACH(st, &sc->sc_qs[q], sync_list) {
-#ifdef PFSYNC_DEBUG
 			KASSERT(st->sync_state == q,
 				("%s: st->sync_state == q",
 					__func__));
-#endif
 			st->sync_state = PFSYNC_S_NONE;
 			pf_release_state(st);
 		}
@@ -1514,16 +1501,6 @@ pfsync_drop(struct pfsync_softc *sc)
 	}
 
 	sc->sc_plus = NULL;
-
-#ifdef notyet
-	if (!TAILQ_EMPTY(&sc->sc_tdb_q)) {
-		TAILQ_FOREACH(t, &sc->sc_tdb_q, tdb_sync_entry)
-			CLR(t->tdb_flags, TDBF_PFSYNC);
-
-		TAILQ_INIT(&sc->sc_tdb_q);
-	}
-#endif
-
 	sc->sc_len = PFSYNC_MINPKT;
 }
 
@@ -1540,9 +1517,6 @@ pfsync_sendout(int schedswi)
 	struct pfsync_subheader *subh;
 	struct pf_state *st, *next;
 	struct pfsync_upd_req_item *ur;
-#ifdef notyet
-	struct tdb *t;
-#endif
 	int offset;
 	int q, count = 0;
 
@@ -1640,26 +1614,6 @@ pfsync_sendout(int schedswi)
 
 		sc->sc_plus = NULL;
 	}
-
-#ifdef notyet
-	if (!TAILQ_EMPTY(&sc->sc_tdb_q)) {
-		subh = (struct pfsync_subheader *)(m->m_data + offset);
-		offset += sizeof(*subh);
-
-		count = 0;
-		TAILQ_FOREACH(t, &sc->sc_tdb_q, tdb_sync_entry) {
-			offset += pfsync_out_tdb(t, m, offset);
-			CLR(t->tdb_flags, TDBF_PFSYNC);
-
-			count++;
-		}
-		TAILQ_INIT(&sc->sc_tdb_q);
-
-		bzero(subh, sizeof(*subh));
-		subh->action = PFSYNC_ACT_TDB;
-		subh->count = htons(count);
-	}
-#endif
 
 	subh = (struct pfsync_subheader *)(m->m_data + offset);
 	offset += sizeof(*subh);
@@ -2067,96 +2021,6 @@ pfsync_q_del(struct pf_state *st)
 	if (TAILQ_EMPTY(&sc->sc_qs[q]))
 		sc->sc_len -= sizeof(struct pfsync_subheader);
 }
-
-#ifdef notyet
-static void
-pfsync_update_tdb(struct tdb *t, int output)
-{
-	struct pfsync_softc *sc = V_pfsyncif;
-	size_t nlen = sizeof(struct pfsync_tdb);
-	int s;
-
-	if (sc == NULL)
-		return;
-
-	if (!ISSET(t->tdb_flags, TDBF_PFSYNC)) {
-		if (TAILQ_EMPTY(&sc->sc_tdb_q))
-			nlen += sizeof(struct pfsync_subheader);
-
-		if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
-			PF_LOCK();
-			pfsync_sendout(1);
-			PF_UNLOCK();
-
-			nlen = sizeof(struct pfsync_subheader) +
-			    sizeof(struct pfsync_tdb);
-		}
-
-		sc->sc_len += nlen;
-		TAILQ_INSERT_TAIL(&sc->sc_tdb_q, t, tdb_sync_entry);
-		SET(t->tdb_flags, TDBF_PFSYNC);
-		t->tdb_updates = 0;
-	} else {
-		if (++t->tdb_updates >= sc->sc_maxupdates)
-			swi_sched(V_pfsync_swi_cookie, 0);
-	}
-
-	if (output)
-		SET(t->tdb_flags, TDBF_PFSYNC_RPL);
-	else
-		CLR(t->tdb_flags, TDBF_PFSYNC_RPL);
-}
-
-static void
-pfsync_delete_tdb(struct tdb *t)
-{
-	struct pfsync_softc *sc = V_pfsyncif;
-
-	if (sc == NULL || !ISSET(t->tdb_flags, TDBF_PFSYNC))
-		return;
-
-	sc->sc_len -= sizeof(struct pfsync_tdb);
-	TAILQ_REMOVE(&sc->sc_tdb_q, t, tdb_sync_entry);
-	CLR(t->tdb_flags, TDBF_PFSYNC);
-
-	if (TAILQ_EMPTY(&sc->sc_tdb_q))
-		sc->sc_len -= sizeof(struct pfsync_subheader);
-}
-
-static int
-pfsync_out_tdb(struct tdb *t, struct mbuf *m, int offset)
-{
-	struct pfsync_tdb *ut = (struct pfsync_tdb *)(m->m_data + offset);
-
-	bzero(ut, sizeof(*ut));
-	ut->spi = t->tdb_spi;
-	bcopy(&t->tdb_dst, &ut->dst, sizeof(ut->dst));
-	/*
-	 * When a failover happens, the master's rpl is probably above
-	 * what we see here (we may be up to a second late), so
-	 * increase it a bit for outbound tdbs to manage most such
-	 * situations.
-	 *
-	 * For now, just add an offset that is likely to be larger
-	 * than the number of packets we can see in one second. The RFC
-	 * just says the next packet must have a higher seq value.
-	 *
-	 * XXX What is a good algorithm for this? We could use
-	 * a rate-determined increase, but to know it, we would have
-	 * to extend struct tdb.
-	 * XXX pt->rpl can wrap over MAXINT, but if so the real tdb
-	 * will soon be replaced anyway. For now, just don't handle
-	 * this edge case.
-	 */
-#define RPL_INCR 16384
-	ut->rpl = htonl(t->tdb_rpl + (ISSET(t->tdb_flags, TDBF_PFSYNC_RPL) ?
-	    RPL_INCR : 0));
-	ut->cur_bytes = htobe64(t->tdb_cur_bytes);
-	ut->sproto = t->tdb_sproto;
-
-	return (sizeof(*ut));
-}
-#endif
 
 static void
 pfsync_bulk_start(void)
