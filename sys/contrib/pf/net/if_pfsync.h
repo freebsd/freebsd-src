@@ -256,6 +256,9 @@ struct pfsyncstats {
 	u_int64_t	pfsyncs_opackets6;	/* total output packets, IPv6 */
 	u_int64_t	pfsyncs_onomem;		/* no memory for an mbuf */
 	u_int64_t	pfsyncs_oerrors;	/* ip output error */
+
+	u_int64_t	pfsyncs_iacts[PFSYNC_ACT_MAX];
+	u_int64_t	pfsyncs_oacts[PFSYNC_ACT_MAX];
 };
 
 /*
