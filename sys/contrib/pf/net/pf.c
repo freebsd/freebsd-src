@@ -3184,7 +3184,7 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	if (rewrite)
 		m_copyback(m, off, hdrlen, pd->hdr.any);
 
-	if (*sm != NULL && !ISSET((*sm)->state_flags, PFSTATE_NOSYNC) &&
+	if (*sm != NULL && !((*sm)->state_flags & PFSTATE_NOSYNC) &&
 	    direction == PF_OUT && pfsync_up_ptr != NULL && pfsync_up_ptr()) {
 		/*
 		 * We want the state created, but we dont

@@ -937,11 +937,6 @@ VNET_DECLARE(int, debug_pfugidhack);
 #define	V_debug_pfugidhack	VNET(debug_pfugidhack)
 
 #define	V_pf_end_threads	VNET(pf_end_threads)
-
-/* Macros to set/clear/test flags. */
-#define	SET(t, f)	((t) |= (f))
-#define	CLR(t, f)	((t) &= ~(f))
-#define	ISSET(t, f)	((t) & (f))
 #endif /* _KERNEL */
 
 #define	PFSYNC_FLAG_SRCNODE	0x04
