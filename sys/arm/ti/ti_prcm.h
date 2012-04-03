@@ -105,7 +105,8 @@ typedef enum {
 	MCBSP5_CLK,
 
 	/* General purpose I/O modules */
-	GPIO1_CLK = 700,
+	GPIO0_CLK = 700,
+	GPIO1_CLK,
 	GPIO2_CLK,
 	GPIO3_CLK,
 	GPIO4_CLK,

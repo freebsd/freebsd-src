@@ -4,7 +4,6 @@ arm/ti/gic.c					standard
 arm/ti/mp_timer.c				standard
 arm/ti/ti_smc.S					standard
 
-arm/ti/omap_gpio.c				optional	gpio
 arm/ti/usb/omap_ehci.c				optional	usb ehci
 arm/ti/omap_dma.c				optional	omap_dma
 arm/ti/ti_mmchs.c				optional	mmc

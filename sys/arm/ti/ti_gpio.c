@@ -66,104 +66,120 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#define OMAP_GPIO_REVISION          0x0000
-#define OMAP_GPIO_SYSCONFIG         0x0010
+ /* Register definitions */
+#define TI_GPIO_REVISION		0x0000
+#define TI_GPIO_SYSCONFIG		0x0010
+#if defined(SOC_OMAP3)
+#define TI_GPIO_REVISION		0x0000
+#define TI_GPIO_SYSCONFIG		0x0010
+#define TI_GPIO_SYSSTATUS		0x0014
+#define TI_GPIO_IRQSTATUS1		0x0018
+#define TI_GPIO_IRQENABLE1		0x001C
+#define TI_GPIO_WAKEUPENABLE		0x0020
+#define TI_GPIO_IRQSTATUS2		0x0028
+#define TI_GPIO_IRQENABLE2		0x002C
+#define TI_GPIO_CTRL			0x0030
+#define TI_GPIO_OE			0x0034
+#define TI_GPIO_DATAIN			0x0038
+#define TI_GPIO_DATAOUT			0x003C
+#define TI_GPIO_LEVELDETECT0		0x0040
+#define TI_GPIO_LEVELDETECT1		0x0044
+#define TI_GPIO_RISINGDETECT		0x0048
+#define TI_GPIO_FALLINGDETECT		0x004C
+#define TI_GPIO_DEBOUNCENABLE		0x0050
+#define TI_GPIO_DEBOUNCINGTIME		0x0054
+#define TI_GPIO_CLEARIRQENABLE1		0x0060
+#define TI_GPIO_SETIRQENABLE1		0x0064
+#define TI_GPIO_CLEARIRQENABLE2		0x0070
+#define TI_GPIO_SETIRQENABLE2		0x0074
+#define TI_GPIO_CLEARWKUENA		0x0080
+#define TI_GPIO_SETWKUENA		0x0084
+#define TI_GPIO_CLEARDATAOUT		0x0090
+#define TI_GPIO_SETDATAOUT		0x0094
+#elif defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
+#define TI_GPIO_IRQSTATUS_RAW_0		0x0024
+#define TI_GPIO_IRQSTATUS_RAW_1		0x0028
+#define TI_GPIO_IRQSTATUS_0		0x002C
+#define TI_GPIO_IRQSTATUS_1		0x0030
+#define TI_GPIO_IRQSTATUS_SET_0		0x0034
+#define TI_GPIO_IRQSTATUS_SET_1		0x0038
+#define TI_GPIO_IRQSTATUS_CLR_0		0x003C
+#define TI_GPIO_IRQSTATUS_CLR_1		0x0040
+#define TI_GPIO_IRQWAKEN_0		0x0044
+#define TI_GPIO_IRQWAKEN_1		0x0048
+#define TI_GPIO_SYSSTATUS		0x0114
+#define TI_GPIO_IRQSTATUS1		0x0118
+#define TI_GPIO_IRQENABLE1		0x011C
+#define TI_GPIO_WAKEUPENABLE		0x0120
+#define TI_GPIO_IRQSTATUS2		0x0128
+#define TI_GPIO_IRQENABLE2		0x012C
+#define TI_GPIO_CTRL			0x0130
+#define TI_GPIO_OE			0x0134
+#define TI_GPIO_DATAIN			0x0138
+#define TI_GPIO_DATAOUT			0x013C
+#define TI_GPIO_LEVELDETECT0		0x0140
+#define TI_GPIO_LEVELDETECT1		0x0144
+#define TI_GPIO_RISINGDETECT		0x0148
+#define TI_GPIO_FALLINGDETECT		0x014C
+#define TI_GPIO_DEBOUNCENABLE		0x0150
+#define TI_GPIO_DEBOUNCINGTIME		0x0154
+#define TI_GPIO_CLEARIRQENABLE1		0x0160
+#define TI_GPIO_SETIRQENABLE1		0x0164
+#define TI_GPIO_CLEARIRQENABLE2		0x0170
+#define TI_GPIO_SETIRQENABLE2		0x0174
+#define TI_GPIO_CLEARWKUPENA		0x0180
+#define TI_GPIO_SETWKUENA		0x0184
+#define TI_GPIO_CLEARDATAOUT		0x0190
+#define TI_GPIO_SETDATAOUT		0x0194
+#else
+#error "Unknown SoC"
+#endif
 
-/* Register offsets of the GPIO banks on OMAP3 devices */
-#define OMAP3_GPIO_SYSSTATUS        0x0014
-#define OMAP3_GPIO_IRQSTATUS1       0x0018
-#define OMAP3_GPIO_IRQENABLE1       0x001C
-#define OMAP3_GPIO_WAKEUPENABLE     0x0020
-#define OMAP3_GPIO_IRQSTATUS2       0x0028
-#define OMAP3_GPIO_IRQENABLE2       0x002C
-#define OMAP3_GPIO_CTRL             0x0030
-#define OMAP3_GPIO_OE               0x0034
-#define OMAP3_GPIO_DATAIN           0x0038
-#define OMAP3_GPIO_DATAOUT          0x003C
-#define OMAP3_GPIO_LEVELDETECT0     0x0040
-#define OMAP3_GPIO_LEVELDETECT1     0x0044
-#define OMAP3_GPIO_RISINGDETECT     0x0048
-#define OMAP3_GPIO_FALLINGDETECT    0x004C
-#define OMAP3_GPIO_DEBOUNCENABLE    0x0050
-#define OMAP3_GPIO_DEBOUNCINGTIME   0x0054
-#define OMAP3_GPIO_CLEARIRQENABLE1  0x0060
-#define OMAP3_GPIO_SETIRQENABLE1    0x0064
-#define OMAP3_GPIO_CLEARIRQENABLE2  0x0070
-#define OMAP3_GPIO_SETIRQENABLE2    0x0074
-#define OMAP3_GPIO_CLEARWKUENA      0x0080
-#define OMAP3_GPIO_SETWKUENA        0x0084
-#define OMAP3_GPIO_CLEARDATAOUT     0x0090
-#define OMAP3_GPIO_SETDATAOUT       0x0094
-
-/* Register offsets of the GPIO banks on OMAP4 devices */
-#define OMAP4_GPIO_IRQSTATUS_RAW_0  0x0024
-#define OMAP4_GPIO_IRQSTATUS_RAW_1  0x0028
-#define OMAP4_GPIO_IRQSTATUS_0      0x002C
-#define OMAP4_GPIO_IRQSTATUS_1      0x0030
-#define OMAP4_GPIO_IRQSTATUS_SET_0  0x0034
-#define OMAP4_GPIO_IRQSTATUS_SET_1  0x0038
-#define OMAP4_GPIO_IRQSTATUS_CLR_0  0x003C
-#define OMAP4_GPIO_IRQSTATUS_CLR_1  0x0040
-#define OMAP4_GPIO_IRQWAKEN_0       0x0044
-#define OMAP4_GPIO_IRQWAKEN_1       0x0048
-#define OMAP4_GPIO_SYSSTATUS        0x0114
-#define OMAP4_GPIO_IRQSTATUS1       0x0118
-#define OMAP4_GPIO_IRQENABLE1       0x011C
-#define OMAP4_GPIO_WAKEUPENABLE     0x0120
-#define OMAP4_GPIO_IRQSTATUS2       0x0128
-#define OMAP4_GPIO_IRQENABLE2       0x012C
-#define OMAP4_GPIO_CTRL             0x0130
-#define OMAP4_GPIO_OE               0x0134
-#define OMAP4_GPIO_DATAIN           0x0138
-#define OMAP4_GPIO_DATAOUT          0x013C
-#define OMAP4_GPIO_LEVELDETECT0     0x0140
-#define OMAP4_GPIO_LEVELDETECT1     0x0144
-#define OMAP4_GPIO_RISINGDETECT     0x0148
-#define OMAP4_GPIO_FALLINGDETECT    0x014C
-#define OMAP4_GPIO_DEBOUNCENABLE    0x0150
-#define OMAP4_GPIO_DEBOUNCINGTIME   0x0154
-#define OMAP4_GPIO_CLEARIRQENABLE1  0x0160
-#define OMAP4_GPIO_SETIRQENABLE1    0x0164
-#define OMAP4_GPIO_CLEARIRQENABLE2  0x0170
-#define OMAP4_GPIO_SETIRQENABLE2    0x0174
-#define OMAP4_GPIO_CLEARWKUPENA     0x0180
-#define OMAP4_GPIO_SETWKUENA        0x0184
-#define OMAP4_GPIO_CLEARDATAOUT     0x0190
-#define OMAP4_GPIO_SETDATAOUT       0x0194
-
-#define MAX_GPIO_BANKS    6
-#define PINS_PER_BANK     32
+ /*Other SoC Specific definitions*/
+#if defined(SOC_OMAP3)
+#define MAX_GPIO_BANKS			6
+#define FIRST_GPIO_BANK			1
+#define PINS_PER_BANK			32
+#define TI_GPIO_REV			0x00000025
+#elif defined(SOC_OMAP4)
+#define MAX_GPIO_BANKS			6
+#define FIRST_GPIO_BANK			1
+#define PINS_PER_BANK			32
+#define TI_GPIO_REV			0x50600801
+#elif defined(SOC_TI_AM335X)
+#define MAX_GPIO_BANKS			4
+#define FIRST_GPIO_BANK			0
+#define PINS_PER_BANK			32
+#define TI_GPIO_REV			0x50600801
+#endif
 
 /**
- *	The following H/W revision values were found be experimentation, TI don't
- *	publish the revision numbers.  The TRM says "TI internal Data".
- */
-#define OMAP3_GPIO_REV  0x00000025
-#define OMAP4_GPIO_REV  0x50600801
-
-/**
- *	omap_gpio_mem_spec - Resource specification used when allocating resources
- *	omap_gpio_irq_spec - Resource specification used when allocating resources
+ *	ti_gpio_mem_spec - Resource specification used when allocating resources
+ *	ti_gpio_irq_spec - Resource specification used when allocating resources
  *
  *	This driver module can have up to six independent memory regions, each
  *	region typically controls 32 GPIO pins.
  */
-static struct resource_spec omap_gpio_mem_spec[] = {
+static struct resource_spec ti_gpio_mem_spec[] = {
 	{ SYS_RES_MEMORY,   0,  RF_ACTIVE },
 	{ SYS_RES_MEMORY,   1,  RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_MEMORY,   2,  RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_MEMORY,   3,  RF_ACTIVE | RF_OPTIONAL },
+#if !defined(SOC_TI_AM335X)
 	{ SYS_RES_MEMORY,   4,  RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_MEMORY,   5,  RF_ACTIVE | RF_OPTIONAL },
+#endif
 	{ -1,               0,  0 }
 };
-static struct resource_spec omap_gpio_irq_spec[] = {
+static struct resource_spec ti_gpio_irq_spec[] = {
 	{ SYS_RES_IRQ,      0,  RF_ACTIVE },
 	{ SYS_RES_IRQ,      1,  RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,      2,  RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,      3,  RF_ACTIVE | RF_OPTIONAL },
+#if !defined(SOC_TI_AM335X)
 	{ SYS_RES_IRQ,      4,  RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,      5,  RF_ACTIVE | RF_OPTIONAL },
+#endif
 	{ -1,               0,  0 }
 };
 
@@ -172,38 +188,38 @@ static struct resource_spec omap_gpio_irq_spec[] = {
  *
  *	This structure is allocated during driver attach.
  */
-struct omap_gpio_softc {
+struct ti_gpio_softc {
 	device_t			sc_dev;
-	
+
 	/* The memory resource(s) for the PRCM register set, when the device is
 	 * created the caller can assign up to 4 memory regions.
 	 */
 	struct resource*    sc_mem_res[MAX_GPIO_BANKS];
 	struct resource*    sc_irq_res[MAX_GPIO_BANKS];
-	
+
 	/* The handle for the register IRQ handlers */
 	void*               sc_irq_hdl[MAX_GPIO_BANKS];
-	
+
 	/* The following describes the H/W revision of each of the GPIO banks */
 	uint32_t            sc_revision[MAX_GPIO_BANKS];
-	
+
 	struct mtx			sc_mtx;
 };
 
 /**
  *	Macros for driver mutex locking
  */
-#define OMAP_GPIO_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)
-#define	OMAP_GPIO_UNLOCK(_sc)           mtx_unlock(&(_sc)->sc_mtx)
-#define OMAP_GPIO_LOCK_INIT(_sc) \
+#define TI_GPIO_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)
+#define	TI_GPIO_UNLOCK(_sc)           mtx_unlock(&(_sc)->sc_mtx)
+#define TI_GPIO_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "omap_gpio", MTX_DEF)
-#define OMAP_GPIO_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx);
-#define OMAP_GPIO_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define OMAP_GPIO_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+	         "ti_gpio", MTX_DEF)
+#define TI_GPIO_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx);
+#define TI_GPIO_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define TI_GPIO_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 /**
- *	omap_gpio_read_4 - reads a 16-bit value from one of the PADCONFS registers
+ *	ti_gpio_read_4 - reads a 16-bit value from one of the PADCONFS registers
  *	@sc: GPIO device context
  *	@bank: The bank to read from
  *	@off: The offset of a register from the GPIO register address range
@@ -213,13 +229,13 @@ struct omap_gpio_softc {
  *	32-bit value read from the register.
  */
 static inline uint32_t
-omap_gpio_read_4(struct omap_gpio_softc *sc, unsigned int bank, bus_size_t off)
+ti_gpio_read_4(struct ti_gpio_softc *sc, unsigned int bank, bus_size_t off)
 {
 	return (bus_read_4(sc->sc_mem_res[bank], off));
 }
 
 /**
- *	omap_gpio_write_4 - writes a 32-bit value to one of the PADCONFS registers
+ *	ti_gpio_write_4 - writes a 32-bit value to one of the PADCONFS registers
  *	@sc: GPIO device context
  *	@bank: The bank to write to
  *	@off: The offset of a register from the GPIO register address range
@@ -229,35 +245,14 @@ omap_gpio_read_4(struct omap_gpio_softc *sc, unsigned int bank, bus_size_t off)
  *	nothing
  */
 static inline void
-omap_gpio_write_4(struct omap_gpio_softc *sc, unsigned int bank, bus_size_t off,
+ti_gpio_write_4(struct ti_gpio_softc *sc, unsigned int bank, bus_size_t off,
                  uint32_t val)
 {
 	bus_write_4(sc->sc_mem_res[bank], off, val);
 }
 
 /**
- *	omap_gpio_is_omap4 - returns 1 if the GPIO module is from an OMAP4xxx chip
- *	omap_gpio_is_omap3 - returns 1 if the GPIO module is from an OMAP3xxx chip
- *	@sc: GPIO device context
- *	@bank: The bank to test the type of
- *
- *	RETURNS:
- *	nothing
- */
-static inline int
-omap_gpio_is_omap4(struct omap_gpio_softc *sc, unsigned int bank)
-{
-	return (sc->sc_revision[bank] == OMAP4_GPIO_REV);
-}
-
-static inline int
-omap_gpio_is_omap3(struct omap_gpio_softc *sc, unsigned int bank)
-{
-	return (sc->sc_revision[bank] == OMAP3_GPIO_REV);
-}
-
-/**
- *	omap_gpio_pin_max - Returns the maximum number of GPIO pins
+ *	ti_gpio_pin_max - Returns the maximum number of GPIO pins
  *	@dev: gpio device handle
  *	@maxpin: pointer to a value that upon return will contain the maximum number
  *	         of pins in the device.
@@ -270,13 +265,13 @@ omap_gpio_is_omap3(struct omap_gpio_softc *sc, unsigned int bank)
  *	Returns 0 on success otherwise an error code
  */
 static int
-omap_gpio_pin_max(device_t dev, int *maxpin)
+ti_gpio_pin_max(device_t dev, int *maxpin)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	unsigned int i;
 	unsigned int banks = 0;
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Calculate how many valid banks we have and then multiply that by 32 to
 	 * give use the total number of pins.
@@ -287,14 +282,14 @@ omap_gpio_pin_max(device_t dev, int *maxpin)
 	}
 
 	*maxpin = (banks * PINS_PER_BANK);
-	
-	OMAP_GPIO_UNLOCK(sc);
-	
+
+	TI_GPIO_UNLOCK(sc);
+
 	return (0);
 }
 
 /**
- *	omap_gpio_pin_getcaps - Gets the capabilties of a given pin
+ *	ti_gpio_pin_getcaps - Gets the capabilties of a given pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *	@caps: pointer to a value that upon return will contain the capabilities
@@ -312,31 +307,29 @@ omap_gpio_pin_max(device_t dev, int *maxpin)
  *	Returns 0 on success otherwise an error code
  */
 static int
-omap_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
+ti_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
 	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
-	*caps = (GPIO_PIN_INPUT | 
-	         GPIO_PIN_OUTPUT | 
-	         GPIO_PIN_PULLUP |
-	         GPIO_PIN_PULLDOWN); 
+	*caps = (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |GPIO_PIN_PULLUP |
+	    GPIO_PIN_PULLDOWN);
 
-	OMAP_GPIO_UNLOCK(sc);
+	TI_GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_gpio_pin_getflags - Gets the current flags of a given pin
+ *	ti_gpio_pin_getflags - Gets the current flags of a given pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *	@flags: upon return will contain the current flags of the pin
@@ -352,29 +345,29 @@ omap_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
  *	Returns 0 on success otherwise an error code
  */
 static int
-omap_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
+ti_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
 	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
 	/* Get the current pin state */
 	ti_scm_padconf_get_gpioflags(pin, flags);
 
-	OMAP_GPIO_UNLOCK(sc);
+	TI_GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_gpio_pin_getname - Gets the name of a given pin
+ *	ti_gpio_pin_getname - Gets the name of a given pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *	@name: buffer to put the name in
@@ -389,16 +382,16 @@ omap_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
  *	Returns 0 on success otherwise an error code
  */
 static int
-omap_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
+ti_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
 	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -406,13 +399,13 @@ omap_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	snprintf(name, GPIOMAXNAME, "gpio_%u", pin);
 	name[GPIOMAXNAME - 1] = '\0';
 
-	OMAP_GPIO_UNLOCK(sc);
-	
+	TI_GPIO_UNLOCK(sc);
+
 	return (0);
 }
 
 /**
- *	omap_gpio_pin_setflags - Sets the flags for a given pin
+ *	ti_gpio_pin_setflags - Sets the flags for a given pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *	@flags: the flags to set
@@ -431,12 +424,11 @@ omap_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
  *	Returns 0 on success otherwise an error code
  */
 static int
-omap_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
+ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
 	uint32_t mask = (1UL << (pin % PINS_PER_BANK));
-	uint32_t reg_off;
 	uint32_t reg_val;
 
 	/* Sanity check the flags supplied are valid, i.e. not input and output */
@@ -450,46 +442,36 @@ omap_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		return (EINVAL);
 
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
 	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
 	/* Set the GPIO mode and state */
 	if (ti_scm_padconf_set_gpioflags(pin, flags) != 0) {
-		OMAP_GPIO_UNLOCK(sc);
-		return (EINVAL);
-	}
-
-	/* Get the offset of the register to use */
-	if (omap_gpio_is_omap3(sc, bank))
-		reg_off = OMAP3_GPIO_OE;
-	else if (omap_gpio_is_omap4(sc, bank))
-		reg_off = OMAP4_GPIO_OE;
-	else {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
 	/* If configuring as an output set the "output enable" bit */
-	reg_val = omap_gpio_read_4(sc, bank, reg_off);
+	reg_val = ti_gpio_read_4(sc, bank, TI_GPIO_OE);
 	if (flags & GPIO_PIN_INPUT)
 		reg_val |= mask;
 	else
 		reg_val &= ~mask;
-	omap_gpio_write_4(sc, bank, reg_off, reg_val);
+	ti_gpio_write_4(sc, bank, TI_GPIO_OE, reg_val);
 
 
-	OMAP_GPIO_UNLOCK(sc);
+	TI_GPIO_UNLOCK(sc);
 	
 	return (0);
 }
 
 /**
- *	omap_gpio_pin_set - Sets the current level on a GPIO pin
+ *	ti_gpio_pin_set - Sets the current level on a GPIO pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *	@value: non-zero value will drive the pin high, otherwise the pin is
@@ -503,42 +485,30 @@ omap_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
  *	Returns 0 on success otherwise a error code
  */
 static int
-omap_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
+ti_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
 	uint32_t mask = (1UL << (pin % PINS_PER_BANK));
-	uint32_t reg_off;
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
 	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
-		OMAP_GPIO_UNLOCK(sc);
-		return (EINVAL);
-	}
-	
-	/* Set the pin value */
-	if (omap_gpio_is_omap3(sc, bank))
-		reg_off = (value == GPIO_PIN_LOW) ? OMAP3_GPIO_CLEARDATAOUT :
-		                                    OMAP3_GPIO_SETDATAOUT;
-	else if (omap_gpio_is_omap4(sc, bank))
-		reg_off = (value == GPIO_PIN_LOW) ? OMAP4_GPIO_CLEARDATAOUT :
-		                                    OMAP4_GPIO_SETDATAOUT;
-	else {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
-	omap_gpio_write_4(sc, bank, reg_off, mask);
+	ti_gpio_write_4(sc, bank, (value == GPIO_PIN_LOW) ? TI_GPIO_CLEARDATAOUT
+	    : TI_GPIO_SETDATAOUT, mask);
 
-	OMAP_GPIO_UNLOCK(sc);
+	TI_GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_gpio_pin_get - Gets the current level on a GPIO pin
+ *	ti_gpio_pin_get - Gets the current level on a GPIO pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *	@value: pointer to a value that upond return will contain the pin value
@@ -553,47 +523,39 @@ omap_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
  *	Returns 0 on success otherwise a error code
  */
 static int
-omap_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
+ti_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
 	uint32_t mask = (1UL << (pin % PINS_PER_BANK));
 	uint32_t val = 0;
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
 	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
-	
+
 	/* Sanity check the pin is not configured as an output */
-	if (omap_gpio_is_omap3(sc, bank))
-		val = omap_gpio_read_4(sc, bank, OMAP3_GPIO_OE);
-	else if (omap_gpio_is_omap4(sc, bank))
-		val = omap_gpio_read_4(sc, bank, OMAP4_GPIO_OE);
+	val = ti_gpio_read_4(sc, bank, TI_GPIO_OE);
 
 	if ((val & mask) == mask) {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
-	
+
 	/* Read the value on the pin */
-	if (omap_gpio_is_omap3(sc, bank))
-		val = omap_gpio_read_4(sc, bank, OMAP3_GPIO_DATAIN);
-	else if (omap_gpio_is_omap4(sc, bank))
-		val = omap_gpio_read_4(sc, bank, OMAP4_GPIO_DATAIN);
+	*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAIN) & mask) ? 1 : 0;
 
-	*value = (val & mask) ? 1 : 0;
-
-	OMAP_GPIO_UNLOCK(sc);
+	TI_GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_gpio_pin_toggle - Toggles a given GPIO pin
+ *	ti_gpio_pin_toggle - Toggles a given GPIO pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *
@@ -605,44 +567,35 @@ omap_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
  *	Returns 0 on success otherwise a error code
  */
 static int
-omap_gpio_pin_toggle(device_t dev, uint32_t pin)
+ti_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
 	uint32_t mask = (1UL << (pin % PINS_PER_BANK));
 	uint32_t val;
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
 	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
-		OMAP_GPIO_UNLOCK(sc);
+		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
 	/* Toggle the pin */
-	if (omap_gpio_is_omap3(sc, bank)) {
-		val = omap_gpio_read_4(sc, bank, OMAP3_GPIO_DATAOUT);
-		if (val & mask)
-			omap_gpio_write_4(sc, bank, OMAP3_GPIO_CLEARDATAOUT, mask);
-		else
-			omap_gpio_write_4(sc, bank, OMAP3_GPIO_SETDATAOUT, mask);
-	}
-	else if (omap_gpio_is_omap4(sc, bank)) {
-		val = omap_gpio_read_4(sc, bank, OMAP4_GPIO_DATAOUT);
-		if (val & mask)
-			omap_gpio_write_4(sc, bank, OMAP4_GPIO_CLEARDATAOUT, mask);
-		else
-			omap_gpio_write_4(sc, bank, OMAP4_GPIO_SETDATAOUT, mask);
-	}
+	val = ti_gpio_read_4(sc, bank, TI_GPIO_DATAOUT);
+	if (val & mask)
+		ti_gpio_write_4(sc, bank, TI_GPIO_CLEARDATAOUT, mask);
+	else
+		ti_gpio_write_4(sc, bank, TI_GPIO_SETDATAOUT, mask);
 
-	OMAP_GPIO_UNLOCK(sc);
+	TI_GPIO_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_gpio_intr - ISR for all GPIO modules
+ *	ti_gpio_intr - ISR for all GPIO modules
  *	@arg: the soft context pointer
  *
  *	Unsused
@@ -652,17 +605,17 @@ omap_gpio_pin_toggle(device_t dev, uint32_t pin)
  *
  */
 static void
-omap_gpio_intr(void *arg)
+ti_gpio_intr(void *arg)
 {
-	struct omap_gpio_softc *sc = arg;
+	struct ti_gpio_softc *sc = arg;
 
-	OMAP_GPIO_LOCK(sc);
+	TI_GPIO_LOCK(sc);
 	/* TODO: something useful */
-	OMAP_GPIO_UNLOCK(sc);
+	TI_GPIO_UNLOCK(sc);
 }
 
 /**
- *	omap_gpio_probe - probe function for the driver
+ *	ti_gpio_probe - probe function for the driver
  *	@dev: gpio device handle
  *
  *	Simply sets the name of the driver
@@ -674,17 +627,17 @@ omap_gpio_intr(void *arg)
  *	Always returns 0
  */
 static int
-omap_gpio_probe(device_t dev)
+ti_gpio_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "ti,omap_gpio"))
+	if (!ofw_bus_is_compatible(dev, "ti,gpio"))
 		return (ENXIO);
 
-	device_set_desc(dev, "TI OMAP General Purpose I/O (GPIO)");
+	device_set_desc(dev, "TI General Purpose I/O (GPIO)");
 	return (0);
 }
 
 /**
- *	omap_gpio_attach - attach function for the driver
+ *	ti_gpio_attach - attach function for the driver
  *	@dev: gpio device handle
  *
  *	Allocates and sets up the driver context for all GPIO banks.  This function
@@ -697,29 +650,29 @@ omap_gpio_probe(device_t dev)
  *	Always returns 0
  */
 static int
-omap_gpio_attach(device_t dev)
+ti_gpio_attach(device_t dev)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	unsigned int i;
 	int err = 0;
 
 	sc->sc_dev = dev;
 
-	OMAP_GPIO_LOCK_INIT(sc);
+	TI_GPIO_LOCK_INIT(sc);
 
 
 	/* There are up to 6 different GPIO register sets located in different
 	 * memory areas on the chip.  The memory range should have been set for
-	 * the driver when it was added as a child (for example in omap4.c).
+	 * the driver when it was added as a child.
 	 */
-	err = bus_alloc_resources(dev, omap_gpio_mem_spec, sc->sc_mem_res);
+	err = bus_alloc_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
 	if (err) {
 		device_printf(dev, "Error: could not allocate mem resources\n");
 		return (ENXIO);
 	}
 
 	/* Request the IRQ resources */
-	err = bus_alloc_resources(dev, omap_gpio_irq_spec, sc->sc_irq_res);
+	err = bus_alloc_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res);
 	if (err) {
 		device_printf(dev, "Error: could not allocate irq resources\n");
 		return (ENXIO);
@@ -729,10 +682,10 @@ omap_gpio_attach(device_t dev)
 	for (i = 0;  i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_irq_res[i] == NULL)
 			break;
-		
+
 		/* Register an interrupt handler for each of the IRQ resources */
 		if ((bus_setup_intr(dev, sc->sc_irq_res[i], INTR_TYPE_MISC | INTR_MPSAFE, 
-		                    NULL, omap_gpio_intr, sc, &(sc->sc_irq_hdl[i])))) {
+		                    NULL, ti_gpio_intr, sc, &(sc->sc_irq_hdl[i])))) {
 			device_printf(dev, "WARNING: unable to register interrupt handler\n");
 			return (ENXIO);
 		}
@@ -748,33 +701,27 @@ omap_gpio_attach(device_t dev)
 	 */
 	for (i = 0;  i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_mem_res[i] != NULL) {
-		
+
 			/* Enable the interface and functional clocks for the module */
-			ti_prcm_clk_enable(GPIO1_CLK + i);
-			
+			ti_prcm_clk_enable(GPIO0_CLK + FIRST_GPIO_BANK + i);
+
 			/* Read the revision number of the module. TI don't publish the
 			 * actual revision numbers, so instead the values have been
-			 * determined by experimentation on OMAP4430 and OMAP3530 chips.
+			 * determined by experimentation.
 			 */
-			sc->sc_revision[i] = omap_gpio_read_4(sc, i, OMAP_GPIO_REVISION);
-			
+			sc->sc_revision[i] = ti_gpio_read_4(sc, i, TI_GPIO_REVISION);
+
 			/* Check the revision */
-			if (!omap_gpio_is_omap4(sc, i) && !omap_gpio_is_omap3(sc, i)) {
+			if (sc->sc_revision[i] != TI_GPIO_REV) {
 				device_printf(dev, "Warning: could not determine the revision"
 				              "of %u GPIO module (revision:0x%08x)\n",
 				              i, sc->sc_revision[i]);
 				continue;
 			}
-			
+
 			/* Disable interrupts for all pins */
-			if (omap_gpio_is_omap3(sc, i)) {
-				omap_gpio_write_4(sc, i, OMAP3_GPIO_CLEARIRQENABLE1, 0xffffffff);
-				omap_gpio_write_4(sc, i, OMAP3_GPIO_CLEARIRQENABLE2, 0xffffffff);
-			}
-			else if (omap_gpio_is_omap4(sc, i)) {
-				omap_gpio_write_4(sc, i, OMAP4_GPIO_CLEARIRQENABLE1, 0xffffffff);
-				omap_gpio_write_4(sc, i, OMAP4_GPIO_CLEARIRQENABLE2, 0xffffffff);
-			}
+			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE1, 0xffffffff);
+			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE2, 0xffffffff);
 		}
 	}
 
@@ -785,7 +732,7 @@ omap_gpio_attach(device_t dev)
 }
 
 /**
- *	omap_gpio_detach - detach function for the driver
+ *	ti_gpio_detach - detach function for the driver
  *	@dev: scm device handle
  *
  *	Allocates and sets up the driver context, this simply entails creating a
@@ -798,9 +745,9 @@ omap_gpio_attach(device_t dev)
  *	Always returns 0
  */
 static int
-omap_gpio_detach(device_t dev)
+ti_gpio_detach(device_t dev)
 {
-	struct omap_gpio_softc *sc = device_get_softc(dev);
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 	unsigned int i;
 
 	KASSERT(mtx_initialized(&sc->sc_mtx), ("gpio mutex not initialized"));
@@ -808,13 +755,8 @@ omap_gpio_detach(device_t dev)
 	/* Disable all interrupts */
 	for (i = 0;  i < MAX_GPIO_BANKS; i++) {
 		if (sc->sc_mem_res[i] != NULL) {
-			if (omap_gpio_is_omap3(sc, i)) {
-				omap_gpio_write_4(sc, i, OMAP3_GPIO_CLEARIRQENABLE1, 0xffffffff);
-				omap_gpio_write_4(sc, i, OMAP3_GPIO_CLEARIRQENABLE2, 0xffffffff);
-			} else if (omap_gpio_is_omap4(sc, i)) {
-				omap_gpio_write_4(sc, i, OMAP4_GPIO_CLEARIRQENABLE1, 0xffffffff);
-				omap_gpio_write_4(sc, i, OMAP4_GPIO_CLEARIRQENABLE2, 0xffffffff);
-			}
+			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE1, 0xffffffff);
+			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE2, 0xffffffff);
 		}
 	}
 
@@ -828,33 +770,33 @@ omap_gpio_detach(device_t dev)
 			bus_release_resource(dev, SYS_RES_IRQ, i, sc->sc_irq_res[i]);
 	}
 
-	OMAP_GPIO_LOCK_DESTROY(sc);
+	TI_GPIO_LOCK_DESTROY(sc);
 
 	return(0);
 }
 
-static device_method_t omap_gpio_methods[] = {
-	DEVMETHOD(device_probe, omap_gpio_probe),
-	DEVMETHOD(device_attach, omap_gpio_attach),
-	DEVMETHOD(device_detach, omap_gpio_detach),
+static device_method_t ti_gpio_methods[] = {
+	DEVMETHOD(device_probe, ti_gpio_probe),
+	DEVMETHOD(device_attach, ti_gpio_attach),
+	DEVMETHOD(device_detach, ti_gpio_detach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_pin_max, omap_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname, omap_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags, omap_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps, omap_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags, omap_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get, omap_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set, omap_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle, omap_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_max, ti_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, ti_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, ti_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, ti_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, ti_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, ti_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, ti_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, ti_gpio_pin_toggle),
 	{0, 0},
 };
 
-static driver_t omap_gpio_driver = {
+static driver_t ti_gpio_driver = {
 	"gpio",
-	omap_gpio_methods,
-	sizeof(struct omap_gpio_softc),
+	ti_gpio_methods,
+	sizeof(struct ti_gpio_softc),
 };
-static devclass_t omap_gpio_devclass;
+static devclass_t ti_gpio_devclass;
 
-DRIVER_MODULE(omap_gpio, simplebus, omap_gpio_driver, omap_gpio_devclass, 0, 0);
+DRIVER_MODULE(ti_gpio, simplebus, ti_gpio_driver, ti_gpio_devclass, 0, 0);
