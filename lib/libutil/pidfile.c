@@ -124,7 +124,7 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	 * pidfile_write() can be called multiple times.
 	 */
 	fd = flopen(pfh->pf_path,
-	    O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK, mode);
+	    O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NONBLOCK, mode);
 	if (fd == -1) {
 		count = 0;
 		rqtp.tv_sec = 0;
@@ -263,6 +263,7 @@ pidfile_remove(struct pidfh *pfh)
 int
 pidfile_fileno(const struct pidfh *pfh)
 {
+
 	if (pfh == NULL || pfh->pf_fd == -1) {
 		errno = EDOOFUS;
 		return (-1);
