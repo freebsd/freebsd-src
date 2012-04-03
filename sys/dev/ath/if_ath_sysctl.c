@@ -605,6 +605,17 @@ ath_sysctlattach(struct ath_softc *sc)
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
 
+#if 0
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
+		0, "Minimum free buffers before adding a data frame"
+		" to the TX queue");
+#endif
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_mcastq_maxdepth", CTLFLAG_RW,
+		&sc->sc_txq_mcastq_maxdepth, 0,
+		"Maximum buffer depth for multicast/broadcast frames");
+
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;
@@ -885,7 +896,10 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_intr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_intr, 0, "TX interrupts");
-
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_mcastq_overflow",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tx_mcastq_overflow, 0,
+	    "Number of multicast frames exceeding maximum mcast queue depth");
+	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
 }

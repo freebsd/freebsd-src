@@ -1,4 +1,4 @@
-@c $Id: intro.texi 22509 2008-01-23 18:28:01Z lha $
+@c $Id$
 
 @node Introduction, What is Kerberos?, Top, Top
 @c @node Introduction, What is Kerberos?, Top, Top

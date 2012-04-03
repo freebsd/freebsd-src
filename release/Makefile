@@ -90,6 +90,7 @@ ports.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
 	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz \
+	    --exclude CVS --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports
 

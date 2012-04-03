@@ -189,10 +189,6 @@ struct tm *localtime(const time_t *);
 struct hostent  *gethostbyname(const char *);
 #endif
 
-#ifdef KRB4
-#include <krb.h>
-#endif
-
 #ifdef AUTHENTICATION
 #include <libtelnet/auth.h>
 #include <libtelnet/misc.h>

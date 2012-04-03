@@ -129,7 +129,7 @@ struct ext2fs {
 	uint32_t  e4fs_rbcount_hi;     /* reserved blocks count */
 	uint32_t  e4fs_fbcount_hi;     /* free blocks count */
 	uint16_t  e4fs_min_extra_isize;/* all inodes have at least some bytes */
-	uint16_t  e4fs_want_extra_isize; /* new inodes should reserve some bytes */
+	uint16_t  e4fs_want_extra_isize; /* inodes must reserve some bytes */
 	uint32_t  e4fs_flags;	  /* miscellaneous flags */
 	uint16_t  e4fs_raid_stride;    /* RAID stride */
 	uint16_t  e4fs_mmpintv;	/* number of seconds to wait in MMP checking */
@@ -214,6 +214,7 @@ struct m_ext2fs {
 #define EXT2F_ROCOMPAT_SPARSESUPER	0x0001
 #define EXT2F_ROCOMPAT_LARGEFILE	0x0002
 #define EXT2F_ROCOMPAT_BTREE_DIR	0x0004
+#define EXT4F_ROCOMPAT_EXTRA_ISIZE	0x0040
 
 #define EXT2F_INCOMPAT_COMP		0x0001
 #define EXT2F_INCOMPAT_FTYPE		0x0002
@@ -227,8 +228,9 @@ struct m_ext2fs {
  * - EXT2F_INCOMPAT_FTYPE
  */
 #define EXT2F_COMPAT_SUPP		0x0000
-#define EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER \
-					 | EXT2F_ROCOMPAT_LARGEFILE)
+#define EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
+					 EXT2F_ROCOMPAT_LARGEFILE | \
+					 EXT4F_ROCOMPAT_EXTRA_ISIZE)
 #define EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
 
 /* Assume that user mode programs are passing in an ext2fs superblock, not

@@ -133,7 +133,7 @@ void	 swab(const void * __restrict, void * __restrict, ssize_t);
 
 #endif /* __BSD_VISIBLE */
 
-#if __POSIX_VISIBLE >= 200809
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
 #include <xlocale/_string.h>
 #endif
 __END_DECLS

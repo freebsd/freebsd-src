@@ -685,6 +685,14 @@ ieee80211_setcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 	ieee80211_runtask(ic, &ic->ic_chan_task);
 }
 
+void
+ieee80211_update_chw(struct ieee80211com *ic)
+{
+
+	ieee80211_setupcurchan(ic, ic->ic_curchan);
+	ieee80211_runtask(ic, &ic->ic_chw_task);
+}
+
 /*
  * Join the specified IBSS/BSS network.  The node is assumed to
  * be passed in with a held reference.

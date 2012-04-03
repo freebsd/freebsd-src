@@ -49,7 +49,8 @@
 static u_int msgbuf_cksum(struct msgbuf *mbp);
 
 /*
- *
+ * Timestamps in msgbuf are useful when trying to diagnose when core dumps
+ * or other actions occured.
  */
 static int msgbuf_show_timestamp = 0;
 SYSCTL_INT(_kern, OID_AUTO, msgbuf_show_timestamp, CTLFLAG_RW | CTLFLAG_TUN,
@@ -143,47 +144,18 @@ msgbuf_getcount(struct msgbuf *mbp)
  *
  * The caller should hold the message buffer spinlock.
  */
-static inline void
-__msgbuf_do_addchar(struct msgbuf * const mbp, u_int * const seq, const int c)
+
+static void
+msgbuf_do_addchar(struct msgbuf * const mbp, u_int * const seq, const int c)
 {
 	u_int pos;
 
 	/* Make sure we properly wrap the sequence number. */
 	pos = MSGBUF_SEQ_TO_POS(mbp, *seq);
-
-	mbp->msg_cksum += (u_int)c -
+	mbp->msg_cksum += (u_int)(u_char)c -
 	    (u_int)(u_char)mbp->msg_ptr[pos];
-
 	mbp->msg_ptr[pos] = c;
-
 	*seq = MSGBUF_SEQNORM(mbp, *seq + 1);
-}
-
-static inline void
-msgbuf_do_addchar(struct msgbuf * const mbp, u_int * const seq, const int c)
-{
-
-	if (msgbuf_show_timestamp &&
-	    (mbp->msg_flags & MSGBUF_NEXT_NEW_LINE) != 0) {
-		char buf[32];
-		char const *bufp;
-		struct timespec ts;
-		int err;
-
-		getnanouptime(&ts);
-		err = snprintf(buf, sizeof (buf), "[%jd.%ld] ",
-		    (intmax_t)ts.tv_sec, ts.tv_nsec / 1000);
-
-		for (bufp = buf; *bufp != '\0'; bufp++)
-			__msgbuf_do_addchar(mbp, seq, *bufp);
-
-		mbp->msg_flags &= ~MSGBUF_NEXT_NEW_LINE;
-	}
-
-	__msgbuf_do_addchar(mbp, seq, c);
-
-	if (c == '\n')
-		mbp->msg_flags |= MSGBUF_NEXT_NEW_LINE;
 }
 
 /*
@@ -213,7 +185,8 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
 	u_int seq;
 	size_t len, prefix_len;
 	char prefix[MAXPRIBUF];
-	int nl, i;
+	char buf[32];
+	int nl, i, j, needtime;
 
 	len = strlen(str);
 	prefix_len = 0;
@@ -250,6 +223,7 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
 		mbp->msg_flags &= ~MSGBUF_NEEDNL;
 	}
 
+	needtime = 1;
 	for (i = 0; i < len; i++) {
 		/*
 		 * If we just had a newline, and the priority is not -1
@@ -261,6 +235,16 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
 
 			for (j = 0; j < prefix_len; j++)
 				msgbuf_do_addchar(mbp, &seq, prefix[j]);
+		}
+
+		if (msgbuf_show_timestamp && needtime == 1 &&
+		    (mbp->msg_flags & MSGBUF_NEEDNL) == 0) {
+
+			snprintf(buf, sizeof(buf), "[%jd] ",
+			    (intmax_t)time_uptime);
+			for (j = 0; buf[j] != '\0'; j++)
+				msgbuf_do_addchar(mbp, &seq, buf[j]);
+			needtime = 0;
 		}
 
 		/*

@@ -65,8 +65,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KLD_DEBUG
 int kld_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW,
-        &kld_debug, 0, "Set various levels of KLD debug");
+SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW | CTLFLAG_TUN,
+    &kld_debug, 0, "Set various levels of KLD debug");
+TUNABLE_INT("debug.kld_debug", &kld_debug);
 #endif
 
 #define	KLD_LOCK()		sx_xlock(&kld_sx)
@@ -311,7 +312,7 @@ linker_file_unregister_sysctls(linker_file_t lf)
 {
 	struct sysctl_oid **start, **stop, **oidp;
 
-	KLD_DPF(FILE, ("linker_file_unregister_sysctls: registering SYSCTLs"
+	KLD_DPF(FILE, ("linker_file_unregister_sysctls: unregistering SYSCTLs"
 	    " for %s\n", lf->filename));
 
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
@@ -637,8 +638,12 @@ linker_file_unload(linker_file_t file, int flags)
 		 * Give the module a chance to veto the unload.
 		 */
 		if ((error = module_unload(mod)) != 0) {
+#ifdef KLD_DEBUG
+			MOD_SLOCK;
 			KLD_DPF(FILE, ("linker_file_unload: module %s"
 			    " failed unload\n", module_getname(mod)));
+			MOD_SUNLOCK;
+#endif
 			return (error);
 		}
 		MOD_XLOCK;

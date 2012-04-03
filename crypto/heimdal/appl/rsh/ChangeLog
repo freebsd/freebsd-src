@@ -1,27 +1,27 @@
-2007-07-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rsh.c: Fix pointer vs strict alias rules.
 
 	* rshd.c: Fix pointer vs strict alias rules.
 
-2007-01-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* rshd.c: Declare iruserok if needed, based on bug report from
 	David Love.
 	
-2006-11-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* rsh_locl.h: Forward decl.
 	
-2006-10-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rsh_locl.h: Include "crypto-headers.h".
 	
-2006-10-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add man_MANS to EXTRA_DIST
 	
-2006-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: rshd_SOURCES += add limits_conf.c
 
@@ -38,30 +38,30 @@
 
 	* rshd.c (krb5_start_session): syslog failures to store cred cache
 	
-2005-12-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-12-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rshd.c (doit): move creation of users ticket file to later to
 	avoid seteuid/setuid dance. this breaks DCE, so remove support for
 	it completely.
 	
-2005-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rshd.c: Check return value from asprintf instead of string !=
-	NULL since it undefined behavior on Linux. From Björn Sandell
+	NULL since it undefined behavior on Linux. From BjÃ¶rn Sandell
 
 	* rsh.c: Check return value from asprintf instead of string !=
-	NULL since it undefined behavior on Linux. From Björn Sandell
+	NULL since it undefined behavior on Linux. From BjÃ¶rn Sandell
 
-2005-06-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rshd.c: init some important variables and check that they are
 	set checking authentication, all to please gcc
 
-2005-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rshd.c: case uid_t to unsigned long in printf format
 	
-2005-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rsh_locl.h: Use larger buffer for recving data to be compatible
 	with older versions of heimdal (0.4 branch specificly)
@@ -69,11 +69,11 @@
 	* rshd.c: Use larger buffer for recving data to be compatible with
 	older versions of heimdal (0.4 branch specificly)
 
-2005-04-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rshd.c: use snprintf to format tkfile
 	
-2005-04-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rsh.c: use strlcat
 
@@ -81,7 +81,7 @@
 
 	* rsh_locl.h: forward declaration for private structures
 
-2005-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rsh.c: cast size_t to unsigned long
 
@@ -119,7 +119,7 @@
 
 	* rshd.c: -P also with KRB5
 	
-2003-04-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rsh.1: replace > with \*[Gt]
 	
@@ -138,7 +138,7 @@
 
 	* rsh.c (loop): only check errsock if it's valid
 
-2003-03-18  Love  Love Hörnquist Åstrand <lha@it.su.se>
+2003-03-18  Love  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* rshd.c: do krb5_afslog when compling with afs support
 

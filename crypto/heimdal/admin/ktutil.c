@@ -1,71 +1,71 @@
 /*
- * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "ktutil_locl.h"
 #include <err.h>
 
-RCSID("$Id: ktutil.c 15585 2005-07-07 21:52:04Z lha $");
+RCSID("$Id$");
 
 static int help_flag;
 static int version_flag;
 int verbose_flag;
-char *keytab_string; 
+char *keytab_string;
 static char keytab_buf[256];
 
 static struct getargs args[] = {
-    { 
+    {
 	"version",
 	0,
 	arg_flag,
 	&version_flag,
 	NULL,
-	NULL 
-    },
-    { 
-	"help",	    
-	'h',   
-	arg_flag, 
-	&help_flag, 
-	NULL, 
 	NULL
     },
-    { 
-	"keytab",	    
-	'k',   
-	arg_string, 
-	&keytab_string, 
-	"keytab", 
-	"keytab to operate on" 
+    {
+	"help",
+	'h',
+	arg_flag,
+	&help_flag,
+	NULL,
+	NULL
+    },
+    {
+	"keytab",
+	'k',
+	arg_string,
+	&keytab_string,
+	"keytab",
+	"keytab to operate on"
     },
     {
 	"verbose",
@@ -101,7 +101,7 @@ ktutil_open_keytab(void)
     }
     if (verbose_flag)
 	fprintf (stderr, "Using keytab %s\n", keytab_string);
-	
+
     return keytab;
 }
 
@@ -118,8 +118,11 @@ help(void *opt, int argc, char **argv)
 		     argv[0]);
 	} else {
 	    if(c->func) {
-		char *fake[] = { NULL, "--help", NULL };
+		char shelp[] = "--help";
+		char *fake[3];
 		fake[0] = argv[0];
+		fake[1] = shelp;
+		fake[2] = NULL;
 		(*c->func)(2, fake);
 		fprintf(stderr, "\n");
 	    }

@@ -99,7 +99,6 @@ struct td_sched {
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
 	u_int		ts_runtime;	/* Number of ticks we were running */
 	int		ts_ltick;	/* Last tick that we were running on */
-	int		ts_incrtick;	/* Last tick that we incremented on */
 	int		ts_ftick;	/* First tick that we were running on */
 	int		ts_ticks;	/* Tick count */
 #ifdef KTR
@@ -212,7 +211,7 @@ static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_BATCH;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 16;
+static int sched_idlespinthresh = -1;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -291,7 +290,7 @@ static void sched_thread_priority(struct thread *, u_char);
 static int sched_interact_score(struct thread *);
 static void sched_interact_update(struct thread *);
 static void sched_interact_fork(struct thread *);
-static void sched_pctcpu_update(struct td_sched *);
+static void sched_pctcpu_update(struct td_sched *, int);
 
 /* Operations on per processor queues */
 static struct thread *tdq_choose(struct tdq *);
@@ -671,7 +670,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 			}
 		}
 		if (match & CPU_SEARCH_HIGHEST)
-			if (hgroup.cs_load != -1 &&
+			if (hgroup.cs_load >= 0 &&
 			    (load > hload ||
 			     (load == hload && hgroup.cs_load > high->cs_load))) {
 				hload = load;
@@ -1390,6 +1389,8 @@ sched_initticks(void *dummy)
 	steal_thresh = min(fls(mp_ncpus) - 1, 3);
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
+	if (sched_idlespinthresh < 0)
+		sched_idlespinthresh = max(16, 2 * hz / realstathz);
 }
 
 
@@ -1588,24 +1589,21 @@ sched_rr_interval(void)
  * mechanism since it happens with less regular and frequent events.
  */
 static void
-sched_pctcpu_update(struct td_sched *ts)
+sched_pctcpu_update(struct td_sched *ts, int run)
 {
+	int t = ticks;
 
-	if (ts->ts_ticks == 0)
-		return;
-	if (ticks - (hz / 10) < ts->ts_ltick &&
-	    SCHED_TICK_TOTAL(ts) < SCHED_TICK_MAX)
-		return;
-	/*
-	 * Adjust counters and watermark for pctcpu calc.
-	 */
-	if (ts->ts_ltick > ticks - SCHED_TICK_TARG)
-		ts->ts_ticks = (ts->ts_ticks / (ticks - ts->ts_ftick)) *
-			    SCHED_TICK_TARG;
-	else
+	if (t - ts->ts_ltick >= SCHED_TICK_TARG) {
 		ts->ts_ticks = 0;
-	ts->ts_ltick = ticks;
-	ts->ts_ftick = ts->ts_ltick - SCHED_TICK_TARG;
+		ts->ts_ftick = t - SCHED_TICK_TARG;
+	} else if (t - ts->ts_ftick >= SCHED_TICK_MAX) {
+		ts->ts_ticks = (ts->ts_ticks / (ts->ts_ltick - ts->ts_ftick)) *
+		    (ts->ts_ltick - (t - SCHED_TICK_TARG));
+		ts->ts_ftick = t - SCHED_TICK_TARG;
+	}
+	if (run)
+		ts->ts_ticks += (t - ts->ts_ltick) << SCHED_TICK_SHIFT;
+	ts->ts_ltick = t;
 }
 
 /*
@@ -1824,6 +1822,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	tdq = TDQ_CPU(cpuid);
 	ts = td->td_sched;
 	mtx = td->td_lock;
+	sched_pctcpu_update(ts, 1);
 	ts->ts_rltick = ticks;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
@@ -1878,6 +1877,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
 		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
+		sched_pctcpu_update(newtd->td_sched, 0);
 
 #ifdef KDTRACE_HOOKS
 		/*
@@ -1972,12 +1972,9 @@ sched_wakeup(struct thread *td)
 	slptick = td->td_slptick;
 	td->td_slptick = 0;
 	if (slptick && slptick != ticks) {
-		u_int hzticks;
-
-		hzticks = (ticks - slptick) << SCHED_TICK_SHIFT;
-		ts->ts_slptime += hzticks;
+		ts->ts_slptime += (ticks - slptick) << SCHED_TICK_SHIFT;
 		sched_interact_update(td);
-		sched_pctcpu_update(ts);
+		sched_pctcpu_update(ts, 0);
 	}
 	/* Reset the slice value after we sleep. */
 	ts->ts_slice = sched_slice;
@@ -1992,6 +1989,7 @@ void
 sched_fork(struct thread *td, struct thread *child)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	sched_pctcpu_update(td->td_sched, 1);
 	sched_fork_thread(td, child);
 	/*
 	 * Penalize the parent and child for forking.
@@ -2027,7 +2025,6 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
-	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
 	/*
 	 * Do not inherit any borrowed priority from the parent.
@@ -2184,6 +2181,7 @@ sched_clock(struct thread *td)
 			tdq->tdq_ridx = tdq->tdq_idx;
 	}
 	ts = td->td_sched;
+	sched_pctcpu_update(ts, 1);
 	if (td->td_pri_class & PRI_FIFO_BIT)
 		return;
 	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE) {
@@ -2208,31 +2206,12 @@ sched_clock(struct thread *td)
 }
 
 /*
- * Called once per hz tick.  Used for cpu utilization information.  This
- * is easier than trying to scale based on stathz.
+ * Called once per hz tick.
  */
 void
 sched_tick(int cnt)
 {
-	struct td_sched *ts;
 
-	ts = curthread->td_sched;
-	/*
-	 * Ticks is updated asynchronously on a single cpu.  Check here to
-	 * avoid incrementing ts_ticks multiple times in a single tick.
-	 */
-	if (ts->ts_incrtick == ticks)
-		return;
-	/* Adjust ticks for pctcpu */
-	ts->ts_ticks += cnt << SCHED_TICK_SHIFT;
-	ts->ts_ltick = ticks;
-	ts->ts_incrtick = ticks;
-	/*
-	 * Update if we've exceeded our desired tick threshold by over one
-	 * second.
-	 */
-	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
-		sched_pctcpu_update(ts);
 }
 
 /*
@@ -2274,7 +2253,6 @@ sched_choose(void)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	td = tdq_choose(tdq);
 	if (td) {
-		td->td_sched->ts_ltick = ticks;
 		tdq_runq_rem(tdq, td);
 		tdq->tdq_lowpri = td->td_priority;
 		return (td);
@@ -2420,10 +2398,10 @@ sched_pctcpu(struct thread *td)
 		return (0);
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	sched_pctcpu_update(ts, TD_IS_RUNNING(td));
 	if (ts->ts_ticks) {
 		int rtick;
 
-		sched_pctcpu_update(ts);
 		/* How many rtick per second ? */
 		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
@@ -2683,6 +2661,17 @@ sched_tdname(struct thread *td)
 	return (td->td_name);
 #endif
 }
+
+#ifdef KTR
+void
+sched_clear_tdname(struct thread *td)
+{
+	struct td_sched *ts;
+
+	ts = td->td_sched;
+	ts->ts_name[0] = '\0';
+}
+#endif
 
 #ifdef SMP
 

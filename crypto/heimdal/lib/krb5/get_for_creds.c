@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include <krb5_locl.h>
-
-RCSID("$Id: get_for_creds.c 22504 2008-01-21 15:49:58Z lha $");
+#include "krb5_locl.h"
 
 static krb5_error_code
 add_addrs(krb5_context context,
@@ -51,8 +49,8 @@ add_addrs(krb5_context context,
 
     tmp = realloc(addr->val, (addr->len + n) * sizeof(*addr->val));
     if (tmp == NULL && (addr->len + n) != 0) {
-	krb5_set_error_string(context, "malloc: out of memory");
 	ret = ENOMEM;
+	krb5_set_error_message(context, ret, N_("malloc: out of memory", ""));
 	goto fail;
     }
     addr->val = tmp;
@@ -72,7 +70,7 @@ add_addrs(krb5_context context,
 		addr->val[i++] = ad;
 	}
 	else if (ret == KRB5_PROG_ATYPE_NOSUPP)
-	    krb5_clear_error_string (context);
+	    krb5_clear_error_message (context);
 	else
 	    goto fail;
 	addr->len = i;
@@ -102,7 +100,7 @@ fail:
  * @ingroup krb5_credential
  */
 
-krb5_error_code KRB5_LIB_FUNCTION
+KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL
 krb5_fwd_tgt_creds (krb5_context	context,
 		    krb5_auth_context	auth_context,
 		    const char		*hostname,
@@ -129,23 +127,22 @@ krb5_fwd_tgt_creds (krb5_context	context,
 
 	if (inst != NULL &&
 	    strcmp(inst, "host") == 0 &&
-	    host != NULL && 
+	    host != NULL &&
 	    krb5_principal_get_comp_string(context, server, 2) == NULL)
 	    hostname = host;
     }
 
     client_realm = krb5_principal_get_realm(context, client);
-    
+
     memset (&creds, 0, sizeof(creds));
     creds.client = client;
 
-    ret = krb5_build_principal(context,
-			       &creds.server,
-			       strlen(client_realm),
-			       client_realm,
-			       KRB5_TGS_NAME,
-			       client_realm,
-			       NULL);
+    ret = krb5_make_principal(context,
+			      &creds.server,
+			      client_realm,
+			      KRB5_TGS_NAME,
+			      client_realm,
+			      NULL);
     if (ret)
 	return ret;
 
@@ -163,7 +160,7 @@ krb5_fwd_tgt_creds (krb5_context	context,
  * Gets tickets forwarded to hostname. If the tickets that are
  * forwarded are address-less, the forwarded tickets will also be
  * address-less.
- * 
+ *
  * If the ticket have any address, hostname will be used for figure
  * out the address to forward the ticket too. This since this might
  * use DNS, its insecure and also doesn't represent configured all
@@ -186,7 +183,7 @@ krb5_fwd_tgt_creds (krb5_context	context,
  * @ingroup krb5_credential
  */
 
-krb5_error_code KRB5_LIB_FUNCTION
+KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL
 krb5_get_forwarded_creds (krb5_context	    context,
 			  krb5_auth_context auth_context,
 			  krb5_ccache       ccache,
@@ -207,7 +204,6 @@ krb5_get_forwarded_creds (krb5_context	    context,
     krb5_kdc_flags kdc_flags;
     krb5_crypto crypto;
     struct addrinfo *ai;
-    int save_errno;
     krb5_creds *ticket;
 
     paddrs = NULL;
@@ -222,14 +218,14 @@ krb5_get_forwarded_creds (krb5_context	    context,
     } else {
 	krb5_boolean noaddr;
 	krb5_appdefault_boolean(context, NULL,
-				krb5_principal_get_realm(context, 
+				krb5_principal_get_realm(context,
 							 in_creds->client),
 				"no-addresses", KRB5_ADDRESSLESS_DEFAULT,
 				&noaddr);
 	if (!noaddr)
 	    paddrs = &addrs;
     }
-	
+
     /*
      * If tickets have addresses, get the address of the remote host.
      */
@@ -238,18 +234,20 @@ krb5_get_forwarded_creds (krb5_context	    context,
 
 	ret = getaddrinfo (hostname, NULL, NULL, &ai);
 	if (ret) {
-	    save_errno = errno;
-	    krb5_set_error_string(context, "resolving %s: %s",
+	    krb5_error_code ret2 = krb5_eai_to_heim_errno(ret, errno);
+	    krb5_set_error_message(context, ret2,
+				   N_("resolving host %s failed: %s",
+				      "hostname, error"),
 				  hostname, gai_strerror(ret));
-	    return krb5_eai_to_heim_errno(ret, save_errno);
+	    return ret2;
 	}
-	
+
 	ret = add_addrs (context, &addrs, ai);
 	freeaddrinfo (ai);
 	if (ret)
 	    return ret;
     }
-    
+
     kdc_flags.b = int2KDCOptions(flags);
 
     ret = krb5_get_kdc_cred (context,
@@ -269,7 +267,7 @@ krb5_get_forwarded_creds (krb5_context	    context,
     ALLOC_SEQ(&cred.tickets, 1);
     if (cred.tickets.val == NULL) {
 	ret = ENOMEM;
-	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_set_error_message(context, ret, N_("malloc: out of memory", ""));
 	goto out2;
     }
     ret = decode_Ticket(out_creds->ticket.data,
@@ -282,27 +280,27 @@ krb5_get_forwarded_creds (krb5_context	    context,
     ALLOC_SEQ(&enc_krb_cred_part.ticket_info, 1);
     if (enc_krb_cred_part.ticket_info.val == NULL) {
 	ret = ENOMEM;
-	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_set_error_message(context, ret, N_("malloc: out of memory", ""));
 	goto out4;
     }
-    
+
     if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_TIME) {
 	krb5_timestamp sec;
 	int32_t usec;
-	
+
 	krb5_us_timeofday (context, &sec, &usec);
-	
+
 	ALLOC(enc_krb_cred_part.timestamp, 1);
 	if (enc_krb_cred_part.timestamp == NULL) {
 	    ret = ENOMEM;
-	    krb5_set_error_string(context, "malloc: out of memory");
+	    krb5_set_error_message(context, ret, N_("malloc: out of memory", ""));
 	    goto out4;
 	}
 	*enc_krb_cred_part.timestamp = sec;
 	ALLOC(enc_krb_cred_part.usec, 1);
 	if (enc_krb_cred_part.usec == NULL) {
 	    ret = ENOMEM;
-	    krb5_set_error_string(context, "malloc: out of memory");
+	    krb5_set_error_message(context, ret, N_("malloc: out of memory", ""));
 	    goto out4;
 	}
 	*enc_krb_cred_part.usec      = usec;
@@ -346,7 +344,8 @@ krb5_get_forwarded_creds (krb5_context	    context,
 	    ALLOC(enc_krb_cred_part.r_address, 1);
 	    if (enc_krb_cred_part.r_address == NULL) {
 		ret = ENOMEM;
-		krb5_set_error_string(context, "malloc: out of memory");
+		krb5_set_error_message(context, ret,
+				       N_("malloc: out of memory", ""));
 		goto out4;
 	    }
 
@@ -389,7 +388,7 @@ krb5_get_forwarded_creds (krb5_context	    context,
 
     /* encode EncKrbCredPart */
 
-    ASN1_MALLOC_ENCODE(EncKrbCredPart, buf, buf_size, 
+    ASN1_MALLOC_ENCODE(EncKrbCredPart, buf, buf_size,
 		       &enc_krb_cred_part, &len, ret);
     free_EncKrbCredPart (&enc_krb_cred_part);
     if (ret) {
@@ -413,13 +412,13 @@ krb5_get_forwarded_creds (krb5_context	    context,
 	cred.enc_part.cipher.data = buf;
 	cred.enc_part.cipher.length = buf_size;
     } else {
-	/* 
+	/*
 	 * Here older versions then 0.7.2 of Heimdal used the local or
 	 * remote subkey. That is wrong, the session key should be
 	 * used. Heimdal 0.7.2 and newer have code to try both in the
 	 * receiving end.
 	 */
-	
+
 	ret = krb5_crypto_init(context, auth_context->keyblock, 0, &crypto);
 	if (ret) {
 	    free(buf);

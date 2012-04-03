@@ -58,28 +58,31 @@ LEAF(rtld_start)
 
 	PTR_LA	a1, 1f
 	bal	1f
-	 PTR_LA	t0, _C_LABEL(_rtld_relocate_nonplt_self)
+	PTR_LA	t0, _C_LABEL(_rtld_relocate_nonplt_self)
 1:	PTR_SUBU a1, ra, a1		/* relocbase */
 	PTR_LA	a0, _DYNAMIC
 	PTR_ADDU t9, a1, t0
 	jalr	t9			/* _rtld_relocate_nonplt_self(dynp, relocabase) */
-	 PTR_ADDU a0, a1, a0		/* &_DYNAMIC */
+	PTR_ADDU a0, a1, a0		/* &_DYNAMIC */
 
 	move	a0, s0			/* sp */
 	PTR_ADDU a1, sp, 2*PTR_SIZE	/* &our atexit function */
 	PTR_ADDU a2, sp, 3*PTR_SIZE	/* obj_main entry */
+	PTR_SUBU sp, 4*SZREG		/* ABI requires to reserve memory for 4 regs */
 	PTR_LA	t9, _C_LABEL(_rtld)
 	jalr	t9			/* v0 = _rtld(sp, cleanup, objp) */
-	 nop
+	nop
+	PTR_ADDU sp, 4*SZREG
 
 	PTR_L	a1, 2*PTR_SIZE(sp)	/* our atexit function */
 	PTR_L	a2, 3*PTR_SIZE(sp)	/* obj_main entry */
 	PTR_ADDU sp, 4*PTR_SIZE		/* readjust stack */
 	move	a0, s0			/* stack pointer */
 	move	t9, v0
-	jr	t9			/* _start(sp, cleanup, obj); */
-	 move	a3, s3			/* restore ps_strings */
-
+	PTR_SUBU sp, 4*SZREG		/* ABI requires to reserve memory for 4 regs */
+	move	ra,t9			/* RA == PC signals backtrace routine to stop */
+	j	t9			/* _start(sp, cleanup, obj); */
+	move	a3, s3			/* restore ps_strings */
 END(rtld_start)
 
 #define	XCALLFRAME_SIZ		(12*SZREG)
@@ -140,7 +143,7 @@ _rtld_bind_start:
 
 	PTR_LA	t9, _C_LABEL(_mips_rtld_bind)
 	jalr	t9
-	 nop
+	nop
 
 	move	sp, s0
 	REG_L	ra, XCALLFRAME_RA(sp)
@@ -159,5 +162,5 @@ _rtld_bind_start:
 	PTR_ADDU sp, XCALLFRAME_SIZ
 	move	t9, v0
 	jr	t9
-	 nop
+	nop
 END(_rtld_bind_start)

@@ -21,7 +21,7 @@
 #include <locale.h>
 #if _WIN32
 # include <support/win32/locale_win32.h>
-#elif (__GLIBC__ || __APPLE__ || __FreeBSD__)
+#elif (__GLIBC__ || __APPLE__ || __FreeBSD__ || __sun__)
 # include <xlocale.h>
 #endif  // _WIN32 || __GLIBC__ || __APPLE__ || __FreeBSD_
 
@@ -240,7 +240,7 @@ collate<_CharT>::do_hash(const char_type* __lo, const char_type* __hi) const
     const size_t __mask = size_t(0xF) << (__sr + 4);
     for(const char_type* __p = __lo; __p != __hi; ++__p)
     {
-        __h = (__h << 4) + *__p;
+        __h = (__h << 4) + static_cast<size_t>(*__p);
         size_t __g = __h & __mask;
         __h ^= __g | (__g >> __sr);
     }
@@ -348,7 +348,19 @@ public:
     static const mask punct  = _CTYPE_P;
     static const mask xdigit = _CTYPE_X;
     static const mask blank  = _CTYPE_B;
-#else  // __GLIBC__ || _WIN32 || __APPLE__ || __FreeBSD__
+#elif __sun__
+    typedef unsigned int mask;
+    static const mask space  = _ISSPACE;
+    static const mask print  = _ISPRINT;
+    static const mask cntrl  = _ISCNTRL;
+    static const mask upper  = _ISUPPER;
+    static const mask lower  = _ISLOWER;
+    static const mask alpha  = _ISALPHA;
+    static const mask digit  = _ISDIGIT;
+    static const mask punct  = _ISPUNCT;
+    static const mask xdigit = _ISXDIGIT;
+    static const mask blank  = _ISBLANK;
+#else  // __GLIBC__ || _WIN32 || __APPLE__ || __FreeBSD__ || __sun__
     typedef unsigned long mask;
     static const mask space  = 1<<0;
     static const mask print  = 1<<1;
@@ -485,14 +497,14 @@ public:
     _LIBCPP_ALWAYS_INLINE
     bool is(mask __m, char_type __c) const
     {
-        return isascii(__c) ? __tab_[__c] & __m : false;
+        return isascii(__c) ? __tab_[static_cast<int>(__c)] & __m : false;
     }
 
     _LIBCPP_ALWAYS_INLINE
     const char_type* is(const char_type* __low, const char_type* __high, mask* __vec) const
     {
         for (; __low != __high; ++__low, ++__vec)
-            *__vec = isascii(*__low) ? __tab_[*__low] : 0;
+            *__vec = isascii(*__low) ? __tab_[static_cast<int>(*__low)] : 0;
         return __low;
     }
 
@@ -500,7 +512,7 @@ public:
     const char_type* scan_is (mask __m, const char_type* __low, const char_type* __high) const
     {
         for (; __low != __high; ++__low)
-            if (isascii(*__low) && (__tab_[*__low] & __m))
+            if (isascii(*__low) && (__tab_[static_cast<int>(*__low)] & __m))
                 break;
         return __low;
     }
@@ -509,7 +521,7 @@ public:
     const char_type* scan_not(mask __m, const char_type* __low, const char_type* __high) const
     {
         for (; __low != __high; ++__low)
-            if (!(isascii(*__low) && (__tab_[*__low] & __m)))
+            if (!(isascii(*__low) && (__tab_[static_cast<int>(*__low)] & __m)))
                 break;
         return __low;
     }
@@ -1123,7 +1135,7 @@ extern template class codecvt_byname<char32_t, char, mbstate_t>;
 
 _LIBCPP_VISIBLE void __throw_runtime_error(const char*);
 
-template <size_t _N>
+template <size_t _Np>
 struct __narrow_to_utf8
 {
     template <class _OutputIterator, class _CharT>
@@ -1213,7 +1225,7 @@ struct __narrow_to_utf8<32>
     }
 };
 
-template <size_t _N>
+template <size_t _Np>
 struct __widen_from_utf8
 {
     template <class _OutputIterator>

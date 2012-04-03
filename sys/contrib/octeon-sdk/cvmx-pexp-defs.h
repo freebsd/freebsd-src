@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -1152,7 +1152,7 @@ static inline uint64_t CVMX_PEXP_NPEI_WINDOW_CTL_FUNC(void)
 #define CVMX_PEXP_SLI_BIST_STATUS CVMX_PEXP_SLI_BIST_STATUS_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_BIST_STATUS_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_BIST_STATUS not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010580ull);
 }
@@ -1163,18 +1163,22 @@ static inline uint64_t CVMX_PEXP_SLI_BIST_STATUS_FUNC(void)
 static inline uint64_t CVMX_PEXP_SLI_CTL_PORTX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_PEXP_SLI_CTL_PORTX(%lu) is invalid on this chip\n", offset);
-	return CVMX_ADD_IO_SEG(0x00011F0000010050ull) + ((offset) & 1) * 16;
+	return CVMX_ADD_IO_SEG(0x00011F0000010050ull) + ((offset) & 3) * 16;
 }
 #else
-#define CVMX_PEXP_SLI_CTL_PORTX(offset) (CVMX_ADD_IO_SEG(0x00011F0000010050ull) + ((offset) & 1) * 16)
+#define CVMX_PEXP_SLI_CTL_PORTX(offset) (CVMX_ADD_IO_SEG(0x00011F0000010050ull) + ((offset) & 3) * 16)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_PEXP_SLI_CTL_STATUS CVMX_PEXP_SLI_CTL_STATUS_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_CTL_STATUS_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_CTL_STATUS not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010570ull);
 }
@@ -1185,7 +1189,7 @@ static inline uint64_t CVMX_PEXP_SLI_CTL_STATUS_FUNC(void)
 #define CVMX_PEXP_SLI_DATA_OUT_CNT CVMX_PEXP_SLI_DATA_OUT_CNT_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_DATA_OUT_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_DATA_OUT_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000105F0ull);
 }
@@ -1196,7 +1200,7 @@ static inline uint64_t CVMX_PEXP_SLI_DATA_OUT_CNT_FUNC(void)
 #define CVMX_PEXP_SLI_DBG_DATA CVMX_PEXP_SLI_DBG_DATA_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_DBG_DATA_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_DBG_DATA not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010310ull);
 }
@@ -1207,7 +1211,7 @@ static inline uint64_t CVMX_PEXP_SLI_DBG_DATA_FUNC(void)
 #define CVMX_PEXP_SLI_DBG_SELECT CVMX_PEXP_SLI_DBG_SELECT_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_DBG_SELECT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_DBG_SELECT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010300ull);
 }
@@ -1218,7 +1222,11 @@ static inline uint64_t CVMX_PEXP_SLI_DBG_SELECT_FUNC(void)
 static inline uint64_t CVMX_PEXP_SLI_DMAX_CNT(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_PEXP_SLI_DMAX_CNT(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000010400ull) + ((offset) & 1) * 16;
 }
@@ -1229,7 +1237,11 @@ static inline uint64_t CVMX_PEXP_SLI_DMAX_CNT(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_DMAX_INT_LEVEL(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_PEXP_SLI_DMAX_INT_LEVEL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F00000103E0ull) + ((offset) & 1) * 16;
 }
@@ -1240,7 +1252,11 @@ static inline uint64_t CVMX_PEXP_SLI_DMAX_INT_LEVEL(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_DMAX_TIM(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_PEXP_SLI_DMAX_TIM(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000010420ull) + ((offset) & 1) * 16;
 }
@@ -1251,7 +1267,7 @@ static inline uint64_t CVMX_PEXP_SLI_DMAX_TIM(unsigned long offset)
 #define CVMX_PEXP_SLI_INT_ENB_CIU CVMX_PEXP_SLI_INT_ENB_CIU_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_INT_ENB_CIU_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_INT_ENB_CIU not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013CD0ull);
 }
@@ -1262,7 +1278,11 @@ static inline uint64_t CVMX_PEXP_SLI_INT_ENB_CIU_FUNC(void)
 static inline uint64_t CVMX_PEXP_SLI_INT_ENB_PORTX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_PEXP_SLI_INT_ENB_PORTX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000010340ull) + ((offset) & 1) * 16;
 }
@@ -1273,7 +1293,7 @@ static inline uint64_t CVMX_PEXP_SLI_INT_ENB_PORTX(unsigned long offset)
 #define CVMX_PEXP_SLI_INT_SUM CVMX_PEXP_SLI_INT_SUM_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_INT_SUM_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_INT_SUM not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010330ull);
 }
@@ -1284,7 +1304,7 @@ static inline uint64_t CVMX_PEXP_SLI_INT_SUM_FUNC(void)
 #define CVMX_PEXP_SLI_LAST_WIN_RDATA0 CVMX_PEXP_SLI_LAST_WIN_RDATA0_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_LAST_WIN_RDATA0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_LAST_WIN_RDATA0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010600ull);
 }
@@ -1295,7 +1315,7 @@ static inline uint64_t CVMX_PEXP_SLI_LAST_WIN_RDATA0_FUNC(void)
 #define CVMX_PEXP_SLI_LAST_WIN_RDATA1 CVMX_PEXP_SLI_LAST_WIN_RDATA1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_LAST_WIN_RDATA1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_LAST_WIN_RDATA1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010610ull);
 }
@@ -1303,10 +1323,32 @@ static inline uint64_t CVMX_PEXP_SLI_LAST_WIN_RDATA1_FUNC(void)
 #define CVMX_PEXP_SLI_LAST_WIN_RDATA1 (CVMX_ADD_IO_SEG(0x00011F0000010610ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_PEXP_SLI_LAST_WIN_RDATA2 CVMX_PEXP_SLI_LAST_WIN_RDATA2_FUNC()
+static inline uint64_t CVMX_PEXP_SLI_LAST_WIN_RDATA2_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_PEXP_SLI_LAST_WIN_RDATA2 not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x00011F00000106C0ull);
+}
+#else
+#define CVMX_PEXP_SLI_LAST_WIN_RDATA2 (CVMX_ADD_IO_SEG(0x00011F00000106C0ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_PEXP_SLI_LAST_WIN_RDATA3 CVMX_PEXP_SLI_LAST_WIN_RDATA3_FUNC()
+static inline uint64_t CVMX_PEXP_SLI_LAST_WIN_RDATA3_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_PEXP_SLI_LAST_WIN_RDATA3 not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x00011F00000106D0ull);
+}
+#else
+#define CVMX_PEXP_SLI_LAST_WIN_RDATA3 (CVMX_ADD_IO_SEG(0x00011F00000106D0ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_PEXP_SLI_MAC_CREDIT_CNT CVMX_PEXP_SLI_MAC_CREDIT_CNT_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MAC_CREDIT_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MAC_CREDIT_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D70ull);
 }
@@ -1314,10 +1356,21 @@ static inline uint64_t CVMX_PEXP_SLI_MAC_CREDIT_CNT_FUNC(void)
 #define CVMX_PEXP_SLI_MAC_CREDIT_CNT (CVMX_ADD_IO_SEG(0x00011F0000013D70ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_PEXP_SLI_MAC_CREDIT_CNT2 CVMX_PEXP_SLI_MAC_CREDIT_CNT2_FUNC()
+static inline uint64_t CVMX_PEXP_SLI_MAC_CREDIT_CNT2_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
+		cvmx_warn("CVMX_PEXP_SLI_MAC_CREDIT_CNT2 not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x00011F0000013E10ull);
+}
+#else
+#define CVMX_PEXP_SLI_MAC_CREDIT_CNT2 (CVMX_ADD_IO_SEG(0x00011F0000013E10ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_PEXP_SLI_MEM_ACCESS_CTL CVMX_PEXP_SLI_MEM_ACCESS_CTL_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MEM_ACCESS_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MEM_ACCESS_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000102F0ull);
 }
@@ -1328,7 +1381,11 @@ static inline uint64_t CVMX_PEXP_SLI_MEM_ACCESS_CTL_FUNC(void)
 static inline uint64_t CVMX_PEXP_SLI_MEM_ACCESS_SUBIDX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset >= 12) && (offset <= 27))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && (((offset >= 12) && (offset <= 27)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset >= 12) && (offset <= 27)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset >= 12) && (offset <= 27)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && (((offset >= 12) && (offset <= 27)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && (((offset >= 12) && (offset <= 27))))))
 		cvmx_warn("CVMX_PEXP_SLI_MEM_ACCESS_SUBIDX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F00000100E0ull) + ((offset) & 31) * 16 - 16*12;
 }
@@ -1339,7 +1396,7 @@ static inline uint64_t CVMX_PEXP_SLI_MEM_ACCESS_SUBIDX(unsigned long offset)
 #define CVMX_PEXP_SLI_MSI_ENB0 CVMX_PEXP_SLI_MSI_ENB0_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_ENB0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_ENB0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C50ull);
 }
@@ -1350,7 +1407,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_ENB0_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_ENB1 CVMX_PEXP_SLI_MSI_ENB1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_ENB1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_ENB1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C60ull);
 }
@@ -1361,7 +1418,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_ENB1_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_ENB2 CVMX_PEXP_SLI_MSI_ENB2_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_ENB2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_ENB2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C70ull);
 }
@@ -1372,7 +1429,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_ENB2_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_ENB3 CVMX_PEXP_SLI_MSI_ENB3_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_ENB3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_ENB3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C80ull);
 }
@@ -1383,7 +1440,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_ENB3_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_RCV0 CVMX_PEXP_SLI_MSI_RCV0_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_RCV0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_RCV0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C10ull);
 }
@@ -1394,7 +1451,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_RCV0_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_RCV1 CVMX_PEXP_SLI_MSI_RCV1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_RCV1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_RCV1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C20ull);
 }
@@ -1405,7 +1462,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_RCV1_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_RCV2 CVMX_PEXP_SLI_MSI_RCV2_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_RCV2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_RCV2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C30ull);
 }
@@ -1416,7 +1473,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_RCV2_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_RCV3 CVMX_PEXP_SLI_MSI_RCV3_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_RCV3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_RCV3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C40ull);
 }
@@ -1427,7 +1484,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_RCV3_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_RD_MAP CVMX_PEXP_SLI_MSI_RD_MAP_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_RD_MAP_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_RD_MAP not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013CA0ull);
 }
@@ -1438,7 +1495,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_RD_MAP_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1C_ENB0 CVMX_PEXP_SLI_MSI_W1C_ENB0_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1C_ENB0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013CF0ull);
 }
@@ -1449,7 +1506,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB0_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1C_ENB1 CVMX_PEXP_SLI_MSI_W1C_ENB1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1C_ENB1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D00ull);
 }
@@ -1460,7 +1517,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB1_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1C_ENB2 CVMX_PEXP_SLI_MSI_W1C_ENB2_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1C_ENB2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D10ull);
 }
@@ -1471,7 +1528,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB2_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1C_ENB3 CVMX_PEXP_SLI_MSI_W1C_ENB3_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1C_ENB3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D20ull);
 }
@@ -1482,7 +1539,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1C_ENB3_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1S_ENB0 CVMX_PEXP_SLI_MSI_W1S_ENB0_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1S_ENB0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D30ull);
 }
@@ -1493,7 +1550,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB0_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1S_ENB1 CVMX_PEXP_SLI_MSI_W1S_ENB1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1S_ENB1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D40ull);
 }
@@ -1504,7 +1561,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB1_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1S_ENB2 CVMX_PEXP_SLI_MSI_W1S_ENB2_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1S_ENB2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D50ull);
 }
@@ -1515,7 +1572,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB2_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_W1S_ENB3 CVMX_PEXP_SLI_MSI_W1S_ENB3_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_W1S_ENB3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013D60ull);
 }
@@ -1526,7 +1583,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_W1S_ENB3_FUNC(void)
 #define CVMX_PEXP_SLI_MSI_WR_MAP CVMX_PEXP_SLI_MSI_WR_MAP_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_MSI_WR_MAP_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_MSI_WR_MAP not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013C90ull);
 }
@@ -1537,7 +1594,7 @@ static inline uint64_t CVMX_PEXP_SLI_MSI_WR_MAP_FUNC(void)
 #define CVMX_PEXP_SLI_PCIE_MSI_RCV CVMX_PEXP_SLI_PCIE_MSI_RCV_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PCIE_MSI_RCV not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000013CB0ull);
 }
@@ -1548,7 +1605,7 @@ static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_FUNC(void)
 #define CVMX_PEXP_SLI_PCIE_MSI_RCV_B1 CVMX_PEXP_SLI_PCIE_MSI_RCV_B1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_B1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PCIE_MSI_RCV_B1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010650ull);
 }
@@ -1559,7 +1616,7 @@ static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_B1_FUNC(void)
 #define CVMX_PEXP_SLI_PCIE_MSI_RCV_B2 CVMX_PEXP_SLI_PCIE_MSI_RCV_B2_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_B2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PCIE_MSI_RCV_B2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010660ull);
 }
@@ -1570,7 +1627,7 @@ static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_B2_FUNC(void)
 #define CVMX_PEXP_SLI_PCIE_MSI_RCV_B3 CVMX_PEXP_SLI_PCIE_MSI_RCV_B3_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_B3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PCIE_MSI_RCV_B3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010670ull);
 }
@@ -1581,7 +1638,11 @@ static inline uint64_t CVMX_PEXP_SLI_PCIE_MSI_RCV_B3_FUNC(void)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_CNTS(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_CNTS(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000012400ull) + ((offset) & 31) * 16;
 }
@@ -1592,7 +1653,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_CNTS(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_BADDR(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_INSTR_BADDR(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000012800ull) + ((offset) & 31) * 16;
 }
@@ -1603,7 +1668,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_BADDR(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_BAOFF_DBELL(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_INSTR_BAOFF_DBELL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000012C00ull) + ((offset) & 31) * 16;
 }
@@ -1614,7 +1683,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_BAOFF_DBELL(unsigned long offset
 static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_FIFO_RSIZE(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_INSTR_FIFO_RSIZE(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000013000ull) + ((offset) & 31) * 16;
 }
@@ -1625,7 +1698,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_FIFO_RSIZE(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_HEADER(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_INSTR_HEADER(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000013400ull) + ((offset) & 31) * 16;
 }
@@ -1636,7 +1713,10 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_INSTR_HEADER(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_IN_BP(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_IN_BP(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000013800ull) + ((offset) & 31) * 16;
 }
@@ -1647,7 +1727,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_IN_BP(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_OUT_SIZE(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_OUT_SIZE(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000010C00ull) + ((offset) & 31) * 16;
 }
@@ -1658,7 +1742,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_OUT_SIZE(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_SLIST_BADDR(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_SLIST_BADDR(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000011400ull) + ((offset) & 31) * 16;
 }
@@ -1669,7 +1757,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_SLIST_BADDR(unsigned long offset)
 static inline uint64_t CVMX_PEXP_SLI_PKTX_SLIST_BAOFF_DBELL(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_SLIST_BAOFF_DBELL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000011800ull) + ((offset) & 31) * 16;
 }
@@ -1680,7 +1772,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_SLIST_BAOFF_DBELL(unsigned long offset
 static inline uint64_t CVMX_PEXP_SLI_PKTX_SLIST_FIFO_RSIZE(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKTX_SLIST_FIFO_RSIZE(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000011C00ull) + ((offset) & 31) * 16;
 }
@@ -1691,7 +1787,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKTX_SLIST_FIFO_RSIZE(unsigned long offset)
 #define CVMX_PEXP_SLI_PKT_CNT_INT CVMX_PEXP_SLI_PKT_CNT_INT_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_CNT_INT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_CNT_INT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011130ull);
 }
@@ -1702,7 +1798,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_CNT_INT_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_CNT_INT_ENB CVMX_PEXP_SLI_PKT_CNT_INT_ENB_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_CNT_INT_ENB_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_CNT_INT_ENB not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011150ull);
 }
@@ -1713,7 +1809,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_CNT_INT_ENB_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_CTL CVMX_PEXP_SLI_PKT_CTL_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011220ull);
 }
@@ -1724,7 +1820,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_CTL_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_DATA_OUT_ES CVMX_PEXP_SLI_PKT_DATA_OUT_ES_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_DATA_OUT_ES_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_DATA_OUT_ES not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000110B0ull);
 }
@@ -1735,7 +1831,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_DATA_OUT_ES_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_DATA_OUT_NS CVMX_PEXP_SLI_PKT_DATA_OUT_NS_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_DATA_OUT_NS_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_DATA_OUT_NS not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000110A0ull);
 }
@@ -1746,7 +1842,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_DATA_OUT_NS_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_DATA_OUT_ROR CVMX_PEXP_SLI_PKT_DATA_OUT_ROR_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_DATA_OUT_ROR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_DATA_OUT_ROR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011090ull);
 }
@@ -1757,7 +1853,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_DATA_OUT_ROR_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_DPADDR CVMX_PEXP_SLI_PKT_DPADDR_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_DPADDR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_DPADDR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011080ull);
 }
@@ -1768,7 +1864,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_DPADDR_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_INPUT_CONTROL CVMX_PEXP_SLI_PKT_INPUT_CONTROL_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_INPUT_CONTROL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_INPUT_CONTROL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011170ull);
 }
@@ -1779,7 +1875,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_INPUT_CONTROL_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_INSTR_ENB CVMX_PEXP_SLI_PKT_INSTR_ENB_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_INSTR_ENB_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_INSTR_ENB not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011000ull);
 }
@@ -1790,7 +1886,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_INSTR_ENB_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_INSTR_RD_SIZE CVMX_PEXP_SLI_PKT_INSTR_RD_SIZE_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_INSTR_RD_SIZE_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_INSTR_RD_SIZE not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000111A0ull);
 }
@@ -1801,7 +1897,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_INSTR_RD_SIZE_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_INSTR_SIZE CVMX_PEXP_SLI_PKT_INSTR_SIZE_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_INSTR_SIZE_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_INSTR_SIZE not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011020ull);
 }
@@ -1812,7 +1908,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_INSTR_SIZE_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_INT_LEVELS CVMX_PEXP_SLI_PKT_INT_LEVELS_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_INT_LEVELS_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_INT_LEVELS not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011120ull);
 }
@@ -1823,7 +1919,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_INT_LEVELS_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_IN_BP CVMX_PEXP_SLI_PKT_IN_BP_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_IN_BP_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_IN_BP not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011210ull);
 }
@@ -1834,7 +1930,11 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_IN_BP_FUNC(void)
 static inline uint64_t CVMX_PEXP_SLI_PKT_IN_DONEX_CNTS(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 31)))))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_IN_DONEX_CNTS(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011F0000012000ull) + ((offset) & 31) * 16;
 }
@@ -1845,7 +1945,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_IN_DONEX_CNTS(unsigned long offset)
 #define CVMX_PEXP_SLI_PKT_IN_INSTR_COUNTS CVMX_PEXP_SLI_PKT_IN_INSTR_COUNTS_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_IN_INSTR_COUNTS_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_IN_INSTR_COUNTS not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011200ull);
 }
@@ -1856,7 +1956,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_IN_INSTR_COUNTS_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_IN_PCIE_PORT CVMX_PEXP_SLI_PKT_IN_PCIE_PORT_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_IN_PCIE_PORT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_IN_PCIE_PORT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000111B0ull);
 }
@@ -1867,7 +1967,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_IN_PCIE_PORT_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_IPTR CVMX_PEXP_SLI_PKT_IPTR_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_IPTR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_IPTR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011070ull);
 }
@@ -1878,7 +1978,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_IPTR_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_OUTPUT_WMARK CVMX_PEXP_SLI_PKT_OUTPUT_WMARK_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_OUTPUT_WMARK_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_OUTPUT_WMARK not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011180ull);
 }
@@ -1889,7 +1989,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_OUTPUT_WMARK_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_OUT_BMODE CVMX_PEXP_SLI_PKT_OUT_BMODE_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_OUT_BMODE_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_OUT_BMODE not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000110D0ull);
 }
@@ -1897,10 +1997,21 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_OUT_BMODE_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_OUT_BMODE (CVMX_ADD_IO_SEG(0x00011F00000110D0ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_PEXP_SLI_PKT_OUT_BP_EN CVMX_PEXP_SLI_PKT_OUT_BP_EN_FUNC()
+static inline uint64_t CVMX_PEXP_SLI_PKT_OUT_BP_EN_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN68XX)))
+		cvmx_warn("CVMX_PEXP_SLI_PKT_OUT_BP_EN not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x00011F0000011240ull);
+}
+#else
+#define CVMX_PEXP_SLI_PKT_OUT_BP_EN (CVMX_ADD_IO_SEG(0x00011F0000011240ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_PEXP_SLI_PKT_OUT_ENB CVMX_PEXP_SLI_PKT_OUT_ENB_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_OUT_ENB_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_OUT_ENB not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011010ull);
 }
@@ -1911,7 +2022,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_OUT_ENB_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_PCIE_PORT CVMX_PEXP_SLI_PKT_PCIE_PORT_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_PCIE_PORT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_PCIE_PORT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000110E0ull);
 }
@@ -1922,7 +2033,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_PCIE_PORT_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_PORT_IN_RST CVMX_PEXP_SLI_PKT_PORT_IN_RST_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_PORT_IN_RST_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_PORT_IN_RST not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000111F0ull);
 }
@@ -1933,7 +2044,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_PORT_IN_RST_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_SLIST_ES CVMX_PEXP_SLI_PKT_SLIST_ES_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_SLIST_ES_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_SLIST_ES not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011050ull);
 }
@@ -1944,7 +2055,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_SLIST_ES_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_SLIST_NS CVMX_PEXP_SLI_PKT_SLIST_NS_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_SLIST_NS_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_SLIST_NS not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011040ull);
 }
@@ -1955,7 +2066,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_SLIST_NS_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_SLIST_ROR CVMX_PEXP_SLI_PKT_SLIST_ROR_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_SLIST_ROR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_SLIST_ROR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011030ull);
 }
@@ -1966,7 +2077,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_SLIST_ROR_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_TIME_INT CVMX_PEXP_SLI_PKT_TIME_INT_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_TIME_INT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_TIME_INT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011140ull);
 }
@@ -1977,7 +2088,7 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_TIME_INT_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_TIME_INT_ENB CVMX_PEXP_SLI_PKT_TIME_INT_ENB_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_PKT_TIME_INT_ENB_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_PKT_TIME_INT_ENB not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000011160ull);
 }
@@ -1985,21 +2096,36 @@ static inline uint64_t CVMX_PEXP_SLI_PKT_TIME_INT_ENB_FUNC(void)
 #define CVMX_PEXP_SLI_PKT_TIME_INT_ENB (CVMX_ADD_IO_SEG(0x00011F0000011160ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+static inline uint64_t CVMX_PEXP_SLI_PORTX_PKIND(unsigned long offset)
+{
+	if (!(
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 31)))))
+		cvmx_warn("CVMX_PEXP_SLI_PORTX_PKIND(%lu) is invalid on this chip\n", offset);
+	return CVMX_ADD_IO_SEG(0x00011F0000010800ull) + ((offset) & 31) * 16;
+}
+#else
+#define CVMX_PEXP_SLI_PORTX_PKIND(offset) (CVMX_ADD_IO_SEG(0x00011F0000010800ull) + ((offset) & 31) * 16)
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PEXP_SLI_S2M_PORTX_CTL(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_PEXP_SLI_S2M_PORTX_CTL(%lu) is invalid on this chip\n", offset);
-	return CVMX_ADD_IO_SEG(0x00011F0000013D80ull) + ((offset) & 1) * 16;
+	return CVMX_ADD_IO_SEG(0x00011F0000013D80ull) + ((offset) & 3) * 16;
 }
 #else
-#define CVMX_PEXP_SLI_S2M_PORTX_CTL(offset) (CVMX_ADD_IO_SEG(0x00011F0000013D80ull) + ((offset) & 1) * 16)
+#define CVMX_PEXP_SLI_S2M_PORTX_CTL(offset) (CVMX_ADD_IO_SEG(0x00011F0000013D80ull) + ((offset) & 3) * 16)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_PEXP_SLI_SCRATCH_1 CVMX_PEXP_SLI_SCRATCH_1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_SCRATCH_1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_SCRATCH_1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000103C0ull);
 }
@@ -2010,7 +2136,7 @@ static inline uint64_t CVMX_PEXP_SLI_SCRATCH_1_FUNC(void)
 #define CVMX_PEXP_SLI_SCRATCH_2 CVMX_PEXP_SLI_SCRATCH_2_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_SCRATCH_2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_SCRATCH_2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000103D0ull);
 }
@@ -2021,7 +2147,7 @@ static inline uint64_t CVMX_PEXP_SLI_SCRATCH_2_FUNC(void)
 #define CVMX_PEXP_SLI_STATE1 CVMX_PEXP_SLI_STATE1_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_STATE1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_STATE1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010620ull);
 }
@@ -2032,7 +2158,7 @@ static inline uint64_t CVMX_PEXP_SLI_STATE1_FUNC(void)
 #define CVMX_PEXP_SLI_STATE2 CVMX_PEXP_SLI_STATE2_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_STATE2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_STATE2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010630ull);
 }
@@ -2043,7 +2169,7 @@ static inline uint64_t CVMX_PEXP_SLI_STATE2_FUNC(void)
 #define CVMX_PEXP_SLI_STATE3 CVMX_PEXP_SLI_STATE3_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_STATE3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_STATE3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F0000010640ull);
 }
@@ -2051,10 +2177,21 @@ static inline uint64_t CVMX_PEXP_SLI_STATE3_FUNC(void)
 #define CVMX_PEXP_SLI_STATE3 (CVMX_ADD_IO_SEG(0x00011F0000010640ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+#define CVMX_PEXP_SLI_TX_PIPE CVMX_PEXP_SLI_TX_PIPE_FUNC()
+static inline uint64_t CVMX_PEXP_SLI_TX_PIPE_FUNC(void)
+{
+	if (!(OCTEON_IS_MODEL(OCTEON_CN68XX)))
+		cvmx_warn("CVMX_PEXP_SLI_TX_PIPE not supported on this chip\n");
+	return CVMX_ADD_IO_SEG(0x00011F0000011230ull);
+}
+#else
+#define CVMX_PEXP_SLI_TX_PIPE (CVMX_ADD_IO_SEG(0x00011F0000011230ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_PEXP_SLI_WINDOW_CTL CVMX_PEXP_SLI_WINDOW_CTL_FUNC()
 static inline uint64_t CVMX_PEXP_SLI_WINDOW_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)))
 		cvmx_warn("CVMX_PEXP_SLI_WINDOW_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011F00000102E0ull);
 }

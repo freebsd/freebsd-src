@@ -1489,14 +1489,13 @@ static const struct avr32dci_config_desc avr32dci_confd = {
 	},
 };
 
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
+
 static const struct usb_hub_descriptor_min avr32dci_hubd = {
 	.bDescLength = sizeof(avr32dci_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
-	.wHubCharacteristics[0] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
-	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 8,
+	HSETW(.wHubCharacteristics, (UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL)),
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_ASX0_TYPEDEFS_H__
-#define __CVMX_ASX0_TYPEDEFS_H__
+#ifndef __CVMX_ASX0_DEFS_H__
+#define __CVMX_ASX0_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_ASX0_DBG_DATA_DRV CVMX_ASX0_DBG_DATA_DRV_FUNC()
@@ -81,12 +81,10 @@ static inline uint64_t CVMX_ASX0_DBG_DATA_ENABLE_FUNC(void)
  * ASX_DBG_DATA_DRV
  *
  */
-union cvmx_asx0_dbg_data_drv
-{
+union cvmx_asx0_dbg_data_drv {
 	uint64_t u64;
-	struct cvmx_asx0_dbg_data_drv_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asx0_dbg_data_drv_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t pctl                         : 5;  /**< These bits control the driving strength of the dbg
                                                          interface. */
@@ -98,9 +96,8 @@ union cvmx_asx0_dbg_data_drv
 	uint64_t reserved_9_63                : 55;
 #endif
 	} s;
-	struct cvmx_asx0_dbg_data_drv_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asx0_dbg_data_drv_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t pctl                         : 4;  /**< These bits control the driving strength of the dbg
                                                          interface. */
@@ -124,12 +121,10 @@ typedef union cvmx_asx0_dbg_data_drv cvmx_asx0_dbg_data_drv_t;
  * ASX_DBG_DATA_ENABLE
  *
  */
-union cvmx_asx0_dbg_data_enable
-{
+union cvmx_asx0_dbg_data_enable {
 	uint64_t u64;
-	struct cvmx_asx0_dbg_data_enable_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asx0_dbg_data_enable_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t en                           : 1;  /**< A 1->0 transistion, turns the dbg interface OFF. */
 #else

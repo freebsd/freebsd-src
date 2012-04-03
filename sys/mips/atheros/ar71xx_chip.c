@@ -136,6 +136,46 @@ ar71xx_chip_device_stopped(uint32_t mask)
 	return ((reg & mask) == mask);
 }
 
+static void
+ar71xx_chip_set_mii_speed(uint32_t unit, uint32_t speed)
+{
+	uint32_t val, reg, ctrl;
+
+	switch (unit) {
+	case 0:
+		reg = AR71XX_MII0_CTRL;
+		break;
+	case 1:
+		reg = AR71XX_MII1_CTRL;
+		break;
+	default:
+		printf("%s: invalid MII unit set for arge unit: %d\n",
+		    __func__, unit);
+		return;
+	}
+
+	switch (speed) {
+	case 10:
+		ctrl = MII_CTRL_SPEED_10;
+		break;
+	case 100:
+		ctrl = MII_CTRL_SPEED_100;
+		break;
+	case 1000:
+		ctrl = MII_CTRL_SPEED_1000;
+		break;
+	default:
+		printf("%s: invalid MII speed (%d) set for arge unit: %d\n",
+		    __func__, speed, unit);
+		return;
+	}
+
+	val = ATH_READ_REG(reg);
+	val &= ~(MII_CTRL_SPEED_MASK << MII_CTRL_SPEED_SHIFT);
+	val |= (ctrl & MII_CTRL_SPEED_MASK) << MII_CTRL_SPEED_SHIFT;
+	ATH_WRITE_REG(reg, val);
+}
+
 /* Speed is either 10, 100 or 1000 */
 static void
 ar71xx_chip_set_pll_ge(int unit, int speed)
@@ -237,6 +277,7 @@ struct ar71xx_cpu_def ar71xx_chip_def = {
 	&ar71xx_chip_device_start,
 	&ar71xx_chip_device_stopped,
 	&ar71xx_chip_set_pll_ge,
+	&ar71xx_chip_set_mii_speed,
 	&ar71xx_chip_ddr_flush_ge,
 	&ar71xx_chip_get_eth_pll,
 	&ar71xx_chip_ddr_flush_ip2,

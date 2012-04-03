@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2011  Cavium, Inc. <support@cavium.com>.  All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -37,18 +37,12 @@
  * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
 
-
-
-
-
-
-
 /**
  * @file
  *
  * Interface to PCIe as a host(RC) or target(EP)
  *
- * <hr>$Revision: 52004 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <asm/octeon/cvmx.h>
@@ -56,6 +50,7 @@
 #include <asm/octeon/cvmx-clock.h>
 #include <asm/octeon/cvmx-ciu-defs.h>
 #include <asm/octeon/cvmx-dpi-defs.h>
+#include <asm/octeon/cvmx-mio-defs.h>
 #include <asm/octeon/cvmx-npi-defs.h>
 #include <asm/octeon/cvmx-npei-defs.h>
 #include <asm/octeon/cvmx-pci-defs.h>
@@ -66,6 +61,7 @@
 #include <asm/octeon/cvmx-pescx-defs.h>
 #include <asm/octeon/cvmx-sli-defs.h>
 #include <asm/octeon/cvmx-sriox-defs.h>
+#include <asm/octeon/cvmx-helper-jtag.h>
 
 #ifdef CONFIG_CAVIUM_DECODE_RSL
 #include <asm/octeon/cvmx-error.h>
@@ -73,19 +69,25 @@
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
 #include <asm/octeon/cvmx-helper-errata.h>
+#include <asm/octeon/cvmx-qlm.h>
 #include <asm/octeon/cvmx-pcie.h>
 #include <asm/octeon/cvmx-sysinfo.h>
 #include <asm/octeon/cvmx-swap.h>
 #include <asm/octeon/cvmx-wqe.h>
 #else
 #include "cvmx.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-csr-db.h"
+#endif
 #include "cvmx-pcie.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-swap.h"
 #include "cvmx-wqe.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"
+#endif
 #include "cvmx-helper-errata.h"
+#include "cvmx-qlm.h"
 #endif
 
 #define MRRS_CN5XXX 0 /* 128 byte Max Read Request Size */
@@ -221,6 +223,8 @@ static void __cvmx_pcie_rc_initialize_config_space(int pcie_port)
         prt_cfg.u64 = cvmx_read_csr(CVMX_DPI_SLI_PRTX_CFG(pcie_port));
         prt_cfg.s.mps = MPS_CN6XXX;
         prt_cfg.s.mrrs = MRRS_CN6XXX;
+        /* Max outstanding load request. */
+        prt_cfg.s.molr = 32;
         cvmx_write_csr(CVMX_DPI_SLI_PRTX_CFG(pcie_port), prt_cfg.u64);
 
         sli_s2m_portx_ctl.u64 = cvmx_read_csr(CVMX_PEXP_SLI_S2M_PORTX_CTL(pcie_port));
@@ -456,6 +460,13 @@ static int __cvmx_pcie_rc_initialize_link_gen1(int pcie_port)
     return 0;
 }
 
+static inline void __cvmx_increment_ba(cvmx_sli_mem_access_subidx_t *pmas)
+{   
+    if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+        pmas->cn68xx.ba++;
+    else
+        pmas->cn63xx.ba++;
+}
 
 /**
  * Initialize a PCIe gen 1 port for use in host(RC) mode. It doesn't enumerate
@@ -822,7 +833,6 @@ retry:
     return 0;
 }
 
-
 /**
  * @INTERNAL
  * Initialize a host mode PCIe gen 2 link. This function takes a PCIe
@@ -853,7 +863,7 @@ static int __cvmx_pcie_rc_initialize_link_gen2(int pcie_port)
             return -1;
         cvmx_wait(10000);
         pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
-    } while (pciercx_cfg032.s.dlla == 0);
+    } while ((pciercx_cfg032.s.dlla == 0) || (pciercx_cfg032.s.lt == 1));
 
     /* Update the Replay Time Limit. Empirically, some PCIe devices take a
         little longer to respond than expected under load. As a workaround for
@@ -904,21 +914,75 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
     cvmx_sli_ctl_portx_t sli_ctl_portx;
     cvmx_sli_mem_access_ctl_t sli_mem_access_ctl;
     cvmx_sli_mem_access_subidx_t mem_access_subid;
-    cvmx_mio_rst_ctlx_t mio_rst_ctlx;
-    cvmx_sriox_status_reg_t sriox_status_reg;
     cvmx_pemx_bar1_indexx_t bar1_index;
+    int ep_mode;
 
-    /* Make sure this interface isn't SRIO */
-    sriox_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(pcie_port));
-    if (sriox_status_reg.s.srio)
+    /* Make sure this interface is PCIe */
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF71XX))
     {
-        cvmx_dprintf("PCIe: Port %d is SRIO, skipping.\n", pcie_port);
-        return -1;
+        /* Requires reading the MIO_QLMX_CFG register to figure
+           out the port type. */
+        int qlm = pcie_port;
+        int status;
+        if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+            qlm = 3 - (pcie_port * 2);
+        else if (OCTEON_IS_MODEL(OCTEON_CN61XX))
+        {
+            cvmx_mio_qlmx_cfg_t qlm_cfg;
+            qlm_cfg.u64 = cvmx_read_csr(CVMX_MIO_QLMX_CFG(1));
+            if (qlm_cfg.s.qlm_cfg == 1)
+                qlm = 1;
+        }
+        /* PCIe is allowed only in QLM1, 1 PCIe port in x2 or 
+           2 PCIe ports in x1 */
+        else if (OCTEON_IS_MODEL(OCTEON_CNF71XX))
+            qlm = 1;
+        status = cvmx_qlm_get_status(qlm);
+        if (status == 4 || status == 5)
+        {
+            cvmx_dprintf("PCIe: Port %d is SRIO, skipping.\n", pcie_port);
+            return -1;
+        }
+        if (status == 1)
+        {
+            cvmx_dprintf("PCIe: Port %d is SGMII, skipping.\n", pcie_port);
+            return -1;
+        }
+        if (status == 2)
+        {
+            cvmx_dprintf("PCIe: Port %d is XAUI, skipping.\n", pcie_port);
+            return -1;
+        }
+        if (status == -1)
+        {
+            cvmx_dprintf("PCIe: Port %d is unknown, skipping.\n", pcie_port);
+            return -1;
+        }
     }
+
+#if 0
+    /* This code is so that the PCIe analyzer is able to see 63XX traffic */
+    cvmx_dprintf("PCIE : init for pcie analyzer.\n");
+    cvmx_helper_qlm_jtag_init();
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 85);
+    cvmx_helper_qlm_jtag_shift(pcie_port, 1, 1);
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 300-86);
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 85);
+    cvmx_helper_qlm_jtag_shift(pcie_port, 1, 1);
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 300-86);
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 85);
+    cvmx_helper_qlm_jtag_shift(pcie_port, 1, 1);
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 300-86);
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 85);
+    cvmx_helper_qlm_jtag_shift(pcie_port, 1, 1);
+    cvmx_helper_qlm_jtag_shift_zeros(pcie_port, 300-86);
+    cvmx_helper_qlm_jtag_update(pcie_port);
+#endif
 
     /* Make sure we aren't trying to setup a target mode interface in host mode */
     mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(pcie_port));
-    if (!mio_rst_ctl.s.host_mode)
+    ep_mode = (OCTEON_IS_MODEL(OCTEON_CN61XX || OCTEON_IS_MODEL(OCTEON_CNF71XX)) ? (mio_rst_ctl.s.prtmode != 1) : (!mio_rst_ctl.s.host_mode));
+    if (ep_mode)
     {
         cvmx_dprintf("PCIe: Port %d in endpoint mode.\n", pcie_port);
         return -1;
@@ -946,7 +1010,6 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
             cvmx_write_csr(CVMX_CIU_QLM0, ciu_qlm.u64);
         }
     }
-
     /* Bring the PCIe out of reset */
     if (pcie_port)
         ciu_soft_prst.u64 = cvmx_read_csr(CVMX_CIU_SOFT_PRST1);
@@ -985,8 +1048,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
     /* Check and make sure PCIe came out of reset. If it doesn't the board
         probably hasn't wired the clocks up and the interface should be
         skipped */
-    mio_rst_ctlx.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(pcie_port));
-    if (!mio_rst_ctlx.s.rst_done)
+    if (CVMX_WAIT_FOR_FIELD64(CVMX_MIO_RST_CTLX(pcie_port), cvmx_mio_rst_ctlx_t, rst_done, ==, 1, 10000))
     {
         cvmx_dprintf("PCIe: Port %d stuck in reset, skipping.\n", pcie_port);
         return -1;
@@ -997,6 +1059,9 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
     if (pemx_bist_status.u64)
         cvmx_dprintf("PCIe: BIST FAILED for port %d (0x%016llx)\n", pcie_port, CAST64(pemx_bist_status.u64));
     pemx_bist_status2.u64 = cvmx_read_csr(CVMX_PEMX_BIST_STATUS2(pcie_port));
+    /* Errata PCIE-14766 may cause the lower 6 bits to be randomly set on CN63XXp1 */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+        pemx_bist_status2.u64 &= ~0x3full;
     if (pemx_bist_status2.u64)
         cvmx_dprintf("PCIe: BIST2 FAILED for port %d (0x%016llx)\n", pcie_port, CAST64(pemx_bist_status2.u64));
 
@@ -1016,7 +1081,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
         cvmx_pciercx_cfg031_t pciercx_cfg031;
         pciercx_cfg031.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG031(pcie_port));
         pciercx_cfg031.s.mls = 1;
-        cvmx_pcie_cfgx_write(pcie_port, CVMX_PCIERCX_CFG031(pcie_port), pciercx_cfg515.u32);
+        cvmx_pcie_cfgx_write(pcie_port, CVMX_PCIERCX_CFG031(pcie_port), pciercx_cfg031.u32);
         if (__cvmx_pcie_rc_initialize_link_gen2(pcie_port))
         {
             cvmx_dprintf("PCIe: Link timeout on port %d, probably the slot is empty\n", pcie_port);
@@ -1038,22 +1103,30 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
     mem_access_subid.s.esw = 1;     /* Endian-swap for Writes. */
     mem_access_subid.s.wtype = 0;   /* "No snoop" and "Relaxed ordering" are not set */
     mem_access_subid.s.rtype = 0;   /* "No snoop" and "Relaxed ordering" are not set */
-    mem_access_subid.s.ba = 0;      /* PCIe Adddress Bits <63:34>. */
+    /* PCIe Adddress Bits <63:34>. */
+    if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+        mem_access_subid.cn68xx.ba = 0;
+    else
+        mem_access_subid.cn63xx.ba = 0;
 
     /* Setup mem access 12-15 for port 0, 16-19 for port 1, supplying 36 bits of address space */
     for (i=12 + pcie_port*4; i<16 + pcie_port*4; i++)
     {
         cvmx_write_csr(CVMX_PEXP_SLI_MEM_ACCESS_SUBIDX(i), mem_access_subid.u64);
-        mem_access_subid.s.ba += 1; /* Set each SUBID to extend the addressable range */
+        /* Set each SUBID to extend the addressable range */
+	__cvmx_increment_ba(&mem_access_subid);
     }
 
-    /* Disable the peer to peer forwarding register. This must be setup
-        by the OS after it enumerates the bus and assigns addresses to the
-        PCIe busses */
-    for (i=0; i<4; i++)
+    if (!OCTEON_IS_MODEL(OCTEON_CN61XX))
     {
-        cvmx_write_csr(CVMX_PEMX_P2P_BARX_START(i, pcie_port), -1);
-        cvmx_write_csr(CVMX_PEMX_P2P_BARX_END(i, pcie_port), -1);
+        /* Disable the peer to peer forwarding register. This must be setup
+            by the OS after it enumerates the bus and assigns addresses to the
+            PCIe busses */
+        for (i=0; i<4; i++)
+        {
+            cvmx_write_csr(CVMX_PEMX_P2P_BARX_START(i, pcie_port), -1);
+            cvmx_write_csr(CVMX_PEMX_P2P_BARX_END(i, pcie_port), -1);
+        }
     }
 
     /* Set Octeon's BAR0 to decode 0-16KB. It overlaps with Bar2 */
@@ -1124,7 +1197,7 @@ int cvmx_pcie_rc_initialize(int pcie_port)
         result = __cvmx_pcie_rc_initialize_gen1(pcie_port);
     else
         result = __cvmx_pcie_rc_initialize_gen2(pcie_port);
-#if !defined(CVMX_BUILD_FOR_LINUX_KERNEL) || defined(CONFIG_CAVIUM_DECODE_RSL)
+#if (!defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)) || defined(CONFIG_CAVIUM_DECODE_RSL)
     if (result == 0)
         cvmx_error_enable_group(CVMX_ERROR_GROUP_PCI, pcie_port);
 #endif
@@ -1141,7 +1214,7 @@ int cvmx_pcie_rc_initialize(int pcie_port)
  */
 int cvmx_pcie_rc_shutdown(int pcie_port)
 {
-#if !defined(CVMX_BUILD_FOR_LINUX_KERNEL) || defined(CONFIG_CAVIUM_DECODE_RSL)
+#if (!defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)) || defined(CONFIG_CAVIUM_DECODE_RSL)
     cvmx_error_disable_group(CVMX_ERROR_GROUP_PCI, pcie_port);
 #endif
     /* Wait for all pending operations to complete */
@@ -1409,8 +1482,10 @@ int cvmx_pcie_ep_initialize(int pcie_port)
     else
     {
         cvmx_mio_rst_ctlx_t mio_rst_ctl;
+        int ep_mode;
         mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(pcie_port));
-        if (mio_rst_ctl.s.host_mode)
+        ep_mode = (OCTEON_IS_MODEL(OCTEON_CN61XX) ? (mio_rst_ctl.s.prtmode != 0) : mio_rst_ctl.s.host_mode);
+        if (ep_mode)
             return -1;
     }
 
@@ -1485,6 +1560,8 @@ int cvmx_pcie_ep_initialize(int pcie_port)
         prt_cfg.u64 = cvmx_read_csr(CVMX_DPI_SLI_PRTX_CFG(pcie_port));
         prt_cfg.s.mps = MPS_CN6XXX;
         prt_cfg.s.mrrs = MRRS_CN6XXX;
+        /* Max outstanding load request. */
+        prt_cfg.s.molr = 32;
         cvmx_write_csr(CVMX_DPI_SLI_PRTX_CFG(pcie_port), prt_cfg.u64);
 
         sli_s2m_portx_ctl.u64 = cvmx_read_csr(CVMX_PEXP_SLI_S2M_PORTX_CTL(pcie_port));
@@ -1518,7 +1595,11 @@ int cvmx_pcie_ep_initialize(int pcie_port)
         mem_access_subid.s.esw = 0;     /* Endian-swap for Writes. */
         mem_access_subid.s.wtype = 0;   /* "No snoop" and "Relaxed ordering" are not set */
         mem_access_subid.s.rtype = 0;   /* "No snoop" and "Relaxed ordering" are not set */
-        mem_access_subid.s.ba = 0;      /* PCIe Adddress Bits <63:34>. */
+        /* PCIe Adddress Bits <63:34>. */
+        if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+            mem_access_subid.cn68xx.ba = 0;
+        else
+            mem_access_subid.cn63xx.ba = 0;
         cvmx_write_csr(CVMX_PEXP_SLI_MEM_ACCESS_SUBIDX(12 + pcie_port*4), mem_access_subid.u64);
     }
     return 0;

@@ -59,6 +59,16 @@ static struct sx sdt_sx;
  */
 sdt_probe_func_t sdt_probe_func = sdt_probe_stub;
 
+static sdt_provider_listall_func_t sdt_provider_register_func = NULL;
+static sdt_provider_listall_func_t sdt_provider_deregister_func = NULL;
+static sdt_probe_listall_func_t sdt_probe_register_func = NULL;
+
+static void *sdt_provider_register_arg;
+static void *sdt_provider_deregister_arg;
+static void *sdt_probe_register_arg;
+
+static int sdt_provider_listall_locked(sdt_provider_listall_func_t, void *);
+
 /*
  * This is a stub for probe calls in case kernel DTrace support isn't
  * compiled in. It should never get called because there is no DTrace
@@ -85,6 +95,9 @@ sdt_provider_register(void *arg)
 
 	TAILQ_INIT(&prov->probe_list);
 
+	if (sdt_provider_register_func != NULL)
+		sdt_provider_register_func(prov, sdt_provider_register_arg);
+
 	sx_xunlock(&sdt_sx);
 }
 
@@ -99,6 +112,9 @@ sdt_provider_deregister(void *arg)
 	sx_xlock(&sdt_sx);
 
 	TAILQ_REMOVE(&sdt_provider_list, prov, prov_entry);
+
+	if (sdt_provider_deregister_func != NULL)
+		sdt_provider_deregister_func(prov, sdt_provider_deregister_arg);
 
 	sx_xunlock(&sdt_sx);
 }
@@ -127,6 +143,9 @@ sdt_probe_register(void *arg)
 	TAILQ_INIT(&probe->argtype_list);
 
 	probe->state = SDT_INIT;
+
+	if (sdt_probe_register_func != NULL)
+		sdt_probe_register_func(probe, sdt_provider_register_arg);
 
 	sx_xunlock(&sdt_sx);
 }
@@ -203,19 +222,30 @@ SYSUNINIT(sdt, SI_SUB_KDTRACE, SI_ORDER_FIRST, sdt_uninit, NULL);
  * List statically defined tracing providers.
  */
 int
-sdt_provider_listall(sdt_provider_listall_func_t callback_func,void *arg)
+sdt_provider_listall(sdt_provider_listall_func_t callback_func, void *arg)
+{
+	int error;
+
+	sx_xlock(&sdt_sx);
+	error = sdt_provider_listall_locked(callback_func, arg);
+	sx_xunlock(&sdt_sx);
+
+	return (error);
+}
+
+static int
+sdt_provider_listall_locked(sdt_provider_listall_func_t callback_func,
+    void *arg)
 {
 	int error = 0;
 	struct sdt_provider *prov;
 
-	sx_xlock(&sdt_sx);
+	sx_assert(&sdt_sx, SX_XLOCKED);
 
 	TAILQ_FOREACH(prov, &sdt_provider_list, prov_entry) {
 		if ((error = callback_func(prov, arg)) != 0)
 			break;
 	}
-
-	sx_xunlock(&sdt_sx);
 
 	return (error);
 }
@@ -270,4 +300,40 @@ sdt_argtype_listall(struct sdt_probe *probe,
 		sx_xunlock(&sdt_sx);
 
 	return (error);
+}
+
+void sdt_register_callbacks(sdt_provider_listall_func_t register_prov, 
+    void *reg_prov_arg, sdt_provider_listall_func_t deregister_prov, 
+    void *dereg_prov_arg, sdt_probe_listall_func_t register_probe, 
+    void * reg_probe_arg)
+{
+
+	sx_xlock(&sdt_sx);
+	sdt_provider_register_func = register_prov;
+	sdt_provider_deregister_func = deregister_prov;
+	sdt_probe_register_func = register_probe;
+
+	sdt_provider_register_arg = reg_prov_arg;
+	sdt_provider_deregister_arg = dereg_prov_arg;
+	sdt_probe_register_arg = reg_probe_arg;
+
+	sdt_provider_listall_locked(register_prov, reg_prov_arg);
+	sx_xunlock(&sdt_sx);
+}
+
+void sdt_deregister_callbacks(void)
+{
+
+	sx_xlock(&sdt_sx);
+	sdt_provider_listall_locked(sdt_provider_deregister_func, 
+	    sdt_provider_deregister_arg);
+
+	sdt_provider_register_func = NULL;
+	sdt_provider_deregister_func = NULL;
+	sdt_probe_register_func = NULL;
+
+	sdt_provider_register_arg = NULL;
+	sdt_provider_deregister_arg = NULL;
+	sdt_probe_register_arg = NULL;
+	sx_xunlock(&sdt_sx);
 }

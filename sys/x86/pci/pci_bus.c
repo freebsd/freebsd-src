@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_ELAN
 #include <machine/md_var.h>
 #endif
-#include <machine/legacyvar.h>
+#include <x86/legacyvar.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/resource.h>
 
@@ -112,14 +112,28 @@ legacy_pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
 	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
 }
 
-static int
+int
 legacy_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
     uint32_t *data)
 {
-	device_t bus;
+	device_t bus, hostb;
+	int error, func, slot;
 
 	bus = device_get_parent(pcib);
-	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
+	error = PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data);
+	if (error)
+		return (error);
+
+	slot = legacy_get_pcislot(pcib);
+	func = legacy_get_pcifunc(pcib);
+	if (slot == -1 || func == -1)
+		return (0);
+	hostb = pci_find_bsf(0, slot, func);
+	KASSERT(hostb != NULL, ("%s: missing hostb for 0:%d:%d", __func__,
+	    slot, func));
+	pci_ht_map_msi(hostb, *addr);
+	return (0);
+	
 }
 
 static const char *
@@ -453,6 +467,8 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 					      "pcib", busnum);
 			device_set_desc(child, s);
 			legacy_set_pcibus(child, busnum);
+			legacy_set_pcislot(child, slot);
+			legacy_set_pcifunc(child, func);
 
 			found = 1;
 			if (id == 0x12258086)
