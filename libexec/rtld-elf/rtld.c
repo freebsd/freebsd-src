@@ -2620,6 +2620,9 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     const Elf_Sym *def;
     SymLook req;
     RtldLockState lockstate;
+#ifndef __ia64__
+    tls_index ti;
+#endif
     int res;
 
     def = NULL;
@@ -2734,7 +2737,15 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    return (make_function_pointer(def, defobj));
 	else if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)
 	    return (rtld_resolve_ifunc(defobj, def));
-	else
+	else if (ELF_ST_TYPE(def->st_info) == STT_TLS) {
+#ifdef __ia64__
+	    return (__tls_get_addr(defobj->tlsindex, def->st_value));
+#else
+	    ti.ti_module = defobj->tlsindex;
+	    ti.ti_offset = def->st_value;
+	    return (__tls_get_addr(&ti));
+#endif
+	} else
 	    return (defobj->relocbase + def->st_value);
     }
 
