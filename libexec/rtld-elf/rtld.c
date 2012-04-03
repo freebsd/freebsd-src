@@ -4163,6 +4163,10 @@ rtld_verify_object_versions(Obj_Entry *obj)
     const Obj_Entry *depobj;
     int maxvernum, vernum;
 
+    if (obj->ver_checked)
+	return (0);
+    obj->ver_checked = true;
+
     maxvernum = 0;
     /*
      * Walk over defined and required version records and figure out

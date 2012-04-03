@@ -230,6 +230,7 @@ typedef struct Struct_Obj_Entry {
     bool mainprog : 1;		/* True if this is the main program */
     bool rtld : 1;		/* True if this is the dynamic linker */
     bool relocated : 1;		/* True if processed by relocate_objects() */
+    bool ver_checked : 1;	/* True if processed by rtld_verify_object_versions */
     bool textrel : 1;		/* True if there are relocations to text seg */
     bool symbolic : 1;		/* True if generated with "-Bsymbolic" */
     bool bind_now : 1;		/* True if all relocations should be made first */
