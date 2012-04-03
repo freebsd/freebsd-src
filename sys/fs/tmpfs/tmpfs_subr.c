@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 
@@ -54,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <fs/tmpfs/tmpfs.h>
 #include <fs/tmpfs/tmpfs_fifoops.h>
 #include <fs/tmpfs/tmpfs_vnops.h>
+
+SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW, 0, "tmpfs file system");
 
 /* --------------------------------------------------------------------- */
 
@@ -319,9 +322,11 @@ loop:
 		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
 		VI_LOCK(vp);
 		TMPFS_NODE_UNLOCK(node);
-		vholdl(vp);
-		(void) vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, curthread);
-		vdrop(vp);
+		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
+		if (error != 0) {
+			vp = NULL;
+			goto out;
+		}
 
 		/*
 		 * Make sure the vnode is still there after
@@ -419,11 +424,13 @@ unlock:
 out:
 	*vpp = vp;
 
-	MPASS(IFF(error == 0, *vpp != NULL && VOP_ISLOCKED(*vpp)));
 #ifdef INVARIANTS
-	TMPFS_NODE_LOCK(node);
-	MPASS(*vpp == node->tn_vnode);
-	TMPFS_NODE_UNLOCK(node);
+	if (error == 0) {
+		MPASS(*vpp != NULL && VOP_ISLOCKED(*vpp));
+		TMPFS_NODE_LOCK(node);
+		MPASS(*vpp == node->tn_vnode);
+		TMPFS_NODE_UNLOCK(node);
+	}
 #endif
 
 	return error;
