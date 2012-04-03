@@ -243,3 +243,11 @@ ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #endif
+
+#ifdef XEN
+#include <xen/hypervisor.h>
+ASSYM(HYPERVISOR_VIRT_START, __HYPERVISOR_VIRT_START);
+ASSYM(EVTCHN_UPCALL_MASK, offsetof(struct vcpu_info, evtchn_upcall_mask));
+#include <xen/interface/xen.h>
+ASSYM(__HYPERVISOR_iret, __HYPERVISOR_iret);
+#endif

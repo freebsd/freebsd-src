@@ -632,9 +632,11 @@ END(copystr)
  */
 /* void lgdt(struct region_descriptor *rdp); */
 ENTRY(lgdt)
+#ifndef XEN
 	/* reload the descriptor table */
 	lgdt	(%rdi)
-
+#endif /* !XEN */
+	
 	/* flush the prefetch q */
 	jmp	1f
 	nop

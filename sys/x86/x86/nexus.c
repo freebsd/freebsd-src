@@ -41,11 +41,13 @@ __FBSDID("$FreeBSD$");
  * and I/O memory address space.
  */
 
+#ifndef XEN
 #ifdef __amd64__
 #define	DEV_APIC
 #else
 #include "opt_apic.h"
 #endif
+#endif /* !XEN */
 #include "opt_isa.h"
 
 #include <sys/param.h>

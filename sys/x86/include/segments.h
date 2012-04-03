@@ -47,7 +47,11 @@
 #define	SEL_RPL_MASK	3		/* requester priv level */
 #define	ISPL(s)		((s)&3)		/* priority level of a selector */
 #ifdef XEN
+#ifdef __i386__
 #define	SEL_KPL		1		/* kernel priority level */
+#else /* __i386__ */
+#define SEL_KPL		3		/* 64bit PV kernel runs at ring3 */
+#endif /* __i386__ */
 #else
 #define	SEL_KPL		0		/* kernel priority level */
 #endif

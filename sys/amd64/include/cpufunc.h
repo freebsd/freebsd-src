@@ -43,6 +43,13 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#ifdef XEN
+extern void xen_load_cr3(u_int data);
+extern void xen_tlb_flush(void);
+extern void xen_invlpg(vm_offset_t addr);
+extern u_long read_rflags(void);
+#endif /* XEN */
+
 struct region_descriptor;
 
 #define readb(va)	(*(volatile uint8_t *) (va))
@@ -287,7 +294,11 @@ ia32_pause(void)
 }
 
 static __inline u_long
+#ifdef XEN
+_read_rflags(void)
+#else
 read_rflags(void)
+#endif
 {
 	u_long	rf;
 

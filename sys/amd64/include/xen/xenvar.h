@@ -37,6 +37,8 @@ extern int xendebug_flags;
 #endif
 #include <xen/features.h>
 
+#define NR_CPUS      MAX_VIRT_CPUS
+
 #if 0
 #define TRACE_ENTER XENPRINTF("(file=%s, line=%d) entered %s\n", __FILE__, __LINE__, __FUNCTION__)
 #define TRACE_EXIT XENPRINTF("(file=%s, line=%d) exiting %s\n", __FILE__, __LINE__, __FUNCTION__)
@@ -64,7 +66,6 @@ machtophys(vm_paddr_t ma)
 	return (ma);
 }
 
-#define vtomach(va)	pmap_kextract((vm_offset_t) (va))
 #define PFNTOMFN(pa)	(pa)
 #define MFNTOPFN(ma)	(ma)
 
@@ -75,7 +76,8 @@ machtophys(vm_paddr_t ma)
 #else
 
 extern	xen_pfn_t *xen_phys_machine;
-
+extern	xen_pfn_t *xen_pfn_to_mfn_frame_list[16]; /* XXX: why 16 ? review this. */
+extern	xen_pfn_t *xen_pfn_to_mfn_frame_list_list;
 
 extern xen_pfn_t *xen_machine_phys;
 /* Xen starts physical pages after the 4MB ISA hole -

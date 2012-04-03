@@ -6,6 +6,7 @@
 
 #ifndef _XEN_OS_H_
 #define _XEN_OS_H_
+#include <machine/param.h>
 
 #ifdef PAE
 #define CONFIG_X86_PAE
@@ -24,9 +25,34 @@
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
 
+#define likely(x)  __builtin_expect((x),1)
+#define unlikely(x)  __builtin_expect((x),0)
+
+#ifndef vtophys
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#endif
+
 extern int gdtset;
+#ifdef SMP
+#include <sys/time.h> /* XXX for pcpu.h */
+#include <sys/pcpu.h> /* XXX for PCPU_GET */
+static inline int 
+smp_processor_id(void)  
+{
+	return PCPU_GET(cpuid);
+}
+
+#else
+#define smp_processor_id() 0
+#endif /* SMP */
 
 extern shared_info_t *HYPERVISOR_shared_info;
+
+#ifndef PANIC_IF
+#define PANIC_IF(exp) if (unlikely(exp)) {printk("panic - %s: %s:%d\n",#exp, __FILE__, __LINE__); panic("%s: %s:%d", #exp, __FILE__, __LINE__);} 
+#endif
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void rep_nop(void)
@@ -34,6 +60,8 @@ static inline void rep_nop(void)
     __asm__ __volatile__ ( "rep;nop" : : : "memory" );
 }
 #define cpu_relax() rep_nop()
+
+#define per_cpu(var, cpu)           (pcpu_find((cpu))->pc_ ## var)
 
 /* crude memory allocator for memory allocation early in 
  *  boot
@@ -44,6 +72,7 @@ void bootmem_free(void *ptr, unsigned int size);
 
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
+#include <sys/types.h>
 
 void printk(const char *fmt, ...);
 

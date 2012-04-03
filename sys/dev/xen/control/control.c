@@ -128,12 +128,15 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 
-#include <machine/_inttypes.h>
-#include <machine/xen/xen-os.h>
-
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_page.h>
+#include <vm/pmap.h>
+
+#include <machine/_inttypes.h>
+#include <machine/pmap.h>
+#include <machine/xen/xen-os.h>
 
 #include <xen/blkif.h>
 #include <xen/evtchn.h>

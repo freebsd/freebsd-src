@@ -229,6 +229,43 @@ pte_store(pt_entry_t *ptep, pt_entry_t pte)
 
 #define	pde_store(pdep, pde)	pte_store((pdep), (pde))
 
+#if defined(XEN)
+#include <machine/atomic.h>
+#include <machine/xen/xen-os.h>
+#include <machine/xen/xenvar.h>
+#include <machine/xen/xenpmap.h>
+
+#include <sys/systm.h> /* XXX: for KASSERT() remove, when done */
+
+#define MACH_TO_VM_PAGE(ma) PHYS_TO_VM_PAGE(xpmap_mtop((ma)))
+#define VM_PAGE_TO_MACH(m) xpmap_ptom(VM_PAGE_TO_PHYS((m)))
+
+#define VTOM(va) xpmap_ptom(VTOP(va))
+
+static __inline vm_paddr_t
+pmap_kextract_ma(vm_offset_t va)
+{
+        vm_paddr_t ma = 0;
+	KASSERT(0, ("XXX: Please implement"));
+        return ma;
+}
+
+static __inline vm_paddr_t
+pmap_kextract(vm_offset_t va)
+{
+        return xpmap_mtop(pmap_kextract_ma(va));
+}
+
+#define vtomach(va)     pmap_kextract_ma(((vm_offset_t) (va)))
+
+vm_paddr_t pmap_extract_ma(struct pmap *pmap, vm_offset_t va);
+
+void    pmap_kenter_ma(vm_offset_t va, vm_paddr_t pa);
+void    pmap_map_readonly(struct pmap *pmap, vm_offset_t va, int len);
+void    pmap_map_readwrite(struct pmap *pmap, vm_offset_t va, int len);
+
+#endif /* XEN */
+
 extern pt_entry_t pg_nx;
 
 #endif /* _KERNEL */
@@ -317,7 +354,9 @@ void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
 void	pmap_init_pat(void);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
+#ifndef XEN
 vm_paddr_t pmap_kextract(vm_offset_t);
+#endif /* XEN */
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);

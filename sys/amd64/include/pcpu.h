@@ -42,12 +42,33 @@
 #endif
 #endif
 
-#ifdef XENHVM
+#if defined(XEN)
+
+/* These are peridically updated in shared_info, and then copied here. */
+struct shadow_time_info {
+	uint64_t tsc_timestamp;     /* TSC at last update of time vals.  */
+	uint64_t system_timestamp;  /* Time, in nanosecs, since boot.    */
+	uint32_t tsc_to_nsec_mul;
+	uint32_t tsc_to_usec_mul;
+	int tsc_shift;
+	uint32_t version;
+};
+
+#define	PCPU_XEN_FIELDS							\
+	;								\
+	uint64_t pc_processed_system_time;				\
+	struct shadow_time_info pc_shadow_time;				\
+	int	pc_resched_irq;						\
+	int	pc_callfunc_irq;					\
+	int	pc_virq_to_irq[NR_VIRQS];				\
+	int	pc_ipi_to_irq[NR_IPIS]	
+
+#elif defined(XENHVM)
 #define PCPU_XEN_FIELDS							\
 	;								\
 	unsigned int pc_last_processed_l1i;				\
 	unsigned int pc_last_processed_l2i
-#else
+#else /* !XEN && !XENHVM */
 #define PCPU_XEN_FIELDS
 #endif
 

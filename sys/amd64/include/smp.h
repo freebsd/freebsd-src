@@ -74,6 +74,13 @@ void	smp_masked_invlpg_range(cpuset_t mask, vm_offset_t startva,
 void	smp_invltlb(void);
 void	smp_masked_invltlb(cpuset_t mask);
 
+#ifdef XEN
+#define RESCHEDULE_VECTOR	0
+#define CALL_FUNCTION_VECTOR	1
+#define NR_IPIS			2
+
+#endif
+
 #endif /* !LOCORE */
 #endif /* SMP */
 
