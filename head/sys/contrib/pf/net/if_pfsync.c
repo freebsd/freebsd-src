@@ -254,7 +254,6 @@ static int	pfsync_multicast_setup(struct pfsync_softc *);
 static void	pfsync_multicast_cleanup(struct pfsync_softc *);
 static int	pfsync_init(void);
 static void	pfsync_uninit(void);
-static void	pfsync_sendout1(int);
 
 SYSCTL_NODE(_net, OID_AUTO, pfsync, CTLFLAG_RW, 0, "PFSYNC");
 SYSCTL_VNET_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_RW,
@@ -282,7 +281,7 @@ static void	pfsync_request_update(u_int32_t, u_int64_t);
 static void	pfsync_update_state_req(struct pf_state *);
 
 static void	pfsync_drop(struct pfsync_softc *);
-static void	pfsync_sendout(void);
+static void	pfsync_sendout(int);
 static void	pfsync_send_plus(void *, size_t);
 static void	pfsync_timeout(void *);
 
@@ -1321,7 +1320,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			return (EINVAL);
 		if (ifr->ifr_mtu < ifp->if_mtu) {
 			PF_LOCK();
-			pfsync_sendout();
+			pfsync_sendout(1);
 			PF_UNLOCK();
 		}
 		ifp->if_mtu = ifr->ifr_mtu;
@@ -1373,7 +1372,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    (sc->sc_sync_if != NULL &&
 		    sifp->if_mtu < sc->sc_sync_if->if_mtu) ||
 		    sifp->if_mtu < MCLBYTES - sizeof(struct ip))
-			pfsync_sendout();
+			pfsync_sendout(1);
 		sc->sc_sync_if = sifp;
 
 		if (imo->imo_membership) {
@@ -1529,13 +1528,7 @@ pfsync_drop(struct pfsync_softc *sc)
 }
 
 static void
-pfsync_sendout()
-{
-	pfsync_sendout1(1);
-}
-
-static void
-pfsync_sendout1(int schedswi)
+pfsync_sendout(int schedswi)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 #if NBPFILTER > 0
@@ -1911,7 +1904,7 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 		nlen += sizeof(struct pfsync_subheader);
 
 	if (sc->sc_len + nlen > sc->sc_ifp->if_mtu) {
-		pfsync_sendout();
+		pfsync_sendout(1);
 
 		nlen = sizeof(struct pfsync_subheader) +
 		    sizeof(struct pfsync_upd_req);
@@ -2046,7 +2039,7 @@ pfsync_q_ins(struct pf_state *st, int q)
 		nlen += sizeof(struct pfsync_subheader);
 
 	if (sc->sc_len + nlen > sc->sc_ifp->if_mtu) {
-		pfsync_sendout();
+		pfsync_sendout(1);
 
 		nlen = sizeof(struct pfsync_subheader) + pfsync_qs[q].len;
 	}
@@ -2092,7 +2085,7 @@ pfsync_update_tdb(struct tdb *t, int output)
 
 		if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 			PF_LOCK();
-			pfsync_sendout();
+			pfsync_sendout(1);
 			PF_UNLOCK();
 
 			nlen = sizeof(struct pfsync_subheader) +
@@ -2305,14 +2298,13 @@ pfsync_send_plus(void *plus, size_t pluslen)
 
 	PF_LOCK_ASSERT();
 
-	if (sc->sc_len + pluslen > sc->sc_ifp->if_mtu) {
-		pfsync_sendout();
-	}
+	if (sc->sc_len + pluslen > sc->sc_ifp->if_mtu)
+		pfsync_sendout(1);
 
 	sc->sc_plus = plus;
 	sc->sc_len += (sc->sc_pluslen = pluslen);
 
-	pfsync_sendout();
+	pfsync_sendout(1);
 }
 
 static int
@@ -2341,7 +2333,7 @@ pfsync_timeout(void *arg)
 	pfsync_tmos++;
 
 	PF_LOCK();
-	pfsync_sendout();
+	pfsync_sendout(1);
 	PF_UNLOCK();
 
 	CURVNET_RESTORE();
@@ -2359,7 +2351,7 @@ pfsyncintr(void *arg)
 
 	PF_LOCK();
 	if (sc->sc_len > PFSYNC_MINPKT)
-		pfsync_sendout1(0);
+		pfsync_sendout(0);
 	_IF_DEQUEUE_ALL(&sc->sc_ifp->if_snd, m);
 	PF_UNLOCK();
 
