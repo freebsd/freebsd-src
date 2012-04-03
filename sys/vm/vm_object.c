@@ -784,9 +784,10 @@ vm_object_terminate(vm_object_t object)
 		if (object->type == OBJT_VNODE)
 			vdrop(object->handle);
 	}
-	if (object->cached_page_count != 0 && object->type == OBJT_VNODE) {
+	if (object->cached_page_count != 0) {
 		object->cached_page_count = 0;
-		vdrop(object->handle);
+		if (object->type == OBJT_VNODE)
+			vdrop(object->handle);
 	}
 
 #if VM_NRESERVLEVEL > 0
