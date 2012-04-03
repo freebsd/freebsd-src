@@ -116,9 +116,10 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
-static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, RtldLockState *);
+static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, int,
+    RtldLockState *);
 static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
-    RtldLockState *lockstate);
+    int flags, RtldLockState *lockstate);
 static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
 static void *rtld_dlopen(const char *name, int fd, int mode);
@@ -545,7 +546,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     }
 
     if (relocate_objects(obj_main,
-      ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld, NULL) == -1)
+      ld_bind_now != NULL && *ld_bind_now != '\0',
+      &obj_rtld, SYMLOOK_EARLY, NULL) == -1)
 	die();
 
     dbg("doing copy relocations");
@@ -580,7 +582,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     dbg("resolving ifuncs");
     if (resolve_objects_ifunc(obj_main,
-      ld_bind_now != NULL && *ld_bind_now != '\0', NULL) == -1)
+      ld_bind_now != NULL && *ld_bind_now != '\0', SYMLOOK_EARLY,
+      NULL) == -1)
 	die();
 
     if (!obj_main->crt_no_init) {
@@ -1552,7 +1555,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 	 * that symbols can be found.
 	 */
 
-	relocate_objects(&objtmp, true, &objtmp, NULL);
+	relocate_objects(&objtmp, true, &objtmp, 0, NULL);
     }
 
     /* Initialize the object list. */
@@ -1605,6 +1608,7 @@ initlist_add_neededs(Needed_Entry *needed, Objlist *list)
 static void
 initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 {
+
     if (obj->init_scanned || obj->init_done)
 	return;
     obj->init_scanned = true;
@@ -1616,6 +1620,10 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
     /* Recursively process the needed objects. */
     if (obj->needed != NULL)
 	initlist_add_neededs(obj->needed, list);
+    if (obj->needed_filtees != NULL)
+	initlist_add_neededs(obj->needed_filtees, list);
+    if (obj->needed_aux_filtees != NULL)
+	initlist_add_neededs(obj->needed_aux_filtees, list);
 
     /* Add the object to the init list. */
     if (obj->preinit_array != (Elf_Addr)NULL || obj->init != (Elf_Addr)NULL ||
@@ -2144,13 +2152,17 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
  */
 static int
 relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
-    RtldLockState *lockstate)
+    int flags, RtldLockState *lockstate)
 {
     Obj_Entry *obj;
 
     for (obj = first;  obj != NULL;  obj = obj->next) {
+	if (obj->relocated)
+	    continue;
+	obj->relocated = true;
 	if (obj != rtldobj)
 	    dbg("relocating \"%s\"", obj->path);
+
 	if (obj->nbuckets == 0 || obj->nchains == 0 || obj->buckets == NULL ||
 	    obj->symtab == NULL || obj->strtab == NULL) {
 	    _rtld_error("%s: Shared object has no run-time symbol table",
@@ -2169,7 +2181,7 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	}
 
 	/* Process the non-PLT relocations. */
-	if (reloc_non_plt(obj, rtldobj, lockstate))
+	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
 		return -1;
 
 	if (obj->textrel) {	/* Re-protected the text segment. */
@@ -2190,7 +2202,7 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	    return -1;
 	/* Relocate the jump slots if we are doing immediate binding. */
 	if (obj->bind_now || bind_now)
-	    if (reloc_jmpslots(obj, lockstate) == -1)
+	    if (reloc_jmpslots(obj, flags, lockstate) == -1)
 		return -1;
 
 	if (obj->relro_size > 0) {
@@ -2225,35 +2237,39 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
  * consistent with how GNU does it.
  */
 static int
-resolve_object_ifunc(Obj_Entry *obj, bool bind_now, RtldLockState *lockstate)
+resolve_object_ifunc(Obj_Entry *obj, bool bind_now, int flags,
+    RtldLockState *lockstate)
 {
 	if (obj->irelative && reloc_iresolve(obj, lockstate) == -1)
 		return (-1);
 	if ((obj->bind_now || bind_now) && obj->gnu_ifunc &&
-	    reloc_gnu_ifunc(obj, lockstate) == -1)
+	    reloc_gnu_ifunc(obj, flags, lockstate) == -1)
 		return (-1);
 	return (0);
 }
 
 static int
-resolve_objects_ifunc(Obj_Entry *first, bool bind_now, RtldLockState *lockstate)
+resolve_objects_ifunc(Obj_Entry *first, bool bind_now, int flags,
+    RtldLockState *lockstate)
 {
 	Obj_Entry *obj;
 
 	for (obj = first;  obj != NULL;  obj = obj->next) {
-		if (resolve_object_ifunc(obj, bind_now, lockstate) == -1)
+		if (resolve_object_ifunc(obj, bind_now, flags, lockstate) == -1)
 			return (-1);
 	}
 	return (0);
 }
 
 static int
-initlist_objects_ifunc(Objlist *list, bool bind_now, RtldLockState *lockstate)
+initlist_objects_ifunc(Objlist *list, bool bind_now, int flags,
+    RtldLockState *lockstate)
 {
 	Objlist_Entry *elm;
 
 	STAILQ_FOREACH(elm, list, link) {
-		if (resolve_object_ifunc(elm->obj, bind_now, lockstate) == -1)
+		if (resolve_object_ifunc(elm->obj, bind_now, flags,
+		    lockstate) == -1)
 			return (-1);
 	}
 	return (0);
@@ -2515,17 +2531,30 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	    objlist_push_tail(&list_global, obj);
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
-	    result = load_needed_objects(obj, lo_flags & RTLD_LO_DLOPEN);
+	    result = load_needed_objects(obj,
+		lo_flags & (RTLD_LO_DLOPEN | RTLD_LO_EARLY));
 	    init_dag(obj);
 	    ref_dag(obj);
 	    if (result != -1)
 		result = rtld_verify_versions(&obj->dagmembers);
 	    if (result != -1 && ld_tracing)
 		goto trace;
-	    if (result == -1 || (relocate_objects(obj, (mode & RTLD_MODEMASK)
-	      == RTLD_NOW, &obj_rtld, &lockstate)) == -1) {
+	    if (result == -1 || (relocate_objects(obj,
+	     (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
+	      (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
+	      &lockstate)) == -1) {
 		dlopen_cleanup(obj);
 		obj = NULL;
+	    } else if (lo_flags & RTLD_LO_EARLY) {
+		/*
+		 * Do not call the init functions for early loaded
+		 * filtees.  The image is still not initialized enough
+		 * for them to work.
+		 *
+		 * Our object is found by the global object list and
+		 * will be ordered among all init calls done right
+		 * before transferring control to main.
+		 */
 	    } else {
 		/* Make list of init functions to call. */
 		initlist_add_objects(obj, &obj->next, &initlist);
@@ -2556,9 +2585,12 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	name);
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
-    map_stacks_exec(&lockstate);
+    if (!(lo_flags & RTLD_LO_EARLY)) {
+	map_stacks_exec(&lockstate);
+    }
 
     if (initlist_objects_ifunc(&initlist, (mode & RTLD_MODEMASK) == RTLD_NOW,
+      (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
       &lockstate) == -1) {
 	objlist_clear(&initlist);
 	dlopen_cleanup(obj);
@@ -2566,8 +2598,10 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	return (NULL);
     }
 
-    /* Call the init functions. */
-    objlist_call_init(&initlist, &lockstate);
+    if (!(lo_flags & RTLD_LO_EARLY)) {
+	/* Call the init functions. */
+	objlist_call_init(&initlist, &lockstate);
+    }
     objlist_clear(&initlist);
     lock_release(rtld_bind_lock, &lockstate);
     return obj;
@@ -3354,12 +3388,13 @@ symlook_obj(SymLook *req, const Obj_Entry *obj)
 {
     DoneList donelist;
     SymLook req1;
-    int res, mres;
+    int flags, res, mres;
 
     mres = symlook_obj1(req, obj);
     if (mres == 0) {
 	if (obj->needed_filtees != NULL) {
-	    load_filtees(__DECONST(Obj_Entry *, obj), 0, req->lockstate);
+	    flags = (req->flags & SYMLOOK_EARLY) ? RTLD_LO_EARLY : 0;
+	    load_filtees(__DECONST(Obj_Entry *, obj), flags, req->lockstate);
 	    donelist_init(&donelist);
 	    symlook_init_from_req(&req1, req);
 	    res = symlook_needed(&req1, obj->needed_filtees, &donelist);
@@ -3370,7 +3405,8 @@ symlook_obj(SymLook *req, const Obj_Entry *obj)
 	    return (res);
 	}
 	if (obj->needed_aux_filtees != NULL) {
-	    load_filtees(__DECONST(Obj_Entry *, obj), 0, req->lockstate);
+	    flags = (req->flags & SYMLOOK_EARLY) ? RTLD_LO_EARLY : 0;
+	    load_filtees(__DECONST(Obj_Entry *, obj), flags, req->lockstate);
 	    donelist_init(&donelist);
 	    symlook_init_from_req(&req1, req);
 	    res = symlook_needed(&req1, obj->needed_aux_filtees, &donelist);

@@ -231,7 +231,7 @@ static const long reloc_target_bitmask[] = {
 	__asm __volatile("flush %0 + %1" : : "r" (va), "I" (offs));
 
 static int reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela,
-    SymCache *cache, RtldLockState *lockstate);
+    SymCache *cache, int flags, RtldLockState *lockstate);
 static void install_plt(Elf_Word *pltgot, Elf_Addr proc);
 
 extern char _rtld_bind_start_0[];
@@ -264,6 +264,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 			symlook_init(&req, name);
 			req.ventry = fetch_ventry(dstobj,
 			    ELF_R_SYM(rela->r_info));
+			req.flags = SYMLOOK_EARLY;
 
 			for (srcobj = dstobj->next; srcobj != NULL;
 			    srcobj = srcobj->next) {
@@ -291,7 +292,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 }
 
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
+    RtldLockState *lockstate)
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
@@ -310,7 +312,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 
 	relalim = (const Elf_Rela *)((caddr_t)obj->rela + obj->relasize);
 	for (rela = obj->rela; rela < relalim; rela++) {
-		if (reloc_nonplt_object(obj, rela, cache, lockstate) < 0)
+		if (reloc_nonplt_object(obj, rela, cache, flags, lockstate) < 0)
 			goto done;
 	}
 	r = 0;
@@ -322,7 +324,7 @@ done:
 
 static int
 reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
-    RtldLockState *lockstate)
+    int flags, RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Sym *def;
@@ -385,7 +387,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	if (RELOC_RESOLVE_SYMBOL(type)) {
 		/* Find the symbol. */
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    false, cache, lockstate);
+		    flags, cache, lockstate);
 		if (def == NULL)
 			return (-1);
 
@@ -526,7 +528,7 @@ reloc_plt(Obj_Entry *obj)
 #define	LOVAL(v)	((v) & 0x000003ff)
 
 int
-reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
+reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Rela *relalim;
@@ -540,7 +542,7 @@ reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    true, NULL, lockstate);
+		    SYMLOOK_IN_PLT | flags, NULL, lockstate);
 		if (def == NULL)
 			return -1;
 		target = (Elf_Addr)(defobj->relocbase + def->st_value);
@@ -559,7 +561,8 @@ reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
 }
 
 int
-reloc_gnu_ifunc(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+reloc_gnu_ifunc(Obj_Entry *obj, int flags,
+    struct Struct_RtldLockState *lockstate)
 {
 
 	/* XXX not implemented */
