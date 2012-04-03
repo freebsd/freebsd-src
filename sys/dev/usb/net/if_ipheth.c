@@ -471,7 +471,7 @@ ipheth_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->sc_rx_buf[x] = NULL;
 			len = usbd_xfer_frame_len(xfer, x);
 
-			if (len < (sizeof(struct ether_header) +
+			if (len < (int)(sizeof(struct ether_header) +
 			    IPHETH_RX_ADJ)) {
 				m_freem(m);
 				continue;

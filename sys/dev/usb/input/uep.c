@@ -202,7 +202,7 @@ uep_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		u_char buf[17], *p;
 		int pkt_len;
 
-		if (len > sizeof(buf)) {
+		if (len > (int)sizeof(buf)) {
 			DPRINTF("bad input length %d\n", len);
 			goto tr_setup;
 		}
@@ -329,7 +329,7 @@ uep_attach(device_t dev)
 	}
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->mtx, &uep_fifo_methods,
-	    &sc->fifo, device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    &sc->fifo, device_get_unit(dev), -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 
         if (error) {

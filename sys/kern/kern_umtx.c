@@ -1216,9 +1216,6 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 }
 
 /*
- * Lock PTHREAD_PRIO_NONE protocol POSIX mutex.
- */
-/*
  * Unlock PTHREAD_PRIO_NONE protocol POSIX mutex.
  */
 static int

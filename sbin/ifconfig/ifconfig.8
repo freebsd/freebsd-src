@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2012
+.Dd April 3, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2380,10 +2380,28 @@ The following parameters are specific to
 .Xr pfsync 4
 interfaces:
 .Bl -tag -width indent
+.It Cm syncdev Ar iface
+Use the specified interface
+to send and receive pfsync state synchronisation messages.
+.It Fl syncdev
+Stop sending pfsync state synchronisation messages over the network.
+.It Cm syncpeer Ar peer_address
+Make the pfsync link point-to-point rather than using
+multicast to broadcast the state synchronisation messages.
+The peer_address is the IP address of the other host taking part in
+the pfsync cluster.
+.It Fl syncpeer
+Broadcast the packets using multicast.
 .It Cm maxupd Ar n
 Set the maximum number of updates for a single state which
 can be collapsed into one.
 This is an 8-bit number; the default value is 128.
+.It Cm defer
+Defer transmission of the first packet in a state until a peer has 
+acknowledged that the associated state has been inserted.
+.It Fl defer
+Do not defer the first packet in a state.
+This is the default.
 .El
 .Pp
 The following parameters are specific to
