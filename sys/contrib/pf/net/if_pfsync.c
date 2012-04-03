@@ -50,6 +50,7 @@
  * 1.128 - cleanups
  * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
+ * 1.126, 1.142 - deferred packets processing
  */
 
 #include "opt_inet.h"
@@ -213,6 +214,7 @@ struct pfsync_softc {
 
 	struct pfsync_upd_reqs	 sc_upd_req_list;
 
+	int			 sc_defer;
 	struct pfsync_deferrals	 sc_deferrals;
 	u_int			 sc_deferred;
 
@@ -1321,6 +1323,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		pfsyncr.pfsyncr_syncpeer = sc->sc_sync_peer;
 		pfsyncr.pfsyncr_maxupdates = sc->sc_maxupdates;
+		pfsyncr.pfsyncr_defer = sc->sc_defer;
 		return (copyout(&pfsyncr, ifr->ifr_data, sizeof(pfsyncr)));
 
 	case SIOCSETPFSYNC:
@@ -1342,6 +1345,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			return (EINVAL);
 		}
 		sc->sc_maxupdates = pfsyncr.pfsyncr_maxupdates;
+		sc->sc_defer = pfsyncr.pfsyncr_defer;
 
 		if (pfsyncr.pfsyncr_syncdev[0] == 0) {
 			sc->sc_sync_if = NULL;
@@ -1671,10 +1675,7 @@ pfsync_insert_state(struct pf_state *st)
 
 	pfsync_q_ins(st, PFSYNC_S_INS);
 
-	if (st->state_flags & PFSTATE_ACK)
-		swi_sched(V_pfsync_swi_cookie, 0);
-	else
-		st->sync_updates = 0;
+	st->sync_updates = 0;
 }
 
 static int defer = 10;
@@ -1686,6 +1687,9 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 	struct pfsync_deferral *pd;
 
 	PF_LOCK_ASSERT();
+
+	if (!sc->sc_defer || m->m_flags & (M_BCAST|M_MCAST))
+		return (0);
 
 	if (sc->sc_deferred >= 128)
 		pfsync_undefer(TAILQ_FIRST(&sc->sc_deferrals), 0);
@@ -1706,6 +1710,8 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 	callout_init(&pd->pd_tmo, CALLOUT_MPSAFE);
 	callout_reset(&pd->pd_tmo, defer, pfsync_defer_tmo,
 		pd);
+
+	swi_sched(V_pfsync_swi_cookie, 0);
 
 	return (1);
 }
