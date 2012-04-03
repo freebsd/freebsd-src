@@ -94,7 +94,7 @@ function closes and removes a pidfile.
 .Pp
 The
 .Fn pidfile_fileno
-function returns the file descriptor for the open pid file.
+function returns the file descriptor for the open pidfile.
 .Sh RETURN VALUES
 The
 .Fn pidfile_open
@@ -112,7 +112,9 @@ will be set.
 The
 .Fn pidfile_fileno
 function returns the low-level file descriptor.
-It returns -1 and sets
+It returns
+.Li -1
+and sets
 .Va errno
 if a NULL
 .Vt pidfh
