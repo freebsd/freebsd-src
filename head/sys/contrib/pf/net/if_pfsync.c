@@ -59,8 +59,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	NBPFILTER	1
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
@@ -343,9 +341,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 
 	if_attach(ifp);
 
-#if NBPFILTER > 0
 	bpfattach(ifp, DLT_PFSYNC, PFSYNC_HDRLEN);
-#endif
 
 	V_pfsyncif = sc;
 
@@ -364,9 +360,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	PF_UNLOCK();
 	if (!sc->pfsync_sync_ok && carp_demote_adj_p)
 		(*carp_demote_adj_p)(-V_pfsync_carp_adj, "pfsync destroy");
-#if NBPFILTER > 0
 	bpfdetach(ifp);
-#endif
 	if_detach(ifp);
 
 	pfsync_drop(sc);
@@ -1508,9 +1502,7 @@ static void
 pfsync_sendout(int schedswi)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
-#if NBPFILTER > 0
 	struct ifnet *ifp = sc->sc_ifp;
-#endif
 	struct mbuf *m;
 	struct ip *ip;
 	struct pfsync_header *ph;
@@ -1525,11 +1517,7 @@ pfsync_sendout(int schedswi)
 	if (sc == NULL || sc->sc_len == PFSYNC_MINPKT)
 		return;
 
-#if NBPFILTER > 0
 	if (ifp->if_bpf == NULL && sc->sc_sync_if == NULL) {
-#else
-	if (sc->sc_sync_if == NULL) {
-#endif
 		pfsync_drop(sc);
 		return;
 	}
@@ -1625,7 +1613,6 @@ pfsync_sendout(int schedswi)
 	/* XXX write checksum in EOF here */
 
 	/* we're done, let's put it on the wire */
-#if NBPFILTER > 0
 	if (ifp->if_bpf) {
 		m->m_data += sizeof(*ip);
 		m->m_len = m->m_pkthdr.len = sc->sc_len - sizeof(*ip);
@@ -1639,7 +1626,6 @@ pfsync_sendout(int schedswi)
 		m_freem(m);
 		return;
 	}
-#endif
 
 	sc->sc_ifp->if_opackets++;
 	sc->sc_ifp->if_obytes += m->m_pkthdr.len;
