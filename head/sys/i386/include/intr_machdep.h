@@ -123,6 +123,9 @@ struct trapframe;
 extern struct mtx icu_lock;
 extern int elcr_found;
 
+#ifndef DEV_ATPIC
+void	atpic_reset(void);
+#endif
 /* XXX: The elcr_* prototypes probably belong somewhere else. */
 int	elcr_probe(void);
 enum intr_trigger elcr_read_trigger(u_int irq);

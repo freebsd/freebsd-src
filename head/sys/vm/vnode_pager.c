@@ -272,6 +272,8 @@ vnode_pager_dealloc(object)
 	if (object->un_pager.vnp.writemappings > 0) {
 		object->un_pager.vnp.writemappings = 0;
 		vp->v_writecount--;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+		    __func__, vp, vp->v_writecount);
 	}
 	vp->v_object = NULL;
 	vp->v_vflag &= ~VV_TEXT;
@@ -541,6 +543,7 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_data = (caddr_t)sf_buf_kva(sf) + i * bsize;
 			bp->b_blkno = fileaddr;
 			pbgetbo(bo, bp);
+			bp->b_vp = vp;
 			bp->b_bcount = bsize;
 			bp->b_bufsize = bsize;
 			bp->b_runningbufspace = bp->b_bufsize;
@@ -558,6 +561,7 @@ vnode_pager_input_smlfs(object, m)
 			/*
 			 * free the buffer header back to the swap buffer pool
 			 */
+			bp->b_vp = NULL;
 			pbrelbo(bp);
 			relpbuf(bp, &vnode_pbuf_freecnt);
 			if (error)
@@ -916,6 +920,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	bp->b_wcred = crhold(curthread->td_ucred);
 	bp->b_blkno = firstaddr;
 	pbgetbo(bo, bp);
+	bp->b_vp = vp;
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
 	bp->b_runningbufspace = bp->b_bufsize;
@@ -942,6 +947,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * free the buffer header back to the swap buffer pool
 	 */
+	bp->b_vp = NULL;
 	pbrelbo(bp);
 	relpbuf(bp, &vnode_pbuf_freecnt);
 
@@ -1241,9 +1247,13 @@ vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
 	if (old_wm == 0 && object->un_pager.vnp.writemappings != 0) {
 		ASSERT_VOP_ELOCKED(vp, "v_writecount inc");
 		vp->v_writecount++;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+		    __func__, vp, vp->v_writecount);
 	} else if (old_wm != 0 && object->un_pager.vnp.writemappings == 0) {
 		ASSERT_VOP_ELOCKED(vp, "v_writecount dec");
 		vp->v_writecount--;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+		    __func__, vp, vp->v_writecount);
 	}
 	VM_OBJECT_UNLOCK(object);
 }

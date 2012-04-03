@@ -123,6 +123,14 @@ ar724x_chip_device_stopped(uint32_t mask)
 }
 
 static void
+ar724x_chip_set_mii_speed(uint32_t unit, uint32_t speed)
+{
+
+	/* XXX TODO */
+	return;
+}
+
+static void
 ar724x_chip_set_pll_ge(int unit, int speed)
 {
 
@@ -214,14 +222,15 @@ ar724x_chip_init_usb_peripheral(void)
 }
 
 struct ar71xx_cpu_def ar724x_chip_def = {
-        &ar724x_chip_detect_mem_size,
-        &ar724x_chip_detect_sys_frequency,
-        &ar724x_chip_device_stop,
-        &ar724x_chip_device_start,
-        &ar724x_chip_device_stopped,
-        &ar724x_chip_set_pll_ge,
-        &ar724x_chip_ddr_flush_ge,
-        &ar724x_chip_get_eth_pll,
-        &ar724x_chip_ddr_flush_ip2,
+	&ar724x_chip_detect_mem_size,
+	&ar724x_chip_detect_sys_frequency,
+	&ar724x_chip_device_stop,
+	&ar724x_chip_device_start,
+	&ar724x_chip_device_stopped,
+	&ar724x_chip_set_pll_ge,
+	&ar724x_chip_set_mii_speed,
+	&ar724x_chip_ddr_flush_ge,
+	&ar724x_chip_get_eth_pll,
+	&ar724x_chip_ddr_flush_ip2,
 	&ar724x_chip_init_usb_peripheral
 };

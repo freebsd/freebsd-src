@@ -79,33 +79,35 @@ struct iwn_ident {
 };
 
 static const struct iwn_ident iwn_ident_table[] = {
-	{ 0x8086, 0x0082, "Intel(R) Centrino(R) Advanced-N 6205"	 },
-	{ 0x8086, 0x0083, "Intel(R) Centrino(R) Wireless-N 1000"	 },
-	{ 0x8086, 0x0084, "Intel(R) Centrino(R) Wireless-N 1000"	 },
-	{ 0x8086, 0x0085, "Intel(R) Centrino(R) Advanced-N 6205"	 },
-	{ 0x8086, 0x0087, "Intel(R) Centrino(R) Advanced-N + WiMAX 6250" },
-	{ 0x8086, 0x0089, "Intel(R) Centrino(R) Advanced-N + WiMAX 6250" },
-	{ 0x8086, 0x008a, "Intel(R) Centrino(R) Wireless-N 1030"	 },
-	{ 0x8086, 0x008b, "Intel(R) Centrino(R) Wireless-N 1030"	 },
-	{ 0x8086, 0x0090, "Intel(R) Centrino(R) Advanced-N 6230"	 },
-	{ 0x8086, 0x0091, "Intel(R) Centrino(R) Advanced-N 6230"	 },
-	{ 0x8086, 0x0896, "Intel(R) Centrino(R) Wireless-N 130"		 },
-	{ 0x8086, 0x4229, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x422b, "Intel(R) Centrino(R) Ultimate-N 6300"	 },
-	{ 0x8086, 0x422c, "Intel(R) Centrino(R) Advanced-N 6200"	 },
-	{ 0x8086, 0x422d, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x4230, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x4232, "Intel(R) WiFi Link 5100"			 },
-	{ 0x8086, 0x4233, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x4235, "Intel(R) Ultimate N WiFi Link 5300"		 },
-	{ 0x8086, 0x4236, "Intel(R) Ultimate N WiFi Link 5300"		 },
-	{ 0x8086, 0x4237, "Intel(R) WiFi Link 5100"			 },
-	{ 0x8086, 0x4238, "Intel(R) Centrino(R) Ultimate-N 6300"	 },
-	{ 0x8086, 0x4239, "Intel(R) Centrino(R) Advanced-N 6200"	 },
-	{ 0x8086, 0x423a, "Intel(R) WiMAX/WiFi Link 5350"		 },
-	{ 0x8086, 0x423b, "Intel(R) WiMAX/WiFi Link 5350"		 },
-	{ 0x8086, 0x423c, "Intel(R) WiMAX/WiFi Link 5150"		 },
-	{ 0x8086, 0x423d, "Intel(R) WiMAX/WiFi Link 5150"		 },
+	{ 0x8086, 0x0082, "Intel Centrino Advanced-N 6205"		},
+	{ 0x8086, 0x0083, "Intel Centrino Wireless-N 1000"		},
+	{ 0x8086, 0x0084, "Intel Centrino Wireless-N 1000"		},
+	{ 0x8086, 0x0085, "Intel Centrino Advanced-N 6205"		},
+	{ 0x8086, 0x0087, "Intel Centrino Advanced-N + WiMAX 6250"	},
+	{ 0x8086, 0x0089, "Intel Centrino Advanced-N + WiMAX 6250"	},
+	{ 0x8086, 0x008a, "Intel Centrino Wireless-N 1030"		},
+	{ 0x8086, 0x008b, "Intel Centrino Wireless-N 1030"		},
+	{ 0x8086, 0x0090, "Intel Centrino Advanced-N 6230"		},
+	{ 0x8086, 0x0091, "Intel Centrino Advanced-N 6230"		},
+	{ 0x8086, 0x0885, "Intel Centrino Wireless-N + WiMAX 6150"	},
+	{ 0x8086, 0x0886, "Intel Centrino Wireless-N + WiMAX 6150"	},
+	{ 0x8086, 0x0896, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x4229, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x422b, "Intel Centrino Ultimate-N 6300"		},
+	{ 0x8086, 0x422c, "Intel Centrino Advanced-N 6200"		},
+	{ 0x8086, 0x422d, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x4230, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x4232, "Intel WiFi Link 5100"			},
+	{ 0x8086, 0x4233, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x4235, "Intel Ultimate N WiFi Link 5300"		},
+	{ 0x8086, 0x4236, "Intel Ultimate N WiFi Link 5300"		},
+	{ 0x8086, 0x4237, "Intel WiFi Link 5100"			},
+	{ 0x8086, 0x4238, "Intel Centrino Ultimate-N 6300"		},
+	{ 0x8086, 0x4239, "Intel Centrino Advanced-N 6200"		},
+	{ 0x8086, 0x423a, "Intel WiMAX/WiFi Link 5350"			},
+	{ 0x8086, 0x423b, "Intel WiMAX/WiFi Link 5350"			},
+	{ 0x8086, 0x423c, "Intel WiMAX/WiFi Link 5150"			},
+	{ 0x8086, 0x423d, "Intel WiMAX/WiFi Link 5150"			},
 	{ 0, 0, NULL }
 };
 
@@ -945,13 +947,9 @@ static int
 iwn_suspend(device_t dev)
 {
 	struct iwn_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
-	iwn_stop(sc);
-	if (vap != NULL)
-		ieee80211_stop(vap);
+	ieee80211_suspend_all(ic);
 	return 0;
 }
 
@@ -959,20 +957,12 @@ static int
 iwn_resume(device_t dev)
 {
 	struct iwn_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 	/* Clear device-specific "PCI retry timeout" register (41h). */
 	pci_write_config(dev, 0x41, 0, 1);
 
-	if (ifp->if_flags & IFF_UP) {
-		iwn_init(sc);
-		if (vap != NULL)
-			ieee80211_init(vap);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			iwn_start(ifp);
-	}
+	ieee80211_resume_all(ic);
 	return 0;
 }
 

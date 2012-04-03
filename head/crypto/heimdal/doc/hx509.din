@@ -2,7 +2,7 @@
 
 PROJECT_NAME           = Heimdal x509 library
 PROJECT_NUMBER         = @PACKAGE_VERSION@
-OUTPUT_DIRECTORY       = @objdir@/hx509
+OUTPUT_DIRECTORY       = @srcdir@/doxyout/hx509
 INPUT                  = @srcdir@/../lib/hx509
 
 WARN_IF_UNDOCUMENTED   = YES

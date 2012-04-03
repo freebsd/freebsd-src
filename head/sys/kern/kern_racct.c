@@ -730,11 +730,8 @@ racctd(void)
 			timevalsub(&wallclock, &p->p_stats->p_start);
 			PROC_LOCK(p);
 			PROC_SLOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td) {
+			FOREACH_THREAD_IN_PROC(p, td)
 				ruxagg(p, td);
-				thread_lock(td);
-				thread_unlock(td);
-			}
 			runtime = cputick2usec(p->p_rux.rux_runtime);
 			PROC_SUNLOCK(p);
 #ifdef notyet
@@ -748,7 +745,8 @@ racctd(void)
 			mtx_lock(&racct_lock);
 			racct_set_locked(p, RACCT_CPU, runtime);
 			racct_set_locked(p, RACCT_WALLCLOCK,
-			    wallclock.tv_sec * 1000000 + wallclock.tv_usec);
+			    (uint64_t)wallclock.tv_sec * 1000000 +
+			    wallclock.tv_usec);
 			mtx_unlock(&racct_lock);
 			PROC_UNLOCK(p);
 		}

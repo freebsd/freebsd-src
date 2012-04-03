@@ -21,7 +21,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
@@ -43,14 +43,13 @@ is a framework for fast and safe access to network devices
 .Nm
 uses memory mapped buffers and metadata
 (buffer indexes and lengths) to communicate with the kernel,
-which is in charge of validating information through 
+which is in charge of validating information through
 .Pa ioctl()
 and
 .Pa select()/poll().
 .Nm
 can exploit the parallelism in multiqueue devices and
 multicore systems.
-.Pp
 .Pp
 .Nm
 requires explicit support in device drivers.
@@ -66,7 +65,7 @@ to bind the file descriptor to a network device.
 When a device is put in
 .Nm
 mode, its data path is disconnected from the host stack.
-The processes owning the file descriptor 
+The processes owning the file descriptor
 can exchange packets with the device, or with the host stack,
 through an mmapped memory region that contains pre-allocated
 buffers and metadata.
@@ -89,7 +88,6 @@ are relative (offsets or indexes). Some macros help converting
 them into actual pointers.
 .Pp
 The data structures in shared memory are the following:
-.Pp
 .Bl -tag -width XXX
 .It Dv struct netmap_if (one per interface)
 indicates the number of rings supported by an interface, their
@@ -162,7 +160,6 @@ int i = txring->slot[txring->cur].buf_idx;
 char *buf = NETMAP_BUF(txring, i);
 .Ed
 .Ss IOCTLS
-.Pp
 .Nm
 supports some ioctl() to synchronize the state of the rings
 between the kernel and the user processes, plus some

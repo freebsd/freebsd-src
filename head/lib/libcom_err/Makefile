@@ -7,6 +7,9 @@ MAN=	com_err.3
 COM_ERRDIR=	${.CURDIR}/../../contrib/com_err
 CFLAGS+=	-I${COM_ERRDIR}
 
+LDFLAGS=	-Wl,--no-undefined
+VERSION_MAP=	${COM_ERRDIR}/version-script.map
+
 SUBDIR=	doc
 
 .include <bsd.lib.mk>

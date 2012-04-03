@@ -383,11 +383,11 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
 	void *vaddr;
-	u_int32_t paddr, psize;
-	
+	vm_paddr_t paddr;
+	vm_size_t psize;
+
 	/*
-	 * If this is a memory resource, track the direct mapping
-	 * in the uncached MIPS KSEG1 segment.
+	 * If this is a memory resource, use pmap_mapdev to map it.
 	 */
 	if (type == SYS_RES_MEMORY) {
 		paddr = rman_get_start(r);

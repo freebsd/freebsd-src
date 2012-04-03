@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_add_flag_np
-.Nd add flags to a flagset 
+.Nd add flags to a flagset
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -52,10 +52,10 @@ that already exist in the flagset.
 .Pp
 Valid values are:
 .Bl -column -offset 3n "ACL_ENTRY_NO_PROPAGATE_INHERIT"
-.It ACL_ENTRY_FILE_INHERIT		Will be inherited by files.
-.It ACL_ENTRY_DIRECTORY_INHERIT	Will be inherited by directories.
-.It ACL_ENTRY_NO_PROPAGATE_INHERIT	Will not propagate.
-.It ACL_ENTRY_INHERIT_ONLY		Inherit-only.
+.It ACL_ENTRY_FILE_INHERIT Ta "Will be inherited by files."
+.It ACL_ENTRY_DIRECTORY_INHERIT Ta "Will be inherited by directories."
+.It ACL_ENTRY_NO_PROPAGATE_INHERIT Ta "Will not propagate."
+.It ACL_ENTRY_INHERIT_ONLY Ta "Inherit-only."
 .El
 .Sh RETURN VALUES
 .Rv -std acl_add_flag_np

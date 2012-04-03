@@ -179,7 +179,7 @@ zero upon success. A non-zero return value indicates failure.
 .
 .Fn usbd_transfer_unsetup
 This function will release the given USB transfers and all allocated
-resources associated with these USB transfers. 
+resources associated with these USB transfers.
 .Fa pxfer
 is a pointer to an array of USB transfer pointers, that may be NULL,
 that should be freed by the USB system.
@@ -283,15 +283,15 @@ usb_default_callback(struct usb_xfer *xfer, usb_error_t error)
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_SETUP: 
+	case USB_ST_SETUP:
 		/*
 		 * Setup xfer frame lengths/count and data
 		 */
 		usbd_transfer_submit(xfer);
 		break;
 
-	case USB_ST_TRANSFERRED: 
-		/* 
+	case USB_ST_TRANSFERRED:
+		/*
 		 * Read	usb frame data, if any.
 		 * "actlen" has the total length for all frames
 		 * transferred.
@@ -300,13 +300,13 @@ usb_default_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	default: /* Error */
 		/*
-		 * Print error message and clear stall 
+		 * Print error message and clear stall
 		 * for example.
 		 */
 		break;
 	}
-	/* 
-	 * Here it is safe to do something without the private 
+	/*
+	 * Here it is safe to do something without the private
 	 * USB mutex locked.
 	 */
 	return;
@@ -320,7 +320,7 @@ First the SETUP packet, then DATA packet(s) and then a STATUS
 packet.
 .
 The SETUP packet is always pointed to by frame 0 and the
-length is set by 
+length is set by
 .Fn usbd_xfer_frame_len
 also if there should not be
 sent any SETUP packet! If an USB control transfer has no DATA stage,
@@ -375,7 +375,7 @@ module defines a USB config structure where it is possible to specify
 the characteristics of the wanted endpoint.
 .Bd -literal -offset indent
 
-struct usb_config { 
+struct usb_config {
 	bufsize,
 	callback
 	direction,

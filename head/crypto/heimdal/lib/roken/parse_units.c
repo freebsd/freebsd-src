@@ -1,40 +1,37 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: parse_units.c 21005 2007-06-08 01:54:35Z lha $");
-#endif
 
 #include <stdio.h>
 #include <ctype.h>
@@ -73,7 +70,7 @@ parse_something (const char *s, const struct units *units,
 
     p = s;
     while (*p) {
-	double val;
+	int val;
 	char *next;
 	const struct units *u, *partial_unit;
 	size_t u_len;
@@ -83,7 +80,7 @@ parse_something (const char *s, const struct units *units,
 	while(isspace((unsigned char)*p) || *p == ',')
 	    ++p;
 
-	val = strtod (p, &next); /* strtol(p, &next, 0); */
+	val = strtol(p, &next, 0);
 	if (p == next) {
 	    val = 0;
 	    if(!accept_no_val_p)
@@ -152,7 +149,7 @@ acc_units(int res, int val, unsigned mult)
     return res + val * mult;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 parse_units (const char *s, const struct units *units,
 	     const char *def_unit)
 {
@@ -178,7 +175,7 @@ acc_flags(int res, int val, unsigned mult)
 	return -1;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 parse_flags (const char *s, const struct units *units,
 	     int orig)
 {
@@ -211,7 +208,7 @@ unparse_something (int num, const struct units *units, char *s, size_t len,
 	    tmp = (*print) (s, len, divisor, u->name, num);
 	    if (tmp < 0)
 		return tmp;
-	    if (tmp > len) {
+	    if (tmp > (int) len) {
 		len = 0;
 		s = NULL;
 	    } else {
@@ -248,7 +245,7 @@ update_unit_approx (int in, unsigned mult)
 	return update_unit (in, mult);
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 unparse_units (int num, const struct units *units, char *s, size_t len)
 {
     return unparse_something (num, units, s, len,
@@ -257,7 +254,7 @@ unparse_units (int num, const struct units *units, char *s, size_t len)
 			      "0");
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 unparse_units_approx (int num, const struct units *units, char *s, size_t len)
 {
     return unparse_something (num, units, s, len,
@@ -266,11 +263,11 @@ unparse_units_approx (int num, const struct units *units, char *s, size_t len)
 			      "0");
 }
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 print_units_table (const struct units *units, FILE *f)
 {
     const struct units *u, *u2;
-    unsigned max_sz = 0;
+    size_t max_sz = 0;
 
     for (u = units; u->name; ++u) {
 	max_sz = max(max_sz, strlen(u->name));
@@ -291,7 +288,7 @@ print_units_table (const struct units *units, FILE *f)
 	    if (u2->name == NULL)
 		--u2;
 	    unparse_units (u->mult, u2, buf, sizeof(buf));
-	    fprintf (f, "1 %*s = %s\n", max_sz, u->name, buf);
+	    fprintf (f, "1 %*s = %s\n", (int)max_sz, u->name, buf);
 	} else {
 	    fprintf (f, "1 %s\n", u->name);
 	}
@@ -311,7 +308,7 @@ update_flag (int in, unsigned mult)
     return in - mult;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 unparse_flags (int num, const struct units *units, char *s, size_t len)
 {
     return unparse_something (num, units, s, len,
@@ -320,7 +317,7 @@ unparse_flags (int num, const struct units *units, char *s, size_t len)
 			      "");
 }
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 print_flags_table (const struct units *units, FILE *f)
 {
     const struct units *u;

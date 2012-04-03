@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: telnetd.c 21748 2007-07-31 18:57:20Z lha $");
+RCSID("$Id$");
 
 #ifdef _SC_CRAY_SECURE_SYS
 #include <sys/sysv.h>
@@ -338,7 +338,7 @@ main(int argc, char **argv)
 	case 'L':
 	    new_login = optarg;
 	    break;
-			
+
 	default:
 	    fprintf(stderr, "telnetd: %c: unknown option\n", ch);
 	    /* FALLTHROUGH */
@@ -370,7 +370,7 @@ main(int argc, char **argv)
 	    port = k_getportbyname("telnet", "tcp", htons(23));
 #endif
 	}
-	mini_inetd (port);
+	mini_inetd (port, NULL);
     } else if (argc > 0) {
 	usage(1);
 	/* NOT REACHED */
@@ -389,7 +389,7 @@ main(int argc, char **argv)
 
 	memset(&dv, 0, sizeof(dv));
 
-	if (getsysv(&sysv, sizeof(struct sysv)) != 0) 
+	if (getsysv(&sysv, sizeof(struct sysv)) != 0)
 	    fatalperror(net, "getsysv");
 
 	/*
@@ -400,7 +400,7 @@ main(int argc, char **argv)
 	if ((getsockopt(0, SOL_SOCKET, SO_SECURITY,
 			(void *)&ss, &szss) < 0) ||
 	    (getsockopt(0, SOL_SOCKET, SO_SEC_MULTI,
-			(void *)&sock_multi, &szi) < 0)) 
+			(void *)&sock_multi, &szi) < 0))
 	    fatalperror(net, "getsockopt");
 	else {
 	    dv.dv_actlvl = ss.ss_actlabel.lt_level;
@@ -724,7 +724,7 @@ doit(struct sockaddr *who, int who_len)
     error = getnameinfo_verified (who, who_len,
 				  remote_host_name,
 				  sizeof(remote_host_name),
-				  NULL, 0, 
+				  NULL, 0,
 				  registerd_host_only ? NI_NAMEREQD : 0);
     if (error)
 	fatal(net, "Couldn't resolve your address into a host name.\r\n\

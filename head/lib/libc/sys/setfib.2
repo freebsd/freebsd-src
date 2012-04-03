@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2008
+.Dd March 19, 2012
 .Dt SETFIB 2
 .Os
 .Sh NAME
@@ -45,11 +45,29 @@ subsequent to the call, to be that of the argument
 The
 .Fa fib
 argument
-may be between 0 and the current system maximum which 
-may be retrieved by the 
+must be greater than or equal to 0
+and less than the current system maximum which
+may be retrieved by the
 .Va net.fibs
 sysctl.
-The default fib of the process will be applied to all protocol families 
+The system maximum is set in the kernel configuration file with
+.Pp
+.Dl options	ROUTETABLES= Ns Em N
+.Pp
+or in
+.Pa /boot/loader.conf
+with
+.Pp
+.Dl net.fibs= Ns Qq Em N
+.Pp
+where
+.Em N
+is an integer.
+However, this maximum is capped at 16 due to the implementation storing
+the fib number in a 4-bit field in
+.Xr mbuf 9
+flags.
+The default fib of the process will be applied to all protocol families
 that support multiple fibs, and ignored by those that do not.
 The default fib for a process may be overridden for a socket with the use
 of the

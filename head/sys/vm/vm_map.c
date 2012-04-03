@@ -2100,8 +2100,7 @@ vm_map_madvise(
 		}
 		vm_map_unlock(map);
 	} else {
-		vm_pindex_t pindex;
-		int count;
+		vm_pindex_t pstart, pend;
 
 		/*
 		 * madvise behaviors that are implemented in the underlying
@@ -2119,30 +2118,29 @@ vm_map_madvise(
 			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
 				continue;
 
-			pindex = OFF_TO_IDX(current->offset);
-			count = atop(current->end - current->start);
+			pstart = OFF_TO_IDX(current->offset);
+			pend = pstart + atop(current->end - current->start);
 			useStart = current->start;
 
 			if (current->start < start) {
-				pindex += atop(start - current->start);
-				count -= atop(start - current->start);
+				pstart += atop(start - current->start);
 				useStart = start;
 			}
 			if (current->end > end)
-				count -= atop(current->end - end);
+				pend -= atop(current->end - end);
 
-			if (count <= 0)
+			if (pstart >= pend)
 				continue;
 
-			vm_object_madvise(current->object.vm_object,
-					  pindex, count, behav);
+			vm_object_madvise(current->object.vm_object, pstart,
+			    pend, behav);
 			if (behav == MADV_WILLNEED) {
 				vm_map_pmap_enter(map,
 				    useStart,
 				    current->protection,
 				    current->object.vm_object,
-				    pindex,
-				    (count << PAGE_SHIFT),
+				    pstart,
+				    ptoa(pend - pstart),
 				    MAP_PREFAULT_MADVISE
 				);
 			}
@@ -2591,6 +2589,7 @@ vm_map_sync(
 	vm_object_t object;
 	vm_ooffset_t offset;
 	unsigned int last_timestamp;
+	boolean_t failed;
 
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2620,6 +2619,7 @@ vm_map_sync(
 
 	if (invalidate)
 		pmap_remove(map->pmap, start, end);
+	failed = FALSE;
 
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
@@ -2648,7 +2648,8 @@ vm_map_sync(
 		vm_object_reference(object);
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
-		vm_object_sync(object, offset, size, syncio, invalidate);
+		if (!vm_object_sync(object, offset, size, syncio, invalidate))
+			failed = TRUE;
 		start += size;
 		vm_object_deallocate(object);
 		vm_map_lock_read(map);
@@ -2658,7 +2659,7 @@ vm_map_sync(
 	}
 
 	vm_map_unlock_read(map);
-	return (KERN_SUCCESS);
+	return (failed ? KERN_FAILURE : KERN_SUCCESS);
 }
 
 /*

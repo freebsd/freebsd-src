@@ -1558,8 +1558,10 @@ hdac_suspend(device_t dev)
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reset controller...\n");
 	);
+	callout_stop(&sc->poll_callout);
 	hdac_reset(sc, 0);
 	hdac_unlock(sc);
+	callout_drain(&sc->poll_callout);
 	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Suspend done\n");
@@ -1608,6 +1610,7 @@ hdac_resume(device_t dev)
 	    HDAC_GCTL_UNSOL);
 	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
 	DELAY(1000);
+	hdac_poll_reinit(sc);
 	hdac_unlock(sc);
 
 	error = bus_generic_resume(dev);

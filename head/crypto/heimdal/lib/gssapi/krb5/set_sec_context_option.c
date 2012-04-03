@@ -34,9 +34,7 @@
  *  glue routine for _gsskrb5_inquire_sec_context_by_oid
  */
 
-#include "krb5/gsskrb5_locl.h"
-
-RCSID("$Id: set_sec_context_option.c 20384 2007-04-18 08:51:06Z lha $");
+#include "gsskrb5_locl.h"
 
 static OM_uint32
 get_bool(OM_uint32 *minor_status,
@@ -70,7 +68,37 @@ get_string(OM_uint32 *minor_status,
     return GSS_S_COMPLETE;
 }
 
-OM_uint32
+static OM_uint32
+get_int32(OM_uint32 *minor_status,
+	  const gss_buffer_t value,
+	  OM_uint32 *ret)
+{
+    *minor_status = 0;
+    if (value == NULL || value->length == 0)
+	*ret = 0;
+    else if (value->length == sizeof(*ret))
+	memcpy(ret, value->value, sizeof(*ret));
+    else
+	return GSS_S_UNAVAILABLE;
+
+    return GSS_S_COMPLETE;
+}
+
+static OM_uint32
+set_int32(OM_uint32 *minor_status,
+	  const gss_buffer_t value,
+	  OM_uint32 set)
+{
+    *minor_status = 0;
+    if (value->length == sizeof(set))
+	memcpy(value->value, &set, sizeof(set));
+    else
+	return GSS_S_UNAVAILABLE;
+
+    return GSS_S_COMPLETE;
+}
+
+OM_uint32 GSSAPI_CALLCONV
 _gsskrb5_set_sec_context_option
            (OM_uint32 *minor_status,
             gss_ctx_id_t *context_handle,
@@ -126,11 +154,10 @@ _gsskrb5_set_sec_context_option
 	if (maj_stat != GSS_S_COMPLETE)
 	    return maj_stat;
 
-	_gsskrb5_register_acceptor_identity(str);
+	maj_stat = _gsskrb5_register_acceptor_identity(minor_status, str);
 	free(str);
 
-	*minor_status = 0;
-	return GSS_S_COMPLETE;
+	return maj_stat;
 
     } else if (gss_oid_equal(desired_object, GSS_KRB5_SET_DEFAULT_REALM_X)) {
 	char *str;
@@ -162,7 +189,7 @@ _gsskrb5_set_sec_context_option
 	    }
 	    memcpy(&c, value->value, sizeof(c));
 	    krb5_set_send_to_kdc_func(context,
-				      (krb5_send_to_kdc_func)c.func, 
+				      (krb5_send_to_kdc_func)c.func,
 				      c.ptr);
 	}
 
@@ -184,6 +211,47 @@ _gsskrb5_set_sec_context_option
 	if (*minor_status)
 	    return GSS_S_FAILURE;
 
+	return GSS_S_COMPLETE;
+    } else if (gss_oid_equal(desired_object, GSS_KRB5_SET_TIME_OFFSET_X)) {
+	OM_uint32 offset;
+	time_t t;
+
+	maj_stat = get_int32(minor_status, value, &offset);
+	if (maj_stat != GSS_S_COMPLETE)
+	    return maj_stat;
+
+	t = time(NULL) + offset;
+
+	krb5_set_real_time(context, t, 0);
+
+	*minor_status = 0;
+	return GSS_S_COMPLETE;
+    } else if (gss_oid_equal(desired_object, GSS_KRB5_GET_TIME_OFFSET_X)) {
+	krb5_timestamp sec;
+	int32_t usec;
+	time_t t;
+
+	t = time(NULL);
+
+	krb5_us_timeofday (context, &sec, &usec);
+
+	maj_stat = set_int32(minor_status, value, sec - t);
+	if (maj_stat != GSS_S_COMPLETE)
+	    return maj_stat;
+
+	*minor_status = 0;
+	return GSS_S_COMPLETE;
+    } else if (gss_oid_equal(desired_object, GSS_KRB5_PLUGIN_REGISTER_X)) {
+	struct gsskrb5_krb5_plugin c;
+
+	if (value->length != sizeof(c)) {
+	    *minor_status = EINVAL;
+	    return GSS_S_FAILURE;
+	}
+	memcpy(&c, value->value, sizeof(c));
+	krb5_plugin_register(context, c.type, c.name, c.symbol);
+
+	*minor_status = 0;
 	return GSS_S_COMPLETE;
     }
 

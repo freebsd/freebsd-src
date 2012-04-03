@@ -101,7 +101,6 @@ device		rlphy		# NSLU2 uses Realtek PHY attached to npe
 device		ether
 device		bpf
 
-device		pty
 device		loop
 
 device		md

@@ -110,6 +110,7 @@ static int arge_ioctl(struct ifnet *, u_long, caddr_t);
 static void arge_init(void *);
 static void arge_init_locked(struct arge_softc *);
 static void arge_link_task(void *, int);
+static void arge_update_link_locked(struct arge_softc *sc);
 static void arge_set_pll(struct arge_softc *, int, int);
 static int arge_miibus_readreg(device_t, int, int);
 static void arge_miibus_statchg(device_t);
@@ -118,6 +119,7 @@ static int arge_probe(device_t);
 static void arge_reset_dma(struct arge_softc *);
 static int arge_resume(device_t);
 static int arge_rx_ring_init(struct arge_softc *);
+static void arge_rx_ring_free(struct arge_softc *sc);
 static int arge_tx_ring_init(struct arge_softc *);
 #ifdef DEVICE_POLLING
 static int arge_poll(struct ifnet *, enum poll_cmd, int);
@@ -683,18 +685,24 @@ static void
 arge_link_task(void *arg, int pending)
 {
 	struct arge_softc	*sc;
+	sc = (struct arge_softc *)arg;
+
+	ARGE_LOCK(sc);
+	arge_update_link_locked(sc);
+	ARGE_UNLOCK(sc);
+}
+
+static void
+arge_update_link_locked(struct arge_softc *sc)
+{
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
 	uint32_t		media, duplex;
 
-	sc = (struct arge_softc *)arg;
-
-	ARGE_LOCK(sc);
 	mii = device_get_softc(sc->arge_miibus);
 	ifp = sc->arge_ifp;
 	if (mii == NULL || ifp == NULL ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		ARGE_UNLOCK(sc);
 		return;
 	}
 
@@ -707,10 +715,9 @@ arge_link_task(void *arg, int pending)
 			duplex = mii->mii_media_active & IFM_GMASK;
 			arge_set_pll(sc, media, duplex);
 		}
-	} else
+	} else {
 		sc->arge_link_status = 0;
-
-	ARGE_UNLOCK(sc);
+	}
 }
 
 static void
@@ -807,6 +814,12 @@ arge_reset_dma(struct arge_softc *sc)
 	    DMA_RX_STATUS_BUS_ERROR | DMA_RX_STATUS_OVERFLOW);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS,
 	    DMA_TX_STATUS_BUS_ERROR | DMA_TX_STATUS_UNDERRUN);
+
+	/*
+	 * Force a DDR flush so any pending data is properly
+	 * flushed to RAM before underlying buffers are freed.
+	 */
+	arge_flush_ddr(sc);
 }
 
 
@@ -844,9 +857,7 @@ arge_init_locked(struct arge_softc *sc)
 
 	arge_reset_dma(sc);
 
-
 	if (sc->arge_miibus) {
-		sc->arge_link_status = 0;
 		mii = device_get_softc(sc->arge_miibus);
 		mii_mediachg(mii);
 	}
@@ -860,8 +871,10 @@ arge_init_locked(struct arge_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	if (sc->arge_miibus)
+	if (sc->arge_miibus) {
 		callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
+		arge_update_link_locked(sc);
+	}
 
 	ARGE_WRITE(sc, AR71XX_DMA_TX_DESC, ARGE_TX_RING_ADDR(sc, 0));
 	ARGE_WRITE(sc, AR71XX_DMA_RX_DESC, ARGE_RX_RING_ADDR(sc, 0));
@@ -1083,6 +1096,10 @@ arge_stop(struct arge_softc *sc)
 	ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
 
 	arge_reset_dma(sc);
+
+	/* Flush FIFO and free any existing mbufs */
+	arge_flush_ddr(sc);
+	arge_rx_ring_free(sc);
 }
 
 
@@ -1531,6 +1548,12 @@ arge_rx_ring_init(struct arge_softc *sc)
 	bzero(rd->arge_rx_ring, sizeof(rd->arge_rx_ring));
 	for (i = 0; i < ARGE_RX_RING_COUNT; i++) {
 		rxd = &sc->arge_cdata.arge_rxdesc[i];
+		if (rxd->rx_m != NULL) {
+			device_printf(sc->arge_dev,
+			    "%s: ring[%d] rx_m wasn't free?\n",
+			    __func__,
+			    i);
+		}
 		rxd->rx_m = NULL;
 		rxd->desc = &rd->arge_rx_ring[i];
 		if (i == ARGE_RX_RING_COUNT - 1)
@@ -1548,6 +1571,32 @@ arge_rx_ring_init(struct arge_softc *sc)
 	    BUS_DMASYNC_PREWRITE);
 
 	return (0);
+}
+
+/*
+ * Free all the buffers in the RX ring.
+ *
+ * TODO: ensure that DMA is disabled and no pending DMA
+ * is lurking in the FIFO.
+ */
+static void
+arge_rx_ring_free(struct arge_softc *sc)
+{
+	int i;
+	struct arge_rxdesc	*rxd;
+
+	ARGE_LOCK_ASSERT(sc);
+
+	for (i = 0; i < ARGE_RX_RING_COUNT; i++) {
+		rxd = &sc->arge_cdata.arge_rxdesc[i];
+		/* Unmap the mbuf */
+		if (rxd->rx_m != NULL) {
+			bus_dmamap_unload(sc->arge_cdata.arge_rx_tag,
+			    rxd->rx_dmamap);
+			m_free(rxd->rx_m);
+			rxd->rx_m = NULL;
+		}
+	}
 }
 
 /*

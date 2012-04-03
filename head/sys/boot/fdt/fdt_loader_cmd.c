@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <fdt.h>
 #include <libfdt.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <machine/elf.h>
 
 #include "bootstrap.h"
 #include "glue.h"
@@ -54,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #define STR(number) #number
 #define STRINGIFY(number) STR(number)
 
-#define MIN(num1, num2)	(((num1) < (num2)) ? (num1):(num2))
+#define COPYOUT(s,d,l)	archsw.arch_copyout((vm_offset_t)(s), d, l)
+
+#define FDT_STATIC_DTB_SYMBOL	"fdt_static_dtb"
 
 static struct fdt_header *fdtp = NULL;
 
@@ -92,6 +97,91 @@ static const struct cmdtab commands[] = {
 
 static char cwd[FDT_CWD_LEN] = "/";
 
+static vm_offset_t
+fdt_find_static_dtb(void)
+{
+	Elf_Sym sym;
+	vm_offset_t dyntab, esym;
+	uint64_t offs;
+	struct preloaded_file *kfp;
+	struct file_metadata *md;
+	Elf_Sym *symtab;
+	Elf_Dyn *dyn;
+	char *strtab, *strp;
+	int i, sym_count;
+
+	symtab = NULL;
+	dyntab = esym = 0;
+	strtab = strp = NULL;
+
+	offs = __elfN(relocation_offset);
+
+	kfp = file_findfile(NULL, NULL);
+	if (kfp == NULL)
+		return (0);
+
+	md = file_findmetadata(kfp, MODINFOMD_ESYM);
+	if (md == NULL)
+		return (0);
+	COPYOUT(md->md_data, &esym, sizeof(esym));
+
+	md = file_findmetadata(kfp, MODINFOMD_DYNAMIC);
+	if (md == NULL)
+		return (0);
+	COPYOUT(md->md_data, &dyntab, sizeof(dyntab));
+
+	dyntab += offs;
+
+	/* Locate STRTAB and DYNTAB */
+	for (dyn = (Elf_Dyn *)dyntab; dyn->d_tag != DT_NULL; dyn++) {
+		if (dyn->d_tag == DT_STRTAB) {
+			strtab = (char *)(uintptr_t)(dyn->d_un.d_ptr + offs);
+			continue;
+		} else if (dyn->d_tag == DT_SYMTAB) {
+			symtab = (Elf_Sym *)(uintptr_t)
+			    (dyn->d_un.d_ptr + offs);
+			continue;
+		}
+	}
+
+	if (symtab == NULL || strtab == NULL) {
+		/*
+		 * No symtab? No strtab? That should not happen here,
+		 * and should have been verified during __elfN(loadimage).
+		 * This must be some kind of a bug.
+		 */
+		return (0);
+	}
+
+	sym_count = (int)((Elf_Sym *)esym - symtab) / sizeof(Elf_Sym);
+
+	/*
+	 * The most efficent way to find a symbol would be to calculate a
+	 * hash, find proper bucket and chain, and thus find a symbol.
+	 * However, that would involve code duplication (e.g. for hash
+	 * function). So we're using simpler and a bit slower way: we're
+	 * iterating through symbols, searching for the one which name is
+	 * 'equal' to 'fdt_static_dtb'. To speed up the process a little bit,
+	 * we are eliminating symbols type of which is not STT_NOTYPE, or(and)
+	 * those which binding attribute is not STB_GLOBAL.
+	 */
+	for (i = 0; i < sym_count; i++) {
+		COPYOUT(symtab + i, &sym, sizeof(sym));
+		if (ELF_ST_BIND(sym.st_info) != STB_GLOBAL ||
+		    ELF_ST_TYPE(sym.st_info) != STT_NOTYPE)
+			continue;
+
+		strp = strdupout((vm_offset_t)(strtab + sym.st_name));
+		if (strcmp(strp, FDT_STATIC_DTB_SYMBOL) == 0) {
+			/* Found a match ! */
+			free(strp);
+			return ((vm_offset_t)(sym.st_value + offs));
+		}
+		free(strp);
+	}
+	return (0);
+}
+
 static int
 fdt_setup_fdtp()
 {
@@ -103,10 +193,14 @@ fdt_setup_fdtp()
 	 */
 	bfp = file_findfile(NULL, "dtb");
 	if (bfp == NULL) {
-		command_errmsg = "no device tree blob loaded";
-		return (CMD_ERROR);
+		if ((fdtp = (struct fdt_header *)fdt_find_static_dtb()) == 0) {
+			command_errmsg = "no device tree blob found!";
+			return (CMD_ERROR);
+		}
+	} else {
+		/* Dynamic blob has precedence over static. */
+		fdtp = (struct fdt_header *)bfp->f_addr;
 	}
-	fdtp = (struct fdt_header *)bfp->f_addr;
 
 	/*
 	 * Validate the blob.
@@ -448,7 +542,10 @@ fixup_stdout(const char *env)
 	}
 }
 
-int
+/*
+ * Locate the blob, fix it up and return its location.
+ */
+void *
 fdt_fixup(void)
 {
 	const char *env;
@@ -461,13 +558,10 @@ fdt_fixup(void)
 	ethstr = NULL;
 	len = 0;
 
-	if (!fdtp) {
-		err = fdt_setup_fdtp();
-		if (err) {
-			sprintf(command_errbuf, "Could not perform blob "
-			    "fixups. Error code: %d\n", err);
-			return (err);
-		}
+	err = fdt_setup_fdtp();
+	if (err) {
+		sprintf(command_errbuf, "No valid device tree blob found!");
+		return (NULL);
 	}
 
 	/* Create /chosen node (if not exists) */
@@ -477,7 +571,7 @@ fdt_fixup(void)
 
 	/* Value assigned to fixup-applied does not matter. */
 	if (fdt_getprop(fdtp, chosen, "fixup-applied", NULL))
-		return (CMD_OK);
+		goto success;
 
 	/* Acquire sys_info */
 	si = ub_get_sys_info();
@@ -521,7 +615,8 @@ fdt_fixup(void)
 
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
 
-	return (CMD_OK);
+success:
+	return (fdtp);
 }
 
 int
@@ -539,7 +634,8 @@ command_fdt_internal(int argc, char *argv[])
 	/*
 	 * Check if uboot env vars were parsed already. If not, do it now.
 	 */
-	fdt_fixup();
+	if (fdt_fixup() == NULL)
+		return (CMD_ERROR);
 
 	/*
 	 * Validate fdt <command>.
@@ -559,10 +655,6 @@ command_fdt_internal(int argc, char *argv[])
 		command_errmsg = "unknown command";
 		return (CMD_ERROR);
 	}
-
-	if (!fdtp)
-		if (fdt_setup_fdtp())
-			return (CMD_ERROR);
 
 	/*
 	 * Call command handler.
@@ -753,32 +845,41 @@ fdt_isprint(const void *data, int len, int *count)
 static int
 fdt_data_str(const void *data, int len, int count, char **buf)
 {
-	char tmp[80], *b;
+	char *b, *tmp;
 	const char *d;
-	int i, l;
+	int buf_len, i, l;
 
 	/*
 	 * Calculate the length for the string and allocate memory.
 	 *
-	 * Note len already includes at least one terminator.
+	 * Note that 'len' already includes at least one terminator.
 	 */
-	l = len;
+	buf_len = len;
 	if (count > 1) {
 		/*
 		 * Each token had already a terminator buried in 'len', but we
 		 * only need one eventually, don't count space for these.
 		 */
-		l -= count - 1;
+		buf_len -= count - 1;
 
 		/* Each consecutive token requires a ", " separator. */
-		l += count * 2;
+		buf_len += count * 2;
 	}
-	/* Space for surrounding double quotes. */
-	l += count * 2;
 
-	b = (char *)malloc(l);
+	/* Add some space for surrounding double quotes. */
+	buf_len += count * 2;
+
+	/* Note that string being put in 'tmp' may be as big as 'buf_len'. */
+	b = (char *)malloc(buf_len);
+	tmp = (char *)malloc(buf_len);
 	if (b == NULL)
-		return (1);
+		goto error;
+
+	if (tmp == NULL) {
+		free(b);
+		goto error;
+	}
+
 	b[0] = '\0';
 
 	/*
@@ -798,13 +899,17 @@ fdt_data_str(const void *data, int len, int count, char **buf)
 	} while (i < len);
 	*buf = b;
 
+	free(tmp);
+
 	return (0);
+error:
+	return (1);
 }
 
 static int
 fdt_data_cell(const void *data, int len, char **buf)
 {
-	char tmp[80], *b;
+	char *b, *tmp;
 	const uint32_t *c;
 	int count, i, l;
 
@@ -827,8 +932,14 @@ fdt_data_cell(const void *data, int len, char **buf)
 	l += 3;
 
 	b = (char *)malloc(l);
+	tmp = (char *)malloc(l);
 	if (b == NULL)
-		return (1);
+		goto error;
+
+	if (tmp == NULL) {
+		free(b);
+		goto error;
+	}
 
 	b[0] = '\0';
 	strcat(b, "<");
@@ -842,13 +953,17 @@ fdt_data_cell(const void *data, int len, char **buf)
 	strcat(b, ">");
 	*buf = b;
 
+	free(tmp);
+
 	return (0);
+error:
+	return (1);
 }
 
 static int
 fdt_data_bytes(const void *data, int len, char **buf)
 {
-	char tmp[80], *b;
+	char *b, *tmp;
 	const char *d;
 	int i, l;
 
@@ -867,8 +982,14 @@ fdt_data_bytes(const void *data, int len, char **buf)
 	l += 3;
 
 	b = (char *)malloc(l);
+	tmp = (char *)malloc(l);
 	if (b == NULL)
-		return (1);
+		goto error;
+
+	if (tmp == NULL) {
+		free(b);
+		goto error;
+	}
 
 	b[0] = '\0';
 	strcat(b, "[");
@@ -880,7 +1001,11 @@ fdt_data_bytes(const void *data, int len, char **buf)
 	strcat(b, "]");
 	*buf = b;
 
+	free(tmp);
+
 	return (0);
+error:
+	return (1);
 }
 
 static int
@@ -1019,6 +1144,14 @@ fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 		break;
 	}
 
+	if (rv != 0) {
+		if (rv == -FDT_ERR_NOSPACE)
+			sprintf(command_errbuf,
+			    "Device tree blob is too small!\n");
+		else
+			sprintf(command_errbuf,
+			    "Could not add/modify property!\n");
+	}
 	return (rv);
 }
 
@@ -1261,9 +1394,12 @@ fdt_cmd_mknode(int argc, char *argv[])
 	rv = fdt_add_subnode(fdtp, o, nodename);
 
 	if (rv < 0) {
-		sprintf(command_errbuf, "could not delete node %s\n",
-		    (rv == -FDT_ERR_NOTFOUND) ?
-		    "(node does not exist)" : "");
+		if (rv == -FDT_ERR_NOSPACE)
+			sprintf(command_errbuf,
+			    "Device tree blob is too small!\n");
+		else
+			sprintf(command_errbuf,
+			    "Could not add node!\n");
 		return (CMD_ERROR);
 	}
 	return (CMD_OK);
@@ -1272,7 +1408,7 @@ fdt_cmd_mknode(int argc, char *argv[])
 static int
 fdt_cmd_pwd(int argc, char *argv[])
 {
-	char line[80];
+	char line[FDT_CWD_LEN];
 
 	pager_open();
 	sprintf(line, "%s\n", cwd);

@@ -78,7 +78,6 @@
 #include <sys/priv.h>
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
-#include <fs/fifofs/fifo.h>
 #include <net/if.h>
 #include <net/radix.h>
 #include <net/route.h>
