@@ -538,8 +538,8 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	r->states_cur++;
 	r->states_tot++;
 
-	if (!ISSET(flags, PFSYNC_SI_IOCTL))
-		SET(st->state_flags, PFSTATE_NOSYNC);
+	if (!(flags & PFSYNC_SI_IOCTL))
+		st->state_flags |= PFSTATE_NOSYNC;
 
 	if ((error = pf_state_insert(kif, skw, sks, st)) != 0) {
 		/* XXX when we have nat_rule/anchors, use STATE_DEC_COUNTERS */
@@ -1469,7 +1469,7 @@ pfsync_out_del(struct pf_state *st, struct mbuf *m, int offset)
 	dp->id = st->id;
 	dp->creatorid = st->creatorid;
 
-	SET(st->state_flags, PFSTATE_NOSYNC);
+	st->state_flags |= PFSTATE_NOSYNC;
 
 	return (sizeof(*dp));
 }
@@ -1662,13 +1662,13 @@ pfsync_insert_state(struct pf_state *st)
 
 	PF_LOCK_ASSERT();
 
-	if (ISSET(st->rule.ptr->rule_flag, PFRULE_NOSYNC) ||
+	if ((st->rule.ptr->rule_flag & PFRULE_NOSYNC) ||
 	    st->key[PF_SK_WIRE]->proto == IPPROTO_PFSYNC) {
-		SET(st->state_flags, PFSTATE_NOSYNC);
+		st->state_flags |= PFSTATE_NOSYNC;
 		return;
 	}
 
-	if (sc == NULL || ISSET(st->state_flags, PFSTATE_NOSYNC))
+	if (sc == NULL || (st->state_flags & PFSTATE_NOSYNC))
 		return;
 
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
@@ -1705,7 +1705,7 @@ pfsync_defer(struct pf_state *st, struct mbuf *m)
 	sc->sc_deferred++;
 
 	m->m_flags |= M_SKIP_FIREWALL;
-	SET(st->state_flags, PFSTATE_ACK);
+	st->state_flags |= PFSTATE_ACK;
 
 	pd->pd_st = st;
 	pd->pd_m = m;
@@ -1729,7 +1729,7 @@ pfsync_undefer(struct pfsync_deferral *pd, int drop)
 	TAILQ_REMOVE(&sc->sc_deferrals, pd, pd_entry);
 	sc->sc_deferred--;
 
-	CLR(pd->pd_st->state_flags, PFSTATE_ACK);
+	pd->pd_st->state_flags &= ~PFSTATE_ACK;
 	pf_release_state(pd->pd_st);
 	callout_stop(&pd->pd_tmo); /* bah */
 	if (drop)
@@ -1788,9 +1788,9 @@ pfsync_update_state(struct pf_state *st)
 	if (sc == NULL)
 		return;
 
-	if (ISSET(st->state_flags, PFSTATE_ACK))
+	if (st->state_flags & PFSTATE_ACK)
 		pfsync_deferred(st, 0);
-	if (ISSET(st->state_flags, PFSTATE_NOSYNC)) {
+	if (st->state_flags & PFSTATE_NOSYNC) {
 		if (st->sync_state != PFSYNC_S_NONE)
 			pfsync_q_del(st);
 		return;
@@ -1879,7 +1879,7 @@ pfsync_update_state_req(struct pf_state *st)
 
 	KASSERT(sc != NULL, ("%s: nonexistent instance", __func__));
 
-	if (ISSET(st->state_flags, PFSTATE_NOSYNC)) {
+	if (st->state_flags & PFSTATE_NOSYNC) {
 		if (st->sync_state != PFSYNC_S_NONE)
 			pfsync_q_del(st);
 		return;
@@ -1916,9 +1916,9 @@ pfsync_delete_state(struct pf_state *st)
 	if (sc == NULL)
 		return;
 
-	if (ISSET(st->state_flags, PFSTATE_ACK))
+	if (st->state_flags & PFSTATE_ACK)
 		pfsync_deferred(st, 1);
-	if (ISSET(st->state_flags, PFSTATE_NOSYNC)) {
+	if (st->state_flags & PFSTATE_NOSYNC) {
 		if (st->sync_state != PFSYNC_S_NONE)
 			pfsync_q_del(st);
 		return;
@@ -2176,7 +2176,7 @@ pfsync_up(void)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 
-	if (sc == NULL || !ISSET(sc->sc_ifp->if_flags, IFF_DRV_RUNNING))
+	if (sc == NULL || !(sc->sc_ifp->if_flags & IFF_DRV_RUNNING))
 		return (0);
 
 	return (1);
