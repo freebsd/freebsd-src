@@ -67,7 +67,7 @@ ar5416IsInterruptPending(struct ath_hal *ah)
 HAL_BOOL
 ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 {
-	uint32_t isr, isr0, isr1, sync_cause = 0;
+	uint32_t isr, isr0, isr1, sync_cause = 0, o_sync_cause = 0;
 	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 
 #ifdef	AH_INTERRUPT_DEBUGGING
@@ -89,7 +89,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			isr = OS_REG_READ(ah, AR_ISR);
 		else
 			isr = 0;
-		sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
+		o_sync_cause = sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
 		sync_cause &= AR_INTR_SYNC_DEFAULT;
 		*masked = 0;
 
@@ -221,6 +221,9 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		return AH_TRUE;
 
 	if (sync_cause != 0) {
+		HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: sync_cause=0x%x\n",
+		    __func__,
+		    o_sync_cause);
 		if (sync_cause & (AR_INTR_SYNC_HOST1_FATAL | AR_INTR_SYNC_HOST1_PERR)) {
 			*masked |= HAL_INT_FATAL;
 		}
