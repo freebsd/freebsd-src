@@ -51,6 +51,7 @@
  * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
  * 1.126, 1.142 - deferred packets processing
+ * 1.173 - correct expire time processing
  */
 
 #ifdef __FreeBSD__
@@ -789,11 +790,16 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->creation = time_uptime - ntohl(sp->creation);
 	st->expire = time_second;
 	if (sp->expire) {
-		/* XXX No adaptive scaling. */
-		st->expire -= r->timeout[sp->timeout] - ntohl(sp->expire);
+		uint32_t timeout;
+
+		timeout = r->timeout[sp->timeout];
+		if (!timeout)
+			timeout = pf_default_rule.timeout[sp->timeout];
+
+		/* sp->expire may have been adaptively scaled by export. */
+		st->expire -= timeout - ntohl(sp->expire);
 	}
 
-	st->expire = ntohl(sp->expire) + time_second;
 	st->direction = sp->direction;
 	st->log = sp->log;
 	st->timeout = sp->timeout;
@@ -1291,7 +1297,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
 		pf_state_peer_ntoh(&sp->src, &st->src);
 		pf_state_peer_ntoh(&sp->dst, &st->dst);
-		st->expire = ntohl(sp->expire) + time_second;
+		st->expire = time_second;
 		st->timeout = sp->timeout;
 		st->pfsync_time = time_uptime;
 	}
@@ -1397,7 +1403,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
 		pf_state_peer_ntoh(&up->src, &st->src);
 		pf_state_peer_ntoh(&up->dst, &st->dst);
-		st->expire = ntohl(up->expire) + time_second;
+		st->expire = time_second;
 		st->timeout = up->timeout;
 		st->pfsync_time = time_uptime;
 	}
@@ -2021,12 +2027,6 @@ pfsync_out_upd_c(struct pf_state *st, struct mbuf *m, int offset)
 	pf_state_peer_hton(&st->src, &up->src);
 	pf_state_peer_hton(&st->dst, &up->dst);
 	up->creatorid = st->creatorid;
-
-	up->expire = pf_state_expires(st);
-	if (up->expire <= time_second)
-		up->expire = htonl(0);
-	else
-		up->expire = htonl(up->expire - time_second);
 	up->timeout = st->timeout;
 
 	return (sizeof(*up));
