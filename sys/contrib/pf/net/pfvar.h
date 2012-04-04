@@ -872,7 +872,7 @@ struct pfsync_state_key {
 };
 
 struct pfsync_state {
-	u_int32_t	 id[2];
+	u_int64_t	 id;
 	char		 ifname[IFNAMSIZ];
 	struct pfsync_state_key	key[2];
 	struct pfsync_state_peer src;
@@ -1809,7 +1809,7 @@ pf_release_state(struct pf_state *s)
 		pf_free_state(s);
 }
 
-extern struct pf_state		*pf_find_state_byid(struct pf_state_cmp *);
+extern struct pf_state		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
 extern void			 pf_print_state(struct pf_state *);

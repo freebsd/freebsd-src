@@ -227,7 +227,8 @@ struct pfsync_softc {
 
 	u_int32_t		 sc_ureq_received;
 	int			 sc_bulk_hash_id;
-	struct pf_state_cmp	 sc_bulk_state;
+	uint64_t		 sc_bulk_stateid;
+	uint32_t		 sc_bulk_creatorid;
 	struct callout		 sc_bulk_tmo;
 
 	struct callout		 sc_tmo;
@@ -517,7 +518,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->timeout = sp->timeout;
 	st->state_flags = sp->state_flags;
 
-	bcopy(sp->id, &st->id, sizeof(st->id));
+	st->id = sp->id;
 	st->creatorid = sp->creatorid;
 	pf_state_peer_ntoh(&sp->src, &st->src);
 	pf_state_peer_ntoh(&sp->dst, &st->dst);
@@ -751,7 +752,6 @@ static int
 pfsync_in_iack(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct pfsync_ins_ack *ia, *iaa;
-	struct pf_state_cmp id_key;
 	struct pf_state *st;
 
 	struct mbuf *mp;
@@ -769,10 +769,7 @@ pfsync_in_iack(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	for (i = 0; i < count; i++) {
 		ia = &iaa[i];
 
-		bcopy(&ia->id, &id_key.id, sizeof(id_key.id));
-		id_key.creatorid = ia->creatorid;
-
-		st = pf_find_state_byid(&id_key);
+		st = pf_find_state_byid(ia->id, ia->creatorid);
 		if (st == NULL)
 			continue;
 
@@ -827,7 +824,6 @@ static int
 pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct pfsync_state *sa, *sp;
-	struct pf_state_cmp id_key;
 	struct pf_state_key *sk;
 	struct pf_state *st;
 	int sfail;
@@ -859,10 +855,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			continue;
 		}
 
-		bcopy(sp->id, &id_key.id, sizeof(id_key.id));
-		id_key.creatorid = sp->creatorid;
-
-		st = pf_find_state_byid(&id_key);
+		st = pf_find_state_byid(sp->id, sp->creatorid);
 		if (st == NULL) {
 			/* insert the update */
 			if (pfsync_state_import(sp, 0))
@@ -921,7 +914,6 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct pfsync_upd_c *ua, *up;
 	struct pf_state_key *sk;
-	struct pf_state_cmp id_key;
 	struct pf_state *st;
 
 	int len = count * sizeof(*up);
@@ -954,13 +946,10 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			continue;
 		}
 
-		bcopy(&up->id, &id_key.id, sizeof(id_key.id));
-		id_key.creatorid = up->creatorid;
-
-		st = pf_find_state_byid(&id_key);
+		st = pf_find_state_byid(up->id, up->creatorid);
 		if (st == NULL) {
 			/* We don't have this state. Ask for it. */
-			pfsync_request_update(id_key.creatorid, id_key.id);
+			pfsync_request_update(up->creatorid, up->id);
 			continue;
 		}
 
@@ -1017,7 +1006,6 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	int len = count * sizeof(*ur);
 	int i, offp;
 
-	struct pf_state_cmp id_key;
 	struct pf_state *st;
 
 	mp = m_pulldown(m, offset, len, &offp);
@@ -1031,13 +1019,10 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	for (i = 0; i < count; i++) {
 		ur = &ura[i];
 
-		bcopy(&ur->id, &id_key.id, sizeof(id_key.id));
-		id_key.creatorid = ur->creatorid;
-
-		if (id_key.id == 0 && id_key.creatorid == 0)
+		if (ur->id == 0 && ur->creatorid == 0)
 			pfsync_bulk_start();
 		else {
-			st = pf_find_state_byid(&id_key);
+			st = pf_find_state_byid(ur->id, ur->creatorid);
 			if (st == NULL) {
 				V_pfsyncstats.pfsyncs_badstate++;
 				continue;
@@ -1061,7 +1046,6 @@ pfsync_in_del(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct mbuf *mp;
 	struct pfsync_state *sa, *sp;
-	struct pf_state_cmp id_key;
 	struct pf_state *st;
 	int len = count * sizeof(*sp);
 	int offp, i;
@@ -1077,10 +1061,7 @@ pfsync_in_del(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	for (i = 0; i < count; i++) {
 		sp = &sa[i];
 
-		bcopy(sp->id, &id_key.id, sizeof(id_key.id));
-		id_key.creatorid = sp->creatorid;
-
-		st = pf_find_state_byid(&id_key);
+		st = pf_find_state_byid(sp->id, sp->creatorid);
 		if (st == NULL) {
 			V_pfsyncstats.pfsyncs_badstate++;
 			continue;
@@ -1098,7 +1079,6 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct mbuf *mp;
 	struct pfsync_del_c *sa, *sp;
-	struct pf_state_cmp id_key;
 	struct pf_state *st;
 	int len = count * sizeof(*sp);
 	int offp, i;
@@ -1114,10 +1094,7 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	for (i = 0; i < count; i++) {
 		sp = &sa[i];
 
-		bcopy(&sp->id, &id_key.id, sizeof(id_key.id));
-		id_key.creatorid = sp->creatorid;
-
-		st = pf_find_state_byid(&id_key);
+		st = pf_find_state_byid(sp->id, sp->creatorid);
 		if (st == NULL) {
 			V_pfsyncstats.pfsyncs_badstate++;
 			continue;
@@ -2032,7 +2009,7 @@ pfsync_bulk_start(void)
 
 	sc->sc_ureq_received = time_uptime;
 	sc->sc_bulk_hash_id = 0;
-	bzero(&sc->sc_bulk_state, sizeof(struct pf_state_cmp));
+	sc->sc_bulk_stateid = 0;
 	pfsync_bulk_status(PFSYNC_BUS_START);
 	callout_reset(&sc->sc_bulk_tmo, 1, pfsync_bulk_update, sc);
 }
@@ -2052,7 +2029,7 @@ pfsync_bulk_update(void *arg)
 	 * It may had gone, in this case start from the
 	 * hash slot.
 	 */
-	s = pf_find_state_byid(&sc->sc_bulk_state);
+	s = pf_find_state_byid(sc->sc_bulk_stateid, sc->sc_bulk_creatorid);
 
 	if (s != NULL)
 		i = PF_IDHASH(s);
@@ -2075,8 +2052,8 @@ pfsync_bulk_update(void *arg)
 			    sizeof(struct pfsync_state)) {
 				/* We've filled a packet. */
 				sc->sc_bulk_hash_id = i;
-				bcopy(s, &sc->sc_bulk_state,
-				    sizeof(struct pf_state_cmp));
+				sc->sc_bulk_stateid = s->id;
+				sc->sc_bulk_creatorid = s->creatorid;
 				PF_HASHROW_UNLOCK(ih);
 				callout_reset(&sc->sc_bulk_tmo, 1,
 				    pfsync_bulk_update, sc);

@@ -981,7 +981,7 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 	ih = &V_pf_idhash[PF_IDHASH(s)];
 	PF_HASHROW_LOCK(ih);
 	LIST_FOREACH(cur, &ih->states, entry)
-		if (bcmp(cur, s, sizeof(struct pf_state_cmp)) == 0)
+		if (cur->id == s->id && cur->creatorid == s->creatorid)
 			break;
 
 	if (cur != NULL) {
@@ -1014,16 +1014,18 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
  * Find state by ID: returns with locked row on success.
  */
 struct pf_state *
-pf_find_state_byid(struct pf_state_cmp *key)
+pf_find_state_byid(uint64_t id, uint32_t creatorid)
 {
-	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(key)];
+	struct pf_idhash *ih;
 	struct pf_state *s;
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
+	ih = &V_pf_idhash[(be64toh(id) % (V_pf_hashmask + 1))];
+
 	PF_HASHROW_LOCK(ih);
 	LIST_FOREACH(s, &ih->states, entry)
-		if (bcmp(s, key, sizeof(struct pf_state_cmp)) == 0)
+		if (s->id == id && s->creatorid == creatorid)
 			break;
 
 	if (s == NULL)

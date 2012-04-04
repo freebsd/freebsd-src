@@ -1709,7 +1709,8 @@ relock_DIOCCLRSTATES:
 		if (psk->psk_pfcmp.id) {
 			if (psk->psk_pfcmp.creatorid == 0)
 				psk->psk_pfcmp.creatorid = V_pf_status.hostid;
-			if ((s = pf_find_state_byid(&psk->psk_pfcmp))) {
+			if ((s = pf_find_state_byid(psk->psk_pfcmp.id,
+			    psk->psk_pfcmp.creatorid))) {
 				pf_unlink_state(s, PF_ENTER_LOCKED);
 				psk->psk_killed = 1;
 			}
@@ -1793,13 +1794,9 @@ relock_DIOCKILLSTATES:
 	case DIOCGETSTATE: {
 		struct pfioc_state	*ps = (struct pfioc_state *)addr;
 		struct pf_state		*s;
-		struct pf_state_cmp	 id_key;
-
-		bcopy(ps->state.id, &id_key.id, sizeof(id_key.id));
-		id_key.creatorid = ps->state.creatorid;
 
 		PF_LOCK();
-		s = pf_find_state_byid(&id_key);
+		s = pf_find_state_byid(ps->state.id, ps->state.creatorid);
 		if (s == NULL) {
 			PF_UNLOCK();
 			error = ENOENT;
