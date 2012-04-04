@@ -363,7 +363,8 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 		    bf->bf_state.bfs_ndelim,
 		    bf->bf_segs[i].ds_len,	/* segment length */
 		    i == 0,		/* first segment */
-		    i == bf->bf_nseg - 1	/* last segment */
+		    i == bf->bf_nseg - 1,	/* last segment */
+		    bf->bf_next == NULL		/* last sub-frame in aggr */
 		);
 
 		DPRINTF(sc, ATH_DEBUG_XMIT,
