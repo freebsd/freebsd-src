@@ -62,6 +62,10 @@
 				< 0x48240100 0x0100 >;	/* CPU Interface Registers */
 		};
 
+		pl310@48242000 {
+			compatible = "arm,pl310";
+			reg = < 0x48242000 0x1000 >;
+		};
 		mp_tmr@48240200 {
 			compatible = "arm,mpcore-timers";
 			clock-frequency = < 504000000 >;
@@ -111,7 +115,7 @@
 
 		GPIO: gpio {
 			#gpio-cells = <3>;
-			compatible = "ti,omap_gpio";
+			compatible = "ti,gpio";
 			gpio-controller;
 			reg =<	0x4a310000 0x1000
 				0x48055000 0x1000
