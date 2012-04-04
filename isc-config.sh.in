@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: isc-config.sh.in,v 1.17 2007-06-19 23:46:59 tbox Exp $
+# $Id: isc-config.sh.in,v 1.17 2007/06/19 23:46:59 tbox Exp $
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
