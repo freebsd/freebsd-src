@@ -54,24 +54,42 @@
  *	assembly language support routines.
  */
 
-#include "opt_cputype.h"
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pte.h>
 
-#include "opt_cputype.h"
-
 #include "assym.s"
 
 	.set	noreorder		# Noreorder is default style!
 
+#ifdef KDTRACE_HOOKS
+	.data
+	.globl	dtrace_invop_jump_addr
+	.align	4
+	.type	dtrace_invop_jump_addr, @object
+        .size	dtrace_invop_jump_addr, 8
+dtrace_invop_jump_addr:
+	.word	0
+	.word	0
+	.globl	dtrace_invop_calltrap_addr
+	.align	4
+	.type	dtrace_invop_calltrap_addr, @object
+        .size	dtrace_invop_calltrap_addr, 8
+dtrace_invop_calltrap_addr:
+	.word	0
+	.word	0
+
+	.text
+#endif
+
 /*
  * Reasonable limit
  */
-#define	INTRCNT_COUNT	128
+#define	INTRCNT_COUNT	256
 
 
 /*
@@ -1188,14 +1206,14 @@ sintrnames:
 	.int  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 #endif
 
-	.align	4
+	.align	(_MIPS_SZLONG / 8)
 intrcnt:
-	.space  INTRCNT_COUNT * 4 * 2
+	.space  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 sintrcnt:
 #ifdef __mips_n64
-	.quad  INTRCNT_COUNT * 4 * 2
+	.quad  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #else
-	.int  INTRCNT_COUNT * 4 * 2
+	.int  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #endif
 
 

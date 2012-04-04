@@ -159,6 +159,7 @@ options 	GEOM_PART_BSD		# BSD disklabel
 options 	GEOM_PART_EBR		# Extended Boot Records
 options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
+options 	GEOM_PART_LDM		# Logical Disk Manager
 options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PART_PC98		# PC-9800 disk partitioning
 options 	GEOM_PART_VTOC8		# SMI VTOC8 disk label
@@ -274,6 +275,8 @@ options 	SX_NOINLINE
 #	  frequency.
 # TURNSTILE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active lock queues.
+# UMTX_PROFILING enables rudimentary profiling of the hash table used 
+	  to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
 # WITNESS_KDB causes the witness code to drop into the kernel debugger if
@@ -297,8 +300,8 @@ options 	MPROF_HASH_SIZE="1543"
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING
 options 	TURNSTILE_PROFILING
+options		UMTX_PROFILING
 
-
 #####################################################################
 # COMPATIBILITY OPTIONS
 
@@ -1712,12 +1715,12 @@ device		siis
 # For example to build a system which only supports a VIA chipset,
 # omit 'ata' and include the 'atacore', 'atapci' and 'atavia' drivers.
 device		ata
-device		atadisk		# ATA disk drives
-device		ataraid		# ATA RAID drives
-device		atapicd		# ATAPI CDROM drives
-device		atapifd		# ATAPI floppy drives
-device		atapist		# ATAPI tape drives
-device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
+#device		atadisk		# ATA disk drives
+#device		ataraid		# ATA RAID drives
+#device		atapicd		# ATAPI CDROM drives
+#device		atapifd		# ATAPI floppy drives
+#device		atapist		# ATAPI tape drives
+#device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
 				# needs CAM to be present (scbus & pass)
 
 # Modular ATA
@@ -2527,6 +2530,7 @@ device		smb
 # ic	i2c network interface
 # iic	i2c standard io
 # iicsmb i2c to smb bridge. Allow i2c i/o with smb commands.
+# iicoc simple polling driver for OpenCores I2C controller
 #
 # Supported interfaces:
 # bktr	brooktree848 I2C software interface
@@ -2540,13 +2544,16 @@ device		iicbb
 device		ic
 device		iic
 device		iicsmb		# smb over i2c bridge
+device		iicoc		# OpenCores I2C controller support
 
 # I2C peripheral devices
 #
 # ds133x	Dallas Semiconductor DS1337, DS1338 and DS1339 RTC
+# ds1374	Dallas Semiconductor DS1374 RTC
 # ds1672	Dallas Semiconductor DS1672 RTC
 #
 device		ds133x
+device		ds1374
 device		ds1672
 
 # Parallel-Port Bus

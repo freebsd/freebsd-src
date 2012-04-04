@@ -52,16 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 #include "crtbrand.c"
+#include "ignore_init.c"
 
 struct Struct_Obj_Entry;
 struct ps_strings;
 
-extern int _DYNAMIC;
-#pragma weak _DYNAMIC
-
-extern void _fini(void);
-extern void _init(void);
-extern int main(int, char **, char **);
 extern void _start(int, char **, char **, const struct Struct_Obj_Entry *,
     void (*)(void), struct ps_strings *);
 
@@ -72,8 +67,6 @@ extern int eprol;
 extern int etext;
 #endif
 
-char **environ;
-const char *__progname = "";
 struct ps_strings *__ps_strings;
 
 void __start(int, char **, char **, struct ps_strings *,
@@ -104,16 +97,11 @@ void
 __start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
     const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void))
 {
-	const char *s;
 
 	environ = env;
 
-	if (argc > 0 && argv[0] != NULL) {
-		__progname = argv[0];
-		for (s = __progname; *s != '\0'; s++)
-			if (*s == '/')
-				__progname = s + 1;
-	}
+	if (argc > 0 && argv[0] != NULL)
+		handle_progname(argv[0]);
 
 	if (ps_strings != (struct ps_strings *)0)
 		__ps_strings = ps_strings;
@@ -124,13 +112,10 @@ __start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
 		_init_tls();
 #ifdef GCRT
 	atexit(_mcleanup);
-#endif
-	atexit(_fini);
-#ifdef GCRT
 	monstartup(&eprol, &etext);
 #endif
-	_init();
-	exit( main(argc, argv, env) );
+	handle_static_init(argc, argv, env);
+	exit(main(argc, argv, env));
 }
 
 #ifdef GCRT

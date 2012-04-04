@@ -71,6 +71,7 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/i386-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
+cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_emul.c	optional compat_linux
@@ -407,7 +408,6 @@ i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
-i386/i386/legacy.c		optional native
 i386/i386/locore.s		optional native	no-obj
 i386/xen/locore.s		optional xen	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
@@ -528,6 +528,7 @@ x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
+x86/x86/legacy.c		optional native
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic native

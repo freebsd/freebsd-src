@@ -105,7 +105,12 @@ addchan(struct ieee80211com *ic, int ieee, int flags)
 	c->ic_freq = ieee80211_ieee2mhz(ieee, flags);
 	c->ic_ieee = ieee;
 	c->ic_flags = flags;
-	c->ic_extieee = 0;
+	if (flags & IEEE80211_CHAN_HT40U)
+		c->ic_extieee = ieee + 4;
+	else if (flags & IEEE80211_CHAN_HT40D)
+		c->ic_extieee = ieee - 4;
+	else
+		c->ic_extieee = 0;
 }
 
 /*
@@ -123,7 +128,8 @@ ieee80211_init_channels(struct ieee80211com *ic,
 	/* XXX just do something for now */
 	ic->ic_nchans = 0;
 	if (isset(bands, IEEE80211_MODE_11B) ||
-	    isset(bands, IEEE80211_MODE_11G)) {
+	    isset(bands, IEEE80211_MODE_11G) ||
+	    isset(bands, IEEE80211_MODE_11NG)) {
 		int maxchan = 11;
 		if (rd != NULL && rd->ecm)
 			maxchan = 14;
@@ -132,15 +138,67 @@ ieee80211_init_channels(struct ieee80211com *ic,
 				addchan(ic, i, IEEE80211_CHAN_B);
 			if (isset(bands, IEEE80211_MODE_11G))
 				addchan(ic, i, IEEE80211_CHAN_G);
+			if (isset(bands, IEEE80211_MODE_11NG)) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT20);
+			}
+			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
+				continue;
+			if (i <= 7) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U);
+				addchan(ic, i + 4,
+				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D);
+			}
 		}
 	}
-	if (isset(bands, IEEE80211_MODE_11A)) {
-		for (i = 36; i <= 64; i += 4)
+	if (isset(bands, IEEE80211_MODE_11A) ||
+	    isset(bands, IEEE80211_MODE_11NA)) {
+		for (i = 36; i <= 64; i += 4) {
 			addchan(ic, i, IEEE80211_CHAN_A);
-		for (i = 100; i <= 140; i += 4)
+			if (isset(bands, IEEE80211_MODE_11NA)) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
+			}
+			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
+				continue;
+			if ((i % 8) == 4) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
+				addchan(ic, i + 4,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
+			}
+		}
+		for (i = 100; i <= 140; i += 4) {
 			addchan(ic, i, IEEE80211_CHAN_A);
-		for (i = 149; i <= 161; i += 4)
+			if (isset(bands, IEEE80211_MODE_11NA)) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
+			}
+			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
+				continue;
+			if ((i % 8) == 4 && i != 140) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
+				addchan(ic, i + 4,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
+			}
+		}
+		for (i = 149; i <= 161; i += 4) {
 			addchan(ic, i, IEEE80211_CHAN_A);
+			if (isset(bands, IEEE80211_MODE_11NA)) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
+			}
+			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
+				continue;
+			if ((i % 8) == 5) {
+				addchan(ic, i,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
+				addchan(ic, i + 4,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
+			}
+		}
 	}
 	if (rd != NULL)
 		ic->ic_regdomain = *rd;

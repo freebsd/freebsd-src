@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 /*
  * This is needed for register operations which are performed
  * by the driver - eg, calls to ath_hal_gettsf32().
+ *
+ * It's also required for any AH_DEBUG checks in here, eg the
+ * module dependencies.
  */
 #include "opt_ah.h"
 #include "opt_wlan.h"
@@ -188,6 +191,7 @@ static void	ath_tx_cleanup(struct ath_softc *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
+static void	ath_txq_sched_tasklet(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
 static void	ath_stoprecv(struct ath_softc *, int);
@@ -196,6 +200,7 @@ static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
 static void	ath_set_channel(struct ieee80211com *);
+static void	ath_update_chw(struct ieee80211com *);
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
@@ -394,6 +399,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
+	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -637,6 +643,19 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #endif
 
 	/*
+	 * TODO: enforce that at least this many frames are available
+	 * in the txbuf list before allowing data frames (raw or
+	 * otherwise) to be transmitted.
+	 */
+	sc->sc_txq_data_minfree = 10;
+	/*
+	 * Leave this as default to maintain legacy behaviour.
+	 * Shortening the cabq/mcastq may end up causing some
+	 * undesirable behaviour.
+	 */
+	sc->sc_txq_mcastq_maxdepth = ath_txbuf;
+
+	/*
 	 * Allow the TX and RX chainmasks to be overridden by
 	 * environment variables and/or device.hints.
 	 *
@@ -778,6 +797,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
+	ic->ic_update_chw = ath_update_chw;
 
 	/* 802.11n specific - but just override anyway */
 	sc->sc_addba_request = ic->ic_addba_request;
@@ -2147,8 +2167,9 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * set this once it detected a concurrent TX was going on.
 	 * So, clear it.
 	 */
-	/* XXX do this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 
 	/* Handle any frames in the TX queue */
 	/*
@@ -2280,15 +2301,16 @@ ath_getbuf(struct ath_softc *sc)
 
 	ATH_TXBUF_LOCK(sc);
 	bf = _ath_getbuf_locked(sc);
+	ATH_TXBUF_UNLOCK(sc);
 	if (bf == NULL) {
 		struct ifnet *ifp = sc->sc_ifp;
 
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: stop queue\n", __func__);
 		sc->sc_stats.ast_tx_qstop++;
-		/* XXX do this inside of IF_LOCK? */
+		IF_LOCK(&ifp->if_snd);
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
 	}
-	ATH_TXBUF_UNLOCK(sc);
 	return bf;
 }
 
@@ -2309,9 +2331,10 @@ ath_start(struct ifnet *ifp)
 	if (sc->sc_inreset_cnt > 0) {
 		device_printf(sc->sc_dev,
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
-		/* XXX do this inside of IF_LOCK? */
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		ATH_PCU_UNLOCK(sc);
+		IF_LOCK(&ifp->if_snd);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
 		return;
 	}
 	sc->sc_txstart_cnt++;
@@ -4776,10 +4799,16 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 
 	if (bf->bf_state.bfs_dobaw)
 		device_printf(sc->sc_dev,
-		    "%s: dobaw should've been cleared!\n", __func__);
+		    "%s: bf %p: seqno %d: dobaw should've been cleared!\n",
+		    __func__,
+		    bf,
+		    SEQNO(bf->bf_state.bfs_seqno));
 	if (bf->bf_next != NULL)
 		device_printf(sc->sc_dev,
-		    "%s: bf_next not NULL!\n", __func__);
+		    "%s: bf %p: seqno %d: bf_next not NULL!\n",
+		    __func__,
+		    bf,
+		    SEQNO(bf->bf_state.bfs_seqno));
 
 	/*
 	 * Do any tx complete callback.  Note this must
@@ -4995,8 +5024,9 @@ ath_tx_proc_q0(void *arg, int npending)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq, 1);
-	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
@@ -5044,8 +5074,9 @@ ath_tx_proc_q0123(void *arg, int npending)
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
-	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
@@ -5086,7 +5117,9 @@ ath_tx_proc(void *arg, int npending)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
 	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
@@ -5099,6 +5132,41 @@ ath_tx_proc(void *arg, int npending)
 	ath_start(ifp);
 }
 #undef	TXQACTIVE
+
+/*
+ * Deferred processing of TXQ rescheduling.
+ */
+static void
+ath_txq_sched_tasklet(void *arg, int npending)
+{
+	struct ath_softc *sc = arg;
+	int i;
+
+	/* XXX is skipping ok? */
+	ATH_PCU_LOCK(sc);
+#if 0
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+#endif
+	sc->sc_txproc_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		if (ATH_TXQ_SETUP(sc, i)) {
+			ATH_TXQ_LOCK(&sc->sc_txq[i]);
+			ath_txq_sched(sc, &sc->sc_txq[i]);
+			ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+		}
+	}
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
+}
 
 /*
  * Return a buffer to the pool and update the 'busy' flag on the
@@ -5302,8 +5370,9 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 		}
 	}
 #endif /* ATH_DEBUG */
-	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 }
 
@@ -5328,8 +5397,11 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 		struct ath_buf *bf;
 		u_int ix;
 
-		printf("%s: rx queue %p, link %p\n", __func__,
-			(caddr_t)(uintptr_t) ath_hal_getrxbuf(ah), sc->sc_rxlink);
+		device_printf(sc->sc_dev,
+		    "%s: rx queue %p, link %p\n",
+		    __func__,
+		    (caddr_t)(uintptr_t) ath_hal_getrxbuf(ah),
+		    sc->sc_rxlink);
 		ix = 0;
 		TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
 			struct ath_desc *ds = bf->bf_desc;
@@ -5509,8 +5581,9 @@ finish:
 	ath_hal_intrset(ah, sc->sc_imask);
 	ATH_PCU_UNLOCK(sc);
 
-	/* XXX do this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	ath_txrx_start(sc);
 	/* XXX ath_start? */
 
@@ -5681,6 +5754,31 @@ ath_scan_end(struct ieee80211com *ic)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: RX filter 0x%x bssid %s aid 0x%x\n",
 		 __func__, rfilt, ether_sprintf(sc->sc_curbssid),
 		 sc->sc_curaid);
+}
+
+/*
+ * For now, just do a channel change.
+ *
+ * Later, we'll go through the hard slog of suspending tx/rx, changing rate
+ * control state and resetting the hardware without dropping frames out
+ * of the queue.
+ *
+ * The unfortunate trouble here is making absolutely sure that the
+ * channel width change has propagated enough so the hardware
+ * absolutely isn't handed bogus frames for it's current operating
+ * mode. (Eg, 40MHz frames in 20MHz mode.) Since TX and RX can and
+ * does occur in parallel, we need to make certain we've blocked
+ * any further ongoing TX (and RX, that can cause raw TX)
+ * before we do this.
+ */
+static void
+ath_update_chw(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
+
+	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
+	ath_set_channel(ic);
 }
 
 static void
@@ -6795,3 +6893,6 @@ ath_dfs_tasklet(void *p, int npending)
 
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
+#if	defined(IEEE80211_ALQ) || defined(AH_DEBUG_ALQ)
+MODULE_DEPEND(if_ath, alq, 1, 1, 1);
+#endif

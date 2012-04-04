@@ -154,8 +154,6 @@
         ..
         fdescfs
         ..
-        fifofs
-        ..
         msdosfs
         ..
         nandfs
@@ -238,6 +236,8 @@
         ..
     ..
     kadm5
+    ..
+    krb5
     ..
     libmilter
     ..

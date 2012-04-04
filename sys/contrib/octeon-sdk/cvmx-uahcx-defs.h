@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,14 +49,18 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_UAHCX_TYPEDEFS_H__
-#define __CVMX_UAHCX_TYPEDEFS_H__
+#ifndef __CVMX_UAHCX_DEFS_H__
+#define __CVMX_UAHCX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_UAHCX_EHCI_ASYNCLISTADDR(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_ASYNCLISTADDR(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000028ull);
 }
@@ -67,7 +71,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_ASYNCLISTADDR(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_CONFIGFLAG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_CONFIGFLAG(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000050ull);
 }
@@ -78,7 +86,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_CONFIGFLAG(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_CTRLDSSEGMENT(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_CTRLDSSEGMENT(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000020ull);
 }
@@ -89,7 +101,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_CTRLDSSEGMENT(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_FRINDEX(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_FRINDEX(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000001Cull);
 }
@@ -100,7 +116,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_FRINDEX(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_HCCAPBASE(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_HCCAPBASE(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000000ull);
 }
@@ -111,7 +131,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_HCCAPBASE(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_HCCPARAMS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_HCCPARAMS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000008ull);
 }
@@ -122,7 +146,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_HCCPARAMS(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_HCSPARAMS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_HCSPARAMS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000004ull);
 }
@@ -133,7 +161,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_HCSPARAMS(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_INSNREG00(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_INSNREG00(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000090ull);
 }
@@ -144,7 +176,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_INSNREG00(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_INSNREG03(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_INSNREG03(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000009Cull);
 }
@@ -155,7 +191,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_INSNREG03(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_INSNREG04(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_INSNREG04(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F00000000A0ull);
 }
@@ -166,7 +206,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_INSNREG04(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_INSNREG06(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_INSNREG06(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F00000000E8ull);
 }
@@ -177,7 +221,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_INSNREG06(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_INSNREG07(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_INSNREG07(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F00000000ECull);
 }
@@ -188,7 +236,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_INSNREG07(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_PERIODICLISTBASE(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_PERIODICLISTBASE(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000024ull);
 }
@@ -199,7 +251,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_PERIODICLISTBASE(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_PORTSCX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0))))))
 		cvmx_warn("CVMX_UAHCX_EHCI_PORTSCX(%lu,%lu) is invalid on this chip\n", offset, block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000050ull) + (((offset) & 3) + ((block_id) & 0) * 0x0ull) * 4;
 }
@@ -210,7 +266,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_PORTSCX(unsigned long offset, unsigned lo
 static inline uint64_t CVMX_UAHCX_EHCI_USBCMD(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_USBCMD(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000010ull);
 }
@@ -221,7 +281,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_USBCMD(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_USBINTR(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_USBINTR(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000018ull);
 }
@@ -232,7 +296,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_USBINTR(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_EHCI_USBSTS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_EHCI_USBSTS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000014ull);
 }
@@ -243,7 +311,11 @@ static inline uint64_t CVMX_UAHCX_EHCI_USBSTS(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCBULKCURRENTED(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCBULKCURRENTED(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000042Cull);
 }
@@ -254,7 +326,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCBULKCURRENTED(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCBULKHEADED(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCBULKHEADED(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000428ull);
 }
@@ -265,7 +341,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCBULKHEADED(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCCOMMANDSTATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCCOMMANDSTATUS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000408ull);
 }
@@ -276,7 +356,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCCOMMANDSTATUS(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCCONTROL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCCONTROL(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000404ull);
 }
@@ -287,7 +371,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCCONTROL(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCCONTROLCURRENTED(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCCONTROLCURRENTED(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000424ull);
 }
@@ -298,7 +386,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCCONTROLCURRENTED(unsigned long block_i
 static inline uint64_t CVMX_UAHCX_OHCI0_HCCONTROLHEADED(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCCONTROLHEADED(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000420ull);
 }
@@ -309,7 +401,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCCONTROLHEADED(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCDONEHEAD(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCDONEHEAD(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000430ull);
 }
@@ -320,7 +416,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCDONEHEAD(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCFMINTERVAL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCFMINTERVAL(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000434ull);
 }
@@ -331,7 +431,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCFMINTERVAL(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCFMNUMBER(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCFMNUMBER(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000043Cull);
 }
@@ -342,7 +446,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCFMNUMBER(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCFMREMAINING(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCFMREMAINING(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000438ull);
 }
@@ -353,7 +461,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCFMREMAINING(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCHCCA(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCHCCA(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000418ull);
 }
@@ -364,7 +476,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCHCCA(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCINTERRUPTDISABLE(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCINTERRUPTDISABLE(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000414ull);
 }
@@ -375,7 +491,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCINTERRUPTDISABLE(unsigned long block_i
 static inline uint64_t CVMX_UAHCX_OHCI0_HCINTERRUPTENABLE(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCINTERRUPTENABLE(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000410ull);
 }
@@ -386,7 +506,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCINTERRUPTENABLE(unsigned long block_id
 static inline uint64_t CVMX_UAHCX_OHCI0_HCINTERRUPTSTATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCINTERRUPTSTATUS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000040Cull);
 }
@@ -397,7 +521,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCINTERRUPTSTATUS(unsigned long block_id
 static inline uint64_t CVMX_UAHCX_OHCI0_HCLSTHRESHOLD(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCLSTHRESHOLD(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000444ull);
 }
@@ -408,7 +536,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCLSTHRESHOLD(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCPERIODCURRENTED(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCPERIODCURRENTED(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000041Cull);
 }
@@ -419,7 +551,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCPERIODCURRENTED(unsigned long block_id
 static inline uint64_t CVMX_UAHCX_OHCI0_HCPERIODICSTART(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCPERIODICSTART(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000440ull);
 }
@@ -430,7 +566,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCPERIODICSTART(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCREVISION(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCREVISION(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000400ull);
 }
@@ -441,7 +581,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCREVISION(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCRHDESCRIPTORA(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCRHDESCRIPTORA(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000448ull);
 }
@@ -452,7 +596,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCRHDESCRIPTORA(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCRHDESCRIPTORB(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCRHDESCRIPTORB(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000044Cull);
 }
@@ -463,7 +611,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCRHDESCRIPTORB(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_HCRHPORTSTATUSX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((((offset >= 1) && (offset <= 2))) && ((block_id == 0))))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCRHPORTSTATUSX(%lu,%lu) is invalid on this chip\n", offset, block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000450ull) + (((offset) & 3) + ((block_id) & 0) * 0x0ull) * 4;
 }
@@ -474,7 +626,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCRHPORTSTATUSX(unsigned long offset, un
 static inline uint64_t CVMX_UAHCX_OHCI0_HCRHSTATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_HCRHSTATUS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000450ull);
 }
@@ -485,7 +641,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_HCRHSTATUS(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_INSNREG06(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_INSNREG06(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F0000000498ull);
 }
@@ -496,7 +656,11 @@ static inline uint64_t CVMX_UAHCX_OHCI0_INSNREG06(unsigned long block_id)
 static inline uint64_t CVMX_UAHCX_OHCI0_INSNREG07(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UAHCX_OHCI0_INSNREG07(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x00016F000000049Cull);
 }
@@ -516,12 +680,10 @@ static inline uint64_t CVMX_UAHCX_OHCI0_INSNREG07(unsigned long block_id)
  * software and will always return a zero when read. The memory structure referenced by this physical memory
  * pointer is assumed to be 32-byte (cache line) aligned.
  */
-union cvmx_uahcx_ehci_asynclistaddr
-{
+union cvmx_uahcx_ehci_asynclistaddr {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_asynclistaddr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_asynclistaddr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t lpl                          : 27; /**< Link Pointer Low (LPL). These bits correspond to memory address signals [31:5],
                                                          respectively. This field may only reference a Queue Head (QH). */
 	uint32_t reserved_0_4                 : 5;
@@ -530,8 +692,13 @@ union cvmx_uahcx_ehci_asynclistaddr
 	uint32_t lpl                          : 27;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_asynclistaddr_s cn61xx;
 	struct cvmx_uahcx_ehci_asynclistaddr_s cn63xx;
 	struct cvmx_uahcx_ehci_asynclistaddr_s cn63xxp1;
+	struct cvmx_uahcx_ehci_asynclistaddr_s cn66xx;
+	struct cvmx_uahcx_ehci_asynclistaddr_s cn68xx;
+	struct cvmx_uahcx_ehci_asynclistaddr_s cn68xxp1;
+	struct cvmx_uahcx_ehci_asynclistaddr_s cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_asynclistaddr cvmx_uahcx_ehci_asynclistaddr_t;
 
@@ -542,12 +709,10 @@ typedef union cvmx_uahcx_ehci_asynclistaddr cvmx_uahcx_ehci_asynclistaddr_t;
  * This register is in the auxiliary power well. It is only reset by hardware when the auxiliary power is initially
  * applied or in response to a host controller reset.
  */
-union cvmx_uahcx_ehci_configflag
-{
+union cvmx_uahcx_ehci_configflag {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_configflag_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_configflag_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_1_31                : 31;
 	uint32_t cf                           : 1;  /**< Configure Flag (CF) .Host software sets this bit as the last action in
                                                          its process of configuring the Host Controller (see Section 4.1). This bit controls the
@@ -560,8 +725,13 @@ union cvmx_uahcx_ehci_configflag
 	uint32_t reserved_1_31                : 31;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_configflag_s   cn61xx;
 	struct cvmx_uahcx_ehci_configflag_s   cn63xx;
 	struct cvmx_uahcx_ehci_configflag_s   cn63xxp1;
+	struct cvmx_uahcx_ehci_configflag_s   cn66xx;
+	struct cvmx_uahcx_ehci_configflag_s   cn68xx;
+	struct cvmx_uahcx_ehci_configflag_s   cn68xxp1;
+	struct cvmx_uahcx_ehci_configflag_s   cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_configflag cvmx_uahcx_ehci_configflag_t;
 
@@ -582,19 +752,22 @@ typedef union cvmx_uahcx_ehci_configflag cvmx_uahcx_ehci_configflag_t;
  * This register allows the host software to locate all control data structures within the same 4 Gigabyte
  * memory segment.
  */
-union cvmx_uahcx_ehci_ctrldssegment
-{
+union cvmx_uahcx_ehci_ctrldssegment {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_ctrldssegment_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_ctrldssegment_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ctrldsseg                    : 32; /**< Control Data Strucute Semgent Address Bit [63:32] */
 #else
 	uint32_t ctrldsseg                    : 32;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_ctrldssegment_s cn61xx;
 	struct cvmx_uahcx_ehci_ctrldssegment_s cn63xx;
 	struct cvmx_uahcx_ehci_ctrldssegment_s cn63xxp1;
+	struct cvmx_uahcx_ehci_ctrldssegment_s cn66xx;
+	struct cvmx_uahcx_ehci_ctrldssegment_s cn68xx;
+	struct cvmx_uahcx_ehci_ctrldssegment_s cn68xxp1;
+	struct cvmx_uahcx_ehci_ctrldssegment_s cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_ctrldssegment cvmx_uahcx_ehci_ctrldssegment_t;
 
@@ -610,12 +783,10 @@ typedef union cvmx_uahcx_ehci_ctrldssegment cvmx_uahcx_ehci_ctrldssegment_t;
  * HCHalted bit. A write to this register while the Run/Stop bit is set to a one (USBCMD register) produces
  * undefined results. Writes to this register also affect the SOF value.
  */
-union cvmx_uahcx_ehci_frindex
-{
+union cvmx_uahcx_ehci_frindex {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_frindex_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_frindex_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_14_31               : 18;
 	uint32_t fi                           : 14; /**< Frame Index. The value in this register increments at the end of each time frame (e.g.
                                                          micro-frame). Bits [N:3] are used for the Frame List current index. This means that each
@@ -632,8 +803,13 @@ union cvmx_uahcx_ehci_frindex
 	uint32_t reserved_14_31               : 18;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_frindex_s      cn61xx;
 	struct cvmx_uahcx_ehci_frindex_s      cn63xx;
 	struct cvmx_uahcx_ehci_frindex_s      cn63xxp1;
+	struct cvmx_uahcx_ehci_frindex_s      cn66xx;
+	struct cvmx_uahcx_ehci_frindex_s      cn68xx;
+	struct cvmx_uahcx_ehci_frindex_s      cn68xxp1;
+	struct cvmx_uahcx_ehci_frindex_s      cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_frindex cvmx_uahcx_ehci_frindex_t;
 
@@ -643,12 +819,10 @@ typedef union cvmx_uahcx_ehci_frindex cvmx_uahcx_ehci_frindex_t;
  * HCCAPBASE = Host Controller BASE Capability Register
  *
  */
-union cvmx_uahcx_ehci_hccapbase
-{
+union cvmx_uahcx_ehci_hccapbase {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_hccapbase_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_hccapbase_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t hciversion                   : 16; /**< Host Controller Interface Version Number */
 	uint32_t reserved_8_15                : 8;
 	uint32_t caplength                    : 8;  /**< Capabitlity Registers Length */
@@ -658,8 +832,13 @@ union cvmx_uahcx_ehci_hccapbase
 	uint32_t hciversion                   : 16;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_hccapbase_s    cn61xx;
 	struct cvmx_uahcx_ehci_hccapbase_s    cn63xx;
 	struct cvmx_uahcx_ehci_hccapbase_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_hccapbase_s    cn66xx;
+	struct cvmx_uahcx_ehci_hccapbase_s    cn68xx;
+	struct cvmx_uahcx_ehci_hccapbase_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_hccapbase_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_hccapbase cvmx_uahcx_ehci_hccapbase_t;
 
@@ -669,12 +848,10 @@ typedef union cvmx_uahcx_ehci_hccapbase cvmx_uahcx_ehci_hccapbase_t;
  * HCCPARAMS = Host Controller Capability Parameters
  * Multiple Mode control (time-base bit functionality), addressing capability
  */
-union cvmx_uahcx_ehci_hccparams
-{
+union cvmx_uahcx_ehci_hccparams {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_hccparams_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_hccparams_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t eecp                         : 8;  /**< EHCI Extended Capabilities Pointer. Default = Implementation Dependent.
                                                          This optional field indicates the existence of a capabilities list. A value of 00h indicates
@@ -720,8 +897,13 @@ union cvmx_uahcx_ehci_hccparams
 	uint32_t reserved_16_31               : 16;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_hccparams_s    cn61xx;
 	struct cvmx_uahcx_ehci_hccparams_s    cn63xx;
 	struct cvmx_uahcx_ehci_hccparams_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_hccparams_s    cn66xx;
+	struct cvmx_uahcx_ehci_hccparams_s    cn68xx;
+	struct cvmx_uahcx_ehci_hccparams_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_hccparams_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_hccparams cvmx_uahcx_ehci_hccparams_t;
 
@@ -731,12 +913,10 @@ typedef union cvmx_uahcx_ehci_hccparams cvmx_uahcx_ehci_hccparams_t;
  * HCSPARAMS = Host Controller Structural Parameters
  * This is a set of fields that are structural parameters: Number of downstream ports, etc.
  */
-union cvmx_uahcx_ehci_hcsparams
-{
+union cvmx_uahcx_ehci_hcsparams {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_hcsparams_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_hcsparams_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_24_31               : 8;
 	uint32_t dpn                          : 4;  /**< Debug Port Number. Optional. This register identifies which of the host controller ports
                                                          is the debug port. The value is the port number (one-based) of the debug port. A nonzero
@@ -789,8 +969,13 @@ union cvmx_uahcx_ehci_hcsparams
 	uint32_t reserved_24_31               : 8;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_hcsparams_s    cn61xx;
 	struct cvmx_uahcx_ehci_hcsparams_s    cn63xx;
 	struct cvmx_uahcx_ehci_hcsparams_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_hcsparams_s    cn66xx;
+	struct cvmx_uahcx_ehci_hcsparams_s    cn68xx;
+	struct cvmx_uahcx_ehci_hcsparams_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_hcsparams_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_hcsparams cvmx_uahcx_ehci_hcsparams_t;
 
@@ -800,12 +985,10 @@ typedef union cvmx_uahcx_ehci_hcsparams cvmx_uahcx_ehci_hcsparams_t;
  * EHCI_INSNREG00 = EHCI Programmable Microframe Base Value Register (Synopsys Speicific)
  * This register allows you to change the microframe length value (default is microframe SOF = 125 s) to reduce the simulation time.
  */
-union cvmx_uahcx_ehci_insnreg00
-{
+union cvmx_uahcx_ehci_insnreg00 {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_insnreg00_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_insnreg00_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_14_31               : 18;
 	uint32_t mfmc                         : 13; /**< For byte interface (8-bits), <13:1> is used as the 1-microframe counter.
                                                          For word interface (16_bits> <12:1> is used as the 1-microframe counter with word
@@ -818,8 +1001,13 @@ union cvmx_uahcx_ehci_insnreg00
 	uint32_t reserved_14_31               : 18;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_insnreg00_s    cn61xx;
 	struct cvmx_uahcx_ehci_insnreg00_s    cn63xx;
 	struct cvmx_uahcx_ehci_insnreg00_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_insnreg00_s    cn66xx;
+	struct cvmx_uahcx_ehci_insnreg00_s    cn68xx;
+	struct cvmx_uahcx_ehci_insnreg00_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_insnreg00_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_insnreg00 cvmx_uahcx_ehci_insnreg00_t;
 
@@ -829,12 +1017,10 @@ typedef union cvmx_uahcx_ehci_insnreg00 cvmx_uahcx_ehci_insnreg00_t;
  * EHCI_INSNREG03 = EHCI Timing Adjust Register (Synopsys Speicific)
  * This register allows you to change the timing of Phy Tx turnaround delay etc.
  */
-union cvmx_uahcx_ehci_insnreg03
-{
+union cvmx_uahcx_ehci_insnreg03 {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_insnreg03_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_insnreg03_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_13_31               : 19;
 	uint32_t txtx_tadao                   : 3;  /**< Tx-Tx turnaround Delay Add on. This field specifies the extra delays in phy_clks to
                                                          be added to the "Transmit to Transmit turnaround delay" value maintained in the core.
@@ -862,8 +1048,13 @@ union cvmx_uahcx_ehci_insnreg03
 	uint32_t reserved_13_31               : 19;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_insnreg03_s    cn61xx;
 	struct cvmx_uahcx_ehci_insnreg03_s    cn63xx;
 	struct cvmx_uahcx_ehci_insnreg03_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_insnreg03_s    cn66xx;
+	struct cvmx_uahcx_ehci_insnreg03_s    cn68xx;
+	struct cvmx_uahcx_ehci_insnreg03_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_insnreg03_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_insnreg03 cvmx_uahcx_ehci_insnreg03_t;
 
@@ -873,12 +1064,10 @@ typedef union cvmx_uahcx_ehci_insnreg03 cvmx_uahcx_ehci_insnreg03_t;
  * EHCI_INSNREG04 = EHCI Debug Register (Synopsys Speicific)
  * This register is used only for debug purposes.
  */
-union cvmx_uahcx_ehci_insnreg04
-{
+union cvmx_uahcx_ehci_insnreg04 {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_insnreg04_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_insnreg04_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_6_31                : 26;
 	uint32_t auto_dis                     : 1;  /**< Automatic feature disable.
                                                           1'b0: 0 by default, the automatic feature is enabled. The Suspend signal is deasserted
@@ -917,8 +1106,13 @@ union cvmx_uahcx_ehci_insnreg04
 	uint32_t reserved_6_31                : 26;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_insnreg04_s    cn61xx;
 	struct cvmx_uahcx_ehci_insnreg04_s    cn63xx;
 	struct cvmx_uahcx_ehci_insnreg04_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_insnreg04_s    cn66xx;
+	struct cvmx_uahcx_ehci_insnreg04_s    cn68xx;
+	struct cvmx_uahcx_ehci_insnreg04_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_insnreg04_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_insnreg04 cvmx_uahcx_ehci_insnreg04_t;
 
@@ -928,12 +1122,10 @@ typedef union cvmx_uahcx_ehci_insnreg04 cvmx_uahcx_ehci_insnreg04_t;
  * EHCI_INSNREG06 = EHCI  AHB Error Status Register (Synopsys Speicific)
  * This register contains AHB Error Status.
  */
-union cvmx_uahcx_ehci_insnreg06
-{
+union cvmx_uahcx_ehci_insnreg06 {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_insnreg06_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_insnreg06_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t vld                          : 1;  /**< AHB Error Captured. Indicator that an AHB error was encountered and values were captured.
                                                          To clear this field the application must write a 0 to it. */
 	uint32_t reserved_0_30                : 31;
@@ -942,8 +1134,13 @@ union cvmx_uahcx_ehci_insnreg06
 	uint32_t vld                          : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_insnreg06_s    cn61xx;
 	struct cvmx_uahcx_ehci_insnreg06_s    cn63xx;
 	struct cvmx_uahcx_ehci_insnreg06_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_insnreg06_s    cn66xx;
+	struct cvmx_uahcx_ehci_insnreg06_s    cn68xx;
+	struct cvmx_uahcx_ehci_insnreg06_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_insnreg06_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_insnreg06 cvmx_uahcx_ehci_insnreg06_t;
 
@@ -953,19 +1150,22 @@ typedef union cvmx_uahcx_ehci_insnreg06 cvmx_uahcx_ehci_insnreg06_t;
  * EHCI_INSNREG07 = EHCI  AHB Error Address Register (Synopsys Speicific)
  * This register contains AHB Error Status.
  */
-union cvmx_uahcx_ehci_insnreg07
-{
+union cvmx_uahcx_ehci_insnreg07 {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_insnreg07_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_insnreg07_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t err_addr                     : 32; /**< AHB Master Error Address. AHB address of the control phase at which the AHB error occurred */
 #else
 	uint32_t err_addr                     : 32;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_insnreg07_s    cn61xx;
 	struct cvmx_uahcx_ehci_insnreg07_s    cn63xx;
 	struct cvmx_uahcx_ehci_insnreg07_s    cn63xxp1;
+	struct cvmx_uahcx_ehci_insnreg07_s    cn66xx;
+	struct cvmx_uahcx_ehci_insnreg07_s    cn68xx;
+	struct cvmx_uahcx_ehci_insnreg07_s    cn68xxp1;
+	struct cvmx_uahcx_ehci_insnreg07_s    cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_insnreg07 cvmx_uahcx_ehci_insnreg07_t;
 
@@ -983,12 +1183,10 @@ typedef union cvmx_uahcx_ehci_insnreg07 cvmx_uahcx_ehci_insnreg07_t;
  * the Frame Index Register (FRINDEX) to enable the Host Controller to step through the Periodic Frame List
  * in sequence.
  */
-union cvmx_uahcx_ehci_periodiclistbase
-{
+union cvmx_uahcx_ehci_periodiclistbase {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_periodiclistbase_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_periodiclistbase_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t baddr                        : 20; /**< Base Address (Low). These bits correspond to memory address signals [31:12],respectively. */
 	uint32_t reserved_0_11                : 12;
 #else
@@ -996,8 +1194,13 @@ union cvmx_uahcx_ehci_periodiclistbase
 	uint32_t baddr                        : 20;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_periodiclistbase_s cn61xx;
 	struct cvmx_uahcx_ehci_periodiclistbase_s cn63xx;
 	struct cvmx_uahcx_ehci_periodiclistbase_s cn63xxp1;
+	struct cvmx_uahcx_ehci_periodiclistbase_s cn66xx;
+	struct cvmx_uahcx_ehci_periodiclistbase_s cn68xx;
+	struct cvmx_uahcx_ehci_periodiclistbase_s cn68xxp1;
+	struct cvmx_uahcx_ehci_periodiclistbase_s cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_periodiclistbase cvmx_uahcx_ehci_periodiclistbase_t;
 
@@ -1007,12 +1210,10 @@ typedef union cvmx_uahcx_ehci_periodiclistbase cvmx_uahcx_ehci_periodiclistbase_
  * PORTSCX = Port X Status and Control Register
  * Default: 00002000h (w/PPC set to one); 00003000h (w/PPC set to a zero)
  */
-union cvmx_uahcx_ehci_portscx
-{
+union cvmx_uahcx_ehci_portscx {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_portscx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_portscx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_23_31               : 9;
 	uint32_t wkoc_e                       : 1;  /**< Wake on Over-current Enable.Writing this bit to a
                                                          one enables the port to be sensitive to over-current conditions as wake-up events.
@@ -1186,8 +1387,13 @@ union cvmx_uahcx_ehci_portscx
 	uint32_t reserved_23_31               : 9;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_portscx_s      cn61xx;
 	struct cvmx_uahcx_ehci_portscx_s      cn63xx;
 	struct cvmx_uahcx_ehci_portscx_s      cn63xxp1;
+	struct cvmx_uahcx_ehci_portscx_s      cn66xx;
+	struct cvmx_uahcx_ehci_portscx_s      cn68xx;
+	struct cvmx_uahcx_ehci_portscx_s      cn68xxp1;
+	struct cvmx_uahcx_ehci_portscx_s      cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_portscx cvmx_uahcx_ehci_portscx_t;
 
@@ -1197,12 +1403,10 @@ typedef union cvmx_uahcx_ehci_portscx cvmx_uahcx_ehci_portscx_t;
  * USBCMD = USB Command Register
  * The Command Register indicates the command to be executed by the serial bus host controller. Writing to the register causes a command to be executed.
  */
-union cvmx_uahcx_ehci_usbcmd
-{
+union cvmx_uahcx_ehci_usbcmd {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_usbcmd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_usbcmd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_24_31               : 8;
 	uint32_t itc                          : 8;  /**< Interrupt Threshold Control. This field is used by system software
                                                          to select the maximum rate at which the host controller will issue interrupts. The only
@@ -1281,8 +1485,13 @@ union cvmx_uahcx_ehci_usbcmd
 	uint32_t reserved_24_31               : 8;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_usbcmd_s       cn61xx;
 	struct cvmx_uahcx_ehci_usbcmd_s       cn63xx;
 	struct cvmx_uahcx_ehci_usbcmd_s       cn63xxp1;
+	struct cvmx_uahcx_ehci_usbcmd_s       cn66xx;
+	struct cvmx_uahcx_ehci_usbcmd_s       cn68xx;
+	struct cvmx_uahcx_ehci_usbcmd_s       cn68xxp1;
+	struct cvmx_uahcx_ehci_usbcmd_s       cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_usbcmd cvmx_uahcx_ehci_usbcmd_t;
 
@@ -1296,12 +1505,10 @@ typedef union cvmx_uahcx_ehci_usbcmd cvmx_uahcx_ehci_usbcmd_t;
  * Each interrupt enable bit description indicates whether it is dependent on the interrupt threshold mechanism.
  * Note: for all enable register bits, 1= Enabled, 0= Disabled
  */
-union cvmx_uahcx_ehci_usbintr
-{
+union cvmx_uahcx_ehci_usbintr {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_usbintr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_usbintr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_6_31                : 26;
 	uint32_t ioaa_en                      : 1;  /**< Interrupt on Async Advance Enable When this bit is a one, and the Interrupt on
                                                          Async Advance bit in the USBSTS register is a one, the host controller will issue an
@@ -1332,8 +1539,13 @@ union cvmx_uahcx_ehci_usbintr
 	uint32_t reserved_6_31                : 26;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_usbintr_s      cn61xx;
 	struct cvmx_uahcx_ehci_usbintr_s      cn63xx;
 	struct cvmx_uahcx_ehci_usbintr_s      cn63xxp1;
+	struct cvmx_uahcx_ehci_usbintr_s      cn66xx;
+	struct cvmx_uahcx_ehci_usbintr_s      cn68xx;
+	struct cvmx_uahcx_ehci_usbintr_s      cn68xxp1;
+	struct cvmx_uahcx_ehci_usbintr_s      cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_usbintr cvmx_uahcx_ehci_usbintr_t;
 
@@ -1345,12 +1557,10 @@ typedef union cvmx_uahcx_ehci_usbintr cvmx_uahcx_ehci_usbintr_t;
  * a transaction on the serial bus is not indicated in this register. Software sets a bit to 0 in this register by
  * writing a 1 to it.
  */
-union cvmx_uahcx_ehci_usbsts
-{
+union cvmx_uahcx_ehci_usbsts {
 	uint32_t u32;
-	struct cvmx_uahcx_ehci_usbsts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ehci_usbsts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t ass                          : 1;  /**< Asynchronous Schedule Status. The bit reports the current real
                                                          status of the Asynchronous Schedule. If this bit is a zero then the status of the
@@ -1416,8 +1626,13 @@ union cvmx_uahcx_ehci_usbsts
 	uint32_t reserved_16_31               : 16;
 #endif
 	} s;
+	struct cvmx_uahcx_ehci_usbsts_s       cn61xx;
 	struct cvmx_uahcx_ehci_usbsts_s       cn63xx;
 	struct cvmx_uahcx_ehci_usbsts_s       cn63xxp1;
+	struct cvmx_uahcx_ehci_usbsts_s       cn66xx;
+	struct cvmx_uahcx_ehci_usbsts_s       cn68xx;
+	struct cvmx_uahcx_ehci_usbsts_s       cn68xxp1;
+	struct cvmx_uahcx_ehci_usbsts_s       cnf71xx;
 };
 typedef union cvmx_uahcx_ehci_usbsts cvmx_uahcx_ehci_usbsts_t;
 
@@ -1429,12 +1644,10 @@ typedef union cvmx_uahcx_ehci_usbsts cvmx_uahcx_ehci_usbsts_t;
  * The HcBulkCurrentED register contains the physical address of the current endpoint of the Bulk list. As the Bulk list will be served in a round-robin
  * fashion, the endpoints will be ordered according to their insertion to the list.
  */
-union cvmx_uahcx_ohci0_hcbulkcurrented
-{
+union cvmx_uahcx_ohci0_hcbulkcurrented {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcbulkcurrented_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcbulkcurrented_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t bced                         : 28; /**< BulkCurrentED. This is advanced to the next ED after the HC has served the
                                                          present one. HC continues processing the list from where it left off in the
                                                          last Frame. When it reaches the end of the Bulk list, HC checks the
@@ -1450,8 +1663,13 @@ union cvmx_uahcx_ohci0_hcbulkcurrented
 	uint32_t bced                         : 28;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcbulkcurrented_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcbulkcurrented_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcbulkcurrented_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcbulkcurrented_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcbulkcurrented_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcbulkcurrented_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcbulkcurrented_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcbulkcurrented cvmx_uahcx_ohci0_hcbulkcurrented_t;
 
@@ -1462,12 +1680,10 @@ typedef union cvmx_uahcx_ohci0_hcbulkcurrented cvmx_uahcx_ohci0_hcbulkcurrented_
  *
  * The HcBulkHeadED register contains the physical address of the first Endpoint Descriptor of the Bulk list.
  */
-union cvmx_uahcx_ohci0_hcbulkheaded
-{
+union cvmx_uahcx_ohci0_hcbulkheaded {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcbulkheaded_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcbulkheaded_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t bhed                         : 28; /**< BulkHeadED. HC traverses the Bulk list starting with the HcBulkHeadED
                                                          pointer. The content is loaded from HCCA during the initialization of HC. */
 	uint32_t reserved_0_3                 : 4;
@@ -1476,8 +1692,13 @@ union cvmx_uahcx_ohci0_hcbulkheaded
 	uint32_t bhed                         : 28;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcbulkheaded_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcbulkheaded_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcbulkheaded_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcbulkheaded_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcbulkheaded_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcbulkheaded_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcbulkheaded_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcbulkheaded cvmx_uahcx_ohci0_hcbulkheaded_t;
 
@@ -1495,12 +1716,10 @@ typedef union cvmx_uahcx_ohci0_hcbulkheaded cvmx_uahcx_ohci0_hcbulkheaded_t;
  * occurs when the Periodic list does not complete before EOF. When a scheduling overrun error is detected, the Host Controller increments the counter
  * and sets the SchedulingOverrun field in the HcInterruptStatus register.
  */
-union cvmx_uahcx_ohci0_hccommandstatus
-{
+union cvmx_uahcx_ohci0_hccommandstatus {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hccommandstatus_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hccommandstatus_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_18_31               : 14;
 	uint32_t soc                          : 2;  /**< SchedulingOverrunCount. These bits are incremented on each scheduling overrun
                                                          error. It is initialized to 00b and wraps around at 11b. This will be
@@ -1550,8 +1769,13 @@ union cvmx_uahcx_ohci0_hccommandstatus
 	uint32_t reserved_18_31               : 14;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hccommandstatus_s cn61xx;
 	struct cvmx_uahcx_ohci0_hccommandstatus_s cn63xx;
 	struct cvmx_uahcx_ohci0_hccommandstatus_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hccommandstatus_s cn66xx;
+	struct cvmx_uahcx_ohci0_hccommandstatus_s cn68xx;
+	struct cvmx_uahcx_ohci0_hccommandstatus_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hccommandstatus_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hccommandstatus cvmx_uahcx_ohci0_hccommandstatus_t;
 
@@ -1563,12 +1787,10 @@ typedef union cvmx_uahcx_ohci0_hccommandstatus cvmx_uahcx_ohci0_hccommandstatus_
  * The HcControl register defines the operating modes for the Host Controller. Most of the fields in this register are modified only by the Host Controller
  * Driver, except HostControllerFunctionalState and RemoteWakeupConnected.
  */
-union cvmx_uahcx_ohci0_hccontrol
-{
+union cvmx_uahcx_ohci0_hccontrol {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hccontrol_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hccontrol_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_11_31               : 21;
 	uint32_t rwe                          : 1;  /**< RemoteWakeupEnable. This bit is used by HCD to enable or disable the remote wakeup
                                                          feature upon the detection of upstream resume signaling. When this bit is set and
@@ -1650,8 +1872,13 @@ union cvmx_uahcx_ohci0_hccontrol
 	uint32_t reserved_11_31               : 21;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hccontrol_s   cn61xx;
 	struct cvmx_uahcx_ohci0_hccontrol_s   cn63xx;
 	struct cvmx_uahcx_ohci0_hccontrol_s   cn63xxp1;
+	struct cvmx_uahcx_ohci0_hccontrol_s   cn66xx;
+	struct cvmx_uahcx_ohci0_hccontrol_s   cn68xx;
+	struct cvmx_uahcx_ohci0_hccontrol_s   cn68xxp1;
+	struct cvmx_uahcx_ohci0_hccontrol_s   cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hccontrol cvmx_uahcx_ohci0_hccontrol_t;
 
@@ -1662,12 +1889,10 @@ typedef union cvmx_uahcx_ohci0_hccontrol cvmx_uahcx_ohci0_hccontrol_t;
  *
  * The HcControlCurrentED register contains the physical address of the current Endpoint Descriptor of the Control list.
  */
-union cvmx_uahcx_ohci0_hccontrolcurrented
-{
+union cvmx_uahcx_ohci0_hccontrolcurrented {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hccontrolcurrented_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hccontrolcurrented_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t cced                         : 28; /**< ControlCurrentED. This pointer is advanced to the next ED after serving the
                                                          present one. HC will continue processing the list from where it left off in
                                                          the last Frame. When it reaches the end of the Control list, HC checks the
@@ -1683,8 +1908,13 @@ union cvmx_uahcx_ohci0_hccontrolcurrented
 	uint32_t cced                         : 28;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hccontrolcurrented_s cn61xx;
 	struct cvmx_uahcx_ohci0_hccontrolcurrented_s cn63xx;
 	struct cvmx_uahcx_ohci0_hccontrolcurrented_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hccontrolcurrented_s cn66xx;
+	struct cvmx_uahcx_ohci0_hccontrolcurrented_s cn68xx;
+	struct cvmx_uahcx_ohci0_hccontrolcurrented_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hccontrolcurrented_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hccontrolcurrented cvmx_uahcx_ohci0_hccontrolcurrented_t;
 
@@ -1695,12 +1925,10 @@ typedef union cvmx_uahcx_ohci0_hccontrolcurrented cvmx_uahcx_ohci0_hccontrolcurr
  *
  * The HcControlHeadED register contains the physical address of the first Endpoint Descriptor of the Control list.
  */
-union cvmx_uahcx_ohci0_hccontrolheaded
-{
+union cvmx_uahcx_ohci0_hccontrolheaded {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hccontrolheaded_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hccontrolheaded_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ched                         : 28; /**< ControlHeadED. HC traverses the Control list starting with the HcControlHeadED
                                                          pointer. The content is loaded from HCCA during the initialization of HC. */
 	uint32_t reserved_0_3                 : 4;
@@ -1709,8 +1937,13 @@ union cvmx_uahcx_ohci0_hccontrolheaded
 	uint32_t ched                         : 28;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hccontrolheaded_s cn61xx;
 	struct cvmx_uahcx_ohci0_hccontrolheaded_s cn63xx;
 	struct cvmx_uahcx_ohci0_hccontrolheaded_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hccontrolheaded_s cn66xx;
+	struct cvmx_uahcx_ohci0_hccontrolheaded_s cn68xx;
+	struct cvmx_uahcx_ohci0_hccontrolheaded_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hccontrolheaded_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hccontrolheaded cvmx_uahcx_ohci0_hccontrolheaded_t;
 
@@ -1722,12 +1955,10 @@ typedef union cvmx_uahcx_ohci0_hccontrolheaded cvmx_uahcx_ohci0_hccontrolheaded_
  * The HcDoneHead register contains the physical address of the last completed Transfer Descriptor that was added to the Done queue. In normal operation,
  * the Host Controller Driver should not need to read this register as its content is periodically written to the HCCA.
  */
-union cvmx_uahcx_ohci0_hcdonehead
-{
+union cvmx_uahcx_ohci0_hcdonehead {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcdonehead_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcdonehead_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dh                           : 28; /**< DoneHead. When a TD is completed, HC writes the content of HcDoneHead to the
                                                          NextTD field of the TD. HC then overwrites the content of HcDoneHead with the
                                                          address of this TD. This is set to zero whenever HC writes the content of
@@ -1738,8 +1969,13 @@ union cvmx_uahcx_ohci0_hcdonehead
 	uint32_t dh                           : 28;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcdonehead_s  cn61xx;
 	struct cvmx_uahcx_ohci0_hcdonehead_s  cn63xx;
 	struct cvmx_uahcx_ohci0_hcdonehead_s  cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcdonehead_s  cn66xx;
+	struct cvmx_uahcx_ohci0_hcdonehead_s  cn68xx;
+	struct cvmx_uahcx_ohci0_hcdonehead_s  cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcdonehead_s  cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcdonehead cvmx_uahcx_ohci0_hcdonehead_t;
 
@@ -1753,12 +1989,10 @@ typedef union cvmx_uahcx_ohci0_hcdonehead cvmx_uahcx_ohci0_hcdonehead_t;
  * may carry out minor adjustment on the FrameInterval by writing a new value over the present one at each SOF. This provides the programmability necessary for
  * the Host Controller to synchronize with an external clocking resource and to adjust any unknown local clock offset.
  */
-union cvmx_uahcx_ohci0_hcfminterval
-{
+union cvmx_uahcx_ohci0_hcfminterval {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcfminterval_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcfminterval_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t fit                          : 1;  /**< FrameIntervalToggle. HCD toggles this bit whenever it loads a new value to
                                                          FrameInterval. */
 	uint32_t fsmps                        : 15; /**< FSLargestDataPacket. This field specifies a value which is loaded into the
@@ -1780,8 +2014,13 @@ union cvmx_uahcx_ohci0_hcfminterval
 	uint32_t fit                          : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcfminterval_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcfminterval_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcfminterval_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcfminterval_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcfminterval_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcfminterval_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcfminterval_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcfminterval cvmx_uahcx_ohci0_hcfminterval_t;
 
@@ -1794,12 +2033,10 @@ typedef union cvmx_uahcx_ohci0_hcfminterval cvmx_uahcx_ohci0_hcfminterval_t;
  * The Host Controller Driver may use the 16-bit value specified in this register and generate a 32-bit frame number without requiring frequent access to
  * the register.
  */
-union cvmx_uahcx_ohci0_hcfmnumber
-{
+union cvmx_uahcx_ohci0_hcfmnumber {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcfmnumber_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcfmnumber_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t fn                           : 16; /**< FrameNumber. This is incremented when HcFmRemaining is re-loaded. It will be
                                                          rolled over to 0h after ffffh. When entering the USBOPERATIONAL state,
@@ -1812,8 +2049,13 @@ union cvmx_uahcx_ohci0_hcfmnumber
 	uint32_t reserved_16_31               : 16;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcfmnumber_s  cn61xx;
 	struct cvmx_uahcx_ohci0_hcfmnumber_s  cn63xx;
 	struct cvmx_uahcx_ohci0_hcfmnumber_s  cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcfmnumber_s  cn66xx;
+	struct cvmx_uahcx_ohci0_hcfmnumber_s  cn68xx;
+	struct cvmx_uahcx_ohci0_hcfmnumber_s  cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcfmnumber_s  cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcfmnumber cvmx_uahcx_ohci0_hcfmnumber_t;
 
@@ -1823,12 +2065,10 @@ typedef union cvmx_uahcx_ohci0_hcfmnumber cvmx_uahcx_ohci0_hcfmnumber_t;
  * HCFMREMAINING = Host Controller Frame Remaining Register
  * The HcFmRemaining register is a 14-bit down counter showing the bit time remaining in the current Frame.
  */
-union cvmx_uahcx_ohci0_hcfmremaining
-{
+union cvmx_uahcx_ohci0_hcfmremaining {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcfmremaining_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcfmremaining_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t frt                          : 1;  /**< FrameRemainingToggle. This bit is loaded from the FrameIntervalToggle field
                                                          of HcFmInterval whenever FrameRemaining reaches 0. This bit is used by HCD
                                                          for the synchronization between FrameInterval and FrameRemaining. */
@@ -1844,8 +2084,13 @@ union cvmx_uahcx_ohci0_hcfmremaining
 	uint32_t frt                          : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcfmremaining_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcfmremaining_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcfmremaining_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcfmremaining_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcfmremaining_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcfmremaining_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcfmremaining_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcfmremaining cvmx_uahcx_ohci0_hcfmremaining_t;
 
@@ -1859,12 +2104,10 @@ typedef union cvmx_uahcx_ohci0_hcfmremaining cvmx_uahcx_ohci0_hcfmremaining_t;
  * minimum alignment is 256 bytes; therefore, bits 0 through 7 must always return '0' when read. Detailed description can be found in Chapter 4. This area
  * is used to hold the control structures and the Interrupt table that are accessed by both the Host Controller and the Host Controller Driver.
  */
-union cvmx_uahcx_ohci0_hchcca
-{
+union cvmx_uahcx_ohci0_hchcca {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hchcca_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hchcca_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t hcca                         : 24; /**< This is the base address (bits [31:8]) of the Host Controller Communication Area. */
 	uint32_t reserved_0_7                 : 8;
 #else
@@ -1872,8 +2115,13 @@ union cvmx_uahcx_ohci0_hchcca
 	uint32_t hcca                         : 24;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hchcca_s      cn61xx;
 	struct cvmx_uahcx_ohci0_hchcca_s      cn63xx;
 	struct cvmx_uahcx_ohci0_hchcca_s      cn63xxp1;
+	struct cvmx_uahcx_ohci0_hchcca_s      cn66xx;
+	struct cvmx_uahcx_ohci0_hchcca_s      cn68xx;
+	struct cvmx_uahcx_ohci0_hchcca_s      cn68xxp1;
+	struct cvmx_uahcx_ohci0_hchcca_s      cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hchcca cvmx_uahcx_ohci0_hchcca_t;
 
@@ -1887,12 +2135,10 @@ typedef union cvmx_uahcx_ohci0_hchcca cvmx_uahcx_ohci0_hchcca_t;
  * register, whereas writing a '0' to a bit in this register leaves the corresponding bit in the HcInterruptEnable register unchanged. On read, the current
  * value of the HcInterruptEnable register is returned.
  */
-union cvmx_uahcx_ohci0_hcinterruptdisable
-{
+union cvmx_uahcx_ohci0_hcinterruptdisable {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcinterruptdisable_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcinterruptdisable_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t mie                          : 1;  /**< A '0' written to this field is ignored by HC.
                                                          A '1' written to this field disables interrupt generation due to events
                                                          specified in the other bits of this register. This field is set after a
@@ -1919,8 +2165,13 @@ union cvmx_uahcx_ohci0_hcinterruptdisable
 	uint32_t mie                          : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcinterruptdisable_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcinterruptdisable_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcinterruptdisable_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcinterruptdisable_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcinterruptdisable_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcinterruptdisable_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcinterruptdisable_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcinterruptdisable cvmx_uahcx_ohci0_hcinterruptdisable_t;
 
@@ -1935,12 +2186,10 @@ typedef union cvmx_uahcx_ohci0_hcinterruptdisable cvmx_uahcx_ohci0_hcinterruptdi
  * Writing a '1' to a bit in this register sets the corresponding bit, whereas writing a '0' to a bit in this register leaves the corresponding bit
  * unchanged. On read, the current value of this register is returned.
  */
-union cvmx_uahcx_ohci0_hcinterruptenable
-{
+union cvmx_uahcx_ohci0_hcinterruptenable {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcinterruptenable_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcinterruptenable_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t mie                          : 1;  /**< A '0' written to this field is ignored by HC.
                                                          A '1' written to this field enables interrupt generation due to events
                                                          specified in the other bits of this register. This is used by HCD as a Master
@@ -1967,8 +2216,13 @@ union cvmx_uahcx_ohci0_hcinterruptenable
 	uint32_t mie                          : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcinterruptenable_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcinterruptenable_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcinterruptenable_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcinterruptenable_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcinterruptenable_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcinterruptenable_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcinterruptenable_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcinterruptenable cvmx_uahcx_ohci0_hcinterruptenable_t;
 
@@ -1982,12 +2236,10 @@ typedef union cvmx_uahcx_ohci0_hcinterruptenable cvmx_uahcx_ohci0_hcinterruptena
  * and the MasterInterruptEnable bit is set. The Host Controller Driver may clear specific bits in this register by writing '1' to bit positions
  * to be cleared. The Host Controller Driver may not set any of these bits. The Host Controller will never clear the bit.
  */
-union cvmx_uahcx_ohci0_hcinterruptstatus
-{
+union cvmx_uahcx_ohci0_hcinterruptstatus {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcinterruptstatus_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcinterruptstatus_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_31_31               : 1;
 	uint32_t oc                           : 1;  /**< OwnershipChange. This bit is set by HC when HCD sets the OwnershipChangeRequest
                                                          field in HcCommandStatus. This event, when unmasked, will always generate an
@@ -2029,8 +2281,13 @@ union cvmx_uahcx_ohci0_hcinterruptstatus
 	uint32_t reserved_31_31               : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcinterruptstatus_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcinterruptstatus_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcinterruptstatus_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcinterruptstatus_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcinterruptstatus_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcinterruptstatus_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcinterruptstatus_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcinterruptstatus cvmx_uahcx_ohci0_hcinterruptstatus_t;
 
@@ -2042,12 +2299,10 @@ typedef union cvmx_uahcx_ohci0_hcinterruptstatus cvmx_uahcx_ohci0_hcinterruptsta
  * The HcLSThreshold register contains an 11-bit value used by the Host Controller to determine whether to commit to the transfer of a maximum of 8-byte
  * LS packet before EOF. Neither the Host Controller nor the Host Controller Driver are allowed to change this value.
  */
-union cvmx_uahcx_ohci0_hclsthreshold
-{
+union cvmx_uahcx_ohci0_hclsthreshold {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hclsthreshold_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hclsthreshold_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_12_31               : 20;
 	uint32_t lst                          : 12; /**< LSThreshold
                                                          This field contains a value which is compared to the FrameRemaining field
@@ -2059,8 +2314,13 @@ union cvmx_uahcx_ohci0_hclsthreshold
 	uint32_t reserved_12_31               : 20;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hclsthreshold_s cn61xx;
 	struct cvmx_uahcx_ohci0_hclsthreshold_s cn63xx;
 	struct cvmx_uahcx_ohci0_hclsthreshold_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hclsthreshold_s cn66xx;
+	struct cvmx_uahcx_ohci0_hclsthreshold_s cn68xx;
+	struct cvmx_uahcx_ohci0_hclsthreshold_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hclsthreshold_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hclsthreshold cvmx_uahcx_ohci0_hclsthreshold_t;
 
@@ -2071,12 +2331,10 @@ typedef union cvmx_uahcx_ohci0_hclsthreshold cvmx_uahcx_ohci0_hclsthreshold_t;
  *
  * The HcPeriodCurrentED register contains the physical address of the current Isochronous or Interrupt Endpoint Descriptor.
  */
-union cvmx_uahcx_ohci0_hcperiodcurrented
-{
+union cvmx_uahcx_ohci0_hcperiodcurrented {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcperiodcurrented_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcperiodcurrented_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t pced                         : 28; /**< PeriodCurrentED. This is used by HC to point to the head of one of the
                                                          Periodic lists which will be processed in the current Frame. The content of
                                                          this register is updated by HC after a periodic ED has been processed. HCD
@@ -2088,8 +2346,13 @@ union cvmx_uahcx_ohci0_hcperiodcurrented
 	uint32_t pced                         : 28;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcperiodcurrented_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcperiodcurrented_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcperiodcurrented_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcperiodcurrented_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcperiodcurrented_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcperiodcurrented_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcperiodcurrented_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcperiodcurrented cvmx_uahcx_ohci0_hcperiodcurrented_t;
 
@@ -2100,12 +2363,10 @@ typedef union cvmx_uahcx_ohci0_hcperiodcurrented cvmx_uahcx_ohci0_hcperiodcurren
  *
  * The HcPeriodicStart register has a 14-bit programmable value which determines when is the earliest time HC should start processing the periodic list.
  */
-union cvmx_uahcx_ohci0_hcperiodicstart
-{
+union cvmx_uahcx_ohci0_hcperiodicstart {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcperiodicstart_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcperiodicstart_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_14_31               : 18;
 	uint32_t ps                           : 14; /**< PeriodicStart After a hardware reset, this field is cleared. This is then set
                                                          by HCD during the HC initialization. The value is calculated roughly as 10%
@@ -2119,8 +2380,13 @@ union cvmx_uahcx_ohci0_hcperiodicstart
 	uint32_t reserved_14_31               : 18;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcperiodicstart_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcperiodicstart_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcperiodicstart_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcperiodicstart_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcperiodicstart_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcperiodicstart_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcperiodicstart_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcperiodicstart cvmx_uahcx_ohci0_hcperiodicstart_t;
 
@@ -2130,12 +2396,10 @@ typedef union cvmx_uahcx_ohci0_hcperiodicstart cvmx_uahcx_ohci0_hcperiodicstart_
  * HCREVISION = Host Controller Revision Register
  *
  */
-union cvmx_uahcx_ohci0_hcrevision
-{
+union cvmx_uahcx_ohci0_hcrevision {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcrevision_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcrevision_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_8_31                : 24;
 	uint32_t rev                          : 8;  /**< Revision This read-only field contains the BCD representation of the version
                                                          of the HCI specification that is implemented by this HC. For example, a value
@@ -2146,8 +2410,13 @@ union cvmx_uahcx_ohci0_hcrevision
 	uint32_t reserved_8_31                : 24;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcrevision_s  cn61xx;
 	struct cvmx_uahcx_ohci0_hcrevision_s  cn63xx;
 	struct cvmx_uahcx_ohci0_hcrevision_s  cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcrevision_s  cn66xx;
+	struct cvmx_uahcx_ohci0_hcrevision_s  cn68xx;
+	struct cvmx_uahcx_ohci0_hcrevision_s  cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcrevision_s  cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcrevision cvmx_uahcx_ohci0_hcrevision_t;
 
@@ -2157,15 +2426,13 @@ typedef union cvmx_uahcx_ohci0_hcrevision cvmx_uahcx_ohci0_hcrevision_t;
  * HCRHDESCRIPTORA = Host Controller Root Hub DescriptorA Register
  *
  * The HcRhDescriptorA register is the first register of two describing the characteristics of the Root Hub. Reset values are implementation-specific.
- * The descriptor length (11), descriptor type (TBD), and hub controller current (0) fields of the hub Class Descriptor are emulated by the HCD. All
+ * The descriptor length (11), descriptor type (0x29), and hub controller current (0) fields of the hub Class Descriptor are emulated by the HCD. All
  * other fields are located in the HcRhDescriptorA and HcRhDescriptorB registers.
  */
-union cvmx_uahcx_ohci0_hcrhdescriptora
-{
+union cvmx_uahcx_ohci0_hcrhdescriptora {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcrhdescriptora_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcrhdescriptora_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t potpgt                       : 8;  /**< PowerOnToPowerGoodTime. This byte specifies the duration HCD has to wait before
                                                          accessing a powered-on port of the Root Hub. It is implementation-specific. The
                                                          unit of time is 2 ms. The duration is calculated as POTPGT * 2 ms. */
@@ -2213,8 +2480,13 @@ union cvmx_uahcx_ohci0_hcrhdescriptora
 	uint32_t potpgt                       : 8;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcrhdescriptora_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcrhdescriptora_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcrhdescriptora_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcrhdescriptora_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcrhdescriptora_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcrhdescriptora_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcrhdescriptora_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcrhdescriptora cvmx_uahcx_ohci0_hcrhdescriptora_t;
 
@@ -2226,12 +2498,10 @@ typedef union cvmx_uahcx_ohci0_hcrhdescriptora cvmx_uahcx_ohci0_hcrhdescriptora_
  * The HcRhDescriptorB register is the second register of two describing the characteristics of the Root Hub. These fields are written during
  * initialization to correspond with the system implementation. Reset values are implementation-specific.
  */
-union cvmx_uahcx_ohci0_hcrhdescriptorb
-{
+union cvmx_uahcx_ohci0_hcrhdescriptorb {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ppcm                         : 16; /**< PortPowerControlMask.
                                                          Each bit indicates if a port is affected by a global power control command
                                                          when PowerSwitchingMode is set. When set, the port's power state is only
@@ -2257,8 +2527,13 @@ union cvmx_uahcx_ohci0_hcrhdescriptorb
 	uint32_t ppcm                         : 16;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcrhdescriptorb_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcrhdescriptorb cvmx_uahcx_ohci0_hcrhdescriptorb_t;
 
@@ -2273,12 +2548,10 @@ typedef union cvmx_uahcx_ohci0_hcrhdescriptorb cvmx_uahcx_ohci0_hcrhdescriptorb_
  * in progress when a write to change port status occurs, the resulting port status change must be postponed until the transaction completes.
  * Reserved bits should always be written '0'.
  */
-union cvmx_uahcx_ohci0_hcrhportstatusx
-{
+union cvmx_uahcx_ohci0_hcrhportstatusx {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcrhportstatusx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcrhportstatusx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_21_31               : 11;
 	uint32_t prsc                         : 1;  /**< PortResetStatusChange. This bit is set at the end of the 10-ms port reset
                                                          signal. The HCD writes a '1' to clear this bit. Writing a '0' has no effect.
@@ -2419,8 +2692,13 @@ union cvmx_uahcx_ohci0_hcrhportstatusx
 	uint32_t reserved_21_31               : 11;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcrhportstatusx_s cn61xx;
 	struct cvmx_uahcx_ohci0_hcrhportstatusx_s cn63xx;
 	struct cvmx_uahcx_ohci0_hcrhportstatusx_s cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcrhportstatusx_s cn66xx;
+	struct cvmx_uahcx_ohci0_hcrhportstatusx_s cn68xx;
+	struct cvmx_uahcx_ohci0_hcrhportstatusx_s cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcrhportstatusx_s cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcrhportstatusx cvmx_uahcx_ohci0_hcrhportstatusx_t;
 
@@ -2432,12 +2710,10 @@ typedef union cvmx_uahcx_ohci0_hcrhportstatusx cvmx_uahcx_ohci0_hcrhportstatusx_
  * The HcRhStatus register is divided into two parts. The lower word of a Dword represents the Hub Status field and the upper word represents the Hub
  * Status Change field. Reserved bits should always be written '0'.
  */
-union cvmx_uahcx_ohci0_hcrhstatus
-{
+union cvmx_uahcx_ohci0_hcrhstatus {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_hcrhstatus_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_hcrhstatus_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t crwe                         : 1;  /**< (write) ClearRemoteWakeupEnable Writing a '1' clears DeviceRemoveWakeupEnable.
                                                          Writing a '0' has no effect. */
 	uint32_t reserved_18_30               : 13;
@@ -2479,8 +2755,13 @@ union cvmx_uahcx_ohci0_hcrhstatus
 	uint32_t crwe                         : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_hcrhstatus_s  cn61xx;
 	struct cvmx_uahcx_ohci0_hcrhstatus_s  cn63xx;
 	struct cvmx_uahcx_ohci0_hcrhstatus_s  cn63xxp1;
+	struct cvmx_uahcx_ohci0_hcrhstatus_s  cn66xx;
+	struct cvmx_uahcx_ohci0_hcrhstatus_s  cn68xx;
+	struct cvmx_uahcx_ohci0_hcrhstatus_s  cn68xxp1;
+	struct cvmx_uahcx_ohci0_hcrhstatus_s  cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_hcrhstatus cvmx_uahcx_ohci0_hcrhstatus_t;
 
@@ -2491,12 +2772,10 @@ typedef union cvmx_uahcx_ohci0_hcrhstatus cvmx_uahcx_ohci0_hcrhstatus_t;
  *
  * This register contains AHB Error Status.
  */
-union cvmx_uahcx_ohci0_insnreg06
-{
+union cvmx_uahcx_ohci0_insnreg06 {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_insnreg06_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_insnreg06_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t vld                          : 1;  /**< AHB Error Captured. Indicator that an AHB error was encountered and values were captured.
                                                          To clear this field the application must write a 0 to it. */
 	uint32_t reserved_0_30                : 31;
@@ -2505,8 +2784,13 @@ union cvmx_uahcx_ohci0_insnreg06
 	uint32_t vld                          : 1;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_insnreg06_s   cn61xx;
 	struct cvmx_uahcx_ohci0_insnreg06_s   cn63xx;
 	struct cvmx_uahcx_ohci0_insnreg06_s   cn63xxp1;
+	struct cvmx_uahcx_ohci0_insnreg06_s   cn66xx;
+	struct cvmx_uahcx_ohci0_insnreg06_s   cn68xx;
+	struct cvmx_uahcx_ohci0_insnreg06_s   cn68xxp1;
+	struct cvmx_uahcx_ohci0_insnreg06_s   cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_insnreg06 cvmx_uahcx_ohci0_insnreg06_t;
 
@@ -2517,19 +2801,22 @@ typedef union cvmx_uahcx_ohci0_insnreg06 cvmx_uahcx_ohci0_insnreg06_t;
  *
  * This register contains AHB Error Status.
  */
-union cvmx_uahcx_ohci0_insnreg07
-{
+union cvmx_uahcx_ohci0_insnreg07 {
 	uint32_t u32;
-	struct cvmx_uahcx_ohci0_insnreg07_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uahcx_ohci0_insnreg07_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t err_addr                     : 32; /**< AHB Master Error Address. AHB address of the control phase at which the AHB error occurred */
 #else
 	uint32_t err_addr                     : 32;
 #endif
 	} s;
+	struct cvmx_uahcx_ohci0_insnreg07_s   cn61xx;
 	struct cvmx_uahcx_ohci0_insnreg07_s   cn63xx;
 	struct cvmx_uahcx_ohci0_insnreg07_s   cn63xxp1;
+	struct cvmx_uahcx_ohci0_insnreg07_s   cn66xx;
+	struct cvmx_uahcx_ohci0_insnreg07_s   cn68xx;
+	struct cvmx_uahcx_ohci0_insnreg07_s   cn68xxp1;
+	struct cvmx_uahcx_ohci0_insnreg07_s   cnf71xx;
 };
 typedef union cvmx_uahcx_ohci0_insnreg07 cvmx_uahcx_ohci0_insnreg07_t;
 

@@ -1,6 +1,6 @@
 # Definitions for a Kerberos V KDC schema
 #
-# $Id: hdb.schema 14958 2005-04-25 17:33:40Z lha $
+# $Id$
 #
 # This version is compatible with OpenLDAP 1.8
 #

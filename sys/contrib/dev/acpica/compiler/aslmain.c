@@ -96,7 +96,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^mno:p:r:s:t:T:G^v:w:x:z"
+#define ASL_SUPPORTED_OPTIONS   "@:2b|c|d^D:e:fgh^i|I:l^mno|p:Pr:s|t|T:G^v|w|x:z"
 
 
 /*******************************************************************************
@@ -120,6 +120,11 @@ Options (
     ACPI_OPTION ("-@ <file>",       "Specify command file");
     ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
 
+    printf ("\nPreprocessor:\n");
+    ACPI_OPTION ("-D <symbol>",     "Define symbol for preprocessor use");
+    ACPI_OPTION ("-li",             "Create preprocessed output file (*.i)");
+    ACPI_OPTION ("-P",              "Preprocess only and create preprocessor output file (*.i)");
+
     printf ("\nGeneral Output:\n");
     ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
     ACPI_OPTION ("-va",             "Disable all errors and warnings (summary only)");
@@ -127,12 +132,12 @@ Options (
     ACPI_OPTION ("-vo",             "Enable optimization comments");
     ACPI_OPTION ("-vr",             "Disable remarks");
     ACPI_OPTION ("-vs",             "Disable signon");
-    ACPI_OPTION ("-w <1|2|3>",      "Set warning reporting level");
+    ACPI_OPTION ("-w1 -w2 -w3",     "Set warning reporting level");
 
     printf ("\nAML Output Files:\n");
-    ACPI_OPTION ("-s <a|c>",        "Create AML in assembler or C source file (*.asm or *.c)");
-    ACPI_OPTION ("-i <a|c>",        "Create assembler or C include file (*.inc or *.h)");
-    ACPI_OPTION ("-t <a|c|s>",      "Create AML in assembler, C, or ASL hex table (*.hex)");
+    ACPI_OPTION ("-sa -sc",         "Create AML in assembler or C source file (*.asm or *.c)");
+    ACPI_OPTION ("-ia -ic",         "Create assembler or C include file (*.inc or *.h)");
+    ACPI_OPTION ("-ta -tc -ts",     "Create AML in assembler, C, or ASL hex table (*.hex)");
 
     printf ("\nAML Code Generation:\n");
     ACPI_OPTION ("-oa",             "Disable all optimizations (compatibility mode)");
@@ -199,12 +204,12 @@ HelpMessage (
     Options ();
 
     printf ("\nCompiler/Disassembler Debug Options:\n");
-    ACPI_OPTION ("-b<p|t|b>",       "Create compiler debug/trace file (*.txt)");
+    ACPI_OPTION ("-bb -bp -bt",     "Create compiler debug/trace file (*.txt)");
     ACPI_OPTION ("",                "Types: Parse/Tree/Both");
     ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
     ACPI_OPTION ("-n",              "Parse only, no output generation");
     ACPI_OPTION ("-ot",             "Display compile times");
-    ACPI_OPTION ("-x<level>",       "Set debug level for trace output");
+    ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
     ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }
 
@@ -405,34 +410,34 @@ AslDoOptions (
         if (IsResponseFile)
         {
             printf ("Nested command files are not supported\n");
-            return -1;
+            return (-1);
         }
 
         if (AslDoResponseFile (AcpiGbl_Optarg))
         {
-            return -1;
+            return (-1);
         }
         break;
 
 
-    case '2':
-
+    case '2':   /* ACPI 2.0 compatibility mode */
         Gbl_Acpi2 = TRUE;
         break;
 
 
-    case 'b':
-
+    case 'b':   /* Debug output options */
         switch (AcpiGbl_Optarg[0])
         {
         case 'b':
             AslCompilerdebug = 1; /* same as yydebug */
             DtParserdebug = 1;
+            PrParserdebug = 1;
             break;
 
         case 'p':
             AslCompilerdebug = 1; /* same as yydebug */
             DtParserdebug = 1;
+            PrParserdebug = 1;
             break;
 
         case 't':
@@ -463,7 +468,7 @@ AslDoOptions (
         break;
 
 
-    case 'd':
+    case 'd':   /* Disassembler */
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
@@ -487,7 +492,12 @@ AslDoOptions (
         break;
 
 
-    case 'e':
+    case 'D':   /* Define a symbol */
+        PrAddDefine (AcpiGbl_Optarg, NULL, TRUE);
+        break;
+
+
+    case 'e':   /* External files for disassembler */
         Status = AcpiDmAddToExternalFileList (AcpiGbl_Optarg);
         if (ACPI_FAILURE (Status))
         {
@@ -497,17 +507,17 @@ AslDoOptions (
         break;
 
 
-    case 'f':
-
-        /* Ignore errors and force creation of aml file */
-
+    case 'f':   /* Ignore errors and force creation of aml file */
         Gbl_IgnoreErrors = TRUE;
         break;
 
 
-    case 'g':
+    case 'G':
+        Gbl_CompileGeneric = TRUE;
+        break;
 
-        /* Get all ACPI tables */
+
+    case 'g':   /* Get all ACPI tables */
 
         Gbl_GetAllTables = TRUE;
         Gbl_DoCompile = FALSE;
@@ -515,7 +525,6 @@ AslDoOptions (
 
 
     case 'h':
-
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
@@ -542,14 +551,12 @@ AslDoOptions (
         }
 
 
-    case 'I': /* Add an include file search directory */
-
+    case 'I':   /* Add an include file search directory */
         FlAddIncludeDirectory (AcpiGbl_Optarg);
         break;
 
 
-    case 'i':
-
+    case 'i':   /* Output AML as an include file */
         switch (AcpiGbl_Optarg[0])
         {
         case 'a':
@@ -567,20 +574,25 @@ AslDoOptions (
             break;
 
         default:
-            printf ("Unknown option: -s%s\n", AcpiGbl_Optarg);
+            printf ("Unknown option: -i%s\n", AcpiGbl_Optarg);
             return (-1);
         }
         break;
 
 
-    case 'l':
-
+    case 'l':   /* Listing files */
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
             /* Produce listing file (Mixed source/aml) */
 
             Gbl_ListingFlag = TRUE;
+            break;
+
+        case 'i':
+            /* Produce preprocessor output file */
+
+            Gbl_PreprocessorOutputFlag = TRUE;
             break;
 
         case 'n':
@@ -602,22 +614,17 @@ AslDoOptions (
         break;
 
 
-    case 'm':
-
+    case 'm':   /* Do not convert buffers to resource descriptors */
         AcpiGbl_NoResourceDisassembly = TRUE;
         break;
 
 
-    case 'n':
-
-        /* Parse only */
-
+    case 'n':   /* Parse only */
         Gbl_ParseOnlyFlag = TRUE;
         break;
 
 
-    case 'o':
-
+    case 'o':   /* Control compiler AML optimizations */
         switch (AcpiGbl_Optarg[0])
         {
         case 'a':
@@ -664,22 +671,24 @@ AslDoOptions (
         break;
 
 
-    case 'p':
+    case 'P':   /* Preprocess (plus .i file) only */
+        Gbl_PreprocessOnly = TRUE;
+        Gbl_PreprocessorOutputFlag = TRUE;
+        break;
 
-        /* Override default AML output filename */
 
+    case 'p':   /* Override default AML output filename */
         Gbl_OutputFilenamePrefix = AcpiGbl_Optarg;
         Gbl_UseDefaultAmlFilename = FALSE;
         break;
 
 
-    case 'r':
+    case 'r':   /* Override revision found in table header */
         Gbl_RevisionOverride = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
         break;
 
 
-    case 's':
-
+    case 's':   /* Create AML in a source code file */
         switch (AcpiGbl_Optarg[0])
         {
         case 'a':
@@ -703,10 +712,7 @@ AslDoOptions (
         break;
 
 
-    case 't':
-
-        /* Produce hex table output file */
-
+    case 't':   /* Produce hex table output file */
         switch (AcpiGbl_Optarg[0])
         {
         case 'a':
@@ -728,19 +734,13 @@ AslDoOptions (
         break;
 
 
-    case 'G':
-        Gbl_CompileGeneric = TRUE;
-        break;
-
-
-    case 'T':
+    case 'T':   /* Create a ACPI table template file */
         Gbl_DoTemplates = TRUE;
         Gbl_TemplateSignature = AcpiGbl_Optarg;
         break;
 
 
-    case 'v':
-
+    case 'v':   /* Verbosity settings */
         switch (AcpiGbl_Optarg[0])
         {
         case 'a':
@@ -779,7 +779,6 @@ AslDoOptions (
 
 
     case 'w': /* Set warning levels */
-
         switch (AcpiGbl_Optarg[0])
         {
         case '1':
@@ -801,20 +800,17 @@ AslDoOptions (
         break;
 
 
-    case 'x':
-
+    case 'x':   /* Set debug print output level */
         AcpiDbgLevel = strtoul (AcpiGbl_Optarg, NULL, 16);
         break;
 
 
     case 'z':
-
         Gbl_UseOriginalCompilerId = TRUE;
         break;
 
 
     default:
-
         return (-1);
     }
 
@@ -931,6 +927,7 @@ main (
     /* Init and command line */
 
     AslInitialize ();
+    PrInitializePreprocessor ();
     Index1 = Index2 = AslCommandLine (argc, argv);
 
     /* Options that have no additional parameters or pathnames */

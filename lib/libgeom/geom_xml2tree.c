@@ -55,8 +55,55 @@ struct mystate {
 	int			level;
 	struct sbuf		*sbuf[20];
 	struct gconf		*config;
-	int			nident;
+	unsigned		nident;
 };
+
+static void *
+internalize_ident(struct mystate *mt, const char *element, const char *str)
+{
+	struct gident *gip;
+	unsigned i;
+
+	if (mt->nident != 0 && mt->mesh->lg_ident == NULL) {
+		warn("Cannot continue due to previous memory exhaustion.");
+		return (NULL);
+	}
+
+	for (i = 0; i < mt->nident; i++) {
+		if (strcmp(mt->mesh->lg_ident[i].lg_id, str) != 0)
+			continue;
+		return ((void *)(uintptr_t)(i + 1));
+	}
+
+	i = mt->nident;
+	mt->nident++;
+	mt->mesh->lg_ident = reallocf(mt->mesh->lg_ident, (mt->nident + 1) * sizeof mt->mesh->lg_ident[0]);
+	if (mt->mesh->lg_ident == NULL) {
+		warn("Cannot allocate memory during processing of '%s' "
+		    "element for identifier '%s'", element, str);
+		return (NULL);
+	}
+
+	gip = &mt->mesh->lg_ident[i];
+	gip->lg_id = strdup(str);
+	if (gip->lg_id == NULL) {
+		free(mt->mesh->lg_ident);
+		mt->mesh->lg_ident = NULL;
+		warn("Cannot allocate memory during processing of '%s' "
+		    "element for identifier '%s'", element, str);
+		return (NULL);
+	}
+	gip->lg_ptr = NULL;
+	gip->lg_what = ISUNRESOLVED;
+
+	/* Terminator entry.  */
+	gip = &mt->mesh->lg_ident[i + 1];
+	gip->lg_id = NULL;
+	gip->lg_ptr = NULL;
+	gip->lg_what = ISUNRESOLVED;
+
+	return ((void *)(uintptr_t)(i + 1));
+}
 
 static void
 StartElement(void *userData, const char *name, const char **attr)
@@ -73,10 +120,9 @@ StartElement(void *userData, const char *name, const char **attr)
 	ref = NULL;
 	for (i = 0; attr[i] != NULL; i += 2) {
 		if (!strcmp(attr[i], "id")) {
-			id = (void *)strtoul(attr[i + 1], NULL, 0);
-			mt->nident++;
+			id = internalize_ident(mt, name, attr[i + 1]);
 		} else if (!strcmp(attr[i], "ref")) {
-			ref = (void *)strtoul(attr[i + 1], NULL, 0);
+			ref = internalize_ident(mt, name, attr[i + 1]);
 		} else
 			printf("%*.*s[%s = %s]\n",
 			    mt->level + 1, mt->level + 1, "",
@@ -317,11 +363,16 @@ CharData(void *userData , const XML_Char *s , int len)
 struct gident *
 geom_lookupid(struct gmesh *gmp, const void *id)
 {
-	struct gident *gip;
+	unsigned i;
 
-	for (gip = gmp->lg_ident; gip->lg_id != NULL; gip++)
-		if (gip->lg_id == id)
-			return (gip);
+	if (gmp->lg_ident == NULL)
+		return (NULL);
+
+	for (i = 0; gmp->lg_ident[i].lg_id != NULL; i++) {
+		if (i + 1 != (unsigned)(uintptr_t)id)
+			continue;
+		return (&gmp->lg_ident[i]);
+	}
 	return (NULL);
 }
 
@@ -334,6 +385,7 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 	struct ggeom *ge;
 	struct gprovider *pr;
 	struct gconsumer *co;
+	struct gident *gip;
 	int i;
 
 	memset(gmp, 0, sizeof *gmp);
@@ -356,33 +408,30 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 		free(mt);
 		return (-1);
 	}
-	gmp->lg_ident = calloc(sizeof *gmp->lg_ident, mt->nident + 1);
-	free(mt);
-	if (gmp->lg_ident == NULL)
+	if (gmp->lg_ident == NULL && mt->nident != 0) {
+		free(mt);
 		return (ENOMEM);
-	i = 0;
+	}
+	free(mt);
 	/* Collect all identifiers */
 	LIST_FOREACH(cl, &gmp->lg_class, lg_class) {
-		gmp->lg_ident[i].lg_id = cl->lg_id;
-		gmp->lg_ident[i].lg_ptr = cl;
-		gmp->lg_ident[i].lg_what = ISCLASS;
-		i++;
+		gip = geom_lookupid(gmp, cl->lg_id);
+		gip->lg_ptr = cl;
+		gip->lg_what = ISCLASS;
+
 		LIST_FOREACH(ge, &cl->lg_geom, lg_geom) {
-			gmp->lg_ident[i].lg_id = ge->lg_id;
-			gmp->lg_ident[i].lg_ptr = ge;
-			gmp->lg_ident[i].lg_what = ISGEOM;
-			i++;
+			gip = geom_lookupid(gmp, ge->lg_id);
+			gip->lg_ptr = ge;
+			gip->lg_what = ISGEOM;
 			LIST_FOREACH(pr, &ge->lg_provider, lg_provider) {
-				gmp->lg_ident[i].lg_id = pr->lg_id;
-				gmp->lg_ident[i].lg_ptr = pr;
-				gmp->lg_ident[i].lg_what = ISPROVIDER;
-				i++;
+				gip = geom_lookupid(gmp, pr->lg_id);
+				gip->lg_ptr = pr;
+				gip->lg_what = ISPROVIDER;
 			}
 			LIST_FOREACH(co, &ge->lg_consumer, lg_consumer) {
-				gmp->lg_ident[i].lg_id = co->lg_id;
-				gmp->lg_ident[i].lg_ptr = co;
-				gmp->lg_ident[i].lg_what = ISCONSUMER;
-				i++;
+				gip = geom_lookupid(gmp, co->lg_id);
+				gip->lg_ptr = co;
+				gip->lg_what = ISCONSUMER;
 			}
 		}
 	}
@@ -449,7 +498,10 @@ geom_deletetree(struct gmesh *gmp)
 	struct ggeom *ge;
 	struct gprovider *pr;
 	struct gconsumer *co;
+	unsigned i;
 
+	for (i = 0; gmp->lg_ident[i].lg_id != NULL; i++)
+		free(gmp->lg_ident[i].lg_id);
 	free(gmp->lg_ident);
 	gmp->lg_ident = NULL;
 	for (;;) {

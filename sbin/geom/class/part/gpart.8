@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2012
+.Dd March 19, 2012
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@ lines in the kernel configuration file:
 .Cd "options GEOM_PART_APM"
 .Cd "options GEOM_PART_BSD"
 .Cd "options GEOM_PART_GPT"
+.Cd "options GEOM_PART_LDM"
 .Cd "options GEOM_PART_MBR"
 .Cd "options GEOM_PART_EBR"
 .Cd "options GEOM_PART_EBR_COMPAT"
@@ -511,6 +512,12 @@ called
 Requires the
 .Cm GEOM_PART_BSD
 kernel option.
+.It Cm LDM
+The Logical Disk Manager is an implementation of volume manager for
+Microsoft Windows NT.
+Requires the
+.Cd GEOM_PART_LDM
+kernel option.
 .It Cm GPT
 GUID Partition Table is used on Intel-based Macintosh computers and
 gradually replacing MBR on most PCs and other systems.
@@ -559,7 +566,7 @@ The
 utility also allows the user to specify scheme-specific partition types
 for partition types that do not have symbolic names.
 Symbolic names currently understood are:
-.Bl -tag -width ".Cm freebsd-vinum"
+.Bl -tag -width ".Cm ms-ldm-metadata"
 .It Cm bios-boot
 The system partition dedicated to second stage of the boot loader program.
 Usually it is used by the GRUB 2 loader for GPT partitioning schemes.
@@ -634,6 +641,18 @@ A partition that is sub-partitioned by a Master Boot Record (MBR).
 This type is known as
 .Qq Li "!024dee41-33e7-11d3-9d69-0008c781f39f"
 by GPT.
+.It Cm ms-ldm-data
+A partition that contains Logical Disk Manager (LDM) volumes.
+The scheme-specific types are
+.Qq Li "!66"
+for MBR,
+.Qq Li "!af9b60a0-1431-4f62-bc68-3311714a69ad"
+for GPT.
+.It Cm ms-ldm-metadata
+A partition that contains Logical Disk Manager (LDM) database.
+The scheme-specifig type is
+.Qq Li "!5808c8aa-7e8f-42e0-85d2-e1e90434cfb3"
+for GPT.
 .El
 .Sh ATTRIBUTES
 The scheme-specific attributes for EBR:
@@ -938,6 +957,23 @@ disk metadata.
 If some inconsistency is detected, the partition table will be
 rejected with a diagnostic message:
 .Sy "GEOM_PART: Integrity check failed (provider, scheme)" .
+.It Va kern.geom.part.ldm.debug : No 0
+Debug level of the Logical Disk Manager (LDM) module.
+This can be set to a number between 0 and 2 inclusive.
+If set to 0 minimal debug information is printed,
+and if set to 2 the maximum amount of debug information is printed.
+.It Va kern.geom.part.ldm.show_mirrors : No 0
+This variable controls how the Logical Disk Manager (LDM) module handles
+mirrored volumes.
+By default mirrored volumes are shown as partitions with type
+.Cm ms-ldm-data
+(see the
+.Sx "PARTITION TYPES"
+section).
+If this variable set to 1 each component of the mirrored volume will be
+present as independet partition.
+.Em NOTE :
+This may break a mirrored volume and lead to data damage.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.

@@ -1,41 +1,39 @@
 /*
- * Copyright (c) 2003 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2003 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include "krb5/gsskrb5_locl.h"
+#include "gsskrb5_locl.h"
 
-RCSID("$Id: add_cred.c 20688 2007-05-17 18:44:31Z lha $");
-
-OM_uint32 _gsskrb5_add_cred (
+OM_uint32 GSSAPI_CALLCONV _gsskrb5_add_cred (
      OM_uint32           *minor_status,
      const gss_cred_id_t input_cred_handle,
      const gss_name_t    desired_name,
@@ -74,7 +72,7 @@ OM_uint32 _gsskrb5_add_cred (
 	return GSS_S_NO_CRED;
     }
 
-    /* check if requested output usage is compatible with output usage */ 
+    /* check if requested output usage is compatible with output usage */
     if (output_cred_handle != NULL) {
 	HEIMDAL_MUTEX_lock(&cred->cred_id_mutex);
 	if (cred->usage != cred_usage && cred->usage != GSS_C_BOTH) {
@@ -83,10 +81,10 @@ OM_uint32 _gsskrb5_add_cred (
 	    return(GSS_S_FAILURE);
 	}
     }
-	
+
     /* check that we have the same name */
     if (dname != NULL &&
-	krb5_principal_compare(context, dname, 
+	krb5_principal_compare(context, dname,
 			       cred->principal) != FALSE) {
 	if (output_cred_handle)
 	    HEIMDAL_MUTEX_unlock(&cred->cred_id_mutex);
@@ -112,7 +110,7 @@ OM_uint32 _gsskrb5_add_cred (
 	handle->ccache = NULL;
 	handle->mechanisms = NULL;
 	HEIMDAL_MUTEX_init(&handle->cred_id_mutex);
-	
+
 	ret = GSS_S_FAILURE;
 
 	kret = krb5_copy_principal(context, cred->principal,
@@ -125,23 +123,11 @@ OM_uint32 _gsskrb5_add_cred (
 	}
 
 	if (cred->keytab) {
-	    char name[KRB5_KT_PREFIX_MAX_LEN + MAXPATHLEN];
-	    int len;
-	    
+	    char *name = NULL;
+
 	    ret = GSS_S_FAILURE;
 
-	    kret = krb5_kt_get_type(context, cred->keytab,
-				    name, KRB5_KT_PREFIX_MAX_LEN);
-	    if (kret) {
-		*minor_status = kret;
-		goto failure;
-	    }
-	    len = strlen(name);
-	    name[len++] = ':';
-
-	    kret = krb5_kt_get_name(context, cred->keytab,
-				    name + len, 
-				    sizeof(name) - len);
+	    kret = krb5_kt_get_full_name(context, cred->keytab, &name);
 	    if (kret) {
 		*minor_status = kret;
 		goto failure;
@@ -149,6 +135,7 @@ OM_uint32 _gsskrb5_add_cred (
 
 	    kret = krb5_kt_resolve(context, name,
 				   &handle->keytab);
+	    krb5_xfree(name);
 	    if (kret){
 		*minor_status = kret;
 		goto failure;
@@ -157,7 +144,7 @@ OM_uint32 _gsskrb5_add_cred (
 
 	if (cred->ccache) {
 	    const char *type, *name;
-	    char *type_name;
+	    char *type_name = NULL;
 
 	    ret = GSS_S_FAILURE;
 
@@ -168,8 +155,8 @@ OM_uint32 _gsskrb5_add_cred (
 	    }
 
 	    if (strcmp(type, "MEMORY") == 0) {
-		ret = krb5_cc_gen_new(context, &krb5_mcc_ops,
-				      &handle->ccache);
+		ret = krb5_cc_new_unique(context, type,
+					 NULL, &handle->ccache);
 		if (ret) {
 		    *minor_status = ret;
 		    goto failure;
@@ -188,20 +175,20 @@ OM_uint32 _gsskrb5_add_cred (
 		    *minor_status = ENOMEM;
 		    goto failure;
 		}
-		
-		asprintf(&type_name, "%s:%s", type, name);
-		if (type_name == NULL) {
+
+		kret = asprintf(&type_name, "%s:%s", type, name);
+		if (kret < 0 || type_name == NULL) {
 		    *minor_status = ENOMEM;
 		    goto failure;
 		}
-		
+
 		kret = krb5_cc_resolve(context, type_name,
 				       &handle->ccache);
 		free(type_name);
 		if (kret) {
 		    *minor_status = kret;
 		    goto failure;
-		}	    
+		}
 	    }
 	}
 	ret = gss_create_empty_oid_set(minor_status, &handle->mechanisms);
@@ -216,7 +203,7 @@ OM_uint32 _gsskrb5_add_cred (
 
     HEIMDAL_MUTEX_unlock(&cred->cred_id_mutex);
 
-    ret = _gsskrb5_inquire_cred(minor_status, (gss_cred_id_t)cred, 
+    ret = _gsskrb5_inquire_cred(minor_status, (gss_cred_id_t)cred,
 				NULL, &lifetime, NULL, actual_mechs);
     if (ret)
 	goto failure;

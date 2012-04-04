@@ -72,6 +72,9 @@ typedef struct {
 #define	RAND_MAX	0x7fffffff
 
 __BEGIN_DECLS
+#ifdef _XLOCALE_H_
+#include <xlocale/_stdlib.h>
+#endif
 extern int __mb_cur_max;
 extern int ___mb_cur_max(void);
 #define	MB_CUR_MAX	(___mb_cur_max())
@@ -151,7 +154,7 @@ _Noreturn void	 _Exit(int);
 /*
  * If we're in a mode greater than C99, expose C11 functions.
  */
-#if __ISO_C_VISIBLE >= 2011
+#if __ISO_C_VISIBLE >= 2011 || __cplusplus >= 201103L
 void *	aligned_alloc(size_t, size_t);
 int	at_quick_exit(void (*)(void));
 _Noreturn void

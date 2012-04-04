@@ -1,3 +1,0 @@
-init --realm-max-ticket-life=1day --realm-max-renewable-life=1month HEIMDAL.CITI.UMICH.EDU
-cpw -p kaka krbtgt/HEIMDAL.CITI.UMICH.EDU@HEIMDAL.CITI.UMICH.EDU
-add -p foo --use-defaults aglo@HEIMDAL.CITI.UMICH.EDU

@@ -188,7 +188,7 @@ nullfs_mount(struct mount *mp)
 	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
 	    (MNTK_MPSAFE | MNTK_SHARED_WRITES);
 	MNT_IUNLOCK(mp);
-	mp->mnt_data =  xmp;
+	mp->mnt_data = xmp;
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, target);
@@ -224,7 +224,7 @@ nullfs_unmount(mp, mntflags)
 	 * Finally, throw away the null_mount structure
 	 */
 	mntdata = mp->mnt_data;
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 	free(mntdata, M_NULLFSMNT);
 	return 0;
 }

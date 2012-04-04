@@ -28,7 +28,7 @@
 .\"     @(#)kill.2	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd March 15, 2012
 .Dt KILL 2
 .Os
 .Sh NAME
@@ -121,11 +121,8 @@ The
 argument
 is not a valid signal number.
 .It Bq Er ESRCH
-No process can be found corresponding to that specified by
+No process or process group can be found corresponding to that specified by
 .Fa pid .
-.It Bq Er ESRCH
-The process id was given as 0
-but the sending process does not have a process group.
 .It Bq Er EPERM
 The sending process is not the super-user and its effective
 user id does not match the effective user-id of the receiving process.
@@ -137,6 +134,7 @@ of the group could not be signaled.
 .Xr getpid 2 ,
 .Xr killpg 2 ,
 .Xr sigaction 2 ,
+.Xr sigqueue 2 ,
 .Xr raise 3 ,
 .Xr init 8
 .Sh STANDARDS

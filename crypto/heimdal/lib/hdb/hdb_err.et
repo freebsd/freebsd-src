@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: hdb_err.et 15878 2005-08-11 13:17:22Z lha $"
+id "$Id$"
 
 error_table hdb
 
@@ -24,5 +24,7 @@ error_code EXISTS,		"Entry already exists in database"
 error_code BADVERSION,		"Wrong database version"
 error_code NO_MKEY,		"No correct master key"
 error_code MANDATORY_OPTION,	"Entry contains unknown mandatory extension"
+error_code NO_WRITE_SUPPORT,	"HDB backend doesn't contain write support"
+error_code NOT_FOUND_HERE,	"The secret for this entry is not replicated to this database"
 
 end

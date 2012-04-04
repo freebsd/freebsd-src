@@ -87,7 +87,6 @@
  *	assembly language support routines.
  */
 
-#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include <sys/errno.h>
 #include <machine/asm.h>
@@ -165,148 +164,6 @@ LEAF(copystr)
 	nop
 END(copystr)
 
-
-/*
- * fillw(pat, addr, count)
- */
-LEAF(fillw)
-1:
-	PTR_ADDU	a2, a2, -1
-	sh		a0, 0(a1)
-	bne		a2,zero, 1b
-	PTR_ADDU	a1, a1, 2
-
-	jr		ra
-	nop
-END(fillw)
-
-/*
- * Optimized memory zero code.
- * mem_zero_page(addr);
- */
-LEAF(mem_zero_page)
-	li		v0, PAGE_SIZE
-1:
-	PTR_SUBU	v0, 8
-	sd		zero, 0(a0)
-	bne		zero, v0, 1b
-	PTR_ADDU	a0, 8
-	jr		ra
-	nop
-END(mem_zero_page)
-
-/*
- *	Block I/O routines mainly used by I/O drivers.
- *
- *	Args as:	a0 = port
- *			a1 = memory address
- *			a2 = count
- */
-LEAF(insb)
-	beq		a2, zero, 2f
-	PTR_ADDU	a2, a1
-1:
-	lbu		v0, 0(a0)
-	PTR_ADDU	a1, 1
-	bne		a1, a2, 1b
-	sb		v0, -1(a1)
-2:
-	jr		ra
-	nop
-END(insb)
-
-LEAF(insw)
-	beq		a2, zero, 2f
-	PTR_ADDU	a2, a2
-	PTR_ADDU	a2, a1
-1:
-	lhu		v0, 0(a0)
-	PTR_ADDU	a1, 2
-	bne		a1, a2, 1b
-	sh		v0, -2(a1)
-2:
-	jr		ra
-	nop
-END(insw)
-
-LEAF(insl)
-	beq		a2, zero, 2f
-	sll		a2, 2
-	PTR_ADDU	a2, a1
-1:
-	lw		v0, 0(a0)
-	PTR_ADDU	a1, 4
-	bne		a1, a2, 1b
-	sw		v0, -4(a1)
-2:
-	jr		ra
-	nop
-END(insl)
-
-LEAF(outsb)
-	beq		a2, zero, 2f
-	PTR_ADDU	a2, a1
-1:
-	lbu		v0, 0(a1)
-	PTR_ADDU	a1, 1
-	bne		a1, a2, 1b
-	sb		v0, 0(a0)
-2:
-	jr		ra
-	nop
-END(outsb)
-
-LEAF(outsw)
-	beq	a2, zero, 2f
-	addu	a2, a2
-	li	v0, 1
-	and	v0, a1
-	bne	v0, zero, 3f		# arghh, unaligned.
-	addu	a2, a1
-1:
-	lhu	v0, 0(a1)
-	addiu	a1, 2
-	bne	a1, a2, 1b
-	sh	v0, 0(a0)
-2:
-	jr	ra
-	nop
-3:
-	LWHI	v0, 0(a1)
-	LWLO	v0, 3(a1)
-	addiu	a1, 2
-	bne	a1, a2, 3b
-	sh	v0, 0(a0)
-
-	jr	ra
-	nop
-END(outsw)
-
-LEAF(outsl)
-	beq	a2, zero, 2f
-	sll	a2, 2
-	li	v0, 3
-	and	v0, a1
-	bne	v0, zero, 3f		# arghh, unaligned.
-	addu	a2, a1
-1:
-	lw	v0, 0(a1)
-	addiu	a1, 4
-	bne	a1, a2, 1b
-	sw	v0, 0(a0)
-2:
-	jr	ra
-	nop
-3:
-	LWHI	v0, 0(a1)
-	LWLO	v0, 3(a1)
-	addiu	a1, 4
-	bne	a1, a2, 3b
-	sw	v0, 0(a0)
-
-	jr	ra
-	nop
-END(outsl)
 
 /*
  * Copy a null terminated string from the user address space into
@@ -940,154 +797,6 @@ LEAF(ffs)
 	nop
 END(ffs)
 
-LEAF(get_current_fp)
-	j	ra
-	move	v0, s8
-END(get_current_fp)
-
-LEAF(loadandclear)
-	.set	noreorder
-1:
-	ll	v0, 0(a0)
-	move	t0, zero
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(loadandclear)
-
-#if 0
-/*
- * u_int32_t atomic_cmpset_32(u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
- * Atomically compare the value stored at p with cmpval
- * and if the two values are equal, update value *p with
- * newval. Return zero if compare failed, non-zero otherwise
- *
- */
-
-LEAF(atomic_cmpset_32)
-	.set	noreorder
-1:
-	ll	t0, 0(a0)
-	move	v0, zero
-	bne	t0, a1, 2f
-	move	t1, a2
-	sc	t1, 0(a0)
-	beq	t1, zero, 1b
-	or	v0, v0, 1
-2:
-	j	ra
-	nop
-END(atomic_cmpset_32)
-
-/**
- * u_int32_t
- * atomic_readandclear_32(u_int32_t *a)
- * {
- *	u_int32_t retval;
- *	retval = *a;
- *	*a = 0;
- * }
- */
-LEAF(atomic_readandclear_32)
-	.set	noreorder
-1:
-	ll	t0, 0(a0)
-	move	t1, zero
-	move	v0, t0
-	sc	t1, 0(a0)
-	beq	t1, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_readandclear_32)
-
-/**
- * void
- * atomic_set_32(u_int32_t *a, u_int32_t b)
- * {
- *	*a |= b;
- * }
- */
-LEAF(atomic_set_32)
-	.set	noreorder
-1:
-	ll	t0, 0(a0)
-	or	t0, t0, a1
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_set_32)
-
-/**
- * void
- * atomic_add_32(uint32_t *a, uint32_t b)
- * {
- *	*a += b;
- * }
- */
-LEAF(atomic_add_32)
-	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-1:
-	ll	t0, 0(a0)
-	addu	t0, t0, a1
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_add_32)
-
-/**
- * void
- * atomic_clear_32(u_int32_t *a, u_int32_t b)
- * {
- *	*a &= ~b;
- * }
- */
-LEAF(atomic_clear_32)
-	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-	nor	a1, zero, a1
-1:
-	ll	t0, 0(a0)
-	and	t0, t0, a1	# t1 has the new lower 16 bits
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_clear_32)
-
-/**
- * void
- * atomic_subtract_32(uint16_t *a, uint16_t b)
- * {
- *	*a -= b;
- * }
- */
-LEAF(atomic_subtract_32)
-	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-1:
-	ll	t0, 0(a0)
-	subu	t0, t0, a1
-	sc	t0, 0(a0)
-	beq	t0, zero, 1b
-	nop
-	j	ra
-	nop
-END(atomic_subtract_32)
-
-#endif
-
 /**
  * void
  * atomic_set_16(u_int16_t *a, u_int16_t b)
@@ -1259,6 +968,15 @@ END(atomic_subtract_8)
 	 * NOPs in it for all processors.  XXX
 	 *
 	 * Maybe it would be better to just leave this undefined in that case.
+	 *
+	 * XXX These routines are not safe in the case of a TLB miss on a1 or
+	 *     a0 unless the trapframe is 64-bit, which it just isn't with O32.
+	 *     If we take any exception, not just an interrupt, the upper
+	 *     32-bits will be clobbered.  Use only N32 and N64 kernels if you
+	 *     want to use 64-bit registers while interrupts are enabled or
+	 *     with memory operations.  Since this isn't even using load-linked
+	 *     and store-conditional, perhaps it should just use two registers
+	 *     instead, as is right and good with the O32 ABI.
 	 */
 LEAF(atomic_store_64)
 	mfc0	t1, MIPS_COP_0_STATUS
@@ -1383,7 +1101,7 @@ LEAF(breakpoint)
 	break	MIPS_BREAK_SOVER_VAL
 	jr	ra
 	nop
-	END(breakpoint)
+END(breakpoint)
 
 LEAF(setjmp)
 	mfc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
@@ -1454,58 +1172,6 @@ LEAF(casuptr)
 	PTR_S	zero, U_PCB_ONFAULT(t1) /* clean up */
 	j	ra
 END(casuptr)
-
-
-#ifdef CPU_CNMIPS
-/* 
- * void octeon_enable_shadow(void)
- *	turns on access to CC and CCRes
- */	
-LEAF(octeon_enable_shadow)
-	li      t1, 0x0000000f
-	mtc0	t1, MIPS_COP_0_INFO
-	jr	ra
-	nop
-END(octeon_enable_shadow)
-
-	
-LEAF(octeon_get_shadow)
-	mfc0	v0, MIPS_COP_0_INFO
-	jr	ra
-	nop
-END(octeon_get_shadow)
-
-/*
- * octeon_set_control(addr, uint32_t val)
- */
-LEAF(octeon_set_control)
-	.set push
-	or      t1, a1, zero
-/*	dmfc0   a1, 9, 7*/
-	.word 0x40254807
-	sd	a1, 0(a0)
-	or      a1, t1, zero
-/*	dmtc0   a1, 9, 7*/
-	.word 0x40a54807
-	jr	ra
-	nop
-	.set pop
-END(octeon_set_control)
-
-/*
- * octeon_get_control(addr)
- */
-LEAF(octeon_get_control)
-	.set push
-	.set mips64r2
-/*	dmfc0   a1, 9, 7 */
-	.word 0x40254807
-	sd	a1, 0(a0)
-	jr	ra
-	nop
-	.set pop
-END(octeon_get_control)
-#endif
 
 LEAF(mips3_ld)
 	.set push

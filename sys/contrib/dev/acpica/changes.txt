@@ -1,4 +1,96 @@
 ----------------------------------------
+20 March 2012. Summary of changes for version 20120320:
+
+This release is available at www.acpica.org/downloads.
+The ACPI 5.0 specification is available at www.acpi.info.
+
+1) ACPICA Core Subsystem:
+
+Enhanced the sleep/wake interfaces to optionally execute the _GTS method 
+(Going To Sleep) and the _BFS method (Back From Sleep). Windows apparently 
+does not execute these methods, and therefore these methods are often 
+untested. It has been seen on some systems where the execution of these 
+methods causes errors and also prevents the machine from entering S5. It is 
+therefore suggested that host operating systems do not execute these methods 
+by default. In the future, perhaps these methods can be optionally executed 
+based on the age of the system and/or what is the newest version of Windows 
+that the BIOS asks for via _OSI. Changed interfaces: AcpiEnterSleepState and 
+AcpileaveSleepStatePrep. See the ACPICA reference and Linux BZ 13041. Lin 
+Ming.
+
+Fixed a problem where the length of the local/common FADT was set too early. 
+The local FADT table length cannot be set to the common length until the 
+original length has been examined. There is code that checks the table length 
+and sets various fields appropriately. This can affect older machines with 
+early FADT versions. For example, this can cause inadvertent writes to the 
+CST_CNT register. Julian Anastasov.
+
+Fixed a mapping issue related to a physical table override. Use the deferred 
+mapping mechanism for tables loaded via the physical override OSL interface. 
+This allows for early mapping before the virtual memory manager is available. 
+Thomas Renninger, Bob Moore.
+
+Enhanced the automatic return-object repair code: Repair a common problem with 
+predefined methods that are defined to return a variable-length Package of 
+sub-objects. If there is only one sub-object, some BIOS ASL code mistakenly 
+simply returns the single object instead of a Package with one sub-object. 
+This new support will repair this error by wrapping a Package object around 
+the original object, creating the correct and expected Package with one sub-
+object. Names that can be repaired in this manner include: _ALR, _CSD, _HPX, 
+_MLS, _PLD, _PRT, _PSS, _TRT, _TSS, _BCL, _DOD, _FIX, and _Sx. ACPICA BZ 939.
+
+Changed the exception code returned for invalid ACPI paths passed as 
+parameters to external interfaces such as AcpiEvaluateObject. Was 
+AE_BAD_PARAMETER, now is the more sensible AE_BAD_PATHNAME.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  93.0K Code, 25.0K Data, 118.0K Total
+    Debug Version:     172.5K Code, 73.2K Data, 245.7K Total
+  Current Release:
+    Non-Debug Version:  92.9K Code, 25.0K Data, 117.9K Total
+    Debug Version:     172.5K Code, 73.2K Data, 245.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Added the infrastructure and initial implementation of a integrated C-
+like preprocessor. This will simplify BIOS development process by eliminating 
+the need for a separate preprocessing step during builds. On Windows, it also 
+eliminates the need to install a separate C compiler. ACPICA BZ 761. Some 
+features including full #define() macro support are still under development. 
+These preprocessor directives are supported:
+    #define
+    #elif
+    #else
+    #endif
+    #error
+    #if
+    #ifdef
+    #ifndef
+    #include
+    #pragma message
+    #undef
+    #warning
+In addition, these new command line options are supported:
+    -D <symbol> Define symbol for preprocessor use
+    -li         Create preprocessed output file (*.i)
+    -P          Preprocess only and create preprocessor output file (*.i)
+
+Table Compiler: Fixed a problem where the equals operator within an expression 
+did not work properly.
+
+Updated iASL to use the current versions of Bison/Flex. Updated the Windows 
+project file to invoke these tools from the standard location. ACPICA BZ 904. 
+Versions supported:
+    Flex for Windows:  V2.5.4
+    Bison for Windows: V2.4.1
+
+----------------------------------------
 15 February 2012. Summary of changes for version 20120215:
 
 This release is available at www.acpica.org/downloads.

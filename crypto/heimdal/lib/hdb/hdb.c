@@ -1,70 +1,95 @@
 /*
- * Copyright (c) 1997 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2008 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
+#include "krb5_locl.h"
 #include "hdb_locl.h"
-
-RCSID("$Id: hdb.c 20214 2007-02-09 21:51:10Z lha $");
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
 
-struct hdb_method {
-    const char *prefix;
-    krb5_error_code (*create)(krb5_context, HDB **, const char *filename);
-};
+/*! @mainpage Heimdal database backend library
+ *
+ * @section intro Introduction
+ *
+ * Heimdal libhdb library provides the backend support for Heimdal kdc
+ * and kadmind. Its here where plugins for diffrent database engines
+ * can be pluged in and extend support for here Heimdal get the
+ * principal and policy data from.
+ *
+ * Example of Heimdal backend are:
+ * - Berkeley DB 1.85
+ * - Berkeley DB 3.0
+ * - Berkeley DB 4.0
+ * - New Berkeley DB
+ * - LDAP
+ *
+ *
+ * The project web page: http://www.h5l.org/
+ *
+ */
+
+const int hdb_interface_version = HDB_INTERFACE_VERSION;
 
 static struct hdb_method methods[] = {
 #if HAVE_DB1 || HAVE_DB3
-    {"db:",	hdb_db_create},
+    { HDB_INTERFACE_VERSION, "db:",	hdb_db_create},
+#endif
+#if HAVE_DB1
+    { HDB_INTERFACE_VERSION, "mit-db:",	hdb_mdb_create},
 #endif
 #if HAVE_NDBM
-    {"ndbm:",	hdb_ndbm_create},
+    { HDB_INTERFACE_VERSION, "ndbm:",	hdb_ndbm_create},
 #endif
+    { HDB_INTERFACE_VERSION, "keytab:",	hdb_keytab_create},
 #if defined(OPENLDAP) && !defined(OPENLDAP_MODULE)
-    {"ldap:",	hdb_ldap_create},
-    {"ldapi:",	hdb_ldapi_create},
+    { HDB_INTERFACE_VERSION, "ldap:",	hdb_ldap_create},
+    { HDB_INTERFACE_VERSION, "ldapi:",	hdb_ldapi_create},
 #endif
-#ifdef HAVE_LDB /* Used for integrated samba build */
-    {"ldb:",	hdb_ldb_create},
+#ifdef HAVE_SQLITE3
+    { HDB_INTERFACE_VERSION, "sqlite:", hdb_sqlite_create},
 #endif
-    {NULL,	NULL}
+    {0, NULL,	NULL}
 };
 
 #if HAVE_DB1 || HAVE_DB3
-static struct hdb_method dbmetod = {"",	hdb_db_create };
+static struct hdb_method dbmetod =
+    { HDB_INTERFACE_VERSION, "", hdb_db_create };
 #elif defined(HAVE_NDBM)
-static struct hdb_method dbmetod = {"",	hdb_ndbm_create };
+static struct hdb_method dbmetod =
+    { HDB_INTERFACE_VERSION, "", hdb_ndbm_create };
 #endif
 
 
@@ -75,25 +100,26 @@ hdb_next_enctype2key(krb5_context context,
 		     Key **key)
 {
     Key *k;
-    
+
     for (k = *key ? (*key) + 1 : e->keys.val;
-	 k < e->keys.val + e->keys.len; 
-	 k++) 
+	 k < e->keys.val + e->keys.len;
+	 k++)
     {
 	if(k->key.keytype == enctype){
 	    *key = k;
 	    return 0;
 	}
     }
-    krb5_set_error_string(context, "No next enctype %d for hdb-entry", 
+    krb5_set_error_message(context, KRB5_PROG_ETYPE_NOSUPP,
+			   "No next enctype %d for hdb-entry",
 			  (int)enctype);
     return KRB5_PROG_ETYPE_NOSUPP; /* XXX */
 }
 
 krb5_error_code
-hdb_enctype2key(krb5_context context, 
-		hdb_entry *e, 
-		krb5_enctype enctype, 
+hdb_enctype2key(krb5_context context,
+		hdb_entry *e,
+		krb5_enctype enctype,
 		Key **key)
 {
     *key = NULL;
@@ -103,7 +129,7 @@ hdb_enctype2key(krb5_context context,
 void
 hdb_free_key(Key *key)
 {
-    memset(key->key.keyvalue.data, 
+    memset(key->key.keyvalue.data,
 	   0,
 	   key->key.keyvalue.length);
     free_Key(key);
@@ -142,7 +168,7 @@ hdb_unlock(int fd)
 void
 hdb_free_entry(krb5_context context, hdb_entry_ex *ent)
 {
-    int i;
+    size_t i;
 
     if (ent->free_entry)
 	(*ent->free_entry)(context, ent);
@@ -166,7 +192,7 @@ hdb_foreach(krb5_context context,
     hdb_entry_ex entry;
     ret = db->hdb_firstkey(context, db, flags, &entry);
     if (ret == 0)
-	krb5_clear_error_string(context);
+	krb5_clear_error_message(context);
     while(ret == 0){
 	ret = (*func)(context, db, &entry, data);
 	hdb_free_entry(context, &entry);
@@ -191,7 +217,7 @@ hdb_check_db_format(krb5_context context, HDB *db)
     if (ret)
 	return ret;
 
-    tag.data = HDB_DB_FORMAT_ENTRY;
+    tag.data = (void *)(intptr_t)HDB_DB_FORMAT_ENTRY;
     tag.length = strlen(tag.data);
     ret = (*db->hdb__get)(context, db, tag, &version);
     ret2 = db->hdb_unlock(context, db);
@@ -215,16 +241,16 @@ hdb_init_db(krb5_context context, HDB *db)
     krb5_data tag;
     krb5_data version;
     char ver[32];
-    
+
     ret = hdb_check_db_format(context, db);
     if(ret != HDB_ERR_NOENTRY)
 	return ret;
-    
+
     ret = db->hdb_lock(context, db, HDB_WLOCK);
     if (ret)
 	return ret;
 
-    tag.data = HDB_DB_FORMAT_ENTRY;
+    tag.data = (void *)(intptr_t)HDB_DB_FORMAT_ENTRY;
     tag.length = strlen(tag.data);
     snprintf(ver, sizeof(ver), "%u", HDB_DB_FORMAT);
     version.data = ver;
@@ -233,7 +259,7 @@ hdb_init_db(krb5_context context, HDB *db)
     ret2 = db->hdb_unlock(context, db);
     if (ret) {
 	if (ret2)
-	    krb5_clear_error_string(context);
+	    krb5_clear_error_message(context);
 	return ret;
     }
     return ret2;
@@ -248,7 +274,7 @@ hdb_init_db(krb5_context context, HDB *db)
 
 static const struct hdb_method *
 find_dynamic_method (krb5_context context,
-		     const char *filename, 
+		     const char *filename,
 		     const char **rest)
 {
     static struct hdb_method method;
@@ -257,7 +283,7 @@ find_dynamic_method (krb5_context context,
     const char *p;
     void *dl;
     size_t len;
-    
+
     p = strchr(filename, ':');
 
     /* if no prefix, don't know what module to load, just ignore it */
@@ -266,11 +292,12 @@ find_dynamic_method (krb5_context context,
 
     len = p - filename;
     *rest = filename + len + 1;
-    
-    prefix = strndup(filename, len);
+
+    prefix = malloc(len + 1);
     if (prefix == NULL)
 	krb5_errx(context, 1, "out of memory");
-    
+    strlcpy(prefix, filename, len + 1);
+
     if (asprintf(&path, LIBDIR "/hdb_%s.so", prefix) == -1)
 	krb5_errx(context, 1, "out of memory");
 
@@ -289,13 +316,13 @@ find_dynamic_method (krb5_context context,
 	free(path);
 	return NULL;
     }
-    
+
     if (asprintf(&symbol, "hdb_%s_interface", prefix) == -1)
 	krb5_errx(context, 1, "out of memory");
-	
-    mso = dlsym(dl, symbol);
+
+    mso = (struct hdb_so_method *) dlsym(dl, symbol);
     if (mso == NULL) {
-	krb5_warnx(context, "error finding symbol %s in %s: %s\n", 
+	krb5_warnx(context, "error finding symbol %s in %s: %s\n",
 		   symbol, path, dlerror());
 	dlclose(dl);
 	free(symbol);
@@ -307,9 +334,9 @@ find_dynamic_method (krb5_context context,
     free(symbol);
 
     if (mso->version != HDB_INTERFACE_VERSION) {
-	krb5_warnx(context, 
+	krb5_warnx(context,
 		   "error wrong version in shared module %s "
-		   "version: %d should have been %d\n", 
+		   "version: %d should have been %d\n",
 		   prefix, mso->version, HDB_INTERFACE_VERSION);
 	dlclose(dl);
 	free(prefix);
@@ -378,7 +405,7 @@ hdb_list_builtin(krb5_context context, char **list)
     len += 1;
     buf = malloc(len);
     if (buf == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
     buf[0] = '\0';
@@ -393,15 +420,65 @@ hdb_list_builtin(krb5_context context, char **list)
 }
 
 krb5_error_code
+_hdb_keytab2hdb_entry(krb5_context context,
+		      const krb5_keytab_entry *ktentry,
+		      hdb_entry_ex *entry)
+{
+    entry->entry.kvno = ktentry->vno;
+    entry->entry.created_by.time = ktentry->timestamp;
+
+    entry->entry.keys.val = calloc(1, sizeof(entry->entry.keys.val[0]));
+    if (entry->entry.keys.val == NULL)
+	return ENOMEM;
+    entry->entry.keys.len = 1;
+
+    entry->entry.keys.val[0].mkvno = NULL;
+    entry->entry.keys.val[0].salt = NULL;
+
+    return krb5_copy_keyblock_contents(context,
+				       &ktentry->keyblock,
+				       &entry->entry.keys.val[0].key);
+}
+
+/**
+ * Create a handle for a Kerberos database
+ *
+ * Create a handle for a Kerberos database backend specified by a
+ * filename.  Doesn't create a file if its doesn't exists, you have to
+ * use O_CREAT to tell the backend to create the file.
+ */
+
+krb5_error_code
 hdb_create(krb5_context context, HDB **db, const char *filename)
 {
     const struct hdb_method *h;
     const char *residual;
+    krb5_error_code ret;
+    struct krb5_plugin *list = NULL, *e;
 
     if(filename == NULL)
 	filename = HDB_DEFAULT_DB;
     krb5_add_et_list(context, initialize_hdb_error_table_r);
     h = find_method (filename, &residual);
+
+    if (h == NULL) {
+	    ret = _krb5_plugin_find(context, PLUGIN_TYPE_DATA, "hdb", &list);
+	    if(ret == 0 && list != NULL) {
+		    for (e = list; e != NULL; e = _krb5_plugin_get_next(e)) {
+			    h = _krb5_plugin_get_symbol(e);
+			    if (strncmp (filename, h->prefix, strlen(h->prefix)) == 0
+				&& h->interface_version == HDB_INTERFACE_VERSION) {
+				    residual = filename + strlen(h->prefix);
+				    break;
+			    }
+		    }
+		    if (e == NULL) {
+			    h = NULL;
+			    _krb5_plugin_free(list);
+		    }
+	    }
+    }
+
 #ifdef HAVE_DLOPEN
     if (h == NULL)
 	h = find_dynamic_method (context, filename, &residual);

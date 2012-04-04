@@ -11,6 +11,8 @@ SUBDIR=	${_3dfx} \
 	accf_data \
 	accf_dns \
 	accf_http \
+	acl_nfs4 \
+	acl_posix1e \
 	${_acpi} \
 	ae \
 	${_aesni} \

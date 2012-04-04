@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_ASXX_TYPEDEFS_H__
-#define __CVMX_ASXX_TYPEDEFS_H__
+#ifndef __CVMX_ASXX_DEFS_H__
+#define __CVMX_ASXX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_ASXX_GMII_RX_CLK_SET(unsigned long block_id)
@@ -395,12 +395,10 @@ static inline uint64_t CVMX_ASXX_TX_PRT_EN(unsigned long block_id)
  * ASX_GMII_RX_CLK_SET = GMII Clock delay setting
  *
  */
-union cvmx_asxx_gmii_rx_clk_set
-{
+union cvmx_asxx_gmii_rx_clk_set {
 	uint64_t u64;
-	struct cvmx_asxx_gmii_rx_clk_set_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_gmii_rx_clk_set_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t setting                      : 5;  /**< Setting to place on the RXCLK (GMII receive clk)
                                                          delay line.  The intrinsic delay can range from
@@ -422,12 +420,10 @@ typedef union cvmx_asxx_gmii_rx_clk_set cvmx_asxx_gmii_rx_clk_set_t;
  * ASX_GMII_RX_DAT_SET = GMII Clock delay setting
  *
  */
-union cvmx_asxx_gmii_rx_dat_set
-{
+union cvmx_asxx_gmii_rx_dat_set {
 	uint64_t u64;
-	struct cvmx_asxx_gmii_rx_dat_set_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_gmii_rx_dat_set_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t setting                      : 5;  /**< Setting to place on the RXD (GMII receive data)
                                                          delay lines.  The intrinsic delay can range from
@@ -449,12 +445,10 @@ typedef union cvmx_asxx_gmii_rx_dat_set cvmx_asxx_gmii_rx_dat_set_t;
  * ASX_INT_EN = Interrupt Enable
  *
  */
-union cvmx_asxx_int_en
-{
+union cvmx_asxx_int_en {
 	uint64_t u64;
-	struct cvmx_asxx_int_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_int_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t txpsh                        : 4;  /**< TX FIFO overflow on RMGII port */
 	uint64_t txpop                        : 4;  /**< TX FIFO underflow on RMGII port */
@@ -466,9 +460,8 @@ union cvmx_asxx_int_en
 	uint64_t reserved_12_63               : 52;
 #endif
 	} s;
-	struct cvmx_asxx_int_en_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_int_en_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_11_63               : 53;
 	uint64_t txpsh                        : 3;  /**< TX FIFO overflow on RMGII port */
 	uint64_t reserved_7_7                 : 1;
@@ -499,12 +492,10 @@ typedef union cvmx_asxx_int_en cvmx_asxx_int_en_t;
  * ASX_INT_REG = Interrupt Register
  *
  */
-union cvmx_asxx_int_reg
-{
+union cvmx_asxx_int_reg {
 	uint64_t u64;
-	struct cvmx_asxx_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t txpsh                        : 4;  /**< TX FIFO overflow on RMGII port */
 	uint64_t txpop                        : 4;  /**< TX FIFO underflow on RMGII port */
@@ -516,9 +507,8 @@ union cvmx_asxx_int_reg
 	uint64_t reserved_12_63               : 52;
 #endif
 	} s;
-	struct cvmx_asxx_int_reg_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_int_reg_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_11_63               : 53;
 	uint64_t txpsh                        : 3;  /**< TX FIFO overflow on RMGII port */
 	uint64_t reserved_7_7                 : 1;
@@ -549,12 +539,10 @@ typedef union cvmx_asxx_int_reg cvmx_asxx_int_reg_t;
  * ASX_MII_RX_DAT_SET = GMII Clock delay setting
  *
  */
-union cvmx_asxx_mii_rx_dat_set
-{
+union cvmx_asxx_mii_rx_dat_set {
 	uint64_t u64;
-	struct cvmx_asxx_mii_rx_dat_set_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_mii_rx_dat_set_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t setting                      : 5;  /**< Setting to place on the RXD (MII receive data)
                                                          delay lines.  The intrinsic delay can range from
@@ -575,12 +563,10 @@ typedef union cvmx_asxx_mii_rx_dat_set cvmx_asxx_mii_rx_dat_set_t;
  * ASX_PRT_LOOP = Internal Loopback mode - TX FIFO output goes into RX FIFO (and maybe pins)
  *
  */
-union cvmx_asxx_prt_loop
-{
+union cvmx_asxx_prt_loop {
 	uint64_t u64;
-	struct cvmx_asxx_prt_loop_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_prt_loop_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t ext_loop                     : 4;  /**< External Loopback Enable
                                                          0 = No Loopback (TX FIFO is filled by RMGII)
@@ -602,9 +588,8 @@ union cvmx_asxx_prt_loop
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
-	struct cvmx_asxx_prt_loop_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_prt_loop_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t ext_loop                     : 3;  /**< External Loopback Enable
                                                          0 = No Loopback (TX FIFO is filled by RMGII)
@@ -646,12 +631,10 @@ typedef union cvmx_asxx_prt_loop cvmx_asxx_prt_loop_t;
  * ASX_RLD_BYPASS
  *
  */
-union cvmx_asxx_rld_bypass
-{
+union cvmx_asxx_rld_bypass {
 	uint64_t u64;
-	struct cvmx_asxx_rld_bypass_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_bypass_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t bypass                       : 1;  /**< When set, the rld_dll setting is bypassed with
                                                          ASX_RLD_BYPASS_SETTING */
@@ -673,12 +656,10 @@ typedef union cvmx_asxx_rld_bypass cvmx_asxx_rld_bypass_t;
  * ASX_RLD_BYPASS_SETTING
  *
  */
-union cvmx_asxx_rld_bypass_setting
-{
+union cvmx_asxx_rld_bypass_setting {
 	uint64_t u64;
-	struct cvmx_asxx_rld_bypass_setting_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_bypass_setting_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t setting                      : 5;  /**< The rld_dll setting bypass value */
 #else
@@ -699,12 +680,10 @@ typedef union cvmx_asxx_rld_bypass_setting cvmx_asxx_rld_bypass_setting_t;
  * ASX_RLD_COMP
  *
  */
-union cvmx_asxx_rld_comp
-{
+union cvmx_asxx_rld_comp {
 	uint64_t u64;
-	struct cvmx_asxx_rld_comp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_comp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t pctl                         : 5;  /**< PCTL Compensation Value
                                                          These bits reflect the computed compensation
@@ -717,9 +696,8 @@ union cvmx_asxx_rld_comp
 	uint64_t reserved_9_63                : 55;
 #endif
 	} s;
-	struct cvmx_asxx_rld_comp_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_comp_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t pctl                         : 4;  /**< These bits reflect the computed compensation
                                                          values from the built-in compensation circuit. */
@@ -743,12 +721,10 @@ typedef union cvmx_asxx_rld_comp cvmx_asxx_rld_comp_t;
  * ASX_RLD_DATA_DRV
  *
  */
-union cvmx_asxx_rld_data_drv
-{
+union cvmx_asxx_rld_data_drv {
 	uint64_t u64;
-	struct cvmx_asxx_rld_data_drv_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_data_drv_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t pctl                         : 4;  /**< These bits specify a driving strength (positive
                                                          integer) for the RLD I/Os when the built-in
@@ -775,12 +751,10 @@ typedef union cvmx_asxx_rld_data_drv cvmx_asxx_rld_data_drv_t;
  * ASX_RLD_FCRAM_MODE
  *
  */
-union cvmx_asxx_rld_fcram_mode
-{
+union cvmx_asxx_rld_fcram_mode {
 	uint64_t u64;
-	struct cvmx_asxx_rld_fcram_mode_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_fcram_mode_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t mode                         : 1;  /**< Memory Mode
                                                          - 0: RLDRAM
@@ -801,12 +775,10 @@ typedef union cvmx_asxx_rld_fcram_mode cvmx_asxx_rld_fcram_mode_t;
  * ASX_RLD_NCTL_STRONG
  *
  */
-union cvmx_asxx_rld_nctl_strong
-{
+union cvmx_asxx_rld_nctl_strong {
 	uint64_t u64;
-	struct cvmx_asxx_rld_nctl_strong_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_nctl_strong_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t nctl                         : 5;  /**< Duke's drive control */
 #else
@@ -827,12 +799,10 @@ typedef union cvmx_asxx_rld_nctl_strong cvmx_asxx_rld_nctl_strong_t;
  * ASX_RLD_NCTL_WEAK
  *
  */
-union cvmx_asxx_rld_nctl_weak
-{
+union cvmx_asxx_rld_nctl_weak {
 	uint64_t u64;
-	struct cvmx_asxx_rld_nctl_weak_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_nctl_weak_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t nctl                         : 5;  /**< UNUSED (not needed for CN58XX) */
 #else
@@ -853,12 +823,10 @@ typedef union cvmx_asxx_rld_nctl_weak cvmx_asxx_rld_nctl_weak_t;
  * ASX_RLD_PCTL_STRONG
  *
  */
-union cvmx_asxx_rld_pctl_strong
-{
+union cvmx_asxx_rld_pctl_strong {
 	uint64_t u64;
-	struct cvmx_asxx_rld_pctl_strong_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_pctl_strong_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t pctl                         : 5;  /**< Duke's drive control */
 #else
@@ -879,12 +847,10 @@ typedef union cvmx_asxx_rld_pctl_strong cvmx_asxx_rld_pctl_strong_t;
  * ASX_RLD_PCTL_WEAK
  *
  */
-union cvmx_asxx_rld_pctl_weak
-{
+union cvmx_asxx_rld_pctl_weak {
 	uint64_t u64;
-	struct cvmx_asxx_rld_pctl_weak_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_pctl_weak_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t pctl                         : 5;  /**< UNUSED (not needed for CN58XX) */
 #else
@@ -905,12 +871,10 @@ typedef union cvmx_asxx_rld_pctl_weak cvmx_asxx_rld_pctl_weak_t;
  * ASX_RLD_SETTING
  *
  */
-union cvmx_asxx_rld_setting
-{
+union cvmx_asxx_rld_setting {
 	uint64_t u64;
-	struct cvmx_asxx_rld_setting_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_setting_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t dfaset                       : 5;  /**< RLD ClkGen DLL Setting(debug) */
 	uint64_t dfalag                       : 1;  /**< RLD ClkGen DLL Lag Error(debug) */
@@ -926,9 +890,8 @@ union cvmx_asxx_rld_setting
 	uint64_t reserved_13_63               : 51;
 #endif
 	} s;
-	struct cvmx_asxx_rld_setting_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rld_setting_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t setting                      : 5;  /**< This is the read-only true rld dll_setting. */
 #else
@@ -982,12 +945,10 @@ typedef union cvmx_asxx_rld_setting cvmx_asxx_rld_setting_t;
  *    1.25            24
  *    1.3             25
  */
-union cvmx_asxx_rx_clk_setx
-{
+union cvmx_asxx_rx_clk_setx {
 	uint64_t u64;
-	struct cvmx_asxx_rx_clk_setx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rx_clk_setx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t setting                      : 5;  /**< Setting to place on the open-loop RXC delay line */
 #else
@@ -1011,12 +972,10 @@ typedef union cvmx_asxx_rx_clk_setx cvmx_asxx_rx_clk_setx_t;
  * ASX_RX_PRT_EN = RGMII Port Enable
  *
  */
-union cvmx_asxx_rx_prt_en
-{
+union cvmx_asxx_rx_prt_en {
 	uint64_t u64;
-	struct cvmx_asxx_rx_prt_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rx_prt_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t prt_en                       : 4;  /**< Port enable.  Must be set for Octane to receive
                                                          RMGII traffic.  When this bit clear on a given
@@ -1027,9 +986,8 @@ union cvmx_asxx_rx_prt_en
 	uint64_t reserved_4_63                : 60;
 #endif
 	} s;
-	struct cvmx_asxx_rx_prt_en_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rx_prt_en_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t prt_en                       : 3;  /**< Port enable.  Must be set for Octane to receive
                                                          RMGII traffic.  When this bit clear on a given
@@ -1055,12 +1013,10 @@ typedef union cvmx_asxx_rx_prt_en cvmx_asxx_rx_prt_en_t;
  * ASX_RX_WOL = RGMII RX Wake on LAN status register
  *
  */
-union cvmx_asxx_rx_wol
-{
+union cvmx_asxx_rx_wol {
 	uint64_t u64;
-	struct cvmx_asxx_rx_wol_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rx_wol_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t status                       : 1;  /**< Copy of PMCSR[15] - PME_status */
 	uint64_t enable                       : 1;  /**< Copy of PMCSR[8]  - PME_enable */
@@ -1081,12 +1037,10 @@ typedef union cvmx_asxx_rx_wol cvmx_asxx_rx_wol_t;
  * ASX_RX_WOL_MSK = RGMII RX Wake on LAN byte mask
  *
  */
-union cvmx_asxx_rx_wol_msk
-{
+union cvmx_asxx_rx_wol_msk {
 	uint64_t u64;
-	struct cvmx_asxx_rx_wol_msk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rx_wol_msk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t msk                          : 64; /**< Bytes to include in the CRC signature */
 #else
 	uint64_t msk                          : 64;
@@ -1103,12 +1057,10 @@ typedef union cvmx_asxx_rx_wol_msk cvmx_asxx_rx_wol_msk_t;
  * ASX_RX_WOL_POWOK = RGMII RX Wake on LAN Power OK
  *
  */
-union cvmx_asxx_rx_wol_powok
-{
+union cvmx_asxx_rx_wol_powok {
 	uint64_t u64;
-	struct cvmx_asxx_rx_wol_powok_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rx_wol_powok_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t powerok                      : 1;  /**< Power OK */
 #else
@@ -1127,12 +1079,10 @@ typedef union cvmx_asxx_rx_wol_powok cvmx_asxx_rx_wol_powok_t;
  * ASX_RX_WOL_SIG = RGMII RX Wake on LAN CRC signature
  *
  */
-union cvmx_asxx_rx_wol_sig
-{
+union cvmx_asxx_rx_wol_sig {
 	uint64_t u64;
-	struct cvmx_asxx_rx_wol_sig_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_rx_wol_sig_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t sig                          : 32; /**< CRC signature */
 #else
@@ -1185,12 +1135,10 @@ typedef union cvmx_asxx_rx_wol_sig cvmx_asxx_rx_wol_sig_t;
  *    1.25            24
  *    1.3             25
  */
-union cvmx_asxx_tx_clk_setx
-{
+union cvmx_asxx_tx_clk_setx {
 	uint64_t u64;
-	struct cvmx_asxx_tx_clk_setx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_clk_setx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t setting                      : 5;  /**< Setting to place on the open-loop TXC delay line */
 #else
@@ -1214,20 +1162,17 @@ typedef union cvmx_asxx_tx_clk_setx cvmx_asxx_tx_clk_setx_t;
  * ASX_TX_COMP_BYP = RGMII Clock delay setting
  *
  */
-union cvmx_asxx_tx_comp_byp
-{
+union cvmx_asxx_tx_comp_byp {
 	uint64_t u64;
-	struct cvmx_asxx_tx_comp_byp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_comp_byp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_0_63                : 64;
 #else
 	uint64_t reserved_0_63                : 64;
 #endif
 	} s;
-	struct cvmx_asxx_tx_comp_byp_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_comp_byp_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t bypass                       : 1;  /**< Compensation bypass */
 	uint64_t pctl                         : 4;  /**< PCTL Compensation Value (see Duke) */
@@ -1240,9 +1185,8 @@ union cvmx_asxx_tx_comp_byp
 #endif
 	} cn30xx;
 	struct cvmx_asxx_tx_comp_byp_cn30xx   cn31xx;
-	struct cvmx_asxx_tx_comp_byp_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_comp_byp_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t pctl                         : 4;  /**< PCTL Compensation Value (see Duke) */
 	uint64_t nctl                         : 4;  /**< NCTL Compensation Value (see Duke) */
@@ -1253,9 +1197,8 @@ union cvmx_asxx_tx_comp_byp
 #endif
 	} cn38xx;
 	struct cvmx_asxx_tx_comp_byp_cn38xx   cn38xxp2;
-	struct cvmx_asxx_tx_comp_byp_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_comp_byp_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t bypass                       : 1;  /**< Compensation bypass */
 	uint64_t reserved_13_15               : 3;
@@ -1271,9 +1214,8 @@ union cvmx_asxx_tx_comp_byp
 	uint64_t reserved_17_63               : 47;
 #endif
 	} cn50xx;
-	struct cvmx_asxx_tx_comp_byp_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_comp_byp_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t pctl                         : 5;  /**< PCTL Compensation Value (see Duke) */
 	uint64_t reserved_5_7                 : 3;
@@ -1295,12 +1237,10 @@ typedef union cvmx_asxx_tx_comp_byp cvmx_asxx_tx_comp_byp_t;
  * ASX_TX_HI_WATER = RGMII TX FIFO Hi WaterMark
  *
  */
-union cvmx_asxx_tx_hi_waterx
-{
+union cvmx_asxx_tx_hi_waterx {
 	uint64_t u64;
-	struct cvmx_asxx_tx_hi_waterx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_hi_waterx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t mark                         : 4;  /**< TX FIFO HiWatermark to stall GMX
                                                          Value of 0 maps to 16
@@ -1315,9 +1255,8 @@ union cvmx_asxx_tx_hi_waterx
 	uint64_t reserved_4_63                : 60;
 #endif
 	} s;
-	struct cvmx_asxx_tx_hi_waterx_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_hi_waterx_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t mark                         : 3;  /**< TX FIFO HiWatermark to stall GMX
                                                          Value 0 maps to 8. */
@@ -1341,12 +1280,10 @@ typedef union cvmx_asxx_tx_hi_waterx cvmx_asxx_tx_hi_waterx_t;
  * ASX_TX_PRT_EN = RGMII Port Enable
  *
  */
-union cvmx_asxx_tx_prt_en
-{
+union cvmx_asxx_tx_prt_en {
 	uint64_t u64;
-	struct cvmx_asxx_tx_prt_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_prt_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t prt_en                       : 4;  /**< Port enable.  Must be set for Octane to send
                                                          RMGII traffic.   When this bit clear on a given
@@ -1357,9 +1294,8 @@ union cvmx_asxx_tx_prt_en
 	uint64_t reserved_4_63                : 60;
 #endif
 	} s;
-	struct cvmx_asxx_tx_prt_en_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_asxx_tx_prt_en_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t prt_en                       : 3;  /**< Port enable.  Must be set for Octane to send
                                                          RMGII traffic.   When this bit clear on a given

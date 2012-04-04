@@ -174,14 +174,14 @@ AcpiDbSleep (
     }
 
     AcpiOsPrintf ("**** Going to sleep ****\n");
-    Status = AcpiEnterSleepState (SleepState);
+    Status = AcpiEnterSleepState (SleepState, ACPI_NO_OPTIONAL_METHODS);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
     }
 
     AcpiOsPrintf ("**** Prepare to return from sleep ****\n");
-    Status = AcpiLeaveSleepStatePrep (SleepState);
+    Status = AcpiLeaveSleepStatePrep (SleepState, ACPI_NO_OPTIONAL_METHODS);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;

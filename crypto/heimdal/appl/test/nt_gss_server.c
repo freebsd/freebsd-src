@@ -1,42 +1,44 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "test_locl.h"
-#include <gssapi.h>
+#include <gssapi/gssapi.h>
+#include <gssapi/gssapi_krb5.h>
+#include <gssapi/gssapi_spnego.h>
 #include <krb5.h>
 #include "nt_gss_common.h"
 
-RCSID("$Id: nt_gss_server.c 12323 2003-05-21 15:15:34Z lha $");
+RCSID("$Id$");
 
 /*
  * This program tries to act as a server for the sample in `Sample
@@ -115,21 +117,16 @@ proto (int sock, const char *service)
     } while(maj_stat & GSS_S_CONTINUE_NEEDED);
 
     if (auth_file != NULL) {
-	int fd = open (auth_file, O_WRONLY | O_CREAT, 0666);
-#if 0
-	krb5_ticket *ticket;
-	krb5_data *data;
+	gss_buffer_desc data;
 
-	ticket = context_hdl->ticket;
-	data = &ticket->ticket.authorization_data->val[0].ad_data;
-
-	if(fd < 0)
-	    err (1, "open %s", auth_file);
-	if (write (fd, data->data, data->length) != data->length)
-	    errx (1, "write to %s failed", auth_file);
-#endif
-	if (close (fd))
-	    err (1, "close %s", auth_file);
+	maj_stat = gsskrb5_extract_authz_data_from_sec_context(&min_stat,
+							       context_hdl,
+							       KRB5_AUTHDATA_WIN2K_PAC,
+							       &data);
+	if (maj_stat == GSS_S_COMPLETE) {
+	    rk_dumpdata(auth_file, data.value, data.length);
+	    gss_release_buffer(&min_stat, &data);
+	}
     }
 
     maj_stat = gss_display_name (&min_stat,
@@ -196,7 +193,7 @@ usage(int code, struct getargs *args, int num_args)
 }
 
 static int
-common_setup(krb5_context *context, int *argc, char **argv, 
+common_setup(krb5_context *context, int *argc, char **argv,
 	     void (*usage)(int, struct getargs*, int))
 {
     int port = 0;
@@ -208,7 +205,7 @@ common_setup(krb5_context *context, int *argc, char **argv,
 	print_version(NULL);
 	exit(0);
     }
-    
+
     if(port_str){
 	struct servent *s = roken_getservbyname(port_str, "tcp");
 	if(s)
@@ -225,7 +222,7 @@ common_setup(krb5_context *context, int *argc, char **argv,
 
     if (port == 0)
 	port = krb5_getportbyname (*context, PORT, "tcp", 4711);
-    
+
     return port;
 }
 

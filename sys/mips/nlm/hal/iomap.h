@@ -36,6 +36,7 @@
 #define	NMI_BASE			0xbfc00000
 #define	XLP_IO_CLK			133333333
 
+#define	XLP_L2L3_CACHELINE_SIZE		64
 #define	XLP_PCIE_CFG_SIZE		0x1000		/* 4K */
 #define	XLP_PCIE_DEV_BLK_SIZE		(8 * XLP_PCIE_CFG_SIZE)
 #define	XLP_PCIE_BUS_BLK_SIZE		(256 * XLP_PCIE_DEV_BLK_SIZE)
@@ -185,9 +186,19 @@ nlm_irtnum(uint64_t pcibase)
 }
 
 static __inline__ int
-nlm_uenginenum(uint64_t pcibase)
+nlm_num_uengines(uint64_t pcibase)
 {
 	return nlm_read_reg(pcibase, XLP_PCI_UCODEINFO_REG);
+}
+
+/*
+ * Find node on which a given Soc device is located.
+ * input is the pci device (slot) number.
+ */
+static __inline__ int
+nlm_get_device_node(int device)
+{
+	return (device / 8);
 }
 
 #endif /* !LOCORE or !__ASSEMBLY */

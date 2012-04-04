@@ -1,60 +1,59 @@
 /*
- * Copyright (c) 2004 - 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2004 - 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hdb_locl.h"
 #include <der.h>
 
-RCSID("$Id: ext.c 21113 2007-06-18 12:59:32Z lha $");
-
 krb5_error_code
 hdb_entry_check_mandatory(krb5_context context, const hdb_entry *ent)
 {
-    int i;
+    size_t i;
 
     if (ent->extensions == NULL)
 	return 0;
 
-    /* 
+    /*
      * check for unknown extensions and if they where tagged mandatory
      */
 
     for (i = 0; i < ent->extensions->len; i++) {
-	if (ent->extensions->val[i].data.element != 
+	if (ent->extensions->val[i].data.element !=
 	    choice_HDB_extension_data_asn1_ellipsis)
 	    continue;
 	if (ent->extensions->val[i].mandatory) {
-	    krb5_set_error_string(context,  "Principal have unknown "
-				  "mandatory extension");
+	    krb5_set_error_message(context, HDB_ERR_MANDATORY_OPTION,
+				   "Principal have unknown "
+				   "mandatory extension");
 	    return HDB_ERR_MANDATORY_OPTION;
 	}
     }
@@ -64,13 +63,13 @@ hdb_entry_check_mandatory(krb5_context context, const hdb_entry *ent)
 HDB_extension *
 hdb_find_extension(const hdb_entry *entry, int type)
 {
-    int i;
+    size_t i;
 
     if (entry->extensions == NULL)
 	return NULL;
 
     for (i = 0; i < entry->extensions->len; i++)
-	if (entry->extensions->val[i].data.element == type)
+	if (entry->extensions->val[i].data.element == (unsigned)type)
 	    return &entry->extensions->val[i];
     return NULL;
 }
@@ -82,8 +81,8 @@ hdb_find_extension(const hdb_entry *entry, int type)
  */
 
 krb5_error_code
-hdb_replace_extension(krb5_context context, 
-		      hdb_entry *entry, 
+hdb_replace_extension(krb5_context context,
+		      hdb_entry *entry,
 		      const HDB_extension *ext)
 {
     HDB_extension *ext2;
@@ -95,13 +94,13 @@ hdb_replace_extension(krb5_context context,
     if (entry->extensions == NULL) {
 	entry->extensions = calloc(1, sizeof(*entry->extensions));
 	if (entry->extensions == NULL) {
-	    krb5_set_error_string(context, "malloc: out of memory");
+	    krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	    return ENOMEM;
 	}
     } else if (ext->data.element != choice_HDB_extension_data_asn1_ellipsis) {
 	ext2 = hdb_find_extension(entry, ext->data.element);
     } else {
-	/* 
+	/*
 	 * This is an unknown extention, and we are asked to replace a
 	 * possible entry in `entry' that is of the same type. This
 	 * might seem impossible, but ASN.1 CHOICE comes to our
@@ -113,15 +112,15 @@ hdb_replace_extension(krb5_context context,
 	Der_type replace_type, list_type;
 	unsigned int replace_tag, list_tag;
 	size_t size;
-	int i;
+	size_t i;
 
 	ret = der_get_tag(ext->data.u.asn1_ellipsis.data,
 			  ext->data.u.asn1_ellipsis.length,
 			  &replace_class, &replace_type, &replace_tag,
 			  &size);
 	if (ret) {
-	    krb5_set_error_string(context, "hdb: failed to decode "
-				  "replacement hdb extention");
+	    krb5_set_error_message(context, ret, "hdb: failed to decode "
+				   "replacement hdb extention");
 	    return ret;
 	}
 
@@ -136,8 +135,8 @@ hdb_replace_extension(krb5_context context,
 			      &list_class, &list_type, &list_tag,
 			      &size);
 	    if (ret) {
-		krb5_set_error_string(context, "hdb: failed to decode "
-				      "present hdb extention");
+		krb5_set_error_message(context, ret, "hdb: failed to decode "
+				       "present hdb extention");
 		return ret;
 	    }
 
@@ -153,15 +152,15 @@ hdb_replace_extension(krb5_context context,
 	free_HDB_extension(ext2);
 	ret = copy_HDB_extension(ext, ext2);
 	if (ret)
-	    krb5_set_error_string(context, "hdb: failed to copy replacement "
-				  "hdb extention");
+	    krb5_set_error_message(context, ret, "hdb: failed to copy replacement "
+				   "hdb extention");
 	return ret;
     }
 
-    es = realloc(entry->extensions->val, 
+    es = realloc(entry->extensions->val,
 		 (entry->extensions->len+1)*sizeof(entry->extensions->val[0]));
     if (es == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
     entry->extensions->val = es;
@@ -171,23 +170,23 @@ hdb_replace_extension(krb5_context context,
     if (ret == 0)
 	entry->extensions->len++;
     else
-	krb5_set_error_string(context, "hdb: failed to copy new extension");
+	krb5_set_error_message(context, ret, "hdb: failed to copy new extension");
 
     return ret;
 }
 
 krb5_error_code
-hdb_clear_extension(krb5_context context, 
-		    hdb_entry *entry, 
+hdb_clear_extension(krb5_context context,
+		    hdb_entry *entry,
 		    int type)
 {
-    int i;
+    size_t i;
 
     if (entry->extensions == NULL)
 	return 0;
 
     for (i = 0; i < entry->extensions->len; i++) {
-	if (entry->extensions->val[i].data.element == type) {
+	if (entry->extensions->val[i].data.element == (unsigned)type) {
 	    free_HDB_extension(&entry->extensions->val[i]);
 	    memmove(&entry->extensions->val[i],
 		    &entry->extensions->val[i + 1],
@@ -234,6 +233,20 @@ hdb_entry_get_pkinit_hash(const hdb_entry *entry, const HDB_Ext_PKINIT_hash **a)
 }
 
 krb5_error_code
+hdb_entry_get_pkinit_cert(const hdb_entry *entry, const HDB_Ext_PKINIT_cert **a)
+{
+    const HDB_extension *ext;
+
+    ext = hdb_find_extension(entry, choice_HDB_extension_data_pkinit_cert);
+    if (ext)
+	*a = &ext->data.u.pkinit_cert;
+    else
+	*a = NULL;
+
+    return 0;
+}
+
+krb5_error_code
 hdb_entry_get_pw_change_time(const hdb_entry *entry, time_t *t)
 {
     const HDB_extension *ext;
@@ -248,7 +261,7 @@ hdb_entry_get_pw_change_time(const hdb_entry *entry, time_t *t)
 }
 
 krb5_error_code
-hdb_entry_set_pw_change_time(krb5_context context, 
+hdb_entry_set_pw_change_time(krb5_context context,
 			     hdb_entry *entry,
 			     time_t t)
 {
@@ -264,7 +277,7 @@ hdb_entry_set_pw_change_time(krb5_context context,
 }
 
 int
-hdb_entry_get_password(krb5_context context, HDB *db, 
+hdb_entry_get_password(krb5_context context, HDB *db,
 		       const hdb_entry *entry, char **p)
 {
     HDB_extension *ext;
@@ -273,18 +286,19 @@ hdb_entry_get_password(krb5_context context, HDB *db,
 
     ext = hdb_find_extension(entry, choice_HDB_extension_data_password);
     if (ext) {
-	heim_utf8_string str;
+	heim_utf8_string xstr;
 	heim_octet_string pw;
 
 	if (db->hdb_master_key_set && ext->data.u.password.mkvno) {
 	    hdb_master_key key;
 
-	    key = _hdb_find_master_key(ext->data.u.password.mkvno, 
+	    key = _hdb_find_master_key(ext->data.u.password.mkvno,
 				       db->hdb_master_key);
 
 	    if (key == NULL) {
-		krb5_set_error_string(context, "master key %d missing",
-				      *ext->data.u.password.mkvno);
+		krb5_set_error_message(context, HDB_ERR_NO_MKEY,
+				       "master key %d missing",
+				       *ext->data.u.password.mkvno);
 		return HDB_ERR_NO_MKEY;
 	    }
 
@@ -296,21 +310,21 @@ hdb_entry_get_password(krb5_context context, HDB *db,
 	    ret = der_copy_octet_string(&ext->data.u.password.password, &pw);
 	}
 	if (ret) {
-	    krb5_clear_error_string(context);
+	    krb5_clear_error_message(context);
 	    return ret;
 	}
 
-	str = pw.data;
-	if (str[pw.length - 1] != '\0') {
-	    krb5_set_error_string(context, "password malformated");
+	xstr = pw.data;
+	if (xstr[pw.length - 1] != '\0') {
+	    krb5_set_error_message(context, EINVAL, "malformed password");
 	    return EINVAL;
 	}
 
-	*p = strdup(str);
+	*p = strdup(xstr);
 
 	der_free_octet_string(&pw);
 	if (*p == NULL) {
-	    krb5_set_error_string(context, "malloc: out of memory");
+	    krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	    return ENOMEM;
 	}
 	return 0;
@@ -318,16 +332,17 @@ hdb_entry_get_password(krb5_context context, HDB *db,
 
     ret = krb5_unparse_name(context, entry->principal, &str);
     if (ret == 0) {
-	krb5_set_error_string(context, "no password attributefor %s", str);
+	krb5_set_error_message(context, ENOENT,
+			       "no password attribute for %s", str);
 	free(str);
-    } else 
-	krb5_clear_error_string(context);
+    } else
+	krb5_clear_error_message(context);
 
     return ENOENT;
 }
 
 int
-hdb_entry_set_password(krb5_context context, HDB *db, 
+hdb_entry_set_password(krb5_context context, HDB *db,
 		       hdb_entry *entry, const char *p)
 {
     HDB_extension ext;
@@ -341,22 +356,23 @@ hdb_entry_set_password(krb5_context context, HDB *db,
 
 	key = _hdb_find_master_key(NULL, db->hdb_master_key);
 	if (key == NULL) {
-	    krb5_set_error_string(context, "hdb_entry_set_password: "
-				  "failed to find masterkey");
+	    krb5_set_error_message(context, HDB_ERR_NO_MKEY,
+				   "hdb_entry_set_password: "
+				   "failed to find masterkey");
 	    return HDB_ERR_NO_MKEY;
 	}
 
 	ret = _hdb_mkey_encrypt(context, key, HDB_KU_MKEY,
-				p, strlen(p) + 1, 
+				p, strlen(p) + 1,
 				&ext.data.u.password.password);
 	if (ret)
 	    return ret;
 
-	ext.data.u.password.mkvno = 
+	ext.data.u.password.mkvno =
 	    malloc(sizeof(*ext.data.u.password.mkvno));
 	if (ext.data.u.password.mkvno == NULL) {
 	    free_HDB_extension(&ext);
-	    krb5_set_error_string(context, "malloc: out of memory");
+	    krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	    return ENOMEM;
 	}
 	*ext.data.u.password.mkvno = _hdb_mkey_version(key);
@@ -364,10 +380,10 @@ hdb_entry_set_password(krb5_context context, HDB *db,
     } else {
 	ext.data.u.password.mkvno = NULL;
 
-	ret = krb5_data_copy(&ext.data.u.password.password, 
+	ret = krb5_data_copy(&ext.data.u.password.password,
 			     p, strlen(p) + 1);
 	if (ret) {
-	    krb5_set_error_string(context, "malloc: out of memory");
+	    krb5_set_error_message(context, ret, "malloc: out of memory");
 	    free_HDB_extension(&ext);
 	    return ret;
 	}
@@ -383,17 +399,17 @@ hdb_entry_set_password(krb5_context context, HDB *db,
 int
 hdb_entry_clear_password(krb5_context context, hdb_entry *entry)
 {
-    return hdb_clear_extension(context, entry, 
+    return hdb_clear_extension(context, entry,
 			       choice_HDB_extension_data_password);
 }
 
 krb5_error_code
-hdb_entry_get_ConstrainedDelegACL(const hdb_entry *entry, 
+hdb_entry_get_ConstrainedDelegACL(const hdb_entry *entry,
 				  const HDB_Ext_Constrained_delegation_acl **a)
 {
     const HDB_extension *ext;
 
-    ext = hdb_find_extension(entry, 
+    ext = hdb_find_extension(entry,
 			     choice_HDB_extension_data_allowed_to_delegate_to);
     if (ext)
 	*a = &ext->data.u.allowed_to_delegate_to;

@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "krb5_locl.h"
-
-RCSID("$Id: sendauth.c 17442 2006-05-05 09:31:15Z lha $");
 
 /*
  * The format seems to be:
@@ -62,7 +60,7 @@ RCSID("$Id: sendauth.c 17442 2006-05-05 09:31:15Z lha $");
  * }
  */
 
-krb5_error_code KRB5_LIB_FUNCTION
+KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL
 krb5_sendauth(krb5_context context,
 	      krb5_auth_context *auth_context,
 	      krb5_pointer p_fd,
@@ -93,7 +91,7 @@ krb5_sendauth(krb5_context context,
     if (krb5_net_write (context, p_fd, &net_len, 4) != 4
 	|| krb5_net_write (context, p_fd, version, len) != len) {
 	ret = errno;
-	krb5_set_error_string (context, "write: %s", strerror(ret));
+	krb5_set_error_message (context, ret, "write: %s", strerror(ret));
 	return ret;
     }
 
@@ -102,22 +100,22 @@ krb5_sendauth(krb5_context context,
     if (krb5_net_write (context, p_fd, &net_len, 4) != 4
 	|| krb5_net_write (context, p_fd, appl_version, len) != len) {
 	ret = errno;
-	krb5_set_error_string (context, "write: %s", strerror(ret));
+	krb5_set_error_message (context, ret, "write: %s", strerror(ret));
 	return ret;
     }
 
     sret = krb5_net_read (context, p_fd, &repl, sizeof(repl));
     if (sret < 0) {
 	ret = errno;
-	krb5_set_error_string (context, "read: %s", strerror(ret));
+	krb5_set_error_message (context, ret, "read: %s", strerror(ret));
 	return ret;
     } else if (sret != sizeof(repl)) {
-	krb5_clear_error_string (context);
+	krb5_clear_error_message (context);
 	return KRB5_SENDAUTH_BADRESPONSE;
     }
 
     if (repl != 0) {
-	krb5_clear_error_string (context);
+	krb5_clear_error_message (context);
 	return KRB5_SENDAUTH_REJECTED;
     }
 
@@ -205,14 +203,15 @@ krb5_sendauth(krb5_context context,
 	    }
 	    return ret;
 	} else {
-	    krb5_clear_error_string(context);
+	    krb5_clear_error_message(context);
 	    return ret;
 	}
-    }
+    } else
+	krb5_data_free (&error_data);
 
     if (ap_req_options & AP_OPTS_MUTUAL_REQUIRED) {
 	krb5_data ap_rep;
-	krb5_ap_rep_enc_part *ignore;
+	krb5_ap_rep_enc_part *ignore = NULL;
 
 	krb5_data_zero (&ap_rep);
 	ret = krb5_read_message (context,

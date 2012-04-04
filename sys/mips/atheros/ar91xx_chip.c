@@ -111,6 +111,13 @@ ar91xx_chip_device_stopped(uint32_t mask)
 }
 
 static void
+ar91xx_chip_set_mii_speed(uint32_t unit, uint32_t speed)
+{
+	/* XXX TODO */
+}
+
+
+static void
 ar91xx_chip_set_pll_ge(int unit, int speed)
 {
 	uint32_t pll;
@@ -209,6 +216,7 @@ struct ar71xx_cpu_def ar91xx_chip_def = {
 	&ar91xx_chip_device_start,
 	&ar91xx_chip_device_stopped,
 	&ar91xx_chip_set_pll_ge,
+	&ar91xx_chip_set_mii_speed,
 	&ar91xx_chip_ddr_flush_ge,
 	&ar91xx_chip_get_eth_pll,
 	&ar91xx_chip_ddr_flush_ip2,

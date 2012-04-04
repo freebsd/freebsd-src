@@ -159,6 +159,9 @@
 #define CVMX_ENABLE_PKO_FUNCTIONS
 #endif
 
+/* Enable debug and informational printfs */
+#define CVMX_CONFIG_ENABLE_DEBUG_PRINTS 	1
+
 /************************* Config Specific Defines ************************/
 #define CVMX_LLM_NUM_PORTS 1
 #define CVMX_PKO_QUEUES_PER_PORT_INTERFACE0 1			/**< PKO queues per port for interface 0 (ports 0-15) */

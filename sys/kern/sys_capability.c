@@ -261,16 +261,14 @@ sys_cap_new(struct thread *td, struct cap_new_args *uap)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
 	error = kern_capwrap(td, fp, rights, &capfd);
-	if (error)
-		return (error);
-
 	/*
 	 * Release our reference to the file (kern_capwrap has held a reference
 	 * for the filedesc array).
 	 */
 	fdrop(fp, td);
-	td->td_retval[0] = capfd;
-	return (0);
+	if (error == 0)
+		td->td_retval[0] = capfd;
+	return (error);
 }
 
 /*
