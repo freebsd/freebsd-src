@@ -2598,11 +2598,11 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 static void
 ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 {
-	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
+
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 	tid->paused++;
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: paused = %d\n",
 	    __func__, tid->paused);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
 }
 
 /*
@@ -2627,6 +2627,158 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	//ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
 	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
 }
+
+/*
+ * Suspend the queue because we need to TX a BAR.
+ */
+static void
+ath_tx_tid_bar_suspend(struct ath_softc *sc, struct ath_tid *tid)
+{
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	    "%s: tid=%p, called\n",
+	    __func__,
+	    tid);
+
+	/* We shouldn't be called when bar_tx is 1 */
+	if (tid->bar_tx) {
+		device_printf(sc->sc_dev, "%s: bar_tx is 1?!\n",
+		    __func__);
+	}
+
+	/* If we've already been called, just be patient. */
+	if (tid->bar_wait)
+		return;
+
+	/* Wait! */
+	tid->bar_wait = 1;
+
+	/* Only one pause, no matter how many frames fail */
+	ath_tx_tid_pause(sc, tid);
+}
+
+/*
+ * We've finished with BAR handling - either we succeeded or
+ * failed. Either way, unsuspend TX.
+ */
+static void
+ath_tx_tid_bar_unsuspend(struct ath_softc *sc, struct ath_tid *tid)
+{
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	    "%s: tid=%p, called\n",
+	    __func__,
+	    tid);
+
+	if (tid->bar_tx == 0 || tid->bar_wait == 0) {
+		device_printf(sc->sc_dev, "%s: bar_tx=%d, bar_wait=%d: ?\n",
+		    __func__, tid->bar_tx, tid->bar_wait);
+	}
+
+	tid->bar_tx = tid->bar_wait = 0;
+	ath_tx_tid_resume(sc, tid);
+}
+
+/*
+ * Return whether we're ready to TX a BAR frame.
+ *
+ * Requires the TID lock be held.
+ */
+static int
+ath_tx_tid_bar_tx_ready(struct ath_softc *sc, struct ath_tid *tid)
+{
+
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
+	if (tid->bar_wait == 0 || tid->hwq_depth > 0)
+		return (0);
+
+	return (1);
+}
+
+/*
+ * Check whether the current TID is ready to have a BAR
+ * TXed and if so, do the TX.
+ *
+ * Since the TID/TXQ lock can't be held during a call to
+ * ieee80211_send_bar(), we have to do the dirty thing of unlocking it,
+ * sending the BAR and locking it again.
+ *
+ * Eventually, the code to send the BAR should be broken out
+ * from this routine so the lock doesn't have to be reacquired
+ * just to be immediately dropped by the caller.
+ */
+static void
+ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
+{
+	struct ieee80211_tx_ampdu *tap;
+
+	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	    "%s: tid=%p, called\n",
+	    __func__,
+	    tid);
+
+	tap = ath_tx_get_tx_tid(tid->an, tid->tid);
+
+	/*
+	 * This is an error condition!
+	 */
+	if (tid->bar_wait == 0 || tid->bar_tx == 1) {
+		device_printf(sc->sc_dev,
+		    "%s: tid=%p, bar_tx=%d, bar_wait=%d: ?\n",
+		    __func__,
+		    tid,
+		    tid->bar_tx,
+		    tid->bar_wait);
+		return;
+	}
+
+	/* Don't do anything if we still have pending frames */
+	if (tid->hwq_depth > 0) {
+		DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+		    "%s: tid=%p, hwq_depth=%d, waiting\n",
+		    __func__,
+		    tid,
+		    tid->hwq_depth);
+		return;
+	}
+
+	/* We're now about to TX */
+	tid->bar_tx = 1;
+
+	/*
+	 * Calculate new BAW left edge, now that all frames have either
+	 * succeeded or failed.
+	 *
+	 * XXX verify this is _actually_ the valid value to begin at!
+	 */
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	    "%s: tid=%p, new BAW left edge=%d\n",
+	    __func__,
+	    tid,
+	    tap->txa_start);
+
+	/* Try sending the BAR frame */
+	/* We can't hold the lock here! */
+
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
+	if (ieee80211_send_bar(&tid->an->an_node, tap, tap->txa_start) == 0) {
+		/* Success? Now we wait for notification that it's done */
+		ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
+		return;
+	}
+
+	/* Failure? For now, warn loudly and continue */
+	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
+	device_printf(sc->sc_dev, "%s: tid=%p, failed to TX BAR, continue!\n",
+	    __func__, tid);
+	ath_tx_tid_bar_unsuspend(sc, tid);
+}
+
 
 /*
  * Free any packets currently pending in the software TX queue.
@@ -3077,7 +3229,6 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	int tid = bf->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
-	int txseq;
 
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 
@@ -3118,18 +3269,14 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 		}
 		bf->bf_state.bfs_dobaw = 0;
 
-		/* Send BAR frame */
-		/*
-		 * This'll end up going into net80211 and back out
-		 * again, via ic->ic_raw_xmit().
-		 */
-		txseq = tap->txa_start;
+		/* Suspend the TX queue and get ready to send the BAR */
+		ath_tx_tid_bar_suspend(sc, atid);
+
+		/* Send the BAR if there are no other frames waiting */
+		if (ath_tx_tid_bar_tx_ready(sc, atid))
+			ath_tx_tid_bar_tx(sc, atid);
+
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
-
-		device_printf(sc->sc_dev,
-		    "%s: TID %d: send BAR; seq %d\n", __func__, tid, txseq);
-
-		/* XXX TODO: send BAR */
 
 		/* Free buffer, bf is free after this call */
 		ath_tx_default_comp(sc, bf, 0);
@@ -3149,6 +3296,9 @@ ath_tx_aggr_retry_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	 */
 	ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	ath_tx_tid_sched(sc, atid);
+	/* Send the BAR if there are no other frames waiting */
+	if (ath_tx_tid_bar_tx_ready(sc, atid))
+		ath_tx_tid_bar_tx(sc, atid);
 
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 }
@@ -3278,16 +3428,19 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	 * in the ifnet TX context or raw TX context.)
 	 */
 	if (drops) {
-		int txseq = tap->txa_start;
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
-		device_printf(sc->sc_dev,
-		    "%s: TID %d: send BAR; seq %d\n",
-		    __func__, tid->tid, txseq);
-
-		/* XXX TODO: send BAR */
-	} else {
-		ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
+		/* Suspend the TX queue and get ready to send the BAR */
+		ath_tx_tid_bar_suspend(sc, tid);
 	}
+
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
+
+	/*
+	 * Send BAR if required
+	 */
+	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
+	if (ath_tx_tid_bar_tx_ready(sc, tid))
+		ath_tx_tid_bar_tx(sc, tid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
 
 	/* Complete frames which errored out */
 	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
@@ -3328,6 +3481,10 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 		atid->cleanup_inprogress = 0;
 		ath_tx_tid_resume(sc, atid);
 	}
+
+	/* Send BAR if required */
+	if (ath_tx_tid_bar_tx_ready(sc, atid))
+		ath_tx_tid_bar_tx(sc, atid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/* Handle frame completion */
@@ -3542,9 +3699,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	 * send bar if we dropped any frames
 	 */
 	if (drops) {
-		device_printf(sc->sc_dev,
-		    "%s: TID %d: send BAR; seq %d\n", __func__, tid, txseq);
-		/* XXX TODO: send BAR */
+		/* Suspend the TX queue and get ready to send the BAR */
+		ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+		ath_tx_tid_bar_suspend(sc, atid);
+		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 	}
 
 	/* Prepend all frames to the beginning of the queue */
@@ -3558,6 +3716,14 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: txa_start now %d\n", __func__, tap->txa_start);
+
+	/*
+	 * Send BAR if required
+	 */
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+	if (ath_tx_tid_bar_tx_ready(sc, atid))
+		ath_tx_tid_bar_tx(sc, atid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/* Do deferred completion */
 	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
@@ -3651,6 +3817,12 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 			    "%s: wasn't added: seqno %d\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno));
 	}
+
+	/*
+	 * Send BAR if required
+	 */
+	if (ath_tx_tid_bar_tx_ready(sc, atid))
+		ath_tx_tid_bar_tx(sc, atid);
 
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
@@ -4080,7 +4252,9 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 * it'll be "after" the left edge of the BAW and thus it'll
 	 * fall within it.
 	 */
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->tid]);
 	ath_tx_tid_pause(sc, atid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->tid]);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 	    "%s: called; dialogtoken=%d, baparamset=%d, batimeout=%d\n",
@@ -4166,7 +4340,9 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 
 	/* Pause TID traffic early, so there aren't any races */
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->tid]);
 	ath_tx_tid_pause(sc, atid);
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->tid]);
 
 	/* There's no need to hold the TXQ lock here */
 	sc->sc_addba_stop(ni, tap);
@@ -4213,7 +4389,7 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 */
 	if (status == 0 || attempts == 50) {
 		ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
-		ath_tx_tid_resume(sc, atid);
+		ath_tx_tid_bar_unsuspend(sc, atid);
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 	}
 }
