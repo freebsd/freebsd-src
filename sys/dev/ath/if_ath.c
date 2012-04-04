@@ -4910,6 +4910,10 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
 			ath_printtxbuf(sc, bf, txq->axq_qnum, 0,
 			    status == HAL_OK);
+		else if ((sc->sc_debug & ATH_DEBUG_RESET) && (dosched == 0)) {
+			ath_printtxbuf(sc, bf, txq->axq_qnum, 0,
+			    status == HAL_OK);
+		}
 #endif
 		if (status == HAL_EINPROGRESS) {
 			ATH_TXQ_UNLOCK(txq);
