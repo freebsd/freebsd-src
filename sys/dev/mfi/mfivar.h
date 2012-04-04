@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/taskqueue.h>
-#include <machine/atomic.h>
 
 /*
  * SCSI structures and definitions are used from here, but no linking
@@ -162,12 +161,6 @@ struct megasas_sge
 };
 
 struct mfi_cmd_tbolt;
-struct mfi_atomic {
-	volatile unsigned int		val;
-};
-
-#define	mfi_atomic_read(v)	((v)->val)
-#define	mfi_atomic_set(v,i)	((v)->val - (i))
 
 struct mfi_softc {
 	device_t			mfi_dev;
@@ -246,7 +239,6 @@ struct mfi_softc {
 	struct intr_config_hook		mfi_ich;
 	eventhandler_tag		eh;
 	/* OCR flags */
-	struct mfi_atomic		fw_reset_no_pci_access;
 	uint8_t adpreset;
 	uint8_t issuepend_done;
 	uint8_t disableOnlineCtrlReset;
