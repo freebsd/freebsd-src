@@ -265,7 +265,7 @@ static void
 cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
-#ifndef SMP
+#ifdef ARM_TP_ADDRESS
 #ifndef ARM_CACHE_LOCK_ENABLE
 	vm_page_t m;
 #endif
@@ -311,7 +311,7 @@ cpu_startup(void *dummy)
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
 	pmap_postinit();
-#ifndef SMP
+#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -739,4 +739,5 @@ pcpu0_init(void)
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
+	PCPU_SET(cpu, 0);
 }

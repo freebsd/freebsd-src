@@ -59,7 +59,7 @@
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-#ifndef SMP
+#ifdef ARM_TP_ADDRESS
 #define PUSHFRAME							   \
 	str	lr, [sp, #-4]!;		/* Push the return address */	   \
 	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
@@ -91,6 +91,7 @@
  * Since the current mode is used, the SVC lr field is ignored.
  */
 
+#ifdef ARM_TP_ADDRESS
 #define PULLFRAME							   \
         ldr     r0, [sp], #0x0004;      /* Get the SPSR from stack */	   \
         msr     spsr_all, r0;						   \
@@ -98,6 +99,16 @@
         mov     r0, r0;                 /* NOP for previous instruction */ \
 	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
  	ldr	lr, [sp], #0x0004;	/* Pull the return address */
+#else 
+#define PULLFRAME							   \
+        ldr     r0, [sp], #0x0004;      /* Get the SPSR from stack */	   \
+        msr     spsr_all, r0;						   \
+	clrex;								   \
+        ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
+        mov     r0, r0;                 /* NOP for previous instruction */ \
+	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
+ 	ldr	lr, [sp], #0x0004;	/* Pull the return address */
+#endif
 
 /*
  * PUSHFRAMEINSVC - macro to push a trap frame on the stack in SVC32 mode
@@ -109,7 +120,7 @@
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-#ifndef SMP
+#ifdef ARM_TP_ADDRESS
 #define PUSHFRAMEINSVC							   \
 	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
 	mov	r0, lr;			/* Save xxx32 r14 */		   \
@@ -176,6 +187,7 @@
  * exit.
  */
 
+#ifndef ARM_TP_ADDRESS
 #define PULLFRAMEFROMSVCANDEXIT						   \
         ldr     r0, [sp], #0x0004;	/* Get the SPSR from stack */	   \
         msr     spsr_all, r0;		/* restore SPSR */		   \
@@ -183,6 +195,16 @@
         mov     r0, r0;	  		/* NOP for previous instruction */ \
 	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
+#else 
+#define PULLFRAMEFROMSVCANDEXIT						   \
+        ldr     r0, [sp], #0x0004;	/* Get the SPSR from stack */	   \
+        msr     spsr_all, r0;		/* restore SPSR */		   \
+	clrex;								   \
+        ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
+        mov     r0, r0;	  		/* NOP for previous instruction */ \
+	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
+	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
+#endif 
 
 #define	DATA(name) \
 	.data ; \

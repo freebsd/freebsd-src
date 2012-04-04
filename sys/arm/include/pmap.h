@@ -61,7 +61,7 @@
 #else
 #define PTE_NOCACHE	1
 #endif
-#define PTE_CACHE	4
+#define PTE_CACHE	6
 #define PTE_DEVICE	2
 #define PTE_PAGETABLE	4
 #else
