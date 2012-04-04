@@ -39,8 +39,6 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#ifndef _LOCORE
-
 #include <sys/types.h>
 
 #ifndef _KERNEL
@@ -74,6 +72,21 @@ __do_dmb(void)
 #endif
 }
 
+#define ATOMIC_ACQ_REL_LONG(NAME)					\
+static __inline void							\
+atomic_##NAME##_acq_long(__volatile u_long *p, u_long v)		\
+{									\
+	atomic_##NAME##_long(p, v);					\
+	__do_dmb();							\
+}									\
+									\
+static __inline  void							\
+atomic_##NAME##_rel_long(__volatile u_long *p, u_long v)		\
+{									\
+	__do_dmb();							\
+	atomic_##NAME##_long(p, v);					\
+}
+
 #define	ATOMIC_ACQ_REL(NAME, WIDTH)					\
 static __inline  void							\
 atomic_##NAME##_acq_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
@@ -105,9 +118,38 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 }
 
 static __inline void
+atomic_set_long(volatile u_long *address, u_long setmask)
+{
+	u_long tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "orr %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			   : "=&r" (tmp), "+r" (tmp2)
+			   , "+r" (address), "+r" (setmask) : : "memory");
+			     
+}
+
+static __inline void
 atomic_clear_32(volatile uint32_t *address, uint32_t setmask)
 {
 	uint32_t tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "bic %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			   : "=&r" (tmp), "+r" (tmp2)
+			   ,"+r" (address), "+r" (setmask) : : "memory");
+}
+
+static __inline void
+atomic_clear_long(volatile u_long *address, u_long setmask)
+{
+	u_long tmp = 0, tmp2 = 0;
 
 	__asm __volatile("1: ldrex %0, [%2]\n"
 	    		    "bic %0, %0, %3\n"
@@ -137,10 +179,38 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	return (ret);
 }
 
+static __inline u_long
+atomic_cmpset_long(volatile u_long *p, volatile u_long cmpval, volatile u_long newval)
+{
+	u_long ret;
+	
+	__asm __volatile("1: ldrex %0, [%1]\n"
+	                 "cmp %0, %2\n"
+			 "movne %0, #0\n"
+			 "bne 2f\n"
+			 "strex %0, %3, [%1]\n"
+			 "cmp %0, #0\n"
+			 "bne	1b\n"
+			 "moveq %0, #1\n"
+			 "2:"
+			 : "=&r" (ret)
+			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "memory");
+	return (ret);
+}
+
 static __inline u_int32_t
 atomic_cmpset_acq_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
-	int ret = atomic_cmpset_32(p, cmpval, newval);
+	u_int32_t ret = atomic_cmpset_32(p, cmpval, newval);
+
+	__do_dmb();
+	return (ret);
+}
+
+static __inline u_long
+atomic_cmpset_acq_long(volatile u_long *p, volatile u_long cmpval, volatile u_long newval)
+{
+	u_long ret = atomic_cmpset_long(p, cmpval, newval);
 
 	__do_dmb();
 	return (ret);
@@ -154,10 +224,33 @@ atomic_cmpset_rel_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile 
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
+static __inline u_long
+atomic_cmpset_rel_long(volatile u_long *p, volatile u_long cmpval, volatile u_long newval)
+{
+	
+	__do_dmb();
+	return (atomic_cmpset_long(p, cmpval, newval));
+}
+
+
 static __inline void
 atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 {
 	uint32_t tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "add %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			    : "=&r" (tmp), "+r" (tmp2)
+			    ,"+r" (p), "+r" (val) : : "memory");
+}
+
+static __inline void
+atomic_add_long(volatile u_long *p, u_long val)
+{
+	u_long tmp = 0, tmp2 = 0;
 
 	__asm __volatile("1: ldrex %0, [%2]\n"
 	    		    "add %0, %0, %3\n"
@@ -182,13 +275,31 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 			    ,"+r" (p), "+r" (val) : : "memory");
 }
 
+static __inline void
+atomic_subtract_long(volatile u_long *p, u_long val)
+{
+	u_long tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%2]\n"
+	    		    "sub %0, %0, %3\n"
+			    "strex %1, %0, [%2]\n"
+			    "cmp %1, #0\n"
+			    "bne	1b\n"
+			    : "=&r" (tmp), "+r" (tmp2)
+			    ,"+r" (p), "+r" (val) : : "memory");
+}
 
 ATOMIC_ACQ_REL(clear, 32)
 ATOMIC_ACQ_REL(add, 32)
 ATOMIC_ACQ_REL(subtract, 32)
 ATOMIC_ACQ_REL(set, 32)
+ATOMIC_ACQ_REL_LONG(clear)
+ATOMIC_ACQ_REL_LONG(add)
+ATOMIC_ACQ_REL_LONG(subtract)
+ATOMIC_ACQ_REL_LONG(set)
 
 #undef ATOMIC_ACQ_REL
+#undef ATOMIC_ACQ_REL_LONG
 
 static __inline uint32_t
 atomic_fetchadd_32(volatile uint32_t *p, uint32_t val)
@@ -238,6 +349,53 @@ atomic_store_rel_32(volatile uint32_t *p, uint32_t v)
 	*p = v;
 }
 
+static __inline u_long
+atomic_fetchadd_long(volatile u_long *p, u_long val)
+{
+	u_long tmp = 0, tmp2 = 0, ret = 0;
+
+	__asm __volatile("1: ldrex %0, [%3]\n"
+	    		    "add %1, %0, %4\n"
+			    "strex %2, %1, [%3]\n"
+			    "cmp %2, #0\n"
+			    "bne	1b\n"
+			   : "+r" (ret), "=&r" (tmp), "+r" (tmp2)
+			   ,"+r" (p), "+r" (val) : : "memory");
+	return (ret);
+}
+
+static __inline u_long
+atomic_readandclear_long(volatile u_long *p)
+{
+	u_long ret, tmp = 0, tmp2 = 0;
+
+	__asm __volatile("1: ldrex %0, [%3]\n"
+	    		 "mov %1, #0\n"
+			 "strex %2, %1, [%3]\n"
+			 "cmp %2, #0\n"
+			 "bne 1b\n"
+			 : "=r" (ret), "=&r" (tmp), "+r" (tmp2)
+			 ,"+r" (p) : : "memory");
+	return (ret);
+}
+
+static __inline u_long
+atomic_load_acq_long(volatile u_long *p)
+{
+	u_long v;
+
+	v = *p;
+	__do_dmb();
+	return (v);
+}
+
+static __inline void
+atomic_store_rel_long(volatile u_long *p, u_long v)
+{
+	
+	__do_dmb();
+	*p = v;
+}
 #else /* < armv6 */
 
 #define __with_interrupts_disabled(expr) \
@@ -489,10 +647,61 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define atomic_subtract_rel_32	atomic_subtract_32
 #define atomic_subtract_acq_32	atomic_subtract_32
 #define atomic_store_rel_32	atomic_store_32
+#define atomic_store_rel_long	atomic_store_long
 #define atomic_load_acq_32	atomic_load_32
+#define atomic_load_acq_long	atomic_load_long
 #undef __with_interrupts_disabled
 
-#endif /* _LOCORE */
+static __inline void
+atomic_add_long(volatile u_long *p, u_long v)
+{
+
+	atomic_add_32((volatile uint32_t *)p, v);
+}
+
+static __inline void
+atomic_clear_long(volatile u_long *p, u_long v)
+{
+
+	atomic_clear_32((volatile uint32_t *)p, v);
+}
+
+static __inline int
+atomic_cmpset_long(volatile u_long *dst, u_long old, u_long newe)
+{
+
+	return (atomic_cmpset_32((volatile uint32_t *)dst, old, newe));
+}
+
+static __inline u_long
+atomic_fetchadd_long(volatile u_long *p, u_long v)
+{
+
+	return (atomic_fetchadd_32((volatile uint32_t *)p, v));
+}
+
+static __inline void
+atomic_readandclear_long(volatile u_long *p)
+{
+
+	atomic_readandclear_32((volatile uint32_t *)p);
+}
+
+static __inline void
+atomic_set_long(volatile u_long *p, u_long v)
+{
+
+	atomic_set_32((volatile uint32_t *)p, v);
+}
+
+static __inline void
+atomic_subtract_long(volatile u_long *p, u_long v)
+{
+
+	atomic_subtract_32((volatile uint32_t *)p, v);
+}
+
+
 
 #endif /* Arch >= v6 */
 
@@ -509,57 +718,24 @@ atomic_store_32(volatile uint32_t *dst, uint32_t src)
 	*dst = src;
 }
 
-#define	atomic_set_long(p, v)						\
-	atomic_set_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_set_acq_long(p, v)					\
-	atomic_set_acq_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_set_rel_long(p, v)					\
-	atomic_set_rel_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_clear_long(p, v)						\
-	atomic_clear_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_clear_acq_long(p, v)					\
-	atomic_clear_acq_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_clear_rel_long(p, v)					\
-	atomic_clear_rel_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_long(p, v)						\
-	atomic_add_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_acq_long(p, v)					\
-	atomic_add_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_add_rel_long(p, v)					\
-	atomic_add_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_long(p, v)					\
-	atomic_subtract_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_acq_long(p, v)					\
-	atomic_subtract_acq_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_subtract_rel_long(p, v)					\
-	atomic_subtract_rel_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_cmpset_long(p, cmpval, newval)				\
-	atomic_cmpset_32((volatile u_int *)(p), (u_int)(cmpval),	\
-	    (u_int)(newval))
-#define	atomic_cmpset_acq_long(p, cmpval, newval)			\
-	atomic_cmpset_acq_32((volatile u_int *)(p), (u_int)(cmpval),	\
-	    (u_int)(newval))
-#define	atomic_cmpset_rel_long(p, cmpval, newval)			\
-	atomic_cmpset_rel_32((volatile u_int *)(p), (u_int)(cmpval),	\
-	    (u_int)(newval))
-#define	atomic_load_acq_long(p)						\
-	(u_long)atomic_load_acq_32((volatile u_int *)(p))
-#define	atomic_store_rel_long(p, v)					\
-	atomic_store_rel_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_fetchadd_long(p, v)					\
-	atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_readandclear_long(p)					\
-	atomic_readandclear_32((volatile u_int *)(p))
+static __inline int
+atomic_load_long(volatile u_long *v)
+{
 
+	return (*v);
+}
+
+static __inline void
+atomic_store_long(volatile u_long *dst, u_long src)
+{
+	*dst = src;
+}
 
 #define atomic_clear_ptr		atomic_clear_32
 #define atomic_set_ptr			atomic_set_32
-#define	atomic_cmpset_ptr(dst, old, new)	\
-    atomic_cmpset_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
-#define atomic_cmpset_rel_ptr(dst, old, new)	\
-    atomic_cmpset_rel_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
-#define atomic_cmpset_acq_ptr(dst, old, new)	\
-    atomic_cmpset_acq_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
+#define atomic_cmpset_ptr		atomic_cmpset_32
+#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
+#define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
 #define atomic_store_ptr		atomic_store_32
 #define atomic_store_rel_ptr		atomic_store_ptr
 
