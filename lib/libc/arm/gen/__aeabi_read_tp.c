@@ -36,7 +36,13 @@ __FBSDID("$FreeBSD$");
 void *
 __aeabi_read_tp()
 {
+#ifdef ARM_TP_ADDRESS
 	void **_tp = (void **)ARM_TP_ADDRESS;
-
 	return (*_tp);
+#else
+	void *_tp;;
+	__asm __volatile("mrc  p15, 0, %0, c13, c0, 3"	\
+			: "=r" (_tp));
+	return (_tp);
+#endif
 }
