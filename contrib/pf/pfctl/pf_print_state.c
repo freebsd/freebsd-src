@@ -306,6 +306,9 @@ print_state(struct pfsync_state *s, int opts)
 		u_int32_t creation = ntohl(s->creation);
 		u_int32_t expire = ntohl(s->expire);
 
+		printf("   id %lu", be64toh((uint64_t)s->id));
+		printf(", age %u", creation);
+		printf(", expires %u\n", expire);
 		sec = creation % 60;
 		creation /= 60;
 		min = creation % 60;
