@@ -375,7 +375,7 @@ oprw(FILE *fd, int recnum, struct athregrec *r)
 	const char* bits;
 	int i;
 
-	fprintf(fd, "\n%05d: ", recnum);
+	fprintf(fd, "\n%05d: [%d] ", recnum, r->threadid);
 	dr = findreg(r->reg);
 	if (dr != NULL && dr->name != NULL) {
 		snprintf(buf, sizeof (buf), "AR_%s (0x%x)", dr->name, r->reg);
