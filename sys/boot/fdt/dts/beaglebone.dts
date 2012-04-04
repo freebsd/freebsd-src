@@ -108,6 +108,19 @@
 			interrupt-parent = <&AINTC>;
 		};
 
+		GPIO: gpio {
+			#gpio-cells = <3>;
+			compatible = "ti,gpio";
+			gpio-controller;
+			reg =<	0x44E07000 0x1000
+				0x4804C000 0x1000
+				0x481AC000 0x1000
+				0x481AE000 0x1000 >;
+			interrupts = < 17 19 21 23 >;
+			interrupt-parent = <&AINTC>;
+		};
+
+
 		uart0: serial@44E09000 {
 			compatible = "ns16550";
 			reg = <0x44E09000 0x1000>;
