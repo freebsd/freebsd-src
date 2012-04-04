@@ -542,7 +542,8 @@ vesa_bios_save_restore(int code, void *p)
 	switch (code) {
 	case STATE_SAVE:
 		x86bios_intr(&regs, 0x10);
-		bcopy(vesa_state_buf, p, vesa_state_buf_size);
+		if (regs.R_AX == 0x004f)
+			bcopy(vesa_state_buf, p, vesa_state_buf_size);
 		break;
 	case STATE_LOAD:
 		bcopy(p, vesa_state_buf, vesa_state_buf_size);
@@ -1481,7 +1482,6 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 	} else
 		vesa_vmem_buf = NULL;
 	((adp_state_t *)p)->sig = V_STATE_SIG;
-	bzero(((adp_state_t *)p)->regs, vesa_state_buf_size);
 	return (vesa_bios_save_restore(STATE_SAVE, ((adp_state_t *)p)->regs));
 }
 
