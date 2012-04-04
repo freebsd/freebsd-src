@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tcpmsg.c,v 1.31 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: tcpmsg.c,v 1.31 2007/06/19 23:47:16 tbox Exp $ */
 
 /*! \file */
 
