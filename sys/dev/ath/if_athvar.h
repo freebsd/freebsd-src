@@ -957,10 +957,10 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setupFirstTxDesc)((_ah), (_ds), (_aggrlen), (_flags), \
 	(_txpower), (_txr0), (_txtr0), (_antm), (_rcr), (_rcd)))
 #define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
-	_cipher, _delims, _seglen, _first, _last) \
+	_cipher, _delims, _seglen, _first, _last, _lastaggr) \
 	((*(_ah)->ah_chainTxDesc)((_ah), (_ds), (_pktlen), (_hdrlen), \
 	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
-	(_first), (_last)))
+	(_first), (_last), (_lastaggr)))
 #define	ath_hal_setuplasttxdesc(_ah, _ds, _ds0) \
 	((*(_ah)->ah_setupLastTxDesc)((_ah), (_ds), (_ds0)))
 
