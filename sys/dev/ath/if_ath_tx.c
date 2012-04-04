@@ -2696,7 +2696,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 			    mtod(bf->bf_m, const uint8_t *),
 			    bf->bf_m->m_len, 0, -1);
 
-			//t = 1;
+			t = 1;
 		}
 
 
