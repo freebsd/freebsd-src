@@ -1465,22 +1465,30 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 	vm_offset_t buf;
 	size_t bsize;
 
-	if (adp != vesa_adp || vesa_state_buf_size == 0)
+	if (adp != vesa_adp || (size == 0 && vesa_state_buf_size == 0))
 		return ((*prevvidsw->save_state)(adp, p, size));
 
+	bsize = offsetof(adp_state_t, regs) + vesa_state_buf_size;
 	if (size == 0)
-		return (offsetof(adp_state_t, regs) + vesa_state_buf_size);
-	if (size < (offsetof(adp_state_t, regs) + vesa_state_buf_size))
+		return (bsize);
+	if (vesa_state_buf_size > 0 && size < bsize)
 		return (EINVAL);
 
-	buf = adp->va_buffer;
-	if (buf != 0) {
+	if (VESA_MODE(adp->va_mode) && adp->va_buffer != 0) {
+		buf = adp->va_buffer;
 		bsize = adp->va_buffer_size;
+	} else {
+		buf = adp->va_window;
+		bsize = adp->va_window_size;
+	}
+	if (buf != 0) {
 		vesa_vmem_buf = malloc(bsize, M_DEVBUF, M_NOWAIT);
 		if (vesa_vmem_buf != NULL)
 			bcopy((void *)buf, vesa_vmem_buf, bsize);
 	} else
 		vesa_vmem_buf = NULL;
+	if (vesa_state_buf_size == 0)
+		return ((*prevvidsw->save_state)(adp, p, size));
 	((adp_state_t *)p)->sig = V_STATE_SIG;
 	return (vesa_bios_save_restore(STATE_SAVE, ((adp_state_t *)p)->regs));
 }
@@ -1490,27 +1498,34 @@ vesa_load_state(video_adapter_t *adp, void *p)
 {
 	vm_offset_t buf;
 	size_t bsize;
-	int mode;
+	int error, mode;
 
 	if (adp != vesa_adp)
 		return ((*prevvidsw->load_state)(adp, p));
 
 	/* Try BIOS POST to restore a sane state. */
 	(void)vesa_bios_post();
-	bsize = adp->va_buffer_size;
 	mode = adp->va_mode;
-	(void)vesa_set_mode(adp, adp->va_initial_mode);
+	error = vesa_set_mode(adp, adp->va_initial_mode);
 	if (mode != adp->va_initial_mode)
-		(void)vesa_set_mode(adp, mode);
+		error = vesa_set_mode(adp, mode);
 
-	if (((adp_state_t *)p)->sig != V_STATE_SIG)
-		return ((*prevvidsw->load_state)(adp, p));
 	if (vesa_vmem_buf != NULL) {
-		buf = adp->va_buffer;
-		if (buf != 0)
-			bcopy(vesa_vmem_buf, (void *)buf, bsize);
+		if (error == 0) {
+			if (VESA_MODE(mode) && adp->va_buffer != 0) {
+				buf = adp->va_buffer;
+				bsize = adp->va_buffer_size;
+			} else {
+				buf = adp->va_window;
+				bsize = adp->va_window_size;
+			}
+			if (buf != 0)
+				bcopy(vesa_vmem_buf, (void *)buf, bsize);
+		}
 		free(vesa_vmem_buf, M_DEVBUF);
 	}
+	if (((adp_state_t *)p)->sig != V_STATE_SIG)
+		return ((*prevvidsw->load_state)(adp, p));
 	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs));
 }
 
