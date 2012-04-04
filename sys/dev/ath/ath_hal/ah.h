@@ -1010,7 +1010,7 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
 				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
-				HAL_BOOL);
+				HAL_BOOL, HAL_BOOL);
 	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, u_int,
 				u_int, u_int, u_int, u_int, u_int);
