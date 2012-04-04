@@ -298,18 +298,18 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
-device		ed
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC
-device		ipw
-device		iwi
-device		iwn
-device		mwl
-device		nfe
-device		nve
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device		mwl		# Marvell 88W8363 802.11n wireless NICs.
+device		nfe		# nVidia nForce MCP on-board Ethernet
+device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sfxge
-device		wpi
+device		wpi		# Intel 3945ABG wireless NICs.
 
 # IEEE 802.11 adapter firmware modules
 
