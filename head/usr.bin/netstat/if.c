@@ -106,8 +106,6 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 #define	p(f, m) if (pfsyncstat.f || sflag <= 1) \
 	printf(m, (uintmax_t)pfsyncstat.f, plural(pfsyncstat.f))
-#define	p2(f, m) if (pfsyncstat.f || sflag <= 1) \
-	printf(m, (uintmax_t)pfsyncstat.f)
 
 	p(pfsyncs_ipackets, "\t%ju packet%s received (IPv4)\n");
 	p(pfsyncs_ipackets6, "\t%ju packet%s received (IPv6)\n");
@@ -123,8 +121,8 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(pfsyncs_badstate, "\t\t%ju failed state lookup/insert%s\n");
 	p(pfsyncs_opackets, "\t%ju packet%s sent (IPv4)\n");
 	p(pfsyncs_opackets6, "\t%ju packet%s sent (IPv6)\n");
-	p2(pfsyncs_onomem, "\t\t%ju send failed due to mbuf memory error\n");
-	p2(pfsyncs_oerrors, "\t\t%ju send error\n");
+	p(pfsyncs_onomem, "\t\t%ju failure%s due to mbuf memory error\n");
+	p(pfsyncs_oerrors, "\t\t%ju send error%s\n");
 #undef p
 #undef p2
 }
