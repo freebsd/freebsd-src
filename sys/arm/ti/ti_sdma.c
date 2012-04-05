@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
-#include <arm/ti/omap_dma.h>
-#include <arm/ti/omap_dmareg.h>
+#include <arm/ti/ti_sdma.h>
+#include <arm/ti/ti_sdmareg.h>
 
 /**
  *	Kernel functions for using the DMA controller
@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
  *
  *
  */
-struct omap_dma_channel {
+struct ti_sdma_channel {
 
 	/* 
 	 * The configuration registers for the given channel, these are modified
@@ -100,10 +100,10 @@ struct omap_dma_channel {
 
 /**
  *	DMA driver context, allocated and stored globally, this driver is not
- *	intetned to ever be unloaded (see omap_dma_sc).
+ *	intetned to ever be unloaded (see ti_sdma_sc).
  *
  */
-struct omap_dma_softc {
+struct ti_sdma_softc {
 	device_t		sc_dev;
 	struct resource*	sc_irq_res;
 	struct resource*	sc_mem_res;
@@ -124,32 +124,32 @@ struct omap_dma_softc {
 	 */
 	uint32_t		sc_active_channels;
 
-	struct omap_dma_channel sc_channel[NUM_DMA_CHANNELS];
+	struct ti_sdma_channel sc_channel[NUM_DMA_CHANNELS];
 
 };
 
-static struct omap_dma_softc *omap_dma_sc = NULL;
+static struct ti_sdma_softc *ti_sdma_sc = NULL;
 
 /**
  *	Macros for driver mutex locking
  */
-#define OMAP_DMA_LOCK(_sc)             mtx_lock_spin(&(_sc)->sc_mtx)
-#define	OMAP_DMA_UNLOCK(_sc)           mtx_unlock_spin(&(_sc)->sc_mtx)
-#define OMAP_DMA_LOCK_INIT(_sc) \
+#define TI_SDMA_LOCK(_sc)             mtx_lock_spin(&(_sc)->sc_mtx)
+#define TI_SDMA_UNLOCK(_sc)           mtx_unlock_spin(&(_sc)->sc_mtx)
+#define TI_SDMA_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "omap_dma", MTX_SPIN)
-#define OMAP_DMA_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx);
-#define OMAP_DMA_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define OMAP_DMA_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+	         "ti_sdma", MTX_SPIN)
+#define TI_SDMA_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx);
+#define TI_SDMA_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define TI_SDMA_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 /**
  *	Function prototypes
  *
  */
-static void omap_dma_intr(void *);
+static void ti_sdma_intr(void *);
 
 /**
- *	omap_dma_read_4 - reads a 32-bit value from one of the DMA registers
+ *	ti_sdma_read_4 - reads a 32-bit value from one of the DMA registers
  *	@sc: DMA device context
  *	@off: The offset of a register from the DMA register address range
  *
@@ -158,13 +158,13 @@ static void omap_dma_intr(void *);
  *	32-bit value read from the register.
  */
 static inline uint32_t
-omap_dma_read_4(struct omap_dma_softc *sc, bus_size_t off)
+ti_sdma_read_4(struct ti_sdma_softc *sc, bus_size_t off)
 {
 	return bus_read_4(sc->sc_mem_res, off);
 }
 
 /**
- *	omap_dma_write_4 - writes a 32-bit value to one of the DMA registers
+ *	ti_sdma_write_4 - writes a 32-bit value to one of the DMA registers
  *	@sc: DMA device context
  *	@off: The offset of a register from the DMA register address range
  *
@@ -173,35 +173,35 @@ omap_dma_read_4(struct omap_dma_softc *sc, bus_size_t off)
  *	32-bit value read from the register.
  */
 static inline void
-omap_dma_write_4(struct omap_dma_softc *sc, bus_size_t off, uint32_t val)
+ti_sdma_write_4(struct ti_sdma_softc *sc, bus_size_t off, uint32_t val)
 {
 	bus_write_4(sc->sc_mem_res, off, val);
 }
 
 /**
- *	omap_dma_is_omap3_rev - returns true if H/W is from OMAP3 series
+ *	ti_sdma_is_omap3_rev - returns true if H/W is from OMAP3 series
  *	@sc: DMA device context
  *
  */
 static inline int
-omap_dma_is_omap3_rev(struct omap_dma_softc *sc)
+ti_sdma_is_omap3_rev(struct ti_sdma_softc *sc)
 {
 	return (sc->sc_hw_rev == DMA4_OMAP3_REV);
 }
 
 /**
- *	omap_dma_is_omap4_rev - returns true if H/W is from OMAP4 series
+ *	ti_sdma_is_omap4_rev - returns true if H/W is from OMAP4 series
  *	@sc: DMA device context
  *
  */
 static inline int
-omap_dma_is_omap4_rev(struct omap_dma_softc *sc)
+ti_sdma_is_omap4_rev(struct ti_sdma_softc *sc)
 {
 	return (sc->sc_hw_rev == DMA4_OMAP4_REV);
 }
 
 /**
- *	omap_dma_intr - interrupt handler for all 4 DMA IRQs
+ *	ti_sdma_intr - interrupt handler for all 4 DMA IRQs
  *	@arg: ignored
  *
  *	Called when any of the four DMA IRQs are triggered.
@@ -213,21 +213,21 @@ omap_dma_is_omap4_rev(struct omap_dma_softc *sc)
  *	nothing
  */
 static void
-omap_dma_intr(void *arg)
+ti_sdma_intr(void *arg)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	uint32_t intr;
 	uint32_t csr;
 	unsigned int ch, j;
-	struct omap_dma_channel* channel;
+	struct ti_sdma_channel* channel;
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	for (j = 0; j < NUM_DMA_IRQS; j++) {
 
 		/* Get the flag interrupts (enabled) */
-		intr = omap_dma_read_4(sc, DMA4_IRQSTATUS_L(j));
-		intr &= omap_dma_read_4(sc, DMA4_IRQENABLE_L(j));
+		intr = ti_sdma_read_4(sc, DMA4_IRQSTATUS_L(j));
+		intr &= ti_sdma_read_4(sc, DMA4_IRQENABLE_L(j));
 		if (intr == 0x00000000)
 			continue;
 
@@ -237,7 +237,7 @@ omap_dma_intr(void *arg)
 				channel = &sc->sc_channel[ch];
 
 				/* Read the CSR regsiter and verify we don't have a spurious IRQ */
-				csr = omap_dma_read_4(sc, DMA4_CSR(ch));
+				csr = ti_sdma_read_4(sc, DMA4_CSR(ch));
 				if (csr == 0) {
 					device_printf(sc->sc_dev, "Spurious DMA IRQ for channel "
 					              "%d\n", ch);
@@ -274,8 +274,8 @@ omap_dma_intr(void *arg)
 				}
 
 				/* Clear the status flags for the IRQ */
-				omap_dma_write_4(sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
-				omap_dma_write_4(sc, DMA4_IRQSTATUS_L(j), (1 << ch));
+				ti_sdma_write_4(sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
+				ti_sdma_write_4(sc, DMA4_IRQSTATUS_L(j), (1 << ch));
 
 				/* Call the callback for the given channel */
 				if (channel->callback)
@@ -284,13 +284,13 @@ omap_dma_intr(void *arg)
 		}
 	}
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return;
 }
 
 /**
- *	omap_dma_activate_channel - activates a DMA channel
+ *	ti_sdma_activate_channel - activates a DMA channel
  *	@ch: upon return contains the channel allocated
  *	@callback: a callback function to associate with the channel
  *	@data: optional data supplied when the callback is called
@@ -300,8 +300,8 @@ omap_dma_intr(void *arg)
  *	internal data structures and sets defaults.
  *
  *	Note this function doesn't enable interrupts, for that you need to call
- *	omap_dma_enable_channel_irq(). If not using IRQ to detect the end of the
- *	transfer, you can use omap_dma_status_poll() to detect a change in the
+ *	ti_sdma_enable_channel_irq(). If not using IRQ to detect the end of the
+ *	transfer, you can use ti_sdma_status_poll() to detect a change in the
  *	status.
  *
  *	A channel must be activated before any of the other DMA functions can be
@@ -314,12 +314,12 @@ omap_dma_intr(void *arg)
  *	0 on success, otherwise an error code
  */
 int
-omap_dma_activate_channel(unsigned int *ch,
+ti_sdma_activate_channel(unsigned int *ch,
                           void (*callback)(unsigned int ch, uint32_t status, void *data),
                           void *data)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
-	struct omap_dma_channel *channel = NULL;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
+	struct ti_sdma_channel *channel = NULL;
 	uint32_t addr;
 	unsigned int i;
 
@@ -330,11 +330,11 @@ omap_dma_activate_channel(unsigned int *ch,
 	if (ch == NULL)
 		return (EINVAL);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	/* Check to see if all channels are in use */
 	if (sc->sc_active_channels == 0xffffffff) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (ENOMEM);
 	}
 
@@ -380,15 +380,15 @@ omap_dma_activate_channel(unsigned int *ch,
 
 	/* Clear all the channel registers, this should abort any transaction */
 	for (addr = DMA4_CCR(*ch); addr <= DMA4_COLOR(*ch); addr += 4)
-		omap_dma_write_4(sc, addr, 0x00000000);
+		ti_sdma_write_4(sc, addr, 0x00000000);
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_deactivate_channel - deactivates a channel
+ *	ti_sdma_deactivate_channel - deactivates a channel
  *	@ch: the channel to deactivate
  *
  *
@@ -400,9 +400,9 @@ omap_dma_activate_channel(unsigned int *ch,
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_deactivate_channel(unsigned int ch)
+ti_sdma_deactivate_channel(unsigned int ch)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	unsigned int j;
 	unsigned int addr;
 
@@ -410,11 +410,11 @@ omap_dma_deactivate_channel(unsigned int ch)
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	/* First check if the channel is currently active */
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EBUSY);
 	}
 
@@ -422,28 +422,28 @@ omap_dma_deactivate_channel(unsigned int ch)
 	sc->sc_active_channels &= ~(1 << ch);
 
 	/* Disable all DMA interrupts for the channel. */
-	omap_dma_write_4(sc, DMA4_CICR(ch), 0);
+	ti_sdma_write_4(sc, DMA4_CICR(ch), 0);
 
 	/* Make sure the DMA transfer is stopped. */
-	omap_dma_write_4(sc, DMA4_CCR(ch), 0);
+	ti_sdma_write_4(sc, DMA4_CCR(ch), 0);
 
 	/* Clear the CSR register and IRQ status register */
-	omap_dma_write_4(sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
+	ti_sdma_write_4(sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
 	for (j = 0; j < NUM_DMA_IRQS; j++) {
-		omap_dma_write_4(sc, DMA4_IRQSTATUS_L(j), (1 << ch));
+		ti_sdma_write_4(sc, DMA4_IRQSTATUS_L(j), (1 << ch));
 	}
 
 	/* Clear all the channel registers, this should abort any transaction */
 	for (addr = DMA4_CCR(ch); addr <= DMA4_COLOR(ch); addr += 4)
-		omap_dma_write_4(sc, addr, 0x00000000);
+		ti_sdma_write_4(sc, addr, 0x00000000);
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_disable_channel_irq - disables IRQ's on the given channel
+ *	ti_sdma_disable_channel_irq - disables IRQ's on the given channel
  *	@ch: the channel to disable IRQ's on
  *
  *	Disable interupt generation for the given channel.
@@ -455,9 +455,9 @@ omap_dma_deactivate_channel(unsigned int ch)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_disable_channel_irq(unsigned int ch)
+ti_sdma_disable_channel_irq(unsigned int ch)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	uint32_t irq_enable;
 	unsigned int j;
 
@@ -465,35 +465,35 @@ omap_dma_disable_channel_irq(unsigned int ch)
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
 	/* Disable all the individual error conditions */
 	sc->sc_channel[ch].reg_cicr = 0x0000;
-	omap_dma_write_4(sc, DMA4_CICR(ch), 0x0000);
+	ti_sdma_write_4(sc, DMA4_CICR(ch), 0x0000);
 
 	/* Disable the channel interrupt enable */
 	for (j = 0; j < NUM_DMA_IRQS; j++) {
-		irq_enable = omap_dma_read_4(sc, DMA4_IRQENABLE_L(j));
+		irq_enable = ti_sdma_read_4(sc, DMA4_IRQENABLE_L(j));
 		irq_enable &= ~(1 << ch);
 
-		omap_dma_write_4(sc, DMA4_IRQENABLE_L(j), irq_enable);
+		ti_sdma_write_4(sc, DMA4_IRQENABLE_L(j), irq_enable);
 	}
 
 	/* Indicate the registers need to be rewritten on the next transaction */
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_dma_disable_channel_irq - enables IRQ's on the given channel
+ *	ti_sdma_disable_channel_irq - enables IRQ's on the given channel
  *	@ch: the channel to enable IRQ's on
  *	@flags: bitmask of interrupt types to enable
  *
@@ -514,19 +514,19 @@ omap_dma_disable_channel_irq(unsigned int ch)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_enable_channel_irq(unsigned int ch, uint32_t flags)
+ti_sdma_enable_channel_irq(unsigned int ch, uint32_t flags)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	uint32_t irq_enable;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -537,24 +537,24 @@ omap_dma_enable_channel_irq(unsigned int ch, uint32_t flags)
 	sc->sc_channel[ch].reg_cicr = flags;
 
 	/* Write the values to the register */
-	omap_dma_write_4(sc, DMA4_CICR(ch), flags);
+	ti_sdma_write_4(sc, DMA4_CICR(ch), flags);
 
 	/* Enable the channel interrupt enable */
-	irq_enable = omap_dma_read_4(sc, DMA4_IRQENABLE_L(0));
+	irq_enable = ti_sdma_read_4(sc, DMA4_IRQENABLE_L(0));
 	irq_enable |= (1 << ch);
 
-	omap_dma_write_4(sc, DMA4_IRQENABLE_L(0), irq_enable);
+	ti_sdma_write_4(sc, DMA4_IRQENABLE_L(0), irq_enable);
 
 	/* Indicate the registers need to be rewritten on the next transaction */
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_dma_get_channel_status - returns the status of a given channel
+ *	ti_sdma_get_channel_status - returns the status of a given channel
  *	@ch: the channel number to get the status of
  *	@status: upon return will contain the status bitmask, see below for possible
  *	         values.
@@ -580,25 +580,25 @@ omap_dma_enable_channel_irq(unsigned int ch, uint32_t flags)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_get_channel_status(unsigned int ch, uint32_t *status)
+ti_sdma_get_channel_status(unsigned int ch, uint32_t *status)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	uint32_t csr;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
-	csr = omap_dma_read_4(sc, DMA4_CSR(ch));
+	csr = ti_sdma_read_4(sc, DMA4_CSR(ch));
 
 	if (status != NULL)
 		*status = csr;
@@ -607,13 +607,13 @@ omap_dma_get_channel_status(unsigned int ch, uint32_t *status)
 }
 
 /**
- *	omap_dma_start_xfer - starts a DMA transfer
+ *	ti_sdma_start_xfer - starts a DMA transfer
  *	@ch: the channel number to set the endianess of
  *	@src_paddr: the source phsyical address
  *	@dst_paddr: the destination phsyical address
  *	@frmcnt: the number of frames per block
  *	@elmcnt: the number of elements in a frame, an element is either an 8, 16
- *           or 32-bit value as defined by omap_dma_set_xfer_burst()
+ *           or 32-bit value as defined by ti_sdma_set_xfer_burst()
  *
  *
  *	LOCKING:
@@ -623,80 +623,80 @@ omap_dma_get_channel_status(unsigned int ch, uint32_t *status)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_start_xfer(unsigned int ch, unsigned int src_paddr,
+ti_sdma_start_xfer(unsigned int ch, unsigned int src_paddr,
                     unsigned long dst_paddr,
                     unsigned int frmcnt, unsigned int elmcnt)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
-	struct omap_dma_channel *channel;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
+	struct ti_sdma_channel *channel;
 	uint32_t ccr;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
 	channel = &sc->sc_channel[ch];
 
 	/* a) Write the CSDP register */
-	omap_dma_write_4(sc, DMA4_CSDP(ch),
+	ti_sdma_write_4(sc, DMA4_CSDP(ch),
 	    channel->reg_csdp | DMA4_CSDP_WRITE_MODE(1));
 
 	/* b) Set the number of element per frame CEN[23:0] */
-	omap_dma_write_4(sc, DMA4_CEN(ch), elmcnt);
+	ti_sdma_write_4(sc, DMA4_CEN(ch), elmcnt);
 
 	/* c) Set the number of frame per block CFN[15:0] */
-	omap_dma_write_4(sc, DMA4_CFN(ch), frmcnt);
+	ti_sdma_write_4(sc, DMA4_CFN(ch), frmcnt);
 
 	/* d) Set the Source/dest start address index CSSA[31:0]/CDSA[31:0] */
-	omap_dma_write_4(sc, DMA4_CSSA(ch), src_paddr);
-	omap_dma_write_4(sc, DMA4_CDSA(ch), dst_paddr);
+	ti_sdma_write_4(sc, DMA4_CSSA(ch), src_paddr);
+	ti_sdma_write_4(sc, DMA4_CDSA(ch), dst_paddr);
 
 	/* e) Write the CCR register */
-	omap_dma_write_4(sc, DMA4_CCR(ch), channel->reg_ccr);
+	ti_sdma_write_4(sc, DMA4_CCR(ch), channel->reg_ccr);
 
 	/* f)  - Set the source element index increment CSEI[15:0] */
-	omap_dma_write_4(sc, DMA4_CSE(ch), 0x0001);
+	ti_sdma_write_4(sc, DMA4_CSE(ch), 0x0001);
 
 	/*     - Set the source frame index increment CSFI[15:0] */
-	omap_dma_write_4(sc, DMA4_CSF(ch), 0x0001);
+	ti_sdma_write_4(sc, DMA4_CSF(ch), 0x0001);
 
 	/*     - Set the destination element index increment CDEI[15:0]*/
-	omap_dma_write_4(sc, DMA4_CDE(ch), 0x0001);
+	ti_sdma_write_4(sc, DMA4_CDE(ch), 0x0001);
 
 	/* - Set the destination frame index increment CDFI[31:0] */
-	omap_dma_write_4(sc, DMA4_CDF(ch), 0x0001);
+	ti_sdma_write_4(sc, DMA4_CDF(ch), 0x0001);
 
 	/* Clear the status register */
-	omap_dma_write_4(sc, DMA4_CSR(ch), 0x1FFE);
+	ti_sdma_write_4(sc, DMA4_CSR(ch), 0x1FFE);
 
 	/* Write the start-bit and away we go */
-	ccr = omap_dma_read_4(sc, DMA4_CCR(ch));
+	ccr = ti_sdma_read_4(sc, DMA4_CCR(ch));
 	ccr |= (1 << 7);
-	omap_dma_write_4(sc, DMA4_CCR(ch), ccr);
+	ti_sdma_write_4(sc, DMA4_CCR(ch), ccr);
 
 	/* Clear the reg write flag */
 	channel->need_reg_write = 0;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_dma_start_xfer_packet - starts a packet DMA transfer
+ *	ti_sdma_start_xfer_packet - starts a packet DMA transfer
  *	@ch: the channel number to use for the transfer
  *	@src_paddr: the source physical address
  *	@dst_paddr: the destination physical address
  *	@frmcnt: the number of frames to transfer
  *	@elmcnt: the number of elements in a frame, an element is either an 8, 16
- *           or 32-bit value as defined by omap_dma_set_xfer_burst()
+ *           or 32-bit value as defined by ti_sdma_set_xfer_burst()
  *	@pktsize: the number of elements in each transfer packet
  *
  *	The @frmcnt and @elmcnt define the overall number of bytes to transfer,
@@ -717,22 +717,22 @@ omap_dma_start_xfer(unsigned int ch, unsigned int src_paddr,
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
+ti_sdma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
                            unsigned long dst_paddr, unsigned int frmcnt,
                            unsigned int elmcnt, unsigned int pktsize)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
-	struct omap_dma_channel *channel;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
+	struct ti_sdma_channel *channel;
 	uint32_t ccr;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -740,53 +740,53 @@ omap_dma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
 
 	/* a) Write the CSDP register */
 	if (channel->need_reg_write)
-		omap_dma_write_4(sc, DMA4_CSDP(ch),
+		ti_sdma_write_4(sc, DMA4_CSDP(ch),
 		    channel->reg_csdp | DMA4_CSDP_WRITE_MODE(1));
 
 	/* b) Set the number of elements to transfer CEN[23:0] */
-	omap_dma_write_4(sc, DMA4_CEN(ch), elmcnt);
+	ti_sdma_write_4(sc, DMA4_CEN(ch), elmcnt);
 
 	/* c) Set the number of frames to transfer CFN[15:0] */
-	omap_dma_write_4(sc, DMA4_CFN(ch), frmcnt);
+	ti_sdma_write_4(sc, DMA4_CFN(ch), frmcnt);
 
 	/* d) Set the Source/dest start address index CSSA[31:0]/CDSA[31:0] */
-	omap_dma_write_4(sc, DMA4_CSSA(ch), src_paddr);
-	omap_dma_write_4(sc, DMA4_CDSA(ch), dst_paddr);
+	ti_sdma_write_4(sc, DMA4_CSSA(ch), src_paddr);
+	ti_sdma_write_4(sc, DMA4_CDSA(ch), dst_paddr);
 
 	/* e) Write the CCR register */
-	omap_dma_write_4(sc, DMA4_CCR(ch),
+	ti_sdma_write_4(sc, DMA4_CCR(ch),
 	    channel->reg_ccr | DMA4_CCR_PACKET_TRANS);
 
 	/* f)  - Set the source element index increment CSEI[15:0] */
-	omap_dma_write_4(sc, DMA4_CSE(ch), 0x0001);
+	ti_sdma_write_4(sc, DMA4_CSE(ch), 0x0001);
 
 	/*     - Set the packet size, this is dependent on the sync source */
 	if (channel->reg_ccr & DMA4_CCR_SEL_SRC_DST_SYNC(1))
-		omap_dma_write_4(sc, DMA4_CSF(ch), pktsize);
+		ti_sdma_write_4(sc, DMA4_CSF(ch), pktsize);
 	else
-		omap_dma_write_4(sc, DMA4_CDE(ch), pktsize);
+		ti_sdma_write_4(sc, DMA4_CDE(ch), pktsize);
 
 	/* - Set the destination frame index increment CDFI[31:0] */
-	omap_dma_write_4(sc, DMA4_CDF(ch), 0x0001);
+	ti_sdma_write_4(sc, DMA4_CDF(ch), 0x0001);
 
 	/* Clear the status register */
-	omap_dma_write_4(sc, DMA4_CSR(ch), 0x1FFE);
+	ti_sdma_write_4(sc, DMA4_CSR(ch), 0x1FFE);
 
 	/* Write the start-bit and away we go */
-	ccr = omap_dma_read_4(sc, DMA4_CCR(ch));
+	ccr = ti_sdma_read_4(sc, DMA4_CCR(ch));
 	ccr |= (1 << 7);
-	omap_dma_write_4(sc, DMA4_CCR(ch), ccr);
+	ti_sdma_write_4(sc, DMA4_CCR(ch), ccr);
 
 	/* Clear the reg write flag */
 	channel->need_reg_write = 0;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_dma_stop_xfer - stops any currently active transfers
+ *	ti_sdma_stop_xfer - stops any currently active transfers
  *	@ch: the channel number to set the endianess of
  *
  *	This function call is effectively a NOP if no transaction is in progress.
@@ -798,44 +798,44 @@ omap_dma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_stop_xfer(unsigned int ch)
+ti_sdma_stop_xfer(unsigned int ch)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	unsigned int j;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
 	/* Disable all DMA interrupts for the channel. */
-	omap_dma_write_4(sc, DMA4_CICR(ch), 0);
+	ti_sdma_write_4(sc, DMA4_CICR(ch), 0);
 
 	/* Make sure the DMA transfer is stopped. */
-	omap_dma_write_4(sc, DMA4_CCR(ch), 0);
+	ti_sdma_write_4(sc, DMA4_CCR(ch), 0);
 
 	/* Clear the CSR register and IRQ status register */
-	omap_dma_write_4(sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
+	ti_sdma_write_4(sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
 	for (j = 0; j < NUM_DMA_IRQS; j++) {
-		omap_dma_write_4(sc, DMA4_IRQSTATUS_L(j), (1 << ch));
+		ti_sdma_write_4(sc, DMA4_IRQSTATUS_L(j), (1 << ch));
 	}
 
 	/* Configuration registers need to be re-written on the next xfer */
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return (0);
 }
 
 /**
- *	omap_dma_set_xfer_endianess - sets the endianess of subsequent transfers
+ *	ti_sdma_set_xfer_endianess - sets the endianess of subsequent transfers
  *	@ch: the channel number to set the endianess of
  *	@src: the source endianess (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
  *	@dst: the destination endianess (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
@@ -848,18 +848,18 @@ omap_dma_stop_xfer(unsigned int ch)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_set_xfer_endianess(unsigned int ch, unsigned int src, unsigned int dst)
+ti_sdma_set_xfer_endianess(unsigned int ch, unsigned int src, unsigned int dst)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -871,13 +871,13 @@ omap_dma_set_xfer_endianess(unsigned int ch, unsigned int src, unsigned int dst)
 
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_set_xfer_burst - sets the source and destination element size
+ *	ti_sdma_set_xfer_burst - sets the source and destination element size
  *	@ch: the channel number to set the burst settings of
  *	@src: the source endianess (either DMA_BURST_NONE, DMA_BURST_16, DMA_BURST_32
  *	      or DMA_BURST_64)
@@ -893,18 +893,18 @@ omap_dma_set_xfer_endianess(unsigned int ch, unsigned int src, unsigned int dst)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_set_xfer_burst(unsigned int ch, unsigned int src, unsigned int dst)
+ti_sdma_set_xfer_burst(unsigned int ch, unsigned int src, unsigned int dst)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -916,13 +916,13 @@ omap_dma_set_xfer_burst(unsigned int ch, unsigned int src, unsigned int dst)
 
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_set_xfer_data_type - driver attach function
+ *	ti_sdma_set_xfer_data_type - driver attach function
  *	@ch: the channel number to set the endianess of
  *	@type: the xfer data type (either DMA_DATA_8BITS_SCALAR, DMA_DATA_16BITS_SCALAR
  *	       or DMA_DATA_32BITS_SCALAR)
@@ -935,18 +935,18 @@ omap_dma_set_xfer_burst(unsigned int ch, unsigned int src, unsigned int dst)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_set_xfer_data_type(unsigned int ch, unsigned int type)
+ti_sdma_set_xfer_data_type(unsigned int ch, unsigned int type)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -955,13 +955,13 @@ omap_dma_set_xfer_data_type(unsigned int ch, unsigned int type)
 
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_set_callback - driver attach function
+ *	ti_sdma_set_callback - driver attach function
  *	@dev: dma device handle
  *
  *
@@ -973,20 +973,20 @@ omap_dma_set_xfer_data_type(unsigned int ch, unsigned int type)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_set_callback(unsigned int ch,
+ti_sdma_set_callback(unsigned int ch,
                       void (*callback)(unsigned int ch, uint32_t status, void *data),
                       void *data)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -995,19 +995,19 @@ omap_dma_set_callback(unsigned int ch,
 
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_sync_params - sets channel sync settings
+ *	ti_sdma_sync_params - sets channel sync settings
  *	@ch: the channel number to set the sync on
  *	@trigger: the number of the sync trigger, this depends on what other H/W
  *	          module is triggering/receiving the DMA transactions
  *	@mode: flags describing the sync mode to use, it may have one or more of
- *	          the following bits set; OMAP_SDMA_SYNC_FRAME,
- *	          OMAP_SDMA_SYNC_BLOCK, OMAP_SDMA_SYNC_TRIG_ON_SRC.
+ *	          the following bits set; TI_SDMA_SYNC_FRAME,
+ *	          TI_SDMA_SYNC_BLOCK, TI_SDMA_SYNC_TRIG_ON_SRC.
  *
  *
  *
@@ -1018,19 +1018,19 @@ omap_dma_set_callback(unsigned int ch,
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
+ti_sdma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	uint32_t ccr;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -1039,17 +1039,17 @@ omap_dma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
 	ccr &= ~DMA4_CCR_SYNC_TRIGGER(0x7F);
 	ccr |= DMA4_CCR_SYNC_TRIGGER(trigger + 1);
 
-	if (mode & OMAP_SDMA_SYNC_FRAME)
+	if (mode & TI_SDMA_SYNC_FRAME)
 		ccr |= DMA4_CCR_FRAME_SYNC(1);
 	else
 		ccr &= ~DMA4_CCR_FRAME_SYNC(1);
 
-	if (mode & OMAP_SDMA_SYNC_BLOCK)
+	if (mode & TI_SDMA_SYNC_BLOCK)
 		ccr |= DMA4_CCR_BLOCK_SYNC(1);
 	else
 		ccr &= ~DMA4_CCR_BLOCK_SYNC(1);
 
-	if (mode & OMAP_SDMA_SYNC_TRIG_ON_SRC)
+	if (mode & TI_SDMA_SYNC_TRIG_ON_SRC)
 		ccr |= DMA4_CCR_SEL_SRC_DST_SYNC(1);
 	else
 		ccr &= ~DMA4_CCR_SEL_SRC_DST_SYNC(1);
@@ -1058,13 +1058,13 @@ omap_dma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
 
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_set_addr_mode - driver attach function
+ *	ti_sdma_set_addr_mode - driver attach function
  *	@ch: the channel number to set the endianess of
  *	@rd_mode: the xfer source addressing mode (either DMA_ADDR_CONSTANT,
  *	          DMA_ADDR_POST_INCREMENT, DMA_ADDR_SINGLE_INDEX or
@@ -1081,20 +1081,20 @@ omap_dma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-omap_dma_set_addr_mode(unsigned int ch, unsigned int src_mode,
+ti_sdma_set_addr_mode(unsigned int ch, unsigned int src_mode,
                        unsigned int dst_mode)
 {
-	struct omap_dma_softc *sc = omap_dma_sc;
+	struct ti_sdma_softc *sc = ti_sdma_sc;
 	uint32_t ccr;
 
 	/* Sanity check */
 	if (sc == NULL)
 		return (ENOMEM);
 
-	OMAP_DMA_LOCK(sc);
+	TI_SDMA_LOCK(sc);
 
 	if ((sc->sc_active_channels & (1 << ch)) == 0) {
-		OMAP_DMA_UNLOCK(sc);
+		TI_SDMA_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -1110,13 +1110,13 @@ omap_dma_set_addr_mode(unsigned int ch, unsigned int src_mode,
 
 	sc->sc_channel[ch].need_reg_write = 1;
 
-	OMAP_DMA_UNLOCK(sc);
+	TI_SDMA_UNLOCK(sc);
 
 	return 0;
 }
 
 /**
- *	omap_dma_probe - driver probe function
+ *	ti_sdma_probe - driver probe function
  *	@dev: dma device handle
  *
  *
@@ -1125,17 +1125,17 @@ omap_dma_set_addr_mode(unsigned int ch, unsigned int src_mode,
  *	Always returns 0.
  */
 static int
-omap_dma_probe(device_t dev)
+ti_sdma_probe(device_t dev)
 {
 	if (!ofw_bus_is_compatible(dev, "ti,sdma"))
 		return (ENXIO);
 
-	device_set_desc(dev, "TI OMAP sDMA Controller");
+	device_set_desc(dev, "TI sDMA Controller");
 	return (0);
 }
 
 /**
- *	omap_dma_attach - driver attach function
+ *	ti_sdma_attach - driver attach function
  *	@dev: dma device handle
  *
  *	Initialises memory mapping/pointers to the DMA register set and requests
@@ -1145,9 +1145,9 @@ omap_dma_probe(device_t dev)
  *	0 on success or a negative error code failure.
  */
 static int
-omap_dma_attach(device_t dev)
+ti_sdma_attach(device_t dev)
 {
-	struct omap_dma_softc *sc = device_get_softc(dev);
+	struct ti_sdma_softc *sc = device_get_softc(dev);
 	unsigned int timeout;
 	unsigned int i;
 	int      rid;
@@ -1161,7 +1161,7 @@ omap_dma_attach(device_t dev)
 	sc->sc_active_channels = 0x00000000;
 
 	/* Mutex to protect the shared data structures */
-	OMAP_DMA_LOCK_INIT(sc);
+	TI_SDMA_LOCK_INIT(sc);
 
 	/* Get the memory resource for the register mapping */
 	rid = 0;
@@ -1173,30 +1173,30 @@ omap_dma_attach(device_t dev)
 	ti_prcm_clk_enable(SDMA_CLK);
 
 	/* Read the sDMA revision register and sanity check it's known */
-	sc->sc_hw_rev = omap_dma_read_4(sc, DMA4_REVISION);
+	sc->sc_hw_rev = ti_sdma_read_4(sc, DMA4_REVISION);
 	device_printf(dev, "sDMA revision %08x\n", sc->sc_hw_rev);
 
-	if (!omap_dma_is_omap4_rev(sc) && !omap_dma_is_omap3_rev(sc)) {
+	if (!ti_sdma_is_omap4_rev(sc) && !ti_sdma_is_omap3_rev(sc)) {
 		device_printf(sc->sc_dev, "error - unknown sDMA H/W revision\n");
 		return (EINVAL);
 	}
 
 	/* Disable all interrupts */
 	for (i = 0; i < NUM_DMA_IRQS; i++) {
-		omap_dma_write_4(sc, DMA4_IRQENABLE_L(i), 0x00000000);
+		ti_sdma_write_4(sc, DMA4_IRQENABLE_L(i), 0x00000000);
 	}
 
 	/* Soft-reset is only supported on pre-OMAP44xx devices */
-	if (omap_dma_is_omap3_rev(sc)) {
+	if (ti_sdma_is_omap3_rev(sc)) {
 
 		/* Soft-reset */
-		omap_dma_write_4(sc, DMA4_OCP_SYSCONFIG, 0x0002);
+		ti_sdma_write_4(sc, DMA4_OCP_SYSCONFIG, 0x0002);
 
 		/* Set the timeout to 100ms*/
 		timeout = (hz < 10) ? 1 : ((100 * hz) / 1000);
 
 		/* Wait for DMA reset to complete */
-		while ((omap_dma_read_4(sc, DMA4_SYSSTATUS) & 0x1) == 0x0) {
+		while ((ti_sdma_read_4(sc, DMA4_SYSSTATUS) & 0x1) == 0x0) {
 
 			/* Sleep for a tick */
 			pause("DMARESET", 1);
@@ -1219,28 +1219,28 @@ omap_dma_attach(device_t dev)
 		panic("Unable to setup the dma irq handler.\n");
 
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, omap_dma_intr, NULL, &ihl);
+	    NULL, ti_sdma_intr, NULL, &ihl);
 	if (err)
 		panic("%s: Cannot register IRQ", device_get_name(dev));
 
 	/* Store the DMA structure globally ... this driver should never be unloaded */
-	omap_dma_sc = sc;
+	ti_sdma_sc = sc;
 
 	return (0);
 }
 
-static device_method_t omap_dma_methods[] = {
-	DEVMETHOD(device_probe, omap_dma_probe),
-	DEVMETHOD(device_attach, omap_dma_attach),
+static device_method_t ti_sdma_methods[] = {
+	DEVMETHOD(device_probe, ti_sdma_probe),
+	DEVMETHOD(device_attach, ti_sdma_attach),
 	{0, 0},
 };
 
-static driver_t omap_dma_driver = {
-	"omap_dma",
-	omap_dma_methods,
-	sizeof(struct omap_dma_softc),
+static driver_t ti_sdma_driver = {
+	"ti_sdma",
+	ti_sdma_methods,
+	sizeof(struct ti_sdma_softc),
 };
-static devclass_t omap_dma_devclass;
+static devclass_t ti_sdma_devclass;
 
-DRIVER_MODULE(omap_dma, simplebus, omap_dma_driver, omap_dma_devclass, 0, 0);
-MODULE_DEPEND(omap_dma, ti_prcm, 1, 1, 1);
+DRIVER_MODULE(ti_sdma, simplebus, ti_sdma_driver, ti_sdma_devclass, 0, 0);
+MODULE_DEPEND(ti_sdma, ti_prcm, 1, 1, 1);

@@ -24,8 +24,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifndef	__OMAP_DMAREG_H__
-#define	__OMAP_DMAREG_H__
+#ifndef	__TI_SDMAREG_H__
+#define	__TI_SDMAREG_H__
 
 /**
  * The number of DMA channels possible on the controller.
@@ -128,4 +128,4 @@
 #define DMA4_OMAP3_REV                          0x00000040
 #define DMA4_OMAP4_REV                          0x00010900
 
-#endif	/* __OMAP_DMAREG_H__ */
+#endif	/* __TI_SDMAREG_H__ */

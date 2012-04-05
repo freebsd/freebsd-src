@@ -5,7 +5,7 @@ arm/ti/mp_timer.c				standard
 arm/ti/ti_smc.S					standard
 
 arm/ti/usb/omap_ehci.c				optional	usb ehci
-arm/ti/omap_dma.c				optional	omap_dma
+arm/ti/ti_sdma.c				optional	ti_sdma
 arm/ti/ti_mmchs.c				optional	mmc
 
 arm/ti/omap4/omap4_l2cache.c			optional	pl310

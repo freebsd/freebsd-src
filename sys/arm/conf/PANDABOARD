@@ -130,7 +130,7 @@ device		smsc		# SMSC LAN95xx USB Ethernet
 
 
 # OMAP-specific devices
-device		omap_dma
+device		ti_sdma
 device		twl
 device		twl_vreg
 

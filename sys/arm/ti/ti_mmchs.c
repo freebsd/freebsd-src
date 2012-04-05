@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #include "mmcbr_if.h"
 #include "mmcbus_if.h"
 
-#include <arm/ti/omap_dma.h>
+#include <arm/ti/ti_sdma.h>
 #include <arm/ti/ti_mmchs.h>
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
@@ -152,14 +152,14 @@ struct ti_mmchs_softc {
 /**
  *	Macros for driver mutex locking
  */
-#define OMAP_MMC_LOCK(_sc)              mtx_lock(&(_sc)->sc_mtx)
-#define	OMAP_MMC_UNLOCK(_sc)            mtx_unlock(&(_sc)->sc_mtx)
-#define OMAP_MMC_LOCK_INIT(_sc) \
+#define TI_MMCHS_LOCK(_sc)              mtx_lock(&(_sc)->sc_mtx)
+#define	TI_MMCHS_UNLOCK(_sc)            mtx_unlock(&(_sc)->sc_mtx)
+#define TI_MMCHS_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
 	         "ti_mmchs", MTX_DEF)
-#define OMAP_MMC_LOCK_DESTROY(_sc)      mtx_destroy(&_sc->sc_mtx);
-#define OMAP_MMC_ASSERT_LOCKED(_sc)     mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define OMAP_MMC_ASSERT_UNLOCKED(_sc)   mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define TI_MMCHS_LOCK_DESTROY(_sc)      mtx_destroy(&_sc->sc_mtx);
+#define TI_MMCHS_ASSERT_LOCKED(_sc)     mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define TI_MMCHS_ASSERT_UNLOCKED(_sc)   mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 static void ti_mmchs_start(struct ti_mmchs_softc *sc);
 
@@ -389,9 +389,9 @@ ti_mmchs_intr_error(struct ti_mmchs_softc *sc, struct mmc_command *cmd,
 
 		/* Abort the DMA transfer (DDIR bit tells direction) */
 		if (ti_mmchs_read_4(sc, MMCHS_CMD) & MMCHS_CMD_DDIR)
-			omap_dma_stop_xfer(sc->sc_dmach_rd);
+			ti_sdma_stop_xfer(sc->sc_dmach_rd);
 		else
-			omap_dma_stop_xfer(sc->sc_dmach_wr);
+			ti_sdma_stop_xfer(sc->sc_dmach_wr);
 
 		/* If an error occure abort the DMA operation and free the dma map */
 		if ((sc->sc_dmamapped > 0) && (cmd->error != MMC_ERR_NONE)) {
@@ -434,7 +434,7 @@ ti_mmchs_intr(void *arg)
 	uint32_t stat_reg;
 	int done = 0;
 
-	OMAP_MMC_LOCK(sc);
+	TI_MMCHS_LOCK(sc);
 
 	stat_reg = ti_mmchs_read_4(sc, MMCHS_STAT)
 	    & (ti_mmchs_read_4(sc, MMCHS_IE) | MMCHS_STAT_ERRI);
@@ -442,7 +442,7 @@ ti_mmchs_intr(void *arg)
 	if (sc->curcmd == NULL) {
 		device_printf(sc->sc_dev, "Error: current cmd NULL, already done?\n");
 		ti_mmchs_write_4(sc, MMCHS_STAT, stat_reg);
-		OMAP_MMC_UNLOCK(sc);
+		TI_MMCHS_UNLOCK(sc);
 		return;
 	}
 
@@ -482,7 +482,7 @@ ti_mmchs_intr(void *arg)
 		ti_mmchs_start(sc);
 	}
 
-	OMAP_MMC_UNLOCK(sc);
+	TI_MMCHS_UNLOCK(sc);
 }
 
 /**
@@ -628,11 +628,11 @@ ti_mmchs_start_cmd(struct ti_mmchs_softc *sc, struct mmc_command *cmd)
 		/* Sync the DMA buffer and setup the DMA controller */
 		if (data->flags & MMC_DATA_READ) {
 			bus_dmamap_sync(sc->sc_dmatag, sc->sc_dmamap, BUS_DMASYNC_PREREAD);
-			omap_dma_start_xfer_packet(sc->sc_dmach_rd, sc->sc_data_reg_paddr,
+			ti_sdma_start_xfer_packet(sc->sc_dmach_rd, sc->sc_data_reg_paddr,
 			    paddr, 1, (data->len / 4), pktsize);
 		} else {
 			bus_dmamap_sync(sc->sc_dmatag, sc->sc_dmamap, BUS_DMASYNC_PREWRITE);
-			omap_dma_start_xfer_packet(sc->sc_dmach_wr, paddr,
+			ti_sdma_start_xfer_packet(sc->sc_dmach_wr, paddr,
 			    sc->sc_data_reg_paddr, 1, (data->len / 4), pktsize);
 		}
 
@@ -713,7 +713,7 @@ ti_mmchs_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 {
 	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 
-	OMAP_MMC_LOCK(sc);
+	TI_MMCHS_LOCK(sc);
 
 	/*
 	 * XXX do we want to be able to queue up multiple commands?
@@ -721,7 +721,7 @@ ti_mmchs_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 	 * XXX maybe the idea is naive...
 	 */
 	if (sc->req != NULL) {
-		OMAP_MMC_UNLOCK(sc);
+		TI_MMCHS_UNLOCK(sc);
 		return (EBUSY);
 	}
 
@@ -730,7 +730,7 @@ ti_mmchs_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 	sc->flags = 0;
 	ti_mmchs_start(sc);
 
-	OMAP_MMC_UNLOCK(sc);
+	TI_MMCHS_UNLOCK(sc);
 
 	return (0);
 }
@@ -757,7 +757,7 @@ ti_mmchs_get_ro(device_t brdev, device_t reqdev)
 	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 	unsigned int readonly = 0;
 
-	OMAP_MMC_LOCK(sc);
+	TI_MMCHS_LOCK(sc);
 
 	if ((sc->sc_wp_gpio_pin != -1) && (sc->sc_gpio_dev != NULL)) {
 		if (GPIO_PIN_GET(sc->sc_gpio_dev, sc->sc_wp_gpio_pin, &readonly) != 0)
@@ -766,7 +766,7 @@ ti_mmchs_get_ro(device_t brdev, device_t reqdev)
 			readonly = (readonly == 0) ? 0 : 1;
 	}
 
-	OMAP_MMC_UNLOCK(sc);
+	TI_MMCHS_UNLOCK(sc);
 
 	return (readonly);
 }
@@ -1048,7 +1048,7 @@ ti_mmchs_acquire_host(device_t brdev, device_t reqdev)
 	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 	int err = 0;
 
-	OMAP_MMC_LOCK(sc);
+	TI_MMCHS_LOCK(sc);
 
 	while (sc->bus_busy) {
 		msleep(sc, &sc->sc_mtx, PZERO, "mmc", hz / 5);
@@ -1056,7 +1056,7 @@ ti_mmchs_acquire_host(device_t brdev, device_t reqdev)
 
 	sc->bus_busy++;
 
-	OMAP_MMC_UNLOCK(sc);
+	TI_MMCHS_UNLOCK(sc);
 
 	return (err);
 }
@@ -1080,12 +1080,12 @@ ti_mmchs_release_host(device_t brdev, device_t reqdev)
 {
 	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 
-	OMAP_MMC_LOCK(sc);
+	TI_MMCHS_LOCK(sc);
 
 	sc->bus_busy--;
 	wakeup(sc);
 
-	OMAP_MMC_UNLOCK(sc);
+	TI_MMCHS_UNLOCK(sc);
 
 	return (0);
 }
@@ -1392,32 +1392,32 @@ ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 	}
 
 	/* Activate a RX channel from the OMAP DMA driver */
-	err = omap_dma_activate_channel(&sc->sc_dmach_rd, ti_mmchs_dma_intr, sc);
+	err = ti_sdma_activate_channel(&sc->sc_dmach_rd, ti_mmchs_dma_intr, sc);
 	if (err != 0)
 		return(err);
 
 	/* Setup the RX channel for MMC data transfers */
-	omap_dma_set_xfer_burst(sc->sc_dmach_rd, OMAP_SDMA_BURST_NONE,
-	    OMAP_SDMA_BURST_64);
-	omap_dma_set_xfer_data_type(sc->sc_dmach_rd, OMAP_SDMA_DATA_32BITS_SCALAR);
-	omap_dma_sync_params(sc->sc_dmach_rd, dma_rx_trig,
-	    OMAP_SDMA_SYNC_PACKET | OMAP_SDMA_SYNC_TRIG_ON_SRC);
-	omap_dma_set_addr_mode(sc->sc_dmach_rd, OMAP_SDMA_ADDR_CONSTANT,
-	    OMAP_SDMA_ADDR_POST_INCREMENT);
+	ti_sdma_set_xfer_burst(sc->sc_dmach_rd, TI_SDMA_BURST_NONE,
+	    TI_SDMA_BURST_64);
+	ti_sdma_set_xfer_data_type(sc->sc_dmach_rd, TI_SDMA_DATA_32BITS_SCALAR);
+	ti_sdma_sync_params(sc->sc_dmach_rd, dma_rx_trig,
+	    TI_SDMA_SYNC_PACKET | TI_SDMA_SYNC_TRIG_ON_SRC);
+	ti_sdma_set_addr_mode(sc->sc_dmach_rd, TI_SDMA_ADDR_CONSTANT,
+	    TI_SDMA_ADDR_POST_INCREMENT);
 
 	/* Activate and configure the TX DMA channel */
-	err = omap_dma_activate_channel(&sc->sc_dmach_wr, ti_mmchs_dma_intr, sc);
+	err = ti_sdma_activate_channel(&sc->sc_dmach_wr, ti_mmchs_dma_intr, sc);
 	if (err != 0)
 		return(err);
 
 	/* Setup the TX channel for MMC data transfers */
-	omap_dma_set_xfer_burst(sc->sc_dmach_wr, OMAP_SDMA_BURST_64,
-	    OMAP_SDMA_BURST_NONE);
-	omap_dma_set_xfer_data_type(sc->sc_dmach_wr, OMAP_SDMA_DATA_32BITS_SCALAR);
-	omap_dma_sync_params(sc->sc_dmach_wr, dma_tx_trig,
-	    OMAP_SDMA_SYNC_PACKET | OMAP_SDMA_SYNC_TRIG_ON_DST);
-	omap_dma_set_addr_mode(sc->sc_dmach_wr, OMAP_SDMA_ADDR_POST_INCREMENT,
-	    OMAP_SDMA_ADDR_CONSTANT);
+	ti_sdma_set_xfer_burst(sc->sc_dmach_wr, TI_SDMA_BURST_64,
+	    TI_SDMA_BURST_NONE);
+	ti_sdma_set_xfer_data_type(sc->sc_dmach_wr, TI_SDMA_DATA_32BITS_SCALAR);
+	ti_sdma_sync_params(sc->sc_dmach_wr, dma_tx_trig,
+	    TI_SDMA_SYNC_PACKET | TI_SDMA_SYNC_TRIG_ON_DST);
+	ti_sdma_set_addr_mode(sc->sc_dmach_wr, TI_SDMA_ADDR_POST_INCREMENT,
+	    TI_SDMA_ADDR_CONSTANT);
 
 	return(0);
 }
@@ -1449,8 +1449,8 @@ ti_mmchs_deactivate(device_t dev)
 	bus_generic_detach(sc->sc_dev);
 
 	/* Deactivate the DMA channels */
-	omap_dma_deactivate_channel(sc->sc_dmach_rd);
-	omap_dma_deactivate_channel(sc->sc_dmach_wr);
+	ti_sdma_deactivate_channel(sc->sc_dmach_rd);
+	ti_sdma_deactivate_channel(sc->sc_dmach_wr);
 
 	/* Unmap the MMC controller registers */
 	if (sc->sc_mem_res != 0) {
@@ -1584,7 +1584,7 @@ ti_mmchs_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	/* Initiate the mtex lock */
-	OMAP_MMC_LOCK_INIT(sc);
+	TI_MMCHS_LOCK_INIT(sc);
 
 	/* Indicate the DMA channels haven't yet been allocated */
 	sc->sc_dmach_rd = (unsigned int)-1;
@@ -1645,13 +1645,13 @@ ti_mmchs_attach(device_t dev)
 
 out:
 	if (err) {
-		OMAP_MMC_LOCK_DESTROY(sc);
+		TI_MMCHS_LOCK_DESTROY(sc);
 		ti_mmchs_deactivate(dev);
 
 		if (sc->sc_dmach_rd != (unsigned int)-1)
-			omap_dma_deactivate_channel(sc->sc_dmach_rd);
+			ti_sdma_deactivate_channel(sc->sc_dmach_rd);
 		if (sc->sc_dmach_wr != (unsigned int)-1)
-			omap_dma_deactivate_channel(sc->sc_dmach_wr);
+			ti_sdma_deactivate_channel(sc->sc_dmach_wr);
 	}
 
 	return (err);
@@ -1674,8 +1674,8 @@ ti_mmchs_detach(device_t dev)
 	ti_mmchs_hw_fini(dev);
 	ti_mmchs_deactivate(dev);
 
-	omap_dma_deactivate_channel(sc->sc_dmach_wr);
-	omap_dma_deactivate_channel(sc->sc_dmach_rd);
+	ti_sdma_deactivate_channel(sc->sc_dmach_wr);
+	ti_sdma_deactivate_channel(sc->sc_dmach_rd);
 
 	return (0);
 }
@@ -1709,7 +1709,7 @@ static devclass_t ti_mmchs_devclass;
 
 DRIVER_MODULE(ti_mmchs, simplebus, ti_mmchs_driver, ti_mmchs_devclass, 0, 0);
 MODULE_DEPEND(ti_mmchs, ti_prcm, 1, 1, 1);
-MODULE_DEPEND(ti_mmchs, omap_dma, 1, 1, 1);
+MODULE_DEPEND(ti_mmchs, ti_sdma, 1, 1, 1);
 MODULE_DEPEND(ti_mmchs, ti_gpio, 1, 1, 1);
 
 /* FIXME: MODULE_DEPEND(ti_mmchs, twl_vreg, 1, 1, 1); */
