@@ -102,6 +102,8 @@ void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
+void ktrfault(struct ktr_fault *);
+void ktrfaultend(struct ktr_faultend *);
 void usage(void);
 void ioctlname(unsigned long, int);
 
@@ -306,6 +308,13 @@ main(int argc, char *argv[])
 			break;
 		case KTR_CAPFAIL:
 			ktrcapfail((struct ktr_cap_fail *)m);
+			break;
+		case KTR_FAULT:
+			ktrfault((struct ktr_fault *)m);
+			break;
+		case KTR_FAULTEND:
+			ktrfaultend((struct ktr_faultend *)m);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -447,6 +456,12 @@ dumpheader(struct ktr_header *kth)
 		return;
 	case KTR_CAPFAIL:
 		type = "CAP ";
+		break;
+	case KTR_FAULT:
+		type = "PFLT";
+		break;
+	case KTR_FAULTEND:
+		type = "PRET";
 		break;
 	default:
 		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
@@ -1631,6 +1646,24 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 		capname((intmax_t)ktr->cap_held);
 		break;
 	}
+	printf("\n");
+}
+
+void
+ktrfault(struct ktr_fault *ktr)
+{
+
+	printf("0x%jx ", ktr->vaddr);
+	vmprotname(ktr->type);
+	printf("\n");
+}
+
+void
+ktrfaultend(struct ktr_faultend *ktr)
+{
+
+	vmresultname(ktr->result);
+	printf("\n");
 }
 
 #if defined(__amd64__) || defined(__i386__)
