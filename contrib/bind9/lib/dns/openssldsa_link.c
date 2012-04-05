@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: openssldsa_link.c,v 1.20.10.1 2011-03-11 06:47:04 marka Exp $ */
+/* $Id$ */
 
 #ifdef OPENSSL
 #ifndef USE_EVP
