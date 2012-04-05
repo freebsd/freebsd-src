@@ -794,7 +794,11 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 
 		timeout = r->timeout[sp->timeout];
 		if (!timeout)
+#ifdef __FreeBSD__
+			timeout = V_pf_default_rule.timeout[sp->timeout];
+#else
 			timeout = pf_default_rule.timeout[sp->timeout];
+#endif
 
 		/* sp->expire may have been adaptively scaled by export. */
 		st->expire -= timeout - ntohl(sp->expire);
