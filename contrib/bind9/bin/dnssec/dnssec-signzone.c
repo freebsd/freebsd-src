@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.209.12.24 2011-05-07 00:23:50 each Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -533,7 +533,8 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 		}
 
 		if (keep) {
-			nowsignedby[key->position] = ISC_TRUE;
+			if (key != NULL)
+				nowsignedby[key->position] = ISC_TRUE;
 			INCSTAT(nretained);
 			if (sigset.ttl != ttl) {
 				vbprintf(2, "\tfixing ttl %s\n", sigstr);
@@ -2899,6 +2900,9 @@ print_version(FILE *fp) {
 	fprintf(fp, "; dnssec_signzone version " VERSION "\n");
 }
 
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
+
 static void
 usage(void) {
 	fprintf(stderr, "Usage:\n");
@@ -2972,28 +2976,36 @@ removetempfile(void) {
 }
 
 static void
-print_stats(isc_time_t *timer_start, isc_time_t *timer_finish) {
-	isc_uint64_t runtime_us;   /* Runtime in microseconds */
-	isc_uint64_t runtime_ms;   /* Runtime in milliseconds */
+print_stats(isc_time_t *timer_start, isc_time_t *timer_finish,
+	    isc_time_t *sign_start, isc_time_t *sign_finish)
+{
+	isc_uint64_t time_us;      /* Time in microseconds */
+	isc_uint64_t time_ms;      /* Time in milliseconds */
 	isc_uint64_t sig_ms;	   /* Signatures per millisecond */
-
-	runtime_us = isc_time_microdiff(timer_finish, timer_start);
 
 	printf("Signatures generated:               %10d\n", nsigned);
 	printf("Signatures retained:                %10d\n", nretained);
 	printf("Signatures dropped:                 %10d\n", ndropped);
 	printf("Signatures successfully verified:   %10d\n", nverified);
 	printf("Signatures unsuccessfully verified: %10d\n", nverifyfailed);
-	runtime_ms = runtime_us / 1000;
-	printf("Runtime in seconds:                %7u.%03u\n",
-	       (unsigned int) (runtime_ms / 1000),
-	       (unsigned int) (runtime_ms % 1000));
-	if (runtime_us > 0) {
-		sig_ms = ((isc_uint64_t)nsigned * 1000000000) / runtime_us;
+
+	time_us = isc_time_microdiff(sign_finish, sign_start);
+	time_ms = time_us / 1000;
+	printf("Signing time in seconds:           %7u.%03u\n",
+	       (unsigned int) (time_ms / 1000),
+	       (unsigned int) (time_ms % 1000));
+	if (time_us > 0) {
+		sig_ms = ((isc_uint64_t)nsigned * 1000000000) / time_us;
 		printf("Signatures per second:             %7u.%03u\n",
 		       (unsigned int) sig_ms / 1000,
 		       (unsigned int) sig_ms % 1000);
 	}
+
+	time_us = isc_time_microdiff(timer_finish, timer_start);
+	time_ms = time_us / 1000;
+	printf("Runtime in seconds:                %7u.%03u\n",
+	       (unsigned int) (time_ms / 1000),
+	       (unsigned int) (time_ms % 1000));
 }
 
 int
@@ -3007,6 +3019,7 @@ main(int argc, char *argv[]) {
 	int ndskeys = 0;
 	char *endp;
 	isc_time_t timer_start, timer_finish;
+	isc_time_t sign_start, sign_finish;
 	signer_key_t *key;
 	isc_result_t result;
 	isc_log_t *log = NULL;
@@ -3543,6 +3556,7 @@ main(int argc, char *argv[]) {
 		RUNTIME_CHECK(isc_mutex_init(&statslock) == ISC_R_SUCCESS);
 
 	presign();
+	TIME_NOW(&sign_start);
 	signapex();
 	if (!finished) {
 		/*
@@ -3567,6 +3581,7 @@ main(int argc, char *argv[]) {
 	isc_taskmgr_destroy(&taskmgr);
 	isc_mem_put(mctx, tasks, ntasks * sizeof(isc_task_t *));
 	postsign();
+	TIME_NOW(&sign_finish);
 	verifyzone();
 
 	if (outputformat != dns_masterformat_text) {
@@ -3621,7 +3636,8 @@ main(int argc, char *argv[]) {
 
 	if (printstats) {
 		TIME_NOW(&timer_finish);
-		print_stats(&timer_start, &timer_finish);
+		print_stats(&timer_start, &timer_finish,
+			    &sign_start, &sign_finish);
 	}
 
 	return (0);

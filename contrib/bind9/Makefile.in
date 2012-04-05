@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.52.48.4 2011-02-28 01:18:39 tbox Exp $
+# $Id$
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -63,8 +63,10 @@ tags:
 check: test
 
 test:
-	(cd bin/tests && ${MAKE} ${MAKEDEFS} test)
-	(test -f unit/unittest.sh && $(SHELL) unit/unittest.sh)
+	status=0; \
+	(cd bin/tests && ${MAKE} ${MAKEDEFS} test) || status=1; \
+	(test -f unit/unittest.sh && $(SHELL) unit/unittest.sh) || status=1; \
+	exit $$status
 
 FAQ: FAQ.xml
 	${XSLTPROC} doc/xsl/isc-docbook-text.xsl FAQ.xml | \

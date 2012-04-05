@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.151.12.16 2011-03-26 00:47:01 each Exp $ */
+/* $Id$ */
 
 #include <config.h>
 
@@ -1460,8 +1460,6 @@ check_soa_increment(dns_db_t *db, dns_dbversion_t *ver,
  * Incremental updating of NSECs and RRSIGs.
  */
 
-#define MAXZONEKEYS 32	/*%< Maximum number of zone keys supported. */
-
 /*%
  * We abuse the dns_diff_t type to represent a set of domain names
  * affected by the update.
@@ -2131,7 +2129,7 @@ update_signatures(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 	dns_diff_t nsec_diff;
 	dns_diff_t nsec_mindiff;
 	isc_boolean_t flag;
-	dst_key_t *zone_keys[MAXZONEKEYS];
+	dst_key_t *zone_keys[DNS_MAXZONEKEYS];
 	unsigned int nkeys = 0;
 	unsigned int i;
 	isc_stdtime_t now, inception, expire;
@@ -2153,7 +2151,7 @@ update_signatures(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 	dns_diff_init(client->mctx, &nsec_mindiff);
 
 	result = find_zone_keys(zone, db, newver, client->mctx,
-				MAXZONEKEYS, zone_keys, &nkeys);
+				DNS_MAXZONEKEYS, zone_keys, &nkeys);
 	if (result != ISC_R_SUCCESS) {
 		update_log(client, zone, ISC_LOG_ERROR,
 			   "could not get zone keys for secure dynamic update");
@@ -4369,6 +4367,12 @@ send_forward_event(ns_client_t *client, dns_zone_t *zone) {
 	update_event_t *event = NULL;
 	isc_task_t *zonetask = NULL;
 	ns_client_t *evclient;
+
+	/*
+	 * This may take some time so replace this client.
+	 */
+	if (!client->mortal && (client->attributes & NS_CLIENTATTR_TCP) == 0)
+		CHECK(ns_client_replace(client));
 
 	event = (update_event_t *)
 		isc_event_allocate(client->mctx, client, DNS_EVENT_UPDATE,

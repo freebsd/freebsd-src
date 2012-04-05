@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rp_17.c,v 1.42 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id$ */
 
 /* RFC1183 */
 
@@ -93,8 +93,8 @@ totext_rp(ARGS_TOTEXT) {
 
 static inline isc_result_t
 fromwire_rp(ARGS_FROMWIRE) {
-        dns_name_t rmail;
-        dns_name_t email;
+	dns_name_t rmail;
+	dns_name_t email;
 
 	REQUIRE(type == 17);
 
@@ -103,11 +103,11 @@ fromwire_rp(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-        dns_name_init(&rmail, NULL);
-        dns_name_init(&email, NULL);
+	dns_name_init(&rmail, NULL);
+	dns_name_init(&email, NULL);
 
-        RETERR(dns_name_fromwire(&rmail, source, dctx, options, target));
-        return (dns_name_fromwire(&email, source, dctx, options, target));
+	RETERR(dns_name_fromwire(&rmail, source, dctx, options, target));
+	return (dns_name_fromwire(&email, source, dctx, options, target));
 }
 
 static inline isc_result_t

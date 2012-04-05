@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.71 2008-09-25 04:02:39 tbox Exp $ */
+/* $Id$ */
 
 #ifndef ISC_RESULT_H
 #define ISC_RESULT_H 1
@@ -86,9 +86,10 @@
 #define ISC_R_MAXSIZE			58	/*%< max size */
 #define ISC_R_BADADDRESSFORM		59	/*%< invalid address format */
 #define ISC_R_BADBASE32			60	/*%< bad base32 encoding */
+#define ISC_R_UNSET			61	/*%< unset */
 
 /*% Not a result code: the number of results. */
-#define ISC_R_NRESULTS 			61
+#define ISC_R_NRESULTS 			62
 
 ISC_LANG_BEGINDECLS
 

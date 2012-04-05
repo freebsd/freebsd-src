@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005-2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sha2.c,v 1.13.332.6 2011-03-12 04:57:28 tbox Exp $ */
+/* $Id$ */
 
 /*	$FreeBSD$	*/
 /*	$KAME: sha2.c,v 1.8 2001/11/08 01:07:52 itojun Exp $	*/
@@ -450,7 +450,7 @@ isc_sha224_end(isc_sha224_t *context, char buffer[]) {
 		}
 		*buffer = (char)0;
 	} else {
-		memset(context, 0, sizeof(context));
+		memset(context, 0, sizeof(*context));
 	}
 	memset(digest, 0, ISC_SHA224_DIGESTLENGTH);
 	return buffer;
@@ -788,7 +788,7 @@ isc_sha256_final(isc_uint8_t digest[], isc_sha256_t *context) {
 	}
 
 	/* Clean up state data: */
-	memset(context, 0, sizeof(context));
+	memset(context, 0, sizeof(*context));
 	usedspace = 0;
 	POST(usedspace);
 }
@@ -811,7 +811,7 @@ isc_sha256_end(isc_sha256_t *context, char buffer[]) {
 		}
 		*buffer = (char)0;
 	} else {
-		memset(context, 0, sizeof(context));
+		memset(context, 0, sizeof(*context));
 	}
 	memset(digest, 0, ISC_SHA256_DIGESTLENGTH);
 	return buffer;
@@ -1149,7 +1149,7 @@ void isc_sha512_final(isc_uint8_t digest[], isc_sha512_t *context) {
 	}
 
 	/* Zero out state data */
-	memset(context, 0, sizeof(context));
+	memset(context, 0, sizeof(*context));
 }
 
 char *
@@ -1170,7 +1170,7 @@ isc_sha512_end(isc_sha512_t *context, char buffer[]) {
 		}
 		*buffer = (char)0;
 	} else {
-		memset(context, 0, sizeof(context));
+		memset(context, 0, sizeof(*context));
 	}
 	memset(digest, 0, ISC_SHA512_DIGESTLENGTH);
 	return buffer;
@@ -1237,7 +1237,7 @@ isc_sha384_final(isc_uint8_t digest[], isc_sha384_t *context) {
 	}
 
 	/* Zero out state data */
-	memset(context, 0, sizeof(context));
+	memset(context, 0, sizeof(*context));
 }
 
 char *
@@ -1258,7 +1258,7 @@ isc_sha384_end(isc_sha384_t *context, char buffer[]) {
 		}
 		*buffer = (char)0;
 	} else {
-		memset(context, 0, sizeof(context));
+		memset(context, 0, sizeof(*context));
 	}
 	memset(digest, 0, ISC_SHA384_DIGESTLENGTH);
 	return buffer;

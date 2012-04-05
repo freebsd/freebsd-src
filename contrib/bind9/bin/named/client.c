@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.259.12.7 2011-05-06 23:45:55 tbox Exp $ */
+/* $Id$ */
 
 #include <config.h>
 
@@ -1301,6 +1301,12 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 	isc_netaddr_t netdst;
 
 	UNUSED(arg);
+
+	/*
+	 * ns_g_server->interfacemgr is task exclusive locked.
+	 */
+	if (ns_g_server->interfacemgr == NULL)
+		return (ISC_TRUE);
 
 	if (!ns_interfacemgr_listeningon(ns_g_server->interfacemgr, dstaddr))
 		return (ISC_FALSE);

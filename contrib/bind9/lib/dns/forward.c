@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: forward.c,v 1.12 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -137,7 +137,7 @@ dns_fwdtable_find(dns_fwdtable_t *fwdtable, dns_name_t *name,
 		  dns_forwarders_t **forwardersp)
 {
 	return (dns_fwdtable_find2(fwdtable, name, NULL, forwardersp));
-} 
+}
 
 isc_result_t
 dns_fwdtable_find2(dns_fwdtable_t *fwdtable, dns_name_t *name,

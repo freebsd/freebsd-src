@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.199.50.6 2011-03-11 10:49:55 marka Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -206,6 +206,10 @@ warn_badmx(isc_token_t *token, isc_lex_t *lexer,
 
 static isc_uint16_t
 uint16_consume_fromregion(isc_region_t *region);
+
+static isc_result_t
+unknown_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
+	       isc_buffer_t *target);
 
 static inline int
 getquad(const void *src, struct in_addr *dst,
@@ -606,8 +610,7 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	if (result != ISC_R_SUCCESS) {
 		name = isc_lex_getsourcename(lexer);
 		line = isc_lex_getsourceline(lexer);
-		fromtext_error(callback, callbacks, name, line,
-			       &token, result);
+		fromtext_error(callback, callbacks, name, line, NULL, result);
 		return (result);
 	}
 
@@ -668,13 +671,53 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 }
 
 static isc_result_t
+unknown_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
+	       isc_buffer_t *target)
+{
+	isc_result_t result;
+	char buf[sizeof("65535")];
+	isc_region_t sr;
+
+	strlcpy(buf, "\\# ", sizeof(buf));
+	result = str_totext(buf, target);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	dns_rdata_toregion(rdata, &sr);
+	INSIST(sr.length < 65536);
+	snprintf(buf, sizeof(buf), "%u", sr.length);
+	result = str_totext(buf, target);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	if (sr.length != 0U) {
+		if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+			result = str_totext(" ( ", target);
+		else
+			result = str_totext(" ", target);
+
+		if (result != ISC_R_SUCCESS)
+			return (result);
+
+		if (tctx->width == 0) /* No splitting */
+			result = isc_hex_totext(&sr, 0, "", target);
+		else
+			result = isc_hex_totext(&sr, tctx->width - 2,
+						tctx->linebreak,
+						target);
+		if (result == ISC_R_SUCCESS &&
+		    (tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+			result = str_totext(" )", target);
+	}
+	return (result);
+}
+
+static isc_result_t
 rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	     isc_buffer_t *target)
 {
 	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
-	char buf[sizeof("65535")];
-	isc_region_t sr;
 
 	REQUIRE(rdata != NULL);
 	REQUIRE(tctx->origin == NULL ||
@@ -690,28 +733,8 @@ rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 
 	TOTEXTSWITCH
 
-	if (use_default) {
-		strlcpy(buf, "\\# ", sizeof(buf));
-		result = str_totext(buf, target);
-		INSIST(result == ISC_R_SUCCESS);
-		dns_rdata_toregion(rdata, &sr);
-		INSIST(sr.length < 65536);
-		snprintf(buf, sizeof(buf), "%u", sr.length);
-		result = str_totext(buf, target);
-		if (sr.length != 0 && result == ISC_R_SUCCESS) {
-			if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
-				result = str_totext(" ( ", target);
-			else
-				result = str_totext(" ", target);
-			if (result == ISC_R_SUCCESS)
-				result = isc_hex_totext(&sr, tctx->width - 2,
-							tctx->linebreak,
-							target);
-			if (result == ISC_R_SUCCESS &&
-			    (tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
-				result = str_totext(" )", target);
-		}
-	}
+	if (use_default)
+		result = unknown_totext(rdata, tctx, target);
 
 	return (result);
 }
@@ -1084,7 +1107,8 @@ txt_fromtext(isc_textregion_t *source, isc_buffer_t *target) {
 		}
 		escape = ISC_FALSE;
 		if (nrem == 0)
-			return (ISC_R_NOSPACE);
+			return ((tregion.length <= 256U) ?
+				ISC_R_NOSPACE : DNS_R_SYNTAX);
 		*t++ = c;
 		nrem--;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.c,v 1.107.120.2 2010-12-03 23:45:47 tbox Exp $ */
+/* $Id$ */
 
 /*! \file
  * \author Principal Author: Bob Halley
@@ -71,9 +71,6 @@ static const char *statenames[] = {
 	"idle", "ready", "running", "done",
 };
 #endif
-
-#define TASK_MAGIC			ISC_MAGIC('T', 'A', 'S', 'K')
-#define VALID_TASK(t)			ISC_MAGIC_VALID(t, TASK_MAGIC)
 
 struct isc_task {
 	/* Not locked. */

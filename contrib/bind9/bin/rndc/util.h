@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: util.h,v 1.10 2007-06-19 23:46:59 tbox Exp $ */
+/* $Id$ */
 
 #ifndef RNDC_UTIL_H
 #define RNDC_UTIL_H 1
@@ -25,6 +25,7 @@
 #include <isc/lang.h>
 
 #include <isc/formatcheck.h>
+#include <isc/platform.h>
 
 #define NS_CONTROL_PORT		953
 
@@ -43,8 +44,9 @@ ISC_LANG_BEGINDECLS
 void
 notify(const char *fmt, ...) ISC_FORMAT_PRINTF(1, 2);
 
-void            
-fatal(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
+ISC_PLATFORM_NORETURN_PRE void
+fatal(const char *format, ...)
+ISC_FORMAT_PRINTF(1, 2) ISC_PLATFORM_NORETURN_POST;
 
 ISC_LANG_ENDDECLS
 

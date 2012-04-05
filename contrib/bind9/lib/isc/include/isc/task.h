@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.h,v 1.61.332.4 2010-12-03 23:45:47 tbox Exp $ */
+/* $Id$ */
 
 #ifndef ISC_TASK_H
 #define ISC_TASK_H 1
@@ -93,6 +93,9 @@
 /*****
  ***** Tasks.
  *****/
+
+#define TASK_MAGIC			ISC_MAGIC('T', 'A', 'S', 'K')
+#define VALID_TASK(t)			ISC_MAGIC_VALID(t, TASK_MAGIC)
 
 ISC_LANG_BEGINDECLS
 

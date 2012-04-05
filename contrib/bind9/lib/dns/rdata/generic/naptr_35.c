@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,25 +15,24 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: naptr_35.c,v 1.53 2008-02-15 23:46:51 tbox Exp $ */
+/* $Id$ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
 /* RFC2915 */
 
-#ifndef RDATA_IN_1_NAPTR_35_C
-#define RDATA_IN_1_NAPTR_35_C
+#ifndef RDATA_GENERIC_NAPTR_35_C
+#define RDATA_GENERIC_NAPTR_35_C
 
 #define RRTYPE_NAPTR_ATTRIBUTES (0)
 
 static inline isc_result_t
-fromtext_in_naptr(ARGS_FROMTEXT) {
+fromtext_naptr(ARGS_FROMTEXT) {
 	isc_token_t token;
 	dns_name_t name;
 	isc_buffer_t buffer;
 
 	REQUIRE(type == 35);
-	REQUIRE(rdclass == 1);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -91,7 +90,7 @@ fromtext_in_naptr(ARGS_FROMTEXT) {
 }
 
 static inline isc_result_t
-totext_in_naptr(ARGS_TOTEXT) {
+totext_naptr(ARGS_TOTEXT) {
 	isc_region_t region;
 	dns_name_t name;
 	dns_name_t prefix;
@@ -100,7 +99,6 @@ totext_in_naptr(ARGS_TOTEXT) {
 	unsigned short num;
 
 	REQUIRE(rdata->type == 35);
-	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&name, NULL);
@@ -153,12 +151,11 @@ totext_in_naptr(ARGS_TOTEXT) {
 }
 
 static inline isc_result_t
-fromwire_in_naptr(ARGS_FROMWIRE) {
+fromwire_naptr(ARGS_FROMWIRE) {
 	dns_name_t name;
 	isc_region_t sr;
 
 	REQUIRE(type == 35);
-	REQUIRE(rdclass == 1);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -198,13 +195,12 @@ fromwire_in_naptr(ARGS_FROMWIRE) {
 }
 
 static inline isc_result_t
-towire_in_naptr(ARGS_TOWIRE) {
+towire_naptr(ARGS_TOWIRE) {
 	dns_name_t name;
 	dns_offsets_t offsets;
 	isc_region_t sr;
 
 	REQUIRE(rdata->type == 35);
-	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
@@ -242,7 +238,7 @@ towire_in_naptr(ARGS_TOWIRE) {
 }
 
 static inline int
-compare_in_naptr(ARGS_COMPARE) {
+compare_naptr(ARGS_COMPARE) {
 	dns_name_t name1;
 	dns_name_t name2;
 	isc_region_t region1;
@@ -252,7 +248,6 @@ compare_in_naptr(ARGS_COMPARE) {
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
 	REQUIRE(rdata1->type == 35);
-	REQUIRE(rdata1->rdclass == 1);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -311,12 +306,11 @@ compare_in_naptr(ARGS_COMPARE) {
 }
 
 static inline isc_result_t
-fromstruct_in_naptr(ARGS_FROMSTRUCT) {
-	dns_rdata_in_naptr_t *naptr = source;
+fromstruct_naptr(ARGS_FROMSTRUCT) {
+	dns_rdata_naptr_t *naptr = source;
 	isc_region_t region;
 
 	REQUIRE(type == 35);
-	REQUIRE(rdclass == 1);
 	REQUIRE(source != NULL);
 	REQUIRE(naptr->common.rdtype == type);
 	REQUIRE(naptr->common.rdclass == rdclass);
@@ -340,14 +334,13 @@ fromstruct_in_naptr(ARGS_FROMSTRUCT) {
 }
 
 static inline isc_result_t
-tostruct_in_naptr(ARGS_TOSTRUCT) {
-	dns_rdata_in_naptr_t *naptr = target;
+tostruct_naptr(ARGS_TOSTRUCT) {
+	dns_rdata_naptr_t *naptr = target;
 	isc_region_t r;
 	isc_result_t result;
 	dns_name_t name;
 
 	REQUIRE(rdata->type == 35);
-	REQUIRE(rdata->rdclass == 1);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -411,11 +404,10 @@ tostruct_in_naptr(ARGS_TOSTRUCT) {
 }
 
 static inline void
-freestruct_in_naptr(ARGS_FREESTRUCT) {
-	dns_rdata_in_naptr_t *naptr = source;
+freestruct_naptr(ARGS_FREESTRUCT) {
+	dns_rdata_naptr_t *naptr = source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(naptr->common.rdclass == 1);
 	REQUIRE(naptr->common.rdtype == 35);
 
 	if (naptr->mctx == NULL)
@@ -432,7 +424,7 @@ freestruct_in_naptr(ARGS_FREESTRUCT) {
 }
 
 static inline isc_result_t
-additionaldata_in_naptr(ARGS_ADDLDATA) {
+additionaldata_naptr(ARGS_ADDLDATA) {
 	dns_name_t name;
 	dns_offsets_t offsets;
 	isc_region_t sr;
@@ -441,7 +433,6 @@ additionaldata_in_naptr(ARGS_ADDLDATA) {
 	char *cp;
 
 	REQUIRE(rdata->type == 35);
-	REQUIRE(rdata->rdclass == 1);
 
 	/*
 	 * Order, preference.
@@ -490,14 +481,13 @@ additionaldata_in_naptr(ARGS_ADDLDATA) {
 }
 
 static inline isc_result_t
-digest_in_naptr(ARGS_DIGEST) {
+digest_naptr(ARGS_DIGEST) {
 	isc_region_t r1, r2;
 	unsigned int length, n;
 	isc_result_t result;
 	dns_name_t name;
 
 	REQUIRE(rdata->type == 35);
-	REQUIRE(rdata->rdclass == 1);
 
 	dns_rdata_toregion(rdata, &r1);
 	r2 = r1;
@@ -549,10 +539,9 @@ digest_in_naptr(ARGS_DIGEST) {
 }
 
 static inline isc_boolean_t
-checkowner_in_naptr(ARGS_CHECKOWNER) {
+checkowner_naptr(ARGS_CHECKOWNER) {
 
 	REQUIRE(type == 35);
-	REQUIRE(rdclass == 1);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -563,10 +552,9 @@ checkowner_in_naptr(ARGS_CHECKOWNER) {
 }
 
 static inline isc_boolean_t
-checknames_in_naptr(ARGS_CHECKNAMES) {
+checknames_naptr(ARGS_CHECKNAMES) {
 
 	REQUIRE(rdata->type == 35);
-	REQUIRE(rdata->rdclass == 1);
 
 	UNUSED(rdata);
 	UNUSED(owner);
@@ -575,4 +563,4 @@ checknames_in_naptr(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
-#endif	/* RDATA_IN_1_NAPTR_35_C */
+#endif	/* RDATA_GENERIC_NAPTR_35_C */

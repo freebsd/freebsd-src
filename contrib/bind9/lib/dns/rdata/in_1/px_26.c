@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: px_26.c,v 1.43 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id$ */
 
 /* Reviewed: Mon Mar 20 10:44:27 PST 2000 */
 
@@ -115,7 +115,7 @@ totext_in_px(ARGS_TOTEXT) {
 
 static inline isc_result_t
 fromwire_in_px(ARGS_FROMWIRE) {
-        dns_name_t name;
+	dns_name_t name;
 	isc_region_t sregion;
 
 	REQUIRE(type == 26);
@@ -126,7 +126,7 @@ fromwire_in_px(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-        dns_name_init(&name, NULL);
+	dns_name_init(&name, NULL);
 
 	/*
 	 * Preference.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2007, 2008, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keyfromlabel.c,v 1.4.50.4 2011-03-12 04:57:22 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -50,6 +50,9 @@ int verbose;
 static const char *algs = "RSA | RSAMD5 | DH | DSA | RSASHA1 |"
 			  " NSEC3DSA | NSEC3RSASHA1 |"
 			  " RSASHA256 | RSASHA512";
+
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
 
 static void
 usage(void) {
@@ -90,7 +93,6 @@ main(int argc, char **argv) {
 	dns_name_t	*name;
 	isc_uint16_t	flags = 0, ksk = 0;
 	dns_secalg_t	alg;
-	isc_boolean_t	null_key = ISC_FALSE;
 	isc_mem_t	*mctx = NULL;
 	int		ch;
 	int		protocol = -1, signatory = 0;
@@ -264,9 +266,6 @@ main(int argc, char **argv) {
 	if (ret != ISC_R_SUCCESS)
 		fatal("invalid key name %s: %s", argv[isc_commandline_index],
 		      isc_result_totext(ret));
-
-	if ((flags & DNS_KEYFLAG_TYPEMASK) == DNS_KEYTYPE_NOKEY)
-		null_key = ISC_TRUE;
 
 	isc_buffer_init(&buf, filename, sizeof(filename) - 1);
 

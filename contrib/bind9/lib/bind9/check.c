@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.95.12.8 2011-03-12 04:57:26 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -1374,6 +1374,9 @@ bind9_check_key(const cfg_obj_t *key, isc_log_t *logctx) {
 	const char *algorithm;
 	int i;
 	size_t len = 0;
+	isc_result_t result;
+	isc_buffer_t buf;
+	unsigned char secretbuf[1024];
 	static const algorithmtable algorithms[] = {
 		{ "hmac-md5", 128 },
 		{ "hmac-md5.sig-alg.reg.int", 0 },
@@ -1394,6 +1397,15 @@ bind9_check_key(const cfg_obj_t *key, isc_log_t *logctx) {
 			    "'algorithm' defined",
 			    keyname);
 		return (ISC_R_FAILURE);
+	}
+
+	isc_buffer_init(&buf, secretbuf, sizeof(secretbuf));
+	result = isc_base64_decodestring(cfg_obj_asstring(secretobj),
+					 &buf);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(secretobj, logctx, ISC_LOG_ERROR,
+			    "bad secret '%s'", isc_result_totext(result));
+		return (result);
 	}
 
 	algorithm = cfg_obj_asstring(algobj);
@@ -1755,7 +1767,7 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	 * Check that all zone statements are syntactically correct and
 	 * there are no duplicate zones.
 	 */
-	tresult = isc_symtab_create(mctx, 100, freekey, mctx,
+	tresult = isc_symtab_create(mctx, 1000, freekey, mctx,
 				    ISC_FALSE, &symtab);
 	if (tresult != ISC_R_SUCCESS)
 		return (ISC_R_NOMEMORY);
@@ -1823,7 +1835,7 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	 * Check that all key statements are syntactically correct and
 	 * there are no duplicate keys.
 	 */
-	tresult = isc_symtab_create(mctx, 100, freekey, mctx,
+	tresult = isc_symtab_create(mctx, 1000, freekey, mctx,
 				    ISC_FALSE, &symtab);
 	if (tresult != ISC_R_SUCCESS)
 		return (ISC_R_NOMEMORY);

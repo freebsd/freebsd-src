@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkzone.c,v 1.51.34.6 2010-09-07 23:46:06 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -70,6 +70,9 @@ static enum { progmode_check, progmode_compile } progmode;
 		} \
 	} while (0)
 
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
+
 static void
 usage(void) {
 	fprintf(stderr,
@@ -108,6 +111,7 @@ main(int argc, char **argv) {
 	const char *outputformatstr = NULL;
 	dns_masterformat_t inputformat = dns_masterformat_text;
 	dns_masterformat_t outputformat = dns_masterformat_text;
+	isc_boolean_t logdump = ISC_FALSE;
 	FILE *errout = stdout;
 
 	outputstyle = &dns_master_style_full;
@@ -395,6 +399,7 @@ main(int argc, char **argv) {
 
 	if (progmode == progmode_compile) {
 		dumpzone = 1;	/* always dump */
+		logdump = !quiet;
 		if (output_filename == NULL) {
 			fprintf(stderr,
 				"output file required, but not specified\n");
@@ -413,8 +418,10 @@ main(int argc, char **argv) {
 	    (output_filename == NULL ||
 	     strcmp(output_filename, "-") == 0 ||
 	     strcmp(output_filename, "/dev/fd/1") == 0 ||
-	     strcmp(output_filename, "/dev/stdout") == 0))
+	     strcmp(output_filename, "/dev/stdout") == 0)) {
 		errout = stderr;
+		logdump = ISC_FALSE;
+	}
 
 	if (isc_commandline_index + 2 != argc)
 		usage();
@@ -439,13 +446,13 @@ main(int argc, char **argv) {
 			   &zone);
 
 	if (result == ISC_R_SUCCESS && dumpzone) {
-		if (!quiet && progmode == progmode_compile) {
+		if (logdump) {
 			fprintf(errout, "dump zone to %s...", output_filename);
 			fflush(errout);
 		}
 		result = dump_zone(origin, zone, output_filename,
 				   outputformat, outputstyle);
-		if (!quiet && progmode == progmode_compile)
+		if (logdump)
 			fprintf(errout, "done\n");
 	}
 

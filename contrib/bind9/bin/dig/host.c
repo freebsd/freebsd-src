@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.116.216.8 2011-03-11 10:49:49 marka Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -140,6 +140,9 @@ rcode_totext(dns_rcode_t rcode)
 		totext.consttext = rcodetext[rcode];
 	return totext.deconsttext;
 }
+
+ISC_PLATFORM_NORETURN_PRE static void
+show_usage(void) ISC_PLATFORM_NORETURN_POST;
 
 static void
 show_usage(void) {

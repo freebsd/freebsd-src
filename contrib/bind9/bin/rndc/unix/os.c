@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.10 2007-06-19 23:46:59 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -47,14 +47,14 @@ FILE *
 safe_create(const char *filename) {
 	int fd;
 	FILE *f;
-        struct stat sb;
+	struct stat sb;
 	int flags = O_WRONLY;
 
-        if (stat(filename, &sb) == -1) {
-                if (errno != ENOENT)
+	if (stat(filename, &sb) == -1) {
+		if (errno != ENOENT)
 			return (NULL);
 		flags = O_WRONLY | O_CREAT | O_EXCL;
-        } else if ((sb.st_mode & S_IFREG) == 0) {
+	} else if ((sb.st_mode & S_IFREG) == 0) {
 		errno = EOPNOTSUPP;
 		return (NULL);
 	} else

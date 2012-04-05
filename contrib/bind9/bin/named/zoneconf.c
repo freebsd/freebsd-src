@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.c,v 1.147.50.5 2011-03-12 04:57:24 tbox Exp $ */
+/* $Id$ */
 
 /*% */
 
@@ -893,8 +893,11 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 							 &count));
 			result = dns_zone_setmasterswithkeys(zone, addrs,
 							     keynames, count);
-			ns_config_putipandkeylist(mctx, &addrs, &keynames,
-						  count);
+			if (count != 0)
+				ns_config_putipandkeylist(mctx, &addrs,
+							  &keynames, count);
+			else
+				INSIST(addrs == NULL && keynames == NULL);
 		} else
 			result = dns_zone_setmasters(zone, NULL, 0);
 		RETERR(result);
@@ -998,8 +1001,11 @@ ns_zone_reusable(dns_zone_t *zone, const cfg_obj_t *zconfig) {
 
 	zoptions = cfg_tuple_get(zconfig, "options");
 
-	if (zonetype_fromconfig(zoptions) != dns_zone_gettype(zone))
+	if (zonetype_fromconfig(zoptions) != dns_zone_gettype(zone)) {
+		dns_zone_log(zone, ISC_LOG_DEBUG(1),
+			"not reusable: type mismatch");
 		return (ISC_FALSE);
+	}
 
 	obj = NULL;
 	(void)cfg_map_get(zoptions, "file", &obj);
@@ -1010,8 +1016,11 @@ ns_zone_reusable(dns_zone_t *zone, const cfg_obj_t *zconfig) {
 	zfilename = dns_zone_getfile(zone);
 	if (!((cfilename == NULL && zfilename == NULL) ||
 	      (cfilename != NULL && zfilename != NULL &&
-	       strcmp(cfilename, zfilename) == 0)))
-	    return (ISC_FALSE);
+	       strcmp(cfilename, zfilename) == 0))) {
+		dns_zone_log(zone, ISC_LOG_DEBUG(1),
+			"not reusable: filename mismatch");
+		return (ISC_FALSE);
+	}
 
 	return (ISC_TRUE);
 }

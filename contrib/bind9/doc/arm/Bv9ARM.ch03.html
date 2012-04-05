@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch03.html,v 1.71.48.5 2011-05-17 01:35:54 tbox Exp $ -->
+<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,14 +47,14 @@
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch03.html#sample_configuration">Sample Configurations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567767">A Caching-only Name Server</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567988">An Authoritative-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567770">A Caching-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567991">An Authoritative-only Name Server</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568010">Load Balancing</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568364">Name Server Operations</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568013">Load Balancing</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568368">Name Server Operations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568370">Tools for Use With the Name Server Daemon</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570009">Signals</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568373">Tools for Use With the Name Server Daemon</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570119">Signals</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -68,7 +68,7 @@
 <a name="sample_configuration"></a>Sample Configurations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567767"></a>A Caching-only Name Server</h3></div></div></div>
+<a name="id2567770"></a>A Caching-only Name Server</h3></div></div></div>
 <p>
           The following sample configuration is appropriate for a caching-only
           name server for use by clients internal to a corporation.  All
@@ -95,7 +95,7 @@ zone "0.0.127.in-addr.arpa" {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567988"></a>An Authoritative-only Name Server</h3></div></div></div>
+<a name="id2567991"></a>An Authoritative-only Name Server</h3></div></div></div>
 <p>
           This sample configuration is for an authoritative-only server
           that is the master server for "<code class="filename">example.com</code>"
@@ -137,7 +137,7 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2568010"></a>Load Balancing</h2></div></div></div>
+<a name="id2568013"></a>Load Balancing</h2></div></div></div>
 <p>
         A primitive form of load balancing can be achieved in
         the <acronym class="acronym">DNS</acronym> by using multiple records
@@ -280,10 +280,10 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2568364"></a>Name Server Operations</h2></div></div></div>
+<a name="id2568368"></a>Name Server Operations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2568370"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
+<a name="id2568373"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
 <p>
           This section describes several indispensable diagnostic,
           administrative and monitoring tools available to the system
@@ -584,6 +584,21 @@ zone "eng.example.com" {
                         hint zone if there is not an
                         explicit root zone configured.
                       </p></dd>
+<dt><span class="term"><strong class="userinput"><code>tsig-list</code></strong></span></dt>
+<dd><p>
+                       List the names of all TSIG keys currently configured
+                       for use by <span><strong class="command">named</strong></span> in each view.  The
+                       list both statically configured keys and dynamic
+                       TKEY-negotiated keys.
+                     </p></dd>
+<dt><span class="term"><strong class="userinput"><code>tsig-delete</code></strong>
+                    <em class="replaceable"><code>keyname</code></em>
+                    [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span></dt>
+<dd><p>
+                       Delete a given TKEY-negotated key from the server.
+                       (This does not apply to statically configured TSIG
+                       keys.)
+                     </p></dd>
 <dt><span class="term"><strong class="userinput"><code>recursing</code></strong></span></dt>
 <dd><p>
                         Dump the list of queries <span><strong class="command">named</strong></span> is currently recursing
@@ -749,7 +764,7 @@ controls {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570009"></a>Signals</h3></div></div></div>
+<a name="id2570119"></a>Signals</h3></div></div></div>
 <p>
           Certain UNIX signals cause the name server to take specific
           actions, as described in the following table.  These signals can

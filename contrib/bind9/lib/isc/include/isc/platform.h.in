@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h.in,v 1.48.84.4 2010-06-03 23:47:49 tbox Exp $ */
+/* $Id$ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
@@ -289,6 +289,12 @@
  * Define if the platform has <strings.h>.
  */
 @ISC_PLATFORM_HAVESTRINGSH@
+
+/*
+ * Defines for the noreturn attribute.
+ */
+@ISC_PLATFORM_NORETURN_PRE@
+@ISC_PLATFORM_NORETURN_POST@
 
 /***
  ***	Windows dll support.
