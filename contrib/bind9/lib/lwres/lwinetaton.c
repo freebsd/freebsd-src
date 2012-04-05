@@ -72,7 +72,7 @@
  */
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static char rcsid[] = "$Id: lwinetaton.c,v 1.16 2007-06-19 23:47:22 tbox Exp $";
+static char rcsid[] = "$Id: lwinetaton.c,v 1.16 2007/06/19 23:47:22 tbox Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
