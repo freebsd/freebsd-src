@@ -2840,9 +2840,7 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 	umtxq_busy(&uq->uq_key);
 	umtxq_insert(uq);
 	umtxq_unlock(&uq->uq_key);
-
 	casuword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 0, 1);
-	rmb();
 	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
 	if (count != 0) {
 		umtxq_lock(&uq->uq_key);
@@ -2876,7 +2874,7 @@ static int
 do_sem_wake(struct thread *td, struct _usem *sem)
 {
 	struct umtx_key key;
-	int error, cnt, nwake;
+	int error, cnt;
 	uint32_t flags;
 
 	flags = fuword32(&sem->_flags);
@@ -2885,12 +2883,19 @@ do_sem_wake(struct thread *td, struct _usem *sem)
 	umtxq_lock(&key);
 	umtxq_busy(&key);
 	cnt = umtxq_count(&key);
-	nwake = umtxq_signal(&key, 1);
-	if (cnt <= nwake) {
-		umtxq_unlock(&key);
-		error = suword32(
-		    __DEVOLATILE(uint32_t *, &sem->_has_waiters), 0);
-		umtxq_lock(&key);
+	if (cnt > 0) {
+		umtxq_signal(&key, 1);
+		/*
+		 * Check if count is greater than 0, this means the memory is
+		 * still being referenced by user code, so we can safely
+		 * update _has_waiters flag.
+		 */
+		if (cnt == 1) {
+			umtxq_unlock(&key);
+			error = suword32(
+			    __DEVOLATILE(uint32_t *, &sem->_has_waiters), 0);
+			umtxq_lock(&key);
+		}
 	}
 	umtxq_unbusy(&key);
 	umtxq_unlock(&key);
