@@ -15,7 +15,7 @@ TOPDIR=		${DOCDIR}/bind9
 ARM=		Bv9ARM.ch01.html Bv9ARM.ch02.html Bv9ARM.ch03.html \
 		Bv9ARM.ch04.html Bv9ARM.ch05.html Bv9ARM.ch06.html \
 		Bv9ARM.ch07.html Bv9ARM.ch08.html Bv9ARM.ch09.html \
-		Bv9ARM.ch10.html Bv9ARM.html man.dig.html \
+		Bv9ARM.ch10.html Bv9ARM.html Bv9ARM.pdf man.dig.html \
 		man.dnssec-keygen.html man.dnssec-signzone.html man.host.html \
 		man.named-checkconf.html man.named-checkzone.html \
 		man.named.html man.rndc-confgen.html man.rndc.conf.html \
