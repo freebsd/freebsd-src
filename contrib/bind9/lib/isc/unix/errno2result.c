@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: errno2result.c,v 1.17 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -34,7 +34,7 @@
  * not already there.
  */
 isc_result_t
-isc__errno2result(int posixerrno) {
+isc___errno2result(int posixerrno, const char *file, unsigned int line) {
 	char strbuf[ISC_STRERRORSIZE];
 
 	switch (posixerrno) {
@@ -55,7 +55,7 @@ isc__errno2result(int posixerrno) {
 		return (ISC_R_IOERROR);
 	case ENOMEM:
 		return (ISC_R_NOMEMORY);
-	case ENFILE:	
+	case ENFILE:
 	case EMFILE:
 		return (ISC_R_TOOMANYOPENFILES);
 	case EPIPE:
@@ -108,8 +108,7 @@ isc__errno2result(int posixerrno) {
 		return (ISC_R_CONNREFUSED);
 	default:
 		isc__strerror(posixerrno, strbuf, sizeof(strbuf));
-		UNEXPECTED_ERROR(__FILE__, __LINE__,
-				 "unable to convert errno "
+		UNEXPECTED_ERROR(file, line, "unable to convert errno "
 				 "to isc_result: %d: %s",
 				 posixerrno, strbuf);
 		/*

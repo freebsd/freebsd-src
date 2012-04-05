@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.44 2010-07-09 23:46:51 tbox Exp $ -->
+<!-- $Id: nsupdate.docbook,v 1.44 2010/07/09 23:46:51 tbox Exp $ -->
 <refentry id="man.nsupdate">
   <refentryinfo>
     <date>Aug 25, 2009</date>

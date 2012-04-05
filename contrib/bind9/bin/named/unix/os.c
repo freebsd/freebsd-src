@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.104.38.3 2011-03-02 00:04:01 marka Exp $ */
+/* $Id: os.c,v 1.104.38.3 2011/03/02 00:04:01 marka Exp $ */
 
 /*! \file */
 
