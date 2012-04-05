@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.163.48.18 2011-05-23 22:24:12 each Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -174,8 +174,9 @@ typedef struct nsu_requestinfo {
 static void
 sendrequest(isc_sockaddr_t *srcaddr, isc_sockaddr_t *destaddr,
 	    dns_message_t *msg, dns_request_t **request);
-static void
-fatal(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
+ISC_PLATFORM_NORETURN_POST static void
+fatal(const char *format, ...)
+ISC_FORMAT_PRINTF(1, 2) ISC_PLATFORM_NORETURN_POST;
 
 static void
 debug(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
@@ -2165,6 +2166,7 @@ recvsoa(isc_task_t *task, isc_event_t *event) {
 		dns_message_destroy(&soaquery);
 		ddebug("Out of recvsoa");
 		done_update();
+		seenerror = ISC_TRUE;
 		return;
 	}
 

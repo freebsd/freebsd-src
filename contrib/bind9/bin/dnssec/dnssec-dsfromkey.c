@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-dsfromkey.c,v 1.2.14.6 2010-01-11 23:47:22 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -215,17 +215,15 @@ emitds(unsigned int dtype, dns_rdata_t *rdata)
 	if (result != ISC_R_SUCCESS)
 		fatal("can't print DS name");
 
-	putchar(' ');
-
 	isc_buffer_usedregion(&classb, &r);
-	isc_util_fwrite(r.base, 1, r.length, stdout);
-
-	printf(" DS ");
+	printf(" %.*s", (int)r.length, r.base);
 
 	isc_buffer_usedregion(&textb, &r);
-	isc_util_fwrite(r.base, 1, r.length, stdout);
-	putchar('\n');
+	printf(" DS %.*s\n", (int)r.length, r.base);
 }
+
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
 
 static void
 usage(void) {

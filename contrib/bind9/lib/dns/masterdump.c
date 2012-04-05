@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.94.50.10 2011-06-09 00:16:34 each Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -362,12 +362,11 @@ rdataset_totext(dns_rdataset_t *rdataset,
 
 	rdataset->attributes |= DNS_RDATASETATTR_LOADORDER;
 	result = dns_rdataset_first(rdataset);
-	REQUIRE(result == ISC_R_SUCCESS);
 
 	current_ttl = ctx->current_ttl;
 	current_ttl_valid = ctx->current_ttl_valid;
 
-	do {
+	while (result == ISC_R_SUCCESS) {
 		column = 0;
 
 		/*
@@ -485,7 +484,7 @@ rdataset_totext(dns_rdataset_t *rdataset,
 
 		first = ISC_FALSE;
 		result = dns_rdataset_next(rdataset);
-	} while (result == ISC_R_SUCCESS);
+	}
 
 	if (result != ISC_R_NOMORE)
 		return (result);
@@ -866,6 +865,7 @@ dump_rdataset_raw(isc_mem_t *mctx, dns_name_t *name, dns_rdataset_t *rdataset,
 	REQUIRE(buffer->length > 0);
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 
+	rdataset->attributes |= DNS_RDATASETATTR_LOADORDER;
  restart:
 	totallen = 0;
 	result = dns_rdataset_first(rdataset);

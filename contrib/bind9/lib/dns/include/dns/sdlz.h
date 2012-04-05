@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2005-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005-2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.h,v 1.7.332.2 2009-01-18 23:47:41 tbox Exp $ */
+/* $Id$ */
 
 /*! \file dns/sdlz.h */
 

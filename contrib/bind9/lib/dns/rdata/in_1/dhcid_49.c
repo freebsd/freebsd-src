@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dhcid_49.c,v 1.5 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id$ */
 
 /* RFC 4701 */
 
@@ -51,7 +51,7 @@ totext_in_dhcid(ARGS_TOTEXT) {
 	dns_rdata_toregion(rdata, &sr);
 
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
-		RETERR(str_totext("( " /*)*/, target)); 
+		RETERR(str_totext("( " /*)*/, target));
 	RETERR(isc_base64_totext(&sr, tctx->width - 2, tctx->linebreak,
 				 target));
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0) {

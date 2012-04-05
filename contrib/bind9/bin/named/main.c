@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.166.34.9 2011-03-12 04:57:23 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -129,6 +129,10 @@ ns_main_earlyfatal(const char *format, ...) {
 	exit(1);
 }
 
+ISC_PLATFORM_NORETURN_PRE static void
+assertion_failed(const char *file, int line, isc_assertiontype_t type,
+		 const char *cond) ISC_PLATFORM_NORETURN_POST;
+
 static void
 assertion_failed(const char *file, int line, isc_assertiontype_t type,
 		 const char *cond)
@@ -162,9 +166,10 @@ assertion_failed(const char *file, int line, isc_assertiontype_t type,
 	exit(1);
 }
 
-static void
+ISC_PLATFORM_NORETURN_PRE static void
 library_fatal_error(const char *file, int line, const char *format,
-		    va_list args) ISC_FORMAT_PRINTF(3, 0);
+		    va_list args)
+ISC_FORMAT_PRINTF(3, 0) ISC_PLATFORM_NORETURN_POST;
 
 static void
 library_fatal_error(const char *file, int line, const char *format,
@@ -685,6 +690,25 @@ setup(void) {
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "built with %s", ns_g_configargs);
+
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "----------------------------------------------------");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "BIND 9 is maintained by Internet Systems Consortium,");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "Inc. (ISC), a non-profit 501(c)(3) public-benefit ");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "corporation.  Support and training for BIND 9 are ");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "available at https://www.isc.org/support");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "----------------------------------------------------");
 
 	/*
 	 * Get the initial resource limits.

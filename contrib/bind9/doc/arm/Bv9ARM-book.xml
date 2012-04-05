@@ -2,7 +2,7 @@
               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.380.14.31 2011-05-17 05:38:32 marka Exp $ -->
+<!-- File: $Id$ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -32,6 +32,7 @@
       <year>2009</year>
       <year>2010</year>
       <year>2011</year>
+      <year>2012</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -1360,7 +1361,32 @@ zone "eng.example.com" {
                   </varlistentry>
 
                   <varlistentry>
-                    <term><userinput>recursing</userinput></term>
+                   <term><userinput>tsig-list</userinput></term>
+                   <listitem>
+                     <para>
+                       List the names of all TSIG keys currently configured
+                       for use by <command>named</command> in each view.  The
+                       list both statically configured keys and dynamic
+                       TKEY-negotiated keys.
+                     </para>
+                   </listitem>
+                 </varlistentry>
+
+                 <varlistentry>
+                  <term><userinput>tsig-delete</userinput>
+                    <replaceable>keyname</replaceable>
+                    <optional><replaceable>view</replaceable></optional></term>
+                   <listitem>
+                     <para>
+                       Delete a given TKEY-negotated key from the server.
+                       (This does not apply to statically configured TSIG
+                       keys.)
+                     </para>
+                   </listitem>
+                 </varlistentry>
+
+                 <varlistentry>
+                   <term><userinput>recursing</userinput></term>
                     <listitem>
                       <para>
                         Dump the list of queries <command>named</command> is currently recursing
@@ -1747,11 +1773,13 @@ controls {
       </para>
 
       <para>
-        When acting as a slave, <acronym>BIND</acronym> 9 will
-        attempt to use IXFR unless
-        it is explicitly disabled. For more information about disabling
-        IXFR, see the description of the <command>request-ixfr</command> clause
-        of the <command>server</command> statement.
+        When acting as a slave, <acronym>BIND</acronym> 9 will attempt
+        to use IXFR unless it is explicitly disabled via the
+        <command>request-ixfr</command> option or the use of
+        <command>ixfr-from-differences</command>.  For
+        more information about disabling IXFR, see the description
+        of the <command>request-ixfr</command> clause of the
+        <command>server</command> statement.
       </para>
     </sect1>
 
@@ -7832,7 +7860,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		<para>
 		  Specify a private RDATA type to be used when generating
 		  key signing records.  The default is
-		  <literal>65535</literal>.
+		  <literal>65534</literal>.
 		</para>
 		<para>
 		  It is expected that this parameter may be removed
@@ -8083,10 +8111,11 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	    and which queries should not be sent to the Internet's root
 	    servers.  The official servers which cover these namespaces
 	    return NXDOMAIN responses to these queries.  In particular,
-	    these cover the reverse namespace for addresses from RFC 1918 and
-	    RFC 3330.  They also include the reverse namespace for IPv6 local
-	    address (locally assigned), IPv6 link local addresses, the IPv6
-	    loopback address and the IPv6 unknown address.
+            these cover the reverse namespaces for addresses from
+            RFC 1918, RFC 4193, and RFC 5737.  They also include the
+            reverse namespace for IPv6 local address (locally assigned),
+            IPv6 link local addresses, the IPv6 loopback address and the
+            IPv6 unknown address.
 	  </para>
 	  <para>
 	    Named will attempt to determine if a built-in zone already exists
@@ -8096,7 +8125,6 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	  <para>
 	    The current list of empty zones is:
 	    <itemizedlist>
-<!-- XXX: The RFC1918 addresses are #defined out in sources currently.
 	      <listitem>10.IN-ADDR.ARPA</listitem>
 	      <listitem>16.172.IN-ADDR.ARPA</listitem>
 	      <listitem>17.172.IN-ADDR.ARPA</listitem>
@@ -8115,7 +8143,6 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	      <listitem>30.172.IN-ADDR.ARPA</listitem>
 	      <listitem>31.172.IN-ADDR.ARPA</listitem>
 	      <listitem>168.192.IN-ADDR.ARPA</listitem>
-XXX: end of RFC1918 addresses #defined out -->
 	      <listitem>0.IN-ADDR.ARPA</listitem>
 	      <listitem>127.IN-ADDR.ARPA</listitem>
 	      <listitem>254.169.IN-ADDR.ARPA</listitem>
@@ -13189,7 +13216,7 @@ $GENERATE 1-127 $ CNAME $.0</programlisting>
 // Set up an ACL named "bogusnets" that will block RFC1918 space
 // and some reserved space, which is commonly used in spoofing attacks.
 acl bogusnets {
-	0.0.0.0/8; 1.0.0.0/8; 2.0.0.0/8; 192.0.2.0/24; 224.0.0.0/3;
+	0.0.0.0/8;  192.0.2.0/24; 224.0.0.0/3;
 	10.0.0.0/8; 172.16.0.0/12; 192.168.0.0/16;
 };
 

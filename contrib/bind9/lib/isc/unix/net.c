@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.c,v 1.40 2008-07-04 05:52:31 each Exp $ */
+/* $Id: net.c,v 1.40 2008/07/04 05:52:31 each Exp $ */
 
 #include <config.h>
 

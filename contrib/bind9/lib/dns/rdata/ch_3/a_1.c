@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a_1.c,v 1.6 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id$ */
 
 /* by Bjorn.Victor@it.uu.se, 2005-05-07 */
 /* Based on generic/soa_6.c and generic/mx_15.c */
@@ -107,7 +107,7 @@ fromwire_ch_a(ARGS_FROMWIRE) {
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
 
 	dns_name_init(&name, NULL);
-	
+
 	RETERR(dns_name_fromwire(&name, source, dctx, options, target));
 
 	isc_buffer_activeregion(source, &sregion);
@@ -205,7 +205,7 @@ fromstruct_ch_a(ARGS_FROMSTRUCT) {
 
 	dns_name_toregion(&a->ch_addr_dom, &region);
 	RETERR(isc_buffer_copyregion(target, &region));
-	
+
 	return (uint16_tobuffer(ntohs(a->ch_addr), target));
 }
 

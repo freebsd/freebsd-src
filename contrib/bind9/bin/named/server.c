@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.520.12.23 2011-03-11 10:49:51 marka Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -183,7 +183,6 @@ static const struct {
 	const char	*zone;
 	isc_boolean_t	rfc1918;
 } empty_zones[] = {
-#ifdef notyet
 	/* RFC 1918 */
 	{ "10.IN-ADDR.ARPA", ISC_TRUE },
 	{ "16.172.IN-ADDR.ARPA", ISC_TRUE },
@@ -203,7 +202,6 @@ static const struct {
 	{ "30.172.IN-ADDR.ARPA", ISC_TRUE },
 	{ "31.172.IN-ADDR.ARPA", ISC_TRUE },
 	{ "168.192.IN-ADDR.ARPA", ISC_TRUE },
-#endif
 
 	/* RFC 5735 and RFC 5737 */
 	{ "0.IN-ADDR.ARPA", ISC_FALSE },	/* THIS NETWORK */
@@ -230,8 +228,8 @@ static const struct {
 	{ NULL, ISC_FALSE }
 };
 
-static void
-fatal(const char *msg, isc_result_t result);
+ISC_PLATFORM_NORETURN_POST static void
+fatal(const char *msg, isc_result_t result) ISC_PLATFORM_NORETURN_POST;
 
 static void
 ns_server_reload(isc_task_t *task, isc_event_t *event);
@@ -1026,7 +1024,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	isc_uint32_t max_cache_size;
 	isc_uint32_t max_acache_size;
 	isc_uint32_t lame_ttl;
-	dns_tsig_keyring_t *ring;
+	dns_tsig_keyring_t *ring = NULL;
 	dns_view_t *pview = NULL;	/* Production view */
 	isc_mem_t *cmctx = NULL, *hmctx = NULL;
 	dns_dispatch_t *dispatch4 = NULL;
@@ -1147,6 +1145,10 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		(void)cfg_map_get(voptions, "zone", &zonelist);
 	else
 		(void)cfg_map_get(config, "zone", &zonelist);
+
+	/*
+	 * Load zone configuration
+	 */
 	for (element = cfg_list_first(zonelist);
 	     element != NULL;
 	     element = cfg_list_next(element))
@@ -1490,9 +1492,9 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	/*
 	 * Configure the view's TSIG keys.
 	 */
-	ring = NULL;
 	CHECK(ns_tsigkeyring_fromconfig(config, vconfig, view->mctx, &ring));
 	dns_view_setkeyring(view, ring);
+	ring = NULL;		/* ownership transferred */
 
 	/*
 	 * Configure the view's peer list.
@@ -1856,7 +1858,7 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		rfc1918 = ISC_FALSE;
 		empty_zones_enable = ISC_FALSE;
 	}
-	if (empty_zones_enable) {
+	if (empty_zones_enable && !lwresd_g_useresolvconf) {
 		const char *empty;
 		int empty_zone = 0;
 		dns_fixedname_t fixed;
@@ -2021,6 +2023,8 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	result = ISC_R_SUCCESS;
 
  cleanup:
+	if (ring != NULL)
+		dns_tsigkeyring_destroy(&ring);
 	if (zone != NULL)
 		dns_zone_detach(&zone);
 	if (dispatch4 != NULL)
@@ -2245,6 +2249,61 @@ configure_forward(const cfg_obj_t *config, dns_view_t *view, dns_name_t *origin,
 	return (result);
 }
 
+static isc_result_t
+get_viewinfo(const cfg_obj_t *vconfig, const char **namep,
+	     dns_rdataclass_t *classp)
+{
+	isc_result_t result = ISC_R_SUCCESS;
+	const char *viewname;
+	dns_rdataclass_t viewclass;
+
+	REQUIRE(namep != NULL && *namep == NULL);
+	REQUIRE(classp != NULL);
+
+	if (vconfig != NULL) {
+		const cfg_obj_t *classobj = NULL;
+
+		viewname = cfg_obj_asstring(cfg_tuple_get(vconfig, "name"));
+		classobj = cfg_tuple_get(vconfig, "class");
+		result = ns_config_getclass(classobj, dns_rdataclass_in,
+					    &viewclass);
+	} else {
+		viewname = "_default";
+		viewclass = dns_rdataclass_in;
+	}
+
+	*namep = viewname;
+	*classp = viewclass;
+
+	return (result);
+}
+
+/*
+ * Find a view based on its configuration info and attach to it.
+ *
+ * If 'vconfig' is NULL, attach to the default view.
+ */
+static isc_result_t
+find_view(const cfg_obj_t *vconfig, dns_viewlist_t *viewlist,
+	  dns_view_t **viewp)
+{
+	isc_result_t result;
+	const char *viewname = NULL;
+	dns_rdataclass_t viewclass;
+	dns_view_t *view = NULL;
+
+	result = get_viewinfo(vconfig, &viewname, &viewclass);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = dns_viewlist_find(viewlist, viewname, viewclass, &view);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	*viewp = view;
+	return (ISC_R_SUCCESS);
+}
+
 /*
  * Create a new view and add it to the list.
  *
@@ -2257,22 +2316,14 @@ create_view(const cfg_obj_t *vconfig, dns_viewlist_t *viewlist,
 	    dns_view_t **viewp)
 {
 	isc_result_t result;
-	const char *viewname;
+	const char *viewname = NULL;
 	dns_rdataclass_t viewclass;
 	dns_view_t *view = NULL;
 
-	if (vconfig != NULL) {
-		const cfg_obj_t *classobj = NULL;
+	result = get_viewinfo(vconfig, &viewname, &viewclass);
+	if (result != ISC_R_SUCCESS)
+		return (result);
 
-		viewname = cfg_obj_asstring(cfg_tuple_get(vconfig, "name"));
-		classobj = cfg_tuple_get(vconfig, "class");
-		result = ns_config_getclass(classobj, dns_rdataclass_in,
-					    &viewclass);
-		INSIST(result == ISC_R_SUCCESS);
-	} else {
-		viewname = "_default";
-		viewclass = dns_rdataclass_in;
-	}
 	result = dns_viewlist_find(viewlist, viewname, viewclass, &view);
 	if (result == ISC_R_SUCCESS)
 		return (ISC_R_EXISTS);
@@ -2923,6 +2974,23 @@ removed(dns_zone_t *zone, void *uap) {
 	return (ISC_R_SUCCESS);
 }
 
+static int
+count_zones(const cfg_obj_t *conf) {
+	const cfg_obj_t *zonelist = NULL;
+	const cfg_listelt_t *element;
+	int n = 0;
+
+	REQUIRE(conf != NULL);
+
+	cfg_map_get(conf, "zone", &zonelist);
+	for (element = cfg_list_first(zonelist);
+	     element != NULL;
+	     element = cfg_list_next(element))
+		n++;
+
+	return (n);
+}
+
 static isc_result_t
 load_configuration(const char *filename, ns_server_t *server,
 		   isc_boolean_t first_time)
@@ -2953,13 +3021,11 @@ load_configuration(const char *filename, ns_server_t *server,
 	isc_uint32_t reserved;
 	isc_uint32_t udpsize;
 	unsigned int maxsocks;
+	int num_zones = 0;
+	isc_boolean_t exclusive = ISC_FALSE;
 
 	cfg_aclconfctx_init(&aclconfctx);
 	ISC_LIST_INIT(viewlist);
-
-	/* Ensure exclusive access to configuration data. */
-	result = isc_task_beginexclusive(server->task);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
 	/*
 	 * Parse the global default pseudo-config file.
@@ -3026,6 +3092,13 @@ load_configuration(const char *filename, ns_server_t *server,
 		maps[i++] = options;
 	maps[i++] = ns_g_defaults;
 	maps[i] = NULL;
+
+	/* Ensure exclusive access to configuration data. */
+	if (!exclusive) {
+		result = isc_task_beginexclusive(server->task);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
+		exclusive = ISC_TRUE;
+	}
 
 	/*
 	 * Set process limits, which (usually) needs to be done as root.
@@ -3324,24 +3397,72 @@ load_configuration(const char *filename, ns_server_t *server,
 	CHECK(isc_timer_reset(server->pps_timer, isc_timertype_ticker, NULL,
 			      &interval, ISC_FALSE));
 
-	/*
-	 * Configure and freeze all explicit views.  Explicit
-	 * views that have zones were already created at parsing
-	 * time, but views with no zones must be created here.
-	 */
 	views = NULL;
 	(void)cfg_map_get(config, "view", &views);
+
+	/*
+	 * Create the views and count all the configured zones in
+	 * order to correctly size the zone manager's task table.
+	 * (We only count zones for configured views; the built-in
+	 * "bind" view can be ignored as it only adds a negligible
+	 * number of zones.)
+	 *
+	 * If we're allowing new zones, we need to be able to find the
+	 * new zone file and count those as well.  So we setup the new
+	 * zone configuration context, but otherwise view configuration
+	 * waits until after the zone manager's task list has been sized.
+	 */
 	for (element = cfg_list_first(views);
 	     element != NULL;
 	     element = cfg_list_next(element))
 	{
 		const cfg_obj_t *vconfig = cfg_listelt_value(element);
+		const cfg_obj_t *voptions = cfg_tuple_get(vconfig, "options");
 		view = NULL;
 
 		CHECK(create_view(vconfig, &viewlist, &view));
 		INSIST(view != NULL);
+
+		num_zones += count_zones(voptions);
+		dns_view_detach(&view);
+	}
+
+	/*
+	 * If there were no explicit views then we do the default
+	 * view here.
+	 */
+	if (views == NULL) {
+		CHECK(create_view(NULL, &viewlist, &view));
+		INSIST(view != NULL);
+
+		num_zones = count_zones(config);
+		dns_view_detach(&view);
+	}
+
+	/*
+	 * Zones have been counted; set the zone manager task pool size.
+	 */
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+		      NS_LOGMODULE_SERVER, ISC_LOG_INFO,
+		      "sizing zone task pool based on %d zones", num_zones);
+	CHECK(dns_zonemgr_setsize(ns_g_server->zonemgr, num_zones));
+
+	/*
+	 * Configure and freeze all explicit views.  Explicit
+	 * views that have zones were already created at parsing
+	 * time, but views with no zones must be created here.
+	 */
+	for (element = cfg_list_first(views);
+	     element != NULL;
+	     element = cfg_list_next(element))
+	{
+		const cfg_obj_t *vconfig = cfg_listelt_value(element);
+
+		view = NULL;
+		CHECK(find_view(vconfig, &viewlist, &view));
 		CHECK(configure_view(view, config, vconfig,
 				     ns_g_mctx, &aclconfctx, ISC_TRUE));
+
 		dns_view_freeze(view);
 		dns_view_detach(&view);
 	}
@@ -3357,7 +3478,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		 * of zone statements, or we may have to create one.
 		 * In either case, we need to configure and freeze it.
 		 */
-		CHECK(create_view(NULL, &viewlist, &view));
+		CHECK(find_view(NULL, &viewlist, &view));
 		CHECK(configure_view(view, config, NULL, ns_g_mctx,
 				     &aclconfctx, ISC_TRUE));
 		dns_view_freeze(view);
@@ -3690,7 +3811,8 @@ load_configuration(const char *filename, ns_server_t *server,
 		adjust_interfaces(server, ns_g_mctx);
 
 	/* Relinquish exclusive access to configuration data. */
-	isc_task_endexclusive(server->task);
+	if (exclusive)
+		isc_task_endexclusive(server->task);
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
 		      ISC_LOG_DEBUG(1), "load_configuration: %s",
@@ -3955,6 +4077,8 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 	CHECKFATAL(dns_zonemgr_create(ns_g_mctx, ns_g_taskmgr, ns_g_timermgr,
 				      ns_g_socketmgr, &server->zonemgr),
 		   "dns_zonemgr_create");
+	CHECKFATAL(dns_zonemgr_setsize(server->zonemgr, 1000),
+		   "dns_zonemgr_setsize");
 
 	server->statsfile = isc_mem_strdup(server->mctx, "named.stats");
 	CHECKFATAL(server->statsfile == NULL ? ISC_R_NOMEMORY : ISC_R_SUCCESS,
@@ -4044,7 +4168,8 @@ ns_server_destroy(ns_server_t **serverp) {
 	if (server->server_id != NULL)
 		isc_mem_free(server->mctx, server->server_id);
 
-	dns_zonemgr_detach(&server->zonemgr);
+	if (server->zonemgr != NULL)
+		dns_zonemgr_detach(&server->zonemgr);
 
 	if (server->tkeyctx != NULL)
 		dns_tkeyctx_destroy(&server->tkeyctx);

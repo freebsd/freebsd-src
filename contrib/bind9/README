@@ -42,6 +42,17 @@ BIND 9
 		Stichting NLnet - NLnet Foundation
 		Nominum, Inc.
 
+	For a detailed list of user-visible changes from
+	previous releases, see the CHANGES file.
+
+        For up-to-date release notes and errata, see
+        http://www.isc.org/software/bind9/releasenotes
+
+BIND 9.6-ESV-R6 (Extended Support Version)
+
+	BIND 9.6-ESV-R6 includes a number of bug fixes and prevents a
+	security problem described in CVE-2011-4313
+
 BIND 9.6-ESV-R5 (Extended Support Version)
 
 	BIND 9.4-ESV-R5 is a maintenance release, fixing bugs in BIND
@@ -406,9 +417,6 @@ BIND 9.2.0
 	A bug in some versions of the Microsoft DNS server can cause zone
         transfers from a BIND 9 server to a W2K server to fail.  For details,
 	see the "Zone Transfers" section in doc/misc/migration.
-
-	For a detailed list of user-visible changes from
-	previous releases, see the CHANGES file.
 
 
 Building

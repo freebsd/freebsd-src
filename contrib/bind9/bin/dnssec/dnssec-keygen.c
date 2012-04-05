@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2008, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2008, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-keygen.c,v 1.81.48.4 2011-03-12 04:57:23 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -71,6 +71,9 @@ static isc_boolean_t
 dsa_size_ok(int size) {
 	return (ISC_TF(size >= 512 && size <= 1024 && size % 64 == 0));
 }
+
+ISC_PLATFORM_NORETURN_PRE static void
+usage(void) ISC_PLATFORM_NORETURN_POST;
 
 static void
 usage(void) {
@@ -124,7 +127,8 @@ usage(void) {
 
 int
 main(int argc, char **argv) {
-	char		*algname = NULL, *nametype = NULL, *type = NULL;
+	char		*algname = NULL, *freeit = NULL;
+	char		*nametype = NULL, *type = NULL;
 	char		*classname = NULL;
 	char		*endp;
 	dst_key_t	*key = NULL, *oldkey;
@@ -551,6 +555,9 @@ main(int argc, char **argv) {
 	if (verbose > 10)
 		isc_mem_stats(mctx, stdout);
 	isc_mem_destroy(&mctx);
+
+	if (freeit != NULL)
+		free(freeit);
 
 	return (0);
 }

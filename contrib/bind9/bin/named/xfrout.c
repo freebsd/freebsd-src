@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.131.26.6 2010-05-27 23:48:18 tbox Exp $ */
+/* $Id$ */
 
 #include <config.h>
 
@@ -1259,9 +1259,9 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 
 	CHECK(xfr->stream->methods->first(xfr->stream));
 
-	if (xfr->tsigkey != NULL) {
+	if (xfr->tsigkey != NULL)
 		dns_name_format(&xfr->tsigkey->name, keyname, sizeof(keyname));
-	} else
+	else
 		keyname[0] = '\0';
 	if (is_poll)
 		xfrout_log1(client, question_name, question_class,
@@ -1331,7 +1331,8 @@ xfrout_ctx_create(isc_mem_t *mctx, ns_client_t *client, unsigned int id,
 	xfr = isc_mem_get(mctx, sizeof(*xfr));
 	if (xfr == NULL)
 		return (ISC_R_NOMEMORY);
-	xfr->mctx = mctx;
+	xfr->mctx = NULL;
+	isc_mem_attach(mctx, &xfr->mctx);
 	xfr->client = NULL;
 	ns_client_attach(client, &xfr->client);
 	xfr->id = id;
@@ -1481,6 +1482,13 @@ sendstream(xfrout_ctx_t *xfr) {
 			isc_buffer_free(&xfr->lasttsig);
 
 		/*
+		 * Account for reserved space.
+		 */
+		if (xfr->tsigkey != NULL)
+			INSIST(msg->reserved != 0U);
+		isc_buffer_add(&xfr->buf, msg->reserved);
+
+		/*
 		 * Include a question section in the first message only.
 		 * BIND 8.2.1 will not recognize an IXFR if it does not
 		 * have a question section.
@@ -1518,9 +1526,13 @@ sendstream(xfrout_ctx_t *xfr) {
 			ISC_LIST_APPEND(qname->list, qrdataset, link);
 
 			dns_message_addname(msg, qname, DNS_SECTION_QUESTION);
-		}
-		else
+		} else {
+			/*
+			 * Reserve space for the 12-byte message header
+			 */
+			isc_buffer_add(&xfr->buf, 12);
 			msg->tcp_continuation = 1;
+		}
 	}
 
 	/*
@@ -1705,6 +1717,7 @@ sendstream(xfrout_ctx_t *xfr) {
 static void
 xfrout_ctx_destroy(xfrout_ctx_t **xfrp) {
 	xfrout_ctx_t *xfr = *xfrp;
+	ns_client_t *client = NULL;
 
 	INSIST(xfr->sends == 0);
 
@@ -1728,9 +1741,14 @@ xfrout_ctx_destroy(xfrout_ctx_t **xfrp) {
 	if (xfr->db != NULL)
 		dns_db_detach(&xfr->db);
 
+	/*
+	 * We want to detch the client after we have released the memory
+	 * context as ns_client_detach checks the memory reference count.
+	 */
+	ns_client_attach(xfr->client, &client);
 	ns_client_detach(&xfr->client);
-
-	isc_mem_put(xfr->mctx, xfr, sizeof(*xfr));
+	isc_mem_putanddetach(&xfr->mctx, xfr, sizeof(*xfr));
+	ns_client_detach(&client);
 
 	*xfrp = NULL;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: heap.c,v 1.37.240.5 2011-03-03 23:46:02 tbox Exp $ */
+/* $Id$ */
 
 /*! \file
  * Heap implementation of priority queues adapted from the following:

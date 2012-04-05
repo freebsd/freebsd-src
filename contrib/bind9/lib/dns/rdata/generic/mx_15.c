@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mx_15.c,v 1.56 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id$ */
 
 /* reviewed: Wed Mar 15 18:05:46 PST 2000 by brister */
 
@@ -120,7 +120,7 @@ totext_mx(ARGS_TOTEXT) {
 
 static inline isc_result_t
 fromwire_mx(ARGS_FROMWIRE) {
-        dns_name_t name;
+	dns_name_t name;
 	isc_region_t sregion;
 
 	REQUIRE(type == 15);
@@ -130,7 +130,7 @@ fromwire_mx(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_GLOBAL14);
 
-        dns_name_init(&name, NULL);
+	dns_name_init(&name, NULL);
 
 	isc_buffer_activeregion(source, &sregion);
 	if (sregion.length < 2)
