@@ -100,6 +100,18 @@ SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
 
+static void
+clear_orphan(struct proc *p)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if (p->p_flag & P_ORPHAN) {
+		LIST_REMOVE(p, p_orphan);
+		p->p_flag &= ~P_ORPHAN;
+	}
+}
+
 /*
  * exit -- death of process.
  */
@@ -739,10 +751,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	sx_xunlock(&allproc_lock);
 	LIST_REMOVE(p, p_sibling);
 	PROC_LOCK(p);
-	if (p->p_flag & P_ORPHAN) {
-		LIST_REMOVE(p, p_orphan);
-		p->p_flag &= ~P_ORPHAN;
-	}
+	clear_orphan(p);
 	PROC_UNLOCK(p);
 	leavepgrp(p);
 #ifdef PROCDESC
@@ -987,10 +996,7 @@ proc_reparent(struct proc *child, struct proc *parent)
 	LIST_REMOVE(child, p_sibling);
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 
-	if (child->p_flag & P_ORPHAN) {
-		LIST_REMOVE(child, p_orphan);
-		child->p_flag &= ~P_ORPHAN;
-	}
+	clear_orphan(child);
 	if (child->p_flag & P_TRACED) {
 		LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child, p_orphan);
 		child->p_flag |= P_ORPHAN;
