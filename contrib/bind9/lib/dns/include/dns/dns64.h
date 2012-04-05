@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dns64.h,v 1.3 2010-12-08 23:51:56 tbox Exp $ */
+/* $Id: dns64.h,v 1.3 2010/12/08 23:51:56 tbox Exp $ */
 
 #ifndef DNS_DNS64_H
 #define DNS_DNS64_H 1

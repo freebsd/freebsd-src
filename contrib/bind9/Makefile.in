@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.58.250.2 2011-02-28 01:19:57 tbox Exp $
+# $Id: Makefile.in,v 1.58.250.4 2011/09/06 04:06:11 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -64,8 +64,10 @@ tags:
 check: test
 
 test:
-	(cd bin/tests && ${MAKE} ${MAKEDEFS} test)
-	(test -f unit/unittest.sh && $(SHELL) unit/unittest.sh)
+	status=0; \
+	(cd bin/tests && ${MAKE} ${MAKEDEFS} test) || status=1; \
+	(test -f unit/unittest.sh && $(SHELL) unit/unittest.sh) || status=1; \
+	exit $$status
 
 FAQ: FAQ.xml
 	${XSLTPROC} doc/xsl/isc-docbook-text.xsl FAQ.xml | \

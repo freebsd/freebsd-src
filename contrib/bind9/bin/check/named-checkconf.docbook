@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkconf.docbook,v 1.22 2009-12-28 23:21:16 each Exp $ -->
+<!-- $Id: named-checkconf.docbook,v 1.22 2009/12/28 23:21:16 each Exp $ -->
 <refentry id="man.named-checkconf">
   <refentryinfo>
     <date>June 14, 2000</date>
