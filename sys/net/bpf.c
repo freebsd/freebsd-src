@@ -1595,10 +1595,10 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #ifdef BPF_JITTER
 	bpf_jit_filter *ofunc;
 #endif
+	int need_upgrade;
 #ifdef COMPAT_FREEBSD32
 	struct bpf_program32 *fp32;
 	struct bpf_program fp_swab;
-	int need_upgrade = 0;
 
 	if (cmd == BIOCSETWF32 || cmd == BIOCSETF32 || cmd == BIOCSETFNR32) {
 		fp32 = (struct bpf_program32 *)fp;
@@ -1655,6 +1655,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	if (flen > bpf_maxinsns)
 		return (EINVAL);
 
+	need_upgrade = 0;
 	size = flen * sizeof(*fp->bf_insns);
 	fcode = (struct bpf_insn *)malloc(size, M_BPF, M_WAITOK);
 	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
