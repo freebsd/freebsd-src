@@ -140,7 +140,7 @@ balloon_retrieve(void)
 	STAILQ_REMOVE_HEAD(&ballooned_pages, list);
 
 	page = entry->page;
-	free(entry, M_DEVBUF);
+	free(entry, M_BALLOON);
 	
 	bs.balloon_low--;
 
