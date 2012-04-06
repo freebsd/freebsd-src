@@ -284,8 +284,6 @@ static struct	pvo_entry *moea64_pvo_find_va(pmap_t, vm_offset_t);
 /*
  * Utility routines.
  */
-static void		moea64_enter_locked(mmu_t, pmap_t, vm_offset_t,
-			    vm_page_t, vm_prot_t, boolean_t);
 static boolean_t	moea64_query_bit(mmu_t, vm_page_t, u_int64_t);
 static u_int		moea64_clear_bit(mmu_t, vm_page_t, u_int64_t);
 static void		moea64_kremove(mmu_t, vm_offset_t);
@@ -1168,28 +1166,9 @@ moea64_zero_page_idle(mmu_t mmu, vm_page_t m)
  * target pmap with the protection requested.  If specified the page
  * will be wired down.
  */
+
 void
 moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, 
-    vm_prot_t prot, boolean_t wired)
-{
-
-	LOCK_TABLE_WR();
-	PMAP_LOCK(pmap);
-	moea64_enter_locked(mmu, pmap, va, m, prot, wired);
-	UNLOCK_TABLE_WR();
-	PMAP_UNLOCK(pmap);
-}
-
-/*
- * Map the given physical page at the specified virtual address in the
- * target pmap with the protection requested.  If specified the page
- * will be wired down.
- *
- * The table (write) and pmap must be locked.
- */
-
-static void
-moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
 	struct		pvo_head *pvo_head;
@@ -1211,10 +1190,9 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pvo_flags = PVO_MANAGED;
 	}
 
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
 	    VM_OBJECT_LOCKED(m->object),
-	    ("moea64_enter_locked: page %p is not busy", m));
+	    ("moea64_enter: page %p is not busy", m));
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
@@ -1239,8 +1217,12 @@ moea64_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if (wired)
 		pvo_flags |= PVO_WIRED;
 
+	LOCK_TABLE_WR();
+	PMAP_LOCK(pmap);
 	error = moea64_pvo_enter(mmu, pmap, zone, pvo_head, va,
 	    VM_PAGE_TO_PHYS(m), pte_lo, pvo_flags);
+	PMAP_UNLOCK(pmap);
+	UNLOCK_TABLE_WR();
 
 	/*
 	 * Flush the page from the instruction cache if this page is
@@ -1311,15 +1293,11 @@ moea64_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 
 	psize = atop(end - start);
 	m = m_start;
-	LOCK_TABLE_WR();
-	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		moea64_enter_locked(mmu, pm, start + ptoa(diff), m, prot &
+		moea64_enter(mmu, pm, start + ptoa(diff), m, prot &
 		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
 		m = TAILQ_NEXT(m, listq);
 	}
-	UNLOCK_TABLE_WR();
-	PMAP_UNLOCK(pm);
 }
 
 void
@@ -1327,12 +1305,8 @@ moea64_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
     vm_prot_t prot)
 {
 
-	LOCK_TABLE_WR();
-	PMAP_LOCK(pm);
-	moea64_enter_locked(mmu, pm, va, m,
+	moea64_enter(mmu, pm, va, m,
 	    prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
-	UNLOCK_TABLE_WR();
-	PMAP_UNLOCK(pm);
 }
 
 vm_paddr_t
