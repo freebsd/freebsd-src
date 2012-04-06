@@ -57,12 +57,13 @@ xmalloc(size_t size)
 }
 
 char *
-xstrdup(const char *s)
+xstrdup(const char *str)
 {
-    char *p = strdup(s);
-    if (p == NULL) {
-	 rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
-	 _exit(1);
-    }
-    return p;
+	char *copy;
+	size_t len;
+
+	len = strlen(str) + 1;
+	copy = xmalloc(len);
+	memcpy(copy, str, len);
+	return (copy);
 }
