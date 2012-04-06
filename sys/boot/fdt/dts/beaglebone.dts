@@ -82,7 +82,14 @@
 				"MII1_RXD1", "gmii1_rxd1",  "input",
 				"MII1_RXD0", "gmii1_rxd0",  "input",
 				"MDIO", "mdio_data", "input_pullup_inact",
-				"MDC", "mdio_clk", "output_pullup";
+				"MDC", "mdio_clk", "output_pullup",
+				/* MMCSD0 */
+				"MMC0_CMD", "mmc0_cmd", "input_pullup_inact",
+				"MMC0_CLK", "mmc0_clk", "input_pullup_inact",
+				"MMC0_DAT0", "mmc0_dat0", "input_pullup_inact",
+				"MMC0_DAT1", "mmc0_dat1", "input_pullup_inact",
+				"MMC0_DAT2", "mmc0_dat2", "input_pullup_inact",
+				"MMC0_DAT3", "mmc0_dat3", "input_pullup_inact";
 		};
 
 		prcm@44E00000 {
@@ -118,6 +125,7 @@
 				0x481AE000 0x1000 >;
 			interrupts = < 17 19 21 23 >;
 			interrupt-parent = <&AINTC>;
+			mmchs-device-id = <0>;
 		};
 
 

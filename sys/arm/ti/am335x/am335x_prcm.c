@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_CPGMAC0_CLKCTRL		(CM_PER + 0x014)
 #define CM_PER_USB0_CLKCTRL		(CM_PER + 0x01C)
 #define CM_PER_TPTC0_CLKCTRL		(CM_PER + 0x024)
+#define CM_PER_MMC0_CLKCTRL		(CM_PER + 0x03C)
 #define CM_PER_I2C2_CLKCTRL		(CM_PER + 0x044)
 #define CM_PER_I2C1_CLKCTRL		(CM_PER + 0x048)
 #define CM_PER_TIMER7_CLKCTRL		(CM_PER + 0x07C)
@@ -75,6 +76,8 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_L3_CLKCTRL		(CM_PER + 0x0E0)
 #define CM_PER_TIMER5_CLKCTRL		(CM_PER + 0x0EC)
 #define CM_PER_TIMER6_CLKCTRL		(CM_PER + 0x0F0)
+#define CM_PER_MMC1_CLKCTRL		(CM_PER + 0x0F4)
+#define CM_PER_MMC2_CLKCTRL		(CM_PER + 0x0F8)
 #define CM_PER_TPTC1_CLKCTRL		(CM_PER + 0x0FC)
 #define CM_PER_TPTC2_CLKCTRL		(CM_PER + 0x100)
 #define CM_PER_OCPWP_L3_CLKSTCTRL	(CM_PER + 0x12C)
@@ -117,6 +120,7 @@ static struct am335x_prcm_softc *am335x_prcm_sc = NULL;
 static int am335x_clk_generic_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int am335x_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,  unsigned int *freq);
 static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static int am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static void am335x_prcm_reset(void);
@@ -130,6 +134,15 @@ static int am335x_clk_musb0_activate(struct ti_clock_dev *clkdev);
 		.clk_set_source = am335x_clk_generic_set_source, \
 		.clk_accessible = NULL, \
 		.clk_get_source_freq = NULL \
+	}
+
+#define AM335X_MMCHS_CLOCK_DEV(i) \
+	{	.id = (i), \
+		.clk_activate = am335x_clk_generic_activate, \
+		.clk_deactivate = am335x_clk_generic_deactivate, \
+		.clk_set_source = am335x_clk_generic_set_source, \
+		.clk_accessible = NULL, \
+		.clk_get_source_freq = am335x_clk_hsmmc_get_source_freq \
 	}
 
 struct ti_clock_dev ti_clk_devmap[] = {
@@ -192,6 +205,11 @@ struct ti_clock_dev ti_clk_devmap[] = {
 	AM335X_GENERIC_CLOCK_DEV(EDMA_TPTC1_CLK),
 	AM335X_GENERIC_CLOCK_DEV(EDMA_TPTC2_CLK),
 
+	/* MMCHS */
+	AM335X_MMCHS_CLOCK_DEV(MMC0_CLK),
+	AM335X_MMCHS_CLOCK_DEV(MMC1_CLK),
+	AM335X_MMCHS_CLOCK_DEV(MMC2_CLK),
+
 	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
 
@@ -234,6 +252,11 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 	_CLK_DETAIL(EDMA_TPTC1_CLK, CM_PER_TPTC1_CLKCTRL, 0),
 	_CLK_DETAIL(EDMA_TPTC2_CLK, CM_PER_TPTC2_CLKCTRL, 0),
 
+	/* MMCHS modules*/
+	_CLK_DETAIL(MMC0_CLK, CM_PER_MMC0_CLKCTRL, 0),
+	_CLK_DETAIL(MMC1_CLK, CM_PER_MMC1_CLKCTRL, 0),
+	_CLK_DETAIL(MMC2_CLK, CM_PER_MMC1_CLKCTRL, 0),
+
 	{ INVALID_CLK_IDENT, 0},
 };
 
@@ -248,9 +271,6 @@ void am335x_prcm_setup_dmtimer(int);
 static int
 am335x_prcm_probe(device_t dev)
 {
-	struct	am335x_prcm_softc *sc;
-	sc = (struct am335x_prcm_softc *)device_get_softc(dev);
-
 	if (ofw_bus_is_compatible(dev, "am335x,prcm")) {
 		device_set_desc(dev, "AM335x Power and Clock Management");
 		return(BUS_PROBE_DEFAULT);
@@ -395,6 +415,13 @@ am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
 	while ((prcm_read_4(clk_details->clksel_reg) & 0x3) != reg)
 		DELAY(10);
 
+	return (0);
+}
+
+static int
+am335x_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,  unsigned int *freq)
+{
+	*freq = 96000000;
 	return (0);
 }
 
