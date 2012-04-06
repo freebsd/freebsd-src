@@ -53,7 +53,8 @@ typedef enum {
 	MPU_CLK = 20,
 
 	/* MMC modules */
-	MMC1_CLK = 100,
+	MMC0_CLK = 100,
+	MMC1_CLK,
 	MMC2_CLK,
 	MMC3_CLK,
 	MMC4_CLK,

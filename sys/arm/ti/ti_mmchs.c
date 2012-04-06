@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
  */
 struct ti_mmchs_softc {
 	device_t		sc_dev;
+	uint32_t		device_id;
 	struct resource*	sc_irq_res;
 	struct resource*	sc_mem_res;
 
@@ -1240,7 +1241,7 @@ ti_mmchs_hw_init(device_t dev)
 	uint32_t con;
 
 	/* 1: Enable the controller and interface/functional clocks */
-	clk = MMC1_CLK + device_get_unit(dev);
+	clk = MMC0_CLK + sc->device_id;
 
 	if (ti_prcm_clk_enable(clk) != 0) {
 		device_printf(dev, "Error: failed to enable MMC clock\n");
@@ -1322,17 +1323,7 @@ ti_mmchs_hw_fini(device_t dev)
 	ti_mmchs_write_4(sc, MMCHS_IE, 0x00000000);
 
 	/* Disable the functional and interface clocks */
-	switch (device_get_unit(dev)) {
-		case 0:
-			ti_prcm_clk_disable(MMC1_CLK);
-			break;
-		case 1:
-			ti_prcm_clk_disable(MMC2_CLK);
-			break;
-		case 2:
-			ti_prcm_clk_disable(MMC3_CLK);
-			break;
-	}
+	ti_prcm_clk_disable(MMC0_CLK + sc->device_id);
 }
 
 /**
@@ -1351,39 +1342,35 @@ static int
 ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 {
 	int err;
-	int unit;
 	uint32_t rev;
 	int dma_rx_trig = -1;
 	int dma_tx_trig = -1;
 
-	/* Get the device unit number, needed for getting the DMA trigger number */
-	unit = device_get_unit(sc->sc_dev);
-
 	/* Get the current chip revision */
 	rev = ti_revision();
-	if ((OMAP_REV_DEVICE(rev) != OMAP4430_DEV) && (unit > 2))
+	if ((OMAP_REV_DEVICE(rev) != OMAP4430_DEV) && (sc->device_id > 3))
 		return(-EINVAL);
 
 	/* Get the DMA MMC triggers */
-	switch (unit) {
-		case 0:
+	switch (sc->device_id) {
+		case 1:
 			dma_tx_trig = 60;
 			dma_rx_trig = 61;
 			break;
-		case 1:
+		case 2:
 			dma_tx_trig = 46;
 			dma_rx_trig = 47;
 			break;
-		case 2:
+		case 3:
 			dma_tx_trig = 76;
 			dma_rx_trig = 77;
 			break;
 		/* The following are OMAP4 only */
-		case 3:
+		case 4:
 			dma_tx_trig = 56;
 			dma_rx_trig = 57;
 			break;
-		case 4:
+		case 5:
 			dma_tx_trig = 58;
 			dma_rx_trig = 59;
 			break;
@@ -1577,11 +1564,21 @@ ti_mmchs_attach(device_t dev)
 {
 	struct ti_mmchs_softc *sc = device_get_softc(dev);
 	int unit = device_get_unit(dev);
+	phandle_t node;
+	pcell_t did;
 	int err;
 	device_t child;
 
 	/* Save the device and bus tag */
 	sc->sc_dev = dev;
+
+	/* Get the mmchs device id from FDT */
+	node = ofw_bus_get_node(dev);
+	if ((OF_getprop(node, "mmchs-device-id", &did, sizeof(did))) <= 0) {
+	    device_printf(dev, "missing mmchs-device-id attribute in FDT\n");
+		return (ENXIO);
+	}
+	sc->device_id = fdt32_to_cpu(did);
 
 	/* Initiate the mtex lock */
 	TI_MMCHS_LOCK_INIT(sc);
@@ -1591,6 +1588,7 @@ ti_mmchs_attach(device_t dev)
 	sc->sc_dmach_wr = (unsigned int)-1;
 
 	/* Get the hint'ed write detect pin */
+	/* TODO: take this from FDT */
 	if (resource_int_value("ti_mmchs", unit, "wp_gpio", &sc->sc_wp_gpio_pin) != 0){
 		sc->sc_wp_gpio_pin = -1;
 	} else {

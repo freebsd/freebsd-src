@@ -170,6 +170,7 @@
 			reg =<0x4809C000 0x1000 >;
 			interrupts = <115>;
 			interrupt-parent = <&GIC>;
+			mmchs-device-id = <1>;
 		};
 
 	};
