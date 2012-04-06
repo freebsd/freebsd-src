@@ -1976,6 +1976,52 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * This sysctl allows a process to set and retrieve binary osreldate of
+ * another process.
+ */
+static int
+sysctl_kern_proc_osrel(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	int flags, error, osrel;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	if (req->newptr != NULL && req->newlen != sizeof(osrel))
+		return (EINVAL);
+
+	flags = PGET_HOLD | PGET_NOTWEXIT;
+	if (req->newptr != NULL)
+		flags |= PGET_CANDEBUG;
+	else
+		flags |= PGET_CANSEE;
+	error = pget((pid_t)name[0], flags, &p);
+	if (error != 0)
+		return (error);
+
+	error = SYSCTL_OUT(req, &p->p_osrel, sizeof(p->p_osrel));
+	if (error != 0)
+		goto errout;
+
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &osrel, sizeof(osrel));
+		if (error != 0)
+			goto errout;
+		if (osrel < 0) {
+			error = EINVAL;
+			goto errout;
+		}
+		p->p_osrel = osrel;
+	}
+errout:
+	PRELE(p);
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2063,3 +2109,7 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD |
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_GROUPS, groups, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_groups, "Process groups");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OSREL, osrel, CTLFLAG_RW |
+	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_osrel,
+	"Process binary osreldate");
