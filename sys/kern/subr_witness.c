@@ -563,8 +563,8 @@ static struct witness_order_list_entry order_lists[] = {
 	 * BPF
 	 */
 	{ "bpf global lock", &lock_class_mtx_sleep },
-	{ "bpf interface lock", &lock_class_mtx_sleep },
-	{ "bpf cdev lock", &lock_class_mtx_sleep },
+	{ "bpf interface lock", &lock_class_rw },
+	{ "bpf cdev lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*
 	 * NFS server
