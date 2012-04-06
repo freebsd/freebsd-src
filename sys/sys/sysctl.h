@@ -564,6 +564,7 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	KERN_PROC_RLIMIT	37	/* process resource limits */
 #define	KERN_PROC_PS_STRINGS	38	/* get ps_strings location */
 #define	KERN_PROC_UMASK		39	/* process umask */
+#define	KERN_PROC_OSREL		40	/* osreldate for process binary */
 
 /*
  * KERN_IPC identifiers
