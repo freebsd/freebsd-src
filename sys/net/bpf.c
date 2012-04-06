@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -66,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#define	BPF_INTERNAL
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
 #ifdef BPF_JITTER
@@ -207,7 +210,7 @@ bpf_append_bytes(struct bpf_d *d, caddr_t buf, u_int offset, void *src,
     u_int len)
 {
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_BUFFER:
@@ -227,7 +230,7 @@ bpf_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset, void *src,
     u_int len)
 {
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_BUFFER:
@@ -249,7 +252,7 @@ static void
 bpf_buf_reclaimed(struct bpf_d *d)
 {
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_BUFFER:
@@ -290,7 +293,6 @@ bpf_canfreebuf(struct bpf_d *d)
 static int
 bpf_canwritebuf(struct bpf_d *d)
 {
-
 	BPFD_LOCK_ASSERT(d);
 
 	switch (d->bd_bufmode) {
@@ -309,7 +311,7 @@ static void
 bpf_buffull(struct bpf_d *d)
 {
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_ZBUF:
@@ -325,7 +327,7 @@ void
 bpf_bufheld(struct bpf_d *d)
 {
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_ZBUF:
@@ -574,12 +576,12 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 	 * Finally, point the driver's bpf cookie at the interface so
 	 * it will divert packets to bpf.
 	 */
-	BPFIF_LOCK(bp);
+	BPFIF_WLOCK(bp);
 	d->bd_bif = bp;
 	LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
 
 	bpf_bpfd_cnt++;
-	BPFIF_UNLOCK(bp);
+	BPFIF_WUNLOCK(bp);
 
 	EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
 }
@@ -594,20 +596,24 @@ bpf_detachd(struct bpf_d *d)
 	struct bpf_if *bp;
 	struct ifnet *ifp;
 
+	BPF_LOCK_ASSERT();
+
 	bp = d->bd_bif;
-	BPFIF_LOCK(bp);
-	BPFD_LOCK(d);
-	ifp = d->bd_bif->bif_ifp;
+	BPFIF_WLOCK(bp);
+	BPFD_WLOCK(d);
 
 	/*
 	 * Remove d from the interface's descriptor list.
 	 */
 	LIST_REMOVE(d, bd_next);
 
-	bpf_bpfd_cnt--;
+	ifp = bp->bif_ifp;
 	d->bd_bif = NULL;
-	BPFD_UNLOCK(d);
-	BPFIF_UNLOCK(bp);
+	BPFD_WUNLOCK(d);
+	BPFIF_WUNLOCK(bp);
+
+	/* We're already protected by global lock. */
+	bpf_bpfd_cnt--;
 
 	EVENTHANDLER_INVOKE(bpf_track, ifp, bp->bif_dlt, 0);
 
@@ -642,16 +648,16 @@ bpf_dtor(void *data)
 {
 	struct bpf_d *d = data;
 
-	BPFD_LOCK(d);
+	BPFD_WLOCK(d);
 	if (d->bd_state == BPF_WAITING)
 		callout_stop(&d->bd_callout);
 	d->bd_state = BPF_IDLE;
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 	funsetown(&d->bd_sigio);
-	mtx_lock(&bpf_mtx);
+	BPF_LOCK();
 	if (d->bd_bif)
 		bpf_detachd(d);
-	mtx_unlock(&bpf_mtx);
+	BPF_UNLOCK();
 #ifdef MAC
 	mac_bpfdesc_destroy(d);
 #endif /* MAC */
@@ -689,14 +695,14 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	d->bd_bufmode = BPF_BUFMODE_BUFFER;
 	d->bd_sig = SIGIO;
 	d->bd_direction = BPF_D_INOUT;
-	d->bd_pid = td->td_proc->p_pid;
+	BPF_PID_REFRESH(d, td);
 #ifdef MAC
 	mac_bpfdesc_init(d);
 	mac_bpfdesc_create(td->td_ucred, d);
 #endif
-	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
-	callout_init_mtx(&d->bd_callout, &d->bd_mtx, 0);
-	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_mtx);
+	rw_init(&d->bd_lock, "bpf cdev lock");
+	callout_init_rw(&d->bd_callout, &d->bd_lock, 0);
+	knlist_init_rw_reader(&d->bd_sel.si_note, &d->bd_lock);
 
 	return (0);
 }
@@ -725,10 +731,10 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 
 	non_block = ((ioflag & O_NONBLOCK) != 0);
 
-	BPFD_LOCK(d);
-	d->bd_pid = curthread->td_proc->p_pid;
+	BPFD_WLOCK(d);
+	BPF_PID_REFRESH_CUR(d);
 	if (d->bd_bufmode != BPF_BUFMODE_BUFFER) {
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
 		return (EOPNOTSUPP);
 	}
 	if (d->bd_state == BPF_WAITING)
@@ -764,18 +770,18 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 		 * it before using it again.
 		 */
 		if (d->bd_bif == NULL) {
-			BPFD_UNLOCK(d);
+			BPFD_WUNLOCK(d);
 			return (ENXIO);
 		}
 
 		if (non_block) {
-			BPFD_UNLOCK(d);
+			BPFD_WUNLOCK(d);
 			return (EWOULDBLOCK);
 		}
-		error = msleep(d, &d->bd_mtx, PRINET|PCATCH,
+		error = rw_sleep(d, &d->bd_lock, PRINET|PCATCH,
 		     "bpf", d->bd_rtout);
 		if (error == EINTR || error == ERESTART) {
-			BPFD_UNLOCK(d);
+			BPFD_WUNLOCK(d);
 			return (error);
 		}
 		if (error == EWOULDBLOCK) {
@@ -793,7 +799,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 				break;
 
 			if (d->bd_slen == 0) {
-				BPFD_UNLOCK(d);
+				BPFD_WUNLOCK(d);
 				return (0);
 			}
 			ROTATE_BUFFERS(d);
@@ -803,7 +809,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	/*
 	 * At this point, we know we have something in the hold slot.
 	 */
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 
 	/*
 	 * Move data from hold buffer into user space.
@@ -816,12 +822,12 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	 */
 	error = bpf_uiomove(d, d->bd_hbuf, d->bd_hlen, uio);
 
-	BPFD_LOCK(d);
+	BPFD_WLOCK(d);
 	d->bd_fbuf = d->bd_hbuf;
 	d->bd_hbuf = NULL;
 	d->bd_hlen = 0;
 	bpf_buf_reclaimed(d);
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 
 	return (error);
 }
@@ -833,7 +839,7 @@ static __inline void
 bpf_wakeup(struct bpf_d *d)
 {
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 	if (d->bd_state == BPF_WAITING) {
 		callout_stop(&d->bd_callout);
 		d->bd_state = BPF_IDLE;
@@ -851,7 +857,7 @@ bpf_timed_out(void *arg)
 {
 	struct bpf_d *d = (struct bpf_d *)arg;
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	if (callout_pending(&d->bd_callout) || !callout_active(&d->bd_callout))
 		return;
@@ -866,7 +872,7 @@ static int
 bpf_ready(struct bpf_d *d)
 {
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	if (!bpf_canfreebuf(d) && d->bd_hlen != 0)
 		return (1);
@@ -889,7 +895,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	if (error != 0)
 		return (error);
 
-	d->bd_pid = curthread->td_proc->p_pid;
+	BPF_PID_REFRESH_CUR(d);
 	d->bd_wcount++;
 	if (d->bd_bif == NULL) {
 		d->bd_wdcount++;
@@ -937,11 +943,11 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 
 	CURVNET_SET(ifp->if_vnet);
 #ifdef MAC
-	BPFD_LOCK(d);
+	BPFD_WLOCK(d);
 	mac_bpfdesc_create_mbuf(d, m);
 	if (mc != NULL)
 		mac_bpfdesc_create_mbuf(d, mc);
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 #endif
 
 	error = (*ifp->if_output)(ifp, m, &dst, NULL);
@@ -970,7 +976,7 @@ static void
 reset_d(struct bpf_d *d)
 {
 
-	mtx_assert(&d->bd_mtx, MA_OWNED);
+	BPFD_WLOCK_ASSERT(d);
 
 	if ((d->bd_hbuf != NULL) &&
 	    (d->bd_bufmode != BPF_BUFMODE_ZBUF || bpf_canfreebuf(d))) {
@@ -1037,12 +1043,12 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	/*
 	 * Refresh PID associated with this descriptor.
 	 */
-	BPFD_LOCK(d);
-	d->bd_pid = td->td_proc->p_pid;
+	BPFD_WLOCK(d);
+	BPF_PID_REFRESH(d, td);
 	if (d->bd_state == BPF_WAITING)
 		callout_stop(&d->bd_callout);
 	d->bd_state = BPF_IDLE;
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 
 	if (d->bd_locked == 1) {
 		switch (cmd) {
@@ -1108,11 +1114,11 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		{
 			int n;
 
-			BPFD_LOCK(d);
+			BPFD_WLOCK(d);
 			n = d->bd_slen;
 			if (d->bd_hbuf)
 				n += d->bd_hlen;
-			BPFD_UNLOCK(d);
+			BPFD_WUNLOCK(d);
 
 			*(int *)addr = n;
 			break;
@@ -1163,9 +1169,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Flush read packet buffer.
 	 */
 	case BIOCFLUSH:
-		BPFD_LOCK(d);
+		BPFD_WLOCK(d);
 		reset_d(d);
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
 		break;
 
 	/*
@@ -1488,15 +1494,15 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			return (EINVAL);
 		}
 
-		BPFD_LOCK(d);
+		BPFD_WLOCK(d);
 		if (d->bd_sbuf != NULL || d->bd_hbuf != NULL ||
 		    d->bd_fbuf != NULL || d->bd_bif != NULL) {
-			BPFD_UNLOCK(d);
+			BPFD_WUNLOCK(d);
 			CURVNET_RESTORE();
 			return (EBUSY);
 		}
 		d->bd_bufmode = *(u_int *)addr;
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
 		break;
 
 	case BIOCGETZMAX:
@@ -1556,7 +1562,12 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	if (fp->bf_insns == NULL) {
 		if (fp->bf_len != 0)
 			return (EINVAL);
-		BPFD_LOCK(d);
+		/* 
+		 * Protect filter change by interface lock, too.
+		 * The same lock order is used by bpf_detachd().
+		 */
+		BPFIF_WLOCK(d->bd_bif);
+		BPFD_WLOCK(d);
 		if (wfilter)
 			d->bd_wfilter = NULL;
 		else {
@@ -1567,7 +1578,8 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 			if (cmd == BIOCSETF)
 				reset_d(d);
 		}
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
+		BPFIF_WUNLOCK(d->bd_bif);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
 #ifdef BPF_JITTER
@@ -1584,7 +1596,12 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	fcode = (struct bpf_insn *)malloc(size, M_BPF, M_WAITOK);
 	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
 	    bpf_validate(fcode, (int)flen)) {
-		BPFD_LOCK(d);
+		/* 
+		 * Protect filter change by interface lock, too
+		 * The same lock order is used by bpf_detachd().
+		 */
+		BPFIF_WLOCK(d->bd_bif);
+		BPFD_WLOCK(d);
 		if (wfilter)
 			d->bd_wfilter = fcode;
 		else {
@@ -1595,7 +1612,8 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 			if (cmd == BIOCSETF)
 				reset_d(d);
 		}
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
+		BPFIF_WUNLOCK(d->bd_bif);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
 #ifdef BPF_JITTER
@@ -1659,9 +1677,9 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 
 		bpf_attachd(d, bp);
 	}
-	BPFD_LOCK(d);
+	BPFD_WLOCK(d);
 	reset_d(d);
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 	return (0);
 }
 
@@ -1685,8 +1703,8 @@ bpfpoll(struct cdev *dev, int events, struct thread *td)
 	 * Refresh PID associated with this descriptor.
 	 */
 	revents = events & (POLLOUT | POLLWRNORM);
-	BPFD_LOCK(d);
-	d->bd_pid = td->td_proc->p_pid;
+	BPFD_WLOCK(d);
+	BPF_PID_REFRESH(d, td);
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (bpf_ready(d))
 			revents |= events & (POLLIN | POLLRDNORM);
@@ -1700,7 +1718,7 @@ bpfpoll(struct cdev *dev, int events, struct thread *td)
 			}
 		}
 	}
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 	return (revents);
 }
 
@@ -1720,12 +1738,12 @@ bpfkqfilter(struct cdev *dev, struct knote *kn)
 	/*
 	 * Refresh PID associated with this descriptor.
 	 */
-	BPFD_LOCK(d);
-	d->bd_pid = curthread->td_proc->p_pid;
+	BPFD_WLOCK(d);
+	BPF_PID_REFRESH_CUR(d);
 	kn->kn_fop = &bpfread_filtops;
 	kn->kn_hook = d;
 	knlist_add(&d->bd_sel.si_note, kn, 1);
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 
 	return (0);
 }
@@ -1744,7 +1762,7 @@ filt_bpfread(struct knote *kn, long hint)
 	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
 	int ready;
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 	ready = bpf_ready(d);
 	if (ready) {
 		kn->kn_data = d->bd_slen;
@@ -1819,9 +1837,19 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 	int gottime;
 
 	gottime = BPF_TSTAMP_NONE;
-	BPFIF_LOCK(bp);
+
+	BPFIF_RLOCK(bp);
+
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		BPFD_LOCK(d);
+		/*
+		 * We are not using any locks for d here because:
+		 * 1) any filter change is protected by interface
+		 * write lock
+		 * 2) destroying/detaching d is protected by interface
+		 * write lock, too
+		 */
+
+		/* XXX: Do not protect counter for the sake of performance. */
 		++d->bd_rcount;
 		/*
 		 * NB: We dont call BPF_CHECK_DIRECTION() here since there is no
@@ -1837,6 +1865,11 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 #endif
 		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
 		if (slen != 0) {
+			/*
+			 * Filter matches. Let's to acquire write lock.
+			 */
+			BPFD_WLOCK(d);
+
 			d->bd_fcount++;
 			if (gottime < bpf_ts_quality(d->bd_tstamp))
 				gottime = bpf_gettime(&bt, d->bd_tstamp, NULL);
@@ -1845,10 +1878,10 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 #endif
 				catchpacket(d, pkt, pktlen, slen,
 				    bpf_append_bytes, &bt);
+			BPFD_WUNLOCK(d);
 		}
-		BPFD_UNLOCK(d);
 	}
-	BPFIF_UNLOCK(bp);
+	BPFIF_RUNLOCK(bp);
 }
 
 #define	BPF_CHECK_DIRECTION(d, r, i)				\
@@ -1857,6 +1890,7 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 
 /*
  * Incoming linkage from device drivers, when packet is in an mbuf chain.
+ * Locking model is explained in bpf_tap().
  */
 void
 bpf_mtap(struct bpf_if *bp, struct mbuf *m)
@@ -1876,13 +1910,13 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 	}
 
 	pktlen = m_length(m, NULL);
-
 	gottime = BPF_TSTAMP_NONE;
-	BPFIF_LOCK(bp);
+
+	BPFIF_RLOCK(bp);
+
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif, bp->bif_ifp))
 			continue;
-		BPFD_LOCK(d);
 		++d->bd_rcount;
 #ifdef BPF_JITTER
 		bf = bpf_jitter_enable != 0 ? d->bd_bfilter : NULL;
@@ -1893,6 +1927,8 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 #endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);
 		if (slen != 0) {
+			BPFD_WLOCK(d);
+
 			d->bd_fcount++;
 			if (gottime < bpf_ts_quality(d->bd_tstamp))
 				gottime = bpf_gettime(&bt, d->bd_tstamp, m);
@@ -1901,10 +1937,10 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 #endif
 				catchpacket(d, (u_char *)m, pktlen, slen,
 				    bpf_append_mbuf, &bt);
+			BPFD_WUNLOCK(d);
 		}
-		BPFD_UNLOCK(d);
 	}
-	BPFIF_UNLOCK(bp);
+	BPFIF_RUNLOCK(bp);
 }
 
 /*
@@ -1938,14 +1974,17 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	pktlen += dlen;
 
 	gottime = BPF_TSTAMP_NONE;
-	BPFIF_LOCK(bp);
+
+	BPFIF_RLOCK(bp);
+
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
 		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif, bp->bif_ifp))
 			continue;
-		BPFD_LOCK(d);
 		++d->bd_rcount;
 		slen = bpf_filter(d->bd_rfilter, (u_char *)&mb, pktlen, 0);
 		if (slen != 0) {
+			BPFD_WLOCK(d);
+
 			d->bd_fcount++;
 			if (gottime < bpf_ts_quality(d->bd_tstamp))
 				gottime = bpf_gettime(&bt, d->bd_tstamp, m);
@@ -1954,10 +1993,10 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 #endif
 				catchpacket(d, (u_char *)&mb, pktlen, slen,
 				    bpf_append_mbuf, &bt);
+			BPFD_WUNLOCK(d);
 		}
-		BPFD_UNLOCK(d);
 	}
-	BPFIF_UNLOCK(bp);
+	BPFIF_RUNLOCK(bp);
 }
 
 #undef	BPF_CHECK_DIRECTION
@@ -2049,7 +2088,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	int do_timestamp;
 	int tstype;
 
-	BPFD_LOCK_ASSERT(d);
+	BPFD_WLOCK_ASSERT(d);
 
 	/*
 	 * Detect whether user space has released a buffer back to us, and if
@@ -2196,7 +2235,7 @@ bpf_freed(struct bpf_d *d)
 	}
 	if (d->bd_wfilter != NULL)
 		free((caddr_t)d->bd_wfilter, M_BPF);
-	mtx_destroy(&d->bd_mtx);
+	rw_destroy(&d->bd_lock);
 }
 
 /*
@@ -2228,13 +2267,13 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 	LIST_INIT(&bp->bif_dlist);
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
-	mtx_init(&bp->bif_mtx, "bpf interface lock", NULL, MTX_DEF);
+	rw_init(&bp->bif_lock, "bpf interface lock");
 	KASSERT(*driverp == NULL, ("bpfattach2: driverp already initialized"));
 	*driverp = bp;
 
-	mtx_lock(&bpf_mtx);
+	BPF_LOCK();
 	LIST_INSERT_HEAD(&bpf_iflist, bp, bif_next);
-	mtx_unlock(&bpf_mtx);
+	BPF_UNLOCK();
 
 	bp->bif_hdrlen = hdrlen;
 
@@ -2261,14 +2300,14 @@ bpfdetach(struct ifnet *ifp)
 
 	/* Find all bpf_if struct's which reference ifp and detach them. */
 	do {
-		mtx_lock(&bpf_mtx);
+		BPF_LOCK();
 		LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 			if (ifp == bp->bif_ifp)
 				break;
 		}
 		if (bp != NULL)
 			LIST_REMOVE(bp, bif_next);
-		mtx_unlock(&bpf_mtx);
+		BPF_UNLOCK();
 
 		if (bp != NULL) {
 #ifdef INVARIANTS
@@ -2276,11 +2315,11 @@ bpfdetach(struct ifnet *ifp)
 #endif
 			while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
 				bpf_detachd(d);
-				BPFD_LOCK(d);
+				BPFD_WLOCK(d);
 				bpf_wakeup(d);
-				BPFD_UNLOCK(d);
+				BPFD_WUNLOCK(d);
 			}
-			mtx_destroy(&bp->bif_mtx);
+			rw_destroy(&bp->bif_lock);
 			free(bp, M_BPF);
 		}
 	} while (bp != NULL);
@@ -2304,13 +2343,13 @@ bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 	ifp = d->bd_bif->bif_ifp;
 	n = 0;
 	error = 0;
-	mtx_lock(&bpf_mtx);
+	BPF_LOCK();
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
 		if (bfl->bfl_list != NULL) {
 			if (n >= bfl->bfl_len) {
-				mtx_unlock(&bpf_mtx);
+				BPF_UNLOCK();
 				return (ENOMEM);
 			}
 			error = copyout(&bp->bif_dlt,
@@ -2318,7 +2357,7 @@ bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 		}
 		n++;
 	}
-	mtx_unlock(&bpf_mtx);
+	BPF_UNLOCK();
 	bfl->bfl_len = n;
 	return (error);
 }
@@ -2336,19 +2375,19 @@ bpf_setdlt(struct bpf_d *d, u_int dlt)
 	if (d->bd_bif->bif_dlt == dlt)
 		return (0);
 	ifp = d->bd_bif->bif_ifp;
-	mtx_lock(&bpf_mtx);
+	BPF_LOCK();
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp == ifp && bp->bif_dlt == dlt)
 			break;
 	}
-	mtx_unlock(&bpf_mtx);
+	BPF_UNLOCK();
 	if (bp != NULL) {
 		opromisc = d->bd_promisc;
 		bpf_detachd(d);
 		bpf_attachd(d, bp);
-		BPFD_LOCK(d);
+		BPFD_WLOCK(d);
 		reset_d(d);
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
 		if (opromisc) {
 			error = ifpromisc(bp->bif_ifp, 1);
 			if (error)
@@ -2386,22 +2425,22 @@ bpf_zero_counters(void)
 	struct bpf_if *bp;
 	struct bpf_d *bd;
 
-	mtx_lock(&bpf_mtx);
+	BPF_LOCK();
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
-		BPFIF_LOCK(bp);
+		BPFIF_RLOCK(bp);
 		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
-			BPFD_LOCK(bd);
+			BPFD_WLOCK(bd);
 			bd->bd_rcount = 0;
 			bd->bd_dcount = 0;
 			bd->bd_fcount = 0;
 			bd->bd_wcount = 0;
 			bd->bd_wfcount = 0;
 			bd->bd_zcopy = 0;
-			BPFD_UNLOCK(bd);
+			BPFD_WUNLOCK(bd);
 		}
-		BPFIF_UNLOCK(bp);
+		BPFIF_RUNLOCK(bp);
 	}
-	mtx_unlock(&bpf_mtx);
+	BPF_UNLOCK();
 }
 
 static void
@@ -2472,24 +2511,24 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	if (bpf_bpfd_cnt == 0)
 		return (SYSCTL_OUT(req, 0, 0));
 	xbdbuf = malloc(req->oldlen, M_BPF, M_WAITOK);
-	mtx_lock(&bpf_mtx);
+	BPF_LOCK();
 	if (req->oldlen < (bpf_bpfd_cnt * sizeof(*xbd))) {
-		mtx_unlock(&bpf_mtx);
+		BPF_UNLOCK();
 		free(xbdbuf, M_BPF);
 		return (ENOMEM);
 	}
 	index = 0;
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
-		BPFIF_LOCK(bp);
+		BPFIF_RLOCK(bp);
 		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
 			xbd = &xbdbuf[index++];
-			BPFD_LOCK(bd);
+			BPFD_RLOCK(bd);
 			bpfstats_fill_xbpf(xbd, bd);
-			BPFD_UNLOCK(bd);
+			BPFD_RUNLOCK(bd);
 		}
-		BPFIF_UNLOCK(bp);
+		BPFIF_RUNLOCK(bp);
 	}
-	mtx_unlock(&bpf_mtx);
+	BPF_UNLOCK();
 	error = SYSCTL_OUT(req, xbdbuf, index * sizeof(*xbd));
 	free(xbdbuf, M_BPF);
 	return (error);
