@@ -416,7 +416,7 @@ vnode_pager_setsize(vp, nsize)
 				drop = NULL;
 				mtx_lock(&vm_page_queue_free_mtx);
 				if (m->object == object) {
-					vm_page_cache_remove(m);
+					vm_page_cache_free(m);
 					if (object->cached_page_count == 0)
 						drop = vp;
 				}
