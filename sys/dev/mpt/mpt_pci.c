@@ -205,6 +205,10 @@ __FBSDID("$FreeBSD$");
 #define PCI_PRODUCT_LSI_SAS1068E	0x0058
 #endif
 
+#ifndef PCI_PRODUCT_LSI_SAS1068E2
+#define PCI_PRODUCT_LSI_SAS1068E2	0x0059
+#endif
+
 #ifndef PCI_PRODUCT_LSI_SAS1078
 #define PCI_PRODUCT_LSI_SAS1078		0x0062
 #endif
@@ -305,6 +309,7 @@ mpt_pci_probe(device_t dev)
 	case PCI_PRODUCT_LSI_SAS1068:
 	case PCI_PRODUCT_LSI_SAS1068A:
 	case PCI_PRODUCT_LSI_SAS1068E:
+	case PCI_PRODUCT_LSI_SAS1068E2:
 	case PCI_PRODUCT_LSI_SAS1078:
 	case PCI_PRODUCT_LSI_SAS1078DE:
 		desc = "LSILogic SAS/SATA Adapter";
@@ -493,6 +498,7 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_SAS1068:
 	case PCI_PRODUCT_LSI_SAS1068A:
 	case PCI_PRODUCT_LSI_SAS1068E:
+	case PCI_PRODUCT_LSI_SAS1068E2:
 		mpt->is_sas = 1;
 		break;
 	default:
