@@ -176,6 +176,12 @@ SYSCTL_INT(_net_bpf, OID_AUTO, zerocopy_enable, CTLFLAG_RW,
 static SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
+static VNET_DEFINE(int, bpf_optimize_writers) = 0;
+#define	V_bpf_optimize_writers VNET(bpf_optimize_writers)
+SYSCTL_VNET_INT(_net_bpf, OID_AUTO, optimize_writers,
+    CTLFLAG_RW, &VNET_NAME(bpf_optimize_writers), 0,
+    "Do not send packets until BPF program is set");
+
 static	d_open_t	bpfopen;
 static	d_read_t	bpfread;
 static	d_write_t	bpfwrite;
@@ -572,16 +578,65 @@ static void
 bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 {
 	/*
-	 * Point d at bp, and add d to the interface's list of listeners.
-	 * Finally, point the driver's bpf cookie at the interface so
-	 * it will divert packets to bpf.
+	 * Point d at bp, and add d to the interface's list.
+	 * Since there are many applicaiotns using BPF for
+	 * sending raw packets only (dhcpd, cdpd are good examples)
+	 * we can delay adding d to the list of active listeners until
+	 * some filter is configured.
 	 */
-	BPFIF_WLOCK(bp);
 	d->bd_bif = bp;
-	LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
 
-	bpf_bpfd_cnt++;
+	BPFIF_WLOCK(bp);
+
+	if (V_bpf_optimize_writers != 0) {
+		/* Add to writers-only list */
+		LIST_INSERT_HEAD(&bp->bif_wlist, d, bd_next);
+		/*
+		 * We decrement bd_writer on every filter set operation.
+		 * First BIOCSETF is done by pcap_open_live() to set up
+		 * snap length. After that appliation usually sets its own filter
+		 */
+		d->bd_writer = 2;
+	} else
+		LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
+
 	BPFIF_WUNLOCK(bp);
+
+	BPF_LOCK();
+	bpf_bpfd_cnt++;
+	BPF_UNLOCK();
+
+	CTR3(KTR_NET, "%s: bpf_attach called by pid %d, adding to %s list",
+	    __func__, d->bd_pid, d->bd_writer ? "writer" : "active");
+
+	if (V_bpf_optimize_writers == 0)
+		EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
+}
+
+/*
+ * Add d to the list of active bp filters.
+ * Reuqires bpf_attachd() to be called before
+ */
+static void
+bpf_upgraded(struct bpf_d *d)
+{
+	struct bpf_if *bp;
+
+	bp = d->bd_bif;
+
+	BPFIF_WLOCK(bp);
+	BPFD_WLOCK(d);
+
+	/* Remove from writers-only list */
+	LIST_REMOVE(d, bd_next);
+	LIST_INSERT_HEAD(&bp->bif_dlist, d, bd_next);
+	/* Mark d as reader */
+	d->bd_writer = 0;
+
+	BPFD_WUNLOCK(d);
+	BPFIF_WUNLOCK(bp);
+
+	CTR2(KTR_NET, "%s: upgrade required by pid %d", __func__, d->bd_pid);
 
 	EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
 }
@@ -596,11 +651,16 @@ bpf_detachd(struct bpf_d *d)
 	struct bpf_if *bp;
 	struct ifnet *ifp;
 
+	CTR2(KTR_NET, "%s: detach required by pid %d", __func__, d->bd_pid);
+
 	BPF_LOCK_ASSERT();
 
 	bp = d->bd_bif;
 	BPFIF_WLOCK(bp);
 	BPFD_WLOCK(d);
+
+	/* Save bd_writer value */
+	error = d->bd_writer;
 
 	/*
 	 * Remove d from the interface's descriptor list.
@@ -615,7 +675,9 @@ bpf_detachd(struct bpf_d *d)
 	/* We're already protected by global lock. */
 	bpf_bpfd_cnt--;
 
-	EVENTHANDLER_INVOKE(bpf_track, ifp, bp->bif_dlt, 0);
+	/* Call event handler iff d is attached */
+	if (error == 0)
+		EVENTHANDLER_INVOKE(bpf_track, ifp, bp->bif_dlt, 0);
 
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
@@ -1536,6 +1598,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #ifdef COMPAT_FREEBSD32
 	struct bpf_program32 *fp32;
 	struct bpf_program fp_swab;
+	int need_upgrade = 0;
 
 	if (cmd == BIOCSETWF32 || cmd == BIOCSETF32 || cmd == BIOCSETFNR32) {
 		fp32 = (struct bpf_program32 *)fp;
@@ -1611,6 +1674,16 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #endif
 			if (cmd == BIOCSETF)
 				reset_d(d);
+
+			/*
+			 * Do not require upgrade by first BIOCSETF
+			 * (used to set snaplen) by pcap_open_live()
+			 */
+			if ((d->bd_writer != 0) && (--d->bd_writer == 0))
+				need_upgrade = 1;
+			CTR4(KTR_NET, "%s: filter function set by pid %d, "
+			    "bd_writer counter %d, need_upgrade %d",
+			    __func__, d->bd_pid, d->bd_writer, need_upgrade);
 		}
 		BPFD_WUNLOCK(d);
 		BPFIF_WUNLOCK(d->bd_bif);
@@ -1620,6 +1693,10 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		if (ofunc != NULL)
 			bpf_destroy_jit_filter(ofunc);
 #endif
+
+		/* Move d to active readers list */
+		if (need_upgrade != 0)
+			bpf_upgraded(d);
 
 		return (0);
 	}
@@ -2265,6 +2342,7 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 		panic("bpfattach");
 
 	LIST_INIT(&bp->bif_dlist);
+	LIST_INIT(&bp->bif_wlist);
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
 	rw_init(&bp->bif_lock, "bpf interface lock");
@@ -2520,6 +2598,13 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	index = 0;
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		BPFIF_RLOCK(bp);
+		/* Send writers-only first */
+		LIST_FOREACH(bd, &bp->bif_wlist, bd_next) {
+			xbd = &xbdbuf[index++];
+			BPFD_RLOCK(bd);
+			bpfstats_fill_xbpf(xbd, bd);
+			BPFD_RUNLOCK(bd);
+		}
 		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
 			xbd = &xbdbuf[index++];
 			BPFD_RLOCK(bd);
