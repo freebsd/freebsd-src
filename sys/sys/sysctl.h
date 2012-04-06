@@ -493,6 +493,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_VMMAP		32	/* VM map entries for process */
 #define	KERN_PROC_FILEDESC	33	/* File descriptors for process */
 #define	KERN_PROC_GROUPS	34	/* process groups */
+#define	KERN_PROC_OSREL		40	/* osreldate for process binary */
 
 /*
  * KERN_IPC identifiers
