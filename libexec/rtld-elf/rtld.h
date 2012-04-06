@@ -317,19 +317,19 @@ typedef struct Struct_SymLook {
     struct Struct_RtldLockState *lockstate;
 } SymLook;
 
-extern void _rtld_error(const char *, ...) __printflike(1, 2);
-extern const char *rtld_strerror(int);
-extern Obj_Entry *map_object(int, const char *, const struct stat *);
-extern void *xcalloc(size_t, size_t);
-extern void *xmalloc(size_t);
-extern char *xstrdup(const char *);
+void _rtld_error(const char *, ...) __printflike(1, 2);
+const char *rtld_strerror(int);
+Obj_Entry *map_object(int, const char *, const struct stat *);
+void *xcalloc(size_t, size_t);
+void *xmalloc(size_t);
+char *xstrdup(const char *);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
-extern void dump_relocations (Obj_Entry *);
-extern void dump_obj_relocations (Obj_Entry *);
-extern void dump_Elf_Rel (Obj_Entry *, const Elf_Rel *, u_long);
-extern void dump_Elf_Rela (Obj_Entry *, const Elf_Rela *, u_long);
+void dump_relocations(Obj_Entry *);
+void dump_obj_relocations(Obj_Entry *);
+void dump_Elf_Rel(Obj_Entry *, const Elf_Rel *, u_long);
+void dump_Elf_Rela(Obj_Entry *, const Elf_Rela *, u_long);
 
 /*
  * Function declarations.
