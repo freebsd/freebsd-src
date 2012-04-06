@@ -1104,6 +1104,7 @@ struct bpf_if {
 	u_int bif_hdrlen;		/* length of link header */
 	struct ifnet *bif_ifp;		/* corresponding interface */
 	struct rwlock bif_lock;		/* interface lock */
+	LIST_HEAD(, bpf_d)	bif_wlist;	/* writer-only list */
 #endif
 };
 
