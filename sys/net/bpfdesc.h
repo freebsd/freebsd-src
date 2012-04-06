@@ -79,6 +79,7 @@ struct bpf_d {
 	u_char		bd_promisc;	/* true if listening promiscuously */
 	u_char		bd_state;	/* idle, waiting, or timed out */
 	u_char		bd_immediate;	/* true to return on packet arrival */
+	u_char		bd_writer;	/* non-zero if d is writer-only */
 	int		bd_hdrcmplt;	/* false to fill in src lladdr automatically */
 	int		bd_direction;	/* select packet direction */
 	int		bd_tstamp;	/* select time stamping function */
