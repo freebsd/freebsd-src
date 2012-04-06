@@ -248,9 +248,13 @@ extern struct vpglocks pa_lock[];
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
  * does so, the page must be VPO_BUSY.
+ *
+ * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
+ * at least one executable mapping. It is not consumed by the VM layer.
  */
 #define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x02		/* page has been referenced */
+#define	PGA_EXECUTABLE	0x04		/* page may be mapped executable */
 
 /*
  * Page flags.  If changed at any other time than page allocation or
