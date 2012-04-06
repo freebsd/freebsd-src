@@ -9,8 +9,9 @@ SRCS=		rtld_start.S \
 		malloc.c xmalloc.c debug.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
+TOPSRCDIR=	${.CURDIR}/../..
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
-CFLAGS+=	-I${.CURDIR}/../../lib/csu/common
+CFLAGS+=	-I${TOPSRCDIR}/lib/csu/common
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 RTLD_ARCH=	${MACHINE_ARCH}
 .else
@@ -42,7 +43,7 @@ DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic -lssp_nonshared
 
 .if ${MK_SYMVER} == "yes"
-LIBCDIR=	${.CURDIR}/../../lib/libc
+LIBCDIR=	${TOPSRCDIR}/lib/libc
 VERSION_DEF=	${LIBCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 VERSION_MAP=	Version.map
