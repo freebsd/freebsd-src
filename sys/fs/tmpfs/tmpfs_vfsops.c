@@ -130,6 +130,8 @@ tmpfs_node_fini(void *mem, int size)
 static int
 tmpfs_mount(struct mount *mp)
 {
+	const size_t nodes_per_page = howmany(PAGE_SIZE,
+	    sizeof(struct tmpfs_dirent) + sizeof(struct tmpfs_node));
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
 	int error;
@@ -195,11 +197,13 @@ tmpfs_mount(struct mount *mp)
 	MPASS(pages > 0);
 
 	if (nodes_max <= 3) {
-		if (pages > UINT32_MAX - 3)
-			nodes_max = UINT32_MAX;
+		if (pages < INT_MAX / nodes_per_page)
+			nodes_max = pages * nodes_per_page;
 		else
-			nodes_max = pages + 3;
+			nodes_max = INT_MAX;
 	}
+	if (nodes_max > INT_MAX)
+		nodes_max = INT_MAX;
 	MPASS(nodes_max >= 3);
 
 	/* Allocate the tmpfs mount structure and fill it. */
