@@ -61,15 +61,9 @@ nandfs_mksnap(int argc, char **argv)
 	}
 
 	nandfs_init(&fs, argv[0]);
-	error = nandfs_open_rw(&fs);
+	error = nandfs_open(&fs);
 	if (error == -1) {
 		fprintf(stderr, "nandfs_open: %s\n", nandfs_errmsg(&fs));
-		goto out;
-	}
-
-	error = nandfs_lock(&fs, 1);
-	if (error == -1) {
-		fprintf(stderr, "nandfs_lock: %s\n", nandfs_errmsg(&fs));
 		goto out;
 	}
 
@@ -79,11 +73,6 @@ nandfs_mksnap(int argc, char **argv)
 	else
 		printf("%jd\n", cpno);
 
-	error = nandfs_unlock(&fs);
-	if (error == -1) {
-		fprintf(stderr, "nandfs_unlock: %s\n", nandfs_errmsg(&fs));
-		goto out;
-	}
 out:
 	nandfs_close(&fs);
 	nandfs_destroy(&fs);

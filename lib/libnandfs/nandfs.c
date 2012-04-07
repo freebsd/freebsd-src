@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #define	NANDFS_IS_OPENED	0x2
 #define	NANDFS_IS_OPENED_DEV	0x4
 #define	NANDFS_IS_ERROR		0x8
-#define	NANDFS_IS_LOCKED	0x10
-#define	NANDFS_IS_READONLY	0x20
 
 #define DEBUG
 #undef DEBUG
@@ -66,12 +64,6 @@ __FBSDID("$FreeBSD$");
 #define	NANDFS_ASSERT_VALID_DEV(fs)	\
 	assert(((fs)->n_flags & (NANDFS_IS_VALID | NANDFS_IS_OPENED_DEV)) == \
 	    (NANDFS_IS_VALID | NANDFS_IS_OPENED_DEV))
-#define NANDFS_ASSERT_RDWR(fs)		\
-	assert(!((fs)->n_flags & NANDFS_IS_READONLY))
-#define NANDFS_ASSERT_LOCKED(fs)	\
-	assert((fs)->n_flags & NANDFS_IS_LOCKED)
-#define NANDFS_ASSERT_UNLOCKED(fs)	\
-	assert(!((fs)->n_flags & NANDFS_IS_LOCKED))
 
 int
 nandfs_iserror(struct nandfs *fs)
@@ -104,88 +96,6 @@ nandfs_seterr(struct nandfs *fs, const char *fmt, ...)
 	fs->n_flags |= NANDFS_IS_ERROR;
 }
 
-int
-nandfs_cleanerd_set(struct nandfs *fs)
-{
-
-	NANDFS_ASSERT_VALID_DEV(fs);
-
-	if (ioctl(fs->n_iocfd, NANDFS_IOCTL_CLEANERD_SET) == -1) {
-		nandfs_seterr(fs, "%s", strerror(errno));
-		return (-1);
-	}
-
-	return (0);
-}
-
-int
-nandfs_cleanerd_unset(struct nandfs *fs)
-{
-
-	NANDFS_ASSERT_VALID_DEV(fs);
-
-	if (ioctl(fs->n_iocfd, NANDFS_IOCTL_CLEANERD_UNSET) == -1) {
-		nandfs_seterr(fs, "%s", strerror(errno));
-		return (-1);
-	}
-
-	return (0);
-}
-
-int
-nandfs_lock(struct nandfs *fs, int rdwr)
-{
-	struct flock lck;
-	int error;
-
-	NANDFS_ASSERT_VALID(fs);
-	NANDFS_ASSERT_RDWR(fs);
-	NANDFS_ASSERT_UNLOCKED(fs);
-
-	lck.l_type = (rdwr ? F_WRLCK : F_RDLCK);
-	lck.l_start = 0;
-	lck.l_whence = SEEK_SET;
-	lck.l_len = 1;
-
-	error = fcntl(fs->n_iocfd, F_SETLKW, &lck);
-	if (error == -1) {
-		nandfs_seterr(fs, "couldn't lock %s: %s", fs->n_ioc,
-		    strerror(errno));
-		return (-1);
-	}
-
-	fs->n_flags |= NANDFS_IS_LOCKED;
-
-	return (0);
-}
-
-int
-nandfs_unlock(struct nandfs *fs)
-{
-	struct flock lck;
-	int error;
-
-	NANDFS_ASSERT_VALID(fs);
-	NANDFS_ASSERT_RDWR(fs);
-	NANDFS_ASSERT_LOCKED(fs);
-
-	lck.l_type = F_UNLCK;
-	lck.l_start = 0;
-	lck.l_whence = SEEK_SET;
-	lck.l_len = 1;
-
-	error = fcntl(fs->n_iocfd, F_SETLK, &lck);
-	if (error == -1) {
-		nandfs_seterr(fs, "couldn't unlock %s: %s", fs->n_ioc,
-		    strerror(errno));
-		return (-1);
-	}
-
-	fs->n_flags &= ~NANDFS_IS_LOCKED;
-
-	return (0);
-}
-
 const char *
 nandfs_dev(struct nandfs *fs)
 {
@@ -209,26 +119,18 @@ nandfs_destroy(struct nandfs *fs)
 
 	assert(fs->n_iocfd == -1);
 	fs->n_flags &=
-	    ~(NANDFS_IS_ERROR | NANDFS_IS_VALID | NANDFS_IS_READONLY);
+	    ~(NANDFS_IS_ERROR | NANDFS_IS_VALID);
 	assert(fs->n_flags == 0);
 }
 
-static int
-_nandfs_open(struct nandfs *fs, int rdwr)
+int
+nandfs_open(struct nandfs *fs)
 {
 	struct nandfs_fsinfo fsinfo;
-	int flags;
 
 	fs->n_flags |= NANDFS_IS_OPENED;
 
-	if (rdwr)
-		flags = O_RDWR;
-	else {
-		fs->n_flags |= NANDFS_IS_READONLY;
-		flags = O_RDONLY;
-	}
-
-	fs->n_iocfd = open(fs->n_ioc, flags, S_IRUSR | S_IWUSR | S_IRGRP |
+	fs->n_iocfd = open(fs->n_ioc, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP |
 	    S_IWGRP | S_IROTH | S_IWOTH);
 	if (fs->n_iocfd == -1) {
 		nandfs_seterr(fs, "couldn't open %s: %s", fs->n_ioc,
@@ -249,39 +151,6 @@ _nandfs_open(struct nandfs *fs, int rdwr)
 	return (0);
 }
 
-int
-nandfs_open(struct nandfs *fs)
-{
-
-	return (_nandfs_open(fs, 0));
-}
-
-int
-nandfs_open_rw(struct nandfs *fs)
-{
-
-	return (_nandfs_open(fs, 1));
-}
-
-int
-nandfs_open_dev(struct nandfs *fs)
-{
-
-	fs->n_flags |= NANDFS_IS_OPENED_DEV;
-
-	if (nandfs_open_rw(fs) == -1)
-		return (-1);
-
-	fs->n_devfd = open(fs->n_dev, O_RDONLY);
-	if (fs->n_devfd == -1) {
-		nandfs_seterr(fs, "couldn't open %s: %s", fs->n_dev,
-		    strerror(errno));
-		return (-1);
-	}
-
-	return (0);
-}
-
 void
 nandfs_close(struct nandfs *fs)
 {
@@ -292,18 +161,6 @@ nandfs_close(struct nandfs *fs)
 	close(fs->n_iocfd);
 	fs->n_iocfd = -1;
 	fs->n_flags &= ~NANDFS_IS_OPENED;
-}
-
-void
-nandfs_close_dev(struct nandfs *fs)
-{
-
-	assert(fs->n_flags & NANDFS_IS_OPENED_DEV);
-
-	close(fs->n_devfd);
-	fs->n_devfd = -1;
-	fs->n_flags &= ~NANDFS_IS_OPENED_DEV;
-	nandfs_close(fs);
 }
 
 static ssize_t
@@ -349,8 +206,6 @@ nandfs_make_snap(struct nandfs *fs, uint64_t *cno)
 {
 
 	NANDFS_ASSERT_VALID(fs);
-	NANDFS_ASSERT_RDWR(fs);
-	NANDFS_ASSERT_LOCKED(fs);
 
 	if (ioctl(fs->n_iocfd, NANDFS_IOCTL_MAKE_SNAP, cno) == -1) {
 		nandfs_seterr(fs, "ioctl NANDFS_IOCTL_MAKE_SNAP: %s",
@@ -366,8 +221,6 @@ nandfs_delete_snap(struct nandfs *fs, uint64_t cno)
 {
 
 	NANDFS_ASSERT_VALID(fs);
-	NANDFS_ASSERT_RDWR(fs);
-	NANDFS_ASSERT_LOCKED(fs);
 
 	if (ioctl(fs->n_iocfd, NANDFS_IOCTL_DELETE_SNAP, &cno) == -1) {
 		nandfs_seterr(fs, "ioctl NANDFS_IOCTL_DELETE_SNAP: %s",

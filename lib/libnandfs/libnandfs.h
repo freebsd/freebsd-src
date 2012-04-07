@@ -46,19 +46,10 @@ const char *nandfs_errmsg(struct nandfs *);
 void nandfs_init(struct nandfs *, const char *);
 void nandfs_destroy(struct nandfs *);
 
-int nandfs_cleanerd_set(struct nandfs *);
-int nandfs_cleanerd_unset(struct nandfs *);
-
 const char *nandfs_dev(struct nandfs *);
 
 int nandfs_open(struct nandfs *);
-int nandfs_open_rw(struct nandfs *);
-int nandfs_open_dev(struct nandfs *);
 void nandfs_close(struct nandfs *);
-void nandfs_close_dev(struct nandfs *);
-
-int nandfs_lock(struct nandfs *, int write);
-int nandfs_unlock(struct nandfs *);
 
 ssize_t nandfs_get_cp(struct nandfs *, uint64_t,
     struct nandfs_cpinfo *, size_t);
