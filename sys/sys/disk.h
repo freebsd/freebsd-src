@@ -116,32 +116,6 @@ void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 	 * This should be a multiple of the sector size.
 	 */
 
-#define DIOCNOOBSIZE	_IOR('d', 141, u_int)	/* Get oob size */
-	/*-
-	 * Get the OOB area size of NAND flash device.
-	 */
-
-#define DIOCNBLKSIZE	_IOR('d', 142, u_int)	/* Get block size */
-	/* -
-	 * Get the block size of NAND flash device.
-	 */
-
-struct nand_oob_request {
-	off_t		offset;		/* offset in bytes, page-aligned */
-	off_t		length;		/* length */
-	void *		ubuf;		/* buffer supplied by user */
-};
-
-#define	DIOCNREADOOB	_IOW('d', 143, struct nand_oob_request)	/* Read OOB area */
-	/*-
-	 * Read page OOB area from NAND flash device.
-	 */
-
-#define	DIOCNWRITEOOB	_IOW('d', 144, struct nand_oob_request)	/* Write OOB area */
-	/*-
-	 * Write page OOB area to NAND flash device.
-	 */
-
 #define	DIOCGPHYSPATH _IOR('d', 141, char[MAXPATHLEN])
 	/*
 	 * Get a string defining the physical path for a given provider.

@@ -368,10 +368,6 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (g_handleattr_int(bp, "GEOM::fwheads", dp->d_fwheads))
 			break;
-		else if (g_handleattr_int(bp, "NAND::oobsize", dp->n_oobsize))
-			break;
-		else if (g_handleattr_int(bp, "NAND::pagesize", dp->n_pagesize))
-			break;
 		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;
 		else if (g_handleattr_str(bp, "GEOM::ident", dp->d_ident))

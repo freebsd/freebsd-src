@@ -215,9 +215,7 @@ g_slice_start(struct bio *bp)
 	gsl = &gsp->slices[idx];
 	switch(bp->bio_cmd) {
 	case BIO_READ:
-	case BIO_READOOB:
 	case BIO_WRITE:
-	case BIO_WRITEOOB:
 	case BIO_DELETE:
 		if (bp->bio_offset > gsl->length) {
 			g_io_deliver(bp, EINVAL); /* XXX: EWHAT ? */
@@ -235,10 +233,8 @@ g_slice_start(struct bio *bp)
 			if (t + bp->bio_length <= ghp->offset)
 				continue;
 			switch(bp->bio_cmd) {
-			case BIO_READ:
-			case BIO_READOOB:	idx = ghp->ract; break;
-			case BIO_WRITE:
-			case BIO_WRITEOOB:	idx = ghp->wact; break;
+			case BIO_READ:		idx = ghp->ract; break;
+			case BIO_WRITE:		idx = ghp->wact; break;
 			case BIO_DELETE:	idx = ghp->dact; break;
 			}
 			switch(idx) {

@@ -46,19 +46,15 @@
 #define BIO_DELETE	0x04
 #define BIO_GETATTR	0x08
 #define BIO_FLUSH	0x10
-#define BIO_CMD0	0x20
-#define BIO_CMD1	0x40
+#define BIO_CMD0	0x20	/* Available for local hacks */
+#define BIO_CMD1	0x40	/* Available for local hacks */
 #define BIO_CMD2	0x80	/* Available for local hacks */
-
-#define	BIO_READOOB	BIO_CMD0
-#define	BIO_WRITEOOB	BIO_CMD1
 
 /* bio_flags */
 #define BIO_ERROR	0x01
 #define BIO_DONE	0x02
 #define BIO_ONQUEUE	0x04
 #define BIO_ORDERED	0x08
-#define	BIO_ECC		0x10
 
 #ifdef _KERNEL
 struct disk;
@@ -69,7 +65,6 @@ struct bio;
 
 typedef void bio_task_t(void *);
 
-
 /*
  * The bio structure describes an I/O operation in the kernel.
  */
@@ -79,10 +74,7 @@ struct bio {
 	uint8_t	bio_cflags;		/* Private use by the consumer. */
 	uint8_t	bio_pflags;		/* Private use by the provider. */
 	struct cdev *bio_dev;		/* Device to do I/O on. */
-	union {
-		struct disk *bio_disk;		/* Valid below geom_disk.c only */
-		struct gnand *bio_nand;		/* Valid below geom_disk.c only */
-	} bio_source;
+	struct disk *bio_disk;		/* Valid below geom_disk.c only */
 	off_t	bio_offset;		/* Offset into file. */
 	long	bio_bcount;		/* Valid bytes in buffer. */
 	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
@@ -119,24 +111,6 @@ struct bio {
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
 };
-
-#define	bio_disk		bio_source.bio_disk
-#define	bio_nand		bio_source.bio_nand
-
-/* bio_cmd */
-#define BIO_READ	0x01
-#define BIO_WRITE	0x02
-#define BIO_DELETE	0x04
-#define BIO_GETATTR	0x08
-#define BIO_FLUSH	0x10
-#define BIO_CMD0	0x20	/* Available for local hacks */
-#define BIO_CMD1	0x40	/* Available for local hacks */
-#define BIO_CMD2	0x80	/* Available for local hacks */
-
-/* bio_flags */
-#define BIO_ERROR	0x01
-#define BIO_DONE	0x02
-#define BIO_ONQUEUE	0x04
 
 struct uio;
 struct devstat;
