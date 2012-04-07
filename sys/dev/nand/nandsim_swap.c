@@ -53,8 +53,8 @@ static void swap_file_close(struct chip_swap *);
 static int  swap_file_write(struct chip_swap *, struct block_state *);
 static int  swap_file_read(struct chip_swap *, struct block_state *);
 
-#define CHIP_SWAP_CMODE 0600
-#define CHIP_SWAP_BLOCKSPACES 2
+#define	CHIP_SWAP_CMODE		0600
+#define	CHIP_SWAP_BLOCKSPACES	2
 
 static int
 init_block_state(struct chip_swap *swap)
@@ -62,16 +62,11 @@ init_block_state(struct chip_swap *swap)
 	struct block_state *blk_state;
 	int i;
 
-	if (!swap)
+	if (swap == NULL)
 		return (-1);
 
 	blk_state = malloc(swap->nof_blks * sizeof(struct block_state),
 	    M_NANDSIM, M_WAITOK | M_ZERO);
-	if (!blk_state) {
-		nand_debug(NDBG_SIM,"Cannot allocate blk_state structure blks "
-		    "%d", swap->nof_blks);
-		return (-1);
-	}
 
 	for (i = 0; i < swap->nof_blks; i++)
 		blk_state[i].offset = 0xffffffff;
@@ -85,7 +80,10 @@ static void
 destroy_block_state(struct chip_swap *swap)
 {
 
-	if (swap && (swap->blk_state))
+	if (swap == NULL)
+		return;
+
+	if (swap->blk_state != NULL)
 		free(swap->blk_state, M_NANDSIM);
 }
 
@@ -98,14 +96,8 @@ create_buffers(struct chip_swap *swap)
 
 	for (i = 0; i < CHIP_SWAP_BLOCKSPACES; i++) {
 		block_space = malloc(sizeof(*block_space), M_NANDSIM, M_WAITOK);
-		if (!block_space)
-			break;
 		block = malloc(swap->blk_size, M_NANDSIM, M_WAITOK);
-		if (!block) {
-			free(block_space, M_NANDSIM);
-			break;
-		}
-		block_space->block_ptr = block;
+		block_space->blk_ptr = block;
 		SLIST_INSERT_HEAD(&swap->free_bs, block_space, free_link);
 		nand_debug(NDBG_SIM,"created blk_space %p[%p]\n", block_space,
 		    block);
@@ -122,15 +114,15 @@ destroy_buffers(struct chip_swap *swap)
 {
 	struct block_space *blk_space;
 
-	if (!swap)
+	if (swap == NULL)
 		return;
 
 	blk_space = SLIST_FIRST(&swap->free_bs);
 	while (blk_space) {
 		SLIST_REMOVE_HEAD(&swap->free_bs, free_link);
 		nand_debug(NDBG_SIM,"destroyed blk_space %p[%p]\n",
-		    blk_space, blk_space->block_ptr);
-		free(blk_space->block_ptr, M_NANDSIM);
+		    blk_space, blk_space->blk_ptr);
+		free(blk_space->blk_ptr, M_NANDSIM);
 		free(blk_space, M_NANDSIM);
 		blk_space = SLIST_FIRST(&swap->free_bs);
 	}
@@ -139,8 +131,8 @@ destroy_buffers(struct chip_swap *swap)
 	while (blk_space) {
 		STAILQ_REMOVE_HEAD(&swap->used_bs, used_link);
 		nand_debug(NDBG_SIM,"destroyed blk_space %p[%p]\n",
-		    blk_space, blk_space->block_ptr);
-		free(blk_space->block_ptr, M_NANDSIM);
+		    blk_space, blk_space->blk_ptr);
+		free(blk_space->blk_ptr, M_NANDSIM);
 		free(blk_space, M_NANDSIM);
 		blk_space = STAILQ_FIRST(&swap->used_bs);
 	}
@@ -157,11 +149,7 @@ swap_file_open(struct chip_swap *swap, const char *swap_file)
 
 	flags = FWRITE | FREAD | O_NOFOLLOW | O_CREAT | O_TRUNC;
 
-#if __FreeBSD_version > 700001
 	error = vn_open(&nd, &flags, CHIP_SWAP_CMODE, NULL);
-#else
-	error = vn_open(&nd, &flags, CHIP_SWAP_CMODE, -1);
-#endif
 	if (error) {
 		nand_debug(NDBG_SIM,"Cannot create swap file %s", swap_file);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -173,11 +161,7 @@ swap_file_open(struct chip_swap *swap, const char *swap_file)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/* We just unlock so we hold a reference */
-#if __FreeBSD_version > 800001
 	VOP_UNLOCK(nd.ni_vp, 0);
-#else
-	VOP_UNLOCK(nd.ni_vp, 0, curthread);
-#endif
 	VFS_UNLOCK_GIANT(vfslocked);
 
 	swap->swap_vp = nd.ni_vp;
@@ -189,11 +173,14 @@ static void
 swap_file_close(struct chip_swap *swap)
 {
 
-	if (swap && swap->swap_vp) {
-		vn_close(swap->swap_vp, FWRITE, swap->swap_cred,
-		    curthread);
-		crfree(swap->swap_cred);
-	}
+	if (swap == NULL)
+		return;
+
+	if (swap->swap_vp == NULL)
+		return;
+
+	vn_close(swap->swap_vp, FWRITE, swap->swap_cred, curthread);
+	crfree(swap->swap_cred);
 }
 
 static int
@@ -207,7 +194,7 @@ swap_file_write(struct chip_swap *swap, struct block_state *blk_state)
 	struct iovec aiov;
 	int vfslocked;
 
-	if (!swap || !blk_state)
+	if (swap == NULL || blk_state == NULL)
 		return (-1);
 
 	blk_space = blk_state->blk_sp;
@@ -217,12 +204,12 @@ swap_file_write(struct chip_swap *swap, struct block_state *blk_state)
 	}
 
 	nand_debug(NDBG_SIM,"saving %p[%p] at %x\n",
-	    blk_space, blk_space->block_ptr, blk_state->offset);
+	    blk_space, blk_space->blk_ptr, blk_state->offset);
 
 	bzero(&aiov, sizeof(aiov));
 	bzero(&auio, sizeof(auio));
 
-	aiov.iov_base = blk_space->block_ptr;
+	aiov.iov_base = blk_space->blk_ptr;
 	aiov.iov_len = swap->blk_size;
 	td = curthread;
 	vp = swap->swap_vp;
@@ -237,15 +224,9 @@ swap_file_write(struct chip_swap *swap, struct block_state *blk_state)
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
-#if __FreeBSD_version > 800001
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_WRITE(vp, &auio, IO_UNIT, swap->swap_cred);
 	VOP_UNLOCK(vp, 0);
-#else
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	VOP_WRITE(vp, &auio, IO_UNIT, swap->swap_cred);
-	VOP_UNLOCK(vp, 0, td);
-#endif
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 
@@ -262,18 +243,18 @@ swap_file_read(struct chip_swap *swap, struct block_state *blk_state)
 	struct iovec aiov;
 	int vfslocked;
 
-	if (!swap || !blk_state)
+	if (swap == NULL || blk_state == NULL)
 		return (-1);
 
 	blk_space = blk_state->blk_sp;
 
 	nand_debug(NDBG_SIM,"restore %p[%p] at %x\n",
-	    blk_space, blk_space->block_ptr, blk_state->offset);
+	    blk_space, blk_space->blk_ptr, blk_state->offset);
 
 	bzero(&aiov, sizeof(aiov));
 	bzero(&auio, sizeof(auio));
 
-	aiov.iov_base = blk_space->block_ptr;
+	aiov.iov_base = blk_space->blk_ptr;
 	aiov.iov_len = swap->blk_size;
 	td = curthread;
 	vp = swap->swap_vp;
@@ -287,15 +268,9 @@ swap_file_read(struct chip_swap *swap, struct block_state *blk_state)
 	auio.uio_td = td;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-#if __FreeBSD_version > 800001
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_READ(vp, &auio, 0, swap->swap_cred);
 	VOP_UNLOCK(vp, 0);
-#else
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	VOP_READ(vp, &auio, 0, swap->swap_cred);
-	VOP_UNLOCK(vp, 0, td);
-#endif
 	VFS_UNLOCK_GIANT(vfslocked);
 
 	return (0);
@@ -307,14 +282,10 @@ nandsim_swap_init(const char *swap_file, uint32_t nof_blks, uint32_t blk_size)
 	struct chip_swap *swap;
 	int err = 0;
 
-	if ((!swap_file) || (nof_blks == 0) || (blk_size == 0))
+	if ((swap_file == NULL) || (nof_blks == 0) || (blk_size == 0))
 		return (NULL);
 
 	swap = malloc(sizeof(*swap), M_NANDSIM, M_WAITOK | M_ZERO);
-	if (!swap) {
-		nand_debug(NDBG_SIM,"Cannot allocate swap structure");
-		return (NULL);
-	}
 
 	SLIST_INIT(&swap->free_bs);
 	STAILQ_INIT(&swap->used_bs);
@@ -346,12 +317,13 @@ void
 nandsim_swap_destroy(struct chip_swap *swap)
 {
 
-	if (swap) {
-		destroy_block_state(swap);
-		destroy_buffers(swap);
-		swap_file_close(swap);
-		free(swap, M_NANDSIM);
-	}
+	if (swap == NULL)
+		return;
+
+	destroy_block_state(swap);
+	destroy_buffers(swap);
+	swap_file_close(swap);
+	free(swap, M_NANDSIM);
 }
 
 struct block_space *
@@ -360,7 +332,7 @@ get_bs(struct chip_swap *swap, uint32_t block, uint8_t writing)
 	struct block_state *blk_state, *old_blk_state = NULL;
 	struct block_space *blk_space;
 
-	if (!swap || (block >= swap->nof_blks))
+	if (swap == NULL || (block >= swap->nof_blks))
 		return (NULL);
 
 	blk_state = &swap->blk_state[block];
@@ -372,12 +344,14 @@ get_bs(struct chip_swap *swap, uint32_t block, uint8_t writing)
 		blk_space = SLIST_FIRST(&swap->free_bs);
 		if (blk_space) {
 			SLIST_REMOVE_HEAD(&swap->free_bs, free_link);
-			STAILQ_INSERT_TAIL(&swap->used_bs, blk_space, used_link);
+			STAILQ_INSERT_TAIL(&swap->used_bs, blk_space,
+			    used_link);
 		} else {
 			blk_space = STAILQ_FIRST(&swap->used_bs);
 			old_blk_state = blk_space->blk_state;
 			STAILQ_REMOVE_HEAD(&swap->used_bs, used_link);
-			STAILQ_INSERT_TAIL(&swap->used_bs, blk_space, used_link);
+			STAILQ_INSERT_TAIL(&swap->used_bs, blk_space,
+			    used_link);
 			if (old_blk_state->status & BLOCK_DIRTY) {
 				swap_file_write(swap, old_blk_state);
 				old_blk_state->status &= ~BLOCK_DIRTY;
@@ -386,10 +360,10 @@ get_bs(struct chip_swap *swap, uint32_t block, uint8_t writing)
 		}
 	}
 
-	if (!blk_space)
+	if (blk_space == NULL)
 		return (NULL);
 
-	if (old_blk_state) {
+	if (old_blk_state != NULL) {
 		old_blk_state->status &= ~BLOCK_ALLOCATED;
 		old_blk_state->blk_sp = NULL;
 	}
@@ -401,7 +375,7 @@ get_bs(struct chip_swap *swap, uint32_t block, uint8_t writing)
 		if (blk_state->status & BLOCK_SWAPPED)
 			swap_file_read(swap, blk_state);
 		else
-			memset(blk_space->block_ptr, 0xff, swap->blk_size);
+			memset(blk_space->blk_ptr, 0xff, swap->blk_size);
 		blk_state->status |= BLOCK_ALLOCATED;
 	}
 
@@ -409,7 +383,7 @@ get_bs(struct chip_swap *swap, uint32_t block, uint8_t writing)
 		blk_state->status |= BLOCK_DIRTY;
 
 	nand_debug(NDBG_SIM,"get_bs returned %p[%p] state %x\n", blk_space,
-		    blk_space->block_ptr, blk_state->status);
+	    blk_space->blk_ptr, blk_state->status);
 
 	return (blk_space);
 }

@@ -69,8 +69,9 @@ static void nandsim_start_handler(struct nandsim_chip *, nandsim_evh_t);
 static void nandsim_callout_eh(void *);
 static int  nandsim_delay(struct nandsim_chip *, int);
 
-static int  nandsim_blk_wearout_init(struct nandsim_chip *, uint32_t, uint32_t);
-static void nandsim_blk_wearout_destroy(struct nandsim_chip *);
+static int  nandsim_bbm_init(struct nandsim_chip *, uint32_t, uint32_t *);
+static int  nandsim_blk_state_init(struct nandsim_chip *, uint32_t, uint32_t);
+static void nandsim_blk_state_destroy(struct nandsim_chip *);
 static int  nandchip_is_block_valid(struct nandsim_chip *, int);
 
 static void nandchip_set_status(struct nandsim_chip *, uint8_t);
@@ -114,6 +115,9 @@ nandsim_chip_init(struct nandsim_softc* sc, uint8_t chip_num,
 	chip->erase_delay = sim_chip->erase_time;
 	chip->read_delay = sim_chip->read_time;
 
+	chip_param->t_prog = sim_chip->prog_time;
+	chip_param->t_bers = sim_chip->erase_time;
+	chip_param->t_r = sim_chip->read_time;
 	bcopy("onfi", &chip_param->signature, 4);
 
 	chip_param->manufacturer_id = sim_chip->manufact_id;
@@ -140,9 +144,17 @@ nandsim_chip_init(struct nandsim_softc* sc, uint8_t chip_num,
 
 	size = chip_param->blocks_per_lun * chip_param->luns;
 
-	error = nandsim_blk_wearout_init(chip, size, sim_chip->wear_level);
+	error = nandsim_blk_state_init(chip, size, sim_chip->wear_level);
 	if (error) {
 		mtx_destroy(&chip->ns_lock);
+		free(chip, M_NANDSIM);
+		return (NULL);
+	}
+
+	error = nandsim_bbm_init(chip, size, sim_chip->bad_block_map);
+	if (error) {
+		mtx_destroy(&chip->ns_lock);
+		nandsim_blk_state_destroy(chip);
 		free(chip, M_NANDSIM);
 		return (NULL);
 	}
@@ -152,32 +164,21 @@ nandsim_chip_init(struct nandsim_softc* sc, uint8_t chip_num,
 	nand_debug(NDBG_SIM,"Create thread for chip%d [%8p]", chip->chip_num,
 	    chip);
 	/* Create chip thread */
-#if __FreeBSD_version > 800001
 	error = kproc_kthread_add(nandsim_loop, chip, &nandsim_proc,
 	    &chip->nandsim_td, RFSTOPPED | RFHIGHPID,
 	    0, "nandsim", "chip");
-#else
-	error = kthread_create(nandsim_loop, chip, &chip->nandsim_proc,
-		RFSTOPPED | RFHIGHPID, 0, "nandsim");
-	chip->nandsim_td = FIRST_THREAD_IN_PROC(chip->nandsim_proc);
-#endif
 	if (error) {
 		mtx_destroy(&chip->ns_lock);
-		nandsim_blk_wearout_destroy(chip);
+		nandsim_blk_state_destroy(chip);
 		free(chip, M_NANDSIM);
 		return (NULL);
 	}
-#if __FreeBSD_version > 700001
+
 	thread_lock(chip->nandsim_td);
 	sched_class(chip->nandsim_td, PRI_REALTIME);
 	sched_add(chip->nandsim_td, SRQ_BORING);
 	thread_unlock(chip->nandsim_td);
-#else
-	mtx_lock_spin(&sched_lock);
-	sched_class(chip->nandsim_td->td_ksegrp, PRI_REALTIME);
-	sched_add(chip->nandsim_td, SRQ_BORING);
-	mtx_unlock_spin(&sched_lock);
-#endif
+
 	size = (chip_param->bytes_per_page +
 	    chip_param->spare_bytes_per_page) *
 	    chip_param->pages_per_block;
@@ -195,7 +196,7 @@ nandsim_chip_init(struct nandsim_softc* sc, uint8_t chip_num,
 }
 
 static int
-nandsim_blk_wearout_init(struct nandsim_chip *chip, uint32_t size,
+nandsim_blk_state_init(struct nandsim_chip *chip, uint32_t size,
     uint32_t wear_lev)
 {
 	int i;
@@ -203,28 +204,58 @@ nandsim_blk_wearout_init(struct nandsim_chip *chip, uint32_t size,
 	if (!chip || size == 0)
 		return (-1);
 
-	chip->blk_wearout = malloc(size * sizeof(struct block_wearout),
+	chip->blk_state = malloc(size * sizeof(struct nandsim_block_state),
 	    M_NANDSIM, M_WAITOK | M_ZERO);
-	if (!chip->blk_wearout) {
+	if (!chip->blk_state) {
 		return (-1);
 	}
 
 	for (i = 0; i < size; i++) {
 		if (wear_lev)
-			chip->blk_wearout[i].wear_lev = wear_lev;
+			chip->blk_state[i].wear_lev = wear_lev;
 		else
-			chip->blk_wearout[i].wear_lev = -1;
+			chip->blk_state[i].wear_lev = -1;
 	}
 
 	return (0);
 }
 
 static void
-nandsim_blk_wearout_destroy(struct nandsim_chip *chip)
+nandsim_blk_state_destroy(struct nandsim_chip *chip)
 {
 
-	if (chip && chip->blk_wearout)
-		free(chip->blk_wearout, M_NANDSIM);
+	if (chip && chip->blk_state)
+		free(chip->blk_state, M_NANDSIM);
+}
+
+static int
+nandsim_bbm_init(struct nandsim_chip *chip, uint32_t size,
+    uint32_t *sim_bbm)
+{
+	uint32_t index;
+	int i;
+
+	if ((chip == NULL) || (size == 0))
+		return (-1);
+
+	if (chip->blk_state == NULL)
+		return (-1);
+
+	if (sim_bbm == NULL)
+		return (0);
+
+	for (i = 0; i < MAX_BAD_BLOCKS; i++) {
+		index = sim_bbm[i];
+
+		if (index == 0xffffffff)
+			break;
+		else if (index > size)
+			return (-1);
+		else
+			chip->blk_state[index].is_bad = 1;
+	}
+
+	return (0);
 }
 
 void
@@ -282,15 +313,12 @@ nandsim_loop(void *arg)
 			NANDSIM_CHIP_UNLOCK(chip);
 			nandsim_log(chip, NANDSIM_LOG_SM, "destroyed\n");
 			mtx_destroy(&chip->ns_lock);
-			nandsim_blk_wearout_destroy(chip);
+			nandsim_blk_state_destroy(chip);
 			nandsim_swap_destroy(chip->swap);
 			free(chip, M_NANDSIM);
 			nandsim_proc = NULL;
-#if __FreeBSD_version > 800001
+
 			kthread_exit();
-#else
-			kthread_exit(0);
-#endif
 		}
 
 		if (!(chip->flags & NANDSIM_CHIP_FROZEN)) {
@@ -381,9 +409,7 @@ nandsim_delay(struct nandsim_chip *chip, int timeout)
 	if (callout_reset(&chip->ns_callout, tm, nandsim_callout_eh, ev))
 		return (-1);
 
-	chip->read_delay -= MIN(chip->read_delay, 100);
 	delay.tv_sec = chip->read_delay / 1000000;
-	delay.tv_usec = chip->read_delay % 1000000;
 	delay.tv_usec = chip->read_delay % 1000000;
 	timevaladd(&chip->delay_tv, &delay);
 
@@ -455,7 +481,7 @@ nandchip_chip_space(struct nandsim_chip *chip, int32_t row, int32_t column,
 	} else
 		offset = page * (chip->cg.page_size + chip->cg.oob_size);
 
-	nandchip_set_data(chip, &blk_space->block_ptr[offset], size, column);
+	nandchip_set_data(chip, &blk_space->blk_ptr[offset], size, column);
 
 	return (0);
 }
@@ -497,11 +523,11 @@ static int
 nandchip_is_block_valid(struct nandsim_chip *chip, int block_num)
 {
 
-	if (!chip || !chip->blk_wearout)
+	if (!chip || !chip->blk_state)
 		return (0);
 
-	if (chip->blk_wearout[block_num].wear_lev == 0 ||
-	    chip->blk_wearout[block_num].is_bad)
+	if (chip->blk_state[block_num].wear_lev == 0 ||
+	    chip->blk_state[block_num].is_bad)
 		return (0);
 
 	return (1);
@@ -789,8 +815,8 @@ erase_evh(struct nandsim_chip *chip, uint32_t type, void *data)
 			err = nand_row_to_blkpg(&chip->cg, row, &lun,
 			    &block, &page);
 			if (!err) {
-				if (chip->blk_wearout[block].wear_lev > 0)
-					chip->blk_wearout[block].wear_lev--;
+				if (chip->blk_state[block].wear_lev > 0)
+					chip->blk_state[block].wear_lev--;
 			}
 
 			if (chip->erase_delay != 0 &&

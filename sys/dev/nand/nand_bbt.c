@@ -182,8 +182,8 @@ nand_bbt_load_hdr(struct nand_bbt *bbt, struct bbt_header *hdr, int8_t primary)
 
 	if (primary)
 		addr = bbt->primary_map;
-
-	addr = bbt->secondary_map;
+	else
+		addr = bbt->secondary_map;
 
 	return (nand_read_pages_raw(bbt->chip, addr, hdr,
 	    sizeof(struct bbt_header)));
@@ -227,6 +227,7 @@ nand_bbt_prescan(struct nand_bbt *bbt)
 {
 	int32_t i;
 	uint8_t bad;
+	bool printed_hash = 0;
 
 	device_printf(bbt->chip->dev, "No BBT found. Prescan chip...\n");
 	for (i = 0; i < bbt->chip->chip_geom.blks_per_chip; i++) {
@@ -237,8 +238,14 @@ nand_bbt_prescan(struct nand_bbt *bbt)
 			device_printf(bbt->chip->dev, "Bad block(%d)\n", i);
 			bbt->table[i] = 0x0FFFFFFF;
 		}
-		if (!(i%100)) printf("#");
+		if (!(i % 100)) {
+			printf("#");
+			printed_hash = 1;
+		}
 	}
+
+	if (printed_hash)
+		printf("\n");
 
 	return (0);
 }

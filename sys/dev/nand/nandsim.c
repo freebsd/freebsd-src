@@ -453,7 +453,7 @@ nandsim_inject_error(struct sim_error *error)
 		return (EINVAL);
 
 	offset = (page * page_size) + error->column;
-	memset(&bs->block_ptr[offset], error->pattern, error->len);
+	memset(&bs->blk_ptr[offset], error->pattern, error->len);
 
 	return (0);
 }
@@ -479,10 +479,10 @@ nandsim_set_block_state(struct sim_block_state *bs)
 	if (bs->block_num > blocks)
 		return (EINVAL);
 
-	chip->blk_wearout[bs->block_num].is_bad = bs->state;
+	chip->blk_state[bs->block_num].is_bad = bs->state;
 
 	if (bs->wearout >= 0)
-		chip->blk_wearout[bs->block_num].wear_lev = bs->wearout;
+		chip->blk_state[bs->block_num].wear_lev = bs->wearout;
 
 	return (0);
 }
@@ -508,8 +508,8 @@ nandsim_get_block_state(struct sim_block_state *bs)
 	if (bs->block_num > blocks)
 		return (EINVAL);
 
-	bs->state = chip->blk_wearout[bs->block_num].is_bad;
-	bs->wearout = chip->blk_wearout[bs->block_num].wear_lev;
+	bs->state = chip->blk_state[bs->block_num].is_bad;
+	bs->wearout = chip->blk_state[bs->block_num].wear_lev;
 
 	return (0);
 }
@@ -538,7 +538,7 @@ nandsim_dump(struct sim_dump *dump)
 	if (dump->len > blk_size)
 		dump->len = blk_size;
 
-	copyout(bs->block_ptr, dump->data, dump->len);
+	copyout(bs->blk_ptr, dump->data, dump->len);
 
 	return (0);
 }
@@ -569,7 +569,7 @@ nandsim_restore(struct sim_dump *dump)
 		dump->len = blk_size;
 
 
-	copyin(dump->data, bs->block_ptr, dump->len);
+	copyin(dump->data, bs->blk_ptr, dump->len);
 
 	return (0);
 }

@@ -76,7 +76,7 @@ struct nandsim_data {
 	uint32_t	size;
 };
 
-struct block_wearout {
+struct nandsim_block_state {
 	int32_t		wear_lev;
 	uint8_t		is_bad;
 };
@@ -88,9 +88,7 @@ struct block_wearout {
 struct nandsim_chip {
 	struct nandsim_softc	*sc;
 	struct thread		*nandsim_td;
-#if __FreeBSD_version < 800001
-	struct proc 		*nandsim_proc;
-#endif
+
 	STAILQ_HEAD(, nandsim_ev) nandsim_events;
 	nandsim_evh_t		*ev_handler;
 	struct mtx		ns_lock;
@@ -100,7 +98,7 @@ struct nandsim_chip {
 	struct nand_id		id;
 	struct onfi_params	params;
 	struct nandsim_data	data;
-	struct block_wearout	*blk_wearout;
+	struct nandsim_block_state *blk_state;
 
 	struct chip_swap	*swap;
 

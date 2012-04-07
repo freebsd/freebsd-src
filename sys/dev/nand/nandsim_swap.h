@@ -30,15 +30,15 @@
 #define _NANDSIM_SWAP_CHIP_H_
 
 struct block_space {
-	SLIST_ENTRY(block_space) free_link;
-	STAILQ_ENTRY(block_space) used_link;
-	struct block_state *blk_state;
-	uint8_t* block_ptr;
+	SLIST_ENTRY(block_space)	free_link;
+	STAILQ_ENTRY(block_space)	used_link;
+	struct block_state		*blk_state;
+	uint8_t				*blk_ptr;
 };
 
-#define BLOCK_ALLOCATED	0x1
-#define BLOCK_SWAPPED	0x2
-#define BLOCK_DIRTY	0x4
+#define	BLOCK_ALLOCATED	0x1
+#define	BLOCK_SWAPPED	0x2
+#define	BLOCK_DIRTY	0x4
 
 struct block_state {
 	struct block_space	*blk_sp;

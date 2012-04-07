@@ -35,6 +35,7 @@
 #define MAX_SIM_DEV		4
 #define MAX_CTRL_CS		4
 #define MAX_ECC_BYTES		512
+#define MAX_BAD_BLOCKS		512
 #define DEV_MODEL_STR_SIZE	21
 #define MAN_STR_SIZE		13
 #define FILENAME_SIZE		20
@@ -71,6 +72,7 @@ struct sim_ctrl {
 };
 #define NANDSIM_CREATE_CTRL	_IOW(NANDSIM_BASE, 2, struct sim_ctrl)
 #define NANDSIM_DESTROY_CTRL	_IOW(NANDSIM_BASE, 3, int)
+
 struct sim_chip {
 	uint8_t		num;
 	uint8_t		ctrl_num;
@@ -96,6 +98,7 @@ struct sim_chip {
 
 	uint32_t	error_ratio;
 	uint32_t	wear_level;
+	uint32_t	bad_block_map[MAX_BAD_BLOCKS];
 	uint8_t		is_wp;
 };
 
