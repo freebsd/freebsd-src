@@ -40,7 +40,7 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 
-#include <dev/nand/nand_cdev.h>
+#include <dev/nand/nand_dev.h>
 
 MALLOC_DECLARE(M_NAND);
 
@@ -119,10 +119,6 @@ MALLOC_DECLARE(M_NAND);
 #define ECC_CORRECTABLE		1
 #define ECC_ERROR_ECC		(-1)
 #define ECC_UNCORRECTABLE	(-2)
-
-/* NAND BIO operations */
-#define	BIO_READOOB		BIO_CMD0
-#define	BIO_WRITEOOB		BIO_CMD1
 
 #define NAND_MAN_SAMSUNG		0xec
 #define NAND_MAN_HYNIX			0xad
@@ -290,8 +286,8 @@ struct nand_chip {
 	struct nand_ops		*ops;
 	struct cdev		*cdev;
 
-	struct gnand		*disk;
-	struct gnand		*rdisk;
+	struct disk		*ndisk;
+	struct disk		*rdisk;
 	struct bio_queue_head	bioq;	/* bio queue */
 	struct mtx		qlock;	/* bioq lock */
 	struct taskqueue	*tq;	/* private task queue for i/o request */

@@ -35,20 +35,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/bio.h>
 #include <geom/geom.h>
-#include <geom/geom_nand.h>
+#include <geom/geom_disk.h>
 
 #include <dev/nand/nand.h>
 #include <dev/nand/nandbus.h>
-#include <dev/nand/nand_cdev.h>
+#include <dev/nand/nand_dev.h>
 #include "nand_if.h"
 #include "nandbus_if.h"
 
 #define	BIO_NAND_STD	((void *)1)
 #define	BIO_NAND_RAW	((void *)2)
 
-static gnand_ioctl_t nand_ioctl;
-static gnand_strategy_t nand_strategy;
-static gnand_strategy_t nand_strategy_raw;
+static disk_ioctl_t nand_ioctl;
+static disk_getattr_t nand_getattr;
+static disk_strategy_t nand_strategy;
+static disk_strategy_t nand_strategy_raw;
 
 static int
 nand_read(struct nand_chip *chip, uint32_t offset, void *buf, uint32_t len)
@@ -94,7 +95,7 @@ nand_strategy(struct bio *bp)
 {
 	struct nand_chip *chip;
 
-	chip = (struct nand_chip *)bp->bio_nand->d_drv1;
+	chip = (struct nand_chip *)bp->bio_disk->d_drv1;
 
 	bp->bio_driver1 = BIO_NAND_STD;
 
@@ -102,7 +103,7 @@ nand_strategy(struct bio *bp)
 	    (bp->bio_cmd & BIO_READ) == BIO_READ ? "READ" :
 	    ((bp->bio_cmd & BIO_WRITE) == BIO_WRITE ? "WRITE" :
 	    ((bp->bio_cmd & BIO_DELETE) == BIO_DELETE ? "DELETE" : "UNKNOWN")),
-	     chip->num, chip);
+	    chip->num, chip);
 
 	mtx_lock(&chip->qlock);
 	bioq_insert_tail(&chip->bioq, bp);
@@ -115,7 +116,7 @@ nand_strategy_raw(struct bio *bp)
 {
 	struct nand_chip *chip;
 
-	chip = (struct nand_chip *)bp->bio_nand->d_drv1;
+	chip = (struct nand_chip *)bp->bio_disk->d_drv1;
 
 	/* Inform taskqueue that it's a raw access */
 	bp->bio_driver1 = BIO_NAND_RAW;
@@ -124,7 +125,7 @@ nand_strategy_raw(struct bio *bp)
 	    (bp->bio_cmd & BIO_READ) == BIO_READ ? "READ" :
 	    ((bp->bio_cmd & BIO_WRITE) == BIO_WRITE ? "WRITE" :
 	    ((bp->bio_cmd & BIO_DELETE) == BIO_DELETE ? "DELETE" : "UNKNOWN")),
-	     chip->num, chip);
+	    chip->num, chip);
 
 	mtx_lock(&chip->qlock);
 	bioq_insert_tail(&chip->bioq, bp);
@@ -150,7 +151,41 @@ nand_oob_access(struct nand_chip *chip, uint32_t page, uint32_t offset,
 }
 
 static int
-nand_ioctl(struct gnand *disk, u_long cmd, void *data, int fflag,
+nand_getattr(struct bio *bp)
+{
+	struct nand_chip *chip;
+	struct chip_geom *cg;
+	device_t dev;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
+		return (ENXIO);
+
+	chip = (struct nand_chip *)bp->bio_disk->d_drv1;
+	cg = &(chip->chip_geom);
+
+	dev = device_get_parent(chip->dev);
+	dev = device_get_parent(dev);
+
+	do {
+		if (g_handleattr_int(bp, "NAND::oobsize", cg->oob_size))
+			break;
+		else if (g_handleattr_int(bp, "NAND::pagesize", cg->page_size))
+			break;
+		else if (g_handleattr_int(bp, "NAND::blocksize",
+		    cg->block_size))
+			break;
+		else if (g_handleattr(bp, "NAND::device", &(dev),
+		    sizeof(device_t)))
+			break;
+
+		return (ERESTART);
+	} while (0);
+
+	return (EJUSTRETURN);
+}
+
+static int
+nand_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
     struct thread *td)
 {
 	struct nand_chip *chip;
@@ -161,14 +196,12 @@ nand_ioctl(struct gnand *disk, u_long cmd, void *data, int fflag,
 	int ret = 0;
 	uint8_t status;
 
-	chip = (struct nand_chip *)disk->d_drv1;
+	chip = (struct nand_chip *)ndisk->d_drv1;
 	nandbus = device_get_parent(chip->dev);
 
 	if ((cmd == NAND_IO_RAW_READ) || (cmd == NAND_IO_RAW_PROG)) {
 		raw_rw = (struct nand_raw_rw *)data;
 		buf = malloc(raw_rw->len, M_NAND, M_WAITOK);
-		if (!buf)
-			return (ENOMEM);
 	}
 	switch (cmd) {
 	case NAND_IO_ERASE:
@@ -197,7 +230,7 @@ nand_ioctl(struct gnand *disk, u_long cmd, void *data, int fflag,
 		break;
 
 	case NAND_IO_RAW_PROG:
-		copyin(oob_rw->data, buf, oob_rw->len);
+		copyin(raw_rw->data, buf, raw_rw->len);
 		ret = nand_prog_pages_raw(chip, raw_rw->off, buf,
 		    raw_rw->len);
 		break;
@@ -260,18 +293,6 @@ nand_io_proc(void *arg, int pending)
 		} else
 			panic("Unknown access type in bio->bio_driver1\n");
 
-		if ((bp->bio_cmd & BIO_READOOB) == BIO_READOOB) {
-			err = nand_oob_access(chip, bp->bio_offset /
-			    chip->chip_geom.page_size, 0,
-			    bp->bio_bcount, bp->bio_data, 0);
-		}
-
-		if ((bp->bio_cmd & BIO_WRITEOOB) == BIO_WRITEOOB) {
-			err = nand_oob_access(chip, bp->bio_offset /
-			    chip->chip_geom.page_size, 0,
-			    bp->bio_bcount, bp->bio_data, 1);
-		}
-
 		if ((bp->bio_cmd & BIO_DELETE) == BIO_DELETE) {
 			nand_debug(NDBG_GEOM, "Delete on chip%d offset %lld "
 			    "length %ld\n", chip->num, bp->bio_offset,
@@ -280,9 +301,6 @@ nand_io_proc(void *arg, int pending)
 			    bp->bio_offset & 0xffffffff,
 			    bp->bio_bcount);
 		}
-
-		if (err == ECC_CORRECTABLE)
-			bp->bio_flags |= BIO_ECC;
 
 		if (err == 0 || err == ECC_CORRECTABLE)
 			bp->bio_resid = 0;
@@ -301,65 +319,57 @@ nand_io_proc(void *arg, int pending)
 int
 create_geom_disk(struct nand_chip *chip)
 {
-	struct gnand *disk, *rdisk;
-	device_t dev;
-
-	dev = device_get_parent(chip->dev);
-	dev = device_get_parent(dev);
+	struct disk *ndisk, *rdisk;
 
 	/* Create the disk device */
-	disk = gnand_alloc();
-	disk->d_strategy = nand_strategy;
-	disk->d_ioctl = nand_ioctl;
-	disk->d_name = "gnand";
-	disk->d_drv1 = chip;
-	disk->d_dev = dev;
-	disk->d_maxsize = chip->chip_geom.block_size;
-	disk->d_sectorsize = chip->chip_geom.page_size;
-	disk->d_mediasize = chip->chip_geom.chip_size;
-	disk->d_pagesize = chip->chip_geom.page_size;
-	disk->d_oobsize = chip->chip_geom.oob_size;
-	disk->d_unit = chip->num + 
+	ndisk = disk_alloc();
+	ndisk->d_strategy = nand_strategy;
+	ndisk->d_ioctl = nand_ioctl;
+	ndisk->d_getattr = nand_getattr;
+	ndisk->d_name = "gnand";
+	ndisk->d_drv1 = chip;
+	ndisk->d_maxsize = chip->chip_geom.block_size;
+	ndisk->d_sectorsize = chip->chip_geom.page_size;
+	ndisk->d_mediasize = chip->chip_geom.chip_size;
+	ndisk->d_unit = chip->num +
 	    10 * device_get_unit(device_get_parent(chip->dev));
 
-	/* 
+	/*
 	 * When using BBT, make two last blocks of device unavailable
 	 * to user (because those are used to store BBT table).
 	 */
 	if (chip->bbt != NULL)
-		disk->d_mediasize -= (2 * chip->chip_geom.block_size);
+		ndisk->d_mediasize -= (2 * chip->chip_geom.block_size);
 
-	disk->d_flags = DISKFLAG_CANDELETE;
+	ndisk->d_flags = DISKFLAG_CANDELETE;
 
-	snprintf(disk->d_ident, sizeof(disk->d_ident),
+	snprintf(ndisk->d_ident, sizeof(ndisk->d_ident),
 	    "nand: Man:0x%02x Dev:0x%02x", chip->id.man_id, chip->id.dev_id);
 
-	gnand_create(disk);
+	disk_create(ndisk, DISK_VERSION);
 
 	/* Create the RAW disk device */
-	rdisk = gnand_alloc();
+	rdisk = disk_alloc();
 	rdisk->d_strategy = nand_strategy_raw;
 	rdisk->d_ioctl = nand_ioctl;
+	rdisk->d_getattr = nand_getattr;
 	rdisk->d_name = "gnand.raw";
 	rdisk->d_drv1 = chip;
-	rdisk->d_dev = dev;
 	rdisk->d_maxsize = chip->chip_geom.block_size;
 	rdisk->d_sectorsize = chip->chip_geom.page_size;
 	rdisk->d_mediasize = chip->chip_geom.chip_size;
-	rdisk->d_pagesize = chip->chip_geom.page_size;
-	rdisk->d_oobsize = chip->chip_geom.oob_size;
-	rdisk->d_unit = chip->num + 
+	rdisk->d_unit = chip->num +
 	    10 * device_get_unit(device_get_parent(chip->dev));
 
 	rdisk->d_flags = DISKFLAG_CANDELETE;
 
-	snprintf(rdisk->d_ident, sizeof(disk->d_ident),
+	snprintf(rdisk->d_ident, sizeof(rdisk->d_ident),
 	    "nand_raw: Man:0x%02x Dev:0x%02x", chip->id.man_id,
 	    chip->id.dev_id);
 
-	gnand_create(rdisk);
+	disk_create(rdisk, DISK_VERSION);
 
-	chip->disk = disk;
+	chip->ndisk = ndisk;
 	chip->rdisk = rdisk;
 
 	mtx_init(&chip->qlock, "NAND I/O lock", NULL, MTX_DEF);
@@ -370,8 +380,10 @@ create_geom_disk(struct nand_chip *chip)
 	    taskqueue_thread_enqueue, &chip->tq);
 	taskqueue_start_threads(&chip->tq, 1, PI_DISK, "nand taskq");
 
-	device_printf(chip->dev, "Created gnand%d for chip [0x%0x, 0x%0x]\n",
-	    disk->d_unit, chip->id.man_id, chip->id.dev_id);
+	if (bootverbose)
+		device_printf(chip->dev, "Created gnand%d for chip [0x%0x, "
+		    "0x%0x]\n", ndisk->d_unit, chip->id.man_id,
+		    chip->id.dev_id);
 
 	return (0);
 }
@@ -382,8 +394,8 @@ destroy_geom_disk(struct nand_chip *chip)
 	struct bio *bp;
 
 	taskqueue_free(chip->tq);
-	gnand_destroy(chip->disk);
-	gnand_destroy(chip->rdisk);
+	disk_destroy(chip->ndisk);
+	disk_destroy(chip->rdisk);
 
 	mtx_lock(&chip->qlock);
 	for (;;) {

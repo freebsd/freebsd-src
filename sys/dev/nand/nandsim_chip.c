@@ -470,8 +470,8 @@ nandchip_get_addr_byte(struct nandsim_chip *chip, void *data, uint32_t *value)
 	buffer = (uint8_t *)value;
 	byte = *((uint8_t *)data);
 
-	KASSERT((chip->sm_state == NANDSIM_STATE_WAIT_ADDR_ROW || 
-	    chip->sm_state == NANDSIM_STATE_WAIT_ADDR_COL), 
+	KASSERT((chip->sm_state == NANDSIM_STATE_WAIT_ADDR_ROW ||
+	    chip->sm_state == NANDSIM_STATE_WAIT_ADDR_COL),
 	    ("unexpected state"));
 
 	if (chip->sm_state == NANDSIM_STATE_WAIT_ADDR_ROW) {

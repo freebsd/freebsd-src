@@ -221,12 +221,12 @@ generic_nand_attach(device_t dev)
 	/* TODO remove when HW ECC supported */
 	nandbus = device_get_parent(dev);
 	nfc = device_get_parent(nandbus);
-	
+
 	chip->nand = device_get_softc(nfc);
 
 	if (ivar->is_onfi) {
 		onfi_params = malloc(sizeof(struct onfi_params),
-			M_NAND, M_WAITOK | M_ZERO);
+		    M_NAND, M_WAITOK | M_ZERO);
 		if (onfi_params == NULL)
 			return (ENXIO);
 
@@ -389,7 +389,7 @@ generic_read_page(device_t nand, uint32_t page, void *buf, uint32_t len,
 	page_to_row(&chip->chip_geom, page, &row);
 
 	if (send_read_page(nand, NAND_CMD_READ, NAND_CMD_READ_END, row,
-		    offset))
+	    offset))
 		return (ENXIO);
 
 	DELAY(chip->t_r);
@@ -427,7 +427,7 @@ generic_read_oob(device_t nand, uint32_t page, void* buf, uint32_t len,
 	offset += chip->chip_geom.page_size;
 
 	if (send_read_page(nand, NAND_CMD_READ, NAND_CMD_READ_END, row,
-		    offset))
+	    offset))
 		return (ENXIO);
 
 	DELAY(chip->t_r);
@@ -994,7 +994,7 @@ generic_correct_ecc(device_t dev, void *buf, void *readecc, void *calcecc)
 	struct nand_chip *chip = device_get_softc(dev);
 	struct chip_geom *cg = &chip->chip_geom;
 
-	return (NANDBUS_CORRECT_ECC(device_get_parent(dev), buf, 
+	return (NANDBUS_CORRECT_ECC(device_get_parent(dev), buf,
 	    cg->page_size, readecc, calcecc));
 }
 

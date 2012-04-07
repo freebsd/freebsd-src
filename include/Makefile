@@ -172,7 +172,7 @@ copies:
 	cd ${.CURDIR}/../sys/dev/nand; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nandsim.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_cdev.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand
 .endif
 	cd ${.CURDIR}/../sys/contrib/altq/altq; \
@@ -249,7 +249,7 @@ symlinks:
 	done
 .if ${MK_NAND} != "no"
 	cd ${.CURDIR}/../sys/dev/nand; \
-	for h in nandsim.h nand_cdev.h; do \
+	for h in nandsim.h nand_dev.h; do \
 		ln -fs ../../../../sys/dev/nand/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done

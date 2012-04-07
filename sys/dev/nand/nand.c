@@ -106,7 +106,7 @@ nand_init(struct nand_softc *nand, device_t dev, int ecc_mode,
 	if (ecc_mode == NAND_ECC_SOFT) {
 		nand->ecc.eccbytes = SOFTECC_BYTES;
 		nand->ecc.eccsize = SOFTECC_SIZE;
-	} else if (ecc_mode != NAND_ECC_NONE){
+	} else if (ecc_mode != NAND_ECC_NONE) {
 		nand->ecc.eccbytes = ecc_bytes;
 		nand->ecc.eccsize = ecc_size;
 		if (eccposition)
@@ -153,7 +153,7 @@ nand_set_params(struct nand_chip *chip, struct nand_params *params)
 	chip->t_ccs = 0;
 
 	if (params->flags & NAND_16_BIT)
-	    chip->flags |= NAND_16_BIT;
+		chip->flags |= NAND_16_BIT;
 }
 
 int
@@ -390,9 +390,9 @@ correct_ecc(uint8_t *buf, uint8_t *calc_ecc, uint8_t *read_ecc)
 
 	addr = BIT3(ecc0) | (BIT5(ecc0) << 1) | (BIT7(ecc0) << 2);
 	addr |= (BIT1(ecc2) << 3) | (BIT3(ecc2) << 4) |
-		    (BIT5(ecc2) << 5) |  (BIT7(ecc2) << 6);
+	    (BIT5(ecc2) << 5) |  (BIT7(ecc2) << 6);
 	addr |= (BIT1(ecc1) << 7) | (BIT3(ecc1) << 8) |
-		    (BIT5(ecc1) << 9) |  (BIT7(ecc1) << 10);
+	    (BIT5(ecc1) << 9) |  (BIT7(ecc1) << 10);
 
 	onesnum = 0;
 	while (ecc0 || ecc1 || ecc2) {
@@ -432,7 +432,7 @@ nand_softecc_get(device_t dev, uint8_t *buf, int pagesize, uint8_t *ecc)
 	int i = 0, j = 0;
 
 	for (; i < (steps * SOFTECC_BYTES);
-	     i += SOFTECC_BYTES, j += SOFTECC_SIZE) {
+	    i += SOFTECC_BYTES, j += SOFTECC_SIZE) {
 		calculate_ecc(&buf[j], &ecc[i]);
 	}
 
@@ -447,7 +447,7 @@ nand_softecc_correct(device_t dev, uint8_t *buf, int pagesize,
 	int i = 0, j = 0, ret = 0;
 
 	for (i = 0; i < (steps * SOFTECC_BYTES);
-	     i += SOFTECC_BYTES, j += SOFTECC_SIZE) {
+	    i += SOFTECC_BYTES, j += SOFTECC_SIZE) {
 		ret += correct_ecc(&buf[j], &calcecc[i], &readecc[i]);
 		if (ret < 0)
 			return (ret);
@@ -677,7 +677,7 @@ nand_prog_pages(struct nand_chip *chip, uint32_t offset, uint8_t *buf,
 					oob[eccpos[i]] = eccd->ecccalculated[i];
 
 				if (NAND_PROGRAM_OOB(chip->dev, page, oob,
-					    cg->oob_size, 0)) {
+				    cg->oob_size, 0)) {
 					err = ENXIO;
 					break;
 				}
@@ -746,7 +746,7 @@ nand_prog_pages_raw(struct nand_chip *chip, uint32_t offset, void *buf,
 
 	if (end)
 		retval = NAND_PROGRAM_PAGE(chip->dev, page, ptr, end, 0);
-	
+
 	NANDBUS_UNLOCK(nandbus);
 
 	return (retval);

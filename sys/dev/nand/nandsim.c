@@ -70,9 +70,9 @@ static void nandsim_print_log(struct sim_log *);
 static struct nandsim_chip *get_nandsim_chip(uint8_t, uint8_t);
 
 static struct cdevsw nandsim_cdevsw = {
-        .d_version =    D_VERSION,
-        .d_ioctl =      nandsim_ioctl,
-        .d_name =       "nandsim",
+	.d_version =    D_VERSION,
+	.d_ioctl =      nandsim_ioctl,
+	.d_name =       "nandsim",
 };
 
 int
@@ -263,7 +263,7 @@ nandsim_destroy_chip(struct sim_ctrl_chip *chip)
 {
 	struct sim_ctrl_conf *ctrl_conf;
 
-        nand_debug(NDBG_SIM,"destroy chip num:%d at ctrl:%d", chip->chip_num,
+	nand_debug(NDBG_SIM,"destroy chip num:%d at ctrl:%d", chip->chip_num,
 	    chip->ctrl_num);
 
 	if (chip->ctrl_num >= MAX_SIM_DEV ||
@@ -657,7 +657,7 @@ nandsim_modevent(module_t mod __unused, int type, void *data __unused)
 		break;
 	default:
 		return (EOPNOTSUPP);
-        }
+	}
 	return (0);
 }
 
