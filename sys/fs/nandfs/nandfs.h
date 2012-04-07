@@ -122,8 +122,8 @@ struct nandfs_segment {
 	uint64_t		 start_block;
 	uint32_t		 num_blocks;
 
-	uint32_t		 nfinfos;
 	uint32_t		 nblocks;
+	uint32_t		 nbinfos;
 	uint32_t		 segsum_blocks;
 	uint32_t		 segsum_bytes;
 	uint32_t		 bytes_left;
@@ -135,7 +135,6 @@ struct nandfs_seginfo {
 	struct nandfs_segment		*curseg;
 	struct nandfs_device		*fsdev;
 	uint32_t			blocks;
-	uint32_t			finfos;
 	uint8_t				reiterate;
 };
 
@@ -146,9 +145,18 @@ struct nandfs_fsarea {
 	int	last_used;
 };
 
+extern int nandfs_cleaner_enable;
+extern int nandfs_cleaner_interval;
+extern int nandfs_cleaner_segments;
+
 struct nandfs_device {
 	struct vnode		*nd_devvp;
 	struct g_consumer	*nd_gconsumer;
+
+	struct proc		*nd_syncer;
+	struct proc		*nd_cleaner;
+	int			nd_syncer_exit;
+	int			nd_cleaner_exit;
 
 	int			nd_is_nand;
 
@@ -177,11 +185,11 @@ struct nandfs_device {
 	struct mtx		nd_mutex;
 	struct mtx		nd_sync_mtx;
 	struct cv		nd_sync_cv;
+	struct mtx		nd_clean_mtx;
+	struct cv		nd_clean_cv;
 	struct lock		nd_seg_const;
 
 	struct nandfs_seginfo	*nd_seginfo;
-
-	int32_t			nd_cleanerd_pid;
 
 	/* FS geometry */
 	uint64_t		nd_devsize;
@@ -209,14 +217,14 @@ struct nandfs_device {
 	int			nd_mount_state;
 	int			nd_refcnt;
 	int			nd_syncing;
+	int			nd_cleaning;
 };
 
 extern SLIST_HEAD(_nandfs_devices, nandfs_device) nandfs_devices;
 
 #define	NANDFS_KILL_SYNCER	0x1
 #define	NANDFS_FORCE_SYNCER	0x2
-#define	NANDFS_NOLOCK_SYNCER	0x4
-#define	NANDFS_UMOUNT		0x8
+#define	NANDFS_UMOUNT		0x4
 
 #define	SYNCER_UMOUNT		0x0
 #define	SYNCER_VFS_SYNC		0x1
@@ -233,17 +241,9 @@ struct nandfsmount {
 	struct nandfs_device	*nm_nandfsdev;
 	struct nandfs_args	nm_mount_args;
 	struct nandfs_node	*nm_ifile_node;
-	struct proc		*nm_syncer;
-	struct sysctl_oid	*nm_mountpoint_oid;
 
 	uint8_t			nm_flags;
 	int8_t			nm_ronly;
-};
-
-struct nandfs_indirect{
-	TAILQ_ENTRY(nandfs_indirect)	list_entry;
-	struct nandfs_indir		indices;
-	struct buf			*bp;
 };
 
 struct nandfs_node {

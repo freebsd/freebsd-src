@@ -139,7 +139,7 @@ int nandfs_vblock_free(struct nandfs_device *, nandfs_daddr_t);
 int nandfs_get_checkpoint(struct nandfs_device *, struct nandfs_node *,
     uint64_t);
 int nandfs_set_checkpoint(struct nandfs_device *, struct nandfs_node *,
-    uint64_t, struct nandfs_inode *, uint64_t, uint64_t);
+    uint64_t, struct nandfs_inode *, uint64_t);
 
 /* Segment management */
 int nandfs_alloc_segment(struct nandfs_device *, uint64_t *);
@@ -174,18 +174,18 @@ void nandfs_inode_destroy(struct nandfs_inode *);
 /* ioctl */
 int nandfs_get_seg_stat(struct nandfs_device *, struct nandfs_seg_stat *);
 int nandfs_chng_cpmode(struct nandfs_node *, struct nandfs_cpmode *);
-int nandfs_get_cpinfo(struct nandfs_node *, struct nandfs_argv *);
+int nandfs_get_cpinfo_ioctl(struct nandfs_node *, struct nandfs_argv *);
 int nandfs_delete_cp(struct nandfs_node *, uint64_t start, uint64_t);
 int nandfs_make_snap(struct nandfs_device *, uint64_t *);
 int nandfs_delete_snap(struct nandfs_device *, uint64_t);
 int nandfs_get_cpstat(struct nandfs_node *, struct nandfs_cpstat *);
-int nandfs_get_segment_info(struct nandfs_device *, struct nandfs_argv *);
-int nandfs_get_dat_vinfo(struct nandfs_device *, struct nandfs_argv *);
-int nandfs_clean_segments(struct nandfs_device *, struct nandfs_argv *);
-int nandfs_get_bdescs(struct nandfs_device *, struct nandfs_argv *);
+int nandfs_get_segment_info_ioctl(struct nandfs_device *, struct nandfs_argv *);
+int nandfs_get_dat_vinfo_ioctl(struct nandfs_device *, struct nandfs_argv *);
+int nandfs_get_dat_bdescs_ioctl(struct nandfs_device *, struct nandfs_argv *);
 int nandfs_get_fsinfo(struct nandfsmount *, struct nandfs_fsinfo *);
-int nandfs_cleanerd_set(struct nandfs_device *);
-int nandfs_cleanerd_unset(struct nandfs_device *);
+
+int nandfs_get_cpinfo(struct nandfs_node *, uint64_t, uint16_t,
+    struct nandfs_cpinfo *, uint32_t, uint32_t *);
 
 nandfs_lbn_t nandfs_get_maxfilesize(struct nandfs_device *);
 
@@ -200,6 +200,20 @@ struct buf *nandfs_geteblk(int, int);
 void nandfs_dirty_bufs_increment(struct nandfs_device *);
 void nandfs_dirty_bufs_decrement(struct nandfs_device *);
 
+int nandfs_start_cleaner(struct nandfs_device *);
+int nandfs_stop_cleaner(struct nandfs_device *);
+
+int nandfs_load_segsum(struct nandfs_device *, nandfs_daddr_t,
+    struct nandfs_segment_summary *);
+int nandfs_get_segment_info(struct nandfs_device *, struct nandfs_suinfo *,
+    uint32_t, uint64_t);
+int nandfs_get_segment_info_filter(struct nandfs_device *,
+    struct nandfs_suinfo *, uint32_t, uint64_t, uint64_t *, uint32_t, uint32_t);
+int nandfs_get_dat_vinfo(struct nandfs_device *, struct nandfs_vinfo *,
+    uint32_t);
+int nandfs_get_dat_bdescs(struct nandfs_device *, struct nandfs_bdesc *,
+    uint32_t);
+
 #define	NANDFS_VBLK_ASSIGNED	1
 
 #define	NANDFS_IS_INDIRECT(bp)	((bp)->b_lblkno < 0)
@@ -208,6 +222,8 @@ int nandfs_erase(struct nandfs_device *, off_t, size_t);
 
 #define	NANDFS_VOP_ISLOCKED(vp)	nandfs_vop_islocked((vp))
 int nandfs_vop_islocked(struct vnode *vp);
+
+nandfs_daddr_t nandfs_block_to_dblock(struct nandfs_device *, nandfs_lbn_t);
 
 #define DEBUG_MODE
 #if defined(DEBUG_MODE)

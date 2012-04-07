@@ -109,6 +109,11 @@ create_segment(struct nandfs_seginfo *seginfo)
 			return (error);
 		}
 		start_block = fsdev->nd_last_pseg + (uint64_t)nblocks;
+		/*
+		 * XXX hack
+		 */
+		if (blks_per_seg - (start_block % blks_per_seg) - 1 == 0)
+			start_block++;
 		curr = nandfs_get_segnum_of_block(fsdev, start_block);
 		/* Allocate new segment if last one is full */
 		if (fsdev->nd_seg_num != curr) {
@@ -150,7 +155,8 @@ create_segment(struct nandfs_seginfo *seginfo)
 	seg->segsum_bytes = sizeof(struct nandfs_segment_summary);
 
 	/* Allocate buffer for segment summary */
-	bp = nandfs_geteblk(fsdev->nd_blocksize, 0);
+	bp = getblk(fsdev->nd_devvp, nandfs_block_to_dblock(fsdev,
+	    seg->start_block), fsdev->nd_blocksize, 0, 0, 0);
 	bzero(bp->b_data, seginfo->fsdev->nd_blocksize);
 	bp->b_bufobj = &seginfo->fsdev->nd_devvp->v_bufobj;
 	bp->b_flags |= B_MANAGED;
@@ -207,7 +213,6 @@ create_seginfo(struct nandfs_device *fsdev, struct nandfs_seginfo **seginfo)
 	info->fsdev = fsdev;
 	info->curseg = NULL;
 	info->blocks = 0;
-	info->finfos = 0;
 	*seginfo = info;
 	fsdev->nd_seginfo = info;
 	return (0);
@@ -308,13 +313,12 @@ nandfs_add_superroot(struct nandfs_seginfo *seginfo)
 }
 
 static int
-nandfs_add_segsum_block(struct nandfs_seginfo *seginfo, struct buf **newbp,
-    int *new_seg)
+nandfs_add_segsum_block(struct nandfs_seginfo *seginfo, struct buf **newbp)
 {
+	struct nandfs_device *fsdev;
+	nandfs_daddr_t blk;
 	struct buf *bp;
 	int error;
-
-	*new_seg = 0;
 
 	if (!(seginfo->curseg) || seginfo->curseg->num_blocks <= 1) {
 		error = create_segment(seginfo);
@@ -324,11 +328,14 @@ nandfs_add_segsum_block(struct nandfs_seginfo *seginfo, struct buf **newbp,
 			return (error);
 		}
 		*newbp = TAILQ_FIRST(&seginfo->curseg->segsum);
-		*new_seg = 1;
 		return (0);
 	}
 
-	bp = nandfs_geteblk(seginfo->fsdev->nd_blocksize, GB_NOWAIT_BD);
+	fsdev = seginfo->fsdev;
+	blk = nandfs_block_to_dblock(fsdev, seginfo->curseg->start_block +
+	    seginfo->curseg->segsum_blocks);
+
+	bp = getblk(fsdev->nd_devvp, blk, fsdev->nd_blocksize, 0, 0, 0);
 
 	bzero(bp->b_data, seginfo->fsdev->nd_blocksize);
 	bp->b_bufobj = &seginfo->fsdev->nd_devvp->v_bufobj;
@@ -336,8 +343,8 @@ nandfs_add_segsum_block(struct nandfs_seginfo *seginfo, struct buf **newbp,
 
 	TAILQ_INSERT_TAIL(&seginfo->curseg->segsum, bp,
 	    b_cluster.cluster_entry);
-
 	seginfo->curseg->num_blocks--;
+
 	seginfo->curseg->segsum_blocks++;
 	seginfo->curseg->bytes_left = seginfo->fsdev->nd_blocksize;
 	seginfo->curseg->current_off = bp->b_data;
@@ -351,48 +358,12 @@ nandfs_add_segsum_block(struct nandfs_seginfo *seginfo, struct buf **newbp,
 }
 
 static int
-nandfs_fill_finfo(struct nandfs_seginfo *seginfo, struct nandfs_node *node)
-{
-	struct nandfs_finfo *finfo;
-	struct buf *bp;
-	int new_seg, error;
-
-	if (!(seginfo->curseg) ||
-	    seginfo->curseg->bytes_left < sizeof(struct nandfs_finfo)) {
-		error = nandfs_add_segsum_block(seginfo, &bp, &new_seg);
-		if (error) {
-			nandfs_error("%s: cannot add new block for segsum"
-			    " for seg:%p node:%p\n", __func__, seginfo, node);
-			return (error);
-		}
-	}
-
-	seginfo->curseg->nfinfos++;
-	seginfo->finfos++;
-
-	finfo = (struct nandfs_finfo *)seginfo->curseg->current_off;
-	finfo->fi_ino = node->nn_ino;
-	finfo->fi_ndatablk = 0;
-	finfo->fi_nblocks = 0;
-	finfo->fi_cno = seginfo->fsdev->nd_last_cno + 1;
-	DPRINTF(SYNC, ("%s: finfo %p ino %#jx cno %#jx\n", __func__,
-	    finfo, node->nn_ino, (uintmax_t)seginfo->fsdev->nd_last_cno + 1));
-
-	finfo++;
-	seginfo->curseg->bytes_left -= sizeof(struct nandfs_finfo);
-	seginfo->curseg->segsum_bytes += sizeof(struct nandfs_finfo);
-	seginfo->curseg->current_off = (char *)finfo;
-
-	return (0);
-}
-
-static int
 nandfs_add_blocks(struct nandfs_seginfo *seginfo, struct nandfs_node *node,
     struct buf *bp)
 {
 	union nandfs_binfo *binfo;
 	struct buf *seg_bp;
-	int new_seg, error;
+	int error;
 
 	if (!(seginfo->curseg) || !seginfo->curseg->num_blocks) {
 		error = create_segment(seginfo);
@@ -401,26 +372,24 @@ nandfs_add_blocks(struct nandfs_seginfo *seginfo, struct nandfs_node *node,
 			    __func__, error);
 			return (error);
 		}
-		nandfs_fill_finfo(seginfo, node);
 	}
 
-	binfo = (union nandfs_binfo *)seginfo->curseg->current_off;
 	if (seginfo->curseg->bytes_left < sizeof(union nandfs_binfo)) {
-		error = nandfs_add_segsum_block(seginfo, &seg_bp, &new_seg);
+		error = nandfs_add_segsum_block(seginfo, &seg_bp);
 		if (error) {
 			nandfs_error("%s: error:%d when adding segsum\n",
 			    __func__, error);
 			return (error);
 		}
-		if (new_seg == 1)
-			nandfs_fill_finfo(seginfo, node);
-		binfo = (union nandfs_binfo *)seginfo->curseg->current_off;
 	}
+	binfo = (union nandfs_binfo *)seginfo->curseg->current_off;
 
-	if (node->nn_ino != NANDFS_DAT_INO)
+	if (node->nn_ino != NANDFS_DAT_INO) {
 		binfo->bi_v.bi_blkoff = bp->b_lblkno;
-	else {
+		binfo->bi_v.bi_ino = node->nn_ino;
+	} else {
 		binfo->bi_dat.bi_blkoff = bp->b_lblkno;
+		binfo->bi_dat.bi_ino = node->nn_ino;
 		if (NANDFS_IS_INDIRECT(bp))
 			binfo->bi_dat.bi_level = 1;
 		else
@@ -434,6 +403,7 @@ nandfs_add_blocks(struct nandfs_seginfo *seginfo, struct nandfs_node *node,
 
 	TAILQ_INSERT_TAIL(&seginfo->curseg->data, bp, b_cluster.cluster_entry);
 
+	seginfo->curseg->nbinfos++;
 	seginfo->curseg->nblocks++;
 	seginfo->curseg->num_blocks--;
 	seginfo->blocks++;
@@ -451,7 +421,6 @@ nandfs_iterate_dirty_buf(struct vnode *vp, struct nandfs_seginfo *seginfo,
 	struct buf *bp, *tbd;
 	struct bufobj *bo;
 	struct nandfs_node *node;
-	int finfo = 0;
 	int error;
 
 	node = VTON(vp);
@@ -465,9 +434,6 @@ nandfs_iterate_dirty_buf(struct vnode *vp, struct nandfs_seginfo *seginfo,
 		    "add buf\n", __func__, vp, bp, bp->b_lblkno, node->nn_ino));
 
 		if (!(NANDFS_ISGATHERED(bp))) {
-			if (!finfo)
-				nandfs_fill_finfo(seginfo, node);
-			finfo = 1;
 			error = nandfs_bmap_update_dat(node,
 			    nandfs_vblk_get(bp), bp);
 			if (error)
@@ -590,6 +556,7 @@ nandfs_update_phys_block(struct nandfs_device *fsdev, struct buf *bp,
 		nandfs_vblock_assign(fsdev, new_blknr, phys_blknr);
 		binfo->bi_v.bi_vblocknr = new_blknr;
 		binfo->bi_v.bi_blkoff = bp->b_lblkno;
+		binfo->bi_v.bi_ino = node->nn_ino;
 	} else {
 		VOP_LOCK(NTOV(dat), LK_EXCLUSIVE);
 		error = nandfs_bmap_update_block(node, bp, phys_blknr);
@@ -601,6 +568,7 @@ nandfs_update_phys_block(struct nandfs_device *fsdev, struct buf *bp,
 		}
 		VOP_UNLOCK(NTOV(dat), 0);
 		binfo->bi_dat.bi_blkoff = bp->b_lblkno;
+		binfo->bi_dat.bi_ino = node->nn_ino;
 		if (NANDFS_IS_INDIRECT(bp))
 			binfo->bi_dat.bi_level = 1;
 		else
@@ -610,23 +578,19 @@ nandfs_update_phys_block(struct nandfs_device *fsdev, struct buf *bp,
 	return (0);
 }
 
-#define	NFINFO(off) ((off) + sizeof(struct nandfs_finfo))
 #define	NBINFO(off) ((off) + sizeof(union nandfs_binfo))
 static int
 nandfs_segment_assign_pblk(struct nandfs_segment *nfsseg)
 {
 	struct nandfs_device *fsdev;
-	struct nandfs_finfo *finfo;
 	union nandfs_binfo *binfo;
 	struct buf *bp, *seg_bp;
-	uint64_t blocknr, dblocks, ablocks, ino;
+	uint64_t blocknr;
 	uint32_t curr_off, blocksize;
-	int nfinfo = 0, error;
+	int error;
 
 	fsdev = nfsseg->fsdev;
 	blocksize = fsdev->nd_blocksize;
-	finfo = NULL;
-	dblocks = ablocks = ino = 0;
 
 	blocknr = nfsseg->start_block + nfsseg->segsum_blocks;
 	seg_bp = TAILQ_FIRST(&nfsseg->segsum);
@@ -639,44 +603,10 @@ nandfs_segment_assign_pblk(struct nandfs_segment *nfsseg)
 
 	TAILQ_FOREACH(bp, &nfsseg->data, b_cluster.cluster_entry) {
 		KASSERT((bp->b_vp), ("bp %p has not vp", bp));
-		if ((VTON(bp->b_vp)->nn_ino) != ino) {
-			/* If not the first one, update block counts */
-			if (finfo) {
-				finfo->fi_nblocks = ablocks;
-				finfo->fi_ndatablk = dblocks;
-				DPRINTF(SYNC,
-				    ("%s: update finfo %p ino %#jx nblk %#x "
-				        "dblk %#x\n", __func__,
-				    finfo, finfo->fi_ino, finfo->fi_nblocks,
-				        finfo->fi_ndatablk));
-			}
-
-			finfo = (struct nandfs_finfo *)binfo;
-			nfinfo++;
-
-			if (NFINFO(curr_off) > blocksize) {
-				seg_bp = TAILQ_NEXT(seg_bp,
-				    b_cluster.cluster_entry);
-				finfo = (struct nandfs_finfo *)seg_bp->b_data;
-				curr_off = 0;
-				DPRINTF(SYNC,
-				    ("%s: next segsum %p data %p\n",
-				     __func__, seg_bp, seg_bp->b_data));
-			}
-
-			ino = VTON(bp->b_vp)->nn_ino;
-			KASSERT((VTON(bp->b_vp)->nn_ino == finfo->fi_ino),
-			    ("bp <=> finfo ino mismatch bp:%p finfo:%p", bp,
-			    finfo));
-
-			dblocks = ablocks = 0;
-			curr_off += sizeof(struct nandfs_finfo);
-			binfo = (union nandfs_binfo *)(finfo + 1);
-		}
 
 		DPRINTF(BMAP, ("\n\n%s: assign buf %p for ino %#jx next %p\n",
-		     __func__, bp, (uintmax_t)VTON(bp->b_vp)->nn_ino,
-		     TAILQ_NEXT(bp, b_cluster.cluster_entry)));
+		    __func__, bp, (uintmax_t)VTON(bp->b_vp)->nn_ino,
+		    TAILQ_NEXT(bp, b_cluster.cluster_entry)));
 
 		if (NBINFO(curr_off) > blocksize) {
 			seg_bp = TAILQ_NEXT(seg_bp, b_cluster.cluster_entry);
@@ -697,38 +627,6 @@ nandfs_segment_assign_pblk(struct nandfs_segment *nfsseg)
 		curr_off = NBINFO(curr_off);
 
 		blocknr++;
-		ablocks++;
-		if (!NANDFS_IS_INDIRECT(bp))
-			dblocks++;
-	}
-
-	/* If there is one block rest of segment */
-	if (finfo == NULL) {
-		finfo = (struct nandfs_finfo *)binfo;
-		if (finfo == NULL) {
-			nandfs_error("%s: finfo is NULL\n", __func__);
-			return (-1);
-		}
-		nfinfo++;
-	}
-
-	finfo->fi_nblocks = ablocks;
-	finfo->fi_ndatablk = dblocks;
-	DPRINTF(SYNC, ("%s:update finfo %p ino %#jx nblk %#x dblk %#x\n",
-	    __func__, finfo, finfo->fi_ino, finfo->fi_nblocks,
-	    finfo->fi_ndatablk));
-
-	if (nfsseg->nfinfos != nfinfo) {
-		nfsseg->nfinfos = nfinfo;
-		finfo = (struct nandfs_finfo *)binfo;
-		if (NFINFO(curr_off) > blocksize) {
-			seg_bp = TAILQ_NEXT(seg_bp, b_cluster.cluster_entry);
-			finfo = (struct nandfs_finfo *)seg_bp->b_data;
-			DPRINTF(SYNC,
-			    ("%s: next segsum %p data %p\n",
-			    __func__, seg_bp, seg_bp->b_data));
-		}
-		bzero(finfo, sizeof(*finfo));
 	}
 
 	return (0);
@@ -759,10 +657,10 @@ nandfs_fill_segsum(struct nandfs_segment *seg, int has_sr)
 	uint16_t flags;
 	uint8_t *crc_area, crc_skip, crc_seed, crc_calc = 0;
 
-	DPRINTF(SYNC, ("%s: seg %#jx nblocks %#x nfinfo %#x sumbytes %#x\n",
+	DPRINTF(SYNC, ("%s: seg %#jx nblocks %#x sumbytes %#x\n",
 	    __func__, (uintmax_t) seg->seg_num,
 	    seg->nblocks + seg->segsum_blocks,
-	    seg->nfinfos, seg->segsum_bytes));
+	    seg->segsum_bytes));
 
 	fsdev = seg->fsdev;
 	crc_seed = fsdev->nd_fsdata.f_crc_seed;
@@ -780,7 +678,7 @@ nandfs_fill_segsum(struct nandfs_segment *seg, int has_sr)
 	ss->ss_create = fsdev->nd_ts.tv_sec;
 	nandfs_get_segment_range(fsdev, seg->seg_next, &ss->ss_next, NULL);
 	ss->ss_nblocks = seg->nblocks + seg->segsum_blocks;
-	ss->ss_nfinfo = seg->nfinfos;
+	ss->ss_nbinfos = seg->nbinfos;
 	ss->ss_sumbytes = seg->segsum_bytes;
 
 	crc_skip = sizeof(ss->ss_datasum) + sizeof(ss->ss_sumsum);
@@ -809,15 +707,11 @@ static int
 nandfs_save_buf(struct buf *bp, uint64_t blocknr, struct nandfs_device *fsdev)
 {
 	struct bufobj *bo;
-	uint32_t blocksize;
-	off_t offset;
 	int error;
 
 	bo = &fsdev->nd_devvp->v_bufobj;
-	blocksize = fsdev->nd_blocksize;
 
-	offset = blocknr * blocksize;
-	bp->b_blkno = btodb(offset);
+	bp->b_blkno = nandfs_block_to_dblock(fsdev, blocknr);
 	bp->b_iooffset = dbtob(bp->b_blkno);
 
 	KASSERT(bp->b_bufobj != NULL, ("no bufobj for %p", bp));
@@ -830,7 +724,7 @@ nandfs_save_buf(struct buf *bp, uint64_t blocknr, struct nandfs_device *fsdev)
 
 	DPRINTF(SYNC, ("%s: buf: %p offset %#jx blk %#jx size %#x\n",
 	    __func__, bp, (uintmax_t)bp->b_offset, (uintmax_t)blocknr,
-	    blocksize));
+	    fsdev->nd_blocksize));
 
 	NANDFS_UNGATHER(bp);
 	nandfs_buf_clear(bp, 0xffffffff);
@@ -1027,7 +921,7 @@ out:
 	return (error);
 }
 
-/* Process segments marks to free by cleanerd */
+/* Process segments marks to free by cleaner */
 static void
 nandfs_process_segments(struct nandfs_device *fsdev)
 {
@@ -1038,6 +932,8 @@ nandfs_process_segments(struct nandfs_device *fsdev)
 		saved_segment = nandfs_get_segnum_of_block(fsdev,
 		    fsdev->nd_super.s_last_pseg);
 		for (i = 0; i < fsdev->nd_free_count; i++) {
+			if (fsdev->nd_free_base[i] == NANDFS_NOSEGMENT)
+				continue;
 			/* Update superblock if clearing segment point by it */
 			if (fsdev->nd_free_base[i] == saved_segment) {
 				nandfs_write_superblock(fsdev);
@@ -1142,7 +1038,7 @@ nandfs_sync_file(struct vnode *vp)
 
 		/* Fill checkpoint data */
 		error = nandfs_set_checkpoint(fsdev, cp, fsdev->nd_last_cno + 1,
-		    &ifile->nn_inode, seginfo->blocks, seginfo->finfos);
+		    &ifile->nn_inode, seginfo->blocks);
 		if (error) {
 			clean_seginfo(seginfo, 0);
 			delete_seginfo(seginfo);
@@ -1270,7 +1166,7 @@ reiterate:
 
 		/* Fill checkpoint data */
 		nandfs_set_checkpoint(fsdev, cp, fsdev->nd_last_cno + 1,
-		    &ifile->nn_inode, seginfo->blocks, seginfo->finfos);
+		    &ifile->nn_inode, seginfo->blocks);
 
 		LIST_FOREACH(seg, &seginfo->seg_list, seg_link)
 			nandfs_update_segment(fsdev, seg->seg_num,

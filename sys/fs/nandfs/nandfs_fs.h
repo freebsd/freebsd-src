@@ -33,6 +33,8 @@
 #ifndef _NANDFS_FS_H
 #define _NANDFS_FS_H
 
+#include <sys/uuid.h>
+
 #define	MNINDIR(fsdev)	((fsdev)->nd_blocksize / sizeof(nandfs_daddr_t))
 
 /*
@@ -175,7 +177,7 @@ struct nandfs_fsdata {
 
 	uint32_t	f_crc_seed;		/* seed value of CRC calculation	*/
 
-	uint8_t		f_uuid[16];		/* 128-bit uuid for volume		*/
+	struct uuid	f_uuid;			/* 128-bit uuid for volume		*/
 	char		f_volume_name[16];	/* volume name				*/
 	uint32_t	f_pad[96];
 } __packed;
@@ -276,34 +278,33 @@ struct nandfs_dir_entry {
  * files and optionally a super root.
  */
 
-struct nandfs_finfo {
-	uint64_t	fi_ino;		/* inode number                     */
-	uint64_t	fi_cno;		/* checkpoint associated with this  */
-	uint32_t	fi_nblocks;	/* size in blocks of this finfo     */
-	uint32_t	fi_ndatablk;	/* number of data blocks            */
-};
-
 /*
  * Virtual to physical block translation information. For data blocks it maps
  * logical block number bi_blkoff to virtual block nr bi_vblocknr. For non
  * datablocks it is the virtual block number assigned to an indirect block
  * and has no bi_blkoff. The physical block number is the next
- * available data block in the partial segment after all the finfo's.
+ * available data block in the partial segment after all the binfo's.
  */
 struct nandfs_binfo_v {
+	uint64_t	bi_ino;		/* file's inode			     */
 	uint64_t	bi_vblocknr;	/* assigned virtual block number     */
 	uint64_t	bi_blkoff;	/* for file's logical block number   */
 };
 
 /*
  * DAT allocation. For data blocks just the logical block number that maps on
- * the next available data block in the partial segment after the finfo's.
+ * the next available data block in the partial segment after the binfo's.
  */
 struct nandfs_binfo_dat {
+	uint64_t	bi_ino;
 	uint64_t	bi_blkoff;	/* DAT file's logical block number */
 	uint8_t		bi_level;	/* whether this is meta block */
 	uint8_t		bi_pad[7];
 };
+
+#ifdef _KERNEL
+CTASSERT(sizeof(struct nandfs_binfo_v) == sizeof(struct nandfs_binfo_dat));
+#endif
 
 /* Convenience union for both types of binfo's */
 union nandfs_binfo {
@@ -327,11 +328,11 @@ struct nandfs_segment_summary {
 	uint64_t	ss_seq;		/* sequence number of this segm. sum */
 	uint64_t	ss_create;	/* creation timestamp in seconds     */
 	uint64_t	ss_next;	/* blocknumber of next segment       */
-	uint32_t	ss_nblocks;	/* number of blocks follow           */
-	uint32_t	ss_nfinfo;	/* number of finfo structures follow */
+	uint32_t	ss_nblocks;	/* number of blocks used by summary  */
+	uint32_t	ss_nbinfos;	/* number of binfo structures	     */
 	uint32_t	ss_sumbytes;	/* total size of segment summary     */
 	uint32_t	ss_pad;
-	/* stream of finfo structures */
+	/* stream of binfo structures */
 };
 
 #define	NANDFS_SEGSUM_MAGIC	0x8e680011	/* segment summary magic number */
@@ -382,7 +383,7 @@ struct nandfs_dat_entry {
  * Structure of CP file.
  *
  * A snapshot is just a checkpoint only it's protected against removal by the
- * cleanerd. The snapshots are kept on a double linked list of checkpoints.
+ * cleaner. The snapshots are kept on a double linked list of checkpoints.
  */
 struct nandfs_snapshot_list {
 	uint64_t	ssl_next;	/* checkpoint nr. forward */
@@ -397,7 +398,6 @@ struct nandfs_checkpoint {
 	uint64_t	cp_cno;			/* checkpoint number                 */
 	uint64_t	cp_create;		/* creation timestamp                */
 	uint64_t	cp_nblk_inc;		/* number of blocks incremented      */
-	uint64_t	cp_inodes_count;	/* number of inodes in this cp.      */
 	uint64_t	cp_blocks_count;	/* reserved (might be deleted)       */
 	struct nandfs_inode cp_ifile_inode;	/* inode file inode          */
 };
@@ -420,6 +420,9 @@ struct nandfs_cpfile_header {
 	((sizeof(struct nandfs_cpfile_header) +		\
 	sizeof(struct nandfs_checkpoint) - 1) /		\
 	sizeof(struct nandfs_checkpoint))
+
+
+#define NANDFS_NOSEGMENT        0xffffffff
 
 /*
  * Structure of SU file.
@@ -475,7 +478,6 @@ struct nandfs_cpinfo {
 	uint64_t	nci_cno;
 	uint64_t	nci_create;
 	uint64_t	nci_nblk_inc;
-	uint64_t	nci_inodes_count;
 	uint64_t	nci_blocks_count;
 	uint64_t	nci_next;
 };
@@ -483,6 +485,7 @@ struct nandfs_cpinfo {
 #define	NANDFS_SEGMENTS_MAX	512
 
 struct nandfs_suinfo {
+	uint64_t	nsi_num;
 	uint64_t	nsi_lastmod;
 	uint32_t	nsi_blocks;
 	uint32_t	nsi_flags;
@@ -491,10 +494,12 @@ struct nandfs_suinfo {
 #define	NANDFS_VINFO_MAX	512
 
 struct nandfs_vinfo {
+	uint64_t	nvi_ino;
 	uint64_t	nvi_vblocknr;
 	uint64_t	nvi_start;
 	uint64_t	nvi_end;
 	uint64_t	nvi_blocknr;
+	int		nvi_alive;
 };
 
 struct nandfs_cpmode {
@@ -506,6 +511,7 @@ struct nandfs_cpmode {
 struct nandfs_argv {
 	uint64_t	nv_base;
 	uint32_t	nv_nmembs;
+	uint16_t	nv_size;
 	uint16_t	nv_flags;
 	uint64_t	nv_index;
 };
@@ -538,7 +544,7 @@ struct nandfs_bdesc {
 	uint64_t	bd_blocknr;
 	uint64_t	bd_offset;
 	uint32_t	bd_level;
-	uint32_t	bd_pad;
+	uint32_t	bd_alive;
 };
 
 #ifndef _KERNEL
@@ -559,16 +565,13 @@ struct nandfs_fsinfo {
 #define	NANDFS_IOCTL_CHANGE_CPMODE	_IOWR('N', 101, struct nandfs_cpmode)
 #define	NANDFS_IOCTL_GET_CPINFO		_IOWR('N', 102, struct nandfs_argv)
 #define	NANDFS_IOCTL_DELETE_CP		_IOWR('N', 103, uint64_t[2])
-#define	NANDFS_IOCTL_CPSTAT		_IOR('N', 104, struct nandfs_cpstat)
+#define	NANDFS_IOCTL_GET_CPSTAT		_IOR('N', 104, struct nandfs_cpstat)
 #define	NANDFS_IOCTL_GET_SUINFO		_IOWR('N', 105, struct nandfs_argv)
 #define	NANDFS_IOCTL_GET_VINFO		_IOWR('N', 106, struct nandfs_argv)
 #define	NANDFS_IOCTL_GET_BDESCS		_IOWR('N', 107, struct nandfs_argv)
-#define	NANDFS_IOCTL_CLEAN_SEGMENTS	_IOWR('N', 108, struct nandfs_argv[5])
-#define	NANDFS_IOCTL_SYNC		_IOWR('N', 109, uint64_t)
-#define	NANDFS_IOCTL_GET_FSINFO		_IOR('N', 110, struct nandfs_fsinfo)
-#define	NANDFS_IOCTL_CLEANERD_SET	_IO('N', 111)
-#define	NANDFS_IOCTL_CLEANERD_UNSET	_IO('N', 112)
-#define	NANDFS_IOCTL_MAKE_SNAP		_IOWR('N', 113, uint64_t)
-#define	NANDFS_IOCTL_DELETE_SNAP	_IOWR('N', 114, uint64_t)
+#define	NANDFS_IOCTL_GET_FSINFO		_IOR('N', 108, struct nandfs_fsinfo)
+#define	NANDFS_IOCTL_MAKE_SNAP		_IOWR('N', 109, uint64_t)
+#define	NANDFS_IOCTL_DELETE_SNAP	_IOWR('N', 110, uint64_t)
+#define	NANDFS_IOCTL_SYNC		_IOWR('N', 111, uint64_t)
 
 #endif /* _NANDFS_FS_H */

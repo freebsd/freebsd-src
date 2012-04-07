@@ -222,26 +222,16 @@ nandfs_vblock_free(struct nandfs_device *nandfsdev, nandfs_daddr_t vblock)
 }
 
 int
-nandfs_get_dat_vinfo(struct nandfs_device *nandfsdev, struct nandfs_argv *nargv)
+nandfs_get_dat_vinfo_ioctl(struct nandfs_device *nandfsdev, struct nandfs_argv *nargv)
 {
-	struct nandfs_node *dat;
-	struct nandfs_mdt *mdt;
-	struct nandfs_alloc_request req;
-	struct nandfs_dat_entry *dat_entry;
 	struct nandfs_vinfo *vinfo;
 	size_t size;
-	uint32_t i, nmembs, idx;
 	int error;
 
-	dat = nandfsdev->nd_dat_node;
-	mdt = &nandfsdev->nd_dat_mdt;
-
-	nmembs = nargv->nv_nmembs;
-
-	if (nmembs > NANDFS_VINFO_MAX)
+	if (nargv->nv_nmembs > NANDFS_VINFO_MAX)
 		return (EINVAL);
 
-	size = sizeof(struct nandfs_vinfo) * nmembs;
+	size = sizeof(struct nandfs_vinfo) * nargv->nv_nmembs;
 	vinfo = malloc(size, M_NANDFSTEMP, M_WAITOK|M_ZERO);
 
 	error = copyin((void *)(uintptr_t)nargv->nv_base, vinfo, size);
@@ -249,6 +239,27 @@ nandfs_get_dat_vinfo(struct nandfs_device *nandfsdev, struct nandfs_argv *nargv)
 		free(vinfo, M_NANDFSTEMP);
 		return (error);
 	}
+
+	error = nandfs_get_dat_vinfo(nandfsdev, vinfo, nargv->nv_nmembs);
+	if (error == 0)
+		error =	copyout(vinfo, (void *)(uintptr_t)nargv->nv_base, size);
+	free(vinfo, M_NANDFSTEMP);
+	return (error);
+}
+
+int
+nandfs_get_dat_vinfo(struct nandfs_device *nandfsdev, struct nandfs_vinfo *vinfo,
+    uint32_t nmembs)
+{
+	struct nandfs_node *dat;
+	struct nandfs_mdt *mdt;
+	struct nandfs_alloc_request req;
+	struct nandfs_dat_entry *dat_entry;
+	uint32_t i, idx;
+	int error = 0;
+
+	dat = nandfsdev->nd_dat_node;
+	mdt = &nandfsdev->nd_dat_mdt;
 
 	DPRINTF(DAT, ("%s: nmembs %#x\n", __func__, nmembs));
 
@@ -274,9 +285,60 @@ nandfs_get_dat_vinfo(struct nandfs_device *nandfsdev, struct nandfs_argv *nargv)
 	}
 
 	VOP_UNLOCK(NTOV(dat), 0);
+	return (error);
+}
+
+int
+nandfs_get_dat_bdescs_ioctl(struct nandfs_device *nffsdev,
+    struct nandfs_argv *nargv)
+{
+	struct nandfs_bdesc *bd;
+	size_t size;
+	int error;
+
+	size = nargv->nv_nmembs * sizeof(struct nandfs_bdesc);
+	bd = malloc(size, M_NANDFSTEMP, M_WAITOK);
+	error = copyin((void *)(uintptr_t)nargv->nv_base, bd, size);
+	if (error) {
+		free(bd, M_NANDFSTEMP);
+		return (error);
+	}
+
+	error = nandfs_get_dat_bdescs(nffsdev, bd, nargv->nv_nmembs);
 
 	if (error == 0)
-		error =	copyout(vinfo, (void *)(uintptr_t)nargv->nv_base, size);
-	free(vinfo, M_NANDFSTEMP);
+		error =	copyout(bd, (void *)(uintptr_t)nargv->nv_base, size);
+
+	free(bd, M_NANDFSTEMP);
+	return (error);
+}
+
+int
+nandfs_get_dat_bdescs(struct nandfs_device *nffsdev, struct nandfs_bdesc *bd,
+    uint32_t nmembs)
+{
+	struct nandfs_node *dat_node;
+	uint64_t map;
+	uint32_t i;
+	int error = 0;
+
+	dat_node = nffsdev->nd_dat_node;
+
+	VOP_LOCK(NTOV(dat_node), LK_EXCLUSIVE);
+
+	for (i = 0; i < nmembs; i++) {
+		DPRINTF(CLEAN,
+		    ("%s: bd ino:%#jx oblk:%#jx blocknr:%#jx off:%#jx\n",
+		    __func__,  (uintmax_t)bd[i].bd_ino,
+		    (uintmax_t)bd[i].bd_oblocknr, (uintmax_t)bd[i].bd_blocknr,
+		    (uintmax_t)bd[i].bd_offset));
+
+		error = nandfs_bmap_nlookup(dat_node, bd[i].bd_offset, 1, &map);
+		if (error)
+			break;
+		bd[i].bd_blocknr = map;
+	}
+
+	VOP_UNLOCK(NTOV(dat_node), 0);
 	return (error);
 }

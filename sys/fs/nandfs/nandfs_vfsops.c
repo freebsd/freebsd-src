@@ -61,6 +61,7 @@ static MALLOC_DEFINE(M_NANDFSMNT, "nandfs_mount", "NANDFS mount structure");
 
 #define	NANDFS_UNSET_SYSTEMFILE(vp) {	\
 	VOP_LOCK(vp, LK_EXCLUSIVE);	\
+	MPASS(vp->v_bufobj.bo_dirty.bv_cnt == 0); \
 	(vp)->v_vflag &= ~VV_SYSTEM;	\
 	vgone(vp);			\
 	vput(vp); }
@@ -70,7 +71,6 @@ struct _nandfs_devices nandfs_devices;
 
 /* Parameters */
 int nandfs_verbose = 0;
-uint16_t nandfs_mounts = 0;
 
 static void
 nandfs_tunable_init(void *arg)
@@ -87,18 +87,33 @@ SYSCTL_INT(_vfs_nandfs, OID_AUTO, verbose, CTLFLAG_RW, &nandfs_verbose, 0, "");
 
 #define NANDFS_CONSTR_INTERVAL	5
 int nandfs_sync_interval = NANDFS_CONSTR_INTERVAL; /* sync every 5 seconds */
-SYSCTL_INT(_vfs_nandfs, OID_AUTO, sync_interval, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_nandfs, OID_AUTO, sync_interval, CTLFLAG_RW,
     &nandfs_sync_interval, 0, "");
 
 #define NANDFS_MAX_DIRTY_SEGS	5
 int nandfs_max_dirty_segs = NANDFS_MAX_DIRTY_SEGS; /* sync when 5 dirty seg */
-SYSCTL_INT(_vfs_nandfs, OID_AUTO, max_dirty_segs, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_nandfs, OID_AUTO, max_dirty_segs, CTLFLAG_RW,
     &nandfs_max_dirty_segs, 0, "");
 
 #define NANFS_CPS_BETWEEN_SBLOCKS 5
 int nandfs_cps_between_sblocks = NANFS_CPS_BETWEEN_SBLOCKS; /* write superblock every 5 checkpoints */
-SYSCTL_INT(_vfs_nandfs, OID_AUTO, cps_between_sblocks, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cps_between_sblocks, CTLFLAG_RW,
     &nandfs_cps_between_sblocks, 0, "");
+
+#define NANFS_CLEANER_ENABLE 0
+int nandfs_cleaner_enable = NANFS_CLEANER_ENABLE;
+SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cleaner_enable, CTLFLAG_RW,
+    &nandfs_cleaner_enable, 0, "");
+
+#define NANFS_CLEANER_INTERVAL 5
+int nandfs_cleaner_interval = NANFS_CLEANER_INTERVAL;
+SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cleaner_interval, CTLFLAG_RW,
+    &nandfs_cleaner_interval, 0, "");
+
+#define NANFS_CLEANER_SEGMENTS 5
+int nandfs_cleaner_segments = NANFS_CLEANER_SEGMENTS;
+SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cleaner_segments, CTLFLAG_RW,
+    &nandfs_cleaner_segments, 0, "");
 
 static int nandfs_mountfs(struct vnode *devvp, struct mount *mp);
 static vfs_mount_t	nandfs_mount;
@@ -108,10 +123,8 @@ static vfs_unmount_t	nandfs_unmount;
 static vfs_vget_t	nandfs_vget;
 static vfs_sync_t	nandfs_sync;
 static const char *nandfs_opts[] = {
-	"cpno", "from", "noatime", NULL
+	"snap", "from", "noatime", NULL
 };
-
-static struct sysctl_ctx_list nandfs_mnt_ctx;
 
 /* System nodes */
 static int
@@ -755,6 +768,8 @@ nandfs_unmount_device(struct nandfs_device *nandfsdev)
 	/* Free our device info */
 	cv_destroy(&nandfsdev->nd_sync_cv);
 	mtx_destroy(&nandfsdev->nd_sync_mtx);
+	cv_destroy(&nandfsdev->nd_clean_cv);
+	mtx_destroy(&nandfsdev->nd_clean_mtx);
 	mtx_destroy(&nandfsdev->nd_mutex);
 	lockdestroy(&nandfsdev->nd_seg_const);
 	free(nandfsdev, M_NANDFSMNT);
@@ -853,9 +868,12 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 	nandfsdev->nd_refcnt = 1;
 	nandfsdev->nd_devvp = devvp;
 	nandfsdev->nd_syncing = 0;
+	nandfsdev->nd_cleaning = 0;
 	nandfsdev->nd_gconsumer = cp;
 	cv_init(&nandfsdev->nd_sync_cv, "nandfssync");
 	mtx_init(&nandfsdev->nd_sync_mtx, "nffssyncmtx", NULL, MTX_DEF);
+	cv_init(&nandfsdev->nd_clean_cv, "nandfsclean");
+	mtx_init(&nandfsdev->nd_clean_mtx, "nffscleanmtx", NULL, MTX_DEF);
 	mtx_init(&nandfsdev->nd_mutex, "nandfsdev lock", NULL, MTX_DEF);
 	lockinit(&nandfsdev->nd_seg_const, PVFS, "nffssegcon", VLKTIMEOUT,
 	    LK_NOSHARE|LK_CANRECURSE);
@@ -869,25 +887,25 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 	    &erasesize);
 	if (error) {
 		DPRINTF(VOLUMES, ("couldn't get erasesize: %d\n", error));
-		/*
-		 * We conclude that this is not NAND storage
-		 */
 
 		/*
-		 * FIXME translate this to some normal error code, also make
+		 * FIXME translate this to some normal error codes, also make
 		 * sure that we cannot get this error with NAND devices
 		 */
-		if (error == -3) {
+		if (error == -3 || error == 45) {
+			/*
+			 * We conclude that this is not NAND storage
+			 */
 			nandfsdev->nd_erasesize = NANDFS_DEF_ERASESIZE;
 			nandfsdev->nd_is_nand = 0;
 		} else {
-			free(nandfsdev, M_NANDFSMNT);
 			DROP_GIANT();
 			g_topology_lock();
 			g_vfs_close(nandfsdev->nd_gconsumer);
 			g_topology_unlock();
 			PICKUP_GIANT();
 			dev_rel(dev);
+			free(nandfsdev, M_NANDFSMNT);
 			return (error);
 		}
 	} else {
@@ -1048,10 +1066,12 @@ nandfs_wakeup_wait_sync(struct nandfs_device *nffsdev, int reason)
 
 	DPRINTF(SYNC, ("%s: %s\n", __func__, reasons[reason]));
 	mtx_lock(&nffsdev->nd_sync_mtx);
-	if (nffsdev->nd_syncing == 0) {
-		nffsdev->nd_syncing = 1;
-		wakeup(&nffsdev->nd_syncing);
-	}
+	if (nffsdev->nd_syncing)
+		cv_wait(&nffsdev->nd_sync_cv, &nffsdev->nd_sync_mtx);
+	if (reason == SYNCER_UMOUNT)
+		nffsdev->nd_syncer_exit = 1;
+	nffsdev->nd_syncing = 1;
+	wakeup(&nffsdev->nd_syncing);
 
 	cv_wait(&nffsdev->nd_sync_cv, &nffsdev->nd_sync_mtx);
 	mtx_unlock(&nffsdev->nd_sync_mtx);
@@ -1086,20 +1106,18 @@ nandfs_procbody(struct nandfsmount *nmp)
 	nffsdev = nmp->nm_nandfsdev;
 	tsleep(&nffsdev->nd_syncing, PRIBIO, "-", hz * nandfs_sync_interval);
 
-	while (!(nmp->nm_flags & NANDFS_KILL_SYNCER)) {
+	while (!nffsdev->nd_syncer_exit) {
 		DPRINTF(SYNC, ("%s: syncer run\n", __func__));
 		nffsdev->nd_syncing = 1;
 
 		flags = (nmp->nm_flags & (NANDFS_FORCE_SYNCER|NANDFS_UMOUNT));
 
-		if (!(nmp->nm_flags & NANDFS_NOLOCK_SYNCER))
-			vfs_write_suspend(mp);
+		vfs_write_suspend(mp);
 		error = nandfs_segment_constructor(nmp, flags);
 		if (error)
 			nandfs_error("%s: error:%d when creating segments\n",
 			    __func__, error);
-		if (!(nmp->nm_flags & NANDFS_NOLOCK_SYNCER))
-			vfs_write_resume(mp);
+		vfs_write_resume(mp);
 
 		nmp->nm_flags &= ~flags;
 
@@ -1107,7 +1125,7 @@ nandfs_procbody(struct nandfsmount *nmp)
 	}
 	nmp->nm_flags &= ~NANDFS_KILL_SYNCER;
 	nandfs_gc_finished(nffsdev, 1);
-	nmp->nm_syncer = NULL;
+	nffsdev->nd_syncer = NULL;
 
 	/*
 	 * A bit of explanation:
@@ -1125,23 +1143,33 @@ nandfs_procbody(struct nandfsmount *nmp)
 static int
 start_syncer(struct nandfsmount *nmp)
 {
+	int error;
 
-	if (nmp->nm_syncer)
-		return (0);
+	MPASS(nmp->nm_nandfsdev->nd_syncer == NULL);
 
 	DPRINTF(SYNC, ("%s: start syncer\n", __func__));
-	return (kproc_create((void(*)(void *))nandfs_procbody, nmp,
-	    &nmp->nm_syncer, 0, 0, "nandfs_syncer"));
+
+	nmp->nm_nandfsdev->nd_syncer_exit = 0;
+
+	error = kproc_create((void(*)(void *))nandfs_procbody, nmp,
+	    &nmp->nm_nandfsdev->nd_syncer, 0, 0, "nandfs_syncer");
+
+	if (error)
+		printf("nandfs: could not start syncer: %d\n", error);
+
+	return (error);
 }
 
 static int
 stop_syncer(struct nandfsmount *nmp)
 {
 
-	if (nmp->nm_syncer && !(nmp->nm_flags & NANDFS_KILL_SYNCER)) {
-		nmp->nm_flags |= NANDFS_KILL_SYNCER;
-		nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_UMOUNT);
-	}
+	MPASS(nmp->nm_nandfsdev->nd_syncer != NULL);
+
+	vn_finished_write(nmp->nm_vfs_mountp);
+	nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_UMOUNT);
+	vn_start_write(NULL, &nmp->nm_vfs_mountp, V_WAIT);
+
 	DPRINTF(SYNC, ("%s: stop syncer\n", __func__));
 	return (0);
 }
@@ -1186,6 +1214,9 @@ nandfs_mount(struct mount *mp)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
+
+			nandfs_stop_cleaner(nmp->nm_nandfsdev);
+
 			nandfs_wakeup_wait_sync(nmp->nm_nandfsdev,
 			    SYNCER_ROUPD);
 			error = vflush(mp, 0, flags, td);
@@ -1229,7 +1260,8 @@ nandfs_mount(struct mount *mp)
 			VOP_UNLOCK(devvp, 0);
 			DROP_GIANT();
 			g_topology_lock();
-			error = g_access(nmp->nm_nandfsdev->nd_gconsumer, 0, 1, 0);
+			error = g_access(nmp->nm_nandfsdev->nd_gconsumer, 0, 1,
+			    0);
 			g_topology_unlock();
 			PICKUP_GIANT();
 			if (error)
@@ -1238,7 +1270,19 @@ nandfs_mount(struct mount *mp)
 			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
-			start_syncer(nmp);
+			error = start_syncer(nmp);
+			if (error == 0)
+				error = nandfs_start_cleaner(nmp->nm_nandfsdev);
+			if (error) {
+				DROP_GIANT();
+				g_topology_lock();
+				g_access(nmp->nm_nandfsdev->nd_gconsumer, 0, -1,
+				    0);
+				g_topology_unlock();
+				PICKUP_GIANT();
+				return (error);
+			}
+
 			nmp->nm_ronly = 0;
 		}
 		return (0);
@@ -1290,9 +1334,8 @@ nandfs_mountfs(struct vnode *devvp, struct mount *mp)
 	struct nandfs_args *args = NULL;
 	struct nandfs_device *nandfsdev;
 	char *from;
-	char nodename[8];
 	int error, ronly;
-	int64_t *cpno;
+	char *cpno;
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
@@ -1307,7 +1350,7 @@ nandfs_mountfs(struct vnode *devvp, struct mount *mp)
 	if (error)
 		goto error;
 
-	error = vfs_getopt(mp->mnt_optnew, "cpno", (void **)&cpno, NULL);
+	error = vfs_getopt(mp->mnt_optnew, "snap", (void **)&cpno, NULL);
 	if (error == ENOENT)
 		cpno = NULL;
 	else if (error)
@@ -1316,7 +1359,10 @@ nandfs_mountfs(struct vnode *devvp, struct mount *mp)
 	args = (struct nandfs_args *)malloc(sizeof(struct nandfs_args),
 	    M_NANDFSMNT, M_WAITOK | M_ZERO);
 
-	args->cpno = (cpno == NULL ? 0 : *cpno);
+	if (cpno != NULL)
+		args->cpno = strtoul(cpno, (char **)NULL, 10);
+	else
+		args->cpno = 0;
 	args->fspec = from;
 
 	if (args->cpno != 0 && !ronly) {
@@ -1360,26 +1406,13 @@ nandfs_mountfs(struct vnode *devvp, struct mount *mp)
 		goto unmounted;
 	}
 
-	if (!ronly)
-		start_syncer(nmp);
-
-	/* Add per-mountpoint sysctls */
-	nandfsdev->nd_cleanerd_pid = -1;
-	sysctl_ctx_init(&nandfs_mnt_ctx);
-
-	snprintf(nodename, 7, "%d", nandfs_mounts++);
-
-	nmp->nm_mountpoint_oid = SYSCTL_ADD_NODE(&nandfs_mnt_ctx,
-	    SYSCTL_STATIC_CHILDREN(_vfs_nandfs_mount), OID_AUTO, nodename,
-	    CTLFLAG_RD, 0, "node for mountpoint");
-	SYSCTL_ADD_STRING(&nandfs_mnt_ctx,
-	    SYSCTL_CHILDREN(nmp->nm_mountpoint_oid), OID_AUTO, "dev",
-	    CTLFLAG_RD, nmp->nm_vfs_mountp->mnt_stat.f_mntfromname, -1,
-	    "mountpoint device");
-	SYSCTL_ADD_INT(&nandfs_mnt_ctx,
-	    SYSCTL_CHILDREN(nmp->nm_mountpoint_oid), OID_AUTO,
-	    "cleanerd_pid", CTLFLAG_RW, &nandfsdev->nd_cleanerd_pid, 0,
-	    "cleanerd pid");
+	if (!ronly) {
+		error = start_syncer(nmp);
+		if (error == 0)
+			error = nandfs_start_cleaner(nmp->nm_nandfsdev);
+		if (error)
+			nandfs_unmount(mp, MNT_FORCE);
+	}
 
 	return (0);
 
@@ -1412,29 +1445,25 @@ nandfs_unmount(struct mount *mp, int mntflags)
 	nandfsdev = nmp->nm_nandfsdev;
 
 	/* Umount already stopped writing */
-	if (!(nmp->nm_ronly) && (nmp->nm_syncer)) {
-		nmp->nm_flags |= NANDFS_NOLOCK_SYNCER|NANDFS_UMOUNT;
-		nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_UMOUNT);
+	if (!(nmp->nm_ronly)) {
+		nandfs_stop_cleaner(nandfsdev);
+		nmp->nm_flags |= NANDFS_UMOUNT;
+		/*
+		 * XXX This is a hack soon to be removed
+		 */
+		vn_finished_write(mp);
+		nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_VFS_SYNC);
+		vn_start_write(NULL, &mp, V_WAIT);
 	}
 	error = vflush(mp, 0, flags | SKIPSYSTEM, curthread);
 	if (error)
 		return (error);
 
-	if (!(nmp->nm_ronly) && (nmp->nm_syncer))
+	if (!(nmp->nm_ronly))
 		stop_syncer(nmp);
 
 	if (nmp->nm_ifile_node)
 		NANDFS_UNSET_SYSTEMFILE(NTOV(nmp->nm_ifile_node));
-
-#if 0
-	/* Check if cleanerd is still running */
-	if (nandfsdev->nd_cleanerd_pid != -1)
-		printf("WARNING: cleanerd on %s has probably crashed!\n",
-		    mp->mnt_stat.f_mntonname);
-#endif
-
-	/* Remove mountpoint sysctls */
-	sysctl_remove_oid(nmp->nm_mountpoint_oid, 0, 1);
 
 	/* Remove our mount point */
 	STAILQ_REMOVE(&nandfsdev->nd_mounts, nmp, nandfsmount, nm_next_mount);

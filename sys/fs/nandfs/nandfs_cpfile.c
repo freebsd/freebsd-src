@@ -137,8 +137,7 @@ nandfs_get_checkpoint(struct nandfs_device *fsdev, struct nandfs_node *cp_node,
 
 int
 nandfs_set_checkpoint(struct nandfs_device *fsdev, struct nandfs_node *cp_node,
-    uint64_t cn, struct nandfs_inode *ifile_inode, uint64_t nblocks,
-    uint64_t nfinfos)
+    uint64_t cn, struct nandfs_inode *ifile_inode, uint64_t nblocks)
 {
 	struct nandfs_cpfile_header *cnh;
 	struct nandfs_checkpoint *cnp;
@@ -179,13 +178,12 @@ nandfs_set_checkpoint(struct nandfs_device *fsdev, struct nandfs_node *cp_node,
 	cnp->cp_cno = cn;
 	cnp->cp_create = fsdev->nd_ts.tv_sec;
 	cnp->cp_nblk_inc = nblocks;
-	cnp->cp_inodes_count = nfinfos;
 	cnp->cp_blocks_count = 0;
 	memcpy (&cnp->cp_ifile_inode, ifile_inode, sizeof(cnp->cp_ifile_inode));
 
-	DPRINTF(CPFILE, ("%s: cn:%#jx ctime:%#jx nblk:%#jx nino:%#jx\n",
+	DPRINTF(CPFILE, ("%s: cn:%#jx ctime:%#jx nblk:%#jx\n",
 	    __func__, (uintmax_t)cn, (uintmax_t)cnp->cp_create,
-	    (uintmax_t)nblocks, (uintmax_t)nfinfos));
+	    (uintmax_t)nblocks));
 
 	brelse(bp);
 	return (0);
@@ -477,7 +475,6 @@ nandfs_cpinfo_fill(struct nandfs_checkpoint *cnp, struct nandfs_cpinfo *nci)
 	nci->nci_cno = cnp->cp_cno;
 	nci->nci_create = cnp->cp_create;
 	nci->nci_nblk_inc = cnp->cp_nblk_inc;
-	nci->nci_inodes_count = cnp->cp_inodes_count;
 	nci->nci_blocks_count = cnp->cp_blocks_count;
 	nci->nci_next = cnp->cp_snapshot_list.ssl_next;
 	DPRINTF(CPFILE, ("%s: cn:%#jx ctime:%#jx\n",
@@ -575,7 +572,8 @@ nandfs_get_cpinfo_sp(struct nandfs_node *node, uint64_t cno,
 	fsdev = node->nn_nandfsdev;
 	curr_cno = cno;
 
-	*nmembs = 0;
+	if (nmembs)
+		*nmembs = 0;
 	if (curr_cno == 1) {
 		/* Get list from header */
 		error = nandfs_bread(node, 0, NOCRED, 0, &bp);
@@ -616,10 +614,10 @@ nandfs_get_cpinfo_sp(struct nandfs_node *node, uint64_t cno,
 		nci->nci_cno = cnp->cp_cno;
 		nci->nci_create = cnp->cp_create;
 		nci->nci_nblk_inc = cnp->cp_nblk_inc;
-		nci->nci_inodes_count = cnp->cp_inodes_count;
 		nci->nci_blocks_count = cnp->cp_blocks_count;
 		nci->nci_next = cnp->cp_snapshot_list.ssl_next;
-		(*nmembs)++;
+		if (nmembs)
+			(*nmembs)++;
 
 		curr_cno = nci->nci_next;
 		if (!curr_cno)
@@ -632,7 +630,30 @@ nandfs_get_cpinfo_sp(struct nandfs_node *node, uint64_t cno,
 }
 
 int
-nandfs_get_cpinfo(struct nandfs_node *node, struct nandfs_argv *nargv)
+nandfs_get_cpinfo(struct nandfs_node *node, uint64_t cno, uint16_t flags,
+    struct nandfs_cpinfo *nci, uint32_t nmembs, uint32_t *nnmembs)
+{
+	int error;
+
+	VOP_LOCK(NTOV(node), LK_EXCLUSIVE);
+	switch (flags) {
+	case NANDFS_CHECKPOINT:
+		error = nandfs_get_cpinfo_cp(node, cno, nci, nmembs, nnmembs);
+		break;
+	case NANDFS_SNAPSHOT:
+		error = nandfs_get_cpinfo_sp(node, cno, nci, nmembs, nnmembs);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	VOP_UNLOCK(NTOV(node), 0);
+
+	return (error);
+}
+
+int
+nandfs_get_cpinfo_ioctl(struct nandfs_node *node, struct nandfs_argv *nargv)
 {
 	struct nandfs_cpinfo *nci;
 	uint64_t cno = nargv->nv_index;
@@ -647,21 +668,7 @@ nandfs_get_cpinfo(struct nandfs_node *node, struct nandfs_argv *nargv)
 	nci = malloc(sizeof(struct nandfs_cpinfo) * nargv->nv_nmembs,
 	    M_NANDFSTEMP, M_WAITOK | M_ZERO);
 
-	VOP_LOCK(NTOV(node), LK_EXCLUSIVE);
-	switch (flags) {
-	case NANDFS_CHECKPOINT:
-		error = nandfs_get_cpinfo_cp(node, cno, nci, nargv->nv_nmembs,
-		    &nmembs);
-		break;
-	case NANDFS_SNAPSHOT:
-		error = nandfs_get_cpinfo_sp(node, cno, nci, nargv->nv_nmembs,
-		    &nmembs);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-	VOP_UNLOCK(NTOV(node), 0);
+	error = nandfs_get_cpinfo(node, cno, flags, nci, nargv->nv_nmembs, &nmembs);
 
 	if (error == 0) {
 		nargv->nv_nmembs = nmembs;

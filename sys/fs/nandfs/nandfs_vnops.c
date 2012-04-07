@@ -2127,7 +2127,7 @@ nandfs_ioctl(struct vop_ioctl_args *ap)
 		case NANDFS_IOCTL_GET_FSINFO:
 		case NANDFS_IOCTL_GET_SUSTAT:
 		case NANDFS_IOCTL_GET_CPINFO:
-		case NANDFS_IOCTL_CPSTAT:
+		case NANDFS_IOCTL_GET_CPSTAT:
 		case NANDFS_IOCTL_GET_SUINFO:
 		case NANDFS_IOCTL_GET_VINFO:
 		case NANDFS_IOCTL_GET_BDESCS:
@@ -2152,44 +2152,34 @@ nandfs_ioctl(struct vop_ioctl_args *ap)
 		break;
 	case NANDFS_IOCTL_GET_CPINFO:
 		nargv = (struct nandfs_argv *)data;
-		error = nandfs_get_cpinfo(nandfsdev->nd_cp_node, nargv);
+		error = nandfs_get_cpinfo_ioctl(nandfsdev->nd_cp_node, nargv);
 		break;
 	case NANDFS_IOCTL_DELETE_CP:
 		tab = (uint64_t *)data;
 		error = nandfs_delete_cp(nandfsdev->nd_cp_node, tab[0], tab[1]);
 		nandfs_force_syncer(nmp);
 		break;
-	case NANDFS_IOCTL_CPSTAT:
+	case NANDFS_IOCTL_GET_CPSTAT:
 		ncp = (struct nandfs_cpstat *)data;
 		error = nandfs_get_cpstat(nandfsdev->nd_cp_node, ncp);
 		break;
 	case NANDFS_IOCTL_GET_SUINFO:
 		nargv = (struct nandfs_argv *)data;
-		error = nandfs_get_segment_info(nandfsdev, nargv);
+		error = nandfs_get_segment_info_ioctl(nandfsdev, nargv);
 		break;
 	case NANDFS_IOCTL_GET_VINFO:
 		nargv = (struct nandfs_argv *)data;
-		error = nandfs_get_dat_vinfo(nandfsdev, nargv);
+		error = nandfs_get_dat_vinfo_ioctl(nandfsdev, nargv);
 		break;
 	case NANDFS_IOCTL_GET_BDESCS:
 		nargv = (struct nandfs_argv *)data;
-		error = nandfs_get_bdescs(nandfsdev, nargv);
-		break;
-	case NANDFS_IOCTL_CLEAN_SEGMENTS:
-		nargv = (struct nandfs_argv *)data;
-		error = nandfs_clean_segments(nandfsdev, nargv);
+		error = nandfs_get_dat_bdescs_ioctl(nandfsdev, nargv);
 		break;
 	case NANDFS_IOCTL_SYNC:
 		cno = (uint64_t *)data;
 		nandfs_force_syncer(nmp);
 		*cno = nandfsdev->nd_last_cno;
 		error = 0;
-		break;
-	case NANDFS_IOCTL_CLEANERD_SET:
-		error = nandfs_cleanerd_set(nandfsdev);
-		break;
-	case NANDFS_IOCTL_CLEANERD_UNSET:
-		error = nandfs_cleanerd_unset(nandfsdev);
 		break;
 	case NANDFS_IOCTL_MAKE_SNAP:
 		cno = (uint64_t *)data;

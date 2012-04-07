@@ -317,7 +317,7 @@ nandfs_free_segment(struct nandfs_device *fsdev, uint64_t seg)
 	su_header->sh_ndirtysegs--;
 
 	/*
-	 *  Make buffers dirty, called by cleanerd
+	 *  Make buffers dirty, called by cleaner
 	 *  so force dirty even if no much space left
 	 *  on device
 	 */
@@ -431,41 +431,65 @@ nandfs_get_seg_stat(struct nandfs_device *nandfsdev,
 }
 
 int
-nandfs_get_segment_info(struct nandfs_device *nandfsdev,
+nandfs_get_segment_info_ioctl(struct nandfs_device *fsdev,
     struct nandfs_argv *nargv)
 {
-	uint64_t segment;
-	struct nandfs_segment_usage *su;
-	struct nandfs_suinfo *orig_nsi, *nsi;
-	struct nandfs_node *su_node;
-	struct buf *bp;
-	uintptr_t buf;
-	uint64_t curr, blocknr, blockoff, i;
-	uint32_t nmembs;
-	int err = 0;
+	struct nandfs_suinfo *nsi;
+	int error;
 
-	nmembs = nargv->nv_nmembs;
-	if (nmembs > NANDFS_SEGMENTS_MAX)
+	if (nargv->nv_nmembs > NANDFS_SEGMENTS_MAX)
 		return (EINVAL);
 
-	segment = nargv->nv_index;
-	buf = nargv->nv_base;
+	nsi = malloc(sizeof(struct nandfs_suinfo) * nargv->nv_nmembs,
+	    M_NANDFSTEMP, M_WAITOK | M_ZERO);
 
-	orig_nsi = nsi = malloc(sizeof(struct nandfs_suinfo) * nmembs,
-				M_NANDFSTEMP, M_WAITOK | M_ZERO);
+	error = nandfs_get_segment_info(fsdev, nsi, nargv->nv_nmembs,
+	    nargv->nv_index);
+
+	if (error == 0)
+		error = copyout(nsi, (void *)(uintptr_t)nargv->nv_base,
+		    sizeof(struct nandfs_suinfo) * nargv->nv_nmembs);
+
+	free(nsi, M_NANDFSTEMP);
+	return (error);
+}
+
+int
+nandfs_get_segment_info(struct nandfs_device *fsdev, struct nandfs_suinfo *nsi,
+    uint32_t nmembs, uint64_t segment)
+{
+
+	return (nandfs_get_segment_info_filter(fsdev, nsi, nmembs, segment,
+	    NULL, 0, 0));
+}
+
+int
+nandfs_get_segment_info_filter(struct nandfs_device *fsdev,
+    struct nandfs_suinfo *nsi, uint32_t nmembs, uint64_t segment,
+    uint64_t *nsegs, uint32_t filter, uint32_t nfilter)
+{
+	struct nandfs_segment_usage *su;
+	struct nandfs_node *su_node;
+	struct buf *bp;
+	uint64_t curr, blocknr, blockoff, i;
+	uint32_t flags;
+	int err = 0;
+
 	curr = ~(0);
 
-	lockmgr(&nandfsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
-	su_node = nandfsdev->nd_su_node;
+	lockmgr(&fsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
+	su_node = fsdev->nd_su_node;
 
 	VOP_LOCK(NTOV(su_node), LK_SHARED);
 
 	bp = NULL;
-	for (i = 0; i < nmembs; i++, nsi++, segment++) {
-		if (segment == nandfsdev->nd_fsdata.f_nsegments)
+	if (nsegs !=  NULL)
+		*nsegs = 0;
+	for (i = 0; i < nmembs; segment++) {
+		if (segment == fsdev->nd_fsdata.f_nsegments)
 			break;
 
-		nandfs_seg_usage_blk_offset(nandfsdev, segment, &blocknr,
+		nandfs_seg_usage_blk_offset(fsdev, segment, &blocknr,
 		    &blockoff);
 
 		if (i == 0 || curr != blocknr) {
@@ -480,24 +504,31 @@ nandfs_get_segment_info(struct nandfs_device *nandfsdev,
 		}
 
 		su = SU_USAGE_OFF(bp, blockoff);
+		flags = su->su_flags;
+		if (segment == fsdev->nd_seg_num ||
+		    segment == fsdev->nd_next_seg_num)
+			flags |= NANDFS_SEGMENT_USAGE_ACTIVE;
+
+		if (nfilter != 0 && (flags & nfilter) != 0)
+			continue;
+		if (filter != 0 && (flags & filter) == 0)
+			continue;
+
+		nsi->nsi_num = segment;
 		nsi->nsi_lastmod = su->su_lastmod;
 		nsi->nsi_blocks = su->su_nblocks;
-		nsi->nsi_flags = su->su_flags;
-		if (segment == nandfsdev->nd_seg_num ||
-		    segment == nandfsdev->nd_next_seg_num)
-			nsi->nsi_flags |= NANDFS_SEGMENT_USAGE_ACTIVE;
+		nsi->nsi_flags = flags;
+		nsi++;
+		i++;
+		if (nsegs != NULL)
+			(*nsegs)++;
 	}
 
 out:
 	if (bp != NULL)
 		brelse(bp);
 	VOP_UNLOCK(NTOV(su_node), 0);
-	lockmgr(&nandfsdev->nd_seg_const, LK_RELEASE, NULL);
-	if (err == 0)
-		err = copyout(orig_nsi, (void *)buf,
-		    sizeof(struct nandfs_suinfo) * nmembs);
-
-	free(orig_nsi, M_NANDFSTEMP);
+	lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
 
 	return (err);
 }
