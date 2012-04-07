@@ -40,7 +40,7 @@ CFLAGS+=	-fpic
 CFLAGS+=	-DPIC $(DEBUG)
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
-LDADD=		-lc_pic -lssp_nonshared
+LDADD=		-lc_pic
 
 .if ${MK_SYMVER} == "yes"
 LIBCDIR=	${TOPSRCDIR}/lib/libc
