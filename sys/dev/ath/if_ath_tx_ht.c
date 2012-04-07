@@ -741,18 +741,14 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 
 		/*
 		 * If the current frame has an RTS/CTS configuration
-		 * that differs from the first frame, don't include
-		 * this in the aggregate.  It's possible that the
-		 * "right" thing to do here is enforce the aggregate
-		 * configuration.
+		 * that differs from the first frame, override the
+		 * subsequent frame with this config.
 		 */
-		if ((bf_first->bf_state.bfs_txflags &
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) !=
-		   (bf->bf_state.bfs_txflags &
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))) {
-			status = ATH_AGGR_NONAGGR;
-			break;
-		}
+		bf->bf_state.bfs_txflags &=
+		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		bf->bf_state.bfs_txflags |=
+		    bf_first->bf_state.bfs_txflags &
+		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
 
 		/*
 		 * TODO: If it's _before_ the BAW left edge, complain very
