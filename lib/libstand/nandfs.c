@@ -53,14 +53,14 @@ struct nandfs_mdt {
 };
 
 struct bmap_buf {
-	LIST_ENTRY(bmap_buf) list;
-	nandfs_daddr_t blknr;
-	uint64_t *map;
+	LIST_ENTRY(bmap_buf)	list;
+	nandfs_daddr_t		blknr;
+	uint64_t		*map;
 };
 
 struct nandfs_node {
-	struct nandfs_inode *inode;
-	LIST_HEAD(, bmap_buf) bmap_bufs;
+	struct nandfs_inode	*inode;
+	LIST_HEAD(, bmap_buf)	bmap_bufs;
 };
 struct nandfs {
 	int	nf_blocksize;
@@ -87,33 +87,29 @@ struct nandfs {
 	int nf_nindir[NIADDR];
 };
 
-static int nandfs_open(const char *path, struct open_file *f);
-static int nandfs_close(struct open_file *f);
-static int nandfs_read(struct open_file *f, void *buf, size_t size,
-    size_t *resid);
-static off_t nandfs_seek(struct open_file *f, off_t offset, int where);
-static int nandfs_stat(struct open_file *f, struct stat *sb);
-static int nandfs_readdir(struct open_file *f, struct dirent *d);
+static int nandfs_open(const char *, struct open_file *);
+static int nandfs_close(struct open_file *);
+static int nandfs_read(struct open_file *, void *, size_t, size_t *);
+static off_t nandfs_seek(struct open_file *, off_t, int);
+static int nandfs_stat(struct open_file *, struct stat *);
+static int nandfs_readdir(struct open_file *, struct dirent *);
 
-static int nandfs_buf_read(struct nandfs *fs, char **buf_p, size_t *size_p);
-static struct nandfs_node *nandfs_lookup_inode(struct nandfs *fs, nandfs_daddr_t ino);
-static struct nandfs_node *nandfs_lookup_path(struct nandfs *fs,
-    const char *path);
-static int nandfs_read_inode(struct nandfs *fs, struct nandfs_node *node,
-    nandfs_lbn_t blknr, u_int nblks, void *buf, int raw);
-static int nandfs_read_blk(struct nandfs *fs, nandfs_daddr_t blknr, void *buf,
-    int phys);
-static int nandfs_bmap_lookup(struct nandfs *fs, struct nandfs_node *ino,
-    nandfs_lbn_t lblknr, nandfs_daddr_t *vblknr, int phys);
-static int nandfs_get_checkpoint(struct nandfs *fs, uint64_t cpno,
-    struct nandfs_checkpoint *cp);
-static nandfs_daddr_t nandfs_vtop(struct nandfs *fs, nandfs_daddr_t vblocknr);
-static void nandfs_calc_mdt_consts(int blocksize, struct nandfs_mdt *mdt,
-    int entry_size);
-static void nandfs_mdt_trans(struct nandfs_mdt *mdt, uint64_t index,
-    nandfs_daddr_t *blocknr, uint32_t *entry_in_block);
-static int ioread(struct open_file *f, off_t pos, void *buf, u_int length);
-static int nandfs_probe_sectorsize(struct open_file *f);
+static int nandfs_buf_read(struct nandfs *, char **, size_t *);
+static struct nandfs_node *nandfs_lookup_inode(struct nandfs *, nandfs_daddr_t);
+static struct nandfs_node *nandfs_lookup_path(struct nandfs *, const char *);
+static int nandfs_read_inode(struct nandfs *, struct nandfs_node *,
+    nandfs_lbn_t, u_int, void *, int);
+static int nandfs_read_blk(struct nandfs *, nandfs_daddr_t, void *, int);
+static int nandfs_bmap_lookup(struct nandfs *, struct nandfs_node *,
+    nandfs_lbn_t, nandfs_daddr_t *, int);
+static int nandfs_get_checkpoint(struct nandfs *, uint64_t,
+    struct nandfs_checkpoint *);
+static nandfs_daddr_t nandfs_vtop(struct nandfs *, nandfs_daddr_t);
+static void nandfs_calc_mdt_consts(int, struct nandfs_mdt *, int);
+static void nandfs_mdt_trans(struct nandfs_mdt *, uint64_t,
+    nandfs_daddr_t *, uint32_t *);
+static int ioread(struct open_file *, off_t, void *, u_int);
+static int nandfs_probe_sectorsize(struct open_file *);
 
 struct fs_ops nandfs_fsops = {
 	"nandfs",
@@ -126,7 +122,7 @@ struct fs_ops nandfs_fsops = {
 	nandfs_readdir
 };
 
-#define NINDIR(fs)	((fs)->nf_blocksize / sizeof(nandfs_daddr_t))
+#define	NINDIR(fs)	((fs)->nf_blocksize / sizeof(nandfs_daddr_t))
 
 /* from NetBSD's src/sys/net/if_ethersubr.c */
 static uint32_t
@@ -157,18 +153,18 @@ nandfs_check_fsdata_crc(struct nandfs_fsdata *fsdata)
 	if (fsdata->f_magic != NANDFS_FSDATA_MAGIC)
 		return (0);
 
-	/* preserve crc */
+	/* Preserve crc */
 	fsdata_crc = fsdata->f_sum;
 
-	/* calculate */
+	/* Calculate */
 	fsdata->f_sum = (0);
 	comp_crc = crc32_le(fsdata->f_crc_seed, (uint8_t *) fsdata,
 	    fsdata->f_bytes);
 
-	/* restore */
+	/* Restore */
 	fsdata->f_sum = fsdata_crc;
 
-	/* check CRC */
+	/* Check CRC */
 	return (fsdata_crc == comp_crc);
 }
 
@@ -178,22 +174,22 @@ nandfs_check_superblock_crc(struct nandfs_fsdata *fsdata,
 {
 	uint32_t super_crc, comp_crc;
 
-	/* check super block magic */
+	/* Check super block magic */
 	if (super->s_magic != NANDFS_SUPER_MAGIC)
 		return (0);
 
-	/* preserve crc */
+	/* Preserve CRC */
 	super_crc = super->s_sum;
 
-	/* calculate */
+	/* Calculate */
 	super->s_sum = (0);
 	comp_crc = crc32_le(fsdata->f_crc_seed, (uint8_t *) super,
 	    fsdata->f_sbbytes);
 
-	/* restore */
+	/* Restore */
 	super->s_sum = super_crc;
 
-	/* check CRC */
+	/* Check CRC */
 	return (super_crc == comp_crc);
 }
 
@@ -294,7 +290,7 @@ nandfs_read_structures(struct nandfs *fs, struct open_file *f)
 static int
 nandfs_mount(struct nandfs *fs, struct open_file *f)
 {
-	int err = 0;
+	int err = 0, level;
 	uint64_t last_pseg;
 
 	fs->nf_fsdata = malloc(sizeof(struct nandfs_fsdata));
@@ -317,15 +313,12 @@ nandfs_mount(struct nandfs *fs, struct open_file *f)
 	/*
 	 * Calculate indirect block levels.
 	 */
-	{
-		nandfs_daddr_t mult;
-		int level;
+	nandfs_daddr_t mult;
 
-		mult = 1;
-		for (level = 0; level < NIADDR; level++) {
-			mult *= NINDIR(fs);
-			fs->nf_nindir[level] = mult;
-		}
+	mult = 1;
+	for (level = 0; level < NIADDR; level++) {
+		mult *= NINDIR(fs);
+		fs->nf_nindir[level] = mult;
 	}
 
 	nandfs_calc_mdt_consts(fs->nf_blocksize, &fs->nf_datfile_mdt,
@@ -380,7 +373,7 @@ nandfs_open(const char *path, struct open_file *f)
 {
 	struct nandfs *fs;
 	struct nandfs_node *node;
-	int err, bsize;
+	int err, bsize, level;
 
 	NANDFS_DEBUG("nandfs_open('%s', %p)\n", path, f);
 
@@ -399,15 +392,12 @@ nandfs_open(const char *path, struct open_file *f)
 	/*
 	 * Calculate indirect block levels.
 	 */
-	{
-		nandfs_daddr_t mult;
-		int level;
+	nandfs_daddr_t mult;
 
-		mult = 1;
-		for (level = 0; level < NIADDR; level++) {
-			mult *= NINDIR(fs);
-			fs->nf_nindir[level] = mult;
-		}
+	mult = 1;
+	for (level = 0; level < NIADDR; level++) {
+		mult *= NINDIR(fs);
+		fs->nf_nindir[level] = mult;
 	}
 
 	NANDFS_DEBUG("fs %p nf_sectorsize=%x\n", fs, fs->nf_sectorsize);
@@ -442,7 +432,6 @@ nandfs_free_node(struct nandfs_node *node)
 		free(bmap);
 	}
 	free(node);
-
 }
 
 static int
@@ -719,9 +708,8 @@ nandfs_lookup_path(struct nandfs *fs, const char *path)
 			goto out;
 		}
 
-		NANDFS_DEBUG("%s: %.*s has mode %o\n",
-		    __func__, dirent->name_len, dirent->name,
-		    node->inode->i_mode);
+		NANDFS_DEBUG("%s: %.*s has mode %o\n", __func__,
+		    dirent->name_len, dirent->name, node->inode->i_mode);
 
 		if ((node->inode->i_mode & IFMT) == IFLNK) {
 			NANDFS_DEBUG("%s: %.*s is symlink\n",
@@ -771,7 +759,7 @@ nandfs_lookup_path(struct nandfs *fs, const char *path)
 		}
 	}
 
- out:
+out:
 	free(namebuf);
 	free(orig);
 	return (node);
@@ -1001,20 +989,20 @@ nandfs_mdt_trans(struct nandfs_mdt *mdt, uint64_t index,
 	uint64_t group, group_offset, blocknr_in_group;
 	uint64_t desc_block, desc_offset;
 
-	/* calculate our offset in the file */
+	/* Calculate our offset in the file */
 	group = index / mdt->entries_per_group;
 	group_offset = index % mdt->entries_per_group;
 	desc_block = group / mdt->groups_per_desc_block;
 	desc_offset = group % mdt->groups_per_desc_block;
 	blocknr_in_group = group_offset / mdt->entries_per_block;
 
-	/* to descgroup offset */
+	/* To descgroup offset */
 	blknr = 1 + desc_block * mdt->blocks_per_desc_block;
 
-	/* to group offset */
+	/* To group offset */
 	blknr += desc_offset * mdt->blocks_per_group;
 
-	/* to actual file block */
+	/* To actual file block */
 	blknr += 1 + blocknr_in_group;
 
 	*blocknr        = blknr;
