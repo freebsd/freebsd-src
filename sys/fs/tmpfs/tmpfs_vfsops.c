@@ -132,12 +132,10 @@ tmpfs_mount(struct mount *mp)
 {
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
-	size_t pages;
-	uint32_t nodes;
 	int error;
 	/* Size counters. */
-	u_int nodes_max;
-	u_quad_t size_max, maxfilesize;
+	u_quad_t pages;
+	off_t nodes_max, size_max, maxfilesize;
 
 	/* Root node attributes. */
 	uid_t root_uid;
@@ -173,12 +171,11 @@ tmpfs_mount(struct mount *mp)
 	if (mp->mnt_cred->cr_ruid != 0 ||
 	    vfs_scanopt(mp->mnt_optnew, "mode", "%ho", &root_mode) != 1)
 		root_mode = va.va_mode;
-	if (vfs_scanopt(mp->mnt_optnew, "inodes", "%u", &nodes_max) != 1)
+	if (vfs_getopt_size(mp->mnt_optnew, "inodes", &nodes_max) != 0)
 		nodes_max = 0;
-	if (vfs_scanopt(mp->mnt_optnew, "size", "%qu", &size_max) != 1)
+	if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) != 0)
 		size_max = 0;
-	if (vfs_scanopt(mp->mnt_optnew, "maxfilesize", "%qu",
-	    &maxfilesize) != 1)
+	if (vfs_getopt_size(mp->mnt_optnew, "maxfilesize", &maxfilesize) != 0)
 		maxfilesize = 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
@@ -190,7 +187,8 @@ tmpfs_mount(struct mount *mp)
 	 * allowed to use, based on the maximum size the user passed in
 	 * the mount structure.  A value of zero is treated as if the
 	 * maximum available space was requested. */
-	if (size_max < PAGE_SIZE || size_max > SIZE_MAX - PAGE_SIZE)
+	if (size_max < PAGE_SIZE || size_max > OFF_MAX - PAGE_SIZE ||
+	    (SIZE_MAX < OFF_MAX && size_max / PAGE_SIZE >= SIZE_MAX))
 		pages = SIZE_MAX;
 	else
 		pages = howmany(size_max, PAGE_SIZE);
@@ -198,21 +196,20 @@ tmpfs_mount(struct mount *mp)
 
 	if (nodes_max <= 3) {
 		if (pages > UINT32_MAX - 3)
-			nodes = UINT32_MAX;
+			nodes_max = UINT32_MAX;
 		else
-			nodes = pages + 3;
-	} else
-		nodes = nodes_max;
-	MPASS(nodes >= 3);
+			nodes_max = pages + 3;
+	}
+	MPASS(nodes_max >= 3);
 
 	/* Allocate the tmpfs mount structure and fill it. */
 	tmp = (struct tmpfs_mount *)malloc(sizeof(struct tmpfs_mount),
 	    M_TMPFSMNT, M_WAITOK | M_ZERO);
 
 	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
-	tmp->tm_nodes_max = nodes;
+	tmp->tm_nodes_max = nodes_max;
 	tmp->tm_nodes_inuse = 0;
-	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : UINT64_MAX;
+	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : OFF_MAX;
 	LIST_INIT(&tmp->tm_nodes_used);
 
 	tmp->tm_pages_max = pages;
