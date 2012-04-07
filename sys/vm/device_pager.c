@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
 
+#include <machine/cpu.h>
+
 static void dev_pager_init(void);
 static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
@@ -259,7 +261,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	struct file *fpop;
 	struct thread *td;
 	vm_memattr_t memattr;
-	int ref, ret;
+	int i, ref, ret;
 
 	pidx = OFF_TO_IDX(offset);
 	memattr = object->memattr;
@@ -307,14 +309,14 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 */
 		page = vm_page_getfake(paddr, memattr);
 		VM_OBJECT_LOCK(object);
-		if (vm_page_insert(page, object, offset) != 0) {
-			vm_page_putfake(page);
-			return (VM_PAGER_FAIL);
-		}
 		vm_page_lock(*mres);
 		vm_page_free(*mres);
 		vm_page_unlock(*mres);
 		*mres = page;
+		while (vm_page_insert(page, object, offset) != 0) {
+			for (i = 0; i < 10000000; i++)
+				cpu_spinwait();
+		}
 	}
 	page->valid = VM_PAGE_BITS_ALL;
 	return (VM_PAGER_OK);
