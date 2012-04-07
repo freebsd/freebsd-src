@@ -93,7 +93,7 @@ struct nandfs_block {
 	LIST_ENTRY(nandfs_block) block_link;
 	uint32_t number;
 	uint64_t offset;
-	char	*data;
+	void	*data;
 };
 
 static LIST_HEAD(, nandfs_block) block_head = LIST_HEAD_INITIALIZER(&block_head);
@@ -124,7 +124,6 @@ uint32_t crc_seed;
 struct nandfs_super_root *sr;
 
 uint32_t nuserfiles;
-uint32_t seg_nfinfo;
 uint32_t seg_segsum_size;
 uint32_t seg_nblocks;
 uint32_t seg_endblock;
@@ -191,7 +190,7 @@ crc32_le(uint32_t crc, const uint8_t *buf, size_t len)
 	return (crc);
 }
 
-static char *
+static void *
 get_block(uint32_t block_nr, uint64_t offset)
 {
 	struct nandfs_block *block, *new_block;
@@ -242,7 +241,6 @@ segment_size(void)
 	u_int size;
 
 	size = sizeof(struct nandfs_segment_summary );
-	size += seg_nfinfo * sizeof(struct nandfs_finfo);
 	size +=	seg_nblocks * sizeof(struct nandfs_binfo_v);
 
 	if (size > blocksize)
@@ -256,13 +254,10 @@ static void
 prepare_blockgrouped_file(uint32_t block)
 {
 	struct nandfs_block_group_desc *desc;
-	uint8_t *block_data;
 	uint32_t i, entries;
 
-	block_data = get_block(block, 0);
+	desc = (struct nandfs_block_group_desc *)get_block(block, 0);
 	entries = blocksize / sizeof(struct nandfs_block_group_desc);
-
-	desc = (struct nandfs_block_group_desc *) block_data;
 	for (i = 0; i < entries; i++)
 		desc[i].bg_nfrees = blocksize * 8;
 }
@@ -274,8 +269,8 @@ alloc_blockgrouped_file(uint32_t block, uint32_t entry)
 	uint32_t desc_nr;
 	uint32_t *bitmap;
 
-	desc = (struct nandfs_block_group_desc *) get_block(block, 0);
-	bitmap = (uint32_t*)get_block(block + 1, 1);
+	desc = (struct nandfs_block_group_desc *)get_block(block, 0);
+	bitmap = (uint32_t *)get_block(block + 1, 1);
 
 	bitmap += (entry >> 5);
 	if (*bitmap & (1 << (entry % 32))) {
@@ -294,7 +289,7 @@ count_su_blocks(void)
 {
 	uint64_t maxblk, blk, offset, i;
 
-	maxblk = 0;
+	maxblk = blk = 0;
 
 	for (i = 0; i < bad_segments_count; i++) {
 		nandfs_seg_usage_blk_offset(bad_segments[i], &blk, &offset);
@@ -322,11 +317,7 @@ count_seg_blocks(void)
 		if (user_files[i].nblocks) {
 			seg_nblocks += user_files[i].nblocks;
 			user_files[i].blocks = malloc(user_files[i].nblocks * sizeof(uint32_t));
-			seg_nfinfo++;
 		}
-
-	/* and 4 finfos for cpfile, ifile, sufile and datfile */
-	seg_nfinfo += 4;
 
 	ifile.nblocks = 2 +
 	    SIZE_TO_BLOCK(sizeof(struct nandfs_inode) * (NANDFS_USER_INO + 1));
@@ -428,45 +419,38 @@ update_datfile(uint64_t block)
 	return (allocated);
 }
 
-static struct nandfs_finfo *
-update_block_info(struct nandfs_finfo *finfo, struct file_info *file)
+static union nandfs_binfo *
+update_block_info(union nandfs_binfo *binfo, struct file_info *file)
 {
-	union nandfs_binfo *binfo;
-	uint64_t vblock;
+	nandfs_daddr_t vblock;
 	uint32_t i;
 
-	finfo->fi_ino = file->ino;
-	finfo->fi_ndatablk = file->nblocks;
-	finfo->fi_nblocks = file->nblocks;
-	finfo->fi_cno = 1;
-	finfo++;
-
-	binfo = (union nandfs_binfo *)finfo;
 	for (i = 0; i < file->nblocks; i++) {
 		debug("%s: blk %x", __func__, i);
 		if (file->ino != NANDFS_DAT_INO) {
 			vblock = update_datfile(file->blocks[i]);
 			binfo->bi_v.bi_vblocknr = vblock;
 			binfo->bi_v.bi_blkoff = i;
+			binfo->bi_v.bi_ino = file->ino;
 			file->inode->i_db[i] = vblock;
 		} else {
 			binfo->bi_dat.bi_blkoff = i;
+			binfo->bi_dat.bi_ino = file->ino;
 			file->inode->i_db[i] = datfile.blocks[i];
 		}
 		binfo++;
 	}
 
-	finfo = (struct nandfs_finfo *)binfo;
-	return (finfo);
+	return (binfo);
 }
 
 static void
 save_segsum(struct nandfs_segment_summary *ss)
 {
-	struct nandfs_finfo *finfo;
+	union nandfs_binfo *binfo;
 	struct nandfs_block *block;
 	uint32_t sum_bytes, i;
-	uint8_t *data, crc_data, crc_skip;
+	uint8_t crc_data, crc_skip;
 
 	sum_bytes = segment_size();
 	ss->ss_magic = NANDFS_SEGSUM_MAGIC;
@@ -478,7 +462,7 @@ save_segsum(struct nandfs_segment_summary *ss)
 	ss->ss_next = nandfs_first_block() + blocks_per_segment;
 	/* nblocks = segment blocks + segsum block + superroot */
 	ss->ss_nblocks = seg_nblocks + 2;
-	ss->ss_nfinfo = seg_nfinfo;
+	ss->ss_nbinfos = seg_nblocks;
 	ss->ss_sumbytes = sum_bytes;
 
 	crc_skip = sizeof(ss->ss_datasum) + sizeof(ss->ss_sumsum);
@@ -486,18 +470,16 @@ save_segsum(struct nandfs_segment_summary *ss)
 	    sum_bytes - crc_skip);
 	crc_data = 0;
 
-	data = (uint8_t *)ss + sizeof(struct nandfs_segment_summary);
-	finfo = (struct nandfs_finfo *)data;
-
+	binfo = (union nandfs_binfo *)(ss + 1);
 	for (i = 0; i < nuserfiles; i++) {
 		if (user_files[i].nblocks)
-			finfo = update_block_info(finfo, &user_files[i]);
+			binfo = update_block_info(binfo, &user_files[i]);
 	}
 
-	finfo = update_block_info(finfo, &ifile);
-	finfo = update_block_info(finfo, &cpfile);
-	finfo = update_block_info(finfo, &sufile);
-	finfo = update_block_info(finfo, &datfile);
+	binfo = update_block_info(binfo, &ifile);
+	binfo = update_block_info(binfo, &cpfile);
+	binfo = update_block_info(binfo, &sufile);
+	update_block_info(binfo, &datfile);
 
 	/* save superroot crc */
 	crc_skip = sizeof(sr->sr_sum);
@@ -510,7 +492,8 @@ save_segsum(struct nandfs_segment_summary *ss)
 		if (block->number < NANDFS_FIRST_BLOCK)
 			continue;
 		if (block->number == NANDFS_FIRST_BLOCK)
-			crc_data = crc32_le(crc_seed, block->data + crc_skip,
+			crc_data = crc32_le(crc_seed,
+			    (uint8_t *)block->data + crc_skip,
 			    blocksize - crc_skip);
 		else
 			crc_data = crc32_le(crc_data, block->data, blocksize);
@@ -546,7 +529,7 @@ create_fsdata(void)
 	fsdata.f_checkpoint_size = sizeof(struct nandfs_checkpoint);
 	fsdata.f_segment_usage_size = sizeof(struct nandfs_segment_usage);
 
-	uuidgen((struct uuid *)fsdata.f_uuid, 1);
+	uuidgen(&fsdata.f_uuid, 1);
 
 	if (volumelabel)
 		memcpy(fsdata.f_volume_name, volumelabel, 16);
@@ -573,7 +556,7 @@ create_super_block(void)
 	super_block.s_last_pseg = NANDFS_FIRST_BLOCK;
 	super_block.s_last_seq = 1;
 	super_block.s_free_blocks_count =
-		(nsegments - bad_segments_count - 1) * blocks_per_segment;
+		(nsegments - bad_segments_count) * blocks_per_segment;
 	super_block.s_mtime = 0;
 	super_block.s_wtime = nandfs_time;
 	super_block.s_mnt_count = 0;
@@ -604,14 +587,14 @@ save_super_root(void)
 }
 
 static struct nandfs_dir_entry *
-add_de(uint8_t *block, struct nandfs_dir_entry *de, uint64_t ino,
+add_de(void *block, struct nandfs_dir_entry *de, uint64_t ino,
     const char *name, uint8_t type)
 {
 	uint16_t reclen;
 
 	/* modify last de */
 	de->rec_len = NANDFS_DIR_REC_LEN(de->name_len);
-	de = (struct nandfs_dir_entry *)((uint8_t *)de + de->rec_len);
+	de = (void *)((uint8_t *)de + de->rec_len);
 
 	reclen = blocksize - ((uintptr_t)de - (uintptr_t)block);
 	if (reclen < NANDFS_DIR_REC_LEN(strlen(name))) {
@@ -631,7 +614,7 @@ add_de(uint8_t *block, struct nandfs_dir_entry *de, uint64_t ino,
 }
 
 static struct nandfs_dir_entry *
-make_dir(uint8_t *block, uint64_t ino, uint64_t parent_ino)
+make_dir(void *block, uint64_t ino, uint64_t parent_ino)
 {
 	struct nandfs_dir_entry *de = (struct nandfs_dir_entry *)block;
 
@@ -643,7 +626,7 @@ make_dir(uint8_t *block, uint64_t ino, uint64_t parent_ino)
 	memcpy(de->name, "..\0\0\0\0\0\0", 8);
 
 	/* create '.' entry */
-	de = (struct nandfs_dir_entry *)(block + NANDFS_DIR_REC_LEN(2));
+	de = (void *)((uint8_t *)block + NANDFS_DIR_REC_LEN(2));
 	de->inode = ino;
 	de->rec_len = blocksize - NANDFS_DIR_REC_LEN(1) + NANDFS_DIR_REC_LEN(2);
 	de->name_len = 1;
@@ -660,7 +643,7 @@ save_root_dir(void)
 	struct file_info *root = &user_files[0];
 	struct nandfs_dir_entry *de;
 	uint32_t i;
-	uint8_t *block;
+	void *block;
 
 	block = get_block(root->blocks[0], 0);
 
@@ -679,7 +662,7 @@ save_sufile(void)
 	struct nandfs_sufile_header *header;
 	struct nandfs_segment_usage *su;
 	uint64_t blk, i, off;
-	char *block;
+	void *block;
 	int start;
 
 	/*
@@ -692,7 +675,7 @@ save_sufile(void)
 
 	block = get_block(sufile.blocks[start], 0);
 	header = (struct nandfs_sufile_header *)block;
-	header->sh_ncleansegs = nsegments - 1;
+	header->sh_ncleansegs = nsegments - bad_segments_count - 1;
 	header->sh_ndirtysegs = 1;
 	header->sh_last_alloc = 1;
 
@@ -728,6 +711,7 @@ save_cpfile(void)
 	struct nandfs_checkpoint *cp, *initial_cp;
 	int i, entries = blocksize / sizeof(struct nandfs_checkpoint);
 	uint64_t cno;
+
 	header = (struct nandfs_cpfile_header *)get_block(cpfile.blocks[0], 0);
 	header->ch_ncheckpoints = 1;
 	header->ch_nsnapshots = 0;
@@ -741,7 +725,6 @@ save_cpfile(void)
 	initial_cp->cp_cno = NANDFS_FIRST_CNO;
 	initial_cp->cp_create = nandfs_time;
 	initial_cp->cp_nblk_inc = seg_endblock - 1;
-	initial_cp->cp_inodes_count = nuserfiles;
 	initial_cp->cp_blocks_count = seg_nblocks;
 	memset(&initial_cp->cp_snapshot_list, 0,
 	    sizeof(struct nandfs_snapshot_list));
@@ -854,8 +837,7 @@ create_fs(void)
 	}
 
 	/* Save segment summary and CRCs */
-	data = get_block(NANDFS_FIRST_BLOCK, 0);
-	save_segsum((struct nandfs_segment_summary *)data);
+	save_segsum(get_block(NANDFS_FIRST_BLOCK, 0));
 
 	return (0);
 }
@@ -909,7 +891,9 @@ check_parameters(void)
 	/* check volume label */
 	i = 0;
 	if (volumelabel) {
-		while (isalnum(volumelabel[++i]));
+		while (isalnum(volumelabel[++i]))
+			;
+
 		if (volumelabel[i] != '\0') {
 			errx(1, "bad volume label. "
 			    "Valid characters are alphanumerics.");
@@ -1092,8 +1076,10 @@ print_summary(void)
 
 	printf("filesystem created succesfully\n");
 	printf("total segments: %#jx valid segments: %#jx\n", nsegments,
-	    super_block.s_free_blocks_count);
-	printf("total space: %ju MB\n",
+	    nsegments - bad_segments_count);
+	printf("total space: %ju MB free: %ju MB\n",
+	    (nsegments *
+	    blocks_per_segment * blocksize) / (1024 * 1024),
 	    ((nsegments - bad_segments_count) *
 	    blocks_per_segment * blocksize) / (1024 * 1024));
 }

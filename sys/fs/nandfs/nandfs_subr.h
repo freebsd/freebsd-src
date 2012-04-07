@@ -203,6 +203,7 @@ void nandfs_dirty_bufs_decrement(struct nandfs_device *);
 int nandfs_start_cleaner(struct nandfs_device *);
 int nandfs_stop_cleaner(struct nandfs_device *);
 
+int nandfs_segsum_valid(struct nandfs_segment_summary *);
 int nandfs_load_segsum(struct nandfs_device *, nandfs_daddr_t,
     struct nandfs_segment_summary *);
 int nandfs_get_segment_info(struct nandfs_device *, struct nandfs_suinfo *,

@@ -51,6 +51,8 @@ const char *nandfs_dev(struct nandfs *);
 int nandfs_open(struct nandfs *);
 void nandfs_close(struct nandfs *);
 
+int nandfs_get_cpstat(struct nandfs *, struct nandfs_cpstat *);
+
 ssize_t nandfs_get_cp(struct nandfs *, uint64_t,
     struct nandfs_cpinfo *, size_t);
 

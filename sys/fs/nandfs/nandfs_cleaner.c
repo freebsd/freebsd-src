@@ -255,6 +255,12 @@ nandfs_cleaner_iterate_segment(struct nandfs_device *fsdev, uint64_t segno,
 		segsum = (struct nandfs_segment_summary *)bp->b_data;
 		binfo = (union nandfs_binfo *)(bp->b_data + segsum->ss_bytes);
 
+		if (!nandfs_segsum_valid(segsum)) {
+			nandfs_error("nandfs: invalid summary of segment %jx\n", segno);
+			brelse(bp);
+			return (error);
+		}
+
 		DPRINTF(CLEAN, ("%s: %jx magic %x bytes %x nblocks %x nbinfos "
 		    "%x\n", __func__, segno, segsum->ss_magic, segsum->ss_bytes,
 		    segsum->ss_nblocks, segsum->ss_nbinfos));

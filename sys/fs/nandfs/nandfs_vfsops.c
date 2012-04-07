@@ -95,23 +95,23 @@ int nandfs_max_dirty_segs = NANDFS_MAX_DIRTY_SEGS; /* sync when 5 dirty seg */
 SYSCTL_UINT(_vfs_nandfs, OID_AUTO, max_dirty_segs, CTLFLAG_RW,
     &nandfs_max_dirty_segs, 0, "");
 
-#define NANFS_CPS_BETWEEN_SBLOCKS 5
-int nandfs_cps_between_sblocks = NANFS_CPS_BETWEEN_SBLOCKS; /* write superblock every 5 checkpoints */
+#define NANDFS_CPS_BETWEEN_SBLOCKS 5
+int nandfs_cps_between_sblocks = NANDFS_CPS_BETWEEN_SBLOCKS; /* write superblock every 5 checkpoints */
 SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cps_between_sblocks, CTLFLAG_RW,
     &nandfs_cps_between_sblocks, 0, "");
 
-#define NANFS_CLEANER_ENABLE 0
-int nandfs_cleaner_enable = NANFS_CLEANER_ENABLE;
+#define NANDFS_CLEANER_ENABLE 0
+int nandfs_cleaner_enable = NANDFS_CLEANER_ENABLE;
 SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cleaner_enable, CTLFLAG_RW,
     &nandfs_cleaner_enable, 0, "");
 
-#define NANFS_CLEANER_INTERVAL 5
-int nandfs_cleaner_interval = NANFS_CLEANER_INTERVAL;
+#define NANDFS_CLEANER_INTERVAL 5
+int nandfs_cleaner_interval = NANDFS_CLEANER_INTERVAL;
 SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cleaner_interval, CTLFLAG_RW,
     &nandfs_cleaner_interval, 0, "");
 
-#define NANFS_CLEANER_SEGMENTS 5
-int nandfs_cleaner_segments = NANFS_CLEANER_SEGMENTS;
+#define NANDFS_CLEANER_SEGMENTS 5
+int nandfs_cleaner_segments = NANDFS_CLEANER_SEGMENTS;
 SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cleaner_segments, CTLFLAG_RW,
     &nandfs_cleaner_segments, 0, "");
 
@@ -746,6 +746,10 @@ nandfs_unmount_device(struct nandfs_device *nandfsdev)
 	if (nandfsdev->nd_refcnt >= 1)
 		return;
 
+	MPASS(nandfsdev->nd_syncer == NULL);
+	MPASS(nandfsdev->nd_cleaner == NULL);
+	MPASS(nandfsdev->nd_free_base == NULL);
+
 	/* Unmount our base */
 	nandfs_unmount_base(nandfsdev);
 
@@ -1124,8 +1128,11 @@ nandfs_procbody(struct nandfsmount *nmp)
 		nandfs_gc_finished(nffsdev, 0);
 	}
 	nmp->nm_flags &= ~NANDFS_KILL_SYNCER;
+	MPASS(nffsdev->nd_free_base == NULL);
+
 	nandfs_gc_finished(nffsdev, 1);
 	nffsdev->nd_syncer = NULL;
+	MPASS(nffsdev->nd_free_base == NULL);
 
 	/*
 	 * A bit of explanation:
@@ -1215,14 +1222,13 @@ nandfs_mount(struct mount *mp)
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
 
-			nandfs_stop_cleaner(nmp->nm_nandfsdev);
-
 			nandfs_wakeup_wait_sync(nmp->nm_nandfsdev,
 			    SYNCER_ROUPD);
 			error = vflush(mp, 0, flags, td);
 			if (error)
 				return (error);
 
+			nandfs_stop_cleaner(nmp->nm_nandfsdev);
 			stop_syncer(nmp);
 			DROP_GIANT();
 			g_topology_lock();
@@ -1446,7 +1452,6 @@ nandfs_unmount(struct mount *mp, int mntflags)
 
 	/* Umount already stopped writing */
 	if (!(nmp->nm_ronly)) {
-		nandfs_stop_cleaner(nandfsdev);
 		nmp->nm_flags |= NANDFS_UMOUNT;
 		/*
 		 * XXX This is a hack soon to be removed
@@ -1459,8 +1464,10 @@ nandfs_unmount(struct mount *mp, int mntflags)
 	if (error)
 		return (error);
 
-	if (!(nmp->nm_ronly))
+	if (!(nmp->nm_ronly)) {
+		nandfs_stop_cleaner(nandfsdev);
 		stop_syncer(nmp);
+	}
 
 	if (nmp->nm_ifile_node)
 		NANDFS_UNSET_SYSTEMFILE(NTOV(nmp->nm_ifile_node));

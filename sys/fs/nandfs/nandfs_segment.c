@@ -1099,6 +1099,7 @@ nandfs_segment_constructor(struct nandfsmount *nmp, int flags)
 	fsdev = nmp->nm_nandfsdev;
 
 	lockmgr(&fsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
+again:
 	create_seginfo(fsdev, &seginfo);
 
 	dat = fsdev->nd_dat_node;
@@ -1191,6 +1192,22 @@ reiterate:
 	VOP_UNLOCK(NTOV(su), 0);
 
 	delete_seginfo(seginfo);
+
+	/*
+	 * XXX: a hack, will go away soon
+	 */
+	if ((NTOV(dat)->v_bufobj.bo_dirty.bv_cnt != 0 ||
+	    NTOV(cp)->v_bufobj.bo_dirty.bv_cnt != 0 ||
+	    NTOV(gc)->v_bufobj.bo_dirty.bv_cnt != 0 ||
+	    NTOV(ifile)->v_bufobj.bo_dirty.bv_cnt != 0 ||
+	    NTOV(su)->v_bufobj.bo_dirty.bv_cnt != 0) &&
+	    (flags & NANDFS_UMOUNT)) {
+		DPRINTF(SYNC, ("%s: RERUN\n", __func__));
+		goto again;
+	}
+
+	MPASS(fsdev->nd_free_base == NULL);
+
 	lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
 
 	if (cno_changed) {

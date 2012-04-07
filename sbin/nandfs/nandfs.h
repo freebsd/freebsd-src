@@ -31,6 +31,7 @@
  */
 
 #ifndef NANDFS_H
+#define NANDFS_H
 
 int nandfs_lssnap(int, char **);
 int nandfs_mksnap(int, char **);

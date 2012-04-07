@@ -2269,6 +2269,7 @@ fs/nandfs/bmap.c		optional nandfs
 fs/nandfs/nandfs_alloc.c	optional nandfs
 fs/nandfs/nandfs_bmap.c		optional nandfs
 fs/nandfs/nandfs_buffer.c	optional nandfs
+fs/nandfs/nandfs_cleaner.c	optional nandfs
 fs/nandfs/nandfs_cpfile.c	optional nandfs
 fs/nandfs/nandfs_dat.c		optional nandfs
 fs/nandfs/nandfs_dir.c		optional nandfs

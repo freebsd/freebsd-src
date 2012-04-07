@@ -513,6 +513,13 @@ struct nandfs_recover_info {
 };
 
 int
+nandfs_segsum_valid(struct nandfs_segment_summary *segsum)
+{
+
+	return (segsum->ss_magic == NANDFS_SEGSUM_MAGIC);
+}
+
+int
 nandfs_load_segsum(struct nandfs_device *fsdev, nandfs_daddr_t blocknr,
     struct nandfs_segment_summary *segsum)
 {
@@ -529,7 +536,7 @@ nandfs_load_segsum(struct nandfs_device *fsdev, nandfs_daddr_t blocknr,
 	memcpy(segsum, bp->b_data, sizeof(struct nandfs_segment_summary));
 	brelse(bp);
 
-	if (segsum->ss_magic != NANDFS_SEGSUM_MAGIC) {
+	if (!nandfs_segsum_valid(segsum)) {
 		DPRINTF(VOLUMES, ("%s: bad magic pseg:%jx\n", __func__,
 		   blocknr));
 		return (EINVAL);

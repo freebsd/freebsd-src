@@ -59,9 +59,6 @@ print_cpinfo(struct nandfs_cpinfo *cpinfo)
 	time_t t;
 	char timebuf[128];
 
-	if (!(cpinfo->nci_nblk_inc) && !(cpinfo->nci_inodes_count))
-		return;
-
 	t = (time_t)cpinfo->nci_create;
 	localtime_r(&t, &tm);
 	strftime(timebuf, sizeof(timebuf), "%F %T", &tm);
@@ -74,8 +71,8 @@ nandfs_lssnap(int argc, char **argv)
 {
 	struct nandfs_cpinfo *cpinfos;
 	struct nandfs fs;
-	int nsnap, i;
-	int error;
+	uint64_t next;
+	int error, nsnap, i;
 
 	if (argc != 1) {
 		lssnap_usage();
@@ -95,14 +92,17 @@ nandfs_lssnap(int argc, char **argv)
 		goto out;
 	}
 
-	nsnap = nandfs_get_snap(&fs, 1, cpinfos, NCPINFO);
-	if (nsnap == -1) {
-		fprintf(stderr, "nandfs_get_snap: %s\n", nandfs_errmsg(&fs));
-		goto out;
+	for (next = 1; next != 0; next = cpinfos[nsnap - 1].nci_next) {
+		nsnap = nandfs_get_snap(&fs, next, cpinfos, NCPINFO);
+		if (nsnap < 1)
+			break;
+
+		for (i = 0; i < nsnap; i++)
+			print_cpinfo(&cpinfos[i]);
 	}
 
-	for (i = 0; i < nsnap; i++)
-		print_cpinfo(&cpinfos[i]);
+	if (nsnap == -1)
+		fprintf(stderr, "nandfs_get_snap: %s\n", nandfs_errmsg(&fs));
 
 out:
 	nandfs_close(&fs);

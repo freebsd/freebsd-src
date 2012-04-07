@@ -163,6 +163,21 @@ nandfs_close(struct nandfs *fs)
 	fs->n_flags &= ~NANDFS_IS_OPENED;
 }
 
+int
+nandfs_get_cpstat(struct nandfs *fs, struct nandfs_cpstat *cpstat)
+{
+
+	NANDFS_ASSERT_VALID(fs);
+
+	if (ioctl(fs->n_iocfd, NANDFS_IOCTL_GET_CPSTAT, cpstat) == -1) {
+		nandfs_seterr(fs, "ioctl NANDFS_IOCTL_GET_CPSTAT: %s",
+		    strerror(errno));
+		return (-1);
+	}
+
+	return (0);
+}
+
 static ssize_t
 nandfs_get_cpinfo(struct nandfs *fs, uint64_t cno, int mode,
     struct nandfs_cpinfo *cpinfo, size_t nci)
