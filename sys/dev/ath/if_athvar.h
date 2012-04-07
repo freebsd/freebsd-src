@@ -175,7 +175,6 @@ struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_list;
 	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
-	uint16_t		bf_txflags;	/* tx descriptor flags */
 	uint16_t		bf_flags;	/* status flags (below) */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
@@ -229,7 +228,7 @@ struct ath_buf {
 		int bfs_pktlen;		/* length of this packet */
 		int bfs_hdrlen;		/* length of this packet header */
 		uint16_t bfs_al;	/* length of aggregate */
-		int bfs_flags;		/* HAL descriptor flags */
+		int bfs_txflags;	/* HAL (tx) descriptor flags */
 		int bfs_txrate0;	/* first TX rate */
 		int bfs_try0;		/* first try count */
 		uint8_t bfs_ctsrate0;	/* Non-zero - use this as ctsrate */
