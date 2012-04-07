@@ -533,6 +533,7 @@ struct ath_softc {
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 	int			sc_txchainmask;	/* currently configured TX chainmask */
 	int			sc_rxchainmask;	/* currently configured RX chainmask */
+	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
 
 	/* Queue limits */
 
