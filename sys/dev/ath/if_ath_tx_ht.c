@@ -707,14 +707,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 */
 
 		/*
-		 * XXX TODO: AR5416 has an 8K aggregation size limit
-		 * when RTS is enabled, and RTS is required for dual-stream
-		 * rates.
-		 *
-		 * For now, limit all aggregates for the AR5416 to be 8K.
-		 */
-
-		/*
 		 * do not exceed aggregation limit
 		 */
 		al_delta = ATH_AGGR_DELIM_SZ + bf->bf_state.bfs_pktlen;
@@ -722,6 +714,20 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		    (aggr_limit < (al + bpad + al_delta + prev_al))) {
 			status = ATH_AGGR_LIMITED;
 			break;
+		}
+
+		/*
+		 * If RTS/CTS is set on the first frame, enforce
+		 * the RTS aggregate limit.
+		 */
+		if (bf_first->bf_state.bfs_txflags &
+		    (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
+			if (nframes &&
+			   (sc->sc_rts_aggr_limit <
+			     (al + bpad + al_delta + prev_al))) {
+				status = ATH_AGGR_8K_LIMITED;
+				break;
+			}
 		}
 
 		/*
@@ -734,7 +740,24 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		}
 
 		/*
-		 * TODO: If it's _before_ the BAW left edge, complain very loudly.
+		 * If the current frame has an RTS/CTS configuration
+		 * that differs from the first frame, don't include
+		 * this in the aggregate.  It's possible that the
+		 * "right" thing to do here is enforce the aggregate
+		 * configuration.
+		 */
+		if ((bf_first->bf_state.bfs_txflags &
+		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) !=
+		   (bf->bf_state.bfs_txflags &
+		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))) {
+			status = ATH_AGGR_NONAGGR;
+			break;
+		}
+
+		/*
+		 * TODO: If it's _before_ the BAW left edge, complain very
+		 * loudly.
+		 *
 		 * This means something (else) has slid the left edge along
 		 * before we got a chance to be TXed.
 		 */
@@ -812,11 +835,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		/* The TID lock is required for the BAW update */
 		ath_tx_addto_baw(sc, an, tid, bf);
 		bf->bf_state.bfs_addedbaw = 1;
-
-		/*
-		 * XXX TODO: If any frame in the aggregate requires RTS/CTS,
-		 * set the first frame.
-		 */
 
 		/*
 		 * XXX enforce ACK for aggregate frames (this needs to be
