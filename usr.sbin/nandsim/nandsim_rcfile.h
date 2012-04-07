@@ -45,7 +45,6 @@ struct rcsection {
 	SLIST_HEAD(rckey_head,rckey) rs_keys;	/* key list */
 	char			*rs_name;	/* section name */
 	int			rs_id;		/* allow few same named */
-
 };
 
 struct rcfile {
@@ -64,5 +63,6 @@ int rc_getstring(struct rcfile *, const char *, int, const char *,
 int rc_getint(struct rcfile *, const char *, int, const char *, int *);
 int rc_getbool(struct rcfile *, const char *, int, const char *, int *);
 int rc_getsectionscount(struct rcfile *, const char *);
+char **rc_getkeys(struct rcfile *, const char *, int);
 
 #endif /* _SIMRC_H_ */

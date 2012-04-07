@@ -122,23 +122,26 @@ static struct nandsim_key nandsim_chip_keys[] = {
 	{"width", 1, VALUE_UINT | SIZE_8, (void *)&chip_conf.width, 0},
 	{"wear_out", 1, VALUE_UINT | SIZE_32, (void *)&chip_conf.wear_level,
 	    0},
+	{"bad_block_map", 0, VALUE_UINTARRAY | SIZE_32,
+	    (void *)&chip_conf.bad_block_map, MAX_BAD_BLOCKS},
 	{NULL, 0, 0, NULL, 0},
 };
 
 struct nandsim_section sections[] = {
 	{"ctrl", (struct nandsim_key *)&nandsim_ctrl_keys},
 	{"chip", (struct nandsim_key *)&nandsim_chip_keys},
+	{NULL, NULL},
 };
 
 static uint8_t logoutputtoint(char *, int *);
-static uint8_t validate_chips(struct sim_chip *chips, int chipcnt,
-    struct sim_ctrl *ctrls,  int ctrlcnt);
-static uint8_t validate_ctrls(struct sim_ctrl *ctrl, int ctrlcnt);
-static int configure_sim(const char *cfgfilename, struct rcfile *f);
-static int create_ctrls(struct rcfile *f, struct sim_ctrl **ctrls, int *cnt);
-static int create_chips(struct rcfile *f, struct sim_chip **chips, int *cnt);
-static void destroy_ctrls(struct sim_ctrl *ctrls);
-static void destroy_chips(struct sim_chip *chips);
+static uint8_t validate_chips(struct sim_chip *, int, struct sim_ctrl *, int);
+static uint8_t validate_ctrls(struct sim_ctrl *, int);
+static int configure_sim(const char *, struct rcfile *);
+static int create_ctrls(struct rcfile *, struct sim_ctrl **, int *);
+static int create_chips(struct rcfile *, struct sim_chip **, int *);
+static void destroy_ctrls(struct sim_ctrl *);
+static void destroy_chips(struct sim_chip *);
+static int validate_section_config(struct rcfile *, const char *, int);
 
 int
 convert_argint(char *arg, int *value)
@@ -335,12 +338,19 @@ create_ctrls(struct rcfile *f, struct sim_ctrl **ctrls, int *cnt)
 
 	for (i = 0; i < count; i++) {
 		bzero((void *)&ctrl_conf, sizeof(ctrl_conf));
+
 		/*
-		 * Ecc layout have to end up with 0xffff, so
+		 * ECC layout have to end up with 0xffff, so
 		 * we're filling buffer with 0xff. If ecc_layout is
 		 * defined in config file, values will be overriden.
 		 */
-		memset((void *)&ctrl_conf.ecc_layout, 0xff, MAX_ECC_BYTES);
+		memset((void *)&ctrl_conf.ecc_layout, 0xff,
+		    sizeof(ctrl_conf.ecc_layout));
+
+		if (validate_section_config(f, "ctrl", i) != 0) {
+			free(ctrlsptr);
+			return (EINVAL);
+		}
 
 		if (parse_section(f, "ctrl", i) != 0) {
 			free(ctrlsptr);
@@ -351,9 +361,9 @@ create_ctrls(struct rcfile *f, struct sim_ctrl **ctrls, int *cnt)
 		/* Try to create ctrl with config parsed */
 		debug("NUM=%d\nNUM_CS=%d\nECC=%d\nFILENAME=%s\nECC_LAYOUT[0]"
 		    "=%d\nECC_LAYOUT[1]=%d\n\n",
-			ctrlsptr[i].num, ctrlsptr[i].num_cs, ctrlsptr[i].ecc,
-			ctrlsptr[i].filename, ctrlsptr[i].ecc_layout[0],
-			ctrlsptr[i].ecc_layout[1]);
+		    ctrlsptr[i].num, ctrlsptr[i].num_cs, ctrlsptr[i].ecc,
+		    ctrlsptr[i].filename, ctrlsptr[i].ecc_layout[0],
+		    ctrlsptr[i].ecc_layout[1]);
 	}
 	*cnt = count;
 	*ctrls = ctrlsptr;
@@ -391,6 +401,19 @@ create_chips(struct rcfile *f, struct sim_chip **chips, int *cnt)
 	for (i = 0; i < count; i++) {
 		bzero((void *)&chip_conf, sizeof(chip_conf));
 
+		/*
+		 * Bad block map have to end up with 0xffff, so
+		 * we're filling array with 0xff. If bad block map is
+		 * defined in config file, values will be overriden.
+		 */
+		memset((void *)&chip_conf.bad_block_map, 0xff,
+		    sizeof(chip_conf.bad_block_map));
+
+		if (validate_section_config(f, "chip", i) != 0) {
+			free(chipsptr);
+			return (EINVAL);
+		}
+
 		if (parse_section(f, "chip", i) != 0) {
 			free(chipsptr);
 			return (EINVAL);
@@ -404,15 +427,15 @@ create_chips(struct rcfile *f, struct sim_chip **chips, int *cnt)
 		    "MAN=%s\nCOLADDRCYCLES=%d\nROWADDRCYCLES=%d\nCHWIDTH=%d\n"
 		    "PGS/BLK=%d\nBLK/LUN=%d\nLUNS=%d\nERR_RATIO=%d\n"
 		    "WEARLEVEL=%d\nISWP=%d\n\n\n\n",
-		        chipsptr[i].num, chipsptr[i].ctrl_num,
-			chipsptr[i].device_id, chipsptr[i].manufact_id,
-			chipsptr[i].page_size, chipsptr[i].oob_size,
-			chipsptr[i].read_time, chipsptr[i].device_model,
-			chipsptr[i].manufacturer, chipsptr[i].col_addr_cycles,
-			chipsptr[i].row_addr_cycles, chipsptr[i].width,
-			chipsptr[i].pgs_per_blk, chipsptr[i].blks_per_lun,
-			chipsptr[i].luns, chipsptr[i].error_ratio,
-			chipsptr[i].wear_level, chipsptr[i].is_wp);
+		    chipsptr[i].num, chipsptr[i].ctrl_num,
+		    chipsptr[i].device_id, chipsptr[i].manufact_id,
+		    chipsptr[i].page_size, chipsptr[i].oob_size,
+		    chipsptr[i].read_time, chipsptr[i].device_model,
+		    chipsptr[i].manufacturer, chipsptr[i].col_addr_cycles,
+		    chipsptr[i].row_addr_cycles, chipsptr[i].width,
+		    chipsptr[i].pgs_per_blk, chipsptr[i].blks_per_lun,
+		    chipsptr[i].luns, chipsptr[i].error_ratio,
+		    chipsptr[i].wear_level, chipsptr[i].is_wp);
 	}
 	*cnt = count;
 	*chips = chipsptr;
@@ -563,14 +586,14 @@ get_argument_intarray(const char *sect_name, int sectno,
 	if (getres != 0) {
 		if (key->mandatory != 0) {
 			error(MSG_MANDATORYKEYMISSING, key->keyname,
-			   sect_name);
+			    sect_name);
 			return (EINVAL);
 		} else
 			/* Non-mandatory key, not present -- skip */
 			return (0);
 	}
 	cnt = parse_intarray((char *)&strbuf, &intbuf);
-	cnt = (cnt <= key->maxlength) ? cnt : key->maxlength - 1;
+	cnt = (cnt <= key->maxlength) ? cnt : key->maxlength;
 
 	for (i = 0; i < cnt; i++) {
 		if (SIZE(key->valuetype) == SIZE_8)
@@ -609,7 +632,7 @@ get_argument_int(const char *sect_name, int sectno, struct nandsim_key *key,
 		} else
 			/* Non-mandatory key, not present -- skip */
 			return (0);
-		}
+	}
 	if (SIZE(key->valuetype) == SIZE_8)
 		*(uint8_t *)(key->field) = (uint8_t)val;
 	else if (SIZE(key->valuetype) == SIZE_16)
@@ -832,7 +855,7 @@ validate_chips(struct sim_chip *chips, int chipcnt,
 
 		if ((chips[chipcnt].read_time < DELAYTIME_MIN ||
 		    chips[chipcnt].read_time > DELAYTIME_MAX) &&
-		    chips[chipcnt].erase_time != 0) {
+		    chips[chipcnt].read_time != 0) {
 			error("Invalid read time value for chip#%d at "
 			    "ctrl#%d!",
 			    chips[chipcnt].num,
@@ -865,7 +888,6 @@ validate_chips(struct sim_chip *chips, int chipcnt,
 static uint8_t
 validate_ctrls(struct sim_ctrl *ctrl, int ctrlcnt)
 {
-
 	for (ctrlcnt -= 1; ctrlcnt >= 0; ctrlcnt--) {
 		if (ctrl[ctrlcnt].num > MAX_SIM_DEV) {
 			error("Controller no. too high (%d)!!\n",
@@ -877,9 +899,54 @@ validate_ctrls(struct sim_ctrl *ctrl, int ctrlcnt)
 			return (EINVAL);
 		}
 		if (ctrl[ctrlcnt].ecc != 0 && ctrl[ctrlcnt].ecc != 1) {
-			error("ECC is not set to neither 0 nor 1 !\n");
+			error("ECC is set to neither 0 nor 1 !\n");
 			return (EINVAL);
 		}
 	}
+
+	return (0);
+}
+
+static int validate_section_config(struct rcfile *f, const char *sect_name,
+    int sectno)
+{
+	struct nandsim_key *key;
+	struct nandsim_section *sect;
+	char **keys_tbl;
+	int i, match;
+
+	for (match = 0, sect = (struct nandsim_section *)&sections;
+	    sect != NULL; sect++) {
+		if (strcmp(sect->name, sect_name) == 0) {
+			match = 1;
+			break;
+		}
+	}
+
+	if (match == 0)
+		return (EINVAL);
+
+	keys_tbl = rc_getkeys(f, sect_name, sectno);
+	if (keys_tbl == NULL)
+		return (ENOMEM);
+
+	for (i = 0; keys_tbl[i] != NULL; i++) {
+		key = sect->keys;
+		match = 0;
+		do {
+			if (strcmp(keys_tbl[i], key->keyname) == 0) {
+				match = 1;
+				break;
+			}
+		} while ((++key)->keyname != NULL);
+
+		if (match == 0) {
+			error("Invalid key in config file: %s\n", keys_tbl[i]);
+			free(keys_tbl);
+			return (EINVAL);
+		}
+	}
+
+	free(keys_tbl);
 	return (0);
 }

@@ -80,7 +80,7 @@ rc_open(const char *filename, const char *mode,struct rcfile **rcfile)
 		return ENOMEM;
 	}
 	bzero(rcp, sizeof(struct rcfile));
-	rcp->rf_name = strdup (filename);
+	rcp->rf_name = strdup(filename);
 	rcp->rf_f = f;
 	SLIST_INSERT_HEAD(&pf_head, rcp, rf_next);
 	rc_parse(rcp);
@@ -237,7 +237,7 @@ rc_parse(struct rcfile *rcp)
 			}
 		}
 		if (state == stSkipToEOL || next == last) {/* ignore long lines */
-			if (c == '\n'){
+			if (c == '\n') {
 				state = stNewLine;
 				next = buf;
 			}
@@ -256,7 +256,7 @@ rc_parse(struct rcfile *rcp)
 		if (state == stGetKey) {
 			if (c == ' ' || c == '\t')/* side effect: 'key name='*/
 				continue;	  /* become 'keyname='	     */
-			if (c == '\n') {		/* silently ignore ... */
+			if (c == '\n') {	  /* silently ignore ... */
 				state = stNewLine;
 				continue;
 			}
@@ -266,7 +266,8 @@ rc_parse(struct rcfile *rcp)
 			}
 			*next = 0;
 			if (rsp == NULL) {
-				fprintf(stderr, "Key '%s' defined before section\n", buf);
+				fprintf(stderr, "Key '%s' defined before "
+				    "section\n", buf);
 				state = stSkipToEOL;
 				continue;
 			}
@@ -277,7 +278,8 @@ rc_parse(struct rcfile *rcp)
 		}
 		/* only stGetValue left */
 		if (state != stGetValue) {
-			fprintf(stderr, "Well, I can't parse file '%s'\n",rcp->rf_name);
+			fprintf(stderr, "Well, I can't parse file "
+			    "'%s'\n",rcp->rf_name);
 			state = stSkipToEOL;
 		}
 		if (c != '\n') {
@@ -348,7 +350,8 @@ rc_getint(struct rcfile *rcp, const char *section, int sect_id,
 	errno = 0;
 	*value = strtol(rkp->rk_value,NULL,0);
 	if (errno) {
-		fprintf(stderr, "invalid int value '%s' for key '%s' in section '%s'\n",rkp->rk_value,key,section);
+		fprintf(stderr, "invalid int value '%s' for key '%s' in "
+		    "section '%s'\n",rkp->rk_value,key,section);
 		return (errno);
 	}
 	return (0);
@@ -386,7 +389,8 @@ rc_getbool(struct rcfile *rcp, const char *section, int sect_id,
 		*value = 1;
 		return (0);
 	}
-	fprintf(stderr, "invalid boolean value '%s' for key '%s' in section '%s' \n",p, key, section);
+	fprintf(stderr, "invalid boolean value '%s' for key '%s' in section "
+	    "'%s' \n",p, key, section);
 	return (EINVAL);
 }
 
@@ -403,7 +407,33 @@ int rc_getsectionscount(struct rcfile *f, const char *sectname)
 			p = rc_findsect(f, sectname, count);
 		}
 		return (count);
-	}
-	else
+	} else
 		return (0);
 }
+
+char **
+rc_getkeys(struct rcfile *rcp, const char *sectname, int sect_id)
+{
+	struct rcsection *rsp;
+	struct rckey *p;
+	char **names_tbl;
+	int i = 0, count = 0;
+
+	rsp = rc_findsect(rcp, sectname, sect_id);
+	if (rsp == NULL)
+		return (NULL);
+
+	SLIST_FOREACH(p, &rsp->rs_keys, rk_next)
+		count++;
+
+	names_tbl = malloc(sizeof(char *) * (count + 1));
+	if (names_tbl == NULL)
+		return (NULL);
+
+	SLIST_FOREACH(p, &rsp->rs_keys, rk_next)
+		names_tbl[i++] = p->rk_name;
+
+	names_tbl[i] = NULL;
+	return (names_tbl);
+}
+

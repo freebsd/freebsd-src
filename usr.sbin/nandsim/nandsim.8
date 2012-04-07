@@ -27,7 +27,7 @@
 .Os
 .Sh NAME
 .Nm nandsim
-.Nd NAND simulator
+.Nd NAND simulator control program
 .Sh SYNOPSIS
 .Nm
 .Ic status
@@ -211,5 +211,15 @@ gives more verbose output.
 Stops simulation of given controller (simulates power-loss). All
 commands issues to any chip on this controller are ignored.
 .El
-.Sh AUTHORS
-.An Lukasz Wojcik
+.Sh SEE ALSO
+.Xr nand 4 ,
+.Xr nandsim 4
+.Xr nandsim.conf 5
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 10.0 .
+.Sh AUTHOR
+This utility was written by
+.An Lukasz Wojcik .

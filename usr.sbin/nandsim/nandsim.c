@@ -89,11 +89,11 @@ __FBSDID("$FreeBSD$");
 
 typedef int (commandfunc_t)(int , char **);
 
-static struct nandsim_command *getcommand(char *arg);
-static int parse_devstring(char *str, int *ctrl, int *cs);
-static void printchip(struct sim_chip *chip, uint8_t verbose);
-static void printctrl(struct sim_ctrl *ctrl);
-static int opendev(int *fd);
+static struct nandsim_command *getcommand(char *);
+static int parse_devstring(char *, int *, int *);
+static void printchip(struct sim_chip *, uint8_t);
+static void printctrl(struct sim_ctrl *);
+static int opendev(int *);
 static commandfunc_t cmdstatus;
 static commandfunc_t cmdconf;
 static commandfunc_t cmdstart;
@@ -108,12 +108,12 @@ static commandfunc_t cmddump;
 static commandfunc_t cmdrestore;
 static commandfunc_t cmddestroy;
 static commandfunc_t cmdhelp;
-static int checkusage(int argc, int argsreqd, char **argv);
-static int is_chip_created(int ctrl_no, int chip_no, int *created);
-static int is_ctrl_created(int ctrl_no, int *created);
-static int is_ctrl_running(int ctrl_no, int *running);
-static int assert_chip_connected(int ctrl_no, int chip_no);
-static int printstats(int ctrlno, int chipno, uint32_t pageno, int cdevd);
+static int checkusage(int, int, char **);
+static int is_chip_created(int, int, int *);
+static int is_ctrl_created(int, int *);
+static int is_ctrl_running(int, int *);
+static int assert_chip_connected(int , int);
+static int printstats(int, int, uint32_t, int);
 
 struct nandsim_command {
 	const char	*cmd_name;	/* Command name */
@@ -193,7 +193,7 @@ parse_devstring(char *str, int *ctrl, int *cs)
 	*cs = 0xff;
 	if (strcmp(str, "--all") == 0 ||
 	    strcmp(str, "-a") == 0) {
-		/* if --all or -a is specified, ctl==chip==0xff */
+		/* If --all or -a is specified, ctl==chip==0xff */
 		debug("CTRL=%d CHIP=%d\n", *ctrl, *cs);
 		return (0);
 	}
@@ -237,7 +237,6 @@ static int
 opendev(int *fd)
 {
 
-	/* Open simulator device. */
 	*fd = open(SIMDEVICE, O_RDWR);
 	if (*fd == -1) {
 		error("Could not open simulator device file (%s)!",
@@ -270,10 +269,10 @@ checkusage(int gargc, int argsreqd, char **gargv)
 
 	if (gargc < argsreqd + 2 || (gargc >= (argsreqd + 2) &&
 	    (strcmp(gargv[1], "--help") == 0 ||
-	    strcmp(gargv[1], "-h") == 0))) {
+	    strcmp(gargv[1], "-h") == 0)))
 		return (1);
-	} else
-		return (0);
+
+	return (0);
 }
 
 static int
@@ -335,7 +334,7 @@ cmdstatus(int gargc, char **gargv)
 }
 
 static int
-cmdconf(int gargc, char **gargv)
+cmdconf(int gargc __unused, char **gargv)
 {
 	int err;
 
@@ -347,7 +346,7 @@ cmdconf(int gargc, char **gargv)
 }
 
 static int
-cmdstart(int gargc, char **gargv)
+cmdstart(int gargc __unused, char **gargv)
 {
 	int chip = 0, ctl = 0, err = 0, fd, running, state;
 
@@ -384,7 +383,7 @@ cmdstart(int gargc, char **gargv)
 }
 
 static int
-cmdstop(int gargc, char **gargv)
+cmdstop(int gargc __unused, char **gargv)
 {
 	int chip = 0, ctl = 0, err = 0, fd, running;
 
@@ -414,7 +413,7 @@ cmdstop(int gargc, char **gargv)
 }
 
 static int
-cmdmod(int gargc, char **gargv)
+cmdmod(int gargc __unused, char **gargv)
 {
 	int chip, ctl, err = 0, fd = -1, i;
 	struct sim_mod mods;
@@ -434,7 +433,7 @@ cmdmod(int gargc, char **gargv)
 			err = ioctl(fd, NANDSIM_MODIFY, &mods);
 			if (err) {
 				error("simulator parameter %s could not be "
-				    "modified !", gargv[i]);
+				    "modified !", gargv[3]);
 				close(fd);
 				return (EX_SOFTWARE);
 			}
@@ -460,10 +459,10 @@ cmdmod(int gargc, char **gargv)
 	if (opendev(&fd) != EX_OK)
 		return (EX_OSFILE);
 
-	/* Findout which flags were passed */
+	/* Find out which flags were passed */
 	for (i = 3; i < gargc; i++) {
 
-		if (convert_arguint(gargv[i+1], &mods.new_value) != 0)
+		if (convert_arguint(gargv[i + 1], &mods.new_value) != 0)
 			continue;
 
 		if (strcmp(gargv[i], "--prog-time") == 0 ||
@@ -515,7 +514,7 @@ cmdmod(int gargc, char **gargv)
 }
 
 static int
-cmderror(int gargc, char **gargv)
+cmderror(int gargc __unused, char **gargv)
 {
 	uint32_t page, column, len, pattern;
 	int chip = 0, ctl = 0, err = 0, fd;
@@ -536,7 +535,7 @@ cmderror(int gargc, char **gargv)
 	    convert_arguint(gargv[6], &pattern))
 		return (EX_SOFTWARE);
 
-	if(!assert_chip_connected(ctl, chip))
+	if (!assert_chip_connected(ctl, chip))
 		return (EX_SOFTWARE);
 
 	sim_err.page_num = page;
@@ -594,7 +593,7 @@ cmdbb(int gargc, char **gargv)
 	bs.ctrl_num = ctl;
 	bs.chip_num = chip;
 
-	if(!assert_chip_connected(ctl, chip))
+	if (!assert_chip_connected(ctl, chip))
 		return (EX_SOFTWARE);
 
 	if (opencdev(&cdevd, ctl, chip) != EX_OK)
@@ -657,7 +656,7 @@ cmdbb(int gargc, char **gargv)
 }
 
 static int
-cmdfreeze(int gargc, char **gargv)
+cmdfreeze(int gargc __unused, char **gargv)
 {
 	int chip = 0, ctl = 0, err = 0, fd, i, start = 0, state, stop = 0;
 	struct sim_ctrl_chip ctrlchip;
@@ -713,7 +712,7 @@ cmdfreeze(int gargc, char **gargv)
 }
 
 static int
-cmdlog(int gargc, char **gargv)
+cmdlog(int gargc __unused, char **gargv)
 {
 	struct sim_log log;
 	int chip = 0, ctl = 0, err = 0, fd, idx, start = 0, stop = 0;
@@ -765,7 +764,7 @@ cmdlog(int gargc, char **gargv)
 }
 
 static int
-cmdstats(int gargc, char **gargv)
+cmdstats(int gargc __unused, char **gargv)
 {
 	int cdevd, chip = 0, ctl = 0, err = 0;
 	uint32_t pageno = 0;
@@ -799,7 +798,7 @@ cmdstats(int gargc, char **gargv)
 }
 
 static int
-cmddump(int gargc, char **gargv)
+cmddump(int gargc __unused, char **gargv)
 {
 	struct sim_dump dump;
 	struct sim_block_state bs;
@@ -927,7 +926,7 @@ cmddump(int gargc, char **gargv)
 }
 
 static int
-cmdrestore(int gargc, char **gargv)
+cmdrestore(int gargc __unused, char **gargv)
 {
 	struct sim_dump dump;
 	struct sim_block_state bs;
@@ -973,8 +972,7 @@ cmdrestore(int gargc, char **gargv)
 	    cparams.oob_size);
 
 	/* Expected dump file size for chip */
-	expfilesz = cparams.blocks * (blksz + sizeof(bs)) +
-	    sizeof(cparams);
+	expfilesz = cparams.blocks * (blksz + sizeof(bs)) + sizeof(cparams);
 
 	if (fsize != expfilesz) {
 		error("File size does not match chip geometry (file size: %d"
@@ -985,7 +983,6 @@ cmdrestore(int gargc, char **gargv)
 	dumpfd = open(gargv[3], O_RDONLY);
 	if (dumpfd == -1) {
 		error("Could not open dump file!");
-		free(buf);
 		return (EX_IOERR);
 	}
 
@@ -1070,7 +1067,7 @@ cmdrestore(int gargc, char **gargv)
 }
 
 static int
-cmddestroy(int gargc, char **gargv)
+cmddestroy(int gargc __unused, char **gargv)
 {
 	int chip = 0, ctl = 0, err = 0, fd, idx, idx2, state;
 	int chipstart, chipstop, ctrlstart, ctrlstop;
@@ -1134,7 +1131,7 @@ cmddestroy(int gargc, char **gargv)
 			ioctl(fd, NANDSIM_DESTROY_CHIP,
 			    &chip_destroy);
 		}
-		/* If chip isnt explicitely specified -- destroy ctrl */
+		/* If chip isn't explicitly specified -- destroy ctrl */
 		if (chip == 0xff) {
 			err = ioctl(fd, NANDSIM_DESTROY_CTRL, &idx);
 			if (err) {
@@ -1182,7 +1179,7 @@ main(int argc, char **argv)
 }
 
 static int
-cmdhelp(int gargc, char **gargv)
+cmdhelp(int gargc __unused, char **gargv __unused)
 {
 	struct nandsim_command *opts;
 
@@ -1365,7 +1362,7 @@ printstats(int ctrlno, int chipno, uint32_t pageno, int cdevd)
 
 	if (err) {
 		error("Could not acquire chip info for chip attached to cs#"
-		   "%d, ctrl#%d", chipno, ctrlno);
+		    "%d, ctrl#%d", chipno, ctrlno);
 		return (EX_SOFTWARE);
 	}
 

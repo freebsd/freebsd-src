@@ -77,9 +77,8 @@ struct nandsim_config {
 int parse_intarray(char *, int **);
 int parse_config(char *, const char *);
 int parse_section(struct rcfile *, const char *, int);
-int compare_configs(struct nandsim_config *runningconfig,
-    struct nandsim_config *newconfig);
-int convert_argint(char *arg, int *value);
-int convert_arguint(char *arg, unsigned int *value);
+int compare_configs(struct nandsim_config *, struct nandsim_config *);
+int convert_argint(char *, int *);
+int convert_arguint(char *, unsigned int *);
 
 #endif /* _NANDSIM_CONFPARSER_H_ */
