@@ -62,10 +62,6 @@ struct mntopt {
 #define MOPT_RO			{ "ro",		0, MNT_RDONLY, 0 }
 #define MOPT_RW			{ "rw",		1, MNT_RDONLY, 0 }
 
-
-/* Cleaner daemon flags */
-#define	MOPT_NOCLEANER		{ "nocleaner",	0, 0, 0 }
-
 /* This is parsed by mount(8), but is ignored by specific mount_*(8)s. */
 #define MOPT_AUTO		{ "auto",	0, 0, 0 }
 
