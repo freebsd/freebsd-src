@@ -183,7 +183,7 @@ tmpfs_mount(struct mount *mp)
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
-	if (tmpfs_mem_info() < TMPFS_PAGES_RESERVED)
+	if (tmpfs_mem_avail() < TMPFS_PAGES_MINRESERVED)
 		return ENOSPC;
 
 	/* Get the maximum number of memory pages this file system is
@@ -382,22 +382,30 @@ tmpfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
 static int
 tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 {
-	fsfilcnt_t freenodes;
 	struct tmpfs_mount *tmp;
+	size_t used;
 
 	tmp = VFS_TO_TMPFS(mp);
 
 	sbp->f_iosize = PAGE_SIZE;
 	sbp->f_bsize = PAGE_SIZE;
 
-	sbp->f_blocks = TMPFS_PAGES_MAX(tmp);
-	sbp->f_bavail = sbp->f_bfree = TMPFS_PAGES_AVAIL(tmp);
-
-	freenodes = MIN(tmp->tm_nodes_max - tmp->tm_nodes_inuse,
-	    TMPFS_PAGES_AVAIL(tmp) * PAGE_SIZE / sizeof(struct tmpfs_node));
-
-	sbp->f_files = freenodes + tmp->tm_nodes_inuse;
-	sbp->f_ffree = freenodes;
+	used = tmpfs_pages_used(tmp);
+	if (tmp->tm_pages_max != SIZE_MAX)
+		 sbp->f_blocks = tmp->tm_pages_max;
+	else
+		 sbp->f_blocks = used + tmpfs_mem_avail();
+	if (sbp->f_blocks <= used)
+		sbp->f_bavail = 0;
+	else
+		sbp->f_bavail = sbp->f_blocks - used;
+	sbp->f_bfree = sbp->f_bavail;
+	used = tmp->tm_nodes_inuse;
+	sbp->f_files = tmp->tm_nodes_max;
+	if (sbp->f_files <= used)
+		sbp->f_ffree = 0;
+	else
+		sbp->f_ffree = sbp->f_files - used;
 	/* sbp->f_owner = tmp->tn_uid; */
 
 	return 0;
