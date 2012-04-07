@@ -90,7 +90,7 @@ static struct varname *varnames;
 			return ARITH_NUM;
 		}
 
-[A-Za-z][A-Za-z0-9_]*	{
+[A-Za-z_][A-Za-z0-9_]*	{
 			/*
 			 * If variable doesn't exist, we should initialize
 			 * it to zero.
