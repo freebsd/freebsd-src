@@ -322,6 +322,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
 		bf->bf_lastds = ds;
 	}
+	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 }
 
 /*
@@ -372,6 +373,8 @@ ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
 			__func__, i, ds->ds_link, ds->ds_data,
 			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
 		bf->bf_lastds = ds;
+		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+		    BUS_DMASYNC_PREWRITE);
 	}
 }
 
