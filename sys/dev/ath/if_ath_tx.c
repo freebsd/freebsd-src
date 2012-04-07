@@ -720,6 +720,133 @@ ath_tx_tag_crypto(struct ath_softc *sc, struct ieee80211_node *ni,
 	return (1);
 }
 
+/*
+ * Calculate whether interoperability protection is required for
+ * this frame.
+ *
+ * This requires the rate control information be filled in,
+ * as the protection requirement depends upon the current
+ * operating mode / PHY.
+ */
+static void
+ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ieee80211_frame *wh;
+	uint8_t rix;
+	uint16_t flags;
+	int shortPreamble;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	flags = bf->bf_state.bfs_txflags;
+	rix = bf->bf_state.bfs_rc[0].rix;
+	shortPreamble = bf->bf_state.bfs_shpream;
+	wh = mtod(bf->bf_m, struct ieee80211_frame *);
+
+	/*
+	 * If 802.11g protection is enabled, determine whether
+	 * to use RTS/CTS or just CTS.  Note that this is only
+	 * done for OFDM unicast frames.
+	 */
+	if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
+	    rt->info[rix].phy == IEEE80211_T_OFDM &&
+	    (flags & HAL_TXDESC_NOACK) == 0) {
+		bf->bf_state.bfs_doprot = 1;
+		/* XXX fragments must use CCK rates w/ protection */
+		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS) {
+			flags |= HAL_TXDESC_RTSENA;
+		} else if (ic->ic_protmode == IEEE80211_PROT_CTSONLY) {
+			flags |= HAL_TXDESC_CTSENA;
+		}
+		/*
+		 * For frags it would be desirable to use the
+		 * highest CCK rate for RTS/CTS.  But stations
+		 * farther away may detect it at a lower CCK rate
+		 * so use the configured protection rate instead
+		 * (for now).
+		 */
+		sc->sc_stats.ast_tx_protect++;
+	}
+
+	/*
+	 * If 11n protection is enabled and it's a HT frame,
+	 * enable RTS.
+	 *
+	 * XXX ic_htprotmode or ic_curhtprotmode?
+	 * XXX should it_htprotmode only matter if ic_curhtprotmode 
+	 * XXX indicates it's not a HT pure environment?
+	 */
+	if ((ic->ic_htprotmode == IEEE80211_PROT_RTSCTS) &&
+	    rt->info[rix].phy == IEEE80211_T_HT &&
+	    (flags & HAL_TXDESC_NOACK) == 0) {
+		flags |= HAL_TXDESC_RTSENA;
+		sc->sc_stats.ast_tx_htprotect++;
+	}
+	bf->bf_state.bfs_txflags = flags;
+}
+
+/*
+ * Update the frame duration given the currently selected rate.
+ *
+ * This also updates the frame duration value, so it will require
+ * a DMA flush.
+ */
+static void
+ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
+{
+	struct ieee80211_frame *wh;
+	uint8_t rix;
+	uint16_t flags;
+	int shortPreamble;
+	struct ath_hal *ah = sc->sc_ah;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	int isfrag = bf->bf_m->m_flags & M_FRAG;
+
+	flags = bf->bf_state.bfs_txflags;
+	rix = bf->bf_state.bfs_rc[0].rix;
+	shortPreamble = bf->bf_state.bfs_shpream;
+	wh = mtod(bf->bf_m, struct ieee80211_frame *);
+
+	/*
+	 * Calculate duration.  This logically belongs in the 802.11
+	 * layer but it lacks sufficient information to calculate it.
+	 */
+	if ((flags & HAL_TXDESC_NOACK) == 0 &&
+	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_CTL) {
+		u_int16_t dur;
+		if (shortPreamble)
+			dur = rt->info[rix].spAckDuration;
+		else
+			dur = rt->info[rix].lpAckDuration;
+		if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
+			dur += dur;		/* additional SIFS+ACK */
+			KASSERT(bf->bf_m->m_nextpkt != NULL, ("no fragment"));
+			/*
+			 * Include the size of next fragment so NAV is
+			 * updated properly.  The last fragment uses only
+			 * the ACK duration
+			 */
+			dur += ath_hal_computetxtime(ah, rt,
+					bf->bf_m->m_nextpkt->m_pkthdr.len,
+					rix, shortPreamble);
+		}
+		if (isfrag) {
+			/*
+			 * Force hardware to use computed duration for next
+			 * fragment by disabling multi-rate retry which updates
+			 * duration based on the multi-rate duration table.
+			 */
+			bf->bf_state.bfs_ismrr = 0;
+			bf->bf_state.bfs_try0 = ATH_TXMGTTRY;
+			/* XXX update bfs_rc[0].try? */
+		}
+
+		/* Update the duration field itself */
+		*(u_int16_t *)wh->i_dur = htole16(dur);
+	}
+}
+
 static uint8_t
 ath_tx_get_rtscts_rate(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
     int cix, int shortPreamble)
@@ -1004,8 +1131,10 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 
 	/* Setup the descriptor before handoff */
 	ath_tx_do_ratelookup(sc, bf);
-	ath_tx_rate_fill_rcflags(sc, bf);
+	ath_tx_calc_duration(sc, bf);
+	ath_tx_calc_protection(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
+	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
 	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
 	ath_tx_chaindesclist(sc, bf);
@@ -1202,84 +1331,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		return EIO;
 	}
 #endif
-
-	/*
-	 * If 802.11g protection is enabled, determine whether
-	 * to use RTS/CTS or just CTS.  Note that this is only
-	 * done for OFDM unicast frames.
-	 */
-	if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
-	    rt->info[rix].phy == IEEE80211_T_OFDM &&
-	    (flags & HAL_TXDESC_NOACK) == 0) {
-		bf->bf_state.bfs_doprot = 1;
-		/* XXX fragments must use CCK rates w/ protection */
-		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS) {
-			flags |= HAL_TXDESC_RTSENA;
-		} else if (ic->ic_protmode == IEEE80211_PROT_CTSONLY) {
-			flags |= HAL_TXDESC_CTSENA;
-		}
-		/*
-		 * For frags it would be desirable to use the
-		 * highest CCK rate for RTS/CTS.  But stations
-		 * farther away may detect it at a lower CCK rate
-		 * so use the configured protection rate instead
-		 * (for now).
-		 */
-		sc->sc_stats.ast_tx_protect++;
-	}
-
-#if 0
-	/*
-	 * If 11n protection is enabled and it's a HT frame,
-	 * enable RTS.
-	 *
-	 * XXX ic_htprotmode or ic_curhtprotmode?
-	 * XXX should it_htprotmode only matter if ic_curhtprotmode 
-	 * XXX indicates it's not a HT pure environment?
-	 */
-	if ((ic->ic_htprotmode == IEEE80211_PROT_RTSCTS) &&
-	    rt->info[rix].phy == IEEE80211_T_HT &&
-	    (flags & HAL_TXDESC_NOACK) == 0) {
-		cix = rt->info[sc->sc_protrix].controlRate;
-	    	flags |= HAL_TXDESC_RTSENA;
-		sc->sc_stats.ast_tx_htprotect++;
-	}
-#endif
-
-	/*
-	 * Calculate duration.  This logically belongs in the 802.11
-	 * layer but it lacks sufficient information to calculate it.
-	 */
-	if ((flags & HAL_TXDESC_NOACK) == 0 &&
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_CTL) {
-		u_int16_t dur;
-		if (shortPreamble)
-			dur = rt->info[rix].spAckDuration;
-		else
-			dur = rt->info[rix].lpAckDuration;
-		if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
-			dur += dur;		/* additional SIFS+ACK */
-			KASSERT(m0->m_nextpkt != NULL, ("no fragment"));
-			/*
-			 * Include the size of next fragment so NAV is
-			 * updated properly.  The last fragment uses only
-			 * the ACK duration
-			 */
-			dur += ath_hal_computetxtime(ah, rt,
-					m0->m_nextpkt->m_pkthdr.len,
-					rix, shortPreamble);
-		}
-		if (isfrag) {
-			/*
-			 * Force hardware to use computed duration for next
-			 * fragment by disabling multi-rate retry which updates
-			 * duration based on the multi-rate duration table.
-			 */
-			ismrr = 0;
-			try0 = ATH_TXMGTTRY;	/* XXX? */
-		}
-		*(u_int16_t *)wh->i_dur = htole16(dur);
-	}
 
 	/*
 	 * Determine if a tx interrupt should be generated for
@@ -2441,8 +2492,10 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_buf *bf)
 
 	/* Direct dispatch to hardware */
 	ath_tx_do_ratelookup(sc, bf);
-	ath_tx_rate_fill_rcflags(sc, bf);
+	ath_tx_calc_duration(sc, bf);
+	ath_tx_calc_protection(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
+	ath_tx_rate_fill_rcflags(sc, bf);
 	ath_tx_setds(sc, bf);
 	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
 	ath_tx_chaindesclist(sc, bf);
@@ -3892,8 +3945,10 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ATH_TXQ_REMOVE(tid, bf, bf_list);
 			bf->bf_state.bfs_aggr = 0;
 			ath_tx_do_ratelookup(sc, bf);
-			ath_tx_rate_fill_rcflags(sc, bf);
+			ath_tx_calc_duration(sc, bf);
+			ath_tx_calc_protection(sc, bf);
 			ath_tx_set_rtscts(sc, bf);
+			ath_tx_rate_fill_rcflags(sc, bf);
 			ath_tx_setds(sc, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
@@ -3918,6 +3973,11 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		ath_tx_do_ratelookup(sc, bf);
 		bf->bf_state.bfs_rc[3].rix = 0;
 		bf->bf_state.bfs_rc[3].tries = 0;
+
+		ath_tx_calc_duration(sc, bf);
+		ath_tx_calc_protection(sc, bf);
+
+		ath_tx_set_rtscts(sc, bf);
 		ath_tx_rate_fill_rcflags(sc, bf);
 
 		status = ath_tx_form_aggr(sc, an, tid, &bf_q);
@@ -3937,6 +3997,9 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		 */
 		bf = TAILQ_FIRST(&bf_q);
 
+		if (status == ATH_AGGR_8K_LIMITED)
+			sc->sc_aggr_stats.aggr_rts_aggr_limited++;
+
 		/*
 		 * If it's the only frame send as non-aggregate
 		 * assume that ath_tx_form_aggr() has checked
@@ -3946,7 +4009,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
-			ath_tx_set_rtscts(sc, bf);
 			ath_tx_setds(sc, bf);
 			ath_tx_chaindesclist(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
@@ -3964,6 +4026,12 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			bf->bf_state.bfs_aggr = 1;
 			sc->sc_aggr_stats.aggr_pkts[bf->bf_state.bfs_nframes]++;
 			sc->sc_aggr_stats.aggr_aggr_pkt++;
+
+			/*
+			 * Calculate the duration/protection as required.
+			 */
+			ath_tx_calc_duration(sc, bf);
+			ath_tx_calc_protection(sc, bf);
 
 			/*
 			 * Update the rate and rtscts information based on the
@@ -4066,8 +4134,10 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 
 		/* Program descriptors + rate control */
 		ath_tx_do_ratelookup(sc, bf);
-		ath_tx_rate_fill_rcflags(sc, bf);
+		ath_tx_calc_duration(sc, bf);
+		ath_tx_calc_protection(sc, bf);
 		ath_tx_set_rtscts(sc, bf);
+		ath_tx_rate_fill_rcflags(sc, bf);
 		ath_tx_setds(sc, bf);
 		ath_tx_chaindesclist(sc, bf);
 		ath_tx_set_ratectrl(sc, ni, bf);
