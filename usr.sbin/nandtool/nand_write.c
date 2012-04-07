@@ -34,15 +34,16 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libgeom.h>
 #include <sys/disk.h>
-#include <dev/nand/nand_cdev.h>
+#include <dev/nand/nand_dev.h>
 #include "nandtool.h"
 
 int nand_write(struct cmd_param *params)
 {
+	struct chip_param_io chip_params;
 	char *dev, *file;
 	int fd = -1, in_fd = -1, ret, err = 0;
 	uint8_t *buf = NULL;
-	int page_size, block_size, mult, pos, done = 0, count, raw;
+	int block_size, mult, pos, done = 0, count, raw;
 
 	raw = param_get_boolean(params, "raw");
 
@@ -67,29 +68,26 @@ int nand_write(struct cmd_param *params)
 		goto out;
 	}
 
-	if (ioctl(fd, DIOCGSECTORSIZE, &page_size) < 0) {
-		perrorf("ioctl(DIOCGSECTORSIZE) failed");
+	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
+		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
 		err = errno;
 		goto out;
 	}
 
-	if (ioctl(fd, DIOCNBLKSIZE, &block_size) < 0) {
-		perrorf("ioctl(DIOCNBLKSIZE) failed");
-		err = errno;
-		goto out;
-	}
+	block_size = chip_params.page_size * chip_params.pages_per_block;
 
 	if (param_has_value(params, "page")) {
-		pos = page_size * param_get_int(params, "page");
-		mult = page_size;
+		pos = chip_params.page_size * param_get_int(params, "page");
+		mult = chip_params.page_size;
 	} else if (param_has_value(params, "block")) {
 		pos = block_size * param_get_int(params, "block");
 		mult = block_size;
 	} else if (param_has_value(params, "pos")) {
 		pos = param_get_int(params, "pos");
 		mult = 1;
-		if (pos % page_size) {
-			fprintf(stderr, "Position must be page-size aligned!\n");
+		if (pos % chip_params.page_size) {
+			fprintf(stderr, "Position must be page-size "
+			    "aligned!\n");
 			errno = EINVAL;
 			goto out;
 		}
@@ -105,17 +103,18 @@ int nand_write(struct cmd_param *params)
 	else
 		count = param_get_int(params, "count") * mult;
 
-	if (!(buf = malloc(page_size))) {
-		perrorf("Cannot allocate buffer [size %x]", page_size);
+	if (!(buf = malloc(chip_params.page_size))) {
+		perrorf("Cannot allocate buffer [size %x]",
+		    chip_params.page_size);
 		err = errno;
 		goto out;
 	}
 
 	lseek(fd, pos, SEEK_SET);
 
-	while (done < count)
-	{
-		if ((ret = read(in_fd, buf, page_size)) != page_size) {
+	while (done < count) {
+		if ((ret = read(in_fd, buf, chip_params.page_size)) !=
+		    (int32_t)chip_params.page_size) {
 			if (ret > 0) {
 				/* End of file ahead, truncate here */
 				break;
@@ -126,7 +125,8 @@ int nand_write(struct cmd_param *params)
 			}
 		}
 
-		if ((ret = write(fd, buf, page_size)) != page_size) {
+		if ((ret = write(fd, buf, chip_params.page_size)) !=
+		    (int32_t)chip_params.page_size) {
 			err = errno;
 			goto out;
 		}

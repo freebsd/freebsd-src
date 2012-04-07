@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <fs/nandfs/nandfs_fs.h>
+#include <dev/nand/nand_dev.h>
 
 #define DEBUG
 #undef DEBUG
@@ -165,7 +166,7 @@ nandfs_log2(unsigned n)
 	 * N.B. this function will return 0 if supplied 0.
 	 */
 	for (count = 0; n/2; count++)
-	    n /= 2;
+		n /= 2;
 	return count;
 }
 
@@ -750,7 +751,7 @@ save_cpfile(void)
 	/* mark rest of cp as invalid */
 	cno = NANDFS_FIRST_CNO + 1;
 	i = NANDFS_CPFILE_FIRST_CHECKPOINT_OFFSET + 1;
-	for (;i < entries; i++) {
+	for (; i < entries; i++) {
 		cp[i].cp_cno = cno++;
 		cp[i].cp_flags = NANDFS_CHECKPOINT_INVALID;
 	}
@@ -909,10 +910,10 @@ check_parameters(void)
 	i = 0;
 	if (volumelabel) {
 		while (isalnum(volumelabel[++i]));
-			if (volumelabel[i] != '\0') {
-				errx(1, "bad volume label. "
-				    "Valid characters are alphanumerics.");
-			}
+		if (volumelabel[i] != '\0') {
+			errx(1, "bad volume label. "
+			    "Valid characters are alphanumerics.");
+		}
 
 		if (strlen(volumelabel) >= 16)
 			errx(1, "Bad volume label. Length is longer than %d.",
@@ -969,6 +970,7 @@ check_mounted(const char *fname, mode_t mode)
 static void
 calculate_geometry(int fd)
 {
+	struct chip_param_io chip_params;
 	char ident[DISK_IDENT_SIZE];
 	char medianame[MAXPATHLEN];
 
@@ -988,8 +990,13 @@ calculate_geometry(int fd)
 	debug("mediasize: %#jx", mediasize);
 
 	/* Get storage erase unit size */
-	if (ioctl(fd, DIOCNBLKSIZE, &erasesize))
+	if (!is_nand)
 		erasesize = NANDFS_DEF_ERASESIZE;
+	else if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1)
+		errx(1, "Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
+	else
+		erasesize = chip_params.page_size * chip_params.pages_per_block;
+
 	debug("erasesize: %#jx", (uintmax_t)erasesize);
 
 	if (blocks_per_segment == 0) {
@@ -1134,8 +1141,8 @@ main(int argc, char *argv[])
 	fname = *argv++;
 	if (!strchr(fname, '/')) {
 		snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-	if (!(fname = strdup(buf)))
-		err(1, NULL);
+		if (!(fname = strdup(buf)))
+			err(1, NULL);
 	}
 
 	fd = g_open(fname, 1);

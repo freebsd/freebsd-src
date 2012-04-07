@@ -55,7 +55,8 @@ static const struct {
 	{ NULL, NULL, NULL },
 };
 
-char *param_get_string(struct cmd_param *params, const char *name)
+char *
+param_get_string(struct cmd_param *params, const char *name)
 {
 	int i;
 
@@ -67,7 +68,8 @@ char *param_get_string(struct cmd_param *params, const char *name)
 	return (NULL);
 }
 
-int param_get_int(struct cmd_param *params, const char *name)
+int
+param_get_int(struct cmd_param *params, const char *name)
 {
 	unsigned long ret;
 	char *str = param_get_string(params, name);
@@ -85,7 +87,8 @@ int param_get_int(struct cmd_param *params, const char *name)
 	return (ret);
 }
 
-int param_get_boolean(struct cmd_param *params, const char *name)
+int
+param_get_boolean(struct cmd_param *params, const char *name)
 {
 	char *str = param_get_string(params, name);
 
@@ -98,7 +101,8 @@ int param_get_boolean(struct cmd_param *params, const char *name)
 	return (0);
 }
 
-int param_has_value(struct cmd_param *params, const char *name)
+int
+param_has_value(struct cmd_param *params, const char *name)
 {
 	int i;
 
@@ -110,16 +114,18 @@ int param_has_value(struct cmd_param *params, const char *name)
 	return (0);
 }
 
-int param_get_count(struct cmd_param *params)
+int
+param_get_count(struct cmd_param *params)
 {
 	int i;
 
 	for (i = 0; params[i].name[0] != '\0'; i++);
 
-	return i;
+	return (i);
 }
 
-void hexdump(uint8_t *buf, int length)
+void
+hexdump(uint8_t *buf, int length)
 {
 	int i, j;
 	for (i = 0; i < length; i += 16) {
@@ -140,28 +146,33 @@ void hexdump(uint8_t *buf, int length)
 	}
 }
 
-void *xmalloc(size_t len)
+void *
+xmalloc(size_t len)
 {
 	void *ret = malloc(len);
 
 	if (!ret) {
-		fprintf(stderr, "Cannot allocate buffer of %zd bytes. Exiting.\n", len);
+		fprintf(stderr, "Cannot allocate buffer of %zd bytes. "
+		    "Exiting.\n", len);
 		exit(EX_OSERR);
 	}
 
-	return ret;
+	return (ret);
 }
 
-void perrorf(const char *format, ...)
+void
+perrorf(const char *format, ...)
 {
 	va_list args;
+
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fprintf(stderr, ": %s\n", strerror(errno));
 }
 
-int usage(struct cmd_param *params)
+int
+usage(struct cmd_param *params)
 {
 	int i;
 
@@ -174,7 +185,8 @@ int usage(struct cmd_param *params)
 			fprintf(stderr, "\t%s\n", commands[i].name);
 
 		fprintf(stderr, "\n");
-		fprintf(stderr, "For information about particular command, type:\n");
+		fprintf(stderr, "For information about particular command, "
+		    "type:\n");
 		fprintf(stderr, "'nandtool help topic=<command>'\n");
 	} else if (param_has_value(params, "topic")) {
 		for (i = 0; commands[i].name != NULL; i++) {
@@ -194,7 +206,8 @@ int usage(struct cmd_param *params)
 	return (EX_USAGE);
 }
 
-int main(int argc, const char *argv[])
+int
+main(int argc, const char *argv[])
 {
 	struct cmd_param *params;
 	int i, ret, idx;
@@ -210,13 +223,14 @@ int main(int argc, const char *argv[])
 		if (sscanf(argv[i], "%63[^=]=%63s", params[idx].name,
 		    params[idx].value) < 2) {
 			fprintf(stderr, "Syntax error in argument %d. "
-			   "Argument should be in form 'name=value'.\n", i);
+			    "Argument should be in form 'name=value'.\n", i);
+			free(params);
 			return (-1);
 		}
 	}
 
-	params[idx+1].name[0] = '\0';
-	params[idx+1].value[0] = '\0';
+	params[idx].name[0] = '\0';
+	params[idx].value[0] = '\0';
 
 	for (i = 0; commands[i].name != NULL; i++) {
 		if (!strcmp(commands[i].name, argv[1])) {

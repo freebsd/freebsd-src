@@ -34,17 +34,19 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libgeom.h>
 #include <sys/disk.h>
-#include <dev/nand/nand_cdev.h>
+#include <dev/nand/nand_dev.h>
 #include "nandtool.h"
 
 int nand_info(struct cmd_param *params)
 {
-	int fd = -1, page_size, block_size, oob_size, err = 0;
-	off_t media_size;
+	struct chip_param_io chip_params;
+	int fd = -1, err = 0, block_size;
+	off_t chip_size, media_size;
 	const char *dev;
 
 	if ((dev = param_get_string(params, "dev")) == NULL) {
-		fprintf(stderr, "Please supply 'dev' parameter, eg. 'dev=/dev/gnand0'\n");
+		fprintf(stderr, "Please supply 'dev' parameter, eg. "
+		    "'dev=/dev/gnand0'\n");
 		return (EINVAL);
 	}
 
@@ -53,35 +55,29 @@ int nand_info(struct cmd_param *params)
 		return (errno);
 	}
 
-	if (ioctl(fd, DIOCGSECTORSIZE, &page_size) < 0) {
-		perrorf("Cannot ioctl(DIOCGSECTORSIZE)");
+	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
+		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
 		err = errno;
 		goto out;
 	}
 
-	if (ioctl(fd, DIOCNBLKSIZE, &block_size) < 0) {
-		perrorf("Cannot ioctl(DIOCGSECTORSIZE)");
-		err = errno;
-		goto out;
-	}
-
-	if (ioctl(fd, DIOCNOOBSIZE, &oob_size) < 0) {
-		perrorf("Cannot ioctl(DIOCGSECTORSIZE)");
-		err = errno;
-		goto out;
-	}
-
-	if (ioctl(fd, DIOCGMEDIASIZE, &media_size) < 0) {
+	if (ioctl(fd, DIOCGMEDIASIZE, &media_size) == -1) {
 		perrorf("Cannot ioctl(DIOCGMEDIASIZE)");
 		err = errno;
 		goto out;
 	}
 
+	block_size = chip_params.page_size * chip_params.pages_per_block;
+	chip_size = block_size * chip_params.blocks;
+
 	printf("Device:\t\t\t%s\n", dev);
-	printf("Page size:\t\t%d bytes\n", page_size);
-	printf("Block size:\t\t%d bytes (%d KB)\n", block_size, block_size / 1024);
-	printf("OOB size per page:\t%d bytes\n", oob_size);
-	printf("Chip size:\t\t%jd MB\n", (uintmax_t)(media_size / 1024 / 1024));
+	printf("Page size:\t\t%d bytes\n", chip_params.page_size);
+	printf("Block size:\t\t%d bytes (%d KB)\n", block_size,
+	    block_size / 1024);
+	printf("OOB size per page:\t%d bytes\n", chip_params.oob_size);
+	printf("Chip size:\t\t%jd MB\n", (uintmax_t)(chip_size / 1024 / 1024));
+	printf("Slice size:\t\t%jd MB\n",
+	    (uintmax_t)(media_size / 1024 / 1024));
 
 out:
 	if (fd != -1)
@@ -89,4 +85,3 @@ out:
 
 	return (err);
 }
-

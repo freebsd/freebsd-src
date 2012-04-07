@@ -34,16 +34,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/disk.h>
 #include <libgeom.h>
-#include <dev/nand/nand_cdev.h>
+#include <dev/nand/nand_dev.h>
 #include "nandtool.h"
 
 int nand_erase(struct cmd_param *params)
 {
+	struct chip_param_io chip_params;
 	char *dev;
 	int fd = -1;
 	off_t pos, count, err = 0;
 	off_t start, nblocks, i;
-	int page_size, block_size, mult;
+	int block_size, mult;
 
 	if (!(dev = param_get_string(params, "dev"))) {
 		fprintf(stderr, "Please supply valid 'dev' parameter.\n");
@@ -58,21 +59,17 @@ int nand_erase(struct cmd_param *params)
 	if ((count = param_get_int(params, "count")) < 0)
 		count = 1;
 
-	if (ioctl(fd, DIOCGSECTORSIZE, &page_size)) {
-		perrorf("Cannot get page size for %s", dev);
+	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
+		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
 		err = errno;
 		goto out;
 	}
 
-	if (ioctl(fd, DIOCNBLKSIZE, &block_size)) {
-		perrorf("Cannot get block size for %s", dev);
-		err = errno;
-		goto out;
-	}
+	block_size = chip_params.page_size * chip_params.pages_per_block;
 
 	if (param_has_value(params, "page")) {
-		pos = page_size * param_get_int(params, "page");
-		mult = page_size;
+		pos = chip_params.page_size * param_get_int(params, "page");
+		mult = chip_params.page_size;
 	} else if (param_has_value(params, "block")) {
 		pos = block_size * param_get_int(params, "block");
 		mult = block_size;
@@ -82,7 +79,7 @@ int nand_erase(struct cmd_param *params)
 
 	} else {
 		/* Erase all chip */
-		if (ioctl(fd, DIOCGMEDIASIZE, &count) < 0) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &count) == -1) {
 			err = errno;
 			goto out;
 		}

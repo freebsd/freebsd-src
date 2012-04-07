@@ -35,24 +35,24 @@ __FBSDID("$FreeBSD$");
 #include <libgeom.h>
 #include <sys/types.h>
 #include <sys/disk.h>
-#include <dev/nand/nand_cdev.h>
+#include <dev/nand/nand_dev.h>
 #include "nandtool.h"
 
 int nand_read_oob(struct cmd_param *params)
 {
+	struct chip_param_io chip_params;
+	struct nand_oob_rw req;
 	char *dev, *out;
 	int fd = -1, fd_out = -1;
-	int err = 0;
+	int page, err = 0;
 	uint8_t *buf = NULL;
-	int oobsize, page, pagesize;
-	struct nand_oob_request req;
 
 	if ((page = param_get_int(params, "page")) < 0) {
 		fprintf(stderr, "You must supply valid 'page' argument.\n");
 		return (EINVAL);
 	}
 
-	if (!(dev = param_get_string(params, "dev"))){
+	if (!(dev = param_get_string(params, "dev"))) {
 		fprintf(stderr, "You must supply 'dev' argument.\n");
 		return (EINVAL);
 	}
@@ -71,39 +71,33 @@ int nand_read_oob(struct cmd_param *params)
 		goto out;
 	}
 
-	if (ioctl(fd, DIOCGSECTORSIZE, &pagesize)) {
-		perrorf("Cannot get page size for %s", dev);
+	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
+		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
 		err = errno;
 		goto out;
 	}
 
-	if (ioctl(fd, DIOCNOOBSIZE, &oobsize)) {
-		perrorf("Cannot get OOB size for %s", dev);
-		err = errno;
-		goto out;
-	}
-
-	buf = malloc(oobsize);
+	buf = malloc(chip_params.oob_size);
 	if (buf == NULL) {
-		perrorf("Cannot allocate %d bytes\n", oobsize);
+		perrorf("Cannot allocate %d bytes\n", chip_params.oob_size);
 		err = errno;
 		goto out;
 	}
 
-	req.length = oobsize;
-	req.offset = page * pagesize;
-	req.ubuf = buf;
+	req.page = page;
+	req.len = chip_params.oob_size;
+	req.data = buf;
 
-	if (ioctl(fd, DIOCNREADOOB, &req)) {
+	if (ioctl(fd, NAND_IO_OOB_READ, &req) == -1) {
 		perrorf("Cannot read OOB from %s", dev);
 		err = errno;
 		goto out;
 	}
 
 	if (fd_out != -1)
-		write(fd_out, buf, oobsize);
+		write(fd_out, buf, chip_params.oob_size);
 	else
-		hexdump(buf, oobsize);
+		hexdump(buf, chip_params.oob_size);
 
 out:
 	if (fd != -1)

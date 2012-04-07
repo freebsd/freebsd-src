@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <dev/nand/nandsim.h>
-#include <dev/nand/nand_cdev.h>
+#include <dev/nand/nand_dev.h>
 
 #include <ctype.h>
 #include <fcntl.h>
