@@ -217,6 +217,7 @@ SUBDIR=	${_3dfx} \
 	${_mwlfw} \
 	mxge \
 	my \
+	${_nandfs} \
 	${_nandsim} \
 	${_ncp} \
 	${_ncv} \
