@@ -732,6 +732,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
+		(void) ath_hal_getcapability(ah, HAL_CAP_RTS_AGGR_LIMIT, 1,
+		    &sc->sc_rts_aggr_limit);
+		if (sc->sc_rts_aggr_limit != (64 * 1024))
+			device_printf(sc->sc_dev,
+			    "[HT] RTS aggregates limited to %d KiB\n",
+			    sc->sc_rts_aggr_limit / 1024);
+
 		device_printf(sc->sc_dev,
 		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
 	}
