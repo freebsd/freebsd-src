@@ -424,7 +424,7 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	ath_hal_setupfirsttxdesc(sc->sc_ah,
 	    bf_first->bf_desc,
 	    bf_first->bf_state.bfs_al,
-	    bf_first->bf_state.bfs_flags | HAL_TXDESC_INTREQ,
+	    bf_first->bf_state.bfs_txflags | HAL_TXDESC_INTREQ,
 	    bf_first->bf_state.bfs_txpower,
 	    bf_first->bf_state.bfs_txrate0,
 	    bf_first->bf_state.bfs_try0,
@@ -812,7 +812,7 @@ ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
 	/*
 	 * No RTS/CTS enabled? Don't bother.
 	 */
-	if ((bf->bf_state.bfs_flags &
+	if ((bf->bf_state.bfs_txflags &
 	    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA)) == 0) {
 		/* XXX is this really needed? */
 		bf->bf_state.bfs_ctsrate = 0;
@@ -847,7 +847,7 @@ ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
 	if (! ath_tx_is_11n(sc))
 		ctsduration = ath_tx_calc_ctsduration(sc->sc_ah, rix, cix,
 		    bf->bf_state.bfs_shpream, bf->bf_state.bfs_pktlen,
-		    rt, bf->bf_state.bfs_flags);
+		    rt, bf->bf_state.bfs_txflags);
 
 	/* Squirrel away in ath_buf */
 	bf->bf_state.bfs_ctsrate = ctsrate;
@@ -881,7 +881,7 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 		, bf->bf_state.bfs_try0		/* series 0 rate/tries */
 		, bf->bf_state.bfs_keyix	/* key cache index */
 		, bf->bf_state.bfs_txantenna	/* antenna mode */
-		, bf->bf_state.bfs_flags	/* flags */
+		, bf->bf_state.bfs_txflags	/* flags */
 		, bf->bf_state.bfs_ctsrate	/* rts/cts rate */
 		, bf->bf_state.bfs_ctsduration	/* rts/cts duration */
 	);
@@ -1352,8 +1352,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
 	bf->bf_state.bfs_txantenna = sc->sc_txantenna;
-	bf->bf_state.bfs_flags = flags;
-	bf->bf_txflags = flags;
+	bf->bf_state.bfs_txflags = flags;
 	bf->bf_state.bfs_shpream = shortPreamble;
 
 	/* XXX this should be done in ath_tx_setrate() */
@@ -1698,8 +1697,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
 	bf->bf_state.bfs_txantenna = txantenna;
-	bf->bf_state.bfs_flags = flags;
-	bf->bf_txflags = flags;
+	bf->bf_state.bfs_txflags = flags;
 	bf->bf_state.bfs_shpream =
 	    !! (params->ibp_flags & IEEE80211_BPF_SHORTPRE);
 
@@ -2999,7 +2997,7 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * punt to rate control if we're not being cleaned up
 	 * during a hw queue drain and the frame wanted an ACK.
 	 */
-	if (fail == 0 && ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0))
+	if (fail == 0 && ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0))
 		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
 		    ts, bf->bf_state.bfs_pktlen,
 		    1, (ts->ts_status == 0) ? 0 : 1);
@@ -3754,7 +3752,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 *
 	 * Do it outside of the TXQ lock.
 	 */
-	if (fail == 0 && ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0))
+	if (fail == 0 && ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0))
 		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
 		    &bf->bf_status.ds_txstat,
 		    bf->bf_state.bfs_pktlen,

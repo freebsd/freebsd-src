@@ -245,7 +245,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		 */
 		rc[i].ratecode = rate;
 
-		if (bf->bf_state.bfs_flags &
+		if (bf->bf_state.bfs_txflags &
 		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			rc[i].flags |= ATH_RC_RTSCTS_FLAG;
 
@@ -445,7 +445,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int i;
 	int pktlen;
-	int flags = bf->bf_state.bfs_flags;
+	int flags = bf->bf_state.bfs_txflags;
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
@@ -566,7 +566,7 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_hal *ah = sc->sc_ah;
 	int is_pspoll = (bf->bf_state.bfs_atype == HAL_PKT_TYPE_PSPOLL);
 	int ctsrate = bf->bf_state.bfs_ctsrate;
-	int flags = bf->bf_state.bfs_flags;
+	int flags = bf->bf_state.bfs_txflags;
 
 	/* Setup rate scenario */
 	memset(&series, 0, sizeof(series));
@@ -822,11 +822,11 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 * XXX enforce ACK for aggregate frames (this needs to be
 		 * XXX handled more gracefully?
 		 */
-		if (bf->bf_state.bfs_flags & HAL_TXDESC_NOACK) {
+		if (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) {
 			device_printf(sc->sc_dev,
 			    "%s: HAL_TXDESC_NOACK set for an aggregate frame?\n",
 			    __func__);
-			bf->bf_state.bfs_flags &= (~HAL_TXDESC_NOACK);
+			bf->bf_state.bfs_txflags &= (~HAL_TXDESC_NOACK);
 		}
 
 		/*

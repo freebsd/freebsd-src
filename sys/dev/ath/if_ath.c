@@ -2273,7 +2273,6 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 	/* Copy basics */
 	tbf->bf_next = NULL;
 	tbf->bf_nseg = bf->bf_nseg;
-	tbf->bf_txflags = bf->bf_txflags;
 	tbf->bf_flags = bf->bf_flags & ~ATH_BUF_BUSY;
 	tbf->bf_status = bf->bf_status;
 	tbf->bf_m = bf->bf_m;
@@ -4747,7 +4746,7 @@ ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
 		pri = M_WME_GETAC(bf->bf_m);
 		if (pri >= WME_AC_VO)
 			ic->ic_wme.wme_hipri_traffic++;
-		if ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
+		if ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0)
 			ni->ni_inact = ni->ni_inact_reload;
 	} else {
 		if (ts->ts_status & HAL_TXERR_XRETRY)
@@ -4794,7 +4793,7 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	if (fail == 1)
 		st = -1;
 	else
-		st = ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
+		st = ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) ?
 		    ts->ts_status : HAL_TXERR_XRETRY;
 
 	if (bf->bf_state.bfs_dobaw)
@@ -4947,7 +4946,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		 * workaround phantom bmiss interrupts.
 		 */
 		if (ni != NULL && ts->ts_status == 0 &&
-		    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)) {
+		    ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0)) {
 			nacked++;
 			sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
@@ -4972,7 +4971,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		 */
 		if (bf->bf_comp == NULL) {
 			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
+			    (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) {
 				/*
 				 * XXX assume this isn't an aggregate
 				 * frame.
