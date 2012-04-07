@@ -718,6 +718,8 @@ int	vfs_flagopt(struct vfsoptlist *opts, const char *name, uint64_t *w,
 	    uint64_t val);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
+int	vfs_getopt_size(struct vfsoptlist *opts, const char *name,
+	    off_t *value);
 char	*vfs_getopts(struct vfsoptlist *, const char *, int *error);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_filteropt(struct vfsoptlist *, const char **legal);
