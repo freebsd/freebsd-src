@@ -4384,6 +4384,17 @@ __getosreldate(void)
 	return (osreldate);
 }
 
+void
+exit(int status)
+{
+
+	_exit(status);
+}
+
+void (*__cleanup)(void);
+int __isthreaded = 0;
+int _thread_autoinit_dummy_decl = 1;
+
 /*
  * No unresolved symbols for rtld.
  */
