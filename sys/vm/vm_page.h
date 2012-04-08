@@ -392,6 +392,7 @@ void vm_page_deactivate (vm_page_t);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
+boolean_t vm_page_is_cached(vm_object_t object, vm_pindex_t pindex);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
