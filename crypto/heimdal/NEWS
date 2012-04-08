@@ -1,3 +1,16 @@
+Release Notes - Heimdal - Version Heimdal 1.5.2
+
+ Security fixes
+ - CVE-2011-4862 Buffer overflow in libtelnet/encrypt.c in telnetd - escalation of privilege
+ - Check that key types strictly match - denial of service
+
+Release Notes - Heimdal - Version Heimdal 1.5.1
+
+ Bug fixes
+ - Fix building on Solaris, requires c99
+ - Fix building on Windows
+ - Build system updates
+
 Release Notes - Heimdal - Version Heimdal 1.5
 
 New features

@@ -1,5 +1,5 @@
 /* ./normalize_table.c */
-/* Automatically generated at 2011-09-30T15:25:00.420261 */
+/* Automatically generated at 2012-01-11T14:07:01.714581 */
 
 
 #include <stdlib.h>
