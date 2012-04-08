@@ -251,6 +251,14 @@ retry:
   csum.checksum.length = 20;
   csum.checksum.data   = p + 8;
 
+  krb5_crypto_destroy (context, crypto);
+  ret = krb5_crypto_init(context, key,
+			 ETYPE_DES3_CBC_SHA1, &crypto);
+  if (ret){
+      *minor_status = ret;
+      return GSS_S_FAILURE;
+  }
+
   ret = krb5_verify_checksum (context, crypto,
 			      KRB5_KU_USAGE_SIGN,
 			      tmp, message_buffer->length + 8,
