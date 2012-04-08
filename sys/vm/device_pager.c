@@ -313,7 +313,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		vm_page_free(*mres);
 		vm_page_unlock(*mres);
 		*mres = page;
-		while (vm_page_insert(page, object, offset) != 0) {
+		while (vm_page_insert(page, object, pidx) != 0) {
 			for (i = 0; i < 10000000; i++)
 				cpu_spinwait();
 		}
