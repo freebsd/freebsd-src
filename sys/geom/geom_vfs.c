@@ -97,6 +97,7 @@ g_vfs_done(struct bio *bip)
 	int vfslocked, destroy;
 	struct mount *mp;
 	struct vnode *vp;
+	struct cdev *cdevp;
 
 	/*
 	 * Collect statistics on synchronous and asynchronous read
@@ -106,12 +107,23 @@ g_vfs_done(struct bio *bip)
 	 */
 	bp = bip->bio_caller2;
 	vp = bp->b_vp;
-	if (vp == NULL)
+	if (vp == NULL) {
 		mp = NULL;
-	else if (vn_isdisk(vp, NULL))
-		mp = vp->v_rdev->si_mountpt;
-	else
-		mp = vp->v_mount;
+	} else {
+		/*
+		 * If not a disk vnode, use its associated mount point
+		 * otherwise use the mountpoint associated with the disk.
+		 */
+		VI_LOCK(vp);
+		if (vp->v_type != VCHR ||
+		    (cdevp = vp->v_rdev) == NULL ||
+		    cdevp->si_devsw == NULL ||
+		    (cdevp->si_devsw->d_flags & D_DISK) == 0)
+			mp = vp->v_mount;
+		else
+			mp = cdevp->si_mountpt;
+		VI_UNLOCK(vp);
+	}
 	if (mp != NULL) {
 		if (bp->b_iocmd == BIO_WRITE) {
 			if (LK_HOLDER(bp->b_lock.lk_lock) == LK_KERNPROC)
