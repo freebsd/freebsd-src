@@ -7,9 +7,9 @@ NNAAMMEE
 SSYYNNOOPPSSIISS
      kkddcc [--cc _f_i_l_e | ----ccoonnffiigg--ffiillee==_f_i_l_e] [--pp | ----nnoo--rreeqquuiirree--pprreeaauutthh]
          [----mmaaxx--rreeqquueesstt==_s_i_z_e] [--HH | ----eennaabbllee--hhttttpp] [----nnoo--552244] [----kkeerrbbeerrooss44]
-         [----kkeerrbbeerrooss44--ccrroossss--rreeaallmm] [--rr _s_t_r_i_n_g | ----vv44--rreeaallmm==_s_t_r_i_n_g]
-         [--KK | ----kkaasseerrvveerr] [--PP _p_o_r_t_s_p_e_c | ----ppoorrttss==_p_o_r_t_s_p_e_c] [----ddeettaacchh]
-         [----ddiissaabbllee--ddeess] [----aaddddrreesssseess==_l_i_s_t _o_f _a_d_d_r_e_s_s_e_s]
+         [----kkeerrbbeerrooss44--ccrroossss--rreeaallmm] [--rr _s_t_r_i_n_g | ----vv44--rreeaallmm==_s_t_r_i_n_g] [--PP
+         _p_o_r_t_s_p_e_c | ----ppoorrttss==_p_o_r_t_s_p_e_c] [----ddeettaacchh] [----ddiissaabbllee--ddeess]
+         [----aaddddrreesssseess==_l_i_s_t _o_f _a_d_d_r_e_s_s_e_s]
 
 DDEESSCCRRIIPPTTIIOONN
      kkddcc serves requests for tickets.  When it starts, it first checks the
@@ -60,9 +60,6 @@ DDEESSCCRRIIPPTTIIOONN
              server, it must be explicitly specified.  The default is whatever
              is returned by kkrrbb__ggeett__llrreeaallmm().  This option is only available
              if the KDC has been compiled with version 4 support.
-
-     --KK, ----kkaasseerrvveerr
-             Enable kaserver emulation (in case it's compiled in).
 
      --PP _p_o_r_t_s_p_e_c, ----ppoorrttss==_p_o_r_t_s_p_e_c
              Specifies the set of ports the KDC should listen on.  It is given

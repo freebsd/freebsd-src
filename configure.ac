@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_REVISION($Revision$)
 AC_PREREQ(2.62)
 test -z "$CFLAGS" && CFLAGS="-g"
-AC_INIT([Heimdal],[1.5.1],[heimdal-bugs@h5l.org])
+AC_INIT([Heimdal],[1.5.2],[heimdal-bugs@h5l.org])
 AC_CONFIG_SRCDIR([kuser/kinit.c])
 AC_CONFIG_HEADERS(include/config.h)
 AC_CONFIG_MACRO_DIR([cf])

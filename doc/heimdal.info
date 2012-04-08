@@ -12,7 +12,7 @@ File: heimdal.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 Heimdal
 *******
 
-This manual for version 1.5.1 of Heimdal.
+This manual for version 1.5.2 of Heimdal.
 
 * Menu:
 
@@ -37,7 +37,6 @@ Setting up a realm
 * Creating the database::
 * Modifying the database::
 * keytabs::
-* Serving Kerberos 4/524/kaserver::
 * Remote administration::
 * Password changing::
 * Testing clients and servers::
@@ -66,7 +65,6 @@ Kerberos 4 issues
 
 * Principal conversion issues::
 * Converting a version 4 database::
-* kaserver::
 
 Windows compatibility
 
@@ -135,8 +133,7 @@ works):
 
    * some simple test programs
 
-   * a KDC that supports most things; optionally, it may also support
-     Kerberos V4 and kaserver,
+   * a KDC that supports most things,
 
    * simple programs for distributing databases between a KDC master and
      slaves
@@ -329,7 +326,6 @@ doing so.  It will make life easier for you and everyone else.
 * Modifying the database::
 * Checking the setup::
 * keytabs::
-* Serving Kerberos 4/524/kaserver::
 * Remote administration::
 * Password changing::
 * Testing clients and servers::
@@ -580,7 +576,7 @@ by run by the following command :
      kadmin -l check REALM.EXAMPLE.ORG
 
 
-File: heimdal.info,  Node: keytabs,  Next: Serving Kerberos 4/524/kaserver,  Prev: Checking the setup,  Up: Setting up a realm
+File: heimdal.info,  Node: keytabs,  Next: Remote administration,  Prev: Checking the setup,  Up: Setting up a realm
 
 4.5 keytabs
 ===========
@@ -604,60 +600,9 @@ with `ext_keytab'.
           1   des3-cbc-sha1    host/my.host.name@MY.REALM
 
 
-File: heimdal.info,  Node: Serving Kerberos 4/524/kaserver,  Next: Remote administration,  Prev: keytabs,  Up: Setting up a realm
+File: heimdal.info,  Node: Remote administration,  Next: Password changing,  Prev: keytabs,  Up: Setting up a realm
 
-4.6 Serving Kerberos 4/524/kaserver
-===================================
-
-Heimdal can be configured to support 524, Kerberos 4 or kaserver. All
-these services are turned off by default. Kerberos 4 is always
-supported by the KDC, but the Kerberos 4 client support also depends on
-Kerberos 4 support having been included at compile-time, using
-`--with-krb4=dir'.
-
-4.6.1 524
----------
-
-524 is a service that allows the KDC to convert Kerberos 5 tickets to
-Kerberos 4 tickets for backward compatibility. See also Using 2b tokens
-with AFS in *Note AFS::.
-
-524 can be turned on by adding this to the configuration file
-
-     [kdc]
-     	enable-524 = yes
-
-4.6.2 Kerberos 4
-----------------
-
-Kerberos 4 is the predecessor to to Kerberos 5. It only supports single
-DES. You should only enable Kerberos 4 support if you have needs for
-compatibility with an installed base of Kerberos 4 clients/servers.
-
-Kerberos 4 can be turned on by adding this to the configuration file
-
-     [kdc]
-     	enable-kerberos4 = yes
-
-4.6.3 kaserver
---------------
-
-Kaserver is a Kerberos 4 that is used in AFS.  The protocol has some
-extra features over plain Kerberos 4, but like Kerberos 4, only uses
-single DES.
-
-You should only enable Kaserver support if you have needs for
-compatibility with an installed base of AFS machines.
-
-Kaserver can be turned on by adding this to the configuration file
-
-     [kdc]
-     	enable-kaserver = yes
-
-
-File: heimdal.info,  Node: Remote administration,  Next: Password changing,  Prev: Serving Kerberos 4/524/kaserver,  Up: Setting up a realm
-
-4.7 Remote administration
+4.6 Remote administration
 =========================
 
 The administration server, `kadmind', can be started by `inetd' (which
@@ -703,7 +648,7 @@ principal.
 
 File: heimdal.info,  Node: Password changing,  Next: Testing clients and servers,  Prev: Remote administration,  Up: Setting up a realm
 
-4.8 Password changing
+4.7 Password changing
 =====================
 
 To allow users to change their passwords, you should run `kpasswdd'.
@@ -720,7 +665,7 @@ on client machines:
                      kpasswd_server = my.kdc
              }
 
-4.8.1 Password quality assurance
+4.7.1 Password quality assurance
 --------------------------------
 
 It is important that users have good passwords, both to make it harder
@@ -807,7 +752,7 @@ test version of `krb5.conf' while you're testing the
 
 File: heimdal.info,  Node: Testing clients and servers,  Next: Slave Servers,  Prev: Password changing,  Up: Setting up a realm
 
-4.9 Testing clients and servers
+4.8 Testing clients and servers
 ===============================
 
 Now you should be able to run all the clients and servers.  Refer to the
@@ -816,8 +761,8 @@ appropriate man pages for information on how to use them.
 
 File: heimdal.info,  Node: Slave Servers,  Next: Incremental propagation,  Prev: Testing clients and servers,  Up: Setting up a realm
 
-4.10 Slave servers, Incremental propagation, Testing clients and servers, Setting up a realm
-============================================================================================
+4.9 Slave servers, Incremental propagation, Testing clients and servers, Setting up a realm
+===========================================================================================
 
 It is desirable to have at least one backup (slave) server in case the
 master server fails. It is possible to have any number of such slave
@@ -856,7 +801,7 @@ probably a good idea.
 
 File: heimdal.info,  Node: Incremental propagation,  Next: Encryption types and salting,  Prev: Slave Servers,  Up: Setting up a realm
 
-4.11 Incremental propagation
+4.10 Incremental propagation
 ============================
 
 There is also a newer mechanism for doing incremental propagation in
@@ -884,7 +829,7 @@ for new version in the log file. As a fallback in case a notification
 is lost by the unix socket, the log file is checked after 30 seconds of
 no event.
 
-4.11.1 Configuring incremental propagation
+4.10.1 Configuring incremental propagation
 ------------------------------------------
 
 The program that runs on the master is `ipropd-master' and all clients
@@ -925,7 +870,7 @@ With it you can dump, truncate and replay the logfile.
 
 File: heimdal.info,  Node: Encryption types and salting,  Next: Credential cache server - KCM,  Prev: Incremental propagation,  Up: Setting up a realm
 
-4.12 Encryption types and salting
+4.11 Encryption types and salting
 =================================
 
 The encryption types that the KDC is going to assign by default is
@@ -983,7 +928,7 @@ Common types of salting include
 
 File: heimdal.info,  Node: Credential cache server - KCM,  Next: Cross realm,  Prev: Encryption types and salting,  Up: Setting up a realm
 
-4.13 Credential cache server - KCM
+4.12 Credential cache server - KCM
 ==================================
 
 When KCM running is easy for users to switch between different kerberos
@@ -1041,7 +986,7 @@ default credential).
 
 File: heimdal.info,  Node: Cross realm,  Next: Transit policy,  Prev: Credential cache server - KCM,  Up: Setting up a realm
 
-4.14 Cross realm
+4.13 Cross realm
 ================
 
 Suppose you reside in the realm `MY.REALM', how do you authenticate to
@@ -1102,7 +1047,7 @@ safe manner.
 
 File: heimdal.info,  Node: Transit policy,  Next: Setting up DNS,  Prev: Cross realm,  Up: Setting up a realm
 
-4.15 Transit policy
+4.14 Transit policy
 ===================
 
 Under some circumstances, you may not wish to set up direct cross-realm
@@ -1123,7 +1068,7 @@ In addition, the client in realm A need to be configured to know how to
 reach realm C via realm B. This can be done either on the client or via
 KDC configuration in the KDC for realm A.
 
-4.15.1 Allowing cross-realm transits
+4.14.1 Allowing cross-realm transits
 ------------------------------------
 
 When the ticket transits through a realm to another realm, the
@@ -1174,7 +1119,7 @@ transits through.
 The order of the `PERMITTED-CROSS-REALMS' is not important when doing
 transit cross realm verification.
 
-4.15.2 Configuring client cross-realm transits
+4.14.2 Configuring client cross-realm transits
 ----------------------------------------------
 
 The `[capaths]' section is also used for another purpose: to tell
@@ -1209,7 +1154,7 @@ there to `STACKEN.KTH.SE' and get stuck (unless, of course, the `SU.SE'
 KDC had the additional entry required to tell the client to go through
 `KTH.SE').
 
-4.15.3 Active Directory forest example
+4.14.3 Active Directory forest example
 --------------------------------------
 
 One common place where a `[capaths]' configuration is desirable is with
@@ -1251,10 +1196,10 @@ authentication.
 
 File: heimdal.info,  Node: Setting up DNS,  Next: Using LDAP to store the database,  Prev: Transit policy,  Up: Setting up a realm
 
-4.16 Setting up DNS
+4.15 Setting up DNS
 ===================
 
-4.16.1 Using DNS to find KDC
+4.15.1 Using DNS to find KDC
 ----------------------------
 
 If there is information about where to find the KDC or kadmind for a
@@ -1290,7 +1235,7 @@ An example of the configuration for the realm `EXAMPLE.COM':
 More information about DNS SRV resource records can be found in
 RFC-2782 (A DNS RR for specifying the location of services (DNS SRV)).
 
-4.16.2 Using DNS to map hostname to Kerberos realm
+4.15.2 Using DNS to map hostname to Kerberos realm
 --------------------------------------------------
 
 Heimdal also supports a way to lookup a realm from a hostname. This to
@@ -1311,7 +1256,7 @@ EXAMPLE.COM:
 
 File: heimdal.info,  Node: Using LDAP to store the database,  Next: Providing Kerberos credentials to servers and programs,  Prev: Setting up DNS,  Up: Setting up a realm
 
-4.17 Using LDAP to store the database
+4.16 Using LDAP to store the database
 =====================================
 
 This document describes how to install the LDAP backend for Heimdal.
@@ -1434,7 +1379,7 @@ Requirements:
           index	krb5PrincipalName	eq
 
 
-4.17.1 smbk5pwd overlay
+4.16.1 smbk5pwd overlay
 -----------------------
 
 The smbk5pwd overlay, updates the krb5Key and krb5KeyVersionNumber
@@ -1443,12 +1388,12 @@ Operation:
 
 `http://www.openldap.org/devel/cvsweb.cgi/contrib/slapd-modules/smbk5pwd/README?hideattic=1&sortbydate=0'
 
-4.17.2 Troubleshooting guide
+4.16.2 Troubleshooting guide
 ----------------------------
 
 `https://sec.miljovern.no/bin/view/Info/TroubleshootingGuide'
 
-4.17.3 Using Samba LDAP password database
+4.16.3 Using Samba LDAP password database
 -----------------------------------------
 
 The Samba domain and the Kerberos realm can have different names since
@@ -1465,7 +1410,7 @@ search space as the Kerberos entries.
 
 File: heimdal.info,  Node: Providing Kerberos credentials to servers and programs,  Next: Setting up PK-INIT,  Prev: Using LDAP to store the database,  Up: Setting up a realm
 
-4.18 Providing Kerberos credentials to servers and programs
+4.17 Providing Kerberos credentials to servers and programs
 ===========================================================
 
 Some services require Kerberos credentials when they start to make
@@ -1509,7 +1454,7 @@ credentials when the script-to-start-service exits.
 
 File: heimdal.info,  Node: Setting up PK-INIT,  Next: Debugging Kerberos problems,  Prev: Providing Kerberos credentials to servers and programs,  Up: Setting up a realm
 
-4.19 Setting up PK-INIT
+4.18 Setting up PK-INIT
 =======================
 
 PK-INIT leverages an existing PKI (public key infrastructure), using
@@ -1526,14 +1471,14 @@ this. The administrator can use a configuration file, store the
 principal in the SubjectAltName extension of the certificate, or store
 the mapping in the principals entry in the kerberos database.
 
-4.20 Certificates
+4.19 Certificates
 =================
 
 This section documents the requirements on the KDC and client
 certificates and the format used in the id-pkinit-san OtherName
 extention.
 
-4.20.1 KDC certificate
+4.19.1 KDC certificate
 ----------------------
 
 The certificate for the KDC has serveral requirements.
@@ -1558,7 +1503,7 @@ isn't a KDC and thus expose the user to giving away information (like a
 password or other private information) that it is supposed to keep
 secret.
 
-4.20.2 Client certificate
+4.19.2 Client certificate
 -------------------------
 
 The client certificate may need to have a EKU id-pkekuoid
@@ -1573,7 +1518,7 @@ This behavior is controlled by KDC configuration option:
      [kdc]
      	pkinit_principal_in_certificate = yes
 
-4.20.2.1 Using KRB5PrincipalName in id-pkinit-san
+4.19.2.1 Using KRB5PrincipalName in id-pkinit-san
 .................................................
 
 The OtherName extention in the GeneralName is used to do the mapping
@@ -1599,7 +1544,7 @@ ASN.1 structure:
 where Realm and PrincipalName is defined by the Kerberos ASN.1
 specification.
 
-4.21 Naming certificate using hx509
+4.20 Naming certificate using hx509
 ===================================
 
 hx509 is the X.509 software used in Heimdal to handle certificates.
@@ -1658,7 +1603,7 @@ PKCS12:
           PKCS12:/path/to/file.pfx
 
 
-4.22 Configure the Kerberos software
+4.21 Configure the Kerberos software
 ====================================
 
 First configure the client's trust anchors and what parameters to
@@ -1687,7 +1632,7 @@ Using PKCS#11 it can look like this instead:
 
 TODO: Write about the KDC.
 
-4.23 Configure the client
+4.22 Configure the client
 =========================
 
      [appdefaults]
@@ -1701,7 +1646,7 @@ TODO: Write about the KDC.
      		pkinit_win2k_require_binding = yes
      	}
 
-4.24 Configure the KDC
+4.23 Configure the KDC
 ======================
 
      [kdc]
@@ -1714,7 +1659,7 @@ TODO: Write about the KDC.
      	pkinit_win2k_require_binding = yes
      	pkinit_principal_in_certificate = no
 
-4.24.1 Using pki-mapping file
+4.23.1 Using pki-mapping file
 -----------------------------
 
 Note that the file name is space sensitive.
@@ -1724,13 +1669,13 @@ Note that the file name is space sensitive.
      lha@EXAMPLE.ORG:C=SE,O=Stockholm universitet,CN=Love,UID=lha
      lha@EXAMPLE.ORG:CN=Love,UID=lha
 
-4.24.2 Using the Kerberos database
+4.23.2 Using the Kerberos database
 ----------------------------------
 
-4.25 Use hxtool to create certificates
+4.24 Use hxtool to create certificates
 ======================================
 
-4.25.1 Generate certificates
+4.24.1 Generate certificates
 ----------------------------
 
 First, you need to generate a CA certificate. This example creates a CA
@@ -1779,7 +1724,7 @@ if you're going to use the ACL file instead.
          --subject="uid=lha,DC=test,DC=h5l,DC=se" \
          --certificate="FILE:user.pem"
 
-4.25.2 Validate the certificate
+4.24.2 Validate the certificate
 -------------------------------
 
 hxtool also contains a tool that will validate certificates according
@@ -1789,13 +1734,13 @@ in your certificates.
 
      hxtool validate FILE:user.pem
 
-4.26 Use OpenSSL to create certificates
+4.25 Use OpenSSL to create certificates
 =======================================
 
 This section tries to give the CA owners hints how to create
 certificates using OpenSSL (or CA software based on OpenSSL).
 
-4.26.1 Using OpenSSL to create certificates with krb5PrincipalName
+4.25.1 Using OpenSSL to create certificates with krb5PrincipalName
 ------------------------------------------------------------------
 
 To make OpenSSL create certificates with krb5PrincipalName, use an
@@ -1827,10 +1772,10 @@ Command usage:
      openssl x509 -extensions user_certificate
      openssl ca -extensions user_certificate
 
-4.27 Using PK-INIT with Windows
+4.26 Using PK-INIT with Windows
 ===============================
 
-4.27.1 Client configration
+4.26.1 Client configration
 --------------------------
 
 Clients using a Windows KDC with PK-INIT need configuration since
@@ -1847,7 +1792,7 @@ to apply a fix from Microsoft.
                      pkinit_win2k_require_binding = no
      	}
 
-4.27.2 Certificates
+4.26.2 Certificates
 -------------------
 
 The client certificates need to have the extended keyusage "Microsoft
@@ -1858,7 +1803,7 @@ Smart Card Logon with Third-Party Certification Authorities" for a more
 extensive description of how set setup an external CA so that it
 includes all the information required to make a Windows KDC happy.
 
-4.27.3 Configure Windows 2000 CA
+4.26.3 Configure Windows 2000 CA
 --------------------------------
 
 To enable Microsoft Smartcardlogin for certificates in your Windows
@@ -1869,7 +1814,7 @@ Certificates in Windows".
 
 File: heimdal.info,  Node: Debugging Kerberos problems,  Prev: Setting up PK-INIT,  Up: Setting up a realm
 
-4.28 Debugging Kerberos problems
+4.27 Debugging Kerberos problems
 ================================
 
 To debug Kerberos client and server problems you can enable debug
@@ -2209,11 +2154,7 @@ File: heimdal.info,  Node: Kerberos 4 issues,  Next: Windows compatibility,  Pre
 7 Kerberos 4 issues
 *******************
 
-The KDC has built-in version 4 support. It is not enabled by default,
-see setup how to set it up.
-
-The KDC will also have kaserver emulation and be able to handle
-AFS-clients that use `klog'.
+Kerberos 4 KDC and KA server have been moved.
 
 For more about AFS, see the section *Note AFS::.
 
@@ -2221,7 +2162,6 @@ For more about AFS, see the section *Note AFS::.
 
 * Principal conversion issues::
 * Converting a version 4 database::
-* kaserver::
 
 
 File: heimdal.info,  Node: Principal conversion issues,  Next: Converting a version 4 database,  Prev: Kerberos 4 issues,  Up: Kerberos 4 issues
@@ -2273,7 +2213,7 @@ version 4 requests.
 (2) at least until secure DNS is commonly available
 
 
-File: heimdal.info,  Node: Converting a version 4 database,  Next: kaserver,  Prev: Principal conversion issues,  Up: Kerberos 4 issues
+File: heimdal.info,  Node: Converting a version 4 database,  Prev: Principal conversion issues,  Up: Kerberos 4 issues
 
 7.2 Converting a version 4 database
 ===================================
@@ -2381,47 +2321,6 @@ This command can also be to use for converting the v4 database on the
 server:
 
      hprop -n --source=krb4-db -d /var/kerberos/principal --master-key=/.m | hpropd -n
-
-
-File: heimdal.info,  Node: kaserver,  Prev: Converting a version 4 database,  Up: Kerberos 4 issues
-
-7.3 kaserver
-============
-
-7.3.1 kaserver emulation
-------------------------
-
-The Heimdal kdc can emulate a kaserver. The kaserver is a Kerberos 4
-server with pre-authentication using Rx as the on-wire protocol. The kdc
-contains a minimalistic Rx implementation.
-
-There are three parts of the kaserver; KAA (Authentication), KAT (Ticket
-Granting), and KAM (Maintenance). The KAA interface and KAT interface
-both passes over DES encrypted data-blobs (just like the
-Kerberos-protocol) and thus do not need any other protection.  The KAM
-interface uses `rxkad' (Kerberos authentication layer for Rx) for
-security and data protection, and is used for example for changing
-passwords.  This part is not implemented in the kdc.
-
-Another difference between the ka-protocol and the Kerberos 4 protocol
-is that the pass-phrase is salted with the cellname in the `string to
-key' function in the ka-protocol, while in the Kerberos 4 protocol there
-is no salting of the password at all. To make sure AFS-compatible keys
-are added to each principals when they are created or their password are
-changed, `afs3-salt' should be added to `[kadmin]default_keys'.
-
-For more about AFS, see the section *Note AFS::.
-
-7.3.2 Transarc AFS Windows client
----------------------------------
-
-The Transarc Windows client uses Kerberos 4 to obtain tokens, and thus
-does not need a kaserver. The Windows client assumes that the Kerberos
-server is on the same machine as the AFS-database server. If you do not
-like to do that you can add a small program that runs on the database
-servers that forward all kerberos requests to the real kerberos server.
-A program that does this is `krb-forward'
-(`ftp://ftp.stacken.kth.se/pub/projekts/krb-forward').
 
 
 File: heimdal.info,  Node: Windows compatibility,  Next: Programming with Kerberos,  Prev: Kerberos 4 issues,  Up: Top
@@ -3476,53 +3375,51 @@ POSSIBILITY OF SUCH DAMAGE.
 
 Tag Table:
 Node: Top212
-Node: Introduction1708
-Node: What is Kerberos?4517
-Node: Building and Installing9630
-Node: Setting up a realm9957
-Node: Configuration file10945
-Node: Creating the database14013
-Node: Modifying the database16945
-Node: Checking the setup18538
-Node: keytabs19393
-Node: Serving Kerberos 4/524/kaserver20261
-Node: Remote administration21805
-Node: Password changing23735
-Node: Testing clients and servers27923
-Node: Slave Servers28251
-Node: Incremental propagation30006
-Node: Encryption types and salting33250
-Node: Credential cache server - KCM35427
-Node: Cross realm37411
-Node: Transit policy39957
-Node: Setting up DNS46734
-Node: Using LDAP to store the database49209
-Node: Providing Kerberos credentials to servers and programs55214
-Node: Setting up PK-INIT57312
-Node: Debugging Kerberos problems69791
-Node: Applications70222
-Node: Authentication modules70422
-Node: Digital SIA71016
-Node: IRIX75400
-Node: AFS76690
-Node: Things in search for a better place80444
-Node: Kerberos 4 issues83173
-Node: Principal conversion issues83680
-Ref: Principal conversion issues-Footnote-185911
-Ref: Principal conversion issues-Footnote-285979
-Node: Converting a version 4 database86032
-Node: kaserver90362
-Node: Windows compatibility92183
-Node: Configuring Windows to use a Heimdal KDC93269
-Node: Inter-Realm keys (trust) between Windows and a Heimdal KDC95339
-Node: Create account mappings99010
-Node: Encryption types99762
-Node: Authorisation data100362
-Node: Quirks of Windows 2000 KDC101509
-Node: Useful links when reading about the Windows102803
-Node: Programming with Kerberos104607
-Node: Migration104857
-Node: Acknowledgments106618
-Node: Copyrights and Licenses109544
+Node: Introduction1659
+Node: What is Kerberos?4405
+Node: Building and Installing9518
+Node: Setting up a realm9845
+Node: Configuration file10797
+Node: Creating the database13865
+Node: Modifying the database16797
+Node: Checking the setup18390
+Node: keytabs19245
+Node: Remote administration20103
+Node: Password changing22009
+Node: Testing clients and servers26197
+Node: Slave Servers26525
+Node: Incremental propagation28278
+Node: Encryption types and salting31522
+Node: Credential cache server - KCM33699
+Node: Cross realm35683
+Node: Transit policy38229
+Node: Setting up DNS45006
+Node: Using LDAP to store the database47481
+Node: Providing Kerberos credentials to servers and programs53486
+Node: Setting up PK-INIT55584
+Node: Debugging Kerberos problems68063
+Node: Applications68494
+Node: Authentication modules68694
+Node: Digital SIA69288
+Node: IRIX73672
+Node: AFS74962
+Node: Things in search for a better place78716
+Node: Kerberos 4 issues81445
+Node: Principal conversion issues81793
+Ref: Principal conversion issues-Footnote-184024
+Ref: Principal conversion issues-Footnote-284092
+Node: Converting a version 4 database84145
+Node: Windows compatibility88458
+Node: Configuring Windows to use a Heimdal KDC89544
+Node: Inter-Realm keys (trust) between Windows and a Heimdal KDC91614
+Node: Create account mappings95285
+Node: Encryption types96037
+Node: Authorisation data96637
+Node: Quirks of Windows 2000 KDC97784
+Node: Useful links when reading about the Windows99078
+Node: Programming with Kerberos100882
+Node: Migration101132
+Node: Acknowledgments102893
+Node: Copyrights and Licenses105819
 
 End Tag Table

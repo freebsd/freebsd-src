@@ -419,25 +419,27 @@ DDEESSCCRRIIPPTTIIOONN
                       enable-kaserver = _B_O_O_L
                            If this kdc should emulate the AFS kaserver.
 
-                      as-use-strongest-session-key = _B_O_O_L
+                      tgt-use-strongest-session-key = _B_O_O_L
                            If this is TRUE then the KDC will prefer the
-                           strongest key from the client's AS-REQ enctype
-                           list, that is also supported by the KDC and the
-                           target principal, for the ticket session key. Else
+                           strongest key from the client's AS-REQ or TGS-REQ
+                           enctype list for the ticket session key that is
+                           supported by the KDC and the target principal when
+                           the target principal is a krbtgt principal.  Else
                            it will prefer the first key from the client's AS-
                            REQ enctype list that is also supported by the KDC
                            and the target principal. Defaults to TRUE.
 
-                      preauth-use-strongest-session-key = _B_O_O_L
-                           Like as-use-strongest-session-key, but applies to
-                           the session key enctype selection for PA-ETYPE-
-                           INFO2 (i.e., for password-based pre-authentica-
-                           tion). Defaults to TRUE.
+                      svc-use-strongest-session-key = _B_O_O_L
+                           Like tgt-use-strongest-session-key, but applies to
+                           the session key enctype of tickets for services
+                           other than krbtgt principals. Defaults to TRUE.
 
-                      tgs-use-strongest-session-key = _B_O_O_L
-                           Like as-use-strongest-session-key, but applies to
-                           the session key enctype of tickets issued by the
-                           TGS. Defaults to TRUE.
+                      preauth-use-strongest-session-key = _B_O_O_L
+                           If TRUE then select the strongest possible enctype
+                           from the client's AS-REQ for PA-ETYPE-INFO2 (i.e.,
+                           for password-based pre-authentication).  Else pick
+                           the first supported enctype from the client's AS-
+                           REQ. Defaults to TRUE.
 
                       use-strongest-server-key = _B_O_O_L
                            If TRUE then the KDC picks, for the ticket

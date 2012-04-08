@@ -520,6 +520,7 @@ unsigned lineno = 1;
 
 static char * handle_string(void);
 static int lex_input(char *, int);
+static int lex_classic_input(void);
 
 struct hx_expr_input _hx509_expr_input;
 
@@ -534,7 +535,7 @@ struct hx_expr_input _hx509_expr_input;
 
 #undef ECHO
 
-#line 538 "sel-lex.c"
+#line 539 "sel-lex.c"
 
 #define INITIAL 0
 
@@ -716,10 +717,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 68 "sel-lex.l"
+#line 69 "sel-lex.l"
 
 
-#line 723 "sel-lex.c"
+#line 724 "sel-lex.c"
 
 	if ( !(yy_init) )
 		{
@@ -804,37 +805,37 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 70 "sel-lex.l"
+#line 71 "sel-lex.l"
 { return kw_TRUE; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 71 "sel-lex.l"
+#line 72 "sel-lex.l"
 { return kw_FALSE; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 72 "sel-lex.l"
+#line 73 "sel-lex.l"
 { return kw_AND; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 73 "sel-lex.l"
+#line 74 "sel-lex.l"
 { return kw_OR; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 74 "sel-lex.l"
+#line 75 "sel-lex.l"
 { return kw_IN; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 75 "sel-lex.l"
+#line 76 "sel-lex.l"
 { return kw_TAILMATCH; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 77 "sel-lex.l"
+#line 78 "sel-lex.l"
 {
 			  yylval.string = strdup ((const char *)yytext);
 			  return IDENTIFIER;
@@ -842,31 +843,31 @@ YY_RULE_SETUP
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 81 "sel-lex.l"
+#line 82 "sel-lex.l"
 { yylval.string = handle_string(); return STRING; }
 	YY_BREAK
 case 9:
 /* rule 9 can match eol */
 YY_RULE_SETUP
-#line 82 "sel-lex.l"
+#line 83 "sel-lex.l"
 { ++lineno; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 83 "sel-lex.l"
+#line 84 "sel-lex.l"
 { return *yytext; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 84 "sel-lex.l"
+#line 85 "sel-lex.l"
 ;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 85 "sel-lex.l"
+#line 86 "sel-lex.l"
 ECHO;
 	YY_BREAK
-#line 870 "sel-lex.c"
+#line 871 "sel-lex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1863,7 +1864,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 85 "sel-lex.l"
+#line 86 "sel-lex.l"
 
 
 

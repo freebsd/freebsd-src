@@ -251,7 +251,7 @@ env KRB5CCNAME=${cache} \
 ${kadmin} -p foo/admin@${R} get -o principal bar@${R} \
         > kadmin.tmp 2>&1 || \
 	{ echo "kadmin failed $?"; cat messages.log ; exit 1; }
-if test "$(cat kadmin.tmp)" != "Principal: bar@TEST.H5L.SE" ; then
+if test "`cat kadmin.tmp`" != "Principal: bar@TEST.H5L.SE" ; then
    cat kadmin.tmp ; cat messages.log ; exit 1 ;
 fi
 
@@ -266,7 +266,7 @@ env KRB5CCNAME=${cache} \
 ${kadmin} -p foo/admin@${R} get -o kvno bar@${R} \
         > kadmin.tmp 2>&1 || \
 	{ echo "kadmin failed $?"; cat messages.log ; exit 1; }
-if test "$(cat kadmin.tmp)" != "Kvno: 1" ; then
+if test "`cat kadmin.tmp`" != "Kvno: 1" ; then
    cat kadmin.tmp ; cat messages.log ; exit 1 ;
 fi
 
@@ -281,7 +281,7 @@ env KRB5CCNAME=${cache} \
 ${kadmin} -p foo/admin@${R} get -o princ_expire_time bar@${R} \
         > kadmin.tmp 2>&1 || \
 	{ echo "kadmin failed $?"; cat messages.log ; exit 1; }
-if test "$(cat kadmin.tmp)" != "Principal expires: never" ; then
+if test "`cat kadmin.tmp`" != "Principal expires: never" ; then
    cat kadmin.tmp ; cat messages.log ; exit 1 ;
 fi
 
@@ -295,7 +295,7 @@ env KRB5CCNAME=${cache} \
 ${kadmin} -p foo/admin@${R} get -s -o attributes bar@${R} \
         > kadmin.tmp 2>&1 || \
 	{ echo "kadmin failed $?"; cat messages.log ; exit 1; }
-if test "$(cat kadmin.tmp)" != "Attributes" ; then
+if test "`cat kadmin.tmp`" != "Attributes" ; then
    cat kadmin.tmp ; cat messages.log ; exit 1 ;
 fi
 
