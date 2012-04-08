@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012 Oleksandr Tymoshenko
+ * Copyright (c) 2012 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +37,9 @@ __FBSDID("$FreeBSD$");
 void *
 __aeabi_read_tp()
 {
-	void **_tp = (void **)ARM_TP_ADDRESS;
+	void *_tp;
 
-	return (*_tp);
+	asm("ldr %0, [%1]\n" : "=r"(_tp) : "r"(ARM_TP_ADDRESS));
+
+	return _tp;
 }
