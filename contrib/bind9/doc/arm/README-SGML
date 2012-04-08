@@ -4,7 +4,7 @@ See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
 The BIND v9 ARM master document is now kept in DocBook XML format.
 
-Version: $Id: README-SGML,v 1.17 2004-03-05 05:04:43 marka Exp $
+Version: $Id: README-SGML,v 1.17 2004/03/05 05:04:43 marka Exp $
 
 The entire ARM is in the single file:
 

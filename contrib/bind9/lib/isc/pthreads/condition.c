@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: condition.c,v 1.36 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: condition.c,v 1.36 2007/06/19 23:47:18 tbox Exp $ */
 
 /*! \file */
 
