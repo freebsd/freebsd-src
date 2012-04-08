@@ -1,5 +1,5 @@
 /* ./map_table.h */
-/* Automatically generated at 2011-09-30T15:24:59.631690 */
+/* Automatically generated at 2012-01-11T14:07:01.097337 */
 
 #ifndef MAP_TABLE_H
 #define MAP_TABLE_H 1

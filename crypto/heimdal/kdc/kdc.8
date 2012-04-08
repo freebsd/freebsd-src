@@ -54,7 +54,6 @@
 .Fl Fl v4-realm= Ns Ar string
 .Xc
 .Oc
-.Op Fl K | Fl Fl kaserver
 .Oo Fl P Ar portspec \*(Ba Xo
 .Fl Fl ports= Ns Ar portspec
 .Xc
@@ -112,8 +111,6 @@ The default is whatever is returned by
 .Fn krb_get_lrealm .
 This option is only available if the KDC has been compiled with version
 4 support.
-.It Fl K , Fl Fl kaserver
-Enable kaserver emulation (in case it's compiled in).
 .It Fl P Ar portspec , Fl Fl ports= Ns Ar portspec
 Specifies the set of ports the KDC should listen on.
 It is given as a
