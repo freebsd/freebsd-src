@@ -32,81 +32,70 @@ __FBSDID("$FreeBSD$");
 #include "milieu.h"
 #include "softfloat.h"
 
-float32 __addsf3(float32 a, float32 b);
-float32 __divsf3(float32 a, float32 b);
-float32 __mulsf3(float32 a, float32 b);
-float32 __subsf3(float32 a, float32 b);
-
-float64 __extendsfdf2(float32 a);
-
-int32 __fixsfsi(float32);
-float32 __floatsisf(int32 a);
-flag __gesf2(float32, float32);
-flag __lesf2(float32, float32);
 flag __unordsf2(float32, float32);
 
-int __aeabi_fcmpeq(float a, float b)
+int __aeabi_fcmpeq(float32 a, float32 b)
 {
-	return __lesf2(a, b) == 0;
+	return float32_eq(a, b);
 }
 
-int __aeabi_fcmplt(float a, float b)
+int __aeabi_fcmplt(float32 a, float32 b)
 {
-	return __lesf2(a, b) < 0;
+	return float32_lt(a, b);
 }
 
-int __aeabi_fcmple(float a, float b)
+int __aeabi_fcmple(float32 a, float32 b)
 {
-	return __lesf2(a, b) <= 0;
+	return float32_le(a, b);
 }
 
-int __aeabi_fcmpge(float a, float b)
+int __aeabi_fcmpge(float32 a, float32 b)
 {
-	return __gesf2(a, b) >= 0;
+	return float32_le(b, a);
 }
 
-int __aeabi_fcmpgt(float a, float b)
+int __aeabi_fcmpgt(float32 a, float32 b)
 {
-	return __gesf2(a, b) > 0;
+	return float32_lt(b, a);
 }
 
-int __aeabi_fcmpun(float a, float b)
+int __aeabi_fcmpun(float32 a, float32 b)
 {
 	return __unordsf2(a, b);
 }
 
-int __aeabi_f2iz(float a)
+int __aeabi_f2iz(float32 a)
 {
-	return __fixsfsi(a);
+	return float32_to_int32_round_to_zero(a);
 }
 
-double __aeabi_f2d(float a)
+float32 __aeabi_f2d(float32 a)
 {
-	return __extendsfdf2(a);
+	return float32_to_float64(a);
 }
 
-float __aeabi_i2f(int a)
+float32 __aeabi_i2f(int a)
 {
-	return __floatsisf(a);
+	return int32_to_float32(a);
 }
 
-float __aeabi_fadd(float a, float b)
+float32 __aeabi_fadd(float32 a, float32 b)
 {
-	return __addsf3(a, b);
+	return float32_add(a, b);
 }
 
-float __aeabi_fdiv(float a, float b)
+float32 __aeabi_fdiv(float32 a, float32 b)
 {
-	return __divsf3(a, b);
+	return float32_div(a, b);
 }
 
-float __aeabi_fmul(float a, float b)
+float32 __aeabi_fmul(float32 a, float32 b)
 {
-	return __mulsf3(a, b);
+	return float32_mul(a, b);
 }
 
-float __aeabi_fsub(float a, float b)
+float32 __aeabi_fsub(float32 a, float32 b)
 {
-	return __subsf3(a, b);
+	return float32_sub(a, b);
 }
 

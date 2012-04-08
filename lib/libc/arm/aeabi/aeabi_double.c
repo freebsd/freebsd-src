@@ -32,81 +32,70 @@ __FBSDID("$FreeBSD$");
 #include "milieu.h"
 #include "softfloat.h"
 
-float64 __adddf3(float64 a, float64 b);
-float64 __divdf3(float64 a, float64 b);
-float64 __muldf3(float64 a, float64 b);
-float64 __subdf3(float64 a, float64 b);
-
-float32 __truncdfsf2(float64 a);
-
-int32 __fixdfsi(float64);
-float64 __floatsidf(int32 a);
-flag __gedf2(float64, float64);
-flag __ledf2(float64, float64);
 flag __unorddf2(float64, float64);
 
-int __aeabi_dcmpeq(double a, double b)
+int __aeabi_dcmpeq(float64 a, float64 b)
 {
-	return __ledf2(a, b) == 0;
+	return float64_eq(a, b);
 }
 
-int __aeabi_dcmplt(double a, double b)
+int __aeabi_dcmplt(float64 a, float64 b)
 {
-	return __ledf2(a, b) < 0;
+	return float64_lt(a, b);
 }
 
-int __aeabi_dcmple(double a, double b)
+int __aeabi_dcmple(float64 a, float64 b)
 {
-	return __ledf2(a, b) <= 0;
+	return float64_le(a, b);
 }
 
-int __aeabi_dcmpge(double a, double b)
+int __aeabi_dcmpge(float64 a, float64 b)
 {
-	return __gedf2(a, b) >= 0;
+	return float64_le(b, a);
 }
 
-int __aeabi_dcmpgt(double a, double b)
+int __aeabi_dcmpgt(float64 a, float64 b)
 {
-	return __gedf2(a, b) > 0;
+	return float64_lt(b, a);
 }
 
-int __aeabi_dcmpun(double a, double b)
+int __aeabi_dcmpun(float64 a, float64 b)
 {
 	return __unorddf2(a, b);
 }
 
-int __aeabi_d2iz(double a)
+int __aeabi_d2iz(float64 a)
 {
-	return __fixdfsi(a);
+	return float64_to_int32_round_to_zero(a);
 }
 
-float __aeabi_d2f(double a)
+float32 __aeabi_d2f(float64 a)
 {
-	return __truncdfsf2(a);
+	return float64_to_float32(a);
 }
 
-double __aeabi_i2d(int a)
+float64 __aeabi_i2d(int a)
 {
-	return __floatsidf(a);
+	return int32_to_float64(a);
 }
 
-double __aeabi_dadd(double a, double b)
+float64 __aeabi_dadd(float64 a, float64 b)
 {
-	return __adddf3(a, b);
+	return float64_add(a, b);
 }
 
-double __aeabi_ddiv(double a, double b)
+float64 __aeabi_ddiv(float64 a, float64 b)
 {
-	return __divdf3(a, b);
+	return float64_div(a, b);
 }
 
-double __aeabi_dmul(double a, double b)
+float64 __aeabi_dmul(float64 a, float64 b)
 {
-	return __muldf3(a, b);
+	return float64_mul(a, b);
 }
 
-double __aeabi_dsub(double a, double b)
+float64 __aeabi_dsub(float64 a, float64 b)
 {
-	return __subdf3(a, b);
+	return float64_sub(a, b);
 }
 
