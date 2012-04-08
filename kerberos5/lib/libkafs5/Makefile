@@ -1,19 +1,12 @@
 # $FreeBSD$
 
 LIB=	kafs5
-LDADD=	-lasn1 -lroken
+LDADD=	-lasn1 -lroken -lkrb5
+LDFLAGS=	-Wl,--no-undefined
 DPADD=	${LIBASN1} ${LIBKRB5} ${LIBROKEN}
 INCS=	kafs.h
 MAN=	kafs5.3
-
-#
-# Linking with libkrb5 uncovers a bug in binutils.
-# See http://repo.or.cz/w/binutils.git/commit/ee05170bf71819c99cb5a36a44735c231ae03c56 .
-#
-.if ${MACHINE} != "mips"
-LDADD+=	-lkrb5
-LDFLAGS=	-Wl,--no-undefined
-.endif
+VERSION_MAP=	${.CURDIR}/version.map
 
 MLINKS=	kafs5.3 k_afs_cell_of_file.3 \
 	kafs5.3 k_hasafs.3 \
