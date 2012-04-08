@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ecdb.c,v 1.8 2011-01-14 00:51:43 tbox Exp $ */
+/* $Id$ */
 
 #include "config.h"
 
@@ -36,10 +36,6 @@
 
 #define ECDBNODE_MAGIC		ISC_MAGIC('E', 'C', 'D', 'N')
 #define VALID_ECDBNODE(ecdbn)	ISC_MAGIC_VALID(ecdbn, ECDBNODE_MAGIC)
-
-#if DNS_RDATASET_FIXED
-#error "Fixed rdataset isn't supported in this implementation"
-#endif
 
 /*%
  * The 'ephemeral' cache DB (ecdb) implementation.  An ecdb just provides
@@ -660,7 +656,11 @@ rdataset_first(dns_rdataset_t *rdataset) {
 		rdataset->private5 = NULL;
 		return (ISC_R_NOMORE);
 	}
+#if DNS_RDATASET_FIXED
+	raw += 2 + (4 * count);
+#else
 	raw += 2;
+#endif
 	/*
 	 * The privateuint4 field is the number of rdata beyond the cursor
 	 * position, so we decrement the total count by one before storing
@@ -686,7 +686,11 @@ rdataset_next(dns_rdataset_t *rdataset) {
 	rdataset->privateuint4 = count;
 	raw = rdataset->private5;
 	length = raw[0] * 256 + raw[1];
+#if DNS_RDATASET_FIXED
+	raw += length + 4;
+#else
 	raw += length + 2;
+#endif
 	rdataset->private5 = raw;
 
 	return (ISC_R_SUCCESS);
@@ -702,7 +706,11 @@ rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	REQUIRE(raw != NULL);
 
 	length = raw[0] * 256 + raw[1];
+#if DNS_RDATASET_FIXED
+	raw += 4;
+#else
 	raw += 2;
+#endif
 	if (rdataset->type == dns_rdatatype_rrsig) {
 		if (*raw & DNS_RDATASLAB_OFFLINE)
 			flags |= DNS_RDATA_OFFLINE;

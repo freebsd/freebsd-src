@@ -855,7 +855,7 @@ sdp_append(struct sdp_sock *ssk, struct sockbuf *sb, struct mbuf *mb, int cnt)
 	int ncnt;
 
 	SOCKBUF_LOCK_ASSERT(sb);
-	SBLASTRECORDCHK(sb)
+	SBLASTRECORDCHK(sb);
 	KASSERT(mb->m_flags & M_PKTHDR,
 		("sdp_append: %p Missing packet header.\n", mb));
 	n = sb->sb_lastrecord;

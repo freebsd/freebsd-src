@@ -106,6 +106,7 @@ ffs_update(vp, waitfor)
 	flags = 0;
 	if (IS_SNAPSHOT(ip))
 		flags = GB_LOCK_NOWAIT;
+loop:
 	error = breadn_flags(ip->i_devvp,
 	     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 	     (int) fs->fs_bsize, 0, 0, 0, NOCRED, flags, &bp);
@@ -115,13 +116,27 @@ ffs_update(vp, waitfor)
 			return (error);
 		}
 		KASSERT((IS_SNAPSHOT(ip)), ("EBUSY from non-snapshot"));
-		vref(vp);	/* Protect against ffs_snapgone() */
+		/*
+		 * Wait for our inode block to become available.
+		 *
+		 * Hold a reference to the vnode to protect against
+		 * ffs_snapgone(). Since we hold a reference, it can only
+		 * get reclaimed (VI_DOOMED flag) in a forcible downgrade
+		 * or unmount. For an unmount, the entire filesystem will be
+		 * gone, so we cannot attempt to touch anything associated
+		 * with it while the vnode is unlocked; all we can do is 
+		 * pause briefly and try again. If when we relock the vnode
+		 * we discover that it has been reclaimed, updating it is no
+		 * longer necessary and we can just return an error.
+		 */
+		vref(vp);
 		VOP_UNLOCK(vp, 0);
-		(void) bread(ip->i_devvp,
-		     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		     (int) fs->fs_bsize, NOCRED, &bp);
+		pause("ffsupd", 1);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		vrele(vp);
+		if ((vp->v_iflag & VI_DOOMED) != 0)
+			return (ENOENT);
+		goto loop;
 	}
 	if (DOINGSOFTDEP(vp))
 		softdep_update_inodeblock(ip, bp, waitfor);
@@ -228,7 +243,7 @@ ffs_truncate(vp, length, flags, cred, td)
 				goto extclean;
 			needextclean = 1;
 		} else {
-			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 				return (error);
 #ifdef QUOTA
 			(void) chkdq(ip, -extblocks, NOCRED, 0);
@@ -321,7 +336,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			 * rarely, we solve the problem by syncing the file
 			 * so that it will have no data structures left.
 			 */
-			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 				return (error);
 		} else {
 			flags = IO_NORMAL | (needextclean ? IO_EXT: 0);
@@ -366,7 +381,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		 */
 		if (DOINGSOFTDEP(vp) && lbn < NDADDR &&
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
-		    (error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
+		    (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 			return (error);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);

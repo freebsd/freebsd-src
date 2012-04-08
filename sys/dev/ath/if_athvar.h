@@ -106,6 +106,8 @@ struct ath_tid {
 	TAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
 	int			paused;	/* >0 if the TID has been paused */
+	int			bar_wait;	/* waiting for BAR */
+	int			bar_tx;		/* BAR TXed */
 
 	/*
 	 * Is the TID being cleaned up after a transition
@@ -173,7 +175,6 @@ struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_list;
 	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
-	uint16_t		bf_txflags;	/* tx descriptor flags */
 	uint16_t		bf_flags;	/* status flags (below) */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
@@ -215,6 +216,8 @@ struct ath_buf {
 		int bfs_ismrr:1;	/* do multi-rate TX retry */
 		int bfs_doprot:1;	/* do RTS/CTS based protection */
 		int bfs_doratelookup:1;	/* do rate lookup before each TX */
+		int bfs_need_seqno:1;	/* need to assign a seqno for aggregation */
+		int bfs_seqno_assigned:1;	/* seqno has been assigned */
 		int bfs_nfl;		/* next fragment length */
 
 		/*
@@ -225,7 +228,7 @@ struct ath_buf {
 		int bfs_pktlen;		/* length of this packet */
 		int bfs_hdrlen;		/* length of this packet header */
 		uint16_t bfs_al;	/* length of aggregate */
-		int bfs_flags;		/* HAL descriptor flags */
+		int bfs_txflags;	/* HAL (tx) descriptor flags */
 		int bfs_txrate0;	/* first TX rate */
 		int bfs_try0;		/* first try count */
 		uint8_t bfs_ctsrate0;	/* Non-zero - use this as ctsrate */
@@ -488,6 +491,7 @@ struct ath_softc {
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
+	struct task		sc_txqtask;	/* tx proc processing */
 	int			sc_wd_timer;	/* count down for wd timer */
 	struct callout		sc_wd_ch;	/* tx watchdog timer */
 	struct ath_tx_radiotap_header sc_tx_th;
@@ -529,6 +533,7 @@ struct ath_softc {
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 	int			sc_txchainmask;	/* currently configured TX chainmask */
 	int			sc_rxchainmask;	/* currently configured RX chainmask */
+	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
 
 	/* Queue limits */
 
@@ -954,10 +959,10 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setupFirstTxDesc)((_ah), (_ds), (_aggrlen), (_flags), \
 	(_txpower), (_txr0), (_txtr0), (_antm), (_rcr), (_rcd)))
 #define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
-	_cipher, _delims, _seglen, _first, _last) \
+	_cipher, _delims, _seglen, _first, _last, _lastaggr) \
 	((*(_ah)->ah_chainTxDesc)((_ah), (_ds), (_pktlen), (_hdrlen), \
 	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
-	(_first), (_last)))
+	(_first), (_last), (_lastaggr)))
 #define	ath_hal_setuplasttxdesc(_ah, _ds, _ds0) \
 	((*(_ah)->ah_setupLastTxDesc)((_ah), (_ds), (_ds0)))
 

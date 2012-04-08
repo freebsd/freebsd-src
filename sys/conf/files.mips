@@ -85,6 +85,7 @@ libkern/ucmpdi2.c		standard
 #libkern/mips/strcmp.S		standard
 #libkern/mips/strncmp.S		standard
 
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs compile-with "${ZFS_C}"
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
@@ -107,7 +108,6 @@ dev/siba/siba_pcib.c		optional	siba pci
 #mips/sentry5/siba_mips.c			optional siba # not yet
 
 dev/hwpmc/hwpmc_mips.c		optional hwpmc
-dev/hwpmc/hwpmc_mips24k.c	optional hwpmc
 
 dev/rt/if_rt.c			optional 	rt
 dev/nvram2env/nvram2env.c	optional	nvram2env

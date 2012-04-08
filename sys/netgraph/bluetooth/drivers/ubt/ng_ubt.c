@@ -726,7 +726,7 @@ ubt_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			actlen);
 
 		/* Validate packet and send it up the stack */
-		if (m->m_pkthdr.len < sizeof(*hdr)) {
+		if (m->m_pkthdr.len < (int)sizeof(*hdr)) {
 			UBT_INFO(sc, "HCI event packet is too short\n");
 
 			UBT_STAT_IERROR(sc);
@@ -788,8 +788,8 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct mbuf		*m;
 	ng_hci_acldata_pkt_t	*hdr;
 	struct usb_page_cache	*pc;
-	uint16_t		len;
-	int			actlen;
+	int len;
+	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
@@ -826,7 +826,7 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			actlen);
 
 		/* Validate packet and send it up the stack */
-		if (m->m_pkthdr.len < sizeof(*hdr)) {
+		if (m->m_pkthdr.len < (int)sizeof(*hdr)) {
 			UBT_INFO(sc, "HCI ACL packet is too short\n");
 
 			UBT_STAT_IERROR(sc);
@@ -835,7 +835,7 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		hdr = mtod(m, ng_hci_acldata_pkt_t *);
 		len = le16toh(hdr->length);
-		if (len != (m->m_pkthdr.len - sizeof(*hdr))) {
+		if (len != (int)(m->m_pkthdr.len - sizeof(*hdr))) {
 			UBT_ERR(sc, "Invalid ACL packet size, length=%d, " \
 				"pktlen=%d\n", len, m->m_pkthdr.len);
 
@@ -1650,7 +1650,7 @@ ng_ubt_rcvdata(hook_p hook, item_p item)
 	/* Process HCI frame */
 	switch (*mtod(m, uint8_t *)) {	/* XXX call m_pullup ? */
 	case NG_HCI_CMD_PKT:
-		if (m->m_pkthdr.len - 1 > UBT_CTRL_BUFFER_SIZE)
+		if (m->m_pkthdr.len - 1 > (int)UBT_CTRL_BUFFER_SIZE)
 			panic("HCI command frame size is too big! " \
 				"buffer size=%zd, packet len=%d\n",
 				UBT_CTRL_BUFFER_SIZE, m->m_pkthdr.len);

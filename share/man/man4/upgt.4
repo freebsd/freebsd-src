@@ -181,13 +181,13 @@ Join an existing BSS network (i.e., connect to an access point):
 .Bd -literal -offset indent
 ifconfig wlan create wlandev upgt0 inet 192.168.0.20 \e
     netmask 0xffffff00
-.Ed 
-.Pp 
+.Ed
+.Pp
 Join a specific BSS network with network name
-.Dq Li my_net : 
-.Pp 
+.Dq Li my_net :
+.Pp
 .Dl "ifconfig wlan create wlandev upgt0 ssid my_net up"
-.Pp 
+.Pp
 Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev upgt0 ssid my_net \e

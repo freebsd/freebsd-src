@@ -163,8 +163,6 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 
 	l = RULESIZE(input_rule);
 	rule = malloc(l, M_IPFW, M_WAITOK | M_ZERO);
-	if (rule == NULL)
-		return (ENOSPC);
 	/* get_map returns with IPFW_UH_WLOCK if successful */
 	map = get_map(chain, 1, 0 /* not locked */);
 	if (map == NULL) {
@@ -1010,8 +1008,6 @@ ipfw_ctl(struct sockopt *sopt)
 			if (size >= sopt->sopt_valsize)
 				break;
 			buf = malloc(size, M_TEMP, M_WAITOK);
-			if (buf == NULL)
-				break;
 			IPFW_UH_RLOCK(chain);
 			/* check again how much space we need */
 			want = chain->static_len + ipfw_dyn_len();

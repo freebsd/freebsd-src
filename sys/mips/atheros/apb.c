@@ -347,6 +347,7 @@ apb_filter(void *arg)
 	struct intr_event *event;
 	uint32_t reg, irq;
 	struct thread *td;
+	struct trapframe *tf;
 
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_STATUS);
 	for (irq = 0; irq < APB_NIRQS; irq++) {
@@ -368,25 +369,15 @@ apb_filter(void *arg)
 			event = sc->sc_eventstab[irq];
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
 				if (irq == APB_INTR_PMC) {
-					register_t s;
-					struct trapframe *tf = PCPU_GET(curthread)->td_intr_frame;
-					s = intr_disable();
+					td = PCPU_GET(curthread);
+					tf = td->td_intr_frame;
+
+					if (pmc_intr)
+						(*pmc_intr)(PCPU_GET(cpuid), tf);
+
 					mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 
-					if (pmc_intr && (*pmc_intr)(PCPU_GET(cpuid), tf)) {
-						intr_restore(s);
-						continue;
-					}
-
-					intr_restore(s);
-					td = PCPU_GET(curthread);
-
-					if (pmc_hook && (td->td_pflags & TDP_CALLCHAIN))
-						pmc_hook(PCPU_GET(curthread),
-							PMC_FN_USER_CALLCHAIN, tf);
-				
 					continue;
-
 				}
 				/* Ignore timer interrupts */
 				if (irq != 0)

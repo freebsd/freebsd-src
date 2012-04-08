@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dnssec-revoke.html,v 1.62.8.10 2011-08-03 02:35:12 tbox Exp $ -->
+<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,10 +47,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">dnssec-revoke</code>  [<code class="option">-hr</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] [<code class="option">-f</code>] {keyfile}</p></div>
+<div class="cmdsynopsis"><p><code class="command">dnssec-revoke</code>  [<code class="option">-hr</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] [<code class="option">-f</code>] [<code class="option">-R</code>] {keyfile}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2614715"></a><h2>DESCRIPTION</h2>
+<a name="id2615650"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-revoke</strong></span>
       reads a DNSSEC key file, sets the REVOKED bit on the key as defined
       in RFC 5011, and creates a new pair of key files containing the
@@ -58,7 +58,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2614729"></a><h2>OPTIONS</h2>
+<a name="id2615664"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-h</span></dt>
 <dd><p>
@@ -88,17 +88,22 @@
             write the new key pair even if a file already exists matching
             the algorithm and key ID of the revoked key.
           </p></dd>
+<dt><span class="term">-R</span></dt>
+<dd><p>
+	    Print the key tag of the key with the REVOKE bit set but do
+	    not revoke the key.
+          </p></dd>
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2614837"></a><h2>SEE ALSO</h2>
+<a name="id2615784"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 5011</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2614861"></a><h2>AUTHOR</h2>
+<a name="id2615809"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

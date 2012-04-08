@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2003 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2003 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -32,8 +32,6 @@
 
 #include "krb5_locl.h"
 #include <err.h>
-
-RCSID("$Id: test_princ.c 22071 2007-11-14 20:04:50Z lha $");
 
 /*
  * Check that a closed cc still keeps it data and that it's no longer
@@ -67,7 +65,7 @@ test_princ(krb5_context context)
 
     free(princ_unparsed);
 
-    ret = krb5_unparse_name_flags(context, p, 
+    ret = krb5_unparse_name_flags(context, p,
 				  KRB5_PRINCIPAL_UNPARSE_NO_REALM,
 				  &princ_unparsed);
     if (ret)
@@ -76,10 +74,11 @@ test_princ(krb5_context context)
     if (strcmp(princ_short, princ_unparsed))
 	krb5_errx(context, 1, "%s != %s", princ_short, princ_unparsed);
     free(princ_unparsed);
-    
+
     realm = krb5_principal_get_realm(context, p);
 
-    asprintf(&princ_reformed, "%s@%s", princ_short, realm);
+    if (asprintf(&princ_reformed, "%s@%s", princ_short, realm) < 0 || princ_reformed == NULL)
+	errx(1, "malloc");
 
     ret = krb5_parse_name(context, princ_reformed, &p2);
     free(princ_reformed);
@@ -88,7 +87,7 @@ test_princ(krb5_context context)
 
     if (!krb5_principal_compare(context, p, p2)) {
 	krb5_errx(context, 1, "p != p2");
-    }    
+    }
 
     krb5_free_principal(context, p2);
 
@@ -96,7 +95,7 @@ test_princ(krb5_context context)
     if (ret)
 	krb5_err(context, 1, ret, "krb5_parse_name");
 
-    ret = krb5_unparse_name_flags(context, p, 
+    ret = krb5_unparse_name_flags(context, p,
 				  KRB5_PRINCIPAL_UNPARSE_SHORT,
 				  &princ_unparsed);
     if (ret)
@@ -181,20 +180,20 @@ test_princ(krb5_context context)
 	krb5_errx(context, 1, "'%s' != '%s'", princ, princ_unparsed);
     free(princ_unparsed);
 
-    ret = krb5_parse_name_flags(context, princ, 
+    ret = krb5_parse_name_flags(context, princ,
 				KRB5_PRINCIPAL_PARSE_NO_REALM,
 				&p2);
     if (!ret)
 	krb5_err(context, 1, ret, "Should have failed to parse %s a "
 		 "short name", princ);
 
-    ret = krb5_parse_name_flags(context, princ_short, 
+    ret = krb5_parse_name_flags(context, princ_short,
 				KRB5_PRINCIPAL_PARSE_NO_REALM,
 				&p2);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_parse_name");
 
-    ret = krb5_unparse_name_flags(context, p2, 
+    ret = krb5_unparse_name_flags(context, p2,
 				  KRB5_PRINCIPAL_UNPARSE_NO_REALM,
 				  &princ_unparsed);
     krb5_free_principal(context, p2);
@@ -205,23 +204,23 @@ test_princ(krb5_context context)
 	krb5_errx(context, 1, "'%s' != '%s'", princ_short, princ_unparsed);
     free(princ_unparsed);
 
-    ret = krb5_parse_name_flags(context, princ_short, 
-				KRB5_PRINCIPAL_PARSE_MUST_REALM,
+    ret = krb5_parse_name_flags(context, princ_short,
+				KRB5_PRINCIPAL_PARSE_REQUIRE_REALM,
 				&p2);
     if (!ret)
 	krb5_err(context, 1, ret, "Should have failed to parse %s "
 		 "because it lacked a realm", princ_short);
 
     ret = krb5_parse_name_flags(context, princ,
-				KRB5_PRINCIPAL_PARSE_MUST_REALM,
+				KRB5_PRINCIPAL_PARSE_REQUIRE_REALM,
 				&p2);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_parse_name");
-    
+
     if (!krb5_principal_compare(context, p, p2))
 	krb5_errx(context, 1, "p != p2");
 
-    ret = krb5_unparse_name_flags(context, p2, 
+    ret = krb5_unparse_name_flags(context, p2,
 				  KRB5_PRINCIPAL_UNPARSE_NO_REALM,
 				  &princ_unparsed);
     krb5_free_principal(context, p2);
@@ -274,7 +273,7 @@ test_enterprise(krb5_context context)
     if (ret)
 	krb5_err(context, 1, ret, "krb5_parse_name");
 
-    ret = krb5_parse_name_flags(context, "lha@su.se@WIN.SU.SE", 
+    ret = krb5_parse_name_flags(context, "lha@su.se@WIN.SU.SE",
 				KRB5_PRINCIPAL_PARSE_ENTERPRISE, &p);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_parse_name_flags");
@@ -293,7 +292,7 @@ test_enterprise(krb5_context context)
      *
      */
 
-    ret = krb5_parse_name_flags(context, "lha\\@su.se@WIN.SU.SE", 
+    ret = krb5_parse_name_flags(context, "lha\\@su.se@WIN.SU.SE",
 				KRB5_PRINCIPAL_PARSE_ENTERPRISE, &p);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_parse_name_flags");
@@ -328,7 +327,7 @@ test_enterprise(krb5_context context)
      *
      */
 
-    ret = krb5_parse_name_flags(context, "lha@su.se", 
+    ret = krb5_parse_name_flags(context, "lha@su.se",
 				KRB5_PRINCIPAL_PARSE_ENTERPRISE, &p);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_parse_name_flags");

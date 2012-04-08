@@ -2351,13 +2351,11 @@ static const struct uhci_config_desc uhci_confd = {
 static const
 struct usb_hub_descriptor_min uhci_hubd_piix =
 {
-	sizeof(uhci_hubd_piix),
-	UDESC_HUB,
-	2,
-	{UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL, 0},
-	50,				/* power on to power good */
-	0,
-	{0x00},				/* both ports are removable */
+	.bDescLength = sizeof(uhci_hubd_piix),
+	.bDescriptorType = UDESC_HUB,
+	.bNbrPorts = 2,
+	.wHubCharacteristics = {UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL, 0},
+	.bPwrOn2PwrGood = 50,
 };
 
 /*

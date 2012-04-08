@@ -61,7 +61,7 @@ The
 .Nm net80211
 layer used by 802.11 drivers includes support for a device-independent
 packet capture format called
-.Nm radiotap 
+.Nm radiotap
 that is understood by tools such as
 .Xr tcpdump 1 .
 This facility is designed for capturing 802.11 traffic,
@@ -257,7 +257,7 @@ struct wi_rx_radiotap_header {
         uint16_t       wr_chan_flags;
         uint8_t        wr_antsignal;
         uint8_t        wr_antnoise;
-} __packed; 
+} __packed;
 .Ed
 .Pp
 and transmit definitions for the Atheros driver:

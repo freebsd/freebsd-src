@@ -84,6 +84,8 @@ static void	print_pipe_info(struct procstat *procstat,
     struct filestat *fst);
 static void	print_pts_info(struct procstat *procstat,
     struct filestat *fst);
+static void	print_shm_info(struct procstat *procstat,
+    struct filestat *fst);
 static void	print_socket_info(struct procstat *procstat,
     struct filestat *fst);
 static void	print_vnode_info(struct procstat *procstat,
@@ -289,6 +291,9 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	case PS_FST_TYPE_PTS:
 		print_pts_info(procstat, fst);
 		break;
+	case PS_FST_TYPE_SHM:
+		print_shm_info(procstat, fst);
+		break;
 	default:	
 		if (vflg)
 			fprintf(stderr,
@@ -415,6 +420,30 @@ print_pts_info(struct procstat *procstat, struct filestat *fst)
 	} else {
 		printf("%10s", pts.devname);
 	}
+	print_access_flags(fst->fs_fflags);
+}
+
+static void
+print_shm_info(struct procstat *procstat, struct filestat *fst)
+{
+	struct shmstat shm;
+	char errbuf[_POSIX2_LINE_MAX];
+	char mode[15];
+	int error;
+
+	error = procstat_get_shm_info(procstat, fst, &shm, errbuf);
+	if (error != 0) {
+		printf("* error");
+		return;
+	}
+	if (nflg) {
+		printf("             ");
+		(void)snprintf(mode, sizeof(mode), "%o", shm.mode);
+	} else {
+		printf(" %-15s", fst->fs_path != NULL ? fst->fs_path : "-");
+		strmode(shm.mode, mode);
+	}
+	printf(" %10s %6ju", mode, shm.size);
 	print_access_flags(fst->fs_fflags);
 }
 

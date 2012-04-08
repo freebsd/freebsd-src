@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2000, 2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000, 2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,10 +32,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: environment.c 20866 2007-06-03 21:00:29Z lha $");
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -43,7 +40,7 @@ RCSID("$Id: environment.c 20866 2007-06-03 21:00:29Z lha $");
 #include "roken.h"
 
 /* find assignment in env list; len is length of variable including
- * equal 
+ * equal
  */
 
 static int
@@ -63,7 +60,7 @@ find_var(char **env, char *assignment, size_t len)
  */
 
 static int
-rk_read_env_file(FILE *F, char ***env, int *assigned)
+read_env_file(FILE *F, char ***env, int *assigned)
 {
     int idx = 0;
     int i;
@@ -126,11 +123,11 @@ rk_read_env_file(FILE *F, char ***env, int *assigned)
 }
 
 /*
- * return count of environment assignments from file and 
+ * return count of environment assignments from file and
  * list of malloced strings in `env'
  */
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 read_environment(const char *file, char ***env)
 {
     int assigned;
@@ -139,12 +136,12 @@ read_environment(const char *file, char ***env)
     if ((F = fopen(file, "r")) == NULL)
 	return 0;
 
-    rk_read_env_file(F, env, &assigned);
+    read_env_file(F, env, &assigned);
     fclose(F);
     return assigned;
 }
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 free_environment(char **env)
 {
     int i;

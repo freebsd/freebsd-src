@@ -1,4 +1,4 @@
--- $Id: crmf.asn1 17102 2006-04-18 13:05:21Z lha $
+-- $Id$
 PKCS10 DEFINITIONS ::=
 
 BEGIN

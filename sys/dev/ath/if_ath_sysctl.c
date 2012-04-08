@@ -344,6 +344,8 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	    sc->sc_aggr_stats.aggr_aggr_pkt);
 	printf("aggr single packet low hwq: %d\n",
 	    sc->sc_aggr_stats.aggr_low_hwq_single_pkt);
+	printf("aggr single packet RTS aggr limited: %d\n",
+	    sc->sc_aggr_stats.aggr_rts_aggr_limited);
 	printf("aggr sched, no work: %d\n",
 	    sc->sc_aggr_stats.aggr_sched_nopkt);
 	for (i = 0; i < 64; i++) {

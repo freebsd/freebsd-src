@@ -381,7 +381,7 @@ The following is a list of valid operators:
 .It Redirection operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
 .It Li < Ta Li > Ta Li << Ta Li >> Ta Li <>
-.It Li <& Ta Li >& Ta Li <<- Ta Li >|
+.It Li <& Ta Li >& Ta Li <<- Ta Li >| Ta \&
 .El
 .El
 .Pp
@@ -1027,7 +1027,6 @@ or
 .Pp
 The first form executes the commands in a subshell environment.
 A subshell environment has its own copy of:
-.Pp
 .Bl -enum
 .It
 The current working directory as set by
@@ -1632,7 +1631,7 @@ All values are of type
 .It Constants
 Decimal, octal (starting with
 .Li 0 )
-and hexadecimal (starting with 
+and hexadecimal (starting with
 .Li 0x )
 integer constants.
 .It Variables

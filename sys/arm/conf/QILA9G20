@@ -77,7 +77,6 @@ options 	NO_SWAPPING
 #options 	DIAGNOSTIC
 
 device		random
-device		pty
 device		loop
 device		bpf
 device		ether
