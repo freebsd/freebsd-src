@@ -205,6 +205,8 @@ ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
 	for (m = m0->m_nextpkt; m != NULL; m = m->m_nextpkt) {
 		bf = _ath_getbuf_locked(sc);
 		if (bf == NULL) {	/* out of buffers, cleanup */
+			device_printf(sc->sc_dev, "%s: no buffer?\n",
+			    __func__);
 			ath_txfrag_cleanup(sc, frags, ni);
 			break;
 		}
@@ -1150,10 +1152,9 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 
 static int
 ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
-    struct ath_buf *bf, struct mbuf *m0)
+    struct ath_buf *bf, struct mbuf *m0, struct ath_txq *txq)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_vap *avp = ATH_VAP(vap);
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
@@ -1162,7 +1163,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	int keyix, hdrlen, pktlen, try0 = 0;
 	u_int8_t rix = 0, txrate = 0;
 	struct ath_desc *ds;
-	struct ath_txq *txq;
 	struct ieee80211_frame *wh;
 	u_int subtype, flags;
 	HAL_PKT_TYPE atype;
@@ -1297,21 +1297,6 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		ath_freetx(m0);
 		return EIO;
 	}
-	txq = sc->sc_ac2q[pri];
-
-	/*
-	 * When servicing one or more stations in power-save mode
-	 * (or) if there is some mcast data waiting on the mcast
-	 * queue (to prevent out of order delivery) multicast
-	 * frames must be buffered until after the beacon.
-	 *
-	 * XXX This likely means that if there's a station in power
-	 * save mode, we won't be doing any kind of aggregation towards
-	 * anyone.  This is likely a very suboptimal way of dealing
-	 * with things.
-	 */
-	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
-		txq = &avp->av_mcastq;
 
 	/*
 	 * Calculate miscellaneous flags.
@@ -1445,8 +1430,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/*
 	 * Determine the target hardware queue.
 	 *
-	 * For multicast frames, the txq gets overridden to be the
-	 * software TXQ and it's done via direct-dispatch.
+	 * For multicast frames, the txq gets overridden appropriately
+	 * depending upon the state of PS.
 	 *
 	 * For any other frame, we do a TID/QoS lookup inside the frame
 	 * to see what the TID should be. If it's a non-QoS frame, the
@@ -1495,17 +1480,15 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	    "%s: bf=%p, tid=%d, ac=%d, is_ampdu=%d\n",
 	    __func__, bf, tid, pri, is_ampdu);
 
-	/* Multicast frames go onto the software multicast queue */
-	if (ismcast)
-		txq = &avp->av_mcastq;
-
 	/*
-	 * XXX This likely means that if there's a station in power
-	 * save mode, we won't be doing any kind of aggregation towards
-	 * anyone.  This is likely a very suboptimal way of dealing
-	 * with things.
+	 * When servicing one or more stations in power-save mode
+	 * (or) if there is some mcast data waiting on the mcast
+	 * queue (to prevent out of order delivery) multicast frames
+	 * must be bufferd until after the beacon.
+	 *
+	 * TODO: we should lock the mcastq before we check the length.
 	 */
-	if ((! is_ampdu) && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
+	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
 		txq = &avp->av_mcastq;
 
 	/* Do the generic frame setup */
@@ -1555,7 +1538,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		    __func__, tid, M_SEQNO_GET(m0));
 
 	/* This also sets up the DMA map */
-	r = ath_tx_normal_setup(sc, ni, bf, m0);
+	r = ath_tx_normal_setup(sc, ni, bf, m0, txq);
 
 	if (r != 0)
 		return r;
