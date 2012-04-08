@@ -200,10 +200,6 @@ Number of cache load STLB hits
 .Pq Event 08H , Umask 20H
 Number of DTLB cache load misses where the low part of the linear to
 physical address translation was missed.
-.It Li DTLB_LOAD_MISSES.PDP_MISS
-.Pq Event 08H , Umask 40H
-Number of DTLB cache load misses where the high part of the linear to
-physical address translation was missed.
 .It Li DTLB_LOAD_MISSES.LARGE_WALK_COMPLETED
 .Pq Event 08H , Umask 80H
 Counts number of completed large page walks due to load miss in the STLB.
@@ -646,10 +642,6 @@ Counter 0, 1 only
 Counts all data reads and writes (speculated and retired) from cacheable
 memory, including locked operations.
 Counter 0, 1 only
-.It Li L1D_PEND_MISS.LOAD_BUFFERS_FULL
-.Pq Event 48H , Umask 02H
-Counts cycles of L1 data cache load fill buffers full.
-Counter 0, 1 only
 .It Li DTLB_MISSES.ANY
 .Pq Event 49H , Umask 01H
 Counts the number of misses in the STLB which causes a page walk.
@@ -660,6 +652,12 @@ Counts number of misses in the STLB which resulted in a completed page walk.
 .Pq Event 49H , Umask 10H
 Counts the number of DTLB first level misses that hit in the second level
 TLB. This event is only relevant if the core contains multiple DTLB levels.
+.It Li DTLB_MISSES.PDE_MISS
+.Pq Event 49H , Umask 20H
+Number of DTLB misses caused by low part of address, includes references to 2M pages because 2M pages do not use the PDE.
+.It Li DTLB_MISSES.LARGE_WALK_COMPLETED
+.Pq Event 49H , Umask 80H
+Counts number of misses in the STLB which resulted in a completed page walk for large pages.
 .It Li LOAD_HIT_PRE
 .Pq Event 4CH , Umask 01H
 Counts load operations sent to the L1 data cache while a previous SSE
@@ -1205,9 +1203,6 @@ The BPU clear leads to 2 cycle bubble in the Front End.
 .Pq Event E8H , Umask 02H
 Counts late Branch Prediction Unit clears due to Most Recently Used
 conflicts. The PBU clear leads to a 3 cycle bubble in the Front End.
-.It Li BPU_CLEARS.ANY
-.Pq Event E8H , Umask 03H
-Counts all BPU clears.
 .It Li L2_TRANSACTIONS.LOAD
 .Pq Event F0H , Umask 01H
 Counts L2 load operations due to HW prefetch or demand loads.
