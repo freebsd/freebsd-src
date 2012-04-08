@@ -1016,7 +1016,7 @@ vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
  *
  *	The free page queue must be locked.
  */
-void
+static void
 vm_page_cache_remove(vm_page_t m)
 {
 
