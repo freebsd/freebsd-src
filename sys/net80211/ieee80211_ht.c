@@ -2182,10 +2182,13 @@ bar_timeout(void *arg)
 	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) == 0)
 		return;
 	/* XXX ? */
-	if (tap->txa_attempts >= ieee80211_bar_maxtries)
+	if (tap->txa_attempts >= ieee80211_bar_maxtries) {
+		ni->ni_vap->iv_stats.is_ampdu_bar_tx_fail++;
 		ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT);
-	else
+	} else {
+		ni->ni_vap->iv_stats.is_ampdu_bar_tx_retry++;
 		ieee80211_send_bar(ni, tap, tap->txa_seqpending);
+	}
 }
 
 static void
@@ -2210,6 +2213,7 @@ bar_tx_complete(struct ieee80211_node *ni, void *arg, int status)
 	    __func__, tap->txa_ac, tap->txa_flags,
 	    callout_pending(&tap->txa_timer), status);
 
+	ni->ni_vap->iv_stats.is_ampdu_bar_tx++;
 	/* XXX locking */
 	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) &&
 	    callout_pending(&tap->txa_timer)) {
@@ -2325,6 +2329,7 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	if (ret != 0) {
 		/* xmit failed, clear state flag */
 		tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
+		vap->iv_stats.is_ampdu_bar_tx_fail++;
 		return ret;
 	}
 	/* XXX hack against tx complete happening before timer is started */
@@ -2332,6 +2337,7 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 		bar_start_timer(tap);
 	return 0;
 bad:
+	vap->iv_stats.is_ampdu_bar_tx_fail++;
 	ieee80211_free_node(ni);
 	return ret;
 #undef senderr

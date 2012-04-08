@@ -407,8 +407,6 @@ ffs_mount(struct mount *mp)
 				vn_finished_write(mp);
 				return (error);
 			}
-			if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
-				devvp->v_rdev->si_mountpt = mp;
 			if (fs->fs_snapinum[0] != 0)
 				ffs_snapshot_mount(mp);
 			vn_finished_write(mp);
