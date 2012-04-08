@@ -1,4 +1,4 @@
-.\" Copyright (C) 2009 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2009, 2011 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-revoke.8,v 1.9 2010-05-19 01:14:14 tbox Exp $
+.\" $Id$
 .\"
 .hy 0
 .ad l
@@ -32,7 +32,7 @@
 dnssec\-revoke \- Set the REVOKED bit on a DNSSEC key
 .SH "SYNOPSIS"
 .HP 14
-\fBdnssec\-revoke\fR [\fB\-hr\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\fR] {keyfile}
+\fBdnssec\-revoke\fR [\fB\-hr\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\fR] [\fB\-R\fR] {keyfile}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-revoke\fR
@@ -70,6 +70,11 @@ Force overwrite: Causes
 \fBdnssec\-revoke\fR
 to write the new key pair even if a file already exists matching the algorithm and key ID of the revoked key.
 .RE
+.PP
+\-R
+.RS 4
+Print the key tag of the key with the REVOKE bit set but do not revoke the key.
+.RE
 .SH "SEE ALSO"
 .PP
 \fBdnssec\-keygen\fR(8),
@@ -79,5 +84,5 @@ RFC 5011.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2009 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2009, 2011 Internet Systems Consortium, Inc. ("ISC")
 .br

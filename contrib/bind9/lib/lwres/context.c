@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.c,v 1.55 2009-09-02 23:48:03 tbox Exp $ */
+/* $Id: context.c,v 1.55 2009/09/02 23:48:03 tbox Exp $ */
 
 /*! \file context.c
    lwres_context_create() creates a #lwres_context_t structure for use in

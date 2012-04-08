@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.85 2009-12-04 22:06:37 tbox Exp $ */
+/* $Id: gen.c,v 1.85 2009/12/04 22:06:37 tbox Exp $ */
 
 /*! \file */
 

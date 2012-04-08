@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: refcount.h,v 1.17 2009-09-29 23:48:04 tbox Exp $ */
+/* $Id: refcount.h,v 1.17 2009/09/29 23:48:04 tbox Exp $ */
 
 #ifndef ISC_REFCOUNT_H
 #define ISC_REFCOUNT_H 1
