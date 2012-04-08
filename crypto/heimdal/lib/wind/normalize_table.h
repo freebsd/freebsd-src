@@ -1,5 +1,5 @@
 /* ./normalize_table.h */
-/* Automatically generated at 2011-09-30T15:25:00.412374 */
+/* Automatically generated at 2012-01-11T14:07:01.713967 */
 
 #ifndef NORMALIZE_TABLE_H
 #define NORMALIZE_TABLE_H 1

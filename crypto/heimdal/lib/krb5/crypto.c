@@ -467,7 +467,7 @@ verify_checksum(krb5_context context,
 	    return KRB5_PROG_SUMTYPE_NOSUPP; /* XXX */
 	}
 	kct = crypto->et->keyed_checksum;
-	if (kct != NULL && kct->type != ct->type) {
+	if (kct == NULL || kct->type != ct->type) {
 	    krb5_set_error_message(context, KRB5_PROG_SUMTYPE_NOSUPP,
 				   N_("Checksum type %s is keyed, but "
 				      "the key type %s passed didnt have that checksum "
