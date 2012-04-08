@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: msgcat.h,v 1.13 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: msgcat.h,v 1.13 2007/06/19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_MSGCAT_H
 #define ISC_MSGCAT_H 1

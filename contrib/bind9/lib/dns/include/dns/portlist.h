@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portlist.h,v 1.9 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: portlist.h,v 1.9 2007/06/19 23:47:17 tbox Exp $ */
 
 /*! \file dns/portlist.h */
 
