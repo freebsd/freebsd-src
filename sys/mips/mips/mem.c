@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/mips/mem.c,v 1.2.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Memory special file

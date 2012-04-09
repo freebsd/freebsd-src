@@ -1,6 +1,6 @@
 #!/usr/bin/awk -f
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/tools/acpi_quirks2h.awk,v 1.4.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 #-
 # Copyright (c) 2004 Mark Santcroos <marks@ripe.net>

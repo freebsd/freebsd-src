@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/arch/i386/i386/_umtx_op_err.S,v 1.1.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <machine/asm.h>

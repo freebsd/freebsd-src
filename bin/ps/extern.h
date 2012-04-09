@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/ps/extern.h,v 1.39.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 struct kinfo;

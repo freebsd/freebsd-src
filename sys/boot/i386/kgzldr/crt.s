@@ -24,7 +24,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #	From: btx.s 1.10 1999/02/25 16:27:41 rnordier
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/kgzldr/crt.s,v 1.4.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 # Screen defaults and assumptions.

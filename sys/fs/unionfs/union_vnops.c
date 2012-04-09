@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/unionfs/union_vnops.c,v 1.160.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  *
  */
 

@@ -2,7 +2,7 @@
 # bmake was friendlier to the concept of multiple progs/libs in the same
 # directory.
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libdialog/TESTS/Makefile,v 1.11.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROGS=	msg yesno prgbox gauge dselect fselect text menu1 menu2 menu3 \
 	input1 input2 check1 check2 check3 radio1 radio2 radio3 \

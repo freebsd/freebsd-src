@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/cddl/usr.bin/ctfdump/Makefile,v 1.1.4.2.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 .include	"../../Makefile.inc"
 

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsclient/nfsargs.h,v 1.68.22.3.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _NFSCLIENT_NFSARGS_H_

@@ -35,7 +35,7 @@
 #define _NETINET6_SCTP6_VAR_H_
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet6/sctp6_var.h,v 1.10.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #if defined(_KERNEL)
 

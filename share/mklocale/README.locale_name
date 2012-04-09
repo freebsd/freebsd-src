@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/mklocale/README.locale_name,v 1.2.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 Locale name string format must be compliant with XPG3 and
 using following format.

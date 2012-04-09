@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/libarchive/libarchive/test/test_write_disk_hardlink.c,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 /* Execution bits, Group members bits and others bits do not work. */

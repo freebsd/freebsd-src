@@ -24,7 +24,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/netmap/if_em_netmap.h,v 1.7.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  * $Id: if_em_netmap.h 9802 2011-12-02 18:42:37Z luigi $
  *
  * netmap changes for if_em.

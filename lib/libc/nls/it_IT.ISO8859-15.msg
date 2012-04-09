@@ -1,4 +1,4 @@
-$ $FreeBSD$
+$ $FreeBSD: src/lib/libc/nls/it_IT.ISO8859-15.msg,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 $
 $ Message catalog for it_IT.ISO8859-15 locale
 $

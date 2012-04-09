@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/utopia/utopia_priv.h,v 1.1.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  *
  * Private include file for the interface between chip files and
  * the utopia main stuff.

@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91board.h,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef _ARM_AT91_AT91BOARD_H_
 #define _ARM_AT91_AT91BOARD_H_

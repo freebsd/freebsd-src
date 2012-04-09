@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/aio.h,v 1.34.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SYS_AIO_H_

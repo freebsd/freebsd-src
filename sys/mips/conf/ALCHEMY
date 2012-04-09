@@ -15,7 +15,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/conf/ALCHEMY,v 1.5.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 ident		ALCHEMY
 

@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_ACCT,v 1.1.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 Set to not build process accounting tools such as
 .Xr ac 8 
 and

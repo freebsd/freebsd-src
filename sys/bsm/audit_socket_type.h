@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE. 
  *
  * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_socket_type.h#1
- * $FreeBSD$
+ * $FreeBSD: src/sys/bsm/audit_socket_type.h,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _BSM_AUDIT_SOCKET_TYPE_H_

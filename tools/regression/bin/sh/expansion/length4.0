@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/expansion/length4.0,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 # The construct ${#?} is ambiguous in POSIX.1-2008: it could be the length
 # of $? or it could be $# giving an error in the (impossible) case that it

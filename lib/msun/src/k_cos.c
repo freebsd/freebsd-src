@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/k_cos.c,v 1.12.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * __kernel_cos( x,  y )

@@ -1,5 +1,5 @@
 /* $OpenBSD: session.c,v 1.252 2010/03/07 11:57:13 dtucker Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/session.c,v 1.52.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/session.c,v 1.52.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

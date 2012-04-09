@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/geom/class/Makefile.inc,v 1.7.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 SHLIBDIR?=${CLASS_DIR}
 SHLIB_NAME?=geom_${CLASS}.so

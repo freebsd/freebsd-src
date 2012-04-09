@@ -24,7 +24,7 @@
 #
 #       Email: Mike Makonnen <mtm@FreeBSD.Org>
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/adduser/adduser.sh,v 1.32.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 # err msg

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/nfsserver/nfs_fha.h,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 void fha_nd_complete(SVCTHREAD *, struct svc_req *);
 SVCTHREAD *fha_assign(SVCTHREAD *, struct svc_req *);

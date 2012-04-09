@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/posixsem/posixsem.c,v 1.1.4.2.6.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/queue.h>

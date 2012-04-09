@@ -28,7 +28,7 @@
  * Ulrich Drepper <drepper@redhat.com>. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libcrypt/crypt-sha512.c,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/endian.h>
 #include <sys/param.h>

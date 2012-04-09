@@ -1,6 +1,6 @@
 # ASCII
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/la_LN.US-ASCII.src,v 1.2.42.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 order \
 	\x00;...;\xff

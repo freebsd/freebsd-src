@@ -1,5 +1,5 @@
 /* $OpenBSD: misc.h,v 1.41 2010/01/09 23:04:13 dtucker Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/misc.h,v 1.2.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

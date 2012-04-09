@@ -1,5 +1,5 @@
 /* $OpenBSD: myproposal.h,v 1.24 2010/02/26 20:29:54 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/myproposal.h,v 1.11.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.

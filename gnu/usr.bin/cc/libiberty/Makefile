@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/libiberty/Makefile,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 #
 # Make sure we will pick up our config.h file first, not the one from

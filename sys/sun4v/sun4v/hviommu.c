@@ -55,7 +55,7 @@
  *
  *	from: NetBSD: sbus.c,v 1.50 2002/06/20 18:26:24 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/sun4v/hviommu.c,v 1.5.10.3.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <sys/param.h>

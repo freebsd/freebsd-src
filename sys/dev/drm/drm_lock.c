@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/drm_lock.c,v 1.9.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /** @file drm_lock.c
  * Implementation of the ioctls and other support code for dealing with the

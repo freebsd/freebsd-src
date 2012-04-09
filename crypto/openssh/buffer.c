@@ -1,5 +1,5 @@
 /* $OpenBSD: buffer.c,v 1.32 2010/02/09 03:56:28 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/buffer.c,v 1.1.1.13.10.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland

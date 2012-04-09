@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_ageq.c,v 1.2.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * IEEE 802.11 age queue support.

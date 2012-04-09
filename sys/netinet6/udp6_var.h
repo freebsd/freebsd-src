@@ -57,7 +57,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/udp6_var.h,v 1.10.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _NETINET6_UDP6_VAR_H_

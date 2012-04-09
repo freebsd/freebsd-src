@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ccd,v 1.6.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 # PROVIDE: disks

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)restore.h	8.3 (Berkeley) 9/13/94
- * $FreeBSD$
+ * $FreeBSD: src/sbin/restore/restore.h,v 1.12.10.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

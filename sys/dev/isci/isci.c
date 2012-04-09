@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/isci/isci.c,v 1.1.2.2.2.2 2012/03/05 18:20:31 jimharris Exp $");
 
 #include <dev/isci/isci.h>
 

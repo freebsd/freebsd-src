@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_pio_rm9200.h,v 1.1.12.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*
  * These defines come from an atmel file that says specifically that it

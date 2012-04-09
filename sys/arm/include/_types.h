@@ -33,7 +33,7 @@
  *
  *	From: @(#)ansi.h	8.2 (Berkeley) 1/4/94
  *	From: @(#)types.h	8.3 (Berkeley) 1/5/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/_types.h,v 1.9.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _MACHINE__TYPES_H_

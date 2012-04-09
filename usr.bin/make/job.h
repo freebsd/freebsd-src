@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)job.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/job.h,v 1.48.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef job_h_4678dfd1

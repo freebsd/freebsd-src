@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-# $FreeBSD$
+# $FreeBSD: src/include/rpcsvc/Makefile,v 1.25.36.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 .SUFFIXES: .x
 

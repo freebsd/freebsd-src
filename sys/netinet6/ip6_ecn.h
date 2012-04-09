@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	$KAME: ip_ecn.h,v 1.5 2000/03/27 04:58:38 sumikawa Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6_ecn.h,v 1.7.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

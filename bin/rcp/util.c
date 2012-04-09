@@ -33,7 +33,7 @@ static const char sccsid[] = "@(#)util.c	8.2 (Berkeley) 4/2/94";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/rcp/util.c,v 1.17.30.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

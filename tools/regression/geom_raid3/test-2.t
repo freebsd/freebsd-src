@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_raid3/test-2.t,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 . `dirname $0`/conf.sh
 

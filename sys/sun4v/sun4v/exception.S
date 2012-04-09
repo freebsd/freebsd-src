@@ -26,7 +26,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/exception.S,v 1.14.10.2.4.1 2012/03/03 06:15:13 kensmith Exp $")
 
 #include "opt_compat.h"
 #include "opt_ddb.h"

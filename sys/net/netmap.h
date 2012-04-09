@@ -31,7 +31,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/netmap.h,v 1.3.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  * $Id: netmap.h 9753 2011-11-28 15:10:43Z luigi $
  *
  * This header contains the definitions of the constants and the

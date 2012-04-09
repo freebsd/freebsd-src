@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_fsm.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_fsm.h,v 1.20.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _NETINET_TCP_FSM_H_

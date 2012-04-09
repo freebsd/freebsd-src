@@ -25,7 +25,7 @@
  */
 
 #include "lafe_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/libarchive/libarchive_fe/pathmatch.c,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #ifdef HAVE_STRING_H
 #include <string.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/csup/fnmatch.h,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  *
  *	@(#)fnmatch.h	8.1 (Berkeley) 6/2/93
  *

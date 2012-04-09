@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_LEGACY_CONSOLE,v 1.1.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 Set to not build programs that support a legacy PC console; e.g.
 .Xr kbdcontrol 8
 and

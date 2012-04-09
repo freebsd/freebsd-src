@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/schizovar.h,v 1.2.4.6.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SPARC64_PCI_SCHIZOVAR_H_

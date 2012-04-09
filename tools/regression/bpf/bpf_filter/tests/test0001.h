@@ -1,7 +1,7 @@
 /*-
  * Test 0001:	Catch illegal instruction.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0001.h,v 1.4.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /* BPF program */

@@ -36,7 +36,7 @@
  *
  ***********************license end**************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/cavium/dev/rgmii/octeon_fpa.h,v 1.3.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*------------------------------------------------------------------
  * octeon_fpa.h      Free Pool Allocator

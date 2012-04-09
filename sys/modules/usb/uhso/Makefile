@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/usb/uhso/Makefile,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # Copyright (c) 2010 Andrew Thompson. All rights reserved.
 #

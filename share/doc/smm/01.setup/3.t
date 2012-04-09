@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/smm/01.setup/3.t,v 1.4.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 .\"	@(#)3.t	8.1 (Berkeley) 7/27/93
 .\"
 .ds lq ``

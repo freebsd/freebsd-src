@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.4 (Berkeley) 2/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ipc.h,v 1.27.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

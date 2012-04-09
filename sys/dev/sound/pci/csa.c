@@ -52,7 +52,7 @@
 
 #include <dev/sound/pci/cs461x_dsp.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/csa.c,v 1.39.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /* This is the pci device id. */
 #define CS4610_PCI_ID 0x60011013

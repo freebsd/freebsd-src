@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/which/which.c,v 1.6.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/stat.h>
 #include <sys/param.h>

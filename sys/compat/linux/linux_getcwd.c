@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_getcwd.c,v 1.33.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_compat.h"
 

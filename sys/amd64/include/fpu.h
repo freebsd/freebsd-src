@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/fpu.h,v 1.35.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

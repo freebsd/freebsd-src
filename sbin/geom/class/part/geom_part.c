@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/geom/class/part/geom_part.c,v 1.20.2.19.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/stat.h>
 #include <sys/vtoc.h>

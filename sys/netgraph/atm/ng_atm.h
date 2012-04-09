@@ -30,7 +30,7 @@
 /*
  * Netgraph module to connect NATM interfaces to netgraph.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/atm/ng_atm.h,v 1.5.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _NETGRAPH_ATM_NG_ATM_H_
 #define _NETGRAPH_ATM_NG_ATM_H_

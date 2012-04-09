@@ -24,7 +24,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/netmap/netmap_kern.h,v 1.9.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  * $Id: netmap_kern.h 9795 2011-12-02 11:39:08Z luigi $
  *
  * The header contains the definitions of constants and function

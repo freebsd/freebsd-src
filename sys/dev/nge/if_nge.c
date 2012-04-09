@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/nge/if_nge.c,v 1.103.2.6.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * National Semiconductor DP83820/DP83821 gigabit ethernet driver

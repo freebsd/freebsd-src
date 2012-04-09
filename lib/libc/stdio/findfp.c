@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)findfp.c	8.2 (Berkeley) 1/4/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/findfp.c,v 1.33.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/param.h>
 #include <machine/atomic.h>

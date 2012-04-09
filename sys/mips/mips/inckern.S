@@ -25,7 +25,7 @@
 #include "opt_kernname.h"
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/sys/mips/mips/inckern.S,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $")
 .section ".real_kernel","aw"
 .globl kernel_start;
 kernel_start:

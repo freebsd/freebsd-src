@@ -54,7 +54,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/isa/ofw_isa.h,v 1.5.22.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SPARC64_ISA_OFW_ISA_H_

@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/dtrace/i386/dtrace_subr.c,v 1.3.2.6.2.1 2012/03/03 06:15:13 kensmith Exp $
  *
  */
 /*

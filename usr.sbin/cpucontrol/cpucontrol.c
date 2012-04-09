@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/cpucontrol/cpucontrol.c,v 1.3.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <assert.h>
 #include <stdio.h>

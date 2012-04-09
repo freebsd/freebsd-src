@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_var.h,v 1.115.2.7.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_

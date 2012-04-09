@@ -33,7 +33,7 @@
  *
  *	from: @(#)vmparam.h     5.9 (Berkeley) 5/12/91
  *	from: FreeBSD: src/sys/i386/include/vmparam.h,v 1.33 2000/03/30
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/vmparam.h,v 1.7.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	_MACHINE_VMPARAM_H_

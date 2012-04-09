@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/canbus.c,v 1.6.10.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <sys/param.h>

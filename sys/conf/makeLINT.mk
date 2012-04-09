@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/makeLINT.mk,v 1.1.34.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 all:
 	@echo "make LINT only"

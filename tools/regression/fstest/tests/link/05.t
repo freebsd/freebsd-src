@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/link/05.t,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 desc="link returns EMLINK if the link count of the file named by name1 would exceed 32767"
 

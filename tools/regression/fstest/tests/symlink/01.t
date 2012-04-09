@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/symlink/01.t,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 desc="symlink returns ENOTDIR if a component of the name2 path prefix is not a directory"
 

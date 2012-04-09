@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  * $Id: if_nvreg.h,v 1.6 2004/08/12 14:00:05 q Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/nve/if_nvereg.h,v 1.9.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
  
 #ifndef _IF_NVEREG_H_

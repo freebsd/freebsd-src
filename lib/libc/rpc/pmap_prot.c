@@ -34,7 +34,7 @@ static char *sccsid2 = "@(#)pmap_prot.c 1.17 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)pmap_prot.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/pmap_prot.c,v 1.9.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * pmap_prot.c

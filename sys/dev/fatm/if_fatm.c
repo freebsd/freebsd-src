@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fatm/if_fatm.c,v 1.25.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_inet.h"
 #include "opt_natm.h"

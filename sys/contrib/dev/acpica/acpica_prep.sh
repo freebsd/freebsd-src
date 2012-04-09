@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sys/contrib/dev/acpica/acpica_prep.sh,v 1.11.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # Unpack an ACPI CA drop and restructure it to fit the FreeBSD layout
 #

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/cxgbe/common/t4_hw.c,v 1.1.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "common.h"
 #include "t4_regs.h"

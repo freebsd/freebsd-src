@@ -4,7 +4,7 @@
 # License as specified in the README file that comes with the man 1.0
 # distribution.
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/Makefile,v 1.6.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 SUBDIR = lib man manpath apropos

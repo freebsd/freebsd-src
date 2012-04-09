@@ -6,7 +6,7 @@
  * A netmap client to bridge two network interfaces
  * (or one interface and the host stack).
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/netmap/bridge.c,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <errno.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/des/spr.h,v 1.4.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $	*/
 /*	$KAME: spr.h,v 1.4 2001/09/10 04:03:58 itojun Exp $	*/
 
 /* crypto/des/spr.h */

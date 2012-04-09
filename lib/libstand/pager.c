@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/pager.c,v 1.6.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "stand.h"
 #include <string.h>

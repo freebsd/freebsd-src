@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/gen/infinity.c,v 1.7.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/endian.h>
 #include <math.h>

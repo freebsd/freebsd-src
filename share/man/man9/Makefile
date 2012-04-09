@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/man/man9/Makefile,v 1.357.2.26.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 MAN=	accept_filter.9 \
 	accf_data.9 \

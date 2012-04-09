@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/Makefile,v 1.81.2.2.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 .include <bsd.own.mk>
 

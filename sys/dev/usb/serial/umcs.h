@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/serial/umcs.h,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*-
  * Copyright (c) 2010 Lev Serebryakov <lev@FreeBSD.org>.
  * All rights reserved.

@@ -66,7 +66,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/makefs/ffs.c,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/param.h>
 

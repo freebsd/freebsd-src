@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/amd64/include/intr_machdep.h,v 1.24.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef __MACHINE_INTR_MACHDEP_H__

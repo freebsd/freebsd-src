@@ -16,7 +16,7 @@
  * current head of a module, or between two releases.  Can specify the
  * release as either a date or a revision number.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/patch.c,v 1.3.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <assert.h>

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/nss/test-getusershell.c,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <assert.h>
 #include <errno.h>

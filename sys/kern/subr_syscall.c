@@ -41,7 +41,7 @@
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_syscall.c,v 1.2.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/ktr.h>
 #ifdef KTRACE

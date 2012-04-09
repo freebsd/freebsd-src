@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_KVM,v 1.2.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 Set to not build the
 .Nm libkvm
 library as a part of the base system.

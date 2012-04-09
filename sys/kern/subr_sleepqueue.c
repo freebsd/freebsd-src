@@ -60,7 +60,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_sleepqueue.c,v 1.64.2.3.6.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_sleepqueue_profiling.h"
 #include "opt_ddb.h"

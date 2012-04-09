@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/pfctl/missing/altq/altq_rmclass_debug.h,v 1.1.30.1.8.1 2012/03/03 06:15:13 kensmith Exp $	*/
 /*	$KAME: altq_rmclass_debug.h,v 1.3 2002/11/29 04:36:24 kjc Exp $	*/
 
 /*

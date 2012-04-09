@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/talkd/Makefile,v 1.9.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	ntalkd
 SRCS=	talkd.c announce.c process.c table.c print.c ttymsg.c

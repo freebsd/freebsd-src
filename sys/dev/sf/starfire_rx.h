@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sf/starfire_rx.h,v 1.1.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  *   MODULE: GFP_RX.H
  *

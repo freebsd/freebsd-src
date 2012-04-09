@@ -1,5 +1,5 @@
 /* $OpenBSD: channels.h,v 1.103 2010/01/26 01:28:35 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/channels.h,v 1.18.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

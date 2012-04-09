@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/nanobsd/gateworks/avila,v 1.2.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 NANO_NAME="avila-HEAD"
 NANO_SRC=`pwd | sed 's/.tools.tools.nanobsd.*//'`

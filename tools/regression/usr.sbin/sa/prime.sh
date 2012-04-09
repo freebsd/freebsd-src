@@ -3,7 +3,7 @@
 # Configure and run this script to create the files for regression testing
 # for a new architecture/configuration.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.sbin/sa/prime.sh,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 # Set this to the path of the current sa command

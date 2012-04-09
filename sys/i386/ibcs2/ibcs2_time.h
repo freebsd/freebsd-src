@@ -1,5 +1,5 @@
 /*	$NetBSD: ibcs2_time.h,v 1.2 1994/10/26 02:53:08 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/ibcs2/ibcs2_time.h,v 1.3.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1994 Scott Bartram

@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/locore.s,v 1.190.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *

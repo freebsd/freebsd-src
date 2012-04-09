@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/compat/opensolaris/kern/opensolaris_cmn_err.c,v 1.1.4.3.2.1 2012/03/03 06:15:13 kensmith Exp $
  *
  */
 

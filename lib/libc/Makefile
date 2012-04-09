@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/Makefile,v 1.78.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 SHLIBDIR?= /lib
 

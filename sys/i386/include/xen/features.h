@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2006, Ian Campbell
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/xen/features.h,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef __ASM_XEN_FEATURES_H__

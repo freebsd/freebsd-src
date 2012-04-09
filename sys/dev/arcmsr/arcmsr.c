@@ -73,7 +73,7 @@
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/arcmsr/arcmsr.c,v 1.31.2.9.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #if 0
 #define ARCMSR_DEBUG1			1

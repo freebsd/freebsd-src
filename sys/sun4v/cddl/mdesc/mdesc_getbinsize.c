@@ -17,7 +17,7 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/cddl/mdesc/mdesc_getbinsize.c,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

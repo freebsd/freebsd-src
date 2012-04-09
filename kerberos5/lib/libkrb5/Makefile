@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libkrb5/Makefile,v 1.21.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 LIB=	krb5
 VERSION_MAP= ${KRB5DIR}/lib/krb5/version-script.map

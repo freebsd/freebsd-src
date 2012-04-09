@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- * $FreeBSD$
+ * $FreeBSD: src/include/stdio.h,v 1.79.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	_STDIO_H_

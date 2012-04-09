@@ -38,7 +38,7 @@
  * see ``http://www.vix.com/isc''.  To learn more about Vixie
  * Enterprises, see ``http://www.vix.com''.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/dhclient/dhcpd.h,v 1.1.1.1.22.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <sys/param.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_thr.c,v 1.75.2.12.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_compat.h"
 #include "opt_posix.h"

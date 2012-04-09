@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/sys/Symbol.map,v 1.28.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

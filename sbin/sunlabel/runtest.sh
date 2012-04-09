@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sbin/sunlabel/runtest.sh,v 1.3.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 TMP=/tmp/$$.
 set -e

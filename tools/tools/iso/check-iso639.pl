@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/iso/check-iso639.pl,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # This script compares the file iso639 (from head/share/misc) with the file
 # ISO-639-2_8859-1.txt (from

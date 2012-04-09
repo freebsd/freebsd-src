@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/tx/if_txreg.h,v 1.14.32.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #define	EPIC_MAX_MTU		1600	/* This is experiment-derived value */

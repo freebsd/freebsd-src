@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/xlint/lint1/lint1.h,v 1.3.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "lint.h"
 #include "op.h"

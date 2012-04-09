@@ -34,7 +34,7 @@ char copyright[] =
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/main.c,v 2.64 96/05/25 20:42:42 vern Exp $ */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/lex/main.c,v 1.8.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 
 #include "flexdef.h"

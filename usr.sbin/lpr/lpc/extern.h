@@ -33,7 +33,7 @@
  *
  *      @(#)extern.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/lpr/lpc/extern.h,v 1.12.32.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 

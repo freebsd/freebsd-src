@@ -2,7 +2,7 @@
 #
 # Configure routing and miscellaneous network tunables
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/routing,v 1.146.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 # PROVIDE: routing

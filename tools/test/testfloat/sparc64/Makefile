@@ -21,7 +21,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/test/testfloat/sparc64/Makefile,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../../lib/libc/softfloat/bits64 ${.CURDIR}/..
 

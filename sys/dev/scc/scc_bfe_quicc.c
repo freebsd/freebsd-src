@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/scc/scc_bfe_quicc.c,v 1.2.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #define	__RMAN_RESOURCE_VISIBLE
 

@@ -1,7 +1,7 @@
 /*-
  * Test 0082:	Check conditional jump ranges.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0082.h,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /* BPF program */

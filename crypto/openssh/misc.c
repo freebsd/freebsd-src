@@ -1,5 +1,5 @@
 /* $OpenBSD: misc.c,v 1.75 2010/01/09 23:04:13 dtucker Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/misc.c,v 1.3.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.

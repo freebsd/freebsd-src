@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/elf_trampoline.c,v 1.25.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 #include <machine/asm.h>
 #include <sys/param.h>
 #include <sys/elf32.h>

@@ -15,7 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/ath_hal/ah_eeprom_v4k.c,v 1.1.2.3.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #include "opt_ah.h"
 

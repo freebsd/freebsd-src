@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: bcmfw.c,v 1.4 2003/04/27 19:28:09 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/bcmfw/bcmfw.c,v 1.3.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  *
  * Based on Linux BlueZ BlueFW-0.9 package
  *

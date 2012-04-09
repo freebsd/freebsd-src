@@ -1,7 +1,7 @@
 /*-
  * Test 0018:	BPF_JMP+BPF_JEQ+BPF_K
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0018.h,v 1.2.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /* BPF program */

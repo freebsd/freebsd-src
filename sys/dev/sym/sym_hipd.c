@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sym/sym_hipd.c,v 1.72.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #define SYM_DRIVER_NAME	"sym-1.6.5-20000902"
 

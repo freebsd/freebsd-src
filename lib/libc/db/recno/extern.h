@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 6/4/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/recno/extern.h,v 1.3.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include "../btree/extern.h"

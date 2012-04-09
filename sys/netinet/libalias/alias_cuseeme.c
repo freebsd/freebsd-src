@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/libalias/alias_cuseeme.c,v 1.14.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #ifdef _KERNEL
 #include <sys/param.h>

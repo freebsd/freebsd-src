@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/builtins/eval3.0,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 eval 'false;' && exit 1
 eval 'true;' || exit 1

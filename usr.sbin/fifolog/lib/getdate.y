@@ -12,7 +12,7 @@
 **  Picked up from CVS and slightly cleaned up by to WARNS=5 level by
 **  Poul-Henning Kamp <phk@FreeBSD.org>
 **
-** $FreeBSD$
+** $FreeBSD: src/usr.sbin/fifolog/lib/getdate.y,v 1.1.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 */
 
 #include <stdio.h>

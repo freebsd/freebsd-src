@@ -1,5 +1,5 @@
 /* $OpenBSD: sftp.c,v 1.123 2010/01/27 19:21:39 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/sftp.c,v 1.3.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *

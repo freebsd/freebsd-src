@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/execution/set-x1.0,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 key='must_contain_this'
 { r=`set -x; { : "$key"; } 2>&1 >/dev/null`; } 2>/dev/null

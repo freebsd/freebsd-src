@@ -31,7 +31,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/netmap_user.h,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  * $Id: netmap_user.h 9495 2011-10-18 15:28:23Z luigi $
  *
  * This header contains the macros used to manipulate netmap structures

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/csh.login,v 1.21.30.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # System-wide .login file for csh(1).
 # Uncomment this to give you the default 4.2 behavior, where disk

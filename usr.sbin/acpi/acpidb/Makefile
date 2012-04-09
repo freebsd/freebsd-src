@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/acpi/acpidb/Makefile,v 1.10.2.4.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	acpidb
 SRCS=	acpidb.c

@@ -1,7 +1,7 @@
 /*-
  * Test 0080:	Check uninitialized scratch memory (only for JIT compiler).
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0080.h,v 1.3.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /* BPF program */

@@ -1,5 +1,5 @@
 /* $OpenBSD: buffer.h,v 1.19 2010/02/09 03:56:28 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/buffer.h,v 1.2.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

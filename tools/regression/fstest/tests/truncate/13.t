@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/truncate/13.t,v 1.2.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 desc="truncate returns EINVAL if the length argument was less than 0"
 

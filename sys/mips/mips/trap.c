@@ -39,7 +39,7 @@
  *	JNPR: trap.c,v 1.13.2.2 2007/08/29 10:03:49 girish
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/mips/trap.c,v 1.3.2.4.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include "opt_global.h"

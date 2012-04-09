@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: hccontrol.c,v 1.5 2003/09/05 00:38:24 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/hccontrol/hccontrol.c,v 1.5.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <bluetooth.h>

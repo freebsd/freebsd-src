@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth_unix.h 1.8 88/02/08 SMI
  *	from: @(#)auth_unix.h	2.2 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/include/rpc/auth_unix.h,v 1.11.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

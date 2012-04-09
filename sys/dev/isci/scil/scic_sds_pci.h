@@ -49,7 +49,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/isci/scil/scic_sds_pci.h,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _SCIC_SDS_PCI_H_
 #define _SCIC_SDS_PCI_H_

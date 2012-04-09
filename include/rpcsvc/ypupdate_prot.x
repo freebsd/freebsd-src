@@ -35,7 +35,7 @@
 %/* from @(#)ypupdate_prot.x	1.3 91/03/11 TIRPC 1.0 */
 #ifndef RPC_HDR
 %#include <sys/cdefs.h>
-%__FBSDID("$FreeBSD$");
+%__FBSDID("$FreeBSD: src/include/rpcsvc/ypupdate_prot.x,v 1.4.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 %
 %/*

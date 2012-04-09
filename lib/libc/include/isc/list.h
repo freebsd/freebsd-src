@@ -15,7 +15,7 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/include/isc/list.h,v 1.3.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef LIST_H
 #define LIST_H 1

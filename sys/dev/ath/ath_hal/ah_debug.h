@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/ath_hal/ah_debug.h,v 1.1.4.1.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _ATH_AH_DEBUG_H_
 #define _ATH_AH_DEBUG_H_

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/bpf_jit_machdep.c,v 1.14.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #ifdef _KERNEL
 #include "opt_bpf.h"

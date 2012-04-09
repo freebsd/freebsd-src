@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libroken/Makefile,v 1.19.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 LIB=	roken
 INCS=	roken.h roken-common.h

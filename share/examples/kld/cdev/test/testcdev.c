@@ -68,7 +68,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/kld/cdev/test/testcdev.c,v 1.5.32.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <stdio.h>

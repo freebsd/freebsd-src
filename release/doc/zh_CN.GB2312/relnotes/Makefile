@@ -1,7 +1,7 @@
 # The FreeBSD Simplified Chinese Project
 # Original Revision: 164989
 #
-# $FreeBSD$
+# $FreeBSD: src/release/doc/zh_CN.GB2312/relnotes/Makefile,v 1.4.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 RELN_ROOT?= ${.CURDIR}/../..
 

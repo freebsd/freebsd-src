@@ -28,7 +28,7 @@
 # SUCH DAMAGE.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/cdboot/cdboot.s,v 1.4.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 #
 # Basically, we first create a set of boot arguments to pass to the loaded

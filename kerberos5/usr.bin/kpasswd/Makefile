@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/usr.bin/kpasswd/Makefile,v 1.15.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	kpasswd
 CFLAGS+=-I${KRB5DIR}/lib/roken

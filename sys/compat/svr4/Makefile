@@ -1,6 +1,6 @@
 # Makefile for syscall tables
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/compat/svr4/Makefile,v 1.8.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 all:
 	@echo "make sysent only"

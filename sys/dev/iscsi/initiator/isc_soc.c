@@ -28,7 +28,7 @@
  | $Id: isc_soc.c 998 2009-12-20 10:32:45Z danny $
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iscsi/initiator/isc_soc.c,v 1.6.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_iscsi_initiator.h"
 

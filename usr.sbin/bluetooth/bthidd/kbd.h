@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: kbd.h,v 1.3 2006/09/07 21:06:53 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/bthidd/kbd.h,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _KBD_H_

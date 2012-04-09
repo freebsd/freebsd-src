@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/root/dot.cshrc,v 1.30.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # .cshrc - csh resource script, read at beginning of execution by each shell
 #

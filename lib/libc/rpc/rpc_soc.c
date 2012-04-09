@@ -42,7 +42,7 @@
 static char sccsid[] = "@(#)rpc_soc.c 1.41 89/05/02 Copyr 1988 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/rpc_soc.c,v 1.15.10.2.6.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #ifdef PORTMAP
 /*

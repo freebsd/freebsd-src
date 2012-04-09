@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/ntfs/ntfs_subr.h,v 1.14.10.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #define	VA_LOADED		0x0001

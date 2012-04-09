@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/taskqueue.h,v 1.20.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SYS_TASKQUEUE_H_

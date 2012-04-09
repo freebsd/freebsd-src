@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/m4/regress.sh,v 1.4.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 # Go into the regression test directory, handed to us by make(1)
 TESTDIR=$1

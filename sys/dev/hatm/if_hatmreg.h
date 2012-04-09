@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hatm/if_hatmreg.h,v 1.2.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  *
  * Fore HE driver for NATM
  */

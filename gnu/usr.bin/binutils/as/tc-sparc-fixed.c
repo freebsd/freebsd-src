@@ -19,7 +19,7 @@
    to the Free Software Foundation, 51 Franklin Street - Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/as/tc-sparc-fixed.c,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #include <stdio.h>
 

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libelf/libelf_data.c,v 1.4.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <libelf.h>
 #include <osreldate.h>

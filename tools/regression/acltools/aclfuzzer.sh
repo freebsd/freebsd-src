@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/acltools/aclfuzzer.sh,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 # This is an NFSv4 ACL fuzzer.  It expects to be run by non-root in a scratch

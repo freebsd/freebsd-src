@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/cddl/compat/opensolaris/include/mnttab.h,v 1.4.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef	_OPENSOLARIS_MNTTAB_H_
 #define	_OPENSOLARIS_MNTTAB_H_

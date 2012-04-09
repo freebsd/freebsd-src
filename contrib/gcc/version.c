@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/version.c,v 1.16.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 #include "version.h"
 
 /* This is the trailing component of the string reported as the

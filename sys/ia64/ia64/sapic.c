@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/sapic.c,v 1.15.2.3.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include "opt_ddb.h"

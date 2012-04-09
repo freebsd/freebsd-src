@@ -1,6 +1,6 @@
 /*
  * $NetBSD: rpcb_stat.c,v 1.2 2000/07/04 20:27:40 matt Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rpcbind/rpcb_stat.c,v 1.4.32.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for

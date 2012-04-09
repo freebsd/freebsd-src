@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/lpc/cmdtab.c,v 1.11.32.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "lpc.h"
 #include "extern.h"

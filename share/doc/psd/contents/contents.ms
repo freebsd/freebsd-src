@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)00.contents	8.1 (Berkeley) 6/8/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/contents/contents.ms,v 1.6.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 .\"
 .OH '''PSD Contents'
 .EH 'PSD Contents'''

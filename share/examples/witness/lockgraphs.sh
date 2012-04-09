@@ -3,7 +3,7 @@
 #
 # lockgraphs.sh by Michele Dallachiesa -- 2008-05-07 -- v0.1
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/witness/lockgraphs.sh,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 ################################################################################
 

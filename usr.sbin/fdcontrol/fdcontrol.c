@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/fdcontrol/fdcontrol.c,v 1.15.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/fdcio.h>
 #include <sys/file.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/sndstat.h,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SND_SNDSTAT_H_

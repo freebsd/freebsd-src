@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/uucplock.c,v 1.17.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #ifndef lint
 static const char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";

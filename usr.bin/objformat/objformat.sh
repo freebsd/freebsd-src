@@ -1,5 +1,5 @@
 #! /bin/sh
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/objformat/objformat.sh,v 1.1.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 # /usr/bin/objformat has been obsolete and deprecated for years.
 # Please remove any build/configure script references.  New software
 # should only have to only support elf on FreeBSD.

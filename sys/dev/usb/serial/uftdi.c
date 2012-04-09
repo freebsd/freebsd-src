@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/serial/uftdi.c,v 1.12.2.21.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * NOTE: all function names beginning like "uftdi_cfg_" can only

@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __FreeBSD__
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net80211/ieee80211_tdma.c,v 1.16.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 
 /*

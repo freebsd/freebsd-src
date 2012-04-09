@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_vfsops.c,v 1.52.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_quota.h"
 #include "opt_ufs.h"

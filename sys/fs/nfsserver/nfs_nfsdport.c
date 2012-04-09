@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/nfsserver/nfs_nfsdport.c,v 1.15.2.44.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Functions that perform the vfs operations required by the routines in

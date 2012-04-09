@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)fgetln.c	8.2 (Berkeley) 1/2/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fgetln.c,v 1.11.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "namespace.h"
 #include <stdio.h>

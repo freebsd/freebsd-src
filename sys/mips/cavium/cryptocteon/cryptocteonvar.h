@@ -26,7 +26,7 @@
  * and/or fitness for purpose.
  * ---------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/cavium/cryptocteon/cryptocteonvar.h,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	_MIPS_CAVIUM_CRYPTOCTEON_CRYPTOCTEONVAR_H_

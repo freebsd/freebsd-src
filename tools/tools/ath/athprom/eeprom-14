@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/ath/athprom/eeprom-14,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # v14 format EEPROM template (AR5416 and later 11n parts)
 #

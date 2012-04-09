@@ -24,7 +24,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/netmap/if_re_netmap.h,v 1.6.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  * $Id: if_re_netmap.h 10075 2011-12-25 22:55:48Z luigi $
  *
  * netmap support for if_re

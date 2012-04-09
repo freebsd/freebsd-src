@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/screen.c,v 1.11.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Copyright (C) 1984-2011  Mark Nudelman
  *

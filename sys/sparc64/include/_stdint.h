@@ -27,7 +27,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/_stdint.h,v 1.2.30.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	_MACHINE__STDINT_H_

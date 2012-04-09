@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/conf/ldscript.mips.octeon1.32,v 1.3.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 TARGET(elf32-tradbigmips)
 OUTPUT_FORMAT("elf32-tradbigmips", "elf32-tradbigmips", "elf32-tradlittlemips")

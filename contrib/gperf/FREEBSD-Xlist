@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/gperf/FREEBSD-Xlist,v 1.2.30.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 */*.dvi
 */*.html
 */*.info

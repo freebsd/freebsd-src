@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/sbin/ifconfig/regdomain.c,v 1.7.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

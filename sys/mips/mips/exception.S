@@ -46,7 +46,7 @@
  *	v 1.1 89/07/10 14:27:41 nelson Exp  SPRITE (DECWRL)
  *	from: @(#)locore.s	8.5 (Berkeley) 1/4/94
  *	JNPR: exception.S,v 1.5 2007/01/08 04:58:37 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/mips/exception.S,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

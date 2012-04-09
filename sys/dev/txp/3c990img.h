@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/	
+/*	$FreeBSD: src/sys/dev/txp/3c990img.h,v 1.3.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $	*/	
 
 /*-
  * Copyright 1999-2003 3Com Corporation.  All Rights Reserved.    

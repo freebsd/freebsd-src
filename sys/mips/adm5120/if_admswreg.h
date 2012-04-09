@@ -30,7 +30,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/adm5120/if_admswreg.h,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef	_IF_ADMSWREG_H_
 #define	_IF_ADMSWREG_H_

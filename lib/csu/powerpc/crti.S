@@ -47,4 +47,4 @@ _fini:
 
 
 	.section .rodata
-.ascii "$FreeBSD$\0"
+.ascii "$FreeBSD: src/lib/csu/powerpc/crti.S,v 1.2.28.1.8.1 2012/03/03 06:15:13 kensmith Exp $\0"

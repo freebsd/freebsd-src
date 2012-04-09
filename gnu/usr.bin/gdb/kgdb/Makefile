@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/kgdb/Makefile,v 1.7.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	kgdb${GDB_SUFFIX}
 SRCS=	main.c kld.c kthr.c trgt.c trgt_${TARGET_ARCH}.c

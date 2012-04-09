@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/tar/test/Makefile,v 1.7.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
 

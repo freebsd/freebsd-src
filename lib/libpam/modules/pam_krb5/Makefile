@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_krb5/Makefile,v 1.16.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 LIB=	pam_krb5
 SRCS=	pam_krb5.c

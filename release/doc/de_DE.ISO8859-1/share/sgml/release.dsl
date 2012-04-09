@@ -1,5 +1,5 @@
 <!--
-	$FreeBSD$
+	$FreeBSD: src/release/doc/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.7.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.9 2003/05/24 22:43:52 ue Exp $
 	basiert auf: 1.7
 -->

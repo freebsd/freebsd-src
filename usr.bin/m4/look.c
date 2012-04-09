@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/m4/look.c,v 1.7.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * look.c

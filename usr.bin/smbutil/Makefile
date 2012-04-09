@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/smbutil/Makefile,v 1.2.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	smbutil
 SRCS=	smbutil.c dumptree.c login.c lookup.c view.c print.c

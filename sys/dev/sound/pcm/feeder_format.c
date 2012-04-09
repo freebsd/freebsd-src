@@ -42,7 +42,7 @@
 #define SND_USE_FXDIV
 #include "snd_fxdiv_gen.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_format.c,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 
 #define FEEDFORMAT_RESERVOIR	(SND_CHN_MAX * PCM_32_BPS)

@@ -1,5 +1,5 @@
 # PAM module for SSH
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_ssh/Makefile,v 1.25.10.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 SSHDIR=	${.CURDIR}/../../../../crypto/openssh
 

@@ -32,7 +32,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/nullfs/null_vfsops.c,v 1.90.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

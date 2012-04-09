@@ -1,7 +1,7 @@
 #
 # DEFAULTS -- Default kernel configuration file for FreeBSD/sun4v
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sun4v/conf/DEFAULTS,v 1.8.2.4.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 machine		sun4v sparc64
 

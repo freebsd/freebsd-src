@@ -3,7 +3,7 @@
  * Public domain.
  *
  *	$NetBSD: search.h,v 1.12 1999/02/22 10:34:28 christos Exp $
- * $FreeBSD$
+ * $FreeBSD: src/include/search.h,v 1.10.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SEARCH_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/regress.sh,v 1.3.10.2.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 if [ -z "${SH}" ]; then
 	echo '${SH} is not set, please correct and re-run.'

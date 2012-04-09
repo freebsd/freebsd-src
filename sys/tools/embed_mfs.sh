@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$ 
+# $FreeBSD: src/sys/tools/embed_mfs.sh,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $ 
 #
 # Embed the MFS image into the kernel body (expects space reserved via 
 # MD_ROOT_SIZE)

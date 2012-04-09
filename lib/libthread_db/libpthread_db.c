@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libthread_db/libpthread_db.c,v 1.20.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <stddef.h>
 #include <stdlib.h>

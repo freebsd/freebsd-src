@@ -23,7 +23,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/kgzip/kgzcmp.c,v 1.12.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #define	_KERNEL

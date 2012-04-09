@@ -1,7 +1,7 @@
 /*-
  * Test 0022:	BPF_JMP+BPF_JEQ+BPF_X
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0022.h,v 1.2.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /* BPF program */

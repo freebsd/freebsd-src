@@ -1,7 +1,7 @@
 /*
  * lifted from fs/ncpfs/getopt.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/krping/getopt.h,v 1.1.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _KRPING_GETOPT_H
 #define _KRPING_GETOPT_H

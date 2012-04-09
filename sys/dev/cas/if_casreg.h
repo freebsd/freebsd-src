@@ -27,7 +27,7 @@
  *	from: NetBSD: gemreg.h,v 1.8 2005/12/11 12:21:26 christos Exp
  *	from: FreeBSD: if_gemreg.h 174987 2007-12-30 01:32:03Z marius
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cas/if_casreg.h,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	_IF_CASREG_H

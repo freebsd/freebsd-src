@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/machfb.c,v 1.8.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Driver for ATI Mach64 graphics chips.  Some code is derived from the

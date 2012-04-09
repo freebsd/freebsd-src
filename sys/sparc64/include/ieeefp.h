@@ -1,7 +1,7 @@
 /*-
  * Written by J.T. Conklin, Apr 6, 1995
  * Public domain.
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/ieeefp.h,v 1.4.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _MACHINE_IEEEFP_H_

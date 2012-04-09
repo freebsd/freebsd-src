@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/top/top.h,v 1.5.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 /*
  *  Top - a top users display for Berkeley Unix

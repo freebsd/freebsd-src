@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/atheros/pcf2123reg.h,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef __PCF2123REG_H__
 #define	__PCF2123REG_H__

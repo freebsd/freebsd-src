@@ -62,7 +62,7 @@
  *	and
  *	from: FreeBSD: src/sys/alpha/include/bus.h,v 1.9 2001/01/09
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/bus_dma.h,v 1.1.22.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SPARC64_BUS_DMA_H

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/eli/g_eli.h,v 1.13.10.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	_G_ELI_H_

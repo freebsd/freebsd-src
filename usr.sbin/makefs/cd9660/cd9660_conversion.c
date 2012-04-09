@@ -34,7 +34,7 @@
 #include "cd9660.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/makefs/cd9660/cd9660_conversion.c,v 1.1.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 static char cd9660_compute_gm_offset(time_t);
 

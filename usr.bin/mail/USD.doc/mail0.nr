@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)mail0.nr	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/usr.bin/mail/USD.doc/mail0.nr,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 .\"
 .eh 'USD:7-%''Mail Reference Manual'
 .oh 'Mail Reference Manual''USD:7-%'

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/storage/ustorage_fs.c,v 1.19.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*-
  * Copyright (C) 2003-2005 Alan Stern
  * Copyright (C) 2008 Hans Petter Selasky

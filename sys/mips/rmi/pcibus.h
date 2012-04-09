@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/rmi/pcibus.h,v 1.3.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #define DEFAULT_PCI_CONFIG_BASE		0x18000000
 #define MSI_MIPS_ADDR_BASE		0xfee00000

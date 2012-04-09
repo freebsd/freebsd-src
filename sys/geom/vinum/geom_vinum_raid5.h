@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/vinum/geom_vinum_raid5.h,v 1.8.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _GEOM_VINUM_RAID5_H_

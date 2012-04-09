@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/in_var.h,v 1.2.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $	*/
 
 /*	@(#)in_var.h 1.3 88/08/19 SMI; from UCB 7.1 6/5/86	*/
 

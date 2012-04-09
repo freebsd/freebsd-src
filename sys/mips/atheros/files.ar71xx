@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/atheros/files.ar71xx,v 1.6.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 mips/atheros/apb.c		standard
 mips/atheros/ar71xx_gpio.c	optional gpio

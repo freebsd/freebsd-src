@@ -46,7 +46,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i8134x/crb_machdep.c,v 1.10.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_mls/mac_mls.c,v 1.113.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

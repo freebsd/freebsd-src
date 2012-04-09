@@ -1,7 +1,7 @@
 /*
  * MD header for contrib/gdtoa
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/sparc64/arith.h,v 1.2.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

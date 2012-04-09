@@ -47,7 +47,7 @@
  *
  *	from: @(#)clnt.h 1.31 94/04/29 SMI
  *	from: @(#)clnt.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/sys/rpc/clnt.h,v 1.3.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

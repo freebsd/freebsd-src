@@ -31,7 +31,7 @@
  * owners.  This software is not copyrighted and is intended for reference
  * only.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/bootspi/main.c,v 1.3.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include "env_vars.h"

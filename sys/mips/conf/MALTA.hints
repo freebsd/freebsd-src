@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/conf/MALTA.hints,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 # device.hints
 # hint.uart.0.at="nexus"
 # hint.uart.0.maddr="0x180003f8"

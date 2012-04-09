@@ -25,7 +25,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/mxge/rss_eth_z8e.h,v 1.6.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $
 ***************************************************************************/
 
 static unsigned int rss_eth_z8e_uncompressed_length = 561364 ;

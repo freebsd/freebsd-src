@@ -1,5 +1,5 @@
 /*	$NetBSD: ehcireg.h,v 1.18 2004/10/22 10:38:17 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/mips/rmi/ehcireg.h,v 1.4.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2001 The NetBSD Foundation, Inc.

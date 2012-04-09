@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hpt27xx/os_bsd.c,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <dev/hpt27xx/hpt27xx_config.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/pfctl/missing/altq/altq_priq.h,v 1.1.30.1.8.1 2012/03/03 06:15:13 kensmith Exp $	*/
 /*	$KAME: altq_priq.h,v 1.5 2003/07/10 12:07:48 kjc Exp $	*/
 /*
  * Copyright (C) 2000-2003

@@ -1,2 +1,2 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITHOUT_INET,v 1.1.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 Set to not build programs and libraries related to IPv4 networking.

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/examples/kld/khelp/README,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 An example Khelp module which uses the helper hook points available in the TCP
 stack to calculate a per-connection count of inbound and outbound packets when

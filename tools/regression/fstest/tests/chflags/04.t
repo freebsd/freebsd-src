@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/chflags/04.t,v 1.2.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 desc="chflags returns ENOENT if the named file does not exist"
 

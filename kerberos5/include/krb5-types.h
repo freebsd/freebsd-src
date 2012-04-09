@@ -1,7 +1,7 @@
 /* krb5-types.h -- this file was generated for i386-unknown-freebsd5.0 by
                    $Id: bits.c,v 1.22 2002/08/28 16:08:44 joda Exp $ */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/kerberos5/include/krb5-types.h,v 1.3.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef __krb5_types_h__
 #define __krb5_types_h__

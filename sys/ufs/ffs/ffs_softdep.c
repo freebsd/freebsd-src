@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_softdep.c,v 1.234.2.3.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_ffs.h"
 #include "opt_ddb.h"

@@ -27,7 +27,7 @@
 
 /*
  * $Id$
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/sched/gs_scheduler.h,v 1.2.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $
  *
  * Prototypes for GEOM-based disk scheduling algorithms.
  * See g_sched.c for generic documentation.

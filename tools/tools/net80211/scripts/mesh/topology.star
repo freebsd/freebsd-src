@@ -3,7 +3,7 @@
 # Script for creating a mesh in star topology.
 # Node 3 will be the center.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/scripts/mesh/topology.star,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 PATH=../:.:$PATH
 . config

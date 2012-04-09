@@ -13,7 +13,7 @@
  * works or modified versions.
  *
  * $Cronyx: ng_cp.h,v 1.1.2.4 2004/01/27 14:39:11 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cp/ng_cp.h,v 1.2.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifdef NETGRAPH

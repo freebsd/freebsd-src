@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_stream.c,v 1.65.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_compat.h"
 #include "opt_ktrace.h"

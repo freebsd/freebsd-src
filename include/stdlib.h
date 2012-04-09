@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdlib.h	8.5 (Berkeley) 5/19/95
- * $FreeBSD$
+ * $FreeBSD: src/include/stdlib.h,v 1.72.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _STDLIB_H_

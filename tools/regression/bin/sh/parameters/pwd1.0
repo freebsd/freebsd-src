@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/parameters/pwd1.0,v 1.1.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
 # Check that bogus PWD values are not accepted from the environment.
 
 cd / || exit 3

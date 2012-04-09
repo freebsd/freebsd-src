@@ -32,7 +32,7 @@
  *
  *	@(#)mips.h	8.1 (Berkeley) 6/6/93
  * From: @(#)sparc.h	5.1 (Berkeley) 7/8/92
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gprof/mips.h,v 1.4.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

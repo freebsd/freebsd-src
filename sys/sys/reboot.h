@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.3 (Berkeley) 12/13/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/reboot.h,v 1.26.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SYS_REBOOT_H_

@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/nfs.h,v 1.5.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  *	@(#)nfsproto.h	8.2 (Berkeley) 3/30/95
  */
 

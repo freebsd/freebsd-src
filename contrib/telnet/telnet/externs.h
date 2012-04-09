@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)externs.h	8.3 (Berkeley) 5/30/95
- *	$FreeBSD$
+ *	$FreeBSD: src/contrib/telnet/telnet/externs.h,v 1.11.10.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	BSD

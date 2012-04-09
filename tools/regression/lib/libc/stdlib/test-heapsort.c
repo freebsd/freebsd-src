@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/lib/libc/stdlib/test-heapsort.c,v 1.2.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <assert.h>
 #include <stdio.h>

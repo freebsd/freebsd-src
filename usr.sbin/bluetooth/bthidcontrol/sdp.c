@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: sdp.c,v 1.3 2004/02/17 22:14:57 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/bthidcontrol/sdp.c,v 1.2.10.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <sys/queue.h>

@@ -31,7 +31,7 @@
 #include "opt_pf.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/contrib/pf/net/pf_norm.c,v 1.19.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #ifdef DEV_PFLOG
 #define	NPFLOG DEV_PFLOG

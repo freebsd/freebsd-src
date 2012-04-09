@@ -1,5 +1,5 @@
 /* $OpenBSD: servconf.c,v 1.204 2010/03/04 10:36:03 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/servconf.c,v 1.51.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/servconf.c,v 1.51.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

@@ -27,7 +27,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/pmbr/pmbr.s,v 1.2.6.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # Partly from: src/sys/boot/i386/mbr/mbr.s 1.7
 

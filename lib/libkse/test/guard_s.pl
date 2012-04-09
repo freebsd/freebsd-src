@@ -27,7 +27,7 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libkse/test/guard_s.pl,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # Test thread stack guard functionality.  The C test program needs to be driven
 # by this script because it segfaults when the stack guard is hit.

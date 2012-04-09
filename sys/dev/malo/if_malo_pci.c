@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __FreeBSD__
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/malo/if_malo_pci.c,v 1.5.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 
 /*

@@ -1,5 +1,5 @@
 /* $OpenBSD: schnorr.c,v 1.3 2009/03/05 07:18:19 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/schnorr.c,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *

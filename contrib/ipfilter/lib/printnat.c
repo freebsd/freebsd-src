@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/printnat.c,v 1.6.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2002-2005 by Darren Reed.

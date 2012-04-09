@@ -1,5 +1,5 @@
 /*	$NetBSD: nsswitch.h,v 1.6 1999/01/26 01:04:07 lukem Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/include/nsswitch.h,v 1.5.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1997, 1998, 1999 The NetBSD Foundation, Inc.

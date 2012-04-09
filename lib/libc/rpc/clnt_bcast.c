@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)clnt_bcast.c 1.15 89/04/21 Copyr 1988 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/clnt_bcast.c,v 1.10.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 
 /*

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sound/pci/cs461x_dsp.h,v 1.1.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*-
  * Copyright (C) 1996-2008, 4Front Technologies
  * All rights reserved.

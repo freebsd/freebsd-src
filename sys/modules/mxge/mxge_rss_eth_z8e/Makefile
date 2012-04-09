@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mxge/mxge_rss_eth_z8e/Makefile,v 1.1.6.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../dev/mxge
 KMOD=	mxge_rss_eth_z8e

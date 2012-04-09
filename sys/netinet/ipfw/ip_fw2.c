@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ipfw/ip_fw2.c,v 1.11.2.22.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * The FreeBSD IP packet firewall, main file

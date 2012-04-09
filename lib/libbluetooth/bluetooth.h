@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: bluetooth.h,v 1.5 2003/09/14 23:28:42 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libbluetooth/bluetooth.h,v 1.5.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _BLUETOOTH_H_

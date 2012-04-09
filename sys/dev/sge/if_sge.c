@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sge/if_sge.c,v 1.3.2.19.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * SiS 190/191 PCI Ethernet NIC driver.

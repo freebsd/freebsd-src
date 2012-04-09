@@ -28,7 +28,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/newvers.sh,v 1.83.2.15.2.4 2012/04/08 05:09:40 kensmith Exp $
 
 TYPE="FreeBSD"
 REVISION="8.3"
@@ -36,7 +36,7 @@ BRANCH="RELEASE"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
-RELEASE="${REVISION}-${BRANCH}"
+RELEASE=8.3-RELEASE
 VERSION="${TYPE} ${RELEASE}"
 SYSDIR=$(dirname $0)/..
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linux/Makefile,v 1.80.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 .if ${MACHINE_ARCH} == "amd64"
 SFX= 32

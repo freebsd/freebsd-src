@@ -1,5 +1,5 @@
 /* $OpenBSD: kex.c,v 1.82 2009/10/24 11:13:54 andreas Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/kex.c,v 1.3.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *

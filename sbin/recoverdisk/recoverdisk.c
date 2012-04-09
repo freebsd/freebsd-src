@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/recoverdisk/recoverdisk.c,v 1.14.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #include <sys/param.h>
 #include <sys/queue.h>

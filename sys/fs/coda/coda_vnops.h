@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  *
  * 	@(#) src/sys/coda/coda_vnops.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/coda/coda_vnops.h,v 1.24.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
   */
 
 /*

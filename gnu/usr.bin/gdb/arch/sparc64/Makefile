@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/sparc64/Makefile,v 1.3.22.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 .if !defined(GDB_CROSS_DEBUGGER)
 LIBSRCS+= fbsd-threads.c

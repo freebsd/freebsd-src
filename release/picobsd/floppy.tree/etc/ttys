@@ -1,7 +1,7 @@
 #
 #	@(#)ttys	5.1 (Berkeley) 4/17/89
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/floppy.tree/etc/ttys,v 1.5.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # name	getty				type	status		comments
 #

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/xz/Makefile,v 1.2.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	xz
 

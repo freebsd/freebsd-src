@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/ixp425/ixp425_pci_space.c,v 1.1.12.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * bus_space PCI functions for ixp425

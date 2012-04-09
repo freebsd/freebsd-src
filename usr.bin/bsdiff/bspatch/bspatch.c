@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/bsdiff/bspatch/bspatch.c,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <bzlib.h>
 #include <stdlib.h>

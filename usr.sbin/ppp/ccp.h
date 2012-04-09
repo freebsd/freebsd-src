@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ccp.h,v 1.31.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #define	CCP_MAXCODE	CODE_RESETACK

@@ -1,5 +1,5 @@
 /* $OpenBSD: ssh.c,v 1.335 2010/02/26 20:29:54 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/ssh.c,v 1.34.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,7 +42,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/ssh.c,v 1.34.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/types.h>
 #ifdef HAVE_SYS_STAT_H

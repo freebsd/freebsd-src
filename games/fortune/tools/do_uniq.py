@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 #
-# $FreeBSD$
+# $FreeBSD: src/games/fortune/tools/do_uniq.py,v 1.1.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # an aggressive little script for trimming duplicate cookies
 

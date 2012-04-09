@@ -193,4 +193,4 @@ Technical support and service
         (http://www.highpoint-tech.com) to check if there is a new or 
         updated device driver for your system.
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/hpt27xx/README,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $

@@ -2,7 +2,7 @@
  * This program, created 2002-10-03 by Garrett A. Wollman
  * <wollman@FreeBSD.org>, is in the public domain.  Use at your own risk.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/find-sb/mini_ufs.h,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /*

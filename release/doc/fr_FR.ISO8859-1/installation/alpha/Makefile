@@ -3,7 +3,7 @@
 #      The FreeBSD French Documentation Project
 #
 #      $Id$
-#      $FreeBSD$
+#      $FreeBSD: src/release/doc/fr_FR.ISO8859-1/installation/alpha/Makefile,v 1.2.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #      Original revision: 1.4
 
 RELN_ROOT?= ${.CURDIR}/../../..

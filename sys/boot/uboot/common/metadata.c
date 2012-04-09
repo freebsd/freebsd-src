@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/uboot/common/metadata.c,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <stand.h>
 #include <sys/param.h>

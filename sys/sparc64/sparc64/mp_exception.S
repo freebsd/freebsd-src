@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/mp_exception.S,v 1.15.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>

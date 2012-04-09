@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/errors/redirection-error5.0,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 # A redirection error on a subshell should not abort the shell.
 exec 2>/dev/null
 ( echo bad ) </var/empty/x

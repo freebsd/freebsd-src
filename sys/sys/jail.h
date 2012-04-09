@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/jail.h,v 1.50.2.4.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _SYS_JAIL_H_

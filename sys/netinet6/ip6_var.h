@@ -58,7 +58,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/ip6_var.h,v 1.55.2.4.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _NETINET6_IP6_VAR_H_

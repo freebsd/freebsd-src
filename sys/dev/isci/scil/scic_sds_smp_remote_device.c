@@ -51,7 +51,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/isci/scil/scic_sds_smp_remote_device.c,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /**
  * @file

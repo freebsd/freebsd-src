@@ -1,5 +1,5 @@
 /* $OpenBSD: readconf.c,v 1.183 2010/02/08 10:50:20 markus Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/readconf.c,v 1.31.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/readconf.c,v 1.31.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

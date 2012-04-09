@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libz/Makefile,v 1.17.22.3.2.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 LIB=		z

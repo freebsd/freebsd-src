@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/zfsboot/Makefile,v 1.2.4.4.2.1 2012/03/03 06:15:13 kensmith Exp $
 
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
 

@@ -29,7 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cxgb/ulp/iw_cxgb/iw_cxgb_user.h,v 1.1.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef __IWCH_USER_H__
 #define __IWCH_USER_H__

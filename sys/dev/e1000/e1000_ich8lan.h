@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/e1000/e1000_ich8lan.h,v 1.4.2.5.2.1 2012/03/03 06:15:13 kensmith Exp $*/
 
 #ifndef _E1000_ICH8LAN_H_
 #define _E1000_ICH8LAN_H_

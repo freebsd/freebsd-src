@@ -16,7 +16,7 @@
 
 #ifndef INLINE_KERNEL_SINDF
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/k_sinf.c,v 1.16.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 
 #include "math.h"

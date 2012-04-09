@@ -32,7 +32,7 @@
  */
 
 /* $Id: hdb_locl.h 22209 2007-12-07 19:03:41Z lha $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/heimdal/lib/hdb/hdb_locl.h,v 1.9.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef __HDB_LOCL_H__
 #define __HDB_LOCL_H__

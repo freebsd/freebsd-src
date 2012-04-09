@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 7/19/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/vis.c,v 1.14.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/types.h>
 #include <limits.h>

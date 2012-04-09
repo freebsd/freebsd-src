@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/tty_pts.c,v 1.35.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_tty.h"
 

@@ -36,7 +36,7 @@
 #include "cd9660_eltorito.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/makefs/cd9660/cd9660_eltorito.c,v 1.5.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #ifdef DEBUG
 #define	ELTORITO_DPRINTF(__x)	printf __x

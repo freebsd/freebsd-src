@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)mystring.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/mystring.c,v 1.13.30.2.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * String functions.

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/cyclic/i386/cyclic_machdep.c,v 1.1.4.4.2.1 2012/03/03 06:15:13 kensmith Exp $
  *
  */
 

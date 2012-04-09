@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/posix1e/acl_support.h,v 1.7.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 /*
  * Support functionality for the POSIX.1e ACL interface

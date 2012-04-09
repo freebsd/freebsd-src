@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/Makefile,v 1.26.2.3.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 .include <bsd.own.mk>
 

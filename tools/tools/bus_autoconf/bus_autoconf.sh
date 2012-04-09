@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/bus_autoconf/bus_autoconf.sh,v 1.4.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
 #

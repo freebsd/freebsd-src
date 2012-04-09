@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/usbdump/usbdump.c,v 1.6.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <sys/param.h>

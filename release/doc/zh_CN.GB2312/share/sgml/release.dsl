@@ -1,5 +1,5 @@
 <!-- Original Revision: 131458 -->
-<!-- $FreeBSD$ -->
+<!-- $FreeBSD: src/release/doc/zh_CN.GB2312/share/sgml/release.dsl,v 1.3.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $ -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY release.dsl PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//EN" CDATA DSSSL>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/ctm/mkCTM/mkctm.c,v 1.13.30.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /* Still missing:
  *
@@ -14,7 +14,7 @@
  *	dir1		"Soll"
  *	dir2		"Ist"
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ctm/mkCTM/mkctm.c,v 1.13.30.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <sys/types.h>

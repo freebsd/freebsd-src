@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/builtins/cd2.0,v 1.1.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $
 set -e
 
 L=$(getconf PATH_MAX / 2>/dev/null) || L=4096

@@ -9,7 +9,7 @@ delim רר
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/timecounter/timecounter.ms,v 1.4.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 .\"
 .if n .ND
 .TI

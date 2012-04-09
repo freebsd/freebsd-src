@@ -1,7 +1,7 @@
 /*-
  * Test 0013:	BPF_ST & BPF_LDX+BPF_MEM
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0013.h,v 1.2.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 /* BPF program */

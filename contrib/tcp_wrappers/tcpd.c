@@ -9,7 +9,7 @@
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/tcpd.c,v 1.2.56.1.8.1 2012/03/03 06:15:13 kensmith Exp $
   */
 
 #ifndef lint

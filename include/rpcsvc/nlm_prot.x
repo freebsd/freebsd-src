@@ -15,7 +15,7 @@
 %/*static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
 %__RCSID("$NetBSD: nlm_prot.x,v 1.6 2000/06/07 14:30:15 bouyer Exp $");
 %#endif /* not lint */
-%__FBSDID("$FreeBSD$");
+%__FBSDID("$FreeBSD: src/include/rpcsvc/nlm_prot.x,v 1.11.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 
 /*

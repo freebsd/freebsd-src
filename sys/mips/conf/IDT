@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/conf/IDT,v 1.8.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 cpu		CPU_MIPS4KC
 ident		RB532

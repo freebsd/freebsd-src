@@ -49,7 +49,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/isci/scil/sci_util.h,v 1.1.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _SCI_UTIL_H_
 #define _SCI_UTIL_H_

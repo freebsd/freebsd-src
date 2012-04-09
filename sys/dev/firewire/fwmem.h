@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/fwmem.h,v 1.8.22.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 struct fw_xfer *fwmem_read_quad(struct fw_device *, caddr_t, uint8_t,

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/agp/agp_i810.c,v 1.51.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_bus.h"
 

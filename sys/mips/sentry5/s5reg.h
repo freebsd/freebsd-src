@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/sentry5/s5reg.h,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef _MIPS32_SENTRY5_SENTRY5REG_H_
 #define _MIPS32_SENTRY5_SENTRY5REG_H_

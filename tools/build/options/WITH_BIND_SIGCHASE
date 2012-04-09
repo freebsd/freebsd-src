@@ -1,2 +1,2 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/tools/build/options/WITH_BIND_SIGCHASE,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 Set to enable DNSSEC validation support for dig, host, and nslookup.

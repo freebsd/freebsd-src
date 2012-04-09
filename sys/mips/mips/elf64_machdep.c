@@ -28,7 +28,7 @@
 #define __ELF_WORD_SIZE 64
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/mips/elf64_machdep.c,v 1.3.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

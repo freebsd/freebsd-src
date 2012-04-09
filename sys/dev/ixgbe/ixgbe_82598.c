@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgbe/ixgbe_82598.c,v 1.8.2.4.2.1 2012/03/03 06:15:13 kensmith Exp $*/
 
 #include "ixgbe_type.h"
 #include "ixgbe_82598.h"

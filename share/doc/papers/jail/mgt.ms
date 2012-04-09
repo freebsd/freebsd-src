@@ -1,5 +1,5 @@
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/jail/mgt.ms,v 1.3.36.2.4.1 2012/03/03 06:15:13 kensmith Exp $
 .\"
 .NH
 Managing Jails and the Jail File System Environment

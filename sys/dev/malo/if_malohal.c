@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 #ifdef __FreeBSD__
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/malo/if_malohal.c,v 1.4.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 
 #include <sys/param.h>

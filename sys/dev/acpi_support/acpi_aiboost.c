@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpi_support/acpi_aiboost.c,v 1.4.2.2.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_acpi.h"
 #include <sys/param.h>

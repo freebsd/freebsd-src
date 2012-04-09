@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/netinet/ipfw/test/Makefile,v 1.2.2.3.6.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # Makefile for building userland tests
 # this is written in a form compatible with gmake

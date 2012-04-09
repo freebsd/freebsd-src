@@ -27,7 +27,7 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/xen/xenbus/xenbusb_if.m,v 1.1.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 #include <sys/bus.h>

@@ -25,7 +25,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cxgb/ulp/tom/cxgb_tcp.h,v 1.2.4.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef CXGB_TCP_H_
 #define CXGB_TCP_H_

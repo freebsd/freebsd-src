@@ -1,7 +1,7 @@
 #
 # XEN -- Kernel configuration for i386 XEN DomU
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/XEN,v 1.9.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 cpu		I686_CPU
 ident		XEN

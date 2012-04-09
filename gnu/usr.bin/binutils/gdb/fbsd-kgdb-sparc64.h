@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/fbsd-kgdb-sparc64.h,v 1.2.30.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef FBSD_KGDB_SPARC64_H
 #define FBSD_KGDB_SPARC64_H

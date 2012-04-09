@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/libarchive/libarchive/archive_write.c,v 1.3.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * This file contains the "essential" portions of the write API, that

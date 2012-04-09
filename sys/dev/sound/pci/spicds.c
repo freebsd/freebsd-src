@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pci/spicds.c,v 1.8.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS

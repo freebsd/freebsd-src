@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/mv/kirkwood/std.sheevaplug,v 1.1.2.2.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 include	"../mv/std.mv"
 include "../mv/kirkwood/std.kirkwood"

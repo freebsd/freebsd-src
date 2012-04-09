@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iicbus/iicsmb.c,v 1.18.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * I2C to SMB bridge

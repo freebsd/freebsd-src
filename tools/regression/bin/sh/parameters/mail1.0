@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/parameters/mail1.0,v 1.1.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
 # Test that a non-interactive shell does not access $MAIL.
 
 goodfile=/var/empty/sh-test-goodfile

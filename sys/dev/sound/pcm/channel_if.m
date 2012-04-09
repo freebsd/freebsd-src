@@ -27,7 +27,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/sound/pcm/channel_if.m,v 1.8.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 #include <dev/sound/pcm/sound.h>

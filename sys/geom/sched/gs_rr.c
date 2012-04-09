@@ -27,7 +27,7 @@
 
 /*
  * $Id$
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/sched/gs_rr.c,v 1.2.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  *
  * A round-robin (RR) anticipatory scheduler, with per-client queues.
  *

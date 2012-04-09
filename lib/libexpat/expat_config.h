@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libexpat/expat_config.h,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #include <machine/endian.h>
 

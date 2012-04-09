@@ -35,7 +35,7 @@
  * For any questions regarding licensing please contact marketing@caviumnetworks.com
  *
  ***********************license end**************************************/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/mips/cavium/octopcireg.h,v 1.2.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #ifndef	_CAVIUM_OCTOPCIREG_H_
 #define	_CAVIUM_OCTOPCIREG_H_

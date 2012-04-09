@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)i386.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gprof/ia64.h,v 1.2.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
     /*

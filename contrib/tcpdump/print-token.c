@@ -23,7 +23,7 @@
  * Further tweaked to more closely resemble print-fddi.c
  *	Guy Harris <guy@alum.mit.edu>
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-token.c,v 1.10.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef lint
 static const char rcsid[] _U_ =

@@ -36,7 +36,7 @@
  * TODO: Move this into a separate configuration header, have all test
  * suites share one copy of this file.
  */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/libarchive/cpio/test/main.c,v 1.2.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $");
 #define KNOWNREF	"test_option_f.cpio.uu"
 #define ENVBASE "BSDCPIO" /* Prefix for environment variables. */
 #define	PROGRAM "bsdcpio" /* Name of program being tested. */

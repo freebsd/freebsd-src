@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libproc/test/t3-name2sym/Makefile,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	t3-name2sym
 

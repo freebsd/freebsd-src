@@ -45,7 +45,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* Based on $FreeBSD$ */
+/* Based on $FreeBSD: src/crypto/openssh/auth-pam.c,v 1.22.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $ */
 #include "includes.h"
 
 #include <sys/types.h>

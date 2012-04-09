@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/e_log2.c,v 1.2.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Return the base 2 logarithm of x. See k_log.c for details on the algorithm.

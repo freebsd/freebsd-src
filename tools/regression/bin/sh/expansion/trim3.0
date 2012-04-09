@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/expansion/trim3.0,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 e= q='?' a='*' t=texttext s='ast*que?non' p='/et[c]/' w='a b c' b='{{(#)}}'
 h='##' c='\\\\'

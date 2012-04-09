@@ -27,7 +27,7 @@
 /*
  * Userland code for testing binary heaps and hash tables
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ipfw/test/test_dn_heap.c,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #include <sys/cdefs.h>

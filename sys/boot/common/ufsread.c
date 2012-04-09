@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/ufsread.c,v 1.19.2.5.2.2 2012/03/14 13:08:16 marius Exp $");
 
 #include <sys/endian.h>
 

@@ -17,7 +17,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/spi_flash.h,v 1.2.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  ******************************************************************************/
 
 #ifndef _SPI_FLASH_H_

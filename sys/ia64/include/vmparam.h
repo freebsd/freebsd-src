@@ -35,7 +35,7 @@
  *
  *	@(#)vmparam.h	8.2 (Berkeley) 4/22/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/vmparam.h,v 1.19.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef	_MACHINE_VMPARAM_H_

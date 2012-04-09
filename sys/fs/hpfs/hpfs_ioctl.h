@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/hpfs/hpfs_ioctl.h,v 1.1.56.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _HPFS_IOCTL_H_

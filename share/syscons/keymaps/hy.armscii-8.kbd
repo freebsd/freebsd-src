@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/hy.armscii-8.kbd,v 1.1.32.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 # FreeBSD Armenian Phonetic keyboard layout
 # by Vahe Khachikyan <vahe@khachikyan.de>

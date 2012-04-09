@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_mountcommon.h,v 1.2.2.3.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _NFS_MOUNTCOMMON_H_

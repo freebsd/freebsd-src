@@ -1,5 +1,5 @@
 /* $OpenBSD: compat.h,v 1.42 2008/09/11 14:22:37 markus Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/compat.h,v 1.16.2.1.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.

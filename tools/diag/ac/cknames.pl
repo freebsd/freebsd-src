@@ -30,7 +30,7 @@
 #
 # NOTE: This script is supposed to run at freefall.freebsd.org *only*
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/diag/ac/cknames.pl,v 1.4.32.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 #
 
 $debug = 0;

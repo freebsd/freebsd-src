@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_llc.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_llc.h,v 1.13.10.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef _NET_IF_LLC_H_

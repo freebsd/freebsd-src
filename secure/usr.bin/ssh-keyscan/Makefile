@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/ssh-keyscan/Makefile,v 1.11.10.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c roaming_dummy.c

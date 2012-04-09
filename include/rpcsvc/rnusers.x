@@ -37,7 +37,7 @@
 %/*static char sccsid[] = "from: @(#)rnusers.x	2.1 88/08/01 4.0 RPCSRC";*/
 %#endif /* not lint */
 %#include <sys/cdefs.h>
-%__FBSDID("$FreeBSD$");
+%__FBSDID("$FreeBSD: src/include/rpcsvc/rnusers.x,v 1.7.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 #endif
 
 const MAXUSERS = 100;

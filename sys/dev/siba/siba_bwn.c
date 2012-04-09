@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/siba/siba_bwn.c,v 1.4.2.8.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Sonics Silicon Backplane front-end for bwn(4).

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * RMI_BSD
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/rmi/rmi_boot_info.h,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _SHARED_STRUCTS_H
 #define _SHARED_STRUCTS_H

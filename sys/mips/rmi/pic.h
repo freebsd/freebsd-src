@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * RMI_BSD
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/rmi/pic.h,v 1.12.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _RMI_PIC_H_
 #define	_RMI_PIC_H_

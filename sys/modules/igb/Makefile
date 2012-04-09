@@ -1,4 +1,4 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/modules/igb/Makefile,v 1.6.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
 .PATH:  ${.CURDIR}/../../dev/e1000
 KMOD    = if_igb
 SRCS    = device_if.h bus_if.h pci_if.h opt_inet.h

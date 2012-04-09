@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: sdpcontrol.h,v 1.1 2003/09/08 02:27:27 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpcontrol/sdpcontrol.h,v 1.1.32.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 
 #ifndef __SDPCONTROL_H__

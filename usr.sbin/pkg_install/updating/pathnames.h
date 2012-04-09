@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.          Beat Gätzi
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pkg_install/updating/pathnames.h,v 1.2.6.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  *
  */
 

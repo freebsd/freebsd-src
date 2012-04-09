@@ -1,5 +1,5 @@
 /* $OpenBSD: packet.c,v 1.166 2009/06/27 09:29:06 andreas Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/packet.c,v 1.3.2.2.2.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland

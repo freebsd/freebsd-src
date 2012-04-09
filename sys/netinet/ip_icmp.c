@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_icmp.c,v 1.138.2.4.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include "opt_ipsec.h"
 

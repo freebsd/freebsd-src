@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ypserv/yp_dblookup.c,v 1.25.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <db.h>
 #include <errno.h>

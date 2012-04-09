@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mn/if_mn.c,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Stuff to describe the MUNIC32X and FALC54 chips.

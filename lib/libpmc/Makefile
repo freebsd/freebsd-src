@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpmc/Makefile,v 1.12.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
 
 LIB=	pmc
 

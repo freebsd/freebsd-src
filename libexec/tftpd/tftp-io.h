@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/tftpd/tftp-io.h,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #define RP_NONE		0
 #define	RP_RECVFROM	-1

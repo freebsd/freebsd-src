@@ -42,7 +42,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/math64.c,v 1.4.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $ */
 
 #include "ficl.h"
 #include "math64.h"

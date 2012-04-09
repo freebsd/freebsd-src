@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	JNPR: elf.h,v 1.4 2006/12/02 09:53:40 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/elf.h,v 1.4.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
  *
  */
 

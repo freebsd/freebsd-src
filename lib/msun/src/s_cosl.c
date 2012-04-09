@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_cosl.c,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Compute cos(x) for x where x is reduced to y = x - k * pi / 2.

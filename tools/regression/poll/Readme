@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/poll/Readme,v 1.1.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 The directory contains poll(2) and select(2) compliance (and more) tests
 from Bruce Evans, together with canned test results from several systems

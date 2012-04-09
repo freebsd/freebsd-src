@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/mvStorageDev.h,v 1.5.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef __INCmvStorageDevh
 #define __INCmvStorageDevh

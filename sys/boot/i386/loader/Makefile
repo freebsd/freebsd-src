@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/loader/Makefile,v 1.90.2.3.4.1 2012/03/03 06:15:13 kensmith Exp $
 
 .include <bsd.own.mk>
 MK_SSP=		no

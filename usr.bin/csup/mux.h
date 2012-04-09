@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/csup/mux.h,v 1.1.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  */
 #ifndef _MUX_H_
 #define _MUX_H_

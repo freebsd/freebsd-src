@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/gdbserver/Makefile,v 1.7.2.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 
 # Not elf specific so don't install in /usr/libexec/elf
 BINDIR=/usr/bin

@@ -24,7 +24,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/netmap/netmap.c,v 1.12.4.3.2.1 2012/03/03 06:15:13 kensmith Exp $
  * $Id: netmap.c 9795 2011-12-02 11:39:08Z luigi $
  *
  * This module supports memory mapped access to network devices,
@@ -56,7 +56,7 @@
  */
 
 #include <sys/cdefs.h> /* prerequisite */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/netmap/netmap.c,v 1.12.4.3.2.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/module.h>

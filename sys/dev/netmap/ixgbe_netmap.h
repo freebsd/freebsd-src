@@ -24,7 +24,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/netmap/ixgbe_netmap.h,v 1.7.4.2.2.1 2012/03/03 06:15:13 kensmith Exp $
  * $Id: ixgbe_netmap.h 9802 2011-12-02 18:42:37Z luigi $
  *
  * netmap modifications for ixgbe

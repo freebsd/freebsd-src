@@ -24,7 +24,7 @@ this code that are retained.
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/test/testfloat/testfloat.c,v 1.1.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $");
 
 #include <stdlib.h>
 #include <signal.h>

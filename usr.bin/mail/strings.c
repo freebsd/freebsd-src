@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)strings.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/mail/strings.c,v 1.5.36.1.8.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /*
  * Mail -- a mail program

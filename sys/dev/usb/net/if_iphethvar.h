@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/net/if_iphethvar.h,v 1.1.2.2.4.1 2012/03/03 06:15:13 kensmith Exp $ */
 /*-
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 2009 Diego Giagio. All rights reserved.

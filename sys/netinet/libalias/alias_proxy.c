@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/libalias/alias_proxy.c,v 1.32.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $");
 
 /* file: alias_proxy.c
 

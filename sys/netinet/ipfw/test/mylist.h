@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ipfw/test/mylist.h,v 1.2.2.2.6.1 2012/03/03 06:15:13 kensmith Exp $
  *
  * linux-like bidirectional lists
  */

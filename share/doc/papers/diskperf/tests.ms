@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tests.ms	6.2 (Berkeley) 4/16/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/diskperf/tests.ms,v 1.6.34.1.8.1 2012/03/03 06:15:13 kensmith Exp $
 .\"
 .ds RH Tests
 .NH
