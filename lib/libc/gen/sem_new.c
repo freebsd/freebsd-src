@@ -162,10 +162,16 @@ _sem_open(const char *name, int flags, ...)
 	_pthread_mutex_lock(&sem_llock);
 	LIST_FOREACH(ni, &sem_list, next) {
 		if (strcmp(name, ni->name) == 0) {
-			ni->open_count++;
-			sem = ni->sem;
-			_pthread_mutex_unlock(&sem_llock);
-			return (sem);
+			if ((flags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL)) {
+				_pthread_mutex_unlock(&sem_llock);
+				errno = EEXIST;
+				return (SEM_FAILED);
+			} else {
+				ni->open_count++;
+				sem = ni->sem;
+				_pthread_mutex_unlock(&sem_llock);
+				return (sem);
+			}
 		}
 	}
 
