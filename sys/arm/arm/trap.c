@@ -868,7 +868,11 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	register_t *ap;
 	int error;
 
+#ifdef __ARM_EABI__
+	sa->code = td->td_frame->tf_r7;
+#else
 	sa->code = sa->insn & 0x000fffff;
+#endif
 	ap = &td->td_frame->tf_r0;
 	if (sa->code == SYS_syscall) {
 		sa->code = *ap++;
@@ -902,22 +906,24 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 static void
-syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
+syscall(struct thread *td, trapframe_t *frame)
 {
 	struct syscall_args sa;
 	int error;
 
-	td->td_frame = frame;
-	sa.insn = insn;
-	switch (insn & SWI_OS_MASK) {
+	sa.insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
+#ifndef __ARM_EABI__
+	/* TODO: Also add the above line when we don't need it in the EABI case */
+	switch (sa.insn & SWI_OS_MASK) {
 	case 0: /* XXX: we need our own one. */
-		sa.nap = 4;
 		break;
 	default:
 		call_trapsignal(td, SIGILL, 0);
 		userret(td, frame);
 		return;
 	}
+#endif
+	sa.nap = 4;
 
 	error = syscallenter(td, &sa);
 	KASSERT(error != 0 || td->td_ar == NULL,
@@ -929,7 +935,6 @@ void
 swi_handler(trapframe_t *frame)
 {
 	struct thread *td = curthread;
-	uint32_t insn;
 
 	td->td_frame = frame;
 	
@@ -943,7 +948,6 @@ swi_handler(trapframe_t *frame)
 		userret(td, frame);
 		return;
 	}
-	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
 	/*
 	 * Enable interrupts if they were enabled before the exception.
 	 * Since all syscalls *should* come from user mode it will always
@@ -956,6 +960,6 @@ swi_handler(trapframe_t *frame)
 			enable_interrupts(F32_bit);
 	}
 	 
-	syscall(td, frame, insn);
+	syscall(td, frame);
 }
 
