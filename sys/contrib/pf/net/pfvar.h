@@ -224,6 +224,16 @@ extern struct mtx pf_mtx;
 		PF_HASHROW_UNLOCK(_ih);					\
 	} while (0)
 
+#ifdef INVARIANTS
+#define	PF_STATE_LOCK_ASSERT(s)						\
+	do {								\
+		struct pf_idhash *_ih = &V_pf_idhash[PF_IDHASH(s)];	\
+		PF_HASHROW_ASSERT(_ih);					\
+	} while (0)
+#else /* !INVARIANTS */
+#define	PF_STATE_LOCK_ASSERT(s)		do {} while (0)
+#endif /* INVARIANTS */
+
 extern struct rwlock pf_rules_lock;
 #define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
 #define	PF_RULES_RUNLOCK()	rw_runlock(&pf_rules_lock)
@@ -905,7 +915,6 @@ typedef	void		pfsync_update_state_t(struct pf_state *);
 typedef	void		pfsync_delete_state_t(struct pf_state *);
 typedef void		pfsync_clear_states_t(u_int32_t, const char *);
 typedef int		pfsync_defer_t(struct pf_state *, struct mbuf *);
-typedef	int		pfsync_up_t(void);
 
 extern pfsync_state_import_t	*pfsync_state_import_ptr;
 extern pfsync_insert_state_t	*pfsync_insert_state_ptr;
@@ -913,7 +922,6 @@ extern pfsync_update_state_t	*pfsync_update_state_ptr;
 extern pfsync_delete_state_t	*pfsync_delete_state_ptr;
 extern pfsync_clear_states_t	*pfsync_clear_states_ptr;
 extern pfsync_defer_t		*pfsync_defer_ptr;
-extern pfsync_up_t		*pfsync_up_ptr;
 
 void			pfsync_state_export(struct pfsync_state *,
 			    struct pf_state *);
@@ -1701,16 +1709,13 @@ RB_PROTOTYPE(pf_src_tree, pf_src_node, entry, pf_src_compare);
 VNET_DECLARE(struct pf_src_tree,	 tree_src_tracking);
 #define	V_tree_src_tracking		 VNET(tree_src_tracking)
 
-LIST_HEAD(pf_state_list, pf_state);
-TAILQ_HEAD(pf_state_queue, pf_state);
-
 struct pf_keyhash {
 	LIST_HEAD(, pf_state_key)	keys;
 	struct mtx			lock;
 };
 
 struct pf_idhash {
-	struct pf_state_list		states;
+	LIST_HEAD(, pf_state)		states;
 	struct mtx			lock;
 };
 

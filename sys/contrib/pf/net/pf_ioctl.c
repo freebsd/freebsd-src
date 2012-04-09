@@ -216,7 +216,6 @@ pfsync_update_state_t		*pfsync_update_state_ptr = NULL;
 pfsync_delete_state_t		*pfsync_delete_state_ptr = NULL;
 pfsync_clear_states_t		*pfsync_clear_states_ptr = NULL;
 pfsync_defer_t			*pfsync_defer_ptr = NULL;
-pfsync_up_t			*pfsync_up_ptr = NULL;
 /* pflow */
 export_pflow_t			*export_pflow_ptr = NULL;
 /* pflog */
@@ -3248,7 +3247,7 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 	if (st->nat_src_node)
 		sp->sync_flags |= PFSYNC_FLAG_NATSRCNODE;
 
-	bcopy(&st->id, &sp->id, sizeof(sp->id));
+	sp->id = st->id;
 	sp->creatorid = st->creatorid;
 	pf_state_peer_hton(&st->src, &sp->src);
 	pf_state_peer_hton(&st->dst, &sp->dst);

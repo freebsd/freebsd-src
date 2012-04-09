@@ -3187,17 +3187,15 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 		m_copyback(m, off, hdrlen, pd->hdr.any);
 
 	if (*sm != NULL && !((*sm)->state_flags & PFSTATE_NOSYNC) &&
-	    direction == PF_OUT && pfsync_up_ptr != NULL && pfsync_up_ptr()) {
+	    direction == PF_OUT &&
+	    pfsync_defer_ptr != NULL && pfsync_defer_ptr(*sm, m))
 		/*
 		 * We want the state created, but we dont
 		 * want to send this in case a partner
 		 * firewall has to know about it to allow
 		 * replies through it.
 		 */
-		if (pfsync_defer_ptr != NULL &&
-			pfsync_defer_ptr(*sm, m))
-			return (PF_DEFER);
-	}
+		return (PF_DEFER);
 
 	return (PF_PASS);
 
