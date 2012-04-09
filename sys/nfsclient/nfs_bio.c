@@ -807,7 +807,21 @@ do_sync:
 			t_uio->uio_segflg = UIO_SYSSPACE;
 			t_uio->uio_rw = UIO_WRITE;
 			t_uio->uio_td = td;
-			bcopy(uiop->uio_iov->iov_base, t_iov->iov_base, size);
+			KASSERT(uiop->uio_segflg == UIO_USERSPACE ||
+			    uiop->uio_segflg == UIO_SYSSPACE,
+			    ("nfs_directio_write: Bad uio_segflg"));
+			if (uiop->uio_segflg == UIO_USERSPACE) {
+				error = copyin(uiop->uio_iov->iov_base,
+				    t_iov->iov_base, size);
+				if (error != 0)
+					goto err_free;
+			} else
+				/*
+				 * UIO_SYSSPACE may never happen, but handle
+				 * it just in case it does.
+				 */
+				bcopy(uiop->uio_iov->iov_base, t_iov->iov_base,
+				    size);
 			bp->b_flags |= B_DIRECT;
 			bp->b_iocmd = BIO_WRITE;
 			if (cred != NOCRED) {
@@ -818,6 +832,7 @@ do_sync:
 			bp->b_caller1 = (void *)t_uio;
 			bp->b_vp = vp;
 			error = nfs_asyncio(nmp, bp, NOCRED, td);
+err_free:
 			if (error) {
 				free(t_iov->iov_base, M_NFSDIRECTIO);
 				free(t_iov, M_NFSDIRECTIO);
