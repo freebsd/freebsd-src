@@ -336,6 +336,11 @@ cpu_startup(dummy)
 #ifndef XEN
 	cpu_setregs();
 #endif
+
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
 }
 
 /*
