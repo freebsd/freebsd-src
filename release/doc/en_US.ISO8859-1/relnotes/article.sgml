@@ -207,7 +207,7 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
-      <para revision="219559,219561" arch="amd64,i386">The &os;
+      <para revision="219107" arch="amd64,i386">The &os;
 	&man.dtrace.1; framework now supports
 	<literal>systrace</literal> for system calls of
 	<literal>linux32</literal> and <literal>freebsd32</literal> on
@@ -218,7 +218,7 @@
 	system call tracing provided by the
 	<filename>systrace</filename> module.</para>
 
-      <para revision="216758,216615">The &man.hhook.9; (Helper Hook)
+      <para revision="222406">The &man.hhook.9; (Helper Hook)
 	and &man.khelp.9; (Kernel Helpers) KPIs have been implemented.
 	These are a kind of superset of &man.pfil.9; framework for
 	more general use in the kernel.  The &man.hhook.9; KPI
@@ -231,95 +231,89 @@
 	structured way to dynamically extend the kernel at runtime in
 	an ABI preserving manner.</para>
 
-      <para revision="224516" arch="amd64,i386,pc98">A &man.loader.8;
+      <para revision="230282" arch="amd64,i386,pc98">A &man.loader.8;
 	tunable <varname>hw.memtest.tests</varname> has been added.
 	This controls whether to perform memory testing at boot time
 	or not.  The default value is <literal>1</literal> (perform a
 	memory test).</para>
 
-      <para revision="219999">The &man.open.2; and &man.fhopen.2;
+      <para revision="220241">The &man.open.2; and &man.fhopen.2;
 	system calls now support the <literal>O_CLOEXEC</literal> flag,
 	which allows setting the <literal>FD_CLOEXEC</literal> flag for the
 	newly created file descriptor.  This is standardized in IEEE
 	Std 1003.1-2008 (POSIX, Single UNIX Specification Version
 	4).</para>
 
-      <para revision="220791">The &man.posix.fallocate.2; system call has
+      <para revision="227573">The &man.posix.fallocate.2; system call has
 	been implemented.  This is a function in POSIX to ensure that
 	a part of the storage for regular file data is allocated on the
 	file system storage media.</para>
 
-      <sect3 id="boot">
-	<title>Boot Loader Changes</title>
-
-	<para></para>
-      </sect3>
+      <para revision="229725">The &man.posix.fadvise.2; system call
+	has been implemented.  This is a function in POSIX similar to
+	&man.madvise.2; except that it operates on a file descriptor
+	instead of a memory region.</para>
 
       <sect3 id="proc">
 	<title>Hardware Support</title>
 
-	<para revision="215649">The &os; &man.usb.4; subsystem now
+	<para revision="221174">The &os; &man.usb.4; subsystem now
 	  supports USB packet filter.  This allows to capture packets
 	  which go through each USB host controller.  The
 	  implementation is almost based on &man.bpf.4; code.
 	  The userland program &man.usbdump.8; has been added.</para>
 
-	<sect4 id="mm">
-	  <title>Multimedia Support</title>
-
-	  <para></para>
-	</sect4>
-
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
-	  <para revision="220009">The &man.cxgb.4; driver has been
+	  <para revision="220340">The &man.cxgb.4; driver has been
 	    updated to version 7.11.0.</para>
 
-	  <para revision="218794">A &man.cxgbe.4; driver for Chelsio
+	  <para revision="219633">A &man.cxgbe.4; driver for Chelsio
 	    T4 (Terminator 4) based 10Gb/1Gb adapters has been
 	    added.</para>
 
-	  <para revision="218832" arch="i386">The &man.dc.4; driver
+	  <para revision="220072" arch="i386">The &man.dc.4; driver
 	    now works correctly in kernels with the
 	    <option>PAE</option> option.</para>
 
-	  <para revision="219753">The &man.em.4; driver has been
+	  <para revision="230848">The &man.em.4; driver has been
 	    updated to version 7.3.2.</para>
 
-	  <para>The &man.igb.4; driver has been
+	  <para revision="230848">The &man.igb.4; driver has been
 	    updated to version 2.3.1.</para>
 
-	  <para revision="218530">The &man.igb.4; driver now supports
+	  <para revision="230848">The &man.igb.4; driver now supports
 	    Intel I350 PCIe Gigabit Ethernet controllers.</para>
 
-	  <para>The &man.ixgbe.4; driver has been
+	  <para revision="230924">The &man.ixgbe.4; driver has been
 	    updated to version 2.4.5.</para>
 
-	  <para revision="220892">Firmware images in the &man.iwn.4;
+	  <para revision="223255">Firmware images in the &man.iwn.4;
 	    driver for 1000, 5000, 6000, and 6500 series cards have been
 	    updated.</para>
 
-	  <para revision="216860">A bug in the &man.msk.4; driver has been
-	    fixed.  It could prevent RX checksum offloading from
-	    working.</para>
+	  <para revision="223394">The &man.msk.4; driver now supports
+	    RX checksum offloading for Yukon EC, Yukon Ultra, Yukon FE
+	    and Yukon Ultra2.  The checksum offloading for Yukon XL
+	    was still disabled due to known silicon bug.</para>
 
-	  <para revision="217794">A bug in the &man.nfe.4; driver which
+	  <para revision="218872">A bug in the &man.nfe.4; driver which
 	    could prevent reinitialization after changing the MTU has
 	    been fixed.</para>
 
-	  <para revision="216828">A rdcphy(4) driver for RDC Semiconductor
+	  <para revision="218294">A rdcphy(4) driver for RDC Semiconductor
 	    R6040 10/100 PHY has been added.</para>
 
-	  <para revision="217498,218760">The &man.re.4; driver now supports
+	  <para revision="218901,219116">The &man.re.4; driver now supports
 	    RTL8168E/8111E-VL PCIe Gigabit Ethernet controllers and
 	    RTL8401E PCIe Fast Ethernet controllers.</para>
 
-	  <para revision="217766">The &man.re.4; driver now supports
+	  <para revision="218905">The &man.re.4; driver now supports
 	    TX interrupt moderation on RTL810xE PCIe Fast Ethernet
 	    controllers.</para>
 
-	  <para revision="217902">The &man.re.4; driver now supports
+	  <para revision="219110">The &man.re.4; driver now supports
 	    another mechanism for RX interrupt moderation because of
 	    performance problems.  A &man.sysctl.8; variable
 	    <varname>dev.re.<replaceable>N</replaceable>.int_rx_mod</varname>
@@ -335,23 +329,23 @@
 	    this tunable has no effect on controllers without MSI/MSI-X
 	    capability.</para>
 
-	  <para revision="217246,217832">The &man.re.4; driver now
+	  <para revision="218897">The &man.re.4; driver now
 	    supports TSO (TCP Segmentation Offload) on RealTek
 	    RTL8168/8111 C or later controllers.  Note that this is
 	    disabled by default because broken frames can be sent
 	    under certain conditions.</para>
 
-	  <para revision="217381,218289">The &man.re.4; driver now
+	  <para revision="218899,219114">The &man.re.4; driver now
 	    supports enabling TX and/or RX checksum offloading
 	    independently from each other.  Note that TX IP checksum
 	    is disabled on some RTL8168C-based network interfaces
 	    because it can generate an incorrect IP checksum when the
 	    packet contains IP options.</para>
 
-	  <para revision="217911">The &man.re.4; driver now supports
+	  <para revision="229530">The &man.re.4; driver now supports
 	    RTL8105E PCIe Fast Ethernet controllers.</para>
 
-	  <para>A &man.vte.4; driver for RDC R6040 Fast
+	  <para revision="218296">A &man.vte.4; driver for RDC R6040 Fast
 	    Ethernet controllers, which are commonly found on the Vortex86
 	    System On a Chip, has been added.</para>
 	</sect4>
@@ -360,7 +354,7 @@
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
-	<para revision="223666">&man.ipfw.8; now supports the
+	<para revision="230575">&man.ipfw.8; now supports the
 	  <command>call</command> and <command>return</command>
 	  actions.  Upon the <command>call
 	  <replaceable>number</replaceable></command> action, the
@@ -372,7 +366,7 @@
 	  action and returns ruleset processing to the first rule with
 	  number greater than that saved number.</para>
 
-	<para revision="218794">&os;'s &man.ipsec.4; support now uses
+	<para revision="221157">&os;'s &man.ipsec.4; support now uses
 	  half of the hash size as the authenticator hash size in
 	  Hashed Message Authentication Mode (HMAC-SHA-256,
 	  HMAC-SHA-384, and HMAC-SHA-512) as described in RFC 4868.
@@ -382,13 +376,13 @@
 	  &release.current; and later are no longer interoperable with
 	  the older &os; releases.</para>
 
-	<para revision="225682">A bug in the
+	<para revision="232560">A bug in the
 	  <literal>IPV6_PKTINFO</literal> option used in
 	  &man.sendmsg.2; has been fixed.  The
 	  <literal>IPV6_USE_MIN_MTU</literal> state set by
 	  &man.setsockopt.2; was ignored.</para>
 
-	<para revision="216109,216114,216115,218152,218153,218155">The
+	<para revision="222401,222402,222403,222404,222406,222407,222408,222409,222411,222412,222413,222419,225738">The
 	  &os; TCP/IP network stack now supports the &man.mod.cc.9; pluggable
 	  congestion control framework.  This allows TCP congestion
 	  control algorithms to be implemented as dynamically loadable
@@ -406,7 +400,7 @@
 	  For more
 	  detail, see the &man.mod.cc.4; and &man.mod.cc.9; manual pages.</para>
 
-	<para revision="217806">An &man.h.ertt.4; (Enhanced Round Trip
+	<para revision="222410">An &man.h.ertt.4; (Enhanced Round Trip
 	  Time) &man.khelp.9; module has been added.  This module
 	  allows per-connection, low noise estimates of the
 	  instantaneous RTT in the TCP/IP network stack with a robust
@@ -414,16 +408,16 @@
 	  and/or TSO (TCP Segmentation Offload) being in use for a
 	  connection.</para>
 
-	<para revision="218912">A new &man.tcp.4; socket option
+	<para revision="222401">A new &man.tcp.4; socket option
 	  <literal>TCP_CONGESTION</literal> has been added.  This
 	  allows to select or query the congestion control algorithm
 	  that the TCP/IP network stack will use for connections on
 	  the socket.</para>
 
-	<para revision="225586">The &man.ng.ipfw.4; &man.netgraph.4;
+	<para revision="225876">The &man.ng.ipfw.4; &man.netgraph.4;
 	  node now supports IPv6.</para>
 
-	<para revision="219127">The &man.ng.one2many.4;
+	<para revision="219660">The &man.ng.one2many.4;
 	  &man.netgraph.4; node now supports the
 	  <literal>XMIT_FAILOVER</literal> transmit algorithm.  This
 	  makes packets deliver out of the first active
@@ -433,7 +427,7 @@
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
-	<para revision="220412">The &man.ada.4; driver now supports
+	<para revision="220841">The &man.ada.4; driver now supports
 	  write cache control.  A new &man.sysctl.8 variable
 	  <varname>kern.cam.ada.write_cache</varname> determines
 	  whether the write cache of &man.ada.4; devices is enabled or
@@ -447,17 +441,17 @@
 	  runtime, but it takes effect only after a device
 	  reset.</para>
 
-	<para revision="224905">The &man.arcmsr.4; driver has been
+	<para revision="224991">The &man.arcmsr.4; driver has been
 	  updated to version 1.20.00.22.</para>
 
-	<para revision="219974">The &man.graid.8; GEOM class has been
+	<para revision="223177">The &man.graid.8; GEOM class has been
 	  added.  This is a replacement of the &man.ataraid.4; driver
 	  supporting various BIOS-based software RAID.</para>
 
-	<para revision="223958">The &man.mxge.4; driver has been
+	<para revision="224235">The &man.mxge.4; driver has been
 	  updated.</para>
 
-	<para revision="226115">A &man.tws.4; driver for 3ware 9750
+	<para revision="226243">A &man.tws.4; driver for 3ware 9750
 	  SATA+SAS 6Gb/s RAID controllers has been added.</para>
 
       </sect3>
@@ -465,7 +459,7 @@
       <sect3 id="fs">
 	<title>File Systems</title>
 
-	<para revision="216796">The &os; Fast File System now
+	<para revision="218079">The &os; Fast File System now
 	  supports the <literal>TRIM</literal> command when freeing data
 	  blocks.  A new flag <option>-t</option> in the &man.newfs.8;
 	  and &man.tunefs.8; utilities sets the TRIM-enable flag for a
@@ -477,7 +471,7 @@
 	  blocks to a device, especially for a SSD (Solid-State Drive) for
 	  optimization.</para>
 
-	<para revision="221233">A new flag <option>-E</option> has
+	<para revision="225296">A new flag <option>-E</option> has
 	  been added to the &man.newfs.8; and &man.fsck.ffs.8; utilities.
 	  This clears unallocated blocks, notifying the underlying
 	  device that they are not used and that their contents may be
@@ -488,7 +482,7 @@
 	  filesystems which have been copied from one device to
 	  another.</para>
 
-	<para revision="221436">The &os; NFS subsystem now supports a
+	<para revision="221759">The &os; NFS subsystem now supports a
 	  <option>nocto</option> mount option.  This disables the
 	  close-to-open cache coherency check at open time.  This
 	  option may improve performance for read-only mounts, but
@@ -496,7 +490,7 @@
 	  rarely.  The &man.mount.nfs.8; utility now also supports
 	  this flag keyword.</para>
 
-	<para revision="225537">A &man.loader.8; tunable
+	<para revision="226926">A &man.loader.8; tunable
 	  <varname>vfs.typenumhash</varname> has been added.  Setting
 	  this to <literal>1</literal> enables to use a hash
 	  calculation on the file system identification number
@@ -507,7 +501,7 @@
 	  this is set to <literal>0</literal> (disable) by default for
 	  backward compatibility.</para>
 
-	<para revision="219089">The &os; ZFS subsystem has been
+	<para revision="222741">The &os; ZFS subsystem has been
 	  updated to the SPA (Storage Pool Allocator, also known as
 	  zpool) version 28.  It now supports data deduplication,
 	  triple parity RAIDZ (raidz3), snapshot holds, log device
@@ -519,79 +513,79 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
-      <para revision="224152,224153,224154">The &man.bsdtar.1; and
+      <para revision="229589">The &man.bsdtar.1; and
 	&man.cpio.1; utilities are now based on
 	<application>libarchive</application> version 2.8.5.</para>
 
-      <para revision="217416">The &man.cpuset.1; utility now supports
+      <para revision="218033">The &man.cpuset.1; utility now supports
 	a <option>-C</option> flag to create a new cpuset and assign
 	an existing process into that set, and an
 	<literal>all</literal> keyword in the <option>-l
 	<replaceable>cpu-list</replaceable></option> option to specify
 	all CPUs in the system.</para>
 
-      <para revision="217505">A bug in the &man.fetch.1; utility which
+      <para revision="221764">A bug in the &man.fetch.1; utility which
 	could prevent the <command>STAT</command> FTP command from working
 	properly has been fixed.</para>
 
-      <para revision="219415">The &man.gpart.8; utility now supports a
+      <para revision="219861">The &man.gpart.8; utility now supports a
 	<option>-p</option> flag to the <command>show</command>
 	subcommand.  This allows showing providers' names of
 	partitions instead of the partitions' indexes.</para>
 
-      <para revision="218049">The &man.hastd.8; utility now drops
+      <para revision="220104">The &man.hastd.8; utility now drops
 	<literal>root</literal> privileges of the worker processes to the
 	<literal>hast</literal> user.</para>
 
-      <para revision="219351">The &man.hastd.8; utility now supports a
+      <para revision="220104">The &man.hastd.8; utility now supports a
 	<literal>checksum</literal> keyword to specify the checksum
 	algorithm in a <literal>resource</literal> section.  As of
 	&release.current;, <literal>none</literal>,
 	<literal>sha256</literal>, and <literal>crc32</literal> are
 	supported.</para>
 
-      <para revision="219354">The &man.hastd.8; utility now supports a
+      <para revision="220104">The &man.hastd.8; utility now supports a
 	<literal>compression</literal> keyword to specify the compression
 	algorithm in a <literal>resource</literal> section.  As of
 	&release.current;, <literal>none</literal>,
 	<literal>hole</literal> and <literal>lzf</literal> are
 	supported.</para>
 
-      <para revision="219818">The &man.hastd.8; utility now supports a
+      <para revision="220104">The &man.hastd.8; utility now supports a
 	<literal>source</literal> keyword to specify the local address
 	to bind to before connecting the remote &man.hastd.8
 	daemon.</para>
 
-      <para revision="220370">A &man.readline.3; API set has been
+      <para revision="220612">A &man.readline.3; API set has been
 	imported into <application>libedit</application>.  This is
 	based on NetBSD's implementation and BSD licensed utilities
 	now use it instead of GNU
 	<application>libreadline</application>.</para>
 
-      <para revision="224762">The &man.makefs.8; utility now supports the
+      <para revision="224447">The &man.makefs.8; utility now supports the
 	ISO 9660 format.</para>
 
-      <para revision="220496,220497"><application>libmd</application>
+      <para revision="231588"><application>libmd</application>
 	and <application>libcrypt</application> now support the SHA-256
 	and SHA-512 algorithms.</para>
 
-      <para revision="217642">The &man.netstat.1; utility now does not
+      <para revision="219062">The &man.netstat.1; utility now does not
 	expose the internal scope address representation used in the &os;
 	kernel, which is derived from KAME IPv6 stack, in the results
 	of <command>netstat -ani</command> and <command>netstat
 	  -nr</command>.</para>
 
-      <para revision="218127">The &man.newsyslog.8; utility now
+      <para revision="218911">The &man.newsyslog.8; utility now
 	supports &man.xz.1; compression.  An <literal>X</literal> flag
 	in the optional field has been added to specify the
 	compression.</para>
 
-      <para revision="216823">A &man.poweroff.8; utility has been added.
+      <para revision="224259">A &man.poweroff.8; utility has been added.
 	This is equivalent to:</para>
 
       <screen>&prompt.root; shutdown -p now</screen>
 
-      <para revision="218397">The &man.ppp.8; utility now supports
+      <para revision="224285">The &man.ppp.8; utility now supports
 	<command>iface name <replaceable>name</replaceable></command>
 	and <command>iface description
 	<replaceable>description</replaceable></command> commands.
@@ -599,12 +593,12 @@
 	and <literal>description</literal> subcommands of the
 	&man.ifconfig.8; utility.</para>
 
-      <para revision="219713">The &man.ps.1; utility now supports
+      <para revision="219943">The &man.ps.1; utility now supports
 	<option>-o usertime</option> and <option>-o systime</option>
 	options to display accumulated system and user CPU time,
 	respectively.</para>
 
-      <para revision="222732">The &man.rtadvd.8; daemon now supports a
+      <para revision="231802">The &man.rtadvd.8; daemon now supports a
 	<literal>noifprefix</literal> keyword to disable gathering
 	on-link prefixes from interfaces when no
 	<literal>addr</literal> keyword is specified.  An entry in
@@ -613,73 +607,60 @@
 	generates an RA message with no prefix information
 	option.</para>
 
-      <para revision="222732,224006">The &man.rtadvd.8; daemon now
+      <para revision="231802">The &man.rtadvd.8; daemon now
 	supports the RDNSS and DNSSL options described in RFC 6106,
 	<quote>IPv6 Router Advertisement Options for DNS
 	Configuration</quote>.  A &man.rtadvctl.8; utility to control
 	the &man.rtadvd.8; daemon has been added.</para>
 
-      <para revision="224536">A bug in the &man.tftpd.8; daemon has
+      <para revision="227083">A bug in the &man.tftpd.8; daemon has
 	been fixed.  It had an interoperability issue when
 	transferring a large file.</para>
 
-      <para revision="224171">The &man.zpool.8: utility now supports a
+      <para revision="229570">The &man.zpool.8: utility now supports a
 	<command>zpool labelclear</command> command.  This allows to
 	wipe the label data from a drive that is not active in a
 	pool.</para>
-
-      <sect3 id="periodic-scripts">
-        <title><filename>/etc/periodic</filename> Scripts</title>
-
-	<para></para>
-      </sect3>
-
-      <sect3 id="rc-scripts">
-        <title><filename>/etc/rc.d</filename> Scripts</title>
-
-	<para></para>
-      </sect3>
     </sect2>
 
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
-      <para revision="224731">The <application>awk</application> has
+      <para>The <application>awk</application> has
 	been updated to the 7 August 2011 release.</para>
 
       <para><application>ISC BIND</application> has
 	been updated to version 9.6-ESV-R5-P1.</para>
 
-      <para revision="221793">The <literal>netcat</literal> utility
+      <para>The <literal>netcat</literal> utility
 	has been updated to version 4.9.</para>
 
-      <para revision="220150"><application>GNU GCC</application> and
+      <para revision="221274"><application>GNU GCC</application> and
 	<application>libstdc++</application> have been updated to rev
 	127959 of <literal>gcc-4_2-branch</literal> (the last
 	GPLv2-licensed version).</para>
 
-      <para revision="222906">The <application>LESS</application>
+      <para revision="223454">The <application>LESS</application>
 	program has been updated to version v444.</para>
 
-      <para revision="221484,224638">The
+      <para revision="228152">The
 	<application>OpenSSH</application> utility has been updated to
 	5.4p1, and optimization for large bandwidth-delay product
 	connection and <literal>none</literal> cipher support have
 	been merged</para>
 
-      <para revision="223067"><application>sendmail</application>
+      <para revision="223315"><application>sendmail</application>
 	has been updated to version 8.14.5.</para>
 
       <para revision="226977">The <application>timezone</application>
 	database has been updated to the
 	<application>tzdata2011n</application> release.</para>
 
-      <para revision="217698">The &man.unifdef.1; utility has been updated
+      <para>The &man.unifdef.1; utility has been updated
 	to version 2.5.6.</para>
 
-      <para revision="223935">The <application>xz</application>
-	program has been updated from 5.0.0 to a snapshot as of 11
-	July, 2011.</para>
+      <para revision="219219">The <application>xz</application>
+	program has been updated from 5.0.0 to 5.0.1.</para>
     </sect2>
 
     <sect2 id="ports">
@@ -689,12 +670,6 @@
 	the <application>KDE</application> desktop environment
 	(<filename role="package">x11/kde4</filename>) has been
 	updated from 4.5.5 to 4.7.4.</para>
-    </sect2>
-
-    <sect2 id="releng">
-      <title>Release Engineering and Integration</title>
-
-      <para></para>
     </sect2>
   </sect1>
 
