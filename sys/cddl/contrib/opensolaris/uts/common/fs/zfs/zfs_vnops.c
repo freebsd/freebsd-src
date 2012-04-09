@@ -345,10 +345,9 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 			vm_page_busy(pp);
 			vm_page_undirty(pp);
 		} else {
-			if (__predict_false(obj->cache != NULL)) {
+			if (vm_page_is_cached(obj, OFF_TO_IDX(start)))
 				vm_page_cache_free(obj, OFF_TO_IDX(start),
 				    OFF_TO_IDX(start) + 1);
-			}
 			pp = NULL;
 		}
 		break;

@@ -1303,7 +1303,7 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 	 * exist.
 	 */
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if (object->cache == NULL)
+	if (__predict_true(object->cache == NULL))
 		return (FALSE);
 	mtx_lock(&vm_page_queue_free_mtx);
 	m = vm_page_cache_lookup(object, pindex);
