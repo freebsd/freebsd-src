@@ -1832,7 +1832,7 @@ iap_read_pmc(int cpu, int ri, pmc_value_t *v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = iap_perfctr_value_to_reload_count(tmp);
 	else
-		*v = tmp;
+		*v = tmp & ((1ULL << core_iap_width) - 1);
 
 	PMCDBG(MDP,REA,1, "iap-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    ri, *v);
