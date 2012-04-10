@@ -1384,6 +1384,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa)
 	/* Set the source MAC address to the Virtual Router MAC Address. */
 	switch (ifp->if_type) {
 	case IFT_ETHER:
+	case IFT_BRIDGE:
 	case IFT_L2VLAN: {
 			struct ether_header *eh;
 
@@ -1604,6 +1605,7 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 	switch (ifp->if_type) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
+	case IFT_BRIDGE:
 	case IFT_FDDI:
 	case IFT_ISO88025:
 		break;
