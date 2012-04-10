@@ -6487,6 +6487,8 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error == 0) {
 			memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
+			memset(&sc->sc_aggr_stats, 0,
+			    sizeof(sc->sc_aggr_stats));
 			memset(&sc->sc_intr_stats, 0,
 			    sizeof(sc->sc_intr_stats));
 		}
