@@ -429,7 +429,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 		goto _bad;
 	}
 
-	if ((dyn->pfid_kt = pfr_attach_table(ruleset, tblname, 1)) == NULL) {
+	if ((dyn->pfid_kt = pfr_attach_table(ruleset, tblname)) == NULL) {
 		rv = 1;
 		goto _bad;
 	}

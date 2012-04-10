@@ -1573,7 +1573,7 @@ struct pfioc_trans {
 	}		*array;
 };
 
-#define PFR_FLAG_ATOMIC		0x00000001
+#define PFR_FLAG_ATOMIC		0x00000001	/* unused */
 #define PFR_FLAG_DUMMY		0x00000002
 #define PFR_FLAG_FEEDBACK	0x00000004
 #define PFR_FLAG_CLSTATS	0x00000008
@@ -1872,7 +1872,7 @@ int	pfr_pool_get(struct pfr_ktable *, int *, struct pf_addr *,
 	    struct pf_addr **, struct pf_addr **, sa_family_t);
 void	pfr_dynaddr_update(struct pfr_ktable *, struct pfi_dynaddr *);
 struct pfr_ktable *
-	pfr_attach_table(struct pf_ruleset *, char *, int);
+	pfr_attach_table(struct pf_ruleset *, char *);
 void	pfr_detach_table(struct pfr_ktable *);
 int	pfr_clr_tables(struct pfr_table *, int *, int);
 int	pfr_add_tables(struct pfr_table *, int, int *, int);
