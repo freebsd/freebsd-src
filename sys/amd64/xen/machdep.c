@@ -184,7 +184,7 @@ setup_gdt(struct user_segment_descriptor *thisgdt)
 
 
 		USD_SETBASE(&thisgdt[i], base);
-		USD_SETLIMIT(&thisgdt[i], base);
+		USD_SETLIMIT(&thisgdt[i], limit);
 		thisgdt[i].sd_type  = type;
 		thisgdt[i].sd_dpl   = dpl;
 		thisgdt[i].sd_p     = p;
