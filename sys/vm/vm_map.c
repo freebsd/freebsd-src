@@ -2573,6 +2573,7 @@ vm_map_sync(
 	vm_object_t object;
 	vm_ooffset_t offset;
 	unsigned int last_timestamp;
+	boolean_t failed;
 
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2602,6 +2603,7 @@ vm_map_sync(
 
 	if (invalidate)
 		pmap_remove(map->pmap, start, end);
+	failed = FALSE;
 
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
@@ -2630,7 +2632,8 @@ vm_map_sync(
 		vm_object_reference(object);
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
-		vm_object_sync(object, offset, size, syncio, invalidate);
+		if (!vm_object_sync(object, offset, size, syncio, invalidate))
+			failed = TRUE;
 		start += size;
 		vm_object_deallocate(object);
 		vm_map_lock_read(map);
@@ -2640,7 +2643,7 @@ vm_map_sync(
 	}
 
 	vm_map_unlock_read(map);
-	return (KERN_SUCCESS);
+	return (failed ? KERN_FAILURE : KERN_SUCCESS);
 }
 
 /*

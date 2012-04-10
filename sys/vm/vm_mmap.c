@@ -487,6 +487,8 @@ msync(td, uap)
 		return (EINVAL);	/* Sun returns ENOMEM? */
 	case KERN_INVALID_ARGUMENT:
 		return (EBUSY);
+	case KERN_FAILURE:
+		return (EIO);
 	default:
 		return (EINVAL);
 	}
