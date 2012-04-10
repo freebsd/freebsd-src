@@ -1495,6 +1495,15 @@ ath_intr(void *arg)
 	    ah->ah_intrstate[3],
 	    ah->ah_intrstate[6]);
 #endif
+
+	/* Squirrel away SYNC interrupt debugging */
+	if (ah->ah_syncstate != 0) {
+		int i;
+		for (i = 0; i < 32; i++)
+			if (ah->ah_syncstate & (i << i))
+				sc->sc_intr_stats.sync_intr[i]++;
+	}
+
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
 	/* Short-circuit un-handled interrupts */
@@ -6476,8 +6485,11 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    ifr->ifr_data, sizeof (sc->sc_stats));
 	case SIOCZATHSTATS:
 		error = priv_check(curthread, PRIV_DRIVER);
-		if (error == 0)
+		if (error == 0) {
 			memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
+			memset(&sc->sc_intr_stats, 0,
+			    sizeof(sc->sc_intr_stats));
+		}
 		break;
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:
