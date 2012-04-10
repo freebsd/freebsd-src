@@ -276,7 +276,12 @@ initxen(struct start_info *si)
 	physmem = si->nr_pages;
 	Maxmem = si->nr_pages + 1;
 
-	/* setup kernel tls registers. pcpu needs them */
+	/* 
+	 * Setup kernel tls registers. pcpu needs them, and other
+	 * parts of the early startup path use pcpu variables before
+	 * we have loaded the new Global Descriptor Table.
+	 */
+
 	pc = &__pcpu[0];
 	HYPERVISOR_set_segment_base (SEGBASE_FS, 0);
 	HYPERVISOR_set_segment_base (SEGBASE_GS_KERNEL, (uint64_t) pc);
@@ -353,6 +358,14 @@ initxen(struct start_info *si)
 	}
 
 	lgdt(NULL); /* See: support.S */
+
+	/* 
+	 * Refresh kernel tls registers since we've blown them away
+	 * via new GDT load. pcpu needs them.
+	 */
+	HYPERVISOR_set_segment_base (SEGBASE_FS, 0);
+	HYPERVISOR_set_segment_base (SEGBASE_GS_KERNEL, (uint64_t) pc);
+	HYPERVISOR_set_segment_base (SEGBASE_GS_USER, (uint64_t) 0);
 
 	/* exception handling */
 	init_exception_table();
