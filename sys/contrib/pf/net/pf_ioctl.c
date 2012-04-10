@@ -1846,7 +1846,7 @@ DIOCGETSTATES_full:
 		error = copyout(pstore, ps->ps_states,
 		    sizeof(struct pfsync_state) * nr);
 		if (error) {
-			free(p, M_TEMP);
+			free(pstore, M_TEMP);
 			goto fail;
 		}
 		ps->ps_len = sizeof(struct pfsync_state) * nr;
@@ -2778,155 +2778,143 @@ DIOCGETSTATES_full:
 
 	case DIOCXBEGIN: {
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
-		struct pfioc_trans_e	*ioe;
-		struct pfr_table	*table;
+		struct pfioc_trans_e	*ioes, *ioe;
 		int			 i;
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
 			goto fail;
 		}
-		ioe = malloc(sizeof(*ioe), M_TEMP, M_WAITOK);
-		table = malloc(sizeof(*table), M_TEMP, M_WAITOK);
-		PF_LOCK();
-		for (i = 0; i < io->size; i++) {
-			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
+		ioes = malloc(sizeof(*ioe) * io->size, M_TEMP, M_WAITOK);
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
+			error = copyin(io->array + i, ioe, sizeof(*ioe));
 			if (error) {
-				PF_UNLOCK();
-				free(table, M_TEMP);
-				free(ioe, M_TEMP);
-				error = EFAULT;
+				free(ioes, M_TEMP);
 				goto fail;
 			}
+		}
+		PF_LOCK();
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if ((error = pf_begin_altq(&ioe->ticket))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail;
 				}
 				break;
 #endif /* ALTQ */
 			case PF_RULESET_TABLE:
-				bzero(table, sizeof(*table));
-				strlcpy(table->pfrt_anchor, ioe->anchor,
-				    sizeof(table->pfrt_anchor));
-				if ((error = pfr_ina_begin(table,
+			    {
+				struct pfr_table table;
+
+				bzero(&table, sizeof(table));
+				strlcpy(table.pfrt_anchor, ioe->anchor,
+				    sizeof(table.pfrt_anchor));
+				if ((error = pfr_ina_begin(&table,
 				    &ioe->ticket, NULL, 0))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail;
 				}
 				break;
+			    }
 			default:
 				if ((error = pf_begin_rules(&ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail;
 				}
 				break;
 			}
-			PF_COPYOUT(ioe, io->array+i, sizeof(io->array[i]),
-			    error);
-			if (error) {
-				PF_UNLOCK();
-				free(table, M_TEMP);
-				free(ioe, M_TEMP);
-				error = EFAULT;
-				goto fail;
-			}
 		}
 		PF_UNLOCK();
-		free(table, M_TEMP);
-		free(ioe, M_TEMP);
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
+			error = copyout(ioe, io->array + i,
+			    sizeof(io->array[i]));
+			if (error)
+				break;
+		}
+		free(ioes, M_TEMP);
 		break;
 	}
 
 	case DIOCXROLLBACK: {
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
-		struct pfioc_trans_e	*ioe;
-		struct pfr_table	*table;
+		struct pfioc_trans_e	*ioe, *ioes;
 		int			 i;
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
 			goto fail;
 		}
-		ioe = malloc(sizeof(*ioe), M_TEMP, M_WAITOK);
-		table = malloc(sizeof(*table), M_TEMP, M_WAITOK);
-		PF_LOCK();
-		for (i = 0; i < io->size; i++) {
-			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
+		ioes = malloc(sizeof(*ioe) * io->size, M_TEMP, M_WAITOK);
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
+			error = copyin(io->array + i, ioe, sizeof(*ioe));
 			if (error) {
-				PF_UNLOCK();
-				free(table, M_TEMP);
-				free(ioe, M_TEMP);
-				error = EFAULT;
+				free(ioes, M_TEMP);
 				goto fail;
 			}
+		}
+		PF_LOCK();
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if ((error = pf_rollback_altq(ioe->ticket))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
 #endif /* ALTQ */
 			case PF_RULESET_TABLE:
-				bzero(table, sizeof(*table));
-				strlcpy(table->pfrt_anchor, ioe->anchor,
-				    sizeof(table->pfrt_anchor));
-				if ((error = pfr_ina_rollback(table,
+			    {
+				struct pfr_table table;
+
+				bzero(&table, sizeof(table));
+				strlcpy(table.pfrt_anchor, ioe->anchor,
+				    sizeof(table.pfrt_anchor));
+				if ((error = pfr_ina_rollback(&table,
 				    ioe->ticket, NULL, 0))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
+			    }
 			default:
 				if ((error = pf_rollback_rules(ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
 			}
 		}
 		PF_UNLOCK();
-		free(table, M_TEMP);
-		free(ioe, M_TEMP);
+		free(ioes, M_TEMP);
 		break;
 	}
 
 	case DIOCXCOMMIT: {
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
-		struct pfioc_trans_e	*ioe;
-		struct pfr_table	*table;
+		struct pfioc_trans_e	*ioe, *ioes;
 		struct pf_ruleset	*rs;
 		int			 i;
 
@@ -2934,34 +2922,30 @@ DIOCGETSTATES_full:
 			error = ENODEV;
 			goto fail;
 		}
-		ioe = malloc(sizeof(*ioe), M_TEMP, M_WAITOK);
-		table = malloc(sizeof(*table), M_TEMP, M_WAITOK);
-		PF_LOCK();
-		/* first makes sure everything will succeed */
-		for (i = 0; i < io->size; i++) {
-			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
+		ioes = malloc(sizeof(*ioe) * io->size, M_TEMP, M_WAITOK);
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
+			error = copyin(io->array + i, ioe, sizeof(*ioe));
 			if (error) {
-				PF_UNLOCK();
-				free(table, M_TEMP);
-				free(ioe, M_TEMP);
-				error = EFAULT;
+				free(ioes, M_TEMP);
 				goto fail;
 			}
+		}
+		PF_LOCK();
+		/* First makes sure everything will succeed. */
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if (!V_altqs_inactive_open || ioe->ticket !=
 				    V_ticket_altqs_inactive) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					error = EBUSY;
 					goto fail;
 				}
@@ -2972,8 +2956,7 @@ DIOCGETSTATES_full:
 				if (rs == NULL || !rs->topen || ioe->ticket !=
 				    rs->tticket) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					error = EBUSY;
 					goto fail;
 				}
@@ -2982,8 +2965,7 @@ DIOCGETSTATES_full:
 				if (ioe->rs_num < 0 || ioe->rs_num >=
 				    PF_RULESET_MAX) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
@@ -2993,61 +2975,52 @@ DIOCGETSTATES_full:
 				    rs->rules[ioe->rs_num].inactive.ticket !=
 				    ioe->ticket) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					error = EBUSY;
 					goto fail;
 				}
 				break;
 			}
 		}
-		/* now do the commit - no errors should happen here */
-		for (i = 0; i < io->size; i++) {
-			PF_COPYIN(io->array+i, ioe, sizeof(*ioe), error);
-			if (error) {
-				PF_UNLOCK();
-				free(table, M_TEMP);
-				free(ioe, M_TEMP);
-				error = EFAULT;
-				goto fail;
-			}
+		/* Now do the commit - no errors should happen here. */
+		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if ((error = pf_commit_altq(ioe->ticket))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
 #endif /* ALTQ */
 			case PF_RULESET_TABLE:
-				bzero(table, sizeof(*table));
-				strlcpy(table->pfrt_anchor, ioe->anchor,
-				    sizeof(table->pfrt_anchor));
-				if ((error = pfr_ina_commit(table, ioe->ticket,
-				    NULL, NULL, 0))) {
+			    {
+				struct pfr_table table;
+
+				bzero(&table, sizeof(table));
+				strlcpy(table.pfrt_anchor, ioe->anchor,
+				    sizeof(table.pfrt_anchor));
+				if ((error = pfr_ina_commit(&table,
+				    ioe->ticket, NULL, NULL, 0))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
+			    }
 			default:
 				if ((error = pf_commit_rules(ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
 					PF_UNLOCK();
-					free(table, M_TEMP);
-					free(ioe, M_TEMP);
+					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
 			}
 		}
 		PF_UNLOCK();
-		free(table, M_TEMP);
-		free(ioe, M_TEMP);
+		free(ioes, M_TEMP);
 		break;
 	}
 
@@ -3055,9 +3028,8 @@ DIOCGETSTATES_full:
 		struct pfioc_src_nodes	*psn = (struct pfioc_src_nodes *)addr;
 		struct pf_src_node	*n, *p, *pstore;
 		u_int32_t		 nr = 0;
-		int			 space = psn->psn_len;
 
-		if (space == 0) {
+		if (psn->psn_len == 0) {
 			PF_LOCK();
 			RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking)
 				nr++;
@@ -3066,43 +3038,41 @@ DIOCGETSTATES_full:
 			break;
 		}
 
-		pstore = malloc(sizeof(*pstore), M_TEMP, M_WAITOK);
+		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
 		PF_LOCK();
-		p = psn->psn_src_nodes;
 		RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
 			int	secs = time_second, diff;
 
 			if ((nr + 1) * sizeof(*p) > (unsigned)psn->psn_len)
 				break;
 
-			bcopy(n, pstore, sizeof(*pstore));
+			bcopy(n, p, sizeof(struct pf_src_node));
 			if (n->rule.ptr != NULL)
-				pstore->rule.nr = n->rule.ptr->nr;
-			pstore->creation = secs - pstore->creation;
-			if (pstore->expire > secs)
-				pstore->expire -= secs;
+				p->rule.nr = n->rule.ptr->nr;
+			p->creation = secs - p->creation;
+			if (p->expire > secs)
+				p->expire -= secs;
 			else
-				pstore->expire = 0;
+				p->expire = 0;
 
-			/* adjust the connection rate estimate */
+			/* Adjust the connection rate estimate. */
 			diff = secs - n->conn_rate.last;
 			if (diff >= n->conn_rate.seconds)
-				pstore->conn_rate.count = 0;
+				p->conn_rate.count = 0;
 			else
-				pstore->conn_rate.count -=
+				p->conn_rate.count -=
 				    n->conn_rate.count * diff /
 				    n->conn_rate.seconds;
-
-			PF_COPYOUT(pstore, p, sizeof(*p), error);
-			if (error) {
-				PF_UNLOCK();
-				free(pstore, M_TEMP);
-				goto fail;
-			}
 			p++;
 			nr++;
 		}
 		PF_UNLOCK();
+		error = copyout(pstore, psn->psn_src_nodes,
+		    sizeof(struct pf_src_node) * nr);
+		if (error) {
+			free(pstore, M_TEMP);
+			goto fail;
+		}
 		psn->psn_len = sizeof(struct pf_src_node) * nr;
 		free(pstore, M_TEMP);
 		break;
@@ -3170,15 +3140,21 @@ DIOCGETSTATES_full:
 
 	case DIOCIGETIFACES: {
 		struct pfioc_iface *io = (struct pfioc_iface *)addr;
+		struct pfi_kif *ifstore;
 
 		if (io->pfiio_esize != sizeof(struct pfi_kif)) {
 			error = ENODEV;
 			break;
 		}
+
+		ifstore = malloc(io->pfiio_size * sizeof(struct pfi_kif),
+		    M_TEMP, M_WAITOK);
 		PF_LOCK();
-		error = pfi_get_ifaces(io->pfiio_name, io->pfiio_buffer,
-		    &io->pfiio_size);
+		pfi_get_ifaces(io->pfiio_name, ifstore, &io->pfiio_size);
 		PF_UNLOCK();
+		error = copyout(ifstore, io->pfiio_buffer, io->pfiio_size *
+		    sizeof(struct pfi_kif));
+		free(ifstore, M_TEMP);
 		break;
 	}
 
