@@ -28,7 +28,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd Oct 29, 2010
+.Dd Apr 10, 2012
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -114,8 +114,7 @@ The
 and
 .Dv SF_ARCHIVED
 flags may only be set or unset by the super-user.
-Attempts to set these flags by non-super-users are rejected, attempts by
-non-superusers to clear flags that are already unset are silently ignored.
+Attempts to toggle these flags by non-super-users are rejected.
 These flags may be set at any time, but normally may only be unset when
 the system is in single-user mode.
 (See
