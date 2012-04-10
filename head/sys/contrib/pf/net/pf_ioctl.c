@@ -2779,19 +2779,19 @@ DIOCGETSTATES_full:
 	case DIOCXBEGIN: {
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
 		struct pfioc_trans_e	*ioes, *ioe;
+		size_t			 totlen;
 		int			 i;
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
 			goto fail;
 		}
-		ioes = malloc(sizeof(*ioe) * io->size, M_TEMP, M_WAITOK);
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			error = copyin(io->array + i, ioe, sizeof(*ioe));
-			if (error) {
-				free(ioes, M_TEMP);
-				goto fail;
-			}
+		totlen = sizeof(struct pfioc_trans_e) * io->size;
+		ioes = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->array, ioes, totlen);
+		if (error) {
+			free(ioes, M_TEMP);
+			goto fail;
 		}
 		PF_LOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
@@ -2837,12 +2837,7 @@ DIOCGETSTATES_full:
 			}
 		}
 		PF_UNLOCK();
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			error = copyout(ioe, io->array + i,
-			    sizeof(io->array[i]));
-			if (error)
-				break;
-		}
+		error = copyout(ioes, io->array, totlen);
 		free(ioes, M_TEMP);
 		break;
 	}
@@ -2850,19 +2845,19 @@ DIOCGETSTATES_full:
 	case DIOCXROLLBACK: {
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
 		struct pfioc_trans_e	*ioe, *ioes;
+		size_t			 totlen;
 		int			 i;
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
 			goto fail;
 		}
-		ioes = malloc(sizeof(*ioe) * io->size, M_TEMP, M_WAITOK);
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			error = copyin(io->array + i, ioe, sizeof(*ioe));
-			if (error) {
-				free(ioes, M_TEMP);
-				goto fail;
-			}
+		totlen = sizeof(struct pfioc_trans_e) * io->size;
+		ioes = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->array, ioes, totlen);
+		if (error) {
+			free(ioes, M_TEMP);
+			goto fail;
 		}
 		PF_LOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
@@ -2916,19 +2911,19 @@ DIOCGETSTATES_full:
 		struct pfioc_trans	*io = (struct pfioc_trans *)addr;
 		struct pfioc_trans_e	*ioe, *ioes;
 		struct pf_ruleset	*rs;
+		size_t			 totlen;
 		int			 i;
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
 			goto fail;
 		}
-		ioes = malloc(sizeof(*ioe) * io->size, M_TEMP, M_WAITOK);
-		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
-			error = copyin(io->array + i, ioe, sizeof(*ioe));
-			if (error) {
-				free(ioes, M_TEMP);
-				goto fail;
-			}
+		totlen = sizeof(struct pfioc_trans_e) * io->size;
+		ioes = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->array, ioes, totlen);
+		if (error) {
+			free(ioes, M_TEMP);
+			goto fail;
 		}
 		PF_LOCK();
 		/* First makes sure everything will succeed. */
