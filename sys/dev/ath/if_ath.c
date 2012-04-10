@@ -131,10 +131,17 @@ __FBSDID("$FreeBSD$");
  */
 CTASSERT(ATH_BCBUF <= 8);
 
+#if __FreeBSD_version > 1000003
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
 		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN]);
+#else
+static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
+		    const char [IFNAMSIZ], int, int, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
+#endif
 static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
@@ -200,7 +207,9 @@ static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
 static void	ath_set_channel(struct ieee80211com *);
+#ifdef	ATH_ENABLE_11N
 static void	ath_update_chw(struct ieee80211com *);
+#endif	/* ATH_ENABLE_11N */
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
@@ -804,8 +813,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
-	ic->ic_update_chw = ath_update_chw;
-
+#ifdef	ATH_ENABLE_11N
 	/* 802.11n specific - but just override anyway */
 	sc->sc_addba_request = ic->ic_addba_request;
 	sc->sc_addba_response = ic->ic_addba_response;
@@ -818,6 +826,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_addba_response_timeout = ath_addba_response_timeout;
 	ic->ic_addba_stop = ath_addba_stop;
 	ic->ic_bar_response = ath_bar_response;
+
+	ic->ic_update_chw = ath_update_chw;
+#endif	/* ATH_ENABLE_11N */
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
@@ -955,11 +966,18 @@ assign_bslot(struct ath_softc *sc)
 	return free;
 }
 
+#if __FreeBSD_version > 1000003
 static struct ieee80211vap *
 ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     enum ieee80211_opmode opmode, int flags,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac0[IEEE80211_ADDR_LEN])
+#else
+static struct ieee80211vap *
+ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    int opmode, int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
+#endif
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_vap *avp;
@@ -5766,6 +5784,7 @@ ath_scan_end(struct ieee80211com *ic)
 		 sc->sc_curaid);
 }
 
+#ifdef	ATH_ENABLE_11N
 /*
  * For now, just do a channel change.
  *
@@ -5790,6 +5809,7 @@ ath_update_chw(struct ieee80211com *ic)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
 	ath_set_channel(ic);
 }
+#endif	/* ATH_ENABLE_11N */
 
 static void
 ath_set_channel(struct ieee80211com *ic)
