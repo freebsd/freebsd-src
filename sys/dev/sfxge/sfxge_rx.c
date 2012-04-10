@@ -176,10 +176,10 @@ static inline struct mbuf *sfxge_rx_alloc_mbuf(struct sfxge_softc *sc)
 	/* Allocate mbuf structure */
 	args.flags = M_PKTHDR;
 	args.type = MT_DATA;
-	m = (struct mbuf *)uma_zalloc_arg(zone_mbuf, &args, M_DONTWAIT);
+	m = (struct mbuf *)uma_zalloc_arg(zone_mbuf, &args, M_NOWAIT);
 
 	/* Allocate (and attach) packet buffer */
-	if (m && !uma_zalloc_arg(sc->rx_buffer_zone, m, M_DONTWAIT)) {
+	if (m && !uma_zalloc_arg(sc->rx_buffer_zone, m, M_NOWAIT)) {
 		uma_zfree(zone_mbuf, m);
 		m = NULL;
 	}
@@ -586,7 +586,7 @@ static void sfxge_lro_new_conn(struct sfxge_lro_state *st, uint32_t conn_hash,
 		c = TAILQ_FIRST(&st->free_conns);
 		TAILQ_REMOVE(&st->free_conns, c, link);
 	} else {
-		c = malloc(sizeof(*c), M_SFXGE, M_DONTWAIT);
+		c = malloc(sizeof(*c), M_SFXGE, M_NOWAIT);
 		if (c == NULL)
 			return;
 		c->mbuf = NULL;
