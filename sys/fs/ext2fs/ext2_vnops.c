@@ -407,7 +407,6 @@ ext2_setattr(ap)
 		/* Disallow flags not supported by ext2fs. */
 		if(vap->va_flags & ~(SF_APPEND | SF_IMMUTABLE | UF_NODUMP))
 			return (EOPNOTSUPP);
-
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		/*
@@ -424,23 +423,23 @@ ext2_setattr(ap)
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
 		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+			if (ip->i_flags &
+			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
 					return (error);
 			}
 			ip->i_flags = vap->va_flags;
 		} else {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
+			if (ip->i_flags &
+			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
 			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
 				return (EPERM);
 			ip->i_flags &= SF_SETTABLE;
 			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
 		}
 		ip->i_flag |= IN_CHANGE;
-		if (vap->va_flags & (IMMUTABLE | APPEND))
+		if (ip->i_flags & (IMMUTABLE | APPEND))
 			return (0);
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND))
