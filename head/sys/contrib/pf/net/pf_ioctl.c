@@ -1304,7 +1304,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 		if (rule->overload_tblname[0]) {
 			if ((rule->overload_tbl = pfr_attach_table(ruleset,
-			    rule->overload_tblname, 0)) == NULL)
+			    rule->overload_tblname)) == NULL)
 				error = EINVAL;
 			else
 				rule->overload_tbl->pfrkt_flags |=
@@ -1573,7 +1573,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 			if (newrule->overload_tblname[0]) {
 				if ((newrule->overload_tbl = pfr_attach_table(
-				    ruleset, newrule->overload_tblname, 0)) ==
+				    ruleset, newrule->overload_tblname)) ==
 				    NULL)
 					error = EINVAL;
 				else
@@ -1847,7 +1847,7 @@ DIOCGETSTATES_full:
 		    sizeof(struct pfsync_state) * nr);
 		if (error) {
 			free(pstore, M_TEMP);
-			goto fail;
+			break;
 		}
 		ps->ps_len = sizeof(struct pfsync_state) * nr;
 		free(pstore, M_TEMP);
@@ -1943,7 +1943,7 @@ DIOCGETSTATES_full:
 		if (pt->timeout < 0 || pt->timeout >= PFTM_MAX ||
 		    pt->seconds < 0) {
 			error = EINVAL;
-			goto fail;
+			break;
 		}
 		PF_LOCK();
 		old = V_pf_default_rule.timeout[pt->timeout];
@@ -1962,7 +1962,7 @@ DIOCGETSTATES_full:
 
 		if (pt->timeout < 0 || pt->timeout >= PFTM_MAX) {
 			error = EINVAL;
-			goto fail;
+			break;
 		}
 		pt->seconds = V_pf_default_rule.timeout[pt->timeout];
 		break;
@@ -1973,7 +1973,7 @@ DIOCGETSTATES_full:
 
 		if (pl->index < 0 || pl->index >= PF_LIMIT_MAX) {
 			error = EINVAL;
-			goto fail;
+			break;
 		}
 		pl->limit = V_pf_pool_limits[pl->index].limit;
 		break;
@@ -1988,7 +1988,7 @@ DIOCGETSTATES_full:
 		    V_pf_pool_limits[pl->index].pp == NULL) {
 			PF_UNLOCK();
 			error = EINVAL;
-			goto fail;
+			break;
 		}
 		uma_zone_set_max(V_pf_pool_limits[pl->index].pp, pl->limit);
 		old_limit = V_pf_pool_limits[pl->index].limit;
@@ -2544,86 +2544,140 @@ DIOCGETSTATES_full:
 
 	case DIOCRADDTABLES: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_table *pfrts;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_table)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_table);
+		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfrts, totlen);
+		if (error) {
+			free(pfrts, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_add_tables(io->pfrio_buffer, io->pfrio_size,
+		error = pfr_add_tables(pfrts, io->pfrio_size,
 		    &io->pfrio_nadd, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		free(pfrts, M_TEMP);
 		break;
 	}
 
 	case DIOCRDELTABLES: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_table *pfrts;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_table)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_table);
+		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfrts, totlen);
+		if (error) {
+			free(pfrts, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_del_tables(io->pfrio_buffer, io->pfrio_size,
+		error = pfr_del_tables(pfrts, io->pfrio_size,
 		    &io->pfrio_ndel, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		free(pfrts, M_TEMP);
 		break;
 	}
 
 	case DIOCRGETTABLES: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_table *pfrts;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_table)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_table);
+		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
 		PF_LOCK();
-		error = pfr_get_tables(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_get_tables(&io->pfrio_table, pfrts,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		if (error == 0)
+			error = copyout(pfrts, io->pfrio_buffer, totlen);
+		free(pfrts, M_TEMP);
 		break;
 	}
 
 	case DIOCRGETTSTATS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_tstats *pfrtstats;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_tstats)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_tstats);
+		pfrtstats = malloc(totlen, M_TEMP, M_WAITOK);
 		PF_LOCK();
-		error = pfr_get_tstats(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_get_tstats(&io->pfrio_table, pfrtstats,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		if (error == 0)
+			error = copyout(pfrtstats, io->pfrio_buffer, totlen);
+		free(pfrtstats, M_TEMP);
 		break;
 	}
 
 	case DIOCRCLRTSTATS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_table *pfrts;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_table)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_table);
+		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfrts, totlen);
+		if (error) {
+			free(pfrts, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_clr_tstats(io->pfrio_buffer, io->pfrio_size,
+		error = pfr_clr_tstats(pfrts, io->pfrio_size,
 		    &io->pfrio_nzero, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		free(pfrts, M_TEMP);
 		break;
 	}
 
 	case DIOCRSETTFLAGS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_table *pfrts;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_table)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_table);
+		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfrts, totlen);
+		if (error) {
+			free(pfrts, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_set_tflags(io->pfrio_buffer, io->pfrio_size,
+		error = pfr_set_tflags(pfrts, io->pfrio_size,
 		    io->pfrio_setflag, io->pfrio_clrflag, &io->pfrio_nchange,
 		    &io->pfrio_ndel, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		free(pfrts, M_TEMP);
 		break;
 	}
 
@@ -2643,61 +2697,105 @@ DIOCGETSTATES_full:
 
 	case DIOCRADDADDRS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_addr *pfras;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_addr)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
+		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfras, totlen);
+		if (error) {
+			free(pfras, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_add_addrs(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_add_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nadd, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
+			error = copyout(pfras, io->pfrio_buffer, totlen);
+		free(pfras, M_TEMP);
 		break;
 	}
 
 	case DIOCRDELADDRS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_addr *pfras;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_addr)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
+		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfras, totlen);
+		if (error) {
+			free(pfras, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_del_addrs(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_del_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_ndel, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
+			error = copyout(pfras, io->pfrio_buffer, totlen);
+		free(pfras, M_TEMP);
 		break;
 	}
 
 	case DIOCRSETADDRS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_addr *pfras;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_addr)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = (io->pfrio_size + io->pfrio_size2) *
+		    sizeof(struct pfr_addr);
+		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfras, totlen);
+		if (error) {
+			free(pfras, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_set_addrs(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_set_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_size2, &io->pfrio_nadd,
 		    &io->pfrio_ndel, &io->pfrio_nchange, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL, 0);
 		PF_UNLOCK();
+		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
+			error = copyout(pfras, io->pfrio_buffer, totlen);
+		free(pfras, M_TEMP);
 		break;
 	}
 
 	case DIOCRGETADDRS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_addr *pfras;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_addr)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
+		pfras = malloc(totlen, M_TEMP, M_WAITOK);
 		PF_LOCK();
-		error = pfr_get_addrs(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_get_addrs(&io->pfrio_table, pfras,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		if (error == 0)
+			error = copyout(pfras, io->pfrio_buffer, totlen);
+		free(pfras, M_TEMP);
 		break;
 	}
 
@@ -2717,46 +2815,80 @@ DIOCGETSTATES_full:
 
 	case DIOCRCLRASTATS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_addr *pfras;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_addr)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
+		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfras, totlen);
+		if (error) {
+			free(pfras, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_clr_astats(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_clr_astats(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nzero, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
+			error = copyout(pfras, io->pfrio_buffer, totlen);
+		free(pfras, M_TEMP);
 		break;
 	}
 
 	case DIOCRTSTADDRS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_addr *pfras;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_addr)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
+		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfras, totlen);
+		if (error) {
+			free(pfras, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_tst_addrs(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_tst_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nmatch, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		if (error == 0)
+			error = copyout(pfras, io->pfrio_buffer, totlen);
+		free(pfras, M_TEMP);
 		break;
 	}
 
 	case DIOCRINADEFINE: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_addr *pfras;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_addr)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
+		pfras = malloc(totlen, M_TEMP, M_WAITOK);
+		error = copyin(io->pfrio_buffer, pfras, totlen);
+		if (error) {
+			free(pfras, M_TEMP);
+			break;
+		}
 		PF_LOCK();
-		error = pfr_ina_define(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_ina_define(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nadd, &io->pfrio_naddr,
 		    io->pfrio_ticket, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_UNLOCK();
+		free(pfras, M_TEMP);
 		break;
 	}
 
@@ -2784,14 +2916,14 @@ DIOCGETSTATES_full:
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
-			goto fail;
+			break;
 		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
 		ioes = malloc(totlen, M_TEMP, M_WAITOK);
 		error = copyin(io->array, ioes, totlen);
 		if (error) {
 			free(ioes, M_TEMP);
-			goto fail;
+			break;
 		}
 		PF_LOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
@@ -2850,14 +2982,14 @@ DIOCGETSTATES_full:
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
-			goto fail;
+			break;
 		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
 		ioes = malloc(totlen, M_TEMP, M_WAITOK);
 		error = copyin(io->array, ioes, totlen);
 		if (error) {
 			free(ioes, M_TEMP);
-			goto fail;
+			break;
 		}
 		PF_LOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
@@ -2916,14 +3048,14 @@ DIOCGETSTATES_full:
 
 		if (io->esize != sizeof(*ioe)) {
 			error = ENODEV;
-			goto fail;
+			break;
 		}
 		totlen = sizeof(struct pfioc_trans_e) * io->size;
 		ioes = malloc(totlen, M_TEMP, M_WAITOK);
 		error = copyin(io->array, ioes, totlen);
 		if (error) {
 			free(ioes, M_TEMP);
-			goto fail;
+			break;
 		}
 		PF_LOCK();
 		/* First makes sure everything will succeed. */
@@ -3066,7 +3198,7 @@ DIOCGETSTATES_full:
 		    sizeof(struct pf_src_node) * nr);
 		if (error) {
 			free(pstore, M_TEMP);
-			goto fail;
+			break;
 		}
 		psn->psn_len = sizeof(struct pf_src_node) * nr;
 		free(pstore, M_TEMP);

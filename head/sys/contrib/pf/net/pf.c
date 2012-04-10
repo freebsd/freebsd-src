@@ -1425,7 +1425,7 @@ pf_tbladdr_setup(struct pf_ruleset *rs, struct pf_addr_wrap *aw)
 {
 	if (aw->type != PF_ADDR_TABLE)
 		return (0);
-	if ((aw->p.tbl = pfr_attach_table(rs, aw->v.tblname, 1)) == NULL)
+	if ((aw->p.tbl = pfr_attach_table(rs, aw->v.tblname)) == NULL)
 		return (1);
 	return (0);
 }
