@@ -289,9 +289,22 @@ isci_remote_device_release_lun_queue(struct ISCI_REMOTE_DEVICE *remote_device,
 
 void
 isci_remote_device_release_device_queue(
-    struct ISCI_REMOTE_DEVICE *remote_device)
+    struct ISCI_REMOTE_DEVICE *device)
 {
-	lun_id_t lun;
-	for (lun = 0; lun < ISCI_MAX_LUN; lun++)
-		isci_remote_device_release_lun_queue(remote_device, lun);
+	if (TAILQ_EMPTY(&device->queued_ccbs)) {
+		lun_id_t lun;
+
+		for (lun = 0; lun < ISCI_MAX_LUN; lun++)
+			isci_remote_device_release_lun_queue(device, lun);
+	} else {
+		struct ccb_hdr *ccb_h;
+
+		ccb_h = TAILQ_FIRST(&device->queued_ccbs);
+		TAILQ_REMOVE(&device->queued_ccbs, ccb_h, sim_links.tqe);
+		ccb_h->status &= ~CAM_SIM_QUEUED;
+		isci_log_message(1, "ISCI", "release %p %x\n", ccb_h,
+		    ((union ccb*)ccb_h)->csio.cdb_io.cdb_bytes[0]);
+		isci_io_request_execute_scsi_io((union ccb *)ccb_h,
+		    device->domain->controller);
+	}
 }
