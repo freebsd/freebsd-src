@@ -515,14 +515,14 @@ bpf_zerocopy_ioctl_rotzbuf(struct thread *td, struct bpf_d *d,
 	struct zbuf *bzh;
 
 	bzero(bz, sizeof(*bz));
-	BPFD_LOCK(d);
+	BPFD_WLOCK(d);
 	if (d->bd_hbuf == NULL && d->bd_slen != 0) {
 		ROTATE_BUFFERS(d);
 		bzh = (struct zbuf *)d->bd_hbuf;
 		bz->bz_bufa = (void *)bzh->zb_uaddr;
 		bz->bz_buflen = d->bd_hlen;
 	}
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 	return (0);
 }
 
@@ -570,10 +570,10 @@ bpf_zerocopy_ioctl_setzbuf(struct thread *td, struct bpf_d *d,
 	 * We only allow buffers to be installed once, so atomically check
 	 * that no buffers are currently installed and install new buffers.
 	 */
-	BPFD_LOCK(d);
+	BPFD_WLOCK(d);
 	if (d->bd_hbuf != NULL || d->bd_sbuf != NULL || d->bd_fbuf != NULL ||
 	    d->bd_bif != NULL) {
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
 		zbuf_free(zba);
 		zbuf_free(zbb);
 		return (EINVAL);
@@ -593,6 +593,6 @@ bpf_zerocopy_ioctl_setzbuf(struct thread *td, struct bpf_d *d,
 	 * shared management region.
 	 */
 	d->bd_bufsize = bz->bz_buflen - sizeof(struct bpf_zbuf_header);
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 	return (0);
 }

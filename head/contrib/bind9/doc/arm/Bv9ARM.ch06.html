@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch06.html,v 1.275.8.10 2011-08-03 02:35:13 tbox Exp $ -->
+<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -48,58 +48,58 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#configuration_file_elements">Configuration File Elements</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#address_match_lists">Address Match Lists</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574283">Comment Syntax</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574332">Comment Syntax</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#Configuration_File_Grammar">Configuration File Grammar</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574937"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2574986"><span><strong class="command">acl</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#acl"><span><strong class="command">acl</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575127"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575176"><span><strong class="command">controls</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#controls_statement_definition_and_usage"><span><strong class="command">controls</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575418"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575504"><span><strong class="command">include</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575467"><span><strong class="command">include</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575484"><span><strong class="command">include</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575527"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575550"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575709"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575835"><span><strong class="command">logging</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575576"><span><strong class="command">key</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575600"><span><strong class="command">key</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575758"><span><strong class="command">logging</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2575884"><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577834"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577908"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2578040"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2578084"><span><strong class="command">masters</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577910"><span><strong class="command">lwres</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2577984"><span><strong class="command">lwres</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2578116"><span><strong class="command">masters</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2578160"><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2578099"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2578174"><span><strong class="command">options</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#options"><span><strong class="command">options</strong></span> Statement Definition and
           Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_grammar"><span><strong class="command">server</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_definition_and_usage"><span><strong class="command">server</strong></span> Statement Definition and
             Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#statschannels"><span><strong class="command">statistics-channels</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589395"><span><strong class="command">statistics-channels</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589481"><span><strong class="command">statistics-channels</strong></span> Statement Definition and
             Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#trusted-keys"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589534"><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589689"><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589581"><span><strong class="command">managed-keys</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589736"><span><strong class="command">managed-keys</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#managed-keys"><span><strong class="command">managed-keys</strong></span> Statement Definition
             and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#view_statement_grammar"><span><strong class="command">view</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2590007"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2590162"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zone_statement_grammar"><span><strong class="command">zone</strong></span>
             Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591558"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591713"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2595030">Zone File</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2595116">Zone File</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them">Types of Resource Records and When to Use Them</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2597260">Discussion of MX Records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2597415">Discussion of MX Records</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#Setting_TTLs">Setting TTLs</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2597876">Inverse Mapping in IPv4</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598003">Other Zone File Directives</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598276"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2597962">Inverse Mapping in IPv4</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598157">Other Zone File Directives</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598430"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zonefile_format">Additional File Formats</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#statistics">BIND9 Statistics</a></span></dt>
@@ -477,7 +477,7 @@
 <a name="address_match_lists"></a>Address Match Lists</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2574050"></a>Syntax</h4></div></div></div>
+<a name="id2574099"></a>Syntax</h4></div></div></div>
 <pre class="programlisting"><code class="varname">address_match_list</code> = address_match_list_element ;
   [<span class="optional"> address_match_list_element; ... </span>]
 <code class="varname">address_match_list_element</code> = [<span class="optional"> ! </span>] (ip_address [<span class="optional">/length</span>] |
@@ -486,7 +486,7 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2574077"></a>Definition and Usage</h4></div></div></div>
+<a name="id2574126"></a>Definition and Usage</h4></div></div></div>
 <p>
             Address match lists are primarily used to determine access
             control for various server operations. They are also used in
@@ -570,7 +570,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574283"></a>Comment Syntax</h3></div></div></div>
+<a name="id2574332"></a>Comment Syntax</h3></div></div></div>
 <p>
           The <acronym class="acronym">BIND</acronym> 9 comment syntax allows for
           comments to appear
@@ -580,7 +580,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2574298"></a>Syntax</h4></div></div></div>
+<a name="id2574347"></a>Syntax</h4></div></div></div>
 <p>
             </p>
 <pre class="programlisting">/* This is a <acronym class="acronym">BIND</acronym> comment as in C */</pre>
@@ -596,7 +596,7 @@
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2574328"></a>Definition and Usage</h4></div></div></div>
+<a name="id2574377"></a>Definition and Usage</h4></div></div></div>
 <p>
             Comments may appear anywhere that whitespace may appear in
             a <acronym class="acronym">BIND</acronym> configuration file.
@@ -848,7 +848,7 @@
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2574937"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2574986"></a><span><strong class="command">acl</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">acl</strong></span> acl-name {
     address_match_list
 };
@@ -930,7 +930,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575127"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575176"></a><span><strong class="command">controls</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">controls</strong></span> {
    [ inet ( ip_addr | * ) [ port ip_port ]
                 allow { <em class="replaceable"><code> address_match_list </code></em> }
@@ -1054,12 +1054,12 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575418"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575467"></a><span><strong class="command">include</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">include</strong></span> <em class="replaceable"><code>filename</code></em>;</pre>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575504"></a><span><strong class="command">include</strong></span> Statement Definition and
+<a name="id2575484"></a><span><strong class="command">include</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">include</strong></span> statement inserts the
@@ -1074,7 +1074,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575527"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575576"></a><span><strong class="command">key</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">key</strong></span> <em class="replaceable"><code>key_id</code></em> {
     algorithm <em class="replaceable"><code>string</code></em>;
     secret <em class="replaceable"><code>string</code></em>;
@@ -1083,7 +1083,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575550"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2575600"></a><span><strong class="command">key</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">key</strong></span> statement defines a shared
           secret key for use with TSIG (see <a href="Bv9ARM.ch04.html#tsig" title="TSIG">the section called &#8220;TSIG&#8221;</a>)
@@ -1130,7 +1130,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575709"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2575758"></a><span><strong class="command">logging</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">logging</strong></span> {
    [ <span><strong class="command">channel</strong></span> <em class="replaceable"><code>channel_name</code></em> {
      ( <span><strong class="command">file</strong></span> <em class="replaceable"><code>path_name</code></em>
@@ -1154,7 +1154,7 @@
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2575835"></a><span><strong class="command">logging</strong></span> Statement Definition and
+<a name="id2575884"></a><span><strong class="command">logging</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">logging</strong></span> statement configures a
@@ -1188,7 +1188,7 @@
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2575888"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
+<a name="id2576005"></a>The <span><strong class="command">channel</strong></span> Phrase</h4></div></div></div>
 <p>
             All log output goes to one or more <span class="emphasis"><em>channels</em></span>;
             you can make as many of them as you want.
@@ -1748,12 +1748,25 @@ category notify { null; };
                     </p>
                   </td>
 </tr>
+<tr>
+<td>
+                    <p><span><strong class="command">RPZ</strong></span></p>
+                  </td>
+<td>
+                    <p>
+                      Information about errors in response policy zone files,
+                      rewritten responses, and at the highest
+                      <span><strong class="command">debug</strong></span> levels, mere rewriting
+                      attempts.
+                    </p>
+                  </td>
+</tr>
 </tbody>
 </table></div>
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2577315"></a>The <span><strong class="command">query-errors</strong></span> Category</h4></div></div></div>
+<a name="id2577322"></a>The <span><strong class="command">query-errors</strong></span> Category</h4></div></div></div>
 <p>
             The <span><strong class="command">query-errors</strong></span> category is
             specifically intended for debugging purposes: To identify
@@ -1981,7 +1994,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2577834"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2577910"></a><span><strong class="command">lwres</strong></span> Statement Grammar</h3></div></div></div>
 <p>
            This is the grammar of the <span><strong class="command">lwres</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -1997,7 +2010,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2577908"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2577984"></a><span><strong class="command">lwres</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">lwres</strong></span> statement configures the
           name
@@ -2048,7 +2061,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2578040"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2578116"></a><span><strong class="command">masters</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting">
 <span><strong class="command">masters</strong></span> <em class="replaceable"><code>name</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] { ( <em class="replaceable"><code>masters_list</code></em> | 
       <em class="replaceable"><code>ip_addr</code></em> [<span class="optional">port <em class="replaceable"><code>ip_port</code></em></span>] [<span class="optional">key <em class="replaceable"><code>key</code></em></span>] ) ; [<span class="optional">...</span>] };
@@ -2056,7 +2069,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2578084"></a><span><strong class="command">masters</strong></span> Statement Definition and
+<a name="id2578160"></a><span><strong class="command">masters</strong></span> Statement Definition and
           Usage</h3></div></div></div>
 <p><span><strong class="command">masters</strong></span>
           lists allow for a common set of masters to be easily used by
@@ -2065,7 +2078,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2578099"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2578174"></a><span><strong class="command">options</strong></span> Statement Grammar</h3></div></div></div>
 <p>
           This is the grammar of the <span><strong class="command">options</strong></span>
           statement in the <code class="filename">named.conf</code> file:
@@ -2086,6 +2099,10 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     [<span class="optional"> cache-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> dump-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> bindkeys-file <em class="replaceable"><code>path_name</code></em>; </span>]
+    [<span class="optional"> secroots-file <em class="replaceable"><code>path_name</code></em>; </span>]
+    [<span class="optional"> session-keyfile <em class="replaceable"><code>path_name</code></em>; </span>]
+    [<span class="optional"> session-keyname <em class="replaceable"><code>key_name</code></em>; </span>]
+    [<span class="optional"> session-keyalg <em class="replaceable"><code>algorithm_id</code></em>; </span>]
     [<span class="optional"> memstatistics <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> memstatistics-file <em class="replaceable"><code>path_name</code></em>; </span>]
     [<span class="optional"> pid-file <em class="replaceable"><code>path_name</code></em>; </span>]
@@ -2111,7 +2128,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     [<span class="optional"> ixfr-from-differences (<em class="replaceable"><code>yes_or_no</code></em> | <code class="constant">master</code> | <code class="constant">slave</code>); </span>]
     [<span class="optional"> dnssec-enable <em class="replaceable"><code>yes_or_no</code></em>; </span>]
     [<span class="optional"> dnssec-validation (<em class="replaceable"><code>yes_or_no</code></em> | <code class="constant">auto</code>); </span>]
-    [<span class="optional"> dnssec-lookaside ( <em class="replaceable"><code>auto</code></em> | 
+    [<span class="optional"> dnssec-lookaside ( <em class="replaceable"><code>auto</code></em> |
+                        <em class="replaceable"><code>no</code></em> |
                         <em class="replaceable"><code>domain</code></em> trust-anchor <em class="replaceable"><code>domain</code></em> ); </span>]
     [<span class="optional"> dnssec-must-be-secure <em class="replaceable"><code>domain yes_or_no</code></em>; </span>]
     [<span class="optional"> dnssec-accept-expired <em class="replaceable"><code>yes_or_no</code></em>; </span>]
@@ -2259,7 +2277,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     [<span class="optional"> resolver-query-timeout <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> deny-answer-addresses { <em class="replaceable"><code>address_match_list</code></em> } [<span class="optional"> except-from { <em class="replaceable"><code>namelist</code></em> } </span>];</span>]
     [<span class="optional"> deny-answer-aliases { <em class="replaceable"><code>namelist</code></em> } [<span class="optional"> except-from { <em class="replaceable"><code>namelist</code></em> } </span>];</span>]
-    [<span class="optional"> response-policy { <em class="replaceable"><code>zone_name</code></em> [<span class="optional"> policy <em class="replaceable"><code>given</code></em> | <em class="replaceable"><code>no-op</code></em> | <em class="replaceable"><code>nxdomain</code></em> | <em class="replaceable"><code>nodata</code></em> | <em class="replaceable"><code>cname domain</code></em> </span>] ; } ; </span>]
+    [<span class="optional"> response-policy { <em class="replaceable"><code>zone_name</code></em> [<span class="optional"> policy given | disabled | passthru | nxdomain | nodata | cname <em class="replaceable"><code>domain</code></em> </span>] ; } ; </span>]
 };
 </pre>
 </div>
@@ -2517,7 +2535,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
                 The pathname of the file the server dumps
                 security roots to when instructed to do so with
                 <span><strong class="command">rndc secroots</strong></span>.
-                If not specified, the default is <code class="filename">named.secroots</code>.
+                If not specified, the default is
+                <code class="filename">named.secroots</code>.
               </p></dd>
 <dt><span class="term"><span><strong class="command">session-keyfile</strong></span></span></dt>
 <dd><p>
@@ -2542,14 +2561,6 @@ badresp:1,adberr:0,findfail:0,valfail:0]
                 Valid values are hmac-sha1, hmac-sha224, hmac-sha256,
                 hmac-sha384, hmac-sha512 and hmac-md5.  If not
                 specified, the default is hmac-sha256.
-              </p></dd>
-<dt><span class="term"><span><strong class="command">session-keyfile</strong></span></span></dt>
-<dd><p>
-                The pathname of the file into which to write a session TSIG
-                key for use by <span><strong class="command">nsupdate -l</strong></span>.  (See the
-                discussion of the <span><strong class="command">update-policy</strong></span>
-                statement's <strong class="userinput"><code>local</code></strong> option for more
-                details on this feature.)
               </p></dd>
 <dt><span class="term"><span><strong class="command">port</strong></span></span></dt>
 <dd><p>
@@ -2661,6 +2672,11 @@ options {
                 <strong class="userinput"><code>auto</code></strong>, then built-in default
                 values for the DLV domain and trust anchor will be
                 used, along with a built-in key for validation.
+              </p>
+<p>
+                If <span><strong class="command">dnssec-lookaside</strong></span> is set to
+                <strong class="userinput"><code>no</code></strong>, then dnssec-lookaside
+                is not used.
               </p>
 <p>
                 The default DLV key is stored in the file
@@ -3649,7 +3665,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2583636"></a>Forwarding</h4></div></div></div>
+<a name="id2583643"></a>Forwarding</h4></div></div></div>
 <p>
             The forwarding facility can be used to create a large site-wide
             cache on a few servers, reducing traffic over links to external
@@ -3693,7 +3709,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2583763"></a>Dual-stack Servers</h4></div></div></div>
+<a name="id2583702"></a>Dual-stack Servers</h4></div></div></div>
 <p>
             Dual-stack servers are used as servers of last resort to work
             around
@@ -3904,7 +3920,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2584382"></a>Interfaces</h4></div></div></div>
+<a name="id2584322"></a>Interfaces</h4></div></div></div>
 <p>
             The interfaces and ports that the server will answer queries
             from may be specified using the <span><strong class="command">listen-on</strong></span> option. <span><strong class="command">listen-on</strong></span> takes
@@ -4363,7 +4379,7 @@ avoid-v6-udp-ports {};
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2585456"></a>UDP Port Lists</h4></div></div></div>
+<a name="id2585531"></a>UDP Port Lists</h4></div></div></div>
 <p>
             <span><strong class="command">use-v4-udp-ports</strong></span>,
             <span><strong class="command">avoid-v4-udp-ports</strong></span>,
@@ -4405,7 +4421,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2585584"></a>Operating System Resource Limits</h4></div></div></div>
+<a name="id2585591"></a>Operating System Resource Limits</h4></div></div></div>
 <p>
             The server's usage of many system resources can be limited.
             Scaled values are allowed when specifying resource limits.  For
@@ -4567,7 +4583,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2585869"></a>Periodic Task Intervals</h4></div></div></div>
+<a name="id2586082"></a>Periodic Task Intervals</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">cleaning-interval</strong></span></span></dt>
 <dd><p>
@@ -4988,7 +5004,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <p>
                   Specify a private RDATA type to be used when generating
                   key signing records.  The default is
-                  <code class="literal">65535</code>.
+                  <code class="literal">65534</code>.
                 </p>
 <p>
                   It is expected that this parameter may be removed
@@ -5210,10 +5226,11 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
             and which queries should not be sent to the Internet's root
             servers.  The official servers which cover these namespaces
             return NXDOMAIN responses to these queries.  In particular,
-            these cover the reverse namespace for addresses from RFC 1918 and
-            RFC 3330.  They also include the reverse namespace for IPv6 local
-            address (locally assigned), IPv6 link local addresses, the IPv6
-            loopback address and the IPv6 unknown address.
+            these cover the reverse namespaces for addresses from
+            RFC 1918, RFC 4193, and RFC 5737.  They also include the
+            reverse namespace for IPv6 local address (locally assigned),
+            IPv6 link local addresses, the IPv6 loopback address and the
+            IPv6 unknown address.
           </p>
 <p>
             Named will attempt to determine if a built-in zone already exists
@@ -5406,7 +5423,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2588113"></a>Content Filtering</h4></div></div></div>
+<a name="id2588188"></a>Content Filtering</h4></div></div></div>
 <p>
             <acronym class="acronym">BIND</acronym> 9 provides the ability to filter
             out DNS responses from external DNS servers containing
@@ -5529,131 +5546,228 @@ deny-answer-aliases { "example.net"; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2588372"></a>Response Policy Zone (RPZ) Rewriting</h4></div></div></div>
+<a name="id2588379"></a>Response Policy Zone (RPZ) Rewriting</h4></div></div></div>
 <p>
             <acronym class="acronym">BIND</acronym> 9 includes an intentionally limited
             mechanism to modify DNS responses for recursive requests
-            similar to email anti-spam DNS blacklists.
-            All response policy zones are named in the
+            somewhat similar to email anti-spam DNS blacklists.
+            Responses can be changed to deny the existence of domains(NXDOMAIN),
+            deny the existence of IP addresses for domains (NODATA),
+            or contain other IP addresses or data.
+          </p>
+<p>
+            The actions encoded in a response policy zone (RPZ) are applied
+            only to queries that ask for recursion (RD=1).
+            Response policy zones are named in the
             <span><strong class="command">response-policy</strong></span> option for the view or among the
             global options if there is no response-policy option for the view.
-          </p>
-<p>
-            The rules encoded in a response policy zone (RPZ) are applied
-            only to responses to queries that ask for recursion (RD=1).
-            RPZs are normal DNS zones containing RRsets
+            RPZs are ordinary DNS zones containing RRsets
             that can be queried normally if allowed.
             It is usually best to restrict those queries with something like
-            <span><strong class="command">allow-query {none; };</strong></span> or
-            <span><strong class="command">allow-query { 127.0.0.1; };</strong></span>.
+            <span><strong class="command">allow-query { localhost; };</strong></span>.
           </p>
 <p>
-            There are four kinds of RPZ rewrite rules.  QNAME rules are
-            applied to query names in requests and to targets of CNAME
-            records resolved in the process of generating the response.
-            The owner name of a QNAME rule is the query name relativized
+            There are four kinds of RPZ records, QNAME, IP, NSIP,
+            and NSDNAME.
+            QNAME records are applied to query names of requests and targets
+            of CNAME records resolved to generate the response.
+            The owner name of a QNAME RPZ record is the query name relativized
             to the RPZ.
-            The records in a rewrite rule are usually A, AAAA, or special
-            CNAMEs, but can be any type except DNAME.
           </p>
 <p>
-            IP rules are triggered by addresses in A and AAAA records.
-            All IP addresses in A or AAAA RRsets are tested and the rule
-            longest prefix is applied.  Ties between rules with equal prefixes
-            are broken in favor of the first RPZ mentioned in the
-            response-policy option.
-            The rule matching the smallest IP address is chosen among equal
-            prefix rules from a single RPZ.
-            IP rules are expressed in RRsets with owner names that are
-            subdomains of rpz-ip and encoding an IP address block, reversed
-            as in IN-ARPA.
-            prefix.B.B.B.B with prefix between 1 and 32 and B between 1 and 255
-            encodes an IPv4 address.
-            IPv6 addresses are encoded by with prefix.W.W.W.W.W.W.W.W or
-            prefix.WORDS.zz.WORDS.  The words in the standard IPv6 text
-            representation are reversed, "::" is replaced with ".zz.",
-            and ":" becomes ".".
+            The second kind of RPZ record, an IP policy record,
+            is triggered by addresses in A and AAAA records
+            for the ANSWER sections of responses.
+            IP policy records have owner names that are
+            subdomains of <strong class="userinput"><code>rpz-ip</code></strong> relativized to the
+            RPZ origin name and encode an IP address or address block.
+            IPv4 addresses are encoded as
+            <strong class="userinput"><code>prefixlength.B4.B3.B2.B1.rpz-ip</code></strong>.
+            The prefix length must be between 1 and 32.
+            All four bytes, B4, B3, B2, and B1, must be present.
+            B4 is the decimal value of the least significant byte of the
+            IPv4 address as in IN-ADDR.ARPA.
+            IPv6 addresses are encoded in a format similar to the standard
+            IPv6 text representation,
+            <strong class="userinput"><code>prefixlength.W8.W7.W6.W5.W4.W3.W2.W1.rpz-ip</code></strong>.
+            Each of W8,...,W1 is a one to four digit hexadecimal number
+            representing 16 bits of the IPv6 address as in the standard text
+            representation of IPv6 addresses, but reversed as in IN-ADDR.ARPA.
+            All 8 words must be present except when consecutive
+            zero words are replaced with <strong class="userinput"><code>.zz.</code></strong>
+            analogous to double colons (::) in standard IPv6 text encodings.
+            The prefix length must be between 1 and 128.
           </p>
 <p>
-            NSDNAME rules match names in NS RRsets for the response or a
-            parent.  They are encoded as subdomains of rpz-nsdomain relativized
+            NSDNAME policy records match names of authoritative servers
+            for the query name, a parent of the query name, a CNAME,
+            or a parent of a CNAME.
+            They are encoded as subdomains of
+            <strong class="userinput"><code>rpz-nsdomain</code></strong> relativized
             to the RPZ origin name.
           </p>
 <p>
-            NSIP rules match IP addresses in A and AAAA RRsets for names of
-            responsible servers or the names that can be matched by NSDNAME
-            rules.  The are encoded like IP rules except as subdomains of
-            rpz-nsip.
+            NSIP policy records match IP addresses in A and AAAA RRsets
+            for domains that can be checked against NSDNAME policy records.
+            The are encoded like IP policies except as subdomains of
+            <strong class="userinput"><code>rpz-nsip</code></strong>.
           </p>
 <p>
-            Authority verification issues and variations in authority data in
-            the current version of <acronym class="acronym">BIND</acronym> 9 can cause
-            inconsistent results from NSIP and NSDNAME.  So they are available
+            The query response is checked against all RPZs, so
+            two or more policy records can apply to a single response.
+            Because DNS responses can be rewritten according by at most a
+            single policy record, a single policy (other than
+            <span><strong class="command">DISABLED</strong></span> policies) must be chosen.
+            Policies are chosen in the following order:
+            </p>
+<div class="itemizedlist"><ul type="disc">
+<li>Among applicable zones, use the RPZ that appears first
+                in the response-policy option.
+              </li>
+<li>Prefer QNAME to IP to NSDNAME to NSIP policy records
+                in a single RPZ
+              </li>
+<li>Among applicable NSDNAME policy records, prefer the
+                policy record that matches the lexically smallest name
+              </li>
+<li>Among IP or NSIP policy records, prefer the record
+                with the longest prefix.
+              </li>
+<li>Among records with the same prefex length,
+                prefer the IP or NSIP policy record that matches
+                the smallest IP address.
+              </li>
+</ul></div>
+<p>
+          </p>
+<p>
+            When the processing of a response is restarted to resolve
+            DNAME or CNAME records and an applicable policy record set has
+            not been found,
+            all RPZs are again consulted for the DNAME or CNAME names
+            and addresses.
+          </p>
+<p>
+            Authority verification issues and variations in authority data
+            can cause inconsistent results for NSIP and NSDNAME policy records.
+            Glue NS records often differ from authoritative NS records.
+            So they are available
             only when <acronym class="acronym">BIND</acronym> is built with the
             <strong class="userinput"><code>--enable-rpz-nsip</code></strong> or
             <strong class="userinput"><code>--enable-rpz-nsdname</code></strong> options
             on the "configure" command line.
           </p>
 <p>
-            Four policies can be expressed.
-            The <span><strong class="command">NXDOMAIN</strong></span> policy causes a NXDOMAIN response
-            and is expressed with an RRset consisting of a single CNAME
-            whose target is the root domain (.).
-            <span><strong class="command">NODATA</strong></span> generates NODATA or ANCOUNT=1 regardless
-            of query type.
-            It is expressed with a CNAME whose target is the wildcard
-            top-level domain (*.).
-            The <span><strong class="command">NO-OP</strong></span> policy does not change the response
-            and is used to "poke holes" in policies for larger CIDR blocks or in
-            zones named later in the <span><strong class="command">response-policy</strong></span> option.
-            The NO-OP policy is expressed by a CNAME with a target consisting
-            of the variable part of the owner name, such as "example.com." for
-            a QNAME rule or "128.1.0.0.127." for an IP rule.
-            The <span><strong class="command">CNAME</strong></span> policy is used to replace the RRsets
-            of response.
-            A and AAAA RRsets are most common and useful to capture
-            an evil domain in a walled garden, but any valid set of RRsets
-            is possible.
+            RPZ record sets are special CNAME records or one or more
+            of any types of DNS record except DNAME or DNSSEC.
+            Except when a policy record is a CNAME, there can be more
+            more than one record and more than one type
+            in a set of policy records.
+            Except for three kinds of CNAME records that are illegal except
+            in policy zones, the records in a set are used in the response as if
+            their owner name were the query name.  They are copied to the
+            response as dictated by their types.
+            </p>
+<div class="itemizedlist"><ul type="disc">
+<li>A CNAME whose target is the root domain (.)
+                specifies the <span><strong class="command">NXDOMAIN</strong></span> policy,
+                which generates an NXDOMAIN response.
+              </li>
+<li>A CNAME whose target is the wildcard top-level
+                domain (*.) specifies the <span><strong class="command">NODATA</strong></span> policy,
+                which rewrites the response to NODATA or ANCOUNT=1.
+              </li>
+<li>A CNAME whose target is a wildcard hostname such
+                as *.example.com is used normally after the astrisk (*)
+                has been replaced with the query name.
+                These records are usually resolved with ordinary CNAMEs
+                outside the policy zones.  They can be useful for logging.
+              </li>
+<li>The <span><strong class="command">PASSTHRU</strong></span> policy is specified
+                by a CNAME whose target is the variable part of its own
+                owner name.  It causes the response to not be rewritten
+                and is most often used to "poke holes" in policies for
+                CIDR blocks.
+              </li>
+</ul></div>
+<p>
           </p>
 <p>
-            All of the policies in an RPZ can be overridden with a
-            <span><strong class="command">policy</strong></span> clause.
-            <span><strong class="command">given</strong></span> says "do not override."
-            <span><strong class="command">no-op</strong></span> says "do nothing" regardless of the policy
-            in RPZ records.
-            <span><strong class="command">nxdomain</strong></span> causes all RPZ rules to generate
-            NXDOMAIN results.
-            <span><strong class="command">nodata</strong></span> gives nodata.
-            <span><strong class="command">cname domain</strong></span> causes all RPZ rules to act as if
-            the consisted of a "cname domain" record.
+            The policies specified in individual records
+            in an RPZ can be overridden with a <span><strong class="command">policy</strong></span> clause
+            in the <span><strong class="command">response-policy</strong></span> option.
+            An organization using an RPZ provided by another organization might
+            use this mechanism to redirect domains to its own walled garden.
+            </p>
+<div class="itemizedlist"><ul type="disc">
+<li>
+<span><strong class="command">GIVEN</strong></span> says "do not override."
+              </li>
+<li>
+<span><strong class="command">DISABLED</strong></span> causes policy records to do
+                nothing but log what they might have done.
+                The response to the DNS query will be written according to
+                any matching policy records that are not disabled.
+                Policy zones overridden with <span><strong class="command">DISABLED</strong></span> should
+                appear first, because they will often not be logged
+                if a higher precedence policy is found first.
+              </li>
+<li>
+<span><strong class="command">PASSTHRU</strong></span> causes all policy records
+                to act as if they were CNAME records with targets the variable
+                part of their owner name.  They protect the response from
+                being changed.
+              </li>
+<li>
+<span><strong class="command">NXDOMAIN</strong></span> causes all RPZ records
+                to specify NXDOMAIN policies.
+              </li>
+<li>
+<span><strong class="command">NODATA</strong></span> overrides with the
+                NODATA policy
+              </li>
+<li>
+<span><strong class="command">CNAME domain</strong></span> causes all RPZ
+                policy records to act as if they were "cname domain" records.
+              </li>
+</ul></div>
+<p>
           </p>
 <p>
             For example, you might use this option statement
           </p>
-<pre class="programlisting">response-policy { zone "bl"; };</pre>
+<pre class="programlisting">    response-policy { zone "badlist"; };</pre>
 <p>
             and this zone statement
           </p>
-<pre class="programlisting">zone "bl" {type master; file "example/bl"; allow-query {none;}; };</pre>
+<pre class="programlisting">    zone "badlist" {type master; file "master/badlist"; allow-query {none;}; };</pre>
 <p>
             with this zone file
           </p>
 <pre class="programlisting">$TTL 1H
-@                   SOA LOCALHOST. named-mgr.example.com (1 1h 15m 30d 2h)
+@                       SOA LOCALHOST. named-mgr.example.com (1 1h 15m 30d 2h)
+                        NS  LOCALHOST.
 
-; QNAME rules
-nxdomain.domain.com         CNAME   .
-nodata.domain.com           CNAME   *.
-bad.domain.com              A       10.0.0.1
-                            AAAA    2001:2::1
-ok.domain.com               CNAME   ok.domain.com.
-*.badzone.domain.com        CNAME   garden.example.com.
+; QNAME policy records.  There are no periods (.) after the owner names.
+nxdomain.domain.com     CNAME   .               ; NXDOMAIN policy
+nodata.domain.com       CNAME   *.              ; NODATA policy
+bad.domain.com          A       10.0.0.1        ; redirect to a walled garden
+                        AAAA    2001:2::1
 
-; IP rules rewriting all answers for 127/8 except 127.0.0.1
-8.0.0.0.127.ip              CNAME   .
-32.1.0.0.127.ip             CNAME   32.1.0.0.127.
+; do not rewrite (PASSTHRU) OK.DOMAIN.COM
+ok.domain.com           CNAME   ok.domain.com.
 
-; NSDNAME and NSIP rules
+bzone.domain.com        CNAME   garden.example.com.
+
+; redirect x.bzone.domain.com to x.bzone.domain.com.garden.example.com
+*.bzone.domain.com      CNAME   *.garden.example.com.
+
+
+; IP policy records that rewrite all answers for 127/8 except 127.0.0.1
+8.0.0.0.127.rpz-ip      CNAME   .
+32.1.0.0.127.rpz-ip     CNAME   32.1.0.0.127.   ; PASSTHRU for 127.0.0.1
+
+; NSDNAME and NSIP policy records
 ns.domain.com.rpz-nsdname   CNAME   .
 48.zz.2.2001.rpz-nsip       CNAME   .
 </pre>
@@ -5867,7 +5981,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2589395"></a><span><strong class="command">statistics-channels</strong></span> Statement Definition and
+<a name="id2589481"></a><span><strong class="command">statistics-channels</strong></span> Statement Definition and
             Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">statistics-channels</strong></span> statement
@@ -5927,7 +6041,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2589534"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<a name="id2589689"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">trusted-keys</strong></span> statement defines
@@ -5967,7 +6081,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2589581"></a><span><strong class="command">managed-keys</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2589736"></a><span><strong class="command">managed-keys</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">managed-keys</strong></span> {
     <em class="replaceable"><code>string</code></em> initial-key <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ;
     [<span class="optional"> <em class="replaceable"><code>string</code></em> initial-key <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; [<span class="optional">...</span>]</span>]
@@ -6102,7 +6216,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2590007"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2590162"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">view</strong></span> statement is a powerful
             feature
@@ -6391,10 +6505,10 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2591558"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2591713"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2591565"></a>Zone Types</h4></div></div></div>
+<a name="id2591720"></a>Zone Types</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -6654,7 +6768,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592179"></a>Class</h4></div></div></div>
+<a name="id2592402"></a>Class</h4></div></div></div>
 <p>
               The zone's name may optionally be followed by a class. If
               a class is not specified, class <code class="literal">IN</code> (for <code class="varname">Internet</code>),
@@ -6676,7 +6790,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592212"></a>Zone Options</h4></div></div></div>
+<a name="id2592503"></a>Zone Options</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">allow-notify</strong></span></span></dt>
 <dd><p>
@@ -7553,7 +7667,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2595030"></a>Zone File</h2></div></div></div>
+<a name="id2595116"></a>Zone File</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="types_of_resource_records_and_when_to_use_them"></a>Types of Resource Records and When to Use Them</h3></div></div></div>
@@ -7566,7 +7680,7 @@ example.com. NS ns2.example.net.
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2595048"></a>Resource Records</h4></div></div></div>
+<a name="id2595134"></a>Resource Records</h4></div></div></div>
 <p>
               A domain name identifies a node.  Each node has a set of
               resource information, which may be empty.  The set of resource
@@ -8303,7 +8417,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2596603"></a>Textual expression of RRs</h4></div></div></div>
+<a name="id2596826"></a>Textual expression of RRs</h4></div></div></div>
 <p>
               RRs are represented in binary form in the packets of the DNS
               protocol, and are usually represented in highly encoded form
@@ -8506,7 +8620,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2597260"></a>Discussion of MX Records</h3></div></div></div>
+<a name="id2597415"></a>Discussion of MX Records</h3></div></div></div>
 <p>
             As described above, domain servers store information as a
             series of resource records, each of which contains a particular
@@ -8762,7 +8876,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2597876"></a>Inverse Mapping in IPv4</h3></div></div></div>
+<a name="id2597962"></a>Inverse Mapping in IPv4</h3></div></div></div>
 <p>
             Reverse name resolution (that is, translation from IP address
             to name) is achieved by means of the <span class="emphasis"><em>in-addr.arpa</em></span> domain
@@ -8823,7 +8937,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2598003"></a>Other Zone File Directives</h3></div></div></div>
+<a name="id2598157"></a>Other Zone File Directives</h3></div></div></div>
 <p>
             The Master File Format was initially defined in RFC 1035 and
             has subsequently been extended. While the Master File Format
@@ -8838,7 +8952,7 @@ example.com. NS ns2.example.net.
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598093"></a>The <span><strong class="command">@</strong></span> (at-sign)</h4></div></div></div>
+<a name="id2598180"></a>The <span><strong class="command">@</strong></span> (at-sign)</h4></div></div></div>
 <p>
               When used in the label (or name) field, the asperand or
               at-sign (@) symbol represents the current origin.
@@ -8849,7 +8963,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598109"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
+<a name="id2598196"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$ORIGIN</strong></span>
               <em class="replaceable"><code>domain-name</code></em>
@@ -8878,7 +8992,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598170"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
+<a name="id2598325"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$INCLUDE</strong></span>
               <em class="replaceable"><code>filename</code></em>
@@ -8914,7 +9028,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598240"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
+<a name="id2598394"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$TTL</strong></span>
               <em class="replaceable"><code>default-ttl</code></em>
@@ -8933,7 +9047,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2598276"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
+<a name="id2598430"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
 <p>
             Syntax: <span><strong class="command">$GENERATE</strong></span>
             <em class="replaceable"><code>range</code></em>
@@ -9357,7 +9471,7 @@ HOST-127.EXAMPLE. MX 0 .
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2599229"></a>Name Server Statistics Counters</h4></div></div></div>
+<a name="id2599384"></a>Name Server Statistics Counters</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -9914,7 +10028,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2600702"></a>Zone Maintenance Statistics Counters</h4></div></div></div>
+<a name="id2600857"></a>Zone Maintenance Statistics Counters</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -10068,7 +10182,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2601154"></a>Resolver Statistics Counters</h4></div></div></div>
+<a name="id2601308"></a>Resolver Statistics Counters</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -10451,7 +10565,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2602312"></a>Socket I/O Statistics Counters</h4></div></div></div>
+<a name="id2602398"></a>Socket I/O Statistics Counters</h4></div></div></div>
 <p>
               Socket I/O statistics counters are defined per socket
               types, which are
@@ -10606,7 +10720,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2602685"></a>Compatibility with <span class="emphasis"><em>BIND</em></span> 8 Counters</h4></div></div></div>
+<a name="id2602840"></a>Compatibility with <span class="emphasis"><em>BIND</em></span> 8 Counters</h4></div></div></div>
 <p>
               Most statistics counters that were available
               in <span><strong class="command">BIND</strong></span> 8 are also supported in

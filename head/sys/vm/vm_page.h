@@ -248,9 +248,13 @@ extern struct vpglocks pa_lock[];
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
  * does so, the page must be VPO_BUSY.
+ *
+ * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
+ * at least one executable mapping. It is not consumed by the VM layer.
  */
 #define	PGA_WRITEABLE	0x01		/* page may be mapped writeable */
 #define	PGA_REFERENCED	0x02		/* page has been referenced */
+#define	PGA_EXECUTABLE	0x04		/* page may be mapped executable */
 
 /*
  * Page flags.  If changed at any other time than page allocation or
@@ -380,7 +384,6 @@ vm_page_t vm_page_alloc_freelist(int, int);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache(vm_page_t);
 void vm_page_cache_free(vm_object_t, vm_pindex_t, vm_pindex_t);
-void vm_page_cache_remove(vm_page_t);
 void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
 int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
@@ -389,6 +392,7 @@ void vm_page_deactivate (vm_page_t);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
+boolean_t vm_page_is_cached(vm_object_t object, vm_pindex_t pindex);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
