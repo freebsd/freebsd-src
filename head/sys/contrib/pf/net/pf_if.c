@@ -719,32 +719,24 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 	}
 }
 
-int
+void
 pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 {
 	struct pfi_kif	*p, *nextp;
 	int		 n = 0;
-	int		 error;
 
 	for (p = RB_MIN(pfi_ifhead, &V_pfi_ifs); p; p = nextp) {
 		nextp = RB_NEXT(pfi_ifhead, &V_pfi_ifs, p);
 		if (pfi_skip_if(name, p))
 			continue;
-		if (*size > n++) {
-			if (!p->pfik_tzero)
-				p->pfik_tzero = time_second;
-			pfi_kif_ref(p, PFI_KIF_REF_RULE);
-			PF_COPYOUT(p, buf++, sizeof(*buf), error);
-			if (error) {
-				pfi_kif_unref(p, PFI_KIF_REF_RULE);
-				return (EFAULT);
-			}
-			nextp = RB_NEXT(pfi_ifhead, &V_pfi_ifs, p);
-			pfi_kif_unref(p, PFI_KIF_REF_RULE);
-		}
+		if (*size <= n++)
+			break;
+		if (!p->pfik_tzero)
+			p->pfik_tzero = time_second;
+		bcopy(p, buf++, sizeof(*buf));
+		nextp = RB_NEXT(pfi_ifhead, &V_pfi_ifs, p);
 	}
 	*size = n;
-	return (0);
 }
 
 static int

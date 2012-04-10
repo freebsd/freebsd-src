@@ -242,18 +242,6 @@ extern struct rwlock pf_rules_lock;
 #define	PF_RULES_WUNLOCK()	rw_wunlock(&pf_rules_lock)
 #define	PF_RULES_WASSERT()	rw_assert(&pf_rules_lock, RA_WLOCKED)
 
-#define	PF_COPYIN(uaddr, kaddr, len, r)		do {	\
-	PF_UNLOCK();					\
-	r = copyin((uaddr), (kaddr), (len));		\
-	PF_LOCK();					\
-} while(0)
-
-#define	PF_COPYOUT(kaddr, uaddr, len, r)	do {	\
-	PF_UNLOCK();					\
-	r = copyout((kaddr), (uaddr), (len));		\
-	PF_LOCK();					\
-} while(0)
-
 #define	PF_MODVER	1
 #define	PFLOG_MODVER	1
 #define	PFSYNC_MODVER	1
@@ -1928,7 +1916,7 @@ int		 pfi_dynaddr_setup(struct pf_addr_wrap *, sa_family_t);
 void		 pfi_dynaddr_remove(struct pf_addr_wrap *);
 void		 pfi_dynaddr_copyout(struct pf_addr_wrap *);
 void		 pfi_update_status(const char *, struct pf_status *);
-int		 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
+void		 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
 int		 pfi_set_flags(const char *, int);
 int		 pfi_clear_flags(const char *, int);
 
