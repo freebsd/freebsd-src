@@ -4906,6 +4906,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	int nacked;
 	HAL_STATUS status;
 
