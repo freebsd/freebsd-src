@@ -572,9 +572,13 @@ open_console(void)
 {
 	int fd;
 
-	/* Try to open /dev/console. */
+	/*
+	 * Try to open /dev/console.  Open the device with O_NONBLOCK to
+	 * prevent potential blocking on a carrier.
+	 */
 	revoke(_PATH_CONSOLE);
 	if ((fd = open(_PATH_CONSOLE, O_RDWR | O_NONBLOCK)) != -1) {
+		(void)fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
 		if (login_tty(fd) == 0)
 			return;
 		close(fd);

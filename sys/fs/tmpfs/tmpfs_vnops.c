@@ -662,7 +662,7 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
-		if (__predict_false(vobj->cache != NULL))
+		if (vm_page_is_cached(vobj, idx))
 			vm_page_cache_free(vobj, idx, idx + 1);
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;

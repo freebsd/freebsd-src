@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: commandline.h,v 1.16 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: commandline.h,v 1.16 2007/06/19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_COMMANDLINE_H
 #define ISC_COMMANDLINE_H 1

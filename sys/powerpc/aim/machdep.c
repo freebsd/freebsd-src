@@ -405,6 +405,9 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 		cacheline_size = 32;
 	}
 
+	/* Make sure the kernel icache is valid before we go too much further */
+	__syncicache((caddr_t)startkernel, endkernel - startkernel);
+
 	#ifndef __powerpc64__
 	/*
 	 * Figure out whether we need to use the 64 bit PMAP. This works by

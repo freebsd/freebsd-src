@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-journalprint.c,v 1.2 2009-12-04 21:59:23 marka Exp $ */
+/* $Id: named-journalprint.c,v 1.2 2009/12/04 21:59:23 marka Exp $ */
 
 /*! \file */
 #include <config.h>

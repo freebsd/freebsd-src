@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresd.c,v 1.60 2009-09-02 23:48:01 tbox Exp $ */
+/* $Id: lwresd.c,v 1.60 2009/09/02 23:48:01 tbox Exp $ */
 
 /*! \file
  * \brief

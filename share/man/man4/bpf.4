@@ -952,10 +952,33 @@ array initializers:
 .Fn BPF_STMT opcode operand
 and
 .Fn BPF_JUMP opcode operand true_offset false_offset .
-.Sh FILES
-.Bl -tag -compact -width /dev/bpf
-.It Pa /dev/bpf
-the packet filter device
+.Sh SYSCTL VARIABLES
+A set of
+.Xr sysctl 8
+variables controls the behaviour of the
+.Nm
+subsystem
+.Bl -tag -width indent
+.It Va net.bpf.optimize_writers: No 0
+Various programs use BPF to send (but not receive) raw packets
+(cdpd, lldpd, dhcpd, dhcp relays, etc. are good examples of such programs).
+They do not need incoming packets to be send to them. Turning this option on
+makes new BPF users to be attached to write-only interface list until program
+explicitly specifies read filter via
+.Cm pcap_set_filter() .
+This removes any performance degradation for high-speed interfaces.
+.It Va net.bpf.stats:
+Binary interface for retrieving general statistics.
+.It Va net.bpf.zerocopy_enable: No 0
+Permits zero-copy to be used with net BPF readers. Use with caution.
+.It Va net.bpf.maxinsns: No 512
+Maximum number of instructions that BPF program can contain. Use
+.Xr tcpdump 1
+-d option to determine approximate number of instruction for any filter.
+.It Va net.bpf.maxbufsize: No 524288
+Maximum buffer size to allocate for packets buffer.
+.It Va net.bpf.bufsize: No 4096
+Default buffer size to allocate for packets buffer.
 .El
 .Sh EXAMPLES
 The following filter is taken from the Reverse ARP Daemon.

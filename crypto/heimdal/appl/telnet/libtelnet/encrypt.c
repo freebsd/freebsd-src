@@ -737,7 +737,7 @@ encrypt_keyid(struct key_info *kp, unsigned char *keyid, int len)
     int ret = 0;
 
     if (len > MAXKEYLEN)
-        len = MAXKEYLEN;
+	len = MAXKEYLEN;
 
     if (!(ep = (*kp->getcrypt)(*kp->modep))) {
 	if (len == 0)

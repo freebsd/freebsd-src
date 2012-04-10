@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #ifdef __i386__
@@ -536,7 +537,7 @@ main(int argc, char * argv[])
 		err(1, "lookup kern.cp_times");
 	len = 4;
 	if (sysctlnametomib("dev.cpu.0.freq", freq_mib, &len))
-		err(1, "lookup freq");
+		err(EX_UNAVAILABLE, "no cpufreq(4) support -- aborting");
 	len = 4;
 	if (sysctlnametomib("dev.cpu.0.freq_levels", levels_mib, &len))
 		err(1, "lookup freq_levels");

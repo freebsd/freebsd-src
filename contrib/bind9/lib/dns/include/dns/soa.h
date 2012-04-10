@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: soa.h,v 1.12 2009-09-10 01:47:09 each Exp $ */
+/* $Id: soa.h,v 1.12 2009/09/10 01:47:09 each Exp $ */
 
 #ifndef DNS_SOA_H
 #define DNS_SOA_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.c,v 1.37 2010-10-18 23:47:08 tbox Exp $ */
+/* $Id: print.c,v 1.37 2010/10/18 23:47:08 tbox Exp $ */
 
 /*! \file */
 
