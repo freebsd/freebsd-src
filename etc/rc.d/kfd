@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: kfd
+# BEFORE: DAEMON
+
+. /etc/rc.subr
+
+name="kfd"
+load_rc_config $name
+rcvar="kfd_server_enable"
+unset start_cmd
+command="${kfd_server}"
+kfd_flags="-i"
+command_args="&"
+
+run_rc_command "$1"
