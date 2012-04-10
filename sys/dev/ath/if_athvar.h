@@ -206,18 +206,19 @@ struct ath_buf {
 		uint16_t bfs_nframes;	/* number of frames in aggregate */
 		uint16_t bfs_ndelim;	/* number of delims for padding */
 
-		int bfs_aggr:1;		/* part of aggregate? */
-		int bfs_aggrburst:1;	/* part of aggregate burst? */
-		int bfs_isretried:1;	/* retried frame? */
-		int bfs_dobaw:1;	/* actually check against BAW? */
-		int bfs_addedbaw:1;	/* has been added to the BAW */
-		int bfs_shpream:1;	/* use short preamble */
-		int bfs_istxfrag:1;	/* is fragmented */
-		int bfs_ismrr:1;	/* do multi-rate TX retry */
-		int bfs_doprot:1;	/* do RTS/CTS based protection */
-		int bfs_doratelookup:1;	/* do rate lookup before each TX */
-		int bfs_need_seqno:1;	/* need to assign a seqno for aggregation */
-		int bfs_seqno_assigned:1;	/* seqno has been assigned */
+		u_int32_t bfs_aggr:1,		/* part of aggregate? */
+		    bfs_aggrburst:1,	/* part of aggregate burst? */
+		    bfs_isretried:1,	/* retried frame? */
+		    bfs_dobaw:1,	/* actually check against BAW? */
+		    bfs_addedbaw:1,	/* has been added to the BAW */
+		    bfs_shpream:1,	/* use short preamble */
+		    bfs_istxfrag:1,	/* is fragmented */
+		    bfs_ismrr:1,	/* do multi-rate TX retry */
+		    bfs_doprot:1,	/* do RTS/CTS based protection */
+		    bfs_doratelookup:1,	/* do rate lookup before each TX */
+		    bfs_need_seqno:1,	/* need to assign a seqno for aggr */
+		    bfs_seqno_assigned:1;	/* seqno has been assigned */
+
 		int bfs_nfl;		/* next fragment length */
 
 		/*
