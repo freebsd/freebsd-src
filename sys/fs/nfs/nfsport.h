@@ -857,6 +857,7 @@ void newnfs_realign(struct mbuf **);
 #define	NFSHASPRIVACY(n)	((n)->nm_flag & NFSMNT_PRIVACY)
 #define	NFSSETWRITEVERF(n)	((n)->nm_state |= NFSSTA_HASWRITEVERF)
 #define	NFSSETHASSETFSID(n)	((n)->nm_state |= NFSSTA_HASSETFSID)
+#define	NFSHASPNFSOPT(n)	((n)->nm_flag & NFSMNT_PNFS)
 #define	NFSHASPNFS(n)		((n)->nm_state & NFSSTA_PNFS)
 
 /*

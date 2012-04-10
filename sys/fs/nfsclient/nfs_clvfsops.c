@@ -717,8 +717,8 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
-    "principal", "nfsv4", "gssname", "allgssname", "dirpath",
-    "nametimeo", "negnametimeo", "nocto", "wcommitsize", "minvers",
+    "principal", "nfsv4", "gssname", "allgssname", "dirpath", "minvers",
+    "nametimeo", "negnametimeo", "nocto", "pnfs", "wcommitsize",
     NULL };
 
 /*
@@ -839,6 +839,8 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_ALLGSSNAME;
 	if (vfs_getopt(mp->mnt_optnew, "nocto", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOCTO;
+	if (vfs_getopt(mp->mnt_optnew, "pnfs", NULL, NULL) == 0)
+		args.flags |= NFSMNT_PNFS;
 	if (vfs_getopt(mp->mnt_optnew, "readdirsize", (void **)&opt, NULL) == 0) {
 		if (opt == NULL) { 
 			vfs_mount_error(mp, "illegal readdirsize");

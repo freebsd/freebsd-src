@@ -4421,7 +4421,8 @@ printf("servlen=%d\n", len);
 		    fxdr_unsigned(uint32_t, *tl++);
 		v41flags = fxdr_unsigned(uint32_t, *tl);
 printf("v41fl=0x%x\n", v41flags);
-		if ((v41flags & NFSV4EXCH_USEPNFSMDS) != 0) {
+		if ((v41flags & NFSV4EXCH_USEPNFSMDS) != 0 &&
+		    NFSHASPNFSOPT(nmp)) {
 			NFSLOCKMNT(nmp);
 			nmp->nm_state |= NFSSTA_PNFS;
 			NFSUNLOCKMNT(nmp);
