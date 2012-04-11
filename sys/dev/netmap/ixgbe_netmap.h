@@ -49,6 +49,29 @@
  */
 #include <dev/netmap/netmap_kern.h>
 
+/*
+ * ix_crcstrip: 0: keep CRC in rx frames (default), 1: strip it.
+ *	During regular operations the CRC is stripped, but on some
+ *	hardware reception of frames not multiple of 64 is slower,
+ *	so using crcstrip=0 helps in benchmarks.
+ *
+ * ix_rx_miss, ix_rx_miss_bufs:
+ *	count packets that might be missed due to lost interrupts.
+ *
+ * ix_use_dd
+ *	use the dd bit for completed tx transmissions.
+ *	This is tricky, much better to use TDH for now.
+ */
+SYSCTL_DECL(_dev_netmap);
+static int ix_rx_miss, ix_rx_miss_bufs, ix_use_dd, ix_crcstrip;
+SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
+    CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
+SYSCTL_INT(_dev_netmap, OID_AUTO, ix_use_dd,
+    CTLFLAG_RW, &ix_use_dd, 0, "use dd instead of tdh to detect tx frames");
+SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss,
+    CTLFLAG_RW, &ix_rx_miss, 0, "potentially missed rx intr");
+SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss_bufs,
+    CTLFLAG_RW, &ix_rx_miss_bufs, 0, "potentially missed rx intr bufs");
 
 /*
  * wrapper to export locks to the generic netmap code.
@@ -82,6 +105,38 @@ ixgbe_netmap_lock_wrapper(struct ifnet *_a, int what, u_int queueid)
 }
 
 
+static void
+set_crcstrip(struct ixgbe_hw *hw, int onoff)
+{
+	/* crc stripping is set in two places:
+	 * IXGBE_HLREG0 (left alone by the original driver)
+	 * IXGBE_RDRXCTL (set by the original driver in
+	 *	ixgbe_setup_hw_rsc() called in init_locked.
+	 *	We disable the setting when netmap is compiled in).
+	 * When netmap is compiled in we disabling IXGBE_RDRXCTL
+	 * modifications of the IXGBE_RDRXCTL_CRCSTRIP bit, and
+	 * instead update the state here.
+	 */
+	uint32_t hl, rxc;
+
+	hl = IXGBE_READ_REG(hw, IXGBE_HLREG0);
+	rxc = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
+	/* hw requirements ... */
+	rxc &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
+	rxc |= IXGBE_RDRXCTL_RSCACKC;
+	if (onoff && !ix_crcstrip) {
+		/* keep the crc. Fast rx */
+		hl &= ~IXGBE_HLREG0_RXCRCSTRP;
+		rxc &= ~IXGBE_RDRXCTL_CRCSTRIP;
+	} else {
+		/* reset default mode */
+		hl |= IXGBE_HLREG0_RXCRCSTRP;
+		rxc |= IXGBE_RDRXCTL_CRCSTRIP;
+	}
+	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hl);
+	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rxc);
+}
+
 /*
  * Register/unregister. We are already under core lock.
  * Only called on the first register or the last unregister.
@@ -101,6 +156,7 @@ ixgbe_netmap_reg(struct ifnet *ifp, int onoff)
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
+	set_crcstrip(&adapter->hw, onoff);
 	if (onoff) { /* enable netmap mode */
 		ifp->if_capenable |= IFCAP_NETMAP;
 
@@ -125,6 +181,7 @@ fail:
 		/* initialize the card, this time in standard mode */
 		ixgbe_init_locked(adapter);	/* also enables intr */
 	}
+	set_crcstrip(&adapter->hw, onoff);
 	return (error);
 }
 
@@ -325,12 +382,26 @@ ring_reset:
 		 * For the time being we use TDH, as we do it infrequently
 		 * enough not to pose performance problems.
 		 */
+	    if (ix_use_dd) {
+		struct ixgbe_legacy_tx_desc *txd =
+		    (struct ixgbe_legacy_tx_desc *)txr->tx_base;
+
+		l = txr->next_to_clean;
+		k = netmap_idx_k2n(kring, kring->nr_hwcur);
+		delta = 0;
+		while (l != k &&
+		    txd[l].upper.fields.status & IXGBE_TXD_STAT_DD) {
+		    delta++;
+		    l = (l == lim) ? 0 : l + 1;
+		}
+	    } else {
 		l = IXGBE_READ_REG(&adapter->hw, IXGBE_TDH(ring_nr));
 		if (l >= kring->nkr_num_slots) { /* XXX can happen */
 			D("TDH wrap %d", l);
 			l -= kring->nkr_num_slots;
 		}
 		delta = l - txr->next_to_clean;
+	    }
 		if (delta) {
 			/* some tx completed, increment avail */
 			if (delta < 0)
@@ -402,23 +473,29 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 *
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
-	l = rxr->next_to_check;
-	j = netmap_idx_n2k(kring, l);
-
 	if (netmap_no_pendintr || force_update) {
+		int crclen = ix_crcstrip ? 0 : 4;
+		l = rxr->next_to_check;
+		j = netmap_idx_n2k(kring, l);
+
 		for (n = 0; ; n++) {
 			union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
 			uint32_t staterr = le32toh(curr->wb.upper.status_error);
 
 			if ((staterr & IXGBE_RXD_STAT_DD) == 0)
 				break;
-			ring->slot[j].len = le16toh(curr->wb.upper.length);
+			ring->slot[j].len = le16toh(curr->wb.upper.length) - crclen;
 			bus_dmamap_sync(rxr->ptag,
 			    rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
 		}
 		if (n) { /* update the state variables */
+			if (netmap_no_pendintr && !force_update) {
+				/* diagnostics */
+				ix_rx_miss ++;
+				ix_rx_miss_bufs += n;
+			}
 			rxr->next_to_check = l;
 			kring->nr_hwavail += n;
 		}
