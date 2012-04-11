@@ -187,7 +187,7 @@
  * exit.
  */
 
-#ifndef ARM_TP_ADDRESS
+#ifdef ARM_TP_ADDRESS
 #define PULLFRAMEFROMSVCANDEXIT						   \
         ldr     r0, [sp], #0x0004;	/* Get the SPSR from stack */	   \
         msr     spsr_all, r0;		/* restore SPSR */		   \
