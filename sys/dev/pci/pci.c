@@ -756,7 +756,7 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 		}
 	}
 
-#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
+#if defined(__powerpc__)
 	/*
 	 * Enable the MSI mapping window for all HyperTransport
 	 * slaves.  PCI-PCI bridges have their windows enabled via
