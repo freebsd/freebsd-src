@@ -94,16 +94,6 @@ mptable_hostb_alloc_msix(device_t pcib, device_t dev, int *irq)
 	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
 }
 
-static int
-mptable_hostb_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
-    uint32_t *data)
-{
-	device_t bus;
-
-	bus = device_get_parent(pcib);
-	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
-}
-
 static device_method_t mptable_hostb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mptable_hostb_probe),
@@ -132,7 +122,7 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
 	DEVMETHOD(pcib_alloc_msix,	mptable_hostb_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
-	DEVMETHOD(pcib_map_msi,		mptable_hostb_map_msi),
+	DEVMETHOD(pcib_map_msi,		legacy_pcib_map_msi),
 
 	DEVMETHOD_END
 };
