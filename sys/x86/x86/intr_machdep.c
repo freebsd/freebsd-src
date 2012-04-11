@@ -30,7 +30,7 @@
  */
 
 /*
- * Machine dependent interrupt code for amd64.  For amd64, we have to
+ * Machine dependent interrupt code for x86.  For x86, we have to
  * deal with different PICs.  Thus, we use the passed in vector to lookup
  * an interrupt source associated with that vector.  The interrupt source
  * describes which PIC the source belongs to and includes methods to handle
@@ -63,7 +63,11 @@
 #include <machine/frame.h>
 #include <dev/ic/i8259.h>
 #include <x86/isa/icu.h>
+#ifdef PC98
+#include <pc98/cbus/cbus.h>
+#else
 #include <x86/isa/isa.h>
+#endif
 #endif
 
 #define	MAX_STRAY_LOG	5
@@ -391,15 +395,15 @@ atpic_reset(void)
 
 	outb(IO_ICU1, ICW1_RESET | ICW1_IC4);
 	outb(IO_ICU1 + ICU_IMR_OFFSET, IDT_IO_INTS);
-	outb(IO_ICU1 + ICU_IMR_OFFSET, 1 << 2);
-	outb(IO_ICU1 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, IRQ_MASK(ICU_SLAVEID));
+	outb(IO_ICU1 + ICU_IMR_OFFSET, MASTER_MODE);
 	outb(IO_ICU1 + ICU_IMR_OFFSET, 0xff);
 	outb(IO_ICU1, OCW3_SEL | OCW3_RR);
 
 	outb(IO_ICU2, ICW1_RESET | ICW1_IC4);
 	outb(IO_ICU2 + ICU_IMR_OFFSET, IDT_IO_INTS + 8);
-	outb(IO_ICU2 + ICU_IMR_OFFSET, 2);
-	outb(IO_ICU2 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, ICU_SLAVEID);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, SLAVE_MODE);
 	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
 	outb(IO_ICU2, OCW3_SEL | OCW3_RR);
 }
@@ -513,6 +517,13 @@ intr_shuffle_irqs(void *arg __unused)
 {
 	struct intsrc *isrc;
 	int i;
+
+#ifdef XEN
+	/*
+	 * Doesn't work yet
+	 */
+	return;
+#endif
 
 	/* The BSP is always a valid target. */
 	CPU_SETOF(0, &intr_cpus);

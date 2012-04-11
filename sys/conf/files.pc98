@@ -144,7 +144,6 @@ i386/i386/i686_mem.c		optional mem
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
-i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
 i386/i386/legacy.c		standard
@@ -227,7 +226,7 @@ pc98/cbus/gdc.c			optional gdc
 pc98/cbus/nmi.c			standard
 pc98/cbus/olpt.c		optional olpt
 pc98/cbus/pckbd.c		optional pckbd
-pc98/cbus/pcrtc.c		optional atpic
+pc98/cbus/pcrtc.c		standard
 pc98/cbus/pmc.c			optional pmc
 pc98/cbus/scgdcrndr.c		optional sc gdc
 pc98/cbus/scterm-sck.c		optional sc
@@ -251,6 +250,7 @@ x86/isa/isa.c			optional isa
 x86/pci/pci_bus.c		optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard

@@ -404,7 +404,6 @@ i386/i386/i686_mem.c		optional mem
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
-i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
 i386/i386/legacy.c		optional native
@@ -515,9 +514,9 @@ x86/cpufreq/p4tcc.c		optional cpufreq
 x86/cpufreq/powernow.c		optional cpufreq
 x86/cpufreq/smist.c		optional cpufreq
 x86/isa/atpic.c			optional atpic	
-x86/isa/atrtc.c			optional atpic
+x86/isa/atrtc.c			optional native
 x86/isa/clock.c			optional native
-x86/isa/elcr.c			standard
+x86/isa/elcr.c			optional atpic | apic native
 x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
@@ -526,6 +525,7 @@ x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
