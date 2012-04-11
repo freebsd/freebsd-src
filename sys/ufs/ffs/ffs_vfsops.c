@@ -81,6 +81,8 @@ static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
 static void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
 static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
+static int	ffs_sync_lazy(struct mount *mp);
+
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
 static vfs_extattrctl_t ffs_extattrctl;
@@ -1296,11 +1298,77 @@ ffs_statfs(mp, sbp)
 }
 
 /*
+ * For a lazy sync, we only care about access times, quotas and the
+ * superblock.  Other filesystem changes are already converted to
+ * cylinder group blocks or inode blocks updates and are written to
+ * disk by syncer.
+ */
+static int
+ffs_sync_lazy(mp)
+     struct mount *mp;
+{
+	struct vnode *mvp, *vp;
+	struct inode *ip;
+	struct thread *td;
+	int allerror, error;
+
+	allerror = 0;
+	td = curthread;
+	if ((mp->mnt_flag & MNT_NOATIME) != 0)
+		goto qupdate;
+	MNT_ILOCK(mp);
+	MNT_VNODE_FOREACH(vp, mp, mvp) {
+		VI_LOCK(vp);
+		if (vp->v_iflag & VI_DOOMED || vp->v_type == VNON) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		ip = VTOI(vp);
+
+		/*
+		 * The IN_ACCESS flag is converted to IN_MODIFIED by
+		 * ufs_close() and ufs_getattr() by the calls to
+		 * ufs_itimes_locked(), without subsequent UFS_UPDATE().
+		 * Test also all the other timestamp flags too, to pick up
+		 * any other cases that could be missed.
+		 */
+		if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
+		    IN_UPDATE)) == 0) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		MNT_IUNLOCK(mp);
+		if ((error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
+		    td)) != 0) {
+			MNT_ILOCK(mp);
+			continue;
+		}
+		error = ffs_update(vp, 0);
+		if (error != 0)
+			allerror = error;
+		vput(vp);
+		MNT_ILOCK(mp);
+	}
+	MNT_IUNLOCK(mp);
+
+qupdate:
+#ifdef QUOTA
+	qsync(mp);
+#endif
+
+	if (VFSTOUFS(mp)->um_fs->fs_fmod != 0 &&
+	    (error = ffs_sbupdate(VFSTOUFS(mp), MNT_LAZY, 0)) != 0)
+		allerror = error;
+	return (allerror);
+}
+
+/*
  * Go through the disk queues to initiate sandbagged IO;
  * go through the inodes to write those that have been modified;
  * initiate the writing of the super block if it has been modified.
  *
- * Note: we are always called with the filesystem marked `MPBUSY'.
+ * Note: we are always called with the filesystem marked busy using
+ * vfs_busy().
  */
 static int
 ffs_sync(mp, waitfor)
@@ -1329,15 +1397,9 @@ ffs_sync(mp, waitfor)
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0)
 		panic("%s: ffs_sync: modification on read-only filesystem",
 		    fs->fs_fsmnt);
-	/*
-	 * For a lazy sync, we just care about the filesystem metadata.
-	 */
-	if (waitfor == MNT_LAZY) {
-		secondary_accwrites = 0;
-		secondary_writes = 0;
-		lockreq = 0;
-		goto metasync;
-	}
+	if (waitfor == MNT_LAZY)
+		return (ffs_sync_lazy(mp));
+
 	/*
 	 * Write back each (modified) inode.
 	 */
@@ -1412,7 +1474,6 @@ loop:
 	qsync(mp);
 #endif
 
-metasync:
 	devvp = ump->um_devvp;
 	bo = &devvp->v_bufobj;
 	BO_LOCK(bo);
