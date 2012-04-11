@@ -1137,9 +1137,11 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Flush the real page from the instruction cache. This has be done
 	 * for all user mappings to prevent information leakage via the
-	 * instruction cache.
+	 * instruction cache. moea_pvo_enter() returns ENOENT for the first
+	 * mapping for a page.
 	 */
-	if (pmap != kernel_pmap && LIST_EMPTY(vm_page_to_pvoh(m)))
+	if (pmap != kernel_pmap && error == ENOENT &&
+	    (pte_lo & (PTE_I | PTE_G)) == 0)
 		moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 }
 
