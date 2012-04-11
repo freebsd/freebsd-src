@@ -194,7 +194,7 @@ static const struct fxp_ident const fxp_ident_table[] = {
     { 0x1229,	0x08,	0, "Intel 82559 Pro/100 Ethernet" },
     { 0x1229,	0x09,	0, "Intel 82559ER Pro/100 Ethernet" },
     { 0x1229,	0x0c,	0, "Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0d,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0d,	0, "Intel 82550C Pro/100 Ethernet" },
     { 0x1229,	0x0e,	0, "Intel 82550 Pro/100 Ethernet" },
     { 0x1229,	0x0f,	0, "Intel 82551 Pro/100 Ethernet" },
     { 0x1229,	0x10,	0, "Intel 82551 Pro/100 Ethernet" },
@@ -248,6 +248,7 @@ static uint16_t		fxp_eeprom_getword(struct fxp_softc *sc, int offset,
 static void 		fxp_eeprom_putword(struct fxp_softc *sc, int offset,
 			    uint16_t data);
 static void		fxp_autosize_eeprom(struct fxp_softc *sc);
+static void		fxp_load_eeprom(struct fxp_softc *sc);
 static void		fxp_read_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
 static void		fxp_write_eeprom(struct fxp_softc *sc, u_short *data,
@@ -426,7 +427,7 @@ fxp_attach(device_t dev)
 	struct fxp_rx *rxp;
 	struct ifnet *ifp;
 	uint32_t val;
-	uint16_t data, myea[ETHER_ADDR_LEN / 2];
+	uint16_t data;
 	u_char eaddr[ETHER_ADDR_LEN];
 	int error, flags, i, pmc, prefer_iomap;
 
@@ -498,6 +499,7 @@ fxp_attach(device_t dev)
 	 * Find out how large of an SEEPROM we have.
 	 */
 	fxp_autosize_eeprom(sc);
+	fxp_load_eeprom(sc);
 
 	/*
 	 * Find out the chip revision; lump all 82557 revs together.
@@ -507,7 +509,7 @@ fxp_attach(device_t dev)
 		/* Assume ICH controllers are 82559. */
 		sc->revision = FXP_REV_82559_A0;
 	} else {
-		fxp_read_eeprom(sc, &data, 5, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_CNTR];
 		if ((data >> 8) == 1)
 			sc->revision = FXP_REV_82557;
 		else
@@ -519,15 +521,27 @@ fxp_attach(device_t dev)
 	 */
 	if (sc->revision >= FXP_REV_82558_A4 &&
 	    sc->revision != FXP_REV_82559S_A) {
-		fxp_read_eeprom(sc, &data, 10, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_ID];
 		if ((data & 0x20) != 0 &&
 		    pci_find_extcap(sc->dev, PCIY_PMG, &pmc) == 0)
 			sc->flags |= FXP_FLAG_WOLCAP;
 	}
 
+	if (sc->revision == FXP_REV_82550_C) {
+		/*
+		 * 82550C with server extension requires microcode to
+		 * receive fragmented UDP datagrams.  However if the
+		 * microcode is used for client-only featured 82550C
+		 * it locks up controller.
+		 */
+		data = sc->eeprom[FXP_EEPROM_MAP_COMPAT];
+		if ((data & 0x0400) == 0)
+			sc->flags |= FXP_FLAG_NO_UCODE;
+	}
+
 	/* Receiver lock-up workaround detection. */
 	if (sc->revision < FXP_REV_82558_A4) {
-		fxp_read_eeprom(sc, &data, 3, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_COMPAT];
 		if ((data & 0x03) != 0x03) {
 			sc->flags |= FXP_FLAG_RXBUG;
 			device_printf(dev, "Enabling Rx lock-up workaround\n");
@@ -537,7 +551,7 @@ fxp_attach(device_t dev)
 	/*
 	 * Determine whether we must use the 503 serial interface.
 	 */
-	fxp_read_eeprom(sc, &data, 6, 1);
+	data = sc->eeprom[FXP_EEPROM_MAP_PRI_PHY];
 	if (sc->revision == FXP_REV_82557 && (data & FXP_PHY_DEVICE_MASK) != 0
 	    && (data & FXP_PHY_SERIAL_ONLY))
 		sc->flags |= FXP_FLAG_SERIAL_MEDIA;
@@ -557,7 +571,7 @@ fxp_attach(device_t dev)
 	 */
 	if ((sc->ident->ich >= 2 && sc->ident->ich <= 3) ||
 	    (sc->ident->ich == 0 && sc->revision >= FXP_REV_82559_A0)) {
-		fxp_read_eeprom(sc, &data, 10, 1);
+		data = sc->eeprom[FXP_EEPROM_MAP_ID];
 		if (data & 0x02) {			/* STB enable */
 			uint16_t cksum;
 			int i;
@@ -565,27 +579,24 @@ fxp_attach(device_t dev)
 			device_printf(dev,
 			    "Disabling dynamic standby mode in EEPROM\n");
 			data &= ~0x02;
-			fxp_write_eeprom(sc, &data, 10, 1);
+			sc->eeprom[FXP_EEPROM_MAP_ID] = data;
+			fxp_write_eeprom(sc, &data, FXP_EEPROM_MAP_ID, 1);
 			device_printf(dev, "New EEPROM ID: 0x%x\n", data);
 			cksum = 0;
-			for (i = 0; i < (1 << sc->eeprom_size) - 1; i++) {
-				fxp_read_eeprom(sc, &data, i, 1);
-				cksum += data;
-			}
+			for (i = 0; i < (1 << sc->eeprom_size) - 1; i++)
+				cksum += sc->eeprom[i];
 			i = (1 << sc->eeprom_size) - 1;
 			cksum = 0xBABA - cksum;
-			fxp_read_eeprom(sc, &data, i, 1);
 			fxp_write_eeprom(sc, &cksum, i, 1);
 			device_printf(dev,
 			    "EEPROM checksum @ 0x%x: 0x%x -> 0x%x\n",
-			    i, data, cksum);
-#if 1
+			    i, sc->eeprom[i], cksum);
+			sc->eeprom[i] = cksum;
 			/*
 			 * If the user elects to continue, try the software
 			 * workaround, as it is better than nothing.
 			 */
 			sc->flags |= FXP_FLAG_CU_RESUME_BUG;
-#endif
 		}
 	}
 
@@ -779,21 +790,20 @@ fxp_attach(device_t dev)
 	/*
 	 * Read MAC address.
 	 */
-	fxp_read_eeprom(sc, myea, 0, 3);
-	eaddr[0] = myea[0] & 0xff;
-	eaddr[1] = myea[0] >> 8;
-	eaddr[2] = myea[1] & 0xff;
-	eaddr[3] = myea[1] >> 8;
-	eaddr[4] = myea[2] & 0xff;
-	eaddr[5] = myea[2] >> 8;
+	eaddr[0] = sc->eeprom[FXP_EEPROM_MAP_IA0] & 0xff;
+	eaddr[1] = sc->eeprom[FXP_EEPROM_MAP_IA0] >> 8;
+	eaddr[2] = sc->eeprom[FXP_EEPROM_MAP_IA1] & 0xff;
+	eaddr[3] = sc->eeprom[FXP_EEPROM_MAP_IA1] >> 8;
+	eaddr[4] = sc->eeprom[FXP_EEPROM_MAP_IA2] & 0xff;
+	eaddr[5] = sc->eeprom[FXP_EEPROM_MAP_IA2] >> 8;
 	if (bootverbose) {
 		device_printf(dev, "PCI IDs: %04x %04x %04x %04x %04x\n",
 		    pci_get_vendor(dev), pci_get_device(dev),
 		    pci_get_subvendor(dev), pci_get_subdevice(dev),
 		    pci_get_revid(dev));
-		fxp_read_eeprom(sc, &data, 10, 1);
 		device_printf(dev, "Dynamic Standby mode is %s\n",
-		    data & 0x02 ? "enabled" : "disabled");
+		    sc->eeprom[FXP_EEPROM_MAP_ID] & 0x02 ? "enabled" :
+		    "disabled");
 	}
 
 	/*
@@ -1287,6 +1297,23 @@ fxp_write_eeprom(struct fxp_softc *sc, u_short *data, int offset, int words)
 
 	for (i = 0; i < words; i++)
 		fxp_eeprom_putword(sc, offset + i, data[i]);
+}
+
+static void
+fxp_load_eeprom(struct fxp_softc *sc)
+{
+	int i;
+	uint16_t cksum;
+
+	fxp_read_eeprom(sc, sc->eeprom, 0, 1 << sc->eeprom_size);
+	cksum = 0;
+	for (i = 0; i < (1 << sc->eeprom_size) - 1; i++)
+		cksum += sc->eeprom[i];
+	cksum = 0xBABA - cksum;
+	if (cksum != sc->eeprom[(1 << sc->eeprom_size) - 1])
+		device_printf(sc->dev,
+		    "EEPROM checksum mismatch! (0x%04x -> 0x%04x)\n",
+		    cksum, sc->eeprom[(1 << sc->eeprom_size) - 1]);
 }
 
 /*
@@ -2582,12 +2609,6 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	if (IFM_SUBTYPE(ifmr->ifm_active) == IFM_10_T &&
-	    sc->flags & FXP_FLAG_CU_RESUME_BUG)
-		sc->cu_resume_bug = 1;
-	else
-		sc->cu_resume_bug = 0;
 	FXP_UNLOCK(sc);
 }
 
@@ -2780,6 +2801,11 @@ fxp_miibus_statchg(device_t dev)
 	    (IFM_AVALID | IFM_ACTIVE))
 		return;
 
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T &&
+	    sc->flags & FXP_FLAG_CU_RESUME_BUG)
+		sc->cu_resume_bug = 1;
+	else
+		sc->cu_resume_bug = 0;
 	/*
 	 * Call fxp_init_body in order to adjust the flow control settings.
 	 * Note that the 82557 doesn't support hardware flow control.
@@ -3014,10 +3040,8 @@ static uint32_t fxp_ucode_d101a[] = D101_A_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101b0[] = D101_B0_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101ma[] = D101M_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d101s[] = D101S_RCVBUNDLE_UCODE;
-#ifdef notyet
 static uint32_t fxp_ucode_d102[] = D102_B_RCVBUNDLE_UCODE;
 static uint32_t fxp_ucode_d102c[] = D102_C_RCVBUNDLE_UCODE;
-#endif
 static uint32_t fxp_ucode_d102e[] = D102_E_RCVBUNDLE_UCODE;
 
 #define UCODE(x)	x, sizeof(x)/sizeof(uint32_t)
@@ -3035,12 +3059,10 @@ static const struct ucode {
 	    D101M_CPUSAVER_DWORD, D101M_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82559S_A, UCODE(fxp_ucode_d101s),
 	    D101S_CPUSAVER_DWORD, D101S_CPUSAVER_BUNDLE_MAX_DWORD },
-#ifdef notyet
 	{ FXP_REV_82550, UCODE(fxp_ucode_d102),
 	    D102_B_CPUSAVER_DWORD, D102_B_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82550_C, UCODE(fxp_ucode_d102c),
 	    D102_C_CPUSAVER_DWORD, D102_C_CPUSAVER_BUNDLE_MAX_DWORD },
-#endif
 	{ FXP_REV_82551_F, UCODE(fxp_ucode_d102e),
 	    D102_E_CPUSAVER_DWORD, D102_E_CPUSAVER_BUNDLE_MAX_DWORD },
 	{ FXP_REV_82551_10, UCODE(fxp_ucode_d102e),
@@ -3054,6 +3076,9 @@ fxp_load_ucode(struct fxp_softc *sc)
 	const struct ucode *uc;
 	struct fxp_cb_ucode *cbp;
 	int i;
+
+	if (sc->flags & FXP_FLAG_NO_UCODE)
+		return;
 
 	for (uc = ucode_table; uc->ucode != NULL; uc++)
 		if (sc->revision == uc->revision)
@@ -3087,6 +3112,7 @@ fxp_load_ucode(struct fxp_softc *sc)
 	    sc->tunable_int_delay,
 	    uc->bundle_max_offset == 0 ? 0 : sc->tunable_bundle_max);
 	sc->flags |= FXP_FLAG_UCODE;
+	bzero(cbp, FXP_TXCB_SZ);
 }
 
 #define FXP_SYSCTL_STAT_ADD(c, h, n, p, d)	\
