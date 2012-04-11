@@ -111,7 +111,7 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, buf_size,
     CTLFLAG_RD, &netmap_buf_size, 0, "Size of packet buffers");
 int netmap_mitigate = 1;
 SYSCTL_INT(_dev_netmap, OID_AUTO, mitigate, CTLFLAG_RW, &netmap_mitigate, 0, "");
-int netmap_no_pendintr;
+int netmap_no_pendintr = 1;
 SYSCTL_INT(_dev_netmap, OID_AUTO, no_pendintr,
     CTLFLAG_RW, &netmap_no_pendintr, 0, "Always look for new received packets.");
 
