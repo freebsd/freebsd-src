@@ -4906,7 +4906,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
+#ifdef	IEEE80211_SUPPORT_SUPERG
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+#endif	/* IEEE80211_SUPPORT_SUPERG */
 	int nacked;
 	HAL_STATUS status;
 
