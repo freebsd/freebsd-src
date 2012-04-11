@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.20 2011-01-11 23:47:13 tbox Exp $
+ * $Id: openssldh_link.c,v 1.20 2011/01/11 23:47:13 tbox Exp $
  */
 
 #ifdef OPENSSL

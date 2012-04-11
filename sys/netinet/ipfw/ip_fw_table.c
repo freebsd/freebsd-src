@@ -460,6 +460,68 @@ ipfw_init_tables(struct ip_fw_chain *ch)
 }
 
 int
+ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
+{
+	struct radix_node_head **tables, **xtables, *rnh;
+	struct radix_node_head **tables_old, **xtables_old;
+	uint8_t *tabletype, *tabletype_old;
+	unsigned int ntables_old, tbl;
+
+	/* Check new value for validity */
+	if (ntables > IPFW_TABLES_MAX)
+		ntables = IPFW_TABLES_MAX;
+
+	/* Allocate new pointers */
+	tables = malloc(ntables * sizeof(void *), M_IPFW, M_WAITOK | M_ZERO);
+	xtables = malloc(ntables * sizeof(void *), M_IPFW, M_WAITOK | M_ZERO);
+	tabletype = malloc(ntables * sizeof(uint8_t), M_IPFW, M_WAITOK | M_ZERO);
+
+	IPFW_WLOCK(ch);
+
+	tbl = (ntables >= V_fw_tables_max) ? V_fw_tables_max : ntables;
+
+	/* Copy old table pointers */
+	memcpy(tables, ch->tables, sizeof(void *) * tbl);
+	memcpy(xtables, ch->xtables, sizeof(void *) * tbl);
+	memcpy(tabletype, ch->tabletype, sizeof(uint8_t) * tbl);
+
+	/* Change pointers and number of tables */
+	tables_old = ch->tables;
+	xtables_old = ch->xtables;
+	tabletype_old = ch->tabletype;
+	ch->tables = tables;
+	ch->xtables = xtables;
+	ch->tabletype = tabletype;
+
+	ntables_old = V_fw_tables_max;
+	V_fw_tables_max = ntables;
+
+	IPFW_WUNLOCK(ch);
+
+	/* Check if we need to destroy radix trees */
+	if (ntables < ntables_old) {
+		for (tbl = ntables; tbl < ntables_old; tbl++) {
+			if ((rnh = tables_old[tbl]) != NULL) {
+				rnh->rnh_walktree(rnh, flush_table_entry, rnh);
+				rn_detachhead((void **)&rnh);
+			}
+
+			if ((rnh = xtables_old[tbl]) != NULL) {
+				rnh->rnh_walktree(rnh, flush_table_entry, rnh);
+				rn_detachhead((void **)&rnh);
+			}
+		}
+	}
+
+	/* Free old pointers */
+	free(tables_old, M_IPFW);
+	free(xtables_old, M_IPFW);
+	free(tabletype_old, M_IPFW);
+
+	return (0);
+}
+
+int
 ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val)
 {

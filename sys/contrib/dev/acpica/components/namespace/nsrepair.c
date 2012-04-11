@@ -209,6 +209,9 @@ ObjectRepaired:
          */
         if (!(Data->Flags & ACPI_OBJECT_WRAPPED))
         {
+            NewObject->Common.ReferenceCount =
+                ReturnObject->Common.ReferenceCount;
+
             if (ReturnObject->Common.ReferenceCount > 1)
             {
                 ReturnObject->Common.ReferenceCount--;

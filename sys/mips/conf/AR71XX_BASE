@@ -7,7 +7,7 @@
 # $FreeBSD$
 #
 
-machine		mips mipseb
+machine		mips mips
 ident		AR71XX_BASE
 cpu		CPU_MIPS4KC
 makeoptions	KERNLOADADDR=0x80050000

@@ -114,7 +114,6 @@ amd64/amd64/identcpu.c		standard
 amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
-amd64/amd64/legacy.c		standard
 amd64/amd64/locore.S		optional	native no-obj
 amd64/xen/locore.S		optional	xen no-obj
 amd64/amd64/machdep.c		optional	native
@@ -142,6 +141,7 @@ amd64/amd64/vm_machdep.c	standard
 amd64/pci/pci_cfgreg.c		optional	pci
 amd64/xen/clock.c		optional xen
 amd64/xen/xen_clock_util.c	optional xen
+cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 crypto/aesni/aesencdec_amd64.S	optional aesni
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
@@ -276,7 +276,7 @@ dev/syscons/scvtb.c		optional	sc
 dev/tpm/tpm.c			optional	tpm
 dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
-dev/uart/uart_cpu_amd64.c	optional	uart
+dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
 dev/wbwd/wbwd.c			optional	wbwd
 dev/wpi/if_wpi.c		optional	wpi
@@ -485,6 +485,7 @@ x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional	native
+x86/x86/legacy.c		optional	native
 x86/x86/local_apic.c		optional	native
 x86/x86/mca.c			optional	native
 x86/x86/mptable.c		optional	native mptable

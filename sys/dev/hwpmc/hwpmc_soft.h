@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2012 Fabien Thomas
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,32 +26,23 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_LEGACYVAR_H_
-#define	_MACHINE_LEGACYVAR_H_
+#ifndef _DEV_HWPMC_SOFT_H_
+#define _DEV_HWPMC_SOFT_H_ 1
 
-enum legacy_device_ivars {
-	LEGACY_IVAR_PCIDOMAIN,
-	LEGACY_IVAR_PCIBUS
-};
+#include <sys/pmckern.h>
 
-#define LEGACY_ACCESSOR(var, ivar, type)				\
-    __BUS_ACCESSOR(legacy, var, LEGACY, ivar, type)
+#ifdef	_KERNEL
 
-LEGACY_ACCESSOR(pcidomain,		PCIDOMAIN,	uint32_t)
-LEGACY_ACCESSOR(pcibus,			PCIBUS,		uint32_t)
+#define	PMC_CLASS_INDEX_SOFT	0
+#define	SOFT_NPMCS		16
 
-#undef LEGACY_ACCESSOR
+/*
+ * Prototypes.
+ */
 
-int	legacy_pcib_maxslots(device_t dev);
-uint32_t legacy_pcib_read_config(device_t dev, u_int bus, u_int slot,
-    u_int func, u_int reg, int bytes);
-int	legacy_pcib_read_ivar(device_t dev, device_t child, int which,
-    uintptr_t *result);
-void	legacy_pcib_write_config(device_t dev, u_int bus, u_int slot,
-    u_int func, u_int reg, uint32_t data, int bytes);
-int	legacy_pcib_write_ivar(device_t dev, device_t child, int which,
-    uintptr_t value);
-struct resource *legacy_pcib_alloc_resource(device_t dev, device_t child,
-    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+void pmc_soft_initialize(struct pmc_mdep *md);
+void pmc_soft_finalize(struct pmc_mdep *md);
+int pmc_soft_intr(struct pmckern_soft *ks);
 
-#endif /* !_MACHINE_LEGACYVAR_H_ */
+#endif	/* _KERNEL */
+#endif	/* _DEV_HWPMC_SOFT_H */

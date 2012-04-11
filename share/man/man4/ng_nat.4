@@ -60,7 +60,7 @@ Configure aliasing address for a node.
 After both hooks have been connected and aliasing address was configured,
 a node is ready for aliasing operation.
 .It Dv NGM_NAT_SET_MODE Pq Li setmode
-Set node's operation mode using supplied 
+Set node's operation mode using supplied
 .Vt "struct ng_nat_mode".
 .Bd -literal
 struct ng_nat_mode {
@@ -78,7 +78,7 @@ struct ng_nat_mode {
 .Ed
 .It Dv NGM_NAT_SET_TARGET Pq Li settarget
 Configure target address for a node.
-When an incoming packet not associated with any pre-existing aliasing 
+When an incoming packet not associated with any pre-existing aliasing
 link arrives at the host machine, it will be sent to the specified address.
 .It Dv NGM_NAT_REDIRECT_PORT Pq Li redirectport
 Redirect incoming connections arriving to given port(s) to

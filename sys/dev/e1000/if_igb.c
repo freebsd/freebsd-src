@@ -171,13 +171,14 @@ static int	igb_detach(device_t);
 static int	igb_shutdown(device_t);
 static int	igb_suspend(device_t);
 static int	igb_resume(device_t);
-static void	igb_start(struct ifnet *);
-static void	igb_start_locked(struct tx_ring *, struct ifnet *ifp);
 #if __FreeBSD_version >= 800000
 static int	igb_mq_start(struct ifnet *, struct mbuf *);
 static int	igb_mq_start_locked(struct ifnet *,
 		    struct tx_ring *, struct mbuf *);
 static void	igb_qflush(struct ifnet *);
+#else
+static void	igb_start(struct ifnet *);
+static void	igb_start_locked(struct tx_ring *, struct ifnet *ifp);
 #endif
 static int	igb_ioctl(struct ifnet *, u_long, caddr_t);
 static void	igb_init(void *);
@@ -261,6 +262,7 @@ static void	igb_msix_que(void *);
 static void	igb_msix_link(void *);
 static void	igb_handle_que(void *context, int pending);
 static void	igb_handle_link(void *context, int pending);
+static void	igb_handle_link_locked(struct adapter *);
 
 static void	igb_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
@@ -807,6 +809,7 @@ static int
 igb_resume(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
+	struct tx_ring	*txr = adapter->tx_rings;
 	struct ifnet *ifp = adapter->ifp;
 
 	IGB_CORE_LOCK(adapter);
@@ -814,9 +817,21 @@ igb_resume(device_t dev)
 	igb_init_manageability(adapter);
 
 	if ((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING))
-		igb_start(ifp);
-
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) && adapter->link_active) {
+		for (int i = 0; i < adapter->num_queues; i++, txr++) {
+			IGB_TX_LOCK(txr);
+#if __FreeBSD_version >= 800000
+			/* Process the stack queue only if not depleted */
+			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
+			    !drbr_empty(ifp, txr->br))
+				igb_mq_start_locked(ifp, txr, NULL);
+#else
+			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+				igb_start_locked(txr, ifp);
+#endif
+			IGB_TX_UNLOCK(txr);
+		}
+	}
 	IGB_CORE_UNLOCK(adapter);
 
 	return bus_generic_resume(dev);
@@ -1330,19 +1345,19 @@ igb_handle_que(void *context, int pending)
 		more = igb_rxeof(que, adapter->rx_process_limit, NULL);
 
 		IGB_TX_LOCK(txr);
-		if (igb_txeof(txr))
-			more = TRUE;
+		igb_txeof(txr);
 #if __FreeBSD_version >= 800000
 		/* Process the stack queue only if not depleted */
 		if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 		    !drbr_empty(ifp, txr->br))
 			igb_mq_start_locked(ifp, txr, NULL);
 #else
-		igb_start_locked(txr, ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			igb_start_locked(txr, ifp);
 #endif
 		IGB_TX_UNLOCK(txr);
 		/* Do we need another? */
-		if (more || (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
+		if (more) {
 			taskqueue_enqueue(que->tq, &que->que_task);
 			return;
 		}
@@ -1365,8 +1380,35 @@ igb_handle_link(void *context, int pending)
 {
 	struct adapter *adapter = context;
 
+	IGB_CORE_LOCK(adapter);
+	igb_handle_link_locked(adapter);
+	IGB_CORE_UNLOCK(adapter);
+}
+
+static void
+igb_handle_link_locked(struct adapter *adapter)
+{
+	struct tx_ring	*txr = adapter->tx_rings;
+	struct ifnet *ifp = adapter->ifp;
+
+	IGB_CORE_LOCK_ASSERT(adapter);
 	adapter->hw.mac.get_link_status = 1;
 	igb_update_link_status(adapter);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && adapter->link_active) {
+		for (int i = 0; i < adapter->num_queues; i++, txr++) {
+			IGB_TX_LOCK(txr);
+#if __FreeBSD_version >= 800000
+			/* Process the stack queue only if not depleted */
+			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
+			    !drbr_empty(ifp, txr->br))
+				igb_mq_start_locked(ifp, txr, NULL);
+#else
+			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+				igb_start_locked(txr, ifp);
+#endif
+			IGB_TX_UNLOCK(txr);
+		}
+	}
 }
 
 /*********************************************************************
@@ -1446,7 +1488,7 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 		/* Link status change */
 		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
-			igb_handle_link(adapter, 0);
+			igb_handle_link_locked(adapter);
 
 		if (reg_icr & E1000_ICR_RXO)
 			adapter->rx_overruns++;
@@ -1463,7 +1505,8 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!drbr_empty(ifp, txr->br))
 		igb_mq_start_locked(ifp, txr, NULL);
 #else
-	igb_start_locked(txr, ifp);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		igb_start_locked(txr, ifp);
 #endif
 	IGB_TX_UNLOCK(txr);
 	return POLL_RETURN_COUNT(rx_done);
@@ -1480,16 +1523,26 @@ igb_msix_que(void *arg)
 {
 	struct igb_queue *que = arg;
 	struct adapter *adapter = que->adapter;
+	struct ifnet   *ifp = adapter->ifp;
 	struct tx_ring *txr = que->txr;
 	struct rx_ring *rxr = que->rxr;
 	u32		newitr = 0;
-	bool		more_tx, more_rx;
+	bool		more_rx;
 
 	E1000_WRITE_REG(&adapter->hw, E1000_EIMC, que->eims);
 	++que->irqs;
 
 	IGB_TX_LOCK(txr);
-	more_tx = igb_txeof(txr);
+	igb_txeof(txr);
+#if __FreeBSD_version >= 800000
+	/* Process the stack queue only if not depleted */
+	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
+	    !drbr_empty(ifp, txr->br))
+		igb_mq_start_locked(ifp, txr, NULL);
+#else
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		igb_start_locked(txr, ifp);
+#endif
 	IGB_TX_UNLOCK(txr);
 
 	more_rx = igb_rxeof(que, adapter->rx_process_limit, NULL);
@@ -1547,7 +1600,7 @@ igb_msix_que(void *arg)
 
 no_calc:
 	/* Schedule a clean task if needed*/
-	if (more_tx || more_rx)
+	if (more_rx)
 		taskqueue_enqueue(que->tq, &que->que_task);
 	else
 		/* Reenable this interrupt */

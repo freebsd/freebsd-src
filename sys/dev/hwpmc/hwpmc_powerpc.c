@@ -690,7 +690,8 @@ powerpc_intr(int cpu, struct trapframe *tf)
 		powerpc_pmcn_write(i, v);
 
 		/* Restart the counter if logging succeeded. */
-		error = pmc_process_interrupt(cpu, pm, tf, TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
+		    TRAPF_USERMODE(tf));
 		mtspr(SPR_MMCR0, config);
 		if (error != 0)
 			powerpc_stop_pmc(cpu, i);

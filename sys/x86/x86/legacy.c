@@ -27,6 +27,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef __i386__
+#include "opt_eisa.h"
+#include "opt_mca.h"
+#endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -47,13 +51,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/smp.h>
 
+#ifdef DEV_MCA
+#include <i386/bios/mca_machdep.h>
+#endif
+
 #include <machine/clock.h>
-#include <machine/legacyvar.h>
 #include <machine/resource.h>
+#include <x86/legacyvar.h>
 
 static MALLOC_DEFINE(M_LEGACYDEV, "legacydrv", "legacy system device");
 struct legacy_device {
-	int			lg_pcibus;
+	int	lg_pcibus;
+	int	lg_pcislot;
+	int	lg_pcifunc;
 };
 
 #define DEVTOAT(dev)	((struct legacy_device *)device_get_ivars(dev))
@@ -123,9 +133,25 @@ legacy_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	/*
-	 * If we didn't see ISA on a pci bridge, create some
-	 * connection points now so it shows up "on motherboard".
+	 * If we didn't see EISA or ISA on a pci bridge, create some
+	 * connection points now so they show up "on motherboard".
 	 */
+#ifdef DEV_EISA
+	if (!devclass_get_device(devclass_find("eisa"), 0)) {
+		child = BUS_ADD_CHILD(dev, 0, "eisa", 0);
+		if (child == NULL)
+			panic("legacy_attach eisa");
+		device_probe_and_attach(child);
+	}
+#endif
+#ifdef DEV_MCA
+	if (MCA_system && !devclass_get_device(devclass_find("mca"), 0)) {
+        	child = BUS_ADD_CHILD(dev, 0, "mca", 0);
+        	if (child == 0)
+                	panic("legacy_probe mca");
+		device_probe_and_attach(child);
+	}
+#endif
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
 		child = BUS_ADD_CHILD(dev, 0, "isa", 0);
 		if (child == NULL)
@@ -161,6 +187,8 @@ legacy_add_child(device_t bus, u_int order, const char *name, int unit)
 	if (atdev == NULL)
 		return(NULL);
 	atdev->lg_pcibus = -1;
+	atdev->lg_pcislot = -1;
+	atdev->lg_pcifunc = -1;
 
 	child = device_add_child_ordered(bus, order, name, unit);
 	if (child == NULL)
@@ -184,6 +212,12 @@ legacy_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case LEGACY_IVAR_PCIBUS:
 		*result = atdev->lg_pcibus;
 		break;
+	case LEGACY_IVAR_PCISLOT:
+		*result = atdev->lg_pcislot;
+		break;
+	case LEGACY_IVAR_PCIFUNC:
+		*result = atdev->lg_pcifunc;
+		break;
 	default:
 		return ENOENT;
 	}
@@ -201,6 +235,12 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 		return EINVAL;
 	case LEGACY_IVAR_PCIBUS:
 		atdev->lg_pcibus = value;
+		break;
+	case LEGACY_IVAR_PCISLOT:
+		atdev->lg_pcislot = value;
+		break;
+	case LEGACY_IVAR_PCIFUNC:
+		atdev->lg_pcifunc = value;
 		break;
 	default:
 		return ENOENT;

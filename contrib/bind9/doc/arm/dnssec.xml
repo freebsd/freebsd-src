@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- - Copyright (C) 2010  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec.xml,v 1.4 2010-08-16 22:21:06 marka Exp $ -->
+<!-- $Id$ -->
 
 <sect1 id="dnssec.dynamic.zones">
   <title>DNSSEC, Dynamic Zones, and Automatic Signing</title>

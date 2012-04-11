@@ -1631,9 +1631,7 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->minimum_cmd_size = 16;
 
 	/* Predict whether device may support READ CAPACITY(16). */
-	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3 ||
-	    (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC &&
-	     (cgd->inq_data.spc3_flags & SPC3_SID_PROTECT))) {
+	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3) {
 		softc->flags |= DA_FLAG_CAN_RC16;
 		softc->state = DA_STATE_PROBE2;
 	}

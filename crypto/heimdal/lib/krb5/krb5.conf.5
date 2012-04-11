@@ -412,19 +412,22 @@ Default is the same as
 Should the kdc answer kdc-requests over http.
 .It Li enable-kaserver = Va BOOL
 If this kdc should emulate the AFS kaserver.
-.It Li as-use-strongest-session-key = Va BOOL
+.It Li tgt-use-strongest-session-key = Va BOOL
 If this is TRUE then the KDC will prefer the strongest key from the
-client's AS-REQ enctype list, that is also supported by the KDC and the
-target principal, for the ticket session key. Else it will prefer the
-first key from the client's AS-REQ enctype list that is also supported
-by the KDC and the target principal. Defaults to TRUE.
+client's AS-REQ or TGS-REQ enctype list for the ticket session key that
+is supported by the KDC and the target principal when the target
+principal is a krbtgt principal.  Else it will prefer the first key from
+the client's AS-REQ enctype list that is also supported by the KDC and
+the target principal. Defaults to TRUE.
+.It Li svc-use-strongest-session-key = Va BOOL
+Like tgt-use-strongest-session-key, but applies to the session key
+enctype of tickets for services other than krbtgt principals. Defaults
+to TRUE.
 .It Li preauth-use-strongest-session-key = Va BOOL
-Like as-use-strongest-session-key, but applies to the session key
-enctype selection for PA-ETYPE-INFO2 (i.e., for password-based
-pre-authentication). Defaults to TRUE.
-.It Li tgs-use-strongest-session-key = Va BOOL
-Like as-use-strongest-session-key, but applies to the session key
-enctype of tickets issued by the TGS. Defaults to TRUE.
+If TRUE then select the strongest possible enctype from the client's
+AS-REQ for PA-ETYPE-INFO2 (i.e., for password-based pre-authentication).
+Else pick the first supported enctype from the client's AS-REQ. Defaults
+to TRUE.
 .It Li use-strongest-server-key = Va BOOL
 If TRUE then the KDC picks, for the ticket encrypted part's key, the
 first supported enctype from the target service principal's hdb entry's

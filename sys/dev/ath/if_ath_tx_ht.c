@@ -245,7 +245,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		 */
 		rc[i].ratecode = rate;
 
-		if (bf->bf_state.bfs_flags &
+		if (bf->bf_state.bfs_txflags &
 		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			rc[i].flags |= ATH_RC_RTSCTS_FLAG;
 
@@ -445,7 +445,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int i;
 	int pktlen;
-	int flags = bf->bf_state.bfs_flags;
+	int flags = bf->bf_state.bfs_txflags;
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
@@ -566,7 +566,7 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_hal *ah = sc->sc_ah;
 	int is_pspoll = (bf->bf_state.bfs_atype == HAL_PKT_TYPE_PSPOLL);
 	int ctsrate = bf->bf_state.bfs_ctsrate;
-	int flags = bf->bf_state.bfs_flags;
+	int flags = bf->bf_state.bfs_txflags;
 
 	/* Setup rate scenario */
 	memset(&series, 0, sizeof(series));
@@ -652,7 +652,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 	int status = ATH_AGGR_DONE;
 	int prev_frames = 0;	/* XXX for AR5416 burst, not done here */
 	int prev_al = 0;	/* XXX also for AR5416 burst */
-	int seqno;
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
@@ -708,14 +707,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 */
 
 		/*
-		 * XXX TODO: AR5416 has an 8K aggregation size limit
-		 * when RTS is enabled, and RTS is required for dual-stream
-		 * rates.
-		 *
-		 * For now, limit all aggregates for the AR5416 to be 8K.
-		 */
-
-		/*
 		 * do not exceed aggregation limit
 		 */
 		al_delta = ATH_AGGR_DELIM_SZ + bf->bf_state.bfs_pktlen;
@@ -723,6 +714,20 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		    (aggr_limit < (al + bpad + al_delta + prev_al))) {
 			status = ATH_AGGR_LIMITED;
 			break;
+		}
+
+		/*
+		 * If RTS/CTS is set on the first frame, enforce
+		 * the RTS aggregate limit.
+		 */
+		if (bf_first->bf_state.bfs_txflags &
+		    (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
+			if (nframes &&
+			   (sc->sc_rts_aggr_limit <
+			     (al + bpad + al_delta + prev_al))) {
+				status = ATH_AGGR_8K_LIMITED;
+				break;
+			}
 		}
 
 		/*
@@ -735,7 +740,20 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		}
 
 		/*
-		 * TODO: If it's _before_ the BAW left edge, complain very loudly.
+		 * If the current frame has an RTS/CTS configuration
+		 * that differs from the first frame, override the
+		 * subsequent frame with this config.
+		 */
+		bf->bf_state.bfs_txflags &=
+		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		bf->bf_state.bfs_txflags |=
+		    bf_first->bf_state.bfs_txflags &
+		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+
+		/*
+		 * TODO: If it's _before_ the BAW left edge, complain very
+		 * loudly.
+		 *
 		 * This means something (else) has slid the left edge along
 		 * before we got a chance to be TXed.
 		 */
@@ -747,13 +765,32 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		 * see ath_tx_xmit_aggr() for more info.
 		 */
 		if (bf->bf_state.bfs_dobaw) {
+			ieee80211_seq seqno;
+
+			/*
+			 * If the sequence number is allocated, use it.
+			 * Otherwise, use the sequence number we WOULD
+			 * allocate.
+			 */
+			if (bf->bf_state.bfs_seqno_assigned)
+				seqno = SEQNO(bf->bf_state.bfs_seqno);
+			else
+				seqno = ni->ni_txseqs[bf->bf_state.bfs_tid];
+
+			/*
+			 * Check whether either the currently allocated
+			 * sequence number _OR_ the to-be allocated
+			 * sequence number is inside the BAW.
+			 */
 			if (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
-			    ni->ni_txseqs[bf->bf_state.bfs_tid])) {
+			    seqno)) {
 				status = ATH_AGGR_BAW_CLOSED;
 				break;
 			}
+
 			/* XXX check for bfs_need_seqno? */
 			if (! bf->bf_state.bfs_seqno_assigned) {
+				int seqno;
 				seqno = ath_tx_tid_seqno_assign(sc, ni, bf, bf->bf_m);
 				if (seqno < 0) {
 					device_printf(sc->sc_dev,
@@ -796,19 +833,14 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 		bf->bf_state.bfs_addedbaw = 1;
 
 		/*
-		 * XXX TODO: If any frame in the aggregate requires RTS/CTS,
-		 * set the first frame.
-		 */
-
-		/*
 		 * XXX enforce ACK for aggregate frames (this needs to be
 		 * XXX handled more gracefully?
 		 */
-		if (bf->bf_state.bfs_flags & HAL_TXDESC_NOACK) {
+		if (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) {
 			device_printf(sc->sc_dev,
 			    "%s: HAL_TXDESC_NOACK set for an aggregate frame?\n",
 			    __func__);
-			bf->bf_state.bfs_flags &= (~HAL_TXDESC_NOACK);
+			bf->bf_state.bfs_txflags &= (~HAL_TXDESC_NOACK);
 		}
 
 		/*

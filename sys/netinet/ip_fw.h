@@ -39,7 +39,8 @@
 /*
  * Default number of ipfw tables.
  */
-#define	IPFW_TABLES_MAX		128
+#define	IPFW_TABLES_MAX		65535
+#define	IPFW_TABLES_DEFAULT	128
 
 /*
  * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit

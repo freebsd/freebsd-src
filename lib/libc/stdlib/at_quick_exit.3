@@ -1,6 +1,6 @@
 .\"  Copyright (c) 2011 David Chisnall
 .\"  All rights reserved.
-.\" 
+.\"
 .\"  Redistribution and use in source and binary forms, with or without
 .\"  modification, are permitted provided that the following conditions
 .\"  are met:
@@ -9,7 +9,7 @@
 .\"  2. Redistributions in binary form must reproduce the above copyright
 .\"     notice, this list of conditions and the following disclaimer in the
 .\"     documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\"  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -21,7 +21,7 @@
 .\"  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\"  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\"  SUCH DAMAGE.
-.\" 
+.\"
 .\"  $FreeBSD$
 .\"
 .Dd December 7, 2011
@@ -40,16 +40,16 @@
 The
 .Fn at_quick_exit
 function registers a cleanup function to be called when the program exits as a
-result of calling 
+result of calling
 .Xr quick_exit 3 .
 The cleanup functions are called in the reverse order and will not be called if
-the program exits by calling 
+the program exits by calling
 .Xr exit 3 ,
 .Xr _Exit 3 ,
 or
 .Xr abort 3 .
 .Sh RETURN VALUES
-The 
+The
 .Fn at_quick_exit
 function returns the value 0 if successful and a non-zero value on failure.
 .Sh SEE ALSO

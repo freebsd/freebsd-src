@@ -287,7 +287,7 @@ mips_pmc_intr(int cpu, struct trapframe *tf)
 		retval = 1;
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
-		error = pmc_process_interrupt(cpu, pm, tf,
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
 		if (error) {
 			/* Clear/disable the relevant counter */

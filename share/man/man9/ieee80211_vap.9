@@ -93,7 +93,7 @@ This data structure must have an
 structure at the front but is usually extended with driver-private state.
 Next the vap is setup with a call to
 .Fn ieee80211_vap_setup .
-This request initializes 
+This request initializes
 .Nm net80211
 state but does not activate the interface.
 The driver can then override methods setup by
@@ -108,7 +108,7 @@ A vap is deleted when an
 .Dv SIOCIFDESTROY
 ioctl request is made or when the device detaches (causing all
 associated vaps to automatically be deleted).
-Delete requests cause the 
+Delete requests cause the
 .Vt ic_vap_delete
 method to be called.
 Drivers must quiesce the device before calling
