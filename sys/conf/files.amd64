@@ -112,7 +112,6 @@ amd64/amd64/gdb_machdep.c	optional	gdb
 amd64/amd64/identcpu.c		standard
 amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
-amd64/amd64/intr_machdep.c	standard
 amd64/amd64/io.c		optional	io
 amd64/amd64/legacy.c		standard
 amd64/amd64/locore.S		standard	no-obj
@@ -465,7 +464,7 @@ x86/cpufreq/p4tcc.c		optional	cpufreq
 x86/isa/atpic.c			optional	atpic isa
 x86/isa/atrtc.c			standard
 x86/isa/clock.c			standard
-x86/isa/elcr.c			standard
+x86/isa/elcr.c			optional	atpic isa | mptable
 x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
@@ -474,6 +473,7 @@ x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard
