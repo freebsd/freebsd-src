@@ -46,6 +46,10 @@ struct ath_tx_aggr_stats {
 	u_int32_t	aggr_rts_aggr_limited;
 };
 
+struct ath_intr_stats {
+	u_int32_t	sync_intr[32];
+};
+
 struct ath_stats {
 	u_int32_t	ast_watchdog;	/* device reset by watchdog */
 	u_int32_t	ast_hardware;	/* fatal hardware error interrupts */

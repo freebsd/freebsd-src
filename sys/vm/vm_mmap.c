@@ -888,6 +888,12 @@ RestartScan:
 					pindex = OFF_TO_IDX(current->offset +
 					    (addr - current->start));
 					m = vm_page_lookup(object, pindex);
+					mtx_lock(&vm_page_queue_free_mtx);
+					if (m == NULL &&
+					    vm_page_cache_lookup(object,
+					    pindex) != NULL)
+						mincoreinfo = MINCORE_INCORE;
+					mtx_unlock(&vm_page_queue_free_mtx);
 					if (m != NULL && m->valid == 0)
 						m = NULL;
 					if (m != NULL)

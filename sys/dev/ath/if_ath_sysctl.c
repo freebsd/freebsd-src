@@ -655,6 +655,7 @@ ath_sysctl_clearstats(SYSCTL_HANDLER_ARGS)
 		return 0;       /* Not clearing the stats is still valid */
 	memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
 	memset(&sc->sc_aggr_stats, 0, sizeof(sc->sc_aggr_stats));
+	memset(&sc->sc_intr_stats, 0, sizeof(sc->sc_intr_stats));
 
 	val = 0;
 	return 0;
@@ -674,6 +675,26 @@ ath_sysctl_stats_attach_rxphyerr(struct ath_softc *sc, struct sysctl_oid_list *p
 	for (i = 0; i < 64; i++) {
 		snprintf(sn, sizeof(sn), "%d", i);
 		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD, &sc->sc_stats.ast_rx_phy[i], 0, "");
+	}
+}
+
+static void
+ath_sysctl_stats_attach_intr(struct ath_softc *sc,
+    struct sysctl_oid_list *parent)
+{
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	int i;
+	char sn[8];
+
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "sync_intr",
+	    CTLFLAG_RD, NULL, "Sync interrupt statistics");
+	child = SYSCTL_CHILDREN(tree);
+	for (i = 0; i < 32; i++) {
+		snprintf(sn, sizeof(sn), "%d", i);
+		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD,
+		    &sc->sc_intr_stats.sync_intr[i], 0, "");
 	}
 }
 
@@ -904,6 +925,9 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
+
+	/* Attach the interrupt statistics array */
+	ath_sysctl_stats_attach_intr(sc, child);
 }
 
 /*
