@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/memrange.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 
@@ -200,13 +202,14 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	uint32_t		cr3;
 	u_long			ef;
 
-	ret = 0;
+	ret = -1;
 	if (sc->acpi_wakeaddr == 0)
-		return (0);
+		return (ret);
 
 	AcpiSetFirmwareWakingVector(sc->acpi_wakephys);
 
-	ef = read_eflags();
+	ef = intr_disable();
+	intr_suspend();
 
 	/*
 	 * Temporarily switch to the kernel pmap because it provides an
@@ -222,10 +225,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #endif
 
 	ret_addr = 0;
-	ACPI_DISABLE_IRQS();
 	if (acpi_savecpu()) {
 		/* Execute Sleep */
-		intr_suspend();
 
 		p_gdt = (struct region_descriptor *)
 				(sc->acpi_wakeaddr + physical_gdt);
@@ -267,25 +268,31 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			device_printf(sc->acpi_dev,
 				"AcpiEnterSleepState failed - %s\n",
 				AcpiFormatException(status));
-			ret = -1;
 			goto out;
 		}
 
-		for (;;) ;
+		for (;;)
+			ia32_pause();
 	} else {
-		/* Execute Wakeup */
-		mca_resume();
-		intr_resume();
-
+		pmap_init_pat();
+		PCPU_SET(switchtime, 0);
+		PCPU_SET(switchticks, ticks);
 		if (bootverbose) {
 			acpi_savecpu();
 			acpi_printcpu();
 		}
+		ret = 0;
 	}
 
 out:
 	load_cr3(cr3);
-	write_eflags(ef);
+	mca_resume();
+	intr_resume();
+	intr_restore(ef);
+
+	if (ret == 0 && mem_range_softc.mr_op != NULL &&
+	    mem_range_softc.mr_op->reinit != NULL)
+		mem_range_softc.mr_op->reinit(&mem_range_softc);
 
 	/* If we beeped, turn it off after a delay. */
 	if (acpi_resume_beep)
