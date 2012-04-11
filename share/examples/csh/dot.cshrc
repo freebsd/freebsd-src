@@ -29,7 +29,7 @@ complete service  	'c/-/(e l r v)/' 'p/1/`service -l`/' 'n/*/(start stop reload 
 complete kldunload	'n@*@`kldstat | awk \{sub\(\/\.ko\/,\"\",\$NF\)\;print\ \$NF\} | grep -v Name` @'
 complete make           'n@*@`make -pn | sed -n -E "/^[#_.\/[:blank:]]+/d; /=/d; s/[[:blank:]]*:.*//gp;"`@'
 complete pkg_delete     'c/-/(i v D n p d f G x X r)/' 'n@*@`ls /var/db/pkg`@'
-complete pkg_info       'c/-/(a b v p q Q c d D f g i I j k K r R m L s o G O x X e E l t V P)/' 'n@*@`\ls -1 /var/db/pkg | sed svar/db/pkg/%%`@'
+complete pkg_info       'c/-/(a b v p q Q c d D f g i I j k K r R m L s o G O x X e E l t V P)/' 'n@*@`\ls -1 /var/db/pkg | sed s%/var/db/pkg/%%`@'
 complete kill		'c/-/S/' 'c/%/j/' 'n/*/`ps -ax | awk '"'"'{print $1}'"'"'`/'
 complete killall	'c/-/S/' 'c/%/j/' 'n/*/`ps -ax | awk '"'"'{print $5}'"'"'`/'
 complete dd		'c/[io]f=/f/ n/*/"(if of ibs obs bs skip seek count)"/='
