@@ -44,6 +44,8 @@
 #endif
 
 #ifdef XEN
+extern void xen_cli(void);
+extern void xen_sti(void);
 extern void xen_load_cr3(u_int data);
 extern void xen_tlb_flush(void);
 extern void xen_invlpg(vm_offset_t addr);
@@ -138,7 +140,11 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 static __inline void
 enable_intr(void)
 {
+#ifdef XEN
+	xen_sti();
+#else
 	__asm __volatile("sti");
+#endif
 }
 
 #ifdef _KERNEL

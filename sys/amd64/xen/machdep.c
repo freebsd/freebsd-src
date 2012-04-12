@@ -988,6 +988,20 @@ read_rflags(void)
 	return (rflags);
 }
 
+void
+xen_cli(void)
+{
+	CTR1(KTR_SPARE2, "%x xen_cli disabling interrupts", rrbp());
+	__cli();
+}
+
+void
+xen_sti(void)
+{
+	CTR1(KTR_SPARE2, "%x xen_sti enabling interrupts", rrbp());
+	__sti();
+}
+
 char *console_page;
 #include <machine/tss.h>
 struct amd64tss common_tss[MAXCPU];
