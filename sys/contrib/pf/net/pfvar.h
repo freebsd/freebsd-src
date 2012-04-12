@@ -1201,8 +1201,6 @@ struct pf_pdesc {
 	} hdr;
 
 	struct pf_rule	*nat_rule;	/* nat/rdr rule applied to packet */
-	struct ether_header
-			*eh;
 	struct pf_addr	*src;		/* src address */
 	struct pf_addr	*dst;		/* dst address */
 	u_int16_t *sport;
@@ -1819,13 +1817,11 @@ extern void			 pf_addrcpy(struct pf_addr *, struct pf_addr *,
 void				 pf_rm_rule(struct pf_rulequeue *,
 				    struct pf_rule *);
 #ifdef INET
-int	pf_test(int, struct ifnet *, struct mbuf **, struct ether_header *,
-    struct inpcb *);
+int	pf_test(int, struct ifnet *, struct mbuf **, struct inpcb *);
 #endif /* INET */
 
 #ifdef INET6
-int	pf_test6(int, struct ifnet *, struct mbuf **, struct ether_header *,
-    struct inpcb *);
+int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
