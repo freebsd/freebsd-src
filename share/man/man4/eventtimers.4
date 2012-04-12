@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2010
+.Dd March 13, 2012
 .Dt EVENTTIMERS 4
 .Os
 .Sh NAME
@@ -143,6 +143,12 @@ By default this options is disabled.
 If chosen timer is per-CPU
 and runs in periodic mode, this option has no effect - all interrupts are
 always generating.
+.It Va kern.eventtimer.activetick
+makes each CPU to receive all kinds of timer interrupts when they are busy.
+Disabling it allows to skip some hardclock() calls in some cases.
+By default this options is enabled.
+If chosen timer is per-CPU, this option has no effect - all interrupts are
+always generating, as timer reprogramming is too expensive for that case.
 .El
 .Sh SEE ALSO
 .Xr apic 4 ,
