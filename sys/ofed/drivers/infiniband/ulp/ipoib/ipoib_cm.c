@@ -682,7 +682,6 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	/* FIXME: is this right? Shouldn't we only increment on success? */
 	++dev->if_opackets;
-	dev->if_obytes += tx_req->mb->m_pkthdr.len;
 
 	m_freem(tx_req->mb);
 
