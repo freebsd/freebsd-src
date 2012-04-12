@@ -52,10 +52,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/mbuf.h>
 #include <sys/endian.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
+#include <sys/interrupt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/kernel.h>
@@ -248,6 +250,7 @@ static int
 pfattach(void)
 {
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
+	int error;
 
 	pf_initialize();
 	pfr_initialize();
@@ -300,9 +303,14 @@ pfattach(void)
 	/* XXX do our best to avoid a conflict */
 	V_pf_status.hostid = arc4random();
 
-	if (kproc_create(pf_purge_thread, curvnet, NULL, 0, 0, "pfpurge"))
+	if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
+	    "pf purge")) != 0)
 		/* XXXGL: leaked all above. */
-		return (ENXIO);
+		return (error);
+	if ((error = swi_add(NULL, "pf send", pf_intr, curvnet, SWI_NET,
+	    INTR_MPSAFE, &V_pf_swi_cookie)) != 0)
+		/* XXXGL: leaked all above. */
+		return (error);
 
 	m_addr_chg_pf_p = pf_pkt_addr_changed;
 
@@ -3779,6 +3787,7 @@ pf_unload(void)
 	V_pf_status.running = 0;
 	PF_UNLOCK();
 	m_addr_chg_pf_p = NULL;
+	swi_remove(V_pf_swi_cookie);
 	error = dehook_pf();
 	if (error) {
 		/*
