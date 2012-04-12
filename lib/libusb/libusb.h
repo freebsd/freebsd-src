@@ -371,6 +371,7 @@ uint8_t	libusb_get_device_address(libusb_device * dev);
 enum libusb_speed libusb_get_device_speed(libusb_device * dev);
 int	libusb_clear_halt(libusb_device_handle *devh, uint8_t endpoint);
 int	libusb_get_max_packet_size(libusb_device * dev, uint8_t endpoint);
+int	libusb_get_max_iso_packet_size(libusb_device * dev, uint8_t endpoint);
 libusb_device *libusb_ref_device(libusb_device * dev);
 void	libusb_unref_device(libusb_device * dev);
 int	libusb_open(libusb_device * dev, libusb_device_handle ** devh);
