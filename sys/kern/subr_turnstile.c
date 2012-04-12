@@ -217,9 +217,7 @@ propagate_priority(struct thread *td)
 			printf(
 		"Sleeping thread (tid %d, pid %d) owns a non-sleepable lock\n",
 			    td->td_tid, td->td_proc->p_pid);
-#ifdef DDB
-			db_trace_thread(td, -1);
-#endif
+			kdb_backtrace_thread(td);
 			panic("sleeping thread");
 		}
 
