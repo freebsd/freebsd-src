@@ -234,10 +234,6 @@ struct netmap_if {
 	const ssize_t	ring_ofs[0];
 };
 
-#ifndef IFCAP_NETMAP
-#define IFCAP_NETMAP	0x100000	/* used on linux */
-#endif
-
 #ifndef NIOCREGIF	
 /*
  * ioctl names and related fields
