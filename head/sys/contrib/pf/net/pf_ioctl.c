@@ -3538,7 +3538,7 @@ pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		HTONS(h->ip_off);
 	}
 	CURVNET_SET(ifp->if_vnet);
-	chk = pf_test(PF_IN, ifp, m, NULL, inp);
+	chk = pf_test(PF_IN, ifp, m, inp);
 	CURVNET_RESTORE();
 	if (chk && *m) {
 		m_freem(*m);
@@ -3580,7 +3580,7 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		HTONS(h->ip_off);
 	}
 	CURVNET_SET(ifp->if_vnet);
-	chk = pf_test(PF_OUT, ifp, m, NULL, inp);
+	chk = pf_test(PF_OUT, ifp, m, inp);
 	CURVNET_RESTORE();
 	if (chk && *m) {
 		m_freem(*m);
@@ -3613,8 +3613,7 @@ pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 * filtering we have change this to lo0 as it is the case in IPv4.
 	 */
 	CURVNET_SET(ifp->if_vnet);
-	chk = pf_test6(PF_IN, (*m)->m_flags & M_LOOP ? V_loif : ifp, m,
-	    NULL, inp);
+	chk = pf_test6(PF_IN, (*m)->m_flags & M_LOOP ? V_loif : ifp, m, inp);
 	CURVNET_RESTORE();
 	if (chk && *m) {
 		m_freem(*m);
@@ -3641,7 +3640,7 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 	CURVNET_SET(ifp->if_vnet);
-	chk = pf_test6(PF_OUT, ifp, m, NULL, inp);
+	chk = pf_test6(PF_OUT, ifp, m, inp);
 	CURVNET_RESTORE();
 	if (chk && *m) {
 		m_freem(*m);

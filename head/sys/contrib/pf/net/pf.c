@@ -183,7 +183,7 @@ static void		 pf_send_tcp(struct mbuf *,
 			    const struct pf_addr *, const struct pf_addr *,
 			    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
 			    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
-			    u_int16_t, struct ether_header *, struct ifnet *);
+			    u_int16_t, struct ifnet *);
 static void		 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
 			    sa_family_t, struct pf_rule *);
 static void		 pf_detach_state(struct pf_state *);
@@ -1338,7 +1338,7 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 		    s->key[PF_SK_WIRE]->port[1],
 		    s->key[PF_SK_WIRE]->port[0],
 		    s->src.seqhi, s->src.seqlo + 1,
-		    TH_RST|TH_ACK, 0, 0, 0, 1, s->tag, NULL, NULL);
+		    TH_RST|TH_ACK, 0, 0, 0, 1, s->tag, NULL);
 	}
 
 	LIST_REMOVE(s, entry);
@@ -1949,7 +1949,7 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
     const struct pf_addr *saddr, const struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport, u_int32_t seq, u_int32_t ack,
     u_int8_t flags, u_int16_t win, u_int16_t mss, u_int8_t ttl, int tag,
-    u_int16_t rtag, struct ether_header *eh, struct ifnet *ifp)
+    u_int16_t rtag, struct ifnet *ifp)
 {
 	struct mbuf	*m;
 	int		 len, tlen;
@@ -2096,33 +2096,9 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 		h->ip_len = len;
 		h->ip_ttl = ttl ? ttl : V_ip_defttl;
 		h->ip_sum = 0;
-		if (eh == NULL) {
-			PF_UNLOCK();
-			ip_output(m, (void *)NULL, (void *)NULL, 0,
-			    (void *)NULL, (void *)NULL);
-			PF_LOCK();
-		} else {
-			struct route		 ro;
-			struct rtentry		 rt;
-			struct ether_header	*e = (void *)ro.ro_dst.sa_data;
-
-			if (ifp == NULL) {
-				m_freem(m);
-				return;
-			}
-			rt.rt_ifp = ifp;
-			ro.ro_rt = &rt;
-			ro.ro_dst.sa_len = sizeof(ro.ro_dst);
-			ro.ro_dst.sa_family = pseudo_AF_HDRCMPLT;
-			bcopy(eh->ether_dhost, e->ether_shost, ETHER_ADDR_LEN);
-			bcopy(eh->ether_shost, e->ether_dhost, ETHER_ADDR_LEN);
-			e->ether_type = eh->ether_type;
-			PF_UNLOCK();
-			/* XXX_IMPORT: later */
-			ip_output(m, (void *)NULL, &ro, 0,
-			    (void *)NULL, (void *)NULL);
-			PF_LOCK();
-		}
+		PF_UNLOCK();
+		ip_output(m, NULL, NULL, 0, NULL, NULL);
+		PF_LOCK();
 		break;
 #endif /* INET */
 #ifdef INET6
@@ -3147,7 +3123,7 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 				pf_send_tcp(m, r, af, pd->dst,
 				    pd->src, th->th_dport, th->th_sport,
 				    ntohl(th->th_ack), ack, TH_RST|TH_ACK, 0, 0,
-				    r->return_ttl, 1, 0, pd->eh, kif->pfik_ifp);
+				    r->return_ttl, 1, 0, kif->pfik_ifp);
 			}
 		} else if (pd->proto != IPPROTO_ICMP && af == AF_INET &&
 		    r->return_icmp)
@@ -3410,7 +3386,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		s->src.mss = mss;
 		pf_send_tcp(NULL, r, pd->af, pd->dst, pd->src, th->th_dport,
 		    th->th_sport, s->src.seqhi, ntohl(th->th_seq) + 1,
-		    TH_SYN|TH_ACK, 0, s->src.mss, 0, 1, 0, NULL, NULL);
+		    TH_SYN|TH_ACK, 0, s->src.mss, 0, 1, 0, NULL);
 		REASON_SET(&reason, PFRES_SYNPROXY);
 		return (PF_SYNPROXY_DROP);
 	}
@@ -3825,7 +3801,7 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 				    th->th_sport, ntohl(th->th_ack), 0,
 				    TH_RST, 0, 0,
 				    (*state)->rule.ptr->return_ttl, 1, 0,
-				    pd->eh, kif->pfik_ifp);
+				    kif->pfik_ifp);
 			src->seqlo = 0;
 			src->seqhi = 1;
 			src->max_win = 1;
@@ -3978,8 +3954,7 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			pf_send_tcp(NULL, (*state)->rule.ptr, pd->af, pd->dst,
 			    pd->src, th->th_dport, th->th_sport,
 			    (*state)->src.seqhi, ntohl(th->th_seq) + 1,
-			    TH_SYN|TH_ACK, 0, (*state)->src.mss, 0, 1,
-			    0, NULL, NULL);
+			    TH_SYN|TH_ACK, 0, (*state)->src.mss, 0, 1, 0, NULL);
 			REASON_SET(reason, PFRES_SYNPROXY);
 			return (PF_SYNPROXY_DROP);
 		} else if (!(th->th_flags & TH_ACK) ||
@@ -4009,7 +3984,7 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			    &sk->addr[pd->sidx], &sk->addr[pd->didx],
 			    sk->port[pd->sidx], sk->port[pd->didx],
 			    (*state)->dst.seqhi, 0, TH_SYN, 0,
-			    (*state)->src.mss, 0, 0, (*state)->tag, NULL, NULL);
+			    (*state)->src.mss, 0, 0, (*state)->tag, NULL);
 			REASON_SET(reason, PFRES_SYNPROXY);
 			return (PF_SYNPROXY_DROP);
 		} else if (((th->th_flags & (TH_SYN|TH_ACK)) !=
@@ -4024,13 +3999,12 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			    pd->src, th->th_dport, th->th_sport,
 			    ntohl(th->th_ack), ntohl(th->th_seq) + 1,
 			    TH_ACK, (*state)->src.max_win, 0, 0, 0,
-			    (*state)->tag, NULL, NULL);
+			    (*state)->tag, NULL);
 			pf_send_tcp(NULL, (*state)->rule.ptr, pd->af,
 			    &sk->addr[pd->sidx], &sk->addr[pd->didx],
 			    sk->port[pd->sidx], sk->port[pd->didx],
 			    (*state)->src.seqhi + 1, (*state)->src.seqlo + 1,
-			    TH_ACK, (*state)->dst.max_win, 0, 0, 1,
-			    0, NULL, NULL);
+			    TH_ACK, (*state)->dst.max_win, 0, 0, 1, 0, NULL);
 			(*state)->src.seqdiff = (*state)->dst.seqhi -
 			    (*state)->src.seqlo;
 			(*state)->dst.seqdiff = (*state)->src.seqhi -
@@ -5143,7 +5117,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	if (oifp != ifp) {
 		PF_UNLOCK();
-		if (pf_test(PF_OUT, ifp, &m0, NULL, NULL) != PF_PASS) {
+		if (pf_test(PF_OUT, ifp, &m0, NULL) != PF_PASS) {
 			PF_LOCK();
 			goto bad;
 		} else if (m0 == NULL) {
@@ -5333,7 +5307,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	if (oifp != ifp) {
 		PF_UNLOCK();
-		if (pf_test6(PF_OUT, ifp, &m0, NULL, NULL) != PF_PASS) {
+		if (pf_test6(PF_OUT, ifp, &m0, NULL) != PF_PASS) {
 			PF_LOCK();
 			goto bad;
 		} else if (m0 == NULL) {
@@ -5517,8 +5491,7 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 
 #ifdef INET
 int
-pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
-    struct ether_header *eh, struct inpcb *inp)
+pf_test(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 {
 	struct pfi_kif		*kif;
 	u_short			 action, reason = 0, log = 0;
@@ -5605,7 +5578,6 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 	pd.af = AF_INET;
 	pd.tos = h->ip_tos;
 	pd.tot_len = ntohs(h->ip_len);
-	pd.eh = eh;
 
 	/* handle fragments that didn't get reassembled by normalization */
 	if (h->ip_off & htons(IP_MF | IP_OFFMASK)) {
@@ -5880,8 +5852,7 @@ done:
 
 #ifdef INET6
 int
-pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
-    struct ether_header *eh, struct inpcb *inp)
+pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 {
 	struct pfi_kif		*kif;
 	u_short			 action, reason = 0, log = 0;
@@ -5959,7 +5930,6 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	pd.af = AF_INET6;
 	pd.tos = 0;
 	pd.tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
-	pd.eh = eh;
 
 	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
 	pd.proto = h->ip6_nxt;
