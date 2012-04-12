@@ -91,6 +91,8 @@
 .Fn rad_server_open "int fd"
 .Ft "const char *"
 .Fn rad_server_secret "struct rad_handle *h"
+.Ft "void"
+.Fn rad_bind_to "struct rad_handle *h" "in_addr_t addr"
 .Ft u_char *
 .Fn rad_demangle "struct rad_handle *h" "const void *mangled" "size_t mlen"
 .Ft u_char *
@@ -429,6 +431,10 @@ The
 .Fn rad_server_secret
 returns the secret shared with the current RADIUS server according to the
 supplied rad_handle.
+.Pp
+The
+.Fn rad_bind_to
+assigns a source address for all requests to the current RADIUS server.
 .Pp
 The
 .Fn rad_demangle
