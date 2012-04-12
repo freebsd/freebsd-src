@@ -58,6 +58,12 @@ SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs =
 
 static MALLOC_DEFINE(M_UART, "UART", "UART driver");
 
+#ifndef	UART_POLL_FREQ
+#define	UART_POLL_FREQ		50
+#endif
+static int uart_poll_freq = UART_POLL_FREQ;
+TUNABLE_INT("debug.uart_poll_freq", &uart_poll_freq);
+
 void
 uart_add_sysdev(struct uart_devinfo *di)
 {
@@ -257,6 +263,12 @@ uart_intr(void *arg)
 		if (ipend & SER_INT_TXIDLE)
 			uart_intr_txidle(sc);		
 	}
+
+	if (sc->sc_polled) {
+		callout_reset(&sc->sc_timer, hz / uart_poll_freq,
+		    (timeout_t *)uart_intr, sc);
+	}
+
 	return((flag)?FILTER_HANDLED:FILTER_STRAY);
 }
 
@@ -440,8 +452,9 @@ uart_bus_attach(device_t dev)
 		}
 	}
 	if (sc->sc_ires == NULL) {
-		/* XXX no interrupt resource. Force polled mode. */
+		/* No interrupt resource. Force polled mode. */
 		sc->sc_polled = 1;
+		callout_init(&sc->sc_timer, 1);
 	}
 
 	sc->sc_rxbufsz = 384;
