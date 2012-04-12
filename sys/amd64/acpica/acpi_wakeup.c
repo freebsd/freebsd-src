@@ -284,6 +284,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	} else {
 		pmap_init_pat();
 		load_cr3(susppcbs[0]->pcb_cr3);
+		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 #ifdef SMP
