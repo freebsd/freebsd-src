@@ -86,7 +86,7 @@ struct netmap_kring {
 	u_int nr_hwcur;
 	int nr_hwavail;
 	u_int nr_kflags;	/* private driver flags */
-#define NKR_PENDINTR   0x1     // Pending interrupt.
+#define NKR_PENDINTR	0x1	// Pending interrupt.
 	u_int nkr_num_slots;
 
 	int	nkr_hwofs;	/* offset between NIC and netmap ring */
@@ -208,7 +208,7 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 int netmap_ring_reinit(struct netmap_kring *);
 
 extern int netmap_buf_size;
-#define NETMAP_BUF_SIZE netmap_buf_size
+#define NETMAP_BUF_SIZE	netmap_buf_size
 extern int netmap_mitigate;
 extern int netmap_no_pendintr;
 extern u_int netmap_total_buffers;
@@ -303,7 +303,7 @@ NMB(struct netmap_slot *slot)
 {
 	uint32_t i = slot->buf_idx;
 	return (i >= netmap_total_buffers) ? netmap_buffer_base :
-		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
+		netmap_buffer_base + (i * NETMAP_BUF_SIZE);
 }
 
 static inline void *
@@ -311,7 +311,7 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 {
 	uint32_t i = slot->buf_idx;
 	void *ret = (i >= netmap_total_buffers) ? netmap_buffer_base :
-		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
+		netmap_buffer_base + (i * NETMAP_BUF_SIZE);
 	*pp = vtophys(ret);
 	return ret;
 }
@@ -319,8 +319,4 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 /* default functions to handle rx/tx interrupts */
 int netmap_rx_irq(struct ifnet *, int, int *);
 #define netmap_tx_irq(_n, _q) netmap_rx_irq(_n, _q, NULL)
-#ifdef __linux__
-#define bus_dmamap_sync(_a, _b, _c) // wmb() or rmb() ?
-netdev_tx_t netmap_start_linux(struct sk_buff *skb, struct net_device *dev);
-#endif
 #endif /* _NET_NETMAP_KERN_H_ */
