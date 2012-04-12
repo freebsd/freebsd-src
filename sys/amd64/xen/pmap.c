@@ -135,7 +135,7 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 
 	boot_ptphys = *firstaddr; /* lowest available r/w area */
 
-	/* Allocate pages */
+	/* Allocate pseudo-physical pages for kernel page tables. */
 	nkpt = howmany(mapspan, NPTEPG);
 	nkpdpe = howmany(nkpt, NPDEPG);
 	KPML4phys = vallocpages(firstaddr, 1);
@@ -281,6 +281,53 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 	xen_pgdir_pin(phystomach(VTOP(KPML4phys)));
 }
 
+/* 
+ * Note: pmap_xen_bootpages assumes and asserts for the fact that the
+ * kernel virtual start and end values have been initialised.
+ *
+ * Map in the xen provided shared pages. They are:
+ * - shared info page
+ * - console page (XXX:)
+ * - XXX:
+ */
+
+static void
+pmap_xen_bootpages(vm_paddr_t *firstaddr)
+{
+	vm_offset_t va;
+	vm_paddr_t ma;
+
+	KASSERT(virtual_avail != 0, 
+		("kernel virtual address space un-initialised!"));
+	KASSERT(virtual_avail >= (KERNBASE + physmem), 
+		("kernel virtual address space inconsistent!"));
+
+	/* Share info */
+	ma = xen_start_info->shared_info;
+
+	/* This is a bit of a hack right now - we waste a physical
+	 * page by overwriting its original mapping to point to
+	 * the page we want ( thereby losing access to the
+	 * original page ).
+	 *
+	 * The clean solution would have been to map it in at 
+	 * KERNBASE + pa, where pa is the "pseudo-physical" address of
+	 * the shared page that xen gives us. We can't seem to be able
+	 * to use the pseudo-physical address in this way because the
+	 * linear mapped virtual address seems to be outside of the
+	 * range of PTEs that we have available during bootup (ptes
+	 * take virtual address space which is limited to under 
+	 * (512KB - (kernal binaries, stack et al.)) during xen
+	 * bootup).
+	 */
+
+	va = vallocpages(firstaddr, 1);
+	PT_SET_MA(va, ma | PG_RW | PG_V | PG_U);
+
+
+	HYPERVISOR_shared_info = (void *) va;
+}
+
 void
 pmap_bootstrap(vm_paddr_t *firstaddr)
 {
@@ -290,7 +337,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/* Switch to the new kernel tables */
 	xen_pt_switch(VTOP(KPML4phys));
 
-	/* Unpin old page table, and make it r/w */
+	/* Unpin old page table hierarchy, and mark all its pages r/w */
 	xen_pgdir_unpin(phystomach(VTOP(xen_start_info->pt_base)));
 	pmap_xen_setpages_rw(xen_start_info->pt_base,
 			     xen_start_info->nr_pt_frames);
@@ -302,6 +349,10 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	virtual_avail = (vm_offset_t) KERNBASE + *firstaddr;
 	virtual_end = VM_MAX_KERNEL_ADDRESS; /* XXX: Check we don't
 						overlap xen pgdir entries. */
+
+	/* Map in Xen related pages into VA space */
+	pmap_xen_bootpages(firstaddr);
+
 }
 
 void
