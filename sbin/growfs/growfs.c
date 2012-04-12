@@ -76,7 +76,7 @@ int	_dbg_lvl_ = (DL_INFO);	/* DL_TRC */
 
 static union {
 	struct fs	fs;
-	char	pad[SBLOCKSIZE];
+	char		pad[SBLOCKSIZE];
 } fsun1, fsun2;
 #define	sblock	fsun1.fs	/* the new superblock */
 #define	osblock	fsun2.fs	/* the old superblock */
@@ -89,7 +89,7 @@ static ufs2_daddr_t sblockloc;
 
 static union {
 	struct cg	cg;
-	char	pad[MAXBSIZE];
+	char		pad[MAXBSIZE];
 } cgun1, cgun2;
 #define	acg	cgun1.cg	/* a cylinder cgroup (new) */
 #define	aocg	cgun2.cg	/* an old cylinder group */
@@ -526,7 +526,7 @@ frag_adjust(ufs2_daddr_t frag, int sign)
 				/*
 				 * We found something in between.
 				 */
-				acg.cg_frsum[fragsize]+=sign;
+				acg.cg_frsum[fragsize] += sign;
 				DBG_PRINT2("frag_adjust [%d]+=%d\n",
 				    fragsize, sign);
 			}
@@ -882,8 +882,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 */
 	if (sblock.fs_contigsumsize > 0) {
 		for (block = howmany(d % sblock.fs_fpg, sblock.fs_frag),
-		    lcs = 0; lcs < sblock.fs_contigsumsize;
-		    block++, lcs++) {
+		    lcs = 0; lcs < sblock.fs_contigsumsize; block++, lcs++) {
 			if (isclr(cg_clustersfree(&acg), block))
 				break;
 		}
@@ -913,7 +912,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 		 * (incomplete) block of the cylinder summary.
 		 */
 		d++;
-		frag_adjust(d%sblock.fs_fpg, 1);
+		frag_adjust(d % sblock.fs_fpg, 1);
 
 		if (isblock(&sblock, cg_blksfree(&acg),
 		    (d % sblock.fs_fpg) / sblock.fs_frag)) {
@@ -924,8 +923,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 			sblock.fs_cstotal.cs_nbfree++;
 			if (sblock.fs_contigsumsize > 0) {
 				setbit(cg_clustersfree(&acg),
-				    (d % sblock.fs_fpg) /
-				    sblock.fs_frag);
+				    (d % sblock.fs_fpg) / sblock.fs_frag);
 				if (lcs < sblock.fs_contigsumsize) {
 					if (lcs)
 						cg_clustersum(&acg)[lcs]--;
@@ -1026,8 +1024,7 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	 * Allocate all fragments used by the cylinder summary in the
 	 * last block.
 	 */
-	if (d <
-	    sblock.fs_csaddr + (sblock.fs_cssize / sblock.fs_fsize)) {
+	if (d < sblock.fs_csaddr + (sblock.fs_cssize / sblock.fs_fsize)) {
 		for (; d - sblock.fs_csaddr <
 		    sblock.fs_cssize/sblock.fs_fsize; d++) {
 			clrbit(cg_blksfree(&acg), d % sblock.fs_fpg);
