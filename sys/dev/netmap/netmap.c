@@ -1667,10 +1667,10 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 	if (work_done) { /* RX path */
 		r = na->rx_rings + q;
 		r->nr_kflags |= NKR_PENDINTR;
-		main_wq = (na->num_rx_queues > 1) ? &na->tx_si : NULL;
+		main_wq = (na->num_rx_queues > 1) ? &na->rx_si : NULL;
 	} else { /* tx path */
 		r = na->tx_rings + q;
-		main_wq = (na->num_tx_queues > 1) ? &na->rx_si : NULL;
+		main_wq = (na->num_tx_queues > 1) ? &na->tx_si : NULL;
 		work_done = &q; /* dummy */
 	}
 	if (na->separate_locks) {
