@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2010-2012 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,6 +99,7 @@ static struct bintime	hardperiod;	/* hardclock() events period. */
 static struct bintime	statperiod;	/* statclock() events period. */
 static struct bintime	profperiod;	/* profclock() events period. */
 static struct bintime	nexttick;	/* Next global timer tick time. */
+static struct bintime	nexthard;	/* Next global hardlock() event. */
 static u_int		busy = 0;	/* Reconfiguration is in progress. */
 static int		profiling = 0;	/* Profiling events enabled. */
 
@@ -110,10 +111,15 @@ TUNABLE_INT("kern.eventtimer.singlemul", &singlemul);
 SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RW, &singlemul,
     0, "Multiplier for periodic mode");
 
-static u_int		idletick = 0;	/* Idle mode allowed. */
+static u_int		idletick = 0;	/* Run periodic events when idle. */
 TUNABLE_INT("kern.eventtimer.idletick", &idletick);
 SYSCTL_UINT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RW, &idletick,
     0, "Run periodic events when idle");
+
+static u_int		activetick = 1;	/* Run all periodic events when active. */
+TUNABLE_INT("kern.eventtimer.activetick", &activetick);
+SYSCTL_UINT(_kern_eventtimer, OID_AUTO, activetick, CTLFLAG_RW, &activetick,
+    0, "Run all periodic events when active");
 
 static int		periodic = 0;	/* Periodic or one-shot mode. */
 static int		want_periodic = 0; /* What mode to prefer. */
@@ -202,6 +208,9 @@ handleevents(struct bintime *now, int fake)
 		bintime_add(&state->nexthard, &hardperiod);
 		runs++;
 	}
+	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 &&
+	    bintime_cmp(&state->nexthard, &nexthard, >))
+		nexthard = state->nexthard;
 	if (runs && fake < 2) {
 		hardclock_cnt(runs, usermode);
 		done = 1;
@@ -263,9 +272,11 @@ getnextcpuevent(struct bintime *event, int idle)
 	int skip;
 
 	state = DPCPU_PTR(timerstate);
+	/* Handle hardclock() events. */
 	*event = state->nexthard;
-	if (idle) { /* If CPU is idle - ask callouts for how long. */
-		skip = 4;
+	if (idle || (!activetick && !profiling &&
+	    (timer->et_flags & ET_FLAGS_PERCPU) == 0)) {
+		skip = idle ? 4 : (stathz / 2);
 		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > skip)
 			skip = tc_min_ticktock_freq;
 		skip = callout_tickstofirst(hz / skip) - 1;
@@ -273,7 +284,8 @@ getnextcpuevent(struct bintime *event, int idle)
 		tmp = hardperiod;
 		bintime_mul(&tmp, skip);
 		bintime_add(event, &tmp);
-	} else { /* If CPU is active - handle all types of events. */
+	}
+	if (!idle) { /* If CPU is active - handle other types of events. */
 		if (bintime_cmp(event, &state->nextstat, >))
 			*event = state->nextstat;
 		if (profiling && bintime_cmp(event, &state->nextprof, >))
@@ -295,24 +307,28 @@ getnextevent(struct bintime *event)
 #ifdef SMP
 	int	cpu;
 #endif
-	int	c;
+	int	c, nonidle;
 
 	state = DPCPU_PTR(timerstate);
 	*event = state->nextevent;
 	c = curcpu;
-#ifdef SMP
+	nonidle = !state->idle;
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
+#ifdef SMP
 		CPU_FOREACH(cpu) {
 			if (curcpu == cpu)
 				continue;
 			state = DPCPU_ID_PTR(cpu, timerstate);
+			nonidle += !state->idle;
 			if (bintime_cmp(event, &state->nextevent, >)) {
 				*event = state->nextevent;
 				c = cpu;
 			}
 		}
-	}
 #endif
+		if (nonidle != 0 && bintime_cmp(event, &nexthard, >))
+			*event = nexthard;
+	}
 	CTR5(KTR_SPARE2, "next at %d:    next %d.%08x%08x by %d",
 	    curcpu, event->sec, (unsigned int)(event->frac >> 32),
 			     (unsigned int)(event->frac & 0xffffffff), c);
