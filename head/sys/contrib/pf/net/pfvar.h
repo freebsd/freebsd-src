@@ -1715,6 +1715,9 @@ VNET_DECLARE(u_long, pf_hashmask);
 
 #define PF_IDHASH(s)	(be64toh((s)->id) % (V_pf_hashmask + 1))
 
+VNET_DECLARE(void *, pf_swi_cookie);
+#define V_pf_swi_cookie	VNET(pf_swi_cookie)
+
 TAILQ_HEAD(pf_poolqueue, pf_pool);
 VNET_DECLARE(struct pf_poolqueue,	 pf_pools[2]);
 #define	V_pf_pools			 VNET(pf_pools)
@@ -1774,6 +1777,7 @@ VNET_DECLARE(uma_zone_t,	 pfi_addr_z);
 #define	V_pfi_addr_z		 VNET(pfi_addr_z)
 
 extern void			 pf_purge_thread(void *);
+extern void			 pf_intr(void *);
 extern void			 pf_purge_expired_src_nodes(void);
 
 extern void			 pf_unlink_state(struct pf_state *, u_int);

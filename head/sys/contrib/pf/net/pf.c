@@ -53,7 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/mbuf.h>
+#include <sys/interrupt.h>
 #include <sys/filio.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -114,8 +116,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <security/mac/mac_framework.h>
 
-extern int ip_optcopy(struct ip *, struct ip *);
-
 #define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
 /*
@@ -151,6 +151,41 @@ struct pf_anchor_stackframe {
 };
 VNET_DEFINE(struct pf_anchor_stackframe, pf_anchor_stack[64]);
 #define	V_pf_anchor_stack		 VNET(pf_anchor_stack)
+
+/*
+ * Queue for pf_intr() sends.
+ */
+MALLOC_DEFINE(M_PFTEMP, "pf temp", "pf(4) temporary allocations");
+struct pf_send_entry {
+	STAILQ_ENTRY(pf_send_entry)	pfse_next;
+	struct mbuf			*pfse_m;
+	enum {
+		PFSE_IP,
+		PFSE_IP6,
+		PFSE_ICMP,
+		PFSE_ICMP6,
+	}				pfse_type;
+	union {
+		struct route		ro;
+		struct {
+			int		type;
+			int		code;
+			int		mtu;
+		} icmpopts;
+	} u;
+#define	pfse_ro		u.ro
+#define	pfse_icmp_type	u.icmpopts.type
+#define	pfse_icmp_code	u.icmpopts.code
+#define	pfse_icmp_mtu	u.icmpopts.mtu
+};
+
+STAILQ_HEAD(pf_send_head, pf_send_entry);
+static VNET_DEFINE(struct pf_send_head, pf_sendqueue);
+#define	V_pf_sendqueue	VNET(pf_sendqueue)
+
+static struct mtx pf_sendqueue_mtx;
+#define	PF_QUEUE_LOCK()		mtx_lock(&pf_sendqueue_mtx);
+#define	PF_QUEUE_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx);
 
 VNET_DEFINE(uma_zone_t,	 pf_src_tree_z);
 VNET_DEFINE(uma_zone_t,	 pf_rule_z);
@@ -320,6 +355,8 @@ MALLOC_DEFINE(M_PFHASH, "pf hashes", "pf(4) hash header structures");
 VNET_DEFINE(struct pf_keyhash *, pf_keyhash);
 VNET_DEFINE(struct pf_idhash *, pf_idhash);
 VNET_DEFINE(u_long, pf_hashmask);
+
+VNET_DEFINE(void *, pf_swi_cookie);
 
 RB_GENERATE(pf_src_tree, pf_src_node, entry, pf_src_compare);
 
@@ -684,6 +721,10 @@ pf_initialize()
 	V_pf_altqs_active = &V_pf_altqs[0];
 	V_pf_altqs_inactive = &V_pf_altqs[1];
 
+	/* Send queue. */
+	STAILQ_INIT(&V_pf_sendqueue);
+	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
+
 	/* XXXGL: sort this out */
 	V_pf_rule_z = uma_zcreate("pf rules", sizeof(struct pf_rule),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -707,6 +748,7 @@ pf_cleanup()
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
+	struct pf_send_entry	*pfse, *next;
 	u_int i;
 
 	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= V_pf_hashmask;
@@ -720,6 +762,12 @@ pf_cleanup()
 	}
 	free(V_pf_keyhash, M_PFHASH);
 	free(V_pf_idhash, M_PFHASH);
+
+	STAILQ_FOREACH_SAFE(pfse, &V_pf_sendqueue, pfse_next, next) {
+		m_freem(pfse->pfse_m);
+		free(pfse, M_PFTEMP);
+	}
+	mtx_destroy(&pf_sendqueue_mtx);
 
 	uma_zdestroy(V_pf_src_tree_z);
 	uma_zdestroy(V_pf_rule_z);
@@ -1185,6 +1233,55 @@ second_run:
 
 /* END state table stuff */
 
+static void
+pf_send(struct pf_send_entry *pfse)
+{
+
+	PF_QUEUE_LOCK();
+	STAILQ_INSERT_TAIL(&V_pf_sendqueue, pfse, pfse_next);
+	PF_QUEUE_UNLOCK();
+	swi_sched(V_pf_swi_cookie, 0);
+}
+
+void
+pf_intr(void *v)
+{
+	struct pf_send_head queue;
+	struct pf_send_entry *pfse, *next;
+	struct pf_sen
+
+	CURVNET_SET((struct vnet *)v);
+
+	PF_QUEUE_LOCK();
+	queue = V_pf_sendqueue;
+	STAILQ_INIT(&V_pf_sendqueue);
+	PF_QUEUE_UNLOCK();
+
+	STAILQ_FOREACH_SAFE(pfse, &queue, pfse_next, next) {
+		switch (pfse->pfse_type) {
+		case PFSE_IP:
+			ip_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL);
+			break;
+		case PFSE_IP6:
+			ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL,
+			    NULL);
+			break;
+		case PFSE_ICMP:
+			icmp_error(pfse->pfse_m, pfse->pfse_icmp_type,
+			    pfse->pfse_icmp_code, 0, pfse->pfse_icmp_mtu);
+			break;
+		case PFSE_ICMP6:
+			icmp6_error(pfse->pfse_m, pfse->pfse_icmp_type,
+			    pfse->pfse_icmp_code, pfse->pfse_icmp_mtu);
+			break;
+		default:
+			panic("%s: unknown type", __func__);
+		}
+		free(pfse, M_PFTEMP);
+	}
+	
+	CURVNET_RESTORE();
+}
 
 void
 pf_purge_thread(void *v)
@@ -1951,6 +2048,7 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
     u_int8_t flags, u_int16_t win, u_int16_t mss, u_int8_t ttl, int tag,
     u_int16_t rtag, struct ifnet *ifp)
 {
+	struct pf_send_entry *pfse;
 	struct mbuf	*m;
 	int		 len, tlen;
 #ifdef INET
@@ -1963,27 +2061,8 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 	char		*opt;
 	struct pf_mtag  *pf_mtag;
 
-	KASSERT(
-#ifdef INET
-	    af == AF_INET
-#else
-	    0
-#endif
-	    ||
-#ifdef INET6
-	    af == AF_INET6
-#else
-	    0
-#endif
-	    , ("Unsupported AF %d", af));
 	len = 0;
 	th = NULL;
-#ifdef INET
-	h = NULL;
-#endif
-#ifdef INET6
-	h6 = NULL;
-#endif
 
 	/* maximum segment size tcp option */
 	tlen = sizeof(struct tcphdr);
@@ -2001,16 +2080,24 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 		len = sizeof(struct ip6_hdr) + tlen;
 		break;
 #endif /* INET6 */
+	default:
+		panic("%s: unsupported af %d", __func__, af);
 	}
 
-	/* create outgoing mbuf */
-	m = m_gethdr(M_NOWAIT, MT_HEADER);
-	if (m == NULL)
+	/* Allocate outgoing queue entry, mbuf and mbuf tag. */
+	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
+	if (pfse == NULL)
 		return;
+	m = m_gethdr(M_NOWAIT, MT_HEADER);
+	if (m == NULL) {
+		free(pfse, M_PFTEMP);
+		return;
+	}
 #ifdef MAC
 	mac_netinet_firewall_send(m);
 #endif
 	if ((pf_mtag = pf_get_mtag(m)) == NULL) {
+		free(pfse, M_PFTEMP);
 		m_freem(m);
 		return;
 	}
@@ -2096,9 +2183,8 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 		h->ip_len = len;
 		h->ip_ttl = ttl ? ttl : V_ip_defttl;
 		h->ip_sum = 0;
-		PF_UNLOCK();
-		ip_output(m, NULL, NULL, 0, NULL, NULL);
-		PF_LOCK();
+
+		pfse->pfse_type = PFSE_IP;
 		break;
 #endif /* INET */
 #ifdef INET6
@@ -2110,29 +2196,36 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 		h6->ip6_vfc |= IPV6_VERSION;
 		h6->ip6_hlim = IPV6_DEFHLIM;
 
-		PF_UNLOCK();
-		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
-		PF_LOCK();
+		pfse->pfse_type = PFSE_IP6;
 		break;
 #endif /* INET6 */
 	}
+	pfse->pfse_m = m;
+	pf_send(pfse);
 }
 
 static void
 pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
     struct pf_rule *r)
 {
-	struct mbuf	*m0;
-#ifdef INET
-	struct ip *ip;
-#endif
+	struct pf_send_entry *pfse;
+	struct mbuf *m0;
 	struct pf_mtag *pf_mtag;
 
-	if ((m0 = m_copypacket(m, M_NOWAIT)) == NULL)
+	/* Allocate outgoing queue entry, mbuf and mbuf tag. */
+	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
+	if (pfse == NULL)
 		return;
 
-	if ((pf_mtag = pf_get_mtag(m0)) == NULL)
+	if ((m0 = m_copypacket(m, M_NOWAIT)) == NULL) {
+		free(pfse, M_PFTEMP);
 		return;
+	}
+
+	if ((pf_mtag = pf_get_mtag(m0)) == NULL) {
+		free(pfse, M_PFTEMP);
+		return;
+	}
 	/* XXX: revisit */
 	m0->m_flags |= M_SKIP_FIREWALL;
 
@@ -2153,23 +2246,28 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	switch (af) {
 #ifdef INET
 	case AF_INET:
+	    {
+		struct ip *ip;
+
 		/* icmp_error() expects host byte ordering */
 		ip = mtod(m0, struct ip *);
 		NTOHS(ip->ip_len);
 		NTOHS(ip->ip_off);
-		PF_UNLOCK();
-		icmp_error(m0, type, code, 0, 0);
-		PF_LOCK();
+
+		pfse->pfse_type = PFSE_ICMP;
 		break;
+	    }
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		PF_UNLOCK();
-		icmp6_error(m0, type, code, 0);
-		PF_LOCK();
+		pfse->pfse_type = PFSE_ICMP6;
 		break;
 #endif /* INET6 */
 	}
+	pfse->pfse_m = m0;
+	pfse->pfse_icmp_type = type;
+	pfse->pfse_icmp_code = code;
+	pf_send(pfse);
 }
 
 /*
