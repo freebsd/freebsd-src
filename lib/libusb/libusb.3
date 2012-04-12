@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd April 12, 2012
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -117,6 +117,12 @@ LIBUSB_SPEED_UNKNOWN is returned in case of unknown wire speed.
 .Fn libusb_get_max_packet_size "libusb_device *dev" "unsigned char endpoint"
 Returns the wMaxPacketSize value on success, LIBUSB_ERROR_NOT_FOUND if the
 endpoint does not exist and LIBUSB_ERROR_OTHERS on other failure.
+.Pp
+.Ft int
+.Fn libusb_get_max_iso_packet_size "libusb_device *dev" "unsigned char endpoint"
+Returns the packet size multiplied by the packet multiplier on success,
+LIBUSB_ERROR_NOT_FOUND if the endpoint does not exist and
+LIBUSB_ERROR_OTHERS on other failure.
 .Pp
 .Ft libusb_device *
 .Fn libusb_ref_device "libusb_device *dev"
