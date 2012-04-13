@@ -207,17 +207,11 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, 
 	    func, reg, bytes);
 
-	if ((bus == 0) && (slot == 0) && (func == 0)) {
-		cmd = PCI_LCONF_CMD_READ | (reg & ~3);
-		ATH_WRITE_REG(AR71XX_PCI_LCONF_CMD, cmd);
-		data = ATH_READ_REG(AR71XX_PCI_LCONF_READ_DATA);
-	} else {
-		 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
-		     PCI_CONF_CMD_READ) == 0)
-			 data = ATH_READ_REG(AR71XX_PCI_CONF_READ_DATA);
-		 else
-			 data = -1;
-	}
+	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
+	     PCI_CONF_CMD_READ) == 0)
+		 data = ATH_READ_REG(AR71XX_PCI_CONF_READ_DATA);
+	 else
+		 data = -1;
 
 	/* get request bytes from 32-bit word */
 	data = (data >> shift) & mask;
@@ -228,26 +222,33 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static void
-ar71xx_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, 
-    u_int reg, uint32_t data, int bytes)
+ar71xx_pci_local_write(device_t dev, uint32_t reg, uint32_t data, int bytes)
 {
 	uint32_t cmd;
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, 
+	dprintf("%s: local write reg %d(%d)\n", __func__, reg, bytes);
+
+	data = data << (8*(reg % 4));
+
+	cmd = PCI_LCONF_CMD_WRITE | (reg & ~3);
+	cmd |= (ar71xx_get_bytes_to_read(reg, bytes) << 20);
+	ATH_WRITE_REG(AR71XX_PCI_LCONF_CMD, cmd);
+	ATH_WRITE_REG(AR71XX_PCI_LCONF_WRITE_DATA, data);
+}
+
+static void
+ar71xx_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
+    u_int reg, uint32_t data, int bytes)
+{
+
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
 	    func, reg, bytes);
 
 	data = data << (8*(reg % 4));
 
-	if ((bus == 0) && (slot == 0) && (func == 0)) {
-		cmd = PCI_LCONF_CMD_WRITE | (reg & ~3);
-		cmd |= ar71xx_get_bytes_to_read(reg, bytes) << 20;
-		ATH_WRITE_REG(AR71XX_PCI_LCONF_CMD, cmd);
-		ATH_WRITE_REG(AR71XX_PCI_LCONF_WRITE_DATA, data);
-	} else {
-		 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
-		     PCI_CONF_CMD_WRITE) == 0)
-			 ATH_WRITE_REG(AR71XX_PCI_CONF_WRITE_DATA, data);
-	}
+	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes,
+	     PCI_CONF_CMD_WRITE) == 0)
+		 ATH_WRITE_REG(AR71XX_PCI_CONF_WRITE_DATA, data);
 }
 
 #ifdef	AR71XX_ATH_EEPROM
@@ -389,10 +390,10 @@ ar71xx_pci_attach(device_t dev)
 	ar71xx_pci_check_bus_error();
 
 	/* Fixup internal PCI bridge */
-	ar71xx_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, 
-            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN 
+	ar71xx_pci_local_write(dev, PCIR_COMMAND,
+            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN
 	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
-	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
+	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 4);
 
 #ifdef	AR71XX_ATH_EEPROM
 	/*
