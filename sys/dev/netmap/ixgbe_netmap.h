@@ -112,13 +112,12 @@ static void
 set_crcstrip(struct ixgbe_hw *hw, int onoff)
 {
 	/* crc stripping is set in two places:
-	 * IXGBE_HLREG0 (left alone by the original driver)
+	 * IXGBE_HLREG0 (modified on init_locked and hw reset)
 	 * IXGBE_RDRXCTL (set by the original driver in
 	 *	ixgbe_setup_hw_rsc() called in init_locked.
 	 *	We disable the setting when netmap is compiled in).
-	 * When netmap is compiled in we disabling IXGBE_RDRXCTL
-	 * modifications of the IXGBE_RDRXCTL_CRCSTRIP bit, and
-	 * instead update the state here.
+	 * We update the values here, but also in ixgbe.c because
+	 * init_locked sometimes is called outside our control.
 	 */
 	uint32_t hl, rxc;
 
