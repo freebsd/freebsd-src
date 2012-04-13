@@ -280,8 +280,8 @@ netmap_if_new(const char *ifname, struct netmap_adapter *na)
 	struct netmap_kring *kring;
 	char *buff;
 	u_int i, len, ofs, numdesc;
-	u_int nrx = na->num_rx_queues + 1; /* shorthand, include stack queue */
-	u_int ntx = na->num_tx_queues + 1; /* shorthand, include stack queue */
+	u_int nrx = na->num_rx_rings + 1; /* shorthand, include stack queue */
+	u_int ntx = na->num_tx_rings + 1; /* shorthand, include stack queue */
 
 	/*
 	 * the descriptor is followed inline by an array of offsets
@@ -293,8 +293,8 @@ netmap_if_new(const char *ifname, struct netmap_adapter *na)
 		return (NULL);
 
 	/* initialize base fields */
-	*(int *)(uintptr_t)&nifp->ni_rx_queues = na->num_rx_queues;
-	*(int *)(uintptr_t)&nifp->ni_tx_queues = na->num_tx_queues;
+	*(int *)(uintptr_t)&nifp->ni_rx_rings = na->num_rx_rings;
+	*(int *)(uintptr_t)&nifp->ni_tx_rings = na->num_tx_rings;
 	strncpy(nifp->ni_name, ifname, IFNAMSIZ);
 
 	(na->refcount)++;	/* XXX atomic ? we are under lock */
