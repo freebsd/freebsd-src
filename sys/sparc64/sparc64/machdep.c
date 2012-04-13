@@ -556,11 +556,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	sun4u_set_traptable(tl0_base);
 
 	/*
-	 * It's now safe to use the real DELAY().
-	 */
-	delay_func = delay_tick;
-
-	/*
 	 * Initialize the dynamic per-CPU area for the BSP and the message
 	 * buffer (after setting the trap table).
 	 */
