@@ -195,7 +195,7 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
 	uint32_t data;
-	uint32_t cmd, shift, mask;
+	uint32_t shift, mask;
 
 	/* register access is 32-bit aligned */
 	shift = (reg & 3) * 8;
