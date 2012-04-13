@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 /*
  * PCI/Cardbus front-end for the Atheros Wireless LAN controller driver.
  */
+#include "opt_ath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -59,8 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-
-/* #define	ATH_EEPROM_FIRMWARE */
 
 /* For EEPROM firmware */
 #ifdef	ATH_EEPROM_FIRMWARE
