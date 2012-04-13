@@ -394,17 +394,16 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 
 	if (aw->type != PF_ADDR_DYNIFTL)
 		return (0);
-	/* XXX: revisit! */
-	if ((dyn = uma_zalloc(V_pfi_addr_z, M_WAITOK | M_ZERO))
-	    == NULL)
-		return (1);
+
+	if ((dyn = uma_zalloc(V_pfi_addr_z, M_NOWAIT | M_ZERO)) == NULL)
+		return (ENOMEM);
 
 	if (!strcmp(aw->v.ifname, "self"))
 		dyn->pfid_kif = pfi_kif_get(IFG_ALL);
 	else
 		dyn->pfid_kif = pfi_kif_get(aw->v.ifname);
 	if (dyn->pfid_kif == NULL) {
-		rv = 1;
+		rv = ENOENT;
 		goto _bad;
 	}
 	pfi_kif_ref(dyn->pfid_kif, PFI_KIF_REF_RULE);
@@ -425,12 +424,12 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 		snprintf(tblname + strlen(tblname),
 		    sizeof(tblname) - strlen(tblname), "/%d", dyn->pfid_net);
 	if ((ruleset = pf_find_or_create_ruleset(PF_RESERVED_ANCHOR)) == NULL) {
-		rv = 1;
+		rv = ENOMEM;
 		goto _bad;
 	}
 
 	if ((dyn->pfid_kt = pfr_attach_table(ruleset, tblname)) == NULL) {
-		rv = 1;
+		rv = ENOMEM;
 		goto _bad;
 	}
 
