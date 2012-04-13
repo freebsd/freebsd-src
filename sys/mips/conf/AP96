@@ -1,0 +1,32 @@
+#
+# Specific board setup for the Atheros AP96 reference board.
+#
+# The AP96 has the following hardware:
+#
+# + AR7161 CPU SoC
+# + AR9223 2.4GHz 11n
+# + AR9220 5GHz 11n
+# + AR8316 10/100/1000 switch
+# + m25p64 based 8MB flash
+# + 64mb RAM
+# + uboot environment
+
+# $FreeBSD$
+
+include		"AR71XX_BASE"
+ident		"AP96"
+hints		"AP96.hints"
+
+# GEOM modules
+device		geom_redboot	# to get access to the SPI flash partitions
+device		geom_uzip	# compressed in-memory filesystem hackery!
+options		GEOM_UZIP
+
+options		ROOTDEVNAME=\"ufs:md0.uzip\"
+options		AR71XX_REALMEM=64*1024*1024
+
+# options		MD_ROOT
+# options		MD_ROOT_SIZE="6144"
+
+options		AR71XX_ATH_EEPROM
+device		firmware
