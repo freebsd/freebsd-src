@@ -14,19 +14,3 @@ _WITHOUT_SRCCONF=
 
 .include <bsd.own.mk>
 .include "${BSDPORTMK}"
-
-.if !defined(BEFOREPORTMK) && !defined(INOPTIONSMK)
-# Work around an issue where FreeBSD 10.0 is detected as FreeBSD 1.x.
-run-autotools-fixup:
-	test -d ${WRKSRC} && find ${WRKSRC} -type f \( -name config.libpath -o \
-		-name config.rpath -o -name configure -o -name libtool.m4 \) \
-		-exec sed -i '' -e 's|freebsd1\*)|freebsd1.\*)|g' \
-		-e 's|freebsd\[12\]\*)|freebsd[12].*)|g' \
-		-e 's|freebsd\[123\]\*)|freebsd[123].*)|g' \
-		-e 's|freebsd\[\[12\]\]\*)|freebsd[[12]].*)|g' \
-		-e 's|freebsd\[\[123\]\]\*)|freebsd[[123]].*)|g' \
-		{} + || /usr/bin/true
-
-.ORDER: run-autotools run-autotools-fixup do-configure
-do-configure: run-autotools-fixup
-.endif

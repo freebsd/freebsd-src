@@ -41,6 +41,8 @@ struct iicbus_softc
 	device_t owner;		/* iicbus owner device structure */
 	u_char started;		/* address of the 'started' slave
 				 * 0 if no start condition succeeded */
+	u_char strict;		/* deny operations that violate the
+				 * I2C protocol */
 	struct mtx lock;
 };
 

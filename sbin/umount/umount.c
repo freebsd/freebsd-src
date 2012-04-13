@@ -63,9 +63,9 @@ static const char rcsid[] =
 
 typedef enum { FIND, REMOVE, CHECKUNIQUE } dowhat;
 
-struct  addrinfo *nfshost_ai = NULL;
-int	fflag, vflag;
-char   *nfshost;
+static struct addrinfo *nfshost_ai = NULL;
+static int	fflag, vflag;
+static char	*nfshost;
 
 struct statfs *checkmntlist(char *);
 int	 checkvfsname (const char *, char **);

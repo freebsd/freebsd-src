@@ -490,6 +490,11 @@ Give the name of the directory where
 .Nm
 will start looking for the C-preprocessor.
 .El
+.Sh ENVIRONMENT
+If the
+.Ev RPCGEN_CPP
+environment variable is set, its value is used as the command line of the
+C preprocessor to be run on the input file.
 .Sh EXAMPLES
 The following example:
 .Dl example% rpcgen -T prot.x

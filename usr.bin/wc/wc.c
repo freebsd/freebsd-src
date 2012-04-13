@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
-uintmax_t tlinect, twordct, tcharct, tlongline;
-int doline, doword, dochar, domulti, dolongline;
+static uintmax_t tlinect, twordct, tcharct, tlongline;
+static int doline, doword, dochar, domulti, dolongline;
 static volatile sig_atomic_t siginfo;
 
 static void	show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,

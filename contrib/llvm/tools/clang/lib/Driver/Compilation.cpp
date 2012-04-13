@@ -16,16 +16,19 @@
 #include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Program.h"
 #include <sys/stat.h>
 #include <errno.h>
+
 using namespace clang::driver;
+using namespace clang;
 
 Compilation::Compilation(const Driver &D, const ToolChain &_DefaultToolChain,
                          InputArgList *_Args, DerivedArgList *_TranslatedArgs)
   : TheDriver(D), DefaultToolChain(_DefaultToolChain), Args(_Args),
-    TranslatedArgs(_TranslatedArgs) {
+    TranslatedArgs(_TranslatedArgs), Redirects(0) {
 }
 
 Compilation::~Compilation() {
@@ -43,6 +46,13 @@ Compilation::~Compilation() {
   for (ActionList::iterator it = Actions.begin(), ie = Actions.end();
        it != ie; ++it)
     delete *it;
+
+  // Free redirections of stdout/stderr.
+  if (Redirects) {
+    delete Redirects[1];
+    delete Redirects[2];
+    delete [] Redirects;
+  }
 }
 
 const DerivedArgList &Compilation::getArgsForToolChain(const ToolChain *TC,
@@ -60,14 +70,14 @@ const DerivedArgList &Compilation::getArgsForToolChain(const ToolChain *TC,
   return *Entry;
 }
 
-void Compilation::PrintJob(llvm::raw_ostream &OS, const Job &J,
+void Compilation::PrintJob(raw_ostream &OS, const Job &J,
                            const char *Terminator, bool Quote) const {
   if (const Command *C = dyn_cast<Command>(&J)) {
     OS << " \"" << C->getExecutable() << '"';
     for (ArgStringList::const_iterator it = C->getArguments().begin(),
            ie = C->getArguments().end(); it != ie; ++it) {
       OS << ' ';
-      if (!Quote) {
+      if (!Quote && !std::strpbrk(*it, " \"\\$")) {
         OS << *it;
         continue;
       }
@@ -135,9 +145,9 @@ int Compilation::ExecuteCommand(const Command &C,
   std::copy(C.getArguments().begin(), C.getArguments().end(), Argv+1);
   Argv[C.getArguments().size() + 1] = 0;
 
-  if (getDriver().CCCEcho || getDriver().CCPrintOptions ||
-      getArgs().hasArg(options::OPT_v)) {
-    llvm::raw_ostream *OS = &llvm::errs();
+  if ((getDriver().CCCEcho || getDriver().CCPrintOptions ||
+       getArgs().hasArg(options::OPT_v)) && !getDriver().CCGenDiagnostics) {
+    raw_ostream *OS = &llvm::errs();
 
     // Follow gcc implementation of CC_PRINT_OPTIONS; we could also cache the
     // output stream.
@@ -167,7 +177,7 @@ int Compilation::ExecuteCommand(const Command &C,
   std::string Error;
   int Res =
     llvm::sys::Program::ExecuteAndWait(Prog, Argv,
-                                       /*env*/0, /*redirects*/0,
+                                       /*env*/0, Redirects,
                                        /*secondsToWait*/0, /*memoryLimit*/0,
                                        &Error);
   if (!Error.empty()) {
@@ -194,4 +204,25 @@ int Compilation::ExecuteJob(const Job &J,
         return Res;
     return 0;
   }
+}
+
+void Compilation::initCompilationForDiagnostics(void) {
+  // Free actions and jobs.
+  DeleteContainerPointers(Actions);
+  Jobs.clear();
+
+  // Clear temporary/results file lists.
+  TempFiles.clear();
+  ResultFiles.clear();
+
+  // Remove any user specified output.  Claim any unclaimed arguments, so as
+  // to avoid emitting warnings about unused args.
+  if (TranslatedArgs->hasArg(options::OPT_o))
+    TranslatedArgs->eraseArg(options::OPT_o);
+  TranslatedArgs->ClaimAllArgs();
+
+  // Redirect stdout/stderr to /dev/null.
+  Redirects = new const llvm::sys::Path*[3]();
+  Redirects[1] = new const llvm::sys::Path();
+  Redirects[2] = new const llvm::sys::Path();
 }

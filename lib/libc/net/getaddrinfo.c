@@ -847,8 +847,6 @@ set_source(struct ai_order *aio, struct policyhead *ph)
 		struct in6_ifreq ifr6;
 		u_int32_t flags6;
 
-		/* XXX: interface name should not be hardcoded */
-		strncpy(ifr6.ifr_name, "lo0", sizeof(ifr6.ifr_name));
 		memset(&ifr6, 0, sizeof(ifr6));
 		memcpy(&ifr6.ifr_addr, ai.ai_addr, ai.ai_addrlen);
 		if (_ioctl(s, SIOCGIFAFLAG_IN6, &ifr6) == 0) {
@@ -1576,7 +1574,8 @@ ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
 	if (*scope == '\0')
 		return -1;
 
-	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) {
+	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6) ||
+	    IN6_IS_ADDR_MC_NODELOCAL(a6)) {
 		/*
 		 * We currently assume a one-to-one mapping between links
 		 * and interfaces, so we simply use interface indices for

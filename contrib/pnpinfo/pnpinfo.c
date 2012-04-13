@@ -599,7 +599,7 @@ main(int argc, char **argv)
     /* Try various READ_DATA ports from 0x203-0x3ff */
     for (rd_port = 0x80; (rd_port < 0xff); rd_port += 0x10) {
 	DEB(printf("Trying Read_Port at %x...\n", (rd_port << 2) | 0x3) );
-	num_pnp_devs = isolation_protocol(rd_port);
+	num_pnp_devs = isolation_protocol();
 	if (num_pnp_devs)
 	    break;
     }

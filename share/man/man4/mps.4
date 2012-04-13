@@ -1,7 +1,7 @@
-.\" 
+.\"
 .\" Copyright (c) 2010 Spectra Logic Corporation
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -13,7 +13,7 @@
 .\"    ("Disclaimer") and any redistribution must be conditioned upon
 .\"    including a substantially similar Disclaimer requirement for further
 .\"    binary redistribution.
-.\" 
+.\"
 .\" NO WARRANTY
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,15 +26,15 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGES.
-.\" 
+.\"
 .\" mps driver man page.
 .\"
 .\" Author: Ken Merry <ken@FreeBSD.org>
 .\"
-.\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#4 $
+.\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#6 $
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2010
+.Dd February 7, 2012
 .Dt MPS 4
 .Os
 .Sh NAME
@@ -58,11 +58,11 @@ The
 .Nm
 driver provides support for LSI Logic Fusion-MPT 2
 .Tn SAS
-controllers.
+controllers and WarpDrive solid state storage cards.
 .Sh HARDWARE
-The following controllers are supported by the
+The
 .Nm
-driver
+driver supports the following controllers:
 .Pp
 .Bl -bullet -compact
 .It
@@ -90,6 +90,16 @@ driver instances, set the following tunable value in
 hw.mps.disable_msi=1
 .Ed
 .Pp
+To disable MSI interrupts for a specific
+.Nm
+driver instance, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mps.X.disable_msi=1
+.Ed
+.Pp
+where X is the adapter number.
+.Pp
 To disable MSI-X interrupts for all
 .Nm
 driver instances, set the following tunable value in
@@ -98,19 +108,51 @@ driver instances, set the following tunable value in
 hw.mps.disable_msix=1
 .Ed
 .Pp
-To allow the driver to send multiple task management commands (like abort,
-LUN reset, etc.), set the following variable:
+To disable MSI-X interrupts for a specific
+.Nm
+driver instance, set the following tunable value in
+.Xr loader.conf 5 :
 .Bd -literal -offset indent
-hw.mps.X.allow_multiple_tm_cmds=1
+dev.mps.X.disable_msix=1
 .Ed
 .Pp
-via
-.Xr loader.conf 5
-or
-.Xr sysctl 8 ,
-where X is the adapter number.
-By default the driver only sends one task management command at a time, to
-avoid causing a potential controller lock-up.
+To set the maximum number of DMA chains allocated for all adapters,
+set the following variable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mps.max_chains=NNNN
+.Ed
+.Pp
+To set the maximum number of DMA chains allocated for a specific adapter,
+set the following variable in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mps.X.max_chains=NNNN
+.Ed
+.Pp
+This variable may also be viewed via
+.Xr sysctl 8
+to see the maximum set for a given adapter.
+.Pp
+The current number of free chain frames may be seen via the
+dev.mps.X.chain_free
+.Xr sysctl 8
+variable.
+.Pp
+The lowest number of free chain frames may be seen via the
+dev.mps.X.chain_free_lowwater
+.Xr sysctl 8
+variable.
+.Pp
+The current number of active I/O commands is shown in the
+dev.mps.X.io_cmds_active
+.Xr sysctl 8
+variable.
+.Pp
+The maximum number of active I/O command seen since boot is shown in the
+dev.mps.X.io_cmds_highwater
+.Xr sysctl 8
+variable.
 .Sh DEBUGGING
 To enable debugging prints from the
 .Nm
@@ -142,7 +184,9 @@ Enable prints for controller events.
 .Xr pci 4 ,
 .Xr sa 4 ,
 .Xr scsi 4 ,
-.Xr targ 4
+.Xr targ 4 ,
+.Xr loader.conf 5 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
@@ -154,20 +198,19 @@ The
 .Nm
 driver was originally written by
 .An Scott Long Aq scottl@FreeBSD.org .
+It has been improved and tested by LSI Logic Corporation.
 This man page was written by
 .An Ken Merry Aq ken@FreeBSD.org .
 .Sh BUGS
-This driver is still in development, it has only been tested on the amd64
-architecture and has some known shortcomings:
+This driver has a couple of known shortcomings:
 .Bl -bullet -compact
 .It
-No IR (Integrated RAID) support.
-.It 
-No userland utility support (e.g.
-.Xr mptutil 8).
+Not endian safe.
+It only works on little endian machines (e.g. amd64 and i386).
 .It
-Sometimes the driver gets into a state where devices arrive and depart multiple
-times, without user intervention.
+No userland utility available (e.g.
+.Xr mptutil 8)
 .It
-The error recovery code isn't complete.
+The driver probes devices sequentially.
+If your system has a large number of devices, the probe will take a while.
 .El

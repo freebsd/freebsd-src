@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/eventhandler.h>
-#include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/umtx.h>
 
 #ifdef RCTL
@@ -698,6 +697,18 @@ racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 #endif
 }
 
+void
+racct_move(struct racct *dest, struct racct *src)
+{
+
+	mtx_lock(&racct_lock);
+
+	racct_add_racct(dest, src);
+	racct_sub_racct(src, src);
+
+	mtx_unlock(&racct_lock);
+}
+
 static void
 racctd(void)
 {
@@ -719,11 +730,8 @@ racctd(void)
 			timevalsub(&wallclock, &p->p_stats->p_start);
 			PROC_LOCK(p);
 			PROC_SLOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td) {
+			FOREACH_THREAD_IN_PROC(p, td)
 				ruxagg(p, td);
-				thread_lock(td);
-				thread_unlock(td);
-			}
 			runtime = cputick2usec(p->p_rux.rux_runtime);
 			PROC_SUNLOCK(p);
 #ifdef notyet
@@ -737,7 +745,8 @@ racctd(void)
 			mtx_lock(&racct_lock);
 			racct_set_locked(p, RACCT_CPU, runtime);
 			racct_set_locked(p, RACCT_WALLCLOCK,
-			    wallclock.tv_sec * 1000000 + wallclock.tv_usec);
+			    (uint64_t)wallclock.tv_sec * 1000000 +
+			    wallclock.tv_usec);
 			mtx_unlock(&racct_lock);
 			PROC_UNLOCK(p);
 		}

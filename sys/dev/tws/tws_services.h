@@ -114,7 +114,6 @@ struct error_desc {
     char *error_str;
 };
 
-extern struct error_desc array[];
 /* ----------- q services ------------- */
 
 #define TWS_FREE_Q        0

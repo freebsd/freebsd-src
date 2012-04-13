@@ -245,9 +245,6 @@ static device_method_t lpbb_methods[] = {
 	DEVMETHOD(device_probe,		lpbb_probe),
 	DEVMETHOD(device_attach,	lpbb_attach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-
 	/* iicbb interface */
 	DEVMETHOD(iicbb_callback,	lpbb_callback),
 	DEVMETHOD(iicbb_setsda,		lpbb_setsda),
@@ -256,7 +253,7 @@ static device_method_t lpbb_methods[] = {
 	DEVMETHOD(iicbb_getscl,		lpbb_getscl),
 	DEVMETHOD(iicbb_reset,		lpbb_reset),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t lpbb_driver = {

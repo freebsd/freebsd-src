@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vnode_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
 
@@ -464,9 +465,9 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_lock_flags(&map->system_mtx, 0, file, line);
+		mtx_lock_flags_(&map->system_mtx, 0, file, line);
 	else
-		(void)_sx_xlock(&map->lock, 0, file, line);
+		sx_xlock_(&map->lock, file, line);
 	map->timestamp++;
 }
 
@@ -475,11 +476,23 @@ vm_map_process_deferred(void)
 {
 	struct thread *td;
 	vm_map_entry_t entry;
+	vm_object_t object;
 
 	td = curthread;
-
 	while ((entry = td->td_map_def_user) != NULL) {
 		td->td_map_def_user = entry->next;
+		if ((entry->eflags & MAP_ENTRY_VN_WRITECNT) != 0) {
+			/*
+			 * Decrement the object's writemappings and
+			 * possibly the vnode's v_writecount.
+			 */
+			KASSERT((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
+			    ("Submap with writecount"));
+			object = entry->object.vm_object;
+			KASSERT(object != NULL, ("No object for writecount"));
+			vnode_pager_release_writecount(object, entry->start,
+			    entry->end);
+		}
 		vm_map_entry_deallocate(entry, FALSE);
 	}
 }
@@ -489,9 +502,9 @@ _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else {
-		_sx_xunlock(&map->lock, file, line);
+		sx_xunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
 }
@@ -501,9 +514,9 @@ _vm_map_lock_read(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_lock_flags(&map->system_mtx, 0, file, line);
+		mtx_lock_flags_(&map->system_mtx, 0, file, line);
 	else
-		(void)_sx_slock(&map->lock, 0, file, line);
+		sx_slock_(&map->lock, file, line);
 }
 
 void
@@ -511,9 +524,9 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else {
-		_sx_sunlock(&map->lock, file, line);
+		sx_sunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
 }
@@ -524,8 +537,8 @@ _vm_map_trylock(vm_map_t map, const char *file, int line)
 	int error;
 
 	error = map->system_map ?
-	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    !_sx_try_xlock(&map->lock, file, line);
+	    !mtx_trylock_flags_(&map->system_mtx, 0, file, line) :
+	    !sx_try_xlock_(&map->lock, file, line);
 	if (error == 0)
 		map->timestamp++;
 	return (error == 0);
@@ -537,8 +550,8 @@ _vm_map_trylock_read(vm_map_t map, const char *file, int line)
 	int error;
 
 	error = map->system_map ?
-	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    !_sx_try_slock(&map->lock, file, line);
+	    !mtx_trylock_flags_(&map->system_mtx, 0, file, line) :
+	    !sx_try_slock_(&map->lock, file, line);
 	return (error == 0);
 }
 
@@ -558,21 +571,19 @@ _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 	unsigned int last_timestamp;
 
 	if (map->system_map) {
-#ifdef INVARIANTS
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else {
-		if (!_sx_try_upgrade(&map->lock, file, line)) {
+		if (!sx_try_upgrade_(&map->lock, file, line)) {
 			last_timestamp = map->timestamp;
-			_sx_sunlock(&map->lock, file, line);
+			sx_sunlock_(&map->lock, file, line);
 			vm_map_process_deferred();
 			/*
 			 * If the map's timestamp does not change while the
 			 * map is unlocked, then the upgrade succeeds.
 			 */
-			(void)_sx_xlock(&map->lock, 0, file, line);
+			sx_xlock_(&map->lock, file, line);
 			if (last_timestamp != map->timestamp) {
-				_sx_xunlock(&map->lock, file, line);
+				sx_xunlock_(&map->lock, file, line);
 				return (1);
 			}
 		}
@@ -586,11 +597,9 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map) {
-#ifdef INVARIANTS
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else
-		_sx_downgrade(&map->lock, file, line);
+		sx_downgrade_(&map->lock, file, line);
 }
 
 /*
@@ -615,30 +624,15 @@ _vm_map_assert_locked(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	else
-		_sx_assert(&map->lock, SA_XLOCKED, file, line);
+		sx_assert_(&map->lock, SA_XLOCKED, file, line);
 }
-
-#if 0
-static void
-_vm_map_assert_locked_read(vm_map_t map, const char *file, int line)
-{
-
-	if (map->system_map)
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-	else
-		_sx_assert(&map->lock, SA_SLOCKED, file, line);
-}
-#endif
 
 #define	VM_MAP_ASSERT_LOCKED(map) \
     _vm_map_assert_locked(map, LOCK_FILE, LOCK_LINE)
-#define	VM_MAP_ASSERT_LOCKED_READ(map) \
-    _vm_map_assert_locked_read(map, LOCK_FILE, LOCK_LINE)
 #else
 #define	VM_MAP_ASSERT_LOCKED(map)
-#define	VM_MAP_ASSERT_LOCKED_READ(map)
 #endif
 
 /*
@@ -661,9 +655,9 @@ _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 
 	mtx_lock(&map_sleep_mtx);
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else
-		_sx_xunlock(&map->lock, file, line);
+		sx_xunlock_(&map->lock, file, line);
 	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps",
 	    timo));
 }
@@ -1149,6 +1143,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t temp_entry;
 	vm_eflags_t protoeflags;
 	struct ucred *cred;
+	vm_inherit_t inheritance;
 	boolean_t charge_prev_obj;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -1192,6 +1187,12 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_NOSYNC;
 	if (cow & MAP_DISABLE_COREDUMP)
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
+	if (cow & MAP_VN_WRITECOUNT)
+		protoeflags |= MAP_ENTRY_VN_WRITECNT;
+	if (cow & MAP_INHERIT_SHARE)
+		inheritance = VM_INHERIT_SHARE;
+	else
+		inheritance = VM_INHERIT_DEFAULT;
 
 	cred = NULL;
 	KASSERT((object != kmem_object && object != kernel_object) ||
@@ -1246,7 +1247,7 @@ charged:
 		 * can extend the previous map entry to include the
 		 * new range as well.
 		 */
-		if ((prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
+		if ((prev_entry->inheritance == inheritance) &&
 		    (prev_entry->protection == prot) &&
 		    (prev_entry->max_protection == max)) {
 			map->size += (end - prev_entry->end);
@@ -1295,7 +1296,7 @@ charged:
 	new_entry->offset = offset;
 	new_entry->avail_ssize = 0;
 
-	new_entry->inheritance = VM_INHERIT_DEFAULT;
+	new_entry->inheritance = inheritance;
 	new_entry->protection = prot;
 	new_entry->max_protection = max;
 	new_entry->wired_count = 0;
@@ -1530,6 +1531,11 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			 * references.  Thus, the map lock can be kept
 			 * without causing a lock-order reversal with
 			 * the vnode lock.
+			 *
+			 * Since we count the number of virtual page
+			 * mappings in object->un_pager.vnp.writemappings,
+			 * the writemappings value should not be adjusted
+			 * when the entry is disposed of.
 			 */
 			if (prev->object.vm_object)
 				vm_object_deallocate(prev->object.vm_object);
@@ -1641,6 +1647,13 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 		vm_object_reference(new_entry->object.vm_object);
+		/*
+		 * The object->un_pager.vnp.writemappings for the
+		 * object of MAP_ENTRY_VN_WRITECNT type entry shall be
+		 * kept as is here.  The virtual pages are
+		 * re-distributed among the clipped entries, so the sum is
+		 * left the same.
+		 */
 	}
 }
 
@@ -2087,8 +2100,7 @@ vm_map_madvise(
 		}
 		vm_map_unlock(map);
 	} else {
-		vm_pindex_t pindex;
-		int count;
+		vm_pindex_t pstart, pend;
 
 		/*
 		 * madvise behaviors that are implemented in the underlying
@@ -2106,30 +2118,29 @@ vm_map_madvise(
 			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
 				continue;
 
-			pindex = OFF_TO_IDX(current->offset);
-			count = atop(current->end - current->start);
+			pstart = OFF_TO_IDX(current->offset);
+			pend = pstart + atop(current->end - current->start);
 			useStart = current->start;
 
 			if (current->start < start) {
-				pindex += atop(start - current->start);
-				count -= atop(start - current->start);
+				pstart += atop(start - current->start);
 				useStart = start;
 			}
 			if (current->end > end)
-				count -= atop(current->end - end);
+				pend -= atop(current->end - end);
 
-			if (count <= 0)
+			if (pstart >= pend)
 				continue;
 
-			vm_object_madvise(current->object.vm_object,
-					  pindex, count, behav);
+			vm_object_madvise(current->object.vm_object, pstart,
+			    pend, behav);
 			if (behav == MADV_WILLNEED) {
 				vm_map_pmap_enter(map,
 				    useStart,
 				    current->protection,
 				    current->object.vm_object,
-				    pindex,
-				    (count << PAGE_SHIFT),
+				    pstart,
+				    ptoa(pend - pstart),
 				    MAP_PREFAULT_MADVISE
 				);
 			}
@@ -2578,6 +2589,7 @@ vm_map_sync(
 	vm_object_t object;
 	vm_ooffset_t offset;
 	unsigned int last_timestamp;
+	boolean_t failed;
 
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2607,6 +2619,7 @@ vm_map_sync(
 
 	if (invalidate)
 		pmap_remove(map->pmap, start, end);
+	failed = FALSE;
 
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
@@ -2635,7 +2648,8 @@ vm_map_sync(
 		vm_object_reference(object);
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
-		vm_object_sync(object, offset, size, syncio, invalidate);
+		if (!vm_object_sync(object, offset, size, syncio, invalidate))
+			failed = TRUE;
 		start += size;
 		vm_object_deallocate(object);
 		vm_map_lock_read(map);
@@ -2645,7 +2659,7 @@ vm_map_sync(
 	}
 
 	vm_map_unlock_read(map);
-	return (KERN_SUCCESS);
+	return (failed ? KERN_FAILURE : KERN_SUCCESS);
 }
 
 /*
@@ -2914,6 +2928,7 @@ vm_map_copy_entry(
 	vm_ooffset_t *fork_charge)
 {
 	vm_object_t src_object;
+	vm_map_entry_t fake_entry;
 	vm_offset_t size;
 	struct ucred *cred;
 	int charged;
@@ -2979,6 +2994,27 @@ vm_map_copy_entry(
 			src_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
 			dst_entry->offset = src_entry->offset;
+			if (src_entry->eflags & MAP_ENTRY_VN_WRITECNT) {
+				/*
+				 * MAP_ENTRY_VN_WRITECNT cannot
+				 * indicate write reference from
+				 * src_entry, since the entry is
+				 * marked as needs copy.  Allocate a
+				 * fake entry that is used to
+				 * decrement object->un_pager.vnp.writecount
+				 * at the appropriate time.  Attach
+				 * fake_entry to the deferred list.
+				 */
+				fake_entry = vm_map_entry_create(dst_map);
+				fake_entry->eflags = MAP_ENTRY_VN_WRITECNT;
+				src_entry->eflags &= ~MAP_ENTRY_VN_WRITECNT;
+				vm_object_reference(src_object);
+				fake_entry->object.vm_object = src_object;
+				fake_entry->start = src_entry->start;
+				fake_entry->end = src_entry->end;
+				fake_entry->next = curthread->td_map_def_user;
+				curthread->td_map_def_user = fake_entry;
+			}
 		} else {
 			dst_entry->object.vm_object = NULL;
 			dst_entry->offset = 0;
@@ -3047,26 +3083,25 @@ struct vmspace *
 vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 {
 	struct vmspace *vm2;
-	vm_map_t old_map = &vm1->vm_map;
-	vm_map_t new_map;
-	vm_map_entry_t old_entry;
-	vm_map_entry_t new_entry;
+	vm_map_t new_map, old_map;
+	vm_map_entry_t new_entry, old_entry;
 	vm_object_t object;
 	int locked;
 
-	vm_map_lock(old_map);
-	if (old_map->busy)
-		vm_map_wait_busy(old_map);
+	old_map = &vm1->vm_map;
+	/* Copy immutable fields of vm1 to vm2. */
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	if (vm2 == NULL)
-		goto unlock_and_return;
+		return (NULL);
 	vm2->vm_taddr = vm1->vm_taddr;
 	vm2->vm_daddr = vm1->vm_daddr;
 	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
-	new_map = &vm2->vm_map;	/* XXX */
+	vm_map_lock(old_map);
+	if (old_map->busy)
+		vm_map_wait_busy(old_map);
+	new_map = &vm2->vm_map;
 	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
 	KASSERT(locked, ("vmspace_fork: lock failed"));
-	new_map->timestamp = 1;
 
 	old_entry = old_map->header.next;
 
@@ -3136,6 +3171,16 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
+			if (new_entry->eflags & MAP_ENTRY_VN_WRITECNT) {
+				object = new_entry->object.vm_object;
+				KASSERT(((struct vnode *)object->handle)->
+				    v_writecount > 0,
+				    ("vmspace_fork: v_writecount"));
+				KASSERT(object->un_pager.vnp.writemappings > 0,
+				    ("vmspace_fork: vnp.writecount"));
+				vnode_pager_update_writecount(object,
+				    new_entry->start, new_entry->end);
+			}
 
 			/*
 			 * Insert the entry into the new map -- we know we're
@@ -3160,8 +3205,11 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
+			/*
+			 * Copied entry is COW over the old object.
+			 */
 			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
-			    MAP_ENTRY_IN_TRANSITION);
+			    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_VN_WRITECNT);
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
 			new_entry->cred = NULL;
@@ -3174,10 +3222,14 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 		}
 		old_entry = old_entry->next;
 	}
-unlock_and_return:
-	vm_map_unlock(old_map);
-	if (vm2 != NULL)
-		vm_map_unlock(new_map);
+	/*
+	 * Use inlined vm_map_unlock() to postpone handling the deferred
+	 * map entries, which cannot be done until both old_map and
+	 * new_map locks are released.
+	 */
+	sx_xunlock(&old_map->lock);
+	sx_xunlock(&new_map->lock);
+	vm_map_process_deferred();
 
 	return (vm2);
 }

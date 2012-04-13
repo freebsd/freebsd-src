@@ -582,6 +582,7 @@ rip6_output(m, va_alist)
 int
 rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 {
+	struct inpcb *inp;
 	int error;
 
 	if (sopt->sopt_level == IPPROTO_ICMPV6)
@@ -590,8 +591,17 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		 * from protosw?
 		 */
 		return (icmp6_ctloutput(so, sopt));
-	else if (sopt->sopt_level != IPPROTO_IPV6)
+	else if (sopt->sopt_level != IPPROTO_IPV6) {
+		if (sopt->sopt_level == SOL_SOCKET &&
+		    sopt->sopt_name == SO_SETFIB) {
+			inp = sotoinpcb(so);
+			INP_WLOCK(inp);
+			inp->inp_inc.inc_fibnum = so->so_fibnum;
+			INP_WUNLOCK(inp);
+			return (0);
+		}
 		return (EINVAL);
+	}
 
 	error = 0;
 

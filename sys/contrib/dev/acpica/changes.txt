@@ -1,7 +1,588 @@
 ----------------------------------------
-27 May 2011. Summary of changes for version 20110527:
+20 March 2012. Summary of changes for version 20120320:
 
-This release is available at www.acpica.org/downloads
+This release is available at www.acpica.org/downloads.
+The ACPI 5.0 specification is available at www.acpi.info.
+
+1) ACPICA Core Subsystem:
+
+Enhanced the sleep/wake interfaces to optionally execute the _GTS method 
+(Going To Sleep) and the _BFS method (Back From Sleep). Windows apparently 
+does not execute these methods, and therefore these methods are often 
+untested. It has been seen on some systems where the execution of these 
+methods causes errors and also prevents the machine from entering S5. It is 
+therefore suggested that host operating systems do not execute these methods 
+by default. In the future, perhaps these methods can be optionally executed 
+based on the age of the system and/or what is the newest version of Windows 
+that the BIOS asks for via _OSI. Changed interfaces: AcpiEnterSleepState and 
+AcpileaveSleepStatePrep. See the ACPICA reference and Linux BZ 13041. Lin 
+Ming.
+
+Fixed a problem where the length of the local/common FADT was set too early. 
+The local FADT table length cannot be set to the common length until the 
+original length has been examined. There is code that checks the table length 
+and sets various fields appropriately. This can affect older machines with 
+early FADT versions. For example, this can cause inadvertent writes to the 
+CST_CNT register. Julian Anastasov.
+
+Fixed a mapping issue related to a physical table override. Use the deferred 
+mapping mechanism for tables loaded via the physical override OSL interface. 
+This allows for early mapping before the virtual memory manager is available. 
+Thomas Renninger, Bob Moore.
+
+Enhanced the automatic return-object repair code: Repair a common problem with 
+predefined methods that are defined to return a variable-length Package of 
+sub-objects. If there is only one sub-object, some BIOS ASL code mistakenly 
+simply returns the single object instead of a Package with one sub-object. 
+This new support will repair this error by wrapping a Package object around 
+the original object, creating the correct and expected Package with one sub-
+object. Names that can be repaired in this manner include: _ALR, _CSD, _HPX, 
+_MLS, _PLD, _PRT, _PSS, _TRT, _TSS, _BCL, _DOD, _FIX, and _Sx. ACPICA BZ 939.
+
+Changed the exception code returned for invalid ACPI paths passed as 
+parameters to external interfaces such as AcpiEvaluateObject. Was 
+AE_BAD_PARAMETER, now is the more sensible AE_BAD_PATHNAME.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  93.0K Code, 25.0K Data, 118.0K Total
+    Debug Version:     172.5K Code, 73.2K Data, 245.7K Total
+  Current Release:
+    Non-Debug Version:  92.9K Code, 25.0K Data, 117.9K Total
+    Debug Version:     172.5K Code, 73.2K Data, 245.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Added the infrastructure and initial implementation of a integrated C-
+like preprocessor. This will simplify BIOS development process by eliminating 
+the need for a separate preprocessing step during builds. On Windows, it also 
+eliminates the need to install a separate C compiler. ACPICA BZ 761. Some 
+features including full #define() macro support are still under development. 
+These preprocessor directives are supported:
+    #define
+    #elif
+    #else
+    #endif
+    #error
+    #if
+    #ifdef
+    #ifndef
+    #include
+    #pragma message
+    #undef
+    #warning
+In addition, these new command line options are supported:
+    -D <symbol> Define symbol for preprocessor use
+    -li         Create preprocessed output file (*.i)
+    -P          Preprocess only and create preprocessor output file (*.i)
+
+Table Compiler: Fixed a problem where the equals operator within an expression 
+did not work properly.
+
+Updated iASL to use the current versions of Bison/Flex. Updated the Windows 
+project file to invoke these tools from the standard location. ACPICA BZ 904. 
+Versions supported:
+    Flex for Windows:  V2.5.4
+    Bison for Windows: V2.4.1
+
+----------------------------------------
+15 February 2012. Summary of changes for version 20120215:
+
+This release is available at www.acpica.org/downloads.
+The ACPI 5.0 specification is available at www.acpi.info.
+
+1) ACPICA Core Subsystem:
+
+There have been some major changes to the sleep/wake support code, as 
+described below (a - e).
+
+a) The AcpiLeaveSleepState has been split into two interfaces, similar to 
+AcpiEnterSleepStatePrep and AcpiEnterSleepState. The new interface is 
+AcpiLeaveSleepStatePrep. This allows the host to perform actions between the 
+time the _BFS method is called and the _WAK method is called. NOTE: all hosts 
+must update their wake/resume code or else sleep/wake will not work properly. 
+Rafael Wysocki.
+
+b) In AcpiLeaveSleepState, now enable all runtime GPEs before calling the _WAK 
+method. Some machines require that the GPEs are enabled before the _WAK method 
+is executed. Thomas Renninger.
+
+c) In AcpiLeaveSleepState, now always clear the WAK_STS (wake status) bit. 
+Some BIOS code assumes that WAK_STS will be cleared on resume and use it to 
+determine whether the system is rebooting or resuming. Matthew Garrett.
+
+d) Move the invocations of _GTS (Going To Sleep) and _BFS (Back From Sleep) to 
+match the ACPI specification requirement. Rafael Wysocki.
+
+e) Implemented full support for the ACPI 5.0 SleepStatus and SleepControl 
+registers within the V5 FADT. This support adds two new files: 
+hardware/hwesleep.c implements the support for the new registers. Moved all 
+sleep/wake external interfaces to hardware/hwxfsleep.c.
+
+
+Added a new OSL interface for ACPI table overrides, 
+AcpiOsPhysicalTableOverride. This interface allows the host to override a 
+table via a physical address, instead of the logical address required by 
+AcpiOsTableOverride. This simplifies the host implementation. Initial 
+implementation by Thomas Renninger. The ACPICA implementation creates a single 
+shared function for table overrides that attempts both a logical and a 
+physical override.
+
+Expanded the OSL memory read/write interfaces to 64-bit data 
+(AcpiOsReadMemory, AcpiOsWriteMemory.) This enables full 64-bit memory 
+transfer support for GAS register structures passed to AcpiRead and AcpiWrite.
+
+Implemented the ACPI_REDUCED_HARDWARE option to allow the creation of a custom 
+build of ACPICA that supports only the ACPI 5.0 reduced hardware (SoC) model. 
+See the ACPICA reference for details. ACPICA BZ 942. This option removes about 
+10% of the code and 5% of the static data, and the following hardware ACPI 
+features become unavailable:
+    PM Event and Control registers
+    SCI interrupt (and handler)
+    Fixed Events
+    General Purpose Events (GPEs)
+    Global Lock
+    ACPI PM timer
+    FACS table (Waking vectors and Global Lock)
+
+Updated the unix tarball directory structure to match the ACPICA git source 
+tree. This ensures that the generic unix makefiles work properly (in 
+generate/unix).  Also updated the Linux makefiles to match. ACPICA BZ 867.
+
+Updated the return value of the _REV predefined method to integer value 5 to 
+reflect ACPI 5.0 support.
+
+Moved the external ACPI PM timer interface prototypes to the public acpixf.h 
+file where they belong.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  92.8K Code, 24.9K Data, 117.7K Total
+    Debug Version:     171.7K Code, 72.9K Data, 244.5K Total
+  Current Release:
+    Non-Debug Version:  93.0K Code, 25.0K Data, 118.0K Total
+    Debug Version:     172.5K Code, 73.2K Data, 245.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a problem with the new ACPI 5.0 serial resource 
+descriptors (I2C, SPI, UART) where the resource produce/consumer bit was 
+incorrectly displayed.
+
+AcpiHelp: Add display of ACPI/PNP device IDs that are defined in the ACPI 
+specification.
+
+----------------------------------------
+11 January 2012. Summary of changes for version 20120111:
+
+This release is available at www.acpica.org/downloads.
+The ACPI 5.0 specification is available at www.acpi.info.
+
+1) ACPICA Core Subsystem:
+
+Implemented a new mechanism to allow host device drivers to check for address 
+range conflicts with ACPI Operation Regions. Both SystemMemory and SystemIO 
+address spaces are supported. A new external interface, AcpiCheckAddressRange, 
+allows drivers to check an address range against the ACPI namespace. See the 
+ACPICA reference for additional details. Adds one new file, 
+utilities/utaddress.c. Lin Ming, Bob Moore.
+
+Fixed several issues with the ACPI 5.0 FADT support: Add the sleep Control and 
+Status registers, update the ACPI 5.0 flags, and update internal data 
+structures to handle an FADT larger than 256 bytes. The size of the ACPI 5.0 
+FADT is 268 bytes.
+
+Updated all ACPICA copyrights and signons to 2012. Added the 2012 copyright to 
+all module headers and signons, including the standard Linux header. This 
+affects virtually every file in the ACPICA core subsystem, iASL compiler, and 
+all ACPICA utilities.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  92.3K Code, 24.9K Data, 117.2K Total
+    Debug Version:     170.8K Code, 72.6K Data, 243.4K Total
+  Current Release:
+    Non-Debug Version:  92.8K Code, 24.9K Data, 117.7K Total
+    Debug Version:     171.7K Code, 72.9K Data, 244.5K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: fixed a problem with the automatic resource tag generation 
+support. Fixes a problem where the resource tags are inadvertently not 
+constructed if the table being disassembled contains external references to 
+control methods. Moved the actual construction of the tags to after the final 
+namespace is constructed (after 2nd parse is invoked due to external control 
+method references.) ACPICA BZ 941.
+
+Table Compiler: Make all "generic" operators caseless. These are the operators 
+like UINT8, String, etc. Making these caseless improves ease-of-use. ACPICA BZ 
+934.
+
+----------------------------------------
+23 November 2011. Summary of changes for version 20111123:
+
+0) ACPI 5.0 Support:
+
+This release contains full support for the ACPI 5.0 specification, as 
+summarized below.
+
+Reduced Hardware Support:
+-------------------------
+
+This support allows for ACPI systems without the usual ACPI hardware. This 
+support is enabled by a flag in the revision 5 FADT. If it is set, ACPICA will 
+not attempt to initialize or use any of the usual ACPI hardware. Note, when 
+this flag is set, all of the following ACPI hardware is assumed to be not 
+present and is not initialized or accessed:
+
+    General Purpose Events (GPEs)
+    Fixed Events (PM1a/PM1b and PM Control)
+    Power Management Timer and Console Buttons (power/sleep)
+    Real-time Clock Alarm
+    Global Lock
+    System Control Interrupt (SCI)
+    The FACS is assumed to be non-existent
+
+ACPI Tables:
+------------
+
+All new tables and updates to existing tables are fully supported in the 
+ACPICA headers (for use by device drivers), the disassembler, and the iASL 
+Data Table Compiler. ACPI 5.0 defines these new tables:
+
+    BGRT        /* Boot Graphics Resource Table */
+    DRTM        /* Dynamic Root of Trust for Measurement table */
+    FPDT        /* Firmware Performance Data Table */
+    GTDT        /* Generic Timer Description Table */
+    MPST        /* Memory Power State Table */
+    PCCT        /* Platform Communications Channel Table */
+    PMTT        /* Platform Memory Topology Table */
+    RASF        /* RAS Feature table */
+
+Operation Regions/SpaceIDs:
+---------------------------
+
+All new operation regions are fully supported by the iASL compiler, the 
+disassembler, and the ACPICA runtime code (for dispatch to region handlers.) 
+The new operation region Space IDs are:
+
+    GeneralPurposeIo
+    GenericSerialBus
+
+Resource Descriptors:
+---------------------
+
+All new ASL resource descriptors are fully supported by the iASL compiler, the 
+ASL/AML disassembler, and the ACPICA runtime Resource Manager code (including 
+all new predefined resource tags). New descriptors are:
+
+    FixedDma
+    GpioIo
+    GpioInt
+    I2cSerialBus
+    SpiSerialBus
+    UartSerialBus
+
+ASL/AML Operators, New and Modified:
+------------------------------------
+
+One new operator is added, the Connection operator, which is used to associate 
+a GeneralPurposeIo or GenericSerialBus resource descriptor with individual 
+field objects within an operation region. Several new protocols are associated 
+with the AccessAs operator. All are fully supported by the iASL compiler, 
+disassembler, and runtime ACPICA AML interpreter:
+
+    Connection                      // Declare Field Connection attributes
+    AccessAs: AttribBytes (n)           // Read/Write N-Bytes Protocol
+    AccessAs: AttribRawBytes (n)        // Raw Read/Write N-Bytes Protocol
+    AccessAs: AttribRawProcessBytes (n) // Raw Process Call Protocol
+    RawDataBuffer                       // Data type for Vendor Data fields
+
+Predefined ASL/AML Objects:
+---------------------------
+
+All new predefined objects/control-methods are supported by the iASL compiler 
+and the ACPICA runtime validation/repair (arguments and return values.) New 
+predefined names include the following:
+
+Standard Predefined Names (Objects or Control Methods):
+    _AEI, _CLS, _CPC, _CWS, _DEP,
+    _DLM, _EVT, _GCP, _CRT, _GWS,
+    _HRV, _PRE, _PSE, _SRT, _SUB.
+
+Resource Tags (Names used to access individual fields within resource 
+descriptors):
+    _DBT, _DPL, _DRS, _END, _FLC,
+    _IOR, _LIN, _MOD, _PAR, _PHA,
+    _PIN, _PPI, _POL, _RXL, _SLV,
+    _SPE, _STB, _TXL, _VEN.
+
+ACPICA External Interfaces:
+---------------------------
+
+Several new interfaces have been defined for use by ACPI-related device 
+drivers and other host OS services:
+
+AcpiAcquireMutex and AcpiReleaseMutex: These interfaces allow the host OS to 
+acquire and release AML mutexes that are defined in the DSDT/SSDT tables 
+provided by the BIOS. They are intended to be used in conjunction with the 
+ACPI 5.0 _DLM (Device Lock Method) in order to provide transaction-level 
+mutual exclusion with the AML code/interpreter.
+
+AcpiGetEventResources: Returns the (formatted) resource descriptors as defined 
+by the ACPI 5.0 _AEI object (ACPI Event Information).  This object provides 
+resource descriptors associated with hardware-reduced platform events, similar 
+to the AcpiGetCurrentResources interface.
+
+Operation Region Handlers: For General Purpose IO and Generic Serial Bus 
+operation regions, information about the Connection() object and any optional 
+length information is passed to the region handler within the Context 
+parameter.
+
+AcpiBufferToResource: This interface converts a raw AML buffer containing a 
+resource template or resource descriptor to the ACPI_RESOURCE internal format 
+suitable for use by device drivers. Can be used by an operation region handler 
+to convert the Connection() buffer object into a ACPI_RESOURCE.
+
+Miscellaneous/Tools/TestSuites: 
+-------------------------------
+
+Support for extended _HID names (Four alpha characters instead of three).
+Support for ACPI 5.0 features in the AcpiExec and AcpiHelp utilities.
+Support for ACPI 5.0 features in the ASLTS test suite.
+Fully updated documentation (ACPICA and iASL reference documents.)
+
+ACPI Table Definition Language:
+-------------------------------
+
+Support for this language was implemented and released as a subsystem of the 
+iASL compiler in 2010. (See the iASL compiler User Guide.)
+
+
+Non-ACPI 5.0 changes for this release:
+--------------------------------------
+
+1) ACPICA Core Subsystem:
+
+Fix a problem with operation region declarations where a failure can occur if 
+the region name and an argument that evaluates to an object (such as the 
+region address) are in different namespace scopes. Lin Ming, ACPICA BZ 937.
+
+Do not abort an ACPI table load if an invalid space ID is found within. This 
+will be caught later if the offending method is executed. ACPICA BZ 925.
+
+Fixed an issue with the FFixedHW space ID where the ID was not always 
+recognized properly (Both ACPICA and iASL). ACPICA BZ 926.
+
+Fixed a problem with the 32-bit generation of the unix-specific OSL 
+(osunixxf.c). Lin Ming, ACPICA BZ 936.
+
+Several changes made to enable generation with the GCC 4.6 compiler. ACPICA BZ 
+935.
+
+New error messages: Unsupported I/O requests (not 8/16/32 bit), and Index/Bank 
+field registers out-of-range.
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented the __PATH__ operator, which returns the full pathname of 
+the current source file.
+
+AcpiHelp: Automatically display expanded keyword information for all ASL 
+operators.
+
+Debugger: Add "Template" command to disassemble/dump resource template 
+buffers.
+
+Added a new master script to generate and execute the ASLTS test suite. 
+Automatically handles 32- and 64-bit generation. See tests/aslts.sh
+
+iASL: Fix problem with listing generation during processing of the Switch() 
+operator where AML listing was disabled until the entire Switch block was 
+completed.
+
+iASL: Improve support for semicolon statement terminators. Fix "invalid 
+character" message for some cases when the semicolon is used. Semicolons are 
+now allowed after every <Term> grammar element. ACPICA BZ 927.
+
+iASL: Fixed some possible aliasing warnings during generation. ACPICA BZ 923.
+
+Disassembler: Fix problem with disassembly of the DataTableRegion operator 
+where an inadvertent "Unhandled deferred opcode" message could be generated.
+
+3) Example Code and Data Size
+
+These are the sizes for the OS-independent acpica.lib produced by the 
+Microsoft Visual C++ 9.0 32-bit compiler. The debug version of the code 
+includes the debug output trace mechanism and has a much larger code and data 
+size.
+
+  Previous Release:
+    Non-Debug Version:  90.2K Code, 23.9K Data, 114.1K Total
+    Debug Version:     165.6K Code, 68.4K Data, 234.0K Total
+  Current Release:
+    Non-Debug Version:  92.3K Code, 24.9K Data, 117.2K Total
+    Debug Version:     170.8K Code, 72.6K Data, 243.4K Total
+
+----------------------------------------
+22 September 2011. Summary of changes for version 20110922:
+
+0) ACPI 5.0 News:
+
+Support for ACPI 5.0 in ACPICA has been underway for several months and will 
+be released at the same time that ACPI 5.0 is officially released.
+
+The ACPI 5.0 specification is on track for release in the next few months.
+ 
+1) ACPICA Core Subsystem:
+
+Fixed a problem where the maximum sleep time for the Sleep() operator was 
+intended to be limited to two seconds, but was inadvertently limited to 20 
+seconds instead.
+
+Linux and Unix makefiles: Added header file dependencies to ensure correct 
+generation of ACPICA core code and utilities. Also simplified the makefiles 
+considerably through the use of the vpath variable to specify search paths. 
+ACPICA BZ 924.
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented support to check the access length for all fields created to 
+access named Resource Descriptor fields. For example, if a resource field is 
+defined to be two bits, a warning is issued if a CreateXxxxField() is used 
+with an incorrect bit length. This is implemented for all current resource 
+descriptor names. ACPICA BZ 930.
+  
+Disassembler: Fixed a byte ordering problem with the output of 24-bit and 56-
+bit integers.
+
+iASL: Fixed a couple of issues associated with variable-length package 
+objects. 1) properly handle constants like One, Ones, Zero -- do not make a 
+VAR_PACKAGE when these are used as a package length. 2) Allow the VAR_PACKAGE 
+opcode (in addition to PACKAGE) when validating object types for predefined 
+names.
+
+iASL: Emit statistics for all output files (instead of just the ASL input and 
+AML output). Includes listings, hex files, etc.
+
+iASL: Added -G option to the table compiler to allow the compilation of custom 
+ACPI tables. The only part of a table that is required is the standard 36-byte 
+ACPI header.
+
+AcpiXtract: Ported to the standard ACPICA environment (with ACPICA headers), 
+which also adds correct 64-bit support. Also, now all output filenames are 
+completely lower case.
+
+AcpiExec: Ignore any non-AML tables (tables other than DSDT or SSDT) when 
+loading table files. A warning is issued for any such tables. The only 
+exception is an FADT. This also fixes a possible fault when attempting to load 
+non-AML tables. ACPICA BZ 932.
+
+AcpiHelp: Added the AccessAs and Offset operators. Fixed a problem where a 
+missing table terminator could cause a fault when using the -p option.
+
+AcpiSrc: Fixed a possible divide-by-zero fault when generating file 
+statistics.
+
+3) Example Code and Data Size
+
+These are the sizes for the OS-independent acpica.lib produced by the 
+Microsoft Visual C++ 9.0 32-bit compiler. The debug version of the code 
+includes the debug output trace mechanism and has a much larger code and data 
+size.
+
+  Previous Release (VC 9.0):
+    Non-Debug Version:  90.2K Code, 23.9K Data, 114.1K Total
+    Debug Version:     165.6K Code, 68.4K Data, 234.0K Total
+  Current Release (VC 9.0):
+    Non-Debug Version:  90.2K Code, 23.9K Data, 114.1K Total
+    Debug Version:     165.6K Code, 68.4K Data, 234.0K Total
+
+
+----------------------------------------
+23 June 2011. Summary of changes for version 20110623:
+
+1) ACPI CA Core Subsystem:
+
+Updated the predefined name repair mechanism to not attempt repair of a _TSS 
+return object if a _PSS object is present. We can only sort the _TSS return 
+package if there is no _PSS within the same scope. This is because if _PSS is 
+present, the ACPI specification dictates that the _TSS Power Dissipation field 
+is to be ignored, and therefore some BIOSs leave garbage values in the _TSS 
+Power field(s). In this case, it is best to just return the _TSS package as-
+is. Reported by, and fixed with assistance from Fenghua Yu.
+
+Added an option to globally disable the control method return value validation 
+and repair. This runtime option can be used to disable return value repair if 
+this is causing a problem on a particular machine. Also added an option to 
+AcpiExec (-dr) to set this disable flag.
+
+All makefiles and project files: Major changes to improve generation of ACPICA 
+tools. ACPICA BZ 912:
+    Reduce default optimization levels to improve compatibility
+    For Linux, add strict-aliasing=0 for gcc 4
+    Cleanup and simplify use of command line defines
+    Cleanup multithread library support
+    Improve usage messages
+
+Linux-specific header: update handling of THREAD_ID and pthread. For the 32-
+bit case, improve casting to eliminate possible warnings, especially with the 
+acpica tools.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The debug 
+version of the code includes the debug output trace mechanism and has a much 
+larger code and data size.
+
+  Previous Release (VC 9.0):
+    Non-Debug Version:  90.1K Code, 23.9K Data, 114.0K Total
+    Debug Version:     165.6K Code, 68.4K Data, 234.0K Total
+  Current Release (VC 9.0):
+    Non-Debug Version:  90.2K Code, 23.9K Data, 114.1K Total
+    Debug Version:     165.6K Code, 68.4K Data, 234.0K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+With this release, a new utility named "acpihelp" has been added to the ACPICA 
+package. This utility summarizes the ACPI specification chapters for the ASL 
+and AML languages. It generates under Linux/Unix as well as Windows, and 
+provides the following functionality:
+    Find/display ASL operator(s) -- with description and syntax.
+    Find/display ASL keyword(s) -- with exact spelling and descriptions.
+    Find/display ACPI predefined name(s) -- with description, number
+        of arguments, and the return value data type.
+    Find/display AML opcode name(s) -- with opcode, arguments, and grammar.
+    Decode/display AML opcode -- with opcode name, arguments, and grammar.
+
+Service Layers: Make multi-thread support configurable. Conditionally compile 
+the multi-thread support so that threading libraries will not be linked if not 
+necessary. The only tool that requires multi-thread support is AcpiExec.
+
+iASL: Update yyerrror/AslCompilerError for "const" errors. Newer versions of 
+Bison appear to want the interface to yyerror to be a const char * (or at 
+least this is a problem when generating iASL on some systems.) ACPICA BZ 923 
+Pierre Lejeune.
+
+Tools: Fix for systems where O_BINARY is not defined. Only used for Windows 
+versions of the tools.
+
+----------------------------------------
+27 May 2011. Summary of changes for version 20110527:
 
 1) ACPI CA Core Subsystem:
 

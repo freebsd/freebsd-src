@@ -136,7 +136,7 @@ sap_input(from, size)
 			 * The idea here is that if the hop count is more
 			 * than INFINITY it is bogus and should be discarded.
 			 * If it is equal to INFINITY it is a message to say
-			 * that a service went down. If we don't allready
+			 * that a service went down. If we don't already
 			 * have it in our tables discard it. Otherwise
 			 * update our table and set the timer to EXPIRE_TIME
 			 * so that it is removed next time we go through the

@@ -1200,7 +1200,7 @@ fetch_metadata_sanity () {
 	# Some aliases to save space later: ${P} is a character which can
 	# appear in a path; ${M} is the four numeric metadata fields; and
 	# ${H} is a sha256 hash.
-	P="[-+./:=_[[:alnum:]]"
+	P="[-+./:=%@_[[:alnum:]]"
 	M="[0-9]+\|[0-9]+\|[0-9]+\|[0-9]+"
 	H="[0-9a-f]{64}"
 

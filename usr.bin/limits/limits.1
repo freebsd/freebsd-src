@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2011
+.Dd January 23, 2011
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -27,7 +27,7 @@
 .Nd set or display process resource limits
 .Sh SYNOPSIS
 .Nm
-.Op Fl C Ar class | Fl U Ar user
+.Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
 .Op Fl bcdflmnstuvpw Op Ar val
@@ -143,6 +143,9 @@ for the
 class are used, if it exists, or the
 .Dq Li root
 class if the user is a superuser account.
+.It Fl P Ar pid
+Select or set limits for the process identified by the
+.Ar pid .
 .It Fl S
 Select display or setting of
 .Dq soft

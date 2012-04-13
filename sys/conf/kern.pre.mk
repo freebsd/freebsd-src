@@ -6,7 +6,7 @@
 .include <bsd.own.mk>
 
 # backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
@@ -34,7 +34,11 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
 COPTFLAGS?=-O2 -frename-registers -pipe
+.else
+COPTFLAGS?=-O2 -pipe
+.endif
 .else
 COPTFLAGS?=${_MINUS_O} -pipe
 .endif
@@ -67,10 +71,10 @@ INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
-# .. and the same for twa
+# ... and the same for twa
 INCLUDES+= -I$S/dev/twa
 
-# ...  and XFS
+# ... and the same for XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
 # ... and the same for cxgb and cxgbe
@@ -80,7 +84,7 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${CC:T:Mclang} != "clang"
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
@@ -96,6 +100,10 @@ WERROR?= -Werror
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
+
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+CLANG_NO_IAS= -no-integrated-as
+.endif
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF -falign-functions=16
@@ -123,8 +131,19 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
-NORMAL_CTFCONVERT= [ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		   ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+# Special flags for managing the compat compiles for ZFS
+ZFS_CFLAGS=	-DFREEBSD_NAMECACHE -DBUILDING_ZFS -nostdinc -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common/fs/zfs -I$S/cddl/contrib/opensolaris/uts/common/zmod -I$S/cddl/contrib/opensolaris/uts/common -I$S -I$S/cddl/contrib/opensolaris/common/zfs -I$S/cddl/contrib/opensolaris/common ${CFLAGS} -Wno-unknown-pragmas -Wno-missing-prototypes -Wno-undef -Wno-strict-prototypes -Wno-cast-qual -Wno-parentheses -Wno-redundant-decls -Wno-missing-braces -Wno-uninitialized -Wno-unused -Wno-inline -Wno-switch -Wno-pointer-arith -Wno-unknown-pragmas
+ZFS_ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${ZFS_CFLAGS}
+ZFS_C=		${CC} -c ${ZFS_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
+ZFS_S=		${CC} -c ${ZFS_ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+
+.if ${MK_CTF} != "no"
+NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+NORMAL_CTFCONVERT=
+.else
+NORMAL_CTFCONVERT=	@:
+.endif
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
@@ -142,7 +161,6 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
-SYSTEM_CTFMERGE= [ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o

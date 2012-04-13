@@ -260,6 +260,19 @@ options 	DEVICE_POLLING
 
 options 	BPF_JITTER
 
+# OpenFabrics Enterprise Distribution (Infiniband).
+options 	OFED
+options 	OFED_DEBUG_INIT
+
+# Sockets Direct Protocol
+options 	SDP
+options 	SDP_DEBUG
+
+# IP over Inifiband
+options 	IPOIB
+options 	IPOIB_DEBUG
+options 	IPOIB_CM
+
 
 #####################################################################
 # CLOCK OPTIONS
@@ -561,6 +574,9 @@ hint.mse.0.irq="5"
 #	Requires the iwi firmware module
 # iwn:	Intel Wireless WiFi Link 4965AGN 802.11 network adapters
 #	Requires the iwn firmware module
+# mlx4ib: Mellanox ConnectX HCA InfiniBand
+# mlxen: Mellanox ConnectX HCA Ethernet
+# mthca: Mellanox HCA InfiniBand
 # mwl:	Marvell 88W8363 IEEE 802.11 adapter
 #	Requires the mwl firmware module
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
@@ -574,7 +590,7 @@ hint.mse.0.irq="5"
 
 device		ce
 device		cp
-device		cs
+device		cs		# Crystal Semiconductor CS89x0 NIC
 hint.cs.0.at="isa"
 hint.cs.0.port="0x300"
 device		ctau
@@ -583,7 +599,7 @@ hint.ctau.0.port="0x240"
 hint.ctau.0.irq="15"
 hint.ctau.0.drq="7"
 #options 	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
-device		ed
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC
@@ -591,21 +607,25 @@ hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
 hint.ed.0.maddr="0xd8000"
-device		ie			# Hints only required for Starlan
+device		ie		# EtherExpress 8/16, 3C507, StarLAN 10 etc.
+# Hints only required for Starlan
 hint.ie.2.at="isa"
 hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
-device		ipw
-device		iwi
-device		iwn
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
 # Hint for the i386-only ISA front-end of le(4).
 hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
-device		mwl
-device		nfe		# nVidia nForce MCP on-board Ethernet Networking
+device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
+device  	mlxen		# Mellanox ConnectX HCA Ethernet
+device  	mthca		# Mellanox HCA InfiniBand
+device		mwl		# Marvell 88W8363 802.11n wireless NICs.
+device		nfe		# nVidia nForce MCP on-board Ethernet
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sbni
 hint.sbni.0.at="isa"
@@ -617,7 +637,7 @@ hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
-device		wpi
+device		wpi		# Intel 3945ABG wireless NICs.
 
 # IEEE 802.11 adapter firmware modules
 
@@ -706,6 +726,10 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 device		asr
 
 #
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
 # Highpoint RocketRAID 182x.
 device		hptmv
 
@@ -721,6 +745,11 @@ device		hptiop
 #
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
+
+#
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options		ISCI_LOGGING	# enable debugging in isci HAL
 
 #
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
@@ -828,9 +857,13 @@ hint.pcf.0.irq="5"
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
+# wbwd: Winbond watchdog timer
 #
 device		ichwd
 device		amdsbwd
+device		viawd
+device		wbwd
 
 #
 # Temperature sensors:
@@ -962,6 +995,10 @@ device		lindev
 # stack of each thread.
 
 options 	KSTACK_PAGES=3
+
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
 
 #####################################################################
 

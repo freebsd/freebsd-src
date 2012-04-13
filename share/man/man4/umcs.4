@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2010
+.Dd February 25, 2012
 .Dt UMCS 4
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
 .Cd "device umcs"
 .Ed
 .Pp
@@ -52,9 +54,11 @@ umcs_load="YES"
 The
 .Nm
 driver provides support for various multiport serial adapters based on the MosCom
-MCS7820 and MCS7840 chips. They are 2- or 4-port adapters with full-featured
-16550-compatible UARTs and very flexible baud generators. Also, these chips
-support RS422/RS485 and IrDA oprations.
+MCS7820 and MCS7840 chips.
+They are 2- or 4-port adapters with full-featured
+16550-compatible UARTs and very flexible baud generators.
+Also, these chips
+support RS422/RS485 and IrDA operations.
 .Pp
 The device is accessed through the
 .Xr ucom 4
@@ -80,9 +84,6 @@ ST Lab U-400 four-port serial USB adapter
 .Xr tty 4 ,
 .Xr ucom 4 ,
 .Xr usb 4
-.Sh BUGS
-This driver doesn't support access to any fine tunes of
-chip, like RS522/RS485 mode, non-standard baudrates, etc.
 .Sh HISTORY
 The
 .Nm
@@ -95,3 +96,6 @@ The
 driver was written by
 .An Lev Serebryakov
 .Aq lev@FreeBSD.org .
+.Sh BUGS
+This driver doesn't support access to any fine tunes of
+chip, like RS522/RS485 mode, non-standard baudrates, etc.

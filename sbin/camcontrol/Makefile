@@ -3,7 +3,7 @@
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c
 .if !defined(RELEASE_CRUNCH)
-SRCS+=	modeedit.c
+SRCS+=	fwdownload.c modeedit.c
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif

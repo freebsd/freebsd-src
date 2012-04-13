@@ -49,6 +49,7 @@ AlphaTargetLowering::AlphaTargetLowering(TargetMachine &TM)
   // Set up the TargetLowering object.
   //I am having problems with shr n i8 1
   setBooleanContents(ZeroOrOneBooleanContent);
+  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
 
   addRegisterClass(MVT::i64, Alpha::GPRCRegisterClass);
   addRegisterClass(MVT::f64, Alpha::F8RCRegisterClass);
@@ -153,6 +154,9 @@ AlphaTargetLowering::AlphaTargetLowering(TargetMachine &TM)
   setOperationAction(ISD::JumpTable, MVT::i64, Custom);
   setOperationAction(ISD::JumpTable, MVT::i32, Custom);
 
+  setOperationAction(ISD::ATOMIC_LOAD,  MVT::i32, Expand);
+  setOperationAction(ISD::ATOMIC_STORE, MVT::i32, Expand);
+
   setStackPointerRegisterToSaveRestore(Alpha::R30);
 
   setJumpBufSize(272);
@@ -160,10 +164,12 @@ AlphaTargetLowering::AlphaTargetLowering(TargetMachine &TM)
 
   setMinFunctionAlignment(4);
 
+  setInsertFencesForAtomic(true);
+
   computeRegisterProperties();
 }
 
-MVT::SimpleValueType AlphaTargetLowering::getSetCCResultType(EVT VT) const {
+EVT AlphaTargetLowering::getSetCCResultType(EVT VT) const {
   return MVT::i64;
 }
 

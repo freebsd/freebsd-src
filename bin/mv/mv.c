@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 /* Exit code for a failed exec. */
 #define EXEC_FAILED 127
 
-int fflg, iflg, nflg, vflg;
+static int	fflg, iflg, nflg, vflg;
 
 static int	copy(const char *, const char *);
 static int	do_move(const char *, const char *);

@@ -93,7 +93,7 @@ ar724x_pci_write(uint32_t reg, uint32_t offset, uint32_t data, int bytes)
 	uint32_t val, mask, shift;
 
 	/* Register access is 32-bit aligned */
-	shift = 8 * (offset & (bytes % 4));
+	shift = (offset & 3) * 8;
 	if (bytes % 4)
 		mask = (1 << (bytes * 8)) - 1;
 	else
@@ -573,7 +573,6 @@ static device_method_t ar724x_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	ar724x_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	ar724x_pci_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	ar724x_pci_alloc_resource),
@@ -589,7 +588,7 @@ static device_method_t ar724x_pci_methods[] = {
 	DEVMETHOD(pcib_write_config,	ar724x_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ar724x_pci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ar724x_pci_driver = {

@@ -157,8 +157,10 @@ ieee80211_start(struct ifnet *ifp)
 			    "%s: ignore queue, in %s state\n",
 			    __func__, ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_tx_badstate++;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IEEE80211_UNLOCK(ic);
+			IFQ_LOCK(&ifp->if_snd);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_UNLOCK(&ifp->if_snd);
 			return;
 		}
 		IEEE80211_UNLOCK(ic);
@@ -389,7 +391,9 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	int error;
 
+	IFQ_LOCK(&ifp->if_snd);
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+		IFQ_UNLOCK(&ifp->if_snd);
 		/*
 		 * Short-circuit requests if the vap is marked OACTIVE
 		 * as this can happen because a packet came down through
@@ -400,6 +404,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		 */
 		senderr(ENETDOWN);
 	}
+	IFQ_UNLOCK(&ifp->if_snd);
 	vap = ifp->if_softc;
 	/*
 	 * Hand to the 802.3 code if not tagged as
@@ -834,7 +839,7 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		uint32_t flow;
 		uint8_t tos;
 		/*
-		 * IPv6 frame, map the DSCP bits from the TOS field.
+		 * IPv6 frame, map the DSCP bits from the traffic class field.
 		 */
 		m_copydata(m, sizeof(struct ether_header) +
 		    offsetof(struct ip6_hdr, ip6_flow), sizeof(flow),
@@ -1069,9 +1074,11 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * ap's require all data frames to be QoS-encapsulated
 	 * once negotiated in which case we'll need to make this
 	 * configurable.
+	 * NB: mesh data frames are QoS.
 	 */
-	addqos = (ni->ni_flags & (IEEE80211_NODE_QOS|IEEE80211_NODE_HT)) &&
-		 (m->m_flags & M_EAPOL) == 0;
+	addqos = ((ni->ni_flags & (IEEE80211_NODE_QOS|IEEE80211_NODE_HT)) ||
+	    (vap->iv_opmode == IEEE80211_M_MBSS)) &&
+	    (m->m_flags & M_EAPOL) == 0;
 	if (addqos)
 		hdrsize = sizeof(struct ieee80211_qosframe);
 	else
@@ -1277,7 +1284,12 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		qos[0] = tid & IEEE80211_QOS_TID;
 		if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[ac].wmep_noackPolicy)
 			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
-		qos[1] = 0;
+#ifdef IEEE80211_SUPPORT_MESH
+		if (vap->iv_opmode == IEEE80211_M_MBSS) {
+			qos[1] |= IEEE80211_QOS_MC;
+		} else
+#endif
+			qos[1] = 0;
 		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;
 
 		if ((m->m_flags & M_AMPDU_MPDU) == 0) {
@@ -1402,9 +1414,20 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 		 * we mark the first fragment with the MORE_FRAG bit
 		 * it automatically is propagated to each fragment; we
 		 * need only clear it on the last fragment (done below).
+		 * NB: frag 1+ dont have Mesh Control field present.
 		 */
 		whf = mtod(m, struct ieee80211_frame *);
 		memcpy(whf, wh, hdrsize);
+#ifdef IEEE80211_SUPPORT_MESH
+		if (vap->iv_opmode == IEEE80211_M_MBSS) {
+			if (IEEE80211_IS_DSTODS(wh))
+				((struct ieee80211_qosframe_addr4 *)
+				    whf)->i_qos[1] &= ~IEEE80211_QOS_MC;
+			else
+				((struct ieee80211_qosframe *)
+				    whf)->i_qos[1] &= ~IEEE80211_QOS_MC;
+		}
+#endif
 		*(uint16_t *)&whf->i_seq[0] |= htole16(
 			(fragno & IEEE80211_SEQ_FRAG_MASK) <<
 				IEEE80211_SEQ_FRAG_SHIFT);
@@ -1658,6 +1681,33 @@ ieee80211_add_supportedchannels(uint8_t *frm, struct ieee80211com *ic)
 	/* XXX not correct */
 	memcpy(frm+2, ic->ic_chan_avail, ielen);
 	return frm + 2 + ielen;
+}
+
+/*
+ * Add an 11h Quiet time element to a frame.
+ */
+static uint8_t *
+ieee80211_add_quiet(uint8_t *frm, struct ieee80211vap *vap)
+{
+	struct ieee80211_quiet_ie *quiet = (struct ieee80211_quiet_ie *) frm;
+
+	quiet->quiet_ie = IEEE80211_ELEMID_QUIET;
+	quiet->len = 6;
+	if (vap->iv_quiet_count_value == 1)
+		vap->iv_quiet_count_value = vap->iv_quiet_count;
+	else if (vap->iv_quiet_count_value > 1)
+		vap->iv_quiet_count_value--;
+
+	if (vap->iv_quiet_count_value == 0) {
+		/* value 0 is reserved as per 802.11h standerd */
+		vap->iv_quiet_count_value = 1;
+	}
+
+	quiet->tbttcount = vap->iv_quiet_count_value;
+	quiet->period = vap->iv_quiet_period;
+	quiet->duration = htole16(vap->iv_quiet_duration);
+	quiet->offset = htole16(vap->iv_quiet_offset);
+	return frm + sizeof(*quiet);
 }
 
 /*
@@ -2253,6 +2303,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	       + IEEE80211_COUNTRY_MAX_SIZE
 	       + 3
 	       + sizeof(struct ieee80211_csa_ie)
+	       + sizeof(struct ieee80211_quiet_ie)
 	       + 3
 	       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 	       + sizeof(struct ieee80211_ie_wpa)
@@ -2318,6 +2369,13 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 			frm = ieee80211_add_powerconstraint(frm, vap);
 		if (ic->ic_flags & IEEE80211_F_CSAPENDING)
 			frm = ieee80211_add_csa(frm, vap);
+	}
+	if (vap->iv_flags & IEEE80211_F_DOTH) {
+		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
+			if (vap->iv_quiet)
+				frm = ieee80211_add_quiet(frm, vap);
+		}
 	}
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
 		frm = ieee80211_add_erp(frm, ic);
@@ -2617,9 +2675,20 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 			frm = ieee80211_add_powerconstraint(frm, vap);
 		bo->bo_csa = frm;
 		if (ic->ic_flags & IEEE80211_F_CSAPENDING)
-			frm = ieee80211_add_csa(frm, vap);
+			frm = ieee80211_add_csa(frm, vap);	
 	} else
 		bo->bo_csa = frm;
+
+	if (vap->iv_flags & IEEE80211_F_DOTH) {
+		bo->bo_quiet = frm;
+		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
+			if (vap->iv_quiet)
+				frm = ieee80211_add_quiet(frm,vap);
+		}
+	} else
+		bo->bo_quiet = frm;
+
 	if (IEEE80211_IS_CHAN_ANYG(ni->ni_chan)) {
 		bo->bo_erp = frm;
 		frm = ieee80211_add_erp(frm, ic);
@@ -2733,7 +2802,8 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		 + 2 + 4 + vap->iv_tim_len		/* DTIM/IBSSPARMS */
 		 + IEEE80211_COUNTRY_MAX_SIZE		/* country */
 		 + 2 + 1				/* power control */
-	         + sizeof(struct ieee80211_csa_ie)	/* CSA */
+		 + sizeof(struct ieee80211_csa_ie)	/* CSA */
+		 + sizeof(struct ieee80211_quiet_ie)	/* Quiet */
 		 + 2 + 1				/* ERP */
 	         + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 		 + (vap->iv_caps & IEEE80211_C_WPA ?	/* WPA 1+2 */
@@ -2953,6 +3023,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_appie += adjust;
 				bo->bo_wme += adjust;
 				bo->bo_csa += adjust;
+				bo->bo_quiet += adjust;
 				bo->bo_tim_len = timlen;
 
 				/* update information element */
@@ -3006,6 +3077,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 #endif
 				bo->bo_appie += sizeof(*csa);
 				bo->bo_csa_trailer_len += sizeof(*csa);
+				bo->bo_quiet += sizeof(*csa);
 				bo->bo_tim_trailer_len += sizeof(*csa);
 				m->m_len += sizeof(*csa);
 				m->m_pkthdr.len += sizeof(*csa);
@@ -3015,6 +3087,11 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				csa->csa_count--;
 			vap->iv_csa_count++;
 			/* NB: don't clear IEEE80211_BEACON_CSA */
+		}
+		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS) ){
+			if (vap->iv_quiet)
+				ieee80211_add_quiet(bo->bo_quiet, vap);
 		}
 		if (isset(bo->bo_flags, IEEE80211_BEACON_ERP)) {
 			/*

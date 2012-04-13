@@ -517,7 +517,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 				}
 			} else
 #endif
-				bcopy(desc, data, length);
+				memcpy(data, desc, length);
 		}
 		goto done;		/* success */
 	}
@@ -785,12 +785,17 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	struct usb_port_status ps;
 	usb_error_t err;
 	uint16_t n;
+	uint16_t status;
+	uint16_t change;
 
 #ifdef USB_DEBUG
 	uint16_t pr_poll_delay;
 	uint16_t pr_recovery_delay;
 
 #endif
+
+	DPRINTF("\n");
+
 	/* clear any leftover port reset changes first */
 	usbd_req_clear_port_feature(
 	    udev, mtx, port, UHF_C_PORT_RESET);
@@ -817,9 +822,6 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 #endif
 	n = 0;
 	while (1) {
-		uint16_t status;
-		uint16_t change;
-
 #ifdef USB_DEBUG
 		/* wait for the device to recover from reset */
 		usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_poll_delay));
@@ -830,9 +832,9 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 		n += USB_PORT_RESET_DELAY;
 #endif
 		err = usbd_req_get_port_status(udev, mtx, &ps, port);
-		if (err) {
+		if (err)
 			goto done;
-		}
+
 		status = UGETW(ps.wPortStatus);
 		change = UGETW(ps.wPortChange);
 
@@ -862,9 +864,9 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	/* clear port reset first */
 	err = usbd_req_clear_port_feature(
 	    udev, mtx, port, UHF_C_PORT_RESET);
-	if (err) {
+	if (err)
 		goto done;
-	}
+
 	/* check for timeout */
 	if (n == 0) {
 		err = USB_ERR_TIMEOUT;
@@ -898,21 +900,50 @@ done:
  *       disabled.
  *------------------------------------------------------------------------*/
 usb_error_t
-usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
+usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port)
 {
 	struct usb_port_status ps;
 	usb_error_t err;
 	uint16_t n;
+	uint16_t status;
+	uint16_t change;
 
 #ifdef USB_DEBUG
 	uint16_t pr_poll_delay;
 	uint16_t pr_recovery_delay;
 
 #endif
-	err = usbd_req_set_port_feature(udev, mtx, port, UHF_BH_PORT_RESET);
-	if (err) {
+
+	DPRINTF("\n");
+
+	err = usbd_req_get_port_status(udev, mtx, &ps, port);
+	if (err)
 		goto done;
+
+	status = UGETW(ps.wPortStatus);
+
+	switch (UPS_PORT_LINK_STATE_GET(status)) {
+	case UPS_PORT_LS_U3:
+	case UPS_PORT_LS_COMP_MODE:
+	case UPS_PORT_LS_LOOPBACK:
+	case UPS_PORT_LS_SS_INA:
+		break;
+	default:
+		DPRINTF("Wrong state for warm reset\n");
+		return (0);
 	}
+
+	/* clear any leftover warm port reset changes first */
+	usbd_req_clear_port_feature(udev, mtx,
+	    port, UHF_C_BH_PORT_RESET);
+
+	/* set warm port reset */
+	err = usbd_req_set_port_feature(udev, mtx,
+	    port, UHF_BH_PORT_RESET);
+	if (err)
+		goto done;
+
 #ifdef USB_DEBUG
 	/* range check input parameters */
 	pr_poll_delay = usb_pr_poll_delay;
@@ -938,17 +969,20 @@ usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 		n += USB_PORT_RESET_DELAY;
 #endif
 		err = usbd_req_get_port_status(udev, mtx, &ps, port);
-		if (err) {
+		if (err)
 			goto done;
-		}
+
+		status = UGETW(ps.wPortStatus);
+		change = UGETW(ps.wPortChange);
+
 		/* if the device disappeared, just give up */
-		if (!(UGETW(ps.wPortStatus) & UPS_CURRENT_CONNECT_STATUS)) {
+		if (!(status & UPS_CURRENT_CONNECT_STATUS))
 			goto done;
-		}
+
 		/* check if reset is complete */
-		if (UGETW(ps.wPortChange) & UPS_C_BH_PORT_RESET) {
+		if (change & UPS_C_BH_PORT_RESET)
 			break;
-		}
+
 		/* check for timeout */
 		if (n > 1000) {
 			n = 0;
@@ -959,9 +993,9 @@ usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	/* clear port reset first */
 	err = usbd_req_clear_port_feature(
 	    udev, mtx, port, UHF_C_BH_PORT_RESET);
-	if (err) {
+	if (err)
 		goto done;
-	}
+
 	/* check for timeout */
 	if (n == 0) {
 		err = USB_ERR_TIMEOUT;
@@ -1278,7 +1312,7 @@ usbd_req_get_config_desc(struct usb_device *udev, struct mtx *mtx,
 		goto done;
 	}
 	/* Extra sanity checking */
-	if (UGETW(d->wTotalLength) < sizeof(*d)) {
+	if (UGETW(d->wTotalLength) < (uint16_t)sizeof(*d)) {
 		err = USB_ERR_INVAL;
 	}
 done:
@@ -2004,6 +2038,10 @@ retry:
 		}
 	}
 
+	/* Try to warm reset first */
+	if (parent_hub->speed == USB_SPEED_SUPER)
+		usbd_req_warm_reset_port(parent_hub, mtx, udev->port_no);
+
 	/* Try to reset the parent HUB port. */
 	err = usbd_req_reset_port(parent_hub, mtx, udev->port_no);
 	if (err) {
@@ -2164,3 +2202,81 @@ usbd_req_clear_tt_buffer(struct usb_device *udev, struct mtx *mtx,
 	USETW(req.wLength, 0);
 	return (usbd_do_request(udev, mtx, &req, 0));
 }
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_set_port_link_state
+ *
+ * USB 3.0 specific request
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_set_port_link_state(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port, uint8_t link_state)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, UHF_PORT_LINK_STATE);
+	req.wIndex[0] = port;
+	req.wIndex[1] = link_state;
+	USETW(req.wLength, 0);
+	return (usbd_do_request(udev, mtx, &req, 0));
+}
+
+/*------------------------------------------------------------------------*
+ *		usbd_req_set_lpm_info
+ *
+ * USB 2.0 specific request for Link Power Management.
+ *
+ * Returns:
+ * 0:				Success
+ * USB_ERR_PENDING_REQUESTS:	NYET
+ * USB_ERR_TIMEOUT:		TIMEOUT
+ * USB_ERR_STALL:		STALL
+ * Else:			Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_set_lpm_info(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port, uint8_t besl, uint8_t addr, uint8_t rwe)
+{
+	struct usb_device_request req;
+	usb_error_t err;
+	uint8_t buf[1];
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_SET_AND_TEST;
+	USETW(req.wValue, UHF_PORT_L1);
+	req.wIndex[0] = (port & 0xF) | ((besl & 0xF) << 4);
+	req.wIndex[1] = (addr & 0x7F) | (rwe ? 0x80 : 0x00);
+	USETW(req.wLength, sizeof(buf));
+
+	/* set default value in case of short transfer */
+	buf[0] = 0x00;
+
+	err = usbd_do_request(udev, mtx, &req, buf);
+	if (err)
+		return (err);
+
+	switch (buf[0]) {
+	case 0x00:	/* SUCCESS */
+		break;
+	case 0x10:	/* NYET */
+		err = USB_ERR_PENDING_REQUESTS;
+		break;
+	case 0x11:	/* TIMEOUT */
+		err = USB_ERR_TIMEOUT;
+		break;
+	case 0x30:	/* STALL */
+		err = USB_ERR_STALLED;
+		break;
+	default:	/* reserved */
+		err = USB_ERR_IOERROR;
+		break;
+	}
+	return (err);
+}
+

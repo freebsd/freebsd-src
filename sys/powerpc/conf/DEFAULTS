@@ -12,3 +12,5 @@ device		uart_z8530
 
 options 	GEOM_PART_APM
 options 	GEOM_PART_MBR
+
+options         NEW_PCIB

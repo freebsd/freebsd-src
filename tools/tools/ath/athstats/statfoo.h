@@ -79,6 +79,7 @@ struct statfoo {
 	const char *name;		/* statistics name, e.g. wlanstats */
 	const struct fmt *stats;	/* statistics in class */
 	int nstats;			/* number of stats */
+#define	FMTS_IS_STAT	0x80	/* the following two bytes are the stat id */
 	unsigned char fmts[4096];	/* private: compiled stats to display */
 
 	STATFOO_DECL_METHODS(struct statfoo *);

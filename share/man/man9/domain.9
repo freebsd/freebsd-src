@@ -26,11 +26,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2008
+.Dd February 23, 2012
 .Dt DOMAIN 9
 .Os
 .Sh NAME
-.Nm net_add_domain ,
+.Nm domain_add ,
 .Nm pfctlinput ,
 .Nm pfctlinput2 ,
 .Nm pffindproto ,
@@ -43,7 +43,7 @@
 .In sys/protosw.h
 .In sys/domain.h
 .Ft void
-.Fn net_add_domain "void *data"
+.Fn domain_add "void *data"
 .Ft void
 .Fn pfctlinput "int cmd" "struct sockaddr *sa"
 .Ft void
@@ -142,7 +142,7 @@ have their
 .Fn pr_ctlinput
 function called.
 .Pp
-.Fn net_add_domain
+.Fn domain_add
 adds a new protocol domain to the system.
 The argument
 .Fa data
@@ -153,13 +153,13 @@ within the function, but is declared
 in order to prevent compiler warnings when new domains are registered with
 .Fn SYSINIT .
 In most cases
-.Fn net_add_domain
+.Fn domain_add
 is not called directly, instead
 .Fn DOMAIN_SET
 is used.
 .Pp
 If the new domain has defined an initialization routine, it is called by
-.Fn net_add_domain ;
+.Fn domain_add ;
 as well, each of the protocols within the domain that have defined an
 initialization routine will have theirs called.
 .Pp

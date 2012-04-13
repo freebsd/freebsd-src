@@ -149,13 +149,13 @@ update_mp(struct mount *mp, struct thread *td)
 		}
 	}
 
-	if (1 == vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v) == 1)
 		pmp->pm_gid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v) == 1)
 		pmp->pm_uid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "mask", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "mask", "%d", &v) == 1)
 		pmp->pm_mask = v & ALLPERMS;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "dirmask", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "dirmask", "%d", &v) == 1)
 		pmp->pm_dirmask = v & ALLPERMS;
 	vfs_flagopt(mp->mnt_optnew, "shortname",
 	    &pmp->pm_flags, MSDOSFSMNT_SHORTNAME);
@@ -197,7 +197,7 @@ update_mp(struct mount *mp, struct thread *td)
 }
 
 static int
-msdosfs_cmount(struct mntarg *ma, void *data, int flags)
+msdosfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct msdosfs_args args;
 	struct export_args exp;
@@ -401,6 +401,8 @@ msdosfs_mount(struct mount *mp)
 		return error;
 	}
 
+	if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
+		devvp->v_rdev->si_mountpt = mp;
 	vfs_mountedfrom(mp, from);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_mount(): mp %p, pmp %p, inusemap %p\n", mp, pmp, pmp->pm_inusemap);
@@ -555,7 +557,9 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 		    || pmp->pm_FATsecs
 		    || getushort(b710->bpbFSVers)) {
 			error = EINVAL;
+#ifdef MSDOSFS_DEBUG
 			printf("mountmsdosfs(): bad FAT32 filesystem\n");
+#endif
 			goto error_exit;
 		}
 		pmp->pm_fatmask = FAT32_MASK;
@@ -633,8 +637,10 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 
 	clusters = (pmp->pm_fatsize / pmp->pm_fatmult) * pmp->pm_fatdiv;
 	if (pmp->pm_maxcluster >= clusters) {
+#ifdef MSDOSFS_DEBUG
 		printf("Warning: number of clusters (%ld) exceeds FAT "
 		    "capacity (%ld)\n", pmp->pm_maxcluster + 1, clusters);
+#endif
 		pmp->pm_maxcluster = clusters - 1;
 	}
 
@@ -839,6 +845,8 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	}
 #endif
 	DROP_GIANT();
+	if (pmp->pm_devvp->v_type == VCHR && pmp->pm_devvp->v_rdev != NULL)
+		pmp->pm_devvp->v_rdev->si_mountpt = NULL;
 	g_topology_lock();
 	g_vfs_close(pmp->pm_cp);
 	g_topology_unlock();

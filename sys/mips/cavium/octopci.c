@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 #include <contrib/octeon-sdk/cvmx-pcie.h>
 
 #include <dev/pci/pcireg.h>
@@ -424,7 +424,7 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 	sc = device_get_softc(dev);
 
 	if (octeon_has_feature(OCTEON_FEATURE_PCIE))
-		return (CVMX_IRQ_PCI_INT0 + pin - 1);
+		return (OCTEON_IRQ_PCI_INT0 + pin - 1);
 
         bus = pci_get_bus(child);
         slot = pci_get_slot(child);
@@ -435,7 +435,7 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 	 */
 #if defined(OCTEON_BOARD_CAPK_0100ND)
 	if (bus == 0 && slot == 12 && func == 0)
-		return (CVMX_IRQ_PCI_INT2);
+		return (OCTEON_IRQ_PCI_INT2);
 #endif
 
 	/*
@@ -444,14 +444,14 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 	switch (cvmx_sysinfo_get()->board_type) {
 #if defined(OCTEON_VENDOR_LANNER)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
-		return (CVMX_IRQ_PCI_INT0 + pin - 1);
+		return (OCTEON_IRQ_PCI_INT0 + pin - 1);
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
 		if (slot < 32) {
 			if (slot == 3 || slot == 9)
 				irq = pin;
 			else
 				irq = pin - 1;
-			return (CVMX_IRQ_PCI_INT0 + (irq & 3));
+			return (OCTEON_IRQ_PCI_INT0 + (irq & 3));
 		}
 		break;
 #endif
@@ -461,7 +461,7 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 
 	irq = slot + pin - 3;
 
-	return (CVMX_IRQ_PCI_INT0 + (irq & 3));
+	return (OCTEON_IRQ_PCI_INT0 + (irq & 3));
 }
 
 static unsigned
@@ -962,7 +962,6 @@ static device_method_t octopci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	octopci_read_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	octopci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,octopci_activate_resource),
@@ -978,7 +977,7 @@ static device_method_t octopci_methods[] = {
 	DEVMETHOD(pcib_write_config,	octopci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	octopci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t octopci_driver = {

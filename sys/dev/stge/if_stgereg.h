@@ -99,6 +99,9 @@
 #define CSR_READ_1(_sc, reg)		\
 	bus_read_1((_sc)->sc_res[0], (reg))
 
+#define	CSR_BARRIER(_sc, reg, length, flags)				\
+	bus_barrier((_sc)->sc_res[0], reg, length, flags)
+
 /*
  * TC9021 buffer fragment descriptor.
  */
@@ -676,23 +679,6 @@ do {									\
 } while (/*CONSTCOND*/0)
 
 #define STGE_TIMEOUT 1000
-
-struct stge_mii_frame {
-	uint8_t	mii_stdelim;
-	uint8_t	mii_opcode;
-	uint8_t	mii_phyaddr;
-	uint8_t	mii_regaddr;
-	uint8_t	mii_turnaround;
-	uint16_t mii_data;
-};
-
-/*
- * MII constants
- */
-#define STGE_MII_STARTDELIM	0x01
-#define STGE_MII_READOP		0x02
-#define STGE_MII_WRITEOP	0x01
-#define STGE_MII_TURNAROUND	0x02
 
 #define	STGE_RESET_NONE	0x00
 #define	STGE_RESET_TX	0x01

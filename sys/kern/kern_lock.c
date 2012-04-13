@@ -28,6 +28,7 @@
 
 #include "opt_adaptive_lockmgrs.h"
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 
 #include <sys/cdefs.h>
@@ -51,6 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
+#endif
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+PMC_SOFT_DECLARE( , , lock, failed);
 #endif
 
 CTASSERT(((LK_ADAPTIVE | LK_NOSHARE) & LO_CLASSFLAGS) ==
@@ -131,15 +137,16 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 #define	lockmgr_xlocked(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
 
-static void	 assert_lockmgr(struct lock_object *lock, int how);
+static void	assert_lockmgr(const struct lock_object *lock, int how);
 #ifdef DDB
-static void	 db_show_lockmgr(struct lock_object *lock);
+static void	db_show_lockmgr(const struct lock_object *lock);
 #endif
-static void	 lock_lockmgr(struct lock_object *lock, int how);
+static void	lock_lockmgr(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
-static int	 owner_lockmgr(struct lock_object *lock, struct thread **owner);
+static int	owner_lockmgr(const struct lock_object *lock,
+		    struct thread **owner);
 #endif
-static int	 unlock_lockmgr(struct lock_object *lock);
+static int	unlock_lockmgr(struct lock_object *lock);
 
 struct lock_class lock_class_lockmgr = {
 	.lc_name = "lockmgr",
@@ -158,13 +165,14 @@ struct lock_class lock_class_lockmgr = {
 #ifdef ADAPTIVE_LOCKMGRS
 static u_int alk_retries = 10;
 static u_int alk_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL, "lockmgr debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL,
+    "lockmgr debugging");
 SYSCTL_UINT(_debug_lockmgr, OID_AUTO, retries, CTLFLAG_RW, &alk_retries, 0, "");
 SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
 #endif
 
 static __inline struct thread *
-lockmgr_xholder(struct lock *lk)
+lockmgr_xholder(const struct lock *lk)
 {
 	uintptr_t x;
 
@@ -334,7 +342,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 }
 
 static void
-assert_lockmgr(struct lock_object *lock, int what)
+assert_lockmgr(const struct lock_object *lock, int what)
 {
 
 	panic("lockmgr locks do not support assertions");
@@ -356,7 +364,7 @@ unlock_lockmgr(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 static int
-owner_lockmgr(struct lock_object *lock, struct thread **owner)
+owner_lockmgr(const struct lock_object *lock, struct thread **owner)
 {
 
 	panic("lockmgr locks do not support owner inquiring");
@@ -512,6 +520,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 					break;
 				continue;
 			}
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&lk->lock_object,
 			    &contested, &waittime);
 
@@ -742,6 +753,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 		while (!atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED,
 		    tid)) {
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&lk->lock_object,
 			    &contested, &waittime);
 
@@ -1054,6 +1068,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		}
 
 		while (!atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED, tid)) {
+#ifdef HWPMC_HOOKS
+			PMC_SOFT_CALL( , , lock, failed);
+#endif
 			lock_profile_obtain_lock_failed(&lk->lock_object,
 			    &contested, &waittime);
 
@@ -1230,6 +1247,9 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 {
 	uintptr_t tid, x;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	tid = (uintptr_t)curthread;
 	_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED, file, line);
 
@@ -1259,7 +1279,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 }
 
 void
-lockmgr_printinfo(struct lock *lk)
+lockmgr_printinfo(const struct lock *lk)
 {
 	struct thread *td;
 	uintptr_t x;
@@ -1272,8 +1292,9 @@ lockmgr_printinfo(struct lock *lk)
 		    (uintmax_t)LK_SHARERS(lk->lk_lock));
 	else {
 		td = lockmgr_xholder(lk);
-		printf("lock type %s: EXCL by thread %p (pid %d)\n",
-		    lk->lock_object.lo_name, td, td->td_proc->p_pid);
+		printf("lock type %s: EXCL by thread %p "
+		    "(pid %d, %s, tid %d)\n", lk->lock_object.lo_name, td,
+		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_tid);
 	}
 
 	x = lk->lk_lock;
@@ -1288,7 +1309,7 @@ lockmgr_printinfo(struct lock *lk)
 }
 
 int
-lockstatus(struct lock *lk)
+lockstatus(const struct lock *lk)
 {
 	uintptr_t v, x;
 	int ret;
@@ -1318,7 +1339,7 @@ FEATURE(invariant_support,
 #endif
 
 void
-_lockmgr_assert(struct lock *lk, int what, const char *file, int line)
+_lockmgr_assert(const struct lock *lk, int what, const char *file, int line)
 {
 	int slocked = 0;
 
@@ -1411,12 +1432,12 @@ lockmgr_chain(struct thread *td, struct thread **ownerp)
 }
 
 static void
-db_show_lockmgr(struct lock_object *lock)
+db_show_lockmgr(const struct lock_object *lock)
 {
 	struct thread *td;
-	struct lock *lk;
+	const struct lock *lk;
 
-	lk = (struct lock *)lock;
+	lk = (const struct lock *)lock;
 
 	db_printf(" state: ");
 	if (lk->lk_lock == LK_UNLOCKED)

@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uftdi_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
 SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
     &uftdi_debug, 0, "Debug level");
 #endif
@@ -217,9 +217,11 @@ static STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, SERIAL_8U100AX, SIO),
 	UFTDI_DEV(FTDI, SERIAL_2232C, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_2232D, 8U232AM),
+	UFTDI_DEV(FTDI, BEAGLEBONE, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_4232H, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U232AM, 8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U232AM4, 8U232AM),
+	UFTDI_DEV(FTDI, SERIAL_BEAGLEBONE, 8U232AM),
 	UFTDI_DEV(FTDI, SEMC_DSS20, 8U232AM),
 	UFTDI_DEV(FTDI, CFA_631, 8U232AM),
 	UFTDI_DEV(FTDI, CFA_632, 8U232AM),
@@ -560,7 +562,7 @@ static int
 uftdi_set_parm_soft(struct termios *t,
     struct uftdi_param_config *cfg, uint8_t type)
 {
-	bzero(cfg, sizeof(*cfg));
+	memset(cfg, 0, sizeof(*cfg));
 
 	switch (type) {
 	case UFTDI_TYPE_SIO:

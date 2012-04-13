@@ -142,7 +142,7 @@ main(int argc, char *argv[])
 	one = 1;
 	host = localname = user = NULL;
 
-	if ((p = rindex(argv[0], '/')))
+	if ((p = strrchr(argv[0], '/')))
 		++p;
 	else
 		p = argv[0];

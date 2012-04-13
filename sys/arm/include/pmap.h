@@ -382,7 +382,8 @@ do {									\
 	if (PMAP_NEEDS_PTE_SYNC) {					\
 		cpu_dcache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
 		cpu_l2cache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
-	}\
+	} else								\
+		cpu_drain_writebuf();					\
 } while (/*CONSTCOND*/0)
 
 #define	PTE_SYNC_RANGE(pte, cnt)					\
@@ -392,7 +393,8 @@ do {									\
 		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
 		cpu_l2cache_wb_range((vm_offset_t)(pte), 		\
 		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
-	}								\
+	} else								\
+		cpu_drain_writebuf();					\
 } while (/*CONSTCOND*/0)
 
 extern pt_entry_t		pte_l1_s_cache_mode;

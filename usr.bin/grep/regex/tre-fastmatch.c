@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/* $FreeBSD$ */
 
 /*-
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
@@ -548,7 +548,7 @@ tre_compile_fast(fastmatch_t *fg, const tre_char_t *pat, size_t n,
 		 int cflags)
 {
   tre_char_t *tmp;
-  size_t pos = 0, hasdot = 0, whasdot = 0;;
+  size_t pos = 0, hasdot = 0, whasdot = 0;
   ssize_t firstdot = -1, wfirstdot = -1;
   bool escaped = false;
   bool *_escmap = NULL;
@@ -694,7 +694,7 @@ badpat:
       return REG_BADPAT;
     }
 
-  fg->hasdot = whasdot;
+  fg->hasdot = wfirstdot > -1;
 
   /*
    * The pattern has been processed and copied to tmp as a literal string

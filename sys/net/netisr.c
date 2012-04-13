@@ -124,7 +124,7 @@ static struct rmlock	netisr_rmlock;
 #define	NETISR_WUNLOCK()	rm_wunlock(&netisr_rmlock)
 /* #define	NETISR_LOCKING */
 
-SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr");
+static SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr");
 
 /*-
  * Three global direct dispatch policies are supported:

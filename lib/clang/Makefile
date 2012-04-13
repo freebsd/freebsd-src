@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .if !make(install)
 SUBDIR=	libclanganalysis \
 	libclangarcmigrate \
@@ -35,6 +37,7 @@ SUBDIR=	libclanganalysis \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
+	libllvmtablegen \
 	libllvmtarget \
 	libllvmtransformutils \
 	\
@@ -59,6 +62,19 @@ SUBDIR=	libclanganalysis \
 	libllvmx86info \
 	libllvmx86instprinter \
 	libllvmx86utils
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SUBDIR+=libllvmarchive \
+	libllvmdebuginfo \
+	libllvmexecutionengine \
+	libllvminterpreter \
+	libllvmjit \
+	libllvmlinker \
+	libllvmmcdisassembler \
+	libllvmmcjit \
+	libllvmobject \
+	libllvmruntimedyld
+.endif
 .endif
 
 SUBDIR+= include

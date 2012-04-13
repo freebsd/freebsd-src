@@ -2255,6 +2255,7 @@ fe_medchange (struct ifnet *ifp)
 static void
 fe_medstat (struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	(void)ifp;
-	(void)ifmr;
+	struct fe_softc *sc = ifp->if_softc;
+
+	ifmr->ifm_active = sc->media.ifm_media;
 }

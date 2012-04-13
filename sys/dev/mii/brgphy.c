@@ -82,7 +82,7 @@ static device_method_t brgphy_methods[] = {
 	DEVMETHOD(device_attach,	brgphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t brgphy_devclass;
@@ -139,9 +139,14 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(BROADCOM2, BCM5754),
 	MII_PHY_DESC(BROADCOM2, BCM5761),
 	MII_PHY_DESC(BROADCOM2, BCM5784),
+#ifdef notyet	/* better handled by ukphy(4) until WARs are implemented */
+	MII_PHY_DESC(BROADCOM2, BCM5785),
+#endif
 	MII_PHY_DESC(BROADCOM3, BCM5717C),
 	MII_PHY_DESC(BROADCOM3, BCM5719C),
+	MII_PHY_DESC(BROADCOM3, BCM5720C),
 	MII_PHY_DESC(BROADCOM3, BCM57765),
+	MII_PHY_DESC(BROADCOM3, BCM57780),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5906),
 	MII_PHY_END
 };
@@ -221,7 +226,8 @@ brgphy_attach(device_t dev)
 				sc->mii_flags |= MIIF_HAVEFIBER;
 			}
 			break;
-		} break;
+		}
+		break;
 	case MII_OUI_BROADCOM2:
 		switch (sc->mii_mpd_model) {
 		case MII_MODEL_BROADCOM2_BCM5708S:
@@ -938,7 +944,8 @@ brgphy_reset(struct mii_softc *sc)
 		if (bge_sc->bge_phy_flags & BGE_PHY_JITTER_BUG)
 			brgphy_fixup_jitter_bug(sc);
 
-		brgphy_jumbo_settings(sc, ifp->if_mtu);
+		if (bge_sc->bge_flags & BGE_FLAG_JUMBO)
+			brgphy_jumbo_settings(sc, ifp->if_mtu);
 
 		if ((bge_sc->bge_phy_flags & BGE_PHY_NO_WIRESPEED) == 0)
 			brgphy_ethernet_wirespeed(sc);

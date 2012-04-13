@@ -69,6 +69,7 @@ struct	rt_addrinfo;
 struct	socket;
 struct	ether_header;
 struct	carp_if;
+struct	carp_softc;
 struct  ifvlantrunk;
 struct	route;
 struct	vnet;
@@ -95,7 +96,6 @@ struct	vnet;
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
-TAILQ_HEAD(ifprefixhead, ifprefix);
 TAILQ_HEAD(ifmultihead, ifmultiaddr);
 TAILQ_HEAD(ifgrouphead, ifg_group);
 
@@ -183,16 +183,16 @@ struct ifnet {
 	struct	label *if_label;	/* interface MAC label */
 
 	/* these are only used by IPv6 */
-	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
+	void	*if_unused[2];
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
 	struct	rwlock if_afdata_lock;
 	struct	task if_linktask;	/* task for link change events */
-	struct	mtx if_addr_mtx;	/* mutex to protect address lists */
+	struct	rwlock if_addr_lock;	/* lock to protect address lists */
 
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
-					/* protected by if_addr_mtx */
+					/* protected by if_addr_lock */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
 	char	*if_description;	/* interface description */
@@ -245,12 +245,14 @@ typedef void if_init_f_t(void *);
 /*
  * Locks for address lists on the network interface.
  */
-#define	IF_ADDR_LOCK_INIT(if)	mtx_init(&(if)->if_addr_mtx,		\
-				    "if_addr_mtx", NULL, MTX_DEF)
-#define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&(if)->if_addr_mtx)
-#define	IF_ADDR_LOCK(if)	mtx_lock(&(if)->if_addr_mtx)
-#define	IF_ADDR_UNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
-#define	IF_ADDR_LOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
+#define	IF_ADDR_LOCK_INIT(if)	rw_init(&(if)->if_addr_lock, "if_addr_lock")
+#define	IF_ADDR_LOCK_DESTROY(if)	rw_destroy(&(if)->if_addr_lock)
+#define	IF_ADDR_WLOCK(if)	rw_wlock(&(if)->if_addr_lock)
+#define	IF_ADDR_WUNLOCK(if)	rw_wunlock(&(if)->if_addr_lock)
+#define	IF_ADDR_RLOCK(if)	rw_rlock(&(if)->if_addr_lock)
+#define	IF_ADDR_RUNLOCK(if)	rw_runlock(&(if)->if_addr_lock)
+#define	IF_ADDR_LOCK_ASSERT(if)	rw_assert(&(if)->if_addr_lock, RA_LOCKED)
+#define	IF_ADDR_WLOCK_ASSERT(if) rw_assert(&(if)->if_addr_lock, RA_WLOCKED)
 
 /*
  * Function variations on locking macros intended to be used by loadable
@@ -318,6 +320,18 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 #define IF_DEQUEUE(ifq, m) do { 				\
 	IF_LOCK(ifq); 						\
 	_IF_DEQUEUE(ifq, m); 					\
+	IF_UNLOCK(ifq); 					\
+} while (0)
+
+#define	_IF_DEQUEUE_ALL(ifq, m) do {				\
+	(m) = (ifq)->ifq_head;					\
+	(ifq)->ifq_head = (ifq)->ifq_tail = NULL;		\
+	(ifq)->ifq_len = 0;					\
+} while (0)
+
+#define	IF_DEQUEUE_ALL(ifq, m) do {				\
+	IF_LOCK(ifq); 						\
+	_IF_DEQUEUE_ALL(ifq, m);				\
 	IF_UNLOCK(ifq); 					\
 } while (0)
 
@@ -717,6 +731,7 @@ struct ifaddr {
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	if_data if_data;	/* not all members are meaningful */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
+	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
 	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
@@ -741,20 +756,6 @@ void	ifa_free(struct ifaddr *ifa);
 void	ifa_init(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
 #endif
-
-/*
- * The prefix structure contains information about one prefix
- * of an interface.  They are maintained by the different address families,
- * are allocated and attached when a prefix or an address is set,
- * and are linked together so all prefixes for an interface can be located.
- */
-struct ifprefix {
-	struct	sockaddr *ifpr_prefix;	/* prefix of interface */
-	struct	ifnet *ifpr_ifp;	/* back-pointer to interface */
-	TAILQ_ENTRY(ifprefix) ifpr_list; /* queue macro glue */
-	u_char	ifpr_plen;		/* prefix length in bits */
-	u_char	ifpr_type;		/* protocol dependent prefix type */
-};
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -853,7 +854,6 @@ void	if_down(struct ifnet *);
 struct ifmultiaddr *
 	if_findmulti(struct ifnet *, struct sockaddr *);
 void	if_free(struct ifnet *);
-void	if_free_type(struct ifnet *, u_char);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);

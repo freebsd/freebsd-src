@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -43,7 +43,7 @@
  *
  * Interface to the hardware Free Pool Allocator.
  *
- * <hr>$Revision: 50048 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 
@@ -145,7 +145,12 @@ static inline void cvmx_fpa_enable(void)
     status.u64 = cvmx_read_csr(CVMX_FPA_CTL_STATUS);
     if (status.s.enb)
     {
-        cvmx_dprintf("Warning: Enabling FPA when FPA already enabled.\n");
+	/*
+	 * CN68XXP1 should not reset the FPA (doing so may break the
+	 * SSO, so we may end up enabling it more than once.  Just
+	 * return and don't spew messages.
+	 */
+	return;
     }
 
     status.u64 = 0;
@@ -154,13 +159,13 @@ static inline void cvmx_fpa_enable(void)
 }
 
 /**
- * Reset FPA to disable. Make sure buffers from all FPA pools are freed
+ * Reset FPA to disable. Make sure buffers from all FPA pools are freed 
  * before disabling FPA.
  */
 static inline void cvmx_fpa_disable(void)
 {
     cvmx_fpa_ctl_status_t status;
-    
+
     status.u64 = cvmx_read_csr(CVMX_FPA_CTL_STATUS);
     status.s.reset = 1;
     cvmx_write_csr(CVMX_FPA_CTL_STATUS, status.u64);
@@ -204,7 +209,7 @@ static inline void cvmx_fpa_async_alloc(uint64_t scr_addr, uint64_t pool)
 {
    cvmx_fpa_iobdma_data_t data;
 
-   /* Hardware only uses 64 bit alligned locations, so convert from byte address
+   /* Hardware only uses 64 bit aligned locations, so convert from byte address
    ** to 64-bit index
    */
    data.s.scraddr = scr_addr >> 3;

@@ -64,7 +64,7 @@ This structure is defined as follows:
 .Bd -literal
 struct ieee80211req {
 	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
-	u_int16_t	i_type;			/* req type */
+	uint16_t	i_type;			/* req type */
 	int16_t		i_val;			/* Index or simple value */
 	int16_t		i_len;			/* Index or simple value */
 	void		*i_data;		/* Extra data */
@@ -199,7 +199,7 @@ Return the time between Beacon frames (in TU) in
 .It Dv IEEE80211_IOC_BGSCAN
 Return whether background scanning is enabled in
 .Va i_val .
-When this value is non-zero and operating in station mode 
+When this value is non-zero and operating in station mode
 the station will periodically leave
 the current channel and scan for neighboring stations.
 See also
@@ -280,7 +280,7 @@ Return whether or not Dynamic Frequency Selection (DFS) is enabled in
 DFS embodies several facilities including detection of overlapping
 radar signals, dynamic transmit power control, and channel selection
 according to a least-congested criteria.
-DFS support is mandatory for some 5Ghz frequencies in certain
+DFS support is mandatory for some 5GHz frequencies in certain
 locales (e.g. ETSI).
 By default DFS is enabled according to the regulatory definitions
 and the current country code, regdomain, and channel.
@@ -343,7 +343,7 @@ Return, in
 .Va i_val ,
 whether SSID hiding/cloaking is enabled.
 SSID hiding is only meaningful when operating as an access point.
-When this is enabled Beacon frames do not include the SSID and 
+When this is enabled Beacon frames do not include the SSID and
 ProbeRequest frames are not answered unless they include the AP's SSID.
 This value will be non-zero when SSID hiding is enabled and otherwise zero.
 .It Dv IEEE80211_IOC_HTCOMPAT
@@ -464,7 +464,7 @@ This value is also termed the listen interval and represents the maximum time
 a station will sleep before waking to retrieve packets buffered by
 an access point.
 .It Dv IEEE80211_IOC_PRIVACY
-Return the current MLME setting for PRIVACY in 
+Return the current MLME setting for PRIVACY in
 .Va i_val .
 When PRIVACY is enabled all data packets must be encrypted.
 This value will be zero if PRIVACY is disabled and
@@ -1093,7 +1093,7 @@ Set the powersave sleep time in TU to the value in
 .Va i_val .
 This request causes a running interface to be reset.
 .It Dv IEEE80211_IOC_PRIVACY
-Set the current MLME setting for PRIVACY using the value in 
+Set the current MLME setting for PRIVACY using the value in
 .Va i_val .
 See
 .Dv IEEE80211_IOC_PRIVACY
@@ -1205,7 +1205,7 @@ This request causes a running interface to be reset.
 Set the current TDMA slot to the value in
 .Va i_val .
 Values must be in the range [0-slotcnt].
-Slot 0 identifies the master in the TDMA network; if it running it will 
+Slot 0 identifies the master in the TDMA network; if it running it will
 immediately start sending Beacon frames.
 .It Dv IEEE80211_IOC_TDMA_SLOTCNT
 Set the number of slots in the TDMA network to the value in

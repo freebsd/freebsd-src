@@ -105,7 +105,7 @@ struct mmc_ivars {
 
 #define CMD_RETRIES	3
 
-SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
+static SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
 
 static int mmc_debug;
 SYSCTL_INT(_hw_mmc, OID_AUTO, debug, CTLFLAG_RW, &mmc_debug, 0, "Debug level");

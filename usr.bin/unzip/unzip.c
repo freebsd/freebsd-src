@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009 Joerg Sonnenberger <joerg@NetBSD.org>
- * Copyright (c) 2007-2008 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2007-2008 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -422,7 +422,7 @@ handle_existing_file(char **path)
 		fprintf(stderr,
 		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
 		    *path);
-		if (fgets(buf, sizeof(buf), stdin) == 0) {
+		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			clearerr(stdin);
 			printf("NULL\n(EOF or read error, "
 			    "treating as \"[N]one\"...)\n");

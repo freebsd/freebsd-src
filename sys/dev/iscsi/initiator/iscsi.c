@@ -66,7 +66,7 @@ static struct isc_softc *isc;
 
 MALLOC_DEFINE(M_ISCSI, "iSCSI", "iSCSI driver");
 MALLOC_DEFINE(M_ISCSIBUF, "iSCbuf", "iSCSI buffers");
-MALLOC_DEFINE(M_TMP, "iSCtmp", "iSCSI tmp");
+static MALLOC_DEFINE(M_TMP, "iSCtmp", "iSCSI tmp");
 
 #ifdef ISCSI_INITIATOR_DEBUG
 int iscsi_debug = ISCSI_INITIATOR_DEBUG;

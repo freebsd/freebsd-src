@@ -25,12 +25,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2009
+.Dd October 9, 2011
 .Dt ATACONTROL 8
 .Os
 .Sh NAME
 .Nm atacontrol
 .Nd ATA device driver control program
+.Pp
+This utility was
+.Em deprecated
+in
+.Fx 9.0 .
+See
+.Sx NOTES .
 .Sh SYNOPSIS
 .Nm
 .Aq Ar command
@@ -361,11 +368,17 @@ or syslog logging on it as the disk will be worn out spinning down and
 up all the time.
 .Sh SEE ALSO
 .Xr ata 4
+.Xr cam 4
+.Xr camcontrol 8
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Fx 4.6 .
+.Pp
+.Nm
+was deprecated in
+.Fx 9.0 .
 .Sh AUTHORS
 .An -nosplit
 The
@@ -377,3 +390,16 @@ utility was written by
 This manual page was written by
 .An S\(/oren Schmidt
 .Aq sos@FreeBSD.org .
+.Sh NOTES
+The
+.Nm
+utility was deprecated in
+.Fx 9.0 .
+When
+.Bd -ragged -offset indent
+.Cd "options ATA_CAM"
+.Ed
+.Pp
+is compiled into the kernel, then
+.Xr camcontrol 8
+must be used instead.

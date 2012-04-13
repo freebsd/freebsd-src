@@ -157,9 +157,9 @@ static const struct wpi_ident wpi_ident_table[] = {
 };
 
 static struct ieee80211vap *wpi_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	wpi_vap_delete(struct ieee80211vap *);
 static int	wpi_dma_contig_alloc(struct wpi_softc *, struct wpi_dma_info *,
 		    void **, bus_size_t, bus_size_t, int);
@@ -760,10 +760,10 @@ wpi_detach(device_t dev)
 }
 
 static struct ieee80211vap *
-wpi_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct wpi_vap *wvp;
 	struct ieee80211vap *vap;
@@ -1218,8 +1218,9 @@ static int
 wpi_suspend(device_t dev)
 {
 	struct wpi_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
-	wpi_stop(sc);
+	ieee80211_suspend_all(ic);
 	return 0;
 }
 
@@ -1227,15 +1228,11 @@ static int
 wpi_resume(device_t dev)
 {
 	struct wpi_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 	pci_write_config(dev, 0x41, 0, 1);
 
-	if (ifp->if_flags & IFF_UP) {
-		wpi_init(ifp->if_softc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			wpi_start(ifp);
-	}
+	ieee80211_resume_all(ic);
 	return 0;
 }
 

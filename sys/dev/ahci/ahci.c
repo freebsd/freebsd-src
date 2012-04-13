@@ -101,7 +101,7 @@ static void ahci_process_request_sense(device_t dev, union ccb *ccb);
 static void ahciaction(struct cam_sim *sim, union ccb *ccb);
 static void ahcipoll(struct cam_sim *sim);
 
-MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
+static MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 
 static struct {
 	uint32_t	id;
@@ -171,6 +171,7 @@ static struct {
 	{0x1d028086, 0x00, "Intel Patsburg",	0},
 	{0x1d048086, 0x00, "Intel Patsburg",	0},
 	{0x1d068086, 0x00, "Intel Patsburg",	0},
+	{0x28268086, 0x00, "Intel Patsburg (RAID)",	0},
 	{0x1e028086, 0x00, "Intel Panther Point",	0},
 	{0x1e038086, 0x00, "Intel Panther Point",	0},
 	{0x1e048086, 0x00, "Intel Panther Point",	0},
@@ -185,13 +186,13 @@ static struct {
 	{0x2365197b, 0x00, "JMicron JMB365",	AHCI_Q_NOFORCE},
 	{0x2366197b, 0x00, "JMicron JMB366",	AHCI_Q_NOFORCE},
 	{0x2368197b, 0x00, "JMicron JMB368",	AHCI_Q_NOFORCE},
-	{0x611111ab, 0x00, "Marvell 88SX6111",	AHCI_Q_NOFORCE | AHCI_Q_1CH |
+	{0x611111ab, 0x00, "Marvell 88SE6111",	AHCI_Q_NOFORCE | AHCI_Q_1CH |
 	    AHCI_Q_EDGEIS},
-	{0x612111ab, 0x00, "Marvell 88SX6121",	AHCI_Q_NOFORCE | AHCI_Q_2CH |
+	{0x612111ab, 0x00, "Marvell 88SE6121",	AHCI_Q_NOFORCE | AHCI_Q_2CH |
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
-	{0x614111ab, 0x00, "Marvell 88SX6141",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
+	{0x614111ab, 0x00, "Marvell 88SE6141",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
-	{0x614511ab, 0x00, "Marvell 88SX6145",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
+	{0x614511ab, 0x00, "Marvell 88SE6145",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
 	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_NOBSYRES},
 	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
@@ -291,6 +292,9 @@ static struct {
 #define RECOVERY_REQUEST_SENSE	2
 #define recovery_slot		spriv_field1
 
+static int force_ahci = 1;
+TUNABLE_INT("hw.ahci.force", &force_ahci);
+
 static int
 ahci_probe(device_t dev)
 {
@@ -308,7 +312,8 @@ ahci_probe(device_t dev)
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid &&
 		    ahci_ids[i].rev <= revid &&
-		    (valid || !(ahci_ids[i].quirks & AHCI_Q_NOFORCE))) {
+		    (valid || (force_ahci == 1 &&
+		     !(ahci_ids[i].quirks & AHCI_Q_NOFORCE)))) {
 			/* Do not attach JMicrons with single PCI function. */
 			if (pci_get_vendor(dev) == 0x197b &&
 			    (pci_read_config(dev, 0xdf, 1) & 0x40) == 0)
@@ -498,13 +503,14 @@ ahci_attach(device_t dev)
 	}
 	/* Attach all channels on this controller */
 	for (unit = 0; unit < ctlr->channels; unit++) {
-		if ((ctlr->ichannels & (1 << unit)) == 0)
-			continue;
 		child = device_add_child(dev, "ahcich", -1);
-		if (child == NULL)
+		if (child == NULL) {
 			device_printf(dev, "failed to add channel device\n");
-		else
-			device_set_ivars(child, (void *)(intptr_t)unit);
+			continue;
+		}
+		device_set_ivars(child, (void *)(intptr_t)unit);
+		if ((ctlr->ichannels & (1 << unit)) == 0)
+			device_disable(child);
 	}
 	bus_generic_attach(dev);
 	return 0;
@@ -514,15 +520,11 @@ static int
 ahci_detach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
+	int i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
+
 	/* Free interrupts. */
 	for (i = 0; i < ctlr->numirqs; i++) {
 		if (ctlr->irqs[i].r_irq) {

@@ -6,8 +6,8 @@ _wizard=	wizard.c
 
 PROG=	sade
 MAN=	sade.8
-SRCS=	command.c config.c devices.c \
-	disks.c dispatch.c dmenu.c \
+SRCS=	command.c devices.c \
+	disks.c dmenu.c \
 	globals.c install.c \
 	label.c main.c menus.c misc.c \
 	msg.c system.c termcap.c \
@@ -19,9 +19,9 @@ WARNS?=	3
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
-CFLAGS+= -I${.CURDIR}/../../gnu/lib/libodialog -I.
+CFLAGS+= -I${.CURDIR}/../../contrib/dialog -I.
 
-DPADD=	${LIBODIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK}
-LDADD=	-lodialog -lncurses -lutil -ldisk
+DPADD=	${LIBDIALOG} ${LIBNCURSESW} ${LIBM} ${LIBUTIL} ${LIBDISK}
+LDADD=	-ldialog -lncursesw -lm -lutil -ldisk
 
 .include <bsd.prog.mk>

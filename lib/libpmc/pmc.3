@@ -9,17 +9,17 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" This software is provided by Joseph Koshy ``as is'' and
-.\" any express or implied warranties, including, but not limited to, the
-.\" implied warranties of merchantability and fitness for a particular purpose
-.\" are disclaimed.  in no event shall Joseph Koshy be liable
-.\" for any direct, indirect, incidental, special, exemplary, or consequential
-.\" damages (including, but not limited to, procurement of substitute goods
-.\" or services; loss of use, data, or profits; or business interruption)
-.\" however caused and on any theory of liability, whether in contract, strict
-.\" liability, or tort (including negligence or otherwise) arising in any way
-.\" out of the use of this software, even if advised of the possibility of
-.\" such damage.
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
 .\"
@@ -223,9 +223,10 @@ and
 CPUs.
 .It Li PMC_CLASS_TSC
 The timestamp counter on i386 and amd64 architecture CPUs.
+.It Li PMC_CLASS_SOFT
+Software events.
 .El
 .Ss PMC Capabilities
-.Pp
 Capabilities of performance monitoring hardware are denoted using
 the
 .Vt "enum pmc_caps"
@@ -322,6 +323,10 @@ to write logged events to.
 Flush all pending log data in
 .Xr hwpmc 4 Ns Ap s
 buffers.
+.It Fn pmc_close_logfile
+Flush all pending log data and close
+.Xr hwpmc 4 Ns Ap s
+side of the stream.
 .It Fn pmc_writelog
 Append arbitrary user data to the current log file.
 .El
@@ -522,6 +527,7 @@ API is
 .Xr pmc.p4 3 ,
 .Xr pmc.p5 3 ,
 .Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
 .Xr pmc.tsc 3 ,
 .Xr pmclog 3 ,
 .Xr hwpmc 4 ,

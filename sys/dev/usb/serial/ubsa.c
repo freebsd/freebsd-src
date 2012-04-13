@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ubsa_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ubsa, CTLFLAG_RW, 0, "USB ubsa");
 SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RW,
     &ubsa_debug, 0, "ubsa debug level");
 #endif
@@ -627,7 +627,7 @@ ubsa_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen >= sizeof(buf)) {
+		if (actlen >= (int)sizeof(buf)) {
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, buf, sizeof(buf));
 

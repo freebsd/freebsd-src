@@ -74,6 +74,18 @@ kiconv_add_xlat16_cspair(const char *tocode, const char *fromcode, int flag)
 	struct xlat16_table xt;
 	void *data;
 	char *p;
+	const char unicode[] = ENCODING_UNICODE;
+
+	if ((flag & KICONV_WCTYPE) == 0 &&
+	    strcmp(unicode, tocode) != 0 &&
+	    strcmp(unicode, fromcode) != 0 &&
+	    kiconv_lookupconv(unicode) == 0) {
+		error = kiconv_add_xlat16_cspair(unicode, fromcode, flag);
+		if (error)
+			return (-1);
+		error = kiconv_add_xlat16_cspair(tocode, unicode, flag);
+		return (error);
+	}
 
 	if (kiconv_lookupcs(tocode, fromcode) == 0)
 		return (0);

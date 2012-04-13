@@ -61,7 +61,7 @@
 #
 
 # backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
@@ -70,11 +70,6 @@ OBJCOPY?=	objcopy
 
 .if defined(KMODDEPS)
 .error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
-.endif
-
-# Enable CTF conversion on request.
-.if defined(WITH_CTF)
-.undef NO_CTF
 .endif
 
 .include <bsd.init.mk>
@@ -113,7 +108,7 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${CC:T:Mclang} != "clang"
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
@@ -206,7 +201,9 @@ ${KMOD}.kld: ${OBJS}
 ${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.if defined(MK_CTF) && ${MK_CTF} != "no"
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
 .if ${EXPORT_SYMS} == NO
@@ -343,11 +340,13 @@ CFLAGS+=	${CONF_CFLAGS}
 
 MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
+	dev/gpio/gpio_if.m dev/gpio/gpiobus_if.m \
 	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \
 	dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
 	dev/mii/miibus_if.m dev/mvs/mvs_if.m dev/ofw/ofw_bus_if.m \
 	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
 	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m \
+	dev/sound/pci/hda/hdac_if.m \
 	dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \
 	dev/sound/pcm/feeder_if.m dev/sound/pcm/mixer_if.m \
 	dev/sound/midi/mpu_if.m dev/sound/midi/mpufoi_if.m \

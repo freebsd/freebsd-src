@@ -214,7 +214,8 @@ Parser::ParseExpressionWithLeadingExtension(SourceLocation ExtLoc) {
 ExprResult Parser::ParseAssignmentExpression() {
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Expression);
-    ConsumeCodeCompletionToken();
+    cutOffParsing();
+    return ExprError();
   }
 
   if (Tok.is(tok::kw_throw))
@@ -303,23 +304,23 @@ Parser::ParseRHSOfBinaryExpression(ExprResult LHS, prec::Level MinPrec) {
         // Eat the colon.
         ColonLoc = ConsumeToken();
       } else {
-        // Otherwise, we're missing a ':'.  Assume that this was a typo that the
-        // user forgot.  If we're not in a macro instantiation, we can suggest a
-        // fixit hint.  If there were two spaces before the current token,
+        // Otherwise, we're missing a ':'.  Assume that this was a typo that
+        // the user forgot. If we're not in a macro expansion, we can suggest
+        // a fixit hint. If there were two spaces before the current token,
         // suggest inserting the colon in between them, otherwise insert ": ".
         SourceLocation FILoc = Tok.getLocation();
         const char *FIText = ": ";
         const SourceManager &SM = PP.getSourceManager();
         if (FILoc.isFileID() || PP.isAtStartOfMacroExpansion(FILoc)) {
-          FILoc = SM.getInstantiationLoc(FILoc);
+          FILoc = SM.getExpansionLoc(FILoc);
           bool IsInvalid = false;
           const char *SourcePtr =
-            SM.getCharacterData(FILoc.getFileLocWithOffset(-1), &IsInvalid);
+            SM.getCharacterData(FILoc.getLocWithOffset(-1), &IsInvalid);
           if (!IsInvalid && *SourcePtr == ' ') {
             SourcePtr =
-              SM.getCharacterData(FILoc.getFileLocWithOffset(-2), &IsInvalid);
+              SM.getCharacterData(FILoc.getLocWithOffset(-2), &IsInvalid);
             if (!IsInvalid && *SourcePtr == ' ') {
-              FILoc = FILoc.getFileLocWithOffset(-1);
+              FILoc = FILoc.getLocWithOffset(-1);
               FIText = ":";
             }
           }
@@ -336,7 +337,7 @@ Parser::ParseRHSOfBinaryExpression(ExprResult LHS, prec::Level MinPrec) {
     // goes through a special hook that takes the left-hand side into account.
     if (Tok.is(tok::code_completion) && NextTokPrec == prec::Assignment) {
       Actions.CodeCompleteAssignmentRHS(getCurScope(), LHS.get());
-      ConsumeCodeCompletionToken();
+      cutOffParsing();
       return ExprError();
     }
     
@@ -769,6 +770,9 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     break;
   }
   case tok::char_constant:     // constant: character-constant
+  case tok::wide_char_constant:
+  case tok::utf16_char_constant:
+  case tok::utf32_char_constant:
     Res = Actions.ActOnCharacterConstant(Tok);
     ConsumeToken();
     break;
@@ -780,6 +784,9 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     break;
   case tok::string_literal:    // primary-expression: string-literal
   case tok::wide_string_literal:
+  case tok::utf8_string_literal:
+  case tok::utf16_string_literal:
+  case tok::utf32_string_literal:
     Res = ParseStringLiteralExpression();
     break;
   case tok::kw__Generic:   // primary-expression: generic-selection [C1X 6.5.1]
@@ -913,6 +920,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::kw___int64:
   case tok::kw_signed:
   case tok::kw_unsigned:
+  case tok::kw_half:
   case tok::kw_float:
   case tok::kw_double:
   case tok::kw_void:
@@ -1021,18 +1029,21 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
 
   case tok::kw_noexcept: { // [C++0x] 'noexcept' '(' expression ')'
     SourceLocation KeyLoc = ConsumeToken();
-    SourceLocation LParen = Tok.getLocation();
-    if (ExpectAndConsume(tok::l_paren,
-                         diag::err_expected_lparen_after, "noexcept"))
+    BalancedDelimiterTracker T(*this, tok::l_paren);
+
+    if (T.expectAndConsume(diag::err_expected_lparen_after, "noexcept"))
       return ExprError();
     // C++ [expr.unary.noexcept]p1:
     //   The noexcept operator determines whether the evaluation of its operand,
     //   which is an unevaluated operand, can throw an exception.
     EnterExpressionEvaluationContext Unevaluated(Actions, Sema::Unevaluated);
     ExprResult Result = ParseExpression();
-    SourceLocation RParen = MatchRHSPunctuation(tok::r_paren, LParen);
+
+    T.consumeClose();
+
     if (!Result.isInvalid())
-      Result = Actions.ActOnNoexceptExpr(KeyLoc, LParen, Result.take(), RParen);
+      Result = Actions.ActOnNoexceptExpr(KeyLoc, T.getOpenLocation(), 
+                                         Result.take(), T.getCloseLocation());
     return move(Result);
   }
 
@@ -1104,11 +1115,20 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     break;
   case tok::code_completion: {
     Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Expression);
-    ConsumeCodeCompletionToken();
-    return ParseCastExpression(isUnaryExpression, isAddressOfOperand, 
-                               NotCastExpr, isTypeCast);
+    cutOffParsing();
+    return ExprError();
   }
   case tok::l_square:
+    if (getLang().CPlusPlus0x) {
+      if (getLang().ObjC1) {
+        Res = TryParseLambdaExpression();
+        if (Res.isInvalid())
+          Res = ParseObjCMessageExpression();
+        break;
+      }
+      Res = ParseLambdaExpression();
+      break;
+    }
     if (getLang().ObjC1) {
       Res = ParseObjCMessageExpression();
       break;
@@ -1154,9 +1174,8 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         return move(LHS);
         
       Actions.CodeCompletePostfixExpression(getCurScope(), LHS);
-      ConsumeCodeCompletionToken();
-      LHS = ExprError();
-      break;
+      cutOffParsing();
+      return ExprError();
         
     case tok::identifier:
       // If we see identifier: after an expression, and we're not already in a
@@ -1183,8 +1202,10 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       if (getLang().ObjC1 && Tok.isAtStartOfLine() &&
           isSimpleObjCMessageExpression())
         return move(LHS);
-          
-      Loc = ConsumeBracket();
+       
+      BalancedDelimiterTracker T(*this, tok::l_square);
+      T.consumeOpen();
+      Loc = T.getOpenLocation();
       ExprResult Idx;
       if (getLang().CPlusPlus0x && Tok.is(tok::l_brace))
         Idx = ParseBraceInitializer();
@@ -1200,7 +1221,7 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         LHS = ExprError();
 
       // Match the ']'.
-      MatchRHSPunctuation(tok::r_square, Loc);
+      T.consumeClose();
       break;
     }
 
@@ -1212,12 +1233,13 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       
       Expr *ExecConfig = 0;
 
+      BalancedDelimiterTracker LLLT(*this, tok::lesslessless);
+      BalancedDelimiterTracker PT(*this, tok::l_paren);
+
       if (OpKind == tok::lesslessless) {
         ExprVector ExecConfigExprs(Actions);
         CommaLocsTy ExecConfigCommaLocs;
-        SourceLocation LLLLoc, GGGLoc;
-
-        LLLLoc = ConsumeToken();
+        LLLT.consumeOpen();
 
         if (ParseExpressionList(ExecConfigExprs, ExecConfigCommaLocs)) {
           LHS = ExprError();
@@ -1225,11 +1247,9 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
 
         if (LHS.isInvalid()) {
           SkipUntil(tok::greatergreatergreater);
-        } else if (Tok.isNot(tok::greatergreatergreater)) {
-          MatchRHSPunctuation(tok::greatergreatergreater, LLLLoc);
+        } else if (LLLT.consumeClose()) {
+          // There was an error closing the brackets
           LHS = ExprError();
-        } else {
-          GGGLoc = ConsumeToken();
         }
 
         if (!LHS.isInvalid()) {
@@ -1241,14 +1261,17 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
 
         if (!LHS.isInvalid()) {
           ExprResult ECResult = Actions.ActOnCUDAExecConfigExpr(getCurScope(),
-                                     LLLLoc, move_arg(ExecConfigExprs), GGGLoc);
+                                    LLLT.getOpenLocation(), 
+                                    move_arg(ExecConfigExprs), 
+                                    LLLT.getCloseLocation());
           if (ECResult.isInvalid())
             LHS = ExprError();
           else
             ExecConfig = ECResult.get();
         }
       } else {
-        Loc = ConsumeParen();
+        PT.consumeOpen();
+        Loc = PT.getOpenLocation();
       }
 
       ExprVector ArgExprs(Actions);
@@ -1256,7 +1279,8 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       
       if (Tok.is(tok::code_completion)) {
         Actions.CodeCompleteCall(getCurScope(), LHS.get(), 0, 0);
-        ConsumeCodeCompletionToken();
+        cutOffParsing();
+        return ExprError();
       }
 
       if (OpKind == tok::l_paren || !LHS.isInvalid()) {
@@ -1272,7 +1296,7 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       if (LHS.isInvalid()) {
         SkipUntil(tok::r_paren);
       } else if (Tok.isNot(tok::r_paren)) {
-        MatchRHSPunctuation(tok::r_paren, Loc);
+        PT.consumeClose();
         LHS = ExprError();
       } else {
         assert((ArgExprs.size() == 0 || 
@@ -1281,7 +1305,7 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         LHS = Actions.ActOnCallExpr(getCurScope(), LHS.take(), Loc,
                                     move_arg(ArgExprs), Tok.getLocation(),
                                     ExecConfig);
-        ConsumeParen();
+        PT.consumeClose();
       }
 
       break;
@@ -1314,7 +1338,8 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         Actions.CodeCompleteMemberReferenceExpr(getCurScope(), LHS.get(),
                                                 OpLoc, OpKind == tok::arrow);
         
-        ConsumeCodeCompletionToken();
+        cutOffParsing();
+        return ExprError();
       }
       
       if (MayBePseudoDestructor && !LHS.isInvalid()) {
@@ -1334,7 +1359,7 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       if (ParseUnqualifiedId(SS, 
                              /*EnteringContext=*/false, 
                              /*AllowDestructorName=*/true,
-                             /*AllowConstructorName=*/ getLang().Microsoft, 
+                             /*AllowConstructorName=*/ getLang().MicrosoftExt, 
                              ObjectType,
                              Name))
         LHS = ExprError();
@@ -1473,11 +1498,14 @@ ExprResult Parser::ParseUnaryExprOrTypeTraitExpression() {
     IdentifierInfo *Name = 0;
     SourceLocation NameLoc;
     if (Tok.is(tok::l_paren)) {
-      LParenLoc = ConsumeParen();
+      BalancedDelimiterTracker T(*this, tok::l_paren);
+      T.consumeOpen();
+      LParenLoc = T.getOpenLocation();
       if (Tok.is(tok::identifier)) {
         Name = Tok.getIdentifierInfo();
         NameLoc = ConsumeToken();
-        RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
+        T.consumeClose();
+        RParenLoc = T.getCloseLocation();
         if (RParenLoc.isInvalid())
           RParenLoc = PP.getLocForEndOfToken(NameLoc);
       } else {
@@ -1564,11 +1592,13 @@ ExprResult Parser::ParseBuiltinPrimaryExpression() {
     return ExprError(Diag(Tok, diag::err_expected_lparen_after_id)
                        << BuiltinII);
 
-  SourceLocation LParenLoc = ConsumeParen();
+  BalancedDelimiterTracker PT(*this, tok::l_paren);
+  PT.consumeOpen();
+
   // TODO: Build AST.
 
   switch (T) {
-  default: assert(0 && "Not a builtin primary expression!");
+  default: llvm_unreachable("Not a builtin primary expression!");
   case tok::kw___builtin_va_arg: {
     ExprResult Expr(ParseAssignmentExpression());
 
@@ -1607,7 +1637,7 @@ ExprResult Parser::ParseBuiltinPrimaryExpression() {
     }
 
     // Keep track of the various subcomponents we see.
-    llvm::SmallVector<Sema::OffsetOfComponent, 4> Comps;
+    SmallVector<Sema::OffsetOfComponent, 4> Comps;
 
     Comps.push_back(Sema::OffsetOfComponent());
     Comps.back().isBrackets = false;
@@ -1634,7 +1664,9 @@ ExprResult Parser::ParseBuiltinPrimaryExpression() {
         // offsetof-member-designator: offsetof-member-design '[' expression ']'
         Comps.push_back(Sema::OffsetOfComponent());
         Comps.back().isBrackets = true;
-        Comps.back().LocStart = ConsumeBracket();
+        BalancedDelimiterTracker ST(*this, tok::l_square);
+        ST.consumeOpen();
+        Comps.back().LocStart = ST.getOpenLocation();
         Res = ParseExpression();
         if (Res.isInvalid()) {
           SkipUntil(tok::r_paren);
@@ -1642,18 +1674,19 @@ ExprResult Parser::ParseBuiltinPrimaryExpression() {
         }
         Comps.back().U.E = Res.release();
 
-        Comps.back().LocEnd =
-          MatchRHSPunctuation(tok::r_square, Comps.back().LocStart);
+        ST.consumeClose();
+        Comps.back().LocEnd = ST.getCloseLocation();
       } else {
         if (Tok.isNot(tok::r_paren)) {
-          MatchRHSPunctuation(tok::r_paren, LParenLoc);
+          PT.consumeClose();
           Res = ExprError();
         } else if (Ty.isInvalid()) {
           Res = ExprError();
         } else {
+          PT.consumeClose();
           Res = Actions.ActOnBuiltinOffsetOf(getCurScope(), StartLoc, TypeLoc,
-                                             Ty.get(), &Comps[0],
-                                             Comps.size(), ConsumeParen());
+                                             Ty.get(), &Comps[0], Comps.size(),
+                                             PT.getCloseLocation());
         }
         break;
       }
@@ -1753,7 +1786,11 @@ Parser::ParseParenExpression(ParenParseOption &ExprType, bool stopIfCastExpr,
                              SourceLocation &RParenLoc) {
   assert(Tok.is(tok::l_paren) && "Not a paren expr!");
   GreaterThanIsOperatorScope G(GreaterThanIsOperator, true);
-  SourceLocation OpenLoc = ConsumeParen();
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  if (T.consumeOpen())
+    return ExprError();
+  SourceLocation OpenLoc = T.getOpenLocation();
+
   ExprResult Result(true);
   bool isAmbiguousTypeId;
   CastTy = ParsedType();
@@ -1762,7 +1799,7 @@ Parser::ParseParenExpression(ParenParseOption &ExprType, bool stopIfCastExpr,
     Actions.CodeCompleteOrdinaryName(getCurScope(), 
                  ExprType >= CompoundLiteral? Sema::PCC_ParenthesizedExpression
                                             : Sema::PCC_Expression);
-    ConsumeCodeCompletionToken();
+    cutOffParsing();
     return ExprError();
   }
 
@@ -1806,7 +1843,8 @@ Parser::ParseParenExpression(ParenParseOption &ExprType, bool stopIfCastExpr,
     }
              
     TypeResult Ty = ParseTypeName();
-    SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, OpenLoc);
+    T.consumeClose();
+    RParenLoc = T.getCloseLocation();
     ExprResult SubExpr = ParseCastExpression(/*isUnaryExpression=*/false);
     
     if (Ty.isInvalid() || SubExpr.isInvalid())
@@ -1825,9 +1863,11 @@ Parser::ParseParenExpression(ParenParseOption &ExprType, bool stopIfCastExpr,
     // in which case we should treat it as type-id.
     // if stopIfCastExpr is false, we need to determine the context past the
     // parens, so we defer to ParseCXXAmbiguousParenExpression for that.
-    if (isAmbiguousTypeId && !stopIfCastExpr)
-      return ParseCXXAmbiguousParenExpression(ExprType, CastTy,
-                                              OpenLoc, RParenLoc);
+    if (isAmbiguousTypeId && !stopIfCastExpr) {
+      ExprResult res = ParseCXXAmbiguousParenExpression(ExprType, CastTy, T);
+      RParenLoc = T.getCloseLocation();
+      return res;
+    }
 
     // Parse the type declarator.
     DeclSpec DS(AttrFactory);
@@ -1851,11 +1891,8 @@ Parser::ParseParenExpression(ParenParseOption &ExprType, bool stopIfCastExpr,
                                               Ty.get(), 0);
     } else {          
       // Match the ')'.
-      if (Tok.is(tok::r_paren))
-        RParenLoc = ConsumeParen();
-      else
-        MatchRHSPunctuation(tok::r_paren, OpenLoc);
-
+      T.consumeClose();
+      RParenLoc = T.getCloseLocation();
       if (Tok.is(tok::l_brace)) {
         ExprType = CompoundLiteral;
         TypeResult Ty;
@@ -1939,11 +1976,8 @@ Parser::ParseParenExpression(ParenParseOption &ExprType, bool stopIfCastExpr,
     return ExprError();
   }
 
-  if (Tok.is(tok::r_paren))
-    RParenLoc = ConsumeParen();
-  else
-    MatchRHSPunctuation(tok::r_paren, OpenLoc);
-
+  T.consumeClose();
+  RParenLoc = T.getCloseLocation();
   return move(Result);
 }
 
@@ -1978,7 +2012,7 @@ ExprResult Parser::ParseStringLiteralExpression() {
 
   // String concat.  Note that keywords like __func__ and __FUNCTION__ are not
   // considered to be strings for concatenation purposes.
-  llvm::SmallVector<Token, 4> StringToks;
+  SmallVector<Token, 4> StringToks;
 
   do {
     StringToks.push_back(Tok);
@@ -2007,8 +2041,8 @@ ExprResult Parser::ParseGenericSelectionExpression() {
   if (!getLang().C1X)
     Diag(KeyLoc, diag::ext_c1x_generic_selection);
 
-  SourceLocation LParenLoc = Tok.getLocation();
-  if (ExpectAndConsume(tok::l_paren, diag::err_expected_lparen, ""))
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  if (T.expectAndConsume(diag::err_expected_lparen))
     return ExprError();
 
   ExprResult ControllingExpr;
@@ -2074,11 +2108,12 @@ ExprResult Parser::ParseGenericSelectionExpression() {
     ConsumeToken();
   }
 
-  SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
-  if (RParenLoc.isInvalid())
+  T.consumeClose();
+  if (T.getCloseLocation().isInvalid())
     return ExprError();
 
-  return Actions.ActOnGenericSelectionExpr(KeyLoc, DefaultLoc, RParenLoc,
+  return Actions.ActOnGenericSelectionExpr(KeyLoc, DefaultLoc, 
+                                           T.getCloseLocation(),
                                            ControllingExpr.release(),
                                            move_arg(Types), move_arg(Exprs));
 }
@@ -2104,8 +2139,8 @@ ExprResult Parser::ParseGenericSelectionExpression() {
 /// [C++0x]   assignment-expression
 /// [C++0x]   braced-init-list
 ///
-bool Parser::ParseExpressionList(llvm::SmallVectorImpl<Expr*> &Exprs,
-                            llvm::SmallVectorImpl<SourceLocation> &CommaLocs,
+bool Parser::ParseExpressionList(SmallVectorImpl<Expr*> &Exprs,
+                            SmallVectorImpl<SourceLocation> &CommaLocs,
                                  void (Sema::*Completer)(Scope *S, 
                                                            Expr *Data,
                                                            Expr **Args,
@@ -2117,7 +2152,8 @@ bool Parser::ParseExpressionList(llvm::SmallVectorImpl<Expr*> &Exprs,
         (Actions.*Completer)(getCurScope(), Data, Exprs.data(), Exprs.size());
       else
         Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Expression);
-      ConsumeCodeCompletionToken();
+      cutOffParsing();
+      return true;
     }
 
     ExprResult Expr;
@@ -2148,7 +2184,7 @@ bool Parser::ParseExpressionList(llvm::SmallVectorImpl<Expr*> &Exprs,
 void Parser::ParseBlockId() {
   if (Tok.is(tok::code_completion)) {
     Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Type);
-    ConsumeCodeCompletionToken();
+    return cutOffParsing();
   }
   
   // Parse the specifier-qualifier-list piece.

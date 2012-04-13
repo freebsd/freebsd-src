@@ -2827,7 +2827,7 @@ mxge_media_init(mxge_softc_t *sc)
 	}
 
 	for (i = 0; i < 3; i++, ptr++) {
-		ptr = index(ptr, '-');
+		ptr = strchr(ptr, '-');
 		if (ptr == NULL) {
 			device_printf(sc->dev,
 				      "only %d dashes in PC?!?\n", i);
@@ -4662,7 +4662,7 @@ mxge_attach(device_t dev)
 		goto abort_with_nothing;
 	}
 
-	err = bus_dma_tag_create(NULL,			/* parent */
+	err = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				 1,			/* alignment */
 				 0,			/* boundary */
 				 BUS_SPACE_MAXADDR,	/* low */

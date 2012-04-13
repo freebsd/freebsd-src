@@ -156,4 +156,4 @@ SYSCTL_NODE(_net,	PF_IPX,		ipx,	CTLFLAG_RW, 0,
 	"IPX/SPX");
 
 SYSCTL_NODE(_net_ipx,	IPXPROTO_RAW,	ipx,	CTLFLAG_RW, 0, "IPX");
-SYSCTL_NODE(_net_ipx,	IPXPROTO_SPX,	spx,	CTLFLAG_RW, 0, "SPX");
+static SYSCTL_NODE(_net_ipx, IPXPROTO_SPX, spx,	CTLFLAG_RW, 0, "SPX");

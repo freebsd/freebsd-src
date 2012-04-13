@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,7 @@
 #include <contrib/dev/acpica/compiler/asltypes.h>
 #include <contrib/dev/acpica/compiler/aslmessages.h>
 #include <contrib/dev/acpica/compiler/aslglobal.h>
+#include <contrib/dev/acpica/compiler/preprocess.h>
 
 
 /*******************************************************************************
@@ -84,7 +85,7 @@
  ******************************************************************************/
 
 /*
- * parser - generated from flex/bison, lex/yacc, etc.
+ * Main ASL parser - generated from flex/bison, lex/yacc, etc.
  */
 int
 AslCompilerparse(
@@ -289,7 +290,7 @@ AslCoreSubsystemError (
 
 int
 AslCompilererror(
-    char                    *s);
+    const char              *s);
 
 void
 AslCommonError (
@@ -299,6 +300,16 @@ AslCommonError (
     UINT32                  LogicalLineNumber,
     UINT32                  LogicalByteOffset,
     UINT32                  Column,
+    char                    *Filename,
+    char                    *ExtraMessage);
+
+void
+AslCommonError2 (
+    UINT8                   Level,
+    UINT8                   MessageId,
+    UINT32                  LineNumber,
+    UINT32                  Column,
+    char                    *SourceLine,
     char                    *Filename,
     char                    *ExtraMessage);
 
@@ -829,21 +840,23 @@ RsAllocateResourceNode (
     UINT32                  Size);
 
 void
-RsCreateBitField (
+RsCreateResourceField (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name,
     UINT32                  ByteOffset,
-    UINT32                  BitOffset);
-
-void
-RsCreateByteField (
-    ACPI_PARSE_OBJECT       *Op,
-    char                    *Name,
-    UINT32                  ByteOffset);
+    UINT32                  BitOffset,
+    UINT32                  BitLength);
 
 void
 RsSetFlagBits (
     UINT8                   *Flags,
+    ACPI_PARSE_OBJECT       *Op,
+    UINT8                   Position,
+    UINT8                   DefaultBit);
+
+void
+RsSetFlagBits16 (
+    UINT16                  *Flags,
     ACPI_PARSE_OBJECT       *Op,
     UINT8                   Position,
     UINT8                   DefaultBit);
@@ -931,6 +944,11 @@ RsDoDmaDescriptor (
     UINT32                  CurrentByteOffset);
 
 ASL_RESOURCE_NODE *
+RsDoFixedDmaDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
 RsDoFixedIoDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset);
@@ -969,6 +987,30 @@ RsDoGeneralRegisterDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset);
 
+ASL_RESOURCE_NODE *
+RsDoGpioIntDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoGpioIoDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoI2cSerialBusDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoSpiSerialBusDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoUartSerialBusDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
 
 /*
  * aslrestype2d - DWord address descriptors

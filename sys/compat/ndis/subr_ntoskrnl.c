@@ -3016,10 +3016,7 @@ RtlSecureZeroMemory(dst, len)
 }
 
 static void
-RtlFillMemory(dst, len, c)
-	void			*dst;
-	size_t			len;
-	uint8_t			c;
+RtlFillMemory(void *dst, size_t len, uint8_t c)
 {
 	memset(dst, c, len);
 }

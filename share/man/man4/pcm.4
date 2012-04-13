@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2011
+.Dd March 22, 2012
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -85,11 +85,11 @@ The following bridge device drivers are available:
 .It
 .Xr snd_audiocs 4 (enabled by default on sparc64)
 .It
-.Xr snd_cmi 4
+.Xr snd_cmi 4 (enabled by default on amd64, i386)
 .It
 .Xr snd_cs4281 4
 .It
-.Xr snd_csa 4
+.Xr snd_csa 4 (enabled by default on amd64, i386)
 .It
 .Xr snd_davbus 4 (enabled by default on powerpc)
 .It
@@ -97,7 +97,7 @@ The following bridge device drivers are available:
 .It
 .Xr snd_emu10k1 4
 .It
-.Xr snd_emu10kx 4
+.Xr snd_emu10kx 4 (enabled by default on amd64, i386)
 .It
 .Xr snd_envy24 4
 .It
@@ -112,6 +112,8 @@ The following bridge device drivers are available:
 .Xr snd_gusc 4
 .It
 .Xr snd_hda 4 (enabled by default on amd64, i386)
+.It
+.Xr snd_hdspe 4
 .It
 .Xr snd_ich 4 (enabled by default on amd64, i386)
 .It
@@ -324,8 +326,17 @@ for Linux applications, and deny for everything else.
 Always allow PROT_EXEC page mappings.
 .El
 .It Va hw.snd.default_auto
-Enable to automatically assign default sound unit to the most recent
-attached device.
+Automatically assign the default sound unit.
+The following values are supported (default is 1):
+.Bl -tag -width 2n
+.It 0
+Do not assign the default sound unit automatically.
+.It 1
+Use the best available sound device based on playing and recording
+capabilities of the device.
+.It 2
+Use the most recently attached device.
+.El
 .It Va hw.snd.default_unit
 Default sound card for systems with multiple sound cards.
 When using
@@ -714,6 +725,7 @@ A device node is not created properly.
 .Xr snd_fm801 4 ,
 .Xr snd_gusc 4 ,
 .Xr snd_hda 4 ,
+.Xr snd_hdspe 4 ,
 .Xr snd_ich 4 ,
 .Xr snd_maestro 4 ,
 .Xr snd_maestro3 4 ,

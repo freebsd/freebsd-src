@@ -111,7 +111,7 @@ static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
 static int cdce_debug = 0;
 static int cdce_tx_interval = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, cdce, CTLFLAG_RW, 0, "USB CDC-Ethernet");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, cdce, CTLFLAG_RW, 0, "USB CDC-Ethernet");
 SYSCTL_INT(_hw_usb_cdce, OID_AUTO, debug, CTLFLAG_RW, &cdce_debug, 0,
     "Debug level");
 SYSCTL_INT(_hw_usb_cdce, OID_AUTO, interval, CTLFLAG_RW, &cdce_tx_interval, 0,
@@ -303,8 +303,8 @@ cdce_ncm_init(struct cdce_softc *sc)
 	int err;
 
 	ufd = usbd_find_descriptor(sc->sc_ue.ue_udev, NULL,
-	    sc->sc_ifaces_index[1], UDESC_CS_INTERFACE, 0 - 1,
-	    UCDC_NCM_FUNC_DESC_SUBTYPE, 0 - 1);
+	    sc->sc_ifaces_index[1], UDESC_CS_INTERFACE, 0xFF,
+	    UCDC_NCM_FUNC_DESC_SUBTYPE, 0xFF);
 
 	/* verify length of NCM functional descriptor */
 	if (ufd != NULL) {
@@ -514,7 +514,7 @@ cdce_attach(device_t dev)
 
 	ud = usbd_find_descriptor
 	    (uaa->device, NULL, uaa->info.bIfaceIndex,
-	    UDESC_CS_INTERFACE, 0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
+	    UDESC_CS_INTERFACE, 0xFF, UDESCSUB_CDC_UNION, 0xFF);
 
 	if ((ud == NULL) || (ud->bLength < sizeof(*ud)) ||
 	    (sc->sc_flags & CDCE_FLAG_NO_UNION)) {
@@ -598,7 +598,7 @@ alloc_transfers:
 
 	ued = usbd_find_descriptor
 	    (uaa->device, NULL, uaa->info.bIfaceIndex,
-	    UDESC_CS_INTERFACE, 0 - 1, UDESCSUB_CDC_ENF, 0 - 1);
+	    UDESC_CS_INTERFACE, 0xFF, UDESCSUB_CDC_ENF, 0xFF);
 
 	if ((ued == NULL) || (ued->bLength < sizeof(*ued))) {
 		error = USB_ERR_INVAL;
@@ -892,7 +892,9 @@ cdce_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct cdce_softc *sc = usbd_xfer_softc(xfer);
 	struct mbuf *m;
 	uint8_t x;
-	int actlen, aframes, len;
+	int actlen;
+	int aframes;
+	int len;
 
 	usbd_xfer_status(xfer, &actlen, NULL, &aframes, NULL);
 
@@ -911,7 +913,7 @@ cdce_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			if ((sc->sc_flags & CDCE_FLAG_ZAURUS) && len >= 14)
 				len -= 4;
 
-			if (len < sizeof(struct ether_header)) {
+			if (len < (int)sizeof(struct ether_header)) {
 				m_freem(m);
 				continue;
 			}
@@ -1096,7 +1098,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 			break;
 		}
 
-		if (m->m_pkthdr.len > rem) {
+		if (m->m_pkthdr.len > (int)rem) {
 			if (n == 0) {
 				/* The frame won't fit in our buffer */
 				DPRINTFN(1, "Frame too big to be transmitted!\n");
@@ -1278,7 +1280,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(1, "received %u bytes in %u frames\n",
 		    actlen, aframes);
 
-		if (actlen < (sizeof(sc->sc_ncm.hdr) +
+		if (actlen < (int)(sizeof(sc->sc_ncm.hdr) +
 		    sizeof(sc->sc_ncm.dpt))) {
 			DPRINTFN(1, "frame too short\n");
 			goto tr_setup;
@@ -1305,7 +1307,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			goto tr_stall;
 		}
 		temp = UGETW(sc->sc_ncm.hdr.wDptIndex);
-		if ((temp + sizeof(sc->sc_ncm.dpt)) > actlen) {
+		if ((int)(temp + sizeof(sc->sc_ncm.dpt)) > actlen) {
 			DPRINTFN(1, "invalid DPT index: 0x%04x\n", temp);
 			goto tr_stall;
 		}
@@ -1354,7 +1356,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			temp = UGETW(sc->sc_ncm.dp[x].wFrameLength);
 
 			if ((offset == 0) ||
-			    (temp < sizeof(struct ether_header)) ||
+			    (temp < (int)sizeof(struct ether_header)) ||
 			    (temp > (MCLBYTES - ETHER_ALIGN))) {
 				DPRINTFN(1, "NULL frame detected at %d\n", x);
 				m = NULL;
@@ -1366,7 +1368,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				m = NULL;
 				/* silently ignore this frame */
 				continue;
-			} else if (temp > (MHLEN - ETHER_ALIGN)) {
+			} else if (temp > (int)(MHLEN - ETHER_ALIGN)) {
 				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 			} else {
 				m = m_gethdr(M_DONTWAIT, MT_DATA);

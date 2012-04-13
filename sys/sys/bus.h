@@ -52,6 +52,7 @@ struct u_businfo {
 typedef enum device_state {
 	DS_NOTPRESENT = 10,		/**< @brief not probed or probe failed */
 	DS_ALIVE = 20,			/**< @brief probe succeeded */
+	DS_ATTACHING = 25,		/**< @brief currently attaching */
 	DS_ATTACHED = 30,		/**< @brief attach method called */
 	DS_BUSY = 40			/**< @brief device is open */
 } device_state_t;
@@ -424,6 +425,7 @@ device_t	device_add_child_ordered(device_t dev, u_int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
+int	device_delete_children(device_t dev);
 int	device_attach(device_t dev);
 int	device_detach(device_t dev);
 void	device_disable(device_t dev);
@@ -570,9 +572,10 @@ extern int bus_current_pass;
 void	bus_set_pass(int pass);
 
 /**
- * Shorthand for constructing method tables.
+ * Shorthands for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
+#define	DEVMETHOD_END	KOBJMETHOD_END
 
 /*
  * Some common device interfaces.

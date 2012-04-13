@@ -2621,7 +2621,8 @@ create_ring(softc_t *sc, struct desc_ring *ring, int num_descs)
 #ifdef __FreeBSD__
 
   /* Create a DMA tag for descriptors and buffers. */
-  if ((error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+  if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),
+   4, 0, BUS_SPACE_MAXADDR_32BIT,
    BUS_SPACE_MAXADDR, NULL, NULL, PAGE_SIZE, 2, PAGE_SIZE, BUS_DMA_ALLOCNOW,
 # if (__FreeBSD_version >= 502000)
    NULL, NULL,
@@ -4945,7 +4946,9 @@ lmc_ifnet_detach(softc_t *sc)
   /* Detach from the ifnet kernel interface. */
   if_detach(sc->ifp);
 
-# if (__FreeBSD_version >= 600000)
+# if (defined(__FreeBSD__) && __FreeBSD_version >= 800082)
+  if_free(sc->ifp);
+# elif (defined(__FreeBSD__) && __FreeBSD_version >= 600000)
   if_free_type(sc->ifp, NSPPP ? IFT_PPP : IFT_OTHER);
 # endif
   }

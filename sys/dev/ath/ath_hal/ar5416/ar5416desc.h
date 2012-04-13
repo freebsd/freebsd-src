@@ -302,6 +302,8 @@ struct ar5416_desc {
 #define AR_FinalTxIdx_S     21
 #define AR_TxStatusRsvd82   0x01800000
 #define AR_PowerMgmt        0x02000000
+#define AR_TxTid            0xf0000000
+#define AR_TxTid_S          28
 #define AR_TxStatusRsvd83   0xfc000000
 
 /***********

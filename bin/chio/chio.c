@@ -87,7 +87,7 @@ static	int do_voltag(const char *, int, char **);
 #endif
 
 /* Valid changer element types. */
-const struct element_type elements[] = {
+static	const struct element_type elements[] = {
 	{ "drive",		CHET_DT },
 	{ "picker",		CHET_MT },
 	{ "portal",		CHET_IE },
@@ -97,7 +97,7 @@ const struct element_type elements[] = {
 };
 
 /* Valid commands. */
-const struct changer_command commands[] = {
+static	const struct changer_command commands[] = {
 	{ "exchange",		do_exchange },
 	{ "getpicker",		do_getpicker },
 	{ "ielem", 		do_ielem },
@@ -112,7 +112,7 @@ const struct changer_command commands[] = {
 };
 
 /* Valid special words. */
-const struct special_word specials[] = {
+static	const struct special_word specials[] = {
 	{ "inv",		SW_INVERT },
 	{ "inv1",		SW_INVERT1 },
 	{ "inv2",		SW_INVERT2 },

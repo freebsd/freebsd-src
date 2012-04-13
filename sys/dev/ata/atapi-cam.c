@@ -122,7 +122,7 @@ static device_method_t atapi_cam_methods[] = {
 	DEVMETHOD(device_attach,        atapi_cam_attach),
 	DEVMETHOD(device_detach,        atapi_cam_detach),
 	DEVMETHOD(ata_reinit,           atapi_cam_reinit),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t atapi_cam_driver = {
@@ -576,9 +576,10 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    struct scsi_inquiry *inq = (struct scsi_inquiry *) &request->u.atapi.ccb[0];
 
 	    if (inq->byte2 == 0 && inq->page_code == 0 &&
-		inq->length > SHORT_INQUIRY_LENGTH) {
+		scsi_2btoul(inq->length) > SHORT_INQUIRY_LENGTH) {
 		bzero(buf, len);
-		len = inq->length = SHORT_INQUIRY_LENGTH;
+		len = SHORT_INQUIRY_LENGTH;
+		scsi_ulto2b(len, inq->length);
 	    }
 	    break;
 	}

@@ -155,12 +155,12 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
   for (unsigned i = 0; i != PointerArgs.size(); ++i) {
     bool isByVal = F->paramHasAttr(PointerArgs[i].second+1, Attribute::ByVal);
     Argument *PtrArg = PointerArgs[i].first;
-    const Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
+    Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
 
     // If this is a byval argument, and if the aggregate type is small, just
     // pass the elements, which is always safe.
     if (isByVal) {
-      if (const StructType *STy = dyn_cast<StructType>(AgTy)) {
+      if (StructType *STy = dyn_cast<StructType>(AgTy)) {
         if (maxElements > 0 && STy->getNumElements() > maxElements) {
           DEBUG(dbgs() << "argpromotion disable promoting argument '"
                 << PtrArg->getName() << "' because it would require adding more"
@@ -190,7 +190,7 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
     // If the argument is a recursive type and we're in a recursive
     // function, we could end up infinitely peeling the function argument.
     if (isSelfRecursive) {
-      if (const StructType *STy = dyn_cast<StructType>(AgTy)) {
+      if (StructType *STy = dyn_cast<StructType>(AgTy)) {
         bool RecursiveType = false;
         for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
           if (STy->getElementType(i) == PtrArg->getType()) {
@@ -382,7 +382,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
     User *U = *UI;
     Operands.clear();
     if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-      if (LI->isVolatile()) return false;  // Don't hack volatile loads
+      // Don't hack volatile/atomic loads
+      if (!LI->isSimple()) return false;
       Loads.push_back(LI);
       // Direct loads are equivalent to a GEP with a zero index and then a load.
       Operands.push_back(0);
@@ -410,7 +411,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
       for (Value::use_iterator UI = GEP->use_begin(), E = GEP->use_end();
            UI != E; ++UI)
         if (LoadInst *LI = dyn_cast<LoadInst>(*UI)) {
-          if (LI->isVolatile()) return false;  // Don't hack volatile loads
+          // Don't hack volatile/atomic loads
+          if (!LI->isSimple()) return false;
           Loads.push_back(LI);
         } else {
           // Other uses than load?
@@ -492,7 +494,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
 
   // Start by computing a new prototype for the function, which is the same as
   // the old function, but has modified arguments.
-  const FunctionType *FTy = F->getFunctionType();
+  FunctionType *FTy = F->getFunctionType();
   std::vector<Type*> Params;
 
   typedef std::set<IndicesVector> ScalarizeTable;
@@ -527,8 +529,8 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
        ++I, ++ArgIndex) {
     if (ByValArgsToTransform.count(I)) {
       // Simple byval argument? Just add all the struct element types.
-      const Type *AgTy = cast<PointerType>(I->getType())->getElementType();
-      const StructType *STy = cast<StructType>(AgTy);
+      Type *AgTy = cast<PointerType>(I->getType())->getElementType();
+      StructType *STy = cast<StructType>(AgTy);
       for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i)
         Params.push_back(STy->getElementType(i));
       ++NumByValArgsPromoted;
@@ -576,9 +578,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
       for (ScalarizeTable::iterator SI = ArgIndices.begin(),
              E = ArgIndices.end(); SI != E; ++SI) {
         // not allowed to dereference ->begin() if size() is 0
-        Params.push_back(GetElementPtrInst::getIndexedType(I->getType(),
-                                                           SI->begin(),
-                                                           SI->end()));
+        Params.push_back(GetElementPtrInst::getIndexedType(I->getType(), *SI));
         assert(Params.back());
       }
 
@@ -593,7 +593,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
   if (Attributes attrs = PAL.getFnAttributes())
     AttributesVec.push_back(AttributeWithIndex::get(~0, attrs));
 
-  const Type *RetTy = FTy->getReturnType();
+  Type *RetTy = FTy->getReturnType();
 
   // Work around LLVM bug PR56: the CWriter cannot emit varargs functions which
   // have zero fixed arguments.
@@ -662,13 +662,13 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
 
       } else if (ByValArgsToTransform.count(I)) {
         // Emit a GEP and load for each element of the struct.
-        const Type *AgTy = cast<PointerType>(I->getType())->getElementType();
-        const StructType *STy = cast<StructType>(AgTy);
+        Type *AgTy = cast<PointerType>(I->getType())->getElementType();
+        StructType *STy = cast<StructType>(AgTy);
         Value *Idxs[2] = {
               ConstantInt::get(Type::getInt32Ty(F->getContext()), 0), 0 };
         for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
           Idxs[1] = ConstantInt::get(Type::getInt32Ty(F->getContext()), i);
-          Value *Idx = GetElementPtrInst::Create(*AI, Idxs, Idxs+2,
+          Value *Idx = GetElementPtrInst::Create(*AI, Idxs,
                                                  (*AI)->getName()+"."+utostr(i),
                                                  Call);
           // TODO: Tell AA about the new values?
@@ -686,12 +686,12 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
           LoadInst *OrigLoad = OriginalLoads[*SI];
           if (!SI->empty()) {
             Ops.reserve(SI->size());
-            const Type *ElTy = V->getType();
+            Type *ElTy = V->getType();
             for (IndicesVector::const_iterator II = SI->begin(),
                  IE = SI->end(); II != IE; ++II) {
               // Use i32 to index structs, and i64 for others (pointers/arrays).
               // This satisfies GEP constraints.
-              const Type *IdxTy = (ElTy->isStructTy() ?
+              Type *IdxTy = (ElTy->isStructTy() ?
                     Type::getInt32Ty(F->getContext()) : 
                     Type::getInt64Ty(F->getContext()));
               Ops.push_back(ConstantInt::get(IdxTy, *II));
@@ -699,8 +699,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
               ElTy = cast<CompositeType>(ElTy)->getTypeAtIndex(*II);
             }
             // And create a GEP to extract those indices.
-            V = GetElementPtrInst::Create(V, Ops.begin(), Ops.end(),
-                                          V->getName()+".idx", Call);
+            V = GetElementPtrInst::Create(V, Ops, V->getName()+".idx", Call);
             Ops.clear();
             AA.copyValue(OrigLoad->getOperand(0), V);
           }
@@ -792,16 +791,16 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
       Instruction *InsertPt = NF->begin()->begin();
 
       // Just add all the struct element types.
-      const Type *AgTy = cast<PointerType>(I->getType())->getElementType();
+      Type *AgTy = cast<PointerType>(I->getType())->getElementType();
       Value *TheAlloca = new AllocaInst(AgTy, 0, "", InsertPt);
-      const StructType *STy = cast<StructType>(AgTy);
+      StructType *STy = cast<StructType>(AgTy);
       Value *Idxs[2] = {
             ConstantInt::get(Type::getInt32Ty(F->getContext()), 0), 0 };
 
       for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
         Idxs[1] = ConstantInt::get(Type::getInt32Ty(F->getContext()), i);
         Value *Idx = 
-          GetElementPtrInst::Create(TheAlloca, Idxs, Idxs+2,
+          GetElementPtrInst::Create(TheAlloca, Idxs,
                                     TheAlloca->getName()+"."+Twine(i), 
                                     InsertPt);
         I2->setName(I->getName()+"."+Twine(i));

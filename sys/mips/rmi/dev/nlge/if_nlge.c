@@ -257,10 +257,8 @@ static device_method_t nlna_methods[] = {
 
 	/* bus interface : TBD : what are these for ? */
 	DEVMETHOD(bus_setup_intr,       bus_generic_setup_intr),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t	nlna_driver = {

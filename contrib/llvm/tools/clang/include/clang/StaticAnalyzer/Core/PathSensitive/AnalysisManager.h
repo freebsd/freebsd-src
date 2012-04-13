@@ -16,6 +16,7 @@
 #define LLVM_CLANG_GR_ANALYSISMANAGER_H
 
 #include "clang/Analysis/AnalysisContext.h"
+#include "clang/Frontend/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 
@@ -34,10 +35,10 @@ class AnalysisManager : public BugReporterData {
   LocationContextManager LocCtxMgr;
 
   ASTContext &Ctx;
-  Diagnostic &Diags;
+  DiagnosticsEngine &Diags;
   const LangOptions &LangInfo;
 
-  llvm::OwningPtr<PathDiagnosticClient> PD;
+  llvm::OwningPtr<PathDiagnosticConsumer> PD;
 
   // Configurable components creators.
   StoreManagerCreator CreateStoreMgr;
@@ -60,7 +61,7 @@ class AnalysisManager : public BugReporterData {
 
   bool VisualizeEGDot;
   bool VisualizeEGUbi;
-  bool PurgeDead;
+  AnalysisPurgeMode PurgeDead;
 
   /// EargerlyAssume - A flag indicating how the engine should handle
   //   expressions such as: 'x = (y != 0)'.  When this flag is true then
@@ -75,27 +76,24 @@ class AnalysisManager : public BugReporterData {
   bool EagerlyTrimEGraph;
 
 public:
-  AnalysisManager(ASTContext &ctx, Diagnostic &diags, 
-                  const LangOptions &lang, PathDiagnosticClient *pd,
+  AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags, 
+                  const LangOptions &lang, PathDiagnosticConsumer *pd,
                   StoreManagerCreator storemgr,
                   ConstraintManagerCreator constraintmgr, 
                   CheckerManager *checkerMgr,
                   idx::Indexer *idxer,
                   unsigned maxnodes, unsigned maxvisit,
-                  bool vizdot, bool vizubi, bool purge, bool eager, bool trim,
+                  bool vizdot, bool vizubi, AnalysisPurgeMode purge,
+                  bool eager, bool trim,
                   bool inlinecall, bool useUnoptimizedCFG,
                   bool addImplicitDtors, bool addInitializers,
-                  bool eagerlyTrimEGraph)
+                  bool eagerlyTrimEGraph);
 
-    : AnaCtxMgr(useUnoptimizedCFG, addImplicitDtors, addInitializers),
-      Ctx(ctx), Diags(diags), LangInfo(lang), PD(pd),
-      CreateStoreMgr(storemgr), CreateConstraintMgr(constraintmgr),
-      CheckerMgr(checkerMgr), Idxer(idxer),
-      AScope(ScopeDecl), MaxNodes(maxnodes), MaxVisit(maxvisit),
-      VisualizeEGDot(vizdot), VisualizeEGUbi(vizubi), PurgeDead(purge),
-      EagerlyAssume(eager), TrimGraph(trim), InlineCall(inlinecall),
-      EagerlyTrimEGraph(eagerlyTrimEGraph) {}
-  
+  /// Construct a clone of the given AnalysisManager with the given ASTContext
+  /// and DiagnosticsEngine.
+  AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
+                  AnalysisManager &ParentAM);
+
   ~AnalysisManager() { FlushDiagnostics(); }
   
   void ClearContexts() {
@@ -127,7 +125,7 @@ public:
     return getASTContext().getSourceManager();
   }
 
-  virtual Diagnostic &getDiagnostic() {
+  virtual DiagnosticsEngine &getDiagnostic() {
     return Diags;
   }
 
@@ -135,7 +133,7 @@ public:
     return LangInfo;
   }
 
-  virtual PathDiagnosticClient *getPathDiagnosticClient() {
+  virtual PathDiagnosticConsumer *getPathDiagnosticConsumer() {
     return PD.get();
   }
   
@@ -160,7 +158,7 @@ public:
 
   bool shouldTrimGraph() const { return TrimGraph; }
 
-  bool shouldPurgeDead() const { return PurgeDead; }
+  AnalysisPurgeMode getPurgeMode() const { return PurgeDead; }
 
   bool shouldEagerlyAssume() const { return EagerlyAssume; }
 
@@ -174,8 +172,9 @@ public:
     return AnaCtxMgr.getContext(D)->getCFG();
   }
 
-  LiveVariables *getLiveVariables(Decl const *D) {
-    return AnaCtxMgr.getContext(D)->getLiveVariables();
+  template <typename T>
+  T *getAnalysis(Decl const *D) {
+    return AnaCtxMgr.getContext(D)->getAnalysis<T>();
   }
 
   ParentMap &getParentMap(Decl const *D) {

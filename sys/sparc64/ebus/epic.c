@@ -125,7 +125,7 @@ static device_method_t epic_methods[] = {
 	DEVMETHOD(device_attach,	epic_attach),
 	DEVMETHOD(device_detach,	epic_detach),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t epic_devclass;

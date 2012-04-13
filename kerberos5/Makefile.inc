@@ -6,14 +6,16 @@ KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 
 CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR}/../../include
 
-.if defined(WITH_OPENLDAP)
+.if defined(WITH_OPENLDAP) && !defined(COMPAT_32BIT)
 OPENLDAPBASE?=	/usr/local
 LDAPLDADD=	-lldap -llber
 LDAPDPADD=	${LDAPLDADD:C;^-l(.*)$;${OPENLDAPBASE}/lib/lib\1.a;}
-LDAPCFLAGS=	-I${OPENLDAPBASE}/include -DOPENLDAP=1
+LDAPCFLAGS=	-I${OPENLDAPBASE}/include -DOPENLDAP=1 -DLDAP_DEPRECATED=1
 LDAPLDFLAGS=	-L${OPENLDAPBASE}/lib -Wl,-rpath,${OPENLDAPBASE}/lib
 .endif
 
+LIBHEIMIPCC=	${.OBJDIR}/../../lib/libheimipcc/libheimipcc.a
+LIBHEIMIPCS=	${.OBJDIR}/../../lib/libheimipcs/libheimipcs.a
 LIBVERS=	${.OBJDIR}/../../lib/libvers/libvers.a
 LIBSL=		${.OBJDIR}/../../lib/libsl/libsl.a
 
@@ -28,7 +30,9 @@ ETSRCS=	\
 	${KRB5DIR}/lib/krb5/krb5_err.et \
 	${KRB5DIR}/lib/krb5/krb_err.et \
 	${KRB5DIR}/lib/gssapi/krb5/gkrb5_err.et \
-	${KRB5DIR}/lib/hx509/hx509_err.et
+	${KRB5DIR}/lib/hx509/hx509_err.et \
+	${KRB5DIR}/lib/wind/wind_err.et \
+	${KRB5DIR}/lib/ntlm/ntlm_err.et
 
 .for ET in ${ETSRCS}
 .for _ET in ${ET:T:R}

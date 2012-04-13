@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2002
+.Dd February 13, 2012
 .Dt BTOWC 3
 .Os
 .Sh NAME
@@ -35,6 +35,12 @@
 .Lb libc
 .Sh SYNOPSIS
 .In wchar.h
+.Ft wint_t
+.Fn btowc "int c"
+.Ft int
+.Fn wctob "wint_t c"
+.In wchar.h
+.In xlocale.h
 .Ft wint_t
 .Fn btowc "int c"
 .Ft int
@@ -58,7 +64,10 @@ If the wide character is
 or not able to be represented as a single byte in the initial shift state,
 .Fn wctob
 returns
-.Dv WEOF .
+.Dv EOF .
+.Pp
+The _l-suffixed versions take an explicit locale argument, while the
+non-suffixed versions use the current global or per-thread locale.
 .Sh SEE ALSO
 .Xr mbrtowc 3 ,
 .Xr multibyte 3 ,

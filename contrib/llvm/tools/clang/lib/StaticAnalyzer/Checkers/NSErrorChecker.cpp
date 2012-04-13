@@ -19,7 +19,7 @@
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRStateTrait.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Decl.h"
@@ -60,7 +60,7 @@ void NSErrorMethodChecker::checkASTDecl(const ObjCMethodDecl *D,
     II = &D->getASTContext().Idents.get("NSError"); 
 
   bool hasNSError = false;
-  for (ObjCMethodDecl::param_iterator
+  for (ObjCMethodDecl::param_const_iterator
          I = D->param_begin(), E = D->param_end(); I != E; ++I)  {
     if (IsNSError((*I)->getType(), II)) {
       hasNSError = true;
@@ -72,8 +72,10 @@ void NSErrorMethodChecker::checkASTDecl(const ObjCMethodDecl *D,
     const char *err = "Method accepting NSError** "
         "should have a non-void return value to indicate whether or not an "
         "error occurred";
+    PathDiagnosticLocation L =
+      PathDiagnosticLocation::create(D, BR.getSourceManager());
     BR.EmitBasicReport("Bad return type when passing NSError**",
-                       "Coding conventions (Apple)", err, D->getLocation());
+                       "Coding conventions (Apple)", err, L);
   }
 }
 
@@ -118,8 +120,10 @@ void CFErrorFunctionChecker::checkASTDecl(const FunctionDecl *D,
     const char *err = "Function accepting CFErrorRef* "
         "should have a non-void return value to indicate whether or not an "
         "error occurred";
+    PathDiagnosticLocation L =
+      PathDiagnosticLocation::create(D, BR.getSourceManager());
     BR.EmitBasicReport("Bad return type when passing CFErrorRef*",
-                       "Coding conventions (Apple)", err, D->getLocation());
+                       "Coding conventions (Apple)", err, L);
   }
 }
 
@@ -153,7 +157,8 @@ public:
   NSOrCFErrorDerefChecker() : NSErrorII(0), CFErrorII(0),
                               ShouldCheckNSError(0), ShouldCheckCFError(0) { }
 
-  void checkLocation(SVal loc, bool isLoad, CheckerContext &C) const;
+  void checkLocation(SVal loc, bool isLoad, const Stmt *S,
+                     CheckerContext &C) const;
   void checkEvent(ImplicitNullDerefEvent event) const;
 };
 }
@@ -166,18 +171,18 @@ typedef llvm::ImmutableMap<SymbolRef, unsigned> ErrorOutFlag;
 namespace clang {
 namespace ento {
   template <>
-  struct GRStateTrait<NSErrorOut> : public GRStatePartialTrait<ErrorOutFlag> {  
+  struct ProgramStateTrait<NSErrorOut> : public ProgramStatePartialTrait<ErrorOutFlag> {  
     static void *GDMIndex() { static int index = 0; return &index; }
   };
   template <>
-  struct GRStateTrait<CFErrorOut> : public GRStatePartialTrait<ErrorOutFlag> {  
+  struct ProgramStateTrait<CFErrorOut> : public ProgramStatePartialTrait<ErrorOutFlag> {  
     static void *GDMIndex() { static int index = 0; return &index; }
   };
 }
 }
 
 template <typename T>
-static bool hasFlag(SVal val, const GRState *state) {
+static bool hasFlag(SVal val, const ProgramState *state) {
   if (SymbolRef sym = val.getAsSymbol())
     if (const unsigned *attachedFlags = state->get<T>(sym))
       return *attachedFlags;
@@ -185,7 +190,7 @@ static bool hasFlag(SVal val, const GRState *state) {
 }
 
 template <typename T>
-static void setFlag(const GRState *state, SVal val, CheckerContext &C) {
+static void setFlag(const ProgramState *state, SVal val, CheckerContext &C) {
   // We tag the symbol that the SVal wraps.
   if (SymbolRef sym = val.getAsSymbol())
     C.addTransition(state->set<T>(sym, true));
@@ -207,6 +212,7 @@ static QualType parameterTypeFromSVal(SVal val, CheckerContext &C) {
 }
 
 void NSOrCFErrorDerefChecker::checkLocation(SVal loc, bool isLoad,
+                                            const Stmt *S,
                                             CheckerContext &C) const {
   if (!isLoad)
     return;
@@ -214,7 +220,7 @@ void NSOrCFErrorDerefChecker::checkLocation(SVal loc, bool isLoad,
     return;
 
   ASTContext &Ctx = C.getASTContext();
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   // If we are loading from NSError**/CFErrorRef* parameter, mark the resulting
   // SVal so that we can later check it when handling the
@@ -247,7 +253,7 @@ void NSOrCFErrorDerefChecker::checkEvent(ImplicitNullDerefEvent event) const {
     return;
 
   SVal loc = event.Location;
-  const GRState *state = event.SinkNode->getState();
+  const ProgramState *state = event.SinkNode->getState();
   BugReporter &BR = *event.BR;
 
   bool isNSError = hasFlag<NSErrorOut>(loc, state);
@@ -277,7 +283,7 @@ void NSOrCFErrorDerefChecker::checkEvent(ImplicitNullDerefEvent event) const {
     bug = new NSErrorDerefBug();
   else
     bug = new CFErrorDerefBug();
-  EnhancedBugReport *report = new EnhancedBugReport(*bug, os.str(),
+  BugReport *report = new BugReport(*bug, os.str(),
                                                     event.SinkNode);
   BR.EmitReport(report);
 }

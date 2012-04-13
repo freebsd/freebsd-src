@@ -251,7 +251,14 @@ match::match(config &c, const char *var, const char *re)
 	: _var(var)
 {
 	_re = "^";
-	_re.append(c.expand_string(string(re)));
+	if (!c.expand_string(string(re)).empty() &&
+	    c.expand_string(string(re)).at(0) == '!') {
+		_re.append(c.expand_string(string(re)).substr(1));
+		_inv = 1;
+	} else {
+		_re.append(c.expand_string(string(re)));
+		_inv = 0;
+	}
 	_re.append("$");
 	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB | REG_ICASE);
 }
@@ -268,10 +275,13 @@ match::do_match(config &c)
 	bool retval;
 
 	if (Dflag)
-		fprintf(stderr, "Testing %s=%s against %s\n", _var.c_str(),
-		    value.c_str(), _re.c_str());
+		fprintf(stderr, "Testing %s=%s against %s, invert=%d\n",
+		    _var.c_str(), value.c_str(), _re.c_str(), _inv);
 
 	retval = (regexec(&_regex, value.c_str(), 0, NULL, 0) == 0);
+	if (_inv == 1)
+		retval = (retval == 0) ? 1 : 0;
+
 	return retval;
 }
 
@@ -288,7 +298,6 @@ media::media(config &, const char *var, const char *type)
 		{ IFM_FDDI,		"FDDI" },
 		{ IFM_IEEE80211,	"802.11" },
 		{ IFM_ATM,		"ATM" },
-		{ IFM_CARP,		"CARP" },
 		{ -1,			"unknown" },
 		{ 0, NULL },
 	};

@@ -65,7 +65,7 @@ static device_method_t rdcphy_methods[] = {
 	DEVMETHOD(device_attach,	rdcphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t rdcphy_devclass;

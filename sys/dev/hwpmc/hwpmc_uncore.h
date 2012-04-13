@@ -68,6 +68,7 @@ struct pmc_md_ucp_op_pmcallocate {
 #define	UCF_CTR0				0x394
 
 #define	UCF_OFFSET				32
+#define UCF_OFFSET_SB				29
 #define	UCF_CTRL				0x395
 
 /*
@@ -77,6 +78,7 @@ struct pmc_md_ucp_op_pmcallocate {
 #define	UCP_PMC0				0x3B0
 #define	UCP_EVSEL0				0x3C0
 #define UCP_OPCODE_MATCH			0x396
+#define UCP_CB0_EVSEL0				0x700
 
 /*
  * Simplified programming interface in Intel Performance Architecture
@@ -91,6 +93,12 @@ struct pmc_md_ucp_op_pmcallocate {
 #define	UC_GLOBAL_STATUS_FLAG_OVFPMI		(1ULL << 61)
 #define	UC_GLOBAL_CTRL_FLAG_FRZ			(1ULL << 63)
 #define	UC_GLOBAL_CTRL_FLAG_ENPMICORE0		(1ULL << 48)
+
+/*
+ * Model specific registers.
+ */
+
+#define MSR_GQ_SNOOP_MESF			0x301
 
 struct pmc_md_ucf_pmc {
 	uint64_t	pm_ucf_ctrl;

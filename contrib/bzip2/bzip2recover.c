@@ -37,7 +37,7 @@
 */
 #ifdef __GNUC__
    typedef  unsigned long long int  MaybeUInt64;
-#  define MaybeUInt64_FMT "%Lu"
+#  define MaybeUInt64_FMT "%llu"
 #else
 #ifdef _MSC_VER
    typedef  unsigned __int64  MaybeUInt64;

@@ -89,6 +89,9 @@ PPKEYWORD(sccs)
 PPKEYWORD(assert)
 PPKEYWORD(unassert)
 
+// Clang extensions
+PPKEYWORD(__export_macro__)
+
 //===----------------------------------------------------------------------===//
 // Language keywords.
 //===----------------------------------------------------------------------===//
@@ -114,12 +117,22 @@ TOK(raw_identifier)      // Used only in raw lexing mode.
 TOK(numeric_constant)    // 0x123
 
 // C99 6.4.4: Character Constants
-TOK(char_constant)       // 'a'   L'b'
+TOK(char_constant)       // 'a'
+TOK(wide_char_constant)  // L'b'
+
+// C++0x Character Constants
+TOK(utf16_char_constant) // u'a'
+TOK(utf32_char_constant) // U'a'
 
 // C99 6.4.5: String Literals.
 TOK(string_literal)      // "foo"
 TOK(wide_string_literal) // L"foo"
 TOK(angle_string_literal)// <foo>
+
+// C++0x String Literals.
+TOK(utf8_string_literal) // u8"foo"
+TOK(utf16_string_literal)// u"foo"
+TOK(utf32_string_literal)// U"foo"
 
 // C99 6.4.6: Punctuators.
 PUNCTUATOR(l_square,            "[")
@@ -236,6 +249,8 @@ KEYWORD(unsigned                    , KEYALL)
 KEYWORD(void                        , KEYALL)
 KEYWORD(volatile                    , KEYALL)
 KEYWORD(while                       , KEYALL)
+KEYWORD(_Alignas                    , KEYALL)
+KEYWORD(_Atomic                     , KEYALL)
 KEYWORD(_Bool                       , KEYNOCXX)
 KEYWORD(_Complex                    , KEYALL)
 KEYWORD(_Generic                    , KEYALL)
@@ -289,6 +304,7 @@ CXX_KEYWORD_OPERATOR(xor     , caret)
 CXX_KEYWORD_OPERATOR(xor_eq  , caretequal)
 
 // C++0x keywords
+KEYWORD(alignas                     , KEYCXX0X)
 KEYWORD(alignof                     , KEYCXX0X)
 KEYWORD(char16_t                    , KEYCXX0X)
 KEYWORD(char32_t                    , KEYCXX0X)
@@ -387,6 +403,8 @@ KEYWORD(__array_extent              , KEYCXX)
 
 // Apple Extension.
 KEYWORD(__private_extern__          , KEYALL)
+KEYWORD(__import_module__           , KEYALL)
+KEYWORD(__module_private__          , KEYALL)
 
 // Microsoft Extension.
 KEYWORD(__declspec                  , KEYALL)
@@ -395,6 +413,7 @@ KEYWORD(__stdcall                   , KEYALL)
 KEYWORD(__fastcall                  , KEYALL)
 KEYWORD(__thiscall                  , KEYALL)
 KEYWORD(__forceinline               , KEYALL)
+KEYWORD(__unaligned                 , KEYMS)
 
 // OpenCL-specific keywords
 KEYWORD(__kernel                    , KEYOPENCL)
@@ -421,6 +440,12 @@ KEYWORD(__pascal                    , KEYALL)
 // Altivec Extension.
 KEYWORD(__vector                    , KEYALTIVEC)
 KEYWORD(__pixel                     , KEYALTIVEC)
+
+// ARM NEON extensions.
+ALIAS("__fp16", half                , KEYALL)
+
+// OpenCL Extension.
+KEYWORD(half                        , KEYOPENCL)
 
 // Objective-C ARC keywords.
 KEYWORD(__bridge                     , KEYARC)
@@ -455,6 +480,7 @@ ALIAS("__volatile__" , volatile   , KEYALL)
 
 // Microsoft extensions which should be disabled in strict conformance mode
 KEYWORD(__ptr64                   , KEYMS)
+KEYWORD(__ptr32                   , KEYMS)
 KEYWORD(__w64                     , KEYMS)
 KEYWORD(__uuidof                  , KEYMS | KEYBORLAND)
 KEYWORD(__try                     , KEYMS | KEYBORLAND)

@@ -30,7 +30,6 @@
  * TODO:
  * - adapt tests for rint(3)
  * - tests for harder values (more mantissa bits than float)
- * - tests in other rounding modes
  */
 
 #include <sys/cdefs.h>
@@ -43,6 +42,27 @@ __FBSDID("$FreeBSD$");
 
 #define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
 			 FE_OVERFLOW | FE_UNDERFLOW)
+
+static int testnum;
+
+static const int rmodes[] = {
+	FE_TONEAREST, FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO,
+};
+
+static const struct {
+	float in;
+	float out[3];	/* one answer per rounding mode except towardzero */
+} tests[] = {
+/* input	output (expected) */
+    { 0.0,	{ 0.0, 0.0, 0.0 }},
+    { 0.5,	{ 0.0, 0.0, 1.0 }},
+    { M_PI,	{ 3.0, 3.0, 4.0 }},
+    { 65536.5,	{ 65536, 65536, 65537 }},
+    { INFINITY,	{ INFINITY, INFINITY, INFINITY }},
+    { NAN,	{ NAN, NAN, NAN }},
+};
+
+static const int ntests = sizeof(tests) / sizeof(tests[0]);
 
 /*
  * Compare d1 and d2 using special rules: NaN == NaN and +0 != -0.
@@ -57,44 +77,106 @@ fpequal(long double d1, long double d2)
 	return (copysignl(1.0, d1) == copysignl(1.0, d2));
 }
 
-static void testit(int testnum, float in, float out)
+/* Get the appropriate result for the current rounding mode. */
+static float
+get_output(int testindex, int rmodeindex, int negative)
 {
+	double out;
 
-    feclearexcept(ALL_STD_EXCEPT);
-    assert(fpequal(out, nearbyintf(in)));
-    assert(fpequal(-out, nearbyintf(-in)));
-    assert(fetestexcept(ALL_STD_EXCEPT) == 0);
-
-    assert(fpequal(out, nearbyint(in)));
-    assert(fpequal(-out, nearbyint(-in)));
-    assert(fetestexcept(ALL_STD_EXCEPT) == 0);
-
-    assert(fpequal(out, nearbyintl(in)));
-    assert(fpequal(-out, nearbyintl(-in)));
-    assert(fetestexcept(ALL_STD_EXCEPT) == 0);
-
-    printf("ok %d\t\t# nearbyint(%g)\n", testnum, in);
+	if (negative) {	/* swap downwards and upwards if input is negative */
+		if (rmodeindex == 1)
+			rmodeindex = 2;
+		else if (rmodeindex == 2)
+			rmodeindex = 1;
+	}
+	if (rmodeindex == 3) /* FE_TOWARDZERO uses the value for downwards */
+		rmodeindex = 1;
+	out = tests[testindex].out[rmodeindex];
+	return (negative ? -out : out);
 }
 
-static const float tests[] = {
-/* input	output (expected) */
-    0.0,	0.0,
-    0.5,	0.0,
-    M_PI,	3,
-    65536.5,	65536,
-    INFINITY,	INFINITY,
-    NAN,	NAN,
-};
+static void
+test_nearby(int testindex)
+{
+	float in, out;
+	int i;
+
+	for (i = 0; i < sizeof(rmodes) / sizeof(rmodes[0]); i++) {
+		fesetround(rmodes[i]);
+		feclearexcept(ALL_STD_EXCEPT);
+
+		in = tests[testindex].in;
+		out = get_output(testindex, i, 0);
+		assert(fpequal(out, nearbyintf(in)));
+		assert(fpequal(out, nearbyint(in)));
+		assert(fpequal(out, nearbyintl(in)));
+		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+
+		in = -tests[testindex].in;
+		out = get_output(testindex, i, 1);
+		assert(fpequal(out, nearbyintf(in)));
+		assert(fpequal(out, nearbyint(in)));
+		assert(fpequal(out, nearbyintl(in)));
+		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+	}
+
+	printf("ok %d\t\t# nearbyint(+%g)\n", testnum++, in);
+}
+
+static void
+test_modf(int testindex)
+{
+	float in, out;
+	float ipartf, ipart_expected;
+	double ipart;
+	long double ipartl;
+	int i;
+
+	for (i = 0; i < sizeof(rmodes) / sizeof(rmodes[0]); i++) {
+		fesetround(rmodes[i]);
+		feclearexcept(ALL_STD_EXCEPT);
+
+		in = tests[testindex].in;
+		ipart_expected = tests[testindex].out[1];
+		out = copysignf(
+		    isinf(ipart_expected) ? 0.0 : in - ipart_expected, in);
+		ipartl = ipart = ipartf = 42.0;
+
+		assert(fpequal(out, modff(in, &ipartf)));
+		assert(fpequal(ipart_expected, ipartf));
+		assert(fpequal(out, modf(in, &ipart)));
+		assert(fpequal(ipart_expected, ipart));
+		assert(fpequal(out, modfl(in, &ipartl)));
+		assert(fpequal(ipart_expected, ipartl));
+		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+
+		in = -in;
+		ipart_expected = -ipart_expected;
+		out = -out;
+		ipartl = ipart = ipartf = 42.0;
+		assert(fpequal(out, modff(in, &ipartf)));
+		assert(fpequal(ipart_expected, ipartf));
+		assert(fpequal(out, modf(in, &ipart)));
+		assert(fpequal(ipart_expected, ipart));
+		assert(fpequal(out, modfl(in, &ipartl)));
+		assert(fpequal(ipart_expected, ipartl));
+		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+	}
+
+	printf("ok %d\t\t# modf(+%g)\n", testnum++, in);
+}
 
 int
 main(int argc, char *argv[])
 {
-	static const int ntests = sizeof(tests) / sizeof(tests[0]) / 2;
 	int i;
 
-	printf("1..%d\n", ntests);
-	for (i = 0; i < ntests; i++)
-		testit(i + 1, tests[i * 2], tests[i * 2 + 1]);
+	printf("1..%d\n", ntests * 2);
+	testnum = 1;
+	for (i = 0; i < ntests; i++) {
+		test_nearby(i);
+		test_modf(i);
+	}
 
 	return (0);
 }

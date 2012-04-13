@@ -248,6 +248,10 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
 					 * backend pages and can fail early.
 					 */
 #define	UMA_ZONE_VTOSLAB	0x2000	/* Zone uses vtoslab for lookup. */
+#define	UMA_ZONE_NODUMP		0x4000	/*
+					 * Zone's pages will not be included in
+					 * mini-dumps.
+					 */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add
@@ -255,8 +259,8 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
  * physical parameters of the request and may not be provided by the consumer.
  */
 #define	UMA_ZONE_INHERIT						\
-    (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_HASH |		\
-    UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB)
+    (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
+    UMA_ZONE_HASH | UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */

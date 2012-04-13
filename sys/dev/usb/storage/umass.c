@@ -137,14 +137,6 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam_periph.h>
 
-#define UMASS_EXT_BUFFER
-#ifdef UMASS_EXT_BUFFER
-/* this enables loading of virtual buffers into DMA */
-#define	UMASS_USB_FLAGS .ext_buffer=1,
-#else
-#define	UMASS_USB_FLAGS
-#endif
-
 #ifdef USB_DEBUG
 #define	DIF(m, x)				\
   do {						\
@@ -173,7 +165,7 @@ __FBSDID("$FreeBSD$");
 #define	UDMASS_ALL	0xffff0000	/* all of the above */
 static int umass_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
     &umass_debug, 0, "umass debug level");
 
@@ -542,7 +534,7 @@ static struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = UMASS_BULK_SIZE,
-		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1, UMASS_USB_FLAGS},
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer=1,},
 		.callback = &umass_t_bbb_data_read_callback,
 		.timeout = 0,	/* overwritten later */
 	},
@@ -561,7 +553,7 @@ static struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UMASS_BULK_SIZE,
-		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1, UMASS_USB_FLAGS},
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer=1,},
 		.callback = &umass_t_bbb_data_write_callback,
 		.timeout = 0,	/* overwritten later */
 	},
@@ -634,7 +626,7 @@ static struct usb_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = UMASS_BULK_SIZE,
-		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1, UMASS_USB_FLAGS},
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer=1,},
 		.callback = &umass_t_cbi_data_read_callback,
 		.timeout = 0,	/* overwritten later */
 	},
@@ -653,7 +645,7 @@ static struct usb_config umass_cbi_config[UMASS_T_CBI_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UMASS_BULK_SIZE,
-		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1, UMASS_USB_FLAGS},
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer=1,},
 		.callback = &umass_t_cbi_data_write_callback,
 		.timeout = 0,	/* overwritten later */
 	},
@@ -891,7 +883,7 @@ umass_attach(device_t dev)
 	int32_t err;
 
 	/*
-	 * NOTE: the softc struct is bzero-ed in device_set_driver.
+	 * NOTE: the softc struct is cleared in device_set_driver.
 	 * We can safely call umass_detach without specifically
 	 * initializing the struct.
 	 */
@@ -1053,14 +1045,16 @@ umass_detach(device_t dev)
 
 	usbd_transfer_unsetup(sc->sc_xfer, UMASS_T_MAX);
 
-#if (__FreeBSD_version >= 700037)
 	mtx_lock(&sc->sc_mtx);
-#endif
+
+	/* cancel any leftover CCB's */
+
+	umass_cancel_ccb(sc);
+
 	umass_cam_detach_sim(sc);
 
-#if (__FreeBSD_version >= 700037)
 	mtx_unlock(&sc->sc_mtx);
-#endif
+
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);			/* success */
@@ -1201,7 +1195,6 @@ umass_t_bbb_reset1_callback(struct usb_xfer *xfer, usb_error_t error)
 	default:			/* Error */
 		umass_tr_error(xfer, error);
 		return;
-
 	}
 }
 
@@ -1240,7 +1233,6 @@ tr_transferred:
 	default:			/* Error */
 		umass_tr_error(xfer, error);
 		return;
-
 	}
 }
 
@@ -1305,11 +1297,13 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 			sc->cbw.bCDBLength = sc->sc_transfer.cmd_len;
 
-			bcopy(sc->sc_transfer.cmd_data, sc->cbw.CBWCDB,
+			memcpy(sc->cbw.CBWCDB, sc->sc_transfer.cmd_data,
 			    sc->sc_transfer.cmd_len);
 
-			bzero(sc->sc_transfer.cmd_data + sc->sc_transfer.cmd_len,
-			    sizeof(sc->cbw.CBWCDB) - sc->sc_transfer.cmd_len);
+			memset(sc->sc_transfer.cmd_data +
+			    sc->sc_transfer.cmd_len, 0,
+			    sizeof(sc->cbw.CBWCDB) -
+			    sc->sc_transfer.cmd_len);
 
 			DIF(UDMASS_BBB, umass_bbb_dump_cbw(sc, &sc->cbw));
 
@@ -1324,7 +1318,6 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 	default:			/* Error */
 		umass_tr_error(xfer, error);
 		return;
-
 	}
 }
 
@@ -1333,19 +1326,12 @@ umass_t_bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct umass_softc *sc = usbd_xfer_softc(xfer);
 	uint32_t max_bulk = usbd_xfer_max_len(xfer);
-#ifndef UMASS_EXT_BUFFER
-	struct usb_page_cache *pc;
-#endif
 	int actlen, sumlen;
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-#ifndef UMASS_EXT_BUFFER
-		pc = usbd_xfer_get_frame(xfer, 0);
-		usbd_copy_out(pc, 0, sc->sc_transfer.data_ptr, actlen);
-#endif
 		sc->sc_transfer.data_rem -= actlen;
 		sc->sc_transfer.data_ptr += actlen;
 		sc->sc_transfer.actlen += actlen;
@@ -1367,12 +1353,9 @@ umass_t_bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 		usbd_xfer_set_timeout(xfer, sc->sc_transfer.data_timeout);
 
-#ifdef UMASS_EXT_BUFFER
 		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
 		    max_bulk);
-#else
-		usbd_xfer_set_frame_len(xfer, 0, max_bulk);
-#endif
+
 		usbd_transfer_submit(xfer);
 		return;
 
@@ -1383,7 +1366,6 @@ umass_t_bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			umass_transfer_start(sc, UMASS_T_BBB_DATA_RD_CS);
 		}
 		return;
-
 	}
 }
 
@@ -1399,9 +1381,6 @@ umass_t_bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct umass_softc *sc = usbd_xfer_softc(xfer);
 	uint32_t max_bulk = usbd_xfer_max_len(xfer);
-#ifndef UMASS_EXT_BUFFER
-	struct usb_page_cache *pc;
-#endif
 	int actlen, sumlen;
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
@@ -1429,14 +1408,8 @@ umass_t_bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 		usbd_xfer_set_timeout(xfer, sc->sc_transfer.data_timeout);
 
-#ifdef UMASS_EXT_BUFFER
 		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
 		    max_bulk);
-#else
-		pc = usbd_xfer_get_frame(xfer, 0);
-		usbd_copy_in(pc, 0, sc->sc_transfer.data_ptr, max_bulk);
-		usbd_xfer_set_frame_len(xfer, 0, max_bulk);
-#endif
 
 		usbd_transfer_submit(xfer);
 		return;
@@ -1448,7 +1421,6 @@ umass_t_bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 			umass_transfer_start(sc, UMASS_T_BBB_DATA_WR_CS);
 		}
 		return;
-
 	}
 }
 
@@ -1480,9 +1452,9 @@ umass_t_bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* Zero missing parts of the CSW: */
 
-		if (actlen < sizeof(sc->csw)) {
-			bzero(&sc->csw, sizeof(sc->csw));
-		}
+		if (actlen < (int)sizeof(sc->csw))
+			memset(&sc->csw, 0, sizeof(sc->csw));
+
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, &sc->csw, actlen);
 
@@ -1574,7 +1546,6 @@ tr_error:
 			umass_transfer_start(sc, UMASS_T_BBB_DATA_RD_CS);
 		}
 		return;
-
 	}
 }
 
@@ -1605,8 +1576,7 @@ umass_command_start(struct umass_softc *sc, uint8_t dir,
 	if (sc->sc_xfer[sc->sc_last_xfer_index]) {
 		usbd_transfer_start(sc->sc_xfer[sc->sc_last_xfer_index]);
 	} else {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
+		umass_cancel_ccb(sc);
 	}
 }
 
@@ -1726,7 +1696,6 @@ umass_t_cbi_reset1_callback(struct usb_xfer *xfer, usb_error_t error)
 		else
 			umass_transfer_start(sc, UMASS_T_CBI_RESET2);
 		break;
-
 	}
 }
 
@@ -1781,7 +1750,6 @@ tr_transferred:
 	default:			/* Error */
 		umass_tr_error(xfer, error);
 		break;
-
 	}
 }
 
@@ -1871,19 +1839,12 @@ umass_t_cbi_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct umass_softc *sc = usbd_xfer_softc(xfer);
 	uint32_t max_bulk = usbd_xfer_max_len(xfer);
-#ifndef UMASS_EXT_BUFFER
-	struct usb_page_cache *pc;
-#endif
 	int actlen, sumlen;
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-#ifndef UMASS_EXT_BUFFER
-		pc = usbd_xfer_get_frame(xfer, 0);
-		usbd_copy_out(pc, 0, sc->sc_transfer.data_ptr, actlen);
-#endif
 		sc->sc_transfer.data_rem -= actlen;
 		sc->sc_transfer.data_ptr += actlen;
 		sc->sc_transfer.actlen += actlen;
@@ -1905,12 +1866,9 @@ umass_t_cbi_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 		usbd_xfer_set_timeout(xfer, sc->sc_transfer.data_timeout);
 
-#ifdef UMASS_EXT_BUFFER
 		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
 		    max_bulk);
-#else
-		usbd_xfer_set_frame_len(xfer, 0, max_bulk);
-#endif
+
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -1922,7 +1880,6 @@ umass_t_cbi_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			umass_transfer_start(sc, UMASS_T_CBI_DATA_RD_CS);
 		}
 		break;
-
 	}
 }
 
@@ -1938,9 +1895,6 @@ umass_t_cbi_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct umass_softc *sc = usbd_xfer_softc(xfer);
 	uint32_t max_bulk = usbd_xfer_max_len(xfer);
-#ifndef UMASS_EXT_BUFFER
-	struct usb_page_cache *pc;
-#endif
 	int actlen, sumlen;
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
@@ -1968,14 +1922,8 @@ umass_t_cbi_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 		usbd_xfer_set_timeout(xfer, sc->sc_transfer.data_timeout);
 
-#ifdef UMASS_EXT_BUFFER
 		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
 		    max_bulk);
-#else
-		pc = usbd_xfer_get_frame(xfer, 0);
-		usbd_copy_in(pc, 0, sc->sc_transfer.data_ptr, max_bulk);
-		usbd_xfer_set_frame_len(xfer, 0, max_bulk);
-#endif
 
 		usbd_transfer_submit(xfer);
 		break;
@@ -1988,7 +1936,6 @@ umass_t_cbi_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 			umass_transfer_start(sc, UMASS_T_CBI_DATA_WR_CS);
 		}
 		break;
-
 	}
 }
 
@@ -2014,7 +1961,7 @@ umass_t_cbi_status_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen < sizeof(sc->sbl)) {
+		if (actlen < (int)sizeof(sc->sbl)) {
 			goto tr_setup;
 		}
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -2090,7 +2037,6 @@ tr_setup:
 		    usbd_errstr(error));
 		umass_tr_error(xfer, error);
 		break;
-
 	}
 }
 
@@ -2119,9 +2065,7 @@ umass_cam_attach_sim(struct umass_softc *sc)
 	    DEVNAME_SIM,
 	    sc /* priv */ ,
 	    sc->sc_unit /* unit number */ ,
-#if (__FreeBSD_version >= 700037)
 	    &sc->sc_mtx /* mutex */ ,
-#endif
 	    1 /* maximum device openings */ ,
 	    0 /* maximum tagged device openings */ ,
 	    devq);
@@ -2131,27 +2075,15 @@ umass_cam_attach_sim(struct umass_softc *sc)
 		return (ENOMEM);
 	}
 
-#if (__FreeBSD_version >= 700037)
 	mtx_lock(&sc->sc_mtx);
-#endif
 
-#if (__FreeBSD_version >= 700048)
-	if (xpt_bus_register(sc->sc_sim, sc->sc_dev, sc->sc_unit) != CAM_SUCCESS) {
+	if (xpt_bus_register(sc->sc_sim, sc->sc_dev,
+	    sc->sc_unit) != CAM_SUCCESS) {
 		mtx_unlock(&sc->sc_mtx);
 		return (ENOMEM);
 	}
-#else
-	if (xpt_bus_register(sc->sc_sim, sc->sc_unit) != CAM_SUCCESS) {
-#if (__FreeBSD_version >= 700037)
-		mtx_unlock(&sc->sc_mtx);
-#endif
-		return (ENOMEM);
-	}
-#endif
-
-#if (__FreeBSD_version >= 700037)
 	mtx_unlock(&sc->sc_mtx);
-#endif
+
 	return (0);
 }
 
@@ -2201,11 +2133,6 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
-	}
-	if (sc) {
-#if (__FreeBSD_version < 700037)
-		mtx_lock(&sc->sc_mtx);
-#endif
 	}
 	/*
 	 * Verify, depending on the operation to perform, that we either got
@@ -2409,12 +2336,11 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 			cpi->unit_number = cam_sim_unit(sim);
 			cpi->bus_id = sc->sc_unit;
-#if (__FreeBSD_version >= 700025)
 			cpi->protocol = PROTO_SCSI;
 			cpi->protocol_version = SCSI_REV_2;
 			cpi->transport = XPORT_USB;
 			cpi->transport_version = 0;
-#endif
+
 			if (sc == NULL) {
 				cpi->base_transfer_speed = 0;
 				cpi->max_lun = 0;
@@ -2466,16 +2392,12 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
 			    ccb->ccb_h.target_lun);
 
-#if (__FreeBSD_version >= 700025)
 			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_2;
 			cts->transport = XPORT_USB;
 			cts->transport_version = 0;
 			cts->xport_specific.valid = 0;
-#else
-			cts->valid = 0;
-			cts->flags = 0;	/* no disconnection, tagging */
-#endif
+
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
 			break;
@@ -2518,11 +2440,6 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 
 done:
-#if (__FreeBSD_version < 700037)
-	if (sc) {
-		mtx_unlock(&sc->sc_mtx);
-	}
-#endif
 	return;
 }
 
@@ -2755,7 +2672,7 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		if (sc->sc_quirks & NO_TEST_UNIT_READY) {
 			DPRINTF(sc, UDMASS_SCSI, "Converted TEST_UNIT_READY "
 			    "to START_UNIT\n");
-			bzero(sc->sc_transfer.cmd_data, cmd_len);
+			memset(sc->sc_transfer.cmd_data, 0, cmd_len);
 			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
 			sc->sc_transfer.cmd_data[4] = SSS_START;
 			return (1);
@@ -2768,14 +2685,14 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * information.
 		 */
 		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
 			return (1);
 		}
 		break;
 	}
 
-	bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (1);
 }
 
@@ -2810,10 +2727,11 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 	case REQUEST_SENSE:
 	case PREVENT_ALLOW:
 
-		bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+		memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 
 		if ((sc->sc_quirks & RBC_PAD_TO_12) && (cmd_len < 12)) {
-			bzero(sc->sc_transfer.cmd_data + cmd_len, 12 - cmd_len);
+			memset(sc->sc_transfer.cmd_data + cmd_len,
+			    0, 12 - cmd_len);
 			cmd_len = 12;
 		}
 		sc->sc_transfer.cmd_len = cmd_len;
@@ -2841,7 +2759,7 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	sc->sc_transfer.cmd_len = UFI_COMMAND_LENGTH;
 
 	/* Zero the command data */
-	bzero(sc->sc_transfer.cmd_data, UFI_COMMAND_LENGTH);
+	memset(sc->sc_transfer.cmd_data, 0, UFI_COMMAND_LENGTH);
 
 	switch (cmd_ptr[0]) {
 		/*
@@ -2898,7 +2816,7 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		return (0);		/* failure */
 	}
 
-	bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (1);			/* success */
 }
 
@@ -2919,7 +2837,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	sc->sc_transfer.cmd_len = ATAPI_COMMAND_LENGTH;
 
 	/* Zero the command data */
-	bzero(sc->sc_transfer.cmd_data, ATAPI_COMMAND_LENGTH);
+	memset(sc->sc_transfer.cmd_data, 0, ATAPI_COMMAND_LENGTH);
 
 	switch (cmd_ptr[0]) {
 		/*
@@ -2933,7 +2851,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * information.
 		 */
 		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
 			return (1);
@@ -2994,7 +2912,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		break;
 	}
 
-	bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (1);			/* success */
 }
 

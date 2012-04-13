@@ -53,7 +53,6 @@ device		pci
 # Pseudo devices
 device		loop
 device		md
-device		pty
 device		random
 
 # Serial ports
@@ -65,6 +64,10 @@ device		mge			# Marvell Gigabit Ethernet controller
 device		mii
 device		e1000phy
 device		bpf
+
+device		cesa			# Marvell security engine
+device		crypto
+device		cryptodev
 
 # USB
 options 	USB_DEBUG	# enable debug msgs

@@ -238,6 +238,7 @@ extern void	*trapcode64;
 extern void	*rstcode, *rstsize;
 #endif
 extern void	*trapcode, *trapsize;
+extern void	*slbtrap, *slbtrapsize;
 extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
@@ -303,7 +304,12 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	 */
 	pc = __pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
-	curthread_reg = pc->pc_curthread = &thread0;
+	pc->pc_curthread = &thread0;
+#ifdef __powerpc64__
+	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+#else
+	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+#endif
 	pc->pc_cpuid = 0;
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
@@ -399,6 +405,9 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 		cacheline_size = 32;
 	}
 
+	/* Make sure the kernel icache is valid before we go too much further */
+	__syncicache((caddr_t)startkernel, endkernel - startkernel);
+
 	#ifndef __powerpc64__
 	/*
 	 * Figure out whether we need to use the 64 bit PMAP. This works by
@@ -485,8 +494,8 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsisize);
 	bcopy(generictrap, (void *)EXC_ISI,  (size_t)&trapsize);
 	#ifdef __powerpc64__
-	bcopy(generictrap, (void *)EXC_DSE,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_ISE,  (size_t)&trapsize);
+	bcopy(&slbtrap, (void *)EXC_DSE,  (size_t)&slbtrapsize);
+	bcopy(&slbtrap, (void *)EXC_ISE,  (size_t)&slbtrapsize);
 	#endif
 	bcopy(generictrap, (void *)EXC_EXI,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPU,  (size_t)&trapsize);
@@ -494,6 +503,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	bcopy(generictrap, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPA,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_PERF,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
 	#ifndef __powerpc64__
@@ -726,36 +736,6 @@ spinlock_exit(void)
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
 		intr_restore(msr);
-}
-
-/*
- * kcopy(const void *src, void *dst, size_t len);
- *
- * Copy len bytes from src to dst, aborting if we encounter a fatal
- * page fault.
- *
- * kcopy() _must_ save and restore the old fault handler since it is
- * called by uiomove(), which may be in the path of servicing a non-fatal
- * page fault.
- */
-int
-kcopy(const void *src, void *dst, size_t len)
-{
-	struct thread	*td;
-	faultbuf	env, *oldfault;
-	int		rv;
-
-	td = curthread;
-	oldfault = td->td_pcb->pcb_onfault;
-	if ((rv = setfault(env)) != 0) {
-		td->td_pcb->pcb_onfault = oldfault;
-		return rv;
-	}
-
-	memcpy(dst, src, len);
-
-	td->td_pcb->pcb_onfault = oldfault;
-	return (0);
 }
 
 int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */

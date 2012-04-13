@@ -96,7 +96,7 @@ typedef struct BUSTYPENAME {
     char	name[ 7 ];
 } busTypeName;
 
-static busTypeName busTypeTable[] =
+static const busTypeName busTypeTable[] =
 {
     { CBUS,		"CBUS"   },
     { CBUSII,		"CBUSII" },
@@ -119,7 +119,7 @@ static busTypeName busTypeTable[] =
     { UNKNOWN_BUSTYPE,	"---"    }
 };
 
-const char* whereStrings[] = {
+static const char *whereStrings[] = {
     "Extended BIOS Data Area",
     "BIOS top of memory",
     "Default top of memory",
@@ -135,16 +135,7 @@ typedef struct TABLE_ENTRY {
     char	name[ 32 ];
 } tableEntry;
 
-tableEntry basetableEntryTypes[] =
-{
-    { 0, 20, "Processor" },
-    { 1,  8, "Bus" },
-    { 2,  8, "I/O APIC" },
-    { 3,  8, "I/O INT" },
-    { 4,  8, "Local INT" }
-};
-
-tableEntry extendedtableEntryTypes[] =
+static const tableEntry extendedtableEntryTypes[] =
 {
     { 128, 20, "System Address Space" },
     { 129,  8, "Bus Hierarchy" },
@@ -277,19 +268,19 @@ static void doDmesg( void );
 static void pnstr( char* s, int c );
 
 /* global data */
-int	pfd;		/* physical /dev/mem fd */
+static int	pfd;		/* physical /dev/mem fd */
 
-int	busses[ 16 ];
-int	apics[ 16 ];
+static int	busses[16];
+static int	apics[16];
 
-int	ncpu;
-int	nbus;
-int	napic;
-int	nintr;
+static int	ncpu;
+static int	nbus;
+static int	napic;
+static int	nintr;
 
-int	dmesg;
-int	grope;
-int	verbose;
+static int	dmesg;
+static int	grope;
+static int	verbose;
 
 static void
 usage( void )
@@ -837,7 +828,7 @@ MPConfigTableHeader( u_int32_t pap )
     int		ofd;
     u_char	dumpbuf[ 4096 ];
 
-    ofd = open( "/tmp/mpdump", O_CREAT | O_RDWR );
+    ofd = open( "/tmp/mpdump", O_CREAT | O_RDWR, 0666 );
     seekEntry( paddr );
     readEntry( dumpbuf, 1024 );
     write( ofd, dumpbuf, 1024 );
@@ -978,14 +969,14 @@ ioApicEntry( void )
 }
 
 
-const char* intTypes[] = {
+static const char *intTypes[] = {
     "INT", "NMI", "SMI", "ExtINT"
 };
 
-const char* polarityMode[] = {
+static const char *polarityMode[] = {
     "conforms", "active-hi", "reserved", "active-lo"
 };
-const char* triggerMode[] = {
+static const char *triggerMode[] = {
     "conforms", "edge", "reserved", "level"
 };
 

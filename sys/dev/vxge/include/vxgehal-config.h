@@ -1665,7 +1665,7 @@ typedef struct vxge_hal_mrpcim_config_t {
  *		the interrupt is triggered.
  * @rtimer_event_sf: Restriction Timer Event Scale Factor. A scale factor that
  *		is to be applied to the current event count before it is added
- *		to the restriction timer value when the the restriction timer
+ *		to the restriction timer value when the restriction timer
  *		is started.
  *		The scale factor is applied as a right or left shift to multiply
  *		or divide by the event count. The programmable values are as

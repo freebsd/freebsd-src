@@ -33,7 +33,7 @@ public:
 
 void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
                                              CheckerContext &C) const {
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   const Expr *RetE = RS->getRetValue();
   if (!RetE)
@@ -58,8 +58,8 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
     = C.getStoreManager().getSizeInElements(state, ER->getSuperRegion(),
                                            ER->getValueType());
 
-  const GRState *StInBound = state->assumeInBound(Idx, NumElements, true);
-  const GRState *StOutBound = state->assumeInBound(Idx, NumElements, false);
+  const ProgramState *StInBound = state->assumeInBound(Idx, NumElements, true);
+  const ProgramState *StOutBound = state->assumeInBound(Idx, NumElements, false);
   if (StOutBound && !StInBound) {
     ExplodedNode *N = C.generateSink(StOutBound);
 
@@ -78,8 +78,8 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
     // reference is outside the range.
 
     // Generate a report for this bug.
-    RangedBugReport *report = 
-      new RangedBugReport(*BT, BT->getDescription(), N);
+    BugReport *report = 
+      new BugReport(*BT, BT->getDescription(), N);
 
     report->addRange(RetE->getSourceRange());
     C.EmitReport(report);

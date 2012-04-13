@@ -1001,12 +1001,12 @@ clnt_dg_destroy(CLIENT *cl)
 	cs = cu->cu_socket->so_rcv.sb_upcallarg;
 	clnt_dg_close(cl);
 
+	SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
 	mtx_lock(&cs->cs_lock);
 
 	cs->cs_refs--;
 	if (cs->cs_refs == 0) {
 		mtx_unlock(&cs->cs_lock);
-		SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
 		soupcall_clear(cu->cu_socket, SO_RCV);
 		clnt_dg_upcallsdone(cu->cu_socket, cs);
 		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
@@ -1015,6 +1015,7 @@ clnt_dg_destroy(CLIENT *cl)
 		lastsocketref = TRUE;
 	} else {
 		mtx_unlock(&cs->cs_lock);
+		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
 		lastsocketref = FALSE;
 	}
 

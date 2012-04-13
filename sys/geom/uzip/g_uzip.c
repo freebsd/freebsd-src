@@ -50,7 +50,7 @@ FEATURE(geom_uzip, "GEOM uzip read-only compressed disks support");
 #define DPRINTF(a)
 #endif
 
-MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
+static MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
 
 #define UZIP_CLASS_NAME	"UZIP"
 

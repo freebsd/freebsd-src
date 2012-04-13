@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2011
+.Dd February 25, 2012
 .Dt PDFORK 2
 .Os
 .Sh NAME
@@ -87,7 +87,7 @@ except that it accepts a process descriptor,
 rather than a PID.
 .Pp
 .Fn pdwait4
-behaves identially to
+behaves identically to
 .Xr wait4 2 ,
 but operates with respect to a process descriptor argument rather than a PID.
 .Pp
@@ -101,7 +101,8 @@ queries status of a process descriptor; currently only the
 .Fa st_ctime
 and
 .Fa st_mtime
-fields are defined. If the owner read, write, and execute bits are set then the
+fields are defined.
+If the owner read, write, and execute bits are set then the
 process represented by the process descriptor is still alive.
 .Pp
 .Xr poll 2

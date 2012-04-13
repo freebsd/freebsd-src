@@ -114,7 +114,7 @@ bp_getfile_res *
 bp_getfile_arg *getfile;
 struct svc_req *req;
 {
-  char *where, *index();
+  char *where;
   static bp_getfile_res res;
 
   if (debug)
@@ -133,7 +133,7 @@ struct svc_req *req;
   askname[sizeof(askname)-1] = 0;
 
   if (getthefile(askname, getfile->file_id,buffer,sizeof(buffer))) {
-    if ( (where = index(buffer,':')) ) {
+    if ( (where = strchr(buffer,':')) ) {
       /* buffer is re-written to contain the name of the info of file */
       strncpy(hostname, buffer, where - buffer);
       hostname[where - buffer] = '\0';

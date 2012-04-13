@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd November 20, 2011
 .Dt UFOMA 4
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
 .Cd "device ufoma"
 .Ed
 .Pp
@@ -97,7 +99,7 @@ When an interface is recognized by the system but not used, the interface
 will be set to this mode.
 .It Li unlinked
 When an interface is not yet negotiated, the interface is in this mode.
-.El 
+.El
 .Sh HARDWARE
 Devices supported by the
 .Nm

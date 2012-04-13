@@ -59,8 +59,9 @@ struct acpi_hpcib_softc {
     ACPI_HANDLE		ap_handle;
     int			ap_flags;
 
-    int			ap_segment;	/* analagous to Alpha 'hose' */
+    int			ap_segment;	/* PCI domain */
     int			ap_bus;		/* bios-assigned bus number */
+    int			ap_addr;	/* device/func of PCI-Host bridge */
 
     ACPI_BUFFER		ap_prt;		/* interrupt routing table */
 #ifdef NEW_PCIB
@@ -106,7 +107,6 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(device_resume,		bus_generic_resume),
 
     /* Bus interface */
-    DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	acpi_pcib_acpi_alloc_resource),
@@ -133,7 +133,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(pcib_map_msi,		acpi_pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	acpi_pcib_power_for_sleep),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static devclass_t pcib_devclass;
@@ -277,7 +277,7 @@ acpi_pcib_acpi_attach(device_t dev)
     struct acpi_hpcib_softc	*sc;
     ACPI_STATUS			status;
     static int bus0_seen = 0;
-    u_int addr, slot, func, busok;
+    u_int slot, func, busok;
     uint8_t busno;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -287,7 +287,7 @@ acpi_pcib_acpi_attach(device_t dev)
     sc->ap_handle = acpi_get_handle(dev);
 
     /*
-     * Get our segment number by evaluating _SEG
+     * Get our segment number by evaluating _SEG.
      * It's OK for this to not exist.
      */
     status = acpi_GetInteger(sc->ap_handle, "_SEG", &sc->ap_segment);
@@ -299,6 +299,18 @@ acpi_pcib_acpi_attach(device_t dev)
 	}
 	/* If it's not found, assume 0. */
 	sc->ap_segment = 0;
+    }
+
+    /*
+     * Get the address (device and function) of the associated
+     * PCI-Host bridge device from _ADR.  Assume we don't have one if
+     * it doesn't exist.
+     */
+    status = acpi_GetInteger(sc->ap_handle, "_ADR", &sc->ap_addr);
+    if (ACPI_FAILURE(status)) {
+	device_printf(dev, "could not evaluate _ADR - %s\n",
+	    AcpiFormatException(status));
+	sc->ap_addr = -1;
     }
 
 #ifdef NEW_PCIB
@@ -355,18 +367,10 @@ acpi_pcib_acpi_attach(device_t dev)
     busok = 1;
     if (sc->ap_segment == 0 && sc->ap_bus == 0 && bus0_seen) {
 	busok = 0;
-	status = acpi_GetInteger(sc->ap_handle, "_ADR", &addr);
-	if (ACPI_FAILURE(status)) {
-	    if (status != AE_NOT_FOUND) {
-		device_printf(dev, "could not evaluate _ADR - %s\n",
-		    AcpiFormatException(status));
-		return_VALUE (ENXIO);
-	    } else
-		device_printf(dev, "couldn't find _ADR\n");
-	} else {
+	if (sc->ap_addr != -1) {
 	    /* XXX: We assume bus 0. */
-	    slot = ACPI_ADR_PCI_SLOT(addr);
-	    func = ACPI_ADR_PCI_FUNC(addr);
+	    slot = ACPI_ADR_PCI_SLOT(sc->ap_addr);
+	    func = ACPI_ADR_PCI_FUNC(sc->ap_addr);
 	    if (bootverbose)
 		device_printf(dev, "reading config registers from 0:%d:%d\n",
 		    slot, func);
@@ -489,10 +493,24 @@ static int
 acpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
     uint32_t *data)
 {
-	device_t bus;
+	struct acpi_hpcib_softc *sc;
+	device_t bus, hostb;
+	int error;
 
 	bus = device_get_parent(pcib);
-	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
+	error = PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data);
+	if (error)
+		return (error);
+
+	sc = device_get_softc(dev);
+	if (sc->ap_addr == -1)
+		return (0);
+	/* XXX: Assumes all bridges are on bus 0. */
+	hostb = pci_find_dbsf(sc->ap_segment, 0, ACPI_ADR_PCI_SLOT(sc->ap_addr),
+	    ACPI_ADR_PCI_FUNC(sc->ap_addr));
+	if (hostb != NULL)
+		pci_ht_map_msi(hostb, *addr);
+	return (0);
 }
 
 struct resource *
@@ -501,6 +519,7 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 #ifdef NEW_PCIB
     struct acpi_hpcib_softc *sc;
+    struct resource *res;
 #endif
 
 #if defined(__i386__) || defined(__amd64__)
@@ -509,8 +528,20 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 #ifdef NEW_PCIB
     sc = device_get_softc(dev);
-    return (pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
-	count, flags));
+    res = pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
+	count, flags);
+
+    /*
+     * XXX: If this is a request for a specific range, assume it is
+     * correct and pass it up to the parent.  What we probably want to
+     * do long-term is explicitly trust any firmware-configured
+     * resources during the initial bus scan on boot and then disable
+     * this after that.
+     */
+    if (res == NULL && start + count - 1 == end)
+	res = bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags);
+    return (res);
 #else
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	count, flags));

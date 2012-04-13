@@ -317,7 +317,7 @@ look up the appropriate program, version and procedure numbers
 in a manual, just as you look up the name of a memory allocator
 when you want to allocate memory.
 .LP
-The simplest way of making remote procedure calls is with the the RPC
+The simplest way of making remote procedure calls is with the RPC
 library routine
 .I callrpc()
 It has eight parameters.  The first is the name of the remote server
@@ -1105,7 +1105,7 @@ Note that, after being used, the character array can be freed with
 .I svc_freeargs()
 .I svc_freeargs()
 will not attempt to free any memory if the variable indicating it
-is NULL.  For example, in the the routine
+is NULL.  For example, in the routine
 .I xdr_finalexample (),
 given earlier, if
 .I finalp->string

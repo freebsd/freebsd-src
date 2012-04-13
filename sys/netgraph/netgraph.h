@@ -57,6 +57,7 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_netgraph.h"
+#include "opt_kdb.h"
 #endif
 
 /* debugging options */
@@ -190,7 +191,7 @@ static __inline void
 _chkhook(hook_p hook, char *file, int line)
 {
 	if (hook->hk_magic != HK_MAGIC) {
-		printf("Accessing freed hook ");
+		printf("Accessing freed ");
 		dumphook(hook, file, line);
 	}
 	hook->lastline = line;
@@ -364,7 +365,7 @@ struct ng_node {
 	void   *nd_private;		/* node type dependant node ID */
 	ng_ID_t	nd_ID;			/* Unique per node */
 	LIST_HEAD(hooks, ng_hook) nd_hooks;	/* linked list of node hooks */
-	LIST_ENTRY(ng_node)	  nd_nodes;	/* linked list of all nodes */
+	LIST_ENTRY(ng_node)	  nd_nodes;	/* name hash collision list */
 	LIST_ENTRY(ng_node)	  nd_idnodes;	/* ID hash collision list */
 	struct	ng_queue	  nd_input_queue; /* input queue for locking */
 	int	nd_refs;		/* # of references to this node */
@@ -458,7 +459,7 @@ static __inline void
 _chknode(node_p node, char *file, int line)
 {
 	if (node->nd_magic != ND_MAGIC) {
-		printf("Accessing freed node ");
+		printf("Accessing freed ");
 		dumpnode(node, file, line);
 	}
 	node->lastline = line;
@@ -1134,7 +1135,7 @@ SYSCTL_DECL(_net_graph);
  */
 int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
 int	ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr);
-int	ng_address_path(node_p here, item_p item, char *address, ng_ID_t raddr);
+int	ng_address_path(node_p here, item_p item, const char *address, ng_ID_t raddr);
 int	ng_bypass(hook_p hook1, hook_p hook2);
 hook_p	ng_findhook(node_p node, const char *name);
 struct	ng_type *ng_findtype(const char *type);
@@ -1200,10 +1201,6 @@ typedef void *meta_p;
 #define NG_FREE_META(meta)
 #define NGI_GET_META(i,m)
 #define	ng_copy_meta(meta) NULL
-
-/* Hash related definitions */
-#define	NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
-#define	NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
 
 /*
  * Mark the current thread when called from the outbound path of the

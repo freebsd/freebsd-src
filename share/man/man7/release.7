@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2011
+.Dd January 14, 2012
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ and with clean checkouts of specific versions of the doc, src, and ports
 trees. For this purpose, a script
 .Pq Pa src/release/generate-release.sh
 is provided to automate these checkouts and then execute
-.Dq Li "make release" 
+.Dq Li "make release"
 in a clean
 .Xr chroot 8 .
 .Pp
@@ -65,7 +65,7 @@ and should have experience upgrading systems from source.
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
-.Dq Li "make buildworld" 
+.Dq Li "make buildworld"
 and
 .Dq Li "make buildkernel" .
 This is necessary to provide the object files for the release or, when
@@ -139,7 +139,7 @@ must be specified for ports and documentation to be included in the release.
 .It Ev CVS_TAG
 If the variable
 .Ev CVS_TAG
-is set, that tag will be used for CVS checkouts (doc and ports), otherwise 
+is set, that tag will be used for CVS checkouts (doc and ports), otherwise
 .Ic generate-release.sh
 will use HEAD.
 .It Ev MAKE_FLAGS
@@ -149,6 +149,11 @@ when invoked by the script.
 .It Ev SVNROOT
 The location of the FreeBSD SVN source repository. Defaults to
 .Pa svn://svn.freebsd.org/base .
+.It Ev RELSTRING
+Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
+Defaults to the output of
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
@@ -165,12 +170,12 @@ targets.
 Meta-target to build all release media and distributions applicable to this
 platform.
 .It Cm install
-Copy all produced release media to 
+Copy all produced release media to
 .Pa ${DESTDIR} .
 .It Cm cdrom
 Builds installation CD-ROM images. On some systems, this may require that
 .Xr mkisofs 8
-be installed 
+be installed
 .Pq Pa sysutils/cdrtools
 and possibly that the
 .Xr md 4
@@ -234,7 +239,7 @@ Location of a directory containing the doc tree. By default,
 .Pa /usr/doc .
 If it is unset or cannot be found, most documentation will not be included in
 the release; see
-.Ev NODOC 
+.Ev NODOC
 below.
 .It Va NOPORTS
 If defined, the Ports Collection will be omitted from the release.
@@ -311,9 +316,7 @@ The following sequence of commands can be used to build a
 .Dq "-CURRENT snapshot"
 in a clean environment, including ports and documentation:
 .Bd -literal -offset indent
-cd /usr/src
-make buildworld
-cd release
+cd /usr/src/release
 export CVSUP_HOST=cvsupN.freebsd.org
 sh generate-release.sh head /local3/release
 .Ed
@@ -366,7 +369,7 @@ of building a release in a sterile environment.
 .Pp
 For the
 .Fx 9.0
-release, 
+release,
 .Pa src/release/Makefile
 was overhauled and the wrapper script
 .Pa src/release/generate-release.sh

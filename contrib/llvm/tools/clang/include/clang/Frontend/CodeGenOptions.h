@@ -37,6 +37,7 @@ public:
 
   unsigned AsmVerbose        : 1; /// -dA, -fverbose-asm.
   unsigned ObjCAutoRefCountExceptions : 1; /// Whether ARC should be EH-safe.
+  unsigned CUDAIsDevice      : 1; /// Set when compiling for CUDA device.
   unsigned CXAAtExit         : 1; /// Use __cxa_atexit for calling destructors.
   unsigned CXXCtorDtorAliases: 1; /// Emit complete ctors/dtors as linker
                                   /// aliases to base ctors when possible.
@@ -71,6 +72,7 @@ public:
   unsigned NoCommon          : 1; /// Set when -fno-common or C++ is enabled.
   unsigned NoDwarf2CFIAsm    : 1; /// Set when -fno-dwarf2-cfi-asm is enabled.
   unsigned NoExecStack       : 1; /// Set when -Wa,--noexecstack is enabled.
+  unsigned NoGlobalMerge     : 1; /// Set when -mno-global-merge is enabled.
   unsigned NoImplicitFloat   : 1; /// Set when -mno-implicit-float is enabled.
   unsigned NoInfsFPMath      : 1; /// Assume FP arguments, results not +-Inf.
   unsigned NoNaNsFPMath      : 1; /// Assume FP arguments, results not NaN.
@@ -142,6 +144,7 @@ public:
 public:
   CodeGenOptions() {
     AsmVerbose = 0;
+    CUDAIsDevice = 0;
     CXAAtExit = 1;
     CXXCtorDtorAliases = 0;
     DataSections = 0;

@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	bmp pcx
+SUBDIR=	bmp pcx txt
 
 .include <bsd.subdir.mk>

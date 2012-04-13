@@ -46,9 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "fdt_common.h"
 #include "ofw_bus_if.h"
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
@@ -177,7 +174,7 @@ fdtbus_attach(device_t dev)
 	u_long start, end;
 	int error;
 
-	if ((root = OF_peer(0)) == 0)
+	if ((root = OF_finddevice("/")) == -1)
 		panic("fdtbus_attach: no root node.");
 
 	sc = device_get_softc(dev);
@@ -591,6 +588,9 @@ fdtbus_setup_intr(device_t bus, device_t child, struct resource *res,
 #if defined(__powerpc__)
 	err = powerpc_setup_intr(device_get_nameunit(child),
 	    rman_get_start(res), filter, ihand, arg, flags, cookiep);
+#elif defined(__mips__)
+	cpu_establish_hardintr(device_get_nameunit(child), 
+		filter, ihand, arg, rman_get_start(res), flags, cookiep);
 #elif defined(__arm__)
 	arm_setup_irqhandler(device_get_nameunit(child),
 	    filter, ihand, arg, rman_get_start(res), flags, cookiep);
@@ -617,7 +617,6 @@ fdtbus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_deactivate_resource(res));
 }
 
-
 static int
 fdtbus_teardown_intr(device_t bus, device_t child, struct resource *res,
     void *cookie)
@@ -625,6 +624,9 @@ fdtbus_teardown_intr(device_t bus, device_t child, struct resource *res,
 
 #if defined(__powerpc__)
 	return (powerpc_teardown_intr(cookie));
+#elif defined(__mips__)
+	/* mips does not have a teardown yet */
+	return (0);
 #elif defined(__arm__)
 	return (arm_remove_irqhandler(rman_get_start(res), cookie));
 #endif

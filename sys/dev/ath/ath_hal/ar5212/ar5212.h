@@ -252,6 +252,7 @@ struct ath_hal_5212 {
 	uint8_t		ah_macaddr[IEEE80211_ADDR_LEN];
 	uint8_t		ah_bssid[IEEE80211_ADDR_LEN];
 	uint8_t		ah_bssidmask[IEEE80211_ADDR_LEN];
+	uint16_t	ah_assocId;
 
 	/*
 	 * Runtime state.
@@ -627,5 +628,6 @@ extern	HAL_BOOL ar5212ProcessRadarEvent(struct ath_hal *ah,
 	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
 	    HAL_DFS_EVENT *event);
 extern	HAL_BOOL ar5212IsFastClockEnabled(struct ath_hal *ah);
+extern	uint32_t ar5212Get11nExtBusy(struct ath_hal *ah);
 
 #endif	/* _ATH_AR5212_H_ */

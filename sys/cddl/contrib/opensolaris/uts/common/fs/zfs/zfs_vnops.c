@@ -293,9 +293,12 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 
 	case _FIO_SEEK_DATA:
 	case _FIO_SEEK_HOLE:
+#ifdef sun
 		if (ddi_copyin((void *)data, &off, sizeof (off), flag))
 			return (EFAULT);
-
+#else
+		off = *(offset_t *)data;
+#endif
 		zp = VTOZ(vp);
 		zfsvfs = zp->z_zfsvfs;
 		ZFS_ENTER(zfsvfs);
@@ -306,8 +309,12 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 		ZFS_EXIT(zfsvfs);
 		if (error)
 			return (error);
+#ifdef sun
 		if (ddi_copyout(&off, (void *)data, sizeof (off), flag))
 			return (EFAULT);
+#else
+		*(offset_t *)data = off;
+#endif
 		return (0);
 	}
 	return (ENOTTY);
@@ -338,10 +345,9 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 			vm_page_busy(pp);
 			vm_page_undirty(pp);
 		} else {
-			if (__predict_false(obj->cache != NULL)) {
+			if (vm_page_is_cached(obj, OFF_TO_IDX(start)))
 				vm_page_cache_free(obj, OFF_TO_IDX(start),
 				    OFF_TO_IDX(start) + 1);
-			}
 			pp = NULL;
 		}
 		break;
@@ -2698,7 +2704,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 		links = zp->z_links + 1;
 	else
 		links = zp->z_links;
-	vap->va_nlink = MIN(links, UINT32_MAX);	/* nlink_t limit! */
+	vap->va_nlink = MIN(links, LINK_MAX);	/* nlink_t limit! */
 	vap->va_size = zp->z_size;
 #ifdef sun
 	vap->va_rdev = vp->v_rdev;
@@ -5163,7 +5169,7 @@ zfs_getsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 /*ARGSUSED*/
-static int
+int
 zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
     caller_context_t *ct)
 {

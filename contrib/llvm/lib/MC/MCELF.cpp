@@ -16,7 +16,6 @@
 #include "llvm/MC/MCELFSymbolFlags.h"
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/Support/ELF.h"
-#include "llvm/Target/TargetAsmBackend.h"
 
 namespace llvm {
 

@@ -26,7 +26,6 @@ FBSD_1.0 {
 	__infinity;
 	__nan;
 	makecontext;
-	modf;
 	rfork_thread;
 	setjmp;
 	longjmp;

@@ -27,26 +27,25 @@ class UndefBranchChecker : public Checker<check::BranchCondition> {
   mutable llvm::OwningPtr<BuiltinBug> BT;
 
   struct FindUndefExpr {
-    GRStateManager& VM;
-    const GRState* St;
+    const ProgramState *St;
 
-    FindUndefExpr(GRStateManager& V, const GRState* S) : VM(V), St(S) {}
+    FindUndefExpr(const ProgramState *S) : St(S) {}
 
-    const Expr* FindExpr(const Expr* Ex) {
+    const Expr *FindExpr(const Expr *Ex) {
       if (!MatchesCriteria(Ex))
         return 0;
 
       for (Stmt::const_child_iterator I = Ex->child_begin(), 
                                       E = Ex->child_end();I!=E;++I)
-        if (const Expr* ExI = dyn_cast_or_null<Expr>(*I)) {
-          const Expr* E2 = FindExpr(ExI);
+        if (const Expr *ExI = dyn_cast_or_null<Expr>(*I)) {
+          const Expr *E2 = FindExpr(ExI);
           if (E2) return E2;
         }
 
       return Ex;
     }
 
-    bool MatchesCriteria(const Expr* Ex) { return St->getSVal(Ex).isUndef(); }
+    bool MatchesCriteria(const Expr *Ex) { return St->getSVal(Ex).isUndef(); }
   };
 
 public:
@@ -59,10 +58,10 @@ public:
 void UndefBranchChecker::checkBranchCondition(const Stmt *Condition,
                                               BranchNodeBuilder &Builder,
                                               ExprEngine &Eng) const {
-  const GRState *state = Builder.getState();
+  const ProgramState *state = Builder.getState();
   SVal X = state->getSVal(Condition);
   if (X.isUndef()) {
-    ExplodedNode *N = Builder.generateNode(state, true);
+    ExplodedNode *N = Builder.generateNode(Condition, state);
     if (N) {
       N->markAsSink();
       if (!BT)
@@ -74,33 +73,31 @@ void UndefBranchChecker::checkBranchCondition(const Stmt *Condition,
       // branch condition."  We do a recursive walk of the condition's
       // subexpressions and roughly look for the most nested subexpression
       // that binds to Undefined.  We then highlight that expression's range.
-      BlockEdge B = cast<BlockEdge>(N->getLocation());
-      const Expr* Ex = cast<Expr>(B.getSrc()->getTerminatorCondition());
-      assert (Ex && "Block must have a terminator.");
 
       // Get the predecessor node and check if is a PostStmt with the Stmt
       // being the terminator condition.  We want to inspect the state
       // of that node instead because it will contain main information about
       // the subexpressions.
-      assert (!N->pred_empty());
 
       // Note: any predecessor will do.  They should have identical state,
       // since all the BlockEdge did was act as an error sink since the value
       // had to already be undefined.
+      assert (!N->pred_empty());
+      const Expr *Ex = cast<Expr>(Condition);
       ExplodedNode *PrevN = *N->pred_begin();
       ProgramPoint P = PrevN->getLocation();
-      const GRState* St = N->getState();
+      const ProgramState *St = N->getState();
 
-      if (PostStmt* PS = dyn_cast<PostStmt>(&P))
+      if (PostStmt *PS = dyn_cast<PostStmt>(&P))
         if (PS->getStmt() == Ex)
           St = PrevN->getState();
 
-      FindUndefExpr FindIt(Eng.getStateManager(), St);
+      FindUndefExpr FindIt(St);
       Ex = FindIt.FindExpr(Ex);
 
       // Emit the bug report.
-      EnhancedBugReport *R = new EnhancedBugReport(*BT, BT->getDescription(),N);
-      R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, Ex);
+      BugReport *R = new BugReport(*BT, BT->getDescription(), N);
+      R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex));
       R->addRange(Ex->getSourceRange());
 
       Eng.getBugReporter().EmitReport(R);

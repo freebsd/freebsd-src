@@ -165,7 +165,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
     &VNET_NAME(tcp_abc_l_var), 2,
     "Cap the max cwnd increment during slow-start to this number of segments");
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 
 VNET_DEFINE(int, tcp_do_ecn) = 0;
 SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_RW,
@@ -182,6 +182,11 @@ VNET_DEFINE(int, tcp_insecure_rst) = 0;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_rst), 0,
     "Follow the old (insecure) criteria for accepting RST packets");
+
+VNET_DEFINE(int, tcp_recvspace) = 1024*64;
+#define	V_tcp_recvspace	VNET(tcp_recvspace)
+SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
+    &VNET_NAME(tcp_recvspace), 0, "Initial receive socket buffer size");
 
 VNET_DEFINE(int, tcp_do_autorcvbuf) = 1;
 #define	V_tcp_do_autorcvbuf	VNET(tcp_do_autorcvbuf)
@@ -301,9 +306,6 @@ cc_conn_init(struct tcpcb *tp)
 	struct hc_metrics_lite metrics;
 	struct inpcb *inp = tp->t_inpcb;
 	int rtt;
-#ifdef INET6
-	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
-#endif
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -337,49 +339,16 @@ cc_conn_init(struct tcpcb *tp)
 	}
 
 	/*
-	 * Set the slow-start flight size depending on whether this
-	 * is a local network or not.
-	 *
-	 * Extend this so we cache the cwnd too and retrieve it here.
-	 * Make cwnd even bigger than RFC3390 suggests but only if we
-	 * have previous experience with the remote host. Be careful
-	 * not make cwnd bigger than remote receive window or our own
-	 * send socket buffer. Maybe put some additional upper bound
-	 * on the retrieved cwnd. Should do incremental updates to
-	 * hostcache when cwnd collapses so next connection doesn't
-	 * overloads the path again.
-	 *
-	 * XXXAO: Initializing the CWND from the hostcache is broken
-	 * and in its current form not RFC conformant.  It is disabled
-	 * until fixed or removed entirely.
+	 * Set the initial slow-start flight size.
 	 *
 	 * RFC3390 says only do this if SYN or SYN/ACK didn't got lost.
-	 * We currently check only in syncache_socket for that.
+	 * XXX: We currently check only in syncache_socket for that.
 	 */
-/* #define TCP_METRICS_CWND */
-#ifdef TCP_METRICS_CWND
-	if (metrics.rmx_cwnd)
-		tp->snd_cwnd = max(tp->t_maxseg, min(metrics.rmx_cwnd / 2,
-		    min(tp->snd_wnd, so->so_snd.sb_hiwat)));
-	else
-#endif
 	if (V_tcp_do_rfc3390)
 		tp->snd_cwnd = min(4 * tp->t_maxseg,
 		    max(2 * tp->t_maxseg, 4380));
-#ifdef INET6
-	else if (isipv6 && in6_localaddr(&inp->in6p_faddr))
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
-#endif
-#if defined(INET) && defined(INET6)
-	else if (!isipv6 && in_localaddr(inp->inp_faddr))
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
-#endif
-#ifdef INET
-	else if (in_localaddr(inp->inp_faddr))
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
-#endif
 	else
-		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz;
+		tp->snd_cwnd = tp->t_maxseg;
 
 	if (CC_ALGO(tp)->conn_init != NULL)
 		CC_ALGO(tp)->conn_init(tp->ccv);
@@ -1477,7 +1446,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	tp->t_rcvtime = ticks;
 	if (TCPS_HAVEESTABLISHED(tp->t_state))
-		tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
+		tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 
 	/*
 	 * Unscale the window into a 32-bit value.
@@ -1524,7 +1493,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((to.to_flags & TOF_TS) && (to.to_tsecr != 0)) {
 		to.to_tsecr -= tp->ts_offset;
-		if (TSTMP_GT(to.to_tsecr, ticks))
+		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
 	}
 
@@ -1549,7 +1518,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (to.to_flags & TOF_TS) {
 			tp->t_flags |= TF_RCVD_TSTMP;
 			tp->ts_recent = to.to_tsval;
-			tp->ts_recent_age = ticks;
+			tp->ts_recent_age = tcp_ts_getticks();
 		}
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
@@ -1593,7 +1562,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 */
 		if ((to.to_flags & TOF_TS) != 0 &&
 		    SEQ_LEQ(th->th_seq, tp->last_ack_sent)) {
-			tp->ts_recent_age = ticks;
+			tp->ts_recent_age = tcp_ts_getticks();
 			tp->ts_recent = to.to_tsval;
 		}
 
@@ -1631,11 +1600,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 */
 				if ((to.to_flags & TOF_TS) != 0 &&
 				    to.to_tsecr) {
-					if (!tp->t_rttlow ||
-					    tp->t_rttlow > ticks - to.to_tsecr)
-						tp->t_rttlow = ticks - to.to_tsecr;
+					u_int t;
+
+					t = tcp_ts_getticks() - to.to_tsecr;
+					if (!tp->t_rttlow || tp->t_rttlow > t)
+						tp->t_rttlow = t;
 					tcp_xmit_timer(tp,
-					    ticks - to.to_tsecr + 1);
+					    TCP_TS_TO_TICKS(t) + 1);
 				} else if (tp->t_rtttime &&
 				    SEQ_GT(th->th_ack, tp->t_rtseq)) {
 					if (!tp->t_rttlow ||
@@ -1826,9 +1797,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	win = sbspace(&so->so_rcv);
 	if (win < 0)
 		win = 0;
-	KASSERT(SEQ_GEQ(tp->rcv_adv, tp->rcv_nxt),
-	    ("tcp_input negative window: tp %p rcv_nxt %u rcv_adv %u", tp,
-	    tp->rcv_nxt, tp->rcv_adv));
 	tp->rcv_wnd = imax(win, (int)(tp->rcv_adv - tp->rcv_nxt));
 
 	/* Reset receive buffer auto scaling when not in bulk receive mode. */
@@ -1923,7 +1891,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			} else {
 				tp->t_state = TCPS_ESTABLISHED;
 				cc_conn_init(tp);
-				tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
+				tcp_timer_activate(tp, TT_KEEP,
+				    TP_KEEPIDLE(tp));
 			}
 		} else {
 			/*
@@ -2103,7 +2072,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    TSTMP_LT(to.to_tsval, tp->ts_recent)) {
 
 		/* Check to see if ts_recent is over 24 days old.  */
-		if (ticks - tp->ts_recent_age > TCP_PAWS_IDLE) {
+		if (tcp_ts_getticks() - tp->ts_recent_age > TCP_PAWS_IDLE) {
 			/*
 			 * Invalidate ts_recent.  If this segment updates
 			 * ts_recent, the age will be reset later and ts_recent
@@ -2262,7 +2231,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    SEQ_LEQ(th->th_seq, tp->last_ack_sent) &&
 	    SEQ_LEQ(tp->last_ack_sent, th->th_seq + tlen +
 		((thflags & (TH_SYN|TH_FIN)) != 0))) {
-		tp->ts_recent_age = ticks;
+		tp->ts_recent_age = tcp_ts_getticks();
 		tp->ts_recent = to.to_tsval;
 	}
 
@@ -2327,7 +2296,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		} else {
 			tp->t_state = TCPS_ESTABLISHED;
 			cc_conn_init(tp);
-			tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
+			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
 		/*
 		 * If segment contains data or ACK, will call tcp_reass()
@@ -2576,11 +2545,13 @@ process_ACK:
 		 * timestamps of 0 or we could calculate a
 		 * huge RTT and blow up the retransmit timer.
 		 */
-		if ((to.to_flags & TOF_TS) != 0 &&
-		    to.to_tsecr) {
-			if (!tp->t_rttlow || tp->t_rttlow > ticks - to.to_tsecr)
-				tp->t_rttlow = ticks - to.to_tsecr;
-			tcp_xmit_timer(tp, ticks - to.to_tsecr + 1);
+		if ((to.to_flags & TOF_TS) != 0 && to.to_tsecr) {
+			u_int t;
+
+			t = tcp_ts_getticks() - to.to_tsecr;
+			if (!tp->t_rttlow || tp->t_rttlow > t)
+				tp->t_rttlow = t;
+			tcp_xmit_timer(tp, TCP_TS_TO_TICKS(t) + 1);
 		} else if (tp->t_rtttime && SEQ_GT(th->th_ack, tp->t_rtseq)) {
 			if (!tp->t_rttlow || tp->t_rttlow > ticks - tp->t_rtttime)
 				tp->t_rttlow = ticks - tp->t_rtttime;
@@ -2664,12 +2635,11 @@ process_ACK:
 				 * compressed state.
 				 */
 				if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
-					int timeout;
-
 					soisdisconnected(so);
-					timeout = (tcp_fast_finwait2_recycle) ? 
-						tcp_finwait2_timeout : tcp_maxidle;
-					tcp_timer_activate(tp, TT_2MSL, timeout);
+					tcp_timer_activate(tp, TT_2MSL,
+					    (tcp_fast_finwait2_recycle ?
+					    tcp_finwait2_timeout :
+					    TP_MAXIDLE(tp)));
 				}
 				tp->t_state = TCPS_FIN_WAIT_2;
 			}
@@ -3517,7 +3487,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	 */
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_snd);
-	if ((so->so_snd.sb_hiwat == tcp_sendspace) && metrics.rmx_sendpipe)
+	if ((so->so_snd.sb_hiwat == V_tcp_sendspace) && metrics.rmx_sendpipe)
 		bufsize = metrics.rmx_sendpipe;
 	else
 		bufsize = so->so_snd.sb_hiwat;
@@ -3534,7 +3504,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	tp->t_maxseg = mss;
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	if ((so->so_rcv.sb_hiwat == tcp_recvspace) && metrics.rmx_recvpipe)
+	if ((so->so_rcv.sb_hiwat == V_tcp_recvspace) && metrics.rmx_recvpipe)
 		bufsize = metrics.rmx_recvpipe;
 	else
 		bufsize = so->so_rcv.sb_hiwat;

@@ -40,6 +40,7 @@ namespace clang {
     TST_char16,       // C++0x char16_t
     TST_char32,       // C++0x char32_t
     TST_int,
+    TST_half,         // OpenCL half, ARM NEON __fp16
     TST_float,
     TST_double,
     TST_bool,         // _Bool
@@ -57,6 +58,7 @@ namespace clang {
     TST_underlyingType, // __underlying_type for C++0x
     TST_auto,         // C++0x auto
     TST_unknown_anytype, // __unknown_anytype extension
+    TST_atomic,       // C1X _Atomic
     TST_error         // erroneous type
   };
   
@@ -146,6 +148,7 @@ namespace clang {
     SC_PrivateExtern,
 
     // These are only legal on variables.
+    SC_OpenCLWorkGroupLocal,
     SC_Auto,
     SC_Register
   };

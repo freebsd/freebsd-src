@@ -106,11 +106,13 @@ struct g_part_alias_list {
 };
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0, "GEOM_PART stuff");
+SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0,
+    "GEOM_PART stuff");
 static u_int check_integrity = 1;
 TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
-SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity, CTLFLAG_RW,
-    &check_integrity, 1, "Enable integrity checking");
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity,
+    CTLFLAG_RW | CTLFLAG_TUN, &check_integrity, 1,
+    "Enable integrity checking");
 
 /*
  * The GEOM partitioning class.
@@ -145,6 +147,7 @@ static struct g_class g_part_class = {
 };
 
 DECLARE_GEOM_CLASS(g_part_class, g_part);
+MODULE_VERSION(g_part, 0);
 
 /*
  * Support functions.
@@ -214,7 +217,7 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 				continue;
 			/*
 			 * Prefer a geometry with sectors > 1, but only if
-			 * it doesn't bump down the numbver of heads to 1.
+			 * it doesn't bump down the number of heads to 1.
 			 */
 			if (chs > bestchs || (chs == bestchs && heads > 1 &&
 			    table->gpt_sectors == 1)) {
@@ -450,6 +453,10 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 	if (gp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
+	}
+	if ((gp->flags & G_GEOM_WITHER) != 0) {
+		gctl_error(req, "%d %s", ENXIO, gname);
+		return (ENXIO);
 	}
 	*v = gp;
 	return (0);
@@ -1211,6 +1218,9 @@ g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 
 	if (table->gpt_corrupt) {
 		error = G_PART_RECOVER(table);
+		if (error == 0)
+			error = g_part_check_integrity(table,
+			    LIST_FIRST(&gp->consumer));
 		if (error) {
 			gctl_error(req, "%d recovering '%s' failed",
 			    error, gp->name);
@@ -2049,6 +2059,7 @@ g_part_start(struct bio *bp)
 	struct g_part_table *table;
 	struct g_kerneldump *gkd;
 	struct g_provider *pp;
+	char buf[64];
 
 	pp = bp->bio_to;
 	gp = pp->geom;
@@ -2097,13 +2108,19 @@ g_part_start(struct bio *bp)
 		if (g_handleattr_str(bp, "PART::scheme",
 		    table->gpt_scheme->name))
 			return;
+		if (g_handleattr_str(bp, "PART::type",
+		    G_PART_TYPE(table, entry, buf, sizeof(buf))))
+			return;
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			/*
 			 * Check that the partition is suitable for kernel
 			 * dumps. Typically only swap partitions should be
-			 * used.
+			 * used. If the request comes from the nested scheme
+			 * we allow dumping there as well.
 			 */
-			if (!G_PART_DUMPTO(table, entry)) {
+			if ((bp->bio_from == NULL ||
+			    bp->bio_from->geom->class != &g_part_class) &&
+			    G_PART_DUMPTO(table, entry) == 0) {
 				g_io_deliver(bp, ENODEV);
 				printf("GEOM_PART: Partition '%s' not suitable"
 				    " for kernel dumps (wrong type?)\n",
@@ -2194,23 +2211,32 @@ g_part_unload_event(void *arg, int flag)
 int
 g_part_modevent(module_t mod, int type, struct g_part_scheme *scheme)
 {
+	struct g_part_scheme *iter;
 	uintptr_t arg;
 	int error;
 
+	error = 0;
 	switch (type) {
 	case MOD_LOAD:
-		TAILQ_INSERT_TAIL(&g_part_schemes, scheme, scheme_list);
-
-		error = g_retaste(&g_part_class);
-		if (error)
-			TAILQ_REMOVE(&g_part_schemes, scheme, scheme_list);
+		TAILQ_FOREACH(iter, &g_part_schemes, scheme_list) {
+			if (scheme == iter) {
+				printf("GEOM_PART: scheme %s is already "
+				    "registered!\n", scheme->name);
+				break;
+			}
+		}
+		if (iter == NULL) {
+			TAILQ_INSERT_TAIL(&g_part_schemes, scheme,
+			    scheme_list);
+			g_retaste(&g_part_class);
+		}
 		break;
 	case MOD_UNLOAD:
 		arg = (uintptr_t)scheme;
 		error = g_waitfor_event(g_part_unload_event, &arg, M_WAITOK,
 		    NULL);
-		if (!error)
-			error = (arg == (uintptr_t)scheme) ? EDOOFUS : arg;
+		if (error == 0)
+			error = arg;
 		break;
 	default:
 		error = EOPNOTSUPP;

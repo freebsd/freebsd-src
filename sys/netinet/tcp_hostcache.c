@@ -118,7 +118,7 @@ static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
 static void tcp_hc_purge_internal(int);
 static void tcp_hc_purge(void *);
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
     "TCP Host cache");
 
 SYSCTL_VNET_UINT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,

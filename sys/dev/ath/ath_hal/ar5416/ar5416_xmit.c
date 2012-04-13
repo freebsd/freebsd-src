@@ -295,12 +295,14 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		 * copy the multi-rate transmit parameters from
 		 * the first frame for processing on completion. 
 		 */
-		ads->ds_ctl0 = 0;
 		ads->ds_ctl1 = segLen;
 #ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxIntrReq;
 		ads->ds_ctl2 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl2);
 		ads->ds_ctl3 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl3);
 #else
+		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
 		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
 		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
 #endif
@@ -308,7 +310,12 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Intermediate descriptor in a multi-descriptor frame.
 		 */
-		ads->ds_ctl0 = 0;
+#ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxIntrReq;
+#else
+		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
+#endif
 		ads->ds_ctl1 = segLen | AR_TxMore;
 		ads->ds_ctl2 = 0;
 		ads->ds_ctl3 = 0;
@@ -318,6 +325,9 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	return AH_TRUE;
 }
 
+/*
+ * NB: cipher is no longer used, it's calculated.
+ */
 HAL_BOOL
 ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	u_int pktLen,
@@ -328,13 +338,15 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	uint8_t delims,
 	u_int segLen,
 	HAL_BOOL firstSeg,
-	HAL_BOOL lastSeg)
+	HAL_BOOL lastSeg,
+	HAL_BOOL lastAggr)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 	uint32_t *ds_txstatus = AR5416_DS_TXSTATUS(ah,ads);
 	struct ath_hal_5416 *ahp = AH5416(ah);
 
 	int isaggr = 0;
+	uint32_t last_aggr = 0;
 	
 	(void) hdrLen;
 	(void) ah;
@@ -345,15 +357,38 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	if (type == HAL_PKT_TYPE_AMPDU) {
 		type = HAL_PKT_TYPE_NORMAL;
 		isaggr = 1;
+		if (lastAggr == AH_FALSE)
+			last_aggr = AR_MoreAggr;
 	}
 
-	if (!firstSeg) {
-		OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
-	}
+	/*
+	 * Since this function is called before any of the other
+	 * descriptor setup functions (at least in this particular
+	 * 802.11n aggregation implementation), always bzero() the
+	 * descriptor. Previously this would be done for all but
+	 * the first segment.
+	 * XXX TODO: figure out why; perhaps I'm using this slightly
+	 * XXX incorrectly.
+	 */
+	OS_MEMZERO(ds->ds_hw, AR5416_DESC_TX_CTL_SZ);
 
+	/*
+	 * Note: VEOL should only be for the last descriptor in the chain.
+	 */
 	ads->ds_ctl0 = (pktLen & AR_FrameLen);
+
+	/*
+	 * For aggregates:
+	 * + IsAggr must be set for all descriptors of all subframes of
+	 *   the aggregate
+	 * + MoreAggr must be set for all descriptors of all subframes
+	 *   of the aggregate EXCEPT the last subframe;
+	 * + MoreAggr must be _CLEAR_ for all descrpitors of the last
+	 *   subframe of the aggregate.
+	 */
 	ads->ds_ctl1 = (type << AR_FrameType_S)
-			| (isaggr ? (AR_IsAggr | AR_MoreAggr) : 0);
+			| (isaggr ? (AR_IsAggr | last_aggr) : 0);
+
 	ads->ds_ctl2 = 0;
 	ads->ds_ctl3 = 0;
 	if (keyIx != HAL_TXKEYIX_INVALID) {
@@ -362,7 +397,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl0 |= AR_DestIdxValid;
 	}
 
-	ads->ds_ctl6 = SM(ahp->ah_keytype[cipher], AR_EncrType);
+	ads->ds_ctl6 |= SM(ahp->ah_keytype[keyIx], AR_EncrType);
 	if (isaggr) {
 		ads->ds_ctl6 |= SM(delims, AR_PadDelim);
 	}
@@ -463,7 +498,6 @@ ar5416SetupLastTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
 	ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
 #endif
-	
 	return AH_TRUE;
 }
 
@@ -504,6 +538,7 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 	/* Update software copies of the HW status */
 	ts->ts_seqnum = MS(ds_txstatus[9], AR_SeqNum);
 	ts->ts_tstamp = AR_SendTimestamp(ds_txstatus);
+	ts->ts_tid = MS(ds_txstatus[9], AR_TxTid);
 
 	ts->ts_status = 0;
 	if (ds_txstatus[1] & AR_ExcessiveRetries)
@@ -692,6 +727,19 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 }
 
 void
+ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds,
+    u_int aggrLen, u_int numDelims)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
+
+	ads->ds_ctl6 &= ~(AR_AggrLen | AR_PadDelim);
+	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen) |
+	    SM(numDelims, AR_PadDelim);
+}
+
+void
 ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
@@ -708,6 +756,16 @@ ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims)
 	 * func name to reflect this
 	 */
 	ds_txstatus[9] &= ~AR_TxDone;
+}
+
+void
+ar5416Set11nAggrLast(struct ath_hal *ah, struct ath_desc *ds)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	ads->ds_ctl1 |= AR_IsAggr;
+	ads->ds_ctl1 &= ~AR_MoreAggr;
+	ads->ds_ctl6 &= ~AR_PadDelim;
 }
 
 void

@@ -200,6 +200,8 @@
 /* CPU dependent mtc0 hazard hook */
 #if defined(CPU_CNMIPS) || defined(CPU_RMI)
 #define	COP0_SYNC
+#elif defined(CPU_NLM)
+#define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
 #else
@@ -227,10 +229,10 @@
  */
 #define	MIPS_CR_BR_DELAY	0x80000000
 #define	MIPS_CR_COP_ERR		0x30000000
-#define	MIPS1_CR_EXC_CODE	0x0000003C	/* four bits */
-#define	MIPS3_CR_EXC_CODE	0x0000007C	/* five bits */
+#define	MIPS_CR_EXC_CODE	0x0000007C	/* five bits */
 #define	MIPS_CR_IP		0x0000FF00
 #define	MIPS_CR_EXC_CODE_SHIFT	2
+#define	MIPS_CR_COP_ERR_SHIFT	28
 
 /*
  * The bits in the status register.  All bits are active when set to 1.
@@ -265,94 +267,31 @@
 #define MIPS_SR_INT_MASK	0x0000ff00
 
 /*
- * The R2000/R3000-specific status register bit definitions.
- * all bits are active when set to 1.
- *
- *	MIPS_SR_PARITY_ERR	Parity error.
- *	MIPS_SR_CACHE_MISS	Most recent D-cache load resulted in a miss.
- *	MIPS_SR_PARITY_ZERO	Zero replaces outgoing parity bits.
- *	MIPS_SR_SWAP_CACHES	Swap I-cache and D-cache.
- *	MIPS_SR_ISOL_CACHES	Isolate D-cache from main memory.
- *				Interrupt enable bits defined below.
- *	MIPS_SR_KU_OLD		Old kernel/user mode bit. 1 => user mode.
- *	MIPS_SR_INT_ENA_OLD	Old interrupt enable bit.
- *	MIPS_SR_KU_PREV		Previous kernel/user mode bit. 1 => user mode.
- *	MIPS_SR_INT_ENA_PREV	Previous interrupt enable bit.
- *	MIPS_SR_KU_CUR		Current kernel/user mode bit. 1 => user mode.
- */
-
-#define	MIPS1_PARITY_ERR	0x00100000
-#define	MIPS1_CACHE_MISS	0x00080000
-#define	MIPS1_PARITY_ZERO	0x00040000
-#define	MIPS1_SWAP_CACHES	0x00020000
-#define	MIPS1_ISOL_CACHES	0x00010000
-
-#define	MIPS1_SR_KU_OLD		0x00000020	/* 2nd stacked KU/IE*/
-#define	MIPS1_SR_INT_ENA_OLD	0x00000010	/* 2nd stacked KU/IE*/
-#define	MIPS1_SR_KU_PREV	0x00000008	/* 1st stacked KU/IE*/
-#define	MIPS1_SR_INT_ENA_PREV	0x00000004	/* 1st stacked KU/IE*/
-#define	MIPS1_SR_KU_CUR		0x00000002	/* current KU */
-
-/* backwards compatibility */
-#define	MIPS_SR_PARITY_ERR	MIPS1_PARITY_ERR
-#define	MIPS_SR_CACHE_MISS	MIPS1_CACHE_MISS
-#define	MIPS_SR_PARITY_ZERO	MIPS1_PARITY_ZERO
-#define	MIPS_SR_SWAP_CACHES	MIPS1_SWAP_CACHES
-#define	MIPS_SR_ISOL_CACHES	MIPS1_ISOL_CACHES
-
-#define	MIPS_SR_KU_OLD		MIPS1_SR_KU_OLD
-#define	MIPS_SR_INT_ENA_OLD	MIPS1_SR_INT_ENA_OLD
-#define	MIPS_SR_KU_PREV		MIPS1_SR_KU_PREV
-#define	MIPS_SR_KU_CUR		MIPS1_SR_KU_CUR
-#define	MIPS_SR_INT_ENA_PREV	MIPS1_SR_INT_ENA_PREV
-
-/*
  * R4000 status register bit definitons,
  * where different from r2000/r3000.
  */
-#define	MIPS3_SR_XX		0x80000000
-#define	MIPS3_SR_RP		0x08000000
-#define	MIPS3_SR_FR		0x04000000
-#define	MIPS3_SR_RE		0x02000000
+#define	MIPS_SR_XX		0x80000000
+#define	MIPS_SR_RP		0x08000000
+#define	MIPS_SR_FR		0x04000000
+#define	MIPS_SR_RE		0x02000000
 
-#define	MIPS3_SR_DIAG_DL	0x01000000		/* QED 52xx */
-#define	MIPS3_SR_DIAG_IL	0x00800000		/* QED 52xx */
-#define	MIPS3_SR_SR		0x00100000
-#define	MIPS3_SR_NMI		0x00080000		/* MIPS32/64 */
-#define	MIPS3_SR_DIAG_CH	0x00040000
-#define	MIPS3_SR_DIAG_CE	0x00020000
-#define	MIPS3_SR_DIAG_PE	0x00010000
-#define	MIPS3_SR_EIE		0x00010000		/* TX79/R5900 */
-#define	MIPS3_SR_KX		0x00000080
-#define	MIPS3_SR_SX		0x00000040
-#define	MIPS3_SR_UX		0x00000020
-#define	MIPS3_SR_KSU_MASK	0x00000018
-#define	MIPS3_SR_KSU_USER	0x00000010
-#define	MIPS3_SR_KSU_SUPER	0x00000008
-#define	MIPS3_SR_KSU_KERNEL	0x00000000
-#define	MIPS3_SR_ERL		0x00000004
-#define	MIPS3_SR_EXL		0x00000002
-
-#ifdef MIPS3_5900
-#undef MIPS_SR_INT_IE
-#define	MIPS_SR_INT_IE		0x00010001		/* XXX */
-#endif
-
-#define	MIPS_SR_SOFT_RESET	MIPS3_SR_SR
-#define	MIPS_SR_DIAG_CH		MIPS3_SR_DIAG_CH
-#define	MIPS_SR_DIAG_CE		MIPS3_SR_DIAG_CE
-#define	MIPS_SR_DIAG_PE		MIPS3_SR_DIAG_PE
-#define	MIPS_SR_KX		MIPS3_SR_KX
-#define	MIPS_SR_SX		MIPS3_SR_SX
-#define	MIPS_SR_UX		MIPS3_SR_UX
-
-#define	MIPS_SR_KSU_MASK	MIPS3_SR_KSU_MASK
-#define	MIPS_SR_KSU_USER	MIPS3_SR_KSU_USER
-#define	MIPS_SR_KSU_SUPER	MIPS3_SR_KSU_SUPER
-#define	MIPS_SR_KSU_KERNEL	MIPS3_SR_KSU_KERNEL
-#define	MIPS_SR_ERL		MIPS3_SR_ERL
-#define	MIPS_SR_EXL		MIPS3_SR_EXL
-
+#define	MIPS_SR_DIAG_DL	0x01000000		/* QED 52xx */
+#define	MIPS_SR_DIAG_IL	0x00800000		/* QED 52xx */
+#define	MIPS_SR_SR		0x00100000
+#define	MIPS_SR_NMI		0x00080000		/* MIPS32/64 */
+#define	MIPS_SR_DIAG_CH	0x00040000
+#define	MIPS_SR_DIAG_CE	0x00020000
+#define	MIPS_SR_DIAG_PE	0x00010000
+#define	MIPS_SR_EIE		0x00010000		/* TX79/R5900 */
+#define	MIPS_SR_KX		0x00000080
+#define	MIPS_SR_SX		0x00000040
+#define	MIPS_SR_UX		0x00000020
+#define	MIPS_SR_KSU_MASK	0x00000018
+#define	MIPS_SR_KSU_USER	0x00000010
+#define	MIPS_SR_KSU_SUPER	0x00000008
+#define	MIPS_SR_KSU_KERNEL	0x00000000
+#define	MIPS_SR_ERL		0x00000004
+#define	MIPS_SR_EXL		0x00000002
 
 /*
  * The interrupt masks.
@@ -370,148 +309,86 @@
 #define	MIPS_SOFT_INT_MASK_0	0x0100
 
 /*
- * mips3 CPUs have on-chip timer at INT_MASK_5.  Each platform can
- * choose to enable this interrupt.
- */
-#if defined(MIPS3_ENABLE_CLOCK_INTR)
-#define	MIPS3_INT_MASK			MIPS_INT_MASK
-#define	MIPS3_HARD_INT_MASK		MIPS_HARD_INT_MASK
-#else
-#define	MIPS3_INT_MASK			(MIPS_INT_MASK &  ~MIPS_INT_MASK_5)
-#define	MIPS3_HARD_INT_MASK		(MIPS_HARD_INT_MASK & ~MIPS_INT_MASK_5)
-#endif
-
-/*
- * The bits in the context register.
- */
-#define	MIPS1_CNTXT_PTE_BASE	0xFFE00000
-#define	MIPS1_CNTXT_BAD_VPN	0x001FFFFC
-
-#define	MIPS3_CNTXT_PTE_BASE	0xFF800000
-#define	MIPS3_CNTXT_BAD_VPN2	0x007FFFF0
-
-/*
- * Location of MIPS32 exception vectors. Most are multiplexed in
- * the sense that further decoding is necessary (e.g. reading the
- * CAUSE register or NMI bits in STATUS).
- * Most interrupts go via the 
- * The INT vector is dedicated for hardware interrupts; it is
- * only referenced if the IV bit in CAUSE is set to 1.
- */
-#define	MIPS_VEC_RESET		0xBFC00000	/* Hard, soft, or NMI */
-#define	MIPS_VEC_EJTAG		0xBFC00480
-#define	MIPS_VEC_TLB		0x80000000
-#define	MIPS_VEC_XTLB		0x80000080
-#define	MIPS_VEC_CACHE		0x80000100
-#define	MIPS_VEC_GENERIC	0x80000180	/* Most exceptions */
-#define	MIPS_VEC_INTERRUPT	0x80000200
-
-/*
  * The bits in the MIPS3 config register.
  *
  *	bit 0..5: R/W, Bit 6..31: R/O
  */
 
 /* kseg0 coherency algorithm - see MIPS3_TLB_ATTR values */
-#define	MIPS3_CONFIG_K0_MASK	0x00000007
+#define	MIPS_CONFIG_K0_MASK	0x00000007
 
 /*
  * R/W Update on Store Conditional
  *	0: Store Conditional uses coherency algorithm specified by TLB
  *	1: Store Conditional uses cacheable coherent update on write
  */
-#define	MIPS3_CONFIG_CU		0x00000008
+#define	MIPS_CONFIG_CU		0x00000008
 
-#define	MIPS3_CONFIG_DB		0x00000010	/* Primary D-cache line size */
-#define	MIPS3_CONFIG_IB		0x00000020	/* Primary I-cache line size */
-#define	MIPS3_CONFIG_CACHE_L1_LSIZE(config, bit) \
+#define	MIPS_CONFIG_DB		0x00000010	/* Primary D-cache line size */
+#define	MIPS_CONFIG_IB		0x00000020	/* Primary I-cache line size */
+#define	MIPS_CONFIG_CACHE_L1_LSIZE(config, bit) \
 	(((config) & (bit)) ? 32 : 16)
 
-#define	MIPS3_CONFIG_DC_MASK	0x000001c0	/* Primary D-cache size */
-#define	MIPS3_CONFIG_DC_SHIFT	6
-#define	MIPS3_CONFIG_IC_MASK	0x00000e00	/* Primary I-cache size */
-#define	MIPS3_CONFIG_IC_SHIFT	9
-#define	MIPS3_CONFIG_C_DEFBASE	0x1000		/* default base 2^12 */
+#define	MIPS_CONFIG_DC_MASK	0x000001c0	/* Primary D-cache size */
+#define	MIPS_CONFIG_DC_SHIFT	6
+#define	MIPS_CONFIG_IC_MASK	0x00000e00	/* Primary I-cache size */
+#define	MIPS_CONFIG_IC_SHIFT	9
+#define	MIPS_CONFIG_C_DEFBASE	0x1000		/* default base 2^12 */
 
 /* Cache size mode indication: available only on Vr41xx CPUs */
-#define	MIPS3_CONFIG_CS		0x00001000
-#define	MIPS3_CONFIG_C_4100BASE	0x0400		/* base is 2^10 if CS=1 */
-#define	MIPS3_CONFIG_CACHE_SIZE(config, mask, base, shift) \
+#define	MIPS_CONFIG_CS		0x00001000
+#define	MIPS_CONFIG_C_4100BASE	0x0400		/* base is 2^10 if CS=1 */
+#define	MIPS_CONFIG_CACHE_SIZE(config, mask, base, shift) \
 	((base) << (((config) & (mask)) >> (shift)))
 
 /* External cache enable: Controls L2 for R5000/Rm527x and L3 for Rm7000 */
-#define	MIPS3_CONFIG_SE		0x00001000
+#define	MIPS_CONFIG_SE		0x00001000
 
 /* Block ordering: 0: sequential, 1: sub-block */
-#define	MIPS3_CONFIG_EB		0x00002000
+#define	MIPS_CONFIG_EB		0x00002000
 
 /* ECC mode - 0: ECC mode, 1: parity mode */
-#define	MIPS3_CONFIG_EM		0x00004000
+#define	MIPS_CONFIG_EM		0x00004000
 
 /* BigEndianMem - 0: kernel and memory are little endian, 1: big endian */
-#define	MIPS3_CONFIG_BE		0x00008000
+#define	MIPS_CONFIG_BE		0x00008000
 
 /* Dirty Shared coherency state - 0: enabled, 1: disabled */
-#define	MIPS3_CONFIG_SM		0x00010000
+#define	MIPS_CONFIG_SM		0x00010000
 
 /* Secondary Cache - 0: present, 1: not present */
-#define	MIPS3_CONFIG_SC		0x00020000
+#define	MIPS_CONFIG_SC		0x00020000
 
 /* System Port width - 0: 64-bit, 1: 32-bit (QED RM523x), 2,3: reserved */
-#define	MIPS3_CONFIG_EW_MASK	0x000c0000
-#define	MIPS3_CONFIG_EW_SHIFT	18
+#define	MIPS_CONFIG_EW_MASK	0x000c0000
+#define	MIPS_CONFIG_EW_SHIFT	18
 
 /* Secondary Cache port width - 0: 128-bit data path to S-cache, 1: reserved */
-#define	MIPS3_CONFIG_SW		0x00100000
+#define	MIPS_CONFIG_SW		0x00100000
 
 /* Split Secondary Cache Mode - 0: I/D mixed, 1: I/D separated by SCAddr(17) */
-#define	MIPS3_CONFIG_SS		0x00200000
+#define	MIPS_CONFIG_SS		0x00200000
 
 /* Secondary Cache line size */
-#define	MIPS3_CONFIG_SB_MASK	0x00c00000
-#define	MIPS3_CONFIG_SB_SHIFT	22
-#define	MIPS3_CONFIG_CACHE_L2_LSIZE(config) \
-	(0x10 << (((config) & MIPS3_CONFIG_SB_MASK) >> MIPS3_CONFIG_SB_SHIFT))
+#define	MIPS_CONFIG_SB_MASK	0x00c00000
+#define	MIPS_CONFIG_SB_SHIFT	22
+#define	MIPS_CONFIG_CACHE_L2_LSIZE(config) \
+	(0x10 << (((config) & MIPS_CONFIG_SB_MASK) >> MIPS_CONFIG_SB_SHIFT))
 
 /* Write back data rate */
-#define	MIPS3_CONFIG_EP_MASK	0x0f000000
-#define	MIPS3_CONFIG_EP_SHIFT	24
+#define	MIPS_CONFIG_EP_MASK	0x0f000000
+#define	MIPS_CONFIG_EP_SHIFT	24
 
 /* System clock ratio - this value is CPU dependent */
-#define	MIPS3_CONFIG_EC_MASK	0x70000000
-#define	MIPS3_CONFIG_EC_SHIFT	28
+#define	MIPS_CONFIG_EC_MASK	0x70000000
+#define	MIPS_CONFIG_EC_SHIFT	28
 
 /* Master-Checker Mode - 1: enabled */
-#define	MIPS3_CONFIG_CM		0x80000000
+#define	MIPS_CONFIG_CM		0x80000000
 
 /*
  * The bits in the MIPS4 config register.
  */
-
-/* kseg0 coherency algorithm - see MIPS3_TLB_ATTR values */
-#define	MIPS4_CONFIG_K0_MASK	MIPS3_CONFIG_K0_MASK
-#define	MIPS4_CONFIG_DN_MASK	0x00000018	/* Device number */
-#define	MIPS4_CONFIG_CT		0x00000020	/* CohPrcReqTar */
-#define	MIPS4_CONFIG_PE		0x00000040	/* PreElmReq */
-#define	MIPS4_CONFIG_PM_MASK	0x00000180	/* PreReqMax */
-#define	MIPS4_CONFIG_EC_MASK	0x00001e00	/* SysClkDiv */
-#define	MIPS4_CONFIG_SB		0x00002000	/* SCBlkSize */
-#define	MIPS4_CONFIG_SK		0x00004000	/* SCColEn */
-#define	MIPS4_CONFIG_BE		0x00008000	/* MemEnd */
-#define	MIPS4_CONFIG_SS_MASK	0x00070000	/* SCSize */
-#define	MIPS4_CONFIG_SC_MASK	0x00380000	/* SCClkDiv */
-#define	MIPS4_CONFIG_RESERVED	0x03c00000	/* Reserved wired 0 */
-#define	MIPS4_CONFIG_DC_MASK	0x1c000000	/* Primary D-Cache size */
-#define	MIPS4_CONFIG_IC_MASK	0xe0000000	/* Primary I-Cache size */
-
-#define	MIPS4_CONFIG_DC_SHIFT	26
-#define	MIPS4_CONFIG_IC_SHIFT	29
-
-#define	MIPS4_CONFIG_CACHE_SIZE(config, mask, base, shift)		\
-	((base) << (((config) & (mask)) >> (shift)))
-
-#define	MIPS4_CONFIG_CACHE_L2_LSIZE(config)				\
-	(((config) & MIPS4_CONFIG_SB) ? 128 : 64)
 
 /*
  * Location of exception vectors.
@@ -522,27 +399,16 @@
 #define	MIPS_UTLB_MISS_EXC_VEC	((intptr_t)(int32_t)0x80000000)
 
 /*
- * MIPS-1 general exception vector (everything else)
- */
-#define	MIPS1_GEN_EXC_VEC	((intptr_t)(int32_t)0x80000080)
-
-/*
  * MIPS-III exception vectors
  */
-#define	MIPS3_XTLB_MISS_EXC_VEC ((intptr_t)(int32_t)0x80000080)
-#define	MIPS3_CACHE_ERR_EXC_VEC ((intptr_t)(int32_t)0x80000100)
-#define	MIPS3_GEN_EXC_VEC	((intptr_t)(int32_t)0x80000180)
-
-/*
- * TX79 (R5900) exception vectors
- */
-#define MIPS_R5900_COUNTER_EXC_VEC		0x80000080
-#define MIPS_R5900_DEBUG_EXC_VEC		0x80000100
+#define	MIPS_XTLB_MISS_EXC_VEC ((intptr_t)(int32_t)0x80000080)
+#define	MIPS_CACHE_ERR_EXC_VEC ((intptr_t)(int32_t)0x80000100)
+#define	MIPS_GEN_EXC_VEC	((intptr_t)(int32_t)0x80000180)
 
 /*
  * MIPS32/MIPS64 (and some MIPS3) dedicated interrupt vector.
  */
-#define	MIPS3_INTR_EXC_VEC	0x80000200
+#define	MIPS_INTR_EXC_VEC	0x80000200
 
 /*
  * Coprocessor 0 registers:
@@ -709,7 +575,7 @@
  */
 #define	MIPS_MIN_CACHE_SIZE	(16 * 1024)
 #define	MIPS_MAX_CACHE_SIZE	(256 * 1024)
-#define	MIPS3_MAX_PCACHE_SIZE	(32 * 1024)	/* max. primary cache size */
+#define	MIPS_MAX_PCACHE_SIZE	(32 * 1024)	/* max. primary cache size */
 
 /*
  * The floating point version and status registers.
@@ -746,8 +612,7 @@
 #define	MIPS_FPU_EXCEPTION_UNIMPL	0x00020000
 #define	MIPS_FPU_COND_BIT		0x00800000
 #define	MIPS_FPU_FLUSH_BIT		0x01000000	/* r4k,	 MBZ on r3k */
-#define	MIPS1_FPC_MBZ_BITS		0xff7c0000
-#define	MIPS3_FPC_MBZ_BITS		0xfe7c0000
+#define	MIPS_FPC_MBZ_BITS		0xfe7c0000
 
 
 /*
@@ -755,236 +620,5 @@
  */
 #define	MIPS_OPCODE_SHIFT	26
 #define	MIPS_OPCODE_C1		0x11
-
-
-/*
- * The low part of the TLB entry.
- */
-#define	MIPS1_TLB_PFN			0xfffff000
-#define	MIPS1_TLB_NON_CACHEABLE_BIT	0x00000800
-#define	MIPS1_TLB_DIRTY_BIT		0x00000400
-#define	MIPS1_TLB_VALID_BIT		0x00000200
-#define	MIPS1_TLB_GLOBAL_BIT		0x00000100
-
-#define	MIPS3_TLB_PFN			0x3fffffc0
-#define	MIPS3_TLB_ATTR_MASK		0x00000038
-#define	MIPS3_TLB_ATTR_SHIFT		3
-#define	MIPS3_TLB_DIRTY_BIT		0x00000004
-#define	MIPS3_TLB_VALID_BIT		0x00000002
-#define	MIPS3_TLB_GLOBAL_BIT		0x00000001
-
-#define	MIPS1_TLB_PHYS_PAGE_SHIFT	12
-#define	MIPS3_TLB_PHYS_PAGE_SHIFT	6
-#define	MIPS1_TLB_PF_NUM		MIPS1_TLB_PFN
-#define	MIPS3_TLB_PF_NUM		MIPS3_TLB_PFN
-#define	MIPS1_TLB_MOD_BIT		MIPS1_TLB_DIRTY_BIT
-#define	MIPS3_TLB_MOD_BIT		MIPS3_TLB_DIRTY_BIT
-
-/*
- * MIPS3_TLB_ATTR values - coherency algorithm:
- * 0: cacheable, noncoherent, write-through, no write allocate
- * 1: cacheable, noncoherent, write-through, write allocate
- * 2: uncached
- * 3: cacheable, noncoherent, write-back (noncoherent)
- * 4: cacheable, coherent, write-back, exclusive (exclusive)
- * 5: cacheable, coherent, write-back, exclusive on write (sharable)
- * 6: cacheable, coherent, write-back, update on write (update)
- * 7: uncached, accelerated (gather STORE operations)
- */
-#define	MIPS3_TLB_ATTR_WT		0 /* IDT */
-#define	MIPS3_TLB_ATTR_WT_WRITEALLOCATE 1 /* IDT */
-#define	MIPS3_TLB_ATTR_UNCACHED		2 /* R4000/R4400, IDT */
-#define	MIPS3_TLB_ATTR_WB_NONCOHERENT	3 /* R4000/R4400, IDT */
-#define	MIPS3_TLB_ATTR_WB_EXCLUSIVE	4 /* R4000/R4400 */
-#define	MIPS3_TLB_ATTR_WB_SHARABLE	5 /* R4000/R4400 */
-#define	MIPS3_TLB_ATTR_WB_UPDATE	6 /* R4000/R4400 */
-#define	MIPS4_TLB_ATTR_UNCACHED_ACCELERATED 7 /* R10000 */
-
-
-/*
- * The high part of the TLB entry.
- */
-#define	MIPS1_TLB_VPN			0xfffff000
-#define	MIPS1_TLB_PID			0x00000fc0
-#define	MIPS1_TLB_PID_SHIFT		6
-
-#define	MIPS3_TLB_VPN2			0xffffe000
-#define	MIPS3_TLB_ASID			0x000000ff
-
-#define	MIPS1_TLB_VIRT_PAGE_NUM		MIPS1_TLB_VPN
-#define	MIPS3_TLB_VIRT_PAGE_NUM		MIPS3_TLB_VPN2
-#define	MIPS3_TLB_PID			MIPS3_TLB_ASID
-#define	MIPS_TLB_VIRT_PAGE_SHIFT	12
-
-/*
- * r3000: shift count to put the index in the right spot.
- */
-#define	MIPS1_TLB_INDEX_SHIFT		8
-
-/*
- * The first TLB that write random hits.
- */
-#define	MIPS1_TLB_FIRST_RAND_ENTRY	8
-#define	MIPS3_TLB_WIRED_UPAGES		1
-
-/*
- * The number of process id entries.
- */
-#define	MIPS1_TLB_NUM_PIDS		64
-#define	MIPS3_TLB_NUM_ASIDS		256
-
-/*
- * Patch codes to hide CPU design differences between MIPS1 and MIPS3.
- */
-
-/* XXX simonb: this is before MIPS3_PLUS is defined (and is ugly!) */
-
-#if !(defined(MIPS3) || defined(MIPS4) || defined(MIPS32) || defined(MIPS64)) \
-    && defined(MIPS1)				/* XXX simonb must be neater! */
-#define	MIPS_TLB_PID_SHIFT		MIPS1_TLB_PID_SHIFT
-#define	MIPS_TLB_NUM_PIDS		MIPS1_TLB_NUM_PIDS
-#endif
-
-#if (defined(MIPS3) || defined(MIPS4) || defined(MIPS32) || defined(MIPS64)) \
-    && !defined(MIPS1)				/* XXX simonb must be neater! */
-#define	MIPS_TLB_PID_SHIFT		0
-#define	MIPS_TLB_NUM_PIDS		MIPS3_TLB_NUM_ASIDS
-#endif
-
-
-#if !defined(MIPS_TLB_PID_SHIFT)
-#define	MIPS_TLB_PID_SHIFT \
-    ((MIPS_HAS_R4K_MMU) ? 0 : MIPS1_TLB_PID_SHIFT)
-
-#define	MIPS_TLB_NUM_PIDS \
-    ((MIPS_HAS_R4K_MMU) ? MIPS3_TLB_NUM_ASIDS : MIPS1_TLB_NUM_PIDS)
-#endif
-
-/*
- * CPU processor revision IDs for company ID == 0 (non mips32/64 chips)
- */
-#define	MIPS_R2000	0x01	/* MIPS R2000 			ISA I	*/
-#define	MIPS_R3000	0x02	/* MIPS R3000 			ISA I	*/
-#define	MIPS_R6000	0x03	/* MIPS R6000 			ISA II	*/
-#define	MIPS_R4000	0x04	/* MIPS R4000/R4400 		ISA III */
-#define	MIPS_R3LSI	0x05	/* LSI Logic R3000 derivative	ISA I	*/
-#define	MIPS_R6000A	0x06	/* MIPS R6000A 			ISA II	*/
-#define	MIPS_R3IDT	0x07	/* IDT R3041 or RC36100 	ISA I	*/
-#define	MIPS_R10000	0x09	/* MIPS R10000			ISA IV	*/
-#define	MIPS_R4200	0x0a	/* NEC VR4200 			ISA III */
-#define	MIPS_R4300	0x0b	/* NEC VR4300 			ISA III */
-#define	MIPS_R4100	0x0c	/* NEC VR4100 			ISA III */
-#define	MIPS_R12000	0x0e	/* MIPS R12000			ISA IV	*/
-#define	MIPS_R14000	0x0f	/* MIPS R14000			ISA IV	*/
-#define	MIPS_R8000	0x10	/* MIPS R8000 Blackbird/TFP	ISA IV	*/
-#define	MIPS_RC32300	0x18	/* IDT RC32334,332,355		ISA 32  */
-#define	MIPS_R4600	0x20	/* QED R4600 Orion		ISA III */
-#define	MIPS_R4700	0x21	/* QED R4700 Orion		ISA III */
-#define	MIPS_R3SONY	0x21	/* Sony R3000 based 		ISA I	*/
-#define	MIPS_R4650	0x22	/* QED R4650 			ISA III */
-#define	MIPS_TX3900	0x22	/* Toshiba TX39 family		ISA I	*/
-#define	MIPS_R5000	0x23	/* MIPS R5000 			ISA IV	*/
-#define	MIPS_R3NKK	0x23	/* NKK R3000 based 		ISA I	*/
-#define	MIPS_RC32364	0x26	/* IDT RC32364 			ISA 32	*/
-#define	MIPS_RM7000	0x27	/* QED RM7000			ISA IV  */
-#define	MIPS_RM5200	0x28	/* QED RM5200s 			ISA IV	*/
-#define	MIPS_TX4900	0x2d	/* Toshiba TX49 family		ISA III */
-#define	MIPS_R5900	0x2e	/* Toshiba R5900 (EECore)	ISA --- */
-#define	MIPS_RC64470	0x30	/* IDT RC64474/RC64475 		ISA III */
-#define	MIPS_TX7900	0x38	/* Toshiba TX79			ISA III+*/
-#define	MIPS_R5400	0x54	/* NEC VR5400 			ISA IV	*/
-#define	MIPS_R5500	0x55	/* NEC VR5500 			ISA IV	*/
-
-/*
- * CPU revision IDs for some prehistoric processors.
- */
-
-/* For MIPS_R3000 */
-#define	MIPS_REV_R3000		0x20
-#define	MIPS_REV_R3000A		0x30
-
-/* For MIPS_TX3900 */
-#define	MIPS_REV_TX3912		0x10
-#define	MIPS_REV_TX3922		0x30
-#define	MIPS_REV_TX3927		0x40
-
-/* For MIPS_R4000 */
-#define	MIPS_REV_R4000_A	0x00
-#define	MIPS_REV_R4000_B	0x22
-#define	MIPS_REV_R4000_C	0x30
-#define	MIPS_REV_R4400_A	0x40
-#define	MIPS_REV_R4400_B	0x50
-#define	MIPS_REV_R4400_C	0x60
-
-/* For MIPS_TX4900 */
-#define	MIPS_REV_TX4927		0x22
-
-/*
- * CPU processor revision IDs for company ID == 1 (MIPS)
- */
-#define	MIPS_4Kc	0x80	/* MIPS 4Kc			ISA 32  */
-#define	MIPS_5Kc	0x81	/* MIPS 5Kc			ISA 64  */
-#define	MIPS_20Kc	0x82	/* MIPS 20Kc			ISA 64  */
-#define	MIPS_4Kmp	0x83	/* MIPS 4Km/4Kp			ISA 32  */
-#define	MIPS_4KEc	0x84	/* MIPS 4KEc			ISA 32  */
-#define	MIPS_4KEmp	0x85	/* MIPS 4KEm/4KEp		ISA 32  */
-#define	MIPS_4KSc	0x86	/* MIPS 4KSc			ISA 32  */
-#define	MIPS_M4K	0x87	/* MIPS M4K			ISA 32  Rel 2 */
-#define	MIPS_25Kf	0x88	/* MIPS 25Kf			ISA 64  */
-#define	MIPS_5KE	0x89	/* MIPS 5KE			ISA 64  Rel 2 */
-#define	MIPS_4KEc_R2	0x90	/* MIPS 4KEc_R2			ISA 32  Rel 2 */
-#define	MIPS_4KEmp_R2	0x91	/* MIPS 4KEm/4KEp_R2		ISA 32  Rel 2 */
-#define	MIPS_4KSd	0x92	/* MIPS 4KSd			ISA 32  Rel 2 */
-#define	MIPS_24K	0x93	/* MIPS 24Kc/24Kf		ISA 32  Rel 2 */
-#define	MIPS_34K	0x95	/* MIPS 34K			ISA 32  R2 MT */
-#define	MIPS_24KE	0x96	/* MIPS 24KEc			ISA 32  Rel 2 */
-#define	MIPS_74K	0x97	/* MIPS 74Kc/74Kf		ISA 32  Rel 2 */
-
-/*
- * AMD (company ID 3) use the processor ID field to donote the CPU core
- * revision and the company options field do donate the SOC chip type.
- */
-
-/* CPU processor revision IDs */
-#define	MIPS_AU_REV1	0x01	/* Alchemy Au1000 (Rev 1)	ISA 32  */
-#define	MIPS_AU_REV2	0x02	/* Alchemy Au1000 (Rev 2)	ISA 32  */
-
-/* CPU company options IDs */
-#define	MIPS_AU1000	0x00
-#define	MIPS_AU1500	0x01
-#define	MIPS_AU1100	0x02
-#define	MIPS_AU1550	0x03
-
-/*
- * CPU processor revision IDs for company ID == 4 (Broadcom)
- */
-#define	MIPS_SB1	0x01	/* SiByte SB1	 		ISA 64  */
-
-/*
- * CPU processor revision IDs for company ID == 5 (SandCraft)
- */
-#define	MIPS_SR7100	0x04	/* SandCraft SR7100 		ISA 64  */
-
-/*
- * FPU processor revision ID
- */
-#define	MIPS_SOFT	0x00	/* Software emulation		ISA I	*/
-#define	MIPS_R2360	0x01	/* MIPS R2360 FPC		ISA I	*/
-#define	MIPS_R2010	0x02	/* MIPS R2010 FPC		ISA I	*/
-#define	MIPS_R3010	0x03	/* MIPS R3010 FPC		ISA I	*/
-#define	MIPS_R6010	0x04	/* MIPS R6010 FPC		ISA II	*/
-#define	MIPS_R4010	0x05	/* MIPS R4010 FPC		ISA II	*/
-#define	MIPS_R31LSI	0x06	/* LSI Logic derivate		ISA I	*/
-#define	MIPS_R3TOSH	0x22	/* Toshiba R3000 based FPU	ISA I	*/
-
-#ifdef ENABLE_MIPS_TX3900
-#include <mips/r3900regs.h>
-#endif
-#ifdef MIPS3_5900
-#include <mips/r5900regs.h>
-#endif
-#ifdef MIPS64_SB1
-#include <mips/sb1regs.h>
-#endif
 
 #endif /* _MIPS_CPUREGS_H_ */

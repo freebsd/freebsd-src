@@ -25,4 +25,15 @@
 #
 # $FreeBSD$
 
-expr $(sysctl -n hw.realmem) / 1048576
+if smbios_mem=$(kenv -q smbios.memory.enabled); then
+	smbios_mem=$(expr $smbios_mem / 1024)
+else
+	smbios_mem=0
+fi
+realmem=$(expr $(sysctl -n hw.realmem) / 1048576)
+
+if [ $smbios_mem -gt $realmem ]; then
+	echo $smbios_mem
+else
+	echo $realmem
+fi

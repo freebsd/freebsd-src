@@ -129,9 +129,9 @@ static const struct iwi_ident iwi_ident_table[] = {
 };
 
 static struct ieee80211vap *iwi_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode, int flags,
-		    const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	iwi_vap_delete(struct ieee80211vap *);
 static void	iwi_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static int	iwi_alloc_cmd_ring(struct iwi_softc *, struct iwi_cmd_ring *,
@@ -495,10 +495,10 @@ iwi_detach(device_t dev)
 }
 
 static struct ieee80211vap *
-iwi_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+iwi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_softc *sc = ifp->if_softc;
@@ -863,9 +863,9 @@ static int
 iwi_suspend(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
-	iwi_stop(sc);
-
+	ieee80211_suspend_all(ic);
 	return 0;
 }
 
@@ -873,13 +873,11 @@ static int
 iwi_resume(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 	pci_write_config(dev, 0x41, 0, 1);
 
-	if (ifp->if_flags & IFF_UP)
-		iwi_init(sc);
-
+	ieee80211_resume_all(ic);
 	return 0;
 }
 
@@ -1357,8 +1355,8 @@ iwi_checkforqos(struct ieee80211vap *vap,
 	frm += 2;
 
 	wme = NULL;
-	while (frm < efrm) {
-		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1], return);
+	while (efrm - frm > 1) {
+		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 		switch (*frm) {
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswmeoui(frm))

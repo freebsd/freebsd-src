@@ -296,6 +296,8 @@ typedef struct {
 #define	SHT_HIOS		0x6fffffff	/* Last of OS specific semantics */
 #define	SHT_LOPROC		0x70000000	/* reserved range for processor */
 #define	SHT_AMD64_UNWIND	0x70000001	/* unwind information */
+#define	SHT_MIPS_REGINFO	0x70000006
+#define	SHT_MIPS_OPTIONS	0x7000000d
 #define	SHT_MIPS_DWARF		0x7000001e	/* MIPS gcc uses MIPS_DWARF */
 #define	SHT_HIPROC		0x7fffffff	/* specific section header types */
 #define	SHT_LOUSER		0x80000000	/* reserved range for application */
@@ -328,6 +330,7 @@ typedef struct {
 #define	PT_SUNW_UNWIND	0x6464e550	/* amd64 UNWIND program header */
 #define	PT_GNU_EH_FRAME	0x6474e550
 #define	PT_GNU_STACK	0x6474e551
+#define	PT_GNU_RELRO	0x6474e552
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -384,7 +387,7 @@ typedef struct {
 #define	DT_INIT_ARRAYSZ	27	/* Size in bytes of the array of
 				   initialization functions. */
 #define	DT_FINI_ARRAYSZ	28	/* Size in bytes of the array of
-				   terminationfunctions. */
+				   termination functions. */
 #define	DT_RUNPATH	29	/* String table offset of a null-terminated
 				   library search path string. */
 #define	DT_FLAGS	30	/* Object specific flag values. */
@@ -503,6 +506,7 @@ typedef struct {
 #define	STT_TLS		6	/* TLS object. */
 #define	STT_NUM		7
 #define	STT_LOOS	10	/* Reserved range for operating system */
+#define	STT_GNU_IFUNC	10
 #define	STT_HIOS	12	/*   specific semantics. */
 #define	STT_LOPROC	13	/* reserved range for processor */
 #define	STT_HIPROC	15	/*   specific semantics. */
@@ -612,6 +616,7 @@ typedef struct {
 #define	R_386_TLS_DTPMOD32	35	/* GOT entry containing TLS index */
 #define	R_386_TLS_DTPOFF32	36	/* GOT entry containing TLS offset */
 #define	R_386_TLS_TPOFF32	37	/* GOT entry of -ve static TLS offset */
+#define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
 
 #define	R_ARM_NONE		0	/* No relocation. */
 #define	R_ARM_PC24		1
@@ -630,6 +635,10 @@ typedef struct {
 #define	R_ARM_THM_SWI8		14
 #define	R_ARM_XPC25		15
 #define	R_ARM_THM_XPC22		16
+/* TLS relocations */
+#define	R_ARM_TLS_DTPMOD32	17	/* ID of module containing symbol */
+#define	R_ARM_TLS_DTPOFF32	18	/* Offset in TLS block */
+#define	R_ARM_TLS_TPOFF32	19	/* Offset in static TLS block */
 #define	R_ARM_COPY		20	/* Copy data from shared object. */
 #define	R_ARM_GLOB_DAT		21	/* Set GOT entry to data address. */
 #define	R_ARM_JUMP_SLOT		22	/* Set GOT entry to code address. */
@@ -961,6 +970,7 @@ typedef struct {
 #define	R_X86_64_DTPOFF32	21	/* Offset in TLS block */
 #define	R_X86_64_GOTTPOFF	22	/* PC relative offset to IE GOT entry */
 #define	R_X86_64_TPOFF32	23	/* Offset in static TLS block */
+#define	R_X86_64_IRELATIVE	37
 
 
 #endif /* !_SYS_ELF_COMMON_H_ */

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #endif
 #include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <vm/pmap.h>
 #include <machine/atomic.h>
 #include <machine/elf.h>
@@ -75,8 +76,11 @@ CTASSERT(sizeof(*vm_page_dump) == 8);
 static int
 is_dumpable(vm_paddr_t pa)
 {
+	vm_page_t m;
 	int i;
 
+	if ((m = vm_phys_paddr_to_vm_page(pa)) != NULL)
+		return ((m->flags & PG_NODUMP) == 0);
 	for (i = 0; dump_avail[i] != 0 || dump_avail[i + 1] != 0; i += 2) {
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
 			return (1);

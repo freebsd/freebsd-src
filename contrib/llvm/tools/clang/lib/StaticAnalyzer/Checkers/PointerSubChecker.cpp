@@ -39,7 +39,7 @@ void PointerSubChecker::checkPreStmt(const BinaryOperator *B,
   if (B->getOpcode() != BO_Sub)
     return;
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   SVal LV = state->getSVal(B->getLHS());
   SVal RV = state->getSVal(B->getRHS());
 
@@ -64,7 +64,7 @@ void PointerSubChecker::checkPreStmt(const BinaryOperator *B,
       BT.reset(new BuiltinBug("Pointer subtraction", 
                           "Subtraction of two pointers that do not point to "
                           "the same memory chunk may cause incorrect result."));
-    RangedBugReport *R = new RangedBugReport(*BT, BT->getDescription(), N);
+    BugReport *R = new BugReport(*BT, BT->getDescription(), N);
     R->addRange(B->getSourceRange());
     C.EmitReport(R);
   }

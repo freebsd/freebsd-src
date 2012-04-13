@@ -57,29 +57,34 @@
 #define	MAXSSIZ		(64*1024*1024)		/* max stack size */
 #endif
 
+#ifdef AIM
+#define	VM_MAXUSER_ADDRESS32	((vm_offset_t)0xfffff000)
+#else
+#define	VM_MAXUSER_ADDRESS32	((vm_offset_t)0x7ffff000)
+#endif
+
 /*
  * Would like to have MAX addresses = 0, but this doesn't (currently) work
  */
 #if !defined(LOCORE)
 #ifdef __powerpc64__
 #define	VM_MIN_ADDRESS		(0x0000000000000000UL)
-#define	VM_MAXUSER_ADDRESS	(0x7ffffffffffff000UL)
-#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	VM_MAXUSER_ADDRESS	(0xfffffffffffff000UL)
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 #else
 #define	VM_MIN_ADDRESS		((vm_offset_t)0)
-#define	VM_MAXUSER_ADDRESS	((vm_offset_t)0x7ffff000)
-#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
-#define	VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS
+#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS32
+#define	VM_MAX_ADDRESS		((vm_offset_t)0xffffffff)
 #endif
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
 #else /* LOCORE */
-#ifndef __powerpc64__
+#if !defined(__powerpc64__) && defined(E500)
 #define	VM_MIN_ADDRESS		0
 #define	VM_MAXUSER_ADDRESS	0x7ffff000
 #endif
 #endif /* LOCORE */
 
-#define	FREEBSD32_SHAREDPAGE	(0x7ffff000 - PAGE_SIZE)
+#define	FREEBSD32_SHAREDPAGE	(VM_MAXUSER_ADDRESS32 - PAGE_SIZE)
 #define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 
 #ifdef AIM

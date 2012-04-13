@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,7 @@ static int
 ata_intel_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_I82371FB,     0,          0, 2, ATA_WDMA2, "PIIX" },
      { ATA_I82371SB,     0,          0, 2, ATA_WDMA2, "PIIX3" },
      { ATA_I82371AB,     0,          0, 2, ATA_UDMA2, "PIIX4" },
@@ -157,6 +157,10 @@ ata_intel_probe(device_t dev)
      { ATA_I82801IB_AH4, 0, INTEL_AHCI, 0, ATA_SA300, "ICH9" },
      { ATA_I82801IB_AH6, 0, INTEL_AHCI, 0, ATA_SA300, "ICH9" },
      { ATA_I82801IB_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I82801IBM_S1, 0, INTEL_6CH2, 0, ATA_SA300, "ICH9M" },
+     { ATA_I82801IBM_AH, 0, INTEL_AHCI, 0, ATA_SA300, "ICH9M" },
+     { ATA_I82801IBM_R1, 0, INTEL_AHCI, 0, ATA_SA300, "ICH9M" },
+     { ATA_I82801IBM_S2, 0, INTEL_6CH2, 0, ATA_SA300, "ICH9M" },
      { ATA_I82801JIB_S1, 0, INTEL_6CH,  0, ATA_SA300, "ICH10" },
      { ATA_I82801JIB_AH, 0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JIB_R1, 0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
@@ -193,6 +197,7 @@ ata_intel_probe(device_t dev)
      { ATA_PBG_AH1,      0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
      { ATA_PBG_R1,       0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
      { ATA_PBG_R2,       0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
+     { ATA_PBG_R3,       0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
      { ATA_PBG_S2,       0, INTEL_6CH2, 0, ATA_SA300, "Patsburg" },
      { ATA_PPT_S1,       0, INTEL_6CH,  0, ATA_SA300, "Panther Point" },
      { ATA_PPT_S2,       0, INTEL_6CH,  0, ATA_SA300, "Panther Point" },
@@ -514,8 +519,10 @@ ata_intel_new_setmode(device_t dev, int target, int mode)
 	u_int16_t reg54 = pci_read_config(parent, 0x54, 2);
 	u_int32_t mask40 = 0, new40 = 0;
 	u_int8_t mask44 = 0, new44 = 0;
-	u_int8_t timings[] = { 0x00, 0x00, 0x10, 0x21, 0x23, 0x00, 0x21, 0x23 };
-	u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
+	static const uint8_t timings[] =
+	    { 0x00, 0x00, 0x10, 0x21, 0x23, 0x00, 0x21, 0x23 };
+	static const uint8_t utimings[] =
+	    { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
 
 	/* In combined mode, skip PATA stuff for SATA channel. */
 	if (ch->flags & ATA_SATA)

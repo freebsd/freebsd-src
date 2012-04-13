@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #define	_COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("SYNCH")
 
-MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
+static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
 
 /*
  * Convert milliseconds to ticks.
@@ -566,11 +566,8 @@ AcpiOsReleaseLock(ACPI_SPINLOCK Handle, ACPI_CPU_FLAGS Flags)
 }
 
 /* Section 5.2.10.1: global lock acquire/release functions */
-#define	GL_ACQUIRED	(-1)
-#define	GL_BUSY		0
 #define	GL_BIT_PENDING	0x01
 #define	GL_BIT_OWNED	0x02
-#define	GL_BIT_MASK	(GL_BIT_PENDING | GL_BIT_OWNED)
 
 /*
  * Acquire the global lock.  If busy, set the pending bit.  The caller
@@ -584,11 +581,12 @@ acpi_acquire_global_lock(uint32_t *lock)
 
 	do {
 		old = *lock;
-		new = ((old & ~GL_BIT_MASK) | GL_BIT_OWNED) |
-			((old >> 1) & GL_BIT_PENDING);
+		new = (old & ~GL_BIT_PENDING) | GL_BIT_OWNED;
+		if ((old & GL_BIT_OWNED) != 0)
+			new |= GL_BIT_PENDING;
 	} while (atomic_cmpset_acq_int(lock, old, new) == 0);
 
-	return ((new < GL_BIT_MASK) ? GL_ACQUIRED : GL_BUSY);
+	return ((new & GL_BIT_PENDING) == 0);
 }
 
 /*
@@ -603,8 +601,8 @@ acpi_release_global_lock(uint32_t *lock)
 
 	do {
 		old = *lock;
-		new = old & ~GL_BIT_MASK;
+		new = old & ~(GL_BIT_PENDING | GL_BIT_OWNED);
 	} while (atomic_cmpset_rel_int(lock, old, new) == 0);
 
-	return (old & GL_BIT_PENDING);
+	return ((old & GL_BIT_PENDING) != 0);
 }

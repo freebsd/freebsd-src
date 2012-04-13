@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2009
+.Dd January 7, 2012
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -223,7 +223,7 @@ Loads a
 .Xr geli 8
 encryption keyfile for the given provider name.
 The key index can be specified via
-.Ar keyno 
+.Ar keyno
 or will default to zero.
 .Pp
 .It Ic ls Xo
@@ -419,6 +419,43 @@ was compiled.
 Changes to the
 .Va comconsole_speed
 variable take effect immediately.
+.It Va comconsole_port
+Defines the base i/o port used to access console UART
+(i386 and amd64 only).
+If the variable is not set, its assumed value is 0x3F8, which
+corresponds to PC port COM1, unless overriden by
+.Va BOOT_COMCONSOLE_PORT
+variable during the compilation of
+.Nm .
+Setting the
+.Va comconsole_port
+variable automatically set
+.Va hw.uart.console
+environment variable to provide a hint to kernel for location of the console.
+Loader console is changed immediately after variable
+.Va comconsole_port
+is set.
+.It Va comconsole_pcidev
+Defines the location of a PCI device of the 'simple communication'
+class to be used as the serial console UART (i386 and amd64 only).
+The syntax of the variable is
+.Li 'bus:device:function[:bar]' ,
+where all members must be numeric, with possible
+.Li 0x
+prefix to indicate a hexadecimal value.
+The
+.Va bar
+member is optional and assumed to be 0x10 if omitted.
+The bar must decode i/o space.
+Setting the variable
+.Va comconsole_pcidev
+automatically sets the variable
+.Va comconsole_port
+to the base of the selected bar, and hint
+.Va hw.uart.console .
+Loader console is changed immediately after variable
+.Va comconsole_pcidev
+is set.
 .It Va console
 Defines the current console or consoles.
 Multiple consoles may be specified.
@@ -443,7 +480,7 @@ Sets the list of binaries which the kernel will try to run as the initial
 process.
 The first matching binary is used.
 The default list is
-.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init:/stand/sysinstall .
+.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init .
 .It Va init_script
 If set to a valid file name in the root file system,
 instructs
@@ -926,10 +963,10 @@ autoboot 5
 .Pp
 Set the disk unit of the root device to 2, and then boot.
 This would be needed in a system with two IDE disks,
-with the second IDE disk hardwired to wd2 instead of wd1.
+with the second IDE disk hardwired to ad2 instead of ad1.
 .Bd -literal -offset indent
 set root_disk_unit=2
-boot /kernel
+boot /boot/kernel/kernel
 .Ed
 .Pp
 See also:

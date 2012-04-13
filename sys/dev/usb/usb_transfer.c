@@ -42,6 +42,7 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -858,7 +859,7 @@ usbd_transfer_setup(struct usb_device *udev,
 	if (parm.err) {
 		goto done;
 	}
-	bzero(&parm, sizeof(parm));
+	memset(&parm, 0, sizeof(parm));
 
 	parm.udev = udev;
 	parm.speed = usbd_get_speed(udev);
@@ -982,7 +983,7 @@ usbd_transfer_setup(struct usb_device *udev,
 				 * memory:
 				 */
 				xfer = &dummy;
-				bzero(&dummy, sizeof(dummy));
+				memset(&dummy, 0, sizeof(dummy));
 				refcount++;
 			}
 
@@ -2150,7 +2151,7 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	struct usb_xfer_root *info = xfer->xroot;
 
 	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
-	if (!mtx_owned(info->xfer_mtx)) {
+	if (!mtx_owned(info->xfer_mtx) && !SCHEDULER_STOPPED()) {
 		/*
 	       	 * Cases that end up here:
 		 *
@@ -2699,7 +2700,8 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 				(bus->methods->start_dma_delay) (xfer);
 			} else {
 				usbd_transfer_timeout_ms(xfer,
-				    (void *)&usb_dma_delay_done_cb, temp);
+				    (void (*)(void *))&usb_dma_delay_done_cb,
+				    temp);
 			}
 			USB_BUS_UNLOCK(bus);
 			return (1);	/* wait for new callback */
@@ -3119,14 +3121,14 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 
 		/* make sure that the BUS mutex is not locked */
 		drop_bus = 0;
-		while (mtx_owned(&xroot->udev->bus->bus_mtx)) {
+		while (mtx_owned(&xroot->udev->bus->bus_mtx) && !SCHEDULER_STOPPED()) {
 			mtx_unlock(&xroot->udev->bus->bus_mtx);
 			drop_bus++;
 		}
 
 		/* make sure that the transfer mutex is not locked */
 		drop_xfer = 0;
-		while (mtx_owned(xroot->xfer_mtx)) {
+		while (mtx_owned(xroot->xfer_mtx) && !SCHEDULER_STOPPED()) {
 			mtx_unlock(xroot->xfer_mtx);
 			drop_xfer++;
 		}

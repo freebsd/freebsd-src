@@ -25,8 +25,12 @@ class PTXTargetMachine;
 class MachineFunction;
 
 struct PTXRegisterInfo : public PTXGenRegisterInfo {
+private:
+  const TargetInstrInfo &TII;
+
+public:
   PTXRegisterInfo(PTXTargetMachine &TM,
-                  const TargetInstrInfo &TII);
+                  const TargetInstrInfo &tii);
 
   virtual const unsigned
     *getCalleeSavedRegs(const MachineFunction *MF = 0) const {
@@ -46,18 +50,6 @@ struct PTXRegisterInfo : public PTXGenRegisterInfo {
   virtual unsigned getFrameRegister(const MachineFunction &MF) const {
     llvm_unreachable("PTX does not have a frame register");
     return 0;
-  }
-
-  virtual unsigned getRARegister() const {
-    llvm_unreachable("PTX does not have a return address register");
-    return 0;
-  }
-
-  virtual int getDwarfRegNum(unsigned RegNum, bool isEH) const {
-    return PTXGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
-  }
-  virtual int getLLVMRegNum(unsigned RegNum, bool isEH) const {
-    return PTXGenRegisterInfo::getLLVMRegNumFull(RegNum, 0);
   }
 }; // struct PTXRegisterInfo
 } // namespace llvm

@@ -15,15 +15,12 @@
 #ifndef LLVM_CLANG_BASIC_BUILTINS_H
 #define LLVM_CLANG_BASIC_BUILTINS_H
 
+#include "clang/Basic/LLVM.h"
 #include <cstring>
 
 // VC++ defines 'alloca' as an object-like macro, which interferes with our
 // builtins.
 #undef alloca
-
-namespace llvm {
-  template <typename T> class SmallVectorImpl;
-}
 
 namespace clang {
   class TargetInfo;
@@ -65,15 +62,18 @@ class Context {
   const Info *TSRecords;
   unsigned NumTSRecords;
 public:
-  Context(const TargetInfo &Target);
+  Context();
 
+  /// \brief Perform target-specific initialization
+  void InitializeTarget(const TargetInfo &Target);
+  
   /// InitializeBuiltins - Mark the identifiers for all the builtins with their
   /// appropriate builtin ID # and mark any non-portable builtin identifiers as
   /// such.
   void InitializeBuiltins(IdentifierTable &Table, const LangOptions& LangOpts);
 
   /// \brief Popular the vector with the names of all of the builtins.
-  void GetBuiltinNames(llvm::SmallVectorImpl<const char *> &Names,
+  void GetBuiltinNames(SmallVectorImpl<const char *> &Names,
                        bool NoBuiltins);
 
   /// Builtin::GetName - Return the identifier name for the specified builtin,
@@ -101,6 +101,11 @@ public:
   /// isNoReturn - Return true if we know this builtin never returns.
   bool isNoReturn(unsigned ID) const {
     return strchr(GetRecord(ID).Attributes, 'r') != 0;
+  }
+
+  /// isReturnsTwice - Return true if we know this builtin can return twice.
+  bool isReturnsTwice(unsigned ID) const {
+    return strchr(GetRecord(ID).Attributes, 'j') != 0;
   }
 
   /// isLibFunction - Return true if this is a builtin for a libc/libm function,

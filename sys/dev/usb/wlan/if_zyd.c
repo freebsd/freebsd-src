@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int zyd_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
 SYSCTL_INT(_hw_usb_zyd, OID_AUTO, debug, CTLFLAG_RW, &zyd_debug, 0,
     "zyd debug level");
 
@@ -118,9 +118,9 @@ static usb_callback_t zyd_bulk_read_callback;
 static usb_callback_t zyd_bulk_write_callback;
 
 static struct ieee80211vap *zyd_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	zyd_vap_delete(struct ieee80211vap *);
 static void	zyd_tx_free(struct zyd_tx_data *, int);
 static void	zyd_setup_tx_list(struct zyd_softc *);
@@ -456,10 +456,10 @@ zyd_detach(device_t dev)
 }
 
 static struct ieee80211vap *
-zyd_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+zyd_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct zyd_vap *zvp;
 	struct ieee80211vap *vap;
@@ -670,23 +670,24 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			datalen -= 2;	/* XXX: padding? */
 
 			STAILQ_FOREACH(rqp, &sc->sc_rqh, rq) {
-				int i, cnt;
+				int i;
+				int count;
 
 				if (rqp->olen != datalen)
 					continue;
-				cnt = rqp->olen / sizeof(struct zyd_pair);
-				for (i = 0; i < cnt; i++) {
+				count = rqp->olen / sizeof(struct zyd_pair);
+				for (i = 0; i < count; i++) {
 					if (*(((const uint16_t *)rqp->idata) + i) !=
 					    (((struct zyd_pair *)cmd->data) + i)->reg)
 						break;
 				}
-				if (i != cnt)
+				if (i != count)
 					continue;
 				/* copy answer into caller-supplied buffer */
-				bcopy(cmd->data, rqp->odata, rqp->olen);
+				memcpy(rqp->odata, cmd->data, rqp->olen);
 				DPRINTF(sc, ZYD_DEBUG_CMD,
 				    "command %p complete, data = %*D \n",
-				    rqp, rqp->olen, rqp->odata, ":");
+				    rqp, rqp->olen, (char *)rqp->odata, ":");
 				wakeup(rqp);	/* wakeup caller */
 				break;
 			}
@@ -779,11 +780,11 @@ zyd_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, int ilen,
 	struct zyd_rq rq;
 	int error;
 
-	if (ilen > sizeof(cmd.data))
+	if (ilen > (int)sizeof(cmd.data))
 		return (EINVAL);
 
 	cmd.code = htole16(code);
-	bcopy(idata, cmd.data, ilen);
+	memcpy(cmd.data, idata, ilen);
 	DPRINTF(sc, ZYD_DEBUG_CMD, "sending cmd %p = %*D\n",
 	    &rq, ilen, idata, ":");
 
@@ -929,7 +930,7 @@ fail:
 static int
 zyd_rfmd_init(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini[] = ZYD_RFMD_PHY;
 	static const uint32_t rfini[] = ZYD_RFMD_RF;
@@ -988,7 +989,7 @@ fail:
 static int
 zyd_al2230_init(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini[] = ZYD_AL2230_PHY;
 	static const struct zyd_phy_pair phy2230s[] = ZYD_AL2230S_PHY_INIT;
@@ -1046,7 +1047,7 @@ fail:
 static int
 zyd_al2230_fini(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int error, i;
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phy[] = ZYD_AL2230_PHY_FINI_PART1;
@@ -1066,7 +1067,7 @@ fail:
 static int
 zyd_al2230_init_b(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phy1[] = ZYD_AL2230_PHY_PART1;
 	static const struct zyd_phy_pair phy2[] = ZYD_AL2230_PHY_PART2;
@@ -1149,7 +1150,7 @@ fail:
 static int
 zyd_al2230_set_channel(struct zyd_rf *rf, uint8_t chan)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int error, i;
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phy1[] = {
@@ -1179,7 +1180,7 @@ fail:
 static int
 zyd_al2230_set_channel_b(struct zyd_rf *rf, uint8_t chan)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int error, i;
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phy1[] = ZYD_AL2230_PHY_PART1;
@@ -1214,7 +1215,7 @@ fail:
 static int
 zyd_al2230_bandedge6(struct zyd_rf *rf, struct ieee80211_channel *c)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int error = 0, i;
 	struct zyd_softc *sc = rf->rf_sc;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -1238,7 +1239,7 @@ fail:
 static int
 zyd_al7230B_init(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini_1[] = ZYD_AL7230B_PHY_1;
 	static const struct zyd_phy_pair phyini_2[] = ZYD_AL7230B_PHY_2;
@@ -1290,7 +1291,7 @@ fail:
 static int
 zyd_al7230B_set_channel(struct zyd_rf *rf, uint8_t chan)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct {
 		uint32_t	r1, r2;
@@ -1336,7 +1337,7 @@ fail:
 static int
 zyd_al2210_init(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini[] = ZYD_AL2210_PHY;
 	static const uint32_t rfini[] = ZYD_AL2210_RF;
@@ -1409,7 +1410,7 @@ static int
 zyd_gct_init(struct zyd_rf *rf)
 {
 #define	ZYD_GCT_INTR_REG	0x85c1
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini[] = ZYD_GCT_PHY;
 	static const uint32_t rfini[] = ZYD_GCT_RF;
@@ -1431,7 +1432,7 @@ zyd_gct_init(struct zyd_rf *rf)
 	if (error != 0)
 		return (error);
 
-	for (i = 0; i < N(vco) - 1; i++) {
+	for (i = 0; i < (int)(N(vco) - 1); i++) {
 		error = zyd_gct_set_channel_synth(rf, 1, 0);
 		if (error != 0)
 			goto fail;
@@ -1465,7 +1466,7 @@ fail:
 static int
 zyd_gct_mode(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const uint32_t mode[] = {
 		0x25f98, 0x25f9a, 0x25f94, 0x27fd4
@@ -1507,7 +1508,6 @@ zyd_gct_write(struct zyd_rf *rf, uint16_t value)
 static int
 zyd_gct_switch_radio(struct zyd_rf *rf, int on)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
 	int error;
 	struct zyd_softc *sc = rf->rf_sc;
 
@@ -1525,7 +1525,7 @@ fail:
 static int
 zyd_gct_set_channel(struct zyd_rf *rf, uint8_t chan)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int error, i;
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair cmd[] = {
@@ -1579,7 +1579,7 @@ zyd_gct_txgain(struct zyd_rf *rf, uint8_t chan)
 static int
 zyd_maxim2_init(struct zyd_rf *rf)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini[] = ZYD_MAXIM2_PHY;
 	static const uint32_t rfini[] = ZYD_MAXIM2_RF;
@@ -1616,7 +1616,7 @@ zyd_maxim2_switch_radio(struct zyd_rf *rf, int on)
 static int
 zyd_maxim2_set_channel(struct zyd_rf *rf, uint8_t chan)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	struct zyd_softc *sc = rf->rf_sc;
 	static const struct zyd_phy_pair phyini[] = ZYD_MAXIM2_PHY;
 	static const uint32_t rfini[] = ZYD_MAXIM2_RF;
@@ -2185,12 +2185,12 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	    sizeof(struct zyd_rx_stat) - IEEE80211_CRC_LEN;
 
 	/* allocate a mbuf to store the frame */
-	if (rlen > MCLBYTES) {
+	if (rlen > (int)MCLBYTES) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: frame too long (length=%d)\n",
 		    device_get_nameunit(sc->sc_dev), rlen);
 		ifp->if_ierrors++;
 		return;
-	} else if (rlen > MHLEN)
+	} else if (rlen > (int)MHLEN)
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	else
 		m = m_gethdr(M_DONTWAIT, MT_DATA);
@@ -2391,7 +2391,7 @@ tr_setup:
 			STAILQ_REMOVE_HEAD(&sc->tx_q, next);
 			m = data->m;
 
-			if (m->m_pkthdr.len > ZYD_MAX_TXBUFSZ) {
+			if (m->m_pkthdr.len > (int)ZYD_MAX_TXBUFSZ) {
 				DPRINTF(sc, ZYD_DEBUG_ANY, "data overflow, %u bytes\n",
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = ZYD_MAX_TXBUFSZ;
@@ -2933,9 +2933,9 @@ static device_method_t zyd_methods[] = {
 };
 
 static driver_t zyd_driver = {
-        "zyd",
-        zyd_methods,
-        sizeof(struct zyd_softc)
+	.name = "zyd",
+	.methods = zyd_methods,
+	.size = sizeof(struct zyd_softc)
 };
 
 static devclass_t zyd_devclass;

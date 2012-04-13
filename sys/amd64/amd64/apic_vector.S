@@ -300,13 +300,10 @@ IDTVEC(cpustop)
 IDTVEC(cpususpend)
 	PUSH_FRAME
 
+	call	cpususpend_handler
 	movq	lapic, %rax
 	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	call	cpususpend_handler
-
-	POP_FRAME
-	jmp	doreti_iret
+	jmp	doreti
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.

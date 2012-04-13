@@ -130,6 +130,7 @@ struct ieee80211com {
 	struct task		ic_mcast_task;	/* deferred mcast update */
 	struct task		ic_chan_task;	/* deferred channel change */
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
+	struct task		ic_chw_task;	/* deferred HT CHW update */
 
 	uint32_t		ic_flags;	/* state flags */
 	uint32_t		ic_flags_ext;	/* extended state flags */
@@ -228,10 +229,10 @@ struct ieee80211com {
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,
-				    const char name[IFNAMSIZ], int unit,
-				    int opmode, int flags,
-				    const uint8_t bssid[IEEE80211_ADDR_LEN],
-				    const uint8_t macaddr[IEEE80211_ADDR_LEN]);
+				    const char [IFNAMSIZ], int,
+				    enum ieee80211_opmode, int,
+				    const uint8_t [IEEE80211_ADDR_LEN],
+				    const uint8_t [IEEE80211_ADDR_LEN]);
 	void			(*ic_vap_delete)(struct ieee80211vap *);
 	/* operating mode attachment */
 	ieee80211vap_attach	ic_vattach[IEEE80211_OPMODE_MAX];
@@ -242,6 +243,10 @@ struct ieee80211com {
 	int			(*ic_setregdomain)(struct ieee80211com *,
 				    struct ieee80211_regdomain *,
 				    int, struct ieee80211_channel []);
+
+	int			(*ic_set_quiet)(struct ieee80211_node *,
+				    u_int8_t *quiet_elm);
+
 	/* send/recv 802.11 management frame */
 	int			(*ic_send_mgmt)(struct ieee80211_node *,
 				     int, int);
@@ -318,6 +323,10 @@ struct ieee80211com {
 				    int batimeout, int baseqctl);
 	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
 				    struct ieee80211_rx_ampdu *);
+
+	/* The channel width has changed (20<->2040) */
+	void			(*ic_update_chw)(struct ieee80211com *);
+
 	uint64_t		ic_spare[7];
 };
 
@@ -403,6 +412,12 @@ struct ieee80211vap {
 	uint8_t			iv_dtim_period;	/* DTIM period */
 	uint8_t			iv_dtim_count;	/* DTIM count from last bcn */
 						/* set/unset aid pwrsav state */
+	uint8_t			iv_quiet;	/* Quiet Element */
+	uint8_t			iv_quiet_count;	/* constant count for Quiet Element */
+	uint8_t			iv_quiet_count_value;	/* variable count for Quiet Element */
+	uint8_t			iv_quiet_period;	/* period for Quiet Element */
+	uint16_t		iv_quiet_duration;	/* duration for Quiet Element */
+	uint16_t		iv_quiet_offset;	/* offset for Quiet Element */
 	int			iv_csa_count;	/* count for doing CSA */
 
 	struct ieee80211_node	*iv_bss;	/* information for this node */
@@ -652,7 +667,8 @@ void	ieee80211_ifattach(struct ieee80211com *,
 		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 void	ieee80211_ifdetach(struct ieee80211com *);
 int	ieee80211_vap_setup(struct ieee80211com *, struct ieee80211vap *,
-		const char name[IFNAMSIZ], int unit, int opmode, int flags,
+		const char name[IFNAMSIZ], int unit,
+		enum ieee80211_opmode opmode, int flags,
 		const uint8_t bssid[IEEE80211_ADDR_LEN],
 		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 int	ieee80211_vap_attach(struct ieee80211vap *,

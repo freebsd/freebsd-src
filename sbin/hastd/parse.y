@@ -60,6 +60,7 @@ static struct hast_resource *curres;
 static bool mynode, hadmynode;
 
 static char depth0_control[HAST_ADDRSIZE];
+static char depth0_pidfile[PATH_MAX];
 static char depth0_listen_tcp4[HAST_ADDRSIZE];
 static char depth0_listen_tcp6[HAST_ADDRSIZE];
 static TAILQ_HEAD(, hastd_listen) depth0_listen;
@@ -84,7 +85,7 @@ isitme(const char *name)
 	size_t bufsize;
 
 	/*
-	 * First check if the give name matches our full hostname.
+	 * First check if the given name matches our full hostname.
 	 */
 	if (gethostname(buf, sizeof(buf)) < 0) {
 		pjdlog_errno(LOG_ERR, "gethostname() failed");
@@ -193,6 +194,7 @@ yy_config_parse(const char *config, bool exitonerror)
 	depth0_checksum = HAST_CHECKSUM_NONE;
 	depth0_compression = HAST_COMPRESSION_HOLE;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
+	strlcpy(depth0_pidfile, HASTD_PIDFILE, sizeof(depth0_pidfile));
 	TAILQ_INIT(&depth0_listen);
 	strlcpy(depth0_listen_tcp4, HASTD_LISTEN_TCP4,
 	    sizeof(depth0_listen_tcp4));
@@ -237,6 +239,10 @@ yy_config_parse(const char *config, bool exitonerror)
 	if (lconfig->hc_controladdr[0] == '\0') {
 		strlcpy(lconfig->hc_controladdr, depth0_control,
 		    sizeof(lconfig->hc_controladdr));
+	}
+	if (lconfig->hc_pidfile[0] == '\0') {
+		strlcpy(lconfig->hc_pidfile, depth0_pidfile,
+		    sizeof(lconfig->hc_pidfile));
 	}
 	if (!TAILQ_EMPTY(&depth0_listen))
 		TAILQ_CONCAT(&lconfig->hc_listen, &depth0_listen, hl_next);
@@ -295,11 +301,9 @@ yy_config_parse(const char *config, bool exitonerror)
 			 */
 			curres->hr_replication = depth0_replication;
 		}
-		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC ||
-		    curres->hr_replication == HAST_REPLICATION_ASYNC) {
+		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC) {
 			pjdlog_warning("Replication mode \"%s\" is not implemented, falling back to \"%s\".",
-			    curres->hr_replication == HAST_REPLICATION_MEMSYNC ?
-			    "memsync" : "async", "fullsync");
+			    "memsync", "fullsync");
 			curres->hr_replication = HAST_REPLICATION_FULLSYNC;
 		}
 		if (curres->hr_checksum == -1) {
@@ -365,8 +369,8 @@ yy_config_free(struct hastd_config *config)
 }
 %}
 
-%token CONTROL LISTEN PORT REPLICATION CHECKSUM COMPRESSION METAFLUSH
-%token TIMEOUT EXEC EXTENTSIZE RESOURCE NAME LOCAL REMOTE SOURCE ON OFF
+%token CONTROL PIDFILE LISTEN REPLICATION CHECKSUM COMPRESSION METAFLUSH
+%token TIMEOUT EXEC RESOURCE NAME LOCAL REMOTE SOURCE ON OFF
 %token FULLSYNC MEMSYNC ASYNC NONE CRC32 SHA256 HOLE LZF
 %token NUM STR OB CB
 
@@ -394,6 +398,8 @@ statements:
 
 statement:
 	control_statement
+	|
+	pidfile_statement
 	|
 	listen_statement
 	|
@@ -439,6 +445,36 @@ control_statement:	CONTROL STR
 			break;
 		default:
 			PJDLOG_ABORT("control at wrong depth level");
+		}
+		free($2);
+	}
+	;
+
+pidfile_statement:	PIDFILE STR
+	{
+		switch (depth) {
+		case 0:
+			if (strlcpy(depth0_pidfile, $2,
+			    sizeof(depth0_pidfile)) >=
+			    sizeof(depth0_pidfile)) {
+				pjdlog_error("pidfile argument is too long.");
+				free($2);
+				return (1);
+			}
+			break;
+		case 1:
+			if (!mynode)
+				break;
+			if (strlcpy(lconfig->hc_pidfile, $2,
+			    sizeof(lconfig->hc_pidfile)) >=
+			    sizeof(lconfig->hc_pidfile)) {
+				pjdlog_error("pidfile argument is too long.");
+				free($2);
+				return (1);
+			}
+			break;
+		default:
+			PJDLOG_ABORT("pidfile at wrong depth level");
 		}
 		free($2);
 	}
@@ -658,6 +694,8 @@ node_entries:
 node_entry:
 	control_statement
 	|
+	pidfile_statement
+	|
 	listen_statement
 	;
 
@@ -774,6 +812,7 @@ resource_start:	STR
 		    sizeof(curres->hr_name)) >=
 		    sizeof(curres->hr_name)) {
 			pjdlog_error("Resource name is too long.");
+			free(curres);
 			free($1);
 			return (1);
 		}

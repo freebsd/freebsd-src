@@ -13,10 +13,16 @@
 
 #include "ARMMCTargetDesc.h"
 #include "ARMMCAsmInfo.h"
+#include "ARMBaseInfo.h"
+#include "InstPrinter/ARMInstPrinter.h"
+#include "llvm/MC/MCCodeGenInfo.h"
+#include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 
 #define GET_REGINFO_MC_DESC
 #include "ARMGenRegisterInfo.inc"
@@ -35,7 +41,7 @@ std::string ARM_MC::ParseARMTriple(StringRef TT) {
   unsigned Len = TT.size();
   unsigned Idx = 0;
 
-  // FIXME: Enahnce Triple helper class to extract ARM version.
+  // FIXME: Enhance Triple helper class to extract ARM version.
   bool isThumb = false;
   if (Len >= 5 && TT.substr(0, 4) == "armv")
     Idx = 4;
@@ -50,18 +56,21 @@ std::string ARM_MC::ParseARMTriple(StringRef TT) {
     unsigned SubVer = TT[Idx];
     if (SubVer >= '7' && SubVer <= '9') {
       if (Len >= Idx+2 && TT[Idx+1] == 'm') {
-        // v7m: FeatureNoARM, FeatureDB, FeatureHWDiv
-        ARMArchFeature = "+v7,+noarm,+db,+hwdiv";
+        // v7m: FeatureNoARM, FeatureDB, FeatureHWDiv, FeatureMClass
+        ARMArchFeature = "+v7,+noarm,+db,+hwdiv,+mclass";
       } else if (Len >= Idx+3 && TT[Idx+1] == 'e'&& TT[Idx+2] == 'm') {
         // v7em: FeatureNoARM, FeatureDB, FeatureHWDiv, FeatureDSPThumb2,
-        //       FeatureT2XtPk
-        ARMArchFeature = "+v7,+noarm,+db,+hwdiv,+t2dsp,t2xtpk";
+        //       FeatureT2XtPk, FeatureMClass
+        ARMArchFeature = "+v7,+noarm,+db,+hwdiv,+t2dsp,t2xtpk,+mclass";
       } else
-        // v7a: FeatureNEON, FeatureDB, FeatureDSPThumb2
-        ARMArchFeature = "+v7,+neon,+db,+t2dsp";
+        // v7a: FeatureNEON, FeatureDB, FeatureDSPThumb2, FeatureT2XtPk
+        ARMArchFeature = "+v7,+neon,+db,+t2dsp,+t2xtpk";
     } else if (SubVer == '6') {
       if (Len >= Idx+3 && TT[Idx+1] == 't' && TT[Idx+2] == '2')
         ARMArchFeature = "+v6t2";
+      else if (Len >= Idx+2 && TT[Idx+1] == 'm')
+        // v6m: FeatureNoARM, FeatureMClass
+        ARMArchFeature = "+v6t2,+noarm,+mclass";
       else
         ARMArchFeature = "+v6";
     } else if (SubVer == '5') {
@@ -78,6 +87,14 @@ std::string ARM_MC::ParseARMTriple(StringRef TT) {
       ARMArchFeature = "+thumb-mode";
     else
       ARMArchFeature += ",+thumb-mode";
+  }
+
+  Triple TheTriple(TT);
+  if (TheTriple.getOS() == Triple::NativeClient) {
+    if (ARMArchFeature.empty())
+      ARMArchFeature = "+nacl-mode";
+    else
+      ARMArchFeature += ",+nacl-mode";
   }
 
   return ARMArchFeature;
@@ -98,34 +115,16 @@ MCSubtargetInfo *ARM_MC::createARMMCSubtargetInfo(StringRef TT, StringRef CPU,
   return X;
 }
 
-// Force static initialization.
-extern "C" void LLVMInitializeARMMCSubtargetInfo() {
-  TargetRegistry::RegisterMCSubtargetInfo(TheARMTarget,
-                                          ARM_MC::createARMMCSubtargetInfo);
-  TargetRegistry::RegisterMCSubtargetInfo(TheThumbTarget,
-                                          ARM_MC::createARMMCSubtargetInfo);
-}
-
 static MCInstrInfo *createARMMCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
   InitARMMCInstrInfo(X);
   return X;
 }
 
-extern "C" void LLVMInitializeARMMCInstrInfo() {
-  TargetRegistry::RegisterMCInstrInfo(TheARMTarget, createARMMCInstrInfo);
-  TargetRegistry::RegisterMCInstrInfo(TheThumbTarget, createARMMCInstrInfo);
-}
-
-static MCRegisterInfo *createARMMCRegisterInfo() {
+static MCRegisterInfo *createARMMCRegisterInfo(StringRef Triple) {
   MCRegisterInfo *X = new MCRegisterInfo();
-  InitARMMCRegisterInfo(X);
+  InitARMMCRegisterInfo(X, ARM::LR);
   return X;
-}
-
-extern "C" void LLVMInitializeARMMCRegInfo() {
-  TargetRegistry::RegisterMCRegInfo(TheARMTarget, createARMMCRegisterInfo);
-  TargetRegistry::RegisterMCRegInfo(TheThumbTarget, createARMMCRegisterInfo);
 }
 
 static MCAsmInfo *createARMMCAsmInfo(const Target &T, StringRef TT) {
@@ -137,8 +136,128 @@ static MCAsmInfo *createARMMCAsmInfo(const Target &T, StringRef TT) {
   return new ARMELFMCAsmInfo();
 }
 
-extern "C" void LLVMInitializeARMMCAsmInfo() {
-  // Register the target asm info.
+static MCCodeGenInfo *createARMMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+                                             CodeModel::Model CM) {
+  MCCodeGenInfo *X = new MCCodeGenInfo();
+  if (RM == Reloc::Default) {
+    Triple TheTriple(TT);
+    // Default relocation model on Darwin is PIC, not DynamicNoPIC.
+    RM = TheTriple.isOSDarwin() ? Reloc::PIC_ : Reloc::DynamicNoPIC;
+  }
+  X->InitMCCodeGenInfo(RM, CM);
+  return X;
+}
+
+// This is duplicated code. Refactor this.
+static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
+                                    MCContext &Ctx, MCAsmBackend &MAB,
+                                    raw_ostream &OS,
+                                    MCCodeEmitter *Emitter,
+                                    bool RelaxAll,
+                                    bool NoExecStack) {
+  Triple TheTriple(TT);
+
+  if (TheTriple.isOSDarwin())
+    return createMachOStreamer(Ctx, MAB, OS, Emitter, RelaxAll);
+
+  if (TheTriple.isOSWindows()) {
+    llvm_unreachable("ARM does not support Windows COFF format");
+    return NULL;
+  }
+
+  return createELFStreamer(Ctx, MAB, OS, Emitter, RelaxAll, NoExecStack);
+}
+
+static MCInstPrinter *createARMMCInstPrinter(const Target &T,
+                                             unsigned SyntaxVariant,
+                                             const MCAsmInfo &MAI,
+                                             const MCSubtargetInfo &STI) {
+  if (SyntaxVariant == 0)
+    return new ARMInstPrinter(MAI, STI);
+  return 0;
+}
+
+namespace {
+
+class ARMMCInstrAnalysis : public MCInstrAnalysis {
+public:
+  ARMMCInstrAnalysis(const MCInstrInfo *Info) : MCInstrAnalysis(Info) {}
+
+  virtual bool isUnconditionalBranch(const MCInst &Inst) const {
+    // BCCs with the "always" predicate are unconditional branches.
+    if (Inst.getOpcode() == ARM::Bcc && Inst.getOperand(1).getImm()==ARMCC::AL)
+      return true;
+    return MCInstrAnalysis::isUnconditionalBranch(Inst);
+  }
+
+  virtual bool isConditionalBranch(const MCInst &Inst) const {
+    // BCCs with the "always" predicate are unconditional branches.
+    if (Inst.getOpcode() == ARM::Bcc && Inst.getOperand(1).getImm()==ARMCC::AL)
+      return false;
+    return MCInstrAnalysis::isConditionalBranch(Inst);
+  }
+
+  uint64_t evaluateBranch(const MCInst &Inst, uint64_t Addr,
+                          uint64_t Size) const {
+    // We only handle PCRel branches for now.
+    if (Info->get(Inst.getOpcode()).OpInfo[0].OperandType!=MCOI::OPERAND_PCREL)
+      return -1ULL;
+
+    int64_t Imm = Inst.getOperand(0).getImm();
+    // FIXME: This is not right for thumb.
+    return Addr+Imm+8; // In ARM mode the PC is always off by 8 bytes.
+  }
+};
+
+}
+
+static MCInstrAnalysis *createARMMCInstrAnalysis(const MCInstrInfo *Info) {
+  return new ARMMCInstrAnalysis(Info);
+}
+
+// Force static initialization.
+extern "C" void LLVMInitializeARMTargetMC() {
+  // Register the MC asm info.
   RegisterMCAsmInfoFn A(TheARMTarget, createARMMCAsmInfo);
   RegisterMCAsmInfoFn B(TheThumbTarget, createARMMCAsmInfo);
+
+  // Register the MC codegen info.
+  TargetRegistry::RegisterMCCodeGenInfo(TheARMTarget, createARMMCCodeGenInfo);
+  TargetRegistry::RegisterMCCodeGenInfo(TheThumbTarget, createARMMCCodeGenInfo);
+
+  // Register the MC instruction info.
+  TargetRegistry::RegisterMCInstrInfo(TheARMTarget, createARMMCInstrInfo);
+  TargetRegistry::RegisterMCInstrInfo(TheThumbTarget, createARMMCInstrInfo);
+
+  // Register the MC register info.
+  TargetRegistry::RegisterMCRegInfo(TheARMTarget, createARMMCRegisterInfo);
+  TargetRegistry::RegisterMCRegInfo(TheThumbTarget, createARMMCRegisterInfo);
+
+  // Register the MC subtarget info.
+  TargetRegistry::RegisterMCSubtargetInfo(TheARMTarget,
+                                          ARM_MC::createARMMCSubtargetInfo);
+  TargetRegistry::RegisterMCSubtargetInfo(TheThumbTarget,
+                                          ARM_MC::createARMMCSubtargetInfo);
+
+  // Register the MC instruction analyzer.
+  TargetRegistry::RegisterMCInstrAnalysis(TheARMTarget,
+                                          createARMMCInstrAnalysis);
+  TargetRegistry::RegisterMCInstrAnalysis(TheThumbTarget,
+                                          createARMMCInstrAnalysis);
+
+  // Register the MC Code Emitter
+  TargetRegistry::RegisterMCCodeEmitter(TheARMTarget, createARMMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(TheThumbTarget, createARMMCCodeEmitter);
+
+  // Register the asm backend.
+  TargetRegistry::RegisterMCAsmBackend(TheARMTarget, createARMAsmBackend);
+  TargetRegistry::RegisterMCAsmBackend(TheThumbTarget, createARMAsmBackend);
+
+  // Register the object streamer.
+  TargetRegistry::RegisterMCObjectStreamer(TheARMTarget, createMCStreamer);
+  TargetRegistry::RegisterMCObjectStreamer(TheThumbTarget, createMCStreamer);
+
+  // Register the MCInstPrinter.
+  TargetRegistry::RegisterMCInstPrinter(TheARMTarget, createARMMCInstPrinter);
+  TargetRegistry::RegisterMCInstPrinter(TheThumbTarget, createARMMCInstPrinter);
 }

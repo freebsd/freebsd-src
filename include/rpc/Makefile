@@ -3,7 +3,7 @@
 
 .SUFFIXES: .x
 
-RPCCOM = rpcgen -C
+RPCCOM=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 HDRS=	rpcb_prot.h
 

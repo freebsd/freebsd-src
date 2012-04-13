@@ -96,6 +96,7 @@ struct vop_vector default_vnodeops = {
 
 	.vop_access =		vop_stdaccess,
 	.vop_accessx =		vop_stdaccessx,
+	.vop_advise =		vop_stdadvise,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
 	.vop_advlockpurge =	vop_stdadvlockpurge,
@@ -122,6 +123,9 @@ struct vop_vector default_vnodeops = {
 	.vop_unlock =		vop_stdunlock,
 	.vop_vptocnp =		vop_stdvptocnp,
 	.vop_vptofh =		vop_stdvptofh,
+	.vop_unp_bind =		vop_stdunp_bind,
+	.vop_unp_connect =	vop_stdunp_connect,
+	.vop_unp_detach =	vop_stdunp_detach,
 };
 
 /*
@@ -843,7 +847,7 @@ out:
 	free(dirbuf, M_TEMP);
 	if (!error) {
 		*buflen = i;
-		vhold(*dvp);
+		vref(*dvp);
 	}
 	if (covered) {
 		vput(*dvp);
@@ -982,6 +986,82 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	*ap->a_offset = offset;
 	free(buf, M_TEMP);
 	return (error);
+}
+
+int
+vop_stdadvise(struct vop_advise_args *ap)
+{
+	struct vnode *vp;
+	off_t start, end;
+	int error, vfslocked;
+
+	vp = ap->a_vp;
+	switch (ap->a_advice) {
+	case POSIX_FADV_WILLNEED:
+		/*
+		 * Do nothing for now.  Filesystems should provide a
+		 * custom method which starts an asynchronous read of
+		 * the requested region.
+		 */
+		error = 0;
+		break;
+	case POSIX_FADV_DONTNEED:
+		/*
+		 * Flush any open FS buffers and then remove pages
+		 * from the backing VM object.  Using vinvalbuf() here
+		 * is a bit heavy-handed as it flushes all buffers for
+		 * the given vnode, not just the buffers covering the
+		 * requested range.
+		 */
+		error = 0;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if (vp->v_iflag & VI_DOOMED) {
+			VOP_UNLOCK(vp, 0);
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+		vinvalbuf(vp, V_CLEANONLY, 0, 0);
+		if (vp->v_object != NULL) {
+			start = trunc_page(ap->a_start);
+			end = round_page(ap->a_end);
+			VM_OBJECT_LOCK(vp->v_object);
+			vm_object_page_cache(vp->v_object, OFF_TO_IDX(start),
+			    OFF_TO_IDX(end));
+			VM_OBJECT_UNLOCK(vp->v_object);
+		}
+		VOP_UNLOCK(vp, 0);
+		VFS_UNLOCK_GIANT(vfslocked);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+int
+vop_stdunp_bind(struct vop_unp_bind_args *ap)
+{
+
+	ap->a_vp->v_socket = ap->a_socket;
+	return (0);
+}
+
+int
+vop_stdunp_connect(struct vop_unp_connect_args *ap)
+{
+
+	*ap->a_socket = ap->a_vp->v_socket;
+	return (0);
+}
+
+int
+vop_stdunp_detach(struct vop_unp_detach_args *ap)
+{
+
+	ap->a_vp->v_socket = NULL;
+	return (0);
 }
 
 /*

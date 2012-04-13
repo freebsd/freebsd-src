@@ -119,7 +119,7 @@ extern char	*label;
 extern const char *color;
 extern int	 binbehave, devbehave, dirbehave, filebehave, grepbehave, linkbehave;
 
-extern bool	 first, matchall, notfound, prev;
+extern bool	 file_err, first, matchall, prev;
 extern int	 tail;
 extern unsigned int dpatterns, fpatterns, patterns;
 extern struct pat *pattern;

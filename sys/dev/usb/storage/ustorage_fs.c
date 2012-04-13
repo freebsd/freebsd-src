@@ -355,7 +355,7 @@ ustorage_fs_attach(device_t dev)
 	int unit;
 
 	/*
-	 * NOTE: the softc struct is bzero-ed in device_set_driver.
+	 * NOTE: the softc struct is cleared in device_set_driver.
 	 * We can safely call ustorage_fs_detach without specifically
 	 * initializing the struct.
 	 */
@@ -364,6 +364,9 @@ ustorage_fs_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	unit = device_get_unit(dev);
 
+	/* enable power saving mode */
+	usbd_set_power_mode(uaa->device, USB_POWER_MODE_SAVE);
+
 	if (unit == 0) {
 		if (ustorage_fs_ramdisk == NULL) {
 			/*
@@ -371,7 +374,9 @@ ustorage_fs_attach(device_t dev)
 			 * further
 			 */
 			ustorage_fs_ramdisk =
-			    malloc(USTORAGE_FS_RAM_SECT << 9, M_USB, M_ZERO | M_WAITOK);
+			    malloc(USTORAGE_FS_RAM_SECT << 9, M_USB,
+			    M_ZERO | M_WAITOK);
+
 			if (ustorage_fs_ramdisk == NULL) {
 				return (ENOMEM);
 			}
@@ -962,7 +967,7 @@ ustorage_fs_verify(struct ustorage_fs_softc *sc)
 	}
 	/* XXX TODO: verify that data is readable */
 done:
-	return (ustorage_fs_min_len(sc, 0, 0 - 1));
+	return (ustorage_fs_min_len(sc, 0, -1U));
 }
 
 /*------------------------------------------------------------------------*
@@ -984,7 +989,7 @@ ustorage_fs_inquiry(struct ustorage_fs_softc *sc)
 		memset(buf, 0, 36);
 		buf[0] = 0x7f;
 		/* Unsupported, no device - type */
-		return (ustorage_fs_min_len(sc, 36, 0 - 1));
+		return (ustorage_fs_min_len(sc, 36, -1U));
 	}
 	memset(buf, 0, 8);
 	/* Non - removable, direct - access device */
@@ -1003,7 +1008,7 @@ ustorage_fs_inquiry(struct ustorage_fs_softc *sc)
 #if (USTORAGE_QDATA_MAX < 36)
 #error "(USTORAGE_QDATA_MAX < 36)"
 #endif
-	return (ustorage_fs_min_len(sc, 36, 0 - 1));
+	return (ustorage_fs_min_len(sc, 36, -1U));
 }
 
 /*------------------------------------------------------------------------*
@@ -1072,7 +1077,7 @@ ustorage_fs_request_sense(struct ustorage_fs_softc *sc)
 #if (USTORAGE_QDATA_MAX < 18)
 #error "(USTORAGE_QDATA_MAX < 18)"
 #endif
-	return (ustorage_fs_min_len(sc, 18, 0 - 1));
+	return (ustorage_fs_min_len(sc, 18, -1U));
 }
 
 /*------------------------------------------------------------------------*
@@ -1103,7 +1108,7 @@ ustorage_fs_read_capacity(struct ustorage_fs_softc *sc)
 #if (USTORAGE_QDATA_MAX < 8)
 #error "(USTORAGE_QDATA_MAX < 8)"
 #endif
-	return (ustorage_fs_min_len(sc, 8, 0 - 1));
+	return (ustorage_fs_min_len(sc, 8, -1U));
 }
 
 /*------------------------------------------------------------------------*
@@ -1210,7 +1215,7 @@ ustorage_fs_mode_sense(struct ustorage_fs_softc *sc)
 #if (USTORAGE_QDATA_MAX < 24)
 #error "(USTORAGE_QDATA_MAX < 24)"
 #endif
-	return (ustorage_fs_min_len(sc, len, 0 - 1));
+	return (ustorage_fs_min_len(sc, len, -1U));
 }
 
 /*------------------------------------------------------------------------*
@@ -1300,7 +1305,7 @@ ustorage_fs_read_format_capacities(struct ustorage_fs_softc *sc)
 #if (USTORAGE_QDATA_MAX < 12)
 #error "(USTORAGE_QDATA_MAX < 12)"
 #endif
-	return (ustorage_fs_min_len(sc, 12, 0 - 1));
+	return (ustorage_fs_min_len(sc, 12, -1U));
 }
 
 /*------------------------------------------------------------------------*
@@ -1613,7 +1618,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	switch (sc->sc_cmd_data[0]) {
 	case SC_INQUIRY:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], -1U);
 		if (error) {
 			break;
 		}
@@ -1628,7 +1633,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_MODE_SELECT_6:
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], -1U);
 		if (error) {
 			break;
 		}
@@ -1644,7 +1649,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_MODE_SELECT_10:
 		sc->sc_transfer.cmd_dir = DIR_READ;
 		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_cmd_data[7]), 0 - 1);
+		    get_be16(&sc->sc_cmd_data[7]), -1U);
 		if (error) {
 			break;
 		}
@@ -1659,7 +1664,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_MODE_SENSE_6:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], -1U);
 		if (error) {
 			break;
 		}
@@ -1675,7 +1680,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_MODE_SENSE_10:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
 		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_cmd_data[7]), 0 - 1);
+		    get_be16(&sc->sc_cmd_data[7]), -1U);
 		if (error) {
 			break;
 		}
@@ -1689,7 +1694,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		break;
 
 	case SC_PREVENT_ALLOW_MEDIUM_REMOVAL:
-		error = ustorage_fs_min_len(sc, 0, 0 - 1);
+		error = ustorage_fs_min_len(sc, 0, -1U);
 		if (error) {
 			break;
 		}
@@ -1771,7 +1776,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_READ_FORMAT_CAPACITIES:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
 		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_cmd_data[7]), 0 - 1);
+		    get_be16(&sc->sc_cmd_data[7]), -1U);
 		if (error) {
 			break;
 		}
@@ -1786,7 +1791,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_REQUEST_SENSE:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], -1U);
 		if (error) {
 			break;
 		}
@@ -1800,7 +1805,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		break;
 
 	case SC_START_STOP_UNIT:
-		error = ustorage_fs_min_len(sc, 0, 0 - 1);
+		error = ustorage_fs_min_len(sc, 0, -1U);
 		if (error) {
 			break;
 		}
@@ -1814,7 +1819,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		break;
 
 	case SC_SYNCHRONIZE_CACHE:
-		error = ustorage_fs_min_len(sc, 0, 0 - 1);
+		error = ustorage_fs_min_len(sc, 0, -1U);
 		if (error) {
 			break;
 		}
@@ -1828,7 +1833,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		break;
 
 	case SC_TEST_UNIT_READY:
-		error = ustorage_fs_min_len(sc, 0, 0 - 1);
+		error = ustorage_fs_min_len(sc, 0, -1U);
 		if (error) {
 			break;
 		}
@@ -1841,7 +1846,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		 * We support a minimal version: BytChk must be 0.
 		 */
 	case SC_VERIFY:
-		error = ustorage_fs_min_len(sc, 0, 0 - 1);
+		error = ustorage_fs_min_len(sc, 0, -1U);
 		if (error) {
 			break;
 		}
@@ -1923,7 +1928,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		/* Fallthrough */
 
 	default:
-		error = ustorage_fs_min_len(sc, 0, 0 - 1);
+		error = ustorage_fs_min_len(sc, 0, -1U);
 		if (error) {
 			break;
 		}

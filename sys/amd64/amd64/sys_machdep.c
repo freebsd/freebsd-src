@@ -179,6 +179,8 @@ sysarch(td, uap)
 	uint32_t i386base;
 	uint64_t a64base;
 	struct i386_ioperm_args iargs;
+	struct i386_get_xfpustate i386xfpu;
+	struct amd64_get_xfpustate a64xfpu;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -195,14 +197,20 @@ sysarch(td, uap)
 		case I386_SET_FSBASE:
 		case I386_GET_GSBASE:
 		case I386_SET_GSBASE:
+		case I386_GET_XFPUSTATE:
 		case AMD64_GET_FSBASE:
 		case AMD64_SET_FSBASE:
 		case AMD64_GET_GSBASE:
 		case AMD64_SET_GSBASE:
+		case AMD64_GET_XFPUSTATE:
 			break;
 
 		case I386_SET_IOPERM:
 		default:
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
+#endif
 			return (ECAPMODE);
 		}
 	}
@@ -220,6 +228,18 @@ sysarch(td, uap)
 	case I386_SET_IOPERM:
 		if ((error = copyin(uap->parms, &iargs,
 		    sizeof(struct i386_ioperm_args))) != 0)
+			return (error);
+		break;
+	case I386_GET_XFPUSTATE:
+		if ((error = copyin(uap->parms, &i386xfpu,
+		    sizeof(struct i386_get_xfpustate))) != 0)
+			return (error);
+		a64xfpu.addr = (void *)(uintptr_t)i386xfpu.addr;
+		a64xfpu.len = i386xfpu.len;
+		break;
+	case AMD64_GET_XFPUSTATE:
+		if ((error = copyin(uap->parms, &a64xfpu,
+		    sizeof(struct amd64_get_xfpustate))) != 0)
 			return (error);
 		break;
 	default:
@@ -291,6 +311,16 @@ sysarch(td, uap)
 				error = EINVAL;
 		}
 		break;
+
+	case I386_GET_XFPUSTATE:
+	case AMD64_GET_XFPUSTATE:
+		if (a64xfpu.len > cpu_max_ext_state_size -
+		    sizeof(struct savefpu))
+			return (EINVAL);
+		fpugetregs(td);
+		error = copyout((char *)(get_pcb_user_save_td(td) + 1),
+		    a64xfpu.addr, a64xfpu.len);
+		return (error);
 
 	default:
 		error = EINVAL;

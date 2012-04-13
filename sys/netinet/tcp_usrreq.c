@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -204,8 +205,10 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 			tcp_discardcb(tp);
 			in_pcbdetach(inp);
 			in_pcbfree(inp);
-		} else
+		} else {
 			in_pcbdetach(inp);
+			INP_WUNLOCK(inp);
+		}
 	}
 }
 
@@ -1116,7 +1119,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
 	tp->t_state = TCPS_SYN_SENT;
-	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
+	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1189,7 +1192,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
 	tp->t_state = TCPS_SYN_SENT;
-	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
+	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1270,6 +1273,7 @@ int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	int	error, opt, optval;
+	u_int	ui;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
 	struct	tcp_info ti;
@@ -1437,6 +1441,59 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WUNLOCK(inp);
 			break;
 
+		case TCP_KEEPIDLE:
+		case TCP_KEEPINTVL:
+		case TCP_KEEPCNT:
+		case TCP_KEEPINIT:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
+			if (error)
+				return (error);
+
+			if (ui > (UINT_MAX / hz)) {
+				error = EINVAL;
+				break;
+			}
+			ui *= hz;
+
+			INP_WLOCK_RECHECK(inp);
+			switch (sopt->sopt_name) {
+			case TCP_KEEPIDLE:
+				tp->t_keepidle = ui;
+				/*
+				 * XXX: better check current remaining
+				 * timeout and "merge" it with new value.
+				 */
+				if ((tp->t_state > TCPS_LISTEN) &&
+				    (tp->t_state <= TCPS_CLOSING))
+					tcp_timer_activate(tp, TT_KEEP,
+					    TP_KEEPIDLE(tp));
+				break;
+			case TCP_KEEPINTVL:
+				tp->t_keepintvl = ui;
+				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+				    (TP_MAXIDLE(tp) > 0))
+					tcp_timer_activate(tp, TT_2MSL,
+					    TP_MAXIDLE(tp));
+				break;
+			case TCP_KEEPCNT:
+				tp->t_keepcnt = ui;
+				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+				    (TP_MAXIDLE(tp) > 0))
+					tcp_timer_activate(tp, TT_2MSL,
+					    TP_MAXIDLE(tp));
+				break;
+			case TCP_KEEPINIT:
+				tp->t_keepinit = ui;
+				if (tp->t_state == TCPS_SYN_RECEIVED ||
+				    tp->t_state == TCPS_SYN_SENT)
+					tcp_timer_activate(tp, TT_KEEP,
+					    TP_KEEPINIT(tp));
+				break;
+			}
+			INP_WUNLOCK(inp);
+			break;
+
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
@@ -1498,18 +1555,6 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 #undef INP_WLOCK_RECHECK
 
 /*
- * tcp_sendspace and tcp_recvspace are the default send and receive window
- * sizes, respectively.  These are obsolescent (this information should
- * be set by the route).
- */
-u_long	tcp_sendspace = 1024*32;
-SYSCTL_ULONG(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
-    &tcp_sendspace , 0, "Maximum outgoing TCP datagram size");
-u_long	tcp_recvspace = 1024*64;
-SYSCTL_ULONG(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
-    &tcp_recvspace , 0, "Maximum incoming TCP datagram size");
-
-/*
  * Attach TCP protocol to socket, allocating
  * internet protocol control block, tcp control block,
  * bufer space, and entering LISTEN state if to accept connections.
@@ -1522,7 +1567,7 @@ tcp_attach(struct socket *so)
 	int error;
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = soreserve(so, tcp_sendspace, tcp_recvspace);
+		error = soreserve(so, V_tcp_sendspace, V_tcp_recvspace);
 		if (error)
 			return (error);
 	}
@@ -1646,7 +1691,7 @@ tcp_usrclosed(struct tcpcb *tp)
 			int timeout;
 
 			timeout = (tcp_fast_finwait2_recycle) ? 
-			    tcp_finwait2_timeout : tcp_maxidle;
+			    tcp_finwait2_timeout : TP_MAXIDLE(tp);
 			tcp_timer_activate(tp, TT_2MSL, timeout);
 		}
 	}

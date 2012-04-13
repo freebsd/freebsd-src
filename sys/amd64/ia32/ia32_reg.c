@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
@@ -155,7 +154,7 @@ fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 	sv_87 = (struct save87 *)regs;
 	penv_87 = &sv_87->sv_env;
 	fpugetregs(td);
-	sv_fpu = &td->td_pcb->pcb_user_save;
+	sv_fpu = get_pcb_user_save_td(td);
 	penv_xmm = &sv_fpu->sv_env;
 	
 	/* FPU control/status */
@@ -187,7 +186,7 @@ set_fpregs32(struct thread *td, struct fpreg32 *regs)
 {
 	struct save87 *sv_87 = (struct save87 *)regs;
 	struct env87 *penv_87 = &sv_87->sv_env;
-	struct savefpu *sv_fpu = &td->td_pcb->pcb_user_save;
+	struct savefpu *sv_fpu = get_pcb_user_save_td(td);
 	struct envxmm *penv_xmm = &sv_fpu->sv_env;
 	int i;
 

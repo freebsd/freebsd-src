@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1994 Sean Eric Fagan
- * Copyright (c) 1994 Søren Schmidt
+ * Copyright (c) 1994 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

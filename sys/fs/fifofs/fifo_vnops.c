@@ -2,6 +2,7 @@
  * Copyright (c) 1990, 1993, 1995
  *	The Regents of the University of California.
  * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2012 Giovanni Trematerra
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,85 +43,44 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
-#include <sys/poll.h>
+#include <sys/selinfo.h>
+#include <sys/pipe.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/un.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <fs/fifofs/fifo.h>
-
-static fo_rdwr_t        fifo_read_f;
-static fo_rdwr_t        fifo_write_f;
-static fo_ioctl_t       fifo_ioctl_f;
-static fo_poll_t        fifo_poll_f;
-static fo_kqfilter_t    fifo_kqfilter_f;
-static fo_stat_t        fifo_stat_f;
-static fo_close_t       fifo_close_f;
-static fo_truncate_t    fifo_truncate_f;
-
-struct fileops fifo_ops_f = {
-	.fo_read =      fifo_read_f,
-	.fo_write =     fifo_write_f,
-	.fo_truncate =  fifo_truncate_f,
-	.fo_ioctl =     fifo_ioctl_f,
-	.fo_poll =      fifo_poll_f,
-	.fo_kqfilter =  fifo_kqfilter_f,
-	.fo_stat =      fifo_stat_f,
-	.fo_close =     fifo_close_f,
-	.fo_chmod =	vn_chmod,
-	.fo_chown =	vn_chown,
-	.fo_flags =     DFLAG_PASSABLE
-};
 
 /*
  * This structure is associated with the FIFO vnode and stores
  * the state associated with the FIFO.
  * Notes about locking:
- *   - fi_readsock and fi_writesock are invariant since init time.
- *   - fi_readers and fi_writers are vnode lock protected.
- *   - fi_wgen is fif_mtx lock protected.
+ *   - fi_pipe is invariant since init time.
+ *   - fi_readers and fi_writers are protected by the vnode lock.
+ *   - fi_wgen and fi_seqcount are protected by the pipe mutex.
  */
 struct fifoinfo {
-	struct socket	*fi_readsock;
-	struct socket	*fi_writesock;
-	long		fi_readers;
-	long		fi_writers;
-	int		fi_wgen;
+	struct pipe *fi_pipe;
+	long	fi_readers;
+	long	fi_writers;
+	int	fi_wgen;
+	int	fi_seqcount;
 };
+
+#define FIFO_UPDWGEN(fip, pip)	do { \
+	if ((fip)->fi_wgen == (fip)->fi_seqcount) 			\
+		(pip)->pipe_state |= PIPE_SAMEWGEN;			\
+	else								\
+		(pip)->pipe_state &= ~PIPE_SAMEWGEN;			\
+} while (0)
 
 static vop_print_t	fifo_print;
 static vop_open_t	fifo_open;
 static vop_close_t	fifo_close;
 static vop_pathconf_t	fifo_pathconf;
 static vop_advlock_t	fifo_advlock;
-
-static void	filt_fifordetach(struct knote *kn);
-static int	filt_fiforead(struct knote *kn, long hint);
-static void	filt_fifowdetach(struct knote *kn);
-static int	filt_fifowrite(struct knote *kn, long hint);
-static void	filt_fifodetach_notsup(struct knote *kn);
-static int	filt_fifo_notsup(struct knote *kn, long hint);
-
-static struct filterops fiforead_filtops = {
-	.f_isfd = 1,
-	.f_detach = filt_fifordetach,
-	.f_event = filt_fiforead,
-};
-static struct filterops fifowrite_filtops = {
-	.f_isfd = 1,
-	.f_detach = filt_fifowdetach,
-	.f_event = filt_fifowrite,
-};
-static struct filterops fifo_notsup_filtops = {
-	.f_isfd = 1,
-	.f_detach = filt_fifodetach_notsup,
-	.f_event = filt_fifo_notsup,
-};
 
 struct vop_vector fifo_specops = {
 	.vop_default =		&default_vnodeops,
@@ -150,22 +110,19 @@ struct vop_vector fifo_specops = {
 	.vop_write =		VOP_PANIC,
 };
 
-struct mtx fifo_mtx;
-MTX_SYSINIT(fifo, &fifo_mtx, "fifo mutex", MTX_DEF);
-
 /*
  * Dispose of fifo resources.
  */
 static void
 fifo_cleanup(struct vnode *vp)
 {
-	struct fifoinfo *fip = vp->v_fifoinfo;
+	struct fifoinfo *fip;
 
 	ASSERT_VOP_ELOCKED(vp, "fifo_cleanup");
+	fip = vp->v_fifoinfo;
 	if (fip->fi_readers == 0 && fip->fi_writers == 0) {
 		vp->v_fifoinfo = NULL;
-		(void)soclose(fip->fi_readsock);
-		(void)soclose(fip->fi_writesock);
+		pipe_dtor(fip->fi_pipe);
 		free(fip, M_VNODE);
 	}
 }
@@ -185,101 +142,81 @@ fifo_open(ap)
 		struct file *a_fp;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
+	struct vnode *vp;
+	struct file *fp;
+	struct thread *td;
 	struct fifoinfo *fip;
-	struct thread *td = ap->a_td;
-	struct ucred *cred = ap->a_cred;
-	struct file *fp = ap->a_fp;
-	struct socket *rso, *wso;
+	struct pipe *fpipe;
 	int error;
 
+	vp = ap->a_vp;
+	fp = ap->a_fp;
+	td = ap->a_td;
 	ASSERT_VOP_ELOCKED(vp, "fifo_open");
 	if (fp == NULL)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
-		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
-		error = socreate(AF_LOCAL, &rso, SOCK_STREAM, 0, cred, td);
-		if (error)
-			goto fail1;
-		fip->fi_readsock = rso;
-		error = socreate(AF_LOCAL, &wso, SOCK_STREAM, 0, cred, td);
-		if (error)
-			goto fail2;
-		fip->fi_writesock = wso;
-		error = soconnect2(wso, rso);
-		/* Close the direction we do not use, so we can get POLLHUP. */
-		if (error == 0)
-			error = soshutdown(rso, SHUT_WR);
-		if (error) {
-			(void)soclose(wso);
-fail2:
-			(void)soclose(rso);
-fail1:
-			free(fip, M_VNODE);
+		error = pipe_named_ctor(&fpipe, td);
+		if (error != 0)
 			return (error);
-		}
-		fip->fi_readers = fip->fi_writers = 0;
-		wso->so_snd.sb_lowat = PIPE_BUF;
-		SOCKBUF_LOCK(&rso->so_rcv);
-		rso->so_rcv.sb_state |= SBS_CANTRCVMORE;
-		SOCKBUF_UNLOCK(&rso->so_rcv);
-		KASSERT(vp->v_fifoinfo == NULL,
-		    ("fifo_open: v_fifoinfo race"));
+		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
+		fip->fi_pipe = fpipe;
+		fip->fi_wgen = fip->fi_readers = fip->fi_writers = 0;
+ 		KASSERT(vp->v_fifoinfo == NULL, ("fifo_open: v_fifoinfo race"));
 		vp->v_fifoinfo = fip;
 	}
+	fpipe = fip->fi_pipe;
+ 	KASSERT(fpipe != NULL, ("fifo_open: pipe is NULL"));
 
 	/*
-	 * Use the fifo_mtx lock here, in addition to the vnode lock,
+	 * Use the pipe mutex here, in addition to the vnode lock,
 	 * in order to allow vnode lock dropping before msleep() calls
 	 * and still avoiding missed wakeups.
 	 */
-	mtx_lock(&fifo_mtx);
+	PIPE_LOCK(fpipe);
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
-			SOCKBUF_LOCK(&fip->fi_writesock->so_snd);
-			fip->fi_writesock->so_snd.sb_state &= ~SBS_CANTSENDMORE;
-			SOCKBUF_UNLOCK(&fip->fi_writesock->so_snd);
-			if (fip->fi_writers > 0) {
+			fpipe->pipe_state &= ~PIPE_EOF;
+			if (fip->fi_writers > 0)
 				wakeup(&fip->fi_writers);
-				sowwakeup(fip->fi_writesock);
-			}
 		}
-		fp->f_seqcount = fip->fi_wgen - fip->fi_writers;
+		fip->fi_seqcount = fip->fi_wgen - fip->fi_writers;
+		FIFO_UPDWGEN(fip, fpipe);
 	}
 	if (ap->a_mode & FWRITE) {
 		if ((ap->a_mode & O_NONBLOCK) && fip->fi_readers == 0) {
-			mtx_unlock(&fifo_mtx);
+			PIPE_UNLOCK(fpipe);
 			if (fip->fi_writers == 0)
 				fifo_cleanup(vp);
 			return (ENXIO);
 		}
 		fip->fi_writers++;
 		if (fip->fi_writers == 1) {
-			SOCKBUF_LOCK(&fip->fi_readsock->so_rcv);
-			fip->fi_readsock->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
-			SOCKBUF_UNLOCK(&fip->fi_readsock->so_rcv);
-			if (fip->fi_readers > 0) {
+			fpipe->pipe_state &= ~PIPE_EOF;
+			if (fip->fi_readers > 0)
 				wakeup(&fip->fi_readers);
-				sorwakeup(fip->fi_readsock);
-			}
 		}
 	}
 	if ((ap->a_mode & O_NONBLOCK) == 0) {
 		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0);
-			error = msleep(&fip->fi_readers, &fifo_mtx,
+			error = msleep(&fip->fi_readers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoor", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_readers--;
 				if (fip->fi_readers == 0) {
-					socantsendmore(fip->fi_writesock);
+					PIPE_LOCK(fpipe);
+					fpipe->pipe_state |= PIPE_EOF;
+					if (fpipe->pipe_state & PIPE_WANTW)
+						wakeup(fpipe);
+					PIPE_UNLOCK(fpipe);
 					fifo_cleanup(vp);
 				}
 				return (error);
 			}
-			mtx_lock(&fifo_mtx);
+			PIPE_LOCK(fpipe);
 			/*
 			 * We must have got woken up because we had a writer.
 			 * That (and not still having one) is the condition
@@ -288,16 +225,19 @@ fail1:
 		}
 		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
 			VOP_UNLOCK(vp, 0);
-			error = msleep(&fip->fi_writers, &fifo_mtx,
+			error = msleep(&fip->fi_writers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoow", 0);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_writers--;
 				if (fip->fi_writers == 0) {
-					socantrcvmore(fip->fi_readsock);
-					mtx_lock(&fifo_mtx);
+					PIPE_LOCK(fpipe);
+					fpipe->pipe_state |= PIPE_EOF;
+					if (fpipe->pipe_state & PIPE_WANTR)
+						wakeup(fpipe);
 					fip->fi_wgen++;
-					mtx_unlock(&fifo_mtx);
+					FIFO_UPDWGEN(fip, fpipe);
+					PIPE_UNLOCK(fpipe);
 					fifo_cleanup(vp);
 				}
 				return (error);
@@ -307,82 +247,13 @@ fail1:
 			 * a reader.  That (and not still having one)
 			 * is the condition that we must wait for.
 			 */
-			mtx_lock(&fifo_mtx);
+			PIPE_LOCK(fpipe);
 		}
 	}
-	mtx_unlock(&fifo_mtx);
+	PIPE_UNLOCK(fpipe);
 	KASSERT(fp != NULL, ("can't fifo/vnode bypass"));
 	KASSERT(fp->f_ops == &badfileops, ("not badfileops in fifo_open"));
-	finit(fp, fp->f_flag, DTYPE_FIFO, fip, &fifo_ops_f);
-	return (0);
-}
-
-static void
-filt_fifordetach(struct knote *kn)
-{
-	struct socket *so = (struct socket *)kn->kn_hook;
-
-	SOCKBUF_LOCK(&so->so_rcv);
-	knlist_remove(&so->so_rcv.sb_sel.si_note, kn, 1);
-	if (knlist_empty(&so->so_rcv.sb_sel.si_note))
-		so->so_rcv.sb_flags &= ~SB_KNOTE;
-	SOCKBUF_UNLOCK(&so->so_rcv);
-}
-
-static int
-filt_fiforead(struct knote *kn, long hint)
-{
-	struct socket *so = (struct socket *)kn->kn_hook;
-
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	kn->kn_data = so->so_rcv.sb_cc;
-	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
-		kn->kn_flags |= EV_EOF;
-		return (1);
-	} else {
-		kn->kn_flags &= ~EV_EOF;
-		return (kn->kn_data > 0);
-	}
-}
-
-static void
-filt_fifowdetach(struct knote *kn)
-{
-	struct socket *so = (struct socket *)kn->kn_hook;
-
-	SOCKBUF_LOCK(&so->so_snd);
-	knlist_remove(&so->so_snd.sb_sel.si_note, kn, 1);
-	if (knlist_empty(&so->so_snd.sb_sel.si_note))
-		so->so_snd.sb_flags &= ~SB_KNOTE;
-	SOCKBUF_UNLOCK(&so->so_snd);
-}
-
-static int
-filt_fifowrite(struct knote *kn, long hint)
-{
-	struct socket *so = (struct socket *)kn->kn_hook;
-
-	SOCKBUF_LOCK_ASSERT(&so->so_snd);
-	kn->kn_data = sbspace(&so->so_snd);
-	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-		kn->kn_flags |= EV_EOF;
-		return (1);
-	} else {
-		kn->kn_flags &= ~EV_EOF;
-	        return (kn->kn_data >= so->so_snd.sb_lowat);
-	}
-}
-
-static void
-filt_fifodetach_notsup(struct knote *kn)
-{
-
-}
-
-static int
-filt_fifo_notsup(struct knote *kn, long hint)
-{
-
+	finit(fp, fp->f_flag, DTYPE_FIFO, fpipe, &pipeops);
 	return (0);
 }
 
@@ -399,26 +270,34 @@ fifo_close(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct fifoinfo *fip = vp->v_fifoinfo;
+	struct vnode *vp;
+	struct fifoinfo *fip;
+	struct pipe *cpipe;
 
+	vp = ap->a_vp;
+	fip = vp->v_fifoinfo;
+	cpipe = fip->fi_pipe;
 	ASSERT_VOP_ELOCKED(vp, "fifo_close");
-	if (fip == NULL) {
-		printf("fifo_close: no v_fifoinfo %p\n", vp);
-		return (0);
-	}
 	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
-		if (fip->fi_readers == 0)
-			socantsendmore(fip->fi_writesock);
+		if (fip->fi_readers == 0) {
+			PIPE_LOCK(cpipe);
+			cpipe->pipe_state |= PIPE_EOF;
+			if (cpipe->pipe_state & PIPE_WANTW)
+				wakeup(cpipe);
+			PIPE_UNLOCK(cpipe);
+		}
 	}
 	if (ap->a_fflag & FWRITE) {
 		fip->fi_writers--;
 		if (fip->fi_writers == 0) {
-			socantrcvmore(fip->fi_readsock);
-			mtx_lock(&fifo_mtx);
+			PIPE_LOCK(cpipe);
+			cpipe->pipe_state |= PIPE_EOF;
+			if (cpipe->pipe_state & PIPE_WANTR)
+				wakeup(cpipe);
 			fip->fi_wgen++;
-			mtx_unlock(&fifo_mtx);
+			FIFO_UPDWGEN(fip, cpipe);
+			PIPE_UNLOCK(cpipe);
 		}
 	}
 	fifo_cleanup(vp);
@@ -504,212 +383,3 @@ fifo_advlock(ap)
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
 }
 
-static int
-fifo_close_f(struct file *fp, struct thread *td)
-{
-
-	return (vnops.fo_close(fp, td));
-}
-
-/*
- * The implementation of ioctl() for named fifos is complicated by the fact
- * that we permit O_RDWR fifo file descriptors, meaning that the actions of
- * ioctls may have to be applied to both the underlying sockets rather than
- * just one.  The original implementation simply forward the ioctl to one
- * or both sockets based on fp->f_flag.  We now consider each ioctl
- * separately, as the composition effect requires careful ordering.
- *
- * We do not blindly pass all ioctls through to the socket in order to avoid
- * providing unnecessary ioctls that might be improperly depended on by
- * applications (such as socket-specific, routing, and interface ioctls).
- *
- * Unlike sys_pipe.c, fifos do not implement the deprecated TIOCSPGRP and
- * TIOCGPGRP ioctls.  Earlier implementations of fifos did forward SIOCSPGRP
- * and SIOCGPGRP ioctls, so we might need to re-add those here.
- */
-static int
-fifo_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred,
-    struct thread *td)
-{
-	struct fifoinfo *fi;
-	struct file filetmp;	/* Local, so need not be locked. */
-	int error;
-
-	error = ENOTTY;
-	fi = fp->f_data;
-
-	switch (com) {
-	case FIONBIO:
-		/*
-		 * Non-blocking I/O is implemented at the fifo layer using
-		 * MSG_NBIO, so does not need to be forwarded down the stack.
-		 */
-		return (0);
-
-	case FIOASYNC:
-	case FIOSETOWN:
-	case FIOGETOWN:
-		/*
-		 * These socket ioctls don't have any ordering requirements,
-		 * so are called in an arbitrary order, and only on the
-		 * sockets indicated by the file descriptor rights.
-		 *
-		 * XXXRW: If O_RDWR and the read socket accepts an ioctl but
-		 * the write socket doesn't, the socketpair is left in an
-		 * inconsistent state.
-		 */
-		if (fp->f_flag & FREAD) {
-			filetmp.f_data = fi->fi_readsock;
-			filetmp.f_cred = cred;
-			error = soo_ioctl(&filetmp, com, data, cred, td);
-			if (error)
-				return (error);
-		}
-		if (fp->f_flag & FWRITE) {
-			filetmp.f_data = fi->fi_writesock;
-			filetmp.f_cred = cred;
-			error = soo_ioctl(&filetmp, com, data, cred, td);
-		}
-		return (error);
-
-	case FIONREAD:
-		/*
-		 * FIONREAD will return 0 for non-readable descriptors, and
-		 * the results of FIONREAD on the read socket for readable
-		 * descriptors.
-		 */
-		if (!(fp->f_flag & FREAD)) {
-			*(int *)data = 0;
-			return (0);
-		}
-		filetmp.f_data = fi->fi_readsock;
-		filetmp.f_cred = cred;
-		return (soo_ioctl(&filetmp, com, data, cred, td));
-
-	default:
-		return (ENOTTY);
-	}
-}
-
-/*
- * Because fifos are now a file descriptor layer object, EVFILT_VNODE is not
- * implemented.  Likely, fifo_kqfilter() should be removed, and
- * fifo_kqfilter_f() should know how to forward the request to the underling
- * vnode using f_vnode in the file descriptor here.
- */
-static int
-fifo_kqfilter_f(struct file *fp, struct knote *kn)
-{
-	struct fifoinfo *fi;
-	struct socket *so;
-	struct sockbuf *sb;
-
-	fi = fp->f_data;
-
-	/*
-	 * If a filter is requested that is not supported by this file
-	 * descriptor, don't return an error, but also don't ever generate an
-	 * event.
-	 */
-	if ((kn->kn_filter == EVFILT_READ) && !(fp->f_flag & FREAD)) {
-		kn->kn_fop = &fifo_notsup_filtops;
-		return (0);
-	}
-
-	if ((kn->kn_filter == EVFILT_WRITE) && !(fp->f_flag & FWRITE)) {
-		kn->kn_fop = &fifo_notsup_filtops;
-		return (0);
-	}
-
-	switch (kn->kn_filter) {
-	case EVFILT_READ:
-		kn->kn_fop = &fiforead_filtops;
-		so = fi->fi_readsock;
-		sb = &so->so_rcv;
-		break;
-	case EVFILT_WRITE:
-		kn->kn_fop = &fifowrite_filtops;
-		so = fi->fi_writesock;
-		sb = &so->so_snd;
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	kn->kn_hook = (caddr_t)so;
-
-	SOCKBUF_LOCK(sb);
-	knlist_add(&sb->sb_sel.si_note, kn, 1);
-	sb->sb_flags |= SB_KNOTE;
-	SOCKBUF_UNLOCK(sb);
-
-	return (0);
-}
-
-static int
-fifo_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
-{
-	struct fifoinfo *fip;
-	struct file filetmp;
-	int levents, revents = 0;
-
-	fip = fp->f_data;
-	levents = events &
-	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
-	if ((fp->f_flag & FREAD) && levents) {
-		filetmp.f_data = fip->fi_readsock;
-		filetmp.f_cred = cred;
-		mtx_lock(&fifo_mtx);
-		if (fp->f_seqcount == fip->fi_wgen)
-			levents |= POLLINIGNEOF;
-		mtx_unlock(&fifo_mtx);
-		revents |= soo_poll(&filetmp, levents, cred, td);
-	}
-	levents = events & (POLLOUT | POLLWRNORM | POLLWRBAND);
-	if ((fp->f_flag & FWRITE) && levents) {
-		filetmp.f_data = fip->fi_writesock;
-		filetmp.f_cred = cred;
-		revents |= soo_poll(&filetmp, levents, cred, td);
-	}
-	return (revents);
-}
-
-static int
-fifo_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
-{
-	struct fifoinfo *fip;
-	int sflags;
-
-	fip = fp->f_data;
-	KASSERT(uio->uio_rw == UIO_READ,("fifo_read mode"));
-	if (uio->uio_resid == 0)
-		return (0);
-	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
-	return (soreceive(fip->fi_readsock, NULL, uio, NULL, NULL, &sflags));
-}
-
-static int
-fifo_stat_f(struct file *fp, struct stat *sb, struct ucred *cred, struct thread *td)
-{
-
-	return (vnops.fo_stat(fp, sb, cred, td));
-}
-
-static int
-fifo_truncate_f(struct file *fp, off_t length, struct ucred *cred, struct thread *td)
-{
-
-	return (vnops.fo_truncate(fp, length, cred, td));
-}
-
-static int
-fifo_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
-{
-	struct fifoinfo *fip;
-	int sflags;
-
-	fip = fp->f_data;
-	KASSERT(uio->uio_rw == UIO_WRITE,("fifo_write mode"));
-	sflags = (fp->f_flag & FNONBLOCK) ? MSG_NBIO : 0;
-	return (sosend(fip->fi_writesock, NULL, uio, 0, NULL, sflags, td));
-}

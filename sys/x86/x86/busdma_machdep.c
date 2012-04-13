@@ -63,7 +63,7 @@ struct bounce_zone;
 struct bus_dma_tag {
 	bus_dma_tag_t	  parent;
 	bus_size_t	  alignment;
-	bus_size_t	  boundary;
+	bus_addr_t	  boundary;
 	bus_addr_t	  lowaddr;
 	bus_addr_t	  highaddr;
 	bus_dma_filter_t *filter;
@@ -113,7 +113,7 @@ static int total_bpages;
 static int busdma_zonecount;
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
 
-SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
 	   "Total bounce pages");
 
@@ -218,7 +218,7 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
  */
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t boundary, bus_addr_t lowaddr,
 		   bus_addr_t highaddr, bus_dma_filter_t *filter,
 		   void *filterarg, bus_size_t maxsize, int nsegments,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,

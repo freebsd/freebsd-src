@@ -263,8 +263,10 @@ deget(pmp, dirclust, diroffset, depp)
 		 * instead of what is written in directory entry.
 		 */
 		if (diroffset == 0 && ldep->de_StartCluster != dirclust) {
+#ifdef MSDOSFS_DEBUG
 			printf("deget(): \".\" entry at clust %lu != %lu\n",
 			    dirclust, ldep->de_StartCluster);
+#endif
 			ldep->de_StartCluster = dirclust;
 		}
 
@@ -274,8 +276,11 @@ deget(pmp, dirclust, diroffset, depp)
 			if (error == E2BIG) {
 				ldep->de_FileSize = de_cn2off(pmp, size);
 				error = 0;
-			} else
+			} else {
+#ifdef MSDOSFS_DEBUG
 				printf("deget(): pcbmap returned %d\n", error);
+#endif
+			}
 		}
 	} else
 		nvp->v_type = VREG;
@@ -351,8 +356,10 @@ detrunc(dep, length, flags, cred, td)
 	 * directory's life.
 	 */
 	if ((DETOV(dep)->v_vflag & VV_ROOT) && !FAT32(pmp)) {
+#ifdef MSDOSFS_DEBUG
 		printf("detrunc(): can't truncate root directory, clust %ld, offset %ld\n",
 		    dep->de_dirclust, dep->de_diroffset);
+#endif
 		return (EINVAL);
 	}
 
@@ -424,7 +431,7 @@ detrunc(dep, length, flags, cred, td)
 	if (allerror)
 		printf("detrunc(): vtruncbuf error %d\n", allerror);
 #endif
-	error = deupdat(dep, !(DETOV(dep)->v_mount->mnt_flag & MNT_ASYNC));
+	error = deupdat(dep, !DOINGASYNC((DETOV(dep))));
 	if (error != 0 && allerror == 0)
 		allerror = error;
 #ifdef MSDOSFS_DEBUG
@@ -503,7 +510,7 @@ deextend(dep, length, cred)
 	}
 	dep->de_FileSize = length;
 	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	return (deupdat(dep, !(DETOV(dep)->v_mount->mnt_flag & MNT_ASYNC)));
+	return (deupdat(dep, !DOINGASYNC(DETOV(dep))));
 }
 
 /*

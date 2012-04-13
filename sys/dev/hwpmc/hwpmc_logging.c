@@ -129,6 +129,7 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
 
 /* Emit a string.  Caution: does NOT update _le, so needs to be last */
 #define	PMCLOG_EMITSTRING(S,L)	do { bcopy((S), _le, (L)); } while (0)
+#define	PMCLOG_EMITNULLSTRING(L) do { bzero(_le, (L)); } while (0)
 
 #define	PMCLOG_DESPATCH(PO)						\
 		pmclog_release((PO));					\
@@ -238,7 +239,7 @@ pmclog_get_buffer(struct pmc_owner *po)
 static void
 pmclog_loop(void *arg)
 {
-	int error, last_buffer;
+	int error;
 	struct pmc_owner *po;
 	struct pmclog_buffer *lb;
 	struct proc *p;
@@ -253,7 +254,6 @@ pmclog_loop(void *arg)
 	p = po->po_owner;
 	td = curthread;
 	mycred = td->td_ucred;
-	last_buffer = 0;
 
 	PROC_LOCK(p);
 	ownercred = crhold(p->p_ucred);
@@ -286,14 +286,24 @@ pmclog_loop(void *arg)
 			if ((lb = TAILQ_FIRST(&po->po_logbuffers)) == NULL) {
 				mtx_unlock_spin(&po->po_mtx);
 
+				/* No more buffers and shutdown required. */
+				if (po->po_flags & PMC_PO_SHUTDOWN) {
+					mtx_unlock(&pmc_kthread_mtx);
+					/*
+			 		 * Close the file to get PMCLOG_EOF
+					 * error in pmclog(3).
+					 */
+					fo_close(po->po_file, curthread);
+					mtx_lock(&pmc_kthread_mtx);
+					break;
+				}
+
 				(void) msleep(po, &pmc_kthread_mtx, PWAIT,
 				    "pmcloop", 0);
 				continue;
 			}
 
 			TAILQ_REMOVE(&po->po_logbuffers, lb, plb_next);
-			if (po->po_flags & PMC_PO_SHUTDOWN)
-				last_buffer = TAILQ_EMPTY(&po->po_logbuffers);
 			mtx_unlock_spin(&po->po_mtx);
 		}
 
@@ -336,14 +346,6 @@ pmclog_loop(void *arg)
 			break;
 		}
 
-		if (last_buffer) {
-			/*
-			 * Close the file to get PMCLOG_EOF error
-			 * in pmclog(3).
-			 */
-			fo_close(po->po_file, curthread);
-		}
-
 		mtx_lock(&pmc_kthread_mtx);
 
 		/* put the used buffer back into the global pool */
@@ -356,6 +358,7 @@ pmclog_loop(void *arg)
 		lb = NULL;
 	}
 
+	wakeup_one(po->po_kthread);
 	po->po_kthread = NULL;
 
 	mtx_unlock(&pmc_kthread_mtx);
@@ -654,8 +657,7 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 	    ("[pmclog,%d] po=%p no log file", __LINE__, po));
 
 	/* stop the kthread, this will reset the 'OWNS_LOGFILE' flag */
-	if (po->po_kthread)
-		pmclog_stop_kthread(po);
+	pmclog_stop_kthread(po);
 
 	KASSERT(po->po_kthread == NULL,
 	    ("[pmclog,%d] po=%p kthread not stopped", __LINE__, po));
@@ -693,6 +695,7 @@ int
 pmclog_flush(struct pmc_owner *po)
 {
 	int error;
+	struct pmclog_buffer *lb;
 
 	PMCDBG(LOG,FLS,1, "po=%p", po);
 
@@ -715,11 +718,38 @@ pmclog_flush(struct pmc_owner *po)
 	}
 
 	/*
-	 * Schedule the current buffer if any.
+	 * Schedule the current buffer if any and not empty.
+	 */
+	mtx_lock_spin(&po->po_mtx);
+	lb = po->po_curbuf;
+	if (lb && lb->plb_ptr != lb->plb_base) {
+		pmclog_schedule_io(po);
+	} else
+		error = ENOBUFS;
+	mtx_unlock_spin(&po->po_mtx);
+
+ error:
+	mtx_unlock(&pmc_kthread_mtx);
+
+	return (error);
+}
+
+int
+pmclog_close(struct pmc_owner *po)
+{
+
+	PMCDBG(LOG,CLO,1, "po=%p", po);
+
+	mtx_lock(&pmc_kthread_mtx);
+
+	/*
+	 * Schedule the current buffer.
 	 */
 	mtx_lock_spin(&po->po_mtx);
 	if (po->po_curbuf)
 		pmclog_schedule_io(po);
+	else
+		wakeup_one(po);
 	mtx_unlock_spin(&po->po_mtx);
 
 	/*
@@ -728,12 +758,10 @@ pmclog_flush(struct pmc_owner *po)
 	 */
 	po->po_flags |= PMC_PO_SHUTDOWN;
 
- error:
 	mtx_unlock(&pmc_kthread_mtx);
 
-	return (error);
+	return (0);
 }
-
 
 void
 pmclog_process_callchain(struct pmc *pm, struct pmc_sample *ps)
@@ -808,16 +836,33 @@ void
 pmclog_process_pmcallocate(struct pmc *pm)
 {
 	struct pmc_owner *po;
+	struct pmc_soft *ps;
 
 	po = pm->pm_owner;
 
 	PMCDBG(LOG,ALL,1, "pm=%p", pm);
 
-	PMCLOG_RESERVE(po, PMCALLOCATE, sizeof(struct pmclog_pmcallocate));
-	PMCLOG_EMIT32(pm->pm_id);
-	PMCLOG_EMIT32(pm->pm_event);
-	PMCLOG_EMIT32(pm->pm_flags);
-	PMCLOG_DESPATCH(po);
+	if (PMC_TO_CLASS(pm) == PMC_CLASS_SOFT) {
+		PMCLOG_RESERVE(po, PMCALLOCATEDYN,
+		    sizeof(struct pmclog_pmcallocatedyn));
+		PMCLOG_EMIT32(pm->pm_id);
+		PMCLOG_EMIT32(pm->pm_event);
+		PMCLOG_EMIT32(pm->pm_flags);
+		ps = pmc_soft_ev_acquire(pm->pm_event);
+		if (ps != NULL)
+			PMCLOG_EMITSTRING(ps->ps_ev.pm_ev_name,PMC_NAME_MAX);
+		else
+			PMCLOG_EMITNULLSTRING(PMC_NAME_MAX);
+		pmc_soft_ev_release(ps);
+		PMCLOG_DESPATCH(po);
+	} else {
+		PMCLOG_RESERVE(po, PMCALLOCATE,
+		    sizeof(struct pmclog_pmcallocate));
+		PMCLOG_EMIT32(pm->pm_id);
+		PMCLOG_EMIT32(pm->pm_event);
+		PMCLOG_EMIT32(pm->pm_flags);
+		PMCLOG_DESPATCH(po);
+	}
 }
 
 void

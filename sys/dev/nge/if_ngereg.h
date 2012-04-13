@@ -611,25 +611,8 @@ struct nge_ring_data {
 struct nge_type {
 	uint16_t		nge_vid;
 	uint16_t		nge_did;
-	char			*nge_name;
+	const char		*nge_name;
 };
-
-struct nge_mii_frame {
-	uint8_t			mii_stdelim;
-	uint8_t			mii_opcode;
-	uint8_t			mii_phyaddr;
-	uint8_t			mii_regaddr;
-	uint8_t			mii_turnaround;
-	uint16_t		mii_data;
-};
-
-/*
- * MII constants
- */
-#define NGE_MII_STARTDELIM	0x01
-#define NGE_MII_READOP		0x02
-#define NGE_MII_WRITEOP		0x01
-#define NGE_MII_TURNAROUND	0x02
 
 #define NGE_JUMBO_FRAMELEN	9022
 #define NGE_JUMBO_MTU		\
@@ -691,8 +674,9 @@ struct nge_softc {
  */
 #define CSR_WRITE_4(sc, reg, val)	\
 	bus_write_4((sc)->nge_res, reg, val)
-#define CSR_BARRIER_WRITE_4(sc, reg)	\
-	bus_barrier((sc)->nge_res, reg, 4, BUS_SPACE_BARRIER_WRITE)
+
+#define CSR_BARRIER_4(sc, reg, flags)	\
+	bus_barrier((sc)->nge_res, reg, 4, flags)
 
 #define CSR_READ_4(sc, reg)		\
 	bus_read_4((sc)->nge_res, reg)

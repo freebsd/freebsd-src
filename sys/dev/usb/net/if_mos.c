@@ -82,7 +82,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Moschip MCS7730/MCS7830 USB to Ethernet controller
+ * Moschip MCS7730/MCS7830/MCS7832 USB to Ethernet controller
  * The datasheet is available at the following URL:
  * http://www.moschip.com/data/products/MCS7830/Data%20Sheet_7830.pdf
  */
@@ -132,7 +132,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int mos_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, mos, CTLFLAG_RW, 0, "USB mos");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, mos, CTLFLAG_RW, 0, "USB mos");
 SYSCTL_INT(_hw_usb_mos, OID_AUTO, debug, CTLFLAG_RW, &mos_debug, 0,
     "Debug level");
 #endif
@@ -149,6 +149,7 @@ SYSCTL_INT(_hw_usb_mos, OID_AUTO, debug, CTLFLAG_RW, &mos_debug, 0,
 static const STRUCT_USB_HOST_ID mos_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7730, MCS7730)},
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7830, MCS7830)},
+	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7832, MCS7832)},
 	{USB_VPI(USB_VENDOR_SITECOMEU, USB_PRODUCT_SITECOMEU_LN030, MCS7830)},
 };
 
@@ -220,15 +221,12 @@ static device_method_t mos_methods[] = {
 	DEVMETHOD(device_attach, mos_attach),
 	DEVMETHOD(device_detach, mos_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, mos_miibus_readreg),
 	DEVMETHOD(miibus_writereg, mos_miibus_writereg),
 	DEVMETHOD(miibus_statchg, mos_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t mos_driver = {
@@ -551,10 +549,10 @@ mos_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	MOS_LOCK(sc);
 	mii_pollstat(mii);
-	MOS_UNLOCK(sc);
 
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	MOS_UNLOCK(sc);
 }
 
 static void
@@ -718,6 +716,8 @@ mos_attach(device_t dev)
 		MOS_DPRINTFN("model: MCS7730");
 	} else if (sc->mos_flags & MCS7830) {
 		MOS_DPRINTFN("model: MCS7830");
+	} else if (sc->mos_flags & MCS7832) {
+		MOS_DPRINTFN("model: MCS7832");
 	}
 	error = uether_ifattach(ue);
 	if (error) {

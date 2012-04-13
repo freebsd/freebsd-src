@@ -129,7 +129,7 @@ __FBSDID("$FreeBSD$");
 devclass_t cbb_devclass;
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, cbb, CTLFLAG_RD, 0, "CBB parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, cbb, CTLFLAG_RD, 0, "CBB parameters");
 
 /* There's no way to say TUNEABLE_LONG to get the right types */
 u_long cbb_start_mem = CBB_START_MEM;
@@ -460,6 +460,13 @@ cbb_event_thread(void *arg)
 	int err;
 	int not_a_card = 0;
 
+	/*
+	 * We need to act as a power sequencer on startup.  Delay 2s/channel
+	 * to ensure the other channels have had a chance to come up.  We likely
+	 * should add a lock that's shared on a per-slot basis so that only
+	 * one power event can happen per slot at a time.
+	 */
+	pause("cbbstart", hz * device_get_unit(sc->dev) * 2);
 	mtx_lock(&sc->mtx);
 	sc->flags |= CBB_KTHREAD_RUNNING;
 	while ((sc->flags & CBB_KTHREAD_DONE) == 0) {

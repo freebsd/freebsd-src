@@ -40,12 +40,12 @@
 using namespace clang;
 using namespace arcmt;
 using namespace trans;
-using llvm::StringRef;
 
 namespace {
 
 class PropertiesRewriter {
   MigrationPass &Pass;
+  ObjCImplementationDecl *CurImplD;
 
   struct PropData {
     ObjCPropertyDecl *PropD;
@@ -55,7 +55,7 @@ class PropertiesRewriter {
     PropData(ObjCPropertyDecl *propD) : PropD(propD), IvarD(0), ImplD(0) { }
   };
 
-  typedef llvm::SmallVector<PropData, 2> PropsTy;
+  typedef SmallVector<PropData, 2> PropsTy;
   typedef std::map<unsigned, PropsTy> AtPropDeclsTy;
   AtPropDeclsTy AtProps;
 
@@ -63,6 +63,7 @@ public:
   PropertiesRewriter(MigrationPass &pass) : Pass(pass) { }
 
   void doTransform(ObjCImplementationDecl *D) {
+    CurImplD = D;
     ObjCInterfaceDecl *iface = D->getClassInterface();
     if (!iface)
       return;
@@ -135,8 +136,16 @@ private:
       return;
     }
 
-    if (propAttrs & ObjCPropertyDecl::OBJC_PR_assign)
+    if (propAttrs & ObjCPropertyDecl::OBJC_PR_assign) {
+      if (hasIvarAssignedAPlusOneObject(props)) {
+        rewriteAttribute("assign", "strong", atLoc);
+        return;
+      }
       return rewriteAssign(props, atLoc);
+    }
+
+    if (hasIvarAssignedAPlusOneObject(props))
+      return maybeAddStrongAttr(props, atLoc);
 
     return maybeAddWeakOrUnsafeUnretainedAttr(props, atLoc);
   }
@@ -163,15 +172,15 @@ private:
   void maybeAddWeakOrUnsafeUnretainedAttr(PropsTy &props,
                                           SourceLocation atLoc) const {
     ObjCPropertyDecl::PropertyAttributeKind propAttrs = getPropertyAttrs(props);
-    if ((propAttrs & ObjCPropertyDecl::OBJC_PR_readonly) &&
-        hasNoBackingIvars(props))
-      return;
 
     bool canUseWeak = canApplyWeak(Pass.Ctx, getPropertyType(props));
-    bool addedAttr = addAttribute(canUseWeak ? "weak" : "unsafe_unretained",
-                                  atLoc);
-    if (!addedAttr)
-      canUseWeak = false;
+    if (!(propAttrs & ObjCPropertyDecl::OBJC_PR_readonly) ||
+        !hasAllIvarsBacked(props)) {
+      bool addedAttr = addAttribute(canUseWeak ? "weak" : "unsafe_unretained",
+                                    atLoc);
+      if (!addedAttr)
+        canUseWeak = false;
+    }
 
     for (PropsTy::iterator I = props.begin(), E = props.end(); I != E; ++I) {
       if (isUserDeclared(I->IvarD))
@@ -187,7 +196,26 @@ private:
     }
   }
 
-  bool rewriteAttribute(llvm::StringRef fromAttr, llvm::StringRef toAttr,
+  void maybeAddStrongAttr(PropsTy &props, SourceLocation atLoc) const {
+    ObjCPropertyDecl::PropertyAttributeKind propAttrs = getPropertyAttrs(props);
+
+    if (!(propAttrs & ObjCPropertyDecl::OBJC_PR_readonly) ||
+        !hasAllIvarsBacked(props)) {
+      addAttribute("strong", atLoc);
+    }
+
+    for (PropsTy::iterator I = props.begin(), E = props.end(); I != E; ++I) {
+      if (I->ImplD) {
+        Pass.TA.clearDiagnostic(diag::err_arc_assign_property_ownership,
+                                I->ImplD->getLocation());
+        Pass.TA.clearDiagnostic(
+                           diag::err_arc_objc_property_default_assign_on_object,
+                           I->ImplD->getLocation());
+      }
+    }
+  }
+
+  bool rewriteAttribute(StringRef fromAttr, StringRef toAttr,
                         SourceLocation atLoc) const {
     if (atLoc.isMacroID())
       return false;
@@ -199,7 +227,7 @@ private:
 
     // Try to load the file buffer.
     bool invalidTemp = false;
-    llvm::StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
+    StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
     if (invalidTemp)
       return false;
 
@@ -214,7 +242,7 @@ private:
     if (tok.isNot(tok::at)) return false;
     lexer.LexFromRawLexer(tok);
     if (tok.isNot(tok::raw_identifier)) return false;
-    if (llvm::StringRef(tok.getRawIdentifierData(), tok.getLength())
+    if (StringRef(tok.getRawIdentifierData(), tok.getLength())
           != "property")
       return false;
     lexer.LexFromRawLexer(tok);
@@ -226,7 +254,7 @@ private:
 
     while (1) {
       if (tok.isNot(tok::raw_identifier)) return false;
-      llvm::StringRef ident(tok.getRawIdentifierData(), tok.getLength());
+      StringRef ident(tok.getRawIdentifierData(), tok.getLength());
       if (ident == fromAttr) {
         Pass.TA.replaceText(tok.getLocation(), fromAttr, toAttr);
         return true;
@@ -243,7 +271,7 @@ private:
     return false;
   }
 
-  bool addAttribute(llvm::StringRef attr, SourceLocation atLoc) const {
+  bool addAttribute(StringRef attr, SourceLocation atLoc) const {
     if (atLoc.isMacroID())
       return false;
 
@@ -254,7 +282,7 @@ private:
 
     // Try to load the file buffer.
     bool invalidTemp = false;
-    llvm::StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
+    StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
     if (invalidTemp)
       return false;
 
@@ -269,7 +297,7 @@ private:
     if (tok.isNot(tok::at)) return false;
     lexer.LexFromRawLexer(tok);
     if (tok.isNot(tok::raw_identifier)) return false;
-    if (llvm::StringRef(tok.getRawIdentifierData(), tok.getLength())
+    if (StringRef(tok.getRawIdentifierData(), tok.getLength())
           != "property")
       return false;
     lexer.LexFromRawLexer(tok);
@@ -291,6 +319,45 @@ private:
     return true;
   }
 
+  class PlusOneAssign : public RecursiveASTVisitor<PlusOneAssign> {
+    ObjCIvarDecl *Ivar;
+  public:
+    PlusOneAssign(ObjCIvarDecl *D) : Ivar(D) {}
+
+    bool VisitBinAssign(BinaryOperator *E) {
+      Expr *lhs = E->getLHS()->IgnoreParenImpCasts();
+      if (ObjCIvarRefExpr *RE = dyn_cast<ObjCIvarRefExpr>(lhs)) {
+        if (RE->getDecl() != Ivar)
+          return true;
+
+      if (ObjCMessageExpr *
+            ME = dyn_cast<ObjCMessageExpr>(E->getRHS()->IgnoreParenCasts()))
+        if (ME->getMethodFamily() == OMF_retain)
+          return false;
+
+      ImplicitCastExpr *implCE = dyn_cast<ImplicitCastExpr>(E->getRHS());
+      while (implCE && implCE->getCastKind() ==  CK_BitCast)
+        implCE = dyn_cast<ImplicitCastExpr>(implCE->getSubExpr());
+
+      if (implCE && implCE->getCastKind() == CK_ARCConsumeObject)
+        return false;
+      }
+
+      return true;
+    }
+  };
+
+  bool hasIvarAssignedAPlusOneObject(PropsTy &props) const {
+    for (PropsTy::iterator I = props.begin(), E = props.end(); I != E; ++I) {
+      PlusOneAssign oneAssign(I->IvarD);
+      bool notFound = oneAssign.TraverseDecl(CurImplD);
+      if (!notFound)
+        return true;
+    }
+
+    return false;
+  }
+
   bool hasIvarWithExplicitOwnership(PropsTy &props) const {
     for (PropsTy::iterator I = props.begin(), E = props.end(); I != E; ++I) {
       if (isUserDeclared(I->IvarD)) {
@@ -305,9 +372,9 @@ private:
     return false;    
   }
 
-  bool hasNoBackingIvars(PropsTy &props) const {
+  bool hasAllIvarsBacked(PropsTy &props) const {
     for (PropsTy::iterator I = props.begin(), E = props.end(); I != E; ++I)
-      if (I->IvarD)
+      if (!isUserDeclared(I->IvarD))
         return false;
 
     return true;

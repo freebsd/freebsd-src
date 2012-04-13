@@ -94,7 +94,9 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
-	@${SYSTEM_CTFMERGE}
+.if ${MK_CTF} != "no"
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
+.endif
 .if !defined(DEBUG)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -150,6 +152,12 @@ genassym.o: $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
+# We have "special" -I include paths for opensolaris/zfs files in 'depend'.
+CFILES_NOZFS=	${CFILES:N*/opensolaris/*}
+SFILES_NOZFS=	${SFILES:N*/opensolaris/*}
+CFILES_ZFS=	${CFILES:M*/opensolaris/*}
+SFILES_ZFS=	${SFILES:M*/opensolaris/*}
+
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
@@ -158,10 +166,14 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${MFILES:T:S/.m$/.h/}
 .depend: .PRECIOUS ${SRCS}
 	rm -f .newdep
-	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | \
+	${MAKE} -V CFILES_NOZFS -V SYSTEM_CFILES -V GEN_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V SFILES | \
+	${MAKE} -V CFILES_ZFS | \
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS}
+	${MAKE} -V SFILES_NOZFS | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
+	${MAKE} -V SFILES_ZFS | \
+	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
 
@@ -247,7 +259,7 @@ kernel-reinstall:
 
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+	${NORMAL_CTFCONVERT}
 
 config.ln env.ln hints.ln vers.ln vnode_if.ln:
 	${NORMAL_LINT}

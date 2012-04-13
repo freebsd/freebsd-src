@@ -1,3 +1,5 @@
+$FreeBSD$
+
      The -r option has been implemented.  The -r option tells Yacc to
 put the read-only tables in y.tab.c and the code and variables in
 y.code.c.  Keith Bostic asked for this option so that :yyfix could be
@@ -35,7 +37,7 @@ is
 
 	  %ident string
 
-where string is a sequence of characters begining with a double quote
+where string is a sequence of characters beginning with a double quote
 and ending with either a double quote or the next end-of-line, whichever
 comes first.  The declaration will cause a #ident directive to be written
 near the start of the output file.

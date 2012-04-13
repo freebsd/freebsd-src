@@ -289,7 +289,7 @@ do_kbdcontrol(struct keymap *km)
 	if (!x11)
 		system(kbd_cmd);
 
-	fprintf(stderr, "keymap=%s\n", km->keym);
+	fprintf(stderr, "keymap=\"%s\"\n", km->keym);
 	free(kbd_cmd);
 }
 
@@ -547,7 +547,7 @@ check_file(const char *keym)
 }
 
 /*
- * Read options from the relevent configuration file, then
+ * Read options from the relevant configuration file, then
  *  present to user.
  */
 static void

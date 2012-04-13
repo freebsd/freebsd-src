@@ -690,7 +690,7 @@ createde(dep, ddep, depp, cnp)
 
 		while (--ddep->de_fndcnt >= 0) {
 			if (!(ddep->de_fndoffset & pmp->pm_crbomask)) {
-				if (DETOV(ddep)->v_mount->mnt_flag & MNT_ASYNC)
+				if (DOINGASYNC(DETOV(ddep)))
 					bdwrite(bp);
 				else if ((error = bwrite(bp)) != 0)
 					return error;
@@ -720,7 +720,7 @@ createde(dep, ddep, depp, cnp)
 		}
 	}
 
-	if (DETOV(ddep)->v_mount->mnt_flag & MNT_ASYNC)
+	if (DOINGASYNC(DETOV(ddep)))
 		bdwrite(bp);
 	else if ((error = bwrite(bp)) != 0)
 		return error;
@@ -902,8 +902,10 @@ doscheckpath(source, target)
 out:;
 	if (bp)
 		brelse(bp);
+#ifdef MSDOSFS_DEBUG
 	if (error == ENOTDIR)
 		printf("doscheckpath(): .. not a directory?\n");
+#endif
 	if (dep != NULL)
 		vput(DETOV(dep));
 	return (error);
@@ -1020,7 +1022,7 @@ removede(pdep, dep)
 			    || ep->deAttributes != ATTR_WIN95)
 				break;
 		}
-		if (DETOV(pdep)->v_mount->mnt_flag & MNT_ASYNC)
+		if (DOINGASYNC(DETOV(pdep)))
 			bdwrite(bp);
 		else if ((error = bwrite(bp)) != 0)
 			return error;

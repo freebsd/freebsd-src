@@ -241,8 +241,12 @@ struct ieee80211_stats {
 	uint32_t	is_mesh_notproxy;	/* dropped 'cuz not proxying */
 	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
 	uint32_t	is_hwmp_proxy;		/* PREP for proxy route */
-	
-	uint32_t	is_spare[11];
+	uint32_t	is_beacon_bad;		/* Number of bad beacons */
+	uint32_t	is_ampdu_bar_tx;	/* A-MPDU BAR frames TXed */
+	uint32_t	is_ampdu_bar_tx_retry;	/* A-MPDU BAR frames TX rtry */
+	uint32_t	is_ampdu_bar_tx_fail;	/* A-MPDU BAR frames TX fail */
+
+	uint32_t	is_spare[7];
 };
 
 /*
@@ -715,6 +719,11 @@ struct ieee80211req {
 #define	IEEE80211_IOC_TDMA_SLOTLEN	203	/* TDMA: slot length (usecs) */
 #define	IEEE80211_IOC_TDMA_BINTERVAL	204	/* TDMA: beacon intvl (slots) */
 
+#define	IEEE80211_IOC_QUIET		205	/* Quiet Enable/Disable */
+#define	IEEE80211_IOC_QUIET_PERIOD	206	/* Quiet Period */
+#define	IEEE80211_IOC_QUIET_OFFSET	207	/* Quiet Offset */
+#define	IEEE80211_IOC_QUIET_DUR		208	/* Quiet Duration */
+#define	IEEE80211_IOC_QUIET_COUNT	209	/* Quiet Count */
 /*
  * Parameters for controlling a scan requested with
  * IEEE80211_IOC_SCAN_REQ.

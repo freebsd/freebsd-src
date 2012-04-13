@@ -13,7 +13,8 @@
 
 #define DEBUG_TYPE "asm-printer"
 #include "PPCInstPrinter.h"
-#include "PPCPredicates.h"
+#include "MCTargetDesc/PPCBaseInfo.h"
+#include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Support/raw_ostream.h"
@@ -30,7 +31,8 @@ void PPCInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << getRegisterName(RegNo);
 }
 
-void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
+void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
+                               StringRef Annot) {
   // Check for slwi/srwi mnemonics.
   if (MI->getOpcode() == PPC::RLWINM) {
     unsigned char SH = MI->getOperand(2).getImm();
@@ -49,6 +51,8 @@ void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
       O << ", ";
       printOperand(MI, 1, O);
       O << ", " << (unsigned int)SH;
+
+      printAnnotation(O, Annot);
       return;
     }
   }
@@ -59,6 +63,7 @@ void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
     printOperand(MI, 0, O);
     O << ", ";
     printOperand(MI, 1, O);
+    printAnnotation(O, Annot);
     return;
   }
   
@@ -72,11 +77,13 @@ void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O) {
       O << ", ";
       printOperand(MI, 1, O);
       O << ", " << (unsigned int)SH;
+      printAnnotation(O, Annot);
       return;
     }
   }
   
   printInstruction(MI, O);
+  printAnnotation(O, Annot);
 }
 
 

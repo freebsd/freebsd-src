@@ -35,6 +35,7 @@
 #define DEFAULT_UMUTEX	{0,0,{0,0},{0,0,0,0}}
 #define DEFAULT_URWLOCK {0,0,0,0,{0,0,0,0}}
 
+int _umtx_op_err(void *, int op, u_long, void *, void *) __hidden;
 int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
@@ -60,8 +61,10 @@ void _thr_ucond_init(struct ucond *cv) __hidden;
 int _thr_ucond_signal(struct ucond *cv) __hidden;
 int _thr_ucond_broadcast(struct ucond *cv) __hidden;
 
-int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp) __hidden;
-int __thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp) __hidden;
+int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
+	const struct timespec *tsp) __hidden;
+int __thr_rwlock_wrlock(struct urwlock *rwlock,
+	const struct timespec *tsp) __hidden;
 int __thr_rwlock_unlock(struct urwlock *rwlock) __hidden;
 
 /* Internal used only */
@@ -119,9 +122,23 @@ _thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 static inline int
 _thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 {
-    if (atomic_cmpset_rel_32(&mtx->m_owner, id, UMUTEX_UNOWNED))
-	return (0);
-    return (__thr_umutex_unlock(mtx, id));
+	uint32_t flags = mtx->m_flags;
+
+	if ((flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0) {
+		uint32_t owner;
+		do {
+			owner = mtx->m_owner;
+			if (__predict_false((owner & ~UMUTEX_CONTESTED) != id))
+				return (EPERM);
+		} while (__predict_false(!atomic_cmpset_rel_32(&mtx->m_owner,
+					 owner, UMUTEX_UNOWNED)));
+		if ((owner & UMUTEX_CONTESTED))
+			(void)_umtx_op_err(mtx, UMTX_OP_MUTEX_WAKE2, flags, 0, 0);
+		return (0);
+	}
+    	if (atomic_cmpset_rel_32(&mtx->m_owner, id, UMUTEX_UNOWNED))
+		return (0);
+	return (__thr_umutex_unlock(mtx, id));
 }
 
 static inline int

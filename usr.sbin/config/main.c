@@ -626,7 +626,7 @@ remember(const char *file)
 	else
 		s = ns(file);
 
-	if (index(s, '_') && strncmp(s, "opt_", 4) != 0) {
+	if (strchr(s, '_') && strncmp(s, "opt_", 4) != 0) {
 		free(s);
 		return;
 	}

@@ -90,7 +90,7 @@ nullfs_uninit(vfsp)
 {
 
 	mtx_destroy(&null_hashmtx);
-	free(null_node_hashtbl, M_NULLFSHASH);
+	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_node_hash);
 	return (0);
 }
 
@@ -169,15 +169,26 @@ null_hashins(mp, xp)
 }
 
 static void
-null_insmntque_dtr(struct vnode *vp, void *xp)
+null_destroy_proto(struct vnode *vp, void *xp)
 {
+
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+	VI_LOCK(vp);
 	vp->v_data = NULL;
 	vp->v_vnlock = &vp->v_lock;
-	free(xp, M_NULLFSNODE);
 	vp->v_op = &dead_vnodeops;
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	VI_UNLOCK(vp);
 	vgone(vp);
 	vput(vp);
+	free(xp, M_NULLFSNODE);
+}
+
+static void
+null_insmntque_dtr(struct vnode *vp, void *xp)
+{
+
+	vput(((struct null_node *)xp)->null_lowervp);
+	null_destroy_proto(vp, xp);
 }
 
 /*
@@ -198,6 +209,13 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
+	/*
+	 * The insmntque1() call below requires the exclusive lock on
+	 * the nullfs vnode.
+	 */
+	ASSERT_VOP_ELOCKED(lowervp, "lowervp");
+	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", lowervp));
+
 	/* Lookup the hash firstly */
 	*vpp = null_hashget(mp, lowervp);
 	if (*vpp != NULL) {
@@ -208,12 +226,9 @@ null_nodeget(mp, lowervp, vpp)
 	/*
 	 * We do not serialize vnode creation, instead we will check for
 	 * duplicates later, when adding new vnode to hash.
-	 *
 	 * Note that duplicate can only appear in hash if the lowervp is
 	 * locked LK_SHARED.
-	 */
-
-	/*
+	 *
 	 * Do the MALLOC before the getnewvnode since doing so afterward
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
@@ -223,6 +238,7 @@ null_nodeget(mp, lowervp, vpp)
 
 	error = getnewvnode("null", mp, &null_vnodeops, &vp);
 	if (error) {
+		vput(lowervp);
 		free(xp, M_NULLFSNODE);
 		return (error);
 	}
@@ -244,9 +260,7 @@ null_nodeget(mp, lowervp, vpp)
 	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
-		vp->v_vnlock = &vp->v_lock;
-		xp->null_lowervp = NULL;
-		vrele(vp);
+		null_destroy_proto(vp, xp);
 		return (0);
 	}
 	*vpp = vp;
@@ -289,22 +303,12 @@ null_checkvp(vp, fil, lno)
 #endif
 	if (a->null_lowervp == NULLVP) {
 		/* Should never happen */
-		int i; u_long *p;
-		printf("vp = %p, ZERO ptr\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic("null_checkvp");
+		panic("null_checkvp %p", vp);
 	}
 	VI_LOCK_FLAGS(a->null_lowervp, MTX_DUPOK);
-	if (a->null_lowervp->v_usecount < 1) {
-		int i; u_long *p;
-		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic ("null with unref'ed lowervp");
-	}
+	if (a->null_lowervp->v_usecount < 1)
+		panic ("null with unref'ed lowervp, vp %p lvp %p",
+		    vp, a->null_lowervp);
 	VI_UNLOCK(a->null_lowervp);
 #ifdef notyet
 	printf("null %x/%d -> %x/%d [%s, %d]\n",

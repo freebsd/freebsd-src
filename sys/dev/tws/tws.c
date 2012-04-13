@@ -30,10 +30,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
-*/
+ */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dev/tws/tws.h>
 #include <dev/tws/tws_services.h>
@@ -172,7 +172,7 @@ tws_probe(device_t dev)
             first_ctlr = 0;
         }
 
-        return(0);
+        return(BUS_PROBE_DEFAULT);
     }
     return (ENXIO);
 }
@@ -521,7 +521,7 @@ tws_init(struct tws_softc *sc)
                                  TWS_MAX_32BIT_SG_ELEMENTS;
     dma_mem_size = (sizeof(struct tws_command_packet) * tws_queue_depth) +
                              (TWS_SECTOR_SIZE) ;
-    if ( bus_dma_tag_create(NULL,                    /* parent */          
+    if ( bus_dma_tag_create(bus_get_dma_tag(sc->tws_dev), /* PCI parent */ 
                             TWS_ALIGNMENT,           /* alignment */
                             0,                       /* boundary */
                             BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
@@ -685,6 +685,7 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
     {
         if (bus_dmamap_create(sc->data_tag, 0, &sc->reqs[i].dma_map)) {
             /* log a ENOMEM failure msg here */
+            mtx_unlock(&sc->q_lock);
             return(FAILURE);
         } 
         sc->reqs[i].cmd_pkt =  &cmd_buf[i];
@@ -882,9 +883,7 @@ static device_method_t tws_methods[] = {
     DEVMETHOD(device_suspend,   tws_suspend),
     DEVMETHOD(device_resume,    tws_resume),
 
-    DEVMETHOD(bus_print_child,      bus_generic_print_child),
-    DEVMETHOD(bus_driver_added,     bus_generic_driver_added),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t tws_driver = {

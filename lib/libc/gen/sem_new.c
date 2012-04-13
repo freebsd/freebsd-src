@@ -162,10 +162,16 @@ _sem_open(const char *name, int flags, ...)
 	_pthread_mutex_lock(&sem_llock);
 	LIST_FOREACH(ni, &sem_list, next) {
 		if (strcmp(name, ni->name) == 0) {
-			ni->open_count++;
-			sem = ni->sem;
-			_pthread_mutex_unlock(&sem_llock);
-			return (sem);
+			if ((flags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL)) {
+				_pthread_mutex_unlock(&sem_llock);
+				errno = EEXIST;
+				return (SEM_FAILED);
+			} else {
+				ni->open_count++;
+				sem = ni->sem;
+				_pthread_mutex_unlock(&sem_llock);
+				return (sem);
+			}
 		}
 	}
 
@@ -332,21 +338,27 @@ _sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
 static __inline int
 usem_wake(struct _usem *sem)
 {
-	if (!sem->_has_waiters)
-		return (0);
 	return _umtx_op(sem, UMTX_OP_SEM_WAKE, 0, NULL, NULL);
 }
 
 static __inline int
-usem_wait(struct _usem *sem, const struct timespec *timeout)
+usem_wait(struct _usem *sem, const struct timespec *abstime)
 {
-	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
-	    timeout->tv_nsec <= 0))) {
-		errno = ETIMEDOUT;
-		return (-1);
+	struct _umtx_time *tm_p, timeout;
+	size_t tm_size;
+
+	if (abstime == NULL) {
+		tm_p = NULL;
+		tm_size = 0;
+	} else {
+		timeout._clockid = CLOCK_REALTIME;
+		timeout._flags = UMTX_ABSTIME;
+		timeout._timeout = *abstime;
+		tm_p = &timeout;
+		tm_size = sizeof(timeout);
 	}
-	return _umtx_op(sem, UMTX_OP_SEM_WAIT, 0, NULL,
-			__DECONST(void*, timeout));
+	return _umtx_op(sem, UMTX_OP_SEM_WAIT, 0, 
+		    (void *)tm_size, __DECONST(void*, tm_p));
 }
 
 int
@@ -365,22 +377,10 @@ _sem_trywait(sem_t *sem)
 	return (-1);
 }
 
-#define TIMESPEC_SUB(dst, src, val)                             \
-        do {                                                    \
-                (dst)->tv_sec = (src)->tv_sec - (val)->tv_sec;  \
-                (dst)->tv_nsec = (src)->tv_nsec - (val)->tv_nsec; \
-                if ((dst)->tv_nsec < 0) {                       \
-                        (dst)->tv_sec--;                        \
-                        (dst)->tv_nsec += 1000000000;           \
-                }                                               \
-        } while (0)
-
-
 int
 _sem_timedwait(sem_t * __restrict sem,
 	const struct timespec * __restrict abstime)
 {
-	struct timespec ts, ts2;
 	int val, retval;
 
 	if (sem_check_validity(sem) != 0)
@@ -407,11 +407,9 @@ _sem_timedwait(sem_t * __restrict sem,
 				errno = EINVAL;
 				return (-1);
 			}
-			clock_gettime(CLOCK_REALTIME, &ts);
-			TIMESPEC_SUB(&ts2, abstime, &ts);
 		}
 		_pthread_cancel_enter(1);
-		retval = usem_wait(&sem->_kern, abstime ? &ts2 : NULL);
+		retval = usem_wait(&sem->_kern, abstime);
 		_pthread_cancel_leave(0);
 	}
 	return (retval);
@@ -432,10 +430,16 @@ _sem_wait(sem_t *sem)
 int
 _sem_post(sem_t *sem)
 {
+	unsigned int count;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	atomic_add_rel_int(&sem->_kern._count, 1);
-	return usem_wake(&sem->_kern);
+	do {
+		count = sem->_kern._count;
+		if (count + 1 > SEM_VALUE_MAX)
+			return (EOVERFLOW);
+	} while(!atomic_cmpset_rel_int(&sem->_kern._count, count, count+1));
+	(void)usem_wake(&sem->_kern);
+	return (0);
 }

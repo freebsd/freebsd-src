@@ -1,4 +1,4 @@
-//===-- CheckerRegistration.h - Checker Registration Function-------*- C++ -*-===//
+//===-- CheckerRegistration.h - Checker Registration Function ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,17 +10,21 @@
 #ifndef LLVM_CLANG_SA_FRONTEND_CHECKERREGISTRATION_H
 #define LLVM_CLANG_SA_FRONTEND_CHECKERREGISTRATION_H
 
+#include "clang/Basic/LLVM.h"
+#include <string>
+
 namespace clang {
   class AnalyzerOptions;
   class LangOptions;
-  class Diagnostic;
+  class DiagnosticsEngine;
 
 namespace ento {
   class CheckerManager;
 
-CheckerManager *registerCheckers(const AnalyzerOptions &opts,
-                                 const LangOptions &langOpts,
-                                 Diagnostic &diags);
+CheckerManager *createCheckerManager(const AnalyzerOptions &opts,
+                                     const LangOptions &langOpts,
+                                     ArrayRef<std::string> plugins,
+                                     DiagnosticsEngine &diags);
 
 } // end ento namespace
 

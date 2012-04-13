@@ -156,7 +156,7 @@ struct callout_cpu cc_cpu;
 static int timeout_cpu;
 void (*callout_new_inserted)(int cpu, int ticks) = NULL;
 
-MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
+static MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 
 /**
  * Locked by cc_lock:

@@ -299,8 +299,6 @@ ieee80211_unref_node(struct ieee80211_node **ni)
 	*ni = NULL;			/* guard against use */
 }
 
-struct ieee80211com;
-
 void	ieee80211_node_attach(struct ieee80211com *);
 void	ieee80211_node_lateattach(struct ieee80211com *);
 void	ieee80211_node_detach(struct ieee80211com *);
@@ -326,6 +324,7 @@ void	ieee80211_sync_curchan(struct ieee80211com *);
 void	ieee80211_setupcurchan(struct ieee80211com *,
 	    struct ieee80211_channel *);
 void	ieee80211_setcurchan(struct ieee80211com *, struct ieee80211_channel *);
+void	ieee80211_update_chw(struct ieee80211com *);
 int	ieee80211_ibss_merge(struct ieee80211_node *);
 struct ieee80211_scan_entry;
 int	ieee80211_sta_join(struct ieee80211vap *, struct ieee80211_channel *,

@@ -364,6 +364,7 @@ struct inpcbinfo {
 	void 			*ipi_pspare[2];
 };
 
+#ifdef _KERNEL
 /*
  * Connection groups hold sets of connections that have similar CPU/thread
  * affinity.  Each connection belongs to exactly one connection group.
@@ -406,7 +407,6 @@ struct inpcbgroup {
 #define	INP_WLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_WLOCKED)
 #define	INP_UNLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_UNLOCKED)
 
-#ifdef _KERNEL
 /*
  * These locking functions are for inpcb consumers outside of sys/netinet,
  * more specifically, they were added for the benefit of TOE drivers. The
@@ -540,6 +540,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
 #define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
 #define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
+#define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 
 /*
  * Flags passed to in_pcblookup*() functions.

@@ -4,9 +4,8 @@ NANO_CFGDIR=${NANO_CFGDIR:-${NANO_SRC}/${NANO_TOOLS}/gateworks/cfg}
 test -d ${NANO_CFGDIR} || NANO_CFGDIR=/var/empty
 NANO_PMAKE="make"					# NB: disable -j 3
 
-NANO_ARCH=arm
+NANO_ARCH=armeb
 TARGET_CPUTYPE=xscale; export TARGET_CPUTYPE		# XXX
-TARGET_BIG_ENDIAN=true; export TARGET_BIG_ENDIAN	# XXX
 
 NANO_CUSTOMIZE="cust_allow_ssh_root"
 

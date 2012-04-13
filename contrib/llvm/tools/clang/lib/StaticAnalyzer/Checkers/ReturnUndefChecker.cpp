@@ -50,11 +50,11 @@ void ReturnUndefChecker::checkPreStmt(const ReturnStmt *RS,
     BT.reset(new BuiltinBug("Garbage return value",
                             "Undefined or garbage value returned to caller"));
     
-  EnhancedBugReport *report = 
-    new EnhancedBugReport(*BT, BT->getDescription(), N);
+  BugReport *report = 
+    new BugReport(*BT, BT->getDescription(), N);
 
   report->addRange(RetE->getSourceRange());
-  report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, RetE);
+  report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, RetE));
 
   C.EmitReport(report);
 }

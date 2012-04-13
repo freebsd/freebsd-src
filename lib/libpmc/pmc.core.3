@@ -9,17 +9,17 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" This software is provided by Joseph Koshy ``as is'' and
-.\" any express or implied warranties, including, but not limited to, the
-.\" implied warranties of merchantability and fitness for a particular purpose
-.\" are disclaimed.  in no event shall Joseph Koshy be liable
-.\" for any direct, indirect, incidental, special, exemplary, or consequential
-.\" damages (including, but not limited to, procurement of substitute goods
-.\" or services; loss of use, data, or profits; or business interruption)
-.\" however caused and on any theory of liability, whether in contract, strict
-.\" liability, or tort (including negligence or otherwise) arising in any way
-.\" out of the use of this software, even if advised of the possibility of
-.\" such damage.
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
 .\"
@@ -180,7 +180,7 @@ The default is
 The following event names are case insensitive.
 Whitespace, hyphens and underscore characters in these names are
 ignored.
-.Pp 
+.Pp
 Core PMCs support the following events:
 .Bl -tag -width indent
 .It Li BAClears
@@ -193,7 +193,7 @@ produce a prediction.
 .It Li Br_BAC_Missp_Exec
 .Pq Event 8AH , Umask 00H
 The number of branch instructions executed that were mispredicted at
-the front end. 
+the front end.
 .It Li Br_Bogus
 .Pq Event E4H , Umask 00H
 The number of bogus branches.
@@ -459,7 +459,7 @@ The number of instruction fetch misses in the instruction cache and
 streaming buffers.
 .It Li ICache_Reads
 .Pq Event 80H , Umask 00H
-The number of instruction fetches from the the instruction cache and
+The number of instruction fetches from the instruction cache and
 streaming buffers counting both cacheable and un-cacheable fetches.
 .It Li IFU_Mem_Stall
 .Pq Event 86H , Umask 00H
@@ -792,6 +792,7 @@ may not count some transitions.
 .Xr pmc.p4 3 ,
 .Xr pmc.p5 3 ,
 .Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
 .Xr pmc.tsc 3 ,
 .Xr pmclog 3 ,
 .Xr hwpmc 4

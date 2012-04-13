@@ -20,10 +20,10 @@
 #include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCDwarf.h"
+#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetAsmBackend.h"
 
 using namespace llvm;
 
@@ -34,9 +34,9 @@ private:
   virtual void EmitInstToData(const MCInst &Inst);
 
 public:
-  MCMachOStreamer(MCContext &Context, TargetAsmBackend &TAB,
+  MCMachOStreamer(MCContext &Context, MCAsmBackend &MAB,
                   raw_ostream &OS, MCCodeEmitter *Emitter)
-    : MCObjectStreamer(Context, TAB, OS, Emitter) {}
+    : MCObjectStreamer(Context, MAB, OS, Emitter) {}
 
   /// @name MCStreamer Interface
   /// @{
@@ -67,7 +67,8 @@ public:
   virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
     assert(0 && "macho doesn't support this directive");
   }
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                     unsigned ByteAlignment) {
     assert(0 && "macho doesn't support this directive");
   }
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
@@ -143,8 +144,9 @@ void MCMachOStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   // Do any generic stuff we need to do.
   switch (Flag) {
   case MCAF_SyntaxUnified: return; // no-op here.
-  case MCAF_Code16: return; // no-op here.
-  case MCAF_Code32: return; // no-op here.
+  case MCAF_Code16: return; // Change parsing mode; no-op here.
+  case MCAF_Code32: return; // Change parsing mode; no-op here.
+  case MCAF_Code64: return; // Change parsing mode; no-op here.
   case MCAF_SubsectionsViaSymbols:
     getAssembler().setSubsectionsViaSymbols(true);
     return;
@@ -207,8 +209,8 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   case MCSA_ELF_TypeCommon:
   case MCSA_ELF_TypeNoType:
   case MCSA_ELF_TypeGnuUniqueObject:
-  case MCSA_IndirectSymbol:
   case MCSA_Hidden:
+  case MCSA_IndirectSymbol:
   case MCSA_Internal:
   case MCSA_Protected:
   case MCSA_Weak:
@@ -410,10 +412,10 @@ void MCMachOStreamer::Finish() {
   this->MCObjectStreamer::Finish();
 }
 
-MCStreamer *llvm::createMachOStreamer(MCContext &Context, TargetAsmBackend &TAB,
+MCStreamer *llvm::createMachOStreamer(MCContext &Context, MCAsmBackend &MAB,
                                       raw_ostream &OS, MCCodeEmitter *CE,
                                       bool RelaxAll) {
-  MCMachOStreamer *S = new MCMachOStreamer(Context, TAB, OS, CE);
+  MCMachOStreamer *S = new MCMachOStreamer(Context, MAB, OS, CE);
   if (RelaxAll)
     S->getAssembler().setRelaxAll(true);
   return S;

@@ -138,8 +138,9 @@ struct turnstile_chain {
 
 #ifdef TURNSTILE_PROFILING
 u_int turnstile_max_depth;
-SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD, 0, "turnstile profiling");
-SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD, 0,
+    "turnstile profiling");
+static SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains, CTLFLAG_RD, 0,
     "turnstile chain stats");
 SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
     &turnstile_max_depth, 0, "maxmimum depth achieved of a single chain");
@@ -216,9 +217,7 @@ propagate_priority(struct thread *td)
 			printf(
 		"Sleeping thread (tid %d, pid %d) owns a non-sleepable lock\n",
 			    td->td_tid, td->td_proc->p_pid);
-#ifdef DDB
-			db_trace_thread(td, -1);
-#endif
+			kdb_backtrace_thread(td);
 			panic("sleeping thread");
 		}
 

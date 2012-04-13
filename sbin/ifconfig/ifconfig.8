@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2011
+.Dd April 3, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -423,10 +423,10 @@ they support in their capabilities.
 is a synonym for enabling all available WOL mechanisms.
 To disable WOL use
 .Fl wol .
-.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwtso
+.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwcsum, vlanhwtso
 If the driver offers user-configurable VLAN support, enable
 reception of extended frames, tag processing in hardware,
-frame filtering in hardware, or TSO on VLAN,
+frame filtering in hardware, checksum offloading, or TSO on VLAN,
 respectively.
 Note that this must be issued on a physical interface associated with
 .Xr vlan 4 ,
@@ -675,7 +675,7 @@ and DAD will be performed when this flag is cleared.
 .It Cm -ifdisabled
 Clear a flag
 .Cm ifdisabled .
-When this flag is cleared and 
+When this flag is cleared and
 .Cm auto_linklocal
 flag is enabled, automatic configuration of a link-local address is
 performed.
@@ -706,7 +706,7 @@ Specify the operating mode for this cloned device.
 .Ar mode
 is one of
 .Cm sta ,
-.Cm ahdemo 
+.Cm ahdemo
 (or
 .Cm adhoc-demo ),
 .Cm ibss ,
@@ -744,7 +744,7 @@ the device (if supported).
 Mark a
 .Cm wds
 device as operating in ``legacy mode''.
-Legacy 
+Legacy
 .Cm wds
 devices have a fixed peer relationship and do not, for example, roam
 if their peer stops communicating.
@@ -760,9 +760,9 @@ Mark the cloned interface as depending on hardware support to
 track received beacons.
 To have beacons tracked in software use
 .Fl beacons .
-For 
+For
 .Cm hostap
-mode 
+mode
 .Fl beacons
 can also be used to indicate no beacons should
 be transmitted; this can be useful when creating a WDS configuration but
@@ -897,7 +897,7 @@ The
 .Ar interval
 parameter is specified in seconds.
 By default a background scan is considered every 300 seconds (5 minutes).
-The 
+The
 .Ar interval
 may not be set to less than 15 seconds.
 .It Cm bintval Ar interval
@@ -998,19 +998,19 @@ and
 .Cm t
 (Atheros Dynamic Turbo mode, or appended to ``st'' and ``dt'').
 The full set of channel widths following a '/' are:
-.Cm 5 
+.Cm 5
 (5MHz aka quarter-rate channel),
-.Cm 10 
+.Cm 10
 (10MHz aka half-rate channel),
-.Cm 20 
+.Cm 20
 (20MHz mostly for use in specifying ht20),
 and
-.Cm 40 
+.Cm 40
 (40MHz mostly for use in specifying ht40).
 In addition,
 a 40MHz HT channel specification may include the location
 of the extension channel by appending ``+'' or ``-'' for above and below,
-respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation 
+respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation
 with the center channel at frequency 2437 and the extension channel above.
 .It Cm country Ar name
 Set the country code to use in calculating the regulatory constraints
@@ -1036,7 +1036,7 @@ Enable Dynamic Frequency Selection (DFS) as specified in 802.11h.
 DFS embodies several facilities including detection of overlapping
 radar signals, dynamic transmit power control, and channel selection
 according to a least-congested criteria.
-DFS support is mandatory for some 5Ghz frequencies in certain
+DFS support is mandatory for some 5GHz frequencies in certain
 locales (e.g. ETSI).
 By default DFS is enabled according to the regulatory definitions
 specified in /etc/regdomain.xml and the current country code, regdomain,
@@ -1088,6 +1088,38 @@ The
 specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
 By default DTIM is 1 (i.e., DTIM occurs at each beacon).
+.It Cm quiet
+Enable the use of quiet IE.  Hostap will use this to silent other
+stations to reduce interference for radar detection when
+operating on 5GHz frequency and doth support is enabled.
+Use
+.Fl quiet
+to disable this functionality.
+.It Cm quiet_period Ar period
+Set the QUIET
+.Ar period
+to the number of beacon intervals between the start of regularly
+scheduled quiet intervals defined by Quiet element.
+.It Cm quiet_count Ar count
+Set the QUIET
+.Ar count
+to the number of TBTTs until the beacon interval during which the
+next quiet interval shall start.  A value of 1 indicates the quiet
+interval will start during the beacon interval starting at the next
+TBTT. A value 0 is reserved.
+.It Cm quiet_offset Ar offset
+Set the QUIET
+.Ar offset
+to the offset of the start of the quiet interval from the TBTT
+specified by the Quiet count, expressed in TUs.
+The value of the
+.Ar offset
+shall be less than one beacon interval.
+.It Cm quiet_duration Ar dur
+Set the QUIET
+.Ar dur
+to the duration of the Quiet interval, expressed in TUs.
+The value should be less than beacon interval.
 .It Cm dturbo
 Enable the use of Atheros Dynamic Turbo mode when communicating with
 another Dynamic Turbo-capable station.
@@ -1989,7 +2021,7 @@ Nodes on the mesh without a path to this root mesh station with try to
 discover a path to us.
 .El
 By default
-.Cm hwmprootmode 
+.Cm hwmprootmode
 is set to
 .Ar DISABLED .
 .It Cm hwmpmaxhops Ar cnt
@@ -2074,7 +2106,7 @@ it is removed from the bridge.
 .It Cm maxaddr Ar size
 Set the size of the bridge address cache to
 .Ar size .
-The default is 100 entries.
+The default is 2000 entries.
 .It Cm timeout Ar seconds
 Set the timeout of address cache entries to
 .Ar seconds
@@ -2082,7 +2114,7 @@ seconds.
 If
 .Ar seconds
 is zero, then address cache entries will not be expired.
-The default is 240 seconds.
+The default is 1200 seconds.
 .It Cm addr
 Display the addresses that have been learned by the bridge.
 .It Cm static Ar interface-name Ar address
@@ -2277,6 +2309,21 @@ Set the aggregation protocol.
 The default is failover.
 The available options are failover, fec, lacp, loadbalance, roundrobin and
 none.
+.It Cm lagghash Ar option Ns Oo , Ns Ar option Oc
+Set the packet layers to hash for aggregation protocols which load balance.
+The default is
+.Dq l2,l3,l4 .
+The options can be combined using commas.
+.Pp
+.Bl -tag -width ".Cm l2" -compact
+.It Cm l2
+src/dst mac address and optional vlan number.
+.It Cm l3
+src/dst address for IPv4 or IPv6.
+.It Cm l4
+src/dst port for TCP/UDP/SCTP.
+.El
+.Pp
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,
@@ -2333,10 +2380,28 @@ The following parameters are specific to
 .Xr pfsync 4
 interfaces:
 .Bl -tag -width indent
+.It Cm syncdev Ar iface
+Use the specified interface
+to send and receive pfsync state synchronisation messages.
+.It Fl syncdev
+Stop sending pfsync state synchronisation messages over the network.
+.It Cm syncpeer Ar peer_address
+Make the pfsync link point-to-point rather than using
+multicast to broadcast the state synchronisation messages.
+The peer_address is the IP address of the other host taking part in
+the pfsync cluster.
+.It Fl syncpeer
+Broadcast the packets using multicast.
 .It Cm maxupd Ar n
 Set the maximum number of updates for a single state which
 can be collapsed into one.
 This is an 8-bit number; the default value is 128.
+.It Cm defer
+Defer transmission of the first packet in a state until a peer has
+acknowledged that the associated state has been inserted.
+.It Fl defer
+Do not defer the first packet in a state.
+This is the default.
 .El
 .Pp
 The following parameters are specific to
@@ -2346,7 +2411,7 @@ interfaces:
 .It Cm vlan Ar vlan_tag
 Set the VLAN tag value to
 .Ar vlan_tag .
-This value is a 16-bit number which is used to create an 802.1Q
+This value is a 12-bit VLAN Identifier (VID) which is used to create an 802.1Q
 VLAN header for packets sent from the
 .Xr vlan 4
 interface.
@@ -2368,7 +2433,7 @@ diverted to the specified physical interface
 .Ar iface
 with 802.1Q VLAN encapsulation.
 Packets with 802.1Q encapsulation received
-by the parent interface with the correct VLAN tag will be diverted to
+by the parent interface with the correct VLAN Identifier will be diverted to
 the associated
 .Xr vlan 4
 pseudo-interface.
@@ -2407,22 +2472,43 @@ pseudo device, disassociate the parent interface from it.
 This breaks the link between the
 .Xr vlan 4
 interface and its parent,
-clears its VLAN tag, flags and its link address and shuts the interface down.
+clears its VLAN Identifier, flags and its link address and shuts the interface
+down.
 The
 .Ar iface
 argument is useless and hence deprecated.
 .El
 .Pp
-The following parameters are specific to
+The following parameters are used to configure
 .Xr carp 4
-interfaces:
+protocol on an interface:
 .Bl -tag -width indent
+.It Cm vhid Ar n
+Set the virtual host ID.
+This is a required setting to initiate
+.Xr carp 4 .
+If the virtual host ID doesn't exist yet, it is created and attached to the
+interface, otherwise configuration of an existing vhid is adjusted.
+If the
+.Cm vhid
+keyword is supplied along with an
+.Dq inet6
+or
+.Dq inet
+address, then this address is configured to be run under control of the
+specified vhid.
+Whenever a last address that refers to a particular vhid is removed from an
+interface, the vhid is automatically removed from interface and destroyed.
+Any other configuration parameters for the
+.Xr carp 4
+protocol should be supplied along with the
+.Cm vhid
+keyword.
+Acceptable values for vhid are 1 to 255.
 .It Cm advbase Ar seconds
 Specifies the base of the advertisement interval in seconds.
 The acceptable values are 1 to 255.
 The default value is 1.
-.\" The default value is
-.\" .Dv CARP_DFLTINTV .
 .It Cm advskew Ar interval
 Specifies the skew to add to the base advertisement interval to
 make one host advertise slower than another host.
@@ -2432,10 +2518,8 @@ The default value is 0.
 .It Cm pass Ar phrase
 Set the authentication key to
 .Ar phrase .
-.It Cm vhid Ar n
-Set the virtual host ID.
-This is a required setting.
-Acceptable values are 1 to 255.
+.It Cm state Ar MASTER|BACKUP
+Forcibly change state of a given vhid.
 .El
 .Pp
 The
@@ -2498,11 +2582,12 @@ The
 .Fl k
 flag causes keying information for the interface, if available, to be
 printed.
-For example, the values of 802.11 WEP keys will be printed, if accessible to
-the current user.
+For example, the values of 802.11 WEP keys and
+.Xr carp 4
+passphrases will be printed, if accessible to the current user.
 This information is not printed by default, as it may be considered
 sensitive.
-.Pp 
+.Pp
 If the network interface driver is not present in the kernel then
 .Nm
 will attempt to load it.
@@ -2560,6 +2645,11 @@ and using
 as a synonym for the canonical form of the option
 .Fl alias :
 .Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 delete
+.Pp
+Configure a single CARP redundant address on igb0, and then switch it
+to be master:
+.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar
+.Dl # ifconfig igb0 vhid 1 state master
 .Pp
 Configure the interface
 .Li xl0 ,

@@ -34,8 +34,8 @@
  * 
  */
 
-#ifndef _FS_EXT2FS_EXT2_FS_H_
-#define _FS_EXT2FS_EXT2_FS_H_
+#ifndef _FS_EXT2FS_EXT2FS_H_
+#define _FS_EXT2FS_EXT2FS_H_
 
 #include <sys/types.h>
 
@@ -45,6 +45,16 @@
 #define EXT2_LINK_MAX		32000
 
 /*
+ * A summary of contiguous blocks of various sizes is maintained
+ * in each cylinder group. Normally this is set by the initial
+ * value of fs_maxcontig.
+ *
+ * XXX:FS_MAXCONTIG is set to 16 to conserve space. Here we set
+ * EXT2_MAXCONTIG to 32 for better performance.
+ */
+#define EXT2_MAXCONTIG		32
+
+/*
  * Constants relative to the data blocks
  */
 #define	EXT2_NDIR_BLOCKS		12
@@ -52,7 +62,7 @@
 #define	EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
 #define	EXT2_TIND_BLOCK			(EXT2_DIND_BLOCK + 1)
 #define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
-#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof (uint32_t))
+#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof(uint32_t))
 
 /*
  * The path name on which the file system is mounted is maintained
@@ -113,7 +123,22 @@ struct ext2fs {
 	char      e3fs_reserved_char_pad;
 	uint32_t  e3fs_default_mount_opts;
 	uint32_t  e3fs_first_meta_bg;	/* First metablock block group */
-	uint32_t  reserved2[190];	/* Padding to the end of the block */
+	uint32_t  e3fs_mkfs_time;      /* when the fs was created */
+	uint32_t  e3fs_jnl_blks[17];   /* backup of the journal inode */
+	uint32_t  e4fs_bcount_hi;      /* block count */
+	uint32_t  e4fs_rbcount_hi;     /* reserved blocks count */
+	uint32_t  e4fs_fbcount_hi;     /* free blocks count */
+	uint16_t  e4fs_min_extra_isize;/* all inodes have at least some bytes */
+	uint16_t  e4fs_want_extra_isize; /* inodes must reserve some bytes */
+	uint32_t  e4fs_flags;	  /* miscellaneous flags */
+	uint16_t  e4fs_raid_stride;    /* RAID stride */
+	uint16_t  e4fs_mmpintv;	/* number of seconds to wait in MMP checking */
+	uint64_t  e4fs_mmpblk;	 /* block for multi-mount protection */
+	uint32_t  e4fs_raid_stripe_wid;/* blocks on all data disks (N * stride) */
+	uint8_t   e4fs_log_gpf;	/* FLEX_BG group size */ 
+	uint8_t   e4fs_char_pad2;
+	uint16_t  e4fs_pad;
+	uint32_t  reserved2[162];	/* Padding to the end of the block */	
 };
 
 
@@ -129,15 +154,15 @@ struct m_ext2fs {
 	uint32_t e2fs_bsize;      /* Block size */
 	uint32_t e2fs_bshift;     /* calc of logical block no */
 	int32_t  e2fs_bmask;      /* calc of block offset */
-	int32_t  e2fs_bpg;        /* Number of blocks per group */
+	int32_t  e2fs_bpg;	  /* Number of blocks per group */
 	int64_t  e2fs_qbmask;     /* = s_blocksize -1 */
 	uint32_t e2fs_fsbtodb;    /* Shift to get disk block */
-	uint32_t e2fs_ipg;        /* Number of inodes per group */
-	uint32_t e2fs_ipb;        /* Number of inodes per block */
+	uint32_t e2fs_ipg;	  /* Number of inodes per group */
+	uint32_t e2fs_ipb;	  /* Number of inodes per block */
 	uint32_t e2fs_itpg;       /* Number of inode table per group */
 	uint32_t e2fs_fsize;      /* Size of fragments per block */
-	uint32_t e2fs_fpb;        /* Number of fragments per block */
-	uint32_t e2fs_fpg;        /* Number of fragments per group */
+	uint32_t e2fs_fpb;	  /* Number of fragments per block */
+	uint32_t e2fs_fpg;	  /* Number of fragments per group */
 	uint32_t e2fs_dbpg;       /* Number of descriptor blocks per group */
 	uint32_t e2fs_descpb;     /* Number of group descriptors per block */
 	uint32_t e2fs_gdbcount;   /* Number of group descriptors */
@@ -151,6 +176,10 @@ struct m_ext2fs {
 	char     e2fs_wasvalid;   /* valid at mount time */
 	off_t    e2fs_maxfilesize;
 	struct   ext2_gd *e2fs_gd; /* Group Descriptors */
+	int32_t  e2fs_maxcontig;	/* max number of contiguous blks */
+	int32_t  e2fs_contigsumsize;    /* size of cluster summary array */
+	int32_t *e2fs_maxcluster;       /* max cluster in each cyl group */
+	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
 };
 
 /*
@@ -185,6 +214,7 @@ struct m_ext2fs {
 #define EXT2F_ROCOMPAT_SPARSESUPER	0x0001
 #define EXT2F_ROCOMPAT_LARGEFILE	0x0002
 #define EXT2F_ROCOMPAT_BTREE_DIR	0x0004
+#define EXT4F_ROCOMPAT_EXTRA_ISIZE	0x0040
 
 #define EXT2F_INCOMPAT_COMP		0x0001
 #define EXT2F_INCOMPAT_FTYPE		0x0002
@@ -198,8 +228,9 @@ struct m_ext2fs {
  * - EXT2F_INCOMPAT_FTYPE
  */
 #define EXT2F_COMPAT_SUPP		0x0000
-#define EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER \
-					 | EXT2F_ROCOMPAT_LARGEFILE)
+#define EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
+					 EXT2F_ROCOMPAT_LARGEFILE | \
+					 EXT4F_ROCOMPAT_EXTRA_ISIZE)
 #define EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
 
 /* Assume that user mode programs are passing in an ext2fs superblock, not
@@ -253,6 +284,13 @@ struct ext2_gd {
 	uint32_t reserved2[3];
 };
 
+/* cluster summary information */
+
+struct csum {
+	int8_t   cs_init; /* cluster summary has been initialized */
+	int32_t *cs_sum;  /* cluster summary array */
+};
+
 /* EXT2FS metadatas are stored in little-endian byte order. These macros
  * helps reading these metadatas
  */
@@ -271,7 +309,7 @@ struct ext2_gd {
 #else
 # define EXT2_BLOCK_SIZE(s)		(EXT2_MIN_BLOCK_SIZE << (s)->e2fs_log_bsize)
 #endif
-#define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (uint32_t))
+#define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(uint32_t))
 #if defined(_KERNEL)
 # define EXT2_BLOCK_SIZE_BITS(s)	((s)->e2fs_blocksize_bits)
 #else
@@ -311,7 +349,7 @@ struct ext2_gd {
 # define EXT2_DESC_PER_BLOCK_BITS(s)	(EXT2_SB(s)->s_desc_per_block_bits)
 #else
 # define EXT2_BLOCKS_PER_GROUP(s)	((s)->e2fs_bpg)
-# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_gd))
+# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(struct ext2_gd))
 
 #endif
 

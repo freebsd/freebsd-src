@@ -6,7 +6,7 @@
 .include <bsd.own.mk>
 
 CLEANFILES= osreldate.h version vers.c
-SUBDIR= arpa gssapi protocols rpcsvc rpc
+SUBDIR= arpa gssapi protocols rpcsvc rpc xlocale
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
@@ -19,12 +19,12 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	printf.h proc_service.h pthread.h \
 	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h \
 	res_update.h resolv.h runetype.h search.h semaphore.h setjmp.h \
-	signal.h spawn.h stab.h \
-	stdbool.h stddef.h stdio.h stdlib.h string.h stringlist.h \
+	signal.h spawn.h stab.h stdalign.h stdatomic.h stdbool.h stddef.h \
+	stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
 	ulimit.h unistd.h utime.h utmpx.h uuid.h varargs.h vis.h \
-	wchar.h wctype.h wordexp.h
+	wchar.h wctype.h wordexp.h xlocale.h
 
 MHDRS=	float.h floatingpoint.h stdarg.h
 
@@ -43,7 +43,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/ofw \
 	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
-	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/nfs fs/ntfs fs/nullfs \
+	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \

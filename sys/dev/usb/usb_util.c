@@ -58,31 +58,6 @@
 #include <dev/usb/usb_bus.h>
 
 /*------------------------------------------------------------------------*
- * device_delete_all_children - delete all children of a device
- *------------------------------------------------------------------------*/
-#ifndef device_delete_all_children
-int
-device_delete_all_children(device_t dev)
-{
-	device_t *devlist;
-	int devcount;
-	int error;
-
-	error = device_get_children(dev, &devlist, &devcount);
-	if (error == 0) {
-		while (devcount-- > 0) {
-			error = device_delete_child(dev, devlist[devcount]);
-			if (error) {
-				break;
-			}
-		}
-		free(devlist, M_TEMP);
-	}
-	return (error);
-}
-#endif
-
-/*------------------------------------------------------------------------*
  *	device_set_usb_desc
  *
  * This function can be called at probe or attach to set the USB
@@ -140,33 +115,21 @@ device_set_usb_desc(device_t dev)
  *
  * This function will delay the code by the passed number of system
  * ticks. The passed mutex "mtx" will be dropped while waiting, if
- * "mtx" is not NULL.
+ * "mtx" is different from NULL.
  *------------------------------------------------------------------------*/
 void
-usb_pause_mtx(struct mtx *mtx, int _ticks)
+usb_pause_mtx(struct mtx *mtx, int timo)
 {
 	if (mtx != NULL)
 		mtx_unlock(mtx);
 
-	if (cold) {
-		/* convert to milliseconds */
-		_ticks = (_ticks * 1000) / hz;
-		/* convert to microseconds, rounded up */
-		_ticks = (_ticks + 1) * 1000;
-		DELAY(_ticks);
+	/*
+	 * Add one tick to the timeout so that we don't return too
+	 * early! Note that pause() will assert that the passed
+	 * timeout is positive and non-zero!
+	 */
+	pause("USBWAIT", timo + 1);
 
-	} else {
-
-		/*
-		 * Add one to the number of ticks so that we don't return
-		 * too early!
-		 */
-		_ticks++;
-
-		if (pause("USBWAIT", _ticks)) {
-			/* ignore */
-		}
-	}
 	if (mtx != NULL)
 		mtx_lock(mtx);
 }

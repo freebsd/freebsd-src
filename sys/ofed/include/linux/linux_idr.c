@@ -49,7 +49,7 @@
  * however it should be fairly fast.  It is basically a radix tree with
  * a builtin bitmap for allocation.
  */
-MALLOC_DEFINE(M_IDR, "idr", "Linux IDR compat");
+static MALLOC_DEFINE(M_IDR, "idr", "Linux IDR compat");
 
 static inline int
 idr_max(struct idr *idr)

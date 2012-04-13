@@ -1,8 +1,8 @@
 .\" Copyright (c) 2010 The FreeBSD Foundation
-.\" Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
+.\" Copyright (c) 2010-2012 Pawel Jakub Dawidek <pawel@dawidek.net>
 .\" All rights reserved.
 .\"
-.\" This software was developed by Pawel Jakub Dawidek under sponsorship from
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship from
 .\" the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2011
+.Dd January 25, 2012
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -64,17 +64,20 @@ compression <algorithm>
 timeout <seconds>
 exec <path>
 metaflush "on" | "off"
+pidfile <path>
 
 on <node> {
 	# Node section
         control <addr>
         listen <addr>
+        pidfile <path>
 }
 
 on <node> {
 	# Node section
         control <addr>
         listen <addr>
+        pidfile <path>
 }
 
 resource <name> {
@@ -146,6 +149,14 @@ unix:///var/run/hastctl
 .Pp
 The default value is
 .Pa uds:///var/run/hastctl .
+.It Ic pidfile Aq path
+.Pp
+File in which to store the process ID of the main
+.Xr hastd 8
+process.
+.Pp
+The default value is
+.Pa /var/run/hastd.pid .
 .It Ic listen Aq addr
 .Pp
 Address to listen on in form of:
@@ -213,9 +224,6 @@ completes.
 This is the fastest and the most dangerous replication mode.
 This mode should be used when replicating to a distant node where
 latency is too high for other modes.
-The
-.Ic async
-replication mode is currently not implemented.
 .El
 .It Ic checksum Aq algorithm
 .Pp
@@ -381,7 +389,9 @@ statement.
 .Bl -tag -width ".Pa /var/run/hastctl" -compact
 .It Pa /etc/hast.conf
 The default
-.Nm
+.Xr hastctl 8
+and
+.Xr hastd 8
 configuration file.
 .It Pa /var/run/hastctl
 Control socket used by the

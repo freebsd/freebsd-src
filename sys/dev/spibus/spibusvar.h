@@ -18,7 +18,7 @@ enum {
 };
 
 #define SPIBUS_ACCESSOR(A, B, T)					\
-__inline static int							\
+static inline int							\
 spibus_get_ ## A(device_t dev, T *t)					\
 {									\
 	return BUS_READ_IVAR(device_get_parent(dev), dev,		\

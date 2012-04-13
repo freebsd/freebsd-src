@@ -118,22 +118,34 @@ public:
   // Memory Instructions
   //===--------------------------------------------------------------------===//
 
-  Constant *CreateGetElementPtr(Constant *C, Constant* const *IdxList,
-                                unsigned NumIdx) const {
-    return ConstantExpr::getGetElementPtr(C, IdxList, NumIdx);
+  Constant *CreateGetElementPtr(Constant *C,
+                                ArrayRef<Constant *> IdxList) const {
+    return ConstantExpr::getGetElementPtr(C, IdxList);
   }
-  Constant *CreateGetElementPtr(Constant *C, Value* const *IdxList,
-                                unsigned NumIdx) const {
-    return ConstantExpr::getGetElementPtr(C, IdxList, NumIdx);
+  Constant *CreateGetElementPtr(Constant *C, Constant *Idx) const {
+    // This form of the function only exists to avoid ambiguous overload
+    // warnings about whether to convert Idx to ArrayRef<Constant *> or
+    // ArrayRef<Value *>.
+    return ConstantExpr::getGetElementPtr(C, Idx);
+  }
+  Constant *CreateGetElementPtr(Constant *C,
+                                ArrayRef<Value *> IdxList) const {
+    return ConstantExpr::getGetElementPtr(C, IdxList);
   }
 
-  Constant *CreateInBoundsGetElementPtr(Constant *C, Constant* const *IdxList,
-                                        unsigned NumIdx) const {
-    return ConstantExpr::getInBoundsGetElementPtr(C, IdxList, NumIdx);
+  Constant *CreateInBoundsGetElementPtr(Constant *C,
+                                        ArrayRef<Constant *> IdxList) const {
+    return ConstantExpr::getInBoundsGetElementPtr(C, IdxList);
   }
-  Constant *CreateInBoundsGetElementPtr(Constant *C, Value* const *IdxList,
-                                        unsigned NumIdx) const {
-    return ConstantExpr::getInBoundsGetElementPtr(C, IdxList, NumIdx);
+  Constant *CreateInBoundsGetElementPtr(Constant *C, Constant *Idx) const {
+    // This form of the function only exists to avoid ambiguous overload
+    // warnings about whether to convert Idx to ArrayRef<Constant *> or
+    // ArrayRef<Value *>.
+    return ConstantExpr::getInBoundsGetElementPtr(C, Idx);
+  }
+  Constant *CreateInBoundsGetElementPtr(Constant *C,
+                                        ArrayRef<Value *> IdxList) const {
+    return ConstantExpr::getInBoundsGetElementPtr(C, IdxList);
   }
 
   //===--------------------------------------------------------------------===//
@@ -141,37 +153,37 @@ public:
   //===--------------------------------------------------------------------===//
 
   Constant *CreateCast(Instruction::CastOps Op, Constant *C,
-                       const Type *DestTy) const {
+                       Type *DestTy) const {
     return ConstantExpr::getCast(Op, C, DestTy);
   }
-  Constant *CreatePointerCast(Constant *C, const Type *DestTy) const {
+  Constant *CreatePointerCast(Constant *C, Type *DestTy) const {
     return ConstantExpr::getPointerCast(C, DestTy);
   }
-  Constant *CreateIntCast(Constant *C, const Type *DestTy,
+  Constant *CreateIntCast(Constant *C, Type *DestTy,
                           bool isSigned) const {
     return ConstantExpr::getIntegerCast(C, DestTy, isSigned);
   }
-  Constant *CreateFPCast(Constant *C, const Type *DestTy) const {
+  Constant *CreateFPCast(Constant *C, Type *DestTy) const {
     return ConstantExpr::getFPCast(C, DestTy);
   }
 
-  Constant *CreateBitCast(Constant *C, const Type *DestTy) const {
+  Constant *CreateBitCast(Constant *C, Type *DestTy) const {
     return CreateCast(Instruction::BitCast, C, DestTy);
   }
-  Constant *CreateIntToPtr(Constant *C, const Type *DestTy) const {
+  Constant *CreateIntToPtr(Constant *C, Type *DestTy) const {
     return CreateCast(Instruction::IntToPtr, C, DestTy);
   }
-  Constant *CreatePtrToInt(Constant *C, const Type *DestTy) const {
+  Constant *CreatePtrToInt(Constant *C, Type *DestTy) const {
     return CreateCast(Instruction::PtrToInt, C, DestTy);
   }
-  Constant *CreateZExtOrBitCast(Constant *C, const Type *DestTy) const {
+  Constant *CreateZExtOrBitCast(Constant *C, Type *DestTy) const {
     return ConstantExpr::getZExtOrBitCast(C, DestTy);
   }
-  Constant *CreateSExtOrBitCast(Constant *C, const Type *DestTy) const {
+  Constant *CreateSExtOrBitCast(Constant *C, Type *DestTy) const {
     return ConstantExpr::getSExtOrBitCast(C, DestTy);
   }
 
-  Constant *CreateTruncOrBitCast(Constant *C, const Type *DestTy) const {
+  Constant *CreateTruncOrBitCast(Constant *C, Type *DestTy) const {
     return ConstantExpr::getTruncOrBitCast(C, DestTy);
   }
 

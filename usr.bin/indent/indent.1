@@ -34,7 +34,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2004
+.Dd March 3, 2012
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -43,9 +43,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Ar input-file Op Ar output-file
+.Op Fl bacc | Fl nbacc
 .Op Fl bad | Fl nbad
 .Op Fl bap | Fl nbap
 .Bk -words
+.Op Fl ei | Fl ei
+.Op Fl eei | Fl eei
 .Op Fl bbb | Fl nbbb
 .Ek
 .Op Fl \&bc | Fl nbc
@@ -126,6 +129,15 @@ checks to make sure that it is different from
 The options listed below control the formatting style imposed by
 .Nm .
 .Bl -tag -width Op
+.It Fl bacc , nbacc
+If
+.Fl bacc
+is specified, a blank line is forced around every conditional
+compilation block.
+For example, in front of every #ifdef and after every #endif.
+Other blank lines surrounding such blocks will be swallowed.
+Default:
+.Fl nbacc  .
 .It Fl bad , nbad
 If
 .Fl bad
@@ -267,6 +279,16 @@ will have the same indentation as the preceding
 statement.
 The default is
 .Fl ei .
+.It Fl eei , neei
+Enables (disables) extra indentation on continuation lines of
+the expression part of
+.Ic if
+and
+.Ic while
+statements.
+These continuation lines will be indented one extra level.
+The default is
+.Fl neei .
 .It Fl fbs , nfbs
 Enables (disables) splitting the function declaration and opening brace
 across two lines.
@@ -466,7 +488,6 @@ The
 utility fits as many words (separated by blanks, tabs, or newlines) on a
 line as possible.
 Blank lines break paragraphs.
-.Pp
 .Ss Comment indentation
 If a comment is on a line with code it is started in the `comment column',
 which is set by the
@@ -482,7 +503,6 @@ command line parameter.
 If the code on a line extends past the comment
 column, the comment starts further to the right, and the right margin may be
 automatically extended in extreme cases.
-.Pp
 .Ss Preprocessor lines
 In general,
 .Nm
@@ -497,7 +517,6 @@ is recognized and
 .Nm
 attempts to correctly
 compensate for the syntactic peculiarities introduced.
-.Pp
 .Ss C syntax
 The
 .Nm

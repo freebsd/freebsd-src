@@ -89,7 +89,7 @@
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, stub, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, stub, CTLFLAG_RW, 0,
     "TrustedBSD mac_stub policy controls");
 
 static int	stub_enabled = 1;

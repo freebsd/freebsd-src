@@ -30,8 +30,8 @@ template <typename PP> class GenericNodeBuilder;
 class AnalysisManager;
 class ExplodedNodeSet;
 class ExplodedNode;
-class GRState;
-class GRStateManager;
+class ProgramState;
+class ProgramStateManager;
 class BlockCounter;
 class StmtNodeBuilder;
 class BranchNodeBuilder;
@@ -46,11 +46,11 @@ class SubEngine {
 public:
   virtual ~SubEngine() {}
 
-  virtual const GRState* getInitialState(const LocationContext *InitLoc) = 0;
+  virtual const ProgramState *getInitialState(const LocationContext *InitLoc) = 0;
 
   virtual AnalysisManager &getAnalysisManager() = 0;
 
-  virtual GRStateManager &getStateManager() = 0;
+  virtual ProgramStateManager &getStateManager() = 0;
 
   /// Called by CoreEngine. Used to generate new successor
   /// nodes by processing the 'effects' of a block-level statement.
@@ -64,7 +64,7 @@ public:
 
   /// Called by CoreEngine.  Used to generate successor
   ///  nodes by processing the 'effects' of a branch condition.
-  virtual void processBranch(const Stmt* Condition, const Stmt* Term,
+  virtual void processBranch(const Stmt *Condition, const Stmt *Term,
                              BranchNodeBuilder& builder) = 0;
 
   /// Called by CoreEngine.  Used to generate successor
@@ -87,27 +87,31 @@ public:
 
   /// Called by ConstraintManager. Used to call checker-specific
   /// logic for handling assumptions on symbolic values.
-  virtual const GRState* processAssume(const GRState *state,
+  virtual const ProgramState *processAssume(const ProgramState *state,
                                        SVal cond, bool assumption) = 0;
 
-  /// wantsRegionChangeUpdate - Called by GRStateManager to determine if a
+  /// wantsRegionChangeUpdate - Called by ProgramStateManager to determine if a
   ///  region change should trigger a processRegionChanges update.
-  virtual bool wantsRegionChangeUpdate(const GRState* state) = 0;
+  virtual bool wantsRegionChangeUpdate(const ProgramState *state) = 0;
 
-  /// processRegionChanges - Called by GRStateManager whenever a change is made
+  /// processRegionChanges - Called by ProgramStateManager whenever a change is made
   ///  to the store. Used to update checkers that track region values.
-  virtual const GRState *
-  processRegionChanges(const GRState *state,
+  virtual const ProgramState *
+  processRegionChanges(const ProgramState *state,
                        const StoreManager::InvalidatedSymbols *invalidated,
-                       const MemRegion* const *Begin,
-                       const MemRegion* const *End) = 0;
+                       ArrayRef<const MemRegion *> ExplicitRegions,
+                       ArrayRef<const MemRegion *> Regions) = 0;
 
 
-  inline const GRState *
-  processRegionChange(const GRState* state,
+  inline const ProgramState *
+  processRegionChange(const ProgramState *state,
                       const MemRegion* MR) {
-    return processRegionChanges(state, 0, &MR, &MR+1);
+    return processRegionChanges(state, 0, MR, MR);
   }
+
+  /// printState - Called by ProgramStateManager to print checker-specific data.
+  virtual void printState(raw_ostream &Out, const ProgramState *State,
+                          const char *NL, const char *Sep) = 0;
 
   /// Called by CoreEngine when the analysis worklist is either empty or the
   //  maximum number of analysis steps have been reached.

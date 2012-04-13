@@ -494,6 +494,12 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halChanHalfRate = AH_FALSE;
 	pCap->halChanQuarterRate = AH_FALSE;
 
+	/*
+	 * RSSI uses the combined field; some 11n NICs may use
+	 * the control chain RSSI.
+	 */
+	pCap->halUseCombinedRadarRssi = AH_TRUE;
+
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {
 		/* NB: enabled by default */

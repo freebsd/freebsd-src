@@ -84,6 +84,7 @@ iscsi_r2t(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 	       caddr_t		bp = csio->data_ptr;
 
 	       bo = ntohl(r2t->bo);
+	       bp += MIN(bo, edtl - ddtl);
 	       bleft = ddtl;
 
 	       if(sp->opt.maxXmitDataSegmentLength > 0) // danny's RFC

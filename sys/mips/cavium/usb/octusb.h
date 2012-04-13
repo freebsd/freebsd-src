@@ -29,14 +29,7 @@
 #define	_OCTUSB_H_
 
 #define	OCTUSB_MAX_DEVICES MIN(USB_MAX_DEVICES, 64)
-/*
- * The second port is on a different IRQ and so we disable it for now.
- */
-#if 1
-#define	OCTUSB_MAX_PORTS	1	/* hardcoded */
-#else
 #define	OCTUSB_MAX_PORTS	2	/* hardcoded */
-#endif
 #define	OCTUSB_MAX_FIXUP	4096	/* bytes */
 #define	OCTUSB_INTR_ENDPT	0x01
 
@@ -87,7 +80,7 @@ struct octusb_qh {
 	uint8_t	ep_num;
 	uint8_t	ep_type;
 	uint8_t	ep_toggle_next;
-	uint8_t	port_index;
+	uint8_t	root_port_index;
 	uint8_t	fixup_complete;
 	uint8_t	fixup_pending;
 	uint8_t	hs_hub_addr;
@@ -121,8 +114,8 @@ struct octusb_softc {
 
 	struct usb_device *sc_devices[OCTUSB_MAX_DEVICES];
 
-	struct resource *sc_irq_res;
-	void   *sc_intr_hdl;
+	struct resource *sc_irq_res[OCTUSB_MAX_PORTS];
+	void   *sc_intr_hdl[OCTUSB_MAX_PORTS];
 
 	struct octusb_port sc_port[OCTUSB_MAX_PORTS];
 	device_t sc_dev;
@@ -140,8 +133,6 @@ struct octusb_softc {
 usb_bus_mem_cb_t octusb_iterate_hw_softc;
 usb_error_t octusb_init(struct octusb_softc *);
 usb_error_t octusb_uninit(struct octusb_softc *);
-void	octusb_suspend(struct octusb_softc *);
-void	octusb_resume(struct octusb_softc *);
 void	octusb_interrupt(struct octusb_softc *);
 
 #endif					/* _OCTUSB_H_ */

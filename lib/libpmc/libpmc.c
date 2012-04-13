@@ -77,12 +77,17 @@ static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
 static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
-
 #if defined(__mips__)
-static int mips24k_allocate_pmc(enum pmc_event _pe, char* ctrspec,
+static int mips_allocate_pmc(enum pmc_event _pe, char* ctrspec,
 			     struct pmc_op_pmcallocate *_pmc_config);
 #endif /* __mips__ */
+static int soft_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
 
+#if defined(__powerpc__)
+static int ppc7450_allocate_pmc(enum pmc_event _pe, char* ctrspec,
+			     struct pmc_op_pmcallocate *_pmc_config);
+#endif /* __powerpc__ */
 
 #define PMC_CALL(cmd, params)				\
 	syscall(pmc_syscall, PMC_OP_##cmd, (params))
@@ -148,7 +153,11 @@ PMC_CLASSDEP_TABLE(p5, P5);
 PMC_CLASSDEP_TABLE(p6, P6);
 PMC_CLASSDEP_TABLE(xscale, XSCALE);
 PMC_CLASSDEP_TABLE(mips24k, MIPS24K);
+PMC_CLASSDEP_TABLE(octeon, OCTEON);
 PMC_CLASSDEP_TABLE(ucf, UCF);
+PMC_CLASSDEP_TABLE(ppc7450, PPC7450);
+
+static struct pmc_event_descr soft_event_table[PMC_EV_DYN_COUNT];
 
 #undef	__PMC_EV_ALIAS
 #define	__PMC_EV_ALIAS(N,CODE) 	{ N, PMC_EV_##CODE },
@@ -174,6 +183,11 @@ static const struct pmc_event_descr corei7_event_table[] =
 	__PMC_EV_ALIAS_COREI7()
 };
 
+static const struct pmc_event_descr sandybridge_event_table[] = 
+{
+	__PMC_EV_ALIAS_SANDYBRIDGE()
+};
+
 static const struct pmc_event_descr westmere_event_table[] =
 {
 	__PMC_EV_ALIAS_WESTMERE()
@@ -182,6 +196,11 @@ static const struct pmc_event_descr westmere_event_table[] =
 static const struct pmc_event_descr corei7uc_event_table[] =
 {
 	__PMC_EV_ALIAS_COREI7UC()
+};
+
+static const struct pmc_event_descr sandybridgeuc_event_table[] =
+{
+	__PMC_EV_ALIAS_SANDYBRIDGEUC()
 };
 
 static const struct pmc_event_descr westmereuc_event_table[] =
@@ -199,18 +218,22 @@ static const struct pmc_event_descr westmereuc_event_table[] =
 		PMC_CLASS_##C, __VA_ARGS__			\
 	}
 
-PMC_MDEP_TABLE(atom, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(core, IAP, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(corei7, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
-PMC_MDEP_TABLE(westmere, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
-PMC_MDEP_TABLE(k7, K7, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(k8, K8, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(p4, P4, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(p5, P5, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(p6, P6, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_XSCALE);
-PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_MIPS24K);
+PMC_MDEP_TABLE(atom, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(core, IAP, PMC_CLASS_SOFT, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(corei7, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
+PMC_MDEP_TABLE(sandybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
+PMC_MDEP_TABLE(westmere, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
+PMC_MDEP_TABLE(k7, K7, PMC_CLASS_SOFT, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(k8, K8, PMC_CLASS_SOFT, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(p4, P4, PMC_CLASS_SOFT, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(p5, P5, PMC_CLASS_SOFT, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(p6, P6, PMC_CLASS_SOFT, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_SOFT, PMC_CLASS_XSCALE);
+PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_SOFT, PMC_CLASS_MIPS24K);
+PMC_MDEP_TABLE(octeon, OCTEON, PMC_CLASS_SOFT, PMC_CLASS_OCTEON);
+PMC_MDEP_TABLE(ppc7450, PPC7450, PMC_CLASS_SOFT, PMC_CLASS_PPC7450);
+PMC_MDEP_TABLE(generic, SOFT, PMC_CLASS_SOFT);
 
 static const struct pmc_event_descr tsc_event_table[] =
 {
@@ -236,9 +259,11 @@ PMC_CLASS_TABLE_DESC(atom, IAP, atom, iap);
 PMC_CLASS_TABLE_DESC(core, IAP, core, iap);
 PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
+PMC_CLASS_TABLE_DESC(sandybridge, IAP, sandybridge, iap);
 PMC_CLASS_TABLE_DESC(westmere, IAP, westmere, iap);
 PMC_CLASS_TABLE_DESC(ucf, UCF, ucf, ucf);
 PMC_CLASS_TABLE_DESC(corei7uc, UCP, corei7uc, ucp);
+PMC_CLASS_TABLE_DESC(sandybridgeuc, UCP, sandybridgeuc, ucp);
 PMC_CLASS_TABLE_DESC(westmereuc, UCP, westmereuc, ucp);
 #endif
 #if	defined(__i386__)
@@ -258,10 +283,23 @@ PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #if	defined(__XSCALE__)
 PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 #endif
-
 #if defined(__mips__)
-PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips24k);
+PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips);
+PMC_CLASS_TABLE_DESC(octeon, OCTEON, octeon, mips);
 #endif /* __mips__ */
+#if defined(__powerpc__)
+PMC_CLASS_TABLE_DESC(ppc7450, PPC7450, ppc7450, ppc7450);
+#endif
+
+static struct pmc_class_descr soft_class_table_descr =
+{
+	.pm_evc_name  = "SOFT-",
+	.pm_evc_name_size = sizeof("SOFT-") - 1,
+	.pm_evc_class = PMC_CLASS_SOFT,
+	.pm_evc_event_table = NULL,
+	.pm_evc_event_table_size = 0,
+	.pm_evc_allocate_pmc = soft_allocate_pmc
+};
 
 #undef	PMC_CLASS_TABLE_DESC
 
@@ -289,7 +327,7 @@ static const char * pmc_class_names[] = {
 };
 
 struct pmc_cputype_map {
-	enum pmc_class	pm_cputype;
+	enum pmc_cputype pm_cputype;
 	const char	*pm_name;
 };
 
@@ -317,9 +355,12 @@ static const char * pmc_state_names[] = {
 	__PMC_STATES()
 };
 
-static int pmc_syscall = -1;		/* filled in by pmc_init() */
-
-static struct pmc_cpuinfo cpu_info;	/* filled in by pmc_init() */
+/*
+ * Filled in by pmc_init().
+ */
+static int pmc_syscall = -1;
+static struct pmc_cpuinfo cpu_info;
+static struct pmc_op_getdyneventinfo soft_event_info;
 
 /* Event masks for events */
 struct pmc_masks {
@@ -520,6 +561,8 @@ static struct pmc_event_alias core2_aliases_without_iaf[] = {
 #define	atom_aliases_without_iaf	core2_aliases_without_iaf
 #define corei7_aliases			core2_aliases
 #define corei7_aliases_without_iaf	core2_aliases_without_iaf
+#define sandybridge_aliases		core2_aliases
+#define sandybridge_aliases_without_iaf	core2_aliases_without_iaf
 #define westmere_aliases		core2_aliases
 #define westmere_aliases_without_iaf	core2_aliases_without_iaf
 
@@ -2151,6 +2194,25 @@ tsc_allocate_pmc(enum pmc_event pe, char *ctrspec,
 }
 #endif
 
+static struct pmc_event_alias generic_aliases[] = {
+	EV_ALIAS("instructions",		"SOFT-CLOCK.HARD"),
+	EV_ALIAS(NULL, NULL)
+};
+
+static int
+soft_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	(void)ctrspec;
+	(void)pmc_config;
+
+	if (pe < PMC_EV_SOFT_FIRST || pe > PMC_EV_SOFT_LAST)
+		return (-1);
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	return (0);
+}
+
 #if	defined(__XSCALE__)
 
 static struct pmc_event_alias xscale_aliases[] = {
@@ -2183,12 +2245,19 @@ static struct pmc_event_alias mips24k_aliases[] = {
 	EV_ALIAS(NULL, NULL)
 };
 
-#define	MIPS24K_KW_OS		"os"
-#define	MIPS24K_KW_USR		"usr"
-#define	MIPS24K_KW_ANYTHREAD	"anythread"
+static struct pmc_event_alias octeon_aliases[] = {
+	EV_ALIAS("instructions",	"RET"),
+	EV_ALIAS("branches",		"BR"),
+	EV_ALIAS("branch-mispredicts",	"BRMIS"),
+	EV_ALIAS(NULL, NULL)
+};
+
+#define	MIPS_KW_OS		"os"
+#define	MIPS_KW_USR		"usr"
+#define	MIPS_KW_ANYTHREAD	"anythread"
 
 static int
-mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+mips_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 		  struct pmc_op_pmcallocate *pmc_config __unused)
 {
 	char *p;
@@ -2198,11 +2267,11 @@ mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	
 	while ((p = strsep(&ctrspec, ",")) != NULL) {
-		if (KWMATCH(p, MIPS24K_KW_OS))
+		if (KWMATCH(p, MIPS_KW_OS))
 			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
-		else if (KWMATCH(p, MIPS24K_KW_USR))
+		else if (KWMATCH(p, MIPS_KW_USR))
 			pmc_config->pm_caps |= PMC_CAP_USER;
-		else if (KWMATCH(p, MIPS24K_KW_ANYTHREAD))
+		else if (KWMATCH(p, MIPS_KW_ANYTHREAD))
 			pmc_config->pm_caps |= (PMC_CAP_USER | PMC_CAP_SYSTEM);
 		else
 			return (-1);
@@ -2210,7 +2279,46 @@ mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 
 	return (0);
 }
+
 #endif /* __mips__ */
+
+#if defined(__powerpc__)
+
+static struct pmc_event_alias ppc7450_aliases[] = {
+	EV_ALIAS("instructions",	"INSTR_COMPLETED"),
+	EV_ALIAS("branches",		"BRANCHES_COMPLETED"),
+	EV_ALIAS("branch-mispredicts",	"MISPREDICTED_BRANCHES"),
+	EV_ALIAS(NULL, NULL)
+};
+
+#define	PPC7450_KW_OS		"os"
+#define	PPC7450_KW_USR		"usr"
+#define	PPC7450_KW_ANYTHREAD	"anythread"
+
+static int
+ppc7450_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+		  struct pmc_op_pmcallocate *pmc_config __unused)
+{
+	char *p;
+
+	(void) pe;
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWMATCH(p, PPC7450_KW_OS))
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		else if (KWMATCH(p, PPC7450_KW_USR))
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		else if (KWMATCH(p, PPC7450_KW_ANYTHREAD))
+			pmc_config->pm_caps |= (PMC_CAP_USER | PMC_CAP_SYSTEM);
+		else
+			return (-1);
+	}
+
+	return (0);
+}
+#endif /* __powerpc__ */
 
 
 /*
@@ -2514,6 +2622,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = corei7_event_table;
 			count = PMC_EVENT_TABLE_SIZE(corei7);
 			break;
+		case PMC_CPU_INTEL_SANDYBRIDGE:
+			ev = sandybridge_event_table;
+			count = PMC_EVENT_TABLE_SIZE(sandybridge);
+			break;
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmere_event_table;
 			count = PMC_EVENT_TABLE_SIZE(westmere);
@@ -2534,6 +2646,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		case PMC_CPU_INTEL_COREI7:
 			ev = corei7uc_event_table;
 			count = PMC_EVENT_TABLE_SIZE(corei7uc);
+			break;
+		case PMC_CPU_INTEL_SANDYBRIDGE:
+			ev = sandybridgeuc_event_table;
+			count = PMC_EVENT_TABLE_SIZE(sandybridgeuc);
 			break;
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmereuc_event_table;
@@ -2573,6 +2689,18 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = mips24k_event_table;
 		count = PMC_EVENT_TABLE_SIZE(mips24k);
 		break;
+	case PMC_CLASS_OCTEON:
+		ev = octeon_event_table;
+		count = PMC_EVENT_TABLE_SIZE(octeon);
+		break;
+	case PMC_CLASS_PPC7450:
+		ev = ppc7450_event_table;
+		count = PMC_EVENT_TABLE_SIZE(ppc7450);
+		break;
+	case PMC_CLASS_SOFT:
+		ev = soft_event_table;
+		count = soft_event_info.pm_nevent;
+		break;
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -2586,6 +2714,7 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 
 	for (;count--; ev++, names++)
 		*names = ev->pm_ev_name;
+
 	return (0);
 }
 
@@ -2593,6 +2722,12 @@ int
 pmc_flush_logfile(void)
 {
 	return (PMC_CALL(FLUSHLOG,0));
+}
+
+int
+pmc_close_logfile(void)
+{
+	return (PMC_CALL(CLOSELOG,0));
 }
 
 int
@@ -2684,11 +2819,34 @@ pmc_init(void)
 		pmc_class_table[n] = NULL;
 
 	/*
+	 * Get soft events list.
+	 */
+	soft_event_info.pm_class = PMC_CLASS_SOFT;
+	if (PMC_CALL(GETDYNEVENTINFO, &soft_event_info) < 0)
+		return (pmc_syscall = -1);
+
+	/* Map soft events to static list. */
+	for (n = 0; n < soft_event_info.pm_nevent; n++) {
+		soft_event_table[n].pm_ev_name =
+		    soft_event_info.pm_events[n].pm_ev_name;
+		soft_event_table[n].pm_ev_code =
+		    soft_event_info.pm_events[n].pm_ev_code;
+	}
+	soft_class_table_descr.pm_evc_event_table_size = \
+	    soft_event_info.pm_nevent;
+	soft_class_table_descr.pm_evc_event_table = \
+	    soft_event_table;
+
+	/*
 	 * Fill in the class table.
 	 */
 	n = 0;
+
+	/* Fill soft events information. */
+	pmc_class_table[n++] = &soft_class_table_descr;
 #if defined(__amd64__) || defined(__i386__)
-	pmc_class_table[n++] = &tsc_class_table_descr;
+	if (cpu_info.pm_cputype != PMC_CPU_GENERIC)
+		pmc_class_table[n++] = &tsc_class_table_descr;
 
 	/*
  	 * Check if this CPU has fixed function counters.
@@ -2756,6 +2914,11 @@ pmc_init(void)
 		pmc_class_table[n++] = &corei7uc_class_table_descr;
 		PMC_MDEP_INIT_INTEL_V2(corei7);
 		break;
+	case PMC_CPU_INTEL_SANDYBRIDGE:
+		pmc_class_table[n++] = &ucf_class_table_descr;
+		pmc_class_table[n++] = &sandybridgeuc_class_table_descr;
+		PMC_MDEP_INIT_INTEL_V2(sandybridge);
+		break;
 	case PMC_CPU_INTEL_WESTMERE:
 		pmc_class_table[n++] = &ucf_class_table_descr;
 		pmc_class_table[n++] = &westmereuc_class_table_descr;
@@ -2766,6 +2929,9 @@ pmc_init(void)
 		pmc_class_table[n] = &p4_class_table_descr;
 		break;
 #endif
+	case PMC_CPU_GENERIC:
+		PMC_MDEP_INIT(generic);
+		break;
 #if defined(__XSCALE__)
 	case PMC_CPU_INTEL_XSCALE:
 		PMC_MDEP_INIT(xscale);
@@ -2777,7 +2943,17 @@ pmc_init(void)
 		PMC_MDEP_INIT(mips24k);
 		pmc_class_table[n] = &mips24k_class_table_descr;
 		break;
+	case PMC_CPU_MIPS_OCTEON:
+		PMC_MDEP_INIT(octeon);
+		pmc_class_table[n] = &octeon_class_table_descr;
+		break;
 #endif /* __mips__ */
+#if defined(__powerpc__)
+	case PMC_CPU_PPC_7450:
+		PMC_MDEP_INIT(ppc7450);
+		pmc_class_table[n] = &ppc7450_class_table_descr;
+		break;
+#endif
 	default:
 		/*
 		 * Some kind of CPU this version of the library knows nothing
@@ -2873,6 +3049,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 			ev = corei7_event_table;
 			evfence = corei7_event_table + PMC_EVENT_TABLE_SIZE(corei7);
 			break;
+		case PMC_CPU_INTEL_SANDYBRIDGE:
+			ev = sandybridge_event_table;
+			evfence = sandybridge_event_table + PMC_EVENT_TABLE_SIZE(sandybridge);
+			break;
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmere_event_table;
 			evfence = westmere_event_table + PMC_EVENT_TABLE_SIZE(westmere);
@@ -2888,6 +3068,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		case PMC_CPU_INTEL_COREI7:
 			ev = corei7uc_event_table;
 			evfence = corei7uc_event_table + PMC_EVENT_TABLE_SIZE(corei7uc);
+			break;
+		case PMC_CPU_INTEL_SANDYBRIDGE:
+			ev = sandybridgeuc_event_table;
+			evfence = sandybridgeuc_event_table + PMC_EVENT_TABLE_SIZE(sandybridgeuc);
 			break;
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmereuc_event_table;
@@ -2916,11 +3100,19 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
 	} else if (pe >= PMC_EV_MIPS24K_FIRST && pe <= PMC_EV_MIPS24K_LAST) {
 		ev = mips24k_event_table;
-		evfence = mips24k_event_table + PMC_EVENT_TABLE_SIZE(mips24k
-);
+		evfence = mips24k_event_table + PMC_EVENT_TABLE_SIZE(mips24k);
+	} else if (pe >= PMC_EV_OCTEON_FIRST && pe <= PMC_EV_OCTEON_LAST) {
+		ev = octeon_event_table;
+		evfence = octeon_event_table + PMC_EVENT_TABLE_SIZE(octeon);
+	} else if (pe >= PMC_EV_PPC7450_FIRST && pe <= PMC_EV_PPC7450_LAST) {
+		ev = ppc7450_event_table;
+		evfence = ppc7450_event_table + PMC_EVENT_TABLE_SIZE(ppc7450);
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;
 		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);
+	} else if (pe >= PMC_EV_SOFT_FIRST && pe <= PMC_EV_SOFT_LAST) {
+		ev = soft_event_table;
+		evfence = soft_event_table + soft_event_info.pm_nevent;
 	}
 
 	for (; ev != evfence; ev++)

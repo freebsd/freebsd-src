@@ -56,7 +56,7 @@
  * and (2) "reloff", the byte offset of the appropriate relocation entry
  * in the PLT relocation table.
  *
- * We are careful to preserve all registers, even the the caller-save
+ * We are careful to preserve all registers, even the caller-save
  * registers.  That is because this code may be invoked by low-level
  * assembly-language code that is not ABI-compliant.
  *

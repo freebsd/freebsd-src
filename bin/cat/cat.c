@@ -64,9 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stddef.h>
 
-int bflag, eflag, nflag, sflag, tflag, vflag;
-int rval;
-const char *filename;
+static int bflag, eflag, nflag, sflag, tflag, vflag;
+static int rval;
+static const char *filename;
 
 static void usage(void);
 static void scanfiles(char *argv[], int cooked);

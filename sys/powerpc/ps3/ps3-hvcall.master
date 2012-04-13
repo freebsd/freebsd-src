@@ -125,11 +125,12 @@ HVCALL	212	lv1_gpu_device_map			dev				lpar_addr,lpar_size
 HVCALL	213	lv1_gpu_device_unmap			dev
 HVCALL	214	lv1_gpu_memory_allocate			ddr_size,zero1,zero2,zero3,zero4	handle,ddr_lpar
 HVCALL	216	lv1_gpu_memory_free			handle
-HVCALL	217	lv1_gpu_context_allocate		handle, zero			chandle,lpar_dma_control,lpar_driver_info,lpar_reports,lpar_reports_size
+HVCALL	217	lv1_gpu_context_allocate		handle,flags			chandle,lpar_dma_control,lpar_driver_info,lpar_reports,lpar_reports_size
 HVCALL	218	lv1_gpu_context_free			chandle
 HVCALL	221	lv1_gpu_context_iomap			changle,gpu_ioif,xdr_lpar,fbsize,ioflags
 HVCALL	225	lv1_gpu_context_attribute		chandle,op,p1,p2,p3,p4
 HVCALL	227	lv1_gpu_context_intr			chandle				v1
+HVCALL	228	lv1_gpu_attribute			p1,p2,p3,p4,p5
 HVCALL	232	lv1_get_rtc				UNUSED				rtc_val,timebase
 HVCALL	245	lv1_storage_read			dev,region,sector,nsectors,flags,buf	dma_tag
 HVCALL	246	lv1_storage_write			dev,region,sector,nsectors,flags,buf	dma_tag

@@ -188,8 +188,8 @@ main(int argc, char *argv[]) {
 			error = 0;
 		} while(0);
 		if (error)
-			errx(EX_DATAERR, 
-			    "an error occured while parsing '%s'",
+			errx(EX_DATAERR,
+			    "an error occurred while parsing '%s'",
 			    argv[argc - 1]);
 	}
 

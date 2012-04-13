@@ -1,84 +1,77 @@
 /* Inline Functions for bool-array.{h,cc}.
 
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
-   written by Douglas C. Schmidt (schmidt@ics.uci.edu)
+   Copyright (C) 1989-1998, 2002 Free Software Foundation, Inc.
+   Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
+   and Bruno Haible <bruno@clisp.org>.
 
-This file is part of GNU GPERF.
+   This file is part of GNU GPERF.
 
-GNU GPERF is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
+   GNU GPERF is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-GNU GPERF is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GNU GPERF is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU GPERF; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING.
+   If not, write to the Free Software Foundation, Inc.,
+   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 // This needs:
 //#include <stdio.h>
 //#include <string.h>
 //#include "options.h"
-//#include "trace.h"
 
+/* Initializes the bit array with room for SIZE bits, numbered from
+   0 to SIZE-1. */
 INLINE
-Bool_Array::Bool_Array (void)
+Bool_Array::Bool_Array (unsigned int size)
+  : _size (size),
+    _iteration_number (1),
+    _storage_array (new unsigned int [size])
 {
-  T (Trace t ("Bool_Array::Bool_Array");)
-  storage_array = 0;
-  iteration_number = size = 0;
-}
-
-INLINE void
-Bool_Array::init (STORAGE_TYPE *buffer, unsigned int s)
-{
-  T (Trace t ("Bool_Array::init");)
-  size             = s;
-  iteration_number = 1;
-  storage_array    = buffer;
-  memset (storage_array, 0, s * sizeof (*storage_array));
+  memset (_storage_array, 0, size * sizeof (_storage_array[0]));
   if (option[DEBUG])
     fprintf (stderr, "\nbool array size = %d, total bytes = %d\n",
-             size, (unsigned int) (size * sizeof (*storage_array)));
+             _size,
+             static_cast<unsigned int> (_size * sizeof (_storage_array[0])));
 }
 
-INLINE int
-Bool_Array::find (int index)
+/* Sets the specified bit to true.
+   Returns its previous value (false or true).  */
+INLINE bool
+Bool_Array::set_bit (unsigned int index)
 {
-  T (Trace t ("Bool_Array::find");)
-  if (storage_array[index] == iteration_number)
-    return 1;
+  if (_storage_array[index] == _iteration_number)
+    /* The bit was set since the last clear() call.  */
+    return true;
   else
     {
-      storage_array[index] = iteration_number;
-      return 0;
+      /* The last operation on this bit was clear().  Set it now.  */
+      _storage_array[index] = _iteration_number;
+      return false;
     }
 }
 
+/* Resets all bits to zero.  */
 INLINE void
-Bool_Array::reset (void)
+Bool_Array::clear ()
 {
-  T (Trace t ("Bool_Array::reset");)
   /* If we wrap around it's time to zero things out again!  However, this only
-     occurs once about every 2^31 or 2^15 iterations, so it should probably
-     never happen! */
+     occurs once about every 2^32 iterations, so it will not happen more
+     frequently than once per second.  */
 
-  if (++iteration_number == 0)
+  if (++_iteration_number == 0)
     {
+      _iteration_number = 1;
+      memset (_storage_array, 0, _size * sizeof (_storage_array[0]));
       if (option[DEBUG])
         {
-          fprintf (stderr, "(re-initializing bool_array)...");
-          fflush (stderr);
-        }
-      iteration_number = 1;
-      memset (storage_array, 0, size * sizeof (*storage_array));
-      if (option[DEBUG])
-        {
-          fprintf (stderr, "done\n");
+          fprintf (stderr, "(re-initialized bool_array)\n");
           fflush (stderr);
         }
     }

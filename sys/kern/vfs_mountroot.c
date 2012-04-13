@@ -42,10 +42,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/mdioctl.h>
 #include <sys/mount.h>
@@ -483,26 +483,27 @@ parse_dir_ask(char **conf)
 	printf("  .               Yield 1 second (for background tasks)\n");
 	printf("  <empty line>    Abort manual input\n");
 
- again:
-	printf("\nmountroot> ");
-	gets(name, sizeof(name), GETS_ECHO);
-	if (name[0] == '\0')
-		return (0);
-	if (name[0] == '?') {
-		printf("\nList of GEOM managed disk devices:\n  ");
-		g_dev_print();
-		goto again;
-	}
-	if (name[0] == '.') {
-		pause("rmask", hz);
-		goto again;
-	}
-	mnt = name;
-	error = parse_mount(&mnt);
-	if (error == -1) {
-		printf("Invalid specification.\n");
-		goto again;
-	}
+	do {
+		error = EINVAL;
+		printf("\nmountroot> ");
+		cngets(name, sizeof(name), GETS_ECHO);
+		if (name[0] == '\0')
+			break;
+		if (name[0] == '?' && name[1] == '\0') {
+			printf("\nList of GEOM managed disk devices:\n  ");
+			g_dev_print();
+			continue;
+		}
+		if (name[0] == '.' && name[1] == '\0') {
+			pause("rmask", hz);
+			continue;
+		}
+		mnt = name;
+		error = parse_mount(&mnt);
+		if (error == -1)
+			printf("Invalid file system specification.\n");
+	} while (error != 0);
+
 	return (error);
 }
 
@@ -870,9 +871,8 @@ vfs_mountroot_readconf(struct thread *td, struct sbuf *sb)
 	static char buf[128];
 	struct nameidata nd;
 	off_t ofs;
-	int error, flags;
-	int len, resid;
-	int vfslocked;
+	ssize_t resid;
+	int error, flags, len, vfslocked;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE,
 	    "/.mount.conf", td);

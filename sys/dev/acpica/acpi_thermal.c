@@ -245,7 +245,7 @@ acpi_tz_attach(device_t dev)
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 		       OID_AUTO, "polling_rate", CTLFLAG_RW,
-		       &acpi_tz_polling_rate, 0, "monitor polling rate");
+		       &acpi_tz_polling_rate, 0, "monitor polling interval in seconds");
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree), OID_AUTO,
 		       "user_override", CTLFLAG_RW, &acpi_tz_override, 0,

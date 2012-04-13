@@ -188,7 +188,6 @@ vx_attach(device_t dev)
 		eaddr[(i << 1) + 1] = x;
 	}
 
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = vx_start;

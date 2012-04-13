@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,8 @@ static int ata_nvidia_setmode(device_t dev, int target, int mode);
 #define NVAHCI          0x04
 #define NVNOFORCE       0x08
 
+static int force_ahci = 1;
+TUNABLE_INT("hw.ahci.force", &force_ahci);
 
 /*
  * nVidia chipset support functions
@@ -73,7 +75,7 @@ static int
 ata_nvidia_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_NFORCE1,         0, 0,       0, ATA_UDMA5, "nForce" },
      { ATA_NFORCE2,         0, 0,       0, ATA_UDMA6, "nForce2" },
      { ATA_NFORCE2_PRO,     0, 0,       0, ATA_UDMA6, "nForce2 Pro" },
@@ -181,7 +183,7 @@ ata_nvidia_probe(device_t dev)
 
     ata_set_desc(dev);
     if ((ctlr->chip->cfg1 & NVAHCI) &&
-	((ctlr->chip->cfg1 & NVNOFORCE) == 0 ||
+	((force_ahci == 1 && (ctlr->chip->cfg1 & NVNOFORCE) == 0) ||
 	 pci_get_subclass(dev) != PCIS_STORAGE_IDE))
 	ctlr->chipinit = ata_ahci_chipinit;
     else
@@ -330,8 +332,10 @@ ata_nvidia_setmode(device_t dev, int target, int mode)
 	struct ata_channel *ch = device_get_softc(dev);
 	int devno = (ch->unit << 1) + target;
 	int piomode;
-	u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
-        int modes[7] = { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
+	static const uint8_t timings[] =
+	    { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
+	static const uint8_t modes[] =
+	    { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
 	int reg = 0x63 - devno;
 
 	mode = min(mode, ctlr->chip->max_dma);

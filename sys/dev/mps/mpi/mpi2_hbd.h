@@ -1,13 +1,42 @@
-/* $FreeBSD$ */
+/*-
+ * Copyright (c) 2011 LSI Corp.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * LSI MPT-Fusion Host Adapter FreeBSD
+ *
+ * $FreeBSD$
+ */
+
 /*
- *  Copyright (c) 2009 LSI Corporation.
+ *  Copyright (c) 2009-2011 LSI Corporation.
  *
  *
  *           Name:  mpi2_hbd.h
  *          Title:  MPI Host Based Discovery messages and structures
  *  Creation Date:  October 21, 2009
  *
- *  mpi2_hbd.h Version:  02.00.00
+ *  mpi2_hbd.h Version:  02.00.01
  *
  *  Version History
  *  ---------------
@@ -15,6 +44,8 @@
  *  Date      Version   Description
  *  --------  --------  ------------------------------------------------------
  *  10-28-09  02.00.00  Initial version.
+ *  08-11-10  02.00.01  Removed PortGroups, DmaGroup, and ControlGroup from
+ *                      HBD Action request, replaced by AdditionalInfo field.
  *  --------------------------------------------------------------------------
  */
 
@@ -48,10 +79,7 @@ typedef struct _MPI2_HBD_ACTION_REQUEST
     U8                      Port;               /* 0x25 */
     U8                      MaxConnections;     /* 0x26 */
     U8                      MaxRate;            /* 0x27 */
-    U8                      PortGroups;         /* 0x28 */
-    U8                      DmaGroup;           /* 0x29 */
-    U8                      ControlGroup;       /* 0x2A */
-    U8                      Reserved6;          /* 0x2B */
+    U32                     AdditionalInfo;     /* 0x28 */
     U16                     InitialAWT;         /* 0x2C */
     U16                     Reserved7;          /* 0x2E */
     U32                     Reserved8;          /* 0x30 */

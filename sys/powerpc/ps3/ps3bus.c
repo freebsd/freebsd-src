@@ -22,9 +22,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -63,7 +64,7 @@ static int	ps3bus_activate_resource(device_t bus, device_t child, int type,
 		    int rid, struct resource *res);
 static bus_dma_tag_t ps3bus_get_dma_tag(device_t dev, device_t child);
 static int	ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,		    bus_addr_t min, bus_addr_t max, bus_size_t alignment,
-		    bus_size_t boundary, void *cookie);
+		    bus_addr_t boundary, void *cookie);
 static int	ps3_iommu_unmap(device_t dev, bus_dma_segment_t *segs,
 		    int nsegs, void *cookie);
 static int	ps3_gettime(device_t dev, struct timespec *ts);
@@ -104,7 +105,6 @@ static device_method_t ps3bus_methods[] = {
 	DEVMETHOD(device_attach,	ps3bus_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_get_dma_tag,	ps3bus_get_dma_tag),
 	DEVMETHOD(bus_print_child,	ps3bus_print_child),
@@ -122,7 +122,7 @@ static device_method_t ps3bus_methods[] = {
 	DEVMETHOD(clock_gettime,	ps3_gettime),
 	DEVMETHOD(clock_settime,	ps3_settime),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 struct ps3bus_softc {
@@ -697,7 +697,7 @@ fail:
 
 static int
 ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
-    bus_addr_t min, bus_addr_t max, bus_size_t alignment, bus_size_t boundary,
+    bus_addr_t min, bus_addr_t max, bus_size_t alignment, bus_addr_t boundary,
     void *cookie)
 {
 	struct ps3bus_devinfo *dinfo = cookie;

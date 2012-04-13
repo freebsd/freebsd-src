@@ -360,7 +360,7 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 		m_adj(m, ICMPV6_PLD_MAXLEN - m->m_pkthdr.len);
 
 	preplen = sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
-	M_PREPEND(m, preplen, M_DONTWAIT);
+	M_PREPEND(m, preplen, M_DONTWAIT);	/* FIB is also copied over. */
 	if (m && m->m_len < preplen)
 		m = m_pullup(m, preplen);
 	if (m == NULL) {
@@ -584,7 +584,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			MGETHDR(n, M_DONTWAIT, n0->m_type);
 			n0len = n0->m_pkthdr.len;	/* save for use below */
 			if (n)
-				M_MOVE_PKTHDR(n, n0);
+				M_MOVE_PKTHDR(n, n0);	/* FIB copied. */
 			if (n && maxlen >= MHLEN) {
 				MCLGET(n, M_DONTWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
@@ -1502,7 +1502,7 @@ ni6_input(struct mbuf *m, int off)
 		m_freem(m);
 		return (NULL);
 	}
-	M_MOVE_PKTHDR(n, m); /* just for recvif */
+	M_MOVE_PKTHDR(n, m); /* just for recvif and FIB */
 	if (replylen > MHLEN) {
 		if (replylen > MCLBYTES) {
 			/*
@@ -1780,9 +1780,9 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 	}
 
 	IFNET_RLOCK_NOSLEEP();
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		addrsofif = 0;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
@@ -1833,7 +1833,7 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 			}
 			addrsofif++; /* count the address */
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		if (iffound) {
 			*ifpp = ifp;
 			IFNET_RUNLOCK_NOSLEEP();
@@ -1851,7 +1851,7 @@ static int
 ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
     struct ifnet *ifp0, int resid)
 {
-	struct ifnet *ifp = ifp0 ? ifp0 : TAILQ_FIRST(&V_ifnet);
+	struct ifnet *ifp;
 	struct in6_ifaddr *ifa6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp_dep = NULL;
@@ -1864,10 +1864,11 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 		return (0);	/* needless to copy */
 
 	IFNET_RLOCK_NOSLEEP();
+	ifp = ifp0 ? ifp0 : TAILQ_FIRST(&V_ifnet);
   again:
 
 	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
@@ -1922,7 +1923,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 			/* now we can copy the address */
 			if (resid < sizeof(struct in6_addr) +
 			    sizeof(u_int32_t)) {
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				/*
 				 * We give up much more copy.
 				 * Set the truncate flag and return.
@@ -1969,7 +1970,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 			resid -= (sizeof(struct in6_addr) + sizeof(u_int32_t));
 			copied += (sizeof(struct in6_addr) + sizeof(u_int32_t));
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		if (ifp0)	/* we need search only on the specified IF */
 			break;
 	}
@@ -2244,10 +2245,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		}
 	}
 
-	if ((srcp != NULL) && 
-	    (in6_addrscope(srcp) != in6_addrscope(&ip6->ip6_src)))
-		srcp = NULL;
-
 	if (srcp == NULL) {
 		int e;
 		struct sockaddr_in6 sin6;
@@ -2355,8 +2352,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	int icmp6len = ntohs(ip6->ip6_plen);
 	char *lladdr = NULL;
 	int lladdrlen = 0;
-	u_char *redirhdr = NULL;
-	int redirhdrlen = 0;
 	struct rtentry *rt = NULL;
 	int is_router;
 	int is_onlink;
@@ -2366,13 +2361,10 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	union nd_opts ndopts;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	if (!m)
-		return;
+	M_ASSERTPKTHDR(m);
+	KASSERT(m->m_pkthdr.rcvif != NULL, ("%s: no rcvif", __func__));
 
 	ifp = m->m_pkthdr.rcvif;
-
-	if (!ifp)
-		return;
 
 	/* XXX if we are router, we don't update route by icmp6 redirect */
 	if (V_ip6_forwarding)
@@ -2422,7 +2414,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sin6.sin6_addr, sizeof(reddst6));
-	rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
+	rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt) {
 		if (rt->rt_gateway == NULL ||
 		    rt->rt_gateway->sa_family != AF_INET6) {
@@ -2480,9 +2472,8 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	icmp6len -= sizeof(*nd_rd);
 	nd6_option_init(nd_rd + 1, icmp6len, &ndopts);
 	if (nd6_options(&ndopts) < 0) {
-		nd6log((LOG_INFO, "icmp6_redirect_input: "
-		    "invalid ND option, rejected: %s\n",
-		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
+		nd6log((LOG_INFO, "%s: invalid ND option, rejected: %s\n",
+		    __func__, icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 		/* nd6_options have incremented stats */
 		goto freeit;
 	}
@@ -2492,16 +2483,10 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		lladdrlen = ndopts.nd_opts_tgt_lladdr->nd_opt_len << 3;
 	}
 
-	if (ndopts.nd_opts_rh) {
-		redirhdrlen = ndopts.nd_opts_rh->nd_opt_rh_len;
-		redirhdr = (u_char *)(ndopts.nd_opts_rh + 1); /* xxx */
-	}
-
 	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
-		nd6log((LOG_INFO,
-		    "icmp6_redirect_input: lladdrlen mismatch for %s "
+		nd6log((LOG_INFO, "%s: lladdrlen mismatch for %s "
 		    "(if %d, icmp6 packet %d): %s\n",
-		    ip6_sprintf(ip6buf, &redtgt6),
+		    __func__, ip6_sprintf(ip6buf, &redtgt6),
 		    ifp->if_addrlen, lladdrlen - 2,
 		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 		goto bad;
@@ -2516,6 +2501,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		struct sockaddr_in6 sdst;
 		struct sockaddr_in6 sgw;
 		struct sockaddr_in6 ssrc;
+		u_int fibnum;
 
 		bzero(&sdst, sizeof(sdst));
 		bzero(&sgw, sizeof(sgw));
@@ -2526,9 +2512,11 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		bcopy(&redtgt6, &sgw.sin6_addr, sizeof(struct in6_addr));
 		bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 		bcopy(&src6, &ssrc.sin6_addr, sizeof(struct in6_addr));
-		rtredirect((struct sockaddr *)&sdst, (struct sockaddr *)&sgw,
-		    (struct sockaddr *)NULL, RTF_GATEWAY | RTF_HOST,
-		    (struct sockaddr *)&ssrc);
+		for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
+			in6_rtredirect((struct sockaddr *)&sdst,
+			    (struct sockaddr *)&sgw, (struct sockaddr *)NULL,
+			    RTF_GATEWAY | RTF_HOST, (struct sockaddr *)&ssrc,
+			    fibnum);
 	}
 	/* finally update cached route in each socket via pfctlinput */
     {
@@ -2613,6 +2601,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 		MCLGET(m, M_DONTWAIT);
 	if (!m)
 		goto fail;
+	M_SETFIB(m, rt->rt_fibnum);
 	m->m_pkthdr.rcvif = NULL;
 	m->m_len = 0;
 	maxlen = M_TRAILINGSPACE(m);

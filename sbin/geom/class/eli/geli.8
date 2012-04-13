@@ -24,29 +24,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2011
+.Dd March 4, 2012
 .Dt GELI 8
 .Os
 .Sh NAME
 .Nm geli
-.Nd "control utility for cryptographic GEOM class"
+.Nd "control utility for the cryptographic GEOM class"
 .Sh SYNOPSIS
-To compile GEOM_ELI into your kernel, place the following lines in your kernel
+To compile GEOM_ELI into your kernel, add the following lines to your kernel
 configuration file:
 .Bd -ragged -offset indent
 .Cd "device crypto"
 .Cd "options GEOM_ELI"
 .Ed
 .Pp
-Alternately, to load the GEOM_ELI module at boot time, place the following line
-in your
+Alternatively, to load the GEOM_ELI module at boot time, add the following line
+to your
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 geom_eli_load="YES"
 .Ed
 .Pp
 Usage of the
-.Xr geli 8
+.Nm
 utility:
 .Pp
 .Nm
@@ -60,6 +60,7 @@ utility:
 .Op Fl K Ar newkeyfile
 .Op Fl l Ar keylen
 .Op Fl s Ar sectorsize
+.Op Fl V Ar version
 .Ar prov
 .Nm
 .Cm label - an alias for
@@ -134,6 +135,9 @@ utility:
 .Fl s Ar oldsize
 .Ar prov
 .Nm
+.Cm version
+.Op Ar prov ...
+.Nm
 .Cm clear
 .Op Fl v
 .Ar prov ...
@@ -185,7 +189,8 @@ or
 Can create a key from a couple of components (user entered passphrase, random
 bits from a file, etc.).
 .It
-Allows to encrypt the root partition - the user will be asked for the
+Allows encryption of the root partition.
+The user will be asked for the
 passphrase before the root file system is mounted.
 .It
 The passphrase of the user is strengthened with:
@@ -196,29 +201,30 @@ The passphrase of the user is strengthened with:
 .%N 2898
 .Re
 .It
-Allows to use two independent keys (e.g.
+Allows the use of two independent keys (e.g., a
 .Qq "user key"
-and
+and a
 .Qq "company key" ) .
 .It
 It is fast -
 .Nm
 performs simple sector-to-sector encryption.
 .It
-Allows to backup/restore Master Keys, so when a user has to quickly
-destroy his keys,
-it is possible to get the data back by restoring keys from the backup.
+Allows Master Keys to be backed up and restored,
+so that if a user has to quickly destroy his keys,
+it is possible to get the data back by restoring keys from
+backup.
 .It
 Providers can be configured to automatically detach on last close
 (so users do not have to remember to detach providers after unmounting
 the file systems).
 .It
-Allows to attach a provider with a random, one-time key - useful for swap
+Allows attaching a provider with a random, one-time key - useful for swap
 partitions and temporary file systems.
 .It
-Allows to verify data integrity (data authentication).
+Allows verification of data integrity (data authentication).
 .It
-Allows to suspend and resume encrypted devices.
+Allows suspending and resuming encrypted devices.
 .El
 .Pp
 The first argument to
@@ -226,12 +232,12 @@ The first argument to
 indicates an action to be performed:
 .Bl -tag -width ".Cm configure"
 .It Cm init
-Initialize provider which needs to be encrypted.
+Initialize the provider which needs to be encrypted.
 Here you can set up the cryptographic algorithm to use, key length, etc.
-The last provider's sector is used to store metadata.
+The last sector of the provider is used to store metadata.
 The
 .Cm init
-subcommand also automatically backups metadata in
+subcommand also automatically writes metadata backups to
 .Pa /var/backups/<prov>.eli
 file.
 The metadata can be recovered with the
@@ -242,7 +248,7 @@ Additional options include:
 .Bl -tag -width ".Fl J Ar newpassfile"
 .It Fl a Ar aalgo
 Enable data integrity verification (authentication) using the given algorithm.
-This will reduce size of available storage and also reduce speed.
+This will reduce the size of storage available and also reduce speed.
 For example, when using 4096 bytes sector and
 .Nm HMAC/SHA256
 algorithm, 89% of the original provider storage will be available for use.
@@ -316,9 +322,18 @@ and 192 for
 Do not use passphrase as the key component.
 .It Fl s Ar sectorsize
 Change decrypted provider's sector size.
-Increasing sector size allows to increase performance, because we need to
-generate an IV and do encrypt/decrypt for every single sector - less number
-of sectors means less work to do.
+Increasing the sector size allows increased performance,
+because encryption/decryption which requires an initialization vector
+is done per sector; fewer sectors means less computational work.
+.It Fl V Ar version
+Metadata version to use.
+This option is helpful when creating provider that may be used by older
+.Nm FreeBSD/GELI
+versions.
+Consult the
+.Sx HISTORY
+section to find which metadata version is supported by which FreeBSD version.
+Note that using older metadata version may limit numer of features available.
 .El
 .It Cm attach
 Attach the given provider.
@@ -332,7 +347,7 @@ Additional options include:
 .Bl -tag -width ".Fl j Ar passfile"
 .It Fl d
 If specified, a decrypted provider will be detached automatically on last close.
-This can help with short memory - user does not have to remember to detach the
+This can help with scarce memory so the user does not have to remember to detach the
 provider after unmounting the file system.
 It only works when the provider was opened for writing, so it will not work if
 the file system on the provider is mounted read-only.
@@ -372,9 +387,8 @@ Force detach - detach even if the provider is open.
 .It Fl l
 Mark provider to detach on last close.
 If this option is specified, the provider will not be detached
-until it is open, but when it will be closed last time, it will
-be automatically detached (even
-if it was only opened for reading).
+while it is open, but will be automatically detached when it is closed for the
+last time even if it was only opened for reading.
 .El
 .It Cm onetime
 Attach the given providers with random, one-time keys.
@@ -394,7 +408,7 @@ For more information, see the description of the
 subcommand.
 .It Fl d
 Detach on last close.
-Note, the option is not usable for temporary file systems as the provider will
+Note: this option is not usable for temporary file systems as the provider will
 be detached after creating the file system on it.
 It still can (and should be) used for swap partitions.
 For more information, see the description of the
@@ -431,7 +445,7 @@ With the
 .Cm init
 subcommand, only key number 0 is initialized.
 The key can always be changed: for an attached provider,
-for a detached provider or on the backup file.
+for a detached provider, or on the backup file.
 When a provider is attached, the user does not have to provide
 an old passphrase/keyfile.
 .Pp
@@ -440,9 +454,9 @@ Additional options include:
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
 If 0 is given, PKCS#5v2 will not be used.
-To be able to use this option with
+To be able to use this option with the
 .Cm setkey
-subcommand, only one key have to be defined and this key has to be changed.
+subcommand, only one key has to be defined and this key must be changed.
 .It Fl j Ar passfile
 Specifies a file which contains the old passphrase or its part.
 .It Fl J Ar newpassfile
@@ -466,8 +480,8 @@ Do not use passphrase as the new key component.
 .It Cm delkey
 Destroy (overwrite with random data) the selected key.
 If one is destroying keys for an attached provider, the provider
-will not be detached even if all keys will be destroyed.
-It can be even rescued with the
+will not be detached even if all keys are destroyed.
+It can even be rescued with the
 .Cm setkey
 subcommand.
 .Pp
@@ -488,8 +502,8 @@ If provider is detached (or we are operating on a backup file) the key number
 has to be given.
 .El
 .It Cm kill
-This command should be used in emergency situations.
-It will destroy all keys on the given provider and will detach it forcibly
+This command should be used only in emergency situations.
+It will destroy all the keys on a given provider and will detach it forcibly
 (if it is attached).
 This is absolutely a one-way command - if you do not have a metadata
 backup, your data is gone for good.
@@ -527,29 +541,30 @@ and
 .Cm restore .
 .El
 .It Cm suspend
-Suspend device by waiting for all inflight request to finish, clearing all
-sensitive informations (like keys) from the kernel memory and blocking all
+Suspend device by waiting for all inflight requests to finish, clearing all
+sensitive information (like keys) from kernel memory, and blocking all
 further I/O requests until the
 .Cm resume
 subcommand is executed.
-This functionality is useful for eg. laptops - when one wants to suspend a
-laptop, one does not want to leave encrypted device attached.
-Instead of closing all files and directories opened from a file system placed
-on an encrypted device, unmounting the file system and detaching the device,
+This functionality is useful for laptops: when one wants to suspend a
+laptop, one does not want to leave an encrypted device attached.
+Instead of closing all files and directories opened from a file system located
+on an encrypted device, unmounting the file system, and detaching the device,
 the
 .Cm suspend
 subcommand can be used.
 Any access to the encrypted device will be blocked until the keys are
-recovered through
+recovered through the
 .Cm resume
-subcommand, thus there is no need to close nor unmount anything.
+subcommand.
+Thus there is no need to close nor unmount anything.
 The
 .Cm suspend
 subcommand does not work with devices created with the
 .Cm onetime
 subcommand.
 Please note that sensitive data might still be present in memory after
-suspending encrypted device, because of file system cache, etc.
+suspending an encrypted device due to the file system cache, etc.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl a"
@@ -560,9 +575,9 @@ devices.
 .El
 .It Cm resume
 Resume previously suspended device.
-The caller must ensure that executing this subcommand won't try to access
-suspended device, which will lead to a deadlock.
-For example suspending device, which contains file system where the
+The caller must ensure that executing this subcommand doesn't access the
+suspended device, leading to a deadlock.
+For example suspending a device which contains the file system where the
 .Nm
 utility is stored is bad idea.
 .Pp
@@ -597,6 +612,18 @@ Additional options include:
 .It Fl s Ar oldsize
 The size of the provider before it was resized.
 .El
+.It Cm version
+If no arguments are given, the
+.Cm version
+subcommand will print the version of
+.Nm
+userland utility as well as the version of the
+.Nm ELI
+GEOM class.
+.Pp
+If GEOM providers are specified, the
+.Cm version
+subcommand will print metadata version used by each of them.
 .It Cm clear
 Clear metadata from the given providers.
 .It Cm dump
@@ -644,7 +671,7 @@ If set to 3, the
 maximum amount of debug information is printed.
 .It Va kern.geom.eli.tries : No 3
 Number of times a user is asked for the passphrase.
-This is only used for providers which should be attached on boot
+This is only used for providers which are attached on boot
 (before the root file system is mounted).
 If set to 0, attaching providers on boot will be disabled.
 This variable should be set in
@@ -656,7 +683,7 @@ After this operation it is filled with zeros.
 .It Va kern.geom.eli.visible_passphrase : No 0
 If set to 1, the passphrase entered on boot (before the root
 file system is mounted) will be visible.
-This possibility should be used with caution as the entered
+This alternative should be used with caution as the entered
 passphrase can be logged and exposed via
 .Xr dmesg 8 .
 This variable should be set in
@@ -666,18 +693,17 @@ Specifies how many kernel threads should be used for doing software
 cryptography.
 Its purpose is to increase performance on SMP systems.
 If hardware acceleration is available, only one thread will be started.
-If set to 0, CPU-bound thread will be started for every active CPU.
+If set to 0, a CPU-pinned thread will be started for every active CPU.
 .It Va kern.geom.eli.batch : No 0
 When set to 1, can speed-up crypto operations by using batching.
-Batching allows to reduce number of interrupts by responding on a group of
+Batching reduces the number of interrupts by responding to a group of
 crypto requests with one interrupt.
 The crypto card and the driver has to support this feature.
 .It Va kern.geom.eli.key_cache_limit : No 8192
 Specifies how many encryption keys to cache.
 The default limit
-.No ( 8192
-keys) will allow to cache all keys for 4TB provider with 512 bytes sectors and
-will take around 1MB of memory.
+(8192 keys) will allow caching of all keys for a 4TB provider with 512 byte
+sectors and will take around 1MB of memory.
 .It Va kern.geom.eli.key_cache_hits
 Reports how many times we were looking up a key and it was already in cache.
 This sysctl is not updated for providers that need less keys than the limit
@@ -685,7 +711,7 @@ specified in
 .Va kern.geom.eli.key_cache_limit .
 .It Va kern.geom.eli.key_cache_misses
 Reports how many times we were looking up a key and it was not in cache.
-This sysctl is not updated for providers that need less keys than the limit
+This sysctl is not updated for providers that need fewer keys than the limit
 specified in
 .Va kern.geom.eli.key_cache_limit .
 .El
@@ -695,7 +721,7 @@ Exit status is 0 on success, and 1 if the command fails.
 Initialize a provider which is going to be encrypted with a
 passphrase and random data from a file on the user's pen drive.
 Use 4kB sector size.
-Attach the provider, create a file system and mount it.
+Attach the provider, create a file system, and mount it.
 Do the work.
 Unmount the provider and detach it:
 .Bd -literal -offset indent
@@ -714,28 +740,28 @@ Enter passphrase:
 .Ed
 .Pp
 Create an encrypted provider, but use two keys:
-one for your employee and one for you as company's security officer
-(so there is no tragedy if the employee
+one for your employee and one for you as the company's security officer
+(so it's not a tragedy if the employee
 .Qq accidentally
 forgets his passphrase):
 .Bd -literal -offset indent
 # geli init /dev/da2
-Enter new passphrase:	(enter security officer passphrase)
+Enter new passphrase:	(enter security officer's passphrase)
 Reenter new passphrase:
 # geli setkey -n 1 /dev/da2
-Enter passphrase:	(enter security officer passphrase)
+Enter passphrase:	(enter security officer's passphrase)
 Enter new passphrase:	(let your employee enter his passphrase ...)
 Reenter new passphrase:	(... twice)
 .Ed
 .Pp
-You are the security-person in your company.
+You are the security officer in your company.
 Create an encrypted provider for use by the user, but remember that users
-forget their passphrases, so back Master Key up with your own random key:
+forget their passphrases, so backup the Master Key with your own random key:
 .Bd -literal -offset indent
 # dd if=/dev/random of=/mnt/pendrive/keys/`hostname` bs=64 count=1
 # geli init -P -K /mnt/pendrive/keys/`hostname` /dev/ad0s1e
 # geli backup /dev/ad0s1e /mnt/pendrive/backups/`hostname`
-(use key number 0, so the encrypted Master Key by you will be overwritten)
+(use key number 0, so the encrypted Master Key will be overwritten by this)
 # geli setkey -n 0 -k /mnt/pendrive/keys/`hostname` /dev/ad0s1e
 (allow the user to enter his passphrase)
 Enter new passphrase:
@@ -766,7 +792,7 @@ Reenter new passphrase:
 # geli init -b -P -K /boot/keys/da1s3a.key da1s3a
 .Ed
 .Pp
-The providers are initialized, now we have to add those lines to
+The providers are initialized, now we have to add these lines to
 .Pa /boot/loader.conf :
 .Bd -literal -offset indent
 geli_da0_keyfile0_load="YES"
@@ -798,10 +824,10 @@ Enter passphrase:
 .Ed
 .Pp
 .Cm geli
-backups metadata by default to the
+writes the metadata backup by default to the
 .Pa /var/backups/<prov>.eli
 file.
-If metadata is lost in any way (eg. by accidental overwrite), it can be restored.
+If the metadata is lost in any way (e.g., by accidental overwrite), it can be restored.
 Consider the following situation:
 .Bd -literal -offset indent
 # geli init /dev/da0
@@ -821,7 +847,7 @@ geli: Cannot read metadata from /dev/da0: Invalid argument.
 Enter passphrase:
 .Ed
 .Pp
-If an encrypted filesystem is extended, it is necessary to relocate and
+If an encrypted file system is extended, it is necessary to relocate and
 update the metadata:
 .Bd -literal -offset indent
 # gpart create -s GPT ada0
@@ -832,10 +858,10 @@ update the metadata:
 # geli attach -k keyfile -p ada0p1
 .Ed
 .Pp
-Initialize provider with passphrase split into two files.
-The provider can be attached by giving those two files or by giving
+Initialize provider with the passphrase split into two files.
+The provider can be attached using those two files or by entering
 .Dq foobar
-passphrase on
+as the passphrase at the
 .Nm
 prompt:
 .Bd -literal -offset indent
@@ -850,8 +876,8 @@ Enter passphrase: foobar
 .Pp
 Suspend all
 .Nm
-devices, suspend a laptop, then resume devices one by one after resuming a
-laptop:
+devices on a laptop, suspend the laptop, then resume devices one by one after
+resuming the laptop:
 .Bd -literal -offset indent
 # geli suspend -a
 # zzz
@@ -891,12 +917,12 @@ to another even without modification,
 .Nm
 should be able to detect such a change.
 If an attacker can remember the encrypted data, he can overwrite any future
-changes with the data he owns without notice.
+changes with the data he owns without it being noticed.
 In other words
 .Nm
 will not protect your data against replay attacks.
 .Pp
-It is recommended to write the whole provider before the first use,
+It is recommended to write to the whole provider before first use,
 in order to make sure that all sectors and their corresponding
 checksums are properly initialized into a consistent state.
 .Sh SEE ALSO
@@ -912,9 +938,35 @@ The
 .Nm
 utility appeared in
 .Fx 6.0 .
-Support for 
+Support for the
 .Nm Camellia
 block cipher is implemented by Yoshisato Yanagisawa in
 .Fx 7.0 .
+.Pp
+Highest
+.Nm GELI
+metadata version supported by the given FreeBSD version:
+.Bl -column -offset indent ".Sy FreeBSD" ".Sy version"
+.It Sy FreeBSD Ta Sy GELI
+.It Sy version Ta Sy version
+.Pp
+.It Li 6.0 Ta 0
+.It Li 6.1 Ta 0
+.It Li 6.2 Ta 3
+.It Li 6.3 Ta 3
+.It Li 6.4 Ta 3
+.Pp
+.It Li 7.0 Ta 3
+.It Li 7.1 Ta 3
+.It Li 7.2 Ta 3
+.It Li 7.3 Ta 3
+.It Li 7.4 Ta 3
+.Pp
+.It Li 8.0 Ta 3
+.It Li 8.1 Ta 3
+.It Li 8.2 Ta 5
+.Pp
+.It Li 9.0 Ta 6
+.El
 .Sh AUTHORS
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org

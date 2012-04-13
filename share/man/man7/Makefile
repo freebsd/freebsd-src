@@ -10,7 +10,6 @@ MAN=	adding_user.7 \
 	c99.7 \
 	development.7 \
 	environ.7 \
-	eventtimers.7 \
 	ffs.7 \
 	firewall.7 \
 	hier.7 \

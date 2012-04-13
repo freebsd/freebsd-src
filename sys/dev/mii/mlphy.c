@@ -84,7 +84,7 @@ static device_method_t mlphy_methods[] = {
 	DEVMETHOD(device_attach,	mlphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t mlphy_devclass;

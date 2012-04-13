@@ -104,7 +104,7 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, u_char *, int, u_char *, int,
 		    u_char *, int, struct vnode **, struct ucred *,
-		    struct thread *, int);
+		    struct thread *, int, int);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
@@ -459,10 +459,10 @@ nfs_mountroot(struct mount *mp)
 		sin.sin_len = sizeof(sin);
                 /* XXX MRT use table 0 for this sort of thing */
 		CURVNET_SET(TD_TO_VNET(td));
-		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
+		error = rtrequest_fib(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
-		    RTF_UP | RTF_GATEWAY, NULL);
+		    RTF_UP | RTF_GATEWAY, NULL, RT_DEFAULT_FIB);
 		CURVNET_RESTORE();
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
@@ -520,7 +520,8 @@ nfs_mountdiskless(char *path,
 		dirlen = 0;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
-	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
+	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NAMETIMEO, 
+	    NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -715,7 +716,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
     "principal", "nfsv4", "gssname", "allgssname", "dirpath",
-    "negnametimeo", "nocto",
+    "nametimeo", "negnametimeo", "nocto", "wcommitsize",
     NULL };
 
 /*
@@ -760,6 +761,7 @@ nfs_mount(struct mount *mp)
 	char hst[MNAMELEN];
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *opt, *name, *secname;
+	int nametimeo = NFS_DEFAULT_NAMETIMEO;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 	int dirlen, has_nfs_args_opt, krbnamelen, srvkrbnamelen;
 	size_t hstlen;
@@ -949,6 +951,15 @@ nfs_mount(struct mount *mp)
 		}
 		args.flags |= NFSMNT_ACDIRMAX;
 	}
+	if (vfs_getopt(mp->mnt_optnew, "wcommitsize", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.wcommitsize);
+		if (ret != 1 || args.wcommitsize < 0) {
+			vfs_mount_error(mp, "illegal wcommitsize: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_WCOMMITSIZE;
+	}
 	if (vfs_getopt(mp->mnt_optnew, "timeout", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.timeo);
 		if (ret != 1 || args.timeo <= 0) {
@@ -958,6 +969,14 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 		args.flags |= NFSMNT_TIMEO;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "nametimeo", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &nametimeo);
+		if (ret != 1 || nametimeo < 0) {
+			vfs_mount_error(mp, "illegal nametimeo: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
 	}
 	if (vfs_getopt(mp->mnt_optnew, "negnametimeo", (void **)&opt, NULL)
 	    == 0) {
@@ -980,6 +999,19 @@ nfs_mount(struct mount *mp)
 			error = EIO;
 			goto out;
 		}
+
+		/*
+		 * If a change from TCP->UDP is done and there are thread(s)
+		 * that have I/O RPC(s) in progress with a tranfer size
+		 * greater than NFS_MAXDGRAMDATA, those thread(s) will be
+		 * hung, retrying the RPC(s) forever. Usually these threads
+		 * will be seen doing an uninterruptible sleep on wait channel
+		 * "newnfsreq" (truncated to "newnfsre" by procstat).
+		 */
+		if (args.sotype == SOCK_DGRAM && nmp->nm_sotype == SOCK_STREAM)
+			tprintf(td->td_proc, LOG_WARNING,
+	"Warning: mount -u that changes TCP->UDP can result in hung threads\n");
+
 		/*
 		 * When doing an update, we can't change version,
 		 * security, switch lockd strategies or change cookie
@@ -1100,7 +1132,7 @@ nfs_mount(struct mount *mp)
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, krbname, krbnamelen, dirpath,
 	    dirlen, srvkrbname, srvkrbnamelen, &vp, td->td_ucred, td,
-	    negnametimeo);
+	    nametimeo, negnametimeo);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1122,7 +1154,7 @@ out:
  */
 /* ARGSUSED */
 static int
-nfs_cmount(struct mntarg *ma, void *data, int flags)
+nfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	int error;
 	struct nfs_args args;
@@ -1144,7 +1176,7 @@ static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
     char *hst, u_char *krbname, int krbnamelen, u_char *dirpath, int dirlen,
     u_char *srvkrbname, int srvkrbnamelen, struct vnode **vpp,
-    struct ucred *cred, struct thread *td, int negnametimeo)
+    struct ucred *cred, struct thread *td, int nametimeo, int negnametimeo)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -1211,8 +1243,22 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
-	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);			
+	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);
+
+	/*
+	 * Since nfs_decode_args() might optionally set them, these
+	 * need to be set to defaults before the call, so that the
+	 * optional settings aren't overwritten.
+	 */
+	nmp->nm_nametimeo = nametimeo;
 	nmp->nm_negnametimeo = negnametimeo;
+	nmp->nm_timeo = NFS_TIMEO;
+	nmp->nm_retry = NFS_RETRANS;
+	nmp->nm_readahead = NFS_DEFRAHEAD;
+	if (desiredvnodes >= 11000)
+		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
+	else
+		nmp->nm_wcommitsize = hibufspace / 10;
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
@@ -1223,24 +1269,18 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 *
 	 * For V3, ncl_fsinfo will adjust this as necessary.  Assume maximum
 	 * that we can handle until we find out otherwise.
-	 * XXX Our "safe" limit on the client is what we can store in our
-	 * buffer cache using signed(!) block numbers.
 	 */
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0)
 		nmp->nm_maxfilesize = 0xffffffffLL;
 	else
 		nmp->nm_maxfilesize = OFF_MAX;
 
-	nmp->nm_timeo = NFS_TIMEO;
-	nmp->nm_retry = NFS_RETRANS;
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0) {
 		nmp->nm_wsize = NFS_WSIZE;
 		nmp->nm_rsize = NFS_RSIZE;
 		nmp->nm_readdirsize = NFS_READDIRSIZE;
 	}
-	nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
 	nmp->nm_numgrps = NFS_MAXGRPS;
-	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_tprintf_delay = nfs_tprintf_delay;
 	if (nmp->nm_tprintf_delay < 0)
 		nmp->nm_tprintf_delay = 0;

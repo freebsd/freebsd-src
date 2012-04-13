@@ -97,7 +97,7 @@ uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
 
 	return (proc_ops(UIO_WRITE, p, kaddr, uaddr, len));
 }
-#endif
+#endif /* sun */
 #ifdef __i386__
 #define	r_rax	r_eax
 #define	r_rbx	r_ebx
@@ -1380,6 +1380,7 @@ fasttrap_pid_probe(struct reg *rp)
 	{
 		int ret = 0;
 		uintptr_t addr = 0;
+
 #ifdef __amd64
 		if (p->p_model == DATAMODEL_NATIVE) {
 			addr = rp->r_rsp - sizeof (uintptr_t);
@@ -1558,7 +1559,7 @@ fasttrap_pid_probe(struct reg *rp)
 		 *	------------------------	-----
 		 * a:	<original instruction>		<= 15
 		 *	jmp	<pc + tp->ftt_size>	    5
-		 * b:	<original instrction>		<= 15
+		 * b:	<original instruction>		<= 15
 		 *	int	T_DTRACE_RET		    2
 		 *					-----
 		 *					<= 37
@@ -1731,12 +1732,16 @@ fasttrap_pid_probe(struct reg *rp)
 
 		ASSERT(i <= sizeof (scratch));
 
+
+#if defined(sun)
 		if (fasttrap_copyout(scratch, (char *)addr, i)) {
+#else
+		if (uwrite(curproc, scratch, i, addr)) {
+#endif
 			fasttrap_sigtrap(p, curthread, pc);
 			new_pc = pc;
 			break;
 		}
-
 		if (tp->ftt_retids != NULL) {
 			curthread->t_dtrace_step = 1;
 			curthread->t_dtrace_ret = 1;

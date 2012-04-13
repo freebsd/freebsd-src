@@ -228,7 +228,7 @@ amd64_linux32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
-const int bsd_to_linux_errno[] = {
+static const int bsd_to_linux_errno[] = {
   	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
  	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
  	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,

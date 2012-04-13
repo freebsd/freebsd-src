@@ -35,12 +35,15 @@
 #include <sys/condvar.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 
 #include "opt_kbd.h"
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/kbdtables.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -55,6 +58,7 @@ static int adb_kbd_probe(device_t dev);
 static int adb_kbd_attach(device_t dev);
 static int adb_kbd_detach(device_t dev);
 static void akbd_repeat(void *xsc);
+static int adb_fn_keys(SYSCTL_HANDLER_ARGS);
 
 static u_int adb_kbd_receive_packet(device_t dev, u_char status, 
 	u_char command, u_char reg, int len, u_char *data);
@@ -282,6 +286,8 @@ adb_kbd_attach(device_t dev)
 {
 	struct adb_kbd_softc *sc;
 	keyboard_switch_t *sw;
+	uint32_t fkeys;
+	phandle_t handle;
 
 	sw = kbd_get_switch(KBD_DRIVER_NAME);
 	if (sw == NULL) {
@@ -333,6 +339,40 @@ adb_kbd_attach(device_t dev)
 
 	adb_set_autopoll(dev,1);
 
+	handle = OF_finddevice("mac-io/via-pmu/adb/keyboard");
+	if (handle != -1 && OF_getprop(handle, "AAPL,has-embedded-fn-keys",
+	    &fkeys, sizeof(fkeys)) != -1) {
+		static const char *key_names[] = {"F1", "F2", "F3", "F4", "F5",
+		    "F6", "F7", "F8", "F9", "F10", "F11", "F12"};
+		struct sysctl_ctx_list *ctx;
+		struct sysctl_oid *tree;
+		int i;
+
+		if (bootverbose)
+			device_printf(dev, "Keyboard has embedded Fn keys\n");
+
+		for (i = 0; i < 12; i++) {
+			uint32_t keyval;
+			char buf[3];
+			if (OF_getprop(handle, key_names[i], &keyval,
+			    sizeof(keyval)) < 0)
+				continue;
+			buf[0] = 1;
+			buf[1] = i+1;
+			buf[2] = keyval;
+			adb_write_register(dev, 0, 3, buf);
+		}
+		adb_write_register(dev, 1, 2, &(uint16_t){0});
+
+		ctx = device_get_sysctl_ctx(dev);
+		tree = device_get_sysctl_tree(dev);
+
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "fn_keys_function_as_primary", CTLTYPE_INT | CTLFLAG_RW, sc,
+		    0, adb_fn_keys, "I",
+		    "Set the Fn keys to be their F-key type as default");
+	}
+
 	return (0);
 }
 
@@ -383,6 +423,13 @@ adb_kbd_receive_packet(device_t dev, u_char status,
 		return (0);
 
 	mtx_lock(&sc->sc_mutex);
+		/* 0x7f is always the power button */
+		if (data[0] == 0x7f && devctl_process_running()) {
+			devctl_notify("PMU", "Button", "pressed", NULL);
+			return (0);
+		} else if (data[0] == 0xff) {
+			return (0);	/* Ignore power button release. */
+		}
 		if ((data[0] & 0x7f) == 57 && sc->buffers < 7) {
 			/* Fake the down/up cycle for caps lock */
 			sc->buffer[sc->buffers++] = data[0] & 0x7f;
@@ -390,7 +437,6 @@ adb_kbd_receive_packet(device_t dev, u_char status,
 		} else {
 			sc->buffer[sc->buffers++] = data[0];
 		}
-
 		if (sc->buffer[sc->buffers-1] < 0xff)
 			sc->last_press = sc->buffer[sc->buffers-1];
 
@@ -811,6 +857,30 @@ akbd_modevent(module_t mod, int type, void *data)
 		return (EOPNOTSUPP);
 	}
 
+	return (0);
+}
+
+static int
+adb_fn_keys(SYSCTL_HANDLER_ARGS)
+{
+	struct adb_kbd_softc *sc = arg1;
+	int error;
+	uint16_t is_fn_enabled;
+	unsigned int is_fn_enabled_sysctl;
+
+	adb_read_register(sc->sc_dev, 1, &is_fn_enabled);
+	is_fn_enabled &= 1;
+	is_fn_enabled_sysctl = is_fn_enabled;
+	error = sysctl_handle_int(oidp, &is_fn_enabled_sysctl, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+
+	is_fn_enabled = is_fn_enabled_sysctl;
+	if (is_fn_enabled != 1 && is_fn_enabled != 0)
+		return (EINVAL);
+
+	adb_write_register(sc->sc_dev, 1, 2, &is_fn_enabled);
 	return (0);
 }
 

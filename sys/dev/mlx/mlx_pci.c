@@ -61,9 +61,7 @@ static device_method_t mlx_methods[] = {
     DEVMETHOD(device_suspend,	mlx_suspend),
     DEVMETHOD(device_resume,	mlx_resume),
 
-    DEVMETHOD(bus_print_child,	bus_generic_print_child),
-    DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t mlx_pci_driver = {
@@ -191,7 +189,7 @@ mlx_pci_attach(device_t dev)
     /*
      * Allocate the parent bus DMA tag appropriate for PCI.
      */
-    error = bus_dma_tag_create(NULL, 			/* parent */
+    error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* PCI parent */
 			       1, 0, 			/* alignment, boundary */
 			       BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */

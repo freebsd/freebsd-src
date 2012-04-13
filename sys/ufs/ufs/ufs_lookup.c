@@ -1337,7 +1337,8 @@ ufs_dirempty(ip, parentino, cred)
 	doff_t off;
 	struct dirtemplate dbuf;
 	struct direct *dp = (struct direct *)&dbuf;
-	int error, count, namlen;
+	int error, namlen;
+	ssize_t count;
 #define	MINDIRSIZ (sizeof (struct dirtemplate) / 2)
 
 	for (off = 0; off < ip->i_size; off += dp->d_reclen) {

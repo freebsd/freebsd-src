@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2011
+.Dd March 14, 2012
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -146,14 +146,7 @@ executes a shell for that user.
 When this shell
 dies, either because the user logged out
 or an abnormal termination occurred (a signal),
-.Nm login
-records the logout in the the user accounting
-database (see
-.Xr getutxent 3)
-and terminates.
-The cycle is
-then restarted by
-.Nm
+the cycle is restarted by
 executing a new
 .Nm getty
 for the line.
@@ -290,7 +283,7 @@ will signal the original
 .Nm
 as follows:
 .Bl -column Run-level SIGTERM
-.It Sy "Run-level	Signal	Action
+.It Sy "Run-level	Signal	Action"
 .It Cm 0 Ta Dv SIGUSR2 Ta "Halt and turn the power off"
 .It Cm 1 Ta Dv SIGTERM Ta "Go to single-user mode"
 .It Cm 6 Ta Dv SIGINT Ta "Reboot the machine"
@@ -300,22 +293,22 @@ as follows:
 file
 .El
 .Sh FILES
-.Bl -tag -width /etc/rc.shutdown -compact
+.Bl -tag -width /var/log/init.log -compact
 .It Pa /dev/console
 system console device
 .It Pa /dev/tty*
 terminal ports found in
 .Xr ttys 5
-.It Pa /var/run/utx.active
-record of current users on the system
-.It Pa /var/log/utx.log
-record of all logins and logouts
 .It Pa /etc/ttys
 the terminal initialization information file
 .It Pa /etc/rc
 system startup commands
 .It Pa /etc/rc.shutdown
 system shutdown commands
+.It Pa /var/log/init.log
+log of
+.Xr rc 8
+output if the system console device is not available
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

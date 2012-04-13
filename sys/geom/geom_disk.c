@@ -88,7 +88,8 @@ static struct g_class g_disk_class = {
 };
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW, 0, "GEOM_DISK stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW, 0,
+    "GEOM_DISK stuff");
 
 static void
 g_disk_init(struct g_class *mp __unused)
@@ -109,6 +110,7 @@ DECLARE_GEOM_CLASS(g_disk_class, g_disk);
 static void __inline
 g_disk_lock_giant(struct disk *dp)
 {
+
 	if (dp->d_flags & DISKFLAG_NEEDSGIANT)
 		mtx_lock(&Giant);
 }
@@ -116,6 +118,7 @@ g_disk_lock_giant(struct disk *dp)
 static void __inline
 g_disk_unlock_giant(struct disk *dp)
 {
+
 	if (dp->d_flags & DISKFLAG_NEEDSGIANT)
 		mtx_unlock(&Giant);
 }
@@ -251,9 +254,9 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
-	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) &&
-	    (sc = bp2->bio_to->geom->softc) &&
-	    (dp = sc->dp)) {
+	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) != 0 &&
+	    (sc = bp2->bio_to->geom->softc) != NULL &&
+	    (dp = sc->dp) != NULL) {
 		devstat_end_transaction_bio(dp->d_devstat, bp);
 	}
 	g_destroy_bio(bp);
@@ -282,7 +285,7 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 	g_disk_lock_giant(dp);
 	error = dp->d_ioctl(dp, cmd, data, fflag, td);
 	g_disk_unlock_giant(dp);
-	return(error);
+	return (error);
 }
 
 static void
@@ -303,7 +306,7 @@ g_disk_start(struct bio *bp)
 	switch(bp->bio_cmd) {
 	case BIO_DELETE:
 		if (!(dp->d_flags & DISKFLAG_CANDELETE)) {
-			error = 0;
+			error = EOPNOTSUPP;
 			break;
 		}
 		/* fall-through */
@@ -392,8 +395,8 @@ g_disk_start(struct bio *bp)
 		g_trace(G_T_TOPOLOGY, "g_disk_flushcache(%s)",
 		    bp->bio_to->name);
 		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
-			g_io_deliver(bp, ENODEV);
-			return;
+			error = EOPNOTSUPP;
+			break;
 		}
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
@@ -537,17 +540,16 @@ g_disk_ident_adjust(char *ident, size_t size)
 }
 
 struct disk *
-disk_alloc()
+disk_alloc(void)
 {
-	struct disk *dp;
 
-	dp = g_malloc(sizeof *dp, M_WAITOK | M_ZERO);
-	return (dp);
+	return (g_malloc(sizeof(struct disk), M_WAITOK | M_ZERO));
 }
 
 void
 disk_create(struct disk *dp, int version)
 {
+
 	if (version != DISK_VERSION_00 && version != DISK_VERSION_01) {
 		printf("WARNING: Attempt to add disk %s%d %s",
 		    dp->d_name, dp->d_unit,
@@ -637,4 +639,3 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, disks,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_disks, "A", "names of available disks");
-

@@ -37,6 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vfs_allow_nonmpsafe.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -70,8 +72,8 @@ __FBSDID("$FreeBSD$");
 
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
-static int	vfs_domount(struct thread *td, const char *fstype,
-		    char *fspath, int fsflags, struct vfsoptlist **optlist);
+static int	vfs_domount(struct thread *td, const char *fstype, char *fspath,
+		    uint64_t fsflags, struct vfsoptlist **optlist);
 static void	free_mntarg(struct mntarg *ma);
 
 static int	usermount = 0;
@@ -79,7 +81,7 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
-MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */
@@ -376,10 +378,18 @@ sys_nmount(td, uap)
 	struct uio *auio;
 	int error;
 	u_int iovcnt;
+	uint64_t flags;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
+	/*
+	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * 32-bits are passed in, but from here on everything handles
+	 * 64-bit flags correctly.
+	 */
+	flags = uap->flags;
+
+	AUDIT_ARG_FFLAGS(flags);
 	CTR4(KTR_VFS, "%s: iovp %p with iovcnt %d and flags %d", __func__,
-	    uap->iovp, uap->iovcnt, uap->flags);
+	    uap->iovp, uap->iovcnt, flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
@@ -388,7 +398,7 @@ sys_nmount(td, uap)
 	 * MNT_ROOTFS should only be set by the kernel when mounting its
 	 * root file system.
 	 */
-	uap->flags &= ~MNT_ROOTFS;
+	flags &= ~MNT_ROOTFS;
 
 	iovcnt = uap->iovcnt;
 	/*
@@ -407,7 +417,7 @@ sys_nmount(td, uap)
 		    __func__, error);
 		return (error);
 	}
-	error = vfs_donmount(td, uap->flags, auio);
+	error = vfs_donmount(td, flags, auio);
 
 	free(auio, M_IOV);
 	return (error);
@@ -518,7 +528,7 @@ vfs_mount_destroy(struct mount *mp)
 }
 
 int
-vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
+vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
 	struct vfsopt *opt, *tmp_opt;
@@ -694,9 +704,17 @@ sys_mount(td, uap)
 	char *fstype;
 	struct vfsconf *vfsp = NULL;
 	struct mntarg *ma = NULL;
+	uint64_t flags;
 	int error;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
+	/*
+	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * 32-bits are passed in, but from here on everything handles
+	 * 64-bit flags correctly.
+	 */
+	flags = uap->flags;
+
+	AUDIT_ARG_FFLAGS(flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of mount() in
@@ -705,7 +723,7 @@ sys_mount(td, uap)
 	 * MNT_ROOTFS should only be set by the kernel when mounting its
 	 * root file system.
 	 */
-	uap->flags &= ~MNT_ROOTFS;
+	flags &= ~MNT_ROOTFS;
 
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
 	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
@@ -729,11 +747,11 @@ sys_mount(td, uap)
 
 	ma = mount_argsu(ma, "fstype", uap->type, MNAMELEN);
 	ma = mount_argsu(ma, "fspath", uap->path, MNAMELEN);
-	ma = mount_argb(ma, uap->flags & MNT_RDONLY, "noro");
-	ma = mount_argb(ma, !(uap->flags & MNT_NOSUID), "nosuid");
-	ma = mount_argb(ma, !(uap->flags & MNT_NOEXEC), "noexec");
+	ma = mount_argb(ma, flags & MNT_RDONLY, "noro");
+	ma = mount_argb(ma, !(flags & MNT_NOSUID), "nosuid");
+	ma = mount_argb(ma, !(flags & MNT_NOEXEC), "noexec");
 
-	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags);
+	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, flags);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -747,7 +765,7 @@ vfs_domount_first(
 	struct vfsconf *vfsp,		/* File system type. */
 	char *fspath,			/* Mount path. */
 	struct vnode *vp,		/* Vnode to be covered. */
-	int fsflags,			/* Flags common to all filesystems. */
+	uint64_t fsflags,		/* Flags common to all filesystems. */
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
@@ -798,6 +816,14 @@ vfs_domount_first(
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = VFS_MOUNT(mp);
+#ifndef VFS_ALLOW_NONMPSAFE
+	if (error == 0 && VFS_NEEDSGIANT(mp)) {
+		(void)VFS_UNMOUNT(mp, fsflags);
+		error = ENXIO;
+		printf("%s: Mounting non-MPSAFE fs (%s) is disabled\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+	}
+#endif
 	if (error != 0) {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
@@ -807,6 +833,11 @@ vfs_domount_first(
 		vrele(vp);
 		return (error);
 	}
+#ifdef VFS_ALLOW_NONMPSAFE
+	if (VFS_NEEDSGIANT(mp))
+		printf("%s: Mounting non-MPSAFE fs (%s) is deprecated\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+#endif
 
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
@@ -820,7 +851,8 @@ vfs_domount_first(
 	mp->mnt_optnew = NULL;
 
 	MNT_ILOCK(mp);
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+	    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
@@ -856,14 +888,15 @@ static int
 vfs_domount_update(
 	struct thread *td,		/* Calling thread. */
 	struct vnode *vp,		/* Mount point vnode. */
-	int fsflags,			/* Flags common to all filesystems. */
+	uint64_t fsflags,		/* Flags common to all filesystems. */
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
 	struct oexport_args oexport;
 	struct export_args export;
 	struct mount *mp;
-	int error, export_error, flag;
+	int error, export_error;
+	uint64_t flag;
 
 	mtx_assert(&Giant, MA_OWNED);
 	ASSERT_VOP_ELOCKED(vp, __func__);
@@ -959,7 +992,8 @@ vfs_domount_update(
 		 */
 		mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	}
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+	    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
@@ -1000,13 +1034,14 @@ vfs_domount(
 	struct thread *td,		/* Calling thread. */
 	const char *fstype,		/* Filesystem type. */
 	char *fspath,			/* Mount path. */
-	int fsflags,			/* Flags common to all filesystems. */
+	uint64_t fsflags,		/* Flags common to all filesystems. */
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
 	struct vfsconf *vfsp;
 	struct nameidata nd;
 	struct vnode *vp;
+	char *pathbuf;
 	int error;
 
 	/*
@@ -1070,11 +1105,17 @@ vfs_domount(
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
-		error = vfs_domount_first(td, vfsp, fspath, vp, fsflags,
-		    optlist);
-	} else {
+		pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+		strcpy(pathbuf, fspath);
+		error = vn_path_to_global_path(td, vp, pathbuf, MNAMELEN);
+		/* debug.disablefullpath == 1 results in ENODEV */
+		if (error == 0 || error == ENODEV) {
+			error = vfs_domount_first(td, vfsp, pathbuf, vp,
+			    fsflags, optlist);
+		}
+		free(pathbuf, M_TEMP);
+	} else
 		error = vfs_domount_update(td, vp, fsflags, optlist);
-	}
 	mtx_unlock(&Giant);
 
 	ASSERT_VI_UNLOCKED(vp, __func__);
@@ -1104,9 +1145,10 @@ sys_unmount(td, uap)
 		int flags;
 	} */ *uap;
 {
+	struct nameidata nd;
 	struct mount *mp;
 	char *pathbuf;
-	int error, id0, id1;
+	int error, id0, id1, vfslocked;
 
 	AUDIT_ARG_VALUE(uap->flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
@@ -1140,6 +1182,21 @@ sys_unmount(td, uap)
 		mtx_unlock(&mountlist_mtx);
 	} else {
 		AUDIT_ARG_UPATH1(td, pathbuf);
+		/*
+		 * Try to find global path for path argument.
+		 */
+		NDINIT(&nd, LOOKUP,
+		    FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+		    UIO_SYSSPACE, pathbuf, td);
+		if (namei(&nd) == 0) {
+			vfslocked = NDHASGIANT(&nd);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			error = vn_path_to_global_path(td, nd.ni_vp, pathbuf,
+			    MNAMELEN);
+			if (error == 0 || error == ENODEV)
+				vput(nd.ni_vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+		}
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
@@ -1182,7 +1239,7 @@ dounmount(mp, flags, td)
 {
 	struct vnode *coveredvp, *fsrootvp;
 	int error;
-	int async_flag;
+	uint64_t async_flag;
 	int mnt_gen_r;
 
 	mtx_assert(&Giant, MA_OWNED);
@@ -1227,18 +1284,6 @@ dounmount(mp, flags, td)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = 0;
 	if (mp->mnt_lockref) {
-		if ((flags & MNT_FORCE) == 0) {
-			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
-			    MNTK_UNMOUNTF);
-			if (mp->mnt_kern_flag & MNTK_MWAIT) {
-				mp->mnt_kern_flag &= ~MNTK_MWAIT;
-				wakeup(mp);
-			}
-			MNT_IUNLOCK(mp);
-			if (coveredvp)
-				VOP_UNLOCK(coveredvp, 0);
-			return (EBUSY);
-		}
 		mp->mnt_kern_flag |= MNTK_DRAINING;
 		error = msleep(&mp->mnt_lockref, MNT_MTX(mp), PVFS,
 		    "mount drain", 0);
@@ -1308,7 +1353,8 @@ dounmount(mp, flags, td)
 		}
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		mp->mnt_flag |= async_flag;
-		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+		if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+		    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 			mp->mnt_kern_flag |= MNTK_ASYNC;
 		if (mp->mnt_kern_flag & MNTK_MWAIT) {
 			mp->mnt_kern_flag &= ~MNTK_MWAIT;
@@ -1472,6 +1518,48 @@ vfs_getopt_pos(struct vfsoptlist *opts, const char *name)
 		}
 	}
 	return (-1);
+}
+
+int
+vfs_getopt_size(struct vfsoptlist *opts, const char *name, off_t *value)
+{
+	char *opt_value, *vtp;
+	quad_t iv;
+	int error, opt_len;
+
+	error = vfs_getopt(opts, name, (void **)&opt_value, &opt_len);
+	if (error != 0)
+		return (error);
+	if (opt_len == 0 || opt_value == NULL)
+		return (EINVAL);
+	if (opt_value[0] == '\0' || opt_value[opt_len - 1] != '\0')
+		return (EINVAL);
+	iv = strtoq(opt_value, &vtp, 0);
+	if (vtp == opt_value || (vtp[0] != '\0' && vtp[1] != '\0'))
+		return (EINVAL);
+	if (iv < 0)
+		return (EINVAL);
+	switch (vtp[0]) {
+	case 't':
+	case 'T':
+		iv *= 1024;
+	case 'g':
+	case 'G':
+		iv *= 1024;
+	case 'm':
+	case 'M':
+		iv *= 1024;
+	case 'k':
+	case 'K':
+		iv *= 1024;
+	case '\0':
+		break;
+	default:
+		return (EINVAL);
+	}
+	*value = iv;
+
+	return (0);
 }
 
 char *
@@ -1903,7 +1991,7 @@ free_mntarg(struct mntarg *ma)
  * Mount a filesystem
  */
 int
-kernel_mount(struct mntarg *ma, int flags)
+kernel_mount(struct mntarg *ma, uint64_t flags)
 {
 	struct uio auio;
 	int error;

@@ -325,7 +325,7 @@ teken_subr_cursor_position(teken_t *t, unsigned int row, unsigned int col)
 {
 
 	t->t_cursor.tp_row = t->t_originreg.ts_begin + row - 1;
-	if (row >= t->t_originreg.ts_end)
+	if (t->t_cursor.tp_row >= t->t_originreg.ts_end)
 		t->t_cursor.tp_row = t->t_originreg.ts_end - 1;
 
 	t->t_cursor.tp_col = col - 1;

@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #define	TICK_QUALITY_MP	10
 #define	TICK_QUALITY_UP	1000
 
-SYSCTL_NODE(_machdep, OID_AUTO, tick, CTLFLAG_RD, 0, "tick statistics");
+static SYSCTL_NODE(_machdep, OID_AUTO, tick, CTLFLAG_RD, 0, "tick statistics");
 
 static int adjust_edges = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_edges, CTLFLAG_RD, &adjust_edges,

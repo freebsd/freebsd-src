@@ -90,7 +90,7 @@ static device_method_t rtc_ebus_methods[] = {
 	DEVMETHOD(clock_gettime,	mc146818_gettime),
 	DEVMETHOD(clock_settime,	mc146818_settime),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t rtc_ebus_driver = {
@@ -111,7 +111,7 @@ static device_method_t rtc_isa_methods[] = {
 	DEVMETHOD(clock_gettime,	mc146818_gettime),
 	DEVMETHOD(clock_settime,	mc146818_settime),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t rtc_isa_driver = {

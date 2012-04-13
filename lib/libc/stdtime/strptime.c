@@ -22,6 +22,11 @@
 /*
  * Copyright (c) 1994 Powerdog Industries.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -72,19 +77,20 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "timelocal.h"
 
-static char * _strptime(const char *, const char *, struct tm *, int *);
+static char * _strptime(const char *, const char *, struct tm *, int *, locale_t);
 
 #define asizeof(a)	(sizeof (a) / sizeof ((a)[0]))
 
 static char *
-_strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp)
+_strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
+		locale_t locale)
 {
 	char	c;
 	const char *ptr;
 	int	i,
 		len;
 	int Ealternative, Oalternative;
-	struct lc_time_T *tptr = __get_current_time_locale();
+	struct lc_time_T *tptr = __get_current_time_locale(locale);
 
 	ptr = fmt;
 	while (*ptr != 0) {
@@ -94,8 +100,9 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp)
 		c = *ptr++;
 
 		if (c != '%') {
-			if (isspace((unsigned char)c))
-				while (*buf != 0 && isspace((unsigned char)*buf))
+			if (isspace_l((unsigned char)c, locale))
+				while (*buf != 0 && 
+				       isspace_l((unsigned char)*buf, locale))
 					buf++;
 			else if (c != *buf++)
 				return 0;
@@ -114,18 +121,19 @@ label:
 			break;
 
 		case '+':
-			buf = _strptime(buf, tptr->date_fmt, tm, GMTp);
+			buf = _strptime(buf, tptr->date_fmt, tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'C':
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			/* XXX This will break for 3-digit centuries. */
 			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -137,13 +145,13 @@ label:
 			break;
 
 		case 'c':
-			buf = _strptime(buf, tptr->c_fmt, tm, GMTp);
+			buf = _strptime(buf, tptr->c_fmt, tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'D':
-			buf = _strptime(buf, "%m/%d/%y", tm, GMTp);
+			buf = _strptime(buf, "%m/%d/%y", tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
@@ -161,47 +169,48 @@ label:
 			goto label;
 
 		case 'F':
-			buf = _strptime(buf, "%Y-%m-%d", tm, GMTp);
+			buf = _strptime(buf, "%Y-%m-%d", tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'R':
-			buf = _strptime(buf, "%H:%M", tm, GMTp);
+			buf = _strptime(buf, "%H:%M", tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'r':
-			buf = _strptime(buf, tptr->ampm_fmt, tm, GMTp);
+			buf = _strptime(buf, tptr->ampm_fmt, tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'T':
-			buf = _strptime(buf, "%H:%M:%S", tm, GMTp);
+			buf = _strptime(buf, "%H:%M:%S", tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'X':
-			buf = _strptime(buf, tptr->X_fmt, tm, GMTp);
+			buf = _strptime(buf, tptr->X_fmt, tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'x':
-			buf = _strptime(buf, tptr->x_fmt, tm, GMTp);
+			buf = _strptime(buf, tptr->x_fmt, tm, GMTp, locale);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'j':
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			len = 3;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+			     isdigit_l((unsigned char)*buf, locale); buf++){
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -214,14 +223,16 @@ label:
 
 		case 'M':
 		case 'S':
-			if (*buf == 0 || isspace((unsigned char)*buf))
+			if (*buf == 0 ||
+				isspace_l((unsigned char)*buf, locale))
 				break;
 
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+				isdigit_l((unsigned char)*buf, locale); buf++){
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -237,8 +248,10 @@ label:
 				tm->tm_sec = i;
 			}
 
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+			if (*buf != 0 &&
+				isspace_l((unsigned char)*buf, locale))
+				while (*ptr != 0 &&
+				       !isspace_l((unsigned char)*ptr, locale))
 					ptr++;
 			break;
 
@@ -254,11 +267,12 @@ label:
 			 * XXX The %l specifier may gobble one too many
 			 * digits if used incorrectly.
 			 */
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -271,8 +285,10 @@ label:
 
 			tm->tm_hour = i;
 
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+			if (*buf != 0 &&
+			    isspace_l((unsigned char)*buf, locale))
+				while (*ptr != 0 &&
+				       !isspace_l((unsigned char)*ptr, locale))
 					ptr++;
 			break;
 
@@ -282,7 +298,7 @@ label:
 			 * specifiers.
 			 */
 			len = strlen(tptr->am);
-			if (strncasecmp(buf, tptr->am, len) == 0) {
+			if (strncasecmp_l(buf, tptr->am, len, locale) == 0) {
 				if (tm->tm_hour > 12)
 					return 0;
 				if (tm->tm_hour == 12)
@@ -292,7 +308,7 @@ label:
 			}
 
 			len = strlen(tptr->pm);
-			if (strncasecmp(buf, tptr->pm, len) == 0) {
+			if (strncasecmp_l(buf, tptr->pm, len, locale) == 0) {
 				if (tm->tm_hour > 12)
 					return 0;
 				if (tm->tm_hour != 12)
@@ -307,12 +323,12 @@ label:
 		case 'a':
 			for (i = 0; i < asizeof(tptr->weekday); i++) {
 				len = strlen(tptr->weekday[i]);
-				if (strncasecmp(buf, tptr->weekday[i],
-						len) == 0)
+				if (strncasecmp_l(buf, tptr->weekday[i],
+						len, locale) == 0)
 					break;
 				len = strlen(tptr->wday[i]);
-				if (strncasecmp(buf, tptr->wday[i],
-						len) == 0)
+				if (strncasecmp_l(buf, tptr->wday[i],
+						len, locale) == 0)
 					break;
 			}
 			if (i == asizeof(tptr->weekday))
@@ -330,11 +346,12 @@ label:
 			 * point to calculate a real value, so just check the
 			 * range for now.
 			 */
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -342,13 +359,15 @@ label:
 			if (i > 53)
 				return 0;
 
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+			if (*buf != 0 &&
+			    isspace_l((unsigned char)*buf, locale))
+				while (*ptr != 0 &&
+				       !isspace_l((unsigned char)*ptr, locale))
 					ptr++;
 			break;
 
 		case 'w':
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			i = *buf - '0';
@@ -357,8 +376,10 @@ label:
 
 			tm->tm_wday = i;
 
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+			if (*buf != 0 &&
+			    isspace_l((unsigned char)*buf, locale))
+				while (*ptr != 0 &&
+				       !isspace_l((unsigned char)*ptr, locale))
 					ptr++;
 			break;
 
@@ -372,11 +393,12 @@ label:
 			 * XXX The %e specifier may gobble one too many
 			 * digits if used incorrectly.
 			 */
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -386,8 +408,10 @@ label:
 
 			tm->tm_mday = i;
 
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+			if (*buf != 0 &&
+			    isspace_l((unsigned char)*buf, locale))
+				while (*ptr != 0 &&
+				       !isspace_l((unsigned char)*ptr, locale))
 					ptr++;
 			break;
 
@@ -398,15 +422,15 @@ label:
 				if (Oalternative) {
 					if (c == 'B') {
 						len = strlen(tptr->alt_month[i]);
-						if (strncasecmp(buf,
+						if (strncasecmp_l(buf,
 								tptr->alt_month[i],
-								len) == 0)
+								len, locale) == 0)
 							break;
 					}
 				} else {
 					len = strlen(tptr->month[i]);
-					if (strncasecmp(buf, tptr->month[i],
-							len) == 0)
+					if (strncasecmp_l(buf, tptr->month[i],
+							len, locale) == 0)
 						break;
 				}
 			}
@@ -417,8 +441,8 @@ label:
 			if (i == asizeof(tptr->month) && !Oalternative) {
 				for (i = 0; i < asizeof(tptr->month); i++) {
 					len = strlen(tptr->mon[i]);
-					if (strncasecmp(buf, tptr->mon[i],
-							len) == 0)
+					if (strncasecmp_l(buf, tptr->mon[i],
+							len, locale) == 0)
 						break;
 				}
 			}
@@ -430,11 +454,12 @@ label:
 			break;
 
 		case 'm':
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -444,8 +469,10 @@ label:
 
 			tm->tm_mon = i - 1;
 
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+			if (*buf != 0 &&
+			    isspace_l((unsigned char)*buf, locale))
+				while (*ptr != 0 &&
+				       !isspace_l((unsigned char)*ptr, locale))
 					ptr++;
 			break;
 
@@ -458,7 +485,7 @@ label:
 
 			sverrno = errno;
 			errno = 0;
-			n = strtol(buf, &cp, 10);
+			n = strtol_l(buf, &cp, 10, locale);
 			if (errno == ERANGE || (long)(t = n) != n) {
 				errno = sverrno;
 				return 0;
@@ -472,14 +499,16 @@ label:
 
 		case 'Y':
 		case 'y':
-			if (*buf == 0 || isspace((unsigned char)*buf))
+			if (*buf == 0 ||
+			    isspace_l((unsigned char)*buf, locale))
 				break;
 
-			if (!isdigit((unsigned char)*buf))
+			if (!isdigit_l((unsigned char)*buf, locale))
 				return 0;
 
 			len = (c == 'Y') ? 4 : 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; len && *buf != 0 &&
+			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
 				i += *buf - '0';
 				len--;
@@ -493,8 +522,10 @@ label:
 
 			tm->tm_year = i;
 
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+			if (*buf != 0 &&
+			    isspace_l((unsigned char)*buf, locale))
+				while (*ptr != 0 &&
+				       !isspace_l((unsigned char)*ptr, locale))
 					ptr++;
 			break;
 
@@ -503,7 +534,9 @@ label:
 			const char *cp;
 			char *zonestr;
 
-			for (cp = buf; *cp && isupper((unsigned char)*cp); ++cp) {/*empty*/}
+			for (cp = buf; *cp &&
+			     isupper_l((unsigned char)*cp, locale); ++cp) {
+				/*empty*/}
 			if (cp - buf) {
 				zonestr = alloca(cp - buf + 1);
 				strncpy(zonestr, buf, cp - buf);
@@ -537,7 +570,7 @@ label:
 			buf++;
 			i = 0;
 			for (len = 4; len > 0; len--) {
-				if (isdigit((unsigned char)*buf)) {
+				if (isdigit_l((unsigned char)*buf, locale)) {
 					i *= 10;
 					i += *buf - '0';
 					buf++;
@@ -557,18 +590,25 @@ label:
 
 
 char *
-strptime(const char * __restrict buf, const char * __restrict fmt,
-    struct tm * __restrict tm)
+strptime_l(const char * __restrict buf, const char * __restrict fmt,
+    struct tm * __restrict tm, locale_t loc)
 {
 	char *ret;
 	int gmt;
+	FIX_LOCALE(loc);
 
 	gmt = 0;
-	ret = _strptime(buf, fmt, tm, &gmt);
+	ret = _strptime(buf, fmt, tm, &gmt, loc);
 	if (ret && gmt) {
 		time_t t = timegm(tm);
 		localtime_r(&t, tm);
 	}
 
 	return (ret);
+}
+char *
+strptime(const char * __restrict buf, const char * __restrict fmt,
+    struct tm * __restrict tm)
+{
+	return strptime_l(buf, fmt, tm, __get_locale());
 }

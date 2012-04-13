@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -110,7 +110,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	    (int)(sizeof(*sh) + sizeof(*ch)));
 	if (sh == NULL) {
 		SCTP_STAT_INCR(sctps_hdrops);
-		return IPPROTO_DONE;
+		return (IPPROTO_DONE);
 	}
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(struct sctphdr));
 	iphlen = off;
@@ -162,11 +162,11 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	if (calc_check != check) {
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p phlen:%d\n",
 		    calc_check, check, m, iphlen);
-		stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
+		stcb = sctp_findassociation_addr(m, offset - sizeof(*ch),
 		    sh, ch, &in6p, &net, vrf_id);
 		if ((net) && (port)) {
 			if (net->port == 0) {
-				sctp_pathmtu_adjustment(in6p, stcb, net, net->mtu - sizeof(struct udphdr));
+				sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 			}
 			net->port = port;
 		}
@@ -196,11 +196,11 @@ sctp_skip_csum:
 	 * Locate pcb and tcb for datagram sctp_findassociation_addr() wants
 	 * IP/SCTP/first chunk header...
 	 */
-	stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
+	stcb = sctp_findassociation_addr(m, offset - sizeof(*ch),
 	    sh, ch, &in6p, &net, vrf_id);
 	if ((net) && (port)) {
 		if (net->port == 0) {
-			sctp_pathmtu_adjustment(in6p, stcb, net, net->mtu - sizeof(struct udphdr));
+			sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 		}
 		net->port = port;
 	}
@@ -230,14 +230,19 @@ sctp_skip_csum:
 				sh->v_tag = 0;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			sctp_send_shutdown_complete2(m, iphlen, sh, vrf_id, port);
+			sctp_send_shutdown_complete2(m, sh, vrf_id, port);
 			goto bad;
 		}
 		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
 			goto bad;
 		}
-		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION)
-			sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id, port);
+		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION) {
+			if ((SCTP_BASE_SYSCTL(sctp_blackhole) == 0) ||
+			    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
+			    (ch->chunk_type != SCTP_INIT))) {
+				sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id, port);
+			}
+		}
 		goto bad;
 	} else if (stcb == NULL) {
 		refcount_up = 1;
@@ -276,7 +281,7 @@ sctp_skip_csum:
 		SCTP_INP_DECR_REF(in6p);
 		SCTP_INP_WUNLOCK(in6p);
 	}
-	return IPPROTO_DONE;
+	return (IPPROTO_DONE);
 
 bad:
 	if (stcb) {
@@ -290,7 +295,7 @@ bad:
 	}
 	if (m)
 		sctp_m_freem(m);
-	return IPPROTO_DONE;
+	return (IPPROTO_DONE);
 }
 
 
@@ -627,7 +632,7 @@ sctp6_abort(struct socket *so)
 	uint32_t flags;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return;
 	}
@@ -663,7 +668,7 @@ sctp_must_try_again:
 }
 
 static int
-sctp6_attach(struct socket *so, int proto, struct thread *p)
+sctp6_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNUSED)
 {
 	struct in6pcb *inp6;
 	int error;
@@ -673,16 +678,16 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp != NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-		return EINVAL;
+		return (EINVAL);
 	}
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = SCTP_SORESERVE(so, SCTP_BASE_SYSCTL(sctp_sendspace), SCTP_BASE_SYSCTL(sctp_recvspace));
 		if (error)
-			return error;
+			return (error);
 	}
 	error = sctp_inpcb_alloc(so, vrf_id);
 	if (error)
-		return error;
+		return (error);
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	SCTP_INP_WLOCK(inp);
 	inp->sctp_flags |= SCTP_PCB_FLAGS_BOUND_V6;	/* I'm v6! */
@@ -704,7 +709,7 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 	 * sctp_attach()?
 	 */
 	SCTP_INP_WUNLOCK(inp);
-	return 0;
+	return (0);
 }
 
 static int
@@ -715,9 +720,9 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	int error;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-		return EINVAL;
+		return (EINVAL);
 	}
 	if (addr) {
 		switch (addr->sa_family) {
@@ -725,7 +730,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		case AF_INET:
 			if (addr->sa_len != sizeof(struct sockaddr_in)) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-				return EINVAL;
+				return (EINVAL);
 			}
 			break;
 #endif
@@ -733,13 +738,13 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		case AF_INET6:
 			if (addr->sa_len != sizeof(struct sockaddr_in6)) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-				return EINVAL;
+				return (EINVAL);
 			}
 			break;
 #endif
 		default:
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 	}
 	inp6 = (struct in6pcb *)inp;
@@ -772,7 +777,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 					inp6->inp_vflag |= INP_IPV4;
 					inp6->inp_vflag &= ~INP_IPV6;
 					error = sctp_inpcb_bind(so, (struct sockaddr *)&sin, NULL, p);
-					return error;
+					return (error);
 				}
 #endif
 				break;
@@ -789,7 +794,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		if (addr->sa_family == AF_INET) {
 			/* can't bind v4 addr to v6 only socket! */
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 #endif
 		sin6_p = (struct sockaddr_in6 *)addr;
@@ -798,11 +803,11 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			/* can't bind v4-mapped addrs either! */
 			/* NOTE: we don't support SIIT */
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 	}
 	error = sctp_inpcb_bind(so, addr, NULL, p);
-	return error;
+	return (error);
 }
 
 
@@ -848,7 +853,7 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 		SCTP_RELEASE_PKT(m);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-		return EINVAL;
+		return (EINVAL);
 	}
 	inp6 = (struct in6pcb *)inp;
 	/*
@@ -877,11 +882,11 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		 */
 		if (addr->sa_family == AF_INET) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
@@ -890,12 +895,12 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 			/* convert v4-mapped into v4 addr and send */
 			in6_sin6_2_sin(&sin, sin6);
-			return sctp_sendm(so, flags, m, (struct sockaddr *)&sin,
-			    control, p);
+			return (sctp_sendm(so, flags, m, (struct sockaddr *)&sin,
+			    control, p));
 		} else {
 			/* mapped addresses aren't enabled */
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 	}
 #endif				/* INET */
@@ -955,7 +960,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 
 	inp6 = (struct in6pcb *)so->so_pcb;
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
 		return (ECONNRESET);	/* I made the same as TCP since we are
 					 * not setup? */
@@ -1020,13 +1025,13 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_ASOC_CREATE_UNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_ASOC_CREATE_UNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
@@ -1039,7 +1044,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_ASOC_CREATE_UNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return EINVAL;
+			return (EINVAL);
 		}
 	}
 #endif				/* INET */
@@ -1090,7 +1095,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 
 	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
-	return error;
+	return (error);
 }
 
 static int
@@ -1108,7 +1113,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 	 */
 	SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof(*sin6));
 	if (sin6 == NULL)
-		return ENOMEM;
+		return (ENOMEM);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
 
@@ -1116,7 +1121,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 	if (inp == NULL) {
 		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
-		return ECONNRESET;
+		return (ECONNRESET);
 	}
 	SCTP_INP_RLOCK(inp);
 	sin6->sin6_port = inp->sctp_lport;
@@ -1178,7 +1183,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			SCTP_FREE_SONAME(sin6);
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
-			return ENOENT;
+			return (ENOENT);
 		}
 	}
 	SCTP_INP_RUNLOCK(inp);
@@ -1194,36 +1199,28 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 static int
 sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 {
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)*addr;
+	struct sockaddr_in6 *sin6;
 	int fnd;
 	struct sockaddr_in6 *sin_a6;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
-
 	int error;
 
-	/*
-	 * Do the malloc first in case it blocks.
-	 */
-	inp = (struct sctp_inpcb *)so->so_pcb;
-	if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0) {
-		/* UDP type and listeners will drop out here */
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOTCONN);
-		return (ENOTCONN);
-	}
+	/* Do the malloc first in case it blocks. */
 	SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
 	if (sin6 == NULL)
 		return (ENOMEM);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
 
-	/* We must recapture incase we blocked */
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == NULL) {
+	if ((inp == NULL) ||
+	    ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0)) {
+		/* UDP type and listeners will drop out here */
 		SCTP_FREE_SONAME(sin6);
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
-		return ECONNRESET;
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOTCONN);
+		return (ENOTCONN);
 	}
 	SCTP_INP_RLOCK(inp);
 	stcb = LIST_FIRST(&inp->sctp_asoc_list);
@@ -1234,7 +1231,7 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 	if (stcb == NULL) {
 		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
-		return ECONNRESET;
+		return (ECONNRESET);
 	}
 	fnd = 0;
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
@@ -1251,7 +1248,7 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 		/* No IPv4 address */
 		SCTP_FREE_SONAME(sin6);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
-		return ENOENT;
+		return (ENOENT);
 	}
 	if ((error = sa6_recoverscope(sin6)) != 0)
 		return (error);
@@ -1271,7 +1268,7 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 
 	if (inp6 == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-		return EINVAL;
+		return (EINVAL);
 	}
 	/* allow v6 addresses precedence */
 	error = sctp6_getaddr(so, nam);
@@ -1308,7 +1305,7 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 
 	if (inp6 == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-		return EINVAL;
+		return (EINVAL);
 	}
 	/* allow v6 addresses precedence */
 	error = sctp6_peeraddr(so, nam);
@@ -1329,7 +1326,7 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 		}
 	}
 #endif
-	return error;
+	return (error);
 }
 
 struct pr_usrreqs sctp6_usrreqs = {

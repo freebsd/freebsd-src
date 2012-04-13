@@ -1431,7 +1431,7 @@ ae_tx_avail_size(ae_softc_t *sc)
 	else
 		avail = sc->txd_ack - sc->txd_cur;
 
-	return (avail - 4);	/* 4-byte header. */
+	return (avail);
 }
 
 static int
@@ -1448,7 +1448,7 @@ ae_encap(ae_softc_t *sc, struct mbuf **m_head)
 	len = m0->m_pkthdr.len;
 	
 	if ((sc->flags & AE_FLAG_TXAVAIL) == 0 ||
-	    ae_tx_avail_size(sc) < len) {
+	    len + sizeof(ae_txd_t) + 3 > ae_tx_avail_size(sc)) {
 #ifdef AE_DEBUG
 		if_printf(sc->ifp, "No free Tx available.\n");
 #endif
@@ -1457,11 +1457,10 @@ ae_encap(ae_softc_t *sc, struct mbuf **m_head)
 
 	hdr = (ae_txd_t *)(sc->txd_base + sc->txd_cur);
 	bzero(hdr, sizeof(*hdr));
-	sc->txd_cur = (sc->txd_cur + 4) % AE_TXD_BUFSIZE_DEFAULT; /* Header
-								     size. */
-	to_end = AE_TXD_BUFSIZE_DEFAULT - sc->txd_cur; /* Space available to
-							* the end of the ring
-							*/
+	/* Skip header size. */
+	sc->txd_cur = (sc->txd_cur + sizeof(ae_txd_t)) % AE_TXD_BUFSIZE_DEFAULT;
+	/* Space available to the end of the ring */
+	to_end = AE_TXD_BUFSIZE_DEFAULT - sc->txd_cur;
 	if (to_end >= len) {
 		m_copydata(m0, 0, len, (caddr_t)(sc->txd_base + sc->txd_cur));
 	} else {
@@ -1840,8 +1839,8 @@ ae_tx_intr(ae_softc_t *sc)
 		/*
 		 * Move txd ack and align on 4-byte boundary.
 		 */
-		sc->txd_ack = ((sc->txd_ack + le16toh(txd->len) + 4 + 3) & ~3) %
-		    AE_TXD_BUFSIZE_DEFAULT;
+		sc->txd_ack = ((sc->txd_ack + le16toh(txd->len) +
+		    sizeof(ae_txs_t) + 3) & ~3) % AE_TXD_BUFSIZE_DEFAULT;
 
 		if ((flags & AE_TXS_SUCCESS) != 0)
 			ifp->if_opackets++;

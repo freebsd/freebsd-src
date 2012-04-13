@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2007
+.Dd October 13, 2011
 .Dt DHCLIENT 8
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Op Fl bdqu
 .Op Fl c Ar file
 .Op Fl l Ar file
+.Op Fl p Ar file
 .Ar interface
 .Sh DESCRIPTION
 The
@@ -83,6 +84,10 @@ will revert to running in the background.
 Specify an alternate location,
 .Ar file ,
 for the leases file.
+.It Fl p Ar file
+Specify an alternate location for the PID file.
+The default is
+.Pa /var/run/dhclient. Ns Ar interface Ns Pa .pid .
 .It Fl q
 Forces
 .Nm

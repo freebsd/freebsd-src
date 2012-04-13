@@ -69,7 +69,7 @@
 static __inline void
 mips_barrier(void)
 {
-#ifdef CPU_CNMIPS
+#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
 	__asm __volatile("" : : : "memory");
 #else
 	__asm __volatile (".set noreorder\n\t"
@@ -104,18 +104,6 @@ mips_wbflush(void)
 	__asm __volatile ("sync" : : : "memory");
 	mips_barrier();
 #endif
-}
-
-static __inline void
-mips_read_membar(void)
-{
-	/* Nil */
-}
-
-static __inline void
-mips_write_membar(void)
-{
-	mips_wbflush();
 }
 
 #ifdef _KERNEL
@@ -272,6 +260,9 @@ MIPS_RW32_COP0(status, MIPS_COP_0_STATUS);
 MIPS_RW32_COP0(entryhi, MIPS_COP_0_TLB_HI);
 MIPS_RW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
 #endif
+#ifdef CPU_NLM
+MIPS_RW32_COP0_SEL(pagegrain, MIPS_COP_0_TLB_PG_MASK, 1);
+#endif
 #if !defined(__mips_n64) && !defined(__mips_n32) /* !PHYSADDR_64_BIT */
 MIPS_RW32_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
 MIPS_RW32_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
@@ -351,29 +342,8 @@ breakpoint(void)
 }
 
 #if defined(__GNUC__) && !defined(__mips_o32)
-static inline uint64_t
-mips3_ld(const volatile uint64_t *va)
-{
-	uint64_t rv;
-
-#if defined(_LP64)
-	rv = *va;
-#else
-	__asm volatile("ld	%0,0(%1)" : "=d"(rv) : "r"(va));
-#endif
-
-	return (rv);
-}
-
-static inline void
-mips3_sd(volatile uint64_t *va, uint64_t v)
-{
-#if defined(_LP64)
-	*va = v;
-#else
-	__asm volatile("sd	%0,0(%1)" :: "r"(v), "r"(va));
-#endif
-}
+#define	mips3_ld(a)	(*(const volatile uint64_t *)(a))
+#define	mips3_sd(a, v)	(*(volatile uint64_t *)(a) = (v))
 #else
 uint64_t mips3_ld(volatile uint64_t *va);
 void mips3_sd(volatile uint64_t *, uint64_t);
@@ -388,83 +358,5 @@ void mips3_sd(volatile uint64_t *, uint64_t);
 #define	writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
 #define	writew(va, d)	(*(volatile uint16_t *) (va) = (d))
 #define	writel(va, d)	(*(volatile uint32_t *) (va) = (d))
-
-/*
- * I/O macros.
- */
-
-#define	outb(a,v)	(*(volatile unsigned char*)(a) = (v))
-#define	out8(a,v)	(*(volatile unsigned char*)(a) = (v))
-#define	outw(a,v)	(*(volatile unsigned short*)(a) = (v))
-#define	out16(a,v)	outw(a,v)
-#define	outl(a,v)	(*(volatile unsigned int*)(a) = (v))
-#define	out32(a,v)	outl(a,v)
-#define	inb(a)		(*(volatile unsigned char*)(a))
-#define	in8(a)		(*(volatile unsigned char*)(a))
-#define	inw(a)		(*(volatile unsigned short*)(a))
-#define	in16(a)		inw(a)
-#define	inl(a)		(*(volatile unsigned int*)(a))
-#define	in32(a)		inl(a)
-
-#define	out8rb(a,v)	(*(volatile unsigned char*)(a) = (v))
-#define	out16rb(a,v)	(__out16rb((volatile uint16_t *)(a), v))
-#define	out32rb(a,v)	(__out32rb((volatile uint32_t *)(a), v))
-#define	in8rb(a)	(*(volatile unsigned char*)(a))
-#define	in16rb(a)	(__in16rb((volatile uint16_t *)(a)))
-#define	in32rb(a)	(__in32rb((volatile uint32_t *)(a)))
-
-#define	_swap_(x)	(((x) >> 24) | ((x) << 24) | \
-	    (((x) >> 8) & 0xff00) | (((x) & 0xff00) << 8))
-
-static __inline void __out32rb(volatile uint32_t *, uint32_t);
-static __inline void __out16rb(volatile uint16_t *, uint16_t);
-static __inline uint32_t __in32rb(volatile uint32_t *);
-static __inline uint16_t __in16rb(volatile uint16_t *);
-
-static __inline void
-__out32rb(volatile uint32_t *a, uint32_t v)
-{
-	uint32_t _v_ = v;
-
-	_v_ = _swap_(_v_);
-	out32(a, _v_);
-}
-
-static __inline void
-__out16rb(volatile uint16_t *a, uint16_t v)
-{
-	uint16_t _v_;
-
-	_v_ = ((v >> 8) & 0xff) | (v << 8);
-	out16(a, _v_);
-}
-
-static __inline uint32_t
-__in32rb(volatile uint32_t *a)
-{
-	uint32_t _v_;
-
-	_v_ = in32(a);
-	_v_ = _swap_(_v_);
-	return _v_;
-}
-
-static __inline uint16_t
-__in16rb(volatile uint16_t *a)
-{
-	uint16_t _v_;
-
-	_v_ = in16(a);
-	_v_ = ((_v_ >> 8) & 0xff) | (_v_ << 8);
-	return _v_;
-}
-
-void insb(uint8_t *, uint8_t *,int);
-void insw(uint16_t *, uint16_t *,int);
-void insl(uint32_t *, uint32_t *,int);
-void outsb(uint8_t *, const uint8_t *,int);
-void outsw(uint16_t *, const uint16_t *,int);
-void outsl(uint32_t *, const uint32_t *,int);
-u_int loadandclear(volatile u_int *addr);
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

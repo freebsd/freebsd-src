@@ -142,7 +142,7 @@ static int ip6_insertfraghdr __P((struct mbuf *, struct mbuf *, int,
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
 static int ip6_getpmtu __P((struct route_in6 *, struct route_in6 *,
-	struct ifnet *, struct in6_addr *, u_long *, int *));
+	struct ifnet *, struct in6_addr *, u_long *, int *, u_int));
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -240,6 +240,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		printf ("ip6 is NULL");
 		goto bad;
 	}
+
+	if (inp != NULL)
+		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 
 	finaldst = ip6->ip6_dst;
 	bzero(&exthdrs, sizeof(exthdrs));
@@ -604,8 +607,8 @@ again:
 	if (flevalid) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
-	} else if ((error = in6_selectroute(&dst_sa, opt, im6o, ro,
-	    &ifp, &rt)) != 0) {
+	} else if ((error = in6_selectroute_fib(&dst_sa, opt, im6o, ro,
+	    &ifp, &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0) {
 		switch (error) {
 		case EHOSTUNREACH:
 			V_ip6stat.ip6s_noroute++;
@@ -773,7 +776,7 @@ again:
 
 	/* Determine path MTU. */
 	if ((error = ip6_getpmtu(ro_pmtu, ro, ifp, &finaldst, &mtu,
-	    &alwaysfrag)) != 0)
+	    &alwaysfrag, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0)
 		goto bad;
 
 	/*
@@ -1064,7 +1067,7 @@ passout:
 				goto sendorfree;
 			}
 			m->m_pkthdr.rcvif = NULL;
-			m->m_flags = m0->m_flags & M_COPYFLAGS;
+			m->m_flags = m0->m_flags & M_COPYFLAGS;	/* incl. FIB */
 			*mnext = m;
 			mnext = &m->m_nextpkt;
 			m->m_data += max_linkhdr;
@@ -1321,7 +1324,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 static int
 ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
     struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
-    int *alwaysfragp)
+    int *alwaysfragp, u_int fibnum)
 {
 	u_int32_t mtu = 0;
 	int alwaysfrag = 0;
@@ -1343,7 +1346,7 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 			sa6_dst->sin6_len = sizeof(struct sockaddr_in6);
 			sa6_dst->sin6_addr = *dst;
 
-			rtalloc((struct route *)ro_pmtu);
+			in6_rtalloc(ro_pmtu, fibnum);
 		}
 	}
 	if (ro_pmtu->ro_rt) {
@@ -1421,7 +1424,44 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 	optval = 0;
 	uproto = (int)so->so_proto->pr_protocol;
 
-	if (level == IPPROTO_IPV6) {
+	if (level != IPPROTO_IPV6) {
+		error = EINVAL;
+
+		if (sopt->sopt_level == SOL_SOCKET &&
+		    sopt->sopt_dir == SOPT_SET) {
+			switch (sopt->sopt_name) {
+			case SO_REUSEADDR:
+				INP_WLOCK(in6p);
+				if (IN_MULTICAST(ntohl(in6p->inp_laddr.s_addr))) {
+					if ((so->so_options &
+					    (SO_REUSEADDR | SO_REUSEPORT)) != 0)
+						in6p->inp_flags2 |= INP_REUSEPORT;
+					else
+						in6p->inp_flags2 &= ~INP_REUSEPORT;
+				}
+				INP_WUNLOCK(in6p);
+				error = 0;
+				break;
+			case SO_REUSEPORT:
+				INP_WLOCK(in6p);
+				if ((so->so_options & SO_REUSEPORT) != 0)
+					in6p->inp_flags2 |= INP_REUSEPORT;
+				else
+					in6p->inp_flags2 &= ~INP_REUSEPORT;
+				INP_WUNLOCK(in6p);
+				error = 0;
+				break;
+			case SO_SETFIB:
+				INP_WLOCK(in6p);
+				in6p->inp_inc.inc_fibnum = so->so_fibnum;
+				INP_WUNLOCK(in6p);
+				error = 0;
+				break;
+			default:
+				break;
+			}
+		}
+	} else {		/* level == IPPROTO_IPV6 */
 		switch (op) {
 
 		case SOPT_SET:
@@ -1944,7 +1984,8 @@ do { \
 				 * the outgoing interface.
 				 */
 				error = ip6_getpmtu(&sro, NULL, NULL,
-				    &in6p->in6p_faddr, &pmtu, NULL);
+				    &in6p->in6p_faddr, &pmtu, NULL,
+				    so->so_fibnum);
 				if (sro.ro_rt)
 					RTFREE(sro.ro_rt);
 				if (error)
@@ -2044,8 +2085,6 @@ do { \
 			}
 			break;
 		}
-	} else {		/* level != IPPROTO_IPV6 */
-		error = EINVAL;
 	}
 	return (error);
 }

@@ -23,7 +23,6 @@
 using namespace clang;
 using namespace arcmt;
 using namespace trans;
-using llvm::StringRef;
 
 //===----------------------------------------------------------------------===//
 // Helpers.
@@ -92,11 +91,23 @@ bool trans::canApplyWeak(ASTContext &Ctx, QualType type) {
 /// source location will be invalid.
 SourceLocation trans::findLocationAfterSemi(SourceLocation loc,
                                             ASTContext &Ctx) {
+  SourceLocation SemiLoc = findSemiAfterLocation(loc, Ctx);
+  if (SemiLoc.isInvalid())
+    return SourceLocation();
+  return SemiLoc.getLocWithOffset(1);
+}
+
+/// \brief \arg Loc is the end of a statement range. This returns the location
+/// of the semicolon following the statement.
+/// If no semicolon is found or the location is inside a macro, the returned
+/// source location will be invalid.
+SourceLocation trans::findSemiAfterLocation(SourceLocation loc,
+                                            ASTContext &Ctx) {
   SourceManager &SM = Ctx.getSourceManager();
   if (loc.isMacroID()) {
     if (!Lexer::isAtEndOfMacroExpansion(loc, SM, Ctx.getLangOptions()))
       return SourceLocation();
-    loc = SM.getInstantiationRange(loc).second;
+    loc = SM.getExpansionRange(loc).second;
   }
   loc = Lexer::getLocForEndOfToken(loc, /*Offset=*/0, SM, Ctx.getLangOptions());
 
@@ -105,7 +116,7 @@ SourceLocation trans::findLocationAfterSemi(SourceLocation loc,
 
   // Try to load the file buffer.
   bool invalidTemp = false;
-  llvm::StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
+  StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
   if (invalidTemp)
     return SourceLocation();
 
@@ -120,7 +131,7 @@ SourceLocation trans::findLocationAfterSemi(SourceLocation loc,
   if (tok.isNot(tok::semi))
     return SourceLocation();
 
-  return tok.getLocation().getFileLocWithOffset(1);
+  return tok.getLocation();
 }
 
 bool trans::hasSideEffects(Expr *E, ASTContext &Ctx) {
@@ -155,12 +166,20 @@ bool trans::hasSideEffects(Expr *E, ASTContext &Ctx) {
 bool trans::isGlobalVar(Expr *E) {
   E = E->IgnoreParenCasts();
   if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
-    return DRE->getDecl()->getDeclContext()->isFileContext();
+    return DRE->getDecl()->getDeclContext()->isFileContext() &&
+           DRE->getDecl()->getLinkage() == ExternalLinkage;
   if (ConditionalOperator *condOp = dyn_cast<ConditionalOperator>(E))
     return isGlobalVar(condOp->getTrueExpr()) &&
            isGlobalVar(condOp->getFalseExpr());
 
   return false;  
+}
+
+StringRef trans::getNilString(ASTContext &Ctx) {
+  if (Ctx.Idents.get("nil").hasMacroDefinition())
+    return "nil";
+  else
+    return "0";
 }
 
 namespace {
@@ -283,6 +302,7 @@ static void independentTransforms(MigrationPass &pass) {
   makeAssignARCSafe(pass);
   rewriteUnbridgedCasts(pass);
   rewriteBlockObjCVariable(pass);
+  checkAPIUses(pass);
 }
 
 std::vector<TransformFn> arcmt::getAllTransformations() {

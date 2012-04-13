@@ -15,7 +15,7 @@ LDADD=	-lrpcsvc -lutil
 CLEANFILES= nlm_prot_svc.c nlm_prot.h test
 
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/nlm_prot.x
-RPCGEN= rpcgen -L -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C
 
 nlm_prot_svc.c: ${RPCSRC}
 	${RPCGEN} -m -o ${.TARGET} ${RPCSRC}

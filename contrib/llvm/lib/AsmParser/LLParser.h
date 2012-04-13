@@ -15,6 +15,7 @@
 #define LLVM_ASMPARSER_LLPARSER_H
 
 #include "LLLexer.h"
+#include "llvm/Instructions.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
 #include "llvm/ADT/DenseMap.h"
@@ -142,8 +143,8 @@ namespace llvm {
     /// GetGlobalVal - Get a value with the specified name or ID, creating a
     /// forward reference record if needed.  This can return null if the value
     /// exists but does not have the right type.
-    GlobalValue *GetGlobalVal(const std::string &N, const Type *Ty, LocTy Loc);
-    GlobalValue *GetGlobalVal(unsigned ID, const Type *Ty, LocTy Loc);
+    GlobalValue *GetGlobalVal(const std::string &N, Type *Ty, LocTy Loc);
+    GlobalValue *GetGlobalVal(unsigned ID, Type *Ty, LocTy Loc);
 
     // Helper Routines.
     bool ParseToken(lltok::Kind T, const char *ErrMsg);
@@ -178,6 +179,8 @@ namespace llvm {
     bool ParseOptionalVisibility(unsigned &Visibility);
     bool ParseOptionalCallingConv(CallingConv::ID &CC);
     bool ParseOptionalAlignment(unsigned &Alignment);
+    bool ParseScopeAndOrdering(bool isAtomic, SynchronizationScope &Scope,
+                               AtomicOrdering &Ordering);
     bool ParseOptionalStackAlignment(unsigned &Alignment);
     bool ParseOptionalCommaAlign(unsigned &Alignment, bool &AteExtraComma);
     bool ParseIndexList(SmallVectorImpl<unsigned> &Indices,bool &AteExtraComma);
@@ -249,8 +252,8 @@ namespace llvm {
       /// GetVal - Get a value with the specified name or ID, creating a
       /// forward reference record if needed.  This can return null if the value
       /// exists but does not have the right type.
-      Value *GetVal(const std::string &Name, const Type *Ty, LocTy Loc);
-      Value *GetVal(unsigned ID, const Type *Ty, LocTy Loc);
+      Value *GetVal(const std::string &Name, Type *Ty, LocTy Loc);
+      Value *GetVal(unsigned ID, Type *Ty, LocTy Loc);
 
       /// SetInstName - After an instruction is parsed and inserted into its
       /// basic block, this installs its name.
@@ -269,14 +272,14 @@ namespace llvm {
       BasicBlock *DefineBB(const std::string &Name, LocTy Loc);
     };
 
-    bool ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
+    bool ConvertValIDToValue(Type *Ty, ValID &ID, Value *&V,
                              PerFunctionState *PFS);
 
-    bool ParseValue(const Type *Ty, Value *&V, PerFunctionState *PFS);
-    bool ParseValue(const Type *Ty, Value *&V, PerFunctionState &PFS) {
+    bool ParseValue(Type *Ty, Value *&V, PerFunctionState *PFS);
+    bool ParseValue(Type *Ty, Value *&V, PerFunctionState &PFS) {
       return ParseValue(Ty, V, &PFS);
     }
-    bool ParseValue(const Type *Ty, Value *&V, LocTy &Loc,
+    bool ParseValue(Type *Ty, Value *&V, LocTy &Loc,
                     PerFunctionState &PFS) {
       Loc = Lex.getLoc();
       return ParseValue(Ty, V, &PFS);
@@ -310,7 +313,7 @@ namespace llvm {
 
     // Constant Parsing.
     bool ParseValID(ValID &ID, PerFunctionState *PFS = NULL);
-    bool ParseGlobalValue(const Type *Ty, Constant *&V);
+    bool ParseGlobalValue(Type *Ty, Constant *&V);
     bool ParseGlobalTypeAndValue(Constant *&V);
     bool ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts);
     bool ParseMetadataListValue(ValID &ID, PerFunctionState *PFS);
@@ -344,6 +347,7 @@ namespace llvm {
     bool ParseSwitch(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseIndirectBr(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseInvoke(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseResume(Instruction *&Inst, PerFunctionState &PFS);
 
     bool ParseArithmetic(Instruction *&I, PerFunctionState &PFS, unsigned Opc,
                          unsigned OperandType);
@@ -356,10 +360,14 @@ namespace llvm {
     bool ParseInsertElement(Instruction *&I, PerFunctionState &PFS);
     bool ParseShuffleVector(Instruction *&I, PerFunctionState &PFS);
     int ParsePHI(Instruction *&I, PerFunctionState &PFS);
+    bool ParseLandingPad(Instruction *&I, PerFunctionState &PFS);
     bool ParseCall(Instruction *&I, PerFunctionState &PFS, bool isTail);
     int ParseAlloc(Instruction *&I, PerFunctionState &PFS);
     int ParseLoad(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
     int ParseStore(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
+    int ParseCmpXchg(Instruction *&I, PerFunctionState &PFS);
+    int ParseAtomicRMW(Instruction *&I, PerFunctionState &PFS);
+    int ParseFence(Instruction *&I, PerFunctionState &PFS);
     int ParseGetElementPtr(Instruction *&I, PerFunctionState &PFS);
     int ParseExtractValue(Instruction *&I, PerFunctionState &PFS);
     int ParseInsertValue(Instruction *&I, PerFunctionState &PFS);

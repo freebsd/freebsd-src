@@ -67,8 +67,6 @@ struct sigev_thread {
 #define	SNF_REMOVED		0x02
 #define	SNF_SYNC		0x04
 
-#define	SIGSERVICE		(SIGTHR+1)
-
 int	__sigev_check_init();
 struct sigev_node *__sigev_alloc(int, const struct sigevent *,
 	struct sigev_node *, int);

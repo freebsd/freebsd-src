@@ -74,6 +74,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -86,6 +87,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -208,10 +212,23 @@ int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags)
 {
+	struct thread *td;
+	int result;
 
-	if ((curthread->td_pflags & TDP_NOFAULTING) != 0)
+	td = curthread;
+	if ((td->td_pflags & TDP_NOFAULTING) != 0)
 		return (KERN_PROTECTION_FAILURE);
-	return (vm_fault_hold(map, vaddr, fault_type, fault_flags, NULL));
+#ifdef KTRACE
+	if (map != kernel_map && KTRPOINT(td, KTR_FAULT))
+		ktrfault(vaddr, fault_type);
+#endif
+	result = vm_fault_hold(map, trunc_page(vaddr), fault_type, fault_flags,
+	    NULL);
+#ifdef KTRACE
+	if (map != kernel_map && KTRPOINT(td, KTR_FAULTEND))
+		ktrfaultend(result);
+#endif
+	return (result);
 }
 
 int
@@ -1468,11 +1485,17 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	return i;
 }
 
+/*
+ * Block entry into the machine-independent layer's page fault handler by
+ * the calling thread.  Subsequent calls to vm_fault() by that thread will
+ * return KERN_PROTECTION_FAILURE.  Enable machine-dependent handling of
+ * spurious page faults. 
+ */
 int
 vm_fault_disable_pagefaults(void)
 {
 
-	return (curthread_pflags_set(TDP_NOFAULTING));
+	return (curthread_pflags_set(TDP_NOFAULTING | TDP_RESETSPUR));
 }
 
 void

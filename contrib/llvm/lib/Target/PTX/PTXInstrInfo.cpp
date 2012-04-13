@@ -16,10 +16,11 @@
 #include "PTX.h"
 #include "PTXInstrInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define GET_INSTRINFO_CTOR
@@ -47,8 +48,13 @@ void PTXInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator I, DebugLoc DL,
                                unsigned DstReg, unsigned SrcReg,
                                bool KillSrc) const {
-  for (int i = 0, e = sizeof(map)/sizeof(map[0]); i != e; ++ i) {
-    if (map[i].cls->contains(DstReg, SrcReg)) {
+
+  const MachineRegisterInfo& MRI = MBB.getParent()->getRegInfo();
+  //assert(MRI.getRegClass(SrcReg) == MRI.getRegClass(DstReg) &&
+  //  "Invalid register copy between two register classes");
+
+  for (int i = 0, e = sizeof(map)/sizeof(map[0]); i != e; ++i) {
+    if (map[i].cls == MRI.getRegClass(DstReg)) {
       const MCInstrDesc &MCID = get(map[i].opcode);
       MachineInstr *MI = BuildMI(MBB, I, DL, MCID, DstReg).
         addReg(SrcReg, getKillRegState(KillSrc));
@@ -161,7 +167,7 @@ DefinesPredicate(MachineInstr *MI,
     return false;
 
   Pred.push_back(MO);
-  Pred.push_back(MachineOperand::CreateImm(PTX::PRED_NORMAL));
+  Pred.push_back(MachineOperand::CreateImm(PTXPredicate::None));
   return true;
 }
 
@@ -277,7 +283,7 @@ InsertBranch(MachineBasicBlock &MBB,
     BuildMI(&MBB, DL, get(PTX::BRAdp))
       .addMBB(TBB).addReg(Cond[0].getReg()).addImm(Cond[1].getImm());
     BuildMI(&MBB, DL, get(PTX::BRAd))
-      .addMBB(FBB).addReg(PTX::NoRegister).addImm(PTX::PRED_NORMAL);
+      .addMBB(FBB).addReg(PTX::NoRegister).addImm(PTXPredicate::None);
     return 2;
   } else if (Cond.size()) {
     BuildMI(&MBB, DL, get(PTX::BRAdp))
@@ -285,7 +291,7 @@ InsertBranch(MachineBasicBlock &MBB,
     return 1;
   } else {
     BuildMI(&MBB, DL, get(PTX::BRAd))
-      .addMBB(TBB).addReg(PTX::NoRegister).addImm(PTX::PRED_NORMAL);
+      .addMBB(TBB).addReg(PTX::NoRegister).addImm(PTXPredicate::None);
     return 1;
   }
 }
@@ -296,34 +302,7 @@ void PTXInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                      unsigned SrcReg, bool isKill, int FrameIdx,
                                        const TargetRegisterClass *RC,
                                        const TargetRegisterInfo *TRI) const {
-  MachineInstr& MI = *MII;
-  DebugLoc DL = MI.getDebugLoc();
-
-  DEBUG(dbgs() << "storeRegToStackSlot: " << MI);
-
-  int OpCode;
-
-  // Select the appropriate opcode based on the register class
-  if (RC == PTX::RegI16RegisterClass) {
-    OpCode = PTX::STACKSTOREI16;
-  }  else if (RC == PTX::RegI32RegisterClass) {
-    OpCode = PTX::STACKSTOREI32;
-  }  else if (RC == PTX::RegI64RegisterClass) {
-    OpCode = PTX::STACKSTOREI32;
-  }  else if (RC == PTX::RegF32RegisterClass) {
-    OpCode = PTX::STACKSTOREF32;
-  }  else if (RC == PTX::RegF64RegisterClass) {
-    OpCode = PTX::STACKSTOREF64;
-  } else {
-    llvm_unreachable("Unknown PTX register class!");
-  }
-
-  // Build the store instruction (really a mov)
-  MachineInstrBuilder MIB = BuildMI(MBB, MII, DL, get(OpCode));
-  MIB.addFrameIndex(FrameIdx);
-  MIB.addReg(SrcReg);
-
-  AddDefaultPredicate(MIB);
+  assert(false && "storeRegToStackSlot should not be called for PTX");
 }
 
 void PTXInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
@@ -331,34 +310,7 @@ void PTXInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                         unsigned DestReg, int FrameIdx,
                                         const TargetRegisterClass *RC,
                                         const TargetRegisterInfo *TRI) const {
-  MachineInstr& MI = *MII;
-  DebugLoc DL = MI.getDebugLoc();
-
-  DEBUG(dbgs() << "loadRegToStackSlot: " << MI);
-
-  int OpCode;
-
-  // Select the appropriate opcode based on the register class
-  if (RC == PTX::RegI16RegisterClass) {
-    OpCode = PTX::STACKLOADI16;
-  } else if (RC == PTX::RegI32RegisterClass) {
-    OpCode = PTX::STACKLOADI32;
-  } else if (RC == PTX::RegI64RegisterClass) {
-    OpCode = PTX::STACKLOADI32;
-  } else if (RC == PTX::RegF32RegisterClass) {
-    OpCode = PTX::STACKLOADF32;
-  } else if (RC == PTX::RegF64RegisterClass) {
-    OpCode = PTX::STACKLOADF64;
-  } else {
-    llvm_unreachable("Unknown PTX register class!");
-  }
-
-  // Build the load instruction (really a mov)
-  MachineInstrBuilder MIB = BuildMI(MBB, MII, DL, get(OpCode));
-  MIB.addReg(DestReg);
-  MIB.addFrameIndex(FrameIdx);
-
-  AddDefaultPredicate(MIB);
+  assert(false && "loadRegFromStackSlot should not be called for PTX");
 }
 
 // static helper routines
@@ -367,7 +319,7 @@ MachineSDNode *PTXInstrInfo::
 GetPTXMachineNode(SelectionDAG *DAG, unsigned Opcode,
                   DebugLoc dl, EVT VT, SDValue Op1) {
   SDValue predReg = DAG->getRegister(PTX::NoRegister, MVT::i1);
-  SDValue predOp = DAG->getTargetConstant(PTX::PRED_NORMAL, MVT::i32);
+  SDValue predOp = DAG->getTargetConstant(PTXPredicate::None, MVT::i32);
   SDValue ops[] = { Op1, predReg, predOp };
   return DAG->getMachineNode(Opcode, dl, VT, ops, array_lengthof(ops));
 }
@@ -376,7 +328,7 @@ MachineSDNode *PTXInstrInfo::
 GetPTXMachineNode(SelectionDAG *DAG, unsigned Opcode,
                   DebugLoc dl, EVT VT, SDValue Op1, SDValue Op2) {
   SDValue predReg = DAG->getRegister(PTX::NoRegister, MVT::i1);
-  SDValue predOp = DAG->getTargetConstant(PTX::PRED_NORMAL, MVT::i32);
+  SDValue predOp = DAG->getTargetConstant(PTXPredicate::None, MVT::i32);
   SDValue ops[] = { Op1, Op2, predReg, predOp };
   return DAG->getMachineNode(Opcode, dl, VT, ops, array_lengthof(ops));
 }
@@ -384,7 +336,7 @@ GetPTXMachineNode(SelectionDAG *DAG, unsigned Opcode,
 void PTXInstrInfo::AddDefaultPredicate(MachineInstr *MI) {
   if (MI->findFirstPredOperandIdx() == -1) {
     MI->addOperand(MachineOperand::CreateReg(PTX::NoRegister, /*IsDef=*/false));
-    MI->addOperand(MachineOperand::CreateImm(PTX::PRED_NORMAL));
+    MI->addOperand(MachineOperand::CreateImm(PTXPredicate::None));
   }
 }
 

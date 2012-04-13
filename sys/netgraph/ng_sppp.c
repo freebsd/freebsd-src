@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_sppp.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_SPPP, "netgraph_sppp", "netgraph sppp node ");
+static MALLOC_DEFINE(M_NETGRAPH_SPPP, "netgraph_sppp", "netgraph sppp node");
 #else
 #define M_NETGRAPH_SPPP M_NETGRAPH
 #endif

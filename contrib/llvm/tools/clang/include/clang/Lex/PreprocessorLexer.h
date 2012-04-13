@@ -30,6 +30,9 @@ protected:
   /// The SourceManager FileID corresponding to the file being lexed.
   const FileID FID;
 
+  /// \brief Number of SLocEntries before lexing the file.
+  unsigned InitialNumSLocEntries;
+
   //===--------------------------------------------------------------------===//
   // Context-specific lexing flags set by the preprocessor.
   //===--------------------------------------------------------------------===//
@@ -61,18 +64,16 @@ protected:
 
   /// ConditionalStack - Information about the set of #if/#ifdef/#ifndef blocks
   /// we are currently in.
-  llvm::SmallVector<PPConditionalInfo, 4> ConditionalStack;
+  SmallVector<PPConditionalInfo, 4> ConditionalStack;
 
   PreprocessorLexer(const PreprocessorLexer&);          // DO NOT IMPLEMENT
   void operator=(const PreprocessorLexer&); // DO NOT IMPLEMENT
   friend class Preprocessor;
 
-  PreprocessorLexer(Preprocessor *pp, FileID fid)
-    : PP(pp), FID(fid), ParsingPreprocessorDirective(false),
-      ParsingFilename(false), LexingRawMode(false) {}
+  PreprocessorLexer(Preprocessor *pp, FileID fid);
 
   PreprocessorLexer()
-    : PP(0),
+    : PP(0), InitialNumSLocEntries(0),
       ParsingPreprocessorDirective(false),
       ParsingFilename(false),
       LexingRawMode(false) {}
@@ -151,13 +152,18 @@ public:
     return FID;
   }
 
+  /// \brief Number of SLocEntries before lexing the file.
+  unsigned getInitialNumSLocEntries() const {
+    return InitialNumSLocEntries;
+  }
+
   /// getFileEntry - Return the FileEntry corresponding to this FileID.  Like
   /// getFileID(), this only works for lexers with attached preprocessors.
   const FileEntry *getFileEntry() const;
 
   /// \brief Iterator that traverses the current stack of preprocessor
   /// conditional directives (#if/#ifdef/#ifndef).
-  typedef llvm::SmallVectorImpl<PPConditionalInfo>::const_iterator 
+  typedef SmallVectorImpl<PPConditionalInfo>::const_iterator 
     conditional_iterator;
 
   conditional_iterator conditional_begin() const { 

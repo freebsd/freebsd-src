@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@
 #define NODE_METHOD_SOME_NO_RETVAL  0x00000200
 #define NODE_RESULT_NOT_USED        0x00000400
 #define NODE_METHOD_TYPED           0x00000800
-#define NODE_IS_BIT_OFFSET          0x00001000
+#define NODE_UNUSED_FLAG            0x00001000
 #define NODE_COMPILE_TIME_CONST     0x00002000
 #define NODE_IS_TERM_ARG            0x00004000
 #define NODE_WAS_ONES_OP            0x00008000
@@ -144,15 +144,18 @@ typedef struct asl_file_status
 } ASL_FILE_STATUS;
 
 
-/* File types */
-
+/*
+ * File types. Note: Any changes to this table must also be reflected
+ * in the AslFileTypeNames array.
+ */
 typedef enum
 {
     ASL_FILE_STDOUT             = 0,
     ASL_FILE_STDERR,
-    ASL_FILE_INPUT,
+    ASL_FILE_INPUT,             /* Don't move these first 3 file types */
     ASL_FILE_AML_OUTPUT,
     ASL_FILE_SOURCE_OUTPUT,
+    ASL_FILE_PREPROCESSOR,
     ASL_FILE_LISTING_OUTPUT,
     ASL_FILE_HEX_OUTPUT,
     ASL_FILE_NAMESPACE_OUTPUT,
@@ -165,7 +168,7 @@ typedef enum
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       12
+#define ASL_MAX_FILE_TYPE       13
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 
@@ -188,6 +191,7 @@ typedef struct asl_error_msg
     char                        *Message;
     struct asl_error_msg        *Next;
     char                        *Filename;
+    char                        *SourceLine;
     UINT32                      FilenameLength;
     UINT8                       MessageId;
     UINT8                       Level;

@@ -41,8 +41,8 @@
 #include <algorithm>
 using namespace llvm;
 
-STATISTIC(NumSpills  , "Number of register spills");
-STATISTIC(NumIdCopies, "Number of identity moves eliminated after rewriting");
+STATISTIC(NumSpillSlots, "Number of spill slots allocated");
+STATISTIC(NumIdCopies,   "Number of identity moves eliminated after rewriting");
 
 //===----------------------------------------------------------------------===//
 //  VirtRegMap implementation
@@ -111,6 +111,7 @@ unsigned VirtRegMap::createSpillSlot(const TargetRegisterClass *RC) {
   unsigned Idx = SS-LowSpillSlot;
   while (Idx >= SpillSlotToUsesMap.size())
     SpillSlotToUsesMap.resize(SpillSlotToUsesMap.size()*2);
+  ++NumSpillSlots;
   return SS;
 }
 
@@ -130,7 +131,6 @@ int VirtRegMap::assignVirt2StackSlot(unsigned virtReg) {
   assert(Virt2StackSlotMap[virtReg] == NO_STACK_SLOT &&
          "attempt to assign stack slot to already spilled register");
   const TargetRegisterClass* RC = MF->getRegInfo().getRegClass(virtReg);
-  ++NumSpills;
   return Virt2StackSlotMap[virtReg] = createSpillSlot(RC);
 }
 
@@ -285,14 +285,24 @@ void VirtRegMap::rewrite(SlotIndexes *Indexes) {
         // Preserve semantics of sub-register operands.
         if (MO.getSubReg()) {
           // A virtual register kill refers to the whole register, so we may
-          // have to add <imp-use,kill> operands for the super-register.
-          if (MO.isUse()) {
-            if (MO.isKill() && !MO.isUndef())
-              SuperKills.push_back(PhysReg);
-          } else if (MO.isDead())
-            SuperDeads.push_back(PhysReg);
-          else
-            SuperDefs.push_back(PhysReg);
+          // have to add <imp-use,kill> operands for the super-register.  A
+          // partial redef always kills and redefines the super-register.
+          if (MO.readsReg() && (MO.isDef() || MO.isKill()))
+            SuperKills.push_back(PhysReg);
+
+          if (MO.isDef()) {
+            // The <def,undef> flag only makes sense for sub-register defs, and
+            // we are substituting a full physreg.  An <imp-use,kill> operand
+            // from the SuperKills list will represent the partial read of the
+            // super-register.
+            MO.setIsUndef(false);
+
+            // Also add implicit defs for the super-register.
+            if (MO.isDead())
+              SuperDeads.push_back(PhysReg);
+            else
+              SuperDefs.push_back(PhysReg);
+          }
 
           // PhysReg operands cannot have subregister indexes.
           PhysReg = TRI->getSubReg(PhysReg, MO.getSubReg());

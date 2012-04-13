@@ -467,25 +467,19 @@ putchar(int c, void *arg)
 	struct putchar_arg *ap = (struct putchar_arg*) arg;
 	struct tty *tp = ap->tty;
 	int flags = ap->flags;
-	int putbuf_done = 0;
 
 	/* Don't use the tty code after a panic or while in ddb. */
 	if (kdb_active) {
 		if (c != '\0')
 			cnputc(c);
-	} else {
-		if ((panicstr == NULL) && (flags & TOTTY) && (tp != NULL))
-			tty_putchar(tp, c);
+		return;
+	}
 
-		if (flags & TOCONS) {
-			putbuf(c, ap);
-			putbuf_done = 1;
-		}
-	}
-	if ((flags & TOLOG) && (putbuf_done == 0)) {
-		if (c != '\0')
-			putbuf(c, ap);
-	}
+	if ((flags & TOTTY) && tp != NULL && panicstr == NULL)
+		tty_putchar(tp, c);
+
+	if ((flags & (TOCONS | TOLOG)) && c != '\0')
+		putbuf(c, ap);
 }
 
 /*

@@ -149,6 +149,8 @@ typedef enum {
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
 	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
 	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
+	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
+	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -731,10 +733,11 @@ typedef struct {
 					 */
 	int32_t		pe_extchannel;	/* Enable DFS on ext channel */
 	int32_t		pe_enabled;	/* Whether radar detection is enabled */
+	int32_t		pe_enrelpwr;
+	int32_t		pe_en_relstep_check;
 } HAL_PHYERR_PARAM;
 
 #define	HAL_PHYERR_PARAM_NOVAL	65535
-#define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
 
 /*
  * DFS operating mode flags.
@@ -779,6 +782,8 @@ typedef struct
 	int ah_dma_beacon_response_time;/* in TU's */
 	int ah_sw_beacon_response_time;	/* in TU's */
 	int ah_additional_swba_backoff;	/* in TU's */
+	int ah_force_full_reset;	/* force full chip reset rather then warm reset */
+	int ah_serialise_reg_war;	/* force serialisation of register IO */
 } HAL_OPS_CONFIG;
 
 /*
@@ -808,6 +813,9 @@ struct ath_hal {
 	uint16_t	ah_analog2GhzRev;/* 2GHz radio revision */
 
 	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
+
+	uint32_t	ah_intrstate[8];	/* last int state */
+	uint32_t	ah_syncstate;		/* last sync intr state */
 
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
@@ -1003,7 +1011,7 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
 				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
-				HAL_BOOL);
+				HAL_BOOL, HAL_BOOL);
 	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, u_int,
 				u_int, u_int, u_int, u_int, u_int);
@@ -1012,12 +1020,19 @@ struct ath_hal {
 	void	  __ahdecl(*ah_set11nRateScenario)(struct ath_hal *,
 	    			struct ath_desc *, u_int, u_int,
 				HAL_11N_RATE_SERIES [], u_int, u_int);
+	void	  __ahdecl(*ah_set11nAggrFirst)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int);
 	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
+				struct ath_desc *);
 	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	uint32_t  __ahdecl(*ah_get_mib_cycle_counts_pct) (struct ath_hal *,
+				uint32_t *, uint32_t *, uint32_t *, uint32_t *);
+
 	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
 	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,
 				HAL_HT_MACMODE);
@@ -1155,5 +1170,11 @@ void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
  * Get CCA setting.
  */
 int __ahdecl ath_hal_getcca(struct ath_hal *ah);
+
+/*
+ * Read EEPROM data from ah_eepromdata
+ */
+HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
+		u_int off, uint16_t *data);
 
 #endif /* _ATH_AH_H_ */

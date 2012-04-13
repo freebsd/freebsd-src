@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -622,7 +622,7 @@ int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);
 void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
-char *ata_unit2str(struct ata_device *atadev);
+const char *ata_unit2str(struct ata_device *atadev);
 const char *ata_mode2str(int mode);
 int ata_str2mode(const char *str);
 const char *ata_satarev2str(int rev);
@@ -649,7 +649,7 @@ void ata_timeout(struct ata_request *);
 void ata_catch_inflight(device_t dev);
 void ata_fail_requests(device_t dev);
 void ata_drop_requests(device_t dev);
-char *ata_cmd2str(struct ata_request *request);
+const char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(device_t dev);

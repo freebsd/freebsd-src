@@ -23,7 +23,6 @@
 
 namespace llvm {
   class FoldingSetNodeID;
-  class raw_ostream;
 }
 
 namespace clang {
@@ -354,7 +353,7 @@ public:
   TemplateArgument getPackExpansionPattern() const;
 
   /// \brief Print this template argument to the given output stream.
-  void print(const PrintingPolicy &Policy, llvm::raw_ostream &Out) const;
+  void print(const PrintingPolicy &Policy, raw_ostream &Out) const;
              
   /// \brief Used to insert TemplateArguments into FoldingSets.
   void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context) const;
@@ -515,9 +514,13 @@ public:
 /// A convenient class for passing around template argument
 /// information.  Designed to be passed by reference.
 class TemplateArgumentListInfo {
-  llvm::SmallVector<TemplateArgumentLoc, 8> Arguments;
+  SmallVector<TemplateArgumentLoc, 8> Arguments;
   SourceLocation LAngleLoc;
   SourceLocation RAngleLoc;
+
+  // This can leak if used in an AST node, use ASTTemplateArgumentListInfo
+  // instead.
+  void* operator new(size_t bytes, ASTContext& C);
 
 public:
   TemplateArgumentListInfo() {}
@@ -545,6 +548,48 @@ public:
   void addArgument(const TemplateArgumentLoc &Loc) {
     Arguments.push_back(Loc);
   }
+};
+
+/// \brief Represents an explicit template argument list in C++, e.g.,
+/// the "<int>" in "sort<int>".
+/// This is safe to be used inside an AST node, in contrast with
+/// TemplateArgumentListInfo.
+struct ASTTemplateArgumentListInfo {
+  /// \brief The source location of the left angle bracket ('<');
+  SourceLocation LAngleLoc;
+  
+  /// \brief The source location of the right angle bracket ('>');
+  SourceLocation RAngleLoc;
+  
+  /// \brief The number of template arguments in TemplateArgs.
+  /// The actual template arguments (if any) are stored after the
+  /// ExplicitTemplateArgumentList structure.
+  unsigned NumTemplateArgs;
+  
+  /// \brief Retrieve the template arguments
+  TemplateArgumentLoc *getTemplateArgs() {
+    return reinterpret_cast<TemplateArgumentLoc *> (this + 1);
+  }
+  
+  /// \brief Retrieve the template arguments
+  const TemplateArgumentLoc *getTemplateArgs() const {
+    return reinterpret_cast<const TemplateArgumentLoc *> (this + 1);
+  }
+
+  const TemplateArgumentLoc &operator[](unsigned I) const {
+    return getTemplateArgs()[I];
+  }
+
+  static const ASTTemplateArgumentListInfo *Create(ASTContext &C,
+                                          const TemplateArgumentListInfo &List);
+
+  void initializeFrom(const TemplateArgumentListInfo &List);
+  void initializeFrom(const TemplateArgumentListInfo &List,
+                      bool &Dependent, bool &InstantiationDependent,
+                      bool &ContainsUnexpandedParameterPack);
+  void copyInto(TemplateArgumentListInfo &List) const;
+  static std::size_t sizeFor(unsigned NumTemplateArgs);
+  static std::size_t sizeFor(const TemplateArgumentListInfo &List);
 };
 
 const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,

@@ -93,10 +93,10 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	if (live) {
 		if (zflag)
 			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
+		if (sysctlbyname("net.pfsync.stats", &pfsyncstat, &len,
 		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 			if (errno != ENOENT)
-				warn("sysctl: net.inet.pfsync.stats");
+				warn("sysctl: net.pfsync.stats");
 			return;
 		}
 	} else
@@ -188,7 +188,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 	} ifaddr;
 	u_long ifaddraddr;
 	u_long ifaddrfound;
-	u_long ifnetfound;
 	u_long opackets;
 	u_long ipackets;
 	u_long obytes;
@@ -249,14 +248,13 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 		link_layer = 0;
 
 		if (ifaddraddr == 0) {
-			ifnetfound = ifnetaddr;
 			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) != 0)
 				return;
 			strlcpy(name, ifnet.if_xname, sizeof(name));
 			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
 			if (interface != 0 && strcmp(name, interface) != 0)
 				continue;
-			cp = index(name, '\0');
+			cp = strchr(name, '\0');
 
 			if (pfunc) {
 				(*pfunc)(name);

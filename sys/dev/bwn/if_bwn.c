@@ -73,7 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 /*
  * Tunable & sysctl variables.
@@ -192,8 +193,8 @@ static void	bwn_scan_start(struct ieee80211com *);
 static void	bwn_scan_end(struct ieee80211com *);
 static void	bwn_set_channel(struct ieee80211com *);
 static struct ieee80211vap *bwn_vap_create(struct ieee80211com *,
-		    const char [IFNAMSIZ], int, int,
-		    int, const uint8_t [IEEE80211_ADDR_LEN],
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	bwn_vap_delete(struct ieee80211vap *);
 static void	bwn_stop(struct bwn_softc *, int);
@@ -2926,10 +2927,10 @@ fail:
 }
 
 static struct ieee80211vap *
-bwn_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+bwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct bwn_softc *sc = ifp->if_softc;
@@ -3213,8 +3214,6 @@ bwn_core_init(struct bwn_mac *mac)
 		bwn_pio_init(mac);
 	else
 		bwn_dma_init(mac);
-	if (error)
-		goto fail1;
 	bwn_wme_init(mac);
 	bwn_spu_setdelay(mac, 1);
 	bwn_bt_enable(mac);
@@ -3230,8 +3229,6 @@ bwn_core_init(struct bwn_mac *mac)
 
 	return (error);
 
-fail1:
-	bwn_chip_exit(mac);
 fail0:
 	siba_powerdown(sc->sc_dev);
 	KASSERT(mac->mac_status == BWN_MAC_STATUS_UNINIT,
@@ -14229,7 +14226,7 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_detach,	bwn_detach),
 	DEVMETHOD(device_suspend,	bwn_suspend),
 	DEVMETHOD(device_resume,	bwn_resume),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 static driver_t bwn_driver = {
 	"bwn",

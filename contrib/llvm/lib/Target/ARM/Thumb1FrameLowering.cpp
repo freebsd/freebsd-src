@@ -21,7 +21,7 @@
 
 using namespace llvm;
 
-bool Thumb1FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
+bool Thumb1FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const{
   const MachineFrameInfo *FFI = MF.getFrameInfo();
   unsigned CFSize = FFI->getMaxCallFrameSize();
   // It's not always a good idea to include the call frame as part of the
@@ -133,9 +133,9 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF) const {
 
   // Adjust FP so it point to the stack slot that contains the previous FP.
   if (hasFP(MF)) {
-    BuildMI(MBB, MBBI, dl, TII.get(ARM::tADDrSPi), FramePtr)
+    AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tADDrSPi), FramePtr)
       .addFrameIndex(FramePtrSpillFI).addImm(0)
-      .setMIFlags(MachineInstr::FrameSetup);
+      .setMIFlags(MachineInstr::FrameSetup));
     if (NumBytes > 508)
       // If offset is > 508 then sp cannot be adjusted in a single instruction,
       // try restoring from fp instead.
@@ -154,6 +154,11 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF) const {
   AFI->setGPRCalleeSavedArea1Size(GPRCS1Size);
   AFI->setGPRCalleeSavedArea2Size(GPRCS2Size);
   AFI->setDPRCalleeSavedAreaSize(DPRCSSize);
+
+  // Thumb1 does not currently support dynamic stack realignment.  Report a
+  // fatal error rather then silently generate bad code.
+  if (RegInfo->needsStackRealignment(MF))
+      report_fatal_error("Dynamic stack realignment not supported for thumb1.");
 
   // If we need a base pointer, set it up here. It's whatever the value
   // of the stack pointer is at this point. Any variable size objects

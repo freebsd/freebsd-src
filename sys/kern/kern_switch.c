@@ -200,7 +200,7 @@ critical_exit(void)
 
 	if (td->td_critnest == 1) {
 		td->td_critnest = 0;
-		if (td->td_owepreempt) {
+		if (td->td_owepreempt && !kdb_active) {
 			td->td_critnest = 1;
 			thread_lock(td);
 			td->td_critnest--;

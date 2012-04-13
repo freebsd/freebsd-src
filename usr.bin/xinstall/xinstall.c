@@ -73,13 +73,14 @@ __FBSDID("$FreeBSD$");
 #define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
 #define	BACKUP_SUFFIX	".old"
 
-struct passwd *pp;
-struct group *gp;
-gid_t gid;
-uid_t uid;
-int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
-mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-const char *suffix = BACKUP_SUFFIX;
+static struct passwd *pp;
+static struct group *gp;
+static gid_t gid;
+static uid_t uid;
+static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy,
+    verbose;
+static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+static const char *suffix = BACKUP_SUFFIX;
 
 static int	compare(int, const char *, size_t, int, const char *, size_t);
 static void	copy(int, const char *, int, const char *, off_t);

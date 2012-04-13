@@ -42,7 +42,7 @@
 #define JMP_xer	24*REGWIDTH
 #define JMP_sig	25*REGWIDTH
 
-ASENTRY(setjmp)
+ASENTRY_NOPROF(setjmp)
 	ST_REG 31, JMP_r31(3)
 	/* r1, r2, r14-r30 */
 	ST_REG 1,  JMP_r1 (3)
@@ -79,7 +79,7 @@ ASENTRY(setjmp)
 
 
 .extern sigsetmask
-ASENTRY(longjmp)
+ASENTRY_NOPROF(longjmp)
 	LD_REG 31, JMP_r31(3)
 	/* r1, r2, r14-r30 */
 	LD_REG 1,  JMP_r1 (3)

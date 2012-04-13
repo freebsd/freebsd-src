@@ -96,26 +96,26 @@ public:
 class FunctionType : public Type {
   FunctionType(const FunctionType &);                   // Do not implement
   const FunctionType &operator=(const FunctionType &);  // Do not implement
-  FunctionType(const Type *Result, ArrayRef<Type*> Params, bool IsVarArgs);
+  FunctionType(Type *Result, ArrayRef<Type*> Params, bool IsVarArgs);
 
 public:
   /// FunctionType::get - This static method is the primary way of constructing
   /// a FunctionType.
   ///
-  static FunctionType *get(const Type *Result,
+  static FunctionType *get(Type *Result,
                            ArrayRef<Type*> Params, bool isVarArg);
 
   /// FunctionType::get - Create a FunctionType taking no parameters.
   ///
-  static FunctionType *get(const Type *Result, bool isVarArg);
+  static FunctionType *get(Type *Result, bool isVarArg);
   
   /// isValidReturnType - Return true if the specified type is valid as a return
   /// type.
-  static bool isValidReturnType(const Type *RetTy);
+  static bool isValidReturnType(Type *RetTy);
 
   /// isValidArgumentType - Return true if the specified type is valid as an
   /// argument type.
-  static bool isValidArgumentType(const Type *ArgTy);
+  static bool isValidArgumentType(Type *ArgTy);
 
   bool isVarArg() const { return getSubclassData(); }
   Type *getReturnType() const { return ContainedTys[0]; }
@@ -150,8 +150,8 @@ public:
   /// getTypeAtIndex - Given an index value into the type, return the type of
   /// the element.
   ///
-  Type *getTypeAtIndex(const Value *V) const;
-  Type *getTypeAtIndex(unsigned Idx) const;
+  Type *getTypeAtIndex(const Value *V);
+  Type *getTypeAtIndex(unsigned Idx);
   bool indexValid(const Value *V) const;
   bool indexValid(unsigned Idx) const;
 
@@ -166,10 +166,25 @@ public:
 };
 
 
-/// StructType - Class to represent struct types, both normal and packed.
-/// Besides being optionally packed, structs can be either "anonymous" or may
-/// have an identity.  Anonymous structs are uniqued by structural equivalence,
-/// but types are each unique when created, and optionally have a name.
+/// StructType - Class to represent struct types.  There are two different kinds
+/// of struct types: Literal structs and Identified structs.
+///
+/// Literal struct types (e.g. { i32, i32 }) are uniqued structurally, and must
+/// always have a body when created.  You can get one of these by using one of
+/// the StructType::get() forms.
+///  
+/// Identified structs (e.g. %foo or %42) may optionally have a name and are not
+/// uniqued.  The names for identified structs are managed at the LLVMContext
+/// level, so there can only be a single identified struct with a given name in
+/// a particular LLVMContext.  Identified structs may also optionally be opaque
+/// (have no body specified).  You get one of these by using one of the
+/// StructType::create() forms.
+///
+/// Independent of what kind of struct you have, the body of a struct type are
+/// laid out in memory consequtively with the elements directly one after the
+/// other (if the struct is packed) or (if not packed) with padding between the
+/// elements as defined by TargetData (which is required to match what the code
+/// generator for a target expects).
 ///
 class StructType : public CompositeType {
   StructType(const StructType &);                   // Do not implement
@@ -180,13 +195,13 @@ class StructType : public CompositeType {
     // This is the contents of the SubClassData field.
     SCDB_HasBody = 1,
     SCDB_Packed = 2,
-    SCDB_IsAnonymous = 4
+    SCDB_IsLiteral = 4
   };
   
   /// SymbolTableEntry - For a named struct that actually has a name, this is a
   /// pointer to the symbol table entry (maintained by LLVMContext) for the
-  /// struct.  This is null if the type is an anonymous struct or if it is
-  /// a named type that has an empty name.
+  /// struct.  This is null if the type is an literal struct or if it is
+  /// a identified type that has an empty name.
   /// 
   void *SymbolTableEntry;
 public:
@@ -194,20 +209,23 @@ public:
     delete [] ContainedTys; // Delete the body.
   }
 
-  /// StructType::createNamed - This creates a named struct with no body
-  /// specified.  If the name is empty, it creates an unnamed struct, which has
-  /// a unique identity but no actual name.
-  static StructType *createNamed(LLVMContext &Context, StringRef Name);
+  /// StructType::create - This creates an identified struct.
+  static StructType *create(LLVMContext &Context, StringRef Name);
+  static StructType *create(LLVMContext &Context);
   
-  static StructType *createNamed(StringRef Name, ArrayRef<Type*> Elements,
-                                 bool isPacked = false);
-  static StructType *createNamed(LLVMContext &Context, StringRef Name,
-                                 ArrayRef<Type*> Elements,
-                                 bool isPacked = false);
-  static StructType *createNamed(StringRef Name, Type *elt1, ...) END_WITH_NULL;
+  static StructType *create(ArrayRef<Type*> Elements,
+                            StringRef Name,
+                            bool isPacked = false);
+  static StructType *create(ArrayRef<Type*> Elements);
+  static StructType *create(LLVMContext &Context,
+                            ArrayRef<Type*> Elements,
+                            StringRef Name,
+                            bool isPacked = false);
+  static StructType *create(LLVMContext &Context, ArrayRef<Type*> Elements);
+  static StructType *create(StringRef Name, Type *elt1, ...) END_WITH_NULL;
 
   /// StructType::get - This static method is the primary way to create a
-  /// StructType.
+  /// literal StructType.
   static StructType *get(LLVMContext &Context, ArrayRef<Type*> Elements,
                          bool isPacked = false);
 
@@ -223,9 +241,9 @@ public:
 
   bool isPacked() const { return (getSubclassData() & SCDB_Packed) != 0; }
   
-  /// isAnonymous - Return true if this type is uniqued by structural
-  /// equivalence, false if it has an identity.
-  bool isAnonymous() const {return (getSubclassData() & SCDB_IsAnonymous) != 0;}
+  /// isLiteral - Return true if this type is uniqued by structural
+  /// equivalence, false if it is a struct definition.
+  bool isLiteral() const { return (getSubclassData() & SCDB_IsLiteral) != 0; }
   
   /// isOpaque - Return true if this is a type with an identity that has no body
   /// specified yet.  These prints as 'opaque' in .ll files.
@@ -236,21 +254,21 @@ public:
   
   /// getName - Return the name for this struct type if it has an identity.
   /// This may return an empty string for an unnamed struct type.  Do not call
-  /// this on an anonymous type.
+  /// this on an literal type.
   StringRef getName() const;
   
   /// setName - Change the name of this type to the specified name, or to a name
-  /// with a suffix if there is a collision.  Do not call this on an anonymous
+  /// with a suffix if there is a collision.  Do not call this on an literal
   /// type.
   void setName(StringRef Name);
 
-  /// setBody - Specify a body for an opaque type.
+  /// setBody - Specify a body for an opaque identified type.
   void setBody(ArrayRef<Type*> Elements, bool isPacked = false);
   void setBody(Type *elt1, ...) END_WITH_NULL;
   
   /// isValidElementType - Return true if the specified type is valid as a
   /// element type.
-  static bool isValidElementType(const Type *ElemTy);
+  static bool isValidElementType(Type *ElemTy);
   
 
   // Iterator access to the elements.
@@ -260,7 +278,7 @@ public:
 
   /// isLayoutIdentical - Return true if this is layout identical to the
   /// specified struct.
-  bool isLayoutIdentical(const StructType *Other) const;  
+  bool isLayoutIdentical(StructType *Other) const;  
   
   // Random access to the elements
   unsigned getNumElements() const { return NumContainedTys; }
@@ -321,11 +339,11 @@ public:
   /// ArrayType::get - This static method is the primary way to construct an
   /// ArrayType
   ///
-  static ArrayType *get(const Type *ElementType, uint64_t NumElements);
+  static ArrayType *get(Type *ElementType, uint64_t NumElements);
 
   /// isValidElementType - Return true if the specified type is valid as a
   /// element type.
-  static bool isValidElementType(const Type *ElemTy);
+  static bool isValidElementType(Type *ElemTy);
 
   uint64_t getNumElements() const { return NumElements; }
 
@@ -348,13 +366,13 @@ public:
   /// VectorType::get - This static method is the primary way to construct an
   /// VectorType.
   ///
-  static VectorType *get(const Type *ElementType, unsigned NumElements);
+  static VectorType *get(Type *ElementType, unsigned NumElements);
 
   /// VectorType::getInteger - This static method gets a VectorType with the
   /// same number of elements as the input type, and the element type is an
   /// integer type of the same width as the input element type.
   ///
-  static VectorType *getInteger(const VectorType *VTy) {
+  static VectorType *getInteger(VectorType *VTy) {
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
     Type *EltTy = IntegerType::get(VTy->getContext(), EltBits);
     return VectorType::get(EltTy, VTy->getNumElements());
@@ -364,7 +382,7 @@ public:
   /// getInteger except that the element types are twice as wide as the
   /// elements in the input type.
   ///
-  static VectorType *getExtendedElementVectorType(const VectorType *VTy) {
+  static VectorType *getExtendedElementVectorType(VectorType *VTy) {
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
     Type *EltTy = IntegerType::get(VTy->getContext(), EltBits * 2);
     return VectorType::get(EltTy, VTy->getNumElements());
@@ -374,7 +392,7 @@ public:
   /// getInteger except that the element types are half as wide as the
   /// elements in the input type.
   ///
-  static VectorType *getTruncatedElementVectorType(const VectorType *VTy) {
+  static VectorType *getTruncatedElementVectorType(VectorType *VTy) {
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
     assert((EltBits & 1) == 0 &&
            "Cannot truncate vector element with odd bit-width");
@@ -384,7 +402,7 @@ public:
 
   /// isValidElementType - Return true if the specified type is valid as a
   /// element type.
-  static bool isValidElementType(const Type *ElemTy);
+  static bool isValidElementType(Type *ElemTy);
 
   /// @brief Return the number of elements in the Vector type.
   unsigned getNumElements() const { return NumElements; }
@@ -411,17 +429,17 @@ class PointerType : public SequentialType {
 public:
   /// PointerType::get - This constructs a pointer to an object of the specified
   /// type in a numbered address space.
-  static PointerType *get(const Type *ElementType, unsigned AddressSpace);
+  static PointerType *get(Type *ElementType, unsigned AddressSpace);
 
   /// PointerType::getUnqual - This constructs a pointer to an object of the
   /// specified type in the generic address space (address space zero).
-  static PointerType *getUnqual(const Type *ElementType) {
+  static PointerType *getUnqual(Type *ElementType) {
     return PointerType::get(ElementType, 0);
   }
 
   /// isValidElementType - Return true if the specified type is valid as a
   /// element type.
-  static bool isValidElementType(const Type *ElemTy);
+  static bool isValidElementType(Type *ElemTy);
 
   /// @brief Return the address space of the Pointer type.
   inline unsigned getAddressSpace() const { return getSubclassData(); }

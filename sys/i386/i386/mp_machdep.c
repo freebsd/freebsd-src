@@ -145,9 +145,6 @@ static int bootAP;
 void *bootstacks[MAXCPU];
 static void *dpcpu;
 
-/* Hotwire a 0->4MB V==P mapping */
-extern pt_entry_t *KPTphys;
-
 struct pcb stoppcbs[MAXCPU];
 
 /* Variables needed for SMP tlb shootdown. */
@@ -822,8 +819,6 @@ init_secondary(void)
  * We tell the I/O APIC code about all the CPUs we want to receive
  * interrupts.  If we don't want certain CPUs to receive IRQs we
  * can simply not tell the I/O APIC code about them in this function.
- * We also do not tell it about the BSP since it tells itself about
- * the BSP internally to work with UP kernels and on UP machines.
  */
 static void
 set_interrupt_apic_ids(void)
@@ -833,8 +828,6 @@ set_interrupt_apic_ids(void)
 	for (i = 0; i < MAXCPU; i++) {
 		apic_id = cpu_apic_ids[i];
 		if (apic_id == -1)
-			continue;
-		if (cpu_info[apic_id].cpu_bsp)
 			continue;
 		if (cpu_info[apic_id].cpu_disabled)
 			continue;
@@ -931,7 +924,6 @@ start_all_aps(void)
 #ifndef PC98
 	u_char mpbiosreason;
 #endif
-	uintptr_t kptbase;
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i;
 
@@ -949,11 +941,8 @@ start_all_aps(void)
 
 	/* set up temporary P==V mapping for AP boot */
 	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
-
-	kptbase = (uintptr_t)(void *)KPTphys;
 	for (i = TMPMAP_START; i < NKPT; i++)
-		PTD[i] = (pd_entry_t)(PG_V | PG_RW |
-		    ((kptbase + i * PAGE_SIZE) & PG_FRAME));
+		PTD[i] = PTD[KPTDI + i];
 	invltlb();
 
 	/* start each AP */
@@ -1152,7 +1141,7 @@ start_ap(int apic_id)
 u_int xhits_gbl[MAXCPU];
 u_int xhits_pg[MAXCPU];
 u_int xhits_rng[MAXCPU];
-SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
+static SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
 SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
     sizeof(xhits_gbl), "IU", "");
 SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,

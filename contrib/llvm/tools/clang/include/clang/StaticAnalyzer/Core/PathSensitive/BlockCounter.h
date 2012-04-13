@@ -26,10 +26,13 @@ class StackFrameContext;
 
 namespace ento {
 
+/// \class BlockCounter
+/// \brief An abstract data type used to count the number of times a given
+/// block has been visited along a path analyzed by CoreEngine.
 class BlockCounter {
-  void* Data;
+  void *Data;
 
-  BlockCounter(void* D) : Data(D) {}
+  BlockCounter(void *D) : Data(D) {}
 
 public:
   BlockCounter() : Data(0) {}
@@ -38,7 +41,7 @@ public:
                          unsigned BlockID) const;
 
   class Factory {
-    void* F;
+    void *F;
   public:
     Factory(llvm::BumpPtrAllocator& Alloc);
     ~Factory();

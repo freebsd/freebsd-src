@@ -216,7 +216,6 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 			libusb20_be_free(usb_backend);
 			return (LIBUSB_ERROR_NO_MEM);
 		}
-
 		/* get device into libUSB v1.0 list */
 		libusb20_be_dequeue_device(usb_backend, pdev);
 
@@ -332,6 +331,30 @@ out:
 	return (ret);
 }
 
+int
+libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint)
+{
+	int multiplier;
+	int ret;
+
+	ret = libusb_get_max_packet_size(dev, endpoint);
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+	case LIBUSB20_SPEED_FULL:
+		break;
+	default:
+		if (ret > -1) {
+			multiplier = (1 + ((ret >> 11) & 3));
+			if (multiplier > 3)
+				multiplier = 3;
+			ret = (ret & 0x7FF) * multiplier;
+		}
+		break;
+	}
+	return (ret);
+}
+
 libusb_device *
 libusb_ref_device(libusb_device *dev)
 {
@@ -418,9 +441,12 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	if ((i = libusb_get_device_list(ctx, &devs)) < 0)
 		return (NULL);
 
+	pdev = NULL;
 	for (j = 0; j < i; j++) {
-		pdev = devs[j]->os_priv;
-		pdesc = libusb20_dev_get_device_desc(pdev);
+		struct libusb20_device *tdev;
+
+		tdev = devs[j]->os_priv;
+		pdesc = libusb20_dev_get_device_desc(tdev);
 		/*
 		 * NOTE: The USB library will automatically swap the
 		 * fields in the device descriptor to be of host
@@ -428,13 +454,10 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 		 */
 		if (pdesc->idVendor == vendor_id &&
 		    pdesc->idProduct == product_id) {
-			if (libusb_open(devs[j], &pdev) < 0)
-				pdev = NULL;
+			libusb_open(devs[j], &pdev);
 			break;
 		}
 	}
-	if (j == i)
-		pdev = NULL;
 
 	libusb_free_device_list(devs, 1);
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid leave");
@@ -718,8 +741,10 @@ libusb_kernel_driver_active(struct libusb20_device *pdev, int interface)
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	return (libusb20_dev_kernel_driver_active(
-	    pdev, interface));
+	if (libusb20_dev_kernel_driver_active(pdev, interface))
+		return (0);		/* no kernel driver is active */
+	else
+		return (1);		/* kernel driver is active */
 }
 
 int

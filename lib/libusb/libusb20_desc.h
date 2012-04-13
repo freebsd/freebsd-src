@@ -264,6 +264,43 @@ LIBUSB20_MAKE_STRUCT(LIBUSB20_CONFIG_DESC);
 
 LIBUSB20_MAKE_STRUCT(LIBUSB20_CONTROL_SETUP);
 
+#define	LIBUSB20_SS_ENDPT_COMP_DESC(m,n) \
+  m(n, UINT8_T,  bLength, ) \
+  m(n, UINT8_T,  bDescriptorType, ) \
+  m(n, UINT8_T,  bMaxBurst, ) \
+  m(n, UINT8_T,  bmAttributes, ) \
+  m(n, UINT16_T, wBytesPerInterval, ) \
+
+LIBUSB20_MAKE_STRUCT(LIBUSB20_SS_ENDPT_COMP_DESC);
+
+#define	LIBUSB20_USB_20_DEVCAP_DESC(m,n) \
+  m(n, UINT8_T,  bLength, ) \
+  m(n, UINT8_T,  bDescriptorType, ) \
+  m(n, UINT8_T,  bDevCapabilityType, ) \
+  m(n, UINT32_T, bmAttributes, ) \
+
+LIBUSB20_MAKE_STRUCT(LIBUSB20_USB_20_DEVCAP_DESC);
+
+#define	LIBUSB20_SS_USB_DEVCAP_DESC(m,n) \
+  m(n, UINT8_T,  bLength, ) \
+  m(n, UINT8_T,  bDescriptorType, ) \
+  m(n, UINT8_T,  bDevCapabilityType, ) \
+  m(n, UINT8_T,  bmAttributes, ) \
+  m(n, UINT16_T, wSpeedSupported, ) \
+  m(n, UINT8_T,  bFunctionalitySupport, ) \
+  m(n, UINT8_T,  bU1DevExitLat, ) \
+  m(n, UINT16_T, wU2DevExitLat, ) \
+
+LIBUSB20_MAKE_STRUCT(LIBUSB20_SS_USB_DEVCAP_DESC);
+
+#define	LIBUSB20_BOS_DESCRIPTOR(m,n) \
+  m(n, UINT8_T,  bLength, ) \
+  m(n, UINT8_T,  bDescriptorType, ) \
+  m(n, UINT16_T, wTotalLength, ) \
+  m(n, UINT8_T,  bNumDeviceCapabilities, ) \
+
+LIBUSB20_MAKE_STRUCT(LIBUSB20_BOS_DESCRIPTOR);
+
 /* standard USB stuff */
 
 /** \ingroup desc
@@ -333,6 +370,24 @@ enum libusb20_descriptor_type {
 
 	/** Hub descriptor */
 	LIBUSB20_DT_HUB = 0x29,
+
+	/** Binary Object Store, BOS */
+	LIBUSB20_DT_BOS = 0x0f,
+
+	/** Device Capability */
+	LIBUSB20_DT_DEVICE_CAPABILITY = 0x10,
+
+	/** SuperSpeed endpoint companion */
+	LIBUSB20_DT_SS_ENDPOINT_COMPANION = 0x30,
+};
+
+/** \ingroup desc
+ * Device capability types as defined by the USB specification. */
+enum libusb20_device_capability_type {
+	LIBUSB20_WIRELESS_USB_DEVICE_CAPABILITY = 0x1,
+	LIBUSB20_USB_2_0_EXTENSION_DEVICE_CAPABILITY = 0x2,
+	LIBUSB20_SS_USB_DEVICE_CAPABILITY = 0x3,
+	LIBUSB20_CONTAINER_ID_DEVICE_CAPABILITY = 0x4,
 };
 
 /* Descriptor sizes per descriptor type */
@@ -342,6 +397,10 @@ enum libusb20_descriptor_type {
 #define	LIBUSB20_DT_ENDPOINT_SIZE		7
 #define	LIBUSB20_DT_ENDPOINT_AUDIO_SIZE		9	/* Audio extension */
 #define	LIBUSB20_DT_HUB_NONVAR_SIZE		7
+#define	LIBUSB20_DT_SS_ENDPOINT_COMPANION_SIZE	6
+#define	LIBUSB20_DT_BOS_SIZE		5
+#define	LIBUSB20_USB_2_0_EXTENSION_DEVICE_CAPABILITY_SIZE	7
+#define	LIBUSB20_SS_USB_DEVICE_CAPABILITY_SIZE	10
 
 #define	LIBUSB20_ENDPOINT_ADDRESS_MASK	0x0f	/* in bEndpointAddress */
 #define	LIBUSB20_ENDPOINT_DIR_MASK	0x80

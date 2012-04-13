@@ -63,6 +63,7 @@
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+#include <netinet/ip_carp.h>
 #ifdef INET6
 #include <netinet6/scope6_var.h>
 #endif
@@ -83,7 +84,7 @@ struct if_data32 {
 	uint8_t	ifi_addrlen;
 	uint8_t	ifi_hdrlen;
 	uint8_t	ifi_link_state;
-	uint8_t	ifi_spare_char1;
+	uint8_t	ifi_vhid;
 	uint8_t	ifi_spare_char2;
 	uint8_t	ifi_datalen;
 	uint32_t ifi_mtu;
@@ -114,13 +115,43 @@ struct if_msghdr32 {
 	uint16_t ifm_index;
 	struct	if_data32 ifm_data;
 };
-#endif
+
+struct if_msghdrl32 {
+	uint16_t ifm_msglen;
+	uint8_t	ifm_version;
+	uint8_t	ifm_type;
+	int32_t	ifm_addrs;
+	int32_t	ifm_flags;
+	uint16_t ifm_index;
+	uint16_t _ifm_spare1;
+	uint16_t ifm_len;
+	uint16_t ifm_data_off;
+	struct	if_data32 ifm_data;
+};
+
+struct ifa_msghdrl32 {
+	uint16_t ifam_msglen;
+	uint8_t	ifam_version;
+	uint8_t	ifam_type;
+	int32_t	ifam_addrs;
+	int32_t	ifam_flags;
+	uint16_t ifam_index;
+	uint16_t _ifam_spare1;
+	uint16_t ifam_len;
+	uint16_t ifam_data_off;
+	int32_t	ifam_metric;
+	struct	if_data32 ifam_data;
+};
+#endif /* COMPAT_FREEBSD32 */
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
 /* NB: these are not modified */
 static struct	sockaddr route_src = { 2, PF_ROUTE, };
 static struct	sockaddr sa_zero   = { sizeof(sa_zero), AF_INET, };
+
+/* These are external hooks for CARP. */
+int	(*carp_get_vhid_p)(struct ifaddr *);
 
 /*
  * Used by rtsock/raw_input callback code to decide whether to filter the update
@@ -143,7 +174,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
 
 struct walkarg {
 	int	w_tmemsize;
@@ -166,7 +197,7 @@ static void	rt_setmetrics(u_long which, const struct rt_metrics *in,
 			struct rt_metrics_lite *out);
 static void	rt_getmetrics(const struct rt_metrics_lite *in,
 			struct rt_metrics *out);
-static void	rt_dispatch(struct mbuf *, const struct sockaddr *);
+static void	rt_dispatch(struct mbuf *, sa_family_t);
 
 static struct netisr_handler rtsock_nh = {
 	.nh_name = "rtsock",
@@ -452,7 +483,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -464,7 +495,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
@@ -494,7 +525,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -507,7 +538,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
@@ -545,6 +576,7 @@ route_output(struct mbuf *m, struct socket *so)
 	int len, error = 0;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
+	sa_family_t saf = AF_UNSPEC;
 
 #define senderr(e) { error = e; goto flush;}
 	if (m == NULL || ((m->m_len < sizeof(long)) &&
@@ -581,6 +613,7 @@ route_output(struct mbuf *m, struct socket *so)
 	    (info.rti_info[RTAX_GATEWAY] != NULL &&
 	     info.rti_info[RTAX_GATEWAY]->sa_family >= AF_MAX))
 		senderr(EINVAL);
+	saf = info.rti_info[RTAX_DST]->sa_family;
 	/*
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
@@ -926,10 +959,10 @@ flush:
 			 */
 			unsigned short family = rp->rcb_proto.sp_family;
 			rp->rcb_proto.sp_family = 0;
-			rt_dispatch(m, info.rti_info[RTAX_DST]);
+			rt_dispatch(m, saf);
 			rp->rcb_proto.sp_family = family;
 		} else
-			rt_dispatch(m, info.rti_info[RTAX_DST]);
+			rt_dispatch(m, saf);
 	}
 	/* info.rti_info[RTAX_DST] (used above) can point inside of rtm */
 	if (rtm)
@@ -1008,6 +1041,9 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 	return (0);
 }
 
+/*
+ * Used by the routing socket.
+ */
 static struct mbuf *
 rt_msg1(int type, struct rt_addrinfo *rtinfo)
 {
@@ -1075,6 +1111,9 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 	return (m);
 }
 
+/*
+ * Used by the sysctl code and routing socket.
+ */
 static int
 rt_msg2(int type, struct rt_addrinfo *rtinfo, caddr_t cp, struct walkarg *w)
 {
@@ -1088,17 +1127,31 @@ again:
 
 	case RTM_DELADDR:
 	case RTM_NEWADDR:
-		len = sizeof(struct ifa_msghdr);
+		if (w != NULL && w->w_op == NET_RT_IFLISTL) {
+#ifdef COMPAT_FREEBSD32
+			if (w->w_req->flags & SCTL_MASK32)
+				len = sizeof(struct ifa_msghdrl32);
+			else
+#endif
+				len = sizeof(struct ifa_msghdrl);
+		} else
+			len = sizeof(struct ifa_msghdr);
 		break;
 
 	case RTM_IFINFO:
 #ifdef COMPAT_FREEBSD32
 		if (w != NULL && w->w_req->flags & SCTL_MASK32) {
-			len = sizeof(struct if_msghdr32);
+			if (w->w_op == NET_RT_IFLISTL)
+				len = sizeof(struct if_msghdrl32);
+			else
+				len = sizeof(struct if_msghdr32);
 			break;
 		}
 #endif
-		len = sizeof(struct if_msghdr);
+		if (w != NULL && w->w_op == NET_RT_IFLISTL)
+			len = sizeof(struct if_msghdrl);
+		else
+			len = sizeof(struct if_msghdr);
 		break;
 
 	case RTM_NEWMADDR:
@@ -1185,7 +1238,7 @@ rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
 	rtm->rtm_flags = RTF_DONE | flags;
 	rtm->rtm_errno = error;
 	rtm->rtm_addrs = rtinfo->rti_addrs;
-	rt_dispatch(m, sa);
+	rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
 }
 
 void
@@ -1217,7 +1270,7 @@ rt_ifmsg(struct ifnet *ifp)
 	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 	ifm->ifm_data = ifp->if_data;
 	ifm->ifm_addrs = 0;
-	rt_dispatch(m, NULL);
+	rt_dispatch(m, AF_UNSPEC);
 }
 
 /*
@@ -1295,7 +1348,7 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
 			M_SETFIB(m, fibnum);
 			m->m_flags |= RTS_FILTER_FIB;
 		}
-		rt_dispatch(m, sa);
+		rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
 	}
 }
 
@@ -1338,7 +1391,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	    __func__));
 	ifmam->ifmam_index = ifp->if_index;
 	ifmam->ifmam_addrs = info.rti_addrs;
-	rt_dispatch(m, ifma->ifma_addr);
+	rt_dispatch(m, ifma->ifma_addr ? ifma->ifma_addr->sa_family : AF_UNSPEC);
 }
 
 static struct mbuf *
@@ -1398,7 +1451,7 @@ rt_ieee80211msg(struct ifnet *ifp, int what, void *data, size_t data_len)
 		if (m->m_flags & M_PKTHDR)
 			m->m_pkthdr.len += data_len;
 		mtod(m, struct if_announcemsghdr *)->ifan_msglen += data_len;
-		rt_dispatch(m, NULL);
+		rt_dispatch(m, AF_UNSPEC);
 	}
 }
 
@@ -1414,11 +1467,11 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 
 	m = rt_makeifannouncemsg(ifp, RTM_IFANNOUNCE, what, &info);
 	if (m != NULL)
-		rt_dispatch(m, NULL);
+		rt_dispatch(m, AF_UNSPEC);
 }
 
 static void
-rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
+rt_dispatch(struct mbuf *m, sa_family_t saf)
 {
 	struct m_tag *tag;
 
@@ -1427,14 +1480,14 @@ rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 	 * use when injecting the mbuf into the routing socket buffer from
 	 * the netisr.
 	 */
-	if (sa != NULL) {
+	if (saf != AF_UNSPEC) {
 		tag = m_tag_get(PACKET_TAG_RTSOCKFAM, sizeof(unsigned short),
 		    M_NOWAIT);
 		if (tag == NULL) {
 			m_freem(m);
 			return;
 		}
-		*(unsigned short *)(tag + 1) = sa->sa_family;
+		*(unsigned short *)(tag + 1) = saf;
 		m_tag_prepend(m, tag);
 	}
 #ifdef VIMAGE
@@ -1506,6 +1559,7 @@ copy_ifdata32(struct if_data *src, struct if_data32 *dst)
 	CP(*src, *dst, ifi_addrlen);
 	CP(*src, *dst, ifi_hdrlen);
 	CP(*src, *dst, ifi_link_state);
+	CP(*src, *dst, ifi_vhid);
 	dst->ifi_datalen = sizeof(struct if_data32);
 	CP(*src, *dst, ifi_mtu);
 	CP(*src, *dst, ifi_metric);
@@ -1528,6 +1582,147 @@ copy_ifdata32(struct if_data *src, struct if_data32 *dst)
 #endif
 
 static int
+sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct if_msghdrl *ifm;
+
+#ifdef COMPAT_FREEBSD32
+	if (w->w_req->flags & SCTL_MASK32) {
+		struct if_msghdrl32 *ifm32;
+
+		ifm32 = (struct if_msghdrl32 *)w->w_tmem;
+		ifm32->ifm_addrs = info->rti_addrs;
+		ifm32->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm32->ifm_index = ifp->if_index;
+		ifm32->_ifm_spare1 = 0;
+		ifm32->ifm_len = sizeof(*ifm32);
+		ifm32->ifm_data_off = offsetof(struct if_msghdrl32, ifm_data);
+
+		copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
+		/* Fixup if_data carp(4) vhid. */
+		if (carp_get_vhid_p != NULL)
+			ifm32->ifm_data.ifi_vhid =
+			    (*carp_get_vhid_p)(ifp->if_addr);
+
+		return (SYSCTL_OUT(w->w_req, (caddr_t)ifm32, len));
+	}
+#endif
+	ifm = (struct if_msghdrl *)w->w_tmem;
+	ifm->ifm_addrs = info->rti_addrs;
+	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+	ifm->ifm_index = ifp->if_index;
+	ifm->_ifm_spare1 = 0;
+	ifm->ifm_len = sizeof(*ifm);
+	ifm->ifm_data_off = offsetof(struct if_msghdrl, ifm_data);
+
+	ifm->ifm_data = ifp->if_data;
+	/* Fixup if_data carp(4) vhid. */
+	if (carp_get_vhid_p != NULL)
+		ifm->ifm_data.ifi_vhid = (*carp_get_vhid_p)(ifp->if_addr);
+
+	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
+}
+
+static int
+sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct if_msghdr *ifm;
+
+#ifdef COMPAT_FREEBSD32
+	if (w->w_req->flags & SCTL_MASK32) {
+		struct if_msghdr32 *ifm32;
+
+		ifm32 = (struct if_msghdr32 *)w->w_tmem;
+		ifm32->ifm_addrs = info->rti_addrs;
+		ifm32->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm32->ifm_index = ifp->if_index;
+
+		copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
+		/* Fixup if_data carp(4) vhid. */
+		if (carp_get_vhid_p != NULL)
+			ifm32->ifm_data.ifi_vhid =
+			    (*carp_get_vhid_p)(ifp->if_addr);
+
+		return (SYSCTL_OUT(w->w_req, (caddr_t)ifm32, len));
+	}
+#endif
+	ifm = (struct if_msghdr *)w->w_tmem;
+	ifm->ifm_addrs = info->rti_addrs;
+	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+	ifm->ifm_index = ifp->if_index;
+
+	ifm->ifm_data = ifp->if_data;
+	/* Fixup if_data carp(4) vhid. */
+	if (carp_get_vhid_p != NULL)
+		ifm->ifm_data.ifi_vhid = (*carp_get_vhid_p)(ifp->if_addr);
+
+	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
+}
+
+static int
+sysctl_iflist_ifaml(struct ifaddr *ifa, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct ifa_msghdrl *ifam;
+
+#ifdef COMPAT_FREEBSD32
+	if (w->w_req->flags & SCTL_MASK32) {
+		struct ifa_msghdrl32 *ifam32;
+
+		ifam32 = (struct ifa_msghdrl32 *)w->w_tmem;
+		ifam32->ifam_addrs = info->rti_addrs;
+		ifam32->ifam_flags = ifa->ifa_flags;
+		ifam32->ifam_index = ifa->ifa_ifp->if_index;
+		ifam32->_ifam_spare1 = 0;
+		ifam32->ifam_len = sizeof(*ifam32);
+		ifam32->ifam_data_off =
+		    offsetof(struct ifa_msghdrl32, ifam_data);
+		ifam32->ifam_metric = ifa->ifa_metric;
+
+		copy_ifdata32(&ifa->ifa_ifp->if_data, &ifam32->ifam_data);
+		/* Fixup if_data carp(4) vhid. */
+		if (carp_get_vhid_p != NULL)
+			ifam32->ifam_data.ifi_vhid = (*carp_get_vhid_p)(ifa);
+
+		return (SYSCTL_OUT(w->w_req, (caddr_t)ifam32, len));
+	}
+#endif
+
+	ifam = (struct ifa_msghdrl *)w->w_tmem;
+	ifam->ifam_addrs = info->rti_addrs;
+	ifam->ifam_flags = ifa->ifa_flags;
+	ifam->ifam_index = ifa->ifa_ifp->if_index;
+	ifam->_ifam_spare1 = 0;
+	ifam->ifam_len = sizeof(*ifam);
+	ifam->ifam_data_off = offsetof(struct ifa_msghdrl, ifam_data);
+	ifam->ifam_metric = ifa->ifa_metric;
+
+	ifam->ifam_data = ifa->if_data;
+	/* Fixup if_data carp(4) vhid. */
+	if (carp_get_vhid_p != NULL)
+		ifam->ifam_data.ifi_vhid = (*carp_get_vhid_p)(ifa);
+
+	return (SYSCTL_OUT(w->w_req, w->w_tmem, len));
+}
+
+static int
+sysctl_iflist_ifam(struct ifaddr *ifa, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct ifa_msghdr *ifam;
+
+	ifam = (struct ifa_msghdr *)w->w_tmem;
+	ifam->ifam_addrs = info->rti_addrs;
+	ifam->ifam_flags = ifa->ifa_flags;
+	ifam->ifam_index = ifa->ifa_ifp->if_index;
+	ifam->ifam_metric = ifa->ifa_metric;
+
+	return (SYSCTL_OUT(w->w_req, w->w_tmem, len));
+}
+
+static int
 sysctl_iflist(int af, struct walkarg *w)
 {
 	struct ifnet *ifp;
@@ -1540,38 +1735,16 @@ sysctl_iflist(int af, struct walkarg *w)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
 		info.rti_info[RTAX_IFP] = NULL;
 		if (w->w_req && w->w_tmem) {
-			struct if_msghdr *ifm;
-
-#ifdef COMPAT_FREEBSD32
-			if (w->w_req->flags & SCTL_MASK32) {
-				struct if_msghdr32 *ifm32;
-
-				ifm32 = (struct if_msghdr32 *)w->w_tmem;
-				ifm32->ifm_index = ifp->if_index;
-				ifm32->ifm_flags = ifp->if_flags |
-				    ifp->if_drv_flags;
-				copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
-				ifm32->ifm_addrs = info.rti_addrs;
-				error = SYSCTL_OUT(w->w_req, (caddr_t)ifm32,
-				    len);
-				goto sysctl_out;
-			}
-#endif
-			ifm = (struct if_msghdr *)w->w_tmem;
-			ifm->ifm_index = ifp->if_index;
-			ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
-			ifm->ifm_data = ifp->if_data;
-			ifm->ifm_addrs = info.rti_addrs;
-			error = SYSCTL_OUT(w->w_req, (caddr_t)ifm, len);
-#ifdef COMPAT_FREEBSD32
-		sysctl_out:
-#endif
+			if (w->w_op == NET_RT_IFLISTL)
+				error = sysctl_iflist_ifml(ifp, &info, w, len);
+			else
+				error = sysctl_iflist_ifm(ifp, &info, w, len);
 			if (error)
 				goto done;
 		}
@@ -1586,25 +1759,23 @@ sysctl_iflist(int af, struct walkarg *w)
 			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
 			len = rt_msg2(RTM_NEWADDR, &info, NULL, w);
 			if (w->w_req && w->w_tmem) {
-				struct ifa_msghdr *ifam;
-
-				ifam = (struct ifa_msghdr *)w->w_tmem;
-				ifam->ifam_index = ifa->ifa_ifp->if_index;
-				ifam->ifam_flags = ifa->ifa_flags;
-				ifam->ifam_metric = ifa->ifa_metric;
-				ifam->ifam_addrs = info.rti_addrs;
-				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
+				if (w->w_op == NET_RT_IFLISTL)
+					error = sysctl_iflist_ifaml(ifa, &info,
+					    w, len);
+				else
+					error = sysctl_iflist_ifam(ifa, &info,
+					    w, len);
 				if (error)
 					goto done;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = info.rti_info[RTAX_NETMASK] =
 			info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
 	if (ifp != NULL)
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	IFNET_RUNLOCK();
 	return (error);
 }
@@ -1625,7 +1796,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			continue;
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
@@ -1646,12 +1817,12 @@ sysctl_ifmalist(int af, struct walkarg *w)
 				ifmam->ifmam_addrs = info.rti_addrs;
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
 				if (error) {
-					IF_ADDR_UNLOCK(ifp);
+					IF_ADDR_RUNLOCK(ifp);
 					goto done;
 				}
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 done:
 	IFNET_RUNLOCK();
@@ -1723,6 +1894,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		break;
 
 	case NET_RT_IFLIST:
+	case NET_RT_IFLISTL:
 		error = sysctl_iflist(af, &w);
 		break;
 
@@ -1735,7 +1907,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
+static SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
 
 /*
  * Definitions of protocols supported in the ROUTE domain.

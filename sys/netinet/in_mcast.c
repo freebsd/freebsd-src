@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
 #include <sys/ktr.h>
+#include <sys/taskqueue.h>
 #include <sys/tree.h>
 
 #include <net/if.h>
@@ -144,6 +145,8 @@ static void	inm_purge(struct in_multi *);
 static void	inm_reap(struct in_multi *);
 static struct ip_moptions *
 		inp_findmoptions(struct inpcb *);
+static void	inp_freemoptions_internal(struct ip_moptions *);
+static void	inp_gcmoptions(void *, int);
 static int	inp_get_source_filters(struct inpcb *, struct sockopt *);
 static int	inp_join_group(struct inpcb *, struct sockopt *);
 static int	inp_leave_group(struct inpcb *, struct sockopt *);
@@ -155,7 +158,8 @@ static int	inp_set_multicast_if(struct inpcb *, struct sockopt *);
 static int	inp_set_source_filters(struct inpcb *, struct sockopt *);
 static int	sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_net_inet_ip, OID_AUTO, mcast, CTLFLAG_RW, 0, "IPv4 multicast");
+static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mcast, CTLFLAG_RW, 0,
+    "IPv4 multicast");
 
 static u_long in_mcast_maxgrpsrc = IP_MAX_GROUP_SRC_FILTER;
 SYSCTL_ULONG(_net_inet_ip_mcast, OID_AUTO, maxgrpsrc,
@@ -174,9 +178,13 @@ SYSCTL_INT(_net_inet_ip_mcast, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
     &in_mcast_loop, 0, "Loopback multicast datagrams by default");
 TUNABLE_INT("net.inet.ip.mcast.loop", &in_mcast_loop);
 
-SYSCTL_NODE(_net_inet_ip_mcast, OID_AUTO, filters,
+static SYSCTL_NODE(_net_inet_ip_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip_mcast_filters,
     "Per-interface stack-wide source filters");
+
+static STAILQ_HEAD(, ip_moptions) imo_gc_list =
+    STAILQ_HEAD_INITIALIZER(imo_gc_list);
+static struct task imo_gc_task = TASK_INITIALIZER(0, inp_gcmoptions, NULL);
 
 /*
  * Inline function which wraps assertions for a valid ifp.
@@ -421,7 +429,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 		return (error);
 
 	/* XXX ifma_protospec must be covered by IF_ADDR_LOCK */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 
 	/*
 	 * If something other than netinet is occupying the link-layer
@@ -445,11 +453,11 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 #endif
 		++inm->inm_refcount;
 		*pinm = inm;
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		return (0);
 	}
 
-	IF_ADDR_LOCK_ASSERT(ifp);
+	IF_ADDR_WLOCK_ASSERT(ifp);
 
 	/*
 	 * A new in_multi record is needed; allocate and initialize it.
@@ -461,7 +469,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
 		if_delmulti_ifma(ifma);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		return (ENOMEM);
 	}
 	inm->inm_addr = *group;
@@ -484,7 +492,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 
 	*pinm = inm;
 
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	return (0);
 }
 
@@ -1170,10 +1178,7 @@ out_inm_release:
 int
 in_leavegroup(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 {
-	struct ifnet *ifp;
 	int error;
-
-	ifp = inm->inm_ifp;
 
 	IN_MULTI_LOCK();
 	error = in_leavegroup_locked(inm, imf);
@@ -1517,17 +1522,29 @@ inp_findmoptions(struct inpcb *inp)
 }
 
 /*
- * Discard the IP multicast options (and source filters).
+ * Discard the IP multicast options (and source filters).  To minimize
+ * the amount of work done while holding locks such as the INP's
+ * pcbinfo lock (which is used in the receive path), the free
+ * operation is performed asynchronously in a separate task.
  *
  * SMPng: NOTE: assumes INP write lock is held.
  */
 void
 inp_freemoptions(struct ip_moptions *imo)
 {
-	struct in_mfilter	*imf;
-	size_t			 idx, nmships;
 
 	KASSERT(imo != NULL, ("%s: ip_moptions is NULL", __func__));
+	IN_MULTI_LOCK();
+	STAILQ_INSERT_TAIL(&imo_gc_list, imo, imo_link);
+	IN_MULTI_UNLOCK();
+	taskqueue_enqueue(taskqueue_thread, &imo_gc_task);
+}
+
+static void
+inp_freemoptions_internal(struct ip_moptions *imo)
+{
+	struct in_mfilter	*imf;
+	size_t			 idx, nmships;
 
 	nmships = imo->imo_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1543,6 +1560,22 @@ inp_freemoptions(struct ip_moptions *imo)
 		free(imo->imo_mfilters, M_INMFILTER);
 	free(imo->imo_membership, M_IPMOPTS);
 	free(imo, M_IPMOPTS);
+}
+
+static void
+inp_gcmoptions(void *context, int pending)
+{
+	struct ip_moptions *imo;
+
+	IN_MULTI_LOCK();
+	while (!STAILQ_EMPTY(&imo_gc_list)) {
+		imo = STAILQ_FIRST(&imo_gc_list);
+		STAILQ_REMOVE_HEAD(&imo_gc_list, imo_link);
+		IN_MULTI_UNLOCK();
+		inp_freemoptions_internal(imo);
+		IN_MULTI_LOCK();
+	}
+	IN_MULTI_UNLOCK();
 }
 
 /*
@@ -2796,7 +2829,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 
 	IN_MULTI_LOCK();
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
@@ -2829,7 +2862,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	IN_MULTI_UNLOCK();
 

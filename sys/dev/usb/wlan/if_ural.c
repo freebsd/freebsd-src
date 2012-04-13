@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ural_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
 SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &ural_debug, 0,
     "Debug level");
 #endif
@@ -131,9 +131,9 @@ static usb_callback_t ural_bulk_write_callback;
 static usb_error_t	ural_do_request(struct ural_softc *sc,
 			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *ural_vap_create(struct ieee80211com *,
-			    const char name[IFNAMSIZ], int unit, int opmode,
-			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+			    const char [IFNAMSIZ], int, enum ieee80211_opmode,
+			    int, const uint8_t [IEEE80211_ADDR_LEN],
+			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		ural_vap_delete(struct ieee80211vap *);
 static void		ural_tx_free(struct ural_tx_data *, int);
 static void		ural_setup_tx_list(struct ural_softc *);
@@ -568,10 +568,10 @@ ural_do_request(struct ural_softc *sc,
 }
 
 static struct ieee80211vap *
-ural_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+ural_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct ural_softc *sc = ic->ic_ifp->if_softc;
 	struct ural_vap *uvp;
@@ -800,7 +800,7 @@ tr_setup:
 			STAILQ_REMOVE_HEAD(&sc->tx_q, next);
 			m = data->m;
 
-			if (m->m_pkthdr.len > (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE)) {
+			if (m->m_pkthdr.len > (int)(RAL_FRAME_SIZE + RAL_TX_DESC_SIZE)) {
 				DPRINTFN(0, "data overflow, %u bytes\n",
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE);
@@ -881,7 +881,7 @@ ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		if (len < RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN) {
+		if (len < (int)(RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
 			ifp->if_ierrors++;
@@ -1950,7 +1950,7 @@ ural_read_eeprom(struct ural_softc *sc)
 static int
 ural_bbp_init(struct ural_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
+#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
 	int i, ntries;
 
 	/* wait for BBP to be ready */
@@ -2034,7 +2034,7 @@ ural_set_rxantenna(struct ural_softc *sc, int antenna)
 static void
 ural_init_locked(struct ural_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
+#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint16_t tmp;

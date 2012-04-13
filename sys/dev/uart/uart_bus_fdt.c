@@ -155,11 +155,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * Retrieve /chosen/std{in,out}.
 	 */
-	if ((chosen = OF_finddevice("/chosen")) == 0)
+	if ((chosen = OF_finddevice("/chosen")) == -1)
 		return (ENXIO);
 	if (OF_getprop(chosen, "stdin", buf, sizeof(buf)) <= 0)
 		return (ENXIO);
-	if ((node = OF_finddevice(buf)) == 0)
+	if ((node = OF_finddevice(buf)) == -1)
 		return (ENXIO);
 	if (OF_getprop(chosen, "stdout", buf, sizeof(buf)) <= 0)
 		return (ENXIO);
@@ -186,7 +186,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	di->bas.chan = 0;
 	di->bas.regshft = (u_int)shift;
-	di->baudrate = 0;
+	di->baudrate = br;
 	di->bas.rclk = (u_int)rclk;
 	di->ops = uart_getops(class);
 	di->databits = 8;

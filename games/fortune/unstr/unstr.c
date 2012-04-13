@@ -67,13 +67,13 @@ __FBSDID("$FreeBSD$");
 
 #include "strfile.h"
 
-char	*Infile,			/* name of input file */
-	Datafile[MAXPATHLEN],		/* name of data file */
-	Delimch;			/* delimiter character */
+static char	*Infile,		/* name of input file */
+		Datafile[MAXPATHLEN],	/* name of data file */
+		Delimch;		/* delimiter character */
 
-FILE	*Inf, *Dataf;
+static FILE	*Inf, *Dataf;
 
-void order_unstr(STRFILE *);
+static void order_unstr(STRFILE *);
 
 /* ARGSUSED */
 int
@@ -107,7 +107,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 order_unstr(STRFILE *tbl)
 {
 	uint32_t i;

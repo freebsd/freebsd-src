@@ -214,16 +214,8 @@ siba_core_attach(struct siba_softc *siba)
 int
 siba_core_detach(struct siba_softc *siba)
 {
-	device_t *devlistp;
-	int devcnt, error = 0, i;
-
-	error = device_get_children(siba->siba_dev, &devlistp, &devcnt);
-	if (error != 0)
-		return (0);
-
-	for ( i = 0 ; i < devcnt ; i++)
-		device_delete_child(siba->siba_dev, devlistp[i]);
-	free(devlistp, M_TEMP);
+	/* detach & delete all children */
+	device_delete_children(siba->siba_dev);
 	return (0);
 }
 
@@ -1215,7 +1207,7 @@ siba_cc_pmu0_pll0_init(struct siba_cc *scc, uint32_t xtalfreq)
 	if (((pmu & SIBA_CC_PMUCTL_XF) >> 2) == e->xf)
 		return;
 
-	DPRINTF(siba, SIBA_DEBUG_PLL, "change PLL value to %u.%03u mhz\n",
+	DPRINTF(siba, SIBA_DEBUG_PLL, "change PLL value to %u.%03u MHz\n",
 	    (xtalfreq / 1000), (xtalfreq % 1000));
 
 	KASSERT(siba->siba_chipid == 0x4328 || siba->siba_chipid == 0x5354,

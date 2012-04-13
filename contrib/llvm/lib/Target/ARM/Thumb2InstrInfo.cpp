@@ -14,9 +14,9 @@
 #include "Thumb2InstrInfo.h"
 #include "ARM.h"
 #include "ARMConstantPoolValue.h"
-#include "ARMAddressingModes.h"
 #include "ARMMachineFunctionInfo.h"
 #include "Thumb2InstrInfo.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
@@ -122,7 +122,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     const TargetRegisterClass *RC,
                     const TargetRegisterInfo *TRI) const {
   if (RC == ARM::GPRRegisterClass   || RC == ARM::tGPRRegisterClass ||
-      RC == ARM::tcGPRRegisterClass || RC == ARM::rGPRRegisterClass) {
+      RC == ARM::tcGPRRegisterClass || RC == ARM::rGPRRegisterClass ||
+      RC == ARM::GPRnopcRegisterClass) {
     DebugLoc DL;
     if (I != MBB.end()) DL = I->getDebugLoc();
 
@@ -149,7 +150,8 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      const TargetRegisterClass *RC,
                      const TargetRegisterInfo *TRI) const {
   if (RC == ARM::GPRRegisterClass   || RC == ARM::tGPRRegisterClass ||
-      RC == ARM::tcGPRRegisterClass || RC == ARM::rGPRRegisterClass) {
+      RC == ARM::tcGPRRegisterClass || RC == ARM::rGPRRegisterClass ||
+      RC == ARM::GPRnopcRegisterClass) {
     DebugLoc DL;
     if (I != MBB.end()) DL = I->getDebugLoc();
 
@@ -233,9 +235,8 @@ void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
       if (DestReg == ARM::SP && (ThisVal < ((1 << 7)-1) * 4)) {
         assert((ThisVal & 3) == 0 && "Stack update is not multiple of 4?");
         Opc = isSub ? ARM::tSUBspi : ARM::tADDspi;
-        // FIXME: Fix Thumb1 immediate encoding.
-        BuildMI(MBB, MBBI, dl, TII.get(Opc), DestReg)
-          .addReg(BaseReg).addImm(ThisVal/4).setMIFlags(MIFlags);
+        AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(Opc), DestReg)
+          .addReg(BaseReg).addImm(ThisVal/4).setMIFlags(MIFlags));
         NumBytes = 0;
         continue;
       }

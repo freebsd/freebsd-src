@@ -175,6 +175,14 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
 #endif
+		if (chan == 0) {
+			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
+			struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
+			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwnn, "World Wide Node Name");
+			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwpn, "World Wide Port Name");
+			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->loop_down_limit, 0, "Loop Down Limit");
+			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->gone_device_time, 0, "Gone Device Time");
+		}
 	}
 	return (0);
 }
@@ -1079,8 +1087,9 @@ static ISP_INLINE void
 destroy_lun_state(ispsoftc_t *isp, tstate_t *tptr)
 {
 	struct tslist *lhp;
-	KASSERT((tptr->hold == 0), ("tptr still held"));
-	ISP_GET_PC_ADDR(isp, xpt_path_path_id(tptr->owner), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	KASSERT((tptr->hold != 0), ("tptr is not held"));
+	KASSERT((tptr->hold == 1), ("tptr still held (%d)", tptr->hold));
+	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
 	SLIST_REMOVE(lhp, tptr, tstate, next);
 	xpt_free_path(tptr->owner);
 	free(tptr, M_DEVBUF);
@@ -1308,12 +1317,13 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 		mtx_sleep(isp, &isp->isp_lock, PRIBIO, "want_isp_disable_lun", 0);
 	}
 	isp->isp_osinfo.tmbusy = 1;
+	status = CAM_REQ_INPROG;
 
 	/*
 	 * Find the state pointer.
 	 */
 	if ((tptr = get_lun_statep(isp, bus, lun)) == NULL) {
-		ccb->ccb_h.status = CAM_PATH_INVALID;
+		status = CAM_PATH_INVALID;
 		goto done;
 	}
 
@@ -1333,13 +1343,13 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 	}
 
 	isp->isp_osinfo.rptr = &status;
-	status = CAM_REQ_INPROG;
 	if (isp_lun_cmd(isp, RQSTYPE_ENABLE_LUN, bus, lun, 0, 0)) {
 		status = CAM_RESRC_UNAVAIL;
 	} else {
 		mtx_sleep(ccb, &isp->isp_lock, PRIBIO, "isp_disable_lun", 0);
 	}
 done:
+	ccb->ccb_h.status = status;
 	if (status == CAM_REQ_CMP) {
 		xpt_print(ccb->ccb_h.path, "now disabled for target mode\n");
 	}
@@ -2941,23 +2951,25 @@ isp_target_mark_aborted(ispsoftc_t *isp, union ccb *ccb)
 {
 	tstate_t *tptr;
 	atio_private_data_t *atp;
+	union ccb *accb = ccb->cab.abort_ccb;
 
-	tptr = get_lun_statep(isp, XS_CHANNEL(ccb), XS_LUN(ccb));
+	tptr = get_lun_statep(isp, XS_CHANNEL(accb), XS_LUN(accb));
 	if (tptr == NULL) {
-		tptr = get_lun_statep(isp, XS_CHANNEL(ccb), CAM_LUN_WILDCARD);
+		tptr = get_lun_statep(isp, XS_CHANNEL(accb), CAM_LUN_WILDCARD);
 		if (tptr == NULL) {
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			return;
 		}
 	}
 
-	atp = isp_get_atpd(isp, tptr, ccb->atio.tag_id);
+	atp = isp_get_atpd(isp, tptr, accb->atio.tag_id);
 	if (atp == NULL) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		return;
+	} else {
+		atp->dead = 1;
+		ccb->ccb_h.status = CAM_REQ_CMP;
 	}
-	atp->dead = 1;
-	ccb->ccb_h.status = CAM_REQ_CMP;
+	rls_lun_statep(isp, tptr);
 }
 
 static void
@@ -3158,10 +3170,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		xpt_print(atio->ccb_h.path, "[0x%x] Non-Zero Lun %d: cdb0=0x%x\n", atio->tag_id, return_lun, cdb[0]);
 		if (cdb[0] != INQUIRY && cdb[0] != REPORT_LUNS && cdb[0] != REQUEST_SENSE) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_ILLEGAL_REQUEST;
-			atio->sense_data.add_sense_code = 0x25;
-			atio->sense_data.add_sense_code_qual = 0x0;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_ILLEGAL_REQUEST;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x25;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x0;
+			atio->sense_len = SSD_MIN_SIZE;
 		}
 		return_lun = CAM_LUN_WILDCARD;
 	}
@@ -3185,10 +3197,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 	case READ_16:
 		if (isptarg_rwparm(cdb, disk_data, disk_size, atio->ccb_h.ccb_data_offset, &data_ptr, &data_len, &last)) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x24;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x24;
+			atio->sense_len = SSD_MIN_SIZE;
 		} else {
 #ifdef	ISP_FORCE_TIMEOUT
 			{
@@ -3224,10 +3236,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 	case WRITE_16:
 		if (isptarg_rwparm(cdb, disk_data, disk_size, atio->ccb_h.ccb_data_offset, &data_ptr, &data_len, &last)) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x24;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x24;
+			atio->sense_len = SSD_MIN_SIZE;
 		} else {
 #ifdef	ISP_FORCE_TIMEOUT
 			{
@@ -3261,10 +3273,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		flags |= CAM_DIR_IN;
 		if (cdb[1] || cdb[2] || cdb[3]) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x20;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x20;
+			atio->sense_len = SSD_MIN_SIZE;
 			break;
 		}
 		data_len = sizeof (iqd);
@@ -3285,10 +3297,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		if (ca) {
 			ca = 0;
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x28;
-			atio->sense_data.add_sense_code_qual = 0x0;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x28;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x0;
+			atio->sense_len = SSD_MIN_SIZE;
 		}
 		break;
 	case SYNCHRONIZE_CACHE:
@@ -3303,10 +3315,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 		flags |= CAM_DIR_IN;
 		if (cdb[2] || cdb[3] || cdb[4] || cdb[5]) {
 			status = SCSI_STATUS_CHECK_COND;
-			atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-			atio->sense_data.add_sense_code = 0x5;
-			atio->sense_data.add_sense_code_qual = 0x24;
-			atio->sense_len = sizeof (atio->sense_data);
+			SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+			SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+			SDFIXED(atio->sense_data)->add_sense_code_qual = 0x24;
+			atio->sense_len = SSD_MIN_SIZE;
 			break;
 		}
 		if (cdb[8] & 0x1) { /* PMI */
@@ -3357,10 +3369,10 @@ isptargstart(struct cam_periph *periph, union ccb *iccb)
 	default:
 		flags |= CAM_DIR_NONE;
 		status = SCSI_STATUS_CHECK_COND;
-		atio->sense_data.error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
-		atio->sense_data.add_sense_code = 0x5;
-		atio->sense_data.add_sense_code_qual = 0x20;
-		atio->sense_len = sizeof (atio->sense_data);
+		SDFIXED(atio->sense_data)->error_code = SSD_ERRCODE_VALID|SSD_CURRENT_ERROR|SSD_KEY_UNIT_ATTENTION;
+		SDFIXED(atio->sense_data)->add_sense_code = 0x5;
+		SDFIXED(atio->sense_data)->add_sense_code_qual = 0x20;
+		atio->sense_len = SSD_MIN_SIZE;
 		break;
 	}
 
@@ -4511,7 +4523,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		switch (accb->ccb_h.func_code) {
 #ifdef	ISP_TARGET_MODE
 		case XPT_ACCEPT_TARGET_IO:
-			isp_target_mark_aborted(isp, accb);
+			isp_target_mark_aborted(isp, ccb);
 			break;
 #endif
 		case XPT_SCSI_IO:

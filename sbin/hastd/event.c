@@ -61,11 +61,11 @@ event_send(const struct hast_resource *res, int event)
 		    "Unable to prepare event header");
 		goto done;
 	}
-	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to send event header");
 		goto done;
 	}
-	if (hast_proto_recv_hdr(res->hr_event, &nvin) < 0) {
+	if (hast_proto_recv_hdr(res->hr_event, &nvin) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to receive event header");
 		goto done;
 	}
@@ -92,7 +92,7 @@ event_recv(const struct hast_resource *res)
 
 	nvin = nvout = NULL;
 
-	if (hast_proto_recv_hdr(res->hr_event, &nvin) < 0) {
+	if (hast_proto_recv_hdr(res->hr_event, &nvin) == -1) {
 		/*
 		 * First error log as debug. This is because worker process
 		 * most likely exited.
@@ -145,7 +145,7 @@ event_recv(const struct hast_resource *res)
 		    "Unable to prepare event header");
 		goto fail;
 	}
-	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to send event header");
 		goto fail;
 	}

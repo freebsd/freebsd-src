@@ -1378,7 +1378,6 @@ vxge_ifp_setup(device_t ndev)
 	/* Initialize interface ifnet structure */
 	if_initname(ifp, device_get_name(ndev), device_get_unit(ndev));
 
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = VXGE_BAUDRATE;
 	ifp->if_init = vxge_init;
 	ifp->if_softc = vdev;

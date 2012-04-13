@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iir/iir.h>
 
-MALLOC_DEFINE(M_GDTBUF, "iirbuf", "iir driver buffer");
+static MALLOC_DEFINE(M_GDTBUF, "iirbuf", "iir driver buffer");
 
 struct gdt_softc *gdt_wait_gdt;
 int     gdt_wait_index;

@@ -42,7 +42,8 @@ __FBSDID("$FreeBSD$");
 #define	G_ZERO_CLASS_NAME	"ZERO"
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, zero, CTLFLAG_RW, 0, "GEOM_ZERO stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, zero, CTLFLAG_RW, 0,
+    "GEOM_ZERO stuff");
 static int g_zero_clear = 1;
 SYSCTL_INT(_kern_geom_zero, OID_AUTO, clear, CTLFLAG_RW, &g_zero_clear, 0,
     "Clear read data buffer");

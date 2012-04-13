@@ -41,82 +41,31 @@
 #ifndef _MACHINE_FPU_H_
 #define	_MACHINE_FPU_H_
 
-/* Contents of each x87 floating point accumulator */
-struct fpacc87 {
-	u_char	fp_bytes[10];
-};
-
-/* Contents of each SSE extended accumulator */
-struct  xmmacc {
-	u_char	xmm_bytes[16];
-};
-
-struct  envxmm {
-	u_int16_t	en_cw;		/* control word (16bits) */
-	u_int16_t	en_sw;		/* status word (16bits) */
-	u_int8_t	en_tw;		/* tag word (8bits) */
-	u_int8_t	en_zero;
-	u_int16_t	en_opcode;	/* opcode last executed (11 bits ) */
-	u_int64_t	en_rip;		/* floating point instruction pointer */
-	u_int64_t	en_rdp;		/* floating operand pointer */
-	u_int32_t	en_mxcsr;	/* SSE sontorol/status register */
-	u_int32_t	en_mxcsr_mask;	/* valid bits in mxcsr */
-};
-
-struct  savefpu {
-	struct	envxmm	sv_env;
-	struct {
-		struct fpacc87	fp_acc;
-		u_char		fp_pad[6];      /* padding */
-	} sv_fp[8];
-	struct xmmacc	sv_xmm[16];
-	u_char sv_pad[96];
-} __aligned(16);
+#include <x86/fpu.h>
 
 #ifdef _KERNEL
-struct fpu_kern_ctx {
-	struct savefpu hwstate;
-	struct savefpu *prev;
-	uint32_t flags;
-};
-#define	FPU_KERN_CTX_FPUINITDONE 0x01
+
+struct fpu_kern_ctx;
 
 #define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNFPU) == 0)
-#endif
 
-/*
- * The hardware default control word for i387's and later coprocessors is
- * 0x37F, giving:
- *
- *	round to nearest
- *	64-bit precision
- *	all exceptions masked.
- *
- * FreeBSD/i386 uses 53 bit precision for things like fadd/fsub/fsqrt etc
- * because of the difference between memory and fpu register stack arguments.
- * If its using an intermediate fpu register, it has 80/64 bits to work
- * with.  If it uses memory, it has 64/53 bits to work with.  However,
- * gcc is aware of this and goes to a fair bit of trouble to make the
- * best use of it.
- *
- * This is mostly academic for AMD64, because the ABI prefers the use
- * SSE2 based math.  For FreeBSD/amd64, we go with the default settings.
- */
-#define	__INITIAL_FPUCW__	0x037F
-#define	__INITIAL_FPUCW_I386__	0x127F
-#define	__INITIAL_MXCSR__	0x1F80
-#define	__INITIAL_MXCSR_MASK__	0xFFBF
+#define	XSAVE_AREA_ALIGN	64
 
-#ifdef _KERNEL
 void	fpudna(void);
 void	fpudrop(void);
 void	fpuexit(struct thread *td);
 int	fpuformat(void);
 int	fpugetregs(struct thread *td);
 void	fpuinit(void);
-void	fpusetregs(struct thread *td, struct savefpu *addr);
+void	fpusave(void *addr);
+int	fpusetregs(struct thread *td, struct savefpu *addr,
+	    char *xfpustate, size_t xfpustate_size);
+int	fpusetxstate(struct thread *td, char *xfpustate,
+	    size_t xfpustate_size);
 int	fputrap(void);
 void	fpuuserinited(struct thread *td);
+struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
+void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
 int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
@@ -124,9 +73,10 @@ int	fpu_kern_thread(u_int flags);
 int	is_fpu_kern_thread(u_int flags);
 
 /*
- * Flags for fpu_kern_enter() and fpu_kern_thread().
+ * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().
  */
 #define	FPU_KERN_NORMAL	0x0000
+#define	FPU_KERN_NOWAIT	0x0001
 
 #endif
 

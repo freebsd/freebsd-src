@@ -90,10 +90,6 @@ static device_method_t  cuda_methods[] = {
         DEVMETHOD(device_suspend,       bus_generic_suspend),
         DEVMETHOD(device_resume,        bus_generic_resume),
 
-	/* bus interface, for ADB root */
-        DEVMETHOD(bus_print_child,      bus_generic_print_child),
-        DEVMETHOD(bus_driver_added,     bus_generic_driver_added),
-
 	/* ADB bus interface */
 	DEVMETHOD(adb_hb_send_raw_packet,	cuda_adb_send),
 	DEVMETHOD(adb_hb_controller_poll,	cuda_poll),
@@ -103,7 +99,7 @@ static device_method_t  cuda_methods[] = {
 	DEVMETHOD(clock_gettime,	cuda_gettime),
 	DEVMETHOD(clock_settime,	cuda_settime),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t cuda_driver = {

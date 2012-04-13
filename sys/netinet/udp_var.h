@@ -51,6 +51,9 @@ struct udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
+struct inpcb;
+struct mbuf;
+
 typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
 
 /*
@@ -136,8 +139,10 @@ VNET_DECLARE(struct inpcbinfo, udbinfo);
 
 extern u_long			udp_sendspace;
 extern u_long			udp_recvspace;
+VNET_DECLARE(int, udp_cksum);
 VNET_DECLARE(struct udpstat, udpstat);
 VNET_DECLARE(int, udp_blackhole);
+#define	V_udp_cksum		VNET(udp_cksum)
 #define	V_udpstat		VNET(udpstat)
 #define	V_udp_blackhole		VNET(udp_blackhole)
 extern int			udp_log_in_vain;

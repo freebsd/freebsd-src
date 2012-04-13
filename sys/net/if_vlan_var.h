@@ -108,7 +108,7 @@ struct	vlanreq {
  * received VLAN tag (containing both vlan and priority information)
  * into the ether_vtag mbuf packet header field:
  * 
- *	m->m_pkthdr.ether_vtag = vlan_id;	// ntohs()?
+ *	m->m_pkthdr.ether_vtag = vtag;		// ntohs()?
  *	m->m_flags |= M_VLANTAG;
  *
  * to mark the packet m with the specified VLAN tag.
@@ -133,15 +133,15 @@ struct	vlanreq {
 
 #define	VLAN_TRUNKDEV(_ifp)					\
 	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL
-#define	VLAN_TAG(_ifp, _tag)					\
-	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_tag)) : EINVAL
+#define	VLAN_TAG(_ifp, _vid)					\
+	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_vid)) : EINVAL
 #define	VLAN_COOKIE(_ifp)					\
 	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_cookie_p)((_ifp)) : NULL
 #define	VLAN_SETCOOKIE(_ifp, _cookie)				\
 	(_ifp)->if_type == IFT_L2VLAN ?				\
 	    (*vlan_setcookie_p)((_ifp), (_cookie)) : EINVAL
-#define	VLAN_DEVAT(_ifp, _tag)					\
-	(_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_tag)) : NULL
+#define	VLAN_DEVAT(_ifp, _vid)					\
+	(_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_vid)) : NULL
 
 extern	void (*vlan_trunk_cap_p)(struct ifnet *);
 extern	struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);

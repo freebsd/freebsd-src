@@ -16,8 +16,10 @@
 #define LLVM_CLANG_STATICANALYZER_PATHSENSITIVE_OBJCMESSAGE
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/ExprCXX.h"
+#include "llvm/ADT/PointerUnion.h"
 
 namespace clang {
 namespace ento {
@@ -86,6 +88,21 @@ public:
     return 0;
   }
 
+  SVal getInstanceReceiverSVal(const ProgramState *State,
+                               const LocationContext *LC) const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
+    if (!isInstanceMessage())
+      return UndefinedVal();
+    if (const Expr *Ex = getInstanceReceiver())
+      return State->getSValAsScalarOrLoc(Ex);
+
+    // An instance message with no expression means we are sending to super.
+    // In this case the object reference is the same as 'self'.
+    const ImplicitParamDecl *SelfDecl = LC->getSelfDecl();
+    assert(SelfDecl && "No message receiver Expr, but not in an ObjC method");
+    return State->getSVal(State->getRegion(SelfDecl, LC));
+  }
+
   bool isInstanceMessage() const {
     assert(isValid() && "This ObjCMessage is uninitialized!");
     if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
@@ -96,7 +113,7 @@ public:
   }
 
   const ObjCMethodDecl *getMethodDecl() const;
-  
+
   const ObjCInterfaceDecl *getReceiverInterface() const;
 
   SourceLocation getSuperLoc() const {
@@ -106,45 +123,63 @@ public:
     return cast<ObjCPropertyRefExpr>(MsgOrPropE)->getReceiverLocation();
   }
 
-   SourceRange getSourceRange() const {
-     assert(isValid() && "This ObjCMessage is uninitialized!");
+  const Expr *getMsgOrPropExpr() const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
+    return MsgOrPropE;
+  }
+
+  SourceRange getSourceRange() const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
     return MsgOrPropE->getSourceRange();
   }
 
-   unsigned getNumArgs() const {
-     assert(isValid() && "This ObjCMessage is uninitialized!");
-     if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
-       return msgE->getNumArgs();
-     return isPropertySetter() ? 1 : 0;
-   }
+  unsigned getNumArgs() const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
+    if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
+      return msgE->getNumArgs();
+    return isPropertySetter() ? 1 : 0;
+  }
 
-   SVal getArgSVal(unsigned i, const GRState *state) const {
-     assert(isValid() && "This ObjCMessage is uninitialized!");
-     assert(i < getNumArgs() && "Invalid index for argument");
-     if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
-       return state->getSVal(msgE->getArg(i));
-     assert(isPropertySetter());
-     return SetterArgV;
-   }
+  SVal getArgSVal(unsigned i, const ProgramState *state) const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
+    assert(i < getNumArgs() && "Invalid index for argument");
+    if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
+      return state->getSVal(msgE->getArg(i));
+    assert(isPropertySetter());
+    return SetterArgV;
+  }
 
-   QualType getArgType(unsigned i) const {
-     assert(isValid() && "This ObjCMessage is uninitialized!");
-     assert(i < getNumArgs() && "Invalid index for argument");
-     if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
-       return msgE->getArg(i)->getType();
-     assert(isPropertySetter());
-     return cast<ObjCPropertyRefExpr>(MsgOrPropE)->getType();
-   }
-   
-   const Expr *getArgExpr(unsigned i) const;
+  QualType getArgType(unsigned i) const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
+    assert(i < getNumArgs() && "Invalid index for argument");
+    if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
+      return msgE->getArg(i)->getType();
+    assert(isPropertySetter());
+    return cast<ObjCPropertyRefExpr>(MsgOrPropE)->getType();
+  }
 
-   SourceRange getArgSourceRange(unsigned i) const {
-     assert(isValid() && "This ObjCMessage is uninitialized!");
-     assert(i < getNumArgs() && "Invalid index for argument");
-     if (const Expr *argE = getArgExpr(i))
-       return argE->getSourceRange();
-     return OriginE->getSourceRange();
-   }
+  const Expr *getArgExpr(unsigned i) const;
+
+  SourceRange getArgSourceRange(unsigned i) const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
+    assert(i < getNumArgs() && "Invalid index for argument");
+    if (const Expr *argE = getArgExpr(i))
+      return argE->getSourceRange();
+    return OriginE->getSourceRange();
+  }
+
+  SourceRange getReceiverSourceRange() const {
+    assert(isValid() && "This ObjCMessage is uninitialized!");
+    if (const ObjCMessageExpr *msgE = dyn_cast<ObjCMessageExpr>(MsgOrPropE))
+      return msgE->getReceiverRange();
+
+    const ObjCPropertyRefExpr *propE = cast<ObjCPropertyRefExpr>(MsgOrPropE);
+    if (propE->isObjectReceiver())
+      return propE->getBase()->getSourceRange();
+
+    // FIXME: This isn't a range.
+    return propE->getReceiverLocation();
+  }
 };
 
 class ObjCPropertyGetter : public ObjCMessage {
@@ -165,57 +200,88 @@ public:
   }
 };
 
-/// \brief Common wrapper for a call expression or an ObjC message, mainly to
-/// provide a common interface for handling their arguments.
+/// \brief Common wrapper for a call expression, ObjC message, or C++ 
+/// constructor, mainly to provide a common interface for their arguments.
 class CallOrObjCMessage {
-  const CallExpr *CallE;
+  llvm::PointerUnion<const CallExpr *, const CXXConstructExpr *> CallE;
   ObjCMessage Msg;
-  const GRState *State;
+  const ProgramState *State;
 public:
-  CallOrObjCMessage(const CallExpr *callE, const GRState *state)
+  CallOrObjCMessage(const CallExpr *callE, const ProgramState *state)
     : CallE(callE), State(state) {}
-  CallOrObjCMessage(const ObjCMessage &msg, const GRState *state)
-    : CallE(0), Msg(msg), State(state) {}
+  CallOrObjCMessage(const CXXConstructExpr *consE, const ProgramState *state)
+    : CallE(consE), State(state) {}
+  CallOrObjCMessage(const ObjCMessage &msg, const ProgramState *state)
+    : CallE((CallExpr *)0), Msg(msg), State(state) {}
 
   QualType getResultType(ASTContext &ctx) const;
   
   bool isFunctionCall() const {
-    return (bool) CallE;
+    return CallE && CallE.is<const CallExpr *>();
   }
-  
+
+  bool isCXXConstructExpr() const {
+    return CallE && CallE.is<const CXXConstructExpr *>();
+  }
+
+  bool isObjCMessage() const {
+    return !CallE;
+  }
+
   bool isCXXCall() const {
-    return CallE && isa<CXXMemberCallExpr>(CallE);
+    const CallExpr *ActualCallE = CallE.dyn_cast<const CallExpr *>();
+    return ActualCallE && isa<CXXMemberCallExpr>(ActualCallE);
+  }
+
+  const Expr *getOriginExpr() const {
+    if (!CallE)
+      return Msg.getOriginExpr();
+    if (const CXXConstructExpr *Ctor =
+          CallE.dyn_cast<const CXXConstructExpr *>())
+      return Ctor;
+    return CallE.get<const CallExpr *>();
   }
   
   SVal getFunctionCallee() const;
   SVal getCXXCallee() const;
+  SVal getInstanceMessageReceiver(const LocationContext *LC) const;
 
   unsigned getNumArgs() const {
-    if (CallE) return CallE->getNumArgs();
-    return Msg.getNumArgs();
+    if (!CallE)
+      return Msg.getNumArgs();
+    if (const CXXConstructExpr *Ctor =
+          CallE.dyn_cast<const CXXConstructExpr *>())
+      return Ctor->getNumArgs();
+    return CallE.get<const CallExpr *>()->getNumArgs();
   }
 
   SVal getArgSVal(unsigned i) const {
     assert(i < getNumArgs());
-    if (CallE) 
-      return State->getSVal(CallE->getArg(i));
-    return Msg.getArgSVal(i, State);
+    if (!CallE)
+      return Msg.getArgSVal(i, State);
+    return State->getSVal(getArg(i));
   }
-
-  SVal getArgSValAsScalarOrLoc(unsigned i) const;
 
   const Expr *getArg(unsigned i) const {
     assert(i < getNumArgs());
-    if (CallE)
-      return CallE->getArg(i);
-    return Msg.getArgExpr(i);
+    if (!CallE)
+      return Msg.getArgExpr(i);
+    if (const CXXConstructExpr *Ctor =
+          CallE.dyn_cast<const CXXConstructExpr *>())
+      return Ctor->getArg(i);
+    return CallE.get<const CallExpr *>()->getArg(i);
   }
 
   SourceRange getArgSourceRange(unsigned i) const {
     assert(i < getNumArgs());
     if (CallE)
-      return CallE->getArg(i)->getSourceRange();
+      return getArg(i)->getSourceRange();
     return Msg.getArgSourceRange(i);
+  }
+
+  SourceRange getReceiverSourceRange() const {
+    assert(isObjCMessage());
+    return Msg.getReceiverSourceRange();
   }
 };
 

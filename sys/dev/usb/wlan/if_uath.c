@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_uathreg.h>
 #include <dev/usb/wlan/if_uathvar.h>
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
 
 static	int uath_countrycode = CTRY_DEFAULT;	/* country code */
 SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RW, &uath_countrycode,
@@ -254,9 +254,9 @@ static const struct usb_config uath_usbconfig[UATH_N_XFERS] = {
 };
 
 static struct ieee80211vap *uath_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	uath_vap_delete(struct ieee80211vap *);
 static int	uath_alloc_cmd_list(struct uath_softc *, struct uath_cmd [],
 		    int, int);
@@ -710,12 +710,12 @@ uath_cmdsend(struct uath_softc *sc, uint32_t code, const void *idata, int ilen,
 	cmd->buflen = roundup2(sizeof(struct uath_cmd_hdr) + ilen, 4);
 
 	hdr = (struct uath_cmd_hdr *)cmd->buf;
-	bzero(hdr, sizeof (struct uath_cmd_hdr));	/* XXX not needed */
+	memset(hdr, 0, sizeof(struct uath_cmd_hdr));
 	hdr->len   = htobe32(cmd->buflen);
 	hdr->code  = htobe32(code);
 	hdr->msgid = cmd->msgid;	/* don't care about endianness */
 	hdr->magic = htobe32((cmd->flags & UATH_CMD_FLAG_MAGIC) ? 1 << 24 : 0);
-	bcopy(idata, (uint8_t *)(hdr + 1), ilen);
+	memcpy((uint8_t *)(hdr + 1), idata, ilen);
 
 #ifdef UATH_DEBUG
 	if (sc->sc_debug & UATH_DEBUG_CMDS) {
@@ -1065,10 +1065,10 @@ uath_free_tx_data_list(struct uath_softc *sc)
 }
 
 static struct ieee80211vap *
-uath_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+uath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct uath_vap *uvp;
 	struct ieee80211vap *vap;
@@ -1403,7 +1403,7 @@ uath_dataflush(struct uath_softc *sc)
 	chunk->flags = UATH_CFLAGS_FINAL;
 	chunk->length = htobe16(sizeof (struct uath_tx_desc));
 
-	bzero(desc, sizeof(struct uath_tx_desc));
+	memset(desc, 0, sizeof(struct uath_tx_desc));
 	desc->msglen = htobe32(sizeof(struct uath_tx_desc));
 	desc->msgid  = (sc->sc_msgid++) + 1; /* don't care about endianness */
 	desc->type   = htobe32(WDCMSG_FLUSH);
@@ -1482,7 +1482,7 @@ uath_set_chan(struct uath_softc *sc, struct ieee80211_channel *c)
 #endif
 	struct uath_cmd_reset reset;
 
-	bzero(&reset, sizeof reset);
+	memset(&reset, 0, sizeof(reset));
 	if (IEEE80211_IS_CHAN_2GHZ(c))
 		reset.flags |= htobe32(UATH_CHAN_2GHZ);
 	if (IEEE80211_IS_CHAN_5GHZ(c))
@@ -1971,7 +1971,7 @@ uath_create_connection(struct uath_softc *sc, uint32_t connid)
 	struct uath_cmd_create_connection create;
 
 	ni = ieee80211_ref_node(vap->iv_bss);
-	bzero(&create, sizeof create);
+	memset(&create, 0, sizeof(create));
 	create.connid = htobe32(connid);
 	create.bssid = htobe32(0);
 	/* XXX packed or not?  */
@@ -2000,7 +2000,7 @@ uath_set_rates(struct uath_softc *sc, const struct ieee80211_rateset *rs)
 {
 	struct uath_cmd_rates rates;
 
-	bzero(&rates, sizeof rates);
+	memset(&rates, 0, sizeof(rates));
 	rates.connid = htobe32(UATH_ID_BSS);		/* XXX */
 	rates.size   = htobe32(sizeof(struct uath_cmd_rateset));
 	/* XXX bounds check rs->rs_nrates */
@@ -2022,7 +2022,7 @@ uath_write_associd(struct uath_softc *sc)
 	struct uath_cmd_set_associd associd;
 
 	ni = ieee80211_ref_node(vap->iv_bss);
-	bzero(&associd, sizeof associd);
+	memset(&associd, 0, sizeof(associd));
 	associd.defaultrateix = htobe32(1);	/* XXX */
 	associd.associd = htobe32(ni->ni_associd);
 	associd.timoffset = htobe32(0x3b);	/* XXX */
@@ -2168,7 +2168,7 @@ uath_set_key(struct uath_softc *sc, const struct ieee80211_key *wk,
 	struct uath_cmd_crypto crypto;
 	int i;
 
-	bzero(&crypto, sizeof crypto);
+	memset(&crypto, 0, sizeof(crypto));
 	crypto.keyidx = htobe32(index);
 	crypto.magic1 = htobe32(1);
 	crypto.size   = htobe32(368);
@@ -2176,7 +2176,7 @@ uath_set_key(struct uath_softc *sc, const struct ieee80211_key *wk,
 	crypto.flags  = htobe32(0x80000068);
 	if (index != UATH_DEFAULT_KEY)
 		crypto.flags |= htobe32(index << 16);
-	memset(crypto.magic2, 0xff, sizeof crypto.magic2);
+	memset(crypto.magic2, 0xff, sizeof(crypto.magic2));
 
 	/*
 	 * Each byte of the key must be XOR'ed with 10101010 before being
@@ -2309,6 +2309,11 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 	/* reply to a read command */
 	default:
 		dlen = hdr->len - sizeof(*hdr);
+		if (dlen < 0) {
+			device_printf(sc->sc_dev,
+			    "Invalid header length %d\n", dlen);
+			return;
+		}
 		DPRINTF(sc, UATH_DEBUG_RX_PROC | UATH_DEBUG_RECV_ALL,
 		    "%s: code %d data len %u\n",
 		    __func__, hdr->code & 0xff, dlen);
@@ -2334,7 +2339,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			 * number of bytes--unless it's 0 in which
 			 * case a single 32-bit word should be present.
 			 */
-			if (dlen >= sizeof(uint32_t)) {
+			if (dlen >= (int)sizeof(uint32_t)) {
 				olen = be32toh(rp[0]);
 				dlen -= sizeof(uint32_t);
 				if (olen == 0) {
@@ -2346,7 +2351,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 				olen = 0;
 			if (cmd->odata != NULL) {
 				/* NB: cmd->olen validated in uath_cmd */
-				if (olen > cmd->olen) {
+				if (olen > (u_int)cmd->olen) {
 					/* XXX complain? */
 					device_printf(sc->sc_dev,
 					    "%s: cmd 0x%x olen %u cmd olen %u\n",
@@ -2354,7 +2359,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 					    cmd->olen);
 					olen = cmd->olen;
 				}
-				if (olen > dlen) {
+				if (olen > (u_int)dlen) {
 					/* XXX complain, shouldn't happen */
 					device_printf(sc->sc_dev,
 					    "%s: cmd 0x%x olen %u dlen %u\n",
@@ -2376,7 +2381,7 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			return;
 		}
 		dlen = hdr->len - sizeof(*hdr);
-		if (dlen != sizeof(uint32_t)) {
+		if (dlen != (int)sizeof(uint32_t)) {
 			/* XXX something wrong */
 			return;
 		}
@@ -2423,7 +2428,7 @@ uath_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		STAILQ_INSERT_TAIL(&sc->sc_cmd_inactive, cmd, next);
 		UATH_STAT_INC(sc, st_cmd_inactive);
 
-		KASSERT(actlen >= sizeof(struct uath_cmd_hdr),
+		KASSERT(actlen >= (int)sizeof(struct uath_cmd_hdr),
 		    ("short xfer error"));
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, cmd->buf, actlen);
@@ -2542,7 +2547,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
-	if (actlen < UATH_MIN_RXBUFSZ) {
+	if (actlen < (int)UATH_MIN_RXBUFSZ) {
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
 		    "%s: wrong xfer size (len=%d)\n", __func__, actlen);
 		ifp->if_ierrors++;
@@ -2888,9 +2893,9 @@ static device_method_t uath_methods[] = {
 	{ 0, 0 }
 };
 static driver_t uath_driver = {
-	"uath",
-	uath_methods,
-	sizeof(struct uath_softc)
+	.name = "uath",
+	.methods = uath_methods,
+	.size = sizeof(struct uath_softc)
 };
 static devclass_t uath_devclass;
 

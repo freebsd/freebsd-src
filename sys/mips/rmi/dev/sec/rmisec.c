@@ -76,16 +76,12 @@ static device_method_t xlr_sec_methods[] = {
 	DEVMETHOD(device_attach, xlr_sec_attach),
 	DEVMETHOD(device_detach, xlr_sec_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession, xlr_sec_newsession),
 	DEVMETHOD(cryptodev_freesession,xlr_sec_freesession),
 	DEVMETHOD(cryptodev_process,    xlr_sec_process),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t xlr_sec_driver = {

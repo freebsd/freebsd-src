@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int umodem_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
 SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
     &umodem_debug, 0, "Debug level");
 #endif
@@ -127,7 +127,11 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 	/* Generic Modem class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
-	USB_IFACE_PROTOCOL(UIPROTO_CDC_AT)},
+		USB_IFACE_PROTOCOL(UIPROTO_CDC_AT)},
+	/* Huawei Modem class match */
+	{USB_IFACE_CLASS(UICLASS_CDC),
+		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
+		USB_IFACE_PROTOCOL(0xFF)},
 	/* Kyocera AH-K3001V */
 	{USB_VPI(USB_VENDOR_KYOCERA, USB_PRODUCT_KYOCERA_AHK3001V, 1)},
 	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720, 1)},
@@ -313,7 +317,7 @@ umodem_attach(device_t dev)
 
 		cud = usbd_find_descriptor(uaa->device, NULL,
 		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
-		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
+		    0xFF, UDESCSUB_CDC_UNION, 0xFF);
 
 		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
 			DPRINTF("Missing descriptor. "
@@ -536,7 +540,7 @@ umodem_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	DPRINTF("sc=%p\n", sc);
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 
@@ -698,7 +702,7 @@ umodem_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			    "%d bytes\n", actlen);
 			goto tr_setup;
 		}
-		if (actlen > sizeof(pkt)) {
+		if (actlen > (int)sizeof(pkt)) {
 			DPRINTF("truncating message\n");
 			actlen = sizeof(pkt);
 		}
@@ -838,7 +842,7 @@ static void *
 umodem_get_desc(struct usb_attach_arg *uaa, uint8_t type, uint8_t subtype)
 {
 	return (usbd_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
-	    type, 0 - 1, subtype, 0 - 1));
+	    type, 0xFF, subtype, 0xFF));
 }
 
 static usb_error_t

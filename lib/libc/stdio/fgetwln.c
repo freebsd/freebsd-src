@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,18 +38,20 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "xlocale_private.h"
 
 wchar_t *
-fgetwln(FILE * __restrict fp, size_t *lenp)
+fgetwln_l(FILE * __restrict fp, size_t *lenp, locale_t locale)
 {
 	wint_t wc;
 	size_t len;
+	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
 
 	len = 0;
-	while ((wc = __fgetwc(fp)) != WEOF) {
+	while ((wc = __fgetwc(fp, locale)) != WEOF) {
 #define	GROW	512
 		if (len * sizeof(wchar_t) >= fp->_lb._size &&
 		    __slbexpand(fp, (len + GROW) * sizeof(wchar_t)))
@@ -64,4 +71,9 @@ error:
 	FUNLOCKFILE(fp);
 	*lenp = 0;
 	return (NULL);
+}
+wchar_t *
+fgetwln(FILE * __restrict fp, size_t *lenp)
+{
+	return fgetwln_l(fp, lenp, __get_locale());
 }

@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int aue_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, aue, CTLFLAG_RW, 0, "USB aue");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, aue, CTLFLAG_RW, 0, "USB aue");
 SYSCTL_INT(_hw_usb_aue, OID_AUTO, debug, CTLFLAG_RW, &aue_debug, 0,
     "Debug level");
 #endif
@@ -254,15 +254,12 @@ static device_method_t aue_methods[] = {
 	DEVMETHOD(device_attach, aue_attach),
 	DEVMETHOD(device_detach, aue_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, aue_miibus_readreg),
 	DEVMETHOD(miibus_writereg, aue_miibus_writereg),
 	DEVMETHOD(miibus_statchg, aue_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t aue_driver = {
@@ -743,7 +740,7 @@ aue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-		    actlen >= sizeof(pkt)) {
+		    actlen >= (int)sizeof(pkt)) {
 
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
@@ -796,7 +793,7 @@ aue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 		} else {
 
-			if (actlen <= sizeof(stat) + ETHER_CRC_LEN) {
+			if (actlen <= (int)(sizeof(stat) + ETHER_CRC_LEN)) {
 				ifp->if_ierrors++;
 				goto tr_setup;
 			}
@@ -1032,9 +1029,9 @@ aue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	AUE_LOCK(sc);
 	mii_pollstat(mii);
-	AUE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	AUE_UNLOCK(sc);
 }
 
 /*

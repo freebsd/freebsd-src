@@ -20,6 +20,7 @@
 #define LLVM_CODEGEN_SELECTIONDAGNODES_H
 
 #include "llvm/Constants.h"
+#include "llvm/Instructions.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/ilist_node.h"
@@ -917,6 +918,13 @@ public:
   bool isVolatile() const { return (SubclassData >> 5) & 1; }
   bool isNonTemporal() const { return (SubclassData >> 6) & 1; }
 
+  AtomicOrdering getOrdering() const {
+    return AtomicOrdering((SubclassData >> 7) & 15);
+  }
+  SynchronizationScope getSynchScope() const {
+    return SynchronizationScope((SubclassData >> 11) & 1);
+  }
+
   /// Returns the SrcValue and offset that describes the location of the access
   const Value *getSrcValue() const { return MMO->getValue(); }
   int64_t getSrcValueOffset() const { return MMO->getOffset(); }
@@ -968,6 +976,8 @@ public:
            N->getOpcode() == ISD::ATOMIC_LOAD_MAX     ||
            N->getOpcode() == ISD::ATOMIC_LOAD_UMIN    ||
            N->getOpcode() == ISD::ATOMIC_LOAD_UMAX    ||
+           N->getOpcode() == ISD::ATOMIC_LOAD         ||
+           N->getOpcode() == ISD::ATOMIC_STORE        ||
            N->isTargetMemoryOpcode();
   }
 };
@@ -976,6 +986,23 @@ public:
 ///
 class AtomicSDNode : public MemSDNode {
   SDUse Ops[4];
+
+  void InitAtomic(AtomicOrdering Ordering, SynchronizationScope SynchScope) {
+    // This must match encodeMemSDNodeFlags() in SelectionDAG.cpp.
+    assert((Ordering & 15) == Ordering &&
+           "Ordering may not require more than 4 bits!");
+    assert((SynchScope & 1) == SynchScope &&
+           "SynchScope may not require more than 1 bit!");
+    SubclassData |= Ordering << 7;
+    SubclassData |= SynchScope << 11;
+    assert(getOrdering() == Ordering && "Ordering encoding error!");
+    assert(getSynchScope() == SynchScope && "Synch-scope encoding error!");
+
+    assert((readMem() || getOrdering() <= Monotonic) &&
+           "Acquire/Release MachineMemOperand must be a load!");
+    assert((writeMem() || getOrdering() <= Monotonic) &&
+           "Acquire/Release MachineMemOperand must be a store!");
+  }
 
 public:
   // Opc:   opcode for atomic
@@ -988,19 +1015,27 @@ public:
   // Align:  alignment of memory
   AtomicSDNode(unsigned Opc, DebugLoc dl, SDVTList VTL, EVT MemVT,
                SDValue Chain, SDValue Ptr,
-               SDValue Cmp, SDValue Swp, MachineMemOperand *MMO)
+               SDValue Cmp, SDValue Swp, MachineMemOperand *MMO,
+               AtomicOrdering Ordering, SynchronizationScope SynchScope)
     : MemSDNode(Opc, dl, VTL, MemVT, MMO) {
-    assert(readMem() && "Atomic MachineMemOperand is not a load!");
-    assert(writeMem() && "Atomic MachineMemOperand is not a store!");
+    InitAtomic(Ordering, SynchScope);
     InitOperands(Ops, Chain, Ptr, Cmp, Swp);
   }
   AtomicSDNode(unsigned Opc, DebugLoc dl, SDVTList VTL, EVT MemVT,
                SDValue Chain, SDValue Ptr,
-               SDValue Val, MachineMemOperand *MMO)
+               SDValue Val, MachineMemOperand *MMO,
+               AtomicOrdering Ordering, SynchronizationScope SynchScope)
     : MemSDNode(Opc, dl, VTL, MemVT, MMO) {
-    assert(readMem() && "Atomic MachineMemOperand is not a load!");
-    assert(writeMem() && "Atomic MachineMemOperand is not a store!");
+    InitAtomic(Ordering, SynchScope);
     InitOperands(Ops, Chain, Ptr, Val);
+  }
+  AtomicSDNode(unsigned Opc, DebugLoc dl, SDVTList VTL, EVT MemVT,
+               SDValue Chain, SDValue Ptr,
+               MachineMemOperand *MMO,
+               AtomicOrdering Ordering, SynchronizationScope SynchScope)
+    : MemSDNode(Opc, dl, VTL, MemVT, MMO) {
+    InitAtomic(Ordering, SynchScope);
+    InitOperands(Ops, Chain, Ptr);
   }
 
   const SDValue &getBasePtr() const { return getOperand(1); }
@@ -1025,7 +1060,9 @@ public:
            N->getOpcode() == ISD::ATOMIC_LOAD_MIN     ||
            N->getOpcode() == ISD::ATOMIC_LOAD_MAX     ||
            N->getOpcode() == ISD::ATOMIC_LOAD_UMIN    ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_UMAX;
+           N->getOpcode() == ISD::ATOMIC_LOAD_UMAX    ||
+           N->getOpcode() == ISD::ATOMIC_LOAD         ||
+           N->getOpcode() == ISD::ATOMIC_STORE;
   }
 };
 
@@ -1291,7 +1328,7 @@ public:
   unsigned getAlignment() const { return Alignment; }
   unsigned char getTargetFlags() const { return TargetFlags; }
 
-  const Type *getType() const;
+  Type *getType() const;
 
   static bool classof(const ConstantPoolSDNode *) { return true; }
   static bool classof(const SDNode *N) {

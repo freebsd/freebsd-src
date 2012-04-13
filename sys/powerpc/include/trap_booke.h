@@ -52,4 +52,9 @@
 
 #define	EXC_LAST	255
 
+#ifndef LOCORE
+struct	trapframe;
+void    trap(struct trapframe *);
+#endif
+
 #endif	/* _POWERPC_TRAP_H_ */

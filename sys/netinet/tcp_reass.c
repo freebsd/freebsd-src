@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 static int tcp_reass_sysctl_maxseg(SYSCTL_HANDLER_ARGS);
 static int tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
 static VNET_DEFINE(int, tcp_reass_maxseg) = 0;
@@ -233,23 +233,28 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * when the zone is exhausted. Otherwise we may get stuck.
 	 */
 	te = uma_zalloc(V_tcp_reass_zone, M_NOWAIT);
-	if (te == NULL && th->th_seq != tp->rcv_nxt) {
-		TCPSTAT_INC(tcps_rcvmemdrop);
-		m_freem(m);
-		*tlenp = 0;
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: global zone limit reached, "
-			    "segment dropped\n", s, __func__);
-			free(s, M_TCPLOG);
-		}
-		return (0);
-	} else if (th->th_seq == tp->rcv_nxt) {
-		bzero(&tqs, sizeof(struct tseg_qent));
-		te = &tqs;
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: global zone limit reached, "
-			    "using stack for missing segment\n", s, __func__);
-			free(s, M_TCPLOG);
+	if (te == NULL) {
+		if (th->th_seq != tp->rcv_nxt) {
+			TCPSTAT_INC(tcps_rcvmemdrop);
+			m_freem(m);
+			*tlenp = 0;
+			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
+			    NULL))) {
+				log(LOG_DEBUG, "%s; %s: global zone limit "
+				    "reached, segment dropped\n", s, __func__);
+				free(s, M_TCPLOG);
+			}
+			return (0);
+		} else {
+			bzero(&tqs, sizeof(struct tseg_qent));
+			te = &tqs;
+			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
+			    NULL))) {
+				log(LOG_DEBUG,
+				    "%s; %s: global zone limit reached, using "
+				    "stack for missing segment\n", s, __func__);
+				free(s, M_TCPLOG);
+			}
 		}
 	}
 	tp->t_segqlen++;

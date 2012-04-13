@@ -37,16 +37,18 @@
  */
 #define	_MC_HASSEGS	0x1
 #define	_MC_HASBASES	0x2
-#define	_MC_FLAG_MASK	(_MC_HASSEGS | _MC_HASBASES)
+#define	_MC_HASFPXSTATE	0x4
+#define	_MC_FLAG_MASK	(_MC_HASSEGS | _MC_HASBASES | _MC_HASFPXSTATE)
 
 typedef struct __mcontext {
 	/*
-	 * The first 24 fields must match the definition of
-	 * sigcontext. So that we can support sigcontext
-	 * and ucontext_t at the same time.
+	 * The definition of mcontext_t must match the layout of
+	 * struct sigcontext after the sc_mask member.  This is so
+	 * that we can support sigcontext and ucontext_t at the same
+	 * time.
 	 */
-	__register_t	mc_onstack;		/* XXX - sigcontext compat. */
-	__register_t	mc_rdi;			/* machine state (struct trapframe) */
+	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
+	__register_t	mc_rdi;		/* machine state (struct trapframe) */
 	__register_t	mc_rsi;
 	__register_t	mc_rdx;
 	__register_t	mc_rcx;
@@ -92,7 +94,10 @@ typedef struct __mcontext {
 	__register_t	mc_fsbase;
 	__register_t	mc_gsbase;
 
-	long	mc_spare[6];
+	__register_t	mc_xfpustate;
+	__register_t	mc_xfpustate_len;
+
+	long	mc_spare[4];
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */

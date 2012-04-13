@@ -69,7 +69,7 @@ static const char *portal_opts[] = {
 };
 
 static int
-portal_cmount(struct mntarg *ma, void *data, int flags)
+portal_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct portal_args args;
 	int error;
@@ -164,7 +164,7 @@ portal_mount(struct mount *mp)
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	mp->mnt_data =  fmp;
+	mp->mnt_data = fmp;
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, p);
@@ -213,7 +213,7 @@ portal_unmount(mp, mntflags)
 	 * Finally, throw away the portalmount structure
 	 */
 	free(mp->mnt_data, M_PORTALFSMNT);	/* XXX */
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 	return (0);
 }
 

@@ -35,12 +35,12 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/Target/Mangler.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/ADT/SmallString.h"
 using namespace llvm;
 
@@ -504,8 +504,8 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
         //   .indirect_symbol _foo
         OutStreamer.EmitSymbolAttribute(Stubs[i].second.getPointer(),
                                         MCSA_IndirectSymbol);
-        // hlt; hlt; hlt; hlt; hlt     hlt = 0xf4 = -12.
-        const char HltInsts[] = { -12, -12, -12, -12, -12 };
+        // hlt; hlt; hlt; hlt; hlt     hlt = 0xf4.
+        const char HltInsts[] = "\xf4\xf4\xf4\xf4\xf4";
         OutStreamer.EmitBytes(StringRef(HltInsts, 5), 0/*addrspace*/);
       }
 
@@ -708,21 +708,8 @@ void X86AsmPrinter::PrintDebugValueComment(const MachineInstr *MI,
 // Target Registry Stuff
 //===----------------------------------------------------------------------===//
 
-static MCInstPrinter *createX86MCInstPrinter(const Target &T,
-                                             unsigned SyntaxVariant,
-                                             const MCAsmInfo &MAI) {
-  if (SyntaxVariant == 0)
-    return new X86ATTInstPrinter(MAI);
-  if (SyntaxVariant == 1)
-    return new X86IntelInstPrinter(MAI);
-  return 0;
-}
-
 // Force static initialization.
 extern "C" void LLVMInitializeX86AsmPrinter() {
   RegisterAsmPrinter<X86AsmPrinter> X(TheX86_32Target);
   RegisterAsmPrinter<X86AsmPrinter> Y(TheX86_64Target);
-
-  TargetRegistry::RegisterMCInstPrinter(TheX86_32Target,createX86MCInstPrinter);
-  TargetRegistry::RegisterMCInstPrinter(TheX86_64Target,createX86MCInstPrinter);
 }

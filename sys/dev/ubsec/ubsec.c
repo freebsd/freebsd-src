@@ -123,17 +123,13 @@ static device_method_t ubsec_methods[] = {
 	DEVMETHOD(device_resume,	ubsec_resume),
 	DEVMETHOD(device_shutdown,	ubsec_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	ubsec_newsession),
 	DEVMETHOD(cryptodev_freesession,ubsec_freesession),
 	DEVMETHOD(cryptodev_process,	ubsec_process),
 	DEVMETHOD(cryptodev_kprocess,	ubsec_kprocess),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ubsec_driver = {
 	"ubsec",
@@ -177,7 +173,8 @@ static	int ubsec_ksigbits(struct crparam *);
 static	void ubsec_kshift_r(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 static	void ubsec_kshift_l(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 
-SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 #ifdef UBSEC_DEBUG
 static	void ubsec_dump_pb(volatile struct ubsec_pktbuf *);
@@ -372,7 +369,7 @@ ubsec_attach(device_t dev)
 	/*
 	 * Setup DMA descriptor area.
 	 */
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1858,7 +1855,7 @@ ubsec_dma_malloc(
 	int r;
 
 	/* XXX could specify sc_dmat as parent but that just adds overhead */
-	r = bus_dma_tag_create(NULL,			/* parent */
+	r = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */

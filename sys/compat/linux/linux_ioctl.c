@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1995 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2182,7 +2182,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	/* handle the 'request buffer size' case */
-	if (ifc.ifc_buf == PTROUT(NULL)) {
+	if ((l_uintptr_t)ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
 		IFNET_RLOCK();
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {

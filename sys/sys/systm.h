@@ -91,10 +91,8 @@ enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 } while (0)
 #endif
 
-#ifndef CTASSERT		/* Allow lint to override */
-#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
-#define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
+#ifndef CTASSERT	/* Allow lint to override */
+#define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
 #endif
 
 /*
@@ -107,6 +105,14 @@ enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 #define	ASSERT_ATOMIC_LOAD_PTR(var, msg)				\
 	KASSERT(sizeof(var) == sizeof(void *) &&			\
 	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
+
+/*
+ * If we have already panic'd and this is the thread that called
+ * panic(), then don't block on any mutexes but silently succeed.
+ * Otherwise, the kernel will deadlock since the scheduler isn't
+ * going to run the thread that holds any lock we need.
+ */
+#define	SCHEDULER_STOPPED() __predict_false(curthread->td_stopsched)
 
 /*
  * XXX the hints declarations are even more misplaced than most declarations
@@ -126,6 +132,9 @@ extern char static_hints[];	/* by config for now */
 extern char **kenvp;
 
 extern const void *zero_region;	/* address space maps to a zeroed page	*/
+
+extern int iosize_max_clamp;
+#define	IOSIZE_MAX	(iosize_max_clamp ? INT_MAX : SSIZE_MAX)
 
 /*
  * General function declarations.
@@ -238,12 +247,14 @@ void	realitexpire(void *);
 int	sysbeep(int hertz, int period);
 
 void	hardclock(int usermode, uintfptr_t pc);
-void	hardclock_anycpu(int cnt, int usermode);
+void	hardclock_cnt(int cnt, int usermode);
 void	hardclock_cpu(int usermode);
 void	hardclock_sync(int cpu);
 void	softclock(void *);
 void	statclock(int usermode);
+void	statclock_cnt(int cnt, int usermode);
 void	profclock(int usermode, uintfptr_t pc);
+void	profclock_cnt(int cnt, int usermode, uintfptr_t pc);
 
 int	hardclockintr(void);
 

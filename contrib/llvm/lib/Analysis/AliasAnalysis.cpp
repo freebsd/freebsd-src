@@ -237,6 +237,19 @@ AliasAnalysis::Location AliasAnalysis::getLocation(const VAArgInst *VI) {
                   VI->getMetadata(LLVMContext::MD_tbaa));
 }
 
+AliasAnalysis::Location
+AliasAnalysis::getLocation(const AtomicCmpXchgInst *CXI) {
+  return Location(CXI->getPointerOperand(),
+                  getTypeStoreSize(CXI->getCompareOperand()->getType()),
+                  CXI->getMetadata(LLVMContext::MD_tbaa));
+}
+
+AliasAnalysis::Location
+AliasAnalysis::getLocation(const AtomicRMWInst *RMWI) {
+  return Location(RMWI->getPointerOperand(),
+                  getTypeStoreSize(RMWI->getValOperand()->getType()),
+                  RMWI->getMetadata(LLVMContext::MD_tbaa));
+}
 
 AliasAnalysis::Location 
 AliasAnalysis::getLocationForSource(const MemTransferInst *MTI) {
@@ -268,8 +281,8 @@ AliasAnalysis::getLocationForDest(const MemIntrinsic *MTI) {
 
 AliasAnalysis::ModRefResult
 AliasAnalysis::getModRefInfo(const LoadInst *L, const Location &Loc) {
-  // Be conservative in the face of volatile.
-  if (L->isVolatile())
+  // Be conservative in the face of volatile/atomic.
+  if (!L->isUnordered())
     return ModRef;
 
   // If the load address doesn't alias the given address, it doesn't read
@@ -283,8 +296,8 @@ AliasAnalysis::getModRefInfo(const LoadInst *L, const Location &Loc) {
 
 AliasAnalysis::ModRefResult
 AliasAnalysis::getModRefInfo(const StoreInst *S, const Location &Loc) {
-  // Be conservative in the face of volatile.
-  if (S->isVolatile())
+  // Be conservative in the face of volatile/atomic.
+  if (!S->isUnordered())
     return ModRef;
 
   // If the store address cannot alias the pointer in question, then the
@@ -317,6 +330,33 @@ AliasAnalysis::getModRefInfo(const VAArgInst *V, const Location &Loc) {
   return ModRef;
 }
 
+AliasAnalysis::ModRefResult
+AliasAnalysis::getModRefInfo(const AtomicCmpXchgInst *CX, const Location &Loc) {
+  // Acquire/Release cmpxchg has properties that matter for arbitrary addresses.
+  if (CX->getOrdering() > Monotonic)
+    return ModRef;
+
+  // If the cmpxchg address does not alias the location, it does not access it.
+  if (!alias(getLocation(CX), Loc))
+    return NoModRef;
+
+  return ModRef;
+}
+
+AliasAnalysis::ModRefResult
+AliasAnalysis::getModRefInfo(const AtomicRMWInst *RMW, const Location &Loc) {
+  // Acquire/Release atomicrmw has properties that matter for arbitrary addresses.
+  if (RMW->getOrdering() > Monotonic)
+    return ModRef;
+
+  // If the atomicrmw address does not alias the location, it does not access it.
+  if (!alias(getLocation(RMW), Loc))
+    return NoModRef;
+
+  return ModRef;
+}
+
+
 // AliasAnalysis destructor: DO NOT move this to the header file for
 // AliasAnalysis or else clients of the AliasAnalysis class may not depend on
 // the AliasAnalysis.o file in the current .a file, causing alias analysis
@@ -341,7 +381,7 @@ void AliasAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 /// getTypeStoreSize - Return the TargetData store size for the given type,
 /// if known, or a conservative value otherwise.
 ///
-uint64_t AliasAnalysis::getTypeStoreSize(const Type *Ty) {
+uint64_t AliasAnalysis::getTypeStoreSize(Type *Ty) {
   return TD ? TD->getTypeStoreSize(Ty) : UnknownSize;
 }
 

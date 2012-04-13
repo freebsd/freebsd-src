@@ -231,7 +231,7 @@ static d_kqfilter_t	audit_pipe_kqfilter;
 
 static struct cdevsw	audit_pipe_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDMINOR,
+	.d_flags =	D_NEEDMINOR,
 	.d_open =	audit_pipe_open,
 	.d_close =	audit_pipe_close,
 	.d_read =	audit_pipe_read,

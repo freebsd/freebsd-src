@@ -80,10 +80,12 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int rum_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
 SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RW, &rum_debug, 0,
     "Debug level");
 #endif
+
+#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
 
 static const STRUCT_USB_HOST_ID rum_devs[] = {
 #define	RUM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
@@ -152,9 +154,9 @@ static usb_callback_t rum_bulk_write_callback;
 static usb_error_t	rum_do_request(struct rum_softc *sc,
 			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
-			    const char name[IFNAMSIZ], int unit, int opmode,
-			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+			    const char [IFNAMSIZ], int, enum ieee80211_opmode,
+			    int, const uint8_t [IEEE80211_ADDR_LEN],
+			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		rum_vap_delete(struct ieee80211vap *);
 static void		rum_tx_free(struct rum_tx_data *, int);
 static void		rum_setup_tx_list(struct rum_softc *);
@@ -580,10 +582,10 @@ rum_do_request(struct rum_softc *sc,
 }
 
 static struct ieee80211vap *
-rum_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+rum_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct rum_softc *sc = ic->ic_ifp->if_softc;
 	struct rum_vap *rvp;
@@ -789,7 +791,7 @@ tr_setup:
 			STAILQ_REMOVE_HEAD(&sc->tx_q, next);
 			m = data->m;
 
-			if (m->m_pkthdr.len > (MCLBYTES + RT2573_TX_DESC_SIZE)) {
+			if (m->m_pkthdr.len > (int)(MCLBYTES + RT2573_TX_DESC_SIZE)) {
 				DPRINTFN(0, "data overflow, %u bytes\n",
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = (MCLBYTES + RT2573_TX_DESC_SIZE);
@@ -875,7 +877,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		if (len < RT2573_RX_DESC_SIZE + IEEE80211_MIN_LEN) {
+		if (len < (int)(RT2573_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
 			ifp->if_ierrors++;
@@ -1407,20 +1409,27 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 {
 	struct usb_device_request req;
 	usb_error_t error;
+	size_t offset;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RT2573_WRITE_MULTI_MAC;
 	USETW(req.wValue, 0);
-	USETW(req.wIndex, reg);
-	USETW(req.wLength, len);
 
-	error = rum_do_request(sc, &req, buf);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not multi write MAC register: %s\n",
-		    usbd_errstr(error));
+	/* write at most 64 bytes at a time */
+	for (offset = 0; offset < len; offset += 64) {
+		USETW(req.wIndex, reg + offset);
+		USETW(req.wLength, MIN(len - offset, 64));
+
+		error = rum_do_request(sc, &req, (char *)buf + offset);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "could not multi write MAC register: %s\n",
+			    usbd_errstr(error));
+			return (error);
+		}
 	}
-	return (error);
+
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void
@@ -1927,7 +1936,6 @@ rum_read_eeprom(struct rum_softc *sc)
 static int
 rum_bbp_init(struct rum_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
 	int i, ntries;
 
 	/* wait for BBP to be ready */
@@ -1955,13 +1963,11 @@ rum_bbp_init(struct rum_softc *sc)
 	}
 
 	return 0;
-#undef N
 }
 
 static void
 rum_init_locked(struct rum_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t tmp;

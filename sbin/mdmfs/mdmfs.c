@@ -632,7 +632,7 @@ run(int *ofd, const char *cmdline, ...)
 		 * loop.
 		 */
 		(void)fprintf(stderr, "DEBUG: running:");
-		/* Should be equivilent to 'cmd' (before strsep, of course). */
+		/* Should be equivalent to 'cmd' (before strsep, of course). */
 		for (i = 0; argv[i] != NULL; i++)
 			(void)fprintf(stderr, " %s", argv[i]);
 		(void)fprintf(stderr, "\n");

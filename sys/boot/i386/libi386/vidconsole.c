@@ -516,7 +516,7 @@ vidc_ischar(void)
     v86.addr = 0x16;
     v86.eax = 0x100;
     v86int();
-    return (!(v86.efl & PSL_Z));
+    return (!V86_ZR(v86.efl));
 }
 
 #if KEYBOARD_PROBE
@@ -623,10 +623,10 @@ probe_keyboard(void)
 #endif
 	if (i == KBD_ECHO) {
 	    /* got the right answer */
-	    return (0);
+	    return (1);
 	}
     }
 
-    return (1);
+    return (0);
 }
 #endif /* KEYBOARD_PROBE */

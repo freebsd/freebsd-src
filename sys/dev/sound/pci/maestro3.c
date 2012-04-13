@@ -62,8 +62,10 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <gnu/dev/sound/pci/maestro3_reg.h>
-#include <gnu/dev/sound/pci/maestro3_dsp.h>
+#define M3_MODEL 1
+
+#include <dev/sound/pci/allegro_reg.h>
+#include <dev/sound/pci/allegro_code.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -96,6 +98,7 @@ static struct m3_card_type {
 #define M3_PCHANS 4 /* create /dev/dsp0.[0-N] to use more than one */
 #define M3_RCHANS 1
 #define M3_MAXADDR ((1 << 27) - 1)
+#define M3_DEFAULT_VOL 0x6800
 
 struct sc_info;
 
@@ -375,6 +378,31 @@ m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	u_int32_t bus_addr, i;
 	int idx, data_bytes, dac_data;
 	int dsp_in_size, dsp_out_size, dsp_in_buf, dsp_out_buf;
+
+	struct data_word {
+	    u_int16_t addr, val;
+	} pv[] = {
+	    {CDATA_LEFT_VOLUME, M3_DEFAULT_VOL},
+	    {CDATA_RIGHT_VOLUME, M3_DEFAULT_VOL},
+	    {SRC3_DIRECTION_OFFSET, 0} ,
+	    {SRC3_DIRECTION_OFFSET + 3, 0x0000},
+	    {SRC3_DIRECTION_OFFSET + 4, 0},
+	    {SRC3_DIRECTION_OFFSET + 5, 0},
+	    {SRC3_DIRECTION_OFFSET + 6, 0},
+	    {SRC3_DIRECTION_OFFSET + 7, 0},
+	    {SRC3_DIRECTION_OFFSET + 8, 0},
+	    {SRC3_DIRECTION_OFFSET + 9, 0},
+	    {SRC3_DIRECTION_OFFSET + 10, 0x8000},
+	    {SRC3_DIRECTION_OFFSET + 11, 0xFF00},
+	    {SRC3_DIRECTION_OFFSET + 13, 0},
+	    {SRC3_DIRECTION_OFFSET + 14, 0},
+	    {SRC3_DIRECTION_OFFSET + 15, 0},
+	    {SRC3_DIRECTION_OFFSET + 16, 8},
+	    {SRC3_DIRECTION_OFFSET + 17, 50*2},
+	    {SRC3_DIRECTION_OFFSET + 18, MINISRC_BIQUAD_STAGE - 1},
+	    {SRC3_DIRECTION_OFFSET + 20, 0},
+	    {SRC3_DIRECTION_OFFSET + 21, 0}
+	};
 
 	M3_LOCK(sc);
 	idx = sc->pch_cnt; /* dac instance number, no active reuse! */
@@ -728,6 +756,33 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 
 	int idx, data_bytes, adc_data;
 	int dsp_in_size, dsp_out_size, dsp_in_buf, dsp_out_buf; 
+
+	struct data_word {
+	u_int16_t addr, val;
+	} rv[] = {
+	    {CDATA_LEFT_VOLUME, M3_DEFAULT_VOL},
+	    {CDATA_RIGHT_VOLUME, M3_DEFAULT_VOL},
+	    {SRC3_DIRECTION_OFFSET, 1},
+	    {SRC3_DIRECTION_OFFSET + 3, 0x0000},
+	    {SRC3_DIRECTION_OFFSET + 4, 0},
+	    {SRC3_DIRECTION_OFFSET + 5, 0},
+	    {SRC3_DIRECTION_OFFSET + 6, 0},
+	    {SRC3_DIRECTION_OFFSET + 7, 0},
+	    {SRC3_DIRECTION_OFFSET + 8, 0},
+	    {SRC3_DIRECTION_OFFSET + 9, 0},
+	    {SRC3_DIRECTION_OFFSET + 10, 0x8000},
+	    {SRC3_DIRECTION_OFFSET + 11, 0xFF00},
+	    {SRC3_DIRECTION_OFFSET + 13, 0},
+	    {SRC3_DIRECTION_OFFSET + 14, 0},
+	    {SRC3_DIRECTION_OFFSET + 15, 0},
+	    {SRC3_DIRECTION_OFFSET + 16, 50},
+	    {SRC3_DIRECTION_OFFSET + 17, 8},
+	    {SRC3_DIRECTION_OFFSET + 18, 0},
+	    {SRC3_DIRECTION_OFFSET + 19, 0},
+	    {SRC3_DIRECTION_OFFSET + 20, 0},
+	    {SRC3_DIRECTION_OFFSET + 21, 0},
+	    {SRC3_DIRECTION_OFFSET + 22, 0xff}
+	};
 
 	M3_LOCK(sc);
 	idx = sc->rch_cnt; /* adc instance number, no active reuse! */
@@ -1189,25 +1244,25 @@ m3_init(struct sc_info *sc)
 	m3_wr_assp_data(sc, KDATA_CURRENT_DMA,
 			KDATA_DMA_XFER0);
 	/* write kernel into code memory */
-	size = sizeof(assp_kernel_image);
+	size = sizeof(gaw_kernel_vect_code);
 	for(i = 0 ; i < size / 2; i++) {
 		m3_wr_assp_code(sc, REV_B_CODE_MEMORY_BEGIN + i,
-				assp_kernel_image[i]);
+				gaw_kernel_vect_code[i]);
 	}
 	/*
 	 * We only have this one client and we know that 0x400 is free in
 	 * our kernel's mem map, so lets just drop it there.  It seems that
 	 * the minisrc doesn't need vectors, so we won't bother with them..
 	 */
-	size = sizeof(assp_minisrc_image);
+	size = sizeof(gaw_minisrc_code_0400);
 	for(i = 0 ; i < size / 2; i++) {
-		m3_wr_assp_code(sc, 0x400 + i, assp_minisrc_image[i]);
+		m3_wr_assp_code(sc, 0x400 + i, gaw_minisrc_code_0400[i]);
 	}
 	/* write the coefficients for the low pass filter? */
-	size = sizeof(minisrc_lpf_image);
+	size = sizeof(minisrc_lpf);
 	for(i = 0; i < size / 2 ; i++) {
 		m3_wr_assp_code(sc,0x400 + MINISRC_COEF_LOC + i,
-				minisrc_lpf_image[i]);
+				minisrc_lpf[i]);
 	}
 	m3_wr_assp_code(sc, 0x400 + MINISRC_COEF_LOC + size, 0x8000);
 	/* the minisrc is the only thing on our task list */
@@ -1215,8 +1270,8 @@ m3_init(struct sc_info *sc)
 	/* init the mixer number */
 	m3_wr_assp_data(sc, KDATA_MIXER_TASK_NUMBER, 0);
 	/* extreme kernel master volume */
-	m3_wr_assp_data(sc, KDATA_DAC_LEFT_VOLUME, ARB_VOLUME);
-	m3_wr_assp_data(sc, KDATA_DAC_RIGHT_VOLUME, ARB_VOLUME);
+	m3_wr_assp_data(sc, KDATA_DAC_LEFT_VOLUME, M3_DEFAULT_VOL);
+	m3_wr_assp_data(sc, KDATA_DAC_RIGHT_VOLUME, M3_DEFAULT_VOL);
 
 	m3_amp_enable(sc);
 

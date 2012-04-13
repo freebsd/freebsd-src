@@ -241,8 +241,6 @@ typedef struct ohci_softc {
 	bus_space_handle_t sc_io_hdl;
 
 	uint32_t sc_eintrs;		/* enabled interrupts */
-	uint32_t sc_control;		/* Preserved during suspend/standby */
-	uint32_t sc_intre;
 
 	uint16_t sc_intr_stat[OHCI_NO_EDS];
 	uint16_t sc_id_vendor;
@@ -260,8 +258,6 @@ usb_bus_mem_cb_t ohci_iterate_hw_softc;
 
 usb_error_t ohci_init(ohci_softc_t *sc);
 void	ohci_detach(struct ohci_softc *sc);
-void	ohci_suspend(ohci_softc_t *sc);
-void	ohci_resume(ohci_softc_t *sc);
 void	ohci_interrupt(ohci_softc_t *sc);
 
 #endif					/* _OHCI_H_ */

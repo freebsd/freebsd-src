@@ -85,8 +85,10 @@ ieee80211_alq_setlogging(int enable)
 		    ieee80211_alq_qsize);
 		ieee80211_alq_lost = 0;
 		ieee80211_alq_logged = 0;
-		printf("net80211: logging to %s enabled; struct size %d bytes\n",
-		    ieee80211_alq_logfile, sizeof(struct ieee80211_alq_rec));
+		printf("net80211: logging to %s enabled; "
+		    "struct size %d bytes\n",
+		    ieee80211_alq_logfile,
+		    sizeof(struct ieee80211_alq_rec));
 	} else {
 		if (ieee80211_alq)
 			alq_close(ieee80211_alq);
@@ -100,14 +102,14 @@ ieee80211_alq_setlogging(int enable)
 static int
 sysctl_ieee80211_alq_log(SYSCTL_HANDLER_ARGS)
 {
-        int error, enable;
+	int error, enable;
 
-        enable = (ieee80211_alq != NULL);
-        error = sysctl_handle_int(oidp, &enable, 0, req);
-        if (error || !req->newptr)
-                return (error);
-        else   
-                return (ieee80211_alq_setlogging(enable));
+	enable = (ieee80211_alq != NULL);
+	error = sysctl_handle_int(oidp, &enable, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	else
+		return (ieee80211_alq_setlogging(enable));
 }
 
 SYSCTL_PROC(_net_wlan, OID_AUTO, alq, CTLTYPE_INT|CTLFLAG_RW,
@@ -150,6 +152,7 @@ ieee80211_alq_log(struct ieee80211vap *vap, uint8_t op, u_char *p, int l)
 	r->r_version = 1;
 	r->r_wlan = htons(vap->iv_ifp->if_dunit);
 	r->r_op = op;
+	r->r_threadid = htonl((uint32_t) curthread->td_tid);
 	memcpy(&r->r_payload, p, MIN(l, sizeof(r->r_payload)));
 	alq_post(ieee80211_alq, ale);
 }

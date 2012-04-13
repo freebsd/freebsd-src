@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2004
+.Dd January 4, 2012
 .Dt TGMATH 3
 .Os
 .Sh NAME
@@ -116,8 +116,8 @@ complex value to a generic argument invokes undefined behaviour:
 .It Fn erfc Ta Fn hypot Ta Fn lrint Ta Fn scalbln
 .It Fn exp2 Ta Fn ilogb Ta Fn lround Ta Fn tgamma
 .It Fn expm1 Ta Fn ldexp Ta Fn nextbyint Ta Fn trunc
-.It Fn fdim Ta Fn lgamma Ta Fn nextafter
-.It Fn floor Ta Fn llrint Ta Fn nexttoward
+.It Fn fdim Ta Fn lgamma Ta Fn nextafter Ta \&
+.It Fn floor Ta Fn llrint Ta Fn nexttoward Ta \&
 .El
 .Pp
 The following macros always expand to a complex function:
@@ -139,15 +139,24 @@ The header
 .In tgmath.h
 first appeared in
 .Fx 5.3 .
-.Sh BUGS
-The header
+.Sh COMPILER SUPPORT
+Before
+.St -isoC-2011 ,
+the header
 .In tgmath.h
-cannot be implemented with strictly conforming C code and needs
+could not be implemented with strictly conforming C code and needed
 special compiler support.
-The current implementation only works for GCC.
-.Pp
+As of
+.St -isoC-2011 ,
+this header file can be implemented using the
+.Fn _Generic
+language keyword.
+In addition to compilers that support this keyword, this header file
+works with GCC.
+.Sh BUGS
 Many of the functions mentioned here are not prototyped in
 .In math.h
 or
 .In complex.h
 as they are not yet implemented.
+This prevents the corresponding type-generic macro from working at all.

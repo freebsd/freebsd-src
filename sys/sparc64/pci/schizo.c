@@ -130,7 +130,6 @@ static device_method_t schizo_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	schizo_read_ivar),
 	DEVMETHOD(bus_setup_intr,	schizo_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -153,7 +152,7 @@ static device_method_t schizo_methods[] = {
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_setup_device,	schizo_setup_device),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t schizo_devclass;
@@ -179,6 +178,8 @@ struct schizo_icarg {
 	bus_addr_t		sica_clr;
 };
 
+#define	SCHIZO_CDMA_TIMEOUT	1	/* 1 second per try */
+#define	SCHIZO_CDMA_TRIES	15
 #define	SCHIZO_PERF_CNT_QLTY	100
 
 #define	SCHIZO_SPC_BARRIER(spc, sc, offs, len, flags)			\
@@ -707,13 +708,15 @@ schizo_attach(device_t dev)
 			i = INTINO(bus_get_resource_start(dev, SYS_RES_IRQ,
 			    4));
 			if (i == STX_CDMA_A_INO || i == STX_CDMA_B_INO) {
-				(void)schizo_get_intrmap(sc, i, NULL,
-				   &sc->sc_cdma_clr);
+				sc->sc_cdma_vec = INTMAP_VEC(sc->sc_ign, i);
+				(void)schizo_get_intrmap(sc, i,
+				   &sc->sc_cdma_map, &sc->sc_cdma_clr);
 				schizo_set_intr(sc, 4, i, schizo_cdma);
 			} else {
 				i = STX_CDMA_A_INO + sc->sc_half;
+				sc->sc_cdma_vec = INTMAP_VEC(sc->sc_ign, i);
 				if (bus_set_resource(dev, SYS_RES_IRQ, 5,
-				    INTMAP_VEC(sc->sc_ign, i), 1) != 0)
+				    sc->sc_cdma_vec, 1) != 0)
 					panic("%s: failed to add CDMA "
 					    "interrupt", __func__);
 				j = schizo_intr_register(sc, i);
@@ -721,8 +724,8 @@ schizo_attach(device_t dev)
 					panic("%s: could not register "
 					    "interrupt controller for CDMA "
 					    "(%d)", __func__, j);
-				(void)schizo_get_intrmap(sc, i, NULL,
-				   &sc->sc_cdma_clr);
+				(void)schizo_get_intrmap(sc, i,
+				   &sc->sc_cdma_map, &sc->sc_cdma_clr);
 				schizo_set_intr(sc, 5, i, schizo_cdma);
 			}
 		} else {
@@ -989,7 +992,8 @@ schizo_cdma(void *arg)
 {
 	struct schizo_softc *sc = arg;
 
-	atomic_store_rel_32(&sc->sc_cdma_state, SCHIZO_CDMA_STATE_RECEIVED);
+	atomic_cmpset_32(&sc->sc_cdma_state, SCHIZO_CDMA_STATE_PENDING,
+	    SCHIZO_CDMA_STATE_RECEIVED);
 	return (FILTER_HANDLED);
 }
 
@@ -1154,7 +1158,10 @@ schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	struct timeval cur, end;
 	struct schizo_iommu_state *sis = dt->dt_cookie;
 	struct schizo_softc *sc = sis->sis_sc;
-	int res;
+	int i, res;
+#ifdef INVARIANTS
+	register_t pil;
+#endif
 
 	if ((map->dm_flags & DMF_STREAMED) != 0) {
 		iommu_dma_methods.dm_dmamap_sync(dt, map, op);
@@ -1171,20 +1178,36 @@ schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 		 * but given that these disable interrupts we have to emulate
 		 * one.
 		 */
+		critical_enter();
+		KASSERT((rdpr(pstate) & PSTATE_IE) != 0,
+		    ("%s: interrupts disabled", __func__));
+		KASSERT((pil = rdpr(pil)) <= PIL_BRIDGE,
+		    ("%s: PIL too low (%ld)", __func__, pil));
 		for (; atomic_cmpset_acq_32(&sc->sc_cdma_state,
 		    SCHIZO_CDMA_STATE_IDLE, SCHIZO_CDMA_STATE_PENDING) == 0;)
 			;
-		SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, INTCLR_RECEIVED);
-		microuptime(&cur);
-		end.tv_sec = 1;
-		end.tv_usec = 0;
-		timevaladd(&end, &cur);
-		for (; (res = atomic_cmpset_rel_32(&sc->sc_cdma_state,
-		    SCHIZO_CDMA_STATE_RECEIVED, SCHIZO_CDMA_STATE_IDLE)) ==
-		    0 && timevalcmp(&cur, &end, <=);)
+		SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_map,
+		    INTMAP_ENABLE(sc->sc_cdma_vec, PCPU_GET(mid)));
+		for (i = 0; i < SCHIZO_CDMA_TRIES; i++) {
+			if (i > 0)
+				printf("%s: try %d\n", __func__, i);
+			SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr,
+			    INTCLR_RECEIVED);
 			microuptime(&cur);
+			end.tv_sec = SCHIZO_CDMA_TIMEOUT;
+			end.tv_usec = 0;
+			timevaladd(&end, &cur);
+			for (; (res = atomic_cmpset_rel_32(&sc->sc_cdma_state,
+			    SCHIZO_CDMA_STATE_RECEIVED,
+			    SCHIZO_CDMA_STATE_IDLE)) == 0 &&
+			    timevalcmp(&cur, &end, <=);)
+				microuptime(&cur);
+			if (res != 0)
+				break;
+		}
 		if (res == 0)
 			panic("%s: DMA does not sync", __func__);
+		critical_exit();
 	}
 
 	if ((op & BUS_DMASYNC_PREWRITE) != 0)
@@ -1353,7 +1376,7 @@ schizo_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			panic("%s: XXX: interrupt range", __func__);
 		start = end = INTMAP_VEC(sc->sc_ign, end);
 		return (bus_generic_alloc_resource(bus, child, type, rid,
-		     start, end, count, flags));
+		    start, end, count, flags));
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_pci_mem_rman;
 		break;

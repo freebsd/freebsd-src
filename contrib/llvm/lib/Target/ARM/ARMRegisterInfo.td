@@ -182,8 +182,10 @@ def QQQQ3 : ARMReg<3, "qqqq3", [QQ6, QQ7]>;
 
 // Current Program Status Register.
 def CPSR    : ARMReg<0, "cpsr">;
-def FPSCR   : ARMReg<1, "fpscr">;
-def ITSTATE : ARMReg<2, "itstate">;
+def APSR    : ARMReg<1, "apsr">;
+def SPSR    : ARMReg<2, "spsr">;
+def FPSCR   : ARMReg<3, "fpscr">;
+def ITSTATE : ARMReg<4, "itstate">;
 
 // Special Registers - only available in privileged mode.
 def FPSID   : ARMReg<0, "fpsid">;
@@ -212,6 +214,23 @@ def GPR : RegisterClass<"ARM", [i32], 32, (add (sequence "R%u", 0, 12),
       return 1 + MF.getTarget().getSubtarget<ARMSubtarget>().isThumb1Only();
   }];
 }
+
+// GPRs without the PC.  Some ARM instructions do not allow the PC in
+// certain operand slots, particularly as the destination.  Primarily
+// useful for disassembly.
+def GPRnopc : RegisterClass<"ARM", [i32], 32, (sub GPR, PC)> {
+  let AltOrders = [(add LR, GPRnopc), (trunc GPRnopc, 8)];
+  let AltOrderSelect = [{
+      return 1 + MF.getTarget().getSubtarget<ARMSubtarget>().isThumb1Only();
+  }];
+}
+
+// GPRsp - Only the SP is legal. Used by Thumb1 instructions that want the
+// implied SP argument list.
+// FIXME: It would be better to not use this at all and refactor the
+// instructions to not have SP an an explicit argument. That makes
+// frame index resolution a bit trickier, though.
+def GPRsp : RegisterClass<"ARM", [i32], 32, (add SP)>;
 
 // restricted GPR register class. Many Thumb2 instructions allow the full
 // register range for operands, but have undefined behaviours when PC
@@ -328,5 +347,6 @@ def QQQQPR : RegisterClass<"ARM", [v8i64], 256, (sequence "QQQQ%u", 0, 3)> {
 
 // Condition code registers.
 def CCR : RegisterClass<"ARM", [i32], 32, (add CPSR)> {
+  let CopyCost = -1;  // Don't allow copying of status registers.
   let isAllocatable = 0;
 }

@@ -40,9 +40,8 @@ static const double one = 1.0, shuge = 1.0e307;
 double
 __ieee754_sinh(double x)
 {
-	double t,w,h;
+	double t,h;
 	int32_t ix,jx;
-	u_int32_t lx;
 
     /* High word of |x|. */
 	GET_HIGH_WORD(jx,x);
@@ -66,12 +65,8 @@ __ieee754_sinh(double x)
 	if (ix < 0x40862E42)  return h*__ieee754_exp(fabs(x));
 
     /* |x| in [log(maxdouble), overflowthresold] */
-	GET_LOW_WORD(lx,x);
-	if (ix<0x408633CE || ((ix==0x408633ce)&&(lx<=(u_int32_t)0x8fb9f87d))) {
-	    w = __ieee754_exp(0.5*fabs(x));
-	    t = h*w;
-	    return t*w;
-	}
+	if (ix<=0x408633CE)
+	    return h*2.0*__ldexp_exp(fabs(x), -1);
 
     /* |x| > overflowthresold, sinh(x) overflow */
 	return x*shuge;

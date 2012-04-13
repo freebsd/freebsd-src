@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,6 @@ static void ata_promise_next_hpkt(struct ata_pci_controller *ctlr);
 #define PR_SATA		0x40
 #define PR_SATA2	0x80
 
-
 /*
  * Promise chipset support functions
  */
@@ -130,8 +129,8 @@ static int
 ata_promise_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
-    static struct ata_chip_id ids[] =
+    const struct ata_chip_id *idx;
+    static const struct ata_chip_id const ids[] =
     {{ ATA_PDC20246,  0, PR_OLD, 0x00,     ATA_UDMA2, "PDC20246" },
      { ATA_PDC20262,  0, PR_NEW, 0x00,     ATA_UDMA4, "PDC20262" },
      { ATA_PDC20263,  0, PR_NEW, 0x00,     ATA_UDMA4, "PDC20263" },
@@ -249,6 +248,14 @@ ata_promise_chipinit(device_t dev)
 	if (!(ctlr->r_res1 = bus_alloc_resource_any(dev, ctlr->r_type1,
 						    &ctlr->r_rid1, RF_ACTIVE)))
 	    goto failnfree;
+
+#ifdef __sparc64__
+	if (ctlr->chip->cfg2 == PR_SX4X &&
+	    !bus_space_map(rman_get_bustag(ctlr->r_res1),
+	    rman_get_bushandle(ctlr->r_res1), rman_get_size(ctlr->r_res1),
+	    BUS_SPACE_MAP_LINEAR, NULL))
+		goto failnfree;
+#endif
 
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(3);
@@ -447,7 +454,7 @@ ata_promise_setmode(device_t dev, int target, int mode)
     struct ata_pci_controller *ctlr = device_get_softc(parent);
     struct ata_channel *ch = device_get_softc(dev);
     int devno = (ch->unit << 1) + target;
-    u_int32_t timings[][2] = {
+    static const uint32_t timings[][2] = {
     /*    PR_OLD      PR_NEW               mode */
 	{ 0x004ff329, 0x004fff2f },     /* PIO 0 */
 	{ 0x004fec25, 0x004ff82a },     /* PIO 1 */

@@ -15,7 +15,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Written by Brendan O'Dea <bod@compusol.com.au>
 # Available from ftp://ftp.gnu.org/gnu/help2man/
@@ -27,7 +27,7 @@ use Text::Tabs qw(expand);
 use POSIX qw(strftime setlocale LC_TIME);
 
 my $this_program = 'help2man';
-my $this_version = '1.022';
+my $this_version = '1.23';
 my $version_info = <<EOT;
 GNU $this_program $this_version
 
@@ -269,9 +269,11 @@ s/^\n+//;
 s/\n*$/\n/;
 s/\n\n+/\n\n/g;
 
-# Temporarily exchange leading dots and backslashes for tokens.
+# Temporarily exchange leading dots, apostrophes and backslashes for
+# tokens.
 s/^\./\x80/mg;
-s/\\/\x81/g;
+s/^'/\x81/mg;
+s/\\/\x82/g;
 
 # Start a new paragraph (if required) for these.
 s/([^\n])\n(Report +bugs|Email +bug +reports +to|Written +by)/$1\n\n$2/g;
@@ -366,7 +368,7 @@ while (length)
     {
 	$matched .= $& if %append;
 	$indent = length ($4 || "$1$3");
-	$content = ".TP\n\x82$2\n\x82$5\n";
+	$content = ".TP\n\x83$2\n\x83$5\n";
 	unless ($4)
 	{
 	    # Indent may be different on second line.
@@ -378,7 +380,7 @@ while (length)
     elsif (s/^ {1,10}([+-]\S.*)\n//)
     {
 	$matched .= $& if %append;
-	$content = ".HP\n\x82$1\n";
+	$content = ".HP\n\x83$1\n";
 	$indent = 80; # not continued
     }
 
@@ -387,7 +389,7 @@ while (length)
     {
 	$matched .= $& if %append;
 	$indent = length $1;
-	$content = ".TP\n\x82$2\n\x82$3\n";
+	$content = ".TP\n\x83$2\n\x83$3\n";
     }
 
     # Indented paragraph.
@@ -395,7 +397,7 @@ while (length)
     {
 	$matched .= $& if %append;
 	$indent = length $1;
-	$content = ".IP\n\x82$2\n";
+	$content = ".IP\n\x83$2\n";
     }
 
     # Left justified paragraph.
@@ -411,7 +413,7 @@ while (length)
     while (s/^ {$indent}(\S.*)\n//)
     {
 	$matched .= $& if %append;
-	$content .= "\x82$1\n"
+	$content .= "\x83$1\n"
     }
 
     # Move to next paragraph.
@@ -419,9 +421,10 @@ while (length)
 
     for ($content)
     {
-	# Leading dot protection.
-	s/\x82\./\x80/g;
-	s/\x82//g;
+	# Leading dot and apostrophe protection.
+	s/\x83\./\x80/g;
+	s/\x83'/\x81/g;
+	s/\x83//g;
 
 	# Convert options.
 	s/(^| )(-[][\w=-]+)/$1 . convert_option $2/mge;
@@ -482,12 +485,13 @@ for (@pre, (grep ! /^($filter)$/o, @include), @post)
     {
 	my $quote = /\W/ ? '"' : '';
 	print ".SH $quote$_$quote\n";
-
+	
 	for ($include{$_})
 	{
-	    # Replace leading dot an backslash tokens.
+	    # Replace leading dot, apostrophe and backslash tokens.
 	    s/\x80/\\&./g;
-	    s/\x81/\\e/g;
+	    s/\x81/\\&'/g;
+	    s/\x82/\\e/g;
 	    print;
 	}
     }

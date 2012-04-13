@@ -201,7 +201,7 @@ parse(char *string)
 	if (oidfmt(mib, len, fmt, &kind))
 		err(1, "couldn't find format of oid '%s'", bufp);
 
-	if (newval == NULL) {
+	if (newval == NULL || dflag) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 			if (dflag) {
 				i = show_var(mib, len);
@@ -419,7 +419,7 @@ S_vmtotal(int l2, void *p)
 	    v->t_vmshr * pageKilo, v->t_avmshr * pageKilo);
 	printf("Shared Real Memory:\t(Total: %dK Active: %dK)\n",
 	    v->t_rmshr * pageKilo, v->t_armshr * pageKilo);
-	printf("Free Memory Pages:\t%dK\n", v->t_free * pageKilo);
+	printf("Free Memory:\t%dK\n", v->t_free * pageKilo);
 
 	return (0);
 }

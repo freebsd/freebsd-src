@@ -140,7 +140,6 @@ static device_method_t fire_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	fire_read_ivar),
 	DEVMETHOD(bus_setup_intr,	fire_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	fire_teardown_intr),
@@ -165,7 +164,7 @@ static device_method_t fire_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	fire_get_node),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t fire_devclass;
@@ -444,10 +443,11 @@ fire_attach(device_t dev)
 			lw = 0;
 		}
 		mps = (FIRE_PCI_READ_8(sc, FO_PCI_TLU_CTRL) &
-		    FO_PCI_TLU_CTRL_CFG_MASK) >> FO_PCI_TLU_CTRL_CFG_SHFT;
+		    FO_PCI_TLU_CTRL_CFG_MPS_MASK) >>
+		    FO_PCI_TLU_CTRL_CFG_MPS_SHFT;
 		i = sizeof(fire_freq_nak_tmr_thrs) /
 		    sizeof(*fire_freq_nak_tmr_thrs);
-		if (mps >= i);
+		if (mps >= i)
 			mps = i - 1;
 		FIRE_PCI_SET(sc, FO_PCI_LPU_TXLNK_FREQ_LAT_TMR_THRS,
 		    (fire_freq_nak_tmr_thrs[mps][lw] <<
@@ -765,7 +765,7 @@ fire_attach(device_t dev)
 	if (sc->sc_pci_cfgt == NULL)
 		panic("%s: could not allocate PCI configuration space tag",
 		    __func__);
-	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0x100000000,
 	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
 	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
 		panic("%s: could not create PCI DMA tag", __func__);

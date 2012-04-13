@@ -93,7 +93,7 @@ class CodeGenTypes {
   /// a recursive struct conversion, set this to true.
   bool SkippedLayout;
 
-  llvm::SmallVector<const RecordDecl *, 8> DeferredRecords;
+  SmallVector<const RecordDecl *, 8> DeferredRecords;
   
 private:
   /// TypeCache - This map keeps cache of llvm::Types
@@ -138,7 +138,7 @@ public:
   /// GetFunctionTypeForVTable - Get the LLVM function type for use in a vtable,
   /// given a CXXMethodDecl. If the method to has an incomplete return type,
   /// and/or incomplete argument types, this will return the opaque type.
-  const llvm::Type *GetFunctionTypeForVTable(GlobalDecl GD);
+  llvm::Type *GetFunctionTypeForVTable(GlobalDecl GD);
 
   const CGRecordLayout &getCGRecordLayout(const RecordDecl*);
 
@@ -190,7 +190,7 @@ public:
   ///
   /// \param ArgTys - must all actually be canonical as params
   const CGFunctionInfo &getFunctionInfo(CanQualType RetTy,
-                               const llvm::SmallVectorImpl<CanQualType> &ArgTys,
+                               const SmallVectorImpl<CanQualType> &ArgTys,
                                         const FunctionType::ExtInfo &Info);
 
   /// \brief Compute a new LLVM record layout object for the given record.
@@ -200,7 +200,7 @@ public:
   /// addRecordTypeName - Compute a name from the given record decl with an
   /// optional suffix and name the given LLVM type using it.
   void addRecordTypeName(const RecordDecl *RD, llvm::StructType *Ty,
-                         llvm::StringRef suffix);
+                         StringRef suffix);
   
 
 public:  // These are internal details of CGT that shouldn't be used externally.
@@ -211,7 +211,7 @@ public:  // These are internal details of CGT that shouldn't be used externally.
   /// argument types it would be passed as on the provided vector \arg
   /// ArgTys. See ABIArgInfo::Expand.
   void GetExpandedTypes(QualType type,
-                        llvm::SmallVectorImpl<llvm::Type*> &expanded);
+                        SmallVectorImpl<llvm::Type*> &expanded);
 
   /// IsZeroInitializable - Return whether a type can be
   /// zero-initialized (in the C++ sense) with an LLVM zeroinitializer.

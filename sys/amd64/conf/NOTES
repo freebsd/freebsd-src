@@ -90,6 +90,19 @@ options 	DEVICE_POLLING
 
 options 	BPF_JITTER
 
+# OpenFabrics Enterprise Distribution (Infiniband).
+options 	OFED
+options 	OFED_DEBUG_INIT
+
+# Sockets Direct Protocol
+options 	SDP
+options 	SDP_DEBUG
+
+# IP over Inifiband
+options 	IPOIB
+options 	IPOIB_DEBUG
+options 	IPOIB_CM
+
 
 #####################################################################
 # CLOCK OPTIONS
@@ -290,24 +303,32 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 #	Requires the iwi firmware module
 # iwn:	Intel Wireless WiFi Link 4965/1000/5000/6000 802.11 network adapters
 #	Requires the iwn firmware module
+# mlx4ib: Mellanox ConnectX HCA InfiniBand
+# mlxen: Mellanox ConnectX HCA Ethernet
+# mthca: Mellanox HCA InfiniBand
 # mwl:	Marvell 88W8363 IEEE 802.11 adapter
 #	Requires the mwl firmware module
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
+# sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
-device		ed
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC
-device		ipw
-device		iwi
-device		iwn
-device		mwl
-device		nfe
-device		nve
-device		wpi
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
+device  	mlxen		# Mellanox ConnectX HCA Ethernet
+device  	mthca		# Mellanox HCA InfiniBand
+device		mwl		# Marvell 88W8363 802.11n wireless NICs.
+device		nfe		# nVidia nForce MCP on-board Ethernet
+device		nve		# nVidia nForce MCP on-board Ethernet Networking
+device		sfxge
+device		wpi		# Intel 3945ABG wireless NICs.
 
 # IEEE 802.11 adapter firmware modules
 
@@ -386,6 +407,10 @@ device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
 #
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
 # Highpoint RocketRAID 182x.
 device		hptmv
 
@@ -401,6 +426,11 @@ device		hptiop
 #
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
+
+#
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options		ISCI_LOGGING	# enable debugging in isci HAL
 
 #
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
@@ -453,9 +483,13 @@ device		tpm
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
+# wbwd: Winbond watchdog timer
 #
 device		ichwd
 device		amdsbwd
+device		viawd
+device		wbwd
 
 #
 # Temperature sensors:
@@ -476,19 +510,6 @@ device		cpuctl
 # System Management Bus (SMB)
 #
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver
-
-#
-# Set the number of PV entries per process.  Increasing this can
-# stop panics related to heavy use of shared memory.  However, that can
-# (combined with large amounts of physical memory) cause panics at
-# boot time due the kernel running out of VM space.
-#
-# If you're tweaking this, you might also want to increase the sysctls
-# "vm.v_free_min", "vm.v_free_reserved", and "vm.v_free_target".
-#
-# The value below is the one more than the default.
-#
-options 	PMAP_SHPGPERPROC=201
 
 #
 # Number of initial kernel page table pages used for early bootstrap.
@@ -556,6 +577,10 @@ options 	LINSYSFS
 # stack of each thread.
 
 options 	KSTACK_PAGES=5
+
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
 
 #####################################################################
 

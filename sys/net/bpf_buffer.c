@@ -2,7 +2,7 @@
  * Copyright (c) 2007 Seccuris Inc.
  * All rights reserved.
  *
- * This sofware was developed by Robert N. M. Watson under contract to
+ * This software was developed by Robert N. M. Watson under contract to
  * Seccuris Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -184,9 +184,9 @@ bpf_buffer_ioctl_sblen(struct bpf_d *d, u_int *i)
 {
 	u_int size;
 
-	BPFD_LOCK(d);
+	BPFD_WLOCK(d);
 	if (d->bd_bif != NULL) {
-		BPFD_UNLOCK(d);
+		BPFD_WUNLOCK(d);
 		return (EINVAL);
 	}
 	size = *i;
@@ -195,7 +195,7 @@ bpf_buffer_ioctl_sblen(struct bpf_d *d, u_int *i)
 	else if (size < BPF_MINBUFSIZE)
 		*i = size = BPF_MINBUFSIZE;
 	d->bd_bufsize = size;
-	BPFD_UNLOCK(d);
+	BPFD_WUNLOCK(d);
 	return (0);
 }
 

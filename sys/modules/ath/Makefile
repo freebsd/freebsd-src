@@ -36,7 +36,7 @@ ATH_RATE?=	sample		# tx rate control algorithm
 
 KMOD=	if_ath
 SRCS=	if_ath.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
-SRCS+=	if_ath_tx.c if_ath_tx_ht.c
+SRCS+=	if_ath_tx.c if_ath_tx_ht.c if_ath_led.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
@@ -75,7 +75,7 @@ SRCS+=	ar2425.c
 SRCS+=	ar5413.c
 
 #
-# AR5416, AR9130, AR9160, AR9220, AR9280, AR9285 support.
+# AR5416, AR9130, AR9160, AR9220, AR9280, AR9285, AR9287 support.
 
 # Note enabling this support requires defining AH_SUPPORT_AR5416
 # in opt_ah.h so the 11n tx/rx descriptor format is handled.
@@ -88,8 +88,8 @@ SRCS+=	ah_eeprom_v14.c ah_eeprom_v4k.c \
 	ar5416_ani.c ar5416_attach.c ar5416_beacon.c ar5416_cal.c \
 	ar5416_cal_iq.c ar5416_cal_adcgain.c ar5416_cal_adcdc.c \
 	ar5416_eeprom.c ar5416_gpio.c ar5416_interrupts.c ar5416_keycache.c \
-	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_recv.c \
-	ar5416_reset.c ar5416_xmit.c
+	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_radar.c \
+	ar5416_recv.c ar5416_reset.c ar5416_xmit.c
 
 # RF backend for 5416, 9130 and 9160
 SRCS+=	ar2133.c
@@ -140,7 +140,12 @@ SRCS+=	dfs_null.c
 
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
 
+.if !defined(KERNBUILDDIR)
 opt_ah.h:
 	echo '#define AH_SUPPORT_AR5416 1' > $@
+.endif
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW}
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

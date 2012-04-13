@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 29, 2011
+.Dd February 25, 2012
 .Dt MENU.4TH 8
 .Os
 .Sh NAME
@@ -69,9 +69,13 @@ Clears the screen area within the menu bounding box.
 Calls
 .Ic menu-erase
 and then redraws the menu.
+.It Ic menu-unset
+Unsets the environment variables associated with individual menu items,
+clearing the way for a new menu.
 .It Ic menu-clear
-Unsets all possible environment variables used
-to configure the menu and then calls
+Calls
+.Ic menu-unset
+and then
 .Ic menu-erase .
 .El
 .Pp
@@ -82,11 +86,12 @@ If set to
 .Dq Li YES
 (case-insensitive) or
 .Dq Li 1 ,
-causes the menu to be displayed in color wherever possible. This includes the
+causes the menu to be displayed in color wherever possible.
+This includes the
 use of ANSI bold for numbers appearing to the left of menuitems and the use of
 special
 .Dq Li ansi
-variables describd below.
+variables described below.
 .It Va autoboot_delay
 Number of seconds
 .Ic menu-display
@@ -113,14 +118,18 @@ for additional information.
 .It Va menu_timeout_command
 The command to be executed after
 .Va autoboot_delay
-seconds if a key is not pressed. The default is
+seconds if a key is not pressed.
+The default is
 .Ic boot .
 .It Va loader_menu_timeout_x
-Sets the desired column position of the timeout countdown text. Default is 4.
+Sets the desired column position of the timeout countdown text.
+Default is 4.
 .It Va loader_menu_timeout_y
-Sets the desired row position of the timeout countdown text. Default is 23.
+Sets the desired row position of the timeout countdown text.
+Default is 23.
 .It Va loader_menu_title
-The text to display centered above the menu. Default is
+The text to display centered above the menu.
+Default is
 .Dq Li "Welcome to FreeBSD" .
 .It Va menu_caption[x]
 The text to be displayed for the numbered menuitem
@@ -128,7 +137,8 @@ The text to be displayed for the numbered menuitem
 .It Va menu_command[x]
 The command to be executed when the number associated with menuitem
 .Dq Li x
-is pressed. See the list of included FICL words below for some ideas.
+is pressed.
+See the list of included FICL words below for some ideas.
 .It Va menu_keycode[x]
 An optional decimal ASCII keycode to be associated with menuitem
 .Dq Li x .
@@ -197,7 +207,8 @@ menuitem (if configured).
 .It Va hint.acpi.0.disabled
 Effects the display of the
 .Va menu_acpi
-menuitem. If set, the menuitem will display
+menuitem.
+If set, the menuitem will display
 .Va toggled_text[x]
 .Va ( toggled_ansi[x]
 if
@@ -221,7 +232,8 @@ and
 .It Va menu_reboot
 If set, adds a built-in
 .Dq Li Reboot
-menuitem to the end of the last configured menuitem. If
+menuitem to the end of the last configured menuitem.
+If
 .Va menu_options
 is configured, the
 .Dq Li Reboot

@@ -76,6 +76,10 @@
             tr1
             ..
         ..
+        v1
+            ext
+            ..
+        ..
     ..
     cam
         ata
@@ -147,8 +151,6 @@
         devfs
         ..
         fdescfs
-        ..
-        fifofs
         ..
         msdosfs
         ..
@@ -230,6 +232,8 @@
         ..
     ..
     kadm5
+    ..
+    krb5
     ..
     libmilter
     ..
@@ -326,5 +330,7 @@
         ..
     ..
     vm
+    ..
+    xlocale
     ..
 ..

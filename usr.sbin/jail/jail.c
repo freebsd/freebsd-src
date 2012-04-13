@@ -508,6 +508,7 @@ static void
 set_param(const char *name, char *value)
 {
 	struct jailparam *param;
+	char path[PATH_MAX];
 	int i;
 
 	static int paramlistsize;
@@ -520,8 +521,13 @@ set_param(const char *name, char *value)
 	}
 
 	/* jail_set won't chdir along with its chroot, so do it here. */
-	if (!strcmp(name, "path") && chdir(value) < 0)
-		err(1, "chdir: %s", value);
+	if (!strcmp(name, "path")) {
+		/* resolve the path with realpath(3) */
+		if (realpath(value, path) != NULL)
+			value = path;
+		if (chdir(value) < 0)
+			err(1, "chdir: %s", value);
+	}
 
 	/* Check for repeat parameters */
 	for (i = 0; i < nparams; i++)

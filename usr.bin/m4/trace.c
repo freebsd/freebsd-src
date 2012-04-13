@@ -1,4 +1,4 @@
-/* $OpenBSD: trace.c,v 1.6 2002/04/26 16:15:16 espie Exp $ */
+/* $OpenBSD: trace.c,v 1.16 2010/09/07 19:58:09 marco Exp $ */
 /*
  * Copyright (c) 2001 Marc Espie.
  *
@@ -23,25 +23,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <err.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "mdef.h"
 #include "stdd.h"
 #include "extern.h"
 
 FILE *traceout;
 
-int traced_macros = 0;
-
-#define TRACE_ARGS 	1
+#define TRACE_ARGS	1
 #define TRACE_EXPANSION 2
 #define TRACE_QUOTE	4
 #define TRACE_FILENAME	8
@@ -50,81 +46,19 @@ int traced_macros = 0;
 #define TRACE_ID	64
 #define TRACE_NEWFILE	128	/* not implemented yet */
 #define TRACE_INPUT	256	/* not implemented yet */
-#define TRACE_ALL	512
-
-static struct t {
-	struct t *next;
-	char 	 *name;
-	int	  on;
-} *l;
 
 static unsigned int letter_to_flag(int);
 static void print_header(struct input_file *);
-static struct t *find_trace_entry(const char *);
 static int frame_level(void);
 
-static unsigned int flags = TRACE_QUOTE | TRACE_EXPANSION;
 
-static struct t *
-find_trace_entry(const char *name)
-{
-	struct t *n;
-
-	for (n = l; n != NULL; n = n->next)
-		if (STREQ(n->name, name))
-			return n;
-	return NULL;
-}
-
-
-void
-mark_traced(const char *name, int on)
-{
-	struct t *n, *n2;
-
-	traced_macros = 1;
-
-	if (name == NULL) {
-		if (on)
-			flags |= TRACE_ALL;
-		else {
-			flags &= ~TRACE_ALL;
-			traced_macros = 0;
-		}
-		for (n = l; n != NULL; n = n2) {
-			n2 = n->next;
-			free(n->name);
-			free(n);
-		}
-		l = NULL;
-	} else {
-	    n = find_trace_entry(name);
-	    if (n == NULL) {
-		    n = xalloc(sizeof(struct t));
-		    n->name = xstrdup(name);
-		    n->next = l;
-		    l = n;
-	    }
-	    n->on = on;
-	}
-}
-
-int
-is_traced(const char *name)
-{
-	struct t *n;
-
-	for (n = l; n != NULL; n = n->next)
-		if (STREQ(n->name, name))
-			return n->on;
-	return (flags & TRACE_ALL) ? 1 : 0;
-}
+unsigned int trace_flags = TRACE_QUOTE | TRACE_EXPANSION;
 
 void
 trace_file(const char *name)
 {
 
-	if (traceout != stderr)
+	if (traceout && traceout != stderr)
 		fclose(traceout);
 	traceout = fopen(name, "w");
 	if (!traceout)
@@ -168,21 +102,19 @@ set_trace_flags(const char *s)
 	char mode = 0;
 	unsigned int f = 0;
 
-	traced_macros = 1;
-
 	if (*s == '+' || *s == '-')
 		mode = *s++;
 	while (*s)
 		f |= letter_to_flag(*s++);
 	switch(mode) {
 	case 0:
-		flags = f;
+		trace_flags = f;
 		break;
 	case '+':
-		flags |= f;
+		trace_flags |= f;
 		break;
 	case '-':
-		flags &= ~f;
+		trace_flags &= ~f;
 		break;
 	}
 }
@@ -194,7 +126,7 @@ frame_level(void)
 	int framep;
 
 	for (framep = fp, level = 0; framep != 0;
-		level++,framep = mstack[framep-2].sfra)
+		level++,framep = mstack[framep-3].sfra)
 		;
 	return level;
 }
@@ -203,25 +135,27 @@ static void
 print_header(struct input_file *inp)
 {
 	fprintf(traceout, "m4trace:");
-	if (flags & TRACE_FILENAME)
+	if (trace_flags & TRACE_FILENAME)
 		fprintf(traceout, "%s:", inp->name);
-	if (flags & TRACE_LINENO)
+	if (trace_flags & TRACE_LINENO)
 		fprintf(traceout, "%lu:", inp->lineno);
 	fprintf(traceout, " -%d- ", frame_level());
-	if (flags & TRACE_ID)
+	if (trace_flags & TRACE_ID)
 		fprintf(traceout, "id %lu: ", expansion_id);
 }
 
-ssize_t
+size_t
 trace(const char *argv[], int argc, struct input_file *inp)
 {
+	if (!traceout)
+		traceout = stderr;
 	print_header(inp);
-	if (flags & TRACE_CONT) {
+	if (trace_flags & TRACE_CONT) {
 		fprintf(traceout, "%s ...\n", argv[1]);
 		print_header(inp);
 	}
 	fprintf(traceout, "%s", argv[1]);
-	if ((flags & TRACE_ARGS) && argc > 2) {
+	if ((trace_flags & TRACE_ARGS) && argc > 2) {
 		char delim[3];
 		int i;
 
@@ -229,25 +163,25 @@ trace(const char *argv[], int argc, struct input_file *inp)
 		delim[1] = EOS;
 		for (i = 2; i < argc; i++) {
 			fprintf(traceout, "%s%s%s%s", delim,
-			    (flags & TRACE_QUOTE) ? lquote : "",
+			    (trace_flags & TRACE_QUOTE) ? lquote : "",
 			    argv[i],
-			    (flags & TRACE_QUOTE) ? rquote : "");
+			    (trace_flags & TRACE_QUOTE) ? rquote : "");
 			delim[0] = COMMA;
 			delim[1] = ' ';
 			delim[2] = EOS;
 		}
 		fprintf(traceout, "%c", RPAREN);
 	}
-	if (flags & TRACE_CONT) {
+	if (trace_flags & TRACE_CONT) {
 		fprintf(traceout, " -> ???\n");
 		print_header(inp);
 		fprintf(traceout, argc > 2 ? "%s(...)" : "%s", argv[1]);
 	}
-	if (flags & TRACE_EXPANSION)
+	if (trace_flags & TRACE_EXPANSION)
 		return buffer_mark();
 	else {
 		fprintf(traceout, "\n");
-		return -1;
+		return SIZE_MAX;
 	}
 }
 
@@ -255,10 +189,10 @@ void
 finish_trace(size_t mark)
 {
 	fprintf(traceout, " -> ");
-	if (flags & TRACE_QUOTE)
+	if (trace_flags & TRACE_QUOTE)
 		fprintf(traceout, "%s", lquote);
 	dump_buffer(traceout, mark);
-	if (flags & TRACE_QUOTE)
+	if (trace_flags & TRACE_QUOTE)
 		fprintf(traceout, "%s", rquote);
 	fprintf(traceout, "\n");
 }

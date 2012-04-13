@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -269,11 +270,17 @@ mfip_start(void *data)
 	struct mfip_softc *sc;
 	struct mfi_pass_frame *pt;
 	struct mfi_command *cm;
+	uint32_t context = 0;
 
 	sc = ccbh->ccb_mfip_ptr;
 
 	if ((cm = mfi_dequeue_free(sc->mfi_sc)) == NULL)
 		return (NULL);
+
+	/* Zero out the MFI frame */
+	context = cm->cm_frame->header.context;
+	bzero(cm->cm_frame, sizeof(union mfi_frame));
+	cm->cm_frame->header.context = context;
 
 	pt = &cm->cm_frame->pass;
 	pt->header.cmd = MFI_CMD_PD_SCSI_IO;
@@ -354,7 +361,13 @@ mfip_done(struct mfi_command *cm)
 
 		ccbh->status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 		csio->scsi_status = pt->header.scsi_status;
-		sense_len = min(pt->header.sense_len, sizeof(struct scsi_sense_data));
+		if (pt->header.sense_len < csio->sense_len)
+			csio->sense_resid = csio->sense_len -
+			    pt->header.sense_len;
+		else
+			csio->sense_resid = 0;
+		sense_len = min(pt->header.sense_len,
+		    sizeof(struct scsi_sense_data));
 		bzero(&csio->sense_data, sizeof(struct scsi_sense_data));
 		bcopy(&cm->cm_sense->data[0], &csio->sense_data, sense_len);
 		break;

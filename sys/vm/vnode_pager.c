@@ -222,6 +222,7 @@ retry:
 		object = vm_object_allocate(OBJT_VNODE, OFF_TO_IDX(round_page(size)));
 
 		object->un_pager.vnp.vnp_size = size;
+		object->un_pager.vnp.writemappings = 0;
 
 		object->handle = handle;
 		VI_LOCK(vp);
@@ -268,10 +269,18 @@ vnode_pager_dealloc(object)
 		wakeup(object);
 	}
 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_dealloc");
+	if (object->un_pager.vnp.writemappings > 0) {
+		object->un_pager.vnp.writemappings = 0;
+		vp->v_writecount--;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+		    __func__, vp, vp->v_writecount);
+	}
 	vp->v_object = NULL;
 	vp->v_vflag &= ~VV_TEXT;
+	VM_OBJECT_UNLOCK(object);
 	while (refs-- > 0)
 		vunref(vp);
+	VM_OBJECT_LOCK(object);
 }
 
 static boolean_t
@@ -413,7 +422,7 @@ vnode_pager_setsize(vp, nsize)
 			 * have been zeroed.  Some of these valid bits may
 			 * have already been set.
 			 */
-			vm_page_set_valid(m, base, size);
+			vm_page_set_valid_range(m, base, size);
 
 			/*
 			 * Round "base" to the next block boundary so that the
@@ -486,15 +495,16 @@ vnode_pager_input_smlfs(object, m)
 	vm_object_t object;
 	vm_page_t m;
 {
-	int bits, i;
 	struct vnode *vp;
 	struct bufobj *bo;
 	struct buf *bp;
 	struct sf_buf *sf;
 	daddr_t fileaddr;
 	vm_offset_t bsize;
-	int error = 0;
+	vm_page_bits_t bits;
+	int error, i;
 
+	error = 0;
 	vp = object->handle;
 	if (vp->v_iflag & VI_DOOMED)
 		return VM_PAGER_BAD;
@@ -533,6 +543,7 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_data = (caddr_t)sf_buf_kva(sf) + i * bsize;
 			bp->b_blkno = fileaddr;
 			pbgetbo(bo, bp);
+			bp->b_vp = vp;
 			bp->b_bcount = bsize;
 			bp->b_bufsize = bsize;
 			bp->b_runningbufspace = bp->b_bufsize;
@@ -550,6 +561,7 @@ vnode_pager_input_smlfs(object, m)
 			/*
 			 * free the buffer header back to the swap buffer pool
 			 */
+			bp->b_vp = NULL;
 			pbrelbo(bp);
 			relpbuf(bp, &vnode_pbuf_freecnt);
 			if (error)
@@ -908,6 +920,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	bp->b_wcred = crhold(curthread->td_ucred);
 	bp->b_blkno = firstaddr;
 	pbgetbo(bo, bp);
+	bp->b_vp = vp;
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
 	bp->b_runningbufspace = bp->b_bufsize;
@@ -934,6 +947,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * free the buffer header back to the swap buffer pool
 	 */
+	bp->b_vp = NULL;
 	pbrelbo(bp);
 	relpbuf(bp, &vnode_pbuf_freecnt);
 
@@ -963,7 +977,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * we just try to clear the piece that we couldn't
 			 * read.
 			 */
-			vm_page_set_valid(mt, 0,
+			vm_page_set_valid_range(mt, 0,
 			    object->un_pager.vnp.vnp_size - tfoff);
 			KASSERT((mt->dirty & vm_page_bits(0,
 			    object->un_pager.vnp.vnp_size - tfoff)) == 0,
@@ -1150,7 +1164,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	VM_OBJECT_UNLOCK(object);
 
 	/*
-	 * pageouts are already clustered, use IO_ASYNC t o force a bawrite()
+	 * pageouts are already clustered, use IO_ASYNC to force a bawrite()
 	 * rather then a bdwrite() to prevent paging I/O from saturating 
 	 * the buffer cache.  Dummy-up the sequential heuristic to cause
 	 * large ranges to cluster.  If neither IO_SYNC or IO_ASYNC is set,
@@ -1213,4 +1227,86 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
 		}
 	}
 	VM_OBJECT_UNLOCK(obj);
+}
+
+void
+vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+	struct vnode *vp;
+	vm_ooffset_t old_wm;
+
+	VM_OBJECT_LOCK(object);
+	if (object->type != OBJT_VNODE) {
+		VM_OBJECT_UNLOCK(object);
+		return;
+	}
+	old_wm = object->un_pager.vnp.writemappings;
+	object->un_pager.vnp.writemappings += (vm_ooffset_t)end - start;
+	vp = object->handle;
+	if (old_wm == 0 && object->un_pager.vnp.writemappings != 0) {
+		ASSERT_VOP_ELOCKED(vp, "v_writecount inc");
+		vp->v_writecount++;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+		    __func__, vp, vp->v_writecount);
+	} else if (old_wm != 0 && object->un_pager.vnp.writemappings == 0) {
+		ASSERT_VOP_ELOCKED(vp, "v_writecount dec");
+		vp->v_writecount--;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+		    __func__, vp, vp->v_writecount);
+	}
+	VM_OBJECT_UNLOCK(object);
+}
+
+void
+vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+	struct vnode *vp;
+	struct mount *mp;
+	vm_offset_t inc;
+	int vfslocked;
+
+	VM_OBJECT_LOCK(object);
+
+	/*
+	 * First, recheck the object type to account for the race when
+	 * the vnode is reclaimed.
+	 */
+	if (object->type != OBJT_VNODE) {
+		VM_OBJECT_UNLOCK(object);
+		return;
+	}
+
+	/*
+	 * Optimize for the case when writemappings is not going to
+	 * zero.
+	 */
+	inc = end - start;
+	if (object->un_pager.vnp.writemappings != inc) {
+		object->un_pager.vnp.writemappings -= inc;
+		VM_OBJECT_UNLOCK(object);
+		return;
+	}
+
+	vp = object->handle;
+	vhold(vp);
+	VM_OBJECT_UNLOCK(object);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	mp = NULL;
+	vn_start_write(vp, &mp, V_WAIT);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+
+	/*
+	 * Decrement the object's writemappings, by swapping the start
+	 * and end arguments for vnode_pager_update_writecount().  If
+	 * there was not a race with vnode reclaimation, then the
+	 * vnode's v_writecount is decremented.
+	 */
+	vnode_pager_update_writecount(object, end, start);
+	VOP_UNLOCK(vp, 0);
+	vdrop(vp);
+	if (mp != NULL)
+		vn_finished_write(mp);
+	VFS_UNLOCK_GIANT(vfslocked);
 }

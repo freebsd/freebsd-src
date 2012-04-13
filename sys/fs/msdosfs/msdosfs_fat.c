@@ -503,7 +503,9 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 	 * Be sure they asked us to do something.
 	 */
 	if ((function & (FAT_SET | FAT_GET)) == 0) {
+#ifdef MSDOSFS_DEBUG
 		printf("fatentry(): function code doesn't specify get or set\n");
+#endif
 		return (EINVAL);
 	}
 
@@ -512,7 +514,9 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 	 * where to put it, give them an error.
 	 */
 	if ((function & FAT_GET) && oldcontents == NULL) {
+#ifdef MSDOSFS_DEBUG
 		printf("fatentry(): get function with no place to put result\n");
+#endif
 		return (EINVAL);
 	}
 #endif
@@ -997,7 +1001,9 @@ extendfile(dep, count, bpp, ncp, flags)
 	 */
 	if (dep->de_StartCluster == MSDOSFSROOT
 	    && (dep->de_Attributes & ATTR_DIRECTORY)) {
+#ifdef MSDOSFS_DEBUG
 		printf("extendfile(): attempt to extend root directory\n");
+#endif
 		return (ENOSPC);
 	}
 

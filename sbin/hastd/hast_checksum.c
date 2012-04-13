@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #define	MAX_HASH_SIZE	4
 #endif
 
-static int
+static void
 hast_crc32_checksum(const unsigned char *data, size_t size,
     unsigned char *hash, size_t *hsizep)
 {
@@ -58,12 +58,10 @@ hast_crc32_checksum(const unsigned char *data, size_t size,
 	/* XXXPJD: Do we have to use htole32() on crc first? */
 	bcopy(&crc, hash, sizeof(crc));
 	*hsizep = sizeof(crc);
-
-	return (0);
 }
 
 #ifdef HAVE_CRYPTO
-static int
+static void
 hast_sha256_checksum(const unsigned char *data, size_t size,
     unsigned char *hash, size_t *hsizep)
 {
@@ -73,8 +71,6 @@ hast_sha256_checksum(const unsigned char *data, size_t size,
 	SHA256_Update(&ctx, data, size);
 	SHA256_Final(hash, &ctx);
 	*hsizep = SHA256_DIGEST_LENGTH;
-
-	return (0);
 }
 #endif	/* HAVE_CRYPTO */
 
@@ -99,25 +95,21 @@ checksum_send(const struct hast_resource *res, struct nv *nv, void **datap,
 {
 	unsigned char hash[MAX_HASH_SIZE];
 	size_t hsize;
-	int ret;
 
 	switch (res->hr_checksum) {
 	case HAST_CHECKSUM_NONE:
 		return (0);
 	case HAST_CHECKSUM_CRC32:
-		ret = hast_crc32_checksum(*datap, *sizep, hash, &hsize);
+		hast_crc32_checksum(*datap, *sizep, hash, &hsize);
 		break;
 #ifdef HAVE_CRYPTO
 	case HAST_CHECKSUM_SHA256:
-		ret = hast_sha256_checksum(*datap, *sizep, hash, &hsize);
+		hast_sha256_checksum(*datap, *sizep, hash, &hsize);
 		break;
 #endif
 	default:
 		PJDLOG_ABORT("Invalid checksum: %d.", res->hr_checksum);
 	}
-
-	if (ret != 0)
-		return (ret);
 	nv_add_string(nv, checksum_name(res->hr_checksum), "checksum");
 	nv_add_uint8_array(nv, hash, hsize, "hash");
 	if (nv_error(nv) != 0) {
@@ -135,7 +127,6 @@ checksum_recv(const struct hast_resource *res __unused, struct nv *nv,
 	const unsigned char *rhash;
 	size_t chsize, rhsize;
 	const char *algo;
-	int ret;
 
 	algo = nv_get_string(nv, "checksum");
 	if (algo == NULL)
@@ -146,10 +137,10 @@ checksum_recv(const struct hast_resource *res __unused, struct nv *nv,
 		return (-1);	/* Hash not found. */
 	}
 	if (strcmp(algo, "crc32") == 0)
-		ret = hast_crc32_checksum(*datap, *sizep, chash, &chsize);
+		hast_crc32_checksum(*datap, *sizep, chash, &chsize);
 #ifdef HAVE_CRYPTO
 	else if (strcmp(algo, "sha256") == 0)
-		ret = hast_sha256_checksum(*datap, *sizep, chash, &chsize);
+		hast_sha256_checksum(*datap, *sizep, chash, &chsize);
 #endif
 	else {
 		pjdlog_error("Unknown checksum algorithm '%s'.", algo);

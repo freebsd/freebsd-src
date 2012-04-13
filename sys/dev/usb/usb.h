@@ -225,7 +225,8 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UR_RESET_TT		0x09
 #define	UR_GET_TT_STATE		0x0a
 #define	UR_STOP_TT		0x0b
-#define	UR_SET_HUB_DEPTH	0x0c
+#define	UR_SET_AND_TEST		0x0c	/* USB 2.0 only */
+#define	UR_SET_HUB_DEPTH	0x0c	/* USB 3.0 only */
 #define	USB_SS_HUB_DEPTH_MAX	5
 #define	UR_GET_PORT_ERR_COUNT	0x0d
 
@@ -248,6 +249,7 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UHF_PORT_LINK_STATE	5
 #define	UHF_PORT_POWER		8
 #define	UHF_PORT_LOW_SPEED	9
+#define	UHF_PORT_L1		10
 #define	UHF_C_PORT_CONNECTION	16
 #define	UHF_C_PORT_ENABLE	17
 #define	UHF_C_PORT_SUSPEND	18
@@ -255,6 +257,7 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UHF_C_PORT_RESET	20
 #define	UHF_PORT_TEST		21
 #define	UHF_PORT_INDICATOR	22
+#define	UHF_C_PORT_L1		23
 
 /* SuperSpeed HUB specific features */
 #define	UHF_PORT_U1_TIMEOUT	23
@@ -323,8 +326,13 @@ struct usb_devcap_usb2ext_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
-	uByte	bmAttributes;
-#define	USB_V2EXT_LPM 0x02
+	uDWord	bmAttributes;
+#define	USB_V2EXT_LPM (1U << 1)
+#define	USB_V2EXT_BESL_SUPPORTED (1U << 2)
+#define	USB_V2EXT_BESL_BASELINE_VALID (1U << 3)
+#define	USB_V2EXT_BESL_DEEP_VALID (1U << 4)
+#define	USB_V2EXT_BESL_BASELINE_GET(x) (((x) >> 8) & 0xF)
+#define	USB_V2EXT_BESL_DEEP_GET(x) (((x) >> 12) & 0xF)
 } __packed;
 typedef struct usb_devcap_usb2ext_descriptor usb_devcap_usb2ext_descriptor_t;
 
@@ -336,7 +344,7 @@ struct usb_devcap_ss_descriptor {
 	uWord	wSpeedsSupported;
 	uByte	bFunctionalitySupport;
 	uByte	bU1DevExitLat;
-	uByte	bU2DevExitLat;
+	uWord	wU2DevExitLat;
 } __packed;
 typedef struct usb_devcap_ss_descriptor usb_devcap_ss_descriptor_t;
 
@@ -671,6 +679,7 @@ struct usb_port_status {
 #define	UPS_SUSPEND			0x0004
 #define	UPS_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_RESET			0x0010
+#define	UPS_PORT_L1			0x0020	/* USB 2.0 only */
 /* The link-state bits are valid for Super-Speed USB HUBs */
 #define	UPS_PORT_LINK_STATE_GET(x)	(((x) >> 5) & 0xF)
 #define	UPS_PORT_LINK_STATE_SET(x)	(((x) & 0xF) << 5)
@@ -686,7 +695,9 @@ struct usb_port_status {
 #define	UPS_PORT_LS_HOT_RST	0x09
 #define	UPS_PORT_LS_COMP_MODE	0x0A
 #define	UPS_PORT_LS_LOOPBACK	0x0B
+#define	UPS_PORT_LS_RESUME	0x0F
 #define	UPS_PORT_POWER			0x0100
+#define	UPS_PORT_POWER_SS		0x0200	/* super-speed only */
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
 #define	UPS_OTHER_SPEED			0x0600	/* currently FreeBSD specific */
@@ -699,7 +710,8 @@ struct usb_port_status {
 #define	UPS_C_SUSPEND			0x0004
 #define	UPS_C_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_C_PORT_RESET		0x0010
-#define	UPS_C_BH_PORT_RESET		0x0020
+#define	UPS_C_PORT_L1			0x0020	/* USB 2.0 only */
+#define	UPS_C_BH_PORT_RESET		0x0020	/* USB 3.0 only */
 #define	UPS_C_PORT_LINK_STATE		0x0040
 #define	UPS_C_PORT_CONFIG_ERROR		0x0080
 } __packed;

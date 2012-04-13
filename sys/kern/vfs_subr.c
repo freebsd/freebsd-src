@@ -103,7 +103,6 @@ static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vbusy(struct vnode *vp);
-static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *);
 static void	v_decr_usecount(struct vnode *);
 static void	v_decr_useonly(struct vnode *);
@@ -1054,7 +1053,7 @@ alloc:
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_incr_usecount(vp);
-	vp->v_data = 0;
+	vp->v_data = NULL;
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -1191,7 +1190,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	do {
 		error = flushbuflist(&bo->bo_clean,
 		    flags, bo, slpflag, slptimeo);
-		if (error == 0)
+		if (error == 0 && !(flags & V_CLEANONLY))
 			error = flushbuflist(&bo->bo_dirty,
 			    flags, bo, slpflag, slptimeo);
 		if (error != 0 && error != EAGAIN) {
@@ -1220,7 +1219,8 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
+	if (bo->bo_object != NULL &&
+	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
 		    OBJPR_CLEANONLY : 0);
@@ -1229,7 +1229,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 
 #ifdef INVARIANTS
 	BO_LOCK(bo);
-	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
+	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0 &&
 	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
 	BO_UNLOCK(bo);
@@ -1255,7 +1255,7 @@ vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
  *
  */
 static int
-flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
+flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
     int slptimeo)
 {
 	struct buf *bp, *nbp;
@@ -2400,7 +2400,7 @@ vdropl(struct vnode *vp)
  * OWEINACT tracks whether a vnode missed a call to inactive due to a
  * failed lock upgrade.
  */
-static void
+void
 vinactive(struct vnode *vp, struct thread *td)
 {
 
@@ -2495,6 +2495,18 @@ loop:
 		 * vnodes open for writing.
 		 */
 		if (flags & WRITECLOSE) {
+			if (vp->v_object != NULL) {
+				VM_OBJECT_LOCK(vp->v_object);
+				vm_object_page_clean(vp->v_object, 0, 0, 0);
+				VM_OBJECT_UNLOCK(vp->v_object);
+			}
+			error = VOP_FSYNC(vp, MNT_WAIT, td);
+			if (error != 0) {
+				VOP_UNLOCK(vp, 0);
+				vdrop(vp);
+				MNT_VNODE_FOREACH_ABORT(mp, mvp);
+				return (error);
+			}
 			error = VOP_GETATTR(vp, &vattr, td->td_ucred);
 			VI_LOCK(vp);
 
@@ -2644,6 +2656,8 @@ vgonel(struct vnode *vp)
 			vinactive(vp, td);
 		VI_UNLOCK(vp);
 	}
+	if (vp->v_type == VSOCK)
+		vfs_unp_reclaim(vp);
 	/*
 	 * Reclaim the vnode.
 	 */
@@ -2835,6 +2849,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	struct statfs *sp;
 	struct vnode *vp;
 	char buf[512];
+	uint64_t mflags;
 	u_int flags;
 
 	if (!have_addr) {
@@ -2856,13 +2871,13 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	    mp->mnt_stat.f_mntonname, mp->mnt_stat.f_fstypename);
 
 	buf[0] = '\0';
-	flags = mp->mnt_flag;
+	mflags = mp->mnt_flag;
 #define	MNT_FLAG(flag)	do {						\
-	if (flags & (flag)) {						\
+	if (mflags & (flag)) {						\
 		if (buf[0] != '\0')					\
 			strlcat(buf, ", ", sizeof(buf));		\
 		strlcat(buf, (#flag) + 4, sizeof(buf));			\
-		flags &= ~(flag);					\
+		mflags &= ~(flag);					\
 	}								\
 } while (0)
 	MNT_FLAG(MNT_RDONLY);
@@ -2900,11 +2915,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_SNAPSHOT);
 	MNT_FLAG(MNT_BYFSID);
 #undef MNT_FLAG
-	if (flags != 0) {
+	if (mflags != 0) {
 		if (buf[0] != '\0')
 			strlcat(buf, ", ", sizeof(buf));
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    "0x%08x", flags);
+		    "0x%016jx", mflags);
 	}
 	db_printf("    mnt_flag = %s\n", buf);
 
@@ -2926,6 +2941,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_REFEXPIRE);
 	MNT_KERN_FLAG(MNTK_EXTENDED_SHARED);
 	MNT_KERN_FLAG(MNTK_SHARED_WRITES);
+	MNT_KERN_FLAG(MNTK_NOASYNC);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
 	MNT_KERN_FLAG(MNTK_SUSPEND);
@@ -2978,7 +2994,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	db_printf("    mnt_gen = %d\n", mp->mnt_gen);
 	db_printf("    mnt_nvnodelistsize = %d\n", mp->mnt_nvnodelistsize);
 	db_printf("    mnt_writeopcount = %d\n", mp->mnt_writeopcount);
-	db_printf("    mnt_noasync = %u\n", mp->mnt_noasync);
 	db_printf("    mnt_maxsymlinklen = %d\n", mp->mnt_maxsymlinklen);
 	db_printf("    mnt_iosize_max = %d\n", mp->mnt_iosize_max);
 	db_printf("    mnt_hashseed = %u\n", mp->mnt_hashseed);
@@ -3507,7 +3522,7 @@ sync_fsync(struct vop_fsync_args *ap)
 {
 	struct vnode *syncvp = ap->a_vp;
 	struct mount *mp = syncvp->v_mount;
-	int error;
+	int error, save;
 	struct bufobj *bo;
 
 	/*
@@ -3537,17 +3552,10 @@ sync_fsync(struct vop_fsync_args *ap)
 		vfs_unbusy(mp);
 		return (0);
 	}
-	MNT_ILOCK(mp);
-	mp->mnt_noasync++;
-	mp->mnt_kern_flag &= ~MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
+	save = curthread_pflags_set(TDP_SYNCIO);
 	vfs_msync(mp, MNT_NOWAIT);
 	error = VFS_SYNC(mp, MNT_LAZY);
-	MNT_ILOCK(mp);
-	mp->mnt_noasync--;
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
-		mp->mnt_kern_flag |= MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
+	curthread_pflags_restore(save);
 	vn_finished_write(mp);
 	vfs_unbusy(mp);
 	return (error);
@@ -4032,6 +4040,15 @@ vop_create_post(void *ap, int rc)
 }
 
 void
+vop_deleteextattr_post(void *ap, int rc)
+{
+	struct vop_deleteextattr_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+}
+
+void
 vop_link_post(void *ap, int rc)
 {
 	struct vop_link_args *a = ap;
@@ -4107,6 +4124,15 @@ void
 vop_setattr_post(void *ap, int rc)
 {
 	struct vop_setattr_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+}
+
+void
+vop_setextattr_post(void *ap, int rc)
+{
+	struct vop_setextattr_args *a = ap;
 
 	if (!rc)
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);

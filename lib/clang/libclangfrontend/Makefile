@@ -23,7 +23,7 @@ SRCS=	ASTConsumers.cpp \
 	PrintPreprocessedOutput.cpp \
 	TextDiagnosticBuffer.cpp \
 	TextDiagnosticPrinter.cpp \
-	VerifyDiagnosticsClient.cpp \
+	VerifyDiagnosticConsumer.cpp \
 	Warnings.cpp
 
 TGHDRS=	AttrList \

@@ -37,7 +37,7 @@
 #include <linux/radix-tree.h>
 #include <linux/err.h>
 
-MALLOC_DEFINE(M_RADIX, "radix", "Linux radix compat");
+static MALLOC_DEFINE(M_RADIX, "radix", "Linux radix compat");
 
 static inline int
 radix_max(struct radix_tree_root *root)

@@ -43,7 +43,7 @@ start_gmirror_sync()
 {
 
   cd ${MIRRORCFGDIR}
-  for DISK in `ls *`
+  for DISK in `ls ${MIRRORCFGDIR}`
   do
     MIRRORDISK="`cat ${DISK} | cut -d ':' -f 1`"
     MIRRORBAL="`cat ${DISK} | cut -d ':' -f 2`"
@@ -51,7 +51,7 @@ start_gmirror_sync()
    
     # Start the mirroring service
     rc_nohalt "gmirror forget ${MIRRORNAME}"
-    rc_halt "gmirror insert ${MIRRORNAME} /dev/${MIRRORDISK}"
+    rc_halt "gmirror insert ${MIRRORNAME} ${MIRRORDISK}"
 
   done
 
@@ -72,10 +72,10 @@ unmount_all_filesystems()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'`    
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
-    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
+    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d '#' -f 4`"
 
     if [ "${PARTENC}" = "ON" ]
     then
@@ -168,9 +168,9 @@ unmount_all_filesystems_failure()
     for PART in `ls ${PARTDIR}`
     do
       PARTDEV=`echo $PART | sed 's|-|/|g'` 
-      PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-      PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-      PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
+      PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+      PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+      PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 
       if [ "${PARTFS}" = "SWAP" ]
       then

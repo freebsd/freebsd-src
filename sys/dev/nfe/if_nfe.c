@@ -165,16 +165,12 @@ static device_method_t nfe_methods[] = {
 	DEVMETHOD(device_resume,	nfe_resume),
 	DEVMETHOD(device_shutdown,	nfe_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	nfe_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	nfe_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	nfe_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t nfe_driver = {
@@ -569,7 +565,6 @@ nfe_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nfe_ioctl;
 	ifp->if_start = nfe_start;
@@ -2952,10 +2947,10 @@ nfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	NFE_LOCK(sc);
 	mii = device_get_softc(sc->nfe_miibus);
 	mii_pollstat(mii);
-	NFE_UNLOCK(sc);
 
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	NFE_UNLOCK(sc);
 }
 
 

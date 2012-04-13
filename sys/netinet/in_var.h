@@ -60,12 +60,9 @@ struct in_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
 #define ia_flags	ia_ifa.ifa_flags
-					/* ia_{,sub}net{,mask} in host order */
-	u_long	ia_net;			/* network number of interface */
-	u_long	ia_netmask;		/* mask of net part */
-	u_long	ia_subnet;		/* subnet number, including net */
-	u_long	ia_subnetmask;		/* mask of subnet part */
-	struct	in_addr ia_netbroadcast; /* to recognize net broadcasts */
+					/* ia_subnet{,mask} in host order */
+	u_long	ia_subnet;		/* subnet address */
+	u_long	ia_subnetmask;		/* mask of subnet */
 	LIST_ENTRY(in_ifaddr) ia_hash;	/* entry in bucket of inet addresses */
 	TAILQ_ENTRY(in_ifaddr) ia_link;	/* list of internet addresses */
 	struct	sockaddr_in ia_addr;	/* reserve space for interface name */
@@ -80,6 +77,7 @@ struct	in_aliasreq {
 	struct	sockaddr_in ifra_broadaddr;
 #define ifra_dstaddr ifra_broadaddr
 	struct	sockaddr_in ifra_mask;
+	int	ifra_vhid;
 };
 /*
  * Given a pointer to an in_ifaddr (ifaddr),
@@ -87,6 +85,7 @@ struct	in_aliasreq {
  */
 #define IA_SIN(ia)    (&(((struct in_ifaddr *)(ia))->ia_addr))
 #define IA_DSTSIN(ia) (&(((struct in_ifaddr *)(ia))->ia_dstaddr))
+#define IA_MASKSIN(ia) (&(((struct in_ifaddr *)(ia))->ia_sockmask))
 
 #define IN_LNAOF(in, ifa) \
 	((ntohl((in).s_addr) & ~((struct in_ifaddr *)(ifa)->ia_subnetmask))
@@ -396,9 +395,9 @@ inm_lookup(struct ifnet *ifp, const struct in_addr ina)
 	struct in_multi *inm;
 
 	IN_MULTI_LOCK_ASSERT();
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	inm = inm_lookup_locked(ifp, ina);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return (inm);
 }
@@ -445,6 +444,8 @@ int	in_leavegroup_locked(struct in_multi *,
 int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	    struct thread *);
 void	in_rtqdrain(void);
+int	in_addprefix(struct in_ifaddr *, int);
+int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
 int	in_ifadown(struct ifaddr *ifa, int);
 void	in_ifscrub(struct ifnet *, struct in_ifaddr *, u_int);

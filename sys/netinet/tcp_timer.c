@@ -111,12 +111,12 @@ int    tcp_finwait2_timeout;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, finwait2_timeout, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_finwait2_timeout, 0, sysctl_msec_to_ticks, "I", "FIN-WAIT2 timeout");
 
+int	tcp_keepcnt = TCPTV_KEEPCNT;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, keepcnt, CTLFLAG_RW, &tcp_keepcnt, 0,
+    "Number of keepalive probes to send");
 
-static int	tcp_keepcnt = TCPTV_KEEPCNT;
 	/* max idle probes */
 int	tcp_maxpersistidle;
-	/* max idle time in persist */
-int	tcp_maxidle;
 
 static int	per_cpu_timers = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, per_cpu_timers, CTLFLAG_RW,
@@ -138,7 +138,6 @@ tcp_slowtimo(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 		INP_INFO_WLOCK(&V_tcbinfo);
 		(void) tcp_tw_2msl_scan(0);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -255,9 +254,9 @@ tcp_timer_2msl(void *xtp)
 		tp = tcp_close(tp);             
 	} else {
 		if (tp->t_state != TCPS_TIME_WAIT &&
-		   ticks - tp->t_rcvtime <= tcp_maxidle)
-		       callout_reset_on(&tp->t_timers->tt_2msl, tcp_keepintvl,
-			   tcp_timer_2msl, tp, INP_CPU(inp));
+		   ticks - tp->t_rcvtime <= TP_MAXIDLE(tp))
+		       callout_reset_on(&tp->t_timers->tt_2msl,
+			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp, INP_CPU(inp));
 	       else
 		       tp = tcp_close(tp);
        }
@@ -318,7 +317,7 @@ tcp_timer_keep(void *xtp)
 		goto dropit;
 	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
-		if (ticks - tp->t_rcvtime >= tcp_keepidle + tcp_maxidle)
+		if (ticks - tp->t_rcvtime >= TP_KEEPIDLE(tp) + TP_MAXIDLE(tp))
 			goto dropit;
 		/*
 		 * Send a packet designed to force a response
@@ -340,9 +339,11 @@ tcp_timer_keep(void *xtp)
 				    tp->rcv_nxt, tp->snd_una - 1, 0);
 			free(t_template, M_TEMP);
 		}
-		callout_reset_on(&tp->t_timers->tt_keep, tcp_keepintvl, tcp_timer_keep, tp, INP_CPU(inp));
+		callout_reset_on(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
+		    tcp_timer_keep, tp, INP_CPU(inp));
 	} else
-		callout_reset_on(&tp->t_timers->tt_keep, tcp_keepidle, tcp_timer_keep, tp, INP_CPU(inp));
+		callout_reset_on(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
+		    tcp_timer_keep, tp, INP_CPU(inp));
 
 #ifdef TCPDEBUG
 	if (inp->inp_socket->so_options & SO_DEBUG)
@@ -495,6 +496,13 @@ tcp_timer_rexmt(void * xtp)
 			CURVNET_RESTORE();
 			return;
 		}
+		if (inp->inp_flags & INP_DROPPED) {
+			INP_WUNLOCK(inp);
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			CURVNET_RESTORE();
+			return;
+		}
+
 		tp = tcp_drop(tp, tp->t_softerror ?
 			      tp->t_softerror : ETIMEDOUT);
 		headlocked = 1;

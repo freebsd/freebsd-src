@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -53,27 +53,28 @@ extern struct pr_usrreqs sctp_usrreqs;
 #define sctp_stcb_feature_on(inp, stcb, feature) {\
 	if (stcb) { \
 		stcb->asoc.sctp_features |= feature; \
-	} else { \
+	} else if (inp) { \
 		inp->sctp_features |= feature; \
 	} \
 }
 #define sctp_stcb_feature_off(inp, stcb, feature) {\
 	if (stcb) { \
 		stcb->asoc.sctp_features &= ~feature; \
-	} else { \
+	} else if (inp) { \
 		inp->sctp_features &= ~feature; \
 	} \
 }
 #define sctp_stcb_is_feature_on(inp, stcb, feature) \
 	(((stcb != NULL) && \
 	  ((stcb->asoc.sctp_features & feature) == feature)) || \
-	 ((stcb == NULL) && \
+	 ((stcb == NULL) && (inp != NULL) && \
 	  ((inp->sctp_features & feature) == feature)))
 #define sctp_stcb_is_feature_off(inp, stcb, feature) \
 	(((stcb != NULL) && \
 	  ((stcb->asoc.sctp_features & feature) == 0)) || \
-	 ((stcb == NULL) && \
-	  ((inp->sctp_features & feature) == 0)))
+	 ((stcb == NULL) && (inp != NULL) && \
+	  ((inp->sctp_features & feature) == 0)) || \
+         ((stcb == NULL) && (inp == NULL)))
 
 /* managing mobility_feature in inpcb (by micchie) */
 #define sctp_mobility_feature_on(inp, feature)  (inp->sctp_mobility_features |= feature)
@@ -235,7 +236,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 #define sctp_mbuf_crush(data) do { \
 	struct mbuf *_m; \
 	_m = (data); \
-	while(_m && (SCTP_BUF_LEN(_m) == 0)) { \
+	while (_m && (SCTP_BUF_LEN(_m) == 0)) { \
 		(data)  = SCTP_BUF_NEXT(_m); \
 		SCTP_BUF_NEXT(_m) = NULL; \
 		sctp_m_free(_m); \
@@ -334,7 +335,7 @@ void sctp_input_with_port __P((struct mbuf *, int, uint16_t));
 void sctp_input __P((struct mbuf *, int));
 
 #endif
-void sctp_pathmtu_adjustment __P((struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *, uint16_t));
+void sctp_pathmtu_adjustment __P((struct sctp_tcb *, uint16_t));
 void sctp_drain __P((void));
 void sctp_init __P((void));
 

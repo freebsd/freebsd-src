@@ -1,14 +1,35 @@
-/*
- * ----------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
- * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
- * ----------------------------------------------------------------------------
+/*-
+ * Copyright (c) 2000-2004 Poul-Henning Kamp <phk@FreeBSD.org>
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
+
 #include <sys/param.h>
 #include <sys/devicestat.h>
 #include <sys/ioctl.h>
@@ -32,7 +53,6 @@
 #include <string.h>
 #include <unistd.h>
 
-
 static struct md_ioctl mdio;
 static enum {UNSET, ATTACH, DETACH, LIST} action = UNSET;
 static int nflag;
@@ -55,6 +75,7 @@ static void md_prthumanval(char *length);
 static void
 usage(void)
 {
+
 	fprintf(stderr,
 "usage: mdconfig -a -t type [-n] [-o [no]option] ... [-f file]\n"
 "                [-s size] [-S sectorsize] [-u unit]\n"
@@ -75,8 +96,7 @@ main(int argc, char **argv)
 {
 	int ch, fd, i, vflag;
 	char *p;
-	int cmdline = 0;
-	char *mdunit = NULL;
+	char *fflag = NULL, *tflag = NULL, *uflag = NULL;
 
 	bzero(&mdio, sizeof(mdio));
 	mdio.md_file = malloc(PATH_MAX);
@@ -84,79 +104,59 @@ main(int argc, char **argv)
 		err(1, "could not allocate memory");
 	vflag = 0;
 	bzero(mdio.md_file, PATH_MAX);
+
+	if (argc == 1)
+		usage();
+
 	while ((ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:vx:y:")) != -1) {
 		switch (ch) {
 		case 'a':
-			if (cmdline != 0)
-				usage();
+			if (action != UNSET && action != ATTACH)
+				errx(1,
+				    "-a is mutually exclusive with -d and -l");
 			action = ATTACH;
-			cmdline = 1;
 			break;
 		case 'd':
-			if (cmdline != 0)
-				usage();
+			if (action != UNSET && action != DETACH)
+				errx(1,
+				    "-d is mutually exclusive with -a and -l");
 			action = DETACH;
-			mdio.md_options = MD_AUTOUNIT;
-			cmdline = 3;
+			mdio.md_options |= MD_AUTOUNIT;
 			break;
 		case 'l':
-			if (cmdline != 0)
-				usage();
+			if (action != UNSET && action != LIST)
+				errx(1,
+				    "-l is mutually exclusive with -a and -d");
 			action = LIST;
-			mdio.md_options = MD_AUTOUNIT;
-			cmdline = 3;
+			mdio.md_options |= MD_AUTOUNIT;
 			break;
 		case 'n':
 			nflag = 1;
 			break;
 		case 't':
-			if (cmdline != 1)
-				usage();
+			if (tflag != NULL)
+				errx(1, "-t can be passed only once");
+			tflag = optarg;
 			if (!strcmp(optarg, "malloc")) {
 				mdio.md_type = MD_MALLOC;
-				mdio.md_options = MD_AUTOUNIT | MD_COMPRESS;
+				mdio.md_options |= MD_AUTOUNIT | MD_COMPRESS;
 			} else if (!strcmp(optarg, "preload")) {
 				mdio.md_type = MD_PRELOAD;
-				mdio.md_options = 0;
 			} else if (!strcmp(optarg, "vnode")) {
 				mdio.md_type = MD_VNODE;
-				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
 			} else if (!strcmp(optarg, "swap")) {
 				mdio.md_type = MD_SWAP;
-				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
-			} else {
-				usage();
-			}
-			cmdline=2;
+				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+			} else
+				errx(1, "unknown type: %s", optarg);
 			break;
 		case 'f':
-			if (cmdline == 0) {
-				action = ATTACH;
-				cmdline = 1;
-			}
-			if (cmdline == 1) {
-				/* Imply ``-t vnode'' */
-				mdio.md_type = MD_VNODE;
-				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
-				cmdline = 2;
-			}
-			if (cmdline != 2)
-				usage();
-			md_set_file(optarg);
+			if (fflag != NULL)
+				errx(1, "-f can be passed only once");
+			fflag = optarg;
 			break;
 		case 'o':
-			if (action == DETACH) {
-				if (!strcmp(optarg, "force"))
-					mdio.md_options |= MD_FORCE;
-				else if (!strcmp(optarg, "noforce"))
-					mdio.md_options &= ~MD_FORCE;
-				else
-					errx(1, "Unknown option: %s.", optarg);
-				break;
-			}
-
-			if (cmdline != 2)
-				usage();
 			if (!strcmp(optarg, "async"))
 				mdio.md_options |= MD_ASYNC;
 			else if (!strcmp(optarg, "noasync"))
@@ -182,27 +182,12 @@ main(int argc, char **argv)
 			else if (!strcmp(optarg, "noreserve"))
 				mdio.md_options &= ~MD_RESERVE;
 			else
-				errx(1, "Unknown option: %s.", optarg);
+				errx(1, "unknown option: %s", optarg);
 			break;
 		case 'S':
-			if (cmdline != 2)
-				usage();
 			mdio.md_sectorsize = strtoul(optarg, &p, 0);
 			break;
 		case 's':
-			if (cmdline == 0) {
-				/* Imply ``-a'' */
-				action = ATTACH;
-				cmdline = 1;
-			}
-			if (cmdline == 1) {
-				/* Imply ``-t swap'' */
-				mdio.md_type = MD_SWAP;
-				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
-				cmdline = 2;
-			}
-			if (cmdline != 2)
-				usage();
 			mdio.md_mediasize = (off_t)strtoumax(optarg, &p, 0);
 			if (p == NULL || *p == '\0')
 				mdio.md_mediasize *= DEV_BSIZE;
@@ -218,34 +203,22 @@ main(int argc, char **argv)
 				mdio.md_mediasize <<= 30;
 				mdio.md_mediasize <<= 10;
 			} else
-				errx(1, "Unknown suffix on -s argument");
+				errx(1, "unknown suffix on -s argument");
 			break;
 		case 'u':
-			if (cmdline != 2 && cmdline != 3)
-				usage();
 			if (!strncmp(optarg, "/dev/", 5))
 				optarg += 5;
 			if (!strncmp(optarg, MD_NAME, sizeof(MD_NAME) - 1))
 				optarg += sizeof(MD_NAME) - 1;
-			mdio.md_unit = strtoul(optarg, &p, 0);
-			if (mdio.md_unit == (unsigned)ULONG_MAX || *p != '\0')
-				errx(1, "bad unit: %s", optarg);
-			mdunit = optarg;
-			mdio.md_options &= ~MD_AUTOUNIT;
+			uflag = optarg;
 			break;
 		case 'v':
-			if (cmdline != 3)
-				usage();
 			vflag = OPT_VERBOSE;
 			break;
 		case 'x':
-			if (cmdline != 2)
-				usage();
 			mdio.md_fwsectors = strtoul(optarg, &p, 0);
 			break;
 		case 'y':
-			if (cmdline != 2)
-				usage();
 			mdio.md_fwheads = strtoul(optarg, &p, 0);
 			break;
 		default:
@@ -255,14 +228,88 @@ main(int argc, char **argv)
 
 	argc -= optind;
 	argv += optind;
-	if (action == UNSET) {
-		if (argc != 1)
-			usage();
+
+	if (action == UNSET)
 		action = ATTACH;
-		mdio.md_type = MD_VNODE;
-		mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
-		cmdline = 2;
-		md_set_file(*argv);
+
+	if (action == ATTACH) {
+		if (tflag == NULL) {
+			/*
+			 * Try to infer the type based on other arguments.
+			 */
+			if (fflag != NULL || argc > 0) {
+				/* Imply ``-t vnode'' */
+				mdio.md_type = MD_VNODE;
+				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT |
+				    MD_COMPRESS;
+			} else if (mdio.md_mediasize != 0) {
+				/* Imply ``-t swap'' */
+				mdio.md_type = MD_SWAP;
+				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT |
+				    MD_COMPRESS;
+			} else
+				errx(1, "unable to determine type");
+		}
+
+		if ((fflag != NULL || argc > 0) && mdio.md_type != MD_VNODE)
+			errx(1, "only -t vnode can be used with file name");
+
+		if (mdio.md_type == MD_VNODE) {
+			if (fflag != NULL) {
+				if (argc != 0)
+					usage();
+				md_set_file(fflag);
+			} else {
+				if (argc != 1)
+					usage();
+				md_set_file(*argv);
+			}
+
+			if ((mdio.md_options & MD_READONLY) == 0 &&
+			    access(mdio.md_file, W_OK) < 0 &&
+			    (errno == EACCES || errno == EPERM ||
+			     errno == EROFS)) {
+				warnx("WARNING: opening backing store: %s "
+				    "readonly", mdio.md_file);
+				mdio.md_options |= MD_READONLY;
+			}
+		}
+
+		if ((mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP) &&
+		    mdio.md_mediasize == 0)
+			errx(1, "must specify -s for -t malloc or -t swap");
+		if (mdio.md_type == MD_VNODE && mdio.md_file[0] == '\0')
+			errx(1, "must specify -f for -t vnode");
+	} else {
+		if (mdio.md_sectorsize != 0)
+			errx(1, "-S can only be used with -a");
+		if (mdio.md_mediasize != 0)
+			errx(1, "-s can only be used with -a");
+		if (mdio.md_fwsectors != 0)
+			errx(1, "-x can only be used with -a");
+		if (mdio.md_fwheads != 0)
+			errx(1, "-y can only be used with -a");
+		if (fflag != NULL)
+			errx(1, "-f can only be used with -a");
+		if (tflag != NULL)
+			errx(1, "-t can only be used with -a");
+		if (argc > 0)
+			errx(1, "file can only be used with -a");
+		if (action != DETACH && (mdio.md_options & ~MD_AUTOUNIT) != 0)
+			errx(1, "-o can only be used with -a and -d");
+		if (action == DETACH &&
+		    (mdio.md_options & ~(MD_FORCE | MD_AUTOUNIT)) != 0)
+			errx(1, "only -o [no]force can be used with -d");
+	}
+
+	if (action != LIST && vflag == OPT_VERBOSE)
+		errx(1, "-v can only be used with -l");
+
+	if (uflag != NULL) {
+		mdio.md_unit = strtoul(uflag, &p, 0);
+		if (mdio.md_unit == (unsigned)ULONG_MAX || *p != '\0')
+			errx(1, "bad unit: %s", uflag);
+		mdio.md_options &= ~MD_AUTOUNIT;
 	}
 
 	mdio.md_version = MDIOVERSION;
@@ -273,36 +320,8 @@ main(int argc, char **argv)
 	fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	if (fd < 0)
 		err(1, "open(/dev/%s)", MDCTL_NAME);
-	if (cmdline == 2
-	    && (mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP))
-		if (mdio.md_mediasize == 0)
-			errx(1, "must specify -s for -t malloc or -t swap");
-	if (cmdline == 2 && mdio.md_type == MD_VNODE)
-		if (mdio.md_file[0] == '\0')
-			errx(1, "must specify -f for -t vnode");
-	if (mdio.md_type == MD_VNODE &&
-	    (mdio.md_options & MD_READONLY) == 0) {
-		if (access(mdio.md_file, W_OK) < 0 &&
-		    (errno == EACCES || errno == EPERM || errno == EROFS)) {
-			fprintf(stderr,
-			    "WARNING: opening backing store: %s readonly\n",
-			    mdio.md_file);
-			mdio.md_options |= MD_READONLY;
-		}
-	}
-	if (action == LIST) {
-		if (mdio.md_options & MD_AUTOUNIT) {
-			/*
-			 * Listing all devices. This is why we pass NULL
-			 * together with OPT_LIST.
-			 */
-			md_list(NULL, OPT_LIST | vflag);
-		} else {
-			return (md_query(mdunit));
-		}
-	} else if (action == ATTACH) {
-		if (cmdline < 2)
-			usage();
+
+	if (action == ATTACH) {
 		i = ioctl(fd, MDIOCATTACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
@@ -310,13 +329,23 @@ main(int argc, char **argv)
 			printf("%s%d\n", nflag ? "" : MD_NAME, mdio.md_unit);
 	} else if (action == DETACH) {
 		if (mdio.md_options & MD_AUTOUNIT)
-			usage();
+			errx(1, "-d requires -u");
 		i = ioctl(fd, MDIOCDETACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
+	} else if (action == LIST) {
+		if (mdio.md_options & MD_AUTOUNIT) {
+			/*
+			 * Listing all devices. This is why we pass NULL
+			 * together with OPT_LIST.
+			 */
+			md_list(NULL, OPT_LIST | vflag);
+		} else
+			return (md_query(uflag));
+
 	} else
 		usage();
-	close (fd);
+	close(fd);
 	return (0);
 }
 
@@ -487,8 +516,9 @@ md_prthumanval(char *length)
 	(void)printf("%6s", buf);
 }
 
-int
+static int
 md_query(char *name)
 {
+
 	return (md_list(name, OPT_UNIT));
 }

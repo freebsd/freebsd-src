@@ -38,6 +38,7 @@
 #include <arpa/inet.h>
 #include <protocols/talkd.h>
 #include <curses.h>
+#include <signal.h>
 
 extern	int sockt;
 extern	int curses_initialized;
@@ -45,6 +46,8 @@ extern	int invitation_waiting;
 
 extern	const char *current_state;
 extern	int current_line;
+
+extern volatile sig_atomic_t gotwinch;
 
 typedef struct xwin {
 	WINDOW	*x_win;

@@ -906,7 +906,7 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 		pfr_prepare_network(&mask, ad->pfra_af, ad->pfra_net);
 		s = splsoftnet(); /* rn_lookup makes use of globals */
 #ifdef __FreeBSD__
-		PF_ASSERT(MA_OWNED);
+		PF_LOCK_ASSERT();
 #endif
 		ke = (struct pfr_kentry *)rn_lookup(&sa, &mask, head);
 		splx(s);
@@ -927,16 +927,12 @@ pfr_create_kentry(struct pfr_addr *ad, int intr)
 {
 	struct pfr_kentry	*ke;
 
+#ifdef __FreeBSD__
+	ke =  pool_get(&V_pfr_kentry_pl, PR_NOWAIT | PR_ZERO);
+#else
 	if (intr)
-#ifdef __FreeBSD__
-		ke = pool_get(&V_pfr_kentry_pl, PR_NOWAIT | PR_ZERO);
-#else
 		ke = pool_get(&pfr_kentry_pl, PR_NOWAIT | PR_ZERO);
-#endif
 	else
-#ifdef __FreeBSD__
-		ke = pool_get(&V_pfr_kentry_pl, PR_WAITOK|PR_ZERO);
-#else
 		ke = pool_get(&pfr_kentry_pl, PR_WAITOK|PR_ZERO|PR_LIMITFAIL);
 #endif
 	if (ke == NULL)
@@ -1127,7 +1123,7 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 
 	s = splsoftnet();
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #endif
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -1166,7 +1162,7 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 
 	s = splsoftnet();
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #endif
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -2081,16 +2077,12 @@ pfr_create_ktable(struct pfr_table *tbl, long tzero, int attachruleset,
 	struct pfr_ktable	*kt;
 	struct pf_ruleset	*rs;
 
+#ifdef __FreeBSD__
+	kt = pool_get(&V_pfr_ktable_pl, PR_NOWAIT|PR_ZERO);
+#else
 	if (intr)
-#ifdef __FreeBSD__
-		kt = pool_get(&V_pfr_ktable_pl, PR_NOWAIT|PR_ZERO);
-#else
 		kt = pool_get(&pfr_ktable_pl, PR_NOWAIT|PR_ZERO|PR_LIMITFAIL);
-#endif
 	else
-#ifdef __FreeBSD__
-		kt = pool_get(&V_pfr_ktable_pl, PR_WAITOK|PR_ZERO);
-#else
 		kt = pool_get(&pfr_ktable_pl, PR_WAITOK|PR_ZERO|PR_LIMITFAIL);
 #endif
 	if (kt == NULL)

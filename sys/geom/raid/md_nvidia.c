@@ -1033,7 +1033,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 	char arg[16];
 	const char *verb, *volname, *levelname, *diskname;
 	int *nargs, *force;
-	off_t size, sectorsize, strip;
+	off_t size, sectorsize, strip, volsize;
 	intmax_t *sizearg, *striparg;
 	int numdisks, i, len, level, qual, update;
 	int error;
@@ -1182,7 +1182,20 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			gctl_error(req, "Size too small.");
 			return (-13);
 		}
-		if (size > 0xffffffffffffllu * sectorsize) {
+
+		if (level == G_RAID_VOLUME_RL_RAID0 ||
+		    level == G_RAID_VOLUME_RL_CONCAT ||
+		    level == G_RAID_VOLUME_RL_SINGLE)
+			volsize = size * numdisks;
+		else if (level == G_RAID_VOLUME_RL_RAID1)
+			volsize = size;
+		else if (level == G_RAID_VOLUME_RL_RAID5)
+			volsize = size * (numdisks - 1);
+		else { /* RAID1E */
+			volsize = ((size * numdisks) / strip / 2) *
+			    strip;
+		}
+		if (volsize > 0xffffffffllu * sectorsize) {
 			gctl_error(req, "Size too big.");
 			return (-14);
 		}
@@ -1196,18 +1209,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
-		if (level == G_RAID_VOLUME_RL_RAID0 ||
-		    level == G_RAID_VOLUME_RL_CONCAT ||
-		    level == G_RAID_VOLUME_RL_SINGLE)
-			vol->v_mediasize = size * numdisks;
-		else if (level == G_RAID_VOLUME_RL_RAID1)
-			vol->v_mediasize = size;
-		else if (level == G_RAID_VOLUME_RL_RAID5)
-			vol->v_mediasize = size * (numdisks - 1);
-		else { /* RAID1E */
-			vol->v_mediasize = ((size * numdisks) / strip / 2) *
-			    strip;
-		}
+		vol->v_mediasize = volsize;
 		vol->v_sectorsize = sectorsize;
 		g_raid_start_volume(vol);
 

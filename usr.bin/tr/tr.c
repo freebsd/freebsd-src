@@ -58,8 +58,8 @@ static const char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 #include "cset.h"
 #include "extern.h"
 
-STR s1 = { STRING1, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
-STR s2 = { STRING2, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
+static STR s1 = { STRING1, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
+static STR s2 = { STRING2, NORMAL, 0, OOBCH, 0, { 0, OOBCH }, NULL, NULL };
 
 static struct cset *setup(char *, STR *, int, int);
 static void usage(void);

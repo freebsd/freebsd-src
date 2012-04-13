@@ -31,6 +31,12 @@
  * 802.11h/DFS definitions.
  */
 
+typedef enum {
+	DFS_DBG_NONE		= 0,
+	DFS_DBG_NONOL		= 1,
+	DFS_DBG_NOCSANOL	= 2
+} dfs_debug_t;
+
 struct ieee80211_dfs_state {
 	int		nol_event[IEEE80211_CHAN_MAX];
 	struct callout	nol_timer;		/* NOL list processing */

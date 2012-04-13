@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,11 +36,17 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 size_t
+wcrtomb_l(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps,
+		locale_t locale)
+{
+	FIX_LOCALE(locale);
+	if (ps == NULL)
+		ps = &locale->wcrtomb;
+	return (XLOCALE_CTYPE(locale)->__wcrtomb(s, wc, ps));
+}
+
+size_t
 wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
-	static mbstate_t mbs;
-
-	if (ps == NULL)
-		ps = &mbs;
-	return (__wcrtomb(s, wc, ps));
+	return wcrtomb_l(s, wc, ps, __get_locale());
 }

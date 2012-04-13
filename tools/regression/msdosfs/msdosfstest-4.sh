@@ -8,12 +8,12 @@ mdconfig -a -t swap -s 128m -u 10
 bsdlabel -w md10 auto
 newfs_msdos -F 16 -b 8192 /dev/md10a
 mount_msdosfs -L uk_UA.KOI8-U -D CP866 -l /dev/md10a /tmp/msdosfstest
-# mkdir /tmp/msdosfstest/U+0456 (CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I)
-mkdir /tmp/msdosfstest/¦
+# The comment is UTF-8, the actual command uses the KOI8-U representation.
+# mkdir /tmp/msdosfstest/Ñ– (CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I)
+mkdir /tmp/msdosfstest/$'\246'
 if [ $? -eq 0 ]; then
 	echo "ok 4 (pass stage 1/3)"
-	# cd /tmp/msdosfstest/U+0456 (CYRILLIC SMALL LETTER BYELORUSSIAN-UKRAINIAN I)
-	cd /tmp/msdosfstest/¦
+	cd /tmp/msdosfstest/$'\246'
 	if [ $? -eq 0 ]; then
 		echo "ok 4 (pass stage 2/3)"
 		cd /tmp

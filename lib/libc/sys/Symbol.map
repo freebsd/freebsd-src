@@ -365,6 +365,9 @@ FBSD_1.2 {
 	cap_getmode;
 	cap_new;
 	cap_getrights;
+	ffclock_getcounter;
+	ffclock_getestimate;
+	ffclock_setestimate;
 	getloginclass;
 	pdfork;
 	pdgetpid;
@@ -376,6 +379,10 @@ FBSD_1.2 {
 	rctl_add_rule;
 	rctl_remove_rule;
 	setloginclass;
+};
+
+FBSD_1.3 {
+	posix_fadvise;
 };
 
 FBSDprivate_1.0 {

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,23 @@
  */
 #define ACPI_CHECKSUM_ABORT             FALSE
 
+/*
+ * Generate a version of ACPICA that only supports "reduced hardware"
+ * platforms (as defined in ACPI 5.0). Set to TRUE to generate a specialized
+ * version of ACPICA that ONLY supports the ACPI 5.0 "reduced hardware"
+ * model. In other words, no ACPI hardware is supported.
+ *
+ * If TRUE, this means no support for the following:
+ *      PM Event and Control registers
+ *      SCI interrupt (and handler)
+ *      Fixed Events
+ *      General Purpose Events (GPEs)
+ *      Global Lock
+ *      ACPI PM timer
+ *      FACS table (Waking vectors and Global Lock)
+ */
+#define ACPI_REDUCED_HARDWARE           FALSE
+
 
 /******************************************************************************
  *
@@ -95,7 +112,7 @@
 
 /* Version of ACPI supported */
 
-#define ACPI_CA_SUPPORT_LEVEL           3
+#define ACPI_CA_SUPPORT_LEVEL           5
 
 /* Maximum count for a semaphore object */
 
@@ -123,7 +140,11 @@
 
 /* Maximum sleep allowed via Sleep() operator */
 
-#define ACPI_MAX_SLEEP                  20000   /* Two seconds */
+#define ACPI_MAX_SLEEP                  2000    /* 2000 millisec == two seconds */
+
+/* Address Range lists are per-SpaceId (Memory and I/O only) */
+
+#define ACPI_ADDRESS_RANGE_MAX          2
 
 
 /******************************************************************************
@@ -183,9 +204,10 @@
 #define ACPI_RSDP_CHECKSUM_LENGTH       20
 #define ACPI_RSDP_XCHECKSUM_LENGTH      36
 
-/* SMBus and IPMI bidirectional buffer size */
+/* SMBus, GSBus and IPMI bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
+#define ACPI_GSBUS_BUFFER_SIZE          34
 #define ACPI_IPMI_BUFFER_SIZE           66
 
 /* _SxD and _SxW control methods */

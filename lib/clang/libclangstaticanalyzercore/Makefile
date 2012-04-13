@@ -6,27 +6,29 @@ SRCDIR=	tools/clang/lib/StaticAnalyzer/Core
 SRCS=	AggExprVisitor.cpp \
 	AnalysisManager.cpp \
 	BasicConstraintManager.cpp \
-	BasicStore.cpp \
 	BasicValueFactory.cpp \
 	BlockCounter.cpp \
 	BugReporter.cpp \
 	BugReporterVisitors.cpp \
-	CFRefCount.cpp \
-	CXXExprEngine.cpp \
+	Checker.cpp \
 	CheckerContext.cpp \
 	CheckerHelpers.cpp \
 	CheckerManager.cpp \
+	CheckerRegistry.cpp \
 	CoreEngine.cpp \
 	Environment.cpp \
 	ExplodedGraph.cpp \
 	ExprEngine.cpp \
-	FlatStore.cpp \
-	GRState.cpp \
+	ExprEngineC.cpp \
+	ExprEngineCXX.cpp \
+	ExprEngineCallAndReturn.cpp \
+	ExprEngineObjC.cpp \
 	HTMLDiagnostics.cpp \
 	MemRegion.cpp \
 	ObjCMessage.cpp \
 	PathDiagnostic.cpp \
 	PlistDiagnostics.cpp \
+	ProgramState.cpp \
 	RangeConstraintManager.cpp \
 	RegionStore.cpp \
 	SValBuilder.cpp \

@@ -203,7 +203,12 @@ struct tcpcb {
 	struct cc_var	*ccv;		/* congestion control specific vars */
 	struct osd	*osd;		/* storage for Khelp module data */
 
-	uint32_t t_ispare[12];		/* 4 keep timers, 5 UTO, 3 TBD */
+	u_int	t_keepinit;		/* time to establish connection */
+	u_int	t_keepidle;		/* time before keepalive probes begin */
+	u_int	t_keepintvl;		/* interval between keepalives */
+	u_int	t_keepcnt;		/* number of keepalives before close */
+
+	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 4 TBD */
 	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
@@ -606,9 +611,9 @@ VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
+VNET_DECLARE(int, tcp_sendspace);
+VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, path_mtu_discovery);
-VNET_DECLARE(int, ss_fltsz);
-VNET_DECLARE(int, ss_fltsz_local);
 VNET_DECLARE(int, tcp_do_rfc3465);
 VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcb			VNET(tcb)
@@ -618,9 +623,9 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
+#define	V_tcp_sendspace		VNET(tcp_sendspace)
+#define	V_tcp_recvspace		VNET(tcp_recvspace)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
-#define	V_ss_fltsz		VNET(ss_fltsz)
-#define	V_ss_fltsz_local	VNET(ss_fltsz_local)
 #define	V_tcp_do_rfc3465	VNET(tcp_do_rfc3465)
 #define	V_tcp_abc_l_var		VNET(tcp_abc_l_var)
 
@@ -716,8 +721,6 @@ void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 
 extern	struct pr_usrreqs tcp_usrreqs;
-extern	u_long tcp_sendspace;
-extern	u_long tcp_recvspace;
 tcp_seq tcp_new_isn(struct tcpcb *);
 
 void	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);

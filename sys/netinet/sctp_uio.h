@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -438,23 +438,51 @@ struct sctp_sender_dry_event {
 
 
 /*
- * stream reset event
+ * Stream reset event - subscribe to SCTP_STREAM_RESET_EVENT
  */
 struct sctp_stream_reset_event {
 	uint16_t strreset_type;
 	uint16_t strreset_flags;
 	uint32_t strreset_length;
 	sctp_assoc_t strreset_assoc_id;
-	uint16_t strreset_list[];
+	uint16_t strreset_stream_list[];
 };
 
-/* flags in strreset_flags field */
-#define SCTP_STRRESET_INBOUND_STR  0x0001
-#define SCTP_STRRESET_OUTBOUND_STR 0x0002
-#define SCTP_STRRESET_ALL_STREAMS  0x0004
-#define SCTP_STRRESET_STREAM_LIST  0x0008
-#define SCTP_STRRESET_FAILED       0x0010
-#define SCTP_STRRESET_ADD_STREAM   0x0020
+/* flags in stream_reset_event (strreset_flags) */
+#define SCTP_STREAM_RESET_DENIED        0x0004	/* SCTP_STRRESET_FAILED */
+#define SCTP_STREAM_RESET_FAILED        0x0008	/* SCTP_STRRESET_FAILED */
+#define SCTP_STREAM_CHANGED_DENIED	0x0010
+
+/*
+ * Assoc reset event - subscribe to SCTP_ASSOC_RESET_EVENT
+ */
+struct sctp_assoc_reset_event {
+	uint16_t assocreset_type;
+	uint16_t assocreset_flags;
+	uint32_t assocreset_length;
+	sctp_assoc_t assocreset_assoc_id;
+	uint32_t assocreset_local_tsn;
+	uint32_t assocreset_remote_tsn;
+};
+
+#define SCTP_ASSOC_RESET_DENIED		0x0004
+#define SCTP_ASSOC_RESET_FAILED		0x0008
+
+/*
+ * Stream change event - subscribe to SCTP_STREAM_CHANGE_EVENT
+ */
+struct sctp_stream_change_event {
+	uint16_t strchange_type;
+	uint16_t strchange_flags;
+	uint32_t strchange_length;
+	sctp_assoc_t strchange_assoc_id;
+	uint16_t strchange_instrms;
+	uint16_t strchange_outstrms;
+};
+
+#define SCTP_STREAM_CHANGE_DENIED	0x0004
+#define SCTP_STREAM_CHANGE_FAILED	0x0008
+
 
 /* SCTP notification event */
 struct sctp_tlv {
@@ -477,6 +505,9 @@ union sctp_notification {
 	struct sctp_authkey_event sn_auth_event;
 	struct sctp_sender_dry_event sn_sender_dry_event;
 	struct sctp_stream_reset_event sn_strreset_event;
+	struct sctp_assoc_reset_event sn_assocreset_event;
+	struct sctp_stream_change_event sn_strchange_event;
+
 };
 
 /* notification types */
@@ -493,6 +524,9 @@ union sctp_notification {
 #define SCTP_STREAM_RESET_EVENT			0x0009
 #define SCTP_SENDER_DRY_EVENT			0x000a
 #define SCTP_NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we don't send this */
+#define SCTP_ASSOC_RESET_EVENT			0x000c
+#define SCTP_STREAM_CHANGE_EVENT		0x000d
+
 /*
  * socket option structs
  */
@@ -521,8 +555,8 @@ struct sctp_paddrparams {
 #define SPP_IPV4_TOS            SPP_DSCP
 
 struct sctp_paddrthlds {
-	sctp_assoc_t spt_assoc_id;
 	struct sockaddr_storage spt_address;
+	sctp_assoc_t spt_assoc_id;
 	uint16_t spt_pathmaxrxt;
 	uint16_t spt_pathpfthld;
 };
@@ -671,6 +705,12 @@ struct sctp_timeouts {
 	uint32_t stimo_shutdownack;
 };
 
+struct sctp_udpencaps {
+	struct sockaddr_storage sue_address;
+	sctp_assoc_t sue_assoc_id;
+	uint16_t sue_port;
+};
+
 struct sctp_cwnd_args {
 	struct sctp_nets *net;	/* network to *//* FIXME: LP64 issue */
 	uint32_t cwnd_new_value;/* cwnd in k */
@@ -701,19 +741,18 @@ struct sctp_blk_args {
  */
 #define SCTP_MAX_EXPLICT_STR_RESET   1000
 
-#define SCTP_RESET_LOCAL_RECV  0x0001
-#define SCTP_RESET_LOCAL_SEND  0x0002
-#define SCTP_RESET_BOTH        0x0003
-#define SCTP_RESET_TSN         0x0004
-#define SCTP_RESET_ADD_STREAMS 0x0005
-
-struct sctp_stream_reset {
-	sctp_assoc_t strrst_assoc_id;
-	uint16_t strrst_flags;
-	uint16_t strrst_num_streams;	/* 0 == ALL */
-	uint16_t strrst_list[];	/* list if strrst_num_streams is not 0 */
+struct sctp_reset_streams {
+	sctp_assoc_t srs_assoc_id;
+	uint16_t srs_flags;
+	uint16_t srs_number_streams;	/* 0 == ALL */
+	uint16_t srs_stream_list[];	/* list if strrst_num_streams is not 0 */
 };
 
+struct sctp_add_streams {
+	sctp_assoc_t sas_assoc_id;
+	uint16_t sas_instrms;
+	uint16_t sas_outstrms;
+};
 
 struct sctp_get_nonce_values {
 	sctp_assoc_t gn_assoc_id;

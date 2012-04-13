@@ -112,6 +112,9 @@ restore_kernsrs:
  *	r31		scratch
  *	r1		kernel stack
  *	SRR0/1		as at start of trap
+ *
+ * NOTE: SPRG1 is never used while the MMU is on, making it safe to reuse
+ * in any real-mode fault handler, including those handling double faults.
  */
 #define	FRAME_SETUP(savearea)						\
 /* Have to enable translation to allow access of kernel stack: */	\
@@ -120,11 +123,11 @@ restore_kernsrs:
 	std	%r30,(savearea+CPUSAVE_SRR0)(%r31);	/* save SRR0 */	\
 	mfsrr1	%r30;							\
 	std	%r30,(savearea+CPUSAVE_SRR1)(%r31);	/* save SRR1 */	\
+	mfsprg1	%r31;			/* get saved SP (clears SPRG1) */ \
 	mfmsr	%r30;							\
 	ori	%r30,%r30,(PSL_DR|PSL_IR|PSL_RI)@l; /* relocation on */	\
 	mtmsr	%r30;			/* stack can now be accessed */	\
 	isync;								\
-	mfsprg1	%r31;			/* get saved SP */		\
 	stdu	%r31,-(FRAMELEN+288)(%r1); /* save it in the callframe */ \
 	std	%r0, FRAME_0+48(%r1);	/* save r0 in the trapframe */	\
 	std	%r31,FRAME_1+48(%r1);	/* save SP   "      "       */	\
@@ -201,7 +204,7 @@ restore_kernsrs:
 	mtctr	%r4;							\
 	mtxer	%r5;							\
 	mtlr	%r6;							\
-	mtsprg1	%r7;			/* save cr */			\
+	mtsprg2	%r7;			/* save cr */			\
 	ld	%r31,FRAME_31+48(%r1);   /* restore r0-31 */		\
 	ld	%r30,FRAME_30+48(%r1);					\
 	ld	%r29,FRAME_29+48(%r1);					\
@@ -235,16 +238,15 @@ restore_kernsrs:
 	ld	%r0, FRAME_0+48(%r1);					\
 	ld	%r1, FRAME_1+48(%r1);					\
 /* Can't touch %r1 from here on */					\
-	mtsprg2	%r2;			/* save r2 & r3 */		\
-	mtsprg3	%r3;							\
+	mtsprg3	%r3;			/* save r3 */			\
 /* Disable translation, machine check and recoverability: */		\
-	mfmsr	%r2;							\
-	andi.	%r2,%r2,~(PSL_DR|PSL_IR|PSL_ME|PSL_RI)@l;		\
-	mtmsr	%r2;							\
+	mfmsr	%r3;							\
+	andi.	%r3,%r3,~(PSL_DR|PSL_IR|PSL_ME|PSL_RI)@l;		\
+	mtmsr	%r3;							\
 	isync;								\
 /* Decide whether we return to user mode: */				\
-	GET_CPUINFO(%r2);						\
-	ld	%r3,(savearea+CPUSAVE_SRR1)(%r2);			\
+	GET_CPUINFO(%r3);						\
+	ld	%r3,(savearea+CPUSAVE_SRR1)(%r3);			\
 	mtcr	%r3;							\
 	bf	17,1f;			/* branch if PSL_PR is false */	\
 /* Restore user SRs */							\
@@ -262,15 +264,15 @@ restore_kernsrs:
 	ld	%r29,(savearea+CPUSAVE_R29)(%r3);			\
 	ld	%r28,(savearea+CPUSAVE_R28)(%r3);			\
 	ld	%r27,(savearea+CPUSAVE_R27)(%r3);			\
-1:	mfsprg1	%r2;			/* restore cr */		\
-	mtcr	%r2;							\
-	GET_CPUINFO(%r2);						\
-	ld	%r3,(savearea+CPUSAVE_SRR0)(%r2); /* restore srr0 */	\
+1:	mfsprg2	%r3;			/* restore cr */		\
+	mtcr	%r3;							\
+	GET_CPUINFO(%r3);						\
+	ld	%r3,(savearea+CPUSAVE_SRR0)(%r3); /* restore srr0 */	\
 	mtsrr0	%r3;							\
-	ld	%r3,(savearea+CPUSAVE_SRR1)(%r2); /* restore srr1 */	\
+	GET_CPUINFO(%r3);						\
+	ld	%r3,(savearea+CPUSAVE_SRR1)(%r3); /* restore srr1 */	\
 	mtsrr1	%r3;							\
-	mfsprg2	%r2;			/* restore r2 & r3 */		\
-	mfsprg3	%r3
+	mfsprg3	%r3			/* restore r3 */
 
 #ifdef SMP
 /*
@@ -301,6 +303,7 @@ cpu_reset:
 	lis	%r3,1@l
 	bl	CNAME(cpudep_ap_early_bootstrap) /* Set PCPU */
 	nop
+	lis	%r3,1@l
 	bl	CNAME(pmap_cpu_bootstrap)	/* Turn on virtual memory */
 	nop
 	bl	CNAME(cpudep_ap_bootstrap)	/* Set up PCPU and stack */
@@ -327,6 +330,151 @@ CNAME(trapcode):
 	li	%r1, 0xA0		/* How to get the vector from LR */
 	bla	generictrap		/* LR & SPRG3 is exception # */
 CNAME(trapsize) = .-CNAME(trapcode)
+
+/*
+ * For SLB misses: do special things for the kernel
+ *
+ * Note: SPRG1 is always safe to overwrite any time the MMU is on, which is
+ * the only time this can be called.
+ */
+	.globl	CNAME(slbtrap),CNAME(slbtrapsize)
+CNAME(slbtrap):
+	mtsprg1	%r1			/* save SP */
+	GET_CPUINFO(%r1)
+	std	%r2,(PC_SLBSAVE+16)(%r1)
+	mfcr	%r2			/* save CR */
+	std	%r2,(PC_SLBSAVE+104)(%r1)
+	mfsrr1	%r2			/* test kernel mode */
+	mtcr	%r2
+	bf	17,1f			/* branch if PSL_PR is false */
+	/* User mode */
+	ld	%r2,(PC_SLBSAVE+104)(%r1) /* Restore CR */
+	mtcr	%r2
+	ld	%r2,(PC_SLBSAVE+16)(%r1) /* Restore R2 */
+	mflr	%r1			/* Save the old LR in r1 */
+	mtsprg2 %r1			/* And then in SPRG2 */
+	li	%r1, 0x80		/* How to get the vector from LR */
+	bla	generictrap		/* LR & SPRG3 is exception # */
+1:	mflr	%r2			/* Save the old LR in r2 */
+	bla	kern_slbtrap
+CNAME(slbtrapsize) = .-CNAME(slbtrap)
+
+kern_slbtrap:
+	std	%r2,(PC_SLBSAVE+136)(%r1) /* old LR */
+	std	%r3,(PC_SLBSAVE+24)(%r1) /* save R3 */
+
+	/* Check if this needs to be handled as a regular trap (userseg miss) */
+	mflr	%r2
+	andi.	%r2,%r2,0xff80
+	cmpwi	%r2,0x380
+	bne	1f
+	mfdar	%r2
+	b	2f
+1:	mfsrr0	%r2
+2:	/* r2 now contains the fault address */
+	lis	%r3,SEGMENT_MASK@highesta
+	ori	%r3,%r3,SEGMENT_MASK@highera
+	sldi	%r3,%r3,32
+	oris	%r3,%r3,SEGMENT_MASK@ha
+	ori	%r3,%r3,SEGMENT_MASK@l
+	and	%r2,%r2,%r3	/* R2 = segment base address */
+	lis	%r3,USER_ADDR@highesta
+	ori	%r3,%r3,USER_ADDR@highera
+	sldi	%r3,%r3,32
+	oris	%r3,%r3,USER_ADDR@ha
+	ori	%r3,%r3,USER_ADDR@l
+	cmpd	%r2,%r3		/* Compare fault base to USER_ADDR */
+	bne	3f
+
+	/* User seg miss, handle as a regular trap */
+	ld	%r2,(PC_SLBSAVE+104)(%r1) /* Restore CR */
+	mtcr	%r2
+	ld	%r2,(PC_SLBSAVE+16)(%r1) /* Restore R2,R3 */
+	ld	%r3,(PC_SLBSAVE+24)(%r1)
+	ld	%r1,(PC_SLBSAVE+136)(%r1) /* Save the old LR in r1 */
+	mtsprg2 %r1			/* And then in SPRG2 */
+	li	%r1, 0x80		/* How to get the vector from LR */
+	b	generictrap		/* Retain old LR using b */
+	
+3:	/* Real kernel SLB miss */
+	std	%r0,(PC_SLBSAVE+0)(%r1)	/* free all volatile regs */
+	mfsprg1	%r2			/* Old R1 */
+	std	%r2,(PC_SLBSAVE+8)(%r1)
+	/* R2,R3 already saved */
+	std	%r4,(PC_SLBSAVE+32)(%r1)
+	std	%r5,(PC_SLBSAVE+40)(%r1)
+	std	%r6,(PC_SLBSAVE+48)(%r1)
+	std	%r7,(PC_SLBSAVE+56)(%r1)
+	std	%r8,(PC_SLBSAVE+64)(%r1)
+	std	%r9,(PC_SLBSAVE+72)(%r1)
+	std	%r10,(PC_SLBSAVE+80)(%r1)
+	std	%r11,(PC_SLBSAVE+88)(%r1)
+	std	%r12,(PC_SLBSAVE+96)(%r1)
+	/* CR already saved */
+	mfxer	%r2			/* save XER */
+	std	%r2,(PC_SLBSAVE+112)(%r1)
+	mflr	%r2			/* save LR (SP already saved) */
+	std	%r2,(PC_SLBSAVE+120)(%r1)
+	mfctr	%r2			/* save CTR */
+	std	%r2,(PC_SLBSAVE+128)(%r1)
+
+	/* Call handler */
+	addi	%r1,%r1,PC_SLBSTACK-48+1024
+	li	%r2,~15
+	and	%r1,%r1,%r2
+	lis	%r3,tocbase@ha
+	ld	%r2,tocbase@l(%r3)
+	mflr	%r3
+	andi.	%r3,%r3,0xff80
+	mfdar	%r4
+	mfsrr0	%r5
+	bl	handle_kernel_slb_spill
+	nop
+
+	/* Save r28-31, restore r4-r12 */
+	GET_CPUINFO(%r1)
+	ld	%r4,(PC_SLBSAVE+32)(%r1)
+	ld	%r5,(PC_SLBSAVE+40)(%r1)
+	ld	%r6,(PC_SLBSAVE+48)(%r1)
+	ld	%r7,(PC_SLBSAVE+56)(%r1)
+	ld	%r8,(PC_SLBSAVE+64)(%r1)
+	ld	%r9,(PC_SLBSAVE+72)(%r1)
+	ld	%r10,(PC_SLBSAVE+80)(%r1)
+	ld	%r11,(PC_SLBSAVE+88)(%r1)
+	ld	%r12,(PC_SLBSAVE+96)(%r1)
+	std	%r28,(PC_SLBSAVE+64)(%r1)
+	std	%r29,(PC_SLBSAVE+72)(%r1)
+	std	%r30,(PC_SLBSAVE+80)(%r1)
+	std	%r31,(PC_SLBSAVE+88)(%r1)
+
+	/* Restore kernel mapping */
+	bl	restore_kernsrs
+
+	/* Restore remaining registers */
+	ld	%r28,(PC_SLBSAVE+64)(%r1)
+	ld	%r29,(PC_SLBSAVE+72)(%r1)
+	ld	%r30,(PC_SLBSAVE+80)(%r1)
+	ld	%r31,(PC_SLBSAVE+88)(%r1)
+
+	ld	%r2,(PC_SLBSAVE+104)(%r1)
+	mtcr	%r2
+	ld	%r2,(PC_SLBSAVE+112)(%r1)
+	mtxer	%r2
+	ld	%r2,(PC_SLBSAVE+120)(%r1)
+	mtlr	%r2
+	ld	%r2,(PC_SLBSAVE+128)(%r1)
+	mtctr	%r2
+	ld	%r2,(PC_SLBSAVE+136)(%r1)
+	mtlr	%r2
+
+	/* Restore r0-r3 */
+	ld	%r0,(PC_SLBSAVE+0)(%r1)
+	ld	%r2,(PC_SLBSAVE+16)(%r1)
+	ld	%r3,(PC_SLBSAVE+24)(%r1)
+	mfsprg1	%r1
+
+	/* Back to whatever we were doing */
+	rfid
 
 /*
  * For ALI: has to save DSISR and DAR
@@ -555,7 +703,7 @@ CNAME(asttrapexit):
 /*
  * Deliberate entry to dbtrap
  */
-ASENTRY(breakpoint)
+ASENTRY_NOPROF(breakpoint)
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3

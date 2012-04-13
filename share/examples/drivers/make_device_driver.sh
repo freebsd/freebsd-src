@@ -261,7 +261,7 @@ static device_method_t ${1}_methods[] = {
 	DEVMETHOD(device_probe,		${1}_isa_probe),
 	DEVMETHOD(device_attach,	${1}_isa_attach),
 	DEVMETHOD(device_detach,	${1}_isa_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ${1}_isa_driver = {

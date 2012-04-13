@@ -219,10 +219,10 @@ static struct cdevsw aac_cdevsw = {
 	.d_name =	"aac",
 };
 
-MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");
+static MALLOC_DEFINE(M_AACBUF, "aacbuf", "Buffers for the AAC driver");
 
 /* sysctl node */
-SYSCTL_NODE(_hw, OID_AUTO, aac, CTLFLAG_RD, 0, "AAC driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, aac, CTLFLAG_RD, 0, "AAC driver parameters");
 
 /*
  * Device Interface
@@ -290,6 +290,15 @@ aac_attach(struct aac_softc *sc)
 	 * Print a little information about the controller.
 	 */
 	aac_describe_controller(sc);
+
+	/*
+	 * Add sysctls.
+	 */
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->aac_dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->aac_dev)),
+	    OID_AUTO, "firmware_build", CTLFLAG_RD,
+	    &sc->aac_revision.buildNumber, 0,
+	    "firmware build number");
 
 	/*
 	 * Register to probe our containers later.

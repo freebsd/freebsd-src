@@ -203,18 +203,19 @@
 #define	AR_MAC_LED_MODE_POWON	5	/* Power LED on (s/w control) */
 #define	AR_MAC_LED_MODE_NETON	6	/* Network LED on (s/w control) */
 #define	AR_MAC_LED_ASSOC	0x00000c00
-#define	AR_MAC_LED_ASSOC_NONE	0x00000000 /* STA is not associated or trying */
-#define	AR_MAC_LED_ASSOC_ACTIVE	0x00000400 /* STA is associated */
-#define	AR_MAC_LED_ASSOC_PEND	0x00000800 /* STA is trying to associate */
+#define	AR_MAC_LED_ASSOC_NONE	0x0	/* STA is not associated or trying */
+#define	AR_MAC_LED_ASSOC_ACTIVE	0x1	/* STA is associated */
+#define	AR_MAC_LED_ASSOC_PEND	0x2	/* STA is trying to associate */
 #define	AR_MAC_LED_ASSOC_S	10
 
 #define	AR_WA_UNTIE_RESET_EN	0x00008000	/* ena PCI reset to POR */
 #define	AR_WA_RESET_EN		0x00040000	/* ena AR_WA_UNTIE_RESET_EN */
 #define	AR_WA_ANALOG_SHIFT	0x00100000
 #define	AR_WA_POR_SHORT		0x00200000	/* PCIE phy reset control */
+#define	AR_WA_D3_L1_DISABLE	0x00800000	/* bit 23 */
 
 #define	AR_WA_DEFAULT		0x0000073f
-#define	AR9280_WA_DEFAULT	0x0040073f
+#define	AR9280_WA_DEFAULT	0x0040073b	/* disable bit 2, see commit */
 #define	AR9285_WA_DEFAULT	0x004a05cb
 
 #define	AR_PCIE_PM_CTRL_ENA	0x00080000
@@ -260,7 +261,13 @@
 
 #define	AR_ISR_S5		0x0098
 #define	AR_ISR_S5_S		0x00d8
-#define	AR_ISR_S5_TIM_TIMER	0x00000010
+#define	AR_ISR_S5_GENTIMER7	0x00000080 // Mask for timer 7 trigger
+#define	AR_ISR_S5_TIM_TIMER	0x00000010 // TIM Timer ISR
+#define	AR_ISR_S5_DTIM_TIMER	0x00000020 // DTIM Timer ISR
+#define	AR_ISR_S5_GENTIMER_TRIG	0x0000FF80 // ISR for generic timer trigger 7-15
+#define	AR_ISR_S5_GENTIMER_TRIG_S	0
+#define	AR_ISR_S5_GENTIMER_THRESH	0xFF800000 // ISR for generic timer threshold 7-15
+#define	AR_ISR_S5_GENTIMER_THRESH_S	16
 
 #define	AR_INTR_SPURIOUS	0xffffffff
 #define	AR_INTR_RTC_IRQ		0x00000001	/* rtc in shutdown state */
@@ -498,6 +505,8 @@
 #define	AR928X_GPIO_IN_VAL_S	10
 #define	AR9285_GPIO_IN_VAL	0x00FFF000
 #define	AR9285_GPIO_IN_VAL_S	12
+#define	AR9287_GPIO_IN_VAL	0x003FF800
+#define	AR9287_GPIO_IN_VAL_S	11
 
 #define	AR_GPIO_OE_OUT_DRV	0x3	/* 2 bit mask shifted by 2*bitpos */
 #define	AR_GPIO_OE_OUT_DRV_NO	0x0	/* tristate */
@@ -606,10 +615,10 @@
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
 #define	AR_XSREV_VERSION_KIWI		0x180	/* Kiwi (AR9287) */
-#define	AR_XSREV_REVISION_KIWI_10	0
-#define	AR_XSREV_REVISION_KIWI_11	1
-#define	AR_XSREV_REVISION_KIWI_12	2
-#define	AR_XSREV_REVISION_KIWI_13	3
+#define	AR_XSREV_REVISION_KIWI_10	0	/* Kiwi 1.0 */
+#define	AR_XSREV_REVISION_KIWI_11	1	/* Kiwi 1.1 */
+#define	AR_XSREV_REVISION_KIWI_12	2	/* Kiwi 1.2 */
+#define	AR_XSREV_REVISION_KIWI_13	3	/* Kiwi 1.3 */
 
 /* Owl (AR5416) */
 #define	AR_SREV_OWL(_ah) \
@@ -695,6 +704,10 @@
 #define AR_SREV_KIWI(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_KIWI)
 
+#define AR_SREV_KIWI_10_OR_LATER(_ah) \
+	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_KIWI)
+
+/* XXX TODO: make these handle macVersion > Kiwi */
 #define AR_SREV_KIWI_11_OR_LATER(_ah) \
 	(AR_SREV_KIWI(_ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KIWI_11)

@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -37,19 +42,21 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 #include "mblocal.h"
+#include "xlocale_private.h"
 
 /*
  * Non-MT-safe version.
  */
 wint_t
-__ungetwc(wint_t wc, FILE *fp)
+__ungetwc(wint_t wc, FILE *fp, locale_t locale)
 {
 	char buf[MB_LEN_MAX];
 	size_t len;
+	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
 	if (wc == WEOF)
 		return (WEOF);
-	if ((len = __wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
+	if ((len = l->__wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
 	}
@@ -64,14 +71,20 @@ __ungetwc(wint_t wc, FILE *fp)
  * MT-safe version.
  */
 wint_t
-ungetwc(wint_t wc, FILE *fp)
+ungetwc_l(wint_t wc, FILE *fp, locale_t locale)
 {
 	wint_t r;
+	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
-	r = __ungetwc(wc, fp);
+	r = __ungetwc(wc, fp, locale);
 	FUNLOCKFILE(fp);
 
 	return (r);
+}
+wint_t
+ungetwc(wint_t wc, FILE *fp)
+{
+	return ungetwc_l(wc, fp, __get_locale());
 }

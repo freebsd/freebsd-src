@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2005
+.Dd January 28, 2012
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -224,7 +224,7 @@ one of eight special strings may appear:
 .Bd -literal -offset indent
 string		meaning
 ------		-------
-@reboot		Run once, at startup.
+@reboot		Run once, at startup of cron.
 @yearly		Run once a year, "0 0 1 1 *".
 @annually	(same as @yearly)
 @monthly	Run once a month, "0 0 1 * *".
@@ -301,7 +301,7 @@ affected.
 In general, it is not a good idea to schedule jobs during
 this period.
 .Pp
-For US timezones (except parts of IN, AZ, and HI) the time shift occurs at
+For US timezones (except parts of AZ and HI) the time shift occurs at
 2AM local time.
 For others, the output of the
 .Xr zdump 8

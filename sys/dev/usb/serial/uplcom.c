@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uplcom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uplcom, CTLFLAG_RW, 0, "USB uplcom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uplcom, CTLFLAG_RW, 0, "USB uplcom");
 SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RW,
     &uplcom_debug, 0, "Debug level");
 #endif
@@ -606,7 +606,7 @@ uplcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	    &req, NULL, 0, 1000);
 }
 
-static const int32_t uplcom_rates[] = {
+static const uint32_t uplcom_rates[] = {
 	75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400,
 	19200, 28800, 38400, 57600, 115200,
 	/*
@@ -659,7 +659,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	DPRINTF("sc = %p\n", sc);
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 

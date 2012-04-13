@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2009
+.Dd January 30, 2012
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -58,6 +58,7 @@
 .Op Fl t Ar fs-type
 .Ar image-file
 .Ar directory | manifest
+.Op Ar extra-directory ...
 .Sh DESCRIPTION
 The utility
 .Nm
@@ -67,6 +68,15 @@ from the directory tree
 .Ar directory
 or from the mtree manifest
 .Ar manifest .
+If optional directory tree
+.Ar extra-directory
+is passed, then the directory tree of each argument will be merged
+into the
+.Ar directory
+or
+.Ar manifest
+first before creating
+.Ar image-file .
 No special devices or privileges are required to perform this task.
 .Pp
 The options are as follows:
@@ -134,8 +144,7 @@ and
 .Sy uname
 or
 .Sy uid ,
-.Sy device
-(in the case of block or character devices), and
+and
 .Sy link
 (in the case of symbolic links).
 If
@@ -242,6 +251,8 @@ Block size.
 Bytes per inode.
 .It Sy fsize
 Fragment size.
+.It Sy label
+Label name of the image.
 .It Sy maxbpg
 Maximum blocks per file in a cylinder group.
 .It Sy minfree

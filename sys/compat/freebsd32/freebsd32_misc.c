@@ -104,16 +104,22 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
+#ifndef __mips__
 CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
 CTASSERT(sizeof(struct itimerval32) == 16);
+#endif
 CTASSERT(sizeof(struct statfs32) == 256);
+#ifndef __mips__
 CTASSERT(sizeof(struct rusage32) == 72);
+#endif
 CTASSERT(sizeof(struct sigaltstack32) == 12);
 CTASSERT(sizeof(struct kevent32) == 20);
 CTASSERT(sizeof(struct iovec32) == 8);
 CTASSERT(sizeof(struct msghdr32) == 28);
+#ifndef __mips__
 CTASSERT(sizeof(struct stat32) == 96);
+#endif
 CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
@@ -437,6 +443,21 @@ freebsd32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
 #endif
 
 int
+freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
+{
+	struct mprotect_args ap;
+
+	ap.addr = PTRIN(uap->addr);
+	ap.len = uap->len;
+	ap.prot = uap->prot;
+#if defined(__amd64__) || defined(__ia64__)
+	if (i386_read_exec && (ap.prot & PROT_READ) != 0)
+		ap.prot |= PROT_EXEC;
+#endif
+	return (sys_mprotect(td, &ap));
+}
+
+int
 freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 {
 	struct mmap_args ap;
@@ -518,6 +539,11 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 		addr = start;
 		len = end - start;
 	}
+#endif
+
+#if defined(__amd64__) || defined(__ia64__)
+	if (i386_read_exec && (prot & PROT_READ))
+		prot |= PROT_EXEC;
 #endif
 
 	ap.addr = (void *) addr;
@@ -926,7 +952,11 @@ freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
 	return (error);
 }
 
+#ifndef __mips__
 #define FREEBSD32_ALIGNBYTES	(sizeof(int) - 1)
+#else
+#define FREEBSD32_ALIGNBYTES	(sizeof(long) - 1)
+#endif
 #define FREEBSD32_ALIGN(p)	\
 	(((u_long)(p) + FREEBSD32_ALIGNBYTES) & ~FREEBSD32_ALIGNBYTES)
 #define	FREEBSD32_CMSG_SPACE(l)	\
@@ -2465,9 +2495,17 @@ freebsd32_nmount(struct thread *td,
     } */ *uap)
 {
 	struct uio *auio;
+	uint64_t flags;
 	int error;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
+	/*
+	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * 32-bits are passed in, but from here on everything handles
+	 * 64-bit flags correctly.
+	 */
+	flags = uap->flags;
+
+	AUDIT_ARG_FFLAGS(flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
@@ -2476,7 +2514,7 @@ freebsd32_nmount(struct thread *td,
 	 * MNT_ROOTFS should only be set by the kernel when mounting its
 	 * root file system.
 	 */
-	uap->flags &= ~MNT_ROOTFS;
+	flags &= ~MNT_ROOTFS;
 
 	/*
 	 * check that we have an even number of iovec's
@@ -2488,7 +2526,7 @@ freebsd32_nmount(struct thread *td,
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	error = vfs_donmount(td, uap->flags, auio);
+	error = vfs_donmount(td, flags, auio);
 
 	free(auio, M_IOV);
 	return error;
@@ -2808,10 +2846,16 @@ int
 freebsd32_posix_fallocate(struct thread *td,
     struct freebsd32_posix_fallocate_args *uap)
 {
-	struct posix_fallocate_args ap;
 
-	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
-	ap.len = (uap->lenlo | ((off_t)uap->lenhi << 32));
-	return (sys_posix_fallocate(td, &ap));
+	return (kern_posix_fallocate(td, uap->fd,
+	    PAIR32TO64(off_t, uap->offset), PAIR32TO64(off_t, uap->len)));
+}
+
+int
+freebsd32_posix_fadvise(struct thread *td,
+    struct freebsd32_posix_fadvise_args *uap)
+{
+
+	return (kern_posix_fadvise(td, uap->fd, PAIR32TO64(off_t, uap->offset),
+	    PAIR32TO64(off_t, uap->len), uap->advice));
 }

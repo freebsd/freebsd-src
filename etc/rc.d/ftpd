@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="ftpd"
-rcvar=`set_rcvar`
+rcvar="ftpd_enable"
 command="/usr/libexec/${name}"
 pidfile="/var/run/${name}.pid"
 start_precmd=ftpd_prestart

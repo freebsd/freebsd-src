@@ -2807,9 +2807,9 @@ out_locked:
 	return (error);
 }
 
-SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD, sysctl_mfctable,
-    "IPv4 Multicast Forwarding Table (struct *mfc[mfchashsize], "
-    "netinet/ip_mroute.h)");
+static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD,
+    sysctl_mfctable, "IPv4 Multicast Forwarding Table "
+    "(struct *mfc[mfchashsize], netinet/ip_mroute.h)");
 
 static void
 vnet_mroute_init(const void *unused __unused)
@@ -2822,7 +2822,7 @@ vnet_mroute_init(const void *unused __unused)
 	callout_init(&V_bw_meter_ch, CALLOUT_MPSAFE);
 }
 
-VNET_SYSINIT(vnet_mroute_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, vnet_mroute_init,
+VNET_SYSINIT(vnet_mroute_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_mroute_init,
 	NULL);
 
 static void
@@ -2945,4 +2945,4 @@ static moduledata_t ip_mroutemod = {
     0
 };
 
-DECLARE_MODULE(ip_mroute, ip_mroutemod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(ip_mroute, ip_mroutemod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE);

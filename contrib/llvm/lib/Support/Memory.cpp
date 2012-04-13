@@ -16,6 +16,10 @@
 #include "llvm/Support/Valgrind.h"
 #include "llvm/Config/config.h"
 
+#if defined(__mips__)
+#include <sys/cachectl.h>
+#endif
+
 namespace llvm {
 using namespace sys;
 }
@@ -66,6 +70,8 @@ void llvm::sys::Memory::InvalidateInstructionCache(const void *Addr,
   char *Start = (char*) Addr;
   char *End = Start + Len;
   __clear_cache(Start, End);
+#  elif defined(__mips__)
+  cacheflush((char*)Addr, Len, BCACHE);
 #  endif
 
 #endif  // end apple

@@ -16,9 +16,11 @@
 #include "X86InstrInfo.h"
 #include "llvm/GlobalValue.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/SmallVector.h"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
@@ -185,24 +187,53 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
 
   X86_MC::GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX);
   
-  if ((EDX >> 15) & 1) HasCMov = true;      ToggleFeature(X86::FeatureCMOV);
-  if ((EDX >> 23) & 1) X86SSELevel = MMX;   ToggleFeature(X86::FeatureMMX);
-  if ((EDX >> 25) & 1) X86SSELevel = SSE1;  ToggleFeature(X86::FeatureSSE1);
-  if ((EDX >> 26) & 1) X86SSELevel = SSE2;  ToggleFeature(X86::FeatureSSE2);
-  if (ECX & 0x1)       X86SSELevel = SSE3;  ToggleFeature(X86::FeatureSSE3);
-  if ((ECX >> 9)  & 1) X86SSELevel = SSSE3; ToggleFeature(X86::FeatureSSSE3);
-  if ((ECX >> 19) & 1) X86SSELevel = SSE41; ToggleFeature(X86::FeatureSSE41);
-  if ((ECX >> 20) & 1) X86SSELevel = SSE42; ToggleFeature(X86::FeatureSSE42);
+  if ((EDX >> 15) & 1) { HasCMov = true;      ToggleFeature(X86::FeatureCMOV); }
+  if ((EDX >> 23) & 1) { X86SSELevel = MMX;   ToggleFeature(X86::FeatureMMX);  }
+  if ((EDX >> 25) & 1) { X86SSELevel = SSE1;  ToggleFeature(X86::FeatureSSE1); }
+  if ((EDX >> 26) & 1) { X86SSELevel = SSE2;  ToggleFeature(X86::FeatureSSE2); }
+  if (ECX & 0x1)       { X86SSELevel = SSE3;  ToggleFeature(X86::FeatureSSE3); }
+  if ((ECX >> 9)  & 1) { X86SSELevel = SSSE3; ToggleFeature(X86::FeatureSSSE3);}
+  if ((ECX >> 19) & 1) { X86SSELevel = SSE41; ToggleFeature(X86::FeatureSSE41);}
+  if ((ECX >> 20) & 1) { X86SSELevel = SSE42; ToggleFeature(X86::FeatureSSE42);}
   // FIXME: AVX codegen support is not ready.
-  //if ((ECX >> 28) & 1) { HasAVX = true; } ToggleFeature(X86::FeatureAVX);
+  //if ((ECX >> 28) & 1) { HasAVX = true;  ToggleFeature(X86::FeatureAVX); }
 
   bool IsIntel = memcmp(text.c, "GenuineIntel", 12) == 0;
   bool IsAMD   = !IsIntel && memcmp(text.c, "AuthenticAMD", 12) == 0;
 
-  HasCLMUL = IsIntel && ((ECX >> 1) & 0x1);   ToggleFeature(X86::FeatureCLMUL);
-  HasFMA3  = IsIntel && ((ECX >> 12) & 0x1);  ToggleFeature(X86::FeatureFMA3);
-  HasPOPCNT = IsIntel && ((ECX >> 23) & 0x1); ToggleFeature(X86::FeaturePOPCNT);
-  HasAES   = IsIntel && ((ECX >> 25) & 0x1);  ToggleFeature(X86::FeatureAES);
+  if (IsIntel && ((ECX >> 1) & 0x1)) {
+    HasCLMUL = true;
+    ToggleFeature(X86::FeatureCLMUL);
+  }
+  if (IsIntel && ((ECX >> 12) & 0x1)) {
+    HasFMA3 = true;
+    ToggleFeature(X86::FeatureFMA3);
+  }
+  if (IsIntel && ((ECX >> 22) & 0x1)) {
+    HasMOVBE = true;
+    ToggleFeature(X86::FeatureMOVBE);
+  }
+  if (IsIntel && ((ECX >> 23) & 0x1)) {
+    HasPOPCNT = true;
+    ToggleFeature(X86::FeaturePOPCNT);
+  }
+  if (IsIntel && ((ECX >> 25) & 0x1)) {
+    HasAES = true;
+    ToggleFeature(X86::FeatureAES);
+  }
+  if (IsIntel && ((ECX >> 29) & 0x1)) {
+    HasF16C = true;
+    ToggleFeature(X86::FeatureF16C);
+  }
+  if (IsIntel && ((ECX >> 30) & 0x1)) {
+    HasRDRAND = true;
+    ToggleFeature(X86::FeatureRDRAND);
+  }
+
+  if ((ECX >> 13) & 0x1) {
+    HasCmpxchg16b = true;
+    ToggleFeature(X86::FeatureCMPXCHG16B);
+  }
 
   if (IsIntel || IsAMD) {
     // Determine if bit test memory instructions are slow.
@@ -223,6 +254,10 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
     if ((EDX >> 29) & 0x1) {
       HasX86_64 = true;
       ToggleFeature(X86::Feature64Bit);
+    }
+    if ((ECX >> 5) & 0x1) {
+      HasLZCNT = true;
+      ToggleFeature(X86::FeatureLZCNT);
     }
     if (IsAMD && ((ECX >> 6) & 0x1)) {
       HasSSE4A = true;
@@ -251,14 +286,21 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
   , HasCLMUL(false)
   , HasFMA3(false)
   , HasFMA4(false)
+  , HasMOVBE(false)
+  , HasRDRAND(false)
+  , HasF16C(false)
+  , HasLZCNT(false)
+  , HasBMI(false)
   , IsBTMemSlow(false)
   , IsUAMemFast(false)
   , HasVectorUAMem(false)
+  , HasCmpxchg16b(false)
   , stackAlignment(8)
   // FIXME: this is a known good value for Yonah. How about others?
   , MaxInlineSizeThreshold(128)
   , TargetTriple(TT)
-  , In64BitMode(is64Bit) {
+  , In64BitMode(is64Bit)
+  , InNaClMode(false) {
   // Determine default and user specified characteristics
   if (!FS.empty() || !CPU.empty()) {
     std::string CPUName = CPU;
@@ -304,6 +346,11 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
   if (In64BitMode)
     ToggleFeature(X86::Mode64Bit);
 
+  if (isTargetNaCl()) {
+    InNaClMode = true;
+    ToggleFeature(X86::ModeNaCl);
+  }
+
   if (HasAVX)
     X86SSELevel = NoMMXSSE;
     
@@ -312,6 +359,9 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
                << ", 64bit " << HasX86_64 << "\n");
   assert((!In64BitMode || HasX86_64) &&
          "64-bit code requested on a subtarget that doesn't support it!");
+
+  if(EnableSegmentedStacks && !isTargetELF())
+    report_fatal_error("Segmented stacks are only implemented on ELF.");
 
   // Stack alignment is 16 bytes on Darwin, FreeBSD, Linux and Solaris (both
   // 32 and 64 bit) and for all 64-bit targets.

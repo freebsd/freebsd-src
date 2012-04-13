@@ -44,6 +44,7 @@
 #include <sys/sx.h>
 #include <sys/vnode.h>
 #include <sys/limits.h>
+#include <sys/jail.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -56,6 +57,10 @@ static vfs_unmount_t	devfs_unmount;
 static vfs_root_t	devfs_root;
 static vfs_statfs_t	devfs_statfs;
 
+static const char *devfs_opts[] = {
+	"from", "export", "ruleset", NULL
+};
+
 /*
  * Mount the filesystem
  */
@@ -65,14 +70,59 @@ devfs_mount(struct mount *mp)
 	int error;
 	struct devfs_mount *fmp;
 	struct vnode *rvp;
+	struct thread *td = curthread;
+	int injail, rsnum;
 
 	if (devfs_unr == NULL)
 		devfs_unr = new_unrhdr(0, INT_MAX, NULL);
 
 	error = 0;
 
-	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
+	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_DEVFS))
+		return (EPERM);
+
+	rsnum = 0;
+	injail = jailed(td->td_ucred);
+
+	if (mp->mnt_optnew != NULL) {
+		if (vfs_filteropt(mp->mnt_optnew, devfs_opts))
+			return (EINVAL);
+
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+			return (EOPNOTSUPP);
+
+		if (vfs_getopt(mp->mnt_optnew, "ruleset", NULL, NULL) == 0 &&
+		    (vfs_scanopt(mp->mnt_optnew, "ruleset", "%d",
+		    &rsnum) != 1 || rsnum < 0 || rsnum > 65535)) {
+			vfs_mount_error(mp, "%s",
+			    "invalid ruleset specification");
+			return (EINVAL);
+		}
+
+		if (injail && rsnum != 0 &&
+		    rsnum != td->td_ucred->cr_prison->pr_devfs_rsnum)
+			return (EPERM);
+	}
+
+	/* jails enforce their ruleset */
+	if (injail)
+		rsnum = td->td_ucred->cr_prison->pr_devfs_rsnum;
+
+	if (mp->mnt_flag & MNT_UPDATE) {
+		if (rsnum != 0) {
+			fmp = mp->mnt_data;
+			if (fmp != NULL) {
+				sx_xlock(&fmp->dm_lock);
+				devfs_ruleset_set((devfs_rsnum)rsnum, fmp);
+				devfs_ruleset_apply(fmp);
+				sx_xunlock(&fmp->dm_lock);
+			}
+		}
+		return (0);
+	}
 
 	fmp = malloc(sizeof *fmp, M_DEVFS, M_WAITOK | M_ZERO);
 	fmp->dm_idx = alloc_unr(devfs_unr);
@@ -99,6 +149,12 @@ devfs_mount(struct mount *mp)
 		free_unr(devfs_unr, fmp->dm_idx);
 		free(fmp, M_DEVFS);
 		return (error);
+	}
+
+	if (rsnum != 0) {
+		sx_xlock(&fmp->dm_lock);
+		devfs_ruleset_set((devfs_rsnum)rsnum, fmp);
+		sx_xunlock(&fmp->dm_lock);
 	}
 
 	VOP_UNLOCK(rvp, 0);
@@ -186,4 +242,4 @@ static struct vfsops devfs_vfsops = {
 	.vfs_unmount =		devfs_unmount,
 };
 
-VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC);
+VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC | VFCF_JAIL);

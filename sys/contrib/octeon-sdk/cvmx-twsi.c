@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Interface to the TWSI / I2C bus
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
@@ -59,7 +59,9 @@
 #else
 #include "cvmx.h"
 #include "cvmx-twsi.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-csr-db.h"
+#endif
 #endif
 
 //#define PRINT_TWSI_CONFIG
@@ -71,9 +73,9 @@
 #endif
 
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+# if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static struct i2c_adapter *__cvmx_twsix_get_adapter(int twsi_id)
 {
-# if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	struct octeon_i2c {
 		wait_queue_head_t queue;
 		struct i2c_adapter adap;
@@ -94,10 +96,8 @@ static struct i2c_adapter *__cvmx_twsix_get_adapter(int twsi_id)
 		return NULL;
 	i2c = container_of(adapter, struct octeon_i2c, adap);
 	return &i2c[twsi_id].adap;
-#else
-	return NULL;
-#endif
 }
+#endif
 #endif
 
 
@@ -171,10 +171,11 @@ int cvmx_twsix_read_ia(int twsi_id, uint8_t dev_addr, uint16_t internal_addr, in
 #else
 	cvmx_mio_twsx_sw_twsi_t sw_twsi_val;
 	cvmx_mio_twsx_sw_twsi_ext_t twsi_ext;
+        int retry_limit = 5;
 
 	if (num_bytes < 1 || num_bytes > 8 || !data || ia_width_bytes < 0 || ia_width_bytes > 2)
 		return -1;
-
+retry:
 	twsi_ext.u64 = 0;
 	sw_twsi_val.u64 = 0;
 	sw_twsi_val.s.v = 1;
@@ -197,11 +198,36 @@ int cvmx_twsix_read_ia(int twsi_id, uint8_t dev_addr, uint16_t internal_addr, in
 	cvmx_csr_db_decode(cvmx_get_proc_id(), CVMX_MIO_TWSX_SW_TWSI(twsi_id), sw_twsi_val.u64);
 	cvmx_write_csr(CVMX_MIO_TWSX_SW_TWSI(twsi_id), sw_twsi_val.u64);
 	while (((cvmx_mio_twsx_sw_twsi_t)(sw_twsi_val.u64 = cvmx_read_csr(CVMX_MIO_TWSX_SW_TWSI(twsi_id)))).s.v)
-		;
+		cvmx_wait(1000);
 	twsi_printf("Results:\n");
 	cvmx_csr_db_decode(cvmx_get_proc_id(), CVMX_MIO_TWSX_SW_TWSI(twsi_id), sw_twsi_val.u64);
 	if (!sw_twsi_val.s.r)
-		return -1;
+        {
+            /* Check the reason for the failure.  We may need to retry to handle multi-master
+            ** configurations.
+            ** Lost arbitration : 0x38, 0x68, 0xB0, 0x78
+            ** Core busy as slave: 0x80, 0x88, 0xA0, 0xA8, 0xB8, 0xC0, 0xC8
+            */
+            if (sw_twsi_val.s.d == 0x38
+                || sw_twsi_val.s.d == 0x68
+                || sw_twsi_val.s.d == 0xB0
+                || sw_twsi_val.s.d == 0x78
+                || sw_twsi_val.s.d == 0x80
+                || sw_twsi_val.s.d == 0x88
+                || sw_twsi_val.s.d == 0xA0
+                || sw_twsi_val.s.d == 0xA8
+                || sw_twsi_val.s.d == 0xB8
+                || sw_twsi_val.s.d == 0xC8)
+            {
+                if (retry_limit-- > 0)
+                {
+                    cvmx_wait_usec(100);
+                    goto retry;
+                }
+            }
+            /* For all other errors, return an error code */
+            return -1;
+        }
 
 	*data = (sw_twsi_val.s.d & (0xFFFFFFFF >> (32 - num_bytes*8)));
 	if (num_bytes > 4) {
@@ -265,10 +291,11 @@ int cvmx_twsix_read(int twsi_id, uint8_t dev_addr, int num_bytes, uint64_t *data
 #else
 	cvmx_mio_twsx_sw_twsi_t sw_twsi_val;
 	cvmx_mio_twsx_sw_twsi_ext_t twsi_ext;
+        int retry_limit = 5;
 
 	if (num_bytes > 8 || num_bytes < 1)
 		return -1;
-
+retry:
 	sw_twsi_val.u64 = 0;
 	sw_twsi_val.s.v = 1;
 	sw_twsi_val.s.r = 1;
@@ -279,11 +306,37 @@ int cvmx_twsix_read(int twsi_id, uint8_t dev_addr, int num_bytes, uint64_t *data
 	cvmx_csr_db_decode(cvmx_get_proc_id(), CVMX_MIO_TWSX_SW_TWSI(twsi_id), sw_twsi_val.u64);
 	cvmx_write_csr(CVMX_MIO_TWSX_SW_TWSI(twsi_id), sw_twsi_val.u64);
 	while (((cvmx_mio_twsx_sw_twsi_t)(sw_twsi_val.u64 = cvmx_read_csr(CVMX_MIO_TWSX_SW_TWSI(twsi_id)))).s.v)
-		;
+            cvmx_wait(1000);
 	twsi_printf("Results:\n");
 	cvmx_csr_db_decode(cvmx_get_proc_id(), CVMX_MIO_TWSX_SW_TWSI(twsi_id), sw_twsi_val.u64);
 	if (!sw_twsi_val.s.r)
-		return -1;
+            if (!sw_twsi_val.s.r)
+            {
+                /* Check the reason for the failure.  We may need to retry to handle multi-master
+                ** configurations.
+                ** Lost arbitration : 0x38, 0x68, 0xB0, 0x78
+                ** Core busy as slave: 0x80, 0x88, 0xA0, 0xA8, 0xB8, 0xC0, 0xC8
+                */
+                if (sw_twsi_val.s.d == 0x38
+                    || sw_twsi_val.s.d == 0x68
+                    || sw_twsi_val.s.d == 0xB0
+                    || sw_twsi_val.s.d == 0x78
+                    || sw_twsi_val.s.d == 0x80
+                    || sw_twsi_val.s.d == 0x88
+                    || sw_twsi_val.s.d == 0xA0
+                    || sw_twsi_val.s.d == 0xA8
+                    || sw_twsi_val.s.d == 0xB8
+                    || sw_twsi_val.s.d == 0xC8)
+                {
+                    if (retry_limit-- > 0)
+                    {
+                        cvmx_wait_usec(100);
+                        goto retry;
+                     }
+                }
+                /* For all other errors, return an error code */
+                return -1;
+            }
 
 	*data = (sw_twsi_val.s.d & (0xFFFFFFFF >> (32 - num_bytes*8)));
 	if (num_bytes > 4) {
@@ -328,10 +381,10 @@ int cvmx_twsix_write(int twsi_id, uint8_t dev_addr, int num_bytes, uint64_t data
 	for (j = 0, i = num_bytes - 1; i >= 0; i--, j++)
 		data_buf[j] = (u8)(data >> (i * 8));
 
-	msg[1].addr = dev_addr;
-	msg[1].flags = 0;
-	msg[1].len = num_bytes;
-	msg[1].buf = data_buf;
+	msg[0].addr = dev_addr;
+	msg[0].flags = 0;
+	msg[0].len = num_bytes;
+	msg[0].buf = data_buf;
 
 	i = i2c_transfer(adapter, msg, 1);
 

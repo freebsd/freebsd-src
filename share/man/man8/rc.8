@@ -35,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2009
+.Dd January 14, 2012
 .Dt RC 8
 .Os
 .Sh NAME
@@ -485,7 +485,7 @@ Most scripts require little more than the following.
 \&. /etc/rc.subr
 
 name="foo"
-rcvar=`set_rcvar`
+rcvar=foo_enable
 command="/usr/local/bin/foo"
 
 load_rc_config $name
@@ -506,7 +506,7 @@ The script may list and define as many commands at it needs.
 \&. /etc/rc.subr
 
 name="foo"
-rcvar=`set_rcvar`
+rcvar=foo_enable
 command="/usr/local/bin/foo"
 extra_commands="nop hello"
 hello_cmd="echo Hello World."

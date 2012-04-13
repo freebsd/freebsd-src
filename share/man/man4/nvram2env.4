@@ -31,7 +31,7 @@
 .Nm nvram2env
 .Nd "copy nvram-like data into kernel environment"
 .Sh SYNOPSIS
-.Cd "device	nvram2env"
+.Cd "device nvram2env"
 .Sh DESCRIPTION
 .Nm
 implements a simple method of reading the NVRAM-like data and information
@@ -44,7 +44,7 @@ the string name, "=" delimiter and the string value.
 .Nm
 copies the environment values into kernel environment using the kernel setenv call.
 .Pp
-Configuration of 
+Configuration of
 .Nm
 is done in
 .Xr device.hints 5
@@ -69,7 +69,7 @@ compatible, please set it to "1".
 Use format "Generic", skip uint32_t field, then zero terminating array of
 strings.
 .It Fa 0x0004
-Use Broadcom CFE format. uint32_t signature "FLSH", uint32_t size, 
+Use Broadcom CFE format. uint32_t signature "FLSH", uint32_t size,
 three unused fields uint32_t, then data.
 .It Fa 0x0008
 Use U-Boot format, uint32_t crc, then zero terminating array of strings.
@@ -101,7 +101,6 @@ hint.nvram.0.base=0x1fc00400
 .Ed
 .Pp
 Dynamic, editable form CFE, override values from first
-.Pp
 .Bd -literal -offset indent
 hint.nvram.1.flags=0x05 # Broadcom + nocheck
 hint.nvram.1.base=0x1cff8000

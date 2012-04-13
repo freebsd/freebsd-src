@@ -467,7 +467,8 @@ proc0_init(void *dummy __unused)
 	td->td_priority = PVM;
 	td->td_base_pri = PVM;
 	td->td_oncpu = 0;
-	td->td_flags = TDF_INMEM|TDP_KTHREAD;
+	td->td_flags = TDF_INMEM;
+	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
 	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
 	p->p_peers = 0;
@@ -641,7 +642,7 @@ static char init_path[MAXPATHLEN] =
 #ifdef	INIT_PATH
     __XSTRING(INIT_PATH);
 #else
-    "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init:/stand/sysinstall";
+    "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init";
 #endif
 SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
 	"Path used to search the init process");

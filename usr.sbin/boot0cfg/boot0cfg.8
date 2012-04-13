@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 13, 2009
+.Dd February 4, 2012
 .Dt BOOT0CFG 8
 .Os
 .Sh NAME
@@ -114,6 +114,9 @@ Specify slices to be enabled/disabled, where
 .Ar mask
 is an integer between 0 (no slices enabled) and 0xf (all four slices
 enabled).
+Each mask bit enables corresponding slice if set to 1.
+The least significant bit of the mask corresponds to slice 1,
+the most significant bit of the mask corresponds to slice 4.
 .It Fl o Ar options
 A comma-separated string of any of the following options may be
 specified (with
@@ -146,6 +149,9 @@ Set the default boot selection to
 .Ar slice .
 Values between 1 and 4 refer to slices; a value of 5 refers to the
 option of booting from a second disk.
+The special string
+.Dq PXE
+or a value of 6 can be used to boot via PXE.
 .It Fl t Ar ticks
 Set the timeout value to
 .Ar ticks .
@@ -153,21 +159,6 @@ Set the timeout value to
 .It Fl v
 Verbose: display information about the slices defined, etc.
 .El
-.Sh NOTE
-Protection mechanisms in the
-.Xr geom 4
-subsystem might prevent
-.Nm
-from being able to update the MBR on a mounted disk.
-Instructions for temporarily disabling these protection mechanisms
-can be found in the
-.Xr geom 4
-manpage. Specifically, do a
-.Pp
-.Dl sysctl kern.geom.debugflags=0x10
-.Pp
-to allow writing to the MBR, and restore it to 0 afterwards.
-.Pp
 .Sh FILES
 .Bl -tag -width /boot/boot0sio -compact
 .It Pa /boot/boot0
@@ -184,20 +175,20 @@ To boot slice 2 on the next boot:
 .Pp
 .Dl "boot0cfg -s 2 ad0"
 .Pp
-To enable just slices 1 and 2 in the menu:
+To enable just slices 1 and 3 in the menu:
 .Pp
-.Dl "boot0cfg -m 0x3 ad0"
+.Dl "boot0cfg -m 0x5 ad0"
 .Pp
 To go back to non-interactive booting, use
 .Xr fdisk 8
 to install the default MBR:
 .Pp
 .Dl "fdisk -B ad0"
-.Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr boot 8 ,
-.Xr fdisk 8
+.Xr fdisk 8 ,
+.Xr gpart 8
 .Sh AUTHORS
 .An Robert Nordier Aq rnordier@FreeBSD.org .
 .Sh BUGS

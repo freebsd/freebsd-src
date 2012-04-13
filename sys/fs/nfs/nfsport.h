@@ -78,7 +78,6 @@
 #include <sys/priv.h>
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
-#include <fs/fifofs/fifo.h>
 #include <net/if.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -712,7 +711,7 @@ MALLOC_DECLARE(M_NEWNFSDROLLBACK);
 /*
  * Set this macro to index() or strchr(), whichever is supported.
  */
-#define	STRCHR(s, c)	index((s), (c))
+#define	STRCHR(s, c)		strchr((s), (c))
 
 /*
  * Set the n_time in the client write rpc, as required.

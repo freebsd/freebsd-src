@@ -20,6 +20,7 @@
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/OperationKinds.h"
 #include "clang/AST/ASTVector.h"
+#include "clang/AST/TemplateBase.h"
 #include "clang/AST/UsuallyTinyPtrVector.h"
 #include "clang/Basic/TypeTraits.h"
 #include "llvm/ADT/APSInt.h"
@@ -41,12 +42,10 @@ namespace clang {
   class CXXOperatorCallExpr;
   class CXXMemberCallExpr;
   class ObjCPropertyRefExpr;
-  class TemplateArgumentLoc;
-  class TemplateArgumentListInfo;
   class OpaqueValueExpr;
 
 /// \brief A simple array of base specifiers.
-typedef llvm::SmallVector<CXXBaseSpecifier*, 4> CXXCastPath;
+typedef SmallVector<CXXBaseSpecifier*, 4> CXXCastPath;
 
 /// Expr - This represents one expression.  Note that Expr's are subclasses of
 /// Stmt.  This allows an expression to be transparently used any place a Stmt
@@ -454,8 +453,13 @@ public:
 
   /// EvaluateAsBooleanCondition - Return true if this is a constant
   /// which we we can fold and convert to a boolean condition using
-  /// any crazy technique that we want to.
+  /// any crazy technique that we want to, even if the expression has
+  /// side-effects.
   bool EvaluateAsBooleanCondition(bool &Result, const ASTContext &Ctx) const;
+
+  /// EvaluateAsInt - Return true if this is a constant which we can fold and
+  /// convert to an integer using any crazy technique that we want to.
+  bool EvaluateAsInt(llvm::APSInt &Result, const ASTContext &Ctx) const;
 
   /// isEvaluatable - Call Evaluate to see if this expression can be constant
   /// folded, but discard the result.
@@ -467,9 +471,9 @@ public:
   /// variable read.
   bool HasSideEffects(const ASTContext &Ctx) const;
   
-  /// EvaluateAsInt - Call Evaluate and return the folded integer. This
+  /// EvaluateKnownConstInt - Call Evaluate and return the folded integer. This
   /// must be called on an expression that constant folds to an integer.
-  llvm::APSInt EvaluateAsInt(const ASTContext &Ctx) const;
+  llvm::APSInt EvaluateKnownConstInt(const ASTContext &Ctx) const;
 
   /// EvaluateAsLValue - Evaluate an expression to see if it's a lvalue
   /// with link time known address.
@@ -688,39 +692,6 @@ public:
   static bool classof(const OpaqueValueExpr *) { return true; }
 };
 
-/// \brief Represents an explicit template argument list in C++, e.g.,
-/// the "<int>" in "sort<int>".
-struct ExplicitTemplateArgumentList {
-  /// \brief The source location of the left angle bracket ('<');
-  SourceLocation LAngleLoc;
-  
-  /// \brief The source location of the right angle bracket ('>');
-  SourceLocation RAngleLoc;
-  
-  /// \brief The number of template arguments in TemplateArgs.
-  /// The actual template arguments (if any) are stored after the
-  /// ExplicitTemplateArgumentList structure.
-  unsigned NumTemplateArgs;
-  
-  /// \brief Retrieve the template arguments
-  TemplateArgumentLoc *getTemplateArgs() {
-    return reinterpret_cast<TemplateArgumentLoc *> (this + 1);
-  }
-  
-  /// \brief Retrieve the template arguments
-  const TemplateArgumentLoc *getTemplateArgs() const {
-    return reinterpret_cast<const TemplateArgumentLoc *> (this + 1);
-  }
-
-  void initializeFrom(const TemplateArgumentListInfo &List);
-  void initializeFrom(const TemplateArgumentListInfo &List,
-                      bool &Dependent, bool &InstantiationDependent,
-                      bool &ContainsUnexpandedParameterPack);
-  void copyInto(TemplateArgumentListInfo &List) const;
-  static std::size_t sizeFor(unsigned NumTemplateArgs);
-  static std::size_t sizeFor(const TemplateArgumentListInfo &List);
-};
-
 /// \brief A reference to a declared variable, function, enum, etc.
 /// [C99 6.5.1p2]
 ///
@@ -804,6 +775,7 @@ public:
     DeclRefExprBits.HasQualifier = 0;
     DeclRefExprBits.HasExplicitTemplateArgs = 0;
     DeclRefExprBits.HasFoundDecl = 0;
+    DeclRefExprBits.HadMultipleCandidates = 0;
     computeDependence();
   }
 
@@ -887,29 +859,29 @@ public:
 
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name.
-  ExplicitTemplateArgumentList &getExplicitTemplateArgs() {
+  ASTTemplateArgumentListInfo &getExplicitTemplateArgs() {
     assert(hasExplicitTemplateArgs());
     if (hasFoundDecl())
-      return *reinterpret_cast<ExplicitTemplateArgumentList *>(
+      return *reinterpret_cast<ASTTemplateArgumentListInfo *>(
         &getInternalFoundDecl() + 1);
 
     if (hasQualifier())
-      return *reinterpret_cast<ExplicitTemplateArgumentList *>(
+      return *reinterpret_cast<ASTTemplateArgumentListInfo *>(
         &getInternalQualifierLoc() + 1);
 
-    return *reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
+    return *reinterpret_cast<ASTTemplateArgumentListInfo *>(this + 1);
   }
 
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name.
-  const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
+  const ASTTemplateArgumentListInfo &getExplicitTemplateArgs() const {
     return const_cast<DeclRefExpr *>(this)->getExplicitTemplateArgs();
   }
 
   /// \brief Retrieves the optional explicit template arguments.
   /// This points to the same data as getExplicitTemplateArgs(), but
   /// returns null if there are no explicit template arguments.
-  const ExplicitTemplateArgumentList *getExplicitTemplateArgsOpt() const {
+  const ASTTemplateArgumentListInfo *getExplicitTemplateArgsOpt() const {
     if (!hasExplicitTemplateArgs()) return 0;
     return &getExplicitTemplateArgs();
   }
@@ -955,6 +927,18 @@ public:
       return SourceLocation();
 
     return getExplicitTemplateArgs().RAngleLoc;
+  }
+
+  /// \brief Returns true if this expression refers to a function that
+  /// was resolved from an overloaded set having size greater than 1.
+  bool hadMultipleCandidates() const {
+    return DeclRefExprBits.HadMultipleCandidates;
+  }
+  /// \brief Sets the flag telling whether this expression refers to
+  /// a function that was resolved from an overloaded set having size
+  /// greater than 1.
+  void setHadMultipleCandidates(bool V = true) {
+    DeclRefExprBits.HadMultipleCandidates = V;
   }
 
   static bool classof(const Stmt *T) {
@@ -1112,29 +1096,39 @@ public:
 };
 
 class CharacterLiteral : public Expr {
+public:
+  enum CharacterKind {
+    Ascii,
+    Wide,
+    UTF16,
+    UTF32
+  };
+
+private:
   unsigned Value;
   SourceLocation Loc;
-  bool IsWide;
+  unsigned Kind : 2;
 public:
   // type should be IntTy
-  CharacterLiteral(unsigned value, bool iswide, QualType type, SourceLocation l)
+  CharacterLiteral(unsigned value, CharacterKind kind, QualType type,
+                   SourceLocation l)
     : Expr(CharacterLiteralClass, type, VK_RValue, OK_Ordinary, false, false,
            false, false),
-      Value(value), Loc(l), IsWide(iswide) {
+      Value(value), Loc(l), Kind(kind) {
   }
 
   /// \brief Construct an empty character literal.
   CharacterLiteral(EmptyShell Empty) : Expr(CharacterLiteralClass, Empty) { }
 
   SourceLocation getLocation() const { return Loc; }
-  bool isWide() const { return IsWide; }
+  CharacterKind getKind() const { return static_cast<CharacterKind>(Kind); }
 
   SourceRange getSourceRange() const { return SourceRange(Loc); }
 
   unsigned getValue() const { return Value; }
 
   void setLocation(SourceLocation Location) { Loc = Location; }
-  void setWide(bool W) { IsWide = W; }
+  void setKind(CharacterKind kind) { Kind = kind; }
   void setValue(unsigned Val) { Value = Val; }
 
   static bool classof(const Stmt *T) {
@@ -1243,13 +1237,23 @@ public:
 /// In this case, getByteLength() will return 6, but the string literal will
 /// have type "char[2]".
 class StringLiteral : public Expr {
+public:
+  enum StringKind {
+    Ascii,
+    Wide,
+    UTF8,
+    UTF16,
+    UTF32
+  };
+
+private:
   friend class ASTStmtReader;
 
   const char *StrData;
   unsigned ByteLength;
-  bool IsWide;
-  bool IsPascal;
   unsigned NumConcatenated;
+  unsigned Kind : 3;
+  bool IsPascal : 1;
   SourceLocation TokLocs[1];
 
   StringLiteral(QualType Ty) :
@@ -1259,33 +1263,39 @@ class StringLiteral : public Expr {
 public:
   /// This is the "fully general" constructor that allows representation of
   /// strings formed from multiple concatenated tokens.
-  static StringLiteral *Create(ASTContext &C, llvm::StringRef Str, bool Wide,
+  static StringLiteral *Create(ASTContext &C, StringRef Str, StringKind Kind,
                                bool Pascal, QualType Ty,
                                const SourceLocation *Loc, unsigned NumStrs);
 
   /// Simple constructor for string literals made from one token.
-  static StringLiteral *Create(ASTContext &C, llvm::StringRef Str, bool Wide, 
-                               bool Pascal, QualType Ty, SourceLocation Loc) {
-    return Create(C, Str, Wide, Pascal, Ty, &Loc, 1);
+  static StringLiteral *Create(ASTContext &C, StringRef Str, StringKind Kind,
+                               bool Pascal, QualType Ty,
+                               SourceLocation Loc) {
+    return Create(C, Str, Kind, Pascal, Ty, &Loc, 1);
   }
 
   /// \brief Construct an empty string literal.
   static StringLiteral *CreateEmpty(ASTContext &C, unsigned NumStrs);
 
-  llvm::StringRef getString() const {
-    return llvm::StringRef(StrData, ByteLength);
+  StringRef getString() const {
+    return StringRef(StrData, ByteLength);
   }
 
   unsigned getByteLength() const { return ByteLength; }
 
   /// \brief Sets the string data to the given string data.
-  void setString(ASTContext &C, llvm::StringRef Str);
+  void setString(ASTContext &C, StringRef Str);
 
-  bool isWide() const { return IsWide; }
+  StringKind getKind() const { return static_cast<StringKind>(Kind); }
+  bool isAscii() const { return Kind == Ascii; }
+  bool isWide() const { return Kind == Wide; }
+  bool isUTF8() const { return Kind == UTF8; }
+  bool isUTF16() const { return Kind == UTF16; }
+  bool isUTF32() const { return Kind == UTF32; }
   bool isPascal() const { return IsPascal; }
-  
+
   bool containsNonAsciiOrNull() const {
-    llvm::StringRef Str = getString();
+    StringRef Str = getString();
     for (unsigned i = 0, e = Str.size(); i != e; ++i)
       if (!isascii(Str[i]) || !Str[i])
         return true;
@@ -2029,6 +2039,10 @@ class MemberExpr : public Expr {
   /// the MemberNameQualifier structure.
   bool HasExplicitTemplateArgumentList : 1;
 
+  /// \brief True if this member expression refers to a method that
+  /// was resolved from an overloaded set having size greater than 1.
+  bool HadMultipleCandidates : 1;
+
   /// \brief Retrieve the qualifier that preceded the member name, if any.
   MemberNameQualifier *getMemberQualifier() {
     assert(HasQualifierOrFoundDecl);
@@ -2051,7 +2065,8 @@ public:
            base->containsUnexpandedParameterPack()),
       Base(base), MemberDecl(memberdecl), MemberLoc(NameInfo.getLoc()),
       MemberDNLoc(NameInfo.getInfo()), IsArrow(isarrow),
-      HasQualifierOrFoundDecl(false), HasExplicitTemplateArgumentList(false) {
+      HasQualifierOrFoundDecl(false), HasExplicitTemplateArgumentList(false),
+      HadMultipleCandidates(false) {
     assert(memberdecl->getDeclName() == NameInfo.getName());
   }
 
@@ -2068,7 +2083,8 @@ public:
            base->containsUnexpandedParameterPack()),
       Base(base), MemberDecl(memberdecl), MemberLoc(l), MemberDNLoc(),
       IsArrow(isarrow),
-      HasQualifierOrFoundDecl(false), HasExplicitTemplateArgumentList(false) {}
+      HasQualifierOrFoundDecl(false), HasExplicitTemplateArgumentList(false),
+      HadMultipleCandidates(false) {}
 
   static MemberExpr *Create(ASTContext &C, Expr *base, bool isarrow,
                             NestedNameSpecifierLoc QualifierLoc,
@@ -2136,26 +2152,26 @@ public:
   /// \brief Retrieve the explicit template argument list that
   /// follow the member template name.  This must only be called on an
   /// expression with explicit template arguments.
-  ExplicitTemplateArgumentList &getExplicitTemplateArgs() {
+  ASTTemplateArgumentListInfo &getExplicitTemplateArgs() {
     assert(HasExplicitTemplateArgumentList);
     if (!HasQualifierOrFoundDecl)
-      return *reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
+      return *reinterpret_cast<ASTTemplateArgumentListInfo *>(this + 1);
 
-    return *reinterpret_cast<ExplicitTemplateArgumentList *>(
+    return *reinterpret_cast<ASTTemplateArgumentListInfo *>(
                                                       getMemberQualifier() + 1);
   }
 
   /// \brief Retrieve the explicit template argument list that
   /// followed the member template name.  This must only be called on
   /// an expression with explicit template arguments.
-  const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
+  const ASTTemplateArgumentListInfo &getExplicitTemplateArgs() const {
     return const_cast<MemberExpr *>(this)->getExplicitTemplateArgs();
   }
 
   /// \brief Retrieves the optional explicit template arguments.
   /// This points to the same data as getExplicitTemplateArgs(), but
   /// returns null if there are no explicit template arguments.
-  const ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() const {
+  const ASTTemplateArgumentListInfo *getOptionalExplicitTemplateArgs() const {
     if (!hasExplicitTemplateArgs()) return 0;
     return &getExplicitTemplateArgs();
   }
@@ -2218,7 +2234,19 @@ public:
   bool isImplicitAccess() const {
     return getBase() && getBase()->isImplicitCXXThis();
   }
-  
+
+  /// \brief Returns true if this member expression refers to a method that
+  /// was resolved from an overloaded set having size greater than 1.
+  bool hadMultipleCandidates() const {
+    return HadMultipleCandidates;
+  }
+  /// \brief Sets the flag telling whether this expression refers to
+  /// a method that was resolved from an overloaded set having size
+  /// greater than 1.
+  void setHadMultipleCandidates(bool V = true) {
+    HadMultipleCandidates = V;
+  }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == MemberExprClass;
   }
@@ -2301,68 +2329,7 @@ public:
 private:
   Stmt *Op;
 
-  void CheckCastConsistency() const {
-#ifndef NDEBUG
-    switch (getCastKind()) {
-    case CK_DerivedToBase:
-    case CK_UncheckedDerivedToBase:
-    case CK_DerivedToBaseMemberPointer:
-    case CK_BaseToDerived:
-    case CK_BaseToDerivedMemberPointer:
-      assert(!path_empty() && "Cast kind should have a base path!");
-      break;
-
-    // These should not have an inheritance path.
-    case CK_BitCast:
-    case CK_Dynamic:
-    case CK_ToUnion:
-    case CK_ArrayToPointerDecay:
-    case CK_FunctionToPointerDecay:
-    case CK_NullToMemberPointer:
-    case CK_NullToPointer:
-    case CK_ConstructorConversion:
-    case CK_IntegralToPointer:
-    case CK_PointerToIntegral:
-    case CK_ToVoid:
-    case CK_VectorSplat:
-    case CK_IntegralCast:
-    case CK_IntegralToFloating:
-    case CK_FloatingToIntegral:
-    case CK_FloatingCast:
-    case CK_AnyPointerToObjCPointerCast:
-    case CK_AnyPointerToBlockPointerCast:
-    case CK_ObjCObjectLValueCast:
-    case CK_FloatingRealToComplex:
-    case CK_FloatingComplexToReal:
-    case CK_FloatingComplexCast:
-    case CK_FloatingComplexToIntegralComplex:
-    case CK_IntegralRealToComplex:
-    case CK_IntegralComplexToReal:
-    case CK_IntegralComplexCast:
-    case CK_IntegralComplexToFloatingComplex:
-    case CK_ObjCProduceObject:
-    case CK_ObjCConsumeObject:
-    case CK_ObjCReclaimReturnedObject:
-      assert(!getType()->isBooleanType() && "unheralded conversion to bool");
-      // fallthrough to check for null base path
-
-    case CK_Dependent:
-    case CK_LValueToRValue:
-    case CK_GetObjCProperty:
-    case CK_NoOp:
-    case CK_PointerToBoolean:
-    case CK_IntegralToBoolean:
-    case CK_FloatingToBoolean:
-    case CK_MemberPointerToBoolean:
-    case CK_FloatingComplexToBoolean:
-    case CK_IntegralComplexToBoolean:
-    case CK_LValueBitCast:            // -> bool&
-    case CK_UserDefinedConversion:    // operator bool()
-      assert(path_empty() && "Cast kind should not have a base path!");
-      break;
-    }
-#endif
-  }
+  void CheckCastConsistency() const;
 
   const CXXBaseSpecifier * const *path_buffer() const {
     return const_cast<CastExpr*>(this)->path_buffer();
@@ -2393,7 +2360,9 @@ protected:
     assert(kind != CK_Invalid && "creating cast with invalid cast kind");
     CastExprBits.Kind = kind;
     setBasePathSize(BasePathSize);
+#ifndef NDEBUG
     CheckCastConsistency();
+#endif
   }
 
   /// \brief Construct an empty cast.
@@ -2746,7 +2715,7 @@ protected:
 
 /// CompoundAssignOperator - For compound assignments (e.g. +=), we keep
 /// track of the type the operation is performed in.  Due to the semantics of
-/// these operators, the operands are promoted, the aritmetic performed, an
+/// these operators, the operands are promoted, the arithmetic performed, an
 /// implicit conversion back to the result type done, then the assignment takes
 /// place.  This captures the intermediate type which the computation is done
 /// in.
@@ -3134,7 +3103,7 @@ public:
 
   unsigned getShuffleMaskIdx(ASTContext &Ctx, unsigned N) {
     assert((N < NumExprs - 2) && "Shuffle idx out of range!");
-    return getExpr(N+2)->EvaluateAsInt(Ctx).getZExtValue();
+    return getExpr(N+2)->EvaluateKnownConstInt(Ctx).getZExtValue();
   }
 
   // Iterators
@@ -4045,7 +4014,7 @@ public:
 
   /// getEncodedElementAccess - Encode the elements accessed into an llvm
   /// aggregate Constant of ConstantInt(s).
-  void getEncodedElementAccess(llvm::SmallVectorImpl<unsigned> &Elts) const;
+  void getEncodedElementAccess(SmallVectorImpl<unsigned> &Elts) const;
 
   SourceRange getSourceRange() const {
     return SourceRange(getBase()->getLocStart(), AccessorLoc);
@@ -4192,6 +4161,101 @@ public:
   
   // Iterators
   child_range children() { return child_range(&SrcExpr, &SrcExpr+1); }
+};
+
+/// AtomicExpr - Variadic atomic builtins: __atomic_exchange, __atomic_fetch_*,
+/// __atomic_load, __atomic_store, and __atomic_compare_exchange_*, for the
+/// similarly-named C++0x instructions.  All of these instructions take one
+/// primary pointer and at least one memory order.
+class AtomicExpr : public Expr {
+public:
+  enum AtomicOp { Load, Store, CmpXchgStrong, CmpXchgWeak, Xchg,
+                  Add, Sub, And, Or, Xor };
+private:
+  enum { PTR, ORDER, VAL1, ORDER_FAIL, VAL2, END_EXPR };
+  Stmt* SubExprs[END_EXPR];
+  unsigned NumSubExprs;
+  SourceLocation BuiltinLoc, RParenLoc;
+  AtomicOp Op;
+
+public:
+  AtomicExpr(SourceLocation BLoc, Expr **args, unsigned nexpr, QualType t,
+             AtomicOp op, SourceLocation RP);
+
+  /// \brief Build an empty AtomicExpr.
+  explicit AtomicExpr(EmptyShell Empty) : Expr(AtomicExprClass, Empty) { }
+
+  Expr *getPtr() const {
+    return cast<Expr>(SubExprs[PTR]);
+  }
+  void setPtr(Expr *E) {
+    SubExprs[PTR] = E;
+  }
+  Expr *getOrder() const {
+    return cast<Expr>(SubExprs[ORDER]);
+  }
+  void setOrder(Expr *E) {
+    SubExprs[ORDER] = E;
+  }
+  Expr *getVal1() const {
+    assert(NumSubExprs >= 3);
+    return cast<Expr>(SubExprs[VAL1]);
+  }
+  void setVal1(Expr *E) {
+    assert(NumSubExprs >= 3);
+    SubExprs[VAL1] = E;
+  }
+  Expr *getOrderFail() const {
+    assert(NumSubExprs == 5);
+    return cast<Expr>(SubExprs[ORDER_FAIL]);
+  }
+  void setOrderFail(Expr *E) {
+    assert(NumSubExprs == 5);
+    SubExprs[ORDER_FAIL] = E;
+  }
+  Expr *getVal2() const {
+    assert(NumSubExprs == 5);
+    return cast<Expr>(SubExprs[VAL2]);
+  }
+  void setVal2(Expr *E) {
+    assert(NumSubExprs == 5);
+    SubExprs[VAL2] = E;
+  }
+
+  AtomicOp getOp() const { return Op; }
+  void setOp(AtomicOp op) { Op = op; }
+  unsigned getNumSubExprs() { return NumSubExprs; }
+  void setNumSubExprs(unsigned num) { NumSubExprs = num; }
+
+  Expr **getSubExprs() { return reinterpret_cast<Expr **>(SubExprs); }
+
+  bool isVolatile() const {
+    return getPtr()->getType()->getPointeeType().isVolatileQualified();
+  }
+
+  bool isCmpXChg() const {
+    return getOp() == AtomicExpr::CmpXchgStrong ||
+           getOp() == AtomicExpr::CmpXchgWeak;
+  }
+
+  SourceLocation getBuiltinLoc() const { return BuiltinLoc; }
+  void setBuiltinLoc(SourceLocation L) { BuiltinLoc = L; }
+
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+  void setRParenLoc(SourceLocation L) { RParenLoc = L; }
+
+  SourceRange getSourceRange() const {
+    return SourceRange(BuiltinLoc, RParenLoc);
+  }
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == AtomicExprClass;
+  }
+  static bool classof(const AtomicExpr *) { return true; }
+
+  // Iterators
+  child_range children() {
+    return child_range(SubExprs, SubExprs+NumSubExprs);
+  }
 };
 }  // end namespace clang
 

@@ -99,7 +99,7 @@ struct sapic_rte {
 	uint64_t	rte_destination_id	:8;
 };
 
-MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
+static MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
 
 struct sapic *ia64_sapics[16];		/* XXX make this resizable */
 int ia64_sapic_count;

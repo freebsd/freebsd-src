@@ -95,7 +95,7 @@ static int iso_mountfs(struct vnode *devvp, struct mount *mp);
  */
 
 static int
-cd9660_cmount(struct mntarg *ma, void *data, int flags)
+cd9660_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct iso_args args;
 	struct export_args exp;
@@ -205,7 +205,7 @@ iso_mountfs(devvp, mp)
 	struct vnode *devvp;
 	struct mount *mp;
 {
-	struct iso_mnt *isomp = (struct iso_mnt *)0;
+	struct iso_mnt *isomp = NULL;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
 	struct cdev *dev;
@@ -484,7 +484,7 @@ out:
 		PICKUP_GIANT();
 	}
 	if (isomp) {
-		free((caddr_t)isomp, M_ISOFSMNT);
+		free(isomp, M_ISOFSMNT);
 		mp->mnt_data = NULL;
 	}
 	dev_rel(dev);
@@ -522,7 +522,7 @@ cd9660_unmount(mp, mntflags)
 	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
 	dev_rel(isomp->im_dev);
-	free((caddr_t)isomp, M_ISOFSMNT);
+	free(isomp, M_ISOFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;

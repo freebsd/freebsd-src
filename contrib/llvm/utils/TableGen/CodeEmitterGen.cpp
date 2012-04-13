@@ -15,7 +15,7 @@
 
 #include "CodeEmitterGen.h"
 #include "CodeGenTarget.h"
-#include "Record.h"
+#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -41,18 +41,22 @@ void CodeEmitterGen::reverseBits(std::vector<Record*> &Insts) {
     BitsInit *BI = R->getValueAsBitsInit("Inst");
 
     unsigned numBits = BI->getNumBits();
-    BitsInit *NewBI = new BitsInit(numBits);
+ 
+    SmallVector<Init *, 16> NewBits(numBits);
+ 
     for (unsigned bit = 0, end = numBits / 2; bit != end; ++bit) {
       unsigned bitSwapIdx = numBits - bit - 1;
       Init *OrigBit = BI->getBit(bit);
       Init *BitSwap = BI->getBit(bitSwapIdx);
-      NewBI->setBit(bit, BitSwap);
-      NewBI->setBit(bitSwapIdx, OrigBit);
+      NewBits[bit]        = BitSwap;
+      NewBits[bitSwapIdx] = OrigBit;
     }
     if (numBits % 2) {
       unsigned middle = (numBits + 1) / 2;
-      NewBI->setBit(middle, BI->getBit(middle));
+      NewBits[middle] = BI->getBit(middle);
     }
+
+    BitsInit *NewBI = BitsInit::get(NewBits);
 
     // Update the bits in reversed order so that emitInstrOpBits will get the
     // correct endianness.

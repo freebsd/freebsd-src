@@ -187,7 +187,7 @@ mmu_setup_paged(struct bootinfo *bi)
 	pa = ia64_va2pa(ia64_text_start, &ia64_text_size);
 	ia64_text_size = sz;	/* XXX */
 	shft = sz2shft(ia64_text_start, ia64_text_size);
-	shft = mmu_wire(ia64_text_start, (uintptr_t)pa, shft, PTE_AR_RX);
+	shft = mmu_wire(ia64_text_start, (uintptr_t)pa, shft, PTE_AR_RWX);
 	ia64_copyin(&shft, (uintptr_t)&bi->bi_text_mapped, 4);
 
 	/* Wire as much of the data segment as well. */

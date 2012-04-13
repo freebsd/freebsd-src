@@ -62,6 +62,7 @@ struct ps3pic_softc {
 	volatile uint64_t *mask_thread1;
 
 	uint64_t	sc_ipi_outlet[2];
+	uint64_t	sc_ipi_virq;
 	int		sc_vector[64];
 };
 
@@ -131,20 +132,23 @@ ps3pic_attach(device_t dev)
 	thread = 32 - fls(mfctrl());
 	lv1_configure_irq_state_bitmap(ppe, thread,
 	    vtophys(sc->bitmap_thread0));
+
+	sc->sc_ipi_virq = 63;
+
 #ifdef SMP
 	lv1_configure_irq_state_bitmap(ppe, !thread,
 	    vtophys(sc->bitmap_thread1));
 
 	/* Map both IPIs to the same VIRQ to avoid changes in intr_machdep */
 	lv1_construct_event_receive_port(&sc->sc_ipi_outlet[0]);
-	lv1_connect_irq_plug_ext(ppe, thread, sc->sc_ipi_outlet[0],
+	lv1_connect_irq_plug_ext(ppe, thread, sc->sc_ipi_virq,
 	    sc->sc_ipi_outlet[0], 0);
 	lv1_construct_event_receive_port(&sc->sc_ipi_outlet[1]);
-	lv1_connect_irq_plug_ext(ppe, !thread, sc->sc_ipi_outlet[0],
+	lv1_connect_irq_plug_ext(ppe, !thread, sc->sc_ipi_virq,
 	    sc->sc_ipi_outlet[1], 0);
 #endif
 
-	powerpc_register_pic(dev, 0, sc->sc_ipi_outlet[0], 1, FALSE);
+	powerpc_register_pic(dev, 0, sc->sc_ipi_virq, 1, FALSE);
 	return (0);
 }
 
@@ -216,7 +220,7 @@ ps3pic_mask(device_t dev, u_int irq)
 	sc = device_get_softc(dev);
 
 	/* Do not mask IPIs! */
-	if (irq == sc->sc_ipi_outlet[0])
+	if (irq == sc->sc_ipi_virq)
 		return;
 
 	atomic_clear_64(&sc->mask_thread0[0], 1UL << (63 - irq));

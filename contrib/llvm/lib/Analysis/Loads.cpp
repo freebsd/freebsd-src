@@ -63,7 +63,7 @@ static Value *getUnderlyingObjectWithOffset(Value *V, const TargetData *TD,
         return V;
       SmallVector<Value*, 8> Indices(GEP->op_begin() + 1, GEP->op_end());
       ByteOffset += TD->getIndexedOffset(GEP->getPointerOperandType(),
-                                         &Indices[0], Indices.size());
+                                         Indices);
       V = GEP->getPointerOperand();
     } else if (Operator::getOpcode(V) == Instruction::BitCast) {
       V = cast<Operator>(V)->getOperand(0);
@@ -90,7 +90,7 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
   if (TD)
     Base = getUnderlyingObjectWithOffset(V, TD, ByteOffset);
 
-  const Type *BaseType = 0;
+  Type *BaseType = 0;
   unsigned BaseAlign = 0;
   if (const AllocaInst *AI = dyn_cast<AllocaInst>(Base)) {
     // An alloca is safe to load from as load as it is suitably aligned.
@@ -114,7 +114,7 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
         return true; // Loading directly from an alloca or global is OK.
 
       // Check if the load is within the bounds of the underlying object.
-      const PointerType *AddrTy = cast<PointerType>(V->getType());
+      PointerType *AddrTy = cast<PointerType>(V->getType());
       uint64_t LoadSize = TD->getTypeStoreSize(AddrTy->getElementType());
       if (ByteOffset + LoadSize <= TD->getTypeAllocSize(BaseType) &&
           (Align == 0 || (ByteOffset % Align) == 0))
@@ -169,7 +169,7 @@ Value *llvm::FindAvailableLoadedValue(Value *Ptr, BasicBlock *ScanBB,
   // If we're using alias analysis to disambiguate get the size of *Ptr.
   uint64_t AccessSize = 0;
   if (AA) {
-    const Type *AccessTy = cast<PointerType>(Ptr->getType())->getElementType();
+    Type *AccessTy = cast<PointerType>(Ptr->getType())->getElementType();
     AccessSize = AA->getTypeStoreSize(AccessTy);
   }
   
@@ -188,12 +188,16 @@ Value *llvm::FindAvailableLoadedValue(Value *Ptr, BasicBlock *ScanBB,
     
     --ScanFrom;
     // If this is a load of Ptr, the loaded value is available.
+    // (This is true even if the load is volatile or atomic, although
+    // those cases are unlikely.)
     if (LoadInst *LI = dyn_cast<LoadInst>(Inst))
       if (AreEquivalentAddressValues(LI->getOperand(0), Ptr))
         return LI;
     
     if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
       // If this is a store through Ptr, the value is available!
+      // (This is true even if the store is volatile or atomic, although
+      // those cases are unlikely.)
       if (AreEquivalentAddressValues(SI->getOperand(1), Ptr))
         return SI->getOperand(0);
       

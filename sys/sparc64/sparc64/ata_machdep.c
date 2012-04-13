@@ -36,14 +36,13 @@ sparc64_ata_disk_firmware_geom_adjust(struct disk *disk)
 {
 
 	/*
-	 * The Sun disk label only uses 16-bit fields for cylinders,
-	 * heads and sectors so the geometry of large IDE disks has
-	 * to be adjusted.  If the disk is > 32GB at 16 heads and 63
-	 * sectors, the sectors have to be adjusted to 255.  If the
-	 * the disk is even > 128GB, additionally adjust the heads
-	 * to 255.
-	 * XXX the OpenSolaris dad(7D) driver limits the mediasize
-	 * to 128GB.
+	 * The VTOC8 disk label only uses 16-bit fields for cylinders, heads
+	 * and sectors so the geometry of large disks has to be adjusted.
+	 * If the disk is > 32GB at 16 heads and 63 sectors, adjust to 255
+	 * sectors (this matches what the OpenSolaris dad(7D) driver does).
+	 * If the the disk is even > 128GB, additionally adjust the heads to
+	 * 255.  This allows disks up to the 2TB limit of the extended VTOC8.
+	 * XXX the OpenSolaris dad(7D) driver limits the mediasize to 128GB.
 	 */
 	if (disk->d_mediasize > (off_t)65535 * 16 * 63 * disk->d_sectorsize)
 		disk->d_fwsectors = 255;

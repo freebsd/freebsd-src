@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_load.c 408 2007-12-21 11:36:24Z des $
+ * $Id: openpam_load.c 491 2011-11-12 00:12:32Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <dlfcn.h>
 #include <stdlib.h>
@@ -42,24 +46,6 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
-
-const char *_pam_func_name[PAM_NUM_PRIMITIVES] = {
-	"pam_authenticate",
-	"pam_setcred",
-	"pam_acct_mgmt",
-	"pam_open_session",
-	"pam_close_session",
-	"pam_chauthtok"
-};
-
-const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES] = {
-	"pam_sm_authenticate",
-	"pam_sm_setcred",
-	"pam_sm_acct_mgmt",
-	"pam_sm_open_session",
-	"pam_sm_close_session",
-	"pam_sm_chauthtok"
-};
 
 /*
  * Locate a matching dynamic or static module.
@@ -122,10 +108,8 @@ openpam_destroy_chain(pam_chain_t *chain)
 		return;
 	openpam_destroy_chain(chain->next);
 	chain->next = NULL;
-	while (chain->optc) {
-		--chain->optc;
+	while (chain->optc--)
 		FREE(chain->optv[chain->optc]);
-	}
 	FREE(chain->optv);
 	openpam_release_module(chain->module);
 	chain->module = NULL;

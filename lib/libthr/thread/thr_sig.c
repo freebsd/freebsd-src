@@ -32,6 +32,7 @@
 #include <sys/signalvar.h>
 #include <signal.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include "un-namespace.h"
@@ -314,16 +315,24 @@ check_cancel(struct pthread *curthread, ucontext_t *ucp)
 static void
 check_deferred_signal(struct pthread *curthread)
 {
-	ucontext_t uc;
+	ucontext_t *uc;
 	struct sigaction act;
 	siginfo_t info;
 
 	if (__predict_true(curthread->deferred_siginfo.si_signo == 0))
 		return;
-	getcontext(&uc);
+
+#if defined(__amd64__) || defined(__i386__)
+	uc = alloca(__getcontextx_size());
+	__fillcontextx((char *)uc);
+#else
+	ucontext_t ucv;
+	uc = &ucv;
+	getcontext(uc);
+#endif
 	if (curthread->deferred_siginfo.si_signo != 0) {
 		act = curthread->deferred_sigact;
-		uc.uc_sigmask = curthread->deferred_sigmask;
+		uc->uc_sigmask = curthread->deferred_sigmask;
 		memcpy(&info, &curthread->deferred_siginfo, sizeof(siginfo_t));
 		/* remove signal */
 		curthread->deferred_siginfo.si_signo = 0;
@@ -334,7 +343,7 @@ check_deferred_signal(struct pthread *curthread)
 			tact.sa_handler = SIG_DFL;
 			_sigaction(info.si_signo, &tact, NULL);
 		}
-		handle_signal(&act, info.si_signo, &info, &uc);
+		handle_signal(&act, info.si_signo, &info, uc);
 	}
 }
 
@@ -449,7 +458,7 @@ _thr_signal_prefork(void)
 {
 	int i;
 
-	for (i = 1; i < _SIG_MAXSIG; ++i)
+	for (i = 1; i <= _SIG_MAXSIG; ++i)
 		_thr_rwl_rdlock(&_thr_sigact[i-1].lock);
 }
 
@@ -458,7 +467,7 @@ _thr_signal_postfork(void)
 {
 	int i;
 
-	for (i = 1; i < _SIG_MAXSIG; ++i)
+	for (i = 1; i <= _SIG_MAXSIG; ++i)
 		_thr_rwl_unlock(&_thr_sigact[i-1].lock);
 }
 
@@ -467,7 +476,7 @@ _thr_signal_postfork_child(void)
 {
 	int i;
 
-	for (i = 1; i < _SIG_MAXSIG; ++i)
+	for (i = 1; i <= _SIG_MAXSIG; ++i)
 		bzero(&_thr_sigact[i-1].lock, sizeof(struct urwlock));
 }
 

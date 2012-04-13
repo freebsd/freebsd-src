@@ -10,6 +10,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "machine/sysarch.h"
+
 #include "debug.h"
 #include "rtld.h"
 
@@ -51,6 +54,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 			symlook_init(&req, name);
 			req.ventry = fetch_ventry(dstobj,
 			    ELF_R_SYM(rel->r_info));
+			req.flags = SYMLOOK_EARLY;
+
 			for (srcobj = dstobj->next;  srcobj != NULL; 
 			     srcobj = srcobj->next) {
 				res = symlook_obj(&req, srcobj);
@@ -132,7 +137,7 @@ store_ptr(void *where, Elf_Addr val)
 
 static int
 reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
-    RtldLockState *lockstate)
+    int flags, RtldLockState *lockstate)
 {
 	Elf_Addr        *where;
 	const Elf_Sym   *def;
@@ -158,7 +163,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
 		if (addend & 0x00800000)
 			addend |= 0xff000000;
 		
-		def = find_symdef(symnum, obj, &defobj, false, cache,
+		def = find_symdef(symnum, obj, &defobj, flags, cache,
 		    lockstate);
 		if (def == NULL)
 				return -1;
@@ -185,7 +190,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
 
 		case R_ARM_ABS32:	/* word32 B + S + A */
 		case R_ARM_GLOB_DAT:	/* word32 B + S */
-			def = find_symdef(symnum, obj, &defobj, false, cache,
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
 			    lockstate);
 			if (def == NULL)
 				return -1;
@@ -233,6 +238,63 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
 			dbg("COPY (avoid in main)");
 			break;
 
+		case R_ARM_TLS_DTPOFF32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			tmp = (Elf_Addr)(def->st_value);
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+
+			dbg("TLS_DTPOFF32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+
+			break;
+		case R_ARM_TLS_DTPMOD32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			tmp = (Elf_Addr)(defobj->tlsindex);
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+
+			dbg("TLS_DTPMOD32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+
+			break;
+
+		case R_ARM_TLS_TPOFF32:
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return -1;
+
+			if (!defobj->tls_done && allocate_tls_offset(obj))
+				return -1;
+
+			/* XXX: FIXME */
+			tmp = (Elf_Addr)def->st_value + defobj->tlsoffset +
+			    TLS_TCB_SIZE;
+			if (__predict_true(RELOC_ALIGNED_P(where)))
+				*where = tmp;
+			else
+				store_ptr(where, tmp);
+			dbg("TLS_TPOFF32 %s in %s --> %p",
+			    obj->strtab + obj->symtab[symnum].st_name,
+			    obj->path, (void *)tmp);
+			break;
+
+
 		default:
 			dbg("sym = %lu, type = %lu, offset = %p, "
 			    "contents = %p, symbol = %s",
@@ -251,7 +313,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
  *  * Process non-PLT relocations
  *   */
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
+    RtldLockState *lockstate)
 {
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
@@ -270,7 +333,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 
 	rellim = (const Elf_Rel *)((caddr_t)obj->rel + obj->relsize);
 	for (rel = obj->rel; rel < rellim; rel++) {
-		if (reloc_nonplt_object(obj, rel, cache, lockstate) < 0)
+		if (reloc_nonplt_object(obj, rel, cache, flags, lockstate) < 0)
 			goto done;
 	}
 	r = 0;
@@ -307,7 +370,7 @@ reloc_plt(Obj_Entry *obj)
  *  * LD_BIND_NOW was set - force relocation for all jump slots
  *   */
 int
-reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
+reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
 	const Obj_Entry *defobj;
 	const Elf_Rel *rellim;
@@ -321,7 +384,7 @@ reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 		assert(ELF_R_TYPE(rel->r_info) == R_ARM_JUMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 		def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		    true, NULL, lockstate);
+		    SYMLOOK_IN_PLT | flags, NULL, lockstate);
 		if (def == NULL) {
 			dbg("reloc_jmpslots: sym not found");
 			return (-1);
@@ -334,6 +397,23 @@ reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 	
 	obj->jmpslots_done = true;
 	
+	return (0);
+}
+
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, int flags,
+    struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
 	return (0);
 }
 
@@ -353,11 +433,26 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
-	
+	void **_tp = (void **)ARM_TP_ADDRESS;
+
+	/*
+	* Fix the size of the static TLS block by using the maximum
+	* offset allocated so far and adding a bit for dynamic modules to
+	* use.
+	*/
+
+	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+
+	(*_tp) = (void *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8);
 }
 
 void *
 __tls_get_addr(tls_index* ti)
 {
-	return (NULL);
+	void **_tp = (void **)ARM_TP_ADDRESS;
+	char *p;
+
+	p = tls_get_addr_common((Elf_Addr **)(*_tp), ti->ti_module, ti->ti_offset);
+
+	return (p);
 }

@@ -61,10 +61,6 @@ struct smbfs_args {
 
 #include <sys/_sx.h>
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_SMBFSMNT);
-#endif
-
 struct smbnode;
 struct smb_share;
 struct u_cred;

@@ -292,8 +292,15 @@ tftp_makereq(struct tftp_handle *h)
 	wbuf.t.th_opcode = htons((u_short) RRQ);
 	wtail = wbuf.t.th_stuff;
 	l = strlen(h->path);
+#ifdef TFTP_PREPEND_PATH
+	if (l > FNAME_SIZE - (sizeof(TFTP_PREPEND_PATH) - 1))
+		return (ENAMETOOLONG);
+	bcopy(TFTP_PREPEND_PATH, wtail, sizeof(TFTP_PREPEND_PATH) - 1);
+	wtail += sizeof(TFTP_PREPEND_PATH) - 1;
+#else
 	if (l > FNAME_SIZE)
 		return (ENAMETOOLONG);
+#endif
 	bcopy(h->path, wtail, l + 1);
 	wtail += l + 1;
 	bcopy("octet", wtail, 6);

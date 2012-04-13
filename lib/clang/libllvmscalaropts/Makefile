@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmscalaropts
 
 SRCDIR=	lib/Transforms/Scalar
@@ -29,8 +31,14 @@ SRCS=	ADCE.cpp \
 	SimplifyCFGPass.cpp \
 	SimplifyLibCalls.cpp \
 	Sink.cpp \
-	TailDuplication.cpp \
 	TailRecursionElimination.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	LoopInstSimplify.cpp \
+	LowerAtomic.cpp \
+	Reg2Mem.cpp \
+	Scalar.cpp
+.endif
 
 TGHDRS=	Intrinsics
 

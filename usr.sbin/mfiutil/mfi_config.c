@@ -211,9 +211,8 @@ clear_config(int ac, char **av)
 }
 MFI_COMMAND(top, clear, clear_config);
 
-#define	MFI_ARRAY_SIZE		288
-#define	MAX_DRIVES_PER_ARRAY						\
-	((MFI_ARRAY_SIZE - sizeof(struct mfi_array)) / 8)
+#define MAX_DRIVES_PER_ARRAY MFI_MAX_ROW_SIZE
+#define MFI_ARRAY_SIZE sizeof(struct mfi_array)
 
 #define	RT_RAID0	0
 #define	RT_RAID1	1
@@ -305,7 +304,7 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 
 	/* Validate the number of drives for this array. */
 	if (count >= MAX_DRIVES_PER_ARRAY) {
-		warnx("Too many drives for a single array: max is %zu",
+		warnx("Too many drives for a single array: max is %d",
 		    MAX_DRIVES_PER_ARRAY);
 		return (EINVAL);
 	}
@@ -348,6 +347,7 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 		error = mfi_lookup_drive(fd, cp, &device_id);
 		if (error) {
 			free(info->drives);
+			info->drives = NULL;
 			return (error);
 		}
 
@@ -355,12 +355,14 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 			error = errno;
 			warn("Failed to fetch drive info for drive %s", cp);
 			free(info->drives);
+			info->drives = NULL;
 			return (error);
 		}
 
 		if (pinfo->fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
 			warnx("Drive %u is not available", device_id);
 			free(info->drives);
+			info->drives = NULL;
 			return (EINVAL);
 		}
 	}
@@ -817,9 +819,11 @@ error:
 	free(config);
 	free(state.volumes);
 	free(state.arrays);
-	for (i = 0; i < narrays; i++)
-		free(arrays[i].drives);
-	free(arrays);
+	if (arrays != NULL) {
+		for (i = 0; i < narrays; i++)
+			free(arrays[i].drives);
+		free(arrays);
+	}
 	close(fd);
 
 	return (error);

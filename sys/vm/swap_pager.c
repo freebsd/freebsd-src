@@ -233,7 +233,7 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	}
 	if (!res && ppsratecheck(&lastfail, &curfail, 1)) {
 		printf("uid %d, pid %d: swap reservation for %jd bytes failed\n",
-		    curproc->p_pid, uip->ui_uid, incr);
+		    uip->ui_uid, curproc->p_pid, incr);
 	}
 
 #ifdef RACCT
@@ -2320,7 +2320,7 @@ swapoff_all(void)
 	TAILQ_FOREACH_SAFE(sp, &swtailq, sw_list, spt) {
 		mtx_unlock(&sw_dev_mtx);
 		if (vn_isdisk(sp->sw_vp, NULL))
-			devname = sp->sw_vp->v_rdev->si_name;
+			devname = devtoname(sp->sw_vp->v_rdev);
 		else
 			devname = "[file]";
 		error = swapoff_one(sp, thread0.td_ucred);
@@ -2358,7 +2358,7 @@ int
 swap_dev_info(int name, struct xswdev *xs, char *devname, size_t len)
 {
 	struct swdevt *sp;
-	char *tmp_devname;
+	const char *tmp_devname;
 	int error, n;
 
 	n = 0;
@@ -2376,7 +2376,7 @@ swap_dev_info(int name, struct xswdev *xs, char *devname, size_t len)
 		xs->xsw_used = sp->sw_used;
 		if (devname != NULL) {
 			if (vn_isdisk(sp->sw_vp, NULL))
-				tmp_devname = sp->sw_vp->v_rdev->si_name;
+				tmp_devname = devtoname(sp->sw_vp->v_rdev);
 			else
 				tmp_devname = "[file]";
 			strncpy(devname, tmp_devname, len);
@@ -2521,7 +2521,7 @@ swapgeom_orphan(struct g_consumer *cp)
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list)
 		if (sp->sw_id == cp)
-			sp->sw_id = NULL;
+			sp->sw_flags |= SW_CLOSING;
 	mtx_unlock(&sw_dev_mtx);
 }
 

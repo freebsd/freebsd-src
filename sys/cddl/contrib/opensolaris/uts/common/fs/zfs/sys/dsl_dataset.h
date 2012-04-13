@@ -20,6 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_DSL_DATASET_H
@@ -178,6 +181,12 @@ struct dsl_ds_holdarg {
 	char failed[MAXPATHLEN];
 };
 
+/*
+ * Flags for dsl_dataset_rename().
+ */
+#define	ZFS_RENAME_RECURSIVE		0x01
+#define	ZFS_RENAME_ALLOW_MOUNTED	0x02
+
 #define	dsl_dataset_is_snapshot(ds) \
 	((ds)->ds_phys->ds_num_children != 0)
 
@@ -211,7 +220,7 @@ dsl_syncfunc_t dsl_dataset_destroy_sync;
 dsl_checkfunc_t dsl_dataset_snapshot_check;
 dsl_syncfunc_t dsl_dataset_snapshot_sync;
 dsl_syncfunc_t dsl_dataset_user_hold_sync;
-int dsl_dataset_rename(char *name, const char *newname, boolean_t recursive);
+int dsl_dataset_rename(char *name, const char *newname, int flags);
 int dsl_dataset_promote(const char *name, char *conflsnap);
 int dsl_dataset_clone_swap(dsl_dataset_t *clone, dsl_dataset_t *origin_head,
     boolean_t force);
@@ -249,6 +258,10 @@ void dsl_dataset_space(dsl_dataset_t *ds,
     uint64_t *refdbytesp, uint64_t *availbytesp,
     uint64_t *usedobjsp, uint64_t *availobjsp);
 uint64_t dsl_dataset_fsid_guid(dsl_dataset_t *ds);
+int dsl_dataset_space_written(dsl_dataset_t *oldsnap, dsl_dataset_t *new,
+    uint64_t *usedp, uint64_t *compp, uint64_t *uncompp);
+int dsl_dataset_space_wouldfree(dsl_dataset_t *firstsnap, dsl_dataset_t *last,
+    uint64_t *usedp, uint64_t *compp, uint64_t *uncompp);
 
 int dsl_dsobj_to_dsname(char *pname, uint64_t obj, char *buf);
 

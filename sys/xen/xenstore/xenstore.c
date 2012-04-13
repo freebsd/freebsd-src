@@ -559,7 +559,7 @@ xs_read_store(void *tdata, unsigned len)
 			 * when msleep returns.
 			 */
 			error = msleep(xen_store, &xs.ring_lock, PCATCH|PDROP,
-			    "xbread", /*timout*/0);
+			    "xbread", /*timeout*/0);
 			if (error && error != EWOULDBLOCK)
 				return (error);
 			continue;
@@ -1252,13 +1252,12 @@ static device_method_t xenstore_methods[] = {
  
 	/* Bus interface */ 
 	DEVMETHOD(bus_add_child,        bus_generic_add_child),
-	DEVMETHOD(bus_print_child,      bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
- 
-	{ 0, 0 } 
+
+	DEVMETHOD_END
 }; 
 
 DEFINE_CLASS_0(xenstore, xenstore_driver, xenstore_methods, 0);

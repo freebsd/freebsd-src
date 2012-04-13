@@ -61,29 +61,82 @@
 #define	HIDENAME(asmsym)	__CONCAT(.,asmsym)
 #endif
 
-#define	_GLOBAL(x) \
-	.data; .align 2; .globl x; x:
+#ifdef _KERNEL
+#define	DOT_LABEL(name)		__CONCAT(.,name)
+#define	TYPE_ENTRY(name)	.size	name,24; \
+				.type	DOT_LABEL(name),@function; \
+				.globl	DOT_LABEL(name);
+#define	END_SIZE(name)		.size	DOT_LABEL(name),.-DOT_LABEL(name);
+#else /* !_KERNEL */
+#define	DOT_LABEL(name)		__CONCAT(.L.,name)
+#define	TYPE_ENTRY(name)	.type	name,@function;
+#define	END_SIZE(name)		.size	name,.-DOT_LABEL(name);
+#endif /* _KERNEL */
 
-#ifdef __powerpc64__ 
-#define _ENTRY(x) \
-	.text; .align 2; .globl x; .section ".opd","aw"; \
-	.align 3; x: \
-	    .quad .L.x,.TOC.@tocbase,0; .size x,24; .previous; \
-	.align 4; .type x,@function; .L.x:
-#else
-#define	_ENTRY(x) \
-	.text; .align 4; .globl x; .type x,@function; x:
-#endif
+#define	_GLOBAL(name) \
+	.data; \
+	.p2align 2; \
+	.globl	name; \
+	name:
+
+#ifdef __powerpc64__
+#define	_ENTRY(name) \
+	.section ".text"; \
+	.p2align 2; \
+	.globl	name; \
+	.section ".opd","aw"; \
+	.p2align 3; \
+	name: \
+	.quad	DOT_LABEL(name),.TOC.@tocbase,0; \
+	.previous; \
+	.p2align 4; \
+	TYPE_ENTRY(name) \
+DOT_LABEL(name):
+
+#define	_END(name) \
+	.long	0; \
+	.byte	0,0,0,0,0,0,0,0; \
+	END_SIZE(name)
+#else /* !__powerpc64__ */
+#define	_ENTRY(name) \
+	.text; \
+	.p2align 4; \
+	.globl	name; \
+	.type	name,@function; \
+	name:
+#define	_END(name)
+#endif /* __powerpc64__ */
 
 #if defined(PROF) || (defined(_KERNEL) && defined(GPROF))
-# define	_PROF_PROLOGUE	mflr 0; stw 0,4(1); bl _mcount
+# ifdef __powerpc64__
+#   define	_PROF_PROLOGUE	mflr 0;					\
+				std 3,48(1);				\
+				std 4,56(1);				\
+				std 5,64(1);				\
+				std 0,16(1);				\
+				stdu 1,-112(1);				\
+				bl _mcount;				\
+				nop;					\
+				ld 0,112+16(1);				\
+				ld 3,112+48(1);				\
+				ld 4,112+56(1);				\
+				ld 5,112+64(1);				\
+				mtlr 0;					\
+				addi 1,1,112
+# else
+#   define	_PROF_PROLOGUE	mflr 0; stw 0,4(1); bl _mcount
+# endif
 #else
 # define	_PROF_PROLOGUE
 #endif
 
-#define	ENTRY(y)	_ENTRY(CNAME(y)); _PROF_PROLOGUE
 #define	ASENTRY(y)	_ENTRY(ASMNAME(y)); _PROF_PROLOGUE
+#define	END(y)		_END(CNAME(y))
+#define	ENTRY(y)	_ENTRY(CNAME(y)); _PROF_PROLOGUE
 #define	GLOBAL(y)	_GLOBAL(CNAME(y))
+
+#define	ASENTRY_NOPROF(y)	_ENTRY(ASMNAME(y))
+#define	ENTRY_NOPROF(y)		_ENTRY(CNAME(y))
 
 #define	ASMSTR		.asciz
 
@@ -96,9 +149,9 @@
 #define __FBSDID(s)	/* nothing */
 #endif /* not lint and not STRIP_FBSDID */
 
-#define	WEAK_ALIAS(alias,sym)					\
+#define	WEAK_REFERENCE(sym, alias)				\
 	.weak alias;						\
-	alias = sym
+	.equ alias,sym
 
 #ifdef __STDC__
 #define	WARN_REFERENCES(_sym,_msg)				\

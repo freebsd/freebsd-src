@@ -145,15 +145,12 @@ static device_method_t udav_methods[] = {
 	DEVMETHOD(device_attach, udav_attach),
 	DEVMETHOD(device_detach, udav_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, udav_miibus_readreg),
 	DEVMETHOD(miibus_writereg, udav_miibus_writereg),
 	DEVMETHOD(miibus_statchg, udav_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t udav_driver = {
@@ -187,7 +184,7 @@ static const struct usb_ether_methods udav_ue_methods = {
 #ifdef USB_DEBUG
 static int udav_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
 SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
     "Debug level");
 #endif
@@ -645,7 +642,7 @@ udav_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen < sizeof(stat) + ETHER_CRC_LEN) {
+		if (actlen < (int)(sizeof(stat) + ETHER_CRC_LEN)) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
@@ -751,9 +748,9 @@ udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	UDAV_LOCK(sc);
 	mii_pollstat(mii);
-	UDAV_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	UDAV_UNLOCK(sc);
 }
 
 static void

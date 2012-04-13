@@ -130,7 +130,12 @@ cdcmd(int argc, char **argv)
 	    (path = bltinlookup("CDPATH", 1)) == NULL)
 		path = nullstr;
 	while ((p = padvance(&path, dest)) != NULL) {
-		if (stat(p, &statb) >= 0 && S_ISDIR(statb.st_mode)) {
+		if (stat(p, &statb) < 0) {
+			if (errno != ENOENT)
+				errno1 = errno;
+		} else if (!S_ISDIR(statb.st_mode))
+			errno1 = ENOTDIR;
+		else {
 			if (!print) {
 				/*
 				 * XXX - rethink

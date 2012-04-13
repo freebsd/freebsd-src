@@ -58,7 +58,7 @@
 #endif
 
 #define NEW(type)	((type *) xmalloc(sizeof(type)))
-#define CNEW(type)	((type *) xcalloc(sizeof(type)))
+#define CNEW(type)	((type *) xcalloc(1, sizeof(type)))
 
 /* We might as well do booleans like C++. */
 typedef unsigned char bool;
@@ -70,6 +70,10 @@ extern size_t tls_last_size;
 extern size_t tls_static_space;
 extern int tls_dtv_generation;
 extern int tls_max_index;
+
+extern int main_argc;
+extern char **main_argv;
+extern char **environ;
 
 struct stat;
 struct Struct_Obj_Entry;
@@ -84,6 +88,7 @@ typedef STAILQ_HEAD(Struct_Objlist, Struct_Objlist_Entry) Objlist;
 
 /* Types of init and fini functions */
 typedef void (*InitFunc)(void);
+typedef void (*InitArrFunc)(int, char **, char **);
 
 /* Lists of shared object dependencies */
 typedef struct Struct_Needed_Entry {
@@ -168,6 +173,9 @@ typedef struct Struct_Obj_Entry {
     size_t tlsoffset;		/* Offset of static TLS block for this module */
     size_t tlsalign;		/* Alignment of static TLS block */
 
+    caddr_t relro_page;
+    size_t relro_size;
+
     /* Items from the dynamic section. */
     Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
     const Elf_Rel *rel;		/* Relocation entries */
@@ -210,9 +218,19 @@ typedef struct Struct_Obj_Entry {
 
     Elf_Addr init;		/* Initialization function to call */
     Elf_Addr fini;		/* Termination function to call */
+    Elf_Addr preinit_array;	/* Pre-initialization array of functions */
+    Elf_Addr init_array;	/* Initialization array of functions */
+    Elf_Addr fini_array;	/* Termination array of functions */
+    int preinit_array_num;	/* Number of entries in preinit_array */
+    int init_array_num; 	/* Number of entries in init_array */
+    int fini_array_num; 	/* Number of entries in fini_array */
+
+    int32_t osrel;		/* OSREL note value */
 
     bool mainprog : 1;		/* True if this is the main program */
     bool rtld : 1;		/* True if this is the dynamic linker */
+    bool relocated : 1;		/* True if processed by relocate_objects() */
+    bool ver_checked : 1;	/* True if processed by rtld_verify_object_versions */
     bool textrel : 1;		/* True if there are relocations to text seg */
     bool symbolic : 1;		/* True if generated with "-Bsymbolic" */
     bool bind_now : 1;		/* True if all relocations should be made first */
@@ -230,13 +248,16 @@ typedef struct Struct_Obj_Entry {
     bool on_fini_list: 1;	/* Object is already on fini list. */
     bool dag_inited : 1;	/* Object has its DAG initialized. */
     bool filtees_loaded : 1;	/* Filtees loaded */
+    bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
+    bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
+    bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
     Objlist dagmembers;		/* DAG has these members (%) */
     dev_t dev;			/* Object's filesystem's device */
     ino_t ino;			/* Object's inode number */
-    void *priv;			/* Platform-dependant */
+    void *priv;			/* Platform-dependent */
 } Obj_Entry;
 
 #define RTLD_MAGIC	0xd550b87a
@@ -246,8 +267,9 @@ typedef struct Struct_Obj_Entry {
 
 /* Flags to be passed into symlook_ family of functions. */
 #define SYMLOOK_IN_PLT	0x01	/* Lookup for PLT symbol */
-#define SYMLOOK_DLSYM	0x02	/* Return newes versioned symbol. Used by
+#define SYMLOOK_DLSYM	0x02	/* Return newest versioned symbol. Used by
 				   dlsym. */
+#define	SYMLOOK_EARLY	0x04	/* Symlook is done during initialization. */
 
 /* Flags for load_object(). */
 #define	RTLD_LO_NOLOAD	0x01	/* dlopen() specified RTLD_NOLOAD. */
@@ -255,6 +277,8 @@ typedef struct Struct_Obj_Entry {
 #define	RTLD_LO_TRACE	0x04	/* Only tracing. */
 #define	RTLD_LO_NODELETE 0x08	/* Loaded object cannot be closed. */
 #define	RTLD_LO_FILTEES 0x10	/* Loading filtee. */
+#define	RTLD_LO_EARLY	0x20	/* Do not call ctors, postpone it to the
+				   initialization during the image start. */
 
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups
@@ -293,18 +317,19 @@ typedef struct Struct_SymLook {
     struct Struct_RtldLockState *lockstate;
 } SymLook;
 
-extern void _rtld_error(const char *, ...) __printflike(1, 2);
-extern Obj_Entry *map_object(int, const char *, const struct stat *);
-extern void *xcalloc(size_t);
-extern void *xmalloc(size_t);
-extern char *xstrdup(const char *);
+void _rtld_error(const char *, ...) __printflike(1, 2);
+const char *rtld_strerror(int);
+Obj_Entry *map_object(int, const char *, const struct stat *);
+void *xcalloc(size_t, size_t);
+void *xmalloc(size_t);
+char *xstrdup(const char *);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
-extern void dump_relocations (Obj_Entry *);
-extern void dump_obj_relocations (Obj_Entry *);
-extern void dump_Elf_Rel (Obj_Entry *, const Elf_Rel *, u_long);
-extern void dump_Elf_Rela (Obj_Entry *, const Elf_Rela *, u_long);
+void dump_relocations(Obj_Entry *);
+void dump_obj_relocations(Obj_Entry *);
+void dump_Elf_Rel(Obj_Entry *, const Elf_Rel *, u_long);
+void dump_Elf_Rela(Obj_Entry *, const Elf_Rela *, u_long);
 
 /*
  * Function declarations.
@@ -314,9 +339,11 @@ const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, int, SymCache *, struct Struct_RtldLockState *);
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
+void digest_notes(Obj_Entry *, Elf_Addr, Elf_Addr);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 void _rtld_bind_start(void);
+void *rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def);
 void symlook_init(SymLook *, const char *);
 int symlook_obj(SymLook *, const Obj_Entry *);
 void *tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset);
@@ -331,9 +358,12 @@ const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);
  * MD function declarations.
  */
 int do_copy_relocations(Obj_Entry *);
-int reloc_non_plt(Obj_Entry *, Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_non_plt(Obj_Entry *, Obj_Entry *, int flags,
+    struct Struct_RtldLockState *);
 int reloc_plt(Obj_Entry *);
-int reloc_jmpslots(Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_jmpslots(Obj_Entry *, int flags, struct Struct_RtldLockState *);
+int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 void allocate_initial_tls(Obj_Entry *);
 
 #endif /* } */

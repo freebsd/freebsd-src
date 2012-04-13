@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/time.h>
 
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -153,7 +155,7 @@ show_serverlist(char *server)
 {
 	int found = 0, connid;
 	struct ncp_bindery_object obj;
-	char *pattern = "*";
+	const char *pattern = "*";
 
 	connid = ncp_get_connid(server, 1);
 	if (connid < 0)
@@ -229,7 +231,7 @@ show_userlist(char *server)
 	return;
 }
 
-void
+static void
 show_queuelist(char *server, char *patt)
 {
 	struct ncp_bindery_object q;
@@ -298,8 +300,8 @@ list_volumes(char *server)
 }
 
 struct ncp_bind_type {
-	u_long	type;
-	char	*name;
+	u_long		type;
+	const char	*name;
 };
 
 static struct ncp_bind_type btypes[] = {
@@ -310,7 +312,7 @@ static struct ncp_bind_type btypes[] = {
 	{0, NULL}
 };
 
-void
+static void
 list_bindery(char *server, char *type, char *patt)
 {
 	struct ncp_bindery_object q;
@@ -373,7 +375,7 @@ enum listop {
 int
 main(int argc, char *argv[])
 {
-	int opt, wdone = 0, nargs = 0, i;
+	int opt, nargs = 0, i;
 	enum listop what;
 	char *args[MAX_ARGS];
 
@@ -436,23 +438,18 @@ main(int argc, char *argv[])
 	switch(what) {
 	    case LO_SERVERS:
 		show_serverlist(args[0]);
-		wdone = 1;
 		break;
 	    case LO_USERS:
 		show_userlist(args[0]);
-		wdone = 1;
 		break;
 	    case LO_QUEUES:
 		show_queuelist(args[0], args[1]);
-		wdone = 1;
 		break;
 	    case LO_VOLUMES:
 		list_volumes(args[0]);
-		wdone = 1;
 		break;
 	    case LO_BINDERY:
 		list_bindery(args[0], args[1], args[2]);
-		wdone = 1;
 		break;
 	    default:
 		help();

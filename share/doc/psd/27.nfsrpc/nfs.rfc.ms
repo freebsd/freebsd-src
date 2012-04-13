@@ -961,7 +961,7 @@ call to get more  entries  starting at a
 given point in  the directory.  The  special cookie zero (all  bits
 zero) can be used to get the entries starting  at the  beginning of
 the directory.  The "fileid" field should be the same number as the
-"fileid" in the the  attributes of the  file.  (See the
+"fileid" in the attributes of the file.  (See the
 .I "Basic Data Types"
 section.) 
 The "eof" flag has a value of

@@ -37,6 +37,7 @@ namespace llvm {
   class DINameSpace;
   class DIVariable;
   class DISubrange;
+  class DILexicalBlockFile;
   class DILexicalBlock;
   class DISubprogram;
   class DITemplateTypeParameter;
@@ -48,8 +49,18 @@ namespace llvm {
     LLVMContext & VMContext;
     MDNode *TheCU;
 
+    MDNode *TempEnumTypes;
+    MDNode *TempRetainTypes;
+    MDNode *TempSubprograms;
+    MDNode *TempGVs;
+
     Function *DeclareFn;     // llvm.dbg.declare
     Function *ValueFn;       // llvm.dbg.value
+
+    SmallVector<Value *, 4> AllEnumTypes;
+    SmallVector<Value *, 4> AllRetainTypes;
+    SmallVector<Value *, 4> AllSubprograms;
+    SmallVector<Value *, 4> AllGVs;
 
     DIBuilder(const DIBuilder &);       // DO NOT IMPLEMENT
     void operator=(const DIBuilder &);  // DO NOT IMPLEMENT
@@ -58,6 +69,9 @@ namespace llvm {
     explicit DIBuilder(Module &M);
     const MDNode *getCU() { return TheCU; }
     enum ComplexAddrKind { OpPlus=1, OpDeref };
+
+    /// finalize - Construct any deferred debug info descriptors.
+    void finalize();
 
     /// createCompileUnit - A CompileUnit provides an anchor for all debugging
     /// information generated during this instance of compilation.
@@ -83,6 +97,9 @@ namespace llvm {
                            
     /// createEnumerator - Create a single enumerator value.
     DIEnumerator createEnumerator(StringRef Name, uint64_t Val);
+
+    /// createNullPtrType - Create C++0x nullptr type.
+    DIType createNullPtrType(StringRef Name);
 
     /// createBasicType - Create debugging information entry for a basic 
     /// type.
@@ -447,6 +464,14 @@ namespace llvm {
                                 DIFile File, unsigned LineNo);
 
 
+    /// createLexicalBlockFile - This creates a descriptor for a lexical
+    /// block with a new file attached. This merely extends the existing
+    /// lexical block as it crosses a file.
+    /// @param Scope       Lexical block.
+    /// @param File        Source file.
+    DILexicalBlockFile createLexicalBlockFile(DIDescriptor Scope,
+					      DIFile File);
+    
     /// createLexicalBlock - This creates a descriptor for a lexical block
     /// with the specified parent context.
     /// @param Scope       Parent lexical scope.

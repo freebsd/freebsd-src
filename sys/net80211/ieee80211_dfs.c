@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 
-MALLOC_DEFINE(M_80211_DFS, "80211dfs", "802.11 DFS state");
+static MALLOC_DEFINE(M_80211_DFS, "80211dfs", "802.11 DFS state");
 
 static	int ieee80211_nol_timeout = 30*60;		/* 30 minutes */
 SYSCTL_INT(_net_wlan, OID_AUTO, nol_timeout, CTLFLAG_RW,
@@ -64,6 +64,34 @@ SYSCTL_INT(_net_wlan, OID_AUTO, cac_timeout, CTLFLAG_RW,
 	&ieee80211_cac_timeout, 0, "CAC timeout (secs)");
 #define	CAC_TIMEOUT	msecs_to_ticks(ieee80211_cac_timeout*1000)
 
+/*
+ DFS* In order to facilitate  debugging, a couple of operating
+ * modes aside from the default are needed.
+ *
+ * 0 - default CAC/NOL behaviour - ie, start CAC, place
+ *     channel on NOL list.
+ * 1 - send CAC, but don't change channel or add the channel
+ *     to the NOL list.
+ * 2 - just match on radar, don't send CAC or place channel in
+ *     the NOL list.
+ */
+static	int ieee80211_dfs_debug = DFS_DBG_NONE;
+
+/*
+ * This option must not be included in the default kernel
+ * as it allows users to plainly disable CAC/NOL handling.
+ */
+#ifdef	IEEE80211_DFS_DEBUG
+SYSCTL_INT(_net_wlan, OID_AUTO, dfs_debug, CTLFLAG_RW,
+	&ieee80211_dfs_debug, 0, "DFS debug behaviour");
+#endif
+
+static int
+null_set_quiet(struct ieee80211_node *ni, u_int8_t *quiet_elm)
+{
+	return ENOSYS;
+}
+
 void
 ieee80211_dfs_attach(struct ieee80211com *ic)
 {
@@ -71,6 +99,8 @@ ieee80211_dfs_attach(struct ieee80211com *ic)
 
 	callout_init_mtx(&dfs->nol_timer, IEEE80211_LOCK_OBJ(ic), 0);
 	callout_init_mtx(&dfs->cac_timer, IEEE80211_LOCK_OBJ(ic), 0);
+
+	ic->ic_set_quiet = null_set_quiet;
 }
 
 void
@@ -270,24 +300,44 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 	IEEE80211_LOCK_ASSERT(ic);
 
 	/*
-	 * Mark all entries with this frequency.  Notify user
-	 * space and arrange for notification when the radar
-	 * indication is cleared.  Then kick the NOL processing
-	 * thread if not already running.
+	 * If doing DFS debugging (mode 2), don't bother
+	 * running the rest of this function.
+	 *
+	 * Simply announce the presence of the radar and continue
+	 * along merrily.
 	 */
-	now = ticks;
-	for (i = 0; i < ic->ic_nchans; i++) {
-		struct ieee80211_channel *c = &ic->ic_channels[i];
-		if (c->ic_freq == chan->ic_freq) {
-			c->ic_state &= ~IEEE80211_CHANSTATE_CACDONE;
-			c->ic_state |= IEEE80211_CHANSTATE_RADAR;
-			dfs->nol_event[i] = now;
-		}
+	if (ieee80211_dfs_debug == DFS_DBG_NOCSANOL) {
+		announce_radar(ic->ic_ifp, chan, chan);
+		ieee80211_notify_radar(ic, chan);
+		return;
 	}
-	ieee80211_notify_radar(ic, chan);
-	chan->ic_state |= IEEE80211_CHANSTATE_NORADAR;
-	if (!callout_pending(&dfs->nol_timer))
-		callout_reset(&dfs->nol_timer, NOL_TIMEOUT, dfs_timeout, ic);
+
+	/*
+	 * Don't mark the channel and don't put it into NOL
+	 * if we're doing DFS debugging.
+	 */
+	if (ieee80211_dfs_debug == DFS_DBG_NONE) {
+		/*
+		 * Mark all entries with this frequency.  Notify user
+		 * space and arrange for notification when the radar
+		 * indication is cleared.  Then kick the NOL processing
+		 * thread if not already running.
+		 */
+		now = ticks;
+		for (i = 0; i < ic->ic_nchans; i++) {
+			struct ieee80211_channel *c = &ic->ic_channels[i];
+			if (c->ic_freq == chan->ic_freq) {
+				c->ic_state &= ~IEEE80211_CHANSTATE_CACDONE;
+				c->ic_state |= IEEE80211_CHANSTATE_RADAR;
+				dfs->nol_event[i] = now;
+			}
+		}
+		ieee80211_notify_radar(ic, chan);
+		chan->ic_state |= IEEE80211_CHANSTATE_NORADAR;
+		if (!callout_pending(&dfs->nol_timer))
+			callout_reset(&dfs->nol_timer, NOL_TIMEOUT,
+			    dfs_timeout, ic);
+	}
 
 	/*
 	 * If radar is detected on the bss channel while
@@ -302,7 +352,15 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 	 */
 	if (chan == ic->ic_bsschan) {
 		/* XXX need a way to defer to user app */
-		dfs->newchan = ieee80211_dfs_pickchannel(ic);
+
+		/*
+		 * Don't flip over to a new channel if
+		 * we are currently doing DFS debugging.
+		 */
+		if (ieee80211_dfs_debug == DFS_DBG_NONE)
+			dfs->newchan = ieee80211_dfs_pickchannel(ic);
+		else
+			dfs->newchan = chan;
 
 		announce_radar(ic->ic_ifp, chan, dfs->newchan);
 

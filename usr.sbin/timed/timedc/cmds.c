@@ -267,7 +267,7 @@ msite(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int cc;
+	ssize_t cc;
 	fd_set ready;
 	struct sockaddr_in dest;
 	int i, length;
@@ -333,7 +333,7 @@ msite(argc, argv)
 			 */
 			if (cc < (sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
 				fprintf(stderr, 
-				   "short packet (%u/%u bytes) from %s\n",
+				   "short packet (%zd/%zu bytes) from %s\n",
 				   cc, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 				   inet_ntoa(from.sin_addr));
 				continue;
@@ -428,7 +428,7 @@ tracing(argc, argv)
 {
 	int onflag;
 	int length;
-	int cc;
+	ssize_t cc;
 	fd_set ready;
 	struct sockaddr_in dest;
 	struct sockaddr_in from;
@@ -489,7 +489,7 @@ tracing(argc, argv)
 		 * least long enough to hold a 4.3BSD packet.
 		 */
 		if (cc < (sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
-			fprintf(stderr, "short packet (%u/%u bytes) from %s\n",
+			fprintf(stderr, "short packet (%zd/%zu bytes) from %s\n",
 			    cc, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 			    inet_ntoa(from.sin_addr));
 			return;

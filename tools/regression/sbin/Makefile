@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	growfs
+SUBDIR=	dhclient growfs
 
 .include <bsd.subdir.mk>

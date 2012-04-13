@@ -20,17 +20,19 @@
 
 namespace llvm {
 
-class Constant;
 class BlockAddress;
+class Constant;
 class GlobalValue;
 class LLVMContext;
+class MachineBasicBlock;
 
 namespace ARMCP {
   enum ARMCPKind {
     CPValue,
     CPExtSymbol,
     CPBlockAddress,
-    CPLSDA
+    CPLSDA,
+    CPMachineBasicBlock
   };
 
   enum ARMCPModifier {
@@ -47,8 +49,6 @@ namespace ARMCP {
 /// represent PC-relative displacement between the address of the load
 /// instruction and the constant being loaded, i.e. (&GV-(LPIC+8)).
 class ARMConstantPoolValue : public MachineConstantPoolValue {
-  const Constant *CVal;    // Constant being loaded.
-  const char *S;           // ExtSymbol being loaded.
   unsigned LabelId;        // Label id of the load.
   ARMCP::ARMCPKind Kind;   // Kind of constant.
   unsigned char PCAdjust;  // Extra adjustment if constantpool is pc-relative.
@@ -56,66 +56,177 @@ class ARMConstantPoolValue : public MachineConstantPoolValue {
   ARMCP::ARMCPModifier Modifier;   // GV modifier i.e. (&GV(modifier)-(LPIC+8))
   bool AddCurrentAddress;
 
-public:
-  ARMConstantPoolValue(const Constant *cval, unsigned id,
-                       ARMCP::ARMCPKind Kind = ARMCP::CPValue,
-                       unsigned char PCAdj = 0,
-                       ARMCP::ARMCPModifier Modifier = ARMCP::no_modifier,
-                       bool AddCurrentAddress = false);
-  ARMConstantPoolValue(LLVMContext &C, const char *s, unsigned id,
-                       unsigned char PCAdj = 0,
-                       ARMCP::ARMCPModifier Modifier = ARMCP::no_modifier,
-                       bool AddCurrentAddress = false);
-  ARMConstantPoolValue(const GlobalValue *GV, ARMCP::ARMCPModifier Modifier);
-  ARMConstantPoolValue();
-  ~ARMConstantPoolValue();
+protected:
+  ARMConstantPoolValue(Type *Ty, unsigned id, ARMCP::ARMCPKind Kind,
+                       unsigned char PCAdj, ARMCP::ARMCPModifier Modifier,
+                       bool AddCurrentAddress);
 
-  const GlobalValue *getGV() const;
-  const char *getSymbol() const { return S; }
-  const BlockAddress *getBlockAddress() const;
+  ARMConstantPoolValue(LLVMContext &C, unsigned id, ARMCP::ARMCPKind Kind,
+                       unsigned char PCAdj, ARMCP::ARMCPModifier Modifier,
+                       bool AddCurrentAddress);
+public:
+  virtual ~ARMConstantPoolValue();
+
   ARMCP::ARMCPModifier getModifier() const { return Modifier; }
-  const char *getModifierText() const {
-    switch (Modifier) {
-    default: llvm_unreachable("Unknown modifier!");
-    // FIXME: Are these case sensitive? It'd be nice to lower-case all the
-    // strings if that's legal.
-    case ARMCP::no_modifier: return "none";
-    case ARMCP::TLSGD:       return "tlsgd";
-    case ARMCP::GOT:         return "GOT";
-    case ARMCP::GOTOFF:      return "GOTOFF";
-    case ARMCP::GOTTPOFF:    return "gottpoff";
-    case ARMCP::TPOFF:       return "tpoff";
-    }
-  }
+  const char *getModifierText() const;
   bool hasModifier() const { return Modifier != ARMCP::no_modifier; }
+
   bool mustAddCurrentAddress() const { return AddCurrentAddress; }
+
   unsigned getLabelId() const { return LabelId; }
   unsigned char getPCAdjustment() const { return PCAdjust; }
+
   bool isGlobalValue() const { return Kind == ARMCP::CPValue; }
   bool isExtSymbol() const { return Kind == ARMCP::CPExtSymbol; }
-  bool isBlockAddress() { return Kind == ARMCP::CPBlockAddress; }
-  bool isLSDA() { return Kind == ARMCP::CPLSDA; }
+  bool isBlockAddress() const { return Kind == ARMCP::CPBlockAddress; }
+  bool isLSDA() const { return Kind == ARMCP::CPLSDA; }
+  bool isMachineBasicBlock() const{ return Kind == ARMCP::CPMachineBasicBlock; }
 
   virtual unsigned getRelocationInfo() const { return 2; }
 
   virtual int getExistingMachineCPValue(MachineConstantPool *CP,
                                         unsigned Alignment);
 
-  virtual void AddSelectionDAGCSEId(FoldingSetNodeID &ID);
+  virtual void addSelectionDAGCSEId(FoldingSetNodeID &ID);
 
-  /// hasSameValue - Return true if this ARM constpool value
-  /// can share the same constantpool entry as another ARM constpool value.
-  bool hasSameValue(ARMConstantPoolValue *ACPV);
+  /// hasSameValue - Return true if this ARM constpool value can share the same
+  /// constantpool entry as another ARM constpool value.
+  virtual bool hasSameValue(ARMConstantPoolValue *ACPV);
 
+  bool equals(const ARMConstantPoolValue *A) const {
+    return this->LabelId == A->LabelId &&
+      this->PCAdjust == A->PCAdjust &&
+      this->Modifier == A->Modifier;
+  }
+
+  virtual void print(raw_ostream &O) const;
   void print(raw_ostream *O) const { if (O) print(*O); }
-  void print(raw_ostream &O) const;
   void dump() const;
+
+  static bool classof(const ARMConstantPoolValue *) { return true; }
 };
 
 inline raw_ostream &operator<<(raw_ostream &O, const ARMConstantPoolValue &V) {
   V.print(O);
   return O;
 }
+
+/// ARMConstantPoolConstant - ARM-specific constant pool values for Constants,
+/// Functions, and BlockAddresses.
+class ARMConstantPoolConstant : public ARMConstantPoolValue {
+  const Constant *CVal;         // Constant being loaded.
+
+  ARMConstantPoolConstant(const Constant *C,
+                          unsigned ID,
+                          ARMCP::ARMCPKind Kind,
+                          unsigned char PCAdj,
+                          ARMCP::ARMCPModifier Modifier,
+                          bool AddCurrentAddress);
+  ARMConstantPoolConstant(Type *Ty, const Constant *C,
+                          unsigned ID,
+                          ARMCP::ARMCPKind Kind,
+                          unsigned char PCAdj,
+                          ARMCP::ARMCPModifier Modifier,
+                          bool AddCurrentAddress);
+
+public:
+  static ARMConstantPoolConstant *Create(const Constant *C, unsigned ID);
+  static ARMConstantPoolConstant *Create(const GlobalValue *GV,
+                                         ARMCP::ARMCPModifier Modifier);
+  static ARMConstantPoolConstant *Create(const Constant *C, unsigned ID,
+                                         ARMCP::ARMCPKind Kind,
+                                         unsigned char PCAdj);
+  static ARMConstantPoolConstant *Create(const Constant *C, unsigned ID,
+                                         ARMCP::ARMCPKind Kind,
+                                         unsigned char PCAdj,
+                                         ARMCP::ARMCPModifier Modifier,
+                                         bool AddCurrentAddress);
+
+  const GlobalValue *getGV() const;
+  const BlockAddress *getBlockAddress() const;
+
+  virtual int getExistingMachineCPValue(MachineConstantPool *CP,
+                                        unsigned Alignment);
+
+  /// hasSameValue - Return true if this ARM constpool value can share the same
+  /// constantpool entry as another ARM constpool value.
+  virtual bool hasSameValue(ARMConstantPoolValue *ACPV);
+
+  virtual void addSelectionDAGCSEId(FoldingSetNodeID &ID);
+
+  virtual void print(raw_ostream &O) const;
+  static bool classof(const ARMConstantPoolValue *APV) {
+    return APV->isGlobalValue() || APV->isBlockAddress() || APV->isLSDA();
+  }
+  static bool classof(const ARMConstantPoolConstant *) { return true; }
+};
+
+/// ARMConstantPoolSymbol - ARM-specific constantpool values for external
+/// symbols.
+class ARMConstantPoolSymbol : public ARMConstantPoolValue {
+  const char *S;                // ExtSymbol being loaded.
+
+  ARMConstantPoolSymbol(LLVMContext &C, const char *s, unsigned id,
+                        unsigned char PCAdj, ARMCP::ARMCPModifier Modifier,
+                        bool AddCurrentAddress);
+
+public:
+  ~ARMConstantPoolSymbol();
+
+  static ARMConstantPoolSymbol *Create(LLVMContext &C, const char *s,
+                                       unsigned ID, unsigned char PCAdj);
+
+  const char *getSymbol() const { return S; }
+
+  virtual int getExistingMachineCPValue(MachineConstantPool *CP,
+                                        unsigned Alignment);
+
+  virtual void addSelectionDAGCSEId(FoldingSetNodeID &ID);
+
+  /// hasSameValue - Return true if this ARM constpool value can share the same
+  /// constantpool entry as another ARM constpool value.
+  virtual bool hasSameValue(ARMConstantPoolValue *ACPV);
+
+  virtual void print(raw_ostream &O) const;
+
+  static bool classof(const ARMConstantPoolValue *ACPV) {
+    return ACPV->isExtSymbol();
+  }
+  static bool classof(const ARMConstantPoolSymbol *) { return true; }
+};
+
+/// ARMConstantPoolMBB - ARM-specific constantpool value of a machine basic
+/// block.
+class ARMConstantPoolMBB : public ARMConstantPoolValue {
+  const MachineBasicBlock *MBB; // Machine basic block.
+
+  ARMConstantPoolMBB(LLVMContext &C, const MachineBasicBlock *mbb, unsigned id,
+                     unsigned char PCAdj, ARMCP::ARMCPModifier Modifier,
+                     bool AddCurrentAddress);
+
+public:
+  static ARMConstantPoolMBB *Create(LLVMContext &C,
+                                    const MachineBasicBlock *mbb,
+                                    unsigned ID, unsigned char PCAdj);
+
+  const MachineBasicBlock *getMBB() const { return MBB; }
+
+  virtual int getExistingMachineCPValue(MachineConstantPool *CP,
+                                        unsigned Alignment);
+
+  virtual void addSelectionDAGCSEId(FoldingSetNodeID &ID);
+
+  /// hasSameValue - Return true if this ARM constpool value can share the same
+  /// constantpool entry as another ARM constpool value.
+  virtual bool hasSameValue(ARMConstantPoolValue *ACPV);
+
+  virtual void print(raw_ostream &O) const;
+
+  static bool classof(const ARMConstantPoolValue *ACPV) {
+    return ACPV->isMachineBasicBlock();
+  }
+  static bool classof(const ARMConstantPoolMBB *) { return true; }
+};
 
 } // End llvm namespace
 

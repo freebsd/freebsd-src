@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int urio_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
 SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
     &urio_debug, 0, "urio debug level");
 #endif
@@ -246,7 +246,7 @@ urio_attach(device_t dev)
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &urio_fifo_methods, &sc->sc_fifo,
-	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    device_get_unit(dev), -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
@@ -440,7 +440,7 @@ urio_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 			error = EPERM;
 			goto done;
 		}
-		bzero(&ur, sizeof(ur));
+		memset(&ur, 0, sizeof(ur));
 		rio_cmd = addr;
 		ur.ucr_request.bmRequestType =
 		    rio_cmd->requesttype | UT_READ_VENDOR_DEVICE;
@@ -451,7 +451,7 @@ urio_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 			error = EPERM;
 			goto done;
 		}
-		bzero(&ur, sizeof(ur));
+		memset(&ur, 0, sizeof(ur));
 		rio_cmd = addr;
 		ur.ucr_request.bmRequestType =
 		    rio_cmd->requesttype | UT_WRITE_VENDOR_DEVICE;

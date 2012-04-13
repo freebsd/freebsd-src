@@ -25,25 +25,13 @@ LINKS=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep \
 	${BINDIR}/grep ${BINDIR}/zgrep \
 	${BINDIR}/grep ${BINDIR}/zegrep \
-	${BINDIR}/grep ${BINDIR}/zfgrep \
-	${BINDIR}/grep ${BINDIR}/bzgrep \
-	${BINDIR}/grep ${BINDIR}/bzegrep \
-	${BINDIR}/grep ${BINDIR}/bzfgrep \
-	${BINDIR}/grep ${BINDIR}/xzgrep \
-	${BINDIR}/grep ${BINDIR}/xzegrep \
-	${BINDIR}/grep ${BINDIR}/xzfgrep \
-	${BINDIR}/grep ${BINDIR}/lzgrep \
-	${BINDIR}/grep ${BINDIR}/lzegrep \
-	${BINDIR}/grep ${BINDIR}/lzfgrep
+	${BINDIR}/grep ${BINDIR}/zfgrep
 
 MLINKS= grep.1 egrep.1 \
 	grep.1 fgrep.1 \
 	grep.1 zgrep.1 \
 	grep.1 zegrep.1 \
 	grep.1 zfgrep.1 \
-	grep.1 bzgrep.1 \
-	grep.1 bzegrep.1 \
-	grep.1 bzfgrep.1 \
 	grep.1 xzgrep.1 \
 	grep.1 xzegrep.1 \
 	grep.1 xzfgrep.1 \
@@ -52,8 +40,31 @@ MLINKS= grep.1 egrep.1 \
 	grep.1 lzfgrep.1
 .endif
 
-LDADD=	-lz -lbz2 -llzma
-DPADD=	${LIBZ} ${LIBBZ2} ${LIBLZMA}
+LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
+	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
+	${BINDIR}/${PROG} ${BINDIR}/xzfgrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzgrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzegrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzfgrep
+
+LDADD=	-lz -llzma
+DPADD=	${LIBZ} ${LIBLZMA}
+
+.if !defined(WITHOUT_BZIP2)
+LDADD+=	-lbz2
+DPADD+=	${LIBBZ2}
+
+.if ${MK_BSD_GREP} == "yes"
+LINKS+= ${BINDIR}/grep ${BINDIR}/bzgrep \
+	${BINDIR}/grep ${BINDIR}/bzegrep \
+	${BINDIR}/grep ${BINDIR}/bzfgrep
+MLINKS+= grep.1 bzgrep.1 \
+	 grep.1 bzegrep.1 \
+	 grep.1 bzfgrep.1
+.endif
+.else
+CFLAGS+= -DWITHOUT_BZIP2
+.endif
 
 .if !defined(WITHOUT_GNU_COMPAT)
 CFLAGS+= -I/usr/include/gnu

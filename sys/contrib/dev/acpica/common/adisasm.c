@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,6 +74,10 @@ LsSetupNsList (
 
 
 /* Local prototypes */
+
+static UINT32
+AdGetFileSize (
+    FILE                    *File);
 
 static void
 AdCreateTableHeader (
@@ -156,6 +160,38 @@ AcpiDsMethodDataInitArgs (
 
 static ACPI_TABLE_DESC      LocalTables[1];
 static ACPI_PARSE_OBJECT    *AcpiGbl_ParseOpRoot;
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AdGetFileSize
+ *
+ * PARAMETERS:  File                - Open file handle
+ *
+ * RETURN:      File Size
+ *
+ * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
+ *
+ ******************************************************************************/
+
+static UINT32
+AdGetFileSize (
+    FILE                    *File)
+{
+    UINT32                  FileSize;
+    long                    Offset;
+
+
+    Offset = ftell (File);
+
+    fseek (File, 0, SEEK_END);
+    FileSize = (UINT32) ftell (File);
+
+    /* Restore file pointer */
+
+    fseek (File, Offset, SEEK_SET);
+    return (FileSize);
+}
 
 
 /*******************************************************************************
@@ -376,11 +412,14 @@ AdAmlDisassemble (
         AdDisassemblerHeader (Filename);
         AcpiOsPrintf (" * ACPI Data Table [%4.4s]\n *\n",
             Table->Signature);
-        AcpiOsPrintf (" * Format: [HexOffset DecimalOffset ByteLength]  FieldName : FieldValue\n */\n\n");
+        AcpiOsPrintf (" * Format: [HexOffset DecimalOffset ByteLength]  "
+            "FieldName : FieldValue\n */\n\n");
 
         AcpiDmDumpDataTable (Table);
-        fprintf (stderr, "Acpi Data Table [%4.4s] decoded, written to \"%s\"\n",
-            Table->Signature, DisasmFilename);
+        fprintf (stderr, "Acpi Data Table [%4.4s] decoded\n",
+            Table->Signature);
+        fprintf (stderr, "Formatted output:  %s - %u bytes\n",
+            DisasmFilename, AdGetFileSize (File));
     }
     else
     {
@@ -403,15 +442,17 @@ AdAmlDisassemble (
             AcpiOsPrintf ("*****/\n");
         }
 
-        /*
-         * Load namespace from names created within control methods
-         */
-        AcpiDmFinishNamespaceLoad (AcpiGbl_ParseOpRoot, AcpiGbl_RootNode, OwnerId);
+        /* Load namespace from names created within control methods */
+
+        AcpiDmFinishNamespaceLoad (AcpiGbl_ParseOpRoot,
+            AcpiGbl_RootNode, OwnerId);
 
         /*
-         * Cross reference the namespace here, in order to generate External() statements
+         * Cross reference the namespace here, in order to
+         * generate External() statements
          */
-        AcpiDmCrossReferenceNamespace (AcpiGbl_ParseOpRoot, AcpiGbl_RootNode, OwnerId);
+        AcpiDmCrossReferenceNamespace (AcpiGbl_ParseOpRoot,
+            AcpiGbl_RootNode, OwnerId);
 
         if (AslCompilerdebug)
         {
@@ -422,24 +463,20 @@ AdAmlDisassemble (
 
         AcpiDmFindOrphanMethods (AcpiGbl_ParseOpRoot);
 
-        /* Convert fixed-offset references to resource descriptors to symbolic references */
-
-        AcpiDmConvertResourceIndexes (AcpiGbl_ParseOpRoot, AcpiGbl_RootNode);
-
         /*
-         * If we found any external control methods, we must reparse the entire
-         * tree with the new information (namely, the number of arguments per
-         * method)
+         * If we found any external control methods, we must reparse
+         * the entire tree with the new information (namely, the
+         * number of arguments per method)
          */
         if (AcpiDmGetExternalMethodCount ())
         {
             fprintf (stderr,
-                "\nFound %u external control methods, reparsing with new information\n",
+                "\nFound %u external control methods, "
+                "reparsing with new information\n",
                 AcpiDmGetExternalMethodCount ());
 
-            /*
-             * Reparse, rebuild namespace. no need to xref namespace
-             */
+            /* Reparse, rebuild namespace. no need to xref namespace */
+
             AcpiPsDeleteParseTree (AcpiGbl_ParseOpRoot);
             AcpiNsDeleteNamespaceSubtree (AcpiGbl_RootNode);
 
@@ -456,7 +493,7 @@ AdAmlDisassemble (
             Status = AcpiNsRootInitialize ();
             AcpiDmAddExternalsToNamespace ();
 
-            /* Parse table. No need to reload it, however (FALSE) */
+            /* Parse the table again. No need to reload it, however */
 
             Status = AdParseTable (Table, NULL, FALSE, FALSE);
             if (ACPI_FAILURE (Status))
@@ -477,14 +514,23 @@ AdAmlDisassemble (
             }
         }
 
+        /*
+         * Now that the namespace is finalized, we can perform namespace
+         * transforms.
+         *
+         * 1) Convert fixed-offset references to resource descriptors
+         *    to symbolic references (Note: modifies namespace)
+         */
+        AcpiDmConvertResourceIndexes (AcpiGbl_ParseOpRoot, AcpiGbl_RootNode);
+
         /* Optional displays */
 
         if (AcpiGbl_DbOpt_disasm)
         {
             AdDisplayTables (Filename, Table);
-            fprintf (stderr,
-                "Disassembly completed, written to \"%s\"\n",
-                DisasmFilename);
+            fprintf (stderr, "Disassembly completed\n");
+            fprintf (stderr, "ASL Output:    %s - %u bytes\n",
+                DisasmFilename, AdGetFileSize (File));
         }
     }
 
@@ -502,11 +548,12 @@ Cleanup:
 
     if (OutToFile && File)
     {
+        if (AslCompilerdebug) /* Display final namespace, with transforms */
+        {
+            LsSetupNsList (File);
+            LsDisplayNamespace ();
+        }
 
-#ifdef ASL_DISASM_DEBUG
-        LsSetupNsList (File);
-        LsDisplayNamespace ();
-#endif
         fclose (File);
         AcpiOsRedirectOutput (stdout);
     }
@@ -868,6 +915,7 @@ AdParseDeferredOps (
             break;
 
         case AML_REGION_OP:
+        case AML_DATA_REGION_OP:
         case AML_CREATE_QWORD_FIELD_OP:
         case AML_CREATE_DWORD_FIELD_OP:
         case AML_CREATE_WORD_FIELD_OP:

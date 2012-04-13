@@ -28,7 +28,7 @@
 .\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2008
+.Dd April 5, 2012
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -108,11 +108,15 @@ The following table equates the letters with the tracepoints:
 .Bl -tag -width flag -compact
 .It Cm c
 trace system calls
+.It Cm f
+trace page faults
 .It Cm i
 trace
 .Tn I/O
 .It Cm n
 trace namei translations
+.It Cm p
+trace capability check failures
 .It Cm s
 trace signal processing
 .It Cm t
@@ -127,7 +131,7 @@ trace
 requests
 .It Cm +
 trace the default set of trace points -
-.Cm c , i , n , s , t , u , y
+.Cm c , f , i , n , p , s , t , u , y
 .El
 .It Ar command
 Execute

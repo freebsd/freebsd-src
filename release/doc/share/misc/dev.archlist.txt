@@ -72,6 +72,7 @@ ex	i386,amd64
 fe	i386,pc98,amd64
 fwohci	i386,sparc64,ia64,amd64,powerpc
 hifn	i386,pc98,amd64
+hpt27xx	i386,amd64
 hptiop	i386,amd64
 hptmv	i386,amd64
 hptrr	i386,amd64
@@ -79,6 +80,7 @@ ida	i386
 ie	i386
 iir	i386,ia64,amd64
 ips	i386,amd64
+isci	i386,amd64
 ixgb	i386,amd64
 kue	i386,pc98,ia64,amd64,powerpc
 lge	i386,pc98,amd64
@@ -96,10 +98,12 @@ ng_ubt	i386,pc98,amd64
 nsp	i386,pc98
 nve	i386,amd64
 nxge	i386,amd64
+oce	i386,amd64
 ohci	i386,pc98,ia64,amd64,powerpc
 oltr	i386
 pcn	i386,pc98,ia64,amd64
 pst	i386
+qlxgb	amd64
 rc	i386
 ral	i386,amd64
 rue	i386,pc98,amd64
@@ -107,6 +111,7 @@ rum	i386,amd64
 run	i386,amd64
 safe	i386,pc98,amd64
 sbp	i386,sparc64,ia64,amd64
+sfgxe	amd64
 sn	i386,amd64
 snc	pc98
 snd_ad1816	i386,amd64
@@ -126,6 +131,7 @@ snd_ess	i386,amd64
 snd_fm801	i386,amd64
 snd_gusc	i386,amd64
 snd_hda	i386,amd64
+snd_hdspe	i386,amd64
 snd_ich	i386,amd64
 snd_maestro	i386,amd64
 snd_maestro3	i386,amd64

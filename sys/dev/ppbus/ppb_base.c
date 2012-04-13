@@ -60,7 +60,7 @@ ppb_poll_bus(device_t bus, int max,
 	int i, j, error;
 	char r;
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 
 	/* try at least up to 10ms */
 	for (j = 0; j < ((how & PPB_POLL) ? max : 1); j++) {
@@ -96,12 +96,9 @@ ppb_poll_bus(device_t bus, int max,
 int
 ppb_get_epp_protocol(device_t bus)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
-#endif
 	uintptr_t protocol;
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 	BUS_READ_IVAR(device_get_parent(bus), bus, PPC_IVAR_EPP_PROTO, &protocol);
 
 	return (protocol);
@@ -117,7 +114,7 @@ ppb_get_mode(device_t bus)
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
 	/* XXX yet device mode = ppbus mode = chipset mode */
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 	return (ppb->mode);
 }
 
@@ -132,7 +129,7 @@ ppb_set_mode(device_t bus, int mode)
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	int old_mode = ppb_get_mode(bus);
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 	if (PPBUS_SETMODE(device_get_parent(bus), mode))
 		return (-1);
 
@@ -150,11 +147,8 @@ ppb_set_mode(device_t bus, int mode)
 int
 ppb_write(device_t bus, char *buf, int len, int how)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
-#endif
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 	return (PPBUS_WRITE(device_get_parent(bus), buf, len, how));
 }
 
@@ -166,11 +160,8 @@ ppb_write(device_t bus, char *buf, int len, int how)
 int
 ppb_reset_epp_timeout(device_t bus)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
-#endif
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 	return(PPBUS_RESET_EPP(device_get_parent(bus)));
 }
 
@@ -182,11 +173,8 @@ ppb_reset_epp_timeout(device_t bus)
 int
 ppb_ecp_sync(device_t bus)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
-#endif
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 	return (PPBUS_ECP_SYNC(device_get_parent(bus)));
 }
 
@@ -198,12 +186,9 @@ ppb_ecp_sync(device_t bus)
 int
 ppb_get_status(device_t bus, struct ppb_status *status)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
-#endif
 	register char r;
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 
 	r = status->status = ppb_rstr(bus);
 
@@ -236,11 +221,8 @@ ppb_unlock(device_t bus)
 void
 _ppb_assert_locked(device_t bus, const char *file, int line)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
-	_mtx_assert(ppb->ppc_lock, MA_OWNED, file, line);
-#endif
+	mtx_assert_(DEVTOSOFTC(bus)->ppc_lock, MA_OWNED, file, line);
 }
 
 void

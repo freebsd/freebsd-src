@@ -100,6 +100,7 @@ namespace llvm {
     bool isDefByCopy() const { return copy != 0; }
 
     /// Returns true if one or more kills are PHI nodes.
+    /// Obsolete, do not use!
     bool hasPHIKill() const { return flags & HAS_PHI_KILL; }
     /// Set the PHI kill flag on this value.
     void setHasPHIKill(bool hasKill) {
@@ -313,7 +314,6 @@ namespace llvm {
 
     /// RenumberValues - Renumber all values in order of appearance and remove
     /// unused values.
-    /// Recalculate phi-kill flags in case any phi-def values were removed.
     void RenumberValues(LiveIntervals &lis);
 
     /// isOnlyLROfValNo - Return true if the specified live range is the only
@@ -411,6 +411,14 @@ namespace llvm {
       return I == end() ? 0 : I->valno;
     }
 
+    /// getVNInfoBefore - Return the VNInfo that is live up to but not
+    /// necessarilly including Idx, or NULL. Use this to find the reaching def
+    /// used by an instruction at this SlotIndex position.
+    VNInfo *getVNInfoBefore(SlotIndex Idx) const {
+      const_iterator I = FindLiveRangeContaining(Idx.getPrevSlot());
+      return I == end() ? 0 : I->valno;
+    }
+
     /// FindLiveRangeContaining - Return an iterator to the live range that
     /// contains the specified index, or end() if there is none.
     iterator FindLiveRangeContaining(SlotIndex Idx) {
@@ -452,10 +460,10 @@ namespace llvm {
       addRangeFrom(LR, ranges.begin());
     }
 
-    /// extendInBlock - If this interval is live before UseIdx in the basic
-    /// block that starts at StartIdx, extend it to be live at UseIdx and return
-    /// the value. If there is no live range before UseIdx, return NULL.
-    VNInfo *extendInBlock(SlotIndex StartIdx, SlotIndex UseIdx);
+    /// extendInBlock - If this interval is live before Kill in the basic block
+    /// that starts at StartIdx, extend it to be live up to Kill, and return
+    /// the value. If there is no live range before Kill, return NULL.
+    VNInfo *extendInBlock(SlotIndex StartIdx, SlotIndex Kill);
 
     /// join - Join two live intervals (this, and other) together.  This applies
     /// mappings to the value numbers in the LHS/RHS intervals as specified.  If

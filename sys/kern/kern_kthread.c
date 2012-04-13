@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpuset.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -114,9 +115,15 @@ kproc_create(void (*func)(void *), void *arg,
 	va_start(ap, fmt);
 	vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 	va_end(ap);
+#ifdef KTR
+	sched_clear_tdname(td);
+#endif
 
 	/* call the processes' main()... */
 	cpu_set_fork_handler(td, func, arg);
+
+	/* Avoid inheriting affinity from a random parent. */
+	cpuset_setthread(td->td_tid, cpuset_root);
 	thread_lock(td);
 	TD_SET_CAN_RUN(td);
 	sched_prio(td, PVM);
@@ -299,6 +306,9 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 
 	tidhash_add(newtd);
 
+	/* Avoid inheriting affinity from a random parent. */
+	cpuset_setthread(newtd->td_tid, cpuset_root);
+
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
 		thread_lock(newtd);
@@ -446,6 +456,9 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 		va_start(ap, fmt);
 		vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 		va_end(ap);
+#ifdef KTR
+		sched_clear_tdname(td);
+#endif
 		return (0); 
 	}
 	va_start(ap, fmt);

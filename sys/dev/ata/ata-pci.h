@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@ struct ata_chip_id {
     int                 cfg1;
     int                 cfg2;
     u_int8_t            max_dma;
-    char                *text;
+    const char          *text;
 };
 
 #define ATA_PCI_MAX_CH	8
@@ -50,7 +50,7 @@ struct ata_pci_controller {
     int                 r_irq_rid;
     struct resource     *r_irq;
     void                *handle;
-    struct ata_chip_id  *chip;
+    const struct ata_chip_id *chip;
     int			legacy;
     int                 channels;
     int			ichannels;
@@ -62,7 +62,9 @@ struct ata_pci_controller {
     int                 (*ch_detach)(device_t);
     int                 (*ch_suspend)(device_t);
     int                 (*ch_resume)(device_t);
+#ifndef ATA_CAM
     int                 (*locking)(device_t, int);
+#endif
     void                (*reset)(device_t);
     int                 (*setmode)(device_t, int, int);
     int                 (*getrev)(device_t, int);
@@ -193,6 +195,10 @@ struct ata_pci_controller {
 #define ATA_I82801IB_AH4        0x29238086
 #define ATA_I82801IB_R1         0x29258086
 #define ATA_I82801IB_S2         0x29268086
+#define ATA_I82801IBM_S1        0x29288086
+#define ATA_I82801IBM_AH        0x29298086
+#define ATA_I82801IBM_R1        0x292a8086
+#define ATA_I82801IBM_S2        0x292d8086
 #define ATA_I82801JIB_S1        0x3a208086
 #define ATA_I82801JIB_AH        0x3a228086
 #define ATA_I82801JIB_R1        0x3a258086
@@ -232,6 +238,7 @@ struct ata_pci_controller {
 #define ATA_PBG_AH1		0x1d028086
 #define ATA_PBG_R1		0x1d048086
 #define ATA_PBG_R2		0x1d068086
+#define ATA_PBG_R3		0x28268086
 #define ATA_PBG_S2		0x1d088086
 
 #define ATA_PPT_S1		0x1e008086
@@ -273,12 +280,12 @@ struct ata_pci_controller {
 #define ATA_M88SX6042           0x604211ab
 #define ATA_M88SX6081           0x608111ab
 #define ATA_M88SX7042           0x704211ab
-#define ATA_M88SX6101           0x610111ab
-#define ATA_M88SX6102           0x610211ab
-#define ATA_M88SX6111           0x611111ab
-#define ATA_M88SX6121           0x612111ab
-#define ATA_M88SX6141           0x614111ab
-#define ATA_M88SX6145           0x614511ab
+#define ATA_M88SE6101           0x610111ab
+#define ATA_M88SE6102           0x610211ab
+#define ATA_M88SE6111           0x611111ab
+#define ATA_M88SE6121           0x612111ab
+#define ATA_M88SE6141           0x614111ab
+#define ATA_M88SE6145           0x614511ab
 #define ATA_MARVELL2_ID         0x1b4b
 
 #define ATA_MICRON_ID           0x1042
@@ -549,6 +556,7 @@ int ata_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
 void ata_pci_write_config(device_t dev, device_t child, int reg, 
     uint32_t val, int width);
+int ata_pci_print_child(device_t dev, device_t child);
 int ata_pci_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen);
 struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
@@ -561,15 +569,15 @@ int ata_pci_status(device_t dev);
 void ata_pci_hw(device_t dev);
 void ata_pci_dmainit(device_t dev);
 void ata_pci_dmafini(device_t dev);
-char *ata_pcivendor2str(device_t dev);
+const char *ata_pcivendor2str(device_t dev);
 int ata_legacy(device_t);
 void ata_generic_intr(void *data);
 int ata_generic_chipinit(device_t dev);
 int ata_generic_setmode(device_t dev, int target, int mode);
 int ata_setup_interrupt(device_t dev, void *intr_func);
 void ata_set_desc(device_t dev);
-struct ata_chip_id *ata_match_chip(device_t dev, struct ata_chip_id *index);
-struct ata_chip_id *ata_find_chip(device_t dev, struct ata_chip_id *index, int slot);
+const struct ata_chip_id *ata_match_chip(device_t dev, const struct ata_chip_id *index);
+const struct ata_chip_id *ata_find_chip(device_t dev, const struct ata_chip_id *index, int slot);
 int ata_mode2idx(int mode);
 
 /* global prototypes from chipsets/ata-*.c */
@@ -601,16 +609,16 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr), \
     DEVMETHOD(pci_read_config,		ata_pci_read_config), \
     DEVMETHOD(pci_write_config,		ata_pci_write_config), \
+    DEVMETHOD(bus_print_child,		ata_pci_print_child), \
     DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str), \
-    { 0, 0 } \
+    DEVMETHOD_END \
 }; \
 static driver_t __CONCAT(dname,_driver) = { \
         "atapci", \
         __CONCAT(dname,_methods), \
         sizeof(struct ata_pci_controller) \
 }; \
-DRIVER_MODULE(dname, pci, __CONCAT(dname,_driver), ata_pci_devclass, 0, 0); \
+DRIVER_MODULE(dname, pci, __CONCAT(dname,_driver), ata_pci_devclass, NULL, NULL); \
 MODULE_VERSION(dname, 1); \
 MODULE_DEPEND(dname, ata, 1, 1, 1); \
 MODULE_DEPEND(dname, atapci, 1, 1, 1);
-

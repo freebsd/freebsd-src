@@ -128,7 +128,7 @@ closenetstat(WINDOW *w)
 			lastrow--;
 		p->ni_line = -1;
 	}
-        if (w != NULL) {
+	if (w != NULL) {
 		wclear(w);
 		wrefresh(w);
 		delwin(w);
@@ -349,7 +349,6 @@ enter_sysctl(struct inpcb *inp, struct xsocket *so, int state, const char *proto
 	}
 }
 
-
 static struct netinfo *
 enter(struct inpcb *inp, int state, const char *proto)
 {
@@ -436,7 +435,6 @@ enter(struct inpcb *inp, int state, const char *proto)
 #define	RCVCC	PROTO+6
 #define	SNDCC	RCVCC+7
 #define	STATE	SNDCC+7
-
 
 void
 labelnetstat(void)
@@ -554,7 +552,7 @@ inetprint(struct sockaddr *sa, const char *proto)
 		break;
 	}
 	snprintf(line, sizeof(line), "%.*s.", 16, inetname(sa));
-	cp = index(line, '\0');
+	cp = strchr(line, '\0');
 	if (!nflag && port)
 		sp = getservbyport(port, proto);
 	if (sp || port == 0)
@@ -564,7 +562,7 @@ inetprint(struct sockaddr *sa, const char *proto)
 		snprintf(cp, sizeof(line) - (cp - line), "%d",
 		    ntohs((u_short)port));
 	/* pad to full column to clear any garbage */
-	cp = index(line, '\0');
+	cp = strchr(line, '\0');
 	while (cp - line < 22)
 		*cp++ = ' ';
 	line[22] = '\0';

@@ -15,14 +15,16 @@
 #ifndef CLANG_LITERALSUPPORT_H
 #define CLANG_LITERALSUPPORT_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/DataTypes.h"
+#include "clang/Basic/TokenKinds.h"
 #include <cctype>
 
 namespace clang {
 
-class Diagnostic;
+class DiagnosticsEngine;
 class Preprocessor;
 class Token;
 class SourceLocation;
@@ -123,15 +125,19 @@ private:
 /// character literal.
 class CharLiteralParser {
   uint64_t Value;
-  bool IsWide;
+  tok::TokenKind Kind;
   bool IsMultiChar;
   bool HadError;
 public:
   CharLiteralParser(const char *begin, const char *end,
-                    SourceLocation Loc, Preprocessor &PP);
+                    SourceLocation Loc, Preprocessor &PP,
+                    tok::TokenKind kind);
 
   bool hadError() const { return HadError; }
-  bool isWide() const { return IsWide; }
+  bool isAscii() const { return Kind == tok::char_constant; }
+  bool isWide() const { return Kind == tok::wide_char_constant; }
+  bool isUTF16() const { return Kind == tok::utf16_char_constant; }
+  bool isUTF32() const { return Kind == tok::utf32_char_constant; }
   bool isMultiChar() const { return IsMultiChar; }
   uint64_t getValue() const { return Value; }
 };
@@ -143,11 +149,12 @@ class StringLiteralParser {
   const SourceManager &SM;
   const LangOptions &Features;
   const TargetInfo &Target;
-  Diagnostic *Diags;
+  DiagnosticsEngine *Diags;
   
   unsigned MaxTokenLength;
   unsigned SizeBound;
-  unsigned wchar_tByteWidth;
+  unsigned CharByteWidth;
+  tok::TokenKind Kind;
   llvm::SmallString<512> ResultBuf;
   char *ResultPtr; // cursor
 public:
@@ -155,27 +162,24 @@ public:
                       Preprocessor &PP, bool Complain = true);
   StringLiteralParser(const Token *StringToks, unsigned NumStringToks,
                       const SourceManager &sm, const LangOptions &features,
-                      const TargetInfo &target, Diagnostic *diags = 0)
+                      const TargetInfo &target, DiagnosticsEngine *diags = 0)
     : SM(sm), Features(features), Target(target), Diags(diags),
-      MaxTokenLength(0), SizeBound(0), wchar_tByteWidth(0),
-      ResultPtr(ResultBuf.data()), hadError(false), AnyWide(false), Pascal(false) {
+      MaxTokenLength(0), SizeBound(0), CharByteWidth(0), Kind(tok::unknown),
+      ResultPtr(ResultBuf.data()), hadError(false), Pascal(false) {
     init(StringToks, NumStringToks);
   }
     
 
   bool hadError;
-  bool AnyWide;
   bool Pascal;
 
-  llvm::StringRef GetString() const {
-    return llvm::StringRef(ResultBuf.data(), GetStringLength());
+  StringRef GetString() const {
+    return StringRef(ResultBuf.data(), GetStringLength());
   }
   unsigned GetStringLength() const { return ResultPtr-ResultBuf.data(); }
 
   unsigned GetNumStringChars() const {
-    if (AnyWide)
-      return GetStringLength() / wchar_tByteWidth;
-    return GetStringLength();
+    return GetStringLength() / CharByteWidth;
   }
   /// getOffsetOfStringByte - This function returns the offset of the
   /// specified byte of the string data represented by Token.  This handles
@@ -184,9 +188,16 @@ public:
   /// If the Diagnostics pointer is non-null, then this will do semantic
   /// checking of the string literal and emit errors and warnings.
   unsigned getOffsetOfStringByte(const Token &TheTok, unsigned ByteNo) const;
-  
+
+  bool isAscii() { return Kind == tok::string_literal; }
+  bool isWide() { return Kind == tok::wide_string_literal; }
+  bool isUTF8() { return Kind == tok::utf8_string_literal; }
+  bool isUTF16() { return Kind == tok::utf16_string_literal; }
+  bool isUTF32() { return Kind == tok::utf32_string_literal; }
+
 private:
   void init(const Token *StringToks, unsigned NumStringToks);
+  void CopyStringFragment(StringRef Fragment);
 };
 
 }  // end namespace clang

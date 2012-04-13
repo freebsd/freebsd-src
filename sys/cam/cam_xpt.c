@@ -48,10 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/kthread.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
-#endif
-
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
@@ -66,7 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
+
+#include <machine/md_var.h>	/* geometry translation */
 #include <machine/stdarg.h>	/* for xpt_print below */
+
 #include "opt_cam.h"
 
 /*
@@ -2027,12 +2026,24 @@ xptbustraverse(struct cam_eb *start_bus, xpt_busfunc_t *tr_func, void *arg)
 	for (bus = (start_bus ? start_bus : TAILQ_FIRST(&xsoftc.xpt_busses));
 	     bus != NULL;
 	     bus = next_bus) {
-		next_bus = TAILQ_NEXT(bus, links);
 
+		bus->refcount++;
+
+		/*
+		 * XXX The locking here is obviously very complex.  We
+		 * should work to simplify it.
+		 */
 		mtx_unlock(&xsoftc.xpt_topo_lock);
 		CAM_SIM_LOCK(bus->sim);
 		retval = tr_func(bus, arg);
 		CAM_SIM_UNLOCK(bus->sim);
+
+		mtx_lock(&xsoftc.xpt_topo_lock);
+		next_bus = TAILQ_NEXT(bus, links);
+		mtx_unlock(&xsoftc.xpt_topo_lock);
+
+		xpt_release_bus(bus);
+
 		if (retval == 0)
 			return(retval);
 		mtx_lock(&xsoftc.xpt_topo_lock);
@@ -2087,9 +2098,13 @@ xpttargettraverse(struct cam_eb *bus, struct cam_et *start_target,
 		       TAILQ_FIRST(&bus->et_entries));
 	     target != NULL; target = next_target) {
 
-		next_target = TAILQ_NEXT(target, links);
+		target->refcount++;
 
 		retval = tr_func(target, arg);
+
+		next_target = TAILQ_NEXT(target, links);
+
+		xpt_release_target(target);
 
 		if (retval == 0)
 			return(retval);
@@ -2111,9 +2126,21 @@ xptdevicetraverse(struct cam_et *target, struct cam_ed *start_device,
 	     device != NULL;
 	     device = next_device) {
 
-		next_device = TAILQ_NEXT(device, links);
+		/*
+		 * Hold a reference so the current device does not go away
+		 * on us.
+		 */
+		device->refcount++;
 
 		retval = tr_func(device, arg);
+
+		/*
+		 * Grab our next pointer before we release the current
+		 * device.
+		 */
+		next_device = TAILQ_NEXT(device, links);
+
+		xpt_release_device(device);
 
 		if (retval == 0)
 			return(retval);
@@ -2131,17 +2158,56 @@ xptperiphtraverse(struct cam_ed *device, struct cam_periph *start_periph,
 
 	retval = 1;
 
+	xpt_lock_buses();
 	for (periph = (start_periph ? start_periph :
 		       SLIST_FIRST(&device->periphs));
 	     periph != NULL;
 	     periph = next_periph) {
 
-		next_periph = SLIST_NEXT(periph, periph_links);
+
+		/*
+		 * In this case, we want to show peripherals that have been
+		 * invalidated, but not peripherals that are scheduled to
+		 * be freed.  So instead of calling cam_periph_acquire(),
+		 * which will fail if the periph has been invalidated, we
+		 * just check for the free flag here.  If it is free, we
+		 * skip to the next periph.
+		 */
+		if (periph->flags & CAM_PERIPH_FREE) {
+			next_periph = SLIST_NEXT(periph, periph_links);
+			continue;
+		}
+
+		/*
+		 * Acquire a reference to this periph while we call the
+		 * traversal function, so it can't go away.
+		 */
+		periph->refcount++;
+
+		xpt_unlock_buses();
 
 		retval = tr_func(periph, arg);
+
+		/*
+		 * We need the lock for list traversal.
+		 */
+		xpt_lock_buses();
+
+		/*
+		 * Grab the next peripheral before we release this one, so
+		 * our next pointer is still valid.
+		 */
+		next_periph = SLIST_NEXT(periph, periph_links);
+
+		cam_periph_release_locked_buses(periph);
+
 		if (retval == 0)
-			return(retval);
+			goto bailout_done;
 	}
+
+bailout_done:
+
+	xpt_unlock_buses();
 
 	return(retval);
 }
@@ -2189,15 +2255,48 @@ xptpdperiphtraverse(struct periph_driver **pdrv,
 	     TAILQ_FIRST(&(*pdrv)->units)); periph != NULL;
 	     periph = next_periph) {
 
+
+		/*
+		 * In this case, we want to show peripherals that have been
+		 * invalidated, but not peripherals that are scheduled to
+		 * be freed.  So instead of calling cam_periph_acquire(),
+		 * which will fail if the periph has been invalidated, we
+		 * just check for the free flag here.  If it is free, we
+		 * skip to the next periph.
+		 */
+		if (periph->flags & CAM_PERIPH_FREE) {
+			next_periph = TAILQ_NEXT(periph, unit_links);
+			continue;
+		}
+
+		/*
+		 * Acquire a reference to this periph while we call the
+		 * traversal function, so it can't go away.
+		 */
+		periph->refcount++;
+
+		/*
+		 * XXX KDM we have the toplogy lock here, but in
+		 * xptperiphtraverse(), we drop it before calling the
+		 * traversal function.  Which is correct?
+		 */
+		retval = tr_func(periph, arg);
+
+		/*
+		 * Grab the next peripheral before we release this one, so
+		 * our next pointer is still valid.
+		 */
 		next_periph = TAILQ_NEXT(periph, unit_links);
 
-		retval = tr_func(periph, arg);
-		if (retval == 0) {
-			xpt_unlock_buses();
-			return(retval);
-		}
+		cam_periph_release_locked_buses(periph);
+
+		if (retval == 0)
+			goto bailout_done;
 	}
+bailout_done:
+
 	xpt_unlock_buses();
+
 	return(retval);
 }
 
@@ -2456,7 +2555,7 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
 		}
-#ifdef PC98
+#if defined(PC98) || defined(__sparc64__)
 		/*
 		 * In a PC-98 system, geometry translation depens on
 		 * the "real" device geometry obtained from mode page 4.
@@ -2465,6 +2564,9 @@ xpt_action_default(union ccb *start_ccb)
 		 * stored in host memory.  If the translation is available
 		 * in host memory, use it.  If not, rely on the default
 		 * translation the device driver performs.
+		 * For sparc64, we may need adjust the geometry of large
+		 * disks in order to fit the limitations of the 16-bit
+		 * fields of the VTOC8 disk label.
 		 */
 		if (scsi_da_bios_params(&start_ccb->ccg) != 0) {
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2957,6 +3059,9 @@ xpt_polled_action(union ccb *start_ccb)
 
 	mtx_assert(sim->mtx, MA_OWNED);
 
+	/* Don't use ISR for this SIM while polling. */
+	sim->flags |= CAM_SIM_POLLED;
+
 	/*
 	 * Steal an opening so that no other queued requests
 	 * can get it before us while we simulate interrupts.
@@ -2996,6 +3101,9 @@ xpt_polled_action(union ccb *start_ccb)
 	} else {
 		start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 	}
+
+	/* We will use CAM ISR for this SIM again. */
+	sim->flags &= ~CAM_SIM_POLLED;
 }
 
 /*
@@ -4224,7 +4332,7 @@ xpt_done(union ccb *done_ccb)
 		TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
 		    sim_links.tqe);
 		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-		if ((sim->flags & CAM_SIM_ON_DONEQ) == 0) {
+		if ((sim->flags & (CAM_SIM_ON_DONEQ | CAM_SIM_POLLED)) == 0) {
 			mtx_lock(&cam_simq_lock);
 			first = TAILQ_EMPTY(&cam_simq);
 			TAILQ_INSERT_TAIL(&cam_simq, sim, links);
@@ -4480,6 +4588,17 @@ xpt_release_device(struct cam_ed *device)
 		cam_devq_resize(devq, devq->alloc_queue.array_size - 1);
 		camq_fini(&device->drvq);
 		cam_ccbq_fini(&device->ccbq);
+		/*
+		 * Free allocated memory.  free(9) does nothing if the
+		 * supplied pointer is NULL, so it is safe to call without
+		 * checking.
+		 */
+		free(device->supported_vpds, M_CAMXPT);
+		free(device->device_id, M_CAMXPT);
+		free(device->physpath, M_CAMXPT);
+		free(device->rcap_buf, M_CAMXPT);
+		free(device->serial_num, M_CAMXPT);
+
 		xpt_release_target(device->target);
 		free(device, M_CAMXPT);
 	} else

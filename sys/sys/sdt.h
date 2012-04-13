@@ -190,7 +190,7 @@ struct sdt_provider {
 		    (uintptr_t) arg3, (uintptr_t) arg4)
 
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)			\
-	struct sdt_argtype sdt_##prov##_##mod##_##func##_##name##num[1]		\
+	static struct sdt_argtype sdt_##prov##_##mod##_##func##_##name##num[1]	\
 	    = { { num, type, { NULL, NULL },					\
 	    sdt_##prov##_##mod##_##func##_##name }				\
 	};									\
@@ -257,6 +257,10 @@ void sdt_probe_stub(u_int32_t, uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
 int sdt_argtype_listall(struct sdt_probe *, sdt_argtype_listall_func_t, void *);
 int sdt_probe_listall(struct sdt_provider *, sdt_probe_listall_func_t, void *);
 int sdt_provider_listall(sdt_provider_listall_func_t,void *);
+
+void sdt_register_callbacks(sdt_provider_listall_func_t, void *,
+    sdt_provider_listall_func_t, void *, sdt_probe_listall_func_t, void *);
+void sdt_deregister_callbacks(void);
 
 #endif /* KDTRACE_HOOKS */
 

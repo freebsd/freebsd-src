@@ -121,7 +121,8 @@ struct promise_raid_conf {
 	uint64_t	rebuild_lba64;	/* Per-volume rebuild position. */
 	uint32_t	magic_4;
 	uint32_t	magic_5;
-	uint32_t	filler3[325];
+	uint32_t	total_sectors_high;
+	uint32_t	filler3[324];
 	uint32_t	checksum;
 } __packed;
 
@@ -213,6 +214,7 @@ g_raid_md_promise_print(struct promise_raid_conf *meta)
 	printf("rebuild_lba64       %ju\n", meta->rebuild_lba64);
 	printf("magic_4             0x%08x\n", meta->magic_4);
 	printf("magic_5             0x%08x\n", meta->magic_5);
+	printf("total_sectors_high  0x%08x\n", meta->total_sectors_high);
 	printf("=================================================\n");
 }
 
@@ -867,6 +869,9 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	vol->v_strip_size = 512 << meta->stripe_shift; //ZZZ
 	vol->v_disks_count = meta->total_disks;
 	vol->v_mediasize = (off_t)meta->total_sectors * 512; //ZZZ
+	if (meta->total_sectors_high < 256) /* If value looks sane. */
+		vol->v_mediasize |=
+		    ((off_t)meta->total_sectors_high << 32) * 512; //ZZZ
 	vol->v_sectorsize = 512; //ZZZ
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
@@ -1318,6 +1323,13 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
+			if (pp->mediasize / pp->sectorsize > UINT32_MAX) {
+				gctl_error(req,
+				    "Disk '%s' is too big.", diskname);
+				error = -8;
+				break;
+			}
+
 			/* Read kernel dumping information. */
 			disk->d_kd.offset = 0;
 			disk->d_kd.length = OFF_MAX;
@@ -1609,7 +1621,16 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				error = -4;
 				break;
 			}
+			pp = cp->provider;
 			g_topology_unlock();
+
+			if (pp->mediasize / pp->sectorsize > UINT32_MAX) {
+				gctl_error(req,
+				    "Disk '%s' is too big.", diskname);
+				g_raid_kill_consumer(sc, cp);
+				error = -8;
+				break;
+			}
 
 			pd = malloc(sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
 
@@ -1716,6 +1737,8 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			meta->array_width /= 2;
 		meta->array_number = vol->v_global_id;
 		meta->total_sectors = vol->v_mediasize / vol->v_sectorsize;
+		meta->total_sectors_high =
+		    (vol->v_mediasize / vol->v_sectorsize) >> 32;
 		meta->cylinders = meta->total_sectors / (255 * 63) - 1;
 		meta->heads = 254;
 		meta->sectors = 63;

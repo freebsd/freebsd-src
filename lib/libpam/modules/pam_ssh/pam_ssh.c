@@ -93,7 +93,8 @@ static char *const pam_ssh_agent_envp[] = { NULL };
  * struct pam_ssh_key containing the key and its comment.
  */
 static struct pam_ssh_key *
-pam_ssh_load_key(const char *dir, const char *kfn, const char *passphrase)
+pam_ssh_load_key(const char *dir, const char *kfn, const char *passphrase,
+    int nullok)
 {
 	struct pam_ssh_key *psk;
 	char fn[PATH_MAX];
@@ -103,7 +104,21 @@ pam_ssh_load_key(const char *dir, const char *kfn, const char *passphrase)
 	if (snprintf(fn, sizeof(fn), "%s/%s", dir, kfn) > (int)sizeof(fn))
 		return (NULL);
 	comment = NULL;
-	key = key_load_private(fn, passphrase, &comment);
+	/*
+	 * If the key is unencrypted, OpenSSL ignores the passphrase, so
+	 * it will seem like the user typed in the right one.  This allows
+	 * a user to circumvent nullok by providing a dummy passphrase.
+	 * Verify that the key really *is* encrypted by trying to load it
+	 * with an empty passphrase, and if the key is not encrypted,
+	 * accept only an empty passphrase.
+	 */
+	key = key_load_private(fn, NULL, &comment);
+	if (key != NULL && !(*passphrase == '\0' && nullok)) {
+		key_free(key);
+		return (NULL);
+	}
+	if (key == NULL)
+		key = key_load_private(fn, passphrase, &comment);
 	if (key == NULL) {
 		openpam_log(PAM_LOG_DEBUG, "failed to load key from %s", fn);
 		return (NULL);
@@ -170,9 +185,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
-	if (*passphrase == '\0' && !nullok)
-		goto skip_keys;
-
 	/* switch to user credentials */
 	pam_err = openpam_borrow_cred(pamh, pwd);
 	if (pam_err != PAM_SUCCESS)
@@ -180,7 +192,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	/* try to load keys from all keyfiles we know of */
 	for (kfn = pam_ssh_keyfiles; *kfn != NULL; ++kfn) {
-		psk = pam_ssh_load_key(pwd->pw_dir, *kfn, passphrase);
+		psk = pam_ssh_load_key(pwd->pw_dir, *kfn, passphrase, nullok);
 		if (psk != NULL) {
 			pam_set_data(pamh, *kfn, psk, pam_ssh_free_key);
 			++nkeys;
@@ -190,7 +202,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	/* switch back to arbitrator credentials */
 	openpam_restore_cred(pamh);
 
- skip_keys:
 	/*
 	 * If we tried an old token and didn't get anything, and
 	 * try_first_pass was specified, try again after prompting the

@@ -62,20 +62,22 @@ static const char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 #include <time.h>
 #include <unistd.h>
 #include <utmpx.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "ttymsg.h"
 
 static void makemsg(char *);
 static void usage(void);
 
-struct wallgroup {
+static struct wallgroup {
 	struct wallgroup *next;
 	char		*name;
 	gid_t		gid;
 } *grouplist;
-int nobanner;
-int mbufsize;
-char *mbuf;
+static int nobanner;
+static int mbufsize;
+static char *mbuf;
 
 static int
 ttystat(char *line)
@@ -185,14 +187,15 @@ void
 makemsg(char *fname)
 {
 	int cnt;
-	unsigned char ch;
+	wchar_t ch;
 	struct tm *lt;
 	struct passwd *pw;
 	struct stat sbuf;
 	time_t now;
 	FILE *fp;
 	int fd;
-	char *p, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	char hostname[MAXHOSTNAMELEN], tmpname[64];
+	wchar_t *p, *tmp, lbuf[256], codebuf[13];
 	const char *tty;
 	const char *whom;
 	gid_t egid;
@@ -220,78 +223,61 @@ makemsg(char *fname)
 		 * Which means that we may leave a non-blank character
 		 * in column 80, but that can't be helped.
 		 */
-		(void)fprintf(fp, "\r%79s\r\n", " ");
-		(void)snprintf(lbuf, sizeof(lbuf), 
-		    "Broadcast Message from %s@%s",
+		(void)fwprintf(fp, L"\r%79s\r\n", " ");
+		(void)swprintf(lbuf, sizeof(lbuf)/sizeof(wchar_t),
+		    L"Broadcast Message from %s@%s",
 		    whom, hostname);
-		(void)fprintf(fp, "%-79.79s\007\007\r\n", lbuf);
-		(void)snprintf(lbuf, sizeof(lbuf),
-		    "        (%s) at %d:%02d %s...", tty,
+		(void)fwprintf(fp, L"%-79.79S\007\007\r\n", lbuf);
+		(void)swprintf(lbuf, sizeof(lbuf)/sizeof(wchar_t),
+		    L"        (%s) at %d:%02d %s...", tty,
 		    lt->tm_hour, lt->tm_min, lt->tm_zone);
-		(void)fprintf(fp, "%-79.79s\r\n", lbuf);
+		(void)fwprintf(fp, L"%-79.79S\r\n", lbuf);
 	}
-	(void)fprintf(fp, "%79s\r\n", " ");
+	(void)fwprintf(fp, L"%79s\r\n", " ");
 
 	if (fname) {
 		egid = getegid();
 		setegid(getgid());
-	       	if (freopen(fname, "r", stdin) == NULL)
+		if (freopen(fname, "r", stdin) == NULL)
 			err(1, "can't read %s", fname);
 		setegid(egid);
 	}
 	cnt = 0;
-	while (fgets(lbuf, sizeof(lbuf), stdin)) {
-		for (p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
-			if (ch == '\r') {
-				putc('\r', fp);
+	while (fgetws(lbuf, sizeof(lbuf)/sizeof(wchar_t), stdin)) {
+		for (p = lbuf; (ch = *p) != L'\0'; ++p, ++cnt) {
+			if (ch == L'\r') {
+				putwc(L'\r', fp);
 				cnt = 0;
 				continue;
-			} else if (ch == '\n') {
+			} else if (ch == L'\n') {
 				for (; cnt < 79; ++cnt)
-					putc(' ', fp);
-				putc('\r', fp);
-				putc('\n', fp);
+					putwc(L' ', fp);
+				putwc(L'\r', fp);
+				putwc(L'\n', fp);
 				break;
 			}
 			if (cnt == 79) {
-				putc('\r', fp);
-				putc('\n', fp);
+				putwc(L'\r', fp);
+				putwc(L'\n', fp);
 				cnt = 0;
 			}
-			if (((ch & 0x80) && ch < 0xA0) ||
-				   /* disable upper controls */
-				   (!isprint(ch) && !isspace(ch) &&
-				    ch != '\a' && ch != '\b')
-				  ) {
-				if (ch & 0x80) {
-					ch &= 0x7F;
-					putc('M', fp);
+			if (iswprint(ch) || iswspace(ch) || ch == L'\a' || ch == L'\b') {
+				putwc(ch, fp);
+			} else {
+				(void)swprintf(codebuf, sizeof(codebuf)/sizeof(wchar_t), L"<0x%X>", ch);
+				for (tmp = codebuf; *tmp != L'\0'; ++tmp) {
+					putwc(*tmp, fp);
 					if (++cnt == 79) {
-						putc('\r', fp);
-						putc('\n', fp);
-						cnt = 0;
-					}
-					putc('-', fp);
-					if (++cnt == 79) {
-						putc('\r', fp);
-						putc('\n', fp);
+						putwc(L'\r', fp);
+						putwc(L'\n', fp);
 						cnt = 0;
 					}
 				}
-				if (iscntrl(ch)) {
-					ch ^= 040;
-					putc('^', fp);
-					if (++cnt == 79) {
-						putc('\r', fp);
-						putc('\n', fp);
-						cnt = 0;
-					}
-				}
+				--cnt;
 			}
-			putc(ch, fp);
 		}
 	}
-	(void)fprintf(fp, "%79s\r\n", " ");
+	(void)fwprintf(fp, L"%79s\r\n", " ");
 	rewind(fp);
 
 	if (fstat(fd, &sbuf))

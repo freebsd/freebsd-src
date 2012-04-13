@@ -23,6 +23,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/FunctionUtils.h"
 #include "llvm/ADT/Statistic.h"
 #include <fstream>
@@ -53,12 +54,12 @@ namespace {
 
 char LoopExtractor::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopExtractor, "loop-extract",
-                "Extract loops into new functions", false, false)
+                      "Extract loops into new functions", false, false)
 INITIALIZE_PASS_DEPENDENCY(BreakCriticalEdges)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 INITIALIZE_PASS_END(LoopExtractor, "loop-extract",
-                "Extract loops into new functions", false, false)
+                    "Extract loops into new functions", false, false)
 
 namespace {
   /// SingleLoopExtractor - For bugpoint.
@@ -100,9 +101,9 @@ bool LoopExtractor::runOnLoop(Loop *L, LPPassManager &LPM) {
     L->getHeader()->getParent()->getEntryBlock().getTerminator();
   if (!isa<BranchInst>(EntryTI) ||
       !cast<BranchInst>(EntryTI)->isUnconditional() ||
-      EntryTI->getSuccessor(0) != L->getHeader())
+      EntryTI->getSuccessor(0) != L->getHeader()) {
     ShouldExtractLoop = true;
-  else {
+  } else {
     // Check to see if any exits from the loop are more than just return
     // blocks.
     SmallVector<BasicBlock*, 8> ExitBlocks;
@@ -113,6 +114,21 @@ bool LoopExtractor::runOnLoop(Loop *L, LPPassManager &LPM) {
         break;
       }
   }
+
+  if (ShouldExtractLoop) {
+    // We must omit landing pads. Landing pads must accompany the invoke
+    // instruction. But this would result in a loop in the extracted
+    // function. An infinite cycle occurs when it tries to extract that loop as
+    // well.
+    SmallVector<BasicBlock*, 8> ExitBlocks;
+    L->getExitBlocks(ExitBlocks);
+    for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i)
+      if (ExitBlocks[i]->isLandingPad()) {
+        ShouldExtractLoop = false;
+        break;
+      }
+  }
+
   if (ShouldExtractLoop) {
     if (NumLoops == 0) return Changed;
     --NumLoops;
@@ -149,6 +165,7 @@ namespace {
   /// BlocksToNotExtract list.
   class BlockExtractorPass : public ModulePass {
     void LoadFile(const char *Filename);
+    void SplitLandingPadPreds(Function *F);
 
     std::vector<BasicBlock*> BlocksToNotExtract;
     std::vector<std::pair<std::string, std::string> > BlocksToNotExtractByName;
@@ -171,8 +188,7 @@ INITIALIZE_PASS(BlockExtractorPass, "extract-blocks",
 // createBlockExtractorPass - This pass extracts all blocks (except those
 // specified in the argument list) from the functions in the module.
 //
-ModulePass *llvm::createBlockExtractorPass()
-{
+ModulePass *llvm::createBlockExtractorPass() {
   return new BlockExtractorPass();
 }
 
@@ -191,6 +207,37 @@ void BlockExtractorPass::LoadFile(const char *Filename) {
     if (!BlockName.empty())
       BlocksToNotExtractByName.push_back(
           std::make_pair(FunctionName, BlockName));
+  }
+}
+
+/// SplitLandingPadPreds - The landing pad needs to be extracted with the invoke
+/// instruction. The critical edge breaker will refuse to break critical edges
+/// to a landing pad. So do them here. After this method runs, all landing pads
+/// should have only one predecessor.
+void BlockExtractorPass::SplitLandingPadPreds(Function *F) {
+  for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+    InvokeInst *II = dyn_cast<InvokeInst>(I);
+    if (!II) continue;
+    BasicBlock *Parent = II->getParent();
+    BasicBlock *LPad = II->getUnwindDest();
+
+    // Look through the landing pad's predecessors. If one of them ends in an
+    // 'invoke', then we want to split the landing pad.
+    bool Split = false;
+    for (pred_iterator
+           PI = pred_begin(LPad), PE = pred_end(LPad); PI != PE; ++PI) {
+      BasicBlock *BB = *PI;
+      if (BB->isLandingPad() && BB != Parent &&
+          isa<InvokeInst>(Parent->getTerminator())) {
+        Split = true;
+        break;
+      }
+    }
+
+    if (!Split) continue;
+
+    SmallVector<BasicBlock*, 2> NewBBs;
+    SplitLandingPadPredecessors(LPad, Parent, ".1", ".2", 0, NewBBs);
   }
 }
 
@@ -236,13 +283,21 @@ bool BlockExtractorPass::runOnModule(Module &M) {
   // Now that we know which blocks to not extract, figure out which ones we WANT
   // to extract.
   std::vector<BasicBlock*> BlocksToExtract;
-  for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F)
+  for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
+    SplitLandingPadPreds(&*F);
     for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
       if (!TranslatedBlocksToNotExtract.count(BB))
         BlocksToExtract.push_back(BB);
+  }
 
-  for (unsigned i = 0, e = BlocksToExtract.size(); i != e; ++i)
-    ExtractBasicBlock(BlocksToExtract[i]);
+  for (unsigned i = 0, e = BlocksToExtract.size(); i != e; ++i) {
+    SmallVector<BasicBlock*, 2> BlocksToExtractVec;
+    BlocksToExtractVec.push_back(BlocksToExtract[i]);
+    if (const InvokeInst *II =
+        dyn_cast<InvokeInst>(BlocksToExtract[i]->getTerminator()))
+      BlocksToExtractVec.push_back(II->getUnwindDest());
+    ExtractBasicBlock(BlocksToExtractVec);
+  }
 
   return !BlocksToExtract.empty();
 }

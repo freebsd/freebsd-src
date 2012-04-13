@@ -40,7 +40,7 @@
 
 #include <support/debug.h>
 
-SYSCTL_NODE(_debug, OID_AUTO, xfs, CTLFLAG_RD, 0, "XFS debug options");
+static SYSCTL_NODE(_debug, OID_AUTO, xfs, CTLFLAG_RD, 0, "XFS debug options");
 
 static int verbosity = 10;
 SYSCTL_INT(_debug_xfs, OID_AUTO, verbosity, CTLFLAG_RW, &verbosity, 0, "");

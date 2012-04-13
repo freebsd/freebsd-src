@@ -242,6 +242,10 @@ struct smb_vc {
 	void *		vc_toupper;	/* local charset */
 	void *		vc_toserver;	/* local charset to server one */
 	void *		vc_tolocal;	/* server charset to local one */
+	void *		vc_cp_toserver;	/* local charset to server one (using CodePage) */
+	void *		vc_cp_tolocal;	/* server charset to local one (using CodePage) */
+	void *		vc_ucs_toserver; /* local charset to server one (using UCS-2) */
+	void *		vc_ucs_tolocal;	/* server charset to local one (using UCS-2) */
 	int		vc_number;	/* number of this VC from the client side */
 	int		vc_genid;
 	uid_t		vc_uid;		/* user id of connection */
@@ -271,6 +275,8 @@ struct smb_vc {
 #define	vc_flags	obj.co_flags
 
 #define SMB_UNICODE_STRINGS(vcp)	((vcp)->vc_hflags2 & SMB_FLAGS2_UNICODE)
+
+#define	SMB_UNICODE_NAME	"UCS-2LE"
 
 /*
  * smb_share structure describes connection to the given SMB share (tree).

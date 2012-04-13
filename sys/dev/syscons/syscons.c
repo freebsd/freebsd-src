@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1992-1998 Søren Schmidt
+ * Copyright (c) 1992-1998 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
@@ -86,6 +86,9 @@ __FBSDID("$FreeBSD$");
 
 #define KEYCODE_BS		0x0e		/* "<-- Backspace" key, XXX */
 
+/* NULL-safe version of "tty_opened()" */
+#define	tty_opened_ns(tp)	((tp) != NULL && tty_opened(tp))
+
 typedef struct default_attr {
 	int		std_color;		/* normal hardware color */
 	int		rev_color;		/* reverse hardware color */
@@ -136,8 +139,8 @@ static	int		sc_no_suspend_vtswitch = 0;
 #endif
 static	int		sc_susp_scr;
 
-SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
-SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
+static SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
+static SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
 SYSCTL_INT(_hw_syscons, OID_AUTO, bell, CTLFLAG_RW, &enable_bell, 
@@ -185,6 +188,7 @@ static void scshutdown(void *, int);
 static void scsuspend(void *);
 static void scresume(void *);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
+static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
 static void sccnupdate(scr_stat *scp);
@@ -228,6 +232,8 @@ static cn_init_t	sc_cninit;
 static cn_term_t	sc_cnterm;
 static cn_getc_t	sc_cngetc;
 static cn_putc_t	sc_cnputc;
+static cn_grab_t	sc_cngrab;
+static cn_ungrab_t	sc_cnungrab;
 
 CONSOLE_DRIVER(sc);
 
@@ -737,7 +743,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
     while ((c = scgetc(sc, SCGETC_NONBLOCK)) != NOKEY) {
 
 	cur_tty = SC_DEV(sc, sc->cur_scp->index);
-	if (!tty_opened(cur_tty))
+	if (!tty_opened_ns(cur_tty))
 	    continue;
 
 	if ((*sc->cur_scp->tsw->te_input)(sc->cur_scp, c, cur_tty))
@@ -1131,7 +1137,7 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     case VT_OPENQRY:    	/* return free virtual console */
 	for (i = sc->first_vty; i < sc->first_vty + sc->vtys; i++) {
 	    tp = SC_DEV(sc, i);
-	    if (!tty_opened(tp)) {
+	    if (!tty_opened_ns(tp)) {
 		*(int *)data = i + 1;
 		return 0;
 	    }
@@ -1608,6 +1614,58 @@ sc_cnterm(struct consdev *cp)
 }
 
 static void
+sc_cngrab(struct consdev *cp)
+{
+    scr_stat *scp;
+
+    if (!cold &&
+	sc_console->sc->cur_scp->index != sc_console->index &&
+	sc_console->sc->cur_scp->smode.mode == VT_AUTO &&
+	sc_console->smode.mode == VT_AUTO)
+	    sc_switch_scr(sc_console->sc, sc_console->index);
+
+    scp = sc_console->sc->cur_scp;
+
+    if (scp->sc->kbd == NULL)
+	return;
+
+    if (scp->grabbed++ > 0)
+	return;
+
+    /*
+     * Make sure the keyboard is accessible even when the kbd device
+     * driver is disabled.
+     */
+    kbdd_enable(scp->sc->kbd);
+
+    /* we shall always use the keyboard in the XLATE mode here */
+    scp->kbd_prev_mode = scp->kbd_mode;
+    scp->kbd_mode = K_XLATE;
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+
+    kbdd_poll(scp->sc->kbd, TRUE);
+}
+
+static void
+sc_cnungrab(struct consdev *cp)
+{
+    scr_stat *scp;
+
+    scp = sc_console->sc->cur_scp;	/* XXX */
+    if (scp->sc->kbd == NULL)
+	return;
+
+    if (--scp->grabbed > 0)
+	return;
+
+    kbdd_poll(scp->sc->kbd, FALSE);
+
+    scp->kbd_mode = scp->kbd_prev_mode;
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    kbdd_disable(scp->sc->kbd);
+}
+
+static void
 sc_cnputc(struct consdev *cd, int c)
 {
     u_char buf[1];
@@ -1639,6 +1697,7 @@ sc_cnputc(struct consdev *cd, int c)
 	 * spinlock.
 	 */
 	tp = SC_DEV(scp->sc, scp->index);
+	/* XXX "tp" can be NULL */
 	tty_lock(tp);
 	if (tty_opened(tp))
 	    sctty_outwakeup(tp);
@@ -1662,7 +1721,6 @@ sc_cngetc(struct consdev *cd)
     static int fkeycp;
     scr_stat *scp;
     const u_char *p;
-    int cur_mode;
     int s = spltty();	/* block sckbdevent and scrn_timer while we poll */
     int c;
 
@@ -1686,25 +1744,7 @@ sc_cngetc(struct consdev *cd)
 	return -1;
     }
 
-    /* 
-     * Make sure the keyboard is accessible even when the kbd device
-     * driver is disabled.
-     */
-    kbdd_enable(scp->sc->kbd);
-
-    /* we shall always use the keyboard in the XLATE mode here */
-    cur_mode = scp->kbd_mode;
-    scp->kbd_mode = K_XLATE;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-
-    kbdd_poll(scp->sc->kbd, TRUE);
     c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
-    kbdd_poll(scp->sc->kbd, FALSE);
-
-    scp->kbd_mode = cur_mode;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-    kbdd_disable(scp->sc->kbd);
-    splx(s);
 
     switch (KEYFLAGS(c)) {
     case 0:	/* normal char */
@@ -2378,7 +2418,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
      */
     tp = SC_DEV(sc, cur_scp->index);
     if ((cur_scp->index != next_scr)
-	&& tty_opened(tp)
+	&& tty_opened_ns(tp)
 	&& (cur_scp->smode.mode == VT_AUTO)
 	&& ISGRAPHSC(cur_scp)) {
 	splx(s);
@@ -2395,7 +2435,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
      */
     if ((sc_console == NULL) || (next_scr != sc_console->index)) {
 	tp = SC_DEV(sc, next_scr);
-	if (!tty_opened(tp)) {
+	if (!tty_opened_ns(tp)) {
 	    splx(s);
 	    sc_bell(cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
@@ -2603,7 +2643,7 @@ exchange_scr(sc_softc_t *sc)
     mark_all(scp);
 }
 
-void
+static void
 sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 {
     int need_unlock = 0;
@@ -3434,7 +3474,7 @@ next_code:
 			    sc_draw_cursor_image(scp);
 			}
 			tp = SC_DEV(sc, scp->index);
-			if (!kdb_active && tty_opened(tp))
+			if (!kdb_active && tty_opened_ns(tp))
 			    sctty_outwakeup(tp);
 #endif
 		    }
@@ -3529,7 +3569,7 @@ next_code:
 			sc->first_vty + i != this_scr; 
 			i = (i + 1)%sc->vtys) {
 		    struct tty *tp = SC_DEV(sc, sc->first_vty + i);
-		    if (tty_opened(tp)) {
+		    if (tty_opened_ns(tp)) {
 			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -3542,7 +3582,7 @@ next_code:
 			sc->first_vty + i != this_scr;
 			i = (i + sc->vtys - 1)%sc->vtys) {
 		    struct tty *tp = SC_DEV(sc, sc->first_vty + i);
-		    if (tty_opened(tp)) {
+		    if (tty_opened_ns(tp)) {
 			sc_switch_scr(scp->sc, sc->first_vty + i);
 			break;
 		    }
@@ -3738,7 +3778,7 @@ sc_paste(scr_stat *scp, const u_char *p, int count)
     u_char *rmap;
 
     tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
-    if (!tty_opened(tp))
+    if (!tty_opened_ns(tp))
 	return;
     rmap = scp->sc->scr_rmap;
     for (; count > 0; --count)
@@ -3752,7 +3792,7 @@ sc_respond(scr_stat *scp, const u_char *p, int count, int wakeup)
     struct tty *tp;
 
     tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
-    if (!tty_opened(tp))
+    if (!tty_opened_ns(tp))
 	return;
     ttydisc_rint_simple(tp, p, count);
     if (wakeup) {
@@ -3794,7 +3834,7 @@ blink_screen(void *arg)
 	scp->sc->blink_in_progress = 0;
     	mark_all(scp);
 	tp = SC_DEV(scp->sc, scp->index);
-	if (tty_opened(tp))
+	if (tty_opened_ns(tp))
 	    sctty_outwakeup(tp);
 	if (scp->sc->delayed_next_scr)
 	    sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);

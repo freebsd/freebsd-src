@@ -62,7 +62,34 @@
 	(tp)->snd_una = (tp)->snd_nxt = (tp)->snd_max = (tp)->snd_up = \
 	    (tp)->snd_recover = (tp)->iss
 
-#define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * hz)
-					/* timestamp wrap-around time */
+#ifdef _KERNEL
+/*
+ * Clock macros for RFC 1323 timestamps.
+ */
+#define	TCP_TS_TO_TICKS(_t)	((_t) * hz / 1000)
+
+/* Timestamp wrap-around time, 24 days. */
+#define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * 1000)
+
+/*
+ * tcp_ts_getticks() in ms, should be 1ms < x < 1000ms according to RFC 1323.
+ * We always use 1ms granularity independent of hz.
+ */
+static __inline u_int
+tcp_ts_getticks(void)
+{
+	struct timeval tv;
+	u_long ms;
+
+	/*
+	 * getmicrouptime() should be good enough for any 1-1000ms granularity.
+	 * Do not use getmicrotime() here as it might break nfsroot/tcp.
+	 */
+	getmicrouptime(&tv);
+	ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+
+	return (ms);
+}
+#endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_SEQ_H_ */

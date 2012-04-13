@@ -61,9 +61,6 @@ static struct cdevsw gpioc_cdevsw = {
 	.d_version	= D_VERSION,
 	.d_ioctl	= gpioc_ioctl,
 	.d_name		= "gpioc",
-#if __FreeBSD_version >= 800039
-	.d_flags	= D_PSEUDO | D_NEEDMINOR
-#endif
 };
 
 struct gpioc_softc {
@@ -105,7 +102,7 @@ gpioc_detach(device_t dev)
 	struct gpioc_softc *sc = device_get_softc(dev);
 	int err;
 
-	if (sc->sc_ctl_dev);
+	if (sc->sc_ctl_dev)
 		destroy_dev(sc->sc_ctl_dev);
 
 	if ((err = bus_generic_detach(dev)) != 0)

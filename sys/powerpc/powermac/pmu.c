@@ -118,10 +118,6 @@ static device_method_t  pmu_methods[] = {
         DEVMETHOD(device_suspend,       bus_generic_suspend),
         DEVMETHOD(device_resume,        bus_generic_resume),
 
-	/* bus interface, for ADB root */
-        DEVMETHOD(bus_print_child,      bus_generic_print_child),
-        DEVMETHOD(bus_driver_added,     bus_generic_driver_added),
-
 	/* ADB bus interface */
 	DEVMETHOD(adb_hb_send_raw_packet,   pmu_adb_send),
 	DEVMETHOD(adb_hb_controller_poll,   pmu_poll),
@@ -131,7 +127,7 @@ static device_method_t  pmu_methods[] = {
 	DEVMETHOD(clock_gettime,	pmu_gettime),
 	DEVMETHOD(clock_settime,	pmu_settime),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t pmu_driver = {
@@ -704,6 +700,20 @@ pmu_intr(void *arg)
 
 		adb_receive_raw_packet(sc->adb_bus,resp[1],resp[2],
 			len - 3,&resp[3]);
+	}
+	if (resp[1] & PMU_INT_ENVIRONMENT) {
+		/* if the lid was just closed, notify devd. */
+		if ((resp[2] & PMU_ENV_LID_CLOSED) && (!sc->lid_closed)) {
+			sc->lid_closed = 1;
+			if (devctl_process_running())
+				devctl_notify("PMU", "lid", "close", NULL);
+		}
+		else if (!(resp[2] & PMU_ENV_LID_CLOSED) && (sc->lid_closed)) {
+			/* if the lid was just opened, notify devd. */
+			if (devctl_process_running())
+				devctl_notify("PMU", "lid", "open", NULL);
+			sc->lid_closed = 0;
+		}
 	}
 }
 

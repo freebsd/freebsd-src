@@ -61,16 +61,16 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 
 #define DEFLINE	1000			/* Default num lines per file. */
 
-off_t	 bytecnt;			/* Byte count to split on. */
-off_t	 chunks = 0;			/* Chunks count to split into. */
-long	 numlines;			/* Line count to split on. */
-int	 file_open;			/* If a file open. */
-int	 ifd = -1, ofd = -1;		/* Input/output file descriptors. */
-char	 bfr[MAXBSIZE];			/* I/O buffer. */
-char	 fname[MAXPATHLEN];		/* File name prefix. */
-regex_t	 rgx;
-int	 pflag;
-long	 sufflen = 2;			/* File name suffix length. */
+static off_t	 bytecnt;		/* Byte count to split on. */
+static off_t	 chunks = 0;		/* Chunks count to split into. */
+static long	 numlines;		/* Line count to split on. */
+static int	 file_open;		/* If a file open. */
+static int	 ifd = -1, ofd = -1;	/* Input/output file descriptors. */
+static char	 bfr[MAXBSIZE];		/* I/O buffer. */
+static char	 fname[MAXPATHLEN];	/* File name prefix. */
+static regex_t	 rgx;
+static int	 pflag;
+static long	 sufflen = 2;		/* File name suffix length. */
 
 static void newfile(void);
 static void split1(void);
@@ -347,17 +347,14 @@ newfile(void)
 {
 	long i, maxfiles, tfnum;
 	static long fnum;
-	static int defname;
 	static char *fpnt;
 
 	if (ofd == -1) {
 		if (fname[0] == '\0') {
 			fname[0] = 'x';
 			fpnt = fname + 1;
-			defname = 1;
 		} else {
 			fpnt = fname + strlen(fname);
-			defname = 0;
 		}
 		ofd = fileno(stdout);
 	}

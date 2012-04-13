@@ -74,6 +74,16 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+int iosize_max_clamp = 1;
+SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
+    &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
+/*
+ * Assert that the return value of read(2) and write(2) syscalls fits
+ * into a register.  If not, an architecture will need to provide the
+ * usermode wrappers to reconstruct the result.
+ */
+CTASSERT(sizeof(register_t) >= sizeof(size_t));
+
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
@@ -145,7 +155,7 @@ sys_read(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -178,7 +188,7 @@ sys_pread(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -354,7 +364,7 @@ sys_write(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -387,7 +397,7 @@ sys_pwrite(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -831,6 +841,54 @@ sys_select(struct thread *td, struct select_args *uap)
 	    NFDBITS));
 }
 
+/*
+ * In the unlikely case when user specified n greater then the last
+ * open file descriptor, check that no bits are set after the last
+ * valid fd.  We must return EBADF if any is set.
+ *
+ * There are applications that rely on the behaviour.
+ *
+ * nd is fd_lastfile + 1.
+ */
+static int
+select_check_badfd(fd_set *fd_in, int nd, int ndu, int abi_nfdbits)
+{
+	char *addr, *oaddr;
+	int b, i, res;
+	uint8_t bits;
+
+	if (nd >= ndu || fd_in == NULL)
+		return (0);
+
+	oaddr = NULL;
+	bits = 0; /* silence gcc */
+	for (i = nd; i < ndu; i++) {
+		b = i / NBBY;
+#if BYTE_ORDER == LITTLE_ENDIAN
+		addr = (char *)fd_in + b;
+#else
+		addr = (char *)fd_in;
+		if (abi_nfdbits == NFDBITS) {
+			addr += rounddown(b, sizeof(fd_mask)) +
+			    sizeof(fd_mask) - 1 - b % sizeof(fd_mask);
+		} else {
+			addr += rounddown(b, sizeof(uint32_t)) +
+			    sizeof(uint32_t) - 1 - b % sizeof(uint32_t);
+		}
+#endif
+		if (addr != oaddr) {
+			res = fubyte(addr);
+			if (res == -1)
+				return (EFAULT);
+			oaddr = addr;
+			bits = res;
+		}
+		if ((bits & (1 << (i % NBBY))) != 0)
+			return (EBADF);
+	}
+	return (0);
+}
+
 int
 kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
     fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits)
@@ -845,14 +903,26 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv, rtv, ttv;
-	int error, timo;
+	int error, lf, ndu, timo;
 	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
 
 	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
-	if (nd > fdp->fd_lastfile + 1)
-		nd = fdp->fd_lastfile + 1;
+	ndu = nd;
+	lf = fdp->fd_lastfile;
+	if (nd > lf + 1)
+		nd = lf + 1;
+
+	error = select_check_badfd(fd_in, nd, ndu, abi_nfdbits);
+	if (error != 0)
+		return (error);
+	error = select_check_badfd(fd_ou, nd, ndu, abi_nfdbits);
+	if (error != 0)
+		return (error);
+	error = select_check_badfd(fd_ex, nd, ndu, abi_nfdbits);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the

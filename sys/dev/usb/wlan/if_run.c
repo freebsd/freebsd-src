@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_runreg.h>
 #include <dev/usb/wlan/if_runvar.h>
 
-#define nitems(_a)      (sizeof((_a)) / sizeof((_a)[0]))
+#define	N(_a) ((int)(sizeof((_a)) / sizeof((_a)[0])))
 
 #ifdef	USB_DEBUG
 #define RUN_DEBUG
@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef	RUN_DEBUG
 int run_debug = 0;
-SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
 SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
     "run debug level");
 #endif
@@ -144,9 +144,11 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(AZUREWAVE,		RT3070_3),
     RUN_DEV(BELKIN,		F5D8053V3),
     RUN_DEV(BELKIN,		F5D8055),
+    RUN_DEV(BELKIN,		F5D8055V2),
     RUN_DEV(BELKIN,		F6D4050V1),
     RUN_DEV(BELKIN,		RT2870_1),
     RUN_DEV(BELKIN,		RT2870_2),
+    RUN_DEV(CISCOLINKSYS,	AE1000),
     RUN_DEV(CISCOLINKSYS2,	RT3070),
     RUN_DEV(CISCOLINKSYS3,	RT3070),
     RUN_DEV(CONCEPTRONIC2,	RT2870_1),
@@ -206,12 +208,14 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(LOGITEC,		RT2870_1),
     RUN_DEV(LOGITEC,		RT2870_2),
     RUN_DEV(LOGITEC,		RT2870_3),
+    RUN_DEV(LOGITEC,		LANW300NU2),
     RUN_DEV(MELCO,		RT2870_1),
     RUN_DEV(MELCO,		RT2870_2),
     RUN_DEV(MELCO,		WLIUCAG300N),
     RUN_DEV(MELCO,		WLIUCG300N),
     RUN_DEV(MELCO,		WLIUCG301N),
     RUN_DEV(MELCO,		WLIUCGN),
+    RUN_DEV(MELCO,		WLIUCGNM),
     RUN_DEV(MOTOROLA4,		RT2770),
     RUN_DEV(MOTOROLA4,		RT3070),
     RUN_DEV(MSI,		RT3070_1),
@@ -247,6 +251,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(RALINK,		RT3370),
     RUN_DEV(RALINK,		RT3572),
     RUN_DEV(RALINK,		RT8070),
+    RUN_DEV(SAMSUNG,		WIS09ABGN),
     RUN_DEV(SAMSUNG2,		RT2870_1),
     RUN_DEV(SENAO,		RT2870_1),
     RUN_DEV(SENAO,		RT2870_2),
@@ -310,9 +315,9 @@ static usb_callback_t	run_bulk_tx_callback5;
 static void	run_bulk_tx_callbackN(struct usb_xfer *xfer,
 		    usb_error_t error, unsigned int index);
 static struct ieee80211vap *run_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode, int flags,
-		    const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t
-		    mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	run_vap_delete(struct ieee80211vap *);
 static void	run_cmdq_cb(void *, int);
 static void	run_setup_tx_list(struct run_softc *,
@@ -595,12 +600,6 @@ run_attach(device_t self)
 	    sc->mac_ver, sc->mac_rev, run_get_rf(sc->rf_rev),
 	    sc->ntxchains, sc->nrxchains, ether_sprintf(sc->sc_bssid));
 
-	if ((error = run_load_microcode(sc)) != 0) {
-		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
-		RUN_UNLOCK(sc);
-		goto detach;
-	}
-
 	RUN_UNLOCK(sc);
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
@@ -659,7 +658,7 @@ run_attach(device_t self)
 	    sc->rf_rev == RT2860_RF_2850 ||
 	    sc->rf_rev == RT3070_RF_3052) {
 		/* set supported .11a rates */
-		for (i = 14; i < nitems(rt2860_rf2850); i++) {
+		for (i = 14; i < N(rt2860_rf2850); i++) {
 			uint8_t chan = rt2860_rf2850[i].chan;
 			ic->ic_channels[ic->ic_nchans].ic_freq =
 			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_A);
@@ -743,8 +742,8 @@ run_detach(device_t self)
 }
 
 static struct ieee80211vap *
-run_vap_create(struct ieee80211com *ic,
-    const char name[IFNAMSIZ], int unit, int opmode, int flags,
+run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
@@ -1045,8 +1044,9 @@ run_load_microcode(struct run_softc *sc)
 		error = ETIMEDOUT;
 		goto fail;
 	}
-	device_printf(sc->sc_dev, "firmware %s loaded\n",
-	    (base == fw->data) ? "RT2870" : "RT3071");
+	device_printf(sc->sc_dev, "firmware %s ver. %u.%u loaded\n",
+	    (base == fw->data) ? "RT2870" : "RT3071",
+	    *(base + 4092), *(base + 4093));
 
 fail:
 	firmware_put(fw, FIRMWARE_UNLOAD);
@@ -2574,8 +2574,8 @@ run_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", xferlen);
 
-		if (xferlen < sizeof (uint32_t) +
-		    sizeof (struct rt2860_rxwi) + sizeof (struct rt2870_rxd)) {
+		if (xferlen < (int)(sizeof(uint32_t) +
+		    sizeof(struct rt2860_rxwi) + sizeof(struct rt2870_rxd))) {
 			DPRINTF("xfer too short %d\n", xferlen);
 			goto tr_setup;
 		}
@@ -2640,11 +2640,12 @@ tr_setup:
 	for(;;) {
 		dmalen = le32toh(*mtod(m, uint32_t *)) & 0xffff;
 
-		if ((dmalen == 0) || ((dmalen & 3) != 0)) {
+		if ((dmalen >= (uint32_t)-8) || (dmalen == 0) ||
+		    ((dmalen & 3) != 0)) {
 			DPRINTF("bad DMA length %u\n", dmalen);
 			break;
 		}
-		if ((dmalen + 8) > xferlen) {
+		if ((dmalen + 8) > (uint32_t)xferlen) {
 			DPRINTF("bad DMA length %u > %d\n",
 			dmalen + 8, xferlen);
 			break;
@@ -2715,7 +2716,6 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int ind
 	struct run_endpoint_queue *pq = &sc->sc_epq[index];
 	struct mbuf *m;
 	usb_frlength_t size;
-	unsigned int len;
 	int actlen;
 	int sumlen;
 
@@ -2745,7 +2745,8 @@ tr_setup:
 		STAILQ_REMOVE_HEAD(&pq->tx_qh, next);
 
 		m = data->m;
-		if (m->m_pkthdr.len > RUN_MAX_TXSZ) {
+		if ((m->m_pkthdr.len +
+		    sizeof(data->desc) + 3 + 8) > RUN_MAX_TXSZ) {
 			DPRINTF("data overflow, %u bytes\n",
 			    m->m_pkthdr.len);
 
@@ -2760,6 +2761,14 @@ tr_setup:
 		size = sizeof(data->desc);
 		usbd_copy_in(pc, 0, &data->desc, size);
 		usbd_m_copy_in(pc, size, m, 0, m->m_pkthdr.len);
+		size += m->m_pkthdr.len;
+		/*
+		 * Align end on a 4-byte boundary, pad 8 bytes (CRC +
+		 * 4-byte padding), and be sure to zero those trailing
+		 * bytes:
+		 */
+		usbd_frame_zero(pc, size, ((-size) & 3) + 8);
+		size += ((-size) & 3) + 8;
 
 		vap = data->ni->ni_vap;
 		if (ieee80211_radiotap_active_vap(vap)) {
@@ -2778,13 +2787,10 @@ tr_setup:
 			ieee80211_radiotap_tx(vap, m);
 		}
 
-		/* align end on a 4-bytes boundary */
-		len = (size + IEEE80211_CRC_LEN + m->m_pkthdr.len + 3) & ~3;
+		DPRINTFN(11, "sending frame len=%u/%u  @ index %d\n",
+		    m->m_pkthdr.len, size, index);
 
-		DPRINTFN(11, "sending frame len=%u xferlen=%u @ index %d\n",
-			m->m_pkthdr.len, len, index);
-
-		usbd_xfer_set_frame_len(xfer, 0, len);
+		usbd_xfer_set_frame_len(xfer, 0, size);
 		usbd_xfer_set_priv(xfer, data);
 
 		usbd_transfer_submit(xfer);
@@ -4301,7 +4307,7 @@ run_bbp_init(struct run_softc *sc)
 		return (ETIMEDOUT);
 
 	/* initialize BBP registers to default values */
-	for (i = 0; i < nitems(rt2860_def_bbp); i++) {
+	for (i = 0; i < N(rt2860_def_bbp); i++) {
 		run_bbp_write(sc, rt2860_def_bbp[i].reg,
 		    rt2860_def_bbp[i].val);
 	}
@@ -4336,12 +4342,12 @@ run_rt3070_rf_init(struct run_softc *sc)
 
 	/* initialize RF registers to default value */
 	if (sc->mac_ver == 0x3572) {
-		for (i = 0; i < nitems(rt3572_def_rf); i++) {
+		for (i = 0; i < N(rt3572_def_rf); i++) {
 			run_rt3070_rf_write(sc, rt3572_def_rf[i].reg,
 			    rt3572_def_rf[i].val);
 		}
 	} else {
-		for (i = 0; i < nitems(rt3070_def_rf); i++) {
+		for (i = 0; i < N(rt3070_def_rf); i++) {
 			run_rt3070_rf_write(sc, rt3070_def_rf[i].reg,
 			    rt3070_def_rf[i].val);
 		}
@@ -4667,6 +4673,11 @@ run_init_locked(struct run_softc *sc)
 
 	run_stop(sc);
 
+	if (run_load_microcode(sc) != 0) {
+		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
+		goto fail;
+	}
+
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (run_read(sc, RT2860_ASIC_VER_ID, &tmp) != 0)
 			goto fail;
@@ -4719,7 +4730,7 @@ run_init_locked(struct run_softc *sc)
 		run_write(sc, RT2860_TX_PWR_CFG(ridx), sc->txpow20mhz[ridx]);
 	}
 
-	for (i = 0; i < nitems(rt2870_def_mac); i++)
+	for (i = 0; i < N(rt2870_def_mac); i++)
 		run_write(sc, rt2870_def_mac[i].reg, rt2870_def_mac[i].val);
 	run_write(sc, RT2860_WMM_AIFSN_CFG, 0x00002273);
 	run_write(sc, RT2860_WMM_CWMIN_CFG, 0x00002344);
@@ -4939,9 +4950,9 @@ static device_method_t run_methods[] = {
 };
 
 static driver_t run_driver = {
-	"run",
-	run_methods,
-	sizeof(struct run_softc)
+	.name = "run",
+	.methods = run_methods,
+	.size = sizeof(struct run_softc)
 };
 
 static devclass_t run_devclass;

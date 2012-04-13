@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/bio.h>
 #include <sys/disk.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -45,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, mountver, CTLFLAG_RW,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, mountver, CTLFLAG_RW,
     0, "GEOM_MOUNTVER stuff");
 static u_int g_mountver_debug = 0;
 static u_int g_mountver_check_ident = 1;

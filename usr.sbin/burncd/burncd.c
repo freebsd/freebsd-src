@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000,2001,2002 Søren Schmidt <sos@freebsd.org>
+ * Copyright (c) 2000,2001,2002 SÃ¸ren Schmidt <sos@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,13 @@ main(int argc, char **argv)
 	int nogap = 0, speed = 4 * 177, test_write = 0, force = 0;
 	int block_size = 0, block_type = 0, cdopen = 0, dvdrw = 0;
 	const char *dev, *env_speed;
+
+	if (feature_present("ata_cam")) {
+		errx(1, "\nATA_CAM option is enabled in kernel.\n"
+		    "Install the sysutils/cdrtools port and use cdrecord instead.\n\n"
+		    "Please refer to:\n"
+		    "http://www.freebsd.org/doc/handbook/creating-cds.html#CDRECORD");
+	}
 
 	if ((dev = getenv("CDROM")) == NULL)
 		dev = "/dev/acd0";

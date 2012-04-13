@@ -68,7 +68,7 @@ static device_method_t ofw_iicbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 struct ofw_iicbus_devinfo {
@@ -88,7 +88,7 @@ static int
 ofw_iicbus_probe(device_t dev)
 {
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 	device_set_desc(dev, "OFW I2C bus");
 

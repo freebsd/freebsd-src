@@ -367,23 +367,23 @@ typedef enum vxge_hal_frame_proto_e {
  *		configuration mismatch.
  * @VXGE_HAL_RING_T_CODE_L3_L4_CKSUM_MISMATCH: Layer 3 and Layer 4 checksum
  *		presentation configuration mismatch.
- * @VXGE_HAL_RING_T_CODE_L3_PKT_ERR: Layer 3 error¸unparseable packet,
+ * @VXGE_HAL_RING_T_CODE_L3_PKT_ERR: Layer 3 error: unparseable packet,
  *		such as unknown IPv6 header.
- * @VXGE_HAL_RING_T_CODE_L2_FRM_ERR: Layer 2 error¸frame integrity
+ * @VXGE_HAL_RING_T_CODE_L2_FRM_ERR: Layer 2 error: frame integrity
  *		error, such as FCS or ECC).
- * @VXGE_HAL_RING_T_CODE_BUF_SIZE_ERR: Buffer size error¸the RxD buffer(
- *		s) were not appropriately sized and data loss occurred.
- * @VXGE_HAL_RING_T_CODE_INT_ECC_ERR: Internal ECC error¸RxD corrupted.
- * @VXGE_HAL_RING_T_CODE_BENIGN_OVFLOW: Benign overflow¸the contents of
+ * @VXGE_HAL_RING_T_CODE_BUF_SIZE_ERR: Buffer size error: the RxD buffer(s)
+ * 		were not appropriately sized and data loss occurred.
+ * @VXGE_HAL_RING_T_CODE_INT_ECC_ERR: Internal ECC error: RxD corrupted.
+ * @VXGE_HAL_RING_T_CODE_BENIGN_OVFLOW: Benign overflow: the contents of
  *		Segment1 exceeded the capacity of Buffer1 and the remainder
  *		was placed in Buffer2. Segment2 now starts in Buffer3.
  *		No data loss or errors occurred.
- * @VXGE_HAL_RING_T_CODE_ZERO_LEN_BUFF: Buffer size 0¸one of the RxDs
+ * @VXGE_HAL_RING_T_CODE_ZERO_LEN_BUFF: Buffer size 0: one of the RxDs
  *		assigned buffers has a size of 0 bytes.
- * @VXGE_HAL_RING_T_CODE_FRM_DROP: Frame dropped¸either due to
+ * @VXGE_HAL_RING_T_CODE_FRM_DROP: Frame dropped: either due to
  *		VPath Reset or because of a VPIN mismatch.
  * @VXGE_HAL_RING_T_CODE_UNUSED: Unused
- * @VXGE_HAL_RING_T_CODE_MULTI_ERR: Multiple errors¸more than one
+ * @VXGE_HAL_RING_T_CODE_MULTI_ERR: Multiple errors: more than one
  *		transfer code condition occurred.
  *
  * Transfer codes returned by adapter.
@@ -1590,7 +1590,7 @@ vxge_hal_ring_rxd_post(
  * vxge_hal_ring_is_next_rxd_completed - Check if the next rxd is completed
  * @vpath_handle: Virtual Path handle.
  *
- * Checks if the the _next_	completed descriptor is	in host	memory
+ * Checks if the _next_	completed descriptor is	in host	memory
  *
  * Returns: VXGE_HAL_OK - success.
  * VXGE_HAL_INF_NO_MORE_COMPLETED_DESCRIPTORS - No completed	descriptors
@@ -2535,7 +2535,7 @@ void vxge_hal_fifo_txdl_vlan_set(
  * descriptor.
  * @vpath_handle: virtual path handle.
  * @txdlh: Descriptor handle.
- * @frag_idx: Index of the data buffer in the caller's scatter-gather list¤
+ * @frag_idx: Index of the data buffer in the caller's scatter-gather list
  *	   (of buffers).
  * @dma_pointer: DMA address of the data buffer referenced by @frag_idx.
  * @size: Size of the data buffer (in bytes).
@@ -2560,7 +2560,7 @@ vxge_hal_fifo_txdl_buffer_set(
  * in fifo descriptor.
  * @vpath_handle: Virtual path handle.
  * @txdlh: Descriptor handle.
- * @frag_idx: Index of the data buffer in the caller's scatter-gather list¤
+ * @frag_idx: Index of the data buffer in the caller's scatter-gather list
  *	   (of buffers).
  * @vaddr: Virtual address of the data buffer.
  * @dma_pointer: DMA address of the data buffer referenced by @frag_idx.

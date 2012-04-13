@@ -492,6 +492,9 @@ struct ste_desc_onefrag {
 #define CSR_READ_1(sc, reg)		\
 	bus_read_1((sc)->ste_res, reg)
 
+#define	CSR_BARRIER(sc, reg, length, flags)				\
+	bus_barrier((sc)->ste_res, reg, length, flags)
+
 #define	STE_DESC_ALIGN		8
 #define STE_RX_LIST_CNT		128
 #define STE_TX_LIST_CNT		128
@@ -519,7 +522,7 @@ struct ste_desc_onefrag {
 struct ste_type {
 	uint16_t		ste_vid;
 	uint16_t		ste_did;
-	char			*ste_name;
+	const char		*ste_name;
 };
 
 struct ste_list_data {
@@ -590,20 +593,3 @@ struct ste_softc {
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
 #define	STE_UNLOCK(_sc)		mtx_unlock(&(_sc)->ste_mtx)
 #define	STE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->ste_mtx, MA_OWNED)
-
-struct ste_mii_frame {
-	uint8_t			mii_stdelim;
-	uint8_t			mii_opcode;
-	uint8_t			mii_phyaddr;
-	uint8_t			mii_regaddr;
-	uint8_t			mii_turnaround;
-	uint16_t		mii_data;
-};
-
-/*
- * MII constants
- */
-#define STE_MII_STARTDELIM	0x01
-#define STE_MII_READOP		0x02
-#define STE_MII_WRITEOP		0x01
-#define STE_MII_TURNAROUND	0x02

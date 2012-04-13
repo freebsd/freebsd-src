@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
-MALLOC_DEFINE(M_ACPICMBAT, "acpicmbat", "ACPI control method battery data");
+static MALLOC_DEFINE(M_ACPICMBAT, "acpicmbat",
+    "ACPI control method battery data");
 
 /* Number of times to retry initialization before giving up. */
 #define ACPI_CMBAT_RETRY_MAX	6

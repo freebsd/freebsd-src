@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
- * Copyright (c) 2007-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2007-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ TUNABLE_INT("debug.acpi.max_tasks", &acpi_max_tasks);
 static int acpi_max_threads = ACPI_MAX_THREADS;
 TUNABLE_INT("debug.acpi.max_threads", &acpi_max_threads);
 
-MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
+static MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
 
 struct acpi_task_ctx {
     struct task			at_task;
@@ -248,8 +248,8 @@ AcpiOsGetTimer(void)
     KASSERT(cold == 0, ("acpi: timer op not yet supported during boot"));
 
     binuptime(&bt);
-    t = ((UINT64)10000000 * (uint32_t)(bt.frac >> 32)) >> 32;
-    t += bt.sec * 10000000;
+    t = (uint64_t)bt.sec * 10000000;
+    t += ((uint64_t)10000000 * (uint32_t)(bt.frac >> 32)) >> 32;
 
     return (t);
 }

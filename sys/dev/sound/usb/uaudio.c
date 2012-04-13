@@ -31,6 +31,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * USB audio specs: http://www.usb.org/developers/devclass_docs/audio10.pdf
  *                  http://www.usb.org/developers/devclass_docs/frmts10.pdf
@@ -93,7 +96,7 @@ static int uaudio_default_channels = 0;		/* use default */
 #ifdef USB_DEBUG
 static int uaudio_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
 
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
     &uaudio_debug, 0, "uaudio debug level");
@@ -522,8 +525,8 @@ static device_method_t uaudio_methods[] = {
 	DEVMETHOD(device_suspend, bus_generic_suspend),
 	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t uaudio_driver = {
@@ -623,21 +626,21 @@ uaudio_attach(device_t dev)
 	    sc->sc_mixer_count);
 
 	if (sc->sc_play_chan.valid) {
-		device_printf(dev, "Play: %d Hz, %d ch, %s format\n",
+		device_printf(dev, "Play: %d Hz, %d ch, %s format.\n",
 		    sc->sc_play_chan.sample_rate,
 		    sc->sc_play_chan.p_asf1d->bNrChannels,
 		    sc->sc_play_chan.p_fmt->description);
 	} else {
-		device_printf(dev, "No playback!\n");
+		device_printf(dev, "No playback.\n");
 	}
 
 	if (sc->sc_rec_chan.valid) {
-		device_printf(dev, "Record: %d Hz, %d ch, %s format\n",
+		device_printf(dev, "Record: %d Hz, %d ch, %s format.\n",
 		    sc->sc_rec_chan.sample_rate,
 		    sc->sc_rec_chan.p_asf1d->bNrChannels,
 		    sc->sc_rec_chan.p_fmt->description);
 	} else {
-		device_printf(dev, "No recording!\n");
+		device_printf(dev, "No recording.\n");
 	}
 
 	if (sc->sc_midi_chan.valid) {
@@ -645,9 +648,9 @@ uaudio_attach(device_t dev)
 		if (umidi_probe(dev)) {
 			goto detach;
 		}
-		device_printf(dev, "MIDI sequencer\n");
+		device_printf(dev, "MIDI sequencer.\n");
 	} else {
-		device_printf(dev, "No midi sequencer\n");
+		device_printf(dev, "No midi sequencer.\n");
 	}
 
 	DPRINTF("doing child attach\n");
@@ -656,13 +659,21 @@ uaudio_attach(device_t dev)
 
 	sc->sc_sndcard_func.func = SCF_PCM;
 
-	child = device_add_child(dev, "pcm", -1);
+	/*
+	 * Only attach a PCM device if we have a playback, recording
+	 * or mixer device present:
+	 */
+	if (sc->sc_play_chan.valid ||
+	    sc->sc_rec_chan.valid ||
+	    sc->sc_mix_info) {
+		child = device_add_child(dev, "pcm", -1);
 
-	if (child == NULL) {
-		DPRINTF("out of memory\n");
-		goto detach;
+		if (child == NULL) {
+			DPRINTF("out of memory\n");
+			goto detach;
+		}
+		device_set_ivars(child, &sc->sc_sndcard_func);
 	}
-	device_set_ivars(child, &sc->sc_sndcard_func);
 
 	if (bus_generic_attach(dev)) {
 		DPRINTF("child attach failed\n");
@@ -762,7 +773,17 @@ uaudio_detach(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(dev);
 
-	if (bus_generic_detach(dev)) {
+	/*
+	 * Stop USB transfers early so that any audio applications
+	 * will time out and close opened /dev/dspX.Y device(s), if
+	 * any.
+	 */
+	if (sc->sc_play_chan.valid)
+		usbd_transfer_unsetup(sc->sc_play_chan.xfer, UAUDIO_NCHANBUFS);
+	if (sc->sc_rec_chan.valid)
+		usbd_transfer_unsetup(sc->sc_rec_chan.xfer, UAUDIO_NCHANBUFS);
+
+	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
 	}
 	sbuf_delete(&sc->sc_sndstat);
@@ -1251,15 +1272,15 @@ uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
-	uint32_t n;
-	uint32_t m;
-	uint32_t blockcount;
 	uint32_t offset0;
 	uint32_t offset1;
 	uint32_t mfl;
+	int m;
+	int n;
 	int len;
 	int actlen;
 	int nframes;
+	int blockcount;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
 	mfl = usbd_xfer_max_framelen(xfer);
@@ -1286,9 +1307,9 @@ uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 
 				m = (ch->end - ch->cur);
 
-				if (m > len) {
+				if (m > len)
 					m = len;
-				}
+
 				usbd_copy_out(pc, offset1, ch->cur, m);
 
 				len -= m;
@@ -1863,10 +1884,10 @@ uaudio_mixer_add_selector(struct uaudio_softc *sc,
 
 static uint32_t
 uaudio_mixer_feature_get_bmaControls(const struct usb_audio_feature_unit *d,
-    uint8_t index)
+    uint8_t i)
 {
 	uint32_t temp = 0;
-	uint32_t offset = (index * d->bControlSize);
+	uint32_t offset = (i * d->bControlSize);
 
 	if (d->bControlSize > 0) {
 		temp |= d->bmaControls[offset];
@@ -2615,8 +2636,8 @@ uaudio_mixer_feature_name(const struct uaudio_terminal_node *iot,
 	return (uat->feature);
 }
 
-const static struct uaudio_terminal_node *
-uaudio_mixer_get_input(const struct uaudio_terminal_node *iot, uint8_t index)
+static const struct uaudio_terminal_node *
+uaudio_mixer_get_input(const struct uaudio_terminal_node *iot, uint8_t i)
 {
 	struct uaudio_terminal_node *root = iot->root;
 	uint8_t n;
@@ -2624,17 +2645,16 @@ uaudio_mixer_get_input(const struct uaudio_terminal_node *iot, uint8_t index)
 	n = iot->usr.id_max;
 	do {
 		if (iot->usr.bit_input[n / 8] & (1 << (n % 8))) {
-			if (!index--) {
+			if (!i--)
 				return (root + n);
-			}
 		}
 	} while (n--);
 
 	return (NULL);
 }
 
-const static struct uaudio_terminal_node *
-uaudio_mixer_get_output(const struct uaudio_terminal_node *iot, uint8_t index)
+static const struct uaudio_terminal_node *
+uaudio_mixer_get_output(const struct uaudio_terminal_node *iot, uint8_t i)
 {
 	struct uaudio_terminal_node *root = iot->root;
 	uint8_t n;
@@ -2642,9 +2662,8 @@ uaudio_mixer_get_output(const struct uaudio_terminal_node *iot, uint8_t index)
 	n = iot->usr.id_max;
 	do {
 		if (iot->usr.bit_output[n / 8] & (1 << (n % 8))) {
-			if (!index--) {
+			if (!i--)
 				return (root + n);
-			}
 		}
 	} while (n--);
 

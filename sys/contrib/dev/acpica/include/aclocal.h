@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ typedef UINT32                          ACPI_MUTEX_HANDLE;
 
 /* Total number of aml opcodes defined */
 
-#define AML_NUM_OPCODES                 0x7F
+#define AML_NUM_OPCODES                 0x81
 
 
 /* Forward declarations */
@@ -213,7 +213,6 @@ typedef struct acpi_namespace_node
 #define ANOBJ_IS_EXTERNAL               0x08    /* iASL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10    /* iASL only: Method has no return value */
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x20    /* iASL only: Method has at least one return value */
-#define ANOBJ_IS_BIT_OFFSET             0x40    /* iASL only: Reference is a bit offset */
 #define ANOBJ_IS_REFERENCED             0x80    /* iASL only: Object was referenced */
 
 
@@ -286,12 +285,16 @@ typedef struct acpi_create_field_info
     ACPI_NAMESPACE_NODE             *FieldNode;
     ACPI_NAMESPACE_NODE             *RegisterNode;
     ACPI_NAMESPACE_NODE             *DataRegisterNode;
+    ACPI_NAMESPACE_NODE             *ConnectionNode;
+    UINT8                           *ResourceBuffer;
     UINT32                          BankValue;
     UINT32                          FieldBitPosition;
     UINT32                          FieldBitLength;
+    UINT16                          ResourceLength;
     UINT8                           FieldFlags;
     UINT8                           Attribute;
     UINT8                           FieldType;
+    UINT8                           AccessLength;
 
 } ACPI_CREATE_FIELD_INFO;
 
@@ -359,7 +362,8 @@ typedef struct acpi_name_info
 
 /*
  * Used for ACPI_PTYPE1_FIXED, ACPI_PTYPE1_VAR, ACPI_PTYPE2,
- * ACPI_PTYPE2_MIN, ACPI_PTYPE2_PKG_COUNT, ACPI_PTYPE2_COUNT
+ * ACPI_PTYPE2_MIN, ACPI_PTYPE2_PKG_COUNT, ACPI_PTYPE2_COUNT,
+ * ACPI_PTYPE2_FIX_VAR
  */
 typedef struct acpi_package_info
 {
@@ -411,6 +415,7 @@ typedef struct acpi_predefined_data
     char                        *Pathname;
     const ACPI_PREDEFINED_INFO  *Predefined;
     union acpi_operand_object   *ParentPackage;
+    ACPI_NAMESPACE_NODE         *Node;
     UINT32                      Flags;
     UINT8                       NodeFlags;
 
@@ -419,6 +424,7 @@ typedef struct acpi_predefined_data
 /* Defines for Flags field above */
 
 #define ACPI_OBJECT_REPAIRED    1
+#define ACPI_OBJECT_WRAPPED     2
 
 
 /*
@@ -750,6 +756,17 @@ typedef
 ACPI_STATUS (*ACPI_EXECUTE_OP) (
     struct acpi_walk_state          *WalkState);
 
+/* Address Range info block */
+
+typedef struct acpi_address_range
+{
+    struct acpi_address_range   *Next;
+    ACPI_NAMESPACE_NODE         *RegionNode;
+    ACPI_PHYSICAL_ADDRESS       StartAddress;
+    ACPI_PHYSICAL_ADDRESS       EndAddress;
+
+} ACPI_ADDRESS_RANGE;
+
 
 /*****************************************************************************
  *
@@ -774,6 +791,17 @@ typedef struct acpi_opcode_info
 
 } ACPI_OPCODE_INFO;
 
+/* Structure for Resource Tag information */
+
+typedef struct acpi_tag_info
+{
+    UINT32                          BitOffset;
+    UINT32                          BitLength;
+
+} ACPI_TAG_INFO;
+
+/* Value associated with the parse object */
+
 typedef union acpi_parse_value
 {
     UINT64                          Integer;        /* Integer constant (Up to 64 bits) */
@@ -782,6 +810,7 @@ typedef union acpi_parse_value
     UINT8                           *Buffer;        /* buffer or string */
     char                            *Name;          /* NULL terminated string */
     union acpi_parse_object         *Arg;           /* arguments and contained ops */
+    ACPI_TAG_INFO                   Tag;            /* Resource descriptor tag info  */
 
 } ACPI_PARSE_VALUE;
 
@@ -1112,7 +1141,7 @@ typedef struct acpi_port_info
 #define ACPI_RESOURCE_NAME_END_DEPENDENT        0x38
 #define ACPI_RESOURCE_NAME_IO                   0x40
 #define ACPI_RESOURCE_NAME_FIXED_IO             0x48
-#define ACPI_RESOURCE_NAME_RESERVED_S1          0x50
+#define ACPI_RESOURCE_NAME_FIXED_DMA            0x50
 #define ACPI_RESOURCE_NAME_RESERVED_S2          0x58
 #define ACPI_RESOURCE_NAME_RESERVED_S3          0x60
 #define ACPI_RESOURCE_NAME_RESERVED_S4          0x68
@@ -1134,7 +1163,9 @@ typedef struct acpi_port_info
 #define ACPI_RESOURCE_NAME_EXTENDED_IRQ         0x89
 #define ACPI_RESOURCE_NAME_ADDRESS64            0x8A
 #define ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64   0x8B
-#define ACPI_RESOURCE_NAME_LARGE_MAX            0x8B
+#define ACPI_RESOURCE_NAME_GPIO                 0x8C
+#define ACPI_RESOURCE_NAME_SERIAL_BUS           0x8E
+#define ACPI_RESOURCE_NAME_LARGE_MAX            0x8E
 
 
 /*****************************************************************************

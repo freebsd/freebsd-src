@@ -169,8 +169,8 @@ public:
     return Position;
   }
   
-  llvm::StringRef getCharacters() const {
-    return llvm::StringRef(getStart(), getLength());
+  StringRef getCharacters() const {
+    return StringRef(getStart(), getLength());
   }
   
   bool consumesDataArgument() const {
@@ -276,7 +276,7 @@ public:
 
   ArgTypeResult getArgType(ASTContext &Ctx) const;
 
-  void toString(llvm::raw_ostream &os) const;
+  void toString(raw_ostream &os) const;
 
   bool usesPositionalArg() const { return (bool) UsesPositionalArg; }
   unsigned getPositionalArgIndex() const {
@@ -470,7 +470,7 @@ public:
     /// was not successful.
   bool fixType(QualType QT);
 
-  void toString(llvm::raw_ostream &os) const;
+  void toString(raw_ostream &os) const;
 
     // Validation methods - to check if any element results in undefined behavior
   bool hasValidPlusPrefix() const;

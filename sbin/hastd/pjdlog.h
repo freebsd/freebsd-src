@@ -95,7 +95,7 @@ void pjdlog_abort(const char *func, const char *file, int line,
 #define	PJDLOG_VERIFY(expr)	do {					\
 	if (!(expr)) {							\
 		pjdlog_abort(__func__, __FILE__, __LINE__, #expr,	\
-		    __func__);						\
+		    "%s", __func__);					\
 	}								\
 } while (0)
 #define	PJDLOG_RVERIFY(expr, ...)	do {				\

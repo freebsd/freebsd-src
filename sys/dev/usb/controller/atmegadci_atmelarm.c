@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 static device_probe_t atmegadci_probe;
 static device_attach_t atmegadci_attach;
 static device_detach_t atmegadci_detach;
-static device_shutdown_t atmegadci_shutdown;
 
 struct atmegadci_super_softc {
 	struct atmegadci_softc sc_otg;	/* must be first */
@@ -164,7 +163,7 @@ atmegadci_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	if (sc->sc_otg.sc_irq_res && sc->sc_otg.sc_intr_hdl) {
 		/*
@@ -193,38 +192,22 @@ atmegadci_detach(device_t dev)
 	return (0);
 }
 
-static int
-atmegadci_shutdown(device_t dev)
-{
-	struct atmegadci_super_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_shutdown(dev);
-	if (err)
-		return (err);
-
-	atmegadci_uninit(&sc->sc_otg);
-
-	return (0);
-}
-
 static device_method_t atmegadci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, atmegadci_probe),
 	DEVMETHOD(device_attach, atmegadci_attach),
 	DEVMETHOD(device_detach, atmegadci_detach),
-	DEVMETHOD(device_shutdown, atmegadci_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t atmegadci_driver = {
-	"atmegadci",
-	atmegadci_methods,
-	sizeof(struct atmegadci_super_softc),
+	.name = "atmegadci",
+	.methods = atmegadci_methods,
+	.size = sizeof(struct atmegadci_super_softc),
 };
 
 static devclass_t atmegadci_devclass;

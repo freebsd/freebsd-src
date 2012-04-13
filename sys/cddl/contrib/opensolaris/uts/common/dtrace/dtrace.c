@@ -235,7 +235,7 @@ static dtrace_dynvar_t	dtrace_dynhash_sink;	/* end of dynamic hash chains */
 static struct mtx	dtrace_unr_mtx;
 MTX_SYSINIT(dtrace_unr_mtx, &dtrace_unr_mtx, "Unique resource identifier", MTX_DEF);
 int		dtrace_in_probe;	/* non-zero if executing a probe */
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__mips__)
 uintptr_t	dtrace_in_probe_addr;	/* Address of invop when already in probe */
 #endif
 #endif
@@ -5877,6 +5877,9 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 	volatile uint16_t *flags;
 	hrtime_t now;
 
+	if (panicstr != NULL)
+		return;
+
 #if defined(sun)
 	/*
 	 * Kick out immediately if this CPU is still being born (in which case
@@ -10656,7 +10659,7 @@ err:
 #else
 	int i;
 
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__mips__)
 	/*
 	 * FreeBSD isn't good at limiting the amount of memory we
 	 * ask to malloc, so let's place a limit here before trying

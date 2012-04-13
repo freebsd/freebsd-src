@@ -248,7 +248,8 @@ static VNET_DEFINE(int, flowtable_ready) = 0;
 #define	V_flowtable_nmbflows		VNET(flowtable_nmbflows)
 #define	V_flowtable_ready		VNET(flowtable_ready)
 
-SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
+static SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
+    "flowtable");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, debug, CTLFLAG_RW,
     &VNET_NAME(flowtable_debug), 0, "print debug info.");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,
@@ -373,7 +374,7 @@ SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, stats, CTLTYPE_STRING|CTLFLAG_RD
 
 #ifndef RADIX_MPATH
 static void
-in_rtalloc_ign_wrapper(struct route *ro, uint32_t hash, u_int fibnum)
+rtalloc_ign_wrapper(struct route *ro, uint32_t hash, u_int fibnum)
 {
 
 	rtalloc_ign_fib(ro, 0, fibnum);
@@ -1185,12 +1186,14 @@ keycheck:
 	rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	lle = __DEVOLATILE(struct llentry *, fle->f_lle);
 	if ((rt != NULL)
+	    && lle != NULL
 	    && fle->f_fhash == hash
 	    && flowtable_key_equal(fle, key)
 	    && (proto == fle->f_proto)
 	    && (fibnum == fle->f_fibnum)
 	    && (rt->rt_flags & RTF_UP)
-	    && (rt->rt_ifp != NULL)) {
+	    && (rt->rt_ifp != NULL)
+	    && (lle->la_flags & LLE_VALID)) {
 		fs->ft_hits++;
 		fle->f_uptime = time_uptime;
 		fle->f_flags |= flags;
@@ -1312,7 +1315,7 @@ flowtable_alloc(char *name, int nentry, int flags)
 #ifdef RADIX_MPATH
 	ft->ft_rtalloc = rtalloc_mpath_fib;
 #else
-	ft->ft_rtalloc = in_rtalloc_ign_wrapper;
+	ft->ft_rtalloc = rtalloc_ign_wrapper;
 #endif
 	if (flags & FL_PCPU) {
 		ft->ft_lock = flowtable_pcpu_lock;

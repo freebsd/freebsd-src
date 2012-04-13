@@ -263,17 +263,17 @@ nv_validate(struct nv *nv, size_t *extrap)
 		case NV_TYPE_UINT8:
 			if (vsize == 0)
 				vsize = 1;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT16:
 		case NV_TYPE_UINT16:
 			if (vsize == 0)
 				vsize = 2;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT32:
 		case NV_TYPE_UINT32:
 			if (vsize == 0)
 				vsize = 4;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT64:
 		case NV_TYPE_UINT64:
 			if (vsize == 0)
@@ -290,12 +290,12 @@ nv_validate(struct nv *nv, size_t *extrap)
 		case NV_TYPE_UINT16_ARRAY:
 			if (vsize == 0)
 				vsize = 2;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT32_ARRAY:
 		case NV_TYPE_UINT32_ARRAY:
 			if (vsize == 0)
 				vsize = 4;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT64_ARRAY:
 		case NV_TYPE_UINT64_ARRAY:
 			if (vsize == 0)
@@ -385,7 +385,7 @@ nv_ntoh(struct ebuf *eb)
 	nv->nv_ebuf = eb;
 	nv->nv_magic = NV_MAGIC;
 
-	if (nv_validate(nv, &extra) < 0) {
+	if (nv_validate(nv, &extra) == -1) {
 		rerrno = errno;
 		nv->nv_magic = 0;
 		free(nv);
@@ -480,7 +480,7 @@ nv_add_stringv(struct nv *nv, const char *name, const char *valuefmt,
 	ssize_t size;
 
 	size = vasprintf(&value, valuefmt, valueap);
-	if (size < 0) {
+	if (size == -1) {
 		if (nv->nv_error == 0)
 			nv->nv_error = ENOMEM;
 		return;
@@ -627,7 +627,7 @@ nv_dump(struct nv *nv)
 	unsigned int ii;
 	bool swap;
 
-	if (nv_validate(nv, NULL) < 0) {
+	if (nv_validate(nv, NULL) == -1) {
 		printf("error: %d\n", errno);
 		return;
 	}
@@ -784,7 +784,7 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 	bcopy(name, nvh->nvh_name, namesize);
 
 	/* Add header first. */
-	if (ebuf_add_tail(nv->nv_ebuf, nvh, NVH_HSIZE(nvh)) < 0) {
+	if (ebuf_add_tail(nv->nv_ebuf, nvh, NVH_HSIZE(nvh)) == -1) {
 		PJDLOG_ASSERT(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
@@ -793,7 +793,7 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 	}
 	free(nvh);
 	/* Add the actual data. */
-	if (ebuf_add_tail(nv->nv_ebuf, value, vsize) < 0) {
+	if (ebuf_add_tail(nv->nv_ebuf, value, vsize) == -1) {
 		PJDLOG_ASSERT(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
@@ -804,7 +804,7 @@ nv_add(struct nv *nv, const unsigned char *value, size_t vsize, int type,
 	if (vsize == 0)
 		return;
 	PJDLOG_ASSERT(vsize > 0 && vsize <= sizeof(align));
-	if (ebuf_add_tail(nv->nv_ebuf, align, vsize) < 0) {
+	if (ebuf_add_tail(nv->nv_ebuf, align, vsize) == -1) {
 		PJDLOG_ASSERT(errno != 0);
 		if (nv->nv_error == 0)
 			nv->nv_error = errno;
@@ -906,14 +906,14 @@ nv_swap(struct nvhdr *nvh, bool tohost)
 	case NV_TYPE_UINT16_ARRAY:
 		if (vsize == 0)
 			vsize = 2;
-		/* FALLTHOUGH */
+		/* FALLTHROUGH */
 	case NV_TYPE_INT32:
 	case NV_TYPE_UINT32:
 	case NV_TYPE_INT32_ARRAY:
 	case NV_TYPE_UINT32_ARRAY:
 		if (vsize == 0)
 			vsize = 4;
-		/* FALLTHOUGH */
+		/* FALLTHROUGH */
 	case NV_TYPE_INT64:
 	case NV_TYPE_UINT64:
 	case NV_TYPE_INT64_ARRAY:

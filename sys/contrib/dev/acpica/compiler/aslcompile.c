@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -457,6 +457,17 @@ CmDoCompile (
     Event = UtBeginEvent ("Open input and output files");
     UtEndEvent (Event);
 
+    /* Preprocessor */
+
+    Event = UtBeginEvent ("Preprocess input file");
+    PrDoPreprocess ();
+    UtEndEvent (Event);
+    if (Gbl_PreprocessOnly)
+    {
+        CmCleanupAndExit ();
+        return 0;
+    }
+
     /* Build the parse tree */
 
     Event = UtBeginEvent ("Parse source code and build parse tree");
@@ -472,8 +483,9 @@ CmDoCompile (
 
     if (!RootNode)
     {
-        CmCleanupAndExit ();
-        return -1;
+        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
+            NULL, "- Could not resolve parse tree root node");
+        goto ErrorExit;
     }
 
     /* Optional parse tree dump, compiler debug output only */
@@ -506,12 +518,12 @@ CmDoCompile (
      */
     Event = UtBeginEvent ("Open AML output file");
     Status = FlOpenAmlOutputFile (Gbl_OutputFilenamePrefix);
+    UtEndEvent (Event);
     if (ACPI_FAILURE (Status))
     {
         AePrintErrorLog (ASL_FILE_STDERR);
         return -1;
     }
-    UtEndEvent (Event);
 
     /* Interpret and generate all compile-time constants */
 
@@ -550,6 +562,7 @@ CmDoCompile (
             AePrintErrorLog (ASL_FILE_STDERR);
             UtDisplaySummary (ASL_FILE_STDERR);
         }
+        UtEndEvent (FullCompile);
         return 0;
     }
 
@@ -564,7 +577,7 @@ CmDoCompile (
     UtEndEvent (Event);
     if (ACPI_FAILURE (Status))
     {
-        return -1;
+        goto ErrorExit;
     }
 
     /* Namespace cross-reference */
@@ -573,7 +586,7 @@ CmDoCompile (
     Status = LkCrossReferenceNamespace ();
     if (ACPI_FAILURE (Status))
     {
-        return -1;
+        goto ErrorExit;
     }
 
     /* Namespace - Check for non-referenced objects */
@@ -644,6 +657,11 @@ CmDoCompile (
     UtEndEvent (FullCompile);
     CmCleanupAndExit ();
     return 0;
+
+ErrorExit:
+    UtEndEvent (FullCompile);
+    CmCleanupAndExit ();
+    return (-1);
 }
 
 
@@ -797,7 +815,9 @@ CmCleanupAndExit (
 
     /* Close all open files */
 
-    for (i = 2; i < ASL_MAX_FILE_TYPE; i++)
+    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+
+    for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {
         FlCloseFile (i);
     }
@@ -812,6 +832,18 @@ CmCleanupAndExit (
             printf ("%s: ",
                 Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
             perror ("Could not delete AML file");
+        }
+    }
+
+    /* Delete the preprocessor output file (.i) unless -li flag is set */
+
+    if (!Gbl_PreprocessorOutputFlag && Gbl_Files[ASL_FILE_PREPROCESSOR].Filename)
+    {
+        if (remove (Gbl_Files[ASL_FILE_PREPROCESSOR].Filename))
+        {
+            printf ("%s: ",
+                Gbl_Files[ASL_FILE_PREPROCESSOR].Filename);
+            perror ("Could not delete preprocessor .i file");
         }
     }
 

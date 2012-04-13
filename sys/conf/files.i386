@@ -57,6 +57,10 @@ os+%DIKED-nve.h		optional	nve pci				\
 	no-implicit-rule no-obj before-depend				\
 	clean		"os+%DIKED-nve.h"
 #
+hpt27xx_lib.o			optional	hpt27xx			\
+	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
+	no-implicit-rule
 hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/i386-elf.raid.o.uu"		\
 	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu"	\
@@ -67,6 +71,7 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/i386-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
+cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_emul.c	optional compat_linux
@@ -144,7 +149,8 @@ dev/atkbdc/atkbdc_subr.c	optional atkbdc
 dev/atkbdc/psm.c		optional psm atkbdc
 dev/ce/ceddk.c			optional ce
 dev/ce/if_ce.c			optional ce
-dev/ce/tau32-ddk.c		optional ce
+dev/ce/tau32-ddk.c		optional ce \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
 dev/cm/if_cm_isa.c		optional cm isa
 dev/coretemp/coretemp.c		optional coretemp
 dev/cp/cpddk.c			optional cp
@@ -174,6 +180,9 @@ dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
+dev/hpt27xx/os_bsd.c		optional hpt27xx
+dev/hpt27xx/osm_bsd.c		optional hpt27xx
+dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
 dev/hptmv/entry.c		optional hptmv
 dev/hptmv/mv.c			optional hptmv
 dev/hptmv/gui_lib.c		optional hptmv
@@ -235,11 +244,122 @@ dev/syscons/scvtb.c		optional sc
 dev/tpm/tpm.c			optional tpm
 dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
-dev/uart/uart_cpu_i386.c	optional uart
+dev/uart/uart_cpu_x86.c		optional uart
+dev/viawd/viawd.c		optional viawd
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/vt/hw/xboxfb/xboxfb.c	optional vt_xboxfb
+dev/wbwd/wbwd.c			optional wbwd
 dev/wpi/if_wpi.c		optional wpi
+dev/isci/isci.c							optional isci
+dev/isci/isci_controller.c					optional isci
+dev/isci/isci_domain.c						optional isci
+dev/isci/isci_interrupt.c					optional isci
+dev/isci/isci_io_request.c					optional isci
+dev/isci/isci_logger.c						optional isci
+dev/isci/isci_oem_parameters.c					optional isci
+dev/isci/isci_remote_device.c					optional isci
+dev/isci/isci_sysctl.c						optional isci
+dev/isci/isci_task_request.c					optional isci
+dev/isci/isci_timer.c						optional isci
+dev/isci/scil/sati.c						optional isci
+dev/isci/scil/sati_abort_task_set.c				optional isci
+dev/isci/scil/sati_atapi.c					optional isci
+dev/isci/scil/sati_device.c					optional isci
+dev/isci/scil/sati_inquiry.c					optional isci
+dev/isci/scil/sati_log_sense.c					optional isci
+dev/isci/scil/sati_lun_reset.c					optional isci
+dev/isci/scil/sati_mode_pages.c					optional isci
+dev/isci/scil/sati_mode_select.c				optional isci
+dev/isci/scil/sati_mode_sense.c					optional isci
+dev/isci/scil/sati_mode_sense_10.c				optional isci
+dev/isci/scil/sati_mode_sense_6.c				optional isci
+dev/isci/scil/sati_move.c					optional isci
+dev/isci/scil/sati_passthrough.c				optional isci
+dev/isci/scil/sati_read.c					optional isci
+dev/isci/scil/sati_read_buffer.c				optional isci
+dev/isci/scil/sati_read_capacity.c				optional isci
+dev/isci/scil/sati_reassign_blocks.c				optional isci
+dev/isci/scil/sati_report_luns.c				optional isci
+dev/isci/scil/sati_request_sense.c				optional isci
+dev/isci/scil/sati_start_stop_unit.c				optional isci
+dev/isci/scil/sati_synchronize_cache.c				optional isci
+dev/isci/scil/sati_test_unit_ready.c				optional isci
+dev/isci/scil/sati_unmap.c					optional isci
+dev/isci/scil/sati_util.c					optional isci
+dev/isci/scil/sati_verify.c					optional isci
+dev/isci/scil/sati_write.c					optional isci
+dev/isci/scil/sati_write_and_verify.c				optional isci
+dev/isci/scil/sati_write_buffer.c				optional isci
+dev/isci/scil/sati_write_long.c					optional isci
+dev/isci/scil/sci_abstract_list.c				optional isci
+dev/isci/scil/sci_base_controller.c				optional isci
+dev/isci/scil/sci_base_domain.c					optional isci
+dev/isci/scil/sci_base_iterator.c				optional isci
+dev/isci/scil/sci_base_library.c				optional isci
+dev/isci/scil/sci_base_logger.c					optional isci
+dev/isci/scil/sci_base_memory_descriptor_list.c			optional isci
+dev/isci/scil/sci_base_memory_descriptor_list_decorator.c	optional isci
+dev/isci/scil/sci_base_object.c					optional isci
+dev/isci/scil/sci_base_observer.c				optional isci
+dev/isci/scil/sci_base_phy.c					optional isci
+dev/isci/scil/sci_base_port.c					optional isci
+dev/isci/scil/sci_base_remote_device.c				optional isci
+dev/isci/scil/sci_base_request.c				optional isci
+dev/isci/scil/sci_base_state_machine.c				optional isci
+dev/isci/scil/sci_base_state_machine_logger.c			optional isci
+dev/isci/scil/sci_base_state_machine_observer.c			optional isci
+dev/isci/scil/sci_base_subject.c				optional isci
+dev/isci/scil/sci_util.c					optional isci
+dev/isci/scil/scic_sds_controller.c				optional isci
+dev/isci/scil/scic_sds_library.c				optional isci
+dev/isci/scil/scic_sds_pci.c					optional isci
+dev/isci/scil/scic_sds_phy.c					optional isci
+dev/isci/scil/scic_sds_port.c					optional isci
+dev/isci/scil/scic_sds_port_configuration_agent.c		optional isci
+dev/isci/scil/scic_sds_remote_device.c				optional isci
+dev/isci/scil/scic_sds_remote_node_context.c			optional isci
+dev/isci/scil/scic_sds_remote_node_table.c			optional isci
+dev/isci/scil/scic_sds_request.c				optional isci
+dev/isci/scil/scic_sds_sgpio.c					optional isci
+dev/isci/scil/scic_sds_smp_remote_device.c			optional isci
+dev/isci/scil/scic_sds_smp_request.c				optional isci
+dev/isci/scil/scic_sds_ssp_request.c				optional isci
+dev/isci/scil/scic_sds_stp_packet_request.c			optional isci
+dev/isci/scil/scic_sds_stp_remote_device.c			optional isci
+dev/isci/scil/scic_sds_stp_request.c				optional isci
+dev/isci/scil/scic_sds_unsolicited_frame_control.c		optional isci
+dev/isci/scil/scif_sas_controller.c				optional isci
+dev/isci/scil/scif_sas_controller_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_controller_states.c			optional isci
+dev/isci/scil/scif_sas_domain.c					optional isci
+dev/isci/scil/scif_sas_domain_state_handlers.c			optional isci
+dev/isci/scil/scif_sas_domain_states.c				optional isci
+dev/isci/scil/scif_sas_high_priority_request_queue.c		optional isci
+dev/isci/scil/scif_sas_internal_io_request.c			optional isci
+dev/isci/scil/scif_sas_io_request.c				optional isci
+dev/isci/scil/scif_sas_io_request_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_io_request_states.c			optional isci
+dev/isci/scil/scif_sas_library.c				optional isci
+dev/isci/scil/scif_sas_remote_device.c				optional isci
+dev/isci/scil/scif_sas_remote_device_ready_substate_handlers.c	optional isci
+dev/isci/scil/scif_sas_remote_device_ready_substates.c		optional isci
+dev/isci/scil/scif_sas_remote_device_starting_substate_handlers.c		optional isci
+dev/isci/scil/scif_sas_remote_device_starting_substates.c	optional isci
+dev/isci/scil/scif_sas_remote_device_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_remote_device_states.c			optional isci
+dev/isci/scil/scif_sas_request.c				optional isci
+dev/isci/scil/scif_sas_smp_activity_clear_affiliation.c		optional isci
+dev/isci/scil/scif_sas_smp_io_request.c				optional isci
+dev/isci/scil/scif_sas_smp_phy.c				optional isci
+dev/isci/scil/scif_sas_smp_remote_device.c			optional isci
+dev/isci/scil/scif_sas_stp_io_request.c				optional isci
+dev/isci/scil/scif_sas_stp_remote_device.c			optional isci
+dev/isci/scil/scif_sas_stp_task_request.c			optional isci
+dev/isci/scil/scif_sas_task_request.c				optional isci
+dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
+dev/isci/scil/scif_sas_task_request_states.c			optional isci
+dev/isci/scil/scif_sas_timer.c					optional isci
 i386/acpica/acpi_machdep.c	optional acpi
 acpi_wakecode.o			optional acpi				\
 	dependency	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
@@ -287,10 +407,8 @@ i386/i386/i686_mem.c		optional mem
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
-i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
-i386/i386/legacy.c		optional native
 i386/i386/locore.s		optional native	no-obj
 i386/xen/locore.s		optional xen	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
@@ -398,9 +516,9 @@ x86/cpufreq/p4tcc.c		optional cpufreq
 x86/cpufreq/powernow.c		optional cpufreq
 x86/cpufreq/smist.c		optional cpufreq
 x86/isa/atpic.c			optional atpic	
-x86/isa/atrtc.c			optional atpic
+x86/isa/atrtc.c			optional native
 x86/isa/clock.c			optional native
-x86/isa/elcr.c			standard
+x86/isa/elcr.c			optional atpic | apic native
 x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
@@ -409,7 +527,9 @@ x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
+x86/x86/legacy.c		optional native
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic native

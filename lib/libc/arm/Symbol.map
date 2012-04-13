@@ -19,7 +19,6 @@ FBSD_1.0 {
 	__infinity;
 	__nan;
 	makecontext;
-	modf;
 	setjmp;
 	longjmp;
 	sigsetjmp;
@@ -41,6 +40,7 @@ FBSDprivate_1.0 {
 	__sys_exit;
 
 	_set_tp;
+	__aeabi_read_tp;
 	___longjmp;
 	__umodsi3;
 	__modsi3;

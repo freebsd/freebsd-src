@@ -166,7 +166,7 @@ fill_default_server_options(ServerOptions *options)
 			    _PATH_HOST_KEY_FILE;
 		if (options->protocol & SSH_PROTO_2) {
 			options->host_key_files[options->num_host_key_files++] =
-                            _PATH_HOST_RSA_KEY_FILE;
+			    _PATH_HOST_RSA_KEY_FILE;
 			options->host_key_files[options->num_host_key_files++] =
 			    _PATH_HOST_DSA_KEY_FILE;
 #ifdef OPENSSL_HAS_ECC
@@ -286,7 +286,7 @@ fill_default_server_options(ServerOptions *options)
 		options->ip_qos_interactive = IPTOS_LOWDELAY;
 	if (options->ip_qos_bulk == -1)
 		options->ip_qos_bulk = IPTOS_THROUGHPUT;
-	if (options->hpn_disabled == -1) 
+	if (options->hpn_disabled == -1)
 		options->hpn_disabled = 0;
 	if (options->hpn_buffer_size == -1) {
 		/*

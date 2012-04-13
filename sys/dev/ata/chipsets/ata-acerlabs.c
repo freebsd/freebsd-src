@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ static int
 ata_ali_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_ALI_5289, 0x00, 2, ALI_SATA, ATA_SA150, "M5289" },
      { ATA_ALI_5288, 0x00, 4, ALI_SATA, ATA_SA300, "M5288" },
      { ATA_ALI_5287, 0x00, 4, ALI_SATA, ATA_SA150, "M5287" },
@@ -213,6 +213,10 @@ ata_ali_ch_attach(device_t dev)
 	if (ch->dma.max_iosize > 256 * 512)
 		ch->dma.max_iosize = 256 * 512;
     }
+#ifdef ATA_CAM
+	if (ctlr->chip->cfg2 & ALI_NEW)
+		ch->flags |= ATA_NO_ATAPI_DMA;
+#endif
 
     return 0;
 }
@@ -300,11 +304,12 @@ ata_ali_setmode(device_t dev, int target, int mode)
 	struct ata_channel *ch = device_get_softc(dev);
 	int devno = (ch->unit << 1) + target;
 	int piomode;
-	u_int32_t piotimings[] =
+	static const uint32_t piotimings[] =
 		{ 0x006d0003, 0x00580002, 0x00440001, 0x00330001,
 		  0x00310001, 0x006d0003, 0x00330001, 0x00310001 };
-	u_int8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f, 0x0d};
-	u_int32_t word54;
+	static const uint8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f,
+	    0x0d};
+	uint32_t word54;
 
         mode = min(mode, ctlr->chip->max_dma);
 

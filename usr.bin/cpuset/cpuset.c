@@ -46,22 +46,22 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 
-int Cflag;
-int cflag;
-int gflag;
-int iflag;
-int jflag;
-int lflag;
-int pflag;
-int rflag;
-int sflag;
-int tflag;
-int xflag;
-id_t id;
-cpulevel_t level;
-cpuwhich_t which;
+static int Cflag;
+static int cflag;
+static int gflag;
+static int iflag;
+static int jflag;
+static int lflag;
+static int pflag;
+static int rflag;
+static int sflag;
+static int tflag;
+static int xflag;
+static id_t id;
+static cpulevel_t level;
+static cpuwhich_t which;
 
-void usage(void);
+static void usage(void);
 
 static void printset(cpuset_t *mask);
 
@@ -161,8 +161,8 @@ printset(cpuset_t *mask)
 	printf("\n");
 }
 
-const char *whichnames[] = { NULL, "tid", "pid", "cpuset", "irq", "jail" };
-const char *levelnames[] = { NULL, " root", " cpuset", "" };
+static const char *whichnames[] = { NULL, "tid", "pid", "cpuset", "irq", "jail" };
+static const char *levelnames[] = { NULL, " root", " cpuset", "" };
 
 static void
 printaffinity(void)
@@ -343,7 +343,7 @@ main(int argc, char *argv[])
 	exit(EXIT_SUCCESS);
 }
 
-void
+static void
 usage(void)
 {
 

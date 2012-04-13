@@ -213,7 +213,7 @@ ReprocessLoop:
   // predecessors from outside of the loop, split the edge now.
   SmallVector<BasicBlock*, 8> ExitBlocks;
   L->getExitBlocks(ExitBlocks);
-    
+
   SmallSetVector<BasicBlock *, 8> ExitBlockSet(ExitBlocks.begin(),
                                                ExitBlocks.end());
   for (SmallSetVector<BasicBlock *, 8>::iterator I = ExitBlockSet.begin(),
@@ -325,6 +325,14 @@ ReprocessLoop:
       DEBUG(dbgs() << "LoopSimplify: Eliminating exiting block "
                    << ExitingBlock->getName() << "\n");
 
+      // If any reachable control flow within this loop has changed, notify
+      // ScalarEvolution. Currently assume the parent loop doesn't change
+      // (spliting edges doesn't count). If blocks, CFG edges, or other values
+      // in the parent loop change, then we need call to forgetLoop() for the
+      // parent instead.
+      if (SE)
+        SE->forgetLoop(L);
+
       assert(pred_begin(ExitingBlock) == pred_end(ExitingBlock));
       Changed = true;
       LI->removeBlock(ExitingBlock);
@@ -402,13 +410,24 @@ BasicBlock *LoopSimplify::RewriteLoopExitBlock(Loop *L, BasicBlock *Exit) {
   }
 
   assert(!LoopBlocks.empty() && "No edges coming in from outside the loop?");
-  BasicBlock *NewBB = SplitBlockPredecessors(Exit, &LoopBlocks[0], 
-                                             LoopBlocks.size(), ".loopexit",
-                                             this);
+  BasicBlock *NewExitBB = 0;
+
+  if (Exit->isLandingPad()) {
+    SmallVector<BasicBlock*, 2> NewBBs;
+    SplitLandingPadPredecessors(Exit, ArrayRef<BasicBlock*>(&LoopBlocks[0],
+                                                            LoopBlocks.size()),
+                                ".loopexit", ".nonloopexit",
+                                this, NewBBs);
+    NewExitBB = NewBBs[0];
+  } else {
+    NewExitBB = SplitBlockPredecessors(Exit, &LoopBlocks[0],
+                                       LoopBlocks.size(), ".loopexit",
+                                       this);
+  }
 
   DEBUG(dbgs() << "LoopSimplify: Creating dedicated exit block "
-               << NewBB->getName() << "\n");
-  return NewBB;
+               << NewExitBB->getName() << "\n");
+  return NewExitBB;
 }
 
 /// AddBlockAndPredsToSet - Add the specified block, and all of its
@@ -467,23 +486,23 @@ void LoopSimplify::PlaceSplitBlockCarefully(BasicBlock *NewBB,
     if (&*BBI == SplitPreds[i])
       return;
   }
-  
+
   // If it isn't already after an outside block, move it after one.  This is
   // always good as it makes the uncond branch from the outside block into a
   // fall-through.
-  
+
   // Figure out *which* outside block to put this after.  Prefer an outside
   // block that neighbors a BB actually in the loop.
   BasicBlock *FoundBB = 0;
   for (unsigned i = 0, e = SplitPreds.size(); i != e; ++i) {
     Function::iterator BBI = SplitPreds[i];
-    if (++BBI != NewBB->getParent()->end() && 
+    if (++BBI != NewBB->getParent()->end() &&
         L->contains(BBI)) {
       FoundBB = SplitPreds[i];
       break;
     }
   }
-  
+
   // If our heuristic for a *good* bb to place this after doesn't find
   // anything, just pick something.  It's likely better than leaving it within
   // the loop.
@@ -544,7 +563,7 @@ Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
   // Make sure that NewBB is put someplace intelligent, which doesn't mess up
   // code layout too horribly.
   PlaceSplitBlockCarefully(NewBB, OuterLoopPreds, L);
-  
+
   // Create the new outer loop.
   Loop *NewOuter = new Loop();
 
@@ -735,6 +754,7 @@ void LoopSimplify::verifyAnalysis() const {
       }
     assert(HasIndBrPred &&
            "LoopSimplify has no excuse for missing loop header info!");
+    (void)HasIndBrPred;
   }
 
   // Indirectbr can interfere with exit block canonicalization.
@@ -742,12 +762,15 @@ void LoopSimplify::verifyAnalysis() const {
     bool HasIndBrExiting = false;
     SmallVector<BasicBlock*, 8> ExitingBlocks;
     L->getExitingBlocks(ExitingBlocks);
-    for (unsigned i = 0, e = ExitingBlocks.size(); i != e; ++i)
+    for (unsigned i = 0, e = ExitingBlocks.size(); i != e; ++i) {
       if (isa<IndirectBrInst>((ExitingBlocks[i])->getTerminator())) {
         HasIndBrExiting = true;
         break;
       }
+    }
+
     assert(HasIndBrExiting &&
            "LoopSimplify has no excuse for missing exit block info!");
+    (void)HasIndBrExiting;
   }
 }

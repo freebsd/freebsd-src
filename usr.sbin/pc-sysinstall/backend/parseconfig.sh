@@ -70,7 +70,6 @@ check_value installMode "fresh upgrade extract"
 check_value installType "PCBSD FreeBSD"
 check_value installMedium "dvd usb ftp rsync image local"
 check_value packageType "uzip tar rsync split"
-if_check_value_exists partition "all s1 s2 s3 s4 free image"
 if_check_value_exists mirrorbal "load prefer round-robin split"
 
 # We passed all sanity checks! Yay, lets start the install

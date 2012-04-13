@@ -38,8 +38,9 @@ class SPUTargetMachine : public LLVMTargetMachine {
   SPUSelectionDAGInfo TSInfo;
   InstrItineraryData  InstrItins;
 public:
-  SPUTargetMachine(const Target &T, const std::string &TT,
-                   const std::string &CPU, const std::string &FS);
+  SPUTargetMachine(const Target &T, StringRef TT,
+                   StringRef CPU, StringRef FS,
+                   Reloc::Model RM, CodeModel::Model CM);
 
   /// Return the subtarget implementation object
   virtual const SPUSubtarget     *getSubtargetImpl() const {

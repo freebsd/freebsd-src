@@ -600,13 +600,24 @@ utmpxprint(const struct utmpx *ut)
 		printf("\" pid=\"%d\" user=\"%s\" line=\"%s\" host=\"%s\"\n",
 		    ut->ut_pid, ut->ut_user, ut->ut_line, ut->ut_host);
 		break;
+	case INIT_PROCESS:
+		printf("init process: id=\"");
+		UTMPXPRINTID;
+		printf("\" pid=\"%d\"\n", ut->ut_pid);
+		break;
+	case LOGIN_PROCESS:
+		printf("login process: id=\"");
+		UTMPXPRINTID;
+		printf("\" pid=\"%d\" user=\"%s\" line=\"%s\" host=\"%s\"\n",
+		    ut->ut_pid, ut->ut_user, ut->ut_line, ut->ut_host);
+		break;
 	case DEAD_PROCESS:
 		printf("dead process: id=\"");
 		UTMPXPRINTID;
 		printf("\" pid=\"%d\"\n", ut->ut_pid);
 		break;
 	default:
-		printf("unknown record type\n");
+		printf("unknown record type %hu\n", ut->ut_type);
 		break;
 	}
 }

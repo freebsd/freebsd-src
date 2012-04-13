@@ -1,4 +1,4 @@
-$ $tcsh: set4,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set4,v 1.3 2011/02/04 18:19:39 christos Exp $
 $ Termcap strings
 $set 4
 1 aggiunge una linea vuota
@@ -9,13 +9,13 @@ $set 4
 6 cancella lo schermo
 7 cancella un carattere
 8 cancella una riga
-9 mette in modalità di cancellazione
-10 fine della modalità di cancellazione
-11 fine della modalità di inserimento
+9 mette in modalitÃ  di cancellazione
+10 fine della modalitÃ  di cancellazione
+11 fine della modalitÃ  di inserimento
 12 cursore dalla linea di stato
 13 cursore nella posizione iniziale
 14 inserisce un carattere
-15 mette in modalità di inserimento
+15 mette in modalitÃ  di inserimento
 16 inserisce un carattere di riallineamento
 17 muove il cursore verso il basso
 18 muove il cursore verso sinistra
@@ -31,14 +31,14 @@ $set 4
 28 inizio sottolineatura
 29 fine sottolineatura
 30 segnale ottico
-31 cancella più caratteri
-32 cursore verso il basso più volte
-33 inserisce più caratteri
-34 cursore verso sinistra più volte
-35 cursore verso destra più volte
-36 cursore verso l'alto più volte
+31 cancella piÃ¹ caratteri
+32 cursore verso il basso piÃ¹ volte
+33 inserisce piÃ¹ caratteri
+34 cursore verso sinistra piÃ¹ volte
+35 cursore verso destra piÃ¹ volte
+36 cursore verso l'alto piÃ¹ volte
 37 Ha margini automatizzati
-38 Può usare tabulatori fisici
+38 PuÃ² usare tabulatori fisici
 39 Numero di linee
 40 Numero di colonne
 41 Ha il tasto meta

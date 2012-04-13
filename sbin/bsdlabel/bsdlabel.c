@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #define DKTYPENAMES
 #define FSTYPENAMES
-#define MAXPARTITIONS	26
+#define MAXPARTITIONS	20
 #include <sys/disklabel.h>
 
 #include <unistd.h>
@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 static void	makelabel(const char *, struct disklabel *);
-static int	geom_bsd_available(void);
+static int	geom_class_available(const char *);
 static int	writelabel(void);
 static int	readlabel(int flag);
 static void	display(FILE *, const struct disklabel *);
@@ -130,7 +130,7 @@ static int labelsoffset = LABELSECTOR;
 static int labeloffset = LABELOFFSET;
 static int bbsize = BBSIZE;
 
-enum	{
+static enum {
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
 } op = UNSPEC;
 
@@ -189,8 +189,8 @@ main(int argc, char *argv[])
 				break;
 			case 'r':
 				/*
-				 * We accept and ignode -r for compatibility with
-				 * historically disklabel usage.
+				 * We accept and ignore -r for compatibility with
+				 * historical disklabel usage.
 				 */
 				break;
 			case 'w':
@@ -355,7 +355,7 @@ readboot(void)
 }
 
 static int
-geom_bsd_available(void)
+geom_class_available(const char *name)
 {
 	struct gclass *class;
 	struct gmesh mesh;
@@ -366,7 +366,7 @@ geom_bsd_available(void)
 		errc(1, error, "Cannot get GEOM tree");
 
 	LIST_FOREACH(class, &mesh.lg_class, lg_class) {
-		if (strcmp(class->lg_name, "BSD") == 0) {
+		if (strcmp(class->lg_name, name) == 0) {
 			geom_deletetree(&mesh);
 			return (1);
 		}
@@ -386,7 +386,7 @@ writelabel(void)
 	struct disklabel *lp = &lab;
 
 	if (disable_write) {
-		warnx("write to disk label supressed - label was as follows:");
+		warnx("write to disk label suppressed - label was as follows:");
 		display(stdout, NULL);
 		return (0);
 	}
@@ -400,7 +400,7 @@ writelabel(void)
 	for (i = 0; i < lab.d_npartitions; i++)
 		if (lab.d_partitions[i].p_size)
 			lab.d_partitions[i].p_offset += lba_offset;
-	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * secsize,
+	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * lab.d_secsize,
 	    lp);
 
 	fd = open(specname, O_RDWR);
@@ -411,8 +411,20 @@ writelabel(void)
 		} else
 			serrno = errno;
 
+		if (geom_class_available("PART") != 0) {
+			/*
+			 * Since we weren't able open provider for
+			 * writing, then recommend user to use gpart(8).
+			 */
+			warnc(serrno,
+			    "cannot open provider %s for writing label",
+			    specname);
+			warnx("Try to use gpart(8).");
+			return (1);
+		}
+
 		/* Give up if GEOM_BSD is not available. */
-		if (geom_bsd_available() == 0) {
+		if (geom_class_available("BSD") == 0) {
 			warnc(serrno, "%s", specname);
 			return (1);
 		}
@@ -422,7 +434,7 @@ writelabel(void)
 		gctl_ro_param(grq, "class", -1, "BSD");
 		gctl_ro_param(grq, "geom", -1, pname);
 		gctl_ro_param(grq, "label", 148+16*8,
-			bootarea + labeloffset + labelsoffset * secsize);
+			bootarea + labeloffset + labelsoffset * lab.d_secsize);
 		errstr = gctl_issue(grq);
 		if (errstr != NULL) {
 			warnx("%s", errstr);
@@ -770,12 +782,12 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	lp->d_sbsize = 0;				/* XXX */
 	while (fgets(line, sizeof(line) - 1, f)) {
 		lineno++;
-		if ((cp = index(line,'\n')) != 0)
+		if ((cp = strchr(line,'\n')) != 0)
 			*cp = '\0';
 		cp = skip(line);
 		if (cp == NULL)
 			continue;
-		tp = index(cp, ':');
+		tp = strchr(cp, ':');
 		if (tp == NULL) {
 			fprintf(stderr, "line %d: syntax error\n", lineno);
 			errors++;
@@ -831,10 +843,15 @@ getasciilabel(FILE *f, struct disklabel *lp)
 			continue;
 		}
 		if (sscanf(cp, "%lu partitions", &v) == 1) {
-			if (v == 0 || v > MAXPARTITIONS) {
+			if (v > MAXPARTITIONS) {
 				fprintf(stderr,
 				    "line %d: bad # of partitions\n", lineno);
 				lp->d_npartitions = MAXPARTITIONS;
+				errors++;
+			} else if (v < DEFPARTITIONS) {
+				fprintf(stderr,
+				    "line %d: bad # of partitions\n", lineno);
+				lp->d_npartitions = DEFPARTITIONS;
 				errors++;
 			} else
 				lp->d_npartitions = v;
@@ -1149,23 +1166,42 @@ checklabel(struct disklabel *lp)
 			errors++;
 		} else if (lp->d_bbsize % lp->d_secsize)
 			warnx("boot block size %% sector-size != 0");
-		if (lp->d_npartitions > MAXPARTITIONS)
+		if (lp->d_npartitions > MAXPARTITIONS) {
 			warnx("number of partitions (%lu) > MAXPARTITIONS (%d)",
 			    (u_long)lp->d_npartitions, MAXPARTITIONS);
+			errors++;
+		}
+		if (lp->d_npartitions < DEFPARTITIONS) {
+			warnx("number of partitions (%lu) < DEFPARTITIONS (%d)",
+			    (u_long)lp->d_npartitions, DEFPARTITIONS);
+			errors++;
+		}
 	} else {
 		struct disklabel *vl;
 
 		vl = getvirginlabel();
-		lp->d_secsize = vl->d_secsize;
-		lp->d_nsectors = vl->d_nsectors;
-		lp->d_ntracks = vl->d_ntracks;
-		lp->d_ncylinders = vl->d_ncylinders;
-		lp->d_rpm = vl->d_rpm;
-		lp->d_interleave = vl->d_interleave;
-		lp->d_secpercyl = vl->d_secpercyl;
-		lp->d_secperunit = vl->d_secperunit;
-		lp->d_bbsize = vl->d_bbsize;
-		lp->d_npartitions = vl->d_npartitions;
+		if (lp->d_secsize == 0)
+			lp->d_secsize = vl->d_secsize;
+		if (lp->d_nsectors == 0)
+			lp->d_nsectors = vl->d_nsectors;
+		if (lp->d_ntracks == 0)
+			lp->d_ntracks = vl->d_ntracks;
+		if (lp->d_ncylinders == 0)
+			lp->d_ncylinders = vl->d_ncylinders;
+		if (lp->d_rpm == 0)
+			lp->d_rpm = vl->d_rpm;
+		if (lp->d_interleave == 0)
+			lp->d_interleave = vl->d_interleave;
+		if (lp->d_secpercyl == 0)
+			lp->d_secpercyl = vl->d_secpercyl;
+		if (lp->d_secperunit == 0 ||
+		    lp->d_secperunit > vl->d_secperunit)
+			lp->d_secperunit = vl->d_secperunit;
+		if (lp->d_bbsize == 0)
+			lp->d_bbsize = vl->d_bbsize;
+		if (lp->d_npartitions < DEFPARTITIONS ||
+		    lp->d_npartitions > MAXPARTITIONS)
+			lp->d_npartitions = vl->d_npartitions;
 	}
 
 
@@ -1477,8 +1513,8 @@ getvirginlabel(void)
 	loclab.d_secperunit = mediasize / secsize;
 
 	/*
-	 * Nobody in these enligthened days uses the CHS geometry for
-	 * anything, but nontheless try to get it right.  If we fail
+	 * Nobody in these enlightened days uses the CHS geometry for
+	 * anything, but nonetheless try to get it right.  If we fail
 	 * to get any good ideas from the device, construct something
 	 * which is IBM-PC friendly.
 	 */

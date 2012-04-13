@@ -189,7 +189,7 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	} else
 		ticks = 0;
 
-	if ((cpus = OF_finddevice("/cpus")) == 0)
+	if ((cpus = OF_finddevice("/cpus")) == -1)
 		goto out;
 
 	if ((child = OF_child(cpus)) == 0)

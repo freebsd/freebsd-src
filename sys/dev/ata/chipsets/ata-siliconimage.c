@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,7 +80,6 @@ static void ata_siiprb_dmainit(device_t dev);
 #define SII_BUG		0x04
 #define SII_4CH		0x08
 
-
 /*
  * Silicon Image Inc. (SiI) (former CMD) chipset support functions
  */
@@ -88,7 +87,7 @@ static int
 ata_sii_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_SII3114,   0x00, SII_MEMIO, SII_4CH,    ATA_SA150, "3114" },
      { ATA_SII3512,   0x02, SII_MEMIO, 0,          ATA_SA150, "3512" },
      { ATA_SII3112,   0x02, SII_MEMIO, 0,          ATA_SA150, "3112" },
@@ -141,6 +140,17 @@ ata_sii_chipinit(device_t dev)
 	    bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,ctlr->r_res1);
 	    return ENXIO;
 	}
+#ifdef __sparc64__
+	if (!bus_space_map(rman_get_bustag(ctlr->r_res2),
+	    rman_get_bushandle(ctlr->r_res2), rman_get_size(ctlr->r_res2),
+	    BUS_SPACE_MAP_LINEAR, NULL)) {
+	    	bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,
+		    ctlr->r_res1);
+		bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2,
+		    ctlr->r_res2);
+		return (ENXIO);
+	}
+#endif
 	ctlr->ch_attach = ata_siiprb_ch_attach;
 	ctlr->ch_detach = ata_siiprb_ch_detach;
 	ctlr->reset = ata_siiprb_reset;
@@ -230,6 +240,10 @@ ata_cmd_ch_attach(device_t dev)
     if (ctlr->chip->cfg2 & SII_INTR)
 	ch->hw.status = ata_cmd_status;
 
+#ifdef ATA_CAM
+	ch->flags |= ATA_NO_ATAPI_DMA;
+#endif
+
     return 0;
 }
 
@@ -258,10 +272,11 @@ ata_cmd_setmode(device_t dev, int target, int mode)
 	int treg = 0x54 + ((devno < 3) ? (devno << 1) : 7);
 	int ureg = ch->unit ? 0x7b : 0x73;
 	int piomode;
-	uint8_t piotimings[] = { 0xa9, 0x57, 0x44, 0x32, 0x3f, 0x87, 0x32, 0x3f };
-	uint8_t udmatimings[][2] = { { 0x31,  0xc2 }, { 0x21,  0x82 },
-				     { 0x11,  0x42 }, { 0x25,  0x8a },
-				     { 0x15,  0x4a }, { 0x05,  0x0a } };
+	static const uint8_t piotimings[] =
+	    { 0xa9, 0x57, 0x44, 0x32, 0x3f, 0x87, 0x32, 0x3f };
+	static const uint8_t udmatimings[][2] =
+	    { { 0x31,  0xc2 }, { 0x21,  0x82 }, { 0x11,  0x42 },
+	      { 0x25,  0x8a }, { 0x15,  0x4a }, { 0x05,  0x0a } };
 
 	mode = min(mode, ctlr->chip->max_dma);
 	if (mode >= ATA_UDMA0) {        
@@ -396,9 +411,11 @@ ata_sii_setmode(device_t dev, int target, int mode)
 	u_int8_t preg = 0xa4 + rego;
 	u_int8_t dreg = 0xa8 + rego;
 	u_int8_t ureg = 0xac + rego;
-	u_int16_t piotimings[] = { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
-	u_int16_t dmatimings[] = { 0x2208, 0x10c2, 0x10c1 };
-	u_int8_t udmatimings[] = { 0xf, 0xb, 0x7, 0x5, 0x3, 0x2, 0x1 };
+	static const uint16_t piotimings[] =
+	    { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
+	static const uint16_t dmatimings[] = { 0x2208, 0x10c2, 0x10c1 };
+	static const uint8_t udmatimings[] =
+	    { 0xf, 0xb, 0x7, 0x5, 0x3, 0x2, 0x1 };
 
 	mode = min(mode, ctlr->chip->max_dma);
 
@@ -431,7 +448,6 @@ ata_sii_setmode(device_t dev, int target, int mode)
 	pci_write_config(parent, preg, piotimings[ata_mode2idx(piomode)], 2);
 	return (mode);
 }
-
 
 struct ata_siiprb_dma_prdentry {
     u_int64_t addr;

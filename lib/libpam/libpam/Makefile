@@ -42,7 +42,9 @@ LIB=	pam
 NO_PROFILE=
 
 SRCS=	openpam_borrow_cred.c \
+	openpam_check_owner_perms.c \
 	openpam_configure.c \
+	openpam_constants.c \
 	openpam_dispatch.c \
 	openpam_dynamic.c \
 	openpam_findenv.c \
@@ -55,6 +57,7 @@ SRCS=	openpam_borrow_cred.c \
 	openpam_readline.c \
 	openpam_restore_cred.c \
 	openpam_set_option.c \
+	openpam_subst.c \
 	openpam_ttyconv.c \
 	pam_acct_mgmt.c \
 	pam_authenticate.c \
@@ -94,6 +97,7 @@ MAN=	openpam.3 \
 	openpam_readline.3 \
 	openpam_restore_cred.3 \
 	openpam_set_option.3 \
+	openpam_subst.3 \
 	openpam_ttyconv.3 \
 	pam.3 \
 	pam_acct_mgmt.3 \
@@ -137,6 +141,7 @@ WARNS?=	3
 CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
 CFLAGS+= -DOPENPAM_MODULES_DIR='"${PAM_MOD_DIR:C/\/*$//}/"'
+CFLAGS+= -DHAVE_FPURGE=1 -DHAVE_STRLCPY=1
 
 HEADERS=	security/openpam.h \
 		security/openpam_attr.h \
@@ -148,7 +153,15 @@ HEADERS=	security/openpam.h \
 
 ADD_HEADERS=	security/pam_mod_misc.h
 
+#
 # Static modules
+#
+# We build static versions of all modules and of openpam_static.o,
+# then link them all together into openpam_static_modules.o.  None of
+# the modules export any symbols, but they store structures with
+# pointers to their service functions in a linker set which the code
+# in openpam_static.c traverses to locate the individual modules.
+#
 MODULE_DIR=	../modules
 .include "${.CURDIR}/${MODULE_DIR}/modules.inc"
 STATIC_MODULES=	${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
@@ -159,7 +172,8 @@ CLEANFILES+=	openpam_static.o \
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
 
-# Can't put openpam_static.c in SRCS but want .o in .depend.
+# We can't put openpam_static.c in SRCS, but we still want to scan it
+# for dependencies.
 DPSRCS=		openpam_static.c
 
 # Headers

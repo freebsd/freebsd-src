@@ -59,10 +59,8 @@ static device_method_t quicc_fdt_methods[] = {
 	DEVMETHOD(bus_read_ivar,	quicc_bus_read_ivar),
 	DEVMETHOD(bus_setup_intr,	quicc_bus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	quicc_bus_teardown_intr),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t quicc_fdt_driver = {

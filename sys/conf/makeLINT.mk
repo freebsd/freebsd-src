@@ -6,7 +6,7 @@ all:
 clean:
 	rm -f LINT
 .if ${TARGET} == "amd64" || ${TARGET} == "i386"
-	rm -f LINT-VIMAGE
+	rm -f LINT-VIMAGE LINT-NOINET LINT-NOINET6 LINT-NOIP
 .endif
 
 NOTES=	../../conf/NOTES NOTES
@@ -23,6 +23,7 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 	echo "nodevice gre"		>> ${.TARGET}-NOINET
 	echo "include ${.TARGET}"	>  ${.TARGET}-NOINET6
 	echo "ident ${.TARGET}-NOINET6"	>> ${.TARGET}-NOINET6
+	echo 'makeoptions MKMODULESENV+="WITHOUT_INET6_SUPPORT="' >> ${.TARGET}-NOINET6
 	echo "nooptions INET6"		>> ${.TARGET}-NOINET6
 	echo "include ${.TARGET}"	>  ${.TARGET}-NOIP
 	echo "ident ${.TARGET}-NOIP"	>> ${.TARGET}-NOIP

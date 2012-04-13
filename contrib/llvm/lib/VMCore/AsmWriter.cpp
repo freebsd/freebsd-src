@@ -58,7 +58,7 @@ static const Module *getModuleFromVal(const Value *V) {
     const Function *M = I->getParent() ? I->getParent()->getParent() : 0;
     return M ? M->getParent() : 0;
   }
-  
+
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
     return GV->getParent();
   return 0;
@@ -142,18 +142,18 @@ public:
 
   /// NamedTypes - The named types that are used by the current module.
   std::vector<StructType*> NamedTypes;
-  
+
   /// NumberedTypes - The numbered types, along with their value.
   DenseMap<StructType*, unsigned> NumberedTypes;
-  
+
 
   TypePrinting() {}
   ~TypePrinting() {}
-  
+
   void incorporateTypes(const Module &M);
-  
+
   void print(Type *Ty, raw_ostream &OS);
-  
+
   void printStructBody(StructType *Ty, raw_ostream &OS);
 };
 } // end anonymous namespace.
@@ -161,25 +161,25 @@ public:
 
 void TypePrinting::incorporateTypes(const Module &M) {
   M.findUsedStructTypes(NamedTypes);
-  
+
   // The list of struct types we got back includes all the struct types, split
   // the unnamed ones out to a numbering and remove the anonymous structs.
   unsigned NextNumber = 0;
-  
+
   std::vector<StructType*>::iterator NextToUse = NamedTypes.begin(), I, E;
   for (I = NamedTypes.begin(), E = NamedTypes.end(); I != E; ++I) {
     StructType *STy = *I;
-    
+
     // Ignore anonymous types.
-    if (STy->isAnonymous())
+    if (STy->isLiteral())
       continue;
-    
+
     if (STy->getName().empty())
       NumberedTypes[STy] = NextNumber++;
     else
       *NextToUse++ = STy;
   }
-    
+
   NamedTypes.erase(NextToUse, NamedTypes.end());
 }
 
@@ -220,13 +220,13 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
   }
   case Type::StructTyID: {
     StructType *STy = cast<StructType>(Ty);
-    
-    if (STy->isAnonymous())
+
+    if (STy->isLiteral())
       return printStructBody(STy, OS);
 
     if (!STy->getName().empty())
       return PrintLLVMName(OS, STy->getName(), LocalPrefix);
-    
+
     DenseMap<StructType*, unsigned>::iterator I = NumberedTypes.find(STy);
     if (I != NumberedTypes.end())
       OS << '%' << I->second;
@@ -267,10 +267,10 @@ void TypePrinting::printStructBody(StructType *STy, raw_ostream &OS) {
     OS << "opaque";
     return;
   }
-  
+
   if (STy->isPacked())
     OS << '<';
-  
+
   if (STy->getNumElements() == 0) {
     OS << "{}";
   } else {
@@ -281,7 +281,7 @@ void TypePrinting::printStructBody(StructType *STy, raw_ostream &OS) {
       OS << ", ";
       print(*I, OS);
     }
-  
+
     OS << " }";
   }
   if (STy->isPacked())
@@ -386,7 +386,8 @@ static SlotTracker *createSlotTracker(const Value *V) {
     return new SlotTracker(FA->getParent());
 
   if (const Instruction *I = dyn_cast<Instruction>(V))
-    return new SlotTracker(I->getParent()->getParent());
+    if (I->getParent())
+      return new SlotTracker(I->getParent()->getParent());
 
   if (const BasicBlock *BB = dyn_cast<BasicBlock>(V))
     return new SlotTracker(BB->getParent());
@@ -419,7 +420,7 @@ static SlotTracker *createSlotTracker(const Value *V) {
 // Module level constructor. Causes the contents of the Module (sans functions)
 // to be added to the slot table.
 SlotTracker::SlotTracker(const Module *M)
-  : TheModule(M), TheFunction(0), FunctionProcessed(false), 
+  : TheModule(M), TheFunction(0), FunctionProcessed(false),
     mNext(0), fNext(0),  mdnNext(0) {
 }
 
@@ -490,12 +491,12 @@ void SlotTracker::processFunction() {
        E = TheFunction->end(); BB != E; ++BB) {
     if (!BB->hasName())
       CreateFunctionSlot(BB);
-    
+
     for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E;
          ++I) {
       if (!I->getType()->isVoidTy() && !I->hasName())
         CreateFunctionSlot(I);
-      
+
       // Intrinsics can directly use metadata.  We allow direct calls to any
       // llvm.foo function here, because the target may not be linked into the
       // optimizer.
@@ -658,6 +659,23 @@ static const char *getPredicateText(unsigned predicate) {
   return pred;
 }
 
+static void writeAtomicRMWOperation(raw_ostream &Out,
+                                    AtomicRMWInst::BinOp Op) {
+  switch (Op) {
+  default: Out << " <unknown operation " << Op << ">"; break;
+  case AtomicRMWInst::Xchg: Out << " xchg"; break;
+  case AtomicRMWInst::Add:  Out << " add"; break;
+  case AtomicRMWInst::Sub:  Out << " sub"; break;
+  case AtomicRMWInst::And:  Out << " and"; break;
+  case AtomicRMWInst::Nand: Out << " nand"; break;
+  case AtomicRMWInst::Or:   Out << " or"; break;
+  case AtomicRMWInst::Xor:  Out << " xor"; break;
+  case AtomicRMWInst::Max:  Out << " max"; break;
+  case AtomicRMWInst::Min:  Out << " min"; break;
+  case AtomicRMWInst::UMax: Out << " umax"; break;
+  case AtomicRMWInst::UMin: Out << " umin"; break;
+  }
+}
 
 static void WriteOptimizationInfo(raw_ostream &Out, const User *U) {
   if (const OverflowingBinaryOperator *OBO =
@@ -792,7 +810,7 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
     Out << "zeroinitializer";
     return;
   }
-  
+
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV)) {
     Out << "blockaddress(";
     WriteAsOperandInternal(Out, BA->getFunction(), &TypePrinter, Machine,
@@ -939,13 +957,13 @@ static void WriteMDNodeBodyInternal(raw_ostream &Out, const MDNode *Node,
     else {
       TypePrinter->print(V->getType(), Out);
       Out << ' ';
-      WriteAsOperandInternal(Out, Node->getOperand(mi), 
+      WriteAsOperandInternal(Out, Node->getOperand(mi),
                              TypePrinter, Machine, Context);
     }
     if (mi + 1 != me)
       Out << ", ";
   }
-  
+
   Out << "}";
 }
 
@@ -990,7 +1008,7 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
       WriteMDNodeBodyInternal(Out, N, TypePrinter, Machine, Context);
       return;
     }
-  
+
     if (!Machine) {
       if (N->isFunctionLocal())
         Machine = new SlotTracker(N->getFunction());
@@ -1020,26 +1038,35 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
 
   char Prefix = '%';
   int Slot;
+  // If we have a SlotTracker, use it.
   if (Machine) {
     if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
       Slot = Machine->getGlobalSlot(GV);
       Prefix = '@';
     } else {
       Slot = Machine->getLocalSlot(V);
+
+      // If the local value didn't succeed, then we may be referring to a value
+      // from a different function.  Translate it, as this can happen when using
+      // address of blocks.
+      if (Slot == -1)
+        if ((Machine = createSlotTracker(V))) {
+          Slot = Machine->getLocalSlot(V);
+          delete Machine;
+        }
     }
-  } else {
-    Machine = createSlotTracker(V);
-    if (Machine) {
-      if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
-        Slot = Machine->getGlobalSlot(GV);
-        Prefix = '@';
-      } else {
-        Slot = Machine->getLocalSlot(V);
-      }
-      delete Machine;
+  } else if ((Machine = createSlotTracker(V))) {
+    // Otherwise, create one to get the # and then destroy it.
+    if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
+      Slot = Machine->getGlobalSlot(GV);
+      Prefix = '@';
     } else {
-      Slot = -1;
+      Slot = Machine->getLocalSlot(V);
     }
+    delete Machine;
+    Machine = 0;
+  } else {
+    Slot = -1;
   }
 
   if (Slot != -1)
@@ -1081,7 +1108,7 @@ class AssemblyWriter {
   const Module *TheModule;
   TypePrinting TypePrinter;
   AssemblyAnnotationWriter *AnnotationWriter;
-  
+
 public:
   inline AssemblyWriter(formatted_raw_ostream &o, SlotTracker &Mac,
                         const Module *M,
@@ -1093,11 +1120,12 @@ public:
 
   void printMDNodeBody(const MDNode *MD);
   void printNamedMDNode(const NamedMDNode *NMD);
-  
+
   void printModule(const Module *M);
 
   void writeOperand(const Value *Op, bool PrintType);
   void writeParamOperand(const Value *Operand, Attributes Attrs);
+  void writeAtomic(AtomicOrdering Ordering, SynchronizationScope SynchScope);
 
   void writeAllMDNodes();
 
@@ -1126,6 +1154,28 @@ void AssemblyWriter::writeOperand(const Value *Operand, bool PrintType) {
     Out << ' ';
   }
   WriteAsOperandInternal(Out, Operand, &TypePrinter, &Machine, TheModule);
+}
+
+void AssemblyWriter::writeAtomic(AtomicOrdering Ordering,
+                                 SynchronizationScope SynchScope) {
+  if (Ordering == NotAtomic)
+    return;
+
+  switch (SynchScope) {
+  default: Out << " <bad scope " << int(SynchScope) << ">"; break;
+  case SingleThread: Out << " singlethread"; break;
+  case CrossThread: break;
+  }
+
+  switch (Ordering) {
+  default: Out << " <bad ordering " << int(Ordering) << ">"; break;
+  case Unordered: Out << " unordered"; break;
+  case Monotonic: Out << " monotonic"; break;
+  case Acquire: Out << " acquire"; break;
+  case Release: Out << " release"; break;
+  case AcquireRelease: Out << " acq_rel"; break;
+  case SequentiallyConsistent: Out << " seq_cst"; break;
+  }
 }
 
 void AssemblyWriter::writeParamOperand(const Value *Operand,
@@ -1216,7 +1266,7 @@ void AssemblyWriter::printModule(const Module *M) {
 
   // Output named metadata.
   if (!M->named_metadata_empty()) Out << '\n';
-  
+
   for (Module::const_named_metadata_iterator I = M->named_metadata_begin(),
        E = M->named_metadata_end(); I != E; ++I)
     printNamedMDNode(I);
@@ -1357,26 +1407,8 @@ void AssemblyWriter::printAlias(const GlobalAlias *GA) {
   if (Aliasee == 0) {
     TypePrinter.print(GA->getType(), Out);
     Out << " <<NULL ALIASEE>>";
-  } else if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(Aliasee)) {
-    TypePrinter.print(GV->getType(), Out);
-    Out << ' ';
-    PrintLLVMName(Out, GV);
-  } else if (const Function *F = dyn_cast<Function>(Aliasee)) {
-    TypePrinter.print(F->getFunctionType(), Out);
-    Out << "* ";
-
-    WriteAsOperandInternal(Out, F, &TypePrinter, &Machine, F->getParent());
-  } else if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(Aliasee)) {
-    TypePrinter.print(GA->getType(), Out);
-    Out << ' ';
-    PrintLLVMName(Out, GA);
   } else {
-    const ConstantExpr *CE = cast<ConstantExpr>(Aliasee);
-    // The only valid GEP is an all zero GEP.
-    assert((CE->getOpcode() == Instruction::BitCast ||
-            CE->getOpcode() == Instruction::GetElementPtr) &&
-           "Unsupported aliasee");
-    writeOperand(CE, false);
+    writeOperand(Aliasee, !isa<ConstantExpr>(Aliasee));
   }
 
   printInfoComment(*GA);
@@ -1387,29 +1419,29 @@ void AssemblyWriter::printTypeIdentities() {
   if (TypePrinter.NumberedTypes.empty() &&
       TypePrinter.NamedTypes.empty())
     return;
-  
+
   Out << '\n';
-  
+
   // We know all the numbers that each type is used and we know that it is a
   // dense assignment.  Convert the map to an index table.
   std::vector<StructType*> NumberedTypes(TypePrinter.NumberedTypes.size());
-  for (DenseMap<StructType*, unsigned>::iterator I = 
+  for (DenseMap<StructType*, unsigned>::iterator I =
        TypePrinter.NumberedTypes.begin(), E = TypePrinter.NumberedTypes.end();
        I != E; ++I) {
     assert(I->second < NumberedTypes.size() && "Didn't get a dense numbering?");
     NumberedTypes[I->second] = I->first;
   }
-           
+
   // Emit all numbered types.
   for (unsigned i = 0, e = NumberedTypes.size(); i != e; ++i) {
     Out << '%' << i << " = type ";
-    
+
     // Make sure we print out at least one level of the type structure, so
     // that we do not get %2 = type %2
     TypePrinter.printStructBody(NumberedTypes[i], Out);
     Out << '\n';
   }
-  
+
   for (unsigned i = 0, e = TypePrinter.NamedTypes.size(); i != e; ++i) {
     PrintLLVMName(Out, TypePrinter.NamedTypes[i]->getName(), LocalPrefix);
     Out << " = type ";
@@ -1457,7 +1489,7 @@ void AssemblyWriter::printFunction(const Function *F) {
   default: Out << "cc" << F->getCallingConv() << " "; break;
   }
 
-  const FunctionType *FT = F->getFunctionType();
+  FunctionType *FT = F->getFunctionType();
   const AttrListPtr &Attrs = F->getAttributes();
   Attributes RetAttrs = Attrs.getRetAttributes();
   if (RetAttrs != Attribute::None)
@@ -1628,17 +1660,23 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
       Out << '%' << SlotNum << " = ";
   }
 
-  // If this is a volatile load or store, print out the volatile marker.
-  if ((isa<LoadInst>(I)  && cast<LoadInst>(I).isVolatile()) ||
-      (isa<StoreInst>(I) && cast<StoreInst>(I).isVolatile())) {
-      Out << "volatile ";
-  } else if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall()) {
-    // If this is a call, check if it's a tail call.
+  if (isa<CallInst>(I) && cast<CallInst>(I).isTailCall())
     Out << "tail ";
-  }
 
   // Print out the opcode...
   Out << I.getOpcodeName();
+
+  // If this is an atomic load or store, print out the atomic marker.
+  if ((isa<LoadInst>(I)  && cast<LoadInst>(I).isAtomic()) ||
+      (isa<StoreInst>(I) && cast<StoreInst>(I).isAtomic()))
+    Out << " atomic";
+
+  // If this is a volatile operation, print out the volatile marker.
+  if ((isa<LoadInst>(I)  && cast<LoadInst>(I).isVolatile()) ||
+      (isa<StoreInst>(I) && cast<StoreInst>(I).isVolatile()) ||
+      (isa<AtomicCmpXchgInst>(I) && cast<AtomicCmpXchgInst>(I).isVolatile()) ||
+      (isa<AtomicRMWInst>(I) && cast<AtomicRMWInst>(I).isVolatile()))
+    Out << " volatile";
 
   // Print out optimization information.
   WriteOptimizationInfo(Out, &I);
@@ -1646,6 +1684,10 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
   // Print out the compare instruction predicates
   if (const CmpInst *CI = dyn_cast<CmpInst>(&I))
     Out << ' ' << getPredicateText(CI->getPredicate());
+
+  // Print out the atomicrmw operation
+  if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(&I))
+    writeAtomicRMWOperation(Out, RMWI->getOperation());
 
   // Print out the type of the operands...
   const Value *Operand = I.getNumOperands() ? I.getOperand(0) : 0;
@@ -1661,18 +1703,20 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     writeOperand(BI.getSuccessor(1), true);
 
   } else if (isa<SwitchInst>(I)) {
+    SwitchInst& SI(cast<SwitchInst>(I));
     // Special case switch instruction to get formatting nice and correct.
     Out << ' ';
-    writeOperand(Operand        , true);
+    writeOperand(SI.getCondition(), true);
     Out << ", ";
-    writeOperand(I.getOperand(1), true);
+    writeOperand(SI.getDefaultDest(), true);
     Out << " [";
-
-    for (unsigned op = 2, Eop = I.getNumOperands(); op < Eop; op += 2) {
+    // Skip the first item since that's the default case.
+    unsigned NumCases = SI.getNumCases();
+    for (unsigned i = 1; i < NumCases; ++i) {
       Out << "\n    ";
-      writeOperand(I.getOperand(op  ), true);
+      writeOperand(SI.getCaseValue(i), true);
       Out << ", ";
-      writeOperand(I.getOperand(op+1), true);
+      writeOperand(SI.getSuccessor(i), true);
     }
     Out << "\n  ]";
   } else if (isa<IndirectBrInst>(I)) {
@@ -1680,7 +1724,7 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     Out << ' ';
     writeOperand(Operand, true);
     Out << ", [";
-    
+
     for (unsigned i = 1, e = I.getNumOperands(); i != e; ++i) {
       if (i != 1)
         Out << ", ";
@@ -1709,6 +1753,24 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     writeOperand(I.getOperand(1), true);
     for (const unsigned *i = IVI->idx_begin(), *e = IVI->idx_end(); i != e; ++i)
       Out << ", " << *i;
+  } else if (const LandingPadInst *LPI = dyn_cast<LandingPadInst>(&I)) {
+    Out << ' ';
+    TypePrinter.print(I.getType(), Out);
+    Out << " personality ";
+    writeOperand(I.getOperand(0), true); Out << '\n';
+
+    if (LPI->isCleanup())
+      Out << "          cleanup";
+
+    for (unsigned i = 0, e = LPI->getNumClauses(); i != e; ++i) {
+      if (i != 0 || LPI->isCleanup()) Out << "\n";
+      if (LPI->isCatch(i))
+        Out << "          catch ";
+      else
+        Out << "          filter ";
+
+      writeOperand(LPI->getClause(i), true);
+    }
   } else if (isa<ReturnInst>(I) && !Operand) {
     Out << " void";
   } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
@@ -1878,11 +1940,23 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     }
   }
 
-  // Print post operand alignment for load/store.
-  if (isa<LoadInst>(I) && cast<LoadInst>(I).getAlignment()) {
-    Out << ", align " << cast<LoadInst>(I).getAlignment();
-  } else if (isa<StoreInst>(I) && cast<StoreInst>(I).getAlignment()) {
-    Out << ", align " << cast<StoreInst>(I).getAlignment();
+  // Print atomic ordering/alignment for memory operations
+  if (const LoadInst *LI = dyn_cast<LoadInst>(&I)) {
+    if (LI->isAtomic())
+      writeAtomic(LI->getOrdering(), LI->getSynchScope());
+    if (LI->getAlignment())
+      Out << ", align " << LI->getAlignment();
+  } else if (const StoreInst *SI = dyn_cast<StoreInst>(&I)) {
+    if (SI->isAtomic())
+      writeAtomic(SI->getOrdering(), SI->getSynchScope());
+    if (SI->getAlignment())
+      Out << ", align " << SI->getAlignment();
+  } else if (const AtomicCmpXchgInst *CXI = dyn_cast<AtomicCmpXchgInst>(&I)) {
+    writeAtomic(CXI->getOrdering(), CXI->getSynchScope());
+  } else if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(&I)) {
+    writeAtomic(RMWI->getOrdering(), RMWI->getSynchScope());
+  } else if (const FenceInst *FI = dyn_cast<FenceInst>(&I)) {
+    writeAtomic(FI->getOrdering(), FI->getSynchScope());
   }
 
   // Print Metadata info.
@@ -1916,7 +1990,7 @@ static void WriteMDNodeComment(const MDNode *Node,
   APInt Tag = Val & ~APInt(Val.getBitWidth(), LLVMDebugVersionMask);
   if (Val.ult(LLVMDebugVersion))
     return;
-  
+
   Out.PadToColumn(50);
   if (Tag == dwarf::DW_TAG_user_base)
     Out << "; [ DW_TAG_user_base ]";
@@ -1932,7 +2006,7 @@ void AssemblyWriter::writeAllMDNodes() {
   for (SlotTracker::mdn_iterator I = Machine.mdn_begin(), E = Machine.mdn_end();
        I != E; ++I)
     Nodes[I->second] = cast<MDNode>(I->first);
-  
+
   for (unsigned i = 0, e = Nodes.size(); i != e; ++i) {
     Out << '!' << i << " = metadata ";
     printMDNodeBody(Nodes[i]);
@@ -1970,10 +2044,10 @@ void Type::print(raw_ostream &OS) const {
   }
   TypePrinting TP;
   TP.print(const_cast<Type*>(this), OS);
-  
+
   // If the type is a named struct type, print the body as well.
   if (StructType *STy = dyn_cast<StructType>(const_cast<Type*>(this)))
-    if (!STy->isAnonymous()) {
+    if (!STy->isLiteral()) {
       OS << " = type ";
       TP.printStructBody(STy, OS);
     }

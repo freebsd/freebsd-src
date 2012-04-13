@@ -2,6 +2,11 @@
  * Copyright (c) 1989 The Regents of the University of California.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
@@ -43,7 +48,7 @@ __FBSDID("$FreeBSD$");
 static char *	_add(const char *, char *, const char *);
 static char *	_conv(int, const char *, char *, const char *);
 static char *	_fmt(const char *, const struct tm *, char *, const char *,
-			int *);
+			int *, locale_t);
 static char *	_yconv(int, int, int, int, char *, const char *);
 
 extern char *	tzname[];
@@ -82,29 +87,30 @@ static const char* fmt_padding[][4] = {
 };
 
 size_t
-strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
-    const struct tm * __restrict t)
+strftime_l(char * __restrict s, size_t maxsize, const char * __restrict format,
+    const struct tm * __restrict t, locale_t loc)
 {
 	char *	p;
 	int	warn;
+	FIX_LOCALE(loc);
 
 	tzset();
 	warn = IN_NONE;
-	p = _fmt(((format == NULL) ? "%c" : format), t, s, s + maxsize, &warn);
+	p = _fmt(((format == NULL) ? "%c" : format), t, s, s + maxsize, &warn, loc);
 #ifndef NO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU
 	if (warn != IN_NONE && getenv(YEAR_2000_NAME) != NULL) {
-		(void) fprintf(stderr, "\n");
+		(void) fprintf_l(stderr, loc, "\n");
 		if (format == NULL)
-			(void) fprintf(stderr, "NULL strftime format ");
-		else	(void) fprintf(stderr, "strftime format \"%s\" ",
+			(void) fprintf_l(stderr, loc, "NULL strftime format ");
+		else	(void) fprintf_l(stderr, loc, "strftime format \"%s\" ",
 				format);
-		(void) fprintf(stderr, "yields only two digits of years in ");
+		(void) fprintf_l(stderr, loc, "yields only two digits of years in ");
 		if (warn == IN_SOME)
-			(void) fprintf(stderr, "some locales");
+			(void) fprintf_l(stderr, loc, "some locales");
 		else if (warn == IN_THIS)
-			(void) fprintf(stderr, "the current locale");
-		else	(void) fprintf(stderr, "all locales");
-		(void) fprintf(stderr, "\n");
+			(void) fprintf_l(stderr, loc, "the current locale");
+		else	(void) fprintf_l(stderr, loc, "all locales");
+		(void) fprintf_l(stderr, loc, "\n");
 	}
 #endif /* !defined NO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU */
 	if (p == s + maxsize)
@@ -113,16 +119,24 @@ strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
 	return p - s;
 }
 
+size_t
+strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
+    const struct tm * __restrict t)
+{
+	return strftime_l(s, maxsize, format, t, __get_locale());
+}
+
 static char *
-_fmt(format, t, pt, ptlim, warnp)
+_fmt(format, t, pt, ptlim, warnp, loc)
 const char *		format;
 const struct tm * const	t;
 char *			pt;
 const char * const	ptlim;
 int *			warnp;
+locale_t	loc;
 {
 	int Ealternative, Oalternative, PadIndex;
-	struct lc_time_T *tptr = __get_current_time_locale();
+	struct lc_time_T *tptr = __get_current_time_locale(loc);
 
 	for ( ; *format; ++format) {
 		if (*format == '%') {
@@ -175,7 +189,7 @@ label:
 				{
 				int warn2 = IN_SOME;
 
-				pt = _fmt(tptr->c_fmt, t, pt, ptlim, &warn2);
+				pt = _fmt(tptr->c_fmt, t, pt, ptlim, &warn2, loc);
 				if (warn2 == IN_ALL)
 					warn2 = IN_THIS;
 				if (warn2 > *warnp)
@@ -183,7 +197,7 @@ label:
 				}
 				continue;
 			case 'D':
-				pt = _fmt("%m/%d/%y", t, pt, ptlim, warnp);
+				pt = _fmt("%m/%d/%y", t, pt, ptlim, warnp, loc);
 				continue;
 			case 'd':
 				pt = _conv(t->tm_mday, fmt_padding[PAD_FMT_DAYOFMONTH][PadIndex],
@@ -216,7 +230,7 @@ label:
 					fmt_padding[PAD_FMT_SDAYOFMONTH][PadIndex], pt, ptlim);
 				continue;
 			case 'F':
-				pt = _fmt("%Y-%m-%d", t, pt, ptlim, warnp);
+				pt = _fmt("%Y-%m-%d", t, pt, ptlim, warnp, loc);
 				continue;
 			case 'H':
 				pt = _conv(t->tm_hour, fmt_padding[PAD_FMT_HMS][PadIndex],
@@ -285,11 +299,11 @@ label:
 					pt, ptlim);
 				continue;
 			case 'R':
-				pt = _fmt("%H:%M", t, pt, ptlim, warnp);
+				pt = _fmt("%H:%M", t, pt, ptlim, warnp, loc);
 				continue;
 			case 'r':
 				pt = _fmt(tptr->ampm_fmt, t, pt, ptlim,
-					warnp);
+					warnp, loc);
 				continue;
 			case 'S':
 				pt = _conv(t->tm_sec, fmt_padding[PAD_FMT_HMS][PadIndex],
@@ -313,7 +327,7 @@ label:
 				}
 				continue;
 			case 'T':
-				pt = _fmt("%H:%M:%S", t, pt, ptlim, warnp);
+				pt = _fmt("%H:%M:%S", t, pt, ptlim, warnp, loc);
 				continue;
 			case 't':
 				pt = _add("\t", pt, ptlim);
@@ -428,7 +442,7 @@ label:
 				** "date as dd-bbb-YYYY"
 				** (ado, 1993-05-24)
 				*/
-				pt = _fmt("%e-%b-%Y", t, pt, ptlim, warnp);
+				pt = _fmt("%e-%b-%Y", t, pt, ptlim, warnp, loc);
 				continue;
 			case 'W':
 				pt = _conv((t->tm_yday + DAYSPERWEEK -
@@ -441,13 +455,13 @@ label:
 				pt = _conv(t->tm_wday, "%d", pt, ptlim);
 				continue;
 			case 'X':
-				pt = _fmt(tptr->X_fmt, t, pt, ptlim, warnp);
+				pt = _fmt(tptr->X_fmt, t, pt, ptlim, warnp, loc);
 				continue;
 			case 'x':
 				{
 				int	warn2 = IN_SOME;
 
-				pt = _fmt(tptr->x_fmt, t, pt, ptlim, &warn2);
+				pt = _fmt(tptr->x_fmt, t, pt, ptlim, &warn2, loc);
 				if (warn2 == IN_ALL)
 					warn2 = IN_THIS;
 				if (warn2 > *warnp)
@@ -534,7 +548,7 @@ label:
 				continue;
 			case '+':
 				pt = _fmt(tptr->date_fmt, t, pt, ptlim,
-					warnp);
+					warnp, loc);
 				continue;
 			case '-':
 				if (PadIndex != PAD_DEFAULT)

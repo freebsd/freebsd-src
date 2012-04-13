@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/atm/ng_sscfu.h>
 #include <netgraph/atm/ng_uni.h>
 
-MALLOC_DEFINE(M_NG_UNI, "netgraph_uni_node", "netgraph uni node");
-MALLOC_DEFINE(M_UNI, "netgraph_uni_data", "uni protocol data");
+static MALLOC_DEFINE(M_NG_UNI, "netgraph_uni_node", "netgraph uni node");
+static MALLOC_DEFINE(M_UNI, "netgraph_uni_data", "uni protocol data");
 
 MODULE_DEPEND(ng_uni, ngatmbase, 1, 1, 1);
 

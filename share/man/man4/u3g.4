@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2008
+.Dd February 8, 2012
 .Dt U3G 4
 .Os
 .Sh NAME
@@ -29,6 +29,8 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
 .Cd "device u3g"
 .Ed
 .Pp
@@ -61,6 +63,8 @@ Option GT 3G, GT 3G Quad, etc.
 .It
 Vodafone Mobile Connect Card 3G
 .It
+Vodafone Mobile Broadband K3772-Z
+.It
 Qualcomm Inc. CDMA MSM
 .It
 Huawei B190, E180v, E220 ('<Huawei Mobile>')
@@ -86,16 +90,15 @@ driver is present which contains Windows and Mac OS X drivers.
 The device starts up in disk mode (TruInstall, ZeroCD, etc.) and requires
 additional commands to switch it to modem mode. If your device is not
 switching automatically, please try to add quirks. See
-.Xr usbconfig 5
+.Xr usbconfig 8
 and
 .Xr usb_quirk 4 .
-.Pp
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
 .Xr usb 4 ,
 .Xr usb_quirk 4 ,
-.Xr usbconfig 5
+.Xr usbconfig 8
 .Sh HISTORY
 The
 .Nm

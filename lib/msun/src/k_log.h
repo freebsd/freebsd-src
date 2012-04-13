@@ -14,8 +14,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* __kernel_log(x)
- * Return log(x) - (x-1) for x in ~[sqrt(2)/2, sqrt(2)].
+/*
+ * k_log1p(f):
+ * Return log(1+f) - f for 1+f in ~[sqrt(2)/2, sqrt(2)].
  *
  * The following describes the overall strategy for computing
  * logarithms in base e.  The argument reduction and adding the final
@@ -80,37 +81,20 @@ Lg6 = 1.531383769920937332e-01,  /* 3FC39A09 D078C69F */
 Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
 
 /*
- * We always inline __kernel_log(), since doing so produces a
+ * We always inline k_log1p(), since doing so produces a
  * substantial performance improvement (~40% on amd64).
  */
 static inline double
-__kernel_log(double x)
+k_log1p(double f)
 {
-	double hfsq,f,s,z,R,w,t1,t2;
-	int32_t hx,i,j;
-	u_int32_t lx;
+	double hfsq,s,z,R,w,t1,t2;
 
-	EXTRACT_WORDS(hx,lx,x);
-
-	f = x-1.0;
-	if((0x000fffff&(2+hx))<3) {	/* -2**-20 <= f < 2**-20 */
-	    if(f==0.0) return 0.0;
-	    return f*f*(0.33333333333333333*f-0.5);
-	}
- 	s = f/(2.0+f); 
+ 	s = f/(2.0+f);
 	z = s*s;
-	hx &= 0x000fffff;
-	i = hx-0x6147a;
 	w = z*z;
-	j = 0x6b851-hx;
-	t1= w*(Lg2+w*(Lg4+w*Lg6)); 
-	t2= z*(Lg1+w*(Lg3+w*(Lg5+w*Lg7))); 
-	i |= j;
+	t1= w*(Lg2+w*(Lg4+w*Lg6));
+	t2= z*(Lg1+w*(Lg3+w*(Lg5+w*Lg7)));
 	R = t2+t1;
-	if (i>0) {
-	    hfsq=0.5*f*f;
-	    return s*(hfsq+R) - hfsq;
-	} else {
-	    return s*(R-f);
-	}
+	hfsq=0.5*f*f;
+	return s*(hfsq+R);
 }

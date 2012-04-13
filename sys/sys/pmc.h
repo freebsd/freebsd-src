@@ -39,8 +39,8 @@
 #include <machine/profile.h>
 
 #define	PMC_MODULE_NAME		"hwpmc"
-#define	PMC_NAME_MAX		16 /* HW counter name size */
-#define	PMC_CLASS_MAX		6  /* max #classes of PMCs per-system */
+#define	PMC_NAME_MAX		64 /* HW counter name size */
+#define	PMC_CLASS_MAX		8  /* max #classes of PMCs per-system */
 
 /*
  * Kernel<->userland API version number [MMmmpppp]
@@ -83,11 +83,15 @@
 	__PMC_CPU(INTEL_CORE,	0x87,	"Intel Core Solo/Duo")	\
 	__PMC_CPU(INTEL_CORE2,	0x88,	"Intel Core2")		\
 	__PMC_CPU(INTEL_CORE2EXTREME,	0x89,	"Intel Core2 Extreme")	\
-	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom") \
-	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7") \
-	__PMC_CPU(INTEL_WESTMERE, 0x8C,   "Intel Westmere") \
-	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale") \
-	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K") 
+	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom")		\
+	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7")	\
+	__PMC_CPU(INTEL_WESTMERE, 0x8C,   "Intel Westmere")	\
+	__PMC_CPU(INTEL_SANDYBRIDGE, 0x8D,   "Intel Sandy Bridge")	\
+	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
+	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
+	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
+	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
+	__PMC_CPU(GENERIC, 	0x400,  "Generic")
 
 enum pmc_cputype {
 #undef	__PMC_CPU
@@ -96,7 +100,7 @@ enum pmc_cputype {
 };
 
 #define	PMC_CPU_FIRST	PMC_CPU_AMD_K7
-#define	PMC_CPU_LAST	PMC_CPU_MIPS_24K
+#define	PMC_CPU_LAST	PMC_CPU_GENERIC
 
 /*
  * Classes of PMCs
@@ -114,7 +118,10 @@ enum pmc_cputype {
 	__PMC_CLASS(UCF)	/* Intel Uncore fixed function */	\
 	__PMC_CLASS(UCP)	/* Intel Uncore programmable */		\
 	__PMC_CLASS(XSCALE)	/* Intel XScale counters */		\
-	__PMC_CLASS(MIPS24K)    /* MIPS 24K */
+	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
+	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
+	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */		\
+	__PMC_CLASS(SOFT)	/* Software events */
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -123,7 +130,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_MIPS24K
+#define	PMC_CLASS_LAST	PMC_CLASS_SOFT
 
 /*
  * A PMC can be in the following states:
@@ -302,7 +309,9 @@ enum pmc_event {
 	__PMC_OP(PMCSETCOUNT, "Set initial count/sampling rate")	\
 	__PMC_OP(PMCSTART, "Start a PMC")				\
 	__PMC_OP(PMCSTOP, "Stop a PMC")					\
-	__PMC_OP(WRITELOG, "Write a cookie to the log file")
+	__PMC_OP(WRITELOG, "Write a cookie to the log file")		\
+	__PMC_OP(CLOSELOG, "Close log file")				\
+	__PMC_OP(GETDYNEVENTINFO, "Get dynamic events list")
 
 
 enum pmc_ops {
@@ -332,6 +341,7 @@ enum pmc_ops {
 #define	PMC_F_ATTACH_DONE	0x00040000 /*attached at least once */
 
 #define	PMC_CALLCHAIN_DEPTH_MAX	32
+
 #define	PMC_CC_F_USERSPACE	0x01	   /*userspace callchain*/
 
 /*
@@ -480,6 +490,7 @@ struct pmc_op_getpmcinfo {
  * Retrieve system CPU information.
  */
 
+
 struct pmc_classinfo {
 	enum pmc_class	pm_class;	/* class id */
 	uint32_t	pm_caps;	/* counter capabilities */
@@ -556,6 +567,23 @@ struct pmc_op_getmsr {
 	pmc_id_t	pm_pmcid;	/* allocated pmc id */
 };
 
+/*
+ * OP GETDYNEVENTINFO
+ *
+ * Retrieve a PMC dynamic class events list.
+ */
+
+struct pmc_dyn_event_descr {
+	char		pm_ev_name[PMC_NAME_MAX];
+	enum pmc_event	pm_ev_code;
+};
+
+struct pmc_op_getdyneventinfo {
+	enum pmc_class			pm_class;
+	unsigned int			pm_nevent;
+	struct pmc_dyn_event_descr	pm_events[PMC_EV_DYN_COUNT];
+};
+
 #ifdef _KERNEL
 
 #include <sys/malloc.h>
@@ -566,8 +594,8 @@ struct pmc_op_getmsr {
 #define	PMC_HASH_SIZE				16
 #define	PMC_MTXPOOL_SIZE			32
 #define	PMC_LOG_BUFFER_SIZE			4
-#define	PMC_NLOGBUFFERS				16
-#define	PMC_NSAMPLES				32
+#define	PMC_NLOGBUFFERS				64
+#define	PMC_NSAMPLES				512
 #define	PMC_CALLCHAIN_DEPTH			8
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
@@ -585,7 +613,7 @@ struct pmc_op_getmsr {
  */
 
 struct pmc_syscall_args {
-	uint32_t	pmop_code;	/* one of PMC_OP_* */
+	register_t	pmop_code;	/* one of PMC_OP_* */
 	void		*pmop_data;	/* syscall parameter */
 };
 
@@ -823,8 +851,8 @@ struct pmc_sample {
 	uintptr_t		*ps_pc;		/* (const) callchain start */
 };
 
-#define	PMC_SAMPLE_FREE		((uint16_t) 0)
-#define	PMC_SAMPLE_INUSE	((uint16_t) 0xFFFF)
+#define 	PMC_SAMPLE_FREE		((uint16_t) 0)
+#define 	PMC_SAMPLE_INUSE	((uint16_t) 0xFFFF)
 
 struct pmc_samplebuffer {
 	struct pmc_sample * volatile ps_read;	/* read pointer */
@@ -844,7 +872,7 @@ struct pmc_samplebuffer {
 
 struct pmc_cpu {
 	uint32_t	pc_state;	/* physical cpu number + flags */
-	struct pmc_samplebuffer *pc_sb; /* space for samples */
+	struct pmc_samplebuffer *pc_sb[2]; /* space for samples */
 	struct pmc_hw	*pc_hwpmcs[];	/* 'npmc' pointers */
 };
 
@@ -952,7 +980,7 @@ extern struct pmc_cpu **pmc_pcpu;
 /* driver statistics */
 extern struct pmc_op_getdriverstats pmc_stats;
 
-#if	defined(DEBUG) && DEBUG
+#if	defined(DEBUG)
 
 /* debug flags, major flag groups */
 struct pmc_debugflags {
@@ -1039,6 +1067,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_MIN_SIO		9 /* schedule i/o */
 #define	PMC_DEBUG_MIN_FLS	       10 /* flush */
 #define	PMC_DEBUG_MIN_SAM	       11 /* sample */
+#define	PMC_DEBUG_MIN_CLO	       12 /* close */
 
 #else
 #define	PMCDBG(M,N,L,F,...)		/* nothing */
@@ -1054,11 +1083,13 @@ MALLOC_DECLARE(M_PMC);
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 void	pmc_md_finalize(struct pmc_mdep *_md);	/* MD fini function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _cpu, struct pmc *_pm,
+int	pmc_process_interrupt(int _cpu, int _soft, struct pmc *_pm,
     struct trapframe *_tf, int _inuserspace);
 int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
+struct pmc_mdep *pmc_mdep_alloc(int nclasses);
+void pmc_mdep_free(struct pmc_mdep *md);
 #endif /* _KERNEL */
 #endif /* _SYS_PMC_H_ */

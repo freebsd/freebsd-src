@@ -229,7 +229,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	 * will be returned to the free list.  lastiblock values are also
 	 * normalized to -1 for calls to ext2_indirtrunc below.
 	 */
-	bcopy((caddr_t)&oip->i_db[0], (caddr_t)oldblks, sizeof oldblks);
+	bcopy((caddr_t)&oip->i_db[0], (caddr_t)oldblks, sizeof(oldblks));
 	for (level = TRIPLE; level >= SINGLE; level--)
 		if (lastiblock[level] < 0) {
 			oip->i_ib[level] = 0;
@@ -246,8 +246,8 @@ ext2_truncate(vp, length, flags, cred, td)
 	 * Note that we save the new block configuration so we can check it
 	 * when we are done.
 	 */
-	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof newblks);
-	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
+	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof(newblks));
+	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof(oldblks));
 	oip->i_size = osize;
 	error = vtruncbuf(ovp, cred, td, length, (int)fs->e2fs_bsize);
 	if (error && (allerror == 0))
@@ -418,7 +418,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	copy = malloc(fs->e2fs_bsize, M_TEMP, M_WAITOK);
 	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->e2fs_bsize);
 	bzero((caddr_t)&bap[last + 1],
-	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (int32_t));
+	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof(int32_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
 	error = bwrite(bp);

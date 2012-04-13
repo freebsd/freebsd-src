@@ -150,7 +150,8 @@ static int	sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_DECL(_net_inet6_ip6);	/* XXX Not in any common header. */
 
-SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, mcast, CTLFLAG_RW, 0, "IPv6 multicast");
+static SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, mcast, CTLFLAG_RW, 0,
+    "IPv6 multicast");
 
 static u_long in6_mcast_maxgrpsrc = IPV6_MAX_GROUP_SRC_FILTER;
 SYSCTL_ULONG(_net_inet6_ip6_mcast, OID_AUTO, maxgrpsrc,
@@ -170,7 +171,7 @@ SYSCTL_INT(_net_inet6_ip6_mcast, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
     &in6_mcast_loop, 0, "Loopback multicast datagrams by default");
 TUNABLE_INT("net.inet6.ip6.mcast.loop", &in6_mcast_loop);
 
-SYSCTL_NODE(_net_inet6_ip6_mcast, OID_AUTO, filters,
+static SYSCTL_NODE(_net_inet6_ip6_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip6_mcast_filters,
     "Per-interface stack-wide source filters");
 
@@ -399,7 +400,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	 * re-acquire around the call.
 	 */
 	IN6_MULTI_LOCK_ASSERT();
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 
 	inm = in6m_lookup_locked(ifp, group);
 	if (inm != NULL) {
@@ -423,11 +424,11 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	 * Check if a link-layer group is already associated
 	 * with this network-layer group on the given ifnet.
 	 */
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	error = if_addmulti(ifp, (struct sockaddr *)&gsin6, &ifma);
 	if (error != 0)
 		return (error);
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 
 	/*
 	 * If something other than netinet6 is occupying the link-layer
@@ -454,7 +455,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 		goto out_locked;
 	}
 
-	IF_ADDR_LOCK_ASSERT(ifp);
+	IF_ADDR_WLOCK_ASSERT(ifp);
 
 	/*
 	 * A new in6_multi record is needed; allocate and initialize it.
@@ -486,7 +487,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	*pinm = inm;
 
 out_locked:
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	return (error);
 }
 
@@ -1713,7 +1714,7 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 		if (im6o == NULL)
 			optval = V_ip6_defmcasthlim;
 		else
-			optval = im6o->im6o_multicast_loop;
+			optval = im6o->im6o_multicast_hlim;
 		INP_WUNLOCK(inp);
 		error = sooptcopyout(sopt, &optval, sizeof(u_int));
 		break;
@@ -1763,7 +1764,7 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  * Returns NULL if no ifp could be found.
  */
 static struct ifnet *
-in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
+in6p_lookup_mcast_ifp(const struct inpcb *in6p,
     const struct sockaddr_in6 *gsin6)
 {
 	struct route_in6	 ro6;
@@ -1779,11 +1780,8 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
 	ifp = NULL;
 	memset(&ro6, 0, sizeof(struct route_in6));
 	memcpy(&ro6.ro_dst, gsin6, sizeof(struct sockaddr_in6));
-#ifdef notyet
-	rtalloc_ign_fib(&ro6, 0, inp ? inp->inp_inc.inc_fibnum : 0);
-#else
-	rtalloc_ign((struct route *)&ro6, 0);
-#endif
+	rtalloc_ign_fib((struct route *)&ro6, 0,
+	    in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB);
 	if (ro6.ro_rt != NULL) {
 		ifp = ro6.ro_rt->rt_ifp;
 		KASSERT(ifp != NULL, ("%s: null ifp", __func__));
@@ -2718,7 +2716,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 
 	IN6_MULTI_LOCK();
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
@@ -2747,7 +2745,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	IN6_MULTI_UNLOCK();
 

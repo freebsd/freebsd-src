@@ -96,7 +96,7 @@ struct vm_object {
 	objtype_t type;			/* type of pager */
 	u_short flags;			/* see below */
 	u_short pg_color;		/* (c) color of first page in obj */
-	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
+	u_int paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
@@ -112,6 +112,7 @@ struct vm_object {
 		 */
 		struct {
 			off_t vnp_size;
+			vm_ooffset_t writemappings;
 		} vnp;
 
 		/*
@@ -121,6 +122,7 @@ struct vm_object {
 		 */
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist;
+			struct cdev_pager_ops *ops;
 		} devp;
 
 		/*
@@ -223,7 +225,10 @@ void vm_object_destroy (vm_object_t);
 void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
-void vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
+void vm_object_madvise(vm_object_t, vm_pindex_t, vm_pindex_t, int);
+void vm_object_page_cache(vm_object_t object, vm_pindex_t start,
+    vm_pindex_t end);
+boolean_t vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
     vm_ooffset_t end, int flags);
 void vm_object_page_remove(vm_object_t object, vm_pindex_t start,
     vm_pindex_t end, int options);
@@ -234,9 +239,8 @@ void vm_object_reference_locked(vm_object_t);
 int  vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr);
 void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
-void vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
+boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
-void vm_object_madvise (vm_object_t, vm_pindex_t, int, int);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */

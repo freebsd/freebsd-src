@@ -2,6 +2,11 @@
  * Copyright (c) 1997-2002 FreeBSD Project.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,6 +33,7 @@
 
 #ifndef _TIMELOCAL_H_
 #define	_TIMELOCAL_H_
+#include "xlocale_private.h"
 
 /*
  * Private header file for the strftime and strptime localization
@@ -49,7 +55,7 @@ struct lc_time_T {
 	const char	*ampm_fmt;
 };
 
-struct lc_time_T *__get_current_time_locale(void);
+struct lc_time_T *__get_current_time_locale(locale_t);
 int	__time_load_locale(const char *);
 
 #endif /* !_TIMELOCAL_H_ */

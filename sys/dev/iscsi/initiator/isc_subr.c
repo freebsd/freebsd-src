@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iscsi/initiator/iscsi.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 
-MALLOC_DEFINE(M_ISC, "iSC", "iSCSI driver options");
+static MALLOC_DEFINE(M_ISC, "iSC", "iSCSI driver options");
 
 static char *
 i_strdupin(char *s, size_t maxlen)

@@ -74,23 +74,25 @@ MachineInstr *TargetInstrInfoImpl::commuteInstruction(MachineInstr *MI,
 
   assert(MI->getOperand(Idx1).isReg() && MI->getOperand(Idx2).isReg() &&
          "This only knows how to commute register operands so far");
+  unsigned Reg0 = HasDef ? MI->getOperand(0).getReg() : 0;
   unsigned Reg1 = MI->getOperand(Idx1).getReg();
   unsigned Reg2 = MI->getOperand(Idx2).getReg();
   bool Reg1IsKill = MI->getOperand(Idx1).isKill();
   bool Reg2IsKill = MI->getOperand(Idx2).isKill();
-  bool ChangeReg0 = false;
-  if (HasDef && MI->getOperand(0).getReg() == Reg1) {
-    // Must be two address instruction!
-    assert(MI->getDesc().getOperandConstraint(0, MCOI::TIED_TO) &&
-           "Expecting a two-address instruction!");
+  // If destination is tied to either of the commuted source register, then
+  // it must be updated.
+  if (HasDef && Reg0 == Reg1 &&
+      MI->getDesc().getOperandConstraint(Idx1, MCOI::TIED_TO) == 0) {
     Reg2IsKill = false;
-    ChangeReg0 = true;
+    Reg0 = Reg2;
+  } else if (HasDef && Reg0 == Reg2 &&
+             MI->getDesc().getOperandConstraint(Idx2, MCOI::TIED_TO) == 0) {
+    Reg1IsKill = false;
+    Reg0 = Reg1;
   }
 
   if (NewMI) {
     // Create a new instruction.
-    unsigned Reg0 = HasDef
-      ? (ChangeReg0 ? Reg2 : MI->getOperand(0).getReg()) : 0;
     bool Reg0IsDead = HasDef ? MI->getOperand(0).isDead() : false;
     MachineFunction &MF = *MI->getParent()->getParent();
     if (HasDef)
@@ -104,8 +106,8 @@ MachineInstr *TargetInstrInfoImpl::commuteInstruction(MachineInstr *MI,
         .addReg(Reg1, getKillRegState(Reg2IsKill));
   }
 
-  if (ChangeReg0)
-    MI->getOperand(0).setReg(Reg2);
+  if (HasDef)
+    MI->getOperand(0).setReg(Reg0);
   MI->getOperand(Idx2).setReg(Reg1);
   MI->getOperand(Idx1).setReg(Reg2);
   MI->getOperand(Idx2).setIsKill(Reg1IsKill);
@@ -158,6 +160,42 @@ bool TargetInstrInfoImpl::PredicateInstruction(MachineInstr *MI,
     }
   }
   return MadeChange;
+}
+
+bool TargetInstrInfoImpl::hasLoadFromStackSlot(const MachineInstr *MI,
+                                        const MachineMemOperand *&MMO,
+                                        int &FrameIndex) const {
+  for (MachineInstr::mmo_iterator o = MI->memoperands_begin(),
+         oe = MI->memoperands_end();
+       o != oe;
+       ++o) {
+    if ((*o)->isLoad() && (*o)->getValue())
+      if (const FixedStackPseudoSourceValue *Value =
+          dyn_cast<const FixedStackPseudoSourceValue>((*o)->getValue())) {
+        FrameIndex = Value->getFrameIndex();
+        MMO = *o;
+        return true;
+      }
+  }
+  return false;
+}
+
+bool TargetInstrInfoImpl::hasStoreToStackSlot(const MachineInstr *MI,
+                                       const MachineMemOperand *&MMO,
+                                       int &FrameIndex) const {
+  for (MachineInstr::mmo_iterator o = MI->memoperands_begin(),
+         oe = MI->memoperands_end();
+       o != oe;
+       ++o) {
+    if ((*o)->isStore() && (*o)->getValue())
+      if (const FixedStackPseudoSourceValue *Value =
+          dyn_cast<const FixedStackPseudoSourceValue>((*o)->getValue())) {
+        FrameIndex = Value->getFrameIndex();
+        MMO = *o;
+        return true;
+      }
+  }
+  return false;
 }
 
 void TargetInstrInfoImpl::reMaterialize(MachineBasicBlock &MBB,
@@ -324,6 +362,19 @@ isReallyTriviallyReMaterializableGeneric(const MachineInstr *MI,
   const TargetInstrInfo &TII = *TM.getInstrInfo();
   const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
 
+  // Remat clients assume operand 0 is the defined register.
+  if (!MI->getNumOperands() || !MI->getOperand(0).isReg())
+    return false;
+  unsigned DefReg = MI->getOperand(0).getReg();
+
+  // A sub-register definition can only be rematerialized if the instruction
+  // doesn't read the other parts of the register.  Otherwise it is really a
+  // read-modify-write operation on the full virtual register which cannot be
+  // moved safely.
+  if (TargetRegisterInfo::isVirtualRegister(DefReg) &&
+      MI->getOperand(0).getSubReg() && MI->readsVirtualRegister(DefReg))
+    return false;
+
   // A load from a fixed stack slot can be rematerialized. This may be
   // redundant with subsequent checks, but it's target-independent,
   // simple, and a common case.
@@ -383,8 +434,9 @@ isReallyTriviallyReMaterializableGeneric(const MachineInstr *MI,
       continue;
     }
 
-    // Only allow one virtual-register def, and that in the first operand.
-    if (MO.isDef() != (i == 0))
+    // Only allow one virtual-register def.  There may be multiple defs of the
+    // same virtual register, though.
+    if (MO.isDef() && Reg != DefReg)
       return false;
 
     // Don't allow any virtual-register uses. Rematting an instruction with

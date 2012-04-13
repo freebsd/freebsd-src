@@ -157,6 +157,10 @@ Force the mount protocol to use UDP transport, even for TCP NFS mounts.
 (Necessary for some old
 .Bx
 servers.)
+.It Cm nametimeo Ns = Ns Aq Ar value
+Override the default of NFS_DEFAULT_NAMETIMEO for the timeout (in seconds)
+for positive name cache entries.
+If this is set to 0 it disables positive name caching for the mount point.
 .It Cm negnametimeo Ns = Ns Aq Ar value
 Override the default of NFS_DEFAULT_NEGNAMETIMEO for the timeout (in seconds)
 for negative name cache entries. If this is set to 0 it disables negative
@@ -318,6 +322,10 @@ tune the timeout
 interval.)
 .It Cm udp
 Use UDP transport.
+.It Cm wcommitsize Ns = Ns Aq Ar value
+Set the maximum pending write commit size to the specified value.
+This determines the maximum amount of pending write data that the NFS
+client is willing to cache for each file.
 .It Cm wsize Ns = Ns Aq Ar value
 Set the write data size to the specified value.
 Ditto the comments w.r.t.\& the

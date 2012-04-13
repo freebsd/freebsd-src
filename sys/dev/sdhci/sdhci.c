@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #define SDHCI_QUIRK_INCR_TIMEOUT_CONTROL		(1<<7)
 /* Controller has broken read timings */
 #define SDHCI_QUIRK_BROKEN_TIMINGS			(1<<8)
+/* Controller needs lowered frequency */
+#define	SDHCI_QUIRK_LOWER_FREQUENCY			(1<<9)
 
 static const struct sdhci_device {
 	uint32_t	model;
@@ -85,6 +87,8 @@ static const struct sdhci_device {
 	    SDHCI_QUIRK_FORCE_DMA },
 	{ 0xe8221180, 	0xffff,	"RICOH SD",
 	    SDHCI_QUIRK_FORCE_DMA },
+	{ 0xe8231180, 	0xffff,	"RICOH R5CE823 SD",
+	    SDHCI_QUIRK_LOWER_FREQUENCY },
 	{ 0x8034104c, 	0xffff, "TI XX21/XX11 SD",
 	    SDHCI_QUIRK_FORCE_DMA },
 	{ 0x05501524, 	0xffff, "ENE CB712 SD",
@@ -154,7 +158,7 @@ struct sdhci_softc {
 	struct sdhci_slot slots[6];
 };
 
-SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
+static SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
 
 int	sdhci_debug;
 TUNABLE_INT("hw.sdhci.debug", &sdhci_debug);
@@ -347,6 +351,24 @@ sdhci_init(struct sdhci_slot *slot)
 	    SDHCI_INT_ACMD12ERR;
 	WR4(slot, SDHCI_INT_ENABLE, slot->intmask);
 	WR4(slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
+}
+
+static void
+sdhci_lower_frequency(device_t dev)
+{
+
+	/* Enable SD2.0 mode. */
+	pci_write_config(dev, SDHC_PCI_MODE_KEY, 0xfc, 1);
+	pci_write_config(dev, SDHC_PCI_MODE, SDHC_PCI_MODE_SD20, 1);
+	pci_write_config(dev, SDHC_PCI_MODE_KEY, 0x00, 1);
+
+	/*
+	 * Some SD/MMC cards don't work with the default base
+	 * clock frequency of 200MHz.  Lower it to 50Hz.
+	 */
+	pci_write_config(dev, SDHC_PCI_BASE_FREQ_KEY, 0x01, 1);
+	pci_write_config(dev, SDHC_PCI_BASE_FREQ, 50, 1);
+	pci_write_config(dev, SDHC_PCI_BASE_FREQ_KEY, 0x00, 1);
 }
 
 static void
@@ -631,6 +653,9 @@ sdhci_attach(device_t dev)
 			break;
 		}
 	}
+	/* Some controllers need to be bumped into the right mode. */
+	if (sc->quirks & SDHCI_QUIRK_LOWER_FREQUENCY)
+		sdhci_lower_frequency(dev);
 	/* Read slots info from PCI registers. */
 	slots = pci_read_config(dev, PCI_SLOT_INFO, 1);
 	bar = PCI_SLOT_INFO_FIRST_BAR(slots);

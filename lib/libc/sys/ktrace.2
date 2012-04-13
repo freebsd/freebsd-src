@@ -28,7 +28,7 @@
 .\"     @(#)ktrace.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2008
+.Dd October 10, 2011
 .Dt KTRACE 2
 .Os
 .Sh NAME
@@ -67,12 +67,12 @@ The
 argument specifies the requested ktrace operation.
 The defined operations are:
 .Bl -column KTRFLAG_DESCENDXXX -offset indent
-.It "KTROP_SET	Enable trace points specified in"
+.It KTROP_SET Ta "Enable trace points specified in"
 .Fa trpoints .
-.It "KTROP_CLEAR	Disable trace points specified in
+.It KTROP_CLEAR Ta "Disable trace points specified in"
 .Fa trpoints .
-.It "KTROP_CLEARFILE	Stop all tracing."
-.It "KTRFLAG_DESCEND	The tracing change should apply to the"
+.It KTROP_CLEARFILE Ta "Stop all tracing."
+.It KTRFLAG_DESCEND Ta "The tracing change should apply to the"
 specified process and all its current children.
 .El
 .Pp
@@ -80,15 +80,21 @@ The
 .Fa trpoints
 argument specifies the trace points of interest.
 The defined trace points are:
-.Bl -column KTRFAC_SYSCALLXXX -offset indent
-.It "KTRFAC_SYSCALL	Trace system calls."
-.It "KTRFAC_SYSRET	Trace return values from system calls."
-.It "KTRFAC_NAMEI	Trace name lookup operations."
-.It "KTRFAC_GENIO	Trace all I/O (note that this option can"
+.Bl -column KTRFAC_PROCCTORXXX -offset indent
+.It KTRFAC_SYSCALL Ta "Trace system calls."
+.It KTRFAC_SYSRET Ta "Trace return values from system calls."
+.It KTRFAC_NAMEI Ta "Trace name lookup operations."
+.It KTRFAC_GENIO Ta "Trace all I/O (note that this option can"
 generate much output).
-.It "KTRFAC_PSIG	Trace posted signals."
-.It "KTRFAC_CSW	Trace context switch points."
-.It "KTRFAC_INHERIT	Inherit tracing to future children."
+.It KTRFAC_PSIG Ta "Trace posted signals."
+.It KTRFAC_CSW Ta "Trace context switch points."
+.It KTRFAC_USER Ta "Trace application-specific events."
+.It KTRFAC_STRUCT Ta "Trace certain data structures."
+.It KTRFAC_SYSCTL Ta "Trace sysctls."
+.It KTRFAC_PROCCTOR Ta "Trace process construction."
+.It KTRFAC_PROCDTOR Ta "Trace process destruction."
+.It KTRFAC_CAPFAIL Ta "Trace capability failures."
+.It KTRFAC_INHERIT Ta "Inherit tracing to future children."
 .El
 .Pp
 Each tracing event outputs a record composed of a generic header
@@ -96,12 +102,12 @@ followed by a trace point specific structure.
 The generic header is:
 .Bd -literal
 struct ktr_header {
-	int	ktr_len;		/* length of buf */
-	short	ktr_type;		/* trace record type */
-	pid_t	ktr_pid;		/* process id */
-	char	ktr_comm[MAXCOMLEN+1];	/* command name */
-	struct	timeval ktr_time;	/* timestamp */
-	intptr_t	ktr_tid;	/* was ktr_buffer */
+	int		ktr_len;		/* length of buf */
+	short		ktr_type;		/* trace record type */
+	pid_t		ktr_pid;		/* process id */
+	char		ktr_comm[MAXCOMLEN+1];	/* command name */
+	struct timeval	ktr_time;		/* timestamp */
+	intptr_t	ktr_tid;		/* was ktr_buffer */
 };
 .Ed
 .Pp

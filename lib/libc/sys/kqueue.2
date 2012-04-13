@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2009
+.Dd February 15, 2012
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -203,7 +203,7 @@ will not return it.
 The filter itself is not disabled.
 .It EV_DISPATCH
 Disable the event source immediately after delivery of an event.
-See 
+See
 .Dv EV_DISABLE
 above.
 .It EV_DELETE
@@ -217,7 +217,7 @@ any pending events.
 When passed as input, it forces
 .Dv EV_ERROR
 to always be returned.
-When a filter is successfully added the 
+When a filter is successfully added the
 .Va data
 field will be zero.
 .It EV_ONESHOT
@@ -322,6 +322,9 @@ The sigevent portion of the AIO request is filled in, with
 .Va sigev_notify_kqueue
 containing the descriptor of the kqueue that the event should
 be attached to,
+.Va sigev_notify_kevent_flags
+containing the kevent flags which should be EV_ONESHOT, EV_CLEAR or
+EV_DISPATCH,
 .Va sigev_value
 containing the udata value, and
 .Va sigev_notify
@@ -446,10 +449,10 @@ Establishes a user event identified by
 .Va ident
 which is not associated with any kernel mechanism but is triggered by
 user level code.
-The lower 24 bits of the 
+The lower 24 bits of the
 .Va fflags
 may be used for user defined flags and manipulated using the following:
-.Bl -tag -width XXNOTE_FFLAGSMASK 
+.Bl -tag -width XXNOTE_FFLAGSMASK
 .It Dv NOTE_FFNOP
 Ignore the input
 .Va fflags .
@@ -459,7 +462,7 @@ Bitwise AND
 .It Dv NOTE_FFOR
 Bitwise OR
 .Va fflags .
-.It Dv NOTE_COPY
+.It Dv NOTE_FFCOPY
 Copy
 .Va fflags .
 .It Dv NOTE_FFCTRLMASK

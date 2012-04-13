@@ -29,7 +29,7 @@ hmkdir ppc
 hattrib -b ppc
 hcd ppc
 
-# Make two dummy files for the the CHRP boot script and boot1
+# Make two dummy files for the CHRP boot script and boot1
 echo 'Bootinfo START' | dd of=bootinfo.txt.tmp cbs=$CHRPBOOT_SIZE count=1 conv=block
 echo 'Boot1 START' | dd of=boot1.elf.tmp cbs=$BOOT1_SIZE count=1 conv=block
 

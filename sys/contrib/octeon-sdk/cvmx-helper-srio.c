@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -56,6 +56,7 @@
 #include <asm/octeon/cvmx-config.h>
 #include <asm/octeon/cvmx-clock.h>
 #include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-qlm.h>
 #include <asm/octeon/cvmx-srio.h>
 #include <asm/octeon/cvmx-pip-defs.h>
 #include <asm/octeon/cvmx-sriox-defs.h>
@@ -71,9 +72,11 @@
 #include "cvmx-helper.h"
 #include "cvmx-srio.h"
 #endif
+#include "cvmx-qlm.h"
 #else
 #include "cvmx.h"
 #include "cvmx-helper.h"
+#include "cvmx-qlm.h"
 #include "cvmx-srio.h"
 #endif
 #endif
@@ -95,8 +98,32 @@ int __cvmx_helper_srio_probe(int interface)
     cvmx_sriox_status_reg_t srio0_status_reg;
     cvmx_sriox_status_reg_t srio1_status_reg;
 
-    if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+    if (!octeon_has_feature(OCTEON_FEATURE_SRIO))
         return 0;
+
+    /* Read MIO_QLMX_CFG CSRs to find SRIO status. */
+    if (OCTEON_IS_MODEL(OCTEON_CN66XX))
+    {
+        int status = cvmx_qlm_get_status(0);
+        int srio_port = interface - 4;
+        switch(srio_port)
+        {
+            case 0:  /* 1x4 lane */
+                if (status == 4)
+                    return 2;
+                break;
+            case 2:  /* 2x2 lane */
+                if (status == 5)
+                    return 2;
+                break;
+            case 1: /* 4x1 long/short */
+            case 3: /* 4x1 long/short */
+                if (status == 6)
+                    return 2;
+                break;
+        }
+        return 0;
+    }
 
     srio0_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(0));
     srio1_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(1));
@@ -123,7 +150,9 @@ int __cvmx_helper_srio_enable(int interface)
     int index;
     cvmx_sriomaintx_core_enables_t sriomaintx_core_enables;
     cvmx_sriox_imsg_ctrl_t sriox_imsg_ctrl;
+    cvmx_sriox_status_reg_t srio_status_reg;
     cvmx_dpi_ctl_t dpi_ctl;
+    int srio_port = interface - 4;
 
     /* All SRIO ports have a cvmx_srio_rx_message_header_t header
         on them that must be skipped by IPD */
@@ -144,10 +173,10 @@ int __cvmx_helper_srio_enable(int interface)
         }
 
         /* Enable TX with PKO */
-        sriox_omsg_portx.u64 = cvmx_read_csr(CVMX_SRIOX_OMSG_PORTX(index, interface - 4));
-        sriox_omsg_portx.s.port = (interface - 4) * 2 + index;
+        sriox_omsg_portx.u64 = cvmx_read_csr(CVMX_SRIOX_OMSG_PORTX(index, srio_port));
+        sriox_omsg_portx.s.port = (srio_port) * 2 + index;
         sriox_omsg_portx.s.enable = 1;
-        cvmx_write_csr(CVMX_SRIOX_OMSG_PORTX(index, interface - 4), sriox_omsg_portx.u64);
+        cvmx_write_csr(CVMX_SRIOX_OMSG_PORTX(index, srio_port), sriox_omsg_portx.u64);
 
         /* Allow OMSG controller to send regardless of the state of any other
             controller. Allow messages to different IDs and MBOXes to go in
@@ -164,7 +193,7 @@ int __cvmx_helper_srio_enable(int interface)
         sriox_omsg_sp_mrx.s.mbox_fmp = 1;
         sriox_omsg_sp_mrx.s.mbox_nmp = 1;
         sriox_omsg_sp_mrx.s.all_psd = 1;
-        cvmx_write_csr(CVMX_SRIOX_OMSG_SP_MRX(index, interface-4), sriox_omsg_sp_mrx.u64);
+        cvmx_write_csr(CVMX_SRIOX_OMSG_SP_MRX(index, srio_port), sriox_omsg_sp_mrx.u64);
 
         /* Allow OMSG controller to send regardless of the state of any other
             controller. Allow messages to different IDs and MBOXes to go in
@@ -180,7 +209,7 @@ int __cvmx_helper_srio_enable(int interface)
         sriox_omsg_fmp_mrx.s.mbox_fmp = 1;
         sriox_omsg_fmp_mrx.s.mbox_nmp = 1;
         sriox_omsg_fmp_mrx.s.all_psd = 1;
-        cvmx_write_csr(CVMX_SRIOX_OMSG_FMP_MRX(index, interface-4), sriox_omsg_fmp_mrx.u64);
+        cvmx_write_csr(CVMX_SRIOX_OMSG_FMP_MRX(index, srio_port), sriox_omsg_fmp_mrx.u64);
 
         /* Once the first part of a message is accepted, always acept the rest
             of the message */
@@ -188,15 +217,15 @@ int __cvmx_helper_srio_enable(int interface)
         sriox_omsg_nmp_mrx.s.all_sp = 1;
         sriox_omsg_nmp_mrx.s.all_fmp = 1;
         sriox_omsg_nmp_mrx.s.all_nmp = 1;
-        cvmx_write_csr(CVMX_SRIOX_OMSG_NMP_MRX(index, interface-4), sriox_omsg_nmp_mrx.u64);
+        cvmx_write_csr(CVMX_SRIOX_OMSG_NMP_MRX(index, srio_port), sriox_omsg_nmp_mrx.u64);
 
     }
 
     /* Choose the receive controller based on the mailbox */
-    sriox_imsg_ctrl.u64 = cvmx_read_csr(CVMX_SRIOX_IMSG_CTRL(interface - 4));
+    sriox_imsg_ctrl.u64 = cvmx_read_csr(CVMX_SRIOX_IMSG_CTRL(srio_port));
     sriox_imsg_ctrl.s.prt_sel = 0;
     sriox_imsg_ctrl.s.mbox = 0xa;
-    cvmx_write_csr(CVMX_SRIOX_IMSG_CTRL(interface - 4), sriox_imsg_ctrl.u64);
+    cvmx_write_csr(CVMX_SRIOX_IMSG_CTRL(srio_port), sriox_imsg_ctrl.u64);
 
     /* DPI must be enabled for us to RX messages */
     dpi_ctl.u64 = cvmx_read_csr(CVMX_DPI_CTL);
@@ -204,14 +233,19 @@ int __cvmx_helper_srio_enable(int interface)
     dpi_ctl.s.en = 1;
     cvmx_write_csr(CVMX_DPI_CTL, dpi_ctl.u64);
 
+    /* Make sure register access is allowed */
+    srio_status_reg.u64 = cvmx_read_csr(CVMX_SRIOX_STATUS_REG(srio_port));
+    if (!srio_status_reg.s.access)
+        return 0;
+
     /* Enable RX */
-    if (!cvmx_srio_config_read32(interface - 4, 0, -1, 0, 0,
-        CVMX_SRIOMAINTX_CORE_ENABLES(interface-4), &sriomaintx_core_enables.u32))
+    if (!cvmx_srio_config_read32(srio_port, 0, -1, 0, 0,
+        CVMX_SRIOMAINTX_CORE_ENABLES(srio_port), &sriomaintx_core_enables.u32))
     {
         sriomaintx_core_enables.s.imsg0 = 1;
         sriomaintx_core_enables.s.imsg1 = 1;
-        cvmx_srio_config_write32(interface - 4, 0, -1, 0, 0,
-            CVMX_SRIOMAINTX_CORE_ENABLES(interface-4), sriomaintx_core_enables.u32);
+        cvmx_srio_config_write32(srio_port, 0, -1, 0, 0,
+            CVMX_SRIOMAINTX_CORE_ENABLES(srio_port), sriomaintx_core_enables.u32);
     }
 
     return 0;

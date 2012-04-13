@@ -162,7 +162,8 @@ sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 
 #undef RANGECHK
 
-SYSCTL_NODE(_net_inet_ip, IPPROTO_IP, portrange, CTLFLAG_RW, 0, "IP Ports");
+static SYSCTL_NODE(_net_inet_ip, IPPROTO_IP, portrange, CTLFLAG_RW, 0,
+    "IP Ports");
 
 SYSCTL_VNET_PROC(_net_inet_ip_portrange, OID_AUTO, lowfirst,
 	CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(ipport_lowfirstauto), 0,
@@ -195,7 +196,7 @@ SYSCTL_VNET_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
 	&VNET_NAME(ipport_randomtime), 0,
 	"Minimum time to keep sequental port "
 	"allocation before switching to a random one");
-#endif
+#endif /* INET */
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -575,8 +576,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-				     (t->inp_socket->so_options &
-					 SO_REUSEPORT) == 0) &&
+				     (t->inp_flags2 & INP_REUSEPORT) == 0) &&
 				    (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
@@ -590,19 +590,19 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				 * being in use (for now).  This is better
 				 * than a panic, but not desirable.
 				 */
-				tw = intotw(inp);
+				tw = intotw(t);
 				if (tw == NULL ||
 				    (reuseport & tw->tw_so_options) == 0)
 					return (EADDRINUSE);
-			} else if (t &&
-			    (reuseport & t->inp_socket->so_options) == 0) {
+			} else if (t && (reuseport == 0 ||
+			    (t->inp_flags2 & INP_REUSEPORT) == 0)) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||
 				    ntohl(t->inp_laddr.s_addr) !=
 				    INADDR_ANY ||
-				    INP_SOCKAF(so) ==
-				    INP_SOCKAF(t->inp_socket))
+				    (inp->inp_vflag & INP_IPV6PROTO) == 0 ||
+				    (t->inp_vflag & INP_IPV6PROTO) == 0)
 #endif
 				return (EADDRINUSE);
 			}
@@ -745,7 +745,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		ifp = ia->ia_ifp;
 		ifa_free(&ia->ia_ifa);
 		ia = NULL;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
@@ -759,10 +759,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto done;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -804,7 +804,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 */
 		ia = NULL;
 		ifp = sro.ro_rt->rt_ifp;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -817,10 +817,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto done;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -868,7 +868,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ifp = ia->ia_ifp;
 			ifa_free(&ia->ia_ifa);
 			ia = NULL;
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 				sa = ifa->ifa_addr;
@@ -883,10 +883,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			}
 			if (ia != NULL) {
 				laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				goto done;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
@@ -1038,7 +1038,7 @@ in_pcbdisconnect(struct inpcb *inp)
 	inp->inp_fport = 0;
 	in_pcbrehash(inp);
 }
-#endif
+#endif /* INET */
 
 /*
  * in_pcbdetach() is responsibe for disassociating a socket from an inpcb.
@@ -1169,7 +1169,7 @@ in_pcbfree(struct inpcb *inp)
 #ifdef IPSEC
 	if (inp->inp_sp != NULL)
 		ipsec_delete_pcbpolicy(inp);
-#endif /* IPSEC */
+#endif
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	in_pcbremlists(inp);
 #ifdef INET6
@@ -1586,7 +1586,7 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 				if (inp->inp_vflag & INP_IPV6PROTO)
 					local_wild_mapped = inp;
 				else
-#endif /* INET6 */
+#endif
 					if (injail)
 						jail_wild = inp;
 					else
@@ -1601,7 +1601,7 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 #ifdef INET6
 		if (inp == NULL)
 			inp = local_wild_mapped;
-#endif /* defined(INET6) */
+#endif
 		if (inp != NULL)
 			goto found;
 	} /* if (lookupflags & INPLOOKUP_WILDCARD) */
@@ -1731,7 +1731,7 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 				if (inp->inp_vflag & INP_IPV6PROTO)
 					local_wild_mapped = inp;
 				else
-#endif /* INET6 */
+#endif
 					if (injail)
 						jail_wild = inp;
 					else
@@ -1747,7 +1747,7 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 #ifdef INET6
 		if (local_wild_mapped != NULL)
 			return (local_wild_mapped);
-#endif /* defined(INET6) */
+#endif
 	} /* if ((lookupflags & INPLOOKUP_WILDCARD) != 0) */
 
 	return (NULL);
@@ -1871,7 +1871,7 @@ in_pcbinshash_internal(struct inpcb *inp, int do_pcbgroup_update)
 	if (inp->inp_vflag & INP_IPV6)
 		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
 	else
-#endif /* INET6 */
+#endif
 	hashkey_faddr = inp->inp_faddr.s_addr;
 
 	pcbhash = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
@@ -1958,7 +1958,7 @@ in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
 	if (inp->inp_vflag & INP_IPV6)
 		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
 	else
-#endif /* INET6 */
+#endif
 	hashkey_faddr = inp->inp_faddr.s_addr;
 
 	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(hashkey_faddr,
@@ -2226,14 +2226,13 @@ db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
 		/* IPv6. */
 		ip6_sprintf(laddr_str, &inc->inc6_laddr);
 		ip6_sprintf(faddr_str, &inc->inc6_faddr);
-	} else {
+	} else
 #endif
+	{
 		/* IPv4. */
 		inet_ntoa_r(inc->inc_laddr, laddr_str);
 		inet_ntoa_r(inc->inc_faddr, faddr_str);
-#ifdef INET6
 	}
-#endif
 	db_print_indent(indent);
 	db_printf("inc_laddr %s   inc_lport %u\n", laddr_str,
 	    ntohs(inc->inc_lport));
@@ -2446,4 +2445,4 @@ DB_SHOW_COMMAND(inpcb, db_show_inpcb)
 
 	db_print_inpcb(inp, "inpcb", 0);
 }
-#endif
+#endif /* DDB */

@@ -55,7 +55,7 @@
  *	assembly language support routines.
  */
 
-#include "opt_cputype.h"
+#include "opt_compat.h"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>
@@ -249,6 +249,61 @@ NON_LEAF(cpu_switch, CALLFRAME_SIZ, ra)
 	nop
 getpc:
 	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)		# save return address
+
+#ifdef CPU_CNMIPS
+
+	lw	t2, TD_MDFLAGS(a3)		# get md_flags
+	and	t1, t2, MDTD_COP2USED
+	beqz	t1, cop2_untouched
+	nop
+
+	/* Clear cop2used flag */
+	and	t2, t2, ~MDTD_COP2USED
+	sw	t2, TD_MDFLAGS(a3)
+
+	and	t2, t0, ~MIPS_SR_COP_2_BIT	# clear COP_2 enable bit
+	SAVE_U_PCB_CONTEXT(t2, PREG_SR, a0)	# save status register
+
+	RESTORE_U_PCB_REG(t0, PS, a0)		# get CPU status register
+	and	t2, t0, ~MIPS_SR_COP_2_BIT	# clear COP_2 enable bit
+	SAVE_U_PCB_REG(t2, PS, a0)		# save stratus register
+
+	/* preserve a0..a3 */
+	move	s0, a0
+	move	s1, a1
+	move	s2, a2
+	move	s3, a3
+
+	/* does kernel own COP2 context? */
+	lw	t1, TD_COP2OWNER(a3)		# get md_cop2owner
+	beqz	t1, userland_cop2		# 0 - it's userland context
+	nop
+
+	PTR_L	a0, TD_COP2(a3)
+	beqz	a0, no_cop2_context
+	nop
+
+	j	do_cop2_save
+	nop
+
+userland_cop2:
+
+	PTR_L	a0, TD_UCOP2(a3)
+	beqz	a0, no_cop2_context
+	nop
+
+do_cop2_save:
+	jal	octeon_cop2_save
+	nop
+
+no_cop2_context:
+	move	a3, s3
+	move	a2, s2
+	move	a1, s1
+	move	a0, s0
+
+cop2_untouched:
+#endif
 
 	PTR_S	a2, TD_LOCK(a3)			# Switchout td_lock 
 
@@ -552,16 +607,6 @@ LEAF(MipsSaveCurFPState)
 END(MipsSaveCurFPState)
 
 /*
- * When starting init, call this to configure the process for user
- * mode.  This will be inherited by other processes.
- */
-LEAF_NOPROFILE(prepare_usermode)
-	j	ra
-	nop
-END(prepare_usermode)
-
-
-/*
  * This code is copied the user's stack for returning from signal handlers
  * (see sendsig() and sigreturn()). We have to compute the address
  * of the sigcontext struct for the sigreturn call.
@@ -581,3 +626,21 @@ _C_LABEL(esigcode):
 szsigcode:
 	.long	esigcode-sigcode
 	.text
+
+#if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
+	.globl	_C_LABEL(sigcode32)
+_C_LABEL(sigcode32):
+	addu		a0, sp, SIGF32_UC	# address of ucontext
+	li		v0, SYS_sigreturn
+# sigreturn (ucp)
+	syscall
+	break	0				# just in case sigreturn fails
+	.globl	_C_LABEL(esigcode32)
+_C_LABEL(esigcode32):
+
+	.data
+	.globl	szsigcode32
+szsigcode32:
+	.long	esigcode32-sigcode32
+	.text
+#endif

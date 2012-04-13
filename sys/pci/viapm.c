@@ -954,7 +954,6 @@ static device_method_t viapm_methods[] = {
 	DEVMETHOD(iicbb_reset,		viabb_reset),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -962,7 +961,7 @@ static device_method_t viapm_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t viapm_driver = {
@@ -990,7 +989,6 @@ static device_method_t viapropm_methods[] = {
 	DEVMETHOD(smbus_bread,		viasmb_bread),
 	
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -998,7 +996,7 @@ static device_method_t viapropm_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t viapropm_driver = {

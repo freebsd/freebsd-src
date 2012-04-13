@@ -24,7 +24,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
-#include <machine/psl.h>
 
 #include <stdarg.h>
 
@@ -75,7 +74,8 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
 			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
 
-#define PATH_CONFIG	"/boot.config"
+#define PATH_DOTCONFIG	"/boot.config"
+#define PATH_CONFIG	"/boot/config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
@@ -84,8 +84,6 @@ __FBSDID("$FreeBSD$");
 #define NDEV		3
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
-#define V86_CY(x)	((x) & PSL_C)
-#define V86_ZR(x)	((x) & PSL_Z)
 
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
@@ -130,9 +128,9 @@ static struct dsk {
     unsigned start;
     int init;
 } dsk;
-static char cmd[512], cmddup[512];
-static const char *kname;
-static uint32_t opts;
+static char cmd[512], cmddup[512], knamebuf[1024];
+static const char *kname = NULL;
+static uint32_t opts = 0;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -225,8 +223,8 @@ main(void)
 {
     uint8_t autoboot;
     ino_t ino;
+    size_t nbyte;
 
-    kname = NULL;
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
     v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
@@ -241,8 +239,11 @@ main(void)
 
     autoboot = 1;
 
-    if ((ino = lookup(PATH_CONFIG)))
-	fsread(ino, cmd, sizeof(cmd));
+    if ((ino = lookup(PATH_CONFIG)) ||
+        (ino = lookup(PATH_DOTCONFIG))) {
+	nbyte = fsread(ino, cmd, sizeof(cmd) - 1);
+	cmd[nbyte] = '\0';
+    }
 
     if (*cmd) {
 	memcpy(cmddup, cmd, sizeof(cmd));
@@ -259,9 +260,9 @@ main(void)
      * or in case of failure, try to load a kernel directly instead.
      */
 
-    if (autoboot && !kname) {
+    if (!kname) {
 	kname = PATH_BOOT3;
-	if (!keyhit(3*SECOND)) {
+	if (autoboot && !keyhit(3*SECOND)) {
 	    load();
 	    kname = PATH_KERNEL;
 	}
@@ -458,7 +459,12 @@ parse()
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 	    }
-            kname = arg;
+	    if ((i = ep - arg)) {
+		if ((size_t)i >= sizeof(knamebuf))
+		    return -1;
+		memcpy(knamebuf, arg, i + 1);
+		kname = knamebuf;
+	    }
 	}
 	arg = p;
     }

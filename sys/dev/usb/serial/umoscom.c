@@ -50,7 +50,7 @@
 #ifdef USB_DEBUG
 static int umoscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
 SYSCTL_INT(_hw_usb_umoscom, OID_AUTO, debug, CTLFLAG_RW,
     &umoscom_debug, 0, "Debug level");
 #endif

@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-MALLOC_DEFINE(M_ACPICA, "acpica", "ACPI CA memory pool");
+static MALLOC_DEFINE(M_ACPICA, "acpica", "ACPI CA memory pool");
 
 void *
 AcpiOsAllocate(ACPI_SIZE Size)
@@ -87,7 +87,7 @@ AcpiOsWritable (void *Pointer, ACPI_SIZE Length)
 }
 
 ACPI_STATUS
-AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 *Value, UINT32 Width)
+AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 *Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
@@ -105,6 +105,9 @@ AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 *Value, UINT32 Width)
     case 32:
 	*Value = *(volatile uint32_t *)LogicalAddress;
 	break;
+    case 64:
+	*Value = *(volatile uint64_t *)LogicalAddress;
+	break;
     }
 
     pmap_unmapdev((vm_offset_t)LogicalAddress, Width / 8);
@@ -113,7 +116,7 @@ AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 *Value, UINT32 Width)
 }
 
 ACPI_STATUS
-AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 Value, UINT32 Width)
+AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT64 Value, UINT32 Width)
 {
     void	*LogicalAddress;
 
@@ -130,6 +133,9 @@ AcpiOsWriteMemory(ACPI_PHYSICAL_ADDRESS Address, UINT32 Value, UINT32 Width)
 	break;
     case 32:
 	*(volatile uint32_t *)LogicalAddress = Value;
+	break;
+    case 64:
+	*(volatile uint64_t *)LogicalAddress = Value;
 	break;
     }
 

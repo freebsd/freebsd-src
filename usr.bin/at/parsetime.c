@@ -72,7 +72,7 @@ enum {	/* symbols */
 
 /* parse translation table - table driven parsers can be your FRIEND!
  */
-struct {
+static const struct {
     const char *name;	/* token name */
     int value;	/* token id */
     int plural;	/* is this plural? */

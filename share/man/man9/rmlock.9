@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Based on rwlock.9 man page
-.Dd November 10, 2007
+.Dd November 16, 2011
 .Dt RMLOCK 9
 .Os
 .Sh NAME
@@ -63,7 +63,7 @@
 .Ft void
 .Fn rm_wunlock "struct rmlock *rm"
 .Ft int
-.Fn rm_wowned "struct rmlock *rm"
+.Fn rm_wowned "const struct rmlock *rm"
 .In sys/kernel.h
 .Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc" "int opts"
 .Sh DESCRIPTION
@@ -80,7 +80,7 @@ Read mostly locks are designed to be efficient for locks almost exclusively
 used as reader locks and as such should be used for protecting data that
 rarely changes.
 Acquiring an exclusive lock after the lock had been locked for shared access
-is an expensive operation. 
+is an expensive operation.
 .Pp
 Although reader/writer locks look very similar to
 .Xr sx 9
@@ -196,9 +196,9 @@ This function releases a shared lock previously acquired by
 .Fn rm_rlock .
 The
 .Fa tracker
-argument must match the 
-.Fa tracker 
-argument used for acquiring the shared lock 
+argument must match the
+.Fa tracker
+argument used for acquiring the shared lock
 .It Fn rm_wunlock "struct rmlock *rm"
 This function releases an exclusive lock previously acquired by
 .Fn rm_wlock .
@@ -208,7 +208,7 @@ This functions destroys a lock previously initialized with
 The
 .Fa rm
 lock must be unlocked.
-.It Fn rm_wowned "struct rmlock *rm"
+.It Fn rm_wowned "const struct rmlock *rm"
 This function returns a non-zero value if the current thread owns an
 exclusive lock on
 .Fa rm .
@@ -248,7 +248,7 @@ The
 implementation uses a single per CPU list shared by all
 rmlocks in the system.
 If rmlocks become popular, hashing to multiple per CPU queues may
-be needed to speed up the writer lock process. 
+be needed to speed up the writer lock process.
 .Pp
 The
 .Nm

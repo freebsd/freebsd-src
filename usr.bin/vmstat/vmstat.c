@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <devstat.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <kvm.h>
 #include <limits.h>
 #include <memstat.h>
@@ -80,26 +81,20 @@ static char da[] = "da";
 static struct nlist namelist[] = {
 #define X_SUM		0
 	{ "_cnt" },
-#define	X_BOOTTIME	1
-	{ "_boottime" },
-#define X_HZ		2
+#define X_HZ		1
 	{ "_hz" },
-#define X_STATHZ	3
+#define X_STATHZ	2
 	{ "_stathz" },
-#define X_NCHSTATS	4
+#define X_NCHSTATS	3
 	{ "_nchstats" },
-#define	X_INTRNAMES	5
+#define	X_INTRNAMES	4
 	{ "_intrnames" },
-#define	X_SINTRNAMES	6
+#define	X_SINTRNAMES	5
 	{ "_sintrnames" },
-#define	X_INTRCNT	7
+#define	X_INTRCNT	6
 	{ "_intrcnt" },
-#define	X_SINTRCNT	8
+#define	X_SINTRCNT	7
 	{ "_sintrcnt" },
-#define	X_KMEMSTATS	9
-	{ "_kmemstatistics" },
-#define	X_KMEMZONES	10
-	{ "_kmemzones" },
 #ifdef notyet
 #define	X_DEFICIT	XXX
 	{ "_deficit" },
@@ -111,7 +106,7 @@ static struct nlist namelist[] = {
 	{ "_xstats" },
 #define X_END		XXX
 #else
-#define X_END		11
+#define X_END		8
 #endif
 	{ "" },
 };
@@ -1185,18 +1180,18 @@ dointr(void)
 			istrnamlen = clen;
 		tintrname += clen + 1;
 	}
-	(void)printf("%-*s %20s %10s\n", istrnamlen, "interrupt", "total",
+	(void)printf("%-*s %20s %10s\n", (int)istrnamlen, "interrupt", "total",
 	    "rate");
 	inttotal = 0;
 	for (i = 0; i < nintr; i++) {
 		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag))
-			(void)printf("%-*s %20lu %10lu\n", istrnamlen, intrname,
-			    *intrcnt, *intrcnt / uptime);
+			(void)printf("%-*s %20lu %10lu\n", (int)istrnamlen,
+			    intrname, *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
 		inttotal += *intrcnt++;
 	}
-	(void)printf("%-*s %20llu %10llu\n", istrnamlen, "Total",
-	    (long long)inttotal, (long long)(inttotal / uptime));
+	(void)printf("%-*s %20" PRIu64 " %10" PRIu64 "\n", (int)istrnamlen,
+	    "Total", inttotal, inttotal / uptime);
 }
 
 static void
@@ -1235,9 +1230,9 @@ domemstat_malloc(void)
 		if (memstat_get_numallocs(mtp) == 0 &&
 		    memstat_get_count(mtp) == 0)
 			continue;
-		printf("%13s %5lld %5lldK %7s %8lld  ",
+		printf("%13s %5" PRIu64 " %5" PRIu64 "K %7s %8" PRIu64 "  ",
 		    memstat_get_name(mtp), memstat_get_count(mtp),
-		    ((int64_t)memstat_get_bytes(mtp) + 1023) / 1024, "-",
+		    (memstat_get_bytes(mtp) + 1023) / 1024, "-",
 		    memstat_get_numallocs(mtp));
 		first = 1;
 		for (i = 0; i < 32; i++) {
@@ -1289,7 +1284,8 @@ domemstat_zone(void)
 	    mtp = memstat_mtl_next(mtp)) {
 		strlcpy(name, memstat_get_name(mtp), MEMTYPE_MAXNAME);
 		strcat(name, ":");
-		printf("%-20s %6llu, %6llu,%8llu,%8llu,%8llu,%4llu,%4llu\n",name,
+		printf("%-20s %6" PRIu64 ", %6" PRIu64 ",%8" PRIu64 ",%8" PRIu64
+		    ",%8" PRIu64 ",%4" PRIu64 ",%4" PRIu64 "\n", name,
 		    memstat_get_size(mtp), memstat_get_countlimit(mtp),
 		    memstat_get_count(mtp), memstat_get_free(mtp),
 		    memstat_get_numallocs(mtp), memstat_get_failures(mtp),

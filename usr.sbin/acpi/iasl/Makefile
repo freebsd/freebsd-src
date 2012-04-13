@@ -2,7 +2,6 @@
 
 PROG=	iasl
 SRCS=	adfile.c adisasm.c adwalk.c
-SRCS+=	osunixxf.c
 
 # common
 SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
@@ -16,46 +15,51 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslopcodes.c asloperands.c aslopt.c aslpredef.c		\
 	aslresource.c aslrestype1.c aslrestype1i.c		\
 	aslrestype2.c aslrestype2d.c aslrestype2e.c		\
-	aslrestype2q.c aslrestype2w.c aslstartup.c aslstubs.c	\
-	asltransform.c asltree.c aslutils.c asluuid.c		\
-	aslwalks.c dtcompile.c dtexpress.c dtfield.c dtio.c	\
-	dtparser.y.h dtparserlex.c dtparserparse.c dtsubtable.c	\
-	dttable.c dttemplate.c dtutils.c
+	aslrestype2q.c aslrestype2s.c aslrestype2w.c		\
+	aslstartup.c aslstubs.c	asltransform.c asltree.c	\
+	aslutils.c asluuid.c aslwalks.c dtcompile.c dtexpress.c	\
+	dtfield.c dtio.c dtparser.y.h dtparserlex.c		\
+	dtparserparse.c dtsubtable.c dttable.c dttemplate.c	\
+	dtutils.c prexpress.c prmacros.c prparser.y.h		\
+	prparserlex.c prparserparse.c prscan.c prutils.c
 
-# debugger
+# components/debugger
 SRCS+=	dbfileio.c
 
-# disassembler
-SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
-	dmresrcl.c dmresrcs.c dmutils.c dmwalk.c
+# components/disassembler
+SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmresrc.c dmresrcl.c	\
+	dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 
-# interpreter/dispatcher
+# components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\
 	dsutils.c dswexec.c dswload.c dswload2.c dswscope.c	\
 	dswstate.c
 
-# interpreter/executer
+# components/executer
 SRCS+=	exconvrt.c excreate.c exdump.c exmisc.c exmutex.c	\
 	exnames.c exoparg1.c exoparg2.c exoparg3.c exoparg6.c	\
-	exprep.c exregion.c exresnte.c exresolv.c exresop.c	\
-	exstore.c exstoren.c exstorob.c exsystem.c exutils.c
+	exprep.c exresnte.c exresolv.c exresop.c exstore.c	\
+	exstoren.c exstorob.c exsystem.c exutils.c
 
-# interpreter/parser
+# components/parser
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
 	pstree.c psutils.c pswalk.c
 
-# namespace
+# components/namespace
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nsnames.c nsobject.c	\
-	nsparse.c nssearch.c nsutils.c nswalk.c nsxfobj.c
+	nsparse.c nssearch.c nsutils.c nswalk.c
 
-# tables
+# components/tables
 SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 
-# utilities
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c	\
-	utdelete.c utglobal.c utinit.c utlock.c utmath.c	\
-	utmisc.c utmutex.c utobject.c utosi.c utresrc.c		\
+# components/utilities
+SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
+	utdecode.c utdelete.c utglobal.c utinit.c utlock.c	\
+	utmath.c utmisc.c utmutex.c utobject.c utresrc.c	\
 	utstate.c utxface.c utxferror.c
+
+# os_specific/service_layers
+SRCS+=	osunixxf.c
 
 WARNS?=	2
 
@@ -64,8 +68,6 @@ MAN=	iasl.8
 CFLAGS+= -DACPI_ASL_COMPILER -I.
 LFLAGS= -i -s
 YFLAGS= -d
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
 
 CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
@@ -74,19 +76,31 @@ CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 aslcompilerlex.c: aslcompiler.l
 	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} ${.ALLSRC}
 
-aslcompilerparse.c: aslcompiler.y
-	${YACC} ${YFLAGS} -pAslCompiler -o${.TARGET} ${.ALLSRC}
+.ORDER: aslcompilerparse.c aslcompilerparse.h
+aslcompilerparse.c aslcompilerparse.h: aslcompiler.y
+	${YACC} ${YFLAGS} -pAslCompiler -oaslcompilerparse.c ${.ALLSRC}
 
-aslcompiler.y.h: aslcompilerparse.c
-	mv -f aslcompilerparse.h ${.TARGET}
+aslcompiler.y.h: aslcompilerparse.h
+	ln -f ${.ALLSRC} ${.TARGET}
 
 dtparserlex.c: dtparser.l
 	${LEX} ${LFLAGS} -PDtParser -o${.TARGET} ${.ALLSRC}
 
-dtparserparse.c: dtparser.y
-	${YACC} ${YFLAGS} -pDtParser -o${.TARGET} ${.ALLSRC}
+.ORDER: dtparserparse.c dtparserparse.h
+dtparserparse.c dtparserparse.h: dtparser.y
+	${YACC} ${YFLAGS} -pDtParser -odtparserparse.c ${.ALLSRC}
 
-dtparser.y.h: dtparserparse.c
-	mv -f dtparserparse.h ${.TARGET}
+dtparser.y.h: dtparserparse.h
+	ln -f ${.ALLSRC} ${.TARGET}
+
+prparserlex.c: prparser.l
+	${LEX} ${LFLAGS} -PPrParser -o${.TARGET} ${.ALLSRC}
+
+.ORDER: prparserparse.c prparserparse.h
+prparserparse.c prparserparse.h: prparser.y
+	${YACC} ${YFLAGS} -pPrParser -oprparserparse.c ${.ALLSRC}
+
+prparser.y.h: prparserparse.h
+	ln -f ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

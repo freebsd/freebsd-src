@@ -68,7 +68,8 @@ struct g_class g_shsec_class = {
 };
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, shsec, CTLFLAG_RW, 0, "GEOM_SHSEC stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, shsec, CTLFLAG_RW, 0,
+    "GEOM_SHSEC stuff");
 static u_int g_shsec_debug = 0;
 TUNABLE_INT("kern.geom.shsec.debug", &g_shsec_debug);
 SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, debug, CTLFLAG_RW, &g_shsec_debug, 0,

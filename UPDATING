@@ -22,6 +22,73 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120328:
+	Big-endian MIPS TARGET_ARCH values no longer end in "eb".  mips64eb
+	is now spelled mips64.  mipsn32eb is now spelled mipsn32.  mipseb is
+	now spelled mips.  This is to aid compatibility with third-party
+	software that expects this naming scheme in uname(3).  Little-endian
+	settings are unchanged.
+
+20120306:
+	Disable by default the option VFS_ALLOW_NONMPSAFE for all supported
+	platforms.
+
+20120229:
+	Now unix domain sockets behave "as expected" on	nullfs(5). Previously
+	nullfs(5) did not pass through all behaviours to the underlying layer,
+	as a result if we bound to a socket on the lower layer we could connect
+	only to the lower path; if we bound to the upper layer we could connect
+	only to	the upper path. The new behavior is one can connect to both the
+	lower and the upper paths regardless what layer path one binds to.
+
+20120211:
+	The getifaddrs upgrade path broken with 20111215 has been restored.
+	If you have upgraded in between 20111215 and 20120209 you need to
+	recompile libc again with your kernel.  You still need to recompile
+	world to be able to configure CARP but this restriction already
+	comes from 20111215.
+
+20120114:
+	The set_rcvar() function has been removed from /etc/rc.subr.  All
+	base and ports rc.d scripts have been updated, so if you have a
+	port installed with a script in /usr/local/etc/rc.d you can either
+	hand-edit the rcvar= line, or reinstall the port.
+
+	An easy way to handle the mass-update of /etc/rc.d:
+	rm /etc/rc.d/* && mergemaster -i
+
+20120109:
+	panic(9) now stops other CPUs in the SMP systems, disables interrupts
+	on the current CPU and prevents other threads from running.
+	This behavior can be reverted using the kern.stop_scheduler_on_panic
+	tunable/sysctl.
+	The new behavior can be incompatible with kern.sync_on_panic.
+
+20111215:
+	The carp(4) facility has been changed significantly. Configuration
+	of the CARP protocol via ifconfig(8) has changed, as well as format
+	of CARP events submitted to devd(8) has changed. See manual pages
+	for more information. The arpbalance feature of carp(4) is currently
+	not supported anymore.
+
+	Size of struct in_aliasreq, struct in6_aliasreq has changed. User
+	utilities using SIOCAIFADDR, SIOCAIFADDR_IN6, e.g. ifconfig(8),
+	need to be recompiled.
+
+20111122:
+	The acpi_wmi(4) status device /dev/wmistat has been renamed to
+	/dev/wmistat0.
+
+20111108:
+	The option VFS_ALLOW_NONMPSAFE option has been added in order to
+	explicitely support non-MPSAFE filesystems.
+	It is on by default for all supported platform at this present
+	time.
+
+20111101:
+	The broken amd(4) driver has been replaced with esp(4) in the amd64,
+	i386 and pc98 GENERIC kernel configuration files.
+
 20110930:
 	sysinstall has been removed
 
@@ -462,7 +529,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	There's one kernel module for each firmware. Adding "device iwnfw"
 	to the kernel configuration file means including all three firmware
 	images inside the kernel. If you want to include just the one for
-	your wireless card, use the the devices iwn4965fw, iwn5000fw or
+	your wireless card, use the devices iwn4965fw, iwn5000fw or
 	iwn5150fw.
 
 20090926:

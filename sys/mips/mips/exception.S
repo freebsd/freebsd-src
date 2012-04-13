@@ -54,24 +54,42 @@
  *	assembly language support routines.
  */
 
-#include "opt_cputype.h"
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pte.h>
 
-#include "opt_cputype.h"
-
 #include "assym.s"
 
 	.set	noreorder		# Noreorder is default style!
 
+#ifdef KDTRACE_HOOKS
+	.data
+	.globl	dtrace_invop_jump_addr
+	.align	4
+	.type	dtrace_invop_jump_addr, @object
+        .size	dtrace_invop_jump_addr, 8
+dtrace_invop_jump_addr:
+	.word	0
+	.word	0
+	.globl	dtrace_invop_calltrap_addr
+	.align	4
+	.type	dtrace_invop_calltrap_addr, @object
+        .size	dtrace_invop_calltrap_addr, 8
+dtrace_invop_calltrap_addr:
+	.word	0
+	.word	0
+
+	.text
+#endif
+
 /*
  * Reasonable limit
  */
-#define	INTRCNT_COUNT	128
+#define	INTRCNT_COUNT	256
 
 
 /*
@@ -162,11 +180,11 @@ VECTOR(MipsException, unknown)
 	.set	noat
 	mfc0	k0, MIPS_COP_0_STATUS		# Get the status register
 	mfc0	k1, MIPS_COP_0_CAUSE		# Get the cause register value.
-	and	k0, k0, SR_KSU_USER		# test for user mode
+	and	k0, k0, MIPS_SR_KSU_USER	# test for user mode
 						# sneaky but the bits are
 						# with us........
 	sll	k0, k0, 3			# shift user bit for cause index
-	and	k1, k1, MIPS3_CR_EXC_CODE	# Mask out the cause bits.
+	and	k1, k1, MIPS_CR_EXC_CODE	# Mask out the cause bits.
 	or	k1, k1, k0			# change index to user table
 #if defined(__mips_n64)
 	PTR_SLL	k1, k1, 1			# shift to get 8-byte offset
@@ -193,7 +211,7 @@ SlowFault:
 	.set	noat
 	mfc0	k0, MIPS_COP_0_STATUS
 	nop
-	and	k0, k0, SR_KSU_USER
+	and	k0, k0, MIPS_SR_KSU_USER
 	bne	k0, zero, _C_LABEL(MipsUserGenException)
 	nop
 	.set	at
@@ -224,7 +242,7 @@ SlowFault:
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
         mtc0    a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
@@ -233,14 +251,14 @@ SlowFault:
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
         mtc0    a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
 #else
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
 	mtc0	a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
@@ -375,15 +393,15 @@ NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
-	 * Update interrupt mask in saved status register
+	 * Update interrupt and CPU mask in saved status register
 	 * Some of interrupts could be disabled by
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
 	mfc0	a0, MIPS_COP_0_STATUS
-	and	a0, a0, MIPS_SR_INT_MASK
+	and	a0, a0, (MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~MIPS_SR_INT_MASK
+	and	a1, a1, ~(MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	RESTORE_CPU			# v0 contains the return address.
@@ -467,8 +485,9 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 # Turn off fpu and enter kernel mode
-	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS3_SR_KSU_MASK | MIPS_SR_INT_IE)
+	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_KSU_MASK | MIPS_SR_INT_IE)
 #if defined(CPU_CNMIPS)
+	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(CPU_RMI)	|| defined(CPU_NLM)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
@@ -557,6 +576,33 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	.set	at
 END(MipsUserGenException)
 
+	.set	push
+	.set	noat
+NON_LEAF(mips_wait, CALLFRAME_SIZ, ra)
+	PTR_SUBU        sp, sp, CALLFRAME_SIZ
+	.mask   0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	REG_S   ra, CALLFRAME_RA(sp)		# save RA
+	mfc0	t0, MIPS_COP_0_STATUS
+	xori	t1, t0, MIPS_SR_INT_IE
+	mtc0	t1, MIPS_COP_0_STATUS
+	COP0_SYNC
+	jal	sched_runnable
+	nop
+	REG_L   ra, CALLFRAME_RA(sp)
+	mfc0	t0, MIPS_COP_0_STATUS
+	ori	t1, t0, MIPS_SR_INT_IE
+	.align 4
+GLOBAL(MipsWaitStart)			# this is 16 byte aligned
+	mtc0	t1, MIPS_COP_0_STATUS
+	bnez	v0, MipsWaitEnd
+	nop
+	wait
+GLOBAL(MipsWaitEnd)			# MipsWaitStart + 16
+	jr	ra
+	PTR_ADDU        sp, sp, CALLFRAME_SIZ
+END(mips_wait)
+	.set	pop
+
 /*----------------------------------------------------------------------------
  *
  * MipsKernIntr --
@@ -578,6 +624,19 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
 	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
 	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
+
+/*
+ * Check for getting interrupts just before wait
+ */
+	MFC0	k0, MIPS_COP_0_EXC_PC
+	ori	k0, 0xf
+	xori	k0, 0xf			# 16 byte align
+	PTR_LA	k1, MipsWaitStart
+	bne	k0, k1, 1f
+	nop
+	PTR_ADDU k1, 16			# skip over wait
+	MTC0	k1, MIPS_COP_0_EXC_PC
+1:
 /*
  *  Save CPU state, building 'frame'.
  */
@@ -591,15 +650,15 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
-	 * Update interrupt mask in saved status register
+	 * Update interrupt and CPU mask in saved status register
 	 * Some of interrupts could be disabled by
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
 	mfc0	a0, MIPS_COP_0_STATUS
-	and	a0, a0, MIPS_SR_INT_MASK
+	and	a0, a0, (MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~MIPS_SR_INT_MASK
+	and	a1, a1, ~(MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	REG_L	v0, CALLFRAME_RA + KERN_REG_SIZE(sp)
@@ -685,8 +744,9 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 
 # Turn off fpu, disable interrupts, set kernel mode kernel mode, clear exception level.
-	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS3_SR_KSU_MASK)
+	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS_SR_KSU_MASK)
 #ifdef CPU_CNMIPS
+	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(CPU_RMI)	|| defined(CPU_NLM)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
@@ -887,7 +947,7 @@ tlb_insert_random:
 	 * Branch to the comprehensive exception processing.
 	 */
 	mfc0	k1, MIPS_COP_0_STATUS
-	andi	k1, k1, SR_KSU_USER
+	andi	k1, k1, MIPS_SR_KSU_USER
 	bnez	k1, _C_LABEL(MipsUserGenException)
 	nop
 
@@ -1146,14 +1206,14 @@ sintrnames:
 	.int  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 #endif
 
-	.align	4
+	.align	(_MIPS_SZLONG / 8)
 intrcnt:
-	.space  INTRCNT_COUNT * 4 * 2
+	.space  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 sintrcnt:
 #ifdef __mips_n64
-	.quad  INTRCNT_COUNT * 4 * 2
+	.quad  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #else
-	.int  INTRCNT_COUNT * 4 * 2
+	.int  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #endif
 
 

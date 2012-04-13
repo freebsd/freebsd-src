@@ -107,7 +107,6 @@ A brief test on a
 crypt to do approximately 2640 crypts
 a CPU second and MD5 to do about 62 crypts a CPU second.
 .Ss DES Extended Format:
-.Pp
 The
 .Ar key
 is divided into groups of 8 characters (the last group is null-padded)
@@ -163,7 +162,6 @@ string, 20 or 13 bytes (plus null) in length, consisting of the
 .Ar salt
 followed by the encoded 64-bit encryption.
 .Ss "Modular" crypt:
-.Pp
 If the salt begins with the string
 .Fa $digit$
 then the Modular Crypt Format is used.
@@ -189,6 +187,8 @@ Blowfish
 .It
 NT-Hash
 .It
+(unused)
+.It
 SHA-256
 .It
 SHA-512
@@ -199,9 +199,7 @@ An example salt would be:
 .Bl -tag -offset indent
 .It Cm "$4$thesalt$rest"
 .El
-.Pp
 .Ss "Traditional" crypt:
-.Pp
 The algorithm used will depend upon whether
 .Fn crypt_set_format
 has been called and whether a global default format has been specified.

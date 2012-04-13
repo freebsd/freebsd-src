@@ -58,6 +58,15 @@ then
   fi
 fi
 
+# Add any RAID devices
+if [ -d "/dev/raid" ] ; then
+  cd /dev/raid
+  for i in `ls`
+  do
+      SYSDISK="${SYSDISK} ${i}"
+  done
+fi
+
 # Now loop through these devices, and list the disk drives
 for i in ${SYSDISK}
 do
@@ -74,10 +83,10 @@ do
   fi
 
   # Try and find some identification information with camcontrol or atacontrol
-  NEWLINE=$(camcontrol identify $DEV | sed -ne 's/^device model *//p')
+  NEWLINE=$(camcontrol identify $DEV 2>/dev/null | sed -ne 's/^device model *//p')
   if [ -z "$NEWLINE" ]; then
 	# Now try atacontrol
-  	NEWLINE=$(atacontrol list | sed -n "s|^.*$DEV <\(.*\)>.*|\1|p")
+  	NEWLINE=$(atacontrol list 2>/dev/null | sed -n "s|^.*$DEV <\(.*\)>.*|\1|p")
 	
   	if [ -z "$NEWLINE" ]; then
     		NEWLINE=" <Unknown Device>"

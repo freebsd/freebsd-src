@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/Stmt.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/DenseMap.h"
@@ -93,18 +93,17 @@ void ExplodedGraph::reclaimRecentlyAllocatedNodes() {
     ProgramPoint progPoint = node->getLocation();
     if (!isa<PostStmt>(progPoint))
       continue;
-
     // Condition 4.
     PostStmt ps = cast<PostStmt>(progPoint);
-    if (ps.getTag() || isa<PostStmtCustom>(ps))
+    if (ps.getTag())
       continue;
 
     if (isa<BinaryOperator>(ps.getStmt()))
       continue;
 
     // Conditions 5, 6, and 7.
-    const GRState *state = node->getState();
-    const GRState *pred_state = pred->getState();    
+    const ProgramState *state = node->getState();
+    const ProgramState *pred_state = pred->getState();    
     if (state->store != pred_state->store || state->GDM != pred_state->GDM ||
         progPoint.getLocationContext() != pred->getLocationContext())
       continue;
@@ -134,11 +133,11 @@ void ExplodedGraph::reclaimRecentlyAllocatedNodes() {
 // ExplodedNode.
 //===----------------------------------------------------------------------===//
 
-static inline BumpVector<ExplodedNode*>& getVector(void* P) {
+static inline BumpVector<ExplodedNode*>& getVector(void *P) {
   return *reinterpret_cast<BumpVector<ExplodedNode*>*>(P);
 }
 
-void ExplodedNode::addPredecessor(ExplodedNode* V, ExplodedGraph &G) {
+void ExplodedNode::addPredecessor(ExplodedNode *V, ExplodedGraph &G) {
   assert (!V->isSink());
   Preds.addNode(V, G);
   V->Succs.addNode(this, G);
@@ -153,12 +152,12 @@ void ExplodedNode::NodeGroup::replaceNode(ExplodedNode *node) {
   assert(getKind() == Size1);
 }
 
-void ExplodedNode::NodeGroup::addNode(ExplodedNode* N, ExplodedGraph &G) {
+void ExplodedNode::NodeGroup::addNode(ExplodedNode *N, ExplodedGraph &G) {
   assert((reinterpret_cast<uintptr_t>(N) & Mask) == 0x0);
   assert(!getFlag());
 
   if (getKind() == Size1) {
-    if (ExplodedNode* NOld = getNode()) {
+    if (ExplodedNode *NOld = getNode()) {
       BumpVectorContext &Ctx = G.getNodeAllocator();
       BumpVector<ExplodedNode*> *V = 
         G.getAllocator().Allocate<BumpVector<ExplodedNode*> >();
@@ -215,11 +214,11 @@ ExplodedNode** ExplodedNode::NodeGroup::end() const {
   }
 }
 
-ExplodedNode *ExplodedGraph::getNode(const ProgramPoint& L,
-                                     const GRState* State, bool* IsNew) {
+ExplodedNode *ExplodedGraph::getNode(const ProgramPoint &L,
+                                     const ProgramState *State, bool* IsNew) {
   // Profile 'State' to determine if we already have an existing node.
   llvm::FoldingSetNodeID profile;
-  void* InsertPos = 0;
+  void *InsertPos = 0;
 
   NodeTy::Profile(profile, L, State);
   NodeTy* V = Nodes.FindNodeOrInsertPos(profile, InsertPos);
@@ -285,7 +284,7 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
   typedef llvm::DenseMap<const ExplodedNode*, ExplodedNode*> Pass2Ty;
   Pass2Ty& Pass2 = M->M;
 
-  llvm::SmallVector<const ExplodedNode*, 10> WL1, WL2;
+  SmallVector<const ExplodedNode*, 10> WL1, WL2;
 
   // ===- Pass 1 (reverse DFS) -===
   for (const ExplodedNode* const* I = BeginSources; I != EndSources; ++I) {
@@ -326,7 +325,7 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
 
   // ===- Pass 2 (forward DFS to construct the new graph) -===
   while (!WL2.empty()) {
-    const ExplodedNode* N = WL2.back();
+    const ExplodedNode *N = WL2.back();
     WL2.pop_back();
 
     // Skip this node if we have already processed it.
@@ -335,7 +334,7 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
 
     // Create the corresponding node in the new graph and record the mapping
     // from the old node to the new node.
-    ExplodedNode* NewN = G->getNode(N->getLocation(), N->State, NULL);
+    ExplodedNode *NewN = G->getNode(N->getLocation(), N->State, NULL);
     Pass2[N] = NewN;
 
     // Also record the reverse mapping from the new node to the old node.
@@ -383,7 +382,7 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
 }
 
 ExplodedNode*
-InterExplodedGraphMap::getMappedNode(const ExplodedNode* N) const {
+InterExplodedGraphMap::getMappedNode(const ExplodedNode *N) const {
   llvm::DenseMap<const ExplodedNode*, ExplodedNode*>::const_iterator I =
     M.find(N);
 

@@ -4268,7 +4268,7 @@
 .      if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
 .        nr doc-reg-Xr (\n[doc-arg-ptr] + 1)
 .        \" modify second argument if it is a string and
-.        \" remove space inbetween
+.        \" remove space in between
 .        if (\n[doc-type\n[doc-reg-Xr]] == 2) \{\
 .          ds doc-arg\n[doc-reg-Xr] \*[lp]\*[doc-arg\n[doc-reg-Xr]]\*[rp]
 .          ds doc-space\n[doc-arg-ptr]
@@ -5091,7 +5091,7 @@
 .
 .
 .\" NS doc-build-func-string macro
-.\" NS   collect function arguments and set hard spaces inbetween
+.\" NS   collect function arguments and set hard spaces in between
 .\" NS
 .\" NS modifies:
 .\" NS   doc-func-arg

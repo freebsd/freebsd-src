@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #ifdef	USB_DEBUG
 static int usie_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, usie, CTLFLAG_RW, 0, "sierra USB modem");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, usie, CTLFLAG_RW, 0, "sierra USB modem");
 SYSCTL_INT(_hw_usb_usie, OID_AUTO, debug, CTLFLAG_RW, &usie_debug, 0,
     "usie debug level");
 #endif
@@ -918,7 +918,7 @@ tr_setup:
 		if (m == NULL)
 			break;
 
-		if (m->m_pkthdr.len > (MCLBYTES - ETHER_HDR_LEN +
+		if (m->m_pkthdr.len > (int)(MCLBYTES - ETHER_HDR_LEN +
 		    ETHER_CRC_LEN - sizeof(sc->sc_txd))) {
 			DPRINTF("packet len is too big: %d\n",
 			    m->m_pkthdr.len);

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
 
@@ -117,7 +118,7 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, const char *hostname);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, struct vnode **,
-		    struct ucred *cred, int);
+		    struct ucred *cred, int, int);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
@@ -509,10 +510,10 @@ nfs_mountroot(struct mount *mp)
 		sin.sin_len = sizeof(sin);
                 /* XXX MRT use table 0 for this sort of thing */
 		CURVNET_SET(TD_TO_VNET(td));
-		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
+		error = rtrequest_fib(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
-		    RTF_UP | RTF_GATEWAY, NULL);
+		    RTF_UP | RTF_GATEWAY, NULL, RT_DEFAULT_FIB);
 		CURVNET_RESTORE();
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
@@ -559,8 +560,8 @@ nfs_mountdiskless(char *path,
 	int error;
 
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
-	if ((error = mountnfs(args, mp, nam, path, vpp,
-	    td->td_ucred, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
+	if ((error = mountnfs(args, mp, nam, path, vpp, td->td_ucred,
+	    NFS_DEFAULT_NAMETIMEO, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -787,7 +788,8 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "readahead", "readdirsize", "soft", "hard", "mntudp", "tcp", "udp",
     "wsize", "rsize", "retrans", "acregmin", "acregmax", "acdirmin",
     "acdirmax", "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3",
-    "sec", "maxgroups", "principal", "negnametimeo", "nocto",
+    "sec", "maxgroups", "principal", "negnametimeo", "nocto", "wcommitsize",
+    "nametimeo",
     NULL };
 
 /*
@@ -836,6 +838,7 @@ nfs_mount(struct mount *mp)
 	size_t len;
 	u_char nfh[NFSX_V3FHMAX];
 	char *opt;
+	int nametimeo = NFS_DEFAULT_NAMETIMEO;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 
 	has_nfs_args_opt = 0;
@@ -1019,6 +1022,15 @@ nfs_mount(struct mount *mp)
 		}
 		args.flags |= NFSMNT_ACDIRMAX;
 	}
+	if (vfs_getopt(mp->mnt_optnew, "wcommitsize", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.wcommitsize);
+		if (ret != 1 || args.wcommitsize < 0) {
+			vfs_mount_error(mp, "illegal wcommitsize: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_WCOMMITSIZE;
+	}
 	if (vfs_getopt(mp->mnt_optnew, "deadthresh", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.deadthresh);
 		if (ret != 1 || args.deadthresh <= 0) {
@@ -1048,6 +1060,14 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 		args.flags |= NFSMNT_MAXGRPS;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "nametimeo", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &nametimeo);
+		if (ret != 1 || nametimeo < 0) {
+			vfs_mount_error(mp, "illegal nametimeo: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
 	}
 	if (vfs_getopt(mp->mnt_optnew, "negnametimeo", (void **)&opt, NULL)
 	    == 0) {
@@ -1097,6 +1117,19 @@ nfs_mount(struct mount *mp)
 			error = EIO;
 			goto out;
 		}
+
+		/*
+		 * If a change from TCP->UDP is done and there are thread(s)
+		 * that have I/O RPC(s) in progress with a tranfer size
+		 * greater than NFS_MAXDGRAMDATA, those thread(s) will be
+		 * hung, retrying the RPC(s) forever. Usually these threads
+		 * will be seen doing an uninterruptible sleep on wait channel
+		 * "newnfsreq" (truncated to "newnfsre" by procstat).
+		 */
+		if (args.sotype == SOCK_DGRAM && nmp->nm_sotype == SOCK_STREAM)
+			tprintf(curthread->td_proc, LOG_WARNING,
+	"Warning: mount -u that changes TCP->UDP can result in hung threads\n");
+
 		/*
 		 * When doing an update, we can't change from or to
 		 * v3, switch lockd strategies or change cookie translation
@@ -1156,7 +1189,7 @@ nfs_mount(struct mount *mp)
 		goto out;
 	}
 	error = mountnfs(&args, mp, nam, args.hostname, &vp,
-	    curthread->td_ucred, negnametimeo);
+	    curthread->td_ucred, nametimeo, negnametimeo);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1178,7 +1211,7 @@ out:
  */
 /* ARGSUSED */
 static int
-nfs_cmount(struct mntarg *ma, void *data, int flags)
+nfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	int error;
 	struct nfs_args args;
@@ -1198,7 +1231,8 @@ nfs_cmount(struct mntarg *ma, void *data, int flags)
  */
 static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
-    char *hst, struct vnode **vpp, struct ucred *cred, int negnametimeo)
+    char *hst, struct vnode **vpp, struct ucred *cred, int nametimeo,
+    int negnametimeo)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -1248,6 +1282,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_numgrps = NFS_MAXGRPS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_deadthresh = NFS_MAXDEADTHRESH;
+	nmp->nm_nametimeo = nametimeo;
 	nmp->nm_negnametimeo = negnametimeo;
 	nmp->nm_tprintf_delay = nfs_tprintf_delay;
 	if (nmp->nm_tprintf_delay < 0)
