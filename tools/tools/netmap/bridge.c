@@ -300,7 +300,7 @@ howmany(struct my_ring *me, int tx)
 	if (0 && verbose && tot && !tx)
 		D("ring %s %s %s has %d avail at %d",
 			me->ifname, tx ? "tx": "rx",
-			me->end > me->nifp->ni_rx_queues ?
+			me->end >= me->nifp->ni_tx_rings ? // XXX who comes first ?
 				"host":"net",
 			tot, NETMAP_TXRING(me->nifp, me->begin)->cur);
 	return tot;
@@ -361,6 +361,8 @@ main(int argc, char **argv)
 		}
 
 	}
+	argc -= optind;
+	argv += optind;
 
 	if (argc > 1)
 		ifa = argv[1];
@@ -440,8 +442,8 @@ main(int argc, char **argv)
 	D("Wait %d secs for link to come up...", wait_link);
 	sleep(wait_link);
 	D("Ready to go, %s 0x%x/%d <-> %s 0x%x/%d.",
-		me[0].ifname, me[0].queueid, me[0].nifp->ni_rx_queues,
-		me[1].ifname, me[1].queueid, me[1].nifp->ni_rx_queues);
+		me[0].ifname, me[0].queueid, me[0].nifp->ni_rx_rings,
+		me[1].ifname, me[1].queueid, me[1].nifp->ni_rx_rings);
 
 	/* main loop */
 	signal(SIGINT, sigint_h);
