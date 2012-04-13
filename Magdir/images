@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.70 2010/11/25 15:00:12 christos Exp $
+# $File: images,v 1.72 2011/12/08 12:12:46 rrt Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -88,6 +88,11 @@
 0	string		MM\x00\x2a	TIFF image data, big-endian
 !:mime	image/tiff
 0	string		II\x2a\x00	TIFF image data, little-endian
+!:mime	image/tiff
+
+0	string		MM\x00\x2b	Big TIFF image data, big-endian
+!:mime	image/tiff
+0	string		II\x2b\x00	Big TIFF image data, little-endian
 !:mime	image/tiff
 
 # PNG [Portable Network Graphics, or "PNG's Not GIF"] images
@@ -228,8 +233,8 @@
 #0	string		BA		PC bitmap array data
 
 # XPM icons (Greg Roelofs, newt@uchicago.edu)
-# note possible collision with C/REXX entry in c-lang; currently commented out
 0	search/1	/*\ XPM\ */	X pixmap image text
+!:mime	image/x-xpmi
 
 # Utah Raster Toolkit RLE images (janl@ifi.uio.no)
 0	leshort		0xcc52		RLE image data,

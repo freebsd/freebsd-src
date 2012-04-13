@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: sgml,v 1.26 2011/04/16 15:20:04 christos Exp $
+# $File: sgml,v 1.27 2011/12/07 12:01:24 rrt Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string		\<?xml\ version="
@@ -18,15 +18,15 @@
 # xhtml
 0	string/t		\<?xml\ version="
 >15	string		>\0
->>19	search/4096/cWbt	\<!doctype\ html	xHTML document text
+>>19	search/4096/cWbt	\<!doctype\ html	XHTML document text
 !:mime	text/html
 0	string/t		\<?xml\ version='
 >15	string		>\0
->>19	search/4096/cWbt	\<!doctype\ html	xHTML document text
+>>19	search/4096/cWbt	\<!doctype\ html	XHTML document text
 !:mime	text/html
 0	string/t		\<?xml\ version="
 >15	string		>\0
->>19	search/4096/cWbt	\<html	broken xHTML document text
+>>19	search/4096/cWbt	\<html	broken XHTML document text
 !:mime	text/html
 
 #------------------------------------------------------------------------------

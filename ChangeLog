@@ -1,3 +1,55 @@
+2012-02-20  17:33  Christos Zoulas <christos@zoulas.com>
+
+	* Fix CDF parsing issues found by CERT's fuzzing tool (Will Dormann)
+
+2011-12-15  12:17  Chris Metcalf <cmetcalf@tilera.com>
+
+	* Support Tilera architectures (tile64, tilepro, tilegx).
+
+2011-12-16  16:33  Reuben Thomas <rrt@sc3d.org>
+
+	* Add magic for /usr/bin/env Perl scripts
+	* Weaken generic script magic to avoid clashing with
+	language-specific magic.
+
+2011-12-08  13:37  Reuben Thomas <rrt@sc3d.org>
+
+	* Simplify if (p) free(p) to free(p).
+
+2011-12-08  13:07  Reuben Thomas <rrt@sc3d.org>
+
+	* Remove hardwired token finding (names.h), turning it into soft
+	magic. Patterns are either anchored regexs or search/8192. English
+	language detection and PL/1 detection have been removed as they
+	were too fragile. -e tokens is still accepted for backwards
+	compatibility.
+	* Move 3ds patterns (which are commented out anyway) into autodesk
+	(they were, oddly, in c-lang).
+
+2011-12-06  00:16  Reuben Thomas <rrt@sc3d.org>
+
+	* Tweak strength of generic hash-bang detectors to be less than
+	specific ones.
+	* Make an inconsistent description of Python scripts consistent.
+
+2011-12-05  23:58  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix minor error in file(1).
+
+2011-11-05  00:00  Reuben Thomas <rrt@sc3d.org>
+
+	* Fix issue #150 (I hope).
+
+2011-09-22  12:57  Christos Zoulas <christos@zoulas.com>
+
+	* Python3 binding fixes from Kelly Anderson
+
+2011-09-20  11:32  Christos Zoulas <christos@zoulas.com>
+
+	* If a string type magic entry is marked as text or binary
+	  only match text files against text entries and binary
+	  files against binary entries.
+
 2011-09-01  12:12  Christos Zoulas <christos@zoulas.com>
 
 	* Don't wait for any subprocess, just the one we forked.

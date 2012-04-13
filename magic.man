@@ -1,4 +1,4 @@
-.\" $File: magic.man,v 1.69 2011/05/13 22:11:44 christos Exp $
+.\" $File: magic.man,v 1.71 2011/12/07 11:58:24 rrt Exp $
 .Dd April 20, 2011
 .Dt MAGIC __FSECTION__
 .Os
@@ -63,16 +63,16 @@ consecutive blanks, the target needs at least
 consecutive blanks to match.
 The
 .Dq w
-flag treats every blank in the target as an optional blank.
+flag treats every blank in the magic as an optional blank.
 The
 .Dq c
-flag, specifies case insensitive matching: lower case
+flag specifies case insensitive matching: lower case
 characters in the magic match both lower and upper case characters in the
 target, whereas upper case characters in the magic only match upper case
 characters in the target.
 The
 .Dq C
-flag, specifies case insensitive matching: upper case
+flag specifies case insensitive matching: upper case
 characters in the magic match both lower and upper case characters in the
 target, whereas lower case characters in the magic only match upper case
 characters in the target.
@@ -82,9 +82,9 @@ and
 .Dq C .
 The
 .Dq t
-flag, forces the test to be done for text files, while the
+flag forces the test to be done for text files, while the
 .Dq b
-flag, forces the test to be done for binary files.
+flag forces the test to be done for binary files.
 .It Dv pstring
 A Pascal-style string where the first byte/short/int is interpreted as the an
 unsigned length.

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: java,v 1.12 2009/09/19 16:28:10 christos Exp $
+# $File: java,v 1.13 2011/12/08 12:12:46 rrt Exp $
 # Java ByteCode and Mach-O binaries (e.g., Mac OS X) use the
 # same magic number, 0xcafebabe, so they are both handled
 # in the entry called "cafebabe".
@@ -24,3 +24,6 @@
 >0	regex	dey\n[0-9][0-9][0-9]\0	Dalvik dex file (optimized for host)
 >4	string	>000			version %s
 
+# Java source
+0	regex	^import.*;$	Java source
+!:mime	text/x-java

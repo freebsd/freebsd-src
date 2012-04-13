@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.41 2011/05/02 12:36:41 christos Exp $
+# $File: commands,v 1.42 2011/12/05 23:14:02 rrt Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -63,12 +63,6 @@
 !:mime	text/x-shellscript
 0	string/wt	#!\ /usr/local/bin/bash	Bourne-Again shell script text executable
 !:mime	text/x-shellscript
-
-# using env
-0	string/t	#!/usr/bin/env		a
->15	string/t	>\0			%s script text executable
-0	string/t	#!\ /usr/bin/env	a
->16	string/t	>\0			%s script text executable
 
 # PHP scripts
 # Ulf Harnhammar <ulfh@update.uu.se>

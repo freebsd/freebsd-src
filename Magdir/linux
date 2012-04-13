@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.41 2011/04/20 18:57:10 christos Exp $
+# $File: linux,v 1.42 2012/02/07 21:35:03 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -181,6 +181,11 @@
 >>&0 string \x81\x00\xc8\x80\x00\x00\x00\x00 Z9-109 32bit kernel
 >>&0 string \x80\x00\x20\x00\x00\x00\x00\x00 Z990 32bit kernel
 >>&0 string \x80\x00\x00\x00\x00\x00\x00\x00 Z900 32bit kernel
+
+# Linux ARM compressed kernel image
+# From: Kevin Cernekee <cernekee@gmail.com>
+36	lelong	0x016f2818	Linux kernel ARM boot executable zImage (little-endian)
+36	belong	0x016f2818	Linux kernel ARM boot executable zImage (big-endian)
 
 ############################################################################
 # Linux 8086 executable

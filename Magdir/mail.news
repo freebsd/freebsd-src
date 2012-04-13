@@ -1,11 +1,9 @@
-
 #------------------------------------------------------------------------------
-# $File: mail.news,v 1.19 2011/01/25 13:55:57 christos Exp $
+# $File: mail.news,v 1.20 2011/12/08 12:12:46 rrt Exp $
 # mail.news:  file(1) magic for mail and news
 #
 # Unfortunately, saved netnews also has From line added in some news software.
 #0	string		From 		mail text
-# There are tests to ascmagic.c to cope with mail and news.
 0	string/t		Relay-Version: 	old news text
 !:mime	message/rfc822
 0	string/t		#!\ rnews	batched news text
@@ -16,7 +14,9 @@
 !:mime	message/rfc822
 0	string/t		Pipe\ to 	mail piping text
 !:mime	message/rfc822
-0	string/t		Return-Path:	smtp mail text
+0	string/t		Delivered-To:	SMTP mail text
+!:mime	message/rfc822
+0	string/t		Return-Path:	SMTP mail text
 !:mime	message/rfc822
 0	string/t		Path:		news text
 !:mime	message/news

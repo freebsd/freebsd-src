@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: cdf.c,v 1.46 2011/09/16 21:23:59 christos Exp $")
+FILE_RCSID("@(#)$File: cdf.c,v 1.50 2012/02/20 22:35:29 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -74,6 +74,7 @@ static union {
 #define CDF_TOLE4(x)	((uint32_t)(NEED_SWAP ? _cdf_tole4(x) : (uint32_t)(x)))
 #define CDF_TOLE2(x)	((uint16_t)(NEED_SWAP ? _cdf_tole2(x) : (uint16_t)(x)))
 #define CDF_GETUINT32(x, y)	cdf_getuint32(x, y)
+
 
 /*
  * swap a short
@@ -341,18 +342,27 @@ ssize_t
 cdf_read_sector(const cdf_info_t *info, void *buf, size_t offs, size_t len,
     const cdf_header_t *h, cdf_secid_t id)
 {
-	assert((size_t)CDF_SEC_SIZE(h) == len);
-	return cdf_read(info, (off_t)CDF_SEC_POS(h, id),
-	    ((char *)buf) + offs, len);
+	size_t ss = CDF_SEC_SIZE(h);
+	size_t pos = CDF_SEC_POS(h, id);
+	assert(ss == len);
+	return cdf_read(info, (off_t)pos, ((char *)buf) + offs, len);
 }
 
 ssize_t
 cdf_read_short_sector(const cdf_stream_t *sst, void *buf, size_t offs,
     size_t len, const cdf_header_t *h, cdf_secid_t id)
 {
-	assert((size_t)CDF_SHORT_SEC_SIZE(h) == len);
+	size_t ss = CDF_SHORT_SEC_SIZE(h);
+	size_t pos = CDF_SHORT_SEC_POS(h, id);
+	assert(ss == len);
+	if (pos > CDF_SEC_SIZE(h) * sst->sst_len) {
+		DPRINTF(("Out of bounds read %" SIZE_T_FORMAT "u > %"
+		    SIZE_T_FORMAT "u\n",
+		    pos, CDF_SEC_SIZE(h) * sst->sst_len));
+		return -1;
+	}
 	(void)memcpy(((char *)buf) + offs,
-	    ((const char *)sst->sst_tab) + CDF_SHORT_SEC_POS(h, id), len);
+	    ((const char *)sst->sst_tab) + pos, len);
 	return len;
 }
 
@@ -419,8 +429,8 @@ cdf_read_sat(const cdf_info_t *info, cdf_header_t *h, cdf_sat_t *sat)
 			if (sec < 0)
 				goto out;
 			if (i >= sat->sat_len) {
-			    DPRINTF(("Out of bounds reading MSA %u >= %u",
-				i, sat->sat_len));
+			    DPRINTF(("Out of bounds reading MSA %" SIZE_T_FORMAT
+				"u >= %" SIZE_T_FORMAT "u", i, sat->sat_len));
 			    errno = EFTYPE;
 			    goto out2;
 			}
@@ -493,7 +503,8 @@ cdf_read_long_sector_chain(const cdf_info_t *info, const cdf_header_t *h,
 		}
 		if (i >= scn->sst_len) {
 			DPRINTF(("Out of bounds reading long sector chain "
-			    "%u > %u\n", i, scn->sst_len));
+			    "%" SIZE_T_FORMAT "u > %" SIZE_T_FORMAT "u\n", i,
+			    scn->sst_len));
 			errno = EFTYPE;
 			goto out;
 		}
@@ -538,7 +549,8 @@ cdf_read_short_sector_chain(const cdf_header_t *h,
 		}
 		if (i >= scn->sst_len) {
 			DPRINTF(("Out of bounds reading short sector chain "
-			    "%u > %u\n", i, scn->sst_len));
+			    "%" SIZE_T_FORMAT "u > %" SIZE_T_FORMAT "u\n",
+			    i, scn->sst_len));
 			errno = EFTYPE;
 			goto out;
 		}
@@ -646,7 +658,8 @@ cdf_read_ssat(const cdf_info_t *info, const cdf_header_t *h,
 		}
 		if (i >= ssat->sat_len) {
 			DPRINTF(("Out of bounds reading short sector chain "
-			    "%u > %u\n", i, ssat->sat_len));
+			    "%" SIZE_T_FORMAT "u > %" SIZE_T_FORMAT "u\n", i,
+			    ssat->sat_len));
 			errno = EFTYPE;
 			goto out;
 		}
@@ -786,17 +799,18 @@ cdf_read_property_info(const cdf_stream_t *sst, const cdf_header_t *h,
 	if (cdf_check_stream_offset(sst, h, e, 0, __LINE__) == -1)
 		goto out;
 	for (i = 0; i < sh.sh_properties; i++) {
+		size_t ofs = CDF_GETUINT32(p, (i << 1) + 1);
 		q = (const uint8_t *)(const void *)
-		    ((const char *)(const void *)p +
-		    CDF_GETUINT32(p, (i << 1) + 1)) - 2 * sizeof(uint32_t);
+		    ((const char *)(const void *)p + ofs
+		    - 2 * sizeof(uint32_t));
 		if (q > e) {
 			DPRINTF(("Ran of the end %p > %p\n", q, e));
 			goto out;
 		}
 		inp[i].pi_id = CDF_GETUINT32(p, i << 1);
 		inp[i].pi_type = CDF_GETUINT32(q, 0);
-		DPRINTF(("%d) id=%x type=%x offs=%x,%d\n", i, inp[i].pi_id,
-		    inp[i].pi_type, q - p, CDF_GETUINT32(p, (i << 1) + 1)));
+		DPRINTF(("%" SIZE_T_FORMAT "u) id=%x type=%x offs=0x%tx,0x%x\n",
+		    i, inp[i].pi_id, inp[i].pi_type, q - p, offs));
 		if (inp[i].pi_type & CDF_VECTOR) {
 			nelements = CDF_GETUINT32(q, 1);
 			o = 2;
@@ -842,6 +856,20 @@ cdf_read_property_info(const cdf_stream_t *sst, const cdf_header_t *h,
 			(void)memcpy(&u64, &q[o4], sizeof(u64));
 			inp[i].pi_u64 = CDF_TOLE8((uint64_t)u64);
 			break;
+		case CDF_FLOAT:
+			if (inp[i].pi_type & CDF_VECTOR)
+				goto unknown;
+			(void)memcpy(&u32, &q[o4], sizeof(u32));
+			u32 = CDF_TOLE4(u32);
+			memcpy(&inp[i].pi_f, &u32, sizeof(inp[i].pi_f));
+			break;
+		case CDF_DOUBLE:
+			if (inp[i].pi_type & CDF_VECTOR)
+				goto unknown;
+			(void)memcpy(&u64, &q[o4], sizeof(u64));
+			u64 = CDF_TOLE8((uint64_t)u64);
+			memcpy(&inp[i].pi_d, &u64, sizeof(inp[i].pi_d));
+			break;
 		case CDF_LENGTH32_STRING:
 		case CDF_LENGTH32_WSTRING:
 			if (nelements > 1) {
@@ -857,17 +885,22 @@ cdf_read_property_info(const cdf_stream_t *sst, const cdf_header_t *h,
 				*info = inp;
 				inp = *info + nelem;
 			}
-			DPRINTF(("nelements = %d\n", nelements));
+			DPRINTF(("nelements = %" SIZE_T_FORMAT "u\n",
+			    nelements));
 			for (j = 0; j < nelements; j++, i++) {
 				uint32_t l = CDF_GETUINT32(q, o);
 				inp[i].pi_str.s_len = l;
 				inp[i].pi_str.s_buf = (const char *)
 				    (const void *)(&q[o4 + sizeof(l)]);
-				DPRINTF(("l = %d, r = %d, s = %s\n", l,
+				DPRINTF(("l = %d, r = %" SIZE_T_FORMAT
+				    "u, s = %s\n", l,
 				    CDF_ROUND(l, sizeof(l)),
 				    inp[i].pi_str.s_buf));
-				l = 4 + (uint32_t)CDF_ROUND(l, sizeof(l));
-				o += l >> 2;
+				if (l & 1)
+					l++;
+				o += l >> 1;
+				if (q + o >= e)
+					goto out;
 				o4 = o * sizeof(uint32_t);
 			}
 			i--;
@@ -886,7 +919,7 @@ cdf_read_property_info(const cdf_stream_t *sst, const cdf_header_t *h,
 		unknown:
 			DPRINTF(("Don't know how to deal with %x\n",
 			    inp[i].pi_type));
-			goto out;
+			break;
 		}
 	}
 	return 0;
@@ -925,8 +958,9 @@ cdf_unpack_summary_info(const cdf_stream_t *sst, const cdf_header_t *h,
 			return -1;
 		}
 		if (cdf_read_property_info(sst, h, CDF_TOLE4(sd->sd_offset),
-		    info, count, &maxcount) == -1)
+		    info, count, &maxcount) == -1) {
 			return -1;
+		}
 	}
 	return 0;
 }
@@ -1051,14 +1085,14 @@ cdf_dump_sat(const char *prefix, const cdf_sat_t *sat, size_t size)
 	size_t i, j, s = size / sizeof(cdf_secid_t);
 
 	for (i = 0; i < sat->sat_len; i++) {
-		(void)fprintf(stderr, "%s[%" SIZE_T_FORMAT "u]:\n%.6d: ",
-		    prefix, i, i * s);
+		(void)fprintf(stderr, "%s[%" SIZE_T_FORMAT "u]:\n%.6"
+		    SIZE_T_FORMAT "u: ", prefix, i, i * s);
 		for (j = 0; j < s; j++) {
 			(void)fprintf(stderr, "%5d, ",
 			    CDF_TOLE4(sat->sat_tab[s * i + j]));
 			if ((j + 1) % 10 == 0)
-				(void)fprintf(stderr, "\n%.6d: ",
-				    i * s + j + 1);
+				(void)fprintf(stderr, "\n%.6" SIZE_T_FORMAT
+				    "u: ", i * s + j + 1);
 		}
 		(void)fprintf(stderr, "\n");
 	}
@@ -1077,7 +1111,8 @@ cdf_dump(void *v, size_t len)
 		if (j == 16) {
 			j = 0;
 			abuf[15] = '\0';
-			(void)fprintf(stderr, "%s\n%.4x: ", abuf, i + 1);
+			(void)fprintf(stderr, "%s\n%.4" SIZE_T_FORMAT "x: ",
+			    abuf, i + 1);
 		}
 	}
 	(void)fprintf(stderr, "\n");
@@ -1174,6 +1209,14 @@ cdf_dump_property_info(const cdf_property_info_t *info, size_t count)
 		case CDF_UNSIGNED32:
 			(void)fprintf(stderr, "unsigned 32 [%u]\n",
 			    info[i].pi_u32);
+			break;
+		case CDF_FLOAT:
+			(void)fprintf(stderr, "float [%g]\n",
+			    info[i].pi_f);
+			break;
+		case CDF_DOUBLE:
+			(void)fprintf(stderr, "double [%g]\n",
+			    info[i].pi_d);
 			break;
 		case CDF_LENGTH32_STRING:
 			(void)fprintf(stderr, "string %u [%.*s]\n",

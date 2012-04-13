@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.75 2011/08/08 08:56:17 christos Exp $
+# $File: msdos,v 1.77 2011/12/07 22:05:05 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -41,7 +41,7 @@
 #
 # Many of the compressed formats were extraced from IDARC 1.23 source code.
 #
-0	string	MZ
+0	string/b	MZ
 !:mime	application/x-dosexec
 # All non-DOS EXE extensions have the relocation table more than 0x40 bytes into the file.
 >0x18	leshort <0x40 MS-DOS executable
@@ -294,7 +294,7 @@
 # added by Joerg Jenderek of http://www.freedos.org/software/?prog=kc
 # and http://www.freedos.org/software/?prog=kpdos
 # for FreeDOS files like KEYBOARD.SYS, KEYBRD2.SYS, KEYBRD3.SYS, *.KBD
-0	string		KCF		FreeDOS KEYBoard Layout collection
+0	string/b	KCF		FreeDOS KEYBoard Layout collection
 # only version=0x100 found
 >3	uleshort	x		\b, version 0x%x
 # length of string containing author,info and special characters
@@ -305,7 +305,7 @@
 #>>>&0	string		x		\b%-s
 >>>&0	string		x		\b%-.15s
 # for FreeDOS *.KL files 
-0	string		KLF		FreeDOS KEYBoard Layout file
+0	string/b	KLF		FreeDOS KEYBoard Layout file
 # only version=0x100 or 0x101 found
 >3	uleshort	x		\b, version 0x%x
 # stringlength
@@ -402,12 +402,12 @@
 # byte 0xeb conflicts with "sequent" magic leshort 0xn2eb
 0	ubeshort&0xeb8d	>0xeb00		
 # DR-DOS STACKER.COM SCREATE.SYS missed
->0	byte		0xeb		DOS executable (COM)
->>0x1FE leshort		0xAA55		\b, boot code
->>85	string		UPX		\b, UPX compressed
->>4	string		\ $ARX		\b, ARX self-extracting archive
->>4	string		\ $LHarc	\b, LHarc self-extracting archive
->>0x20e string		SFX\ by\ LARC	\b, LARC self-extracting archive
+>0	byte		0xeb
+>>0x1FE leshort		0xAA55		DOS executable (COM), boot code
+>>85	string		UPX		DOS executable (COM), UPX compressed
+>>4	string		\ $ARX		DOS executable (COM), ARX self-extracting archive
+>>4	string		\ $LHarc	DOS executable (COM), LHarc self-extracting archive
+>>0x20e string		SFX\ by\ LARC	DOS executable (COM), LARC self-extracting archive
 # updated by Joerg Jenderek at Oct 2008
 #0	byte		0xb8		COM executable
 0	uleshort&0x80ff	0x00b8		
@@ -421,11 +421,11 @@
 # syslinux:doc/comboot.txt
 # A COM32R program must start with the byte sequence B8 FE 4C CD 21 (mov
 # eax,21cd4cfeh) as a magic number.
-0       string	\xb8\xfe\x4c\xcd\x21	COM executable (COM32R)
+0       string/b	\xb8\xfe\x4c\xcd\x21	COM executable (COM32R)
 # start with assembler instructions mov eax,21cd4cfeh
 0	uleshort&0xc0ff	0xc0b8		
 >1	lelong		0x21cd4cfe	COM executable (32-bit COMBOOT, relocatable)
-0	string	\x81\xfc		
+0	string/b	\x81\xfc		
 >4	string	\x77\x02\xcd\x20\xb9	
 >>36	string	UPX!			FREE-DOS executable (COM), UPX compressed
 252	string Must\ have\ DOS\ version DR-DOS executable (COM)
@@ -466,16 +466,16 @@
 # FIXME: missing diet .com compression
 
 # miscellaneous formats
-0	string		LZ		MS-DOS executable (built-in)
+0	string/b	LZ		MS-DOS executable (built-in)
 #0	byte		0xf0		MS-DOS program library data
 #
 
 # AAF files:
 # <stuartc@rd.bbc.co.uk> Stuart Cunningham
-0	string	\320\317\021\340\241\261\032\341AAFB\015\000OM\006\016\053\064\001\001\001\377			AAF legacy file using MS Structured Storage
+0	string/b	\320\317\021\340\241\261\032\341AAFB\015\000OM\006\016\053\064\001\001\001\377			AAF legacy file using MS Structured Storage
 >30	byte	9		(512B sectors)
 >30	byte	12		(4kB sectors)
-0	string	\320\317\021\340\241\261\032\341\001\002\001\015\000\002\000\000\006\016\053\064\003\002\001\001			AAF file using MS Structured Storage
+0	string/b	\320\317\021\340\241\261\032\341\001\002\001\015\000\002\000\000\006\016\053\064\003\002\001\001			AAF file using MS Structured Storage
 >30	byte	9		(512B sectors)
 >30	byte	12		(4kB sectors)
 
@@ -491,14 +491,14 @@
 0	belong	0x31be0000			Microsoft Word Document
 !:mime	application/msword
 #
-0	string	PO^Q`				Microsoft Word 6.0 Document
+0	string/b	PO^Q`				Microsoft Word 6.0 Document
 !:mime	application/msword
 #
-0	string	\376\067\0\043			Microsoft Office Document
+0	string/b	\376\067\0\043			Microsoft Office Document
 !:mime	application/msword
-0	string	\333\245-\0\0\0			Microsoft Office Document
+0	string/b	\333\245-\0\0\0			Microsoft Office Document
 !:mime	application/msword
-512	string		\354\245\301		Microsoft Word Document
+512	string/b		\354\245\301		Microsoft Word Document
 !:mime	application/msword
 #
 2080	string	Microsoft\ Excel\ 5.0\ Worksheet	%s
@@ -513,7 +513,7 @@
 # Italian MS-Excel
 2121	string	Biff5		Microsoft Excel 5.0 Worksheet
 !:mime	application/vnd.ms-excel
-0	string	\x09\x04\x06\x00\x00\x00\x10\x00	Microsoft Excel Worksheet
+0	string/b	\x09\x04\x06\x00\x00\x00\x10\x00	Microsoft Excel Worksheet
 !:mime	application/vnd.ms-excel
 #
 0	belong	0x00001a00	Lotus 1-2-3
@@ -527,9 +527,9 @@
 !:mime	application/x-123
 >4	belong	0x06040600	wk1 document data
 >4	belong	0x06800200	fmt document data
-0	string		WordPro\0	Lotus WordPro
+0	string/b		WordPro\0	Lotus WordPro
 !:mime	application/vnd.lotus-wordpro
-0	string		WordPro\r\373	Lotus WordPro
+0	string/b		WordPro\r\373	Lotus WordPro
 !:mime	application/vnd.lotus-wordpro
 
 
@@ -542,17 +542,17 @@
 
 # Winamp .avs
 #0	string	Nullsoft\ AVS\ Preset\ \060\056\061\032 A plug in for Winamp ms-windows Freeware media player
-0	string	Nullsoft\ AVS\ Preset\ 	Winamp plug in
+0	string/b	Nullsoft\ AVS\ Preset\ 	Winamp plug in
 
 # Windows Metafont .WMF
-0	string	\327\315\306\232	ms-windows metafont .wmf
-0	string	\002\000\011\000	ms-windows metafont .wmf
-0	string	\001\000\011\000	ms-windows metafont .wmf
+0	string/b	\327\315\306\232	ms-windows metafont .wmf
+0	string/b	\002\000\011\000	ms-windows metafont .wmf
+0	string/b	\001\000\011\000	ms-windows metafont .wmf
 
 #tz3 files whatever that is (MS Works files)
-0	string	\003\001\001\004\070\001\000\000	tz3 ms-works file
-0	string	\003\002\001\004\070\001\000\000	tz3 ms-works file
-0	string	\003\003\001\004\070\001\000\000	tz3 ms-works file
+0	string/b	\003\001\001\004\070\001\000\000	tz3 ms-works file
+0	string/b	\003\002\001\004\070\001\000\000	tz3 ms-works file
+0	string/b	\003\003\001\004\070\001\000\000	tz3 ms-works file
 
 # PGP sig files .sig
 #0 string \211\000\077\003\005\000\063\237\127 065 to  \027\266\151\064\005\045\101\233\021\002 PGP sig
@@ -564,14 +564,14 @@
 0 string \211\000\225\003\005\000\062\122\207\304\100\345\042 PGP sig
 
 # windows zips files .dmf
-0	string	MDIF\032\000\010\000\000\000\372\046\100\175\001\000\001\036\001\000 MS Windows special zipped file
+0	string/b	MDIF\032\000\010\000\000\000\372\046\100\175\001\000\001\036\001\000 MS Windows special zipped file
 
 
 #ico files
-0	string	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for MS Windows
+0	string/b	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for MS Windows
 
 # Windows icons (Ian Springer <ips@fpk.hp.com>)
-0	string	\000\000\001\000	MS Windows icon resource
+0	string/b	\000\000\001\000	MS Windows icon resource
 !:mime	image/x-icon
 >4	byte	1			- 1 icon
 >4	byte	>1			- %d icons
@@ -582,13 +582,13 @@
 
 
 # .chr files
-0	string	PK\010\010BGI	Borland font 
+0	string/b	PK\010\010BGI	Borland font 
 >4	string	>\0	%s
 # then there is a copyright notice
 
 
 # .bgi files
-0	string	pk\010\010BGI	Borland device 
+0	string/b	pk\010\010BGI	Borland device 
 >4	string	>\0	%s
 # then there is a copyright notice
 
@@ -703,28 +703,28 @@
 !:mime	application/vnd.ms-tnef
 
 # HtmlHelp files (.chm)
-0	string	ITSF\003\000\000\000\x60\000\000\000\001\000\000\000	MS Windows HtmlHelp Data
+0	string/b	ITSF\003\000\000\000\x60\000\000\000\001\000\000\000	MS Windows HtmlHelp Data
 
 # GFA-BASIC (Wolfram Kleff)
-2	string		GFA-BASIC3	GFA-BASIC 3 data
+2	string/b	GFA-BASIC3	GFA-BASIC 3 data
 
 #------------------------------------------------------------------------------
 # From Stuart Caie <kyzer@4u.net> (developer of cabextract)
 # Microsoft Cabinet files
-0	string		MSCF\0\0\0\0	Microsoft Cabinet archive data
+0	string/b	MSCF\0\0\0\0	Microsoft Cabinet archive data
 !:mime application/vnd.ms-cab-compressed
 >8	lelong		x		\b, %u bytes
 >28	leshort		1		\b, 1 file
 >28	leshort		>1		\b, %u files
 
 # InstallShield Cabinet files
-0	string		ISc(		InstallShield Cabinet archive data
+0	string/b	ISc(		InstallShield Cabinet archive data
 >5	byte&0xf0	=0x60		version 6,
 >5	byte&0xf0	!0x60		version 4/5,
 >(12.l+40)	lelong	x		%u files
 
 # Windows CE package files
-0	string		MSCE\0\0\0\0	Microsoft WinCE install header
+0	string/b	MSCE\0\0\0\0	Microsoft WinCE install header
 >20	lelong		0		\b, architecture-independent
 >20	lelong		103		\b, Hitachi SH3
 >20	lelong		104		\b, Hitachi SH4
@@ -748,7 +748,7 @@
 >>44	ulelong x		version 0x%x
 
 # From: Alex Beregszaszi <alex@fsn.hu>
-0	string	COWD		VMWare3
+0	string/b	COWD		VMWare3
 >4	byte	3		disk image
 >>32	lelong	x		(%d/
 >>36	lelong	x		\b%d/
@@ -756,8 +756,8 @@
 >4	byte	2		undoable disk image
 >>32	string	>\0		(%s)
 
-0	string	VMDK		 VMware4 disk image
-0	string	KDMV		 VMware4 disk image
+0	string/b	VMDK		 VMware4 disk image
+0	string/b	KDMV		 VMware4 disk image
 
 #--------------------------------------------------------------------
 # Qemu Emulator Images
@@ -765,11 +765,11 @@
 # Updated by Adam Buchbinder (adam.buchbinder@gmail.com)
 # Made by reading sources, reading documentation, and doing trial and error
 # on existing QCOW files
-0	string	QFI\xFB	QEMU QCOW Image
+0	string/b	QFI\xFB	QEMU QCOW Image
 
 # Uncomment the following line to display Magic (only used for debugging
 # this magic number)
-#>0	string	x	, Magic: %s
+#>0	string/b	x	, Magic: %s
 
 # There are currently 2 Versions: "1" and "2".
 # http://www.gnome.org/~markmc/qcow-image-format-version-1.html
@@ -813,9 +813,9 @@
 
 >4	default x	(unknown version)
 
-0	string	QEVM		QEMU suspend to disk image
+0	string/b	QEVM		QEMU suspend to disk image
 
-0	string	Bochs\ Virtual\ HD\ Image	Bochs disk image,
+0	string/b	Bochs\ Virtual\ HD\ Image	Bochs disk image,
 >32	string	x				type %s,
 >48	string	x				subtype %s
 
@@ -823,8 +823,8 @@
 
 # from http://filext.com by Derek M Jones <derek@knosof.co.uk>
 # False positive with PPT (also currently this string is too long)
-#0	string	\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF\x09\x00\x06	Microsoft Installer
-0	string	\320\317\021\340\241\261\032\341	Microsoft Office Document
+#0	string/b	\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF\x09\x00\x06	Microsoft Installer
+0	string/b	\320\317\021\340\241\261\032\341	Microsoft Office Document
 #>48	byte	0x1B					Excel Document
 #!:mime application/vnd.ms-excel
 >546	string	bjbj			Microsoft Word Document
@@ -832,7 +832,7 @@
 >546	string	jbjb			Microsoft Word Document
 !:mime	application/msword
 
-0	string	\224\246\056		Microsoft Word Document
+0	string/b	\224\246\056		Microsoft Word Document
 !:mime	application/msword
 
 512	string	R\0o\0o\0t\0\ \0E\0n\0t\0r\0y	Microsoft Word Document
@@ -841,7 +841,7 @@
 # From: "Nelson A. de Oliveira" <naoliv@gmail.com>
 # Magic type for Dell's BIOS .hdr files
 # Dell's .hdr
-0	string $RBU
+0	string/b $RBU
 >23	string Dell			%s system BIOS
 >5	byte   2
 >>48	byte   x			version %d.
@@ -853,7 +853,7 @@
 # Type: Microsoft DirectDraw Surface
 # URL:	http://msdn.microsoft.com/library/default.asp?url=/library/en-us/directx9_c/directx/graphics/reference/DDSFileReference/ddsfileformat.asp
 # From: Morten Hustveit <morten@debian.org>
-0	string	DDS\040\174\000\000\000 Microsoft DirectDraw Surface (DDS),
+0	string/b	DDS\040\174\000\000\000 Microsoft DirectDraw Surface (DDS),
 >16	lelong	>0			%hd x
 >12	lelong	>0			%hd,
 >84	string	x			%.4s
@@ -864,13 +864,13 @@
 0	short	0x5045			Microsoft Document Imaging Format
 
 # MS eBook format (.lit)
-0	string	ITOLITLS		Microsoft Reader eBook Data
+0	string/b	ITOLITLS		Microsoft Reader eBook Data
 >8	lelong	x			\b, version %u
 !:mime					application/x-ms-reader
 
 # Windows CE Binary Image Data Format
 # From: Dr. Jesus <j@hug.gs>
-0	string	B000FF\n	Windows Embedded CE binary image
+0	string/b	B000FF\n	Windows Embedded CE binary image
 
 # Windows Imaging (WIM) Image
-0	string	MSWIM\000\000\000	Windows imaging (WIM) image
+0	string/b	MSWIM\000\000\000	Windows imaging (WIM) image

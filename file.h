@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.134 2011/09/16 21:23:59 christos Exp $
+ * @(#)$File: file.h,v 1.135 2011/09/20 15:30:14 christos Exp $
  */
 
 #ifndef __file_h__
@@ -405,15 +405,16 @@ protected int file_trycdf(struct magic_set *, int, const unsigned char *,
 protected int file_zmagic(struct magic_set *, int, const char *,
     const unsigned char *, size_t);
 #endif
-protected int file_ascmagic(struct magic_set *, const unsigned char *, size_t);
+protected int file_ascmagic(struct magic_set *, const unsigned char *, size_t,
+    int);
 protected int file_ascmagic_with_encoding(struct magic_set *,
     const unsigned char *, size_t, unichar *, size_t, const char *,
-    const char *);
+    const char *, int);
 protected int file_encoding(struct magic_set *, const unsigned char *, size_t,
     unichar **, size_t *, const char **, const char **, const char **);
 protected int file_is_tar(struct magic_set *, const unsigned char *, size_t);
 protected int file_softmagic(struct magic_set *, const unsigned char *, size_t,
-    int);
+    int, int);
 protected struct mlist *file_apprentice(struct magic_set *, const char *, int);
 protected uint64_t file_signextend(struct magic_set *, struct magic *,
     uint64_t);

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.12 2010/11/25 15:00:12 christos Exp $
+# $File: games,v 1.13 2012/02/13 22:50:50 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -255,3 +255,11 @@
 >2	regex/c	GM\\[19\\]			- Octi Game
 >2	regex/c	GM\\[20\\]			- Gess Game
 >2	regex/c	GM\\[21\\]			- twix Game
+
+# Epic Games/Unreal Engine Package
+#
+0	lelong		0x9E2A83C1	Unreal Engine Package,
+>4	leshort		x		version: %i
+>12	lelong		!0		\b, names: %i
+>28	lelong		!0		\b, imports: %i
+>20	lelong		!0		\b, exports: %i

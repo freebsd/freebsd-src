@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.68 2011/09/07 15:47:51 christos Exp $
+# $File: archive,v 1.70 2011/10/26 15:44:47 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -11,6 +11,11 @@
 !:mime	application/x-tar # encoding: posix
 257	string		ustar\040\040\0	GNU tar archive
 !:mime	application/x-tar # encoding: gnu
+
+# Incremental snapshot gnu-tar format from:
+# http://www.gnu.org/software/tar/manual/html_node/Snapshot-Files.html
+0	string		GNU\ tar-	GNU tar incremental snapshot data
+>&0	regex		[0-9]\.[0-9]+-[0-9]+	version %s
 
 # cpio archives
 #
@@ -183,7 +188,7 @@
 # MAR
 2	string	=-ah MAR archive data
 # ACB
-0	belong&0x00f800ff	0x00800000 ACB archive data
+#0	belong&0x00f800ff	0x00800000 ACB archive data
 # CPZ
 # TODO, this is what idarc says: 0	string	\0\0\0 CPZ archive data
 # JRC
