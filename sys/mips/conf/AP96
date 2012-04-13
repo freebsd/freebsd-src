@@ -17,19 +17,26 @@ include		"AR71XX_BASE"
 ident		"AP96"
 hints		"AP96.hints"
 
-# GEOM modules
-device		geom_redboot	# to get access to the SPI flash partitions
-device		geom_uzip	# compressed in-memory filesystem hackery!
-options		GEOM_UZIP
-
-options		ROOTDEVNAME=\"ufs:md0.uzip\"
 options		AR71XX_REALMEM=64*1024*1024
 
 options		AR71XX_ENV_UBOOT
 
-# options		MD_ROOT
-# options		MD_ROOT_SIZE="6144"
+# For DOS - enable if required
+options 	GEOM_PART_BSD
+options 	GEOM_PART_MBR
+options 	MSDOSFS
 
+# uncompress - to boot read-only lzma natively from flash
+device		geom_uzip
+options 	GEOM_UZIP
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options         ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+
+# Options needed for the EEPROM based calibration/PCI configuration data.
 options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
 options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
 device		firmware		# Used by the above
