@@ -60,6 +60,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
+/* #define	ATH_EEPROM_FIRMWARE */
+
+/* For EEPROM firmware */
+#ifdef	ATH_EEPROM_FIRMWARE
+#include <sys/linker.h>
+#include <sys/firmware.h>
+#endif	/* ATH_EEPROM_FIRMWARE */
+
 /*
  * PCI glue.
  */
@@ -123,6 +131,10 @@ ath_pci_attach(device_t dev)
 	struct ath_softc *sc = &psc->sc_sc;
 	int error = ENXIO;
 	int rid;
+#ifdef	ATH_EEPROM_FIRMWARE
+	const struct firmware *fw = NULL;
+	const char *buf;
+#endif
 
 	sc->sc_dev = dev;
 
@@ -191,6 +203,37 @@ ath_pci_attach(device_t dev)
 		goto bad3;
 	}
 
+#ifdef	ATH_EEPROM_FIRMWARE
+	/*
+	 * If there's an EEPROM firmware image, load that in.
+	 */
+	if (resource_string_value(device_get_name(dev), device_get_unit(dev),
+	    "eeprom_firmware", &buf) == 0) {
+		if (bootverbose)
+			device_printf(dev, "%s: looking up firmware @ '%s'\n",
+			    __func__, buf);
+
+		fw = firmware_get(buf);
+		if (fw == NULL) {
+			device_printf(dev, "%s: couldn't find firmware\n",
+			    __func__);
+			goto bad3;
+		}
+
+		device_printf(dev, "%s: EEPROM firmware @ %p\n",
+		    __func__, fw->data);
+		sc->sc_eepromdata =
+		    malloc(fw->datasize, M_TEMP, M_WAITOK | M_ZERO);
+		if (! sc->sc_eepromdata) {
+			device_printf(dev, "%s: can't malloc eepromdata\n",
+			    __func__);
+			goto bad3;
+		}
+		memcpy(sc->sc_eepromdata, fw->data, fw->datasize);
+		firmware_put(fw, 0);
+	}
+#endif /* ATH_EEPROM_FIRMWARE */
+
 	ATH_LOCK_INIT(sc);
 	ATH_PCU_LOCK_INIT(sc);
 
@@ -233,6 +276,9 @@ ath_pci_detach(device_t dev)
 
 	bus_dma_tag_destroy(sc->sc_dmat);
 	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, psc->sc_sr);
+
+	if (sc->sc_eepromdata)
+		free(sc->sc_eepromdata, M_TEMP);
 
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
