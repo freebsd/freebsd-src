@@ -282,8 +282,6 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 }
 
 /* 
- * Note: pmap_xen_bootpages assumes and asserts for the fact that the
- * kernel virtual start and end values have been initialised.
  *
  * Map in the xen provided shared pages. They are:
  * - shared info page
@@ -296,11 +294,6 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 {
 	vm_offset_t va;
 	vm_paddr_t ma;
-
-	KASSERT(virtual_avail != 0, 
-		("kernel virtual address space un-initialised!"));
-	KASSERT(virtual_avail >= (KERNBASE + physmem), 
-		("kernel virtual address space inconsistent!"));
 
 	/* Share info */
 	ma = xen_start_info->shared_info;
@@ -342,6 +335,9 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	pmap_xen_setpages_rw(xen_start_info->pt_base,
 			     xen_start_info->nr_pt_frames);
 
+	/* Map in Xen related pages into VA space */
+	pmap_xen_bootpages(firstaddr);
+
 	/* 
 	 * gc newly free pages (bootstrap PTs and bootstrap stack,
 	 * mostly, I think.).
@@ -349,9 +345,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	virtual_avail = (vm_offset_t) KERNBASE + *firstaddr;
 	virtual_end = VM_MAX_KERNEL_ADDRESS; /* XXX: Check we don't
 						overlap xen pgdir entries. */
-
-	/* Map in Xen related pages into VA space */
-	pmap_xen_bootpages(firstaddr);
 
 }
 
