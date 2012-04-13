@@ -1,19 +1,28 @@
 
 #------------------------------------------------------------------------------
-# $File: gnu,v 1.11 2009/09/19 16:28:09 christos Exp $
+# $File: gnu,v 1.13 2012/01/03 17:16:54 christos Exp $
 # gnu:  file(1) magic for various GNU tools
 #
 # GNU nlsutils message catalog file format
 #
+# GNU message catalog (.mo and .gmo files)
+
 0	string		\336\22\4\225	GNU message catalog (little endian),
->4	lelong		x		revision %d,
->8	lelong		x		%d messages
+>6	leshort		x		revision %d.
+>4	leshort		>0		\b%d,
+>>8	lelong		x		%d messages,
+>>36	lelong		x		%d sysdep messages
+>4	leshort		=0		\b%d,
+>>8	lelong		x		%d messages
+
 0	string		\225\4\22\336	GNU message catalog (big endian),
->4	belong		x		revision %d,
->8	belong		x		%d messages
-# message catalogs, from Mitchum DSouza <m.dsouza@mrc-apu.cam.ac.uk>
-0	string		*nazgul*	Nazgul style compiled message catalog
->8	lelong		>0		\b, version %ld
+>4	beshort		x		revision %d.
+>6	beshort		>0		\b%d,
+>>8	belong		x		%d messages,
+>>36	belong		x		%d sysdep messages
+>6	beshort		=0		\b%d,
+>>8	belong		x		%d messages
+
 
 # GnuPG
 # The format is very similar to pgp
@@ -42,3 +51,7 @@
 # Files produced by GNU gettext
 0	long	0xDE120495		GNU-format message catalog data
 0	long	0x950412DE		GNU-format message catalog data
+
+# gettext message catalogue
+0	regex	\^msgid\ 		GNU gettext message catalogue text
+!:mime text/x-po

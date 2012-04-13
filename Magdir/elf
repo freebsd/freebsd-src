@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.53 2009/09/19 16:28:09 christos Exp $
+# $File: elf,v 1.54 2011/12/17 17:16:29 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -149,6 +149,9 @@
 >>18	leshort		106		Analog Devices Blackfin,
 >>18	leshort		113		Altera Nios II,
 >>18	leshort		0xae		META,
+>>18	leshort		187		Tilera TILE64,
+>>18	leshort		188		Tilera TILEPro,
+>>18	leshort		191		Tilera TILE-Gx,
 >>18	leshort		0x3426		OpenRISC (obsolete),
 >>18	leshort		0x8472		OpenRISC (obsolete),
 >>18	leshort		0x9026		Alpha (unofficial),
@@ -259,6 +262,9 @@
 >>18	leshort		0x8472		OpenRISC (obsolete),
 >>18	beshort		94		Tensilica Xtensa,
 >>18	beshort		97		NatSemi 32k,
+>>18	beshort		187		Tilera TILE64,
+>>18	beshort		188		Tilera TILEPro,
+>>18	beshort		191		Tilera TILE-Gx,
 >>18	beshort		0x18ad		AVR32 (unofficial),
 >>18	beshort		0x9026		Alpha (unofficial),
 >>18	beshort		0xa390		IBM S/390 (obsolete),

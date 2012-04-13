@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.96 2011/07/12 11:23:38 rrt Exp $
-.Dd April 20, 2011
+.\" $File: file.man,v 1.98 2011/12/08 12:12:46 rrt Exp $
+.Dd October 17, 2011
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -192,7 +192,7 @@ option).
 .It encoding
 Different text encodings for soft magic tests.
 .It tokens
-Looks for known tokens inside text files.
+Ignored for backwards compatibility.
 .It cdf
 Prints details of Compound Document Files.
 .It compress
@@ -220,6 +220,19 @@ or at least one filename argument must be present;
 to test the standard input, use
 .Sq -
 as a filename argument.
+Please note that 
+.Ar namefile 
+is unwrapped and the enclosed filenames are processed when this option is
+encountered and before any further options processing is done.
+This allows one to process multiple lists of files with different command line
+arguments on the same
+.Nm
+invocation.
+Thus if you want to set the delimiter, you need to do it before you specify
+the list of files, like:
+.Dq Fl F Ar @ Fl f Ar namefile ,
+instead of:
+.Dq Fl f Ar namefile Fl F Ar @ .
 .It Fl h , Fl Fl no-dereference
 option causes symlinks not to be followed
 (on systems that support symbolic links).

@@ -55,7 +55,17 @@
 #define MAGIC_NO_CHECK_ENCODING 0x200000 /* Don't check text encodings */
 
 /* No built-in tests; only consult the magic file */
-#define MAGIC_NO_CHECK_BUILTIN	0x3fb000
+#define MAGIC_NO_CHECK_BUILTIN	( \
+	MAGIC_NO_CHECK_COMPRESS	| \
+	MAGIC_NO_CHECK_TAR	| \
+/*	MAGIC_NO_CHECK_SOFT	| */ \
+	MAGIC_NO_CHECK_APPTYPE	| \
+	MAGIC_NO_CHECK_ELF	| \
+	MAGIC_NO_CHECK_TEXT	| \
+	MAGIC_NO_CHECK_CDF	| \
+	MAGIC_NO_CHECK_TOKENS	| \
+	MAGIC_NO_CHECK_ENCODING	| \
+)
 
 /* Defined for backwards compatibility (renamed) */
 #define	MAGIC_NO_CHECK_ASCII	MAGIC_NO_CHECK_TEXT

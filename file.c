@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.144 2011/05/10 17:08:14 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.145 2011/12/08 12:12:46 rrt Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -116,7 +116,7 @@ private const struct {
 	{ "soft",	MAGIC_NO_CHECK_SOFT },
 	{ "tar",	MAGIC_NO_CHECK_TAR },
 	{ "text",	MAGIC_NO_CHECK_TEXT },	/* synonym for ascii */
-	{ "tokens",	MAGIC_NO_CHECK_TOKENS },
+	{ "tokens",	MAGIC_NO_CHECK_TOKENS }, /* OBSOLETE: ignored for backwards compatibility */
 };
 
 private char *progname;		/* used throughout 		*/

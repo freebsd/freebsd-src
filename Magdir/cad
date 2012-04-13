@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.10 2010/12/25 14:33:43 christos Exp $
+# $File: cad,v 1.11 2011/12/08 12:12:46 rrt Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -113,3 +113,6 @@
 0	string	AC1012		AutoDesk AutoCAD R13
 0	string	AC1014		AutoDesk AutoCAD R14 
 0	string	AC1015		AutoDesk AutoCAD R2000
+
+# 3DS (3d Studio files) Conflicts with diff output 0x3d '='
+#16	beshort		0x3d3d		image/x-3ds
