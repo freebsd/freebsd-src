@@ -293,9 +293,12 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 
 	case _FIO_SEEK_DATA:
 	case _FIO_SEEK_HOLE:
+#ifdef sun
 		if (ddi_copyin((void *)data, &off, sizeof (off), flag))
 			return (EFAULT);
-
+#else
+		off = *(offset_t *)data;
+#endif
 		zp = VTOZ(vp);
 		zfsvfs = zp->z_zfsvfs;
 		ZFS_ENTER(zfsvfs);
@@ -306,8 +309,12 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 		ZFS_EXIT(zfsvfs);
 		if (error)
 			return (error);
+#ifdef sun
 		if (ddi_copyout(&off, (void *)data, sizeof (off), flag))
 			return (EFAULT);
+#else
+		*(offset_t *)data = off;
+#endif
 		return (0);
 	}
 	return (ENOTTY);
