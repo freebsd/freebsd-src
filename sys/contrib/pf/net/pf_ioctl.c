@@ -999,11 +999,13 @@ static int
 pf_addr_setup(struct pf_ruleset *ruleset, struct pf_addr_wrap *addr,
     sa_family_t af)
 {
-	if (pfi_dynaddr_setup(addr, af) ||
-	    pf_tbladdr_setup(ruleset, addr))
-		return (EINVAL);
+	int error;
 
-	return (0);
+	error = pfi_dynaddr_setup(addr, af);
+	if (error == 0)
+		error = pf_tbladdr_setup(ruleset, addr);
+
+	return (error);
 }
 
 static void
@@ -2292,12 +2294,12 @@ DIOCGETSTATES_full:
 			}
 			pfi_kif_ref(pa->kif, PFI_KIF_REF_RULE);
 		}
-		if (pfi_dynaddr_setup(&pa->addr, pp->af)) {
+		error = pfi_dynaddr_setup(&pa->addr, pp->af);
+		if (error) {
 			pfi_dynaddr_remove(&pa->addr);
 			pfi_kif_unref(pa->kif, PFI_KIF_REF_RULE);
 			PF_UNLOCK();
 			uma_zfree(V_pf_pooladdr_z, pa);
-			error = EINVAL;
 			break;
 		}
 		TAILQ_INSERT_TAIL(&V_pf_pabuf, pa, entries);
@@ -2418,13 +2420,13 @@ DIOCGETSTATES_full:
 				pfi_kif_ref(newpa->kif, PFI_KIF_REF_RULE);
 			} else
 				newpa->kif = NULL;
-			if (pfi_dynaddr_setup(&newpa->addr, pca->af) ||
-			    pf_tbladdr_setup(ruleset, &newpa->addr)) {
+			if ((error = pfi_dynaddr_setup(&newpa->addr,
+			    pca->af)) != 0 || ((error =
+			    pf_tbladdr_setup(ruleset, &newpa->addr)) != 0 )) {
 				pfi_dynaddr_remove(&newpa->addr);
 				pfi_kif_unref(newpa->kif, PFI_KIF_REF_RULE);
 				PF_UNLOCK();
 				uma_zfree(V_pf_pooladdr_z, newpa);
-				error = EINVAL;
 				break;
 			}
 		}
