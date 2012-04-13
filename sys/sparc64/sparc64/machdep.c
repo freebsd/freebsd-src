@@ -196,6 +196,13 @@ cpu_startup(void *arg)
 		printf("machine: %s\n", sparc64_model);
 
 	cpu_identify(rdpr(ver), PCPU_GET(clock), curcpu);
+
+#ifdef SMP
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
+#endif
 }
 
 void
