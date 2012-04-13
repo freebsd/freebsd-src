@@ -30,5 +30,6 @@ options		AR71XX_ENV_UBOOT
 # options		MD_ROOT
 # options		MD_ROOT_SIZE="6144"
 
-options		AR71XX_ATH_EEPROM
-device		firmware
+options		AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
+options		ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
+device		firmware		# Used by the above
