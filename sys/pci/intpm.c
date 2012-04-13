@@ -272,7 +272,7 @@ intsmb_callback(device_t dev, int index, void *data)
 	case SMB_RELEASE_BUS:
 		break;
 	default:
-		error = EINVAL;
+		error = SMB_EINVAL;
 	}
 
 	return (error);
@@ -519,7 +519,7 @@ intsmb_quick(device_t dev, u_char slave, int how)
 		data |= LSB;
 		break;
 	default:
-		return (EINVAL);
+		return (SMB_EINVAL);
 	}
 
 	INTSMB_LOCK(sc);
@@ -774,7 +774,7 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 			}
 			*count = nread;
 		} else
-			error = EIO;
+			error = SMB_EBUSERR;
 	}
 	INTSMB_UNLOCK(sc);
 	return (error);
