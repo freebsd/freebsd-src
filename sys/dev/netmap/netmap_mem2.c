@@ -162,7 +162,7 @@ netmap_ofstophys(vm_offset_t offset)
 			offset % p[i]->_objsize;
 	}
 	D("invalid ofs 0x%x out of 0x%x 0x%x 0x%x", o,
-		p[0]->_memtotal, p[0]->_memtotal + p[1]->_memtotal,
+		(u_int)p[0]->_memtotal, p[0]->_memtotal + p[1]->_memtotal,
 		p[0]->_memtotal + p[1]->_memtotal + p[2]->_memtotal);
 	return 0;	// XXX bad address
 }
@@ -173,7 +173,7 @@ netmap_ofstophys(vm_offset_t offset)
  * Algorithm: scan until we find the cluster, then add the
  * actual offset in the cluster
  */
-ssize_t
+static ssize_t
 netmap_obj_offset(struct netmap_obj_pool *p, const void *vaddr)
 {
 	int i, k = p->clustentries, n = p->objtotal;
