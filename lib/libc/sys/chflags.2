@@ -28,7 +28,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd Apr 10, 2012
+.Dd Apr 13, 2012
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -123,7 +123,7 @@ for details.)
 .Pp
 The
 .Dv SF_SNAPSHOT
-flag is maintained by the system and cannot be changed by any user.
+flag is maintained by the system and cannot be toggled.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -153,12 +153,12 @@ or
 is set and the user is either not the super-user or
 securelevel is greater than 0.
 .It Bq Er EPERM
-A non-super-user tries to set one of
+A non-super-user attempted to toggle one of
 .Dv SF_ARCHIVED , SF_IMMUTABLE , SF_APPEND ,
 or
 .Dv SF_NOUNLINK .
 .It Bq Er EPERM
-User tries to set or remove the
+An attempt was made to toggle the
 .Dv SF_SNAPSHOT
 flag.
 .It Bq Er EROFS
@@ -173,7 +173,9 @@ An
 .Tn I/O
 error occurred while reading from or writing to the file system.
 .It Bq Er EOPNOTSUPP
-The underlying file system does not support file flags.
+The underlying file system does not support file flags, or
+does not support all of the flags set in
+.Fa flags .
 .El
 .Pp
 The
@@ -198,12 +200,12 @@ or
 is set and the user is either not the super-user or
 securelevel is greater than 0.
 .It Bq Er EPERM
-A non-super-user tries to set one of
+A non-super-user attempted to toggle one of
 .Dv SF_ARCHIVED , SF_IMMUTABLE , SF_APPEND ,
 or
 .Dv SF_NOUNLINK .
 .It Bq Er EPERM
-User tries to set or remove the
+An attempt was made to toggle the
 .Dv SF_SNAPSHOT
 flag.
 .It Bq Er EROFS
@@ -213,7 +215,9 @@ An
 .Tn I/O
 error occurred while reading from or writing to the file system.
 .It Bq Er EOPNOTSUPP
-The underlying file system does not support file flags.
+The underlying file system does not support file flags, or
+does not support all of the flags set in
+.Fa flags .
 .El
 .Sh SEE ALSO
 .Xr chflags 1 ,
