@@ -424,21 +424,17 @@ ext2_setattr(ap)
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
 		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-			if (ip->i_flags &
-			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
 					return (error);
 			}
-			ip->i_flags = vap->va_flags;
 		} else {
-			if (ip->i_flags &
-			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
+			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND) ||
+			    ((vap->va_flags ^ ip->i_flags) & SF_SETTABLE))
 				return (EPERM);
-			ip->i_flags &= SF_SETTABLE;
-			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
 		}
+		ip->i_flags = vap->va_flags;
 		ip->i_flag |= IN_CHANGE;
 		if (ip->i_flags & (IMMUTABLE | APPEND))
 			return (0);
