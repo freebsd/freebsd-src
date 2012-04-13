@@ -8,7 +8,7 @@ S= ${.CURDIR}/../../sys
 
 WARNS?=	3
 CFLAGS += -I$S
-#CFLAGS += -g -DDEBUG
+CFLAGS += -g -DDEBUG
 
 MAN= iscsi.conf.5 iscontrol.8
 
