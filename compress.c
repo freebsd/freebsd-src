@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.67 2011/09/01 12:12:37 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.68 2011/12/08 12:38:24 rrt Exp $")
 #endif
 
 #include "magic.h"
@@ -134,8 +134,7 @@ file_zmagic(struct magic_set *ms, int fd, const char *name,
 		}
 	}
 error:
-	if (newbuf)
-		free(newbuf);
+	free(newbuf);
 	ms->flags |= MAGIC_COMPRESS;
 	return rv;
 }

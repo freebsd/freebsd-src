@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: ascmagic.c,v 1.81 2011/03/15 22:16:29 christos Exp $")
+FILE_RCSID("@(#)$File: ascmagic.c,v 1.84 2011/12/08 12:38:24 rrt Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -46,13 +46,11 @@ FILE_RCSID("@(#)$File: ascmagic.c,v 1.81 2011/03/15 22:16:29 christos Exp $")
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#include "names.h"
 
 #define MAXLINELEN 300	/* longest sane line length */
 #define ISSPC(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n' \
 		  || (x) == 0x85 || (x) == '\f')
 
-private int ascmatch(const unsigned char *, const unichar *, size_t);
 private unsigned char *encode_utf8(unsigned char *, size_t, unichar *, size_t);
 private size_t trim_nuls(const unsigned char *, size_t);
 
@@ -70,7 +68,8 @@ trim_nuls(const unsigned char *buf, size_t nbytes)
 }
 
 protected int
-file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
+file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes,
+	int text)
 {
 	unichar *ubuf = NULL;
 	size_t ulen;
@@ -87,17 +86,13 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 
 	/* If file doesn't look like any sort of text, give up. */
 	if (file_encoding(ms, buf, nbytes, &ubuf, &ulen, &code, &code_mime,
-	    &type) == 0) {
+	    &type) == 0)
 		rv = 0;
-		goto done;
-	}
+        else
+		rv = file_ascmagic_with_encoding(ms, buf, nbytes, ubuf, ulen, code,
+						 type, text);
 
-	rv = file_ascmagic_with_encoding(ms, buf, nbytes, ubuf, ulen, code,
-	    type);
-
- done:
-	if (ubuf)
-		free(ubuf);
+	free(ubuf);
 
 	return rv;
 }
@@ -105,11 +100,10 @@ file_ascmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 protected int
 file_ascmagic_with_encoding(struct magic_set *ms, const unsigned char *buf,
     size_t nbytes, unichar *ubuf, size_t ulen, const char *code,
-    const char *type)
+    const char *type, int text)
 {
 	unsigned char *utf8_buf = NULL, *utf8_end;
 	size_t mlen, i;
-	const struct names *p;
 	int rv = -1;
 	int mime = ms->flags & MAGIC_MIME;
 
@@ -124,7 +118,7 @@ file_ascmagic_with_encoding(struct magic_set *ms, const unsigned char *buf,
 	int n_lf = 0;
 	int n_cr = 0;
 	int n_nel = 0;
-	int score, curtype, executable = 0;
+	int executable = 0;
 
 	size_t last_line_end = (size_t)-1;
 	int has_long_lines = 0;
@@ -153,56 +147,9 @@ file_ascmagic_with_encoding(struct magic_set *ms, const unsigned char *buf,
 		    == NULL)
 			goto done;
 		if ((rv = file_softmagic(ms, utf8_buf,
-		    (size_t)(utf8_end - utf8_buf), TEXTTEST)) != 0)
-			goto subtype_identified;
-		else
+		    (size_t)(utf8_end - utf8_buf), TEXTTEST, text)) == 0)
 			rv = -1;
 	}
-
-	/* look for tokens from names.h - this is expensive! */
-	if ((ms->flags & MAGIC_NO_CHECK_TOKENS) != 0)
-		goto subtype_identified;
-
-	i = 0;
-	score = 0;
-	curtype = -1;
-	while (i < ulen) {
-		size_t end;
-
-		/* skip past any leading space */
-		while (i < ulen && ISSPC(ubuf[i]))
-			i++;
-		if (i >= ulen)
-			break;
-
-		/* find the next whitespace */
-		for (end = i + 1; end < nbytes; end++)
-			if (ISSPC(ubuf[end]))
-				break;
-
-		/* compare the word thus isolated against the token list */
-		for (p = names; p < names + NNAMES; p++) {
-			if (ascmatch((const unsigned char *)p->name, ubuf + i,
-			    end - i)) {
-				if (curtype == -1)
-					curtype = p->type;
-				else if (curtype != p->type) {
-					score = p->score;
-					curtype = p->type;
-				} else
-					score += p->score;
-				if (score > 1) {
-					subtype = types[p->type].human;
-					subtype_mime = types[p->type].mime;
-					goto subtype_identified;
-				}
-			}
-		}
-
-		i = end;
-	}
-
-subtype_identified:
 
 	/* Now try to discover other details about the file. */
 	for (i = 0; i < ulen; i++) {
@@ -349,26 +296,9 @@ subtype_identified:
 	}
 	rv = 1;
 done:
-	if (utf8_buf)
-		free(utf8_buf);
+	free(utf8_buf);
 
 	return rv;
-}
-
-private int
-ascmatch(const unsigned char *s, const unichar *us, size_t ulen)
-{
-	size_t i;
-
-	for (i = 0; i < ulen; i++) {
-		if (s[i] != us[i])
-			return 0;
-	}
-
-	if (s[i])
-		return 0;
-	else
-		return 1;
 }
 
 /*

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.47 2011/03/08 00:39:46 christos Exp $
+# $File: compress,v 1.49 2011/12/07 22:04:27 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -190,9 +190,10 @@
 !:mime	application/x-7z-compressed
 
 # Type: LZMA
-0	lelong		0x8000005d		LZMA compressed data,
->5	lequad		=0xffffffffffffffff	streamed
->5	lequad		!0xffffffffffffffff	non-streamed, size %lld
+0	lelong&0xffffff	=0x5d
+>12	leshort		=0xff			LZMA compressed data,
+>>5	lequad		=0xffffffffffffffff	streamed
+>>5	lequad		!0xffffffffffffffff	non-streamed, size %lld
 !:mime	application/x-lzma
 
 # http://tukaani.org/xz/xz-file-format.txt

@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.70 2011/08/14 09:03:12 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.71 2011/09/20 15:28:09 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -51,8 +51,8 @@ file_mdump(struct magic *m)
 {
 	private const char optyp[] = { FILE_OPS };
 
-	(void) fprintf(stderr, "%.*s %u", (m->cont_level & 7) + 1, ">>>>>>>>",
-		       m->offset);
+	(void) fprintf(stderr, "%u: %.*s %u", m->lineno,
+	    (m->cont_level & 7) + 1, ">>>>>>>>", m->offset);
 
 	if (m->flag & INDIR) {
 		(void) fprintf(stderr, "(%s,",
@@ -87,6 +87,24 @@ file_mdump(struct magic *m)
 				(void) fputc(CHAR_IGNORE_UPPERCASE, stderr);
 			if (m->str_flags & REGEX_OFFSET_START) 
 				(void) fputc(CHAR_REGEX_OFFSET_START, stderr);
+			if (m->str_flags & STRING_TEXTTEST)
+				(void) fputc(CHAR_TEXTTEST, stderr);
+			if (m->str_flags & STRING_BINTEST)
+				(void) fputc(CHAR_BINTEST, stderr);
+			if (m->str_flags & PSTRING_1_BE)
+				(void) fputc(CHAR_PSTRING_1_BE, stderr);
+			if (m->str_flags & PSTRING_2_BE)
+				(void) fputc(CHAR_PSTRING_2_BE, stderr);
+			if (m->str_flags & PSTRING_2_LE)
+				(void) fputc(CHAR_PSTRING_2_LE, stderr);
+			if (m->str_flags & PSTRING_4_BE)
+				(void) fputc(CHAR_PSTRING_4_BE, stderr);
+			if (m->str_flags & PSTRING_4_LE)
+				(void) fputc(CHAR_PSTRING_4_LE, stderr);
+			if (m->str_flags & PSTRING_LENGTH_INCLUDES_ITSELF)
+				(void) fputc(
+				    CHAR_PSTRING_LENGTH_INCLUDES_ITSELF,
+				    stderr);
 		}
 		if (m->str_range)
 			(void) fprintf(stderr, "/%u", m->str_range);

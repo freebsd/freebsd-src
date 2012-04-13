@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: netbsd,v 1.18 2009/09/19 16:28:11 christos Exp $
+# $File: netbsd,v 1.19 2011/10/31 17:23:34 christos Exp $
 # netbsd:  file(1) magic for NetBSD objects
 #
 # All new-style magic numbers are in network byte order.
@@ -245,3 +245,42 @@
 0	belong&0377777777	043600507	a.out NetBSD/arm core
 >12	string			>\0		from '%s'
 >32	lelong			!0		(signal %d)
+
+# Kernel core dump format
+0	belong&0x0000ffff 0x00008fca	NetBSD kernel core file
+>0	belong&0x03ff0000 0x00000000	\b, Unknown
+>0	belong&0x03ff0000 0x00001000	\b, sun 68010/68020
+>0	belong&0x03ff0000 0x00020000	\b, sun 68020
+>0	belong&0x03ff0000 0x00640000	\b, 386 PC
+>0	belong&0x03ff0000 0x00860000	\b, i386 BSD
+>0	belong&0x03ff0000 0x00870000	\b, m68k BSD (8K pages)
+>0	belong&0x03ff0000 0x00880000	\b, m68k BSD (4K pages)
+>0	belong&0x03ff0000 0x00890000	\b, ns32532 BSD
+>0	belong&0x03ff0000 0x008a0000	\b, sparc/32 BSD
+>0	belong&0x03ff0000 0x008b0000	\b, pmax BSD
+>0	belong&0x03ff0000 0x008c0000	\b, vax BSD (1K pages)
+>0	belong&0x03ff0000 0x008d0000	\b, alpha BSD
+>0	belong&0x03ff0000 0x008e0000	\b, mips BSD (Big Endian)
+>0	belong&0x03ff0000 0x008f0000	\b, arm6 BSD
+>0	belong&0x03ff0000 0x00900000	\b, m68k BSD (2K pages)
+>0	belong&0x03ff0000 0x00910000	\b, sh3 BSD
+>0	belong&0x03ff0000 0x00920000	\b, ppc BSD (Big Endian)
+>0	belong&0x03ff0000 0x00930000	\b, vax BSD (4K pages)
+>0	belong&0x03ff0000 0x00940000	\b, mips1 BSD
+>0	belong&0x03ff0000 0x00950000	\b, mips2 BSD
+>0	belong&0x03ff0000 0x00960000	\b, parisc BSD
+>0	belong&0x03ff0000 0x00970000	\b, sh5/64 BSD
+>0	belong&0x03ff0000 0x00980000	\b, sparc/64 BSD
+>0	belong&0x03ff0000 0x00990000	\b, amd64 BSD
+>0	belong&0x03ff0000 0x009a0000	\b, hp200 (68010) BSD
+>0	belong&0x03ff0000 0x009b0000	\b, hp300 (68020+68881) BSD
+>0	belong&0x03ff0000 0x009b0000	\b, hp300 (68020+68881) BSD
+>0	belong&0x03ff0000 0x00c80000	\b, hp200
+>0	belong&0x03ff0000 0x020b0000	\b, hp300 (68020+68881) HP-UX
+>0	belong&0x03ff0000 0x020c0000	\b, hp300 (68020+68881) HP-UX
+>0	belong&0xfc000000 0x04000000	\b, CPU
+>0	belong&0xfc000000 0x08000000	\b, DATA
+>0	belong&0xfc000000 0x10000000	\b, STACK
+>4	leshort	x			\b, (headersize = %d
+>6	leshort	x			\b, segmentsize = %d
+>6	lelong	x			\b, segments = %d)
