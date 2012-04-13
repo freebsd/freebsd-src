@@ -25,6 +25,8 @@ options		GEOM_UZIP
 options		ROOTDEVNAME=\"ufs:md0.uzip\"
 options		AR71XX_REALMEM=64*1024*1024
 
+options		AR71XX_ENV_UBOOT
+
 # options		MD_ROOT
 # options		MD_ROOT_SIZE="6144"
 
