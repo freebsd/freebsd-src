@@ -1464,7 +1464,8 @@ dev/mps/mps.c			optional mps
 dev/mps/mps_config.c		optional mps
 dev/mps/mps_mapping.c		optional mps
 dev/mps/mps_pci.c		optional mps pci
-dev/mps/mps_sas.c		optional mps
+dev/mps/mps_sas.c		optional mps \
+	compile-with "${NORMAL_C} ${NO_WUNNEEDED_INTERNAL_DECL}"
 dev/mps/mps_sas_lsi.c		optional mps
 dev/mps/mps_table.c		optional mps
 dev/mps/mps_user.c		optional mps
