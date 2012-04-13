@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/iscsi/initiator/iscsi.h>
 #include "iscontrol.h"
 
+static char version[] = "2.3.1"; // keep in sync with iscsi_initiator
+
 #define USAGE "[-v] [-d] [-c config] [-n name] [-t target] [-p pidfile]"
 #define OPTIONS	"vdc:t:n:p:"
 
@@ -124,9 +126,10 @@ int
 main(int cc, char **vv)
 {
      int	ch, disco;
-     char	*pname, *pidfile, *p, *q, *ta, *kw;
+     char	*pname, *pidfile, *p, *q, *ta, *kw, *v;
      isc_opt_t	*op;
      FILE	*fd;
+     size_t	n;
 
      op = &opvals;
      iscsidev = "/dev/"ISCSIDEV;
@@ -138,6 +141,21 @@ main(int cc, char **vv)
      kw = ta = 0;
      disco = 0;
      pidfile = NULL;
+     /*
+      | check for driver & controller version match
+      */
+     n = 0;
+     if(sysctlbyname("net.iscsi_initiator.driver_version", 0, &n, 0, 0) != 0)
+	  perror("sysctlbyname");
+     v = malloc(n+1);
+     if(sysctlbyname("net.iscsi_initiator.driver_version", v, &n, 0, 0) != 0)
+	  perror("sysctlbyname");
+
+     if(strncmp(version, v, 3)) {
+	  fprintf(stderr, "versions missmatch\n");
+	  exit(1);
+     }
+
 
      while((ch = getopt(cc, vv, OPTIONS)) != -1) {
 	  switch(ch) {
