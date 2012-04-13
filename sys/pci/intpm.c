@@ -99,6 +99,9 @@ intsmb_probe(device_t dev)
 		device_set_desc(dev, "Intel PIIX4 SMBUS Interface");
 		break;
 	case 0x43851002:
+		/* SB800 and newer can not be configured in a compatible way. */
+		if (pci_get_revid(dev) >= 0x40)
+			return (ENXIO);
 		device_set_desc(dev, "AMD SB600/700/710/750 SMBus Controller");
 		/* XXX Maybe force polling right here? */
 		break;
