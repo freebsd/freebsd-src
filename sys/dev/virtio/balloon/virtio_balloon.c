@@ -122,6 +122,9 @@ static void	vtballoon_add_sysctl(struct vtballoon_softc *);
  */
 #define VTBALLOON_PAGES_PER_REQUEST	256
 
+/* Must be able to fix all pages frames in one page (segment). */
+CTASSERT(VTBALLOON_PAGES_PER_REQUEST * sizeof(uint32_t) <= PAGE_SIZE);
+
 #define VTBALLOON_MTX(_sc)		&(_sc)->vtballoon_mtx
 #define VTBALLOON_LOCK_INIT(_sc, _name)	mtx_init(VTBALLOON_MTX((_sc)), _name, \
 					    "VirtIO Balloon Lock", MTX_SPIN)
@@ -138,7 +141,7 @@ static device_method_t vtballoon_methods[] = {
 	/* VirtIO methods. */
 	DEVMETHOD(virtio_config_change, vtballoon_config_change),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t vtballoon_driver = {
@@ -402,13 +405,13 @@ vtballoon_send_page_frames(struct vtballoon_softc *sc, struct virtqueue *vq,
 
 	error = virtqueue_enqueue(vq, vq, &sg, 1, 0);
 	KASSERT(error == 0, ("error enqueuing page frames to virtqueue"));
+	virtqueue_notify(vq);
 
 	/*
 	 * Inflate and deflate operations are done synchronously. The
 	 * interrupt handler will wake us up.
 	 */
 	VTBALLOON_LOCK(sc);
-	virtqueue_notify(vq);
 
 	while ((c = virtqueue_dequeue(vq, NULL)) == NULL)
 		msleep_spin(sc, VTBALLOON_MTX(sc), "vtbspf", 0);
