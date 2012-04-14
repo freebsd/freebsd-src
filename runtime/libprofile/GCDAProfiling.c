@@ -113,6 +113,18 @@ void llvm_gcda_start_file(const char *orig_filename) {
   recursive_mkdir(filename);
   output_file = fopen(filename, "wb");
 
+  if (!output_file) {
+    const char *cptr = strrchr(orig_filename, '/');
+    output_file = fopen(cptr ? cptr + 1 : orig_filename, "wb");
+
+    if (!output_file) {
+      fprintf(stderr, "LLVM profiling runtime: while opening '%s': ",
+              cptr ? cptr + 1 : orig_filename);
+      perror("");
+      exit(1);
+    }
+  }
+
   /* gcda file, version 404*, stamp LLVM. */
 #ifdef __APPLE__
   fwrite("adcg*204MVLL", 12, 1, output_file);

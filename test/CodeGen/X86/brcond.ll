@@ -1,4 +1,5 @@
-; RUN: llc < %s -mtriple=i386-apple-darwin10 -mcpu=core2 | FileCheck %s
+; RUN: llc < %s -mtriple=i386-apple-darwin10 -mcpu=penryn | FileCheck %s
+
 ; rdar://7475489
 
 define i32 @test1(i32 %a, i32 %b) nounwind ssp {
@@ -106,3 +107,4 @@ bb2:                                              ; preds = %entry, %bb1
   %.0 = fptrunc double %.0.in to float            ; <float> [#uses=1]
   ret float %.0
 }
+

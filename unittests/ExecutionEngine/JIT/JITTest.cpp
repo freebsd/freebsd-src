@@ -64,6 +64,10 @@ public:
     : Base(JITMemoryManager::CreateDefaultMemManager()) {
     stubsAllocated = 0;
   }
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true) {
+    return Base->getPointerToNamedFunction(Name, AbortOnFailure);
+  }
 
   virtual void setMemoryWritable() { Base->setMemoryWritable(); }
   virtual void setMemoryExecutable() { Base->setMemoryExecutable(); }
@@ -112,6 +116,14 @@ public:
     endFunctionBodyCalls.push_back(
       EndFunctionBodyCall(F, FunctionStart, FunctionEnd));
     Base->endFunctionBody(F, FunctionStart, FunctionEnd);
+  }
+  virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+                                       unsigned SectionID) {
+    return Base->allocateDataSection(Size, Alignment, SectionID);
+  }
+  virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                                       unsigned SectionID) {
+    return Base->allocateCodeSection(Size, Alignment, SectionID);
   }
   virtual uint8_t *allocateSpace(intptr_t Size, unsigned Alignment) {
     return Base->allocateSpace(Size, Alignment);
@@ -184,7 +196,7 @@ bool LoadAssemblyInto(Module *M, const char *assembly) {
     NULL != ParseAssemblyString(assembly, M, Error, M->getContext());
   std::string errMsg;
   raw_string_ostream os(errMsg);
-  Error.Print("", os);
+  Error.print("", os);
   EXPECT_TRUE(success) << os.str();
   return success;
 }

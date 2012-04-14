@@ -15,3 +15,16 @@ addl $0, 0(%rax)
 
 # 8 "test.s"
  movi $8,%eax
+
+movl 0(%rax), 0(%edx)  // error: invalid operand for instruction
+
+// 32: error: instruction requires a CPU feature not currently enabled
+sysexitq
+
+// rdar://10710167
+// 64: error: expected scale expression
+lea (%rsp, %rbp, $4), %rax
+
+// rdar://10423777
+// 64: error: index register is 32-bit, but base register is 64-bit
+movq (%rsi,%ecx),%xmm0

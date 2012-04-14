@@ -19,8 +19,9 @@ your documentation.</p>
   <li><a href="#llvmdesign">LLVM Design</a></li>
   <li><a href="/pubs/">LLVM Publications</a></li>
   <li><a href="#userguide">LLVM User Guides</a></li>
-  <li><a href="#llvmprog">General LLVM Programming Documentation</a></li>
+  <li><a href="#llvmprog">LLVM Programming Documentation</a></li>
   <li><a href="#subsystems">LLVM Subsystem Documentation</a></li>
+  <li><a href="#develprocess">LLVM Development Process Documentation</a></li>
   <li><a href="#maillist">LLVM Mailing Lists</a></li>
 </ul>
 </td><td class="right">
@@ -79,25 +80,7 @@ LLVM for a custom language, and the facilities LLVM offers in tutorial form.</li
 policy towards developers and their contributions.</li>
 
 <li><a href="CommandGuide/index.html">LLVM Command Guide</a> - A reference
-manual for the LLVM command line utilities ("man" pages for LLVM tools).<br>
-Current tools:
- <a href="/cmds/llvm-ar.html">llvm-ar</a>,
- <a href="/cmds/llvm-as.html">llvm-as</a>,
- <a href="/cmds/llvm-dis.html">llvm-dis</a>,
- <a href="/cmds/llvm-extract.html">llvm-extract</a>,
- <a href="/cmds/llvm-ld.html">llvm-ld</a>,
- <a href="/cmds/llvm-link.html">llvm-link</a>,
- <a href="/cmds/llvm-nm.html">llvm-nm</a>,
- <a href="/cmds/llvm-prof.html">llvm-prof</a>,
- <a href="/cmds/llvm-ranlib.html">llvm-ranlib</a>,
- <a href="/cmds/opt.html">opt</a>,
- <a href="/cmds/llc.html">llc</a>,
- <a href="/cmds/lli.html">lli</a>,
- <a href="/cmds/llvmgcc.html">llvm-gcc</a>,
- <a href="/cmds/llvmgxx.html">llvm-g++</a>,
- <a href="/cmds/bugpoint.html">bugpoint</a>,
- <a href="/cmds/llvm-bcanalyzer.html">llvm-bcanalyzer</a>,
-</li>
+manual for the LLVM command line utilities ("man" pages for LLVM tools).</li>
 
 <li><a href="Passes.html">LLVM's Analysis and Transform Passes</a> - A list of
 optimizations and analyses implemented in LLVM.</li>
@@ -115,8 +98,9 @@ the LLVM system.</li>
 <li><a href="TestingGuide.html">LLVM Testing Infrastructure Guide</a> - A reference
 manual for using the LLVM testing infrastructure.</li>
 
-<li><a href="GCCFEBuildInstrs.html">How to build the Ada/C/C++/Fortran front-ends</a> -
-Instructions for building gcc front-ends from source.</li>
+<li><a href="http://clang.llvm.org/get_started.html">How to build the C, C++, ObjC,
+and ObjC++ front end</a> - Instructions for building the clang front-end from
+source.</li>
 
 <li><a href="Packaging.html">Packaging guide</a> - Advice on packaging
 LLVM into a distribution.</li>
@@ -129,11 +113,15 @@ channel</a>.  We often are on irc.oftc.net in the #llvm channel.  If you are
 using the mozilla browser, and have chatzilla installed, you can <a
 href="irc://irc.oftc.net/llvm">join #llvm on irc.oftc.net</a> directly.</li>
 
+<li><a href="HowToAddABuilder.html">How To Add Your Build Configuration 
+To LLVM Buildbot Infrastructure</a> - Instructions for adding new builder to
+LLVM buildbot master.</li>
+
 </ul>
 
 
 <!--=======================================================================-->
-<h2><a name="llvmprog">General LLVM Programming Documentation</a></h2>
+<h2><a name="llvmprog">LLVM Programming Documentation</a></h2>
 <!--=======================================================================-->
 
 <ul>
@@ -144,15 +132,6 @@ intermediate representation and the assembly form of the different nodes.</li>
 Introduction to the general layout of the LLVM sourcebase, important classes
 and APIs, and some tips &amp; tricks.</li>
 
-<li><a href="Projects.html">LLVM Project Guide</a> - How-to guide and
-templates for new projects that <em>use</em> the LLVM infrastructure.  The
-templates (directory organization, Makefiles, and test tree) allow the project
-code to be located outside (or inside) the <tt>llvm/</tt> tree, while using LLVM
-header files and libraries.</li>
-
-<li><a href="MakefileGuide.html">LLVM Makefile Guide</a> - Describes how the
-LLVM makefiles work and how to use them.</li>
-
 <li><a href="CommandLine.html">CommandLine library Reference Manual</a> -
 Provides information on using the command line parsing library.</li>
 
@@ -162,13 +141,6 @@ efficient C++ code.</li>
 
 <li><a href="ExtendingLLVM.html">Extending LLVM</a> - Look here to see how
 to add instructions and intrinsics to LLVM.</li>
-
-<li><a href="UsingLibraries.html">Using LLVM Libraries</a> - Look here to
-understand how to use the libraries produced when LLVM is compiled.</li>
-
-<li><a href="HowToReleaseLLVM.html">How To Release LLVM To The Public</a> - This
-is a guide to preparing LLVM releases. Most developers can ignore it.</li>
-
 
 <li><a href="http://llvm.org/doxygen/">Doxygen generated
 documentation</a> (<a
@@ -243,6 +215,29 @@ information about Branch Prediction Information.</li>
 
 </ul>
 
+<!--=======================================================================-->
+<h2><a name="develprocess">LLVM Development Process Documentation</a></h2>
+<!--=======================================================================-->
+
+<ul>
+
+<li><a href="Projects.html">LLVM Project Guide</a> - How-to guide and
+templates for new projects that <em>use</em> the LLVM infrastructure.  The
+templates (directory organization, Makefiles, and test tree) allow the project
+code to be located outside (or inside) the <tt>llvm/</tt> tree, while using LLVM
+header files and libraries.</li>
+
+<li><a href="LLVMBuild.html">LLVMBuild Documentation</a> - Describes the
+LLVMBuild organization and files used by LLVM to specify component
+descriptions.</li>
+
+<li><a href="MakefileGuide.html">LLVM Makefile Guide</a> - Describes how the
+LLVM makefiles work and how to use them.</li>
+
+<li><a href="HowToReleaseLLVM.html">How To Release LLVM To The Public</a> - This
+is a guide to preparing LLVM releases. Most developers can ignore it.</li>
+
+</ul>
 
 <!--=======================================================================-->
 <h2><a name="maillist">LLVM Mailing Lists</a></h2>
@@ -286,7 +281,6 @@ times each day, making it a high volume list.</li>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-11-03 07:43:23 +0100 (Thu, 03 Nov 2011) $
+  Last modified: $Date: 2012-02-26 23:26:37 +0100 (Sun, 26 Feb 2012) $
 </address>
 </body></html>
-

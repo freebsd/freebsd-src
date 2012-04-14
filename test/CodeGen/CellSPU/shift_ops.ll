@@ -1,12 +1,12 @@
 ; RUN: llc < %s -march=cellspu > %t1.s
 ; RUN: grep {shlh	}  %t1.s | count 10
 ; RUN: grep {shlhi	}  %t1.s | count 3
-; RUN: grep {shl	}  %t1.s | count 11
+; RUN: grep {shl	}  %t1.s | count 10
 ; RUN: grep {shli	}  %t1.s | count 3
 ; RUN: grep {xshw	}  %t1.s | count 5
-; RUN: grep {and	}  %t1.s | count 14
-; RUN: grep {andi	}  %t1.s | count 2
-; RUN: grep {rotmi	}  %t1.s | count 2
+; RUN: grep {and	}  %t1.s | count 15
+; RUN: grep {andi	}  %t1.s | count 4
+; RUN: grep {rotmi	}  %t1.s | count 4
 ; RUN: grep {rotqmbyi	}  %t1.s | count 1
 ; RUN: grep {rotqmbii	}  %t1.s | count 2
 ; RUN: grep {rotqmby	}  %t1.s | count 1
@@ -341,4 +341,8 @@ define <8 x i16> @ashr_v8i16(<8 x i16> %val, <8 x i16> %sh) {
 ;CHECK: bi $lr
 	%rv = ashr <8 x i16> %val, %sh
 	ret <8 x i16> %rv
+}
+
+define <2 x i64> @special_const() {
+  ret <2 x i64> <i64 4294967295, i64 4294967295>
 }

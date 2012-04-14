@@ -28,7 +28,7 @@ By default B<lit> will use a succinct progress display and will only print
 summary information for test failures. See L<"OUTPUT OPTIONS"> for options
 controlling the B<lit> progress display and output.
 
-B<lit> also includes a number of options for controlling how tests are exected
+B<lit> also includes a number of options for controlling how tests are executed
 (specific features may depend on the particular test format). See L<"EXECUTION
 OPTIONS"> for more information.
 
@@ -37,7 +37,7 @@ the options specified on the command line, see L<"SELECTION OPTIONS"> for
 more information.
 
 Users interested in the B<lit> architecture or designing a B<lit> testing
-implementation should see L<"LIT ARCHITECTURE">
+implementation should see L<"LIT INFRASTRUCTURE">
 
 =head1 GENERAL OPTIONS
 
@@ -159,8 +159,8 @@ other results are not collated in any reasonable fashion.
 =head1 EXIT STATUS
 
 B<lit> will exit with an exit code of 1 if there are any FAIL or XPASS
-results. Otherwise, it will exit with the status 0. Other exit codes used for
-non-test related failures (for example a user error or an internal program
+results. Otherwise, it will exit with the status 0. Other exit codes are used
+for non-test related failures (for example a user error or an internal program
 error).
 
 =head1 TEST DISCOVERY
@@ -208,7 +208,7 @@ suite.
 
 The test succeeded, but it was expected to fail. This is used for tests which
 were specified as expected to fail, but are now succeeding (generally because
-the feautre they test was broken and has been fixed).
+the feature they test was broken and has been fixed).
 
 =item B<FAIL>
 
@@ -227,7 +227,7 @@ which can report unsupported tests.
 =back
 
 Depending on the test format tests may produce additional information about
-their status (generally only for failures). See the L<Output|"LIT OUTPUT">
+their status (generally only for failures). See the L<Output|"OUTPUT OPTIONS">
 section for more information.
 
 =head1 LIT INFRASTRUCTURE
@@ -247,7 +247,7 @@ suite>. Test suites serve to define the format of the tests they contain, the
 logic for finding those tests, and any additional information to run the tests.
 
 B<lit> identifies test suites as directories containing I<lit.cfg> or
-I<lit.site.cfg> files (see also B<--config-prefix>. Test suites are initially
+I<lit.site.cfg> files (see also B<--config-prefix>). Test suites are initially
 discovered by recursively searching up the directory hierarchy for all the input
 files passed on the command line. You can use B<--show-suites> to display the
 discovered test suites at startup.
@@ -283,13 +283,13 @@ builds this is the directory that will be scanned for tests.
 
 B<test_exec_root> For out-of-dir builds, the path to the test suite root inside
 the object directory. This is where tests will be run and temporary output files
-places.
+placed.
 
 B<environment> A dictionary representing the environment to use when executing
 tests in the suite.
 
 B<suffixes> For B<lit> test formats which scan directories for tests, this
-variable as a list of suffixes to identify test files. Used by: I<ShTest>,
+variable is a list of suffixes to identify test files. Used by: I<ShTest>,
 I<TclTest>.
 
 B<substitutions> For B<lit> test formats which substitute variables into a test
@@ -300,6 +300,9 @@ reported as unsupported. Used by: I<ShTest>, I<TclTest>.
 
 B<parent> The parent configuration, this is the config object for the directory
 containing the test suite, or None.
+
+B<root> The root configuration. This is the top-most B<lit> configuration in
+the project.
 
 B<on_clone> The config is actually cloned for every subdirectory inside a test
 suite, to allow local configuration on a per-directory basis. The I<on_clone>
@@ -315,7 +318,7 @@ directory being scanned.
 
 Once test suites are located, B<lit> recursively traverses the source directory
 (following I<test_src_root>) looking for tests. When B<lit> enters a
-sub-directory, it first checks to see if a nest test suite is defined in that
+sub-directory, it first checks to see if a nested test suite is defined in that
 directory. If so, it loads that test suite recursively, otherwise it
 instantiates a local test config for the directory (see L<"LOCAL CONFIGURATION
 FILES">).
@@ -337,6 +340,53 @@ the configuration for each individual directory. This facility can be used to
 define subdirectories of optional tests, or to change other configuration
 parameters -- for example, to change the test format, or the suffixes which
 identify test files.
+
+=head2 TEST RUN OUTPUT FORMAT
+
+The b<lit> output for a test run conforms to the following schema, in both short
+and verbose modes (although in short mode no PASS lines will be shown). This
+schema has been chosen to be relatively easy to reliably parse by a machine (for
+example in buildbot log scraping), and for other tools to generate.
+
+Each test result is expected to appear on a line that matches:
+
+<result code>: <test name> (<progress info>)
+
+where <result-code> is a standard test result such as PASS, FAIL, XFAIL, XPASS,
+UNRESOLVED, or UNSUPPORTED. The performance result codes of IMPROVED and
+REGRESSED are also allowed.
+
+The <test name> field can consist of an arbitrary string containing no newline.
+
+The <progress info> field can be used to report progress information such as
+(1/300) or can be empty, but even when empty the parentheses are required.
+
+Each test result may include additional (multiline) log information in the
+following format.
+
+<log delineator> TEST '(<test name>)' <trailing delineator>
+... log message ...
+<log delineator>
+
+where <test name> should be the name of a preceeding reported test, <log
+delineator> is a string of '*' characters I<at least> four characters long (the
+recommended length is 20), and <trailing delineator> is an arbitrary (unparsed)
+string.
+
+The following is an example of a test run output which consists of four tests A,
+B, C, and D, and a log message for the failing test C.
+
+=head3 Example Test Run Output Listing
+
+PASS: A (1 of 4)
+PASS: B (2 of 4)
+FAIL: C (3 of 4)
+******************** TEST 'C' FAILED ********************
+Test 'C' failed as a result of exit code 1.
+********************
+PASS: D (4 of 4)
+
+=back
 
 =head2 LIT EXAMPLE TESTS
 

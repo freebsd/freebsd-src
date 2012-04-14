@@ -13,12 +13,4 @@ set_property(
   )
 endif()
 
-add_llvm_library_dependencies(LLVMMBlazeDisassembler
-  LLVMMBlazeCodeGen
-  LLVMMBlazeDesc
-  LLVMMBlazeInfo
-  LLVMMC
-  LLVMSupport
-  )
-
 add_dependencies(LLVMMBlazeDisassembler MBlazeCommonTableGen)

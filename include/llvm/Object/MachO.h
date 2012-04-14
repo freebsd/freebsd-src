@@ -18,6 +18,7 @@
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/MachOObject.h"
 #include "llvm/Support/MachO.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
@@ -31,23 +32,36 @@ public:
 
   virtual symbol_iterator begin_symbols() const;
   virtual symbol_iterator end_symbols() const;
+  virtual symbol_iterator begin_dynamic_symbols() const;
+  virtual symbol_iterator end_dynamic_symbols() const;
+  virtual library_iterator begin_libraries_needed() const;
+  virtual library_iterator end_libraries_needed() const;
   virtual section_iterator begin_sections() const;
   virtual section_iterator end_sections() const;
 
   virtual uint8_t getBytesInAddress() const;
   virtual StringRef getFileFormatName() const;
   virtual unsigned getArch() const;
+  virtual StringRef getLoadName() const;
+
+  MachOObject *getObject() { return MachOObj; }
+
+  static inline bool classof(const Binary *v) {
+    return v->isMachO();
+  }
+  static inline bool classof(const MachOObjectFile *v) { return true; }
 
 protected:
   virtual error_code getSymbolNext(DataRefImpl Symb, SymbolRef &Res) const;
   virtual error_code getSymbolName(DataRefImpl Symb, StringRef &Res) const;
-  virtual error_code getSymbolOffset(DataRefImpl Symb, uint64_t &Res) const;
+  virtual error_code getSymbolFileOffset(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolAddress(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolSize(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolNMTypeChar(DataRefImpl Symb, char &Res) const;
-  virtual error_code isSymbolInternal(DataRefImpl Symb, bool &Res) const;
-  virtual error_code isSymbolGlobal(DataRefImpl Symb, bool &Res) const;
-  virtual error_code getSymbolType(DataRefImpl Symb, SymbolRef::SymbolType &Res) const;
+  virtual error_code getSymbolFlags(DataRefImpl Symb, uint32_t &Res) const;
+  virtual error_code getSymbolType(DataRefImpl Symb, SymbolRef::Type &Res) const;
+  virtual error_code getSymbolSection(DataRefImpl Symb,
+                                      section_iterator &Res) const;
 
   virtual error_code getSectionNext(DataRefImpl Sec, SectionRef &Res) const;
   virtual error_code getSectionName(DataRefImpl Sec, StringRef &Res) const;
@@ -58,6 +72,10 @@ protected:
   virtual error_code isSectionText(DataRefImpl Sec, bool &Res) const;
   virtual error_code isSectionData(DataRefImpl Sec, bool &Res) const;
   virtual error_code isSectionBSS(DataRefImpl Sec, bool &Res) const;
+  virtual error_code isSectionRequiredForExecution(DataRefImpl Sec,
+                                                   bool &Res) const;
+  virtual error_code isSectionVirtual(DataRefImpl Sec, bool &Res) const;
+  virtual error_code isSectionZeroInit(DataRefImpl Sec, bool &Res) const;
   virtual error_code sectionContainsSymbol(DataRefImpl DRI, DataRefImpl S,
                                            bool &Result) const;
   virtual relocation_iterator getSectionRelBegin(DataRefImpl Sec) const;
@@ -67,16 +85,22 @@ protected:
                                        RelocationRef &Res) const;
   virtual error_code getRelocationAddress(DataRefImpl Rel,
                                           uint64_t &Res) const;
+  virtual error_code getRelocationOffset(DataRefImpl Rel,
+                                         uint64_t &Res) const;
   virtual error_code getRelocationSymbol(DataRefImpl Rel,
                                          SymbolRef &Res) const;
   virtual error_code getRelocationType(DataRefImpl Rel,
-                                       uint32_t &Res) const;
+                                       uint64_t &Res) const;
   virtual error_code getRelocationTypeName(DataRefImpl Rel,
                                            SmallVectorImpl<char> &Result) const;
   virtual error_code getRelocationAdditionalInfo(DataRefImpl Rel,
                                                  int64_t &Res) const;
   virtual error_code getRelocationValueString(DataRefImpl Rel,
                                            SmallVectorImpl<char> &Result) const;
+  virtual error_code getRelocationHidden(DataRefImpl Rel, bool &Result) const;
+
+  virtual error_code getLibraryNext(DataRefImpl LibData, LibraryRef &Res) const;
+  virtual error_code getLibraryPath(DataRefImpl LibData, StringRef &Res) const;
 
 private:
   MachOObject *MachOObj;
@@ -97,6 +121,9 @@ private:
   void getRelocation(DataRefImpl Rel,
                      InMemoryStruct<macho::RelocationEntry> &Res) const;
   std::size_t getSectionIndex(DataRefImpl Sec) const;
+
+  void printRelocationTargetName(InMemoryStruct<macho::RelocationEntry>& RE,
+                                 raw_string_ostream &fmt) const;
 };
 
 }

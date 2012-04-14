@@ -64,14 +64,14 @@ define i32 @t4(i32 %a, i32 %b, i32 %x) nounwind {
 entry:
 ; ARM: t4:
 ; ARM: ldr
-; ARM: movlt
+; ARM: mov{{lt|ge}}
 
 ; ARMT2: t4:
 ; ARMT2: movwlt [[R0:r[0-9]+]], #65365
 ; ARMT2: movtlt [[R0]], #65365
 
 ; THUMB2: t4:
-; THUMB2: mvnlt.w [[R0:r[0-9]+]], #11141290
+; THUMB2: mvnlt [[R0:r[0-9]+]], #11141290
   %0 = icmp slt i32 %a, %b
   %1 = select i1 %0, i32 4283826005, i32 %x
   ret i32 %1

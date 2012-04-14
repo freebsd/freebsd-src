@@ -81,11 +81,13 @@ option</a></li>
       <li><a href="#dss_smallset">"llvm/ADT/SmallSet.h"</a></li>
       <li><a href="#dss_smallptrset">"llvm/ADT/SmallPtrSet.h"</a></li>
       <li><a href="#dss_denseset">"llvm/ADT/DenseSet.h"</a></li>
+      <li><a href="#dss_sparseset">"llvm/ADT/SparseSet.h"</a></li>
       <li><a href="#dss_FoldingSet">"llvm/ADT/FoldingSet.h"</a></li>
       <li><a href="#dss_set">&lt;set&gt;</a></li>
       <li><a href="#dss_setvector">"llvm/ADT/SetVector.h"</a></li>
       <li><a href="#dss_uniquevector">"llvm/ADT/UniqueVector.h"</a></li>
-      <li><a href="#dss_otherset">Other Set-Like ContainerOptions</a></li>
+      <li><a href="#dss_immutableset">"llvm/ADT/ImmutableSet.h"</a></li>
+      <li><a href="#dss_otherset">Other Set-Like Container Options</a></li>
     </ul></li>
     <li><a href="#ds_map">Map-Like Containers (std::map, DenseMap, etc)</a>
     <ul>
@@ -97,6 +99,7 @@ option</a></li>
       <li><a href="#dss_intervalmap">"llvm/ADT/IntervalMap.h"</a></li>
       <li><a href="#dss_map">&lt;map&gt;</a></li>
       <li><a href="#dss_inteqclasses">"llvm/ADT/IntEqClasses.h"</a></li>
+      <li><a href="#dss_immutablemap">"llvm/ADT/ImmutableMap.h"</a></li>
       <li><a href="#dss_othermap">Other Map-Like Container Options</a></li>
     </ul></li>
     <li><a href="#ds_bit">BitVector-like containers</a>
@@ -995,7 +998,7 @@ vector is also useful when interfacing with code that expects vectors :).
 <pre>
 for ( ... ) {
    std::vector&lt;foo&gt; V;
-   use V;
+   // make use of V.
 }
 </pre>
 </div>
@@ -1006,7 +1009,7 @@ for ( ... ) {
 <pre>
 std::vector&lt;foo&gt; V;
 for ( ... ) {
-   use V;
+   // make use of V.
    V.clear();
 }
 </pre>
@@ -1488,6 +1491,24 @@ href="#dss_densemap">DenseMap</a> has.
 
 <!-- _______________________________________________________________________ -->
 <h4>
+  <a name="dss_sparseset">"llvm/ADT/SparseSet.h"</a>
+</h4>
+
+<div>
+
+<p>SparseSet holds a small number of objects identified by unsigned keys of
+moderate size. It uses a lot of memory, but provides operations that are
+almost as fast as a vector. Typical keys are physical registers, virtual
+registers, or numbered basic blocks.</p>
+
+<p>SparseSet is useful for algorithms that need very fast clear/find/insert/erase
+and fast iteration over small sets.  It is not intended for building composite
+data structures.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
   <a name="dss_FoldingSet">"llvm/ADT/FoldingSet.h"</a>
 </h4>
 
@@ -1605,6 +1626,29 @@ into the set.</p>
 <p>UniqueVector is very expensive: its cost is the sum of the cost of
 maintaining both the map and vector, it has high complexity, high constant
 factors, and produces a lot of malloc traffic.  It should be avoided.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="dss_immutableset">"llvm/ADT/ImmutableSet.h"</a>
+</h4>
+
+<div>
+
+<p>
+ImmutableSet is an immutable (functional) set implementation based on an AVL
+tree.
+Adding or removing elements is done through a Factory object and results in the
+creation of a new ImmutableSet object.
+If an ImmutableSet already exists with the given contents, then the existing one
+is returned; equality is compared with a FoldingSetNodeID.
+The time and space complexity of add or remove operations is logarithmic in the
+size of the original set.
+
+<p>
+There is no method for returning an element of the set, you can only check for
+membership.
 
 </div>
 
@@ -1728,13 +1772,21 @@ pointers, or map other small types to each other.
 
 <p>
 There are several aspects of DenseMap that you should be aware of, however.  The
-iterators in a densemap are invalidated whenever an insertion occurs, unlike
+iterators in a DenseMap are invalidated whenever an insertion occurs, unlike
 map.  Also, because DenseMap allocates space for a large number of key/value
 pairs (it starts with 64 by default), it will waste a lot of space if your keys
 or values are large.  Finally, you must implement a partial specialization of
 DenseMapInfo for the key that you want, if it isn't already supported.  This
 is required to tell DenseMap about two special marker values (which can never be
 inserted into the map) that it needs internally.</p>
+
+<p>
+DenseMap's find_as() method supports lookup operations using an alternate key
+type. This is useful in cases where the normal key type is expensive to
+construct, but cheap to compare against. The DenseMapInfo is responsible for
+defining the appropriate comparison and hashing methods for each alternate
+key type used.
+</p>
 
 </div>
 
@@ -1809,6 +1861,25 @@ returns the same representative.</p>
 integer 0..n-1 maps to an equivalence class number in the range 0..m-1, where m
 is the total number of equivalence classes. The map must be uncompressed before
 it can be edited again.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<h4>
+  <a name="dss_immutablemap">"llvm/ADT/ImmutableMap.h"</a>
+</h4>
+
+<div>
+
+<p>
+ImmutableMap is an immutable (functional) map implementation based on an AVL
+tree.
+Adding or removing elements is done through a Factory object and results in the
+creation of a new ImmutableMap object.
+If an ImmutableMap already exists with the given key set, then the existing one
+is returned; equality is compared with a FoldingSetNodeID.
+The time and space complexity of add or remove operations is logarithmic in the
+size of the original map.
 
 </div>
 
@@ -2496,7 +2567,7 @@ block but not delete it, you can use the <tt>removeFromParent()</tt> method.</p>
 
 <div>
 
-<p><i>Replacing individual instructions</i></p>
+<h5><i>Replacing individual instructions</i></h5>
 
 <p>Including "<a href="/doxygen/BasicBlockUtils_8h-source.html">llvm/Transforms/Utils/BasicBlockUtils.h</a>"
 permits use of two very useful replace functions: <tt>ReplaceInstWithValue</tt>
@@ -2504,6 +2575,7 @@ and <tt>ReplaceInstWithInst</tt>.</p>
 
 <h5><a name="schanges_deleting">Deleting <tt>Instruction</tt>s</a></h5>
 
+<div>
 <ul>
   <li><tt>ReplaceInstWithValue</tt>
 
@@ -2540,7 +2612,9 @@ ReplaceInstWithInst(instToReplace-&gt;getParent()-&gt;getInstList(), ii,
 </pre></div></li>
 </ul>
 
-<p><i>Replacing multiple uses of <tt>User</tt>s and <tt>Value</tt>s</i></p>
+</div>
+
+<h5><i>Replacing multiple uses of <tt>User</tt>s and <tt>Value</tt>s</i></h5>
 
 <p>You can use <tt>Value::replaceAllUsesWith</tt> and
 <tt>User::replaceUsesOfWith</tt> to change more than one use at a time.  See the
@@ -3234,13 +3308,12 @@ helpful member functions that try to make common operations easy.</p>
 <div>
 
 <ul>
-  <li><tt>Module::Module(std::string name = "")</tt></li>
-</ul>
+  <li><tt>Module::Module(std::string name = "")</tt>
 
-<p>Constructing a <a href="#Module">Module</a> is easy. You can optionally
+  <p>Constructing a <a href="#Module">Module</a> is easy. You can optionally
 provide a name for it (probably based on the name of the translation unit).</p>
+  </li>
 
-<ul>
   <li><tt>Module::iterator</tt> - Typedef for function list iterator<br>
     <tt>Module::const_iterator</tt> - Typedef for const_iterator.<br>
 
@@ -4052,7 +4125,7 @@ arguments. An argument has a pointer to the parent Function.</p>
   <a href="mailto:dhurjati@cs.uiuc.edu">Dinakar Dhurjati</a> and
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-11-03 07:43:54 +0100 (Thu, 03 Nov 2011) $
+  Last modified: $Date: 2012-03-27 13:25:16 +0200 (Tue, 27 Mar 2012) $
 </address>
 
 </body>

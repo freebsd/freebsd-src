@@ -1,4 +1,4 @@
-; RUN: lli %s > /dev/null
+; RUN: %lli %s > /dev/null
 ; XFAIL: arm
 
 define i32 @foo(i32 %X, i32 %Y, double %A) {

@@ -41,8 +41,8 @@ namespace {
     const XCoreSubtarget &Subtarget;
 
   public:
-    XCoreDAGToDAGISel(XCoreTargetMachine &TM)
-      : SelectionDAGISel(TM),
+    XCoreDAGToDAGISel(XCoreTargetMachine &TM, CodeGenOpt::Level OptLevel)
+      : SelectionDAGISel(TM, OptLevel),
         Lowering(*TM.getTargetLowering()), 
         Subtarget(*TM.getSubtargetImpl()) { }
 
@@ -83,8 +83,9 @@ namespace {
 /// createXCoreISelDag - This pass converts a legalized DAG into a 
 /// XCore-specific DAG, ready for instruction scheduling.
 ///
-FunctionPass *llvm::createXCoreISelDag(XCoreTargetMachine &TM) {
-  return new XCoreDAGToDAGISel(TM);
+FunctionPass *llvm::createXCoreISelDag(XCoreTargetMachine &TM,
+                                       CodeGenOpt::Level OptLevel) {
+  return new XCoreDAGToDAGISel(TM, OptLevel);
 }
 
 bool XCoreDAGToDAGISel::SelectADDRspii(SDValue Addr, SDValue &Base,
@@ -120,7 +121,7 @@ bool XCoreDAGToDAGISel::SelectADDRdpii(SDValue Addr, SDValue &Base,
     ConstantSDNode *CN = 0;
     if ((Addr.getOperand(0).getOpcode() == XCoreISD::DPRelativeWrapper)
       && (CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1)))
-      && (CN->getSExtValue() % 4 == 0)) {
+      && (CN->getSExtValue() % 4 == 0 && CN->getSExtValue() >= 0)) {
       // Constant word offset from a object in the data region
       Base = Addr.getOperand(0).getOperand(0);
       Offset = CurDAG->getTargetConstant(CN->getSExtValue(), MVT::i32);
@@ -141,7 +142,7 @@ bool XCoreDAGToDAGISel::SelectADDRcpii(SDValue Addr, SDValue &Base,
     ConstantSDNode *CN = 0;
     if ((Addr.getOperand(0).getOpcode() == XCoreISD::CPRelativeWrapper)
       && (CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1)))
-      && (CN->getSExtValue() % 4 == 0)) {
+      && (CN->getSExtValue() % 4 == 0 && CN->getSExtValue() >= 0)) {
       // Constant word offset from a object in the data region
       Base = Addr.getOperand(0).getOperand(0);
       Offset = CurDAG->getTargetConstant(CN->getSExtValue(), MVT::i32);

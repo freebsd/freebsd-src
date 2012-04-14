@@ -83,6 +83,10 @@ N: John T. Criswell
 E: criswell@uiuc.edu
 D: Original Autoconf support, documentation improvements, bug fixes
 
+N: Anshuman Dasgupta
+E: adasgupt@codeaurora.org
+D: Deterministic finite automaton based infrastructure for VLIW packetization
+
 N: Stefanus Du Toit
 E: stefanus.dutoit@rapidmind.com
 D: Bug fixes and minor improvements
@@ -94,6 +98,10 @@ D: The ARM backend
 N: Alkis Evlogimenos
 E: alkis@evlogimenos.com
 D: Linear scan register allocator, many codegen improvements, Java frontend
+
+N: Hal Finkel
+E: hfinkel@anl.gov
+D: Basic-block autovectorization, PowerPC backend improvements
 
 N: Ryan Flynn
 E: pizza@parseerror.com
@@ -143,6 +151,8 @@ N: James Grosbach
 E: grosbach@apple.com
 D: SjLj exception handling support
 D: General fixes and improvements for the ARM back-end
+D: MCJIT
+D: ARM integrated assembler and assembly parser
 
 N: Lang Hames
 E: lhames@gmail.com
@@ -265,6 +275,7 @@ N: Takumi Nakamura
 E: geek4civic@gmail.com
 E: chapuni@hf.rim.or.jp
 D: Cygwin and MinGW support.
+D: Win32 tweaks.
 S: Yokohama, Japan
 
 N: Edward O'Callaghan
@@ -312,6 +323,19 @@ N: Vladimir Prus
 W: http://vladimir_prus.blogspot.com
 E: ghost@cs.msu.su
 D: Made inst_iterator behave like a proper iterator, LowerConstantExprs pass
+
+N: Xerxes Ranby
+E: xerxes@zafena.se
+D: Cmake dependency chain and various bug fixes
+
+N: Chad Rosier
+E: mcrosier@apple.com
+D: ARM fast-isel improvements
+D: Performance monitoring
+
+N: Nadav Rotem
+E: nadav.rotem@intel.com
+D: Vector code generation improvements.
 
 N: Roman Samoilov
 E: roman@codedgers.com
@@ -363,12 +387,9 @@ E: lauro.venancio@indt.org.br
 D: ARM backend improvements
 D: Thread Local Storage implementation
 
-N: Xerxes Ranby
-E: xerxes@zafena.se
-D: Cmake dependency chain and various bug fixes
-
 N: Bill Wendling
 E: wendling@apple.com
+D: Exception handling
 D: Bunches of stuff
 
 N: Bob Wilson

@@ -87,6 +87,24 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::Linux, T.getOS());
   EXPECT_EQ(Triple::GNU, T.getEnvironment());
 
+  T = Triple("powerpc-bgp-linux");
+  EXPECT_EQ(Triple::ppc, T.getArch());
+  EXPECT_EQ(Triple::BGP, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("powerpc-bgp-cnk");
+  EXPECT_EQ(Triple::ppc, T.getArch());
+  EXPECT_EQ(Triple::BGP, T.getVendor());
+  EXPECT_EQ(Triple::CNK, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("powerpc64-bgq-linux");
+  EXPECT_EQ(Triple::ppc64, T.getArch());
+  EXPECT_EQ(Triple::BGQ, T.getVendor());
+  EXPECT_EQ(Triple::Linux, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
   T = Triple("powerpc-dunno-notsure");
   EXPECT_EQ(Triple::ppc, T.getArch());
   EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
@@ -154,19 +172,13 @@ TEST(TripleTest, Normalization) {
   // Check that normalizing a permutated set of valid components returns a
   // triple with the unpermuted components.
   StringRef C[4];
-  for (int Arch = 1+Triple::UnknownArch; Arch < Triple::InvalidArch; ++Arch) {
+  for (int Arch = 1+Triple::UnknownArch; Arch <= Triple::amdil; ++Arch) {
     C[0] = Triple::getArchTypeName(Triple::ArchType(Arch));
     for (int Vendor = 1+Triple::UnknownVendor; Vendor <= Triple::PC;
          ++Vendor) {
       C[1] = Triple::getVendorTypeName(Triple::VendorType(Vendor));
       for (int OS = 1+Triple::UnknownOS; OS <= Triple::Minix; ++OS) {
         C[2] = Triple::getOSTypeName(Triple::OSType(OS));
-
-        // If a value has multiple interpretations, then the permutation
-        // test will inevitably fail.  Currently this is only the case for
-        // "psp" which parses as both an architecture and an O/S.
-        if (OS == Triple::Psp)
-          continue;
 
         std::string E = Join(C[0], C[1], C[2]);
         EXPECT_EQ(E, Triple::normalize(Join(C[0], C[1], C[2])));
@@ -211,9 +223,6 @@ TEST(TripleTest, Normalization) {
       }
     }
   }
-
-  EXPECT_EQ("a-b-psp", Triple::normalize("a-b-psp"));
-  EXPECT_EQ("psp-b-c", Triple::normalize("psp-b-c"));
 
   // Various real-world funky triples.  The value returned by GCC's config.sub
   // is given in the comment.
@@ -265,6 +274,120 @@ TEST(TripleTest, MutateName) {
   EXPECT_EQ(Triple::Darwin, T.getOS());
   EXPECT_EQ("i386-pc-darwin", T.getTriple());
 
+}
+
+TEST(TripleTest, BitWidthPredicates) {
+  Triple T;
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_FALSE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::arm);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_TRUE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::hexagon);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_TRUE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::mips);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_TRUE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::mips64);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_FALSE(T.isArch32Bit());
+  EXPECT_TRUE(T.isArch64Bit());
+
+  T.setArch(Triple::msp430);
+  EXPECT_TRUE(T.isArch16Bit());
+  EXPECT_FALSE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::ppc);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_TRUE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::ppc64);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_FALSE(T.isArch32Bit());
+  EXPECT_TRUE(T.isArch64Bit());
+
+  T.setArch(Triple::x86);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_TRUE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
+
+  T.setArch(Triple::x86_64);
+  EXPECT_FALSE(T.isArch16Bit());
+  EXPECT_FALSE(T.isArch32Bit());
+  EXPECT_TRUE(T.isArch64Bit());
+}
+
+TEST(TripleTest, BitWidthArchVariants) {
+  Triple T;
+  EXPECT_EQ(Triple::UnknownArch, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::UnknownArch, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::UnknownArch);
+  EXPECT_EQ(Triple::UnknownArch, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::UnknownArch, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::arm);
+  EXPECT_EQ(Triple::arm, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::UnknownArch, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::mips);
+  EXPECT_EQ(Triple::mips, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::mips64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::mipsel);
+  EXPECT_EQ(Triple::mipsel, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::mips64el, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::ppc);
+  EXPECT_EQ(Triple::ppc, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::ppc64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::ptx32);
+  EXPECT_EQ(Triple::ptx32, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::ptx64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::sparc);
+  EXPECT_EQ(Triple::sparc, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::sparcv9, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::x86);
+  EXPECT_EQ(Triple::x86, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::x86_64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::mips64);
+  EXPECT_EQ(Triple::mips, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::mips64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::mips64el);
+  EXPECT_EQ(Triple::mipsel, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::mips64el, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::ppc64);
+  EXPECT_EQ(Triple::ppc, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::ppc64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::ptx64);
+  EXPECT_EQ(Triple::ptx32, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::ptx64, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::sparcv9);
+  EXPECT_EQ(Triple::sparc, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::sparcv9, T.get64BitArchVariant().getArch());
+
+  T.setArch(Triple::x86_64);
+  EXPECT_EQ(Triple::x86, T.get32BitArchVariant().getArch());
+  EXPECT_EQ(Triple::x86_64, T.get64BitArchVariant().getArch());
 }
 
 }

@@ -98,7 +98,7 @@ define void @test7() nounwind {
         ret void
         
 ; CHECK: test7:
-; CHECK:	pxor	%xmm0, %xmm0
+; CHECK:	xorps	%xmm0, %xmm0
 ; CHECK:	movaps	%xmm0, 0
 }
 
@@ -144,7 +144,7 @@ define <2 x double> @test11(double %a, double %b) nounwind {
 	%tmp7 = insertelement <2 x double> %tmp, double %b, i32 1		; <<2 x double>> [#uses=1]
 	ret <2 x double> %tmp7
 ; CHECK: test11:
-; CHECK: movapd	4(%esp), %xmm0
+; CHECK: movaps	4(%esp), %xmm0
 }
 
 define void @test12() nounwind {
@@ -178,8 +178,8 @@ define <4 x float> @test14(<4 x float>* %x, <4 x float>* %y) nounwind {
         %tmp27 = shufflevector <4 x float> %tmp9, <4 x float> %tmp21, <4 x i32> < i32 0, i32 1, i32 4, i32 5 >                ; <<4 x float>> [#uses=1]
         ret <4 x float> %tmp27
 ; CHECK: test14:
-; CHECK: 	addps	[[X1:%xmm[0-9]+]], [[X0:%xmm[0-9]+]]
-; CHECK: 	subps	[[X1]], [[X2:%xmm[0-9]+]]
+; CHECK: 	subps	[[X1:%xmm[0-9]+]], [[X2:%xmm[0-9]+]]
+; CHECK: 	addps	[[X1]], [[X0:%xmm[0-9]+]]
 ; CHECK: 	movlhps	[[X2]], [[X0]]
 }
 

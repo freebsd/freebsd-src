@@ -45,7 +45,7 @@ define void @vst1lanei32(i32* %A, <2 x i32>* %B) nounwind {
 
 define void @vst1lanef(float* %A, <2 x float>* %B) nounwind {
 ;CHECK: vst1lanef:
-;CHECK: vst1.32 {d16[1]}, [r0]
+;CHECK: vst1.32 {d16[1]}, [r0, :32]
 	%tmp1 = load <2 x float>* %B
         %tmp2 = extractelement <2 x float> %tmp1, i32 1
         store float %tmp2, float* %A
@@ -356,6 +356,13 @@ define void @vst4laneQf(float* %A, <4 x float>* %B) nounwind {
 	%tmp1 = load <4 x float>* %B
 	call void @llvm.arm.neon.vst4lane.v4f32(i8* %tmp0, <4 x float> %tmp1, <4 x float> %tmp1, <4 x float> %tmp1, <4 x float> %tmp1, i32 1, i32 1)
 	ret void
+}
+
+; Make sure this doesn't crash; PR10258
+define <8 x i16> @variable_insertelement(<8 x i16> %a, i16 %b, i32 %c) nounwind readnone {
+;CHECK: variable_insertelement:
+    %r = insertelement <8 x i16> %a, i16 %b, i32 %c
+    ret <8 x i16> %r
 }
 
 declare void @llvm.arm.neon.vst4lane.v8i8(i8*, <8 x i8>, <8 x i8>, <8 x i8>, <8 x i8>, i32, i32) nounwind

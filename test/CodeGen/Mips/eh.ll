@@ -10,15 +10,11 @@ entry:
 ; CHECK-EL:  .cfi_def_cfa_offset
 ; CHECK-EL:  sdc1 $f20
 ; CHECK-EL:  sw  $ra
-; CHECK-EL:  sw  $17
-; CHECK-EL:  sw  $16
 ; CHECK-EL:  .cfi_offset 52, -8
 ; CHECK-EL:  .cfi_offset 53, -4
 ; CHECK-EB:  .cfi_offset 53, -8
 ; CHECK-EB:  .cfi_offset 52, -4
 ; CHECK-EL:  .cfi_offset 31, -12
-; CHECK-EL:  .cfi_offset 17, -16
-; CHECK-EL:  .cfi_offset 16, -20
 ; CHECK-EL:  .cprestore 
 
   %exception = tail call i8* @__cxa_allocate_exception(i32 8) nounwind
@@ -58,15 +54,9 @@ unreachable:                                      ; preds = %entry
 
 declare i8* @__cxa_allocate_exception(i32)
 
-declare i8* @llvm.eh.exception() nounwind readonly
-
 declare i32 @__gxx_personality_v0(...)
 
-declare i32 @llvm.eh.selector(i8*, i8*, ...) nounwind
-
 declare i32 @llvm.eh.typeid.for(i8*) nounwind
-
-declare void @llvm.eh.resume(i8*, i32)
 
 declare void @__cxa_throw(i8*, i8*, i8*)
 

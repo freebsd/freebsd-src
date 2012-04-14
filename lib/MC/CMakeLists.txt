@@ -20,7 +20,6 @@ add_llvm_library(LLVMMC
   MCInstPrinter.cpp
   MCInstrAnalysis.cpp
   MCLabel.cpp
-  MCLoggingStreamer.cpp
   MCMachOStreamer.cpp
   MCMachObjectTargetWriter.cpp
   MCModule.cpp
@@ -43,11 +42,6 @@ add_llvm_library(LLVMMC
   SubtargetFeature.cpp
   WinCOFFObjectWriter.cpp
   WinCOFFStreamer.cpp
-  )
-
-add_llvm_library_dependencies(LLVMMC
-  LLVMObject
-  LLVMSupport
   )
 
 add_subdirectory(MCParser)

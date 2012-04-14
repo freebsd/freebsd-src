@@ -60,19 +60,23 @@ add_llvm_unittest(ADT
   ADT/DenseMapTest.cpp
   ADT/DenseSetTest.cpp
   ADT/FoldingSet.cpp
+  ADT/HashingTest.cpp
   ADT/ilistTest.cpp
   ADT/ImmutableSetTest.cpp
   ADT/IntEqClassesTest.cpp
   ADT/IntervalMapTest.cpp
+  ADT/IntrusiveRefCntPtrTest.cpp
   ADT/PackedVectorTest.cpp
   ADT/SmallBitVectorTest.cpp
   ADT/SmallStringTest.cpp
   ADT/SmallVectorTest.cpp
   ADT/SparseBitVectorTest.cpp
+  ADT/SparseSetTest.cpp
   ADT/StringMapTest.cpp
   ADT/StringRefTest.cpp
   ADT/TripleTest.cpp
   ADT/TwineTest.cpp
+  ADT/VariadicFunctionTest.cpp
  )
 
 add_llvm_unittest(Analysis
@@ -83,11 +87,35 @@ add_llvm_unittest(ExecutionEngine
   ExecutionEngine/ExecutionEngineTest.cpp
   )
 
+if( LLVM_USE_INTEL_JITEVENTS )
+  include_directories( ${LLVM_INTEL_JITEVENTS_INCDIR} )
+  link_directories( ${LLVM_INTEL_JITEVENTS_LIBDIR} )
+  set(ProfileTestSources
+    ExecutionEngine/JIT/IntelJITEventListenerTest.cpp
+    )
+  set(LLVM_LINK_COMPONENTS
+    ${LLVM_LINK_COMPONENTS}
+    IntelJITEvents
+    ) 
+endif( LLVM_USE_INTEL_JITEVENTS )
+
+if( LLVM_USE_OPROFILE )
+  set(ProfileTestSources
+    ${ProfileTestSources}
+    ExecutionEngine/JIT/OProfileJITEventListenerTest.cpp
+    )
+  set(LLVM_LINK_COMPONENTS
+    ${LLVM_LINK_COMPONENTS}
+    OProfileJIT
+    )
+endif( LLVM_USE_OPROFILE )
+
 set(JITTestsSources
   ExecutionEngine/JIT/JITEventListenerTest.cpp
   ExecutionEngine/JIT/JITMemoryManagerTest.cpp
   ExecutionEngine/JIT/JITTest.cpp
   ExecutionEngine/JIT/MultiJITTest.cpp
+  ${ProfileTestSources}
   )
 
 if(MSVC)
@@ -96,7 +124,7 @@ endif()
 
 add_llvm_unittest(ExecutionEngine/JIT ${JITTestsSources})
 
-if(MINGW)
+if(MINGW OR CYGWIN)
   set_property(TARGET JITTests PROPERTY LINK_FLAGS -Wl,--export-all-symbols)
 endif()
 
@@ -111,6 +139,7 @@ set(VMCoreSources
   VMCore/PassManagerTest.cpp
   VMCore/ValueMapTest.cpp
   VMCore/VerifierTest.cpp
+  VMCore/DominatorTreeTest.cpp
   )
 
 # MSVC9 and 8 cannot compile ValueMapTest.cpp due to their bug.
@@ -120,6 +149,10 @@ if(MSVC AND MSVC_VERSION LESS 1600)
 endif()
 
 add_llvm_unittest(VMCore ${VMCoreSources})
+
+add_llvm_unittest(Bitcode
+  Bitcode/BitReaderTest.cpp
+  )
 
 set(LLVM_LINK_COMPONENTS
   Support
@@ -132,6 +165,7 @@ add_llvm_unittest(Support
   Support/CommandLineTest.cpp
   Support/ConstantRangeTest.cpp
   Support/EndianTest.cpp
+  Support/JSONParserTest.cpp
   Support/LeakDetectorTest.cpp
   Support/MathExtrasTest.cpp
   Support/Path.cpp
@@ -141,4 +175,5 @@ add_llvm_unittest(Support
   Support/TimeValue.cpp
   Support/TypeBuilderTest.cpp
   Support/ValueHandleTest.cpp
+  Support/YAMLParserTest.cpp
   )

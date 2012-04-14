@@ -1,5 +1,5 @@
 ; PR672
-; RUN: lli %s
+; RUN: %lli %s
 ; XFAIL: arm
 
 define i32 @main() {

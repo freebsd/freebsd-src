@@ -1,18 +1,18 @@
 set(LLVM_TARGET_DEFINITIONS ARM.td)
 
-llvm_tablegen(ARMGenRegisterInfo.inc -gen-register-info)
-llvm_tablegen(ARMGenInstrInfo.inc -gen-instr-info)
-llvm_tablegen(ARMGenCodeEmitter.inc -gen-emitter)
-llvm_tablegen(ARMGenMCCodeEmitter.inc -gen-emitter -mc-emitter)
-llvm_tablegen(ARMGenMCPseudoLowering.inc -gen-pseudo-lowering)
-llvm_tablegen(ARMGenAsmWriter.inc -gen-asm-writer)
-llvm_tablegen(ARMGenAsmMatcher.inc -gen-asm-matcher)
-llvm_tablegen(ARMGenDAGISel.inc -gen-dag-isel)
-llvm_tablegen(ARMGenFastISel.inc -gen-fast-isel)
-llvm_tablegen(ARMGenCallingConv.inc -gen-callingconv)
-llvm_tablegen(ARMGenSubtargetInfo.inc -gen-subtarget)
-llvm_tablegen(ARMGenEDInfo.inc -gen-enhanced-disassembly-info)
-llvm_tablegen(ARMGenDisassemblerTables.inc -gen-disassembler)
+tablegen(LLVM ARMGenRegisterInfo.inc -gen-register-info)
+tablegen(LLVM ARMGenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM ARMGenCodeEmitter.inc -gen-emitter)
+tablegen(LLVM ARMGenMCCodeEmitter.inc -gen-emitter -mc-emitter)
+tablegen(LLVM ARMGenMCPseudoLowering.inc -gen-pseudo-lowering)
+tablegen(LLVM ARMGenAsmWriter.inc -gen-asm-writer)
+tablegen(LLVM ARMGenAsmMatcher.inc -gen-asm-matcher)
+tablegen(LLVM ARMGenDAGISel.inc -gen-dag-isel)
+tablegen(LLVM ARMGenFastISel.inc -gen-fast-isel)
+tablegen(LLVM ARMGenCallingConv.inc -gen-callingconv)
+tablegen(LLVM ARMGenSubtargetInfo.inc -gen-subtarget)
+tablegen(LLVM ARMGenEDInfo.inc -gen-enhanced-disassembly-info)
+tablegen(LLVM ARMGenDisassemblerTables.inc -gen-disassembler)
 add_public_tablegen_target(ARMCommonTableGen)
 
 add_llvm_target(ARMCodeGen
@@ -26,7 +26,6 @@ add_llvm_target(ARMCodeGen
   ARMExpandPseudoInsts.cpp
   ARMFastISel.cpp
   ARMFrameLowering.cpp
-  ARMGlobalMerge.cpp
   ARMHazardRecognizer.cpp
   ARMISelDAGToDAG.cpp
   ARMISelLowering.cpp
@@ -34,6 +33,7 @@ add_llvm_target(ARMCodeGen
   ARMJITInfo.cpp
   ARMLoadStoreOptimizer.cpp
   ARMMCInstLower.cpp
+  ARMMachineFunctionInfo.cpp
   ARMRegisterInfo.cpp
   ARMSelectionDAGInfo.cpp
   ARMSubtarget.cpp
@@ -49,22 +49,8 @@ add_llvm_target(ARMCodeGen
   Thumb2SizeReduction.cpp
   )
 
-add_llvm_library_dependencies(LLVMARMCodeGen
-  LLVMARMAsmPrinter
-  LLVMARMDesc
-  LLVMARMInfo
-  LLVMAnalysis
-  LLVMAsmPrinter
-  LLVMCodeGen
-  LLVMCore
-  LLVMMC
-  LLVMSelectionDAG
-  LLVMSupport
-  LLVMTarget
-  )
-
-# workaround for hanging compilation on MSVC10
-if( MSVC_VERSION EQUAL 1600 )
+# workaround for hanging compilation on MSVC9, 10
+if( MSVC_VERSION EQUAL 1600 OR MSVC_VERSION EQUAL 1500 )
 set_property(
   SOURCE ARMISelLowering.cpp
   PROPERTY COMPILE_FLAGS "/Od"

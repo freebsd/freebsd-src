@@ -121,8 +121,8 @@ define i1 @test12(i1 %A) {
   %B = icmp ne i64 bitcast (<2 x i32> <i32 1, i32 -1> to i64), %S
   ret i1 %B
 ; CHECK: @test12
-; CHECK-NEXT: %B = select i1
-; CHECK-NEXT: ret i1 %B
+; CHECK-NEXT: = xor i1 %A, true
+; CHECK-NEXT: ret i1
 }
 
 ; PR6481
@@ -524,7 +524,7 @@ define i1 @test53(i32 %a, i32 %b) nounwind {
 
 ; CHECK: @test54
 ; CHECK-NEXT: %and = and i8 %a, -64
-; CHECK-NEXT icmp eq i8 %and, -128
+; CHECK-NEXT: icmp eq i8 %and, -128
 define i1 @test54(i8 %a) nounwind {
   %ext = zext i8 %a to i32
   %and = and i32 %ext, 192
@@ -558,4 +558,82 @@ define i1 @test57(i32 %a) {
   %cmp = icmp ne i32 %and, 0
   call void @foo(i32 %and)
   ret i1 %cmp
+}
+
+; rdar://problem/10482509
+; CHECK: @cmpabs1
+; CHECK-NEXT: icmp ne
+define zeroext i1 @cmpabs1(i64 %val) {
+  %sub = sub nsw i64 0, %val
+  %cmp = icmp slt i64 %val, 0
+  %sub.val = select i1 %cmp, i64 %sub, i64 %val
+  %tobool = icmp ne i64 %sub.val, 0
+  ret i1 %tobool
+}
+
+; CHECK: @cmpabs2
+; CHECK-NEXT: icmp ne
+define zeroext i1 @cmpabs2(i64 %val) {
+  %sub = sub nsw i64 0, %val
+  %cmp = icmp slt i64 %val, 0
+  %sub.val = select i1 %cmp, i64 %val, i64 %sub
+  %tobool = icmp ne i64 %sub.val, 0
+  ret i1 %tobool
+}
+
+; CHECK: @test58
+; CHECK-NEXT: call i32 @test58_d(i64 36029346783166592)
+define void @test58() nounwind {
+  %cast = bitcast <1 x i64> <i64 36029346783166592> to i64
+  %call = call i32 @test58_d( i64 %cast) nounwind
+  ret void
+}
+declare i32 @test58_d(i64)
+
+define i1 @test59(i8* %foo) {
+  %bit = bitcast i8* %foo to i32*
+  %gep1 = getelementptr inbounds i32* %bit, i64 2
+  %gep2 = getelementptr inbounds i8* %foo, i64 10
+  %cast1 = bitcast i32* %gep1 to i8*
+  %cmp = icmp ult i8* %cast1, %gep2
+  %use = ptrtoint i8* %cast1 to i64
+  %call = call i32 @test58_d(i64 %use) nounwind
+  ret i1 %cmp
+; CHECK: @test59
+; CHECK: ret i1 true
+}
+
+define i1 @test60(i8* %foo, i64 %i, i64 %j) {
+  %bit = bitcast i8* %foo to i32*
+  %gep1 = getelementptr inbounds i32* %bit, i64 %i
+  %gep2 = getelementptr inbounds i8* %foo, i64 %j
+  %cast1 = bitcast i32* %gep1 to i8*
+  %cmp = icmp ult i8* %cast1, %gep2
+  ret i1 %cmp
+; CHECK: @test60
+; CHECK-NEXT: %gep1.idx = shl nuw i64 %i, 2
+; CHECK-NEXT: icmp slt i64 %gep1.idx, %j
+; CHECK-NEXT: ret i1
+}
+
+define i1 @test61(i8* %foo, i64 %i, i64 %j) {
+  %bit = bitcast i8* %foo to i32*
+  %gep1 = getelementptr i32* %bit, i64 %i
+  %gep2 = getelementptr  i8* %foo, i64 %j
+  %cast1 = bitcast i32* %gep1 to i8*
+  %cmp = icmp ult i8* %cast1, %gep2
+  ret i1 %cmp
+; Don't transform non-inbounds GEPs.
+; CHECK: @test61
+; CHECK: icmp ult i8* %cast1, %gep2
+; CHECK-NEXT: ret i1
+}
+
+define i1 @test62(i8* %a) {
+  %arrayidx1 = getelementptr inbounds i8* %a, i64 1
+  %arrayidx2 = getelementptr inbounds i8* %a, i64 10
+  %cmp = icmp slt i8* %arrayidx1, %arrayidx2
+  ret i1 %cmp
+; CHECK: @test62
+; CHECK-NEXT: ret i1 true
 }

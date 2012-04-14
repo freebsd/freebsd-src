@@ -56,13 +56,13 @@ define <2 x i32> @v_movi32d() nounwind {
 
 define <2 x i32> @v_movi32e() nounwind {
 ;CHECK: v_movi32e:
-;CHECK: vmov.i32 d{{.*}}, #0x20FF
+;CHECK: vmov.i32 d{{.*}}, #0x20ff
 	ret <2 x i32> < i32 8447, i32 8447 >
 }
 
 define <2 x i32> @v_movi32f() nounwind {
 ;CHECK: v_movi32f:
-;CHECK: vmov.i32 d{{.*}}, #0x20FFFF
+;CHECK: vmov.i32 d{{.*}}, #0x20ffff
 	ret <2 x i32> < i32 2162687, i32 2162687 >
 }
 
@@ -92,19 +92,19 @@ define <2 x i32> @v_mvni32d() nounwind {
 
 define <2 x i32> @v_mvni32e() nounwind {
 ;CHECK: v_mvni32e:
-;CHECK: vmvn.i32 d{{.*}}, #0x20FF
+;CHECK: vmvn.i32 d{{.*}}, #0x20ff
 	ret <2 x i32> < i32 4294958848, i32 4294958848 >
 }
 
 define <2 x i32> @v_mvni32f() nounwind {
 ;CHECK: v_mvni32f:
-;CHECK: vmvn.i32 d{{.*}}, #0x20FFFF
+;CHECK: vmvn.i32 d{{.*}}, #0x20ffff
 	ret <2 x i32> < i32 4292804608, i32 4292804608 >
 }
 
 define <1 x i64> @v_movi64() nounwind {
 ;CHECK: v_movi64:
-;CHECK: vmov.i64 d{{.*}}, #0xFF0000FF0000FFFF
+;CHECK: vmov.i64 d{{.*}}, #0xff0000ff0000ffff
 	ret <1 x i64> < i64 18374687574888349695 >
 }
 
@@ -152,19 +152,19 @@ define <4 x i32> @v_movQi32d() nounwind {
 
 define <4 x i32> @v_movQi32e() nounwind {
 ;CHECK: v_movQi32e:
-;CHECK: vmov.i32 q{{.*}}, #0x20FF
+;CHECK: vmov.i32 q{{.*}}, #0x20ff
 	ret <4 x i32> < i32 8447, i32 8447, i32 8447, i32 8447 >
 }
 
 define <4 x i32> @v_movQi32f() nounwind {
 ;CHECK: v_movQi32f:
-;CHECK: vmov.i32 q{{.*}}, #0x20FFFF
+;CHECK: vmov.i32 q{{.*}}, #0x20ffff
 	ret <4 x i32> < i32 2162687, i32 2162687, i32 2162687, i32 2162687 >
 }
 
 define <2 x i64> @v_movQi64() nounwind {
 ;CHECK: v_movQi64:
-;CHECK: vmov.i64 q{{.*}}, #0xFF0000FF0000FFFF
+;CHECK: vmov.i64 q{{.*}}, #0xff0000ff0000ffff
 	ret <2 x i64> < i64 18374687574888349695, i64 18374687574888349695 >
 }
 
@@ -182,7 +182,7 @@ entry:
 define void @vdupnneg75(%struct.int8x8_t* noalias nocapture sret %agg.result) nounwind {
 entry:
 ;CHECK: vdupnneg75:
-;CHECK: vmov.i8 d{{.*}}, #0xB5
+;CHECK: vmov.i8 d{{.*}}, #0xb5
   %0 = getelementptr inbounds %struct.int8x8_t* %agg.result, i32 0, i32 0 ; <<8 x i8>*> [#uses=1]
   store <8 x i8> <i8 -75, i8 -75, i8 -75, i8 -75, i8 -75, i8 -75, i8 -75, i8 -75>, <8 x i8>* %0, align 8
   ret void
@@ -353,3 +353,48 @@ define void @noTruncStore(<4 x i32>* %a, <4 x i16>* %b) nounwind {
   store <4 x i16> %tmp2, <4 x i16>* %b, align 8
   ret void
 }
+
+; Use vmov.f32 to materialize f32 immediate splats
+; rdar://10437054
+define void @v_mov_v2f32(<2 x float>* nocapture %p) nounwind {
+entry:
+;CHECK: v_mov_v2f32:
+;CHECK: vmov.f32 d{{.*}}, #-1.600000e+01
+  store <2 x float> <float -1.600000e+01, float -1.600000e+01>, <2 x float>* %p, align 4
+  ret void
+}
+
+define void @v_mov_v4f32(<4 x float>* nocapture %p) nounwind {
+entry:
+;CHECK: v_mov_v4f32:
+;CHECK: vmov.f32 q{{.*}}, #3.100000e+01
+  store <4 x float> <float 3.100000e+01, float 3.100000e+01, float 3.100000e+01, float 3.100000e+01>, <4 x float>* %p, align 4
+  ret void
+}
+
+define void @v_mov_v4f32_undef(<4 x float> * nocapture %p) nounwind {
+entry:
+;CHECK: v_mov_v4f32_undef:
+;CHECK: vmov.f32 q{{.*}}, #1.000000e+00
+  %a = load <4 x float> *%p
+  %b = fadd <4 x float> %a, <float undef, float 1.0, float 1.0, float 1.0>
+  store <4 x float> %b, <4 x float> *%p
+  ret void
+}
+
+; Vector any_extends must be selected as either vmovl.u or vmovl.s.
+; rdar://10723651
+define void @any_extend(<4 x i1> %x, <4 x i32> %y) nounwind ssp {
+entry:
+;CHECK: any_extend
+;CHECK: vmovl
+  %and.i186 = zext <4 x i1> %x to <4 x i32>
+  %add.i185 = sub <4 x i32> %and.i186, %y
+  %sub.i = sub <4 x i32> %add.i185, zeroinitializer
+  %add.i = add <4 x i32> %sub.i, zeroinitializer
+  %vmovn.i = trunc <4 x i32> %add.i to <4 x i16>
+  tail call void @llvm.arm.neon.vst1.v4i16(i8* undef, <4 x i16> %vmovn.i, i32 2)
+  unreachable
+}
+
+declare void @llvm.arm.neon.vst1.v4i16(i8*, <4 x i16>, i32) nounwind

@@ -9,7 +9,7 @@ declare void @objc_release(i8*)
 
 ; CHECK: define void @test0(
 ; CHECK: entry:
-; CHECK-NEXT: call void @objc_storeStrong(i8** @x, i8* %p) nounwind
+; CHECK-NEXT: tail call void @objc_storeStrong(i8** @x, i8* %p) nounwind
 ; CHECK-NEXT: ret void
 define void @test0(i8* %p) {
 entry:
@@ -33,7 +33,7 @@ entry:
 define void @test1(i8* %p) {
 entry:
   %0 = tail call i8* @objc_retain(i8* %p) nounwind
-  %tmp = volatile load i8** @x, align 8
+  %tmp = load volatile i8** @x, align 8
   store i8* %0, i8** @x, align 8
   tail call void @objc_release(i8* %tmp) nounwind
   ret void
@@ -53,7 +53,7 @@ define void @test2(i8* %p) {
 entry:
   %0 = tail call i8* @objc_retain(i8* %p) nounwind
   %tmp = load i8** @x, align 8
-  volatile store i8* %0, i8** @x, align 8
+  store volatile i8* %0, i8** @x, align 8
   tail call void @objc_release(i8* %tmp) nounwind
   ret void
 }

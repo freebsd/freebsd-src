@@ -80,7 +80,7 @@ declare void @llvm.arm.neon.vst1.v8i8(i8*, <8 x i8>, i32) nounwind
 ; so they are not split up into i32 values.  Radar 8755338.
 define void @i64_buildvector(i64* %ptr, <2 x i64>* %vp) nounwind {
 ; CHECK: i64_buildvector
-; CHECK: vldr.64
+; CHECK: vldr
   %t0 = load i64* %ptr, align 4
   %t1 = insertelement <2 x i64> undef, i64 %t0, i32 0
   store <2 x i64> %t1, <2 x i64>* %vp
@@ -89,7 +89,7 @@ define void @i64_buildvector(i64* %ptr, <2 x i64>* %vp) nounwind {
 
 define void @i64_insertelement(i64* %ptr, <2 x i64>* %vp) nounwind {
 ; CHECK: i64_insertelement
-; CHECK: vldr.64
+; CHECK: vldr
   %t0 = load i64* %ptr, align 4
   %vec = load <2 x i64>* %vp
   %t1 = insertelement <2 x i64> %vec, i64 %t0, i32 0
@@ -99,7 +99,7 @@ define void @i64_insertelement(i64* %ptr, <2 x i64>* %vp) nounwind {
 
 define void @i64_extractelement(i64* %ptr, <2 x i64>* %vp) nounwind {
 ; CHECK: i64_extractelement
-; CHECK: vstr.64
+; CHECK: vstr
   %vec = load <2 x i64>* %vp
   %t1 = extractelement <2 x i64> %vec, i32 0
   store i64 %t1, i64* %ptr
@@ -123,3 +123,13 @@ define void @orVec(<3 x i8>* %A) nounwind {
   ret void
 }
 
+; The following test was hitting an assertion in the DAG combiner when
+; constant folding the multiply because the "sext undef" was translated to
+; a BUILD_VECTOR with i32 0 operands, which did not match the i16 operands
+; of the other BUILD_VECTOR.
+define i16 @foldBuildVectors() {
+  %1 = sext <8 x i8> undef to <8 x i16>
+  %2 = mul <8 x i16> %1, <i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255>
+  %3 = extractelement <8 x i16> %2, i32 0
+  ret i16 %3
+}

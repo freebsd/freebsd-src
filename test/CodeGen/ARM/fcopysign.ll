@@ -1,5 +1,5 @@
-; RUN: llc < %s -mtriple=armv7-apple-darwin -mcpu=cortex-a8 | FileCheck %s -check-prefix=SOFT
-; RUN: llc < %s -mtriple=armv7-gnueabi -float-abi=hard -mcpu=cortex-a8 | FileCheck %s -check-prefix=HARD
+; RUN: llc < %s -disable-post-ra -mtriple=armv7-apple-darwin -mcpu=cortex-a8 | FileCheck %s -check-prefix=SOFT
+; RUN: llc < %s -disable-post-ra -mtriple=armv7-gnueabi -float-abi=hard -mcpu=cortex-a8 | FileCheck %s -check-prefix=HARD
 
 ; rdar://8984306
 define float @test1(float %x, float %y) nounwind {
@@ -40,28 +40,12 @@ entry:
   ret double %1
 }
 
-; rdar://9059537
-define i32 @test4() ssp {
+; rdar://9287902
+define float @test4() nounwind {
 entry:
 ; SOFT: test4:
-; SOFT: vmov.f64 [[REG4:(d[0-9]+)]], #1.000000e+00
-; This S-reg must be the first sub-reg of the last D-reg on vbsl.
-; SOFT: vcvt.f32.f64 {{s1?[02468]}}, [[REG4]]
-; SOFT: vshr.u64 [[REG4]], [[REG4]], #32
-; SOFT: vmov.i32 [[REG5:(d[0-9]+)]], #0x80000000
-; SOFT: vbsl [[REG5]], [[REG4]], {{d[0-9]+}}
-  %call80 = tail call double @copysign(double 1.000000e+00, double undef)
-  %conv81 = fptrunc double %call80 to float
-  %tmp88 = bitcast float %conv81 to i32
-  ret i32 %tmp88
-}
-
-; rdar://9287902
-define float @test5() nounwind {
-entry:
-; SOFT: test5:
-; SOFT: vmov.i32 [[REG6:(d[0-9]+)]], #0x80000000
 ; SOFT: vmov [[REG7:(d[0-9]+)]], r0, r1
+; SOFT: vmov.i32 [[REG6:(d[0-9]+)]], #0x80000000
 ; SOFT: vshr.u64 [[REG7]], [[REG7]], #32
 ; SOFT: vbsl [[REG6]], [[REG7]], 
   %0 = tail call double (...)* @bar() nounwind
