@@ -730,7 +730,6 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 	}
 	if (ADDR_NETWORK(ad)) {
 		pfr_prepare_network(&mask, ad->pfra_af, ad->pfra_net);
-		PF_LOCK_ASSERT();
 		ke = (struct pfr_kentry *)rn_lookup(&sa, &mask, head);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
@@ -914,7 +913,6 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 	else if (ke->pfrke_af == AF_INET6)
 		head = kt->pfrkt_ip6;
 
-	PF_LOCK_ASSERT();
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
 		rn = rn_addroute(&ke->pfrke_sa, &mask, head, ke->pfrke_node);
@@ -936,7 +934,6 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 	else if (ke->pfrke_af == AF_INET6)
 		head = kt->pfrkt_ip6;
 
-	PF_LOCK_ASSERT();
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
 		rn = rn_delete(&ke->pfrke_sa, &mask, head);
