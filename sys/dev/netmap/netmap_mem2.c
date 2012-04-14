@@ -161,11 +161,9 @@ netmap_ofstophys(vm_offset_t offset)
 		return p[i]->lut[offset / p[i]->_objsize].paddr +
 			offset % p[i]->_objsize;
 	}
-	D("invalid ofs 0x%jx out of 0x%jx 0x%jx 0x%jx", (uintmax_t)o,
-		(uintmax_t)p[0]->_memtotal,
-		(uintmax_t)(p[0]->_memtotal + p[1]->_memtotal),
-		(uintmax_t)(p[0]->_memtotal + p[1]->_memtotal +
-		    p[2]->_memtotal));
+	D("invalid ofs 0x%x out of 0x%x 0x%x 0x%x", (u_int)o,
+		p[0]->_memtotal, p[0]->_memtotal + p[1]->_memtotal,
+		p[0]->_memtotal + p[1]->_memtotal + p[2]->_memtotal);
 	return 0;	// XXX bad address
 }
 
