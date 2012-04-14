@@ -71,7 +71,7 @@ static int
 at91_rst_probe(device_t dev)
 {
 
-	if (at91_is_sam9()) {
+	if (at91_is_sam9() || at91_is_sam9xe()) {
 		device_set_desc(dev, "AT91SAM9 Reset Controller");
 		return (0);
 	}

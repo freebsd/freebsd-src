@@ -63,6 +63,7 @@ extern uint32_t at91_chip_id;
 
 static inline int at91_is_rm92(void);
 static inline int at91_is_sam9(void);
+static inline int at91_is_sam9xe(void);
 static inline int at91_cpu_is(u_int cpu);
 
 static inline int
@@ -77,6 +78,13 @@ at91_is_sam9(void)
 {
 
 	return (AT91_ARCH(at91_chip_id) == AT91_ARCH_SAM9);
+}
+
+static inline int
+at91_is_sam9xe(void)
+{
+
+	return (AT91_ARCH(at91_chip_id) == AT91_ARCH_SAM9XE);
 }
 
 static inline int
