@@ -50,6 +50,7 @@ ar5416SetPowerModeAwake(struct ath_hal *ah, int setChip)
 			& AR_RTC_PM_STATUS_M) == AR_RTC_STATUS_SHUTDOWN) {
 			if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
 				goto bad;			
+			AH5416(ah)->ah_initPLL(ah, AH_NULL);
 		}
 
 		if (AR_SREV_HOWL(ah))
