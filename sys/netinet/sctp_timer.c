@@ -1451,7 +1451,8 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		} else {
 			ms_gone_by = 0xffffffff;
 		}
-		if (ms_gone_by >= net->heart_beat_delay) {
+		if ((ms_gone_by >= net->heart_beat_delay) ||
+		    (net->dest_state & SCTP_ADDR_PF)) {
 			sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
 		}
 	}
