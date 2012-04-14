@@ -61,6 +61,9 @@
 #define	AT91_CPU_SAM9G10  	0x819903a0
 #define	AT91_CPU_SAM9G20  	0x019905a0
 #define	AT91_CPU_SAM9G45  	0x819b05a0
+#define	AT91_CPU_SAM9XE128	0x329973a0
+#define	AT91_CPU_SAM9XE256	0x329a93a0
+#define	AT91_CPU_SAM9XE512	0x329aa3a0
 
 #define	AT91_ARCH(chipid)	((chipid >> 20) & 0xff)
 #define	AT91_CPU(chipid)	(chipid & ~AT91_CPU_VERSION_MASK)
