@@ -466,10 +466,10 @@ public:
 
 static bool HasSameVirtualSignature(const CXXMethodDecl *LHS,
                                     const CXXMethodDecl *RHS) {
-  ASTContext &C = LHS->getASTContext(); // TODO: thread this down
-  CanQual<FunctionProtoType>
-    LT = C.getCanonicalType(LHS->getType()).getAs<FunctionProtoType>(),
-    RT = C.getCanonicalType(RHS->getType()).getAs<FunctionProtoType>();
+  const FunctionProtoType *LT =
+    cast<FunctionProtoType>(LHS->getType().getCanonicalType());
+  const FunctionProtoType *RT =
+    cast<FunctionProtoType>(RHS->getType().getCanonicalType());
 
   // Fast-path matches in the canonical types.
   if (LT == RT) return true;
@@ -477,7 +477,7 @@ static bool HasSameVirtualSignature(const CXXMethodDecl *LHS,
   // Force the signatures to match.  We can't rely on the overrides
   // list here because there isn't necessarily an inheritance
   // relationship between the two methods.
-  if (LT.getQualifiers() != RT.getQualifiers() ||
+  if (LT->getTypeQuals() != RT->getTypeQuals() ||
       LT->getNumArgs() != RT->getNumArgs())
     return false;
   for (unsigned I = 0, E = LT->getNumArgs(); I != E; ++I)
@@ -996,7 +996,7 @@ public:
 
     LayoutVTable();
 
-    if (Context.getLangOptions().DumpVTableLayouts)
+    if (Context.getLangOpts().DumpVTableLayouts)
       dumpLayout(llvm::errs());
   }
 
@@ -1580,7 +1580,7 @@ void VTableBuilder::LayoutVTable() {
   LayoutVTablesForVirtualBases(MostDerivedClass, VBases);
 
   // -fapple-kext adds an extra entry at end of vtbl.
-  bool IsAppleKext = Context.getLangOptions().AppleKext;
+  bool IsAppleKext = Context.getLangOpts().AppleKext;
   if (IsAppleKext)
     Components.push_back(VTableComponent::MakeVCallOffset(CharUnits::Zero()));
 }
@@ -2136,7 +2136,8 @@ void VTableBuilder::dumpLayout(raw_ostream& Out) {
       uint64_t VTableIndex = I->first;
       const std::string &MethodName = I->second;
 
-      Out << llvm::format(" %4u | ", VTableIndex) << MethodName << '\n';
+      Out << llvm::format(" %4" PRIu64 " | ", VTableIndex) << MethodName
+          << '\n';
     }
   }
 

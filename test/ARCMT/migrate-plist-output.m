@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -arcmt-migrate -arcmt-migrate-directory %t.dir -arcmt-migrate-report-output %t.plist %s 
+// RUN: %clang_cc1 -arcmt-migrate -mt-migrate-directory %t.dir -arcmt-migrate-report-output %t.plist %s 
 // RUN: FileCheck %s -input-file=%t.plist
 // RUN: rm -rf %t.dir
 
@@ -21,7 +21,7 @@ void test(id p) {
 // CHECK:  <array>
 // CHECK:   <dict>
 // CHECK:    <key>description</key><string>ARC forbids explicit message send of &apos;release&apos;</string>
-// CHECK:    <key>category</key><string>Automatic Reference Counting Issue</string>
+// CHECK:    <key>category</key><string>ARC Restrictions</string>
 // CHECK:    <key>type</key><string>error</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
@@ -48,3 +48,5 @@ void test(id p) {
 // CHECK:  </array>
 // CHECK: </dict>
 // CHECK: </plist>
+
+// DISABLE: mingw32

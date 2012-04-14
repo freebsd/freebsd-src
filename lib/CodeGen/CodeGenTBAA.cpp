@@ -169,7 +169,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
 
     // TODO: This is using the RTTI name. Is there a better way to get
     // a unique string for a type?
-    llvm::SmallString<256> OutName;
+    SmallString<256> OutName;
     llvm::raw_svector_ostream Out(OutName);
     MContext.mangleCXXRTTIName(QualType(ETy, 0), Out);
     Out.flush();
@@ -178,4 +178,8 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
 
   // For now, handle any other kind of type conservatively.
   return MetadataCache[Ty] = getChar();
+}
+
+llvm::MDNode *CodeGenTBAA::getTBAAInfoForVTablePtr() {
+  return getTBAAInfoForNamedType("vtable pointer", getRoot());
 }

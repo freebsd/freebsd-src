@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-bool-conversion %s
 
 typedef __typeof__(((int*)0)-((int*)0)) ptrdiff_t;
 
@@ -100,8 +100,8 @@ int main()
   { (void) reinterpret_cast<int>(two); } //expected-error {{reinterpret_cast}}
   { (void) reinterpret_cast<int (*)(char, double)>(two); } //expected-error {{reinterpret_cast}}
 
-  { bool b = (twoT<int>); } // ok
-  { bool b = (twoT<int, int>); } //ok
+  { bool b = (twoT<int>); } 
+  { bool b = (twoT<int, int>); } 
 
   { bool b = &twoT<int>; //&foo<int>; }
     b = &(twoT<int>); }
@@ -116,7 +116,7 @@ int main()
   { ptrdiff_t x = (ptrdiff_t) &twoT<int,int>;
   x = (ptrdiff_t) &twoT<int>; }
 
-  { oneT<int>;   &oneT<int>; } //expected-warning 2{{ expression result unused }}
+  { oneT<int>;   &oneT<int>; } //expected-warning 2{{expression result unused}}
   { static_cast<void>(cant_resolve<int>); } // expected-error {{address of overload}}
   { bool b = cant_resolve<int>; } // expected-error {{address of overload}}
   { (void) cant_resolve<int>; } // expected-error {{address of overload}}
@@ -165,8 +165,8 @@ namespace member_pointers {
     { bool b = &S::f<char>; }
     { bool b = &S::f<int>; }
     // These next two errors are terrible.
-    { bool b = s.f<char>; } // expected-error {{cannot initialize}}
-    { bool b = s.f<int>; } // expected-error {{cannot initialize}}
+    { bool b = s.f<char>; } // expected-error {{reference to non-static member function must be called}}
+    { bool b = s.f<int>; } // expected-error {{reference to non-static member function must be called}}
     { bool b = &s.f<char>; } // expected-error {{cannot create a non-constant pointer to member function}}
     { bool b = &s.f<int>; } // expected-error {{cannot create a non-constant pointer to member function}}
 

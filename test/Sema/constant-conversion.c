@@ -31,8 +31,8 @@ void test3() {
     int bar : 2;
   };
 
-  struct A a = { 0, 10 };            // expected-warning {{implicit truncation from 'int' to bitfield changes value from 10 to 2}}
-  struct A b[] = { 0, 10, 0, 0 };    // expected-warning {{implicit truncation from 'int' to bitfield changes value from 10 to 2}}
+  struct A a = { 0, 10 };            // expected-warning {{implicit truncation from 'int' to bitfield changes value from 10 to -2}}
+  struct A b[] = { 0, 10, 0, 0 };    // expected-warning {{implicit truncation from 'int' to bitfield changes value from 10 to -2}}
   struct A c[] = {{10, 0}};          // expected-warning {{implicit truncation from 'int' to bitfield changes value from 10 to 2}}
   struct A d = (struct A) { 10, 0 }; // expected-warning {{implicit truncation from 'int' to bitfield changes value from 10 to 2}}
   struct A e = { .foo = 10 };        // expected-warning {{implicit truncation from 'int' to bitfield changes value from 10 to 2}}
@@ -54,4 +54,29 @@ void test5() {
   // Don't warn about this implicit conversion to bool, or at least
   // don't warn about it just because it's a bitfield.
   a.b = 100;
+}
+
+void test6() {
+  // Test that unreachable code doesn't trigger the truncation warning.
+  unsigned char x = 0 ? 65535 : 1; // no-warning
+  unsigned char y = 1 ? 65535 : 1; // expected-warning {{changes value}}
+}
+
+void test7() {
+	struct {
+		unsigned int twoBits1:2;
+		unsigned int twoBits2:2;
+		unsigned int reserved:28;
+	} f;
+
+	f.twoBits1 = ~1; // expected-warning {{implicit truncation from 'int' to bitfield changes value from -2 to 2}}
+	f.twoBits2 = ~2; // expected-warning {{implicit truncation from 'int' to bitfield changes value from -3 to 1}}
+	f.twoBits1 &= ~1; // no-warning
+	f.twoBits2 &= ~2; // no-warning
+}
+
+void test8() {
+  enum E { A, B, C };
+  struct { enum E x : 1; } f;
+  f.x = C; // expected-warning {{implicit truncation from 'int' to bitfield changes value from 2 to 0}}
 }

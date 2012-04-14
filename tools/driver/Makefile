@@ -30,13 +30,13 @@ TOOL_INFO_PLIST := Info.plist
 include $(CLANG_LEVEL)/../../Makefile.config
 
 LINK_COMPONENTS := $(TARGETS_TO_BUILD) asmparser bitreader bitwriter codegen \
-                   instrumentation ipo selectiondag
+                   instrumentation ipo linker selectiondag
 USEDLIBS = clangFrontendTool.a clangFrontend.a clangDriver.a \
            clangSerialization.a clangCodeGen.a clangParse.a clangSema.a \
            clangStaticAnalyzerFrontend.a clangStaticAnalyzerCheckers.a \
            clangStaticAnalyzerCore.a \
            clangAnalysis.a clangIndex.a clangARCMigrate.a clangRewrite.a \
-           clangAST.a clangLex.a clangBasic.a
+           clangEdit.a clangAST.a clangLex.a clangBasic.a
 
 include $(CLANG_LEVEL)/Makefile
 

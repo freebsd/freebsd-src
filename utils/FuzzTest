@@ -156,6 +156,7 @@ def run_one_test(test_application, index, input_files, args):
         print 'FAIL: %d' % index
     elif not opts.succinct:
         print 'PASS: %d' % index
+    return test_result
 
 def main():
     global opts
@@ -182,7 +183,7 @@ test and then leave the fuzzed inputs in place to examine the failure.
 For each fuzzed input, %prog will run the test command given on the command
 line. Each argument in the command is subject to string interpolation before
 being executed. The syntax is "%(VARIABLE)FORMAT" where FORMAT is a standard
-printf format, and VARIBLE is one of:
+printf format, and VARIABLE is one of:
 
   'index' - the test index being run
   'inputs' - the full list of test inputs
@@ -194,6 +195,10 @@ printf format, and VARIBLE is one of:
 By default, the script will run forever continually picking new tests to
 run. You can limit the number of tests that are run with '--max-tests <number>',
 and you can run a particular test with '--test <index>'.
+
+You can specify '--stop-on-fail' to stop the script on the first failure
+without reverting the changes.
+
 """)
     parser.add_option("-v", "--verbose", help="Show more output",
                       action='store_true', dest="verbose", default=False)
@@ -223,7 +228,7 @@ and you can run a particular test with '--test <index>'.
                      type=str, action="append", dest="input_files", default=[])
     group.add_option("", "--filelist", metavar="LIST",
                      help="Add a list of inputs files to fuzz (one per line)",
-                     type=int, action="append", dest="filelists", default=[])
+                     type=str, action="append", dest="filelists", default=[])
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Fuzz Options")
@@ -244,13 +249,15 @@ and you can run a particular test with '--test <index>'.
                      action='store_false', dest="enable_replace", default=True)
     group.add_option("", "--no-revert", help="Don't revert changes",
                      action='store_false', dest="revert", default=True)
+    group.add_option("", "--stop-on-fail", help="Stop on first failure",
+                     action='store_true', dest="stop_on_fail", default=False)
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Test Selection")
     group.add_option("", "--test", help="Run a particular test",
                      type=int, dest="test", default=None, metavar="INDEX")
     group.add_option("", "--max-tests", help="Maximum number of tests",
-                     type=int, dest="max_tests", default=10, metavar="COUNT")
+                     type=int, dest="max_tests", default=None, metavar="COUNT")
     group.add_option("", "--pick-input",
                      help="Randomly select an input byte as well as fuzzing",
                      action='store_true', dest="pick_input", default=False)
@@ -329,7 +336,10 @@ and you can run a particular test with '--test <index>'.
         ta = TestApplication(tg, t)
         try:
             ta.apply()
-            run_one_test(ta, test, input_files, args)
+            test_result = run_one_test(ta, test, input_files, args)
+            if not test_result and opts.stop_on_fail:
+                opts.revert = False
+                sys.exit(1)
         finally:
             if opts.revert:
                 ta.revert()

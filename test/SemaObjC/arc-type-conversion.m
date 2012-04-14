@@ -1,5 +1,9 @@
 // RUN: %clang_cc1 -fsyntax-only -fobjc-arc -fobjc-runtime-has-weak -verify -fblocks %s
 
+typedef const void * CFTypeRef;
+CFTypeRef CFBridgingRetain(id X);
+id CFBridgingRelease(CFTypeRef);
+
 void * cvt(id arg)
 {
   void* voidp_val;
@@ -12,12 +16,15 @@ void * cvt(id arg)
   (void)(void*)voidp_val;
   (void)(void**)arg; // expected-error {{cast of an Objective-C pointer to 'void **' is disallowed with ARC}}
   cvt((void*)arg); // expected-error {{cast of Objective-C pointer type 'id' to C pointer type 'void *' requires a bridged cast}} \
-                   // expected-error {{implicit conversion of a non-Objective-C pointer type 'void *' to 'id' is disallowed with ARC}} \
-                   // expected-note{{use __bridge to convert directly (no change in ownership)}} \
-                   // expected-note{{use __bridge_retained to make an ARC object available as a +1 'void *'}}
+                   // expected-error {{implicit conversion of C pointer type 'void *' to Objective-C pointer type 'id' requires a bridged cast}} \
+                   // expected-note 2 {{use __bridge to convert directly (no change in ownership)}} \
+                   // expected-note {{use CFBridgingRetain call to make an ARC object available as a +1 'void *'}} \
+                   // expected-note {{use CFBridgingRelease call to transfer ownership of a +1 'void *' into ARC}}
   cvt(0);
   (void)(__strong id**)(0);
-  return arg; // expected-error {{implicit conversion of an Objective-C pointer to 'void *' is disallowed with ARC}}
+  return arg; // expected-error {{implicit conversion of Objective-C pointer type 'id' to C pointer type 'void *' requires a bridged cast}} \
+                   // expected-note {{use __bridge to convert directly (no change in ownership)}} \
+                   // expected-note {{use CFBridgingRetain call to make an ARC object available as a +1 'void *'}}
 }
 
 void to_void(__strong id *sip, __weak id *wip,
@@ -74,4 +81,18 @@ void ownership_transfer_in_cast(void *vp, Block *pblk) {
   Block_strong blk_strong1;
   Block_strong blk_strong2 = (Block)blk_strong1;
   Block_autoreleasing *blk_auto = (Block*)pblk;
+
+  id lv;
+  (void)(id)&lv; // expected-error {{cast of an indirect pointer to an Objective-C pointer to 'id'}}
+  (void)(id*)lv; // expected-error {{cast of an Objective-C pointer to '__strong id *'}}
+  (void)(NSString*)&lv; // expected-error {{cast of an indirect pointer to an Objective-C pointer to 'NSString *'}}
+  (void)(NSString**)lv; // expected-error {{cast of an Objective-C pointer to 'NSString *__strong *'}}
+  (void)(Block)&lv; // expected-error {{cast of an indirect pointer to an Objective-C pointer to 'Block'}}
+  (void)(Block*)lv; // expected-error {{cast of an Objective-C pointer to '__strong Block *'}}
+}
+
+// <rdar://problem/10486347>
+void conversion_in_conditional(id a, void* b) {
+  id c = 1 ? a : b; // expected-error {{operands to conditional of types 'id' and 'void *' are incompatible in ARC mode}}
+  id d = 1 ? b : a; // expected-error {{operands to conditional of types 'void *' and 'id' are incompatible in ARC mode}}
 }

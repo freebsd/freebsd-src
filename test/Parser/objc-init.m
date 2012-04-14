@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -fsyntax-only -fobjc-fragile-abi -verify %s -pedantic
-// RUN: %clang_cc1 -fsyntax-only -fobjc-fragile-abi -verify -x objective-c++ %s 
+// RUN: %clang_cc1 -fsyntax-only -fobjc-fragile-abi -verify -pedantic -Wno-objc-root-class %s
+// RUN: %clang_cc1 -fsyntax-only -fobjc-fragile-abi -verify -x objective-c++ -Wno-objc-root-class %s
 // rdar://5707001
 
 @interface NSNumber;
@@ -15,7 +15,7 @@ void test1() {
 	id objects[] = {[NSNumber METH]};
 }
 
-void test2(NSNumber x) { // expected-error {{Objective-C interface type 'NSNumber' cannot be passed by value; did you forget * in 'NSNumber'}}
+void test2(NSNumber x) { // expected-error {{interface type 'NSNumber' cannot be passed by value; did you forget * in 'NSNumber'}}
 	id objects[] = {[x METH]};
 }
 

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.core -analyzer-constraints=basic -analyzer-store=region %s -verify
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.core -analyzer-constraints=basic -analyzer-store=region -verify -Wno-objc-root-class %s
 
 typedef struct Foo { int x; } Bar;
 
@@ -14,12 +14,12 @@ typedef struct Foo { int x; } Bar;
 
 void createFoo() {
   MyClass *obj = 0;  
-  Bar f = [obj foo]; // expected-warning{{The receiver of message 'foo' is nil and returns a value of type 'Bar' that will be garbage}}
+  Bar f = [obj foo]; // no-warning
 }
 
 void createFoo2() {
   MyClass *obj = 0;  
   [obj foo]; // no-warning
-  Bar f = [obj foo]; // expected-warning{{The receiver of message 'foo' is nil and returns a value of type 'Bar' that will be garbage}}
+  Bar f = [obj foo]; // no-warning
 }
 

@@ -8,7 +8,7 @@ using namespace ento;
 
 namespace {
 class MainCallChecker : public Checker < check::PreStmt<CallExpr> > {
-  mutable llvm::OwningPtr<BugType> BT;
+  mutable OwningPtr<BugType> BT;
 
 public:
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
@@ -16,9 +16,10 @@ public:
 } // end anonymous namespace
 
 void MainCallChecker::checkPreStmt(const CallExpr *CE, CheckerContext &C) const {
-  const ProgramState *state = C.getState();
+  const ProgramStateRef state = C.getState();
+  const LocationContext *LC = C.getLocationContext();
   const Expr *Callee = CE->getCallee();
-  const FunctionDecl *FD = state->getSVal(Callee).getAsFunctionDecl();
+  const FunctionDecl *FD = state->getSVal(Callee, LC).getAsFunctionDecl();
 
   if (!FD)
     return;

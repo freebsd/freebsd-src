@@ -1,11 +1,11 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
 
 @interface MyClass // expected-note {{required for direct or indirect protocol 'P'}}
 @end
 
 @protocol P
 - (void)Pmeth;
-- (void)Pmeth1; // expected-note {{method declared here}}
+- (void)Pmeth1; // expected-note {{method 'Pmeth1' declared here}}
 @end
 
 // Class extension
@@ -19,6 +19,6 @@
 @end
 
 @implementation MyClass // expected-warning {{incomplete implementation}}  \
-			// expected-warning {{method in protocol not implemented [-Wprotocol]}}
+			// expected-warning {{method 'Pmeth1' in protocol not implemented}}
 - (void)Pmeth {}
 @end

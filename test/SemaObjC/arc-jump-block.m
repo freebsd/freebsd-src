@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fsyntax-only -fobjc-arc -fblocks -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fsyntax-only -fobjc-arc -fblocks -verify -Wno-objc-root-class %s
 // rdar://9535237
 
 typedef struct dispatch_queue_s *dispatch_queue_t;
@@ -82,3 +82,16 @@ extern __attribute__((visibility("default"))) struct dispatch_queue_s _dispatch_
 - (void)pageLeft {}
 - (void)pageRight {}
 @end
+
+// Test 2.  rdar://problem/11150919
+int test2(id obj, int state) { // expected-note {{jump enters lifetime of block}} FIXME: wierd location
+  switch (state) {
+  case 0:
+    (void) ^{ (void) obj; };
+    return 0;
+
+  default: // expected-error {{switch case is in protected scope}}
+    return 1;
+  }
+}
+

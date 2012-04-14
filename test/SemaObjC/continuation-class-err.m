@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
 
 @interface ReadOnly 
 {
@@ -40,3 +40,12 @@
 @synthesize fee = _fee;
 @end
 
+// rdar://10752081
+@interface MyOtherClass() // expected-error {{cannot find interface declaration for 'MyOtherClass'}}
+{
+ id array;
+}
+@end
+
+@implementation MyOtherClass // expected-warning {{cannot find interface declaration for 'MyOtherClass'}}
+@end

@@ -39,6 +39,18 @@ struct DerivesEmpty : Empty {};
 struct HasCons { HasCons(int); };
 struct HasCopyAssign { HasCopyAssign operator =(const HasCopyAssign&); };
 struct HasMoveAssign { HasMoveAssign operator =(const HasMoveAssign&&); };
+struct HasDefaultTrivialCopyAssign { 
+  HasDefaultTrivialCopyAssign &operator =(const HasDefaultTrivialCopyAssign&)
+    = default; 
+};
+struct TrivialMoveButNotCopy { 
+  TrivialMoveButNotCopy &operator=(TrivialMoveButNotCopy&&) = default;
+  TrivialMoveButNotCopy &operator=(const TrivialMoveButNotCopy&);
+};
+struct NonTrivialDefault {
+  NonTrivialDefault();
+};
+
 struct HasDest { ~HasDest(); };
 class  HasPriv { int priv; };
 class  HasProt { protected: int prot; };
@@ -94,6 +106,10 @@ class AllPrivate {
   AllPrivate(const AllPrivate&) throw();
   AllPrivate &operator=(const AllPrivate &) throw();
   ~AllPrivate() throw();
+};
+
+struct ThreeArgCtor {
+  ThreeArgCtor(int*, char*, int);
 };
 
 void is_pod()
@@ -233,6 +249,37 @@ void is_enum()
   { int arr[F(__is_enum(cvoid))]; }
   { int arr[F(__is_enum(IntArNB))]; }
   { int arr[F(__is_enum(HasAnonymousUnion))]; }
+}
+
+struct FinalClass final {
+};
+
+template<typename T> 
+struct PotentiallyFinal { };
+
+template<typename T>
+struct PotentiallyFinal<T*> final { };
+
+template<>
+struct PotentiallyFinal<int> final { };
+
+void is_final()
+{
+	{ int arr[T(__is_final(FinalClass))]; }
+	{ int arr[T(__is_final(PotentiallyFinal<float*>))]; }
+	{ int arr[T(__is_final(PotentiallyFinal<int>))]; }
+
+	{ int arr[F(__is_final(int))]; }
+	{ int arr[F(__is_final(Union))]; }
+	{ int arr[F(__is_final(Int))]; }
+	{ int arr[F(__is_final(IntAr))]; }
+	{ int arr[F(__is_final(UnionAr))]; }
+	{ int arr[F(__is_final(Derives))]; }
+	{ int arr[F(__is_final(ClassType))]; }
+	{ int arr[F(__is_final(cvoid))]; }
+	{ int arr[F(__is_final(IntArNB))]; }
+	{ int arr[F(__is_final(HasAnonymousUnion))]; }
+	{ int arr[F(__is_final(PotentiallyFinal<float>))]; }
 }
 
 typedef HasVirt Polymorph;
@@ -885,6 +932,41 @@ struct NonTCStruct {
   NonTCStruct(const NonTCStruct&) {}
 };
 
+struct AllDefaulted {
+  AllDefaulted() = default;
+  AllDefaulted(const AllDefaulted &) = default;
+  AllDefaulted(AllDefaulted &&) = default;
+  AllDefaulted &operator=(const AllDefaulted &) = default;
+  AllDefaulted &operator=(AllDefaulted &&) = default;
+  ~AllDefaulted() = default;
+};
+
+struct AllDeleted {
+  AllDeleted() = delete;
+  AllDeleted(const AllDeleted &) = delete;
+  AllDeleted(AllDeleted &&) = delete;
+  AllDeleted &operator=(const AllDeleted &) = delete;
+  AllDeleted &operator=(AllDeleted &&) = delete;
+  ~AllDeleted() = delete;
+};
+
+struct ExtDefaulted {
+  ExtDefaulted();
+  ExtDefaulted(const ExtDefaulted &);
+  ExtDefaulted(ExtDefaulted &&);
+  ExtDefaulted &operator=(const ExtDefaulted &);
+  ExtDefaulted &operator=(ExtDefaulted &&);
+  ~ExtDefaulted();
+};
+
+// Despite being defaulted, these functions are not trivial.
+ExtDefaulted::ExtDefaulted() = default;
+ExtDefaulted::ExtDefaulted(const ExtDefaulted &) = default;
+ExtDefaulted::ExtDefaulted(ExtDefaulted &&) = default;
+ExtDefaulted &ExtDefaulted::operator=(const ExtDefaulted &) = default;
+ExtDefaulted &ExtDefaulted::operator=(ExtDefaulted &&) = default;
+ExtDefaulted::~ExtDefaulted() = default;
+
 void is_trivial2()
 {
   int t01[T(__is_trivial(char))];
@@ -909,11 +991,14 @@ void is_trivial2()
   int t20[T(__is_trivial(Union))];
   int t21[T(__is_trivial(UnionAr))];
   int t22[T(__is_trivial(TrivialStruct))];
+  int t23[T(__is_trivial(AllDefaulted))];
+  int t24[T(__is_trivial(AllDeleted))];
 
   int t30[F(__is_trivial(void))];
   int t31[F(__is_trivial(NonTrivialStruct))];
   int t32[F(__is_trivial(SuperNonTrivialStruct))];
   int t33[F(__is_trivial(NonTCStruct))];
+  int t34[F(__is_trivial(ExtDefaulted))];
 }
 
 void is_trivially_copyable2()
@@ -941,10 +1026,13 @@ void is_trivially_copyable2()
   int t21[T(__is_trivially_copyable(UnionAr))];
   int t22[T(__is_trivially_copyable(TrivialStruct))];
   int t23[T(__is_trivially_copyable(NonTrivialStruct))];
+  int t24[T(__is_trivially_copyable(AllDefaulted))];
+  int t25[T(__is_trivially_copyable(AllDeleted))];
 
   int t30[F(__is_trivially_copyable(void))];
-  int t32[F(__is_trivially_copyable(SuperNonTrivialStruct))];
-  int t31[F(__is_trivially_copyable(NonTCStruct))];
+  int t31[F(__is_trivially_copyable(SuperNonTrivialStruct))];
+  int t32[F(__is_trivially_copyable(NonTCStruct))];
+  int t33[F(__is_trivially_copyable(ExtDefaulted))];
 }
 
 struct CStruct {
@@ -1100,6 +1188,8 @@ void has_trivial_default_constructor() {
   { int arr[T(__has_trivial_constructor(HasCopyAssign))]; }
   { int arr[T(__has_trivial_constructor(HasMoveAssign))]; }
   { int arr[T(__has_trivial_constructor(const Int))]; }
+  { int arr[T(__has_trivial_constructor(AllDefaulted))]; }
+  { int arr[T(__has_trivial_constructor(AllDeleted))]; }
 
   { int arr[F(__has_trivial_constructor(HasCons))]; }
   { int arr[F(__has_trivial_constructor(HasRef))]; }
@@ -1110,6 +1200,7 @@ void has_trivial_default_constructor() {
   { int arr[F(__has_trivial_constructor(cvoid))]; }
   { int arr[F(__has_trivial_constructor(HasTemplateCons))]; }
   { int arr[F(__has_trivial_constructor(AllPrivate))]; }
+  { int arr[F(__has_trivial_constructor(ExtDefaulted))]; }
 }
 
 void has_trivial_copy_constructor() {
@@ -1130,6 +1221,8 @@ void has_trivial_copy_constructor() {
   { int arr[T(__has_trivial_copy(HasCopyAssign))]; }
   { int arr[T(__has_trivial_copy(HasMoveAssign))]; }
   { int arr[T(__has_trivial_copy(const Int))]; }
+  { int arr[T(__has_trivial_copy(AllDefaulted))]; }
+  { int arr[T(__has_trivial_copy(AllDeleted))]; }
 
   { int arr[F(__has_trivial_copy(HasCopy))]; }
   { int arr[F(__has_trivial_copy(HasTemplateCons))]; }
@@ -1138,6 +1231,7 @@ void has_trivial_copy_constructor() {
   { int arr[F(__has_trivial_copy(void))]; }
   { int arr[F(__has_trivial_copy(cvoid))]; }
   { int arr[F(__has_trivial_copy(AllPrivate))]; }
+  { int arr[F(__has_trivial_copy(ExtDefaulted))]; }
 }
 
 void has_trivial_copy_assignment() {
@@ -1154,6 +1248,8 @@ void has_trivial_copy_assignment() {
   { int arr[T(__has_trivial_assign(HasCopy))]; }
   { int arr[T(__has_trivial_assign(HasMove))]; }
   { int arr[T(__has_trivial_assign(HasMoveAssign))]; }
+  { int arr[T(__has_trivial_assign(AllDefaulted))]; }
+  { int arr[T(__has_trivial_assign(AllDeleted))]; }
 
   { int arr[F(__has_trivial_assign(IntRef))]; }
   { int arr[F(__has_trivial_assign(HasCopyAssign))]; }
@@ -1165,6 +1261,7 @@ void has_trivial_copy_assignment() {
   { int arr[F(__has_trivial_assign(void))]; }
   { int arr[F(__has_trivial_assign(cvoid))]; }
   { int arr[F(__has_trivial_assign(AllPrivate))]; }
+  { int arr[F(__has_trivial_assign(ExtDefaulted))]; }
 }
 
 void has_trivial_destructor() {
@@ -1187,11 +1284,14 @@ void has_trivial_destructor() {
   { int arr[T(__has_trivial_destructor(const Int))]; }
   { int arr[T(__has_trivial_destructor(DerivesAr))]; }
   { int arr[T(__has_trivial_destructor(VirtAr))]; }
+  { int arr[T(__has_trivial_destructor(AllDefaulted))]; }
+  { int arr[T(__has_trivial_destructor(AllDeleted))]; }
 
   { int arr[F(__has_trivial_destructor(HasDest))]; }
   { int arr[F(__has_trivial_destructor(void))]; }
   { int arr[F(__has_trivial_destructor(cvoid))]; }
   { int arr[F(__has_trivial_destructor(AllPrivate))]; }
+  { int arr[F(__has_trivial_destructor(ExtDefaulted))]; }
 }
 
 struct A { ~A() {} };
@@ -1413,13 +1513,11 @@ void is_base_of() {
   isBaseOfF<DerivedB<int>, BaseA<int> >();
 }
 
-#if 0
 template<class T, class U>
 class TemplateClass {};
 
 template<class T>
 using TemplateAlias = TemplateClass<T, int>;
-#endif
 
 typedef class Base BaseTypedef;
 
@@ -1427,9 +1525,7 @@ void is_same()
 {
   int t01[T(__is_same(Base, Base))];
   int t02[T(__is_same(Base, BaseTypedef))];
-#if 0
   int t03[T(__is_same(TemplateClass<int, int>, TemplateAlias<int>))];
-#endif
 
   int t10[F(__is_same(Base, const Base))];
   int t11[F(__is_same(Base, Base&))];
@@ -1512,6 +1608,12 @@ void is_convertible_to() {
   { int arr[T(__is_convertible_to(X0<int>, X0<float>))]; }
 }
 
+namespace is_convertible_to_instantiate {
+  // Make sure we don't try to instantiate the constructor.
+  template<int x> class A { A(int) { int a[x]; } };
+  int x = __is_convertible_to(int, A<-1>);
+}
+
 void is_trivial()
 {
   { int arr[T(__is_trivial(int))]; }
@@ -1557,7 +1659,7 @@ void is_trivial()
   { int arr[F(__is_trivial(cvoid))]; }
 }
 
-void is_trivially_copyable()
+void trivial_checks()
 {
   { int arr[T(__is_trivially_copyable(int))]; }
   { int arr[T(__is_trivially_copyable(Enum))]; }
@@ -1600,6 +1702,108 @@ void is_trivially_copyable()
   { int arr[F(__is_trivially_copyable(DerivesHasVirt))]; }
   { int arr[F(__is_trivially_copyable(void))]; }
   { int arr[F(__is_trivially_copyable(cvoid))]; }
+
+  { int arr[T((__is_trivially_constructible(int)))]; }
+  { int arr[T((__is_trivially_constructible(int, int)))]; }
+  { int arr[T((__is_trivially_constructible(int, float)))]; }
+  { int arr[T((__is_trivially_constructible(int, int&)))]; }
+  { int arr[T((__is_trivially_constructible(int, const int&)))]; }
+  { int arr[T((__is_trivially_constructible(int, int)))]; }
+  { int arr[T((__is_trivially_constructible(HasCopyAssign, HasCopyAssign)))]; }
+  { int arr[T((__is_trivially_constructible(HasCopyAssign, const HasCopyAssign&)))]; }
+  { int arr[T((__is_trivially_constructible(HasCopyAssign, HasCopyAssign&&)))]; }
+  { int arr[T((__is_trivially_constructible(HasCopyAssign)))]; }
+  { int arr[T((__is_trivially_constructible(NonTrivialDefault,
+                                            const NonTrivialDefault&)))]; }
+  { int arr[T((__is_trivially_constructible(NonTrivialDefault,
+                                            NonTrivialDefault&&)))]; }
+  { int arr[T((__is_trivially_constructible(AllDefaulted)))]; }
+  { int arr[T((__is_trivially_constructible(AllDefaulted,
+                                            const AllDefaulted &)))]; }
+  { int arr[T((__is_trivially_constructible(AllDefaulted,
+                                            AllDefaulted &&)))]; }
+
+  { int arr[F((__is_trivially_constructible(int, int*)))]; }
+  { int arr[F((__is_trivially_constructible(NonTrivialDefault)))]; }
+  { int arr[F((__is_trivially_constructible(ThreeArgCtor, int*, char*, int&)))]; }
+  { int arr[F((__is_trivially_constructible(AllDeleted)))]; }
+  { int arr[F((__is_trivially_constructible(AllDeleted,
+                                            const AllDeleted &)))]; }
+  { int arr[F((__is_trivially_constructible(AllDeleted,
+                                            AllDeleted &&)))]; }
+  { int arr[F((__is_trivially_constructible(ExtDefaulted)))]; }
+  { int arr[F((__is_trivially_constructible(ExtDefaulted,
+                                            const ExtDefaulted &)))]; }
+  { int arr[F((__is_trivially_constructible(ExtDefaulted,
+                                            ExtDefaulted &&)))]; }
+
+  { int arr[T((__is_trivially_assignable(int&, int)))]; }
+  { int arr[T((__is_trivially_assignable(int&, int&)))]; }
+  { int arr[T((__is_trivially_assignable(int&, int&&)))]; }
+  { int arr[T((__is_trivially_assignable(int&, const int&)))]; }
+  { int arr[T((__is_trivially_assignable(POD&, POD)))]; }
+  { int arr[T((__is_trivially_assignable(POD&, POD&)))]; }
+  { int arr[T((__is_trivially_assignable(POD&, POD&&)))]; }
+  { int arr[T((__is_trivially_assignable(POD&, const POD&)))]; }
+  { int arr[T((__is_trivially_assignable(int*&, int*)))]; }
+  { int arr[T((__is_trivially_assignable(AllDefaulted,
+                                         const AllDefaulted &)))]; }
+  { int arr[T((__is_trivially_assignable(AllDefaulted,
+                                         AllDefaulted &&)))]; }
+
+  { int arr[F((__is_trivially_assignable(int*&, float*)))]; }
+  { int arr[F((__is_trivially_assignable(HasCopyAssign&, HasCopyAssign)))]; }
+  { int arr[F((__is_trivially_assignable(HasCopyAssign&, HasCopyAssign&)))]; }
+  { int arr[F((__is_trivially_assignable(HasCopyAssign&, const HasCopyAssign&)))]; }
+  { int arr[F((__is_trivially_assignable(HasCopyAssign&, HasCopyAssign&&)))]; }
+  { int arr[F((__is_trivially_assignable(TrivialMoveButNotCopy&,
+                                        TrivialMoveButNotCopy&)))]; }
+  { int arr[F((__is_trivially_assignable(TrivialMoveButNotCopy&,
+                                        const TrivialMoveButNotCopy&)))]; }
+  { int arr[F((__is_trivially_assignable(AllDeleted,
+                                         const AllDeleted &)))]; }
+  { int arr[F((__is_trivially_assignable(AllDeleted,
+                                         AllDeleted &&)))]; }
+  { int arr[F((__is_trivially_assignable(ExtDefaulted,
+                                         const ExtDefaulted &)))]; }
+  { int arr[F((__is_trivially_assignable(ExtDefaulted,
+                                         ExtDefaulted &&)))]; }
+
+  { int arr[T((__is_trivially_assignable(HasDefaultTrivialCopyAssign&,
+                                         HasDefaultTrivialCopyAssign&)))]; }
+  { int arr[T((__is_trivially_assignable(HasDefaultTrivialCopyAssign&,
+                                       const HasDefaultTrivialCopyAssign&)))]; }
+  { int arr[T((__is_trivially_assignable(TrivialMoveButNotCopy&,
+                                         TrivialMoveButNotCopy)))]; }
+  { int arr[T((__is_trivially_assignable(TrivialMoveButNotCopy&,
+                                         TrivialMoveButNotCopy&&)))]; }
+}
+
+// Instantiation of __is_trivially_constructible
+template<typename T, typename ...Args>
+struct is_trivially_constructible {
+  static const bool value = __is_trivially_constructible(T, Args...);
+};
+
+void is_trivially_constructible_test() {
+  { int arr[T((is_trivially_constructible<int>::value))]; }
+  { int arr[T((is_trivially_constructible<int, int>::value))]; }
+  { int arr[T((is_trivially_constructible<int, float>::value))]; }
+  { int arr[T((is_trivially_constructible<int, int&>::value))]; }
+  { int arr[T((is_trivially_constructible<int, const int&>::value))]; }
+  { int arr[T((is_trivially_constructible<int, int>::value))]; }
+  { int arr[T((is_trivially_constructible<HasCopyAssign, HasCopyAssign>::value))]; }
+  { int arr[T((is_trivially_constructible<HasCopyAssign, const HasCopyAssign&>::value))]; }
+  { int arr[T((is_trivially_constructible<HasCopyAssign, HasCopyAssign&&>::value))]; }
+  { int arr[T((is_trivially_constructible<HasCopyAssign>::value))]; }
+  { int arr[T((is_trivially_constructible<NonTrivialDefault,
+                                            const NonTrivialDefault&>::value))]; }
+  { int arr[T((is_trivially_constructible<NonTrivialDefault,
+                                            NonTrivialDefault&&>::value))]; }
+
+  { int arr[F((is_trivially_constructible<int, int*>::value))]; }
+  { int arr[F((is_trivially_constructible<NonTrivialDefault>::value))]; }
+  { int arr[F((is_trivially_constructible<ThreeArgCtor, int*, char*, int&>::value))]; }
 }
 
 void array_rank() {

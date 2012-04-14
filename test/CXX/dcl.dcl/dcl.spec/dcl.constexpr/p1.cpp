@@ -1,6 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s
 
-struct notlit {
+struct notlit { // expected-note {{not literal because}}
   notlit() {}
 };
 struct notlit2 {
@@ -20,7 +20,7 @@ constexpr int s1::mi2 = 0;
 // not a definition of an object
 constexpr extern int i2; // expected-error {{constexpr variable declaration must be a definition}}
 // not a literal type
-constexpr notlit nl1; // expected-error {{declaration of constexpr variable 'nl1' requires an initializer}}
+constexpr notlit nl1; // expected-error {{constexpr variable cannot have non-literal type 'const notlit'}}
 // function parameters
 void f2(constexpr int i) {} // expected-error {{function parameter cannot be constexpr}}
 // non-static member
@@ -35,6 +35,9 @@ constexpr class C1 {}; // expected-error {{class cannot be marked constexpr}}
 constexpr struct S1 {}; // expected-error {{struct cannot be marked constexpr}}
 constexpr union U1 {}; // expected-error {{union cannot be marked constexpr}}
 constexpr enum E1 {}; // expected-error {{enum cannot be marked constexpr}}
+template <typename T> constexpr class TC1 {}; // expected-error {{class cannot be marked constexpr}}
+template <typename T> constexpr struct TS1 {}; // expected-error {{struct cannot be marked constexpr}}
+template <typename T> constexpr union TU1 {}; // expected-error {{union cannot be marked constexpr}}
 class C2 {} constexpr; // expected-error {{class cannot be marked constexpr}}
 struct S2 {} constexpr; // expected-error {{struct cannot be marked constexpr}}
 union U2 {} constexpr; // expected-error {{union cannot be marked constexpr}}
@@ -72,21 +75,18 @@ struct S {
 };
 
 // explicit specialization can differ in constepxr
-// FIXME: When checking the explicit specialization, we implicitly instantiate
-// the primary template then claim a constexpr mismatch.
 template <> notlit ft(notlit nl) { return nl; }
-template <> char ft(char c) { return c; } // desired-note {{previous}} unexpected-error {{follows constexpr declaration}} unexpected-note {{here}}
-template <> constexpr char ft(char nl); // desired-error {{constexpr declaration of 'ft<char>' follows non-constexpr declaration}}
-template <> constexpr int gt(int nl) { return nl; } // unexpected-error {{follows non-constexpr declaration}} unexpected-note {{here}}
+template <> char ft(char c) { return c; } // expected-note {{previous}}
+template <> constexpr char ft(char nl); // expected-error {{constexpr declaration of 'ft<char>' follows non-constexpr declaration}}
+template <> constexpr int gt(int nl) { return nl; }
 template <> notlit S::f() const { return notlit(); }
-template <> constexpr int S::g() { return 0; } // desired-note {{previous}} unexpected-error {{follows non-constexpr declaration}} unexpected-note {{here}}
-template <> int S::g() const; // desired-error {{non-constexpr declaration of 'g<int>' follows constexpr declaration}}
+template <> constexpr int S::g() { return 0; } // expected-note {{previous}}
+template <> int S::g() const; // expected-error {{non-constexpr declaration of 'g<int>' follows constexpr declaration}}
 // specializations can drop the 'constexpr' but not the implied 'const'.
 template <> char S::g() { return 0; } // expected-error {{no function template matches}}
 template <> double S::g() const { return 0; } // ok
 
-// FIXME: The initializer is a constant expression.
-constexpr int i3 = ft(1); // unexpected-error {{must be initialized by a constant expression}}
+constexpr int i3 = ft(1);
 
 void test() {
   // ignore constexpr when instantiating with non-literal
@@ -95,7 +95,7 @@ void test() {
 }
 
 // Examples from the standard:
-constexpr int square(int x);
+constexpr int square(int x); // expected-note {{declared here}}
 constexpr int bufsz = 1024;
 
 constexpr struct pixel { // expected-error {{struct cannot be marked constexpr}}
@@ -105,17 +105,16 @@ constexpr struct pixel { // expected-error {{struct cannot be marked constexpr}}
 };
 
 constexpr pixel::pixel(int a)
-  : x(square(a)), y(square(a))
+  : x(square(a)), y(square(a)) // expected-note {{undefined function 'square' cannot be used in a constant expression}}
   { }
 
-constexpr pixel small(2); // expected-error {{must be initialized by a constant expression}}
+constexpr pixel small(2); // expected-error {{must be initialized by a constant expression}} expected-note {{in call to 'pixel(2)'}}
 
 constexpr int square(int x) {
   return x * x;
 }
 
-// FIXME: The initializer is a constant expression.
-constexpr pixel large(4); // unexpected-error {{must be initialized by a constant expression}}
+constexpr pixel large(4);
 
 int next(constexpr int x) { // expected-error {{function parameter cannot be constexpr}}
       return x + 1;

@@ -122,3 +122,62 @@ namespace PR9323 {
     f(Uncopyable()); // expected-warning {{C++98 requires an accessible copy constructor}}
   };
 }
+
+
+namespace std { class type_info; };
+namespace cxx11_odr_rules {
+  // Note: the way this test is written isn't really ideal, but there really
+  // isn't any other way to check that the odr-used logic for constants
+  // is working without working implicit capture in lambda-expressions.
+  // (The more accurate used-but-not-defined warning is the only other visible
+  // effect of accurate odr-used computation.)
+  //
+  // Note that the warning in question can trigger in cases some people would
+  // consider false positives; hopefully that happens rarely in practice.
+  //
+  // FIXME: Suppressing this test while I figure out how to fix a bug in the
+  // odr-use marking code.
+
+  namespace {
+    struct A {
+      static const int unused = 10;
+      static const int used1 = 20; // xpected-warning {{internal linkage}}
+      static const int used2 = 20; // xpected-warning {{internal linkage}}
+      virtual ~A() {}
+    };
+  }
+
+  void a(int,int);
+  A& p(const int&) { static A a; return a; }
+
+  // Check handling of default arguments
+  void b(int = A::unused);
+
+  void tests() {
+    // Basic test
+    a(A::unused, A::unused);
+
+    // Check that nesting an unevaluated or constant-evaluated context does
+    // the right thing.
+    a(A::unused, sizeof(int[10]));
+
+    // Check that the checks work with unevaluated contexts
+    (void)sizeof(p(A::used1));
+    (void)typeid(p(A::used1)); // xpected-note {{used here}}
+
+    // Misc other testing
+    a(A::unused, 1 ? A::used2 : A::used2); // xpected-note {{used here}}
+    b();
+  }
+}
+
+
+namespace OverloadUse {
+  namespace {
+    void f();
+    void f(int); // expected-warning {{function 'OverloadUse::<anonymous namespace>::f' has internal linkage but is not defined}}
+  }
+  template<void x()> void t(int*) { x(); }
+  template<void x(int)> void t(long*) { x(10); } // expected-note {{used here}}
+  void g() { long a; t<f>(&a); }
+}

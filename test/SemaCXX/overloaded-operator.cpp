@@ -232,7 +232,7 @@ struct Arrow2 {
 void test_arrow(Arrow1 a1, Arrow2 a2, const Arrow2 a3) {
   int &i1 = a1->m;
   int &i2 = a2->m;
-  a3->m; // expected-error{{no viable overloaded 'operator->'; candidate is}}
+  a3->m; // expected-error{{no viable overloaded 'operator->'}}
 }
 
 struct CopyConBase {
@@ -392,7 +392,7 @@ namespace rdar9136502 {
   };
 
   struct Y {
-    Y &operator<<(int); // expected-note{{candidate function not viable: no known conversion from '<bound member function type>' to 'int'}}
+    Y &operator<<(int);
   };
 
   void f(X x, Y y) {
@@ -407,4 +407,11 @@ class StringRef {
   }
 };
 
+}
+
+namespace PR11784 {
+  struct A { A& operator=(void (*x)()); };
+  void f();
+  void f(int);
+  void g() { A x; x = f; }
 }

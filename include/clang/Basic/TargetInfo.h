@@ -59,11 +59,12 @@ enum TargetCXXABI {
 
 /// TargetInfo - This class exposes information about the current target.
 ///
-class TargetInfo : public llvm::RefCountedBase<TargetInfo> {
+class TargetInfo : public RefCountedBase<TargetInfo> {
   llvm::Triple Triple;
 protected:
   // Target values set by the ctor of the actual target implementation.  Default
   // values are specified by the TargetInfo constructor.
+  bool BigEndian;
   bool TLSSupported;
   bool NoAsmVariants;  // True if {|} are normal characters.
   unsigned char PointerWidth, PointerAlign;
@@ -76,6 +77,7 @@ protected:
   unsigned char LargeArrayMinWidth, LargeArrayAlign;
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
+  unsigned char SuitableAlign;
   unsigned char MaxAtomicPromoteWidth, MaxAtomicInlineWidth;
   const char *DescriptionString;
   const char *UserLabelPrefix;
@@ -91,6 +93,7 @@ protected:
 
   unsigned HasAlignMac68kSupport : 1;
   unsigned RealTypeUsesObjCFPRet : 3;
+  unsigned ComplexLongDoubleUsesFP2Ret : 1;
 
   // TargetInfo Constructor.  Default initializes all fields.
   TargetInfo(const std::string &T);
@@ -211,6 +214,10 @@ public:
   unsigned getLongLongWidth() const { return LongLongWidth; }
   unsigned getLongLongAlign() const { return LongLongAlign; }
 
+  /// getSuitableAlign - Return the alignment that is suitable for storing any
+  /// object with a fundamental alignment requirement.
+  unsigned getSuitableAlign() const { return SuitableAlign; }
+
   /// getWCharWidth/Align - Return the size of 'wchar_t' for this target, in
   /// bits.
   unsigned getWCharWidth() const { return getTypeWidth(WCharType); }
@@ -248,6 +255,9 @@ public:
   const llvm::fltSemantics &getLongDoubleFormat() const {
     return *LongDoubleFormat;
   }
+
+  /// getFloatEvalMethod - Return the value for the C99 FLT_EVAL_METHOD macro.
+  virtual unsigned getFloatEvalMethod() const { return 0; }
 
   // getLargeArrayMinWidth/Align - Return the minimum array size that is
   // 'large' and its alignment.
@@ -327,6 +337,12 @@ public:
     return RealTypeUsesObjCFPRet & (1 << T);
   }
 
+  /// \brief Check whether _Complex long double should use the "fp2ret" flavor
+  /// of Obj-C message passing on this target.
+  bool useObjCFP2RetForComplexLongDouble() const {
+    return ComplexLongDoubleUsesFP2Ret;
+  }
+
   ///===---- Other target property query methods --------------------------===//
 
   /// getTargetDefines - Appends the target-specific #define values for this
@@ -340,6 +356,13 @@ public:
   /// across the current set of primary and secondary targets.
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
                                  unsigned &NumRecords) const = 0;
+
+  /// isCLZForZeroUndef - The __builtin_clz* and __builtin_ctz* built-in
+  /// functions are specified to have undefined results for zero inputs, but
+  /// on targets that support these operations in a way that provides
+  /// well-defined results for zero without loss of performance, it is a good
+  /// idea to avoid optimizing based on that undef behavior.
+  virtual bool isCLZForZeroUndef() const { return true; }
 
   /// getVAListDeclaration - Return the declaration to use for
   /// __builtin_va_list, which is target-specific.
@@ -456,6 +479,19 @@ public:
     const unsigned RegNum;
   };
 
+  /// hasProtectedVisibility - Does this target support "protected"
+  /// visibility?
+  ///
+  /// Any target which dynamic libraries will naturally support
+  /// something like "default" (meaning that the symbol is visible
+  /// outside this shared object) and "hidden" (meaning that it isn't)
+  /// visibilities, but "protected" is really an ELF-specific concept
+  /// with wierd semantics designed around the convenience of dynamic
+  /// linker implementations.  Which is not to suggest that there's
+  /// consistent target-independent semantics for "default" visibility
+  /// either; the entire thing is pretty badly mangled.
+  virtual bool hasProtectedVisibility() const { return true; }
+
   virtual bool useGlobalsForAutomaticVariables() const { return false; }
 
   /// getCFStringSection - Return the section to use for CFString
@@ -551,7 +587,7 @@ public:
   ///
   /// \return - False on error (invalid feature name).
   virtual bool setFeatureEnabled(llvm::StringMap<bool> &Features,
-                                 const std::string &Name,
+                                 StringRef Name,
                                  bool Enabled) const {
     return false;
   }
@@ -565,6 +601,11 @@ public:
   virtual void HandleTargetFeatures(std::vector<std::string> &Features) {
   }
 
+  /// \brief Determine whether the given target has the given feature.
+  virtual bool hasFeature(StringRef Feature) const {
+    return false;
+  }
+  
   // getRegParmMax - Returns maximal number of args passed in registers.
   unsigned getRegParmMax() const {
     assert(RegParmMax < 7 && "RegParmMax value is larger than AST can handle");
@@ -608,6 +649,8 @@ public:
   /// \brief Retrieve the minimum desired version of the platform, to
   /// which the program should be compiled.
   VersionTuple getPlatformMinVersion() const { return PlatformMinVersion; }
+
+  bool isBigEndian() const { return BigEndian; }
 
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {

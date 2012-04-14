@@ -7,7 +7,7 @@ void test() {
 
   typedef int arr[10];
   while (arr x=0) ; // expected-error {{an array type is not allowed here}} expected-error {{array initializer must be an initializer list}}
-  while (int f()=0) ; // expected-error {{a function type is not allowed here}}
+  while (int f()=0) ; // expected-warning {{interpreted as a function declaration}} expected-note {{initializer}} expected-error {{a function type is not allowed here}}
 
   struct S {} s;
   if (s) ++x; // expected-error {{value of type 'struct S' is not contextually convertible to 'bool'}}
@@ -20,7 +20,8 @@ void test() {
   while (struct S {} *x=0) ; // expected-error {{types may not be defined in conditions}}
   while (struct {} *x=0) ; // expected-error {{types may not be defined in conditions}}
   switch (enum {E} x=0) ; // expected-error {{types may not be defined in conditions}} expected-error {{cannot initialize}} \
-  // expected-warning{{enumeration value 'E' not handled in switch}}
+  // expected-warning{{enumeration value 'E' not handled in switch}} expected-warning {{switch statement has empty body}} \
+  // expected-note{{put the semicolon on a separate line}}
 
   if (int x=0) { // expected-note 2 {{previous definition is here}}
     int x;  // expected-error {{redefinition of 'x'}}
@@ -49,6 +50,11 @@ void test3() {
   if ("help")
     (void) 0;
 
-  if (test3)
+  if (test3) // expected-warning {{address of function 'test3' will always evaluate to 'true'}} \
+                expected-note {{prefix with the address-of operator to silence this warning}}
     (void) 0;
+}
+
+void test4(bool (&x)(void)) {
+  while (x);
 }

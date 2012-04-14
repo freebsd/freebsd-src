@@ -5,6 +5,29 @@
 #define PROTECTED __attribute__((visibility("protected")))
 #define DEFAULT __attribute__((visibility("default")))
 
+namespace test25 {
+  template<typename T>
+  struct X {
+    template<typename U>
+    struct definition {
+    };
+  };
+
+  class DEFAULT A { };
+
+  X<int>::definition<A> a;
+  // CHECK: @_ZN6test251aE = global
+  // CHECK-HIDDEN: @_ZN6test251aE = hidden global
+}
+
+namespace test28 {
+  class DEFAULT foo {
+  };
+  foo myvec;
+  // CHECK: @_ZN6test285myvecE = global
+  // CHECK-HIDDEN: @_ZN6test285myvecE = hidden global
+}
+
 // CHECK: @_ZN5Test425VariableInHiddenNamespaceE = hidden global i32 10
 // CHECK: @_ZN5Test71aE = hidden global
 // CHECK: @_ZN5Test71bE = global
@@ -22,6 +45,26 @@
 // CHECK-HIDDEN: @_ZN6Test143varE = external global
 // CHECK: @_ZN6Test154TempINS_1AEE5Inner6bufferE = external global [0 x i8]
 // CHECK-HIDDEN: @_ZN6Test154TempINS_1AEE5Inner6bufferE = external global [0 x i8]
+
+namespace test27 {
+  template<typename T>
+  class C {
+    class __attribute__((visibility("default"))) D {
+      void f();
+    };
+  };
+
+  template<>
+  class C<int>::D {
+    virtual void g();
+  };
+
+  void C<int>::D::g() {
+  }
+  // CHECK: _ZTVN6test271CIiE1DE = unnamed_addr constant
+  // CHECK-HIDDEN: _ZTVN6test271CIiE1DE = unnamed_addr constant
+}
+
 // CHECK: @_ZZN6Test193fooIiEEvvE1a = linkonce_odr global
 // CHECK: @_ZGVZN6Test193fooIiEEvvE1a = linkonce_odr global i64
 // CHECK-HIDDEN: @_ZZN6Test193fooIiEEvvE1a = linkonce_odr hidden global
@@ -156,7 +199,7 @@ namespace Test9 {
 namespace Test10 {
   struct A;
 
-  DEFAULT class B {
+  class DEFAULT B {
     void foo(A*);
   };
 
@@ -403,10 +446,7 @@ namespace Test20 {
     B<A<2> >::test4();
   }
 
-  // CHECK: declare void @_ZN6Test201BINS_1AILj2EEEE5test5Ev()
-  // (but explicit visibility on a template argument doesn't count as
-  //  explicit visibility for the template for purposes of deciding
-  //  whether an external symbol gets visibility)
+  // CHECK: declare hidden void @_ZN6Test201BINS_1AILj2EEEE5test5Ev()
   void test5() {
     B<A<2> >::test5();
   }
@@ -453,4 +493,115 @@ namespace test22 {
   // CHECK-HIDDEN: define linkonce_odr void @_ZN6test221BINS_2A1EE3barEv()
   // CHECK-HIDDEN: declare void @_ZN6test221BINS_2A2EE3fooEv()
   // CHECK-HIDDEN: define linkonce_odr hidden void @_ZN6test221BINS_2A2EE3barEv()
+}
+
+namespace PR10113 {
+  namespace foo DEFAULT {
+    template<typename T>
+      class bar {
+      void zed() {}
+    };
+  }
+  template class foo::bar<char>;
+  // CHECK: define weak_odr void @_ZN7PR101133foo3barIcE3zedEv
+  // CHECK-HIDDEN: define weak_odr void @_ZN7PR101133foo3barIcE3zedEv
+
+  struct zed {
+  };
+  template class foo::bar<zed>;
+  // CHECK: define weak_odr void @_ZN7PR101133foo3barINS_3zedEE3zedEv
+  // CHECK-HIDDEN: define weak_odr void @_ZN7PR101133foo3barINS_3zedEE3zedEv
+}
+
+namespace PR11690 {
+  template<class T> struct Class {
+    void size() const {
+    }
+  };
+  template class DEFAULT Class<char>;
+  // CHECK: define weak_odr void @_ZNK7PR116905ClassIcE4sizeEv
+  // CHECK-HIDDEN: define weak_odr void @_ZNK7PR116905ClassIcE4sizeEv
+
+  template<class T> void Method() {}
+  template  DEFAULT void Method<char>();
+  // CHECK: define weak_odr void @_ZN7PR116906MethodIcEEvv
+  // CHECK-HIDDEN: define weak_odr void @_ZN7PR116906MethodIcEEvv
+}
+
+namespace PR11690_2 {
+  namespace foo DEFAULT {
+    class bar;
+    template<typename T1, typename T2 = bar>
+    class zed {
+      void bar() {
+      }
+    };
+  }
+  struct baz {
+  };
+  template class foo::zed<baz>;
+  // CHECK: define weak_odr void @_ZN9PR11690_23foo3zedINS_3bazENS0_3barEE3barEv
+  // CHECK-HIDDEN: define weak_odr void @_ZN9PR11690_23foo3zedINS_3bazENS0_3barEE3barEv
+}
+
+namespace test23 {
+  // Having a template argument that is explicitly visible should not make
+  // the template instantiation visible.
+  template <typename T>
+  struct X {
+    static void f() {
+    }
+  };
+
+  class DEFAULT A;
+
+  void g() {
+    X<A> y;
+    y.f();
+  }
+  // CHECK: define linkonce_odr void @_ZN6test231XINS_1AEE1fEv
+  // CHECK-HIDDEN: define linkonce_odr hidden void @_ZN6test231XINS_1AEE1fEv
+}
+
+namespace PR12001 {
+  template <typename P1>
+  void Bind(const P1& p1) {
+  }
+
+  class DEFAULT Version { };
+
+  void f() {
+    Bind(Version());
+  }
+  // CHECK: define linkonce_odr void @_ZN7PR120014BindINS_7VersionEEEvRKT_
+  // CHECK-HIDDEN: define linkonce_odr hidden void @_ZN7PR120014BindINS_7VersionEEEvRKT_
+}
+
+namespace test24 {
+  class DEFAULT A { };
+
+  struct S {
+    template <typename T>
+    void mem() {}
+  };
+
+  void test() {
+    S s;
+    s.mem<A>();
+  }
+  // CHECK: define linkonce_odr void @_ZN6test241S3memINS_1AEEEvv
+  // CHECK-HIDDEN: define linkonce_odr hidden void @_ZN6test241S3memINS_1AEEEvv
+}
+
+namespace test26 {
+  template<typename T>
+  class C {
+    __attribute__((visibility("default")))  void f();
+  };
+
+  template<>
+  void C<int>::f() { }
+
+  // CHECK: define void @_ZN6test261CIiE1fEv
+  // CHECK-HIDDEN: define void @_ZN6test261CIiE1fEv
 }

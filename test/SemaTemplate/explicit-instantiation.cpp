@@ -94,6 +94,14 @@ namespace PR7622 {
 
   template<typename,typename>
   struct basic_streambuf{friend bob<>()}; // expected-error{{unknown type name 'bob'}} \
-  // expected-error{{ expected member name or ';' after declaration specifiers}}
+  // expected-error{{expected member name or ';' after declaration specifiers}}
   template struct basic_streambuf<int>;
 }
+
+// Test that we do not crash.
+class TC1 {
+  class TC2 {
+    template // FIXME: error here.
+    void foo() { }
+   };
+};

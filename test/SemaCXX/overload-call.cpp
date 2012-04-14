@@ -8,10 +8,10 @@ void test_f(int iv, float fv) {
   int* ip = f(iv);
 }
 
-int* g(int, float, int); // expected-note {{ candidate function }}
-float* g(int, int, int); // expected-note {{ candidate function }}
-double* g(int, float, float); // expected-note {{ candidate function }}
-char* g(int, float, ...); // expected-note {{ candidate function }}
+int* g(int, float, int); // expected-note {{candidate function}}
+float* g(int, int, int); // expected-note {{candidate function}}
+double* g(int, float, float); // expected-note {{candidate function}}
+char* g(int, float, ...); // expected-note {{candidate function}}
 void g();
 
 void test_g(int iv, float fv) {
@@ -21,7 +21,7 @@ void test_g(int iv, float fv) {
   char* cp1 = g(0, 0);
   char* cp2 = g(0, 0, 0, iv, fv);
 
-  double* dp2 = g(0, fv, 1.5); // expected-error {{ call to 'g' is ambiguous; candidates are: }}
+  double* dp2 = g(0, fv, 1.5); // expected-error {{call to 'g' is ambiguous}}
 }
 
 double* h(double f);
@@ -126,9 +126,9 @@ void test_bitfield(Bits bits, int x) {
   float* fp = bitfields(bits.uint_bitfield, 0u);
 }
 
-int* multiparm(long, int, long); // expected-note {{ candidate function }}
-float* multiparm(int, int, int); // expected-note {{ candidate function }}
-double* multiparm(int, int, short); // expected-note {{ candidate function }}
+int* multiparm(long, int, long); // expected-note {{candidate function}}
+float* multiparm(int, int, int); // expected-note {{candidate function}}
+double* multiparm(int, int, short); // expected-note {{candidate function}}
 
 void test_multiparm(long lv, short sv, int iv) {
   int* ip1 = multiparm(lv, iv, lv);
@@ -137,7 +137,7 @@ void test_multiparm(long lv, short sv, int iv) {
   float* fp2 = multiparm(sv, iv, iv);
   double* dp1 = multiparm(sv, sv, sv);
   double* dp2 = multiparm(iv, sv, sv);
-  multiparm(sv, sv, lv); // expected-error {{ call to 'multiparm' is ambiguous; candidates are: }}
+  multiparm(sv, sv, lv); // expected-error {{call to 'multiparm' is ambiguous}}
 }
 
 // Test overloading based on qualification vs. no qualification
@@ -183,9 +183,9 @@ void test_quals_ranking(int * p, int volatile *pq, int * * pp, int * * * ppp) {
 
   float* q6 = quals_rank2(pp);
 
-  quals_rank3(ppp); // expected-error {{call to 'quals_rank3' is ambiguous; candidates are:}}
+  quals_rank3(ppp); // expected-error {{call to 'quals_rank3' is ambiguous}}
 
-  quals_rank3(p); // expected-error {{call to 'quals_rank3' is ambiguous; candidates are:}}
+  quals_rank3(p); // expected-error {{call to 'quals_rank3' is ambiguous}}
   quals_rank3(pq);
 }
 
@@ -233,7 +233,7 @@ float* intref(const int&);
 
 void intref_test() {
   float* ir1 = intref(5);
-  float* ir2 = intref(5.5);
+  float* ir2 = intref(5.5); // expected-warning{{implicit conversion turns literal floating-point number into integer}}
 }
 
 void derived5(C&); // expected-note{{candidate function not viable: cannot bind base class object of type 'A' to derived class reference 'C &' for 1st argument}}
@@ -266,8 +266,8 @@ float& cvqual_subsume2(const volatile Y&); // expected-note{{candidate function}
 Z get_Z();
 
 void cvqual_subsume_test(Z z) {
-  cvqual_subsume(z); // expected-error{{call to 'cvqual_subsume' is ambiguous; candidates are:}}
-  int& x = cvqual_subsume2(get_Z()); // expected-error{{call to 'cvqual_subsume2' is ambiguous; candidates are:}}
+  cvqual_subsume(z); // expected-error{{call to 'cvqual_subsume' is ambiguous}}
+  int& x = cvqual_subsume2(get_Z()); // expected-error{{call to 'cvqual_subsume2' is ambiguous}}
 }
 
 // Test overloading with cv-qualification differences in reference
@@ -533,4 +533,38 @@ namespace rdar9803316 {
   void bar() {
     int &ir = (&foo)(0);
   }
+}
+
+namespace IncompleteArg {
+  // Ensure that overload resolution attempts to complete argument types when
+  // performing ADL.
+  template<typename T> struct S {
+    friend int f(const S&);
+  };
+  extern S<int> s;
+  int k = f(s);
+
+  template<typename T> struct Op {
+    friend bool operator==(const Op &, const Op &);
+  };
+  extern Op<char> op;
+  bool b = op == op;
+
+  // ... and not in other cases! Nothing here requires U<int()> to be complete.
+  // (Note that instantiating U<int()> will fail.)
+  template<typename T> struct U {
+    T t;
+  };
+  struct Consumer {
+    template<typename T>
+    int operator()(const U<T> &);
+  };
+  template<typename T> U<T> &make();
+  Consumer c;
+  int n = sizeof(c(make<int()>()));
+}
+
+namespace PR12142 {
+  void fun(int (*x)[10]); // expected-note{{candidate function not viable: 1st argument ('const int (*)[10]') would lose const qualifier}}
+  void g() { fun((const int(*)[10])0); } // expected-error{{no matching function for call to 'fun'}}
 }

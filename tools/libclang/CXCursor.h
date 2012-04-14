@@ -41,6 +41,7 @@ class Stmt;
 class TemplateDecl;
 class TemplateName;
 class TypeDecl;
+class VarDecl;
   
 namespace cxcursor {
 
@@ -67,7 +68,8 @@ std::pair<ObjCInterfaceDecl *, SourceLocation>
   getCursorObjCSuperClassRef(CXCursor C);
 
 /// \brief Create an Objective-C protocol reference at the given location.
-CXCursor MakeCursorObjCProtocolRef(ObjCProtocolDecl *Proto, SourceLocation Loc, 
+CXCursor MakeCursorObjCProtocolRef(const ObjCProtocolDecl *Proto,
+                                   SourceLocation Loc, 
                                    CXTranslationUnit TU);
 
 /// \brief Unpack an ObjCProtocolRef cursor into the protocol it references
@@ -76,7 +78,8 @@ std::pair<ObjCProtocolDecl *, SourceLocation>
   getCursorObjCProtocolRef(CXCursor C);
 
 /// \brief Create an Objective-C class reference at the given location.
-CXCursor MakeCursorObjCClassRef(ObjCInterfaceDecl *Class, SourceLocation Loc, 
+CXCursor MakeCursorObjCClassRef(const ObjCInterfaceDecl *Class,
+                                SourceLocation Loc, 
                                 CXTranslationUnit TU);
 
 /// \brief Unpack an ObjCClassRef cursor into the class it references
@@ -85,7 +88,7 @@ std::pair<ObjCInterfaceDecl *, SourceLocation>
   getCursorObjCClassRef(CXCursor C);
 
 /// \brief Create a type reference at the given location.
-CXCursor MakeCursorTypeRef(TypeDecl *Type, SourceLocation Loc,
+CXCursor MakeCursorTypeRef(const TypeDecl *Type, SourceLocation Loc,
                            CXTranslationUnit TU);
                                
 /// \brief Unpack a TypeRef cursor into the class it references
@@ -93,7 +96,7 @@ CXCursor MakeCursorTypeRef(TypeDecl *Type, SourceLocation Loc,
 std::pair<TypeDecl *, SourceLocation> getCursorTypeRef(CXCursor C);
 
 /// \brief Create a reference to a template at the given location.
-CXCursor MakeCursorTemplateRef(TemplateDecl *Template, SourceLocation Loc,
+CXCursor MakeCursorTemplateRef(const TemplateDecl *Template, SourceLocation Loc,
                                CXTranslationUnit TU);
 
 /// \brief Unpack a TemplateRef cursor into the template it references and
@@ -102,15 +105,23 @@ std::pair<TemplateDecl *, SourceLocation> getCursorTemplateRef(CXCursor C);
 
 /// \brief Create a reference to a namespace or namespace alias at the given 
 /// location.
-CXCursor MakeCursorNamespaceRef(NamedDecl *NS, SourceLocation Loc,
+CXCursor MakeCursorNamespaceRef(const NamedDecl *NS, SourceLocation Loc,
                                 CXTranslationUnit TU);
 
 /// \brief Unpack a NamespaceRef cursor into the namespace or namespace alias
 /// it references and the location where the reference occurred.
 std::pair<NamedDecl *, SourceLocation> getCursorNamespaceRef(CXCursor C);
 
+/// \brief Create a reference to a variable at the given location.
+CXCursor MakeCursorVariableRef(const VarDecl *Var, SourceLocation Loc, 
+                               CXTranslationUnit TU);
+
+/// \brief Unpack a VariableRef cursor into the variable it references and the
+/// location where the where the reference occurred.
+std::pair<VarDecl *, SourceLocation> getCursorVariableRef(CXCursor C); 
+
 /// \brief Create a reference to a field at the given location.
-CXCursor MakeCursorMemberRef(FieldDecl *Field, SourceLocation Loc, 
+CXCursor MakeCursorMemberRef(const FieldDecl *Field, SourceLocation Loc, 
                              CXTranslationUnit TU);
   
 /// \brief Unpack a MemberRef cursor into the field it references and the 
@@ -118,7 +129,7 @@ CXCursor MakeCursorMemberRef(FieldDecl *Field, SourceLocation Loc,
 std::pair<FieldDecl *, SourceLocation> getCursorMemberRef(CXCursor C);
 
 /// \brief Create a CXX base specifier cursor.
-CXCursor MakeCursorCXXBaseSpecifier(CXXBaseSpecifier *B,
+CXCursor MakeCursorCXXBaseSpecifier(const CXXBaseSpecifier *B,
                                     CXTranslationUnit TU);
 
 /// \brief Unpack a CXXBaseSpecifier cursor into a CXXBaseSpecifier.
@@ -221,7 +232,7 @@ CXCursor getTypeRefCursor(CXCursor cursor);
 /// \brief Generate a USR for \arg D and put it in \arg Buf.
 /// \returns true if no USR was computed or the result should be ignored,
 /// false otherwise.
-bool getDeclCursorUSR(Decl *D, SmallVectorImpl<char> &Buf);
+bool getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf);
 
 bool operator==(CXCursor X, CXCursor Y);
   

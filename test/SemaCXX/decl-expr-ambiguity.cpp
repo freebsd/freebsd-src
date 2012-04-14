@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -pedantic-errors %s 
+// RUN: %clang_cc1 -fsyntax-only -verify -pedantic-errors %s
 
 void f() {
   int a;
@@ -24,12 +24,41 @@ void f() {
   // Declarations.
   int fd(T(a)); // expected-warning {{parentheses were disambiguated as a function declarator}}
   T(*d)(int(p)); // expected-warning {{parentheses were disambiguated as a function declarator}} expected-note {{previous definition is here}}
+  typedef T(*td)(int(p));
+  extern T(*tp)(int(p));
+  T d3(); // expected-warning {{empty parentheses interpreted as a function declaration}} expected-note {{replace parentheses with an initializer}}
+  T d3v(void);
+  typedef T d3t();
+  extern T f3();
+  __typeof(*T()) f4(); // expected-warning {{empty parentheses interpreted as a function declaration}} expected-note {{replace parentheses with an initializer}}
+  typedef void *V;
+  __typeof(*V()) f5();
+  T multi1,
+    multi2(); // expected-warning {{empty parentheses interpreted as a function declaration}} expected-note {{replace parentheses with an initializer}}
   T(d)[5]; // expected-error {{redefinition of 'd'}}
   typeof(int[])(f) = { 1, 2 }; // expected-error {{extension used}}
   void(b)(int);
-  int(d2) __attribute__(()); 
+  int(d2) __attribute__(());
   if (int(a)=1) {}
   int(d3(int()));
+}
+
+struct RAII {
+  RAII();
+  ~RAII();
+};
+
+void func();
+namespace N {
+  struct S;
+
+  void emptyParens() {
+    RAII raii(); // expected-warning {{function declaration}} expected-note {{remove parentheses to declare a variable}}
+    int a, b, c, d, e, // expected-note {{change this ',' to a ';' to call 'func'}}
+    func(); // expected-warning {{function declaration}} expected-note {{replace parentheses with an initializer}}
+
+    S s(); // expected-warning {{function declaration}}
+  }
 }
 
 class C { };

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1  -fsyntax-only -verify %s
+// RUN: %clang_cc1  -fsyntax-only -verify -Wno-objc-root-class %s
 // rdar://7766184
 
 @interface Foo @end
@@ -9,7 +9,7 @@
 
 void FUNC () {
     Foo *foo;
-    foo.bar = 0; // expected-error {{assigning to property with 'readonly' attribute not allowed}}
+    foo.bar = 0; // expected-error {{assignment to readonly property}}
 }
 
 // rdar://8747333

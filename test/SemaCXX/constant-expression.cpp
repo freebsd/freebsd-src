@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++98 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++98 -pedantic %s
 // C++ [expr.const]p1:
 //   In several places, C++ requires expressions that evaluate to an integral
 //   or enumeration constant: as array bounds, as case expressions, as
@@ -85,3 +85,35 @@ enum {
   a = sizeof(int) == 8,
   b = a? 8 : 4
 };
+
+void diags(int n) {
+  switch (n) {
+    case (1/0, 1): // expected-error {{not an integral constant expression}} expected-note {{division by zero}}
+    case (int)(1/0, 2.0): // expected-error {{not an integral constant expression}} expected-note {{division by zero}}
+    case __imag(1/0): // expected-error {{not an integral constant expression}} expected-note {{division by zero}}
+    case (int)__imag((double)(1/0)): // expected-error {{not an integral constant expression}} expected-note {{division by zero}}
+      ;
+  }
+}
+
+namespace IntOrEnum {
+  const int k = 0;
+  const int &p = k;
+  template<int n> struct S {};
+  S<p> s; // expected-error {{not an integral constant expression}}
+}
+
+extern const int recurse1;
+// recurse2 cannot be used in a constant expression because it is not
+// initialized by a constant expression. The same expression appearing later in
+// the TU would be a constant expression, but here it is not.
+const int recurse2 = recurse1;
+const int recurse1 = 1;
+int array1[recurse1]; // ok
+int array2[recurse2]; // expected-warning {{variable length array}} expected-warning {{integer constant expression}}
+
+namespace FloatConvert {
+  typedef int a[(int)42.3];
+  typedef int a[(int)42.997];
+  typedef int b[(int)4e10]; // expected-warning {{variable length}} expected-error {{variable length}}
+}

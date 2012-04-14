@@ -38,12 +38,17 @@ template<typename T> struct TestBaseSpecifiers2 : TestBaseSpecifiers<T> { };
 template <typename T>
 struct TS3 {
   static const int value = 0;
+  static const int value2;
 };
 template <typename T>
 const int TS3<T>::value;
+template <typename T>
+const int TS3<T>::value2 = 1;
 // Instantiate struct, but not value.
 struct instantiate : TS3<int> {};
 
+// Typedef
+typedef int Integer;
 
 //===----------------------------------------------------------------------===//
 #elif not defined(HEADER2)
@@ -94,8 +99,12 @@ struct TestBaseSpecifiers4 : TestBaseSpecifiers3 { };
 struct A { };
 struct B : A { };
 
-// Instantiate TS3's member.
+// Instantiate TS3's members.
 static const int ts3m1 = TS3<int>::value;
+extern int arr[TS3<int>::value2];
+
+// Redefinition of typedef
+typedef int Integer;
 
 //===----------------------------------------------------------------------===//
 #else
@@ -122,10 +131,12 @@ void test() {
   TS2int ts2;
 
   B b;
+  Integer i = 17;
 }
 
 // Should have remembered that there is a definition.
 static const int ts3m2 = TS3<int>::value;
+int arr[TS3<int>::value2];
 
 //===----------------------------------------------------------------------===//
 #endif

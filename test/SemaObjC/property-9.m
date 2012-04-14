@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
 
 typedef signed char BOOL;
 @protocol NSObject  - (BOOL)isEqual:(id)object; @end
@@ -44,21 +44,20 @@ typedef signed char BOOL;
 }
 
 @property (readonly) int; // expected-warning {{declaration does not declare anything}}
-@property (readonly) ; // expected-error {{type name requires a specifier or qualifier}} \
-                          expected-warning {{declaration does not declare anything}}
+@property (readonly) ; // expected-error {{type name requires a specifier or qualifier}}
 @property (readonly) int : 4; // expected-error {{property requires fields to be named}}
 
 
 // test parser recovery: rdar://6254579
 @property (                           // expected-note {{to match this '('}}
-           readonly getter=isAwesome) // expected-error {{error: expected ')'}}
+           readonly getter=isAwesome) // expected-error {{expected ')'}}
            
   int _awesome;
 @property (readonlyx) // expected-error {{unknown property attribute 'readonlyx'}}
   int _awesome2;
 
 @property (    // expected-note {{to match this '('}}
-           +)  // expected-error {{error: expected ')'}}
+           +)  // expected-error {{expected ')'}}
            
   int _awesome3;
 
@@ -97,13 +96,13 @@ typedef signed char BOOL;
 @end
 
 // rdar://8774513
-@class MDAInstance; // expected-note {{forward class is declared here}}
+@class MDAInstance; // expected-note {{forward declaration of class here}}
 
 @interface MDATestDocument
 @property(retain) MDAInstance *instance;
 @end
 
 id f0(MDATestDocument *d) {
-  return d.instance.path; // expected-error {{property 'path' cannot be found in forward class object 'MDAInstance *'}}
+  return d.instance.path; // expected-error {{property 'path' cannot be found in forward class object 'MDAInstance'}}
 }
 

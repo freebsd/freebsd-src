@@ -65,18 +65,22 @@ class AnalysisDiagnostic:
         filename = self.report.run.getSourceName(self.report.files[loc['file']])
         line = loc['line']
         column = loc['col']
+        category = self.data['category']
+        description = self.data['description']
 
         # FIXME: Get a report number based on this key, to 'distinguish'
         # reports, or something.
         
-        return '%s:%d:%d' % (filename, line, column)
+        return '%s:%d:%d, %s: %s' % (filename, line, column, category, 
+                                   description)
 
     def getReportData(self):
         if self.htmlReport is None:
-            return "This diagnostic does not have any report data."
-
-        return open(os.path.join(self.report.run.path,
-                                 self.htmlReport), "rb").read() 
+            return " "
+        return os.path.join(self.report.run.path, self.htmlReport)
+        # We could also dump the report with:
+        # return open(os.path.join(self.report.run.path,
+        #                         self.htmlReport), "rb").read() 
 
 class AnalysisRun:
     def __init__(self, path, opts):
@@ -153,7 +157,7 @@ def compareResults(A, B):
     while eltsA and eltsB:
         a = eltsA.pop()
         b = eltsB.pop()
-        if a.data == b.data:
+        if a.data['location'] == b.data['location']:
             res.append((a, b, 0))
         elif a.data > b.data:
             neqA.append(a)
@@ -189,25 +193,25 @@ def cmpScanBuildResults(dirA, dirB, opts, deleteEmpty=True):
         auxLog = None
 
     diff = compareResults(resultsA, resultsB)
-    foundDiffs = False
+    foundDiffs = 0
     for res in diff:
         a,b,confidence = res
         if a is None:
             print "ADDED: %r" % b.getReadableName()
-            foundDiffs = True
+            foundDiffs += 1
             if auxLog:
                 print >>auxLog, ("('ADDED', %r, %r)" % (b.getReadableName(),
                                                         b.getReportData()))
         elif b is None:
             print "REMOVED: %r" % a.getReadableName()
-            foundDiffs = True
+            foundDiffs += 1
             if auxLog:
                 print >>auxLog, ("('REMOVED', %r, %r)" % (a.getReadableName(),
                                                           a.getReportData()))
         elif confidence:
             print "CHANGED: %r to %r" % (a.getReadableName(),
                                          b.getReadableName())
-            foundDiffs = True
+            foundDiffs += 1
             if auxLog:
                 print >>auxLog, ("('CHANGED', %r, %r, %r, %r)" 
                                  % (a.getReadableName(),
@@ -217,10 +221,13 @@ def cmpScanBuildResults(dirA, dirB, opts, deleteEmpty=True):
         else:
             pass
 
-    print "TOTAL REPORTS: %r" % len(resultsB.diagnostics)
+    TotalReports = len(resultsB.diagnostics)
+    print "TOTAL REPORTS: %r" % TotalReports
+    print "TOTAL DIFFERENCES: %r" % foundDiffs
     if auxLog:
-        print >>auxLog, "('TOTAL REPORTS', %r)" % len(resultsB.diagnostics)
-    
+        print >>auxLog, "('TOTAL NEW REPORTS', %r)" % TotalReports
+        print >>auxLog, "('TOTAL DIFFERENCES', %r)" % foundDiffs
+        
     return foundDiffs    
 
 def main():

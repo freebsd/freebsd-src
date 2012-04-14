@@ -137,13 +137,13 @@ struct a {
 
 a a;
 
-int a::sa = a.a; // expected-error {{invalid use of nonstatic data member 'a'}}
+int a::sa = a.a; // expected-error {{invalid use of non-static data member 'a'}}
 
 
 namespace PR6645 {
   typedef int foo;
   namespace Inner {
     typedef int PR6645::foo; // expected-error{{typedef declarator cannot be qualified}} \
-    // expected-error{{definition or redeclaration of 'foo' not in a namespace enclosing 'PR6645'}}
+    // expected-error{{cannot define or redeclare 'foo' here because namespace 'Inner' does not enclose namespace 'PR6645'}}
   }
 }

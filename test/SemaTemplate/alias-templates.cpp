@@ -68,3 +68,35 @@ itt::thing ith(itr);
 
 itt::rebind<bool> btr;
 itt::rebind_thing<bool> btt(btr);
+
+namespace PR11848 {
+  template<typename T> using U = int;
+
+  template<typename T, typename ...Ts>
+  void f(U<T> i, U<Ts> ...is) { // expected-error {{type 'U<Ts>' (aka 'int') of function parameter pack does not contain any unexpanded parameter packs}}
+    return i + f<Ts...>(is...); // expected-error {{pack expansion does not contain any unexpanded parameter packs}}
+  }
+
+  template<typename ...Ts>
+  struct S {
+    S(U<Ts>...ts); // expected-error {{does not contain any unexpanded parameter packs}}
+  };
+
+  template<typename T>
+  struct Hidden1 {
+    template<typename ...Ts>
+    Hidden1(typename T::template U<Ts> ...ts); // expected-error{{type 'typename Hide::U<Ts>' (aka 'int') of function parameter pack does not contain any unexpanded parameter packs}}
+  };
+
+  template<typename T, typename ...Ts>
+  struct Hidden2 {
+    Hidden2(typename T::template U<Ts> ...ts);
+  };
+
+  struct Hide {
+    template<typename T> using U = int;
+  };
+
+  Hidden1<Hide> h1;  // expected-note{{in instantiation of template class 'PR11848::Hidden1<PR11848::Hide>' requested here}}
+  Hidden2<Hide, double, char> h2(1, 2);
+}

@@ -1,24 +1,6 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -disable-free -analyzer-eagerly-assume -analyzer-checker=core -analyzer-checker=deadcode -verify %s
 
-unsigned long strlen(const char *);
-
 int size_rdar9373039 = 1;
-int rdar9373039() {
-  int x;
-  int j = 0;
-
-  for (int i = 0 ; i < size_rdar9373039 ; ++i)
-    x = 1;
-    
-  // strlen doesn't invalidate the value of 'size_rdar9373039'.
-  int extra = (2 + strlen ("Clang") + ((4 - ((unsigned int) (2 + strlen ("Clang")) % 4)) % 4)) + (2 + strlen ("1.0") + ((4 - ((unsigned int) (2 + strlen ("1.0")) % 4)) % 4));
-
-  for (int i = 0 ; i < size_rdar9373039 ; ++i)
-    j += x; // no-warning
-
-  return j;
-}
-
 int foo_rdar9373039(const char *);
 
 int rdar93730392() {
@@ -81,3 +63,66 @@ int PR8962_f (int *t) {
   }) ) return 0;
   return *t; // no-warning
 }
+
+// This previously crashed logic in the analyzer engine when evaluating locations.
+void rdar10308201_aux(unsigned val);
+void rdar10308201 (int valA, void *valB, unsigned valC) {
+  unsigned actual_base, lines;
+  if (valC == 0) {
+    actual_base = (unsigned)valB;
+    for (;;) {
+      if (valA & (1<<0))
+        rdar10308201_aux(actual_base);
+    }
+  }
+}
+
+typedef struct Struct103 {
+  unsigned i;
+} Struct103;
+typedef unsigned int size_t;
+void __my_memset_chk(char*, int, size_t);
+static int radar10367606(int t) {
+  Struct103 overall;
+  ((__builtin_object_size ((char *) &overall, 0) != (size_t) -1) ? __builtin___memset_chk ((char *) &overall, 0, sizeof(Struct103), __builtin_object_size ((char *) &overall, 0)) : __my_memset_chk ((char *) &overall, 0, sizeof(Struct103)));
+  return 0;
+}
+
+/* Caching out on a sink node. */
+extern int fooR10376675();
+extern int* bazR10376675();
+extern int nR10376675;
+void barR10376675(int *x) {
+  int *pm;
+  if (nR10376675 * 2) {
+    int *pk  = bazR10376675();
+    pm = pk; //expected-warning {{never read}}
+  }
+  do {
+    *x = fooR10376675();
+  } while (0);
+}
+
+// Test accesses to wide character strings doesn't break the analyzer.
+typedef int wchar_t;
+struct rdar10385775 {
+    wchar_t *name;
+};
+void RDar10385775(struct rdar10385775* p) {
+    p->name = L"a";
+}
+
+// Test double loop of array and array literals.  Previously this
+// resulted in a false positive uninitailized value warning.
+void rdar10686586() {
+    int array1[] = { 1, 2, 3, 0 };
+    int array2[] = { 1, 2, 3, 0 };
+    int *array[] = { array1, array2 };
+    int sum = 0;
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 4; j++) {
+            sum += array[i][j]; // no-warning
+        }
+    }
+}
+

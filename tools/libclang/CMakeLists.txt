@@ -6,6 +6,7 @@ set(LLVM_USED_LIBS
   clangSerialization
   clangIndex
   clangSema
+  clangEdit
   clangAST
   clangLex
   clangBasic)
@@ -21,13 +22,31 @@ set(SOURCES
   CIndexCXX.cpp
   CIndexCodeCompletion.cpp
   CIndexDiagnostic.cpp
+  CIndexDiagnostic.h
   CIndexHigh.cpp
   CIndexInclusionStack.cpp
   CIndexUSRs.cpp
   CIndexer.cpp
+  CIndexer.h
   CXCursor.cpp
+  CXCursor.h
+  CXLoadedDiagnostic.cpp
+  CXLoadedDiagnostic.h
+  CXSourceLocation.cpp
+  CXSourceLocation.h
+  CXStoredDiagnostic.cpp
   CXString.cpp
+  CXString.h
+  CXTranslationUnit.h
   CXType.cpp
+  CXType.h
+  IndexBody.cpp
+  IndexDecl.cpp
+  IndexTypeSourceInfo.cpp
+  Index_Internal.h
+  Indexing.cpp
+  IndexingContext.cpp
+  IndexingContext.h
   ../../include/clang-c/Index.h
   )
 

@@ -27,17 +27,27 @@ use Text::ParseWords;
 
 my $Compiler;
 my $Clang;
+my $DefaultCCompiler;
+my $DefaultCXXCompiler;
+
+if (`uname -a` =~ m/Darwin/) { 
+	$DefaultCCompiler = 'clang';
+	$DefaultCXXCompiler = 'clang++'; 
+} else {
+    $DefaultCCompiler = 'gcc';
+    $DefaultCXXCompiler = 'g++'; 	
+}
 
 if ($FindBin::Script =~ /c\+\+-analyzer/) {
   $Compiler = $ENV{'CCC_CXX'};
-  if (!defined $Compiler) { $Compiler = "g++"; }
+  if (!defined $Compiler) { $Compiler = $DefaultCXXCompiler; }
   
   $Clang = $ENV{'CLANG_CXX'};
   if (!defined $Clang) { $Clang = 'clang++'; }
 }
 else {
   $Compiler = $ENV{'CCC_CC'};
-  if (!defined $Compiler) { $Compiler = "gcc"; }
+  if (!defined $Compiler) { $Compiler = $DefaultCCompiler; }
 
   $Clang = $ENV{'CLANG'};
   if (!defined $Clang) { $Clang = 'clang'; }
@@ -78,8 +88,8 @@ sub GetPPExt {
 # Set this to 1 if we want to include 'parser rejects' files.
 my $IncludeParserRejects = 0;
 my $ParserRejects = "Parser Rejects";
-
 my $AttributeIgnored = "Attribute Ignored";
+my $OtherError = "Other Error";
 
 sub ProcessClangFailure {
   my ($Clang, $Lang, $file, $Args, $HtmlDir, $ErrorType, $ofile) = @_;
@@ -92,6 +102,9 @@ sub ProcessClangFailure {
   }
   elsif ($ErrorType eq $AttributeIgnored) {
     $prefix = "clang_attribute_ignored";
+  }
+  elsif ($ErrorType eq $OtherError) {
+    $prefix = "clang_other_error";
   }
 
   # Generate the preprocessed file with Clang.
@@ -259,6 +272,9 @@ sub Analyze {
       if ($IncludeParserRejects && !($file =~/conftest/)) {
         ProcessClangFailure($Clang, $Lang, $file, \@CmdArgsSansAnalyses,
                             $HtmlDir, $ParserRejects, $ofile);
+      } else {
+        ProcessClangFailure($Clang, $Lang, $file, \@CmdArgsSansAnalyses,
+                            $HtmlDir, $OtherError, $ofile);      	
       }
     }
     else {
@@ -329,10 +345,13 @@ my %CompileOptionMap = (
 );
 
 my %LinkerOptionMap = (
-  '-framework' => 1
+  '-framework' => 1,
+  '-fobjc-link-runtime' => 0
 );
 
 my %CompilerLinkerOptionMap = (
+  '-fobjc-arc' => 0,
+  '-fobjc-abi-version' => 0, # This is really a 1 argument, but always has '='
   '-isysroot' => 1,
   '-arch' => 1,
   '-m32' => 0,
@@ -360,7 +379,8 @@ my %IgnoredOptionMap = (
   '-multiply_defined' => 1,
   '-sectorder' => 3,
   '--param' => 1,
-  '-u' => 1
+  '-u' => 1,
+  '--serialize-diagnostics' => 1
 );
 
 my %LangMap = (

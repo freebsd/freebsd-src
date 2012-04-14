@@ -1,5 +1,9 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -analyzer-output=text -verify %s
 
+// This actually still works after the pseudo-object refactor, it just
+// uses messages that say 'method' instead of 'property'.  Ted wanted
+// this xfailed and filed as a bug.  rdar://problem/10402993
+
 /***
 This file is for testing the path-sensitive notes for retain/release errors.
 Its goal is to have simple branch coverage of any path-based diagnostics,
@@ -100,13 +104,13 @@ void makeCollectableIgnored () {
 }
 
 CFTypeRef CFCopyRuleViolation () {
-  CFTypeRef object = CFGetSomething(); // expected-note{{Call to function 'CFGetSomething' returns a Core Foundation object with a +0 retain counte}}
+  CFTypeRef object = CFGetSomething(); // expected-note{{Call to function 'CFGetSomething' returns a Core Foundation object with a +0 retain count}}
   return object; // expected-warning{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}} expected-note{{Object returned to caller with a +0 retain count}} expected-note{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}}
 }
 
 CFTypeRef CFGetRuleViolation () {
-  CFTypeRef object = CFCreateSomething(); // expected-warning{{leak}} expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object with a +1 retain counte}}
-  return object; // expected-note{{Object returned to caller as an owning reference (single retain count transferred to caller)}} expected-note{{Object leaked: object allocated and stored into 'object' is return from a function whose name ('CFGetRuleViolation') does not contain 'Copy' or 'Create'.  This violates the naming convention rules given the Memory Management Guide for Core Foundation}}
+  CFTypeRef object = CFCreateSomething(); // expected-warning{{leak}} expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object with a +1 retain count}}
+  return object; // expected-note{{Object returned to caller as an owning reference (single retain count transferred to caller)}} expected-note{{Object leaked: object allocated and stored into 'object' is returned from a function whose name ('CFGetRuleViolation') does not contain 'Copy' or 'Create'.  This violates the naming convention rules given in the Memory Management Guide for Core Foundation}}
 }
 
 @implementation Foo (FundamentalMemoryManagementRules)
@@ -118,5 +122,11 @@ CFTypeRef CFGetRuleViolation () {
 - (id)getViolation {
   id result = [[Foo alloc] init]; // expected-warning{{leak}} expected-note{{Method returns an Objective-C object with a +1 retain count}}
   return result; // expected-note{{Object returned to caller as an owning reference (single retain count transferred to caller)}} expected-note{{Object leaked: object allocated and stored into 'result' is returned from a method whose name ('getViolation') does not start with 'copy', 'mutableCopy', 'alloc' or 'new'.  This violates the naming convention rules given in the Memory Management Guide for Cocoa}}
+}
+
+- (id)copyAutorelease {
+  id result = [[Foo alloc] init]; // expected-note{{Method returns an Objective-C object with a +1 retain count}}
+  [result autorelease]; // expected-note{{Object sent -autorelease message}}
+  return result; // expected-warning{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}} expected-note{{Object returned to caller with a +0 retain count}} expected-note{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}}
 }
 @end

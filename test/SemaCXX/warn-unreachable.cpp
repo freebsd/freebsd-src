@@ -76,3 +76,34 @@ void test6() {
     S
       (halt());  // expected-warning {{will never be executed}}
 }
+
+// Don't warn about unreachable code in template instantiations, as
+// they may only be unreachable in that specific instantiation.
+void isUnreachable();
+
+template <typename T> void test_unreachable_templates() {
+  T::foo();
+  isUnreachable();  // no-warning
+}
+
+struct TestUnreachableA {
+  static void foo() __attribute__((noreturn));
+};
+struct TestUnreachableB {
+  static void foo();
+};
+
+void test_unreachable_templates_harness() {
+  test_unreachable_templates<TestUnreachableA>();
+  test_unreachable_templates<TestUnreachableB>(); 
+}
+
+// Do warn about explict template specializations, as they represent
+// actual concrete functions that somebody wrote.
+
+template <typename T> void funcToSpecialize() {}
+template <> void funcToSpecialize<int>() {
+  halt();
+  dead(); // expected-warning {{will never be executed}}
+}
+

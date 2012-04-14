@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -fsyntax-only -verify
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
 
 @interface A {
   int X __attribute__((deprecated));
@@ -9,7 +9,7 @@
 
 @implementation A
 + (void)F __attribute__((deprecated))
-{	// expected-warning {{method attribute can only be specified on method declarations}}
+{
   [self F]; // no warning, since the caller is also deprecated.
 }
 
@@ -77,8 +77,8 @@ void t4(Class c)
 
 int t5() {
   Bar *f;
-  f.FooBar = 1;	   // expected-warning {{warning: 'FooBar' is deprecated}}
-  return f.FooBar; // expected-warning {{warning: 'FooBar' is deprecated}}
+  f.FooBar = 1;	   // expected-warning {{'FooBar' is deprecated}}
+  return f.FooBar; // expected-warning {{'FooBar' is deprecated}}
 }
 
 
@@ -99,10 +99,10 @@ __attribute ((deprecated))
 @interface DEPRECATED (Category2) // no warning.
 @end
 
-@implementation DEPRECATED (Category2) // expected-warning {{warning: 'DEPRECATED' is deprecated}}
+@implementation DEPRECATED (Category2) // expected-warning {{'DEPRECATED' is deprecated}}
 @end
 
-@interface NS : DEPRECATED  // expected-warning {{warning: 'DEPRECATED' is deprecated}}
+@interface NS : DEPRECATED  // expected-warning {{'DEPRECATED' is deprecated}}
 @end
 
 

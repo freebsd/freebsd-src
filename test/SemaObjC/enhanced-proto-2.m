@@ -1,10 +1,10 @@
-// RUN: %clang_cc1 -verify %s
+// RUN: %clang_cc1 -verify -Wno-objc-root-class %s
 
 @protocol MyProto1 
 @optional
 - (void) FOO;
 @optional
-- (void) FOO;
+- (void) FOO1;
 @optional 
 - (void) REQ;
 @optional

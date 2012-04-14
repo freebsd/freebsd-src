@@ -86,7 +86,7 @@ namespace N {
 
 template<> struct N::B<int> { }; // okay
 
-template<> struct N::B<float> { }; // expected-warning{{originally}}
+template<> struct N::B<float> { }; // expected-warning{{C++11 extension}}
 
 namespace M {
   template<> struct ::N::B<short> { }; // expected-error{{class template specialization of 'B' not in a namespace enclosing 'N'}}
@@ -109,3 +109,13 @@ Foo<int> x;
 // Template template parameters
 template<template<class T> class Wibble>
 class Wibble<int> { }; // expected-error{{cannot specialize a template template parameter}}
+
+namespace rdar9676205 {
+  template<typename T>
+  struct X {
+    template<typename U>
+    struct X<U*> { // expected-error{{explicit specialization of 'X' in class scope}}
+    };
+  };
+
+}

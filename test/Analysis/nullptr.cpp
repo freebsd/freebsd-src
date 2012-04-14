@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++11 -analyze -analyzer-checker=core -analyzer-store region -verify %s
+// RUN: %clang_cc1 -std=c++11 -Wno-conversion-null -analyze -analyzer-checker=core -analyzer-store region -verify %s
 
 // test to see if nullptr is detected as a null pointer
 void foo1(void) {
@@ -39,7 +39,6 @@ void foo4(void) {
     *np = 0;  // no-warning
 }
 
-
 int pr10372(void *& x) {
   // GNU null is a pointer-sized integer, not a pointer.
   x = __null;
@@ -47,3 +46,38 @@ int pr10372(void *& x) {
   return __null;
 }
 
+void zoo1() {
+  char **p = 0;
+  delete *(p + 0); // expected-warning{{Dereference of null pointer}}
+}
+
+void zoo2() {
+  int **a = 0;
+  int **b = 0;
+  asm ("nop"
+      :"=a"(*a)
+      :"0"(*b) // expected-warning{{Dereference of null pointer}}
+      );
+}
+
+int exprWithCleanups() {
+  struct S {
+    S(int a):a(a){}
+    ~S() {}
+
+    int a;
+  };
+
+  int *x = 0;
+  return S(*x).a; // expected-warning{{Dereference of null pointer}}
+}
+
+int materializeTempExpr() {
+  int *n = 0;
+  struct S {
+    int a;
+    S(int i): a(i) {}
+  };
+  const S &s = S(*n); // expected-warning{{Dereference of null pointer}}
+  return s.a;
+}

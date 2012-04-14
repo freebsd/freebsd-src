@@ -76,9 +76,6 @@ void f(S3<true>) {}
 // CHECK: define void @_Z1f2S3ILb0EE
 void f(S3<false>) {}
 
-// CHECK: define void @_Z2f22S3ILb1EE
-void f2(S3<100>) {}
-
 struct S;
 
 // CHECK: define void @_Z1fM1SKFvvE
@@ -364,6 +361,14 @@ namespace test0 {
     j<A>(buffer);
   }
   // CHECK: define linkonce_odr void @_ZN5test01jINS_1AEEEvRAszdtcvT__E6buffer_c(
+
+  template <class T> void k(char (&buffer)[sizeof(T() + 0.0f)]) {}
+  void test5() {
+    char buffer[sizeof(float)];
+    k<float>(buffer);
+  }
+  // CHECK: define linkonce_odr void @_ZN5test01kIfEEvRAszplcvT__ELf00000000E_c(
+
 }
 
 namespace test1 {

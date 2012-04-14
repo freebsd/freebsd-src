@@ -42,7 +42,7 @@
 #endif
 
 LANGOPT(C99               , 1, 0, "C99")
-LANGOPT(C1X               , 1, 0, "C1X")
+LANGOPT(C11               , 1, 0, "C11")
 LANGOPT(MicrosoftExt      , 1, 0, "Microsoft extensions")
 LANGOPT(MicrosoftMode     , 1, 0, "Microsoft compatibility mode")
 LANGOPT(Borland           , 1, 0, "Borland extensions")
@@ -90,16 +90,18 @@ LANGOPT(Blocks            , 1, 0, "blocks extension to C")
 BENIGN_LANGOPT(EmitAllDecls      , 1, 0, "support for emitting all declarations")
 LANGOPT(MathErrno         , 1, 1, "errno support for math functions")
 BENIGN_LANGOPT(HeinousExtensions , 1, 0, "Extensions that we really don't like and may be ripped out at any time")
-
+LANGOPT(Modules           , 1, 0, "modules extension to C")
 LANGOPT(Optimize          , 1, 0, "__OPTIMIZE__ predefined macro")
 LANGOPT(OptimizeSize      , 1, 0, "__OPTIMIZE_SIZE__ predefined macro")
 LANGOPT(Static            , 1, 0, "__STATIC__ predefined macro (as opposed to __DYNAMIC__)")
 VALUE_LANGOPT(PackStruct  , 32, 0, 
               "default struct packing maximum alignment")
-VALUE_LANGOPT(PICLevel          , 2, 0, "__PIC__ level")
+VALUE_LANGOPT(PICLevel    , 2, 0, "__PIC__ level")
+VALUE_LANGOPT(PIELevel    , 2, 0, "__PIE__ level")
 LANGOPT(GNUInline         , 1, 0, "GNU inline semantics")
-LANGOPT(NoInline          , 1, 0, "__NO_INLINE__ predefined macro")
+LANGOPT(NoInlineDefine    , 1, 0, "__NO_INLINE__ predefined macro")
 LANGOPT(Deprecated        , 1, 0, "__DEPRECATED predefined macro")
+LANGOPT(FastMath          , 1, 0, "__FAST_MATH__ predefined macro")
 
 BENIGN_LANGOPT(ObjCGCBitmapPrint , 1, 0, "printing of GC's bitmap layout for __weak/__strong ivars")
 
@@ -116,17 +118,23 @@ LANGOPT(AssumeSaneOperatorNew , 1, 1, "implicit __attribute__((malloc)) for C++'
 BENIGN_LANGOPT(ElideConstructors , 1, 1, "C++ copy constructor elision")
 BENIGN_LANGOPT(CatchUndefined    , 1, 0, "catching undefined behavior at run time")
 BENIGN_LANGOPT(DumpRecordLayouts , 1, 0, "dumping the layout of IRgen'd records")
+BENIGN_LANGOPT(DumpRecordLayoutsSimple , 1, 0, "dumping the layout of IRgen'd records in a simple form")
 BENIGN_LANGOPT(DumpVTableLayouts , 1, 0, "dumping the layouts of emitted vtables")
 LANGOPT(NoConstantCFStrings , 1, 0, "no constant CoreFoundation strings")
 BENIGN_LANGOPT(InlineVisibilityHidden , 1, 0, "hidden default visibility for inline C++ methods")
 BENIGN_LANGOPT(ParseUnknownAnytype, 1, 0, "__unknown_anytype")
 BENIGN_LANGOPT(DebuggerSupport , 1, 0, "debugger support")
+BENIGN_LANGOPT(DebuggerCastResultToId, 1, 0, "for 'po' in the debugger, cast the result to id if it is of unknown type")
+BENIGN_LANGOPT(DebuggerObjCLiteral , 1, 0, "debugger objective-C literals and subscripting support")
+BENIGN_LANGOPT(AddressSanitizer , 1, 0, "AddressSanitizer enabled")
+BENIGN_LANGOPT(ThreadSanitizer , 1, 0, "ThreadSanitizer enabled")
 
 BENIGN_LANGOPT(SpellChecking , 1, 1, "spell-checking")
 LANGOPT(SinglePrecisionConstants , 1, 0, "treating double-precision floating point constants as single precision constants")
 LANGOPT(FastRelaxedMath , 1, 0, "OpenCL fast relaxed math")
 LANGOPT(DefaultFPContract , 1, 0, "FP_CONTRACT")
 LANGOPT(NoBitFieldTypeAlign , 1, 0, "bit-field type alignment")
+LANGOPT(HexagonQdsp6Compat , 1, 0, "hexagon-qdsp6 backward compatibility")
 LANGOPT(ObjCAutoRefCount , 1, 0, "Objective-C automated reference counting")
 LANGOPT(ObjCRuntimeHasWeak , 1, 0, "__weak support in the ARC runtime")
 LANGOPT(FakeAddressSpaceMap , 1, 0, "OpenCL fake address space map")
@@ -145,10 +153,14 @@ ENUM_LANGOPT(SignedOverflowBehavior, SignedOverflowBehaviorTy, 2, SOB_Undefined,
 
 BENIGN_LANGOPT(InstantiationDepth, 32, 1024, 
                "maximum template instantiation depth")
+BENIGN_LANGOPT(ConstexprCallDepth, 32, 512,
+               "maximum constexpr call depth")
 BENIGN_LANGOPT(NumLargeByValueCopy, 32, 0, 
         "if non-zero, warn about parameter or return Warn if parameter/return value is larger in bytes than this setting. 0 is no check.")
 VALUE_LANGOPT(MSCVersion, 32, 0, 
               "version of Microsoft Visual C/C++")
+
+LANGOPT(ApplePragmaPack, 1, 0, "Apple gcc-compatible #pragma pack handling")
 
 #undef LANGOPT
 #undef VALUE_LANGOPT

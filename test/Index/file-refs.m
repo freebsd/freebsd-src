@@ -43,24 +43,28 @@ void test2(Sub *s, id<Prot1> p) {
 
 // RUN:  -file-refs-at=%s:7:18 \
 // CHECK:      ObjCImplementationDecl=Foo:7:17 (Definition)
+
+// FIXME: There should not be 2 for the same range.
+// CHECK-NEXT: ObjCInterfaceDecl=Foo:1:8 =[1:8 - 1:11]
 // CHECK-NEXT: ObjCClassRef=Foo:3:12 =[1:8 - 1:11]
+
 // CHECK-NEXT: ObjCInterfaceDecl=Foo:3:12 =[3:12 - 3:15]
 // CHECK-NEXT: ObjCImplementationDecl=Foo:7:17 (Definition) =[7:17 - 7:20]
 // CHECK-NEXT: ObjCClassRef=Foo:3:12 =[13:11 - 13:14]
 
 // RUN:  -file-refs-at=%s:4:10 \
-// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::4:1
-// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::4:1 =[4:6 - 4:16]
-// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::8:1 (Definition) [Overrides @4:1] =[8:6 - 8:16]
-// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:1 =[14:8 - 14:18]
-// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:1 =[15:8 - 15:18]
+// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::4:6
+// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::4:6 =[4:6 - 4:16]
+// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::8:6 (Definition) =[8:6 - 8:16]
+// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:6 =[14:8 - 14:18]
+// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:6 =[15:8 - 15:18]
 
 // RUN:  -file-refs-at=%s:15:27 \
-// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:1
-// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::4:1 =[4:24 - 4:32]
-// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::8:1 (Definition) [Overrides @4:1] =[8:24 - 8:32]
-// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:1 =[14:21 - 14:29]
-// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:1 =[15:22 - 15:30]
+// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:6
+// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::4:6 =[4:24 - 4:32]
+// CHECK-NEXT: ObjCInstanceMethodDecl=setWithInt:andFloat::8:6 (Definition) =[8:24 - 8:32]
+// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:6 =[14:21 - 14:29]
+// CHECK-NEXT: ObjCMessageExpr=setWithInt:andFloat::4:6 =[15:22 - 15:30]
 
 // RUN:  -file-refs-at=%s:18:13 \
 // CHECK-NEXT: ObjCProtocolDecl=Prot1:18:11 (Definition)
@@ -69,19 +73,19 @@ void test2(Sub *s, id<Prot1> p) {
 // CHECK-NEXT: ObjCProtocolRef=Prot1:18:11 =[36:23 - 36:28]
 
 // RUN:  -file-refs-at=%s:38:10 \
-// CHECK-NEXT: ObjCMessageExpr=protMeth:19:1
-// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:19:1 =[19:8 - 19:16]
-// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:29:1 [Overrides @19:1] =[29:8 - 29:16]
-// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:33:1 (Definition) [Overrides @29:1] =[33:8 - 33:16]
-// CHECK-NEXT: ObjCMessageExpr=protMeth:29:1 =[37:6 - 37:14]
-// CHECK-NEXT: ObjCMessageExpr=protMeth:19:1 =[38:6 - 38:14]
+// CHECK-NEXT: ObjCMessageExpr=protMeth:19:8
+// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:19:8 =[19:8 - 19:16]
+// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:29:8 [Overrides @19:8] =[29:8 - 29:16]
+// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:33:8 (Definition) [Overrides @19:8] =[33:8 - 33:16]
+// CHECK-NEXT: ObjCMessageExpr=protMeth:29:8 =[37:6 - 37:14]
+// CHECK-NEXT: ObjCMessageExpr=protMeth:19:8 =[38:6 - 38:14]
 
 // RUN:  -file-refs-at=%s:33:12 \
-// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:33:1 (Definition) [Overrides @29:1]
-// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:19:1 =[19:8 - 19:16]
-// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:29:1 [Overrides @19:1] =[29:8 - 29:16]
-// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:33:1 (Definition) [Overrides @29:1] =[33:8 - 33:16]
-// CHECK-NEXT: ObjCMessageExpr=protMeth:29:1 =[37:6 - 37:14]
-// CHECK-NEXT: ObjCMessageExpr=protMeth:19:1 =[38:6 - 38:14]
+// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:33:8 (Definition) [Overrides @19:8]
+// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:19:8 =[19:8 - 19:16]
+// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:29:8 [Overrides @19:8] =[29:8 - 29:16]
+// CHECK-NEXT: ObjCInstanceMethodDecl=protMeth:33:8 (Definition) [Overrides @19:8] =[33:8 - 33:16]
+// CHECK-NEXT: ObjCMessageExpr=protMeth:29:8 =[37:6 - 37:14]
+// CHECK-NEXT: ObjCMessageExpr=protMeth:19:8 =[38:6 - 38:14]
 
 // RUN:   %s | FileCheck %s

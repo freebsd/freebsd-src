@@ -1,12 +1,12 @@
-// RUN: %clang_cc1 %s -verify -fms-extensions
+// RUN: %clang_cc1 -verify -fms-extensions -Wno-objc-root-class %s
 @class NSInvocation, NSMethodSignature, NSCoder, NSString, NSEnumerator;
 typedef struct _NSRange { } NSRange;
 
 @class PBXFileReference;
 
 @interface PBXDocBookmark
-+ alloc;	// expected-note {{{{method definition for 'alloc' not found}}
-- autorelease;	// expected-note {{{{method definition for 'autorelease' not found}}
++ alloc;	// expected-note {{method definition for 'alloc' not found}}
+- autorelease;	// expected-note {{method definition for 'autorelease' not found}}
 @end
 
 // GCC allows pointer expressions in integer constant expressions.

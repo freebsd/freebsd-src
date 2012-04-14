@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core,deadcode.DeadStores,deadcode.IdempotentOperations -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core,deadcode.DeadStores,deadcode.IdempotentOperations -analyzer-store=region -analyzer-constraints=basic -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core,deadcode.DeadStores,deadcode.IdempotentOperations -analyzer-store=region -analyzer-constraints=range -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core,deadcode.DeadStores,experimental.deadcode.IdempotentOperations -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core,deadcode.DeadStores,experimental.deadcode.IdempotentOperations -analyzer-store=region -analyzer-constraints=basic -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core,deadcode.DeadStores,experimental.deadcode.IdempotentOperations -analyzer-store=region -analyzer-constraints=range -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
 
 void f1() {
   int k, y; // expected-warning{{unused variable 'k'}} expected-warning{{unused variable 'y'}}
@@ -11,7 +11,7 @@ void f1() {
 void f2(void *b) {
  char *c = (char*)b; // no-warning
  char *d = b+1; // expected-warning {{never read}} expected-warning{{unused variable 'd'}}
- printf("%s", c); // expected-warning{{implicitly declaring C library function 'printf' with type 'int (const char *, ...)'}} \
+ printf("%s", c); // expected-warning{{implicitly declaring library function 'printf' with type 'int (const char *, ...)'}} \
  // expected-note{{please include the header <stdio.h> or explicitly provide a declaration for 'printf'}}
 }
 
@@ -524,5 +524,27 @@ void rdar8405222() {
 
   if (show)
     rdar8405222_aux(i);
+}
+
+// Look through chains of assignements, e.g.: int x = y = 0, when employing
+// silencing heuristics.
+int radar11185138_foo() {
+  int x, y;
+  x = y = 0; // expected-warning {{never read}}
+  return y;
+}
+
+int rdar11185138_bar() {
+  int y;
+  int x = y = 0; // no-warning
+  x = 2;
+  y = 2;
+  return x + y;
+}
+
+int *radar11185138_baz() {
+  int *x, *y;
+  x = y = 0; // no-warning
+  return y;
 }
 

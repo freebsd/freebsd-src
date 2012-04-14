@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
 @interface Foo
 @end
 
@@ -170,4 +170,10 @@ namespace rdar9327203 {
   void g(id x) { 
     int &fr = (f)(x, 0); 
   }
+}
+
+namespace class_id {
+  // it's okay to overload Class with id.
+  void f(Class) { }
+  void f(id) { }
 }

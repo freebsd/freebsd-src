@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -Wno-protocol -verify %s
+// RUN: %clang_cc1 -fsyntax-only -Wno-protocol -verify -Wno-objc-root-class %s
 // rdar: // 7056600
 
 @protocol P
@@ -17,7 +17,7 @@
 // Test2
 @interface super - PMeth; @end
 @interface J : super <P>
-- PMeth;	// expected-note {{ method definition for 'PMeth' not found}}
+- PMeth;	// expected-note {{method definition for 'PMeth' not found}}
 @end
 @implementation J @end	// expected-warning {{incomplete implementation}}
 

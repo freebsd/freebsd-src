@@ -1,6 +1,38 @@
 // RUN: %clang_cc1 -arcmt-check -verify -triple x86_64-apple-darwin10 %s
+// DISABLE: mingw32
 
-#include "Common.h"
+#if __has_feature(objc_arc)
+#define NS_AUTOMATED_REFCOUNT_UNAVAILABLE __attribute__((unavailable("not available in automatic reference counting mode")))
+#else
+#define NS_AUTOMATED_REFCOUNT_UNAVAILABLE
+#endif
+
+typedef const void * CFTypeRef;
+CFTypeRef CFBridgingRetain(id X);
+id CFBridgingRelease(CFTypeRef);
+
+typedef int BOOL;
+typedef unsigned NSUInteger;
+
+@protocol NSObject
+- (id)retain NS_AUTOMATED_REFCOUNT_UNAVAILABLE;
+- (NSUInteger)retainCount NS_AUTOMATED_REFCOUNT_UNAVAILABLE;
+- (oneway void)release NS_AUTOMATED_REFCOUNT_UNAVAILABLE;
+- (id)autorelease NS_AUTOMATED_REFCOUNT_UNAVAILABLE;
+@end
+
+@interface NSObject <NSObject> {}
+- (id)init;
+
++ (id)new;
++ (id)alloc;
+- (void)dealloc;
+
+- (void)finalize;
+
+- (id)copy;
+- (id)mutableCopy;
+@end
 
 typedef const struct __CFString * CFStringRef;
 extern const CFStringRef kUTTypePlainText;
@@ -62,8 +94,8 @@ void test1(A *a, BOOL b, struct UnsafeS *unsafeS) {
 
   CFStringRef cfstr;
   NSString *str = (NSString *)cfstr; // expected-error {{cast of C pointer type 'CFStringRef' (aka 'const struct __CFString *') to Objective-C pointer type 'NSString *' requires a bridged cast}} \
-  // expected-note{{use __bridge to convert directly (no change in ownership)}} \
-  // expected-note{{use __bridge_transfer to transfer ownership of a +1 'CFStringRef' (aka 'const struct __CFString *') into ARC}}
+  // expected-note {{use __bridge to convert directly (no change in ownership)}} \
+  // expected-note {{use CFBridgingRelease call to transfer ownership of a +1 'CFStringRef' (aka 'const struct __CFString *') into ARC}} \
   str = (NSString *)kUTTypePlainText;
   str = b ? kUTTypeRTF : kUTTypePlainText;
   str = (NSString *)(b ? kUTTypeRTF : kUTTypePlainText);
@@ -120,11 +152,11 @@ void * cvt(id arg)
   (void)(__autoreleasing id**)voidp_val;
   (void)(void*)voidp_val;
   (void)(void**)arg; // expected-error {{disallowed}}
-  cvt((void*)arg); // expected-error {{requires a bridged cast}} expected-error {{disallowed}} \
-                   // expected-note {{use __bridge}} expected-note {{use __bridge_retained}} 
+  cvt((void*)arg); // expected-error 2 {{requires a bridged cast}} \
+                   // expected-note 2 {{use __bridge to}} expected-note {{use CFBridgingRelease call}} expected-note {{use CFBridgingRetain call}}
   cvt(0);
   (void)(__strong id**)(0);
-  return arg; // expected-error {{disallowed}}
+  return arg; // expected-error {{requires a bridged cast}} expected-note {{use __bridge}} expected-note {{use CFBridgingRetain call}}
 }
 
 

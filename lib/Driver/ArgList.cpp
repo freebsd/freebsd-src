@@ -122,6 +122,24 @@ Arg *ArgList::getLastArg(OptSpecifier Id0, OptSpecifier Id1,
   return Res;
 }
 
+Arg *ArgList::getLastArg(OptSpecifier Id0, OptSpecifier Id1,
+                         OptSpecifier Id2, OptSpecifier Id3,
+                         OptSpecifier Id4) const {
+  Arg *Res = 0;
+  for (const_iterator it = begin(), ie = end(); it != ie; ++it) {
+    if ((*it)->getOption().matches(Id0) ||
+        (*it)->getOption().matches(Id1) ||
+        (*it)->getOption().matches(Id2) ||
+        (*it)->getOption().matches(Id3) ||
+        (*it)->getOption().matches(Id4)) {
+      Res = *it;
+      Res->claim();
+    }
+  }
+
+  return Res;
+}
+
 bool ArgList::hasFlag(OptSpecifier Pos, OptSpecifier Neg, bool Default) const {
   if (Arg *A = getLastArg(Pos, Neg))
     return A->getOption().matches(Pos);
@@ -136,13 +154,15 @@ StringRef ArgList::getLastArgValue(OptSpecifier Id,
 }
 
 int ArgList::getLastArgIntValue(OptSpecifier Id, int Default,
-                                clang::DiagnosticsEngine &Diags) const {
+                                clang::DiagnosticsEngine *Diags) const {
   int Res = Default;
 
   if (Arg *A = getLastArg(Id)) {
-    if (StringRef(A->getValue(*this)).getAsInteger(10, Res))
-      Diags.Report(diag::err_drv_invalid_int_value)
-        << A->getAsString(*this) << A->getValue(*this);
+    if (StringRef(A->getValue(*this)).getAsInteger(10, Res)) {
+      if (Diags)
+        Diags->Report(diag::err_drv_invalid_int_value)
+          << A->getAsString(*this) << A->getValue(*this);
+    }
   }
 
   return Res;
@@ -210,7 +230,7 @@ void ArgList::ClaimAllArgs() const {
 }
 
 const char *ArgList::MakeArgString(const Twine &T) const {
-  llvm::SmallString<256> Str;
+  SmallString<256> Str;
   T.toVector(Str);
   return MakeArgString(Str.str());
 }

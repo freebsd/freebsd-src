@@ -45,7 +45,7 @@ void C2::m() {
 }
 
 namespace B {
-  void ::A::Af() {} // expected-error {{definition or redeclaration of 'Af' not in a namespace enclosing 'A'}}
+  void ::A::Af() {} // expected-error {{cannot define or redeclare 'Af' here because namespace 'B' does not enclose namespace 'A'}}
 }
 
 void f1() {
@@ -160,7 +160,7 @@ namespace N {
   void f();
   // FIXME: if we move this to a separate definition of N, things break!
 }
-void ::global_func2(int) { } // expected-error{{definition or redeclaration of 'global_func2' cannot name the global scope}}
+void ::global_func2(int) { } // expected-warning{{extra qualification on member 'global_func2'}}
 
 void N::f() { } // okay
 
@@ -274,7 +274,8 @@ struct A {
 protected:
   struct B;
   struct B::C; // expected-error {{requires a template parameter list}} \
-               // expected-error {{no struct named 'C'}}
+               // expected-error {{no struct named 'C'}} \
+    // expected-error{{non-friend class member 'C' cannot have a qualified name}}
 };
 
 template<typename T>

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
 
 @interface MyClass1 @end
 
@@ -31,9 +31,9 @@
 
 @interface UnknownClass  (Category) @end // expected-error {{cannot find interface declaration for 'UnknownClass'}}
 
-@class MyClass2;
+@class MyClass2; // expected-note{{forward declaration of class here}}
 
-@interface MyClass2  (Category) @end  // expected-error {{cannot find interface declaration for 'MyClass2'}}
+@interface MyClass2  (Category) @end  // expected-error {{cannot define category for undefined class 'MyClass2'}}
 
 @interface XCRemoteComputerManager
 @end
@@ -62,7 +62,7 @@
 // <rdar://problem/7249233>
 
 @protocol MultipleCat_P
--(void) im0; // expected-note {{method declared here}}
+-(void) im0; // expected-note {{method 'im0' declared here}}
 @end
 
 @interface MultipleCat_I @end // expected-note {{required for direct or indirect protocol 'MultipleCat_P'}}
@@ -72,7 +72,7 @@
 @interface MultipleCat_I() <MultipleCat_P>  @end
 
 @implementation MultipleCat_I // expected-warning {{incomplete implementation}} \
-                              // expected-warning {{method in protocol not implemented [-Wprotocol]}}
+                              // expected-warning {{method 'im0' in protocol not implemented}}
 @end
 
 // <rdar://problem/7680391> - Handle nameless categories with no name that refer
@@ -95,3 +95,7 @@
 @synthesize name = _name;
 @end
 
+// rdar://10968158
+@class I; // expected-note {{forward declaration}}
+@implementation I(cat) // expected-error{{cannot find interface declaration}}
+@end

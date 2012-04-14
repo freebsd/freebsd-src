@@ -27,7 +27,7 @@
 @end
 
 
-@class C;	// expected-note 5 {{forward class is declared here}}
+@class C;	// expected-note 5 {{forward declaration of class here}}
 
 void test(C *c) {
   [c depInA]; // expected-warning {{'depInA' maybe deprecated because receiver type is unknown}}
@@ -41,5 +41,15 @@ void test(C *c) {
   [c FuzzyMeth];      // expected-warning {{'FuzzyMeth' maybe deprecated because receiver type is unknown}}
   [c FuzzyMeth1]; // expected-warning {{'FuzzyMeth1' maybe deprecated because receiver type is unknown}}
 
+}
+
+// rdar://10268422
+__attribute ((deprecated))
+@interface DEPRECATED
++(id)new;
+@end
+
+void foo() {
+  [DEPRECATED new]; // expected-warning {{'DEPRECATED' is deprecated}}
 }
 

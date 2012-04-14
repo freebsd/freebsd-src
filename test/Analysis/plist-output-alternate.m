@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,osx.cocoa.RetainCount,experimental.core -analyzer-store=region -analyzer-constraints=range -fblocks -analyzer-output=plist -o - %s | FileCheck %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,osx.cocoa.RetainCount,experimental.core -analyzer-store=region -analyzer-constraints=range -fblocks -analyzer-output=plist -o %t %s
+// RUN: FileCheck --input-file %t %s
 
 void test_null_init(void) {
   int *p = 0;
@@ -57,7 +58,6 @@ void rdar8331641(int x) {
 }
 
 // CHECK: <?xml version="1.0" encoding="UTF-8"?>
-// CHECK: <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 // CHECK: <plist version="1.0">
 // CHECK: <dict>
 // CHECK:  <key>files</key>
@@ -76,12 +76,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>4</integer>
+// CHECK:            <key>line</key><integer>5</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>4</integer>
+// CHECK:            <key>line</key><integer>5</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -89,13 +89,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>5</integer>
+// CHECK:            <key>line</key><integer>6</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>5</integer>
-// CHECK:            <key>col</key><integer>4</integer>
+// CHECK:            <key>line</key><integer>6</integer>
+// CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -106,7 +106,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>5</integer>
+// CHECK:       <key>line</key><integer>6</integer>
 // CHECK:       <key>col</key><integer>3</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -114,17 +114,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>5</integer>
+// CHECK:          <key>line</key><integer>6</integer>
 // CHECK:          <key>col</key><integer>4</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>5</integer>
+// CHECK:          <key>line</key><integer>6</integer>
 // CHECK:          <key>col</key><integer>4</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:      <key>message</key>
@@ -134,9 +135,11 @@ void rdar8331641(int x) {
 // CHECK:    <key>description</key><string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:    <key>category</key><string>Logic error</string>
 // CHECK:    <key>type</key><string>Dereference of null pointer</string>
+// CHECK:   <key>issue_context_kind</key><string>function</string>
+// CHECK:   <key>issue_context</key><string>test_null_init</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
-// CHECK:    <key>line</key><integer>5</integer>
+// CHECK:    <key>line</key><integer>6</integer>
 // CHECK:    <key>col</key><integer>3</integer>
 // CHECK:    <key>file</key><integer>0</integer>
 // CHECK:   </dict>
@@ -152,12 +155,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>9</integer>
+// CHECK:            <key>line</key><integer>10</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>9</integer>
+// CHECK:            <key>line</key><integer>10</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -165,13 +168,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>11</integer>
+// CHECK:            <key>line</key><integer>12</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>11</integer>
-// CHECK:            <key>col</key><integer>4</integer>
+// CHECK:            <key>line</key><integer>12</integer>
+// CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -182,7 +185,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>11</integer>
+// CHECK:       <key>line</key><integer>12</integer>
 // CHECK:       <key>col</key><integer>3</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -190,17 +193,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>11</integer>
+// CHECK:          <key>line</key><integer>12</integer>
 // CHECK:          <key>col</key><integer>4</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>11</integer>
+// CHECK:          <key>line</key><integer>12</integer>
 // CHECK:          <key>col</key><integer>4</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:      <key>message</key>
@@ -210,9 +214,11 @@ void rdar8331641(int x) {
 // CHECK:    <key>description</key><string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:    <key>category</key><string>Logic error</string>
 // CHECK:    <key>type</key><string>Dereference of null pointer</string>
+// CHECK:   <key>issue_context_kind</key><string>function</string>
+// CHECK:   <key>issue_context</key><string>test_null_assign</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
-// CHECK:    <key>line</key><integer>11</integer>
+// CHECK:    <key>line</key><integer>12</integer>
 // CHECK:    <key>col</key><integer>3</integer>
 // CHECK:    <key>file</key><integer>0</integer>
 // CHECK:   </dict>
@@ -228,12 +234,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>15</integer>
+// CHECK:            <key>line</key><integer>16</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>15</integer>
+// CHECK:            <key>line</key><integer>16</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -241,13 +247,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>18</integer>
+// CHECK:            <key>line</key><integer>19</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>18</integer>
-// CHECK:            <key>col</key><integer>4</integer>
+// CHECK:            <key>line</key><integer>19</integer>
+// CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -258,7 +264,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>18</integer>
+// CHECK:       <key>line</key><integer>19</integer>
 // CHECK:       <key>col</key><integer>3</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -266,17 +272,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>18</integer>
+// CHECK:          <key>line</key><integer>19</integer>
 // CHECK:          <key>col</key><integer>4</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>18</integer>
+// CHECK:          <key>line</key><integer>19</integer>
 // CHECK:          <key>col</key><integer>4</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Dereference of null pointer (loaded from variable &apos;q&apos;)</string>
 // CHECK:      <key>message</key>
@@ -286,9 +293,11 @@ void rdar8331641(int x) {
 // CHECK:    <key>description</key><string>Dereference of null pointer (loaded from variable &apos;q&apos;)</string>
 // CHECK:    <key>category</key><string>Logic error</string>
 // CHECK:    <key>type</key><string>Dereference of null pointer</string>
+// CHECK:   <key>issue_context_kind</key><string>function</string>
+// CHECK:   <key>issue_context</key><string>test_null_assign_transitive</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
-// CHECK:    <key>line</key><integer>18</integer>
+// CHECK:    <key>line</key><integer>19</integer>
 // CHECK:    <key>col</key><integer>3</integer>
 // CHECK:    <key>file</key><integer>0</integer>
 // CHECK:   </dict>
@@ -304,12 +313,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>22</integer>
+// CHECK:            <key>line</key><integer>23</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>22</integer>
+// CHECK:            <key>line</key><integer>23</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -317,12 +326,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>22</integer>
+// CHECK:            <key>line</key><integer>23</integer>
 // CHECK:            <key>col</key><integer>7</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>22</integer>
+// CHECK:            <key>line</key><integer>23</integer>
 // CHECK:            <key>col</key><integer>8</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -334,7 +343,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>22</integer>
+// CHECK:       <key>line</key><integer>23</integer>
 // CHECK:       <key>col</key><integer>7</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -342,17 +351,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>22</integer>
+// CHECK:          <key>line</key><integer>23</integer>
 // CHECK:          <key>col</key><integer>7</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>22</integer>
+// CHECK:          <key>line</key><integer>23</integer>
 // CHECK:          <key>col</key><integer>8</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Assuming &apos;p&apos; is null</string>
 // CHECK:      <key>message</key>
@@ -366,12 +376,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>22</integer>
+// CHECK:            <key>line</key><integer>23</integer>
 // CHECK:            <key>col</key><integer>7</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>22</integer>
+// CHECK:            <key>line</key><integer>23</integer>
 // CHECK:            <key>col</key><integer>8</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -379,13 +389,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>23</integer>
+// CHECK:            <key>line</key><integer>24</integer>
 // CHECK:            <key>col</key><integer>5</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>23</integer>
-// CHECK:            <key>col</key><integer>6</integer>
+// CHECK:            <key>line</key><integer>24</integer>
+// CHECK:            <key>col</key><integer>5</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -396,7 +406,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>23</integer>
+// CHECK:       <key>line</key><integer>24</integer>
 // CHECK:       <key>col</key><integer>5</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -404,17 +414,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>23</integer>
+// CHECK:          <key>line</key><integer>24</integer>
 // CHECK:          <key>col</key><integer>6</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>23</integer>
+// CHECK:          <key>line</key><integer>24</integer>
 // CHECK:          <key>col</key><integer>6</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:      <key>message</key>
@@ -424,9 +435,11 @@ void rdar8331641(int x) {
 // CHECK:    <key>description</key><string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:    <key>category</key><string>Logic error</string>
 // CHECK:    <key>type</key><string>Dereference of null pointer</string>
+// CHECK:   <key>issue_context_kind</key><string>function</string>
+// CHECK:   <key>issue_context</key><string>test_null_cond</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
-// CHECK:    <key>line</key><integer>23</integer>
+// CHECK:    <key>line</key><integer>24</integer>
 // CHECK:    <key>col</key><integer>5</integer>
 // CHECK:    <key>file</key><integer>0</integer>
 // CHECK:   </dict>
@@ -442,12 +455,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>28</integer>
+// CHECK:            <key>line</key><integer>29</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>28</integer>
+// CHECK:            <key>line</key><integer>29</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -455,75 +468,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>28</integer>
+// CHECK:            <key>line</key><integer>29</integer>
 // CHECK:            <key>col</key><integer>7</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>28</integer>
-// CHECK:            <key>col</key><integer>8</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:          </array>
-// CHECK:        </dict>
-// CHECK:       </array>
-// CHECK:     </dict>
-// CHECK:     <dict>
-// CHECK:      <key>kind</key><string>event</string>
-// CHECK:      <key>location</key>
-// CHECK:      <dict>
-// CHECK:       <key>line</key><integer>28</integer>
-// CHECK:       <key>col</key><integer>7</integer>
-// CHECK:       <key>file</key><integer>0</integer>
-// CHECK:      </dict>
-// CHECK:      <key>ranges</key>
-// CHECK:      <array>
-// CHECK:        <array>
-// CHECK:         <dict>
-// CHECK:          <key>line</key><integer>28</integer>
-// CHECK:          <key>col</key><integer>7</integer>
-// CHECK:          <key>file</key><integer>0</integer>
-// CHECK:         </dict>
-// CHECK:         <dict>
-// CHECK:          <key>line</key><integer>28</integer>
-// CHECK:          <key>col</key><integer>8</integer>
-// CHECK:          <key>file</key><integer>0</integer>
-// CHECK:         </dict>
-// CHECK:        </array>
-// CHECK:      </array>
-// CHECK:      <key>extended_message</key>
-// CHECK:      <string>Assuming &apos;q&apos; is null</string>
-// CHECK:      <key>message</key>
-// CHECK: <string>Assuming &apos;q&apos; is null</string>
-// CHECK:     </dict>
-// CHECK:     <dict>
-// CHECK:      <key>kind</key><string>control</string>
-// CHECK:      <key>edges</key>
-// CHECK:       <array>
-// CHECK:        <dict>
-// CHECK:         <key>start</key>
-// CHECK:          <array>
-// CHECK:           <dict>
-// CHECK:            <key>line</key><integer>28</integer>
-// CHECK:            <key>col</key><integer>7</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:           <dict>
-// CHECK:            <key>line</key><integer>28</integer>
-// CHECK:            <key>col</key><integer>8</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:          </array>
-// CHECK:         <key>end</key>
-// CHECK:          <array>
-// CHECK:           <dict>
 // CHECK:            <key>line</key><integer>29</integer>
-// CHECK:            <key>col</key><integer>5</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:           <dict>
-// CHECK:            <key>line</key><integer>29</integer>
-// CHECK:            <key>col</key><integer>5</integer>
+// CHECK:            <key>col</key><integer>8</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -539,12 +490,12 @@ void rdar8331641(int x) {
 // CHECK:          <array>
 // CHECK:           <dict>
 // CHECK:            <key>line</key><integer>29</integer>
-// CHECK:            <key>col</key><integer>5</integer>
+// CHECK:            <key>col</key><integer>7</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
 // CHECK:            <key>line</key><integer>29</integer>
-// CHECK:            <key>col</key><integer>5</integer>
+// CHECK:            <key>col</key><integer>8</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -557,7 +508,41 @@ void rdar8331641(int x) {
 // CHECK:           </dict>
 // CHECK:           <dict>
 // CHECK:            <key>line</key><integer>30</integer>
-// CHECK:            <key>col</key><integer>6</integer>
+// CHECK:            <key>col</key><integer>5</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:          </array>
+// CHECK:        </dict>
+// CHECK:       </array>
+// CHECK:     </dict>
+// CHECK:     <dict>
+// CHECK:      <key>kind</key><string>control</string>
+// CHECK:      <key>edges</key>
+// CHECK:       <array>
+// CHECK:        <dict>
+// CHECK:         <key>start</key>
+// CHECK:          <array>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>30</integer>
+// CHECK:            <key>col</key><integer>5</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>30</integer>
+// CHECK:            <key>col</key><integer>5</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:          </array>
+// CHECK:         <key>end</key>
+// CHECK:          <array>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>31</integer>
+// CHECK:            <key>col</key><integer>5</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>31</integer>
+// CHECK:            <key>col</key><integer>5</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -568,7 +553,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>30</integer>
+// CHECK:       <key>line</key><integer>31</integer>
 // CHECK:       <key>col</key><integer>5</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -576,17 +561,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>30</integer>
+// CHECK:          <key>line</key><integer>31</integer>
 // CHECK:          <key>col</key><integer>6</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>30</integer>
+// CHECK:          <key>line</key><integer>31</integer>
 // CHECK:          <key>col</key><integer>6</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:      <key>message</key>
@@ -596,9 +582,11 @@ void rdar8331641(int x) {
 // CHECK:    <key>description</key><string>Dereference of null pointer (loaded from variable &apos;p&apos;)</string>
 // CHECK:    <key>category</key><string>Logic error</string>
 // CHECK:    <key>type</key><string>Dereference of null pointer</string>
+// CHECK:   <key>issue_context_kind</key><string>function</string>
+// CHECK:   <key>issue_context</key><string>test_null_cond_transitive</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
-// CHECK:    <key>line</key><integer>30</integer>
+// CHECK:    <key>line</key><integer>31</integer>
 // CHECK:    <key>col</key><integer>5</integer>
 // CHECK:    <key>file</key><integer>0</integer>
 // CHECK:   </dict>
@@ -614,12 +602,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>35</integer>
+// CHECK:            <key>line</key><integer>36</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>35</integer>
+// CHECK:            <key>line</key><integer>36</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -627,12 +615,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>35</integer>
+// CHECK:            <key>line</key><integer>36</integer>
 // CHECK:            <key>col</key><integer>10</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>35</integer>
+// CHECK:            <key>line</key><integer>36</integer>
 // CHECK:            <key>col</key><integer>10</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -648,12 +636,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>35</integer>
+// CHECK:            <key>line</key><integer>36</integer>
 // CHECK:            <key>col</key><integer>10</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>35</integer>
+// CHECK:            <key>line</key><integer>36</integer>
 // CHECK:            <key>col</key><integer>10</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -661,13 +649,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>37</integer>
+// CHECK:            <key>line</key><integer>38</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>37</integer>
-// CHECK:            <key>col</key><integer>8</integer>
+// CHECK:            <key>line</key><integer>38</integer>
+// CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -678,7 +666,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>37</integer>
+// CHECK:       <key>line</key><integer>38</integer>
 // CHECK:       <key>col</key><integer>3</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -686,17 +674,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>37</integer>
+// CHECK:          <key>line</key><integer>38</integer>
 // CHECK:          <key>col</key><integer>7</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>37</integer>
+// CHECK:          <key>line</key><integer>38</integer>
 // CHECK:          <key>col</key><integer>7</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Dereference of null pointer (loaded from field &apos;p&apos;)</string>
 // CHECK:      <key>message</key>
@@ -706,9 +695,11 @@ void rdar8331641(int x) {
 // CHECK:    <key>description</key><string>Dereference of null pointer (loaded from field &apos;p&apos;)</string>
 // CHECK:    <key>category</key><string>Logic error</string>
 // CHECK:    <key>type</key><string>Dereference of null pointer</string>
+// CHECK:   <key>issue_context_kind</key><string>function</string>
+// CHECK:   <key>issue_context</key><string>test_null_field</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
-// CHECK:    <key>line</key><integer>37</integer>
+// CHECK:    <key>line</key><integer>38</integer>
 // CHECK:    <key>col</key><integer>3</integer>
 // CHECK:    <key>file</key><integer>0</integer>
 // CHECK:   </dict>
@@ -724,12 +715,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>52</integer>
+// CHECK:            <key>line</key><integer>53</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>52</integer>
+// CHECK:            <key>line</key><integer>53</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -737,12 +728,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -758,12 +749,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -771,12 +762,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>23</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>82</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -788,7 +779,7 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>53</integer>
+// CHECK:       <key>line</key><integer>54</integer>
 // CHECK:       <key>col</key><integer>23</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
@@ -796,17 +787,18 @@ void rdar8331641(int x) {
 // CHECK:      <array>
 // CHECK:        <array>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>53</integer>
+// CHECK:          <key>line</key><integer>54</integer>
 // CHECK:          <key>col</key><integer>23</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:         <dict>
-// CHECK:          <key>line</key><integer>53</integer>
+// CHECK:          <key>line</key><integer>54</integer>
 // CHECK:          <key>col</key><integer>82</integer>
 // CHECK:          <key>file</key><integer>0</integer>
 // CHECK:         </dict>
 // CHECK:        </array>
 // CHECK:      </array>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Call to function &apos;CFNumberCreate&apos; returns a Core Foundation object with a +1 retain count</string>
 // CHECK:      <key>message</key>
@@ -820,12 +812,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>23</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>53</integer>
+// CHECK:            <key>line</key><integer>54</integer>
 // CHECK:            <key>col</key><integer>82</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -833,12 +825,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
+// CHECK:            <key>line</key><integer>55</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
+// CHECK:            <key>line</key><integer>55</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -854,12 +846,12 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
+// CHECK:            <key>line</key><integer>55</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
+// CHECK:            <key>line</key><integer>55</integer>
 // CHECK:            <key>col</key><integer>3</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -867,75 +859,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>end</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
+// CHECK:            <key>line</key><integer>55</integer>
 // CHECK:            <key>col</key><integer>7</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
+// CHECK:            <key>line</key><integer>55</integer>
 // CHECK:            <key>col</key><integer>7</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:          </array>
-// CHECK:        </dict>
-// CHECK:       </array>
-// CHECK:     </dict>
-// CHECK:     <dict>
-// CHECK:      <key>kind</key><string>event</string>
-// CHECK:      <key>location</key>
-// CHECK:      <dict>
-// CHECK:       <key>line</key><integer>54</integer>
-// CHECK:       <key>col</key><integer>7</integer>
-// CHECK:       <key>file</key><integer>0</integer>
-// CHECK:      </dict>
-// CHECK:      <key>ranges</key>
-// CHECK:      <array>
-// CHECK:        <array>
-// CHECK:         <dict>
-// CHECK:          <key>line</key><integer>54</integer>
-// CHECK:          <key>col</key><integer>7</integer>
-// CHECK:          <key>file</key><integer>0</integer>
-// CHECK:         </dict>
-// CHECK:         <dict>
-// CHECK:          <key>line</key><integer>54</integer>
-// CHECK:          <key>col</key><integer>7</integer>
-// CHECK:          <key>file</key><integer>0</integer>
-// CHECK:         </dict>
-// CHECK:        </array>
-// CHECK:      </array>
-// CHECK:      <key>extended_message</key>
-// CHECK:      <string>Assuming &apos;x&apos; is 0</string>
-// CHECK:      <key>message</key>
-// CHECK: <string>Assuming &apos;x&apos; is 0</string>
-// CHECK:     </dict>
-// CHECK:     <dict>
-// CHECK:      <key>kind</key><string>control</string>
-// CHECK:      <key>edges</key>
-// CHECK:       <array>
-// CHECK:        <dict>
-// CHECK:         <key>start</key>
-// CHECK:          <array>
-// CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
-// CHECK:            <key>col</key><integer>7</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:           <dict>
-// CHECK:            <key>line</key><integer>54</integer>
-// CHECK:            <key>col</key><integer>7</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:          </array>
-// CHECK:         <key>end</key>
-// CHECK:          <array>
-// CHECK:           <dict>
-// CHECK:            <key>line</key><integer>56</integer>
-// CHECK:            <key>col</key><integer>10</integer>
-// CHECK:            <key>file</key><integer>0</integer>
-// CHECK:           </dict>
-// CHECK:           <dict>
-// CHECK:            <key>line</key><integer>56</integer>
-// CHECK:            <key>col</key><integer>10</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -950,13 +880,13 @@ void rdar8331641(int x) {
 // CHECK:         <key>start</key>
 // CHECK:          <array>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>56</integer>
-// CHECK:            <key>col</key><integer>10</integer>
+// CHECK:            <key>line</key><integer>55</integer>
+// CHECK:            <key>col</key><integer>7</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>56</integer>
-// CHECK:            <key>col</key><integer>10</integer>
+// CHECK:            <key>line</key><integer>55</integer>
+// CHECK:            <key>col</key><integer>7</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:          </array>
@@ -964,11 +894,45 @@ void rdar8331641(int x) {
 // CHECK:          <array>
 // CHECK:           <dict>
 // CHECK:            <key>line</key><integer>57</integer>
+// CHECK:            <key>col</key><integer>10</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>57</integer>
+// CHECK:            <key>col</key><integer>10</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:          </array>
+// CHECK:        </dict>
+// CHECK:       </array>
+// CHECK:     </dict>
+// CHECK:     <dict>
+// CHECK:      <key>kind</key><string>control</string>
+// CHECK:      <key>edges</key>
+// CHECK:       <array>
+// CHECK:        <dict>
+// CHECK:         <key>start</key>
+// CHECK:          <array>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>57</integer>
+// CHECK:            <key>col</key><integer>10</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>57</integer>
+// CHECK:            <key>col</key><integer>10</integer>
+// CHECK:            <key>file</key><integer>0</integer>
+// CHECK:           </dict>
+// CHECK:          </array>
+// CHECK:         <key>end</key>
+// CHECK:          <array>
+// CHECK:           <dict>
+// CHECK:            <key>line</key><integer>58</integer>
 // CHECK:            <key>col</key><integer>1</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
 // CHECK:           <dict>
-// CHECK:            <key>line</key><integer>57</integer>
+// CHECK:            <key>line</key><integer>58</integer>
 // CHECK:            <key>col</key><integer>1</integer>
 // CHECK:            <key>file</key><integer>0</integer>
 // CHECK:           </dict>
@@ -980,22 +944,25 @@ void rdar8331641(int x) {
 // CHECK:      <key>kind</key><string>event</string>
 // CHECK:      <key>location</key>
 // CHECK:      <dict>
-// CHECK:       <key>line</key><integer>57</integer>
+// CHECK:       <key>line</key><integer>58</integer>
 // CHECK:       <key>col</key><integer>1</integer>
 // CHECK:       <key>file</key><integer>0</integer>
 // CHECK:      </dict>
+// CHECK:      <key>depth</key><integer>0</integer>
 // CHECK:      <key>extended_message</key>
 // CHECK:      <string>Object leaked: object allocated and stored into &apos;value&apos; is not referenced later in this execution path and has a retain count of +1</string>
 // CHECK:      <key>message</key>
 // CHECK: <string>Object leaked: object allocated and stored into &apos;value&apos; is not referenced later in this execution path and has a retain count of +1</string>
 // CHECK:     </dict>
 // CHECK:    </array>
-// CHECK:    <key>description</key><string>Potential leak of an object allocated on line 53 and stored into &apos;value&apos;</string>
+// CHECK:    <key>description</key><string>Potential leak of an object stored into &apos;value&apos;</string>
 // CHECK:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK:    <key>type</key><string>Leak</string>
+// CHECK:   <key>issue_context_kind</key><string>function</string>
+// CHECK:   <key>issue_context</key><string>rdar8331641</string>
 // CHECK:   <key>location</key>
 // CHECK:   <dict>
-// CHECK:    <key>line</key><integer>57</integer>
+// CHECK:    <key>line</key><integer>58</integer>
 // CHECK:    <key>col</key><integer>1</integer>
 // CHECK:    <key>file</key><integer>0</integer>
 // CHECK:   </dict>

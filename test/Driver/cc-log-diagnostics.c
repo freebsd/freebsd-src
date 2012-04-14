@@ -1,7 +1,7 @@
 // RUN: rm -f %t.log
 // RUN: env RC_DEBUG_OPTIONS=1 \
 // RUN:     CC_LOG_DIAGNOSTICS=1 CC_LOG_DIAGNOSTICS_FILE=%t.log \
-// RUN: %clang -Wfoobar -no-canonical-prefixes -ccc-host-triple x86_64-apple-darwin10 -fsyntax-only %s
+// RUN: %clang -Wfoobar -no-canonical-prefixes -target x86_64-apple-darwin10 -fsyntax-only %s
 // RUN: FileCheck %s < %t.log
 
 int f0() {}
@@ -17,7 +17,7 @@ int f0() {}
 // CHECK:       <key>level</key>
 // CHECK:       <string>warning</string>
 // CHECK:       <key>message</key>
-// CHECK:       <string>unknown warning option &apos;-Wfoobar&apos;</string>
+// CHECK:       <string>unknown warning option &apos;-Wfoobar&apos;; did you mean &apos;-W{{.*}}&apos;?</string>
 // CHECK:     </dict>
 // CHECK:     <dict>
 // CHECK:       <key>level</key>

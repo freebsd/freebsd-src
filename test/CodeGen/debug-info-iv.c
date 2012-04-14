@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -Os -S -g  -o - %s | FileCheck %s
+// REQUIRES: x86-registered-target
 
 int calculate(int);
 static void test_indvars(int *Array1, int Array2[100][200]) {
@@ -26,7 +27,7 @@ int main() {
       Array[i][j] = 0;
   test_indvars(Array[0], Array);
 
-//CHECK:	.loc	2 30 8
+//CHECK:	.loc	2 31 8
   for (i=0; i < 100; i+=2)
     for (j=0; j < 200; j++)
       sum += Array[i][j];

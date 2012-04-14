@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only %s -verify -fblocks
+// RUN: %clang_cc1 -pedantic -fsyntax-only %s -verify -fblocks
 
 typedef void (^CL)(void);
 
@@ -9,14 +9,14 @@ CL foo() {
   CL X = ^{
     if (2)
       return;
-    return 1;  // expected-error {{void block should not return a value}}
+    return 1;  // expected-error {{return type 'int' must match previous return type 'void' when block literal has unspecified explicit return type}}
   };
 
   int (^Y) (void)  = ^{
     if (3)
       return 1;
     else
-      return; // expected-error {{non-void block should return a value}}
+      return; // expected-error {{return type 'void' must match previous return type 'int' when block literal has unspecified explicit return type}}
   };
 
   char *(^Z)(void) = ^{
@@ -31,14 +31,14 @@ CL foo() {
       return (float)1.0;
     else
       if (2)
-        return (double)2.0;
-    return 1;
+        return (double)2.0; // expected-error {{return type 'double' must match previous return type 'float' when block literal has unspecified explicit return type}}
+    return 1; // expected-error {{return type 'int' must match previous return type 'float' when block literal has unspecified explicit return type}}
   };
   char *(^B)(void) = ^{
     if (3)
       return "";
     else
-      return 2; // expected-warning {{incompatible integer to pointer conversion returning 'int' from a function with result type 'char *'}}
+      return 2; // expected-error {{return type 'int' must match previous return type 'char *' when block literal has unspecified explicit return type}}
   };
 
   return ^{ return 1; }; // expected-error {{incompatible block pointer types returning 'int (^)(void)' from a function with result type 'CL' (aka 'void (^)(void)')}}
@@ -81,7 +81,7 @@ void foo4() {
   int (^xx)(const char *s) = ^(char *s) { return 1; }; // expected-error {{incompatible block pointer types initializing 'int (^)(const char *)' with an expression of type 'int (^)(char *)'}}
   int (*yy)(const char *s) = funk; // expected-warning {{incompatible pointer types initializing 'int (*)(const char *)' with an expression of type 'int (char *)'}}
   
-  int (^nested)(char *s) = ^(char *str) { void (^nest)(void) = ^(void) { printf("%s\n", str); }; next(); return 1; }; // expected-warning{{implicitly declaring C library function 'printf' with type 'int (const char *, ...)'}} \
+  int (^nested)(char *s) = ^(char *str) { void (^nest)(void) = ^(void) { printf("%s\n", str); }; next(); return 1; }; // expected-warning{{implicitly declaring library function 'printf' with type 'int (const char *, ...)'}} \
   // expected-note{{please include the header <stdio.h> or explicitly provide a declaration for 'printf'}}
 }
 
@@ -130,4 +130,7 @@ void foo7()
   int (^NN) (void)  = ^{ return cint; };
 }
 
-
+// rdar://11069896
+void (^blk)(void) = ^{
+    return (void)0; // expected-warning {{void block literal should not return void expression}}
+};

@@ -19,7 +19,7 @@ void cv_test(const volatile T* cvt) {
   cvt->T::~T(); // no-warning
 }
 
-void f(A* a, Foo *f, int *i, double *d) {
+void f(A* a, Foo *f, int *i, double *d, int ii) {
   a->~A();
   a->A::~A();
   
@@ -46,6 +46,9 @@ void f(A* a, Foo *f, int *i, double *d) {
   i->N::~Integer(); // expected-error{{'Integer' does not refer to a type name in pseudo-destructor expression; expected the name of type 'int'}}
   i->Integer::~Double(); // expected-error{{the type of object expression ('int') does not match the type being destroyed ('Double' (aka 'double')) in pseudo-destructor expression}}
 
+  ii->~Integer(); // expected-error{{member reference type 'int' is not a pointer; maybe you meant to use '.'?}}
+  ii.~Integer();
+
   cv_test(a);
   cv_test(f);
   cv_test(i);
@@ -68,3 +71,12 @@ void test_X0(N1::X0 &x0) {
   x0.~X0();
 }
 
+namespace PR11339 {
+  template<class T>
+  void destroy(T* p) {
+    p->~T(); // ok
+    p->~oops(); // expected-error{{expected the class name after '~' to name a destructor}}
+  }
+
+  template void destroy(int*); // expected-note{{in instantiation of function template specialization}}
+}

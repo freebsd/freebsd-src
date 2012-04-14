@@ -19,7 +19,7 @@
 #include <cstdlib>
 
 namespace clang {
-  
+
 std::string getClangRepositoryPath() {
 #if defined(CLANG_REPOSITORY_STRING)
   return CLANG_REPOSITORY_STRING;
@@ -32,7 +32,7 @@ std::string getClangRepositoryPath() {
 
   // If the SVN_REPOSITORY is empty, try to use the SVN keyword. This helps us
   // pick up a tag in an SVN export, for example.
-  static StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_30/final/lib/Basic/Version.cpp $");
+  static StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $");
   if (URL.empty()) {
     URL = SVNRepository.slice(SVNRepository.find(':'),
                               SVNRepository.find("/lib/Basic"));
@@ -50,9 +50,34 @@ std::string getClangRepositoryPath() {
 #endif
 }
 
+std::string getLLVMRepositoryPath() {
+#ifdef LLVM_REPOSITORY
+  StringRef URL(LLVM_REPOSITORY);
+#else
+  StringRef URL("");
+#endif
+
+  // Trim path prefix off, assuming path came from standard llvm path.
+  // Leave "llvm/" prefix to distinguish the following llvm revision from the
+  // clang revision.
+  size_t Start = URL.find("llvm/");
+  if (Start != StringRef::npos)
+    URL = URL.substr(Start);
+
+  return URL;
+}
+
 std::string getClangRevision() {
 #ifdef SVN_REVISION
   return SVN_REVISION;
+#else
+  return "";
+#endif
+}
+
+std::string getLLVMRevision() {
+#ifdef LLVM_REVISION
+  return LLVM_REVISION;
 #else
   return "";
 #endif
@@ -63,24 +88,37 @@ std::string getClangFullRepositoryVersion() {
   llvm::raw_string_ostream OS(buf);
   std::string Path = getClangRepositoryPath();
   std::string Revision = getClangRevision();
-  if (!Path.empty())
-    OS << Path;
-  if (!Revision.empty()) {
+  if (!Path.empty() || !Revision.empty()) {
+    OS << '(';
     if (!Path.empty())
-      OS << ' ';
-    OS << Revision;
+      OS << Path;
+    if (!Revision.empty()) {
+      if (!Path.empty())
+        OS << ' ';
+      OS << Revision;
+    }
+    OS << ')';
+  }  
+  // Support LLVM in a separate repository.
+  std::string LLVMRev = getLLVMRevision();
+  if (!LLVMRev.empty() && LLVMRev != Revision) {
+    OS << " (";    
+    std::string LLVMRepo = getLLVMRepositoryPath();
+    if (!LLVMRepo.empty())
+      OS << LLVMRepo << ' ';
+    OS << LLVMRev << ')';
   }
   return OS.str();
 }
-  
+
 std::string getClangFullVersion() {
   std::string buf;
   llvm::raw_string_ostream OS(buf);
 #ifdef CLANG_VENDOR
   OS << CLANG_VENDOR;
 #endif
-  OS << "clang version " CLANG_VERSION_STRING " ("
-     << getClangFullRepositoryVersion() << ')';
+  OS << "clang version " CLANG_VERSION_STRING " "
+     << getClangFullRepositoryVersion();
 
   // If vendor supplied, include the base LLVM version as well.
 #ifdef CLANG_VENDOR

@@ -1,4 +1,4 @@
-__import_module__ diamond_top;
+@__experimental_modules_import diamond_top;
 
 double right(double *);
 

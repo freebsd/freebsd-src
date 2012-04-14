@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -Wconversion -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -Wconversion %s 2>&1 | FileCheck %s
 
 #include <stddef.h>
 
@@ -53,11 +54,30 @@ namespace test2 {
   };
 }
 
+// This file tests -Wnull-conversion, a subcategory of -Wconversion
+// which is on by default.
+
 void test3() {
-  int a = NULL; // expected-warning {{implicit conversion of NULL constant to integer}}
+  int a = NULL; // expected-warning {{implicit conversion of NULL constant to 'int'}}
   int b;
-  b = NULL; // expected-warning {{implicit conversion of NULL constant to integer}}
-  int c = ((((NULL)))); // expected-warning {{implicit conversion of NULL constant to integer}}
+  b = NULL; // expected-warning {{implicit conversion of NULL constant to 'int'}}
+  long l = NULL; // FIXME: this should also warn, but currently does not if sizeof(NULL)==sizeof(inttype)
+  int c = ((((NULL)))); // expected-warning {{implicit conversion of NULL constant to 'int'}}
   int d;
-  d = ((((NULL)))); // expected-warning {{implicit conversion of NULL constant to integer}}
+  d = ((((NULL)))); // expected-warning {{implicit conversion of NULL constant to 'int'}}
+  bool bl = NULL; // FIXME: this should warn but we currently suppress a bunch of conversion-to-bool warnings including this one
+  char ch = NULL; // expected-warning {{implicit conversion of NULL constant to 'char'}}
+  unsigned char uch = NULL; // expected-warning {{implicit conversion of NULL constant to 'unsigned char'}}
+  short sh = NULL; // expected-warning {{implicit conversion of NULL constant to 'short'}}
+
+  // Use FileCheck to ensure we don't get any unnecessary macro-expansion notes 
+  // (that don't appear as 'real' notes & can't be seen/tested by -verify)
+  // CHECK-NOT: note:
+  // CHECK: note: expanded from macro 'FNULL'
+#define FNULL NULL
+  int a2 = FNULL; // expected-warning {{implicit conversion of NULL constant to 'int'}}
+  // CHECK-NOT: note:
+  // CHECK: note: expanded from macro 'FINIT'
+#define FINIT int a3 = NULL;
+  FINIT // expected-warning {{implicit conversion of NULL constant to 'int'}}
 }

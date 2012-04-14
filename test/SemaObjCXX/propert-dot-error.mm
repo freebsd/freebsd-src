@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
 // rdar: // 8379892
 
 struct X {
@@ -20,7 +20,7 @@ struct X {
 @end
 
 void f(A* a) {
-  a.x = X(); // expected-error {{setter method is needed to assign to object using property assignment syntax}}
+  a.x = X(); // expected-error {{no setter method 'setX:' for assignment to property}}
 }
 
 struct Y : X { };
