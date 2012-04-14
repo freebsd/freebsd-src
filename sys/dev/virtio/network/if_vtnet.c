@@ -223,7 +223,7 @@ static device_method_t vtnet_methods[] = {
 	/* VirtIO methods. */
 	DEVMETHOD(virtio_config_change, vtnet_config_change),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t vtnet_driver = {
