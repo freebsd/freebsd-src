@@ -538,6 +538,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 	struct pf_addr	*naddr;
 	uint16_t	*nport;
 
+	PF_RULES_RASSERT();
 	KASSERT(*skp == NULL, ("*skp not NULL"));
 	KASSERT(*nkp == NULL, ("*nkp not NULL"));
 
