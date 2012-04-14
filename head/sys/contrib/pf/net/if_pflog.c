@@ -223,7 +223,7 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
     u_int8_t reason, struct pf_rule *rm, struct pf_rule *am,
-    struct pf_ruleset *ruleset, struct pf_pdesc *pd)
+    struct pf_ruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
 {
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
@@ -251,19 +251,18 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 			strlcpy(hdr.ruleset, ruleset->anchor->name,
 			    sizeof(hdr.ruleset));
 	}
-	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done)
-		/*
-		 * XXX: This should not happen as we force an early lookup
-		 * via debug.pfugidhack
-		 */
-		; /* empty */
-	if (pd->lookup.done > 0) {
+	/*
+	 * XXXGL: we avoid pf_socket_lookup() when we are holding
+	 * state lock, since this leads to unsafe LOR.
+	 * These conditions are very very rare, however.
+	 */
+	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
+		pd->lookup.done = pf_socket_lookup(dir, pd);
+	if (pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
-		hdr.pid = pd->lookup.pid;
-	} else {
+	else
 		hdr.uid = UID_MAX;
-		hdr.pid = NO_PID;
-	}
+	hdr.pid = NO_PID;
 	hdr.rule_uid = rm->cuid;
 	hdr.rule_pid = rm->cpid;
 	hdr.dir = dir;
