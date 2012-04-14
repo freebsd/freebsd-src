@@ -223,11 +223,6 @@ export_pflow_t			*export_pflow_ptr = NULL;
 /* pflog */
 pflog_packet_t			*pflog_packet_ptr = NULL;
 
-VNET_DEFINE(int, debug_pfugidhack);
-SYSCTL_VNET_INT(_debug, OID_AUTO, pfugidhack, CTLFLAG_RW,
-	&VNET_NAME(debug_pfugidhack), 0,
-	"Enable/disable pf user/group rules mpsafe hack");
-
 static void
 init_pf_mutex(void)
 {
@@ -1334,12 +1329,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			break;
 		}
 
-		if (!V_debug_pfugidhack && (rule->uid.op || rule->gid.op ||
-		    rule->log & PF_LOG_SOCKET_LOOKUP)) {
-			DPFPRINTF(PF_DEBUG_MISC,
-			    ("pf: debug.pfugidhack enabled\n"));
-			V_debug_pfugidhack = 1;
-		}
 		rule->rpool.cur = TAILQ_FIRST(&rule->rpool.list);
 		rule->evaluations = rule->packets[0] = rule->packets[1] =
 		    rule->bytes[0] = rule->bytes[1] = 0;
@@ -1604,14 +1593,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				pf_rm_rule(NULL, newrule);
 				PF_UNLOCK();
 				break;
-			}
-
-			if (!V_debug_pfugidhack && (newrule->uid.op ||
-			    newrule->gid.op ||
-			    newrule->log & PF_LOG_SOCKET_LOOKUP)) {
-				DPFPRINTF(PF_DEBUG_MISC,
-				    ("pf: debug.pfugidhack enabled\n"));
-				V_debug_pfugidhack = 1;
 			}
 
 			newrule->rpool.cur = TAILQ_FIRST(&newrule->rpool.list);
@@ -3765,7 +3746,6 @@ pf_load(void)
 		CURVNET_SET(vnet_iter);
 		V_pf_pfil_hooked = 0;
 		V_pf_end_threads = 0;
-		V_debug_pfugidhack = 0;
 		TAILQ_INIT(&V_pf_tags);
 		TAILQ_INIT(&V_pf_qids);
 		CURVNET_RESTORE();

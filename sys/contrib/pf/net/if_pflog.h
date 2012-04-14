@@ -75,9 +75,9 @@ struct pf_ruleset;
 struct pfi_kif;
 struct pf_pdesc;
 
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) do {		\
+#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h,di) do {	\
 	if (pflog_packet_ptr != NULL)			\
-		pflog_packet_ptr(i,a,b,c,d,e,f,g,h);    \
+		pflog_packet_ptr(i,a,b,c,d,e,f,g,h,di);	\
 } while (0)
 #endif /* _KERNEL */
 #endif /* _NET_IF_PFLOG_H_ */

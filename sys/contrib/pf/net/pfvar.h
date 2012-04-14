@@ -924,13 +924,8 @@ struct pf_ruleset;
 struct pf_pdesc;
 typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     u_int8_t, u_int8_t, struct pf_rule *, struct pf_rule *,
-    struct pf_ruleset *, struct pf_pdesc *);
-
+    struct pf_ruleset *, struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
-
-/* pf uid hack */
-VNET_DECLARE(int, debug_pfugidhack);
-#define	V_debug_pfugidhack	VNET(debug_pfugidhack)
 
 #define	V_pf_end_threads	VNET(pf_end_threads)
 #endif /* _KERNEL */
@@ -1187,7 +1182,6 @@ struct pf_pdesc {
 		int	 done;
 		uid_t	 uid;
 		gid_t	 gid;
-		pid_t	 pid;
 	}		 lookup;
 	u_int64_t	 tot_len;	/* Make Mickey money */
 	union {
@@ -1863,6 +1857,7 @@ int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *,
 	    int);
 int	pf_rtlabel_match(struct pf_addr *, sa_family_t, struct pf_addr_wrap *,
 	    int);
+int	pf_socket_lookup(int, struct pf_pdesc *);   
 struct pf_state_key *pf_alloc_state_key(int);
 void	pfr_initialize(void);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
