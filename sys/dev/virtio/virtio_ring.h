@@ -103,6 +103,7 @@ struct vring {
  *      __u16 avail_flags;
  *      __u16 avail_idx;
  *      __u16 available[num];
+ *      __u16 used_event_idx;
  *
  *      // Padding to the next align boundary.
  *      char pad[];
@@ -111,10 +112,18 @@ struct vring {
  *      __u16 used_flags;
  *      __u16 used_idx;
  *      struct vring_used_elem used[num];
+ *      __u16 avail_event_idx;
  * };
  *
  * NOTE: for VirtIO PCI, align is 4096.
  */
+
+/*
+ * We publish the used event index at the end of the available ring, and vice
+ * versa. They are at the end for backwards compatibility.
+ */
+#define	vring_used_event(vr)	((vr)->avail->ring[(vr)->num])
+#define	vring_avail_event(vr)	(*(uint16_t *)&(vr)->used->ring[(vr)->num])
 
 static inline int
 vring_size(unsigned int num, unsigned long align)
@@ -139,5 +148,19 @@ vring_init(struct vring *vr, unsigned int num, uint8_t *p,
 	    num * sizeof(struct vring_desc));
         vr->used = (void *)
 	    (((unsigned long) &vr->avail->ring[num] + align-1) & ~(align-1));
+}
+
+/*
+ * The following is used with VIRTIO_RING_F_EVENT_IDX.
+ *
+ * Assuming a given event_idx value from the other size, if we have
+ * just incremented index from old to new_idx, should we trigger an
+ * event?
+ */
+static inline int
+vring_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old)
+{
+
+	return (uint16_t)(new_idx - event_idx - 1) < (uint16_t)(new_idx - old);
 }
 #endif /* VIRTIO_RING_H */
