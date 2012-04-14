@@ -1,14 +1,10 @@
 from clang.cindex import *
-
-def tu_from_source(source):
-    index = Index.create()
-    tu = index.parse('INPUT.c', unsaved_files = [('INPUT.c', source)])
-    return tu
+from .util import get_tu
 
 # FIXME: We need support for invalid translation units to test better.
 
 def test_diagnostic_warning():
-    tu = tu_from_source("""int f0() {}\n""")
+    tu = get_tu('int f0() {}\n')
     assert len(tu.diagnostics) == 1
     assert tu.diagnostics[0].severity == Diagnostic.Warning
     assert tu.diagnostics[0].location.line == 1
@@ -18,8 +14,7 @@ def test_diagnostic_warning():
 
 def test_diagnostic_note():
     # FIXME: We aren't getting notes here for some reason.
-    index = Index.create()
-    tu = tu_from_source("""#define A x\nvoid *A = 1;\n""")
+    tu = get_tu('#define A x\nvoid *A = 1;\n')
     assert len(tu.diagnostics) == 1
     assert tu.diagnostics[0].severity == Diagnostic.Warning
     assert tu.diagnostics[0].location.line == 2
@@ -31,8 +26,7 @@ def test_diagnostic_note():
 #    assert tu.diagnostics[1].spelling == 'instantiated from'
 
 def test_diagnostic_fixit():
-    index = Index.create()
-    tu = tu_from_source("""struct { int f0; } x = { f0 : 1 };""")
+    tu = get_tu('struct { int f0; } x = { f0 : 1 };')
     assert len(tu.diagnostics) == 1
     assert tu.diagnostics[0].severity == Diagnostic.Warning
     assert tu.diagnostics[0].location.line == 1
@@ -46,8 +40,7 @@ def test_diagnostic_fixit():
     assert tu.diagnostics[0].fixits[0].value == '.f0 = '
 
 def test_diagnostic_range():
-    index = Index.create()
-    tu = tu_from_source("""void f() { int i = "a" + 1; }""")
+    tu = get_tu('void f() { int i = "a" + 1; }')
     assert len(tu.diagnostics) == 1
     assert tu.diagnostics[0].severity == Diagnostic.Warning
     assert tu.diagnostics[0].location.line == 1
@@ -65,5 +58,25 @@ def test_diagnostic_range():
       assert True
     else:
       assert False
-      
 
+def test_diagnostic_category():
+    """Ensure that category properties work."""
+    tu = get_tu('int f(int i) { return 7; }', all_warnings=True)
+    assert len(tu.diagnostics) == 1
+    d = tu.diagnostics[0]
+
+    assert d.severity == Diagnostic.Warning
+    assert d.location.line == 1
+    assert d.location.column == 11
+
+    assert d.category_number == 2
+    assert d.category_name == 'Semantic Issue'
+
+def test_diagnostic_option():
+    """Ensure that category option properties work."""
+    tu = get_tu('int f(int i) { return 7; }', all_warnings=True)
+    assert len(tu.diagnostics) == 1
+    d = tu.diagnostics[0]
+
+    assert d.option == '-Wunused-parameter'
+    assert d.disable_option == '-Wno-unused-parameter'

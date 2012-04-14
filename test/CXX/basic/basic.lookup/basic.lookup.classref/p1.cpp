@@ -36,7 +36,7 @@ void resolves_to_different() {
     Value v;
     // The fact that the next line is a warning rather than an error is an
     // extension.
-    v.set<double>(3.2);  // expected-warning{{lookup of 'set' in member access expression is ambiguous; using member of 'Value' [-Wambiguous-member-template]}}
+    v.set<double>(3.2);  // expected-warning{{lookup of 'set' in member access expression is ambiguous; using member of 'Value'}}
   }
   {
     int set;  // Non-template.
@@ -61,4 +61,29 @@ namespace rdar9915664 {
       getA().a<int>();
     }
   };
+}
+
+namespace PR11856 {
+  template<typename T> T end(T);
+
+  template <typename T>
+  void Foo() {
+    T it1;
+    if (it1->end < it1->end) {
+    }
+  }
+
+  template<typename T> T *end(T*);
+
+  class X { };
+  template <typename T>
+  void Foo2() {
+    T it1;
+    if (it1->end < it1->end) {
+    }
+
+    X *x;
+    if (x->end < 7) {  // expected-error{{no member named 'end' in 'PR11856::X'}}
+    }
+  }
 }

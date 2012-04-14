@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,experimental.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -analyzer-purge=none -verify %s -Wreturn-type
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,experimental.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -verify %s -Wreturn-type 
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,experimental.deadcode.IdempotentOperations,experimental.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -analyzer-purge=none -verify %s -Wno-error=return-type
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,experimental.deadcode.IdempotentOperations,experimental.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -verify %s -Wno-error=return-type 
 
 typedef unsigned uintptr_t;
 
@@ -221,7 +221,7 @@ int* f10(int* p, signed char x, int y) {
   // This tests that our symbolication worked, and that we correctly test
   // x against 0 (with the same bitwidth).
   if (!x) {
-    if (!p) return; // expected-warning {{non-void function 'f10' should return a value}}
+    if (!p) return 0;
     *p = 10;
   }
   else p = 0;
@@ -289,4 +289,25 @@ void pr4759() {
   pr4759_aux(p); // expected-warning{{Function call argument is an uninitialized value}}
 }
 
-
+// Relax function call arguments invalidation to be aware of const
+// arguments. Test with function pointers. radar://10595327
+void ttt(const int *nptr);
+void ttt2(const int *nptr);
+typedef void (*NoConstType)(int*);
+int foo10595327(int b) {
+  void (*fp)(int *);
+  // We use path sensitivity to get the function declaration. Even when the
+  // function pointer is cast to non pointer-to-const parameter type, we can
+  // find the right function declaration.
+  if (b > 5)
+    fp = (NoConstType)ttt2;
+  else
+    fp = (NoConstType)ttt;
+  int x = 3;
+  int y = x + 1;
+  int *p = 0;
+  fp(&y);
+  if (x == y)
+      return *p; // no-warning
+  return 0;
+}

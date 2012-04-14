@@ -1,8 +1,10 @@
 // RUN: %clang_cc1 -std=c++11 -emit-llvm -o - %s | FileCheck %s
+struct A { A(); };
 template<typename T>
-struct X
+struct X : A // default constructor is not trivial
 {
     X() = default;
+    ~X() {} // not a literal type
 };
 
 X<int> x;

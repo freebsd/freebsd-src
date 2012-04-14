@@ -1,11 +1,7 @@
 // REQUIRES: x86-64-registered-target
-// RUN: %clang_cc1 -fno-dwarf2-cfi-asm -triple x86_64-apple-darwin10 -fexceptions -fobjc-exceptions -S -g %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -triple x86_64-apple-darwin10 -fexceptions -fobjc-exceptions -g %s -o - | FileCheck %s
 
-//CHECK: "-[InstanceVariablesEverywhereButTheInterface someString]":
-//CHECK: .quad	"-[InstanceVariablesEverywhereButTheInterface someString]"
-//CHECK: .ascii	 "-[InstanceVariablesEverywhereButTheInterface someString]"
-//CHECK: .asciz	 "-[InstanceVariablesEverywhereButTheInterface someString]"
-//CHECK:  "-[InstanceVariablesEverywhereButTheInterface someString].eh":
+// CHECK: {{.*}}, metadata !"-[InstanceVariablesEverywhereButTheInterface someString]", {{.*}}} ; [ DW_TAG_subprogram ]
 
 //rdar: //8498026
 

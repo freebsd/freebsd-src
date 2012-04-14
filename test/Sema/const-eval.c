@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -triple i686-linux %s
 
 #define EVAL_EXPR(testno, expr) int test##testno = sizeof(struct{char qq[expr];});
 int x;
@@ -14,9 +14,9 @@ EVAL_EXPR(8, (_Bool)"asdf")
 EVAL_EXPR(9, !!&x)
 EVAL_EXPR(10, ((void)1, 12))
 void g0(void);
-EVAL_EXPR(11, (g0(), 12)) // FIXME: This should give an error
+EVAL_EXPR(11, (g0(), 12)) // expected-error {{must have a constant size}}
 EVAL_EXPR(12, 1.0&&2.0)
-EVAL_EXPR(13, x || 3.0)
+EVAL_EXPR(13, x || 3.0) // expected-error {{must have a constant size}}
 
 unsigned int l_19 = 1;
 EVAL_EXPR(14, (1 ^ l_19) && 1); // expected-error {{fields must have a constant size}}
@@ -24,7 +24,7 @@ EVAL_EXPR(14, (1 ^ l_19) && 1); // expected-error {{fields must have a constant 
 void f()
 {
   int a;
-  EVAL_EXPR(15, (_Bool)&a); // expected-error {{fields must have a constant size}}
+  EVAL_EXPR(15, (_Bool)&a);
 }
 
 // FIXME: Turn into EVAL_EXPR test once we have more folding.
@@ -81,8 +81,43 @@ EVAL_EXPR(38, __builtin_expect(1,1) == 1 ? 1 : -1)
 EVAL_EXPR(39, __real__(1.f) == 1 ? 1 : -1)
 EVAL_EXPR(40, __imag__(1.f) == 0 ? 1 : -1)
 
+// From gcc testsuite
+EVAL_EXPR(41, (int)(1+(_Complex unsigned)2))
+
 // rdar://8875946
 void rdar8875946() {
   double _Complex  P;
   float _Complex  P2 = 3.3f + P;
 }
+
+double d = (d = 0.0); // expected-error {{not a compile-time constant}}
+double d2 = ++d; // expected-error {{not a compile-time constant}}
+
+int n = 2;
+int intLvalue[*(int*)((long)&n ?: 1)] = { 1, 2 }; // expected-error {{variable length array}}
+
+union u { int a; char b[4]; };
+char c = ((union u)(123456)).b[0]; // expected-error {{not a compile-time constant}}
+
+extern const int weak_int __attribute__((weak));
+const int weak_int = 42;
+int weak_int_test = weak_int; // expected-error {{not a compile-time constant}}
+
+int literalVsNull1 = "foo" == 0;
+int literalVsNull2 = 0 == "foo";
+
+// PR11385.
+int castViaInt[*(int*)(unsigned long)"test"]; // expected-error {{variable length array}}
+
+// PR11391.
+struct PR11391 { _Complex float f; } pr11391;
+EVAL_EXPR(42, __builtin_constant_p(pr11391.f = 1))
+
+// PR12043
+float varfloat;
+const float constfloat = 0;
+EVAL_EXPR(43, varfloat && constfloat) // expected-error {{must have a constant size}}
+
+// <rdar://problem/11205586>
+// (Make sure we continue to reject this.)
+EVAL_EXPR(44, "x"[0]); // expected-error {{variable length array}}

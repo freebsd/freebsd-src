@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify -fsyntax-only %s
+// RUN: %clang_cc1 -verify -fsyntax-only -Wno-objc-root-class %s
 
 @interface NSView 
   - (id)initWithView:(id)realView;
@@ -6,7 +6,7 @@
 
 @implementation NSView
  - (id)initWithView:(id)realView {
-     *(NSView *)self = *(NSView *)realView;	// expected-error {{cannot assign to class object in non-fragile ABI}}
+     *(NSView *)self = *(NSView *)realView;	// expected-error {{cannot assign to class object}}
  }
 @end
 

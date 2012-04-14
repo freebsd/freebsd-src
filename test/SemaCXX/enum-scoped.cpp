@@ -34,12 +34,12 @@ int a1[Val2];
 int a2[E1::Val1]; // expected-error{{size of array has non-integer type}}
 
 int* p1 = new int[Val2];
-int* p2 = new int[E1::Val1]; // FIXME Expected-error{{must have integral}}
+int* p2 = new int[E1::Val1]; // expected-error{{array size expression must have integral or unscoped enumeration type, not 'E1'}}
 
 enum class E4 {
   e1 = -2147483648, // ok
   e2 = 2147483647, // ok
-  e3 = 2147483648 // expected-error{{value is not representable}}
+  e3 = 2147483648 // expected-error{{enumerator value evaluates to 2147483648, which cannot be narrowed to type 'int'}}
 };
 
 enum class E5 {
@@ -141,4 +141,107 @@ namespace test6 {
   void test() {
     (void) A::e; // expected-error {{incomplete type 'test6::A' named in nested name specifier}}
   }
+}
+
+namespace PR11484 {
+  const int val = 104;
+  enum class test1 { owner_dead = val, };
+}
+
+namespace N2764 {
+  enum class E { a, b };
+  enum E x1 = E::a; // ok
+  enum class E x2 = E::a; // expected-error {{reference to scoped enumeration must use 'enum' not 'enum class'}}
+
+  enum F { a, b };
+  enum F y1 = a; // ok
+  enum class F y2 = a; // expected-error {{reference to enumeration must use 'enum' not 'enum class'}}
+
+  struct S {
+    friend enum class E; // expected-error {{reference to scoped enumeration must use 'enum' not 'enum class'}}
+    friend enum class F; // expected-error {{reference to enumeration must use 'enum' not 'enum class'}}
+
+    friend enum G {}; // expected-error {{forward reference}} expected-error {{cannot define a type in a friend declaration}}
+    friend enum class H {}; // expected-error {{cannot define a type in a friend declaration}}
+
+    enum A : int;
+    A a;
+  } s;
+
+  enum S::A : int {};
+
+  enum class B;
+}
+
+enum class N2764::B {};
+
+namespace PR12106 {
+  template<typename E> struct Enum {
+    Enum() : m_e(E::Last) {}
+    E m_e;
+  };
+
+  enum eCOLORS { Last };
+  Enum<eCOLORS> e;
+}
+
+namespace test7 {
+  enum class E { e = (struct S*)0 == (struct S*)0 };
+  S *p;
+}
+
+namespace test8 {
+  template<typename T> struct S {
+    enum A : int; // expected-note {{here}}
+    enum class B; // expected-note {{here}}
+    enum class C : int; // expected-note {{here}}
+    enum class D : int; // expected-note {{here}}
+  };
+  template<typename T> enum S<T>::A { a }; // expected-error {{previously declared with fixed underlying type}}
+  template<typename T> enum class S<T>::B : char { b }; // expected-error {{redeclared with different underlying}}
+  template<typename T> enum S<T>::C : int { c }; // expected-error {{previously declared as scoped}}
+  template<typename T> enum class S<T>::D : char { d }; // expected-error {{redeclared with different underlying}}
+}
+
+namespace test9 {
+  template<typename T> struct S {
+    enum class ET : T; // expected-note 2{{here}}
+    enum class Eint : int; // expected-note 2{{here}}
+  };
+  template<> enum class S<int>::ET : int {};
+  template<> enum class S<char>::ET : short {}; // expected-error {{different underlying type}}
+  template<> enum class S<int>::Eint : short {}; // expected-error {{different underlying type}}
+  template<> enum class S<char>::Eint : int {};
+
+  template<typename T> enum class S<T>::ET : int {}; // expected-error {{different underlying type 'int' (was 'short')}}
+  template<typename T> enum class S<T>::Eint : T {}; // expected-error {{different underlying type 'short' (was 'int')}}
+
+  // The implicit instantiation of S<short> causes the implicit instantiation of
+  // all declarations of member enumerations, so is ill-formed, even though we
+  // never instantiate the definitions of S<short>::ET nor S<short>::Eint.
+  S<short> s; // expected-note {{in instantiation of}}
+}
+
+namespace test10 {
+  template<typename T> int f() {
+    enum E : int;
+    enum E : T; // expected-note {{here}}
+    E x;
+    enum E : int { e }; // expected-error {{different underlying}}
+    x = e;
+    return x;
+  }
+  int k = f<int>();
+  int l = f<short>(); // expected-note {{here}}
+
+  template<typename T> int g() {
+    enum class E : int;
+    enum class E : T; // expected-note {{here}}
+    E x;
+    enum class E : int { e }; // expected-error {{different underlying}}
+    x = E::e;
+    return (int)x;
+  }
+  int m = g<int>();
+  int n = g<short>(); // expected-note {{here}}
 }

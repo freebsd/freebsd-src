@@ -165,6 +165,11 @@ __interface MicrosoftInterface {
    virtual void foo2() = 0;
 };
 
+void interface_test() {
+  MicrosoftInterface* a;
+  a->foo1();
+}
+
 __int64 x7 = __int64(0);
 
 
@@ -209,6 +214,35 @@ __if_not_exists(IF_EXISTS::Type) {
 __if_not_exists(IF_EXISTS::Type_not) {
   int var244;
 }
+
+int __if_exists_init_list() {
+
+  int array1[] = {
+    0, 
+    __if_exists(IF_EXISTS::Type) {2, }
+    3
+  };
+
+  int array2[] = {
+    0, 
+    __if_exists(IF_EXISTS::Type_not) { this wont compile }
+    3
+  };
+
+  int array3[] = {
+    0, 
+    __if_not_exists(IF_EXISTS::Type_not) {2, }
+    3
+  };
+
+  int array4[] = {
+    0, 
+    __if_not_exists(IF_EXISTS::Type) { this wont compile }
+    3
+  };
+
+}
+
 
 class IF_EXISTS_CLASS_TEST {
   __if_exists(IF_EXISTS::Type) {

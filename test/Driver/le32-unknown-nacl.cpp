@@ -1,6 +1,6 @@
-// RUN: %clang -ccc-host-triple le32-unknown-nacl -ccc-clang-archs le32 -ccc-echo %s -emit-llvm-only -c 2>&1 | FileCheck %s -check-prefix=ECHO
-// RUN: %clang -ccc-host-triple le32-unknown-nacl -ccc-clang-archs le32 %s -emit-llvm -S -c -o - | FileCheck %s
-// RUN: %clang -ccc-host-triple le32-unknown-nacl -ccc-clang-archs le32 %s -emit-llvm -S -c -pthread -o - | FileCheck %s -check-prefix=THREADS
+// RUN: %clang -target le32-unknown-nacl -ccc-clang-archs le32 -ccc-echo %s -emit-llvm-only -c 2>&1 | FileCheck %s -check-prefix=ECHO
+// RUN: %clang -target le32-unknown-nacl -ccc-clang-archs le32 %s -emit-llvm -S -c -o - | FileCheck %s
+// RUN: %clang -target le32-unknown-nacl -ccc-clang-archs le32 %s -emit-llvm -S -c -pthread -o - | FileCheck %s -check-prefix=THREADS
 
 // ECHO: {{.*}} -cc1 {{.*}}le32-unknown-nacl.c
 
@@ -39,6 +39,11 @@ int align_ld = __alignof(long double);
 
 // CHECK: @align_vl = global i32 4
 int align_vl = __alignof(va_list);
+
+// CHECK: __LITTLE_ENDIAN__defined
+#ifdef __LITTLE_ENDIAN__
+void __LITTLE_ENDIAN__defined() {}
+#endif
 
 // CHECK: __native_client__defined
 #ifdef __native_client__

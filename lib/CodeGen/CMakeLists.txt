@@ -4,6 +4,8 @@ set(LLVM_LINK_COMPONENTS
   bitwriter
   instrumentation
   ipo
+  linker
+  vectorize
   )
 
 set(LLVM_USED_LIBS clangBasic clangAST clangFrontend)
@@ -37,7 +39,6 @@ add_clang_library(clangCodeGen
   CGRecordLayoutBuilder.cpp
   CGRTTI.cpp
   CGStmt.cpp
-  CGTemporaries.cpp
   CGVTables.cpp
   CGVTT.cpp
   CodeGenAction.cpp

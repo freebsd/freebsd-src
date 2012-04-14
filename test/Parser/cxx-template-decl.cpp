@@ -6,15 +6,20 @@ template  x;            // expected-error {{C++ requires a type specifier for al
                         // expected-error {{does not refer}}
 export template x;      // expected-error {{expected '<' after 'template'}}
 export template<class T> class x0; // expected-warning {{exported templates are unsupported}}
-template < ;            // expected-error {{parse error}} \
+template < ;            // expected-error {{expected template parameter}} \
 // expected-error{{expected ',' or '>' in template-parameter-list}} \
 // expected-warning {{declaration does not declare anything}}
+template <int +> struct x1; // expected-error {{expected ',' or '>' in template-parameter-list}}
+
+// verifies that we only walk to the ',' & still produce errors on the rest of the template parameters
+template <int +, T> struct x2; // expected-error {{expected ',' or '>' in template-parameter-list}} \
+                                expected-error {{expected unqualified-id}}
+template<template<int+>> struct x3; // expected-error {{expected ',' or '>' in template-parameter-list}} \
+                                         expected-error {{template template parameter requires 'class' after the parameter list}}
 template <template X> struct Err1; // expected-error {{expected '<' after 'template'}} \
 // expected-error{{extraneous}}
-template <template <typename> > struct Err2;       // expected-error {{expected 'class' before '>'}} \
-// expected-error{{extraneous}}
-template <template <typename> Foo> struct Err3;    // expected-error {{expected 'class' before 'Foo'}} \
-// expected-error{{extraneous}}
+template <template <typename> > struct Err2;       // expected-error {{template template parameter requires 'class' after the parameter list}}
+template <template <typename> Foo> struct Err3;    // expected-error {{template template parameter requires 'class' after the parameter list}}
 
 // Template function declarations
 template <typename T> void foo();

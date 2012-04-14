@@ -2,9 +2,9 @@
 
 struct DefaultedDefCtor1 {};
 struct DefaultedDefCtor2 { DefaultedDefCtor2() = default; };
-struct DeletedDefCtor { DeletedDefCtor() = delete; DeletedDefCtor(int); };
+struct DeletedDefCtor { DeletedDefCtor() = delete; DeletedDefCtor(int); }; // expected-note {{explicitly marked deleted here}}
 class PrivateDefCtor { PrivateDefCtor() = default; public: PrivateDefCtor(int); };
-struct DeletedDtor { ~DeletedDtor() = delete; };
+struct DeletedDtor { ~DeletedDtor() = delete; }; // expected-note 4{{explicitly marked deleted here}}
 class PrivateDtor { ~PrivateDtor() = default; };
 class Friend {
   Friend() = default; ~Friend() = default;
@@ -21,37 +21,42 @@ int n;
 
 // - X is a union-like class that has a variant member with a non-trivial
 // default constructor,
-union Deleted1a { UserProvidedDefCtor u; }; // expected-note {{deleted here}}
-Deleted1a d1a; // expected-error {{deleted constructor}}
+union Deleted1a { UserProvidedDefCtor u; }; // expected-note {{default constructor of union 'Deleted1a' is implicitly deleted because field 'u' has a non-trivial default constructor}}
+Deleted1a d1a; // expected-error {{implicitly-deleted default constructor}}
 union NotDeleted1a { DefaultedDefCtor1 nu; };
 NotDeleted1a nd1a;
-// FIXME: clang implements the pre-FDIS rule, under which DefaultedDefCtor2's
-// default constructor is non-trivial.
-union NotDeleted1b { DefaultedDefCtor2 nu; }; // unexpected-note {{deleted here}}
-NotDeleted1b nd1b; // unexpected-error {{deleted constructor}}
+union NotDeleted1b { DefaultedDefCtor2 nu; };
+NotDeleted1b nd1b;
 
 // - any non-static data member with no brace-or-equal-initializer is of
 // reference type,
-class Deleted2a { Deleted2a() = default; int &a; }; // expected-note {{deleted here}}
-Deleted2a d2a; // expected-error {{deleted constructor}}
+class Deleted2a {
+  Deleted2a() = default;  // expected-note 4{{implicitly deleted here}}
+  int &a; // expected-note 4{{because field 'a' of reference type 'int &' would not be initialized}}
+};
+Deleted2a d2a; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted2b {
+  int &&b; // expected-note {{default constructor of 'Deleted2b' is implicitly deleted because field 'b' of reference type 'int &&' would not be initialized}}
+};
+Deleted2b d2b; // expected-error {{deleted default constructor}}
 class NotDeleted2a { int &a = n; };
 NotDeleted2a nd2a;
 class NotDeleted2b { int &a = error; }; // expected-error {{undeclared identifier}}
 NotDeleted2b nd2b;
+class NotDeleted2c { int &&a = 0; };
+NotDeleted2c nd2c;
 
 // - any non-variant non-static data member of const qualified type (or array
 // thereof) with no brace-or-equal-initializer does not have a user-provided
 // default constructor,
-class Deleted3a { const int a; }; // expected-note {{here}} \
+class Deleted3a { const int a; }; // expected-note {{because field 'a' of const-qualified type 'const int' would not be initialized}} \
                                      expected-warning {{does not declare any constructor}} \
                                      expected-note {{will never be initialized}}
-Deleted3a d3a; // expected-error {{deleted constructor}}
-class Deleted3b { const DefaultedDefCtor1 a[42]; }; // expected-note {{here}}
-Deleted3b d3b; // expected-error {{deleted constructor}}
-// FIXME: clang implements the pre-FDIS rule, under which DefaultedDefCtor2's
-// default constructor is user-provided.
-class Deleted3c { const DefaultedDefCtor2 a; }; // desired-note {{here}}
-Deleted3c d3c; // desired-error {{deleted constructor}}
+Deleted3a d3a; // expected-error {{implicitly-deleted default constructor}}
+class Deleted3b { const DefaultedDefCtor1 a[42]; }; // expected-note {{because field 'a' of const-qualified type 'const DefaultedDefCtor1' would not be initialized}}
+Deleted3b d3b; // expected-error {{implicitly-deleted default constructor}}
+class Deleted3c { const DefaultedDefCtor2 a; }; // expected-note {{because field 'a' of const-qualified type 'const DefaultedDefCtor2' would not be initialized}}
+Deleted3c d3c; // expected-error {{implicitly-deleted default constructor}}
 class NotDeleted3a { const int a = 0; };
 NotDeleted3a nd3a;
 class NotDeleted3b { const DefaultedDefCtor1 a[42] = {}; };
@@ -60,45 +65,51 @@ class NotDeleted3c { const DefaultedDefCtor2 a = DefaultedDefCtor2(); };
 NotDeleted3c nd3c;
 union NotDeleted3d { const int a; int b; };
 NotDeleted3d nd3d;
-// FIXME: this class should not have a deleted default constructor.
-union NotDeleted3e { const DefaultedDefCtor1 a[42]; int b; }; // unexpected-note {{here}}
-NotDeleted3e nd3e; // unexpected-error {{deleted constructor}}
-// FIXME: clang implements the pre-FDIS rule, under which DefaultedDefCtor2 is
-// non-trivial.
-union NotDeleted3f { const DefaultedDefCtor2 a; int b; }; // unexpected-note {{here}}
-NotDeleted3f nd3f; // unexpected-error {{deleted constructor}}
+union NotDeleted3e { const DefaultedDefCtor1 a[42]; int b; };
+NotDeleted3e nd3e;
+union NotDeleted3f { const DefaultedDefCtor2 a; int b; };
+NotDeleted3f nd3f;
+struct NotDeleted3g { union { const int a; int b; }; };
+NotDeleted3g nd3g;
 
 // - X is a union and all of its variant members are of const-qualified type (or
 // array thereof),
-union Deleted4a { const int a; const int b; const UserProvidedDefCtor c; }; // expected-note {{here}}
-Deleted4a d4a; // expected-error {{deleted constructor}}
-union Deleted4b { const int a; int b; };
-Deleted4b d4b;
+union Deleted4a {
+  const int a;
+  const int b;
+  const UserProvidedDefCtor c; // expected-note {{because field 'c' has a non-trivial default constructor}}
+};
+Deleted4a d4a; // expected-error {{implicitly-deleted default constructor}}
+union NotDeleted4a { const int a; int b; };
+NotDeleted4a nd4a;
 
 // - X is a non-union class and all members of any anonymous union member are of
 // const-qualified type (or array thereof),
-struct Deleted5a { union { const int a; }; union { int b; }; }; // expected-note {{here}}
-Deleted5a d5a; // expected-error {{deleted constructor}}
-struct Deleted5b { union { const int a; int b; }; union { const int c; int d; }; };
-Deleted5b d5b;
+struct Deleted5a {
+  union { const int a; }; // expected-note {{because all data members of an anonymous union member are const-qualified}}
+  union { int b; };
+};
+Deleted5a d5a; // expected-error {{implicitly-deleted default constructor}}
+struct NotDeleted5a { union { const int a; int b; }; union { const int c; int d; }; };
+NotDeleted5a nd5a;
 
 // - any direct or virtual base class, or non-static data member with no
 // brace-or-equal-initializer, has class type M (or array thereof) and either
 // M has no default constructor or overload resolution as applied to M's default
 // constructor results in an ambiguity or in a function that is deleted or
 // inaccessible from the defaulted default constructor, or
-struct Deleted6a : Deleted2a {}; // expected-note {{here}}
-Deleted6a d6a; // expected-error {{deleted constructor}}
-struct Deleted6b : virtual Deleted2a {}; // expected-note {{here}}
-Deleted6b d6b; // expected-error {{deleted constructor}}
-struct Deleted6c { Deleted2a a; }; // expected-note {{here}}
-Deleted6c d6c; // expected-error {{deleted constructor}}
-struct Deleted6d { DeletedDefCtor a; }; // expected-note {{here}}
-Deleted6d d6d; // expected-error {{deleted constructor}}
+struct Deleted6a : Deleted2a {}; // expected-note {{because base class 'Deleted2a' has a deleted default constructor}}
+Deleted6a d6a; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted6b : virtual Deleted2a {}; // expected-note {{because base class 'Deleted2a' has a deleted default constructor}}
+Deleted6b d6b; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted6c { Deleted2a a; }; // expected-note {{because field 'a' has a deleted default constructor}}
+Deleted6c d6c; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted6d { DeletedDefCtor a; }; // expected-note {{because field 'a' has a deleted default constructor}}
+Deleted6d d6d; // expected-error {{implicitly-deleted default constructor}}
 struct NotDeleted6a { DeletedDefCtor a = 0; };
 NotDeleted6a nd6a;
-struct Deleted6e { PrivateDefCtor a; }; // expected-note {{here}}
-Deleted6e d6e; // expected-error {{deleted constructor}}
+struct Deleted6e { PrivateDefCtor a; }; // expected-note {{because field 'a' has an inaccessible default constructor}}
+Deleted6e d6e; // expected-error {{implicitly-deleted default constructor}}
 struct NotDeleted6b { PrivateDefCtor a = 0; };
 NotDeleted6b nd6b;
 struct NotDeleted6c { Friend a; };
@@ -107,22 +118,22 @@ NotDeleted6c nd6c;
 // - any direct or virtual base class or non-static data member has a type with
 // a destructor that is deleted or inaccessible from the defaulted default
 // constructor.
-struct Deleted7a : DeletedDtor {}; // expected-note {{here}}
-Deleted7a d7a; // expected-error {{deleted constructor}}
-struct Deleted7b : virtual DeletedDtor {}; // expected-note {{here}}
-Deleted7b d7b; // expected-error {{deleted constructor}}
-struct Deleted7c { DeletedDtor a; }; // expected-note {{here}}
-Deleted7c d7c; // expected-error {{deleted constructor}}
-struct Deleted7d { DeletedDtor a = {}; }; // expected-note {{here}}
-Deleted7d d7d; // expected-error {{deleted constructor}}
-struct Deleted7e : PrivateDtor {}; // expected-note {{here}}
-Deleted7e d7e; // expected-error {{deleted constructor}}
-struct Deleted7f : virtual PrivateDtor {}; // expected-note {{here}}
-Deleted7f d7f; // expected-error {{deleted constructor}}
-struct Deleted7g { PrivateDtor a; }; // expected-note {{here}}
-Deleted7g d7g; // expected-error {{deleted constructor}}
-struct Deleted7h { PrivateDtor a = {}; }; // expected-note {{here}}
-Deleted7h d7h; // expected-error {{deleted constructor}}
+struct Deleted7a : DeletedDtor {}; // expected-note {{because base class 'DeletedDtor' has a deleted destructor}}
+Deleted7a d7a; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted7b : virtual DeletedDtor {}; // expected-note {{because base class 'DeletedDtor' has a deleted destructor}}
+Deleted7b d7b; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted7c { DeletedDtor a; }; // expected-note {{because field 'a' has a deleted destructor}}
+Deleted7c d7c; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted7d { DeletedDtor a = {}; }; // expected-note {{because field 'a' has a deleted destructor}}
+Deleted7d d7d; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted7e : PrivateDtor {}; // expected-note {{base class 'PrivateDtor' has an inaccessible destructor}}
+Deleted7e d7e; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted7f : virtual PrivateDtor {}; // expected-note {{base class 'PrivateDtor' has an inaccessible destructor}}
+Deleted7f d7f; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted7g { PrivateDtor a; }; // expected-note {{field 'a' has an inaccessible destructor}}
+Deleted7g d7g; // expected-error {{implicitly-deleted default constructor}}
+struct Deleted7h { PrivateDtor a = {}; }; // expected-note {{field 'a' has an inaccessible destructor}}
+Deleted7h d7h; // expected-error {{implicitly-deleted default constructor}}
 struct NotDeleted7i : Friend {};
 NotDeleted7i d7i;
 struct NotDeleted7j : virtual Friend {};
@@ -159,11 +170,13 @@ static_assert(!__has_trivial_constructor(NonTrivialDefCtor6), "NonTrivialDefCtor
 
 // Otherwise, the default constructor is non-trivial.
 class Trivial2 { Trivial2() = delete; };
-//static_assert(__has_trivial_constructor(Trivial2), "NonTrivialDefCtor2 is trivial");
-// FIXME: clang implements the pre-FDIS rule, under which this class is non-trivial.
-static_assert(!__has_trivial_constructor(Trivial2), "NonTrivialDefCtor2 is trivial");
+static_assert(__has_trivial_constructor(Trivial2), "Trivial2 is trivial");
 
 class Trivial3 { Trivial3() = default; };
-//static_assert(__has_trivial_constructor(Trivial3), "NonTrivialDefCtor3 is trivial");
-// FIXME: clang implements the pre-FDIS rule, under which this class is non-trivial.
-static_assert(!__has_trivial_constructor(Trivial3), "NonTrivialDefCtor3 is trivial");
+static_assert(__has_trivial_constructor(Trivial3), "Trivial3 is trivial");
+
+template<typename T> class Trivial4 { Trivial4() = default; };
+static_assert(__has_trivial_constructor(Trivial4<int>), "Trivial4 is trivial");
+
+template<typename T> class Trivial5 { Trivial5() = delete; };
+static_assert(__has_trivial_constructor(Trivial5<int>), "Trivial5 is trivial");

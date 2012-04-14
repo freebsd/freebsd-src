@@ -63,7 +63,6 @@ void t10(int r) {
 // CHECK:PR3908 $1 $3 $2 $0
 }
 
-
 // PR3373
 unsigned t11(signed char input) {
   unsigned  output;
@@ -101,9 +100,6 @@ unsigned long t15(int x, struct large *P) {
   return x;
 }
 
-
-
-
 // bitfield destination of an asm.
 struct S {
   int a : 4;
@@ -112,7 +108,6 @@ struct S {
 void t14(struct S *P) {
   __asm__("abc %0" : "=r"(P->a) );
 }
-
 
 // PR4938
 int t16() {
@@ -145,7 +140,6 @@ int t18(unsigned data) {
 // CHECK-NEXT: extractvalue
 }
 
-
 // PR6780
 int t19(unsigned data) {
   int a, b;
@@ -155,7 +149,6 @@ int t19(unsigned data) {
   // CHECK: t19(i32
   // CHECK: = call {{.*}}asm "x$(abc$|def$|ghi$)z"
 }
-
 
 // PR6845 - Mismatching source/dest fp types.
 double t20(double x) {
@@ -209,9 +202,8 @@ void *t24(char c) {
   return addr;
 }
 
-
 // PR10299 - fpsr, fpcr
-void test(void)
+void t25(void)
 {
   __asm__ __volatile__(					   \
 		       "finit"				   \
@@ -221,4 +213,10 @@ void test(void)
 			"st(4)","st(5)","st(6)","st(7)",   \
 			"fpsr","fpcr"			   \
 							   );
+}
+
+// rdar://10510405 - AVX registers
+typedef long long __m256i __attribute__((__vector_size__(32)));
+void t26 (__m256i *p) {
+  __asm__ volatile("vmovaps  %0, %%ymm0" :: "m" (*(__m256i*)p) : "ymm0");
 }

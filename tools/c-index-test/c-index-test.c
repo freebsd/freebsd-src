@@ -37,11 +37,15 @@ static unsigned getDefaultParsingOptions() {
     options |= clang_defaultEditingTranslationUnitOptions();
   if (getenv("CINDEXTEST_COMPLETION_CACHING"))
     options |= CXTranslationUnit_CacheCompletionResults;
-  if (getenv("CINDEXTEST_NESTED_MACROS"))
-    options |= CXTranslationUnit_NestedMacroExpansions;
+  if (getenv("CINDEXTEST_COMPLETION_NO_CACHING"))
+    options &= ~CXTranslationUnit_CacheCompletionResults;
+  if (getenv("CINDEXTEST_SKIP_FUNCTION_BODIES"))
+    options |= CXTranslationUnit_SkipFunctionBodies;
   
   return options;
 }
+
+static int checkForErrors(CXTranslationUnit TU);
 
 static void PrintExtent(FILE *out, unsigned begin_line, unsigned begin_column,
                         unsigned end_line, unsigned end_column) {
@@ -169,7 +173,8 @@ static void PrintRange(CXSourceRange R, const char *str) {
   if (!begin_file || !end_file)
     return;
 
-  printf(" %s=", str);
+  if (str)
+    printf(" %s=", str);
   PrintExtent(stdout, begin_line, begin_column, end_line, end_column);
 }
 
@@ -338,7 +343,7 @@ static const char* GetCursorSource(CXCursor Cursor) {
   CXSourceLocation Loc = clang_getCursorLocation(Cursor);
   CXString source;
   CXFile file;
-  clang_getSpellingLocation(Loc, &file, 0, 0, 0);
+  clang_getExpansionLocation(Loc, &file, 0, 0, 0);
   source = clang_getFileName(file);
   if (!clang_getCString(source)) {
     clang_disposeString(source);
@@ -379,6 +384,7 @@ void PrintDiagnostic(CXDiagnostic Diagnostic) {
     return;
 
   num_fixits = clang_getDiagnosticNumFixIts(Diagnostic);
+  fprintf(stderr, "Number FIX-ITs = %d\n", num_fixits);
   for (i = 0; i != num_fixits; ++i) {
     CXSourceRange range;
     CXString insertion_text = clang_getDiagnosticFixIt(Diagnostic, i, &range);
@@ -414,13 +420,21 @@ void PrintDiagnostic(CXDiagnostic Diagnostic) {
   }
 }
 
-void PrintDiagnostics(CXTranslationUnit TU) {
-  int i, n = clang_getNumDiagnostics(TU);
-  for (i = 0; i != n; ++i) {
-    CXDiagnostic Diag = clang_getDiagnostic(TU, i);
+void PrintDiagnosticSet(CXDiagnosticSet Set) {
+  int i = 0, n = clang_getNumDiagnosticsInSet(Set);
+  for ( ; i != n ; ++i) {
+    CXDiagnostic Diag = clang_getDiagnosticInSet(Set, i);
+    CXDiagnosticSet ChildDiags = clang_getChildDiagnostics(Diag);
     PrintDiagnostic(Diag);
-    clang_disposeDiagnostic(Diag);
-  }
+    if (ChildDiags)
+      PrintDiagnosticSet(ChildDiags);
+  }  
+}
+
+void PrintDiagnostics(CXTranslationUnit TU) {
+  CXDiagnosticSet TUSet = clang_getDiagnosticSetFromTU(TU);
+  PrintDiagnosticSet(TUSet);
+  clang_disposeDiagnosticSet(TUSet);
 }
 
 void PrintMemoryUsage(CXTranslationUnit TU) {
@@ -651,6 +665,23 @@ static enum CXChildVisitResult PrintTypeKind(CXCursor cursor, CXCursor p,
         clang_disposeString(RS);
       }
     }
+    /* Print the argument types if they exist. */
+    {
+      int numArgs = clang_Cursor_getNumArguments(cursor);
+      if (numArgs != -1 && numArgs != 0) {
+        int i;
+        printf(" [args=");
+        for (i = 0; i < numArgs; ++i) {
+          CXType T = clang_getCursorType(clang_Cursor_getArgument(cursor, i));
+          if (T.kind != CXType_Invalid) {
+            CXString S = clang_getTypeKindSpelling(T.kind);
+            printf(" %s", clang_getCString(S));
+            clang_disposeString(S);
+          }
+        }
+        printf("]");
+      }
+    }
     /* Print if this is a non-POD type. */
     printf(" [isPOD=%d]", clang_isPODType(T));
 
@@ -705,6 +736,11 @@ static int perform_test_load(CXIndex Idx, CXTranslationUnit TU,
     PV(TU);
 
   PrintDiagnostics(TU);
+  if (checkForErrors(TU) != 0) {
+    clang_disposeTranslationUnit(TU);
+    return -1;
+  }
+
   clang_disposeTranslationUnit(TU);
   return 0;
 }
@@ -800,6 +836,9 @@ int perform_test_reparse_source(int argc, const char **argv, int trials,
     return 1;
   }
   
+  if (checkForErrors(TU) != 0)
+    return -1;
+
   if (getenv("CINDEXTEST_REMAP_AFTER_TRIAL")) {
     remap_after_trial =
         strtol(getenv("CINDEXTEST_REMAP_AFTER_TRIAL"), &endptr, 10);
@@ -816,9 +855,13 @@ int perform_test_reparse_source(int argc, const char **argv, int trials,
       clang_disposeIndex(Idx);
       return -1;      
     }
+
+    if (checkForErrors(TU) != 0)
+      return -1;
   }
   
   result = perform_test_load(Idx, TU, filter, NULL, Visitor, PV);
+
   free_remapped_files(unsaved_files, num_unsaved_files);
   clang_disposeIndex(Idx);
   return result;
@@ -995,6 +1038,31 @@ clang_getCompletionChunkKindSpelling(enum CXCompletionChunkKind Kind) {
   return "Unknown";
 }
 
+static int checkForErrors(CXTranslationUnit TU) {
+  unsigned Num, i;
+  CXDiagnostic Diag;
+  CXString DiagStr;
+
+  if (!getenv("CINDEXTEST_FAILONERROR"))
+    return 0;
+
+  Num = clang_getNumDiagnostics(TU);
+  for (i = 0; i != Num; ++i) {
+    Diag = clang_getDiagnostic(TU, i);
+    if (clang_getDiagnosticSeverity(Diag) >= CXDiagnostic_Error) {
+      DiagStr = clang_formatDiagnostic(Diag,
+                                       clang_defaultDiagnosticDisplayOptions());
+      fprintf(stderr, "%s\n", clang_getCString(DiagStr));
+      clang_disposeString(DiagStr);
+      clang_disposeDiagnostic(Diag);
+      return -1;
+    }
+    clang_disposeDiagnostic(Diag);
+  }
+
+  return 0;
+}
+
 void print_completion_string(CXCompletionString completion_string, FILE *file) {
   int I, N;
 
@@ -1034,7 +1102,9 @@ void print_completion_result(CXCompletionResult *completion_result,
   FILE *file = (FILE *)client_data;
   CXString ks = clang_getCursorKindSpelling(completion_result->CursorKind);
   unsigned annotationCount;
-
+  enum CXCursorKind ParentKind;
+  CXString ParentName;
+  
   fprintf(file, "%s:", clang_getCString(ks));
   clang_disposeString(ks);
 
@@ -1073,6 +1143,19 @@ void print_completion_result(CXCompletionResult *completion_result,
     fprintf(file, ")");
   }
 
+  if (!getenv("CINDEXTEST_NO_COMPLETION_PARENTS")) {
+    ParentName = clang_getCompletionParent(completion_result->CompletionString,
+                                           &ParentKind);
+    if (ParentKind != CXCursor_NotImplemented) {
+      CXString KindSpelling = clang_getCursorKindSpelling(ParentKind);
+      fprintf(file, " (parent: %s '%s')",
+              clang_getCString(KindSpelling),
+              clang_getCString(ParentName));
+      clang_disposeString(KindSpelling);
+    }
+    clang_disposeString(ParentName);
+  }
+  
   fprintf(file, "\n");
 }
 
@@ -1347,6 +1430,9 @@ static int inspect_cursor_at(int argc, const char **argv) {
     return -1;
   }
 
+  if (checkForErrors(TU) != 0)
+    return -1;
+
   for (I = 0; I != Repeats; ++I) {
     if (Repeats > 1 &&
         clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files, 
@@ -1354,6 +1440,9 @@ static int inspect_cursor_at(int argc, const char **argv) {
       clang_disposeTranslationUnit(TU);
       return 1;
     }
+
+    if (checkForErrors(TU) != 0)
+      return -1;
     
     for (Loc = 0; Loc < NumLocations; ++Loc) {
       CXFile file = clang_getFile(TU, Locations[Loc].filename);
@@ -1363,10 +1452,38 @@ static int inspect_cursor_at(int argc, const char **argv) {
       Cursor = clang_getCursor(TU,
                                clang_getLocation(TU, file, Locations[Loc].line,
                                                  Locations[Loc].column));
+
+      if (checkForErrors(TU) != 0)
+        return -1;
+
       if (I + 1 == Repeats) {
         CXCompletionString completionString = clang_getCursorCompletionString(
                                                                         Cursor);
+        CXSourceLocation CursorLoc = clang_getCursorLocation(Cursor);
+        CXString Spelling;
+        const char *cspell;
+        unsigned line, column;
+        clang_getSpellingLocation(CursorLoc, 0, &line, &column, 0);
+        printf("%d:%d ", line, column);
         PrintCursor(Cursor);
+        PrintCursorExtent(Cursor);
+        Spelling = clang_getCursorSpelling(Cursor);
+        cspell = clang_getCString(Spelling);
+        if (cspell && strlen(cspell) != 0) {
+          unsigned pieceIndex;
+          printf(" Spelling=%s (", cspell);
+          for (pieceIndex = 0; ; ++pieceIndex) {
+            CXSourceRange range =
+              clang_Cursor_getSpellingNameRange(Cursor, pieceIndex, 0);
+            if (clang_Range_isNull(range))
+              break;
+            PrintRange(range, 0);
+          }
+          printf(")");
+        }
+        clang_disposeString(Spelling);
+        if (clang_Cursor_getObjCSelectorIndex(Cursor) != -1)
+          printf(" Selector index=%d",clang_Cursor_getObjCSelectorIndex(Cursor));
         if (completionString != NULL) {
           printf("\nCompletion string: ");
           print_completion_string(completionString, stdout);
@@ -1446,6 +1563,9 @@ static int find_file_refs_at(int argc, const char **argv) {
     return -1;
   }
 
+  if (checkForErrors(TU) != 0)
+    return -1;
+
   for (I = 0; I != Repeats; ++I) {
     if (Repeats > 1 &&
         clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files, 
@@ -1453,6 +1573,9 @@ static int find_file_refs_at(int argc, const char **argv) {
       clang_disposeTranslationUnit(TU);
       return 1;
     }
+
+    if (checkForErrors(TU) != 0)
+      return -1;
     
     for (Loc = 0; Loc < NumLocations; ++Loc) {
       CXFile file = clang_getFile(TU, Locations[Loc].filename);
@@ -1462,12 +1585,19 @@ static int find_file_refs_at(int argc, const char **argv) {
       Cursor = clang_getCursor(TU,
                                clang_getLocation(TU, file, Locations[Loc].line,
                                                  Locations[Loc].column));
+
+      if (checkForErrors(TU) != 0)
+        return -1;
+
       if (I + 1 == Repeats) {
         CXCursorAndRangeVisitor visitor = { 0, findFileRefsVisit };
         PrintCursor(Cursor);
         printf("\n");
         clang_findReferencesInFile(Cursor, file, visitor);
         free(Locations[Loc].filename);
+
+        if (checkForErrors(TU) != 0)
+          return -1;
       }
     }
   }
@@ -1478,6 +1608,521 @@ static int find_file_refs_at(int argc, const char **argv) {
   free(Locations);
   free_remapped_files(unsaved_files, num_unsaved_files);
   return 0;
+}
+
+typedef struct {
+  const char *check_prefix;
+  int first_check_printed;
+  int fail_for_error;
+  int abort;
+  const char *main_filename;
+} IndexData;
+
+static void printCheck(IndexData *data) {
+  if (data->check_prefix) {
+    if (data->first_check_printed) {
+      printf("// %s-NEXT: ", data->check_prefix);
+    } else {
+      printf("// %s     : ", data->check_prefix);
+      data->first_check_printed = 1;
+    }
+  }
+}
+
+static void printCXIndexFile(CXIdxClientFile file) {
+  CXString filename = clang_getFileName((CXFile)file);
+  printf("%s", clang_getCString(filename));
+  clang_disposeString(filename);
+}
+
+static void printCXIndexLoc(CXIdxLoc loc, CXClientData client_data) {
+  IndexData *index_data;
+  CXString filename;
+  const char *cname;
+  CXIdxClientFile file;
+  unsigned line, column;
+  int isMainFile;
+  
+  index_data = (IndexData *)client_data;
+  clang_indexLoc_getFileLocation(loc, &file, 0, &line, &column, 0);
+  if (line == 0) {
+    printf("<null loc>");
+    return;
+  }
+  if (!file) {
+    printf("<no idxfile>");
+    return;
+  }
+  filename = clang_getFileName((CXFile)file);
+  cname = clang_getCString(filename);
+  if (strcmp(cname, index_data->main_filename) == 0)
+    isMainFile = 1;
+  else
+    isMainFile = 0;
+  clang_disposeString(filename);
+
+  if (!isMainFile) {
+    printCXIndexFile(file);
+    printf(":");
+  }
+  printf("%d:%d", line, column);
+}
+
+static unsigned digitCount(unsigned val) {
+  unsigned c = 1;
+  while (1) {
+    if (val < 10)
+      return c;
+    ++c;
+    val /= 10;
+  }
+}
+
+static CXIdxClientContainer makeClientContainer(const CXIdxEntityInfo *info,
+                                                CXIdxLoc loc) {
+  const char *name;
+  char *newStr;
+  CXIdxClientFile file;
+  unsigned line, column;
+  
+  name = info->name;
+  if (!name)
+    name = "<anon-tag>";
+
+  clang_indexLoc_getFileLocation(loc, &file, 0, &line, &column, 0);
+  /* FIXME: free these.*/
+  newStr = (char *)malloc(strlen(name) +
+                          digitCount(line) + digitCount(column) + 3);
+  sprintf(newStr, "%s:%d:%d", name, line, column);
+  return (CXIdxClientContainer)newStr;
+}
+
+static void printCXIndexContainer(const CXIdxContainerInfo *info) {
+  CXIdxClientContainer container;
+  container = clang_index_getClientContainer(info);
+  if (!container)
+    printf("[<<NULL>>]");
+  else
+    printf("[%s]", (const char *)container);
+}
+
+static const char *getEntityKindString(CXIdxEntityKind kind) {
+  switch (kind) {
+  case CXIdxEntity_Unexposed: return "<<UNEXPOSED>>";
+  case CXIdxEntity_Typedef: return "typedef";
+  case CXIdxEntity_Function: return "function";
+  case CXIdxEntity_Variable: return "variable";
+  case CXIdxEntity_Field: return "field";
+  case CXIdxEntity_EnumConstant: return "enumerator";
+  case CXIdxEntity_ObjCClass: return "objc-class";
+  case CXIdxEntity_ObjCProtocol: return "objc-protocol";
+  case CXIdxEntity_ObjCCategory: return "objc-category";
+  case CXIdxEntity_ObjCInstanceMethod: return "objc-instance-method";
+  case CXIdxEntity_ObjCClassMethod: return "objc-class-method";
+  case CXIdxEntity_ObjCProperty: return "objc-property";
+  case CXIdxEntity_ObjCIvar: return "objc-ivar";
+  case CXIdxEntity_Enum: return "enum";
+  case CXIdxEntity_Struct: return "struct";
+  case CXIdxEntity_Union: return "union";
+  case CXIdxEntity_CXXClass: return "c++-class";
+  case CXIdxEntity_CXXNamespace: return "namespace";
+  case CXIdxEntity_CXXNamespaceAlias: return "namespace-alias";
+  case CXIdxEntity_CXXStaticVariable: return "c++-static-var";
+  case CXIdxEntity_CXXStaticMethod: return "c++-static-method";
+  case CXIdxEntity_CXXInstanceMethod: return "c++-instance-method";
+  case CXIdxEntity_CXXConstructor: return "constructor";
+  case CXIdxEntity_CXXDestructor: return "destructor";
+  case CXIdxEntity_CXXConversionFunction: return "conversion-func";
+  case CXIdxEntity_CXXTypeAlias: return "type-alias";
+  }
+  assert(0 && "Garbage entity kind");
+  return 0;
+}
+
+static const char *getEntityTemplateKindString(CXIdxEntityCXXTemplateKind kind) {
+  switch (kind) {
+  case CXIdxEntity_NonTemplate: return "";
+  case CXIdxEntity_Template: return "-template";
+  case CXIdxEntity_TemplatePartialSpecialization:
+    return "-template-partial-spec";
+  case CXIdxEntity_TemplateSpecialization: return "-template-spec";
+  }
+  assert(0 && "Garbage entity kind");
+  return 0;
+}
+
+static const char *getEntityLanguageString(CXIdxEntityLanguage kind) {
+  switch (kind) {
+  case CXIdxEntityLang_None: return "<none>";
+  case CXIdxEntityLang_C: return "C";
+  case CXIdxEntityLang_ObjC: return "ObjC";
+  case CXIdxEntityLang_CXX: return "C++";
+  }
+  assert(0 && "Garbage language kind");
+  return 0;
+}
+
+static void printEntityInfo(const char *cb,
+                            CXClientData client_data,
+                            const CXIdxEntityInfo *info) {
+  const char *name;
+  IndexData *index_data;
+  unsigned i;
+  index_data = (IndexData *)client_data;
+  printCheck(index_data);
+
+  if (!info) {
+    printf("%s: <<NULL>>", cb);
+    return;
+  }
+
+  name = info->name;
+  if (!name)
+    name = "<anon-tag>";
+
+  printf("%s: kind: %s%s", cb, getEntityKindString(info->kind),
+         getEntityTemplateKindString(info->templateKind));
+  printf(" | name: %s", name);
+  printf(" | USR: %s", info->USR);
+  printf(" | lang: %s", getEntityLanguageString(info->lang));
+
+  for (i = 0; i != info->numAttributes; ++i) {
+    const CXIdxAttrInfo *Attr = info->attributes[i];
+    printf("     <attribute>: ");
+    PrintCursor(Attr->cursor);
+  }
+}
+
+static void printBaseClassInfo(CXClientData client_data,
+                               const CXIdxBaseClassInfo *info) {
+  printEntityInfo("     <base>", client_data, info->base);
+  printf(" | cursor: ");
+  PrintCursor(info->cursor);
+  printf(" | loc: ");
+  printCXIndexLoc(info->loc, client_data);
+}
+
+static void printProtocolList(const CXIdxObjCProtocolRefListInfo *ProtoInfo,
+                              CXClientData client_data) {
+  unsigned i;
+  for (i = 0; i < ProtoInfo->numProtocols; ++i) {
+    printEntityInfo("     <protocol>", client_data,
+                    ProtoInfo->protocols[i]->protocol);
+    printf(" | cursor: ");
+    PrintCursor(ProtoInfo->protocols[i]->cursor);
+    printf(" | loc: ");
+    printCXIndexLoc(ProtoInfo->protocols[i]->loc, client_data);
+    printf("\n");
+  }
+}
+
+static void index_diagnostic(CXClientData client_data,
+                             CXDiagnosticSet diagSet, void *reserved) {
+  CXString str;
+  const char *cstr;
+  unsigned numDiags, i;
+  CXDiagnostic diag;
+  IndexData *index_data;
+  index_data = (IndexData *)client_data;
+  printCheck(index_data);
+
+  numDiags = clang_getNumDiagnosticsInSet(diagSet);
+  for (i = 0; i != numDiags; ++i) {
+    diag = clang_getDiagnosticInSet(diagSet, i);
+    str = clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
+    cstr = clang_getCString(str);
+    printf("[diagnostic]: %s\n", cstr);
+    clang_disposeString(str);  
+  
+    if (getenv("CINDEXTEST_FAILONERROR") &&
+        clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error) {
+      index_data->fail_for_error = 1;
+    }
+  }
+}
+
+static CXIdxClientFile index_enteredMainFile(CXClientData client_data,
+                                       CXFile file, void *reserved) {
+  IndexData *index_data;
+  CXString filename;
+
+  index_data = (IndexData *)client_data;
+  printCheck(index_data);
+
+  filename = clang_getFileName(file);
+  index_data->main_filename = clang_getCString(filename);
+  clang_disposeString(filename);
+
+  printf("[enteredMainFile]: ");
+  printCXIndexFile((CXIdxClientFile)file);
+  printf("\n");
+
+  return (CXIdxClientFile)file;
+}
+
+static CXIdxClientFile index_ppIncludedFile(CXClientData client_data,
+                                            const CXIdxIncludedFileInfo *info) {
+  IndexData *index_data;
+  index_data = (IndexData *)client_data;
+  printCheck(index_data);
+
+  printf("[ppIncludedFile]: ");
+  printCXIndexFile((CXIdxClientFile)info->file);
+  printf(" | name: \"%s\"", info->filename);
+  printf(" | hash loc: ");
+  printCXIndexLoc(info->hashLoc, client_data);
+  printf(" | isImport: %d | isAngled: %d\n", info->isImport, info->isAngled);
+
+  return (CXIdxClientFile)info->file;
+}
+
+static CXIdxClientContainer index_startedTranslationUnit(CXClientData client_data,
+                                                   void *reserved) {
+  IndexData *index_data;
+  index_data = (IndexData *)client_data;
+  printCheck(index_data);
+
+  printf("[startedTranslationUnit]\n");
+  return (CXIdxClientContainer)"TU";
+}
+
+static void index_indexDeclaration(CXClientData client_data,
+                                   const CXIdxDeclInfo *info) {
+  IndexData *index_data;
+  const CXIdxObjCCategoryDeclInfo *CatInfo;
+  const CXIdxObjCInterfaceDeclInfo *InterInfo;
+  const CXIdxObjCProtocolRefListInfo *ProtoInfo;
+  const CXIdxObjCPropertyDeclInfo *PropInfo;
+  const CXIdxCXXClassDeclInfo *CXXClassInfo;
+  unsigned i;
+  index_data = (IndexData *)client_data;
+
+  printEntityInfo("[indexDeclaration]", client_data, info->entityInfo);
+  printf(" | cursor: ");
+  PrintCursor(info->cursor);
+  printf(" | loc: ");
+  printCXIndexLoc(info->loc, client_data);
+  printf(" | semantic-container: ");
+  printCXIndexContainer(info->semanticContainer);
+  printf(" | lexical-container: ");
+  printCXIndexContainer(info->lexicalContainer);
+  printf(" | isRedecl: %d", info->isRedeclaration);
+  printf(" | isDef: %d", info->isDefinition);
+  printf(" | isContainer: %d", info->isContainer);
+  printf(" | isImplicit: %d\n", info->isImplicit);
+
+  for (i = 0; i != info->numAttributes; ++i) {
+    const CXIdxAttrInfo *Attr = info->attributes[i];
+    printf("     <attribute>: ");
+    PrintCursor(Attr->cursor);
+    printf("\n");
+  }
+
+  if (clang_index_isEntityObjCContainerKind(info->entityInfo->kind)) {
+    const char *kindName = 0;
+    CXIdxObjCContainerKind K = clang_index_getObjCContainerDeclInfo(info)->kind;
+    switch (K) {
+    case CXIdxObjCContainer_ForwardRef:
+      kindName = "forward-ref"; break;
+    case CXIdxObjCContainer_Interface:
+      kindName = "interface"; break;
+    case CXIdxObjCContainer_Implementation:
+      kindName = "implementation"; break;
+    }
+    printCheck(index_data);
+    printf("     <ObjCContainerInfo>: kind: %s\n", kindName);
+  }
+
+  if ((CatInfo = clang_index_getObjCCategoryDeclInfo(info))) {
+    printEntityInfo("     <ObjCCategoryInfo>: class", client_data,
+                    CatInfo->objcClass);
+    printf(" | cursor: ");
+    PrintCursor(CatInfo->classCursor);
+    printf(" | loc: ");
+    printCXIndexLoc(CatInfo->classLoc, client_data);
+    printf("\n");
+  }
+
+  if ((InterInfo = clang_index_getObjCInterfaceDeclInfo(info))) {
+    if (InterInfo->superInfo) {
+      printBaseClassInfo(client_data, InterInfo->superInfo);
+      printf("\n");
+    }
+  }
+
+  if ((ProtoInfo = clang_index_getObjCProtocolRefListInfo(info))) {
+    printProtocolList(ProtoInfo, client_data);
+  }
+
+  if ((PropInfo = clang_index_getObjCPropertyDeclInfo(info))) {
+    if (PropInfo->getter) {
+      printEntityInfo("     <getter>", client_data, PropInfo->getter);
+      printf("\n");
+    }
+    if (PropInfo->setter) {
+      printEntityInfo("     <setter>", client_data, PropInfo->setter);
+      printf("\n");
+    }
+  }
+
+  if ((CXXClassInfo = clang_index_getCXXClassDeclInfo(info))) {
+    for (i = 0; i != CXXClassInfo->numBases; ++i) {
+      printBaseClassInfo(client_data, CXXClassInfo->bases[i]);
+      printf("\n");
+    }
+  }
+
+  if (info->declAsContainer)
+    clang_index_setClientContainer(info->declAsContainer,
+                              makeClientContainer(info->entityInfo, info->loc));
+}
+
+static void index_indexEntityReference(CXClientData client_data,
+                                       const CXIdxEntityRefInfo *info) {
+  printEntityInfo("[indexEntityReference]", client_data, info->referencedEntity);
+  printf(" | cursor: ");
+  PrintCursor(info->cursor);
+  printf(" | loc: ");
+  printCXIndexLoc(info->loc, client_data);
+  printEntityInfo(" | <parent>:", client_data, info->parentEntity);
+  printf(" | container: ");
+  printCXIndexContainer(info->container);
+  printf(" | refkind: ");
+  switch (info->kind) {
+  case CXIdxEntityRef_Direct: printf("direct"); break;
+  case CXIdxEntityRef_Implicit: printf("implicit"); break;
+  }
+  printf("\n");
+}
+
+static int index_abortQuery(CXClientData client_data, void *reserved) {
+  IndexData *index_data;
+  index_data = (IndexData *)client_data;
+  return index_data->abort;
+}
+
+static IndexerCallbacks IndexCB = {
+  index_abortQuery,
+  index_diagnostic,
+  index_enteredMainFile,
+  index_ppIncludedFile,
+  0, /*importedASTFile*/
+  index_startedTranslationUnit,
+  index_indexDeclaration,
+  index_indexEntityReference
+};
+
+static unsigned getIndexOptions(void) {
+  unsigned index_opts;
+  index_opts = 0;
+  if (getenv("CINDEXTEST_SUPPRESSREFS"))
+    index_opts |= CXIndexOpt_SuppressRedundantRefs;
+  if (getenv("CINDEXTEST_INDEXLOCALSYMBOLS"))
+    index_opts |= CXIndexOpt_IndexFunctionLocalSymbols;
+
+  return index_opts;
+}
+
+static int index_file(int argc, const char **argv) {
+  const char *check_prefix;
+  CXIndex Idx;
+  CXIndexAction idxAction;
+  IndexData index_data;
+  unsigned index_opts;
+  int result;
+
+  check_prefix = 0;
+  if (argc > 0) {
+    if (strstr(argv[0], "-check-prefix=") == argv[0]) {
+      check_prefix = argv[0] + strlen("-check-prefix=");
+      ++argv;
+      --argc;
+    }
+  }
+
+  if (argc == 0) {
+    fprintf(stderr, "no compiler arguments\n");
+    return -1;
+  }
+
+  if (!(Idx = clang_createIndex(/* excludeDeclsFromPCH */ 1,
+                                /* displayDiagnosics=*/1))) {
+    fprintf(stderr, "Could not create Index\n");
+    return 1;
+  }
+  idxAction = 0;
+  result = 1;
+
+  index_data.check_prefix = check_prefix;
+  index_data.first_check_printed = 0;
+  index_data.fail_for_error = 0;
+  index_data.abort = 0;
+
+  index_opts = getIndexOptions();
+  idxAction = clang_IndexAction_create(Idx);
+  result = clang_indexSourceFile(idxAction, &index_data,
+                                 &IndexCB,sizeof(IndexCB), index_opts,
+                                 0, argv, argc, 0, 0, 0, 0);
+  if (index_data.fail_for_error)
+    result = -1;
+
+  clang_IndexAction_dispose(idxAction);
+  clang_disposeIndex(Idx);
+  return result;
+}
+
+static int index_tu(int argc, const char **argv) {
+  CXIndex Idx;
+  CXIndexAction idxAction;
+  CXTranslationUnit TU;
+  const char *check_prefix;
+  IndexData index_data;
+  unsigned index_opts;
+  int result;
+
+  check_prefix = 0;
+  if (argc > 0) {
+    if (strstr(argv[0], "-check-prefix=") == argv[0]) {
+      check_prefix = argv[0] + strlen("-check-prefix=");
+      ++argv;
+      --argc;
+    }
+  }
+
+  if (argc == 0) {
+    fprintf(stderr, "no ast file\n");
+    return -1;
+  }
+
+  if (!(Idx = clang_createIndex(/* excludeDeclsFromPCH */ 1,
+                                /* displayDiagnosics=*/1))) {
+    fprintf(stderr, "Could not create Index\n");
+    return 1;
+  }
+  idxAction = 0;
+  result = 1;
+
+  if (!CreateTranslationUnit(Idx, argv[0], &TU))
+    goto finished;
+
+  index_data.check_prefix = check_prefix;
+  index_data.first_check_printed = 0;
+  index_data.fail_for_error = 0;
+  index_data.abort = 0;
+
+  index_opts = getIndexOptions();
+  idxAction = clang_IndexAction_create(Idx);
+  result = clang_indexTranslationUnit(idxAction, &index_data,
+                                      &IndexCB,sizeof(IndexCB),
+                                      index_opts, TU);
+  if (index_data.fail_for_error)
+    goto finished;
+
+  finished:
+  clang_IndexAction_dispose(idxAction);
+  clang_disposeIndex(Idx);
+  
+  return result;
 }
 
 int perform_token_annotation(int argc, const char **argv) {
@@ -1522,6 +2167,9 @@ int perform_token_annotation(int argc, const char **argv) {
   }
   errorCode = 0;
 
+  if (checkForErrors(TU) != 0)
+    return -1;
+
   if (getenv("CINDEXTEST_EDITING")) {
     for (i = 0; i < 5; ++i) {
       if (clang_reparseTranslationUnit(TU, num_unsaved_files, unsaved_files,
@@ -1531,6 +2179,11 @@ int perform_token_annotation(int argc, const char **argv) {
         goto teardown;
       }
     }
+  }
+
+  if (checkForErrors(TU) != 0) {
+    errorCode = -1;
+    goto teardown;
   }
 
   file = clang_getFile(TU, filename);
@@ -1558,8 +2211,20 @@ int perform_token_annotation(int argc, const char **argv) {
 
   range = clang_getRange(startLoc, endLoc);
   clang_tokenize(TU, range, &tokens, &num_tokens);
+
+  if (checkForErrors(TU) != 0) {
+    errorCode = -1;
+    goto teardown;
+  }
+
   cursors = (CXCursor *)malloc(num_tokens * sizeof(CXCursor));
   clang_annotateTokens(TU, tokens, num_tokens, cursors);
+
+  if (checkForErrors(TU) != 0) {
+    errorCode = -1;
+    goto teardown;
+  }
+
   for (i = 0; i != num_tokens; ++i) {
     const char *kind = "<unknown>";
     CXString spelling = clang_getTokenSpelling(TU, tokens[i]);
@@ -1829,6 +2494,167 @@ int write_pch_file(const char *filename, int argc, const char *argv[]) {
 }
 
 /******************************************************************************/
+/* Serialized diagnostics.                                                    */
+/******************************************************************************/
+
+static const char *getDiagnosticCodeStr(enum CXLoadDiag_Error error) {
+  switch (error) {
+    case CXLoadDiag_CannotLoad: return "Cannot Load File";
+    case CXLoadDiag_None: break;
+    case CXLoadDiag_Unknown: return "Unknown";
+    case CXLoadDiag_InvalidFile: return "Invalid File";
+  }
+  return "None";
+}
+
+static const char *getSeverityString(enum CXDiagnosticSeverity severity) {
+  switch (severity) {
+    case CXDiagnostic_Note: return "note";
+    case CXDiagnostic_Error: return "error";
+    case CXDiagnostic_Fatal: return "fatal";
+    case CXDiagnostic_Ignored: return "ignored";
+    case CXDiagnostic_Warning: return "warning";
+  }
+  return "unknown";
+}
+
+static void printIndent(unsigned indent) {
+  if (indent == 0)
+    return;
+  fprintf(stderr, "+");
+  --indent;
+  while (indent > 0) {
+    fprintf(stderr, "-");
+    --indent;
+  }
+}
+
+static void printLocation(CXSourceLocation L) {
+  CXFile File;
+  CXString FileName;
+  unsigned line, column, offset;
+  
+  clang_getExpansionLocation(L, &File, &line, &column, &offset);
+  FileName = clang_getFileName(File);
+  
+  fprintf(stderr, "%s:%d:%d", clang_getCString(FileName), line, column);
+  clang_disposeString(FileName);
+}
+
+static void printRanges(CXDiagnostic D, unsigned indent) {
+  unsigned i, n = clang_getDiagnosticNumRanges(D);
+  
+  for (i = 0; i < n; ++i) {
+    CXSourceLocation Start, End;
+    CXSourceRange SR = clang_getDiagnosticRange(D, i);
+    Start = clang_getRangeStart(SR);
+    End = clang_getRangeEnd(SR);
+    
+    printIndent(indent);
+    fprintf(stderr, "Range: ");
+    printLocation(Start);
+    fprintf(stderr, " ");
+    printLocation(End);
+    fprintf(stderr, "\n");
+  }
+}
+
+static void printFixIts(CXDiagnostic D, unsigned indent) {
+  unsigned i, n = clang_getDiagnosticNumFixIts(D);
+  fprintf(stderr, "Number FIXITs = %d\n", n);
+  for (i = 0 ; i < n; ++i) {
+    CXSourceRange ReplacementRange;
+    CXString text;
+    text = clang_getDiagnosticFixIt(D, i, &ReplacementRange);
+    
+    printIndent(indent);
+    fprintf(stderr, "FIXIT: (");
+    printLocation(clang_getRangeStart(ReplacementRange));
+    fprintf(stderr, " - ");
+    printLocation(clang_getRangeEnd(ReplacementRange));
+    fprintf(stderr, "): \"%s\"\n", clang_getCString(text));
+    clang_disposeString(text);
+  }  
+}
+
+static void printDiagnosticSet(CXDiagnosticSet Diags, unsigned indent) {
+  unsigned i, n;
+
+  if (!Diags)
+    return;
+  
+  n = clang_getNumDiagnosticsInSet(Diags);
+  for (i = 0; i < n; ++i) {
+    CXSourceLocation DiagLoc;
+    CXDiagnostic D;
+    CXFile File;
+    CXString FileName, DiagSpelling, DiagOption, DiagCat;
+    unsigned line, column, offset;
+    const char *DiagOptionStr = 0, *DiagCatStr = 0;
+    
+    D = clang_getDiagnosticInSet(Diags, i);
+    DiagLoc = clang_getDiagnosticLocation(D);
+    clang_getExpansionLocation(DiagLoc, &File, &line, &column, &offset);
+    FileName = clang_getFileName(File);
+    DiagSpelling = clang_getDiagnosticSpelling(D);
+    
+    printIndent(indent);
+    
+    fprintf(stderr, "%s:%d:%d: %s: %s",
+            clang_getCString(FileName),
+            line,
+            column,
+            getSeverityString(clang_getDiagnosticSeverity(D)),
+            clang_getCString(DiagSpelling));
+
+    DiagOption = clang_getDiagnosticOption(D, 0);
+    DiagOptionStr = clang_getCString(DiagOption);
+    if (DiagOptionStr) {
+      fprintf(stderr, " [%s]", DiagOptionStr);
+    }
+    
+    DiagCat = clang_getDiagnosticCategoryText(D);
+    DiagCatStr = clang_getCString(DiagCat);
+    if (DiagCatStr) {
+      fprintf(stderr, " [%s]", DiagCatStr);
+    }
+    
+    fprintf(stderr, "\n");
+    
+    printRanges(D, indent);
+    printFixIts(D, indent);
+    
+    /* Print subdiagnostics. */
+    printDiagnosticSet(clang_getChildDiagnostics(D), indent+2);
+
+    clang_disposeString(FileName);
+    clang_disposeString(DiagSpelling);
+    clang_disposeString(DiagOption);
+  }  
+}
+
+static int read_diagnostics(const char *filename) {
+  enum CXLoadDiag_Error error;
+  CXString errorString;
+  CXDiagnosticSet Diags = 0;
+  
+  Diags = clang_loadDiagnostics(filename, &error, &errorString);
+  if (!Diags) {
+    fprintf(stderr, "Trouble deserializing file (%s): %s\n",
+            getDiagnosticCodeStr(error),
+            clang_getCString(errorString));
+    clang_disposeString(errorString);
+    return 1;
+  }
+  
+  printDiagnosticSet(Diags, 0);
+  fprintf(stderr, "Number of diagnostics: %d\n",
+          clang_getNumDiagnosticsInSet(Diags));
+  clang_disposeDiagnosticSet(Diags);
+  return 0;
+}
+
+/******************************************************************************/
 /* Command line processing.                                                   */
 /******************************************************************************/
 
@@ -1848,6 +2674,8 @@ static void print_usage(void) {
     "       c-index-test -code-completion-timing=<site> <compiler arguments>\n"
     "       c-index-test -cursor-at=<site> <compiler arguments>\n"
     "       c-index-test -file-refs-at=<site> <compiler arguments>\n"
+    "       c-index-test -index-file [-check-prefix=<FileCheck prefix>] <compiler arguments>\n"
+    "       c-index-test -index-tu [-check-prefix=<FileCheck prefix>] <AST file>\n"
     "       c-index-test -test-file-scan <AST file> <source file> "
           "[FileCheck prefix]\n");
   fprintf(stderr,
@@ -1872,7 +2700,9 @@ static void print_usage(void) {
     "       c-index-test -test-print-typekind {<args>}*\n"
     "       c-index-test -print-usr [<CursorKind> {<args>}]*\n"
     "       c-index-test -print-usr-file <file>\n"
-    "       c-index-test -write-pch <file> <compiler arguments>\n\n");
+    "       c-index-test -write-pch <file> <compiler arguments>\n");
+  fprintf(stderr,
+    "       c-index-test -read-diagnostics <file>\n\n");
   fprintf(stderr,
     " <symbol filter> values:\n%s",
     "   all - load all symbols, including those from PCH\n"
@@ -1889,6 +2719,8 @@ static void print_usage(void) {
 
 int cindextest_main(int argc, const char **argv) {
   clang_enableStackTraces();
+  if (argc > 2 && strcmp(argv[1], "-read-diagnostics") == 0)
+      return read_diagnostics(argv[2]);
   if (argc > 2 && strstr(argv[1], "-code-completion-at=") == argv[1])
     return perform_code_completion(argc, argv, 0);
   if (argc > 2 && strstr(argv[1], "-code-completion-timing=") == argv[1])
@@ -1897,6 +2729,10 @@ int cindextest_main(int argc, const char **argv) {
     return inspect_cursor_at(argc, argv);
   if (argc > 2 && strstr(argv[1], "-file-refs-at=") == argv[1])
     return find_file_refs_at(argc, argv);
+  if (argc > 2 && strcmp(argv[1], "-index-file") == 0)
+    return index_file(argc - 2, argv + 2);
+  if (argc > 2 && strcmp(argv[1], "-index-tu") == 0)
+    return index_tu(argc - 2, argv + 2);
   else if (argc >= 4 && strncmp(argv[1], "-test-load-tu", 13) == 0) {
     CXCursorVisitor I = GetVisitor(argv[1] + 13);
     if (I)
@@ -1970,6 +2806,9 @@ typedef struct thread_info {
 void thread_runner(void *client_data_v) {
   thread_info *client_data = client_data_v;
   client_data->result = cindextest_main(client_data->argc, client_data->argv);
+#ifdef __CYGWIN__
+  fflush(stdout);  /* stdout is not flushed on Cygwin. */
+#endif
 }
 
 int main(int argc, const char **argv) {

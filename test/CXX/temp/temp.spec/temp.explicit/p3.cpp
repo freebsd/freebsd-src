@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wc++11-compat %s
 
 // A declaration of a function template shall be in scope at the point of the 
 // explicit instantiation of the function template.
@@ -71,4 +71,11 @@ namespace PR7979 {
   template <typename T> void S<T>::g() {}
   template <typename T> int S<T>::i;
   template <typename T> void S<T>::S2::h() {}
+}
+
+namespace PR11599 {
+  template <typename STRING_TYPE> class BasicStringPiece;  // expected-note {{template is declared here}}
+
+  extern template class BasicStringPiece<int>;  // expected-error{{explicit instantiation of undefined template 'PR11599::BasicStringPiece<int>}}
+  template class BasicStringPiece<int>;
 }

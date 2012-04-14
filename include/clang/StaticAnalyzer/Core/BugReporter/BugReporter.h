@@ -20,10 +20,10 @@
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/ImmutableList.h"
+#include "llvm/ADT/ilist.h"
+#include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/ImmutableSet.h"
-#include "llvm/ADT/SmallSet.h"
-#include <list>
+#include "llvm/ADT/DenseSet.h"
 
 namespace clang {
 
@@ -49,9 +49,10 @@ class BugType;
 
 /// This class provides an interface through which checkers can create
 /// individual bug reports.
-class BugReport {
-public:
+class BugReport : public llvm::ilist_node<BugReport> {
+public:  
   class NodeResolver {
+    virtual void anchor();
   public:
     virtual ~NodeResolver() {}
     virtual const ExplodedNode*
@@ -59,7 +60,8 @@ public:
   };
 
   typedef const SourceRange *ranges_iterator;
-  typedef llvm::ImmutableList<BugReporterVisitor*>::iterator visitor_iterator;
+  typedef SmallVector<BugReporterVisitor *, 8> VisitorList;
+  typedef VisitorList::iterator visitor_iterator;
   typedef SmallVector<StringRef, 2> ExtraTextList;
 
 protected:
@@ -67,32 +69,65 @@ protected:
   friend class BugReportEquivClass;
 
   BugType& BT;
+  const Decl *DeclWithIssue;
   std::string ShortDescription;
   std::string Description;
   PathDiagnosticLocation Location;
+  PathDiagnosticLocation UniqueingLocation;
   const ExplodedNode *ErrorNode;
   SmallVector<SourceRange, 4> Ranges;
   ExtraTextList ExtraText;
+  
+  typedef llvm::DenseSet<SymbolRef> Symbols;
+  typedef llvm::DenseSet<const MemRegion *> Regions;
 
-  // Not the most efficient data structure, but we use an ImmutableList for the
-  // Callbacks because it is safe to make additions to list during iteration.
-  llvm::ImmutableList<BugReporterVisitor*>::Factory F;
-  llvm::ImmutableList<BugReporterVisitor*> Callbacks;
+  /// A set of symbols that are registered with this report as being
+  /// "interesting", and thus used to help decide which diagnostics
+  /// to include when constructing the final path diagnostic.
+  Symbols interestingSymbols;
+
+  /// A set of regions that are registered with this report as being
+  /// "interesting", and thus used to help decide which diagnostics
+  /// to include when constructing the final path diagnostic.
+  Regions interestingRegions;
+
+  /// A set of custom visitors which generate "event" diagnostics at
+  /// interesting points in the path.
+  VisitorList Callbacks;
+
+  /// Used for ensuring the visitors are only added once.
   llvm::FoldingSet<BugReporterVisitor> CallbacksSet;
+
+  /// Used for clients to tell if the report's configuration has changed
+  /// since the last time they checked.
+  unsigned ConfigurationChangeToken;
 
 public:
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode)
-    : BT(bt), Description(desc), ErrorNode(errornode),
-      Callbacks(F.getEmptyList()) {}
+    : BT(bt), DeclWithIssue(0), Description(desc), ErrorNode(errornode),
+      ConfigurationChangeToken(0) {}
 
   BugReport(BugType& bt, StringRef shortDesc, StringRef desc,
             const ExplodedNode *errornode)
-    : BT(bt), ShortDescription(shortDesc), Description(desc),
-      ErrorNode(errornode), Callbacks(F.getEmptyList()) {}
+    : BT(bt), DeclWithIssue(0), ShortDescription(shortDesc), Description(desc),
+      ErrorNode(errornode), ConfigurationChangeToken(0) {}
 
   BugReport(BugType& bt, StringRef desc, PathDiagnosticLocation l)
-    : BT(bt), Description(desc), Location(l), ErrorNode(0),
-      Callbacks(F.getEmptyList()) {}
+    : BT(bt), DeclWithIssue(0), Description(desc), Location(l), ErrorNode(0),
+      ConfigurationChangeToken(0) {}
+
+  /// \brief Create a BugReport with a custom uniqueing location.
+  ///
+  /// The reports that have the same report location, description, bug type, and
+  /// ranges are uniqued - only one of the equivalent reports will be presented
+  /// to the user. This method allows to rest the location which should be used
+  /// for uniquing reports. For example, memory leaks checker, could set this to
+  /// the allocation site, rather then the location where the bug is reported.
+  BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode,
+            PathDiagnosticLocation LocationToUnique)
+    : BT(bt), DeclWithIssue(0), Description(desc),
+      UniqueingLocation(LocationToUnique),
+      ErrorNode(errornode), ConfigurationChangeToken(0) {}
 
   virtual ~BugReport();
 
@@ -107,6 +142,28 @@ public:
     return ShortDescription.empty() ? Description : ShortDescription;
   }
 
+  void markInteresting(SymbolRef sym);
+  void markInteresting(const MemRegion *R);
+  void markInteresting(SVal V);
+  
+  bool isInteresting(SymbolRef sym) const;
+  bool isInteresting(const MemRegion *R) const;
+  bool isInteresting(SVal V) const;
+
+  unsigned getConfigurationChangeToken() const {
+    return ConfigurationChangeToken;
+  }
+  
+  /// Return the canonical declaration, be it a method or class, where
+  /// this issue semantically occurred.
+  const Decl *getDeclWithIssue() const;
+  
+  /// Specifically set the Decl where an issue occurred.  This isn't necessary
+  /// for BugReports that cover a path as it will be automatically inferred.
+  void setDeclWithIssue(const Decl *declWithIssue) {
+    DeclWithIssue = declWithIssue;
+  }
+  
   /// \brief This allows for addition of meta data to the diagnostic.
   ///
   /// Currently, only the HTMLDiagnosticClient knows how to display it. 
@@ -162,13 +219,38 @@ public:
   virtual void Profile(llvm::FoldingSetNodeID& hash) const;
 };
 
+} // end ento namespace
+} // end clang namespace
+
+namespace llvm {
+  template<> struct ilist_traits<clang::ento::BugReport>
+    : public ilist_default_traits<clang::ento::BugReport> {
+    clang::ento::BugReport *createSentinel() const {
+      return static_cast<clang::ento::BugReport *>(&Sentinel);
+    }
+    void destroySentinel(clang::ento::BugReport *) const {}
+
+    clang::ento::BugReport *provideInitialHead() const {
+      return createSentinel();
+    }
+    clang::ento::BugReport *ensureHead(clang::ento::BugReport *) const {
+      return createSentinel();
+    }
+  private:
+    mutable ilist_half_node<clang::ento::BugReport> Sentinel;
+  };
+}
+
+namespace clang {
+namespace ento {
+
 //===----------------------------------------------------------------------===//
 // BugTypes (collections of related reports).
 //===----------------------------------------------------------------------===//
 
 class BugReportEquivClass : public llvm::FoldingSetNode {
   /// List of *owned* BugReport objects.
-  std::list<BugReport*> Reports;
+  llvm::ilist<BugReport> Reports;
 
   friend class BugReporter;
   void AddReport(BugReport* R) { Reports.push_back(R); }
@@ -178,36 +260,17 @@ public:
 
   void Profile(llvm::FoldingSetNodeID& ID) const {
     assert(!Reports.empty());
-    (*Reports.begin())->Profile(ID);
+    Reports.front().Profile(ID);
   }
 
-  class iterator {
-    std::list<BugReport*>::iterator impl;
-  public:
-    iterator(std::list<BugReport*>::iterator i) : impl(i) {}
-    iterator &operator++() { ++impl; return *this; }
-    bool operator==(const iterator &I) const { return I.impl == impl; }
-    bool operator!=(const iterator &I) const { return I.impl != impl; }
-    BugReport* operator*() const { return *impl; }
-    BugReport* operator->() const { return *impl; }
-  };
+  typedef llvm::ilist<BugReport>::iterator iterator;
+  typedef llvm::ilist<BugReport>::const_iterator const_iterator;
 
-  class const_iterator {
-    std::list<BugReport*>::const_iterator impl;
-  public:
-    const_iterator(std::list<BugReport*>::const_iterator i) : impl(i) {}
-    const_iterator &operator++() { ++impl; return *this; }
-    bool operator==(const const_iterator &I) const { return I.impl == impl; }
-    bool operator!=(const const_iterator &I) const { return I.impl != impl; }
-    const BugReport* operator*() const { return *impl; }
-    const BugReport* operator->() const { return *impl; }
-  };
+  iterator begin() { return Reports.begin(); }
+  iterator end() { return Reports.end(); }
 
-  iterator begin() { return iterator(Reports.begin()); }
-  iterator end() { return iterator(Reports.end()); }
-
-  const_iterator begin() const { return const_iterator(Reports.begin()); }
-  const_iterator end() const { return const_iterator(Reports.end()); }
+  const_iterator begin() const { return Reports.begin(); }
+  const_iterator end() const { return Reports.end(); }
 };
 
 //===----------------------------------------------------------------------===//
@@ -294,34 +357,22 @@ public:
   /// reports.
   void EmitReport(BugReport *R);
 
-  void EmitBasicReport(StringRef BugName, StringRef BugStr,
-                       PathDiagnosticLocation Loc,
-                       SourceRange* RangeBeg, unsigned NumRanges);
-
-  void EmitBasicReport(StringRef BugName, StringRef BugCategory,
+  void EmitBasicReport(const Decl *DeclWithIssue,
+                       StringRef BugName, StringRef BugCategory,
                        StringRef BugStr, PathDiagnosticLocation Loc,
                        SourceRange* RangeBeg, unsigned NumRanges);
 
-
-  void EmitBasicReport(StringRef BugName, StringRef BugStr,
-                       PathDiagnosticLocation Loc) {
-    EmitBasicReport(BugName, BugStr, Loc, 0, 0);
-  }
-
-  void EmitBasicReport(StringRef BugName, StringRef BugCategory,
+  void EmitBasicReport(const Decl *DeclWithIssue,
+                       StringRef BugName, StringRef BugCategory,
                        StringRef BugStr, PathDiagnosticLocation Loc) {
-    EmitBasicReport(BugName, BugCategory, BugStr, Loc, 0, 0);
+    EmitBasicReport(DeclWithIssue, BugName, BugCategory, BugStr, Loc, 0, 0);
   }
 
-  void EmitBasicReport(StringRef BugName, StringRef BugStr,
-                       PathDiagnosticLocation Loc, SourceRange R) {
-    EmitBasicReport(BugName, BugStr, Loc, &R, 1);
-  }
-
-  void EmitBasicReport(StringRef BugName, StringRef Category,
+  void EmitBasicReport(const Decl *DeclWithIssue,
+                       StringRef BugName, StringRef Category,
                        StringRef BugStr, PathDiagnosticLocation Loc,
                        SourceRange R) {
-    EmitBasicReport(BugName, Category, BugStr, Loc, &R, 1);
+    EmitBasicReport(DeclWithIssue, BugName, Category, BugStr, Loc, &R, 1);
   }
 
   static bool classof(const BugReporter* R) { return true; }
@@ -337,7 +388,6 @@ private:
 // FIXME: Get rid of GRBugReporter.  It's the wrong abstraction.
 class GRBugReporter : public BugReporter {
   ExprEngine& Eng;
-  llvm::SmallSet<SymbolRef, 10> NotableSymbols;
 public:
   GRBugReporter(BugReporterData& d, ExprEngine& eng)
     : BugReporter(d, GRBugReporterKind), Eng(eng) {}
@@ -359,14 +409,6 @@ public:
   virtual void GeneratePathDiagnostic(PathDiagnostic &pathDiagnostic,
                      SmallVectorImpl<BugReport*> &bugReports);
 
-  void addNotableSymbol(SymbolRef Sym) {
-    NotableSymbols.insert(Sym);
-  }
-
-  bool isNotable(SymbolRef Sym) const {
-    return (bool) NotableSymbols.count(Sym);
-  }
-
   /// classof - Used by isa<>, cast<>, and dyn_cast<>.
   static bool classof(const BugReporter* R) {
     return R->getKind() == GRBugReporterKind;
@@ -374,6 +416,7 @@ public:
 };
 
 class BugReporterContext {
+  virtual void anchor();
   GRBugReporter &BR;
 public:
   BugReporterContext(GRBugReporter& br) : BR(br) {}
@@ -383,16 +426,6 @@ public:
   GRBugReporter& getBugReporter() { return BR; }
 
   ExplodedGraph &getGraph() { return BR.getGraph(); }
-
-  void addNotableSymbol(SymbolRef Sym) {
-    // FIXME: For now forward to GRBugReporter.
-    BR.addNotableSymbol(Sym);
-  }
-
-  bool isNotable(SymbolRef Sym) const {
-    // FIXME: For now forward to GRBugReporter.
-    return BR.isNotable(Sym);
-  }
 
   ProgramStateManager& getStateManager() {
     return BR.getStateManager();

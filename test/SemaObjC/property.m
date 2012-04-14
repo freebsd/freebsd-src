@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -fobjc-fragile-abi -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -fobjc-fragile-abi -fsyntax-only -verify -Wno-objc-root-class %s
 
 @interface I 
 {
@@ -65,3 +65,19 @@ typedef id BYObjectIdentifier;
 
 // rdar://10127639
 @synthesize window; // expected-error {{missing context for property implementation declaration}}
+
+// rdar://10408414
+Class test6_getClass();
+@interface Test6
+@end
+@implementation Test6
++ (float) globalValue { return 5.0f; }
++ (float) gv { return test6_getClass().globalValue; }
+@end
+
+@interface Test7
+@property unsigned length;
+@end
+void test7(Test7 *t) {
+  char data[t.length] = {}; // expected-error {{variable-sized object may not be initialized}}
+}

@@ -1,8 +1,10 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
 <html>
 <head>
 <title>Clang Compiler User's Manual</title>
-<link type="text/css" rel="stylesheet" href="../menu.css" />
-<link type="text/css" rel="stylesheet" href="../content.css" />
+<link type="text/css" rel="stylesheet" href="../menu.css">
+<link type="text/css" rel="stylesheet" href="../content.css">
 <style type="text/css">
 td {
 	vertical-align: top;
@@ -28,6 +30,8 @@ td {
   <ul>
   <li><a href="#cl_diagnostics">Options to Control Error and Warning
       Messages</a></li>
+  <li><a href="#cl_crash_diagnostics">Options to Control Clang Crash
+      Diagnostics</a></li>
   </ul>
 </li>
 <li><a href="#general_features">Language and Target-Independent Features</a>
@@ -54,6 +58,11 @@ td {
   <li><a href="#c_unimpl_gcc">GCC extensions not implemented yet</a></li>
   <li><a href="#c_unsupp_gcc">Intentionally unsupported GCC extensions</a></li>
   <li><a href="#c_ms">Microsoft extensions</a></li>
+  </ul>
+</li>
+<li><a href="#cxx">C++ Language Features</a>
+  <ul>
+  <li><a href="#cxx_implimits">Controlling implementation limits</a></li>
   </ul>
 </li>
 <li><a href="#target_features">Target-Specific Features and Limitations</a>
@@ -92,7 +101,7 @@ Web Site</a> or the <a href="http://llvm.org">LLVM Web Site</a>.</p>
 an end-user, documenting the supported features, command line options, etc.  If
 you are interested in using Clang to build a tool that processes code, please
 see <a href="InternalsManual.html">the Clang Internals Manual</a>.  If you are
-interested in the <a href="http://clang.llvm.org/StaticAnalysis.html">Clang
+interested in the <a href="http://clang-analyzer.llvm.org">Clang
 Static Analyzer</a>, please see its web page.</p>
 
 <p>Clang is designed to support the C family of programming languages, which
@@ -106,7 +115,7 @@ corresponding language specific section:</p>
     (C89+AMD1), ISO C99 (+TC1, TC2, TC3). </li>
 <li><a href="#objc">Objective-C Language</a>: ObjC 1, ObjC 2, ObjC 2.1, plus
     variants depending on base language.</li>
-<li><a href="#cxx">C++ Language Features</a></li>
+<li><a href="#cxx">C++ Language</a></li>
 <li><a href="#objcxx">Objective C++ Language</a></li>
 </ul>
 
@@ -258,10 +267,10 @@ when this is enabled, Clang will print something like:
   When this option is enabled, Clang will use colors to highlight
   specific parts of the diagnostic, e.g.,
  <pre>
-  <b><font color="black">test.c:28:8: <font color="magenta">warning</font>: extra tokens at end of #endif directive [-Wextra-tokens]</font></b>
+  <b><span style="color:black">test.c:28:8: <span style="color:magenta">warning</span>: extra tokens at end of #endif directive [-Wextra-tokens]</span></b>
   #endif bad
-         <font color="green">^</font>
-         <font color="green">//</font>
+         <span style="color:green">^</span>
+         <span style="color:green">//</span>
 </pre>
 
 <p>When this is disabled, Clang will just print:</p>
@@ -300,8 +309,7 @@ Changes diagnostic output format to better match IDEs and command line tools.</d
 <dt id="opt_fdiagnostics-show-name"><b>-f[no-]diagnostics-show-name</b>:
 Enable the display of the diagnostic name.</dt>
 <dd>This option, which defaults to off, controls whether or not
-Clang prints the associated name.</dd>
-<br>
+Clang prints the associated name.<p></p></dd>
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <dt id="opt_fdiagnostics-show-option"><b>-f[no-]diagnostics-show-option</b>:
 Enable <tt>[-Woption]</tt> information in diagnostic line.</dt>
@@ -409,7 +417,6 @@ quotes(as &quot;\&quot;&quot;) and non-printable characters (as octal
 
 </dl>
 
- 
 
 
 <!-- ===================================================== -->
@@ -480,7 +487,7 @@ constructor.  For example:
   };
   void foo(const NonCopyable&);
   void bar() {
-    foo(NonCopyable());  // Disallowed in C++98; allowed in C++0x.
+    foo(NonCopyable());  // Disallowed in C++98; allowed in C++11.
   }
 </pre>
 <pre>
@@ -490,7 +497,7 @@ constructor.  For example:
   };
   void foo(const NonCopyable2&);
   void bar() {
-    foo(NonCopyable2());  // Disallowed in C++98; allowed in C++0x.
+    foo(NonCopyable2());  // Disallowed in C++98; allowed in C++11.
   }
 </pre>
 
@@ -502,6 +509,27 @@ off.</p>
 </dd>
 
 </dl>
+
+<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
+<h3 id="cl_crash_diagnostics">Options to Control Clang Crash Diagnostics</h3>
+<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
+
+<p>As unbelievable as it may sound, Clang does crash from time to time.  
+Generally, this only occurs to those living on the 
+<a href="http://llvm.org/releases/download.html#svn">bleeding edge</a>.  Clang
+goes to great lengths to assist you in filing a bug report.  Specifically, Clang
+generates preprocessed source file(s) and associated run script(s) upon a
+crash.  These files should be attached to a bug report to ease reproducibility
+of the failure.  Below are the command line options to control the crash
+diagnostics.
+</p>
+
+<p><b>-fno-crash-diagnostics</b>: Disable auto-generation of preprocessed 
+source files during a clang crash.</p>
+
+<p>The -fno-crash-diagnostics flag can be helpful for speeding the process of
+generating a delta reduced test case.</p>
+
 
 <!-- ======================================================================= -->
 <h2 id="general_features">Language and Target-Independent Features</h2>
@@ -529,8 +557,6 @@ it:</p>
 <li>A categorization of the diagnostic as a note, warning, error, or fatal
     error.</li>
 <li>A text string that describes what the problem is.</li>
-<li>An option that indicates whether to print the diagnostic name [<a
-    href="#opt_fdiagnostics-show-name">-fdiagnostics-show-name</a>].</li>
 <li>An option that indicates how to control the diagnostic (for diagnostics that
     support it) [<a 
    href="#opt_fdiagnostics-show-option">-fdiagnostics-show-option</a>].</li>
@@ -669,7 +695,7 @@ In general, this usage is discouraged. Instead, we prefer that users file bugs
 against the analyzer when it flags false positives. There is also active
 discussion of allowing users in the future to selectively silence specific
 analyzer warnings (some of which can already be done using <a
-href="analyzer_annotations">annotations</a>).</li>
+href="#analyzer_annotations">annotations</a>).</li>
 
 </ul>
 
@@ -803,6 +829,14 @@ The checks are:
     accessing valid memory.  Bit-fields and vectors are not yet checked.
 </ul>
 </dd>
+
+<dt id="opt_faddress-sanitizer"><b>-f[no-]address-sanitizer</b>:
+Turn on <a href="AddressSanitizer.html">AddressSanitizer</a>,
+a memory error detector.
+
+<dt id="opt_fthread-sanitizer"><b>-f[no-]thread-sanitizer</b>:
+Turn on ThreadSanitizer, an <em>experimental</em> data race detector.
+Not ready for widespread use.
 
 <dt id="opt_fno-assume-sane-operator-new"><b>-fno-assume-sane-operator-new</b>:
 Don't assume that the C++'s new operator is sane.</dt>
@@ -951,10 +985,6 @@ a structure).</li>
 clang doesn't accept some constructs gcc might accept in contexts where a
 constant expression is required, like "x-x" where x is a variable.</li>
 
-<li>clang does not support multiple alternative constraints in inline asm; this
-is an extremely obscure feature which would be complicated to implement
-correctly.</li>
-
 <li>clang does not support __builtin_apply and friends; this extension is
 extremely obscure and difficult to implement reliably.</li>
 
@@ -986,6 +1016,25 @@ controlling record layout. GCC also contains support for this feature,
 however where MSVC and GCC are incompatible clang follows the MSVC
 definition.</li>
 </ul>
+
+<!-- ======================================================================= -->
+<h2 id="cxx">C++ Language Features</h2>
+<!-- ======================================================================= -->
+
+<p>clang fully implements all of standard C++98 except for exported templates
+(which were removed in C++11), and
+<a href="http://clang.llvm.org/cxx_status.html">many C++11 features</a> are also
+implemented.</p>
+
+<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
+<h3 id="cxx_implimits">Controlling implementation limits</h3>
+<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
+
+<p><b>-fconstexpr-depth=N</b>: Sets the limit for recursive constexpr function
+invocations to N. The default is 512.</p>
+
+<p><b>-ftemplate-depth=N</b>: Sets the limit for recursively nested template
+instantiations to N. The default is 1024.</p>
 
 <!-- ======================================================================= -->
 <h2 id="target_features">Target-Specific Features and Limitations</h2>
@@ -1066,7 +1115,7 @@ Clang assumes directories as below;</p>
 <li><tt>C:/mingw/lib/gcc/mingw32/4.[3-5].0/include/c++</tt></li>
 </ul>
 
-<p>On MSYS, a few tests might fail. It is due to <a href="http://llvm.org/bugs/show_bug.cgi?id=8520">Bug 8520</a> and is fixed in <a href="http://lists.cs.uiuc.edu/pipermail/llvm-commits/Week-of-Mon-20110314/118106.html">LLVM's r127724</a>.</p>
+<p>On MSYS, a few tests might fail.</p>
 
 <h5>MinGW-w64</h5>
 

@@ -1,6 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -verify -pedantic %s
-// RUN: %clang_cc1 -E %s 2>&1 | grep 'blonk.c:92:2: error: #error ABC'
-// RUN: %clang_cc1 -E %s 2>&1 | grep 'blonk.c:93:2: error: #error DEF'
+// RUN: %clang_cc1 -E %s 2>&1 | grep 'blonk.c:92:2: error: ABC'
+// RUN: %clang_cc1 -E %s 2>&1 | grep 'blonk.c:93:2: error: DEF'
 
 #line 'a'            // expected-error {{#line directive requires a positive integer argument}}
 #line 0              // expected-error {{#line directive requires a positive integer argument}}
@@ -41,7 +41,7 @@
 
 # 192 "glomp.h" // not a system header.
 typedef int x;  // expected-note {{previous definition is here}}
-typedef int x;  // expected-error {{redefinition of typedef 'x' is invalid in C}}
+typedef int x;  // expected-warning {{redefinition of typedef 'x' is a C11 feature}}
 
 # 192 "glomp.h" 3 // System header.
 typedef int y;  // ok
@@ -62,7 +62,7 @@ typedef int z1;  // ok
 # 42 "blonk.h"  // DOES change system headerness.
 
 typedef int w;  // expected-note {{previous definition is here}}
-typedef int w;  // expected-error {{redefinition of typedef 'w' is invalid in C}}
+typedef int w;  // expected-warning {{redefinition of typedef 'w' is a C11 feature}}
 
 typedef int q;  // original definition in system header, should not diagnose.
 

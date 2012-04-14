@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,osx.cocoa.RetainCount,osx.cocoa.NSAutoreleasePool -analyzer-store=region -fobjc-gc-only -fblocks -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,osx.cocoa.RetainCount,osx.cocoa.NSAutoreleasePool -analyzer-store=region -fobjc-gc-only -fblocks -verify -Wno-objc-root-class %s
 
 //===----------------------------------------------------------------------===//
 // Header stuff.
@@ -279,7 +279,7 @@ void f5b() {
 
 @implementation TestReturnNotOwnedWhenExpectedOwned
 - (NSString*)newString {
-  NSString *s = [NSString stringWithUTF8String:"hello"]; // expected-warning{{Potential leak (when using garbage collection) of an object allocated}}
+  NSString *s = [NSString stringWithUTF8String:"hello"]; // expected-warning{{Potential leak (when using garbage collection) of an object}}
   CFRetain(s);
   return s;
 }

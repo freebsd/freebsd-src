@@ -1,4 +1,4 @@
-/* RUN: %clang_cc1 %s -std=c89 -pedantic -fsyntax-only -verify
+/* RUN: %clang_cc1 %s -std=c89 -pedantic -fsyntax-only -verify -Wimplicit-function-declaration
  */
 void test1() {
   {
@@ -61,11 +61,11 @@ void foo(T); /* typedef for void is allowed */
 void foo(void) {}
 
 /* PR2759 */
-void test10 (int x[*]); /* expected-warning {{variable length arrays are a C99 feature, accepted as an extension}} */
-void test11 (int x[static 4]); /* expected-warning {{use of C99-specific array features}} */
+void test10 (int x[*]); /* expected-warning {{variable length arrays are a C99 feature}} */
+void test11 (int x[static 4]); /* expected-warning {{static array size is a C99 feature}} */
 
-void test12 (int x[const 4]) { /* expected-warning {{use of C99-specific array features}} */
-  int Y[x[1]]; /* expected-warning {{variable length arrays are a C99 feature, accepted as an extension}} */
+void test12 (int x[const 4]) { /* expected-warning {{qualifier in array size is a C99 feature}} */
+  int Y[x[1]]; /* expected-warning {{variable length arrays are a C99 feature}} */
 }
 
 /* PR4074 */
@@ -82,3 +82,31 @@ void test13b() {
 int test14() { return (&*test14)(); }
 
 int test15[5] = { [2] = 1 }; /* expected-warning {{designated initializers are a C99 feature}} */
+
+extern int printf(__const char *__restrict __format, ...);
+
+/* Warn, but don't suggest typo correction. */
+void test16() {
+  printg("Hello, world!\n"); /* expected-warning {{implicit declaration of function 'printg'}} */
+}
+
+struct x { int x,y[]; }; /* expected-warning {{Flexible array members are a C99-specific feature}} */
+
+/* Duplicated type-qualifiers aren't allowed by C90 */
+const const int c_i; /* expected-warning {{duplicate 'const' declaration specifier}} */
+typedef volatile int vol_int;
+volatile vol_int volvol_i; /* expected-warning {{duplicate 'volatile' declaration specifier}} */
+typedef volatile vol_int volvol_int; /* expected-warning {{duplicate 'volatile' declaration specifier}} */
+const int * const c;
+
+typedef const int CI;
+
+const CI mine1[5][5]; /* expected-warning {{duplicate 'const' declaration specifier}} */
+
+typedef CI array_of_CI[5];
+const array_of_CI mine2; /* expected-warning {{duplicate 'const' declaration specifier}} */
+
+typedef CI *array_of_pointer_to_CI[5];
+const array_of_pointer_to_CI mine3;
+
+void main() {} /* expected-error {{'main' must return 'int'}} */

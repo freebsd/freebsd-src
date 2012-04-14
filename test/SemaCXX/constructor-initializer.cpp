@@ -74,7 +74,7 @@ class U {
   union { int b; double d; };
 
   U() :  a(1), // expected-note {{previous initialization is here}}
-         p(0), // expected-error {{initializing multiple members of anonymous union}}
+         p(0), // expected-error {{initializing multiple members of union}}
          d(1.0)  {}
 };
 
@@ -267,4 +267,16 @@ struct S4 {
   S4() : s1(s1.baz()) {}
 };
 
+}
+
+namespace PR12049 {
+  int function();
+
+  class Class
+  {
+  public:
+      Class() : member(function() {} // expected-note {{to match this '('}}
+
+      int member; // expected-error {{expected ')'}}
+  };
 }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -x objective-c++ -triple x86_64-apple-darwin10 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -x objective-c++ -triple x86_64-apple-darwin10 -fsyntax-only -verify -Wno-objc-root-class %s
 // rdar://9070460
 
 class TCPPObject
@@ -8,7 +8,7 @@ public:
 	TCPPObject();
 	~TCPPObject();
 	
-	TCPPObject& operator=(const TCPPObject& inObj)const ;
+	TCPPObject& operator=(const TCPPObject& inObj)const ; // expected-note {{'operator=' declared here}}
 
 	void* Data();
 	
@@ -29,7 +29,7 @@ typedef const TCPPObject& CREF_TCPPObject;
 @implementation TNSObject
 
 @synthesize cppObjectNonAtomic;
-@synthesize cppObjectAtomic; // expected-warning{{atomic property of type 'CREF_TCPPObject' (aka 'const TCPPObject &') synthesizing setter using non-trivial assignment operator}}
+@synthesize cppObjectAtomic; // expected-error{{atomic property of reference type 'CREF_TCPPObject' (aka 'const TCPPObject &') cannot have non-trivial assignment operator}}
 @dynamic cppObjectDynamic;
 
 - (const TCPPObject&) cppObjectNonAtomic

@@ -252,7 +252,8 @@ int4 test13(int4 *V) {
 void test14(uint4 *ap, uint4 *bp, unsigned c) {
   uint4 a = *ap;
   uint4 b = *bp;
-
+  int4 d;
+  
   // CHECK: udiv <4 x i32>
   // CHECK: urem <4 x i32>
   a = a / b;
@@ -269,10 +270,19 @@ void test14(uint4 *ap, uint4 *bp, unsigned c) {
   // CHECK: icmp uge
   // CHECK: icmp eq
   // CHECK: icmp ne
-  a = a < b;
-  a = a <= b;
-  a = a > b;
-  a = a >= b;
-  a = a == b;
-  a = a != b;
+  d = a < b;
+  d = a <= b;
+  d = a > b;
+  d = a >= b;
+  d = a == b;
+  d = a != b;
+}
+
+// CHECK: @test15
+int4 test15(uint4 V0) {
+  // CHECK: icmp eq <4 x i32>
+  int4 V = !V0;
+  V = V && V;
+  V = V || V;
+  return V;
 }

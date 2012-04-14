@@ -1,4 +1,4 @@
-// RUN: %clang %s -fsyntax-only -Xclang -verify -fblocks -Wunreachable-code -Wno-unused-value
+// RUN: %clang %s -fsyntax-only -Xclang -verify -fblocks -Wunreachable-code -Wno-unused-value -Wno-covered-switch-default
 
 int halt() __attribute__((noreturn));
 int live();
@@ -125,4 +125,10 @@ void test_assert() {
   return; // no-warning
 }
 
+// Test case for PR 9774.  Tests that dead code in macros aren't warned about.
+#define MY_MAX(a,b)     ((a) >= (b) ? (a) : (b))
+void PR9774(int *s) {
+    for (int i = 0; i < MY_MAX(2, 3); i++) // no-warning
+        s[i] = 0;
+}
 

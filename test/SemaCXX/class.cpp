@@ -1,22 +1,24 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify -Wc++11-compat %s 
 class C {
 public:
-  auto int errx; // expected-error {{error: storage class specified for a member declaration}} expected-warning {{'auto' storage class specifier is redundant}}
-  register int erry; // expected-error {{error: storage class specified for a member declaration}}
-  extern int errz; // expected-error {{error: storage class specified for a member declaration}}
+  auto int errx; // expected-error {{storage class specified for a member declaration}} expected-warning {{'auto' storage class specifier is redundant}}
+  register int erry; // expected-error {{storage class specified for a member declaration}}
+  extern int errz; // expected-error {{storage class specified for a member declaration}}
 
   static void sm() {
     sx = 0;
-    this->x = 0; // expected-error {{error: invalid use of 'this' outside of a nonstatic member function}}
-    x = 0; // expected-error {{error: invalid use of member 'x' in static member function}}
+    this->x = 0; // expected-error {{invalid use of 'this' outside of a non-static member function}}
+    x = 0; // expected-error {{invalid use of member 'x' in static member function}}
   }
 
   class NestedC {
   public:
     NestedC(int);
-    void m() {
+    void f() {
       sx = 0;
-      x = 0; // expected-error {{invalid use of nonstatic data member 'x'}}
+      x = 0; // expected-error {{use of non-static data member 'x' of 'C' from nested type 'NestedC'}}
+      sm();
+      m(); // expected-error {{call to non-static member function 'm' of 'C' from nested type 'NestedC'}}
     }
   };
 
@@ -34,10 +36,10 @@ public:
 
   enum E1 { en1, en2 };
 
-  int i = 0; // expected-warning {{in-class initialization of non-static data member accepted as a C++11 extension}}
+  int i = 0; // expected-warning {{in-class initialization of non-static data member is a C++11 extension}}
   static int si = 0; // expected-error {{non-const static data member must be initialized out of line}}
   static const NestedC ci = 0; // expected-error {{static data member of type 'const C::NestedC' must be initialized out of line}}
-  static const int nci = vs; // expected-error {{in-class initializer is not a constant expression}}
+  static const int nci = vs; // expected-error {{in-class initializer for static data member is not a constant expression}}
   static const int vi = 0;
   static const volatile int cvi = 0; // ok, illegal in C++11
   static const E evi = 0;
@@ -46,7 +48,7 @@ public:
     sx = 0;
     this->x = 0;
     y = 0;
-    this = 0; // expected-error {{error: expression is not assignable}}
+    this = 0; // expected-error {{expression is not assignable}}
   }
 
   int f1(int p) {
@@ -57,7 +59,7 @@ public:
   typedef int A;
 
   virtual int viv; // expected-error {{'virtual' can only appear on non-static member functions}}
-  virtual static int vsif(); // expected-error {{error: 'virtual' can only appear on non-static member functions}}
+  virtual static int vsif(); // expected-error {{'virtual' can only appear on non-static member functions}}
   virtual int vif();
 
 private:
@@ -65,9 +67,9 @@ private:
   static int sx;
 
   mutable int mi;
-  mutable int &mir; // expected-error {{error: 'mutable' cannot be applied to references}}
-  mutable void mfn(); // expected-error {{error: 'mutable' cannot be applied to functions}}
-  mutable const int mci; // expected-error {{error: 'mutable' and 'const' cannot be mixed}}
+  mutable int &mir; // expected-error {{'mutable' cannot be applied to references}}
+  mutable void mfn(); // expected-error {{'mutable' cannot be applied to functions}}
+  mutable const int mci; // expected-error {{'mutable' and 'const' cannot be mixed}}
 
   static const int number = 50;
   static int arr[number];
@@ -98,11 +100,11 @@ void f()
 }
 
 // Play with mutable a bit more, to make sure it doesn't crash anything.
-mutable int gi; // expected-error {{error: 'mutable' can only be applied to member variables}}
+mutable int gi; // expected-error {{'mutable' can only be applied to member variables}}
 mutable void gfn(); // expected-error {{illegal storage class on function}}
 void ogfn()
 {
-  mutable int ml; // expected-error {{error: 'mutable' can only be applied to member variables}}
+  mutable int ml; // expected-error {{'mutable' can only be applied to member variables}}
 
   // PR3020: This used to crash due to double ownership of C4.
   struct C4;
@@ -129,10 +131,10 @@ namespace pr6629 {
     bogus<foo<T1,T2> > // expected-error {{unknown template name 'bogus'}} \
                        // BOGUS expected-error {{expected '{' after base class list}} \
                        // BOGUS expected-error {{expected ';' after struct}} \
-                       // BOGUS expected-error {{expected unqualified-id}} \
+                       // BOGUS expected-error {{expected unqualified-id}}
   { };
 
-  template<> struct foo<unknown,unknown> { // why isn't there an error here?
+  template<> struct foo<unknown,unknown> { // expected-error {{undeclared identifier 'unknown'}}
     template <typename U1, typename U2> struct bar {
       typedef bar type;
       static const int value = 0;
@@ -174,7 +176,7 @@ namespace rdar8367341 {
 
   struct A {
     static const float x = 5.0f; // expected-warning {{in-class initializer for static data member of type 'const float' is a GNU extension}}
-    static const float y = foo(); // expected-warning {{in-class initializer for static data member of type 'const float' is a GNU extension}} expected-error {{in-class initializer is not a constant expression}}
+    static const float y = foo(); // expected-warning {{in-class initializer for static data member of type 'const float' is a GNU extension}} expected-error {{in-class initializer for static data member is not a constant expression}}
   };
 }
 
@@ -186,7 +188,7 @@ struct S {
 };
 
 void f() {
-    S::c; // expected-error {{invalid use of nonstatic data member}}
+    S::c; // expected-error {{invalid use of non-static data member}}
 }
 }
 

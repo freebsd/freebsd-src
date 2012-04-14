@@ -111,6 +111,7 @@ typedef struct _NSZone NSZone;
 @protocol NSObject
 - (BOOL)isEqual:(id)object;
 - (id)retain;
+- (id)copy;
 - (oneway void)release;
 - (id)autorelease;
 @end  @protocol NSCopying  - (id)copyWithZone:(NSZone *)zone;
@@ -304,6 +305,12 @@ void test_smartpointer_3() {
   foo.noAdopt(x);
 }
 
+void test_smartpointer_4() {
+  id x = [[NSObject alloc] init];  // no-warning
+  SmartPointer *foo = new SmartPointer(x);
+  delete foo;
+}
+
 extern CFStringRef ElectronMicroscopyEngage(void);
 void test_microscopy() {
   NSString *token = (NSString*) ElectronMicroscopyEngage();
@@ -315,3 +322,47 @@ void test_Scopy() {
   NSString *token = (NSString*) Scopy();
   [token release]; // expected-warning {{object that is not owned}}
 }
+
+//===----------------------------------------------------------------------===//
+// Test handling of template functions used to do magic with
+// tracked retained pointers.
+//===----------------------------------------------------------------------===//
+
+template <typename T, typename U> T static_objc_cast(U* value)
+{
+  // ...debugging code omitted...
+  return static_cast<T>(value);
+}
+
+int rdar10553686(void)
+{
+  NSObject* bar = static_objc_cast<NSObject*>([[NSObject alloc] init]);
+  [bar release];
+  return 0;
+}
+int rdar10553686_positive(void)
+{
+  NSObject* bar = static_objc_cast<NSObject*>([[NSObject alloc] init]);
+  [bar release];
+  [bar retain]; // expected-warning {{used after it is released}}
+  return 0;
+}
+
+@interface NSMapTable : NSObject <NSCopying, NSCoding, NSFastEnumeration>
+@end
+extern void *NSMapGet(NSMapTable *table, const void *key);
+extern void NSMapInsert(NSMapTable *table, const void *key, const void *value);
+extern void NSMapInsertKnownAbsent(NSMapTable *table, const void *key, const void *value);
+char *strdup(const char *s);
+
+NSString * radar11152419(NSString *string1, NSString *key1, NSMapTable *map) {
+    NSString *string = ( NSString *)NSMapGet(map, key1);
+    if (!string) {
+        string = [string1 copy];
+        NSString *key = [key1 copy];
+        NSMapInsert(map, (void*) key, (void*)string); // no warning
+        NSMapInsertKnownAbsent(map, (void*)key, (void*)string); // no warning
+    }
+    return string;
+}
+

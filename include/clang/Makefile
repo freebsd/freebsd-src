@@ -1,13 +1,13 @@
 CLANG_LEVEL := ../..
-DIRS := AST Basic Driver Lex Parse Serialization
+DIRS := AST Basic Driver Lex Parse Sema Serialization
 
 include $(CLANG_LEVEL)/Makefile
 
 install-local::
 	$(Echo) Installing Clang include files
 	$(Verb) $(MKDIR) $(DESTDIR)$(PROJ_includedir)
-	$(Verb) if test -d "$(PROJ_SRC_ROOT)/tools/clang/include/clang" ; then \
-	  cd $(PROJ_SRC_ROOT)/tools/clang/include && \
+	$(Verb) if test -d "$(PROJ_SRC_DIR)" ; then \
+	  cd $(PROJ_SRC_DIR)/.. && \
 	  for  hdr in `find clang -type f \
 	      '(' -name LICENSE.TXT \
 	       -o -name '*.def' \
@@ -33,6 +33,11 @@ ifneq ($(PROJ_SRC_ROOT),$(PROJ_OBJ_ROOT))
 	       -o -name '*.inc' \
 	      ')' -print \
             | grep -v CVS | grep -v .tmp | grep -v .dir` ; do \
+	    instdir=$(DESTDIR)`dirname "$(PROJ_includedir)/$$hdr"` ; \
+	    if test \! -d "$$instdir" ; then \
+	      $(EchoCmd) Making install directory $$instdir ; \
+	      $(MKDIR) $$instdir ;\
+	    fi ; \
 	    $(DataInstall) $$hdr $(DESTDIR)$(PROJ_includedir)/$$hdr ; \
 	  done ; \
 	fi

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-unused-value -std=c++11 %s
 
 class C {
 
@@ -11,15 +11,12 @@ class C {
     []; // expected-error {{expected body of lambda expression}}
     [=,foo+] {}; // expected-error {{expected ',' or ']' in lambda capture list}}
     [&this] {}; // expected-error {{address expression must be an lvalue}}
-    [] {};
-    [=] (int i) {};
-    [&] (int) mutable -> void {};
-    // FIXME: this error occurs because we do not yet handle lambda scopes
-    // properly. I did not anticipate it because I thought it was a semantic (not
-    // syntactic) check.
-    [foo,bar] () { return 3; }; // expected-error {{void function 'f' should not return a value}}
-    [=,&foo] () {};
-    [this] () {};
+    [] {}; 
+    [=] (int i) {}; 
+    [&] (int) mutable -> void {}; 
+    [foo,bar] () { return 3; }; 
+    [=,&foo] () {}; 
+    [this] () {}; 
   }
 
 };

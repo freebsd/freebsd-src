@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify -Wno-objc-root-class %s
 // rdar://9340606
 
 @interface Foo {
@@ -125,3 +125,46 @@
 @synthesize controllerClass = _controllerClass;
 @synthesize controllerId = _controllerId;
 @end
+
+// rdar://10630891
+@interface UIView @end
+@class UIColor;
+
+@interface UIView(UIViewRendering)
+@property(nonatomic,copy) UIColor *backgroundColor;
+@end
+
+@interface UILabel : UIView
+@end
+
+@interface MyView 
+@property (strong) UILabel *label;
+@end
+
+@interface MyView2 : MyView @end
+
+@implementation MyView2
+- (void)foo {
+  super.label.backgroundColor = 0;
+}
+@end
+
+// rdar://10694932
+@interface Baz 
+@property  id prop;
+@property  __strong id strong_prop;
+@property  (strong) id strong_attr_prop;
+@property  (strong) __strong id realy_strong_attr_prop;
++ (id) alloc;
+- (id) init;
+- (id) implicit;
+- (void) setImplicit : (id) arg; 
+@end
+
+void foo(Baz *f) {
+        f.prop = [[Baz alloc] init];
+        f.strong_prop = [[Baz alloc] init];
+        f.strong_attr_prop = [[Baz alloc] init];
+        f.realy_strong_attr_prop = [[Baz alloc] init];
+        f.implicit = [[Baz alloc] init];
+}

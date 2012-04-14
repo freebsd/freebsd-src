@@ -5,26 +5,35 @@
 int [[]] between_attr;
 int after_attr [[]];
 int * [[]] ptr_attr;
+int & [[]] ref_attr = after_attr;
+int && [[]] rref_attr = 0;
 int array_attr [1] [[]];
 alignas(8) int aligned_attr;
 [[test::valid(for 42 [very] **** '+' symbols went on a trip; the end.)]]
   int garbage_attr;
+[[,,,static, class, namespace,, inline, constexpr, mutable,, bi\
+tand, bitor::compl(!.*_ Cx.!U^*R),,,]] int more_garbage_attr;
+[[u8"invalid!"]] int invalid_string_attr; // expected-error {{expected ']'}}
 void fn_attr () [[]];
+void noexcept_fn_attr () noexcept [[]];
+struct MemberFnOrder {
+  virtual void f() const volatile && noexcept [[]] final = 0;
+};
 class [[]] class_attr {};
 extern "C++" [[]] int extern_attr;
 template <typename T> [[]] void template_attr ();
 [[]] [[]] int [[]] [[]] multi_attr [[]] [[]];
 
-int comma_attr [[,]]; // expected-error {{expected identifier}}
+int comma_attr [[,]];
 int scope_attr [[foo::]]; // expected-error {{expected identifier}}
+int (paren_attr) [[]]; // expected-error {{an attribute list cannot appear here}}
 unsigned [[]] int attr_in_decl_spec; // expected-error {{expected unqualified-id}}
-int & [[]] ref_attr = after_attr; // expected-error {{an attribute list cannot appear here}}
 class foo {
-  void after_const_attr () const [[]]; // expected-error {{expected body of lambda expression}} expected-error {{array has incomplete element type 'void'}}
+  void const_after_attr () [[]] const; // expected-error {{expected ';'}}
 };
 extern "C++" [[]] { } // expected-error {{an attribute list cannot appear here}}
 [[]] template <typename T> void before_template_attr (); // expected-error {{an attribute list cannot appear here}}
-[[]] namespace ns { int i; } // expected-error {{an attribute list cannot appear here}}
+[[]] namespace ns { int i; } // expected-error {{an attribute list cannot appear here}} expected-note {{declared here}}
 [[]] static_assert(true, ""); //expected-error {{an attribute list cannot appear here}}
 [[]] asm(""); // expected-error {{an attribute list cannot appear here}}
 
@@ -33,7 +42,7 @@ extern "C++" [[]] { } // expected-error {{an attribute list cannot appear here}}
 
 // Argument tests
 alignas int aligned_no_params; // expected-error {{expected '('}}
-alignas(i) int aligned_nonconst; // expected-error {{'aligned' attribute requires integer constant}}
+alignas(i) int aligned_nonconst; // expected-error {{'aligned' attribute requires integer constant}} expected-note {{read of non-const variable 'i'}}
 
 // Statement tests
 void foo () {
@@ -58,6 +67,17 @@ void foo () {
   [[]] try {
   } [[]] catch (...) { // expected-error {{an attribute list cannot appear here}}
   }
-  
+  struct S { int arr[2]; } s;
+  (void)s.arr[ [] { return 0; }() ]; // expected-error {{C++11 only allows consecutive left square brackets when introducing an attribute}}
+  int n = __builtin_offsetof(S, arr[ [] { return 0; }() ]); // expected-error {{C++11 only allows consecutive left square brackets when introducing an attribute}}
+
+  void bar [[noreturn]] ([[]] int i, [[]] int j);
+  using FuncType = void ([[]] int);
+  void baz([[]]...); // expected-error {{expected parameter declarator}}
+
   [[]] return;
+}
+
+template<typename...Ts> void variadic() {
+  void bar [[noreturn...]] (); // expected-error {{attribute 'noreturn' cannot be used as an attribute pack}}
 }

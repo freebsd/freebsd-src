@@ -1,8 +1,10 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+          "http://www.w3.org/TR/html4/strict.dtd">
 <html>
 <head>
 <title>"Clang" CFE Internals Manual</title>
-<link type="text/css" rel="stylesheet" href="../menu.css" />
-<link type="text/css" rel="stylesheet" href="../content.css" />
+<link type="text/css" rel="stylesheet" href="../menu.css">
+<link type="text/css" rel="stylesheet" href="../content.css">
 <style type="text/css">
 td {
 	vertical-align: top;
@@ -19,7 +21,7 @@ td {
 
 <ul>
 <li><a href="#intro">Introduction</a></li>
-<li><a href="#libsystem">LLVM System and Support Libraries</a></li>
+<li><a href="#libsupport">LLVM Support Library</a></li>
 <li><a href="#libbasic">The Clang 'Basic' Library</a>
   <ul>
   <li><a href="#Diagnostics">The Diagnostics Subsystem</a></li>
@@ -29,13 +31,9 @@ td {
   </ul>
 </li>
 <li><a href="#libdriver">The Driver Library</a>
-  <ul>
-  </ul>
 </li>
 <li><a href="#pch">Precompiled Headers</a>
 <li><a href="#libfrontend">The Frontend Library</a>
-  <ul>
-  </ul>
 </li>
 <li><a href="#liblex">The Lexer and Preprocessor Library</a>
   <ul>
@@ -47,8 +45,6 @@ td {
   </ul>
 </li>
 <li><a href="#libparse">The Parser Library</a>
-  <ul>
-  </ul>
 </li>
 <li><a href="#libast">The AST Library</a>
   <ul>
@@ -89,15 +85,13 @@ Clang, not for end-users.  The description below is categorized by
 libraries, and does not describe any of the clients of the libraries.</p>
 
 <!-- ======================================================================= -->
-<h2 id="libsystem">LLVM System and Support Libraries</h2>
+<h2 id="libsupport">LLVM Support Library</h2>
 <!-- ======================================================================= -->
 
-<p>The LLVM libsystem library provides the basic Clang system abstraction layer,
-which is used for file system access.  The LLVM libsupport library provides many
-underlying libraries and <a 
-href="http://llvm.org/docs/ProgrammersManual.html">data-structures</a>,
- including command line option
-processing and various containers.</p>
+<p>The LLVM libsupport library provides many underlying libraries and
+<a href="http://llvm.org/docs/ProgrammersManual.html">data-structures</a>,
+including command line option processing, various containers and a system
+abstraction layer, which is used for file system access.</p>
 
 <!-- ======================================================================= -->
 <h2 id="libbasic">The Clang 'Basic' Library</h2>
@@ -137,8 +131,8 @@ implemented.  A representative example of a diagnostic is:</p>
 
 <pre>
 t.c:38:15: error: invalid operands to binary expression ('int *' and '_Complex float')
-   <font color="darkgreen">P = (P-42) + Gamma*4;</font>
-       <font color="blue">~~~~~~ ^ ~~~~~~~</font>
+   <span style="color:darkgreen">P = (P-42) + Gamma*4;</span>
+       <span style="color:blue">~~~~~~ ^ ~~~~~~~</span>
 </pre>
 
 <p>In this example, you can see the English translation, the severity (error),
@@ -267,7 +261,7 @@ including variable names, types, labels, etc.  The 'select' format can be
 used to achieve this sort of thing in a localizable way, see below.</p>
 
 <!-- ==================================== -->
-<h4>Formatting a Diagnostic Argument</a></h4>
+<h4>Formatting a Diagnostic Argument</h4>
 <!-- ==================================== -->
 
 <p>Arguments to diagnostics are fully typed internally, and come from a couple
@@ -429,10 +423,10 @@ the problem. For example, it might add the missing semicolon at the
 end of the statement or rewrite the use of a deprecated construct
 into something more palatable. Here is one such example from the C++
 front end, where we warn about the right-shift operator changing
-meaning from C++98 to C++0x:</p>
+meaning from C++98 to C++11:</p>
 
 <pre>
-test.cpp:3:7: warning: use of right-shift operator ('&gt;&gt;') in template argument will require parentheses in C++0x
+test.cpp:3:7: warning: use of right-shift operator ('&gt;&gt;') in template argument will require parentheses in C++11
 A&lt;100 &gt;&gt; 2&gt; *a;
       ^
   (       )
@@ -577,7 +571,7 @@ the <code>CharSourceRange</code> class.</p>
 <!-- ======================================================================= -->
 
 <p>The clang Driver and library are documented <a
-href="DriverInternals.html">here<a>.<p>
+href="DriverInternals.html">here</a>.<p>
 
 <!-- ======================================================================= -->
 <h2 id="pch">Precompiled Headers</h2>
@@ -687,7 +681,6 @@ lexer/preprocessor system on a per-token basis:
   <li><b>NeedsCleaning</b> - This flag is set if the original spelling for the
       token includes a trigraph or escaped newline.  Since this is uncommon,
       many pieces of code can fast-path on tokens that did not need cleaning.
-      </p>
    </ol>
 </li>
 </ul>
@@ -907,13 +900,13 @@ on the annotated lines.  In this example, we expect to get:</p>
 <pre>
 <b>test.c:6:1: error: indirection requires pointer operand ('foo' invalid)</b>
 *X; // error
-<font color="blue">^~</font>
+<span style="color:blue">^~</span>
 <b>test.c:7:1: error: indirection requires pointer operand ('foo' invalid)</b>
 **Y; // error
-<font color="blue">^~~</font>
+<span style="color:blue">^~~</span>
 <b>test.c:8:1: error: indirection requires pointer operand ('foo' invalid)</b>
 **Z; // error
-<font color="blue">^~~</font>
+<span style="color:blue">^~~</span>
 </pre>
 
 <p>While this example is somewhat silly, it illustrates the point: we want to
@@ -930,7 +923,7 @@ typedef for foo.
 <p>Representing types like this is great for diagnostics, because the
 user-specified type is always immediately available.  There are two problems
 with this: first, various semantic checks need to make judgements about the
-<em>actual structure</em> of a type, ignoring typdefs.  Second, we need an
+<em>actual structure</em> of a type, ignoring typedefs.  Second, we need an
 efficient way to query whether two types are structurally identical to each
 other, ignoring typedefs.  The solution to both of these problems is the idea of
 canonical types.</p>
@@ -1325,7 +1318,7 @@ extern "C" {
 
 <p>The transparent <code>DeclContexts</code> are:</p>
 <ul>
-  <li>Enumerations (but not C++0x "scoped enumerations"):
+  <li>Enumerations (but not C++11 "scoped enumerations"):
     <pre>
 enum Color { 
   Red, 
@@ -1356,7 +1349,7 @@ LookupTable LT;
 LT.Vector = 0; // Okay: finds Vector inside the unnamed union
     </pre>
   </li>
-  <li>C++0x inline namespaces:
+  <li>C++11 inline namespaces:
 <pre>
 namespace mylib {
   inline namespace debug {
@@ -1694,7 +1687,10 @@ interacts with constant evaluation:</p>
     any evaluatable subexpression to be accepted as an integer constant
     expression.</li>
 <li><b><tt>__builtin_constant_p</tt></b>: This returns true (as a integer
-    constant expression) if the operand is any evaluatable constant.  As a
+    constant expression) if the operand evaluates to either a numeric value
+    (that is, not a pointer cast to integral type) of integral, enumeration,
+    floating or complex type, or if it evaluates to the address of the first
+    character of a string literal (possibly cast to some other type). As a
     special case, if <tt>__builtin_constant_p</tt> is the (potentially
     parenthesized) condition of a conditional operator expression ("?:"), only
     the true side of the conditional operator is considered, and it is evaluated
@@ -1709,7 +1705,9 @@ interacts with constant evaluation:</p>
     floating-point literal.</li>
 <li><b><tt>__builtin_abs,copysign,..</tt></b>: These are constant folded as
     general constant expressions.</li>
-<li><b><tt>__builtin_strlen</tt></b> and <b><tt>strlen</tt></b>: These are constant folded as integer constant expressions if the argument is a string literal.</li>
+<li><b><tt>__builtin_strlen</tt></b> and <b><tt>strlen</tt></b>: These are
+    constant folded as integer constant expressions if the argument is a string
+    literal.</li>
 </ul>
 
 
@@ -1723,7 +1721,7 @@ interacts with constant evaluation:</p>
 
 <p>To add an attribute, you'll have to add it to the list of attributes, add it
 to the parsing phase, and look for it in the AST scan.
-<a href="http://llvm.org/viewvc/llvm-project?view=rev&revision=124217">r124217</a>
+<a href="http://llvm.org/viewvc/llvm-project?view=rev&amp;revision=124217">r124217</a>
 has a good example of adding a warning attribute.</p>
 
 <p>(Beware that this hasn't been reviewed/fixed by the people who designed the
@@ -1738,7 +1736,7 @@ to subsequent declarations of the same name.</p>
 
 <p><tt>Spellings</tt> lists the strings that can appear in
 <tt>__attribute__((here))</tt> or <tt>[[here]]</tt>.  All such strings
-will be synonymous.  If you want to allow the <tt>[[]]</tt> C++0x
+will be synonymous.  If you want to allow the <tt>[[]]</tt> C++11
 syntax, you have to define a list of <tt>Namespaces</tt>, which will
 let users write <tt>[[namespace:spelling]]</tt>. Using the empty
 string for a namespace will allow users to write just the spelling

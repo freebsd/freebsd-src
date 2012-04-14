@@ -21,16 +21,6 @@ struct D {
 };
 
 
-enum ENUM1; // expected-warning {{forward references to 'enum' types are a Microsoft extension}}    
-enum ENUM1 var1 = 3;
-enum ENUM1* var2 = 0;
-
-
-enum ENUM2 {
-  ENUM2_a = (enum ENUM2) 4,
-  ENUM2_b = 0x9FFFFFFF, // expected-warning {{enumerator value is not representable in the underlying type 'int'}}
-  ENUM2_c = 0x100000000 // expected-warning {{enumerator value is not representable in the underlying type 'int'}}
-};
 
 
 
@@ -86,4 +76,27 @@ void pointer_to_integral_type_conv(char* ptr) {
    short sh = (short)ptr;
    ch = (char)ptr;
    sh = (short)ptr;
-} 
+}
+
+
+typedef struct {
+  UNKNOWN u; // expected-error {{unknown type name 'UNKNOWN'}}
+} AA;
+
+typedef struct {
+  AA; // expected-warning {{anonymous structs are a Microsoft extension}}
+} BB;
+
+__declspec(deprecated("This is deprecated")) enum DE1 { one, two } e1;
+struct __declspec(deprecated) DS1 { int i; float f; };
+
+#define MY_TEXT		"This is also deprecated"
+__declspec(deprecated(MY_TEXT)) void Dfunc1( void ) {}
+
+void test( void ) {
+	e1 = one;	// expected-warning {{'e1' is deprecated: This is deprecated}}
+	struct DS1 s = { 0 };	// expected-warning {{'DS1' is deprecated}}
+	Dfunc1();	// expected-warning {{'Dfunc1' is deprecated: This is also deprecated}}
+
+	enum DE1 no;	// no warning because E1 is not deprecated
+}

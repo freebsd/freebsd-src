@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -Wduplicate-method-match -fsyntax-only -verify %s
 
 @interface SUPER
 - (int) meth;
@@ -10,8 +10,8 @@
 @interface class1 : SUPER
 - (int) meth;	// expected-note {{previous declaration is here}}
 - (int*) meth;	// expected-error {{duplicate declaration of method 'meth'}}
-- (T*) meth1;  
-- (T*) meth1;
+- (T*) meth1;   // expected-note {{previous declaration is here}}
+- (T*) meth1;   // expected-warning {{multiple declarations of method 'meth1' found and ignored}}
 + (T*) meth1;
 @end
 

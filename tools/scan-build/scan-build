@@ -961,17 +961,21 @@ OPTIONS:
 
  -plist         - By default the output of scan-build is a set of HTML files.
                   This option outputs the results as a set of .plist files.
-
+ 
+ -plist-html    - By default the output of scan-build is a set of HTML files.
+                  This option outputs the results as a set of HTML 
+                  and .plist files.
+ 
  --status-bugs  - By default, the exit status of $Prog is the same as the
                   executed build command.  Specifying this option causes the
                   exit status of $Prog to be 1 if it found potential bugs
                   and 0 otherwise.
 
- --use-cc [compiler path]   - By default, $Prog uses 'gcc' to compile and link
+ --use-cc [compiler path]   - $Prog attempts to guess the default compiler for
  --use-cc=[compiler path]     your C and Objective-C code. Use this option
                               to specify an alternate compiler.
 
- --use-c++ [compiler path]  - By default, $Prog uses 'g++' to compile and link
+ --use-c++ [compiler path]  - $Prog attempts to guess the default compiler for
  --use-c++=[compiler path]    your C++ and Objective-C++ code. Use this option
                               to specify an alternate compiler.
 

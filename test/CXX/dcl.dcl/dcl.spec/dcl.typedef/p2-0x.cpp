@@ -15,12 +15,12 @@ namespace IllegalTypeIds {
   using C = virtual void(int n); // expected-error {{type name does not allow function specifier}}
   using D = explicit void(int n); // expected-error {{type name does not allow function specifier}}
   using E = void(int n) throw(); // expected-error {{exception specifications are not allowed in type aliases}}
-  // FIXME: this is illegal; we incorrectly accept it for typedefs too.
-  using F = void(*)(int n) &&; // expected-err
+  using F = void(*)(int n) &&; // expected-error {{pointer to function type cannot have '&&' qualifier}}
   using G = __thread void(int n); // expected-error {{type name does not allow storage class to be specified}}
+  using H = constexpr int; // expected-error {{type name does not allow constexpr specifier}}
 
-  using H = void(int n); // ok
-  using I = void(int n) &&; // ok
+  using Y = void(int n); // ok
+  using Z = void(int n) &&; // ok
 }
 
 namespace IllegalSyntax {
@@ -124,9 +124,8 @@ namespace TagName {
 }
 
 namespace CWG1044 {
-  // FIXME: this is terrible. one error is plenty.
+  // FIXME: this diagnostic isn't ideal. one diagnostic is enough.
   using T = T; // expected-error {{type name requires a specifier}} \
-                  expected-error {{C++ requires a type specifier}} \
                   expected-error {{expected ';' after alias declaration}}
 }
 

@@ -128,3 +128,101 @@ namespace test4 {
   // CHECK-NEXT: ret void
 }
 
+namespace test5 {
+  struct A {
+    unsigned afield;
+    A();
+    A(const A&);
+    ~A();
+    void foo() const;
+  };
+
+  void doWithBlock(void(^)());
+
+  void test(bool cond) {
+    A x;
+    void (^b)() = (cond ? ^{ x.foo(); } : (void(^)()) 0);
+    doWithBlock(b);
+  }
+
+  // CHECK:    define void @_ZN5test54testEb(
+  // CHECK:      [[COND:%.*]] = alloca i8
+  // CHECK-NEXT: [[X:%.*]] = alloca [[A:%.*]], align 4
+  // CHECK-NEXT: [[B:%.*]] = alloca void ()*, align 8
+  // CHECK-NEXT: [[BLOCK:%.*]] = alloca [[BLOCK_T:.*]], align 8
+  // CHECK-NEXT: [[CLEANUP_ACTIVE:%.*]] = alloca i1
+  // CHECK-NEXT: [[T0:%.*]] = zext i1
+  // CHECK-NEXT: store i8 [[T0]], i8* [[COND]], align 1
+  // CHECK-NEXT: call void @_ZN5test51AC1Ev([[A]]* [[X]])
+  // CHECK-NEXT: [[CLEANUP_ADDR:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[BLOCK]], i32 0, i32 5
+  // CHECK-NEXT: [[T0:%.*]] = load i8* [[COND]], align 1
+  // CHECK-NEXT: [[T1:%.*]] = trunc i8 [[T0]] to i1
+  // CHECK-NEXT: store i1 false, i1* [[CLEANUP_ACTIVE]]
+  // CHECK-NEXT: br i1 [[T1]],
+
+  // CHECK-NOT:  br
+  // CHECK:      [[CAPTURE:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[BLOCK]], i32 0, i32 5
+  // CHECK-NEXT: call void @_ZN5test51AC1ERKS0_([[A]]* [[CAPTURE]], [[A]]* [[X]])
+  // CHECK-NEXT: store i1 true, i1* [[CLEANUP_ACTIVE]]
+  // CHECK-NEXT: bitcast [[BLOCK_T]]* [[BLOCK]] to void ()*
+  // CHECK-NEXT: br label
+  // CHECK:      br label
+  // CHECK:      phi
+  // CHECK-NEXT: store
+  // CHECK-NEXT: load
+  // CHECK-NEXT: call void @_ZN5test511doWithBlockEU13block_pointerFvvE(
+  // CHECK-NEXT: [[T0:%.*]] = load i1* [[CLEANUP_ACTIVE]]
+  // CHECK-NEXT: br i1 [[T0]]
+  // CHECK:      call void @_ZN5test51AD1Ev([[A]]* [[CLEANUP_ADDR]])
+  // CHECK-NEXT: br label
+  // CHECK:      call void @_ZN5test51AD1Ev([[A]]* [[X]])
+  // CHECK-NEXT: ret void
+}
+
+namespace test6 {
+  struct A {
+    A();
+    ~A();
+  };
+
+  void foo(const A &, void (^)());
+  void bar();
+
+  void test() {
+    // Make sure that the temporary cleanup isn't somehow captured
+    // within the block.
+    foo(A(), ^{ bar(); });
+    bar();
+  }
+
+  // CHECK:    define void @_ZN5test64testEv()
+  // CHECK:      [[TEMP:%.*]] = alloca [[A:%.*]], align 1
+  // CHECK-NEXT: call void @_ZN5test61AC1Ev([[A]]* [[TEMP]])
+  // CHECK-NEXT: call void @_ZN5test63fooERKNS_1AEU13block_pointerFvvE(
+  // CHECK-NEXT: call void @_ZN5test61AD1Ev([[A]]* [[TEMP]])
+  // CHECK-NEXT: call void @_ZN5test63barEv()
+  // CHECK-NEXT: ret void
+}
+
+namespace test7 {
+  int f() {
+    static int n;
+    int *const p = &n;
+    return ^{ return *p; }();
+  }
+}
+
+namespace test8 {
+  // <rdar://problem/10832617>: failure to capture this after skipping rebuild
+  // of the 'this' pointer.
+  struct X {
+    int x;
+
+    template<typename T>
+    int foo() {
+      return ^ { return x; }();
+    }
+  };
+
+  template int X::foo<int>();
+}

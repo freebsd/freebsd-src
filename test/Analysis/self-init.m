@@ -1,8 +1,8 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=experimental.osx.cocoa.SelfInit %s -verify
+// RUN: %clang_cc1 -analyze -analyzer-checker=osx.cocoa.SelfInit %s -verify
 
 @class NSZone, NSCoder;
-@protocol NSObject
-@end 
+@protocol NSObject- (id)self;
+@end
 @protocol NSCopying  - (id)copyWithZone:(NSZone *)zone;
 @end 
 @protocol NSMutableCopying  - (id)mutableCopyWithZone:(NSZone *)zone;
@@ -22,9 +22,14 @@
 
 //#import "Foundation/NSObject.h"
 typedef unsigned NSUInteger;
-typedef int NSInteger;
+typedef long NSInteger;
 
-@class NSInvocation, NSMethodSignature, NSCoder, NSString, NSEnumerator;
+@interface NSInvocation : NSObject {}
+- (void)getArgument:(void *)argumentLocation atIndex:(NSInteger)idx;
+- (void)setArgument:(void *)argumentLocation atIndex:(NSInteger)idx;
+@end
+
+@class NSMethodSignature, NSCoder, NSString, NSEnumerator;
 @interface NSString : NSObject <NSCopying, NSMutableCopying, NSCoding>
 - (NSUInteger)length;
 + (id)stringWithUTF8String:(const char *)nullTerminatedCString;
@@ -147,11 +152,28 @@ static id _commonInit(MyObj *self) {
 }
 
 -(id)init14 {
-  if (!(self = [super init]))
-    return 0;
   if (!(self = _commonInit(self)))
     return 0;
   return self;
+}
+
+-(id)init15 {
+  if (!(self = [super init]))
+    return 0;
+  return self;
+}
+
+-(id)init16 {
+  somePtr = [super init];
+  self = somePtr;
+  myivar = 0; 
+  return self;
+}
+
+-(id)init17 {
+  somePtr = [super init];
+  myivar = 0; // expected-warning {{Instance variable used}}
+  return 0;
 }
 
 -(void)doSomething {}
@@ -163,3 +185,19 @@ static id _commonInit(MyObj *self) {
 - (id)init { return self; }
 
 @end
+
+
+// Test for radar://10973514 : self should not be invalidated by a method call.
+@interface Test : NSObject {
+    NSInvocation *invocation_;
+}
+@end
+@implementation Test
+-(id) initWithTarget:(id) rec selector:(SEL) cb {
+  if (self=[super init]) {
+    [invocation_ setArgument:&self atIndex:2];
+  }   
+  return self;
+}
+@end
+

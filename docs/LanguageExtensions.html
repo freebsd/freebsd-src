@@ -11,6 +11,7 @@
     td {
             vertical-align: top;
     }
+    th { background-color: #ffddaa; }
   </style>
 </head>
 <body>
@@ -29,54 +30,59 @@
 <li><a href="#vectors">Vectors and Extended Vectors</a></li>
 <li><a href="#deprecated">Messages on <tt>deprecated</tt> and <tt>unavailable</tt> attributes</a></li>
 <li><a href="#attributes-on-enumerators">Attributes on enumerators</a></li>
+<li><a href="#user_specified_system_framework">'User-Specified' System Frameworks</a></li>
+<li><a href="#availability">Availability attribute</a></li>
 <li><a href="#checking_language_features">Checks for Standard Language Features</a>
   <ul>
-  <li><a href="#cxx_exceptions">C++ exceptions</a></li>
-  <li><a href="#cxx_rtti">C++ RTTI</a></li>
+  <li><a href="#cxx98">C++98</a>
+    <ul>
+    <li><a href="#cxx_exceptions">C++ exceptions</a></li>
+    <li><a href="#cxx_rtti">C++ RTTI</a></li>
   </ul></li>
-<li><a href="#checking_upcoming_features">Checks for Upcoming Standard Language Features</a>
-  <ul>
-  <li><a href="#cxx0x">C++0x</a>
+  <li><a href="#cxx11">C++11</a>
     <ul>
-   <li><a href="#cxx_access_control_sfinae">C++0x SFINAE includes access control</a></li>
-    <li><a href="#cxx_alias_templates">C++0x alias templates</a></li>
-    <li><a href="#cxx_alignas">C++0x alignment specifiers</a></li>
-    <li><a href="#cxx_attributes">C++0x attributes</a></li>
-    <li><a href="#cxx_constexpr">C++0x generalized constant expressions</a></li>
-    <li><a href="#cxx_decltype">C++0x <tt>decltype()</tt></a></li>
-    <li><a href="#cxx_default_function_template_args">C++0x default template arguments in function templates</a></li>
-    <li><a href="#cxx_delegating_constructor">C++0x delegating constructors</a></li>
-    <li><a href="#cxx_deleted_functions">C++0x deleted functions</a></li>
-    <li><a href="#cxx_explicit_conversions">C++0x explicit conversion functions</a></li>
-    <li><a href="#cxx_generalized_initializers">C++0x generalized initializers</a></li>
-    <li><a href="#cxx_implicit_moves">C++0x implicit move constructors/assignment operators</a></li>
-    <li><a href="#cxx_inheriting_constructors">C++0x inheriting constructors</a></li>
-    <li><a href="#cxx_inline_namespaces">C++0x inline namespaces</a></li>
-    <li><a href="#cxx_lambdas">C++0x lambdas</a></li>
-    <li><a href="#cxx_noexcept">C++0x noexcept specification</a></li>
-    <li><a href="#cxx_nonstatic_member_init">C++0x in-class non-static data member initialization</a></li>
-    <li><a href="#cxx_nullptr">C++0x nullptr</a></li>
-    <li><a href="#cxx_override_control">C++0x override control</a></li>
-    <li><a href="#cxx_range_for">C++0x range-based for loop</a></li>
-    <li><a href="#cxx_raw_string_literals">C++0x raw string literals</a></li>
-    <li><a href="#cxx_rvalue_references">C++0x rvalue references</a></li>
-    <li><a href="#cxx_reference_qualified_functions">C++0x reference-qualified functions</a></li>
-    <li><a href="#cxx_static_assert">C++0x <tt>static_assert()</tt></a></li>
-    <li><a href="#cxx_auto_type">C++0x type inference</a></li>
-   <li><a href="#cxx_strong_enums">C++0x strongly-typed enumerations</a></li>
-    <li><a href="#cxx_trailing_return">C++0x trailing return type</a></li>
-    <li><a href="#cxx_unicode_literals">C++0x Unicode string literals</a></li>
-    <li><a href="#cxx_unrestricted_unions">C++0x unrestricted unions</a></li>
-    <li><a href="#cxx_user_literals">C++0x user-defined literals</a></li>
-    <li><a href="#cxx_variadic_templates">C++0x variadic templates</a></li>
-   </ul></li>
-  <li><a href="#c1x">C1X</a>
+    <li><a href="#cxx_access_control_sfinae">C++11 SFINAE includes access control</a></li>
+    <li><a href="#cxx_alias_templates">C++11 alias templates</a></li>
+    <li><a href="#cxx_alignas">C++11 alignment specifiers</a></li>
+    <li><a href="#cxx_attributes">C++11 attributes</a></li>
+    <li><a href="#cxx_constexpr">C++11 generalized constant expressions</a></li>
+    <li><a href="#cxx_decltype">C++11 <tt>decltype()</tt></a></li>
+    <li><a href="#cxx_default_function_template_args">C++11 default template arguments in function templates</a></li>
+    <li><a href="#cxx_defaulted_functions">C++11 defaulted functions</a></li>
+    <li><a href="#cxx_delegating_constructor">C++11 delegating constructors</a></li>
+    <li><a href="#cxx_deleted_functions">C++11 deleted functions</a></li>
+    <li><a href="#cxx_explicit_conversions">C++11 explicit conversion functions</a></li>
+    <li><a href="#cxx_generalized_initializers">C++11 generalized initializers</a></li>
+    <li><a href="#cxx_implicit_moves">C++11 implicit move constructors/assignment operators</a></li>
+    <li><a href="#cxx_inheriting_constructors">C++11 inheriting constructors</a></li>
+    <li><a href="#cxx_inline_namespaces">C++11 inline namespaces</a></li>
+    <li><a href="#cxx_lambdas">C++11 lambdas</a></li>
+    <li><a href="#cxx_local_type_template_args">C++11 local and unnamed types as template arguments</a></li>
+    <li><a href="#cxx_noexcept">C++11 noexcept specification</a></li>
+    <li><a href="#cxx_nonstatic_member_init">C++11 in-class non-static data member initialization</a></li>
+    <li><a href="#cxx_nullptr">C++11 nullptr</a></li>
+    <li><a href="#cxx_override_control">C++11 override control</a></li>
+    <li><a href="#cxx_range_for">C++11 range-based for loop</a></li>
+    <li><a href="#cxx_raw_string_literals">C++11 raw string literals</a></li>
+    <li><a href="#cxx_rvalue_references">C++11 rvalue references</a></li>
+    <li><a href="#cxx_reference_qualified_functions">C++11 reference-qualified functions</a></li>
+    <li><a href="#cxx_static_assert">C++11 <tt>static_assert()</tt></a></li>
+    <li><a href="#cxx_auto_type">C++11 type inference</a></li>
+    <li><a href="#cxx_strong_enums">C++11 strongly-typed enumerations</a></li>
+    <li><a href="#cxx_trailing_return">C++11 trailing return type</a></li>
+    <li><a href="#cxx_unicode_literals">C++11 Unicode string literals</a></li>
+    <li><a href="#cxx_unrestricted_unions">C++11 unrestricted unions</a></li>
+    <li><a href="#cxx_user_literals">C++11 user-defined literals</a></li>
+    <li><a href="#cxx_variadic_templates">C++11 variadic templates</a></li>
+  </ul></li>
+  <li><a href="#c11">C11</a>
     <ul>
-    <li><a href="#c_alignas">C1X alignment specifiers</a></li>
-    <li><a href="#c_generic_selections">C1X generic selections</a></li>
-    <li><a href="#c_static_assert">C1X <tt>_Static_assert()</tt></a></li>
-    </ul></li>
-  </ul> </li>
+    <li><a href="#c_alignas">C11 alignment specifiers</a></li>
+    <li><a href="#c_atomic">C11 atomic operations</a></li>
+    <li><a href="#c_generic_selections">C11 generic selections</a></li>
+    <li><a href="#c_static_assert">C11 <tt>_Static_assert()</tt></a></li>
+  </ul></li>
+</ul></li>
 <li><a href="#checking_type_traits">Checks for Type Traits</a></li>
 <li><a href="#blocks">Blocks</a></li>
 <li><a href="#objc_features">Objective-C Features</a>
@@ -84,6 +90,8 @@
     <li><a href="#objc_instancetype">Related result types</a></li>
     <li><a href="#objc_arc">Automatic reference counting</a></li>
     <li><a href="#objc_fixed_enum">Enumerations with a fixed underlying type</a></li>
+    <li><a href="#objc_lambdas">Interoperability with C++11 lambdas</a></li>
+    <li><a href="#object-literals-subscripting">Object Literals and Subscripting</a></li>
   </ul>
 </li>
 <li><a href="#overloading-in-c">Function Overloading in C</a></li>
@@ -101,7 +109,12 @@
   </ul>
 </li>
 <li><a href="#analyzerspecific">Static Analysis-Specific Extensions</a></li>
-<li><a href="#threadsafety">Thread Safety Annotation Checking</a></li>
+<li><a href="#dynamicanalyzerspecific">Dynamic Analysis-Specific Extensions</a>
+  <ul>
+  <li><a href="#address_sanitizer">AddressSanitizer</a></li>
+  </ul>
+</li>
+<li><a href="#threadsafety">Thread Safety Annotation Checking</a>
     <ul>
     <li><a href="#ts_noanal"><tt>no_thread_safety_analysis</tt></a></li>   
     <li><a href="#ts_lockable"><tt>lockable</tt></a></li>  
@@ -122,6 +135,7 @@
     <li><a href="#ts_elr"><tt>exclusive_locks_required(...)</tt></a></li>   
     <li><a href="#ts_slr"><tt>shared_locks_required(...)</tt></a></li>   
     </ul>
+</li>
 </ul>
 
 <!-- ======================================================================= -->
@@ -192,12 +206,12 @@ language feature) or 0 if not.  They can be used like this:</p>
 
 ...
 #if __has_feature(cxx_rvalue_references)
-// This code will only be compiled with the -std=c++0x and -std=gnu++0x
-// options, because rvalue references are only standardized in C++0x.
+// This code will only be compiled with the -std=c++11 and -std=gnu++11
+// options, because rvalue references are only standardized in C++11.
 #endif
 
 #if __has_extension(cxx_rvalue_references)
-// This code will be compiled with the -std=c++0x, -std=gnu++0x, -std=c++98
+// This code will be compiled with the -std=c++11, -std=gnu++11, -std=c++98
 // and -std=gnu++98 options, because rvalue references are supported as a
 // language extension in C++98.
 #endif
@@ -209,10 +223,20 @@ language feature) or 0 if not.  They can be used like this:</p>
 non-standardized features, i.e. features not prefixed <code>c_</code>,
 <code>cxx_</code> or <code>objc_</code>.</p>
 
+<p id="has_feature_for_non_language_features">
+Another use of <code>__has_feature</code> is to check for compiler features
+not related to the language standard, such as e.g.
+<a href="AddressSanitizer.html">AddressSanitizer</a>.
+
 <p>If the <code>-pedantic-errors</code> option is given,
 <code>__has_extension</code> is equivalent to <code>__has_feature</code>.</p>
 
 <p>The feature tag is described along with the language feature below.</p>
+
+<p>The feature name or extension name can also be specified with a preceding and
+following <code>__</code> (double underscore) to avoid interference from a macro
+with the same name. For instance, <code>__cxx_rvalue_references__</code> can be
+used instead of <code>cxx_rvalue_references</code>.</p>
 
 <!-- ======================================================================= -->
 <h3><a name="__has_attribute">__has_attribute</a></h3>
@@ -237,6 +261,11 @@ can be used like this:</p>
 ...
 </pre>
 </blockquote>
+
+<p>The attribute name can also be specified with a preceding and
+following <code>__</code> (double underscore) to avoid interference from a macro
+with the same name. For instance, <code>__always_inline__</code> can be used
+instead of <code>always_inline</code>.</p>
 
 <!-- ======================================================================= -->
 <h2 id="has_include">Include File Checking Macros</h2>
@@ -346,30 +375,36 @@ is used in the file argument.</p>
   <dd>Defined when compiling with Clang</dd>
 
   <dt><code>__clang_major__</code></dt>
-  <dd>Defined to the major version number of Clang (e.g., the 2 in
-  2.0.1).</dd> 
+  <dd>Defined to the major marketing version number of Clang (e.g., the 
+  2 in 2.0.1).  Note that marketing version numbers should not be used to 
+  check for language features, as different vendors use different numbering
+  schemes.  Instead, use the <a href="#feature_check">feature checking
+  macros</a>.</dd> 
 
   <dt><code>__clang_minor__</code></dt>
   <dd>Defined to the minor version number of Clang (e.g., the 0 in
-  2.0.1).</dd> 
+  2.0.1).  Note that marketing version numbers should not be used to 
+  check for language features, as different vendors use different numbering
+  schemes.  Instead, use the <a href="#feature_check">feature checking
+  macros</a>.</dd> 
 
   <dt><code>__clang_patchlevel__</code></dt>
-  <dd>Defined to the patch level of Clang (e.g., the 1 in 2.0.1).</dd>
+  <dd>Defined to the marketing patch level of Clang (e.g., the 1 in 2.0.1).</dd>
 
   <dt><code>__clang_version__</code></dt>
-  <dd>Defined to a string that captures the Clang version, including
-  the Subversion tag or revision number, e.g., "1.5 (trunk
-  102332)".</dd> 
+  <dd>Defined to a string that captures the Clang marketing version, including
+  the Subversion tag or revision number, e.g., "1.5 (trunk 102332)".</dd> 
 </dl>
 
 <!-- ======================================================================= -->
 <h2 id="vectors">Vectors and Extended Vectors</h2>
 <!-- ======================================================================= -->
 
-<p>Supports the GCC vector extensions, plus some stuff like V[1].</p>
+<p>Supports the GCC, OpenCL, AltiVec and NEON vector extensions.</p>
 
-<p>Also supports <tt>ext_vector</tt>, which additionally support for V.xyzw
-syntax and other tidbits as seen in OpenCL. An example is:</p>
+<p>OpenCL vector types are created using <tt>ext_vector_type</tt> attribute. It
+support for <tt>V.xyzw</tt> syntax and other tidbits as seen in OpenCL. An
+example is:</p>
 
 <blockquote>
 <pre>
@@ -385,7 +420,161 @@ float4 foo(float2 a, float2 b) {
 </pre>
 </blockquote>
 
-<p>Query for this feature with __has_extension(attribute_ext_vector_type).</p>
+<p>Query for this feature with
+<tt>__has_extension(attribute_ext_vector_type)</tt>.</p>
+
+<p>Giving <tt>-faltivec</tt> option to clang enables support for AltiVec vector
+syntax and functions. For example:</p>
+
+<blockquote>
+<pre>
+vector float foo(vector int a) { 
+  vector int b;
+  b = vec_add(a, a) + a; 
+  return (vector float)b;
+}
+</pre>
+</blockquote>
+
+<p>NEON vector types are created using <tt>neon_vector_type</tt> and 
+<tt>neon_polyvector_type</tt> attributes. For example:</p>
+
+<blockquote>
+<pre>
+typedef <b>__attribute__((neon_vector_type(8)))</b> int8_t int8x8_t;
+typedef <b>__attribute__((neon_polyvector_type(16)))</b> poly8_t poly8x16_t;
+
+int8x8_t foo(int8x8_t a) {
+  int8x8_t v;
+  v = a;
+  return v;
+}
+</pre>
+</blockquote>
+
+<!-- ======================================================================= -->
+<h3><a name="vector_literals">Vector Literals</a></h3>
+<!-- ======================================================================= -->
+
+<p>Vector literals can be used to create vectors from a set of scalars, or 
+vectors. Either parentheses or braces form can be used. In the parentheses form 
+the number of literal values specified must be one, i.e. referring to a scalar 
+value, or must match the size of the vector type being created. If a single 
+scalar literal value is specified, the scalar literal value will be replicated 
+to all the components of the vector type. In the brackets form any number of 
+literals can be specified. For example:</p>
+
+<blockquote>
+<pre>
+typedef int v4si __attribute__((__vector_size__(16)));
+typedef float float4 __attribute__((ext_vector_type(4)));
+typedef float float2 __attribute__((ext_vector_type(2)));
+
+v4si vsi = (v4si){1, 2, 3, 4};
+float4 vf = (float4)(1.0f, 2.0f, 3.0f, 4.0f);
+vector int vi1 = (vector int)(1);    // vi1 will be (1, 1, 1, 1).
+vector int vi2 = (vector int){1};    // vi2 will be (1, 0, 0, 0).
+vector int vi3 = (vector int)(1, 2); // error
+vector int vi4 = (vector int){1, 2}; // vi4 will be (1, 2, 0, 0).
+vector int vi5 = (vector int)(1, 2, 3, 4);
+float4 vf = (float4)((float2)(1.0f, 2.0f), (float2)(3.0f, 4.0f));
+</pre>
+</blockquote>
+
+<!-- ======================================================================= -->
+<h3><a name="vector_operations">Vector Operations</a></h3>
+<!-- ======================================================================= -->
+
+<p>The table below shows the support for each operation by vector extension.
+A dash indicates that an operation is not accepted according to a corresponding 
+specification.</p>
+
+<table width="500" border="1" cellspacing="0">
+ <tr>
+    <th>Operator</th>
+    <th>OpenCL</th>
+    <th>AltiVec</th>
+    <th>GCC</th>
+    <th>NEON</th>
+ </tr>
+     <tr>
+      <td>[]</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>unary operators +, -</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>++, --</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>+, -, *, /, %</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>bitwise operators &, |, ^, ~</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>&gt&gt, &lt&lt</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>!, &&,||</td>
+      <td align="center">no</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>==,!=, >, <, >=, <=</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>=</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+    </tr>
+    <tr>
+      <td>:?</td>
+      <td align="center">yes</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+      <td align="center">-</td>
+    </tr>
+    <tr>
+      <td>sizeof</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+      <td align="center">yes</td>
+    </tr>
+</table>
 
 <p>See also <a href="#__builtin_shufflevector">__builtin_shufflevector</a>.</p>
 
@@ -404,7 +593,8 @@ and <tt>unavailable</tt> attributes.  For example:</p>
 will be incorporated into the appropriate diagnostic:</p>
 
 <blockquote>
-<pre>harmless.c:4:3: warning: 'explode' is deprecated: extremely unsafe, use 'combust' instead!!! [-Wdeprecated-declarations]
+<pre>harmless.c:4:3: warning: 'explode' is deprecated: extremely unsafe, use 'combust' instead!!!
+      [-Wdeprecated-declarations]
   explode();
   ^</pre>
 </blockquote>
@@ -437,233 +627,334 @@ individual enumerators.</p>
 <p>Query for this feature with <tt>__has_extension(enumerator_attributes)</tt>.</p>
 
 <!-- ======================================================================= -->
+<h2 id="user_specified_system_framework">'User-Specified' System Frameworks</h2>
+<!-- ======================================================================= -->
+
+<p>Clang provides a mechanism by which frameworks can be built in such a way
+that they will always be treated as being 'system frameworks', even if they are
+not present in a system framework directory. This can be useful to system
+framework developers who want to be able to test building other applications
+with development builds of their framework, including the manner in which the
+compiler changes warning behavior for system headers.</p>
+
+<p>Framework developers can opt-in to this mechanism by creating a
+'.system_framework' file at the top-level of their framework. That is, the
+framework should have contents like:</p>
+
+<pre>
+ .../TestFramework.framework
+ .../TestFramework.framework/.system_framework
+ .../TestFramework.framework/Headers
+ .../TestFramework.framework/Headers/TestFramework.h
+ ...
+</pre>
+
+<p>Clang will treat the presence of this file as an indicator that the framework
+should be treated as a system framework, regardless of how it was found in the
+framework search path. For consistency, we recommend that such files never be
+included in installed versions of the framework.</p>
+
+<!-- ======================================================================= -->
+<h2 id="availability">Availability attribute</h2
+<!-- ======================================================================= -->
+
+<p>Clang introduces the <code>availability</code> attribute, which can
+be placed on declarations to describe the lifecycle of that
+declaration relative to operating system versions. Consider the function declaration for a hypothetical function <code>f</code>:</p>
+
+<pre>
+void f(void) __attribute__((availability(macosx,introduced=10.4,deprecated=10.6,obsoleted=10.7)));
+</pre>
+
+<p>The availability attribute states that <code>f</code> was introduced in Mac OS X 10.4, deprecated in Mac OS X 10.6, and obsoleted in Mac OS X 10.7. This information is used by Clang to determine when it is safe to use <code>f</code>: for example, if Clang is instructed to compile code for Mac OS X 10.5, a call to <code>f()</code> succeeds. If Clang is instructed to compile code for Mac OS X 10.6, the call succeeds but Clang emits a warning specifying that the function is deprecated. Finally, if Clang is instructed to compile code for Mac OS X 10.7, the call fails because <code>f()</code> is no longer available.</p>
+
+<p>The availablility attribute is a comma-separated list starting with the platform name and then including clauses specifying important milestones in the declaration's lifetime (in any order) along with additional information. Those clauses can be:</p>
+
+<dl>
+  <dt>introduced=<i>version</i></dt>
+  <dd>The first version in which this declaration was introduced.</dd>
+
+  <dt>deprecated=<i>version</i></dt>
+  <dd>The first version in which this declaration was deprecated, meaning that users should migrate away from this API.</dd>
+
+  <dt>obsoleted=<i>version</i></dt>
+  <dd>The first version in which this declaration was obsoleted, meaning that it was removed completely and can no longer be used.</dd>
+
+  <dt>unavailable</dt>
+  <dd>This declaration is never available on this platform.</dd>
+
+  <dt>message=<i>string-literal</i></dt>
+  <dd>Additional message text that Clang will provide when emitting a warning or error about use of a deprecated or obsoleted declaration. Useful to direct users to replacement APIs.</dd>
+</dl>
+
+<p>Multiple availability attributes can be placed on a declaration, which may correspond to different platforms. Only the availability attribute with the platform corresponding to the target platform will be used; any others will be ignored. If no availability attribute specifies availability for the current target platform, the availability attributes are ignored. Supported platforms are:</p>
+
+<dl>
+  <dt>ios</dt>
+  <dd>Apple's iOS operating system. The minimum deployment target is specified by the <code>-mios-version-min=<i>version</i></code> or <code>-miphoneos-version-min=<i>version</i></code> command-line arguments.</dd>
+
+  <dt>macosx</dt>
+  <dd>Apple's Mac OS X operating system. The minimum deployment target is specified by the <code>-mmacosx-version-min=<i>version</i></code> command-line argument.</dd>
+</dl>
+
+<p>A declaration can be used even when deploying back to a platform
+version prior to when the declaration was introduced. When this
+happens, the declaration is <a
+ href="https://developer.apple.com/library/mac/#documentation/MacOSX/Conceptual/BPFrameworks/Concepts/WeakLinking.html">weakly
+linked</a>, as if the <code>weak_import</code> attribute were added to the declaration. A weakly-linked declaration may or may not be present a run-time, and a program can determine whether the declaration is present by checking whether the address of that declaration is non-NULL.</p>
+
+<!-- ======================================================================= -->
 <h2 id="checking_language_features">Checks for Standard Language Features</h2>
 <!-- ======================================================================= -->
 
-<p>The <tt>__has_feature</tt> macro can be used to query if certain standard language features are
-enabled.  Those features are listed here.</p>
+<p>The <tt>__has_feature</tt> macro can be used to query if certain standard
+language features are enabled.  The <tt>__has_extension</tt> macro can be used
+to query if language features are available as an extension when compiling for
+a standard which does not provide them. The features which can be tested are
+listed here.</p>
 
-<h3 id="cxx_exceptions">C++ exceptions</h3>
+<h3 id="cxx98">C++98</h3>
+
+<p>The features listed below are part of the C++98 standard. These features are
+enabled by default when compiling C++ code.</p>
+
+<h4 id="cxx_exceptions">C++ exceptions</h4>
 
 <p>Use <tt>__has_feature(cxx_exceptions)</tt> to determine if C++ exceptions have been enabled. For
-example, compiling code with <tt>-fexceptions</tt> enables C++ exceptions.</p>
+example, compiling code with <tt>-fno-exceptions</tt> disables C++ exceptions.</p>
 
-<h3 id="cxx_rtti">C++ RTTI</h3>
+<h4 id="cxx_rtti">C++ RTTI</h4>
 
 <p>Use <tt>__has_feature(cxx_rtti)</tt> to determine if C++ RTTI has been enabled. For example,
 compiling code with <tt>-fno-rtti</tt> disables the use of RTTI.</p>
 
-<!-- ======================================================================= -->
-<h2 id="checking_upcoming_features">Checks for Upcoming Standard Language Features</h2>
-<!-- ======================================================================= -->
+<h3 id="cxx11">C++11</h3>
 
-<p>The <tt>__has_feature</tt> or <tt>__has_extension</tt> macros can be used
-to query if certain upcoming standard language features are enabled.  Those
-features are listed here.  Features that are not yet implemented will be
-noted.</p>
+<p>The features listed below are part of the C++11 standard. As a result, all
+these features are enabled with the <tt>-std=c++11</tt> or <tt>-std=gnu++11</tt>
+option when compiling C++ code.</p>
 
-<h3 id="cxx0x">C++0x</h3>
-
-<p>The features listed below are slated for inclusion in the upcoming
-C++0x standard. As a result, all these features are enabled
-with the <tt>-std=c++0x</tt> option when compiling C++ code.</p>
-
-<h4 id="cxx_access_control_sfinae">C++0x SFINAE includes access control</h4>
+<h4 id="cxx_access_control_sfinae">C++11 SFINAE includes access control</h4>
 
 <p>Use <tt>__has_feature(cxx_access_control_sfinae)</tt> or <tt>__has_extension(cxx_access_control_sfinae)</tt> to determine whether access-control errors (e.g., calling a private constructor) are considered to be template argument deduction errors (aka SFINAE errors), per <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#1170">C++ DR1170</a>.</p>
 
-<h4 id="cxx_alias_templates">C++0x alias templates</h4>
+<h4 id="cxx_alias_templates">C++11 alias templates</h4>
 
 <p>Use <tt>__has_feature(cxx_alias_templates)</tt> or
 <tt>__has_extension(cxx_alias_templates)</tt> to determine if support for
-C++0x's alias declarations and alias templates is enabled.</p>
+C++11's alias declarations and alias templates is enabled.</p>
 
-<h4 id="cxx_alignas">C++0x alignment specifiers</h4>
+<h4 id="cxx_alignas">C++11 alignment specifiers</h4>
 
 <p>Use <tt>__has_feature(cxx_alignas)</tt> or
 <tt>__has_extension(cxx_alignas)</tt> to determine if support for alignment
 specifiers using <tt>alignas</tt> is enabled.</p>
 
-<h4 id="cxx_attributes">C++0x attributes</h4>
+<h4 id="cxx_attributes">C++11 attributes</h4>
 
 <p>Use <tt>__has_feature(cxx_attributes)</tt> or
 <tt>__has_extension(cxx_attributes)</tt> to determine if support for attribute
-parsing with C++0x's square bracket notation is enabled.</p>
+parsing with C++11's square bracket notation is enabled.</p>
 
-<h4 id="cxx_constexpr">C++0x generalized constant expressions</h4>
+<h4 id="cxx_constexpr">C++11 generalized constant expressions</h4>
 
 <p>Use <tt>__has_feature(cxx_constexpr)</tt> to determine if support
 for generalized constant expressions (e.g., <tt>constexpr</tt>) is
-enabled. Clang does not currently implement this feature.</p> 
+enabled.</p>
 
-<h4 id="cxx_decltype">C++0x <tt>decltype()</tt></h4>
+<h4 id="cxx_decltype">C++11 <tt>decltype()</tt></h4>
 
 <p>Use <tt>__has_feature(cxx_decltype)</tt> or
 <tt>__has_extension(cxx_decltype)</tt> to determine if support for the
-<tt>decltype()</tt> specifier is enabled.</p>
+<tt>decltype()</tt> specifier is enabled. C++11's <tt>decltype</tt>
+does not require type-completeness of a function call expression.
+Use <tt>__has_feature(cxx_decltype_incomplete_return_types)</tt>
+or <tt>__has_extension(cxx_decltype_incomplete_return_types)</tt>
+to determine if support for this feature is enabled.</p>
 
-<h4 id="cxx_default_function_template_args">C++0x default template arguments in function templates</h4>
+<h4 id="cxx_default_function_template_args">C++11 default template arguments in function templates</h4>
 
 <p>Use <tt>__has_feature(cxx_default_function_template_args)</tt> or
 <tt>__has_extension(cxx_default_function_template_args)</tt> to determine
 if support for default template arguments in function templates is enabled.</p>
 
-<h4 id="cxx_delegating_constructors">C++0x delegating constructors</h4>
+<h4 id="cxx_defaulted_functions">C++11 <tt>default</tt>ed functions</h4>
+
+<p>Use <tt>__has_feature(cxx_defaulted_functions)</tt> or
+<tt>__has_extension(cxx_defaulted_functions)</tt> to determine if support for
+defaulted function definitions (with <tt>= default</tt>) is enabled.</p>
+
+<h4 id="cxx_delegating_constructors">C++11 delegating constructors</h4>
 
 <p>Use <tt>__has_feature(cxx_delegating_constructors)</tt> to determine if
 support for delegating constructors is enabled.</p>
 
-<h4 id="cxx_deleted_functions">C++0x <tt>delete</tt>d functions</h4>
+<h4 id="cxx_deleted_functions">C++11 <tt>delete</tt>d functions</h4>
 
 <p>Use <tt>__has_feature(cxx_deleted_functions)</tt> or
 <tt>__has_extension(cxx_deleted_functions)</tt> to determine if support for
 deleted function definitions (with <tt>= delete</tt>) is enabled.</p>
 
-<h4 id="cxx_explicit_conversions">C++0x explicit conversion functions</h3>
+<h4 id="cxx_explicit_conversions">C++11 explicit conversion functions</h4>
 <p>Use <tt>__has_feature(cxx_explicit_conversions)</tt> to determine if support for <tt>explicit</tt> conversion functions is enabled.</p>
 
-<h4 id="cxx_generalized_initializers">C++0x generalized initializers</h4>
+<h4 id="cxx_generalized_initializers">C++11 generalized initializers</h4>
 
 <p>Use <tt>__has_feature(cxx_generalized_initializers)</tt> to determine if
 support for generalized initializers (using braced lists and
-<tt>std::initializer_list</tt>) is enabled. Clang does not currently implement
-this feature.</p>
+<tt>std::initializer_list</tt>) is enabled.</p>
 
-<h4 id="cxx_implicit_moves">C++0x implicit move constructors/assignment operators</h4>
+<h4 id="cxx_implicit_moves">C++11 implicit move constructors/assignment operators</h4>
 
 <p>Use <tt>__has_feature(cxx_implicit_moves)</tt> to determine if Clang will
 implicitly generate move constructors and move assignment operators where needed.</p>
 
-<h4 id="cxx_inheriting_constructors">C++0x inheriting constructors</h4>
+<h4 id="cxx_inheriting_constructors">C++11 inheriting constructors</h4>
 
 <p>Use <tt>__has_feature(cxx_inheriting_constructors)</tt> to determine if support for inheriting constructors is enabled. Clang does not currently implement this feature.</p>
 
-<h4 id="cxx_inline_namespaces">C++0x inline namespaces</h4>
+<h4 id="cxx_inline_namespaces">C++11 inline namespaces</h4>
 
 <p>Use <tt>__has_feature(cxx_inline_namespaces)</tt> or
 <tt>__has_extension(cxx_inline_namespaces)</tt> to determine if support for
 inline namespaces is enabled.</p>
 
-<h4 id="cxx_lambdas">C++0x lambdas</h4>
+<h4 id="cxx_lambdas">C++11 lambdas</h4>
 
 <p>Use <tt>__has_feature(cxx_lambdas)</tt> or
 <tt>__has_extension(cxx_lambdas)</tt> to determine if support for lambdas
-is enabled. Clang does not currently implement this feature.</p>
+is enabled. </p>
 
-<h4 id="cxx_noexcept">C++0x noexcept</h4>
+<h4 id="cxx_local_type_template_args">C++11 local and unnamed types as template arguments</h4>
+
+<p>Use <tt>__has_feature(cxx_local_type_template_args)</tt> or
+<tt>__has_extension(cxx_local_type_template_args)</tt> to determine if
+support for local and unnamed types as template arguments is enabled.</p>
+
+<h4 id="cxx_noexcept">C++11 noexcept</h4>
 
 <p>Use <tt>__has_feature(cxx_noexcept)</tt> or
 <tt>__has_extension(cxx_noexcept)</tt> to determine if support for noexcept
 exception specifications is enabled.</p>
 
-<h4 id="cxx_nonstatic_member_init">C++0x in-class non-static data member initialization</h4>
+<h4 id="cxx_nonstatic_member_init">C++11 in-class non-static data member initialization</h4>
 
 <p>Use <tt>__has_feature(cxx_nonstatic_member_init)</tt> to determine whether in-class initialization of non-static data members is enabled.</p>
 
-<h4 id="cxx_nullptr">C++0x <tt>nullptr</tt></h4>
+<h4 id="cxx_nullptr">C++11 <tt>nullptr</tt></h4>
 
 <p>Use <tt>__has_feature(cxx_nullptr)</tt> or
 <tt>__has_extension(cxx_nullptr)</tt> to determine if support for
 <tt>nullptr</tt> is enabled.</p>
 
-<h4 id="cxx_override_control">C++0x <tt>override control</tt></h4>
+<h4 id="cxx_override_control">C++11 <tt>override control</tt></h4>
 
 <p>Use <tt>__has_feature(cxx_override_control)</tt> or
 <tt>__has_extension(cxx_override_control)</tt> to determine if support for
 the override control keywords is enabled.</p>
 
-<h4 id="cxx_reference_qualified_functions">C++0x reference-qualified functions</h4>
+<h4 id="cxx_reference_qualified_functions">C++11 reference-qualified functions</h4>
 <p>Use <tt>__has_feature(cxx_reference_qualified_functions)</tt> or
 <tt>__has_extension(cxx_reference_qualified_functions)</tt> to determine
 if support for reference-qualified functions (e.g., member functions with
 <code>&amp;</code> or <code>&amp;&amp;</code> applied to <code>*this</code>)
 is enabled.</p>
 
-<h4 id="cxx_range_for">C++0x range-based <tt>for</tt> loop</h4>
+<h4 id="cxx_range_for">C++11 range-based <tt>for</tt> loop</h4>
 
 <p>Use <tt>__has_feature(cxx_range_for)</tt> or
 <tt>__has_extension(cxx_range_for)</tt> to determine if support for the
 range-based for loop is enabled. </p>
 
-<h4 id="cxx_raw_string_literals">C++0x raw string literals</h4>
-<p>Use <tt>__has_feature(cxx_raw_string_literals)</tt> to determine if support for raw string literals (e.g., <tt>R"foo\bar"</tt>) is enabled.</p>
+<h4 id="cxx_raw_string_literals">C++11 raw string literals</h4>
+<p>Use <tt>__has_feature(cxx_raw_string_literals)</tt> to determine if support
+for raw string literals (e.g., <tt>R"x(foo\bar)x"</tt>) is enabled.</p>
 
-<h4 id="cxx_rvalue_references">C++0x rvalue references</h4>
+<h4 id="cxx_rvalue_references">C++11 rvalue references</h4>
 
 <p>Use <tt>__has_feature(cxx_rvalue_references)</tt> or
 <tt>__has_extension(cxx_rvalue_references)</tt> to determine if support for
 rvalue references is enabled. </p>
 
-<h4 id="cxx_static_assert">C++0x <tt>static_assert()</tt></h4>
+<h4 id="cxx_static_assert">C++11 <tt>static_assert()</tt></h4>
 
 <p>Use <tt>__has_feature(cxx_static_assert)</tt> or
 <tt>__has_extension(cxx_static_assert)</tt> to determine if support for
 compile-time assertions using <tt>static_assert</tt> is enabled.</p>
 
-<h4 id="cxx_auto_type">C++0x type inference</h4>
+<h4 id="cxx_auto_type">C++11 type inference</h4>
 
 <p>Use <tt>__has_feature(cxx_auto_type)</tt> or
-<tt>__has_extension(cxx_auto_type)</tt> to determine C++0x type inference is
+<tt>__has_extension(cxx_auto_type)</tt> to determine C++11 type inference is
 supported using the <tt>auto</tt> specifier. If this is disabled, <tt>auto</tt>
 will instead be a storage class specifier, as in C or C++98.</p>
 
-<h4 id="cxx_strong_enums">C++0x strongly typed enumerations</h4>
+<h4 id="cxx_strong_enums">C++11 strongly typed enumerations</h4>
 
 <p>Use <tt>__has_feature(cxx_strong_enums)</tt> or
 <tt>__has_extension(cxx_strong_enums)</tt> to determine if support for
 strongly typed, scoped enumerations is enabled.</p>
 
-<h4 id="cxx_trailing_return">C++0x trailing return type</h4>
+<h4 id="cxx_trailing_return">C++11 trailing return type</h4>
 
 <p>Use <tt>__has_feature(cxx_trailing_return)</tt> or
 <tt>__has_extension(cxx_trailing_return)</tt> to determine if support for the
 alternate function declaration syntax with trailing return type is enabled.</p>
 
-<h4 id="cxx_unicode_literals">C++0x Unicode string literals</h4>
+<h4 id="cxx_unicode_literals">C++11 Unicode string literals</h4>
 <p>Use <tt>__has_feature(cxx_unicode_literals)</tt> to determine if
 support for Unicode string literals is enabled.</p>
 
-<h4 id="cxx_unrestricted_unions">C++0x unrestricted unions</h4>
+<h4 id="cxx_unrestricted_unions">C++11 unrestricted unions</h4>
 
-<p>Use <tt>__has_feature(cxx_unrestricted_unions)</tt> to determine if support for unrestricted unions is enabled. Clang does not currently support this feature.</p>
+<p>Use <tt>__has_feature(cxx_unrestricted_unions)</tt> to determine if support for unrestricted unions is enabled.</p>
 
-<h4 id="cxx_user_literals">C++0x user-defined literals</h4>
+<h4 id="cxx_user_literals">C++11 user-defined literals</h4>
 
-<p>Use <tt>__has_feature(cxx_user_literals)</tt> to determine if support for user-defined literals is enabled. Clang does not currently support this feature.</p>
+<p>Use <tt>__has_feature(cxx_user_literals)</tt> to determine if support for user-defined literals is enabled.</p>
 
-<h4 id="cxx_variadic_templates">C++0x variadic templates</h4>
+<h4 id="cxx_variadic_templates">C++11 variadic templates</h4>
 
 <p>Use <tt>__has_feature(cxx_variadic_templates)</tt> or
 <tt>__has_extension(cxx_variadic_templates)</tt> to determine if support
 for variadic templates is enabled.</p>
 
-<h3 id="c1x">C1X</h3>
+<h3 id="c11">C11</h3>
 
-<p>The features listed below are slated for inclusion in the upcoming
-C1X standard. As a result, all these features are enabled
-with the <tt>-std=c1x</tt> option when compiling C code.</p>
+<p>The features listed below are part of the C11 standard. As a result, all
+these features are enabled with the <tt>-std=c11</tt> or <tt>-std=gnu11</tt>
+option when compiling C code. Additionally, because these features are all
+backward-compatible, they are available as extensions in all language modes.</p>
 
-<h4 id="c_alignas">C1X alignment specifiers</h4>
+<h4 id="c_alignas">C11 alignment specifiers</h4>
 
 <p>Use <tt>__has_feature(c_alignas)</tt> or <tt>__has_extension(c_alignas)</tt>
 to determine if support for alignment specifiers using <tt>_Alignas</tt>
 is enabled.</p>
 
-<h4 id="c_generic_selections">C1X generic selections</h4>
+<h4 id="c_atomic">C11 atomic operations</h4>
+
+<p>Use <tt>__has_feature(c_atomic)</tt> or <tt>__has_extension(c_atomic)</tt>
+to determine if support for atomic types using <tt>_Atomic</tt> is enabled.
+Clang also provides <a href="#__c11_atomic">a set of builtins</a> which can be
+used to implement the <tt>&lt;stdatomic.h&gt;</tt> operations on _Atomic
+types.</p>
+
+<h4 id="c_generic_selections">C11 generic selections</h4>
 
 <p>Use <tt>__has_feature(c_generic_selections)</tt> or
 <tt>__has_extension(c_generic_selections)</tt> to determine if support for
 generic selections is enabled.</p>
 
-<p>As an extension, the C1X generic selection expression is available in all
+<p>As an extension, the C11 generic selection expression is available in all
 languages supported by Clang.  The syntax is the same as that given in the
-C1X draft standard.</p>
+C11 standard.</p>
 
 <p>In C, type compatibility is decided according to the rules given in the
 appropriate standard, but in C++, which lacks the type compatibility rules
 used in C, types are considered compatible only if they are equivalent.</p>
 
-<h4 id="c_static_assert">C1X <tt>_Static_assert()</tt></h4>
+<h4 id="c_static_assert">C11 <tt>_Static_assert()</tt></h4>
 
 <p>Use <tt>__has_feature(c_static_assert)</tt> or
 <tt>__has_extension(c_static_assert)</tt> to determine if support for
@@ -707,7 +998,10 @@ struct is_convertible_to {
   <li><code>__is_polymorphic</code> (GNU, Microsoft)</li>
   <li><code>__is_union</code> (GNU, Microsoft)</li>
   <li><code>__is_literal(type)</code>: Determines whether the given type is a literal type</li>
-  <li><code>__underlying_type(type)</code>: Retrieves the underlying type for a given <code>enum</code> type. This trait is required to implement the C++0x standard library.</li>
+  <li><code>__is_final</code>: Determines whether the given type is declared with a <code>final</code> class-virt-specifier.</li>
+  <li><code>__underlying_type(type)</code>: Retrieves the underlying type for a given <code>enum</code> type. This trait is required to implement the C++11 standard library.</li>
+  <li><code>__is_trivially_assignable(totype, fromtype)</code>: Determines whether a value of type <tt>totype</tt> can be assigned to from a value of type <tt>fromtype</tt> such that no non-trivial functions are called as part of that assignment. This trait is required to implement the C++11 standard library.</li>
+  <li><code>__is_trivially_constructible(type, argtypes...)</code>: Determines whether a value of type <tt>type</tt> can be direct-initialized with arguments of types <tt>argtypes...</tt> such that no non-trivial functions are called as part of that initialization. This trait is required to implement the C++11 standard library.</li>
 </ul>
 
 <!-- ======================================================================= -->
@@ -771,7 +1065,7 @@ an Objective-C method, e.g.</p>
 <p>The related result type can also be inferred for some methods.
 To determine whether a method has an inferred related result type, the first
 word in the camel-case selector (e.g., "init" in "initWithObjects") is
-considered, and the method will a related result type if its return
+considered, and the method will have a related result type if its return
 type is compatible with the type of its class and if</p>
 
 <ul>
@@ -814,7 +1108,7 @@ the <tt>instancetype</tt> contextual keyword is available.</p>
 <h2 id="objc_fixed_enum">Enumerations with a fixed underlying type</h2>
 <!-- ======================================================================= -->
 
-<p>Clang provides support for C++0x enumerations with a fixed
+<p>Clang provides support for C++11 enumerations with a fixed
 underlying type within Objective-C. For example, one can write an
 enumeration type as:</p>
 
@@ -827,6 +1121,72 @@ enumeration value, is <tt>unsigned char</tt>.</p>
 
 <p>Use <tt>__has_feature(objc_fixed_enum)</tt> to determine whether
 support for fixed underlying types is available in Objective-C.</p>
+
+<!-- ======================================================================= -->
+<h2 id="objc_lambdas">Interoperability with C++11 lambdas</h2>
+<!-- ======================================================================= -->
+
+<p>Clang provides interoperability between C++11 lambdas and
+blocks-based APIs, by permitting a lambda to be implicitly converted
+to a block pointer with the corresponding signature. For example,
+consider an API such as <code>NSArray</code>'s array-sorting
+method:</p>
+
+<pre> - (NSArray *)sortedArrayUsingComparator:(NSComparator)cmptr; </pre>
+
+<p><code>NSComparator</code> is simply a typedef for the block pointer
+<code>NSComparisonResult (^)(id, id)</code>, and parameters of this
+type are generally provided with block literals as arguments. However,
+one can also use a C++11 lambda so long as it provides the same
+signature (in this case, accepting two parameters of type
+<code>id</code> and returning an <code>NSComparisonResult</code>):</p>
+
+<pre>
+  NSArray *array = @[@"string 1", @"string 21", @"string 12", @"String 11",
+                     @"String 02"];
+  const NSStringCompareOptions comparisonOptions
+    = NSCaseInsensitiveSearch | NSNumericSearch |
+      NSWidthInsensitiveSearch | NSForcedOrderingSearch;
+  NSLocale *currentLocale = [NSLocale currentLocale];
+  NSArray *sorted 
+    = [array sortedArrayUsingComparator:<b>[=](id s1, id s2) -&gt; NSComparisonResult {
+               NSRange string1Range = NSMakeRange(0, [s1 length]);
+               return [s1 compare:s2 options:comparisonOptions 
+                          range:string1Range locale:currentLocale];
+       }</b>];
+  NSLog(@"sorted: %@", sorted);
+</pre>
+
+<p>This code relies on an implicit conversion from the type of the
+lambda expression (an unnamed, local class type called the <i>closure
+type</i>) to the corresponding block pointer type. The conversion
+itself is expressed by a conversion operator in that closure type
+that produces a block pointer with the same signature as the lambda
+itself, e.g.,</p>
+
+<pre>
+  operator NSComparisonResult (^)(id, id)() const;
+</pre>
+
+<p>This conversion function returns a new block that simply forwards
+the two parameters to the lambda object (which it captures by copy),
+then returns the result. The returned block is first copied (with
+<tt>Block_copy</tt>) and then autoreleased. As an optimization, if a
+lambda expression is immediately converted to a block pointer (as in
+the first example, above), then the block is not copied and
+autoreleased: rather, it is given the same lifetime as a block literal
+written at that point in the program, which avoids the overhead of
+copying a block to the heap in the common case.</p>
+
+<p>The conversion from a lambda to a block pointer is only available
+in Objective-C++, and not in C++ with blocks, due to its use of
+Objective-C memory management (autorelease).</p>
+
+<!-- ======================================================================= -->
+<h2 id="object-literals-subscripting">Object Literals and Subscripting</h2>
+<!-- ======================================================================= -->
+
+<p>Clang provides support for <a href="ObjectiveCLiterals.html">Object Literals and Subscripting</a> in Objective-C, which simplifies common Objective-C programming patterns, makes programs more concise, and improves the safety of container creation. There are several feature macros associated with object literals and subscripting: <code>__has_feature(objc_array_literals)</code> tests the availability of array literals; <code>__has_feature(objc_dictionary_literals)</code> tests the availability of dictionary literals; <code>__has_feature(objc_subscripting)</code> tests the availability of object subscripting.</p>
 
 <!-- ======================================================================= -->
 <h2 id="overloading-in-c">Function Overloading in C</h2>
@@ -1103,6 +1463,32 @@ relying on the platform specific implementation details of
 __sync_lock_test_and_set(). The __sync_swap() builtin is a full barrier.
 </p>
 
+<!-- ======================================================================= -->
+<h3><a name="__c11_atomic">__c11_atomic builtins</a></h3>
+<!-- ======================================================================= -->
+
+<p>Clang provides a set of builtins which are intended to be used to implement
+C11's <tt>&lt;stdatomic.h&gt;</tt> header. These builtins provide the semantics
+of the <tt>_explicit</tt> form of the corresponding C11 operation, and are named
+with a <tt>__c11_</tt> prefix. The supported operations are:</p>
+
+<ul>
+  <li><tt>__c11_atomic_init</tt></li>
+  <li><tt>__c11_atomic_thread_fence</tt></li>
+  <li><tt>__c11_atomic_signal_fence</tt></li>
+  <li><tt>__c11_atomic_is_lock_free</tt></li>
+  <li><tt>__c11_atomic_store</tt></li>
+  <li><tt>__c11_atomic_load</tt></li>
+  <li><tt>__c11_atomic_exchange</tt></li>
+  <li><tt>__c11_atomic_compare_exchange_strong</tt></li>
+  <li><tt>__c11_atomic_compare_exchange_weak</tt></li>
+  <li><tt>__c11_atomic_fetch_add</tt></li>
+  <li><tt>__c11_atomic_fetch_sub</tt></li>
+  <li><tt>__c11_atomic_fetch_and</tt></li>
+  <li><tt>__c11_atomic_fetch_or</tt></li>
+  <li><tt>__c11_atomic_fetch_xor</tt></li>
+</ul>
+
 
 <!-- ======================================================================= -->
 <h2 id="targetspecific">Target-Specific Extensions</h2>
@@ -1264,6 +1650,18 @@ balance in some way.</p>
 <p>Query for these features with <tt>__has_attribute(ns_consumed)</tt>,
 <tt>__has_attribute(ns_returns_retained)</tt>, etc.</p>
 
+<!-- ======================================================================= -->
+<h2 id="dynamicanalyzerspecific">Dynamic Analysis-Specific Extensions</h2>
+<!-- ======================================================================= -->
+<h3 id="address_sanitizer">AddressSanitizer</h3>
+<p> Use <code>__has_feature(address_sanitizer)</code>
+to check if the code is being built with <a
+  href="AddressSanitizer.html">AddressSanitizer</a>.
+</p>
+<p>Use <tt>__attribute__((no_address_safety_analysis))</tt> on a function
+declaration to specify that address safety instrumentation (e.g.
+AddressSanitizer) should not be applied to that function.
+</p>
 
 <!-- ======================================================================= -->
 <h2 id="threadsafety">Thread-Safety Annotation Checking</h2>

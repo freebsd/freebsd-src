@@ -1,8 +1,8 @@
 // REQUIRES: x86-64-registered-target
-// RUN: %clang_cc1 -masm-verbose -S -fblocks -g  -triple x86_64-apple-darwin10 -fobjc-fragile-abi  %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -fblocks -g -triple x86_64-apple-darwin10 -fobjc-fragile-abi %s -o - | FileCheck %s
 extern void foo(void(^)(void));
 
-// CHECK:	.ascii	 "__destroy_helper_block_" ## DW_AT_name
+// CHECK: metadata !{i32 786478, i32 0, metadata !27, metadata !"__destroy_helper_block_", metadata !"__destroy_helper_block_", metadata !"", metadata !27, i32 24, metadata !43, i1 true, i1 true, i32 0, i32 0, null, i32 0, i1 false, void (i8*)* @__destroy_helper_block_, null, null, metadata !45, i32 24} ; [ DW_TAG_subprogram ]
 
 @interface NSObject {
   struct objc_object *isa;

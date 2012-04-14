@@ -148,3 +148,35 @@ int main() {
   }
   assert(total == 500);
 }
+
+// PR11793
+namespace test2 {
+  class A {
+    int xs[10]; // expected-note {{implicitly declared private here}}
+  };
+  void test(A &a) {
+    for (int x : a.xs) { } // expected-error {{'xs' is a private member of 'test2::A'}}
+  }
+}
+
+namespace test3 {
+  // Make sure this doesn't crash
+  struct A {};
+  struct B { ~B(); operator bool(); };
+  struct C { B operator!=(const C&); C& operator++(); int operator*(); };
+  C begin(const A&);
+  C end(const A&);
+  template<typename T> void f() { for (auto a : A()) {} }
+  void g() { f<int>(); }
+}
+
+namespace test4 {
+  void f() {
+    int y;
+
+    // Make sure these don't crash. Better diagnostics would be nice.
+    for (: {1, 2, 3}) {} // expected-error {{expected expression}} expected-error {{expected ';'}}
+    for (x : {1, 2, 3}) {} // expected-error {{undeclared identifier}} expected-error {{expected ';'}}
+    for (y : {1, 2, 3}) {} // expected-error {{must declare a variable}} expected-warning {{result unused}}
+  }
+}

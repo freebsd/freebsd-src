@@ -34,7 +34,7 @@ void test_BitfieldMinus() {
 
 template<int I, int J>
 struct BitfieldDivide {
-  int bitfield : I / J; // expected-error{{expression is not an integer constant expression}} \
+  int bitfield : I / J; // expected-error{{expression is not an integral constant expression}} \
                         // expected-note{{division by zero}}
 };
 
@@ -167,8 +167,15 @@ namespace PR6424 {
       new X(); // expected-note{{instantiation of}}
     }
   };
-
+  
   template void Y2<3>::f();
+
+  template<typename T>
+  void rdar10283928(int count) {
+    (void)new char[count]();
+  }
+
+  template void rdar10283928<int>(int);
 }
 
 namespace PR10864 {

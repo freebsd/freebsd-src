@@ -178,6 +178,8 @@ id test36(id z) {
 
 // Template instantiation side of rdar://problem/9817306
 @interface Test37
++ alloc;
+- init;
 - (NSArray *) array;
 @end
 template <class T> void test37(T *a) {
@@ -188,24 +190,65 @@ template <class T> void test37(T *a) {
 extern template void test37<Test37>(Test37 *a);
 template void test37<Test37>(Test37 *a);
 // CHECK: define weak_odr void @_Z6test37I6Test37EvPT_(
-// CHECK-LP64:      [[T0:%.*]] = call [[NSARRAY]]* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to [[NSARRAY]]* (i8*, i8*)*)(
-// CHECK-LP64-NEXT: [[T1:%.*]] = bitcast [[NSARRAY]]* [[T0]] to i8*
-// CHECK-LP64-NEXT: [[T2:%.*]] = call i8* @objc_retainAutoreleasedReturnValue(i8* [[T1]])
-// CHECK-LP64-NEXT: [[COLL:%.*]] = bitcast i8* [[T2]] to [[NSARRAY]]*
+// CHECK:      [[T0:%.*]] = call [[NSARRAY]]* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to [[NSARRAY]]* (i8*, i8*)*)(
+// CHECK-NEXT: [[T1:%.*]] = bitcast [[NSARRAY]]* [[T0]] to i8*
+// CHECK-NEXT: [[T2:%.*]] = call i8* @objc_retainAutoreleasedReturnValue(i8* [[T1]])
+// CHECK-NEXT: [[COLL:%.*]] = bitcast i8* [[T2]] to [[NSARRAY]]*
 
 // Make sure it's not immediately released before starting the iteration.
-// CHECK-LP64-NEXT: load i8** @"\01L_OBJC_SELECTOR_REFERENCES_
-// CHECK-LP64-NEXT: [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
-// CHECK-LP64-NEXT: @objc_msgSend
+// CHECK-NEXT: load i8** @"\01L_OBJC_SELECTOR_REFERENCES_
+// CHECK-NEXT: [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
+// CHECK-NEXT: @objc_msgSend
 
 // This bitcast is for the mutation check.
-// CHECK-LP64:      [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
-// CHECK-LP64-NEXT: @objc_enumerationMutation
+// CHECK:      [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
+// CHECK-NEXT: @objc_enumerationMutation
 
 // This bitcast is for the 'next' message send.
-// CHECK-LP64:      [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
-// CHECK-LP64-NEXT: @objc_msgSend
+// CHECK:      [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
+// CHECK-NEXT: @objc_msgSend
 
 // This bitcast is for the final release.
-// CHECK-LP64:      [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
-// CHECK-LP64-NEXT: call void @objc_release(i8* [[T0]])
+// CHECK:      [[T0:%.*]] = bitcast [[NSARRAY]]* [[COLL]] to i8*
+// CHECK-NEXT: call void @objc_release(i8* [[T0]])
+
+template<typename T>
+void send_release() {
+  [Test37 array];
+}
+
+// CHECK: define weak_odr void @_Z12send_releaseIiEvv(
+// CHECK: call %0* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend
+// CHECK-NEXT: bitcast
+// CHECK-NEXT: call i8* @objc_retainAutoreleasedReturnValue
+// CHECK-NEXT: bitcast
+// CHECK-NEXT: bitcast
+// CHECK-NEXT: call void @objc_release
+// CHECK-NEXT: ret void
+template void send_release<int>();
+
+template<typename T>
+Test37 *instantiate_init() {
+  Test37 *result = [[Test37 alloc] init];
+  return result;
+}
+
+// CHECK: define weak_odr %2* @_Z16instantiate_initIiEP6Test37v
+// CHECK: call i8* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend
+// CHECK: call i8* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend
+// CHECK: call i8* @objc_retain
+// CHECK: call void @objc_release
+// CHECK: call i8* @objc_autoreleaseReturnValue
+template Test37* instantiate_init<int>();
+
+// Just make sure that the AST invariants hold properly here,
+// i.e. that we don't crash.
+// The block should get bound in the full-expression outside
+// the statement-expression.
+template <class T> class Test38 {
+  void test(T x) {
+    ^{ (void) x; }, ({ x; });
+  }
+};
+// CHECK: define weak_odr void @_ZN6Test38IiE4testEi(
+template class Test38<int>;

@@ -32,30 +32,31 @@ private:
                                   ExprEngine &Eng,
                                   ExplodedNode *Pred,
                                   ExplodedNodeSet &Dst) const;
-
-  ExplodedNode *generateNode(const ProgramState *State,
-                             ExplodedNode *Pred, const CallExpr *Statement,
-                             StmtNodeBuilder &B, ExplodedNodeSet &Dst) const;
 };
+}
+
+static StringRef getCalleeName(ProgramStateRef State,
+                               const CallExpr *CE,
+                               const LocationContext *LCtx) {
+  const Expr *Callee = CE->getCallee();
+  SVal L = State->getSVal(Callee, LCtx);
+  const FunctionDecl *funDecl =  L.getAsFunctionDecl();
+  if (!funDecl)
+    return StringRef();
+  IdentifierInfo *funI = funDecl->getIdentifier();
+  if (!funI)
+    return StringRef();
+  return funI->getName();
 }
 
 bool OSAtomicChecker::inlineCall(const CallExpr *CE,
                                  ExprEngine &Eng,
                                  ExplodedNode *Pred,
                                  ExplodedNodeSet &Dst) const {
-  const ProgramState *state = Pred->getState();
-  const Expr *Callee = CE->getCallee();
-  SVal L = state->getSVal(Callee);
-
-  const FunctionDecl *FD = L.getAsFunctionDecl();
-  if (!FD)
+  StringRef FName = getCalleeName(Pred->getState(),
+                                  CE, Pred->getLocationContext());
+  if (FName.empty())
     return false;
-
-  const IdentifierInfo *II = FD->getIdentifier();
-  if (!II)
-    return false;
-  
-  StringRef FName(II->getName());
 
   // Check for compare and swap.
   if (FName.startswith("OSAtomicCompareAndSwap") ||
@@ -66,17 +67,6 @@ bool OSAtomicChecker::inlineCall(const CallExpr *CE,
   return false;
 }
 
-ExplodedNode *OSAtomicChecker::generateNode(const ProgramState *State,
-                                            ExplodedNode *Pred,
-                                            const CallExpr *Statement,
-                                            StmtNodeBuilder &B,
-                                            ExplodedNodeSet &Dst) const {
-  ExplodedNode *N = B.generateNode(Statement, State, Pred, this);
-  if (N)
-    Dst.Add(N);
-  return N;
-}
-
 bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
                                                  ExprEngine &Eng,
                                                  ExplodedNode *Pred,
@@ -85,7 +75,6 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
   if (CE->getNumArgs() != 3)
     return false;
 
-  StmtNodeBuilder &Builder = Eng.getBuilder();
   ASTContext &Ctx = Eng.getContext();
   const Expr *oldValueExpr = CE->getArg(0);
   QualType oldValueType = Ctx.getCanonicalType(oldValueExpr->getType());
@@ -115,9 +104,10 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
   static SimpleProgramPointTag OSAtomicStoreTag("OSAtomicChecker : Store");
   
   // Load 'theValue'.
-  const ProgramState *state = Pred->getState();
+  ProgramStateRef state = Pred->getState();
+  const LocationContext *LCtx = Pred->getLocationContext();
   ExplodedNodeSet Tmp;
-  SVal location = state->getSVal(theValueExpr);
+  SVal location = state->getSVal(theValueExpr, LCtx);
   // Here we should use the value type of the region as the load type, because
   // we are simulating the semantics of the function, not the semantics of 
   // passing argument. So the type of theValue expr is not we are loading.
@@ -130,15 +120,12 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
       dyn_cast_or_null<TypedValueRegion>(location.getAsRegion())) {
     LoadTy = TR->getValueType();
   }
-  Eng.evalLoad(Tmp, theValueExpr, Pred,
-                  state, location, &OSAtomicLoadTag, LoadTy);
+  Eng.evalLoad(Tmp, CE, theValueExpr, Pred,
+               state, location, &OSAtomicLoadTag, LoadTy);
 
   if (Tmp.empty()) {
-    // If no nodes were generated, other checkers must generated sinks. But 
-    // since the builder state was restored, we set it manually to prevent 
-    // auto transition.
-    // FIXME: there should be a better approach.
-    Builder.BuildSinks = true;
+    // If no nodes were generated, other checkers must have generated sinks. 
+    // We return an empty Dst.
     return true;
   }
  
@@ -146,14 +133,14 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
        I != E; ++I) {
 
     ExplodedNode *N = *I;
-    const ProgramState *stateLoad = N->getState();
+    ProgramStateRef stateLoad = N->getState();
 
     // Use direct bindings from the environment since we are forcing a load
     // from a location that the Environment would typically not be used
     // to bind a value.
-    SVal theValueVal_untested = stateLoad->getSVal(theValueExpr, true);
+    SVal theValueVal_untested = stateLoad->getSVal(theValueExpr, LCtx, true);
 
-    SVal oldValueVal_untested = stateLoad->getSVal(oldValueExpr);
+    SVal oldValueVal_untested = stateLoad->getSVal(oldValueExpr, LCtx);
 
     // FIXME: Issue an error.
     if (theValueVal_untested.isUndef() || oldValueVal_untested.isUndef()) {
@@ -171,13 +158,13 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
     DefinedOrUnknownSVal Cmp =
       svalBuilder.evalEQ(stateLoad,theValueVal,oldValueVal);
 
-    const ProgramState *stateEqual = stateLoad->assume(Cmp, true);
+    ProgramStateRef stateEqual = stateLoad->assume(Cmp, true);
 
     // Were they equal?
     if (stateEqual) {
       // Perform the store.
       ExplodedNodeSet TmpStore;
-      SVal val = stateEqual->getSVal(newValueExpr);
+      SVal val = stateEqual->getSVal(newValueExpr, LCtx);
 
       // Handle implicit value casts.
       if (const TypedValueRegion *R =
@@ -185,40 +172,41 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(const CallExpr *CE,
         val = svalBuilder.evalCast(val,R->getValueType(), newValueExpr->getType());
       }
 
-      Eng.evalStore(TmpStore, NULL, theValueExpr, N,
-                       stateEqual, location, val, &OSAtomicStoreTag);
+      Eng.evalStore(TmpStore, CE, theValueExpr, N,
+                    stateEqual, location, val, &OSAtomicStoreTag);
 
       if (TmpStore.empty()) {
-        // If no nodes were generated, other checkers must generated sinks. But 
-        // since the builder state was restored, we set it manually to prevent 
-        // auto transition.
-        // FIXME: there should be a better approach.
-        Builder.BuildSinks = true;
+        // If no nodes were generated, other checkers must have generated sinks. 
+        // We return an empty Dst.
         return true;
       }
-
+      
+      StmtNodeBuilder B(TmpStore, Dst, Eng.getBuilderContext());
       // Now bind the result of the comparison.
       for (ExplodedNodeSet::iterator I2 = TmpStore.begin(),
            E2 = TmpStore.end(); I2 != E2; ++I2) {
         ExplodedNode *predNew = *I2;
-        const ProgramState *stateNew = predNew->getState();
+        ProgramStateRef stateNew = predNew->getState();
         // Check for 'void' return type if we have a bogus function prototype.
         SVal Res = UnknownVal();
         QualType T = CE->getType();
         if (!T->isVoidType())
           Res = Eng.getSValBuilder().makeTruthVal(true, T);
-        generateNode(stateNew->BindExpr(CE, Res), predNew, CE, Builder, Dst);
+        B.generateNode(CE, predNew, stateNew->BindExpr(CE, LCtx, Res),
+                       false, this);
       }
     }
 
     // Were they not equal?
-    if (const ProgramState *stateNotEqual = stateLoad->assume(Cmp, false)) {
+    if (ProgramStateRef stateNotEqual = stateLoad->assume(Cmp, false)) {
       // Check for 'void' return type if we have a bogus function prototype.
       SVal Res = UnknownVal();
       QualType T = CE->getType();
       if (!T->isVoidType())
         Res = Eng.getSValBuilder().makeTruthVal(false, CE->getType());
-      generateNode(stateNotEqual->BindExpr(CE, Res), N, CE, Builder, Dst);
+      StmtNodeBuilder B(N, Dst, Eng.getBuilderContext());    
+      B.generateNode(CE, N, stateNotEqual->BindExpr(CE, LCtx, Res),
+                     false, this);
     }
   }
 

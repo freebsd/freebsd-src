@@ -372,7 +372,7 @@ namespace test15 {
     int private_foo; // expected-note {{declared private here}}
     static int private_sfoo; // expected-note {{declared private here}}
   protected:
-    int protected_foo; // expected-note 3 {{declared protected here}} // expected-note {{object type must derive from context type 'test15::B<int>'}}
+    int protected_foo; // expected-note 3 {{declared protected here}} // expected-note {{can only access this member on an object of type 'test15::B<int>'}}
     static int protected_sfoo; // expected-note 3 {{declared protected here}}
 
     int test1(A<int> &a) {
@@ -481,7 +481,7 @@ namespace test21 {
   };
   template <class T> class A<T>::Inner {};
   class B {
-    template <class T> class A<T>::Inner;
+    template <class T> class A<T>::Inner; // expected-error{{non-friend class member 'Inner' cannot have a qualified name}}
   };
 
   void test() {

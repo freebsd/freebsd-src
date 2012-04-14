@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -Wall -Wuninitialized -verify %s
+// RUN: %clang_cc1 -fsyntax-only -Wall -Wuninitialized -std=c++11 -verify %s
 
 int foo(int x);
 int bar(int* x);
@@ -33,6 +33,7 @@ class A {
     int num;
     static int count;
     int get() const { return num; }
+    int get2() { return num; }
     void set(int x) { num = x; }
     static int zero() { return 0; }
 
@@ -41,6 +42,7 @@ class A {
     A(int x) {}
     A(int *x) {}
     A(A *a) {}
+    ~A();
 };
 
 A getA() { return A(); }
@@ -66,6 +68,7 @@ void setupA() {
   A a14 = A(a14);  // expected-warning {{variable 'a14' is uninitialized when used within its own initialization}}
   A a15 = getA(a15.num);  // expected-warning {{variable 'a15' is uninitialized when used within its own initialization}}
   A a16(&a16.num);  // expected-warning {{variable 'a16' is uninitialized when used within its own initialization}}
+  A a17(a17.get2());  // expected-warning {{variable 'a17' is uninitialized when used within its own initialization}}
 }
 
 struct B {
@@ -117,3 +120,50 @@ struct S {
 };
 
 struct C { char a[100], *e; } car = { .e = car.a };
+
+// <rdar://problem/10398199>
+namespace rdar10398199 {
+  class FooBase { protected: ~FooBase() {} };
+  class Foo : public FooBase {
+  public:
+    operator int&() const;
+  };
+  void stuff();
+  template <typename T> class FooImpl : public Foo {
+    T val;
+  public:
+    FooImpl(const T &x) : val(x) {}
+    ~FooImpl() { stuff(); }
+  };
+
+  template <typename T> FooImpl<T> makeFoo(const T& x) {
+    return FooImpl<T>(x);
+  }
+
+  void test() {
+    const Foo &x = makeFoo(42);
+    const int&y = makeFoo(42u);
+    (void)x;
+    (void)y;
+  };
+}
+
+// PR 12325 - this was a false uninitialized value warning due to
+// a broken CFG.
+int pr12325(int params) {
+  int x = ({
+    while (false)
+      ;
+    int _v = params;
+    if (false)
+      ;
+    _v; // no-warning
+  });
+  return x;
+}
+
+// Test lambda expressions with -Wuninitialized
+int test_lambda() {
+  auto f1 = [] (int x, int y) { int z; return x + y + z; }; // expected-warning {{C++11 requires lambda with omitted result type to consist of a single return statement}} expected-warning{{variable 'z' is uninitialized when used here}} expected-note {{initialize the variable 'z' to silence this warning}}
+  return f1(1, 2);
+}

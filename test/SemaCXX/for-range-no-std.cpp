@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++11
-// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++98 -Wno-c++0x-extensions
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++98 -Wno-c++11-extensions
 
 struct S {
   int *begin();
@@ -35,4 +35,9 @@ void f() {
   for (auto b : a) {} // ok
   for (int b : NS::ADL()) {} // ok
   for (int b : NS::NoADL()) {} // expected-error {{no matching function for call to 'begin'}} expected-note {{range has type}}
+}
+
+void PR11601() {
+  void (*vv[])() = {PR11601, PR11601, PR11601};
+  for (void (*i)() : vv) i();
 }

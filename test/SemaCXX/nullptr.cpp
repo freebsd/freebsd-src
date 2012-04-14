@@ -109,19 +109,30 @@ namespace test3 {
   }
 }
 
-int array0[__is_scalar(nullptr_t)? 1 : -1];
-int array1[__is_pod(nullptr_t)? 1 : -1];
-int array2[sizeof(nullptr_t) == sizeof(void*)? 1 : -1];
+static_assert(__is_scalar(nullptr_t), "");
+static_assert(__is_pod(nullptr_t), "");
+static_assert(sizeof(nullptr_t) == sizeof(void*), "");
 
-// FIXME: when we implement constexpr, this will be testable.
-#if 0
-int relational0[nullptr < nullptr? -1 : 1];
-int relational1[nullptr > nullptr? -1 : 1];
-int relational2[nullptr <= nullptr? 1 : -1];
-int relational3[nullptr >= nullptr? 1 : -1];
-int equality[nullptr == nullptr? 1 : -1];
-int inequality[nullptr != nullptr? -1 : 1];
-#endif
+static_assert(!(nullptr < nullptr), "");
+static_assert(!(nullptr > nullptr), "");
+static_assert(  nullptr <= nullptr, "");
+static_assert(  nullptr >= nullptr, "");
+static_assert(  nullptr == nullptr, "");
+static_assert(!(nullptr != nullptr), "");
+
+static_assert(!(0 < nullptr), "");
+static_assert(!(0 > nullptr), "");
+static_assert(  0 <= nullptr, "");
+static_assert(  0 >= nullptr, "");
+static_assert(  0 == nullptr, "");
+static_assert(!(0 != nullptr), "");
+
+static_assert(!(nullptr < 0), "");
+static_assert(!(nullptr > 0), "");
+static_assert(  nullptr <= 0, "");
+static_assert(  nullptr >= 0, "");
+static_assert(  nullptr == 0, "");
+static_assert(!(nullptr != 0), "");
 
 namespace overloading {
   int &f1(int*);
@@ -160,4 +171,15 @@ namespace templates {
   struct X2 {};
   
   X2<nullptr, nullptr, nullptr, nullptr> x2;
+}
+
+namespace null_pointer_constant {
+
+// Pending implementation of core issue 903, ensure we don't allow any of the
+// C++11 constant evaluation semantics in null pointer constants.
+struct S { int n; };
+constexpr int null() { return 0; }
+void *p = S().n; // expected-error {{cannot initialize}}
+void *q = null(); // expected-error {{cannot initialize}}
+
 }

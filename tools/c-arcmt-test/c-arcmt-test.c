@@ -34,22 +34,51 @@ static int print_remappings(const char *path) {
   return 0;
 }
 
+static int print_remappings_filelist(const char **files, unsigned numFiles) {
+  CXRemapping remap;
+  unsigned i, N;
+  CXString origFname;
+  CXString transFname;
+
+  remap = clang_getRemappingsFromFileList(files, numFiles);
+  if (!remap)
+    return 1;
+
+  N = clang_remap_getNumFiles(remap);
+  for (i = 0; i != N; ++i) {
+    clang_remap_getFilenames(remap, i, &origFname, &transFname);
+
+    fprintf(stdout, "%s\n", clang_getCString(origFname));
+    fprintf(stdout, "%s\n", clang_getCString(transFname));
+
+    clang_disposeString(origFname);
+    clang_disposeString(transFname);
+  }
+
+  clang_remap_dispose(remap);
+  return 0;
+}
+
 /******************************************************************************/
 /* Command line processing.                                                   */
 /******************************************************************************/
 
 static void print_usage(void) {
   fprintf(stderr,
-    "usage: c-arcmt-test -arcmt-migrate-directory <path>\n\n\n");
+    "usage: c-arcmt-test -mt-migrate-directory <path>\n"
+    "       c-arcmt-test <remap-file-path1> <remap-file-path2> ...\n\n\n");
 }
 
 /***/
 
 int carcmttest_main(int argc, const char **argv) {
   clang_enableStackTraces();
-  if (argc == 3 && strncmp(argv[1], "-arcmt-migrate-directory", 24) == 0)
+  if (argc == 3 && strncmp(argv[1], "-mt-migrate-directory", 21) == 0)
     return print_remappings(argv[2]);
 
+  if (argc > 1)
+    return print_remappings_filelist(argv+1, argc-1);
+  
   print_usage();
   return 1;
 }
@@ -68,6 +97,9 @@ typedef struct thread_info {
 void thread_runner(void *client_data_v) {
   thread_info *client_data = client_data_v;
   client_data->result = carcmttest_main(client_data->argc, client_data->argv);
+#ifdef __CYGWIN__
+  fflush(stdout);  /* stdout is not flushed on Cygwin. */
+#endif
 }
 
 int main(int argc, const char **argv) {

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s -triple=i686-pc-linux-gnu
 
 #include <stddef.h>
 
@@ -61,13 +61,13 @@ struct abstract {
 
 void bad_news(int *ip)
 {
-  int i = 1;
+  int i = 1; // expected-note 2{{here}}
   (void)new; // expected-error {{expected a type}}
   (void)new 4; // expected-error {{expected a type}}
   (void)new () int; // expected-error {{expected expression}}
-  (void)new int[1.1]; // expected-error {{array size expression must have integral or enumerated type, not 'double'}}
-  (void)new int[1][i]; // expected-error {{only the first dimension}}
-  (void)new (int[1][i]); // expected-error {{only the first dimension}}
+  (void)new int[1.1]; // expected-error {{array size expression must have integral or enumeration type, not 'double'}}
+  (void)new int[1][i]; // expected-error {{only the first dimension}} expected-note {{read of non-const variable 'i' is not allowed in a constant expression}}
+  (void)new (int[1][i]); // expected-error {{only the first dimension}} expected-note {{read of non-const variable 'i' is not allowed in a constant expression}}
   (void)new (int[i]); // expected-warning {{when type is in parentheses}}
   (void)new int(*(S*)0); // expected-error {{no viable conversion from 'S' to 'int'}}
   (void)new int(1, 2); // expected-error {{excess elements in scalar initializer}}
@@ -77,7 +77,8 @@ void bad_news(int *ip)
   (void)new float*(ip); // expected-error {{cannot initialize a new value of type 'float *' with an lvalue of type 'int *'}}
   // Undefined, but clang should reject it directly.
   (void)new int[-1]; // expected-error {{array size is negative}}
-  (void)new int[*(S*)0]; // expected-error {{array size expression must have integral or enumerated type, not 'S'}}
+  (void)new int[2000000000]; // expected-error {{array is too large}}
+  (void)new int[*(S*)0]; // expected-error {{array size expression must have integral or enumeration type, not 'S'}}
   (void)::S::new int; // expected-error {{expected unqualified-id}}
   (void)new (0, 0) int; // expected-error {{no matching function for call to 'operator new'}}
   (void)new (0L) int; // expected-error {{call to 'operator new' is ambiguous}}
@@ -101,8 +102,7 @@ void good_deletes()
 void bad_deletes()
 {
   delete 0; // expected-error {{cannot delete expression of type 'int'}}
-  delete [0] (int*)0; // expected-error {{expected ']'}} \
-                      // expected-note {{to match this '['}}
+  delete [0] (int*)0; // expected-error {{expected expression}}
   delete (void*)0; // expected-warning {{cannot delete expression with pointer-to-'void' type 'void *'}}
   delete (T*)0; // expected-warning {{deleting pointer to incomplete type}}
   ::S::delete (int*)0; // expected-error {{expected unqualified-id}}
@@ -386,7 +386,7 @@ namespace PairedDelete {
 
 namespace PR7702 {
   void test1() {
-    new DoesNotExist; // expected-error {{expected a type}}
+    new DoesNotExist; // expected-error {{unknown type name 'DoesNotExist'}}
   }
 }
 
@@ -415,4 +415,87 @@ namespace PR10504 {
     virtual void foo() = 0;
   };
   void f(A *x) { delete x; } // expected-warning {{delete called on 'PR10504::A' that is abstract but has non-virtual destructor}}
+}
+
+struct PlacementArg {};
+inline void *operator new[](size_t, const PlacementArg &) throw () {
+  return 0;
+}
+inline void operator delete[](void *, const PlacementArg &) throw () {
+}
+
+namespace r150682 {
+
+  template <typename X>
+  struct S {
+    struct Inner {};
+    S() { new Inner[1]; }
+  };
+
+  struct T {
+  };
+
+  template<typename X>
+  void tfn() {
+    new (*(PlacementArg*)0) T[1];
+  }
+
+  void fn() {
+    tfn<int>();
+  }
+
+}
+
+namespace P12023 {
+  struct CopyCounter
+  {
+      CopyCounter();
+      CopyCounter(const CopyCounter&);
+  };
+
+  int main()
+  {
+    CopyCounter* f = new CopyCounter[10](CopyCounter()); // expected-error {{cannot have initialization arguments}}
+      return 0;
+  }
+}
+
+namespace PR12061 {
+  template <class C> struct scoped_array {
+    scoped_array(C* p = __null);
+  };
+  template <class Payload> struct Foo {
+    Foo() : a_(new scoped_array<int>[5]) { }
+    scoped_array< scoped_array<int> > a_;
+  };
+  class Bar {};
+  Foo<Bar> x;
+
+  template <class C> struct scoped_array2 {
+    scoped_array2(C* p = __null, C* q = __null);
+  };
+  template <class Payload> struct Foo2 {
+    Foo2() : a_(new scoped_array2<int>[5]) { }
+    scoped_array2< scoped_array2<int> > a_;
+  };
+  class Bar2 {};
+  Foo2<Bar2> x2;
+
+  class MessageLoop {
+  public:
+    explicit MessageLoop(int type = 0);
+  };
+  template <class CookieStoreTestTraits>
+  class CookieStoreTest {
+  protected:
+    CookieStoreTest() {
+      new MessageLoop;
+    }
+  };
+  struct CookieMonsterTestTraits {
+  };
+  class DeferredCookieTaskTest : public CookieStoreTest<CookieMonsterTestTraits>
+  {
+    DeferredCookieTaskTest() {}
+  };
 }

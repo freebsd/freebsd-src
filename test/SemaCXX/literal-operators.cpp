@@ -13,7 +13,7 @@ namespace ns { void operator "" _ns_good (const char *); }
 extern "C++" void operator "" _extern_good (const char *);
 extern "C++" { void operator "" _extern_good (const char *); }
 
-void fn () { void operator "" _fn_bad (const char *); } // expected-error {{literal operator 'operator "" _fn_bad' must be in a namespace or global scope}}
+void fn () { void operator "" _fn_good (const char *); }
 
 // One-param declarations (const char * was already checked)
 void operator "" _good (char);
@@ -35,9 +35,9 @@ typedef const char c;
 void operator "" _good (c*);
 
 // Check extra cv-qualifiers
-void operator "" _cv_good (volatile const char *, const size_t);
+void operator "" _cv_good (volatile const char *, const size_t); // expected-error {{parameter declaration for literal operator 'operator "" _cv_good' is not valid}}
 
-// Template delcaration (not implemented yet)
-// template <char...> void operator "" good ();
+// Template declaration
+template <char...> void operator "" _good ();
 
 // FIXME: Test some invalid decls that might crop up.

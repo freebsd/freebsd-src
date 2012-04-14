@@ -1,4 +1,4 @@
-// RUN: %clang %s -fsyntax-only -Wignored-qualifiers -Wreturn-type -Xclang -verify -fblocks -Wno-unreachable-code -Wno-unused-value
+// RUN: %clang %s -fsyntax-only -Wignored-qualifiers -Wno-error=return-type -Xclang -verify -fblocks -Wno-unreachable-code -Wno-unused-value
 
 // clang emits the following warning by default.
 // With GCC, -pedantic, -Wreturn-type or -Wall are required to produce the 
@@ -255,3 +255,12 @@ int test_enum_cases(enum Cases C) {
   case C3: return 4;
   }
 } // no-warning
+
+// PR12318 - Don't give a may reach end of non-void function warning.
+int test34(int x) {
+  if (x == 1) {
+    return 3;
+  } else if ( x == 2 || 1) {
+    return 5;
+  }
+}

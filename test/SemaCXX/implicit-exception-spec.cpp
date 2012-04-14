@@ -54,10 +54,9 @@ namespace ExceptionSpecification {
 // The same problem arises in delayed parsing of default arguments,
 // which clang does not yet support.
 namespace DefaultArgument {
-  // FIXME: this diagnostic is completely wrong.
-  struct Default { // expected-note {{explicitly marked deleted here}}
+  struct Default {
     struct T {
-      T(int = ExceptionIf<noexcept(Default())::f()); // expected-error {{call to deleted constructor}}
-    } t;
+      T(int = ExceptionIf<noexcept(Default())::f()); // expected-error {{call to implicitly-deleted default constructor}}
+    } t; // expected-note {{has no default constructor}}
   };
 }

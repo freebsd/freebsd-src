@@ -48,7 +48,9 @@ void func() {
   
   extern int blockScopeExtern[3] = { 1, 3, 5 }; // expected-error{{'extern' variable cannot have an initializer}}
   
-  static long x2[3] = { 1.0, "abc" , 5.8 }; // expected-warning{{incompatible pointer to integer conversion initializing 'long' with an expression of type 'char [4]'}}
+  static long x2[3] = { 1.0,
+                        "abc", // expected-warning{{incompatible pointer to integer conversion initializing 'long' with an expression of type 'char [4]'}}
+                         5.8 }; // expected-warning {{implicit conversion turns literal floating-point number into integer}}
 }
 
 void test() {
@@ -167,7 +169,7 @@ void charArrays() {
 
 void variableArrayInit() {
   int a = 4;
-  char strlit[a] = "foo"; //expected-error{{array initializer must be an initializer list or string literal}}
+  char strlit[a] = "foo"; //expected-error{{variable-sized object may not be initialized}}
   int b[a] = { 1, 2, 4 }; //expected-error{{variable-sized object may not be initialized}}
 }
 
@@ -218,7 +220,7 @@ void varArray() {
 }
 
 // PR2151
-void emptyInit() {struct {} x[] = {6};} //expected-warning{{empty struct (accepted as an extension) has size 0 in C, size 1 in C++}} \
+void emptyInit() {struct {} x[] = {6};} //expected-warning{{empty struct is a GNU extension}} \
 // expected-error{{initializer for aggregate with no elements}}
 
 void noNamedInit() {
@@ -242,10 +244,10 @@ struct soft_segment_descriptor gdt_segs[] = {
 };
 
 static void sppp_ipv6cp_up();
-const struct {} ipcp = { sppp_ipv6cp_up }; //expected-warning{{empty struct (accepted as an extension) has size 0 in C, size 1 in C++}} \
+const struct {} ipcp = { sppp_ipv6cp_up }; //expected-warning{{empty struct is a GNU extension}} \
 // expected-warning{{excess elements in struct initializer}}
 
-struct _Matrix { union { float m[4][4]; }; }; //expected-warning{{anonymous unions are a GNU extension in C}}
+struct _Matrix { union { float m[4][4]; }; }; //expected-warning{{anonymous unions are a C11 extension}}
 typedef struct _Matrix Matrix;
 void test_matrix() {
   const Matrix mat1 = {
@@ -278,3 +280,10 @@ int a6[5] = (int[]){1, 2, 3}; // expected-error{{cannot initialize array of type
 
 int nonconst_value();
 int a7[5] = (int[5]){ 1, 2, 3, 4, nonconst_value() }; // expected-error{{initializer element is not a compile-time constant}}
+
+// <rdar://problem/10636946>
+__attribute__((weak)) const unsigned int test10_bound = 10;
+char test10_global[test10_bound]; // expected-error {{variable length array declaration not allowed at file scope}}
+void test10() {
+  char test10_local[test10_bound] = "help"; // expected-error {{variable-sized object may not be initialized}}
+}

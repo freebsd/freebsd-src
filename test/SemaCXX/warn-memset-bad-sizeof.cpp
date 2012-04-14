@@ -104,6 +104,14 @@ void f(Mat m, const Foo& const_foo, char *buffer) {
   // Copy to raw buffer shouldn't warn either
   memcpy(&foo, &arr, sizeof(Foo));
   memcpy(&arr, &foo, sizeof(Foo));
+
+  // Shouldn't warn, and shouldn't crash either.
+  memset(({
+    if (0) {}
+    while (0) {}
+    for (;;) {}
+    &s;
+  }), 0, sizeof(s));
 }
 
 namespace ns {
@@ -132,8 +140,6 @@ void strcpy_and_friends() {
 
   strncpy(buff, BAR, sizeof(BAR)); // \
       // expected-warning {{argument to 'sizeof' in 'strncpy' call is the same expression as the source}}
-  strncat(buff, BAR, sizeof(BAR)); // \
-      // expected-warning {{argument to 'sizeof' in 'strncat' call is the same expression as the source}}
   strndup(FOO, sizeof(FOO)); // \
       // expected-warning {{argument to 'sizeof' in 'strndup' call is the same expression as the source}}
 }

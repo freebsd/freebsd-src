@@ -8,3 +8,16 @@ struct X {
 };
 }
 
+struct B {
+  virtual void f();
+  virtual void g();
+};
+struct D final : B { // expected-warning {{'final' keyword is a C++11 extension}}
+  virtual void f() override; // expected-warning {{'override' keyword is a C++11 extension}}
+  virtual void g() final; // expected-warning {{'final' keyword is a C++11 extension}}
+};
+
+void NewBracedInitList() {
+  // A warning on this would be sufficient once we can handle it correctly.
+  new int {}; // expected-error {{}}
+}

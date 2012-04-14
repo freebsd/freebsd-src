@@ -22,11 +22,18 @@ import os
 import csv
 import sys
 
+def isExistingProject(PMapFile, projectID) :
+    PMapReader = csv.reader(PMapFile)
+    for I in PMapReader:
+        if projectID == I[0]:
+            return True
+    return False    
+
 # Add a new project for testing: build it and add to the Project Map file.
 # Params:
 #   Dir is the directory where the sources are.
 #   ID is a short string used to identify a project.
-def addNewProject(ID) :
+def addNewProject(ID, IsScanBuild) :
     CurDir = os.path.abspath(os.curdir)
     Dir = SATestBuild.getProjectDir(ID)
     if not os.path.exists(Dir):
@@ -34,7 +41,7 @@ def addNewProject(ID) :
         sys.exit(-1)
         
     # Build the project.
-    SATestBuild.testProject(ID, True, Dir)
+    SATestBuild.testProject(ID, True, IsScanBuild, Dir)
 
     # Add the project ID to the project map.
     ProjectMapPath = os.path.join(CurDir, SATestBuild.ProjectMapFile)
@@ -44,20 +51,16 @@ def addNewProject(ID) :
         print "Warning: Creating the Project Map file!!"
         PMapFile = open(ProjectMapPath, "w+b")
     try:
-        PMapReader = csv.reader(PMapFile)
-        for I in PMapReader:
-            IID = I[0]
-            if ID == IID:
-                print >> sys.stderr, 'Warning: Project with ID \'', ID, \
-                        '\' already exists.'
-                sys.exit(-1)
-
-        PMapWriter = csv.writer(PMapFile)
-        PMapWriter.writerow( (ID, Dir) );
+        if (isExistingProject(PMapFile, ID)) :        
+            print >> sys.stdout, 'Warning: Project with ID \'', ID, \
+                                 '\' already exists.'
+            print >> sys.stdout, "Reference output has been regenerated."
+        else:                     
+            PMapWriter = csv.writer(PMapFile)
+            PMapWriter.writerow( (ID, int(IsScanBuild)) );
+            print "The project map is updated: ", ProjectMapPath
     finally:
         PMapFile.close()
-        
-    print "The project map is updated: ", ProjectMapPath
             
 
 # TODO: Add an option not to build. 
@@ -65,7 +68,13 @@ def addNewProject(ID) :
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print >> sys.stderr, 'Usage: ', sys.argv[0],\
-                             '[project ID]'
+                             'project_ID <mode>' \
+                             'mode - 0 for single file project; 1 for scan_build'
         sys.exit(-1)
+    
+    IsScanBuild = 1    
+    if (len(sys.argv) >= 3):
+        IsScanBuild = int(sys.argv[2])  
+    assert((IsScanBuild == 0) | (IsScanBuild == 1))
         
-    addNewProject(sys.argv[1])
+    addNewProject(sys.argv[1], IsScanBuild)

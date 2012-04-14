@@ -3,8 +3,8 @@
 <html>
 <head>
   <title>scan-build: running the analyzer from the command line</title>
-  <link type="text/css" rel="stylesheet" href="content.css" />
-  <link type="text/css" rel="stylesheet" href="menu.css" />
+  <link type="text/css" rel="stylesheet" href="content.css">
+  <link type="text/css" rel="stylesheet" href="menu.css">
   <script type="text/javascript" src="scripts/menu.js"></script>
   <script type="text/javascript" src="scripts/dbtree.js"></script>
 </head>
@@ -16,7 +16,7 @@
 
 <h1>scan-build: running the analyzer from the command line</h1>
 
-<table style="margin-top:0px" width="100%" border="0" cellpadding="0px" cellspacing="0">
+<table style="margin-top:0px" width="100%" cellpadding="0px" cellspacing="0">
 <tr><td>
 
 <h3>What is it?</h3>
@@ -35,9 +35,9 @@ web browser.</p>
 <p><b>scan-build</b> has little or no knowledge about how you build your code.
 It works by overriding the <tt>CC</tt> and <tt>CXX</tt> environment variables to
 (hopefully) change your build to use a &quot;fake&quot; compiler instead of the
-one that would normally build your project. By default, this fake compiler
-executes <tt>gcc</tt> to compile your code (assuming that <tt>gcc</tt> is your
-compiler) and then executes the static analyzer to analyze your code.</p>
+one that would normally build your project. This fake compiler executes either 
+<tt>clang</tt> or <tt>gcc</tt> (depending on the platform) to compile your 
+code and then executes the static analyzer to analyze your code.</p>
 
 <p>This &quot;poor man's interposition&quot; works amazingly well in many cases
 and falls down in others. Please consult the information on this page on making
@@ -45,11 +45,10 @@ the best use of <b>scan-build</b>, which includes getting it to work when the
 aforementioned hack fails to work.</p>
 
 </td>
-<td style="padding-left:10px">
-<center>
-  <img src="images/scan_build_cmd.png" width="450px" border=0><br>
-  <a href="images/analyzer_html.png"><img src="images/analyzer_html.png" width="450px" border=0></a>
-<br><b>Viewing static analyzer results in a web browser</b></center>
+<td style="padding-left:10px; text-align:center">
+  <img src="images/scan_build_cmd.png" width="450px" alt="scan-build"><br>
+  <a href="images/analyzer_html.png"><img src="images/analyzer_html.png" width="450px" alt="analyzer in browser"></a>
+<br><b>Viewing static analyzer results in a web browser</b>
 </td></tr></table>
 
 <h2>Contents</h2>
@@ -77,8 +76,8 @@ aforementioned hack fails to work.</p>
 <p>The <tt>scan-build</tt> command can be used to analyze an entire project by
 essentially interposing on a project's build process. This means that to run the
 analyzer using <tt>scan-build</tt>, you will use <tt>scan-build</tt> to analyze
-the source files compiled by <tt>gcc</tt> during a project build. This means
-that any files that are not compiled will also not be analyzed.</p>
+the source files compiled by <tt>gcc</tt>/<tt>clang</tt> during a project build. 
+This means that any files that are not compiled will also not be analyzed.</p>
 
 <h3 id="scanbuild_basicusage">Basic Usage</h3>
 
@@ -101,7 +100,7 @@ $ <span class="code_highlight">scan-build</span> <i>[scan-build options]</i> <sp
 </pre>
 
 <p>Operationally, <tt>scan-build</tt> literally runs &lt;command&gt; with all of the
-subsequent options passed to it. For example, one can pass <nobr><tt>-j4</tt></nobr> to
+subsequent options passed to it. For example, one can pass <tt>-j4</tt> to
 <tt>make</tt> get a parallel build over 4 cores:</p>
 
 <pre class="code_example">
@@ -141,17 +140,17 @@ options prefix the build command. For example:</p>
 <tr><td><b>-o</b></td><td>Target directory for HTML report files. Subdirectories
 will be created as needed to represent separate "runs" of the analyzer. If this
 option is not specified, a directory is created in <tt>/tmp</tt> to store the
-reports.</td><tr>
+reports.</td></tr>
 
-<tr><td><b>-h</b><br><i><nobr>(or no arguments)</nobr></i></td><td>Display all
+<tr><td><b>-h</b><br><i>(or&nbsp;no&nbsp;arguments)</i></td><td>Display all
 <tt>scan-build</tt> options.</td></tr>
 
-<tr><td><b>-k</b><br><nobr><b>--keep-going</b></nobr></td><td>Add a "keep on
+<tr><td><b>-k</b><br><b>--keep-going</b></td><td>Add a "keep on
 going" option to the specified build command. <p>This option currently supports
 <tt>make</tt> and <tt>xcodebuild</tt>.</p> <p>This is a convenience option; one
 can specify this behavior directly using build options.</p></td></tr>
 
-<tr><td><b>-v<b></td><td>Verbose output from scan-build and the analyzer. <b>A
+<tr><td><b>-v</b></td><td>Verbose output from scan-build and the analyzer. <b>A
 second and third "-v" increases verbosity</b>, and is useful for filing bug
 reports against the analyzer.</td></tr>
 
@@ -217,12 +216,12 @@ $ scan-build make
 <i>interposing</i> on the compiler. This interposition is currently done by
 <tt>scan-build</tt> temporarily setting the environment variable <tt>CC</tt> to
 <tt>ccc-analyzer</tt>. The program <tt>ccc-analyzer</tt> acts like a fake
-compiler, forwarding its command line arguments over to <tt>gcc</tt> to perform
+compiler, forwarding its command line arguments over to the compiler to perform
 regular compilation and <tt>clang</tt> to perform static analysis.</p>
 
 <p>Running <tt>configure</tt> typically generates makefiles that have hardwired
 paths to the compiler, and by running <tt>configure</tt> through
-<tt>scan-build</tt> that path is set to <tt>ccc-analyzer</tt>.</p.>
+<tt>scan-build</tt> that path is set to <tt>ccc-analyzer</tt>.</p>
 
 <!-- 
 <h2 id="Debugging">Debugging the Analyzer</h2>
@@ -314,18 +313,17 @@ $ scan-build xcodebuild -configuration Debug -sdk iphonesimulator3.0
 
 <h3>Gotcha: using the right compiler</h3>
 
-<p>Recall that <b>scan-build</b> analyzes your project by using <tt>gcc</tt> to
-compile the project and <tt>clang</tt> to analyze your project. When analyzing
+<p>Recall that <b>scan-build</b> analyzes your project by using a compiler to
+compile the project and <tt>clang</tt> to analyze your project. The script uses 
+simple heuristics to determine which compiler should be used (it defaults to 
+<tt>clang</tt> on Darwin and <tt>gcc</tt> on other platforms). When analyzing
 iPhone projects, <b>scan-build</b> may pick the wrong compiler than the one
-Xcode would use to build your project. This is because multiple versions of
-<tt>gcc</tt> may be installed on your system, especially if you are developing
-for the iPhone.</p>
+Xcode would use to build your project. For example, this could be because 
+multiple versions of a compiler may be installed on your system, especially if 
+you are developing for the iPhone.</p>
 
-<p>Where this particularly might be a problem is if you are using Mac OS 10.5
-(Leopard) to develop for iPhone OS 3.0. The default desktop compiler on Leopard
-is gcc-4.0, while the compiler for iPhone OS 3.0 is gcc-4.2. When compiling your
-application to run on the simulator, it is important that <b>scan-build</b>
-finds the correct version of <tt>gcc</tt>. Otherwise, you may see strange build
+<p>When compiling your application to run on the simulator, it is important that <b>scan-build</b>
+finds the correct version of <tt>gcc/clang</tt>. Otherwise, you may see strange build
 errors that only happen when you run <tt>scan-build</tt>.
 
 <p><b>scan-build</b> provides the <tt>--use-cc</tt> and <tt>--use-c++</tt>

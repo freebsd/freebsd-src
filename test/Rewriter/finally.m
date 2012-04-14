@@ -1,8 +1,8 @@
-// RUN: %clang_cc1 -rewrite-objc -fobjc-exceptions -verify %s -o -
+// RUN: %clang_cc1 -rewrite-objc -fobjc-fragile-abi -fobjc-exceptions -verify %s -o -
 
 int main() {
   @try {
-    printf("executing try"); // expected-warning{{implicitly declaring C library function 'printf' with type 'int (const char *, ...)'}} \
+    printf("executing try"); // expected-warning{{implicitly declaring library function 'printf' with type 'int (const char *, ...)'}} \
         // expected-note{{please include the header <stdio.h> or explicitly provide a declaration for 'printf'}}
     return(0); // expected-warning{{rewriter doesn't support user-specified control flow semantics for @try/@finally (code may not execute properly)}}
   } @finally {
