@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91board.h>
 
 #define RST_TIMEOUT (5)	/* Seconds to hold NRST for hard reset */
-#define RST_TICK (20) 	/* sample NRST at hz/RST_TICK intervals */
+#define RST_TICK (20)	/* sample NRST at hz/RST_TICK intervals */
 
 static int rst_intr(void *arg);
 
@@ -122,7 +122,7 @@ at91_rst_attach(device_t dev)
 		case	RST_SR_RST_WAKE:
 			cause = "Wake Up";
 			break;
-		case	RST_SR_RST_WDT:	
+		case	RST_SR_RST_WDT:
 			cause = "Watchdog";
 			break;
 		case	RST_SR_RST_SOFT:
@@ -153,7 +153,7 @@ rst_tick(void *argp)
 		cpu_reset();
 	} else if ((RD4(sc, RST_SR) & RST_SR_NRSTL)) {
 		/* User released the button in less than RST_TIMEOUT */
-		sc->shutdown = 0; 
+		sc->shutdown = 0;
 		device_printf(sc->sc_dev, "shutting down...\n");
 		shutdown_nice(0);
 	} else {
@@ -167,7 +167,7 @@ rst_intr(void *argp)
 	struct rst_softc *sc = argp;
 
 	if (RD4(sc, RST_SR) & RST_SR_URSTS) {
-		if (sc->shutdown == 0) 
+		if (sc->shutdown == 0)
 			callout_reset(&sc->tick_ch, hz/RST_TICK, rst_tick, sc);
 		return (FILTER_HANDLED);
 	}
@@ -177,7 +177,7 @@ rst_intr(void *argp)
 static device_method_t at91_rst_methods[] = {
 	DEVMETHOD(device_probe, at91_rst_probe),
 	DEVMETHOD(device_attach, at91_rst_attach),
-	{0,0},
+	DEVMETHOD_END
 };
 
 static driver_t at91_rst_driver = {
@@ -188,7 +188,8 @@ static driver_t at91_rst_driver = {
 
 static devclass_t at91_rst_devclass;
 
-DRIVER_MODULE(at91_rst, atmelarm, at91_rst_driver, at91_rst_devclass, 0, 0);
+DRIVER_MODULE(at91_rst, atmelarm, at91_rst_driver, at91_rst_devclass, NULL,
+    NULL);
 
 void cpu_reset_sam9g20(void) __attribute__((weak));
 void cpu_reset_sam9g20(void) {}
@@ -198,7 +199,6 @@ cpu_reset(void)
 {
 
 	if (rst_sc) {
-
 		cpu_reset_sam9g20(); /* May be null */
 
 		WR4(rst_sc, RST_MR,
@@ -211,5 +211,6 @@ cpu_reset(void)
 		    RST_CR_KEY);
 	}
 
-	for(;;) ;
+	for(;;)
+		;
 }
