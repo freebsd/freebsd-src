@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -78,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #ifdef DDB
-#include <sys/kdb.h>
 #include <ddb/ddb.h>
 #include <sys/lockmgr.h>
 #include <sys/sx.h>
