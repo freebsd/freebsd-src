@@ -45,23 +45,22 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ctype.h>
-#include <sys/errno.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/refcount.h>
+#include <sys/rwlock.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/refcount.h>
-#include <sys/proc.h>
-#include <sys/rwlock.h>
 #include <sys/unistd.h>
-#include <sys/kthread.h>
-#include <sys/smp.h>
 #include <machine/cpu.h>
 
 #include <net/netisr.h>
@@ -240,7 +239,6 @@ int	ng_path_parse(char *addr, char **node, char **path, char **hook);
 void	ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3);
 void	ng_unname(node_p node);
 
-
 /* Our own netgraph malloc type */
 MALLOC_DEFINE(M_NETGRAPH, "netgraph", "netgraph structures and ctrl messages");
 MALLOC_DEFINE(M_NETGRAPH_HOOK, "netgraph_hook", "netgraph hook structures");
@@ -337,7 +335,6 @@ ng_alloc_node(void)
 
 #define NG_ALLOC_HOOK(hook) do { (hook) = ng_alloc_hook(); } while (0)
 #define NG_ALLOC_NODE(node) do { (node) = ng_alloc_node(); } while (0)
-
 
 #define NG_FREE_HOOK(hook)						\
 	do {								\
@@ -1158,6 +1155,10 @@ ng_bypass(hook_p hook1, hook_p hook2)
 		return (EINVAL);
 	}
 	mtx_lock(&ng_topo_mtx);
+	if (NG_HOOK_NOT_VALID(hook1) || NG_HOOK_NOT_VALID(hook2)) {
+		mtx_unlock(&ng_topo_mtx);
+		return (EINVAL);
+	}
 	hook1->hk_peer->hk_peer = hook2->hk_peer;
 	hook2->hk_peer->hk_peer = hook1->hk_peer;
 
@@ -1198,7 +1199,6 @@ ng_newtype(struct ng_type *tp)
 		TRAP_ERROR();
 		return (EEXIST);
 	}
-
 
 	/* Link in new type */
 	TYPELIST_WLOCK();
@@ -3063,7 +3063,7 @@ vnet_netgraph_uninit(const void *unused __unused)
 		}
 	} while (node != NULL);
 }
-VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_NETGRAPH, SI_ORDER_FIRST,
     vnet_netgraph_uninit, NULL);
 #endif /* VIMAGE */
 
@@ -3129,7 +3129,7 @@ static moduledata_t netgraph_mod = {
 	ngb_mod_event,
 	(NULL)
 };
-DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_MIDDLE);
+DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_FIRST);
 SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW, 0, "netgraph Family");
 SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, 0, NG_ABI_VERSION,"");
 SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, 0, NG_VERSION, "");
@@ -3268,7 +3268,6 @@ SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(int), sysctl_debug_ng_dump_items, "I", "Number of allocated items");
 #endif	/* NETGRAPH_DEBUG */
 
-
 /***********************************************************************
 * Worklist routines
 **********************************************************************/
@@ -3352,7 +3351,6 @@ ng_worklist_add(node_p node)
 	}
 }
 
-
 /***********************************************************************
 * Externally useable functions to set up a queue item ready for sending
 ***********************************************************************/
@@ -3432,8 +3430,6 @@ ng_package_msg(struct ng_mesg *msg, int flags)
 	NGI_RETADDR(item) = 0;
 	return (item);
 }
-
-
 
 #define SET_RETADDR(item, here, retaddr)				\
 	do {	/* Data or fn items don't have retaddrs */		\
@@ -3660,7 +3656,6 @@ ng_callout_trampoline(void *arg)
 	CURVNET_RESTORE();
 }
 
-
 int
 ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
     ng_item_fn *fn, void * arg1, int arg2)
@@ -3730,32 +3725,3 @@ ng_replace_retaddr(node_p here, item_p item, ng_ID_t retaddr)
 		NGI_RETADDR(item) = ng_node2ID(here);
 	}
 }
-
-#define TESTING
-#ifdef TESTING
-/* just test all the macros */
-void
-ng_macro_test(item_p item);
-void
-ng_macro_test(item_p item)
-{
-	node_p node = NULL;
-	hook_p hook = NULL;
-	struct mbuf *m;
-	struct ng_mesg *msg;
-	ng_ID_t retaddr;
-	int	error;
-
-	NGI_GET_M(item, m);
-	NGI_GET_MSG(item, msg);
-	retaddr = NGI_RETADDR(item);
-	NG_SEND_DATA(error, hook, m, NULL);
-	NG_SEND_DATA_ONLY(error, hook, m);
-	NG_FWD_NEW_DATA(error, item, hook, m);
-	NG_FWD_ITEM_HOOK(error, item, hook);
-	NG_SEND_MSG_HOOK(error, node, msg, hook, retaddr);
-	NG_SEND_MSG_ID(error, node, msg, retaddr, retaddr);
-	NG_SEND_MSG_PATH(error, node, msg, ".:", retaddr);
-	NG_FWD_MSG_HOOK(error, node, item, hook, retaddr);
-}
-#endif /* TESTING */
