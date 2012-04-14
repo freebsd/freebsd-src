@@ -1,11 +1,10 @@
 ; RUN: llc -mtriple=i386-apple-darwin10.0 -relocation-model=pic -asm-verbose=false \
-; RUN:     -disable-fp-elim -mattr=-sse41,-sse3,+sse2 -post-RA-scheduler=false -regalloc=linearscan < %s | \
+; RUN:     -disable-fp-elim -mattr=-sse41,-sse3,+sse2 -post-RA-scheduler=false -regalloc=basic < %s | \
 ; RUN:   FileCheck %s
 ; rdar://6808032
 
 ; CHECK: pextrw $14
 ; CHECK-NEXT: shrl $8
-; CHECK-NEXT: (%ebp)
 ; CHECK-NEXT: pinsrw
 
 define void @update(i8** %args_list) nounwind {

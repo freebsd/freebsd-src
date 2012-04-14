@@ -56,7 +56,7 @@ cmovs, we should expand to a conditional branch like GCC produces.
 
 Some isel ideas:
 
-1. Dynamic programming based approach when compile time if not an
+1. Dynamic programming based approach when compile time is not an
    issue.
 2. Code duplication (addressing mode) during isel.
 3. Other ideas from "Register-Sensitive Selection, Duplication, and
@@ -2061,34 +2061,20 @@ The trick is to match "fetch_and_add(X, -C) == C".
 
 //===---------------------------------------------------------------------===//
 
-unsigned log2(unsigned x) {
-  return x > 1 ? 32-__builtin_clz(x-1) : 0;
+unsigned t(unsigned a, unsigned b) {
+  return a <= b ? 5 : -5;
 }
 
-generates (x86_64):
-	xorl	%eax, %eax
-	cmpl	$2, %edi
-	jb	LBB0_2
-## BB#1:
-	decl	%edi
-	movl	$63, %ecx
-	bsrl	%edi, %eax
-	cmovel	%ecx, %eax
-	xorl	$-32, %eax
-	addl	$33, %eax
-LBB0_2:
-	ret
+We generate:
+	movl	$5, %ecx
+	cmpl	%esi, %edi
+	movl	$-5, %eax
+	cmovbel	%ecx, %eax
 
-The cmov and the early test are redundant:
-	xorl	%eax, %eax
-	cmpl	$2, %edi
-	jb	LBB0_2
-## BB#1:
-	decl	%edi
-	bsrl	%edi, %eax
-	xorl	$-32, %eax
-	addl	$33, %eax
-LBB0_2:
-	ret
+GCC:
+	cmpl	%edi, %esi
+	sbbl	%eax, %eax
+	andl	$-10, %eax
+	addl	$5, %eax
 
 //===---------------------------------------------------------------------===//

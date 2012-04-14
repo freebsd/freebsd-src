@@ -16,11 +16,12 @@ class TestingConfig:
                 'PATH' : os.pathsep.join(litConfig.path +
                                          [os.environ.get('PATH','')]),
                 'SYSTEMROOT' : os.environ.get('SYSTEMROOT',''),
+                'LLVM_DISABLE_CRASH_REPORT' : '1',
                 }
 
             if sys.platform == 'win32':
                 environment.update({
-                        'LLVM_DISABLE_CRT_DEBUG' : '1',
+                        'INCLUDE' : os.environ.get('INCLUDE',''),
                         'PATHEXT' : os.environ.get('PATHEXT',''),
                         'PYTHONUNBUFFERED' : '1',
                         'TEMP' : os.environ.get('TEMP',''),
@@ -50,14 +51,19 @@ class TestingConfig:
             cfg_globals['__file__'] = path
             try:
                 exec f in cfg_globals
+                if litConfig.debug:
+                    litConfig.note('... loaded config %r' % path)
             except SystemExit,status:
                 # We allow normal system exit inside a config file to just
                 # return control without error.
                 if status.args:
                     raise
             f.close()
-        elif mustExist:
-            litConfig.fatal('unable to load config from %r ' % path)
+        else:
+            if mustExist:
+                litConfig.fatal('unable to load config from %r ' % path)
+            elif litConfig.debug:
+                litConfig.note('... config not found  - %r' %path)
 
         config.finish(litConfig)
         return config
@@ -108,3 +114,12 @@ class TestingConfig:
             # files. Should we distinguish them?
             self.test_source_root = str(self.test_source_root)
         self.excludes = set(self.excludes)
+
+    @property
+    def root(self):
+        """root attribute - The root configuration for the test suite."""
+        if self.parent is None:
+            return self
+        else:
+            return self.parent.root
+

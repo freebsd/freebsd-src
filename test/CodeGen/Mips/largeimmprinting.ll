@@ -1,8 +1,4 @@
-; DISABLED: llc -march=mipsel -mcpu=4ke < %s | FileCheck %s
-; RUN: false
-
-; byval is currently unsupported.
-; XFAIL: *
+; RUN: llc -march=mipsel -mcpu=mips32r2 < %s | FileCheck %s
 
 %struct.S1 = type { [65536 x i8] }
 
@@ -11,8 +7,8 @@
 define void @f() nounwind {
 entry:
 ; CHECK:  lui $at, 65534
-; CHECK:  addu  $at, $sp, $at
-; CHECK:  addiu $sp, $at, -24
+; CHECK:  addiu $at, $at, -24
+; CHECK:  addu  $sp, $sp, $at
 ; CHECK:  .cprestore  65536
 
   %agg.tmp = alloca %struct.S1, align 1

@@ -92,10 +92,10 @@ for.body.i.i:                                     ; preds = %entry, %for.body.i.
 ; CHECK: {1,+,1}<nuw><nsw><%for.body.i.i>
   %ptrincdec.i.i = getelementptr inbounds i32* %begin, i64 %tmp
 ; CHECK: %ptrincdec.i.i =
-; CHECK: {(4 + %begin),+,4}<nsw><%for.body.i.i>
+; CHECK: {(4 + %begin),+,4}<nuw><%for.body.i.i>
   %__first.addr.08.i.i = getelementptr inbounds i32* %begin, i64 %indvar.i.i
 ; CHECK: %__first.addr.08.i.i
-; CHECK: {%begin,+,4}<nsw><%for.body.i.i>
+; CHECK: {%begin,+,4}<nuw><%for.body.i.i>
   store i32 0, i32* %__first.addr.08.i.i, align 4
   %cmp.i.i = icmp eq i32* %ptrincdec.i.i, %end
   br i1 %cmp.i.i, label %_ZSt4fillIPiiEvT_S1_RKT0_.exit, label %for.body.i.i
@@ -103,4 +103,22 @@ for.body.i.i:                                     ; preds = %entry, %for.body.i.
 ; CHECK: Loop %for.body.i.i: max backedge-taken count is ((-4 + (-1 * %begin) + %end) /u 4)
 _ZSt4fillIPiiEvT_S1_RKT0_.exit:                   ; preds = %for.body.i.i, %entry
   ret void
+}
+
+; A single AddExpr exists for (%a + %b), which is not always <nsw>.
+; CHECK: @addnsw
+; CHECK-NOT: --> (%a + %b)<nsw>
+define i32 @addnsw(i32 %a, i32 %b) nounwind ssp {
+entry:
+  %tmp = add i32 %a, %b
+  %cmp = icmp sgt i32 %tmp, 0
+  br i1 %cmp, label %greater, label %exit
+
+greater:
+  %tmp2 = add nsw i32 %a, %b
+  br label %exit
+
+exit:
+  %result = phi i32 [ %a, %entry ], [ %tmp2, %greater ]
+  ret i32 %result
 }

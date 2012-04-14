@@ -94,7 +94,7 @@ endif()
 check_symbol_exists(getpagesize unistd.h HAVE_GETPAGESIZE)
 check_symbol_exists(getrusage sys/resource.h HAVE_GETRUSAGE)
 check_symbol_exists(setrlimit sys/resource.h HAVE_SETRLIMIT)
-check_function_exists(isatty HAVE_ISATTY)
+check_symbol_exists(isatty unistd.h HAVE_ISATTY)
 check_symbol_exists(index strings.h HAVE_INDEX)
 check_symbol_exists(isinf cmath HAVE_ISINF_IN_CMATH)
 check_symbol_exists(isinf math.h HAVE_ISINF_IN_MATH_H)
@@ -126,6 +126,8 @@ check_symbol_exists(readdir "sys/types.h;dirent.h" HAVE_READDIR)
 check_symbol_exists(getcwd unistd.h HAVE_GETCWD)
 check_symbol_exists(gettimeofday sys/time.h HAVE_GETTIMEOFDAY)
 check_symbol_exists(getrlimit "sys/types.h;sys/time.h;sys/resource.h" HAVE_GETRLIMIT)
+check_symbol_exists(posix_spawn spawn.h HAVE_POSIX_SPAWN)
+check_symbol_exists(pread unistd.h HAVE_PREAD)
 check_symbol_exists(rindex strings.h HAVE_RINDEX)
 check_symbol_exists(strchr string.h HAVE_STRCHR)
 check_symbol_exists(strcmp string.h HAVE_STRCMP)
@@ -285,16 +287,18 @@ include(CheckCXXCompilerFlag)
 
 check_cxx_compiler_flag("-Wno-variadic-macros" SUPPORTS_NO_VARIADIC_MACROS_FLAG)
 
-include(GetTargetTriple)
-get_target_triple(LLVM_HOSTTRIPLE)
+include(GetHostTriple)
+get_host_triple(LLVM_HOST_TRIPLE)
 
-# FIXME: We don't distinguish the target and the host. :(
-set(TARGET_TRIPLE "${LLVM_HOSTTRIPLE}")
+# By default, we target the host, but this can be overridden at CMake
+# invocation time.
+set(LLVM_DEFAULT_TARGET_TRIPLE "${LLVM_HOST_TRIPLE}")
+set(TARGET_TRIPLE "${LLVM_DEFAULT_TARGET_TRIPLE}")
 
 # Determine the native architecture.
 string(TOLOWER "${LLVM_TARGET_ARCH}" LLVM_NATIVE_ARCH)
 if( LLVM_NATIVE_ARCH STREQUAL "host" )
-  string(REGEX MATCH "^[^-]*" LLVM_NATIVE_ARCH ${LLVM_HOSTTRIPLE})
+  string(REGEX MATCH "^[^-]*" LLVM_NATIVE_ARCH ${LLVM_HOST_TRIPLE})
 endif ()
 
 if (LLVM_NATIVE_ARCH MATCHES "i[2-6]86")
@@ -309,8 +313,6 @@ elseif (LLVM_NATIVE_ARCH MATCHES "sparc")
   set(LLVM_NATIVE_ARCH Sparc)
 elseif (LLVM_NATIVE_ARCH MATCHES "powerpc")
   set(LLVM_NATIVE_ARCH PowerPC)
-elseif (LLVM_NATIVE_ARCH MATCHES "alpha")
-  set(LLVM_NATIVE_ARCH Alpha)
 elseif (LLVM_NATIVE_ARCH MATCHES "arm")
   set(LLVM_NATIVE_ARCH ARM)
 elseif (LLVM_NATIVE_ARCH MATCHES "mips")
@@ -333,6 +335,16 @@ else ()
   set(LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo)
   set(LLVM_NATIVE_TARGETMC LLVMInitialize${LLVM_NATIVE_ARCH}TargetMC)
   set(LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter)
+
+  # We don't have an ASM parser for all architectures yet.
+  if (EXISTS ${CMAKE_SOURCE_DIR}/lib/Target/${LLVM_NATIVE_ARCH}/AsmParser/CMakeLists.txt)
+    set(LLVM_NATIVE_ASMPARSER LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser)
+  endif ()
+
+  # We don't have an disassembler for all architectures yet.
+  if (EXISTS ${CMAKE_SOURCE_DIR}/lib/Target/${LLVM_NATIVE_ARCH}/Disassembler/CMakeLists.txt)
+    set(LLVM_NATIVE_DISASSEMBLER LLVMInitialize${LLVM_NATIVE_ARCH}Disassembler)
+  endif ()
 endif ()
 
 if( MINGW )
@@ -380,14 +392,15 @@ endif( PURE_WINDOWS )
 set(RETSIGTYPE void)
 
 if( LLVM_ENABLE_THREADS )
-  if( HAVE_PTHREAD_H OR WIN32 )
-    set(ENABLE_THREADS 1)
+  # Check if threading primitives aren't supported on this platform
+  if( NOT HAVE_PTHREAD_H AND NOT WIN32 )
+    set(LLVM_ENABLE_THREADS 0)
   endif()
 endif()
 
-if( ENABLE_THREADS )
+if( LLVM_ENABLE_THREADS )
   message(STATUS "Threads enabled.")
-else( ENABLE_THREADS )
+else( LLVM_ENABLE_THREADS )
   message(STATUS "Threads disabled.")
 endif()
 

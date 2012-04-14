@@ -1,4 +1,4 @@
-; RUN: opt < %s -indvars -enable-iv-rewrite=false -S | FileCheck %s
+; RUN: opt < %s -indvars -S | FileCheck %s
 ;
 ; Make sure that indvars isn't inserting canonical IVs.
 ; This is kinda hard to do until linear function test replacement is removed.
@@ -333,9 +333,9 @@ entry:
 
 ; CHECK: loop:
 ; CHECK: phi %structIF*
-; CHECK: phi i32*
+; CHECK-NOT: phi
 ; CHECK: getelementptr inbounds
-; CHECK: getelementptr inbounds
+; CHECK-NOT: getelementptr
 ; CHECK: exit:
 loop:
   %ptr.iv = phi %structIF* [ %ptr.inc, %latch ], [ %base, %entry ]

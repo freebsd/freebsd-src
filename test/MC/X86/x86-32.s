@@ -28,6 +28,9 @@
 	vmcall
 // CHECK: vmcall
 // CHECK: encoding: [0x0f,0x01,0xc1]
+	vmfunc
+// CHECK: vmfunc
+// CHECK: encoding: [0x0f,0x01,0xd4]
 	vmlaunch
 // CHECK: vmlaunch
 // CHECK: encoding: [0x0f,0x01,0xc2]
@@ -41,7 +44,32 @@
 // CHECK: swapgs
 // CHECK: encoding: [0x0f,0x01,0xf8]
 
-rdtscp
+	vmrun %eax
+// CHECK: vmrun %eax
+// CHECK: encoding: [0x0f,0x01,0xd8]
+	vmmcall
+// CHECK: vmmcall
+// CHECK: encoding: [0x0f,0x01,0xd9]
+	vmload %eax
+// CHECK: vmload %eax
+// CHECK: encoding: [0x0f,0x01,0xda]
+	vmsave %eax
+// CHECK: vmsave %eax
+// CHECK: encoding: [0x0f,0x01,0xdb]
+	stgi
+// CHECK: stgi
+// CHECK: encoding: [0x0f,0x01,0xdc]
+	clgi
+// CHECK: clgi
+// CHECK: encoding: [0x0f,0x01,0xdd]
+	skinit %eax
+// CHECK: skinit %eax
+// CHECK: encoding: [0x0f,0x01,0xde]
+	invlpga %ecx, %eax
+// CHECK: invlpga %ecx, %eax
+// CHECK: encoding: [0x0f,0x01,0xdf]
+
+	rdtscp
 // CHECK: rdtscp
 // CHECK:  encoding: [0x0f,0x01,0xf9]
 
@@ -69,9 +97,9 @@ rdtscp
         sal $1, %eax
 
 // moffset forms of moves, rdar://7947184
-movb	0, %al    // CHECK: movb 0, %al  # encoding: [0xa0,A,A,A,A]
-movw	0, %ax    // CHECK: movw 0, %ax  # encoding: [0x66,0xa1,A,A,A,A]
-movl	0, %eax   // CHECK: movl 0, %eax  # encoding: [0xa1,A,A,A,A]
+movb	0, %al    // CHECK: movb 0, %al  # encoding: [0xa0,0x00,0x00,0x00,0x00]
+movw	0, %ax    // CHECK: movw 0, %ax  # encoding: [0x66,0xa1,0x00,0x00,0x00,0x00]
+movl	0, %eax   // CHECK: movl 0, %eax  # encoding: [0xa1,0x00,0x00,0x00,0x00]
 
 // rdar://7973775
 into
@@ -962,3 +990,11 @@ xchgl %ecx, %eax
 // CHECK: xchgl %ecx, %eax
 // CHECK: encoding: [0x91]
 xchgl %eax, %ecx
+
+// CHECK: retw
+// CHECK: encoding: [0x66,0xc3]
+retw
+
+// CHECK: lretw
+// CHECK: encoding: [0x66,0xcb]
+lretw

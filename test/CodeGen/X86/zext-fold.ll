@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86 | FileCheck %s
+; RUN: llc < %s -mcpu=generic -march=x86 | FileCheck %s
 
 ;; Simple case
 define i32 @test1(i8 %x) nounwind readnone {
@@ -34,7 +34,7 @@ define void @test3(i8 %x) nounwind readnone {
   ret void
 }
 ; CHECK: test3
-; CHECK: movzbl 16(%esp), [[REGISTER:%e[a-z]{2}]]
+; CHECK: movzbl {{[0-9]+}}(%esp), [[REGISTER:%e[a-z]{2}]]
 ; CHECK-NEXT: movl [[REGISTER]], 4(%esp)
 ; CHECK-NEXT: andl $224, [[REGISTER]]
 ; CHECK-NEXT: movl [[REGISTER]], (%esp)

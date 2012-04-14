@@ -94,6 +94,9 @@ typedef u_int64_t uint64_t;
 #else /* _MSC_VER */
 /* Visual C++ doesn't provide standard integer headers, but it does provide
    built-in data types. */
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #include <stdlib.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -167,8 +170,23 @@ typedef signed int ssize_t;
 # define UINT64_C(C) C##ui64
 #endif
 
+#ifndef PRId64
+# define PRId64 "I64d"
+#endif
+#ifndef PRIi64
+# define PRIi64 "I64i"
+#endif
+#ifndef PRIo64
+# define PRIo64 "I64o"
+#endif
+#ifndef PRIu64
+# define PRIu64 "I64u"
+#endif
 #ifndef PRIx64
 # define PRIx64 "I64x"
+#endif
+#ifndef PRIX64
+# define PRIX64 "I64X"
 #endif
 
 #endif /* _MSC_VER */

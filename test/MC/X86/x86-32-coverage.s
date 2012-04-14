@@ -500,6 +500,9 @@
 // CHECK: 	sysexit
         	sysexit
 
+// CHECK: 	sysexitl
+        	sysexitl
+
 // CHECK: 	ud2
         	ud2
 
@@ -4416,6 +4419,10 @@
 // CHECK: sysexit
 // CHECK:  encoding: [0x0f,0x35]
         	sysexit
+
+// CHECK: sysexitl
+// CHECK:  encoding: [0x0f,0x35]
+        	sysexitl
 
 // CHECK: fxsave	3735928559(%ebx,%ecx,8)
 // CHECK:  encoding: [0x0f,0xae,0x84,0xcb,0xef,0xbe,0xad,0xde]
@@ -18401,6 +18408,9 @@
 // CHECK: 	vmcall
         	vmcall
 
+// CHECK: 	vmfunc
+        	vmfunc
+
 // CHECK: 	vmclear	3735928559(%ebx,%ecx,8)
         	vmclear	0xdeadbeef(%ebx,%ecx,8)
 
@@ -18457,6 +18467,30 @@
 
 // CHECK: 	vmxon	305419896
         	vmxon	0x12345678
+
+// CHECK: 	vmrun %eax
+        	vmrun %eax
+
+// CHECK: 	vmmcall
+        	vmmcall
+
+// CHECK: 	vmload %eax
+        	vmload %eax
+
+// CHECK: 	vmsave %eax
+        	vmsave %eax
+
+// CHECK: 	stgi
+        	stgi
+
+// CHECK: 	clgi
+        	clgi
+
+// CHECK: 	skinit %eax
+        	skinit %eax
+
+// CHECK: 	invlpga %ecx, %eax
+        	invlpga %ecx, %eax
 
 // CHECK: 	phaddw	3735928559(%ebx,%ecx,8), %mm3
         	phaddw	0xdeadbeef(%ebx,%ecx,8),%mm3

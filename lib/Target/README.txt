@@ -2,22 +2,6 @@ Target Independent Opportunities:
 
 //===---------------------------------------------------------------------===//
 
-With the recent changes to make the implicit def/use set explicit in
-machineinstrs, we should change the target descriptions for 'call' instructions
-so that the .td files don't list all the call-clobbered registers as implicit
-defs.  Instead, these should be added by the code generator (e.g. on the dag).
-
-This has a number of uses:
-
-1. PPC32/64 and X86 32/64 can avoid having multiple copies of call instructions
-   for their different impdef sets.
-2. Targets with multiple calling convs (e.g. x86) which have different clobber
-   sets don't need copies of call instructions.
-3. 'Interprocedural register allocation' can be done to reduce the clobber sets
-   of calls.
-
-//===---------------------------------------------------------------------===//
-
 We should recognized various "overflow detection" idioms and translate them into
 llvm.uadd.with.overflow and similar intrinsics.  Here is a multiply idiom:
 
@@ -957,6 +941,25 @@ There's an unnecessary zext in the generated code with "clang
 
 unsigned a(unsigned long long x) {return 40 * (x >> 1);}
 Should combine to "20 * (((unsigned)x) & -2)".  Currently not
+optimized with "clang -emit-llvm-bc | opt -std-compile-opts".
+
+//===---------------------------------------------------------------------===//
+
+int g(int x) { return (x - 10) < 0; }
+Should combine to "x <= 9" (the sub has nsw).  Currently not
+optimized with "clang -emit-llvm-bc | opt -std-compile-opts".
+
+//===---------------------------------------------------------------------===//
+
+int g(int x) { return (x + 10) < 0; }
+Should combine to "x < -10" (the add has nsw).  Currently not
+optimized with "clang -emit-llvm-bc | opt -std-compile-opts".
+
+//===---------------------------------------------------------------------===//
+
+int f(int i, int j) { return i < j + 1; }
+int g(int i, int j) { return j > i - 1; }
+Should combine to "i <= j" (the add/sub has nsw).  Currently not
 optimized with "clang -emit-llvm-bc | opt -std-compile-opts".
 
 //===---------------------------------------------------------------------===//
@@ -2356,5 +2359,10 @@ should fold to (x & y) == 0.
 
 unsigned foo(unsigned x, unsigned y) { return x > y && x != 0; }
 should fold to x > y.
+
+//===---------------------------------------------------------------------===//
+
+int f(double x) { return __builtin_fabs(x) < 0.0; }
+should fold to false.
 
 //===---------------------------------------------------------------------===//

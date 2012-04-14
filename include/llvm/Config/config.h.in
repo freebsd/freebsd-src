@@ -9,32 +9,17 @@
 /* Relative directory for resource files */
 #undef CLANG_RESOURCE_DIR
 
-/* 32 bit multilib directory. */
-#undef CXX_INCLUDE_32BIT_DIR
-
-/* 64 bit multilib directory. */
-#undef CXX_INCLUDE_64BIT_DIR
-
-/* Arch the libstdc++ headers. */
-#undef CXX_INCLUDE_ARCH
-
-/* Directory with the libstdc++ headers. */
-#undef CXX_INCLUDE_ROOT
-
 /* Directories clang will search for headers */
 #undef C_INCLUDE_DIRS
-
-/* Define if CBE is enabled for printf %a output */
-#undef ENABLE_CBE_PRINTF_A
 
 /* Define if position independent code is enabled */
 #undef ENABLE_PIC
 
-/* Define if threads enabled */
-#undef ENABLE_THREADS
-
 /* Define if timestamp information (e.g., __DATE___) is allowed */
 #undef ENABLE_TIMESTAMPS
+
+/* Directory where gcc is installed. */
+#undef GCC_INSTALL_PREFIX
 
 /* Define to 1 if you have the `argz_append' function. */
 #undef HAVE_ARGZ_APPEND
@@ -295,6 +280,9 @@
 /* Define to 1 if you have the `powf' function. */
 #undef HAVE_POWF
 
+/* Define to 1 if you have the `pread' function. */
+#undef HAVE_PREAD
+
 /* Define if libtool can extract symbol lists from object files. */
 #undef HAVE_PRELOADED_SYMBOLS
 
@@ -543,17 +531,20 @@
 /* Installation directory for data files */
 #undef LLVM_DATADIR
 
+/* Target triple LLVM will generate code for by default */
+#undef LLVM_DEFAULT_TARGET_TRIPLE
+
 /* Installation directory for documentation */
 #undef LLVM_DOCSDIR
+
+/* Define if threads enabled */
+#undef LLVM_ENABLE_THREADS
 
 /* Installation directory for config files */
 #undef LLVM_ETCDIR
 
 /* Has gcc/MSVC atomic intrinsics */
 #undef LLVM_HAS_ATOMICS
-
-/* Host triple we were built on */
-#undef LLVM_HOSTTRIPLE
 
 /* Installation directory for include files */
 #undef LLVM_INCLUDEDIR
@@ -575,6 +566,9 @@
 
 /* LLVM name for the native AsmPrinter init function, if available */
 #undef LLVM_NATIVE_ASMPRINTER
+
+/* LLVM name for the native Disassembler init function, if available */
+#undef LLVM_NATIVE_DISASSEMBLER
 
 /* LLVM name for the native Target init function, if available */
 #undef LLVM_NATIVE_TARGET
@@ -620,6 +614,18 @@
 
 /* Installation prefix directory */
 #undef LLVM_PREFIX
+
+/* Define if we have the Intel JIT API runtime support library */
+#undef LLVM_USE_INTEL_JITEVENTS
+
+/* Define if we have the oprofile JIT-support library */
+#undef LLVM_USE_OPROFILE
+
+/* Major version of the LLVM API */
+#undef LLVM_VERSION_MAJOR
+
+/* Minor version of the LLVM API */
+#undef LLVM_VERSION_MINOR
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #undef LTDL_DLOPEN_DEPLIBS
@@ -674,9 +680,6 @@
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
-
-/* Define if we have the oprofile JIT-support library */
-#undef USE_OPROFILE
 
 /* Define if use udis86 library */
 #undef USE_UDIS86

@@ -32,7 +32,7 @@ DSTROOT = $(OBJROOT)/../dst
 
 #######################################################################
 
-PREFIX = /Developer/usr/local
+PREFIX = /usr/local
 
 # Unless assertions are forced on in the GMAKE command line, disable them.
 ifndef ENABLE_ASSERTIONS
@@ -45,9 +45,6 @@ LLVM_OPTIMIZED := no
 else
 LLVM_OPTIMIZED := yes
 endif
-
-# Default to not install libLTO.dylib.
-INSTALL_LIBLTO := no
 
 # Default to do a native build, not a cross-build for an ARM host or simulator.
 ARM_HOSTED_BUILD := no
@@ -66,7 +63,7 @@ install: $(OBJROOT) $(SYMROOT) $(DSTROOT)
 	cd $(OBJROOT) && \
 	  $(SRC)/utils/buildit/build_llvm "$(RC_ARCHS)" "$(TARGETS)" \
 	    $(SRC) $(PREFIX) $(DSTROOT) $(SYMROOT) \
-	    $(ENABLE_ASSERTIONS) $(LLVM_OPTIMIZED) $(INSTALL_LIBLTO) \
+	    $(ENABLE_ASSERTIONS) $(LLVM_OPTIMIZED) \
 	    $(ARM_HOSTED_BUILD) $(IOS_SIM_BUILD) \
 	    $(RC_ProjectSourceVersion) $(RC_ProjectSourceSubversion) 
 
@@ -82,7 +79,7 @@ EmbeddedSim:
 
 Embedded:
 	ARM_PLATFORM=`xcodebuild -version -sdk iphoneos PlatformPath` && \
-	$(MAKE) DSTROOT=$(DSTROOT)$$ARM_PLATFORM install
+	$(MAKE) DSTROOT=$(DSTROOT)$$ARM_PLATFORM/Developer install
 
 # installhdrs does nothing, because the headers aren't useful until
 # the compiler is installed.

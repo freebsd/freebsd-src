@@ -57,8 +57,8 @@ entry:
 
 declare i32 @bar(...)
 
+%struct.MV = type { i16, i16 }
 
-	%struct.MV = type { i16, i16 }
 
 define void @test2() nounwind  {
 entry:
@@ -220,3 +220,31 @@ entry:
 ; CHECK: call void @llvm.memset.p0i8.i64(i8* %2, i8 0, i64 24, i32 1, i1 false)
 }
 
+; More aggressive heuristic
+; rdar://9892684
+define void @test7(i32* nocapture %c) nounwind optsize {
+  store i32 -1, i32* %c, align 4
+  %1 = getelementptr inbounds i32* %c, i32 1
+  store i32 -1, i32* %1, align 4
+  %2 = getelementptr inbounds i32* %c, i32 2
+  store i32 -1, i32* %2, align 4
+  %3 = getelementptr inbounds i32* %c, i32 3
+  store i32 -1, i32* %3, align 4
+  %4 = getelementptr inbounds i32* %c, i32 4
+  store i32 -1, i32* %4, align 4
+; CHECK: @test7
+; CHECK: call void @llvm.memset.p0i8.i64(i8* %5, i8 -1, i64 20, i32 4, i1 false)
+  ret void
+}
+
+%struct.test8 = type { [4 x i32] }
+
+define void @test8() {
+entry:
+  %memtmp = alloca %struct.test8, align 16
+  %0 = bitcast %struct.test8* %memtmp to <4 x i32>*
+  store <4 x i32> <i32 -1, i32 -1, i32 -1, i32 -1>, <4 x i32>* %0, align 16
+  ret void
+; CHECK: @test8
+; CHECK: store <4 x i32> <i32 -1, i32 -1, i32 -1, i32 -1>, <4 x i32>* %0, align 16
+}

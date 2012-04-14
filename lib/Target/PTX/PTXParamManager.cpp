@@ -1,4 +1,4 @@
-//===- PTXParamManager.cpp - Manager for .param variables -------*- C++ -*-===//
+//===-- PTXParamManager.cpp - Manager for .param variables ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "PTX.h"
 #include "PTXParamManager.h"
+#include "PTX.h"
 #include "llvm/ADT/StringExtras.h"
 
 using namespace llvm;

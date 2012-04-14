@@ -923,15 +923,21 @@ The insertps's of $0 are pointless complex copies.
 
 //===---------------------------------------------------------------------===//
 
-If SSE4.1 is available we should inline rounding functions instead of emitting
-a libcall.
+[UNSAFE FP]
 
-floor: roundsd $0x01, %xmm, %xmm
-ceil:  roundsd $0x02, %xmm, %xmm
+void foo(double, double, double);
+void norm(double x, double y, double z) {
+  double scale = __builtin_sqrt(x*x + y*y + z*z);
+  foo(x/scale, y/scale, z/scale);
+}
 
-and likewise for the single precision versions.
+We currently generate an sqrtsd and 3 divsd instructions. This is bad, fp div is
+slow and not pipelined. In -ffast-math mode we could compute "1.0/scale" first
+and emit 3 mulsd in place of the divs. This can be done as a target-independent
+transform.
 
-Currently, SelectionDAGBuilder doesn't turn calls to these functions into the
-corresponding nodes and some targets (including X86) aren't ready for them.
+If we're dealing with floats instead of doubles we could even replace the sqrtss
+and inversion with an rsqrtss instruction, which computes 1/sqrt faster at the
+cost of reduced accuracy.
 
 //===---------------------------------------------------------------------===//

@@ -13,7 +13,7 @@
 #===------------------------------------------------------------------------===#
 
 # Define LLVM specific info and directories based on the autoconf variables
-LLVMPackageName   := @PACKAGE_NAME@
+LLVMPackageName   := @PACKAGE_TARNAME@
 LLVMVersion       := @PACKAGE_VERSION@
 LLVM_CONFIGTIME   := @LLVM_CONFIGTIME@
 
@@ -46,11 +46,19 @@ realpath = $(shell cd $(1); $(PWD))
 PROJ_OBJ_DIR  := $(call realpath, .)
 PROJ_OBJ_ROOT := $(call realpath, $(PROJ_OBJ_DIR)/$(LEVEL))
 
-ifeq ($(PROJECT_NAME),llvm)
+CLANG_SRC_ROOT  := @CLANG_SRC_ROOT@
+
+ifeq ($(PROJECT_NAME),$(LLVMPackageName))
 LLVM_SRC_ROOT   := $(call realpath, @abs_top_srcdir@)
 LLVM_OBJ_ROOT   := $(call realpath, @abs_top_builddir@)
 PROJ_SRC_ROOT   := $(LLVM_SRC_ROOT)
-PROJ_SRC_DIR    := $(call realpath, $(LLVM_SRC_ROOT)/$(patsubst $(PROJ_OBJ_ROOT)%,%,$(PROJ_OBJ_DIR)))
+PROJ_SRC_DIR    := $(LLVM_SRC_ROOT)$(patsubst $(PROJ_OBJ_ROOT)%,%,$(PROJ_OBJ_DIR))
+
+ifneq ($(CLANG_SRC_ROOT),)
+  CLANG_SRC_ROOT:= $(call realpath, $(CLANG_SRC_ROOT))
+  PROJ_SRC_DIR  := $(patsubst $(LLVM_SRC_ROOT)/tools/clang%,$(CLANG_SRC_ROOT)%,$(PROJ_SRC_DIR))
+endif
+
 prefix          := @prefix@
 PROJ_prefix     := $(prefix)
 PROJ_VERSION    := $(LLVMVersion)
@@ -78,7 +86,12 @@ PROJ_VERSION := 1.0
 endif
 endif
 
-LLVMMAKE := $(LLVM_SRC_ROOT)/make
+INTERNAL_PREFIX := @INTERNAL_PREFIX@
+ifneq ($(INTERNAL_PREFIX),)
+PROJ_internal_prefix := $(INTERNAL_PREFIX)
+else
+PROJ_internal_prefix := $(prefix)
+endif
 
 PROJ_bindir     := $(PROJ_prefix)/bin
 PROJ_libdir     := $(PROJ_prefix)/lib
@@ -101,6 +114,7 @@ TARGET_OS=@TARGET_OS@
 
 # Target hardware architecture
 ARCH=@ARCH@
+TARGET_NATIVE_ARCH := $(ARCH)
 
 # Indicates, whether we're cross-compiling LLVM or not
 LLVM_CROSS_COMPILING=@LLVM_CROSS_COMPILING@
@@ -161,7 +175,6 @@ SED        := @SED@
 TAR        := @TAR@
 
 # Paths to miscellaneous programs we hope are present but might not be
-PERL       := @PERL@
 BZIP2      := @BZIP2@
 CAT        := @CAT@
 DOT        := @DOT@
@@ -180,7 +193,6 @@ RUNTEST    := @RUNTEST@
 TCLSH      := @TCLSH@
 ZIP        := @ZIP@
 
-HAVE_PERL    := @HAVE_PERL@
 HAVE_PTHREAD := @HAVE_PTHREAD@
 
 LIBS       := @LIBS@
@@ -201,6 +213,10 @@ RDYNAMIC := @RDYNAMIC@
 
 # These are options that can either be enabled here, or can be enabled on the
 # make command line (ie, make ENABLE_PROFILING=1):
+
+# When ENABLE_LIBCPP is enabled, LLVM uses libc++ by default to build.
+#ENABLE_LIBCPP = 0
+ENABLE_LIBCPP = @ENABLE_LIBCPP@
 
 # When ENABLE_OPTIMIZED is enabled, LLVM code is optimized and output is put
 # into the "Release" directories. Otherwise, LLVM code is not optimized and
@@ -319,9 +335,19 @@ BINUTILS_INCDIR := @BINUTILS_INCDIR@
 NO_MISSING_FIELD_INITIALIZERS = @NO_MISSING_FIELD_INITIALIZERS@
 # -Wno-variadic-macros
 NO_VARIADIC_MACROS = @NO_VARIADIC_MACROS@
+# -Wcovered-switch-default
+COVERED_SWITCH_DEFAULT = @COVERED_SWITCH_DEFAULT@
 
 # Was polly found in tools/polly?
 LLVM_HAS_POLLY = @LLVM_HAS_POLLY@
 # Flags supported by the linker.
 # bfd ld / gold --version-script=file
 HAVE_LINK_VERSION_SCRIPT = @HAVE_LINK_VERSION_SCRIPT@
+
+# Flags to control building support for Intel JIT Events API
+USE_INTEL_JITEVENTS := @USE_INTEL_JITEVENTS@
+INTEL_JITEVENTS_INCDIR := @INTEL_JITEVENTS_INCDIR@
+INTEL_JITEVENTS_LIBDIR := @INTEL_JITEVENTS_LIBDIR@
+
+# Flags to control building support for OProfile JIT API
+USE_OPROFILE := @USE_OPROFILE@

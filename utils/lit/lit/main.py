@@ -429,6 +429,10 @@ def main(builtinParameters = {}):    # Bump the GIL check interval, its more imp
     group.add_option("", "--shuffle", dest="shuffle",
                      help="Run tests in random order",
                      action="store_true", default=False)
+    group.add_option("", "--filter", dest="filter", metavar="EXPRESSION",
+                     help=("Only run tests with paths matching the given "
+                           "regular expression"),
+                     action="store", default=None)
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Debug and Experimental Options")
@@ -452,9 +456,10 @@ def main(builtinParameters = {}):    # Bump the GIL check interval, its more imp
         parser.error('No inputs specified')
 
     if opts.configPrefix is not None:
-        global gConfigName, gSiteConfigName
+        global gConfigName, gSiteConfigName, kLocalConfigName
         gConfigName = '%s.cfg' % opts.configPrefix
         gSiteConfigName = '%s.site.cfg' % opts.configPrefix
+        kLocalConfigName = '%s.local.cfg' % opts.configPrefix
 
     if opts.numThreads is None:
 # Python <2.5 has a race condition causing lit to always fail with numThreads>1
@@ -540,10 +545,24 @@ def main(builtinParameters = {}):    # Bump the GIL check interval, its more imp
 
     # Select and order the tests.
     numTotalTests = len(tests)
+
+    # First, select based on the filter expression if given.
+    if opts.filter:
+        try:
+            rex = re.compile(opts.filter)
+        except:
+            parser.error("invalid regular expression for --filter: %r" % (
+                    opts.filter))
+        tests = [t for t in tests
+                 if rex.search(t.getFullName())]
+
+    # Then select the order.
     if opts.shuffle:
         random.shuffle(tests)
     else:
         tests.sort(key = lambda t: t.getFullName())
+
+    # Finally limit the number of tests, if desired.
     if opts.maxTests is not None:
         tests = tests[:opts.maxTests]
 

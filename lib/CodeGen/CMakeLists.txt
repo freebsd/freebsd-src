@@ -9,10 +9,9 @@ add_llvm_library(LLVMCodeGen
   CodePlacementOpt.cpp
   CriticalAntiDepBreaker.cpp
   DeadMachineInstructionElim.cpp
+  DFAPacketizer.cpp
   DwarfEHPrepare.cpp
   EdgeBundles.cpp
-  ELFCodeEmitter.cpp
-  ELFWriter.cpp
   ExecutionDepsFix.cpp
   ExpandISelPseudos.cpp
   ExpandPostRAPseudos.cpp
@@ -23,6 +22,7 @@ add_llvm_library(LLVMCodeGen
   InlineSpiller.cpp
   InterferenceCache.cpp
   IntrinsicLowering.cpp
+  JITCodeEmitter.cpp
   LLVMTargetMachine.cpp
   LatencyPriorityQueue.cpp
   LexicalScopes.cpp
@@ -37,7 +37,10 @@ add_llvm_library(LLVMCodeGen
   LocalStackSlotAllocation.cpp
   MachineBasicBlock.cpp
   MachineBlockFrequencyInfo.cpp
+  MachineBlockPlacement.cpp
   MachineBranchProbabilityInfo.cpp
+  MachineCodeEmitter.cpp
+  MachineCopyPropagation.cpp
   MachineCSE.cpp
   MachineDominators.cpp
   MachineFunction.cpp
@@ -45,6 +48,7 @@ add_llvm_library(LLVMCodeGen
   MachineFunctionPass.cpp
   MachineFunctionPrinterPass.cpp
   MachineInstr.cpp
+  MachineInstrBundle.cpp
   MachineLICM.cpp
   MachineLoopInfo.cpp
   MachineLoopRanges.cpp
@@ -53,9 +57,9 @@ add_llvm_library(LLVMCodeGen
   MachinePassRegistry.cpp
   MachineRegisterInfo.cpp
   MachineSSAUpdater.cpp
+  MachineScheduler.cpp
   MachineSink.cpp
   MachineVerifier.cpp
-  ObjectCodeEmitter.cpp
   OcamlGC.cpp
   OptimizePHIs.cpp
   PHIElimination.cpp
@@ -66,17 +70,16 @@ add_llvm_library(LLVMCodeGen
   ProcessImplicitDefs.cpp
   PrologEpilogInserter.cpp
   PseudoSourceValue.cpp
+  RegAllocBase.cpp
   RegAllocBasic.cpp
   RegAllocFast.cpp
   RegAllocGreedy.cpp
-  RegAllocLinearScan.cpp
   RegAllocPBQP.cpp
   RegisterClassInfo.cpp
   RegisterCoalescer.cpp
   RegisterScavenging.cpp
   RenderMachineFunction.cpp
   ScheduleDAG.cpp
-  ScheduleDAGEmit.cpp
   ScheduleDAGInstrs.cpp
   ScheduleDAGPrinter.cpp
   ScoreboardHazardRecognizer.cpp
@@ -87,27 +90,17 @@ add_llvm_library(LLVMCodeGen
   Spiller.cpp
   SpillPlacement.cpp
   SplitKit.cpp
-  Splitter.cpp
   StackProtector.cpp
   StackSlotColoring.cpp
   StrongPHIElimination.cpp
   TailDuplication.cpp
+  TargetFrameLoweringImpl.cpp
   TargetInstrInfoImpl.cpp
   TargetLoweringObjectFileImpl.cpp
+  TargetOptionsImpl.cpp
   TwoAddressInstructionPass.cpp
   UnreachableBlockElim.cpp
   VirtRegMap.cpp
-  VirtRegRewriter.cpp
-  )
-
-add_llvm_library_dependencies(LLVMCodeGen
-  LLVMAnalysis
-  LLVMCore
-  LLVMMC
-  LLVMScalarOpts
-  LLVMSupport
-  LLVMTarget
-  LLVMTransformUtils
   )
 
 add_subdirectory(SelectionDAG)

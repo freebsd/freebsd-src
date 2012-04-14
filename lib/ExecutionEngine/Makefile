@@ -8,6 +8,17 @@
 ##===----------------------------------------------------------------------===##
 LEVEL = ../..
 LIBRARYNAME = LLVMExecutionEngine
+
+include $(LEVEL)/Makefile.config
+
 PARALLEL_DIRS = Interpreter JIT MCJIT RuntimeDyld
 
-include $(LEVEL)/Makefile.common
+ifeq ($(USE_INTEL_JITEVENTS), 1)
+PARALLEL_DIRS += IntelJITEvents
+endif
+
+ifeq ($(USE_OPROFILE), 1)
+PARALLEL_DIRS += OProfileJIT
+endif
+
+include $(LLVM_SRC_ROOT)/Makefile.rules

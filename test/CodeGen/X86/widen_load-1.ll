@@ -1,5 +1,6 @@
 ; RUN: llc %s -o - -march=x86-64 -mtriple=x86_64-unknown-linux-gnu | FileCheck %s
 ; PR4891
+; PR5626
 
 ; This load should be before the call, not after.
 

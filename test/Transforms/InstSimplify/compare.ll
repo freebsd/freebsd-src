@@ -10,6 +10,161 @@ define i1 @ptrtoint() {
 ; CHECK: ret i1 false
 }
 
+define i1 @bitcast() {
+; CHECK: @bitcast
+  %a = alloca i32
+  %b = alloca i64
+  %x = bitcast i32* %a to i8*
+  %y = bitcast i64* %b to i8*
+  %cmp = icmp eq i8* %x, %y
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep() {
+; CHECK: @gep
+  %a = alloca [3 x i8], align 8
+  %x = getelementptr inbounds [3 x i8]* %a, i32 0, i32 0
+  %cmp = icmp eq i8* %x, null
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep2() {
+; CHECK: @gep2
+  %a = alloca [3 x i8], align 8
+  %x = getelementptr inbounds [3 x i8]* %a, i32 0, i32 0
+  %y = getelementptr inbounds [3 x i8]* %a, i32 0, i32 0
+  %cmp = icmp eq i8* %x, %y
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 true
+}
+
+; PR11238
+%gept = type { i32, i32 }
+@gepy = global %gept zeroinitializer, align 8
+@gepz = extern_weak global %gept
+
+define i1 @gep3() {
+; CHECK: @gep3
+  %x = alloca %gept, align 8
+  %a = getelementptr %gept* %x, i64 0, i32 0
+  %b = getelementptr %gept* %x, i64 0, i32 1
+  %equal = icmp eq i32* %a, %b
+  ret i1 %equal
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep4() {
+; CHECK: @gep4
+  %x = alloca %gept, align 8
+  %a = getelementptr %gept* @gepy, i64 0, i32 0
+  %b = getelementptr %gept* @gepy, i64 0, i32 1
+  %equal = icmp eq i32* %a, %b
+  ret i1 %equal
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep5() {
+; CHECK: @gep5
+  %x = alloca %gept, align 8
+  %a = getelementptr inbounds %gept* %x, i64 0, i32 1
+  %b = getelementptr %gept* @gepy, i64 0, i32 0
+  %equal = icmp eq i32* %a, %b
+  ret i1 %equal
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep6(%gept* %x) {
+; Same as @gep3 but potentially null.
+; CHECK: @gep6
+  %a = getelementptr %gept* %x, i64 0, i32 0
+  %b = getelementptr %gept* %x, i64 0, i32 1
+  %equal = icmp eq i32* %a, %b
+  ret i1 %equal
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep7(%gept* %x) {
+; CHECK: @gep7
+  %a = getelementptr %gept* %x, i64 0, i32 0
+  %b = getelementptr %gept* @gepz, i64 0, i32 0
+  %equal = icmp eq i32* %a, %b
+  ret i1 %equal
+; CHECK: ret i1 %equal
+}
+
+define i1 @gep8(%gept* %x) {
+; CHECK: @gep8
+  %a = getelementptr %gept* %x, i32 1
+  %b = getelementptr %gept* %x, i32 -1
+  %equal = icmp ugt %gept* %a, %b
+  ret i1 %equal
+; CHECK: ret i1 %equal
+}
+
+define i1 @gep9(i8* %ptr) {
+; CHECK: @gep9
+; CHECK-NOT: ret
+; CHECK: ret i1 true
+
+entry:
+  %first1 = getelementptr inbounds i8* %ptr, i32 0
+  %first2 = getelementptr inbounds i8* %first1, i32 1
+  %first3 = getelementptr inbounds i8* %first2, i32 2
+  %first4 = getelementptr inbounds i8* %first3, i32 4
+  %last1 = getelementptr inbounds i8* %first2, i32 48
+  %last2 = getelementptr inbounds i8* %last1, i32 8
+  %last3 = getelementptr inbounds i8* %last2, i32 -4
+  %last4 = getelementptr inbounds i8* %last3, i32 -4
+  %first.int = ptrtoint i8* %first4 to i32
+  %last.int = ptrtoint i8* %last4 to i32
+  %cmp = icmp ne i32 %last.int, %first.int
+  ret i1 %cmp
+}
+
+define i1 @gep10(i8* %ptr) {
+; CHECK: @gep10
+; CHECK-NOT: ret
+; CHECK: ret i1 true
+
+entry:
+  %first1 = getelementptr inbounds i8* %ptr, i32 -2
+  %first2 = getelementptr inbounds i8* %first1, i32 44
+  %last1 = getelementptr inbounds i8* %ptr, i32 48
+  %last2 = getelementptr inbounds i8* %last1, i32 -6
+  %first.int = ptrtoint i8* %first2 to i32
+  %last.int = ptrtoint i8* %last2 to i32
+  %cmp = icmp eq i32 %last.int, %first.int
+  ret i1 %cmp
+}
+
+define i1 @gep11(i8* %ptr) {
+; CHECK: @gep11
+; CHECK-NOT: ret
+; CHECK: ret i1 true
+
+entry:
+  %first1 = getelementptr inbounds i8* %ptr, i32 -2
+  %last1 = getelementptr inbounds i8* %ptr, i32 48
+  %last2 = getelementptr inbounds i8* %last1, i32 -6
+  %cmp = icmp ult i8* %first1, %last2
+  ret i1 %cmp
+}
+
+define i1 @gep12(i8* %ptr) {
+; CHECK: @gep12
+; CHECK-NOT: ret
+; CHECK: ret i1 %cmp
+
+entry:
+  %first1 = getelementptr inbounds i8* %ptr, i32 -2
+  %last1 = getelementptr inbounds i8* %ptr, i32 48
+  %last2 = getelementptr inbounds i8* %last1, i32 -6
+  %cmp = icmp slt i8* %first1, %last2
+  ret i1 %cmp
+}
+
 define i1 @zext(i32 %x) {
 ; CHECK: @zext
   %e1 = zext i32 %x to i64
@@ -204,6 +359,24 @@ define i1 @select4(i1 %cond) {
 ; CHECK: ret i1 %cond
 }
 
+define i1 @select5(i32 %x) {
+; CHECK: @select5
+  %c = icmp eq i32 %x, 0
+  %s = select i1 %c, i32 1, i32 %x
+  %c2 = icmp eq i32 %s, 0
+  ret i1 %c2
+; CHECK: ret i1 false
+}
+
+define i1 @select6(i32 %x) {
+; CHECK: @select6
+  %c = icmp sgt i32 %x, 0
+  %s = select i1 %c, i32 %x, i32 4
+  %c2 = icmp eq i32 %s, 0
+  ret i1 %c2
+; CHECK: ret i1 %c2
+}
+
 define i1 @urem1(i32 %X, i32 %Y) {
 ; CHECK: @urem1
   %A = urem i32 %X, %Y
@@ -300,6 +473,40 @@ define i1 @udiv2(i32 %X, i32 %Y, i32 %Z) {
 ; CHECK: ret i1 true
 }
 
+define i1 @udiv3(i32 %X, i32 %Y) {
+; CHECK: @udiv3
+  %A = udiv i32 %X, %Y
+  %C = icmp ugt i32 %A, %X
+  ret i1 %C
+; CHECK: ret i1 false
+}
+
+define i1 @udiv4(i32 %X, i32 %Y) {
+; CHECK: @udiv4
+  %A = udiv i32 %X, %Y
+  %C = icmp ule i32 %A, %X
+  ret i1 %C
+; CHECK: ret i1 true
+}
+
+define i1 @udiv5(i32 %X) {
+; CHECK: @udiv5
+  %A = udiv i32 123, %X
+  %C = icmp ugt i32 %A, 124
+  ret i1 %C
+; CHECK: ret i1 false
+}
+
+; PR11340
+define i1 @udiv6(i32 %X) nounwind {
+; CHECK: @udiv6
+  %A = udiv i32 1, %X
+  %C = icmp eq i32 %A, 0
+  ret i1 %C
+; CHECK: ret i1 %C
+}
+
+
 define i1 @sdiv1(i32 %X) {
 ; CHECK: @sdiv1
   %A = sdiv i32 %X, 1000000
@@ -322,4 +529,72 @@ define i1 @and1(i32 %X) {
   %B = icmp ugt i32 %A, 70
   ret i1 %B
 ; CHECK: ret i1 false
+}
+
+define i1 @mul1(i32 %X) {
+; CHECK: @mul1
+; Square of a non-zero number is non-zero if there is no overflow.
+  %Y = or i32 %X, 1
+  %M = mul nuw i32 %Y, %Y
+  %C = icmp eq i32 %M, 0
+  ret i1 %C
+; CHECK: ret i1 false
+}
+
+define i1 @mul2(i32 %X) {
+; CHECK: @mul2
+; Square of a non-zero number is positive if there is no signed overflow.
+  %Y = or i32 %X, 1
+  %M = mul nsw i32 %Y, %Y
+  %C = icmp sgt i32 %M, 0
+  ret i1 %C
+; CHECK: ret i1 true
+}
+
+define i1 @mul3(i32 %X, i32 %Y) {
+; CHECK: @mul3
+; Product of non-negative numbers is non-negative if there is no signed overflow.
+  %XX = mul nsw i32 %X, %X
+  %YY = mul nsw i32 %Y, %Y
+  %M = mul nsw i32 %XX, %YY
+  %C = icmp sge i32 %M, 0
+  ret i1 %C
+; CHECK: ret i1 true
+}
+
+define <2 x i1> @vectorselect1(<2 x i1> %cond) {
+; CHECK: @vectorselect1
+  %invert = xor <2 x i1> %cond, <i1 1, i1 1>
+  %s = select <2 x i1> %invert, <2 x i32> <i32 0, i32 0>, <2 x i32> <i32 1, i32 1>
+  %c = icmp ne <2 x i32> %s, <i32 0, i32 0>
+  ret <2 x i1> %c
+; CHECK: ret <2 x i1> %cond
+}
+
+; PR11948
+define <2 x i1> @vectorselectcrash(i32 %arg1) {
+  %tobool40 = icmp ne i32 %arg1, 0
+  %cond43 = select i1 %tobool40, <2 x i16> <i16 -5, i16 66>, <2 x i16> <i16 46, i16 1>
+  %cmp45 = icmp ugt <2 x i16> %cond43, <i16 73, i16 21>
+  ret <2 x i1> %cmp45
+}
+
+; PR12013
+define i1 @alloca_compare(i64 %idx) {
+  %sv = alloca { i32, i32, [124 x i32] }
+  %1 = getelementptr inbounds { i32, i32, [124 x i32] }* %sv, i32 0, i32 2, i64 %idx
+  %2 = icmp eq i32* %1, null
+  ret i1 %2
+  ; CHECK: alloca_compare
+  ; CHECK: ret i1 false
+}
+
+; PR12075
+define i1 @infinite_gep() {
+  ret i1 1
+
+unreachableblock:
+  %X = getelementptr i32 *%X, i32 1
+  %Y = icmp eq i32* %X, null
+  ret i1 %Y
 }

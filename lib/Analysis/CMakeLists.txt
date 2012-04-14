@@ -10,6 +10,7 @@ add_llvm_library(LLVMAnalysis
   BranchProbabilityInfo.cpp
   CFGPrinter.cpp
   CaptureTracking.cpp
+  CodeMetrics.cpp
   ConstantFolding.cpp
   DIBuilder.cpp
   DbgInfoPrinter.cpp
@@ -56,12 +57,6 @@ add_llvm_library(LLVMAnalysis
   Trace.cpp
   TypeBasedAliasAnalysis.cpp
   ValueTracking.cpp
-  )
-
-add_llvm_library_dependencies(LLVMAnalysis
-  LLVMCore
-  LLVMSupport
-  LLVMTarget
   )
 
 add_subdirectory(IPA)

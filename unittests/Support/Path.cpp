@@ -183,6 +183,11 @@ TEST_F(FileSystemTest, TempFiles) {
   ASSERT_NO_ERROR(fs::unique_file("%%-%%-%%-%%.temp", FD2, TempPath2));
   ASSERT_NE(TempPath.str(), TempPath2.str());
 
+  fs::file_status A, B;
+  ASSERT_NO_ERROR(fs::status(Twine(TempPath), A));
+  ASSERT_NO_ERROR(fs::status(Twine(TempPath2), B));
+  EXPECT_FALSE(fs::equivalent(A, B));
+
   // Try to copy the first to the second.
   EXPECT_EQ(
     fs::copy_file(Twine(TempPath), Twine(TempPath2)), errc::file_exists);
@@ -204,6 +209,9 @@ TEST_F(FileSystemTest, TempFiles) {
   bool equal;
   ASSERT_NO_ERROR(fs::equivalent(Twine(TempPath), Twine(TempPath2), equal));
   EXPECT_TRUE(equal);
+  ASSERT_NO_ERROR(fs::status(Twine(TempPath), A));
+  ASSERT_NO_ERROR(fs::status(Twine(TempPath2), B));
+  EXPECT_TRUE(fs::equivalent(A, B));
 
   // Remove Temp1.
   ::close(FileDescriptor);
@@ -223,6 +231,60 @@ TEST_F(FileSystemTest, DirectoryIteration) {
   error_code ec;
   for (fs::directory_iterator i(".", ec), e; i != e; i.increment(ec))
     ASSERT_NO_ERROR(ec);
+
+  // Create a known hierarchy to recurse over.
+  bool existed;
+  ASSERT_NO_ERROR(fs::create_directories(Twine(TestDirectory)
+                  + "/recursive/a0/aa1", existed));
+  ASSERT_NO_ERROR(fs::create_directories(Twine(TestDirectory)
+                  + "/recursive/a0/ab1", existed));
+  ASSERT_NO_ERROR(fs::create_directories(Twine(TestDirectory)
+                  + "/recursive/dontlookhere/da1", existed));
+  ASSERT_NO_ERROR(fs::create_directories(Twine(TestDirectory)
+                  + "/recursive/z0/za1", existed));
+  ASSERT_NO_ERROR(fs::create_directories(Twine(TestDirectory)
+                  + "/recursive/pop/p1", existed));
+  typedef std::vector<std::string> v_t;
+  v_t visited;
+  for (fs::recursive_directory_iterator i(Twine(TestDirectory)
+         + "/recursive", ec), e; i != e; i.increment(ec)){
+    ASSERT_NO_ERROR(ec);
+    if (path::filename(i->path()) == "p1") {
+      i.pop();
+      // FIXME: recursive_directory_iterator should be more robust.
+      if (i == e) break;
+    }
+    if (path::filename(i->path()) == "dontlookhere")
+      i.no_push();
+    visited.push_back(path::filename(i->path()));
+  }
+  v_t::const_iterator a0 = std::find(visited.begin(), visited.end(), "a0");
+  v_t::const_iterator aa1 = std::find(visited.begin(), visited.end(), "aa1");
+  v_t::const_iterator ab1 = std::find(visited.begin(), visited.end(), "ab1");
+  v_t::const_iterator dontlookhere = std::find(visited.begin(), visited.end(),
+                                               "dontlookhere");
+  v_t::const_iterator da1 = std::find(visited.begin(), visited.end(), "da1");
+  v_t::const_iterator z0 = std::find(visited.begin(), visited.end(), "z0");
+  v_t::const_iterator za1 = std::find(visited.begin(), visited.end(), "za1");
+  v_t::const_iterator pop = std::find(visited.begin(), visited.end(), "pop");
+  v_t::const_iterator p1 = std::find(visited.begin(), visited.end(), "p1");
+
+  // Make sure that each path was visited correctly.
+  ASSERT_NE(a0, visited.end());
+  ASSERT_NE(aa1, visited.end());
+  ASSERT_NE(ab1, visited.end());
+  ASSERT_NE(dontlookhere, visited.end());
+  ASSERT_EQ(da1, visited.end()); // Not visited.
+  ASSERT_NE(z0, visited.end());
+  ASSERT_NE(za1, visited.end());
+  ASSERT_NE(pop, visited.end());
+  ASSERT_EQ(p1, visited.end()); // Not visited.
+
+  // Make sure that parents were visited before children. No other ordering
+  // guarantees can be made across siblings.
+  ASSERT_LT(a0, aa1);
+  ASSERT_LT(a0, ab1);
+  ASSERT_LT(z0, za1);
 }
 
 TEST_F(FileSystemTest, Magic) {

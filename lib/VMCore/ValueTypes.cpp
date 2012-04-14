@@ -87,8 +87,7 @@ unsigned EVT::getExtendedSizeInBits() const {
     return ITy->getBitWidth();
   if (VectorType *VTy = dyn_cast<VectorType>(LLVMTy))
     return VTy->getBitWidth();
-  assert(false && "Unrecognized extended type!");
-  return 0; // Suppress warnings.
+  llvm_unreachable("Unrecognized extended type!");
 }
 
 /// getEVTString - This function returns value type as a string, e.g. "i32".
@@ -101,13 +100,13 @@ std::string EVT::getEVTString() const {
     if (isInteger())
       return "i" + utostr(getSizeInBits());
     llvm_unreachable("Invalid EVT!");
-    return "?";
   case MVT::i1:      return "i1";
   case MVT::i8:      return "i8";
   case MVT::i16:     return "i16";
   case MVT::i32:     return "i32";
   case MVT::i64:     return "i64";
   case MVT::i128:    return "i128";
+  case MVT::f16:     return "f16";
   case MVT::f32:     return "f32";
   case MVT::f64:     return "f64";
   case MVT::f80:     return "f80";
@@ -134,12 +133,13 @@ std::string EVT::getEVTString() const {
   case MVT::v4i64:   return "v4i64";
   case MVT::v8i64:   return "v8i64";
   case MVT::v2f32:   return "v2f32";
+  case MVT::v2f16:   return "v2f16";
   case MVT::v4f32:   return "v4f32";
   case MVT::v8f32:   return "v8f32";
   case MVT::v2f64:   return "v2f64";
   case MVT::v4f64:   return "v4f64";
   case MVT::Metadata:return "Metadata";
-  case MVT::untyped: return "untyped";
+  case MVT::Untyped: return "Untyped";
   }
 }
 
@@ -158,6 +158,7 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
   case MVT::i32:     return Type::getInt32Ty(Context);
   case MVT::i64:     return Type::getInt64Ty(Context);
   case MVT::i128:    return IntegerType::get(Context, 128);
+  case MVT::f16:     return Type::getHalfTy(Context);
   case MVT::f32:     return Type::getFloatTy(Context);
   case MVT::f64:     return Type::getDoubleTy(Context);
   case MVT::f80:     return Type::getX86_FP80Ty(Context);
@@ -180,6 +181,7 @@ Type *EVT::getTypeForEVT(LLVMContext &Context) const {
   case MVT::v2i64:   return VectorType::get(Type::getInt64Ty(Context), 2);
   case MVT::v4i64:   return VectorType::get(Type::getInt64Ty(Context), 4);
   case MVT::v8i64:   return VectorType::get(Type::getInt64Ty(Context), 8);
+  case MVT::v2f16:   return VectorType::get(Type::getHalfTy(Context), 2);
   case MVT::v2f32:   return VectorType::get(Type::getFloatTy(Context), 2);
   case MVT::v4f32:   return VectorType::get(Type::getFloatTy(Context), 4);
   case MVT::v8f32:   return VectorType::get(Type::getFloatTy(Context), 8);
@@ -197,11 +199,11 @@ EVT EVT::getEVT(Type *Ty, bool HandleUnknown){
   default:
     if (HandleUnknown) return MVT(MVT::Other);
     llvm_unreachable("Unknown type!");
-    return MVT::isVoid;
   case Type::VoidTyID:
     return MVT::isVoid;
   case Type::IntegerTyID:
     return getIntegerVT(Ty->getContext(), cast<IntegerType>(Ty)->getBitWidth());
+  case Type::HalfTyID:      return MVT(MVT::f16);
   case Type::FloatTyID:     return MVT(MVT::f32);
   case Type::DoubleTyID:    return MVT(MVT::f64);
   case Type::X86_FP80TyID:  return MVT(MVT::f80);

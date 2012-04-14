@@ -1,3 +1,7 @@
+# This CMake module is responsible for interpreting the user defined LLVM_
+# options and executing the appropriate CMake commands to realize the users'
+# selections.
+
 include(AddLLVMDefinitions)
 
 if( CMAKE_COMPILER_IS_GNUCXX )
@@ -19,13 +23,6 @@ else()
   # It might be "."
   set(RUNTIME_BUILD_MODE "${CMAKE_CFG_INTDIR}")
 endif()
-
-set(LIT_ARGS_DEFAULT "-sv")
-if (MSVC OR XCODE)
-  set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")
-endif()
-set(LLVM_LIT_ARGS "${LIT_ARGS_DEFAULT}"
-    CACHE STRING "Default options for lit")
 
 if( LLVM_ENABLE_ASSERTIONS )
   # MSVC doesn't like _DEBUG on release builds. See PR 4379.
@@ -52,9 +49,6 @@ if(WIN32)
   else(CYGWIN)
     set(LLVM_ON_WIN32 1)
     set(LLVM_ON_UNIX 0)
-
-    # This is effective only on Win32 hosts to use gnuwin32 tools.
-    set(LLVM_LIT_TOOLS_DIR "" CACHE PATH "Path to GnuWin32 tools")
   endif(CYGWIN)
   set(LTDL_SHLIB_EXT ".dll")
   set(EXEEXT ".exe")
@@ -82,7 +76,7 @@ if( LLVM_ENABLE_PIC )
     # Xcode has -mdynamic-no-pic on by default, which overrides -fPIC. I don't
     # know how to disable this, so just force ENABLE_PIC off for now.
     message(WARNING "-fPIC not supported with Xcode.")
-  elseif( WIN32 )
+  elseif( WIN32 OR CYGWIN)
     # On Windows all code is PIC. MinGW warns if -fPIC is used.
   else()
     include(CheckCXXCompilerFlag)
@@ -94,12 +88,20 @@ if( LLVM_ENABLE_PIC )
     else( SUPPORTS_FPIC_FLAG )
       message(WARNING "-fPIC not supported.")
     endif()
+
+    if( WIN32 OR CYGWIN)
+      # MinGW warns if -fvisibility-inlines-hidden is used.
+    else()
+      check_cxx_compiler_flag("-fvisibility-inlines-hidden" SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG)
+      if( SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG )
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility-inlines-hidden")
+      endif()
+     endif()
   endif()
 endif()
 
 if( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
   # TODO: support other platforms and toolchains.
-  option(LLVM_BUILD_32_BITS "Build 32 bits executables and libraries." OFF)
   if( LLVM_BUILD_32_BITS )
     message(STATUS "Building 32 bits executables and libraries.")
     add_llvm_definitions( -m32 )
@@ -133,6 +135,10 @@ endif()
 
 if( MSVC )
   include(ChooseMSVCCRT)
+
+  if( MSVC11 )
+    add_llvm_definitions(-D_VARIADIC_MAX=10)
+  endif()
 
   # Add definitions that make MSVC much less annoying.
   add_llvm_definitions(
@@ -180,6 +186,10 @@ elseif( LLVM_COMPILER_IS_GCC_COMPATIBLE )
     if (LLVM_ENABLE_PEDANTIC)
       add_llvm_definitions( -pedantic -Wno-long-long )
     endif (LLVM_ENABLE_PEDANTIC)
+    check_cxx_compiler_flag("-Werror -Wcovered-switch-default" SUPPORTS_COVERED_SWITCH_DEFAULT_FLAG)
+    if( SUPPORTS_COVERED_SWITCH_DEFAULT_FLAG )
+      add_llvm_definitions( -Wcovered-switch-default )
+    endif()
   endif (LLVM_ENABLE_WARNINGS)
   if (LLVM_ENABLE_WERROR)
     add_llvm_definitions( -Werror )
@@ -189,5 +199,3 @@ endif( MSVC )
 add_llvm_definitions( -D__STDC_CONSTANT_MACROS )
 add_llvm_definitions( -D__STDC_FORMAT_MACROS )
 add_llvm_definitions( -D__STDC_LIMIT_MACROS )
-
-option(LLVM_INCLUDE_TESTS "Generate build targets for the LLVM unit tests." ON)

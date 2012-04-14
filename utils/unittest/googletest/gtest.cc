@@ -2480,9 +2480,10 @@ static const char * TestPartResultTypeToString(TestPartResult::Type type) {
 #else
       return "Failure\n";
 #endif
-    default:
-      return "Unknown result type";
   }
+
+  // All cases return, so this is unreachable but GCC doesn't know it
+  abort();
 }
 
 // Prints a TestPartResult to a String.

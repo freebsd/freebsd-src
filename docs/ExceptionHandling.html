@@ -38,7 +38,6 @@
   	<li><a href="#llvm_eh_sjlj_longjmp"><tt>llvm.eh.sjlj.longjmp</tt></a></li>
   	<li><a href="#llvm_eh_sjlj_lsda"><tt>llvm.eh.sjlj.lsda</tt></a></li>
   	<li><a href="#llvm_eh_sjlj_callsite"><tt>llvm.eh.sjlj.callsite</tt></a></li>
-  	<li><a href="#llvm_eh_sjlj_dispatchsetup"><tt>llvm.eh.sjlj.dispatchsetup</tt></a></li>
   </ol></li>
   <li><a href="#asm">Asm Table Formats</a>
   <ol>
@@ -50,7 +49,7 @@
 </tr></table>
 
 <div class="doc_author">
-  <p>Written by <a href="mailto:jlaskey@mac.com">Jim Laskey</a></p>
+  <p>Written by the <a href="http://llvm.org/">LLVM Team</a></p>
 </div>
 
 
@@ -498,23 +497,6 @@
 
 </div>
 
-<!-- ======================================================================= -->
-<h4>
-  <a name="llvm_eh_sjlj_dispatchsetup">llvm.eh.sjlj.dispatchsetup</a>
-</h4>
-
-<div>
-
-<pre>
-  void @llvm.eh.sjlj.dispatchsetup(i32 %dispatch_value)
-</pre>
-
-<p>For SJLJ based exception handling, the <tt>llvm.eh.sjlj.dispatchsetup</tt>
-   intrinsic is used by targets to do any unwind edge setup they need. By
-   default, no action is taken.</p>
-
-</div>
-
 </div>
 
 <!-- ======================================================================= -->
@@ -573,9 +555,8 @@
   <a href="http://validator.w3.org/check/referer"><img
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
-  <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-09-27 22:16:57 +0200 (Tue, 27 Sep 2011) $
+  Last modified: $Date: 2012-03-27 13:25:16 +0200 (Tue, 27 Mar 2012) $
 </address>
 
 </body>

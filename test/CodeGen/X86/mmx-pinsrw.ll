@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86 -mattr=+mmx,+sse2 | grep pinsrw | count 1
+; RUN: llc < %s  -mtriple=x86_64-linux -mcpu=corei7 | grep pinsr
 ; PR2562
 
 external global i16		; <i16*>:0 [#uses=1]

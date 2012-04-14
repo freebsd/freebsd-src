@@ -145,7 +145,7 @@
       text. Generator's names are case-sensitive. Example:</p>
 
     <div class="doc_code">
-      <p><tt>cmake -G "Visual Studio 8 2005" path/to/llvm/source/root</tt></p>
+      <p><tt>cmake -G "Visual Studio 9 2008" path/to/llvm/source/root</tt></p>
     </div>
 
     <p>For a given development platform there can be more than one
@@ -250,7 +250,7 @@
   <dd>Semicolon-separated list of targets to build, or <i>all</i> for
     building all targets. Case-sensitive. For Visual C++ defaults
     to <i>X86</i>. On the other cases defaults to <i>all</i>. Example:
-    <i>-DLLVM_TARGETS_TO_BUILD="X86;PowerPC;Alpha"</i>.</dd>
+    <i>-DLLVM_TARGETS_TO_BUILD="X86;PowerPC"</i>.</dd>
 
   <dt><b>LLVM_BUILD_TOOLS</b>:BOOL</dt>
   <dd>Build LLVM tools. Defaults to ON. Targets for building each tool
@@ -352,6 +352,24 @@
     Function Interface library. If the library or its headers are
     installed on a custom location, you can set the variables
     FFI_INCLUDE_DIR and FFI_LIBRARY_DIR. Defaults to OFF.</dd>
+
+  <dt><b>LLVM_CLANG_SOURCE_DIR</b>:PATH</dt>
+  <dd>Path to Clang's source directory. Defaults to tools/clang.
+    Clang will not be built when it is empty or it does not point valid
+    path.</dd>
+
+  <dt><b>LLVM_USE_OPROFILE</b>:BOOL</dt>
+  <dd> Enable building OProfile JIT support. Defaults to OFF</dd>
+
+  <dt><b>LLVM_USE_INTEL_JITEVENTS</b>:BOOL</dt>
+  <dd> Enable building support for Intel JIT Events API. Defaults to OFF</dd>
+
+  <dt><b>LLVM_INTEL_JITEVENTS_DIR</b>:PATH</dt>
+  <dd> Path to installation of Intel(R) VTune(TM) Amplifier XE 2011,
+    used to locate the <tt>jitprofiling</tt> library. Default =
+    <tt>%VTUNE_AMPLIFIER_XE_2011_DIR%</tt> (Windows)
+    | <tt>/opt/intel/vtune_amplifier_xe_2011</tt> (Linux) </dd>
+
 </dl>
 
 </div>

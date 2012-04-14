@@ -55,25 +55,6 @@ return:		; preds = %bb8
 }
 
 declare void @foo(i1)
-
-; CHECK: @test2
-define void @test2(i1 %x, i1 %y) {
-  %z = or i1 %x, %y
-  br i1 %z, label %true, label %false
-true:
-; CHECK: true:
-  %z2 = or i1 %x, %y
-  call void @foo(i1 %z2)
-; CHECK: call void @foo(i1 true)
-  br label %true
-false:
-; CHECK: false:
-  %z3 = or i1 %x, %y
-  call void @foo(i1 %z3)
-; CHECK: call void @foo(i1 false)
-  br label %false
-}
-
 declare void @bar(i32)
 
 ; CHECK: @test3
@@ -129,4 +110,142 @@ case3:
   call void @bar(i32 %x)
 ; CHECK: call void @bar(i32 %x)
   ret void
+}
+
+; CHECK: @test5
+define i1 @test5(i32 %x, i32 %y) {
+  %cmp = icmp eq i32 %x, %y
+  br i1 %cmp, label %same, label %different
+
+same:
+  %cmp2 = icmp ne i32 %x, %y
+; CHECK: ret i1 false
+  ret i1 %cmp2
+
+different:
+  %cmp3 = icmp eq i32 %x, %y
+; CHECK: ret i1 false
+  ret i1 %cmp3
+}
+
+; CHECK: @test6
+define i1 @test6(i32 %x, i32 %y) {
+  %cmp2 = icmp ne i32 %x, %y
+  %cmp = icmp eq i32 %x, %y
+  %cmp3 = icmp eq i32 %x, %y
+  br i1 %cmp, label %same, label %different
+
+same:
+; CHECK: ret i1 false
+  ret i1 %cmp2
+
+different:
+; CHECK: ret i1 false
+  ret i1 %cmp3
+}
+
+; CHECK: @test7
+define i1 @test7(i32 %x, i32 %y) {
+  %cmp = icmp sgt i32 %x, %y
+  br i1 %cmp, label %same, label %different
+
+same:
+  %cmp2 = icmp sle i32 %x, %y
+; CHECK: ret i1 false
+  ret i1 %cmp2
+
+different:
+  %cmp3 = icmp sgt i32 %x, %y
+; CHECK: ret i1 false
+  ret i1 %cmp3
+}
+
+; CHECK: @test8
+define i1 @test8(i32 %x, i32 %y) {
+  %cmp2 = icmp sle i32 %x, %y
+  %cmp = icmp sgt i32 %x, %y
+  %cmp3 = icmp sgt i32 %x, %y
+  br i1 %cmp, label %same, label %different
+
+same:
+; CHECK: ret i1 false
+  ret i1 %cmp2
+
+different:
+; CHECK: ret i1 false
+  ret i1 %cmp3
+}
+
+; PR1768
+; CHECK: @test9
+define i32 @test9(i32 %i, i32 %j) {
+  %cmp = icmp eq i32 %i, %j
+  br i1 %cmp, label %cond_true, label %ret
+
+cond_true:
+  %diff = sub i32 %i, %j
+  ret i32 %diff
+; CHECK: ret i32 0
+
+ret:
+  ret i32 5
+; CHECK: ret i32 5
+}
+
+; PR1768
+; CHECK: @test10
+define i32 @test10(i32 %j, i32 %i) {
+  %cmp = icmp eq i32 %i, %j
+  br i1 %cmp, label %cond_true, label %ret
+
+cond_true:
+  %diff = sub i32 %i, %j
+  ret i32 %diff
+; CHECK: ret i32 0
+
+ret:
+  ret i32 5
+; CHECK: ret i32 5
+}
+
+declare i32 @yogibar()
+
+; CHECK: @test11
+define i32 @test11(i32 %x) {
+  %v0 = call i32 @yogibar()
+  %v1 = call i32 @yogibar()
+  %cmp = icmp eq i32 %v0, %v1
+  br i1 %cmp, label %cond_true, label %next
+
+cond_true:
+  ret i32 %v1
+; CHECK: ret i32 %v0
+
+next:
+  %cmp2 = icmp eq i32 %x, %v0
+  br i1 %cmp2, label %cond_true2, label %next2
+
+cond_true2:
+  ret i32 %v0
+; CHECK: ret i32 %x
+
+next2:
+  ret i32 0
+}
+
+; CHECK: @test12
+define i32 @test12(i32 %x) {
+  %cmp = icmp eq i32 %x, 0
+  br i1 %cmp, label %cond_true, label %cond_false
+
+cond_true:
+  br label %ret
+
+cond_false:
+  br label %ret
+
+ret:
+  %res = phi i32 [ %x, %cond_true ], [ %x, %cond_false ]
+; CHECK: %res = phi i32 [ 0, %cond_true ], [ %x, %cond_false ]
+  ret i32 %res
 }

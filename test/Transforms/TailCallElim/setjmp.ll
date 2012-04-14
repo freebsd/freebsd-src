@@ -15,7 +15,7 @@ bb:
   ret void
 }
 
-declare i32 @setjmp(i32*)
+declare i32 @setjmp(i32*) returns_twice
 
 ; CHECK: foo2
 ; CHECK-NOT: tail call void @bar()

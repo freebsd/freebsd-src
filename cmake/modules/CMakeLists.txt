@@ -4,9 +4,9 @@ set(LLVM_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 get_property(llvm_libs GLOBAL PROPERTY LLVM_LIBS)
 
 foreach(lib ${llvm_libs})
-  get_property(llvm_lib_deps GLOBAL PROPERTY LLVM_LIB_DEPS_${lib})
+  get_property(llvm_lib_deps GLOBAL PROPERTY LLVMBUILD_LIB_DEPS_${lib})
   set(all_llvm_lib_deps
-    "${all_llvm_lib_deps}\nset_property(GLOBAL PROPERTY LLVM_LIB_DEPS_${lib} ${llvm_lib_deps})")
+    "${all_llvm_lib_deps}\nset_property(GLOBAL PROPERTY LLVMBUILD_LIB_DEPS_${lib} ${llvm_lib_deps})")
 endforeach(lib)
 
 configure_file(
@@ -32,6 +32,6 @@ install(DIRECTORY .
   PATTERN LLVMConfig.cmake EXCLUDE
   PATTERN LLVMConfigVersion.cmake EXCLUDE
   PATTERN LLVM-Config.cmake EXCLUDE
-  PATTERN GetTargetTriple.cmake EXCLUDE
+  PATTERN GetHostTriple.cmake EXCLUDE
   PATTERN VersionFromVCS.cmake EXCLUDE
   PATTERN CheckAtomic.cmake EXCLUDE)
