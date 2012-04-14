@@ -263,17 +263,17 @@ nv_validate(struct nv *nv, size_t *extrap)
 		case NV_TYPE_UINT8:
 			if (vsize == 0)
 				vsize = 1;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT16:
 		case NV_TYPE_UINT16:
 			if (vsize == 0)
 				vsize = 2;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT32:
 		case NV_TYPE_UINT32:
 			if (vsize == 0)
 				vsize = 4;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT64:
 		case NV_TYPE_UINT64:
 			if (vsize == 0)
@@ -290,12 +290,12 @@ nv_validate(struct nv *nv, size_t *extrap)
 		case NV_TYPE_UINT16_ARRAY:
 			if (vsize == 0)
 				vsize = 2;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT32_ARRAY:
 		case NV_TYPE_UINT32_ARRAY:
 			if (vsize == 0)
 				vsize = 4;
-			/* FALLTHOUGH */
+			/* FALLTHROUGH */
 		case NV_TYPE_INT64_ARRAY:
 		case NV_TYPE_UINT64_ARRAY:
 			if (vsize == 0)
@@ -906,14 +906,14 @@ nv_swap(struct nvhdr *nvh, bool tohost)
 	case NV_TYPE_UINT16_ARRAY:
 		if (vsize == 0)
 			vsize = 2;
-		/* FALLTHOUGH */
+		/* FALLTHROUGH */
 	case NV_TYPE_INT32:
 	case NV_TYPE_UINT32:
 	case NV_TYPE_INT32_ARRAY:
 	case NV_TYPE_UINT32_ARRAY:
 		if (vsize == 0)
 			vsize = 4;
-		/* FALLTHOUGH */
+		/* FALLTHROUGH */
 	case NV_TYPE_INT64:
 	case NV_TYPE_UINT64:
 	case NV_TYPE_INT64_ARRAY:
