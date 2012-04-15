@@ -27,11 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/elf_common.h>
 #include <sys/endian.h>
+#include <sys/wait.h>
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -39,13 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <fetch.h>
 #include <gelf.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <fetch.h>
 
 #include "elf_tables.h"
 
@@ -54,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #define _DEFAULT_TMP "/tmp"
 
 static const char *
-elf_corres_to_string(struct _elf_corres* m, int e)
+elf_corres_to_string(struct _elf_corres *m, int e)
 {
 	int i;
 
@@ -85,13 +84,14 @@ pkg_get_myabi(char *dest, size_t sz)
 	abi = NULL;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
-		warnx("ELF library initialization failed: %s", elf_errmsg(-1));
-		return -1;
+		warnx("ELF library initialization failed: %s",
+		    elf_errmsg(-1));
+		return (-1);
 	}
 
 	if ((fd = open("/bin/sh", O_RDONLY)) < 0) {
 		warn("open()");
-		return -1;
+		return (-1);
 	}
 
 	if ((elf = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
@@ -143,22 +143,20 @@ pkg_get_myabi(char *dest, size_t sz)
 		osname[i] = (char)tolower(osname[i]);
 
 	snprintf(dest, sz, "%s:%d:%s:%s",
-	    osname,
-	    version / 100000,
-	    elf_corres_to_string(mach_corres, (int) elfhdr.e_machine),
+	    osname, version / 100000,
+	    elf_corres_to_string(mach_corres, (int)elfhdr.e_machine),
 	    elf_corres_to_string(wordsize_corres,
-	        (int)elfhdr.e_ident[EI_CLASS]));
+	    (int)elfhdr.e_ident[EI_CLASS]));
 
 	switch (elfhdr.e_machine) {
 		case EM_ARM:
 			snprintf(dest + strlen(dest), sz - strlen(dest),
-			    ":%s:%s:%s",
-			    elf_corres_to_string(endian_corres,
-			        (int) elfhdr.e_ident[EI_DATA]),
+			    ":%s:%s:%s", elf_corres_to_string(endian_corres,
+			    (int)elfhdr.e_ident[EI_DATA]),
 			    (elfhdr.e_flags & EF_ARM_NEW_ABI) > 0 ?
-			        "eabi" : "oabi",
+			    "eabi" : "oabi",
 			    (elfhdr.e_flags & EF_ARM_VFP_FLOAT) > 0 ?
-			        "softfp" : "vfp");
+			    "softfp" : "vfp");
 			break;
 		case EM_MIPS:
 			/*
@@ -184,10 +182,8 @@ pkg_get_myabi(char *dest, size_t sz)
 					break;
 			}
 			snprintf(dest + strlen(dest), sz - strlen(dest),
-			    ":%s:%s",
-			    elf_corres_to_string(endian_corres,
-			        (int) elfhdr.e_ident[EI_DATA]),
-			    abi);
+			    ":%s:%s", elf_corres_to_string(endian_corres,
+			    (int)elfhdr.e_ident[EI_DATA]), abi);
 			break;
 	}
 
@@ -229,9 +225,9 @@ extract_pkg_static(int fd, char *p, int sz)
 
 		if (strcmp(end, "/pkg-static") == 0) {
 			r = archive_read_extract(a, ae,
-			    ARCHIVE_EXTRACT_OWNER |ARCHIVE_EXTRACT_PERM|
-			    ARCHIVE_EXTRACT_TIME  |ARCHIVE_EXTRACT_ACL |
-			    ARCHIVE_EXTRACT_FFLAGS|ARCHIVE_EXTRACT_XATTR);
+			    ARCHIVE_EXTRACT_OWNER | ARCHIVE_EXTRACT_PERM |
+			    ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_ACL |
+			    ARCHIVE_EXTRACT_FFLAGS | ARCHIVE_EXTRACT_XATTR);
 			snprintf(p, sz, archive_entry_pathname(ae));
 			break;
 		}
@@ -244,7 +240,7 @@ extract_pkg_static(int fd, char *p, int sz)
 
 cleanup:
 	archive_read_finish(a);
-	return ret;
+	return (ret);
 
 }
 
@@ -258,8 +254,9 @@ install_pkg_static(char *path, char *pkgpath)
 		case -1:
 			return (-1);
 		case 0:
-			execl(path, "pkg-static", "add", pkgpath, (char *)NULL);
-			_exit(1); /* NOT REACHED */
+			execl(path, "pkg-static", "add", pkgpath,
+			    (char *)NULL);
+			_exit(1);
 		default:
 			break;
 	}
@@ -297,7 +294,7 @@ bootstrap_pkg(void)
 
 	if (pkg_get_myabi(abi, MAXPATHLEN) != 0) {
 		warnx("fail to determine my abi");
-		return -1;
+		return (-1);
 	}
 
 	if (getenv("PACKAGESITE") != NULL) {
@@ -314,7 +311,7 @@ bootstrap_pkg(void)
 
 	if ((fd = mkstemp(tmppkg)) == -1) {
 		warn("mkstemp()");
-		return -1;
+		return (-1);
 	}
 
 	while (remote == NULL) {
@@ -363,21 +360,21 @@ cleanup:
 	close(fd);
 	unlink(tmppkg);
 
-	return 0;
+	return (0);
 }
 
 int
-main(__unused int argc, char * argv[])
+main(__unused int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE"): _LOCALBASE);
+	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
 	if (access(pkgpath, X_OK) == -1)
 		bootstrap_pkg();
 
 	execv(pkgpath, argv);
 
-	return (EXIT_SUCCESS);
+	return (EXIT_FAILURE);
 }
