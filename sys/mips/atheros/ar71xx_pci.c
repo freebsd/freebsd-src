@@ -204,8 +204,12 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	/* register access is 32-bit aligned */
 	shift = (reg & 3) * 8;
-	if (shift)
-		mask = (1 << shift) - 1;
+
+	/* Create a mask based on the width, post-shift */
+	if (bytes == 2)
+		mask = 0xffff;
+	else if (bytes == 1)
+		mask = 0xff;
 	else
 		mask = 0xffffffff;
 
