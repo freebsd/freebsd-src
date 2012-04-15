@@ -83,7 +83,8 @@ sysctl_mem_reserved(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_reserved, CTLTYPE_LONG|CTLFLAG_RW,
-    &tmpfs_pages_reserved, 0, sysctl_mem_reserved, "L", "reserved memory");
+    &tmpfs_pages_reserved, 0, sysctl_mem_reserved, "L",
+    "Amount of available memory and swap below which tmpfs growth stops");
 
 size_t
 tmpfs_mem_avail(void)
