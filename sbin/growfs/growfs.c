@@ -130,7 +130,6 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	uint cylno;
 	int i, j, width;
 	char tmpbuf[100];
-#ifdef FSIRAND
 	static int randinit=0;
 
 	DBG_ENTER;
@@ -139,11 +138,6 @@ growfs(int fsi, int fso, unsigned int Nflag)
 		randinit = 1;
 		srandomdev();
 	}
-#else /* not FSIRAND */
-
-	DBG_ENTER;
-
-#endif /* FSIRAND */
 	time(&modtime);
 
 	/*
@@ -319,11 +313,9 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	static caddr_t iobuf;
 	long blkno, start;
 	ufs2_daddr_t i, cbase, dmax;
-#ifdef FSIRAND
 	struct ufs1_dinode *dp1;
-#endif
 	struct csum *cs;
-	uint d, dupper, dlower;
+	uint j, d, dupper, dlower;
 
 	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize * 3)) == NULL)
 		errx(37, "panic: cannot allocate I/O buffer");
@@ -399,13 +391,11 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 		bzero(iobuf, sblock.fs_bsize);
 		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
 		    i += sblock.fs_frag) {
-#ifdef FSIRAND
 			dp1 = (struct ufs1_dinode *)(void *)iobuf;
 			for (j = 0; j < INOPB(&sblock); j++) {
 				dp1->di_gen = random();
 				dp1++;
 			}
-#endif
 			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
 			    sblock.fs_bsize, iobuf, fso, Nflag);
 		}
@@ -1303,9 +1293,7 @@ main(int argc, char **argv)
 	int i, fsi, fso;
 	u_int32_t p_size;
 	char reply[5];
-#ifdef FSMAXSNAP
 	int j;
-#endif /* FSMAXSNAP */
 
 	DBG_ENTER;
 
@@ -1442,8 +1430,6 @@ main(int argc, char **argv)
 		    (intmax_t)osblock.fs_size, (intmax_t)sblock.fs_size);
 	}
 
-
-#ifdef FSMAXSNAP
 	/*
 	 * Check if we find an active snapshot.
 	 */
@@ -1458,7 +1444,6 @@ main(int argc, char **argv)
 				break;
 		}
 	}
-#endif
 
 	if (ExpertFlag == 0 && Nflag == 0) {
 		printf("We strongly recommend you to make a backup "
