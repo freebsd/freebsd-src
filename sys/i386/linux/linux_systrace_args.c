@@ -2190,6 +2190,166 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
+	/* linux_move_pages */
+	case 317: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_getcpu */
+	case 318: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_epoll_pwait */
+	case 319: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_utimensat */
+	case 320: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_signalfd */
+	case 321: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_create */
+	case 322: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_eventfd */
+	case 323: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fallocate */
+	case 324: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_settime */
+	case 325: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_gettime */
+	case 326: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_signalfd4 */
+	case 327: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_eventfd2 */
+	case 328: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_epoll_create1 */
+	case 329: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_dup3 */
+	case 330: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pipe2 */
+	case 331: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_inotify_init1 */
+	case 332: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_preadv */
+	case 333: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pwritev */
+	case 334: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_rt_tsigqueueinfo */
+	case 335: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_perf_event_open */
+	case 336: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_recvmmsg */
+	case 337: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fanotify_init */
+	case 338: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fanotify_mark */
+	case 339: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_prlimit64 */
+	case 340: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_name_to_handle_at */
+	case 341: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_open_by_handle_at */
+	case 342: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_clock_adjtime */
+	case 343: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_syncfs */
+	case 344: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_sendmmsg */
+	case 345: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_setns */
+	case 346: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_process_vm_readv */
+	case 347: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_process_vm_writev */
+	case 348: {
+		*n_args = 0;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -5455,6 +5615,102 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_vmsplice */
 	case 316:
+		break;
+	/* linux_move_pages */
+	case 317:
+		break;
+	/* linux_getcpu */
+	case 318:
+		break;
+	/* linux_epoll_pwait */
+	case 319:
+		break;
+	/* linux_utimensat */
+	case 320:
+		break;
+	/* linux_signalfd */
+	case 321:
+		break;
+	/* linux_timerfd_create */
+	case 322:
+		break;
+	/* linux_eventfd */
+	case 323:
+		break;
+	/* linux_fallocate */
+	case 324:
+		break;
+	/* linux_timerfd_settime */
+	case 325:
+		break;
+	/* linux_timerfd_gettime */
+	case 326:
+		break;
+	/* linux_signalfd4 */
+	case 327:
+		break;
+	/* linux_eventfd2 */
+	case 328:
+		break;
+	/* linux_epoll_create1 */
+	case 329:
+		break;
+	/* linux_dup3 */
+	case 330:
+		break;
+	/* linux_pipe2 */
+	case 331:
+		break;
+	/* linux_inotify_init1 */
+	case 332:
+		break;
+	/* linux_preadv */
+	case 333:
+		break;
+	/* linux_pwritev */
+	case 334:
+		break;
+	/* linux_rt_tsigqueueinfo */
+	case 335:
+		break;
+	/* linux_perf_event_open */
+	case 336:
+		break;
+	/* linux_recvmmsg */
+	case 337:
+		break;
+	/* linux_fanotify_init */
+	case 338:
+		break;
+	/* linux_fanotify_mark */
+	case 339:
+		break;
+	/* linux_prlimit64 */
+	case 340:
+		break;
+	/* linux_name_to_handle_at */
+	case 341:
+		break;
+	/* linux_open_by_handle_at */
+	case 342:
+		break;
+	/* linux_clock_adjtime */
+	case 343:
+		break;
+	/* linux_syncfs */
+	case 344:
+		break;
+	/* linux_sendmmsg */
+	case 345:
+		break;
+	/* linux_setns */
+	case 346:
+		break;
+	/* linux_process_vm_readv */
+	case 347:
+		break;
+	/* linux_process_vm_writev */
+	case 348:
 		break;
 	default:
 		break;
