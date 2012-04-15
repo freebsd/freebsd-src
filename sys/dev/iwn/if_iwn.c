@@ -3308,18 +3308,15 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		tid = 0;
 	}
 	ac = M_WME_GETAC(m);
-
-	if (IEEE80211_QOS_HAS_SEQ(wh) &&
-	    IEEE80211_AMPDU_RUNNING(&ni->ni_tx_ampdu[ac])) {
+	if (m->m_flags & M_AMPDU_MPDU) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
-		ring = &sc->txq[*(int *)tap->txa_private];
+		ac = *(int *)tap->txa_private;
 		*(uint16_t *)wh->i_seq =
 		    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
 		ni->ni_txseqs[tid]++;
-	} else {
-		ring = &sc->txq[ac];
 	}
+	ring = &sc->txq[ac];
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 
