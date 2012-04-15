@@ -82,13 +82,27 @@ struct ath_pci_softc {
 #define	PCIR_RETRY_TIMEOUT	0x41
 #define	PCIR_CFG_PMCSR		0x48
 
+#define	DEFAULT_CACHESIZE	32
+
 static void
 ath_pci_setup(device_t dev)
 {
-#ifdef	ATH_PCI_LATENCY_WAR
+	uint8_t cz;
+
+	/* XXX TODO: need to override the _system_ saved copies of this */
+
+	/*
+	 * If the cache line size is 0, force it to a reasonable
+	 * value.
+	 */
+	cz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
+	if (cz == 0) {
+		pci_write_config(dev, PCIR_CACHELNSZ,
+		    DEFAULT_CACHESIZE / 4, 1);
+	}
+
 	/* Override the system latency timer */
-	pci_write_config(dev, PCIR_LATTIMER, 0x80, 1);
-#endif
+	pci_write_config(dev, PCIR_LATTIMER, 0xa8, 1);
 
 	/* If a PCI NIC, force wakeup */
 #ifdef	ATH_PCI_WAKEUP_WAR
