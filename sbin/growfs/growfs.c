@@ -130,7 +130,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	uint cylno;
 	int i, j, width;
 	char tmpbuf[100];
-	static int randinit=0;
+	static int randinit = 0;
 
 	DBG_ENTER;
 
@@ -177,7 +177,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	/*
 	 * Dump out summary information about file system.
 	 */
-#	define B2MBFACTOR (1 / (1024.0 * 1024.0))
+#define B2MBFACTOR (1 / (1024.0 * 1024.0))
 	printf("growfs: %.1fMB (%jd sectors) block size %d, fragment size %d\n",
 	    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
 	    (intmax_t)fsbtodb(&sblock, sblock.fs_size), sblock.fs_bsize,
@@ -187,7 +187,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	    sblock.fs_fpg / sblock.fs_frag, sblock.fs_ipg);
 	if (sblock.fs_flags & FS_DOSOFTDEP)
 		printf("\twith soft updates\n");
-#	undef B2MBFACTOR
+#undef B2MBFACTOR
 
 	/*
 	 * Now build the cylinders group blocks and
@@ -499,7 +499,7 @@ frag_adjust(ufs2_daddr_t frag, int sign)
 
 	DBG_ENTER;
 
-	fragsize=0;
+	fragsize = 0;
 	/*
 	 * Here frag only needs to point to any fragment in the block we want
 	 * to examine.
@@ -579,7 +579,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 
 	if (cgbase(&osblock, cylno + 1) == osblock.fs_size) {
 		if (sblock.fs_magic == FS_UFS1_MAGIC)
-			acg.cg_old_ncyl=sblock.fs_old_cpg;
+			acg.cg_old_ncyl = sblock.fs_old_cpg;
 
 		wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
 		    (size_t)sblock.fs_cgsize, (void *)&acg, fso, Nflag);
