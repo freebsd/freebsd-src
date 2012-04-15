@@ -3739,7 +3739,7 @@ mwl_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 		/* NB: no held reference to ni */
 		sp = mwl_hal_bastream_alloc(MWL_VAP(vap)->mv_hvap,
 		    (baparamset & IEEE80211_BAPS_POLICY_IMMEDIATE) != 0,
-		    ni->ni_macaddr, WME_AC_TO_TID(tap->txa_ac), ni->ni_htparam,
+		    ni->ni_macaddr, tap->txa_tid, ni->ni_htparam,
 		    ni, tap);
 		if (sp == NULL) {
 			/*
@@ -3776,8 +3776,8 @@ mwl_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	if (bas == NULL) {
 		/* XXX should not happen */
 		DPRINTF(sc, MWL_DEBUG_AMPDU,
-		    "%s: no BA stream allocated, AC %d\n",
-		    __func__, tap->txa_ac);
+		    "%s: no BA stream allocated, TID %d\n",
+		    __func__, tap->txa_tid);
 		sc->sc_stats.mst_addba_nostream++;
 		return 0;
 	}
@@ -3805,18 +3805,18 @@ mwl_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 			tap->txa_private = NULL;
 
 			DPRINTF(sc, MWL_DEBUG_AMPDU,
-			    "%s: create failed, error %d, bufsiz %d AC %d "
+			    "%s: create failed, error %d, bufsiz %d TID %d "
 			    "htparam 0x%x\n", __func__, error, bufsiz,
-			    tap->txa_ac, ni->ni_htparam);
+			    tap->txa_tid, ni->ni_htparam);
 			sc->sc_stats.mst_bacreate_failed++;
 			return 0;
 		}
 		/* NB: cache txq to avoid ptr indirect */
-		mwl_bastream_setup(bas, tap->txa_ac, bas->bastream->txq);
+		mwl_bastream_setup(bas, tap->txa_tid, bas->bastream->txq);
 		DPRINTF(sc, MWL_DEBUG_AMPDU,
-		    "%s: bastream %p assigned to txq %d AC %d bufsiz %d "
+		    "%s: bastream %p assigned to txq %d TID %d bufsiz %d "
 		    "htparam 0x%x\n", __func__, bas->bastream,
-		    bas->txq, tap->txa_ac, bufsiz, ni->ni_htparam);
+		    bas->txq, tap->txa_tid, bufsiz, ni->ni_htparam);
 	} else {
 		/*
 		 * Other side NAK'd us; return the resources.
