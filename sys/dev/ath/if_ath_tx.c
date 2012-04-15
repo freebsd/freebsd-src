@@ -4214,14 +4214,11 @@ ath_tx_get_tx_tid(struct ath_node *an, int tid)
 {
 	struct ieee80211_node *ni = &an->an_node;
 	struct ieee80211_tx_ampdu *tap;
-	int ac;
 
 	if (tid == IEEE80211_NONQOS_TID)
 		return NULL;
 
-	ac = TID_TO_WME_AC(tid);
-
-	tap = &ni->ni_tx_ampdu[ac];
+	tap = &ni->ni_tx_ampdu[tid];
 	return tap;
 }
 
@@ -4279,7 +4276,7 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int baparamset, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 
@@ -4346,7 +4343,7 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status, int code, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 	int r;
@@ -4387,7 +4384,7 @@ void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 
@@ -4424,7 +4421,7 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 	int attempts = tap->txa_attempts;
@@ -4457,7 +4454,7 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 
