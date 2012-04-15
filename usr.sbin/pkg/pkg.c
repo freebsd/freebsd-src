@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 static const char *
 elf_corres_to_string(struct _elf_corres* m, int e)
 {
-	int i = 0;
+	int i;
 
 	for (i = 0; m[i].string != NULL; i++)
 		if (m[i].elf_nb == e)
@@ -125,7 +125,7 @@ pkg_get_myabi(char *dest, size_t sz)
 
 	data = elf_getdata(scn, NULL);
 	src = data->d_buf;
-	while (1) {
+	for (;;) {
 		memcpy(&note, src, sizeof(Elf_Note));
 		src += sizeof(Elf_Note);
 		if (note.n_type == NT_VERSION)
