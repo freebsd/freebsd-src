@@ -5125,9 +5125,9 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	struct m_tag		*mtag;
 #endif /* IPSEC */
 
-	if (m == NULL || *m == NULL || r == NULL ||
-	    (dir != PF_IN && dir != PF_OUT) || oifp == NULL)
-		panic("pf_route: invalid parameters");
+	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
+	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",
+	    __func__));
 
 	if (pd->pf_mtag->routed++ > 3) {
 		m0 = *m;
@@ -5146,7 +5146,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	if (m0->m_len < sizeof(struct ip)) {
 		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_route: m0->m_len < sizeof(struct ip)\n"));
+		    ("%s: m0->m_len < sizeof(struct ip)\n", __func__));
 		goto bad;
 	}
 
@@ -5174,7 +5174,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	} else {
 		if (TAILQ_EMPTY(&r->rpool.list)) {
 			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_route: TAILQ_EMPTY(&r->rpool.list)\n"));
+			    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
 			goto bad;
 		}
 		if (s == NULL) {
@@ -5206,7 +5206,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		PF_LOCK();
 		if (m0->m_len < sizeof(struct ip)) {
 			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_route: m0->m_len < sizeof(struct ip)\n"));
+			    ("%s: m0->m_len < sizeof(struct ip)\n", __func__));
 			goto bad;
 		}
 		ip = mtod(m0, struct ip *);
@@ -5322,9 +5322,9 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	struct pf_addr		 naddr;
 	struct pf_src_node	*sn = NULL;
 
-	if (m == NULL || *m == NULL || r == NULL ||
-	    (dir != PF_IN && dir != PF_OUT) || oifp == NULL)
-		panic("pf_route6: invalid parameters");
+	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
+	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",
+	    __func__));
 
 	if (pd->pf_mtag->routed++ > 3) {
 		m0 = *m;
@@ -5343,7 +5343,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	if (m0->m_len < sizeof(struct ip6_hdr)) {
 		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_route6: m0->m_len < sizeof(struct ip6_hdr)\n"));
+		    ("%s: m0->m_len < sizeof(struct ip6_hdr)\n", __func__));
 		goto bad;
 	}
 	ip6 = mtod(m0, struct ip6_hdr *);
@@ -5365,7 +5365,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	if (TAILQ_EMPTY(&r->rpool.list)) {
 		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_route6: TAILQ_EMPTY(&r->rpool.list)\n"));
+		    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
 		goto bad;
 	}
 	if (s == NULL) {
@@ -5396,7 +5396,8 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		PF_LOCK();
 		if (m0->m_len < sizeof(struct ip6_hdr)) {
 			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_route6: m0->m_len < sizeof(struct ip6_hdr)\n"));
+			    ("%s: m0->m_len < sizeof(struct ip6_hdr)\n",
+			    __func__));
 			goto bad;
 		}
 		ip6 = mtod(m0, struct ip6_hdr *);
