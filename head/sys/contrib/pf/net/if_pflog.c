@@ -102,7 +102,6 @@ static void	pflogstart(struct ifnet *);
 static int	pflog_clone_create(struct if_clone *, int, caddr_t);
 static void	pflog_clone_destroy(struct ifnet *);
 
-LIST_HEAD(, pflog_softc)	pflogif_list;
 IFC_SIMPLE_DECLARE(pflog, 1);
 
 struct ifnet	*pflogifs[PFLOGIFS_MAX];	/* for fast access */
@@ -111,7 +110,6 @@ static void
 pflogattach(int npflog)
 {
 	int	i;
-	LIST_INIT(&pflogif_list);
 	for (i = 0; i < PFLOGIFS_MAX; i++)
 		pflogifs[i] = NULL;
 	if_clone_attach(&pflog_cloner);
@@ -126,14 +124,8 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	if (unit >= PFLOGIFS_MAX)
 		return (EINVAL);
 
-	if ((pflogif = malloc(sizeof(*pflogif),
-	    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL)
-		return (ENOMEM);
-
-	pflogif->sc_unit = unit;
-	ifp = pflogif->sc_ifp = if_alloc(IFT_PFLOG);
+	ifp = if_alloc(IFT_PFLOG);
 	if (ifp == NULL) {
-		free(pflogif, M_DEVBUF);
 		return (ENOSPC);
 	}
 	if_initname(ifp, ifc->ifc_name, unit);
@@ -148,12 +140,6 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 
 	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
 
-	/* XXX: Why pf(4) lock?! Better add a pflog lock?! */
-	PF_LOCK();
-	LIST_INSERT_HEAD(&pflogif_list, pflogif, sc_list);
-	pflogifs[unit] = ifp;
-	PF_UNLOCK();
-
 	return (0);
 }
 
@@ -161,11 +147,6 @@ static void
 pflog_clone_destroy(struct ifnet *ifp)
 {
 	struct pflog_softc	*pflogif = ifp->if_softc;
-
-	PF_LOCK();
-	pflogifs[pflogif->sc_unit] = NULL;
-	LIST_REMOVE(pflogif, sc_list);
-	PF_UNLOCK();
 
 	bpfdetach(ifp);
 	if_detach(ifp);

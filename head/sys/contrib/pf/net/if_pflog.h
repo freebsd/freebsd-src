@@ -29,12 +29,6 @@
 
 #define	PFLOGIFS_MAX	16
 
-struct pflog_softc {
-	struct ifnet		*sc_ifp;	/* the interface pointer */
-	int			sc_unit;
-	LIST_ENTRY(pflog_softc)	sc_list;
-};
-
 #define	PFLOG_RULESET_NAME_SIZE	16
 
 struct pfloghdr {
