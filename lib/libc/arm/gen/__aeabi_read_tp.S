@@ -23,23 +23,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
-#include <sys/cdefs.h>
+#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <machine/sysarch.h>
 
-#include "machine/sysarch.h"
+ENTRY(__aeabi_read_tp)
+	ldr	r0, .Larm_tp_address
+	ldr	r0, [r0]
+	RET
 
-void *
-__aeabi_read_tp()
-{
-	void *_tp;
+.Larm_tp_address:
+	.word ARM_TP_ADDRESS
 
-	asm("ldr %0, [%1]\n" : "=r"(_tp) : "r"(ARM_TP_ADDRESS));
-
-	return _tp;
-}
