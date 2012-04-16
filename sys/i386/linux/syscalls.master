@@ -95,7 +95,7 @@
 39	AUE_MKDIR	STD	{ int linux_mkdir(char *path, l_int mode); }
 40	AUE_RMDIR	STD	{ int linux_rmdir(char *path); }
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
-42	AUE_PIPE	STD	{ int linux_pipe(l_ulong *pipefds); }
+42	AUE_PIPE	STD	{ int linux_pipe(l_int *pipefds); }
 43	AUE_NULL	STD	{ int linux_times(struct l_times_argv *buf); }
 44	AUE_NULL	UNIMPL	prof
 45	AUE_NULL	STD	{ int linux_brk(l_ulong dsend); }
@@ -546,7 +546,7 @@
 328	AUE_NULL	STD	{ int linux_eventfd2(void); }
 329	AUE_NULL	STD	{ int linux_epoll_create1(void); }
 330	AUE_NULL	STD	{ int linux_dup3(void); }
-331	AUE_NULL	STD	{ int linux_pipe2(void); }
+331	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
 332	AUE_NULL	STD	{ int linux_inotify_init1(void); }
 ; linux 2.6.30:
 333	AUE_NULL	STD	{ int linux_preadv(void); }
