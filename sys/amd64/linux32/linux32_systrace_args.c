@@ -1355,28 +1355,25 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_stat64 */
 	case 195: {
 		struct linux_stat64_args *p = params;
-		uarg[0] = (intptr_t) p->filename; /* char * */
+		uarg[0] = (intptr_t) p->filename; /* const char * */
 		uarg[1] = (intptr_t) p->statbuf; /* struct l_stat64 * */
-		iarg[2] = p->flags; /* l_long */
-		*n_args = 3;
+		*n_args = 2;
 		break;
 	}
 	/* linux_lstat64 */
 	case 196: {
 		struct linux_lstat64_args *p = params;
-		uarg[0] = (intptr_t) p->filename; /* char * */
+		uarg[0] = (intptr_t) p->filename; /* const char * */
 		uarg[1] = (intptr_t) p->statbuf; /* struct l_stat64 * */
-		iarg[2] = p->flags; /* l_long */
-		*n_args = 3;
+		*n_args = 2;
 		break;
 	}
 	/* linux_fstat64 */
 	case 197: {
 		struct linux_fstat64_args *p = params;
-		iarg[0] = p->fd; /* l_ulong */
+		iarg[0] = p->fd; /* l_int */
 		uarg[1] = (intptr_t) p->statbuf; /* struct l_stat64 * */
-		iarg[2] = p->flags; /* l_long */
-		*n_args = 3;
+		*n_args = 2;
 		break;
 	}
 	/* linux_lchown */
@@ -4342,13 +4339,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 195:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
 			p = "struct l_stat64 *";
-			break;
-		case 2:
-			p = "l_long";
 			break;
 		default:
 			break;
@@ -4358,13 +4352,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 196:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
 			p = "struct l_stat64 *";
-			break;
-		case 2:
-			p = "l_long";
 			break;
 		default:
 			break;
@@ -4374,13 +4365,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 197:
 		switch(ndx) {
 		case 0:
-			p = "l_ulong";
+			p = "l_int";
 			break;
 		case 1:
 			p = "struct l_stat64 *";
-			break;
-		case 2:
-			p = "l_long";
 			break;
 		default:
 			break;
