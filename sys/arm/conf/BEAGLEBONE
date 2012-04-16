@@ -1,5 +1,5 @@
 # BEAGLEBONE -- Custom configuration for the BeagleBone ARM development
-# platform, check out www.beagleboard.org/bone
+# platform, check out http://www.beagleboard.org/bone
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -20,45 +20,22 @@
 
 ident		BEAGLEBONE
 
+include		"../ti/am335x/std.beaglebone"
 
-
-# This probably wants to move somewhere else.  Maybe we can create a basic
-# OMAP4340 config, then make a PANDABOARD config that includes the basic one,
-# adds the start addresses and custom devices plus pulls in this hints file.
-
-include     "../ti/am335x/std.beaglebone"
-
-#To statically compile in device wiring instead of /boot/device.hints
 makeoptions	MODULES_OVERRIDE=""
-makeoptions WITHOUT_MODULES="ahc"
+makeoptions	WITHOUT_MODULES="ahc"
 
-makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options		HZ=100
-
 options		SCHED_4BSD		#4BSD scheduler
 options		INET			#InterNETworking
-#options	INET6			#IPv6 communications protocols
+options		INET6			#IPv6 communications protocols
 options		FFS			#Berkeley Fast Filesystem
 options		SOFTUPDATES		#Enable FFS soft updates support
 options		UFS_ACL			#Support for access control lists
 options		UFS_DIRHASH		#Improve performance on big directories
-#options	MD_ROOT			#MD is a potential root device
-#options	MD_ROOT_SIZE=6144
-#options	ROOTDEVNAME=\"ufs:md0\"
-options		NFSCLIENT		#Network Filesystem Client
-device		snp
-#options	NFSCL
-#options	NFSSERVER		#Network Filesystem Server
-options		NFS_ROOT		#NFS usable as /, requires NFSCLIENT
-options		BREAK_TO_DEBUGGER
-options		BOOTP_NFSROOT
-options		BOOTP_COMPAT
-options		BOOTP
-options		BOOTP_NFSV3
-options		BOOTP_WIRED_TO=cpsw0
 options		MSDOSFS			#MSDOS Filesystem
-#options	CD9660			#ISO 9660 Filesystem
-#options	PROCFS			#Process filesystem (requires PSEUDOFS)
+options		CD9660			#ISO 9660 Filesystem
+options		PROCFS			#Process filesystem (requires PSEUDOFS)
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
@@ -68,31 +45,11 @@ options		SYSVMSG			#SYSV-style message queues
 options		SYSVSEM			#SYSV-style semaphores
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-
 options		PREEMPTION
 
-# MMC/SD/SDIO Card slot support
-device		mmc				# mmc/sd bus
-device		mmcsd			# mmc/sd flash cards
-
-# I2C support
-device		iicbus
-device		iic
-device		ti_i2c
-device		am335x_pmic		# AM335x Power Management IC (TPC65217)
-
-device		loop
-device		ether
-device		mii
-device		smcphy
-device		uart
-device		uart_ns8250
-
-device		gpio
-
-device		pty
-
-# Debugging for use in -current
+# Debugging
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+options		BREAK_TO_DEBUGGER
 #options	VERBOSE_SYSINIT		#Enable verbose sysinit messages
 options		KDB
 options		DDB			#Enable the kernel debugger
@@ -102,28 +59,61 @@ options		WITNESS			#Enable checks to detect deadlocks and cycles
 options		WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #options	DIAGNOSTIC
 
+# NFS support
+#options	NFSCL
+#options	NFSSERVER		#Network Filesystem Server
+#options	NFSCLIENT		#Network Filesystem Client
+
+# Uncomment this for NFS root
+#options	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+#options	BOOTP_NFSROOT
+#options	BOOTP_COMPAT
+#options	BOOTP
+#options	BOOTP_NFSV3
+#options	BOOTP_WIRED_TO=cpsw0
+
+
+# MMC/SD/SDIO card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+
+# Boot device is 2nd slice on MMC/SD card
+options		ROOTDEVNAME=\"ufs:mmcsd0s2\"
+
+# Console and misc
+device		uart
+device		uart_ns8250
+device		pty
+device		snp
 device		md
+device		random			# Entropy device
 
-# The following enables MFS as root, this seems similar to an initramfs or initrd
-# as used in Linux.
-# options		MD_ROOT
-# options		MD_ROOT_SIZE=7560
+# I2C support
+device		iicbus
+device		iic
+device		ti_i2c
+device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 
-device		random		# Entropy device
+# GPIO
+device		gpio
 
 # USB support
 device		usb
 options		USB_DEBUG
 #options	USB_REQ_DEBUG
-#options		USB_VERBOSE
-device		ohci
-device		ehci
+#options	USB_VERBOSE
+device		musb
 device		umass
-device		scbus		# SCSI bus (required for SCSI)
-device		da		# Direct Access (disks)
+device		scbus			# SCSI bus (required for SCSI)
+device		da			# Direct Access (disks)
 
+# Ethernet
+device		loop
+device		ether
+device		mii
+device		smcphy
 
-# USB Ethernet support, requires miibus
+# USB ethernet support, requires miibus
 device		miibus
 device		cpsw
 device		axe			# ASIX Electronics USB Ethernet
