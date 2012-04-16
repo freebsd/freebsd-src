@@ -18,8 +18,10 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
-#include <set>
+#include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
+#include <cstdio>
+#include <set>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -629,11 +631,11 @@ TreePredicateFn::TreePredicateFn(TreePattern *N) : PatFragRec(N) {
 }
 
 std::string TreePredicateFn::getPredCode() const {
-  return PatFragRec->getRecord()->getValueAsCode("PredicateCode");
+  return PatFragRec->getRecord()->getValueAsString("PredicateCode");
 }
 
 std::string TreePredicateFn::getImmCode() const {
-  return PatFragRec->getRecord()->getValueAsCode("ImmediateCode");
+  return PatFragRec->getRecord()->getValueAsString("ImmediateCode");
 }
 
 
@@ -748,7 +750,7 @@ std::string PatternToMatch::getPredicateCheck() const {
 #ifndef NDEBUG
         Def->dump();
 #endif
-        assert(0 && "Unknown predicate type!");
+        llvm_unreachable("Unknown predicate type!");
       }
       if (!PredicateCheck.empty())
         PredicateCheck += " && ";
@@ -839,7 +841,6 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
   TreePatternNode *NodeToApply = getOperandNum(OperandNo, N, NodeInfo, ResNo);
 
   switch (ConstraintType) {
-  default: assert(0 && "Unknown constraint type!");
   case SDTCisVT:
     // Operand must be a particular type.
     return NodeToApply->UpdateNodeType(ResNo, x.SDTCisVT_Info.VT, TP);
@@ -913,7 +914,7 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
       EnforceVectorSubVectorTypeIs(NodeToApply->getExtType(ResNo), TP);
   }
   }
-  return false;
+  llvm_unreachable("Invalid ConstraintType!");
 }
 
 //===----------------------------------------------------------------------===//
@@ -1609,10 +1610,9 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
         MadeChange |= Child->UpdateNodeType(ChildResNo, MVT::iPTR, TP);
       } else if (OperandNode->getName() == "unknown") {
         // Nothing to do.
-      } else {
-        assert(0 && "Unknown operand type!");
-        abort();
-      }
+      } else
+        llvm_unreachable("Unknown operand type!");
+
       MadeChange |= Child->ApplyTypeConstraints(TP, NotRegisters);
     }
 
@@ -2071,7 +2071,7 @@ void CodeGenDAGPatterns::ParseNodeTransforms() {
   while (!Xforms.empty()) {
     Record *XFormNode = Xforms.back();
     Record *SDNode = XFormNode->getValueAsDef("Opcode");
-    std::string Code = XFormNode->getValueAsCode("XFormFunction");
+    std::string Code = XFormNode->getValueAsString("XFormFunction");
     SDNodeXForms.insert(std::make_pair(XFormNode, NodeXForm(SDNode, Code)));
 
     Xforms.pop_back();

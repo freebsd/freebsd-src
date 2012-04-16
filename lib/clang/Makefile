@@ -9,6 +9,7 @@ SUBDIR=	libclanganalysis \
 	libclangbasic \
 	libclangcodegen \
 	libclangdriver \
+	libclangedit \
 	libclangfrontend \
 	libclangfrontendtool \
 	libclangindex \
@@ -22,6 +23,7 @@ SUBDIR=	libclanganalysis \
 	libclangstaticanalyzerfrontend \
 	\
 	libllvmanalysis \
+	libllvmarchive \
 	libllvmasmparser \
 	libllvmasmprinter \
 	libllvmbitreader \
@@ -32,14 +34,17 @@ SUBDIR=	libclanganalysis \
 	libllvminstrumentation \
 	libllvmipa \
 	libllvmipo \
+	libllvmlinker \
 	libllvmmc \
 	libllvmmcparser \
+	libllvmobject \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
 	libllvmtablegen \
 	libllvmtarget \
 	libllvmtransformutils \
+	libllvmvectorize \
 	\
 	libllvmarmasmparser \
 	libllvmarmcodegen \
@@ -47,6 +52,7 @@ SUBDIR=	libclanganalysis \
 	libllvmarmdisassembler \
 	libllvmarminfo \
 	libllvmarminstprinter \
+	libllvmmipsasmparser \
 	libllvmmipscodegen \
 	libllvmmipsdesc \
 	libllvmmipsinfo \

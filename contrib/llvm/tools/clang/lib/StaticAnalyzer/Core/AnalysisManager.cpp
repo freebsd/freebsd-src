@@ -14,6 +14,8 @@
 using namespace clang;
 using namespace ento;
 
+void AnalysisManager::anchor() { }
+
 AnalysisManager::AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
                                  const LangOptions &lang,
                                  PathDiagnosticConsumer *pd,
@@ -25,17 +27,27 @@ AnalysisManager::AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
                                  bool vizdot, bool vizubi,
                                  AnalysisPurgeMode purge,
                                  bool eager, bool trim,
-                                 bool inlinecall, bool useUnoptimizedCFG,
+                                 bool useUnoptimizedCFG,
                                  bool addImplicitDtors, bool addInitializers,
-                                 bool eagerlyTrimEGraph)
+                                 bool eagerlyTrimEGraph,
+                                 AnalysisIPAMode ipa,
+                                 unsigned inlineMaxStack,
+                                 unsigned inlineMaxFunctionSize,
+                                 AnalysisInliningMode IMode,
+                                 bool NoRetry)
   : AnaCtxMgr(useUnoptimizedCFG, addImplicitDtors, addInitializers),
-    Ctx(ctx), Diags(diags), LangInfo(lang), PD(pd),
+    Ctx(ctx), Diags(diags), LangOpts(lang), PD(pd),
     CreateStoreMgr(storemgr), CreateConstraintMgr(constraintmgr),
     CheckerMgr(checkerMgr), Idxer(idxer),
     AScope(ScopeDecl), MaxNodes(maxnodes), MaxVisit(maxvisit),
     VisualizeEGDot(vizdot), VisualizeEGUbi(vizubi), PurgeDead(purge),
-    EagerlyAssume(eager), TrimGraph(trim), InlineCall(inlinecall),
-    EagerlyTrimEGraph(eagerlyTrimEGraph)
+    EagerlyAssume(eager), TrimGraph(trim),
+    EagerlyTrimEGraph(eagerlyTrimEGraph),
+    IPAMode(ipa),
+    InlineMaxStackDepth(inlineMaxStack),
+    InlineMaxFunctionSize(inlineMaxFunctionSize),
+    InliningMode(IMode),
+    NoRetryExhausted(NoRetry)
 {
   AnaCtxMgr.getCFGBuildOptions().setAllAlwaysAdd();
 }
@@ -46,7 +58,7 @@ AnalysisManager::AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
               ParentAM.AnaCtxMgr.getCFGBuildOptions().AddImplicitDtors,
               ParentAM.AnaCtxMgr.getCFGBuildOptions().AddInitializers),
     Ctx(ctx), Diags(diags),
-    LangInfo(ParentAM.LangInfo), PD(ParentAM.getPathDiagnosticConsumer()),
+    LangOpts(ParentAM.LangOpts), PD(ParentAM.getPathDiagnosticConsumer()),
     CreateStoreMgr(ParentAM.CreateStoreMgr),
     CreateConstraintMgr(ParentAM.CreateConstraintMgr),
     CheckerMgr(ParentAM.CheckerMgr),
@@ -59,15 +71,19 @@ AnalysisManager::AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
     PurgeDead(ParentAM.PurgeDead),
     EagerlyAssume(ParentAM.EagerlyAssume),
     TrimGraph(ParentAM.TrimGraph),
-    InlineCall(ParentAM.InlineCall),
-    EagerlyTrimEGraph(ParentAM.EagerlyTrimEGraph)
+    EagerlyTrimEGraph(ParentAM.EagerlyTrimEGraph),
+    IPAMode(ParentAM.IPAMode),
+    InlineMaxStackDepth(ParentAM.InlineMaxStackDepth),
+    InlineMaxFunctionSize(ParentAM.InlineMaxFunctionSize),
+    InliningMode(ParentAM.InliningMode),
+    NoRetryExhausted(ParentAM.NoRetryExhausted)
 {
   AnaCtxMgr.getCFGBuildOptions().setAllAlwaysAdd();
 }
 
 
-AnalysisContext *
-AnalysisManager::getAnalysisContextInAnotherTU(const Decl *D) {
+AnalysisDeclContext *
+AnalysisManager::getAnalysisDeclContextInAnotherTU(const Decl *D) {
   idx::Entity Ent = idx::Entity::get(const_cast<Decl *>(D), 
                                      Idxer->getProgram());
   FunctionDecl *FuncDef;
@@ -77,7 +93,7 @@ AnalysisManager::getAnalysisContextInAnotherTU(const Decl *D) {
   if (FuncDef == 0)
     return 0;
 
-  // This AnalysisContext wraps function definition in another translation unit.
+  // This AnalysisDeclContext wraps function definition in another translation unit.
   // But it is still owned by the AnalysisManager associated with the current
   // translation unit.
   return AnaCtxMgr.getContext(FuncDef, TU);

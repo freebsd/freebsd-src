@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/StmtObjC.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
@@ -26,8 +27,8 @@ using namespace ento;
 namespace {
 class ObjCAtSyncChecker
     : public Checker< check::PreStmt<ObjCAtSynchronizedStmt> > {
-  mutable llvm::OwningPtr<BuiltinBug> BT_null;
-  mutable llvm::OwningPtr<BuiltinBug> BT_undef;
+  mutable OwningPtr<BuiltinBug> BT_null;
+  mutable OwningPtr<BuiltinBug> BT_undef;
 
 public:
   void checkPreStmt(const ObjCAtSynchronizedStmt *S, CheckerContext &C) const;
@@ -38,8 +39,8 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
                                      CheckerContext &C) const {
 
   const Expr *Ex = S->getSynchExpr();
-  const ProgramState *state = C.getState();
-  SVal V = state->getSVal(Ex);
+  ProgramStateRef state = C.getState();
+  SVal V = state->getSVal(Ex, C.getLocationContext());
 
   // Uninitialized value used for the mutex?
   if (isa<UndefinedVal>(V)) {
@@ -49,7 +50,8 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
                                   "for @synchronized"));
       BugReport *report =
         new BugReport(*BT_undef, BT_undef->getDescription(), N);
-      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex));
+      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex,
+                                                                      report));
       C.EmitReport(report);
     }
     return;
@@ -59,20 +61,21 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
     return;
 
   // Check for null mutexes.
-  const ProgramState *notNullState, *nullState;
+  ProgramStateRef notNullState, nullState;
   llvm::tie(notNullState, nullState) = state->assume(cast<DefinedSVal>(V));
 
   if (nullState) {
     if (!notNullState) {
       // Generate an error node.  This isn't a sink since
       // a null mutex just means no synchronization occurs.
-      if (ExplodedNode *N = C.generateNode(nullState)) {
+      if (ExplodedNode *N = C.addTransition(nullState)) {
         if (!BT_null)
           BT_null.reset(new BuiltinBug("Nil value used as mutex for @synchronized() "
                                    "(no synchronization will occur)"));
         BugReport *report =
           new BugReport(*BT_null, BT_null->getDescription(), N);
-        report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex));
+        report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex,
+                                                                        report));
 
         C.EmitReport(report);
         return;
@@ -88,6 +91,6 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
 }
 
 void ento::registerObjCAtSyncChecker(CheckerManager &mgr) {
-  if (mgr.getLangOptions().ObjC2)
+  if (mgr.getLangOpts().ObjC2)
     mgr.registerChecker<ObjCAtSyncChecker>();
 }
