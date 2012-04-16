@@ -65,12 +65,16 @@ static int		 q_opt;		/* quiet */
 static int		 t_opt;		/* test */
 static int		 u_opt;		/* update */
 static int		 v_opt;		/* verbose/list */
+static int		 Z1_opt;	/* zipinfo mode list files only */
 
 /* time when unzip started */
 static time_t		 now;
 
 /* debug flag */
 static int		 unzip_debug;
+
+/* zipinfo mode */
+static int		 zipinfo_mode;
 
 /* running on tty? */
 static int		 tty;
@@ -802,17 +806,22 @@ list(struct archive *a, struct archive_entry *e)
 	mtime = archive_entry_mtime(e);
 	strftime(buf, sizeof(buf), "%m-%d-%g %R", localtime(&mtime));
 
-	if (v_opt == 1) {
-		printf(" %8ju  %s   %s\n",
-		    (uintmax_t)archive_entry_size(e),
-		    buf, archive_entry_pathname(e));
-	} else if (v_opt == 2) {
-		printf("%8ju  Stored  %7ju   0%%  %s  %08x  %s\n",
-		    (uintmax_t)archive_entry_size(e),
-		    (uintmax_t)archive_entry_size(e),
-		    buf,
-		    0U,
-		    archive_entry_pathname(e));
+	if (!zipinfo_mode) {
+		if (v_opt == 1) {
+			printf(" %8ju  %s   %s\n",
+			    (uintmax_t)archive_entry_size(e),
+			    buf, archive_entry_pathname(e));
+		} else if (v_opt == 2) {
+			printf("%8ju  Stored  %7ju   0%%  %s  %08x  %s\n",
+			    (uintmax_t)archive_entry_size(e),
+			    (uintmax_t)archive_entry_size(e),
+			    buf,
+			    0U,
+			    archive_entry_pathname(e));
+		}
+	} else {
+		if (Z1_opt)
+			printf("%s\n",archive_entry_pathname(e));
 	}
 	ac(archive_read_data_skip(a));
 }
@@ -870,14 +879,16 @@ unzip(const char *fn)
 	ac(archive_read_support_format_zip(a));
 	ac(archive_read_open_fd(a, fd, 8192));
 
-	if (!p_opt && !q_opt)
-		printf("Archive:  %s\n", fn);
-	if (v_opt == 1) {
-		printf("  Length     Date   Time    Name\n");
-		printf(" --------    ----   ----    ----\n");
-	} else if (v_opt == 2) {
-		printf(" Length   Method    Size  Ratio   Date   Time   CRC-32    Name\n");
-		printf("--------  ------  ------- -----   ----   ----   ------    ----\n");
+	if (!zipinfo_mode) {
+		if (!p_opt && !q_opt)
+			printf("Archive:  %s\n", fn);
+		if (v_opt == 1) {
+			printf("  Length     Date   Time    Name\n");
+			printf(" --------    ----   ----    ----\n");
+		} else if (v_opt == 2) {
+			printf(" Length   Method    Size  Ratio   Date   Time   CRC-32    Name\n");
+			printf("--------  ------  ------- -----   ----   ----   ------    ----\n");
+		}
 	}
 
 	total_size = 0;
@@ -888,28 +899,35 @@ unzip(const char *fn)
 		if (ret == ARCHIVE_EOF)
 			break;
 		ac(ret);
-		if (t_opt)
-			error_count += test(a, e);
-		else if (v_opt)
-			list(a, e);
-		else if (p_opt || c_opt)
-			extract_stdout(a, e);
-		else
-			extract(a, e);
+		if (!zipinfo_mode) {
+			if (t_opt)
+				error_count += test(a, e);
+			else if (v_opt)
+				list(a, e);
+			else if (p_opt || c_opt)
+				extract_stdout(a, e);
+			else
+				extract(a, e);
+		} else {
+			if (Z1_opt)
+				list(a, e);
+		}
 
 		total_size += archive_entry_size(e);
 		++file_count;
 	}
 
-	if (v_opt == 1) {
-		printf(" --------                   -------\n");
-		printf(" %8ju                   %ju file%s\n",
-		    total_size, file_count, file_count != 1 ? "s" : "");
-	} else if (v_opt == 2) {
-		printf("--------          -------  ---                            -------\n");
-		printf("%8ju          %7ju   0%%                            %ju file%s\n",
-		    total_size, total_size, file_count,
-		    file_count != 1 ? "s" : "");
+	if (zipinfo_mode) {
+		if (v_opt == 1) {
+			printf(" --------                   -------\n");
+			printf(" %8ju                   %ju file%s\n",
+			    total_size, file_count, file_count != 1 ? "s" : "");
+		} else if (v_opt == 2) {
+			printf("--------          -------  ---                            -------\n");
+			printf("%8ju          %7ju   0%%                            %ju file%s\n",
+			    total_size, total_size, file_count,
+			    file_count != 1 ? "s" : "");
+		}
 	}
 
 	ac(archive_read_close(a));
@@ -933,7 +951,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: unzip [-aCcfjLlnopqtuv] [-d dir] [-x pattern] zipfile\n");
+	fprintf(stderr, "usage: unzip [-aCcfjLlnopqtuvZ1] [-d dir] [-x pattern] zipfile\n");
 	exit(1);
 }
 
@@ -943,8 +961,11 @@ getopts(int argc, char *argv[])
 	int opt;
 
 	optreset = optind = 1;
-	while ((opt = getopt(argc, argv, "aCcd:fjLlnopqtuvx:")) != -1)
+	while ((opt = getopt(argc, argv, "aCcd:fjLlnopqtuvx:Z1")) != -1)
 		switch (opt) {
+		case '1':
+			Z1_opt = 1;
+			break;
 		case 'a':
 			a_opt = 1;
 			break;
@@ -995,6 +1016,9 @@ getopts(int argc, char *argv[])
 		case 'x':
 			add_pattern(&exclude, optarg);
 			break;
+		case 'Z':
+			zipinfo_mode = 1;
+			break;
 		default:
 			usage();
 		}
@@ -1023,6 +1047,15 @@ main(int argc, char *argv[])
 	 * before and after the zipfile name.
 	 */
 	nopts = getopts(argc, argv);
+
+	/* 
+	 * When more of the zipinfo mode options are implemented, this
+	 * will need to change.
+	 */
+	if (zipinfo_mode && !Z1_opt) {
+		printf("Zipinfo mode needs additional options\n");
+		exit(1);
+	}
 
 	if (argc <= nopts)
 		usage();
