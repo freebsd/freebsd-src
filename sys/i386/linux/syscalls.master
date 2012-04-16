@@ -203,7 +203,7 @@
 				    struct l_newstat *buf); }
 ; 109: olduname
 109	AUE_NULL	STD	{ int linux_uname(void); }
-110	AUE_NULL	STD	{ int linux_iopl(l_ulong level); }
+110	AUE_NULL	STD	{ int linux_iopl(l_int level); }
 111	AUE_NULL	STD	{ int linux_vhangup(void); }
 112	AUE_NULL	UNIMPL	idle
 113	AUE_NULL	STD	{ int linux_vm86old(void); }
