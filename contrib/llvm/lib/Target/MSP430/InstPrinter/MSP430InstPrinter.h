@@ -1,4 +1,4 @@
-//===-- MSP430InstPrinter.h - Convert MSP430 MCInst to assembly syntax ----===//
+//= MSP430InstPrinter.h - Convert MSP430 MCInst to assembly syntax -*- C++ -*-//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -21,8 +21,9 @@ namespace llvm {
 
   class MSP430InstPrinter : public MCInstPrinter {
   public:
-    MSP430InstPrinter(const MCAsmInfo &MAI)
-        : MCInstPrinter(MAI) {}
+    MSP430InstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
+                      const MCRegisterInfo &MRI)
+      : MCInstPrinter(MAI, MII, MRI) {}
 
     virtual void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot);
 

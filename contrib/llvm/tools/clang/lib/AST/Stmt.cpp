@@ -78,11 +78,9 @@ void Stmt::addStmtClass(StmtClass s) {
   ++getStmtInfoTableEntry(s).Counter;
 }
 
-static bool StatSwitch = false;
-
-bool Stmt::CollectingStats(bool Enable) {
-  if (Enable) StatSwitch = true;
-  return StatSwitch;
+bool Stmt::StatisticsEnabled = false;
+void Stmt::EnableStatistics() {
+  StatisticsEnabled = true;
 }
 
 Stmt *Stmt::IgnoreImplicit() {
@@ -164,7 +162,6 @@ Stmt::child_range Stmt::children() {
 #include "clang/AST/StmtNodes.inc"
   }
   llvm_unreachable("unknown statement kind!");
-  return child_range();
 }
 
 SourceRange Stmt::getSourceRange() const {
@@ -177,7 +174,72 @@ SourceRange Stmt::getSourceRange() const {
 #include "clang/AST/StmtNodes.inc"
   }
   llvm_unreachable("unknown statement kind!");
-  return SourceRange();
+}
+
+// Amusing macro metaprogramming hack: check whether a class provides
+// a more specific implementation of getLocStart() and getLocEnd().
+//
+// See also Expr.cpp:getExprLoc().
+namespace {
+  /// This implementation is used when a class provides a custom
+  /// implementation of getLocStart.
+  template <class S, class T>
+  SourceLocation getLocStartImpl(const Stmt *stmt,
+                                 SourceLocation (T::*v)() const) {
+    return static_cast<const S*>(stmt)->getLocStart();
+  }
+
+  /// This implementation is used when a class doesn't provide a custom
+  /// implementation of getLocStart.  Overload resolution should pick it over
+  /// the implementation above because it's more specialized according to
+  /// function template partial ordering.
+  template <class S>
+  SourceLocation getLocStartImpl(const Stmt *stmt,
+                                SourceLocation (Stmt::*v)() const) {
+    return static_cast<const S*>(stmt)->getSourceRange().getBegin();
+  }
+
+  /// This implementation is used when a class provides a custom
+  /// implementation of getLocEnd.
+  template <class S, class T>
+  SourceLocation getLocEndImpl(const Stmt *stmt,
+                               SourceLocation (T::*v)() const) {
+    return static_cast<const S*>(stmt)->getLocEnd();
+  }
+
+  /// This implementation is used when a class doesn't provide a custom
+  /// implementation of getLocEnd.  Overload resolution should pick it over
+  /// the implementation above because it's more specialized according to
+  /// function template partial ordering.
+  template <class S>
+  SourceLocation getLocEndImpl(const Stmt *stmt,
+                               SourceLocation (Stmt::*v)() const) {
+    return static_cast<const S*>(stmt)->getSourceRange().getEnd();
+  }
+}
+
+SourceLocation Stmt::getLocStart() const {
+  switch (getStmtClass()) {
+  case Stmt::NoStmtClass: llvm_unreachable("statement without class");
+#define ABSTRACT_STMT(type)
+#define STMT(type, base) \
+  case Stmt::type##Class: \
+    return getLocStartImpl<type>(this, &type::getLocStart);
+#include "clang/AST/StmtNodes.inc"
+  }
+  llvm_unreachable("unknown statement kind");
+}
+
+SourceLocation Stmt::getLocEnd() const {
+  switch (getStmtClass()) {
+  case Stmt::NoStmtClass: llvm_unreachable("statement without class");
+#define ABSTRACT_STMT(type)
+#define STMT(type, base) \
+  case Stmt::type##Class: \
+    return getLocEndImpl<type>(this, &type::getLocEnd);
+#include "clang/AST/StmtNodes.inc"
+  }
+  llvm_unreachable("unknown statement kind");
 }
 
 void CompoundStmt::setStmts(ASTContext &C, Stmt **Stmts, unsigned NumStmts) {
@@ -631,9 +693,9 @@ void IfStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
     return;
   }
   
-  SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), 
-                                   V->getSourceRange().getBegin(),
-                                   V->getSourceRange().getEnd());
+  SourceRange VarRange = V->getSourceRange();
+  SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), VarRange.getBegin(),
+                                   VarRange.getEnd());
 }
 
 ForStmt::ForStmt(ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar, 
@@ -662,9 +724,9 @@ void ForStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
     return;
   }
   
-  SubExprs[CONDVAR] = new (C) DeclStmt(DeclGroupRef(V), 
-                                       V->getSourceRange().getBegin(),
-                                       V->getSourceRange().getEnd());
+  SourceRange VarRange = V->getSourceRange();
+  SubExprs[CONDVAR] = new (C) DeclStmt(DeclGroupRef(V), VarRange.getBegin(),
+                                       VarRange.getEnd());
 }
 
 SwitchStmt::SwitchStmt(ASTContext &C, VarDecl *Var, Expr *cond) 
@@ -689,9 +751,9 @@ void SwitchStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
     return;
   }
   
-  SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), 
-                                   V->getSourceRange().getBegin(),
-                                   V->getSourceRange().getEnd());
+  SourceRange VarRange = V->getSourceRange();
+  SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), VarRange.getBegin(),
+                                   VarRange.getEnd());
 }
 
 Stmt *SwitchCase::getSubStmt() {
@@ -722,10 +784,10 @@ void WhileStmt::setConditionVariable(ASTContext &C, VarDecl *V) {
     SubExprs[VAR] = 0;
     return;
   }
-  
-  SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), 
-                                   V->getSourceRange().getBegin(),
-                                   V->getSourceRange().getEnd());
+
+  SourceRange VarRange = V->getSourceRange();
+  SubExprs[VAR] = new (C) DeclStmt(DeclGroupRef(V), VarRange.getBegin(),
+                                   VarRange.getEnd());
 }
 
 // IndirectGotoStmt

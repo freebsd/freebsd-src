@@ -222,8 +222,6 @@ bool DAGTypeLegalizer::run() {
     for (unsigned i = 0, NumResults = N->getNumValues(); i < NumResults; ++i) {
       EVT ResultVT = N->getValueType(i);
       switch (getTypeAction(ResultVT)) {
-      default:
-        assert(false && "Unknown action!");
       case TargetLowering::TypeLegal:
         break;
       // The following calls must take care of *all* of the node's results,
@@ -275,8 +273,6 @@ ScanOperands:
 
       EVT OpVT = N->getOperand(i).getValueType();
       switch (getTypeAction(OpVT)) {
-      default:
-        assert(false && "Unknown action!");
       case TargetLowering::TypeLegal:
         continue;
       // The following calls must either replace all of the node's results
@@ -752,7 +748,11 @@ void DAGTypeLegalizer::SetSoftenedFloat(SDValue Op, SDValue Result) {
 }
 
 void DAGTypeLegalizer::SetScalarizedVector(SDValue Op, SDValue Result) {
-  assert(Result.getValueType() == Op.getValueType().getVectorElementType() &&
+  // Note that in some cases vector operation operands may be greater than
+  // the vector element type. For example BUILD_VECTOR of type <1 x i1> with
+  // a constant i8 operand.
+  assert(Result.getValueType().getSizeInBits() >=
+         Op.getValueType().getVectorElementType().getSizeInBits() &&
          "Invalid type for scalarized vector");
   AnalyzeNewValue(Result);
 
@@ -889,7 +889,7 @@ SDValue DAGTypeLegalizer::CreateStackStoreLoad(SDValue Op,
                                MachinePointerInfo(), false, false, 0);
   // Result is a load from the stack slot.
   return DAG.getLoad(DestVT, dl, Store, StackPtr, MachinePointerInfo(),
-                     false, false, 0);
+                     false, false, false, 0);
 }
 
 /// CustomLowerNode - Replace the node's results with custom code provided
@@ -1056,8 +1056,9 @@ SDValue DAGTypeLegalizer::MakeLibCall(RTLIB::Libcall LC, EVT RetVT,
   Type *RetTy = RetVT.getTypeForEVT(*DAG.getContext());
   std::pair<SDValue,SDValue> CallInfo =
     TLI.LowerCallTo(DAG.getEntryNode(), RetTy, isSigned, !isSigned, false,
-                    false, 0, TLI.getLibcallCallingConv(LC), false,
-                    /*isReturnValueUsed=*/true,
+                    false, 0, TLI.getLibcallCallingConv(LC),
+                    /*isTailCall=*/false,
+                    /*doesNotReturn=*/false, /*isReturnValueUsed=*/true,
                     Callee, Args, DAG, dl);
   return CallInfo.first;
 }
@@ -1084,12 +1085,11 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
   SDValue Callee = DAG.getExternalSymbol(TLI.getLibcallName(LC),
                                          TLI.getPointerTy());
 
-  // Splice the libcall in wherever FindInputOutputChains tells us to.
   Type *RetTy = Node->getValueType(0).getTypeForEVT(*DAG.getContext());
   std::pair<SDValue, SDValue> CallInfo =
     TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
                     0, TLI.getLibcallCallingConv(LC), /*isTailCall=*/false,
-                    /*isReturnValueUsed=*/true,
+                    /*doesNotReturn=*/false, /*isReturnValueUsed=*/true,
                     Callee, Args, DAG, Node->getDebugLoc());
 
   return CallInfo;

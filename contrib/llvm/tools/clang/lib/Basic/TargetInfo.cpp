@@ -27,6 +27,7 @@ static const LangAS::Map DefaultAddrSpaceMap = { 0 };
 TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   // Set defaults.  Defaults are set for a 32-bit RISC platform, like PPC or
   // SPARC.  These should be overridden by concrete targets as needed.
+  BigEndian = true;
   TLSSupported = true;
   NoAsmVariants = false;
   PointerWidth = PointerAlign = 32;
@@ -34,6 +35,7 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   IntWidth = IntAlign = 32;
   LongWidth = LongAlign = 32;
   LongLongWidth = LongLongAlign = 64;
+  SuitableAlign = 64;
   HalfWidth = 16;
   HalfAlign = 16;
   FloatWidth = 32;
@@ -73,6 +75,9 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
 
   // Default to no types using fpret.
   RealTypeUsesObjCFPRet = 0;
+
+  // Default to not using fp2ret for __Complex long double
+  ComplexLongDoubleUsesFP2Ret = false;
 
   // Default to using the Itanium ABI.
   CXXABI = CXXABI_Itanium;

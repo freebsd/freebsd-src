@@ -25,8 +25,8 @@ using namespace ento;
 
 namespace {
 class PthreadLockChecker : public Checker< check::PostStmt<CallExpr> > {
-  mutable llvm::OwningPtr<BugType> BT_doublelock;
-  mutable llvm::OwningPtr<BugType> BT_lor;
+  mutable OwningPtr<BugType> BT_doublelock;
+  mutable OwningPtr<BugType> BT_lor;
   enum LockingSemantics {
     NotApplicable = 0,
     PthreadSemantics,
@@ -56,18 +56,11 @@ template <> struct ProgramStateTrait<LockSet> :
 
 void PthreadLockChecker::checkPostStmt(const CallExpr *CE,
                                        CheckerContext &C) const {
-  const ProgramState *state = C.getState();
-  const Expr *Callee = CE->getCallee();
-  const FunctionDecl *FD = state->getSVal(Callee).getAsFunctionDecl();
-
-  if (!FD)
+  ProgramStateRef state = C.getState();
+  const LocationContext *LCtx = C.getLocationContext();
+  StringRef FName = C.getCalleeName(CE);
+  if (FName.empty())
     return;
-
-  // Get the name of the callee.
-  IdentifierInfo *II = FD->getIdentifier();
-  if (!II)   // if no identifier, not a simple C function
-    return;
-  StringRef FName = II->getName();
 
   if (CE->getNumArgs() != 1)
     return;
@@ -75,24 +68,28 @@ void PthreadLockChecker::checkPostStmt(const CallExpr *CE,
   if (FName == "pthread_mutex_lock" ||
       FName == "pthread_rwlock_rdlock" ||
       FName == "pthread_rwlock_wrlock")
-    AcquireLock(C, CE, state->getSVal(CE->getArg(0)), false, PthreadSemantics);
+    AcquireLock(C, CE, state->getSVal(CE->getArg(0), LCtx),
+                false, PthreadSemantics);
   else if (FName == "lck_mtx_lock" ||
            FName == "lck_rw_lock_exclusive" ||
            FName == "lck_rw_lock_shared") 
-    AcquireLock(C, CE, state->getSVal(CE->getArg(0)), false, XNUSemantics);
+    AcquireLock(C, CE, state->getSVal(CE->getArg(0), LCtx),
+                false, XNUSemantics);
   else if (FName == "pthread_mutex_trylock" ||
            FName == "pthread_rwlock_tryrdlock" ||
            FName == "pthread_rwlock_tryrwlock")
-    AcquireLock(C, CE, state->getSVal(CE->getArg(0)), true, PthreadSemantics);
+    AcquireLock(C, CE, state->getSVal(CE->getArg(0), LCtx),
+                true, PthreadSemantics);
   else if (FName == "lck_mtx_try_lock" ||
            FName == "lck_rw_try_lock_exclusive" ||
            FName == "lck_rw_try_lock_shared")
-    AcquireLock(C, CE, state->getSVal(CE->getArg(0)), true, XNUSemantics);
+    AcquireLock(C, CE, state->getSVal(CE->getArg(0), LCtx),
+                true, XNUSemantics);
   else if (FName == "pthread_mutex_unlock" ||
            FName == "pthread_rwlock_unlock" ||
            FName == "lck_mtx_unlock" ||
            FName == "lck_rw_done")
-    ReleaseLock(C, CE, state->getSVal(CE->getArg(0)));
+    ReleaseLock(C, CE, state->getSVal(CE->getArg(0), LCtx));
 }
 
 void PthreadLockChecker::AcquireLock(CheckerContext &C, const CallExpr *CE,
@@ -103,9 +100,9 @@ void PthreadLockChecker::AcquireLock(CheckerContext &C, const CallExpr *CE,
   if (!lockR)
     return;
   
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
   
-  SVal X = state->getSVal(CE);
+  SVal X = state->getSVal(CE, C.getLocationContext());
   if (X.isUnknownOrUndef())
     return;
   
@@ -125,10 +122,10 @@ void PthreadLockChecker::AcquireLock(CheckerContext &C, const CallExpr *CE,
     return;
   }
 
-  const ProgramState *lockSucc = state;
+  ProgramStateRef lockSucc = state;
   if (isTryLock) {
     // Bifurcate the state, and allow a mode where the lock acquisition fails.
-    const ProgramState *lockFail;
+    ProgramStateRef lockFail;
     switch (semantics) {
     case PthreadSemantics:
       llvm::tie(lockFail, lockSucc) = state->assume(retVal);    
@@ -138,7 +135,6 @@ void PthreadLockChecker::AcquireLock(CheckerContext &C, const CallExpr *CE,
       break;
     default:
       llvm_unreachable("Unknown tryLock locking semantics");
-      break;
     }
     assert(lockFail && lockSucc);
     C.addTransition(lockFail);
@@ -166,7 +162,7 @@ void PthreadLockChecker::ReleaseLock(CheckerContext &C, const CallExpr *CE,
   if (!lockR)
     return;
   
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
   llvm::ImmutableList<const MemRegion*> LS = state->get<LockSet>();
 
   // FIXME: Better analysis requires IPA for wrappers.
