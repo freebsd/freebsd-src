@@ -748,7 +748,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_iopl */
 	case 110: {
 		struct linux_iopl_args *p = params;
-		iarg[0] = p->level; /* l_ulong */
+		iarg[0] = p->level; /* l_int */
 		*n_args = 1;
 		break;
 	}
@@ -3392,7 +3392,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 110:
 		switch(ndx) {
 		case 0:
-			p = "l_ulong";
+			p = "l_int";
 			break;
 		default:
 			break;
