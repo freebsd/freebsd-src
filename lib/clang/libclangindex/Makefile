@@ -5,7 +5,6 @@ LIB=	clangindex
 SRCDIR=	tools/clang/lib/Index
 SRCS=	ASTLocation.cpp \
 	Analyzer.cpp \
-	CallGraph.cpp \
 	DeclReferenceMap.cpp \
 	Entity.cpp \
 	GlobalSelector.cpp \

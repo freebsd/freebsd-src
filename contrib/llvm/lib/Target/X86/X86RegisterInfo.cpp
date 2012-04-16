@@ -1,4 +1,4 @@
-//===- X86RegisterInfo.cpp - X86 Register Information -----------*- C++ -*-===//
+//===-- X86RegisterInfo.cpp - X86 Register Information --------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "X86.h"
 #include "X86RegisterInfo.h"
+#include "X86.h"
 #include "X86InstrBuilder.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86Subtarget.h"
@@ -127,121 +127,13 @@ const TargetRegisterClass *
 X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
                                           const TargetRegisterClass *B,
                                           unsigned SubIdx) const {
-  switch (SubIdx) {
-  default: return 0;
-  case X86::sub_8bit:
-    if (B == &X86::GR8RegClass) {
-      if (A->getSize() == 2 || A->getSize() == 4 || A->getSize() == 8)
-        return A;
-    } else if (B == &X86::GR8_ABCD_LRegClass || B == &X86::GR8_ABCD_HRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_ABCDRegClass ||
-          A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass ||
-          A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_ABCDRegClass ||
-               A == &X86::GR32_NOREXRegClass ||
-               A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_ABCDRegClass;
-      else if (A == &X86::GR16RegClass || A == &X86::GR16_ABCDRegClass ||
-               A == &X86::GR16_NOREXRegClass)
-        return &X86::GR16_ABCDRegClass;
-    } else if (B == &X86::GR8_NOREXRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREXRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_NOREXRegClass ||
-               A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_NOREXRegClass;
-      else if (A == &X86::GR32_ABCDRegClass)
-        return &X86::GR32_ABCDRegClass;
-      else if (A == &X86::GR16RegClass || A == &X86::GR16_NOREXRegClass)
-        return &X86::GR16_NOREXRegClass;
-      else if (A == &X86::GR16_ABCDRegClass)
-        return &X86::GR16_ABCDRegClass;
-    }
-    break;
-  case X86::sub_8bit_hi:
-    if (B->hasSubClassEq(&X86::GR8_ABCD_HRegClass))
-      switch (A->getSize()) {
-        case 2: return getCommonSubClass(A, &X86::GR16_ABCDRegClass);
-        case 4: return getCommonSubClass(A, &X86::GR32_ABCDRegClass);
-        case 8: return getCommonSubClass(A, &X86::GR64_ABCDRegClass);
-        default: return 0;
-      }
-    break;
-  case X86::sub_16bit:
-    if (B == &X86::GR16RegClass) {
-      if (A->getSize() == 4 || A->getSize() == 8)
-        return A;
-    } else if (B == &X86::GR16_ABCDRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_ABCDRegClass ||
-          A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass ||
-          A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_ABCDRegClass ||
-               A == &X86::GR32_NOREXRegClass || A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_ABCDRegClass;
-    } else if (B == &X86::GR16_NOREXRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREXRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_NOREXRegClass ||
-               A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_NOREXRegClass;
-      else if (A == &X86::GR32_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-    }
-    break;
-  case X86::sub_32bit:
-    if (B == &X86::GR32RegClass) {
-      if (A->getSize() == 8)
-        return A;
-    } else if (B == &X86::GR32_NOSPRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOSPRegClass)
-        return &X86::GR64_NOSPRegClass;
-      if (A->getSize() == 8)
-        return getCommonSubClass(A, &X86::GR64_NOSPRegClass);
-    } else if (B == &X86::GR32_ABCDRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_ABCDRegClass ||
-          A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass ||
-          A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_ABCDRegClass;
-    } else if (B == &X86::GR32_NOREXRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass)
-        return &X86::GR64_NOREXRegClass;
-      else if (A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREX_NOSPRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-    } else if (B == &X86::GR32_NOREX_NOSPRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREX_NOSPRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-    }
-    break;
-  case X86::sub_ss:
-    if (B == &X86::FR32RegClass)
-      return A;
-    break;
-  case X86::sub_sd:
-    if (B == &X86::FR64RegClass)
-      return A;
-    break;
-  case X86::sub_xmm:
-    if (B == &X86::VR128RegClass)
-      return A;
-    break;
+  // The sub_8bit sub-register index is more constrained in 32-bit mode.
+  if (!Is64Bit && SubIdx == X86::sub_8bit) {
+    A = X86GenRegisterInfo::getSubClassWithSubReg(A, X86::sub_8bit_hi);
+    if (!A)
+      return 0;
   }
-  return 0;
+  return X86GenRegisterInfo::getMatchingSuperRegClass(A, B, SubIdx);
 }
 
 const TargetRegisterClass*
@@ -334,7 +226,7 @@ X86RegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   }
 }
 
-const unsigned *
+const uint16_t *
 X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   bool callsEHReturn = false;
   bool ghcCall = false;
@@ -345,45 +237,29 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     ghcCall = (F ? F->getCallingConv() == CallingConv::GHC : false);
   }
 
-  static const unsigned GhcCalleeSavedRegs[] = {
-    0
-  };
-
-  static const unsigned CalleeSavedRegs32Bit[] = {
-    X86::ESI, X86::EDI, X86::EBX, X86::EBP,  0
-  };
-
-  static const unsigned CalleeSavedRegs32EHRet[] = {
-    X86::EAX, X86::EDX, X86::ESI, X86::EDI, X86::EBX, X86::EBP,  0
-  };
-
-  static const unsigned CalleeSavedRegs64Bit[] = {
-    X86::RBX, X86::R12, X86::R13, X86::R14, X86::R15, X86::RBP, 0
-  };
-
-  static const unsigned CalleeSavedRegs64EHRet[] = {
-    X86::RAX, X86::RDX, X86::RBX, X86::R12,
-    X86::R13, X86::R14, X86::R15, X86::RBP, 0
-  };
-
-  static const unsigned CalleeSavedRegsWin64[] = {
-    X86::RBX,   X86::RBP,   X86::RDI,   X86::RSI,
-    X86::R12,   X86::R13,   X86::R14,   X86::R15,
-    X86::XMM6,  X86::XMM7,  X86::XMM8,  X86::XMM9,
-    X86::XMM10, X86::XMM11, X86::XMM12, X86::XMM13,
-    X86::XMM14, X86::XMM15, 0
-  };
-
-  if (ghcCall) {
-    return GhcCalleeSavedRegs;
-  } else if (Is64Bit) {
+  if (ghcCall)
+    return CSR_Ghc_SaveList;
+  if (Is64Bit) {
     if (IsWin64)
-      return CalleeSavedRegsWin64;
-    else
-      return (callsEHReturn ? CalleeSavedRegs64EHRet : CalleeSavedRegs64Bit);
-  } else {
-    return (callsEHReturn ? CalleeSavedRegs32EHRet : CalleeSavedRegs32Bit);
+      return CSR_Win64_SaveList;
+    if (callsEHReturn)
+      return CSR_64EHRet_SaveList;
+    return CSR_64_SaveList;
   }
+  if (callsEHReturn)
+    return CSR_32EHRet_SaveList;
+  return CSR_32_SaveList;
+}
+
+const uint32_t*
+X86RegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+  if (CC == CallingConv::GHC)
+    return CSR_Ghc_RegMask;
+  if (!Is64Bit)
+    return CSR_32_RegMask;
+  if (IsWin64)
+    return CSR_Win64_RegMask;
+  return CSR_64_RegMask;
 }
 
 BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
@@ -428,16 +304,16 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
     for (unsigned n = 0; n != 8; ++n) {
       // R8, R9, ...
-      const unsigned GPR64[] = {
+      static const uint16_t GPR64[] = {
         X86::R8,  X86::R9,  X86::R10, X86::R11,
         X86::R12, X86::R13, X86::R14, X86::R15
       };
-      for (const unsigned *AI = getOverlaps(GPR64[n]); unsigned Reg = *AI; ++AI)
+      for (const uint16_t *AI = getOverlaps(GPR64[n]); unsigned Reg = *AI; ++AI)
         Reserved.set(Reg);
 
       // XMM8, XMM9, ...
       assert(X86::XMM15 == X86::XMM8+7);
-      for (const unsigned *AI = getOverlaps(X86::XMM8 + n); unsigned Reg = *AI;
+      for (const uint16_t *AI = getOverlaps(X86::XMM8 + n); unsigned Reg = *AI;
            ++AI)
         Reserved.set(Reg);
     }
@@ -452,7 +328,7 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
 bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return (RealignStack &&
+  return (MF.getTarget().Options.RealignStack &&
           !MFI->hasVarSizedObjects());
 }
 
@@ -583,7 +459,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     // sure we restore the stack pointer immediately after the call, there may
     // be spill code inserted between the CALL and ADJCALLSTACKUP instructions.
     MachineBasicBlock::iterator B = MBB.begin();
-    while (I != B && !llvm::prior(I)->getDesc().isCall())
+    while (I != B && !llvm::prior(I)->isCall())
       --I;
     MBB.insert(I, New);
   }
@@ -650,12 +526,10 @@ unsigned X86RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
 
 unsigned X86RegisterInfo::getEHExceptionRegister() const {
   llvm_unreachable("What is the exception register");
-  return 0;
 }
 
 unsigned X86RegisterInfo::getEHHandlerRegister() const {
   llvm_unreachable("What is the exception handler register");
-  return 0;
 }
 
 namespace llvm {
@@ -665,7 +539,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
   case MVT::i8:
     if (High) {
       switch (Reg) {
-      default: return 0;
+      default: return getX86SubSuperRegister(Reg, MVT::i64, High);
       case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
         return X86::AH;
       case X86::DH: case X86::DL: case X86::DX: case X86::EDX: case X86::RDX:
@@ -785,6 +659,22 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
       return X86::R15D;
     }
   case MVT::i64:
+    // For 64-bit mode if we've requested a "high" register and the
+    // Q or r constraints we want one of these high registers or
+    // just the register name otherwise.
+    if (High) {
+      switch (Reg) {
+      case X86::SIL: case X86::SI: case X86::ESI: case X86::RSI:
+        return X86::SI;
+      case X86::DIL: case X86::DI: case X86::EDI: case X86::RDI:
+        return X86::DI;
+      case X86::BPL: case X86::BP: case X86::EBP: case X86::RBP:
+        return X86::BP;
+      case X86::SPL: case X86::SP: case X86::ESP: case X86::RSP:
+        return X86::SP;
+      // Fallthrough.
+      }
+    }
     switch (Reg) {
     default: return Reg;
     case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
@@ -821,8 +711,6 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
       return X86::R15;
     }
   }
-
-  return Reg;
 }
 }
 

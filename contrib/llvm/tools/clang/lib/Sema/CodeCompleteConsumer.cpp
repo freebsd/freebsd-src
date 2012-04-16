@@ -18,6 +18,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang-c/Index.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -71,8 +72,8 @@ bool CodeCompletionContext::wantConstructorResults() const {
   case CCC_ObjCCategoryName:
     return false;
   }
-  
-  return false;
+
+  llvm_unreachable("Invalid CodeCompletionContext::Kind!");
 }
 
 //===----------------------------------------------------------------------===//
@@ -93,7 +94,6 @@ CodeCompletionString::Chunk::Chunk(ChunkKind Kind, const char *Text)
 
   case CK_Optional:
     llvm_unreachable("Optional strings cannot be created from text");
-    break;
       
   case CK_LeftParen:
     this->Text = "(";
@@ -192,9 +192,12 @@ CodeCompletionString::CodeCompletionString(const Chunk *Chunks,
                                            unsigned Priority, 
                                            CXAvailabilityKind Availability,
                                            const char **Annotations,
-                                           unsigned NumAnnotations)
-  : NumChunks(NumChunks), NumAnnotations(NumAnnotations)
-  , Priority(Priority), Availability(Availability)
+                                           unsigned NumAnnotations,
+                                           CXCursorKind ParentKind,
+                                           StringRef ParentName)
+  : NumChunks(NumChunks), NumAnnotations(NumAnnotations),
+    Priority(Priority), Availability(Availability), ParentKind(ParentKind),
+    ParentName(ParentName)
 { 
   assert(NumChunks <= 0xffff);
   assert(NumAnnotations <= 0xffff);
@@ -260,21 +263,135 @@ const char *CodeCompletionAllocator::CopyString(Twine String) {
   // FIXME: It would be more efficient to teach Twine to tell us its size and
   // then add a routine there to fill in an allocated char* with the contents
   // of the string.
-  llvm::SmallString<128> Data;
+  SmallString<128> Data;
   return CopyString(String.toStringRef(Data));
 }
 
+StringRef CodeCompletionTUInfo::getParentName(DeclContext *DC) {
+  NamedDecl *ND = dyn_cast<NamedDecl>(DC);
+  if (!ND)
+    return StringRef();
+  
+  // Check whether we've already cached the parent name.
+  StringRef &CachedParentName = ParentNames[DC];
+  if (!CachedParentName.empty())
+    return CachedParentName;
+
+  // If we already processed this DeclContext and assigned empty to it, the
+  // data pointer will be non-null.
+  if (CachedParentName.data() != 0)
+    return StringRef();
+
+  // Find the interesting names.
+  llvm::SmallVector<DeclContext *, 2> Contexts;
+  while (DC && !DC->isFunctionOrMethod()) {
+    if (NamedDecl *ND = dyn_cast<NamedDecl>(DC)) {
+      if (ND->getIdentifier())
+        Contexts.push_back(DC);
+    }
+    
+    DC = DC->getParent();
+  }
+
+  {
+    llvm::SmallString<128> S;
+    llvm::raw_svector_ostream OS(S);
+    bool First = true;
+    for (unsigned I = Contexts.size(); I != 0; --I) {
+      if (First)
+        First = false;
+      else {
+        OS << "::";
+      }
+      
+      DeclContext *CurDC = Contexts[I-1];
+      if (ObjCCategoryImplDecl *CatImpl = dyn_cast<ObjCCategoryImplDecl>(CurDC))
+        CurDC = CatImpl->getCategoryDecl();
+      
+      if (ObjCCategoryDecl *Cat = dyn_cast<ObjCCategoryDecl>(CurDC)) {
+        ObjCInterfaceDecl *Interface = Cat->getClassInterface();
+        if (!Interface) {
+          // Assign an empty StringRef but with non-null data to distinguish
+          // between empty because we didn't process the DeclContext yet.
+          CachedParentName = StringRef((const char *)~0U, 0);
+          return StringRef();
+        }
+        
+        OS << Interface->getName() << '(' << Cat->getName() << ')';
+      } else {
+        OS << cast<NamedDecl>(CurDC)->getName();
+      }
+    }
+    
+    CachedParentName = AllocatorRef->CopyString(OS.str());
+  }
+
+  return CachedParentName;
+}
+
 CodeCompletionString *CodeCompletionBuilder::TakeString() {
-  void *Mem = Allocator.Allocate(
+  void *Mem = getAllocator().Allocate(
                   sizeof(CodeCompletionString) + sizeof(Chunk) * Chunks.size()
                                     + sizeof(const char *) * Annotations.size(),
                                  llvm::alignOf<CodeCompletionString>());
   CodeCompletionString *Result 
     = new (Mem) CodeCompletionString(Chunks.data(), Chunks.size(),
                                      Priority, Availability,
-                                     Annotations.data(), Annotations.size());
+                                     Annotations.data(), Annotations.size(),
+                                     ParentKind, ParentName);
   Chunks.clear();
   return Result;
+}
+
+void CodeCompletionBuilder::AddTypedTextChunk(const char *Text) {
+  Chunks.push_back(Chunk(CodeCompletionString::CK_TypedText, Text));
+}
+
+void CodeCompletionBuilder::AddTextChunk(const char *Text) {
+  Chunks.push_back(Chunk::CreateText(Text));
+}
+
+void CodeCompletionBuilder::AddOptionalChunk(CodeCompletionString *Optional) {
+  Chunks.push_back(Chunk::CreateOptional(Optional));
+}
+
+void CodeCompletionBuilder::AddPlaceholderChunk(const char *Placeholder) {
+  Chunks.push_back(Chunk::CreatePlaceholder(Placeholder));
+}
+
+void CodeCompletionBuilder::AddInformativeChunk(const char *Text) {
+  Chunks.push_back(Chunk::CreateInformative(Text));
+}
+
+void CodeCompletionBuilder::AddResultTypeChunk(const char *ResultType) {
+  Chunks.push_back(Chunk::CreateResultType(ResultType));
+}
+
+void
+CodeCompletionBuilder::AddCurrentParameterChunk(const char *CurrentParameter) {
+  Chunks.push_back(Chunk::CreateCurrentParameter(CurrentParameter));
+}
+
+void CodeCompletionBuilder::AddChunk(CodeCompletionString::ChunkKind CK,
+                                     const char *Text) {
+  Chunks.push_back(Chunk(CK, Text));
+}
+
+void CodeCompletionBuilder::addParentContext(DeclContext *DC) {
+  if (DC->isTranslationUnit()) {
+    ParentKind = CXCursor_TranslationUnit;
+    return;
+  }
+  
+  if (DC->isFunctionOrMethod())
+    return;
+  
+  NamedDecl *ND = dyn_cast<NamedDecl>(DC);
+  if (!ND)
+    return;
+  
+  ParentKind = getCursorKindForDecl(ND);
+  ParentName = getCodeCompletionTUInfo().getParentName(DC);
 }
 
 unsigned CodeCompletionResult::getPriorityFromDecl(NamedDecl *ND) {
@@ -330,8 +447,8 @@ CodeCompleteConsumer::OverloadCandidate::getFunctionType() const {
   case CK_FunctionType:
     return Type;
   }
-  
-  return 0;
+
+  llvm_unreachable("Invalid CandidateKind!");
 }
 
 //===----------------------------------------------------------------------===//
@@ -356,7 +473,8 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
       if (Results[I].Hidden)
         OS << " (Hidden)";
       if (CodeCompletionString *CCS 
-            = Results[I].CreateCodeCompletionString(SemaRef, Allocator)) {
+            = Results[I].CreateCodeCompletionString(SemaRef, getAllocator(),
+                                                    CCTUInfo)) {
         OS << " : " << CCS->getAsString();
       }
         
@@ -370,7 +488,8 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
     case CodeCompletionResult::RK_Macro: {
       OS << Results[I].Macro->getName();
       if (CodeCompletionString *CCS 
-            = Results[I].CreateCodeCompletionString(SemaRef, Allocator)) {
+            = Results[I].CreateCodeCompletionString(SemaRef, getAllocator(),
+                                                    CCTUInfo)) {
         OS << " : " << CCS->getAsString();
       }
       OS << '\n';
@@ -394,17 +513,32 @@ PrintingCodeCompleteConsumer::ProcessOverloadCandidates(Sema &SemaRef,
   for (unsigned I = 0; I != NumCandidates; ++I) {
     if (CodeCompletionString *CCS
           = Candidates[I].CreateSignatureString(CurrentArg, SemaRef,
-                                                Allocator)) {
+                                                getAllocator(), CCTUInfo)) {
       OS << "OVERLOAD: " << CCS->getAsString() << "\n";
     }
   }
 }
 
+/// \brief Retrieve the effective availability of the given declaration.
+static AvailabilityResult getDeclAvailability(Decl *D) {
+  AvailabilityResult AR = D->getAvailability();
+  if (isa<EnumConstantDecl>(D))
+    AR = std::max(AR, cast<Decl>(D->getDeclContext())->getAvailability());
+  return AR;
+}
+
 void CodeCompletionResult::computeCursorKindAndAvailability(bool Accessible) {
   switch (Kind) {
-  case RK_Declaration:
+  case RK_Pattern:
+    if (!Declaration) {
+      // Do nothing: Patterns can come with cursor kinds!
+      break;
+    }
+    // Fall through
+      
+  case RK_Declaration: {
     // Set the availability based on attributes.
-    switch (Declaration->getAvailability()) {
+    switch (getDeclAvailability(Declaration)) {
     case AR_Available:
     case AR_NotYetIntroduced:
       Availability = CXAvailability_Available;      
@@ -424,9 +558,19 @@ void CodeCompletionResult::computeCursorKindAndAvailability(bool Accessible) {
         Availability = CXAvailability_NotAvailable;
       
     CursorKind = getCursorKindForDecl(Declaration);
-    if (CursorKind == CXCursor_UnexposedDecl)
-      CursorKind = CXCursor_NotImplemented;
+    if (CursorKind == CXCursor_UnexposedDecl) {
+      // FIXME: Forward declarations of Objective-C classes and protocols 
+      // are not directly exposed, but we want code completion to treat them 
+      // like a definition.
+      if (isa<ObjCInterfaceDecl>(Declaration))
+        CursorKind = CXCursor_ObjCInterfaceDecl;
+      else if (isa<ObjCProtocolDecl>(Declaration))
+        CursorKind = CXCursor_ObjCProtocolDecl;
+      else
+        CursorKind = CXCursor_NotImplemented;
+    }
     break;
+  }
 
   case RK_Macro:
     Availability = CXAvailability_Available;      
@@ -436,11 +580,7 @@ void CodeCompletionResult::computeCursorKindAndAvailability(bool Accessible) {
   case RK_Keyword:
     Availability = CXAvailability_Available;      
     CursorKind = CXCursor_NotImplemented;
-    break;
-      
-  case RK_Pattern:
-    // Do nothing: Patterns can come with cursor kinds!
-    break;
+    break;      
   }
 
   if (!Accessible)

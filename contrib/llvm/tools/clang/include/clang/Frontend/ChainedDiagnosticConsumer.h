@@ -21,8 +21,9 @@ class LangOptions;
 /// should be the "primary" client, and will be used for computing whether the
 /// diagnostics should be included in counts.
 class ChainedDiagnosticConsumer : public DiagnosticConsumer {
-  llvm::OwningPtr<DiagnosticConsumer> Primary;
-  llvm::OwningPtr<DiagnosticConsumer> Secondary;
+  virtual void anchor();
+  OwningPtr<DiagnosticConsumer> Primary;
+  OwningPtr<DiagnosticConsumer> Secondary;
 
 public:
   ChainedDiagnosticConsumer(DiagnosticConsumer *_Primary,
@@ -40,6 +41,11 @@ public:
   virtual void EndSourceFile() {
     Secondary->EndSourceFile();
     Primary->EndSourceFile();
+  }
+
+  virtual void finish() {
+    Secondary->finish();
+    Primary->finish();
   }
 
   virtual bool IncludeInDiagnosticCounts() const {

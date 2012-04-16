@@ -39,12 +39,12 @@ struct OperandInfo {
     Fields.push_back(EncodingField(Base, Width, Offset));
   }
 
-  unsigned numFields() { return Fields.size(); }
+  unsigned numFields() const { return Fields.size(); }
 
-  typedef std::vector<EncodingField>::iterator iterator;
+  typedef std::vector<EncodingField>::const_iterator const_iterator;
 
-  iterator begin() { return Fields.begin(); }
-  iterator end()   { return Fields.end();   }
+  const_iterator begin() const { return Fields.begin(); }
+  const_iterator end() const   { return Fields.end();   }
 };
 
 class FixedLenDecoderEmitter : public TableGenBackend {
@@ -52,12 +52,12 @@ public:
   FixedLenDecoderEmitter(RecordKeeper &R,
                          std::string PredicateNamespace,
                          std::string GPrefix  = "if (",
-                         std::string GPostfix = " == MCDisassembler::Fail) return MCDisassembler::Fail;",
+                         std::string GPostfix = " == MCDisassembler::Fail)"
+                         " return MCDisassembler::Fail;",
                          std::string ROK      = "MCDisassembler::Success",
                          std::string RFail    = "MCDisassembler::Fail",
                          std::string L        = "") :
-    Records(R), Target(R),
-    NumberedInstructions(Target.getInstructionsByEnumValue()),
+    Target(R),
     PredicateNamespace(PredicateNamespace),
     GuardPrefix(GPrefix), GuardPostfix(GPostfix),
     ReturnOK(ROK), ReturnFail(RFail), Locals(L) {}
@@ -66,11 +66,7 @@ public:
   void run(raw_ostream &o);
 
 private:
-  RecordKeeper &Records;
   CodeGenTarget Target;
-  std::vector<const CodeGenInstruction*> NumberedInstructions;
-  std::vector<unsigned> Opcodes;
-  std::map<unsigned, std::vector<OperandInfo> > Operands;
 public:
   std::string PredicateNamespace;
   std::string GuardPrefix, GuardPostfix;

@@ -19,7 +19,7 @@
 #ifndef LLVM_CODEGEN_SLOTINDEXES_H
 #define LLVM_CODEGEN_SLOTINDEXES_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -83,7 +83,29 @@ namespace llvm {
     friend class SlotIndexes;
     friend struct DenseMapInfo<SlotIndex>;
 
-    enum Slot { LOAD, USE, DEF, STORE, NUM };
+    enum Slot {
+      /// Basic block boundary.  Used for live ranges entering and leaving a
+      /// block without being live in the layout neighbor.  Also used as the
+      /// def slot of PHI-defs.
+      Slot_Block,
+
+      /// Early-clobber register use/def slot.  A live range defined at
+      /// Slot_EarlyCLobber interferes with normal live ranges killed at
+      /// Slot_Register.  Also used as the kill slot for live ranges tied to an
+      /// early-clobber def.
+      Slot_EarlyClobber,
+
+      /// Normal register use/def slot.  Normal instructions kill and define
+      /// register live ranges at this slot.
+      Slot_Register,
+
+      /// Dead def kill point.  Kill slot for a live range that is defined by
+      /// the same instruction (Slot_Register or Slot_EarlyClobber), but isn't
+      /// used anywhere.
+      Slot_Dead,
+
+      Slot_Count
+    };
 
     PointerIntPair<IndexListEntry*, 2, unsigned> lie;
 
@@ -113,7 +135,7 @@ namespace llvm {
     enum {
       /// The default distance between instructions as returned by distance().
       /// This may vary as instructions are inserted and removed.
-      InstrDist = 4*NUM
+      InstrDist = 4 * Slot_Count
     };
 
     static inline SlotIndex getEmptyKey() {
@@ -186,68 +208,54 @@ namespace llvm {
       return A.lie.getPointer() == B.lie.getPointer();
     }
 
+    /// isEarlierInstr - Return true if A refers to an instruction earlier than
+    /// B. This is equivalent to A < B && !isSameInstr(A, B).
+    static bool isEarlierInstr(SlotIndex A, SlotIndex B) {
+      return A.entry().getIndex() < B.entry().getIndex();
+    }
+
     /// Return the distance from this index to the given one.
     int distance(SlotIndex other) const {
       return other.getIndex() - getIndex();
     }
 
-    /// isLoad - Return true if this is a LOAD slot.
-    bool isLoad() const {
-      return getSlot() == LOAD;
-    }
+    /// isBlock - Returns true if this is a block boundary slot.
+    bool isBlock() const { return getSlot() == Slot_Block; }
 
-    /// isDef - Return true if this is a DEF slot.
-    bool isDef() const {
-      return getSlot() == DEF;
-    }
+    /// isEarlyClobber - Returns true if this is an early-clobber slot.
+    bool isEarlyClobber() const { return getSlot() == Slot_EarlyClobber; }
 
-    /// isUse - Return true if this is a USE slot.
-    bool isUse() const {
-      return getSlot() == USE;
-    }
+    /// isRegister - Returns true if this is a normal register use/def slot.
+    /// Note that early-clobber slots may also be used for uses and defs.
+    bool isRegister() const { return getSlot() == Slot_Register; }
 
-    /// isStore - Return true if this is a STORE slot.
-    bool isStore() const {
-      return getSlot() == STORE;
-    }
+    /// isDead - Returns true if this is a dead def kill slot.
+    bool isDead() const { return getSlot() == Slot_Dead; }
 
     /// Returns the base index for associated with this index. The base index
-    /// is the one associated with the LOAD slot for the instruction pointed to
-    /// by this index.
+    /// is the one associated with the Slot_Block slot for the instruction
+    /// pointed to by this index.
     SlotIndex getBaseIndex() const {
-      return getLoadIndex();
+      return SlotIndex(&entry(), Slot_Block);
     }
 
     /// Returns the boundary index for associated with this index. The boundary
-    /// index is the one associated with the LOAD slot for the instruction
+    /// index is the one associated with the Slot_Block slot for the instruction
     /// pointed to by this index.
     SlotIndex getBoundaryIndex() const {
-      return getStoreIndex();
+      return SlotIndex(&entry(), Slot_Dead);
     }
 
-    /// Returns the index of the LOAD slot for the instruction pointed to by
-    /// this index.
-    SlotIndex getLoadIndex() const {
-      return SlotIndex(&entry(), SlotIndex::LOAD);
-    }    
-
-    /// Returns the index of the USE slot for the instruction pointed to by
-    /// this index.
-    SlotIndex getUseIndex() const {
-      return SlotIndex(&entry(), SlotIndex::USE);
+    /// Returns the register use/def slot in the current instruction for a
+    /// normal or early-clobber def.
+    SlotIndex getRegSlot(bool EC = false) const {
+      return SlotIndex(&entry(), EC ? Slot_EarlyClobber : Slot_Register);
     }
 
-    /// Returns the index of the DEF slot for the instruction pointed to by
-    /// this index.
-    SlotIndex getDefIndex() const {
-      return SlotIndex(&entry(), SlotIndex::DEF);
+    /// Returns the dead def kill slot for the current instruction.
+    SlotIndex getDeadSlot() const {
+      return SlotIndex(&entry(), Slot_Dead);
     }
-
-    /// Returns the index of the STORE slot for the instruction pointed to by
-    /// this index.
-    SlotIndex getStoreIndex() const {
-      return SlotIndex(&entry(), SlotIndex::STORE);
-    }    
 
     /// Returns the next slot in the index list. This could be either the
     /// next slot for the instruction pointed to by this index or, if this
@@ -257,8 +265,8 @@ namespace llvm {
     /// use one of those methods.
     SlotIndex getNextSlot() const {
       Slot s = getSlot();
-      if (s == SlotIndex::STORE) {
-        return SlotIndex(entry().getNext(), SlotIndex::LOAD);
+      if (s == Slot_Dead) {
+        return SlotIndex(entry().getNext(), Slot_Block);
       }
       return SlotIndex(&entry(), s + 1);
     }
@@ -271,14 +279,14 @@ namespace llvm {
 
     /// Returns the previous slot in the index list. This could be either the
     /// previous slot for the instruction pointed to by this index or, if this
-    /// index is a LOAD, the last slot for the previous instruction.
+    /// index is a Slot_Block, the last slot for the previous instruction.
     /// WARNING: This method is considerably more expensive than the methods
     /// that return specific slots (getUseIndex(), etc). If you can - please
     /// use one of those methods.
     SlotIndex getPrevSlot() const {
       Slot s = getSlot();
-      if (s == SlotIndex::LOAD) {
-        return SlotIndex(entry().getPrev(), SlotIndex::STORE);
+      if (s == Slot_Block) {
+        return SlotIndex(entry().getPrev(), Slot_Dead);
       }
       return SlotIndex(&entry(), s - 1);
     }
@@ -464,11 +472,6 @@ namespace llvm {
       return SlotIndex(back(), 0);
     }
 
-    /// Returns the invalid index marker for this analysis.
-    SlotIndex getInvalidIndex() {
-      return getZeroIndex();
-    }
-
     /// Returns the distance between the highest and lowest indexes allocated
     /// so far.
     unsigned getIndexesLength() const {
@@ -486,12 +489,13 @@ namespace llvm {
     /// Returns true if the given machine instr is mapped to an index,
     /// otherwise returns false.
     bool hasIndex(const MachineInstr *instr) const {
-      return (mi2iMap.find(instr) != mi2iMap.end());
+      return mi2iMap.count(instr);
     }
 
     /// Returns the base index for the given instruction.
-    SlotIndex getInstructionIndex(const MachineInstr *instr) const {
-      Mi2IndexMap::const_iterator itr = mi2iMap.find(instr);
+    SlotIndex getInstructionIndex(const MachineInstr *MI) const {
+      // Instructions inside a bundle have the same number as the bundle itself.
+      Mi2IndexMap::const_iterator itr = mi2iMap.find(getBundleStart(MI));
       assert(itr != mi2iMap.end() && "Instruction not found in maps.");
       return itr->second;
     }
@@ -645,6 +649,8 @@ namespace llvm {
     /// instructions, create the new index after the null indexes instead of
     /// before them.
     SlotIndex insertMachineInstrInMaps(MachineInstr *mi, bool Late = false) {
+      assert(!mi->isInsideBundle() &&
+             "Instructions inside bundles should use bundle start's slot.");
       assert(mi2iMap.find(mi) == mi2iMap.end() && "Instr already indexed.");
       // Numbering DBG_VALUE instructions could cause code generation to be
       // affected by debug information.
@@ -677,7 +683,7 @@ namespace llvm {
       if (dist == 0)
         renumberIndexes(newEntry);
 
-      SlotIndex newIndex(newEntry, SlotIndex::LOAD);
+      SlotIndex newIndex(newEntry, SlotIndex::Slot_Block);
       mi2iMap.insert(std::make_pair(mi, newIndex));
       return newIndex;
     }
@@ -728,8 +734,8 @@ namespace llvm {
       insert(nextEntry, startEntry);
       insert(nextEntry, stopEntry);
 
-      SlotIndex startIdx(startEntry, SlotIndex::LOAD);
-      SlotIndex endIdx(nextEntry, SlotIndex::LOAD);
+      SlotIndex startIdx(startEntry, SlotIndex::Slot_Block);
+      SlotIndex endIdx(nextEntry, SlotIndex::Slot_Block);
 
       assert(unsigned(mbb->getNumber()) == MBBRanges.size() &&
              "Blocks must be added in order");
