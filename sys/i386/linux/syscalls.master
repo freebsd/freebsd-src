@@ -353,12 +353,12 @@
 				    l_loff_t length); }
 194	AUE_FTRUNCATE	STD	{ int linux_ftruncate64(l_uint fd, \
 				    l_loff_t length); }
-195	AUE_STAT	STD	{ int linux_stat64(char *filename, \
-				    struct l_stat64 *statbuf, l_long flags); }
-196	AUE_LSTAT	STD	{ int linux_lstat64(char *filename, \
-				    struct l_stat64 *statbuf, l_long flags); }
-197	AUE_FSTAT	STD	{ int linux_fstat64(l_ulong fd, \
-				    struct l_stat64 *statbuf, l_long flags); }
+195	AUE_STAT	STD	{ int linux_stat64(const char *filename, \
+				    struct l_stat64 *statbuf); }
+196	AUE_LSTAT	STD	{ int linux_lstat64(const char *filename, \
+				    struct l_stat64 *statbuf); }
+197	AUE_FSTAT	STD	{ int linux_fstat64(l_int fd, \
+				    struct l_stat64 *statbuf); }
 198	AUE_LCHOWN	STD	{ int linux_lchown(char *path, l_uid_t uid, \
 				    l_gid_t gid); }
 199	AUE_GETUID	STD	{ int linux_getuid(void); }
