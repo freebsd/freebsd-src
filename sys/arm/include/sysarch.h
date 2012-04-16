@@ -55,6 +55,7 @@
 #define ARM_RAS_END		(ARM_TP_ADDRESS + 8)
 
 #ifndef LOCORE
+#ifndef __ASSEMBLER__
 
 #include <sys/cdefs.h>
 
@@ -85,6 +86,7 @@ int	sysarch(int, void *);
 __END_DECLS
 #endif
 
+#endif /* __ASSEMBLER__ */
 #endif /* LOCORE */
 
 #endif /* !_ARM_SYSARCH_H_ */

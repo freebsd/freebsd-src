@@ -316,8 +316,13 @@
 /*
  * Address of the vector page, low and high versions.
  */
+#ifndef __ASSEMBLER__
 #define	ARM_VECTORS_LOW		0x00000000U
 #define	ARM_VECTORS_HIGH	0xffff0000U
+#else
+#define	ARM_VECTORS_LOW		0
+#define	ARM_VECTORS_HIGH	0xffff0000
+#endif
 
 /*
  * ARM Instructions
