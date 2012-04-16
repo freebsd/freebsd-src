@@ -93,6 +93,7 @@ void PEI::getAnalysisUsage(AnalysisUsage &AU) const {
   }
   AU.addPreserved<MachineLoopInfo>();
   AU.addPreserved<MachineDominatorTree>();
+  AU.addRequired<TargetPassConfig>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -124,7 +125,7 @@ MachineLoop* PEI::getTopLevelLoopParent(MachineLoop *LP) {
 }
 
 bool PEI::isReturnBlock(MachineBasicBlock* MBB) {
-  return (MBB && !MBB->empty() && MBB->back().getDesc().isReturn());
+  return (MBB && !MBB->empty() && MBB->back().isReturn());
 }
 
 // Initialize shrink wrapping DFA sets, called before iterations.
@@ -158,7 +159,7 @@ void PEI::initShrinkWrappingInfo() {
   // via --shrink-wrap-func=<funcname>.
 #ifndef NDEBUG
   if (ShrinkWrapFunc != "") {
-    std::string MFName = MF->getFunction()->getNameStr();
+    std::string MFName = MF->getFunction()->getName().str();
     ShrinkWrapThisFunction = (MFName == ShrinkWrapFunc);
   }
 #endif
@@ -1045,7 +1046,7 @@ std::string PEI::getBasicBlockName(const MachineBasicBlock* MBB) {
     return "";
 
   if (MBB->getBasicBlock())
-    return MBB->getBasicBlock()->getNameStr();
+    return MBB->getBasicBlock()->getName().str();
 
   std::ostringstream name;
   name << "_MBB_" << MBB->getNumber();

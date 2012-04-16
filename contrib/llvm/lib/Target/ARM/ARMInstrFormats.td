@@ -1,4 +1,4 @@
-//===- ARMInstrFormats.td - ARM Instruction Formats ----------*- tablegen -*-=//
+//===-- ARMInstrFormats.td - ARM Instruction Formats -------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -174,7 +174,7 @@ def s_cc_out : OptionalDefOperand<OtherVT, (ops CCR), (ops (i32 CPSR))> {
 
 // ARM special operands for disassembly only.
 //
-def SetEndAsmOperand : AsmOperandClass {
+def SetEndAsmOperand : ImmAsmOperand {
   let Name = "SetEndImm";
   let ParserMethod = "parseSetEndImm";
 }
@@ -201,21 +201,29 @@ def msr_mask : Operand<i32> {
 //     16       imm6<5:4> = '01', 16 - <imm> is encoded in imm6<3:0>
 //     32       imm6<5> = '1', 32 - <imm> is encoded in imm6<4:0>
 //     64       64 - <imm> is encoded in imm6<5:0>
+def shr_imm8_asm_operand : ImmAsmOperand { let Name = "ShrImm8"; }
 def shr_imm8  : Operand<i32> {
   let EncoderMethod = "getShiftRight8Imm";
   let DecoderMethod = "DecodeShiftRight8Imm";
+  let ParserMatchClass = shr_imm8_asm_operand;
 }
+def shr_imm16_asm_operand : ImmAsmOperand { let Name = "ShrImm16"; }
 def shr_imm16 : Operand<i32> {
   let EncoderMethod = "getShiftRight16Imm";
   let DecoderMethod = "DecodeShiftRight16Imm";
+  let ParserMatchClass = shr_imm16_asm_operand;
 }
+def shr_imm32_asm_operand : ImmAsmOperand { let Name = "ShrImm32"; }
 def shr_imm32 : Operand<i32> {
   let EncoderMethod = "getShiftRight32Imm";
   let DecoderMethod = "DecodeShiftRight32Imm";
+  let ParserMatchClass = shr_imm32_asm_operand;
 }
+def shr_imm64_asm_operand : ImmAsmOperand { let Name = "ShrImm64"; }
 def shr_imm64 : Operand<i32> {
   let EncoderMethod = "getShiftRight64Imm";
   let DecoderMethod = "DecodeShiftRight64Imm";
+  let ParserMatchClass = shr_imm64_asm_operand;
 }
 
 //===----------------------------------------------------------------------===//
@@ -231,6 +239,14 @@ class VFP2InstAlias<string Asm, dag Result, bit Emit = 0b1>
       : InstAlias<Asm, Result, Emit>, Requires<[HasVFP2]>;
 class VFP3InstAlias<string Asm, dag Result, bit Emit = 0b1>
       : InstAlias<Asm, Result, Emit>, Requires<[HasVFP3]>;
+class NEONInstAlias<string Asm, dag Result, bit Emit = 0b1>
+      : InstAlias<Asm, Result, Emit>, Requires<[HasNEON]>;
+
+
+class VFP2MnemonicAlias<string src, string dst> : MnemonicAlias<src, dst>,
+          Requires<[HasVFP2]>;
+class NEONMnemonicAlias<string src, string dst> : MnemonicAlias<src, dst>,
+          Requires<[HasNEON]>;
 
 //===----------------------------------------------------------------------===//
 // ARM Instruction templates.
@@ -274,6 +290,14 @@ class InstTemplate<AddrMode am, int sz, IndexMode im,
 
 class Encoding {
   field bits<32> Inst;
+  // Mask of bits that cause an encoding to be UNPREDICTABLE.
+  // If a bit is set, then if the corresponding bit in the
+  // target encoding differs from its value in the "Inst" field,
+  // the instruction is UNPREDICTABLE (SoftFail in abstract parlance).
+  field bits<32> Unpredictable = 0;
+  // SoftFail is the generic name for this field, but we alias it so
+  // as to make it more obvious what it means in ARM-land.
+  field bits<32> SoftFail = Unpredictable;
 }
 
 class InstARM<AddrMode am, int sz, IndexMode im,
@@ -290,6 +314,32 @@ class InstThumb<AddrMode am, int sz, IndexMode im,
   let DecoderNamespace = "Thumb";
 }
 
+// Pseudo-instructions for alternate assembly syntax (never used by codegen).
+// These are aliases that require C++ handling to convert to the target
+// instruction, while InstAliases can be handled directly by tblgen.
+class AsmPseudoInst<string asm, dag iops>
+  : InstTemplate<AddrModeNone, 0, IndexModeNone, Pseudo, GenericDomain,
+                 "", NoItinerary> {
+  let OutOperandList = (outs);
+  let InOperandList = iops;
+  let Pattern = [];
+  let isCodeGenOnly = 0; // So we get asm matcher for it.
+  let AsmString = asm;
+  let isPseudo = 1;
+}
+
+class ARMAsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
+        Requires<[IsARM]>;
+class tAsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
+        Requires<[IsThumb]>;
+class t2AsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
+        Requires<[IsThumb2]>;
+class VFP2AsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
+        Requires<[HasVFP2]>;
+class NEONAsmPseudo<string asm, dag iops> : AsmPseudoInst<asm, iops>,
+        Requires<[HasNEON]>;
+
+// Pseudo instructions for the code generator.
 class PseudoInst<dag oops, dag iops, InstrItinClass itin, list<dag> pattern>
   : InstTemplate<AddrModeNone, 0, IndexModeNone, Pseudo,
                  GenericDomain, "", itin> {
@@ -481,6 +531,8 @@ class AIswp<bit b, dag oops, dag iops, string opc, list<dag> pattern>
   let Inst{15-12} = Rt;
   let Inst{11-4} = 0b00001001;
   let Inst{3-0} = Rt2;
+
+  let DecoderMethod = "DecodeSwap";
 }
 
 // addrmode1 instructions
@@ -792,7 +844,7 @@ class AMiscA1I<bits<8> opcod, bits<4> opc7_4, dag oops, dag iops,
 }
 
 // PKH instructions
-def PKHLSLAsmOperand : AsmOperandClass {
+def PKHLSLAsmOperand : ImmAsmOperand {
   let Name = "PKHLSLImm";
   let ParserMethod = "parsePKHLSLImm";
 }
@@ -1550,8 +1602,11 @@ class AVConv1XI<bits<5> op1, bits<2> op2, bits<4> op3, bits<4> op4, bit op5,
                 dag oops, dag iops, InstrItinClass itin, string opc, string asm,
                 list<dag> pattern>
   : AVConv1I<op1, op2, op3, op4, oops, iops, itin, opc, asm, pattern> {
+  bits<5> fbits;
   // size (fixed-point number): sx == 0 ? 16 : 32
   let Inst{7} = op5; // sx
+  let Inst{5} = fbits{0};
+  let Inst{3-0} = fbits{4-1};
 }
 
 // VFP conversion instructions, if no NEON
@@ -1963,3 +2018,54 @@ class NVDupLane<bits<4> op19_16, bit op6, dag oops, dag iops,
 class NEONFPPat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [HasNEON,UseNEONForFP];
 }
+
+// VFP/NEON Instruction aliases for type suffices.
+class VFPDataTypeInstAlias<string opc, string dt, string asm, dag Result> :
+  InstAlias<!strconcat(opc, dt, "\t", asm), Result>, Requires<[HasVFP2]>;
+
+multiclass VFPDTAnyInstAlias<string opc, string asm, dag Result> {
+  def : VFPDataTypeInstAlias<opc, ".8", asm, Result>;
+  def : VFPDataTypeInstAlias<opc, ".16", asm, Result>;
+  def : VFPDataTypeInstAlias<opc, ".32", asm, Result>;
+  def : VFPDataTypeInstAlias<opc, ".64", asm, Result>;
+}
+
+multiclass NEONDTAnyInstAlias<string opc, string asm, dag Result> {
+  let Predicates = [HasNEON] in {
+  def : VFPDataTypeInstAlias<opc, ".8", asm, Result>;
+  def : VFPDataTypeInstAlias<opc, ".16", asm, Result>;
+  def : VFPDataTypeInstAlias<opc, ".32", asm, Result>;
+  def : VFPDataTypeInstAlias<opc, ".64", asm, Result>;
+}
+}
+
+// The same alias classes using AsmPseudo instead, for the more complex
+// stuff in NEON that InstAlias can't quite handle.
+// Note that we can't use anonymous defm references here like we can
+// above, as we care about the ultimate instruction enum names generated, unlike
+// for instalias defs.
+class NEONDataTypeAsmPseudoInst<string opc, string dt, string asm, dag iops> :
+  AsmPseudoInst<!strconcat(opc, dt, "\t", asm), iops>, Requires<[HasNEON]>;
+
+// Data type suffix token aliases. Implements Table A7-3 in the ARM ARM.
+def : TokenAlias<".s8", ".i8">;
+def : TokenAlias<".u8", ".i8">;
+def : TokenAlias<".s16", ".i16">;
+def : TokenAlias<".u16", ".i16">;
+def : TokenAlias<".s32", ".i32">;
+def : TokenAlias<".u32", ".i32">;
+def : TokenAlias<".s64", ".i64">;
+def : TokenAlias<".u64", ".i64">;
+
+def : TokenAlias<".i8", ".8">;
+def : TokenAlias<".i16", ".16">;
+def : TokenAlias<".i32", ".32">;
+def : TokenAlias<".i64", ".64">;
+
+def : TokenAlias<".p8", ".8">;
+def : TokenAlias<".p16", ".16">;
+
+def : TokenAlias<".f32", ".32">;
+def : TokenAlias<".f64", ".64">;
+def : TokenAlias<".f", ".f32">;
+def : TokenAlias<".d", ".f64">;

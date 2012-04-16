@@ -284,8 +284,8 @@ def int_expect : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>,
 let Properties = [IntrNoMem] in {
   def int_bswap: Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>]>;
   def int_ctpop: Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>]>;
-  def int_ctlz : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>]>;
-  def int_cttz : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>]>;
+  def int_ctlz : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>, llvm_i1_ty]>;
+  def int_cttz : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>, llvm_i1_ty]>;
 }
 
 //===------------------------ Debugger Intrinsics -------------------------===//
@@ -304,10 +304,6 @@ let Properties = [IntrNoMem] in {
 
 //===------------------ Exception Handling Intrinsics----------------------===//
 //
-def int_eh_exception : Intrinsic<[llvm_ptr_ty], [], [IntrReadMem]>;
-def int_eh_selector  : Intrinsic<[llvm_i32_ty],
-                                 [llvm_ptr_ty, llvm_ptr_ty, llvm_vararg_ty]>;
-def int_eh_resume    : Intrinsic<[], [llvm_ptr_ty, llvm_i32_ty], [Throws]>;
 
 // The result of eh.typeid.for depends on the enclosing function, but inside a
 // given function it is 'const' and may be CSE'd etc.
@@ -326,7 +322,6 @@ let Properties = [IntrNoMem] in {
   def int_eh_sjlj_callsite         : Intrinsic<[], [llvm_i32_ty]>;
 }
 def int_eh_sjlj_functioncontext : Intrinsic<[], [llvm_ptr_ty]>;
-def int_eh_sjlj_dispatch_setup  : Intrinsic<[], [llvm_i32_ty]>;
 def int_eh_sjlj_setjmp          : Intrinsic<[llvm_i32_ty], [llvm_ptr_ty]>;
 def int_eh_sjlj_longjmp         : Intrinsic<[], [llvm_ptr_ty]>;
 
@@ -443,6 +438,6 @@ include "llvm/IntrinsicsPowerPC.td"
 include "llvm/IntrinsicsX86.td"
 include "llvm/IntrinsicsARM.td"
 include "llvm/IntrinsicsCellSPU.td"
-include "llvm/IntrinsicsAlpha.td"
 include "llvm/IntrinsicsXCore.td"
 include "llvm/IntrinsicsPTX.td"
+include "llvm/IntrinsicsHexagon.td"

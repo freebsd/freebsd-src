@@ -195,9 +195,10 @@ class StructType : public CompositeType {
     // This is the contents of the SubClassData field.
     SCDB_HasBody = 1,
     SCDB_Packed = 2,
-    SCDB_IsLiteral = 4
+    SCDB_IsLiteral = 4,
+    SCDB_IsSized = 8
   };
-  
+
   /// SymbolTableEntry - For a named struct that actually has a name, this is a
   /// pointer to the symbol table entry (maintained by LLVMContext) for the
   /// struct.  This is null if the type is an literal struct or if it is
@@ -248,6 +249,9 @@ public:
   /// isOpaque - Return true if this is a type with an identity that has no body
   /// specified yet.  These prints as 'opaque' in .ll files.
   bool isOpaque() const { return (getSubclassData() & SCDB_HasBody) == 0; }
+
+  /// isSized - Return true if this is a sized type.
+  bool isSized() const;
   
   /// hasName - Return true if this is a named struct that has a non-empty name.
   bool hasName() const { return SymbolTableEntry != 0; }
@@ -374,6 +378,7 @@ public:
   ///
   static VectorType *getInteger(VectorType *VTy) {
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
+    assert(EltBits && "Element size must be of a non-zero size");
     Type *EltTy = IntegerType::get(VTy->getContext(), EltBits);
     return VectorType::get(EltTy, VTy->getNumElements());
   }
@@ -408,6 +413,7 @@ public:
   unsigned getNumElements() const { return NumElements; }
 
   /// @brief Return the number of bits in the Vector type.
+  /// Returns zero when the vector is a vector of pointers.
   unsigned getBitWidth() const {
     return NumElements * getElementType()->getPrimitiveSizeInBits();
   }

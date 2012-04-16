@@ -1,4 +1,4 @@
-//===- MipsInstrInfo.cpp - Mips Instruction Information ---------*- C++ -*-===//
+//===-- MipsInstrInfo.cpp - Mips Instruction Information ------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -29,10 +29,10 @@ using namespace llvm;
 MipsInstrInfo::MipsInstrInfo(MipsTargetMachine &tm)
   : MipsGenInstrInfo(Mips::ADJCALLSTACKDOWN, Mips::ADJCALLSTACKUP),
     TM(tm), IsN64(TM.getSubtarget<MipsSubtarget>().isABI_N64()),
-    RI(*TM.getSubtargetImpl(), *this) {}
+    RI(*TM.getSubtargetImpl(), *this),
+    UncondBrOpc(TM.getRelocationModel() == Reloc::PIC_ ? Mips::B : Mips::J) {}
 
-
-const MipsRegisterInfo &MipsInstrInfo::getRegisterInfo() const { 
+const MipsRegisterInfo &MipsInstrInfo::getRegisterInfo() const {
   return RI;
 }
 
@@ -131,6 +131,8 @@ copyPhysReg(MachineBasicBlock &MBB,
     Opc = Mips::FMOV_S;
   else if (Mips::AFGR64RegClass.contains(DestReg, SrcReg))
     Opc = Mips::FMOV_D32;
+  else if (Mips::FGR64RegClass.contains(DestReg, SrcReg))
+    Opc = Mips::FMOV_D64;
   else if (Mips::CCRRegClass.contains(DestReg, SrcReg))
     Opc = Mips::MOVCCRToCCR;
   else if (Mips::CPU64RegsRegClass.contains(DestReg)) { // Copy to CPU64 Reg.
@@ -140,18 +142,22 @@ copyPhysReg(MachineBasicBlock &MBB,
       Opc = Mips::MFHI64, SrcReg = 0;
     else if (SrcReg == Mips::LO64)
       Opc = Mips::MFLO64, SrcReg = 0;
+    else if (Mips::FGR64RegClass.contains(SrcReg))
+      Opc = Mips::DMFC1;
   }
   else if (Mips::CPU64RegsRegClass.contains(SrcReg)) { // Copy from CPU64 Reg.
     if (DestReg == Mips::HI64)
       Opc = Mips::MTHI64, DestReg = 0;
     else if (DestReg == Mips::LO64)
       Opc = Mips::MTLO64, DestReg = 0;
+    else if (Mips::FGR64RegClass.contains(DestReg))
+      Opc = Mips::DMTC1;
   }
 
   assert(Opc && "Cannot copy registers");
 
   MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(Opc));
-  
+
   if (DestReg)
     MIB.addReg(DestReg, RegState::Define);
 
@@ -162,6 +168,16 @@ copyPhysReg(MachineBasicBlock &MBB,
     MIB.addReg(SrcReg, getKillRegState(KillSrc));
 }
 
+static MachineMemOperand* GetMemOperand(MachineBasicBlock &MBB, int FI,
+                                        unsigned Flag) {
+  MachineFunction &MF = *MBB.getParent();
+  MachineFrameInfo &MFI = *MF.getFrameInfo();
+  unsigned Align = MFI.getObjectAlignment(FI);
+
+  return MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FI), Flag,
+                                 MFI.getObjectSize(FI), Align);
+}
+
 void MipsInstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     unsigned SrcReg, bool isKill, int FI,
@@ -169,6 +185,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     const TargetRegisterInfo *TRI) const {
   DebugLoc DL;
   if (I != MBB.end()) DL = I->getDebugLoc();
+  MachineMemOperand *MMO = GetMemOperand(MBB, FI, MachineMemOperand::MOStore);
+
   unsigned Opc = 0;
 
   if (RC == Mips::CPURegsRegisterClass)
@@ -184,7 +202,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   assert(Opc && "Register class not handled!");
   BuildMI(MBB, I, DL, get(Opc)).addReg(SrcReg, getKillRegState(isKill))
-    .addFrameIndex(FI).addImm(0);
+    .addFrameIndex(FI).addImm(0).addMemOperand(MMO);
 }
 
 void MipsInstrInfo::
@@ -195,6 +213,7 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 {
   DebugLoc DL;
   if (I != MBB.end()) DL = I->getDebugLoc();
+  MachineMemOperand *MMO = GetMemOperand(MBB, FI, MachineMemOperand::MOLoad);
   unsigned Opc = 0;
 
   if (RC == Mips::CPURegsRegisterClass)
@@ -209,7 +228,8 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     Opc = IsN64 ? Mips::LDC164_P8 : Mips::LDC164;
 
   assert(Opc && "Register class not handled!");
-  BuildMI(MBB, I, DL, get(Opc), DestReg).addFrameIndex(FI).addImm(0);
+  BuildMI(MBB, I, DL, get(Opc), DestReg).addFrameIndex(FI).addImm(0)
+    .addMemOperand(MMO);
 }
 
 MachineInstr*
@@ -230,7 +250,8 @@ static unsigned GetAnalyzableBrOpc(unsigned Opc) {
           Opc == Mips::BGEZ   || Opc == Mips::BLTZ   || Opc == Mips::BLEZ   ||
           Opc == Mips::BEQ64  || Opc == Mips::BNE64  || Opc == Mips::BGTZ64 ||
           Opc == Mips::BGEZ64 || Opc == Mips::BLTZ64 || Opc == Mips::BLEZ64 ||
-          Opc == Mips::BC1T   || Opc == Mips::BC1F   || Opc == Mips::J) ?
+          Opc == Mips::BC1T   || Opc == Mips::BC1F   || Opc == Mips::B      ||
+          Opc == Mips::J) ?
          Opc : 0;
 }
 
@@ -239,21 +260,21 @@ static unsigned GetAnalyzableBrOpc(unsigned Opc) {
 unsigned Mips::GetOppositeBranchOpc(unsigned Opc)
 {
   switch (Opc) {
-  default: llvm_unreachable("Illegal opcode!");
-  case Mips::BEQ    : return Mips::BNE;
-  case Mips::BNE    : return Mips::BEQ;
-  case Mips::BGTZ   : return Mips::BLEZ;
-  case Mips::BGEZ   : return Mips::BLTZ;
-  case Mips::BLTZ   : return Mips::BGEZ;
-  case Mips::BLEZ   : return Mips::BGTZ;
-  case Mips::BEQ64  : return Mips::BNE64;
-  case Mips::BNE64  : return Mips::BEQ64;
-  case Mips::BGTZ64 : return Mips::BLEZ64;
-  case Mips::BGEZ64 : return Mips::BLTZ64;
-  case Mips::BLTZ64 : return Mips::BGEZ64;
-  case Mips::BLEZ64 : return Mips::BGTZ64;
-  case Mips::BC1T   : return Mips::BC1F;
-  case Mips::BC1F   : return Mips::BC1T;
+  default:           llvm_unreachable("Illegal opcode!");
+  case Mips::BEQ:    return Mips::BNE;
+  case Mips::BNE:    return Mips::BEQ;
+  case Mips::BGTZ:   return Mips::BLEZ;
+  case Mips::BGEZ:   return Mips::BLTZ;
+  case Mips::BLTZ:   return Mips::BGEZ;
+  case Mips::BLEZ:   return Mips::BGTZ;
+  case Mips::BEQ64:  return Mips::BNE64;
+  case Mips::BNE64:  return Mips::BEQ64;
+  case Mips::BGTZ64: return Mips::BLEZ64;
+  case Mips::BGEZ64: return Mips::BLTZ64;
+  case Mips::BLTZ64: return Mips::BGEZ64;
+  case Mips::BLEZ64: return Mips::BGTZ64;
+  case Mips::BC1T:   return Mips::BC1F;
+  case Mips::BC1F:   return Mips::BC1T;
   }
 }
 
@@ -262,7 +283,7 @@ static void AnalyzeCondBr(const MachineInstr* Inst, unsigned Opc,
                           SmallVectorImpl<MachineOperand>& Cond) {
   assert(GetAnalyzableBrOpc(Opc) && "Not an analyzable branch");
   int NumOp = Inst->getNumExplicitOperands();
-  
+
   // for both int and fp branches, the last explicit operand is the
   // MBB.
   BB = Inst->getOperand(NumOp-1).getMBB();
@@ -314,7 +335,7 @@ bool MipsInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
   // If there is only one terminator instruction, process it.
   if (!SecondLastOpc) {
     // Unconditional branch
-    if (LastOpc == Mips::J) {
+    if (LastOpc == UncondBrOpc) {
       TBB = LastInst->getOperand(0).getMBB();
       return false;
     }
@@ -331,7 +352,7 @@ bool MipsInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
   // If second to last instruction is an unconditional branch,
   // analyze it and remove the last instruction.
-  if (SecondLastOpc == Mips::J) {
+  if (SecondLastOpc == UncondBrOpc) {
     // Return if the last instruction cannot be removed.
     if (!AllowModify)
       return true;
@@ -343,15 +364,15 @@ bool MipsInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
   // Conditional branch followed by an unconditional branch.
   // The last one must be unconditional.
-  if (LastOpc != Mips::J)
+  if (LastOpc != UncondBrOpc)
     return true;
 
   AnalyzeCondBr(SecondLastInst, SecondLastOpc, TBB, Cond);
   FBB = LastInst->getOperand(0).getMBB();
 
   return false;
-} 
-  
+}
+
 void MipsInstrInfo::BuildCondBr(MachineBasicBlock &MBB,
                                 MachineBasicBlock *TBB, DebugLoc DL,
                                 const SmallVectorImpl<MachineOperand>& Cond)
@@ -385,14 +406,14 @@ InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   // Two-way Conditional branch.
   if (FBB) {
     BuildCondBr(MBB, TBB, DL, Cond);
-    BuildMI(&MBB, DL, get(Mips::J)).addMBB(FBB);
+    BuildMI(&MBB, DL, get(UncondBrOpc)).addMBB(FBB);
     return 2;
   }
 
   // One way branch.
   // Unconditional branch.
   if (Cond.empty())
-    BuildMI(&MBB, DL, get(Mips::J)).addMBB(TBB);
+    BuildMI(&MBB, DL, get(UncondBrOpc)).addMBB(TBB);
   else // Conditional branch.
     BuildCondBr(MBB, TBB, DL, Cond);
   return 1;
@@ -433,27 +454,3 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const
   return false;
 }
 
-/// getGlobalBaseReg - Return a virtual register initialized with the
-/// the global base register value. Output instructions required to
-/// initialize the register in the function entry block, if necessary.
-///
-unsigned MipsInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
-  MipsFunctionInfo *MipsFI = MF->getInfo<MipsFunctionInfo>();
-  unsigned GlobalBaseReg = MipsFI->getGlobalBaseReg();
-  if (GlobalBaseReg != 0)
-    return GlobalBaseReg;
-
-  // Insert the set of GlobalBaseReg into the first MBB of the function
-  MachineBasicBlock &FirstMBB = MF->front();
-  MachineBasicBlock::iterator MBBI = FirstMBB.begin();
-  MachineRegisterInfo &RegInfo = MF->getRegInfo();
-  const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
-
-  GlobalBaseReg = RegInfo.createVirtualRegister(Mips::CPURegsRegisterClass);
-  BuildMI(FirstMBB, MBBI, DebugLoc(), TII->get(TargetOpcode::COPY),
-          GlobalBaseReg).addReg(Mips::GP);
-  RegInfo.addLiveIn(Mips::GP);
-
-  MipsFI->setGlobalBaseReg(GlobalBaseReg);
-  return GlobalBaseReg;
-}
