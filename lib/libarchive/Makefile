@@ -45,6 +45,7 @@ NO_WCAST_ALIGN=	yes
 CFLAGS+=	-DPPMD_32BIT
 .endif
 .endif
+NO_WCAST_ALIGN.clang=
 
 .PATH: ${LIBARCHIVEDIR}/libarchive
 

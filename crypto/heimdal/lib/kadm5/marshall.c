@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 1999 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: marshall.c 21745 2007-07-31 16:11:25Z lha $");
+RCSID("$Id$");
 
 kadm5_ret_t
 kadm5_store_key_data(krb5_storage *sp,
@@ -189,7 +189,7 @@ ret_principal_ent(krb5_storage *sp,
 
     if (mask & KADM5_PRINCIPAL)
 	krb5_ret_principal(sp, &princ->principal);
-    
+
     if (mask & KADM5_PRINC_EXPIRE_TIME) {
 	krb5_ret_int32(sp, &tmp);
 	princ->princ_expire_time = tmp;
@@ -260,7 +260,7 @@ ret_principal_ent(krb5_storage *sp,
 	krb5_ret_int32(sp, &tmp);
 	princ->n_key_data = tmp;
 	princ->key_data = malloc(princ->n_key_data * sizeof(*princ->key_data));
-	if (princ->key_data == NULL)
+	if (princ->key_data == NULL && princ->n_key_data != 0)
 	    return ENOMEM;
 	for(i = 0; i < princ->n_key_data; i++)
 	    kadm5_ret_key_data(sp, &princ->key_data[i]);
@@ -301,14 +301,14 @@ kadm5_ret_principal_ent_mask(krb5_storage *sp,
 }
 
 kadm5_ret_t
-_kadm5_marshal_params(krb5_context context, 
-		      kadm5_config_params *params, 
+_kadm5_marshal_params(krb5_context context,
+		      kadm5_config_params *params,
 		      krb5_data *out)
 {
     krb5_storage *sp = krb5_storage_emem();
-    
+
     krb5_store_int32(sp, params->mask & (KADM5_CONFIG_REALM));
-	
+
     if(params->mask & KADM5_CONFIG_REALM)
 	krb5_store_string(sp, params->realm);
     krb5_storage_to_data(sp, out);
@@ -322,15 +322,23 @@ _kadm5_unmarshal_params(krb5_context context,
 			krb5_data *in,
 			kadm5_config_params *params)
 {
-    krb5_storage *sp = krb5_storage_from_data(in);
+    krb5_error_code ret;
+    krb5_storage *sp;
     int32_t mask;
-    
-    krb5_ret_int32(sp, &mask);
+
+    sp = krb5_storage_from_data(in);
+    if (sp == NULL)
+	return ENOMEM;
+
+    ret = krb5_ret_int32(sp, &mask);
+    if (ret)
+	goto out;
     params->mask = mask;
-	
+
     if(params->mask & KADM5_CONFIG_REALM)
-	krb5_ret_string(sp, &params->realm);
+	ret = krb5_ret_string(sp, &params->realm);
+ out:
     krb5_storage_free(sp);
 
-    return 0;
+    return ret;
 }

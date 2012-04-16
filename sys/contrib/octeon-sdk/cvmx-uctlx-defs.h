@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,14 +49,18 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_UCTLX_TYPEDEFS_H__
-#define __CVMX_UCTLX_TYPEDEFS_H__
+#ifndef __CVMX_UCTLX_DEFS_H__
+#define __CVMX_UCTLX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_UCTLX_BIST_STATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_BIST_STATUS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F0000A0ull);
 }
@@ -67,7 +71,11 @@ static inline uint64_t CVMX_UCTLX_BIST_STATUS(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_CLK_RST_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_CLK_RST_CTL(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000000ull);
 }
@@ -78,7 +86,11 @@ static inline uint64_t CVMX_UCTLX_CLK_RST_CTL(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_EHCI_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_EHCI_CTL(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000080ull);
 }
@@ -89,7 +101,11 @@ static inline uint64_t CVMX_UCTLX_EHCI_CTL(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_EHCI_FLA(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_EHCI_FLA(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F0000A8ull);
 }
@@ -100,7 +116,11 @@ static inline uint64_t CVMX_UCTLX_EHCI_FLA(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_ERTO_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_ERTO_CTL(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000090ull);
 }
@@ -111,7 +131,11 @@ static inline uint64_t CVMX_UCTLX_ERTO_CTL(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_IF_ENA(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_IF_ENA(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000030ull);
 }
@@ -122,7 +146,11 @@ static inline uint64_t CVMX_UCTLX_IF_ENA(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_INT_ENA(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_INT_ENA(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000028ull);
 }
@@ -133,7 +161,11 @@ static inline uint64_t CVMX_UCTLX_INT_ENA(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_INT_REG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_INT_REG(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000020ull);
 }
@@ -144,7 +176,11 @@ static inline uint64_t CVMX_UCTLX_INT_REG(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_OHCI_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_OHCI_CTL(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000088ull);
 }
@@ -155,7 +191,11 @@ static inline uint64_t CVMX_UCTLX_OHCI_CTL(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_ORTO_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_ORTO_CTL(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000098ull);
 }
@@ -166,7 +206,10 @@ static inline uint64_t CVMX_UCTLX_ORTO_CTL(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_PPAF_WM(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_PPAF_WM(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000038ull);
 }
@@ -177,7 +220,11 @@ static inline uint64_t CVMX_UCTLX_PPAF_WM(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_UPHY_CTL_STATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_UCTLX_UPHY_CTL_STATUS(%lu) is invalid on this chip\n", block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000008ull);
 }
@@ -188,7 +235,11 @@ static inline uint64_t CVMX_UCTLX_UPHY_CTL_STATUS(unsigned long block_id)
 static inline uint64_t CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id == 0))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && (((offset <= 1)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && (((offset <= 1)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && (((offset <= 1)) && ((block_id == 0))))))
 		cvmx_warn("CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(%lu,%lu) is invalid on this chip\n", offset, block_id);
 	return CVMX_ADD_IO_SEG(0x000118006F000010ull) + (((offset) & 1) + ((block_id) & 0) * 0x0ull) * 8;
 }
@@ -203,12 +254,10 @@ static inline uint64_t CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(unsigned long offset, un
  *
  * Results from BIST runs of UCTL's memories.
  */
-union cvmx_uctlx_bist_status
-{
+union cvmx_uctlx_bist_status {
 	uint64_t u64;
-	struct cvmx_uctlx_bist_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_bist_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t data_bis                     : 1;  /**< UAHC EHCI Data Ram Bist Status */
 	uint64_t desc_bis                     : 1;  /**< UAHC EHCI Descriptor Ram Bist Status */
@@ -226,8 +275,13 @@ union cvmx_uctlx_bist_status
 	uint64_t reserved_6_63                : 58;
 #endif
 	} s;
+	struct cvmx_uctlx_bist_status_s       cn61xx;
 	struct cvmx_uctlx_bist_status_s       cn63xx;
 	struct cvmx_uctlx_bist_status_s       cn63xxp1;
+	struct cvmx_uctlx_bist_status_s       cn66xx;
+	struct cvmx_uctlx_bist_status_s       cn68xx;
+	struct cvmx_uctlx_bist_status_s       cn68xxp1;
+	struct cvmx_uctlx_bist_status_s       cnf71xx;
 };
 typedef union cvmx_uctlx_bist_status cvmx_uctlx_bist_status_t;
 
@@ -237,12 +291,10 @@ typedef union cvmx_uctlx_bist_status cvmx_uctlx_bist_status_t;
  * CLK_RST_CTL = Clock and Reset Control Reigster
  * This register controls the frequceny of hclk and resets for hclk and phy clocks. It also controls Simulation modes and Bists.
  */
-union cvmx_uctlx_clk_rst_ctl
-{
+union cvmx_uctlx_clk_rst_ctl {
 	uint64_t u64;
-	struct cvmx_uctlx_clk_rst_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_clk_rst_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_25_63               : 39;
 	uint64_t clear_bist                   : 1;  /**< Clear BIST on the HCLK memories */
 	uint64_t start_bist                   : 1;  /**< Starts BIST on the HCLK memories during 0-to-1
@@ -300,10 +352,13 @@ union cvmx_uctlx_clk_rst_ctl
 	uint64_t p_refclk_sel                 : 2;  /**< PHY PLL Reference Clock Select.
                                                          - 00: uses 12Mhz crystal at USB_XO and USB_XI;
                                                          - 01: uses 12/24/48Mhz 2.5V clock source at USB_XO.
-                                                             USB_XI should be tied to GND.
+                                                             USB_XI should be tied to GND(Not Supported).
                                                          1x: Reserved. */
 	uint64_t p_refclk_div                 : 2;  /**< PHY Reference Clock Frequency Select.
-                                                         - 00: 12MHz, 01: 24Mhz, 10: 48Mhz, 11: Reserved.
+                                                           - 00: 12MHz,
+                                                           - 01: 24Mhz (Not Supported),
+                                                           - 10: 48Mhz (Not Supported),
+                                                           - 11: Reserved.
                                                          Note: This value must be set during POR is active.
                                                          If a crystal is used as a reference clock,this field
                                                          must be set to 12 MHz. Values 01 and 10 are reserved
@@ -351,8 +406,13 @@ union cvmx_uctlx_clk_rst_ctl
 	uint64_t reserved_25_63               : 39;
 #endif
 	} s;
+	struct cvmx_uctlx_clk_rst_ctl_s       cn61xx;
 	struct cvmx_uctlx_clk_rst_ctl_s       cn63xx;
 	struct cvmx_uctlx_clk_rst_ctl_s       cn63xxp1;
+	struct cvmx_uctlx_clk_rst_ctl_s       cn66xx;
+	struct cvmx_uctlx_clk_rst_ctl_s       cn68xx;
+	struct cvmx_uctlx_clk_rst_ctl_s       cn68xxp1;
+	struct cvmx_uctlx_clk_rst_ctl_s       cnf71xx;
 };
 typedef union cvmx_uctlx_clk_rst_ctl cvmx_uctlx_clk_rst_ctl_t;
 
@@ -362,12 +422,10 @@ typedef union cvmx_uctlx_clk_rst_ctl cvmx_uctlx_clk_rst_ctl_t;
  * UCTL_EHCI_CTL = UCTL EHCI Control Register
  * This register controls the general behavior of UCTL EHCI datapath.
  */
-union cvmx_uctlx_ehci_ctl
-{
+union cvmx_uctlx_ehci_ctl {
 	uint64_t u64;
-	struct cvmx_uctlx_ehci_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_ehci_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t desc_rbm                     : 1;  /**< Descriptor Read Burst Mode on AHB bus
                                                          - 1: A read burst can be interruprted after 16 AHB
@@ -423,8 +481,13 @@ union cvmx_uctlx_ehci_ctl
 	uint64_t reserved_20_63               : 44;
 #endif
 	} s;
+	struct cvmx_uctlx_ehci_ctl_s          cn61xx;
 	struct cvmx_uctlx_ehci_ctl_s          cn63xx;
 	struct cvmx_uctlx_ehci_ctl_s          cn63xxp1;
+	struct cvmx_uctlx_ehci_ctl_s          cn66xx;
+	struct cvmx_uctlx_ehci_ctl_s          cn68xx;
+	struct cvmx_uctlx_ehci_ctl_s          cn68xxp1;
+	struct cvmx_uctlx_ehci_ctl_s          cnf71xx;
 };
 typedef union cvmx_uctlx_ehci_ctl cvmx_uctlx_ehci_ctl_t;
 
@@ -434,18 +497,31 @@ typedef union cvmx_uctlx_ehci_ctl cvmx_uctlx_ehci_ctl_t;
  * UCTL_EHCI_FLA = UCTL EHCI Frame Length Adjument Register
  * This register configures the EHCI Frame Length Adjustment.
  */
-union cvmx_uctlx_ehci_fla
-{
+union cvmx_uctlx_ehci_fla {
 	uint64_t u64;
-	struct cvmx_uctlx_ehci_fla_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_ehci_fla_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t fla                          : 6;  /**< EHCI Frame Length Adjustment. This feature
                                                          adjusts any offset from the clock source that drives
-                                                         the uSOF counter.  The default value is 32(0x20),
-                                                         which gives an SOF cycle time of 60,0000 (each
-                                                         microframe has 60,000 bit times).
+                                                         the uSOF counter.  The uSOF cycle time (number of
+                                                         uSOF counter clock periods to generate a uSOF
+                                                         microframe length) is equal to 59,488 plus this value.
+                                                         The default value is 32(0x20), which gives an SOF cycle
+                                                         time of 60,000 (each microframe has 60,000 bit times).
+                                                         -------------------------------------------------
+                                                          Frame Length (decimal)      FLA Value
+                                                         -------------------------------------------------
+                                                            59488                      0x00
+                                                            59504                      0x01
+                                                            59520                      0x02
+                                                            ... ...
+                                                            59984                      0x1F
+                                                            60000                      0x20
+                                                            60016                      0x21
+                                                            ... ...
+                                                            60496                      0x3F
+                                                         --------------------------------------------------
                                                          Note: keep this value to 0x20 (decimal 32) for no
                                                          offset. */
 #else
@@ -453,8 +529,13 @@ union cvmx_uctlx_ehci_fla
 	uint64_t reserved_6_63                : 58;
 #endif
 	} s;
+	struct cvmx_uctlx_ehci_fla_s          cn61xx;
 	struct cvmx_uctlx_ehci_fla_s          cn63xx;
 	struct cvmx_uctlx_ehci_fla_s          cn63xxp1;
+	struct cvmx_uctlx_ehci_fla_s          cn66xx;
+	struct cvmx_uctlx_ehci_fla_s          cn68xx;
+	struct cvmx_uctlx_ehci_fla_s          cn68xxp1;
+	struct cvmx_uctlx_ehci_fla_s          cnf71xx;
 };
 typedef union cvmx_uctlx_ehci_fla cvmx_uctlx_ehci_fla_t;
 
@@ -464,12 +545,10 @@ typedef union cvmx_uctlx_ehci_fla cvmx_uctlx_ehci_fla_t;
  * UCTL_ERTO_CTL = UCTL EHCI Readbuffer TimeOut Control Register
  * This register controls timeout for EHCI Readbuffer.
  */
-union cvmx_uctlx_erto_ctl
-{
+union cvmx_uctlx_erto_ctl {
 	uint64_t u64;
-	struct cvmx_uctlx_erto_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_erto_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t to_val                       : 27; /**< Read buffer timeout value
                                                          (value 0 means timeout disabled) */
@@ -480,8 +559,13 @@ union cvmx_uctlx_erto_ctl
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
+	struct cvmx_uctlx_erto_ctl_s          cn61xx;
 	struct cvmx_uctlx_erto_ctl_s          cn63xx;
 	struct cvmx_uctlx_erto_ctl_s          cn63xxp1;
+	struct cvmx_uctlx_erto_ctl_s          cn66xx;
+	struct cvmx_uctlx_erto_ctl_s          cn68xx;
+	struct cvmx_uctlx_erto_ctl_s          cn68xxp1;
+	struct cvmx_uctlx_erto_ctl_s          cnf71xx;
 };
 typedef union cvmx_uctlx_erto_ctl cvmx_uctlx_erto_ctl_t;
 
@@ -492,12 +576,10 @@ typedef union cvmx_uctlx_erto_ctl cvmx_uctlx_erto_ctl_t;
  *
  * Register to enable the uctl interface clock.
  */
-union cvmx_uctlx_if_ena
-{
+union cvmx_uctlx_if_ena {
 	uint64_t u64;
-	struct cvmx_uctlx_if_ena_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_if_ena_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t en                           : 1;  /**< Turns on the USB UCTL interface clock */
 #else
@@ -505,8 +587,13 @@ union cvmx_uctlx_if_ena
 	uint64_t reserved_1_63                : 63;
 #endif
 	} s;
+	struct cvmx_uctlx_if_ena_s            cn61xx;
 	struct cvmx_uctlx_if_ena_s            cn63xx;
 	struct cvmx_uctlx_if_ena_s            cn63xxp1;
+	struct cvmx_uctlx_if_ena_s            cn66xx;
+	struct cvmx_uctlx_if_ena_s            cn68xx;
+	struct cvmx_uctlx_if_ena_s            cn68xxp1;
+	struct cvmx_uctlx_if_ena_s            cnf71xx;
 };
 typedef union cvmx_uctlx_if_ena cvmx_uctlx_if_ena_t;
 
@@ -517,12 +604,10 @@ typedef union cvmx_uctlx_if_ena cvmx_uctlx_if_ena_t;
  *
  * Register to enable individual interrupt source in corresponding to UCTL_INT_REG
  */
-union cvmx_uctlx_int_ena
-{
+union cvmx_uctlx_int_ena {
 	uint64_t u64;
-	struct cvmx_uctlx_int_ena_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_int_ena_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t ec_ovf_e                     : 1;  /**< Ehci Commit OVerFlow Error */
 	uint64_t oc_ovf_e                     : 1;  /**< Ohci Commit OVerFlow Error */
@@ -544,8 +629,13 @@ union cvmx_uctlx_int_ena
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
+	struct cvmx_uctlx_int_ena_s           cn61xx;
 	struct cvmx_uctlx_int_ena_s           cn63xx;
 	struct cvmx_uctlx_int_ena_s           cn63xxp1;
+	struct cvmx_uctlx_int_ena_s           cn66xx;
+	struct cvmx_uctlx_int_ena_s           cn68xx;
+	struct cvmx_uctlx_int_ena_s           cn68xxp1;
+	struct cvmx_uctlx_int_ena_s           cnf71xx;
 };
 typedef union cvmx_uctlx_int_ena cvmx_uctlx_int_ena_t;
 
@@ -556,12 +646,10 @@ typedef union cvmx_uctlx_int_ena cvmx_uctlx_int_ena_t;
  *
  * Summary of different bits of RSL interrupt status.
  */
-union cvmx_uctlx_int_reg
-{
+union cvmx_uctlx_int_reg {
 	uint64_t u64;
-	struct cvmx_uctlx_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t ec_ovf_e                     : 1;  /**< Ehci Commit OVerFlow Error
                                                          When the error happenes, the whole NCB system needs
@@ -587,8 +675,13 @@ union cvmx_uctlx_int_reg
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
+	struct cvmx_uctlx_int_reg_s           cn61xx;
 	struct cvmx_uctlx_int_reg_s           cn63xx;
 	struct cvmx_uctlx_int_reg_s           cn63xxp1;
+	struct cvmx_uctlx_int_reg_s           cn66xx;
+	struct cvmx_uctlx_int_reg_s           cn68xx;
+	struct cvmx_uctlx_int_reg_s           cn68xxp1;
+	struct cvmx_uctlx_int_reg_s           cnf71xx;
 };
 typedef union cvmx_uctlx_int_reg cvmx_uctlx_int_reg_t;
 
@@ -600,12 +693,10 @@ typedef union cvmx_uctlx_int_reg cvmx_uctlx_int_reg_t;
  * UCTL_OHCI_CTL = UCTL OHCI Control Register
  * This register controls the general behavior of UCTL OHCI datapath.
  */
-union cvmx_uctlx_ohci_ctl
-{
+union cvmx_uctlx_ohci_ctl {
 	uint64_t u64;
-	struct cvmx_uctlx_ohci_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_ohci_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t reg_nb                       : 1;  /**< 1: OHCI register access will not be blocked by EHCI
                                                           buffer/descriptor access on AHB
@@ -650,8 +741,13 @@ union cvmx_uctlx_ohci_ctl
 	uint64_t reserved_19_63               : 45;
 #endif
 	} s;
+	struct cvmx_uctlx_ohci_ctl_s          cn61xx;
 	struct cvmx_uctlx_ohci_ctl_s          cn63xx;
 	struct cvmx_uctlx_ohci_ctl_s          cn63xxp1;
+	struct cvmx_uctlx_ohci_ctl_s          cn66xx;
+	struct cvmx_uctlx_ohci_ctl_s          cn68xx;
+	struct cvmx_uctlx_ohci_ctl_s          cn68xxp1;
+	struct cvmx_uctlx_ohci_ctl_s          cnf71xx;
 };
 typedef union cvmx_uctlx_ohci_ctl cvmx_uctlx_ohci_ctl_t;
 
@@ -661,12 +757,10 @@ typedef union cvmx_uctlx_ohci_ctl cvmx_uctlx_ohci_ctl_t;
  * UCTL_ORTO_CTL = UCTL OHCI Readbuffer TimeOut Control Register
  * This register controls timeout for OHCI Readbuffer.
  */
-union cvmx_uctlx_orto_ctl
-{
+union cvmx_uctlx_orto_ctl {
 	uint64_t u64;
-	struct cvmx_uctlx_orto_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_orto_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t to_val                       : 24; /**< Read buffer timeout value
                                                          (value 0 means timeout disabled) */
@@ -677,8 +771,13 @@ union cvmx_uctlx_orto_ctl
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
+	struct cvmx_uctlx_orto_ctl_s          cn61xx;
 	struct cvmx_uctlx_orto_ctl_s          cn63xx;
 	struct cvmx_uctlx_orto_ctl_s          cn63xxp1;
+	struct cvmx_uctlx_orto_ctl_s          cn66xx;
+	struct cvmx_uctlx_orto_ctl_s          cn68xx;
+	struct cvmx_uctlx_orto_ctl_s          cn68xxp1;
+	struct cvmx_uctlx_orto_ctl_s          cnf71xx;
 };
 typedef union cvmx_uctlx_orto_ctl cvmx_uctlx_orto_ctl_t;
 
@@ -689,12 +788,10 @@ typedef union cvmx_uctlx_orto_ctl cvmx_uctlx_orto_ctl_t;
  *
  * Register to set PP access FIFO full watermark.
  */
-union cvmx_uctlx_ppaf_wm
-{
+union cvmx_uctlx_ppaf_wm {
 	uint64_t u64;
-	struct cvmx_uctlx_ppaf_wm_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_ppaf_wm_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t wm                           : 5;  /**< Number of entries when PP Access FIFO will assert
                                                          full (back pressure) */
@@ -703,8 +800,11 @@ union cvmx_uctlx_ppaf_wm
 	uint64_t reserved_5_63                : 59;
 #endif
 	} s;
+	struct cvmx_uctlx_ppaf_wm_s           cn61xx;
 	struct cvmx_uctlx_ppaf_wm_s           cn63xx;
 	struct cvmx_uctlx_ppaf_wm_s           cn63xxp1;
+	struct cvmx_uctlx_ppaf_wm_s           cn66xx;
+	struct cvmx_uctlx_ppaf_wm_s           cnf71xx;
 };
 typedef union cvmx_uctlx_ppaf_wm cvmx_uctlx_ppaf_wm_t;
 
@@ -714,12 +814,10 @@ typedef union cvmx_uctlx_ppaf_wm cvmx_uctlx_ppaf_wm_t;
  * UPHY_CTL_STATUS = USB PHY Control and Status Reigster
  * This register controls the USB PHY test and Bist.
  */
-union cvmx_uctlx_uphy_ctl_status
-{
+union cvmx_uctlx_uphy_ctl_status {
 	uint64_t u64;
-	struct cvmx_uctlx_uphy_ctl_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_uphy_ctl_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t bist_done                    : 1;  /**< PHY BIST DONE.  Asserted at the end of the PHY BIST
                                                          sequence. */
@@ -735,7 +833,7 @@ union cvmx_uctlx_uphy_ctl_status
                                                            Provide 3.3V to USB_VDD33 Tie USB_REXT to 3.3V
                                                            supply and Set SIDDQ to 1. */
 	uint64_t vtest_en                     : 1;  /**< Analog Test Pin Enable.
-                                                         1 = The PHY's ANALOG _TEST pin is enabled for the
+                                                         1 = The PHY's ANALOG_TEST pin is enabled for the
                                                              input and output of applicable analog test
                                                              signals.
                                                          0 = The ANALOG_TEST pin is disabled. */
@@ -764,8 +862,13 @@ union cvmx_uctlx_uphy_ctl_status
 	uint64_t reserved_10_63               : 54;
 #endif
 	} s;
+	struct cvmx_uctlx_uphy_ctl_status_s   cn61xx;
 	struct cvmx_uctlx_uphy_ctl_status_s   cn63xx;
 	struct cvmx_uctlx_uphy_ctl_status_s   cn63xxp1;
+	struct cvmx_uctlx_uphy_ctl_status_s   cn66xx;
+	struct cvmx_uctlx_uphy_ctl_status_s   cn68xx;
+	struct cvmx_uctlx_uphy_ctl_status_s   cn68xxp1;
+	struct cvmx_uctlx_uphy_ctl_status_s   cnf71xx;
 };
 typedef union cvmx_uctlx_uphy_ctl_status cvmx_uctlx_uphy_ctl_status_t;
 
@@ -775,12 +878,10 @@ typedef union cvmx_uctlx_uphy_ctl_status cvmx_uctlx_uphy_ctl_status_t;
  * UPHY_PORTX_CTL_STATUS = USB PHY Port X Control and Status Reigsters
  * This register controls the each port of the USB PHY.
  */
-union cvmx_uctlx_uphy_portx_ctl_status
-{
+union cvmx_uctlx_uphy_portx_ctl_status {
 	uint64_t u64;
-	struct cvmx_uctlx_uphy_portx_ctl_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_uctlx_uphy_portx_ctl_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_43_63               : 21;
 	uint64_t tdata_out                    : 4;  /**< PHY test data out. Presents either interlly
                                                          generated signals or test register contenets, based
@@ -797,9 +898,16 @@ union cvmx_uctlx_uphy_portx_ctl_status
                                                          to 1'b0. */
 	uint64_t portreset                    : 1;  /**< Per-port reset */
 	uint64_t txhsvxtune                   : 2;  /**< Transmitter High-Speed Crossover Adjustment */
-	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment */
-	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment */
-	uint64_t txpreemphasistune            : 1;  /**< HS transmitter pre-emphasis enable. */
+	uint64_t txvreftune                   : 4;  /**< HS DC Voltage Level Adjustment
+                                                         When the recommended 37.4 Ohm resistor is present
+                                                         on USB_REXT, the recommended TXVREFTUNE value is 15 */
+	uint64_t txrisetune                   : 1;  /**< HS Transmitter Rise/Fall Time Adjustment
+                                                         When the recommended 37.4 Ohm resistor is present
+                                                         on USB_REXT, the recommended TXRISETUNE value is 1 */
+	uint64_t txpreemphasistune            : 1;  /**< HS transmitter pre-emphasis enable.
+                                                         When the recommended 37.4 Ohm resistor is present
+                                                         on USB_REXT, the recommended TXPREEMPHASISTUNE
+                                                         value is 1 */
 	uint64_t txfslstune                   : 4;  /**< FS/LS Source Impedance Adjustment */
 	uint64_t sqrxtune                     : 3;  /**< Squelch Threshold Adjustment */
 	uint64_t compdistune                  : 3;  /**< Disconnect Threshold Adjustment */
@@ -842,8 +950,13 @@ union cvmx_uctlx_uphy_portx_ctl_status
 	uint64_t reserved_43_63               : 21;
 #endif
 	} s;
+	struct cvmx_uctlx_uphy_portx_ctl_status_s cn61xx;
 	struct cvmx_uctlx_uphy_portx_ctl_status_s cn63xx;
 	struct cvmx_uctlx_uphy_portx_ctl_status_s cn63xxp1;
+	struct cvmx_uctlx_uphy_portx_ctl_status_s cn66xx;
+	struct cvmx_uctlx_uphy_portx_ctl_status_s cn68xx;
+	struct cvmx_uctlx_uphy_portx_ctl_status_s cn68xxp1;
+	struct cvmx_uctlx_uphy_portx_ctl_status_s cnf71xx;
 };
 typedef union cvmx_uctlx_uphy_portx_ctl_status cvmx_uctlx_uphy_portx_ctl_status_t;
 

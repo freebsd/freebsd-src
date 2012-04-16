@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_runreg.h>
 #include <dev/usb/wlan/if_runvar.h>
 
-#define nitems(_a)      (sizeof((_a)) / sizeof((_a)[0]))
+#define	N(_a) ((int)(sizeof((_a)) / sizeof((_a)[0])))
 
 #ifdef	USB_DEBUG
 #define RUN_DEBUG
@@ -600,12 +600,6 @@ run_attach(device_t self)
 	    sc->mac_ver, sc->mac_rev, run_get_rf(sc->rf_rev),
 	    sc->ntxchains, sc->nrxchains, ether_sprintf(sc->sc_bssid));
 
-	if ((error = run_load_microcode(sc)) != 0) {
-		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
-		RUN_UNLOCK(sc);
-		goto detach;
-	}
-
 	RUN_UNLOCK(sc);
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
@@ -664,7 +658,7 @@ run_attach(device_t self)
 	    sc->rf_rev == RT2860_RF_2850 ||
 	    sc->rf_rev == RT3070_RF_3052) {
 		/* set supported .11a rates */
-		for (i = 14; i < nitems(rt2860_rf2850); i++) {
+		for (i = 14; i < N(rt2860_rf2850); i++) {
 			uint8_t chan = rt2860_rf2850[i].chan;
 			ic->ic_channels[ic->ic_nchans].ic_freq =
 			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_A);
@@ -1050,8 +1044,9 @@ run_load_microcode(struct run_softc *sc)
 		error = ETIMEDOUT;
 		goto fail;
 	}
-	device_printf(sc->sc_dev, "firmware %s loaded\n",
-	    (base == fw->data) ? "RT2870" : "RT3071");
+	device_printf(sc->sc_dev, "firmware %s ver. %u.%u loaded\n",
+	    (base == fw->data) ? "RT2870" : "RT3071",
+	    *(base + 4092), *(base + 4093));
 
 fail:
 	firmware_put(fw, FIRMWARE_UNLOAD);
@@ -2579,8 +2574,8 @@ run_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", xferlen);
 
-		if (xferlen < sizeof (uint32_t) +
-		    sizeof (struct rt2860_rxwi) + sizeof (struct rt2870_rxd)) {
+		if (xferlen < (int)(sizeof(uint32_t) +
+		    sizeof(struct rt2860_rxwi) + sizeof(struct rt2870_rxd))) {
 			DPRINTF("xfer too short %d\n", xferlen);
 			goto tr_setup;
 		}
@@ -2645,11 +2640,12 @@ tr_setup:
 	for(;;) {
 		dmalen = le32toh(*mtod(m, uint32_t *)) & 0xffff;
 
-		if ((dmalen == 0) || ((dmalen & 3) != 0)) {
+		if ((dmalen >= (uint32_t)-8) || (dmalen == 0) ||
+		    ((dmalen & 3) != 0)) {
 			DPRINTF("bad DMA length %u\n", dmalen);
 			break;
 		}
-		if ((dmalen + 8) > xferlen) {
+		if ((dmalen + 8) > (uint32_t)xferlen) {
 			DPRINTF("bad DMA length %u > %d\n",
 			dmalen + 8, xferlen);
 			break;
@@ -4311,7 +4307,7 @@ run_bbp_init(struct run_softc *sc)
 		return (ETIMEDOUT);
 
 	/* initialize BBP registers to default values */
-	for (i = 0; i < nitems(rt2860_def_bbp); i++) {
+	for (i = 0; i < N(rt2860_def_bbp); i++) {
 		run_bbp_write(sc, rt2860_def_bbp[i].reg,
 		    rt2860_def_bbp[i].val);
 	}
@@ -4346,12 +4342,12 @@ run_rt3070_rf_init(struct run_softc *sc)
 
 	/* initialize RF registers to default value */
 	if (sc->mac_ver == 0x3572) {
-		for (i = 0; i < nitems(rt3572_def_rf); i++) {
+		for (i = 0; i < N(rt3572_def_rf); i++) {
 			run_rt3070_rf_write(sc, rt3572_def_rf[i].reg,
 			    rt3572_def_rf[i].val);
 		}
 	} else {
-		for (i = 0; i < nitems(rt3070_def_rf); i++) {
+		for (i = 0; i < N(rt3070_def_rf); i++) {
 			run_rt3070_rf_write(sc, rt3070_def_rf[i].reg,
 			    rt3070_def_rf[i].val);
 		}
@@ -4677,6 +4673,11 @@ run_init_locked(struct run_softc *sc)
 
 	run_stop(sc);
 
+	if (run_load_microcode(sc) != 0) {
+		device_printf(sc->sc_dev, "could not load 8051 microcode\n");
+		goto fail;
+	}
+
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (run_read(sc, RT2860_ASIC_VER_ID, &tmp) != 0)
 			goto fail;
@@ -4729,7 +4730,7 @@ run_init_locked(struct run_softc *sc)
 		run_write(sc, RT2860_TX_PWR_CFG(ridx), sc->txpow20mhz[ridx]);
 	}
 
-	for (i = 0; i < nitems(rt2870_def_mac); i++)
+	for (i = 0; i < N(rt2870_def_mac); i++)
 		run_write(sc, rt2870_def_mac[i].reg, rt2870_def_mac[i].val);
 	run_write(sc, RT2860_WMM_AIFSN_CFG, 0x00002273);
 	run_write(sc, RT2860_WMM_CWMIN_CFG, 0x00002344);
@@ -4949,9 +4950,9 @@ static device_method_t run_methods[] = {
 };
 
 static driver_t run_driver = {
-	"run",
-	run_methods,
-	sizeof(struct run_softc)
+	.name = "run",
+	.methods = run_methods,
+	.size = sizeof(struct run_softc)
 };
 
 static devclass_t run_devclass;

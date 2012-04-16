@@ -101,6 +101,8 @@ struct ktr_request {
 		struct	ktr_genio ktr_genio;
 		struct	ktr_psig ktr_psig;
 		struct	ktr_csw ktr_csw;
+		struct	ktr_fault ktr_fault;
+		struct	ktr_faultend ktr_faultend;
 	} ktr_data;
 	STAILQ_ENTRY(ktr_request) ktr_list;
 };
@@ -119,6 +121,8 @@ static int data_lengths[] = {
 	sizeof(struct ktr_proc_ctor),		/* KTR_PROCCTOR */
 	0,					/* KTR_PROCDTOR */
 	sizeof(struct ktr_cap_fail),		/* KTR_CAPFAIL */
+	sizeof(struct ktr_fault),		/* KTR_FAULT */
+	sizeof(struct ktr_faultend),		/* KTR_FAULTEND */
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -788,6 +792,42 @@ ktrcapfail(type, needed, held)
 	kcf->cap_type = type;
 	kcf->cap_needed = needed;
 	kcf->cap_held = held;
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
+}
+
+void
+ktrfault(vaddr, type)
+	vm_offset_t vaddr;
+	int type;
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+	struct ktr_fault *kf;
+
+	req = ktr_getrequest(KTR_FAULT);
+	if (req == NULL)
+		return;
+	kf = &req->ktr_data.ktr_fault;
+	kf->vaddr = vaddr;
+	kf->type = type;
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
+}
+
+void
+ktrfaultend(result)
+	int result;
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+	struct ktr_faultend *kf;
+
+	req = ktr_getrequest(KTR_FAULTEND);
+	if (req == NULL)
+		return;
+	kf = &req->ktr_data.ktr_faultend;
+	kf->result = result;
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }

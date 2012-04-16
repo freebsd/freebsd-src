@@ -28,7 +28,7 @@
 .\"	@(#)kdump.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2008
+.Dd April 5, 2012
 .Dt KDUMP 1
 .Os
 .Sh NAME
@@ -171,6 +171,8 @@ The possible operations are:
 .It Li USER Ta data from user process Ta the data
 .It Li STRU Ta various syscalls Ta structure
 .It Li SCTL Ta Xr sysctl 3 requests Ta MIB name
+.It Li PFLT Ta enter page fault Ta fault address and type
+.It Li PRET Ta return from page fault Ta fault result
 .El
 .Sh SEE ALSO
 .Xr ktrace 1

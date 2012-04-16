@@ -1,4 +1,4 @@
-# $Id: Makefile.am 16553 2006-01-13 13:43:32Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -8,8 +8,13 @@ CLEANFILES =		\
 	des.h		\
 	dh.h		\
 	dsa.h		\
+	ec.h		\
+	ecdsa.h		\
+	ecdh.h		\
 	engine.h	\
 	evp.h		\
+	evp-hcrypto.h	\
+	evp-cc.h	\
 	hmac.h		\
 	md2.h		\
 	md4.h		\
@@ -21,3 +26,5 @@ CLEANFILES =		\
 	rsa.h		\
 	sha.h		\
 	ui.h
+
+EXTRA_DIST = NTMakefile

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwres_grbn.c,v 1.10 2007-06-19 23:47:22 tbox Exp $ */
+/* $Id: lwres_grbn.c,v 1.10 2007/06/19 23:47:22 tbox Exp $ */
 
 /*! \file lwres_grbn.c
 

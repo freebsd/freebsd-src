@@ -128,6 +128,7 @@ lme [label="Lars Engels\nlme@FreeBSD.org\n2007/07/09"]
 lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
 lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2007/04/03"]
 lx [label="David Thiel\nlx@FreeBSD.org\n2006/11/29"]
+madpilot [label="Guido Falsi\nmadpilot@FreeBSD.org\n2012/04/12"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
 mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
@@ -240,6 +241,7 @@ clsung -> lwhsu
 clsung -> tabthorpe
 
 crees -> jgh
+crees -> madpilot
 
 delphij -> nemoliu
 delphij -> rafan
@@ -440,6 +442,7 @@ tabthorpe -> fluffy
 tabthorpe -> jacula
 tabthorpe -> jadawin
 tabthorpe -> jlaffaye
+tabthorpe -> madpilot
 tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi

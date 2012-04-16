@@ -71,6 +71,7 @@ int cfi_probe(device_t);
 int cfi_attach(device_t);
 int cfi_detach(device_t);
 
+uint32_t cfi_read_raw(struct cfi_softc *, u_int);
 uint32_t cfi_read(struct cfi_softc *, u_int);
 uint8_t cfi_read_qry(struct cfi_softc *, u_int);
 int cfi_write_block(struct cfi_softc *);

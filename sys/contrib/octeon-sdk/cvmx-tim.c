@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Support library for the hardware work queue timers.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #include "executive-config.h"
 #include "cvmx-config.h"
@@ -82,8 +82,6 @@ CVMX_SHARED cvmx_tim_t cvmx_tim;
  */
 int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
 {
-    cvmx_tim_mem_ring0_t    config_ring0;
-    cvmx_tim_mem_ring1_t    config_ring1;
     uint64_t                timer_id;
     int                     error = -1;
     uint64_t                tim_clock_hz = cvmx_clock_get_rate(CVMX_CLOCK_TIM);
@@ -92,12 +90,20 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
     uint64_t                tick_ns = 1000 * tick;
     int                     i;
     uint32_t                temp;
+    int                     timer_thr = 1024;
 
     /* for the simulator */
     if (tim_clock_hz == 0)
-      tim_clock_hz = 333000000;
+        tim_clock_hz = 800000000;
 
-    hw_tick_ns = 1024 * 1000000000ull / tim_clock_hz;
+    if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+    {
+        cvmx_tim_fr_rn_tt_t fr_tt;
+        fr_tt.u64 = cvmx_read_csr(CVMX_TIM_FR_RN_TT);
+        timer_thr = fr_tt.s.fr_rn_tt;
+    }
+
+    hw_tick_ns = timer_thr * 1000000000ull / tim_clock_hz;
     /*
      * Double the minimal allowed tick to 2 * HW tick.  tick between
      * (hw_tick_ns, 2*hw_tick_ns) will set config_ring1.s.interval
@@ -113,19 +119,24 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
     /* Reinitialize out timer state */
     memset(&cvmx_tim, 0, sizeof(cvmx_tim));
 
-
-    if ((tick_ns < (hw_tick_ns_allowed)) || (tick_ns > 4194304 * hw_tick_ns))
-      {
-	cvmx_dprintf("ERROR: cvmx_tim_setup: Requested tick %lu(ns) is smaller than"
-		     " the minimal ticks allowed by hardware %lu(ns)\n",
-		     tick_ns, hw_tick_ns_allowed);
-	return error;
-      }
+    if (tick_ns < hw_tick_ns_allowed)
+    {
+        cvmx_dprintf("ERROR: cvmx_tim_setup: Requested tick %lu(ns) is smaller than"
+                " the minimal ticks allowed by hardware %lu(ns)\n",
+                tick_ns, hw_tick_ns_allowed);
+        return error;
+    }
+    else if (tick_ns > 4194304 * hw_tick_ns)
+    {
+        cvmx_dprintf("ERROR: cvmx_tim_setup: Requested tick %lu(ns) is greater than"
+                " the max ticks %lu(ns)\n", tick_ns, hw_tick_ns);
+        return error;
+    }
 
     for (i=2; i<20; i++)
     {
-      if (tick_ns < (hw_tick_ns << i))
-	break;
+        if (tick_ns < (hw_tick_ns << i))
+	    break;
     }
 
     cvmx_tim.max_ticks = (uint32_t)max_ticks;
@@ -165,22 +176,57 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
     /* Loop through all timers */
     for (timer_id = 0; timer_id<CVMX_TIM_NUM_TIMERS; timer_id++)
     {
+        int interval = ((1 << (cvmx_tim.bucket_shift - 10)) - 1);
         cvmx_tim_bucket_entry_t *bucket = cvmx_tim.bucket + timer_id * cvmx_tim.num_buckets;
-        /* Tell the hardware where about the bucket array */
-        config_ring0.u64 = 0;
-        config_ring0.s.first_bucket = cvmx_ptr_to_phys(bucket) >> 5;
-        config_ring0.s.num_buckets = cvmx_tim.num_buckets - 1;
-        config_ring0.s.ring = timer_id;
-        cvmx_write_csr(CVMX_TIM_MEM_RING0, config_ring0.u64);
+        if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+        {
+            cvmx_tim_ringx_ctl0_t     ring_ctl0;
+            cvmx_tim_ringx_ctl1_t     ring_ctl1;
+            cvmx_tim_ringx_ctl2_t     ring_ctl2;
+            cvmx_tim_reg_flags_t      reg_flags;
 
-        /* Tell the hardware the size of each chunk block in pointers */
-        config_ring1.u64 = 0;
-        config_ring1.s.enable = 1;
-        config_ring1.s.pool = CVMX_FPA_TIMER_POOL;
-        config_ring1.s.words_per_chunk = CVMX_FPA_TIMER_POOL_SIZE / 8;
-        config_ring1.s.interval = (1 << (cvmx_tim.bucket_shift - 10)) - 1;
-        config_ring1.s.ring = timer_id;
-        cvmx_write_csr(CVMX_TIM_MEM_RING1, config_ring1.u64);
+            /* Tell the hardware where about the bucket array */
+            ring_ctl2.u64 = 0;
+            ring_ctl2.s.csize = CVMX_FPA_TIMER_POOL_SIZE / 8;
+            ring_ctl2.s.base = cvmx_ptr_to_phys(bucket) >> 5;
+            cvmx_write_csr(CVMX_TIM_RINGX_CTL2(timer_id), ring_ctl2.u64);
+
+            reg_flags.u64 = cvmx_read_csr(CVMX_TIM_REG_FLAGS);
+            ring_ctl1.u64 = 0;
+            ring_ctl1.s.cpool = ((reg_flags.s.ena_dfb == 0) ? CVMX_FPA_TIMER_POOL : 0);
+            ring_ctl1.s.bsize = cvmx_tim.num_buckets - 1;
+            cvmx_write_csr(CVMX_TIM_RINGX_CTL1(timer_id), ring_ctl1.u64);
+
+            ring_ctl0.u64 = 0;
+            ring_ctl0.s.timercount = interval + timer_id * interval / CVMX_TIM_NUM_TIMERS;
+            cvmx_write_csr(CVMX_TIM_RINGX_CTL0(timer_id), ring_ctl0.u64);
+
+            ring_ctl0.u64 = cvmx_read_csr(CVMX_TIM_RINGX_CTL0(timer_id));
+            ring_ctl0.s.ena = 1;
+            ring_ctl0.s.interval = interval;
+            cvmx_write_csr(CVMX_TIM_RINGX_CTL0(timer_id), ring_ctl0.u64);
+            ring_ctl0.u64 = cvmx_read_csr(CVMX_TIM_RINGX_CTL0(timer_id));
+        }
+        else
+        {
+            cvmx_tim_mem_ring0_t    config_ring0;
+            cvmx_tim_mem_ring1_t    config_ring1;
+            /* Tell the hardware where about the bucket array */
+            config_ring0.u64 = 0;
+            config_ring0.s.first_bucket = cvmx_ptr_to_phys(bucket) >> 5;
+            config_ring0.s.num_buckets = cvmx_tim.num_buckets - 1;
+            config_ring0.s.ring = timer_id;
+            cvmx_write_csr(CVMX_TIM_MEM_RING0, config_ring0.u64);
+
+            /* Tell the hardware the size of each chunk block in pointers */
+            config_ring1.u64 = 0;
+            config_ring1.s.enable = 1;
+            config_ring1.s.pool = CVMX_FPA_TIMER_POOL;
+            config_ring1.s.words_per_chunk = CVMX_FPA_TIMER_POOL_SIZE / 8;
+            config_ring1.s.interval = interval;
+            config_ring1.s.ring = timer_id;
+            cvmx_write_csr(CVMX_TIM_MEM_RING1, config_ring1.u64);
+        }
     }
 
     return 0;
@@ -194,7 +240,7 @@ void cvmx_tim_start(void)
 {
     cvmx_tim_control_t control;
 
-    control.u64 = 0;
+    control.u64 = cvmx_read_csr(CVMX_TIM_REG_FLAGS);
     control.s.enable_dwb = 1;
     control.s.enable_timers = 1;
 
@@ -210,7 +256,7 @@ void cvmx_tim_start(void)
 void cvmx_tim_stop(void)
 {
     cvmx_tim_control_t control;
-    control.u64 = 0;
+    control.u64 = cvmx_read_csr(CVMX_TIM_REG_FLAGS);
     control.s.enable_dwb = 0;
     control.s.enable_timers = 0;
     cvmx_write_csr(CVMX_TIM_REG_FLAGS, control.u64);

@@ -232,6 +232,7 @@ netmap_open(struct my_ring *me, int ringid)
 	bzero(&req, sizeof(req));
 	strncpy(req.nr_name, me->nmr.nr_name, sizeof(req.nr_name));
 	req.nr_ringid = ringid;
+	req.nr_version = NETMAP_API;
 	err = ioctl(fd, NIOCGINFO, &req);
 	if (err) {
 		D("cannot get info on %s", me->nmr.nr_name);

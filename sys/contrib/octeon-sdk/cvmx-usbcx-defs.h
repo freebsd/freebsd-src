@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_USBCX_TYPEDEFS_H__
-#define __CVMX_USBCX_TYPEDEFS_H__
+#ifndef __CVMX_USBCX_DEFS_H__
+#define __CVMX_USBCX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_USBCX_DAINT(unsigned long block_id)
@@ -846,12 +846,10 @@ static inline uint64_t CVMX_USBCX_PCGCCTL(unsigned long block_id)
  * bits are used. Bits in this register are set and cleared when the application sets and clears
  * bits in the corresponding Device Endpoint-n Interrupt register (DIEPINTn/DOEPINTn).
  */
-union cvmx_usbcx_daint
-{
+union cvmx_usbcx_daint {
 	uint32_t u32;
-	struct cvmx_usbcx_daint_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_daint_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t outepint                     : 16; /**< OUT Endpoint Interrupt Bits (OutEPInt)
                                                          One bit per OUT endpoint:
                                                          Bit 16 for OUT endpoint 0, bit 31 for OUT endpoint 15 */
@@ -883,12 +881,10 @@ typedef union cvmx_usbcx_daint cvmx_usbcx_daint_t;
  * All Endpoints Interrupt (DAINT) register bit corresponding to that interrupt will still be set.
  * Mask Interrupt: 1'b0 Unmask Interrupt: 1'b1
  */
-union cvmx_usbcx_daintmsk
-{
+union cvmx_usbcx_daintmsk {
 	uint32_t u32;
-	struct cvmx_usbcx_daintmsk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_daintmsk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t outepmsk                     : 16; /**< OUT EP Interrupt Mask Bits (OutEpMsk)
                                                          One per OUT Endpoint:
                                                          Bit 16 for OUT EP 0, bit 31 for OUT EP 15 */
@@ -918,12 +914,10 @@ typedef union cvmx_usbcx_daintmsk cvmx_usbcx_daintmsk_t;
  * This register configures the core in Device mode after power-on or after certain control
  * commands or enumeration. Do not make changes to this register after initial programming.
  */
-union cvmx_usbcx_dcfg
-{
+union cvmx_usbcx_dcfg {
 	uint32_t u32;
-	struct cvmx_usbcx_dcfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dcfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_23_31               : 9;
 	uint32_t epmiscnt                     : 5;  /**< IN Endpoint Mismatch Count (EPMisCnt)
                                                          The application programs this filed with a count that determines
@@ -996,12 +990,10 @@ typedef union cvmx_usbcx_dcfg cvmx_usbcx_dcfg_t;
  * Device Control Register (DCTL)
  *
  */
-union cvmx_usbcx_dctl
-{
+union cvmx_usbcx_dctl {
 	uint32_t u32;
-	struct cvmx_usbcx_dctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_12_31               : 20;
 	uint32_t pwronprgdone                 : 1;  /**< Power-On Programming Done (PWROnPrgDone)
                                                          The application uses this bit to indicate that register
@@ -1100,12 +1092,10 @@ typedef union cvmx_usbcx_dctl cvmx_usbcx_dctl_t;
  *
  * The application uses the register to control the behaviour of each logical endpoint other than endpoint 0.
  */
-union cvmx_usbcx_diepctlx
-{
+union cvmx_usbcx_diepctlx {
 	uint32_t u32;
-	struct cvmx_usbcx_diepctlx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_diepctlx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t epena                        : 1;  /**< Endpoint Enable (EPEna)
                                                          Indicates that data is ready to be transmitted on the endpoint.
                                                          The core clears this bit before setting any of the following
@@ -1262,12 +1252,10 @@ typedef union cvmx_usbcx_diepctlx cvmx_usbcx_diepctlx_t;
  * register. The application must clear the appropriate bit in this register
  * to clear the corresponding bits in the DAINT and GINTSTS registers.
  */
-union cvmx_usbcx_diepintx
-{
+union cvmx_usbcx_diepintx {
 	uint32_t u32;
-	struct cvmx_usbcx_diepintx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_diepintx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_7_31                : 25;
 	uint32_t inepnakeff                   : 1;  /**< IN Endpoint NAK Effective (INEPNakEff)
                                                          Applies to periodic IN endpoints only.
@@ -1337,12 +1325,10 @@ typedef union cvmx_usbcx_diepintx cvmx_usbcx_diepintx_t;
  * bit in this register. Status bits are masked by default.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_diepmsk
-{
+union cvmx_usbcx_diepmsk {
 	uint32_t u32;
-	struct cvmx_usbcx_diepmsk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_diepmsk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_7_31                : 25;
 	uint32_t inepnakeffmsk                : 1;  /**< IN Endpoint NAK Effective Mask (INEPNakEffMsk) */
 	uint32_t intknepmismsk                : 1;  /**< IN Token received with EP Mismatch Mask (INTknEPMisMsk) */
@@ -1384,12 +1370,10 @@ typedef union cvmx_usbcx_diepmsk cvmx_usbcx_diepmsk_t;
  * the core modifies this register. The application can only read this register once the core has cleared the Endpoint Enable bit.
  * This register is used only for endpoints other than Endpoint 0.
  */
-union cvmx_usbcx_dieptsizx
-{
+union cvmx_usbcx_dieptsizx {
 	uint32_t u32;
-	struct cvmx_usbcx_dieptsizx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dieptsizx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_31_31               : 1;
 	uint32_t mc                           : 2;  /**< Multi Count (MC)
                                                          Applies to IN endpoints only.
@@ -1443,12 +1427,10 @@ typedef union cvmx_usbcx_dieptsizx cvmx_usbcx_dieptsizx_t;
  *
  * The application uses the register to control the behaviour of each logical endpoint other than endpoint 0.
  */
-union cvmx_usbcx_doepctlx
-{
+union cvmx_usbcx_doepctlx {
 	uint32_t u32;
-	struct cvmx_usbcx_doepctlx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_doepctlx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t epena                        : 1;  /**< Endpoint Enable (EPEna)
                                                          Indicates that the application has allocated the memory tp start
                                                          receiving data from the USB.
@@ -1596,12 +1578,10 @@ typedef union cvmx_usbcx_doepctlx cvmx_usbcx_doepctlx_t;
  * Interrupt register. The application must clear the appropriate bit in this register to clear the
  * corresponding bits in the DAINT and GINTSTS registers.
  */
-union cvmx_usbcx_doepintx
-{
+union cvmx_usbcx_doepintx {
 	uint32_t u32;
-	struct cvmx_usbcx_doepintx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_doepintx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_5_31                : 27;
 	uint32_t outtknepdis                  : 1;  /**< OUT Token Received When Endpoint Disabled (OUTTknEPdis)
                                                          Applies only to control OUT endpoints.
@@ -1655,12 +1635,10 @@ typedef union cvmx_usbcx_doepintx cvmx_usbcx_doepintx_t;
  * corresponding bit in this register. Status bits are masked by default.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_doepmsk
-{
+union cvmx_usbcx_doepmsk {
 	uint32_t u32;
-	struct cvmx_usbcx_doepmsk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_doepmsk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_5_31                : 27;
 	uint32_t outtknepdismsk               : 1;  /**< OUT Token Received when Endpoint Disabled Mask
                                                          (OUTTknEPdisMsk)
@@ -1700,12 +1678,10 @@ typedef union cvmx_usbcx_doepmsk cvmx_usbcx_doepmsk_t;
  * can only read this register once the core has cleared the Endpoint Enable bit.
  * This register is used only for endpoints other than Endpoint 0.
  */
-union cvmx_usbcx_doeptsizx
-{
+union cvmx_usbcx_doeptsizx {
 	uint32_t u32;
-	struct cvmx_usbcx_doeptsizx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_doeptsizx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_31_31               : 1;
 	uint32_t mc                           : 2;  /**< Multi Count (MC)
                                                          Received Data PID (RxDPID)
@@ -1764,12 +1740,10 @@ typedef union cvmx_usbcx_doeptsizx cvmx_usbcx_doeptsizx_t;
  * in Device mode. Each periodic FIFO holds the data for one periodic IN endpoint.
  * This register is repeated for each periodic FIFO instantiated.
  */
-union cvmx_usbcx_dptxfsizx
-{
+union cvmx_usbcx_dptxfsizx {
 	uint32_t u32;
-	struct cvmx_usbcx_dptxfsizx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dptxfsizx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dptxfsize                    : 16; /**< Device Periodic TxFIFO Size (DPTxFSize)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 4
@@ -1799,12 +1773,10 @@ typedef union cvmx_usbcx_dptxfsizx cvmx_usbcx_dptxfsizx_t;
  * This register indicates the status of the core with respect to USB-related events.
  * It must be read on interrupts from Device All Interrupts (DAINT) register.
  */
-union cvmx_usbcx_dsts
-{
+union cvmx_usbcx_dsts {
 	uint32_t u32;
-	struct cvmx_usbcx_dsts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dsts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_22_31               : 10;
 	uint32_t soffn                        : 14; /**< Frame or Microframe Number of the Received SOF (SOFFN)
                                                          When the core is operating at high speed, this field contains a
@@ -1866,12 +1838,10 @@ typedef union cvmx_usbcx_dsts cvmx_usbcx_dsts_t;
  * Learning Queue. When the queue is full, the new token is pushed into the queue and oldest
  * token is discarded.
  */
-union cvmx_usbcx_dtknqr1
-{
+union cvmx_usbcx_dtknqr1 {
 	uint32_t u32;
-	struct cvmx_usbcx_dtknqr1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dtknqr1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t eptkn                        : 24; /**< Endpoint Token (EPTkn)
                                                          Four bits per token represent the endpoint number of the token:
                                                          * Bits [31:28]: Endpoint number of Token 5
@@ -1908,12 +1878,10 @@ typedef union cvmx_usbcx_dtknqr1 cvmx_usbcx_dtknqr1_t;
  *
  * A read from this register returns the next 8 endpoint entries of the learning queue.
  */
-union cvmx_usbcx_dtknqr2
-{
+union cvmx_usbcx_dtknqr2 {
 	uint32_t u32;
-	struct cvmx_usbcx_dtknqr2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dtknqr2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t eptkn                        : 32; /**< Endpoint Token (EPTkn)
                                                          Four bits per token represent the endpoint number of the token:
                                                          * Bits [31:28]: Endpoint number of Token 13
@@ -1942,12 +1910,10 @@ typedef union cvmx_usbcx_dtknqr2 cvmx_usbcx_dtknqr2_t;
  *
  * A read from this register returns the next 8 endpoint entries of the learning queue.
  */
-union cvmx_usbcx_dtknqr3
-{
+union cvmx_usbcx_dtknqr3 {
 	uint32_t u32;
-	struct cvmx_usbcx_dtknqr3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dtknqr3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t eptkn                        : 32; /**< Endpoint Token (EPTkn)
                                                          Four bits per token represent the endpoint number of the token:
                                                          * Bits [31:28]: Endpoint number of Token 21
@@ -1976,12 +1942,10 @@ typedef union cvmx_usbcx_dtknqr3 cvmx_usbcx_dtknqr3_t;
  *
  * A read from this register returns the last 8 endpoint entries of the learning queue.
  */
-union cvmx_usbcx_dtknqr4
-{
+union cvmx_usbcx_dtknqr4 {
 	uint32_t u32;
-	struct cvmx_usbcx_dtknqr4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_dtknqr4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t eptkn                        : 32; /**< Endpoint Token (EPTkn)
                                                          Four bits per token represent the endpoint number of the token:
                                                          * Bits [31:28]: Endpoint number of Token 29
@@ -2016,12 +1980,10 @@ typedef union cvmx_usbcx_dtknqr4 cvmx_usbcx_dtknqr4_t;
  * The application must program this register as part of the O2P USB core initialization.
  * Do not change this register after the initial programming.
  */
-union cvmx_usbcx_gahbcfg
-{
+union cvmx_usbcx_gahbcfg {
 	uint32_t u32;
-	struct cvmx_usbcx_gahbcfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gahbcfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_9_31                : 23;
 	uint32_t ptxfemplvl                   : 1;  /**< Periodic TxFIFO Empty Level (PTxFEmpLvl)
                                                          Software should set this bit to 0x1.
@@ -2081,12 +2043,10 @@ typedef union cvmx_usbcx_gahbcfg cvmx_usbcx_gahbcfg_t;
  *
  * This register contains the logical endpoint direction(s) of the O2P USB core.
  */
-union cvmx_usbcx_ghwcfg1
-{
+union cvmx_usbcx_ghwcfg1 {
 	uint32_t u32;
-	struct cvmx_usbcx_ghwcfg1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_ghwcfg1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t epdir                        : 32; /**< Endpoint Direction (epdir)
                                                          Two bits per endpoint represent the direction.
                                                          * 2'b00: BIDIR (IN and OUT) endpoint
@@ -2119,12 +2079,10 @@ typedef union cvmx_usbcx_ghwcfg1 cvmx_usbcx_ghwcfg1_t;
  *
  * This register contains configuration options of the O2P USB core.
  */
-union cvmx_usbcx_ghwcfg2
-{
+union cvmx_usbcx_ghwcfg2 {
 	uint32_t u32;
-	struct cvmx_usbcx_ghwcfg2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_ghwcfg2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_31_31               : 1;
 	uint32_t tknqdepth                    : 5;  /**< Device Mode IN Token Sequence Learning Queue Depth
                                                          (TknQDepth)
@@ -2217,12 +2175,10 @@ typedef union cvmx_usbcx_ghwcfg2 cvmx_usbcx_ghwcfg2_t;
  *
  * This register contains the configuration options of the O2P USB core.
  */
-union cvmx_usbcx_ghwcfg3
-{
+union cvmx_usbcx_ghwcfg3 {
 	uint32_t u32;
-	struct cvmx_usbcx_ghwcfg3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_ghwcfg3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dfifodepth                   : 16; /**< DFIFO Depth (DfifoDepth)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 32
@@ -2297,12 +2253,10 @@ typedef union cvmx_usbcx_ghwcfg3 cvmx_usbcx_ghwcfg3_t;
  *
  * This register contains the configuration options of the O2P USB core.
  */
-union cvmx_usbcx_ghwcfg4
-{
+union cvmx_usbcx_ghwcfg4 {
 	uint32_t u32;
-	struct cvmx_usbcx_ghwcfg4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_ghwcfg4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_30_31               : 2;
 	uint32_t numdevmodinend               : 4;  /**< Enable dedicatd transmit FIFO for device IN endpoints. */
 	uint32_t endedtrfifo                  : 1;  /**< Enable dedicatd transmit FIFO for device IN endpoints. */
@@ -2359,9 +2313,8 @@ union cvmx_usbcx_ghwcfg4
 	uint32_t reserved_30_31               : 2;
 #endif
 	} s;
-	struct cvmx_usbcx_ghwcfg4_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_ghwcfg4_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_25_31               : 7;
 	uint32_t sessendfltr                  : 1;  /**< "session_end" Filter Enabled (SessEndFltr)
                                                          * 1'b0: No filter
@@ -2433,12 +2386,10 @@ typedef union cvmx_usbcx_ghwcfg4 cvmx_usbcx_ghwcfg4_t;
  * However, the Core Interrupt (GINTSTS) register bit corresponding to that interrupt will still be set.
  * Mask interrupt: 1'b0, Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_gintmsk
-{
+union cvmx_usbcx_gintmsk {
 	uint32_t u32;
-	struct cvmx_usbcx_gintmsk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gintmsk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t wkupintmsk                   : 1;  /**< Resume/Remote Wakeup Detected Interrupt Mask
                                                          (WkUpIntMsk) */
 	uint32_t sessreqintmsk                : 1;  /**< Session Request/New Session Detected Interrupt Mask
@@ -2534,12 +2485,10 @@ typedef union cvmx_usbcx_gintmsk cvmx_usbcx_gintmsk_t;
  * The FIFO status interrupts are read only; once software reads from or writes to the FIFO while servicing these
  * interrupts, FIFO interrupt conditions are cleared automatically.
  */
-union cvmx_usbcx_gintsts
-{
+union cvmx_usbcx_gintsts {
 	uint32_t u32;
-	struct cvmx_usbcx_gintsts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gintsts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t wkupint                      : 1;  /**< Resume/Remote Wakeup Detected Interrupt (WkUpInt)
                                                          In Device mode, this interrupt is asserted when a resume is
                                                          detected on the USB. In Host mode, this interrupt is asserted
@@ -2766,12 +2715,10 @@ typedef union cvmx_usbcx_gintsts cvmx_usbcx_gintsts_t;
  *
  * The application can program the RAM size and the memory start address for the Non-Periodic TxFIFO.
  */
-union cvmx_usbcx_gnptxfsiz
-{
+union cvmx_usbcx_gnptxfsiz {
 	uint32_t u32;
-	struct cvmx_usbcx_gnptxfsiz_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gnptxfsiz_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t nptxfdep                     : 16; /**< Non-Periodic TxFIFO Depth (NPTxFDep)
                                                          This value is in terms of 32-bit words.
                                                          Minimum value is 16
@@ -2802,12 +2749,10 @@ typedef union cvmx_usbcx_gnptxfsiz cvmx_usbcx_gnptxfsiz_t;
  * This read-only register contains the free space information for the Non-Periodic TxFIFO and
  * the Non-Periodic Transmit Request Queue
  */
-union cvmx_usbcx_gnptxsts
-{
+union cvmx_usbcx_gnptxsts {
 	uint32_t u32;
-	struct cvmx_usbcx_gnptxsts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gnptxsts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_31_31               : 1;
 	uint32_t nptxqtop                     : 7;  /**< Top of the Non-Periodic Transmit Request Queue (NPTxQTop)
                                                          Entry in the Non-Periodic Tx Request Queue that is currently
@@ -2864,12 +2809,10 @@ typedef union cvmx_usbcx_gnptxsts cvmx_usbcx_gnptxsts_t;
  *
  * The OTG Control and Status register controls the behavior and reflects the status of the OTG function of the core.:
  */
-union cvmx_usbcx_gotgctl
-{
+union cvmx_usbcx_gotgctl {
 	uint32_t u32;
-	struct cvmx_usbcx_gotgctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gotgctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_20_31               : 12;
 	uint32_t bsesvld                      : 1;  /**< B-Session Valid (BSesVld)
                                                          Valid only when O2P USB core is configured as a USB device.
@@ -2935,12 +2878,10 @@ typedef union cvmx_usbcx_gotgctl cvmx_usbcx_gotgctl_t;
  * The application reads this register whenever there is an OTG interrupt and clears the bits in this register
  * to clear the OTG interrupt. It is shown in Interrupt .:
  */
-union cvmx_usbcx_gotgint
-{
+union cvmx_usbcx_gotgint {
 	uint32_t u32;
-	struct cvmx_usbcx_gotgint_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gotgint_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_20_31               : 12;
 	uint32_t dbncedone                    : 1;  /**< Debounce Done (DbnceDone)
                                                          In the present version of the code this bit is tied to '0'. */
@@ -2987,12 +2928,10 @@ typedef union cvmx_usbcx_gotgint cvmx_usbcx_gotgint_t;
  *
  * The application uses this register to reset various hardware features inside the core.
  */
-union cvmx_usbcx_grstctl
-{
+union cvmx_usbcx_grstctl {
 	uint32_t u32;
-	struct cvmx_usbcx_grstctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_grstctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ahbidle                      : 1;  /**< AHB Master Idle (AHBIdle)
                                                          Indicates that the AHB Master State Machine is in the IDLE
                                                          condition. */
@@ -3124,12 +3063,10 @@ typedef union cvmx_usbcx_grstctl cvmx_usbcx_grstctl_t;
  *
  * The application can program the RAM size that must be allocated to the RxFIFO.
  */
-union cvmx_usbcx_grxfsiz
-{
+union cvmx_usbcx_grxfsiz {
 	uint32_t u32;
-	struct cvmx_usbcx_grxfsiz_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_grxfsiz_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t rxfdep                       : 16; /**< RxFIFO Depth (RxFDep)
                                                          This value is in terms of 32-bit words.
@@ -3161,12 +3098,10 @@ typedef union cvmx_usbcx_grxfsiz cvmx_usbcx_grxfsiz_t;
  *       The offset difference shown in this document is for software clarity and is actually ignored by the
  *       hardware.
  */
-union cvmx_usbcx_grxstspd
-{
+union cvmx_usbcx_grxstspd {
 	uint32_t u32;
-	struct cvmx_usbcx_grxstspd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_grxstspd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_25_31               : 7;
 	uint32_t fn                           : 4;  /**< Frame Number (FN)
                                                          This is the least significant 4 bits of the (micro)frame number in
@@ -3219,12 +3154,10 @@ typedef union cvmx_usbcx_grxstspd cvmx_usbcx_grxstspd_t;
  *       The offset difference shown in this document is for software clarity and is actually ignored by the
  *       hardware.
  */
-union cvmx_usbcx_grxstsph
-{
+union cvmx_usbcx_grxstsph {
 	uint32_t u32;
-	struct cvmx_usbcx_grxstsph_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_grxstsph_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_21_31               : 11;
 	uint32_t pktsts                       : 4;  /**< Packet Status (PktSts)
                                                          Indicates the status of the received packet
@@ -3272,12 +3205,10 @@ typedef union cvmx_usbcx_grxstsph cvmx_usbcx_grxstsph_t;
  *       The offset difference shown in this document is for software clarity and is actually ignored by the
  *       hardware.
  */
-union cvmx_usbcx_grxstsrd
-{
+union cvmx_usbcx_grxstsrd {
 	uint32_t u32;
-	struct cvmx_usbcx_grxstsrd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_grxstsrd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_25_31               : 7;
 	uint32_t fn                           : 4;  /**< Frame Number (FN)
                                                          This is the least significant 4 bits of the (micro)frame number in
@@ -3330,12 +3261,10 @@ typedef union cvmx_usbcx_grxstsrd cvmx_usbcx_grxstsrd_t;
  *       The offset difference shown in this document is for software clarity and is actually ignored by the
  *       hardware.
  */
-union cvmx_usbcx_grxstsrh
-{
+union cvmx_usbcx_grxstsrh {
 	uint32_t u32;
-	struct cvmx_usbcx_grxstsrh_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_grxstsrh_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_21_31               : 11;
 	uint32_t pktsts                       : 4;  /**< Packet Status (PktSts)
                                                          Indicates the status of the received packet
@@ -3379,12 +3308,10 @@ typedef union cvmx_usbcx_grxstsrh cvmx_usbcx_grxstsrh_t;
  *
  * This is a read-only register that contains the release number of the core being used.
  */
-union cvmx_usbcx_gsnpsid
-{
+union cvmx_usbcx_gsnpsid {
 	uint32_t u32;
-	struct cvmx_usbcx_gsnpsid_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gsnpsid_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t synopsysid                   : 32; /**< 0x4F54\<version\>A, release number of the core being used.
                                                          0x4F54220A => pass1.x,  0x4F54240A => pass2.x */
 #else
@@ -3411,12 +3338,10 @@ typedef union cvmx_usbcx_gsnpsid cvmx_usbcx_gsnpsid_t;
  * before starting any transactions on either the AHB or the USB.
  * Do not make changes to this register after the initial programming.
  */
-union cvmx_usbcx_gusbcfg
-{
+union cvmx_usbcx_gusbcfg {
 	uint32_t u32;
-	struct cvmx_usbcx_gusbcfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_gusbcfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_17_31               : 15;
 	uint32_t otgi2csel                    : 1;  /**< UTMIFS or I2C Interface Select (OtgI2CSel)
                                                          This bit is always 0x0. */
@@ -3510,12 +3435,10 @@ typedef union cvmx_usbcx_gusbcfg cvmx_usbcx_gusbcfg_t;
  * channel, up to a maximum of 16 bits. Bits in this register are set and cleared when the
  * application sets and clears bits in the corresponding Host Channel-n Interrupt register.
  */
-union cvmx_usbcx_haint
-{
+union cvmx_usbcx_haint {
 	uint32_t u32;
-	struct cvmx_usbcx_haint_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_haint_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t haint                        : 16; /**< Channel Interrupts (HAINT)
                                                          One bit per channel: Bit 0 for Channel 0, bit 15 for Channel 15 */
@@ -3544,12 +3467,10 @@ typedef union cvmx_usbcx_haint cvmx_usbcx_haint_t;
  * interrupt mask bit per channel, up to a maximum of 16 bits.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_haintmsk
-{
+union cvmx_usbcx_haintmsk {
 	uint32_t u32;
-	struct cvmx_usbcx_haintmsk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_haintmsk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t haintmsk                     : 16; /**< Channel Interrupt Mask (HAINTMsk)
                                                          One bit per channel: Bit 0 for channel 0, bit 15 for channel 15 */
@@ -3574,12 +3495,10 @@ typedef union cvmx_usbcx_haintmsk cvmx_usbcx_haintmsk_t;
  * Host Channel-n Characteristics Register (HCCHAR)
  *
  */
-union cvmx_usbcx_hccharx
-{
+union cvmx_usbcx_hccharx {
 	uint32_t u32;
-	struct cvmx_usbcx_hccharx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hccharx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t chena                        : 1;  /**< Channel Enable (ChEna)
                                                          This field is set by the application and cleared by the OTG host.
                                                          * 1'b0: Channel disabled
@@ -3664,12 +3583,10 @@ typedef union cvmx_usbcx_hccharx cvmx_usbcx_hccharx_t;
  *
  * This register configures the core after power-on. Do not make changes to this register after initializing the host.
  */
-union cvmx_usbcx_hcfg
-{
+union cvmx_usbcx_hcfg {
 	uint32_t u32;
-	struct cvmx_usbcx_hcfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hcfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_3_31                : 29;
 	uint32_t fslssupp                     : 1;  /**< FS- and LS-Only Support (FSLSSupp)
                                                          The application uses this bit to control the core's enumeration
@@ -3726,12 +3643,10 @@ typedef union cvmx_usbcx_hcfg cvmx_usbcx_hcfg_t;
  * Interrupt register. The application must clear the appropriate bit in this register to clear the
  * corresponding bits in the HAINT and GINTSTS registers.
  */
-union cvmx_usbcx_hcintx
-{
+union cvmx_usbcx_hcintx {
 	uint32_t u32;
-	struct cvmx_usbcx_hcintx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hcintx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_11_31               : 21;
 	uint32_t datatglerr                   : 1;  /**< Data Toggle Error (DataTglErr) */
 	uint32_t frmovrun                     : 1;  /**< Frame Overrun (FrmOvrun) */
@@ -3781,12 +3696,10 @@ typedef union cvmx_usbcx_hcintx cvmx_usbcx_hcintx_t;
  * This register reflects the mask for each channel status described in the previous section.
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
-union cvmx_usbcx_hcintmskx
-{
+union cvmx_usbcx_hcintmskx {
 	uint32_t u32;
-	struct cvmx_usbcx_hcintmskx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hcintmskx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_11_31               : 21;
 	uint32_t datatglerrmsk                : 1;  /**< Data Toggle Error Mask (DataTglErrMsk) */
 	uint32_t frmovrunmsk                  : 1;  /**< Frame Overrun Mask (FrmOvrunMsk) */
@@ -3830,12 +3743,10 @@ typedef union cvmx_usbcx_hcintmskx cvmx_usbcx_hcintmskx_t;
  * Host Channel-n Split Control Register (HCSPLT)
  *
  */
-union cvmx_usbcx_hcspltx
-{
+union cvmx_usbcx_hcspltx {
 	uint32_t u32;
-	struct cvmx_usbcx_hcspltx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hcspltx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t spltena                      : 1;  /**< Split Enable (SpltEna)
                                                          The application sets this field to indicate that this channel is
                                                          enabled to perform split transactions. */
@@ -3885,12 +3796,10 @@ typedef union cvmx_usbcx_hcspltx cvmx_usbcx_hcspltx_t;
  * Host Channel-n Transfer Size Register (HCTSIZ)
  *
  */
-union cvmx_usbcx_hctsizx
-{
+union cvmx_usbcx_hctsizx {
 	uint32_t u32;
-	struct cvmx_usbcx_hctsizx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hctsizx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dopng                        : 1;  /**< Do Ping (DoPng)
                                                          Setting this field to 1 directs the host to do PING protocol. */
 	uint32_t pid                          : 2;  /**< PID (Pid)
@@ -3939,12 +3848,10 @@ typedef union cvmx_usbcx_hctsizx cvmx_usbcx_hctsizx_t;
  *
  * This register stores the frame interval information for the current speed to which the O2P USB core has enumerated.
  */
-union cvmx_usbcx_hfir
-{
+union cvmx_usbcx_hfir {
 	uint32_t u32;
-	struct cvmx_usbcx_hfir_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hfir_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t frint                        : 16; /**< Frame Interval (FrInt)
                                                          The value that the application programs to this field specifies
@@ -3986,12 +3893,10 @@ typedef union cvmx_usbcx_hfir cvmx_usbcx_hfir_t;
  * It also indicates the time remaining (in terms of the number of PHY clocks)
  * in the current (micro)frame.
  */
-union cvmx_usbcx_hfnum
-{
+union cvmx_usbcx_hfnum {
 	uint32_t u32;
-	struct cvmx_usbcx_hfnum_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hfnum_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t frrem                        : 16; /**< Frame Time Remaining (FrRem)
                                                          Indicates the amount of time remaining in the current
                                                          microframe (HS) or frame (FS/LS), in terms of PHY clocks.
@@ -4030,12 +3935,10 @@ typedef union cvmx_usbcx_hfnum cvmx_usbcx_hfnum_t;
  * the bit that caused the interrupt. For the R_SS_WC bits, the application must write a 1 to the bit
  * to clear the interrupt.
  */
-union cvmx_usbcx_hprt
-{
+union cvmx_usbcx_hprt {
 	uint32_t u32;
-	struct cvmx_usbcx_hprt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hprt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_19_31               : 13;
 	uint32_t prtspd                       : 2;  /**< Port Speed (PrtSpd)
                                                          Indicates the speed of the device attached to this port.
@@ -4174,12 +4077,10 @@ typedef union cvmx_usbcx_hprt cvmx_usbcx_hprt_t;
  *
  * This register holds the size and the memory start address of the Periodic TxFIFO, as shown in Figures 310 and 311.
  */
-union cvmx_usbcx_hptxfsiz
-{
+union cvmx_usbcx_hptxfsiz {
 	uint32_t u32;
-	struct cvmx_usbcx_hptxfsiz_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hptxfsiz_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ptxfsize                     : 16; /**< Host Periodic TxFIFO Depth (PTxFSize)
                                                          This value is in terms of 32-bit words.
                                                          * Minimum value is 16
@@ -4208,12 +4109,10 @@ typedef union cvmx_usbcx_hptxfsiz cvmx_usbcx_hptxfsiz_t;
  * This read-only register contains the free space information for the Periodic TxFIFO and
  * the Periodic Transmit Request Queue
  */
-union cvmx_usbcx_hptxsts
-{
+union cvmx_usbcx_hptxsts {
 	uint32_t u32;
-	struct cvmx_usbcx_hptxsts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_hptxsts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ptxqtop                      : 8;  /**< Top of the Periodic Transmit Request Queue (PTxQTop)
                                                          This indicates the entry in the Periodic Tx Request Queue that
                                                          is currently being processes by the MAC.
@@ -4272,12 +4171,10 @@ typedef union cvmx_usbcx_hptxsts cvmx_usbcx_hptxsts_t;
  *
  * A slave mode application uses this register to access the Tx FIFO for channel n.
  */
-union cvmx_usbcx_nptxdfifox
-{
+union cvmx_usbcx_nptxdfifox {
 	uint32_t u32;
-	struct cvmx_usbcx_nptxdfifox_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_nptxdfifox_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t data                         : 32; /**< Reserved */
 #else
 	uint32_t data                         : 32;
@@ -4300,12 +4197,10 @@ typedef union cvmx_usbcx_nptxdfifox cvmx_usbcx_nptxdfifox_t;
  *
  * The application can use this register to control the core's power-down and clock gating features.
  */
-union cvmx_usbcx_pcgcctl
-{
+union cvmx_usbcx_pcgcctl {
 	uint32_t u32;
-	struct cvmx_usbcx_pcgcctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_usbcx_pcgcctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_5_31                : 27;
 	uint32_t physuspended                 : 1;  /**< PHY Suspended. (PhySuspended)
                                                          Indicates that the PHY has been suspended. After the

@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: protocol.h 18352 2006-10-08 13:53:28Z lha $
+ * $Id$
  */
 
 /* missing from tests:
@@ -63,9 +63,9 @@ enum gssMaggotErrorCodes {
  *   int32: message OP (enum gssMaggotProtocol)
  *   ...
  *
- * return:   -- on error 
+ * return:   -- on error
  *    int32: not support (GSMERR_NOT_SUPPORTED)
- * 
+ *
  * return:   -- on existing message OP
  *    int32: support (GSMERR_OK) -- only sent for extensions
  *    ...
@@ -75,28 +75,28 @@ enum gssMaggotErrorCodes {
 
 enum gssMaggotOp {
     eGetVersionInfo	= 0,
-    /* 
+    /*
      * input:
      *   none
      * return:
-     *   int32: last version handled 
+     *   int32: last version handled
      */
     eGoodBye,
-    /* 
+    /*
      * input:
      *   none
      * return:
      *   close socket
      */
     eInitContext,
-    /* 
+    /*
      * input:
      *   int32: hContext
      *   int32: hCred
      *   int32: Flags
      *      the lowest 0x7f flags maps directly to GSS-API flags
-     *      DELEGATE		0x001 
-     *      MUTUAL_AUTH		0x002 
+     *      DELEGATE		0x001
+     *      MUTUAL_AUTH		0x002
      *      REPLAY_DETECT	0x004
      *      SEQUENCE_DETECT	0x008
      *      CONFIDENTIALITY	0x010
@@ -115,7 +115,7 @@ enum gssMaggotOp {
      *   length-encoded: output token
      */
     eAcceptContext,
-    /* 
+    /*
      * input:
      *   int32: hContext
      *   int32: Flags		-- unused ?
@@ -153,7 +153,7 @@ enum gssMaggotOp {
     /*
      * input:
      *   int32: hContext
-     *   int32: flags		-- unused
+     *   int32: flags
      *   int32: seqno		-- unused
      *   length-encode: plaintext
      * return:
@@ -164,7 +164,7 @@ enum gssMaggotOp {
     /*
      * input:
      *   int32: hContext
-     *   int32: flags		-- unused
+     *   int32: flags
      *   int32: seqno		-- unused
      *   length-encode: ciphertext
      * return:
@@ -177,7 +177,7 @@ enum gssMaggotOp {
     /*
      * input:
      *   int32: hContext
-     *   int32: flags		-- unused
+     *   int32: flags
      *   int32: seqno		-- unused
      *   length-encode: message
      *   length-encode: signature
@@ -229,7 +229,7 @@ enum gssMaggotOp {
      * return1:
      *   int16: log port number
      *   int32: master log prototocol version (0)
-     * 
+     *
      * wait for master to connect on the master log socket
      *
      * return2:
@@ -259,8 +259,39 @@ enum gssMaggotOp {
      *   int32: gsm status val (GSMERR_NOT_SUPPORTED)
      */
     /* here ended version 7 of the protocol */
+    eWrapExt,
+    /*
+     * input:
+     *   int32: hContext
+     *   int32: flags
+     *   int32: bflags
+     *   length-encode: protocol header
+     *   length-encode: plaintext
+     *   length-encode: protocol trailer
+     * return:
+     *   int32: gsm status val
+     *   length-encode: ciphertext
+     */
+    eUnwrapExt,
+    /*
+     * input:
+     *   int32: hContext
+     *   int32: flags
+     *   int32: bflags
+     *   length-encode: protocol header
+     *   length-encode: ciphertext
+     *   length-encode: protocol trailer
+     * return:
+     *   int32: gsm status val
+     *   length-encode: plaintext
+     */
+    /* here ended version 8 of the protocol */
+
     eLastProtocolMessage
 };
+
+/* bflags */
+#define WRAP_EXP_ONLY_HEADER 1
 
 enum gssMaggotLogOp{
   eLogInfo = 0,

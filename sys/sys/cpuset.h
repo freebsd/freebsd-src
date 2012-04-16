@@ -36,11 +36,18 @@
 
 #define	CPUSETBUFSIZ	((2 + sizeof(long) * 2) * _NCPUWORDS)
 
-#define	__cpuset_mask(n)	((long)1 << ((n) % _NCPUBITS))
-#define	CPU_CLR(n, p)	((p)->__bits[(n)/_NCPUBITS] &= ~__cpuset_mask(n))
+/*
+ * Macros addressing word and bit within it, tuned to make compiler
+ * optimize cases when CPU_SETSIZE fits into single machine word.
+ */
+#define	__cpuset_mask(n)				\
+	((long)1 << ((_NCPUWORDS == 1) ? (__size_t)(n) : ((n) % _NCPUBITS)))
+#define	__cpuset_word(n)	((_NCPUWORDS == 1) ? 0 : ((n) / _NCPUBITS))
+
+#define	CPU_CLR(n, p)	((p)->__bits[__cpuset_word(n)] &= ~__cpuset_mask(n))
 #define	CPU_COPY(f, t)	(void)(*(t) = *(f))
-#define	CPU_ISSET(n, p)	(((p)->__bits[(n)/_NCPUBITS] & __cpuset_mask(n)) != 0)
-#define	CPU_SET(n, p)	((p)->__bits[(n)/_NCPUBITS] |= __cpuset_mask(n))
+#define	CPU_ISSET(n, p)	(((p)->__bits[__cpuset_word(n)] & __cpuset_mask(n)) != 0)
+#define	CPU_SET(n, p)	((p)->__bits[__cpuset_word(n)] |= __cpuset_mask(n))
 #define	CPU_ZERO(p) do {				\
 	__size_t __i;					\
 	for (__i = 0; __i < _NCPUWORDS; __i++)		\
@@ -55,7 +62,7 @@
 
 #define	CPU_SETOF(n, p) do {					\
 	CPU_ZERO(p);						\
-	((p)->__bits[(n)/_NCPUBITS] = __cpuset_mask(n));	\
+	((p)->__bits[__cpuset_word(n)] = __cpuset_mask(n));	\
 } while (0)
 
 /* Is p empty. */
@@ -126,10 +133,10 @@
 } while (0)
 
 #define	CPU_CLR_ATOMIC(n, p)						\
-	atomic_clear_long(&(p)->__bits[(n)/_NCPUBITS], __cpuset_mask(n))
+	atomic_clear_long(&(p)->__bits[__cpuset_word(n)], __cpuset_mask(n))
 
 #define	CPU_SET_ATOMIC(n, p)						\
-	atomic_set_long(&(p)->__bits[(n)/_NCPUBITS], __cpuset_mask(n))
+	atomic_set_long(&(p)->__bits[__cpuset_word(n)], __cpuset_mask(n))
 
 /* Convenience functions catering special cases. */ 
 #define	CPU_OR_ATOMIC(d, s) do {			\

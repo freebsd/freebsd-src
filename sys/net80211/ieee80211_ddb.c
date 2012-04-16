@@ -202,7 +202,7 @@ _db_show_txampdu(const char *sep, int ix, const struct ieee80211_tx_ampdu *tap)
 {
 	db_printf("%stxampdu[%d]: %p flags %b %s\n",
 		sep, ix, tap, tap->txa_flags, IEEE80211_AGGR_BITS,
-		ieee80211_wme_acnames[tap->txa_ac]);
+		ieee80211_wme_acnames[TID_TO_WME_AC(tap->txa_tid)]);
 	db_printf("%s  token %u lastsample %d pkts %d avgpps %d qbytes %d qframes %d\n",
 		sep, tap->txa_token, tap->txa_lastsample, tap->txa_pkts,
 		tap->txa_avgpps, tap->txa_qbytes, tap->txa_qframes);
@@ -293,7 +293,7 @@ _db_show_sta(const struct ieee80211_node *ni)
 		ni->ni_htopmode, ni->ni_htstbc, ni->ni_chw);
 
 	/* XXX ampdu state */
-	for (i = 0; i < WME_NUM_AC; i++)
+	for (i = 0; i < WME_NUM_TID; i++)
 		if (ni->ni_tx_ampdu[i].txa_flags & IEEE80211_AGGR_SETUP)
 			_db_show_txampdu("\t", i, &ni->ni_tx_ampdu[i]);
 	for (i = 0; i < WME_NUM_TID; i++)

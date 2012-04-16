@@ -17,16 +17,21 @@ id-pkrkeydata  OBJECT IDENTIFIER  ::= { id-pkinit 3 }
 id-pkekuoid    OBJECT IDENTIFIER  ::= { id-pkinit 4 }
 id-pkkdcekuoid OBJECT IDENTIFIER  ::= { id-pkinit 5 }
 
+id-pkinit-kdf OBJECT IDENTIFIER           ::= { id-pkinit 6 }
+id-pkinit-kdf-ah-sha1 OBJECT IDENTIFIER   ::= { id-pkinit-kdf 1 }
+id-pkinit-kdf-ah-sha256 OBJECT IDENTIFIER ::= { id-pkinit-kdf 2 }
+id-pkinit-kdf-ah-sha512 OBJECT IDENTIFIER ::= { id-pkinit-kdf 3 }
+
 id-pkinit-san	OBJECT IDENTIFIER ::=
   { iso(1) org(3) dod(6) internet(1) security(5) kerberosv5(2)
     x509-sanan(2) }
 
 id-pkinit-ms-eku OBJECT IDENTIFIER ::=
-  { iso(1) org(3) dod(6) internet(1) private(4) 
+  { iso(1) org(3) dod(6) internet(1) private(4)
     enterprise(1) microsoft(311) 20 2 2 }
 
 id-pkinit-ms-san OBJECT IDENTIFIER ::=
-  { iso(1) org(3) dod(6) internet(1) private(4) 
+  { iso(1) org(3) dod(6) internet(1) private(4)
     enterprise(1) microsoft(311) 20 2 3 }
 
 MS-UPN-SAN ::= UTF8String
@@ -147,18 +152,17 @@ TrustedCA-Win2k ::= CHOICE {
 	issuerAndSerial         [2] IssuerAndSerialNumber
 }
 
-PA-PK-AS-REQ-Win2k ::= SEQUENCE { 
-	signed-auth-pack	[0] IMPLICIT OCTET STRING, 
-	trusted-certifiers	[2] SEQUENCE OF TrustedCA-Win2k OPTIONAL, 
-	kdc-cert		[3] IMPLICIT OCTET STRING OPTIONAL, 
+PA-PK-AS-REQ-Win2k ::= SEQUENCE {
+	signed-auth-pack	[0] IMPLICIT OCTET STRING,
+	trusted-certifiers	[2] SEQUENCE OF TrustedCA-Win2k OPTIONAL,
+	kdc-cert		[3] IMPLICIT OCTET STRING OPTIONAL,
 	encryption-cert		[4] IMPLICIT OCTET STRING OPTIONAL
 }
 
 PA-PK-AS-REP-Win2k ::= CHOICE {
-	dhSignedData		[0] IMPLICIT OCTET STRING, 
+	dhSignedData		[0] IMPLICIT OCTET STRING,
 	encKeyPack		[1] IMPLICIT OCTET STRING
 }
-
 
 KDCDHKeyInfo-Win2k ::= SEQUENCE {
 	nonce			[0] INTEGER (-2147483648..2147483647),
@@ -169,6 +173,20 @@ ReplyKeyPack-Win2k ::= SEQUENCE {
         replyKey                [0] EncryptionKey,
         nonce                   [1] INTEGER (-2147483648..2147483647),
 	...
+}
+
+PA-PK-AS-REP-BTMM ::= SEQUENCE {
+	dhSignedData		[0] heim_any OPTIONAL,
+	encKeyPack		[1] heim_any OPTIONAL
+}
+
+
+PkinitSP80056AOtherInfo ::= SEQUENCE {
+	algorithmID   AlgorithmIdentifier,
+	partyUInfo     [0] OCTET STRING,
+	partyVInfo     [1] OCTET STRING,
+	suppPubInfo    [2] OCTET STRING OPTIONAL,
+	suppPrivInfo   [3] OCTET STRING OPTIONAL
 }
 
 PkinitSuppPubInfo ::= SEQUENCE {

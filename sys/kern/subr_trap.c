@@ -45,6 +45,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
 #include "opt_sched.h"
@@ -84,6 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#endif
+
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -192,6 +197,11 @@ ast(struct trapframe *framep)
 		td->td_profil_ticks = 0;
 		td->td_pflags &= ~TDP_OWEUPC;
 	}
+#ifdef HWPMC_HOOKS
+	/* Handle Software PMC callchain capture. */
+	if (PMC_IS_PENDING_CALLCHAIN(td))
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_USER_CALLCHAIN_SOFT, (void *) framep);
+#endif
 	if (flags & TDF_ALRMPEND) {
 		PROC_LOCK(p);
 		kern_psignal(p, SIGVTALRM);

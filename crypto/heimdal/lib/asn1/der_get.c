@@ -1,43 +1,39 @@
 /*
- * Copyright (c) 1997 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "der_locl.h"
 
-RCSID("$Id: der_get.c 21369 2007-06-27 10:14:39Z lha $");
-
-#include <version.h>
-
-/* 
+/*
  * All decoding functions take a pointer `p' to first position in
  * which to read, from the left, `len' which means the maximum number
  * of characters we are able to read, `ret' were the value will be
@@ -132,7 +128,7 @@ der_get_boolean(const unsigned char *p, size_t len, int *data, size_t *size)
 }
 
 int
-der_get_general_string (const unsigned char *p, size_t len, 
+der_get_general_string (const unsigned char *p, size_t len,
 			heim_general_string *str, size_t *size)
 {
     const unsigned char *p1;
@@ -140,14 +136,14 @@ der_get_general_string (const unsigned char *p, size_t len,
 
     p1 = memchr(p, 0, len);
     if (p1 != NULL) {
-	/* 
+	/*
 	 * Allow trailing NULs. We allow this since MIT Kerberos sends
 	 * an strings in the NEED_PREAUTH case that includes a
 	 * trailing NUL.
 	 */
-	while (p1 - p < len && *p1 == '\0')
+	while ((size_t)(p1 - p) < len && *p1 == '\0')
 	    p1++;
-       if (p1 - p != len)
+       if ((size_t)(p1 - p) != len)
 	    return ASN1_BAD_CHARACTER;
     }
     if (len > len + 1)
@@ -164,28 +160,35 @@ der_get_general_string (const unsigned char *p, size_t len,
 }
 
 int
-der_get_utf8string (const unsigned char *p, size_t len, 
+der_get_utf8string (const unsigned char *p, size_t len,
 		    heim_utf8_string *str, size_t *size)
 {
     return der_get_general_string(p, len, str, size);
 }
 
 int
-der_get_printable_string (const unsigned char *p, size_t len, 
-			  heim_printable_string *str, size_t *size)
+der_get_printable_string(const unsigned char *p, size_t len,
+			 heim_printable_string *str, size_t *size)
 {
-    return der_get_general_string(p, len, str, size);
+    str->length = len;
+    str->data = malloc(len + 1);
+    if (str->data == NULL)
+	return ENOMEM;
+    memcpy(str->data, p, len);
+    ((char *)str->data)[len] = '\0';
+    if(size) *size = len;
+    return 0;
 }
 
 int
-der_get_ia5_string (const unsigned char *p, size_t len, 
-		    heim_ia5_string *str, size_t *size)
+der_get_ia5_string(const unsigned char *p, size_t len,
+		   heim_ia5_string *str, size_t *size)
 {
-    return der_get_general_string(p, len, str, size);
+    return der_get_printable_string(p, len, str, size);
 }
 
 int
-der_get_bmp_string (const unsigned char *p, size_t len, 
+der_get_bmp_string (const unsigned char *p, size_t len,
 		    heim_bmp_string *data, size_t *size)
 {
     size_t i;
@@ -202,6 +205,13 @@ der_get_bmp_string (const unsigned char *p, size_t len,
     for (i = 0; i < data->length; i++) {
 	data->data[i] = (p[0] << 8) | p[1];
 	p += 2;
+	/* check for NUL in the middle of the string */
+	if (data->data[i] == 0 && i != (data->length - 1)) {
+	    free(data->data);
+	    data->data = NULL;
+	    data->length = 0;
+	    return ASN1_BAD_CHARACTER;
+	}
     }
     if (size) *size = len;
 
@@ -209,7 +219,7 @@ der_get_bmp_string (const unsigned char *p, size_t len,
 }
 
 int
-der_get_universal_string (const unsigned char *p, size_t len, 
+der_get_universal_string (const unsigned char *p, size_t len,
 			  heim_universal_string *data, size_t *size)
 {
     size_t i;
@@ -226,20 +236,27 @@ der_get_universal_string (const unsigned char *p, size_t len,
     for (i = 0; i < data->length; i++) {
 	data->data[i] = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
 	p += 4;
+	/* check for NUL in the middle of the string */
+	if (data->data[i] == 0 && i != (data->length - 1)) {
+	    free(data->data);
+	    data->data = NULL;
+	    data->length = 0;
+	    return ASN1_BAD_CHARACTER;
+	}
     }
     if (size) *size = len;
     return 0;
 }
 
 int
-der_get_visible_string (const unsigned char *p, size_t len, 
+der_get_visible_string (const unsigned char *p, size_t len,
 			heim_visible_string *str, size_t *size)
 {
     return der_get_general_string(p, len, str, size);
 }
 
 int
-der_get_octet_string (const unsigned char *p, size_t len, 
+der_get_octet_string (const unsigned char *p, size_t len,
 		      heim_octet_string *data, size_t *size)
 {
     data->length = len;
@@ -252,7 +269,76 @@ der_get_octet_string (const unsigned char *p, size_t len,
 }
 
 int
-der_get_heim_integer (const unsigned char *p, size_t len, 
+der_get_octet_string_ber (const unsigned char *p, size_t len,
+			  heim_octet_string *data, size_t *size)
+{
+    int e;
+    Der_type type;
+    Der_class class;
+    unsigned int tag, depth = 0;
+    size_t l, datalen, oldlen = len;
+
+    data->length = 0;
+    data->data = NULL;
+
+    while (len) {
+	e = der_get_tag (p, len, &class, &type, &tag, &l);
+	if (e) goto out;
+	if (class != ASN1_C_UNIV) {
+	    e = ASN1_BAD_ID;
+	    goto out;
+	}
+	if (type == PRIM && tag == UT_EndOfContent) {
+	    if (depth == 0)
+		break;
+	    depth--;
+	}
+	if (tag != UT_OctetString) {
+	    e = ASN1_BAD_ID;
+	    goto out;
+	}
+
+	p += l;
+	len -= l;
+	e = der_get_length (p, len, &datalen, &l);
+	if (e) goto out;
+	p += l;
+	len -= l;
+
+	if (datalen > len)
+	    return ASN1_OVERRUN;
+
+	if (type == PRIM) {
+	    void *ptr;
+
+	    ptr = realloc(data->data, data->length + datalen);
+	    if (ptr == NULL) {
+		e = ENOMEM;
+		goto out;
+	    }
+	    data->data = ptr;
+	    memcpy(((unsigned char *)data->data) + data->length, p, datalen);
+	    data->length += datalen;
+	} else
+	    depth++;
+
+	p += datalen;
+	len -= datalen;
+    }
+    if (depth != 0)
+	return ASN1_INDEF_OVERRUN;
+    if(size) *size = oldlen - len;
+    return 0;
+ out:
+    free(data->data);
+    data->data = NULL;
+    data->length = 0;
+    return e;
+}
+
+
+int
+der_get_heim_integer (const unsigned char *p, size_t len,
 		      heim_integer *data, size_t *size)
 {
     data->length = 0;
@@ -338,7 +424,7 @@ generalizedtime2time (const char *s, time_t *t)
 }
 
 static int
-der_get_time (const unsigned char *p, size_t len, 
+der_get_time (const unsigned char *p, size_t len,
 	      time_t *data, size_t *size)
 {
     char *times;
@@ -359,14 +445,14 @@ der_get_time (const unsigned char *p, size_t len,
 }
 
 int
-der_get_generalized_time (const unsigned char *p, size_t len, 
+der_get_generalized_time (const unsigned char *p, size_t len,
 			  time_t *data, size_t *size)
 {
     return der_get_time(p, len, data, size);
 }
 
 int
-der_get_utctime (const unsigned char *p, size_t len, 
+der_get_utctime (const unsigned char *p, size_t len,
 			  time_t *data, size_t *size)
 {
     return der_get_time(p, len, data, size);
@@ -397,7 +483,7 @@ der_get_oid (const unsigned char *p, size_t len,
     ++p;
     for (n = 2; len > 0; ++n) {
 	unsigned u = 0, u1;
-	
+
 	do {
 	    --len;
 	    u1 = u * 128 + (*p++ % 128);
@@ -457,15 +543,28 @@ der_match_tag (const unsigned char *p, size_t len,
 	       Der_class class, Der_type type,
 	       unsigned int tag, size_t *size)
 {
+    Der_type thistype;
+    int e;
+
+    e = der_match_tag2(p, len, class, &thistype, tag, size);
+    if (e) return e;
+    if (thistype != type) return ASN1_BAD_ID;
+    return 0;
+}
+
+int
+der_match_tag2 (const unsigned char *p, size_t len,
+		Der_class class, Der_type *type,
+		unsigned int tag, size_t *size)
+{
     size_t l;
     Der_class thisclass;
-    Der_type thistype;
     unsigned int thistag;
     int e;
 
-    e = der_get_tag (p, len, &thisclass, &thistype, &thistag, &l);
+    e = der_get_tag (p, len, &thisclass, type, &thistag, &l);
     if (e) return e;
-    if (class != thisclass || type != thistype)
+    if (class != thisclass)
 	return ASN1_BAD_ID;
     if(tag > thistag)
 	return ASN1_MISPLACED_FIELD;
@@ -477,27 +576,26 @@ der_match_tag (const unsigned char *p, size_t len,
 
 int
 der_match_tag_and_length (const unsigned char *p, size_t len,
-			  Der_class class, Der_type type, unsigned int tag,
+			  Der_class class, Der_type *type, unsigned int tag,
 			  size_t *length_ret, size_t *size)
 {
     size_t l, ret = 0;
     int e;
 
-    e = der_match_tag (p, len, class, type, tag, &l);
+    e = der_match_tag2 (p, len, class, type, tag, &l);
     if (e) return e;
     p += l;
     len -= l;
     ret += l;
     e = der_get_length (p, len, length_ret, &l);
     if (e) return e;
-    p += l;
-    len -= l;
-    ret += l;
-    if(size) *size = ret;
+    if(size) *size = ret + l;
     return 0;
 }
 
-/* 
+
+
+/*
  * Old versions of DCE was based on a very early beta of the MIT code,
  * which used MAVROS for ASN.1 encoding. MAVROS had the interesting
  * feature that it encoded data in the forward direction, which has
@@ -507,7 +605,7 @@ der_match_tag_and_length (const unsigned char *p, size_t len,
  * to indefinite, BER style, lengths. The version of MAVROS used by
  * the DCE people could apparently generate correct X.509 DER encodings, and
  * did this by making space for the length after encoding, but
- * unfortunately this feature wasn't used with Kerberos. 
+ * unfortunately this feature wasn't used with Kerberos.
  */
 
 int
@@ -522,7 +620,7 @@ _heim_fix_dce(size_t reallen, size_t *len)
 }
 
 int
-der_get_bit_string (const unsigned char *p, size_t len, 
+der_get_bit_string (const unsigned char *p, size_t len,
 		    heim_bit_string *data, size_t *size)
 {
     if (len < 1)
@@ -539,8 +637,11 @@ der_get_bit_string (const unsigned char *p, size_t len,
     data->data = malloc(len - 1);
     if (data->data == NULL && (len - 1) != 0)
 	return ENOMEM;
-    memcpy (data->data, p + 1, len - 1);
-    data->length -= p[0];
+    /* copy data is there is data to copy */
+    if (len - 1 != 0) {
+      memcpy (data->data, p + 1, len - 1);
+      data->length -= p[0];
+    }
     if(size) *size = len;
     return 0;
 }

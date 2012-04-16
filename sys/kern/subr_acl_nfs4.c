@@ -35,6 +35,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
@@ -1367,3 +1369,46 @@ acl_nfs4_check(const struct acl *aclp, int is_directory)
 
 	return (0);
 }
+
+#ifdef	_KERNEL
+static int
+acl_nfs4_modload(module_t module, int what, void *arg)
+{
+	int ret;
+
+	ret = 0;
+
+	switch (what) {
+	case MOD_LOAD:
+	case MOD_SHUTDOWN:
+		break;
+
+	case MOD_QUIESCE:
+		/* XXX TODO */
+		ret = 0;
+		break;
+
+	case MOD_UNLOAD:
+		/* XXX TODO */
+		ret = 0;
+		break;
+	default:
+		ret = EINVAL;
+		break;
+	}
+
+	return (ret);
+}
+
+static moduledata_t acl_nfs4_mod = {
+	"acl_nfs4",
+	acl_nfs4_modload,
+	NULL
+};
+
+/*
+ * XXX TODO: which subsystem, order?
+ */
+DECLARE_MODULE(acl_nfs4, acl_nfs4_mod, SI_SUB_VFS, SI_ORDER_FIRST);
+MODULE_VERSION(acl_nfs4, 1);
+#endif	/* _KERNEL */

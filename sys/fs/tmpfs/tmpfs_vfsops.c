@@ -130,14 +130,14 @@ tmpfs_node_fini(void *mem, int size)
 static int
 tmpfs_mount(struct mount *mp)
 {
+	const size_t nodes_per_page = howmany(PAGE_SIZE,
+	    sizeof(struct tmpfs_dirent) + sizeof(struct tmpfs_node));
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
-	size_t pages;
-	uint32_t nodes;
 	int error;
 	/* Size counters. */
-	u_int nodes_max;
-	u_quad_t size_max, maxfilesize;
+	u_quad_t pages;
+	off_t nodes_max, size_max, maxfilesize;
 
 	/* Root node attributes. */
 	uid_t root_uid;
@@ -173,46 +173,47 @@ tmpfs_mount(struct mount *mp)
 	if (mp->mnt_cred->cr_ruid != 0 ||
 	    vfs_scanopt(mp->mnt_optnew, "mode", "%ho", &root_mode) != 1)
 		root_mode = va.va_mode;
-	if (vfs_scanopt(mp->mnt_optnew, "inodes", "%u", &nodes_max) != 1)
+	if (vfs_getopt_size(mp->mnt_optnew, "inodes", &nodes_max) != 0)
 		nodes_max = 0;
-	if (vfs_scanopt(mp->mnt_optnew, "size", "%qu", &size_max) != 1)
+	if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) != 0)
 		size_max = 0;
-	if (vfs_scanopt(mp->mnt_optnew, "maxfilesize", "%qu",
-	    &maxfilesize) != 1)
+	if (vfs_getopt_size(mp->mnt_optnew, "maxfilesize", &maxfilesize) != 0)
 		maxfilesize = 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
-	if (tmpfs_mem_info() < TMPFS_PAGES_RESERVED)
+	if (tmpfs_mem_avail() < TMPFS_PAGES_MINRESERVED)
 		return ENOSPC;
 
 	/* Get the maximum number of memory pages this file system is
 	 * allowed to use, based on the maximum size the user passed in
 	 * the mount structure.  A value of zero is treated as if the
 	 * maximum available space was requested. */
-	if (size_max < PAGE_SIZE || size_max > SIZE_MAX - PAGE_SIZE)
+	if (size_max < PAGE_SIZE || size_max > OFF_MAX - PAGE_SIZE ||
+	    (SIZE_MAX < OFF_MAX && size_max / PAGE_SIZE >= SIZE_MAX))
 		pages = SIZE_MAX;
 	else
 		pages = howmany(size_max, PAGE_SIZE);
 	MPASS(pages > 0);
 
 	if (nodes_max <= 3) {
-		if (pages > UINT32_MAX - 3)
-			nodes = UINT32_MAX;
+		if (pages < INT_MAX / nodes_per_page)
+			nodes_max = pages * nodes_per_page;
 		else
-			nodes = pages + 3;
-	} else
-		nodes = nodes_max;
-	MPASS(nodes >= 3);
+			nodes_max = INT_MAX;
+	}
+	if (nodes_max > INT_MAX)
+		nodes_max = INT_MAX;
+	MPASS(nodes_max >= 3);
 
 	/* Allocate the tmpfs mount structure and fill it. */
 	tmp = (struct tmpfs_mount *)malloc(sizeof(struct tmpfs_mount),
 	    M_TMPFSMNT, M_WAITOK | M_ZERO);
 
 	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
-	tmp->tm_nodes_max = nodes;
+	tmp->tm_nodes_max = nodes_max;
 	tmp->tm_nodes_inuse = 0;
-	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : UINT64_MAX;
+	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : OFF_MAX;
 	LIST_INIT(&tmp->tm_nodes_used);
 
 	tmp->tm_pages_max = pages;
@@ -382,22 +383,30 @@ tmpfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
 static int
 tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 {
-	fsfilcnt_t freenodes;
 	struct tmpfs_mount *tmp;
+	size_t used;
 
 	tmp = VFS_TO_TMPFS(mp);
 
 	sbp->f_iosize = PAGE_SIZE;
 	sbp->f_bsize = PAGE_SIZE;
 
-	sbp->f_blocks = TMPFS_PAGES_MAX(tmp);
-	sbp->f_bavail = sbp->f_bfree = TMPFS_PAGES_AVAIL(tmp);
-
-	freenodes = MIN(tmp->tm_nodes_max - tmp->tm_nodes_inuse,
-	    TMPFS_PAGES_AVAIL(tmp) * PAGE_SIZE / sizeof(struct tmpfs_node));
-
-	sbp->f_files = freenodes + tmp->tm_nodes_inuse;
-	sbp->f_ffree = freenodes;
+	used = tmpfs_pages_used(tmp);
+	if (tmp->tm_pages_max != SIZE_MAX)
+		 sbp->f_blocks = tmp->tm_pages_max;
+	else
+		 sbp->f_blocks = used + tmpfs_mem_avail();
+	if (sbp->f_blocks <= used)
+		sbp->f_bavail = 0;
+	else
+		sbp->f_bavail = sbp->f_blocks - used;
+	sbp->f_bfree = sbp->f_bavail;
+	used = tmp->tm_nodes_inuse;
+	sbp->f_files = tmp->tm_nodes_max;
+	if (sbp->f_files <= used)
+		sbp->f_ffree = 0;
+	else
+		sbp->f_ffree = sbp->f_files - used;
 	/* sbp->f_owner = tmp->tn_uid; */
 
 	return 0;

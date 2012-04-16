@@ -60,6 +60,11 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xx_cpudef.h>
 
+#ifdef	AR71XX_ATH_EEPROM
+#include <sys/linker.h>
+#include <sys/firmware.h>
+#endif	/* AR71XX_ATH_EEPROM */
+
 #undef AR71XX_PCI_DEBUG
 #ifdef AR71XX_PCI_DEBUG
 #define dprintf printf
@@ -195,29 +200,27 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
 	uint32_t data;
-	uint32_t cmd, shift, mask;
+	uint32_t shift, mask;
 
 	/* register access is 32-bit aligned */
 	shift = (reg & 3) * 8;
-	if (shift)
-		mask = (1 << shift) - 1;
+
+	/* Create a mask based on the width, post-shift */
+	if (bytes == 2)
+		mask = 0xffff;
+	else if (bytes == 1)
+		mask = 0xff;
 	else
 		mask = 0xffffffff;
 
 	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, 
 	    func, reg, bytes);
 
-	if ((bus == 0) && (slot == 0) && (func == 0)) {
-		cmd = PCI_LCONF_CMD_READ | (reg & ~3);
-		ATH_WRITE_REG(AR71XX_PCI_LCONF_CMD, cmd);
-		data = ATH_READ_REG(AR71XX_PCI_LCONF_READ_DATA);
-	} else {
-		 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
-		     PCI_CONF_CMD_READ) == 0)
-			 data = ATH_READ_REG(AR71XX_PCI_CONF_READ_DATA);
-		 else
-			 data = -1;
-	}
+	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
+	     PCI_CONF_CMD_READ) == 0)
+		 data = ATH_READ_REG(AR71XX_PCI_CONF_READ_DATA);
+	 else
+		 data = -1;
 
 	/* get request bytes from 32-bit word */
 	data = (data >> shift) & mask;
@@ -228,26 +231,33 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static void
-ar71xx_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, 
-    u_int reg, uint32_t data, int bytes)
+ar71xx_pci_local_write(device_t dev, uint32_t reg, uint32_t data, int bytes)
 {
 	uint32_t cmd;
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, 
+	dprintf("%s: local write reg %d(%d)\n", __func__, reg, bytes);
+
+	data = data << (8*(reg % 4));
+
+	cmd = PCI_LCONF_CMD_WRITE | (reg & ~3);
+	cmd |= (ar71xx_get_bytes_to_read(reg, bytes) << 20);
+	ATH_WRITE_REG(AR71XX_PCI_LCONF_CMD, cmd);
+	ATH_WRITE_REG(AR71XX_PCI_LCONF_WRITE_DATA, data);
+}
+
+static void
+ar71xx_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
+    u_int reg, uint32_t data, int bytes)
+{
+
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
 	    func, reg, bytes);
 
 	data = data << (8*(reg % 4));
 
-	if ((bus == 0) && (slot == 0) && (func == 0)) {
-		cmd = PCI_LCONF_CMD_WRITE | (reg & ~3);
-		cmd |= ar71xx_get_bytes_to_read(reg, bytes) << 20;
-		ATH_WRITE_REG(AR71XX_PCI_LCONF_CMD, cmd);
-		ATH_WRITE_REG(AR71XX_PCI_LCONF_WRITE_DATA, data);
-	} else {
-		 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
-		     PCI_CONF_CMD_WRITE) == 0)
-			 ATH_WRITE_REG(AR71XX_PCI_CONF_WRITE_DATA, data);
-	}
+	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes,
+	     PCI_CONF_CMD_WRITE) == 0)
+		 ATH_WRITE_REG(AR71XX_PCI_CONF_WRITE_DATA, data);
 }
 
 #ifdef	AR71XX_ATH_EEPROM
@@ -265,8 +275,9 @@ ar71xx_pci_fixup(device_t dev, u_int bus, u_int slot, u_int func,
 	uint16_t *cal_data = (uint16_t *) MIPS_PHYS_TO_KSEG1(flash_addr);
 	uint32_t reg, val, bar0;
 
-	printf("%s: flash_addr=%lx, cal_data=%p\n",
-	    __func__, flash_addr, cal_data);
+	if (bootverbose)
+		device_printf(dev, "%s: flash_addr=%lx, cal_data=%p\n",
+		    __func__, flash_addr, cal_data);
 
 	/* XXX check 0xa55a */
 	/* Save bar(0) address - just to flush bar(0) (SoC WAR) ? */
@@ -283,7 +294,8 @@ ar71xx_pci_fixup(device_t dev, u_int bus, u_int slot, u_int func,
 		reg = *cal_data++;
 		val = *cal_data++;
 		val |= (*cal_data++) << 16;
-		printf("  reg: %x, val=%x\n", reg, val);
+		if (bootverbose)
+			printf("  reg: %x, val=%x\n", reg, val);
 
 		/* Write eeprom fixup data to device memory */
 		ATH_WRITE_REG(AR71XX_PCI_MEM_BASE + reg, val);
@@ -298,6 +310,62 @@ ar71xx_pci_fixup(device_t dev, u_int bus, u_int slot, u_int func,
 	ar71xx_pci_write_config(dev, bus, slot, func, PCIR_BAR(0), bar0, 4);
 }
 
+/*
+ * Take a copy of the EEPROM contents and squirrel it away in a firmware.
+ * The SPI flash will eventually cease to be memory-mapped, so we need
+ * to take a copy of this before the SPI driver initialises.
+ */
+static void
+ar71xx_pci_slot_create_eeprom_firmware(device_t dev, u_int bus, u_int slot,
+    u_int func, long int flash_addr)
+{
+	char buf[64];
+	uint16_t *cal_data = (uint16_t *) MIPS_PHYS_TO_KSEG1(flash_addr);
+	void *eeprom = NULL;
+	const struct firmware *fw = NULL;
+	int len;
+
+	snprintf(buf, sizeof(buf), "bus.%d.%d.%d.ath_fixup_size",
+	    bus, slot, func);
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    buf, &len) != 0) {
+		device_printf(dev, "%s: missing hint '%s', aborting EEPROM\n",
+		    __func__, buf);
+		return;
+	}
+
+	device_printf(dev, "EEPROM firmware: 0x%lx @ %d bytes\n",
+	    flash_addr, len);
+
+	eeprom = malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	if (! eeprom) {
+		device_printf(dev,
+			    "%s: malloc failed for '%s', aborting EEPROM\n",
+			    __func__, buf);
+			return;
+	}
+
+	memcpy(eeprom, cal_data, len);
+
+	/*
+	 * Generate a flash EEPROM 'firmware' from the given memory
+	 * region.  Since the SPI controller will eventually
+	 * go into port-IO mode instead of memory-mapped IO
+	 * mode, a copy of the EEPROM contents is required.
+	 */
+	snprintf(buf, sizeof(buf), "%s.%d.bus.%d.%d.%d.eeprom_firmware",
+	    device_get_name(dev), device_get_unit(dev), bus, slot, func);
+	fw = firmware_register(buf, eeprom, len, 1, NULL);
+	if (fw == NULL) {
+		device_printf(dev, "%s: firmware_register (%s) failed\n",
+		    __func__, buf);
+		free(eeprom, M_DEVBUF);
+		return;
+	}
+	device_printf(dev, "device EEPROM '%s' registered\n", buf);
+}
+
 static void
 ar71xx_pci_slot_fixup(device_t dev, u_int bus, u_int slot, u_int func)
 {
@@ -307,16 +375,19 @@ ar71xx_pci_slot_fixup(device_t dev, u_int bus, u_int slot, u_int func)
 	/*
 	 * Check whether the given slot has a hint to poke.
 	 */
-	printf("%s: checking dev %s, %d/%d/%d\n",
+	if (bootverbose)
+	device_printf(dev, "%s: checking dev %s, %d/%d/%d\n",
 	    __func__, device_get_nameunit(dev), bus, slot, func);
 	snprintf(buf, sizeof(buf), "bus.%d.%d.%d.ath_fixup_addr",
 	    bus, slot, func);
 
 	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    buf, &flash_addr) == 0) {
-		printf("%s: found fixupaddr at %lx: updating\n",
-		    __func__, flash_addr);
+		device_printf(dev, "found EEPROM at 0x%lx on %d.%d.%d\n",
+		    flash_addr, bus, slot, func);
 		ar71xx_pci_fixup(dev, bus, slot, func, flash_addr);
+		ar71xx_pci_slot_create_eeprom_firmware(dev, bus, slot, func,
+		    flash_addr);
 	}
 }
 #endif	/* AR71XX_ATH_EEPROM */
@@ -389,10 +460,10 @@ ar71xx_pci_attach(device_t dev)
 	ar71xx_pci_check_bus_error();
 
 	/* Fixup internal PCI bridge */
-	ar71xx_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, 
-            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN 
+	ar71xx_pci_local_write(dev, PCIR_COMMAND,
+            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN
 	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
-	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
+	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 4);
 
 #ifdef	AR71XX_ATH_EEPROM
 	/*

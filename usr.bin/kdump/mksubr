@@ -187,6 +187,8 @@ cat <<_EOF_
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
 #include <sys/capability.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
 
 #include "kdump_subr.h"
 
@@ -334,6 +336,26 @@ sockoptlevelname(int level, int decimal)
 	}
 }
 
+/*
+ * MANUAL
+ *
+ * Used for page fault type.  Cannot use auto_or_type since the macro
+ * values contain a cast.  Also, VM_PROT_NONE has to be handled specially.
+ */
+void
+vmprotname (int type)
+{
+	int	or = 0;
+
+	if (type == VM_PROT_NONE) {
+		(void)printf("VM_PROT_NONE");
+		return;
+	}
+	if_print_or(type, VM_PROT_READ, or);
+	if_print_or(type, VM_PROT_WRITE, or);
+	if_print_or(type, VM_PROT_EXECUTE, or);
+	if_print_or(type, VM_PROT_COPY, or);
+}
 _EOF_
 
 auto_or_type     "accessmodename"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/unistd.h"
@@ -373,6 +395,7 @@ auto_if_type     "sockipprotoname"     "IPPROTO_[[:alnum:]]+[[:space:]]+"       
 auto_switch_type "sockoptname"         "SO_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/socket.h"
 auto_switch_type "socktypename"        "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*"          "sys/socket.h"
 auto_or_type     "thrcreateflagsname"  "THR_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/thr.h"
+auto_switch_type "vmresultname"        "KERN_[A-Z]+[[:space:]]+[0-9]+"                "vm/vm_param.h"
 auto_or_type     "wait4optname"        "W[A-Z]+[[:space:]]+[0-9]+"                    "sys/wait.h"
 auto_switch_type "whencename"          "SEEK_[A-Z]+[[:space:]]+[0-9]+"                "sys/unistd.h"
 

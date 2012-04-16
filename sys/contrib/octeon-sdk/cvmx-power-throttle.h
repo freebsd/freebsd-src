@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -43,7 +43,7 @@
  * Interface to power-throttle control, measurement, and debugging
  * facilities.
  *
- * <hr>$Revision<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 
@@ -53,83 +53,66 @@
 extern "C" {
 #endif
 
-/**
- * a field of the POWTHROTTLE register
- */
-static struct cvmx_power_throttle_rfield_t {
-	char	name[16];	/* the field's name */
-	int32_t	pos;		/* position of the field's LSb */
-	int32_t	len;		/* the field's length */
-} cvmx_power_throttle_rfield[] = {
-#define CVMX_PTH_INDEX_MAXPOW	0
-	{"MAXPOW",   56,  8},
-#define CVMX_PTH_INDEX_POWER		1
-	{"POWER" ,   48,  8},
-#define CVMX_PTH_INDEX_THROTT	2
-	{"THROTT",   40,  8},
-#define CVMX_PTH_INDEX_RESERVED	3
-	{"Reserved", 28, 12},
-#define CVMX_PTH_INDEX_DISTAG	4
-	{"DISTAG",   27,  1},
-#define CVMX_PTH_INDEX_PERIOD	5
-	{"PERIOD",   24,  3},
-#define CVMX_PTH_INDEX_POWLIM	6
-	{"POWLIM",   16,  8},
-#define CVMX_PTH_INDEX_MAXTHR	7
-	{"MAXTHR",    8,  8},
-#define CVMX_PTH_INDEX_MINTHR	8
-	{"MINTHR",    0,  8}
-#define CVMX_PTH_INDEX_MAX		9
+enum cvmx_power_throttle_field_index {
+    CVMX_PTH_INDEX_MAXPOW,
+    CVMX_PTH_INDEX_POWER,
+    CVMX_PTH_INDEX_THROTT,
+    CVMX_PTH_INDEX_RESERVED,
+    CVMX_PTH_INDEX_DISTAG,
+    CVMX_PTH_INDEX_PERIOD,
+    CVMX_PTH_INDEX_POWLIM,
+    CVMX_PTH_INDEX_MAXTHR,
+    CVMX_PTH_INDEX_MINTHR,
+    CVMX_PTH_INDEX_HRMPOWADJ,
+    CVMX_PTH_INDEX_OVRRD,
+    CVMX_PTH_INDEX_MAX
 };
-
-#define CVMX_PTH_GET_MASK(len, pos) \
-	((((uint64_t)1 << (len)) - 1) << (pos))
+typedef enum cvmx_power_throttle_field_index cvmx_power_throttle_field_index_t;
 
 /**
- * Get the i'th field of power-throttle register r.
- */
-static inline uint64_t cvmx_power_throttle_get_field(int i, uint64_t r)
-{
-    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
-    {
-        uint64_t m;
-        struct cvmx_power_throttle_rfield_t *p;
-
-        assert((i >= 0) && (i < CVMX_PTH_INDEX_MAX));
-
-        p = &cvmx_power_throttle_rfield[i];
-        m = CVMX_PTH_GET_MASK(p->len, p->pos);
-
-        return((r & m) >> p->pos);
-    }
-    return 0;
-}
-
-/**
- * Set the i'th field of power-throttle register r to v.
- */
-static inline int cvmx_power_throttle_set_field(int i, uint64_t r, uint64_t v)
-{
-    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
-    {
-        uint64_t m;
-        struct cvmx_power_throttle_rfield_t *p;
-
-        assert((i >= 0) && (i < CVMX_PTH_INDEX_MAX));
-
-        p = &cvmx_power_throttle_rfield[i];
-        m = CVMX_PTH_GET_MASK(p->len, p->pos);
-
-        return((~m & r) | ((v << p->pos) & m));
-    }
-    return 0;
-}
-
-/**
- * API Function Prototypes
+ * Throttle power to percentage% of configured maximum (MAXPOW).
+ *
+ * @param percentage	0 to 100
+ * @return 0 for success and -1 for error.
  */
 extern int cvmx_power_throttle_self(uint8_t percentage);
+
+/**
+ * Throttle power to percentage% of configured maximum (MAXPOW)
+ * for the cores identified in coremask.
+ *
+ * @param percentage 	0 to 100
+ * @param coremask	bit mask where each bit identifies a core.
+ * @return 0 for success and -1 for error.
+ */
 extern int cvmx_power_throttle(uint8_t percentage, uint64_t coremask);
+
+/**
+ * The same functionality as cvmx_power_throttle() but it takes a
+ * bitmap-based coremask as a parameter.
+ */
+extern int cvmx_power_throttle_bmp(uint8_t percentage,
+    struct cvmx_coremask *pcm);
+
+/**
+ * Get the i'th field of the power throttle register
+ *
+ * @param r is the value of the power throttle register
+ * @param i is the index of the field
+ *
+ * @return (uint64_t)-1 on failure.
+ */
+extern uint64_t cvmx_power_throttle_get_field(uint64_t r,
+    cvmx_power_throttle_field_index_t i);
+
+/**
+ * Retrieve the content of the power throttle register of a core
+ *
+ * @param ppid is the core id
+ *
+ * @return (uint64_t)-1 on failure.
+ */
+extern uint64_t cvmx_power_throttle_get_register(int ppid);
 
 #ifdef	__cplusplus
 }

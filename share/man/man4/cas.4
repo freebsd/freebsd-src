@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2010
+.Dd March 24, 2012
 .Dt CAS 4
 .Os
 .Sh NAME
@@ -70,7 +70,6 @@ Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit Jumbo Frames.
 .Sh HARDWARE
-.Pp
 The chips supported by the
 .Nm
 driver are:
@@ -102,6 +101,9 @@ Sun GigaSwift Ethernet UTP (GCS)
 .It
 Sun Quad GigaSwift Ethernet UTP (QGE)
 (part no.\& 501-6522)
+.It
+Sun Quad GigaSwift Ethernet PCI-X (QGE-X)
+(part no.\& 501-6738)
 .El
 .Sh NOTES
 On sparc64 the

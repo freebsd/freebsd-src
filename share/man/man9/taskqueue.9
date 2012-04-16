@@ -116,8 +116,8 @@ thread).
 The memory location where the thread identity is recorded is used
 to signal the service thread(s) to terminate--when this value is set to
 zero and the thread is signaled it will terminate.
-If the queue is intended for use in fast interrupt handlers 
-.Fn taskqueue_create_fast 
+If the queue is intended for use in fast interrupt handlers
+.Fn taskqueue_create_fast
 should be used in place of
 .Fn taskqueue_create .
 .Pp
@@ -296,9 +296,9 @@ The variable
 is used to enqueue tasks onto the queue.
 .Pp
 .Fn TASKQUEUE_FAST_DEFINE
-and 
+and
 .Fn TASKQUEUE_FAST_DEFINE_THREAD
-act just like 
+act just like
 .Fn TASKQUEUE_DEFINE
 and
 .Fn TASKQUEUE_DEFINE_THREAD

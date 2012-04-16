@@ -71,6 +71,7 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/i386-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
+cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_emul.c	optional compat_linux
@@ -243,10 +244,11 @@ dev/syscons/scvtb.c		optional sc
 dev/tpm/tpm.c			optional tpm
 dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
-dev/uart/uart_cpu_i386.c	optional uart
+dev/uart/uart_cpu_x86.c		optional uart
 dev/viawd/viawd.c		optional viawd
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
+dev/wbwd/wbwd.c			optional wbwd
 dev/wpi/if_wpi.c		optional wpi
 dev/isci/isci.c							optional isci
 dev/isci/isci_controller.c					optional isci
@@ -404,10 +406,8 @@ i386/i386/i686_mem.c		optional mem
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
-i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
-i386/i386/legacy.c		optional native
 i386/i386/locore.s		optional native	no-obj
 i386/xen/locore.s		optional xen	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
@@ -515,9 +515,9 @@ x86/cpufreq/p4tcc.c		optional cpufreq
 x86/cpufreq/powernow.c		optional cpufreq
 x86/cpufreq/smist.c		optional cpufreq
 x86/isa/atpic.c			optional atpic	
-x86/isa/atrtc.c			optional atpic
+x86/isa/atrtc.c			optional native
 x86/isa/clock.c			optional native
-x86/isa/elcr.c			standard
+x86/isa/elcr.c			optional atpic | apic native
 x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
@@ -526,7 +526,9 @@ x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
+x86/x86/legacy.c		optional native
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic native

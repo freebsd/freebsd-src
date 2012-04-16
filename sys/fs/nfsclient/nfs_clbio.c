@@ -66,6 +66,7 @@ extern int ncl_numasync;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int newnfs_directio_enable;
+extern int nfs_keep_dirty_on_error;
 
 int ncl_pbuf_freecnt = -1;	/* start out unlimited */
 
@@ -348,9 +349,11 @@ ncl_putpages(struct vop_putpages_args *ap)
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &ncl_pbuf_freecnt);
 
-	vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
-	if (must_commit)
-		ncl_clearcommit(vp->v_mount);
+	if (error == 0 || !nfs_keep_dirty_on_error) {
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
+		if (must_commit)
+			ncl_clearcommit(vp->v_mount);
+	}
 	return rtvals[0];
 }
 

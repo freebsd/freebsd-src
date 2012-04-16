@@ -92,9 +92,23 @@ struct usbcap_filehdr {
 	uint8_t		reserved[26];
 } __packed;
 
+#define	HEADER_ALIGN(x,a) (((x) + (a) - 1) & ~((a) - 1))
+
+struct header_32 {
+	/* capture timestamp */
+	uint32_t ts_sec;
+	uint32_t ts_usec;
+	/* data length and alignment information */
+	uint32_t caplen;
+	uint32_t datalen;
+	uint8_t hdrlen;
+	uint8_t align;
+} __packed;
+
 static int doexit = 0;
 static int pkt_captured = 0;
 static int verbose = 0;
+static int uf_minor;
 static const char *i_arg = "usbus0";
 static const char *r_arg = NULL;
 static const char *w_arg = NULL;
@@ -413,7 +427,7 @@ hexdump(const uint8_t *region, uint32_t len)
 }
 
 static void
-print_apacket(const struct bpf_hdr *hdr, const uint8_t *ptr, int ptr_len)
+print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 {
 	struct tm *tm;
 	struct usbpf_pkthdr up_temp;
@@ -448,8 +462,8 @@ print_apacket(const struct bpf_hdr *hdr, const uint8_t *ptr, int ptr_len)
 	up->up_packet_count = le32toh(up->up_packet_count);
 	up->up_endpoint = le32toh(up->up_endpoint);
 
-	tv.tv_sec = hdr->bh_tstamp.tv_sec;
-	tv.tv_usec = hdr->bh_tstamp.tv_usec;
+	tv.tv_sec = hdr->ts_sec;
+	tv.tv_usec = hdr->ts_usec;
 	tm = localtime(&tv.tv_sec);
 
 	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
@@ -514,19 +528,73 @@ print_apacket(const struct bpf_hdr *hdr, const uint8_t *ptr, int ptr_len)
 }
 
 static void
+fix_packets(uint8_t *data, const int datalen)
+{
+	struct header_32 temp;
+	uint8_t *ptr;
+	uint8_t *next;
+	uint32_t hdrlen;
+	uint32_t caplen;
+
+	for (ptr = data; ptr < (data + datalen); ptr = next) {
+
+		const struct bpf_hdr *hdr;
+
+		hdr = (const struct bpf_hdr *)ptr;
+
+		temp.ts_sec = htole32(hdr->bh_tstamp.tv_sec);
+		temp.ts_usec = htole32(hdr->bh_tstamp.tv_usec);
+		temp.caplen = htole32(hdr->bh_caplen);
+		temp.datalen = htole32(hdr->bh_datalen);
+		temp.hdrlen = hdr->bh_hdrlen;
+		temp.align = BPF_WORDALIGN(1);
+
+		hdrlen = hdr->bh_hdrlen;
+		caplen = hdr->bh_caplen;
+
+		if ((hdrlen >= sizeof(temp)) && (hdrlen <= 255) &&
+		    ((ptr + hdrlen) <= (data + datalen))) {
+			memcpy(ptr, &temp, sizeof(temp));
+			memset(ptr + sizeof(temp), 0, hdrlen - sizeof(temp));
+		} else {
+			err(EXIT_FAILURE, "Invalid header length %d", hdrlen);
+		}
+
+		next = ptr + BPF_WORDALIGN(hdrlen + caplen);
+
+		if (next <= ptr)
+			err(EXIT_FAILURE, "Invalid length");
+	}
+}
+
+static void
 print_packets(uint8_t *data, const int datalen)
 {
-	const struct bpf_hdr *hdr;
+	struct header_32 temp;
 	uint8_t *ptr;
 	uint8_t *next;
 
 	for (ptr = data; ptr < (data + datalen); ptr = next) {
-		hdr = (const struct bpf_hdr *)ptr;
-		next = ptr + BPF_WORDALIGN(hdr->bh_hdrlen + hdr->bh_caplen);
 
-		if (w_arg == NULL) {
-			print_apacket(hdr, ptr +
-			    hdr->bh_hdrlen, hdr->bh_caplen);
+		const struct header_32 *hdr32;
+
+		hdr32 = (const struct header_32 *)ptr;
+
+		temp.ts_sec = le32toh(hdr32->ts_sec);
+		temp.ts_usec = le32toh(hdr32->ts_usec);
+		temp.caplen = le32toh(hdr32->caplen);
+		temp.datalen = le32toh(hdr32->datalen);
+		temp.hdrlen = hdr32->hdrlen;
+		temp.align = hdr32->align;
+
+		next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, temp.align);
+
+		if (next <= ptr)
+			err(EXIT_FAILURE, "Invalid length");
+
+		if (w_arg == NULL || r_arg != NULL) {
+			print_apacket(&temp, ptr +
+			    temp.hdrlen, temp.caplen);
 		}
 		pkt_captured++;
 	}
@@ -567,6 +635,9 @@ read_file(struct usbcap *p)
 			err(EXIT_FAILURE, "Could not read complete "
 			    "USB data payload");
 		}
+		if (uf_minor == 2)
+			fix_packets(data, datalen);
+
 		print_packets(data, datalen);
 		free(data);
 	}
@@ -591,6 +662,9 @@ do_loop(struct usbcap *p)
 		}
 		if (cc == 0)
 			continue;
+
+		fix_packets(p->buffer, cc);
+
 		if (w_arg != NULL)
 			write_packets(p, p->buffer, cc);
 		print_packets(p->buffer, cc);
@@ -622,7 +696,10 @@ init_rfile(struct usbcap *p)
 		errx(EX_SOFTWARE, "Invalid major version(%d) "
 		    "field in USB capture file header.", (int)uf.major);
 	}
-	if (uf.minor != 2) {
+
+	uf_minor = uf.minor;
+
+	if (uf.minor != 3 && uf.minor != 2) {
 		errx(EX_SOFTWARE, "Invalid minor version(%d) "
 		    "field in USB capture file header.", (int)uf.minor);
 	}
@@ -637,12 +714,12 @@ init_wfile(struct usbcap *p)
 	p->wfd = open(w_arg, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
 	if (p->wfd < 0) {
 		err(EXIT_FAILURE, "Could not open "
-		    "'%s' for write", r_arg);
+		    "'%s' for write", w_arg);
 	}
 	memset(&uf, 0, sizeof(uf));
 	uf.magic = htole32(USBCAP_FILEHDR_MAGIC);
 	uf.major = 0;
-	uf.minor = 2;
+	uf.minor = 3;
 	ret = write(p->wfd, (const void *)&uf, sizeof(uf));
 	if (ret != sizeof(uf)) {
 		err(EXIT_FAILURE, "Could not write "

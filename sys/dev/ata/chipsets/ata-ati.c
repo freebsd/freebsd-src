@@ -58,11 +58,12 @@ static int ata_ati_ixp700_ch_attach(device_t dev);
 static int ata_ati_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
-#define ATI_PATA	0x01
-#define ATI_SATA	0x02
+#define SII_MEMIO       1	/* must match ata_siliconimage.c's definition */
+#define SII_BUG         0x04	/* must match ata_siliconimage.c's definition */
+
+#define ATI_SATA	SII_MEMIO
+#define ATI_PATA	0x02
 #define ATI_AHCI	0x04
-#define SII_MEMIO       1
-#define SII_BUG         0x04
 
 static int force_ahci = 1;
 TUNABLE_INT("hw.ahci.force", &force_ahci);
@@ -74,13 +75,13 @@ static int
 ata_ati_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_ATI_IXP200,    0x00, ATI_PATA, 0, ATA_UDMA5, "IXP200" },
      { ATA_ATI_IXP300,    0x00, ATI_PATA, 0, ATA_UDMA6, "IXP300" },
-     { ATA_ATI_IXP300_S1, 0x00, ATI_SATA, 0, ATA_SA150, "IXP300" },
+     { ATA_ATI_IXP300_S1, 0x00, ATI_SATA, SII_BUG, ATA_SA150, "IXP300" },
      { ATA_ATI_IXP400,    0x00, ATI_PATA, 0, ATA_UDMA6, "IXP400" },
-     { ATA_ATI_IXP400_S1, 0x00, ATI_SATA, 0, ATA_SA150, "IXP400" },
-     { ATA_ATI_IXP400_S2, 0x00, ATI_SATA, 0, ATA_SA150, "IXP400" },
+     { ATA_ATI_IXP400_S1, 0x00, ATI_SATA, SII_BUG, ATA_SA150, "IXP400" },
+     { ATA_ATI_IXP400_S2, 0x00, ATI_SATA, SII_BUG, ATA_SA150, "IXP400" },
      { ATA_ATI_IXP600,    0x00, ATI_PATA, 0, ATA_UDMA6, "IXP600" },
      { ATA_ATI_IXP600_S1, 0x00, ATI_AHCI, 0, ATA_SA300, "IXP600" },
      { ATA_ATI_IXP700,    0x00, ATI_PATA, 0, ATA_UDMA6, "IXP700/800" },
@@ -107,10 +108,7 @@ ata_ati_probe(device_t dev)
     case ATI_SATA:
 	/*
 	 * the ATI SATA controller is actually a SiI 3112 controller
-	 * cfg values below much match those in ata-siliconimage.c
 	 */
-	ctlr->chip->cfg1 = SII_MEMIO;
-	ctlr->chip->cfg2 = SII_BUG;
 	ctlr->chipinit = ata_sii_chipinit;
 	break;
     case ATI_AHCI:
@@ -212,8 +210,8 @@ ata_ati_setmode(device_t dev, int target, int mode)
 	int devno = (ch->unit << 1) + target;
 	int offset = (devno ^ 0x01) << 3;
 	int piomode;
-	u_int8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
-	u_int8_t dmatimings[] = { 0x77, 0x21, 0x20 };
+	static const uint8_t piotimings[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
+	static const uint8_t dmatimings[] = { 0x77, 0x21, 0x20 };
 
 	mode = min(mode, ctlr->chip->max_dma);
 	if (mode >= ATA_UDMA0) {

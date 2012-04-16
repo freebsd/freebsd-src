@@ -323,8 +323,8 @@ ieee80211_start(struct ifnet *ifp)
 		if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
 		    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
 		    (m->m_flags & M_EAPOL) == 0) {
-			const int ac = M_WME_GETAC(m);
-			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
+			int tid = WME_AC_TO_TID(M_WME_GETAC(m));
+			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
 
 			ieee80211_txampdu_count_packet(tap);
 			if (IEEE80211_AMPDU_RUNNING(tap)) {
@@ -589,7 +589,7 @@ ieee80211_send_setup(
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
 
-	tap = &ni->ni_tx_ampdu[TID_TO_WME_AC(tid)];
+	tap = &ni->ni_tx_ampdu[tid];
 	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap))
 		m->m_flags |= M_AMPDU_MPDU;
 	else {

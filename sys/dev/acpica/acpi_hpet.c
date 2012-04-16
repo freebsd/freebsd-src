@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #define HPET_VENDID_AMD		0x4353
 #define HPET_VENDID_INTEL	0x8086
 #define HPET_VENDID_NVIDIA	0x10de
+#define HPET_VENDID_SW		0x1166
 
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
@@ -511,6 +512,13 @@ hpet_attach(device_t dev)
 	 * problems. For some reason, using HPET interrupts breaks HDA sound.
 	 */
 	if (vendor == HPET_VENDID_NVIDIA && rev <= 0x01)
+		sc->allowed_irqs = 0x00000000;
+	/*
+	 * ServerWorks HT1000 reported to have problems with IRQs >= 16.
+	 * Lower IRQs are working, but allowed mask is not set correctly.
+	 * Legacy_route mode works fine.
+	 */
+	if (vendor == HPET_VENDID_SW && rev <= 0x01)
 		sc->allowed_irqs = 0x00000000;
 	/*
 	 * Neither QEMU nor VirtualBox report supported IRQs correctly.

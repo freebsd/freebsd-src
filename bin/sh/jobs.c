@@ -893,8 +893,8 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 
-	TRACE(("vforkexecshell(%%%td, %p, %d) called\n", jp - jobtab, (void *)n,
-	    mode));
+	TRACE(("vforkexecshell(%%%td, %s, %p) called\n", jp - jobtab, argv[0],
+	    (void *)pip));
 	INTOFF;
 	flushall();
 	savehandler = handler;

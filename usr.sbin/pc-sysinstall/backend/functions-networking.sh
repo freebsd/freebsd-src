@@ -104,7 +104,10 @@ enable_dhcp_all()
       then
         # We have a wifi device, setup a wlan* entry for it
         WLAN="wlan${WLANCOUNT}"
-        echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	cat ${FSMNT}/etc/rc.conf | grep -q "wlans_${NIC}="
+	if [ $? -ne 0 ] ; then
+          echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	fi
         echo "ifconfig_${WLAN}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
         CNIC="${WLAN}"
         WLANCOUNT=$((WLANCOUNT+1))
@@ -138,7 +141,7 @@ enable_slaac_all()
     do
       NIC="`echo $line | cut -d ':' -f 1`"
       DESC="`echo $line | cut -d ':' -f 2`"
-      echo_log "Setting $NIC to acceptign RAs on the system."
+      echo_log "Setting $NIC to accepting RAs on the system."
       check_is_wifi ${NIC}
       if [ $? -eq 0 ]
       then
@@ -146,9 +149,12 @@ enable_slaac_all()
         # Given we cannot have DHCP and SLAAC the same time currently
 	# it's save to just duplicate.
         WLAN="wlan${WLANCOUNT}"
-        echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	cat ${FSMNT}/etc/rc.conf | grep -q "wlans_${NIC}="
+	if [ $? -ne 0 ] ; then
+          echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	fi
 	#echo "ifconfig_${NIC}=\"up\"" >>${FSMNT}/etc/rc.conf
-        echo "ifconfig_${WLAN}=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
+        echo "ifconfig_${WLAN}_ipv6=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
         CNIC="${WLAN}"
         WLANCOUNT=$((WLANCOUNT+1))
       else

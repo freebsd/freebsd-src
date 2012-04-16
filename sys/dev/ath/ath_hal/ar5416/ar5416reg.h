@@ -212,9 +212,10 @@
 #define	AR_WA_RESET_EN		0x00040000	/* ena AR_WA_UNTIE_RESET_EN */
 #define	AR_WA_ANALOG_SHIFT	0x00100000
 #define	AR_WA_POR_SHORT		0x00200000	/* PCIE phy reset control */
+#define	AR_WA_D3_L1_DISABLE	0x00800000	/* bit 23 */
 
 #define	AR_WA_DEFAULT		0x0000073f
-#define	AR9280_WA_DEFAULT	0x0040073f
+#define	AR9280_WA_DEFAULT	0x0040073b	/* disable bit 2, see commit */
 #define	AR9285_WA_DEFAULT	0x004a05cb
 
 #define	AR_PCIE_PM_CTRL_ENA	0x00080000

@@ -1061,12 +1061,11 @@ qsync(struct mount *mp)
 again:
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
+		MNT_IUNLOCK(mp);
 		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
 		if (error) {
 			MNT_ILOCK(mp);

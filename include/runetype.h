@@ -90,7 +90,7 @@ extern const _RuneLocale *_CurrentRuneLocale;
 extern const _RuneLocale *__getCurrentRuneLocale(void);
 #else
 extern _Thread_local const _RuneLocale *_ThreadRuneLocale;
-static inline const _RuneLocale *__getCurrentRuneLocale(void)
+static __inline const _RuneLocale *__getCurrentRuneLocale(void)
 {
 
 	if (_ThreadRuneLocale) 

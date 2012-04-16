@@ -47,6 +47,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
@@ -339,14 +340,21 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		/*
 		 * Simple sanity check for superblock inode size value.
 		 */
-		if (fs->e2fs_isize < E2FS_REV0_INODE_SIZE  ||
-		    fs->e2fs_isize > fs->e2fs_bsize ||
+		if (EXT2_INODE_SIZE(fs) < E2FS_REV0_INODE_SIZE ||
+		    EXT2_INODE_SIZE(fs) > fs->e2fs_bsize ||
 		    (fs->e2fs_isize & (fs->e2fs_isize - 1)) != 0) {
-			printf("EXT2-fs: invalid inode size %d\n",
+			printf("ext2fs: invalid inode size %d\n",
 			    fs->e2fs_isize);
 			return (EIO);
 		}
 	}
+	/* Check for extra isize in big inodes. */
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT4F_ROCOMPAT_EXTRA_ISIZE) &&
+	    EXT2_INODE_SIZE(fs) < sizeof(struct ext2fs_dinode)) {
+		printf("ext2fs: no space for extra inode timestamps\n");
+		return (EINVAL);
+	}
+
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg /fs->e2fs_ipb;
 	fs->e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
@@ -358,8 +366,8 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_gdbcount = db_count;
 	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
 	    M_EXT2MNT, M_WAITOK);
-	fs->e2fs_contigdirs = malloc(fs->e2fs_gcount * sizeof(*fs->e2fs_contigdirs), 
-	    M_EXT2MNT, M_WAITOK);
+	fs->e2fs_contigdirs = malloc(fs->e2fs_gcount *
+	    sizeof(*fs->e2fs_contigdirs), M_EXT2MNT, M_WAITOK);
 
 	/*
 	 * Adjust logic_sb_block.
@@ -390,7 +398,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		fs->e2fs_contigdirs[i] = 0;
 	}
 	if (es->e2fs_rev == E2FS_REV0 ||
-	    (es->e2fs_features_rocompat & EXT2F_ROCOMPAT_LARGEFILE) == 0)
+	    !EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_LARGEFILE))
 		fs->e2fs_maxfilesize = 0x7fffffff;
 	else
 		fs->e2fs_maxfilesize = 0x7fffffffffffffff;
@@ -967,8 +975,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	ip->i_block_group = ino_to_cg(fs, ino);
 	ip->i_next_alloc_block = 0;
 	ip->i_next_alloc_goal = 0;
-	ip->i_prealloc_count = 0;
-	ip->i_prealloc_block = 0;
 
 	/*
 	 * Now we want to make sure that block pointers for unused

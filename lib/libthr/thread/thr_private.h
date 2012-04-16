@@ -182,9 +182,11 @@ struct pthread_cond_attr {
 struct pthread_barrier {
 	struct umutex		b_lock;
 	struct ucond		b_cv;
-	volatile int64_t	b_cycle;
-	volatile int		b_count;
-	volatile int		b_waiters;
+	int64_t			b_cycle;
+	int			b_count;
+	int			b_waiters;
+	int			b_refcount;
+	int			b_destroying;
 };
 
 struct pthread_barrierattr {
@@ -831,8 +833,6 @@ ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
 #endif
-
-int	_umtx_op_err(void *, int op, u_long, void *, void *) __hidden;
 
 static inline int
 _thr_isthreaded(void)

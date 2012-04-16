@@ -191,7 +191,7 @@ extern _Thread_local locale_t __thread_locale;
  * this call is not guaranteed to remain valid after the locale changes.  As
  * such, this should only be called within libc functions.
  */
-inline locale_t __get_locale(void)
+static inline locale_t __get_locale(void)
 {
 
 	if (!__has_thread_locale) {

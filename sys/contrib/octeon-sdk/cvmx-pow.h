@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2011  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -61,7 +61,7 @@
  * - WQE pointer not matching the one attached to the core by
  *   the POW.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_POW_H__
@@ -70,11 +70,13 @@
 #include "cvmx-scratch.h"
 #include "cvmx-wqe.h"
 
-#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx-sso-defs.h>
+#else
 #include "cvmx-warn.h"
 #endif
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 extern "C" {
 #endif
 
@@ -145,7 +147,7 @@ typedef union
     uint64_t u64;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t              no_sched  : 1; /**< don't reschedule this entry. no_sched is used for CVMX_POW_TAG_OP_SWTAG_DESCH and CVMX_POW_TAG_OP_DESCH */
         uint64_t                unused  : 2;
         uint64_t                 index  :13; /**< contains index of entry for a CVMX_POW_TAG_OP_*_NSCHED */
@@ -166,8 +168,81 @@ typedef union
         uint64_t                unused  : 2;
         uint64_t              no_sched  : 1;
 #endif
-    } s;
+    } s_cn38xx;
+    struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t              no_sched  : 1; /**< don't reschedule this entry. no_sched is used for CVMX_POW_TAG_OP_SWTAG_DESCH and CVMX_POW_TAG_OP_DESCH */
+        cvmx_pow_tag_op_t          op   : 4; /**< the operation to perform */
+        uint64_t               unused1  : 4;
+        uint64_t                 index  :11; /**< contains index of entry for a CVMX_POW_TAG_OP_*_NSCHED */
+        uint64_t               unused2  : 1;
+        uint64_t                   grp  : 6; /**< the group that the work queue entry will be scheduled to grp is used for CVMX_POW_TAG_OP_ADDWQ, CVMX_POW_TAG_OP_SWTAG_FULL, CVMX_POW_TAG_OP_SWTAG_DESCH, and CVMX_POW_TAG_OP_UPDATE_WQP_GRP */
+        uint64_t               unused3  : 3;
+        cvmx_pow_tag_type_t        type : 2; /**< the type of the tag. type is used for everything except CVMX_POW_TAG_OP_DESCH, CVMX_POW_TAG_OP_UPDATE_WQP_GRP, and CVMX_POW_TAG_OP_*_NSCHED */
+        uint64_t                   tag  :32; /**< the actual tag. tag is used for everything except CVMX_POW_TAG_OP_DESCH, CVMX_POW_TAG_OP_UPDATE_WQP_GRP, and CVMX_POW_TAG_OP_*_NSCHED */
+#else
+        uint64_t                   tag  :32;
+        cvmx_pow_tag_type_t        type : 2;
+        uint64_t               unused3  : 3;
+        uint64_t                   grp  : 6;
+        uint64_t               unused2  : 1;
+        uint64_t                 index  :11;
+        uint64_t               unused1  : 4;
+        cvmx_pow_tag_op_t          op   : 4;
+        uint64_t              no_sched  : 1;
+#endif
+    } s_cn68xx_clr;
+    struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t              no_sched  : 1; /**< don't reschedule this entry. no_sched is used for CVMX_POW_TAG_OP_SWTAG_DESCH and CVMX_POW_TAG_OP_DESCH */
+        cvmx_pow_tag_op_t          op   : 4; /**< the operation to perform */
+        uint64_t               unused1  : 12;
+        uint64_t                    qos : 3; /**< contains index of entry for a CVMX_POW_TAG_OP_*_NSCHED */
+        uint64_t               unused2  : 1;
+        uint64_t                   grp  : 6; /**< the group that the work queue entry will be scheduled to grp is used for CVMX_POW_TAG_OP_ADDWQ, CVMX_POW_TAG_OP_SWTAG_FULL, CVMX_POW_TAG_OP_SWTAG_DESCH, and CVMX_POW_TAG_OP_UPDATE_WQP_GRP */
+        uint64_t               unused3  : 3;
+        cvmx_pow_tag_type_t        type : 2; /**< the type of the tag. type is used for everything except CVMX_POW_TAG_OP_DESCH, CVMX_POW_TAG_OP_UPDATE_WQP_GRP, and CVMX_POW_TAG_OP_*_NSCHED */
+        uint64_t                   tag  :32; /**< the actual tag. tag is used for everything except CVMX_POW_TAG_OP_DESCH, CVMX_POW_TAG_OP_UPDATE_WQP_GRP, and CVMX_POW_TAG_OP_*_NSCHED */
+#else
+        uint64_t                   tag  :32;
+        cvmx_pow_tag_type_t        type : 2;
+        uint64_t               unused3  : 3;
+        uint64_t                   grp  : 6;
+        uint64_t               unused2  : 1;
+        uint64_t                   qos  : 3;
+        uint64_t               unused1  : 12;
+        cvmx_pow_tag_op_t          op   : 4;
+        uint64_t              no_sched  : 1;
+#endif
+    } s_cn68xx_add;
+    struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t              no_sched  : 1; /**< don't reschedule this entry. no_sched is used for CVMX_POW_TAG_OP_SWTAG_DESCH and CVMX_POW_TAG_OP_DESCH */
+        cvmx_pow_tag_op_t          op   : 4; /**< the operation to perform */
+        uint64_t               unused1  : 16;
+        uint64_t                   grp  : 6; /**< the group that the work queue entry will be scheduled to grp is used for CVMX_POW_TAG_OP_ADDWQ, CVMX_POW_TAG_OP_SWTAG_FULL, CVMX_POW_TAG_OP_SWTAG_DESCH, and CVMX_POW_TAG_OP_UPDATE_WQP_GRP */
+        uint64_t               unused3  : 3;
+        cvmx_pow_tag_type_t        type : 2; /**< the type of the tag. type is used for everything except CVMX_POW_TAG_OP_DESCH, CVMX_POW_TAG_OP_UPDATE_WQP_GRP, and CVMX_POW_TAG_OP_*_NSCHED */
+        uint64_t                   tag  :32; /**< the actual tag. tag is used for everything except CVMX_POW_TAG_OP_DESCH, CVMX_POW_TAG_OP_UPDATE_WQP_GRP, and CVMX_POW_TAG_OP_*_NSCHED */
+#else
+        uint64_t                   tag  :32;
+        cvmx_pow_tag_type_t        type : 2;
+        uint64_t               unused3  : 3;
+        uint64_t                   grp  : 6;
+        uint64_t               unused1  : 16;
+        cvmx_pow_tag_op_t          op   : 4;
+        uint64_t              no_sched  : 1;
+#endif
+    } s_cn68xx_other;
+
 } cvmx_pow_tag_req_t;
+
+typedef struct {
+    uint32_t tag;
+    uint16_t index;
+    uint8_t  grp;
+    uint8_t tag_type;
+}cvmx_pow_tag_info_t;
 
 /**
  * This structure describes the address to load stuff from POW
@@ -181,7 +256,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
         uint64_t    reserved_49_61  : 13;   /**< Must be zero */
         uint64_t    is_io           : 1;    /**< Must be one */
@@ -205,7 +280,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
         uint64_t    reserved_49_61  : 13;   /**< Must be zero */
         uint64_t    is_io           : 1;    /**< Must be one */
@@ -231,11 +306,39 @@ typedef union
     } sstatus;
 
     /**
+     * Address for loads to get 68XX SS0 internal status
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
+        uint64_t    reserved_49_61  : 13;   /**< Must be zero */
+        uint64_t    is_io           : 1;    /**< Must be one */
+        uint64_t    did             : 8;    /**< the ID of POW -- did<2:0> == 1 in this case */
+        uint64_t    reserved_14_39  : 26;   /**< Must be zero */
+        uint64_t    coreid          : 5;    /**< The core id to get status for */
+        uint64_t    reserved_6_8    : 3;
+        uint64_t    opcode          : 3;    /**< Status operation */
+        uint64_t    reserved_0_2    : 3;    /**< Must be zero */
+#else
+        uint64_t    reserved_0_2    : 3;
+        uint64_t    opcode          : 3;
+        uint64_t    reserved_6_8    : 3;
+        uint64_t    coreid          : 5;
+        uint64_t    reserved_14_39  : 26;
+        uint64_t    did             : 8;
+        uint64_t    is_io           : 1;
+        uint64_t    reserved_49_61  : 13;
+        uint64_t    mem_region      : 2;
+#endif
+    } sstatus_cn68xx;
+
+    /**
      * Address for memory loads to get POW internal state
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
         uint64_t    reserved_49_61  : 13;   /**< Must be zero */
         uint64_t    is_io           : 1;    /**< Must be one */
@@ -261,11 +364,39 @@ typedef union
     } smemload;
 
     /**
+     * Address for memory loads to get SSO internal state
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
+        uint64_t    reserved_49_61  : 13;   /**< Must be zero */
+        uint64_t    is_io           : 1;    /**< Must be one */
+        uint64_t    did             : 8;    /**< the ID of SSO - did<2:0> == 2 in this case */
+        uint64_t    reserved_20_39  : 20;   /**< Must be zero */
+        uint64_t    index           : 11;   /**< SSO memory index */
+        uint64_t    reserved_6_8    : 3;    /**< Must be zero */
+        uint64_t    opcode          : 3;    /**< Read TAG/WQ pointer/pending tag/next potr */
+        uint64_t    reserved_0_2    : 3;    /**< Must be zero */
+#else
+        uint64_t    reserved_0_2    : 3;
+        uint64_t    opcode          : 3;
+        uint64_t    reserved_3_5    : 3;
+        uint64_t    index           : 11;
+        uint64_t    reserved_20_39  : 20;
+        uint64_t    did             : 8;
+        uint64_t    is_io           : 1;
+        uint64_t    reserved_49_61  : 13;
+        uint64_t    mem_region      : 2;
+#endif
+    } smemload_cn68xx;
+
+    /**
      * Address for index/pointer loads
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
         uint64_t    reserved_49_61  : 13;   /**< Must be zero */
         uint64_t    is_io           : 1;    /**< Must be one */
@@ -305,6 +436,36 @@ typedef union
     } sindexload;
 
     /**
+     * Address for a Index/Pointer loads to get SSO internal state
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
+        uint64_t    reserved_49_61  : 13;   /**< Must be zero */
+        uint64_t    is_io           : 1;    /**< Must be one */
+        uint64_t    did             : 8;    /**< the ID of SSO - did<2:0> == 2 in this case */
+        uint64_t    reserved_15_39  : 25;   /**< Must be zero */
+        uint64_t    qos_grp         : 6;    /**< When opcode = IPL_IQ, this field specifies IQ (or QOS).
+                                                 When opcode = IPL_DESCHED, this field specifies the group.
+                                                 This field is reserved for all other opcodes. */
+        uint64_t    reserved_6_8    : 3;    /**< Must be zero */
+        uint64_t    opcode          : 3;    /**< Read TAG/WQ pointer/pending tag/next potr */
+        uint64_t    reserved_0_2    : 3;    /**< Must be zero */
+#else
+        uint64_t    reserved_0_2    : 3;
+        uint64_t    opcode          : 3;
+        uint64_t    reserved_3_5    : 3;
+        uint64_t    qos_grp         : 6;
+        uint64_t    reserved_15_39  : 25;
+        uint64_t    did             : 8;
+        uint64_t    is_io           : 1;
+        uint64_t    reserved_49_61  : 13;
+        uint64_t    mem_region      : 2;
+#endif
+    } sindexload_cn68xx;
+
+    /**
      * address for NULL_RD request (did<2:0> == 4)
      * when this is read, HW attempts to change the state to NULL if it is NULL_NULL
      * (the hardware cannot switch from NULL_NULL to NULL if a POW entry is not available -
@@ -313,7 +474,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    mem_region      : 2;    /**< Mips64 address region. Should be CVMX_IO_SEG */
         uint64_t    reserved_49_61  : 13;   /**< Must be zero */
         uint64_t    is_io           : 1;    /**< Must be one */
@@ -341,7 +502,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    no_work          : 1;   /**< Set when no new work queue entry was returned.
                                                 If there was de-scheduled work, the HW will definitely
                                                 return it. When this bit is set, it could mean
@@ -365,7 +526,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_62_63  : 2;
         uint64_t    pend_switch     : 1;    /**< Set when there is a pending non-NULL SWTAG or
                                                 SWTAG_FULL, and the POW entry has not left the list for the original tag. */
@@ -406,11 +567,47 @@ typedef union
     } s_sstatus0;
 
     /**
+     * Result for a SSO Status Load (when opcode is SL_PENDTAG)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    pend_switch     : 1;    /**< Set when there is a pending non-UNSCHEDULED SWTAG or
+                                                SWTAG_FULL, and the SSO entry has not left the list for the original tag. */
+        uint64_t    pend_get_work   : 1;    /**< Set when there is a pending GET_WORK */
+        uint64_t    pend_get_work_wait: 1;  /**< when pend_get_work is set, this biit indicates that the 
+                                                 wait bit was set. */
+        uint64_t    pend_nosched    : 1;    /**< Set when nosched is desired and pend_desched is set. */
+        uint64_t    pend_nosched_clr: 1;    /**< Set when there is a pending CLR_NSCHED. */
+        uint64_t    pend_desched    : 1;    /**< Set when there is a pending DESCHED or SWTAG_DESCHED. */
+        uint64_t    pend_alloc_we   : 1;    /**< Set when there is a pending ALLOC_WE. */
+        uint64_t    reserved_48_56  : 9;
+        uint64_t    pend_index      : 11;   /**< This is the index when pend_nosched_clr is set. */
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    pend_type       : 2;    /**< This is the tag type when pend_switch is set. */
+        uint64_t    pend_tag        : 32;   /**< This is the tag when pend_switch is set. */
+#else
+        uint64_t    pend_tag        : 32;
+        uint64_t    pend_type       : 2;
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    pend_index      : 11;
+        uint64_t    reserved_48_56  : 9;
+        uint64_t    pend_alloc_we   : 1;
+        uint64_t    pend_desched    : 1;
+        uint64_t    pend_nosched_clr: 1;
+        uint64_t    pend_nosched    : 1;
+        uint64_t    pend_get_work_wait: 1;
+        uint64_t    pend_get_work   : 1;
+        uint64_t    pend_switch     : 1;
+#endif
+    } s_sstatus0_cn68xx;
+
+    /**
      * Result for a POW Status Load (when get_cur==0 and get_wqp==1)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_62_63  : 2;
         uint64_t    pend_switch     : 1;    /**< Set when there is a pending non-NULL SWTAG or
                                                 SWTAG_FULL, and the POW entry has not left the list for the original tag. */
@@ -447,11 +644,45 @@ typedef union
     } s_sstatus1;
 
     /**
+     * Result for a SSO Status Load (when opcode is SL_PENDWQP)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    pend_switch     : 1;    /**< Set when there is a pending non-UNSCHEDULED SWTAG or
+                                                SWTAG_FULL, and the SSO entry has not left the list for the original tag. */
+        uint64_t    pend_get_work   : 1;    /**< Set when there is a pending GET_WORK */
+        uint64_t    pend_get_work_wait: 1;  /**< when pend_get_work is set, this biit indicates that the 
+                                                 wait bit was set. */
+        uint64_t    pend_nosched    : 1;    /**< Set when nosched is desired and pend_desched is set. */
+        uint64_t    pend_nosched_clr: 1;    /**< Set when there is a pending CLR_NSCHED. */
+        uint64_t    pend_desched    : 1;    /**< Set when there is a pending DESCHED or SWTAG_DESCHED. */
+        uint64_t    pend_alloc_we   : 1;    /**< Set when there is a pending ALLOC_WE. */
+        uint64_t    reserved_51_56  : 6;
+        uint64_t    pend_index      : 11;   /**< This is the index when pend_nosched_clr is set. */
+        uint64_t    reserved_38_39  : 2;
+        uint64_t    pend_wqp        : 38;   /**< This is the wqp when pend_nosched_clr is set. */
+#else
+        uint64_t    pend_wqp        : 38;
+        uint64_t    reserved_38_39  : 2;
+        uint64_t    pend_index      : 11;
+        uint64_t    reserved_51_56  : 6;
+        uint64_t    pend_alloc_we   : 1;
+        uint64_t    pend_desched    : 1;
+        uint64_t    pend_nosched_clr: 1;
+        uint64_t    pend_nosched    : 1;
+        uint64_t    pend_get_work_wait: 1;
+        uint64_t    pend_get_work   : 1;
+        uint64_t    pend_switch     : 1;
+#endif
+    } s_sstatus1_cn68xx;
+
+    /**
      * Result for a POW Status Load (when get_cur==1, get_wqp==0, and get_rev==0)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_62_63  : 2;
         uint64_t    link_index      : 11;    /**< Points to the next POW entry in the tag list when tail == 0 (and
                                                 tag_type is not NULL or NULL_NULL). */
@@ -478,11 +709,44 @@ typedef union
     } s_sstatus2;
 
     /**
+     * Result for a SSO Status Load (when opcode is SL_TAG)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_57_63  : 7;
+        uint64_t    index           : 11;   /**< The SSO entry attached to the core. */
+        uint64_t    reserved_45     : 1;
+        uint64_t    grp             : 6;    /**< The group attached to the core (updated when new tag list entered on
+                                                 SWTAG_FULL). */
+        uint64_t    head            : 1;    /**< Set when this SSO entry is at the head of its tag list (also set when in the
+                                                 UNSCHEDULED or EMPTY state). */
+        uint64_t    tail            : 1;    /**< Set when this SSO entry is at the tail of its tag list (also set when in the
+                                                 UNSCHEDULED or EMPTY state). */
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    tag_type        : 2;    /**< The tag type attached to the core (updated when new tag list entered
+                                                 on SWTAG, SWTAG_FULL, or SWTAG_DESCHED). */
+        uint64_t    tag             : 32;   /**< The tag attached to the core (updated when new tag list entered on SWTAG,
+                                                 SWTAG_FULL, or SWTAG_DESCHED). */
+#else
+        uint64_t    tag             : 32;
+        uint64_t    tag_type        : 2;
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    tail            : 1;
+        uint64_t    head            : 1;
+        uint64_t    grp             : 6;
+        uint64_t    reserved_45     : 1;
+        uint64_t    index           : 11;
+        uint64_t    reserved_57_63  : 7;
+#endif
+    } s_sstatus2_cn68xx;
+
+    /**
      * Result for a POW Status Load (when get_cur==1, get_wqp==0, and get_rev==1)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_62_63  : 2;
         uint64_t    revlink_index   : 11;   /**< Points to the prior POW entry in the tag list when head == 0
                                                 (and tag_type is not NULL or NULL_NULL). This field is unpredictable
@@ -510,11 +774,34 @@ typedef union
     } s_sstatus3;
 
     /**
+     * Result for a SSO Status Load (when opcode is SL_WQP)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_58_63  : 6;
+        uint64_t    index           : 11;   /**< The SSO entry attached to the core. */
+        uint64_t    reserved_46     : 1;
+        uint64_t    grp             : 6;    /**< The group attached to the core (updated when new tag list entered on
+                                                 SWTAG_FULL). */
+        uint64_t    reserved_38_39  : 2;
+        uint64_t    wqp             : 38;   /**< The wqp attached to the core (updated when new tag list entered on SWTAG_FULL). */
+#else
+        uint64_t    wqp             : 38;
+        uint64_t    reserved_38_39  : 2;
+        uint64_t    grp             : 6;
+        uint64_t    reserved_46     : 1;
+        uint64_t    index           : 11;
+        uint64_t    reserved_58_63  : 6;
+#endif
+    } s_sstatus3_cn68xx;
+
+    /**
      * Result for a POW Status Load (when get_cur==1, get_wqp==1, and get_rev==0)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_62_63  : 2;
         uint64_t    link_index      : 11;    /**< Points to the next POW entry in the tag list when tail == 0 (and
                                                 tag_type is not NULL or NULL_NULL). */
@@ -531,11 +818,44 @@ typedef union
     } s_sstatus4;
 
     /**
+     * Result for a SSO Status Load (when opcode is SL_LINKS)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_46_63  : 18;
+        uint64_t    index           : 11;   /**< The SSO entry attached to the core. */
+        uint64_t    reserved_34     : 1;
+        uint64_t    grp             : 6;    /**< The group attached to the core (updated when new tag list entered on
+                                                 SWTAG_FULL). */
+        uint64_t    head            : 1;    /**< Set when this SSO entry is at the head of its tag list (also set when in the
+                                                 UNSCHEDULED or EMPTY state). */
+        uint64_t    tail            : 1;    /**< Set when this SSO entry is at the tail of its tag list (also set when in the
+                                                 UNSCHEDULED or EMPTY state). */
+        uint64_t    reserved_24_25  : 2;
+        uint64_t    revlink_index   : 11;   /**< Points to the prior SSO entry in the tag list when head==0 (and tag_type is not UNSCHEDULED or EMPTY). */
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    link_index      : 11;   /**< Points to the next SSO entry in the tag list when tail==0 (and tag_type is not UNSCHEDULDED or EMPTY). */
+#else
+        uint64_t    link_index      : 11;
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    revlink_index   : 11;
+        uint64_t    reserved_24_25  : 2;
+        uint64_t    tail            : 1;
+        uint64_t    head            : 1;
+        uint64_t    grp             : 6;
+        uint64_t    reserved_34     : 1;
+        uint64_t    index           : 11;
+        uint64_t    reserved_46_63  : 18;
+#endif
+    } s_sstatus4_cn68xx;
+
+    /**
      * Result for a POW Status Load (when get_cur==1, get_wqp==1, and get_rev==1)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_62_63  : 2;
         uint64_t    revlink_index   : 11;   /**< Points to the prior POW entry in the tag list when head == 0
                                                 (and tag_type is not NULL or NULL_NULL). This field is unpredictable
@@ -557,7 +877,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_51_63  : 13;
         uint64_t    next_index      : 11;    /**< The next entry in the input, free, descheduled_head list
                                                 (unpredictable if entry is the tail of the list). */
@@ -579,11 +899,32 @@ typedef union
     } s_smemload0;
 
     /**
+     * Result For SSO Memory Load (opcode is ML_TAG)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_38_63  : 26;
+        uint64_t    tail            : 1;    /**< Set when this SSO entry is at the tail of its tag list (also set when in the
+                                                NULL or NULL_NULL state). */
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    tag_type        : 2;    /**< The tag type of the SSO entry. */
+        uint64_t    tag             : 32;   /**< The tag of the SSO entry. */
+#else
+        uint64_t    tag             : 32;
+        uint64_t    tag_type        : 2;
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    tail            : 1;
+        uint64_t    reserved_38_63  : 26;
+#endif
+    } s_smemload0_cn68xx;
+
+    /**
      * Result For POW Memory Load (get_des == 0 and get_wqp == 1)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_51_63  : 13;
         uint64_t    next_index      : 11;    /**< The next entry in the input, free, descheduled_head list
                                                 (unpredictable if entry is the tail of the list). */
@@ -598,11 +939,33 @@ typedef union
     } s_smemload1;
 
     /**
+     * Result For SSO Memory Load (opcode is ML_WQPGRP)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_48_63  : 16;
+        uint64_t    nosched         : 1;    /**< The nosched bit for the SSO entry. */
+        uint64_t    reserved_46     : 1;
+        uint64_t    grp             : 6;    /**< The group of the SSO entry. */
+        uint64_t    reserved_38_39  : 2;
+        uint64_t    wqp             : 38;   /**< The WQP held in the SSO entry. */
+#else
+        uint64_t    wqp             : 38;
+        uint64_t    reserved_38_39  : 2;
+        uint64_t    grp             : 6;
+        uint64_t    reserved_46     : 1;
+        uint64_t    nosched         : 1;
+        uint64_t    reserved_51_63  : 16;
+#endif
+    } s_smemload1_cn68xx;
+
+    /**
      * Result For POW Memory Load (get_des == 1)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_51_63  : 13;
         uint64_t    fwd_index       : 11;   /**< The next entry in the tag list connected to the descheduled head. */
         uint64_t    grp             : 4;    /**< The group of the POW entry. */
@@ -622,11 +985,51 @@ typedef union
     } s_smemload2;
 
     /**
+     * Result For SSO Memory Load (opcode is ML_PENTAG)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_38_63  : 26;
+        uint64_t    pend_switch     : 1;    /**< Set when there is a pending non-UNSCHEDULED SWTAG or
+                                                 SWTAG_FULL, and the SSO entry has not left the list for the original tag. */
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    pend_type       : 2;    /**< The next tag type for the new tag list when pend_switch is set. */
+        uint64_t    pend_tag        : 32;   /**< The next tag for the new tag list when pend_switch is set. */
+#else
+        uint64_t    pend_tag        : 32;
+        uint64_t    pend_type       : 2;
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    pend_switch     : 1;
+        uint64_t    reserved_38_63  : 26;
+#endif
+    } s_smemload2_cn68xx;
+
+    /**
+     * Result For SSO Memory Load (opcode is ML_LINKS)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_24_63  : 40;
+        uint64_t    fwd_index       : 11;   /**< The next entry in the tag list connected to the descheduled head. */
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    next_index      : 11;   /**< The next entry in the input, free, descheduled_head list
+                                                 (unpredicatble if entry is the tail of the list). */
+#else
+        uint64_t    next_index      : 11;
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    fwd_index       : 11;
+        uint64_t    reserved_24_63  : 40;
+#endif
+    } s_smemload3_cn68xx;
+
+    /**
      * Result For POW Index/Pointer Load (get_rmt == 0/get_des_get_tail == 0)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_52_63  : 12;
         uint64_t    free_val        : 1;    /**< - set when there is one or more POW entries on the free list. */
         uint64_t    free_one        : 1;    /**< - set when there is exactly one POW entry on the free list. */
@@ -658,11 +1061,35 @@ typedef union
     } sindexload0;
 
     /**
+     * Result for SSO Index/Pointer Load(opcode == IPL_IQ/IPL_DESCHED/IPL_NOSCHED)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_28_63  : 36;
+        uint64_t    queue_val       : 1;    /**< - If set, one or more valid entries are in the queue. */
+        uint64_t    queue_one       : 1;    /**< - If set, exactly one valid entry is in the queue. */
+        uint64_t    reserved_24_25  : 2;
+        uint64_t    queue_head      : 11;   /**< - Index of entry at the head of the queue. */
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    queue_tail      : 11;   /**< - Index of entry at the tail of the queue. */
+#else
+        uint64_t    queue_tail      : 11;
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    queue_head      : 11;
+        uint64_t    reserved_24_25  : 2;
+        uint64_t    queue_one       : 1;
+        uint64_t    queue_val       : 1;
+        uint64_t    reserved_28_63  : 36;
+#endif
+    } sindexload0_cn68xx;
+
+    /**
      * Result For POW Index/Pointer Load (get_rmt == 0/get_des_get_tail == 1)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_52_63  : 12;
         uint64_t    nosched_val     : 1;    /**< - set when there is one or more POW entries on the nosched list. */
         uint64_t    nosched_one     : 1;    /**< - set when there is exactly one POW entry on the nosched list. */
@@ -694,11 +1121,41 @@ typedef union
     } sindexload1;
 
     /**
+     * Result for SSO Index/Pointer Load(opcode == IPL_FREE0/IPL_FREE1/IPL_FREE2)
+     */
+    struct
+    {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_60_63  : 4;
+        uint64_t    qnum_head       : 2;    /**< - Subqueue with current head */
+        uint64_t    qnum_tail       : 2;    /**< - Subqueue with current tail */
+        uint64_t    reserved_28_55  : 28;
+        uint64_t    queue_val       : 1;    /**< - If set, one or more valid entries are in the queue. */
+        uint64_t    queue_one       : 1;    /**< - If set, exactly one valid entry is in the queue. */
+        uint64_t    reserved_24_25  : 2;
+        uint64_t    queue_head      : 11;   /**< - Index of entry at the head of the queue. */
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    queue_tail      : 11;   /**< - Index of entry at the tail of the queue. */
+#else
+        uint64_t    queue_tail      : 11;
+        uint64_t    reserved_11_12  : 2;
+        uint64_t    queue_head      : 11;
+        uint64_t    reserved_24_25  : 2;
+        uint64_t    queue_one       : 1;
+        uint64_t    queue_val       : 1;
+        uint64_t    reserved_28_55  : 28;
+        uint64_t    qnum_tail       : 2;
+        uint64_t    qnum_head       : 2;
+        uint64_t    reserved_60_63  : 4;
+#endif
+    } sindexload1_cn68xx;
+
+    /**
      * Result For POW Index/Pointer Load (get_rmt == 1/get_des_get_tail == 0)
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_39_63  : 25;
         uint64_t    rmt_is_head     : 1;    /**< Set when this DRAM list is the current head (i.e. is the next to
                                                 be reloaded when the POW hardware reloads a POW entry from DRAM). The
@@ -724,7 +1181,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    reserved_39_63  : 25;
         uint64_t    rmt_is_head     : 1;    /**< - set when this DRAM list is the current head (i.e. is the next to
                                                 be reloaded when the POW hardware reloads a POW entry from DRAM). The
@@ -750,7 +1207,7 @@ typedef union
      */
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    unused  : 62;
         uint64_t    state    : 2;  /**< of type cvmx_pow_tag_type_t. state is one of the following:
                                         - CVMX_POW_TAG_TYPE_ORDERED
@@ -764,6 +1221,33 @@ typedef union
     } s_null_rd;
 
 } cvmx_pow_tag_load_resp_t;
+
+typedef union {
+    uint64_t u64;
+    struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+        uint64_t    reserved_57_63  : 7;
+        uint64_t    index           : 11;
+        uint64_t    reserved_45     : 1;
+        uint64_t    grp             : 6;
+        uint64_t    head            : 1;
+        uint64_t    tail            : 1;
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    tag_type        : 2;
+        uint64_t    tag             : 32;
+#else
+        uint64_t    tag             : 32;
+        uint64_t    tag_type        : 2;
+        uint64_t    reserved_34_36  : 3;
+        uint64_t    tail            : 1;
+        uint64_t    head            : 1;
+        uint64_t    grp             : 6;
+        uint64_t    reserved_45     : 1;
+        uint64_t    index           : 11;
+        uint64_t    reserved_57_63  : 7;
+#endif
+    } s;
+} cvmx_pow_sl_tag_resp_t;
 
 /**
  * This structure describes the address used for stores to the POW.
@@ -795,7 +1279,7 @@ typedef union
 
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    mem_reg         : 2;    /**< Memory region.  Should be CVMX_IO_SEG in most cases */
         uint64_t    reserved_49_61  : 13;   /**< Must be zero */
         uint64_t    is_io           : 1;    /**< Must be one */
@@ -822,7 +1306,7 @@ typedef union
 
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    scraddr : 8;    /**< the (64-bit word) location in scratchpad to write to (if len != 0) */
         uint64_t    len     : 8;    /**< the number of words in the response (0 => no response) */
         uint64_t    did     : 8;    /**< the ID of the device on the non-coherent bus */
@@ -853,27 +1337,40 @@ typedef union
  *
  * @return Current tag
  */
-static inline cvmx_pow_tag_req_t cvmx_pow_get_current_tag(void)
+static inline cvmx_pow_tag_info_t cvmx_pow_get_current_tag(void)
 {
     cvmx_pow_load_addr_t load_addr;
-    cvmx_pow_tag_load_resp_t load_resp;
-    cvmx_pow_tag_req_t result;
+    cvmx_pow_tag_info_t result;
 
-    load_addr.u64 = 0;
-    load_addr.sstatus.mem_region = CVMX_IO_SEG;
-    load_addr.sstatus.is_io = 1;
-    load_addr.sstatus.did = CVMX_OCT_DID_TAG_TAG1;
-    load_addr.sstatus.coreid = cvmx_get_core_num();
-    load_addr.sstatus.get_cur = 1;
-    load_resp.u64 = cvmx_read_csr(load_addr.u64);
-    result.u64 = 0;
-    result.s.grp = load_resp.s_sstatus2.grp;
-    result.s.index = load_resp.s_sstatus2.index;
-    result.s.type = (cvmx_pow_tag_type_t)load_resp.s_sstatus2.tag_type;
-    result.s.tag = load_resp.s_sstatus2.tag;
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        cvmx_pow_sl_tag_resp_t load_resp;
+        load_addr.u64 = 0;
+        load_addr.sstatus_cn68xx.mem_region = CVMX_IO_SEG;
+        load_addr.sstatus_cn68xx.is_io = 1;
+        load_addr.sstatus_cn68xx.did = CVMX_OCT_DID_TAG_TAG5;
+        load_addr.sstatus_cn68xx.coreid = cvmx_get_core_num();
+        load_addr.sstatus_cn68xx.opcode = 3;
+        load_resp.u64 = cvmx_read_csr(load_addr.u64);
+        result.grp = load_resp.s.grp;
+        result.index = load_resp.s.index;
+        result.tag_type = load_resp.s.tag_type;
+        result.tag = load_resp.s.tag;
+    } else {
+        cvmx_pow_tag_load_resp_t load_resp;
+        load_addr.u64 = 0;
+        load_addr.sstatus.mem_region = CVMX_IO_SEG;
+        load_addr.sstatus.is_io = 1;
+        load_addr.sstatus.did = CVMX_OCT_DID_TAG_TAG1;
+        load_addr.sstatus.coreid = cvmx_get_core_num();
+        load_addr.sstatus.get_cur = 1;
+        load_resp.u64 = cvmx_read_csr(load_addr.u64);
+        result.grp = load_resp.s_sstatus2.grp;
+        result.index = load_resp.s_sstatus2.index;
+        result.tag_type = load_resp.s_sstatus2.tag_type;
+        result.tag = load_resp.s_sstatus2.tag;
+    }
     return result;
 }
-
 
 /**
  * Get the POW WQE for this core. This returns the work queue
@@ -886,15 +1383,29 @@ static inline cvmx_wqe_t *cvmx_pow_get_current_wqp(void)
     cvmx_pow_load_addr_t load_addr;
     cvmx_pow_tag_load_resp_t load_resp;
 
-    load_addr.u64 = 0;
-    load_addr.sstatus.mem_region = CVMX_IO_SEG;
-    load_addr.sstatus.is_io = 1;
-    load_addr.sstatus.did = CVMX_OCT_DID_TAG_TAG1;
-    load_addr.sstatus.coreid = cvmx_get_core_num();
-    load_addr.sstatus.get_cur = 1;
-    load_addr.sstatus.get_wqp = 1;
-    load_resp.u64 = cvmx_read_csr(load_addr.u64);
-    return (cvmx_wqe_t*)cvmx_phys_to_ptr(load_resp.s_sstatus4.wqp);
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        load_addr.u64 = 0;
+        load_addr.sstatus_cn68xx.mem_region = CVMX_IO_SEG;
+        load_addr.sstatus_cn68xx.is_io = 1;
+        load_addr.sstatus_cn68xx.did = CVMX_OCT_DID_TAG_TAG5;
+        load_addr.sstatus_cn68xx.coreid = cvmx_get_core_num();
+        load_addr.sstatus_cn68xx.opcode = 3;
+        load_resp.u64 = cvmx_read_csr(load_addr.u64);
+        if (load_resp.s_sstatus3_cn68xx.wqp)
+            return (cvmx_wqe_t*)cvmx_phys_to_ptr(load_resp.s_sstatus3_cn68xx.wqp);
+        else
+            return (cvmx_wqe_t*)0;
+    } else {
+        load_addr.u64 = 0;
+        load_addr.sstatus.mem_region = CVMX_IO_SEG;
+        load_addr.sstatus.is_io = 1;
+        load_addr.sstatus.did = CVMX_OCT_DID_TAG_TAG1;
+        load_addr.sstatus.coreid = cvmx_get_core_num();
+        load_addr.sstatus.get_cur = 1;
+        load_addr.sstatus.get_wqp = 1;
+        load_resp.u64 = cvmx_read_csr(load_addr.u64);
+        return (cvmx_wqe_t*)cvmx_phys_to_ptr(load_resp.s_sstatus4.wqp);
+    }
 }
 
 
@@ -1040,6 +1551,7 @@ static inline void cvmx_pow_work_request_async_nocheck(int scr_addr, cvmx_pow_wa
         __cvmx_pow_warn_if_pending_switch(__FUNCTION__);
 
     /* scr_addr must be 8 byte aligned */
+    data.u64 = 0;
     data.s.scraddr = scr_addr >> 3;
     data.s.len = 1;
     data.s.did = CVMX_OCT_DID_TAG_SWTAG;
@@ -1134,12 +1646,12 @@ static inline void cvmx_pow_tag_sw_nocheck(uint32_t tag, cvmx_pow_tag_type_t tag
 
     if (CVMX_ENABLE_POW_CHECKS)
     {
-        cvmx_pow_tag_req_t current_tag;
+        cvmx_pow_tag_info_t current_tag;
         __cvmx_pow_warn_if_pending_switch(__FUNCTION__);
         current_tag = cvmx_pow_get_current_tag();
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL, "%s called with NULL tag\n", __FUNCTION__);
-        cvmx_warn_if((current_tag.s.type == tag_type) && (current_tag.s.tag == tag), "%s called to perform a tag switch to the same tag\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL, "%s called with NULL tag\n", __FUNCTION__);
+        cvmx_warn_if((current_tag.tag_type == tag_type) && (current_tag.tag == tag), "%s called to perform a tag switch to the same tag\n", __FUNCTION__);
         cvmx_warn_if(tag_type == CVMX_POW_TAG_TYPE_NULL, "%s called to perform a tag switch to NULL. Use cvmx_pow_tag_sw_null() instead\n", __FUNCTION__);
     }
 
@@ -1149,11 +1661,16 @@ static inline void cvmx_pow_tag_sw_nocheck(uint32_t tag, cvmx_pow_tag_type_t tag
     ** value if that is important.
     */
 
-
     tag_req.u64 = 0;
-    tag_req.s.op = CVMX_POW_TAG_OP_SWTAG;
-    tag_req.s.tag = tag;
-    tag_req.s.type = tag_type;
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        tag_req.s_cn68xx_other.op = CVMX_POW_TAG_OP_SWTAG;
+        tag_req.s_cn68xx_other.tag = tag;
+        tag_req.s_cn68xx_other.type = tag_type;
+    } else {
+        tag_req.s_cn38xx.op = CVMX_POW_TAG_OP_SWTAG;
+        tag_req.s_cn38xx.tag = tag;
+        tag_req.s_cn38xx.type = tag_type;
+    }
 
     ptr.u64 = 0;
     ptr.sio.mem_region = CVMX_IO_SEG;
@@ -1230,13 +1747,13 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag, c
 
     if (CVMX_ENABLE_POW_CHECKS)
     {
-        cvmx_pow_tag_req_t current_tag;
+        cvmx_pow_tag_info_t current_tag;
         __cvmx_pow_warn_if_pending_switch(__FUNCTION__);
         current_tag = cvmx_pow_get_current_tag();
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
-        cvmx_warn_if((current_tag.s.type == tag_type) && (current_tag.s.tag == tag), "%s called to perform a tag switch to the same tag\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
+        cvmx_warn_if((current_tag.tag_type == tag_type) && (current_tag.tag == tag), "%s called to perform a tag switch to the same tag\n", __FUNCTION__);
         cvmx_warn_if(tag_type == CVMX_POW_TAG_TYPE_NULL, "%s called to perform a tag switch to NULL. Use cvmx_pow_tag_sw_null() instead\n", __FUNCTION__);
-        if (wqp != cvmx_phys_to_ptr(0x80))
+        if ((wqp != cvmx_phys_to_ptr(0x80)) && cvmx_pow_get_current_wqp())
             cvmx_warn_if(wqp != cvmx_pow_get_current_wqp(), "%s passed WQE(%p) doesn't match the address in the POW(%p)\n", __FUNCTION__, wqp, cvmx_pow_get_current_wqp());
     }
 
@@ -1247,10 +1764,17 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag, c
     */
 
     tag_req.u64 = 0;
-    tag_req.s.op = CVMX_POW_TAG_OP_SWTAG_FULL;
-    tag_req.s.tag = tag;
-    tag_req.s.type = tag_type;
-    tag_req.s.grp = group;
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        tag_req.s_cn68xx_other.op = CVMX_POW_TAG_OP_SWTAG_FULL;
+        tag_req.s_cn68xx_other.tag = tag;
+        tag_req.s_cn68xx_other.type = tag_type;
+        tag_req.s_cn68xx_other.grp = group;
+    } else {
+        tag_req.s_cn38xx.op = CVMX_POW_TAG_OP_SWTAG_FULL;
+        tag_req.s_cn38xx.tag = tag;
+        tag_req.s_cn38xx.type = tag_type;
+        tag_req.s_cn38xx.grp = group;
+    }
 
     ptr.u64 = 0;
     ptr.sio.mem_region = CVMX_IO_SEG;
@@ -1299,8 +1823,8 @@ static inline void cvmx_pow_tag_sw_full(cvmx_wqe_t *wqp, uint32_t tag, cvmx_pow_
 /**
  * Switch to a NULL tag, which ends any ordering or
  * synchronization provided by the POW for the current
- * work queue entry.  This operation completes immediatly,
- * so completetion should not be waited for.
+ * work queue entry.  This operation completes immediately,
+ * so completion should not be waited for.
  * This function does NOT wait for previous tag switches to complete,
  * so the caller must ensure that any previous tag switches have completed.
  */
@@ -1311,16 +1835,21 @@ static inline void cvmx_pow_tag_sw_null_nocheck(void)
 
     if (CVMX_ENABLE_POW_CHECKS)
     {
-        cvmx_pow_tag_req_t current_tag;
+        cvmx_pow_tag_info_t current_tag;
         __cvmx_pow_warn_if_pending_switch(__FUNCTION__);
         current_tag = cvmx_pow_get_current_tag();
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL, "%s called when we already have a NULL tag\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL, "%s called when we already have a NULL tag\n", __FUNCTION__);
     }
 
     tag_req.u64 = 0;
-    tag_req.s.op = CVMX_POW_TAG_OP_SWTAG;
-    tag_req.s.type = CVMX_POW_TAG_TYPE_NULL;
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        tag_req.s_cn68xx_other.op = CVMX_POW_TAG_OP_SWTAG;
+        tag_req.s_cn68xx_other.type = CVMX_POW_TAG_TYPE_NULL;
+    } else {
+        tag_req.s_cn38xx.op = CVMX_POW_TAG_OP_SWTAG;
+        tag_req.s_cn38xx.type = CVMX_POW_TAG_TYPE_NULL;
+    }
 
 
     ptr.u64 = 0;
@@ -1338,7 +1867,7 @@ static inline void cvmx_pow_tag_sw_null_nocheck(void)
  * Switch to a NULL tag, which ends any ordering or
  * synchronization provided by the POW for the current
  * work queue entry.  This operation completes immediatly,
- * so completetion should not be waited for.
+ * so completion should not be waited for.
  * This function waits for any pending tag switches to complete
  * before requesting the switch to NULL.
  */
@@ -1374,18 +1903,36 @@ static inline void cvmx_pow_work_submit(cvmx_wqe_t *wqp, uint32_t tag, cvmx_pow_
     cvmx_addr_t ptr;
     cvmx_pow_tag_req_t tag_req;
 
-    wqp->qos = qos;
-    wqp->tag = tag;
-    wqp->tag_type = tag_type;
-    wqp->grp = grp;
-
     tag_req.u64 = 0;
-    tag_req.s.op = CVMX_POW_TAG_OP_ADDWQ;
-    tag_req.s.type = tag_type;
-    tag_req.s.tag = tag;
-    tag_req.s.qos = qos;
-    tag_req.s.grp = grp;
 
+    wqp->word1.s.tag = tag;
+    wqp->word1.s.tag_type = tag_type;
+
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        /* Reset all reserved bits */
+        wqp->word1.cn68xx.zero_0 = 0;
+        wqp->word1.cn68xx.zero_1 = 0;
+        wqp->word1.cn68xx.zero_2 = 0;
+        wqp->word1.cn68xx.qos = qos;
+        wqp->word1.cn68xx.grp = grp;
+
+        tag_req.s_cn68xx_add.op = CVMX_POW_TAG_OP_ADDWQ;
+        tag_req.s_cn68xx_add.type = tag_type;
+        tag_req.s_cn68xx_add.tag = tag;
+        tag_req.s_cn68xx_add.qos = qos;
+        tag_req.s_cn68xx_add.grp = grp;
+    } else {
+        /* Reset all reserved bits */
+        wqp->word1.cn38xx.zero_2 = 0;
+        wqp->word1.cn38xx.qos = qos;
+        wqp->word1.cn38xx.grp = grp;
+
+        tag_req.s_cn38xx.op = CVMX_POW_TAG_OP_ADDWQ;
+        tag_req.s_cn38xx.type = tag_type;
+        tag_req.s_cn38xx.tag = tag;
+        tag_req.s_cn38xx.qos = qos;
+        tag_req.s_cn38xx.grp = grp;
+    }
 
     ptr.u64 = 0;
     ptr.sio.mem_region = CVMX_IO_SEG;
@@ -1414,11 +1961,20 @@ static inline void cvmx_pow_work_submit(cvmx_wqe_t *wqp, uint32_t tag, cvmx_pow_
  */
 static inline void cvmx_pow_set_group_mask(uint64_t core_num, uint64_t mask)
 {
-    cvmx_pow_pp_grp_mskx_t grp_msk;
 
-    grp_msk.u64 = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(core_num));
-    grp_msk.s.grp_msk = mask;
-    cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(core_num), grp_msk.u64);
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE))
+    {
+        cvmx_sso_ppx_grp_msk_t grp_msk;
+        grp_msk.s.grp_msk = mask;
+        cvmx_write_csr(CVMX_SSO_PPX_GRP_MSK(core_num), grp_msk.u64);
+    }
+    else
+    {
+        cvmx_pow_pp_grp_mskx_t grp_msk;
+        grp_msk.u64 = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(core_num));
+        grp_msk.s.grp_msk = mask;
+        cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(core_num), grp_msk.u64);
+    }
 }
 
 /**
@@ -1436,8 +1992,42 @@ static inline void cvmx_pow_set_group_mask(uint64_t core_num, uint64_t mask)
  */
 static inline void cvmx_pow_set_priority(uint64_t core_num, const uint8_t priority[])
 {
+    if (OCTEON_IS_MODEL(OCTEON_CN3XXX))
+        return;
+
+    /* Detect gaps between priorities and flag error */
+    {
+        int i;
+        uint32_t prio_mask = 0;
+
+        for(i=0; i<8; i++)
+            if (priority[i] != 0xF)
+                prio_mask |= 1<<priority[i];
+
+        if ( prio_mask ^ ((1<<cvmx_pop(prio_mask)) - 1))
+        {
+            cvmx_dprintf("ERROR: POW static priorities should be contiguous (0x%llx)\n", (unsigned long long)prio_mask);
+            return;
+        }
+    }
+
     /* POW priorities are supported on CN5xxx and later */
-    if (!OCTEON_IS_MODEL(OCTEON_CN3XXX))
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE))
+    {
+        cvmx_sso_ppx_qos_pri_t qos_pri;
+
+        qos_pri.u64 = cvmx_read_csr(CVMX_SSO_PPX_QOS_PRI(core_num));
+        qos_pri.s.qos0_pri = priority[0]; 
+        qos_pri.s.qos1_pri = priority[1]; 
+        qos_pri.s.qos2_pri = priority[2]; 
+        qos_pri.s.qos3_pri = priority[3]; 
+        qos_pri.s.qos4_pri = priority[4]; 
+        qos_pri.s.qos5_pri = priority[5]; 
+        qos_pri.s.qos6_pri = priority[6]; 
+        qos_pri.s.qos7_pri = priority[7]; 
+        cvmx_write_csr(CVMX_SSO_PPX_QOS_PRI(core_num), qos_pri.u64);
+    }
+    else
     {
         cvmx_pow_pp_grp_mskx_t grp_msk;
 
@@ -1451,29 +2041,13 @@ static inline void cvmx_pow_set_priority(uint64_t core_num, const uint8_t priori
         grp_msk.s.qos6_pri = priority[6];
         grp_msk.s.qos7_pri = priority[7];
 
-        /* Detect gaps between priorities and flag error */
-        {
-            int i;
-            uint32_t prio_mask = 0;
-
-            for(i=0; i<8; i++)
-               if (priority[i] != 0xF)
-		   prio_mask |= 1<<priority[i];
-
-            if ( prio_mask ^ ((1<<cvmx_pop(prio_mask)) - 1))
-            {
-                cvmx_dprintf("ERROR: POW static priorities should be contiguous (0x%llx)\n", (unsigned long long)prio_mask);
-                return;
-            }
-        }
-
         cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(core_num), grp_msk.u64);
     }
 }
 
 /**
  * Performs a tag switch and then an immediate deschedule. This completes
- * immediatly, so completion must not be waited for.  This function does NOT
+ * immediately, so completion must not be waited for.  This function does NOT
  * update the wqe in DRAM to match arguments.
  *
  * This function does NOT wait for any prior tag switches to complete, so the
@@ -1519,20 +2093,28 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(uint32_t tag, cvmx_pow_tag_ty
 
     if (CVMX_ENABLE_POW_CHECKS)
     {
-        cvmx_pow_tag_req_t current_tag;
+        cvmx_pow_tag_info_t current_tag;
         __cvmx_pow_warn_if_pending_switch(__FUNCTION__);
         current_tag = cvmx_pow_get_current_tag();
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL, "%s called with NULL tag. Deschedule not allowed from NULL state\n", __FUNCTION__);
-        cvmx_warn_if((current_tag.s.type != CVMX_POW_TAG_TYPE_ATOMIC) && (tag_type != CVMX_POW_TAG_TYPE_ATOMIC), "%s called where neither the before or after tag is ATOMIC\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL, "%s called with NULL tag. Deschedule not allowed from NULL state\n", __FUNCTION__);
+        cvmx_warn_if((current_tag.tag_type != CVMX_POW_TAG_TYPE_ATOMIC) && (tag_type != CVMX_POW_TAG_TYPE_ATOMIC), "%s called where neither the before or after tag is ATOMIC\n", __FUNCTION__);
     }
 
     tag_req.u64 = 0;
-    tag_req.s.op = CVMX_POW_TAG_OP_SWTAG_DESCH;
-    tag_req.s.tag = tag;
-    tag_req.s.type = tag_type;
-    tag_req.s.grp = group;
-    tag_req.s.no_sched = no_sched;
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        tag_req.s_cn68xx_other.op = CVMX_POW_TAG_OP_SWTAG_DESCH;
+        tag_req.s_cn68xx_other.tag = tag;
+        tag_req.s_cn68xx_other.type = tag_type;
+        tag_req.s_cn68xx_other.grp = group;
+        tag_req.s_cn68xx_other.no_sched = no_sched;
+    } else {
+        tag_req.s_cn38xx.op = CVMX_POW_TAG_OP_SWTAG_DESCH;
+        tag_req.s_cn38xx.tag = tag;
+        tag_req.s_cn38xx.type = tag_type;
+        tag_req.s_cn38xx.grp = group;
+        tag_req.s_cn38xx.no_sched = no_sched;
+    }
 
     ptr.u64 = 0;
     ptr.sio.mem_region = CVMX_IO_SEG;
@@ -1543,7 +2125,7 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(uint32_t tag, cvmx_pow_tag_ty
 }
 /**
  * Performs a tag switch and then an immediate deschedule. This completes
- * immediatly, so completion must not be waited for.  This function does NOT
+ * immediately, so completion must not be waited for.  This function does NOT
  * update the wqe in DRAM to match arguments.
  *
  * This function waits for any prior tag switches to complete, so the
@@ -1612,19 +2194,24 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
 
     if (CVMX_ENABLE_POW_CHECKS)
     {
-        cvmx_pow_tag_req_t current_tag;
+        cvmx_pow_tag_info_t current_tag;
         __cvmx_pow_warn_if_pending_switch(__FUNCTION__);
         current_tag = cvmx_pow_get_current_tag();
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
-        cvmx_warn_if(current_tag.s.type == CVMX_POW_TAG_TYPE_NULL, "%s called with NULL tag. Deschedule not expected from NULL state\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL_NULL, "%s called with NULL_NULL tag\n", __FUNCTION__);
+        cvmx_warn_if(current_tag.tag_type == CVMX_POW_TAG_TYPE_NULL, "%s called with NULL tag. Deschedule not expected from NULL state\n", __FUNCTION__);
     }
 
     /* Need to make sure any writes to the work queue entry are complete */
     CVMX_SYNCWS;
 
     tag_req.u64 = 0;
-    tag_req.s.op = CVMX_POW_TAG_OP_DESCH;
-    tag_req.s.no_sched = no_sched;
+    if (octeon_has_feature(OCTEON_FEATURE_CN68XX_WQE)) {
+        tag_req.s_cn68xx_other.op = CVMX_POW_TAG_OP_DESCH;
+        tag_req.s_cn68xx_other.no_sched = no_sched;
+    } else {
+        tag_req.s_cn38xx.op = CVMX_POW_TAG_OP_DESCH;
+        tag_req.s_cn38xx.no_sched = no_sched;
+    }
 
     ptr.u64 = 0;
     ptr.sio.mem_region = CVMX_IO_SEG;
@@ -1742,7 +2329,7 @@ extern void cvmx_pow_display(void *buffer, int buffer_size);
 extern int cvmx_pow_get_num_entries(void);
 
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 }
 #endif
 

@@ -336,8 +336,8 @@ extern	int ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
 
 extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
-		HAL_CIPHER cipher, uint8_t delims, u_int segLen, HAL_BOOL firstSeg,
-		HAL_BOOL lastSeg);
+		HAL_CIPHER cipher, uint8_t delims, u_int segLen,
+		HAL_BOOL firstSeg, HAL_BOOL lastSeg, HAL_BOOL lastAggr);
 extern	HAL_BOOL ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int aggrLen, u_int flags, u_int txPower, u_int txRate0, u_int txTries0,
 		u_int antMode, u_int rtsctsRate, u_int rtsctsDuration);

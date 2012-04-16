@@ -38,14 +38,6 @@ CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
 CPU_NLM		opt_global.h
 
-# XXX These are bogus and should be replaced by proper ABI or ISA checks.
-ISA_MIPS1	opt_cputype.h
-ISA_MIPS3	opt_cputype.h
-ISA_MIPS32	opt_cputype.h
-ISA_MIPS32v2	opt_cputype.h
-ISA_MIPS64	opt_cputype.h
-ISA_MIPS64v2	opt_cputype.h
-
 COMPAT_FREEBSD32	opt_compat.h
 
 YAMON		opt_global.h

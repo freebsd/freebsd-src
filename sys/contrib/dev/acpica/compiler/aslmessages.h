@@ -157,6 +157,7 @@ typedef enum
     ASL_MSG_OUTPUT_FILE_OPEN,
     ASL_MSG_OUTPUT_FILENAME,
     ASL_MSG_PACKAGE_LENGTH,
+    ASL_MSG_PREPROCESSOR_FILENAME,
     ASL_MSG_READ,
     ASL_MSG_RECURSION,
     ASL_MSG_REGION_BUFFER_ACCESS,
@@ -197,7 +198,20 @@ typedef enum
     ASL_MSG_VENDOR_LIST,
     ASL_MSG_WRITE,
 
-/* These messages are used by the data table compiler only */
+    /* These messages are used by the Preprocessor only */
+
+    ASL_MSG_DIRECTIVE_SYNTAX,
+    ASL_MSG_ENDIF_MISMATCH,
+    ASL_MSG_ERROR_DIRECTIVE,
+    ASL_MSG_EXISTING_NAME,
+    ASL_MSG_INVALID_INVOCATION,
+    ASL_MSG_MACRO_SYNTAX,
+    ASL_MSG_TOO_MANY_ARGUMENTS,
+    ASL_MSG_UNKNOWN_DIRECTIVE,
+    ASL_MSG_UNKNOWN_PRAGMA,
+
+
+    /* These messages are used by the data table compiler only */
 
     ASL_MSG_BUFFER_ELEMENT,
     ASL_MSG_DIVIDE_BY_ZERO,
@@ -317,6 +331,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_OUTPUT_FILE_OPEN */           "Could not open output AML file",
 /*    ASL_MSG_OUTPUT_FILENAME */            "Could not create output filename",
 /*    ASL_MSG_PACKAGE_LENGTH */             "Effective AML package length is zero",
+/*    ASL_MSG_PREPROCESSOR_FILENAME */      "Could not create preprocessor filename",
 /*    ASL_MSG_READ */                       "Could not read file",
 /*    ASL_MSG_RECURSION */                  "Recursive method call",
 /*    ASL_MSG_REGION_BUFFER_ACCESS */       "Host Operation Region requires BufferAcc access",
@@ -357,7 +372,19 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_VENDOR_LIST */                "Too many vendor data bytes (7 max)",
 /*    ASL_MSG_WRITE */                      "Could not write file",
 
-/* These messages are used by the data table compiler only */
+/* Preprocessor */
+
+/*    ASL_MSG_DIRECTIVE_SYNTAX */           "Invalid directive syntax",
+/*    ASL_MSG_ENDIF_MISMATCH */             "Mismatched #endif",
+/*    ASL_MSG_ERROR_DIRECTIVE */            "#error",
+/*    ASL_MSG_EXISTING_NAME */              "Name is already defined",
+/*    ASL_MSG_INVALID_INVOCATION */         "Invalid macro invocation",
+/*    ASL_MSG_MACRO_SYNTAX */               "Invalid macro syntax",
+/*    ASL_MSG_TOO_MANY_ARGUMENTS */         "Too many macro arguments",
+/*    ASL_MSG_UNKNOWN_DIRECTIVE */          "Unknown directive",
+/*    ASL_MSG_UNKNOWN_PRAGMA */             "Unknown pragma",
+
+/* Table compiler */
 
 /*    ASL_MSG_BUFFER_ELEMENT */             "Invalid element in buffer initializer list",
 /*    ASL_MSG_DIVIDE_BY_ZERO */             "Expression contains divide-by-zero",

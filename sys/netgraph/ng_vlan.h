@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 IPNET Internet Communication Company
+ * Copyright (c) 2011 - 2012 Rozhuk Ivan <rozhuk.im@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +32,9 @@
 #ifndef _NETGRAPH_NG_VLAN_H_
 #define	_NETGRAPH_NG_VLAN_H_
 
+/* Using "vlan" in addfilter and gettable messages. 2012.01 */
+#define	NG_VLAN_USE_OLD_VLAN_NAME 1
+
 /* Node type name and magic cookie. */
 #define	NG_VLAN_NODE_TYPE	"vlan"
 #define	NGM_VLAN_COOKIE		1068486472
@@ -43,21 +47,50 @@
 enum {
 	NGM_VLAN_ADD_FILTER = 1,
 	NGM_VLAN_DEL_FILTER,
-	NGM_VLAN_GET_TABLE
+	NGM_VLAN_GET_TABLE,
+	NGM_VLAN_DEL_VID_FLT,
+	NGM_VLAN_GET_DECAP,
+	NGM_VLAN_SET_DECAP,
+	NGM_VLAN_GET_ENCAP,
+	NGM_VLAN_SET_ENCAP,
+	NGM_VLAN_GET_ENCAP_PROTO,
+	NGM_VLAN_SET_ENCAP_PROTO,
 };
+
+#define	VLAN_ENCAP_FROM_FILTER	0x00000001
+#define	VLAN_ENCAP_FROM_NOMATCH	0x00000002
 
 /* For NGM_VLAN_ADD_FILTER control message. */
 struct ng_vlan_filter {
-	char		hook[NG_HOOKSIZ];
-	u_int16_t	vlan;
-};	
+	char		hook_name[NG_HOOKSIZ];
+#ifdef	NG_VLAN_USE_OLD_VLAN_NAME
+	uint16_t	vlan;	/* VLAN - same as vid, oldname, deprecated. */
+#endif
+	uint16_t	vid;	/* VID - VLAN Identifier. */
+	uint8_t		pcp;	/* PCP - Priority Code Point. */
+	uint8_t		cfi;	/* CFI - Canonical Format Indicator. */
+};
 
 /* Keep this in sync with the above structure definition.  */
+#ifdef	NG_VLAN_USE_OLD_VLAN_NAME
 #define	NG_VLAN_FILTER_FIELDS	{				\
-	{ "hook",	&ng_parse_hookbuf_type  },		\
-	{ "vlan",	&ng_parse_uint16_type   },		\
+	{ "hook",	&ng_parse_hookbuf_type	},		\
+	{ "vlan",	&ng_parse_uint16_type	},		\
+	{ "vid",	&ng_parse_uint16_type	},		\
+	{ "pcp",	&ng_parse_uint8_type	},		\
+	{ "cfi",	&ng_parse_uint8_type	},		\
 	{ NULL }						\
 }
+#else
+#define	NG_VLAN_FILTER_FIELDS	{				\
+	{ "hook",	&ng_parse_hookbuf_type	},		\
+	{ "vid",	&ng_parse_uint16_type	},		\
+	{ "pcp",	&ng_parse_uint8_type	},		\
+	{ "cfi",	&ng_parse_uint8_type	},		\
+	{ NULL }						\
+}
+#endif
+
 
 /* Structure returned by NGM_VLAN_GET_TABLE. */
 struct ng_vlan_table {

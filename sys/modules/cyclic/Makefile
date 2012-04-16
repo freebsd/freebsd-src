@@ -10,7 +10,7 @@ SRCS+=		vnode_if.h
 CFLAGS+=	-I${.CURDIR}/../../cddl/compat/opensolaris		\
 		-I${.CURDIR}/../../cddl/contrib/opensolaris/uts/common	\
 		-I${.CURDIR}/../..					\
-		-I${.CURDIR}/../../cddl/dev/cyclic/${MACHINE_CPUARCH:S/amd64/i386/}
+		-I${.CURDIR}/../../cddl/dev/cyclic/i386
 
 CFLAGS+=	-DDEBUG=1
 

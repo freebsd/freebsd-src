@@ -1,17 +1,8 @@
-# $Id: Makefile.am 21446 2007-07-10 12:45:36Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
 AM_CPPFLAGS += $(AFS_EXTRA_DEFS) $(ROKEN_RENAME)
-
-if KRB4
-DEPLIB_krb4 = $(LIB_krb4) $(LIB_hcrypto)
-krb4_am_workaround = $(INCLUDE_krb4)
-else
-DEPLIB_krb4  =
-krb4_am_workaround = 
-endif # KRB4
-AM_CPPFLAGS += $(krb4_am_workaround)
 
 if KRB5
 DEPLIB_krb5 = ../krb5/libkrb5.la 
@@ -33,11 +24,7 @@ AFS_EXTRA_LD = -e _nostart
 endif
 
 if AIX_DYNAMIC_AFS
-if HAVE_DLOPEN
 AIX_SRC = 
-else
-AIX_SRC = dlfcn.c
-endif
 AFS_EXTRA_LIBS = afslib.so
 AFS_EXTRA_DEFS =
 else
@@ -51,7 +38,7 @@ AFSL_EXP =
 AIX_SRC =
 endif # AIX
 
-libkafs_la_LIBADD = $(DEPLIB_krb5) $(LIBADD_roken) $(DEPLIB_krb4)
+libkafs_la_LIBADD = $(DEPLIB_krb5) $(LIBADD_roken)
 
 lib_LTLIBRARIES = libkafs.la
 libkafs_la_LDFLAGS = -version-info 5:1:5
@@ -64,7 +51,7 @@ CLEANFILES= $(AFS_EXTRA_LIBS) $(ROKEN_SRCS)
 include_HEADERS = kafs.h
 
 if KRB5
-afskrb5_c = afskrb5.c
+afskrb5_c = 
 endif
 
 if do_roken_rename
@@ -73,8 +60,7 @@ endif
 
 dist_libkafs_la_SOURCES =			\
 	afssys.c				\
-	afskrb.c				\
-	$(afskrb5_c)				\
+	afskrb5.c				\
 	common.c				\
 	$(AIX_SRC)				\
 	kafs_locl.h				\
@@ -83,9 +69,9 @@ dist_libkafs_la_SOURCES =			\
 
 nodist_libkafs_la_SOURCES = $(ROKEN_SRCS)
 
-EXTRA_libkafs_la_SOURCES = afskrb.c afskrb5.c dlfcn.c afslib.c dlfcn.h
+EXTRA_libkafs_la_SOURCES = afskrb5.c afslib.c
 
-EXTRA_DIST = README.dlfcn afsl.exp afslib.exp $(man_MANS)
+EXTRA_DIST = NTMakefile afsl.exp afslib.exp $(man_MANS)
 
 man_MANS = kafs.3
 

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,14 +49,14 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_AGL_TYPEDEFS_H__
-#define __CVMX_AGL_TYPEDEFS_H__
+#ifndef __CVMX_AGL_DEFS_H__
+#define __CVMX_AGL_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_AGL_GMX_BAD_REG CVMX_AGL_GMX_BAD_REG_FUNC()
 static inline uint64_t CVMX_AGL_GMX_BAD_REG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_BAD_REG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000518ull);
 }
@@ -67,7 +67,7 @@ static inline uint64_t CVMX_AGL_GMX_BAD_REG_FUNC(void)
 #define CVMX_AGL_GMX_BIST CVMX_AGL_GMX_BIST_FUNC()
 static inline uint64_t CVMX_AGL_GMX_BIST_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_BIST not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000400ull);
 }
@@ -102,7 +102,10 @@ static inline uint64_t CVMX_AGL_GMX_PRTX_CFG(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_PRTX_CFG(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000010ull) + ((offset) & 1) * 2048;
 }
@@ -115,7 +118,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CAM0(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CAM0(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000180ull) + ((offset) & 1) * 2048;
 }
@@ -128,7 +134,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CAM1(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CAM1(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000188ull) + ((offset) & 1) * 2048;
 }
@@ -141,7 +150,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CAM2(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CAM2(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000190ull) + ((offset) & 1) * 2048;
 }
@@ -154,7 +166,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CAM3(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CAM3(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000198ull) + ((offset) & 1) * 2048;
 }
@@ -167,7 +182,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CAM4(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CAM4(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00001A0ull) + ((offset) & 1) * 2048;
 }
@@ -180,7 +198,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CAM5(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CAM5(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00001A8ull) + ((offset) & 1) * 2048;
 }
@@ -193,7 +214,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CAM_EN(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CAM_EN(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000108ull) + ((offset) & 1) * 2048;
 }
@@ -206,7 +230,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_ADR_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_ADR_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000100ull) + ((offset) & 1) * 2048;
 }
@@ -219,7 +246,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_DECISION(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_DECISION(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000040ull) + ((offset) & 1) * 2048;
 }
@@ -232,7 +262,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_FRM_CHK(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_FRM_CHK(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000020ull) + ((offset) & 1) * 2048;
 }
@@ -245,7 +278,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_FRM_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_FRM_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000018ull) + ((offset) & 1) * 2048;
 }
@@ -258,7 +294,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_FRM_MAX(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_FRM_MAX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000030ull) + ((offset) & 1) * 2048;
 }
@@ -271,7 +310,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_FRM_MIN(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_FRM_MIN(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000028ull) + ((offset) & 1) * 2048;
 }
@@ -284,7 +326,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_IFG(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_IFG(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000058ull) + ((offset) & 1) * 2048;
 }
@@ -297,7 +342,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_INT_EN(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_INT_EN(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000008ull) + ((offset) & 1) * 2048;
 }
@@ -310,7 +358,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_INT_REG(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_INT_REG(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000000ull) + ((offset) & 1) * 2048;
 }
@@ -323,7 +374,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_JABBER(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_JABBER(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000038ull) + ((offset) & 1) * 2048;
 }
@@ -336,7 +390,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_PAUSE_DROP_TIME(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_PAUSE_DROP_TIME(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000068ull) + ((offset) & 1) * 2048;
 }
@@ -347,7 +404,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_PAUSE_DROP_TIME(unsigned long offset)
 static inline uint64_t CVMX_AGL_GMX_RXX_RX_INBND(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_RX_INBND(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000060ull) + ((offset) & 1) * 2048;
 }
@@ -360,7 +420,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000050ull) + ((offset) & 1) * 2048;
 }
@@ -373,7 +436,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_OCTS(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_OCTS(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000088ull) + ((offset) & 1) * 2048;
 }
@@ -386,7 +452,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_OCTS_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_OCTS_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000098ull) + ((offset) & 1) * 2048;
 }
@@ -399,7 +468,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_OCTS_DMAC(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_OCTS_DMAC(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00000A8ull) + ((offset) & 1) * 2048;
 }
@@ -412,7 +484,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_OCTS_DRP(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_OCTS_DRP(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00000B8ull) + ((offset) & 1) * 2048;
 }
@@ -425,7 +500,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_PKTS(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_PKTS(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000080ull) + ((offset) & 1) * 2048;
 }
@@ -438,7 +516,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_PKTS_BAD(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_PKTS_BAD(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00000C0ull) + ((offset) & 1) * 2048;
 }
@@ -451,7 +532,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_PKTS_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_PKTS_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000090ull) + ((offset) & 1) * 2048;
 }
@@ -464,7 +548,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_PKTS_DMAC(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_PKTS_DMAC(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00000A0ull) + ((offset) & 1) * 2048;
 }
@@ -477,7 +564,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_STATS_PKTS_DRP(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_STATS_PKTS_DRP(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00000B0ull) + ((offset) & 1) * 2048;
 }
@@ -490,7 +580,10 @@ static inline uint64_t CVMX_AGL_GMX_RXX_UDD_SKP(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RXX_UDD_SKP(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000048ull) + ((offset) & 1) * 2048;
 }
@@ -503,7 +596,10 @@ static inline uint64_t CVMX_AGL_GMX_RX_BP_DROPX(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RX_BP_DROPX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000420ull) + ((offset) & 1) * 8;
 }
@@ -516,7 +612,10 @@ static inline uint64_t CVMX_AGL_GMX_RX_BP_OFFX(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RX_BP_OFFX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000460ull) + ((offset) & 1) * 8;
 }
@@ -529,7 +628,10 @@ static inline uint64_t CVMX_AGL_GMX_RX_BP_ONX(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_RX_BP_ONX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000440ull) + ((offset) & 1) * 8;
 }
@@ -540,7 +642,7 @@ static inline uint64_t CVMX_AGL_GMX_RX_BP_ONX(unsigned long offset)
 #define CVMX_AGL_GMX_RX_PRT_INFO CVMX_AGL_GMX_RX_PRT_INFO_FUNC()
 static inline uint64_t CVMX_AGL_GMX_RX_PRT_INFO_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_RX_PRT_INFO not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E00004E8ull);
 }
@@ -551,7 +653,7 @@ static inline uint64_t CVMX_AGL_GMX_RX_PRT_INFO_FUNC(void)
 #define CVMX_AGL_GMX_RX_TX_STATUS CVMX_AGL_GMX_RX_TX_STATUS_FUNC()
 static inline uint64_t CVMX_AGL_GMX_RX_TX_STATUS_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_RX_TX_STATUS not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E00007E8ull);
 }
@@ -564,7 +666,10 @@ static inline uint64_t CVMX_AGL_GMX_SMACX(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_SMACX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000230ull) + ((offset) & 1) * 2048;
 }
@@ -575,7 +680,7 @@ static inline uint64_t CVMX_AGL_GMX_SMACX(unsigned long offset)
 #define CVMX_AGL_GMX_STAT_BP CVMX_AGL_GMX_STAT_BP_FUNC()
 static inline uint64_t CVMX_AGL_GMX_STAT_BP_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_STAT_BP not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000520ull);
 }
@@ -588,7 +693,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_APPEND(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_APPEND(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000218ull) + ((offset) & 1) * 2048;
 }
@@ -599,7 +707,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_APPEND(unsigned long offset)
 static inline uint64_t CVMX_AGL_GMX_TXX_CLK(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_CLK(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000208ull) + ((offset) & 1) * 2048;
 }
@@ -612,7 +723,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000270ull) + ((offset) & 1) * 2048;
 }
@@ -625,7 +739,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_MIN_PKT(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_MIN_PKT(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000240ull) + ((offset) & 1) * 2048;
 }
@@ -638,7 +755,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_PAUSE_PKT_INTERVAL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_PAUSE_PKT_INTERVAL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000248ull) + ((offset) & 1) * 2048;
 }
@@ -651,7 +771,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_PAUSE_PKT_TIME(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_PAUSE_PKT_TIME(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000238ull) + ((offset) & 1) * 2048;
 }
@@ -664,7 +787,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_PAUSE_TOGO(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_PAUSE_TOGO(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000258ull) + ((offset) & 1) * 2048;
 }
@@ -677,7 +803,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_PAUSE_ZERO(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_PAUSE_ZERO(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000260ull) + ((offset) & 1) * 2048;
 }
@@ -690,7 +819,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_SOFT_PAUSE(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_SOFT_PAUSE(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000250ull) + ((offset) & 1) * 2048;
 }
@@ -703,7 +835,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT0(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT0(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000280ull) + ((offset) & 1) * 2048;
 }
@@ -716,7 +851,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT1(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT1(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000288ull) + ((offset) & 1) * 2048;
 }
@@ -729,7 +867,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT2(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT2(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000290ull) + ((offset) & 1) * 2048;
 }
@@ -742,7 +883,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT3(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT3(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000298ull) + ((offset) & 1) * 2048;
 }
@@ -755,7 +899,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT4(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT4(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00002A0ull) + ((offset) & 1) * 2048;
 }
@@ -768,7 +915,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT5(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT5(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00002A8ull) + ((offset) & 1) * 2048;
 }
@@ -781,7 +931,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT6(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT6(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00002B0ull) + ((offset) & 1) * 2048;
 }
@@ -794,7 +947,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT7(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT7(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00002B8ull) + ((offset) & 1) * 2048;
 }
@@ -807,7 +963,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT8(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT8(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00002C0ull) + ((offset) & 1) * 2048;
 }
@@ -820,7 +979,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STAT9(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STAT9(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E00002C8ull) + ((offset) & 1) * 2048;
 }
@@ -833,7 +995,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_STATS_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_STATS_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000268ull) + ((offset) & 1) * 2048;
 }
@@ -846,7 +1011,10 @@ static inline uint64_t CVMX_AGL_GMX_TXX_THRESH(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_GMX_TXX_THRESH(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0000210ull) + ((offset) & 1) * 2048;
 }
@@ -857,7 +1025,7 @@ static inline uint64_t CVMX_AGL_GMX_TXX_THRESH(unsigned long offset)
 #define CVMX_AGL_GMX_TX_BP CVMX_AGL_GMX_TX_BP_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_BP_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_BP not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E00004D0ull);
 }
@@ -868,7 +1036,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_BP_FUNC(void)
 #define CVMX_AGL_GMX_TX_COL_ATTEMPT CVMX_AGL_GMX_TX_COL_ATTEMPT_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_COL_ATTEMPT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_COL_ATTEMPT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000498ull);
 }
@@ -879,7 +1047,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_COL_ATTEMPT_FUNC(void)
 #define CVMX_AGL_GMX_TX_IFG CVMX_AGL_GMX_TX_IFG_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_IFG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_IFG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000488ull);
 }
@@ -890,7 +1058,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_IFG_FUNC(void)
 #define CVMX_AGL_GMX_TX_INT_EN CVMX_AGL_GMX_TX_INT_EN_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_INT_EN_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_INT_EN not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000508ull);
 }
@@ -901,7 +1069,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_INT_EN_FUNC(void)
 #define CVMX_AGL_GMX_TX_INT_REG CVMX_AGL_GMX_TX_INT_REG_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_INT_REG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_INT_REG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000500ull);
 }
@@ -912,7 +1080,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_INT_REG_FUNC(void)
 #define CVMX_AGL_GMX_TX_JAM CVMX_AGL_GMX_TX_JAM_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_JAM_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_JAM not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E0000490ull);
 }
@@ -923,7 +1091,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_JAM_FUNC(void)
 #define CVMX_AGL_GMX_TX_LFSR CVMX_AGL_GMX_TX_LFSR_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_LFSR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_LFSR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E00004F8ull);
 }
@@ -934,7 +1102,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_LFSR_FUNC(void)
 #define CVMX_AGL_GMX_TX_OVR_BP CVMX_AGL_GMX_TX_OVR_BP_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_OVR_BP_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_OVR_BP not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E00004C8ull);
 }
@@ -945,7 +1113,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_OVR_BP_FUNC(void)
 #define CVMX_AGL_GMX_TX_PAUSE_PKT_DMAC CVMX_AGL_GMX_TX_PAUSE_PKT_DMAC_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_PAUSE_PKT_DMAC_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_PAUSE_PKT_DMAC not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E00004A0ull);
 }
@@ -956,7 +1124,7 @@ static inline uint64_t CVMX_AGL_GMX_TX_PAUSE_PKT_DMAC_FUNC(void)
 #define CVMX_AGL_GMX_TX_PAUSE_PKT_TYPE CVMX_AGL_GMX_TX_PAUSE_PKT_TYPE_FUNC()
 static inline uint64_t CVMX_AGL_GMX_TX_PAUSE_PKT_TYPE_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_AGL_GMX_TX_PAUSE_PKT_TYPE not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800E00004A8ull);
 }
@@ -967,7 +1135,10 @@ static inline uint64_t CVMX_AGL_GMX_TX_PAUSE_PKT_TYPE_FUNC(void)
 static inline uint64_t CVMX_AGL_PRTX_CTL(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_AGL_PRTX_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800E0002000ull) + ((offset) & 1) * 8;
 }
@@ -986,12 +1157,10 @@ static inline uint64_t CVMX_AGL_PRTX_CTL(unsigned long offset)
  * OUT_OVR[1], LOSTSTAT[1], OVRFLW1, TXPOP1, TXPSH1 will be reset when MIX1_CTL[RESET] is set to 1.
  * STATOVR will be reset when both MIX0/1_CTL[RESET] are set to 1.
  */
-union cvmx_agl_gmx_bad_reg
-{
+union cvmx_agl_gmx_bad_reg {
 	uint64_t u64;
-	struct cvmx_agl_gmx_bad_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_bad_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t txpsh1                       : 1;  /**< TX FIFO overflow (MII1) */
 	uint64_t txpop1                       : 1;  /**< TX FIFO underflow (MII1) */
@@ -1025,9 +1194,8 @@ union cvmx_agl_gmx_bad_reg
 	uint64_t reserved_38_63               : 26;
 #endif
 	} s;
-	struct cvmx_agl_gmx_bad_reg_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_bad_reg_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t txpsh1                       : 1;  /**< TX FIFO overflow (MII1) */
 	uint64_t txpop1                       : 1;  /**< TX FIFO underflow (MII1) */
@@ -1061,9 +1229,8 @@ union cvmx_agl_gmx_bad_reg
 #endif
 	} cn52xx;
 	struct cvmx_agl_gmx_bad_reg_cn52xx    cn52xxp1;
-	struct cvmx_agl_gmx_bad_reg_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_bad_reg_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_35_63               : 29;
 	uint64_t txpsh                        : 1;  /**< TX FIFO overflow */
 	uint64_t txpop                        : 1;  /**< TX FIFO underflow */
@@ -1091,8 +1258,12 @@ union cvmx_agl_gmx_bad_reg
 #endif
 	} cn56xx;
 	struct cvmx_agl_gmx_bad_reg_cn56xx    cn56xxp1;
+	struct cvmx_agl_gmx_bad_reg_s         cn61xx;
 	struct cvmx_agl_gmx_bad_reg_s         cn63xx;
 	struct cvmx_agl_gmx_bad_reg_s         cn63xxp1;
+	struct cvmx_agl_gmx_bad_reg_s         cn66xx;
+	struct cvmx_agl_gmx_bad_reg_s         cn68xx;
+	struct cvmx_agl_gmx_bad_reg_s         cn68xxp1;
 };
 typedef union cvmx_agl_gmx_bad_reg cvmx_agl_gmx_bad_reg_t;
 
@@ -1106,12 +1277,10 @@ typedef union cvmx_agl_gmx_bad_reg cvmx_agl_gmx_bad_reg_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_bist
-{
+union cvmx_agl_gmx_bist {
 	uint64_t u64;
-	struct cvmx_agl_gmx_bist_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_bist_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_25_63               : 39;
 	uint64_t status                       : 25; /**< BIST Results.
                                                          HW sets a bit in BIST for for memory that fails
@@ -1131,8 +1300,8 @@ union cvmx_agl_gmx_bist
                                                          - 13: gmx#.outb.fif.fif_bnk_ext1
                                                          - 14: RAZ
                                                          - 15: RAZ
-                                                         - 16: gmx#.csr.gmi0.srf8x64m1_bist
-                                                         - 17: gmx#.csr.gmi1.srf8x64m1_bist
+                                                         - 16: RAZ
+                                                         - 17: RAZ
                                                          - 18: RAZ
                                                          - 19: RAZ
                                                          - 20: gmx#.csr.drf20x32m2_bist
@@ -1145,9 +1314,8 @@ union cvmx_agl_gmx_bist
 	uint64_t reserved_25_63               : 39;
 #endif
 	} s;
-	struct cvmx_agl_gmx_bist_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_bist_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t status                       : 10; /**< BIST Results.
                                                           HW sets a bit in BIST for for memory that fails
@@ -1169,8 +1337,12 @@ union cvmx_agl_gmx_bist
 	struct cvmx_agl_gmx_bist_cn52xx       cn52xxp1;
 	struct cvmx_agl_gmx_bist_cn52xx       cn56xx;
 	struct cvmx_agl_gmx_bist_cn52xx       cn56xxp1;
+	struct cvmx_agl_gmx_bist_s            cn61xx;
 	struct cvmx_agl_gmx_bist_s            cn63xx;
 	struct cvmx_agl_gmx_bist_s            cn63xxp1;
+	struct cvmx_agl_gmx_bist_s            cn66xx;
+	struct cvmx_agl_gmx_bist_s            cn68xx;
+	struct cvmx_agl_gmx_bist_s            cn68xxp1;
 };
 typedef union cvmx_agl_gmx_bist cvmx_agl_gmx_bist_t;
 
@@ -1184,12 +1356,10 @@ typedef union cvmx_agl_gmx_bist cvmx_agl_gmx_bist_t;
  * NCTL, PCTL, BYP_EN    will be reset when MIX0_CTL[RESET] is set to 1.
  * NCTL1, PCTL1, BYP_EN1 will be reset when MIX1_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_drv_ctl
-{
+union cvmx_agl_gmx_drv_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_drv_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_drv_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_49_63               : 15;
 	uint64_t byp_en1                      : 1;  /**< Compensation Controller Bypass Enable (MII1) */
 	uint64_t reserved_45_47               : 3;
@@ -1219,9 +1389,8 @@ union cvmx_agl_gmx_drv_ctl
 	} s;
 	struct cvmx_agl_gmx_drv_ctl_s         cn52xx;
 	struct cvmx_agl_gmx_drv_ctl_s         cn52xxp1;
-	struct cvmx_agl_gmx_drv_ctl_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_drv_ctl_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t byp_en                       : 1;  /**< Compensation Controller Bypass Enable */
 	uint64_t reserved_13_15               : 3;
@@ -1251,12 +1420,10 @@ typedef union cvmx_agl_gmx_drv_ctl cvmx_agl_gmx_drv_ctl_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_inf_mode
-{
+union cvmx_agl_gmx_inf_mode {
 	uint64_t u64;
-	struct cvmx_agl_gmx_inf_mode_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_inf_mode_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t en                           : 1;  /**< Interface Enable */
 	uint64_t reserved_0_0                 : 1;
@@ -1283,12 +1450,10 @@ typedef union cvmx_agl_gmx_inf_mode cvmx_agl_gmx_inf_mode_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_prtx_cfg
-{
+union cvmx_agl_gmx_prtx_cfg {
 	uint64_t u64;
-	struct cvmx_agl_gmx_prtx_cfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_prtx_cfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t tx_idle                      : 1;  /**< TX Machine is idle */
 	uint64_t rx_idle                      : 1;  /**< RX Machine is idle */
@@ -1346,9 +1511,8 @@ union cvmx_agl_gmx_prtx_cfg
 	uint64_t reserved_14_63               : 50;
 #endif
 	} s;
-	struct cvmx_agl_gmx_prtx_cfg_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_prtx_cfg_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t tx_en                        : 1;  /**< Port enable.  Must be set for Octane to send
                                                          RMGII traffic.   When this bit clear on a given
@@ -1388,8 +1552,12 @@ union cvmx_agl_gmx_prtx_cfg
 	struct cvmx_agl_gmx_prtx_cfg_cn52xx   cn52xxp1;
 	struct cvmx_agl_gmx_prtx_cfg_cn52xx   cn56xx;
 	struct cvmx_agl_gmx_prtx_cfg_cn52xx   cn56xxp1;
+	struct cvmx_agl_gmx_prtx_cfg_s        cn61xx;
 	struct cvmx_agl_gmx_prtx_cfg_s        cn63xx;
 	struct cvmx_agl_gmx_prtx_cfg_s        cn63xxp1;
+	struct cvmx_agl_gmx_prtx_cfg_s        cn66xx;
+	struct cvmx_agl_gmx_prtx_cfg_s        cn68xx;
+	struct cvmx_agl_gmx_prtx_cfg_s        cn68xxp1;
 };
 typedef union cvmx_agl_gmx_prtx_cfg cvmx_agl_gmx_prtx_cfg_t;
 
@@ -1403,16 +1571,12 @@ typedef union cvmx_agl_gmx_prtx_cfg cvmx_agl_gmx_prtx_cfg_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_adr_cam0
-{
+union cvmx_agl_gmx_rxx_adr_cam0 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_cam0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_cam0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t adr                          : 64; /**< The DMAC address to match on
-                                                         Each entry contributes 8bits to one of 8 matchers
-                                                         Write transactions to AGL_GMX_RX_ADR_CAM will not
-                                                         change the CSR when AGL_GMX_PRT_CFG[EN] is enabled
+                                                         Each entry contributes 8bits to one of 8 matchers.
                                                          The CAM matches against unicst or multicst DMAC
                                                          addresses. */
 #else
@@ -1423,8 +1587,12 @@ union cvmx_agl_gmx_rxx_adr_cam0
 	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_cam0_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_cam0 cvmx_agl_gmx_rxx_adr_cam0_t;
 
@@ -1438,16 +1606,12 @@ typedef union cvmx_agl_gmx_rxx_adr_cam0 cvmx_agl_gmx_rxx_adr_cam0_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_adr_cam1
-{
+union cvmx_agl_gmx_rxx_adr_cam1 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_cam1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_cam1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t adr                          : 64; /**< The DMAC address to match on
-                                                         Each entry contributes 8bits to one of 8 matchers
-                                                         Write transactions to AGL_GMX_RX_ADR_CAM will not
-                                                         change the CSR when AGL_GMX_PRT_CFG[EN] is enabled
+                                                         Each entry contributes 8bits to one of 8 matchers.
                                                          The CAM matches against unicst or multicst DMAC
                                                          addresses. */
 #else
@@ -1458,8 +1622,12 @@ union cvmx_agl_gmx_rxx_adr_cam1
 	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_cam1_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_cam1 cvmx_agl_gmx_rxx_adr_cam1_t;
 
@@ -1473,16 +1641,12 @@ typedef union cvmx_agl_gmx_rxx_adr_cam1 cvmx_agl_gmx_rxx_adr_cam1_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_adr_cam2
-{
+union cvmx_agl_gmx_rxx_adr_cam2 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_cam2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_cam2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t adr                          : 64; /**< The DMAC address to match on
-                                                         Each entry contributes 8bits to one of 8 matchers
-                                                         Write transactions to AGL_GMX_RX_ADR_CAM will not
-                                                         change the CSR when AGL_GMX_PRT_CFG[EN] is enabled
+                                                         Each entry contributes 8bits to one of 8 matchers.
                                                          The CAM matches against unicst or multicst DMAC
                                                          addresses. */
 #else
@@ -1493,8 +1657,12 @@ union cvmx_agl_gmx_rxx_adr_cam2
 	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_cam2_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_cam2 cvmx_agl_gmx_rxx_adr_cam2_t;
 
@@ -1508,16 +1676,12 @@ typedef union cvmx_agl_gmx_rxx_adr_cam2 cvmx_agl_gmx_rxx_adr_cam2_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_adr_cam3
-{
+union cvmx_agl_gmx_rxx_adr_cam3 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_cam3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_cam3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t adr                          : 64; /**< The DMAC address to match on
-                                                         Each entry contributes 8bits to one of 8 matchers
-                                                         Write transactions to AGL_GMX_RX_ADR_CAM will not
-                                                         change the CSR when AGL_GMX_PRT_CFG[EN] is enabled
+                                                         Each entry contributes 8bits to one of 8 matchers.
                                                          The CAM matches against unicst or multicst DMAC
                                                          addresses. */
 #else
@@ -1528,8 +1692,12 @@ union cvmx_agl_gmx_rxx_adr_cam3
 	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_cam3_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_cam3 cvmx_agl_gmx_rxx_adr_cam3_t;
 
@@ -1543,16 +1711,12 @@ typedef union cvmx_agl_gmx_rxx_adr_cam3 cvmx_agl_gmx_rxx_adr_cam3_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_adr_cam4
-{
+union cvmx_agl_gmx_rxx_adr_cam4 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_cam4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_cam4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t adr                          : 64; /**< The DMAC address to match on
-                                                         Each entry contributes 8bits to one of 8 matchers
-                                                         Write transactions to AGL_GMX_RX_ADR_CAM will not
-                                                         change the CSR when AGL_GMX_PRT_CFG[EN] is enabled
+                                                         Each entry contributes 8bits to one of 8 matchers.
                                                          The CAM matches against unicst or multicst DMAC
                                                          addresses. */
 #else
@@ -1563,8 +1727,12 @@ union cvmx_agl_gmx_rxx_adr_cam4
 	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_cam4_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_cam4 cvmx_agl_gmx_rxx_adr_cam4_t;
 
@@ -1578,16 +1746,12 @@ typedef union cvmx_agl_gmx_rxx_adr_cam4 cvmx_agl_gmx_rxx_adr_cam4_t;
  * Not reset when MIX*_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_adr_cam5
-{
+union cvmx_agl_gmx_rxx_adr_cam5 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_cam5_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_cam5_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t adr                          : 64; /**< The DMAC address to match on
-                                                         Each entry contributes 8bits to one of 8 matchers
-                                                         Write transactions to AGL_GMX_RX_ADR_CAM will not
-                                                         change the CSR when AGL_GMX_PRT_CFG[EN] is enabled
+                                                         Each entry contributes 8bits to one of 8 matchers.
                                                          The CAM matches against unicst or multicst DMAC
                                                          addresses. */
 #else
@@ -1598,8 +1762,12 @@ union cvmx_agl_gmx_rxx_adr_cam5
 	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_cam5_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_cam5 cvmx_agl_gmx_rxx_adr_cam5_t;
 
@@ -1613,12 +1781,10 @@ typedef union cvmx_agl_gmx_rxx_adr_cam5 cvmx_agl_gmx_rxx_adr_cam5_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_adr_cam_en
-{
+union cvmx_agl_gmx_rxx_adr_cam_en {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_cam_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_cam_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t en                           : 8;  /**< CAM Entry Enables */
 #else
@@ -1630,8 +1796,12 @@ union cvmx_agl_gmx_rxx_adr_cam_en
 	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_cam_en_s  cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_cam_en cvmx_agl_gmx_rxx_adr_cam_en_t;
 
@@ -1679,12 +1849,10 @@ typedef union cvmx_agl_gmx_rxx_adr_cam_en cvmx_agl_gmx_rxx_adr_cam_en_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_adr_ctl
-{
+union cvmx_agl_gmx_rxx_adr_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_adr_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_adr_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t cam_mode                     : 1;  /**< Allow or deny DMAC address filter
                                                          0 = reject the packet on DMAC address match
@@ -1706,8 +1874,12 @@ union cvmx_agl_gmx_rxx_adr_ctl
 	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn52xxp1;
 	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn56xx;
 	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn56xxp1;
+	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn61xx;
 	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn63xx;
 	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn63xxp1;
+	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn66xx;
+	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn68xx;
+	struct cvmx_agl_gmx_rxx_adr_ctl_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_adr_ctl cvmx_agl_gmx_rxx_adr_ctl_t;
 
@@ -1740,12 +1912,10 @@ typedef union cvmx_agl_gmx_rxx_adr_ctl cvmx_agl_gmx_rxx_adr_ctl_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_decision
-{
+union cvmx_agl_gmx_rxx_decision {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_decision_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_decision_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t cnt                          : 5;  /**< The byte count to decide when to accept or filter
                                                          a packet. */
@@ -1758,8 +1928,12 @@ union cvmx_agl_gmx_rxx_decision
 	struct cvmx_agl_gmx_rxx_decision_s    cn52xxp1;
 	struct cvmx_agl_gmx_rxx_decision_s    cn56xx;
 	struct cvmx_agl_gmx_rxx_decision_s    cn56xxp1;
+	struct cvmx_agl_gmx_rxx_decision_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_decision_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_decision_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_decision_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_decision_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_decision_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_decision cvmx_agl_gmx_rxx_decision_t;
 
@@ -1774,12 +1948,10 @@ typedef union cvmx_agl_gmx_rxx_decision cvmx_agl_gmx_rxx_decision_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_frm_chk
-{
+union cvmx_agl_gmx_rxx_frm_chk {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_frm_chk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_frm_chk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t niberr                       : 1;  /**< Nibble error */
 	uint64_t skperr                       : 1;  /**< Skipper error */
@@ -1805,9 +1977,8 @@ union cvmx_agl_gmx_rxx_frm_chk
 	uint64_t reserved_10_63               : 54;
 #endif
 	} s;
-	struct cvmx_agl_gmx_rxx_frm_chk_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_frm_chk_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t skperr                       : 1;  /**< Skipper error */
 	uint64_t rcverr                       : 1;  /**< Frame was received with MII Data reception error */
@@ -1834,8 +2005,12 @@ union cvmx_agl_gmx_rxx_frm_chk
 	struct cvmx_agl_gmx_rxx_frm_chk_cn52xx cn52xxp1;
 	struct cvmx_agl_gmx_rxx_frm_chk_cn52xx cn56xx;
 	struct cvmx_agl_gmx_rxx_frm_chk_cn52xx cn56xxp1;
+	struct cvmx_agl_gmx_rxx_frm_chk_s     cn61xx;
 	struct cvmx_agl_gmx_rxx_frm_chk_s     cn63xx;
 	struct cvmx_agl_gmx_rxx_frm_chk_s     cn63xxp1;
+	struct cvmx_agl_gmx_rxx_frm_chk_s     cn66xx;
+	struct cvmx_agl_gmx_rxx_frm_chk_s     cn68xx;
+	struct cvmx_agl_gmx_rxx_frm_chk_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_frm_chk cvmx_agl_gmx_rxx_frm_chk_t;
 
@@ -1870,12 +2045,10 @@ typedef union cvmx_agl_gmx_rxx_frm_chk cvmx_agl_gmx_rxx_frm_chk_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_frm_ctl
-{
+union cvmx_agl_gmx_rxx_frm_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_frm_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_frm_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t ptp_mode                     : 1;  /**< Timestamp mode
                                                          When PTP_MODE is set, a 64-bit timestamp will be
@@ -1940,9 +2113,8 @@ union cvmx_agl_gmx_rxx_frm_ctl
 	uint64_t reserved_13_63               : 51;
 #endif
 	} s;
-	struct cvmx_agl_gmx_rxx_frm_ctl_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_frm_ctl_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t pre_align                    : 1;  /**< When set, PREAMBLE parser aligns the the SFD byte
                                                          regardless of the number of previous PREAMBLE
@@ -1990,8 +2162,12 @@ union cvmx_agl_gmx_rxx_frm_ctl
 	struct cvmx_agl_gmx_rxx_frm_ctl_cn52xx cn52xxp1;
 	struct cvmx_agl_gmx_rxx_frm_ctl_cn52xx cn56xx;
 	struct cvmx_agl_gmx_rxx_frm_ctl_cn52xx cn56xxp1;
+	struct cvmx_agl_gmx_rxx_frm_ctl_s     cn61xx;
 	struct cvmx_agl_gmx_rxx_frm_ctl_s     cn63xx;
 	struct cvmx_agl_gmx_rxx_frm_ctl_s     cn63xxp1;
+	struct cvmx_agl_gmx_rxx_frm_ctl_s     cn66xx;
+	struct cvmx_agl_gmx_rxx_frm_ctl_s     cn68xx;
+	struct cvmx_agl_gmx_rxx_frm_ctl_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_frm_ctl cvmx_agl_gmx_rxx_frm_ctl_t;
 
@@ -2011,12 +2187,10 @@ typedef union cvmx_agl_gmx_rxx_frm_ctl cvmx_agl_gmx_rxx_frm_ctl_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_frm_max
-{
+union cvmx_agl_gmx_rxx_frm_max {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_frm_max_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_frm_max_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t len                          : 16; /**< Byte count for Max-sized frame check
                                                          AGL_GMX_RXn_FRM_CHK[MAXERR] enables the check
@@ -2035,8 +2209,12 @@ union cvmx_agl_gmx_rxx_frm_max
 	struct cvmx_agl_gmx_rxx_frm_max_s     cn52xxp1;
 	struct cvmx_agl_gmx_rxx_frm_max_s     cn56xx;
 	struct cvmx_agl_gmx_rxx_frm_max_s     cn56xxp1;
+	struct cvmx_agl_gmx_rxx_frm_max_s     cn61xx;
 	struct cvmx_agl_gmx_rxx_frm_max_s     cn63xx;
 	struct cvmx_agl_gmx_rxx_frm_max_s     cn63xxp1;
+	struct cvmx_agl_gmx_rxx_frm_max_s     cn66xx;
+	struct cvmx_agl_gmx_rxx_frm_max_s     cn68xx;
+	struct cvmx_agl_gmx_rxx_frm_max_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_frm_max cvmx_agl_gmx_rxx_frm_max_t;
 
@@ -2050,12 +2228,10 @@ typedef union cvmx_agl_gmx_rxx_frm_max cvmx_agl_gmx_rxx_frm_max_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_frm_min
-{
+union cvmx_agl_gmx_rxx_frm_min {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_frm_min_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_frm_min_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t len                          : 16; /**< Byte count for Min-sized frame check
                                                          AGL_GMX_RXn_FRM_CHK[MINERR] enables the check
@@ -2073,8 +2249,12 @@ union cvmx_agl_gmx_rxx_frm_min
 	struct cvmx_agl_gmx_rxx_frm_min_s     cn52xxp1;
 	struct cvmx_agl_gmx_rxx_frm_min_s     cn56xx;
 	struct cvmx_agl_gmx_rxx_frm_min_s     cn56xxp1;
+	struct cvmx_agl_gmx_rxx_frm_min_s     cn61xx;
 	struct cvmx_agl_gmx_rxx_frm_min_s     cn63xx;
 	struct cvmx_agl_gmx_rxx_frm_min_s     cn63xxp1;
+	struct cvmx_agl_gmx_rxx_frm_min_s     cn66xx;
+	struct cvmx_agl_gmx_rxx_frm_min_s     cn68xx;
+	struct cvmx_agl_gmx_rxx_frm_min_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_frm_min cvmx_agl_gmx_rxx_frm_min_t;
 
@@ -2088,12 +2268,10 @@ typedef union cvmx_agl_gmx_rxx_frm_min cvmx_agl_gmx_rxx_frm_min_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_ifg
-{
+union cvmx_agl_gmx_rxx_ifg {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_ifg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_ifg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t ifg                          : 4;  /**< Min IFG (in IFG*8 bits) between packets used to
                                                          determine IFGERR. Normally IFG is 96 bits.
@@ -2111,8 +2289,12 @@ union cvmx_agl_gmx_rxx_ifg
 	struct cvmx_agl_gmx_rxx_ifg_s         cn52xxp1;
 	struct cvmx_agl_gmx_rxx_ifg_s         cn56xx;
 	struct cvmx_agl_gmx_rxx_ifg_s         cn56xxp1;
+	struct cvmx_agl_gmx_rxx_ifg_s         cn61xx;
 	struct cvmx_agl_gmx_rxx_ifg_s         cn63xx;
 	struct cvmx_agl_gmx_rxx_ifg_s         cn63xxp1;
+	struct cvmx_agl_gmx_rxx_ifg_s         cn66xx;
+	struct cvmx_agl_gmx_rxx_ifg_s         cn68xx;
+	struct cvmx_agl_gmx_rxx_ifg_s         cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_ifg cvmx_agl_gmx_rxx_ifg_t;
 
@@ -2126,12 +2308,10 @@ typedef union cvmx_agl_gmx_rxx_ifg cvmx_agl_gmx_rxx_ifg_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_int_en
-{
+union cvmx_agl_gmx_rxx_int_en {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_int_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_int_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t pause_drp                    : 1;  /**< Pause packet was dropped due to full GMX RX FIFO */
 	uint64_t phy_dupx                     : 1;  /**< Change in the RMGII inbound LinkDuplex             |             NS */
@@ -2177,9 +2357,8 @@ union cvmx_agl_gmx_rxx_int_en
 	uint64_t reserved_20_63               : 44;
 #endif
 	} s;
-	struct cvmx_agl_gmx_rxx_int_en_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_int_en_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t pause_drp                    : 1;  /**< Pause packet was dropped due to full GMX RX FIFO */
 	uint64_t reserved_16_18               : 3;
@@ -2224,8 +2403,12 @@ union cvmx_agl_gmx_rxx_int_en
 	struct cvmx_agl_gmx_rxx_int_en_cn52xx cn52xxp1;
 	struct cvmx_agl_gmx_rxx_int_en_cn52xx cn56xx;
 	struct cvmx_agl_gmx_rxx_int_en_cn52xx cn56xxp1;
+	struct cvmx_agl_gmx_rxx_int_en_s      cn61xx;
 	struct cvmx_agl_gmx_rxx_int_en_s      cn63xx;
 	struct cvmx_agl_gmx_rxx_int_en_s      cn63xxp1;
+	struct cvmx_agl_gmx_rxx_int_en_s      cn66xx;
+	struct cvmx_agl_gmx_rxx_int_en_s      cn68xx;
+	struct cvmx_agl_gmx_rxx_int_en_s      cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_int_en cvmx_agl_gmx_rxx_int_en_t;
 
@@ -2274,7 +2457,7 @@ typedef union cvmx_agl_gmx_rxx_int_en cvmx_agl_gmx_rxx_int_en_t;
  * (B) PCTERR - checks that the frame begins with a valid PREAMBLE sequence.
  *              Does not check the number of PREAMBLE cycles.
  *
- * (C) OVRERR - Not to be included in the HRM
+ * (C) OVRERR -
  *
  *              OVRERR is an architectural assertion check internal to GMX to
  *              make sure no assumption was violated.  In a correctly operating
@@ -2291,12 +2474,10 @@ typedef union cvmx_agl_gmx_rxx_int_en cvmx_agl_gmx_rxx_int_en_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_int_reg
-{
+union cvmx_agl_gmx_rxx_int_reg {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t pause_drp                    : 1;  /**< Pause packet was dropped due to full GMX RX FIFO */
 	uint64_t phy_dupx                     : 1;  /**< Change in the RGMII inbound LinkDuplex             |             NS */
@@ -2344,9 +2525,8 @@ union cvmx_agl_gmx_rxx_int_reg
 	uint64_t reserved_20_63               : 44;
 #endif
 	} s;
-	struct cvmx_agl_gmx_rxx_int_reg_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_int_reg_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t pause_drp                    : 1;  /**< Pause packet was dropped due to full GMX RX FIFO */
 	uint64_t reserved_16_18               : 3;
@@ -2393,8 +2573,12 @@ union cvmx_agl_gmx_rxx_int_reg
 	struct cvmx_agl_gmx_rxx_int_reg_cn52xx cn52xxp1;
 	struct cvmx_agl_gmx_rxx_int_reg_cn52xx cn56xx;
 	struct cvmx_agl_gmx_rxx_int_reg_cn52xx cn56xxp1;
+	struct cvmx_agl_gmx_rxx_int_reg_s     cn61xx;
 	struct cvmx_agl_gmx_rxx_int_reg_s     cn63xx;
 	struct cvmx_agl_gmx_rxx_int_reg_s     cn63xxp1;
+	struct cvmx_agl_gmx_rxx_int_reg_s     cn66xx;
+	struct cvmx_agl_gmx_rxx_int_reg_s     cn68xx;
+	struct cvmx_agl_gmx_rxx_int_reg_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_int_reg cvmx_agl_gmx_rxx_int_reg_t;
 
@@ -2421,12 +2605,10 @@ typedef union cvmx_agl_gmx_rxx_int_reg cvmx_agl_gmx_rxx_int_reg_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_jabber
-{
+union cvmx_agl_gmx_rxx_jabber {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_jabber_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_jabber_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t cnt                          : 16; /**< Byte count for jabber check
                                                          Failing packets set the JABBER interrupt and are
@@ -2442,8 +2624,12 @@ union cvmx_agl_gmx_rxx_jabber
 	struct cvmx_agl_gmx_rxx_jabber_s      cn52xxp1;
 	struct cvmx_agl_gmx_rxx_jabber_s      cn56xx;
 	struct cvmx_agl_gmx_rxx_jabber_s      cn56xxp1;
+	struct cvmx_agl_gmx_rxx_jabber_s      cn61xx;
 	struct cvmx_agl_gmx_rxx_jabber_s      cn63xx;
 	struct cvmx_agl_gmx_rxx_jabber_s      cn63xxp1;
+	struct cvmx_agl_gmx_rxx_jabber_s      cn66xx;
+	struct cvmx_agl_gmx_rxx_jabber_s      cn68xx;
+	struct cvmx_agl_gmx_rxx_jabber_s      cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_jabber cvmx_agl_gmx_rxx_jabber_t;
 
@@ -2457,12 +2643,10 @@ typedef union cvmx_agl_gmx_rxx_jabber cvmx_agl_gmx_rxx_jabber_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_pause_drop_time
-{
+union cvmx_agl_gmx_rxx_pause_drop_time {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_pause_drop_time_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_pause_drop_time_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t status                       : 16; /**< Time extracted from the dropped PAUSE packet */
 #else
@@ -2474,8 +2658,12 @@ union cvmx_agl_gmx_rxx_pause_drop_time
 	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn56xx;
 	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn61xx;
 	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn63xx;
 	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn66xx;
+	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn68xx;
+	struct cvmx_agl_gmx_rxx_pause_drop_time_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_pause_drop_time cvmx_agl_gmx_rxx_pause_drop_time_t;
 
@@ -2492,12 +2680,10 @@ typedef union cvmx_agl_gmx_rxx_pause_drop_time cvmx_agl_gmx_rxx_pause_drop_time_
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_rx_inbnd
-{
+union cvmx_agl_gmx_rxx_rx_inbnd {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_rx_inbnd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_rx_inbnd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t duplex                       : 1;  /**< RGMII Inbound LinkDuplex                           |             NS
                                                          0=half-duplex
@@ -2517,8 +2703,12 @@ union cvmx_agl_gmx_rxx_rx_inbnd
 	uint64_t reserved_4_63                : 60;
 #endif
 	} s;
+	struct cvmx_agl_gmx_rxx_rx_inbnd_s    cn61xx;
 	struct cvmx_agl_gmx_rxx_rx_inbnd_s    cn63xx;
 	struct cvmx_agl_gmx_rxx_rx_inbnd_s    cn63xxp1;
+	struct cvmx_agl_gmx_rxx_rx_inbnd_s    cn66xx;
+	struct cvmx_agl_gmx_rxx_rx_inbnd_s    cn68xx;
+	struct cvmx_agl_gmx_rxx_rx_inbnd_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_rx_inbnd cvmx_agl_gmx_rxx_rx_inbnd_t;
 
@@ -2532,12 +2722,10 @@ typedef union cvmx_agl_gmx_rxx_rx_inbnd cvmx_agl_gmx_rxx_rx_inbnd_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rxx_stats_ctl
-{
+union cvmx_agl_gmx_rxx_stats_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t rd_clr                       : 1;  /**< RX Stats registers will clear on reads */
 #else
@@ -2549,8 +2737,12 @@ union cvmx_agl_gmx_rxx_stats_ctl
 	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_ctl_s   cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_ctl cvmx_agl_gmx_rxx_stats_ctl_t;
 
@@ -2562,12 +2754,10 @@ typedef union cvmx_agl_gmx_rxx_stats_ctl cvmx_agl_gmx_rxx_stats_ctl_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_octs
-{
+union cvmx_agl_gmx_rxx_stats_octs {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_octs_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_octs_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t cnt                          : 48; /**< Octet count of received good packets */
 #else
@@ -2579,8 +2769,12 @@ union cvmx_agl_gmx_rxx_stats_octs
 	struct cvmx_agl_gmx_rxx_stats_octs_s  cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_octs_s  cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_s  cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_s  cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_s  cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_s  cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_s  cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_s  cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_s  cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_octs cvmx_agl_gmx_rxx_stats_octs_t;
 
@@ -2592,12 +2786,10 @@ typedef union cvmx_agl_gmx_rxx_stats_octs cvmx_agl_gmx_rxx_stats_octs_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_octs_ctl
-{
+union cvmx_agl_gmx_rxx_stats_octs_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t cnt                          : 48; /**< Octet count of received pause packets */
 #else
@@ -2609,8 +2801,12 @@ union cvmx_agl_gmx_rxx_stats_octs_ctl
 	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_ctl_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_octs_ctl cvmx_agl_gmx_rxx_stats_octs_ctl_t;
 
@@ -2622,12 +2818,10 @@ typedef union cvmx_agl_gmx_rxx_stats_octs_ctl cvmx_agl_gmx_rxx_stats_octs_ctl_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_octs_dmac
-{
+union cvmx_agl_gmx_rxx_stats_octs_dmac {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t cnt                          : 48; /**< Octet count of filtered dmac packets */
 #else
@@ -2639,8 +2833,12 @@ union cvmx_agl_gmx_rxx_stats_octs_dmac
 	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_dmac_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_octs_dmac cvmx_agl_gmx_rxx_stats_octs_dmac_t;
 
@@ -2652,12 +2850,10 @@ typedef union cvmx_agl_gmx_rxx_stats_octs_dmac cvmx_agl_gmx_rxx_stats_octs_dmac_
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_octs_drp
-{
+union cvmx_agl_gmx_rxx_stats_octs_drp {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_octs_drp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_octs_drp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t cnt                          : 48; /**< Octet count of dropped packets */
 #else
@@ -2669,8 +2865,12 @@ union cvmx_agl_gmx_rxx_stats_octs_drp
 	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_octs_drp_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_octs_drp cvmx_agl_gmx_rxx_stats_octs_drp_t;
 
@@ -2688,12 +2888,10 @@ typedef union cvmx_agl_gmx_rxx_stats_octs_drp cvmx_agl_gmx_rxx_stats_octs_drp_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_pkts
-{
+union cvmx_agl_gmx_rxx_stats_pkts {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_pkts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_pkts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Count of received good packets */
 #else
@@ -2705,8 +2903,12 @@ union cvmx_agl_gmx_rxx_stats_pkts
 	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_s  cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_pkts cvmx_agl_gmx_rxx_stats_pkts_t;
 
@@ -2723,12 +2925,10 @@ typedef union cvmx_agl_gmx_rxx_stats_pkts cvmx_agl_gmx_rxx_stats_pkts_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_pkts_bad
-{
+union cvmx_agl_gmx_rxx_stats_pkts_bad {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Count of bad packets */
 #else
@@ -2740,8 +2940,12 @@ union cvmx_agl_gmx_rxx_stats_pkts_bad
 	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_bad_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_pkts_bad cvmx_agl_gmx_rxx_stats_pkts_bad_t;
 
@@ -2763,12 +2967,10 @@ typedef union cvmx_agl_gmx_rxx_stats_pkts_bad cvmx_agl_gmx_rxx_stats_pkts_bad_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_pkts_ctl
-{
+union cvmx_agl_gmx_rxx_stats_pkts_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Count of received pause packets */
 #else
@@ -2780,8 +2982,12 @@ union cvmx_agl_gmx_rxx_stats_pkts_ctl
 	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_ctl_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_pkts_ctl cvmx_agl_gmx_rxx_stats_pkts_ctl_t;
 
@@ -2804,12 +3010,10 @@ typedef union cvmx_agl_gmx_rxx_stats_pkts_ctl cvmx_agl_gmx_rxx_stats_pkts_ctl_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_pkts_dmac
-{
+union cvmx_agl_gmx_rxx_stats_pkts_dmac {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Count of filtered dmac packets */
 #else
@@ -2821,8 +3025,12 @@ union cvmx_agl_gmx_rxx_stats_pkts_dmac
 	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_dmac_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_pkts_dmac cvmx_agl_gmx_rxx_stats_pkts_dmac_t;
 
@@ -2841,12 +3049,10 @@ typedef union cvmx_agl_gmx_rxx_stats_pkts_dmac cvmx_agl_gmx_rxx_stats_pkts_dmac_
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_stats_pkts_drp
-{
+union cvmx_agl_gmx_rxx_stats_pkts_drp {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t cnt                          : 32; /**< Count of dropped packets */
 #else
@@ -2858,8 +3064,12 @@ union cvmx_agl_gmx_rxx_stats_pkts_drp
 	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn52xxp1;
 	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn56xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn56xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn61xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn63xx;
 	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn63xxp1;
+	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn66xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn68xx;
+	struct cvmx_agl_gmx_rxx_stats_pkts_drp_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_stats_pkts_drp cvmx_agl_gmx_rxx_stats_pkts_drp_t;
 
@@ -2896,12 +3106,10 @@ typedef union cvmx_agl_gmx_rxx_stats_pkts_drp cvmx_agl_gmx_rxx_stats_pkts_drp_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rxx_udd_skp
-{
+union cvmx_agl_gmx_rxx_udd_skp {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rxx_udd_skp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rxx_udd_skp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t fcssel                       : 1;  /**< Include the skip bytes in the FCS calculation
                                                          0 = all skip bytes are included in FCS
@@ -2921,8 +3129,12 @@ union cvmx_agl_gmx_rxx_udd_skp
 	struct cvmx_agl_gmx_rxx_udd_skp_s     cn52xxp1;
 	struct cvmx_agl_gmx_rxx_udd_skp_s     cn56xx;
 	struct cvmx_agl_gmx_rxx_udd_skp_s     cn56xxp1;
+	struct cvmx_agl_gmx_rxx_udd_skp_s     cn61xx;
 	struct cvmx_agl_gmx_rxx_udd_skp_s     cn63xx;
 	struct cvmx_agl_gmx_rxx_udd_skp_s     cn63xxp1;
+	struct cvmx_agl_gmx_rxx_udd_skp_s     cn66xx;
+	struct cvmx_agl_gmx_rxx_udd_skp_s     cn68xx;
+	struct cvmx_agl_gmx_rxx_udd_skp_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rxx_udd_skp cvmx_agl_gmx_rxx_udd_skp_t;
 
@@ -2936,12 +3148,10 @@ typedef union cvmx_agl_gmx_rxx_udd_skp cvmx_agl_gmx_rxx_udd_skp_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rx_bp_dropx
-{
+union cvmx_agl_gmx_rx_bp_dropx {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rx_bp_dropx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rx_bp_dropx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t mark                         : 6;  /**< Number of 8B ticks to reserve in the RX FIFO.
                                                          When the FIFO exceeds this count, packets will
@@ -2958,8 +3168,12 @@ union cvmx_agl_gmx_rx_bp_dropx
 	struct cvmx_agl_gmx_rx_bp_dropx_s     cn52xxp1;
 	struct cvmx_agl_gmx_rx_bp_dropx_s     cn56xx;
 	struct cvmx_agl_gmx_rx_bp_dropx_s     cn56xxp1;
+	struct cvmx_agl_gmx_rx_bp_dropx_s     cn61xx;
 	struct cvmx_agl_gmx_rx_bp_dropx_s     cn63xx;
 	struct cvmx_agl_gmx_rx_bp_dropx_s     cn63xxp1;
+	struct cvmx_agl_gmx_rx_bp_dropx_s     cn66xx;
+	struct cvmx_agl_gmx_rx_bp_dropx_s     cn68xx;
+	struct cvmx_agl_gmx_rx_bp_dropx_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rx_bp_dropx cvmx_agl_gmx_rx_bp_dropx_t;
 
@@ -2973,12 +3187,10 @@ typedef union cvmx_agl_gmx_rx_bp_dropx cvmx_agl_gmx_rx_bp_dropx_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rx_bp_offx
-{
+union cvmx_agl_gmx_rx_bp_offx {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rx_bp_offx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rx_bp_offx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t mark                         : 6;  /**< Water mark (8B ticks) to deassert backpressure */
 #else
@@ -2990,8 +3202,12 @@ union cvmx_agl_gmx_rx_bp_offx
 	struct cvmx_agl_gmx_rx_bp_offx_s      cn52xxp1;
 	struct cvmx_agl_gmx_rx_bp_offx_s      cn56xx;
 	struct cvmx_agl_gmx_rx_bp_offx_s      cn56xxp1;
+	struct cvmx_agl_gmx_rx_bp_offx_s      cn61xx;
 	struct cvmx_agl_gmx_rx_bp_offx_s      cn63xx;
 	struct cvmx_agl_gmx_rx_bp_offx_s      cn63xxp1;
+	struct cvmx_agl_gmx_rx_bp_offx_s      cn66xx;
+	struct cvmx_agl_gmx_rx_bp_offx_s      cn68xx;
+	struct cvmx_agl_gmx_rx_bp_offx_s      cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rx_bp_offx cvmx_agl_gmx_rx_bp_offx_t;
 
@@ -3005,12 +3221,10 @@ typedef union cvmx_agl_gmx_rx_bp_offx cvmx_agl_gmx_rx_bp_offx_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_rx_bp_onx
-{
+union cvmx_agl_gmx_rx_bp_onx {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rx_bp_onx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rx_bp_onx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t mark                         : 9;  /**< Hiwater mark (8B ticks) for backpressure. */
 #else
@@ -3022,8 +3236,12 @@ union cvmx_agl_gmx_rx_bp_onx
 	struct cvmx_agl_gmx_rx_bp_onx_s       cn52xxp1;
 	struct cvmx_agl_gmx_rx_bp_onx_s       cn56xx;
 	struct cvmx_agl_gmx_rx_bp_onx_s       cn56xxp1;
+	struct cvmx_agl_gmx_rx_bp_onx_s       cn61xx;
 	struct cvmx_agl_gmx_rx_bp_onx_s       cn63xx;
 	struct cvmx_agl_gmx_rx_bp_onx_s       cn63xxp1;
+	struct cvmx_agl_gmx_rx_bp_onx_s       cn66xx;
+	struct cvmx_agl_gmx_rx_bp_onx_s       cn68xx;
+	struct cvmx_agl_gmx_rx_bp_onx_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rx_bp_onx cvmx_agl_gmx_rx_bp_onx_t;
 
@@ -3037,12 +3255,10 @@ typedef union cvmx_agl_gmx_rx_bp_onx cvmx_agl_gmx_rx_bp_onx_t;
  * COMMIT[0], DROP[0] will be reset when MIX0_CTL[RESET] is set to 1.
  * COMMIT[1], DROP[1] will be reset when MIX1_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rx_prt_info
-{
+union cvmx_agl_gmx_rx_prt_info {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rx_prt_info_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rx_prt_info_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t drop                         : 2;  /**< Port indication that data was dropped */
 	uint64_t reserved_2_15                : 14;
@@ -3056,9 +3272,8 @@ union cvmx_agl_gmx_rx_prt_info
 	} s;
 	struct cvmx_agl_gmx_rx_prt_info_s     cn52xx;
 	struct cvmx_agl_gmx_rx_prt_info_s     cn52xxp1;
-	struct cvmx_agl_gmx_rx_prt_info_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rx_prt_info_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t drop                         : 1;  /**< Port indication that data was dropped */
 	uint64_t reserved_1_15                : 15;
@@ -3071,8 +3286,12 @@ union cvmx_agl_gmx_rx_prt_info
 #endif
 	} cn56xx;
 	struct cvmx_agl_gmx_rx_prt_info_cn56xx cn56xxp1;
+	struct cvmx_agl_gmx_rx_prt_info_s     cn61xx;
 	struct cvmx_agl_gmx_rx_prt_info_s     cn63xx;
 	struct cvmx_agl_gmx_rx_prt_info_s     cn63xxp1;
+	struct cvmx_agl_gmx_rx_prt_info_s     cn66xx;
+	struct cvmx_agl_gmx_rx_prt_info_s     cn68xx;
+	struct cvmx_agl_gmx_rx_prt_info_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rx_prt_info cvmx_agl_gmx_rx_prt_info_t;
 
@@ -3086,12 +3305,10 @@ typedef union cvmx_agl_gmx_rx_prt_info cvmx_agl_gmx_rx_prt_info_t;
  * RX[0], TX[0] will be reset when MIX0_CTL[RESET] is set to 1.
  * RX[1], TX[1] will be reset when MIX1_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_rx_tx_status
-{
+union cvmx_agl_gmx_rx_tx_status {
 	uint64_t u64;
-	struct cvmx_agl_gmx_rx_tx_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rx_tx_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t tx                           : 2;  /**< Transmit data since last read */
 	uint64_t reserved_2_3                 : 2;
@@ -3105,9 +3322,8 @@ union cvmx_agl_gmx_rx_tx_status
 	} s;
 	struct cvmx_agl_gmx_rx_tx_status_s    cn52xx;
 	struct cvmx_agl_gmx_rx_tx_status_s    cn52xxp1;
-	struct cvmx_agl_gmx_rx_tx_status_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_rx_tx_status_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t tx                           : 1;  /**< Transmit data since last read */
 	uint64_t reserved_1_3                 : 3;
@@ -3120,8 +3336,12 @@ union cvmx_agl_gmx_rx_tx_status
 #endif
 	} cn56xx;
 	struct cvmx_agl_gmx_rx_tx_status_cn56xx cn56xxp1;
+	struct cvmx_agl_gmx_rx_tx_status_s    cn61xx;
 	struct cvmx_agl_gmx_rx_tx_status_s    cn63xx;
 	struct cvmx_agl_gmx_rx_tx_status_s    cn63xxp1;
+	struct cvmx_agl_gmx_rx_tx_status_s    cn66xx;
+	struct cvmx_agl_gmx_rx_tx_status_s    cn68xx;
+	struct cvmx_agl_gmx_rx_tx_status_s    cn68xxp1;
 };
 typedef union cvmx_agl_gmx_rx_tx_status cvmx_agl_gmx_rx_tx_status_t;
 
@@ -3135,12 +3355,10 @@ typedef union cvmx_agl_gmx_rx_tx_status cvmx_agl_gmx_rx_tx_status_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_smacx
-{
+union cvmx_agl_gmx_smacx {
 	uint64_t u64;
-	struct cvmx_agl_gmx_smacx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_smacx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t smac                         : 48; /**< The SMAC field is used for generating and
                                                          accepting Control Pause packets */
@@ -3153,8 +3371,12 @@ union cvmx_agl_gmx_smacx
 	struct cvmx_agl_gmx_smacx_s           cn52xxp1;
 	struct cvmx_agl_gmx_smacx_s           cn56xx;
 	struct cvmx_agl_gmx_smacx_s           cn56xxp1;
+	struct cvmx_agl_gmx_smacx_s           cn61xx;
 	struct cvmx_agl_gmx_smacx_s           cn63xx;
 	struct cvmx_agl_gmx_smacx_s           cn63xxp1;
+	struct cvmx_agl_gmx_smacx_s           cn66xx;
+	struct cvmx_agl_gmx_smacx_s           cn68xx;
+	struct cvmx_agl_gmx_smacx_s           cn68xxp1;
 };
 typedef union cvmx_agl_gmx_smacx cvmx_agl_gmx_smacx_t;
 
@@ -3167,15 +3389,34 @@ typedef union cvmx_agl_gmx_smacx cvmx_agl_gmx_smacx_t;
  * Notes:
  * Additionally reset when both MIX0/1_CTL[RESET] are set to 1.
  *
+ *
+ *
+ * It has no relationship with the TX FIFO per se.  The TX engine sends packets
+ * from PKO and upon completion, sends a command to the TX stats block for an
+ * update based on the packet size.  The stats operation can take a few cycles -
+ * normally not enough to be visible considering the 64B min packet size that is
+ * ethernet convention.
+ *
+ * In the rare case in which SW attempted to schedule really, really, small packets
+ * or the sclk (6xxx) is running ass-slow, then the stats updates may not happen in
+ * real time and can back up the TX engine.
+ *
+ * This counter is the number of cycles in which the TX engine was stalled.  In
+ * normal operation, it should always be zeros.
  */
-union cvmx_agl_gmx_stat_bp
-{
+union cvmx_agl_gmx_stat_bp {
 	uint64_t u64;
-	struct cvmx_agl_gmx_stat_bp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_stat_bp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
-	uint64_t bp                           : 1;  /**< Current BP state */
+	uint64_t bp                           : 1;  /**< Current TX stats BP state
+                                                         When the TX stats machine cannot update the stats
+                                                         registers quickly enough, the machine has the
+                                                         ability to BP TX datapath.  This is a rare event
+                                                         and will not occur in normal operation.
+                                                         0 = no backpressure is applied
+                                                         1 = backpressure is applied to TX datapath to
+                                                             allow stat update operations to complete */
 	uint64_t cnt                          : 16; /**< Number of cycles that BP has been asserted
                                                          Saturating counter */
 #else
@@ -3188,8 +3429,12 @@ union cvmx_agl_gmx_stat_bp
 	struct cvmx_agl_gmx_stat_bp_s         cn52xxp1;
 	struct cvmx_agl_gmx_stat_bp_s         cn56xx;
 	struct cvmx_agl_gmx_stat_bp_s         cn56xxp1;
+	struct cvmx_agl_gmx_stat_bp_s         cn61xx;
 	struct cvmx_agl_gmx_stat_bp_s         cn63xx;
 	struct cvmx_agl_gmx_stat_bp_s         cn63xxp1;
+	struct cvmx_agl_gmx_stat_bp_s         cn66xx;
+	struct cvmx_agl_gmx_stat_bp_s         cn68xx;
+	struct cvmx_agl_gmx_stat_bp_s         cn68xxp1;
 };
 typedef union cvmx_agl_gmx_stat_bp cvmx_agl_gmx_stat_bp_t;
 
@@ -3203,12 +3448,10 @@ typedef union cvmx_agl_gmx_stat_bp cvmx_agl_gmx_stat_bp_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_append
-{
+union cvmx_agl_gmx_txx_append {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_append_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_append_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t force_fcs                    : 1;  /**< Append the Ethernet FCS on each pause packet
                                                          when FCS is clear.  Pause packets are normally
@@ -3230,8 +3473,12 @@ union cvmx_agl_gmx_txx_append
 	struct cvmx_agl_gmx_txx_append_s      cn52xxp1;
 	struct cvmx_agl_gmx_txx_append_s      cn56xx;
 	struct cvmx_agl_gmx_txx_append_s      cn56xxp1;
+	struct cvmx_agl_gmx_txx_append_s      cn61xx;
 	struct cvmx_agl_gmx_txx_append_s      cn63xx;
 	struct cvmx_agl_gmx_txx_append_s      cn63xxp1;
+	struct cvmx_agl_gmx_txx_append_s      cn66xx;
+	struct cvmx_agl_gmx_txx_append_s      cn68xx;
+	struct cvmx_agl_gmx_txx_append_s      cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_append cvmx_agl_gmx_txx_append_t;
 
@@ -3255,12 +3502,10 @@ typedef union cvmx_agl_gmx_txx_append cvmx_agl_gmx_txx_append_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_clk
-{
+union cvmx_agl_gmx_txx_clk {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_clk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_clk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t clk_cnt                      : 6;  /**< Controls the RGMII TXC frequency                   |             NS
                                                          TXC(period) =
@@ -3270,8 +3515,12 @@ union cvmx_agl_gmx_txx_clk
 	uint64_t reserved_6_63                : 58;
 #endif
 	} s;
+	struct cvmx_agl_gmx_txx_clk_s         cn61xx;
 	struct cvmx_agl_gmx_txx_clk_s         cn63xx;
 	struct cvmx_agl_gmx_txx_clk_s         cn63xxp1;
+	struct cvmx_agl_gmx_txx_clk_s         cn66xx;
+	struct cvmx_agl_gmx_txx_clk_s         cn68xx;
+	struct cvmx_agl_gmx_txx_clk_s         cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_clk cvmx_agl_gmx_txx_clk_t;
 
@@ -3285,12 +3534,10 @@ typedef union cvmx_agl_gmx_txx_clk cvmx_agl_gmx_txx_clk_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_ctl
-{
+union cvmx_agl_gmx_txx_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t xsdef_en                     : 1;  /**< Enables the excessive deferral check for stats
                                                          and interrupts */
@@ -3306,8 +3553,12 @@ union cvmx_agl_gmx_txx_ctl
 	struct cvmx_agl_gmx_txx_ctl_s         cn52xxp1;
 	struct cvmx_agl_gmx_txx_ctl_s         cn56xx;
 	struct cvmx_agl_gmx_txx_ctl_s         cn56xxp1;
+	struct cvmx_agl_gmx_txx_ctl_s         cn61xx;
 	struct cvmx_agl_gmx_txx_ctl_s         cn63xx;
 	struct cvmx_agl_gmx_txx_ctl_s         cn63xxp1;
+	struct cvmx_agl_gmx_txx_ctl_s         cn66xx;
+	struct cvmx_agl_gmx_txx_ctl_s         cn68xx;
+	struct cvmx_agl_gmx_txx_ctl_s         cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_ctl cvmx_agl_gmx_txx_ctl_t;
 
@@ -3321,12 +3572,10 @@ typedef union cvmx_agl_gmx_txx_ctl cvmx_agl_gmx_txx_ctl_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_min_pkt
-{
+union cvmx_agl_gmx_txx_min_pkt {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_min_pkt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_min_pkt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t min_size                     : 8;  /**< Min frame in bytes before the FCS is applied
                                                          Padding is only appened when
@@ -3342,8 +3591,12 @@ union cvmx_agl_gmx_txx_min_pkt
 	struct cvmx_agl_gmx_txx_min_pkt_s     cn52xxp1;
 	struct cvmx_agl_gmx_txx_min_pkt_s     cn56xx;
 	struct cvmx_agl_gmx_txx_min_pkt_s     cn56xxp1;
+	struct cvmx_agl_gmx_txx_min_pkt_s     cn61xx;
 	struct cvmx_agl_gmx_txx_min_pkt_s     cn63xx;
 	struct cvmx_agl_gmx_txx_min_pkt_s     cn63xxp1;
+	struct cvmx_agl_gmx_txx_min_pkt_s     cn66xx;
+	struct cvmx_agl_gmx_txx_min_pkt_s     cn68xx;
+	struct cvmx_agl_gmx_txx_min_pkt_s     cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_min_pkt cvmx_agl_gmx_txx_min_pkt_t;
 
@@ -3374,12 +3627,10 @@ typedef union cvmx_agl_gmx_txx_min_pkt cvmx_agl_gmx_txx_min_pkt_t;
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_pause_pkt_interval
-{
+union cvmx_agl_gmx_txx_pause_pkt_interval {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_pause_pkt_interval_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_pause_pkt_interval_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t interval                     : 16; /**< Arbitrate for a pause packet every (INTERVAL*512)
                                                          bit-times.
@@ -3395,8 +3646,12 @@ union cvmx_agl_gmx_txx_pause_pkt_interval
 	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn52xxp1;
 	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn56xx;
 	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn56xxp1;
+	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn61xx;
 	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn63xx;
 	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn63xxp1;
+	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn66xx;
+	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn68xx;
+	struct cvmx_agl_gmx_txx_pause_pkt_interval_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_pause_pkt_interval cvmx_agl_gmx_txx_pause_pkt_interval_t;
 
@@ -3427,12 +3682,10 @@ typedef union cvmx_agl_gmx_txx_pause_pkt_interval cvmx_agl_gmx_txx_pause_pkt_int
  *
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_pause_pkt_time
-{
+union cvmx_agl_gmx_txx_pause_pkt_time {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_pause_pkt_time_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_pause_pkt_time_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t time                         : 16; /**< The pause_time field placed is outbnd pause pkts
                                                          pause_time is in 512 bit-times
@@ -3446,8 +3699,12 @@ union cvmx_agl_gmx_txx_pause_pkt_time
 	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn52xxp1;
 	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn56xx;
 	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn56xxp1;
+	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn61xx;
 	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn63xx;
 	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn63xxp1;
+	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn66xx;
+	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn68xx;
+	struct cvmx_agl_gmx_txx_pause_pkt_time_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_pause_pkt_time cvmx_agl_gmx_txx_pause_pkt_time_t;
 
@@ -3461,12 +3718,10 @@ typedef union cvmx_agl_gmx_txx_pause_pkt_time cvmx_agl_gmx_txx_pause_pkt_time_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_pause_togo
-{
+union cvmx_agl_gmx_txx_pause_togo {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_pause_togo_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_pause_togo_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t time                         : 16; /**< Amount of time remaining to backpressure */
 #else
@@ -3478,8 +3733,12 @@ union cvmx_agl_gmx_txx_pause_togo
 	struct cvmx_agl_gmx_txx_pause_togo_s  cn52xxp1;
 	struct cvmx_agl_gmx_txx_pause_togo_s  cn56xx;
 	struct cvmx_agl_gmx_txx_pause_togo_s  cn56xxp1;
+	struct cvmx_agl_gmx_txx_pause_togo_s  cn61xx;
 	struct cvmx_agl_gmx_txx_pause_togo_s  cn63xx;
 	struct cvmx_agl_gmx_txx_pause_togo_s  cn63xxp1;
+	struct cvmx_agl_gmx_txx_pause_togo_s  cn66xx;
+	struct cvmx_agl_gmx_txx_pause_togo_s  cn68xx;
+	struct cvmx_agl_gmx_txx_pause_togo_s  cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_pause_togo cvmx_agl_gmx_txx_pause_togo_t;
 
@@ -3493,12 +3752,10 @@ typedef union cvmx_agl_gmx_txx_pause_togo cvmx_agl_gmx_txx_pause_togo_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_pause_zero
-{
+union cvmx_agl_gmx_txx_pause_zero {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_pause_zero_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_pause_zero_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t send                         : 1;  /**< When backpressure condition clear, send PAUSE
                                                          packet with pause_time of zero to enable the
@@ -3512,8 +3769,12 @@ union cvmx_agl_gmx_txx_pause_zero
 	struct cvmx_agl_gmx_txx_pause_zero_s  cn52xxp1;
 	struct cvmx_agl_gmx_txx_pause_zero_s  cn56xx;
 	struct cvmx_agl_gmx_txx_pause_zero_s  cn56xxp1;
+	struct cvmx_agl_gmx_txx_pause_zero_s  cn61xx;
 	struct cvmx_agl_gmx_txx_pause_zero_s  cn63xx;
 	struct cvmx_agl_gmx_txx_pause_zero_s  cn63xxp1;
+	struct cvmx_agl_gmx_txx_pause_zero_s  cn66xx;
+	struct cvmx_agl_gmx_txx_pause_zero_s  cn68xx;
+	struct cvmx_agl_gmx_txx_pause_zero_s  cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_pause_zero cvmx_agl_gmx_txx_pause_zero_t;
 
@@ -3527,12 +3788,10 @@ typedef union cvmx_agl_gmx_txx_pause_zero cvmx_agl_gmx_txx_pause_zero_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_soft_pause
-{
+union cvmx_agl_gmx_txx_soft_pause {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_soft_pause_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_soft_pause_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t time                         : 16; /**< Back off the TX bus for (TIME*512) bit-times
                                                          for full-duplex operation only */
@@ -3545,8 +3804,12 @@ union cvmx_agl_gmx_txx_soft_pause
 	struct cvmx_agl_gmx_txx_soft_pause_s  cn52xxp1;
 	struct cvmx_agl_gmx_txx_soft_pause_s  cn56xx;
 	struct cvmx_agl_gmx_txx_soft_pause_s  cn56xxp1;
+	struct cvmx_agl_gmx_txx_soft_pause_s  cn61xx;
 	struct cvmx_agl_gmx_txx_soft_pause_s  cn63xx;
 	struct cvmx_agl_gmx_txx_soft_pause_s  cn63xxp1;
+	struct cvmx_agl_gmx_txx_soft_pause_s  cn66xx;
+	struct cvmx_agl_gmx_txx_soft_pause_s  cn68xx;
+	struct cvmx_agl_gmx_txx_soft_pause_s  cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_soft_pause cvmx_agl_gmx_txx_soft_pause_t;
 
@@ -3561,12 +3824,10 @@ typedef union cvmx_agl_gmx_txx_soft_pause cvmx_agl_gmx_txx_soft_pause_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat0
-{
+union cvmx_agl_gmx_txx_stat0 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t xsdef                        : 32; /**< Number of packets dropped (never successfully
                                                          sent) due to excessive deferal */
 	uint64_t xscol                        : 32; /**< Number of packets dropped (never successfully
@@ -3581,8 +3842,12 @@ union cvmx_agl_gmx_txx_stat0
 	struct cvmx_agl_gmx_txx_stat0_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat0_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat0_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat0_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat0_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat0_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat0_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat0_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat0_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat0 cvmx_agl_gmx_txx_stat0_t;
 
@@ -3597,12 +3862,10 @@ typedef union cvmx_agl_gmx_txx_stat0 cvmx_agl_gmx_txx_stat0_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat1
-{
+union cvmx_agl_gmx_txx_stat1 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t scol                         : 32; /**< Number of packets sent with a single collision */
 	uint64_t mcol                         : 32; /**< Number of packets sent with multiple collisions
                                                          but < AGL_GMX_TX_COL_ATTEMPT[LIMIT]. */
@@ -3615,8 +3878,12 @@ union cvmx_agl_gmx_txx_stat1
 	struct cvmx_agl_gmx_txx_stat1_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat1_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat1_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat1_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat1_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat1_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat1_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat1_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat1_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat1 cvmx_agl_gmx_txx_stat1_t;
 
@@ -3634,12 +3901,10 @@ typedef union cvmx_agl_gmx_txx_stat1 cvmx_agl_gmx_txx_stat1_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat2
-{
+union cvmx_agl_gmx_txx_stat2 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t octs                         : 48; /**< Number of total octets sent on the interface.
                                                          Does not count octets from frames that were
@@ -3653,8 +3918,12 @@ union cvmx_agl_gmx_txx_stat2
 	struct cvmx_agl_gmx_txx_stat2_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat2_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat2_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat2_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat2_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat2_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat2_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat2_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat2_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat2 cvmx_agl_gmx_txx_stat2_t;
 
@@ -3669,12 +3938,10 @@ typedef union cvmx_agl_gmx_txx_stat2 cvmx_agl_gmx_txx_stat2_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat3
-{
+union cvmx_agl_gmx_txx_stat3 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t pkts                         : 32; /**< Number of total frames sent on the interface.
                                                          Does not count frames that were truncated due to
@@ -3688,8 +3955,12 @@ union cvmx_agl_gmx_txx_stat3
 	struct cvmx_agl_gmx_txx_stat3_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat3_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat3_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat3_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat3_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat3_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat3_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat3_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat3_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat3 cvmx_agl_gmx_txx_stat3_t;
 
@@ -3707,12 +3978,10 @@ typedef union cvmx_agl_gmx_txx_stat3 cvmx_agl_gmx_txx_stat3_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat4
-{
+union cvmx_agl_gmx_txx_stat4 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t hist1                        : 32; /**< Number of packets sent with an octet count of 64. */
 	uint64_t hist0                        : 32; /**< Number of packets sent with an octet count
                                                          of < 64. */
@@ -3725,8 +3994,12 @@ union cvmx_agl_gmx_txx_stat4
 	struct cvmx_agl_gmx_txx_stat4_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat4_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat4_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat4_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat4_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat4_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat4_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat4_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat4_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat4 cvmx_agl_gmx_txx_stat4_t;
 
@@ -3744,12 +4017,10 @@ typedef union cvmx_agl_gmx_txx_stat4 cvmx_agl_gmx_txx_stat4_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat5
-{
+union cvmx_agl_gmx_txx_stat5 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat5_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat5_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t hist3                        : 32; /**< Number of packets sent with an octet count of
                                                          128 - 255. */
 	uint64_t hist2                        : 32; /**< Number of packets sent with an octet count of
@@ -3763,8 +4034,12 @@ union cvmx_agl_gmx_txx_stat5
 	struct cvmx_agl_gmx_txx_stat5_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat5_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat5_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat5_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat5_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat5_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat5_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat5_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat5_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat5 cvmx_agl_gmx_txx_stat5_t;
 
@@ -3782,12 +4057,10 @@ typedef union cvmx_agl_gmx_txx_stat5 cvmx_agl_gmx_txx_stat5_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat6
-{
+union cvmx_agl_gmx_txx_stat6 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat6_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat6_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t hist5                        : 32; /**< Number of packets sent with an octet count of
                                                          512 - 1023. */
 	uint64_t hist4                        : 32; /**< Number of packets sent with an octet count of
@@ -3801,8 +4074,12 @@ union cvmx_agl_gmx_txx_stat6
 	struct cvmx_agl_gmx_txx_stat6_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat6_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat6_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat6_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat6_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat6_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat6_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat6_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat6_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat6 cvmx_agl_gmx_txx_stat6_t;
 
@@ -3820,12 +4097,10 @@ typedef union cvmx_agl_gmx_txx_stat6 cvmx_agl_gmx_txx_stat6_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat7
-{
+union cvmx_agl_gmx_txx_stat7 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat7_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat7_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t hist7                        : 32; /**< Number of packets sent with an octet count
                                                          of > 1518. */
 	uint64_t hist6                        : 32; /**< Number of packets sent with an octet count of
@@ -3839,8 +4114,12 @@ union cvmx_agl_gmx_txx_stat7
 	struct cvmx_agl_gmx_txx_stat7_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat7_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat7_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat7_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat7_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat7_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat7_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat7_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat7_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat7 cvmx_agl_gmx_txx_stat7_t;
 
@@ -3860,12 +4139,10 @@ typedef union cvmx_agl_gmx_txx_stat7 cvmx_agl_gmx_txx_stat7_t;
  *   reality and should be ignored by software.
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat8
-{
+union cvmx_agl_gmx_txx_stat8 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat8_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat8_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mcst                         : 32; /**< Number of packets sent to multicast DMAC.
                                                          Does not include BCST packets. */
 	uint64_t bcst                         : 32; /**< Number of packets sent to broadcast DMAC.
@@ -3879,8 +4156,12 @@ union cvmx_agl_gmx_txx_stat8
 	struct cvmx_agl_gmx_txx_stat8_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat8_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat8_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat8_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat8_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat8_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat8_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat8_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat8_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat8 cvmx_agl_gmx_txx_stat8_t;
 
@@ -3895,12 +4176,10 @@ typedef union cvmx_agl_gmx_txx_stat8 cvmx_agl_gmx_txx_stat8_t;
  * - Counters will wrap
  * - Not reset when MIX*_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_txx_stat9
-{
+union cvmx_agl_gmx_txx_stat9 {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stat9_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stat9_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t undflw                       : 32; /**< Number of underflow packets */
 	uint64_t ctl                          : 32; /**< Number of Control packets (PAUSE flow control)
                                                          generated by GMX.  It does not include control
@@ -3914,8 +4193,12 @@ union cvmx_agl_gmx_txx_stat9
 	struct cvmx_agl_gmx_txx_stat9_s       cn52xxp1;
 	struct cvmx_agl_gmx_txx_stat9_s       cn56xx;
 	struct cvmx_agl_gmx_txx_stat9_s       cn56xxp1;
+	struct cvmx_agl_gmx_txx_stat9_s       cn61xx;
 	struct cvmx_agl_gmx_txx_stat9_s       cn63xx;
 	struct cvmx_agl_gmx_txx_stat9_s       cn63xxp1;
+	struct cvmx_agl_gmx_txx_stat9_s       cn66xx;
+	struct cvmx_agl_gmx_txx_stat9_s       cn68xx;
+	struct cvmx_agl_gmx_txx_stat9_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stat9 cvmx_agl_gmx_txx_stat9_t;
 
@@ -3929,12 +4212,10 @@ typedef union cvmx_agl_gmx_txx_stat9 cvmx_agl_gmx_txx_stat9_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_stats_ctl
-{
+union cvmx_agl_gmx_txx_stats_ctl {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_stats_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_stats_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t rd_clr                       : 1;  /**< Stats registers will clear on reads */
 #else
@@ -3946,8 +4227,12 @@ union cvmx_agl_gmx_txx_stats_ctl
 	struct cvmx_agl_gmx_txx_stats_ctl_s   cn52xxp1;
 	struct cvmx_agl_gmx_txx_stats_ctl_s   cn56xx;
 	struct cvmx_agl_gmx_txx_stats_ctl_s   cn56xxp1;
+	struct cvmx_agl_gmx_txx_stats_ctl_s   cn61xx;
 	struct cvmx_agl_gmx_txx_stats_ctl_s   cn63xx;
 	struct cvmx_agl_gmx_txx_stats_ctl_s   cn63xxp1;
+	struct cvmx_agl_gmx_txx_stats_ctl_s   cn66xx;
+	struct cvmx_agl_gmx_txx_stats_ctl_s   cn68xx;
+	struct cvmx_agl_gmx_txx_stats_ctl_s   cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_stats_ctl cvmx_agl_gmx_txx_stats_ctl_t;
 
@@ -3961,12 +4246,10 @@ typedef union cvmx_agl_gmx_txx_stats_ctl cvmx_agl_gmx_txx_stats_ctl_t;
  * Additionally reset when MIX<prt>_CTL[RESET] is set to 1.
  *
  */
-union cvmx_agl_gmx_txx_thresh
-{
+union cvmx_agl_gmx_txx_thresh {
 	uint64_t u64;
-	struct cvmx_agl_gmx_txx_thresh_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_txx_thresh_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t cnt                          : 6;  /**< Number of 16B ticks to accumulate in the TX FIFO
                                                          before sending on the packet interface
@@ -3983,8 +4266,12 @@ union cvmx_agl_gmx_txx_thresh
 	struct cvmx_agl_gmx_txx_thresh_s      cn52xxp1;
 	struct cvmx_agl_gmx_txx_thresh_s      cn56xx;
 	struct cvmx_agl_gmx_txx_thresh_s      cn56xxp1;
+	struct cvmx_agl_gmx_txx_thresh_s      cn61xx;
 	struct cvmx_agl_gmx_txx_thresh_s      cn63xx;
 	struct cvmx_agl_gmx_txx_thresh_s      cn63xxp1;
+	struct cvmx_agl_gmx_txx_thresh_s      cn66xx;
+	struct cvmx_agl_gmx_txx_thresh_s      cn68xx;
+	struct cvmx_agl_gmx_txx_thresh_s      cn68xxp1;
 };
 typedef union cvmx_agl_gmx_txx_thresh cvmx_agl_gmx_txx_thresh_t;
 
@@ -3998,12 +4285,10 @@ typedef union cvmx_agl_gmx_txx_thresh cvmx_agl_gmx_txx_thresh_t;
  * BP[0] will be reset when MIX0_CTL[RESET] is set to 1.
  * BP[1] will be reset when MIX1_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_tx_bp
-{
+union cvmx_agl_gmx_tx_bp {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_bp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_bp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t bp                           : 2;  /**< Port BackPressure status
                                                          0=Port is available
@@ -4015,9 +4300,8 @@ union cvmx_agl_gmx_tx_bp
 	} s;
 	struct cvmx_agl_gmx_tx_bp_s           cn52xx;
 	struct cvmx_agl_gmx_tx_bp_s           cn52xxp1;
-	struct cvmx_agl_gmx_tx_bp_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_bp_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t bp                           : 1;  /**< Port BackPressure status
                                                          0=Port is available
@@ -4028,8 +4312,12 @@ union cvmx_agl_gmx_tx_bp
 #endif
 	} cn56xx;
 	struct cvmx_agl_gmx_tx_bp_cn56xx      cn56xxp1;
+	struct cvmx_agl_gmx_tx_bp_s           cn61xx;
 	struct cvmx_agl_gmx_tx_bp_s           cn63xx;
 	struct cvmx_agl_gmx_tx_bp_s           cn63xxp1;
+	struct cvmx_agl_gmx_tx_bp_s           cn66xx;
+	struct cvmx_agl_gmx_tx_bp_s           cn68xx;
+	struct cvmx_agl_gmx_tx_bp_s           cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_bp cvmx_agl_gmx_tx_bp_t;
 
@@ -4043,12 +4331,10 @@ typedef union cvmx_agl_gmx_tx_bp cvmx_agl_gmx_tx_bp_t;
  * Additionally reset when both MIX0/1_CTL[RESET] are set to 1.
  *
  */
-union cvmx_agl_gmx_tx_col_attempt
-{
+union cvmx_agl_gmx_tx_col_attempt {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_col_attempt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_col_attempt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t limit                        : 5;  /**< Collision Attempts */
 #else
@@ -4060,8 +4346,12 @@ union cvmx_agl_gmx_tx_col_attempt
 	struct cvmx_agl_gmx_tx_col_attempt_s  cn52xxp1;
 	struct cvmx_agl_gmx_tx_col_attempt_s  cn56xx;
 	struct cvmx_agl_gmx_tx_col_attempt_s  cn56xxp1;
+	struct cvmx_agl_gmx_tx_col_attempt_s  cn61xx;
 	struct cvmx_agl_gmx_tx_col_attempt_s  cn63xx;
 	struct cvmx_agl_gmx_tx_col_attempt_s  cn63xxp1;
+	struct cvmx_agl_gmx_tx_col_attempt_s  cn66xx;
+	struct cvmx_agl_gmx_tx_col_attempt_s  cn68xx;
+	struct cvmx_agl_gmx_tx_col_attempt_s  cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_col_attempt cvmx_agl_gmx_tx_col_attempt_t;
 
@@ -4090,12 +4380,10 @@ typedef union cvmx_agl_gmx_tx_col_attempt cvmx_agl_gmx_tx_col_attempt_t;
  *
  * Additionally reset when both MIX0/1_CTL[RESET] are set to 1.
  */
-union cvmx_agl_gmx_tx_ifg
-{
+union cvmx_agl_gmx_tx_ifg {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_ifg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_ifg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t ifg2                         : 4;  /**< 1/3 of the interframe gap timing
                                                          If CRS is detected during IFG2, then the
@@ -4115,8 +4403,12 @@ union cvmx_agl_gmx_tx_ifg
 	struct cvmx_agl_gmx_tx_ifg_s          cn52xxp1;
 	struct cvmx_agl_gmx_tx_ifg_s          cn56xx;
 	struct cvmx_agl_gmx_tx_ifg_s          cn56xxp1;
+	struct cvmx_agl_gmx_tx_ifg_s          cn61xx;
 	struct cvmx_agl_gmx_tx_ifg_s          cn63xx;
 	struct cvmx_agl_gmx_tx_ifg_s          cn63xxp1;
+	struct cvmx_agl_gmx_tx_ifg_s          cn66xx;
+	struct cvmx_agl_gmx_tx_ifg_s          cn68xx;
+	struct cvmx_agl_gmx_tx_ifg_s          cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_ifg cvmx_agl_gmx_tx_ifg_t;
 
@@ -4131,12 +4423,10 @@ typedef union cvmx_agl_gmx_tx_ifg cvmx_agl_gmx_tx_ifg_t;
  * UNDFLW[1], XSCOL[1], XSDEF[1], LATE_COL[1], PTP_LOST[1] will be reset when MIX1_CTL[RESET] is set to 1.
  * PKO_NXA will bee reset when both MIX0/1_CTL[RESET] are set to 1.
  */
-union cvmx_agl_gmx_tx_int_en
-{
+union cvmx_agl_gmx_tx_int_en {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_int_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_int_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t ptp_lost                     : 2;  /**< A packet with a PTP request was not able to be
                                                          sent due to XSCOL */
@@ -4165,9 +4455,8 @@ union cvmx_agl_gmx_tx_int_en
 	uint64_t reserved_22_63               : 42;
 #endif
 	} s;
-	struct cvmx_agl_gmx_tx_int_en_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_int_en_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t late_col                     : 2;  /**< TX Late Collision */
 	uint64_t reserved_14_15               : 2;
@@ -4192,9 +4481,8 @@ union cvmx_agl_gmx_tx_int_en
 #endif
 	} cn52xx;
 	struct cvmx_agl_gmx_tx_int_en_cn52xx  cn52xxp1;
-	struct cvmx_agl_gmx_tx_int_en_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_int_en_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t late_col                     : 1;  /**< TX Late Collision */
 	uint64_t reserved_13_15               : 3;
@@ -4219,8 +4507,12 @@ union cvmx_agl_gmx_tx_int_en
 #endif
 	} cn56xx;
 	struct cvmx_agl_gmx_tx_int_en_cn56xx  cn56xxp1;
+	struct cvmx_agl_gmx_tx_int_en_s       cn61xx;
 	struct cvmx_agl_gmx_tx_int_en_s       cn63xx;
 	struct cvmx_agl_gmx_tx_int_en_s       cn63xxp1;
+	struct cvmx_agl_gmx_tx_int_en_s       cn66xx;
+	struct cvmx_agl_gmx_tx_int_en_s       cn68xx;
+	struct cvmx_agl_gmx_tx_int_en_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_int_en cvmx_agl_gmx_tx_int_en_t;
 
@@ -4235,12 +4527,10 @@ typedef union cvmx_agl_gmx_tx_int_en cvmx_agl_gmx_tx_int_en_t;
  * UNDFLW[1], XSCOL[1], XSDEF[1], LATE_COL[1], PTP_LOST[1] will be reset when MIX1_CTL[RESET] is set to 1.
  * PKO_NXA will bee reset when both MIX0/1_CTL[RESET] are set to 1.
  */
-union cvmx_agl_gmx_tx_int_reg
-{
+union cvmx_agl_gmx_tx_int_reg {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t ptp_lost                     : 2;  /**< A packet with a PTP request was not able to be
                                                          sent due to XSCOL */
@@ -4269,9 +4559,8 @@ union cvmx_agl_gmx_tx_int_reg
 	uint64_t reserved_22_63               : 42;
 #endif
 	} s;
-	struct cvmx_agl_gmx_tx_int_reg_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_int_reg_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t late_col                     : 2;  /**< TX Late Collision */
 	uint64_t reserved_14_15               : 2;
@@ -4296,9 +4585,8 @@ union cvmx_agl_gmx_tx_int_reg
 #endif
 	} cn52xx;
 	struct cvmx_agl_gmx_tx_int_reg_cn52xx cn52xxp1;
-	struct cvmx_agl_gmx_tx_int_reg_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_int_reg_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t late_col                     : 1;  /**< TX Late Collision */
 	uint64_t reserved_13_15               : 3;
@@ -4323,8 +4611,12 @@ union cvmx_agl_gmx_tx_int_reg
 #endif
 	} cn56xx;
 	struct cvmx_agl_gmx_tx_int_reg_cn56xx cn56xxp1;
+	struct cvmx_agl_gmx_tx_int_reg_s      cn61xx;
 	struct cvmx_agl_gmx_tx_int_reg_s      cn63xx;
 	struct cvmx_agl_gmx_tx_int_reg_s      cn63xxp1;
+	struct cvmx_agl_gmx_tx_int_reg_s      cn66xx;
+	struct cvmx_agl_gmx_tx_int_reg_s      cn68xx;
+	struct cvmx_agl_gmx_tx_int_reg_s      cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_int_reg cvmx_agl_gmx_tx_int_reg_t;
 
@@ -4338,12 +4630,10 @@ typedef union cvmx_agl_gmx_tx_int_reg cvmx_agl_gmx_tx_int_reg_t;
  * Additionally reset when both MIX0/1_CTL[RESET] are set to 1.
  *
  */
-union cvmx_agl_gmx_tx_jam
-{
+union cvmx_agl_gmx_tx_jam {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_jam_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_jam_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t jam                          : 8;  /**< Jam pattern */
 #else
@@ -4355,8 +4645,12 @@ union cvmx_agl_gmx_tx_jam
 	struct cvmx_agl_gmx_tx_jam_s          cn52xxp1;
 	struct cvmx_agl_gmx_tx_jam_s          cn56xx;
 	struct cvmx_agl_gmx_tx_jam_s          cn56xxp1;
+	struct cvmx_agl_gmx_tx_jam_s          cn61xx;
 	struct cvmx_agl_gmx_tx_jam_s          cn63xx;
 	struct cvmx_agl_gmx_tx_jam_s          cn63xxp1;
+	struct cvmx_agl_gmx_tx_jam_s          cn66xx;
+	struct cvmx_agl_gmx_tx_jam_s          cn68xx;
+	struct cvmx_agl_gmx_tx_jam_s          cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_jam cvmx_agl_gmx_tx_jam_t;
 
@@ -4370,12 +4664,10 @@ typedef union cvmx_agl_gmx_tx_jam cvmx_agl_gmx_tx_jam_t;
  * Additionally reset when both MIX0/1_CTL[RESET] are set to 1.
  *
  */
-union cvmx_agl_gmx_tx_lfsr
-{
+union cvmx_agl_gmx_tx_lfsr {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_lfsr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_lfsr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t lfsr                         : 16; /**< The current state of the LFSR used to feed random
                                                          numbers to compute truncated binary exponential
@@ -4389,8 +4681,12 @@ union cvmx_agl_gmx_tx_lfsr
 	struct cvmx_agl_gmx_tx_lfsr_s         cn52xxp1;
 	struct cvmx_agl_gmx_tx_lfsr_s         cn56xx;
 	struct cvmx_agl_gmx_tx_lfsr_s         cn56xxp1;
+	struct cvmx_agl_gmx_tx_lfsr_s         cn61xx;
 	struct cvmx_agl_gmx_tx_lfsr_s         cn63xx;
 	struct cvmx_agl_gmx_tx_lfsr_s         cn63xxp1;
+	struct cvmx_agl_gmx_tx_lfsr_s         cn66xx;
+	struct cvmx_agl_gmx_tx_lfsr_s         cn68xx;
+	struct cvmx_agl_gmx_tx_lfsr_s         cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_lfsr cvmx_agl_gmx_tx_lfsr_t;
 
@@ -4404,12 +4700,10 @@ typedef union cvmx_agl_gmx_tx_lfsr cvmx_agl_gmx_tx_lfsr_t;
  * IGN_FULL[0], BP[0], EN[0] will be reset when MIX0_CTL[RESET] is set to 1.
  * IGN_FULL[1], BP[1], EN[1] will be reset when MIX1_CTL[RESET] is set to 1.
  */
-union cvmx_agl_gmx_tx_ovr_bp
-{
+union cvmx_agl_gmx_tx_ovr_bp {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_ovr_bp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_ovr_bp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t en                           : 2;  /**< Per port Enable back pressure override */
 	uint64_t reserved_6_7                 : 2;
@@ -4429,9 +4723,8 @@ union cvmx_agl_gmx_tx_ovr_bp
 	} s;
 	struct cvmx_agl_gmx_tx_ovr_bp_s       cn52xx;
 	struct cvmx_agl_gmx_tx_ovr_bp_s       cn52xxp1;
-	struct cvmx_agl_gmx_tx_ovr_bp_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_ovr_bp_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t en                           : 1;  /**< Per port Enable back pressure override */
 	uint64_t reserved_5_7                 : 3;
@@ -4450,8 +4743,12 @@ union cvmx_agl_gmx_tx_ovr_bp
 #endif
 	} cn56xx;
 	struct cvmx_agl_gmx_tx_ovr_bp_cn56xx  cn56xxp1;
+	struct cvmx_agl_gmx_tx_ovr_bp_s       cn61xx;
 	struct cvmx_agl_gmx_tx_ovr_bp_s       cn63xx;
 	struct cvmx_agl_gmx_tx_ovr_bp_s       cn63xxp1;
+	struct cvmx_agl_gmx_tx_ovr_bp_s       cn66xx;
+	struct cvmx_agl_gmx_tx_ovr_bp_s       cn68xx;
+	struct cvmx_agl_gmx_tx_ovr_bp_s       cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_ovr_bp cvmx_agl_gmx_tx_ovr_bp_t;
 
@@ -4465,12 +4762,10 @@ typedef union cvmx_agl_gmx_tx_ovr_bp cvmx_agl_gmx_tx_ovr_bp_t;
  * Additionally reset when both MIX0/1_CTL[RESET] are set to 1.
  *
  */
-union cvmx_agl_gmx_tx_pause_pkt_dmac
-{
+union cvmx_agl_gmx_tx_pause_pkt_dmac {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t dmac                         : 48; /**< The DMAC field placed is outbnd pause pkts */
 #else
@@ -4482,8 +4777,12 @@ union cvmx_agl_gmx_tx_pause_pkt_dmac
 	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn52xxp1;
 	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn56xx;
 	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn56xxp1;
+	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn61xx;
 	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn63xx;
 	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn63xxp1;
+	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn66xx;
+	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn68xx;
+	struct cvmx_agl_gmx_tx_pause_pkt_dmac_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_pause_pkt_dmac cvmx_agl_gmx_tx_pause_pkt_dmac_t;
 
@@ -4497,12 +4796,10 @@ typedef union cvmx_agl_gmx_tx_pause_pkt_dmac cvmx_agl_gmx_tx_pause_pkt_dmac_t;
  * Additionally reset when both MIX0/1_CTL[RESET] are set to 1.
  *
  */
-union cvmx_agl_gmx_tx_pause_pkt_type
-{
+union cvmx_agl_gmx_tx_pause_pkt_type {
 	uint64_t u64;
-	struct cvmx_agl_gmx_tx_pause_pkt_type_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_gmx_tx_pause_pkt_type_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t type                         : 16; /**< The TYPE field placed is outbnd pause pkts */
 #else
@@ -4514,8 +4811,12 @@ union cvmx_agl_gmx_tx_pause_pkt_type
 	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn52xxp1;
 	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn56xx;
 	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn56xxp1;
+	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn61xx;
 	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn63xx;
 	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn63xxp1;
+	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn66xx;
+	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn68xx;
+	struct cvmx_agl_gmx_tx_pause_pkt_type_s cn68xxp1;
 };
 typedef union cvmx_agl_gmx_tx_pause_pkt_type cvmx_agl_gmx_tx_pause_pkt_type_t;
 
@@ -4526,19 +4827,49 @@ typedef union cvmx_agl_gmx_tx_pause_pkt_type cvmx_agl_gmx_tx_pause_pkt_type_t;
  *
  *
  * Notes:
+ * The RGMII timing specification requires that devices transmit clock and
+ * data synchronously. The specification requires external sources (namely
+ * the PC board trace routes) to introduce the appropriate 1.5 to 2.0 ns of
+ * delay.
+ *
+ * To eliminate the need for the PC board delays, the MIX RGMII interface
+ * has optional onboard DLL's for both transmit and receive. For correct
+ * operation, at most one of the transmitter, board, or receiver involved
+ * in an RGMII link should introduce delay. By default/reset,
+ * the MIX RGMII receivers delay the received clock, and the MIX
+ * RGMII transmitters do not delay the transmitted clock. Whether this
+ * default works as-is with a given link partner depends on the behavior
+ * of the link partner and the PC board.
+ *
+ * These are the possible modes of MIX RGMII receive operation:
+ *  o AGL_PRTx_CTL[CLKRX_BYP] = 0 (reset value) - The OCTEON MIX RGMII
+ *    receive interface introduces clock delay using its internal DLL.
+ *    This mode is appropriate if neither the remote
+ *    transmitter nor the PC board delays the clock.
+ *  o AGL_PRTx_CTL[CLKRX_BYP] = 1, [CLKRX_SET] = 0x0 - The OCTEON MIX
+ *    RGMII receive interface introduces no clock delay. This mode
+ *    is appropriate if either the remote transmitter or the PC board
+ *    delays the clock.
+ *
+ * These are the possible modes of MIX RGMII transmit operation:
+ *  o AGL_PRTx_CTL[CLKTX_BYP] = 1, [CLKTX_SET] = 0x0 (reset value) -
+ *    The OCTEON MIX RGMII transmit interface introduces no clock
+ *    delay. This mode is appropriate is either the remote receiver
+ *    or the PC board delays the clock.
+ *  o AGL_PRTx_CTL[CLKTX_BYP] = 0 - The OCTEON MIX RGMII transmit
+ *    interface introduces clock delay using its internal DLL.
+ *    This mode is appropriate if neither the remote receiver
+ *    nor the PC board delays the clock.
+ *
  * AGL_PRT0_CTL will be reset when MIX0_CTL[RESET] is set to 1.
  * AGL_PRT1_CTL will be reset when MIX1_CTL[RESET] is set to 1.
  */
-union cvmx_agl_prtx_ctl
-{
+union cvmx_agl_prtx_ctl {
 	uint64_t u64;
-	struct cvmx_agl_prtx_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_agl_prtx_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t drv_byp                      : 1;  /**< Bypass the compensation controller and use
-                                                         DRV_NCTL and DRV_PCTL
-                                                         Note: the reset value was changed from pass1
-                                                         to pass2. */
+                                                         DRV_NCTL and DRV_PCTL */
 	uint64_t reserved_62_62               : 1;
 	uint64_t cmp_pctl                     : 6;  /**< PCTL drive strength from the compensation ctl */
 	uint64_t reserved_54_55               : 2;
@@ -4562,7 +4893,6 @@ union cvmx_agl_prtx_ctl
                                                          Skews RXC from RXD in RGMII mode */
 	uint64_t clktx_byp                    : 1;  /**< Bypass the TX clock delay setting
                                                          Skews TXC from TXD,TXCTL in RGMII mode
-                                                         Skews RXC from RXD,RXCTL in RGMII mode
                                                          By default, clock and data and sourced
                                                          synchronously.
                                                          In MII mode, the CLKRX_BYP is forced to 1. */
@@ -4572,9 +4902,7 @@ union cvmx_agl_prtx_ctl
 	uint64_t reserved_5_7                 : 3;
 	uint64_t dllrst                       : 1;  /**< DLL Reset */
 	uint64_t comp                         : 1;  /**< Compensation Enable */
-	uint64_t enable                       : 1;  /**< Port Enable
-                                                         Note: the reset value was changed from pass1
-                                                         to pass2. */
+	uint64_t enable                       : 1;  /**< Port Enable */
 	uint64_t clkrst                       : 1;  /**< Clock Tree Reset */
 	uint64_t mode                         : 1;  /**< Port Mode
                                                          MODE must be set the same for all ports in which
@@ -4607,8 +4935,12 @@ union cvmx_agl_prtx_ctl
 	uint64_t drv_byp                      : 1;
 #endif
 	} s;
+	struct cvmx_agl_prtx_ctl_s            cn61xx;
 	struct cvmx_agl_prtx_ctl_s            cn63xx;
 	struct cvmx_agl_prtx_ctl_s            cn63xxp1;
+	struct cvmx_agl_prtx_ctl_s            cn66xx;
+	struct cvmx_agl_prtx_ctl_s            cn68xx;
+	struct cvmx_agl_prtx_ctl_s            cn68xxp1;
 };
 typedef union cvmx_agl_prtx_ctl cvmx_agl_prtx_ctl_t;
 

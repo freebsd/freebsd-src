@@ -86,13 +86,14 @@ struct ISCI_REMOTE_DEVICE {
 	BOOL				is_resetting;
 	uint32_t			frozen_lun_mask;
 	SCI_FAST_LIST_ELEMENT_T		pending_device_reset_element;
+	TAILQ_HEAD(,ccb_hdr)		queued_ccbs;
 };
 
 struct ISCI_DOMAIN {
-	struct ISCI_CONTROLLER	*controller;
-	SCI_DOMAIN_HANDLE_T	sci_object;
-	uint8_t			index;
-
+	struct ISCI_CONTROLLER		*controller;
+	SCI_DOMAIN_HANDLE_T		sci_object;
+	uint8_t				index;
+	struct ISCI_REMOTE_DEVICE	*da_remote_device;
 };
 
 struct ISCI_MEMORY
@@ -122,6 +123,7 @@ struct ISCI_CONTROLLER
 	SCI_CONTROLLER_HANDLE_T	scif_controller_handle;
 	struct ISCI_DOMAIN	domain[SCI_MAX_DOMAINS];
 	BOOL			is_started;
+	BOOL			has_been_scanned;
 	uint32_t		initial_discovery_mask;
 	BOOL			is_frozen;
 	uint8_t			*remote_device_memory;

@@ -167,7 +167,6 @@ struct mount {
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */
-	u_int		mnt_noasync;		/* (i) # noasync overrides */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
@@ -200,10 +199,10 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 	__mnt_vnode_markerfree(&(mvp), (mp))
 
 #define MNT_VNODE_FOREACH_ABORT(mp, mvp)				\
-        do {								\
-	  MNT_ILOCK(mp);						\
-          MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);			\
-	  MNT_IUNLOCK(mp);						\
+	do {								\
+		MNT_ILOCK(mp);						\
+		MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);		\
+		MNT_IUNLOCK(mp);					\
 	} while (0)
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
@@ -212,7 +211,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
 #define	MNT_REF(mp)	(mp)->mnt_ref++
 #define	MNT_REL(mp)	do {						\
-	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));			\
+	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));		\
 	(mp)->mnt_ref--;						\
 	if ((mp)->mnt_ref == 0)						\
 		wakeup((mp));						\
@@ -325,6 +324,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
 #define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
+#define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
@@ -718,6 +718,8 @@ int	vfs_flagopt(struct vfsoptlist *opts, const char *name, uint64_t *w,
 	    uint64_t val);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
+int	vfs_getopt_size(struct vfsoptlist *opts, const char *name,
+	    off_t *value);
 char	*vfs_getopts(struct vfsoptlist *, const char *, int *error);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_filteropt(struct vfsoptlist *, const char **legal);

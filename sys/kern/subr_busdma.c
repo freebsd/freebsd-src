@@ -234,14 +234,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	/* Let MD code handle API flaws. */
 	parent = bus_dma_tag_parent(parent);
 
-	/* Always enforce at least a 4GB (2GB for PAE) boundary. */
-#if defined(__amd64__)
-	if (boundary == 0 || boundary > ((bus_addr_t)1 << 32))
-		boundary = (bus_size_t)1 << 32;
-#elif defined(PAE)
-	if (boundary == 0 || boundary > ((bus_addr_t)1 << 31))
-		boundary = (bus_size_t)1 << 31;
-#endif
 	/* Basic sanity checking */
 	if (boundary != 0 && boundary < maxsegsz)
 		maxsegsz = boundary;

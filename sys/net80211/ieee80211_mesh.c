@@ -142,6 +142,10 @@ static struct ieee80211_mesh_proto_metric	mesh_proto_metrics[4];
 #define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
 #define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
 
+MALLOC_DEFINE(M_80211_MESH_PREQ, "80211preq", "802.11 MESH Path Request frame");
+MALLOC_DEFINE(M_80211_MESH_PREP, "80211prep", "802.11 MESH Path Reply frame");
+MALLOC_DEFINE(M_80211_MESH_PERR, "80211perr", "802.11 MESH Path Error frame");
+
 MALLOC_DEFINE(M_80211_MESH_RT, "80211mesh", "802.11s routing table");
 
 /*

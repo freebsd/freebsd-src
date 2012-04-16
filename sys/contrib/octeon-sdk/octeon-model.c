@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,7 +49,7 @@
  * File defining functions for working with different Octeon
  * models.
  *
- * <hr>$Revision: 49922 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <asm/octeon/octeon.h>
@@ -75,7 +75,7 @@
  * @return 0: runtime checking or exact version match
  *         1: chip is newer revision than compiled for, but software will run properly.
  */
-int octeon_model_version_check(uint32_t chip_id)
+int octeon_model_version_check(uint32_t chip_id __attribute__ ((unused)))
 {
     //printf("Model Number: %s\n", octeon_model_get_string(chip_id));
 #if !OCTEON_IS_COMMON_BINARY()
@@ -108,33 +108,6 @@ int octeon_model_version_check(uint32_t chip_id)
     cvmx_warn_if(CVMX_ENABLE_CSR_ADDRESS_CHECKING, "CSR address checks are enabled. Expect some performance loss due to the extra checking\n");
     cvmx_warn_if(CVMX_ENABLE_POW_CHECKS, "POW state checks are enabled. Expect some performance loss due to the extra checking\n");
 
-    /* Core-14449 errata check. Generate a warning message if application 
-       compiled for OcteonPlus/Octeon models are run on Octeon II Pass1 chip */
-    {
-        uint32_t insn;
-
-        asm volatile (
-                      ".set push\n"            \
-                      ".set noreorder\n"       \
-                      "pref_errata:\tpref 0,0($zero)\n"      \
-                      "lw %0, pref_errata\n" \
-                      ".set pop"  : "=r" (insn) : : "memory");
-
-        if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) && ((insn >> 16) & 0x1f) != 28)
-        {
-            printf("\n###################################################\n");
-            printf("WARNING: Application not compiled for cn63xx pass1.x chips, use of\n"
-                   "         certain prefetch operations can cause dcache corruption.\n");
-            printf("###################################################\n\n");
-            return -1;
-        }
-        else if (!OCTEON_IS_MODEL(OCTEON_CN63XX) && ((insn >> 16) & 0x1f) == 28)
-        {
-            printf("\n###################################################\n");
-            printf("WARNING: Software configured with -mfix-cn63xxp1 (Core-14449 errata), expect some performance loss.\n");
-            printf("###################################################\n\n");
-        }
-    }
     return(0);
 }
 
@@ -167,7 +140,9 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
     const char *        family;
     const char *        core_model;
     char                pass[4];
+#ifndef CVMX_BUILD_FOR_UBOOT
     int                 clock_mhz;
+#endif
     const char *        suffix;
     cvmx_l2d_fus3_t     fus3;
     int                 num_cores;
@@ -176,13 +151,14 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
     char fuse_model[10];
     uint32_t fuse_data = 0;
 
-    if (!OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    fus3.u64 = 0;
+    if (OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX))
         fus3.u64 = cvmx_read_csr(CVMX_L2D_FUS3);
     fus_dat2.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT2);
     fus_dat3.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT3);
     num_cores = cvmx_pop(cvmx_read_csr(CVMX_CIU_FUSE));
 
-    /* Make sure the non existant devices look disabled */
+    /* Make sure the non existent devices look disabled */
     switch ((chip_id >> 8) & 0xff)
     {
         case 6: /* CN50XX */
@@ -222,6 +198,8 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
         number. There are some exceptions that are fixed later */
     switch (num_cores)
     {
+        case 32: core_model = "80"; break;
+        case 24: core_model = "70"; break;
         case 16: core_model = "60"; break;
         case 15: core_model = "58"; break;
         case 14: core_model = "55"; break;
@@ -292,8 +270,8 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
             break;
         case 3: /* CN58XX */
             family = "58";
-            /* Special case. 4 core, no crypto */
-            if ((num_cores == 4) && fus_dat2.cn38xx.nocrypto)
+            /* Special case. 4 core, half cache (CP with half cache) */
+            if ((num_cores == 4) && fus3.cn58xx.crip_1024k && !strncmp(suffix, "CP", 2))
                 core_model = "29";
 
             /* Pass 1 uses different encodings for pass numbers */
@@ -329,6 +307,9 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
                     suffix = "NSP";
                     if (fus_dat3.s.nozip)
                         suffix = "SCP";
+
+                    if (fus_dat3.s.bar2_en) 
+                        suffix = "NSPB2";
                 }
                 if (fus3.cn56xx.crip_1024k)
                     family = "54";
@@ -345,14 +326,64 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
             else
                 family = "52";
             break;
+	case 0x93: /* CN61XX */
+            family = "61";
+            if (fus_dat3.cn61xx.nozip)
+                suffix = "SCP";
+            else
+                suffix = "AAP";
+            break;
 	case 0x90: /* CN63XX */
             family = "63";
-            if (num_cores == 6)
+            if (fus_dat3.s.l2c_crip == 2)
+                family = "62";
+            if (num_cores == 6)  /* Other core counts match generic */
                 core_model = "35";
             if (fus_dat2.cn63xx.nocrypto)
                 suffix = "CP";
             else if (fus_dat2.cn63xx.dorm_crypto)
                 suffix = "DAP";
+            else if (fus_dat3.cn63xx.nozip)
+                suffix = "SCP";
+            else
+                suffix = "AAP";
+            break;
+	case 0x92: /* CN66XX */
+            family = "66";
+            if (num_cores == 6)  /* Other core counts match generic */
+                core_model = "35";
+            if (fus_dat2.cn66xx.nocrypto && fus_dat2.cn66xx.dorm_crypto)
+                suffix = "AP";
+            if (fus_dat2.cn66xx.nocrypto)
+                suffix = "CP";
+            else if (fus_dat2.cn66xx.dorm_crypto)
+                suffix = "DAP";
+            else if (fus_dat3.cn66xx.nozip && fus_dat2.cn66xx.raid_en)
+                suffix = "SCP";
+            else if (!fus_dat2.cn66xx.raid_en)
+                suffix = "HAP";
+            else
+                suffix = "AAP";
+            break;
+        case 0x91: /* CN68XX */
+            family = "68";
+            if (fus_dat2.cn68xx.nocrypto && fus_dat3.cn68xx.nozip)
+                suffix = "CP";
+            else if (fus_dat2.cn68xx.dorm_crypto)
+                suffix = "DAP";
+            else if (fus_dat3.cn68xx.nozip)
+                suffix = "SCP";
+            else if (fus_dat2.cn68xx.nocrypto)
+                suffix = "SP";
+            else if (!fus_dat2.cn68xx.raid_en)
+                suffix = "HAP";
+            else
+                suffix = "AAP";
+            break;
+	case 0x94: /* CNF71XX */
+            family = "F71";
+            if (fus_dat3.cnf71xx.nozip)
+                suffix = "SCP";
             else
                 suffix = "AAP";
             break;
@@ -364,19 +395,25 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
             break;
     }
 
+#ifndef CVMX_BUILD_FOR_UBOOT
     clock_mhz = cvmx_clock_get_rate(CVMX_CLOCK_RCLK) / 1000000;
+#endif
 
     if (family[0] != '3')
     {
+        int fuse_base = 384/8;
+        if (family[0] == '6')
+            fuse_base = 832/8;
+
         /* Check for model in fuses, overrides normal decode */
         /* This is _not_ valid for Octeon CN3XXX models */
-        fuse_data |= cvmx_fuse_read_byte(51);
+        fuse_data |= cvmx_fuse_read_byte(fuse_base + 3);
         fuse_data = fuse_data << 8;
-        fuse_data |= cvmx_fuse_read_byte(50);
+        fuse_data |= cvmx_fuse_read_byte(fuse_base + 2);
         fuse_data = fuse_data << 8;
-        fuse_data |= cvmx_fuse_read_byte(49);
+        fuse_data |= cvmx_fuse_read_byte(fuse_base + 1);
         fuse_data = fuse_data << 8;
-        fuse_data |= cvmx_fuse_read_byte(48);
+        fuse_data |= cvmx_fuse_read_byte(fuse_base);
         if (fuse_data & 0x7ffff)
         {
             int model = fuse_data & 0x3fff;

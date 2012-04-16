@@ -445,7 +445,8 @@ more:
 	/*
 	 * we allow reads during pageouts...
 	 */
-	return (vm_pageout_flush(&mc[page_base], pageout_count, 0, 0, NULL));
+	return (vm_pageout_flush(&mc[page_base], pageout_count, 0, 0, NULL,
+	    NULL));
 }
 
 /*
@@ -459,9 +460,12 @@ more:
  *
  *	Returned runlen is the count of pages between mreq and first
  *	page after mreq with status VM_PAGER_AGAIN.
+ *	*eio is set to TRUE if pager returned VM_PAGER_ERROR or VM_PAGER_FAIL
+ *	for any page in runlen set.
  */
 int
-vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen)
+vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
+    boolean_t *eio)
 {
 	vm_object_t object = mc[0]->object;
 	int pageout_status[count];
@@ -493,6 +497,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen)
 	vm_pager_put_pages(object, mc, count, flags, pageout_status);
 
 	runlen = count - mreq;
+	if (eio != NULL)
+		*eio = FALSE;
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
@@ -522,6 +528,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen)
 			vm_page_lock(mt);
 			vm_page_activate(mt);
 			vm_page_unlock(mt);
+			if (eio != NULL && i >= mreq && i - mreq < runlen)
+				*eio = TRUE;
 			break;
 		case VM_PAGER_AGAIN:
 			if (i >= mreq && i - mreq < runlen)

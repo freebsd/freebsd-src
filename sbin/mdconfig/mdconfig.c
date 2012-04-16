@@ -516,7 +516,7 @@ md_prthumanval(char *length)
 	(void)printf("%6s", buf);
 }
 
-int
+static int
 md_query(char *name)
 {
 

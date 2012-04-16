@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2003, 2008 Silicon Graphics International Corp.
+ * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -102,6 +106,8 @@ static int ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 				  struct ctl_lun_req *req);
 static int ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 				      struct ctl_lun_req *req, int do_wait);
+static int ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
+				  struct ctl_lun_req *req);
 static void ctl_backend_ramdisk_lun_shutdown(void *be_lun);
 static void ctl_backend_ramdisk_lun_config_status(void *be_lun,
 						  ctl_lun_config_status status);
@@ -375,6 +381,9 @@ ctl_backend_ramdisk_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			break;
 		case CTL_LUNREQ_RM:
 			retval = ctl_backend_ramdisk_rm(softc, lun_req);
+			break;
+		case CTL_LUNREQ_MODIFY:
+			retval = ctl_backend_ramdisk_modify(softc, lun_req);
 			break;
 		default:
 			lun_req->status = CTL_LUN_ERROR;
@@ -664,6 +673,73 @@ bailout_error:
 	free(be_lun, M_RAMDISK);
 
 	return (retval);
+}
+
+static int
+ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
+		       struct ctl_lun_req *req)
+{
+	struct ctl_be_ramdisk_lun *be_lun;
+	struct ctl_lun_modify_params *params;
+	uint32_t blocksize;
+
+	params = &req->reqdata.modify;
+
+	be_lun = NULL;
+
+	mtx_lock(&softc->lock);
+	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
+		if (be_lun->ctl_be_lun.lun_id == params->lun_id)
+			break;
+	}
+	mtx_unlock(&softc->lock);
+
+	if (be_lun == NULL) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: LUN %u is not managed by the ramdisk backend",
+			 __func__, params->lun_id);
+		goto bailout_error;
+	}
+
+	if (params->lun_size_bytes == 0) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			"%s: LUN size \"auto\" not supported "
+			"by the ramdisk backend", __func__);
+		goto bailout_error;
+	}
+
+	blocksize = be_lun->ctl_be_lun.blocksize;
+
+	if (params->lun_size_bytes < blocksize) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			"%s: LUN size %ju < blocksize %u", __func__,
+			params->lun_size_bytes, blocksize);
+		goto bailout_error;
+	}
+
+	be_lun->size_blocks = params->lun_size_bytes / blocksize;
+	be_lun->size_bytes = be_lun->size_blocks * blocksize;
+
+	/*
+	 * The maximum LBA is the size - 1.
+	 *
+	 * XXX: Note that this field is being updated without locking,
+	 * 	which might cause problems on 32-bit architectures.
+	 */
+	be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
+	ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
+
+	/* Tell the user the exact size we ended up using */
+	params->lun_size_bytes = be_lun->size_bytes;
+
+	req->status = CTL_LUN_OK;
+
+	return (0);
+
+bailout_error:
+	req->status = CTL_LUN_ERROR;
+
+	return (0);
 }
 
 static void
