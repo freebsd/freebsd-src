@@ -108,7 +108,7 @@ static int total_bpages;
 static int busdma_zonecount;
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
 
-SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
 	   "Total bounce pages");
 
@@ -542,7 +542,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 * XXX Certain AGP hardware does.
 		 */
 		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags, 0ul,
-		    dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
+		    dmat->lowaddr, dmat->alignment ? dmat->alignment : 1ul,
 		    dmat->boundary);
 	}
 	if (*vaddr == NULL) {
@@ -1004,6 +1004,13 @@ busdma_sysctl_tree_top(struct bounce_zone *bz)
 	return (bz->sysctl_tree_top);
 }
 
+#if defined(__LP64__) || (defined(__i386__) && defined(PAE))
+#define	SYSCTL_ADD_BUS_SIZE_T	SYSCTL_ADD_UQUAD
+#else
+#define	SYSCTL_ADD_BUS_SIZE_T(ctx, parent, nbr, name, flag, ptr, desc)	\
+	SYSCTL_ADD_UINT(ctx, parent, nbr, name, flag, ptr, 0, desc)
+#endif
+
 static int
 alloc_bounce_zone(bus_dma_tag_t dmat)
 {
@@ -1071,7 +1078,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_ULONG(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_BUS_SIZE_T(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "alignment", CTLFLAG_RD, &bz->alignment, "");
 
