@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fetch.h>
 #include <gelf.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,7 +51,6 @@ __FBSDID("$FreeBSD$");
 
 #define _LOCALBASE "/usr/local"
 #define _PKGS_URL "http://pkgbeta.FreeBSD.org"
-#define _DEFAULT_TMP "/tmp"
 
 static const char *
 elf_corres_to_string(struct _elf_corres *m, int e)
@@ -68,18 +68,18 @@ static int
 pkg_get_myabi(char *dest, size_t sz)
 {
 	Elf *elf;
-	GElf_Ehdr elfhdr;
-	GElf_Shdr shdr;
 	Elf_Data *data;
 	Elf_Note note;
 	Elf_Scn *scn;
 	char *src, *osname;
 	const char *abi;
+	GElf_Ehdr elfhdr;
+	GElf_Shdr shdr;
 	int fd, i, ret;
 	uint32_t version;
 
 	version = 0;
-	ret = 0;
+	ret = -1;
 	scn = NULL;
 	abi = NULL;
 
@@ -119,7 +119,7 @@ pkg_get_myabi(char *dest, size_t sz)
 
 	if (scn == NULL) {
 		ret = -1;
-		warn("fail to get the note section");
+		warn("failed to get the note section");
 		goto cleanup;
 	}
 
@@ -148,43 +148,45 @@ pkg_get_myabi(char *dest, size_t sz)
 	    elf_corres_to_string(wordsize_corres,
 	    (int)elfhdr.e_ident[EI_CLASS]));
 
+	ret = 0;
+
 	switch (elfhdr.e_machine) {
-		case EM_ARM:
-			snprintf(dest + strlen(dest), sz - strlen(dest),
-			    ":%s:%s:%s", elf_corres_to_string(endian_corres,
-			    (int)elfhdr.e_ident[EI_DATA]),
-			    (elfhdr.e_flags & EF_ARM_NEW_ABI) > 0 ?
-			    "eabi" : "oabi",
-			    (elfhdr.e_flags & EF_ARM_VFP_FLOAT) > 0 ?
-			    "softfp" : "vfp");
+	case EM_ARM:
+		snprintf(dest + strlen(dest), sz - strlen(dest),
+		    ":%s:%s:%s", elf_corres_to_string(endian_corres,
+		    (int)elfhdr.e_ident[EI_DATA]),
+		    (elfhdr.e_flags & EF_ARM_NEW_ABI) > 0 ?
+		    "eabi" : "oabi",
+		    (elfhdr.e_flags & EF_ARM_VFP_FLOAT) > 0 ?
+		    "softfp" : "vfp");
+		break;
+	case EM_MIPS:
+		/*
+		 * this is taken from binutils sources:
+		 * include/elf/mips.h
+		 * mapping is figured out from binutils:
+		 * gas/config/tc-mips.c
+		 */
+		switch (elfhdr.e_flags & EF_MIPS_ABI) {
+		case E_MIPS_ABI_O32:
+			abi = "o32";
 			break;
-		case EM_MIPS:
-			/*
-			 * this is taken from binutils sources:
-			 * include/elf/mips.h
-			 * mapping is figured out from binutils:
-			 * gas/config/tc-mips.c
-			 */
-			switch (elfhdr.e_flags & EF_MIPS_ABI) {
-				case E_MIPS_ABI_O32:
-					abi = "o32";
-					break;
-				case E_MIPS_ABI_N32:
-					abi = "n32";
-					break;
-				default:
-					if (elfhdr.e_ident[EI_DATA] ==
-					    ELFCLASS32)
-						abi = "o32";
-					else if (elfhdr.e_ident[EI_DATA] ==
-					    ELFCLASS64)
-						abi = "n64";
-					break;
-			}
-			snprintf(dest + strlen(dest), sz - strlen(dest),
-			    ":%s:%s", elf_corres_to_string(endian_corres,
-			    (int)elfhdr.e_ident[EI_DATA]), abi);
+		case E_MIPS_ABI_N32:
+			abi = "n32";
 			break;
+		default:
+			if (elfhdr.e_ident[EI_DATA] ==
+			    ELFCLASS32)
+				abi = "o32";
+			else if (elfhdr.e_ident[EI_DATA] ==
+			    ELFCLASS64)
+				abi = "n64";
+			break;
+		}
+		snprintf(dest + strlen(dest), sz - strlen(dest),
+		    ":%s:%s", elf_corres_to_string(endian_corres,
+		    (int)elfhdr.e_ident[EI_DATA]), abi);
+		break;
 	}
 
 cleanup:
@@ -203,17 +205,22 @@ extract_pkg_static(int fd, char *p, int sz)
 	char *end;
 	int ret, r;
 
-	ret = 0;
+	ret = -1;
 	a = archive_read_new();
+	if (a == NULL) {
+		warn("archive_read_new");
+		return (ret);
+	}
 	archive_read_support_compression_all(a);
 	archive_read_support_format_tar(a);
 
-	lseek(fd, 0, 0);
+	if (lseek(fd, 0, 0) == -1) {
+		warn("lseek");
+		goto cleanup;
+	}
 
 	if (archive_read_open_fd(a, fd, 4096) != ARCHIVE_OK) {
-		warnx("archive_read_open_fd: %s",
-		    archive_error_string(a));
-		ret = -1;
+		warnx("archive_read_open_fd: %s", archive_error_string(a));
 		goto cleanup;
 	}
 
@@ -228,15 +235,15 @@ extract_pkg_static(int fd, char *p, int sz)
 			    ARCHIVE_EXTRACT_OWNER | ARCHIVE_EXTRACT_PERM |
 			    ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_ACL |
 			    ARCHIVE_EXTRACT_FFLAGS | ARCHIVE_EXTRACT_XATTR);
-			snprintf(p, sz, archive_entry_pathname(ae));
+			strlcpy(p, archive_entry_pathname(ae), sz);
 			break;
 		}
 	}
 
-	if (r != ARCHIVE_OK) {
+	if (r == ARCHIVE_OK)
+		ret = 0;
+	else
 		warnx("fail to extract pkg-static");
-		ret = -1;
-	}
 
 cleanup:
 	archive_read_finish(a);
@@ -251,82 +258,78 @@ install_pkg_static(char *path, char *pkgpath)
 	pid_t pid;
 
 	switch ((pid = fork())) {
-		case -1:
-			return (-1);
-		case 0:
-			execl(path, "pkg-static", "add", pkgpath,
-			    (char *)NULL);
-			_exit(1);
-		default:
-			break;
+	case -1:
+		return (-1);
+	case 0:
+		execl(path, "pkg-static", "add", pkgpath, (char *)NULL);
+		_exit(1);
+	default:
+		break;
 	}
 
-	while (waitpid(pid, &pstat, 0) == -1) {
+	while (waitpid(pid, &pstat, 0) == -1)
 		if (errno != EINTR)
 			return (-1);
-	}
 
-	return (WEXITSTATUS(pstat));
+	if (WEXITSTATUS(pstat))
+		return (WEXITSTATUS(pstat));
+	else if (WIFSIGNALED(pstat))
+		return (128 & (WTERMSIG(pstat)));
+	return (pstat);
 }
 
 static int
 bootstrap_pkg(void)
 {
-	struct url_stat st;
 	FILE *remote;
-	time_t begin_dl;
-	time_t now;
-	time_t last = 0;
 	char url[MAXPATHLEN];
 	char abi[BUFSIZ];
 	char tmppkg[MAXPATHLEN];
 	char buf[10240];
 	char pkgstatic[MAXPATHLEN];
 	int fd, retry, ret;
+	struct url_stat st;
 	off_t done, r;
+	time_t begin_dl;
+	time_t now;
+	time_t last;
 
 	done = 0;
-	ret = 0;
-	retry = 3;
+	last = 0;
+	ret = -1;
 	remote = NULL;
 
-	printf("Bootstraping pkg please wait\n");
+	printf("Bootstrapping pkg please wait\n");
 
 	if (pkg_get_myabi(abi, MAXPATHLEN) != 0) {
-		warnx("fail to determine my abi");
+		warnx("failed to determine the system ABI");
 		return (-1);
 	}
 
-	if (getenv("PACKAGESITE") != NULL) {
-		snprintf(url, MAXPATHLEN, "%s/pkg.txz",
-		    getenv("PACKAGESITE"));
-	} else {
+	if (getenv("PACKAGESITE") != NULL)
+		snprintf(url, MAXPATHLEN, "%s/pkg.txz", getenv("PACKAGESITE"));
+	else
 		snprintf(url, MAXPATHLEN, "%s/%s/latest/Latest/pkg.txz",
 		    getenv("PACKAGEROOT") ? getenv("PACKAGEROOT") : _PKGS_URL,
 		    getenv("ABI") ? getenv("ABI") : abi);
-	}
 
 	snprintf(tmppkg, MAXPATHLEN, "%s/pkg.txz.XXXXXX",
-	    getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp");
+	    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
 
 	if ((fd = mkstemp(tmppkg)) == -1) {
 		warn("mkstemp()");
 		return (-1);
 	}
 
-	while (remote == NULL) {
+	retry = 3;
+	do {
 		remote = fetchXGetURL(url, &st, "");
-		if (remote == NULL) {
-			--retry;
-			if (retry == 0) {
-				warnx("Error fetching %s: %s", url,
-				    fetchLastErrString);
-				ret = 1;
-				goto cleanup;
-			}
+		if (remote == NULL)
 			sleep(1);
-		}
-	}
+	} while (remote == NULL && retry-- > 0);
+
+	if (remote == NULL)
+		goto fetchfail;
 
 	begin_dl = time(NULL);
 	while (done < st.size) {
@@ -335,32 +338,31 @@ bootstrap_pkg(void)
 
 		if (write(fd, buf, r) != r) {
 			warn("write()");
-			ret = -1;
 			goto cleanup;
 		}
 
 		done += r;
 		now = time(NULL);
-		if (now > last || done == st.size) {
+		if (now > last || done == st.size)
 			last = now;
-		}
 	}
 
-	if (ferror(remote)) {
-		warnx("Error fetching %s: %s", url,
-		    fetchLastErrString);
-		ret = 1;
-		goto cleanup;
-	}
+	if (ferror(remote))
+		goto fetchfail;
 
 	if ((ret = extract_pkg_static(fd, pkgstatic, MAXPATHLEN)) == 0)
 		ret = install_pkg_static(pkgstatic, tmppkg);
+
+	goto cleanup;
+
+fetchfail:
+	warnx("Error fetching %s: %s", url, fetchLastErrString);
 
 cleanup:
 	close(fd);
 	unlink(tmppkg);
 
-	return (0);
+	return (ret);
 }
 
 int
@@ -372,9 +374,11 @@ main(__unused int argc, char *argv[])
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
 	if (access(pkgpath, X_OK) == -1)
-		bootstrap_pkg();
+		if (bootstrap_pkg() != 0)
+			exit(EXIT_FAILURE);
 
 	execv(pkgpath, argv);
 
+	/* NOT REACHED */
 	return (EXIT_FAILURE);
 }
