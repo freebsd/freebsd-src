@@ -34,6 +34,7 @@ CFLAGS+=	-include osreldate.h
 .if ${MACHINE_CPUARCH} == "powerpc"
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
+CFLAGS+=	-mlongcall
 .endif
 .if ${MACHINE_CPUARCH} == "sparc64"
 TGTOBJS=	crtfastmath.o
