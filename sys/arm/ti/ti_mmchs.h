@@ -62,6 +62,7 @@
 /* OMAP4 and OMAP4 have different register addresses */
 #define OMAP3_MMCHS_REG_OFFSET      0x000
 #define OMAP4_MMCHS_REG_OFFSET      0x100
+#define AM335X_MMCHS_REG_OFFSET     0x100
 
 /* Register bit settings */
 #define MMCHS_STAT_BADA             (1UL << 29)

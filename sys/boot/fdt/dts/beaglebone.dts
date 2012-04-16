@@ -125,7 +125,6 @@
 				0x481AE000 0x1000 >;
 			interrupts = < 17 19 21 23 >;
 			interrupt-parent = <&AINTC>;
-			mmchs-device-id = <0>;
 		};
 
 
@@ -136,6 +135,24 @@
 			interrupts = < 72 >;
 			interrupt-parent = <&AINTC>;
 			clock-frequency = < 48000000 >; /* FIXME */
+		};
+
+		edma3@49000000 {
+			compatible = "ti,edma3";
+			reg =<	0x49000000 0x100000	/* Channel Controller Regs */
+				0x49800000 0x100000	/* Transfer Controller 0 Regs */
+				0x49900000 0x100000	/* Transfer Controller 1 Regs */
+				0x49a00000 0x100000 >;	/* Transfer Controller 2 Regs */
+			interrupts = <12 13 14>;
+			interrupt-parent = <&AINTC>;
+		};
+
+		mmchs0@4809C000 {
+			compatible = "ti,mmchs";
+			reg =<0x48060000 0x1000 >;
+			interrupts = <64>;
+			interrupt-parent = <&AINTC>;
+			mmchs-device-id = <0>;
 		};
 
 		enet0: ethernet@4A100000 {

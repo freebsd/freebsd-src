@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include "mmcbus_if.h"
 
 #include <arm/ti/ti_sdma.h>
+#include <arm/ti/ti_edma3.h>
 #include <arm/ti/ti_mmchs.h>
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
@@ -114,6 +115,8 @@ struct ti_mmchs_softc {
 
 	unsigned int		sc_dmach_rd;
 	unsigned int		sc_dmach_wr;
+	int			dma_rx_trig;
+	int			dma_tx_trig;
 
 	device_t		sc_gpio_dev;
 	int			sc_wp_gpio_pin;  /* GPIO pin for MMC write protect */
@@ -250,6 +253,7 @@ ti_mmchs_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
+#ifndef SOC_TI_AM335X
 /**
  *	ti_mmchs_dma_intr - interrupt handler for DMA events triggered by the controller
  *	@ch: the dma channel number
@@ -268,6 +272,7 @@ ti_mmchs_dma_intr(unsigned int ch, uint32_t status, void *data)
 	 * interrupt from the MMC controller.
 	 */
 }
+#endif
 
 /**
  *	ti_mmchs_intr_xfer_compl - called if a 'transfer complete' IRQ was received
@@ -390,9 +395,17 @@ ti_mmchs_intr_error(struct ti_mmchs_softc *sc, struct mmc_command *cmd,
 
 		/* Abort the DMA transfer (DDIR bit tells direction) */
 		if (ti_mmchs_read_4(sc, MMCHS_CMD) & MMCHS_CMD_DDIR)
+#ifdef SOC_TI_AM335X
+			printf("%s: DMA unimplemented\n", __func__);
+#else
 			ti_sdma_stop_xfer(sc->sc_dmach_rd);
+#endif
 		else
+#ifdef SOC_TI_AM335X
+			printf("%s: DMA unimplemented\n", __func__);
+#else
 			ti_sdma_stop_xfer(sc->sc_dmach_wr);
+#endif
 
 		/* If an error occure abort the DMA operation and free the dma map */
 		if ((sc->sc_dmamapped > 0) && (cmd->error != MMC_ERR_NONE)) {
@@ -437,8 +450,8 @@ ti_mmchs_intr(void *arg)
 
 	TI_MMCHS_LOCK(sc);
 
-	stat_reg = ti_mmchs_read_4(sc, MMCHS_STAT)
-	    & (ti_mmchs_read_4(sc, MMCHS_IE) | MMCHS_STAT_ERRI);
+	stat_reg = ti_mmchs_read_4(sc, MMCHS_STAT) & (ti_mmchs_read_4(sc,
+	    MMCHS_IE) | MMCHS_STAT_ERRI);
 
 	if (sc->curcmd == NULL) {
 		device_printf(sc->sc_dev, "Error: current cmd NULL, already done?\n");
@@ -486,6 +499,58 @@ ti_mmchs_intr(void *arg)
 	TI_MMCHS_UNLOCK(sc);
 }
 
+#ifdef SOC_TI_AM335X
+static void
+ti_mmchs_edma3_rx_xfer_setup(struct ti_mmchs_softc *sc, uint32_t src_paddr,
+    uint32_t dst_paddr, uint16_t blk_size, uint16_t num_blks)
+{
+	struct ti_edma3cc_param_set ps;
+
+	bzero(&ps, sizeof(struct ti_edma3cc_param_set));
+	ps.src		= src_paddr;
+	ps.dst		= dst_paddr;
+	ps.dstbidx	= 4;
+	ps.dstcidx	= blk_size;
+	ps.acnt		= 4;
+	ps.bcnt		= blk_size/4;
+	ps.ccnt		= num_blks;
+	ps.link		= 0xffff;
+	ps.opt.tcc	= sc->dma_rx_trig;
+	ps.opt.tcinten	= 1;
+	ps.opt.fwid	= 2; /* fifo width is 32 */
+	ps.opt.sam	= 1;
+	ps.opt.syncdim	= 1;
+
+	ti_edma3_param_write(sc->dma_rx_trig, &ps);
+	ti_edma3_enable_transfer_event(sc->dma_rx_trig);
+}
+
+static void
+ti_mmchs_edma3_tx_xfer_setup(struct ti_mmchs_softc *sc, uint32_t src_paddr,
+    uint32_t dst_paddr, uint16_t blk_size, uint16_t num_blks)
+{
+	struct ti_edma3cc_param_set ps;
+
+	bzero(&ps, sizeof(struct ti_edma3cc_param_set));
+	ps.src		= src_paddr;
+	ps.dst		= dst_paddr;
+	ps.srccidx	= blk_size;
+	ps.bcnt		= blk_size/4;
+	ps.ccnt		= num_blks;
+	ps.srcbidx	= 4;
+	ps.acnt		= 0x4;
+	ps.link		= 0xffff;
+	ps.opt.tcc	= sc->dma_tx_trig;
+	ps.opt.tcinten	= 1;
+	ps.opt.fwid	= 2; /* fifo width is 32 */
+	ps.opt.dam	= 1;
+	ps.opt.syncdim	= 1;
+
+	ti_edma3_param_write(sc->dma_tx_trig, &ps);
+	ti_edma3_enable_transfer_event(sc->dma_tx_trig);
+}
+#endif
+
 /**
  *	ti_mmchs_start_cmd - starts the given command
  *	@sc: pointer to the driver context
@@ -510,8 +575,9 @@ ti_mmchs_start_cmd(struct ti_mmchs_softc *sc, struct mmc_command *cmd)
 	struct mmc_request *req;
 	void *vaddr;
 	bus_addr_t paddr;
+#ifndef SOC_TI_AM335X
 	uint32_t pktsize;
-
+#endif
 	sc->curcmd = cmd;
 	data = cmd->data;
 	req = cmd->mrq;
@@ -621,20 +687,31 @@ ti_mmchs_start_cmd(struct ti_mmchs_softc *sc, struct mmc_command *cmd)
 			return;
 		}
 
+#ifndef SOC_TI_AM335X
 		/* Calculate the packet size, the max packet size is 512 bytes
 		 * (or 128 32-bit elements).
 		 */
 		pktsize = min((data->len / 4), (512 / 4));
-
+#endif
 		/* Sync the DMA buffer and setup the DMA controller */
 		if (data->flags & MMC_DATA_READ) {
 			bus_dmamap_sync(sc->sc_dmatag, sc->sc_dmamap, BUS_DMASYNC_PREREAD);
+#ifdef SOC_TI_AM335X
+			ti_mmchs_edma3_rx_xfer_setup(sc, sc->sc_data_reg_paddr, 
+			    paddr, data->len, 1);
+#else
 			ti_sdma_start_xfer_packet(sc->sc_dmach_rd, sc->sc_data_reg_paddr,
 			    paddr, 1, (data->len / 4), pktsize);
+#endif
 		} else {
 			bus_dmamap_sync(sc->sc_dmatag, sc->sc_dmamap, BUS_DMASYNC_PREWRITE);
+#ifdef SOC_TI_AM335X
+			ti_mmchs_edma3_tx_xfer_setup(sc, paddr,
+			    sc->sc_data_reg_paddr, data->len, 1);
+#else
 			ti_sdma_start_xfer_packet(sc->sc_dmach_wr, paddr,
 			    sc->sc_data_reg_paddr, 1, (data->len / 4), pktsize);
+#endif
 		}
 
 		/* Increase the mapped count */
@@ -891,7 +968,9 @@ ti_mmchs_update_ios(device_t brdev, device_t reqdev)
 	uint32_t hctl_reg;
 	uint32_t con_reg;
 	uint32_t sysctl_reg;
+#ifndef SOC_TI_AM335X
 	uint16_t mv;
+#endif
 	unsigned long timeout;
 	int do_card_init = 0;
 
@@ -932,19 +1011,26 @@ ti_mmchs_update_ios(device_t brdev, device_t reqdev)
 			hctl_reg &= ~(MMCHS_HCTL_SDVS_MASK | MMCHS_HCTL_SDBP);
 
 			if ((ios->vdd == -1) || (ios->vdd >= vdd_240)) {
+#ifndef SOC_TI_AM335X
 				mv = 3000;
+#endif
 				hctl_reg |= MMCHS_HCTL_SDVS_V30;
 			} else {
+#ifndef SOC_TI_AM335X
 				mv = 1800;
+#endif
 				hctl_reg |= MMCHS_HCTL_SDVS_V18;
 			}
 
 			ti_mmchs_write_4(sc, MMCHS_HCTL, hctl_reg);
 
+#ifdef SOC_TI_AM335X
+			printf("%s: TWL unimplemented\n", __func__);
+#else
 			/* Set the desired voltage on the regulator */
 			if (sc->sc_vreg_dev && sc->sc_vreg_name)
 				twl_vreg_set_voltage(sc->sc_vreg_dev, sc->sc_vreg_name, mv);
-
+#endif
 			/* Enable the bus power */
 			ti_mmchs_write_4(sc, MMCHS_HCTL, (hctl_reg | MMCHS_HCTL_SDBP));
 			timeout = hz;
@@ -959,10 +1045,13 @@ ti_mmchs_update_ios(device_t brdev, device_t reqdev)
 			hctl_reg = ti_mmchs_read_4(sc, MMCHS_HCTL);
 			ti_mmchs_write_4(sc, MMCHS_HCTL, (hctl_reg & ~MMCHS_HCTL_SDBP));
 
+#ifdef SOC_TI_AM335X
+			printf("%s: TWL unimplemented\n", __func__);
+#else
 			/* Turn the power off on the voltage regulator */
 			if (sc->sc_vreg_dev && sc->sc_vreg_name)
 				twl_vreg_set_voltage(sc->sc_vreg_dev, sc->sc_vreg_name, 0);
-
+#endif
 		} else if (ios->power_mode == power_on) {
 			/* Force a card re-initialisation sequence */
 			do_card_init = 1;
@@ -1341,10 +1430,28 @@ ti_mmchs_hw_fini(device_t dev)
 static int
 ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 {
+#ifdef SOC_TI_AM335X
+	switch (sc->device_id) {
+		case 0:
+			sc->dma_tx_trig = TI_EDMA3_EVENT_SDTXEVT0;
+			sc->dma_rx_trig = TI_EDMA3_EVENT_SDRXEVT0;
+			break;
+		case 1:
+			sc->dma_tx_trig = TI_EDMA3_EVENT_SDTXEVT1;
+			sc->dma_rx_trig = TI_EDMA3_EVENT_SDRXEVT1;
+			break;
+		default:
+			return(-EINVAL);
+	}
+
+#define EVTQNUM		0
+	/* TODO EDMA3 have 3 queues, so we need some queue allocation call */
+	ti_edma3_init(EVTQNUM);
+	ti_edma3_request_dma_ch(sc->dma_tx_trig, sc->dma_tx_trig, EVTQNUM);
+	ti_edma3_request_dma_ch(sc->dma_rx_trig, sc->dma_rx_trig, EVTQNUM);
+#else
 	int err;
 	uint32_t rev;
-	int dma_rx_trig = -1;
-	int dma_tx_trig = -1;
 
 	/* Get the current chip revision */
 	rev = ti_revision();
@@ -1354,25 +1461,25 @@ ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 	/* Get the DMA MMC triggers */
 	switch (sc->device_id) {
 		case 1:
-			dma_tx_trig = 60;
-			dma_rx_trig = 61;
+			sc->dma_tx_trig = 60;
+			sc->dma_rx_trig = 61;
 			break;
 		case 2:
-			dma_tx_trig = 46;
-			dma_rx_trig = 47;
+			sc->dma_tx_trig = 46;
+			sc->dma_rx_trig = 47;
 			break;
 		case 3:
-			dma_tx_trig = 76;
-			dma_rx_trig = 77;
+			sc->dma_tx_trig = 76;
+			sc->dma_rx_trig = 77;
 			break;
 		/* The following are OMAP4 only */
 		case 4:
-			dma_tx_trig = 56;
-			dma_rx_trig = 57;
+			sc->dma_tx_trig = 56;
+			sc->dma_rx_trig = 57;
 			break;
 		case 5:
-			dma_tx_trig = 58;
-			dma_rx_trig = 59;
+			sc->dma_tx_trig = 58;
+			sc->dma_rx_trig = 59;
 			break;
 		default:
 			return(-EINVAL);
@@ -1387,7 +1494,7 @@ ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 	ti_sdma_set_xfer_burst(sc->sc_dmach_rd, TI_SDMA_BURST_NONE,
 	    TI_SDMA_BURST_64);
 	ti_sdma_set_xfer_data_type(sc->sc_dmach_rd, TI_SDMA_DATA_32BITS_SCALAR);
-	ti_sdma_sync_params(sc->sc_dmach_rd, dma_rx_trig,
+	ti_sdma_sync_params(sc->sc_dmach_rd, sc->dma_rx_trig,
 	    TI_SDMA_SYNC_PACKET | TI_SDMA_SYNC_TRIG_ON_SRC);
 	ti_sdma_set_addr_mode(sc->sc_dmach_rd, TI_SDMA_ADDR_CONSTANT,
 	    TI_SDMA_ADDR_POST_INCREMENT);
@@ -1401,11 +1508,11 @@ ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 	ti_sdma_set_xfer_burst(sc->sc_dmach_wr, TI_SDMA_BURST_64,
 	    TI_SDMA_BURST_NONE);
 	ti_sdma_set_xfer_data_type(sc->sc_dmach_wr, TI_SDMA_DATA_32BITS_SCALAR);
-	ti_sdma_sync_params(sc->sc_dmach_wr, dma_tx_trig,
+	ti_sdma_sync_params(sc->sc_dmach_wr, sc->dma_tx_trig,
 	    TI_SDMA_SYNC_PACKET | TI_SDMA_SYNC_TRIG_ON_DST);
 	ti_sdma_set_addr_mode(sc->sc_dmach_wr, TI_SDMA_ADDR_POST_INCREMENT,
 	    TI_SDMA_ADDR_CONSTANT);
-
+#endif
 	return(0);
 }
 
@@ -1435,9 +1542,13 @@ ti_mmchs_deactivate(device_t dev)
 	/* Do the generic detach */
 	bus_generic_detach(sc->sc_dev);
 
+#ifdef SOC_TI_AM335X
+	printf("%s: DMA unimplemented\n", __func__);
+#else
 	/* Deactivate the DMA channels */
 	ti_sdma_deactivate_channel(sc->sc_dmach_rd);
 	ti_sdma_deactivate_channel(sc->sc_dmach_wr);
+#endif
 
 	/* Unmap the MMC controller registers */
 	if (sc->sc_mem_res != 0) {
@@ -1513,6 +1624,8 @@ ti_mmchs_activate(device_t dev)
 		sc->sc_reg_off = OMAP3_MMCHS_REG_OFFSET;
 	else if (ti_chip() == CHIP_OMAP_4)
 		sc->sc_reg_off = OMAP4_MMCHS_REG_OFFSET;
+	else if (ti_chip() == CHIP_AM335X)
+		sc->sc_reg_off = AM335X_MMCHS_REG_OFFSET;
 	else
 		panic("Unknown OMAP device\n");
 
@@ -1567,7 +1680,6 @@ ti_mmchs_attach(device_t dev)
 	phandle_t node;
 	pcell_t did;
 	int err;
-	device_t child;
 
 	/* Save the device and bus tag */
 	sc->sc_dev = dev;
@@ -1636,7 +1748,7 @@ ti_mmchs_attach(device_t dev)
 	sc->host.host_ocr = MMC_OCR_290_300 | MMC_OCR_300_310;
 	sc->host.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 
-	child = device_add_child(dev, "mmc", 0);
+	device_add_child(dev, "mmc", 0);
 
 	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
@@ -1646,10 +1758,14 @@ out:
 		TI_MMCHS_LOCK_DESTROY(sc);
 		ti_mmchs_deactivate(dev);
 
+#ifdef SOC_TI_AM335X
+		printf("%s: DMA unimplemented\n", __func__);
+#else
 		if (sc->sc_dmach_rd != (unsigned int)-1)
 			ti_sdma_deactivate_channel(sc->sc_dmach_rd);
 		if (sc->sc_dmach_wr != (unsigned int)-1)
 			ti_sdma_deactivate_channel(sc->sc_dmach_wr);
+#endif
 	}
 
 	return (err);
@@ -1667,13 +1783,19 @@ out:
 static int
 ti_mmchs_detach(device_t dev)
 {
+#ifndef SOC_TI_AM335X
 	struct ti_mmchs_softc *sc = device_get_softc(dev);
+#endif
 
 	ti_mmchs_hw_fini(dev);
 	ti_mmchs_deactivate(dev);
 
+#ifdef SOC_TI_AM335X
+		printf("%s: DMA unimplemented\n", __func__);
+#else
 	ti_sdma_deactivate_channel(sc->sc_dmach_wr);
 	ti_sdma_deactivate_channel(sc->sc_dmach_rd);
+#endif
 
 	return (0);
 }
@@ -1707,7 +1829,11 @@ static devclass_t ti_mmchs_devclass;
 
 DRIVER_MODULE(ti_mmchs, simplebus, ti_mmchs_driver, ti_mmchs_devclass, 0, 0);
 MODULE_DEPEND(ti_mmchs, ti_prcm, 1, 1, 1);
+#ifdef SOC_TI_AM335X
+MODULE_DEPEND(ti_mmchs, ti_edma, 1, 1, 1);
+#else
 MODULE_DEPEND(ti_mmchs, ti_sdma, 1, 1, 1);
+#endif
 MODULE_DEPEND(ti_mmchs, ti_gpio, 1, 1, 1);
 
 /* FIXME: MODULE_DEPEND(ti_mmchs, twl_vreg, 1, 1, 1); */
