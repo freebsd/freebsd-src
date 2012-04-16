@@ -146,9 +146,8 @@ main(int volatile argc, char **volatile argv)
 	struct passwd *pw;
 	char *cp, *ep, *anonpass, *upload_path, *src_addr;
 	const char *anonuser;
-	int dumbterm, s, isupload;
+	int dumbterm, isupload;
 	size_t len;
-	socklen_t slen;
 
 	tzset();
 #if 0	/* tnftp */	/* XXX */
@@ -212,35 +211,6 @@ main(int volatile argc, char **volatile argv)
 	cp = getenv("NETRC");
 	if (cp != NULL && strlcpy(netrc, cp, sizeof(netrc)) >= sizeof(netrc))
 		errx(1, "$NETRC `%s': %s", cp, strerror(ENAMETOOLONG));
-
-	/*
-	 * Get the default socket buffer sizes if we don't already have them.
-	 * It doesn't matter which socket we do this to, because on the first
-	 * call no socket buffer sizes will have been modified, so we are
-	 * guaranteed to get the system defaults.
-	 */
-	s = socket(AF_INET, SOCK_STREAM, 0);
-	if (s == -1)
-		err(1, "Can't create socket to determine default socket sizes");
-	slen = sizeof(rcvbuf_size);
-	if (getsockopt(s, SOL_SOCKET, SO_RCVBUF,
-	    (void *)&rcvbuf_size, &slen) == -1)
-		err(1, "Unable to get default rcvbuf size");
-	slen = sizeof(sndbuf_size);
-	if (getsockopt(s, SOL_SOCKET, SO_SNDBUF,
-	    (void *)&sndbuf_size, &slen) == -1)
-		err(1, "Unable to get default sndbuf size");
-	(void)close(s);
-					/* sanity check returned buffer sizes */
-	if (rcvbuf_size <= 0)
-		rcvbuf_size = 8 * 1024;
-	if (sndbuf_size <= 0)
-		sndbuf_size = 8 * 1024;
-
-	if (sndbuf_size > 8 * 1024 * 1024)
-		sndbuf_size = 8 * 1024 * 1024;
-	if (rcvbuf_size > 8 * 1024 * 1024)
-		rcvbuf_size = 8 * 1024 * 1024;
 
 	marg_sl = ftp_sl_init();
 	if ((tmpdir = getenv("TMPDIR")) == NULL)
