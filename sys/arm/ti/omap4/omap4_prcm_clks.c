@@ -1275,7 +1275,7 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
 	}
 	else {
-		return (-EINVAL);
+		return (EINVAL);
 	}
 
 	clksel = bus_read_4(clk_mem_res, clksel_reg_off);
@@ -1319,7 +1319,7 @@ omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
 	else if (clkdev->id != USBP2_PHY_CLK)
 		bit = 25;
 	else
-		return (-EINVAL);
+		return (EINVAL);
 	
 	/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
 	clk_mem_res = sc->sc_res[CM2_INSTANCE_MEM_REGION];

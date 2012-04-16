@@ -639,7 +639,7 @@ twl_vreg_read_regulator_voltage(struct twl_vreg_softc *sc,
 	uint8_t vsel;
 
 	/* Check if the regulator is currently enabled */
-	if ((ret = twl_vreg_is_regulator_enabled(sc, regulator)) < 0)
+	if ((ret = twl_vreg_is_regulator_enabled(sc, regulator)))
 		return (ret);
 
 	if (ret == 0) {

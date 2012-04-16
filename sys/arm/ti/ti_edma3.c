@@ -289,7 +289,7 @@ ti_edma3_enable_event_intr(unsigned int ch)
 	uint32_t reg;
 
 	if (ch >= TI_EDMA3_NUM_DMA_CHS)
-		return (-EINVAL);
+		return (EINVAL);
 
 	if (ch < 32) {
 		ti_edma3_cc_wr_4(TI_EDMA3CC_S_IESR(0), 1 << ch);
@@ -306,7 +306,7 @@ ti_edma3_request_dma_ch(unsigned int ch, unsigned int tccn, unsigned int eqn)
 	uint32_t reg;
 
 	if (ch >= TI_EDMA3_NUM_DMA_CHS)
-		return (-EINVAL);
+		return (EINVAL);
 
 	/* Enable the DMA channel in the DRAE/DRAEH registers */
 	if (ch < 32) {
@@ -340,7 +340,7 @@ ti_edma3_request_qdma_ch(unsigned int ch, unsigned int tccn, unsigned int eqn)
 	uint32_t reg;
 
 	if (ch >= TI_EDMA3_NUM_DMA_CHS)
-		return (-EINVAL);
+		return (EINVAL);
 
 	/* Enable the QDMA channel in the QRAE registers */
 	reg = ti_edma3_cc_rd_4(TI_EDMA3CC_QRAE(0));
@@ -365,7 +365,7 @@ int
 ti_edma3_enable_transfer_manual(unsigned int ch)
 {
 	if (ch >= TI_EDMA3_NUM_DMA_CHS)
-		return (-EINVAL);
+		return (EINVAL);
 
 	/* set corresponding bit in ESR/ESRH to set a event */
 	if (ch < 32) {
@@ -381,7 +381,7 @@ int
 ti_edma3_enable_transfer_qdma(unsigned int ch)
 {
 	if (ch >= TI_EDMA3_NUM_QDMA_CHS)
-		return (-EINVAL);
+		return (EINVAL);
 
 	/* set corresponding bit in QEESR to enable QDMA event */
 	ti_edma3_cc_wr_4(TI_EDMA3CC_S_QEESR(0), (1 << ch));
@@ -393,7 +393,7 @@ int
 ti_edma3_enable_transfer_event(unsigned int ch)
 {
 	if (ch >= TI_EDMA3_NUM_DMA_CHS)
-		return (-EINVAL);
+		return (EINVAL);
 
 	/* Clear SECR(H) & EMCR(H) to clean any previous NULL request
 	 * and set corresponding bit in EESR to enable DMA event */

@@ -1441,7 +1441,7 @@ ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 			sc->dma_rx_trig = TI_EDMA3_EVENT_SDRXEVT1;
 			break;
 		default:
-			return(-EINVAL);
+			return(EINVAL);
 	}
 
 #define EVTQNUM		0
@@ -1456,7 +1456,7 @@ ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 	/* Get the current chip revision */
 	rev = ti_revision();
 	if ((OMAP_REV_DEVICE(rev) != OMAP4430_DEV) && (sc->device_id > 3))
-		return(-EINVAL);
+		return(EINVAL);
 
 	/* Get the DMA MMC triggers */
 	switch (sc->device_id) {
@@ -1482,7 +1482,7 @@ ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 			sc->dma_rx_trig = 59;
 			break;
 		default:
-			return(-EINVAL);
+			return(EINVAL);
 	}
 
 	/* Activate a RX channel from the OMAP DMA driver */

@@ -396,7 +396,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 		
 			if (timeout-- == 0) {
 				device_printf(isc->sc_dev, "TLL reset operation timed out\n");
-				ret = -EINVAL;
+				ret = EINVAL;
 				goto err_sys_status;
 			}
 		}
