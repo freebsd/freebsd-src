@@ -997,6 +997,7 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 {
 	device_t dev;
 	struct virtqueue *vq;
+	struct vtblk_request *r;
 	int error;
 
 	dev = sc->vtblk_dev;
@@ -1011,7 +1012,8 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 
 	virtqueue_notify(vq);
 
-	req = virtqueue_poll(vq, NULL);
+	r = virtqueue_poll(vq, NULL);
+	KASSERT(r == req, ("unexpected request response"));
 
 	error = vtblk_request_error(req);
 	if (error && bootverbose) {
