@@ -173,6 +173,7 @@ shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
+sperber[label="Armin Pirkovitsch\nsperber@FreeBSD.org\n2012/04/15"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
 stephen [label="Stephen Montgomery-Smith\nstephen@FreeBSD.org\n2011/06/13"]
@@ -224,6 +225,7 @@ bapt -> eadler
 bapt -> jlaffaye
 
 beat -> decke
+beat -> sperber
 beat -> uqs
 
 beech -> glarkin
@@ -242,6 +244,8 @@ clsung -> tabthorpe
 
 crees -> jgh
 crees -> madpilot
+
+decke -> sperber
 
 delphij -> nemoliu
 delphij -> rafan
@@ -370,6 +374,7 @@ miwi -> nox
 miwi -> pawel
 miwi -> rm
 miwi -> sbz
+miwi -> sperber
 miwi -> sylvio
 miwi -> tabthorpe
 miwi -> trasz
