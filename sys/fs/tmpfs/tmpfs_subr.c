@@ -1078,6 +1078,11 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
+	if ((flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
+	    UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND |
+	    SF_NOUNLINK | SF_SNAPSHOT)) != 0)
+		return (EOPNOTSUPP);
+
 	/* Disallow this operation if the file system is mounted read-only. */
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return EROFS;
@@ -1093,27 +1098,22 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 	 * flags, or modify flags if any system flags are set.
 	 */
 	if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-		if (node->tn_flags
-		  & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+		if (node->tn_flags &
+		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 			error = securelevel_gt(cred, 0);
 			if (error)
 				return (error);
 		}
-		/* Snapshot flag cannot be set or cleared */
-		if (((flags & SF_SNAPSHOT) != 0 &&
-		  (node->tn_flags & SF_SNAPSHOT) == 0) ||
-		  ((flags & SF_SNAPSHOT) == 0 &&
-		  (node->tn_flags & SF_SNAPSHOT) != 0))
+		/* The snapshot flag cannot be toggled. */
+		if ((flags ^ node->tn_flags) & SF_SNAPSHOT)
 			return (EPERM);
-		node->tn_flags = flags;
 	} else {
-		if (node->tn_flags
-		  & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-		  (flags & UF_SETTABLE) != flags)
+		if (node->tn_flags &
+		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
+		    ((flags ^ node->tn_flags) & SF_SETTABLE))
 			return (EPERM);
-		node->tn_flags &= SF_SETTABLE;
-		node->tn_flags |= (flags & UF_SETTABLE);
 	}
+	node->tn_flags = flags;
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
 	MPASS(VOP_ISLOCKED(vp));
