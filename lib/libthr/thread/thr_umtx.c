@@ -152,13 +152,35 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 int
 __thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 {
-#ifndef __ia64__
-	/* XXX this logic has a race-condition on ia64. */
-	if ((mtx->m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0) {
-		atomic_cmpset_rel_32(&mtx->m_owner, id | UMUTEX_CONTESTED, UMUTEX_CONTESTED);
-		return _umtx_op_err(mtx, UMTX_OP_MUTEX_WAKE, 0, 0, 0);
+	static int wake2_avail = 0;
+
+	if (__predict_false(wake2_avail == 0)) {
+		struct umutex test = DEFAULT_UMUTEX;
+
+		if (_umtx_op(&test, UMTX_OP_MUTEX_WAKE2, test.m_flags, 0, 0) == -1)
+			wake2_avail = -1;
+		else 
+			wake2_avail = 1;
 	}
-#endif /* __ia64__ */
+
+	if (wake2_avail != 1)
+		goto unlock;
+
+	uint32_t flags = mtx->m_flags;
+
+	if ((flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0) {
+		uint32_t owner;
+		do {
+			owner = mtx->m_owner;
+			if (__predict_false((owner & ~UMUTEX_CONTESTED) != id))
+				return (EPERM);
+		} while (__predict_false(!atomic_cmpset_rel_32(&mtx->m_owner,
+					 owner, UMUTEX_UNOWNED)));
+		if ((owner & UMUTEX_CONTESTED))
+			(void)_umtx_op_err(mtx, UMTX_OP_MUTEX_WAKE2, flags, 0, 0);
+		return (0);
+	}
+unlock:
 	return _umtx_op_err(mtx, UMTX_OP_MUTEX_UNLOCK, 0, 0, 0);
 }
 
