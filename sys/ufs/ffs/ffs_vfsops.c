@@ -705,19 +705,12 @@ ffs_reload(struct mount *mp, struct thread *td)
 	}
 
 loop:
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
 		 * Step 4: invalidate all cached file data.
 		 */
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		if (vinvalbuf(vp, 0, 0, 0))
@@ -732,7 +725,7 @@ loop:
 		if (error) {
 			VOP_UNLOCK(vp, 0);
 			vrele(vp);
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			return (error);
 		}
 		ffs_load_inode(bp, ip, fs, ip->i_number);
@@ -740,9 +733,7 @@ loop:
 		brelse(bp);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -1441,10 +1432,8 @@ ffs_sync_lazy(mp)
 	td = curthread;
 	if ((mp->mnt_flag & MNT_NOATIME) != 0)
 		goto qupdate;
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED || vp->v_type == VNON) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
@@ -1462,19 +1451,14 @@ ffs_sync_lazy(mp)
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		if ((error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
-		    td)) != 0) {
-			MNT_ILOCK(mp);
+		    td)) != 0)
 			continue;
-		}
 		error = ffs_update(vp, 0);
 		if (error != 0)
 			allerror = error;
 		vput(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 
 qupdate:
 #ifdef QUOTA
@@ -1538,41 +1522,37 @@ ffs_sync(mp, waitfor)
 		lockreq = LK_EXCLUSIVE;
 	}
 	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
-	MNT_ILOCK(mp);
 loop:
 	/* Grab snapshot of secondary write counts */
+	MNT_ILOCK(mp);
 	secondary_writes = mp->mnt_secondary_writes;
 	secondary_accwrites = mp->mnt_secondary_accwrites;
+	MNT_IUNLOCK(mp);
 
 	/* Grab snapshot of softdep dependency counts */
-	MNT_IUNLOCK(mp);
 	softdep_get_depcounts(mp, &softdep_deps, &softdep_accdeps);
-	MNT_ILOCK(mp);
 
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
 		 * Depend on the vnode interlock to keep things stable enough
 		 * for a quick test.  Since there might be hundreds of
 		 * thousands of vnodes, we cannot afford even a subroutine
 		 * call unless there's a good chance that we have work to do.
 		 */
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
+		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		ip = VTOI(vp);
-		if (vp->v_type == VNON || ((ip->i_flag &
+		if ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		    vp->v_bufobj.bo_dirty.bv_cnt == 0)) {
+		    vp->v_bufobj.bo_dirty.bv_cnt == 0) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		if ((error = vget(vp, lockreq, td)) != 0) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT || error == ENOLCK) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
 			}
 			continue;
@@ -1580,9 +1560,7 @@ loop:
 		if ((error = ffs_syncvnode(vp, waitfor, 0)) != 0)
 			allerror = error;
 		vput(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	/*
 	 * Force stale filesystem control information to be flushed.
 	 */
@@ -1590,10 +1568,8 @@ loop:
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
-		if (allerror == 0 && count) {
-			MNT_ILOCK(mp);
+		if (allerror == 0 && count)
 			goto loop;
-		}
 	}
 #ifdef QUOTA
 	qsync(mp);
@@ -1608,18 +1584,18 @@ loop:
 		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(devvp, 0);
-		if (allerror == 0 && waitfor == MNT_WAIT) {
-			MNT_ILOCK(mp);
+		if (allerror == 0 && waitfor == MNT_WAIT)
 			goto loop;
-		}
 	} else if (suspend != 0) {
 		if (softdep_check_suspend(mp,
 					  devvp,
 					  softdep_deps,
 					  softdep_accdeps,
 					  secondary_writes,
-					  secondary_accwrites) != 0)
+					  secondary_accwrites) != 0) {
+			MNT_IUNLOCK(mp);
 			goto loop;	/* More work needed */
+		}
 		mtx_assert(MNT_MTX(mp), MA_OWNED);
 		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
 		MNT_IUNLOCK(mp);
