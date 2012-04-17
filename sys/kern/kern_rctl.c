@@ -994,11 +994,6 @@ rctl_rule_add(struct rctl_rule *rule)
 	case RCTL_SUBJECT_TYPE_PROCESS:
 		p = rule->rr_subject.rs_proc;
 		KASSERT(p != NULL, ("rctl_rule_add: NULL proc"));
-		/*
-		 * No resource limits for system processes.
-		 */
-		if (p->p_flag & P_SYSTEM)
-			return (EPERM);
 
 		rctl_racct_add_rule(p->p_racct, rule);
 		/*
@@ -1036,8 +1031,6 @@ rctl_rule_add(struct rctl_rule *rule)
 	 */
 	sx_assert(&allproc_lock, SA_LOCKED);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_flag & P_SYSTEM)
-			continue;
 		cred = p->p_ucred;
 		switch (rule->rr_subject_type) {
 		case RCTL_SUBJECT_TYPE_USER:
@@ -1281,10 +1274,6 @@ sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 	case RCTL_SUBJECT_TYPE_PROCESS:
 		p = filter->rr_subject.rs_proc;
 		if (p == NULL) {
-			error = EINVAL;
-			goto out;
-		}
-		if (p->p_flag & P_SYSTEM) {
 			error = EINVAL;
 			goto out;
 		}
@@ -1719,20 +1708,7 @@ rctl_proc_fork(struct proc *parent, struct proc *child)
 
 	LIST_INIT(&child->p_racct->r_rule_links);
 
-	/*
-	 * No limits for kernel processes.
-	 */
-	if (child->p_flag & P_SYSTEM)
-		return (0);
-
-	/*
-	 * Nothing to inherit from P_SYSTEM parents.
-	 */
-	if (parent->p_racct == NULL) {
-		KASSERT(parent->p_flag & P_SYSTEM,
-		    ("non-system process without racct; p = %p", parent));
-		return (0);
-	}
+	KASSERT(parent->p_racct != NULL, ("process without racct; p = %p", parent));
 
 	rw_wlock(&rctl_lock);
 
