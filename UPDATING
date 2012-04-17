@@ -22,6 +22,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120417:
+	The malloc(3) implementation embedded in libc now uses sources imported
+	as contrib/jemalloc.  The most disruptive API change is to
+	/etc/malloc.conf.  If your system has an old-style /etc/malloc.conf,
+	delete it prior to installworld, and optionally re-create it using the
+	new format after rebooting.  See malloc.conf(5) for details
+	(specifically the TUNING section and the "opt.*" entries in the MALLCTL
+	NAMESPACE section).
+
 20120328:
 	Big-endian MIPS TARGET_ARCH values no longer end in "eb".  mips64eb
 	is now spelled mips64.  mipsn32eb is now spelled mipsn32.  mipseb is
