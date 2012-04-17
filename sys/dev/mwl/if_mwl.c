@@ -310,6 +310,12 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	}
 	ic = ifp->if_l2com;
 
+	/*
+	 * Setup the RX free list lock early, so it can be consistently
+	 * removed.
+	 */
+	MWL_RXFREE_INIT(sc);
+
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
@@ -531,6 +537,7 @@ bad2:
 bad1:
 	mwl_hal_detach(mh);
 bad:
+	MWL_RXFREE_DESTROY(sc);
 	if_free(ifp);
 	sc->sc_invalid = 1;
 	return error;
@@ -561,6 +568,7 @@ mwl_detach(struct mwl_softc *sc)
 	ieee80211_ifdetach(ic);
 	callout_drain(&sc->sc_watchdog);
 	mwl_dma_cleanup(sc);
+	MWL_RXFREE_DESTROY(sc);
 	mwl_tx_cleanup(sc);
 	mwl_hal_detach(sc->sc_mh);
 	if_free(ifp);
@@ -2274,7 +2282,6 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 		SLIST_INSERT_HEAD(&sc->sc_rxfree, rbuf, next);
 		sc->sc_nrxfree++;
 	}
-	MWL_RXFREE_INIT(sc);
 	return 0;
 }
 #undef DS2PHYS
@@ -2298,7 +2305,6 @@ mwl_rxdma_cleanup(struct mwl_softc *sc)
 	}
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		mwl_desc_cleanup(sc, &sc->sc_rxdma);
-	MWL_RXFREE_DESTROY(sc);
 }
 
 static int
