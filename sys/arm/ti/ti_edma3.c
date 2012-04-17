@@ -129,7 +129,6 @@ static struct resource_spec ti_edma3_irq_spec[] = {
 static void ti_edma3_intr_comp(void *arg);
 static void ti_edma3_intr_mperr(void *arg);
 static void ti_edma3_intr_err(void *arg);
-static int ti_edma3_enable_event_intr(unsigned int ch);
 
 static struct {
 	driver_intr_t *handler;

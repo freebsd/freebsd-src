@@ -75,6 +75,7 @@ am335x_pmic_read(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
 	return (iicbus_transfer(dev, msg, 2));
 }
 
+#ifdef notyet
 static int
 am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 {
@@ -92,6 +93,7 @@ am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 
 	return (iicbus_transfer(dev, msg, 1));
 }
+#endif
 
 static int
 am335x_pmic_probe(device_t dev)
