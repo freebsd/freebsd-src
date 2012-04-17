@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -72,6 +74,10 @@ __FBSDID("$FreeBSD$");
 #define dprintf(x, arg...)
 #endif
 
+struct mtx ar71xx_pci_mtx;
+MTX_SYSINIT(ar71xx_pci_mtx, &ar71xx_pci_mtx, "ar71xx PCI space mutex",
+    MTX_SPIN);
+
 struct ar71xx_pci_softc {
 	device_t		sc_dev;
 
@@ -97,6 +103,7 @@ ar71xx_pci_mask_irq(void *source)
 	uint32_t reg;
 	unsigned int irq = (unsigned int)source;
 
+	/* XXX is the PCI lock required here? */
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
 	/* flush */
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
@@ -109,6 +116,7 @@ ar71xx_pci_unmask_irq(void *source)
 	uint32_t reg;
 	unsigned int irq = (unsigned int)source;
 
+	/* XXX is the PCI lock required here? */
 	reg = ATH_READ_REG(AR71XX_PCI_INTR_MASK);
 	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, reg | (1 << irq));
 	/* flush */
@@ -140,6 +148,9 @@ static int
 ar71xx_pci_check_bus_error(void)
 {
 	uint32_t error, addr, has_errors = 0;
+
+	mtx_assert(&ar71xx_pci_mtx, MA_OWNED);
+
 	error = ATH_READ_REG(AR71XX_PCI_ERROR) & 0x3;
 	dprintf("%s: PCI error = %02x\n", __func__, error);
 	if (error) {
@@ -185,7 +196,9 @@ ar71xx_pci_conf_setup(int bus, int slot, int func, int reg, int bytes,
 {
 	uint32_t addr = ar71xx_pci_make_addr(bus, slot, func, (reg & ~3));
 	cmd |= (ar71xx_get_bytes_to_read(reg, bytes) << 4);
-	
+
+	mtx_assert(&ar71xx_pci_mtx, MA_OWNED);
+
 	ATH_WRITE_REG(AR71XX_PCI_CONF_ADDR, addr);
 	ATH_WRITE_REG(AR71XX_PCI_CONF_CMD, cmd);
 
@@ -216,11 +229,13 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, 
 	    func, reg, bytes);
 
+	mtx_lock_spin(&ar71xx_pci_mtx);
 	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
 	     PCI_CONF_CMD_READ) == 0)
 		 data = ATH_READ_REG(AR71XX_PCI_CONF_READ_DATA);
 	 else
 		 data = -1;
+	mtx_unlock_spin(&ar71xx_pci_mtx);
 
 	/* get request bytes from 32-bit word */
 	data = (data >> shift) & mask;
@@ -241,8 +256,10 @@ ar71xx_pci_local_write(device_t dev, uint32_t reg, uint32_t data, int bytes)
 
 	cmd = PCI_LCONF_CMD_WRITE | (reg & ~3);
 	cmd |= (ar71xx_get_bytes_to_read(reg, bytes) << 20);
+	mtx_lock_spin(&ar71xx_pci_mtx);
 	ATH_WRITE_REG(AR71XX_PCI_LCONF_CMD, cmd);
 	ATH_WRITE_REG(AR71XX_PCI_LCONF_WRITE_DATA, data);
+	mtx_unlock_spin(&ar71xx_pci_mtx);
 }
 
 static void
@@ -255,9 +272,11 @@ ar71xx_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	data = data << (8*(reg % 4));
 
+	mtx_lock_spin(&ar71xx_pci_mtx);
 	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes,
 	     PCI_CONF_CMD_WRITE) == 0)
 		 ATH_WRITE_REG(AR71XX_PCI_CONF_WRITE_DATA, data);
+	mtx_unlock_spin(&ar71xx_pci_mtx);
 }
 
 #ifdef	AR71XX_ATH_EEPROM
@@ -457,7 +476,9 @@ ar71xx_pci_attach(device_t dev)
 	ATH_WRITE_REG(AR71XX_PCI_WINDOW7, PCI_WINDOW7_CONF_ADDR);
 	DELAY(100000);
 
+	mtx_lock_spin(&ar71xx_pci_mtx);
 	ar71xx_pci_check_bus_error();
+	mtx_unlock_spin(&ar71xx_pci_mtx);
 
 	/* Fixup internal PCI bridge */
 	ar71xx_pci_local_write(dev, PCIR_COMMAND,
