@@ -19,8 +19,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	includes various WITNESS- related kernel options, INVARIANTS, malloc
 	debugging flags in userland, and various verbose features in the
 	kernel.  Many developers choose to disable these features on build
-	machines to maximize performance.  (To disable malloc debugging, run
-	ln -s aj /etc/malloc.conf.)
+	machines to maximize performance.  (To completely disable malloc
+	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
+	disable the most expensive debugging functionality run
+	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20120417:
 	The malloc(3) implementation embedded in libc now uses sources imported
