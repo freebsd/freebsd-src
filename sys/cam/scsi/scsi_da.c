@@ -938,7 +938,9 @@ daopen(struct disk *dp)
 	if (error != 0)
 		xpt_print(periph->path, "unable to retrieve capacity data");
 
-	if (periph->flags & CAM_PERIPH_INVALID)
+	if (periph->flags & CAM_PERIPH_INVALID ||
+	    softc->disk->d_sectorsize == 0 ||
+	    softc->disk->d_mediasize == 0)
 		error = ENXIO;
 
 	if (error == 0 && (softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
