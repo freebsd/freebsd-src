@@ -402,6 +402,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
+	TASK_INIT(&sc->sc_fataltask,0, ath_fatal_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -1527,7 +1528,7 @@ ath_intr(void *arg)
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		ath_fatal_proc(sc, 0);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_fataltask);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
