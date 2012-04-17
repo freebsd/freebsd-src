@@ -508,6 +508,7 @@ struct ath_softc {
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
 	struct task		sc_resettask;	/* interface reset task */
+	struct task		sc_fataltask;	/* fatal task */
 	enum {
 		OK,				/* no change needed */
 		UPDATE,				/* update pending */
