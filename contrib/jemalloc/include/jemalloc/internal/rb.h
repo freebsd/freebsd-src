@@ -1,35 +1,6 @@
 /*-
  *******************************************************************************
  *
- * Copyright (C) 2008-2010 Jason Evans <jasone@FreeBSD.org>.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice(s), this list of conditions and the following disclaimer
- *    unmodified other than the allowable addition of one or more
- *    copyright notices.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice(s), this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- ******************************************************************************
- *
  * cpp macro implementation of left-leaning 2-3 red-black trees.  Parent
  * pointers are not used, and color bits are stored in the least significant
  * bit of right-child pointers (if RB_COMPACT is defined), thus making node
@@ -51,8 +22,9 @@
 #ifndef RB_H_
 #define	RB_H_
 
-#include <sys/cdefs.h>
+#if 0
 __FBSDID("$FreeBSD$");
+#endif
 
 #ifdef RB_COMPACT
 /* Node structure. */
@@ -222,11 +194,10 @@ a_prefix##reverse_iter(a_rbt_type *rbtree, a_type *start,		\
  * Arguments:
  *
  *   a_attr    : Function attribute for generated functions (ex: static).
- *   a_prefix  : Prefix for generated functions (ex: extree_).
- *   a_rb_type : Type for red-black tree data structure (ex: extree_t).
- *   a_type    : Type for red-black tree node data structure (ex:
- *               extree_node_t).
- *   a_field   : Name of red-black tree node linkage (ex: extree_link).
+ *   a_prefix  : Prefix for generated functions (ex: ex_).
+ *   a_rb_type : Type for red-black tree data structure (ex: ex_t).
+ *   a_type    : Type for red-black tree node data structure (ex: ex_node_t).
+ *   a_field   : Name of red-black tree node linkage (ex: ex_link).
  *   a_cmp     : Node comparison function name, with the following prototype:
  *                 int (a_cmp *)(a_type *a_node, a_type *a_other);
  *                                       ^^^^^^
@@ -246,94 +217,94 @@ a_prefix##reverse_iter(a_rbt_type *rbtree, a_type *start,		\
  *   struct ex_node_s {
  *       rb_node(ex_node_t) ex_link;
  *   };
- *   typedef rb(ex_node_t) ex_t;
- *   rb_gen(static, ex_, ex_t, ex_node_t, ex_link, ex_cmp, 1297, 1301)
+ *   typedef rb_tree(ex_node_t) ex_t;
+ *   rb_gen(static, ex_, ex_t, ex_node_t, ex_link, ex_cmp)
  *
  * The following API is generated:
  *
  *   static void
- *   ex_new(ex_t *extree);
+ *   ex_new(ex_t *tree);
  *       Description: Initialize a red-black tree structure.
  *       Args:
- *         extree: Pointer to an uninitialized red-black tree object.
+ *         tree: Pointer to an uninitialized red-black tree object.
  *
  *   static ex_node_t *
- *   ex_first(ex_t *extree);
+ *   ex_first(ex_t *tree);
  *   static ex_node_t *
- *   ex_last(ex_t *extree);
- *       Description: Get the first/last node in extree.
+ *   ex_last(ex_t *tree);
+ *       Description: Get the first/last node in tree.
  *       Args:
- *         extree: Pointer to an initialized red-black tree object.
- *       Ret: First/last node in extree, or NULL if extree is empty.
+ *         tree: Pointer to an initialized red-black tree object.
+ *       Ret: First/last node in tree, or NULL if tree is empty.
  *
  *   static ex_node_t *
- *   ex_next(ex_t *extree, ex_node_t *node);
+ *   ex_next(ex_t *tree, ex_node_t *node);
  *   static ex_node_t *
- *   ex_prev(ex_t *extree, ex_node_t *node);
+ *   ex_prev(ex_t *tree, ex_node_t *node);
  *       Description: Get node's successor/predecessor.
  *       Args:
- *         extree: Pointer to an initialized red-black tree object.
- *         node : A node in extree.
- *       Ret: node's successor/predecessor in extree, or NULL if node is
+ *         tree: Pointer to an initialized red-black tree object.
+ *         node: A node in tree.
+ *       Ret: node's successor/predecessor in tree, or NULL if node is
  *            last/first.
  *
  *   static ex_node_t *
- *   ex_search(ex_t *extree, ex_node_t *key);
+ *   ex_search(ex_t *tree, ex_node_t *key);
  *       Description: Search for node that matches key.
  *       Args:
- *         extree: Pointer to an initialized red-black tree object.
- *         key  : Search key.
- *       Ret: Node in extree that matches key, or NULL if no match.
+ *         tree: Pointer to an initialized red-black tree object.
+ *         key : Search key.
+ *       Ret: Node in tree that matches key, or NULL if no match.
  *
  *   static ex_node_t *
- *   ex_nsearch(ex_t *extree, ex_node_t *key);
+ *   ex_nsearch(ex_t *tree, ex_node_t *key);
  *   static ex_node_t *
- *   ex_psearch(ex_t *extree, ex_node_t *key);
+ *   ex_psearch(ex_t *tree, ex_node_t *key);
  *       Description: Search for node that matches key.  If no match is found,
  *                    return what would be key's successor/predecessor, were
- *                    key in extree.
+ *                    key in tree.
  *       Args:
- *         extree: Pointer to an initialized red-black tree object.
- *         key   : Search key.
- *       Ret: Node in extree that matches key, or if no match, hypothetical
- *            node's successor/predecessor (NULL if no successor/predecessor).
+ *         tree: Pointer to an initialized red-black tree object.
+ *         key : Search key.
+ *       Ret: Node in tree that matches key, or if no match, hypothetical node's
+ *            successor/predecessor (NULL if no successor/predecessor).
  *
  *   static void
- *   ex_insert(ex_t *extree, ex_node_t *node);
- *       Description: Insert node into extree.
+ *   ex_insert(ex_t *tree, ex_node_t *node);
+ *       Description: Insert node into tree.
  *       Args:
- *         extree: Pointer to an initialized red-black tree object.
- *         node  : Node to be inserted into extree.
+ *         tree: Pointer to an initialized red-black tree object.
+ *         node: Node to be inserted into tree.
  *
  *   static void
- *   ex_remove(ex_t *extree, ex_node_t *node);
- *       Description: Remove node from extree.
+ *   ex_remove(ex_t *tree, ex_node_t *node);
+ *       Description: Remove node from tree.
  *       Args:
- *         extree: Pointer to an initialized red-black tree object.
- *         node  : Node in extree to be removed.
+ *         tree: Pointer to an initialized red-black tree object.
+ *         node: Node in tree to be removed.
  *
  *   static ex_node_t *
- *   ex_iter(ex_t *extree, ex_node_t *start, ex_node_t *(*cb)(ex_t *,
+ *   ex_iter(ex_t *tree, ex_node_t *start, ex_node_t *(*cb)(ex_t *,
  *     ex_node_t *, void *), void *arg);
  *   static ex_node_t *
- *   ex_reverse_iter(ex_t *extree, ex_node_t *start, ex_node *(*cb)(ex_t *,
+ *   ex_reverse_iter(ex_t *tree, ex_node_t *start, ex_node *(*cb)(ex_t *,
  *     ex_node_t *, void *), void *arg);
- *       Description: Iterate forward/backward over extree, starting at node.
- *                    If extree is modified, iteration must be immediately
+ *       Description: Iterate forward/backward over tree, starting at node.  If
+ *                    tree is modified, iteration must be immediately
  *                    terminated by the callback function that causes the
  *                    modification.
  *       Args:
- *         extree: Pointer to an initialized red-black tree object.
- *         start : Node at which to start iteration, or NULL to start at
- *                 first/last node.
- *         cb    : Callback function, which is called for each node during
- *                 iteration.  Under normal circumstances the callback function
- *                 should return NULL, which causes iteration to continue.  If a
- *                 callback function returns non-NULL, iteration is immediately
- *                 terminated and the non-NULL return value is returned by the
- *                 iterator.  This is useful for re-starting iteration after
- *                 modifying extree.
- *         arg   : Opaque pointer passed to cb().
+ *         tree : Pointer to an initialized red-black tree object.
+ *         start: Node at which to start iteration, or NULL to start at
+ *                first/last node.
+ *         cb   : Callback function, which is called for each node during
+ *                iteration.  Under normal circumstances the callback function
+ *                should return NULL, which causes iteration to continue.  If a
+ *                callback function returns non-NULL, iteration is immediately
+ *                terminated and the non-NULL return value is returned by the
+ *                iterator.  This is useful for re-starting iteration after
+ *                modifying tree.
+ *         arg  : Opaque pointer passed to cb().
  *       Ret: NULL if iteration completed, or the non-NULL callback return value
  *            that caused termination of the iteration.
  */
