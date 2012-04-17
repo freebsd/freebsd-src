@@ -39,6 +39,11 @@
 
 #include "libc_private.h"
 
+/* Provided by jemalloc to avoid bootstrapping issues. */
+void	*a0malloc(size_t size);
+void	*a0calloc(size_t num, size_t size);
+void	a0free(void *ptr);
+
 __weak_reference(__libc_allocate_tls, _rtld_allocate_tls);
 __weak_reference(__libc_free_tls, _rtld_free_tls);
 
@@ -120,8 +125,8 @@ __libc_free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 
 	tls = (Elf_Addr **)((Elf_Addr)tcb + tcbsize - TLS_TCB_SIZE);
 	dtv = tls[0];
-	free(dtv);
-	free(tcb);
+	a0free(dtv);
+	a0free(tcb);
 }
 
 /*
@@ -137,18 +142,18 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 	if (oldtcb != NULL && tcbsize == TLS_TCB_SIZE)
 		return (oldtcb);
 
-	tcb = calloc(1, tls_static_space + tcbsize - TLS_TCB_SIZE);
+	tcb = a0calloc(1, tls_static_space + tcbsize - TLS_TCB_SIZE);
 	tls = (Elf_Addr **)(tcb + tcbsize - TLS_TCB_SIZE);
 
 	if (oldtcb != NULL) {
 		memcpy(tls, oldtcb, tls_static_space);
-		free(oldtcb);
+		a0free(oldtcb);
 
 		/* Adjust the DTV. */
 		dtv = tls[0];
 		dtv[2] = (Elf_Addr)tls + TLS_TCB_SIZE;
 	} else {
-		dtv = malloc(3 * sizeof(Elf_Addr));
+		dtv = a0malloc(3 * sizeof(Elf_Addr));
 		tls[0] = dtv;
 		dtv[0] = 1;
 		dtv[1] = 1;
@@ -189,8 +194,8 @@ __libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 	dtv = ((Elf_Addr**)tcb)[1];
 	tlsend = (Elf_Addr) tcb;
 	tlsstart = tlsend - size;
-	free((void*) tlsstart);
-	free(dtv);
+	a0free((void*) tlsstart);
+	a0free(dtv);
 }
 
 /*
@@ -208,8 +213,8 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 
 	if (tcbsize < 2 * sizeof(Elf_Addr))
 		tcbsize = 2 * sizeof(Elf_Addr);
-	tls = calloc(1, size + tcbsize);
-	dtv = malloc(3 * sizeof(Elf_Addr));
+	tls = a0calloc(1, size + tcbsize);
+	dtv = a0malloc(3 * sizeof(Elf_Addr));
 
 	segbase = (Elf_Addr)(tls + size);
 	((Elf_Addr*)segbase)[0] = segbase;
