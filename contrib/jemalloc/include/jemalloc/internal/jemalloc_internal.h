@@ -1,3 +1,5 @@
+#ifndef JEMALLOC_INTERNAL_H
+#define JEMALLOC_INTERNAL_H
 #include "libc_private.h"
 #include "namespace.h"
 
@@ -164,6 +166,10 @@ static const bool config_ivsalloc =
     false
 #endif
     ;
+
+#ifdef JEMALLOC_ATOMIC9
+#include <machine/atomic.h>
+#endif
 
 #if (defined(JEMALLOC_OSATOMIC) || defined(JEMALLOC_OSSPIN))
 #include <libkern/OSAtomic.h>
@@ -874,3 +880,4 @@ malloc_tsd_funcs(JEMALLOC_INLINE, thread_allocated, thread_allocated_t,
 
 #undef JEMALLOC_H_INLINES
 /******************************************************************************/
+#endif /* JEMALLOC_INTERNAL_H */

@@ -48,6 +48,9 @@
  */
 #define CPU_SPINWAIT __asm__ volatile("pause")
 
+/* Defined if the equivalent of FreeBSD's atomic(9) functions are available. */
+#define JEMALLOC_ATOMIC9 1
+
 /*
  * Defined if OSAtomic*() functions are available, as provided by Darwin, and
  * documented in the atomic(3) manual page.
@@ -60,7 +63,7 @@
  * __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4 not being defined (which means the
  * functions are defined in libgcc instead of being inlines)
  */
-#define JE_FORCE_SYNC_COMPARE_AND_SWAP_4 
+/* #undef JE_FORCE_SYNC_COMPARE_AND_SWAP_4 */
 
 /*
  * Defined if __sync_add_and_fetch(uint64_t *, uint64_t) and
@@ -68,7 +71,7 @@
  * __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 not being defined (which means the
  * functions are defined in libgcc instead of being inlines)
  */
-#define JE_FORCE_SYNC_COMPARE_AND_SWAP_8 
+/* #undef JE_FORCE_SYNC_COMPARE_AND_SWAP_8 */
 
 /*
  * Defined if OSSpin*() functions are available, as provided by Darwin, and
