@@ -187,6 +187,30 @@ struct mount {
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 };
 
+/*
+ * Definitions for MNT_VNODE_FOREACH_ALL.
+ */
+struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
+struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
+void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
+
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
+
+#define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
+	do {								\
+		MNT_ILOCK(mp);						\
+		__mnt_vnode_markerfree_all(&(mvp), (mp));		\
+		/* MNT_IUNLOCK(mp); -- done in above function */	\
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
+	} while (0)
+
+/*
+ * Definitions for MNT_VNODE_FOREACH.
+ *
+ * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
+ */
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
