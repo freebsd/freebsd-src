@@ -2467,17 +2467,13 @@ vflush(struct mount *mp, int rootrefs, int flags, struct thread *td)
 		}
 		vput(rootvp);
 	}
-	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		vholdl(vp);
-		MNT_IUNLOCK(mp);
 		error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE);
 		if (error) {
 			vdrop(vp);
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		/*
@@ -2486,7 +2482,6 @@ loop:
 		if ((flags & SKIPSYSTEM) && (vp->v_vflag & VV_SYSTEM)) {
 			VOP_UNLOCK(vp, 0);
 			vdrop(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		/*
@@ -2504,7 +2499,7 @@ loop:
 			if (error != 0) {
 				VOP_UNLOCK(vp, 0);
 				vdrop(vp);
-				MNT_VNODE_FOREACH_ABORT(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				return (error);
 			}
 			error = VOP_GETATTR(vp, &vattr, td->td_ucred);
@@ -2515,7 +2510,6 @@ loop:
 			    (vp->v_writecount == 0 || vp->v_type != VREG)) {
 				VOP_UNLOCK(vp, 0);
 				vdropl(vp);
-				MNT_ILOCK(mp);
 				continue;
 			}
 		} else
@@ -2540,9 +2534,7 @@ loop:
 		}
 		VOP_UNLOCK(vp, 0);
 		vdropl(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	if (rootrefs > 0 && (flags & FORCECLOSE) == 0) {
 		/*
 		 * If just the root vnode is busy, and if its refcount
@@ -3279,19 +3271,15 @@ vfs_msync(struct mount *mp, int flags)
 	struct vm_object *obj;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		obj = vp->v_object;
 		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp) == 0)) {
-			MNT_IUNLOCK(mp);
 			if (!vget(vp,
 			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
 			    curthread)) {
 				if (vp->v_vflag & VV_NOSYNC) {	/* unlinked */
 					vput(vp);
-					MNT_ILOCK(mp);
 					continue;
 				}
 
@@ -3305,11 +3293,9 @@ vfs_msync(struct mount *mp, int flags)
 				}
 				vput(vp);
 			}
-			MNT_ILOCK(mp);
 		} else
 			VI_UNLOCK(vp);
 	}
-	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -4503,4 +4489,91 @@ vfs_unixify_accmode(accmode_t *accmode)
 	*accmode &= ~(VSTAT_PERMS | VSYNCHRONIZE);
 
 	return (0);
+}
+
+/*
+ * These are helper functions for filesystems to traverse all
+ * their vnodes.  See MNT_VNODE_FOREACH_ALL() in sys/mount.h.
+ *
+ * This interface replaces MNT_VNODE_FOREACH.
+ */
+
+MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+
+struct vnode *
+__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
+{
+	struct vnode *vp;
+
+	if (should_yield())
+		kern_yield(PRI_UNCHANGED);
+	MNT_ILOCK(mp);
+	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
+	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);
+	while (vp != NULL && (vp->v_type == VMARKER ||
+	    (vp->v_iflag & VI_DOOMED) != 0))
+		vp = TAILQ_NEXT(vp, v_nmntvnodes);
+
+	/* Check if we are done */
+	if (vp == NULL) {
+		__mnt_vnode_markerfree_all(mvp, mp);
+		/* MNT_IUNLOCK(mp); -- done in above function */
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);
+		return (NULL);
+	}
+	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
+	TAILQ_INSERT_AFTER(&mp->mnt_nvnodelist, vp, *mvp, v_nmntvnodes);
+	VI_LOCK(vp);
+	MNT_IUNLOCK(mp);
+	return (vp);
+}
+
+struct vnode *
+__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp)
+{
+	struct vnode *vp;
+
+	*mvp = malloc(sizeof(struct vnode), M_VNODE_MARKER, M_WAITOK | M_ZERO);
+	MNT_ILOCK(mp);
+	MNT_REF(mp);
+	(*mvp)->v_type = VMARKER;
+
+	vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
+	while (vp != NULL && (vp->v_type == VMARKER ||
+	    (vp->v_iflag & VI_DOOMED) != 0))
+		vp = TAILQ_NEXT(vp, v_nmntvnodes);
+
+	/* Check if we are done */
+	if (vp == NULL) {
+		*mvp = NULL;
+		MNT_REL(mp);
+		MNT_IUNLOCK(mp);
+		free(*mvp, M_VNODE_MARKER);
+		return (NULL);
+	}
+	(*mvp)->v_mount = mp;
+	TAILQ_INSERT_AFTER(&mp->mnt_nvnodelist, vp, *mvp, v_nmntvnodes);
+	VI_LOCK(vp);
+	MNT_IUNLOCK(mp);
+	return (vp);
+}
+
+
+void
+__mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp)
+{
+
+	if (*mvp == NULL) {
+		MNT_IUNLOCK(mp);
+		return;
+	}
+
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
+
+	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
+	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
+	MNT_REL(mp);
+	MNT_IUNLOCK(mp);
+	free(*mvp, M_VNODE_MARKER);
+	*mvp = NULL;
 }

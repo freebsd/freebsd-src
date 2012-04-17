@@ -81,7 +81,6 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
-static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */
@@ -1720,9 +1719,13 @@ vfs_copyopt(opts, name, dest, len)
 }
 
 /*
- * This is a helper function for filesystems to traverse their
- * vnodes.  See MNT_VNODE_FOREACH() in sys/mount.h
+ * These are helper functions for filesystems to traverse all
+ * their vnodes.  See MNT_VNODE_FOREACH() in sys/mount.h.
+ *
+ * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
  */
+
+MALLOC_DECLARE(M_VNODE_MARKER);
 
 struct vnode *
 __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
@@ -1811,7 +1814,6 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 	*mvp = NULL;
 	MNT_REL(mp);
 }
-
 
 int
 __vfs_statfs(struct mount *mp, struct statfs *sbp)

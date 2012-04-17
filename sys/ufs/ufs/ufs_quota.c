@@ -598,32 +598,25 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	 * adding references to quota file being opened.
 	 * NB: only need to add dquot's for inodes being modified.
 	 */
-	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto again;
 		}
 		if (vp->v_type == VNON || vp->v_writecount == 0) {
 			VOP_UNLOCK(vp, 0);
 			vrele(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		error = getinoquota(VTOI(vp));
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 		if (error) {
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			break;
 		}
 	}
-	MNT_IUNLOCK(mp);
 
         if (error)
 		quotaoff_inchange(td, mp, type);
@@ -669,19 +662,14 @@ quotaoff1(struct thread *td, struct mount *mp, int type)
 	 * Search vnodes associated with this mount point,
 	 * deleting any references to quota file being closed.
 	 */
-	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto again;
 		}
 		ip = VTOI(vp);
@@ -690,9 +678,7 @@ again:
 		dqrele(vp, dq);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 
 	dqflush(qvp);
 	/* Clear um_quotas before closing the quota vnode to prevent
@@ -1057,20 +1043,16 @@ qsync(struct mount *mp)
 	 * Search vnodes associated with this mount point,
 	 * synchronizing any modified dquot structures.
 	 */
-	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto again;
 			}
 			continue;
@@ -1081,9 +1063,7 @@ again:
 				dqsync(vp, dq);
 		}
 		vput(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (0);
 }
 
