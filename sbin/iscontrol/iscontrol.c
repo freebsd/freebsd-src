@@ -44,13 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
 #include <netdb.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <camlib.h>
 
 #include <dev/iscsi/initiator/iscsi.h>
@@ -111,6 +113,13 @@ isc_opt_t opvals = {
      .immediateData		= TRUE,
 };
 
+static void
+usage(const char *pname)
+{
+	fprintf(stderr, "usage: %s " USAGE "\n", pname);
+	exit(1);
+}
+
 int
 lookup(token_t *tbl, char *m)
 {
@@ -135,8 +144,8 @@ main(int cc, char **vv)
      iscsidev = "/dev/"ISCSIDEV;
      fd = NULL;
      pname = vv[0];
-     if((p = strrchr(pname, '/')) != NULL)
-	  pname = p + 1;
+     if ((pname = basename(pname)) == NULL)
+	  err(1, "basename");
 
      kw = ta = 0;
      disco = 0;
@@ -145,17 +154,21 @@ main(int cc, char **vv)
       | check for driver & controller version match
       */
      n = 0;
-     if(sysctlbyname("net.iscsi_initiator.driver_version", 0, &n, 0, 0) != 0)
-	  perror("sysctlbyname");
-     v = malloc(n+1);
-     if(sysctlbyname("net.iscsi_initiator.driver_version", v, &n, 0, 0) != 0)
-	  perror("sysctlbyname");
-
-     if(strncmp(version, v, 3)) {
-	  fprintf(stderr, "versions missmatch\n");
-	  exit(1);
+#define VERSION_OID_S	"net.iscsi_initiator.driver_version"
+     if (sysctlbyname(VERSION_OID_S, 0, &n, 0, 0) != 0) {
+	  if (errno == ENOENT)
+		errx(1, "sysctlbyname(\"" VERSION_OID_S "\") "
+			"failed; is the iscsi driver loaded?");
+	  err(1, "sysctlbyname(\"" VERSION_OID_S "\")");
      }
+     v = malloc(n+1);
+     if (v == NULL)
+	  err(1, "malloc");
+     if (sysctlbyname(VERSION_OID_S, v, &n, 0, 0) != 0)
+	  err(1, "sysctlbyname");
 
+     if (strncmp(version, v, 3) != 0)
+	  errx(1, "versions mismatch");
 
      while((ch = getopt(cc, vv, OPTIONS)) != -1) {
 	  switch(ch) {
@@ -164,10 +177,8 @@ main(int cc, char **vv)
 	       break;
 	  case 'c':
 	       fd = fopen(optarg, "r");
-	       if(fd == NULL) {
-		    perror(optarg);
-		    exit(1);
-	       }
+	       if (fd == NULL)
+		    err(1, "fopen(\"%s\")", optarg);
 	       break;
 	  case 'd':
 	       disco = 1;
@@ -182,9 +193,7 @@ main(int cc, char **vv)
 	       pidfile = optarg;
 	       break;
 	  default:
-	  badu:
-	       fprintf(stderr, "Usage: %s %s\n", pname, USAGE);
-	       exit(1);
+	       usage(pname);
 	  }
      }
      if(fd == NULL)
@@ -205,8 +214,8 @@ main(int cc, char **vv)
 	  op->targetAddress = ta;
 
      if(op->targetAddress == NULL) {
-	  fprintf(stderr, "No target!\n");
-	  goto badu;
+	  warnx("no target specified!");
+	  usage(pname);
      }
      q = op->targetAddress;
      if(*q == '[' && (q = strchr(q, ']')) != NULL) {
@@ -224,7 +233,7 @@ main(int cc, char **vv)
 	  op->targetPortalGroupTag = atoi(p);
      }
      if(op->initiatorName == 0) {
-	  char	hostname[256];
+	  char	hostname[MAXHOSTNAMELEN];
 
 	  if(op->iqn) {
 	       if(gethostname(hostname, sizeof(hostname)) == 0)
