@@ -1235,7 +1235,7 @@ charsperline(void)
 		columns = 80;	/* last resort */
 
 	DBG_LEAVE;
-	return columns;
+	return (columns);
 }
 
 /*
@@ -1526,7 +1526,7 @@ main(int argc, char **argv)
 	DBG_CLOSE;
 
 	DBG_LEAVE;
-	return 0;
+	return (0);
 }
 
 /*
