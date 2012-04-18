@@ -1,0 +1,111 @@
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+    <title>&os; &release.current; Installation Instructions</title>
+
+    <corpauthor>The &os; Project</corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2012</year>
+
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This article gives some brief instructions on installing
+      &os; &release.current; and upgrading the systems running earlier
+      releases.</para>
+  </abstract>
+
+  <sect1 id="install">
+    <title>Installing &os;</title>
+
+    <para>For instructions on installing FreeBSD, please see Chapter 2
+      of The FreeBSD Handbook.  It provides a complete installation
+      walk-through for users new to FreeBSD, and can be found online
+      at: <ulink
+	url="&url.books.handbook;/install.html"></ulink></para>
+  </sect1>
+
+  <sect1 id="upgrade">
+    <title>Upgrading &os;</title>
+
+    <sect2>
+      <title>Upgrading from Source</title>
+
+      <para>The procedure for doing a source code based update is
+	described in
+	<ulink url="&url.books.handbook;/synching.html"></ulink> and
+	<ulink url="&url.books.handbook;//makeworld.html"></ulink>.</para>
+
+      <para>The branch tag to use for updating the source is
+	<literal>RELENG_8_3</literal> for CVS.  For SVN use
+	<filename>releng/8.3</filename>.</para>
+    </sect2>
+
+    <sect2>
+      <title>Upgrading Using <quote>&os; Update</quote></title>
+
+      <para>The &man.freebsd-update.8; utility supports binary
+	upgrades of &arch.i386; and &arch.amd64; systems running
+	earlier FreeBSD releases. Systems running
+	<literal>7.[01234]-RELEASE</literal>,
+	<literal>8.[012]-RELEASE</literal>,
+	<literal>8.3-BETA1</literal>, or
+	<literal>8.3-RC[12]</literal> can upgrade as follows:</para>
+
+      <screen>&prompt.root; freebsd-update upgrade -r 8.3-RELEASE</screen>
+
+      <para>During this process, FreeBSD Update may ask the user to
+	help by merging some configuration files or by confirming that
+	the automatically performed merging was done correctly.</para>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>The system must be rebooted with the newly installed
+	kernel before continuing.</para>
+
+      <screen>&prompt.root; shutdown -r now</screen>
+
+      <para>After rebooting, &man.freebsd-update.8; needs to be run
+	again to install the new userland components:</para>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>At this point, users of systems being upgraded from
+	FreeBSD 7.4-RELEASE or earlier will be prompted by
+	freebsd-update to rebuild all third-party applications (e.g.,
+	ports installed from the ports tree) due to updates in system
+	libraries.</para>
+
+      <para>After updating installed third-party applications (and
+	again, only if &man.freebsd-update.8; printed a message
+	indicating that this was necessary), run
+	&man.freebsd-update.8; again so that it can delete the old (no
+	longer used) system libraries:</para>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>Finally, reboot into &release.current;</para>
+
+      <screen>&prompt.root; shutdown -r now</screen>
+    </sect2>
+  </sect1>
+</article>
