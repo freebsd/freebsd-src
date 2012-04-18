@@ -573,9 +573,8 @@ ufs_setattr(ap)
 	}
 	/*
 	 * If immutable or append, no one can change any of its attributes
-	 * except the ones already handled (exec atime and, in some cases
-	 * for the superuser, file flags including the immutability flags
-	 * themselves).
+	 * except the ones already handled (in some cases, file flags
+	 * including the immutability flags themselves for the superuser).
 	 */
 	if (ip->i_flags & (IMMUTABLE | APPEND))
 		return (EPERM);
