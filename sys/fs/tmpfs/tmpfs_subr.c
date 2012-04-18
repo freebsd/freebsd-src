@@ -1080,7 +1080,7 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 
 	if ((flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
 	    UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND |
-	    SF_NOUNLINK | SF_SNAPSHOT)) != 0)
+	    SF_NOUNLINK)) != 0)
 		return (EOPNOTSUPP);
 
 	/* Disallow this operation if the file system is mounted read-only. */
@@ -1104,9 +1104,6 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 			if (error)
 				return (error);
 		}
-		/* The snapshot flag cannot be toggled. */
-		if ((flags ^ node->tn_flags) & SF_SNAPSHOT)
-			return (EPERM);
 	} else {
 		if (node->tn_flags &
 		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
