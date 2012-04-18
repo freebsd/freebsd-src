@@ -29,7 +29,7 @@ ioctl_includes=`
 `
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
-	gcc -E -I$1 -dM -DCOMPAT_43TTY - |
+	$CPP -I$1 -dM -DCOMPAT_43TTY - |
 	awk -v ioctl_includes="$ioctl_includes" -v use_switch="$use_switch" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
