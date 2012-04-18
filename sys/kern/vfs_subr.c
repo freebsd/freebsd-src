@@ -2369,8 +2369,6 @@ vdropl(struct vnode *vp)
 		    ("vnode already free"));
 		VNASSERT(VSHOULDFREE(vp), vp,
 		    ("vdropl: freeing when we shouldn't"));
-		VNASSERT((vp->v_iflag & VI_DOOMED) == 0, vp,
-		    ("vdropl: Freeing doomed vnode"));
 		if (vp->v_iflag & VI_AGE) {
 			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		} else {
