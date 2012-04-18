@@ -421,8 +421,7 @@ twl_vreg_millivolt_to_vsel(struct twl_vreg_softc *sc,
  *	It's expected the TWL lock is held while this function is called.
  *
  *	RETURNS:
- *	Zero if disabled, positive non-zero value if enabled, on failure a negative
- *	error code.
+ *	Zero if disabled, positive non-zero value if enabled, on failure a -1
  */
 static int
 twl_vreg_is_regulator_enabled(struct twl_vreg_softc *sc,
@@ -437,7 +436,7 @@ twl_vreg_is_regulator_enabled(struct twl_vreg_softc *sc,
 
 		err = twl_vreg_read_1(sc, regulator, TWL_VREG_GRP, &state);
 		if (err)
-			return (err);
+			return (-1);
 
 		return (state & TWL4030_P1_GRP);
 
@@ -447,7 +446,7 @@ twl_vreg_is_regulator_enabled(struct twl_vreg_softc *sc,
 		if (twl_is_6030(sc->sc_dev)) {
 			err = twl_vreg_read_1(sc, regulator, TWL_VREG_GRP, &grp);
 			if (err)
-				return (err);
+				return (-1);
 
 			if (!(grp & TWL6030_P1_GRP))
 				return (0);
@@ -456,12 +455,12 @@ twl_vreg_is_regulator_enabled(struct twl_vreg_softc *sc,
 		/* Read the application mode state and verify it's ON */
 		err = twl_vreg_read_1(sc, regulator, TWL_VREG_STATE, &state);
 		if (err)
-			return (err);
+			return (-1);
 
 		return ((state & 0x0C) == 0x04);
 	}
 
-	return (EINVAL);
+	return (-1);
 }
 
 /**
@@ -639,8 +638,8 @@ twl_vreg_read_regulator_voltage(struct twl_vreg_softc *sc,
 	uint8_t vsel;
 
 	/* Check if the regulator is currently enabled */
-	if ((ret = twl_vreg_is_regulator_enabled(sc, regulator)))
-		return (ret);
+	if ((ret = twl_vreg_is_regulator_enabled(sc, regulator)) < 0)
+		return (EINVAL);
 
 	if (ret == 0) {
 		*millivolts = 0;
