@@ -127,6 +127,7 @@ dfr [label="Doug Rabson\ndfr@FreeBSD.org\n????/??/??"]
 dg [label="David Greenman\ndg@FreeBSD.org\n1993/06/14"]
 dim [label="Dimitry Andric\ndim@FreeBSD.org\n2010/08/30"]
 dougb [label="Doug Barton\ndougb@FreeBSD.org\n2000/10/26"]
+dteske [label="Devin Teske\ndteske@FreeBSD.org\n2012/04/10"]
 dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
 ed [label="Ed Schouten\ned@FreeBSD.org\n2008/05/22"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2007/06/25"]
@@ -362,6 +363,7 @@ eivind -> des
 eivind -> rwatson
 
 emaste -> rstone
+emaste -> dteske
 
 emax -> markus
 
