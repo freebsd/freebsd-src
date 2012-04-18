@@ -92,13 +92,13 @@ NON_GPROF_ENTRY(btext)
 
 	/* Use our own stack */
 	/* XXX: %ss */
-	movq	%rsp, xenstack	/* save the one xen gives us */
+	movq	%rsp, xenstack	/* save a reference to the one xen gives us */
 	movq	$bootstack, %rsp
-	xorl	%ebp, %ebp
+	movq	$bootstack, %rbp
 
 	movq	%rsi, %rdi
 	call	initxen		/* vm_paddr_t init_xen(struct start_info *); */
-	/* XXX: %rbp ? */
+
 	movq	%rax, %rsp
 	call	mi_startup
 	
