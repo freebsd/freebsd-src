@@ -163,6 +163,9 @@ static struct uuid gpt_uuid_linux_data = GPT_ENT_TYPE_LINUX_DATA;
 static struct uuid gpt_uuid_linux_lvm = GPT_ENT_TYPE_LINUX_LVM;
 static struct uuid gpt_uuid_linux_raid = GPT_ENT_TYPE_LINUX_RAID;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
+static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
+static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
+static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
 static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
 static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
@@ -200,6 +203,9 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_linux_lvm,		G_PART_ALIAS_LINUX_LVM,		 0 },
 	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID,	 0 },
 	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP,	 0 },
+	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
+	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
+	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
 	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR,		 0 },
 	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA,	 0x0b },
 	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA,	 0 },
