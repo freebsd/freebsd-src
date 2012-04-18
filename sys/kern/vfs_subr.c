@@ -4528,10 +4528,10 @@ __mnt_vnode_first_all(struct vnode **mvp, struct mount *mp)
 
 	/* Check if we are done */
 	if (vp == NULL) {
-		*mvp = NULL;
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		free(*mvp, M_VNODE_MARKER);
+		*mvp = NULL;
 		return (NULL);
 	}
 	(*mvp)->v_mount = mp;
