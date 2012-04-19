@@ -103,7 +103,6 @@ static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vbusy(struct vnode *vp);
-static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *);
 static void	v_decr_usecount(struct vnode *);
 static void	v_decr_useonly(struct vnode *);
@@ -2404,7 +2403,7 @@ vdropl(struct vnode *vp)
  * OWEINACT tracks whether a vnode missed a call to inactive due to a
  * failed lock upgrade.
  */
-static void
+void
 vinactive(struct vnode *vp, struct thread *td)
 {
 
