@@ -3144,21 +3144,27 @@ DIOCGETSTATES_full:
 
 	case DIOCGETSRCNODES: {
 		struct pfioc_src_nodes	*psn = (struct pfioc_src_nodes *)addr;
+		struct pf_srchash	*sh;
 		struct pf_src_node	*n, *p, *pstore;
-		u_int32_t		 nr = 0;
+		uint32_t		 i, nr = 0;
 
 		if (psn->psn_len == 0) {
-			PF_LOCK();
-			RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking)
-				nr++;
-			PF_UNLOCK();
+			for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+			    i++, sh++) {
+				PF_HASHROW_LOCK(sh);
+				LIST_FOREACH(n, &sh->nodes, entry)
+					nr++;
+				PF_HASHROW_UNLOCK(sh);
+			}
 			psn->psn_len = sizeof(struct pf_src_node) * nr;
 			break;
 		}
 
 		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
-		PF_LOCK();
-		RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
+		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		    i++, sh++) {
+		    PF_HASHROW_LOCK(sh);
+		    LIST_FOREACH(n, &sh->nodes, entry) {
 			int	secs = time_second, diff;
 
 			if ((nr + 1) * sizeof(*p) > (unsigned)psn->psn_len)
@@ -3183,8 +3189,9 @@ DIOCGETSTATES_full:
 				    n->conn_rate.seconds;
 			p++;
 			nr++;
+		    }
+		    PF_HASHROW_UNLOCK(sh);
 		}
-		PF_UNLOCK();
 		error = copyout(pstore, psn->psn_src_nodes,
 		    sizeof(struct pf_src_node) * nr);
 		if (error) {
@@ -3207,13 +3214,21 @@ DIOCGETSTATES_full:
 	}
 
 	case DIOCKILLSRCNODES: {
-		struct pf_src_node	*sn;
 		struct pfioc_src_node_kill *psnk =
 		    (struct pfioc_src_node_kill *)addr;
-		u_int			killed = 0;
+		struct pf_srchash	*sh;
+		struct pf_src_node	*sn;
+		u_int			i, killed = 0;
 
-		PF_LOCK();
-		RB_FOREACH(sn, pf_src_tree, &V_tree_src_tracking) {
+		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		    i++, sh++) {
+		    /*
+		     * XXXGL: we don't ever acquire sources hash lock
+		     * but if we ever do, the below call to pf_clear_srcnodes()
+		     * would lead to a LOR.
+		     */
+		    PF_HASHROW_LOCK(sh);
+		    LIST_FOREACH(sn, &sh->nodes, entry)
 			if (PF_MATCHA(psnk->psnk_src.neg,
 				&psnk->psnk_src.addr.v.a.addr,
 				&psnk->psnk_src.addr.v.a.mask,
@@ -3228,12 +3243,12 @@ DIOCGETSTATES_full:
 				sn->expire = 1;
 				killed++;
 			}
+		    PF_HASHROW_UNLOCK(sh);
 		}
 
 		if (killed > 0)
 			pf_purge_expired_src_nodes();
 
-		PF_UNLOCK();
 		psnk->psnk_killed = killed;
 		break;
 	}
@@ -3415,22 +3430,28 @@ pf_clear_srcnodes(struct pf_src_node *n)
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			PF_STATE_LOCK(s);
 			if (n == NULL || n == s->src_node)
 				s->src_node = NULL;
 			if (n == NULL || n == s->nat_src_node)
 				s->nat_src_node = NULL;
-			PF_STATE_UNLOCK(s);
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
 
 	if (n == NULL) {
-		RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
-			n->expire = 1;
-			n->states = 0;
+		struct pf_srchash *sh;
+
+		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		    i++, sh++) {
+			PF_HASHROW_LOCK(sh);
+			LIST_FOREACH(n, &sh->nodes, entry) {
+				n->expire = 1;
+				n->states = 0;
+			}
+			PF_HASHROW_UNLOCK(sh);
 		}
 	} else {
+		/* XXX: hash slot should already be locked here. */
 		n->expire = 1;
 		n->states = 0;
 	}

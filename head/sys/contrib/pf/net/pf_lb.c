@@ -355,24 +355,19 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	struct pf_addr		*raddr = &rpool->cur->addr.v.a.addr;
 	struct pf_addr		*rmask = &rpool->cur->addr.v.a.mask;
 	struct pf_pooladdr	*acur = rpool->cur;
-	struct pf_src_node	 k;
+
+	KASSERT((r->rule_flag & PFRULE_RULESRCTRACK ||
+	    r->rpool.opts & PF_POOL_STICKYADDR),
+	    ("%s for non-tracking rule %p", __func__, r));
 
 	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
 	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
-		k.af = af;
-		PF_ACPY(&k.addr, saddr, af);
-		if (r->rule_flag & PFRULE_RULESRCTRACK ||
-		    r->rpool.opts & PF_POOL_STICKYADDR)
-			k.rule.ptr = r;
-		else
-			k.rule.ptr = NULL;
-		V_pf_status.scounters[SCNT_SRC_NODE_SEARCH]++;
-		*sn = RB_FIND(pf_src_tree, &V_tree_src_tracking, &k);
+		*sn = pf_find_src_node(saddr, r, af, 0);
 		if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
 			PF_ACPY(naddr, &(*sn)->raddr, af);
 			if (V_pf_status.debug >= PF_DEBUG_MISC) {
 				printf("pf_map_addr: src tracking maps ");
-				pf_print_host(&k.addr, 0, af);
+				pf_print_host(saddr, 0, af);
 				printf(" to ");
 				pf_print_host(naddr, 0, af);
 				printf("\n");
