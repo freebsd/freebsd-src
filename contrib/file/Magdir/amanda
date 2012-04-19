@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: amanda,v 1.5 2009/09/19 16:28:07 christos Exp $
 # amanda:  file(1) magic for amanda file format
 #
 0	string	AMANDA:\ 		AMANDA 
