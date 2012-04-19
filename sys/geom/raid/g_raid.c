@@ -281,6 +281,14 @@ g_raid_volume_level2str(int level, int qual)
 	case G_RAID_VOLUME_RL_RAID4:
 		return ("RAID4");
 	case G_RAID_VOLUME_RL_RAID5:
+		if (qual == G_RAID_VOLUME_RLQ_R5RA)
+			return ("RAID5RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5RS)
+			return ("RAID5RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5LA)
+			return ("RAID5LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5LS)
+			return ("RAID5LS");
 		return ("RAID5");
 	case G_RAID_VOLUME_RL_RAID6:
 		return ("RAID6");
@@ -313,9 +321,20 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 		*level = G_RAID_VOLUME_RL_RAID3;
 	else if (strcasecmp(str, "RAID4") == 0)
 		*level = G_RAID_VOLUME_RL_RAID4;
-	else if (strcasecmp(str, "RAID5") == 0)
+	else if (strcasecmp(str, "RAID5RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5;
-	else if (strcasecmp(str, "RAID6") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R5RA;
+	} else if (strcasecmp(str, "RAID5RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5RS;
+	} else if (strcasecmp(str, "RAID5") == 0 ||
+		   strcasecmp(str, "RAID5LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5LA;
+	} else if (strcasecmp(str, "RAID5LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5LS;
+	} else if (strcasecmp(str, "RAID6") == 0)
 		*level = G_RAID_VOLUME_RL_RAID6;
 	else if (strcasecmp(str, "RAID10") == 0 ||
 		 strcasecmp(str, "RAID1E") == 0)
