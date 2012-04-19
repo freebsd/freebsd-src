@@ -227,6 +227,10 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_RL_UNKNOWN	0xff
 
 #define G_RAID_VOLUME_RLQ_NONE		0x00
+#define G_RAID_VOLUME_RLQ_R5RA		0x00
+#define G_RAID_VOLUME_RLQ_R5RS		0x01
+#define G_RAID_VOLUME_RLQ_R5LA		0x02
+#define G_RAID_VOLUME_RLQ_R5LS		0x03
 #define G_RAID_VOLUME_RLQ_UNKNOWN	0xff
 
 struct g_raid_volume;

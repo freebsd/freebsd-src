@@ -407,11 +407,14 @@ g_raid_md_nvidia_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_RAID5:
 		if (disks < 3)
 			return (0);
+		if (qual != G_RAID_VOLUME_RLQ_R5LA &&
+		    qual != G_RAID_VOLUME_RLQ_R5LS)
+			return (0);
 		break;
 	default:
 		return (0);
 	}
-	if (qual != G_RAID_VOLUME_RLQ_NONE)
+	if (level != G_RAID_VOLUME_RL_RAID5 && qual != G_RAID_VOLUME_RLQ_NONE)
 		return (0);
 	return (1);
 }
@@ -679,10 +682,11 @@ g_raid_md_nvidia_start(struct g_raid_softc *sc)
 		size = 0;
 	} else if (meta->type == NVIDIA_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_R5LA;
 		size = vol->v_mediasize / (mdi->mdio_total_disks - 1);
 	} else if (meta->type == NVIDIA_T_RAID5_SYM) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
-//		vol->v_raid_level_qualifier = 0x03;
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_R5LS;
 		size = vol->v_mediasize / (mdi->mdio_total_disks - 1);
 	} else {
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
@@ -1059,6 +1063,8 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			gctl_error(req, "No RAID level.");
 			return (-3);
 		}
+		if (strcasecmp(levelname, "RAID5") == 0)
+			levelname = "RAID5LS";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1206,7 +1212,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_raid_level_qualifier = qual;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		vol->v_mediasize = volsize;
@@ -1454,8 +1460,8 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT ||
 	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE)
 		meta->type = NVIDIA_T_CONCAT;
-//	else if (vol->v_raid_level_qualifier == 0)
-//		meta->type = NVIDIA_T_RAID5;
+	else if (vol->v_raid_level_qualifier == G_RAID_VOLUME_RLQ_R5LA)
+		meta->type = NVIDIA_T_RAID5;
 	else
 		meta->type = NVIDIA_T_RAID5_SYM;
 	meta->strip_sectors = vol->v_strip_size / vol->v_sectorsize;
