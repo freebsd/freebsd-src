@@ -2572,20 +2572,9 @@ process_deferred_inactive(struct mount *mp)
 			MNT_ILOCK(mp);
 			continue;
 		}
-		
-		VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
-			 ("process_deferred_inactive: "
-			  "recursed on VI_DOINGINACT"));
-		vp->v_iflag |= VI_DOINGINACT;
-		vp->v_iflag &= ~VI_OWEINACT;
-		VI_UNLOCK(vp);
-		(void) VOP_INACTIVE(vp, td);
-		VI_LOCK(vp);
-		VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
-			 ("process_deferred_inactive: lost VI_DOINGINACT"));
+		vinactive(vp, td);
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 			 ("process_deferred_inactive: got VI_OWEINACT"));
-		vp->v_iflag &= ~VI_DOINGINACT;
 		VI_UNLOCK(vp);
 		VOP_UNLOCK(vp, 0);
 		vdrop(vp);
