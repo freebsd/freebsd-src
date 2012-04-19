@@ -200,10 +200,10 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 	__mnt_vnode_markerfree(&(mvp), (mp))
 
 #define MNT_VNODE_FOREACH_ABORT(mp, mvp)				\
-        do {								\
-	  MNT_ILOCK(mp);						\
-          MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);			\
-	  MNT_IUNLOCK(mp);						\
+	do {								\
+		MNT_ILOCK(mp);						\
+		MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);		\
+		MNT_IUNLOCK(mp);					\
 	} while (0)
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
@@ -212,7 +212,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
 #define	MNT_REF(mp)	(mp)->mnt_ref++
 #define	MNT_REL(mp)	do {						\
-	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));			\
+	KASSERT((mp)->mnt_ref > 0, ("negative mnt_ref"));		\
 	(mp)->mnt_ref--;						\
 	if ((mp)->mnt_ref == 0)						\
 		wakeup((mp));						\
