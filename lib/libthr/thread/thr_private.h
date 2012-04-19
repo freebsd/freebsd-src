@@ -80,7 +80,7 @@ typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
 TAILQ_HEAD(mutex_queue, pthread_mutex);
 
 /* Signal to do cancellation */
-#define	SIGCANCEL		32
+#define	SIGCANCEL		SIGTHR
 
 /*
  * Kernel fatal error handler macro.
@@ -833,8 +833,6 @@ ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
 #endif
-
-int	_umtx_op_err(void *, int op, u_long, void *, void *) __hidden;
 
 static inline int
 _thr_isthreaded(void)

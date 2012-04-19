@@ -1237,9 +1237,10 @@ smc_init_locked(struct smc_softc *sc)
 {
 	struct ifnet	*ifp;
 
-	ifp = sc->smc_ifp;
-
 	SMC_ASSERT_LOCKED(sc);
+	ifp = sc->smc_ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	smc_reset(sc);
 	smc_enable(sc);

@@ -42,6 +42,7 @@ void Preprocessor::Backtrack() {
          && "EnableBacktrackAtThisPos was not called!");
   CachedLexPos = BacktrackPositions.back();
   BacktrackPositions.pop_back();
+  recomputeCurLexerKind();
 }
 
 void Preprocessor::CachingLex(Token &Result) {
@@ -56,17 +57,21 @@ void Preprocessor::CachingLex(Token &Result) {
   ExitCachingLexMode();
   Lex(Result);
 
-  if (!isBacktrackEnabled()) {
-    // All cached tokens were consumed.
-    CachedTokens.clear();
-    CachedLexPos = 0;
+  if (isBacktrackEnabled()) {
+    // Cache the lexed token.
+    EnterCachingLexMode();
+    CachedTokens.push_back(Result);
+    ++CachedLexPos;
     return;
   }
 
-  // Cache the lexed token.
-  EnterCachingLexMode();
-  CachedTokens.push_back(Result);
-  ++CachedLexPos;
+  if (CachedLexPos < CachedTokens.size()) {
+    EnterCachingLexMode();
+  } else {
+    // All cached tokens were consumed.
+    CachedTokens.clear();
+    CachedLexPos = 0;
+  }
 }
 
 void Preprocessor::EnterCachingLexMode() {
@@ -74,8 +79,7 @@ void Preprocessor::EnterCachingLexMode() {
     return;
 
   PushIncludeMacroStack();
-  if (CurLexerKind != CLK_LexAfterModuleImport)
-    CurLexerKind = CLK_CachingLexer;
+  CurLexerKind = CLK_CachingLexer;
 }
 
 

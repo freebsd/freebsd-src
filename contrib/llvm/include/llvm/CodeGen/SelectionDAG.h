@@ -51,7 +51,7 @@ public:
   static void noteHead(SDNode*, SDNode*) {}
 
   static void deleteNode(SDNode *) {
-    assert(0 && "ilist_traits<SDNode> shouldn't see a deleteNode call!");
+    llvm_unreachable("ilist_traits<SDNode> shouldn't see a deleteNode call!");
   }
 private:
   static void createNode(const SDNode &);
@@ -112,9 +112,10 @@ public:
 };
 
 enum CombineLevel {
-  Unrestricted,   // Combine may create illegal operations and illegal types.
-  NoIllegalTypes, // Combine may create illegal operations but no illegal types.
-  NoIllegalOperations // Combine may only create legal operations and types.
+  BeforeLegalizeTypes,
+  AfterLegalizeTypes,
+  AfterLegalizeVectorOps,
+  AfterLegalizeDAG
 };
 
 class SelectionDAG;
@@ -138,6 +139,7 @@ class SelectionDAG {
   const TargetSelectionDAGInfo &TSI;
   MachineFunction *MF;
   LLVMContext *Context;
+  CodeGenOpt::Level OptLevel;
 
   /// EntryNode - The starting token.
   SDNode EntryNode;
@@ -186,7 +188,7 @@ class SelectionDAG {
   SelectionDAG(const SelectionDAG&);   // Do not implement.
 
 public:
-  explicit SelectionDAG(const TargetMachine &TM);
+  explicit SelectionDAG(const TargetMachine &TM, llvm::CodeGenOpt::Level);
   ~SelectionDAG();
 
   /// init - Prepare this SelectionDAG to process code in the given
@@ -392,6 +394,7 @@ public:
                                   unsigned char TargetFlags = 0);
   SDValue getValueType(EVT);
   SDValue getRegister(unsigned Reg, EVT VT);
+  SDValue getRegisterMask(const uint32_t *RegMask);
   SDValue getEHLabel(DebugLoc dl, SDValue Root, MCSymbol *Label);
   SDValue getBlockAddress(const BlockAddress *BA, EVT VT,
                           bool isTarget = false, unsigned char TargetFlags = 0);
@@ -650,8 +653,8 @@ public:
   ///
   SDValue getLoad(EVT VT, DebugLoc dl, SDValue Chain, SDValue Ptr,
                   MachinePointerInfo PtrInfo, bool isVolatile,
-                  bool isNonTemporal, unsigned Alignment,
-                  const MDNode *TBAAInfo = 0);
+                  bool isNonTemporal, bool isInvariant, unsigned Alignment,
+                  const MDNode *TBAAInfo = 0, const MDNode *Ranges = 0);
   SDValue getExtLoad(ISD::LoadExtType ExtType, DebugLoc dl, EVT VT,
                      SDValue Chain, SDValue Ptr, MachinePointerInfo PtrInfo,
                      EVT MemVT, bool isVolatile,
@@ -663,8 +666,9 @@ public:
                   EVT VT, DebugLoc dl,
                   SDValue Chain, SDValue Ptr, SDValue Offset,
                   MachinePointerInfo PtrInfo, EVT MemVT,
-                  bool isVolatile, bool isNonTemporal, unsigned Alignment,
-                  const MDNode *TBAAInfo = 0);
+                  bool isVolatile, bool isNonTemporal, bool isInvariant,
+                  unsigned Alignment, const MDNode *TBAAInfo = 0,
+                  const MDNode *Ranges = 0);
   SDValue getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
                   EVT VT, DebugLoc dl,
                   SDValue Chain, SDValue Ptr, SDValue Offset,
@@ -976,8 +980,8 @@ public:
   /// bitsets.  This code only analyzes bits in Mask, in order to short-circuit
   /// processing.  Targets can implement the computeMaskedBitsForTargetNode
   /// method in the TargetLowering class to allow target nodes to be understood.
-  void ComputeMaskedBits(SDValue Op, const APInt &Mask, APInt &KnownZero,
-                         APInt &KnownOne, unsigned Depth = 0) const;
+  void ComputeMaskedBits(SDValue Op, APInt &KnownZero, APInt &KnownOne,
+                         unsigned Depth = 0) const;
 
   /// ComputeNumSignBits - Return the number of times the sign bit of the
   /// register is replicated into the other bits.  We know that at least 1 bit
@@ -1033,6 +1037,7 @@ private:
                                void *&InsertPos);
   SDNode *FindModifiedNodeSlot(SDNode *N, const SDValue *Ops, unsigned NumOps,
                                void *&InsertPos);
+  SDNode *UpdadeDebugLocOnMergedSDNode(SDNode *N, DebugLoc loc);
 
   void DeleteNodeNotInCSEMaps(SDNode *N);
   void DeallocateNode(SDNode *N);

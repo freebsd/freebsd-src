@@ -20,6 +20,106 @@ INITIALIZE_PASS(TargetLibraryInfo, "targetlibinfo",
                 "Target Library Information", false, true)
 char TargetLibraryInfo::ID = 0;
 
+void TargetLibraryInfo::anchor() { }
+
+const char* TargetLibraryInfo::StandardNames[LibFunc::NumLibFuncs] =
+  {
+    "acos",
+    "acosl",
+    "acosf",
+    "asin",
+    "asinl",
+    "asinf",
+    "atan",
+    "atanl",
+    "atanf",
+    "atan2",
+    "atan2l",
+    "atan2f",
+    "ceil",
+    "ceill",
+    "ceilf",
+    "copysign",
+    "copysignf",
+    "copysignl",
+    "cos",
+    "cosl",
+    "cosf",
+    "cosh",
+    "coshl",
+    "coshf",
+    "exp",
+    "expl",
+    "expf",
+    "exp2",
+    "exp2l",
+    "exp2f",
+    "expm1",
+    "expm1l",
+    "expl1f",
+    "fabs",
+    "fabsl",
+    "fabsf",
+    "floor",
+    "floorl",
+    "floorf",
+    "fiprintf",
+    "fmod",
+    "fmodl",
+    "fmodf",
+    "fputs",
+    "fwrite",
+    "iprintf",
+    "log",
+    "logl",
+    "logf",
+    "log2",
+    "log2l",
+    "log2f",
+    "log10",
+    "log10l",
+    "log10f",
+    "log1p",
+    "log1pl",
+    "log1pf",
+    "memcpy",
+    "memmove",
+    "memset",
+    "memset_pattern16",
+    "nearbyint",
+    "nearbyintf",
+    "nearbyintl",
+    "pow",
+    "powf",
+    "powl",
+    "rint",
+    "rintf",
+    "rintl",
+    "sin",
+    "sinl",
+    "sinf",
+    "sinh",
+    "sinhl",
+    "sinhf",
+    "siprintf",
+    "sqrt",
+    "sqrtl",
+    "sqrtf",
+    "tan",
+    "tanl",
+    "tanf",
+    "tanh",
+    "tanhl",
+    "tanhf",
+    "trunc",
+    "truncf",
+    "truncl",
+    "__cxa_atexit",
+    "__cxa_guard_abort",
+    "__cxa_guard_acquire",
+    "__cxa_guard_release"
+  };
+
 /// initialize - Initialize the set of available library functions based on the
 /// specified target triple.  This should be carefully written so that a missing
 /// target triple gets a sane set of defaults.
@@ -36,6 +136,17 @@ static void initialize(TargetLibraryInfo &TLI, const Triple &T) {
       TLI.setUnavailable(LibFunc::memset_pattern16);
   } else {
     TLI.setUnavailable(LibFunc::memset_pattern16);
+  }
+
+  if (T.isMacOSX() && T.getArch() == Triple::x86 &&
+      !T.isMacOSXVersionLT(10, 7)) {
+    // x86-32 OSX has a scheme where fwrite and fputs (and some other functions
+    // we don't care about) have two versions; on recent OSX, the one we want
+    // has a $UNIX2003 suffix. The two implementations are identical except
+    // for the return value in some edge cases.  However, we don't want to
+    // generate code that depends on the old symbols.
+    TLI.setAvailableWithName(LibFunc::fwrite, "fwrite$UNIX2003");
+    TLI.setAvailableWithName(LibFunc::fputs, "fputs$UNIX2003");
   }
 
   // iprintf and friends are only available on XCore and TCE.
@@ -64,6 +175,7 @@ TargetLibraryInfo::TargetLibraryInfo(const Triple &T) : ImmutablePass(ID) {
 TargetLibraryInfo::TargetLibraryInfo(const TargetLibraryInfo &TLI)
   : ImmutablePass(ID) {
   memcpy(AvailableArray, TLI.AvailableArray, sizeof(AvailableArray));
+  CustomNames = TLI.CustomNames;
 }
 
 

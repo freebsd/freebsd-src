@@ -38,6 +38,7 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/pcpu.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
@@ -257,6 +258,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
 			struct athregrec *r = (struct athregrec *) ale->ae_data;
+			r->threadid = curthread->td_tid;
 			r->op = OP_WRITE;
 			r->reg = reg;
 			r->val = val;
@@ -296,6 +298,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
 			struct athregrec *r = (struct athregrec *) ale->ae_data;
+			r->threadid = curthread->td_tid;
 			r->op = OP_READ;
 			r->reg = reg;
 			r->val = val;
@@ -312,6 +315,7 @@ OS_MARK(struct ath_hal *ah, u_int id, u_int32_t v)
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
 			struct athregrec *r = (struct athregrec *) ale->ae_data;
+			r->threadid = curthread->td_tid;
 			r->op = OP_MARK;
 			r->reg = id;
 			r->val = v;

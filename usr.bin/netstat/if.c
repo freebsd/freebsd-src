@@ -93,10 +93,10 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	if (live) {
 		if (zflag)
 			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
+		if (sysctlbyname("net.pfsync.stats", &pfsyncstat, &len,
 		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 			if (errno != ENOENT)
-				warn("sysctl: net.inet.pfsync.stats");
+				warn("sysctl: net.pfsync.stats");
 			return;
 		}
 	} else

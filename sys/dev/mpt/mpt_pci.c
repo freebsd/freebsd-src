@@ -187,10 +187,12 @@ static int
 mpt_pci_probe(device_t dev)
 {
 	const char *desc;
+	int rval;
 
 	if (pci_get_vendor(dev) != MPI_MANUFACTPAGE_VENDORID_LSILOGIC)
 		return (ENXIO);
 
+	rval = BUS_PROBE_DEFAULT;
 	switch (pci_get_device(dev)) {
 	case MPI_MANUFACTPAGE_DEVICEID_FC909_FB:
 		desc = "LSILogic FC909 FC Adapter";
@@ -232,6 +234,13 @@ mpt_pci_probe(device_t dev)
 	case MPI_MANUFACTPAGE_DEVID_53C1030ZC:
 		desc = "LSILogic 1030 Ultra4 Adapter";
 		break;
+	case MPI_MANUFACTPAGE_DEVID_SAS1068E_FB:
+		/*
+		 * Allow mfi(4) to claim this device in case it's in MegaRAID
+		 * mode.
+		 */
+		rval = BUS_PROBE_LOW_PRIORITY;
+		/* FALLTHROUGH */
 	case MPI_MANUFACTPAGE_DEVID_SAS1064:
 	case MPI_MANUFACTPAGE_DEVID_SAS1064A:
 	case MPI_MANUFACTPAGE_DEVID_SAS1064E:
@@ -240,7 +249,6 @@ mpt_pci_probe(device_t dev)
 	case MPI_MANUFACTPAGE_DEVID_SAS1068:
 	case MPI_MANUFACTPAGE_DEVID_SAS1068A_FB:
 	case MPI_MANUFACTPAGE_DEVID_SAS1068E:
-	case MPI_MANUFACTPAGE_DEVID_SAS1068E_FB:
 	case MPI_MANUFACTPAGE_DEVID_SAS1078:
 	case MPI_MANUFACTPAGE_DEVID_SAS1078DE_FB:
 		desc = "LSILogic SAS/SATA Adapter";
@@ -250,7 +258,7 @@ mpt_pci_probe(device_t dev)
 	}
 
 	device_set_desc(dev, desc);
-	return (0);
+	return (rval);
 }
 
 #if	__FreeBSD_version < 500000  

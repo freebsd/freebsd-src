@@ -57,8 +57,7 @@ a library @file{libkafs} for authenticating to AFS and a program
 @item
 some simple test programs
 @item
-a KDC that supports most things; optionally, it may also support
-Kerberos V4 and kaserver,
+a KDC that supports most things,
 @item
 simple programs for distributing databases between a KDC master and
 slaves

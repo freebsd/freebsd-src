@@ -96,7 +96,9 @@ static DEFINE_IDR(sdp_ps);
 static DEFINE_IDR(tcp_ps);
 static DEFINE_IDR(udp_ps);
 static DEFINE_IDR(ipoib_ps);
+#if defined(INET)
 static int next_port;
+#endif
 
 struct cma_device {
 	struct list_head	list;
@@ -2137,6 +2139,7 @@ err1:
 
 static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 {
+#if defined(INET)
 	struct rdma_bind_list *bind_list;
 	int port, ret, low, high;
 
@@ -2178,6 +2181,9 @@ err2:
 err1:
 	kfree(bind_list);
 	return ret;
+#else
+	return -ENOSPC;
+#endif
 }
 
 static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
@@ -2919,9 +2925,13 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 static void cma_set_mgid(struct rdma_id_private *id_priv,
 			 struct sockaddr *addr, union ib_gid *mgid)
 {
+#if defined(INET) || defined(INET6)
 	unsigned char mc_map[MAX_ADDR_LEN];
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+#endif
+#ifdef INET
 	struct sockaddr_in *sin = (struct sockaddr_in *) addr;
+#endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) addr;
 #endif
@@ -2940,11 +2950,13 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 			mc_map[7] = 0x01;	/* Use RDMA CM signature */
 		*mgid = *(union ib_gid *) (mc_map + 4);
 #endif
+#ifdef INET
 	} else {
 		ip_ib_mc_map(sin->sin_addr.s_addr, dev_addr->broadcast, mc_map);
 		if (id_priv->id.ps == RDMA_PS_UDP)
 			mc_map[7] = 0x01;	/* Use RDMA CM signature */
 		*mgid = *(union ib_gid *) (mc_map + 4);
+#endif
 	}
 }
 
@@ -3347,12 +3359,15 @@ static void cma_remove_one(struct ib_device *device)
 
 static int cma_init(void)
 {
-	int ret, low, high, remaining;
+	int ret;
+#if defined(INET)
+	int low, high, remaining;
 
 	get_random_bytes(&next_port, sizeof next_port);
 	inet_get_local_port_range(&low, &high);
 	remaining = (high - low) + 1;
 	next_port = ((unsigned int) next_port % remaining) + low;
+#endif
 
 	cma_wq = create_singlethread_workqueue("rdma_cm");
 	if (!cma_wq)

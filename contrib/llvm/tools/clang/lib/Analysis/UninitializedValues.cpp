@@ -21,7 +21,7 @@
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
 #include "clang/Analysis/Analyses/UninitializedValues.h"
-#include "clang/Analysis/Support/SaveAndRestore.h"
+#include "llvm/Support/SaveAndRestore.h"
 
 using namespace clang;
 
@@ -337,7 +337,7 @@ public:
 class TransferFunctions : public StmtVisitor<TransferFunctions> {
   CFGBlockValues &vals;
   const CFG &cfg;
-  AnalysisContext &ac;
+  AnalysisDeclContext &ac;
   UninitVariablesHandler *handler;
   
   /// The last DeclRefExpr seen when analyzing a block.  Used to
@@ -356,7 +356,7 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
   
 public:
   TransferFunctions(CFGBlockValues &vals, const CFG &cfg,
-                    AnalysisContext &ac,
+                    AnalysisDeclContext &ac,
                     UninitVariablesHandler *handler)
     : vals(vals), cfg(cfg), ac(ac), handler(handler),
       lastDR(0), lastLoad(0),
@@ -615,7 +615,7 @@ void TransferFunctions::ProcessUses(Stmt *s) {
 //====------------------------------------------------------------------------//
 
 static bool runOnBlock(const CFGBlock *block, const CFG &cfg,
-                       AnalysisContext &ac, CFGBlockValues &vals,
+                       AnalysisDeclContext &ac, CFGBlockValues &vals,
                        llvm::BitVector &wasAnalyzed,
                        UninitVariablesHandler *handler = 0) {
   
@@ -672,7 +672,7 @@ static bool runOnBlock(const CFGBlock *block, const CFG &cfg,
 void clang::runUninitializedVariablesAnalysis(
     const DeclContext &dc,
     const CFG &cfg,
-    AnalysisContext &ac,
+    AnalysisDeclContext &ac,
     UninitVariablesHandler &handler,
     UninitVariablesAnalysisStats &stats) {
   CFGBlockValues vals(cfg);

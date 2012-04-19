@@ -345,7 +345,6 @@ static void ipoib_ib_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	ipoib_dma_unmap_tx(priv->ca, tx_req);
 
 	++dev->if_opackets;
-	dev->if_obytes += tx_req->mb->m_pkthdr.len;
 
 	m_freem(tx_req->mb);
 

@@ -430,6 +430,7 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 		remote_device->frozen_lun_mask = 0;
 		sci_fast_list_element_init(remote_device,
 		    &remote_device->pending_device_reset_element);
+		TAILQ_INIT(&remote_device->queued_ccbs);
 
 		/*
 		 * For the first SCI_MAX_DOMAINS device objects, do not put

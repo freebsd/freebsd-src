@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.131.20.2 2011-02-28 01:19:59 tbox Exp $ */
+/* $Id: rndc.c,v 1.131.20.3 2011/11/03 22:06:31 each Exp $ */
 
 /*! \file */
 
@@ -142,13 +142,17 @@ command is one of the following:\n\
 		Flush the given name from the server's cache(s)\n\
   status	Display status of the server.\n\
   recursing	Dump the queries that are currently recursing (named.recursing)\n\
+  tsig-list	List all currently active TSIG keys, including both statically\n\
+		configured and TKEY-negotiated keys.\n\
+  tsig-delete keyname [view]	\n\
+		Delete a TKEY-negotiated TSIG key.\n\
   validation newstate [view]\n\
 		Enable / disable DNSSEC validation.\n\
-  *restart	Restart the server.\n\
   addzone [\"file\"] zone [class [view]] { zone-options }\n\
 		Add zone to given view. Requires new-zone-file option.\n\
   delzone [\"file\"] zone [class [view]]\n\
 		Removes zone from given view. Requires new-zone-file option.\n\
+  *restart	Restart the server.\n\
 \n\
 * == not yet implemented\n\
 Version: %s\n",

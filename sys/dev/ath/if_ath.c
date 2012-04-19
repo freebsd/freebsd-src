@@ -200,7 +200,9 @@ static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
 static void	ath_scan_end(struct ieee80211com *);
 static void	ath_set_channel(struct ieee80211com *);
+#ifdef	ATH_ENABLE_11N
 static void	ath_update_chw(struct ieee80211com *);
+#endif	/* ATH_ENABLE_11N */
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
@@ -400,6 +402,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
+	TASK_INIT(&sc->sc_fataltask,0, ath_fatal_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -732,6 +735,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
+		(void) ath_hal_getcapability(ah, HAL_CAP_RTS_AGGR_LIMIT, 1,
+		    &sc->sc_rts_aggr_limit);
+		if (sc->sc_rts_aggr_limit != (64 * 1024))
+			device_printf(sc->sc_dev,
+			    "[HT] RTS aggregates limited to %d KiB\n",
+			    sc->sc_rts_aggr_limit / 1024);
+
 		device_printf(sc->sc_dev,
 		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
 	}
@@ -797,8 +807,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_scan_start = ath_scan_start;
 	ic->ic_scan_end = ath_scan_end;
 	ic->ic_set_channel = ath_set_channel;
-	ic->ic_update_chw = ath_update_chw;
-
+#ifdef	ATH_ENABLE_11N
 	/* 802.11n specific - but just override anyway */
 	sc->sc_addba_request = ic->ic_addba_request;
 	sc->sc_addba_response = ic->ic_addba_response;
@@ -811,6 +820,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_addba_response_timeout = ath_addba_response_timeout;
 	ic->ic_addba_stop = ath_addba_stop;
 	ic->ic_bar_response = ath_bar_response;
+
+	ic->ic_update_chw = ath_update_chw;
+#endif	/* ATH_ENABLE_11N */
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_tx_th.wt_ihdr, sizeof(sc->sc_tx_th),
@@ -1484,6 +1496,15 @@ ath_intr(void *arg)
 	    ah->ah_intrstate[3],
 	    ah->ah_intrstate[6]);
 #endif
+
+	/* Squirrel away SYNC interrupt debugging */
+	if (ah->ah_syncstate != 0) {
+		int i;
+		for (i = 0; i < 32; i++)
+			if (ah->ah_syncstate & (i << i))
+				sc->sc_intr_stats.sync_intr[i]++;
+	}
+
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
 	/* Short-circuit un-handled interrupts */
@@ -1507,7 +1528,7 @@ ath_intr(void *arg)
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		ath_fatal_proc(sc, 0);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_fataltask);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
@@ -2273,7 +2294,6 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 	/* Copy basics */
 	tbf->bf_next = NULL;
 	tbf->bf_nseg = bf->bf_nseg;
-	tbf->bf_txflags = bf->bf_txflags;
 	tbf->bf_flags = bf->bf_flags & ~ATH_BUF_BUSY;
 	tbf->bf_status = bf->bf_status;
 	tbf->bf_m = bf->bf_m;
@@ -4747,7 +4767,7 @@ ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
 		pri = M_WME_GETAC(bf->bf_m);
 		if (pri >= WME_AC_VO)
 			ic->ic_wme.wme_hipri_traffic++;
-		if ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
+		if ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0)
 			ni->ni_inact = ni->ni_inact_reload;
 	} else {
 		if (ts->ts_status & HAL_TXERR_XRETRY)
@@ -4794,7 +4814,7 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	if (fail == 1)
 		st = -1;
 	else
-		st = ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0) ?
+		st = ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) ?
 		    ts->ts_status : HAL_TXERR_XRETRY;
 
 	if (bf->bf_state.bfs_dobaw)
@@ -4887,6 +4907,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
+#ifdef	IEEE80211_SUPPORT_SUPERG
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+#endif	/* IEEE80211_SUPPORT_SUPERG */
 	int nacked;
 	HAL_STATUS status;
 
@@ -4910,6 +4933,10 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
 			ath_printtxbuf(sc, bf, txq->axq_qnum, 0,
 			    status == HAL_OK);
+		else if ((sc->sc_debug & ATH_DEBUG_RESET) && (dosched == 0)) {
+			ath_printtxbuf(sc, bf, txq->axq_qnum, 0,
+			    status == HAL_OK);
+		}
 #endif
 		if (status == HAL_EINPROGRESS) {
 			ATH_TXQ_UNLOCK(txq);
@@ -4943,7 +4970,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		 * workaround phantom bmiss interrupts.
 		 */
 		if (ni != NULL && ts->ts_status == 0 &&
-		    ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)) {
+		    ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0)) {
 			nacked++;
 			sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
@@ -4968,7 +4995,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		 */
 		if (bf->bf_comp == NULL) {
 			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
+			    (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) {
 				/*
 				 * XXX assume this isn't an aggregate
 				 * frame.
@@ -5756,6 +5783,7 @@ ath_scan_end(struct ieee80211com *ic)
 		 sc->sc_curaid);
 }
 
+#ifdef	ATH_ENABLE_11N
 /*
  * For now, just do a channel change.
  *
@@ -5780,6 +5808,7 @@ ath_update_chw(struct ieee80211com *ic)
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
 	ath_set_channel(ic);
 }
+#endif	/* ATH_ENABLE_11N */
 
 static void
 ath_set_channel(struct ieee80211com *ic)
@@ -6460,8 +6489,13 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    ifr->ifr_data, sizeof (sc->sc_stats));
 	case SIOCZATHSTATS:
 		error = priv_check(curthread, PRIV_DRIVER);
-		if (error == 0)
+		if (error == 0) {
 			memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
+			memset(&sc->sc_aggr_stats, 0,
+			    sizeof(sc->sc_aggr_stats));
+			memset(&sc->sc_intr_stats, 0,
+			    sizeof(sc->sc_intr_stats));
+		}
 		break;
 #ifdef ATH_DIAGAPI
 	case SIOCGATHDIAG:

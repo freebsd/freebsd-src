@@ -291,8 +291,8 @@ struct RegionPassPrinter : public RegionPass {
   virtual bool runOnRegion(Region *R, RGPassManager &RGM) {
     if (!Quiet) {
       Out << "Printing analysis '" << PassToPrint->getPassName() << "' for "
-        << "region: '" << R->getNameStr() << "' in function '"
-        << R->getEntry()->getParent()->getNameStr() << "':\n";
+          << "region: '" << R->getNameStr() << "' in function '"
+          << R->getEntry()->getParent()->getName() << "':\n";
     }
     // Get and print pass...
    getAnalysisID<Pass>(PassToPrint->getTypeInfo()).print(Out,
@@ -407,6 +407,8 @@ static inline void addPass(PassManagerBase &PM, Pass *P) {
 /// OptLevel - Optimization Level
 static void AddOptimizationPasses(PassManagerBase &MPM,FunctionPassManager &FPM,
                                   unsigned OptLevel) {
+  FPM.add(createVerifierPass());                  // Verify that input is correct
+
   PassManagerBuilder Builder;
   Builder.OptLevel = OptLevel;
 
@@ -478,6 +480,7 @@ int main(int argc, char **argv) {
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initializeCore(Registry);
   initializeScalarOpts(Registry);
+  initializeVectorization(Registry);
   initializeIPO(Registry);
   initializeAnalysis(Registry);
   initializeIPA(Registry);
@@ -505,7 +508,7 @@ int main(int argc, char **argv) {
   M.reset(ParseIRFile(InputFilename, Err, Context));
 
   if (M.get() == 0) {
-    Err.Print(argv[0], errs());
+    Err.print(argv[0], errs());
     return 1;
   }
 

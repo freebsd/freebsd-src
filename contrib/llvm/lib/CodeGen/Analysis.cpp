@@ -1,4 +1,4 @@
-//===-- Analysis.cpp - CodeGen LLVM IR Analysis Utilities --*- C++ ------*-===//
+//===-- Analysis.cpp - CodeGen LLVM IR Analysis Utilities -----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/Analysis.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
@@ -149,33 +150,37 @@ llvm::hasInlineAsmMemConstraint(InlineAsm::ConstraintInfoVector &CInfos,
 /// consideration of global floating-point math flags.
 ///
 ISD::CondCode llvm::getFCmpCondCode(FCmpInst::Predicate Pred) {
-  ISD::CondCode FPC, FOC;
   switch (Pred) {
-  case FCmpInst::FCMP_FALSE: FOC = FPC = ISD::SETFALSE; break;
-  case FCmpInst::FCMP_OEQ:   FOC = ISD::SETEQ; FPC = ISD::SETOEQ; break;
-  case FCmpInst::FCMP_OGT:   FOC = ISD::SETGT; FPC = ISD::SETOGT; break;
-  case FCmpInst::FCMP_OGE:   FOC = ISD::SETGE; FPC = ISD::SETOGE; break;
-  case FCmpInst::FCMP_OLT:   FOC = ISD::SETLT; FPC = ISD::SETOLT; break;
-  case FCmpInst::FCMP_OLE:   FOC = ISD::SETLE; FPC = ISD::SETOLE; break;
-  case FCmpInst::FCMP_ONE:   FOC = ISD::SETNE; FPC = ISD::SETONE; break;
-  case FCmpInst::FCMP_ORD:   FOC = FPC = ISD::SETO;   break;
-  case FCmpInst::FCMP_UNO:   FOC = FPC = ISD::SETUO;  break;
-  case FCmpInst::FCMP_UEQ:   FOC = ISD::SETEQ; FPC = ISD::SETUEQ; break;
-  case FCmpInst::FCMP_UGT:   FOC = ISD::SETGT; FPC = ISD::SETUGT; break;
-  case FCmpInst::FCMP_UGE:   FOC = ISD::SETGE; FPC = ISD::SETUGE; break;
-  case FCmpInst::FCMP_ULT:   FOC = ISD::SETLT; FPC = ISD::SETULT; break;
-  case FCmpInst::FCMP_ULE:   FOC = ISD::SETLE; FPC = ISD::SETULE; break;
-  case FCmpInst::FCMP_UNE:   FOC = ISD::SETNE; FPC = ISD::SETUNE; break;
-  case FCmpInst::FCMP_TRUE:  FOC = FPC = ISD::SETTRUE; break;
-  default:
-    llvm_unreachable("Invalid FCmp predicate opcode!");
-    FOC = FPC = ISD::SETFALSE;
-    break;
+  case FCmpInst::FCMP_FALSE: return ISD::SETFALSE;
+  case FCmpInst::FCMP_OEQ:   return ISD::SETOEQ;
+  case FCmpInst::FCMP_OGT:   return ISD::SETOGT;
+  case FCmpInst::FCMP_OGE:   return ISD::SETOGE;
+  case FCmpInst::FCMP_OLT:   return ISD::SETOLT;
+  case FCmpInst::FCMP_OLE:   return ISD::SETOLE;
+  case FCmpInst::FCMP_ONE:   return ISD::SETONE;
+  case FCmpInst::FCMP_ORD:   return ISD::SETO;
+  case FCmpInst::FCMP_UNO:   return ISD::SETUO;
+  case FCmpInst::FCMP_UEQ:   return ISD::SETUEQ;
+  case FCmpInst::FCMP_UGT:   return ISD::SETUGT;
+  case FCmpInst::FCMP_UGE:   return ISD::SETUGE;
+  case FCmpInst::FCMP_ULT:   return ISD::SETULT;
+  case FCmpInst::FCMP_ULE:   return ISD::SETULE;
+  case FCmpInst::FCMP_UNE:   return ISD::SETUNE;
+  case FCmpInst::FCMP_TRUE:  return ISD::SETTRUE;
+  default: llvm_unreachable("Invalid FCmp predicate opcode!");
   }
-  if (NoNaNsFPMath)
-    return FOC;
-  else
-    return FPC;
+}
+
+ISD::CondCode llvm::getFCmpCodeWithoutNaN(ISD::CondCode CC) {
+  switch (CC) {
+    case ISD::SETOEQ: case ISD::SETUEQ: return ISD::SETEQ;
+    case ISD::SETONE: case ISD::SETUNE: return ISD::SETNE;
+    case ISD::SETOLT: case ISD::SETULT: return ISD::SETLT;
+    case ISD::SETOLE: case ISD::SETULE: return ISD::SETLE;
+    case ISD::SETOGT: case ISD::SETUGT: return ISD::SETGT;
+    case ISD::SETOGE: case ISD::SETUGE: return ISD::SETGE;
+    default: return CC;
+  }
 }
 
 /// getICmpCondCode - Return the ISD condition code corresponding to
@@ -195,7 +200,6 @@ ISD::CondCode llvm::getICmpCondCode(ICmpInst::Predicate Pred) {
   case ICmpInst::ICMP_UGT: return ISD::SETUGT;
   default:
     llvm_unreachable("Invalid ICmp predicate opcode!");
-    return ISD::SETNE;
   }
 }
 
@@ -221,12 +225,13 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
   // longjmp on x86), it can end up causing miscompilation that has not
   // been fully understood.
   if (!Ret &&
-      (!GuaranteedTailCallOpt || !isa<UnreachableInst>(Term))) return false;
+      (!TLI.getTargetMachine().Options.GuaranteedTailCallOpt ||
+       !isa<UnreachableInst>(Term))) return false;
 
   // If I will have a chain, make sure no other instruction that will have a
   // chain interposes between I and the return.
   if (I->mayHaveSideEffects() || I->mayReadFromMemory() ||
-      !I->isSafeToSpeculativelyExecute())
+      !isSafeToSpeculativelyExecute(I))
     for (BasicBlock::const_iterator BBI = prior(prior(ExitBB->end())); ;
          --BBI) {
       if (&*BBI == I)
@@ -235,7 +240,7 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
       if (isa<DbgInfoIntrinsic>(BBI))
         continue;
       if (BBI->mayHaveSideEffects() || BBI->mayReadFromMemory() ||
-          !BBI->isSafeToSpeculativelyExecute())
+          !isSafeToSpeculativelyExecute(BBI))
         return false;
     }
 
@@ -250,7 +255,7 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
   // Conservatively require the attributes of the call to match those of
   // the return. Ignore noalias because it doesn't affect the call sequence.
   const Function *F = ExitBB->getParent();
-  unsigned CallerRetAttr = F->getAttributes().getRetAttributes();
+  Attributes CallerRetAttr = F->getAttributes().getRetAttributes();
   if ((CalleeRetAttr ^ CallerRetAttr) & ~Attribute::NoAlias)
     return false;
 
@@ -285,12 +290,12 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
 }
 
 bool llvm::isInTailCallPosition(SelectionDAG &DAG, SDNode *Node,
-                                const TargetLowering &TLI) {
+                                SDValue &Chain, const TargetLowering &TLI) {
   const Function *F = DAG.getMachineFunction().getFunction();
 
   // Conservatively require the attributes of the call to match those of
   // the return. Ignore noalias because it doesn't affect the call sequence.
-  unsigned CallerRetAttr = F->getAttributes().getRetAttributes();
+  Attributes CallerRetAttr = F->getAttributes().getRetAttributes();
   if (CallerRetAttr & ~Attribute::NoAlias)
     return false;
 
@@ -299,5 +304,5 @@ bool llvm::isInTailCallPosition(SelectionDAG &DAG, SDNode *Node,
     return false;
 
   // Check if the only use is a function return node.
-  return TLI.isUsedByReturnOnly(Node);
+  return TLI.isUsedByReturnOnly(Node, Chain);
 }

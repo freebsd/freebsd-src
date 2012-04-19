@@ -86,6 +86,7 @@ struct ISCI_REMOTE_DEVICE {
 	BOOL				is_resetting;
 	uint32_t			frozen_lun_mask;
 	SCI_FAST_LIST_ELEMENT_T		pending_device_reset_element;
+	TAILQ_HEAD(,ccb_hdr)		queued_ccbs;
 };
 
 struct ISCI_DOMAIN {

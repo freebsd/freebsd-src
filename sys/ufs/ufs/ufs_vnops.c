@@ -526,6 +526,10 @@ ufs_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
+		if ((vap->va_flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND |
+		    UF_OPAQUE | UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE |
+		    SF_APPEND | SF_NOUNLINK | SF_SNAPSHOT)) != 0)
+			return (EOPNOTSUPP);
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		/*
@@ -551,23 +555,17 @@ ufs_setattr(ap)
 				if (error)
 					return (error);
 			}
-			/* Snapshot flag cannot be set or cleared */
-			if (((vap->va_flags & SF_SNAPSHOT) != 0 &&
-			     (ip->i_flags & SF_SNAPSHOT) == 0) ||
-			    ((vap->va_flags & SF_SNAPSHOT) == 0 &&
-			     (ip->i_flags & SF_SNAPSHOT) != 0))
+			/* The snapshot flag cannot be toggled. */
+			if ((vap->va_flags ^ ip->i_flags) & SF_SNAPSHOT)
 				return (EPERM);
-			ip->i_flags = vap->va_flags;
-			DIP_SET(ip, i_flags, vap->va_flags);
 		} else {
 			if (ip->i_flags &
 			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
+			    ((vap->va_flags ^ ip->i_flags) & SF_SETTABLE))
 				return (EPERM);
-			ip->i_flags &= SF_SETTABLE;
-			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
-			DIP_SET(ip, i_flags, ip->i_flags);
 		}
+		ip->i_flags = vap->va_flags;
+		DIP_SET(ip, i_flags, vap->va_flags);
 		ip->i_flag |= IN_CHANGE;
 		error = UFS_UPDATE(vp, 0);
 		if (ip->i_flags & (IMMUTABLE | APPEND))
@@ -575,9 +573,8 @@ ufs_setattr(ap)
 	}
 	/*
 	 * If immutable or append, no one can change any of its attributes
-	 * except the ones already handled (exec atime and, in some cases
-	 * for the superuser, file flags including the immutability flags
-	 * themselves).
+	 * except the ones already handled (in some cases, file flags
+	 * including the immutability flags themselves for the superuser).
 	 */
 	if (ip->i_flags & (IMMUTABLE | APPEND))
 		return (EPERM);

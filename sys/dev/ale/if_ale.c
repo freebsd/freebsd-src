@@ -91,11 +91,11 @@ TUNABLE_INT("hw.ale.msix_disable", &msix_disable);
 /*
  * Devices supported by this driver.
  */
-static struct ale_dev {
+static const struct ale_dev {
 	uint16_t	ale_vendorid;
 	uint16_t	ale_deviceid;
 	const char	*ale_name;
-} ale_devs[] = {
+} const ale_devs[] = {
     { VENDORID_ATHEROS, DEVICEID_ATHEROS_AR81XX,
     "Atheros AR8121/AR8113/AR8114 PCIe Ethernet" },
 };
@@ -163,7 +163,7 @@ static device_method_t ale_methods[] = {
 	DEVMETHOD(miibus_writereg,	ale_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	ale_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t ale_driver = {
@@ -174,8 +174,8 @@ static driver_t ale_driver = {
 
 static devclass_t ale_devclass;
 
-DRIVER_MODULE(ale, pci, ale_driver, ale_devclass, 0, 0);
-DRIVER_MODULE(miibus, ale, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(ale, pci, ale_driver, ale_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, ale, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct resource_spec ale_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,	PCIR_BAR(0),	RF_ACTIVE },
@@ -335,7 +335,7 @@ ale_mediachange(struct ifnet *ifp)
 static int
 ale_probe(device_t dev)
 {
-	struct ale_dev *sp;
+	const struct ale_dev *sp;
 	int i;
 	uint16_t vendor, devid;
 
@@ -635,7 +635,7 @@ ale_attach(device_t dev)
 	/* Set up MII bus. */
 	error = mii_attach(dev, &sc->ale_miibus, ifp, ale_mediachange,
 	    ale_mediastatus, BMSR_DEFCAPMASK, sc->ale_phyaddr, MII_OFFSET_ANY,
-	    0);
+	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -2101,12 +2101,10 @@ ale_mac_config(struct ale_softc *sc)
 	}
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		reg |= MAC_CFG_FULL_DUPLEX;
-#ifdef notyet
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			reg |= MAC_CFG_TX_FC;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
 			reg |= MAC_CFG_RX_FC;
-#endif
 	}
 	CSR_WRITE_4(sc, ALE_MAC_CFG, reg);
 }
@@ -2798,7 +2796,7 @@ ale_init_locked(struct ale_softc *sc)
 		    ((rxf_lo << RX_FIFO_PAUSE_THRESH_LO_SHIFT) &
 		    RX_FIFO_PAUSE_THRESH_LO_MASK) |
 		    ((rxf_hi << RX_FIFO_PAUSE_THRESH_HI_SHIFT) &
-		     RX_FIFO_PAUSE_THRESH_HI_MASK));
+		    RX_FIFO_PAUSE_THRESH_HI_MASK));
 	}
 
 	/* Disable RSS. */

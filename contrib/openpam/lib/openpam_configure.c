@@ -360,7 +360,7 @@ openpam_parse_chain(pam_handle_t *pamh,
 	pam_chain_t *this, **next;
 	pam_facility_t fclt;
 	pam_control_t ctlf;
-	char *line, *str, *name;
+	char *line0, *line, *str, *name;
 	char *option, **optv;
 	int len, lineno, ret;
 	FILE *f;
@@ -377,18 +377,18 @@ openpam_parse_chain(pam_handle_t *pamh,
 	this = NULL;
 	name = NULL;
 	lineno = 0;
-	while ((line = openpam_readline(f, &lineno, NULL)) != NULL) {
+	while ((line0 = line = openpam_readline(f, &lineno, NULL)) != NULL) {
 		/* get service name if necessary */
 		if (style == pam_conf_style) {
 			if ((len = parse_service_name(&line, &str)) == 0) {
 				openpam_log(PAM_LOG_NOTICE,
 				    "%s(%d): invalid service name (ignored)",
 				    filename, lineno);
-				FREE(line);
+				FREE(line0);
 				continue;
 			}
 			if (strlcmp(service, str, len) != 0) {
-				FREE(line);
+				FREE(line0);
 				continue;
 			}
 		}
@@ -401,7 +401,7 @@ openpam_parse_chain(pam_handle_t *pamh,
 			goto fail;
 		}
 		if (facility != fclt && facility != PAM_FACILITY_ANY) {
-			FREE(line);
+			FREE(line0);
 			continue;
 		}
 
@@ -425,7 +425,7 @@ openpam_parse_chain(pam_handle_t *pamh,
 			FREE(name);
 			if (ret != PAM_SUCCESS)
 				goto fail;
-			FREE(line);
+			FREE(line0);
 			continue;
 		}
 
@@ -486,7 +486,7 @@ openpam_parse_chain(pam_handle_t *pamh,
 		this = NULL;
 
 		/* next please... */
-		FREE(line);
+		FREE(line0);
 	}
 	if (!feof(f))
 		goto syserr;
