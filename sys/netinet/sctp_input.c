@@ -5461,23 +5461,26 @@ process_control_chunks:
 					phd->param_type = htons(SCTP_CAUSE_UNRECOG_CHUNK);
 					phd->param_length = htons(chk_length + sizeof(*phd));
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
-					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, SCTP_SIZE32(chk_length),
-					    M_DONTWAIT);
+					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, chk_length, M_DONTWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
+						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL)) {
+							sctp_m_freem(mm);
+						} else {
 #ifdef SCTP_MBUF_LOGGING
-						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-							struct mbuf *mat;
+							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+								struct mbuf *mat;
 
-							mat = SCTP_BUF_NEXT(mm);
-							while (mat) {
-								if (SCTP_BUF_IS_EXTENDED(mat)) {
-									sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+								mat = SCTP_BUF_NEXT(mm);
+								while (mat) {
+									if (SCTP_BUF_IS_EXTENDED(mat)) {
+										sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+									}
+									mat = SCTP_BUF_NEXT(mat);
 								}
-								mat = SCTP_BUF_NEXT(mat);
 							}
-						}
 #endif
-						sctp_queue_op_err(stcb, mm);
+							sctp_queue_op_err(stcb, mm);
+						}
 					} else {
 						sctp_m_freem(mm);
 					}
