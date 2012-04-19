@@ -36,10 +36,8 @@
 .In sys/param.h
 .In sys/bus.h
 .In sys/interrupt.h
-.Vt "extern struct ithd *tty_ithd" ;
-.Vt "extern struct ithd *clk_ithd" ;
-.Vt "extern void *net_ih" ;
-.Vt "extern void *softclock_ih" ;
+.Vt "extern struct intr_event *tty_intr_event" ;
+.Vt "extern struct intr_event *clk_intr_event" ;
 .Vt "extern void *vm_ih" ;
 .Ft int
 .Fo swi_add
@@ -152,26 +150,23 @@ in earlier versions of
 .El
 .Pp
 The
-.Va tty_ithd
+.Va tty_intr_event
 and
-.Va clk_ithd
-variables contain pointers to the software interrupt threads for the tty and
+.Va clk_intr_event
+variables contain pointers to the software interrupt handlers for the tty and
 clock software interrupts, respectively.
-.Va tty_ithd
+.Va tty_intr_event
 is used to hang tty software interrupt handlers off of the same thread.
-.Va clk_ithd
+.Va clk_intr_event
 is used to hang delayed handlers off of the clock software interrupt thread so
 that the functionality of
 .Fn setdelayed
 can be obtained in conjunction with
 .Dv SWI_DELAY .
 The
-.Va net_ih ,
-.Va softclock_ih ,
-and
 .Va vm_ih
-handler cookies are used to schedule software interrupt threads to run for the
-networking stack, clock interrupt, and VM subsystem respectively.
+handler cookie is used to schedule software interrupt threads to run for the
+VM subsystem.
 .Sh RETURN VALUES
 The
 .Fn swi_add
