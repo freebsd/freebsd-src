@@ -714,7 +714,7 @@ struct pf_threshold {
 };
 
 struct pf_src_node {
-	RB_ENTRY(pf_src_node) entry;
+	LIST_ENTRY(pf_src_node) entry;
 	struct pf_addr	 addr;
 	struct pf_addr	 raddr;
 	union pf_rule_ptr rule;
@@ -1684,10 +1684,10 @@ struct pf_ifspeed {
 #define	DIOCGIFSPEED	_IOWR('D', 92, struct pf_ifspeed)
 
 #ifdef _KERNEL
-RB_HEAD(pf_src_tree, pf_src_node);
-RB_PROTOTYPE(pf_src_tree, pf_src_node, entry, pf_src_compare);
-VNET_DECLARE(struct pf_src_tree,	 tree_src_tracking);
-#define	V_tree_src_tracking		 VNET(tree_src_tracking)
+struct pf_srchash {
+	LIST_HEAD(, pf_src_node)	nodes;
+	struct mtx			lock;
+};
 
 struct pf_keyhash {
 	LIST_HEAD(, pf_state_key)	keys;
@@ -1706,6 +1706,10 @@ VNET_DECLARE(u_long, pf_hashmask);
 #define V_pf_keyhash	VNET(pf_keyhash)
 #define	V_pf_idhash	VNET(pf_idhash)
 #define	V_pf_hashmask	VNET(pf_hashmask)
+VNET_DECLARE(struct pf_srchash *, pf_srchash);
+VNET_DECLARE(u_long, pf_srchashmask);
+#define	V_pf_srchash	VNET(pf_srchash)
+#define V_pf_srchashmask VNET(pf_srchashmask)
 
 #define PF_IDHASH(s)	(be64toh((s)->id) % (V_pf_hashmask + 1))
 
@@ -1749,8 +1753,6 @@ extern void			 pf_calc_skip_steps(struct pf_rulequeue *);
 #ifdef ALTQ
 extern	void			 pf_altq_ifnet_event(struct ifnet *, int);
 #endif
-VNET_DECLARE(uma_zone_t,	 pf_src_tree_z);
-#define	V_pf_src_tree_z		 VNET(pf_src_tree_z)
 VNET_DECLARE(uma_zone_t,	 pf_rule_z);
 #define	V_pf_rule_z		 VNET(pf_rule_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_z);
@@ -1783,6 +1785,27 @@ extern int			 pf_state_insert(struct pfi_kif *,
 				    struct pf_state *);
 extern void			 pf_free_state(struct pf_state *);
 
+static __inline u_int
+pf_hashsrc(struct pf_addr *addr, sa_family_t af)
+{
+	u_int h;
+
+#define	ADDR_HASH(a)	((a) ^ ((a) >> 16))
+
+	switch (af) {
+	case AF_INET:
+		h = ADDR_HASH(addr->v4.s_addr);
+		break;
+	case AF_INET6:
+		h = ADDR_HASH(addr->v6.__u6_addr.__u6_addr32[3]);
+	default:
+		panic("%s: unknown address family %u", __func__, af);
+	}
+#undef ADDR_HASH
+
+	return (h & V_pf_srchashmask);
+}
+
 static __inline void
 pf_ref_state(struct pf_state *s)
 {
@@ -1801,6 +1824,8 @@ pf_release_state(struct pf_state *s)
 extern struct pf_state		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
+struct pf_src_node		*pf_find_src_node(struct pf_addr *, struct pf_rule *,
+				    sa_family_t, int);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,

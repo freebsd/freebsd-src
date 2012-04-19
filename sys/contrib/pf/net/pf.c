@@ -187,12 +187,14 @@ static struct mtx pf_sendqueue_mtx;
 #define	PF_QUEUE_LOCK()		mtx_lock(&pf_sendqueue_mtx);
 #define	PF_QUEUE_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx);
 
-VNET_DEFINE(uma_zone_t,	 pf_src_tree_z);
+VNET_DEFINE(uma_zone_t,	 pf_sources_z);
 VNET_DEFINE(uma_zone_t,	 pf_rule_z);
 VNET_DEFINE(uma_zone_t,	 pf_pooladdr_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 VNET_DEFINE(uma_zone_t,	 pf_altq_z);
+
+#define	V_pf_sources_z	VNET(pf_sources_z)
 
 static void		 pf_src_tree_remove_state(struct pf_state *);
 static void		 pf_init_threshold(struct pf_threshold *, u_int32_t,
@@ -342,62 +344,69 @@ VNET_DEFINE(struct pf_pool_limit, pf_pool_limits[PF_LIMIT_MAX]);
 		s->rule.ptr->states_cur--;		\
 	} while (0)
 
-static __inline int pf_src_compare(struct pf_src_node *, struct pf_src_node *);
-
-VNET_DEFINE(struct pf_src_tree,	 	 tree_src_tracking);
-
 MALLOC_DEFINE(M_PFHASH, "pf hashes", "pf(4) hash header structures");
 /* XXXGL: make static? */
 VNET_DEFINE(struct pf_keyhash *, pf_keyhash);
 VNET_DEFINE(struct pf_idhash *, pf_idhash);
 VNET_DEFINE(u_long, pf_hashmask);
+VNET_DEFINE(struct pf_srchash *, pf_srchash);
+VNET_DEFINE(u_long, pf_srchashmask);
 
 VNET_DEFINE(void *, pf_swi_cookie);
 
-RB_GENERATE(pf_src_tree, pf_src_node, entry, pf_src_compare);
-
-static __inline int
-pf_src_compare(struct pf_src_node *a, struct pf_src_node *b)
+/*
+ * Hash function shamelessly taken from ng_netflow(4), trusting
+ * mav@ and melifaro@ data on its decent distribution.
+ */
+static __inline u_int
+pf_hashkey(struct pf_state_key *sk)
 {
-	int	diff;
+	u_int h;
 
-	if (a->rule.ptr > b->rule.ptr)
-		return (1);
-	if (a->rule.ptr < b->rule.ptr)
-		return (-1);
-	if ((diff = a->af - b->af) != 0)
-		return (diff);
-	switch (a->af) {
-#ifdef INET
+#define	FULL_HASH(a1, a2, p1, p2)	\
+	(((a1) ^ ((a1) >> 16) ^		\
+	htons((a2) ^ ((a2) >> 16))) ^	\
+	(p1) ^ htons(p2))
+ 
+#define	ADDR_HASH(a1, a2)		\
+	((a1) ^ ((a1) >> 16) ^		\
+	htons((a2) ^ ((a2) >> 16)))
+
+	switch (sk->af) {
 	case AF_INET:
-		if (a->addr.addr32[0] > b->addr.addr32[0])
-			return (1);
-		if (a->addr.addr32[0] < b->addr.addr32[0])
-			return (-1);
+		switch (sk->proto) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+			h = FULL_HASH(sk->addr[0].v4.s_addr,
+			    sk->addr[1].v4.s_addr, sk->port[0], sk->port[1]);
+			break;
+		default:
+			h = ADDR_HASH(sk->addr[0].v4.s_addr,
+			    sk->addr[1].v4.s_addr);
+			break;
+		}
 		break;
-#endif /* INET */
-#ifdef INET6
 	case AF_INET6:
-		if (a->addr.addr32[3] > b->addr.addr32[3])
-			return (1);
-		if (a->addr.addr32[3] < b->addr.addr32[3])
-			return (-1);
-		if (a->addr.addr32[2] > b->addr.addr32[2])
-			return (1);
-		if (a->addr.addr32[2] < b->addr.addr32[2])
-			return (-1);
-		if (a->addr.addr32[1] > b->addr.addr32[1])
-			return (1);
-		if (a->addr.addr32[1] < b->addr.addr32[1])
-			return (-1);
-		if (a->addr.addr32[0] > b->addr.addr32[0])
-			return (1);
-		if (a->addr.addr32[0] < b->addr.addr32[0])
-			return (-1);
+		switch (sk->proto) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+			h = FULL_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
+			    sk->addr[1].v6.__u6_addr.__u6_addr32[3],
+			    sk->port[0], sk->port[1]);
+			break;
+		default:
+			h = ADDR_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
+			    sk->addr[1].v6.__u6_addr.__u6_addr32[3]);
+			break;
+		}
 		break;
-#endif /* INET6 */
+	default:
+		panic("%s: unknown address family %u", __func__, sk->af);
 	}
-	return (0);
+#undef FULL_HASH
+#undef ADDR_HASH
+
+	return (h & V_pf_hashmask);
 }
 
 #ifdef INET6
@@ -557,57 +566,72 @@ pf_src_connlimit(struct pf_state **state)
 	return (1);
 }
 
+/*
+ * Can return locked on failure, so that we can consistently
+ * allocate and insert a new one.
+ */
+struct pf_src_node *
+pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
+	int returnlocked)
+{
+	struct pf_srchash *sh;
+	struct pf_src_node *n;
+
+	V_pf_status.scounters[SCNT_SRC_NODE_SEARCH]++;
+
+	sh = &V_pf_srchash[pf_hashsrc(src, af)];
+	PF_HASHROW_LOCK(sh);
+	LIST_FOREACH(n, &sh->nodes, entry)
+		if (n->rule.ptr == rule && n->af == af &&
+		    ((af == AF_INET && n->addr.v4.s_addr == src->v4.s_addr) ||
+		    (af == AF_INET6 && bcmp(&n->addr, src, sizeof(*src)) == 0)))
+			break;
+	if (n != NULL || returnlocked == 0)
+		PF_HASHROW_UNLOCK(sh);
+
+	return (n);
+}
+
 static int
 pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
     struct pf_addr *src, sa_family_t af)
 {
-	struct pf_src_node	k;
+
+	KASSERT((rule->rule_flag & PFRULE_RULESRCTRACK ||
+	    rule->rpool.opts & PF_POOL_STICKYADDR),
+	    ("%s for non-tracking rule %p", __func__, rule));
+
+	if (*sn == NULL)
+		*sn = pf_find_src_node(src, rule, af, 1);
 
 	if (*sn == NULL) {
-		k.af = af;
-		PF_ACPY(&k.addr, src, af);
-		if (rule->rule_flag & PFRULE_RULESRCTRACK ||
-		    rule->rpool.opts & PF_POOL_STICKYADDR)
-			k.rule.ptr = rule;
-		else
-			k.rule.ptr = NULL;
-		V_pf_status.scounters[SCNT_SRC_NODE_SEARCH]++;
-		*sn = RB_FIND(pf_src_tree, &V_tree_src_tracking, &k);
-	}
-	if (*sn == NULL) {
+		struct pf_srchash *sh = &V_pf_srchash[pf_hashsrc(src, af)];
+
+		PF_HASHROW_ASSERT(sh);
+
 		if (!rule->max_src_nodes ||
 		    rule->src_nodes < rule->max_src_nodes)
-			(*sn) = uma_zalloc(V_pf_src_tree_z, M_NOWAIT | M_ZERO);
+			(*sn) = uma_zalloc(V_pf_sources_z, M_NOWAIT | M_ZERO);
 		else
 			V_pf_status.lcounters[LCNT_SRCNODES]++;
-		if ((*sn) == NULL)
+		if ((*sn) == NULL) {
+			PF_HASHROW_UNLOCK(sh);
 			return (-1);
+		}
 
 		pf_init_threshold(&(*sn)->conn_rate,
 		    rule->max_src_conn_rate.limit,
 		    rule->max_src_conn_rate.seconds);
 
 		(*sn)->af = af;
-		if (rule->rule_flag & PFRULE_RULESRCTRACK ||
-		    rule->rpool.opts & PF_POOL_STICKYADDR)
-			(*sn)->rule.ptr = rule;
-		else
-			(*sn)->rule.ptr = NULL;
+		(*sn)->rule.ptr = rule;
 		PF_ACPY(&(*sn)->addr, src, af);
-		if (RB_INSERT(pf_src_tree,
-		    &V_tree_src_tracking, *sn) != NULL) {
-			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-				printf("pf: src_tree insert failed: ");
-				pf_print_host(&(*sn)->addr, 0, af);
-				printf("\n");
-			}
-			uma_zfree(V_pf_src_tree_z, *sn);
-			return (-1);
-		}
+		LIST_INSERT_HEAD(&sh->nodes, *sn, entry);
 		(*sn)->creation = time_second;
 		(*sn)->ruletype = rule->action;
 		if ((*sn)->rule.ptr != NULL)
 			(*sn)->rule.ptr->src_nodes++;
+		PF_HASHROW_UNLOCK(sh);
 		V_pf_status.scounters[SCNT_SRC_NODE_INSERT]++;
 		V_pf_status.src_nodes++;
 	} else {
@@ -620,57 +644,15 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 	return (0);
 }
 
-/*
- * Hash function shamelessly taken from ng_netflow(4), trusting
- * mav@ and melifaro@ data on its decent distribution.
- */
-static __inline u_int
-pf_hashkey(struct pf_state_key *sk)
+static void
+pf_remove_src_node(struct pf_src_node *src)
 {
-	u_int h;
+	struct pf_srchash *sh;
 
-#define	FULL_HASH(a1, a2, p1, p2)	\
-	(((a1) ^ ((a1) >> 16) ^		\
-	htons((a2) ^ ((a2) >> 16))) ^	\
-	(p1) ^ htons(p2))
- 
-#define	ADDR_HASH(a1, a2)		\
-	((a1) ^ ((a1) >> 16) ^		\
-	htons((a2) ^ ((a2) >> 16)))
-
-	switch (sk->af) {
-	case AF_INET:
-		switch (sk->proto) {
-		case IPPROTO_TCP:
-		case IPPROTO_UDP:
-			h = FULL_HASH(sk->addr[0].v4.s_addr,
-			    sk->addr[1].v4.s_addr, sk->port[0], sk->port[1]);
-			break;
-		default:
-			h = ADDR_HASH(sk->addr[0].v4.s_addr,
-			    sk->addr[1].v4.s_addr);
-			break;
-		}
-		break;
-	case AF_INET6:
-		switch (sk->proto) {
-		case IPPROTO_TCP:
-		case IPPROTO_UDP:
-			h = FULL_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
-			    sk->addr[1].v6.__u6_addr.__u6_addr32[3],
-			    sk->port[0], sk->port[1]);
-			break;
-		default:
-			h = ADDR_HASH(sk->addr[0].v6.__u6_addr.__u6_addr32[3],
-			    sk->addr[1].v6.__u6_addr.__u6_addr32[3]);
-			break;
-		}
-		break;
-	default:
-		panic("%s: unknown address family %u", __func__, sk->af);
-	}
-
-	return (h & V_pf_hashmask);
+	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
+	PF_HASHROW_LOCK(sh);
+	LIST_REMOVE(src, entry);
+	PF_HASHROW_UNLOCK(sh);
 }
 
 /* Data storage structures initialization. */
@@ -679,6 +661,7 @@ pf_initialize()
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
+	struct pf_srchash	*sh;
 	u_int i;
 
 	/* States and state keys storage. */
@@ -702,11 +685,16 @@ pf_initialize()
 	}
 
 	/* Source nodes. */
-	V_pf_src_tree_z = uma_zcreate("pf src nodes",
+	V_pf_sources_z = uma_zcreate("pf source nodes",
 	    sizeof(struct pf_src_node), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
-	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_src_tree_z;
-	RB_INIT(&V_tree_src_tracking);
+	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_sources_z;
+	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
+	V_pf_srchash = malloc((PF_HASHSIZ / 4) * sizeof(struct pf_srchash),
+	  M_PFHASH, M_WAITOK|M_ZERO);
+	V_pf_srchashmask = (PF_HASHSIZ / 4) - 1;
+	for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask; i++, sh++)
+		mtx_init(&sh->lock, "pf_srchash", NULL, MTX_DEF);
 
 	/* ALTQ */
 	V_pf_altq_z = uma_zcreate("pf altq", sizeof(struct pf_altq),
@@ -744,6 +732,7 @@ pf_cleanup()
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
+	struct pf_srchash	*sh;
 	struct pf_send_entry	*pfse, *next;
 	u_int i;
 
@@ -759,13 +748,20 @@ pf_cleanup()
 	free(V_pf_keyhash, M_PFHASH);
 	free(V_pf_idhash, M_PFHASH);
 
+	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
+		KASSERT(LIST_EMPTY(&sh->nodes),
+		    ("%s: source node hash not empty", __func__));
+		mtx_destroy(&sh->lock);
+	}
+	free(V_pf_srchash, M_PFHASH);
+
 	STAILQ_FOREACH_SAFE(pfse, &V_pf_sendqueue, pfse_next, next) {
 		m_freem(pfse->pfse_m);
 		free(pfse, M_PFTEMP);
 	}
 	mtx_destroy(&pf_sendqueue_mtx);
 
-	uma_zdestroy(V_pf_src_tree_z);
+	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_rule_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
@@ -1360,11 +1356,13 @@ pf_state_expires(const struct pf_state *state)
 void
 pf_purge_expired_src_nodes()
 {
+	struct pf_srchash	*sh;
 	struct pf_src_node	*cur, *next;
+	int i;
 
-	for (cur = RB_MIN(pf_src_tree, &V_tree_src_tracking); cur; cur = next) {
-		next = RB_NEXT(pf_src_tree, &V_tree_src_tracking, cur);
-
+	for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask; i++, sh++) {
+	    PF_HASHROW_LOCK(sh);
+	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next) 
 		if (cur->states <= 0 && cur->expire <= time_second) {
 			if (cur->rule.ptr != NULL) {
 				cur->rule.ptr->src_nodes--;
@@ -1372,11 +1370,12 @@ pf_purge_expired_src_nodes()
 				    cur->rule.ptr->max_src_nodes <= 0)
 					pf_rm_rule(NULL, cur->rule.ptr);
 			}
-			RB_REMOVE(pf_src_tree, &V_tree_src_tracking, cur);
+			LIST_REMOVE(cur, entry);
 			V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 			V_pf_status.src_nodes--;
-			uma_zfree(V_pf_src_tree_z, cur);
+			uma_zfree(V_pf_sources_z, cur);
 		}
+	    PF_HASHROW_UNLOCK(sh);
 	}
 }
 
@@ -3479,16 +3478,16 @@ csfailed:
 		uma_zfree(V_pf_state_key_z, nk);
 
 	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
-		RB_REMOVE(pf_src_tree, &V_tree_src_tracking, sn);
+		pf_remove_src_node(sn);
 		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_src_tree_z, sn);
+		uma_zfree(V_pf_sources_z, sn);
 	}
 	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
-		RB_REMOVE(pf_src_tree, &V_tree_src_tracking, nsn);
+		pf_remove_src_node(nsn);
 		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_src_tree_z, nsn);
+		uma_zfree(V_pf_sources_z, nsn);
 	}
 	return (PF_DROP);
 }
