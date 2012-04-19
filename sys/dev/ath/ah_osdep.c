@@ -267,12 +267,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	}
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		bus_space_write_4(tag, h, reg, val);
-	else
-#endif
-		bus_space_write_stream_4(tag, h, reg, val);
+	bus_space_write_4(tag, h, reg, val);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -286,12 +281,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		val = bus_space_read_4(tag, h, reg);
-	else
-#endif
-		val = bus_space_read_stream_4(tag, h, reg);
+	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 	if (ath_hal_alq) {
@@ -343,12 +333,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		bus_space_write_4(tag, h, reg, val);
-	else
-#endif
-		bus_space_write_stream_4(tag, h, reg, val);
+	bus_space_write_4(tag, h, reg, val);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -362,12 +347,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		val = bus_space_read_4(tag, h, reg);
-	else
-#endif
-		val = bus_space_read_stream_4(tag, h, reg);
+	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 	return val;

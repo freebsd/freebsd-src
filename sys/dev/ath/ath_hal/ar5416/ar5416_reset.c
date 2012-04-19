@@ -1387,16 +1387,15 @@ ar5416SetReset(struct ath_hal *ah, int type)
 	if (type == HAL_RESET_COLD) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
-			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD | AR_CFG_SWRG;
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD;
 #ifndef AH_NEED_DESC_SWAP
 			mask |= AR_CFG_SWTD;
 #endif
 			HALDEBUG(ah, HAL_DEBUG_RESET,
 			    "%s Applying descriptor swap\n", __func__);
-			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			OS_REG_WRITE(ah, AR_CFG, mask);
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
