@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2012
+.Dd April 19, 2012
 .Dt SWI 9
 .Os
 .Sh NAME
 .Nm swi_add ,
+.Nm swi_remove ,
 .Nm swi_sched
 .Nd register and schedule software interrupt handlers
 .Sh SYNOPSIS
@@ -50,6 +51,8 @@
 .Fa "enum intr_type flags"
 .Fa "void **cookiep"
 .Fc
+.Ft int
+.Fn swi_remove "void *cookie"
 .Ft void
 .Fn swi_sched "void *cookie" "int flags"
 .Sh DESCRIPTION
@@ -114,6 +117,14 @@ This cookie will be set to a value that uniquely identifies this handler,
 and is used to schedule the handler for execution later on.
 .Pp
 The
+.Fn swi_remove
+function is used to teardown an interrupt handler pointed to by the
+.Fa cookie
+argument.
+It detaches the interrupt handler from the associated interrupt event
+and frees its memory.
+.Pp
+The
 .Fn swi_sched
 function is used to schedule an interrupt handler and its associated thread to
 run.
@@ -164,7 +175,9 @@ networking stack, clock interrupt, and VM subsystem respectively.
 .Sh RETURN VALUES
 The
 .Fn swi_add
-function returns zero on success and non-zero on failure.
+and
+.Fn swi_remove
+functions return zero on success and non-zero on failure.
 .Sh ERRORS
 The
 .Fn swi_add
@@ -201,6 +214,17 @@ flag is specified and the interrupt event pointed to by
 already has at least one handler, or the interrupt event already has an
 exclusive handler.
 .El
+.Pp
+The
+.Fn swi_remove
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+A software interrupt handler pointed to by
+.Fa cookie
+is
+.Dv NULL .
+.El
 .Sh SEE ALSO
 .Xr ithread 9 ,
 .Xr taskqueue 9
@@ -221,6 +245,10 @@ and
 .Fn schedsoft*
 functions which date back to at least
 .Bx 4.4 .
+The
+.Fn swi_remove
+function first appeared in
+.Fx 6.1 .
 .Sh BUGS
 Most of the global variables described in this manual page should not be
 global, or at the very least should not be declared in
