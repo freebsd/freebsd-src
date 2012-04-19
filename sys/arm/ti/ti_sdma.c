@@ -764,10 +764,10 @@ ti_sdma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
 	if (channel->reg_ccr & DMA4_CCR_SEL_SRC_DST_SYNC(1))
 		ti_sdma_write_4(sc, DMA4_CSF(ch), pktsize);
 	else
-		ti_sdma_write_4(sc, DMA4_CDE(ch), pktsize);
+		ti_sdma_write_4(sc, DMA4_CDF(ch), pktsize);
 
 	/* - Set the destination frame index increment CDFI[31:0] */
-	ti_sdma_write_4(sc, DMA4_CDF(ch), 0x0001);
+	ti_sdma_write_4(sc, DMA4_CDE(ch), 0x0001);
 
 	/* Clear the status register */
 	ti_sdma_write_4(sc, DMA4_CSR(ch), 0x1FFE);
