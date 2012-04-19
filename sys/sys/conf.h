@@ -52,7 +52,7 @@ struct cdevsw;
 struct file;
 
 struct cdev {
-	void		*__si_reserved;
+	struct mount	*si_mountpt;
 	u_int		si_flags;
 #define	SI_ETERNAL	0x0001	/* never destroyed */
 #define SI_ALIAS	0x0002	/* carrier of alias name */
