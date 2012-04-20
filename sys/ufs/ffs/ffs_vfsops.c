@@ -1432,7 +1432,7 @@ ffs_sync_lazy(mp)
 	td = curthread;
 	if ((mp->mnt_flag & MNT_NOATIME) != 0)
 		goto qupdate;
-	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
