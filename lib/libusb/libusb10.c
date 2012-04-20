@@ -651,17 +651,17 @@ libusb_set_interface_alt_setting(struct libusb20_device *pdev,
 
 static struct libusb20_transfer *
 libusb10_get_transfer(struct libusb20_device *pdev,
-    uint8_t endpoint, uint8_t index)
+    uint8_t endpoint, uint8_t xfer_index)
 {
-	index &= 1;			/* double buffering */
+	xfer_index &= 1;	/* double buffering */
 
-	index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
+	xfer_index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
 
 	if (endpoint & LIBUSB20_ENDPOINT_DIR_MASK) {
 		/* this is an IN endpoint */
-		index |= 2;
+		xfer_index |= 2;
 	}
-	return (libusb20_tr_get_pointer(pdev, index));
+	return (libusb20_tr_get_pointer(pdev, xfer_index));
 }
 
 int
