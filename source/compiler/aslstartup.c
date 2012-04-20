@@ -404,18 +404,33 @@ AslDoOneFile (
     case ASL_INPUT_TYPE_ASCII_DATA:
 
         Status = DtDoCompile ();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
 
         if (Gbl_Signature)
         {
             ACPI_FREE (Gbl_Signature);
             Gbl_Signature = NULL;
         }
+
+        /* Check if any errors occurred during compile */
+
+        Status = AslCheckForErrorExit ();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Cleanup (for next source file) and exit */
+
         AeClearErrorLog ();
         PrTerminatePreprocessor ();
         return (Status);
 
     /*
-     * ASL Compilation (Optional)
+     * ASL Compilation
      */
     case ASL_INPUT_TYPE_ASCII_ASL:
 
@@ -427,17 +442,18 @@ AslDoOneFile (
             return (Status);
         }
 
-        Status = CmDoCompile ();
+        (void) CmDoCompile ();
         (void) AcpiTerminate ();
 
-        /*
-         * Return non-zero exit code if there have been errors, unless the
-         * global ignore error flag has been set
-         */
-        if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors))
+        /* Check if any errors occurred during compile */
+
+        Status = AslCheckForErrorExit ();
+        if (ACPI_FAILURE (Status))
         {
-            return (AE_ERROR);
+            return (Status);
         }
+
+        /* Cleanup (for next source file) and exit */
 
         AeClearErrorLog ();
         PrTerminatePreprocessor ();
@@ -525,3 +541,47 @@ AslDoOnePathname (
     return (Status);
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslCheckForErrorExit
+ *
+ * PARAMETERS:  None. Examines global exception count array
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Determine if compiler should abort with error status
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AslCheckForErrorExit (
+    void)
+{
+
+    /*
+     * Return non-zero exit code if there have been errors, unless the
+     * global ignore error flag has been set
+     */
+    if (!Gbl_IgnoreErrors)
+    {
+        if (Gbl_ExceptionCount[ASL_ERROR] > 0)
+        {
+            return (AE_ERROR);
+        }
+
+        /* Optionally treat warnings as errors */
+
+        if (Gbl_WarningsAsErrors)
+        {
+            if ((Gbl_ExceptionCount[ASL_WARNING] > 0)  ||
+                (Gbl_ExceptionCount[ASL_WARNING2] > 0) ||
+                (Gbl_ExceptionCount[ASL_WARNING3] > 0))
+            {
+                return (AE_ERROR);
+            }
+        }
+    }
+
+    return (AE_OK);
+}

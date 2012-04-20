@@ -49,10 +49,22 @@
 /* Local prototypes */
 
 static void
-AeNotifyHandler (
+AeNotifyHandler1 (
     ACPI_HANDLE             Device,
     UINT32                  Value,
     void                    *Context);
+
+static void
+AeNotifyHandler2 (
+    ACPI_HANDLE             Device,
+    UINT32                  Value,
+    void                    *Context);
+
+static void
+AeCommonNotifyHandler (
+    ACPI_HANDLE             Device,
+    UINT32                  Value,
+    UINT32                  HandlerId);
 
 static void
 AeDeviceNotifyHandler (
@@ -186,24 +198,51 @@ AeCtrlCHandler (
 
 /******************************************************************************
  *
- * FUNCTION:    AeNotifyHandler
+ * FUNCTION:    AeNotifyHandler(s)
  *
  * PARAMETERS:  Standard notify handler parameters
  *
  * RETURN:      Status
  *
- * DESCRIPTION: System notify handler for AcpiExec utility.  Used by the ASL
+ * DESCRIPTION: Notify handlers for AcpiExec utility. Used by the ASL
  *              test suite(s) to communicate errors and other information to
- *              this utility via the Notify() operator.
+ *              this utility via the Notify() operator. Tests notify handling
+ *              and multiple notify handler support.
  *
  *****************************************************************************/
 
 static void
-AeNotifyHandler (
-    ACPI_HANDLE                 Device,
-    UINT32                      Value,
-    void                        *Context)
+AeNotifyHandler1 (
+    ACPI_HANDLE             Device,
+    UINT32                  Value,
+    void                    *Context)
 {
+    AeCommonNotifyHandler (Device, Value, 1);
+}
+
+static void
+AeNotifyHandler2 (
+    ACPI_HANDLE             Device,
+    UINT32                  Value,
+    void                    *Context)
+{
+    AeCommonNotifyHandler (Device, Value, 2);
+}
+
+static void
+AeCommonNotifyHandler (
+    ACPI_HANDLE             Device,
+    UINT32                  Value,
+    UINT32                  HandlerId)
+{
+    char                    *Type;
+
+
+    Type = "Device";
+    if (Value <= ACPI_MAX_SYS_NOTIFY)
+    {
+        Type = "System";
+    }
 
     switch (Value)
     {
@@ -237,17 +276,51 @@ AeNotifyHandler (
 #endif
 
     default:
-        printf ("[AcpiExec] Received a System Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
-            AcpiUtGetNodeName (Device), Device, Value,
+        printf ("[AcpiExec] Handler %u: Received a %s Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
+            HandlerId, Type, AcpiUtGetNodeName (Device), Device, Value,
             AcpiUtGetNotifyName (Value));
         if (AcpiGbl_DebugFile)
         {
-            AcpiOsPrintf ("[AcpiExec] Received a system notify, Value 0x%2.2X\n", Value);
+            AcpiOsPrintf ("[AcpiExec] Handler %u: Received a %s notify, Value 0x%2.2X\n",
+                HandlerId, Type, Value);
         }
 
         (void) AcpiEvaluateObject (Device, "_NOT", NULL, NULL);
         break;
     }
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeSystemNotifyHandler
+ *
+ * PARAMETERS:  Standard notify handler parameters
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: System notify handler for AcpiExec utility.  Used by the ASL
+ *              test suite(s) to communicate errors and other information to
+ *              this utility via the Notify() operator.
+ *
+ *****************************************************************************/
+
+static void
+AeSystemNotifyHandler (
+    ACPI_HANDLE                 Device,
+    UINT32                      Value,
+    void                        *Context)
+{
+
+    printf ("[AcpiExec] Global:    Received a System Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
+        AcpiUtGetNodeName (Device), Device, Value,
+        AcpiUtGetNotifyName (Value));
+    if (AcpiGbl_DebugFile)
+    {
+        AcpiOsPrintf ("[AcpiExec] Global:    Received a System Notify, Value 0x%2.2X\n", Value);
+    }
+
+    (void) AcpiEvaluateObject (Device, "_NOT", NULL, NULL);
 }
 
 
@@ -272,12 +345,12 @@ AeDeviceNotifyHandler (
     void                        *Context)
 {
 
-    printf ("[AcpiExec] Received a Device Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
+    printf ("[AcpiExec] Global:    Received a Device Notify on [%4.4s] %p Value 0x%2.2X (%s)\n",
         AcpiUtGetNodeName (Device), Device, Value,
         AcpiUtGetNotifyName (Value));
     if (AcpiGbl_DebugFile)
     {
-        AcpiOsPrintf ("[AcpiExec] Received a device notify, Value 0x%2.2X\n", Value);
+        AcpiOsPrintf ("[AcpiExec] Global:    Received a Device Notify, Value 0x%2.2X\n", Value);
     }
 
     (void) AcpiEvaluateObject (Device, "_NOT", NULL, NULL);
@@ -687,18 +760,18 @@ AeInstallEarlyHandlers (
             AcpiFormatException (Status));
     }
 
-    /* Install global notify handler */
+    /* Install global notify handlers */
 
     Status = AcpiInstallNotifyHandler (ACPI_ROOT_OBJECT, ACPI_SYSTEM_NOTIFY,
-                                        AeNotifyHandler, NULL);
+        AeSystemNotifyHandler, NULL);
     if (ACPI_FAILURE (Status))
     {
-        printf ("Could not install a global notify handler, %s\n",
+        printf ("Could not install a global system notify handler, %s\n",
             AcpiFormatException (Status));
     }
 
     Status = AcpiInstallNotifyHandler (ACPI_ROOT_OBJECT, ACPI_DEVICE_NOTIFY,
-                                        AeDeviceNotifyHandler, NULL);
+        AeDeviceNotifyHandler, NULL);
     if (ACPI_FAILURE (Status))
     {
         printf ("Could not install a global notify handler, %s\n",
@@ -709,7 +782,7 @@ AeInstallEarlyHandlers (
     if (ACPI_SUCCESS (Status))
     {
         Status = AcpiInstallNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
-                                            AeNotifyHandler, NULL);
+            AeNotifyHandler1, NULL);
         if (ACPI_FAILURE (Status))
         {
             printf ("Could not install a notify handler, %s\n",
@@ -717,7 +790,7 @@ AeInstallEarlyHandlers (
         }
 
         Status = AcpiRemoveNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
-                                            AeNotifyHandler);
+            AeNotifyHandler1);
         if (ACPI_FAILURE (Status))
         {
             printf ("Could not remove a notify handler, %s\n",
@@ -725,20 +798,35 @@ AeInstallEarlyHandlers (
         }
 
         Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-                                            AeNotifyHandler, NULL);
+            AeNotifyHandler1, NULL);
         AE_CHECK_OK (AcpiInstallNotifyHandler, Status);
 
         Status = AcpiRemoveNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-                                            AeNotifyHandler);
+            AeNotifyHandler1);
         AE_CHECK_OK (AcpiRemoveNotifyHandler, Status);
 
+#if 0
         Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-                                            AeNotifyHandler, NULL);
+            AeNotifyHandler1, NULL);
         if (ACPI_FAILURE (Status))
         {
             printf ("Could not install a notify handler, %s\n",
                 AcpiFormatException (Status));
         }
+#endif
+
+        /* Install two handlers for _SB_ */
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
+            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
+
+        /* Attempt duplicate handler installation, should fail */
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x77777777));
 
         Status = AcpiAttachData (Handle, AeAttachedDataHandler, Handle);
         AE_CHECK_OK (AcpiAttachData, Status);
@@ -754,6 +842,37 @@ AeInstallEarlyHandlers (
         printf ("No _SB_ found, %s\n", AcpiFormatException (Status));
     }
 
+
+    Status = AcpiGetHandle (NULL, "\\_TZ.TZ1", &Handle);
+    if (ACPI_SUCCESS (Status))
+    {
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
+
+        Status = AcpiRemoveNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1);
+        Status = AcpiRemoveNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler2);
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
+    }
+
+    Status = AcpiGetHandle (NULL, "\\_PR.CPU0", &Handle);
+    if (ACPI_SUCCESS (Status))
+    {
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
+            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
+    }
 
     /*
      * Install handlers that will override the default handlers for some of

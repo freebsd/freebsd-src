@@ -229,6 +229,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_GENERIC_ADDRESS",                SRC_TYPE_STRUCT},
     {"ACPI_GENERIC_STATE",                  SRC_TYPE_UNION},
     {"ACPI_GET_DEVICES_INFO",               SRC_TYPE_STRUCT},
+    {"ACPI_GLOBAL_NOTIFY_HANDLER",          SRC_TYPE_STRUCT},
     {"ACPI_GPE_BLOCK_INFO",                 SRC_TYPE_STRUCT},
     {"ACPI_GPE_CALLBACK",                   SRC_TYPE_SIMPLE},
     {"ACPI_GPE_DEVICE_INFO",                SRC_TYPE_STRUCT},

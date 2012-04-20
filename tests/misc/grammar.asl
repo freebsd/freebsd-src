@@ -9322,6 +9322,7 @@ DefinitionBlock (
         {
             Store (SMIX, Local0)
 
+            Notify (\_SB_, 0x29)
             If (And (Local0, 0x01))
             {   Notify (\_SB_.SMIS, 0x21)}
 
@@ -9335,6 +9336,17 @@ DefinitionBlock (
             {   Notify (\_SB_.SMIS, 0x28)}
 
         }   //  End Method EVNT
+
+        Method (NTFY)
+        {
+            Notify (\_SB_, 1)
+            Notify (\_TZ_.TZ1, 2)
+            Notify (\_PR_.CPU0, 3)
+
+            Notify (\_SB_, 0x81)
+            Notify (\_TZ_.TZ1, 0x82)
+            Notify (\_PR_.CPU0, 0x83)
+        }
 
         Device (SMIS)
         {
@@ -9375,6 +9387,7 @@ DefinitionBlock (
 
                 //  Expect EVNT to generate Notify value we just previously
                 //  stored in BYTE
+
                 Store (0x20, BYTE)
                 EVNT ()
                 Store (0x21, BYTE)
@@ -9384,6 +9397,7 @@ DefinitionBlock (
                 Store (0x23, BYTE)
                 EVNT ()
 
+                NTFY ()
                 Return (0)  //  pass
             }   //  End Method TEST
         }   //  Device SMIS
