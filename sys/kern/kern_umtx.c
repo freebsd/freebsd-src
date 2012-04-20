@@ -29,6 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_umtx_profiling.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -154,6 +156,10 @@ struct umtxq_chain {
 	/* All PI in the list */
 	TAILQ_HEAD(,umtx_pi)	uc_pi_list;
 
+#ifdef UMTX_PROFILING
+	int 			length;
+	int			max_length;
+#endif
 };
 
 #define	UMTXQ_LOCKED_ASSERT(uc)		mtx_assert(&(uc)->uc_lock, MA_OWNED)
@@ -190,6 +196,12 @@ SYSCTL_NODE(_debug, OID_AUTO, umtx, CTLFLAG_RW, 0, "umtx debug");
 SYSCTL_INT(_debug_umtx, OID_AUTO, umtx_pi_allocated, CTLFLAG_RD,
     &umtx_pi_allocated, 0, "Allocated umtx_pi");
 
+#ifdef UMTX_PROFILING
+static long max_length;
+SYSCTL_LONG(_debug_umtx, OID_AUTO, max_length, CTLFLAG_RD, &max_length, 0, "max_length");
+static SYSCTL_NODE(_debug_umtx, OID_AUTO, chains, CTLFLAG_RD, 0, "umtx chain stats");
+#endif
+
 static void umtxq_sysinit(void *);
 static void umtxq_hash(struct umtx_key *key);
 static struct umtxq_chain *umtxq_getchain(struct umtx_key *key);
@@ -215,6 +227,27 @@ SYSINIT(umtx, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, umtxq_sysinit, NULL);
 
 static struct mtx umtx_lock;
 
+#ifdef UMTX_PROFILING
+static void
+umtx_init_profiling(void) 
+{
+	struct sysctl_oid *chain_oid;
+	char chain_name[10];
+	int i;
+
+	for (i = 0; i < UMTX_CHAINS; ++i) {
+		snprintf(chain_name, sizeof(chain_name), "%d", i);
+		chain_oid = SYSCTL_ADD_NODE(NULL, 
+		    SYSCTL_STATIC_CHILDREN(_debug_umtx_chains), OID_AUTO, 
+		    chain_name, CTLFLAG_RD, NULL, "umtx hash stats");
+		SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
+		    "max_length0", CTLFLAG_RD, &umtxq_chains[0][i].max_length, 0, NULL);
+		SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
+		    "max_length1", CTLFLAG_RD, &umtxq_chains[1][i].max_length, 0, NULL);
+	}
+}
+#endif
+
 static void
 umtxq_sysinit(void *arg __unused)
 {
@@ -232,8 +265,15 @@ umtxq_sysinit(void *arg __unused)
 			TAILQ_INIT(&umtxq_chains[i][j].uc_pi_list);
 			umtxq_chains[i][j].uc_busy = 0;
 			umtxq_chains[i][j].uc_waiters = 0;
+#ifdef UMTX_PROFILING
+			umtxq_chains[i][j].length = 0;
+			umtxq_chains[i][j].max_length = 0;	
+#endif
 		}
 	}
+#ifdef UMTX_PROFILING
+	umtx_init_profiling();
+#endif
 	mtx_init(&umtx_lock, "umtx lock", NULL, MTX_SPIN);
 	EVENTHANDLER_REGISTER(process_exec, umtx_exec_hook, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -384,6 +424,14 @@ umtxq_insert_queue(struct umtx_q *uq, int q)
 
 	TAILQ_INSERT_TAIL(&uh->head, uq, uq_link);
 	uh->length++;
+#ifdef UMTX_PROFILING
+	uc->length++;
+	if (uc->length > uc->max_length) {
+		uc->max_length = uc->length;
+		if (uc->max_length > max_length)
+			max_length = uc->max_length;	
+	}
+#endif
 	uq->uq_flags |= UQF_UMTXQ;
 	uq->uq_cur_queue = uh;
 	return;
@@ -401,6 +449,9 @@ umtxq_remove_queue(struct umtx_q *uq, int q)
 		uh = uq->uq_cur_queue;
 		TAILQ_REMOVE(&uh->head, uq, uq_link);
 		uh->length--;
+#ifdef UMTX_PROFILING
+		uc->length--;
+#endif
 		uq->uq_flags &= ~UQF_UMTXQ;
 		if (TAILQ_EMPTY(&uh->head)) {
 			KASSERT(uh->length == 0,
