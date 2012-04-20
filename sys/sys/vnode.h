@@ -156,7 +156,7 @@ struct vnode {
 	/*
 	 * The machinery of being a vnode
 	 */
-	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
+	TAILQ_ENTRY(vnode) v_actfreelist;	/* f vnode active/free lists */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 
 	/*
@@ -232,6 +232,7 @@ struct xvnode {
 #define	VI_AGE		0x0040	/* Insert vnode at head of free list */
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
+#define	VI_ACTIVE	0x0200	/* This vnode is on the active list */
 #define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
 #define	VI_OWEINACT	0x1000	/* Need to call inactive */
 
