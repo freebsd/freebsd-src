@@ -2484,6 +2484,7 @@ vdropl(struct vnode *vp)
 void
 vinactive(struct vnode *vp, struct thread *td)
 {
+	struct vm_object *obj;
 
 	ASSERT_VOP_ELOCKED(vp, "vinactive");
 	ASSERT_VI_LOCKED(vp, "vinactive");
@@ -2493,6 +2494,17 @@ vinactive(struct vnode *vp, struct thread *td)
 	vp->v_iflag |= VI_DOINGINACT;
 	vp->v_iflag &= ~VI_OWEINACT;
 	VI_UNLOCK(vp);
+	/*
+	 * Before moving off the active list, we must be sure that any
+	 * modified pages are on the vnode's dirty list since these will
+	 * no longer be checked once the vnode is on the inactive list.
+	 */
+	obj = vp->v_object;
+	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
+		VM_OBJECT_LOCK(obj);
+		vm_object_page_clean(obj, 0, 0, OBJPC_NOSYNC);
+		VM_OBJECT_UNLOCK(obj);
+	}
 	VOP_INACTIVE(vp, td);
 	VI_LOCK(vp);
 	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
@@ -3362,7 +3374,7 @@ vfs_msync(struct mount *mp, int flags)
 	struct vm_object *obj;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
-	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		obj = vp->v_object;
 		if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0 &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp) == 0)) {
