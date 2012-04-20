@@ -289,8 +289,8 @@ $(PROG) : $(INTERMEDIATES) $(MISC) $(OBJECTS)
 #
 # Parser and Lexer - intermediate C files
 #
-aslcompilerlex.c :   $(ASL_COMPILER)/aslcompiler.l
-	${LEX} ${LFLAGS} -PAslCompiler -o$@ $?
+aslcompilerlex.c :   $(ASL_COMPILER)/aslcompiler.l $(ASL_COMPILER)/aslsupport.l
+	${LEX} ${LFLAGS} -PAslCompiler -o$@ $(ASL_COMPILER)/aslcompiler.l
 
 aslcompilerparse.c aslcompilerparse.h : $(ASL_COMPILER)/aslcompiler.y
 	${YACC} ${YFLAGS} -pAslCompiler -o$@ $?

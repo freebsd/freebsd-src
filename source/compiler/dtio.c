@@ -89,6 +89,7 @@ DtDumpBuffer (
 #define DT_SLASH_SLASH_COMMENT      4
 #define DT_END_COMMENT              5
 #define DT_MERGE_LINES              6
+#define DT_ESCAPE_SEQUENCE          7
 
 static UINT32  Gbl_NextLineOffset;
 
@@ -412,6 +413,7 @@ DtGetNextLine (
     BOOLEAN                 LineNotAllBlanks = FALSE;
     UINT32                  State = DT_NORMAL_TEXT;
     UINT32                  CurrentLineOffset;
+    UINT32                  BeyondBufferCount;
     UINT32                  i;
     char                    c;
 
@@ -503,10 +505,34 @@ DtGetNextLine (
             Gbl_CurrentLineBuffer[i] = c;
             i++;
 
-            if (c == '"')
+            switch (c)
             {
+            case '"':
                 State = DT_NORMAL_TEXT;
+                break;
+
+            case '\\':
+                State = DT_ESCAPE_SEQUENCE;
+                break;
+
+            case '\n':
+                AcpiOsPrintf ("ERROR at line %u: Unterminated quoted string\n",
+                    Gbl_CurrentLineNumber++);
+                State = DT_NORMAL_TEXT;
+                break;
+
+            default:    /* Get next character */
+                break;
             }
+            break;
+
+        case DT_ESCAPE_SEQUENCE:
+
+            /* Just copy the escaped character. TBD: sufficient for table compiler? */
+
+            Gbl_CurrentLineBuffer[i] = c;
+            i++;
+            State = DT_START_QUOTED_STRING;
             break;
 
         case DT_START_COMMENT:
@@ -629,7 +655,19 @@ DtGetNextLine (
         }
     }
 
-    printf ("ERROR - Input line is too long (max %u)\n", ASL_LINE_BUFFER_SIZE);
+    /* Line is too long for internal buffer. Determine actual length */
+
+    BeyondBufferCount = 1;
+    c = (char) getc (Handle);
+    while (c != '\n')
+    {
+        c = (char) getc (Handle);
+        BeyondBufferCount++;
+    }
+
+    printf ("ERROR - At %u: Input line (%u bytes) is too long (max %u)\n",
+        Gbl_CurrentLineNumber++, ASL_LINE_BUFFER_SIZE + BeyondBufferCount,
+        ASL_LINE_BUFFER_SIZE);
     return (ASL_EOF);
 }
 

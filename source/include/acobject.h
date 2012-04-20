@@ -246,8 +246,7 @@ typedef struct acpi_object_method
  * Common fields for objects that support ASL notifications
  */
 #define ACPI_COMMON_NOTIFY_INFO \
-    union acpi_operand_object       *SystemNotify;      /* Handler for system notifies */\
-    union acpi_operand_object       *DeviceNotify;      /* Handler for driver notifies */\
+    union acpi_operand_object       *NotifyList[2];     /* Handlers for system/device notifies */\
     union acpi_operand_object       *Handler;           /* Handler for Address space */
 
 
@@ -389,8 +388,10 @@ typedef struct acpi_object_notify_handler
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_NAMESPACE_NODE             *Node;              /* Parent device */
-    ACPI_NOTIFY_HANDLER             Handler;
+    UINT32                          HandlerType;        /* Type: Device/System/Both */
+    ACPI_NOTIFY_HANDLER             Handler;            /* Handler addess */
     void                            *Context;
+    union acpi_operand_object       *Next[2];           /* Device and System handler lists */
 
 } ACPI_OBJECT_NOTIFY_HANDLER;
 

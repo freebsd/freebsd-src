@@ -100,11 +100,11 @@ AslCompilerlex(
     void);
 
 void
-ResetCurrentLineBuffer (
+AslResetCurrentLineBuffer (
     void);
 
 void
-InsertLineBuffer (
+AslInsertLineBuffer (
     int                     SourceChar);
 
 int
@@ -135,6 +135,11 @@ AslDoOnePathname (
 ACPI_STATUS
 AslDoOneFile (
     char                    *Filename);
+
+ACPI_STATUS
+AslCheckForErrorExit (
+    void);
+
 
 /*
  * aslcompile - compile mainline
@@ -645,7 +650,11 @@ FlPrintFile (
 
 void
 FlSetLineNumber (
-    ACPI_PARSE_OBJECT       *Op);
+    UINT32                  LineNumber);
+
+void
+FlSetFilename (
+    char                    *Filename);
 
 ACPI_STATUS
 FlOpenInputFile (
