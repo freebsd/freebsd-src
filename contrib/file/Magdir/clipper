@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: clipper,v 1.6 2009/09/19 16:28:08 christos Exp $
 # clipper:  file(1) magic for Intergraph (formerly Fairchild) Clipper.
 #
 # XXX - what byte order does the Clipper use?

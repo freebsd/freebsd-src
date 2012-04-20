@@ -33,9 +33,36 @@
 #define	_MALLOC_NP_H_
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <strings.h>
 
 __BEGIN_DECLS
 size_t	malloc_usable_size(const void *ptr);
+
+void	malloc_stats_print(void (*write_cb)(void *, const char *),
+    void *cbopaque, const char *opts);
+int	mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
+    size_t newlen);
+int	mallctlnametomib(const char *name, size_t *mibp, size_t *miblenp);
+int	mallctlbymib(const size_t *mib, size_t miblen, void *oldp,
+    size_t *oldlenp, void *newp, size_t newlen);
+
+#define	ALLOCM_LG_ALIGN(la)	(la)
+#define	ALLOCM_ALIGN(a)	(ffsl(a)-1)
+#define	ALLOCM_ZERO	((int)0x40)
+#define	ALLOCM_NO_MOVE	((int)0x80)
+
+#define	ALLOCM_SUCCESS		0
+#define	ALLOCM_ERR_OOM		1
+#define	ALLOCM_ERR_NOT_MOVED	2
+
+int	allocm(void **ptr, size_t *rsize, size_t size, int flags)
+    __attribute__(nonnull(1));
+int	rallocm(void **ptr, size_t *rsize, size_t size, size_t extra,
+    int flags) __attribute__(nonnull(1));
+int	sallocm(const void *ptr, size_t *rsize, int flags)
+    __attribute__(nonnull(1));
+int	dallocm(void *ptr, int flags) __attribute__(nonnull(1));
+int	nallocm(size_t *rsize, size_t size, int flags);
 __END_DECLS
 
 #endif /* _MALLOC_NP_H_ */

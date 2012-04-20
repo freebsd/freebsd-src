@@ -626,12 +626,12 @@ void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
-void	vdestroy(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
 void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
+void	vinactive(struct vnode *, struct thread *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
 	    off_t length, int blksize);

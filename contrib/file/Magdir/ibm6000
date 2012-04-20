@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: ibm6000,v 1.9 2009/09/19 16:28:09 christos Exp $
 # ibm6000:  file(1) magic for RS/6000 and the RT PC.
 #
 0	beshort		0x01df		executable (RISC System/6000 V3.1) or obj module

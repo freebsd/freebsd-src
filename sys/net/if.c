@@ -1909,14 +1909,10 @@ do_link_state_change(void *arg, int pending)
 		(*ng_ether_link_state_p)(ifp, link_state);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
-	if (ifp->if_bridge) {
-		KASSERT(bstp_linkstate_p != NULL,("if_bridge bstp not loaded!"));
+	if (ifp->if_bridge)
 		(*bstp_linkstate_p)(ifp, link_state);
-	}
-	if (ifp->if_lagg) {
-		KASSERT(lagg_linkstate_p != NULL,("if_lagg not loaded!"));
+	if (ifp->if_lagg)
 		(*lagg_linkstate_p)(ifp, link_state);
-	}
 
 	if (IS_DEFAULT_VNET(curvnet))
 		devctl_notify("IFNET", ifp->if_xname,

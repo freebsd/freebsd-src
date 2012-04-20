@@ -1114,18 +1114,15 @@ vfs_stdsync(mp, waitfor)
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
-	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		/* bv_cnt is an acceptable race here. */
-		if (vp->v_bufobj.bo_dirty.bv_cnt == 0)
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		if (vp->v_bufobj.bo_dirty.bv_cnt == 0) {
+			VI_UNLOCK(vp);
 			continue;
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+		}
 		if ((error = vget(vp, lockreq, td)) != 0) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
 			}
 			continue;
@@ -1134,9 +1131,7 @@ loop:
 		if (error)
 			allerror = error;
 		vput(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (allerror);
 }
 

@@ -1,4 +1,4 @@
-//===- MipsInstrInfo.h - Mips Instruction Information -----------*- C++ -*-===//
+//===-- MipsInstrInfo.h - Mips Instruction Information ----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,9 +15,9 @@
 #define MIPSINSTRUCTIONINFO_H
 
 #include "Mips.h"
+#include "MipsRegisterInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "MipsRegisterInfo.h"
 
 #define GET_INSTRINFO_HEADER
 #include "MipsGenInstrInfo.inc"
@@ -30,90 +30,11 @@ namespace Mips {
   unsigned GetOppositeBranchOpc(unsigned Opc);
 }
 
-/// MipsII - This namespace holds all of the target specific flags that
-/// instruction info tracks.
-///
-namespace MipsII {
-  /// Target Operand Flag enum.
-  enum TOF {
-    //===------------------------------------------------------------------===//
-    // Mips Specific MachineOperand flags.
-
-    MO_NO_FLAG,
-
-    /// MO_GOT - Represents the offset into the global offset table at which
-    /// the address the relocation entry symbol resides during execution.
-    MO_GOT,
-
-    /// MO_GOT_CALL - Represents the offset into the global offset table at
-    /// which the address of a call site relocation entry symbol resides
-    /// during execution. This is different from the above since this flag
-    /// can only be present in call instructions.
-    MO_GOT_CALL,
-
-    /// MO_GPREL - Represents the offset from the current gp value to be used
-    /// for the relocatable object file being produced.
-    MO_GPREL,
-
-    /// MO_ABS_HI/LO - Represents the hi or low part of an absolute symbol
-    /// address.
-    MO_ABS_HI,
-    MO_ABS_LO,
-
-    /// MO_TLSGD - Represents the offset into the global offset table at which
-    // the module ID and TSL block offset reside during execution (General
-    // Dynamic TLS).
-    MO_TLSGD,
-
-    /// MO_GOTTPREL - Represents the offset from the thread pointer (Initial
-    // Exec TLS).
-    MO_GOTTPREL,
-
-    /// MO_TPREL_HI/LO - Represents the hi and low part of the offset from
-    // the thread pointer (Local Exec TLS).
-    MO_TPREL_HI,
-    MO_TPREL_LO,
-
-    // N32/64 Flags.
-    MO_GPOFF_HI,
-    MO_GPOFF_LO,
-    MO_GOT_DISP,
-    MO_GOT_PAGE,
-    MO_GOT_OFST
-  };
-
-  enum {
-    //===------------------------------------------------------------------===//
-    // Instruction encodings.  These are the standard/most common forms for
-    // Mips instructions.
-    //
-
-    // Pseudo - This represents an instruction that is a pseudo instruction
-    // or one that has not been implemented yet.  It is illegal to code generate
-    // it, but tolerated for intermediate implementation stages.
-    Pseudo   = 0,
-
-    /// FrmR - This form is for instructions of the format R.
-    FrmR  = 1,
-    /// FrmI - This form is for instructions of the format I.
-    FrmI  = 2,
-    /// FrmJ - This form is for instructions of the format J.
-    FrmJ  = 3,
-    /// FrmFR - This form is for instructions of the format FR.
-    FrmFR = 4,
-    /// FrmFI - This form is for instructions of the format FI.
-    FrmFI = 5,
-    /// FrmOther - This form is for instructions that have no specific format.
-    FrmOther = 6,
-
-    FormMask = 15
-  };
-}
-
 class MipsInstrInfo : public MipsGenInstrInfo {
   MipsTargetMachine &TM;
   bool IsN64;
   const MipsRegisterInfo RI;
+  unsigned UncondBrOpc;
 public:
   explicit MipsInstrInfo(MipsTargetMachine &TM);
 
@@ -182,12 +103,6 @@ public:
   /// Insert nop instruction when hazard condition is found
   virtual void insertNoop(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator MI) const;
-
-  /// getGlobalBaseReg - Return a virtual register initialized with the
-  /// the global base register value. Output instructions required to
-  /// initialize the register in the function entry block, if necessary.
-  ///
-  unsigned getGlobalBaseReg(MachineFunction *MF) const;
 };
 
 }

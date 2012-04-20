@@ -331,6 +331,30 @@ out:
 	return (ret);
 }
 
+int
+libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint)
+{
+	int multiplier;
+	int ret;
+
+	ret = libusb_get_max_packet_size(dev, endpoint);
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+	case LIBUSB20_SPEED_FULL:
+		break;
+	default:
+		if (ret > -1) {
+			multiplier = (1 + ((ret >> 11) & 3));
+			if (multiplier > 3)
+				multiplier = 3;
+			ret = (ret & 0x7FF) * multiplier;
+		}
+		break;
+	}
+	return (ret);
+}
+
 libusb_device *
 libusb_ref_device(libusb_device *dev)
 {

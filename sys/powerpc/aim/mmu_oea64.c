@@ -1097,14 +1097,14 @@ moea64_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	src = VM_PAGE_TO_PHYS(msrc);
 
 	if (hw_direct_map) {
-		kcopy((void *)src, (void *)dst, PAGE_SIZE);
+		bcopy((void *)src, (void *)dst, PAGE_SIZE);
 	} else {
 		mtx_lock(&moea64_scratchpage_mtx);
 
 		moea64_set_scratchpage_pa(mmu, 0, src);
 		moea64_set_scratchpage_pa(mmu, 1, dst);
 
-		kcopy((void *)moea64_scratchpage_va[0], 
+		bcopy((void *)moea64_scratchpage_va[0], 
 		    (void *)moea64_scratchpage_va[1], PAGE_SIZE);
 
 		mtx_unlock(&moea64_scratchpage_mtx);
@@ -1906,17 +1906,15 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	/*
 	 * If the PVO is in the page table, update that pte as well.
 	 */
-	if (pt != -1) {
+	if (pt != -1)
 		MOEA64_PTE_CHANGE(mmu, pt, &pvo->pvo_pte.lpte,
 		    pvo->pvo_vpn);
-		if (pm != kernel_pmap && pg != NULL &&
-		    !(pg->aflags & PGA_EXECUTABLE) &&
-		    (pvo->pvo_pte.lpte.pte_lo &
-		     (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
+	if (pm != kernel_pmap && pg != NULL && !(pg->aflags & PGA_EXECUTABLE) &&
+	    (pvo->pvo_pte.lpte.pte_lo & (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
+		if ((pg->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(pg, PGA_EXECUTABLE);
-			moea64_syncicache(mmu, pm, PVO_VADDR(pvo),
-			    pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN, PAGE_SIZE);
-		}
+		moea64_syncicache(mmu, pm, PVO_VADDR(pvo),
+		    pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN, PAGE_SIZE);
 	}
 
 	/*
@@ -2368,9 +2366,8 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 	 */
 	pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
 
-	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED &&
-	    (pvo->pvo_pte.lpte.pte_lo & LPTE_PP) != LPTE_BR) {
-		if (pg != NULL) {
+	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED && pg != NULL) {
+		if ((pvo->pvo_pte.lpte.pte_lo & LPTE_PP) != LPTE_BR) {
 			if (pvo->pvo_pte.lpte.pte_lo & LPTE_CHG)
 				vm_page_dirty(pg);
 			if (pvo->pvo_pte.lpte.pte_lo & LPTE_REF)
@@ -2378,10 +2375,9 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 			if (LIST_EMPTY(vm_page_to_pvoh(pg)))
 				vm_page_aflag_clear(pg, PGA_WRITEABLE);
 		}
+		if (LIST_EMPTY(vm_page_to_pvoh(pg)))
+			vm_page_aflag_clear(pg, PGA_EXECUTABLE);
 	}
-
-	if (pg != NULL && LIST_EMPTY(vm_page_to_pvoh(pg)))
-		vm_page_aflag_clear(pg, PGA_EXECUTABLE);
 
 	moea64_pvo_entries--;
 	moea64_pvo_remove_calls++;

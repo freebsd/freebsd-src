@@ -41,6 +41,7 @@ namespace llvm {
 class Constant : public User {
   void operator=(const Constant &);     // Do not implement
   Constant(const Constant &);           // Do not implement
+  virtual void anchor();
   
 protected:
   Constant(Type *ty, ValueTy vty, Use *Ops, unsigned NumOps)
@@ -90,12 +91,13 @@ public:
   /// FIXME: This really should not be in VMCore.
   PossibleRelocationsTy getRelocationInfo() const;
   
-  /// getVectorElements - This method, which is only valid on constant of vector
-  /// type, returns the elements of the vector in the specified smallvector.
-  /// This handles breaking down a vector undef into undef elements, etc.  For
-  /// constant exprs and other cases we can't handle, we return an empty vector.
-  void getVectorElements(SmallVectorImpl<Constant*> &Elts) const;
-
+  /// getAggregateElement - For aggregates (struct/array/vector) return the
+  /// constant that corresponds to the specified element if possible, or null if
+  /// not.  This can return null if the element index is a ConstantExpr, or if
+  /// 'this' is a constant expr.
+  Constant *getAggregateElement(unsigned Elt) const;
+  Constant *getAggregateElement(Constant *Elt) const;
+  
   /// destroyConstant - Called if some element of this constant is no longer
   /// valid.  At this point only other constants may be on the use_list for this
   /// constant.  Any constants on our Use list must also be destroy'd.  The
@@ -103,7 +105,7 @@ public:
   /// available cached constants.  Implementations should call
   /// destroyConstantImpl as the last thing they do, to destroy all users and
   /// delete this.
-  virtual void destroyConstant() { assert(0 && "Not reached!"); }
+  virtual void destroyConstant() { llvm_unreachable("Not reached!"); }
 
   //// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Constant *) { return true; }
@@ -129,11 +131,12 @@ public:
     // to be here to avoid link errors.
     assert(getNumOperands() == 0 && "replaceUsesOfWithOnConstant must be "
            "implemented for all constants that have operands!");
-    assert(0 && "Constants that do not have operands cannot be using 'From'!");
+    llvm_unreachable("Constants that do not have operands cannot be using "
+                     "'From'!");
   }
-  
+
   static Constant *getNullValue(Type* Ty);
-  
+
   /// @returns the value for an integer constant of the given type that has all
   /// its bits set to true.
   /// @brief Get the all ones value

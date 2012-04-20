@@ -1023,7 +1023,7 @@ void
 ieee80211_ht_node_init(struct ieee80211_node *ni)
 {
 	struct ieee80211_tx_ampdu *tap;
-	int ac;
+	int tid;
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		/*
@@ -1033,9 +1033,9 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 		 */
 		ieee80211_ht_node_cleanup(ni);
 	}
-	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		tap = &ni->ni_tx_ampdu[ac];
-		tap->txa_ac = ac;
+	for (tid = 0; tid < WME_NUM_TID; tid++) {
+		tap = &ni->ni_tx_ampdu[tid];
+		tap->txa_tid = tid;
 		tap->txa_ni = ni;
 		/* NB: further initialization deferred */
 	}
@@ -1055,7 +1055,7 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT node"));
 
 	/* XXX optimize this */
-	for (i = 0; i < WME_NUM_AC; i++) {
+	for (i = 0; i < WME_NUM_TID; i++) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[i];
 		if (tap->txa_flags & IEEE80211_AGGR_SETUP)
 			ampdu_tx_stop(tap);
@@ -1160,7 +1160,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_tx_ampdu *tap;
-	int ac;
+	int tid;
 
 	KASSERT(vap->iv_flags_ht & IEEE80211_FHT_HT, ("no HT requested"));
 
@@ -1198,9 +1198,9 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 	ni->ni_htopmode = 0;		/* XXX need protection state */
 	ni->ni_htstbc = 0;		/* XXX need info */
 
-	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		tap = &ni->ni_tx_ampdu[ac];
-		tap->txa_ac = ac;
+	for (tid = 0; tid < WME_NUM_TID; tid++) {
+		tap = &ni->ni_tx_ampdu[tid];
+		tap->txa_tid = tid;
 	}
 	/* NB: AMPDU tx/rx governed by IEEE80211_FHT_AMPDU_{TX,RX} */
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -1685,7 +1685,8 @@ ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
 	struct ieee80211com *ic = ni->ni_ic;
 
 	KASSERT(tap->txa_flags & IEEE80211_AGGR_SETUP,
-	    ("txa_flags 0x%x ac %d", tap->txa_flags, tap->txa_ac));
+	    ("txa_flags 0x%x tid %d ac %d", tap->txa_flags, tap->txa_tid,
+	    TID_TO_WME_AC(tap->txa_tid)));
 
 	/*
 	 * Stop BA stream if setup so driver has a chance
@@ -1898,7 +1899,7 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap;
 	uint8_t dialogtoken, policy;
 	uint16_t baparamset, batimeout, code;
-	int tid, ac, bufsiz;
+	int tid, bufsiz;
 
 	dialogtoken = frm[2];
 	code = LE_READ_2(frm+3);
@@ -1908,8 +1909,7 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	policy = MS(baparamset, IEEE80211_BAPS_POLICY);
 	batimeout = LE_READ_2(frm+7);
 
-	ac = TID_TO_WME_AC(tid);
-	tap = &ni->ni_tx_ampdu[ac];
+	tap = &ni->ni_tx_ampdu[tid];
 	if ((tap->txa_flags & IEEE80211_AGGR_XCHGPEND) == 0) {
 		IEEE80211_DISCARD_MAC(vap,
 		    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
@@ -1972,7 +1972,7 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	struct ieee80211_rx_ampdu *rap;
 	struct ieee80211_tx_ampdu *tap;
 	uint16_t baparamset, code;
-	int tid, ac;
+	int tid;
 
 	baparamset = LE_READ_2(frm+2);
 	code = LE_READ_2(frm+4);
@@ -1985,8 +1985,7 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	    MS(baparamset, IEEE80211_DELBAPS_INIT), code);
 
 	if ((baparamset & IEEE80211_DELBAPS_INIT) == 0) {
-		ac = TID_TO_WME_AC(tid);
-		tap = &ni->ni_tx_ampdu[ac];
+		tap = &ni->ni_tx_ampdu[tid];
 		ic->ic_addba_stop(ni, tap);
 	} else {
 		rap = &ni->ni_rx_ampdu[tid];
@@ -2058,7 +2057,8 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
-	if (tap->txa_avgpps < vap->iv_ampdu_mintraffic[tap->txa_ac])
+	if (tap->txa_avgpps <
+	    vap->iv_ampdu_mintraffic[TID_TO_WME_AC(tap->txa_tid)])
 		return 0;
 	/* XXX check rssi? */
 	if (tap->txa_attempts >= ieee80211_addba_maxtries &&
@@ -2071,8 +2071,9 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 		return 0;
 	}
 	IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
-	    "enable AMPDU on %s, avgpps %d pkts %d",
-	    ieee80211_wme_acnames[tap->txa_ac], tap->txa_avgpps, tap->txa_pkts);
+	    "enable AMPDU on tid %d (%s), avgpps %d pkts %d",
+	    tap->txa_tid, ieee80211_wme_acnames[TID_TO_WME_AC(tap->txa_tid)],
+	    tap->txa_avgpps, tap->txa_pkts);
 	return 1;
 }
 
@@ -2099,7 +2100,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	tap->txa_flags &= ~IEEE80211_AGGR_NAK;
 
 	dialogtoken = (tokens+1) % 63;		/* XXX */
-	tid = WME_AC_TO_TID(tap->txa_ac);
+	tid = tap->txa_tid;
 	tap->txa_start = ni->ni_txseqs[tid];
 
 	args[0] = dialogtoken;
@@ -2113,8 +2114,8 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	if (!ic->ic_addba_request(ni, tap, dialogtoken, args[2], args[3])) {
 		/* unable to setup state, don't make request */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
-		    ni, "%s: could not setup BA stream for AC %d",
-		    __func__, tap->txa_ac);
+		    ni, "%s: could not setup BA stream for TID %d AC %d",
+		    __func__, tap->txa_tid, TID_TO_WME_AC(tap->txa_tid));
 		/* defer next try so we don't slam the driver with requests */
 		tap->txa_attempts = ieee80211_addba_maxtries;
 		/* NB: check in case driver wants to override */
@@ -2147,20 +2148,20 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
 	if (IEEE80211_AMPDU_RUNNING(tap)) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: stop BA stream for AC %d (reason %d)",
-		    __func__, tap->txa_ac, reason);
+		    ni, "%s: stop BA stream for TID %d (reason %d)",
+		    __func__, tap->txa_tid, reason);
 		vap->iv_stats.is_ampdu_stop++;
 
 		ic->ic_addba_stop(ni, tap);
-		args[0] = WME_AC_TO_TID(tap->txa_ac);
+		args[0] = tap->txa_tid;
 		args[1] = IEEE80211_DELBAPS_INIT;
 		args[2] = reason;			/* XXX reason code */
 		ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
 			IEEE80211_ACTION_BA_DELBA, args);
 	} else {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: BA stream for AC %d not running (reason %d)",
-		    __func__, tap->txa_ac, reason);
+		    ni, "%s: BA stream for TID %d not running (reason %d)",
+		    __func__, tap->txa_tid, reason);
 		vap->iv_stats.is_ampdu_stop_failed++;
 	}
 }
@@ -2176,7 +2177,7 @@ bar_timeout(void *arg)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni, "%s: tid %u flags 0x%x attempts %d", __func__,
-	    tap->txa_ac, tap->txa_flags, tap->txa_attempts);
+	    tap->txa_tid, tap->txa_flags, tap->txa_attempts);
 
 	/* guard against race with bar_tx_complete */
 	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) == 0)
@@ -2210,7 +2211,7 @@ bar_tx_complete(struct ieee80211_node *ni, void *arg, int status)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni, "%s: tid %u flags 0x%x pending %d status %d",
-	    __func__, tap->txa_ac, tap->txa_flags,
+	    __func__, tap->txa_tid, tap->txa_flags,
 	    callout_pending(&tap->txa_timer), status);
 
 	ni->ni_vap->iv_stats.is_ampdu_bar_tx++;
@@ -2237,7 +2238,7 @@ ieee80211_bar_response(struct ieee80211_node *ni,
 		    tap->txa_start,
 		    IEEE80211_SEQ_ADD(tap->txa_start, tap->txa_wnd-1),
 		    tap->txa_qframes, tap->txa_seqpending,
-		    WME_AC_TO_TID(tap->txa_ac));
+		    tap->txa_tid);
 
 		/* NB: timer already stopped in bar_tx_complete */
 		tap->txa_start = tap->txa_seqpending;
@@ -2292,7 +2293,7 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	IEEE80211_ADDR_COPY(bar->i_ra, ni->ni_macaddr);
 	IEEE80211_ADDR_COPY(bar->i_ta, vap->iv_myaddr);
 
-	tid = WME_AC_TO_TID(tap->txa_ac);
+	tid = tap->txa_tid;
 	barctl 	= (tap->txa_flags & IEEE80211_AGGR_IMMEDIATE ?
 			0 : IEEE80211_BAR_NOACK)
 		| IEEE80211_BAR_COMP

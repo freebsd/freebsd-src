@@ -21,6 +21,8 @@
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
+#include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/Triple.h"
@@ -72,14 +74,16 @@ static bool PrintInsts(const MCDisassembler &DisAsm,
     switch (S) {
     case MCDisassembler::Fail:
       SM.PrintMessage(SMLoc::getFromPointer(Bytes[Index].second),
-                      "invalid instruction encoding", "warning");
+                      SourceMgr::DK_Warning,
+                      "invalid instruction encoding");
       if (Size == 0)
         Size = 1; // skip illegible bytes
       break;
 
     case MCDisassembler::SoftFail:
       SM.PrintMessage(SMLoc::getFromPointer(Bytes[Index].second),
-                      "potentially undefined instruction encoding", "warning");
+                      SourceMgr::DK_Warning,
+                      "potentially undefined instruction encoding");
       // Fall through
 
     case MCDisassembler::Success:
@@ -125,8 +129,8 @@ static bool ByteArrayFromString(ByteArrayTy &ByteArray,
     unsigned ByteVal;
     if (Value.getAsInteger(0, ByteVal) || ByteVal > 255) {
       // If we have an error, print it and skip to the end of line.
-      SM.PrintMessage(SMLoc::getFromPointer(Value.data()),
-                      "invalid input token", "error");
+      SM.PrintMessage(SMLoc::getFromPointer(Value.data()), SourceMgr::DK_Error,
+                      "invalid input token");
       Str = Str.substr(Str.find('\n'));
       ByteArray.clear();
       continue;
@@ -153,21 +157,34 @@ int Disassembler::disassemble(const Target &T,
     return -1;
   }
 
-  OwningPtr<const MCSubtargetInfo> STI(T.createMCSubtargetInfo(Triple, Cpu, FeaturesStr));
+  OwningPtr<const MCSubtargetInfo> STI(T.createMCSubtargetInfo(Triple, Cpu,
+                                                               FeaturesStr));
   if (!STI) {
     errs() << "error: no subtarget info for target " << Triple << "\n";
     return -1;
   }
-  
+
   OwningPtr<const MCDisassembler> DisAsm(T.createMCDisassembler(*STI));
   if (!DisAsm) {
     errs() << "error: no disassembler for target " << Triple << "\n";
     return -1;
   }
 
+  OwningPtr<const MCRegisterInfo> MRI(T.createMCRegInfo(Triple));
+  if (!MRI) {
+    errs() << "error: no register info for target " << Triple << "\n";
+    return -1;
+  }
+
+  OwningPtr<const MCInstrInfo> MII(T.createMCInstrInfo());
+  if (!MII) {
+    errs() << "error: no instruction info for target " << Triple << "\n";
+    return -1;
+  }
+
   int AsmPrinterVariant = AsmInfo->getAssemblerDialect();
-  OwningPtr<MCInstPrinter> IP(T.createMCInstPrinter(AsmPrinterVariant,
-                                                    *AsmInfo, *STI));
+  OwningPtr<MCInstPrinter> IP(T.createMCInstPrinter(AsmPrinterVariant, *AsmInfo,
+                                                    *MII, *MRI, *STI));
   if (!IP) {
     errs() << "error: no instruction printer for target " << Triple << '\n';
     return -1;
@@ -247,7 +264,6 @@ int Disassembler::disassembleEnhanced(const std::string &TS,
     break;
   }
 
-  EDDisassembler::initialize();
   OwningPtr<EDDisassembler>
     disassembler(EDDisassembler::getDisassembler(TS.c_str(), AS));
 
@@ -294,7 +310,6 @@ int Disassembler::disassembleEnhanced(const std::string &TS,
         Out << operandIndex << "-";
 
       switch (token->type()) {
-      default: Out << "?"; break;
       case EDToken::kTokenWhitespace: Out << "w"; break;
       case EDToken::kTokenPunctuation: Out << "p"; break;
       case EDToken::kTokenOpcode: Out << "o"; break;
@@ -365,4 +380,3 @@ int Disassembler::disassembleEnhanced(const std::string &TS,
 
   return 0;
 }
-

@@ -595,11 +595,13 @@ g_raid_md_promise_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_RAID5:
 		if (disks < 3)
 			return (0);
+		if (qual != G_RAID_VOLUME_RLQ_R5LA)
+			return (0);
 		break;
 	default:
 		return (0);
 	}
-	if (qual != G_RAID_VOLUME_RLQ_NONE)
+	if (level != G_RAID_VOLUME_RL_RAID5 && qual != G_RAID_VOLUME_RLQ_NONE)
 		return (0);
 	return (1);
 }
@@ -848,6 +850,7 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	pv = vol->v_md_data;
 	meta = pv->pv_meta;
 
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	if (meta->type == PROMISE_T_RAID0)
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 	else if (meta->type == PROMISE_T_RAID1) {
@@ -857,15 +860,15 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
 	} else if (meta->type == PROMISE_T_RAID3)
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID3;
-	else if (meta->type == PROMISE_T_RAID5)
+	else if (meta->type == PROMISE_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
-	else if (meta->type == PROMISE_T_SPAN)
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_R5LA;
+	} else if (meta->type == PROMISE_T_SPAN)
 		vol->v_raid_level = G_RAID_VOLUME_RL_CONCAT;
 	else if (meta->type == PROMISE_T_JBOD)
 		vol->v_raid_level = G_RAID_VOLUME_RL_SINGLE;
 	else
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
-	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	vol->v_strip_size = 512 << meta->stripe_shift; //ZZZ
 	vol->v_disks_count = meta->total_disks;
 	vol->v_mediasize = (off_t)meta->total_sectors * 512; //ZZZ
@@ -1241,6 +1244,8 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			gctl_error(req, "No RAID level.");
 			return (-3);
 		}
+		if (strcasecmp(levelname, "RAID5") == 0)
+			levelname = "RAID5LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1415,7 +1420,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = pv;
 		vol->v_raid_level = level;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_raid_level_qualifier = qual;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0 ||

@@ -30,5 +30,6 @@
 #define	__AR71XX_CHIP_H__
 
 extern struct ar71xx_cpu_def ar71xx_chip_def;
+extern void ar71xx_chip_set_mii_speed(uint32_t unit, uint32_t speed);
 
 #endif

@@ -29,7 +29,7 @@
 using namespace llvm;
 
 bool LLLexer::Error(LocTy ErrorLoc, const Twine &Msg) const {
-  ErrorInfo = SM.GetMessage(ErrorLoc, Msg, "error");
+  ErrorInfo = SM.GetMessage(ErrorLoc, SourceMgr::DK_Error, Msg);
   return true;
 }
 
@@ -55,18 +55,22 @@ uint64_t LLLexer::atoull(const char *Buffer, const char *End) {
   return Result;
 }
 
+static char parseHexChar(char C) {
+  if (C >= '0' && C <= '9')
+    return C-'0';
+  if (C >= 'A' && C <= 'F')
+    return C-'A'+10;
+  if (C >= 'a' && C <= 'f')
+    return C-'a'+10;
+  return 0;
+}
+
 uint64_t LLLexer::HexIntToVal(const char *Buffer, const char *End) {
   uint64_t Result = 0;
   for (; Buffer != End; ++Buffer) {
     uint64_t OldRes = Result;
     Result *= 16;
-    char C = *Buffer;
-    if (C >= '0' && C <= '9')
-      Result += C-'0';
-    else if (C >= 'A' && C <= 'F')
-      Result += C-'A'+10;
-    else if (C >= 'a' && C <= 'f')
-      Result += C-'a'+10;
+    Result += parseHexChar(*Buffer);
 
     if (Result < OldRes) {   // Uh, oh, overflow detected!!!
       Error("constant bigger than 64 bits detected!");
@@ -82,24 +86,12 @@ void LLLexer::HexToIntPair(const char *Buffer, const char *End,
   for (int i=0; i<16; i++, Buffer++) {
     assert(Buffer != End);
     Pair[0] *= 16;
-    char C = *Buffer;
-    if (C >= '0' && C <= '9')
-      Pair[0] += C-'0';
-    else if (C >= 'A' && C <= 'F')
-      Pair[0] += C-'A'+10;
-    else if (C >= 'a' && C <= 'f')
-      Pair[0] += C-'a'+10;
+    Pair[0] += parseHexChar(*Buffer);
   }
   Pair[1] = 0;
   for (int i=0; i<16 && Buffer != End; i++, Buffer++) {
     Pair[1] *= 16;
-    char C = *Buffer;
-    if (C >= '0' && C <= '9')
-      Pair[1] += C-'0';
-    else if (C >= 'A' && C <= 'F')
-      Pair[1] += C-'A'+10;
-    else if (C >= 'a' && C <= 'f')
-      Pair[1] += C-'a'+10;
+    Pair[1] += parseHexChar(*Buffer);
   }
   if (Buffer != End)
     Error("constant bigger than 128 bits detected!");
@@ -113,24 +105,12 @@ void LLLexer::FP80HexToIntPair(const char *Buffer, const char *End,
   for (int i=0; i<4 && Buffer != End; i++, Buffer++) {
     assert(Buffer != End);
     Pair[1] *= 16;
-    char C = *Buffer;
-    if (C >= '0' && C <= '9')
-      Pair[1] += C-'0';
-    else if (C >= 'A' && C <= 'F')
-      Pair[1] += C-'A'+10;
-    else if (C >= 'a' && C <= 'f')
-      Pair[1] += C-'a'+10;
+    Pair[1] += parseHexChar(*Buffer);
   }
   Pair[0] = 0;
   for (int i=0; i<16; i++, Buffer++) {
     Pair[0] *= 16;
-    char C = *Buffer;
-    if (C >= '0' && C <= '9')
-      Pair[0] += C-'0';
-    else if (C >= 'A' && C <= 'F')
-      Pair[0] += C-'A'+10;
-    else if (C >= 'a' && C <= 'f')
-      Pair[0] += C-'a'+10;
+    Pair[0] += parseHexChar(*Buffer);
   }
   if (Buffer != End)
     Error("constant bigger than 128 bits detected!");
@@ -149,9 +129,7 @@ static void UnEscapeLexed(std::string &Str) {
         *BOut++ = '\\'; // Two \ becomes one
         BIn += 2;
       } else if (BIn < EndBuffer-2 && isxdigit(BIn[1]) && isxdigit(BIn[2])) {
-        char Tmp = BIn[3]; BIn[3] = 0;      // Terminate string
-        *BOut = (char)strtol(BIn+1, 0, 16); // Convert to number
-        BIn[3] = Tmp;                       // Restore character
+        *BOut = parseHexChar(BIn[1]) * 16 + parseHexChar(BIn[2]);
         BIn += 3;                           // Skip over handled chars
         ++BOut;
       } else {
@@ -503,6 +481,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(tail);
   KEYWORD(target);
   KEYWORD(triple);
+  KEYWORD(unwind);
   KEYWORD(deplibs);
   KEYWORD(datalayout);
   KEYWORD(volatile);
@@ -570,6 +549,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(noimplicitfloat);
   KEYWORD(naked);
   KEYWORD(nonlazybind);
+  KEYWORD(address_safety);
 
   KEYWORD(type);
   KEYWORD(opaque);
@@ -596,6 +576,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   if (Len == strlen(STR) && !memcmp(StartChar, STR, strlen(STR))) { \
     TyVal = LLVMTY; return lltok::Type; }
   TYPEKEYWORD("void",      Type::getVoidTy(Context));
+  TYPEKEYWORD("half",      Type::getHalfTy(Context));
   TYPEKEYWORD("float",     Type::getFloatTy(Context));
   TYPEKEYWORD("double",    Type::getDoubleTy(Context));
   TYPEKEYWORD("x86_fp80",  Type::getX86_FP80Ty(Context));
@@ -642,7 +623,6 @@ lltok::Kind LLLexer::LexIdentifier() {
   INSTKEYWORD(indirectbr,  IndirectBr);
   INSTKEYWORD(invoke,      Invoke);
   INSTKEYWORD(resume,      Resume);
-  INSTKEYWORD(unwind,      Unwind);
   INSTKEYWORD(unreachable, Unreachable);
 
   INSTKEYWORD(alloca,      Alloca);
@@ -715,7 +695,7 @@ lltok::Kind LLLexer::Lex0x() {
   if (Kind == 'J') {
     // HexFPConstant - Floating point constant represented in IEEE format as a
     // hexadecimal number for when exponential notation is not precise enough.
-    // Float and double only.
+    // Half, Float, and double only.
     APFloatVal = APFloat(BitsToDouble(HexIntToVal(TokStart+2, CurPtr)));
     return lltok::APFloat;
   }

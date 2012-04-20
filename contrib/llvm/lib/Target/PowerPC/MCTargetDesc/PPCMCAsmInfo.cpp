@@ -1,4 +1,4 @@
-//===-- PPCMCAsmInfo.cpp - PPC asm properties -------------------*- C++ -*-===//
+//===-- PPCMCAsmInfo.cpp - PPC asm properties -----------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,6 +13,8 @@
 
 #include "PPCMCAsmInfo.h"
 using namespace llvm;
+
+void PPCMCAsmInfoDarwin::anchor() { }
 
 PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit) {
   if (is64Bit)
@@ -29,6 +31,8 @@ PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit) {
   AssemblerDialect = 1;           // New-Style mnemonics.
   SupportsDebugInformation= true; // Debug information.
 }
+
+void PPCLinuxMCAsmInfo::anchor() { }
 
 PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
   if (is64Bit)

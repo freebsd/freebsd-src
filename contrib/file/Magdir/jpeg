@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: jpeg,v 1.16 2011/01/04 19:29:32 rrt Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -126,13 +127,8 @@
 # And if there was some sort of looping construct to do searches, plus a few
 # named accumulators, it would be even more effective...
 # At least we can show a comment if no other segments got inserted before:
->(4.S+5)	byte		0xFE
->>(4.S+8)	string		>\0		\b, comment: "%s"
-# FIXME: When we can do non-byte counted strings, we can use that to get
-# the string's count, and fix Debian bug #283760
-#>(4.S+5)	byte		0xFE		\b, comment
-#>>(4.S+6)	beshort		x		\b length=%d
-#>>(4.S+8)	string		>\0		\b, "%s"
+>(4.S+5)	byte		0xFE		\b, comment:
+>>(4.S+6)	pstring/HJ	x		"%s"
 # Or, we can show the encoding type (I've included only the three most common)
 # and image dimensions if we are lucky and the SOFn (image segment) is here:
 >(4.S+5)	byte		0xC0		\b, baseline

@@ -39,7 +39,7 @@
 //   =>
 //     v1 = bitcast v0
 //        = v0
-// 
+//
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "peephole-opt"
@@ -68,7 +68,7 @@ DisablePeephole("disable-peephole", cl::Hidden, cl::init(false),
 STATISTIC(NumReuse,      "Number of extension results reused");
 STATISTIC(NumBitcasts,   "Number of bitcasts eliminated");
 STATISTIC(NumCmps,       "Number of compares eliminated");
-STATISTIC(NumImmFold,    "Number of move immediate foled");
+STATISTIC(NumImmFold,    "Number of move immediate folded");
 
 namespace {
   class PeepholeOptimizer : public MachineFunctionPass {
@@ -109,22 +109,19 @@ namespace {
 }
 
 char PeepholeOptimizer::ID = 0;
+char &llvm::PeepholeOptimizerID = PeepholeOptimizer::ID;
 INITIALIZE_PASS_BEGIN(PeepholeOptimizer, "peephole-opts",
                 "Peephole Optimizations", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_END(PeepholeOptimizer, "peephole-opts",
                 "Peephole Optimizations", false, false)
 
-FunctionPass *llvm::createPeepholeOptimizerPass() {
-  return new PeepholeOptimizer();
-}
-
 /// OptimizeExtInstr - If instruction is a copy-like instruction, i.e. it reads
 /// a single register and writes a single register and it does not modify the
 /// source, and if the source value is preserved as a sub-register of the
 /// result, then replace all reachable uses of the source with the subreg of the
 /// result.
-/// 
+///
 /// Do not generate an EXTRACT that is used only in a debug use, as this changes
 /// the code. Since this code does not currently share EXTRACTs, just ignore all
 /// debug uses.
@@ -134,7 +131,7 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
   unsigned SrcReg, DstReg, SubIdx;
   if (!TII->isCoalescableExtInstr(*MI, SrcReg, DstReg, SubIdx))
     return false;
-  
+
   if (TargetRegisterInfo::isPhysicalRegister(DstReg) ||
       TargetRegisterInfo::isPhysicalRegister(SrcReg))
     return false;
@@ -240,6 +237,10 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
       if (PHIBBs.count(UseMBB))
         continue;
 
+      // About to add uses of DstReg, clear DstReg's kill flags.
+      if (!Changed)
+        MRI->clearKillFlags(DstReg);
+
       unsigned NewVR = MRI->createVirtualRegister(RC);
       BuildMI(*UseMBB, UseMI, UseMI->getDebugLoc(),
               TII->get(TargetOpcode::COPY), NewVR)
@@ -292,7 +293,7 @@ bool PeepholeOptimizer::OptimizeBitcastInstr(MachineInstr *MI,
   assert(Def && Src && "Malformed bitcast instruction!");
 
   MachineInstr *DefMI = MRI->getVRegDef(Src);
-  if (!DefMI || !DefMI->getDesc().isBitcast())
+  if (!DefMI || !DefMI->isBitcast())
     return false;
 
   unsigned SrcSrc = 0;
@@ -353,7 +354,7 @@ bool PeepholeOptimizer::isMoveImmediate(MachineInstr *MI,
                                         SmallSet<unsigned, 4> &ImmDefRegs,
                                  DenseMap<unsigned, MachineInstr*> &ImmDefMIs) {
   const MCInstrDesc &MCID = MI->getDesc();
-  if (!MCID.isMoveImmediate())
+  if (!MI->isMoveImmediate())
     return false;
   if (MCID.getNumDefs() != 1)
     return false;
@@ -363,7 +364,7 @@ bool PeepholeOptimizer::isMoveImmediate(MachineInstr *MI,
     ImmDefRegs.insert(Reg);
     return true;
   }
-  
+
   return false;
 }
 
@@ -395,7 +396,7 @@ bool PeepholeOptimizer::FoldImmediate(MachineInstr *MI, MachineBasicBlock *MBB,
 bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
   if (DisablePeephole)
     return false;
-  
+
   TM  = &MF.getTarget();
   TII = TM->getInstrInfo();
   MRI = &MF.getRegInfo();
@@ -408,7 +409,7 @@ bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
   DenseMap<unsigned, MachineInstr*> ImmDefMIs;
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I) {
     MachineBasicBlock *MBB = &*I;
-    
+
     bool SeenMoveImm = false;
     LocalMIs.clear();
     ImmDefRegs.clear();
@@ -428,17 +429,15 @@ bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
         continue;
       }
 
-      const MCInstrDesc &MCID = MI->getDesc();
-
-      if (MCID.isBitcast()) {
+      if (MI->isBitcast()) {
         if (OptimizeBitcastInstr(MI, MBB)) {
           // MI is deleted.
           LocalMIs.erase(MI);
           Changed = true;
           MII = First ? I->begin() : llvm::next(PMII);
           continue;
-        }        
-      } else if (MCID.isCompare()) {
+        }
+      } else if (MI->isCompare()) {
         if (OptimizeCmpInstr(MI, MBB)) {
           // MI is deleted.
           LocalMIs.erase(MI);

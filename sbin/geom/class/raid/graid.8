@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2011
+.Dd April 19, 2012
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -242,7 +242,8 @@ own risk: RAID1 (3+ disks), RAID10 (6+ disks).
 The GEOM RAID class follows a modular design, allowing different RAID levels
 to be used.
 Support for the following RAID levels is currently implemented: RAID0, RAID1,
-RAID1E, RAID10, SINGLE, CONCAT.
+RAID1E, RAID5, RAID10, SINGLE, CONCAT.
+RAID5 support is read-only and only for volumes in optimal state.
 .Sh RAID LEVEL MIGRATION
 The GEOM RAID class has no support for RAID level migration, allowed by some
 metadata formats.

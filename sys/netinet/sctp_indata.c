@@ -2746,11 +2746,13 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 						phd->param_length =
 						    htons(chk_length + sizeof(*phd));
 						SCTP_BUF_LEN(merr) = sizeof(*phd);
-						SCTP_BUF_NEXT(merr) = SCTP_M_COPYM(m, *offset,
-						    SCTP_SIZE32(chk_length),
-						    M_DONTWAIT);
+						SCTP_BUF_NEXT(merr) = SCTP_M_COPYM(m, *offset, chk_length, M_DONTWAIT);
 						if (SCTP_BUF_NEXT(merr)) {
-							sctp_queue_op_err(stcb, merr);
+							if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(merr), SCTP_SIZE32(chk_length) - chk_length, NULL)) {
+								sctp_m_freem(merr);
+							} else {
+								sctp_queue_op_err(stcb, merr);
+							}
 						} else {
 							sctp_m_freem(merr);
 						}

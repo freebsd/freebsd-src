@@ -47,7 +47,7 @@
  * 802.11n requires more TX and RX buffers to do AMPDU.
  */
 #ifdef	ATH_ENABLE_11N
-#define	ATH_TXBUF	512
+#define	ATH_TXBUF	128
 #define	ATH_RXBUF	512
 #endif
 
@@ -508,6 +508,7 @@ struct ath_softc {
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
 	struct task		sc_resettask;	/* interface reset task */
+	struct task		sc_fataltask;	/* fatal task */
 	enum {
 		OK,				/* no change needed */
 		UPDATE,				/* update pending */

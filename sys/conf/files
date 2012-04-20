@@ -1288,6 +1288,7 @@ dev/iicbus/iiconf.c		optional iicbus
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
+dev/iicbus/pcf8563.c		optional pcf8563
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
@@ -2404,6 +2405,7 @@ geom/raid/tr_concat.c		optional geom_raid
 geom/raid/tr_raid0.c		optional geom_raid
 geom/raid/tr_raid1.c		optional geom_raid
 geom/raid/tr_raid1e.c		optional geom_raid
+geom/raid/tr_raid5.c		optional geom_raid
 geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
@@ -3215,19 +3217,19 @@ ofed/drivers/infiniband/ulp/ipoib/ipoib_verbs.c	optional ipoib		\
 #	no-depend							\
 #	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 
-ofed/drivers/infiniband/ulp/sdp/sdp_bcopy.c	optional sdp		\
+ofed/drivers/infiniband/ulp/sdp/sdp_bcopy.c	optional sdp inet	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
-ofed/drivers/infiniband/ulp/sdp/sdp_main.c	optional sdp		\
+ofed/drivers/infiniband/ulp/sdp/sdp_main.c	optional sdp inet 	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
-ofed/drivers/infiniband/ulp/sdp/sdp_rx.c	optional sdp		\
+ofed/drivers/infiniband/ulp/sdp/sdp_rx.c	optional sdp inet 	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
-ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp		\
+ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp inet 	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
-ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp		\
+ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 
