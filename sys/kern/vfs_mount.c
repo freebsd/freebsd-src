@@ -461,6 +461,8 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	    __rangeof(struct mount, mnt_startzero, mnt_endzero));
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	mp->mnt_nvnodelistsize = 0;
+	TAILQ_INIT(&mp->mnt_activevnodelist);
+	mp->mnt_activevnodelistsize = 0;
 	mp->mnt_ref = 0;
 	(void) vfs_busy(mp, MBF_NOWAIT);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -514,6 +516,8 @@ vfs_mount_destroy(struct mount *mp)
 	}
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
+	if (mp->mnt_activevnodelistsize != 0)
+		panic("vfs_mount_destroy: nonzero activevnodelistsize");
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
