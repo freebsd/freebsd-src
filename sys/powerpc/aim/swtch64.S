@@ -139,6 +139,7 @@ ENTRY(cpu_switch)
 
 	addi	%r1,%r1,48
 
+	sync				/* Make sure all of that finished */
 	std	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:
