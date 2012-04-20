@@ -1,18 +1,14 @@
 # $FreeBSD$
 
-S=      ${.CURDIR}/../../..
-.PATH: $S/dev/iscsi/initiator
-
+.PATH: ${.CURDIR}/../../../dev/iscsi/initiator
 KMOD=iscsi_initiator
 
 SRCS=  iscsi.h iscsivar.h
 SRCS+= iscsi.c isc_cam.c isc_soc.c isc_sm.c isc_subr.c iscsi_subr.c
 SRCS+= opt_cam.h opt_iscsi_initiator.h
 SRCS+= bus_if.h device_if.h
-#CFLAGS+= -DNO_USE_MBUF
-CFLAGS+= -DISCSI_INITIATOR_DEBUG=2
-#CFLAGS+= -DISCSI_INITIATOR_DEBUG=2
-CFLAGS+= -DINVARIANTS
-CFLAGS+= -I$S
-CFLAGS+= -DINVARIANTS
+
+# Debugging
+# CFLAGS+= -DISCSI_INITIATOR_DEBUG=9
+
 .include <bsd.kmod.mk>
