@@ -2744,6 +2744,10 @@ setfflags(td, vp, flags)
 	struct mount *mp;
 	struct vattr vattr;
 
+	/* We can't support the value matching VNOVAL. */
+	if (flags == VNOVAL)
+		return (EOPNOTSUPP);
+
 	/*
 	 * Prevent non-root users from setting flags on devices.  When
 	 * a device is reused, users can retain ownership of the device
