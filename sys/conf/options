@@ -184,6 +184,7 @@ SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
+UMTX_PROFILING
 VFS_AIO
 VERBOSE_SYSINIT	opt_global.h
 WLCACHE		opt_wavelan.h
