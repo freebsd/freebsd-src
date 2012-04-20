@@ -153,13 +153,10 @@ TLBIE(uint64_t vpn) {
 	vpn &= ~(0xffffULL << 48);
 
 #ifdef __powerpc64__
-	sched_pin();
-	__asm __volatile("ptesync");
 	mtx_lock(&tlbie_mutex);
 	__asm __volatile("tlbie %0" :: "r"(vpn) : "memory");
 	mtx_unlock(&tlbie_mutex);
 	__asm __volatile("eieio; tlbsync; ptesync");
-	sched_unpin();
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
@@ -171,7 +168,6 @@ TLBIE(uint64_t vpn) {
 	    mr %1, %0; \
 	    insrdi %1,%5,1,0; \
 	    mtmsrd %1; isync; \
-	    ptesync; \
 	    \
 	    sld %1,%2,%4; \
 	    or %1,%1,%3; \
@@ -265,7 +261,9 @@ moea64_pte_clear_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
 	 * As shown in Section 7.6.3.2.3
 	 */
 	pt->pte_lo &= ~ptebit;
+	sched_pin();
 	TLBIE(vpn);
+	sched_unpin();
 }
 
 static void
@@ -295,21 +293,16 @@ moea64_pte_unset_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
 {
 	struct lpte *pt = (struct lpte *)pt_cookie;
 
-	pvo_pt->pte_hi &= ~LPTE_VALID;
-
-	/* Finish all pending operations */
-	isync();
-
-	/*
-	 * Force the reg & chg bits back into the PTEs.
-	 */
-	SYNC();
-
 	/*
 	 * Invalidate the pte.
 	 */
+	isync();
+	sched_pin();
+	pvo_pt->pte_hi &= ~LPTE_VALID;
 	pt->pte_hi &= ~LPTE_VALID;
+	PTESYNC();
 	TLBIE(vpn);
+	sched_unpin();
 
 	/*
 	 * Save the reg & chg bits.
