@@ -124,8 +124,8 @@ static int
 nandfs_read(struct vop_read_args *ap)
 {
 	register struct vnode *vp = ap->a_vp;
-	register struct nandfs_node *nandfs_node = VTON(vp);
-	struct nandfs_device *nandfsdev = nandfs_node->nn_nandfsdev;
+	register struct nandfs_node *node = VTON(vp);
+	struct nandfs_device *nandfsdev = node->nn_nandfsdev;
 	struct uio *uio = ap->a_uio;
 	struct buf *bp;
 	uint64_t size;
@@ -139,9 +139,11 @@ nandfs_read(struct vop_read_args *ap)
 	if (uio->uio_resid == 0)
 		return (0);
 
-	size = nandfs_node->nn_inode.i_size;
+	size = node->nn_inode.i_size;
 	if (uio->uio_offset >= size)
 		return (0);
+
+	NANDFS_WRITELOCK(vp, node->nn_nandfsdev);
 
 	blocksize = nandfsdev->nd_blocksize;
 	bytesinfile = size - uio->uio_offset;
@@ -157,7 +159,7 @@ nandfs_read(struct vop_read_args *ap)
 		DPRINTF(READ, ("nandfs_read bn: 0x%jx toread: 0x%zx (0x%x)\n",
 		    (uintmax_t)lbn, toread, blocksize));
 
-		error = nandfs_bread(nandfs_node, lbn, NOCRED, 0, &bp);
+		error = nandfs_bread(node, lbn, NOCRED, 0, &bp);
 		if (error) {
 			brelse(bp);
 			break;
@@ -172,6 +174,8 @@ nandfs_read(struct vop_read_args *ap)
 		brelse(bp);
 		resid -= toread;
 	}
+
+	NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 
 	return (error);
 }
@@ -208,6 +212,8 @@ nandfs_write(struct vop_write_args *ap)
 	if (uio->uio_resid == 0)
 		return (0);
 
+	NANDFS_WRITELOCK(vp, node->nn_nandfsdev);
+
 	blocksize = fsdev->nd_blocksize;
 	file_size = node->nn_inode.i_size;
 
@@ -217,6 +223,7 @@ nandfs_write(struct vop_write_args *ap)
 			uio->uio_offset = file_size;
 		break;
 	case VDIR:
+		NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 		return (EISDIR);
 	case VLNK:
 		break;
@@ -288,6 +295,8 @@ nandfs_write(struct vop_write_args *ap)
 		}
 	}
 
+	NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
+
 	DPRINTF(WRITE, ("%s: return:%d\n", __func__, error));
 
 	return (error);
@@ -331,6 +340,9 @@ nandfs_lookup(struct vop_cachedlookup_args *ap)
 	 */
 	if (islastcn && mounted_ro && (nameiop == DELETE || nameiop == RENAME))
 		return (EROFS);
+
+	if (dir_node->nn_inode.i_links_count == 0)
+		return (ENOENT);
 
 	/*
 	 * Obviously, the file is not (anymore) in the namecache, we have to
@@ -579,9 +591,12 @@ nandfs_truncate(struct vnode *vp, uint64_t newsize)
 	/* Calculate end of file */
 	size = inode->i_size;
 
+	NANDFS_WRITELOCK(vp, node->nn_nandfsdev);
+
 	if (newsize == size) {
 		node->nn_flags |= IN_CHANGE | IN_UPDATE;
 		nandfs_itimes(vp);
+		NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 		return (0);
 	}
 
@@ -590,6 +605,7 @@ nandfs_truncate(struct vnode *vp, uint64_t newsize)
 		vnode_pager_setsize(vp, newsize);
 		node->nn_flags |= IN_CHANGE | IN_UPDATE;
 		nandfs_itimes(vp);
+		NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 		return (0);
 	}
 
@@ -599,8 +615,10 @@ nandfs_truncate(struct vnode *vp, uint64_t newsize)
 
 	if (rest) {
 		error = nandfs_bmap_nlookup(node, nblks - 1, 1, &vblk);
-		if (error)
+		if (error) {
+			NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 			return (error);
+		}
 
 		if (vblk != 0)
 			error = nandfs_bread(node, nblks - 1, NOCRED, 0, &bp);
@@ -610,14 +628,17 @@ nandfs_truncate(struct vnode *vp, uint64_t newsize)
 		if (error) {
 			if (bp)
 				brelse(bp);
+			NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 			return (error);
 		}
 
 		bzero((char *)bp->b_data + rest,
 		    (u_int)(nffsdev->nd_blocksize - rest));
 		error = nandfs_dirty_buf(bp, 0);
-		if (error)
+		if (error) {
+			NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 			return (error);
+		}
 	}
 
 	DPRINTF(VNCALL, ("%s: vp %p oblks %jx nblks %jx\n", __func__, vp, oblks,
@@ -627,6 +648,7 @@ nandfs_truncate(struct vnode *vp, uint64_t newsize)
 	if (error) {
 		if (bp)
 			nandfs_undirty_buf(bp);
+		NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 		return (error);
 	}
 
@@ -634,6 +656,7 @@ nandfs_truncate(struct vnode *vp, uint64_t newsize)
 	if (error) {
 		if (bp)
 			nandfs_undirty_buf(bp);
+		NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 		return (error);
 	}
 
@@ -641,6 +664,8 @@ nandfs_truncate(struct vnode *vp, uint64_t newsize)
 	vnode_pager_setsize(vp, newsize);
 	node->nn_flags |= IN_CHANGE | IN_UPDATE;
 	nandfs_itimes(vp);
+
+	NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 
 	return (error);
 }
@@ -1068,7 +1093,7 @@ nandfs_read_filebuf(struct nandfs_node *node, struct buf *bp)
 	struct nandfs_device *nandfsdev = node->nn_nandfsdev;
 	struct buf *nbp;
 	nandfs_daddr_t *l2vmap;
-	uint64_t *v2pmap;
+	nandfs_daddr_t *v2pmap;
 	nandfs_lbn_t from;
 	uint64_t blks;
 	uint32_t blocksize;
@@ -1375,6 +1400,8 @@ nandfs_link(struct vop_link_args *ap)
 	/* Update link count */
 	inode->i_links_count++;
 
+	NANDFS_WRITELOCK(vp, node->nn_nandfsdev);
+
 	/* Add dir entry */
 	error = nandfs_add_dirent(tdvp, node->nn_ino, cnp->cn_nameptr,
 	    cnp->cn_namelen, IFTODT(inode->i_mode));
@@ -1386,6 +1413,8 @@ nandfs_link(struct vop_link_args *ap)
 	nandfs_itimes(vp);
 	DPRINTF(VNCALL, ("%s: tdvp %p vp %p cnp %p\n",
 	    __func__, tdvp, vp, cnp));
+
+	NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 
 	return (0);
 }
@@ -1407,6 +1436,8 @@ nandfs_create(struct vop_create_args *ap)
 	if (nandfs_fs_full(dir_node->nn_nandfsdev))
 		return (ENOSPC);
 
+	NANDFS_WRITELOCK(dvp, nmp->nm_nandfsdev);
+
 	/* Create new vnode/inode */
 	error = nandfs_node_create(nmp, &node, mode);
 	if (error)
@@ -1422,9 +1453,12 @@ nandfs_create(struct vop_create_args *ap)
 			nandfs_error("%s: error destroying node %p\n",
 			    __func__, node);
 		}
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (error);
 	}
 	*vpp = NTOV(node);
+
+	NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 
 	DPRINTF(VNCALL, ("created file vp %p nandnode %p ino %jx\n", *vpp, node,
 	    (uintmax_t)node->nn_ino));
@@ -1452,9 +1486,13 @@ nandfs_remove(struct vop_remove_args *ap)
 	    (dnode->nn_inode.i_flags & APPEND))
 		return (EPERM);
 
+	NANDFS_WRITELOCK(vp, node->nn_nandfsdev);
+
 	nandfs_remove_dirent(dvp, node, cnp);
 	node->nn_inode.i_links_count--;
 	node->nn_flags |= IN_CHANGE;
+
+	NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
 
 	return (0);
 }
@@ -1543,6 +1581,9 @@ nandfs_rename(struct vop_rename_args *ap)
 
 	DPRINTF(VNCALL, ("%s: fdvp:%p fvp:%p tdvp:%p tdp:%p\n", __func__, fdvp,
 	    fvp, tdvp, tvp));
+
+	NANDFS_WRITELOCK(tdvp, tdnode->nn_nandfsdev);
+
 	/*
 	 * Check for cross-device rename.
 	 */
@@ -1558,6 +1599,7 @@ abortit:
 			vput(tvp);
 		vrele(fdvp);
 		vrele(fvp);
+		NANDFS_WRITEUNLOCK(tdnode->nn_nandfsdev);
 		return (error);
 	}
 
@@ -1763,6 +1805,7 @@ abortit:
 		if (doingdirectory)
 			panic("nandfs_rename: lost dir entry");
 		vrele(ap->a_fvp);
+		NANDFS_WRITEUNLOCK(tdnode->nn_nandfsdev);
 		return (0);
 	}
 
@@ -1810,6 +1853,7 @@ abortit:
 	if (fnode)
 		vput(fvp);
 	vrele(ap->a_fvp);
+	NANDFS_WRITEUNLOCK(tdnode->nn_nandfsdev);
 	return (error);
 
 bad:
@@ -1827,6 +1871,7 @@ out:
 		vput(fvp);
 	} else
 		vrele(fvp);
+	NANDFS_WRITEUNLOCK(tdnode->nn_nandfsdev);
 	return (error);
 }
 
@@ -1851,9 +1896,14 @@ nandfs_mkdir(struct vop_mkdir_args *ap)
 	if (dir_inode->i_links_count >= LINK_MAX)
 		return (EMLINK);
 
+	NANDFS_WRITELOCK(dvp, nmp->nm_nandfsdev);
+
 	error = nandfs_node_create(nmp, &node, mode);
-	if (error)
+	if (error) {
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (error);
+	}
+
 	node->nn_inode.i_gid = dir_node->nn_inode.i_gid;
 	node->nn_inode.i_uid = cnp->cn_cred->cr_uid;
 
@@ -1863,6 +1913,7 @@ nandfs_mkdir(struct vop_mkdir_args *ap)
 	    cnp->cn_namelen, IFTODT(mode));
 	if (error) {
 		vput(*vpp);
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (error);
 	}
 
@@ -1872,8 +1923,11 @@ nandfs_mkdir(struct vop_mkdir_args *ap)
 	error = nandfs_init_dir(NTOV(node), node->nn_ino, dir_node->nn_ino);
 	if (error) {
 		vput(NTOV(node));
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (error);
 	}
+
+	NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 
 	DPRINTF(VNCALL, ("created dir vp %p nandnode %p ino %jx\n", *vpp, node,
 	    (uintmax_t)node->nn_ino));
@@ -1896,9 +1950,13 @@ nandfs_mknod(struct vop_mknod_args *ap)
 	if (nandfs_fs_full(dir_node->nn_nandfsdev))
 		return (ENOSPC);
 
+	NANDFS_WRITELOCK(dvp, nmp->nm_nandfsdev);
+
 	error = nandfs_node_create(nmp, &node, mode);
-	if (error)
+	if (error) {
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (error);
+	}
 	node->nn_inode.i_gid = dir_node->nn_inode.i_gid;
 	node->nn_inode.i_uid = cnp->cn_cred->cr_uid;
 	if (vap->va_rdev != VNOVAL)
@@ -1909,10 +1967,13 @@ nandfs_mknod(struct vop_mknod_args *ap)
 	if (nandfs_add_dirent(dvp, node->nn_ino, cnp->cn_nameptr,
 	    cnp->cn_namelen, IFTODT(mode))) {
 		vput(*vpp);
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (ENOTDIR);
 	}
 
 	node->nn_flags |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
+
+	NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 
 	return (0);
 }
@@ -1932,9 +1993,13 @@ nandfs_symlink(struct vop_symlink_args *ap)
 	if (nandfs_fs_full(dir_node->nn_nandfsdev))
 		return (ENOSPC);
 
+	NANDFS_WRITELOCK(dvp, nmp->nm_nandfsdev);
+
 	error = nandfs_node_create(nmp, &node, S_IFLNK | mode);
-	if (error)
+	if (error) {
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (error);
+	}
 	node->nn_inode.i_gid = dir_node->nn_inode.i_gid;
 	node->nn_inode.i_uid = cnp->cn_cred->cr_uid;
 
@@ -1943,6 +2008,7 @@ nandfs_symlink(struct vop_symlink_args *ap)
 	if (nandfs_add_dirent(dvp, node->nn_ino, cnp->cn_nameptr,
 	    cnp->cn_namelen, IFTODT(mode))) {
 		vput(*vpp);
+		NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 		return (ENOTDIR);
 	}
 
@@ -1953,6 +2019,8 @@ nandfs_symlink(struct vop_symlink_args *ap)
 	    cnp->cn_cred, NOCRED, NULL, NULL);
 	if (error)
 		vput(*vpp);
+
+	NANDFS_WRITEUNLOCK(nmp->nm_nandfsdev);
 
 	return (error);
 }
@@ -1973,6 +2041,7 @@ nandfs_rmdir(struct vop_rmdir_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct nandfs_node *node, *dnode;
 	uint32_t dflag, flag;
+	int error = 0;
 
 	node = VTON(vp);
 	dnode = VTON(dvp);
@@ -2002,16 +2071,26 @@ nandfs_rmdir(struct vop_rmdir_args *ap)
 	if (vp->v_mountedhere != 0)
 		return (EINVAL);
 
+	NANDFS_WRITELOCK(vp, node->nn_nandfsdev);
+
 	nandfs_remove_dirent(dvp, node, cnp);
 	dnode->nn_inode.i_links_count -= 1;
 	dnode->nn_flags |= IN_CHANGE;
 
 	cache_purge(dvp);
 
+	error = nandfs_truncate(vp, (uint64_t)0);
+	if (error)
+		return (error);
+
 	node->nn_inode.i_links_count -= 2;
 	node->nn_flags |= IN_CHANGE;
 
-	return (0);
+	NANDFS_WRITEUNLOCK(node->nn_nandfsdev);
+
+	cache_purge(vp);
+
+	return (error);
 }
 
 static int
@@ -2032,9 +2111,7 @@ nandfs_fsync(struct vop_fsync_args *ap)
 	    vp->v_bufobj.bo_dirty.bv_cnt) {
 		locked = VOP_ISLOCKED(vp);
 		VOP_UNLOCK(vp, 0);
-		vn_finished_write(nmp->nm_vfs_mountp);
 		nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_FSYNC);
-		vn_start_write(NULL, &nmp->nm_vfs_mountp, V_WAIT);
 		VOP_LOCK(vp, locked);
 	}
 
@@ -2047,7 +2124,7 @@ nandfs_bmap(struct vop_bmap_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nandfs_node *nnode = VTON(vp);
 	struct nandfs_device *nandfsdev = nnode->nn_nandfsdev;
-	uint64_t l2vmap, v2pmap;
+	nandfs_daddr_t l2vmap, v2pmap;
 	int error;
 	int blk2dev = nandfsdev->nd_blocksize / DEV_BSIZE;
 

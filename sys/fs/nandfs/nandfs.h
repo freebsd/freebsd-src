@@ -233,6 +233,11 @@ extern SLIST_HEAD(_nandfs_devices, nandfs_device) nandfs_devices;
 #define	SYNCER_FSYNC		0x4
 #define	SYNCER_ROUPD		0x5
 
+#define NANDFS_WRITELOCK(vp, fsdev)	nandfs_writelock(vp, fsdev)
+#define NANDFS_WRITEUNLOCK(fsdev)	nandfs_writeunlock(fsdev)
+
+#define NANDFS_WRITEASSERT(fsdev)	nandfs_writeassert(fsdev)
+
 /* Specific mountpoint; head or a checkpoint/snapshot */
 struct nandfsmount {
 	STAILQ_ENTRY(nandfsmount) nm_next_mount;

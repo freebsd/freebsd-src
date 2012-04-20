@@ -260,6 +260,7 @@ nandfs_free_entry(struct nandfs_mdt* mdt, struct nandfs_alloc_request *req)
 	/* Set bit to indicate that entry is taken */
 	mask = (uint32_t *)req->bp_bitmap->b_data;
 	maskrw = mask[bitmap_idx];
+	KASSERT(maskrw & (1 << bitmap_off), ("freeing unallocated vblock"));
 	maskrw &= ~(1 << bitmap_off);
 	mask[bitmap_idx] = maskrw;
 

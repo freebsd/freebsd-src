@@ -517,13 +517,9 @@ create_fsdata(void)
 	fsdata.f_rev_level = NANDFS_CURRENT_REV;
 	fsdata.f_sbbytes = NANDFS_SB_BYTES;
 	fsdata.f_bytes = NANDFS_FSDATA_CRC_BYTES;
-	fsdata.f_dev_size = mediasize;
 	fsdata.f_ctime = nandfs_time;
 	fsdata.f_log_block_size = nandfs_log2(blocksize) - 10;
 	fsdata.f_errors = 1;
-	fsdata.f_lastcheck = nandfs_time;
-	fsdata.f_checkinterval = 60*60*24*180;
-	fsdata.f_first_ino = NANDFS_USER_INO;
 	fsdata.f_inode_size = sizeof(struct nandfs_inode);
 	fsdata.f_dat_entry_size = sizeof(struct nandfs_dat_entry);
 	fsdata.f_checkpoint_size = sizeof(struct nandfs_checkpoint);
@@ -559,8 +555,6 @@ create_super_block(void)
 		(nsegments - bad_segments_count) * blocks_per_segment;
 	super_block.s_mtime = 0;
 	super_block.s_wtime = nandfs_time;
-	super_block.s_mnt_count = 0;
-	super_block.s_max_mnt_count = NANDFS_DFL_MAX_MNT_COUNT;
 	super_block.s_state = NANDFS_VALID_FS;
 
 	super_block.s_sum = crc32_le(crc_seed, (const uint8_t *)&super_block,

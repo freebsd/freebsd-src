@@ -146,7 +146,6 @@ struct nandfs_fsdata {
 	uint32_t	f_sum;		/* checksum of fsdata		*/
 	uint32_t	f_rev_level;	/* major disk format revision	*/
 
-	uint64_t	f_dev_size;	/* block device size in bytes	*/
 	uint64_t	f_ctime;	/* creation time (execution time
 					   of newfs)			*/
 	 /* Block size represented as: blocksize = 1 << (f_log_block_size + 10)	*/
@@ -162,7 +161,6 @@ struct nandfs_fsdata {
 						   is excluded!			*/
 
 	uint16_t	f_errors;		/* behaviour on detecting errors	*/
-	uint64_t	f_lastcheck;		/* time of last checked		*/
 
 	uint32_t	f_erasesize;
 	uint64_t	f_nsegments;		/* number of segm. in filesystem	*/
@@ -170,23 +168,16 @@ struct nandfs_fsdata {
 	uint32_t	f_blocks_per_segment;	/* number of blocks per segment		*/
 	uint32_t	f_r_segments_percentage;	/* reserved segments percentage		*/
 
-	uint32_t	f_checkinterval;	/* max. time between checks		*/
-	uint16_t	f_def_resuid;		/* default uid for reserv. blocks	*/
-	uint16_t	f_def_resgid;		/* default gid for reserv. blocks	*/
-	uint32_t	f_first_ino;		/* first non-reserved inode		*/
-
 	uint32_t	f_crc_seed;		/* seed value of CRC calculation	*/
 
 	struct uuid	f_uuid;			/* 128-bit uuid for volume		*/
 	char		f_volume_name[16];	/* volume name				*/
-	uint32_t	f_pad[96];
+	uint32_t	f_pad[103];
 } __packed;
 
 #ifdef _KERNEL
 CTASSERT(sizeof(struct nandfs_fsdata) == 512);
 #endif
-
-#define	NANDFS_DFL_MAX_MNT_COUNT	 50	/* default 50 mounts before fsck */
 
 struct nandfs_super_block {
 	uint16_t	s_magic;		/* magic value for identification */
@@ -200,8 +191,6 @@ struct nandfs_super_block {
 
 	uint64_t	s_mtime;		/* mount time                     */
 	uint64_t	s_wtime;		/* write time                     */
-	uint16_t	s_mnt_count;		/* mount count                    */
-	uint16_t	s_max_mnt_count;	/* maximal mount count            */
 	uint16_t	s_state;		/* file system state              */
 
 	char		s_last_mounted[64];	/* directory where last mounted   */
@@ -209,7 +198,7 @@ struct nandfs_super_block {
 	uint32_t	s_c_interval;		/* commit interval of segment     */
 	uint32_t	s_c_block_max;		/* threshold of data amount for
 						   the segment construction */
-	uint32_t	s_reserved[31];		/* padding to end of the block    */
+	uint32_t	s_reserved[32];		/* padding to end of the block    */
 } __packed;
 
 #ifdef _KERNEL
@@ -442,6 +431,7 @@ struct nandfs_segment_usage {
 #define	NANDFS_SEGMENT_USAGE_ACTIVE	1
 #define	NANDFS_SEGMENT_USAGE_DIRTY	2
 #define	NANDFS_SEGMENT_USAGE_ERROR	4
+#define	NANDFS_SEGMENT_USAGE_GC		8
 #define	NANDFS_SEGMENT_USAGE_BITS	"\20\1ACTIVE\2DIRTY\3ERROR"
 
 /* Header of the segment usage file */

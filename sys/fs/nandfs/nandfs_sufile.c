@@ -367,6 +367,40 @@ nandfs_bad_segment(struct nandfs_device *fsdev, uint64_t seg)
 }
 
 int
+nandfs_markgc_segment(struct nandfs_device *fsdev, uint64_t seg)
+{
+	struct nandfs_node *su_node;
+	struct nandfs_segment_usage *su_usage;
+	struct buf *bp;
+	uint64_t blk, offset;
+	int error;
+
+	su_node = fsdev->nd_su_node;
+
+	VOP_LOCK(NTOV(su_node), LK_EXCLUSIVE);
+
+	nandfs_seg_usage_blk_offset(fsdev, seg, &blk, &offset);
+
+	error = nandfs_bread(su_node, blk, NOCRED, 0, &bp);
+	if (error) {
+		brelse(bp);
+		VOP_UNLOCK(NTOV(su_node), 0);
+		return (error);
+	}
+
+	su_usage = SU_USAGE_OFF(bp, offset);
+	MPASS((su_usage->su_flags & NANDFS_SEGMENT_USAGE_GC) == 0);
+	su_usage->su_flags |= NANDFS_SEGMENT_USAGE_GC;
+
+	brelse(bp);
+	VOP_UNLOCK(NTOV(su_node), 0);
+
+	DPRINTF(SEG, ("%s: seg:%#jx\n", __func__, (uintmax_t)seg));
+
+	return (0);
+}
+
+int
 nandfs_clear_segment(struct nandfs_device *fsdev, uint64_t seg)
 {
 	uint64_t offset, segsize;

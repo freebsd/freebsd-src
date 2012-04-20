@@ -75,7 +75,7 @@ int nandfs_bmap_nlookup(struct nandfs_node *, nandfs_lbn_t, uint64_t,
     uint64_t *);
 
 /* vtop operations */
-int nandfs_nvtop(struct nandfs_node *, uint64_t, nandfs_daddr_t *, uint64_t *);
+int nandfs_nvtop(struct nandfs_node *, uint64_t, nandfs_daddr_t *, nandfs_daddr_t *);
 
 /* Node action implementators */
 int nandfs_vinit(struct vnode *, uint64_t);
@@ -147,6 +147,7 @@ int nandfs_update_segment(struct nandfs_device *, uint64_t, uint32_t);
 int nandfs_free_segment(struct nandfs_device *, uint64_t);
 int nandfs_clear_segment(struct nandfs_device *, uint64_t);
 int nandfs_touch_segment(struct nandfs_device *, uint64_t);
+int nandfs_markgc_segment(struct nandfs_device *, uint64_t);
 
 int nandfs_bmap_insert_block(struct nandfs_node *, nandfs_lbn_t, struct buf *);
 int nandfs_bmap_update_block(struct nandfs_node *, struct buf *, nandfs_lbn_t);
@@ -225,6 +226,10 @@ int nandfs_erase(struct nandfs_device *, off_t, size_t);
 int nandfs_vop_islocked(struct vnode *vp);
 
 nandfs_daddr_t nandfs_block_to_dblock(struct nandfs_device *, nandfs_lbn_t);
+
+void nandfs_writelock(struct vnode *, struct nandfs_device *);
+void nandfs_writeunlock(struct nandfs_device *);
+void nandfs_writeassert(struct nandfs_device *);
 
 #define DEBUG_MODE
 #if defined(DEBUG_MODE)

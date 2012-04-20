@@ -256,8 +256,8 @@ nandfs_cleaner_iterate_segment(struct nandfs_device *fsdev, uint64_t segno,
 		binfo = (union nandfs_binfo *)(bp->b_data + segsum->ss_bytes);
 
 		if (!nandfs_segsum_valid(segsum)) {
-			nandfs_error("nandfs: invalid summary of segment %jx\n", segno);
 			brelse(bp);
+			nandfs_error("nandfs: invalid summary of segment %jx\n", segno);
 			return (error);
 		}
 
@@ -293,7 +293,8 @@ nandfs_cleaner_choose_segment(struct nandfs_device *fsdev, uint64_t **segpp,
 
 	error = nandfs_get_segment_info_filter(fsdev, suinfo, nsegs, *rseg,
 	    &ssegs, NANDFS_SEGMENT_USAGE_DIRTY,
-	    NANDFS_SEGMENT_USAGE_ACTIVE | NANDFS_SEGMENT_USAGE_ERROR);
+	    NANDFS_SEGMENT_USAGE_ACTIVE | NANDFS_SEGMENT_USAGE_ERROR |
+	    NANDFS_SEGMENT_USAGE_GC);
 	if (error) {
 		nandfs_error("%s:%d", __FILE__, __LINE__);
 		goto out;
@@ -306,7 +307,7 @@ nandfs_cleaner_choose_segment(struct nandfs_device *fsdev, uint64_t **segpp,
 		(*segpp)++;
 	}
 
-	*rseg = suinfo[i - 1].nsi_num;
+	*rseg = suinfo[i - 1].nsi_num + 1;
 out:
 	free(suinfo, M_NANDFSTEMP);
 
@@ -351,13 +352,21 @@ nandfs_cleaner_body(struct nandfs_device *fsdev, uint64_t *rseg)
 		error = nandfs_cleaner_iterate_segment(fsdev, segnums[i], &vip,
 		    &bdp, &select);
 		if (error) {
-			nandfs_error("%s:%d", __FILE__, __LINE__);
+			/*
+			 * XXX deselect (see below)?
+			 */
 			goto out;
 		}
 		if (!select)
 			segnums[i] = NANDFS_NOSEGMENT;
-		else
+		else {
+			error = nandfs_markgc_segment(fsdev, segnums[i]);
+			if (error) {
+				nandfs_error("%s:%d\n", __FILE__, __LINE__);
+				goto out;
+			}
 			selected++;
+		}
 	}
 
 	if (selected == 0) {
@@ -379,14 +388,16 @@ nandfs_cleaner_body(struct nandfs_device *fsdev, uint64_t *rseg)
 		    cpinfo, cpstat.ncp_nss, NULL);
 		if (error) {
 			nandfs_error("%s:%d\n", __FILE__, __LINE__);
-			goto out;
+			goto out_locked;
 		}
 	}
+
+	lockmgr(&fsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
 
 	error = nandfs_get_dat_vinfo(fsdev, vinfo, vip - vinfo);
 	if (error) {
 		nandfs_error("%s:%d\n", __FILE__, __LINE__);
-		goto out;
+		goto out_locked;
 	}
 
 	nandfs_cleaner_vinfo_mark_alive(fsdev, vinfo, vip - vinfo, cpinfo,
@@ -395,7 +406,7 @@ nandfs_cleaner_body(struct nandfs_device *fsdev, uint64_t *rseg)
 	error = nandfs_get_dat_bdescs(fsdev, bdesc, bdp - bdesc);
 	if (error) {
 		nandfs_error("%s:%d\n", __FILE__, __LINE__);
-		goto out;
+		goto out_locked;
 	}
 
 	nandfs_cleaner_bdesc_mark_alive(fsdev, bdesc, bdp - bdesc);
@@ -407,8 +418,9 @@ nandfs_cleaner_body(struct nandfs_device *fsdev, uint64_t *rseg)
 		    vipi->nvi_start, vipi->nvi_end, vipi->nvi_alive));
 	}
 	for (bdpi = bdesc; bdpi < bdp; bdpi++) {
-		DPRINTF(CLEAN, ("b oblocknr %jx blocknr %jx offset %jx\n",
-		    bdpi->bd_oblocknr, bdpi->bd_blocknr, bdpi->bd_offset));
+		DPRINTF(CLEAN, ("b oblocknr %jx blocknr %jx offset %jx "
+		    "alive %d\n", bdpi->bd_oblocknr, bdpi->bd_blocknr,
+		    bdpi->bd_offset, bdpi->bd_alive));
 	}
 	DPRINTF(CLEAN, ("end list\n"));
 
@@ -417,6 +429,8 @@ nandfs_cleaner_body(struct nandfs_device *fsdev, uint64_t *rseg)
 	if (error)
 		nandfs_error("%s:%d\n", __FILE__, __LINE__);
 
+out_locked:
+	lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
 out:
 	free(cpinfo, M_NANDFSTEMP);
 	free(segnums, M_NANDFSTEMP);
@@ -464,7 +478,6 @@ nandfs_cleaner_clean_segments(struct nandfs_device *nffsdev,
 
 	gc = nffsdev->nd_gc_node;
 
-	lockmgr(&nffsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
 
 	DPRINTF(CLEAN, ("%s: enter\n", __func__));
 
@@ -535,7 +548,6 @@ nandfs_cleaner_clean_segments(struct nandfs_device *nffsdev,
 	}
 
 out:
-	lockmgr(&nffsdev->nd_seg_const, LK_RELEASE, NULL);
 
 	DPRINTF(CLEAN, ("%s: exit error %d\n", __func__, error));
 

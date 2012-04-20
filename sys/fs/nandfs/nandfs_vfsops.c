@@ -664,6 +664,13 @@ nandfs_mount_base(struct nandfs_device *nandfsdev, struct mount *mp,
 		return (error);
 	}
 
+	if (nandfsdev->nd_fsdata.f_rev_level != NANDFS_CURRENT_REV) {
+		printf("nandfs: unsupported file system revision: %d "
+		    "(supported is %d).\n", nandfsdev->nd_fsdata.f_rev_level,
+		    NANDFS_CURRENT_REV);
+		return (EINVAL);
+	}
+
 	if (nandfsdev->nd_fsdata.f_erasesize != nandfsdev->nd_erasesize) {
 		printf("nandfs: erasesize mismatch (device %#x, fs %#x)\n",
 		    nandfsdev->nd_erasesize, nandfsdev->nd_fsdata.f_erasesize);
@@ -892,11 +899,7 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 	if (error) {
 		DPRINTF(VOLUMES, ("couldn't get erasesize: %d\n", error));
 
-		/*
-		 * FIXME translate this to some normal error codes, also make
-		 * sure that we cannot get this error with NAND devices
-		 */
-		if (error == -3 || error == 45) {
+		if (error == ENOIOCTL || error == EOPNOTSUPP) {
 			/*
 			 * We conclude that this is not NAND storage
 			 */
@@ -1116,12 +1119,10 @@ nandfs_procbody(struct nandfsmount *nmp)
 
 		flags = (nmp->nm_flags & (NANDFS_FORCE_SYNCER|NANDFS_UMOUNT));
 
-		vfs_write_suspend(mp);
 		error = nandfs_segment_constructor(nmp, flags);
 		if (error)
 			nandfs_error("%s: error:%d when creating segments\n",
 			    __func__, error);
-		vfs_write_resume(mp);
 
 		nmp->nm_flags &= ~flags;
 
@@ -1173,9 +1174,7 @@ stop_syncer(struct nandfsmount *nmp)
 
 	MPASS(nmp->nm_nandfsdev->nd_syncer != NULL);
 
-	vn_finished_write(nmp->nm_vfs_mountp);
 	nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_UMOUNT);
-	vn_start_write(NULL, &nmp->nm_vfs_mountp, V_WAIT);
 
 	DPRINTF(SYNC, ("%s: stop syncer\n", __func__));
 	return (0);
@@ -1453,12 +1452,7 @@ nandfs_unmount(struct mount *mp, int mntflags)
 	/* Umount already stopped writing */
 	if (!(nmp->nm_ronly)) {
 		nmp->nm_flags |= NANDFS_UMOUNT;
-		/*
-		 * XXX This is a hack soon to be removed
-		 */
-		vn_finished_write(mp);
 		nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_VFS_SYNC);
-		vn_start_write(NULL, &mp, V_WAIT);
 	}
 	error = vflush(mp, 0, flags | SKIPSYSTEM, curthread);
 	if (error)
@@ -1578,11 +1572,16 @@ nandfs_sync(struct mount *mp, int waitfor)
 {
 	struct nandfsmount *nmp = VFSTONANDFS(mp);
 
+	DPRINTF(SYNC, ("%s: mp %p waitfor %d\n", __func__, mp, waitfor));
+
+	/*
+	 * XXX: A hack to be removed soon
+	 */
+	if (waitfor == MNT_LAZY)
+		return (0);
 	if (waitfor == MNT_SUSPEND)
 		return (0);
-	vn_finished_write(mp);
 	nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_VFS_SYNC);
-	vn_start_write(NULL, &mp, V_WAIT);
 	return (0);
 }
 

@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 LIB=	nandfs
 SRCS+=	nandfs.c
 INCS=	libnandfs.h

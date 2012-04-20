@@ -110,7 +110,7 @@ create_segment(struct nandfs_seginfo *seginfo)
 		}
 		start_block = fsdev->nd_last_pseg + (uint64_t)nblocks;
 		/*
-		 * XXX hack
+		 * XXX Hack
 		 */
 		if (blks_per_seg - (start_block % blks_per_seg) - 1 == 0)
 			start_block++;
@@ -123,6 +123,10 @@ create_segment(struct nandfs_seginfo *seginfo)
 				    __func__);
 				return (error);
 			}
+			/*
+			 * XXX Hack
+			 */
+			nandfs_get_segment_range(fsdev, fsdev->nd_seg_num, &start_block, NULL);
 		}
 	} else {
 		nandfs_get_segment_range(fsdev, fsdev->nd_next_seg_num,
@@ -499,6 +503,12 @@ nandfs_iterate_dirty_vnodes(struct mount *mp, struct nandfs_seginfo *seginfo)
 		}
 
 		if ((error = vget(vp, lockreq, td)) != 0) {
+			MNT_ILOCK(mp);
+			continue;
+		}
+
+		if (vp->v_iflag & VI_DOOMED) {
+			vput(vp);
 			MNT_ILOCK(mp);
 			continue;
 		}
@@ -921,6 +931,36 @@ out:
 	return (error);
 }
 
+static void
+nandfs_invalidate_bufs(struct nandfs_device *fsdev, uint64_t segno)
+{
+	uint64_t start, end;
+	struct buf *bp, *tbd;
+	struct bufobj *bo;
+
+	nandfs_get_segment_range(fsdev, segno, &start, &end);
+
+	bo = &NTOV(fsdev->nd_gc_node)->v_bufobj;
+
+	BO_LOCK(bo);
+restart_locked_gc:
+	TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, tbd) {
+		if (!(bp->b_lblkno >= start || bp->b_lblkno <= end))
+			continue;
+
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
+			goto restart_locked_gc;
+
+		bremfree(bp);
+		bp->b_flags |= (B_INVAL | B_RELBUF);
+		bp->b_flags &= ~(B_ASYNC | B_MANAGED);
+		BO_UNLOCK(bo);
+		brelse(bp);
+		BO_LOCK(bo);
+	}
+	BO_UNLOCK(bo);
+}
+
 /* Process segments marks to free by cleaner */
 static void
 nandfs_process_segments(struct nandfs_device *fsdev)
@@ -940,6 +980,7 @@ nandfs_process_segments(struct nandfs_device *fsdev)
 				saved_segment = nandfs_get_segnum_of_block(
 				    fsdev, fsdev->nd_super.s_last_pseg);
 			}
+			nandfs_invalidate_bufs(fsdev, fsdev->nd_free_base[i]);
 			nandfs_clear_segment(fsdev, fsdev->nd_free_base[i]);
 		}
 

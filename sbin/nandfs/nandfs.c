@@ -45,7 +45,7 @@ usage(void)
 
 	fprintf(stderr, "usage: nandfs [lssnap | mksnap <snap> | rmsnap] "
 	    "node\n");
-	exit(EX_USAGE);
+	exit(1);
 }
 
 int

@@ -274,6 +274,8 @@ nandfs_bdestroy(struct nandfs_node *node, nandfs_daddr_t vblk)
 {
 	int error;
 
+	NANDFS_WRITEASSERT(node->nn_nandfsdev);
+
 	error = nandfs_vblock_end(node->nn_nandfsdev, vblk);
 	if (error) {
 		nandfs_error("%s: ending vblk: %jx failed\n",
@@ -292,6 +294,7 @@ nandfs_bcreate(struct nandfs_node *node, nandfs_lbn_t blocknr,
 	int error;
 
 	ASSERT_VOP_LOCKED(NTOV(node), __func__);
+	NANDFS_WRITEASSERT(node->nn_nandfsdev);
 
 	DPRINTF(BLOCK, ("%s: vp:%p lbn:%#jx\n", __func__, NTOV(node),
 	    blocknr));
@@ -329,6 +332,7 @@ nandfs_bcreate_meta(struct nandfs_node *node, nandfs_lbn_t blocknr,
 	int error;
 
 	ASSERT_VOP_LOCKED(NTOV(node), __func__);
+	NANDFS_WRITEASSERT(node->nn_nandfsdev);
 
 	DPRINTF(BLOCK, ("%s: vp:%p lbn:%#jx\n", __func__, NTOV(node),
 	    blocknr));
@@ -431,7 +435,7 @@ nandfs_mdt_trans_blk(struct nandfs_mdt *mdt, uint64_t index,
 
 static int
 nandfs_vtop(struct nandfs_device *nandfsdev, nandfs_daddr_t vblocknr,
-    uint64_t *pblocknr)
+    nandfs_daddr_t *pblocknr)
 {
 	struct nandfs_node *dat_node;
 	struct nandfs_dat_entry *entry;
@@ -468,13 +472,16 @@ nandfs_vtop(struct nandfs_device *nandfsdev, nandfs_daddr_t vblocknr,
 	brelse(bp);
 	if (!locked)
 		VOP_UNLOCK(NTOV(dat_node), 0);
+
+	MPASS(*pblocknr >= 0);
+
 	return (0);
 }
 
 
 int
 nandfs_nvtop(struct nandfs_node *node, uint64_t blks, nandfs_daddr_t *l2vmap,
-    uint64_t *v2pmap)
+    nandfs_daddr_t *v2pmap)
 {
 	nandfs_daddr_t vblocknr;
 	uint64_t *pblocknr;
@@ -1199,4 +1206,35 @@ nandfs_block_to_dblock(struct nandfs_device *fsdev, nandfs_lbn_t block)
 {
 
 	return (btodb(block * fsdev->nd_blocksize));
+}
+
+void
+nandfs_writelock(struct vnode *vp, struct nandfs_device *fsdev)
+{
+	int lock;
+
+	if (lockmgr(&fsdev->nd_seg_const, LK_NOWAIT | LK_SHARED, NULL)) {
+		vref(vp);
+		lock = VOP_ISLOCKED(vp);
+		VOP_UNLOCK(vp, 0);
+		DPRINTF(WRITE, ("%s: waiting for write lock, vp %p\n",
+		    __func__, vp));
+		lockmgr(&fsdev->nd_seg_const, LK_SHARED, NULL);
+		VOP_LOCK(vp, lock | LK_RETRY);
+		vunref(vp);
+	}
+}
+
+void
+nandfs_writeunlock(struct nandfs_device *fsdev)
+{
+
+	lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+}
+
+void
+nandfs_writeassert(struct nandfs_device *fsdev)
+{
+
+	lockmgr_assert(&fsdev->nd_seg_const, KA_LOCKED);
 }
