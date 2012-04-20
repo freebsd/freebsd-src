@@ -3165,7 +3165,7 @@ DIOCGETSTATES_full:
 		    i++, sh++) {
 		    PF_HASHROW_LOCK(sh);
 		    LIST_FOREACH(n, &sh->nodes, entry) {
-			int	secs = time_second, diff;
+			int	secs = time_uptime, diff;
 
 			if ((nr + 1) * sizeof(*p) > (unsigned)psn->psn_len)
 				break;
@@ -3340,12 +3340,12 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 	/* copy from state */
 	strlcpy(sp->ifname, st->kif->pfik_name, sizeof(sp->ifname));
 	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
-	sp->creation = htonl(time_second - st->creation);
+	sp->creation = htonl(time_uptime - st->creation);
 	sp->expire = pf_state_expires(st);
-	if (sp->expire <= time_second)
+	if (sp->expire <= time_uptime)
 		sp->expire = htonl(0);
 	else
-		sp->expire = htonl(sp->expire - time_second);
+		sp->expire = htonl(sp->expire - time_uptime);
 
 	sp->direction = st->direction;
 	sp->log = st->log;

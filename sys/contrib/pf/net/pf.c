@@ -436,13 +436,13 @@ pf_init_threshold(struct pf_threshold *threshold,
 	threshold->limit = limit * PF_THRESHOLD_MULT;
 	threshold->seconds = seconds;
 	threshold->count = 0;
-	threshold->last = time_second;
+	threshold->last = time_uptime;
 }
 
 static void
 pf_add_threshold(struct pf_threshold *threshold)
 {
-	u_int32_t t = time_second, diff = t - threshold->last;
+	u_int32_t t = time_uptime, diff = t - threshold->last;
 
 	if (diff >= threshold->seconds)
 		threshold->count = 0;
@@ -627,7 +627,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 		(*sn)->rule.ptr = rule;
 		PF_ACPY(&(*sn)->addr, src, af);
 		LIST_INSERT_HEAD(&sh->nodes, *sn, entry);
-		(*sn)->creation = time_second;
+		(*sn)->creation = time_uptime;
 		(*sn)->ruletype = rule->action;
 		if ((*sn)->rule.ptr != NULL)
 			(*sn)->rule.ptr->src_nodes++;
@@ -1324,7 +1324,7 @@ pf_state_expires(const struct pf_state *state)
 
 	/* handle all PFTM_* > PFTM_MAX here */
 	if (state->timeout == PFTM_PURGE)
-		return (time_second);
+		return (time_uptime);
 	if (state->timeout == PFTM_UNTIL_PACKET)
 		return (0);
 	KASSERT(state->timeout != PFTM_UNLINKED,
@@ -1348,7 +1348,7 @@ pf_state_expires(const struct pf_state *state)
 			return (state->expire + timeout * (end - states) /
 			    (end - start));
 		else
-			return (time_second);
+			return (time_uptime);
 	}
 	return (state->expire + timeout);
 }
@@ -1363,7 +1363,7 @@ pf_purge_expired_src_nodes()
 	for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask; i++, sh++) {
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next) 
-		if (cur->states <= 0 && cur->expire <= time_second) {
+		if (cur->states <= 0 && cur->expire <= time_uptime) {
 			if (cur->rule.ptr != NULL) {
 				cur->rule.ptr->src_nodes--;
 				if (cur->rule.ptr->states_cur <= 0 &&
@@ -1392,7 +1392,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 			if (!timeout)
 				timeout =
 				    V_pf_default_rule.timeout[PFTM_SRC_NODE];
-			s->src_node->expire = time_second + timeout;
+			s->src_node->expire = time_uptime + timeout;
 		}
 	}
 	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
@@ -1401,7 +1401,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 			if (!timeout)
 				timeout =
 				    V_pf_default_rule.timeout[PFTM_SRC_NODE];
-			s->nat_src_node->expire = time_second + timeout;
+			s->nat_src_node->expire = time_uptime + timeout;
 		}
 	}
 	s->src_node = s->nat_src_node = NULL;
@@ -1501,7 +1501,7 @@ pf_purge_expired_states(int maxcheck)
 relock:
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (pf_state_expires(s) <= time_second) {
+			if (pf_state_expires(s) <= time_uptime) {
 				pf_unlink_state(s, PF_ENTER_LOCKED);
 				goto relock;
 			}
@@ -3365,8 +3365,8 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		s->timeout = PFTM_OTHER_FIRST_PACKET;
 	}
 
-	s->creation = time_second;
-	s->expire = time_second;
+	s->creation = time_uptime;
+	s->expire = time_uptime;
 
 	if (sn != NULL) {
 		s->src_node = sn;
@@ -3781,7 +3781,7 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 			src->state = dst->state = TCPS_TIME_WAIT;
 
 		/* update expire time */
-		(*state)->expire = time_second;
+		(*state)->expire = time_uptime;
 		if (src->state >= TCPS_FIN_WAIT_2 &&
 		    dst->state >= TCPS_FIN_WAIT_2)
 			(*state)->timeout = PFTM_TCP_CLOSED;
@@ -3962,7 +3962,7 @@ pf_tcp_track_sloppy(struct pf_state_peer *src, struct pf_state_peer *dst,
 		src->state = dst->state = TCPS_TIME_WAIT;
 
 	/* update expire time */
-	(*state)->expire = time_second;
+	(*state)->expire = time_uptime;
 	if (src->state >= TCPS_FIN_WAIT_2 &&
 	    dst->state >= TCPS_FIN_WAIT_2)
 		(*state)->timeout = PFTM_TCP_CLOSED;
@@ -4189,7 +4189,7 @@ pf_test_state_udp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		dst->state = PFUDPS_MULTIPLE;
 
 	/* update expire time */
-	(*state)->expire = time_second;
+	(*state)->expire = time_uptime;
 	if (src->state == PFUDPS_MULTIPLE && dst->state == PFUDPS_MULTIPLE)
 		(*state)->timeout = PFTM_UDP_MULTIPLE;
 	else
@@ -4276,7 +4276,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 
 		STATE_LOOKUP(kif, &key, direction, *state, pd);
 
-		(*state)->expire = time_second;
+		(*state)->expire = time_uptime;
 		(*state)->timeout = PFTM_ICMP_ERROR_REPLY;
 
 		/* translate source/destination address, if necessary */
@@ -4844,7 +4844,7 @@ pf_test_state_other(struct pf_state **state, int direction, struct pfi_kif *kif,
 		dst->state = PFOTHERS_MULTIPLE;
 
 	/* update expire time */
-	(*state)->expire = time_second;
+	(*state)->expire = time_uptime;
 	if (src->state == PFOTHERS_MULTIPLE && dst->state == PFOTHERS_MULTIPLE)
 		(*state)->timeout = PFTM_OTHER_MULTIPLE;
 	else

@@ -234,7 +234,7 @@ void
 pf_purge_expired_fragments(void)
 {
 	struct pf_fragment	*frag;
-	u_int32_t		 expire = time_second -
+	u_int32_t		 expire = time_uptime -
 				    V_pf_default_rule.timeout[PFTM_FRAG];
 
 	PF_FRAG_LOCK();
@@ -359,7 +359,7 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 	frag = RB_FIND(pf_frag_tree, tree, &key);
 	if (frag != NULL) {
 		/* XXX Are we sure we want to update the timeout? */
-		frag->fr_timeout = time_second;
+		frag->fr_timeout = time_uptime;
 		if (BUFFER_FRAGMENTS(frag)) {
 			TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
 			TAILQ_INSERT_HEAD(&V_pf_fragqueue, frag, frag_next);
@@ -429,7 +429,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		(*frag)->fr_dst = frent->fr_ip->ip_dst;
 		(*frag)->fr_p = frent->fr_ip->ip_p;
 		(*frag)->fr_id = frent->fr_ip->ip_id;
-		(*frag)->fr_timeout = time_second;
+		(*frag)->fr_timeout = time_uptime;
 		LIST_INIT(&(*frag)->fr_queue);
 
 		RB_INSERT(pf_frag_tree, &V_pf_frag_tree, *frag);
@@ -639,7 +639,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 		(*frag)->fr_dst = h->ip_dst;
 		(*frag)->fr_p = h->ip_p;
 		(*frag)->fr_id = h->ip_id;
-		(*frag)->fr_timeout = time_second;
+		(*frag)->fr_timeout = time_uptime;
 
 		cur->fr_off = off;
 		cur->fr_end = max;
@@ -1689,7 +1689,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	getmicrouptime(&uptime);
 	if (src->scrub && (src->scrub->pfss_flags & PFSS_PAWS) &&
 	    (uptime.tv_sec - src->scrub->pfss_last.tv_sec > TS_MAX_IDLE ||
-	    time_second - state->creation > TS_MAX_CONN))  {
+	    time_uptime - state->creation > TS_MAX_CONN))  {
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			DPFPRINTF(("src idled out of PAWS\n"));
 			pf_print_state(state);
