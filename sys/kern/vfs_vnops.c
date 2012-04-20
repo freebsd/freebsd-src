@@ -1055,8 +1055,6 @@ vn_start_write(vp, mpp, flags)
 				error = EWOULDBLOCK;
 				goto unlock;
 			}
-			if (strcmp(mp->mnt_stat.f_fstypename, "nandfs") == 0)
-				flags &= ~PCATCH;
 			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
 			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
 			if (error)

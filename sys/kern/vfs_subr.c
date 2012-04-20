@@ -1974,8 +1974,7 @@ reassignbuf(struct buf *bp)
 	 * of clean buffers.
 	 */
 	if (bp->b_flags & B_DELWRI) {
-		if (!(bp->b_flags & B_MANAGED) &&
-		    (bo->bo_flag & BO_ONWORKLST) == 0) {
+		if ((bo->bo_flag & BO_ONWORKLST) == 0) {
 			switch (vp->v_type) {
 			case VDIR:
 				delay = dirdelay;
@@ -1991,15 +1990,13 @@ reassignbuf(struct buf *bp)
 		buf_vlist_add(bp, bo, BX_VNDIRTY);
 	} else {
 		buf_vlist_add(bp, bo, BX_VNCLEAN);
-		if (!(bp->b_flags & B_MANAGED)) {
-			if ((bo->bo_flag & BO_ONWORKLST) &&
-			    bo->bo_dirty.bv_cnt == 0) {
-				mtx_lock(&sync_mtx);
-				LIST_REMOVE(bo, bo_synclist);
-				syncer_worklist_len--;
-				mtx_unlock(&sync_mtx);
-				bo->bo_flag &= ~BO_ONWORKLST;
-			}
+
+		if ((bo->bo_flag & BO_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
+			mtx_lock(&sync_mtx);
+			LIST_REMOVE(bo, bo_synclist);
+			syncer_worklist_len--;
+			mtx_unlock(&sync_mtx);
+			bo->bo_flag &= ~BO_ONWORKLST;
 		}
 	}
 #ifdef INVARIANTS
