@@ -1055,7 +1055,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
 	vm_page_t	pg;
-	u_int		pte_lo, pvo_flags, was_exec;
+	u_int		pte_lo, pvo_flags;
 	int		error;
 
 	if (!moea_initialized) {
@@ -1063,13 +1063,11 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		zone = moea_upvo_zone;
 		pvo_flags = 0;
 		pg = NULL;
-		was_exec = PTE_EXEC;
 	} else {
 		pvo_head = vm_page_to_pvoh(m);
 		pg = m;
 		zone = moea_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
-		was_exec = 0;
 	}
 	if (pmap_bootstrapped)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
@@ -1083,18 +1081,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
-	}
-
-	/*
-	 * If this is a managed page, and it's the first reference to the page,
-	 * clear the execness of the page.  Otherwise fetch the execness.
-	 */
-	if ((pg != NULL) && ((m->oflags & VPO_UNMANAGED) == 0)) {
-		if (LIST_EMPTY(pvo_head)) {
-			moea_attr_clear(pg, PTE_EXEC);
-		} else {
-			was_exec = moea_attr_fetch(pg) & PTE_EXEC;
-		}
 	}
 
 	pte_lo = moea_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));
@@ -1117,22 +1103,14 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	    pte_lo, pvo_flags);
 
 	/*
-	 * Flush the real page from the instruction cache if this page is
-	 * mapped executable and cacheable and was not previously mapped (or
-	 * was not mapped executable).
+	 * Flush the real page from the instruction cache. This has be done
+	 * for all user mappings to prevent information leakage via the
+	 * instruction cache. moea_pvo_enter() returns ENOENT for the first
+	 * mapping for a page.
 	 */
-	if (error == 0 && (pvo_flags & PVO_EXECUTABLE) &&
-	    (pte_lo & PTE_I) == 0 && was_exec == 0) {
-		/*
-		 * Flush the real memory from the cache.
-		 */
+	if (pmap != kernel_pmap && error == ENOENT &&
+	    (pte_lo & (PTE_I | PTE_G)) == 0)
 		moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
-		if (pg != NULL)
-			moea_attr_save(pg, PTE_EXEC);
-	}
-
-	/* XXX syncicache always until problems are sorted */
-	moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 }
 
 /*
@@ -1454,12 +1432,6 @@ moea_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 		panic("moea_kenter: failed to enter va %#x pa %#x: %d", va,
 		    pa, error);
 
-	/*
-	 * Flush the real memory from the instruction cache.
-	 */
-	if ((pte_lo & (PTE_I | PTE_G)) == 0) {
-		moea_syncicache(pa, PAGE_SIZE);
-	}
 	PMAP_UNLOCK(kernel_pmap);
 }
 
