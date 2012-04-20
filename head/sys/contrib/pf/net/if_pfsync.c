@@ -495,7 +495,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	/* copy to state */
 	bcopy(&sp->rt_addr, &st->rt_addr, sizeof(st->rt_addr));
 	st->creation = time_uptime - ntohl(sp->creation);
-	st->expire = time_second;
+	st->expire = time_uptime;
 	if (sp->expire) {
 		uint32_t timeout;
 
@@ -898,7 +898,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
 		pf_state_peer_ntoh(&sp->src, &st->src);
 		pf_state_peer_ntoh(&sp->dst, &st->dst);
-		st->expire = time_second;
+		st->expire = time_uptime;
 		st->timeout = sp->timeout;
 		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
@@ -992,7 +992,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
 		pf_state_peer_ntoh(&up->src, &st->src);
 		pf_state_peer_ntoh(&up->dst, &st->dst);
-		st->expire = time_second;
+		st->expire = time_uptime;
 		st->timeout = up->timeout;
 		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
