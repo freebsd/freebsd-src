@@ -528,9 +528,6 @@ intr_shuffle_irqs(void *arg __unused)
 	struct intr_vector *iv;
 	int i;
 
-	/* The BSP is always a valid target. */
-	CPU_SETOF(0, &intr_cpus);
-
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)
 		return;
