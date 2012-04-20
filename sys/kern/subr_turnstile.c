@@ -142,7 +142,7 @@ SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD, 0, "turnstile profiling");
 SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains, CTLFLAG_RD, 0,
     "turnstile chain stats");
 SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
-    &turnstile_max_depth, 0, "maxmimum depth achieved of a single chain");
+    &turnstile_max_depth, 0, "maximum depth achieved of a single chain");
 #endif
 static struct mtx td_contested_lock;
 static struct turnstile_chain turnstile_chains[TC_TABLESIZE];
