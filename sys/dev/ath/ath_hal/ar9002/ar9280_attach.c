@@ -169,7 +169,6 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 
 	ar5416InitState(AH5416(ah), devid, sc, st, sh, status);
 
-
 	/*
 	 * Use the "local" EEPROM data given to us by the higher layers.
 	 * This is a private copy out of system flash. The Linux ath9k
@@ -180,7 +179,6 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 		AH_PRIVATE((ah))->ah_eepromRead = ath_hal_EepromDataRead;
 		AH_PRIVATE((ah))->ah_eepromWrite = NULL;
 		ah->ah_eepromdata = eepromdata;
-	}
 
 	/* XXX override with 9280 specific state */
 	/* override 5416 methods for our needs */
