@@ -1044,7 +1044,7 @@ qsync(struct mount *mp)
 	 * synchronizing any modified dquot structures.
 	 */
 again:
-	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
@@ -1063,6 +1063,39 @@ again:
 				dqsync(vp, dq);
 		}
 		vput(vp);
+	}
+	return (0);
+}
+
+/*
+ * Sync quota file for given vnode to disk.
+ */
+int
+qsyncvp(struct vnode *vp)
+{
+	struct ufsmount *ump = VFSTOUFS(vp->v_mount);
+	struct dquot *dq;
+	int i;
+
+	/*
+	 * Check if the mount point has any quotas.
+	 * If not, simply return.
+	 */
+	UFS_LOCK(ump);
+	for (i = 0; i < MAXQUOTAS; i++)
+		if (ump->um_quotas[i] != NULLVP)
+			break;
+	UFS_UNLOCK(ump);
+	if (i == MAXQUOTAS)
+		return (0);
+	/*
+	 * Search quotas associated with this vnode
+	 * synchronizing any modified dquot structures.
+	 */
+	for (i = 0; i < MAXQUOTAS; i++) {
+		dq = VTOI(vp)->i_dquot[i];
+		if (dq != NODQUOT)
+			dqsync(vp, dq);
 	}
 	return (0);
 }
