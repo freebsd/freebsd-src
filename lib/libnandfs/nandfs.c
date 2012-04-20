@@ -146,7 +146,7 @@ nandfs_open(struct nandfs *fs)
 
 	memcpy(&fs->n_fsdata, &fsinfo.fs_fsdata, sizeof(fs->n_fsdata));
 	memcpy(&fs->n_sb, &fsinfo.fs_super, sizeof(fs->n_sb));
-	snprintf(fs->n_dev, sizeof(fs->n_dev), fsinfo.fs_dev);
+	snprintf(fs->n_dev, sizeof(fs->n_dev), "%s", fsinfo.fs_dev);
 
 	return (0);
 }

@@ -111,7 +111,7 @@ nandsim_log(struct nandsim_chip *chip, int level, const char *fmt, ...)
 
 		switch(nandsim_log_output) {
 		case NANDSIM_OUTPUT_CONSOLE:
-			printf(hdr);
+			printf("%s", hdr);
 			va_start(ap, fmt);
 			vprintf(fmt, ap);
 			va_end(ap);

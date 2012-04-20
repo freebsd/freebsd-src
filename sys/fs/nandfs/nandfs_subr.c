@@ -944,7 +944,7 @@ nandfs_get_fsinfo(struct nandfsmount *nmp, struct nandfs_fsinfo *fsinfo)
 	memcpy(&fsinfo->fs_fsdata, &fsdev->nd_fsdata, sizeof(fsdev->nd_fsdata));
 	memcpy(&fsinfo->fs_super, &fsdev->nd_super, sizeof(fsdev->nd_super));
 	snprintf(fsinfo->fs_dev, sizeof(fsinfo->fs_dev),
-	    nmp->nm_vfs_mountp->mnt_stat.f_mntfromname);
+	    "%s", nmp->nm_vfs_mountp->mnt_stat.f_mntfromname);
 
 	return (0);
 }
