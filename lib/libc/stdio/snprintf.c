@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)snprintf.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -59,8 +60,11 @@ snprintf(char * __restrict str, size_t n, char const * __restrict fmt, ...)
 	on = n;
 	if (n != 0)
 		n--;
-	if (n > INT_MAX)
-		n = INT_MAX;
+	if (n > INT_MAX) {
+		errno = EOVERFLOW;
+		*str = '\0';
+		return (EOF);
+	}
 	va_start(ap, fmt);
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
@@ -84,8 +88,11 @@ snprintf_l(char * __restrict str, size_t n, locale_t locale,
 	on = n;
 	if (n != 0)
 		n--;
-	if (n > INT_MAX)
-		n = INT_MAX;
+	if (n > INT_MAX) {
+		errno = EOVERFLOW;
+		*str = '\0';
+		return (EOF);
+	}
 	va_start(ap, fmt);
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
