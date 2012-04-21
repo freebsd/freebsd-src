@@ -756,7 +756,14 @@ rad_create_request(struct rad_handle *h, int code)
 	clear_password(h);
 	h->authentic_pos = 0;
 	h->out_created = 1;
+	h->bindto = INADDR_ANY;
 	return 0;
+}
+
+void
+rad_bind_to(struct rad_handle *h, in_addr_t addr)
+{
+    h->bindto = addr;
 }
 
 int
@@ -857,7 +864,7 @@ rad_init_send_request(struct rad_handle *h, int *fd, struct timeval *tv)
 		memset(&sin, 0, sizeof sin);
 		sin.sin_len = sizeof sin;
 		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = INADDR_ANY;
+		sin.sin_addr.s_addr = h->bindto;
 		sin.sin_port = htons(0);
 		if (bind(h->fd, (const struct sockaddr *)&sin,
 		    sizeof sin) == -1) {

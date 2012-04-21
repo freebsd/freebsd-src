@@ -92,6 +92,7 @@ struct rad_handle {
 	int		 try;		/* How many requests we've sent */
 	int		 srv;		/* Server number we did last */
 	int		 type;		/* Handle type */
+	in_addr_t	 bindto;	/* Bind to address */
 };
 
 struct vendor_attribute {

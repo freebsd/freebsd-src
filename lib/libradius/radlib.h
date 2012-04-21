@@ -195,6 +195,7 @@ struct rad_handle	*rad_acct_open(void);
 int			 rad_add_server(struct rad_handle *,
 			    const char *, int, const char *, int, int);
 struct rad_handle	*rad_auth_open(void);
+void			 rad_bind_to(struct rad_handle *, in_addr_t);
 void			 rad_close(struct rad_handle *);
 int			 rad_config(struct rad_handle *, const char *);
 int			 rad_continue_send_request(struct rad_handle *, int,
