@@ -676,8 +676,8 @@ arena_chunk_purge(arena_t *arena, arena_chunk_t *chunk)
 		if (config_debug)
 			ndirty -= npages;
 
-		madvise((void *)((uintptr_t)chunk + (pageind << LG_PAGE)),
-		    (npages << LG_PAGE), JEMALLOC_MADV_PURGE);
+		pages_purge((void *)((uintptr_t)chunk + (pageind << LG_PAGE)),
+		    (npages << LG_PAGE));
 		if (config_stats)
 			nmadvise++;
 	}
@@ -1213,7 +1213,9 @@ void
 arena_prof_accum(arena_t *arena, uint64_t accumbytes)
 {
 
-	if (prof_interval != 0) {
+	cassert(config_prof);
+
+	if (config_prof && prof_interval != 0) {
 		arena->prof_accumbytes += accumbytes;
 		if (arena->prof_accumbytes >= prof_interval) {
 			prof_idump();
@@ -1463,53 +1465,13 @@ arena_palloc(arena_t *arena, size_t size, size_t alignment, bool zero)
 	return (ret);
 }
 
-/* Return the size of the allocation pointed to by ptr. */
-size_t
-arena_salloc(const void *ptr, bool demote)
-{
-	size_t ret;
-	arena_chunk_t *chunk;
-	size_t pageind, mapbits;
-
-	assert(ptr != NULL);
-	assert(CHUNK_ADDR2BASE(ptr) != ptr);
-
-	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
-	pageind = ((uintptr_t)ptr - (uintptr_t)chunk) >> LG_PAGE;
-	mapbits = chunk->map[pageind-map_bias].bits;
-	assert((mapbits & CHUNK_MAP_ALLOCATED) != 0);
-	if ((mapbits & CHUNK_MAP_LARGE) == 0) {
-		arena_run_t *run = (arena_run_t *)((uintptr_t)chunk +
-		    (uintptr_t)((pageind - (mapbits >> LG_PAGE)) << LG_PAGE));
-		size_t binind = arena_bin_index(chunk->arena, run->bin);
-		arena_bin_info_t *bin_info = &arena_bin_info[binind];
-		assert(((uintptr_t)ptr - ((uintptr_t)run +
-		    (uintptr_t)bin_info->reg0_offset)) % bin_info->reg_interval
-		    == 0);
-		ret = bin_info->reg_size;
-	} else {
-		assert(((uintptr_t)ptr & PAGE_MASK) == 0);
-		ret = mapbits & ~PAGE_MASK;
-		if (demote && prof_promote && ret == PAGE && (mapbits &
-		    CHUNK_MAP_CLASS_MASK) != 0) {
-			size_t binind = ((mapbits & CHUNK_MAP_CLASS_MASK) >>
-			    CHUNK_MAP_CLASS_SHIFT) - 1;
-			assert(binind < NBINS);
-			ret = arena_bin_info[binind].reg_size;
-		}
-		assert(ret != 0);
-	}
-
-	return (ret);
-}
-
 void
 arena_prof_promoted(const void *ptr, size_t size)
 {
 	arena_chunk_t *chunk;
 	size_t pageind, binind;
 
-	assert(config_prof);
+	cassert(config_prof);
 	assert(ptr != NULL);
 	assert(CHUNK_ADDR2BASE(ptr) != ptr);
 	assert(isalloc(ptr, false) == PAGE);
