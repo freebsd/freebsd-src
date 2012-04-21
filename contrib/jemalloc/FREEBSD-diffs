@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 98d0ba4..23d2152 100644
+index f78f423..ce6df80 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -51,12 +51,23 @@
@@ -27,7 +27,7 @@ index 98d0ba4..23d2152 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -2080,4 +2091,16 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+@@ -2091,4 +2102,16 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
@@ -45,7 +45,7 @@ index 98d0ba4..23d2152 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 905653a..b235a0d 100644
+index b61abe8..edbb437 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
@@ -68,18 +68,38 @@ index 905653a..b235a0d 100644
  #include "../jemalloc@install_suffix@.h"
  
 diff --git a/include/jemalloc/internal/mutex.h b/include/jemalloc/internal/mutex.h
-index c46feee..d7133f4 100644
+index 8837ef5..d7133f4 100644
 --- a/include/jemalloc/internal/mutex.h
 +++ b/include/jemalloc/internal/mutex.h
-@@ -39,8 +39,6 @@ struct malloc_mutex_s {
+@@ -39,9 +39,6 @@ struct malloc_mutex_s {
  
  #ifdef JEMALLOC_LAZY_LOCK
  extern bool isthreaded;
 -#else
+-#  undef isthreaded /* Undo private_namespace.h definition. */
 -#  define isthreaded true
  #endif
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex);
+diff --git a/include/jemalloc/internal/private_namespace.h b/include/jemalloc/internal/private_namespace.h
+index 15fe3c5..be94eb8 100644
+--- a/include/jemalloc/internal/private_namespace.h
++++ b/include/jemalloc/internal/private_namespace.h
+@@ -1,6 +1,3 @@
+-#define	a0calloc JEMALLOC_N(a0calloc)
+-#define	a0free JEMALLOC_N(a0free)
+-#define	a0malloc JEMALLOC_N(a0malloc)
+ #define	arena_alloc_junk_small JEMALLOC_N(arena_alloc_junk_small)
+ #define	arena_bin_index JEMALLOC_N(arena_bin_index)
+ #define	arena_bin_info JEMALLOC_N(arena_bin_info)
+@@ -167,7 +164,6 @@
+ #define	iqalloc JEMALLOC_N(iqalloc)
+ #define	iralloc JEMALLOC_N(iralloc)
+ #define	isalloc JEMALLOC_N(isalloc)
+-#define	isthreaded JEMALLOC_N(isthreaded)
+ #define	ivsalloc JEMALLOC_N(ivsalloc)
+ #define	jemalloc_postfork_child JEMALLOC_N(jemalloc_postfork_child)
+ #define	jemalloc_postfork_parent JEMALLOC_N(jemalloc_postfork_parent)
 diff --git a/include/jemalloc/jemalloc.h.in b/include/jemalloc/jemalloc.h.in
 index f0581db..f26d8bc 100644
 --- a/include/jemalloc/jemalloc.h.in
@@ -175,7 +195,7 @@ index 0000000..2c5797f
 +#define	pthread_mutex_lock	_pthread_mutex_lock
 +#define	pthread_mutex_unlock	_pthread_mutex_unlock
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 0decd8a..73fad29 100644
+index 00c2b23..729f4e1 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -8,6 +8,9 @@ malloc_tsd_data(, arenas, arena_t *, NULL)
@@ -221,7 +241,7 @@ index 4b8ce57..7be5fc9 100644
  
  bool
 diff --git a/src/util.c b/src/util.c
-index 2aab61f..8b05042 100644
+index 99ae26d..b80676c 100644
 --- a/src/util.c
 +++ b/src/util.c
 @@ -60,6 +60,22 @@ wrtmessage(void *cbopaque, const char *s)

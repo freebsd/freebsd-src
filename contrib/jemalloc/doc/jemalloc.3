@@ -2,12 +2,12 @@
 .\"     Title: JEMALLOC
 .\"    Author: Jason Evans
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 04/17/2012
+.\"      Date: 04/20/2012
 .\"    Manual: User Manual
-.\"    Source: jemalloc 1.0.0-266-gb57d3ec571c6551231be62b7bf92c084a8c8291c
+.\"    Source: jemalloc 1.0.0-283-g606f1fdc3cdbc700717133ca56685313caea24bb
 .\"  Language: English
 .\"
-.TH "JEMALLOC" "3" "04/17/2012" "jemalloc 1.0.0-266-gb57d3ec571" "User Manual"
+.TH "JEMALLOC" "3" "04/20/2012" "jemalloc 1.0.0-283-g606f1fdc3c" "User Manual"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -31,7 +31,7 @@
 jemalloc \- general purpose memory allocation functions
 .SH "LIBRARY"
 .PP
-This manual describes jemalloc 1\&.0\&.0\-266\-gb57d3ec571c6551231be62b7bf92c084a8c8291c\&. More information can be found at the
+This manual describes jemalloc 1\&.0\&.0\-283\-g606f1fdc3cdbc700717133ca56685313caea24bb\&. More information can be found at the
 \m[blue]\fBjemalloc website\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The following configuration options are enabled in libc\*(Aqs built\-in jemalloc:
@@ -753,14 +753,7 @@ Maximum size class (log base 2) to cache in the thread\-specific cache\&. At a m
 .PP
 "opt\&.prof" (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
 .RS 4
-Memory profiling enabled/disabled\&. If enabled, profile memory allocation activity, and use an
-\fBatexit\fR(3)
-function to dump final memory usage to a file named according to the pattern
-<prefix>\&.<pid>\&.<seq>\&.f\&.heap, where
-<prefix>
-is controlled by the
-"opt\&.prof_prefix"
-option\&. See the
+Memory profiling enabled/disabled\&. If enabled, profile memory allocation activity\&. See the
 "opt\&.prof_active"
 option for on\-the\-fly activation/deactivation\&. See the
 "opt\&.lg_prof_sample"
@@ -768,12 +761,14 @@ option for probabilistic sampling control\&. See the
 "opt\&.prof_accum"
 option for control of cumulative sample reporting\&. See the
 "opt\&.lg_prof_interval"
-option for information on interval\-triggered profile dumping, and the
+option for information on interval\-triggered profile dumping, the
 "opt\&.prof_gdump"
-option for information on high\-water\-triggered profile dumping\&. Profile output is compatible with the included
+option for information on high\-water\-triggered profile dumping, and the
+"opt\&.prof_final"
+option for final profile dumping\&. Profile output is compatible with the included
 \fBpprof\fR
 Perl script, which originates from the
-\m[blue]\fBgoogle\-perftools package\fR\m[]\&\s-2\u[3]\d\s+2\&.
+\m[blue]\fBgperftools package\fR\m[]\&\s-2\u[3]\d\s+2\&.
 .RE
 .PP
 "opt\&.prof_prefix" (\fBconst char *\fR) r\- [\fB\-\-enable\-prof\fR]
@@ -793,12 +788,12 @@ mallctl\&. This option is enabled by default\&.
 .PP
 "opt\&.lg_prof_sample" (\fBssize_t\fR) r\- [\fB\-\-enable\-prof\fR]
 .RS 4
-Average interval (log base 2) between allocation samples, as measured in bytes of allocation activity\&. Increasing the sampling interval decreases profile fidelity, but also decreases the computational overhead\&. The default sample interval is 1 (2^0) (i\&.e\&. all allocations are sampled)\&.
+Average interval (log base 2) between allocation samples, as measured in bytes of allocation activity\&. Increasing the sampling interval decreases profile fidelity, but also decreases the computational overhead\&. The default sample interval is 512 KiB (2^19 B)\&.
 .RE
 .PP
 "opt\&.prof_accum" (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
 .RS 4
-Reporting of cumulative object/byte counts in profile dumps enabled/disabled\&. If this option is enabled, every unique backtrace must be stored for the duration of execution\&. Depending on the application, this can impose a large memory overhead, and the cumulative counts are not always of interest\&. This option is enabled by default\&.
+Reporting of cumulative object/byte counts in profile dumps enabled/disabled\&. If this option is enabled, every unique backtrace must be stored for the duration of execution\&. Depending on the application, this can impose a large memory overhead, and the cumulative counts are not always of interest\&. This option is disabled by default\&.
 .RE
 .PP
 "opt\&.lg_prof_interval" (\fBssize_t\fR) r\- [\fB\-\-enable\-prof\fR]
@@ -819,6 +814,18 @@ Trigger a memory profile dump every time the total virtual memory exceeds the pr
 is controlled by the
 "opt\&.prof_prefix"
 option\&. This option is disabled by default\&.
+.RE
+.PP
+"opt\&.prof_final" (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
+.RS 4
+Use an
+\fBatexit\fR(3)
+function to dump final memory usage to a file named according to the pattern
+<prefix>\&.<pid>\&.<seq>\&.f\&.heap, where
+<prefix>
+is controlled by the
+"opt\&.prof_prefix"
+option\&. This option is enabled by default\&.
 .RE
 .PP
 "opt\&.prof_leak" (\fBbool\fR) r\- [\fB\-\-enable\-prof\fR]
@@ -1458,7 +1465,7 @@ Valgrind
 \%http://http://valgrind.org/
 .RE
 .IP " 3." 4
-google-perftools package
+gperftools package
 .RS 4
-\%http://code.google.com/p/google-perftools/
+\%http://code.google.com/p/gperftools/
 .RE
