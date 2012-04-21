@@ -7,12 +7,12 @@ extern "C" {
 #include <limits.h>
 #include <strings.h>
 
-#define	JEMALLOC_VERSION "1.0.0-266-gb57d3ec571c6551231be62b7bf92c084a8c8291c"
+#define	JEMALLOC_VERSION "1.0.0-283-g606f1fdc3cdbc700717133ca56685313caea24bb"
 #define	JEMALLOC_VERSION_MAJOR 1
 #define	JEMALLOC_VERSION_MINOR 0
 #define	JEMALLOC_VERSION_BUGFIX 0
-#define	JEMALLOC_VERSION_NREV 266
-#define	JEMALLOC_VERSION_GID "b57d3ec571c6551231be62b7bf92c084a8c8291c"
+#define	JEMALLOC_VERSION_NREV 283
+#define	JEMALLOC_VERSION_GID "606f1fdc3cdbc700717133ca56685313caea24bb"
 
 #include "jemalloc_defs.h"
 #include "jemalloc_FreeBSD.h"
