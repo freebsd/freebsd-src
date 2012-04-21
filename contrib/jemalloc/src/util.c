@@ -336,11 +336,20 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 	case '?':							\
 		val = va_arg(ap, int);					\
 		break;							\
+	case '?' | 0x80:						\
+		val = va_arg(ap, unsigned int);				\
+		break;							\
 	case 'l':							\
 		val = va_arg(ap, long);					\
 		break;							\
+	case 'l' | 0x80:						\
+		val = va_arg(ap, unsigned long);			\
+		break;							\
 	case 'q':							\
 		val = va_arg(ap, long long);				\
+		break;							\
+	case 'q' | 0x80:						\
+		val = va_arg(ap, unsigned long long);			\
 		break;							\
 	case 'j':							\
 		val = va_arg(ap, intmax_t);				\
@@ -350,6 +359,9 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 		break;							\
 	case 'z':							\
 		val = va_arg(ap, ssize_t);				\
+		break;							\
+	case 'z' | 0x80:						\
+		val = va_arg(ap, size_t);				\
 		break;							\
 	case 'p': /* Synthetic; used for %p. */				\
 		val = va_arg(ap, uintptr_t);				\
@@ -374,7 +386,7 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 			bool plus_plus = false;
 			int prec = -1;
 			int width = -1;
-			char len = '?';
+			unsigned char len = '?';
 
 			f++;
 			if (*f == '%') {
@@ -496,7 +508,7 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 				uintmax_t val JEMALLOC_CC_SILENCE_INIT(0);
 				char buf[O2S_BUFSIZE];
 
-				GET_ARG_NUMERIC(val, len);
+				GET_ARG_NUMERIC(val, len | 0x80);
 				s = o2s(val, alt_form, buf, &slen);
 				APPEND_PADDED_S(s, slen, width, left_justify);
 				f++;
@@ -505,7 +517,7 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 				uintmax_t val JEMALLOC_CC_SILENCE_INIT(0);
 				char buf[U2S_BUFSIZE];
 
-				GET_ARG_NUMERIC(val, len);
+				GET_ARG_NUMERIC(val, len | 0x80);
 				s = u2s(val, 10, false, buf, &slen);
 				APPEND_PADDED_S(s, slen, width, left_justify);
 				f++;
@@ -514,7 +526,7 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 				uintmax_t val JEMALLOC_CC_SILENCE_INIT(0);
 				char buf[X2S_BUFSIZE];
 
-				GET_ARG_NUMERIC(val, len);
+				GET_ARG_NUMERIC(val, len | 0x80);
 				s = x2s(val, alt_form, *f == 'X', buf, &slen);
 				APPEND_PADDED_S(s, slen, width, left_justify);
 				f++;
