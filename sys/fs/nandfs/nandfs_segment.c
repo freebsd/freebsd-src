@@ -945,7 +945,7 @@ nandfs_invalidate_bufs(struct nandfs_device *fsdev, uint64_t segno)
 	BO_LOCK(bo);
 restart_locked_gc:
 	TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, tbd) {
-		if (!(bp->b_lblkno >= start || bp->b_lblkno <= end))
+		if (!(bp->b_lblkno >= start && bp->b_lblkno <= end))
 			continue;
 
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
