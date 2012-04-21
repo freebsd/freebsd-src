@@ -333,13 +333,12 @@ md_load(char *args, vm_offset_t *modulep)
 
 #if defined(LOADER_FDT_SUPPORT)
 	/* Handle device tree blob */
-	fdt_fixup();
-	if ((bfp = file_findfile(NULL, "dtb")) == NULL &&
-	    (howto & RB_VERBOSE))
-		printf("**WARNING** Booting with no DTB loaded!\n");
-
-	dtbp = bfp == NULL ? 0 : bfp->f_addr;
-	file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
+	dtbp = fdt_fixup();
+	if (dtbp != (vm_offset_t)NULL)
+		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
+	else
+		pager_output("WARNING! Trying to fire up the kernel, but no "
+		    "device tree blob found!\n");
 #endif
 
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
