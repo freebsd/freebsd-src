@@ -141,6 +141,10 @@ YFLAGS		?=
 YFLAGS		?=	-d
 .endif
 
+.if !defined(%POSIX)
+NM		?=	nm
+.endif
+
 .if defined(%POSIX)
 
 # Posix 1003.2 mandated rules
