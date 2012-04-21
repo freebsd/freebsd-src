@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_radix.h>
 #include <vm/vnode_pager.h>
 
 #ifdef HWPMC_HOOKS
@@ -887,11 +888,13 @@ RestartScan:
 				    object->type == OBJT_VNODE) {
 					pindex = OFF_TO_IDX(current->offset +
 					    (addr - current->start));
-					m = vm_page_lookup(object, pindex);
+					m = vm_radix_lookup(&object->rtree,
+					    pindex, VM_RADIX_ANY);
+
+					/* Lock just for consistency. */
 					mtx_lock(&vm_page_queue_free_mtx);
-					if (m == NULL &&
-					    vm_page_cache_lookup(object,
-					    pindex) != NULL)
+					if (m != NULL &&
+					    (m->flags & PG_CACHED) != 0)
 						mincoreinfo = MINCORE_INCORE;
 					mtx_unlock(&vm_page_queue_free_mtx);
 					if (m != NULL && m->valid == 0)
