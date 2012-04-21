@@ -70,7 +70,7 @@ fputws_l(const wchar_t * __restrict ws, FILE * __restrict fp, locale_t locale)
 		iov.iov_len = uio.uio_resid = nbytes;
 		if (__sfvwrite(fp, &uio) != 0)
 			goto error;
-	} while (ws != NULL);
+	} while (wsp != NULL);
 	FUNLOCKFILE(fp);
 	return (0);
 
