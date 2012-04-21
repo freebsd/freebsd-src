@@ -153,8 +153,8 @@ struct nandfs_device {
 	struct vnode		*nd_devvp;
 	struct g_consumer	*nd_gconsumer;
 
-	struct proc		*nd_syncer;
-	struct proc		*nd_cleaner;
+	struct thread		*nd_syncer;
+	struct thread		*nd_cleaner;
 	int			nd_syncer_exit;
 	int			nd_cleaner_exit;
 

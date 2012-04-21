@@ -1103,7 +1103,7 @@ nandfs_gc_finished(struct nandfs_device *nffsdev, int exit)
 }
 
 static void
-nandfs_procbody(struct nandfsmount *nmp)
+nandfs_syncer(struct nandfsmount *nmp)
 {
 	struct nandfs_device *nffsdev;
 	struct mount *mp;
@@ -1135,17 +1135,7 @@ nandfs_procbody(struct nandfsmount *nmp)
 	nffsdev->nd_syncer = NULL;
 	MPASS(nffsdev->nd_free_base == NULL);
 
-	/*
-	 * A bit of explanation:
-	 * kproc_exit() reparents thread to init process so it can be
-	 * properly reaped, however when NANDFS was a root filesystem
-	 * vnode for init process is reclaimed and we dont want to let
-	 * init run again so it is safer to call just exit() in this case.
-	 */
-	if ((mp->mnt_flag & MNT_ROOTFS) && mp->mnt_kern_flag & MNTK_UNMOUNT)
-		exit1(curthread, 0);
-	else
-		kproc_exit(0);
+	kthread_exit();
 }
 
 static int
@@ -1159,7 +1149,7 @@ start_syncer(struct nandfsmount *nmp)
 
 	nmp->nm_nandfsdev->nd_syncer_exit = 0;
 
-	error = kproc_create((void(*)(void *))nandfs_procbody, nmp,
+	error = kthread_add((void(*)(void *))nandfs_syncer, nmp, NULL,
 	    &nmp->nm_nandfsdev->nd_syncer, 0, 0, "nandfs_syncer");
 
 	if (error)

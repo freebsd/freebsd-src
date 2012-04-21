@@ -79,7 +79,7 @@ nandfs_start_cleaner(struct nandfs_device *fsdev)
 
 	fsdev->nd_cleaner_exit = 0;
 
-	error = kproc_create((void(*)(void *))nandfs_cleaner, fsdev,
+	error = kthread_add((void(*)(void *))nandfs_cleaner, fsdev, NULL,
 	    &fsdev->nd_cleaner, 0, 0, "nandfs_cleaner");
 	if (error)
 		printf("nandfs: could not start cleaner: %d\n", error);
@@ -461,7 +461,7 @@ nandfs_cleaner(struct nandfs_device *fsdev)
 	}
 
 	DPRINTF(CLEAN, ("%s: exiting\n", __func__));
-	kproc_exit(0);
+	kthread_exit();
 }
 
 static int
