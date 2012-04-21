@@ -975,10 +975,15 @@ int once = 1;
 static void
 cpsw_init_locked(void *arg)
 {
+	struct ifnet *ifp;
 	struct cpsw_softc *sc = arg;
 	uint8_t  broadcast_address[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	uint32_t next_bdp;
 	uint32_t i;
+
+	ifp = sc->ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	printf("%s: start\n",__func__);
 
