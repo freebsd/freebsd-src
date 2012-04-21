@@ -2155,13 +2155,10 @@ vm_page_unwire(vm_page_t m, int activate)
 			if ((m->oflags & VPO_UNMANAGED) != 0 ||
 			    m->object == NULL)
 				return;
-			vm_page_lock_queues();
-			if (activate)
-				vm_page_enqueue(PQ_ACTIVE, m);
-			else {
+			if (!activate)
 				m->flags &= ~PG_WINATCFLS;
-				vm_page_enqueue(PQ_INACTIVE, m);
-			}
+			vm_page_lock_queues();
+			vm_page_enqueue(activate ? PQ_ACTIVE : PQ_INACTIVE, m);
 			vm_page_unlock_queues();
 		}
 	} else
@@ -2201,8 +2198,8 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	if ((queue = m->queue) == PQ_INACTIVE)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		vm_page_lock_queues();
 		m->flags &= ~PG_WINATCFLS;
+		vm_page_lock_queues();
 		if (queue != PQ_NONE)
 			vm_page_queue_remove(queue, m);
 		if (athead)
