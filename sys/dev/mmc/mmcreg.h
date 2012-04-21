@@ -139,8 +139,8 @@ struct mmc_command {
 #define	R1_READY_FOR_DATA (1u << 8)		/* sx, a */
 #define	R1_APP_CMD (1u << 5)			/* sr, c */
 #define	R1_AKE_SEQ_ERROR (1u << 3)		/* er, c */
-#define	R1_STATUS(x)            (x & 0xFFFFE000
-#define	R1_CURRENT_STATE(x) ((x) & R1_CURRENT_STATE_MASK) >> 9
+#define	R1_STATUS(x)		((x) & 0xFFFFE000)
+#define	R1_CURRENT_STATE(x)	(((x) & R1_CURRENT_STATE_MASK) >> 9)
 #define	R1_STATE_IDLE	0
 #define	R1_STATE_READY	1
 #define	R1_STATE_IDENT	2
@@ -330,6 +330,9 @@ struct mmc_request {
 #define SD_SWITCH_HS_MODE	1
 #define SD_SWITCH_NOCHANGE	0xF
 
+#define	SD_CLR_CARD_DETECT	0
+#define	SD_SET_CARD_DETECT	1
+
 #define	SD_MAX_HS		50000000
 
 /* OCR bits */
@@ -380,7 +383,7 @@ struct mmc_cid {
 	uint8_t fwrev;
 };
 
-struct mmc_csd 
+struct mmc_csd
 {
 	uint8_t csd_structure;
 	uint8_t spec_vers;
