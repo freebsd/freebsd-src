@@ -29,26 +29,24 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Texas Instruments TWL4030/TWL5030/TWL60x0/TPS659x0 Power Management and
- * Audio CODEC devices.
+ * Texas Instruments TWL4030/TWL5030/TWL60x0/TPS659x0 Power Management.
  *
- * This code is based on the Linux TWL multifunctional device driver, which is
- * copyright (C) 2005-2006 Texas Instruments, Inc.
+ * This driver covers the voltages regulators (LDO), allows for enabling &
+ * disabling the voltage output and adjusting the voltage level.
  *
- * These chips are typically used as support ICs for the OMAP range of embedded
- * ARM processes/SOC from Texas Instruments.  They are typically used to control
- * on board voltages, however some variants have other features like audio
- * codecs, USB OTG transceivers, RTC, PWM, etc.
+ * Voltage regulators can belong to different power groups, in this driver we
+ * put the regulators under our control in the "Application power group".
  *
- * Currently this driver focuses on the voltage regulator side of things,
- * however in future it might be wise to split up this driver so that there is
- * one base driver used for communication and other child drivers that
- * manipulate the various modules on the chip.
  *
- * Voltage Regulators
- * ------------------
- * - Voltage regulators can belong to different power groups, in this driver we
- *   put the regulators under our control in the "Application power group".
+ * FLATTENED DEVICE TREE (FDT)
+ * Startup override settings can be specified in the FDT, if they are they
+ * should be under the twl parent device and take the following form:
+ *
+ *    voltage-regulators = "name1", "millivolts1",
+ *                         "name2", "millivolts2";
+ *
+ * Each override should be a pair, the first entry is the name of the regulator
+ * the second is the voltage (in millivolts) to set for the given regulator.
  *
  */
 
@@ -61,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
-#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
@@ -71,19 +69,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/iicbus/iiconf.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 
 #include "twl.h"
 #include "twl_vreg.h"
 
-/* The register sets are divided up into groups with the following base address
- * and I2C addresses.
- */
+static int twl_vreg_debug = 1;
 
-/*
- * XXX cognet: the locking is plain wrong, but we can't just keep locks while
- * calling functions that can sleep, such as malloc() or iicbus_transfer
- */
 
 /*
  * Power Groups bits for the 4030 and 6030 devices
@@ -218,132 +211,68 @@ static const struct twl_regulator twl6030_regulators[] = {
 
 #define TWL_VREG_MAX_NAMELEN  32
 
-/**
- *  Linked list of voltage regulators support by the device.
- */
 struct twl_regulator_entry {
 	LIST_ENTRY(twl_regulator_entry) entries;
-
-	char			name[TWL_VREG_MAX_NAMELEN];
-	struct sysctl_oid	*oid;
-
-	uint8_t			sub_dev;
-	uint8_t			reg_off;
-
-	uint16_t		fixed_voltage;
-
-	const uint16_t		*supp_voltages;
-	uint32_t		num_supp_voltages;
+	char                 name[TWL_VREG_MAX_NAMELEN];
+	struct sysctl_oid   *oid;
+	uint8_t          sub_dev;           /* TWL sub-device group */
+	uint8_t          reg_off;           /* base register offset for the LDO */
+	uint16_t         fixed_voltage;	    /* the (milli)voltage if LDO is fixed */ 
+	const uint16_t  *supp_voltages;     /* pointer to an array of possible voltages */
+	uint32_t         num_supp_voltages; /* the number of supplied voltages */
 };
 
-/**
- *	Structure that stores the driver context.
- *
- *	This structure is allocated during driver attach.
- */
 struct twl_vreg_softc {
-	device_t			sc_dev;
-	device_t			sc_pdev;
-
-	struct mtx			sc_mtx;
+	device_t        sc_dev;
+	device_t        sc_pdev;
+	struct sx       sc_sx;
 
 	struct intr_config_hook sc_init_hook;
-
 	LIST_HEAD(twl_regulator_list, twl_regulator_entry) sc_vreg_list;
 };
 
-/**
- *	Macros for driver mutex locking
- */
-#define TWL_VREG_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	TWL_VREG_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define TWL_VREG_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "twl_vreg", MTX_DEF)
-#define TWL_VREG_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define TWL_VREG_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define TWL_VREG_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
-static int debug;
+#define TWL_VREG_XLOCK(_sc)			sx_xlock(&(_sc)->sc_sx)
+#define	TWL_VREG_XUNLOCK(_sc)		sx_xunlock(&(_sc)->sc_sx)
+#define TWL_VREG_SLOCK(_sc)			sx_slock(&(_sc)->sc_sx)
+#define	TWL_VREG_SUNLOCK(_sc)		sx_sunlock(&(_sc)->sc_sx)
+#define TWL_VREG_LOCK_INIT(_sc)		sx_init(&(_sc)->sc_sx, "twl_vreg")
+#define TWL_VREG_LOCK_DESTROY(_sc)	sx_destroy(&(_sc)->sc_sx);
+
+#define TWL_VREG_ASSERT_LOCKED(_sc)	sx_assert(&(_sc)->sc_sx, SA_LOCKED);
+
+#define TWL_VREG_LOCK_UPGRADE(_sc)               \
+	do {                                         \
+		while (!sx_try_upgrade(&(_sc)->sc_sx))   \
+			pause("twl_vreg_ex", (hz / 100));    \
+	} while(0)
+#define TWL_VREG_LOCK_DOWNGRADE(_sc)	sx_downgrade(&(_sc)->sc_sx);
+
+
+
 
 /**
- *	twl_is_4030 - returns true if the device is TWL4030
- *	twl_is_6025 - returns true if the device is TWL6025
- *	twl_is_6030 - returns true if the device is TWL6030
- *	@sc: device soft context
- *
- *	Returns a non-zero value if the device matches.
- *
- *	LOCKING:
- *	None.
+ *	twl_vreg_read_1 - read single register from the TWL device
+ *	twl_vreg_write_1 - write a single register in the TWL device
+ *	@sc: device context
+ *	@clk: the clock device we're reading from / writing to
+ *	@off: offset within the clock's register set
+ *	@val: the value to write or a pointer to a variable to store the result
  *
  *	RETURNS:
- *	Returns a non-zero value if the device matches, otherwise zero.
- */
-static int
-twl_is_4030(device_t dev)
-{
-
-	return (0);
-}
-
-static int
-twl_is_6025(device_t dev)
-{
-
-	return (0);
-}
-
-static int
-twl_is_6030(device_t dev)
-{
-
-	return (1);
-}
-
-/**
- *	twl_vreg_read_1 - read one or more registers from the TWL device
- *	@sc: device soft context
- *	@nsub: the sub-module to read from
- *	@reg: the register offset within the module to read
- *	@buf: buffer to store the bytes in
- *	@cnt: the number of bytes to read
- *
- *	Reads one or registers and stores the result in the suppled buffer.
- *
- *	LOCKING:
- *	Expects the TWL lock to be held.
- *
- *	RETURNS:
- *	Zero on success or a negative error code on failure.
+ *	Zero on success or an error code on failure.
  */
 static inline int
 twl_vreg_read_1(struct twl_vreg_softc *sc, struct twl_regulator_entry *regulator,
-    uint8_t off, uint8_t *val)
+	uint8_t off, uint8_t *val)
 {
 	return (twl_read(sc->sc_pdev, regulator->sub_dev, 
 	    regulator->reg_off + off, val, 1));
 }
 
-/**
- *	twl_write - writes one or more registers to the TWL device
- *	@sc: device soft context
- *	@nsub: the sub-module to read from
- *	@reg: the register offset within the module to read
- *	@buf: data to write
- *	@cnt: the number of bytes to write
- *
- *	Writes one or more registers.
- *
- *	LOCKING:
- *	Expects the TWL lock to be held.
- *
- *	RETURNS:
- *	Zero on success or a negative error code on failure.
- */
 static inline int
 twl_vreg_write_1(struct twl_vreg_softc *sc, struct twl_regulator_entry *regulator,
-    uint8_t off, uint8_t val)
+	uint8_t off, uint8_t val)
 {
 	return (twl_write(sc->sc_pdev, regulator->sub_dev,
 	    regulator->reg_off + off, &val, 1));
@@ -351,36 +280,30 @@ twl_vreg_write_1(struct twl_vreg_softc *sc, struct twl_regulator_entry *regulato
 
 /**
  *	twl_millivolt_to_vsel - gets the vsel bit value to write into the register
- *	                        for a desired voltage
+ *	                        for a desired voltage and regulator
  *	@sc: the device soft context
  *	@regulator: pointer to the regulator device
  *	@millivolts: the millivolts to find the bit value for
- *	@bitval: upond return will contain the value to write
- *	@diff: upon return will contain the difference between the requested
- *	       voltage value and the actual voltage (in millivolts)
+ *	@vsel: upon return will contain the corresponding register value
  *
- *  Accepts a voltage value and tries to find the closest match to the actual
- *	supported voltages.  If a match is found within 100mv of the target, the
- *	function returns the VSEL value.  If no voltage match is found the function
- *	returns UNDEF.
- *
- *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	Accepts a (milli)voltage value and tries to find the closest match to the
+ *	actual supported voltages for the given regulator.  If a match is found
+ *	within 100mv of the target, @vsel is written with the match and 0 is
+ *	returned. If no voltage match is found the function returns an non-zero
+ *	value.
  *
  *	RETURNS:
- *	A value to load into the VSEL register if matching voltage found, if not
- *	EINVAL is returned.
+ *	Zero on success or an error code on failure.
  */
 static int
 twl_vreg_millivolt_to_vsel(struct twl_vreg_softc *sc,
-    struct twl_regulator_entry *regulator, int millivolts)
+	struct twl_regulator_entry *regulator, int millivolts, uint8_t *vsel)
 {
 	int delta, smallest_delta;
 	unsigned i, closest_idx;
 
 	TWL_VREG_ASSERT_LOCKED(sc);
 
-	/* First check that variable voltage is supported */
 	if (regulator->supp_voltages == NULL)
 		return (EINVAL);
 
@@ -401,94 +324,124 @@ twl_vreg_millivolt_to_vsel(struct twl_vreg_softc *sc,
 		}
 	}
 
-	/* Check we got a voltage that was within 150mv of the actual target, this
+	/* Check we got a voltage that was within 100mv of the actual target, this
 	 * is just a value I picked out of thin air.
 	 */
-	if (smallest_delta > 100)
+	if ((smallest_delta > 100) && (closest_idx < 0x100))
 		return (EINVAL);
 
-	return (closest_idx);
+	*vsel = closest_idx;
+	return (0);
 }
 
 /**
- *	twl_regulator_is_enabled - returns the enabled status of the regulator
+ *	twl_vreg_is_regulator_enabled - returns the enabled status of the regulator
  *	@sc: the device soft context
  *	@regulator: pointer to the regulator device
- *
- *
+ *	@enabled: stores the enabled status, zero disabled, non-zero enabled
  *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	On entry expects the TWL VREG lock to be held. Will upgrade the lock to
+ *	exclusive if not already but, if so, it will be downgraded again before
+ *	returning.
  *
  *	RETURNS:
- *	Zero if disabled, positive non-zero value if enabled, on failure a -1
+ *	Zero on success or an error code on failure.
  */
 static int
 twl_vreg_is_regulator_enabled(struct twl_vreg_softc *sc,
-    struct twl_regulator_entry *regulator)
+	struct twl_regulator_entry *regulator, int *enabled)
 {
 	int err;
 	uint8_t grp;
 	uint8_t state;
+	int xlocked;
+	
+	if (enabled == NULL)
+		return (EINVAL);
+
+	TWL_VREG_ASSERT_LOCKED(sc);
+
+	xlocked = sx_xlocked(&sc->sc_sx);
+	if (!xlocked)
+		TWL_VREG_LOCK_UPGRADE(sc);
 
 	/* The status reading is different for the different devices */
-	if (twl_is_4030(sc->sc_dev)) {
+	if (twl_is_4030(sc->sc_pdev)) {
 
 		err = twl_vreg_read_1(sc, regulator, TWL_VREG_GRP, &state);
 		if (err)
-			return (-1);
+			goto done;
 
-		return (state & TWL4030_P1_GRP);
+		*enabled = (state & TWL4030_P1_GRP);
 
-	} else if (twl_is_6030(sc->sc_dev) || twl_is_6025(sc->sc_dev)) {
+	} else if (twl_is_6030(sc->sc_pdev) || twl_is_6025(sc->sc_pdev)) {
 
 		/* Check the regulator is in the application group */
-		if (twl_is_6030(sc->sc_dev)) {
+		if (twl_is_6030(sc->sc_pdev)) {
 			err = twl_vreg_read_1(sc, regulator, TWL_VREG_GRP, &grp);
 			if (err)
-				return (-1);
+				goto done;
 
-			if (!(grp & TWL6030_P1_GRP))
-				return (0);
+			if (!(grp & TWL6030_P1_GRP)) {
+				*enabled = 0; /* disabled */
+				goto done;
+			}
 		}
 
 		/* Read the application mode state and verify it's ON */
 		err = twl_vreg_read_1(sc, regulator, TWL_VREG_STATE, &state);
 		if (err)
-			return (-1);
+			goto done;
 
-		return ((state & 0x0C) == 0x04);
+		*enabled = ((state & 0x0C) == 0x04);
+
+	} else {
+		err = EINVAL;
 	}
 
-	return (-1);
+done:
+	if (!xlocked)
+		TWL_VREG_LOCK_DOWNGRADE(sc);
+
+	return (err);
 }
 
 /**
- *	twl_disable_regulator - disables the voltage regulator
+ *	twl_vreg_disable_regulator - disables a voltage regulator
  *	@sc: the device soft context
  *	@regulator: pointer to the regulator device
  *
- *  Disables the regulator which will stop the out drivers.
+ *	Disables the regulator which will stop the output drivers.
  *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	On entry expects the TWL VREG lock to be held. Will upgrade the lock to
+ *	exclusive if not already but, if so, it will be downgraded again before
+ *	returning.
  *
  *	RETURNS:
- *	Zero on success, or otherwise a negative error code.
+ *	Zero on success or a positive error code on failure.
  */
 static int
 twl_vreg_disable_regulator(struct twl_vreg_softc *sc,
-    struct twl_regulator_entry *regulator)
+	struct twl_regulator_entry *regulator)
 {
 	int err = 0;
 	uint8_t grp;
+	int xlocked;
 
-	if (twl_is_4030(sc->sc_dev)) {
+	TWL_VREG_ASSERT_LOCKED(sc);
+
+	xlocked = sx_xlocked(&sc->sc_sx);
+	if (!xlocked)
+		TWL_VREG_LOCK_UPGRADE(sc);
+
+	if (twl_is_4030(sc->sc_pdev)) {
 
 		/* Read the regulator CFG_GRP register */
 		err = twl_vreg_read_1(sc, regulator, TWL_VREG_GRP, &grp);
 		if (err)
-			return (err);
+			goto done;
 
 		/* On the TWL4030 we just need to remove the regulator from all the
 		 * power groups.
@@ -496,10 +449,10 @@ twl_vreg_disable_regulator(struct twl_vreg_softc *sc,
 		grp &= ~(TWL4030_P1_GRP | TWL4030_P2_GRP | TWL4030_P3_GRP);
 		err = twl_vreg_write_1(sc, regulator, TWL_VREG_GRP, grp);
 
-	} else if (twl_is_6030(sc->sc_dev) || twl_is_6025(sc->sc_dev)) {
+	} else if (twl_is_6030(sc->sc_pdev) || twl_is_6025(sc->sc_pdev)) {
 
 		/* On TWL6030 we need to make sure we disable power for all groups */
-		if (twl_is_6030(sc->sc_dev))
+		if (twl_is_6030(sc->sc_pdev))
 			grp = TWL6030_P1_GRP | TWL6030_P2_GRP | TWL6030_P3_GRP;
 		else
 			grp = 0x00;
@@ -508,21 +461,29 @@ twl_vreg_disable_regulator(struct twl_vreg_softc *sc,
 		err = twl_vreg_write_1(sc, regulator, TWL_VREG_STATE, (grp << 5));
 	}
 
+done:
+	if (!xlocked)
+		TWL_VREG_LOCK_DOWNGRADE(sc);
+	
 	return (err);
 }
 
 /**
- *	twl_enable_regulator - enables the voltage regulator
+ *	twl_vreg_enable_regulator - enables the voltage regulator
  *	@sc: the device soft context
  *	@regulator: pointer to the regulator device
  *
- *  Enables the regulator which will enable the voltage out.
+ *	Enables the regulator which will enable the voltage out at the currently
+ *	set voltage.  Set the voltage before calling this function to avoid
+ *	driving the voltage too high/low by mistake.
  *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	On entry expects the TWL VREG lock to be held. Will upgrade the lock to
+ *	exclusive if not already but, if so, it will be downgraded again before
+ *	returning.
  *
  *	RETURNS:
- *	Zero on success, or otherwise a negative error code.
+ *	Zero on success or a positive error code on failure.
  */
 static int
 twl_vreg_enable_regulator(struct twl_vreg_softc *sc,
@@ -530,16 +491,23 @@ twl_vreg_enable_regulator(struct twl_vreg_softc *sc,
 {
 	int err;
 	uint8_t grp;
+	int xlocked;
 
-	/* Read the regulator CFG_GRP register */
+	TWL_VREG_ASSERT_LOCKED(sc);
+
+	xlocked = sx_xlocked(&sc->sc_sx);
+	if (!xlocked)
+		TWL_VREG_LOCK_UPGRADE(sc);
+
+
 	err = twl_vreg_read_1(sc, regulator, TWL_VREG_GRP, &grp);
 	if (err)
-		return (err);
+		goto done;
 
 	/* Enable the regulator by ensuring it's in the application power group
 	 * and is in the "on" state.
 	 */
-	if (twl_is_4030(sc->sc_dev)) {
+	if (twl_is_4030(sc->sc_pdev)) {
 
 		/* On the TWL4030 we just need to ensure the regulator is in the right
 		 * power domain, don't need to turn on explicitly like TWL6030.
@@ -547,42 +515,51 @@ twl_vreg_enable_regulator(struct twl_vreg_softc *sc,
 		grp |= TWL4030_P1_GRP;
 		err = twl_vreg_write_1(sc, regulator, TWL_VREG_GRP, grp);
 
-	} else if (twl_is_6030(sc->sc_dev) || twl_is_6025(sc->sc_dev)) {
+	} else if (twl_is_6030(sc->sc_pdev) || twl_is_6025(sc->sc_pdev)) {
 
-		if (twl_is_6030(sc->sc_dev) && !(grp & TWL6030_P1_GRP)) {
+		if (twl_is_6030(sc->sc_pdev) && !(grp & TWL6030_P1_GRP)) {
 			grp |= TWL6030_P1_GRP;
 			err = twl_vreg_write_1(sc, regulator, TWL_VREG_GRP, grp);
 			if (err)
-				return (err);
+				goto done;
 		}
 
 		/* Write the resource state to "ON" */
 		err = twl_vreg_write_1(sc, regulator, TWL_VREG_STATE, (grp << 5) | 0x01);
 	}
 
+done:
+	if (!xlocked)
+		TWL_VREG_LOCK_DOWNGRADE(sc);
+	
 	return (err);
 }
 
 /**
- *	twl_vreg_write_regulator_voltage - sets the voltage on a regulator with given name
+ *	twl_vreg_write_regulator_voltage - sets the voltage level on a regulator
  *	@sc: the device soft context
  *	@regulator: pointer to the regulator structure
  *	@millivolts: the voltage to set
  *
- *  Sets the voltage output on a given regulator.
+ *	Sets the voltage output on a given regulator, if the regulator is not
+ *	enabled, it will be enabled.
  *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	On entry expects the TWL VREG lock to be held, may upgrade the lock to
+ *	exclusive but if so it will be downgraded once again before returning.
  *
  *	RETURNS:
- *	EIO if device is not present, otherwise 0 is returned.
+ *	Zero on success or an error code on failure.
  */
 static int
 twl_vreg_write_regulator_voltage(struct twl_vreg_softc *sc,
     struct twl_regulator_entry *regulator, int millivolts)
 {
 	int err;
-	int vsel;
+	uint8_t vsel;
+	int xlocked;
+
+	TWL_VREG_ASSERT_LOCKED(sc);
 
 	/* If millivolts is zero then we simply disable the output */
 	if (millivolts == 0)
@@ -599,74 +576,100 @@ twl_vreg_write_regulator_voltage(struct twl_vreg_softc *sc,
 	}
 
 	/* Get the VSEL value for the given voltage */
-	vsel = twl_vreg_millivolt_to_vsel(sc, regulator, millivolts);
-	if (vsel < 0)
-		return (vsel);
-
-	/* Next set the voltage on the variable voltage regulators */
-	err = twl_vreg_write_1(sc, regulator, TWL_VREG_VSEL, (vsel & 0x1f));
-	if (err != 0)
+	err = twl_vreg_millivolt_to_vsel(sc, regulator, millivolts, &vsel);
+	if (err)
 		return (err);
 
-	if (debug)
+	
+	/* Need to upgrade because writing the voltage and enabling should be atomic */
+	xlocked = sx_xlocked(&sc->sc_sx);
+	if (!xlocked)
+		TWL_VREG_LOCK_UPGRADE(sc);
+
+
+	/* Set voltage and enable (atomically) */
+	err = twl_vreg_write_1(sc, regulator, TWL_VREG_VSEL, (vsel & 0x1f));
+	if (!err) {
+		err = twl_vreg_enable_regulator(sc, regulator);
+	}
+
+	if (!xlocked)
+		TWL_VREG_LOCK_DOWNGRADE(sc);
+
+	if ((twl_vreg_debug > 1) && !err)
 		device_printf(sc->sc_dev, "%s : setting voltage to %dmV (vsel: 0x%x)\n",
 		    regulator->name, millivolts, vsel);
 
-	return (twl_vreg_enable_regulator(sc, regulator));
+	return (err);
 }
 
 /**
- *	twl_read_regulator_voltage - reads the voltage on a given regulator
+ *	twl_vreg_read_regulator_voltage - reads the voltage on a given regulator
  *	@sc: the device soft context
  *	@regulator: pointer to the regulator structure
  *	@millivolts: upon return will contain the voltage on the regulator
  *
- *  Reads the voltage on a regulator.
- *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	On entry expects the TWL VREG lock to be held. It will upgrade the lock to
+ *	exclusive if not already, but if so, it will be downgraded again before
+ *	returning.
  *
  *	RETURNS:
- *	Zero on success, or otherwise a negative error code.
+ *	Zero on success, or otherwise an error code.
  */
 static int
 twl_vreg_read_regulator_voltage(struct twl_vreg_softc *sc,
     struct twl_regulator_entry *regulator, int *millivolts)
 {
 	int err;
-	int ret;
+	int en = 0;
+	int xlocked;
 	uint8_t vsel;
+	
+	TWL_VREG_ASSERT_LOCKED(sc);
+	
+	/* Need to upgrade the lock because checking enabled state and voltage
+	 * should be atomic.
+	 */
+	xlocked = sx_xlocked(&sc->sc_sx);
+	if (!xlocked)
+		TWL_VREG_LOCK_UPGRADE(sc);
+
 
 	/* Check if the regulator is currently enabled */
-	if ((ret = twl_vreg_is_regulator_enabled(sc, regulator)) < 0)
-		return (EINVAL);
+	err = twl_vreg_is_regulator_enabled(sc, regulator, &en);
+	if (err)
+		goto done;
 
-	if (ret == 0) {
-		*millivolts = 0;
-		return (0);
-	}
+	*millivolts = 0;	
+	if (!en)
+		goto done;
+
 
 	/* Not all voltages are adjustable */
 	if (regulator->supp_voltages == NULL || !regulator->num_supp_voltages) {
 		*millivolts = regulator->fixed_voltage;
-		return (0);
+		goto done;
 	}
 
 	/* For variable voltages read the voltage register */
 	err = twl_vreg_read_1(sc, regulator, TWL_VREG_VSEL, &vsel);
 	if (err)
-		return (err);
+		goto done;
 
-	/* Convert the voltage */
 	vsel &= (regulator->num_supp_voltages - 1);
 	if (regulator->supp_voltages[vsel] == UNDF) {
-		*millivolts = 0;
-		return (EINVAL);
+		err = EINVAL;
+		goto done;
 	}
 
 	*millivolts = regulator->supp_voltages[vsel];
 
-	if (debug)
+done:
+	if (!xlocked)
+		TWL_VREG_LOCK_DOWNGRADE(sc);
+	
+	if ((twl_vreg_debug > 1) && !err)
 		device_printf(sc->sc_dev, "%s : reading voltage is %dmV (vsel: 0x%x)\n",
 		    regulator->name, *millivolts, vsel);
 
@@ -675,14 +678,14 @@ twl_vreg_read_regulator_voltage(struct twl_vreg_softc *sc,
 
 /**
  *	twl_vreg_get_voltage - public interface to read the voltage on a regulator
- *	@dev: TWL PMIC device
+ *	@dev: TWL VREG device
  *	@name: the name of the regulator to read the voltage of
  *	@millivolts: pointer to an integer that upon return will contain the mV
  *
- *
+ *	If the regulator is disabled the function will set the @millivolts to zero.
  *
  *	LOCKING:
- *	Internally the function takes and releases the TWL lock.
+ *	Internally the function takes and releases the TWL VREG lock.
  *
  *	RETURNS:
  *	Zero on success or a negative error code on failure.
@@ -692,41 +695,40 @@ twl_vreg_get_voltage(device_t dev, const char *name, int *millivolts)
 {
 	struct twl_vreg_softc *sc;
 	struct twl_regulator_entry *regulator;
-	int found = 0;
 	int err = EINVAL;
 
 	if (millivolts == NULL)
 		return (EINVAL);
 
-	/* Get the device context, take the lock and find the matching regulator */
 	sc = device_get_softc(dev);
 
+	TWL_VREG_SLOCK(sc);
 
-	/* Find the regulator with the matching name */
 	LIST_FOREACH(regulator, &sc->sc_vreg_list, entries) {
 		if (strcmp(regulator->name, name) == 0) {
-			found = 1;
+			err = twl_vreg_read_regulator_voltage(sc, regulator, millivolts);
 			break;
 		}
 	}
 
-	/* Sanity check that we found the regulator */
-	if (found)
-		err = twl_vreg_read_regulator_voltage(sc, regulator, millivolts);
+	TWL_VREG_SUNLOCK(sc);
 
 	return (err);
 }
 
 /**
  *	twl_vreg_set_voltage - public interface to write the voltage on a regulator
- *	@dev: TWL PMIC device
+ *	@dev: TWL VREG device
  *	@name: the name of the regulator to read the voltage of
  *	@millivolts: the voltage to set in millivolts
  *
- *
+ *	Sets the output voltage on a given regulator. If the regulator is a fixed
+ *	voltage reg then the @millivolts value should match the fixed voltage. If
+ *	a variable regulator then the @millivolt value must fit within the max/min
+ *	range of the given regulator.
  *
  *	LOCKING:
- *	Internally the function takes and releases the TWL lock.
+ *	Internally the function takes and releases the TWL VREG lock.
  *
  *	RETURNS:
  *	Zero on success or a negative error code on failure.
@@ -736,23 +738,20 @@ twl_vreg_set_voltage(device_t dev, const char *name, int millivolts)
 {
 	struct twl_vreg_softc *sc;
 	struct twl_regulator_entry *regulator;
-	int found = 0;
 	int err = EINVAL;
 
-	/* Get the device context, take the lock and find the matching regulator */
 	sc = device_get_softc(dev);
 
-	/* Find the regulator with the matching name */
+	TWL_VREG_SLOCK(sc);
+
 	LIST_FOREACH(regulator, &sc->sc_vreg_list, entries) {
 		if (strcmp(regulator->name, name) == 0) {
-			found = 1;
+			err = twl_vreg_write_regulator_voltage(sc, regulator, millivolts);
 			break;
 		}
 	}
 
-	/* Sanity check that we found the regulator */
-	if (found)
-		err = twl_vreg_write_regulator_voltage(sc, regulator, millivolts);
+	TWL_VREG_SUNLOCK(sc);
 
 	return (err);
 }
@@ -761,13 +760,14 @@ twl_vreg_set_voltage(device_t dev, const char *name, int millivolts)
  *	twl_sysctl_voltage - reads or writes the voltage for a regulator
  *	@SYSCTL_HANDLER_ARGS: arguments for the callback
  *
- *	Callback for the sysctl entry on the
+ *	Callback for the sysctl entry for the regulator, simply used to return
+ *	the voltage on a particular regulator.
  *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	Takes the TWL_VREG shared lock internally.
  *
  *	RETURNS:
- *	EIO if device is not present, otherwise 0 is returned.
+ *	Zero on success or an error code on failure.
  */
 static int
 twl_vreg_sysctl_voltage(SYSCTL_HANDLER_ARGS)
@@ -777,7 +777,7 @@ twl_vreg_sysctl_voltage(SYSCTL_HANDLER_ARGS)
 	int voltage;
 	int found = 0;
 
-	TWL_VREG_LOCK(sc);
+	TWL_VREG_SLOCK(sc);
 
 	/* Find the regulator with the matching name */
 	LIST_FOREACH(regulator, &sc->sc_vreg_list, entries) {
@@ -789,12 +789,13 @@ twl_vreg_sysctl_voltage(SYSCTL_HANDLER_ARGS)
 
 	/* Sanity check that we found the regulator */
 	if (!found) {
-		TWL_VREG_UNLOCK(sc);
+		TWL_VREG_SUNLOCK(sc);
 		return (EINVAL);
 	}
-	TWL_VREG_UNLOCK(sc);
 
 	twl_vreg_read_regulator_voltage(sc, regulator, &voltage);
+
+	TWL_VREG_SUNLOCK(sc);
 
 	return sysctl_handle_int(oidp, &voltage, 0, req);
 }
@@ -805,46 +806,33 @@ twl_vreg_sysctl_voltage(SYSCTL_HANDLER_ARGS)
  *	@name: the name of the regulator
  *	@nsub: the number of the subdevice
  *	@regbase: the base address of the voltage regulator registers
+ *	@fixed_voltage: if a fixed voltage regulator this defines it's voltage
+ *	@voltages: if a variable voltage regulator, an array of possible voltages
+ *	@num_voltages: the number of entries @voltages
  *
  *	Adds a voltage regulator to the device and also a sysctl interface for the
  *	regulator.
  *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	The TWL_VEG exclusive lock must be held while this function is called.
  *
  *	RETURNS:
  *	Pointer to the new regulator entry on success, otherwise on failure NULL.
  */
 static struct twl_regulator_entry*
 twl_vreg_add_regulator(struct twl_vreg_softc *sc, const char *name,
-    uint8_t nsub, uint8_t regbase, uint16_t fixed_voltage,
-    const uint16_t *voltages, uint32_t num_voltages)
+	uint8_t nsub, uint8_t regbase, uint16_t fixed_voltage,
+	const uint16_t *voltages, uint32_t num_voltages)
 {
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
-	struct twl_regulator_entry *new, *tmp;
-
-	TWL_VREG_ASSERT_LOCKED(sc);
-	TWL_VREG_UNLOCK(sc);
+	struct twl_regulator_entry *new;
 
 	new = malloc(sizeof(struct twl_regulator_entry), M_DEVBUF, M_NOWAIT | M_ZERO);
-	TWL_VREG_LOCK(sc);
 	if (new == NULL)
 		return (NULL);
 
-	/*
-	 * We had to drop the lock while calling malloc(), maybe 
-	 * the regulator got added in the meanwhile.
-	 */
-	   
-	LIST_FOREACH(tmp, &sc->sc_vreg_list, entries) {
-		if (!strncmp(new->name, name, strlen(new->name)) &&
-		    new->sub_dev == nsub && new->reg_off == regbase) {
-			free(new, M_DEVBUF);
-			return (NULL);
-		}
-	}
-	/* Copy over the name and register details */
+
 	strncpy(new->name, name, TWL_VREG_MAX_NAMELEN);
 	new->name[TWL_VREG_MAX_NAMELEN - 1] = '\0';
 
@@ -856,17 +844,11 @@ twl_vreg_add_regulator(struct twl_vreg_softc *sc, const char *name,
 	new->supp_voltages = voltages;
 	new->num_supp_voltages = num_voltages;
 
-	/* 
-	 * We're in the list now, so we should be protected against double
-	 * inclusion.
-	 */
-	   
-	TWL_VREG_UNLOCK(sc);
+
 	/* Add a sysctl entry for the voltage */
 	new->oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, name,
 	    CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 	    twl_vreg_sysctl_voltage, "I", "voltage regulator");
-	TWL_VREG_LOCK(sc);
 
 	/* Finally add the regulator to list of supported regulators */
 	LIST_INSERT_HEAD(&sc->sc_vreg_list, new, entries);
@@ -875,33 +857,35 @@ twl_vreg_add_regulator(struct twl_vreg_softc *sc, const char *name,
 }
 
 /**
- *	twl_vreg_add_regulators - adds hint'ed voltage regulators to the device
+ *	twl_vreg_add_regulators - adds any voltage regulators to the device
  *	@sc: device soft context
  *	@chip: the name of the chip used in the hints
  *	@regulators: the list of possible voltage regulators
  *
- *  Loops over the list of regulators and matches up with the hint'ed values,
+ *	Loops over the list of regulators and matches up with the FDT values,
  *	adjusting the actual voltage based on the supplied values.
  *
  *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	The TWL_VEG exclusive lock must be held while this function is called.
  *
  *	RETURNS:
  *	Always returns 0.
  */
 static int
 twl_vreg_add_regulators(struct twl_vreg_softc *sc,
-    const struct twl_regulator *regulators)
+	const struct twl_regulator *regulators)
 {
+	int err;
 	int millivolts;
 	const struct twl_regulator *walker;
 	struct twl_regulator_entry *entry;
+	phandle_t child;
+	char rnames[256];
+	char *name, *voltage;
+	int len = 0, prop_len;
 
-	TWL_VREG_ASSERT_LOCKED(sc);
 
-	/* Uses hints to determine which regulators are needed to be supported,
-	 * then if they are a new sysctl is added.
-	 */
+	/* Add the regulators from the list */
 	walker = &regulators[0];
 	while (walker->name != NULL) {
 
@@ -912,29 +896,59 @@ twl_vreg_add_regulators(struct twl_vreg_softc *sc,
 		if (entry == NULL)
 			continue;
 
-		/* TODO: set voltage from FDT if required */
-
-		/* Read the current voltage and print the info */
-		TWL_VREG_UNLOCK(sc);
-		twl_vreg_read_regulator_voltage(sc, entry, &millivolts);
-		TWL_VREG_LOCK(sc);
-		if (debug)
-			device_printf(sc->sc_dev, "%s : %d mV\n", walker->name, millivolts);
-
 		walker++;
+	}
+
+
+	/* Check if the FDT is telling us to set any voltages */
+	child = ofw_bus_get_node(sc->sc_pdev);
+	if (child) {
+
+		prop_len = OF_getprop(child, "voltage-regulators", rnames, sizeof(rnames));
+		while (len < prop_len) {
+			name = rnames + len;
+			len += strlen(name) + 1;
+			if ((len >= prop_len) || (name[0] == '\0'))
+				break;
+			
+			voltage = rnames + len;
+			len += strlen(voltage) + 1;
+			if (voltage[0] == '\0')
+				break;
+			
+			millivolts = strtoul(voltage, NULL, 0);
+			
+			LIST_FOREACH(entry, &sc->sc_vreg_list, entries) {
+				if (strcmp(entry->name, name) == 0) {
+					twl_vreg_write_regulator_voltage(sc, entry, millivolts);
+					break;
+				}
+			}
+		}
+	}
+	
+	
+	if (twl_vreg_debug) {
+		LIST_FOREACH(entry, &sc->sc_vreg_list, entries) {
+			err = twl_vreg_read_regulator_voltage(sc, entry, &millivolts);
+			if (!err)
+				device_printf(sc->sc_dev, "%s : %d mV\n", entry->name, millivolts);
+		}
 	}
 
 	return (0);
 }
 
 /**
- *	twl_scan - disables IRQ's on the given channel
- *	@ch: the channel to disable IRQ's on
+ *	twl_vreg_init - initialises the list of regulators
+ *	@dev: the twl_vreg device
  *
- *	Disable interupt generation for the given channel.
+ *	This function is called as an intrhook once interrupts have been enabled,
+ *	this is done so that the driver has the option to enable/disable or set
+ *	the voltage level based on settings providied in the FDT.
  *
- *	RETURNS:
- *	BUS_PROBE_NOWILDCARD
+ *	LOCKING:
+ *	Takes the exclusive lock in the function.
  */
 static void
 twl_vreg_init(void *dev)
@@ -943,45 +957,32 @@ twl_vreg_init(void *dev)
 
 	sc = device_get_softc((device_t)dev);
 
-	TWL_VREG_LOCK(sc);
+	TWL_VREG_XLOCK(sc);
 
-	/* Scan the hints and add any regulators specified */
-	if (twl_is_4030(sc->sc_dev))
+	if (twl_is_4030(sc->sc_pdev))
 		twl_vreg_add_regulators(sc, twl4030_regulators);
-	else if (twl_is_6030(sc->sc_dev) || twl_is_6025(sc->sc_dev))
+	else if (twl_is_6030(sc->sc_pdev) || twl_is_6025(sc->sc_pdev))
 		twl_vreg_add_regulators(sc, twl6030_regulators);
 
-	TWL_VREG_UNLOCK(sc);
+	TWL_VREG_XUNLOCK(sc);
 
 	config_intrhook_disestablish(&sc->sc_init_hook);
 }
 
-/**
- *	twl_probe - disables IRQ's on the given channel
- *	@ch: the channel to disable IRQ's on
- *
- *	Disable interupt generation for the given channel.
- *
- *	RETURNS:
- *	BUS_PROBE_NOWILDCARD
- */
 static int
 twl_vreg_probe(device_t dev)
 {
+	if (twl_is_4030(device_get_parent(dev)))
+		device_set_desc(dev, "TI TWL4030 PMIC Voltage Regulators");
+	else if (twl_is_6025(device_get_parent(dev)) ||
+	         twl_is_6030(device_get_parent(dev)))
+		device_set_desc(dev, "TI TWL6025/TWL6030 PMIC Voltage Regulators");
+	else
+		return (ENXIO);
 
-	device_set_desc(dev, "TI TWL4030/TWL5030/TWL60x0/TPS659x0 Voltage Regulators");
 	return (0);
 }
 
-/**
- *	twl_attach - disables IRQ's on the given channel
- *	@ch: the channel to disable IRQ's on
- *
- *	Disable interupt generation for the given channel.
- *
- *	RETURNS:
- *	EH_HANDLED or EH_NOT_HANDLED
- */
 static int
 twl_vreg_attach(device_t dev)
 {
@@ -993,9 +994,6 @@ twl_vreg_attach(device_t dev)
 
 	TWL_VREG_LOCK_INIT(sc);
 
-	/* Initialise the head of the list of voltage regulators supported by the
-	 * TWL device.
-	 */
 	LIST_INIT(&sc->sc_vreg_list);
 
 	/* We have to wait until interrupts are enabled. I2C read and write
@@ -1010,15 +1008,6 @@ twl_vreg_attach(device_t dev)
 	return (0);
 }
 
-/**
- *	twl_vreg_detach - disables IRQ's on the given channel
- *	@ch: the channel to disable IRQ's on
- *
- *	Disable interupt generation for the given channel.
- *
- *	RETURNS:
- *	EH_HANDLED or EH_NOT_HANDLED
- */
 static int
 twl_vreg_detach(device_t dev)
 {
@@ -1029,18 +1018,15 @@ twl_vreg_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* Take the lock and free all the added regulators */
-	TWL_VREG_LOCK(sc);
+	TWL_VREG_XLOCK(sc);
 
-	/* Find the regulator with the matching name */
 	LIST_FOREACH_SAFE(regulator, &sc->sc_vreg_list, entries, tmp) {
-
-		/* Remove from the list and clean up */
 		LIST_REMOVE(regulator, entries);
 		sysctl_remove_oid(regulator->oid, 1, 0);
 		free(regulator, M_DEVBUF);
 	}
 
-	TWL_VREG_UNLOCK(sc);
+	TWL_VREG_XUNLOCK(sc);
 
 	TWL_VREG_LOCK_DESTROY(sc);
 

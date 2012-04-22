@@ -133,6 +133,7 @@ device		smsc		# SMSC LAN95xx USB Ethernet
 device		ti_sdma
 device		twl
 device		twl_vreg
+device		twl_clks
 
 # Flattened Device Tree
 options         FDT

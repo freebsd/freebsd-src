@@ -32,7 +32,15 @@ __FBSDID("$FreeBSD$");
  * Texas Instruments TWL4030/TWL5030/TWL60x0/TPS659x0 Power Management and
  * Audio CODEC devices.
  *
- * This driver acts as a bus for mor specific companion devices
+ * This code is based on the Linux TWL multifunctional device driver, which is
+ * copyright (C) 2005-2006 Texas Instruments, Inc.
+ *
+ * These chips are typically used as support ICs for the OMAP range of embedded
+ * ARM processes/SOC from Texas Instruments.  They are typically used to control
+ * on board voltages, however some variants have other features like audio
+ * codecs, USB OTG transceivers, RTC, PWM, etc.
+ *
+ * This driver acts as a bus for more specific companion devices.
  *
  */
 
@@ -55,8 +63,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
-#include "iicbus_if.h"
+
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "arm/ti/twl/twl.h"
 
@@ -84,20 +96,17 @@ __FBSDID("$FreeBSD$");
 
 #define TWL_INVALID_CHIP_ID         0xff
 
-/**
- *	Structure that stores the driver context.
- *
- *	This structure is allocated during driver attach.
- */
 struct twl_softc {
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
+	unsigned int	sc_type;
 
 	uint8_t			sc_subaddr_map[TWL_MAX_SUBADDRS];
 
 	struct intr_config_hook	sc_scan_hook;
 
 	device_t		sc_vreg;
+	device_t		sc_clks;
 };
 
 /**
@@ -112,6 +121,40 @@ struct twl_softc {
 #define TWL_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define TWL_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
+
+/**
+ *	twl_is_4030 - returns true if the device is TWL4030
+ *	twl_is_6025 - returns true if the device is TWL6025
+ *	twl_is_6030 - returns true if the device is TWL6030
+ *	@sc: device soft context
+ *
+ *	Returns a non-zero value if the device matches.
+ *
+ *	RETURNS:
+ *	Returns a non-zero value if the device matches, otherwise zero.
+ */
+int
+twl_is_4030(device_t dev)
+{
+	struct twl_softc *sc = device_get_softc(dev);
+	return (sc->sc_type == TWL_DEVICE_4030);
+}
+
+int
+twl_is_6025(device_t dev)
+{
+	struct twl_softc *sc = device_get_softc(dev);
+	return (sc->sc_type == TWL_DEVICE_6025);
+}
+
+int
+twl_is_6030(device_t dev)
+{
+	struct twl_softc *sc = device_get_softc(dev);
+	return (sc->sc_type == TWL_DEVICE_6030);
+}
+
+
 /**
  *	twl_read - read one or more registers from the TWL device
  *	@sc: device soft context
@@ -120,13 +163,10 @@ struct twl_softc {
  *	@buf: buffer to store the bytes in
  *	@cnt: the number of bytes to read
  *
- *	Reads one or registers and stores the result in the suppled buffer.
- *
- *	LOCKING:
- *	Expects the TWL lock to be held.
+ *	Reads one or more registers and stores the result in the suppled buffer.
  *
  *	RETURNS:
- *	Zero on success or a negative error code on failure.
+ *	Zero on success or an error code on failure.
  */
 int
 twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
@@ -139,12 +179,12 @@ twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
 	sc = device_get_softc(dev);
 
 	TWL_LOCK(sc);
-
 	addr = sc->sc_subaddr_map[nsub];
-	if (addr == TWL_INVALID_CHIP_ID) {
-		TWL_UNLOCK(sc);
+	TWL_UNLOCK(sc);
+
+	if (addr == TWL_INVALID_CHIP_ID)
 		return (EIO);
-	}
+
 
 	/* Set the address to read from */
 	msg[0].slave = addr;
@@ -156,11 +196,8 @@ twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
 	msg[1].flags = IIC_M_RD;
 	msg[1].len = cnt;
 	msg[1].buf = buf;
-	TWL_UNLOCK(sc);
 
 	rc = iicbus_transfer(dev, msg, 2);
-
-
 	if (rc != 0) {
 		device_printf(dev, "iicbus read failed (adr:0x%02x, reg:0x%02x)\n",
 		              addr, reg);
@@ -179,9 +216,6 @@ twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
  *	@cnt: the number of bytes to write
  *
  *	Writes one or more registers.
- *
- *	LOCKING:
- *	Expects the TWL lock to be held.
  *
  *	RETURNS:
  *	Zero on success or a negative error code on failure.
@@ -205,23 +239,20 @@ twl_write(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
 	sc = device_get_softc(dev);
 
 	TWL_LOCK(sc);
-
 	addr = sc->sc_subaddr_map[nsub];
-	if (addr == TWL_INVALID_CHIP_ID) {
-		TWL_UNLOCK(sc);
+	TWL_UNLOCK(sc);
+
+	if (addr == TWL_INVALID_CHIP_ID)
 		return (EIO);
-	}
+
 
 	/* Setup the transfer and execute it */
 	msg.slave = addr;
 	msg.flags = IIC_M_WR;
 	msg.len = cnt + 1;
 	msg.buf = tmp_buf;
-	TWL_UNLOCK(sc);
 
 	rc = iicbus_transfer(dev, &msg, 1);
-
-
 	if (rc != 0) {
 		device_printf(sc->sc_dev, "iicbus write failed (adr:0x%02x, reg:0x%02x)\n",
 		              addr, reg);
@@ -236,11 +267,8 @@ twl_write(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
  *	@sc: device soft context
  *	@addr: the address of the device to scan for
  *
- *  Sends just the address byte and checks for an ACK. If no ACK then device
- *  is assumed to not be present, otherwise device is present.
- *
- *	LOCKING:
- *	It's expected the TWL lock is held while this function is called.
+ *	Sends just the address byte and checks for an ACK. If no ACK then device
+ *	is assumed to not be present.
  *
  *	RETURNS:
  *	EIO if device is not present, otherwise 0 is returned.
@@ -264,52 +292,111 @@ twl_test_present(struct twl_softc *sc, uint8_t addr)
 }
 
 /**
- *	twl_scan - disables IRQ's on the given channel
- *	@ch: the channel to disable IRQ's on
+ *	twl_scan - scans the i2c bus for sub modules
+ *	@dev: the twl device
  *
- *	Disable interupt generation for the given channel.
+ *	TWL devices don't just have one i2c slave address, rather they have up to
+ *	5 other addresses, each is for separate modules within the device. This
+ *	function scans the bus for 4 possible sub-devices and stores the info
+ *	internally.
  *
- *	RETURNS:
- *	BUS_PROBE_NOWILDCARD
  */
 static void
 twl_scan(void *dev)
 {
 	struct twl_softc *sc;
 	unsigned i;
+	uint8_t devs[TWL_MAX_SUBADDRS];
 	uint8_t base = TWL_CHIP_ID0;
 
 	sc = device_get_softc((device_t)dev);
 
-	memset(sc->sc_subaddr_map, TWL_INVALID_CHIP_ID, TWL_MAX_SUBADDRS);
+	memset(devs, TWL_INVALID_CHIP_ID, TWL_MAX_SUBADDRS);
 
 	/* Try each of the addresses (0x48, 0x49, 0x4a & 0x4b) to determine which
 	 * sub modules we have.
 	 */
 	for (i = 0; i < TWL_MAX_SUBADDRS; i++) {
 		if (twl_test_present(sc, (base + i)) == 0) {
-			sc->sc_subaddr_map[i] = (base + i);
+			devs[i] = (base + i);
 			device_printf(sc->sc_dev, "Found (sub)device at 0x%02x\n", (base + i));
 		}
 	}
+
+	TWL_LOCK(sc);
+	memcpy(sc->sc_subaddr_map, devs, TWL_MAX_SUBADDRS);
+	TWL_UNLOCK(sc);
 
 	/* Finished with the interrupt hook */
 	config_intrhook_disestablish(&sc->sc_scan_hook);
 }
 
-static void
-twl_identify(driver_t *driver, device_t parent)
-{
-
-        BUS_ADD_CHILD(parent, 0, "twl", 0);
-}
-
+/**
+ *	twl_probe - 
+ *	@dev: the twl device
+ *
+ *	Scans the FDT for a match for the device, possible compatible device
+ *	strings are; "ti,twl6030", "ti,twl6025", "ti,twl4030".  
+ *
+ *	The FDT compat string also determines the type of device (it is currently
+ *	not possible to dynamically determine the device type).
+ *
+ */
 static int
 twl_probe(device_t dev)
 {
-	device_set_desc(dev, "TI TWL4030/TWL5030/TWL60x0/TPS659x0 Companion IC");
+	phandle_t node;
+	const char *compat;
+	int len, l;
+	struct twl_softc *sc;
 
-	return (BUS_PROBE_NOWILDCARD);
+	if ((compat = ofw_bus_get_compat(dev)) == NULL)
+		return (ENXIO);
+
+	if ((node = ofw_bus_get_node(dev)) == 0)
+		return (ENXIO);
+
+	/* Get total 'compatible' prop len */
+	if ((len = OF_getproplen(node, "compatible")) <= 0)
+		return (ENXIO);
+
+	sc = device_get_softc(dev);
+	sc->sc_dev = dev;
+	sc->sc_type = TWL_DEVICE_UNKNOWN;
+
+	while (len > 0) {
+		if (strncasecmp(compat, "ti,twl6030", 10) == 0)
+			sc->sc_type = TWL_DEVICE_6030;
+		else if (strncasecmp(compat, "ti,twl6025", 10) == 0)
+			sc->sc_type = TWL_DEVICE_6025;
+		else if (strncasecmp(compat, "ti,twl4030", 10) == 0)
+			sc->sc_type = TWL_DEVICE_4030;
+		
+		if (sc->sc_type != TWL_DEVICE_UNKNOWN)
+			break;
+
+		/* Slide to the next sub-string. */
+		l = strlen(compat) + 1;
+		compat += l;
+		len -= l;
+	}
+	
+	switch (sc->sc_type) {
+	case TWL_DEVICE_4030:
+		device_set_desc(dev, "TI TWL4030/TPS659x0 Companion IC");
+		break;
+	case TWL_DEVICE_6025:
+		device_set_desc(dev, "TI TWL6025 Companion IC");
+		break;
+	case TWL_DEVICE_6030:
+		device_set_desc(dev, "TI TWL6030 Companion IC");
+		break;
+	case TWL_DEVICE_UNKNOWN:
+	default:
+		return (ENXIO);
+	}
+	
+	return (0);
 }
 
 static int
@@ -334,6 +421,8 @@ twl_attach(device_t dev)
 	/* FIXME: should be in DTS file */
 	if ((sc->sc_vreg = device_add_child(dev, "twl_vreg", -1)) == NULL)
 		device_printf(dev, "could not allocate twl_vreg instance\n");
+	if ((sc->sc_clks = device_add_child(dev, "twl_clks", -1)) == NULL)
+		device_printf(dev, "could not allocate twl_clks instance\n");
 
 	return (bus_generic_attach(dev));
 }
@@ -342,12 +431,14 @@ static int
 twl_detach(device_t dev)
 {
 	struct twl_softc *sc;
-	int rv;
 
 	sc = device_get_softc(dev);
 
-	if (sc->sc_vreg && (rv = device_delete_child(dev, sc->sc_vreg)) != 0)
-		return (rv);
+	if (sc->sc_vreg)
+		device_delete_child(dev, sc->sc_vreg);
+	if (sc->sc_clks)
+		device_delete_child(dev, sc->sc_clks);
+	
 
 	TWL_LOCK_DESTROY(sc);
 
@@ -355,7 +446,6 @@ twl_detach(device_t dev)
 }
 
 static device_method_t twl_methods[] = {
-	DEVMETHOD(device_identify,	twl_identify),
 	DEVMETHOD(device_probe,		twl_probe),
 	DEVMETHOD(device_attach,	twl_attach),
 	DEVMETHOD(device_detach,	twl_detach),

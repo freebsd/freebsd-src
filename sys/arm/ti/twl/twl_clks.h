@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2011
- *	Ben Gray <ben.r.gray@gmail.com>.
+ * Copyright (c) 2012
+ *	Ben Gray <bgray@freebsd.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,14 +24,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifndef _TWL_H_
-#define _TWL_H_
+#ifndef _TWL_CLKS_H_
+#define _TWL_CLKS_H_
 
-int twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt);
-int twl_write(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt);
 
-int twl_is_4030(device_t dev);
-int twl_is_6025(device_t dev);
-int twl_is_6030(device_t dev);
+int twl_clks_enable(device_t dev, const char *name);
+int twl_clks_disable(device_t dev, const char *name);
+int twl_clks_is_enabled(device_t dev, const char *name, int *enabled);
 
-#endif /* _TWL_H_ */
+
+#endif /* _TWL_CLKS_H_ */

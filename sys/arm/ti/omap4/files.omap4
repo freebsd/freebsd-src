@@ -15,3 +15,5 @@ arm/ti/omap4/omap4_mp.c				optional	smp
 
 arm/ti/twl/twl.c				optional	twl
 arm/ti/twl/twl_vreg.c				optional	twl twl_vreg
+arm/ti/twl/twl_clks.c				optional	twl twl_clks
+
