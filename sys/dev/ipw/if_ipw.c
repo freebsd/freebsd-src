@@ -833,9 +833,9 @@ static int
 ipw_suspend(device_t dev)
 {
 	struct ipw_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
-	ipw_stop(sc);
-
+	ieee80211_suspend_all(ic);
 	return 0;
 }
 
@@ -843,13 +843,11 @@ static int
 ipw_resume(device_t dev)
 {
 	struct ipw_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 	pci_write_config(dev, 0x41, 0, 1);
 
-	if (ifp->if_flags & IFF_UP)
-		ipw_init(sc);
-
+	ieee80211_resume_all(ic);
 	return 0;
 }
 
