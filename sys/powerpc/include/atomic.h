@@ -38,20 +38,25 @@
 
 /* NOTE: lwsync is equivalent to sync on systems without lwsync */
 #define mb()		__asm __volatile("lwsync" : : : "memory")
-#define wmb()		__asm __volatile("lwsync" : : : "memory")
+#ifdef __powerpc64__
 #define rmb()		__asm __volatile("lwsync" : : : "memory")
+#define wmb()		__asm __volatile("lwsync" : : : "memory")
+#else
+#define rmb()		__asm __volatile("lwsync" : : : "memory")
+#define wmb()		__asm __volatile("eieio" : : : "memory")
+#endif
 
 /*
- * The __ATOMIC_XMB() macros provide memory barriers only in conjunction
+ * The __ATOMIC_REL/ACQ() macros provide memory barriers only in conjunction
  * with the atomic lXarx/stXcx. sequences below. See Appendix B.2 of Book II
  * of the architecture manual.
  */
 #ifdef __powerpc64__
-#define __ATOMIC_WMB()	__asm __volatile("lwsync" : : : "memory")
-#define __ATOMIC_RMB()	__asm __volatile("lwsync" : : : "memory")
+#define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
+#define __ATOMIC_ACQ()	__asm __volatile("lwsync" : : : "memory")
 #else
-#define __ATOMIC_WMB()	__asm __volatile("eieio" : : : "memory")
-#define __ATOMIC_RMB()	__asm __volatile("isync" : : : "memory")
+#define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
+#define __ATOMIC_ACQ()	__asm __volatile("isync" : : : "memory")
 #endif
 
 /*
@@ -105,13 +110,13 @@
     atomic_add_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
 	__atomic_add_##type(p, v, t);				\
-	__ATOMIC_RMB();						\
+	__ATOMIC_ACQ();						\
     }								\
 								\
     static __inline void					\
     atomic_add_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
-	__ATOMIC_WMB();						\
+	__ATOMIC_REL();						\
 	__atomic_add_##type(p, v, t);				\
     }								\
     /* _ATOMIC_ADD */
@@ -191,13 +196,13 @@ _ATOMIC_ADD(long)
     atomic_clear_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
 	__atomic_clear_##type(p, v, t);				\
-	__ATOMIC_RMB();						\
+	__ATOMIC_ACQ();						\
     }								\
 								\
     static __inline void					\
     atomic_clear_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
-	__ATOMIC_WMB();						\
+	__ATOMIC_REL();						\
 	__atomic_clear_##type(p, v, t);				\
     }								\
     /* _ATOMIC_CLEAR */
@@ -293,13 +298,13 @@ _ATOMIC_CLEAR(long)
     atomic_set_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
 	__atomic_set_##type(p, v, t);				\
-	__ATOMIC_RMB();						\
+	__ATOMIC_ACQ();						\
     }								\
 								\
     static __inline void					\
     atomic_set_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
-	__ATOMIC_WMB();						\
+	__ATOMIC_REL();						\
 	__atomic_set_##type(p, v, t);				\
     }								\
     /* _ATOMIC_SET */
@@ -379,13 +384,13 @@ _ATOMIC_SET(long)
     atomic_subtract_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;							\
 	__atomic_subtract_##type(p, v, t);				\
-	__ATOMIC_RMB();							\
+	__ATOMIC_ACQ();							\
     }									\
 									\
     static __inline void						\
     atomic_subtract_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;							\
-	__ATOMIC_WMB();							\
+	__ATOMIC_REL();							\
 	__atomic_subtract_##type(p, v, t);				\
     }									\
     /* _ATOMIC_SUBTRACT */
@@ -492,14 +497,14 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 	u_##TYPE v;						\
 								\
 	v = *p;							\
-	rmb();							\
+	mb();							\
 	return (v);						\
 }								\
 								\
 static __inline void						\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
 {								\
-	wmb();							\
+	mb();							\
 	*p = v;							\
 }
 
@@ -609,14 +614,14 @@ atomic_cmpset_acq_int(volatile u_int *p, u_int cmpval, u_int newval)
 	int retval;
 
 	retval = atomic_cmpset_int(p, cmpval, newval);
-	__ATOMIC_RMB();
+	__ATOMIC_ACQ();
 	return (retval);
 }
 
 static __inline int
 atomic_cmpset_rel_int(volatile u_int *p, u_int cmpval, u_int newval)
 {
-	wmb();
+	__ATOMIC_REL();
 	return (atomic_cmpset_int(p, cmpval, newval));
 }
 
@@ -626,14 +631,14 @@ atomic_cmpset_acq_long(volatile u_long *p, u_long cmpval, u_long newval)
 	u_long retval;
 
 	retval = atomic_cmpset_long(p, cmpval, newval);
-	__ATOMIC_RMB();
+	__ATOMIC_ACQ();
 	return (retval);
 }
 
 static __inline int
 atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
 {
-	wmb();
+	__ATOMIC_REL();
 	return (atomic_cmpset_long(p, cmpval, newval));
 }
 
