@@ -36,12 +36,10 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#define	__ATOMIC_BARRIER					\
-    __asm __volatile("sync" : : : "memory")
-
-#define mb()	__ATOMIC_BARRIER
-#define	wmb()	mb()
-#define	rmb()	mb()
+/* NOTE: lwsync is equivalent to sync on systems without lwsync */
+#define mb()	__asm __volatile("lwsync" : : : "memory")
+#define wmb()	__asm __volatile("lwsync" : : : "memory")
+#define rmb()	__asm __volatile("lwsync" : : : "memory")
 
 /*
  * atomic_add(p, v)
@@ -94,13 +92,13 @@
     atomic_add_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
 	__atomic_add_##type(p, v, t);				\
-	__ATOMIC_BARRIER;					\
+	rmb();							\
     }								\
 								\
     static __inline void					\
     atomic_add_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
-	__ATOMIC_BARRIER;					\
+	wmb();							\
 	__atomic_add_##type(p, v, t);				\
     }								\
     /* _ATOMIC_ADD */
@@ -180,13 +178,13 @@ _ATOMIC_ADD(long)
     atomic_clear_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
 	__atomic_clear_##type(p, v, t);				\
-	__ATOMIC_BARRIER;					\
+	rmb();							\
     }								\
 								\
     static __inline void					\
     atomic_clear_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
-	__ATOMIC_BARRIER;					\
+	wmb();							\
 	__atomic_clear_##type(p, v, t);				\
     }								\
     /* _ATOMIC_CLEAR */
@@ -282,13 +280,13 @@ _ATOMIC_CLEAR(long)
     atomic_set_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
 	__atomic_set_##type(p, v, t);				\
-	__ATOMIC_BARRIER;					\
+	rmb();							\
     }								\
 								\
     static __inline void					\
     atomic_set_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;						\
-	__ATOMIC_BARRIER;					\
+	wmb();							\
 	__atomic_set_##type(p, v, t);				\
     }								\
     /* _ATOMIC_SET */
@@ -368,13 +366,13 @@ _ATOMIC_SET(long)
     atomic_subtract_acq_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;							\
 	__atomic_subtract_##type(p, v, t);				\
-	__ATOMIC_BARRIER;						\
+	rmb();								\
     }									\
 									\
     static __inline void						\
     atomic_subtract_rel_##type(volatile u_##type *p, u_##type v) {	\
 	u_##type t;							\
-	__ATOMIC_BARRIER;						\
+	wmb();								\
 	__atomic_subtract_##type(p, v, t);				\
     }									\
     /* _ATOMIC_SUBTRACT */
@@ -481,14 +479,14 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 	u_##TYPE v;						\
 								\
 	v = *p;							\
-	__ATOMIC_BARRIER;					\
+	rmb();							\
 	return (v);						\
 }								\
 								\
 static __inline void						\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
 {								\
-	__ATOMIC_BARRIER;					\
+	wmb();							\
 	*p = v;							\
 }
 
@@ -598,14 +596,14 @@ atomic_cmpset_acq_int(volatile u_int *p, u_int cmpval, u_int newval)
 	int retval;
 
 	retval = atomic_cmpset_int(p, cmpval, newval);
-	__ATOMIC_BARRIER;
+	rmb();
 	return (retval);
 }
 
 static __inline int
 atomic_cmpset_rel_int(volatile u_int *p, u_int cmpval, u_int newval)
 {
-	__ATOMIC_BARRIER;
+	wmb();
 	return (atomic_cmpset_int(p, cmpval, newval));
 }
 
@@ -615,14 +613,14 @@ atomic_cmpset_acq_long(volatile u_long *p, u_long cmpval, u_long newval)
 	u_long retval;
 
 	retval = atomic_cmpset_long(p, cmpval, newval);
-	__ATOMIC_BARRIER;
+	rmb();
 	return (retval);
 }
 
 static __inline int
 atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
 {
-	__ATOMIC_BARRIER;
+	wmb();
 	return (atomic_cmpset_long(p, cmpval, newval));
 }
 
