@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index f78f423..ce6df80 100644
+index e8a5722..cec85b5 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -51,12 +51,23 @@
@@ -82,17 +82,10 @@ index 8837ef5..d7133f4 100644
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex);
 diff --git a/include/jemalloc/internal/private_namespace.h b/include/jemalloc/internal/private_namespace.h
-index 15fe3c5..be94eb8 100644
+index bb1b63e..00eb169 100644
 --- a/include/jemalloc/internal/private_namespace.h
 +++ b/include/jemalloc/internal/private_namespace.h
-@@ -1,6 +1,3 @@
--#define	a0calloc JEMALLOC_N(a0calloc)
--#define	a0free JEMALLOC_N(a0free)
--#define	a0malloc JEMALLOC_N(a0malloc)
- #define	arena_alloc_junk_small JEMALLOC_N(arena_alloc_junk_small)
- #define	arena_bin_index JEMALLOC_N(arena_bin_index)
- #define	arena_bin_info JEMALLOC_N(arena_bin_info)
-@@ -167,7 +164,6 @@
+@@ -165,7 +165,6 @@
  #define	iqalloc JEMALLOC_N(iqalloc)
  #define	iralloc JEMALLOC_N(iralloc)
  #define	isalloc JEMALLOC_N(isalloc)
@@ -195,7 +188,7 @@ index 0000000..2c5797f
 +#define	pthread_mutex_lock	_pthread_mutex_lock
 +#define	pthread_mutex_unlock	_pthread_mutex_unlock
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 00c2b23..729f4e1 100644
+index f9c8916..8e24a5a 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -8,6 +8,9 @@ malloc_tsd_data(, arenas, arena_t *, NULL)

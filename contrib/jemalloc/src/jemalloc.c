@@ -638,7 +638,7 @@ malloc_init_hard(void)
 		return (true);
 	}
 
-	if (chunk_boot0()) {
+	if (chunk_boot()) {
 		malloc_mutex_unlock(&init_lock);
 		return (true);
 	}
@@ -714,11 +714,6 @@ malloc_init_hard(void)
 	malloc_mutex_unlock(&init_lock);
 	ncpus = malloc_ncpus();
 	malloc_mutex_lock(&init_lock);
-
-	if (chunk_boot1()) {
-		malloc_mutex_unlock(&init_lock);
-		return (true);
-	}
 
 	if (mutex_boot()) {
 		malloc_mutex_unlock(&init_lock);

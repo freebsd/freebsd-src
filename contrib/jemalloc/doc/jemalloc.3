@@ -2,12 +2,12 @@
 .\"     Title: JEMALLOC
 .\"    Author: Jason Evans
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 04/20/2012
+.\"      Date: 04/21/2012
 .\"    Manual: User Manual
-.\"    Source: jemalloc 1.0.0-283-g606f1fdc3cdbc700717133ca56685313caea24bb
+.\"    Source: jemalloc 1.0.0-286-ga8f8d7540d66ddee7337db80c92890916e1063ca
 .\"  Language: English
 .\"
-.TH "JEMALLOC" "3" "04/20/2012" "jemalloc 1.0.0-283-g606f1fdc3c" "User Manual"
+.TH "JEMALLOC" "3" "04/21/2012" "jemalloc 1.0.0-286-ga8f8d7540d" "User Manual"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -31,7 +31,7 @@
 jemalloc \- general purpose memory allocation functions
 .SH "LIBRARY"
 .PP
-This manual describes jemalloc 1\&.0\&.0\-283\-g606f1fdc3cdbc700717133ca56685313caea24bb\&. More information can be found at the
+This manual describes jemalloc 1\&.0\&.0\-286\-ga8f8d7540d66ddee7337db80c92890916e1063ca\&. More information can be found at the
 \m[blue]\fBjemalloc website\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The following configuration options are enabled in libc\*(Aqs built\-in jemalloc:
@@ -404,9 +404,9 @@ Traditionally, allocators have used
 to obtain memory, which is suboptimal for several reasons, including race conditions, increased fragmentation, and artificial limitations on maximum usable memory\&. If
 \fB\-\-enable\-dss\fR
 is specified during configuration, this allocator uses both
-\fBsbrk\fR(2)
+\fBmmap\fR(2)
 and
-\fBmmap\fR(2), in that order of preference; otherwise only
+\fBsbrk\fR(2), in that order of preference; otherwise only
 \fBmmap\fR(2)
 is used\&.
 .PP
