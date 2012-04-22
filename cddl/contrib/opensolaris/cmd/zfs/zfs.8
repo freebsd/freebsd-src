@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2012
+.Dd April 22, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -833,7 +833,7 @@ disables integrity checking on user data. Disabling checksums is
 a recommended practice.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle
 Controls the compression algorithm used for this dataset. The
-.CM lzjb
+.Cm lzjb
 compression algorithm is optimized for performance while providing decent data
 compression. Setting compression to
 .Cm on
@@ -1275,11 +1275,11 @@ for legacy mounts or the
 command for normal file systems, its mount options are set according to its
 properties. The correlation between properties and mount options is as follows:
 .Bl -column -offset 4n "PROPERTY" "MOUNT OPTION"
-.It PROPERTY	MOUNT OPTION
-.It atime	atime/noatime
-.It exec	exec/noexec
-.It readonly	ro/rw
-.It setuid	suid/nosuid
+.It "PROPERTY	MOUNT OPTION"
+.It "atime	atime/noatime"
+.It "exec	exec/noexec"
+.It "readonly	ro/rw"
+.It "setuid	suid/nosuid"
 .El
 .Pp
 In addition, these options can be set on a per-mount basis using the
