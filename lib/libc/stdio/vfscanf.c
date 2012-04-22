@@ -703,7 +703,6 @@ literal:
 			break;
 
 		case 'n':
-			nconversions++;
 			if (flags & SUPPRESS)	/* ??? */
 				continue;
 			if (flags & SHORTSHORT)
