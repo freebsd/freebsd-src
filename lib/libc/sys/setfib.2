@@ -51,8 +51,9 @@ may be retrieved by the
 .Va net.fibs
 sysctl.
 The system maximum is set in the kernel configuration file with
-.Pp
-.Dl options	ROUTETABLES= Ns Em N
+.Bd -ragged -offset indent
+.Cd "options	ROUTETABLES=" Ns Em N
+.Ed
 .Pp
 or in
 .Pa /boot/loader.conf
