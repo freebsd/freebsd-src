@@ -107,6 +107,418 @@ static int parsefloat(FILE *, char *, char *, locale_t);
 __weak_reference(__vfscanf, vfscanf);
 
 /*
+ * Conversion functions are passed a pointer to this object instead of
+ * a real parameter to indicate that the assignment-suppression (*)
+ * flag was specified.  We could use a NULL pointer to indicate this,
+ * but that would mask bugs in applications that call scanf() with a
+ * NULL pointer.
+ */
+static const int suppress;
+#define	SUPPRESS_PTR	((void *)&suppress)
+
+static const mbstate_t initial_mbs;
+
+/*
+ * The following conversion functions return the number of characters consumed,
+ * or -1 on input failure.  Character class conversion returns 0 on match
+ * failure.
+ */
+
+static __inline int
+convert_char(FILE *fp, char * __restrict p, int width)
+{
+	int n, nread;
+
+	nread = 0;
+	if (p == SUPPRESS_PTR) {
+		size_t sum = 0;
+		for (;;) {
+			if ((n = fp->_r) < width) {
+				sum += n;
+				width -= n;
+				fp->_p += n;
+				if (__srefill(fp)) {
+					if (sum == 0)
+						return (-1);
+					break;
+				}
+			} else {
+				sum += width;
+				fp->_r -= width;
+				fp->_p += width;
+				break;
+			}
+		}
+		nread += sum;
+	} else {
+		size_t r = __fread(p, 1, width, fp);
+		
+		if (r == 0)
+			return (-1);
+		nread += r;
+	}
+	return (nread);
+}
+
+static __inline int
+convert_wchar(FILE *fp, wchar_t *wcp, int width)
+{
+	mbstate_t mbs;
+	size_t nconv;
+	int n, nread;
+	char buf[MB_CUR_MAX];
+
+	nread = 0;
+	n = 0;
+	while (width != 0) {
+		if (n == MB_CUR_MAX) {
+			fp->_flags |= __SERR;
+			return (-1);
+		}
+		buf[n++] = *fp->_p;
+		fp->_p++;
+		fp->_r--;
+		mbs = initial_mbs;
+		nconv = mbrtowc(wcp, buf, n, &mbs);
+		if (nconv == (size_t)-1) {
+			fp->_flags |= __SERR;
+			return (-1);
+		}
+		if (nconv == 0 && wcp != SUPPRESS_PTR)
+			*wcp = L'\0';
+		if (nconv != (size_t)-2) {
+			nread += n;
+			width--;
+			if (wcp != SUPPRESS_PTR)
+				wcp++;
+			n = 0;
+		}
+		if (fp->_r <= 0 && __srefill(fp)) {
+			if (n != 0) {
+				fp->_flags |= __SERR;
+				return (-1);
+			}
+			break;
+		}
+	}
+	return (nread);
+}
+
+static __inline int
+convert_ccl(FILE *fp, char * __restrict p, int width, const char *ccltab)
+{
+	char *p0;
+	int n;
+
+	if (p == SUPPRESS_PTR) {
+		n = 0;
+		while (ccltab[*fp->_p]) {
+			n++, fp->_r--, fp->_p++;
+			if (--width == 0)
+				break;
+			if (fp->_r <= 0 && __srefill(fp)) {
+				if (n == 0)
+					return (-1);
+				break;
+			}
+		}
+	} else {
+		p0 = p;
+		while (ccltab[*fp->_p]) {
+			fp->_r--;
+			*p++ = *fp->_p++;
+			if (--width == 0)
+				break;
+			if (fp->_r <= 0 && __srefill(fp)) {
+				if (p == p0)
+					return (-1);
+				break;
+			}
+		}
+		n = p - p0;
+		if (n == 0)
+			return (0);
+		*p = 0;
+	}
+	return (n);
+}
+
+static __inline int
+convert_wccl(FILE *fp, wchar_t *wcp, int width, const char *ccltab)
+{
+	mbstate_t mbs;
+	wchar_t twc;
+	int n, nchars, nconv, nread;
+	char buf[MB_CUR_MAX];
+
+	if (wcp == SUPPRESS_PTR)
+		wcp = &twc;
+	n = nread = 0;
+	nchars = 0;
+	while (width != 0) {
+		if (n == MB_CUR_MAX) {
+			fp->_flags |= __SERR;
+			return (-1);
+		}
+		buf[n++] = *fp->_p;
+		fp->_p++;
+		fp->_r--;
+		mbs = initial_mbs;
+		nconv = mbrtowc(wcp, buf, n, &mbs);
+		if (nconv == (size_t)-1) {
+			fp->_flags |= __SERR;
+			return (-1);
+		}
+		if (nconv == 0)
+			*wcp = L'\0';
+		if (nconv != (size_t)-2) {
+			if (wctob(*wcp) != EOF && !ccltab[wctob(*wcp)]) {
+				while (n != 0) {
+					n--;
+					__ungetc(buf[n], fp);
+				}
+				break;
+			}
+			nread += n;
+			width--;
+			if (wcp != &twc)
+				wcp++;
+			nchars++;
+			n = 0;
+		}
+		if (fp->_r <= 0 && __srefill(fp)) {
+			if (n != 0) {
+				fp->_flags |= __SERR;
+				return (-1);
+			}
+			break;
+		}
+	}
+	if (n != 0) {
+		fp->_flags |= __SERR;
+		return (-1);
+	}
+	n = nchars;
+	if (n == 0)
+		return (0);
+	*wcp = L'\0';
+	/* XXX This matches historical behavior, but it's wrong. */
+	return (nread + n);
+}
+
+static __inline int
+convert_string(FILE *fp, char * __restrict p, int width)
+{
+	char *p0;
+	int n;
+
+	if (p == SUPPRESS_PTR) {
+		n = 0;
+		while (!isspace(*fp->_p)) {
+			n++, fp->_r--, fp->_p++;
+			if (--width == 0)
+				break;
+			if (fp->_r <= 0 && __srefill(fp))
+				break;
+		}
+	} else {
+		p0 = p;
+		while (!isspace(*fp->_p)) {
+			fp->_r--;
+			*p++ = *fp->_p++;
+			if (--width == 0)
+				break;
+			if (fp->_r <= 0 && __srefill(fp))
+				break;
+		}
+		*p = 0;
+		n = p - p0;
+	}
+	return (n);
+}
+
+static __inline int
+convert_wstring(FILE *fp, wchar_t *wcp, int width)
+{
+	mbstate_t mbs;
+	wchar_t twc;
+	int n, nconv, nread;
+	char buf[MB_CUR_MAX];
+
+	if (wcp == SUPPRESS_PTR)
+		wcp = &twc;
+	n = nread = 0;
+	while (!isspace(*fp->_p) && width != 0) {
+		if (n == MB_CUR_MAX) {
+			fp->_flags |= __SERR;
+			return (-1);
+		}
+		buf[n++] = *fp->_p;
+		fp->_p++;
+		fp->_r--;
+		mbs = initial_mbs;
+		nconv = mbrtowc(wcp, buf, n, &mbs);
+		if (nconv == (size_t)-1) {
+			fp->_flags |= __SERR;
+			return (-1);
+		}
+		if (nconv == 0)
+			*wcp = L'\0';
+		if (nconv != (size_t)-2) {
+			if (iswspace(*wcp)) {
+				while (n != 0) {
+					n--;
+					__ungetc(buf[n], fp);
+				}
+				break;
+			}
+			nread += n;
+			width--;
+			if (wcp != &twc)
+				wcp++;
+			n = 0;
+		}
+		if (fp->_r <= 0 && __srefill(fp)) {
+			if (n != 0) {
+				fp->_flags |= __SERR;
+				return (-1);
+			}
+			break;
+		}
+	}
+	*wcp = L'\0';
+	return (nread);
+}
+
+/*
+ * Read an integer, storing it in buf.  The only relevant bit in the
+ * flags argument is PFXOK.
+ *
+ * Return 0 on a match failure, and the number of characters read
+ * otherwise.
+ */
+static __inline int
+parseint(FILE *fp, char * __restrict buf, int width, int base, int flags)
+{
+	/* `basefix' is used to avoid `if' tests */
+	static const short basefix[17] =
+		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+	char *p;
+	int c;
+
+	flags |= SIGNOK | NDIGITS | NZDIGITS;
+	for (p = buf; width; width--) {
+		c = *fp->_p;
+		/*
+		 * Switch on the character; `goto ok' if we accept it
+		 * as a part of number.
+		 */
+		switch (c) {
+
+		/*
+		 * The digit 0 is always legal, but is special.  For
+		 * %i conversions, if no digits (zero or nonzero) have
+		 * been scanned (only signs), we will have base==0.
+		 * In that case, we should set it to 8 and enable 0x
+		 * prefixing.  Also, if we have not scanned zero
+		 * digits before this, do not turn off prefixing
+		 * (someone else will turn it off if we have scanned
+		 * any nonzero digits).
+		 */
+		case '0':
+			if (base == 0) {
+				base = 8;
+				flags |= PFXOK;
+			}
+			if (flags & NZDIGITS)
+				flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
+			else
+				flags &= ~(SIGNOK|PFXOK|NDIGITS);
+			goto ok;
+
+		/* 1 through 7 always legal */
+		case '1': case '2': case '3':
+		case '4': case '5': case '6': case '7':
+			base = basefix[base];
+			flags &= ~(SIGNOK | PFXOK | NDIGITS);
+			goto ok;
+
+		/* digits 8 and 9 ok iff decimal or hex */
+		case '8': case '9':
+			base = basefix[base];
+			if (base <= 8)
+				break;	/* not legal here */
+			flags &= ~(SIGNOK | PFXOK | NDIGITS);
+			goto ok;
+
+		/* letters ok iff hex */
+		case 'A': case 'B': case 'C':
+		case 'D': case 'E': case 'F':
+		case 'a': case 'b': case 'c':
+		case 'd': case 'e': case 'f':
+			/* no need to fix base here */
+			if (base <= 10)
+				break;	/* not legal here */
+			flags &= ~(SIGNOK | PFXOK | NDIGITS);
+			goto ok;
+
+		/* sign ok only as first character */
+		case '+': case '-':
+			if (flags & SIGNOK) {
+				flags &= ~SIGNOK;
+				flags |= HAVESIGN;
+				goto ok;
+			}
+			break;
+					
+		/*
+		 * x ok iff flag still set & 2nd char (or 3rd char if
+		 * we have a sign).
+		 */
+		case 'x': case 'X':
+			if (flags & PFXOK && p ==
+			    buf + 1 + !!(flags & HAVESIGN)) {
+				base = 16;	/* if %i */
+				flags &= ~PFXOK;
+				goto ok;
+			}
+			break;
+		}
+
+		/*
+		 * If we got here, c is not a legal character for a
+		 * number.  Stop accumulating digits.
+		 */
+		break;
+	ok:
+		/*
+		 * c is legal: store it and look at the next.
+		 */
+		*p++ = c;
+		if (--fp->_r > 0)
+			fp->_p++;
+		else if (__srefill(fp))
+			break;		/* EOF */
+	}
+	/*
+	 * If we had only a sign, it is no good; push back the sign.
+	 * If the number ends in `x', it was [sign] '0' 'x', so push
+	 * back the x and treat it as [sign] '0'.
+	 */
+	if (flags & NDIGITS) {
+		if (p > buf)
+			(void) __ungetc(*(u_char *)--p, fp);
+		return (0);
+	}
+	c = ((u_char *)p)[-1];
+	if (c == 'x' || c == 'X') {
+		--p;
+		(void) __ungetc(c, fp);
+	}
+	return (p - buf);
+}
+
+/*
  * __vfscanf - MT-safe version
  */
 int
@@ -137,27 +549,18 @@ vfscanf_l(FILE *fp, locale_t locale, char const *fmt0, va_list ap)
 int
 __svfscanf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 {
+#define	GETARG(type)	((flags & SUPPRESS) ? SUPPRESS_PTR : va_arg(ap, type))
 	const u_char *fmt = (const u_char *)fmt0;
 	int c;			/* character from format, or conversion */
 	size_t width;		/* field width, or 0 */
-	char *p;		/* points into all kinds of strings */
-	int n;			/* handy integer */
 	int flags;		/* flags as defined above */
-	char *p0;		/* saves original value of p when necessary */
 	int nassigned;		/* number of fields assigned */
 	int nconversions;	/* number of conversions */
+	int nr;			/* characters read by the current conversion */
 	int nread;		/* number of characters consumed from fp */
 	int base;		/* base argument to conversion function */
 	char ccltab[256];	/* character class table for %[...] */
-	char buf[BUF];		/* buffer for numeric and mb conversions */
-	wchar_t *wcp;		/* handy wide character pointer */
-	size_t nconv;		/* length of multibyte sequence converted */
-	static const mbstate_t initial;
-	mbstate_t mbs;
-
-	/* `basefix' is used to avoid `if' tests in the integer scanner */
-	static short basefix[17] =
-		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+	char buf[BUF];		/* buffer for numeric conversions */
 
 	ORIENT(fp, -1);
 
@@ -366,178 +769,32 @@ literal:
 			if (width == 0)
 				width = 1;
 			if (flags & LONG) {
-				if ((flags & SUPPRESS) == 0)
-					wcp = va_arg(ap, wchar_t *);
-				else
-					wcp = NULL;
-				n = 0;
-				while (width != 0) {
-					if (n == MB_CUR_MAX) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					buf[n++] = *fp->_p;
-					fp->_p++;
-					fp->_r--;
-					mbs = initial;
-					nconv = mbrtowc(wcp, buf, n, &mbs);
-					if (nconv == (size_t)-1) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					if (nconv == 0 && !(flags & SUPPRESS))
-						*wcp = L'\0';
-					if (nconv != (size_t)-2) {
-						nread += n;
-						width--;
-						if (!(flags & SUPPRESS))
-							wcp++;
-						n = 0;
-					}
-					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n != 0) {
-							fp->_flags |= __SERR;
-							goto input_failure;
-						}
-						break;
-					}
-				}
-				if (!(flags & SUPPRESS))
-					nassigned++;
-			} else if (flags & SUPPRESS) {
-				size_t sum = 0;
-				for (;;) {
-					if ((n = fp->_r) < width) {
-						sum += n;
-						width -= n;
-						fp->_p += n;
-						if (__srefill(fp)) {
-							if (sum == 0)
-							    goto input_failure;
-							break;
-						}
-					} else {
-						sum += width;
-						fp->_r -= width;
-						fp->_p += width;
-						break;
-					}
-				}
-				nread += sum;
+				nr = convert_wchar(fp, GETARG(wchar_t *),
+				    width);
 			} else {
-				size_t r = __fread((void *)va_arg(ap, char *), 1,
-				    width, fp);
-
-				if (r == 0)
-					goto input_failure;
-				nread += r;
-				nassigned++;
+				nr = convert_char(fp, GETARG(char *), width);
 			}
-			nconversions++;
+			if (nr < 0)
+				goto input_failure;
 			break;
 
 		case CT_CCL:
 			/* scan a (nonempty) character class (sets NOSKIP) */
 			if (width == 0)
 				width = (size_t)~0;	/* `infinity' */
-			/* take only those things in the class */
 			if (flags & LONG) {
-				wchar_t twc;
-				int nchars;
-
-				if ((flags & SUPPRESS) == 0)
-					wcp = va_arg(ap, wchar_t *);
-				else
-					wcp = &twc;
-				n = 0;
-				nchars = 0;
-				while (width != 0) {
-					if (n == MB_CUR_MAX) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					buf[n++] = *fp->_p;
-					fp->_p++;
-					fp->_r--;
-					mbs = initial;
-					nconv = mbrtowc(wcp, buf, n, &mbs);
-					if (nconv == (size_t)-1) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					if (nconv == 0)
-						*wcp = L'\0';
-					if (nconv != (size_t)-2) {
-						if (wctob(*wcp) != EOF &&
-						    !ccltab[wctob(*wcp)]) {
-							while (n != 0) {
-								n--;
-								__ungetc(buf[n],
-								    fp);
-							}
-							break;
-						}
-						nread += n;
-						width--;
-						if (!(flags & SUPPRESS))
-							wcp++;
-						nchars++;
-						n = 0;
-					}
-					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n != 0) {
-							fp->_flags |= __SERR;
-							goto input_failure;
-						}
-						break;
-					}
-				}
-				if (n != 0) {
-					fp->_flags |= __SERR;
-					goto input_failure;
-				}
-				n = nchars;
-				if (n == 0)
-					goto match_failure;
-				if (!(flags & SUPPRESS)) {
-					*wcp = L'\0';
-					nassigned++;
-				}
-			} else if (flags & SUPPRESS) {
-				n = 0;
-				while (ccltab[*fp->_p]) {
-					n++, fp->_r--, fp->_p++;
-					if (--width == 0)
-						break;
-					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n == 0)
-							goto input_failure;
-						break;
-					}
-				}
-				if (n == 0)
-					goto match_failure;
+				nr = convert_wccl(fp, GETARG(wchar_t *), width,
+				    ccltab);
 			} else {
-				p0 = p = va_arg(ap, char *);
-				while (ccltab[*fp->_p]) {
-					fp->_r--;
-					*p++ = *fp->_p++;
-					if (--width == 0)
-						break;
-					if (fp->_r <= 0 && __srefill(fp)) {
-						if (p == p0)
-							goto input_failure;
-						break;
-					}
-				}
-				n = p - p0;
-				if (n == 0)
-					goto match_failure;
-				*p = 0;
-				nassigned++;
+				nr = convert_ccl(fp, GETARG(char *), width,
+				    ccltab);
 			}
-			nread += n;
-			nconversions++;
+			if (nr <= 0) {
+				if (nr < 0)
+					goto input_failure;
+				else /* nr == 0 */
+					goto match_failure;
+			}
 			break;
 
 		case CT_STRING:
@@ -545,82 +802,14 @@ literal:
 			if (width == 0)
 				width = (size_t)~0;
 			if (flags & LONG) {
-				wchar_t twc;
-
-				if ((flags & SUPPRESS) == 0)
-					wcp = va_arg(ap, wchar_t *);
-				else
-					wcp = &twc;
-				n = 0;
-				while (!isspace(*fp->_p) && width != 0) {
-					if (n == MB_CUR_MAX) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					buf[n++] = *fp->_p;
-					fp->_p++;
-					fp->_r--;
-					mbs = initial;
-					nconv = mbrtowc(wcp, buf, n, &mbs);
-					if (nconv == (size_t)-1) {
-						fp->_flags |= __SERR;
-						goto input_failure;
-					}
-					if (nconv == 0)
-						*wcp = L'\0';
-					if (nconv != (size_t)-2) {
-						if (iswspace(*wcp)) {
-							while (n != 0) {
-								n--;
-								__ungetc(buf[n],
-								    fp);
-							}
-							break;
-						}
-						nread += n;
-						width--;
-						if (!(flags & SUPPRESS))
-							wcp++;
-						n = 0;
-					}
-					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n != 0) {
-							fp->_flags |= __SERR;
-							goto input_failure;
-						}
-						break;
-					}
-				}
-				if (!(flags & SUPPRESS)) {
-					*wcp = L'\0';
-					nassigned++;
-				}
-			} else if (flags & SUPPRESS) {
-				n = 0;
-				while (!isspace(*fp->_p)) {
-					n++, fp->_r--, fp->_p++;
-					if (--width == 0)
-						break;
-					if (fp->_r <= 0 && __srefill(fp))
-						break;
-				}
-				nread += n;
+				nr = convert_wstring(fp, GETARG(wchar_t *),
+				    width);
 			} else {
-				p0 = p = va_arg(ap, char *);
-				while (!isspace(*fp->_p)) {
-					fp->_r--;
-					*p++ = *fp->_p++;
-					if (--width == 0)
-						break;
-					if (fp->_r <= 0 && __srefill(fp))
-						break;
-				}
-				*p = 0;
-				nread += p - p0;
-				nassigned++;
+				nr = convert_string(fp, GETARG(char *), width);
 			}
-			nconversions++;
-			continue;
+			if (nr < 0)
+				goto input_failure;
+			break;
 
 		case CT_INT:
 			/* scan an integer as if by the conversion function */
@@ -633,122 +822,13 @@ literal:
 				width = sizeof(buf) - 2;
 			width++;
 #endif
-			flags |= SIGNOK | NDIGITS | NZDIGITS;
-			for (p = buf; width; width--) {
-				c = *fp->_p;
-				/*
-				 * Switch on the character; `goto ok'
-				 * if we accept it as a part of number.
-				 */
-				switch (c) {
-
-				/*
-				 * The digit 0 is always legal, but is
-				 * special.  For %i conversions, if no
-				 * digits (zero or nonzero) have been
-				 * scanned (only signs), we will have
-				 * base==0.  In that case, we should set
-				 * it to 8 and enable 0x prefixing.
-				 * Also, if we have not scanned zero digits
-				 * before this, do not turn off prefixing
-				 * (someone else will turn it off if we
-				 * have scanned any nonzero digits).
-				 */
-				case '0':
-					if (base == 0) {
-						base = 8;
-						flags |= PFXOK;
-					}
-					if (flags & NZDIGITS)
-					    flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
-					else
-					    flags &= ~(SIGNOK|PFXOK|NDIGITS);
-					goto ok;
-
-				/* 1 through 7 always legal */
-				case '1': case '2': case '3':
-				case '4': case '5': case '6': case '7':
-					base = basefix[base];
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* digits 8 and 9 ok iff decimal or hex */
-				case '8': case '9':
-					base = basefix[base];
-					if (base <= 8)
-						break;	/* not legal here */
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* letters ok iff hex */
-				case 'A': case 'B': case 'C':
-				case 'D': case 'E': case 'F':
-				case 'a': case 'b': case 'c':
-				case 'd': case 'e': case 'f':
-					/* no need to fix base here */
-					if (base <= 10)
-						break;	/* not legal here */
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* sign ok only as first character */
-				case '+': case '-':
-					if (flags & SIGNOK) {
-						flags &= ~SIGNOK;
-						flags |= HAVESIGN;
-						goto ok;
-					}
-					break;
-					
-				/*
-				 * x ok iff flag still set & 2nd char (or
-				 * 3rd char if we have a sign).
-				 */
-				case 'x': case 'X':
-					if (flags & PFXOK && p ==
-					    buf + 1 + !!(flags & HAVESIGN)) {
-						base = 16;	/* if %i */
-						flags &= ~PFXOK;
-						goto ok;
-					}
-					break;
-				}
-
-				/*
-				 * If we got here, c is not a legal character
-				 * for a number.  Stop accumulating digits.
-				 */
-				break;
-		ok:
-				/*
-				 * c is legal: store it and look at the next.
-				 */
-				*p++ = c;
-				if (--fp->_r > 0)
-					fp->_p++;
-				else if (__srefill(fp))
-					break;		/* EOF */
-			}
-			/*
-			 * If we had only a sign, it is no good; push
-			 * back the sign.  If the number ends in `x',
-			 * it was [sign] '0' 'x', so push back the x
-			 * and treat it as [sign] '0'.
-			 */
-			if (flags & NDIGITS) {
-				if (p > buf)
-					(void) __ungetc(*(u_char *)--p, fp);
+			nr = parseint(fp, buf, width, base, flags);
+			if (nr == 0)
 				goto match_failure;
-			}
-			c = ((u_char *)p)[-1];
-			if (c == 'x' || c == 'X') {
-				--p;
-				(void) __ungetc(c, fp);
-			}
 			if ((flags & SUPPRESS) == 0) {
 				uintmax_t res;
 
-				*p = 0;
+				buf[nr] = '\0';
 				if ((flags & UNSIGNED) == 0)
 				    res = strtoimax_l(buf, (char **)NULL, base, locale);
 				else
@@ -772,10 +852,7 @@ literal:
 					*va_arg(ap, size_t *) = res;
 				else
 					*va_arg(ap, int *) = res;
-				nassigned++;
 			}
-			nread += p - buf;
-			nconversions++;
 			break;
 
 #ifndef NO_FLOATING_POINT
@@ -783,26 +860,30 @@ literal:
 			/* scan a floating point number as if by strtod */
 			if (width == 0 || width > sizeof(buf) - 1)
 				width = sizeof(buf) - 1;
-			if ((width = parsefloat(fp, buf, buf + width, locale)) == 0)
+			nr = parsefloat(fp, buf, buf + width, locale);
+			if (nr == 0)
 				goto match_failure;
 			if ((flags & SUPPRESS) == 0) {
 				if (flags & LONGDBL) {
-					long double res = strtold_l(buf, &p, locale);
+					long double res = strtold_l(buf, NULL,
+					    locale);
 					*va_arg(ap, long double *) = res;
 				} else if (flags & LONG) {
-					double res = strtod_l(buf, &p, locale);
+					double res = strtod_l(buf, NULL,
+					    locale);
 					*va_arg(ap, double *) = res;
 				} else {
-					float res = strtof_l(buf, &p, locale);
+					float res = strtof_l(buf, NULL, locale);
 					*va_arg(ap, float *) = res;
 				}
-				nassigned++;
 			}
-			nread += width;
-			nconversions++;
 			break;
 #endif /* !NO_FLOATING_POINT */
 		}
+		if (!(flags & SUPPRESS))
+			nassigned++;
+		nread += nr;
+		nconversions++;
 	}
 input_failure:
 	return (nconversions != 0 ? nassigned : EOF);
