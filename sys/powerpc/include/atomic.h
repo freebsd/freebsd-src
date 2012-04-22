@@ -38,8 +38,13 @@
 
 /* NOTE: lwsync is equivalent to sync on systems without lwsync */
 #define mb()	__asm __volatile("lwsync" : : : "memory")
+#ifdef __powerpc64__
 #define wmb()	__asm __volatile("lwsync" : : : "memory")
 #define rmb()	__asm __volatile("lwsync" : : : "memory")
+#else
+#define wmb()	__asm __volatile("eieio" : : : "memory")
+#define rmb()	__asm __volatile("isync" : : : "memory")
+#endif
 
 /*
  * atomic_add(p, v)
