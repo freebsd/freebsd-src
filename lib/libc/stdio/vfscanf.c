@@ -248,12 +248,12 @@ convert_wccl(FILE *fp, wchar_t *wcp, int width, const char *ccltab)
 {
 	mbstate_t mbs;
 	wchar_t twc;
-	int n, nchars, nconv, nread;
+	int n, nchars, nconv;
 	char buf[MB_CUR_MAX];
 
 	if (wcp == SUPPRESS_PTR)
 		wcp = &twc;
-	n = nread = 0;
+	n = 0;
 	nchars = 0;
 	while (width != 0) {
 		if (n == MB_CUR_MAX) {
@@ -279,7 +279,6 @@ convert_wccl(FILE *fp, wchar_t *wcp, int width, const char *ccltab)
 				}
 				break;
 			}
-			nread += n;
 			width--;
 			if (wcp != &twc)
 				wcp++;
@@ -298,12 +297,10 @@ convert_wccl(FILE *fp, wchar_t *wcp, int width, const char *ccltab)
 		fp->_flags |= __SERR;
 		return (-1);
 	}
-	n = nchars;
-	if (n == 0)
+	if (nchars == 0)
 		return (0);
 	*wcp = L'\0';
-	/* XXX This matches historical behavior, but it's wrong. */
-	return (nread + n);
+	return (nchars);
 }
 
 static __inline int
