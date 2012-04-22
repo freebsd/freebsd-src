@@ -60,7 +60,7 @@ ccsr_write4(uintptr_t addr, uint32_t val)
 	volatile uint32_t *ptr = (void *)addr;
 
 	*ptr = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 int

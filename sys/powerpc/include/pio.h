@@ -39,46 +39,52 @@
  * I/O macros.
  */
 
+/*
+ * Note: this should be eieio, but many drivers expect ordering with
+ * main storage too.
+ */
+#define powerpc_iomb() __asm __volatile("sync" : : : "memory")
+
 static __inline void
 __outb(volatile u_int8_t *a, u_int8_t v)
 {
 	*a = v;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
 __outw(volatile u_int16_t *a, u_int16_t v)
 {
 	*a = v;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
 __outl(volatile u_int32_t *a, u_int32_t v)
 {
 	*a = v;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
 __outll(volatile u_int64_t *a, u_int64_t v)
 {
 	*a = v;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
 __outwrb(volatile u_int16_t *a, u_int16_t v)
 {
 	__asm__ volatile("sthbrx %0, 0, %1" :: "r"(v), "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
 __outlrb(volatile u_int32_t *a, u_int32_t v)
 {
 	__asm__ volatile("stwbrx %0, 0, %1" :: "r"(v), "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline u_int8_t
@@ -87,7 +93,7 @@ __inb(volatile u_int8_t *a)
 	u_int8_t _v_;
 
 	_v_ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 	return _v_;
 }
 
@@ -97,7 +103,7 @@ __inw(volatile u_int16_t *a)
 	u_int16_t _v_;
 
 	_v_ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 	return _v_;
 }
 
@@ -107,7 +113,7 @@ __inl(volatile u_int32_t *a)
 	u_int32_t _v_;
 
 	_v_ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 	return _v_;
 }
 
@@ -117,7 +123,7 @@ __inll(volatile u_int64_t *a)
 	u_int64_t _v_;
 
 	_v_ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 	return _v_;
 }
 
@@ -127,7 +133,7 @@ __inwrb(volatile u_int16_t *a)
 	u_int16_t _v_;
 
 	__asm__ volatile("lhbrx %0, 0, %1" : "=r"(_v_) : "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 	return _v_;
 }
 
@@ -137,7 +143,7 @@ __inlrb(volatile u_int32_t *a)
 	u_int32_t _v_;
 
 	__asm__ volatile("lwbrx %0, 0, %1" : "=r"(_v_) : "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 	return _v_;
 }
 
@@ -175,7 +181,7 @@ __outsb(volatile u_int8_t *a, const u_int8_t *s, size_t c)
 {
 	while (c--)
 		*a = *s++;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -183,7 +189,7 @@ __outsw(volatile u_int16_t *a, const u_int16_t *s, size_t c)
 {
 	while (c--)
 		*a = *s++;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -191,7 +197,7 @@ __outsl(volatile u_int32_t *a, const u_int32_t *s, size_t c)
 {
 	while (c--)
 		*a = *s++;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -199,7 +205,7 @@ __outsll(volatile u_int64_t *a, const u_int64_t *s, size_t c)
 {
 	while (c--)
 		*a = *s++;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -207,7 +213,7 @@ __outswrb(volatile u_int16_t *a, const u_int16_t *s, size_t c)
 {
 	while (c--)
 		__asm__ volatile("sthbrx %0, 0, %1" :: "r"(*s++), "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -215,7 +221,7 @@ __outslrb(volatile u_int32_t *a, const u_int32_t *s, size_t c)
 {
 	while (c--)
 		__asm__ volatile("stwbrx %0, 0, %1" :: "r"(*s++), "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -223,7 +229,7 @@ __insb(volatile u_int8_t *a, u_int8_t *d, size_t c)
 {
 	while (c--)
 		*d++ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -231,7 +237,7 @@ __insw(volatile u_int16_t *a, u_int16_t *d, size_t c)
 {
 	while (c--)
 		*d++ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -239,7 +245,7 @@ __insl(volatile u_int32_t *a, u_int32_t *d, size_t c)
 {
 	while (c--)
 		*d++ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -247,7 +253,7 @@ __insll(volatile u_int64_t *a, u_int64_t *d, size_t c)
 {
 	while (c--)
 		*d++ = *a;
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -255,7 +261,7 @@ __inswrb(volatile u_int16_t *a, u_int16_t *d, size_t c)
 {
 	while (c--)
 		__asm__ volatile("lhbrx %0, 0, %1" : "=r"(*d++) : "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 static __inline void
@@ -263,7 +269,7 @@ __inslrb(volatile u_int32_t *a, u_int32_t *d, size_t c)
 {
 	while (c--)
 		__asm__ volatile("lwbrx %0, 0, %1" : "=r"(*d++) : "r"(a));
-	__asm__ volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 #define	outsb(a,s,c)	(__outsb((volatile u_int8_t *)(a), s, c))
