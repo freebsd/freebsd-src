@@ -506,7 +506,7 @@ __vfwscanf(FILE * __restrict fp, locale_t locale,
 		if (iswspace(c)) {
 			while ((c = __fgetwc(fp, locale)) != WEOF &&
 			    iswspace_l(c, locale))
-				;
+				nread++;
 			if (c != WEOF)
 				__ungetwc(c, fp, locale);
 			continue;
