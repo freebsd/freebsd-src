@@ -1333,6 +1333,37 @@ moea64_extract(mmu_t mmu, pmap_t pm, vm_offset_t va)
  * pmap and virtual address pair if that mapping permits the given
  * protection.
  */
+
+extern int pa_tryrelock_restart;
+
+static int
+vm_page_pa_tryrelock_moea64(pmap_t pmap, vm_paddr_t pa, vm_paddr_t *locked)
+{
+	/*
+	 * This is a duplicate of vm_page_pa_tryrelock(), but with proper
+	 * handling of the table lock
+	 */
+	vm_paddr_t lockpa;
+
+	lockpa = *locked;
+	*locked = pa;
+	if (lockpa) {
+		PA_LOCK_ASSERT(lockpa, MA_OWNED);
+		if (PA_LOCKPTR(pa) == PA_LOCKPTR(lockpa))
+			return (0);
+		PA_UNLOCK(lockpa);
+	}
+	if (PA_TRYLOCK(pa))
+		return (0);
+	UNLOCK_TABLE_RD();
+	PMAP_UNLOCK(pmap);
+	atomic_add_int(&pa_tryrelock_restart, 1);
+	PA_LOCK(pa);
+	LOCK_TABLE_RD();
+	PMAP_LOCK(pmap);
+	return (EAGAIN);
+}
+
 vm_page_t
 moea64_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
@@ -1349,7 +1380,7 @@ retry:
 	if (pvo != NULL && (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) &&
 	    ((pvo->pvo_pte.lpte.pte_lo & LPTE_PP) == LPTE_RW ||
 	     (prot & VM_PROT_WRITE) == 0)) {
-		if (vm_page_pa_tryrelock(pmap,
+		if (vm_page_pa_tryrelock_moea64(pmap,
 			pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN, &pa))
 			goto retry;
 		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
