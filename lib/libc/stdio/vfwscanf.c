@@ -101,11 +101,357 @@ __FBSDID("$FreeBSD$");
 static int parsefloat(FILE *, wchar_t *, wchar_t *, locale_t);
 #endif
 
-#define	INCCL(_c)	\
-	(cclcompl ? (wmemchr(ccls, (_c), ccle - ccls) == NULL) : \
-	(wmemchr(ccls, (_c), ccle - ccls) != NULL))
+struct ccl {
+	const wchar_t *start;	/* character class start */
+	const wchar_t *end;	/* character class end */
+	int compl;		/* ccl is complemented? */
+};
+
+static __inline int
+inccl(const struct ccl *ccl, wint_t wi)
+{
+
+	if (ccl->compl) {
+		return (wmemchr(ccl->start, wi, ccl->end - ccl->start)
+		    == NULL);
+	} else {
+		return (wmemchr(ccl->start, wi, ccl->end - ccl->start) != NULL);
+	}
+}
+
+/*
+ * Conversion functions are passed a pointer to this object instead of
+ * a real parameter to indicate that the assignment-suppression (*)
+ * flag was specified.  We could use a NULL pointer to indicate this,
+ * but that would mask bugs in applications that call scanf() with a
+ * NULL pointer.
+ */
+static const int suppress;
+#define	SUPPRESS_PTR	((void *)&suppress)
 
 static const mbstate_t initial_mbs;
+
+/*
+ * The following conversion functions return the number of characters consumed,
+ * or -1 on input failure.  Character class conversion returns 0 on match
+ * failure.
+ */
+
+static __inline int
+convert_char(FILE *fp, char * __restrict mbp, int width, locale_t locale)
+{
+	mbstate_t mbs;
+	size_t nconv;
+	wint_t wi;
+	int n;
+	char mbbuf[MB_LEN_MAX];
+
+	n = 0;
+	mbs = initial_mbs;
+	while (width != 0 && (wi = __fgetwc(fp, locale)) != WEOF) {
+		if (width >= MB_CUR_MAX && mbp != SUPPRESS_PTR) {
+			nconv = wcrtomb(mbp, wi, &mbs);
+			if (nconv == (size_t)-1)
+				return (-1);
+		} else {
+			nconv = wcrtomb(mbbuf, wi, &mbs);
+			if (nconv == (size_t)-1)
+				return (-1);
+			if (nconv > width) {
+				__ungetwc(wi, fp, locale);
+				break;
+			}
+			if (mbp != SUPPRESS_PTR)
+				memcpy(mbp, mbbuf, nconv);
+		}
+		if (mbp != SUPPRESS_PTR)
+			mbp += nconv;
+		width -= nconv;
+		n++;
+	}
+	if (n == 0)
+		return (-1);
+	return (n);
+}
+
+static __inline int
+convert_wchar(FILE *fp, wchar_t *wcp, int width, locale_t locale)
+{
+	wint_t wi;
+	int n;
+
+	n = 0;
+	while (width-- != 0 && (wi = __fgetwc(fp, locale)) != WEOF) {
+		if (wcp != SUPPRESS_PTR)
+			*wcp++ = (wchar_t)wi;
+		n++;
+	}
+	if (n == 0)
+		return (-1);
+	return (n);
+}
+
+static __inline int
+convert_ccl(FILE *fp, char * __restrict mbp, int width, const struct ccl *ccl,
+    locale_t locale)
+{
+	mbstate_t mbs;
+	size_t nconv;
+	wint_t wi;
+	int n;
+	char mbbuf[MB_LEN_MAX];
+
+	n = 0;
+	mbs = initial_mbs;
+	while ((wi = __fgetwc(fp, locale)) != WEOF &&
+	    width != 0 && inccl(ccl, wi)) {
+		if (width >= MB_CUR_MAX && mbp != SUPPRESS_PTR) {
+			nconv = wcrtomb(mbp, wi, &mbs);
+			if (nconv == (size_t)-1)
+				return (-1);
+		} else {
+			nconv = wcrtomb(mbbuf, wi, &mbs);
+			if (nconv == (size_t)-1)
+				return (-1);
+			if (nconv > width)
+				break;
+			if (mbp != SUPPRESS_PTR)
+				memcpy(mbp, mbbuf, nconv);
+		}
+		if (mbp != SUPPRESS_PTR)
+			mbp += nconv;
+		width -= nconv;
+		n++;
+	}
+	if (wi != WEOF)
+		__ungetwc(wi, fp, locale);
+	if (mbp != SUPPRESS_PTR)
+		*mbp = 0;
+	return (n);
+}
+
+static __inline int
+convert_wccl(FILE *fp, wchar_t *wcp, int width, const struct ccl *ccl,
+    locale_t locale)
+{
+	wchar_t *wcp0;
+	wint_t wi;
+	int n;
+
+	if (wcp == SUPPRESS_PTR) {
+		n = 0;
+		while ((wi = __fgetwc(fp, locale)) != WEOF &&
+		    width-- != 0 && inccl(ccl, wi))
+			n++;
+		if (wi != WEOF)
+			__ungetwc(wi, fp, locale);
+	} else {
+		wcp0 = wcp;
+		while ((wi = __fgetwc(fp, locale)) != WEOF &&
+		    width-- != 0 && inccl(ccl, wi))
+			*wcp++ = (wchar_t)wi;
+		if (wi != WEOF)
+			__ungetwc(wi, fp, locale);
+		n = wcp - wcp0;
+		if (n == 0)
+			return (0);
+		*wcp = 0;
+	}
+	return (n);
+}
+
+static __inline int
+convert_string(FILE *fp, char * __restrict mbp, int width, locale_t locale)
+{
+	mbstate_t mbs;
+	size_t nconv;
+	wint_t wi;
+	int nread;
+	char mbbuf[MB_LEN_MAX];
+
+	mbs = initial_mbs;
+	nread = 0;
+	while ((wi = __fgetwc(fp, locale)) != WEOF && width != 0 &&
+	    !iswspace(wi)) {
+		if (width >= MB_CUR_MAX && mbp != SUPPRESS_PTR) {
+			nconv = wcrtomb(mbp, wi, &mbs);
+			if (nconv == (size_t)-1)
+				return (-1);
+		} else {
+			nconv = wcrtomb(mbbuf, wi, &mbs);
+			if (nconv == (size_t)-1)
+				return (-1);
+			if (nconv > width)
+				break;
+			if (mbp != SUPPRESS_PTR)
+				memcpy(mbp, mbbuf, nconv);
+		}
+		if (mbp != SUPPRESS_PTR)
+			mbp += nconv;
+		width -= nconv;
+		nread++;
+	}
+	if (wi != WEOF)
+		__ungetwc(wi, fp, locale);
+	if (mbp != SUPPRESS_PTR)
+		*mbp = 0;
+	return (nread);
+}
+
+static __inline int
+convert_wstring(FILE *fp, wchar_t *wcp, int width, locale_t locale)
+{
+	wchar_t *wcp0;
+	wint_t wi;
+	int nread;
+
+	nread = 0;
+	if (wcp == SUPPRESS_PTR) {
+		while ((wi = __fgetwc(fp, locale)) != WEOF &&
+		    width-- != 0 && !iswspace(wi))
+			nread++;
+		if (wi != WEOF)
+			__ungetwc(wi, fp, locale);
+	} else {
+		wcp0 = wcp;
+		while ((wi = __fgetwc(fp, locale)) != WEOF &&
+		    width-- != 0 && !iswspace(wi)) {
+			*wcp++ = (wchar_t)wi;
+			nread++;
+		}
+		if (wi != WEOF)
+			__ungetwc(wi, fp, locale);
+		*wcp = '\0';
+	}
+	return (nread);
+}
+
+/*
+ * Read an integer, storing it in buf.  The only relevant bit in the
+ * flags argument is PFXOK.
+ *
+ * Return 0 on a match failure, and the number of characters read
+ * otherwise.
+ */
+static __inline int
+parseint(FILE *fp, wchar_t *buf, int width, int base, int flags,
+    locale_t locale)
+{
+	/* `basefix' is used to avoid `if' tests */
+	static const short basefix[17] =
+		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+	wchar_t *wcp;
+	int c;
+
+	flags |= SIGNOK | NDIGITS | NZDIGITS;
+	for (wcp = buf; width; width--) {
+		c = __fgetwc(fp, locale);
+		/*
+		 * Switch on the character; `goto ok' if we accept it
+		 * as a part of number.
+		 */
+		switch (c) {
+
+		/*
+		 * The digit 0 is always legal, but is special.  For
+		 * %i conversions, if no digits (zero or nonzero) have
+		 * been scanned (only signs), we will have base==0.
+		 * In that case, we should set it to 8 and enable 0x
+		 * prefixing.  Also, if we have not scanned zero
+		 * digits before this, do not turn off prefixing
+		 * (someone else will turn it off if we have scanned
+		 * any nonzero digits).
+		 */
+		case '0':
+			if (base == 0) {
+				base = 8;
+				flags |= PFXOK;
+			}
+			if (flags & NZDIGITS)
+				flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
+			else
+				flags &= ~(SIGNOK|PFXOK|NDIGITS);
+			goto ok;
+
+		/* 1 through 7 always legal */
+		case '1': case '2': case '3':
+		case '4': case '5': case '6': case '7':
+			base = basefix[base];
+			flags &= ~(SIGNOK | PFXOK | NDIGITS);
+			goto ok;
+
+		/* digits 8 and 9 ok iff decimal or hex */
+		case '8': case '9':
+			base = basefix[base];
+			if (base <= 8)
+				break;	/* not legal here */
+			flags &= ~(SIGNOK | PFXOK | NDIGITS);
+			goto ok;
+
+		/* letters ok iff hex */
+		case 'A': case 'B': case 'C':
+		case 'D': case 'E': case 'F':
+		case 'a': case 'b': case 'c':
+		case 'd': case 'e': case 'f':
+			/* no need to fix base here */
+			if (base <= 10)
+				break;	/* not legal here */
+			flags &= ~(SIGNOK | PFXOK | NDIGITS);
+			goto ok;
+
+		/* sign ok only as first character */
+		case '+': case '-':
+			if (flags & SIGNOK) {
+				flags &= ~SIGNOK;
+				flags |= HAVESIGN;
+				goto ok;
+			}
+			break;
+					
+		/*
+		 * x ok iff flag still set & 2nd char (or 3rd char if
+		 * we have a sign).
+		 */
+		case 'x': case 'X':
+			if (flags & PFXOK && wcp ==
+			    buf + 1 + !!(flags & HAVESIGN)) {
+				base = 16;	/* if %i */
+				flags &= ~PFXOK;
+				goto ok;
+			}
+			break;
+		}
+
+		/*
+		 * If we got here, c is not a legal character for a
+		 * number.  Stop accumulating digits.
+		 */
+		if (c != WEOF)
+			__ungetwc(c, fp, locale);
+		break;
+	ok:
+		/*
+		 * c is legal: store it and look at the next.
+		 */
+		*wcp++ = (wchar_t)c;
+	}
+	/*
+	 * If we had only a sign, it is no good; push back the sign.
+	 * If the number ends in `x', it was [sign] '0' 'x', so push
+	 * back the x and treat it as [sign] '0'.
+	 */
+	if (flags & NDIGITS) {
+		if (wcp > buf)
+			__ungetwc(*--wcp, fp, locale);
+		return (0);
+	}
+	c = wcp[-1];
+	if (c == 'x' || c == 'X') {
+		--wcp;
+		__ungetwc(c, fp, locale);
+	}
+	return (wcp - buf);
+}
 
 /*
  * MT-safe version.
@@ -136,34 +482,23 @@ int
 __vfwscanf(FILE * __restrict fp, locale_t locale,
 		const wchar_t * __restrict fmt, va_list ap)
 {
+#define	GETARG(type)	((flags & SUPPRESS) ? SUPPRESS_PTR : va_arg(ap, type))
 	wint_t c;		/* character from format, or conversion */
 	size_t width;		/* field width, or 0 */
-	wchar_t *p;		/* points into all kinds of strings */
-	int n;			/* handy integer */
 	int flags;		/* flags as defined above */
-	wchar_t *p0;		/* saves original value of p when necessary */
 	int nassigned;		/* number of fields assigned */
 	int nconversions;	/* number of conversions */
+	int nr;			/* characters read by the current conversion */
 	int nread;		/* number of characters consumed from fp */
 	int base;		/* base argument to conversion function */
+	struct ccl ccl;		/* character class info */
 	wchar_t buf[BUF];	/* buffer for numeric conversions */
-	const wchar_t *ccls;	/* character class start */
-	const wchar_t *ccle;	/* character class end */
-	int cclcompl;		/* ccl is complemented? */
 	wint_t wi;		/* handy wint_t */
-	char *mbp;		/* multibyte string pointer for %c %s %[ */
-	size_t nconv;		/* number of bytes in mb. conversion */
-	char mbbuf[MB_LEN_MAX];	/* temporary mb. character buffer */
-	mbstate_t mbs;
-
-	/* `basefix' is used to avoid `if' tests in the integer scanner */
-	static short basefix[17] =
-		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
 
 	nassigned = 0;
 	nconversions = 0;
 	nread = 0;
-	ccls = ccle = NULL;
+	ccl.start = ccl.end = NULL;
 	for (;;) {
 		c = *fmt++;
 		if (c == 0)
@@ -283,17 +618,17 @@ literal:
 			break;
 
 		case '[':
-			ccls = fmt;
+			ccl.start = fmt;
 			if (*fmt == '^') {
-				cclcompl = 1;
+				ccl.compl = 1;
 				fmt++;
 			} else
-				cclcompl = 0;
+				ccl.compl = 0;
 			if (*fmt == ']')
 				fmt++;
 			while (*fmt != '\0' && *fmt != ']')
 				fmt++;
-			ccle = fmt;
+			ccl.end = fmt;
 			fmt++;
 			flags |= NOSKIP;
 			c = CT_CCL;
@@ -368,57 +703,14 @@ literal:
 			if (width == 0)
 				width = 1;
 			if (flags & LONG) {
-				if (!(flags & SUPPRESS))
-					p = va_arg(ap, wchar_t *);
-				n = 0;
-				while (width-- != 0 &&
-				    (wi = __fgetwc(fp, locale)) != WEOF) {
-					if (!(flags & SUPPRESS))
-						*p++ = (wchar_t)wi;
-					n++;
-				}
-				if (n == 0)
-					goto input_failure;
-				nread += n;
-				if (!(flags & SUPPRESS))
-					nassigned++;
+				nr = convert_wchar(fp, GETARG(wchar_t *), width,
+				    locale);
 			} else {
-				if (!(flags & SUPPRESS))
-					mbp = va_arg(ap, char *);
-				n = 0;
-				mbs = initial_mbs;
-				while (width != 0 &&
-				    (wi = __fgetwc(fp, locale)) != WEOF) {
-					if (width >= MB_CUR_MAX &&
-					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, &mbs);
-						if (nconv == (size_t)-1)
-							goto input_failure;
-					} else {
-						nconv = wcrtomb(mbbuf, wi,
-						    &mbs);
-						if (nconv == (size_t)-1)
-							goto input_failure;
-						if (nconv > width) {
-							__ungetwc(wi, fp, locale);
-							break;
-						}
-						if (!(flags & SUPPRESS))
-							memcpy(mbp, mbbuf,
-							    nconv);
-					}
-					if (!(flags & SUPPRESS))
-						mbp += nconv;
-					width -= nconv;
-					n++;
-				}
-				if (n == 0)
-					goto input_failure;
-				nread += n;
-				if (!(flags & SUPPRESS))
-					nassigned++;
+				nr = convert_char(fp, GETARG(char *), width,
+				    locale);
 			}
-			nconversions++;
+			if (nr < 0)
+				goto input_failure;
 			break;
 
 		case CT_CCL:
@@ -426,246 +718,49 @@ literal:
 			if (width == 0)
 				width = (size_t)~0;	/* `infinity' */
 			/* take only those things in the class */
-			if ((flags & SUPPRESS) && (flags & LONG)) {
-				n = 0;
-				while ((wi = __fgetwc(fp, locale)) != WEOF &&
-				    width-- != 0 && INCCL(wi))
-					n++;
-				if (wi != WEOF)
-					__ungetwc(wi, fp, locale);
-				if (n == 0)
-					goto match_failure;
-			} else if (flags & LONG) {
-				p0 = p = va_arg(ap, wchar_t *);
-				while ((wi = __fgetwc(fp, locale)) != WEOF &&
-				    width-- != 0 && INCCL(wi))
-					*p++ = (wchar_t)wi;
-				if (wi != WEOF)
-					__ungetwc(wi, fp, locale);
-				n = p - p0;
-				if (n == 0)
-					goto match_failure;
-				*p = 0;
-				nassigned++;
+			if (flags & LONG) {
+				nr = convert_wccl(fp, GETARG(wchar_t *), width,
+				    &ccl, locale);
 			} else {
-				if (!(flags & SUPPRESS))
-					mbp = va_arg(ap, char *);
-				n = 0;
-				mbs = initial_mbs;
-				while ((wi = __fgetwc(fp, locale)) != WEOF &&
-				    width != 0 && INCCL(wi)) {
-					if (width >= MB_CUR_MAX &&
-					   !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, &mbs);
-						if (nconv == (size_t)-1)
-							goto input_failure;
-					} else {
-						nconv = wcrtomb(mbbuf, wi,
-						    &mbs);
-						if (nconv == (size_t)-1)
-							goto input_failure;
-						if (nconv > width)
-							break;
-						if (!(flags & SUPPRESS))
-							memcpy(mbp, mbbuf,
-							    nconv);
-					}
-					if (!(flags & SUPPRESS))
-						mbp += nconv;
-					width -= nconv;
-					n++;
-				}
-				if (wi != WEOF)
-					__ungetwc(wi, fp, locale);
-				if (!(flags & SUPPRESS)) {
-					*mbp = 0;
-					nassigned++;
-				}
+				nr = convert_ccl(fp, GETARG(char *), width,
+				    &ccl, locale);
 			}
-			nread += n;
-			nconversions++;
+			if (nr <= 0) {
+				if (nr < 0)
+					goto input_failure;
+				else /* nr == 0 */
+					goto match_failure;
+			}
 			break;
 
 		case CT_STRING:
 			/* like CCL, but zero-length string OK, & no NOSKIP */
 			if (width == 0)
 				width = (size_t)~0;
-			if ((flags & SUPPRESS) && (flags & LONG)) {
-				while ((wi = __fgetwc(fp, locale)) != WEOF &&
-				    width-- != 0 &&
-				    !iswspace(wi))
-					nread++;
-				if (wi != WEOF)
-					__ungetwc(wi, fp, locale);
-			} else if (flags & LONG) {
-				p0 = p = va_arg(ap, wchar_t *);
-				while ((wi = __fgetwc(fp, locale)) != WEOF &&
-				    width-- != 0 &&
-				    !iswspace(wi)) {
-					*p++ = (wchar_t)wi;
-					nread++;
-				}
-				if (wi != WEOF)
-					__ungetwc(wi, fp, locale);
-				*p = '\0';
-				nassigned++;
+			if (flags & LONG) {
+				nr = convert_wstring(fp, GETARG(wchar_t *),
+				    width, locale);
 			} else {
-				if (!(flags & SUPPRESS))
-					mbp = va_arg(ap, char *);
-				mbs = initial_mbs;
-				while ((wi = __fgetwc(fp, locale)) != WEOF &&
-				    width != 0 &&
-				    !iswspace(wi)) {
-					if (width >= MB_CUR_MAX &&
-					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb(mbp, wi, &mbs);
-						if (nconv == (size_t)-1)
-							goto input_failure;
-					} else {
-						nconv = wcrtomb(mbbuf, wi,
-						    &mbs);
-						if (nconv == (size_t)-1)
-							goto input_failure;
-						if (nconv > width)
-							break;
-						if (!(flags & SUPPRESS))
-							memcpy(mbp, mbbuf,
-							    nconv);
-					}
-					if (!(flags & SUPPRESS))
-						mbp += nconv;
-					width -= nconv;
-					nread++;
-				}
-				if (wi != WEOF)
-					__ungetwc(wi, fp, locale);
-				if (!(flags & SUPPRESS)) {
-					*mbp = 0;
-					nassigned++;
-				}
+				nr = convert_string(fp, GETARG(char *), width,
+				    locale);
 			}
-			nconversions++;
-			continue;
+			if (nr < 0)
+				goto input_failure;
+			break;
 
 		case CT_INT:
 			/* scan an integer as if by the conversion function */
 			if (width == 0 || width > sizeof(buf) /
 			    sizeof(*buf) - 1)
 				width = sizeof(buf) / sizeof(*buf) - 1;
-			flags |= SIGNOK | NDIGITS | NZDIGITS;
-			for (p = buf; width; width--) {
-				c = __fgetwc(fp, locale);
-				/*
-				 * Switch on the character; `goto ok'
-				 * if we accept it as a part of number.
-				 */
-				switch (c) {
 
-				/*
-				 * The digit 0 is always legal, but is
-				 * special.  For %i conversions, if no
-				 * digits (zero or nonzero) have been
-				 * scanned (only signs), we will have
-				 * base==0.  In that case, we should set
-				 * it to 8 and enable 0x prefixing.
-				 * Also, if we have not scanned zero digits
-				 * before this, do not turn off prefixing
-				 * (someone else will turn it off if we
-				 * have scanned any nonzero digits).
-				 */
-				case '0':
-					if (base == 0) {
-						base = 8;
-						flags |= PFXOK;
-					}
-					if (flags & NZDIGITS)
-					    flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
-					else
-					    flags &= ~(SIGNOK|PFXOK|NDIGITS);
-					goto ok;
-
-				/* 1 through 7 always legal */
-				case '1': case '2': case '3':
-				case '4': case '5': case '6': case '7':
-					base = basefix[base];
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* digits 8 and 9 ok iff decimal or hex */
-				case '8': case '9':
-					base = basefix[base];
-					if (base <= 8)
-						break;	/* not legal here */
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* letters ok iff hex */
-				case 'A': case 'B': case 'C':
-				case 'D': case 'E': case 'F':
-				case 'a': case 'b': case 'c':
-				case 'd': case 'e': case 'f':
-					/* no need to fix base here */
-					if (base <= 10)
-						break;	/* not legal here */
-					flags &= ~(SIGNOK | PFXOK | NDIGITS);
-					goto ok;
-
-				/* sign ok only as first character */
-				case '+': case '-':
-					if (flags & SIGNOK) {
-						flags &= ~SIGNOK;
-						flags |= HAVESIGN;
-						goto ok;
-					}
-					break;
-					
-				/*
-				 * x ok iff flag still set & 2nd char (or
-				 * 3rd char if we have a sign).
-				 */
-				case 'x': case 'X':
-					if (flags & PFXOK && p ==
-					    buf + 1 + !!(flags & HAVESIGN)) {
-						base = 16;	/* if %i */
-						flags &= ~PFXOK;
-						goto ok;
-					}
-					break;
-				}
-
-				/*
-				 * If we got here, c is not a legal character
-				 * for a number.  Stop accumulating digits.
-				 */
-				if (c != WEOF)
-					__ungetwc(c, fp, locale);
-				break;
-		ok:
-				/*
-				 * c is legal: store it and look at the next.
-				 */
-				*p++ = (wchar_t)c;
-			}
-			/*
-			 * If we had only a sign, it is no good; push
-			 * back the sign.  If the number ends in `x',
-			 * it was [sign] '0' 'x', so push back the x
-			 * and treat it as [sign] '0'.
-			 */
-			if (flags & NDIGITS) {
-				if (p > buf)
-					__ungetwc(*--p, fp, locale);
+			nr = parseint(fp, buf, width, base, flags, locale);
+			if (nr == 0)
 				goto match_failure;
-			}
-			c = p[-1];
-			if (c == 'x' || c == 'X') {
-				--p;
-				__ungetwc(c, fp, locale);
-			}
 			if ((flags & SUPPRESS) == 0) {
 				uintmax_t res;
 
-				*p = 0;
+				buf[nr] = L'\0';
 				if ((flags & UNSIGNED) == 0)
 				    res = wcstoimax(buf, NULL, base);
 				else
@@ -689,10 +784,7 @@ literal:
 					*va_arg(ap, size_t *) = res;
 				else
 					*va_arg(ap, int *) = res;
-				nassigned++;
 			}
-			nread += p - buf;
-			nconversions++;
 			break;
 
 #ifndef NO_FLOATING_POINT
@@ -701,26 +793,28 @@ literal:
 			if (width == 0 || width > sizeof(buf) /
 			    sizeof(*buf) - 1)
 				width = sizeof(buf) / sizeof(*buf) - 1;
-			if ((width = parsefloat(fp, buf, buf + width, locale)) == 0)
+			nr = parsefloat(fp, buf, buf + width, locale);
+			if (nr == 0)
 				goto match_failure;
 			if ((flags & SUPPRESS) == 0) {
 				if (flags & LONGDBL) {
-					long double res = wcstold(buf, &p);
+					long double res = wcstold(buf, NULL);
 					*va_arg(ap, long double *) = res;
 				} else if (flags & LONG) {
-					double res = wcstod(buf, &p);
+					double res = wcstod(buf, NULL);
 					*va_arg(ap, double *) = res;
 				} else {
-					float res = wcstof(buf, &p);
+					float res = wcstof(buf, NULL);
 					*va_arg(ap, float *) = res;
 				}
-				nassigned++;
 			}
-			nread += width;
-			nconversions++;
 			break;
 #endif /* !NO_FLOATING_POINT */
 		}
+		if (!(flags & SUPPRESS))
+			nassigned++;
+		nread += nr;
+		nconversions++;
 	}
 input_failure:
 	return (nconversions != 0 ? nassigned : EOF);
