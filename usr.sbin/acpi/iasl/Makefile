@@ -73,8 +73,9 @@ CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
 	dtparserparse.c dtparserparse.h
 
-aslcompilerlex.c: aslcompiler.l
-	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} ${.ALLSRC}
+aslcompilerlex.c: aslcompiler.l aslsupport.l
+	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} \
+	    ${ACPICA_DIR}/compiler/aslcompiler.l
 
 .ORDER: aslcompilerparse.c aslcompilerparse.h
 aslcompilerparse.c aslcompilerparse.h: aslcompiler.y
