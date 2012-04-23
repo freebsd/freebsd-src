@@ -135,7 +135,7 @@ ufs_inactive(ap)
 			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
 #ifdef UFS_EXTATTR
-		ufs_extattr_vnode_inactive(vp, td);
+		ufs_extattr_vnode_inactive(vp, ap->a_td);
 #endif
 		/*
 		 * Setting the mode to zero needs to wait for the inode
