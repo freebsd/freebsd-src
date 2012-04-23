@@ -840,6 +840,7 @@ struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 #define	PGET_ISCURRENT	0x00008	/* Check that the found process is current. */
 #define	PGET_NOTWEXIT	0x00010	/* Check that the process is not in P_WEXIT. */
 #define	PGET_NOTINEXEC	0x00020	/* Check that the process is not in P_INEXEC. */
+#define	PGET_NOTID	0x00040	/* Do not assume tid if pid > PID_MAX. */
 
 #define	PGET_WANTREAD	(PGET_HOLD | PGET_CANDEBUG | PGET_NOTWEXIT)
 
