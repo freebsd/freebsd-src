@@ -410,7 +410,10 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 		if (dp != NULL) {
 			*tl = txdr_unsigned(NFSV4OPEN_CLAIMDELEGATECUR);
 			NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
-			*tl++ = dp->nfsdl_stateid.seqid;
+			if (NFSHASNFSV4N(nmp))
+				*tl++ = 0;
+			else
+				*tl++ = dp->nfsdl_stateid.seqid;
 			*tl++ = dp->nfsdl_stateid.other[0];
 			*tl++ = dp->nfsdl_stateid.other[1];
 			*tl = dp->nfsdl_stateid.other[2];
@@ -581,7 +584,10 @@ nfsrpc_opendowngrade(vnode_t vp, u_int32_t mode, struct nfsclopen *op,
 
 	NFSCL_REQSTART(nd, NFSPROC_OPENDOWNGRADE, vp);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID + 3 * NFSX_UNSIGNED);
-	*tl++ = op->nfso_stateid.seqid;
+	if (NFSHASNFSV4N(VFSTONFS(vnode_mount(vp))))
+		*tl++ = 0;
+	else
+		*tl++ = op->nfso_stateid.seqid;
 	*tl++ = op->nfso_stateid.other[0];
 	*tl++ = op->nfso_stateid.other[1];
 	*tl++ = op->nfso_stateid.other[2];
@@ -742,7 +748,10 @@ nfsrpc_closerpc(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	    op->nfso_fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_STATEID);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
-	*tl++ = op->nfso_stateid.seqid;
+	if (NFSHASNFSV4N(nmp))
+		*tl++ = 0;
+	else
+		*tl++ = op->nfso_stateid.seqid;
 	*tl++ = op->nfso_stateid.other[0];
 	*tl++ = op->nfso_stateid.other[1];
 	*tl = op->nfso_stateid.other[2];
@@ -2165,7 +2174,10 @@ tryagain:
 			NFSCL_REQSTART(nd, NFSPROC_RETDELEGREMOVE, vp);
 			NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID +
 			    NFSX_UNSIGNED);
-			*tl++ = dstateid.seqid;
+			if (NFSHASNFSV4N(nmp))
+				*tl++ = 0;
+			else
+				*tl++ = dstateid.seqid;
 			*tl++ = dstateid.other[0];
 			*tl++ = dstateid.other[1];
 			*tl++ = dstateid.other[2];
@@ -2248,7 +2260,10 @@ tryagain:
 		}
 		if (gotfd) {
 			NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
-			*tl++ = fdstateid.seqid;
+			if (NFSHASNFSV4N(nmp))
+				*tl++ = 0;
+			else
+				*tl++ = fdstateid.seqid;
 			*tl++ = fdstateid.other[0];
 			*tl++ = fdstateid.other[1];
 			*tl = fdstateid.other[2];
@@ -2264,7 +2279,10 @@ tryagain:
 		}
 		if (gottd) {
 			NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
-			*tl++ = tdstateid.seqid;
+			if (NFSHASNFSV4N(nmp))
+				*tl++ = 0;
+			else
+				*tl++ = tdstateid.seqid;
 			*tl++ = tdstateid.other[0];
 			*tl++ = tdstateid.other[1];
 			*tl = tdstateid.other[2];
@@ -3833,7 +3851,10 @@ nfsrpc_locku(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	    (arc4random() % nfstest_outofseq) == 0)
 		*tl = txdr_unsigned(lp->nfsl_seqid + 1);
 	tl++;
-	*tl++ = lp->nfsl_stateid.seqid;
+	if (NFSHASNFSV4N(nmp))
+		*tl++ = 0;
+	else
+		*tl++ = lp->nfsl_stateid.seqid;
 	*tl++ = lp->nfsl_stateid.other[0];
 	*tl++ = lp->nfsl_stateid.other[1];
 	*tl++ = lp->nfsl_stateid.other[2];
@@ -3890,7 +3911,10 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 	    NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID +
 		2 * NFSX_UNSIGNED + NFSX_HYPER);
 	    *tl++ = txdr_unsigned(lp->nfsl_open->nfso_own->nfsow_seqid);
-	    *tl++ = lp->nfsl_open->nfso_stateid.seqid;
+	    if (NFSHASNFSV4N(nmp))
+		*tl++ = 0;
+	    else
+		*tl++ = lp->nfsl_open->nfso_stateid.seqid;
 	    *tl++ = lp->nfsl_open->nfso_stateid.other[0];
 	    *tl++ = lp->nfsl_open->nfso_stateid.other[1];
 	    *tl++ = lp->nfsl_open->nfso_stateid.other[2];
@@ -3903,7 +3927,10 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 	} else {
 	    *tl = newnfs_false;
 	    NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID + NFSX_UNSIGNED);
-	    *tl++ = lp->nfsl_stateid.seqid;
+	    if (NFSHASNFSV4N(nmp))
+		*tl++ = 0;
+	    else
+		*tl++ = lp->nfsl_stateid.seqid;
 	    *tl++ = lp->nfsl_stateid.other[0];
 	    *tl++ = lp->nfsl_stateid.other[1];
 	    *tl++ = lp->nfsl_stateid.other[2];
@@ -4275,7 +4302,10 @@ nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
 	nfscl_reqstart(nd, NFSPROC_DELEGRETURN, nmp, dp->nfsdl_fh,
 	    dp->nfsdl_fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
-	*tl++ = dp->nfsdl_stateid.seqid;
+	if (NFSHASNFSV4N(nmp))
+		*tl++ = 0;
+	else
+		*tl++ = dp->nfsdl_stateid.seqid;
 	*tl++ = dp->nfsdl_stateid.other[0];
 	*tl++ = dp->nfsdl_stateid.other[1];
 	*tl = dp->nfsdl_stateid.other[2];
