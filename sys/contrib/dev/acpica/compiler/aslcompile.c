@@ -242,10 +242,10 @@ CmFlushSourceCode (
 
     while (FlReadFile (ASL_FILE_INPUT, &Buffer, 1) != AE_ERROR)
     {
-        InsertLineBuffer ((int) Buffer);
+        AslInsertLineBuffer ((int) Buffer);
     }
 
-    ResetCurrentLineBuffer ();
+    AslResetCurrentLineBuffer ();
 }
 
 
@@ -457,16 +457,20 @@ CmDoCompile (
     Event = UtBeginEvent ("Open input and output files");
     UtEndEvent (Event);
 
-    /* Preprocessor */
-
     Event = UtBeginEvent ("Preprocess input file");
-    PrDoPreprocess ();
-    UtEndEvent (Event);
-    if (Gbl_PreprocessOnly)
+    if (Gbl_PreprocessFlag)
     {
-        CmCleanupAndExit ();
-        return 0;
+        /* Preprocessor */
+
+        PrDoPreprocess ();
+        if (Gbl_PreprocessOnly)
+        {
+            UtEndEvent (Event);
+            CmCleanupAndExit ();
+            return 0;
+        }
     }
+    UtEndEvent (Event);
 
     /* Build the parse tree */
 
@@ -483,8 +487,17 @@ CmDoCompile (
 
     if (!RootNode)
     {
-        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
-            NULL, "- Could not resolve parse tree root node");
+        /*
+         * If there are no errors, then we have some sort of
+         * internal problem.
+         */
+        Status = AslCheckForErrorExit ();
+        if (Status == AE_OK)
+        {
+            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
+                NULL, "- Could not resolve parse tree root node");
+        }
+
         goto ErrorExit;
     }
 
@@ -553,14 +566,14 @@ CmDoCompile (
 
     if (Gbl_ParseOnlyFlag)
     {
-        AePrintErrorLog (ASL_FILE_STDOUT);
-        UtDisplaySummary (ASL_FILE_STDOUT);
+        AePrintErrorLog (ASL_FILE_STDERR);
+        UtDisplaySummary (ASL_FILE_STDERR);
         if (Gbl_DebugFlag)
         {
-            /* Print error summary to the debug file */
+            /* Print error summary to the stdout also */
 
-            AePrintErrorLog (ASL_FILE_STDERR);
-            UtDisplaySummary (ASL_FILE_STDERR);
+            AePrintErrorLog (ASL_FILE_STDOUT);
+            UtDisplaySummary (ASL_FILE_STDOUT);
         }
         UtEndEvent (FullCompile);
         return 0;
@@ -756,12 +769,12 @@ CmCleanupAndExit (
     UINT32                  i;
 
 
-    AePrintErrorLog (ASL_FILE_STDOUT);
+    AePrintErrorLog (ASL_FILE_STDERR);
     if (Gbl_DebugFlag)
     {
-        /* Print error summary to the debug file */
+        /* Print error summary to stdout also */
 
-        AePrintErrorLog (ASL_FILE_STDERR);
+        AePrintErrorLog (ASL_FILE_STDOUT);
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT, "\n\nElapsed time for major events\n\n");
@@ -837,7 +850,9 @@ CmCleanupAndExit (
 
     /* Delete the preprocessor output file (.i) unless -li flag is set */
 
-    if (!Gbl_PreprocessorOutputFlag && Gbl_Files[ASL_FILE_PREPROCESSOR].Filename)
+    if (!Gbl_PreprocessorOutputFlag &&
+        Gbl_PreprocessFlag &&
+        Gbl_Files[ASL_FILE_PREPROCESSOR].Filename)
     {
         if (remove (Gbl_Files[ASL_FILE_PREPROCESSOR].Filename))
         {
