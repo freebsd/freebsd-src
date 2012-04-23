@@ -1030,9 +1030,20 @@ RB_PROTOTYPE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
 #define PFR_TFLAG_REFDANCHOR	0x00000020
 #define PFR_TFLAG_COUNTERS	0x00000040
 /* Adjust masks below when adding flags. */
-#define PFR_TFLAG_USRMASK	0x00000043
-#define PFR_TFLAG_SETMASK	0x0000003C
-#define PFR_TFLAG_ALLMASK	0x0000007F
+#define PFR_TFLAG_USRMASK	(PFR_TFLAG_PERSIST	| \
+				 PFR_TFLAG_CONST	| \
+				 PFR_TFLAG_COUNTERS)
+#define PFR_TFLAG_SETMASK	(PFR_TFLAG_ACTIVE	| \
+				 PFR_TFLAG_INACTIVE	| \
+				 PFR_TFLAG_REFERENCED	| \
+				 PFR_TFLAG_REFDANCHOR)
+#define PFR_TFLAG_ALLMASK	(PFR_TFLAG_PERSIST	| \
+				 PFR_TFLAG_CONST	| \
+				 PFR_TFLAG_ACTIVE	| \
+				 PFR_TFLAG_INACTIVE	| \
+				 PFR_TFLAG_REFERENCED	| \
+				 PFR_TFLAG_REFDANCHOR	| \
+				 PFR_TFLAG_COUNTERS)
 
 struct pfr_table {
 	char			 pfrt_anchor[MAXPATHLEN];
