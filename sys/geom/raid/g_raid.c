@@ -284,9 +284,9 @@ g_raid_volume_level2str(int level, int qual)
 		return ("RAID3");
 	case G_RAID_VOLUME_RL_RAID4:
 		if (qual == G_RAID_VOLUME_RLQ_R4P0)
-			return ("RAID3-P0");
+			return ("RAID4-P0");
 		if (qual == G_RAID_VOLUME_RLQ_R4PN)
-			return ("RAID3-PN");
+			return ("RAID4-PN");
 		return ("RAID4");
 	case G_RAID_VOLUME_RL_RAID5:
 		if (qual == G_RAID_VOLUME_RLQ_R5RA)
