@@ -850,7 +850,7 @@ out:
 	mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	MNT_IUNLOCK(mp);
 	if (error)
-		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
+		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED);
 	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	if (error)
 		vput(vp);
@@ -1989,7 +1989,7 @@ ffs_snapshot_mount(mp)
 				reason = "non-snapshot";
 			} else {
 				reason = "old format snapshot";
-				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
+				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED);
 				(void)ffs_syncvnode(vp, MNT_WAIT, 0);
 			}
 			printf("ffs_snapshot_mount: %s inode %d\n",
