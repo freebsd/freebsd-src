@@ -81,12 +81,12 @@ AslAbort (
     void)
 {
 
-    AePrintErrorLog (ASL_FILE_STDOUT);
+    AePrintErrorLog (ASL_FILE_STDERR);
     if (Gbl_DebugFlag)
     {
-        /* Print error summary to the debug file */
+        /* Print error summary to stdout also */
 
-        AePrintErrorLog (ASL_FILE_STDERR);
+        AePrintErrorLog (ASL_FILE_STDOUT);
     }
 
     exit (1);
@@ -388,11 +388,38 @@ FlCloseFile (
 
 void
 FlSetLineNumber (
-    ACPI_PARSE_OBJECT       *Op)
+    UINT32                  LineNumber)
 {
 
-    Gbl_CurrentLineNumber = (UINT32) Op->Asl.Value.Integer;
-    Gbl_LogicalLineNumber = (UINT32) Op->Asl.Value.Integer;
+    DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New line number %u (old %u)\n",
+         LineNumber, Gbl_LogicalLineNumber);
+
+    Gbl_CurrentLineNumber = LineNumber;
+    Gbl_LogicalLineNumber = LineNumber;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlSetFilename
+ *
+ * PARAMETERS:  Op        - Parse node for the LINE asl statement
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Set the current filename
+ *
+ ******************************************************************************/
+
+void
+FlSetFilename (
+    char                    *Filename)
+{
+
+    DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New filename %s (old %s)\n",
+         Filename, Gbl_Files[ASL_FILE_INPUT].Filename);
+
+    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
 }
 
 
@@ -548,7 +575,7 @@ FlOpenIncludeFile (
      * Flush out the "include ()" statement on this line, start
      * the actual include file on the next line
      */
-    ResetCurrentLineBuffer ();
+    AslResetCurrentLineBuffer ();
     FlPrintFile (ASL_FILE_SOURCE_OUTPUT, "\n");
     Gbl_CurrentLineOffset++;
 
@@ -770,17 +797,20 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_LISTING_OUTPUT);
     }
 
-    /* Create the preprocessor output file */
+    /* Create the preprocessor output file if preprocessor enabled */
 
-    Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROCESSOR);
-    if (!Filename)
+    if (Gbl_PreprocessFlag)
     {
-        AslCommonError (ASL_ERROR, ASL_MSG_PREPROCESSOR_FILENAME,
-            0, 0, 0, 0, NULL, NULL);
-        return (AE_ERROR);
-    }
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROCESSOR);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_PREPROCESSOR_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
 
-    FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+b");
+        FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+b");
+    }
 
     /* All done for data table compiler */
 
