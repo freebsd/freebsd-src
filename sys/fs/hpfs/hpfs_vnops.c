@@ -576,7 +576,7 @@ hpfs_inactive(ap)
 	}
 
 	if (hp->h_flag & H_INVAL) {
-		vrecycle(vp, ap->a_td);
+		vrecycle(vp);
 		return (0);
 	}
 
