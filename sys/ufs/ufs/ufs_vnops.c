@@ -621,7 +621,7 @@ ufs_setattr(ap)
 			return (0);
 		}
 		if ((error = UFS_TRUNCATE(vp, vap->va_size, IO_NORMAL,
-		    cred, td)) != 0)
+		    cred)) != 0)
 			return (error);
 	}
 	if (vap->va_atime.tv_sec != VNOVAL ||
@@ -1567,8 +1567,7 @@ unlockout:
 		if (tdp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(tdp, endoff);
 #endif
-		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred,
-		    td);
+		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred);
 	}
 	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
 		error = VOP_FSYNC(tdvp, MNT_WAIT, td);

@@ -249,7 +249,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof(newblks));
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof(oldblks));
 	oip->i_size = osize;
-	error = vtruncbuf(ovp, cred, td, length, (int)fs->e2fs_bsize);
+	error = vtruncbuf(ovp, cred, length, (int)fs->e2fs_bsize);
 	if (error && (allerror == 0))
 		allerror = error;
 	vnode_pager_setsize(ovp, length);
