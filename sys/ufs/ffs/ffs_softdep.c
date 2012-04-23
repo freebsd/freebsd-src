@@ -773,8 +773,8 @@ struct bmsafemap_hashhead;
 static	void softdep_error(char *, int);
 static	void drain_output(struct vnode *);
 static	struct buf *getdirtybuf(struct buf *, struct mtx *, int);
-static	void clear_remove(struct thread *);
-static	void clear_inodedeps(struct thread *);
+static	void clear_remove(void);
+static	void clear_inodedeps(void);
 static	void unlinked_inodedep(struct mount *, struct inodedep *);
 static	void clear_unlinked_inodedep(struct inodedep *);
 static	struct inodedep *first_unlinked_inodedep(struct ufsmount *);
@@ -1351,12 +1351,12 @@ softdep_flush(void)
 		 * If requested, try removing inode or removal dependencies.
 		 */
 		if (req_clear_inodedeps) {
-			clear_inodedeps(td);
+			clear_inodedeps();
 			req_clear_inodedeps -= 1;
 			wakeup_one(&proc_waiting);
 		}
 		if (req_clear_remove) {
-			clear_remove(td);
+			clear_remove();
 			req_clear_remove -= 1;
 			wakeup_one(&proc_waiting);
 		}
@@ -1499,7 +1499,6 @@ softdep_process_worklist(mp, full)
 	struct mount *mp;
 	int full;
 {
-	struct thread *td = curthread;
 	int cnt, matchcnt;
 	struct ufsmount *ump;
 	long starttime;
@@ -1523,12 +1522,12 @@ softdep_process_worklist(mp, full)
 		 * If requested, try removing inode or removal dependencies.
 		 */
 		if (req_clear_inodedeps) {
-			clear_inodedeps(td);
+			clear_inodedeps();
 			req_clear_inodedeps -= 1;
 			wakeup_one(&proc_waiting);
 		}
 		if (req_clear_remove) {
-			clear_remove(td);
+			clear_remove();
 			req_clear_remove -= 1;
 			wakeup_one(&proc_waiting);
 		}
@@ -12785,8 +12784,7 @@ pause_timer(arg)
  * reduce the number of dirrem, freefile, and freeblks dependency structures.
  */
 static void
-clear_remove(td)
-	struct thread *td;
+clear_remove(void)
 {
 	struct pagedep_hashhead *pagedephd;
 	struct pagedep *pagedep;
@@ -12845,8 +12843,7 @@ clear_remove(td)
  * the number of inodedep dependency structures.
  */
 static void
-clear_inodedeps(td)
-	struct thread *td;
+clear_inodedeps(void)
 {
 	struct inodedep_hashhead *inodedephd;
 	struct inodedep *inodedep;
