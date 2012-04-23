@@ -11,12 +11,6 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 # LLVM is not strict aliasing safe as of 12/31/2011
 CFLAGS+= -fno-strict-aliasing
 
-# Work around an issue on 32-bit PowerPC, where the clang executable can get
-# too big, causing 'relocation truncated to fit' errors at link time.
-.if ${MACHINE_ARCH} == "powerpc"
-CFLAGS+=-mlongcall
-.endif
-
 TARGET_ARCH?=	${MACHINE_ARCH}
 CFLAGS+=-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd10.0\"
 
