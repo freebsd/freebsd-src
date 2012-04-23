@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2012
+.Dd March 9, 2012
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1539,7 +1539,7 @@ and they are always printed as hexadecimal (unless the
 option is used, in which case symbolic resolution will be attempted).
 .It Cm proto Ar protocol
 Matches packets with the corresponding IP protocol.
-.It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar ipno | Ar any
+.It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar table Ns Pq Ar number Ns Op , Ns Ar value | Ar ipno | Ar any
 Matches packets received, transmitted or going through,
 respectively, the interface specified by exact name
 .Ns No ( Ar ifX Ns No ),
@@ -1738,22 +1738,21 @@ connected networks instead of all source addresses.
 .El
 .Sh LOOKUP TABLES
 Lookup tables are useful to handle large sparse sets of
-addresses or other search keys (e.g. ports, jail IDs).
-In the rest of this section we will use the term ``address''
-to mean any unsigned value of up to 32-bit.
-There may be up to 128 different lookup tables, numbered 0 to 127.
+addresses or other search keys (e.g. ports, jail IDs, interface names).
+In the rest of this section we will use the term ``address''.
+There may be up to 4096 different lookup tables, numbered 0 to 4095.
 .Pp
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
 and will match all addresses with base
 .Ar addr
-(specified as an IP address, a hostname or an unsigned integer)
+(specified as an IPv4/IPv6 address, a hostname or an unsigned integer)
 and mask width of
 .Ar masklen
 bits.
 If
 .Ar masklen
-is not specified, it defaults to 32.
+is not specified, it defaults to 32 for IPv4 and 128 for IPv6.
 When looking up an IP address in a table, the most specific
 entry will match.
 Associated with each entry is a 32-bit unsigned
@@ -1776,7 +1775,8 @@ Internally, each table is stored in a Radix tree, the same way as
 the routing table (see
 .Xr route 4 ) .
 .Pp
-Lookup tables currently support only ports, jail IDs and IPv4 addresses.
+Lookup tables currently support only ports, jail IDs, IPv4/IPv6  addresses
+and interface names. Wildcards is not supported for interface names.
 .Pp
 The
 .Cm tablearg
@@ -2579,6 +2579,22 @@ instances.
 See
 .Sx SYSCTL VARIABLES 
 for more info.
+.Sh LOADER TUNABLES 
+Tunables can be set in
+.Xr loader 8
+prompt,
+.Xr loader.conf 5
+or
+.Xr kenv 1
+before ipfw module gets loaded.
+.Bl -tag -width indent
+.It Va net.inet.ip.fw.default_to_accept: No 0
+Defines ipfw last rule behavior. This value overrides
+.Cd "options IPFW_DEFAULT_TO_(ACCEPT|DENY)"
+from kernel configuration file.
+.It Va net.inet.ip.fw.tables_max: No 128
+Defines number of tables available in ipfw. Number cannot exceed 65534.
+.El
 .Sh SYSCTL VARIABLES
 A set of
 .Xr sysctl 8
@@ -2837,7 +2853,7 @@ node is not passed though the firewall again.
 Otherwise, after an action, the packet is
 reinjected into the firewall at the next rule.
 .It Va net.inet.ip.fw.tables_max : No 128
-Maximum number of tables (read-only).
+Maximum number of tables.
 .It Va net.inet.ip.fw.verbose : No 1
 Enables verbose messages.
 .It Va net.inet.ip.fw.verbose_limit : No 0
@@ -3112,6 +3128,16 @@ action, the table entries may include hostnames and IP addresses.
 .Dl "ipfw table 1 add 192.168.0.0/27 router1.dmz"
 .Dl "..."
 .Dl "ipfw add 100 fwd tablearg ip from any to table(1)"
+.Pp
+In the following example per-interface firewall is created:
+.Pp
+.Dl "ipfw table 10 add vlan20 12000"
+.Dl "ipfw table 10 add vlan30 13000"
+.Dl "ipfw table 20 add vlan20 22000"
+.Dl "ipfw table 20 add vlan30 23000"
+.Dl ".."
+.Dl "ipfw add 100 ipfw skipto tablearg ip from any to any recv 'table(10)' in"
+.Dl "ipfw add 200 ipfw skipto tablearg ip from any to any xmit 'table(10)' out"
 .Ss SETS OF RULES
 To add a set of rules atomically, e.g.\& set 18:
 .Pp
