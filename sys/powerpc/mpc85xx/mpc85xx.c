@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/pio.h>
 #include <machine/spr.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
