@@ -73,7 +73,6 @@ ufs_inactive(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
-	struct thread *td = ap->a_td;
 	mode_t mode;
 	int error = 0;
 	off_t isize;
@@ -172,7 +171,7 @@ out:
 	 * so that it can be reused immediately.
 	 */
 	if (ip->i_mode == 0)
-		vrecycle(vp, td);
+		vrecycle(vp);
 	if (mp != NULL)
 		vn_finished_secondary_write(mp);
 	return (error);
