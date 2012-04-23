@@ -431,11 +431,9 @@ pmc_mips_initialize()
 			   M_WAITOK|M_ZERO);
 
 	/* Just one class */
-	pmc_mdep = malloc(sizeof(struct pmc_mdep) + sizeof(struct pmc_classdep),
-			  M_PMC, M_WAITOK|M_ZERO);
+	pmc_mdep = pmc_mdep_alloc(1);
 
 	pmc_mdep->pmd_cputype = mips_pmc_spec.ps_cputype;
-	pmc_mdep->pmd_nclass  = 1;
 
 	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_MIPS];
 	pcd->pcd_caps  = mips_pmc_spec.ps_capabilities;
