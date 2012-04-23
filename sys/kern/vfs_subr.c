@@ -2659,7 +2659,7 @@ loop:
  * Recycle an unused vnode to the front of the free list.
  */
 int
-vrecycle(struct vnode *vp, struct thread *td)
+vrecycle(struct vnode *vp)
 {
 	int recycled;
 

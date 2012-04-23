@@ -583,7 +583,6 @@ msdosfs_inactive(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	struct thread *td = ap->a_td;
 	int error = 0;
 
 #ifdef MSDOSFS_DEBUG
@@ -622,6 +621,6 @@ out:
 	       vrefcnt(vp), dep->de_Name[0]);
 #endif
 	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
-		vrecycle(vp, td);
+		vrecycle(vp);
 	return (error);
 }

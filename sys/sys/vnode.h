@@ -639,7 +639,7 @@ int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
 void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
 #define vprint(label, vp) vn_printf((vp), "%s\n", (label))
-int	vrecycle(struct vnode *vp, struct thread *td);
+int	vrecycle(struct vnode *vp);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);
