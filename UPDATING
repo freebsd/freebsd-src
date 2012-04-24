@@ -9,6 +9,14 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20120422:
+	Now unix domain sockets behave "as expected" on	nullfs(5). Previously
+	nullfs(5) did not pass through all behaviours to the underlying layer,
+	as a result if we bound to a socket on the lower layer we could connect
+	only to the lower path; if we bound to the upper layer we could connect
+	only to	the upper path. The new behavior is one can connect to both the
+	lower and the upper paths regardless what layer path one binds to.
+
 20120109:
 	The acpi_wmi(4) status device /dev/wmistat has been renamed to
 	/dev/wmistat0.
