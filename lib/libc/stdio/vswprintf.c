@@ -59,6 +59,7 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	f._bf._base = f._p = (unsigned char *)malloc(128);
 	if (f._bf._base == NULL) {
 		errno = ENOMEM;
+		*s = L'\0';
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
@@ -67,6 +68,7 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 		sverrno = errno;
 		free(f._bf._base);
 		errno = sverrno;
+		*s = L'\0';
 		return (-1);
 	}
 	*f._p = '\0';
@@ -80,6 +82,7 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	free(f._bf._base);
 	if (nwc == (size_t)-1) {
 		errno = EILSEQ;
+		*s = L'\0';
 		return (-1);
 	}
 	if (nwc == n) {
