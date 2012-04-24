@@ -2047,10 +2047,10 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 	struct mbuf	*m;
 	int		 len, tlen;
 #ifdef INET
-	struct ip	*h;
+	struct ip	*h = NULL;
 #endif /* INET */
 #ifdef INET6
-	struct ip6_hdr	*h6;
+	struct ip6_hdr	*h6 = NULL;
 #endif /* INET6 */
 	struct tcphdr	*th;
 	char		*opt;
