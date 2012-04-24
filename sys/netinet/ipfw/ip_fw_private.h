@@ -208,6 +208,9 @@ VNET_DECLARE(u_int32_t, set_disable);
 VNET_DECLARE(int, autoinc_step);
 #define V_autoinc_step		VNET(autoinc_step)
 
+VNET_DECLARE(unsigned int, fw_tables_max);
+#define V_fw_tables_max		VNET(fw_tables_max)
+
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
@@ -216,7 +219,9 @@ struct ip_fw_chain {
 	int		static_len;	/* total len of static rules */
 	struct ip_fw    **map;	/* array of rule ptrs to ease lookup */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
-	struct radix_node_head *tables[IPFW_TABLES_MAX];
+	struct radix_node_head **tables;	/* IPv4 tables */
+	struct radix_node_head **xtables;	/* extended tables */
+	uint8_t		*tabletype;	/* Array of table types */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
 	spinlock_t uh_lock;
@@ -272,16 +277,21 @@ int ipfw_check_hook(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 struct radix_node;
 int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val);
+int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
+    uint32_t *val, int type);
 int ipfw_init_tables(struct ip_fw_chain *ch);
 void ipfw_destroy_tables(struct ip_fw_chain *ch);
 int ipfw_flush_table(struct ip_fw_chain *ch, uint16_t tbl);
-int ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint8_t mlen, uint32_t value);
-int ipfw_dump_table_entry(struct radix_node *rn, void *arg);
-int ipfw_del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint8_t mlen);
+int ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
+    uint8_t plen, uint8_t mlen, uint8_t type, uint32_t value);
+int ipfw_del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
+    uint8_t plen, uint8_t mlen, uint8_t type);
 int ipfw_count_table(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt);
+int ipfw_dump_table_entry(struct radix_node *rn, void *arg);
 int ipfw_dump_table(struct ip_fw_chain *ch, ipfw_table *tbl);
+int ipfw_count_xtable(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt);
+int ipfw_dump_xtable(struct ip_fw_chain *ch, ipfw_xtable *tbl);
+int ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables);
 
 /* In ip_fw_nat.c -- XXX to be moved to ip_var.h */
 
