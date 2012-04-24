@@ -234,6 +234,10 @@ extern struct mtx pf_mtx;
 #define	PF_STATE_LOCK_ASSERT(s)		do {} while (0)
 #endif /* INVARIANTS */
 
+extern struct mtx pf_unlnkdrules_mtx;
+#define	PF_UNLNKDRULES_LOCK()	mtx_lock(&pf_unlnkdrules_mtx)
+#define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
+
 extern struct rwlock pf_rules_lock;
 #define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
 #define	PF_RULES_RUNLOCK()	rw_runlock(&pf_rules_lock)
@@ -685,6 +689,7 @@ struct pf_rule {
 #define	PFRULE_NOSYNC		0x0010
 #define PFRULE_SRCTRACK		0x0020  /* track source states */
 #define PFRULE_RULESRCTRACK	0x0040  /* per rule */
+#define	PFRULE_REFS		0x0080	/* rule has references */
 
 /* scrub flags */
 #define	PFRULE_NODF		0x0100
@@ -1753,6 +1758,9 @@ VNET_DECLARE(struct pf_poolqueue *,	 pf_pools_active);
 VNET_DECLARE(struct pf_poolqueue *,	 pf_pools_inactive);
 #define	V_pf_pools_inactive		 VNET(pf_pools_inactive)
 
+VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);  
+#define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
+
 void				 pf_initialize(void);
 void				 pf_cleanup(void);
 
@@ -1844,8 +1852,8 @@ VNET_DECLARE(struct pf_rule,		 pf_default_rule);
 #define	V_pf_default_rule		  VNET(pf_default_rule)
 extern void			 pf_addrcpy(struct pf_addr *, struct pf_addr *,
 				    u_int8_t);
-void				 pf_rm_rule(struct pf_rulequeue *,
-				    struct pf_rule *);
+void				pf_free_rule(struct pf_rule *);
+
 #ifdef INET
 int	pf_test(int, struct ifnet *, struct mbuf **, struct inpcb *);
 #endif /* INET */

@@ -187,6 +187,9 @@ static struct mtx pf_sendqueue_mtx;
 #define	PF_QUEUE_LOCK()		mtx_lock(&pf_sendqueue_mtx)
 #define	PF_QUEUE_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
 
+VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
+struct mtx pf_unlnkdrules_mtx;
+
 VNET_DEFINE(uma_zone_t,	 pf_sources_z);
 VNET_DEFINE(uma_zone_t,	 pf_rule_z);
 VNET_DEFINE(uma_zone_t,	 pf_pooladdr_z);
@@ -291,7 +294,8 @@ static struct pf_state	*pf_find_state(struct pfi_kif *,
 static int		 pf_src_connlimit(struct pf_state **);
 static int		 pf_insert_src_node(struct pf_src_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
-static void		 pf_purge_expired_states(int);
+static int		 pf_purge_expired_states(int);
+static void		 pf_purge_unlinked_rules(void);
 
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 
@@ -709,6 +713,10 @@ pf_initialize()
 	STAILQ_INIT(&V_pf_sendqueue);
 	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
 
+	/* Unlinked, but may be referenced rules. */
+	TAILQ_INIT(&V_pf_unlinked_rules);
+	mtx_init(&pf_unlnkdrules_mtx, "pf unlinked rules", NULL, MTX_DEF);
+
 	/* XXXGL: sort this out */
 	V_pf_rule_z = uma_zcreate("pf rules", sizeof(struct pf_rule),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -760,6 +768,8 @@ pf_cleanup()
 		free(pfse, M_PFTEMP);
 	}
 	mtx_destroy(&pf_sendqueue_mtx);
+
+	mtx_destroy(&pf_unlnkdrules_mtx);
 
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_rule_z);
@@ -1278,7 +1288,7 @@ pf_intr(void *v)
 void
 pf_purge_thread(void *v)
 {
-	int nloops = 0;
+	int fullrun;
 
 	CURVNET_SET((struct vnet *)v);
 
@@ -1298,14 +1308,15 @@ pf_purge_thread(void *v)
 		}
 
 		/* Process a fraction of the state table every second. */
-		pf_purge_expired_states(V_pf_hashmask /
+		fullrun = pf_purge_expired_states(V_pf_hashmask /
 			    V_pf_default_rule.timeout[PFTM_INTERVAL]);
 
 		/* Purge other expired types every PFTM_INTERVAL seconds. */
-		if (++nloops >= V_pf_default_rule.timeout[PFTM_INTERVAL]) {
+		if (fullrun) {
+			/* Order important: rules should be the last. */
 			pf_purge_expired_fragments();
 			pf_purge_expired_src_nodes();
-			nloops = 0;
+			pf_purge_unlinked_rules();
 		}
 
 		PF_UNLOCK();
@@ -1364,17 +1375,14 @@ pf_purge_expired_src_nodes()
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next) 
 		if (cur->states <= 0 && cur->expire <= time_uptime) {
-			if (cur->rule.ptr != NULL) {
+			if (cur->rule.ptr != NULL)
 				cur->rule.ptr->src_nodes--;
-				if (cur->rule.ptr->states_cur <= 0 &&
-				    cur->rule.ptr->max_src_nodes <= 0)
-					pf_rm_rule(NULL, cur->rule.ptr);
-			}
 			LIST_REMOVE(cur, entry);
 			V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 			V_pf_status.src_nodes--;
 			uma_zfree(V_pf_sources_z, cur);
-		}
+		} else if (cur->rule.ptr != NULL)
+			cur->rule.ptr->rule_flag |= PFRULE_REFS;
 	    PF_HASHROW_UNLOCK(sh);
 	}
 }
@@ -1458,16 +1466,11 @@ pf_free_state(struct pf_state *cur)
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
-	if (--cur->rule.ptr->states_cur <= 0 &&
-	    cur->rule.ptr->src_nodes <= 0)
-		pf_rm_rule(NULL, cur->rule.ptr);
+	--cur->rule.ptr->states_cur;
 	if (cur->nat_rule.ptr != NULL)
-		if (--cur->nat_rule.ptr->states_cur <= 0 &&
-			cur->nat_rule.ptr->src_nodes <= 0)
-			pf_rm_rule(NULL, cur->nat_rule.ptr);
+		--cur->nat_rule.ptr->states_cur;
 	if (cur->anchor.ptr != NULL)
-		if (--cur->anchor.ptr->states_cur <= 0)
-			pf_rm_rule(NULL, cur->anchor.ptr);
+		--cur->anchor.ptr->states_cur;
 	pf_normalize_tcp_cleanup(cur);
 	pfi_kif_unref(cur->kif, PFI_KIF_REF_STATE);
 	if (cur->tag)
@@ -1480,13 +1483,14 @@ pf_free_state(struct pf_state *cur)
 /*
  * Called only from pf_purge_thread(), thus serialized.
  */
-static void
+static int
 pf_purge_expired_states(int maxcheck)
 {
 	static u_int i = 0;
 
 	struct pf_idhash *ih;
 	struct pf_state *s;
+	int rv = 0;
 
 	/*
 	 * Go through hash and unlink states that expire now.
@@ -1494,8 +1498,10 @@ pf_purge_expired_states(int maxcheck)
 	while (maxcheck > 0) {
 
 		/* Wrap to start of hash when we hit the end. */
-		if (i > V_pf_hashmask)
+		if (i > V_pf_hashmask) {
 			i = 0;
+			rv = 1;
+		}
 
 		ih = &V_pf_idhash[i];
 relock:
@@ -1505,11 +1511,40 @@ relock:
 				pf_unlink_state(s, PF_ENTER_LOCKED);
 				goto relock;
 			}
+			s->rule.ptr->rule_flag |= PFRULE_REFS;
+			if (s->nat_rule.ptr != NULL)
+				s->nat_rule.ptr->rule_flag |= PFRULE_REFS;
+			if (s->anchor.ptr != NULL)
+				s->anchor.ptr->rule_flag |= PFRULE_REFS;
+
 		}
 		PF_HASHROW_UNLOCK(ih);
 		i++;
 		maxcheck--;
 	}
+
+	return (rv);
+}
+
+static void
+pf_purge_unlinked_rules()
+{
+	struct pf_rule *r, *r1;
+
+	/*
+	 * Do naive mark-and-sweep garbage collecting of old rules.
+	 * Reference flag is raised by pf_purge_expired_states()
+	 * and pf_purge_expired_src_nodes().
+	 */
+	PF_UNLNKDRULES_LOCK();
+	TAILQ_FOREACH_SAFE(r, &V_pf_unlinked_rules, entries, r1) {
+		if (!(r->rule_flag & PFRULE_REFS)) {
+			TAILQ_REMOVE(&V_pf_unlinked_rules, r, entries);
+			pf_free_rule(r);
+		} else
+			r->rule_flag &= ~PFRULE_REFS;
+	}
+	PF_UNLNKDRULES_UNLOCK();
 }
 
 void
