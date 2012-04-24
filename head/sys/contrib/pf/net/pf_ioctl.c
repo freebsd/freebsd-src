@@ -385,29 +385,24 @@ pf_empty_pool(struct pf_palist *poola)
 	}
 }
 
-void
-pf_rm_rule(struct pf_rulequeue *rulequeue, struct pf_rule *rule)
+static void
+pf_unlink_rule(struct pf_rulequeue *rulequeue, struct pf_rule *rule)
 {
-	if (rulequeue != NULL) {
-		if (rule->states_cur <= 0) {
-			/*
-			 * XXX - we need to remove the table *before* detaching
-			 * the rule to make sure the table code does not delete
-			 * the anchor under our feet.
-			 */
-			pf_tbladdr_remove(&rule->src.addr);
-			pf_tbladdr_remove(&rule->dst.addr);
-			if (rule->overload_tbl)
-				pfr_detach_table(rule->overload_tbl);
-		}
-		TAILQ_REMOVE(rulequeue, rule, entries);
-		rule->entries.tqe_prev = NULL;
-		rule->nr = -1;
-	}
 
-	if (rule->states_cur > 0 || rule->src_nodes > 0 ||
-	    rule->entries.tqe_prev != NULL)
-		return;
+	PF_RULES_WASSERT();
+
+	TAILQ_REMOVE(rulequeue, rule, entries);
+
+	PF_UNLNKDRULES_LOCK();
+	rule->rule_flag |= PFRULE_REFS;
+	TAILQ_INSERT_TAIL(&V_pf_unlinked_rules, rule, entries);
+	PF_UNLNKDRULES_UNLOCK();
+}
+
+void
+pf_free_rule(struct pf_rule *rule)
+{
+
 	pf_tag_unref(rule->tag);
 	pf_tag_unref(rule->match_tag);
 #ifdef ALTQ
@@ -419,12 +414,10 @@ pf_rm_rule(struct pf_rulequeue *rulequeue, struct pf_rule *rule)
 	pf_rtlabel_remove(&rule->dst.addr);
 	pfi_dynaddr_remove(&rule->src.addr);
 	pfi_dynaddr_remove(&rule->dst.addr);
-	if (rulequeue == NULL) {
-		pf_tbladdr_remove(&rule->src.addr);
-		pf_tbladdr_remove(&rule->dst.addr);
-		if (rule->overload_tbl)
-			pfr_detach_table(rule->overload_tbl);
-	}
+	pf_tbladdr_remove(&rule->src.addr);
+	pf_tbladdr_remove(&rule->dst.addr);
+	if (rule->overload_tbl)
+		pfr_detach_table(rule->overload_tbl);
 	pfi_kif_unref(rule->kif, PFI_KIF_REF_RULE);
 	pf_anchor_remove(rule);
 	pf_empty_pool(&rule->rpool.list);
@@ -781,13 +774,15 @@ pf_begin_rules(u_int32_t *ticket, int rs_num, const char *anchor)
 	struct pf_ruleset	*rs;
 	struct pf_rule		*rule;
 
+	PF_RULES_WASSERT();
+
 	if (rs_num < 0 || rs_num >= PF_RULESET_MAX)
 		return (EINVAL);
 	rs = pf_find_or_create_ruleset(anchor);
 	if (rs == NULL)
 		return (EINVAL);
 	while ((rule = TAILQ_FIRST(rs->rules[rs_num].inactive.ptr)) != NULL) {
-		pf_rm_rule(rs->rules[rs_num].inactive.ptr, rule);
+		pf_unlink_rule(rs->rules[rs_num].inactive.ptr, rule);
 		rs->rules[rs_num].inactive.rcount--;
 	}
 	*ticket = ++rs->rules[rs_num].inactive.ticket;
@@ -801,6 +796,8 @@ pf_rollback_rules(u_int32_t ticket, int rs_num, char *anchor)
 	struct pf_ruleset	*rs;
 	struct pf_rule		*rule;
 
+	PF_RULES_WASSERT();
+
 	if (rs_num < 0 || rs_num >= PF_RULESET_MAX)
 		return (EINVAL);
 	rs = pf_find_ruleset(anchor);
@@ -808,7 +805,7 @@ pf_rollback_rules(u_int32_t ticket, int rs_num, char *anchor)
 	    rs->rules[rs_num].inactive.ticket != ticket)
 		return (0);
 	while ((rule = TAILQ_FIRST(rs->rules[rs_num].inactive.ptr)) != NULL) {
-		pf_rm_rule(rs->rules[rs_num].inactive.ptr, rule);
+		pf_unlink_rule(rs->rules[rs_num].inactive.ptr, rule);
 		rs->rules[rs_num].inactive.rcount--;
 	}
 	rs->rules[rs_num].inactive.open = 0;
@@ -907,6 +904,8 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	int			 error;
 	u_int32_t		 old_rcount;
 
+	PF_RULES_WASSERT();
+
 	if (rs_num < 0 || rs_num >= PF_RULESET_MAX)
 		return (EINVAL);
 	rs = pf_find_ruleset(anchor);
@@ -943,7 +942,7 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 
 	/* Purge the old rule list. */
 	while ((rule = TAILQ_FIRST(old_rules)) != NULL)
-		pf_rm_rule(old_rules, rule);
+		pf_unlink_rule(old_rules, rule);
 	if (rs->rules[rs_num].inactive.ptr_array)
 		free(rs->rules[rs_num].inactive.ptr_array, M_TEMP);
 	rs->rules[rs_num].inactive.ptr_array = NULL;
@@ -1183,27 +1182,27 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_pooladdr	*pa;
 		int			 rs_num;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pr->anchor[sizeof(pr->anchor) - 1] = 0;
 		ruleset = pf_find_ruleset(pr->anchor);
 		if (ruleset == NULL) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		if (pr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		if (pr->ticket != ruleset->rules[rs_num].inactive.ticket) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("ticket: %d != [%d]%d\n", pr->ticket, rs_num,
 			    ruleset->rules[rs_num].inactive.ticket));
@@ -1211,7 +1210,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			break;
 		}
 		if (pr->pool_ticket != V_ticket_pabuf) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pool_ticket: %d != %d\n", pr->pool_ticket,
 			    V_ticket_pabuf));
@@ -1220,7 +1219,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 		rule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
 		if (rule == NULL) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = ENOMEM;
 			break;
 		}
@@ -1236,7 +1235,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		rule->entries.tqe_prev = NULL;
 #ifndef INET
 		if (rule->af == AF_INET) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			uma_zfree(V_pf_rule_z, rule);
 			error = EAFNOSUPPORT;
 			break;
@@ -1244,7 +1243,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #endif /* INET */
 #ifndef INET6
 		if (rule->af == AF_INET6) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			uma_zfree(V_pf_rule_z, rule);
 			error = EAFNOSUPPORT;
 			break;
@@ -1259,7 +1258,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (rule->ifname[0]) {
 			rule->kif = pfi_kif_get(rule->ifname);
 			if (rule->kif == NULL) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				uma_zfree(V_pf_rule_z, rule);
 				error = EINVAL;
 				break;
@@ -1328,8 +1327,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EINVAL;
 
 		if (error) {
-			pf_rm_rule(NULL, rule);
-			PF_UNLOCK();
+			pf_free_rule(rule);
+			PF_RULES_WUNLOCK();
 			break;
 		}
 
@@ -1339,7 +1338,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 		    rule, entries);
 		ruleset->rules[rs_num].inactive.rcount++;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -1349,17 +1348,17 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_rule		*tail;
 		int			 rs_num;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pr->anchor[sizeof(pr->anchor) - 1] = 0;
 		ruleset = pf_find_ruleset(pr->anchor);
 		if (ruleset == NULL) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
@@ -1370,7 +1369,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		else
 			pr->nr = 0;
 		pr->ticket = ruleset->rules[rs_num].active.ticket;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -1380,22 +1379,22 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_rule		*rule;
 		int			 rs_num, i;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pr->anchor[sizeof(pr->anchor) - 1] = 0;
 		ruleset = pf_find_ruleset(pr->anchor);
 		if (ruleset == NULL) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		if (pr->ticket != ruleset->rules[rs_num].active.ticket) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -1403,13 +1402,13 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		while ((rule != NULL) && (rule->nr != pr->nr))
 			rule = TAILQ_NEXT(rule, entries);
 		if (rule == NULL) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EBUSY;
 			break;
 		}
 		bcopy(rule, &pr->rule, sizeof(struct pf_rule));
 		if (pf_anchor_copyout(ruleset, rule, pr)) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -1428,7 +1427,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			rule->bytes[0] = rule->bytes[1] = 0;
 			rule->states_tot = 0;
 		}
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -1439,47 +1438,47 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		u_int32_t		 nr = 0;
 		int			 rs_num;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		if (!(pcr->action == PF_CHANGE_REMOVE ||
 		    pcr->action == PF_CHANGE_GET_TICKET) &&
 		    pcr->pool_ticket != V_ticket_pabuf) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EBUSY;
 			break;
 		}
 
 		if (pcr->action < PF_CHANGE_ADD_HEAD ||
 		    pcr->action > PF_CHANGE_GET_TICKET) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		ruleset = pf_find_ruleset(pcr->anchor);
 		if (ruleset == NULL) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 		rs_num = pf_get_ruleset_number(pcr->rule.action);
 		if (rs_num >= PF_RULESET_MAX) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
 
 		if (pcr->action == PF_CHANGE_GET_TICKET) {
 			pcr->ticket = ++ruleset->rules[rs_num].active.ticket;
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			break;
 		} else {
 			if (pcr->ticket !=
 			    ruleset->rules[rs_num].active.ticket) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				error = EINVAL;
 				break;
 			}
 			if (pcr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				error = EINVAL;
 				break;
 			}
@@ -1488,7 +1487,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pcr->action != PF_CHANGE_REMOVE) {
 			newrule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
 			if (newrule == NULL) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				error = ENOMEM;
 				break;
 			}
@@ -1501,7 +1500,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			newrule->entries.tqe_prev = NULL;
 #ifndef INET
 			if (newrule->af == AF_INET) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				uma_zfree(V_pf_rule_z, newrule);
 				error = EAFNOSUPPORT;
 				break;
@@ -1509,7 +1508,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #endif /* INET */
 #ifndef INET6
 			if (newrule->af == AF_INET6) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				uma_zfree(V_pf_rule_z, newrule);
 				error = EAFNOSUPPORT;
 				break;
@@ -1518,7 +1517,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (newrule->ifname[0]) {
 				newrule->kif = pfi_kif_get(newrule->ifname);
 				if (newrule->kif == NULL) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					uma_zfree(V_pf_rule_z, newrule);
 					error = EINVAL;
 					break;
@@ -1594,8 +1593,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				error = EINVAL;
 
 			if (error) {
-				pf_rm_rule(NULL, newrule);
-				PF_UNLOCK();
+				pf_free_rule(newrule);
+				PF_RULES_WUNLOCK();
 				break;
 			}
 
@@ -1619,15 +1618,16 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				oldrule = TAILQ_NEXT(oldrule, entries);
 			if (oldrule == NULL) {
 				if (newrule != NULL)
-					pf_rm_rule(NULL, newrule);
-				PF_UNLOCK();
+					pf_free_rule(newrule);
+				PF_RULES_WUNLOCK();
 				error = EINVAL;
 				break;
 			}
 		}
 
 		if (pcr->action == PF_CHANGE_REMOVE) {
-			pf_rm_rule(ruleset->rules[rs_num].active.ptr, oldrule);
+			pf_unlink_rule(ruleset->rules[rs_num].active.ptr,
+			    oldrule);
 			ruleset->rules[rs_num].active.rcount--;
 		} else {
 			if (oldrule == NULL)
@@ -1654,7 +1654,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		pf_calc_skip_steps(ruleset->rules[rs_num].active.ptr);
 		pf_remove_if_empty_ruleset(ruleset);
 
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -2920,7 +2920,7 @@ DIOCGETSTATES_full:
 			free(ioes, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 #ifdef ALTQ
@@ -2947,7 +2947,7 @@ DIOCGETSTATES_full:
 				    sizeof(table.pfrt_anchor));
 				if ((error = pfr_ina_begin(&table,
 				    &ioe->ticket, NULL, 0))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail;
 				}
@@ -2956,14 +2956,14 @@ DIOCGETSTATES_full:
 			default:
 				if ((error = pf_begin_rules(&ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail;
 				}
 				break;
 			}
 		}
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		error = copyout(ioes, io->array, totlen);
 		free(ioes, M_TEMP);
 		break;
@@ -2986,19 +2986,19 @@ DIOCGETSTATES_full:
 			free(ioes, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if ((error = pf_rollback_altq(ioe->ticket))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
@@ -3013,7 +3013,7 @@ DIOCGETSTATES_full:
 				    sizeof(table.pfrt_anchor));
 				if ((error = pfr_ina_rollback(&table,
 				    ioe->ticket, NULL, 0))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
@@ -3022,14 +3022,14 @@ DIOCGETSTATES_full:
 			default:
 				if ((error = pf_rollback_rules(ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
 			}
 		}
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		free(ioes, M_TEMP);
 		break;
 	}
@@ -3052,21 +3052,21 @@ DIOCGETSTATES_full:
 			free(ioes, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		/* First makes sure everything will succeed. */
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if (!V_altqs_inactive_open || ioe->ticket !=
 				    V_ticket_altqs_inactive) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EBUSY;
 					goto fail;
@@ -3077,7 +3077,7 @@ DIOCGETSTATES_full:
 				rs = pf_find_ruleset(ioe->anchor);
 				if (rs == NULL || !rs->topen || ioe->ticket !=
 				    rs->tticket) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EBUSY;
 					goto fail;
@@ -3086,7 +3086,7 @@ DIOCGETSTATES_full:
 			default:
 				if (ioe->rs_num < 0 || ioe->rs_num >=
 				    PF_RULESET_MAX) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
@@ -3096,7 +3096,7 @@ DIOCGETSTATES_full:
 				    !rs->rules[ioe->rs_num].inactive.open ||
 				    rs->rules[ioe->rs_num].inactive.ticket !=
 				    ioe->ticket) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EBUSY;
 					goto fail;
@@ -3110,7 +3110,7 @@ DIOCGETSTATES_full:
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if ((error = pf_commit_altq(ioe->ticket))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
@@ -3125,7 +3125,7 @@ DIOCGETSTATES_full:
 				    sizeof(table.pfrt_anchor));
 				if ((error = pfr_ina_commit(&table,
 				    ioe->ticket, NULL, NULL, 0))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
@@ -3134,14 +3134,14 @@ DIOCGETSTATES_full:
 			default:
 				if ((error = pf_commit_rules(ioe->ticket,
 				    ioe->rs_num, ioe->anchor))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail; /* really bad */
 				}
 				break;
 			}
 		}
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		free(ioes, M_TEMP);
 		break;
 	}
