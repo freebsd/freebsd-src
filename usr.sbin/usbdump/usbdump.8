@@ -40,6 +40,7 @@
 .Op Fl w Ar file
 .Op Fl f Ar filter
 .Op Fl b Ar file
+.Op Fl h
 .Sh DESCRIPTION
 The
 .Nm
@@ -79,6 +80,8 @@ If 128 is added to the endpoint number that means IN direction, else OUT directi
 A device unit or endpoint value of -1 means ignore this field.
 If no filters are specified, all packets are passed through using the default -1,-1 filter.
 This option can be specified multiple times.
+.It Fl h
+This option displays a summary of the command line options.
 .El
 .Sh EXAMPLES
 Capture the USB raw packets on usbus2:
