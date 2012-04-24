@@ -184,8 +184,8 @@ static VNET_DEFINE(struct pf_send_head, pf_sendqueue);
 #define	V_pf_sendqueue	VNET(pf_sendqueue)
 
 static struct mtx pf_sendqueue_mtx;
-#define	PF_QUEUE_LOCK()		mtx_lock(&pf_sendqueue_mtx);
-#define	PF_QUEUE_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx);
+#define	PF_QUEUE_LOCK()		mtx_lock(&pf_sendqueue_mtx)
+#define	PF_QUEUE_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
 
 VNET_DEFINE(uma_zone_t,	 pf_sources_z);
 VNET_DEFINE(uma_zone_t,	 pf_rule_z);
