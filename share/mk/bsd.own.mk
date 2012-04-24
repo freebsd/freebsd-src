@@ -441,7 +441,8 @@ __T=${TARGET_ARCH}
 __T=${MACHINE_ARCH}
 .endif
 # Clang is only for x86 and powerpc right now, by default.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+# XXX: Temporarily disabled for 32-bit powerpc, due to a binutils bug.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc64"
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
