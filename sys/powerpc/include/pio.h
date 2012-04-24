@@ -39,11 +39,7 @@
  * I/O macros.
  */
 
-/*
- * Note: this should be eieio, but many drivers expect ordering with
- * main storage too.
- */
-#define powerpc_iomb() __asm __volatile("sync" : : : "memory")
+#define powerpc_iomb() __asm __volatile("eieio" : : : "memory")
 
 static __inline void
 __outb(volatile u_int8_t *a, u_int8_t v)
