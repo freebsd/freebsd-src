@@ -139,7 +139,7 @@ make_new_leaf(uint64_t esid, uint64_t slbv, struct slbtnode *parent)
 	 * that a lockless searcher always sees a valid path through
 	 * the tree.
 	 */
-	mb();
+	powerpc_sync();
 
 	idx = esid2idx(esid, parent->ua_level);
 	parent->u.ua_child[idx] = child;
@@ -187,7 +187,7 @@ make_intermediate(uint64_t esid, struct slbtnode *parent)
 	idx = esid2idx(child->ua_base, inter->ua_level);
 	inter->u.ua_child[idx] = child;
 	setbit(&inter->ua_alloc, idx);
-	mb();
+	powerpc_sync();
 
 	/* Set up parent to point to intermediate node ... */
 	idx = esid2idx(inter->ua_base, parent->ua_level);
