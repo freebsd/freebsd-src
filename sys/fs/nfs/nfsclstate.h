@@ -43,18 +43,14 @@ LIST_HEAD(nfscldeleghash, nfscldeleg);
 TAILQ_HEAD(nfscllayouthead, nfscllayout);
 LIST_HEAD(nfscllayouthash, nfscllayout);
 LIST_HEAD(nfsclflayouthead, nfsclflayout);
-TAILQ_HEAD(nfscldevinfohead, nfscldevinfo);
-LIST_HEAD(nfscldevinfohash, nfscldevinfo);
+LIST_HEAD(nfscldevinfohead, nfscldevinfo);
+LIST_HEAD(nfsclrecalllayouthead, nfsclrecalllayout);
 #define	NFSCLDELEGHASHSIZE	256
 #define	NFSCLDELEGHASH(c, f, l)							\
 	(&((c)->nfsc_deleghash[ncl_hash((f), (l)) % NFSCLDELEGHASHSIZE]))
 #define	NFSCLLAYOUTHASHSIZE	256
 #define	NFSCLLAYOUTHASH(c, f, l)						\
 	(&((c)->nfsc_layouthash[ncl_hash((f), (l)) % NFSCLLAYOUTHASHSIZE]))
-#define	NFSCLDEVINFOHASHSIZE	16
-#define	NFSCLDEVINFOHASH(c, f)							\
-	(&((c)->nfsc_devinfohash[ncl_hash((f), NFSX_V4DEVICEID) %		\
-	     NFSCLDEVINFOHASHSIZE]))
 
 /* Structure for NFSv4.1 session stuff. */
 struct nfsclsession {
@@ -100,7 +96,6 @@ struct nfsclclient {
 	struct nfscllayouthead	nfsc_layout;
 	struct nfscllayouthash	nfsc_layouthash[NFSCLLAYOUTHASHSIZE];
 	struct nfscldevinfohead	nfsc_devinfo;
-	struct nfscldevinfohash	nfsc_devinfohash[NFSCLDEVINFOHASHSIZE];
 	struct nfsv4lock	nfsc_lock;
 	struct proc		*nfsc_renewthread;
 	struct nfsmount		*nfsc_nmp;
@@ -234,14 +229,29 @@ struct nfscllayout {
 	TAILQ_ENTRY(nfscllayout)	nfsly_list;
 	LIST_ENTRY(nfscllayout)		nfsly_hash;
 	nfsv4stateid_t			nfsly_stateid;
+	uint64_t			nfsly_filesid[2];
 	struct nfsclflayouthead		nfsly_flayread;
 	struct nfsclflayouthead		nfsly_flayrw;
+	struct nfsclrecalllayouthead	nfsly_recall;
+	time_t				nfsly_timestamp;
 	struct nfsclclient		*nfsly_clp;
 	uint32_t			nfsly_refcnt;
-	uint16_t			nfsly_retonclose;
+	uint16_t			nfsly_flags;
 	uint16_t			nfsly_fhlen;
 	uint8_t				nfsly_fh[1];
 };
+
+/*
+ * Flags for nfsly_flags.
+ */
+#define	NFSLY_FILES		0x0001
+#define	NFSLY_BLOCK		0x0002
+#define	NFSLY_OBJECT		0x0004
+#define	NFSLY_RECALL		0x0008
+#define	NFSLY_RECALLFILE	0x0010
+#define	NFSLY_RECALLFSID	0x0020
+#define	NFSLY_RECALLALL		0x0040
+#define	NFSLY_RETONCLOSE	0x0080
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle list.
@@ -256,11 +266,31 @@ struct nfsclflayout {
 	uint64_t			nfsfl_off;
 	uint64_t			nfsfl_end;
 	uint64_t			nfsfl_patoff;
+	struct nfscldevinfo		*nfsfl_devp;
 	uint32_t			nfsfl_iomode;
 	uint32_t			nfsfl_util;
 	uint32_t			nfsfl_stripe1;
-	uint32_t			nfsfl_fhcnt;
+	uint16_t			nfsfl_flags;
+	uint16_t			nfsfl_fhcnt;
 	struct nfsfh			*nfsfl_fh[1];	/* FH list for DS */
+};
+
+/*
+ * Flags for nfsfl_flags.
+ */
+#define	NFSFL_RECALL	0x0001		/* File layout has been recalled */
+#define	NFSFL_WRITTEN	0x0002		/* Has been used to write to a DS. */
+
+/*
+ * Structure that is used to store a LAYOUTRECALL.
+ */
+struct nfsclrecalllayout {
+	LIST_ENTRY(nfsclrecalllayout)	nfsrecly_list;
+	uint64_t			nfsrecly_off;
+	uint64_t			nfsrecly_len;
+	int				nfsrecly_recalltype;
+	uint32_t			nfsrecly_iomode;
+	uint32_t			nfsrecly_stateseqid;
 };
 
 /*
@@ -273,11 +303,11 @@ struct nfsclflayout {
  *   indices select which address.)
  */
 struct nfscldevinfo {
-	TAILQ_ENTRY(nfscldevinfo)	nfsdi_list;
-	LIST_ENTRY(nfscldevinfo)	nfsdi_hash;
+	LIST_ENTRY(nfscldevinfo)	nfsdi_list;
 	uint8_t				nfsdi_deviceid[NFSX_V4DEVICEID];
 	struct nfsclclient		*nfsdi_clp;
 	uint32_t			nfsdi_refcnt;
+	uint32_t			nfsdi_layoutrefs;
 	uint16_t			nfsdi_stripecnt;
 	uint16_t			nfsdi_addrcnt;
 	struct nfsclds			*nfsdi_data[0];

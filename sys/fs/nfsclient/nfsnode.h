@@ -154,6 +154,7 @@ struct nfsnode {
 #define	NREMOVEWANT	0x00004000  /* Want notification that remove is done */
 #define	NLOCK		0x00008000  /* Sleep lock the node */
 #define	NLOCKWANT	0x00010000  /* Want the sleep lock */
+#define	NNOLAYOUT	0x00020000  /* Can't get a layout for this file */
 
 /*
  * Convert between nfsnode pointers and vnode pointers

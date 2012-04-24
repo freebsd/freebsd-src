@@ -450,11 +450,12 @@ int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t, uint64_t,
     struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
     struct nfscldevinfo **, struct ucred *, NFSPROC_T *);
-int nfsrpc_layoutcommit(vnode_t, off_t, uint64_t, int, nfsv4stateid_t *, int,
-    off_t, int, struct timespec, int, int, uint8_t *, int *, uint64_t *,
+int nfsrpc_layoutcommit(struct nfsmount *, uint8_t *, int, int,
+    uint64_t, uint64_t, nfsv4stateid_t *, int, int, uint8_t *,
     struct ucred *, NFSPROC_T *, void *);
-int nfsrpc_layoutreturn(vnode_t, int, int, int, int, off_t, uint64_t,
-    nfsv4stateid_t *, int, uint32_t *, struct ucred *, NFSPROC_T *, void *);
+int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
+    int, uint64_t, uint64_t, nfsv4stateid_t *, int, uint32_t *, struct ucred *,
+    NFSPROC_T *, void *);
 int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
 int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t,
     struct ucred *, NFSPROC_T *);
@@ -520,17 +521,21 @@ void nfscl_deleggetmodtime(vnode_t, struct timespec *);
 int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
-int nfscl_layout(struct nfsmount *, u_int8_t *, int, nfsv4stateid_t *, int,
-    struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
+int nfscl_layout(struct nfsmount *, vnode_t, u_int8_t *, int, nfsv4stateid_t *,
+    int, struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
     NFSPROC_T *);
-struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int);
+struct nfscllayout *nfscl_getlayout(struct nfsclclient *, uint8_t *, int,
+    int *);
 void nfscl_rellayout(struct nfscllayout *);
-struct nfscldevinfo *nfscl_getdevinfo(struct nfsclclient *, uint8_t *);
+struct nfscldevinfo *nfscl_getdevinfo(struct nfsclclient *, uint8_t *,
+    struct nfscldevinfo *);
 void nfscl_reldevinfo(struct nfscldevinfo *);
-void nfscl_adddevinfo(struct nfsmount *, struct nfscldevinfo *);
+int nfscl_adddevinfo(struct nfsmount *, struct nfscldevinfo *,
+    struct nfsclflayout *);
 void nfscl_freelayout(struct nfscllayout *);
 void nfscl_freeflayout(struct nfsclflayout *);
 void nfscl_freedevinfo(struct nfscldevinfo *);
+int nfscl_layoutcommit(vnode_t, NFSPROC_T *);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,

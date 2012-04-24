@@ -156,6 +156,13 @@ static void nfscl_emptylockowner(struct nfscllockowner *,
     struct nfscllockownerfhhead *);
 static void nfscl_mergeflayouts(struct nfsclflayouthead *,
     struct nfsclflayouthead *);
+static int nfscl_layoutrecall(int, struct nfscllayout *, uint32_t, uint64_t,
+    uint64_t, uint32_t, struct nfsclrecalllayout *);
+static int nfscl_seq(uint32_t, uint32_t);
+static void nfscl_layoutreturn(struct nfsmount *, struct nfscllayout *,
+    struct ucred *, NFSPROC_T *);
+static void nfscl_dolayoutcommit(struct nfsmount *, struct nfscllayout *,
+    struct nfsclflayout *, struct ucred *, NFSPROC_T *);
 
 static short nfscberr_null[] = {
 	0,
@@ -762,13 +769,11 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		LIST_INIT(&clp->nfsc_owner);
 		TAILQ_INIT(&clp->nfsc_deleg);
 		TAILQ_INIT(&clp->nfsc_layout);
-		TAILQ_INIT(&clp->nfsc_devinfo);
+		LIST_INIT(&clp->nfsc_devinfo);
 		for (i = 0; i < NFSCLDELEGHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_deleghash[i]);
 		for (i = 0; i < NFSCLLAYOUTHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_layouthash[i]);
-		for (i = 0; i < NFSCLDEVINFOHASHSIZE; i++)
-			LIST_INIT(&clp->nfsc_devinfohash[i]);
 		clp->nfsc_flags = NFSCLFLAGS_INITED;
 		clp->nfsc_clientidrev = 1;
 		clp->nfsc_cbident = nfscl_nextcbident();
@@ -2432,6 +2437,10 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	static time_t prevsec = 0;
 	struct nfscllockownerfh *lfhp, *nlfhp;
 	struct nfscllockownerfhhead lfh;
+	struct nfscllayout *lyp, *nlyp;
+	struct nfsclflayout *flp;
+	struct nfscldevinfo *dip, *ndip;
+	struct nfscllayouthead rlh;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
@@ -2577,7 +2586,89 @@ tryagain:
 		}
 		if (igotlock)
 			nfsv4_unlock(&clp->nfsc_lock, 0);
+
+		/*
+		 * Do the recall on any layouts. To avoid trouble, always
+		 * come back up here after having slept.
+		 */
+		TAILQ_INIT(&rlh);
+tryagain2:
+		TAILQ_FOREACH_SAFE(lyp, &clp->nfsc_layout, nfsly_list, nlyp) {
+			if ((lyp->nfsly_flags & NFSLY_RECALL) != 0) {
+				/*
+				 * Wait for outstanding I/O ops to be done.
+				 */
+				if (lyp->nfsly_refcnt > 0) {
+printf("layrec io=%d\n", lyp->nfsly_refcnt);
+					(void)mtx_sleep(&lyp->nfsly_refcnt,
+					    NFSCLSTATEMUTEXPTR, PZERO, "nfslyd",
+					    0);
+					goto tryagain2;
+				}
+
+				/* Handle any layout commits. */
+				LIST_FOREACH(flp, &lyp->nfsly_flayrw,
+				    nfsfl_list) {
+					if ((flp->nfsfl_flags & NFSFL_WRITTEN)
+					    != 0) {
+						lyp->nfsly_refcnt++;
+						flp->nfsfl_flags &=
+						    ~NFSFL_WRITTEN;
+						NFSUNLOCKCLSTATE();
+printf("do layoutcommit\n");
+						nfscl_dolayoutcommit(
+						    clp->nfsc_nmp, lyp, flp,
+						    cred, p);
+						NFSLOCKCLSTATE();
+						lyp->nfsly_refcnt--;
+						if (lyp->nfsly_refcnt == 0)
+							wakeup(
+							    &lyp->nfsly_refcnt);
+						goto tryagain2;
+					}
+				}
+
+				/* Move the layout to the recall list. */
+				TAILQ_REMOVE(&clp->nfsc_layout, lyp,
+				    nfsly_list);
+				LIST_REMOVE(lyp, nfsly_hash);
+				TAILQ_INSERT_HEAD(&rlh, lyp, nfsly_list);
+			}
+		}
+#ifdef notyet
+		/* Now, look for stale layouts. */
+		lyp = TAILQ_LAST(&clp->nfsc_layout, nfscllayouthead);
+		while (lyp != NULL) {
+			nlyp = TAILQ_PREV(lyp, nfscllayouthead, nfsly_list);
+			if (lyp->nfsly_timestamp < NFSD_MONOSEC &&
+			    (lyp->nfsly_flags & NFSLY_RECALL) == 0 &&
+			    lyp->nfsly_refcnt == 0) {
+printf("ret stale lay=%d\n", nfscl_layoutcnt);
+			}
+			lyp = nlyp;
+		}
+#endif
+
+		/*
+		 * Free up any unreferenced device info structures.
+		 */
+		LIST_FOREACH_SAFE(dip, &clp->nfsc_devinfo, nfsdi_list, ndip) {
+			if (dip->nfsdi_layoutrefs == 0 &&
+			    dip->nfsdi_refcnt == 0) {
+printf("freeing devinfo\n");
+				LIST_REMOVE(dip, nfsdi_list);
+				nfscl_freedevinfo(dip);
+			}
+		}
 		NFSUNLOCKCLSTATE();
+
+		/* Do layout return(s), as required. */
+		TAILQ_FOREACH_SAFE(lyp, &rlh, nfsly_list, nlyp) {
+			TAILQ_REMOVE(&rlh, lyp, nfsly_list);
+printf("ret layout\n");
+			nfscl_layoutreturn(clp->nfsc_nmp, lyp, cred, p);
+			nfscl_freelayout(lyp);
+		}
 
 		/*
 		 * Delegreturn any delegations cleaned out or recalled.
@@ -3031,6 +3122,11 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	uint32_t seqid, slotid = 0, highslot, cachethis;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 	struct mbuf *rep;
+	struct nfscllayout *lyp;
+	uint64_t filesid[2], len, off;
+	int changed, gotone, laytype, recalltype;
+	uint32_t iomode;
+	struct nfsclrecalllayout *recallp = NULL;
 
 	gotseq_ok = 0;
 	nfsrvd_rephead(nd);
@@ -3186,6 +3282,129 @@ printf("cbrecall\n");
 			if (nfhp != NULL)
 				FREE((caddr_t)nfhp, M_NFSFH);
 			break;
+		case NFSV4OP_CBLAYOUTRECALL:
+printf("cblayrec\n");
+			nfhp = NULL;
+			NFSM_DISSECT(tl, uint32_t *, 4 * NFSX_UNSIGNED);
+			laytype = fxdr_unsigned(int, *tl++);
+			iomode = fxdr_unsigned(uint32_t, *tl++);
+			if (newnfs_true == *tl++)
+				changed = 1;
+			else
+				changed = 0;
+			recalltype = fxdr_unsigned(int, *tl);
+			recallp = malloc(sizeof(*recallp), M_NFSLAYRECALL,
+			    M_WAITOK);
+			if (laytype != NFSLAYOUT_NFSV4_1_FILES)
+				error = NFSERR_NOMATCHLAYOUT;
+			else if (recalltype == NFSLAYOUTRETURN_FILE) {
+				error = nfsm_getfh(nd, &nfhp);
+printf("retfile getfh=%d\n", error);
+				if (error != 0)
+					goto nfsmout;
+				NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_HYPER +
+				    NFSX_STATEID);
+				off = fxdr_hyper(tl); tl += 2;
+				len = fxdr_hyper(tl); tl += 2;
+				stateid.seqid = fxdr_unsigned(uint32_t, *tl++);
+				NFSBCOPY(tl, stateid.other, NFSX_STATEIDOTHER);
+				if (minorvers == NFSV4_MINORVERSION)
+					error = NFSERR_NOTSUPP;
+				else if (i == 0)
+					error = NFSERR_OPNOTINSESS;
+				if (error == 0) {
+					NFSLOCKCLSTATE();
+					clp = nfscl_getclntsess(sessionid);
+printf("cbly clp=%p\n", clp);
+					if (clp != NULL) {
+						lyp = nfscl_findlayout(clp,
+						    nfhp->nfh_fh,
+						    nfhp->nfh_len);
+printf("cblyp=%p\n", lyp);
+						if (lyp != NULL &&
+						    (lyp->nfsly_flags &
+						     NFSLY_FILES) != 0 &&
+						    !NFSBCMP(stateid.other,
+						    lyp->nfsly_stateid.other,
+						    NFSX_STATEIDOTHER)) {
+							error =
+							    nfscl_layoutrecall(
+							    recalltype,
+							    lyp, iomode, off,
+							    len, stateid.seqid,
+							    recallp);
+							recallp = NULL;
+							wakeup(clp);
+printf("aft layrec=%d\n", error);
+						} else
+							error =
+							  NFSERR_NOMATCHLAYOUT;
+					} else
+						error = NFSERR_NOMATCHLAYOUT;
+					NFSUNLOCKCLSTATE();
+				}
+				free(nfhp, M_NFSFH);
+			} else if (recalltype == NFSLAYOUTRETURN_FSID) {
+				NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_HYPER);
+				filesid[0] = fxdr_hyper(tl); tl += 2;
+				filesid[1] = fxdr_hyper(tl); tl += 2;
+				gotone = 0;
+				NFSLOCKCLSTATE();
+				clp = nfscl_getclntsess(sessionid);
+				if (clp != NULL) {
+					TAILQ_FOREACH(lyp, &clp->nfsc_layout,
+					    nfsly_list) {
+						if (lyp->nfsly_filesid[0] ==
+						    filesid[0] &&
+						    lyp->nfsly_filesid[1] ==
+						    filesid[1]) {
+							error =
+							    nfscl_layoutrecall(
+							    recalltype,
+							    lyp, iomode, 0,
+							    UINT64_MAX,
+							    lyp->nfsly_stateid.seqid,
+							    recallp);
+							recallp = NULL;
+							gotone = 1;
+						}
+					}
+					if (gotone != 0)
+						wakeup(clp);
+					else
+						error = NFSERR_NOMATCHLAYOUT;
+				} else
+					error = NFSERR_NOMATCHLAYOUT;
+				NFSUNLOCKCLSTATE();
+			} else if (recalltype == NFSLAYOUTRETURN_ALL) {
+				gotone = 0;
+				NFSLOCKCLSTATE();
+				clp = nfscl_getclntsess(sessionid);
+				if (clp != NULL) {
+					TAILQ_FOREACH(lyp, &clp->nfsc_layout,
+					    nfsly_list) {
+						error = nfscl_layoutrecall(
+						    recalltype, lyp, iomode, 0,
+						    UINT64_MAX,
+						    lyp->nfsly_stateid.seqid,
+						    recallp);
+						recallp = NULL;
+						gotone = 1;
+					}
+					if (gotone != 0)
+						wakeup(clp);
+					else
+						error = NFSERR_NOMATCHLAYOUT;
+				} else
+					error = NFSERR_NOMATCHLAYOUT;
+				NFSUNLOCKCLSTATE();
+			} else
+				error = NFSERR_NOMATCHLAYOUT;
+			if (recallp != NULL) {
+				free(recallp, M_NFSLAYRECALL);
+				recallp = NULL;
+			}
+			break;
 		case NFSV4OP_CBSEQUENCE:
 			NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
 			    5 * NFSX_UNSIGNED);
@@ -3267,6 +3486,8 @@ printf("unsupp callback %d\n", op);
 			*repp = 0;	/* NFS4_OK */
 	}
 nfsmout:
+	if (recallp != NULL)
+		free(recallp, M_NFSLAYRECALL);
 	if (error) {
 		if (error == EBADRPC || error == NFSERR_BADXDR)
 			nd->nd_repstat = NFSERR_BADXDR;
@@ -4413,7 +4634,7 @@ nfscl_errmap(struct nfsrv_descript *nd)
  * Called to find/add a layout to a client.
  */
 APPLESTATIC int
-nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
+nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
     nfsv4stateid_t *stateidp, int retonclose,
     struct nfsclflayouthead *fhlp, struct nfscllayout **lypp,
     struct ucred *cred, NFSPROC_T *p)
@@ -4421,6 +4642,7 @@ nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
 	struct nfsclclient *clp;
 	struct nfscllayout *lyp, *tlyp;
 	struct nfsclflayout *flp;
+	struct nfsnode *np = VTONFS(vp);
 
 	*lypp = NULL;
 	tlyp = malloc(sizeof(*tlyp) + fhlen - 1, M_NFSLAYOUT, M_WAITOK);
@@ -4442,22 +4664,27 @@ nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
 		lyp->nfsly_stateid.other[2] = stateidp->other[2];
 		LIST_INIT(&lyp->nfsly_flayread);
 		LIST_INIT(&lyp->nfsly_flayrw);
+		LIST_INIT(&lyp->nfsly_recall);
+		lyp->nfsly_filesid[0] = np->n_vattr.na_filesid[0];
+		lyp->nfsly_filesid[1] = np->n_vattr.na_filesid[1];
 		lyp->nfsly_clp = clp;
-		lyp->nfsly_retonclose = retonclose;
+		lyp->nfsly_flags = (retonclose != 0) ?
+		    (NFSLY_FILES | NFSLY_RETONCLOSE) : NFSLY_FILES;
 		lyp->nfsly_refcnt = 1;	/* Return with a reference cnt. */
 		lyp->nfsly_fhlen = fhlen;
 		NFSBCOPY(fhp, lyp->nfsly_fh, fhlen);
 		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
 		LIST_INSERT_HEAD(NFSCLLAYOUTHASH(clp, fhp, fhlen), lyp,
 		    nfsly_hash);
-#ifdef notyet
 		lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
-#endif
 		nfscl_layoutcnt++;
 	} else {
 		lyp->nfsly_refcnt++;
+		if (retonclose != 0)
+			lyp->nfsly_flags |= NFSLY_RETONCLOSE;
 		TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
 		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+		lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
 	}
 
 	/* Merge the new list of File Layouts into the list. */
@@ -4476,20 +4703,27 @@ nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
 }
 
 /*
- * Search for a layout by MDS file handle. If one is found, lock it it and
+ * Search for a layout by MDS file handle. If one is found, ref cnt it and
  * return a pointer to it.
  */
 struct nfscllayout *
-nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen)
+nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
+    int *recalledp)
 {
 	struct nfscllayout *lyp;
 
+	*recalledp = 0;
 	NFSLOCKCLSTATE();
 	lyp = nfscl_findlayout(clp, fhp, fhlen);
 	if (lyp != NULL) {
-		lyp->nfsly_refcnt++;
-		TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
-		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+		if ((lyp->nfsly_flags & NFSLY_RECALL) == 0) {
+			lyp->nfsly_refcnt++;
+			TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
+			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+		} else {
+			lyp = NULL;
+			*recalledp = 1;
+		}
 	}
 	NFSUNLOCKCLSTATE();
 	return (lyp);
@@ -4514,17 +4748,15 @@ nfscl_rellayout(struct nfscllayout *lyp)
  * acquiring a reference count on it.
  */
 struct nfscldevinfo *
-nfscl_getdevinfo(struct nfsclclient *clp, uint8_t *deviceid)
+nfscl_getdevinfo(struct nfsclclient *clp, uint8_t *deviceid,
+    struct nfscldevinfo *dip)
 {
-	struct nfscldevinfo *dip;
 
 	NFSLOCKCLSTATE();
-	dip = nfscl_finddevinfo(clp, deviceid);
-	if (dip != NULL) {
+	if (dip == NULL)
+		dip = nfscl_finddevinfo(clp, deviceid);
+	if (dip != NULL)
 		dip->nfsdi_refcnt++;
-		TAILQ_REMOVE(&clp->nfsc_devinfo, dip, nfsdi_list);
-		TAILQ_INSERT_HEAD(&clp->nfsc_devinfo, dip, nfsdi_list);
-	}
 	NFSUNLOCKCLSTATE();
 	return (dip);
 }
@@ -4576,7 +4808,7 @@ nfscl_finddevinfo(struct nfsclclient *clp, uint8_t *deviceid)
 {
 	struct nfscldevinfo *dip;
 
-	LIST_FOREACH(dip, NFSCLDEVINFOHASH(clp, deviceid), nfsdi_hash)
+	LIST_FOREACH(dip, &clp->nfsc_devinfo, nfsdi_list)
 		if (NFSBCMP(dip->nfsdi_deviceid, deviceid, NFSX_V4DEVICEID)
 		    == 0)
 			break;
@@ -4610,10 +4842,11 @@ nfscl_mergeflayouts(struct nfsclflayouthead *fhlp,
 
 /*
  * Add this nfscldevinfo to the client, if it doesn't already exist.
- * This function consumes the structure pointed at by dip.
+ * This function consumes the structure pointed at by dip, if not NULL.
  */
-APPLESTATIC void
-nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip)
+APPLESTATIC int
+nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip,
+    struct nfsclflayout *flp)
 {
 	struct nfsclclient *clp;
 	struct nfscldevinfo *tdip;
@@ -4622,20 +4855,29 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip)
 	clp = nmp->nm_clp;
 	if (clp == NULL) {
 		NFSUNLOCKCLSTATE();
-		free(dip, M_NFSDEVINFO);
-		return;
+		if (dip != NULL)
+			free(dip, M_NFSDEVINFO);
+		return (ENODEV);
 	}
-	tdip = nfscl_finddevinfo(clp, dip->nfsdi_deviceid);
+	tdip = nfscl_finddevinfo(clp, flp->nfsfl_dev);
 	if (tdip != NULL) {
+		tdip->nfsdi_layoutrefs++;
+		flp->nfsfl_devp = tdip;
 		nfscl_reldevinfo_locked(tdip);
 		NFSUNLOCKCLSTATE();
-		free(dip, M_NFSDEVINFO);
-		return;
+		if (dip != NULL)
+			free(dip, M_NFSDEVINFO);
+		return (0);
 	}
-	TAILQ_INSERT_HEAD(&clp->nfsc_devinfo, dip, nfsdi_list);
-	LIST_INSERT_HEAD(NFSCLDEVINFOHASH(clp, dip->nfsdi_deviceid), dip,
-	    nfsdi_hash);
+	if (dip != NULL) {
+		LIST_INSERT_HEAD(&clp->nfsc_devinfo, dip, nfsdi_list);
+		dip->nfsdi_layoutrefs = 1;
+		flp->nfsfl_devp = dip;
+	}
 	NFSUNLOCKCLSTATE();
+	if (dip == NULL)
+		return (ENODEV);
+	return (0);
 }
 
 /*
@@ -4645,6 +4887,7 @@ APPLESTATIC void
 nfscl_freelayout(struct nfscllayout *layp)
 {
 	struct nfsclflayout *flp, *nflp;
+	struct nfsclrecalllayout *rp, *nrp;
 
 	LIST_FOREACH_SAFE(flp, &layp->nfsly_flayread, nfsfl_list, nflp) {
 		LIST_REMOVE(flp, nfsfl_list);
@@ -4654,6 +4897,11 @@ nfscl_freelayout(struct nfscllayout *layp)
 		LIST_REMOVE(flp, nfsfl_list);
 		nfscl_freeflayout(flp);
 	}
+	LIST_FOREACH_SAFE(rp, &layp->nfsly_recall, nfsrecly_list, nrp) {
+		LIST_REMOVE(rp, nfsrecly_list);
+		free(rp, M_NFSLAYRECALL);
+	}
+	nfscl_layoutcnt--;
 	free(layp, M_NFSLAYOUT);
 }
 
@@ -4667,6 +4915,8 @@ nfscl_freeflayout(struct nfsclflayout *flp)
 
 	for (i = 0; i < flp->nfsfl_fhcnt; i++)
 		free(flp->nfsfl_fh[i], M_NFSFH);
+	if (flp->nfsfl_devp != NULL)
+		flp->nfsfl_devp->nfsdi_layoutrefs--;
 	free(flp, M_NFSFLAYOUT);
 }
 
@@ -4678,5 +4928,153 @@ nfscl_freedevinfo(struct nfscldevinfo *dip)
 {
 
 	free(dip, M_NFSDEVINFO);
+}
+
+/*
+ * Mark any layouts that match as recalled.
+ */
+static int
+nfscl_layoutrecall(int recalltype, struct nfscllayout *lyp, uint32_t iomode,
+    uint64_t off, uint64_t len, uint32_t stateseqid,
+    struct nfsclrecalllayout *recallp)
+{
+	struct nfsclrecalllayout *rp, *orp;
+
+	recallp->nfsrecly_recalltype = recalltype;
+	recallp->nfsrecly_iomode = iomode;
+	recallp->nfsrecly_stateseqid = stateseqid;
+	recallp->nfsrecly_off = off;
+	recallp->nfsrecly_len = len;
+	/*
+	 * Order the list as file returns first, followed by fsid and any
+	 * returns, both in increasing stateseqid order.
+	 * Note that the seqids wrap around, so 1 is after 0xffffffff.
+	 * (I'm not sure this is correct because I find RFC5661 confusing
+	 *  on this, but hopefully it will work ok.)
+	 */
+	orp = NULL;
+	LIST_FOREACH(rp, &lyp->nfsly_recall, nfsrecly_list) {
+		orp = rp;
+		if ((recalltype == NFSLAYOUTRETURN_FILE &&
+		     (rp->nfsrecly_recalltype != NFSLAYOUTRETURN_FILE ||
+		      nfscl_seq(stateseqid, rp->nfsrecly_stateseqid) != 0)) ||
+		    (recalltype != NFSLAYOUTRETURN_FILE &&
+		     rp->nfsrecly_recalltype != NFSLAYOUTRETURN_FILE &&
+		     nfscl_seq(stateseqid, rp->nfsrecly_stateseqid) != 0)) {
+			LIST_INSERT_BEFORE(rp, recallp, nfsrecly_list);
+			break;
+		}
+	}
+	if (rp == NULL) {
+		if (orp == NULL)
+			LIST_INSERT_HEAD(&lyp->nfsly_recall, recallp,
+			    nfsrecly_list);
+		else
+			LIST_INSERT_AFTER(orp, recallp, nfsrecly_list);
+	}
+	lyp->nfsly_flags |= NFSLY_RECALL;
+	return (0);
+}
+
+/*
+ * Compare the two seqids for ordering. The trick is that the seqids can
+ * wrap around from 0xffffffff->0, so check for the cases where one
+ * has wrapped around.
+ * Return 1 if seqid1 comes before seqid2, 0 otherwise.
+ */
+static int
+nfscl_seq(uint32_t seqid1, uint32_t seqid2)
+{
+
+	if (seqid2 > seqid1 && (seqid2 - seqid1) >= 0x7fffffff)
+		/* seqid2 has wrapped around. */
+		return (0);
+	if (seqid1 > seqid2 && (seqid1 - seqid2) >= 0x7fffffff)
+		/* seqid1 has wrapped around. */
+		return (1);
+	if (seqid1 <= seqid2)
+		return (1);
+	return (0);
+}
+
+/*
+ * Do a layout return for each of the recalls.
+ */
+static void
+nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsclrecalllayout *rp;
+	nfsv4stateid_t stateid;
+
+	NFSBCOPY(lyp->nfsly_stateid.other, stateid.other, NFSX_STATEIDOTHER);
+	LIST_FOREACH(rp, &lyp->nfsly_recall, nfsrecly_list) {
+		stateid.seqid = rp->nfsrecly_stateseqid;
+		(void)nfsrpc_layoutreturn(nmp, lyp->nfsly_fh,
+		    lyp->nfsly_fhlen, 0, NFSLAYOUT_NFSV4_1_FILES,
+		    rp->nfsrecly_iomode, rp->nfsrecly_recalltype,
+		    rp->nfsrecly_off, rp->nfsrecly_len,
+		    &stateid, 0, NULL, cred, p, NULL);
+	}
+}
+
+/*
+ * Do the layout commit for a file layout.
+ */
+static void
+nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
+    struct nfsclflayout *flp, struct ucred *cred, NFSPROC_T *p)
+{
+	int error;
+	uint64_t len;
+
+	if (flp->nfsfl_end == UINT64_MAX)
+		len = UINT64_MAX;
+	else
+		len = flp->nfsfl_end - flp->nfsfl_off;
+	error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh, lyp->nfsly_fhlen,
+	    0, flp->nfsfl_off, len, &lyp->nfsly_stateid,
+	    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
+}
+
+/*
+ * Commit all layouts for a file (vnode).
+ */
+int
+nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
+{
+	struct nfsclclient *clp;
+	struct nfscllayout *lyp;
+	struct nfsclflayout *flp;
+	struct nfsnode *np = VTONFS(vp);
+
+	NFSLOCKCLSTATE();
+	clp = VFSTONFS(vnode_mount(vp))->nm_clp;
+	if (clp == NULL) {
+		NFSUNLOCKCLSTATE();
+		return (EPERM);
+	}
+	lyp = nfscl_findlayout(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
+	if (lyp == NULL) {
+		NFSUNLOCKCLSTATE();
+		return (EPERM);
+	}
+	lyp->nfsly_refcnt++;
+tryagain:
+	LIST_FOREACH(flp, &lyp->nfsly_flayrw, nfsfl_list) {
+		if ((flp->nfsfl_flags & NFSFL_WRITTEN) != 0) {
+			flp->nfsfl_flags &= ~NFSFL_WRITTEN;
+			NFSUNLOCKCLSTATE();
+			nfscl_dolayoutcommit(clp->nfsc_nmp, lyp, flp,
+			    NFSPROCCRED(p), p);
+			NFSLOCKCLSTATE();
+			goto tryagain;
+		}
+	}
+	lyp->nfsly_refcnt--;
+	if (lyp->nfsly_refcnt == 0)
+		wakeup(&lyp->nfsly_refcnt);
+	NFSUNLOCKCLSTATE();
+	return (0);
 }
 

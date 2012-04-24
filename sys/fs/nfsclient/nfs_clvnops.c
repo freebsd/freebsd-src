@@ -1372,10 +1372,20 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
     int *iomode, int *must_commit, int called_from_strategy)
 {
 	struct nfsvattr nfsva;
-	int error = 0, attrflag, ret;
+	int error, attrflag, ret;
+	struct nfsmount *nmp;
 
-	error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
-	    uiop->uio_td, &nfsva, &attrflag, NULL, called_from_strategy);
+	nmp = VFSTONFS(vnode_mount(vp));
+	error = EIO;
+	attrflag = 0;
+	if (NFSHASPNFS(nmp))
+		error = nfscl_doiods(vp, uiop, iomode, must_commit,
+		    NFSV4OPEN_ACCESSWRITE, cred, uiop->uio_td);
+printf("aft wr doiods=%d\n", error);
+	if (error != 0)
+		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
+		    uiop->uio_td, &nfsva, &attrflag, NULL,
+		    called_from_strategy);
 	if (attrflag) {
 		if (VTONFS(vp)->n_flag & ND_NFSV4)
 			ret = nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 1,
@@ -2914,6 +2924,8 @@ loop:
 		mtx_unlock(&np->n_mtx);
 	} else
 		BO_UNLOCK(bo);
+	if (NFSHASPNFS(nmp))
+		nfscl_layoutcommit(vp, td);
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NWRITEERR) {
 		error = np->n_error;
