@@ -35,7 +35,7 @@
 .Op Fl \&?
 .Nm
 .Cm create
-.Op Fl p
+.Op Fl pu
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ... filesystem
 .Nm
@@ -1354,7 +1354,7 @@ Displays a help message.
 .It Xo
 .Nm
 .Cm create
-.Op Fl p
+.Op Fl pu
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ... filesystem
 .Xc
@@ -1374,6 +1374,8 @@ line using the
 .Fl o
 option is ignored. If the target filesystem already exists, the operation
 completes successfully.
+.It Fl u
+Newly created file system is not mounted.
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property as if the command
 .Qq Nm Cm set Ar property Ns = Ns Ar value
