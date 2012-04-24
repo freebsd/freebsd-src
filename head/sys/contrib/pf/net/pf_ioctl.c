@@ -175,6 +175,10 @@ struct cdev *pf_dev;
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_src_node *);
+static int		 pf_tbladdr_setup(struct pf_ruleset *,
+			    struct pf_addr_wrap *);
+static void		 pf_tbladdr_remove(struct pf_addr_wrap *);
+static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
  
 /*
  * Wrapper functions for pfil(9) hooks
@@ -3379,6 +3383,39 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 	pf_state_counter_hton(st->bytes[0], sp->bytes[0]);
 	pf_state_counter_hton(st->bytes[1], sp->bytes[1]);
 
+}
+
+static int
+pf_tbladdr_setup(struct pf_ruleset *rs, struct pf_addr_wrap *aw)
+{
+	if (aw->type != PF_ADDR_TABLE)
+		return (0);
+	if ((aw->p.tbl = pfr_attach_table(rs, aw->v.tblname)) == NULL)
+		return (ENOMEM);
+	return (0);
+}
+
+static void
+pf_tbladdr_remove(struct pf_addr_wrap *aw)
+{
+	if (aw->type != PF_ADDR_TABLE || aw->p.tbl == NULL)
+		return;
+	pfr_detach_table(aw->p.tbl);
+	aw->p.tbl = NULL;
+}
+
+static void
+pf_tbladdr_copyout(struct pf_addr_wrap *aw)
+{
+	struct pfr_ktable *kt = aw->p.tbl;
+
+	if (aw->type != PF_ADDR_TABLE || kt == NULL)
+		return;
+	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE) && kt->pfrkt_root != NULL)
+		kt = kt->pfrkt_root;
+	aw->p.tbl = NULL;
+	aw->p.tblcnt = (kt->pfrkt_flags & PFR_TFLAG_ACTIVE) ?
+		kt->pfrkt_cnt : -1;
 }
 
 /*
