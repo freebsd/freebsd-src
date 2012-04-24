@@ -54,8 +54,8 @@ fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 	iov.iov_base = buf;
+	wsp = ws;
 	do {
-		wsp = ws;
 		nbytes = __wcsnrtombs(buf, &wsp, SIZE_T_MAX, sizeof(buf),
 		    &fp->_mbstate);
 		if (nbytes == (size_t)-1)
@@ -63,7 +63,7 @@ fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 		iov.iov_len = uio.uio_resid = nbytes;
 		if (__sfvwrite(fp, &uio) != 0)
 			goto error;
-	} while (ws != NULL);
+	} while (wsp != NULL);
 	FUNLOCKFILE(fp);
 	return (0);
 
