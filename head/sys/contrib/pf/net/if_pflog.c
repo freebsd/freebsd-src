@@ -119,7 +119,6 @@ static int
 pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 {
 	struct ifnet *ifp;
-	struct pflog_softc *pflogif;
 
 	if (unit >= PFLOGIFS_MAX)
 		return (EINVAL);
@@ -129,7 +128,6 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 		return (ENOSPC);
 	}
 	if_initname(ifp, ifc->ifc_name, unit);
-	ifp->if_softc = pflogif;
 	ifp->if_mtu = PFLOGMTU;
 	ifp->if_ioctl = pflogioctl;
 	ifp->if_output = pflogoutput;
@@ -146,12 +144,10 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 static void
 pflog_clone_destroy(struct ifnet *ifp)
 {
-	struct pflog_softc	*pflogif = ifp->if_softc;
 
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
-	free(pflogif, M_DEVBUF);
 }
 
 /*
