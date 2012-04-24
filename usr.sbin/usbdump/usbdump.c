@@ -82,6 +82,8 @@ struct usbcap {
 	int		wfd;
 	/* for -r option */
 	int		rfd;
+	/* for -b option */
+	int		bfd;
 };
 
 struct usbcap_filehdr {
@@ -112,6 +114,8 @@ static int uf_minor;
 static const char *i_arg = "usbus0";
 static const char *r_arg = NULL;
 static const char *w_arg = NULL;
+static const char *b_arg = NULL;
+static struct usbcap uc;
 static const char *errstr_table[USB_ERR_MAX] = {
 	[USB_ERR_NORMAL_COMPLETION]	= "0",
 	[USB_ERR_PENDING_REQUESTS]	= "PENDING_REQUESTS",
@@ -253,6 +257,22 @@ make_filter(struct bpf_program *pprog, int snapshot)
 done:
 	pprog->bf_len = len;
 	pprog->bf_insns = dynamic_insn;
+}
+
+static int
+match_filter(int unit, int endpoint)
+{
+	struct usb_filt *puf;
+
+	if (STAILQ_FIRST(&usb_filt_head) == NULL)
+		return (1);
+
+	STAILQ_FOREACH(puf, &usb_filt_head, entry) {
+		if ((puf->unit == -1 || puf->unit == unit) &&
+		    (puf->endpoint == -1 || puf->endpoint == endpoint))
+			return (1);
+	}
+	return (0);
 }
 
 static void
@@ -462,28 +482,33 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 	up->up_packet_count = le32toh(up->up_packet_count);
 	up->up_endpoint = le32toh(up->up_endpoint);
 
+	if (!match_filter(up->up_address, up->up_endpoint))
+		return;
+
 	tv.tv_sec = hdr->ts_sec;
 	tv.tv_usec = hdr->ts_usec;
 	tm = localtime(&tv.tv_sec);
 
 	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
 
-	printf("%.*s.%06ld usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
-	    (int)len, buf, tv.tv_usec,
-	    (int)up->up_busunit, (int)up->up_address,
-	    (up->up_type == USBPF_XFERTAP_SUBMIT) ? "SUBM" : "DONE",
-	    xfertype_table[up->up_xfertype],
-	    (unsigned int)up->up_endpoint,
-	    usb_speedstr(up->up_speed),
-	    (int)up->up_frames,
-	    (int)(up->up_totlen - USBPF_HDR_LEN -
-	    (USBPF_FRAME_HDR_LEN * up->up_frames)),
-	    (int)up->up_interval,
-	    (up->up_type == USBPF_XFERTAP_DONE) ? ",ERR=" : "",
-	    (up->up_type == USBPF_XFERTAP_DONE) ?
-	    usb_errstr(up->up_error) : "");
+	if (verbose >= 0) {
+		printf("%.*s.%06ld usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
+		    (int)len, buf, tv.tv_usec,
+		    (int)up->up_busunit, (int)up->up_address,
+		    (up->up_type == USBPF_XFERTAP_SUBMIT) ? "SUBM" : "DONE",
+		    xfertype_table[up->up_xfertype],
+		    (unsigned int)up->up_endpoint,
+		    usb_speedstr(up->up_speed),
+		    (int)up->up_frames,
+		    (int)(up->up_totlen - USBPF_HDR_LEN -
+		    (USBPF_FRAME_HDR_LEN * up->up_frames)),
+		    (int)up->up_interval,
+		    (up->up_type == USBPF_XFERTAP_DONE) ? ",ERR=" : "",
+		    (up->up_type == USBPF_XFERTAP_DONE) ?
+		    usb_errstr(up->up_error) : "");
+	}
 
-	if (verbose >= 1) {
+	if (verbose >= 1 || b_arg != NULL) {
 		for (x = 0; x != up->up_frames; x++) {
 			const struct usbpf_framehdr *uf;
 			uint32_t framelen;
@@ -498,10 +523,12 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 			framelen = le32toh(uf->length);
 			flags = le32toh(uf->flags);
 
-			printf(" frame[%u] %s %d bytes\n",
-			    (unsigned int)x,
-			    (flags & USBPF_FRAMEFLAG_READ) ? "READ" : "WRITE",
-			    (int)framelen);
+			if (verbose >= 1) {
+				printf(" frame[%u] %s %d bytes\n",
+				    (unsigned int)x,
+				    (flags & USBPF_FRAMEFLAG_READ) ? "READ" : "WRITE",
+				    (int)framelen);
+			}
 
 			if (flags & USBPF_FRAMEFLAG_DATA_FOLLOWS) {
 
@@ -515,7 +542,15 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 				    (int)framelen < 0 || (int)ptr_len < 0)
 					break;
 
-				hexdump(ptr, framelen);
+				if (b_arg != NULL) {
+					struct usbcap *p = &uc;
+					int ret;
+					ret = write(p->bfd, ptr, framelen);
+					if (ret != (int)framelen)
+						err(EXIT_FAILURE, "Could not write binary data");
+				}
+				if (verbose >= 1)
+					hexdump(ptr, framelen);
 
 				ptr += tot_frame_len;
 			}
@@ -592,7 +627,7 @@ print_packets(uint8_t *data, const int datalen)
 		if (next <= ptr)
 			err(EXIT_FAILURE, "Invalid length");
 
-		if (w_arg == NULL || r_arg != NULL) {
+		if (verbose >= 0 || r_arg != NULL || b_arg != NULL) {
 			print_apacket(&temp, ptr +
 			    temp.hdrlen, temp.caplen);
 		}
@@ -738,6 +773,7 @@ usage(void)
 	fprintf(stderr, FMT, "-r <file>", "Read the raw packets from file");
 	fprintf(stderr, FMT, "-s <snaplen>", "Snapshot bytes from each packet");
 	fprintf(stderr, FMT, "-v", "Increase the verbose level");
+	fprintf(stderr, FMT, "-b <file>", "Save raw version of all recorded data to file");
 	fprintf(stderr, FMT, "-w <file>", "Write the raw packets to file");
 #undef FMT
 	exit(EX_USAGE);
@@ -750,7 +786,7 @@ main(int argc, char *argv[])
 	struct bpf_program total_prog;
 	struct bpf_stat us;
 	struct bpf_version bv;
-	struct usbcap uc, *p = &uc;
+	struct usbcap *p = &uc;
 	struct ifreq ifr;
 	long snapshot = 192;
 	uint32_t v;
@@ -761,9 +797,7 @@ main(int argc, char *argv[])
 	const char *optstring;
 	char *pp;
 
-	memset(&uc, 0, sizeof(struct usbcap));
-
-	optstring = "i:r:s:vw:f:";
+	optstring = "b:i:r:s:vw:f:";
 	while ((o = getopt(argc, argv, optstring)) != -1) {
 		switch (o) {
 		case 'i':
@@ -783,6 +817,9 @@ main(int argc, char *argv[])
 			/* snapeshot == 0 is special */
 			if (snapshot == 0)
 				snapshot = -1;
+			break;
+		case 'b':
+			b_arg = optarg;
 			break;
 		case 'v':
 			verbose++;
@@ -810,6 +847,22 @@ main(int argc, char *argv[])
 			/* NOTREACHED */
 		}
 	}
+
+	if (b_arg != NULL) {
+		p->bfd = open(b_arg, O_CREAT | O_TRUNC |
+		    O_WRONLY, S_IRUSR | S_IWUSR);
+		if (p->bfd < 0) {
+			err(EXIT_FAILURE, "Could not open "
+			    "'%s' for write", b_arg);
+		}
+	}
+
+	/*
+	 * Require more verbosity to print anything when -w or -b is
+	 * specified on the command line:
+	 */
+	if (w_arg != NULL || b_arg != NULL)
+		verbose--;
 
 	if (r_arg != NULL) {
 		read_file(p);
@@ -882,6 +935,8 @@ main(int argc, char *argv[])
 		close(p->rfd);
 	if (p->wfd > 0)
 		close(p->wfd);
+	if (p->bfd > 0)
+		close(p->bfd);
 
 	return (EXIT_SUCCESS);
 }
