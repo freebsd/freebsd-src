@@ -640,22 +640,30 @@ vop_advise {
 	IN int advice;
 };
 
+%% unp_bind	vp	E E E
+
+vop_unp_bind {
+	IN struct vnode *vp;
+	IN struct socket *socket;
+};
+
+%% unp_connect	vp	L L L
+
+vop_unp_connect {
+	IN struct vnode *vp;
+	OUT struct socket **socket;
+};
+
+%% unp_detach	vp	= = =
+
+vop_unp_detach {
+	IN struct vnode *vp;
+};
+
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should
 # be added above these spares.  When merging a new VOP to a stable branch,
 # the new VOP should replace one of the spares.
-
-vop_spare1 {
-	IN struct vnode *vp;
-};
-
-vop_spare2 {
-	IN struct vnode *vp;
-};
-
-vop_spare3 {
-	IN struct vnode *vp;
-};
 
 vop_spare4 {
 	IN struct vnode *vp;
