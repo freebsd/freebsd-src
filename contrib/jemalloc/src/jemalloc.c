@@ -8,7 +8,8 @@ malloc_tsd_data(, arenas, arena_t *, NULL)
 malloc_tsd_data(, thread_allocated, thread_allocated_t,
     THREAD_ALLOCATED_INITIALIZER)
 
-const char	*__malloc_options_1_0;
+/* Work around <http://llvm.org/bugs/show_bug.cgi?id=12623>: */
+const char	*__malloc_options_1_0 = NULL;
 __sym_compat(_malloc_options, __malloc_options_1_0, FBSD_1.0);
 
 /* Runtime configuration options. */
