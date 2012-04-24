@@ -775,6 +775,7 @@ usage(void)
 	fprintf(stderr, FMT, "-v", "Increase the verbose level");
 	fprintf(stderr, FMT, "-b <file>", "Save raw version of all recorded data to file");
 	fprintf(stderr, FMT, "-w <file>", "Write the raw packets to file");
+	fprintf(stderr, FMT, "-h", "Display summary of command line options");
 #undef FMT
 	exit(EX_USAGE);
 }
@@ -797,7 +798,7 @@ main(int argc, char *argv[])
 	const char *optstring;
 	char *pp;
 
-	optstring = "b:i:r:s:vw:f:";
+	optstring = "b:hi:r:s:vw:f:";
 	while ((o = getopt(argc, argv, optstring)) != -1) {
 		switch (o) {
 		case 'i':
