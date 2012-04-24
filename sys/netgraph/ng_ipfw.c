@@ -242,7 +242,7 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 
 	if (m->m_len < sizeof(struct ip) &&
 	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
-		return (EINVAL);
+		return (ENOBUFS);
 
 	ip = mtod(m, struct ip *);
 
@@ -252,18 +252,14 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 #ifdef INET
 		case IPVERSION:
 			ip_input(m);
-			break;
+			return (0);
 #endif
 #ifdef INET6
 		case IPV6_VERSION >> 4:
 			ip6_input(m);
-			break;
+			return (0);
 #endif
-		default:
-			NG_FREE_M(m);
-			return (EINVAL);
 		}
-		return (0);
 	} else {
 		switch (ip->ip_v) {
 #ifdef INET
@@ -277,10 +273,12 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 			return (ip6_output(m, NULL, NULL, 0, NULL,
 			    NULL, NULL));
 #endif
-		default:
-			return (EINVAL);
 		}
 	}
+
+	/* unknown IP protocol version */
+	NG_FREE_M(m);
+	return (EPROTONOSUPPORT);
 }
 
 static int
