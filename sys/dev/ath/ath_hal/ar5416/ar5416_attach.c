@@ -581,6 +581,8 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
         AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
         AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK);
 
+    OS_REG_WRITE_BUFFER_ENABLE(ah);
+
     OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4_CHAIN(0), new);
 
     new = (AR_PHY_SPUR_REG_MASK_RATE_CNTL |
@@ -765,6 +767,9 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
           | (mask_p[47] <<  2) | (mask_p[46] <<  0);
     OS_REG_WRITE(ah, AR_PHY_BIN_MASK2_4, tmp_mask);
     OS_REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
+
+    OS_REG_WRITE_BUFFER_FLUSH(ah);
+    OS_REG_WRITE_BUFFER_DISABLE(ah);
 }
 
 /*
