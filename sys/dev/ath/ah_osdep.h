@@ -89,6 +89,20 @@ struct ath_hal;
 #endif /* _BYTE_ORDER */
 
 /*
+ * For USB/SDIO support (where access latencies are quite high);
+ * some write accesses may be buffered and then flushed when
+ * either a read is done, or an explicit flush is done.
+ *
+ * These are simply placeholders for now.
+ */
+#define	OS_REG_WRITE_BUFFER_ENABLE(_ah)		\
+	    do { } while (0)
+#define	OS_REG_WRITE_BUFFER_DISABLE(_ah)	\
+	    do { } while (0)
+#define	OS_REG_WRITE_BUFFER_FLUSH(_ah)		\
+	    do { } while (0)
+
+/*
  * Register read/write operations are either handled through
  * platform-dependent routines (or when debugging is enabled
  * with AH_DEBUG); or they are inline expanded using the macros
