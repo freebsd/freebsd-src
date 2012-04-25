@@ -93,6 +93,7 @@ static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static char cmd[512];
+static char cmddup[512];
 static char kname[1024];
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
@@ -536,10 +537,15 @@ main(void)
     }
 
     if (*cmd) {
-	if (!OPT_CHECK(RBX_QUIET))
-	    printf("%s: %s", PATH_CONFIG, cmd);
+	/*
+	 * Note that parse() is destructive to cmd[] and we also want
+	 * to honor RBX_QUIET option that could be present in cmd[].
+	 */
+	memcpy(cmddup, cmd, sizeof(cmd));
 	if (parse())
 	    autoboot = 0;
+	if (!OPT_CHECK(RBX_QUIET))
+	    printf("%s: %s", PATH_CONFIG, cmddup);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
