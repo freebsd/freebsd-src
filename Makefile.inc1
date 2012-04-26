@@ -1649,8 +1649,8 @@ _xi-mtree:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 
-.ORDER: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
-xdev-install: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
 
 _xi-cross-tools:
 	@echo "_xi-cross-tools"
