@@ -310,9 +310,9 @@ appropriate upstream hook and must be prepended with header defined as follows.
 .Bd -literal -offset indent
 /* L2CA data packet header */
 typedef struct {
-        u_int32_t token;  /* token to use in L2CAP_L2CA_WRITE */
-        u_int16_t length; /* length of the data */
-        u_int16_t lcid;   /* local channel ID */
+        uint32_t token;  /* token to use in L2CAP_L2CA_WRITE */
+        uint16_t length; /* length of the data */
+        uint16_t lcid;   /* local channel ID */
 } __attribute__ ((packed)) ng_l2cap_l2ca_hdr_t;
 .Ed
 .Pp

@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="apm"
-rcvar=`set_rcvar`
+rcvar="apm_enable"
 start_precmd="apm_precmd"
 command="/usr/sbin/${name}"
 start_cmd="${command} -e enable"

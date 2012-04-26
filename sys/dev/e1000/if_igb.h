@@ -52,7 +52,7 @@
 #define IGB_MAX_TXD		4096
 
 /*
- * IGB_RXD: Maximum number of Transmit Descriptors
+ * IGB_RXD: Maximum number of Receive Descriptors
  *
  *   This value is the number of receive descriptors allocated by the driver.
  *   Increasing this value allows the driver to buffer more incoming packets.
@@ -301,6 +301,7 @@ struct tx_ring {
 	struct buf_ring		*br;
 #endif
 	bus_dma_tag_t		txtag;
+	struct task		txq_task;
 
 	u32			bytes;
 	u32			packets;

@@ -30,9 +30,6 @@ char buff2[64];
 
 DEFINE_TEST(test_write_compress_program)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("archive_write_set_compress_program()");
-#else
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
@@ -43,6 +40,15 @@ DEFINE_TEST(test_write_compress_program)
 		skipping("Cannot run 'gzip'");
 		return;
 	}
+	/* NOTE: Setting blocksize=1024 will cause gunzip failure because
+	 * it add extra bytes that gunzip ignores with its warning and
+	 * exit code 1. So we should set blocksize=1 in order not to
+	 * yield the extra bytes when using gunzip. */
+	assert((a = archive_read_new()) != NULL);
+	r = archive_read_support_filter_gzip(a);
+	if (r != ARCHIVE_OK && canGunzip())
+		blocksize = 1;
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Create a new archive in memory. */
 	/* Write it through an external "gzip" program. */
@@ -52,7 +58,7 @@ DEFINE_TEST(test_write_compress_program)
 	if (r == ARCHIVE_FATAL) {
 		skipping("Write compression via external "
 		    "program unsupported on this platform");
-		archive_write_finish(a);
+		archive_write_free(a);
 		return;
 	}
 	assertA(0 == archive_write_set_bytes_per_block(a, blocksize));
@@ -75,29 +81,29 @@ DEFINE_TEST(test_write_compress_program)
 	assertA(8 == archive_write_data(a, "12345678", 9));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now, read the data back through the built-in gzip support.
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	r = archive_read_support_compression_gzip(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_gzip(a);
 	/* The compression_gzip() handler will fall back to gunzip
 	 * automatically, but if we know gunzip isn't available, then
 	 * skip the rest. */
 	if (r != ARCHIVE_OK && !canGunzip()) {
 		skipping("No libz and no gunzip program, "
 		    "unable to verify gzip compression");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 	if (!assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae))) {
-		archive_read_finish(a);
+		archive_read_free(a);
 		return;
 	}
 
@@ -113,6 +119,5 @@ DEFINE_TEST(test_write_compress_program)
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

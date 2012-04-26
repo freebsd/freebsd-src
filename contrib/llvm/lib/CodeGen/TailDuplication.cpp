@@ -56,10 +56,10 @@ typedef std::vector<std::pair<MachineBasicBlock*,unsigned> > AvailableValsTy;
 namespace {
   /// TailDuplicatePass - Perform tail duplication.
   class TailDuplicatePass : public MachineFunctionPass {
-    bool PreRegAlloc;
     const TargetInstrInfo *TII;
     MachineModuleInfo *MMI;
     MachineRegisterInfo *MRI;
+    bool PreRegAlloc;
 
     // SSAUpdateVRs - A list of virtual registers for which to update SSA form.
     SmallVector<unsigned, 16> SSAUpdateVRs;
@@ -70,11 +70,10 @@ namespace {
 
   public:
     static char ID;
-    explicit TailDuplicatePass(bool PreRA) :
-      MachineFunctionPass(ID), PreRegAlloc(PreRA) {}
+    explicit TailDuplicatePass() :
+      MachineFunctionPass(ID), PreRegAlloc(false) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
-    virtual const char *getPassName() const { return "Tail Duplication"; }
 
   private:
     void AddSSAUpdateEntry(unsigned OrigReg, unsigned NewReg,
@@ -118,14 +117,16 @@ namespace {
   char TailDuplicatePass::ID = 0;
 }
 
-FunctionPass *llvm::createTailDuplicatePass(bool PreRegAlloc) {
-  return new TailDuplicatePass(PreRegAlloc);
-}
+char &llvm::TailDuplicateID = TailDuplicatePass::ID;
+
+INITIALIZE_PASS(TailDuplicatePass, "tailduplication", "Tail Duplication",
+                false, false)
 
 bool TailDuplicatePass::runOnMachineFunction(MachineFunction &MF) {
   TII = MF.getTarget().getInstrInfo();
   MRI = &MF.getRegInfo();
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
+  PreRegAlloc = MRI->isSSA();
 
   bool MadeChange = false;
   while (TailDuplicateBlocks(MF))
@@ -432,7 +433,7 @@ void TailDuplicatePass::DuplicateInstruction(MachineInstr *MI,
         MO.setReg(VI->second);
     }
   }
-  PredBB->insert(PredBB->end(), NewMI);
+  PredBB->insert(PredBB->instr_end(), NewMI);
 }
 
 /// UpdateSuccessorsPHIs - After FromBB is tail duplicated into its predecessor
@@ -553,7 +554,7 @@ TailDuplicatePass::shouldTailDuplicate(const MachineFunction &MF,
 
   bool HasIndirectbr = false;
   if (!TailBB.empty())
-    HasIndirectbr = TailBB.back().getDesc().isIndirectBranch();
+    HasIndirectbr = TailBB.back().isIndirectBranch();
 
   if (HasIndirectbr && PreRegAlloc)
     MaxDuplicateCount = 20;
@@ -561,22 +562,21 @@ TailDuplicatePass::shouldTailDuplicate(const MachineFunction &MF,
   // Check the instructions in the block to determine whether tail-duplication
   // is invalid or unlikely to be profitable.
   unsigned InstrCount = 0;
-  for (MachineBasicBlock::const_iterator I = TailBB.begin(); I != TailBB.end();
-       ++I) {
+  for (MachineBasicBlock::iterator I = TailBB.begin(); I != TailBB.end(); ++I) {
     // Non-duplicable things shouldn't be tail-duplicated.
-    if (I->getDesc().isNotDuplicable())
+    if (I->isNotDuplicable())
       return false;
 
     // Do not duplicate 'return' instructions if this is a pre-regalloc run.
     // A return may expand into a lot more instructions (e.g. reload of callee
     // saved registers) after PEI.
-    if (PreRegAlloc && I->getDesc().isReturn())
+    if (PreRegAlloc && I->isReturn())
       return false;
 
     // Avoid duplicating calls before register allocation. Calls presents a
     // barrier to register allocation so duplicating them may end up increasing
     // spills.
-    if (PreRegAlloc && I->getDesc().isCall())
+    if (PreRegAlloc && I->isCall())
       return false;
 
     if (!I->isPHI() && !I->isDebugValue())
@@ -611,7 +611,7 @@ TailDuplicatePass::isSimpleBB(MachineBasicBlock *TailBB) {
     ++I;
   if (I == E)
     return true;
-  return I->getDesc().isUnconditionalBranch();
+  return I->isUnconditionalBranch();
 }
 
 static bool
@@ -778,8 +778,10 @@ TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB,
     // Clone the contents of TailBB into PredBB.
     DenseMap<unsigned, unsigned> LocalVRMap;
     SmallVector<std::pair<unsigned,unsigned>, 4> CopyInfos;
-    MachineBasicBlock::iterator I = TailBB->begin();
-    while (I != TailBB->end()) {
+    // Use instr_iterator here to properly handle bundles, e.g.
+    // ARM Thumb2 IT block.
+    MachineBasicBlock::instr_iterator I = TailBB->instr_begin();
+    while (I != TailBB->instr_end()) {
       MachineInstr *MI = &*I;
       ++I;
       if (MI->isPHI()) {
@@ -824,7 +826,7 @@ TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB,
   SmallVector<MachineOperand, 4> PriorCond;
   // This has to check PrevBB->succ_size() because EH edges are ignored by
   // AnalyzeBranch.
-  if (PrevBB->succ_size() == 1 && 
+  if (PrevBB->succ_size() == 1 &&
       !TII->AnalyzeBranch(*PrevBB, PriorTBB, PriorFBB, PriorCond, true) &&
       PriorCond.empty() && !PriorTBB && TailBB->pred_size() == 1 &&
       !TailBB->hasAddressTaken()) {
@@ -849,6 +851,7 @@ TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB,
         // Replace def of virtual registers with new registers, and update
         // uses with PHI source register or the new registers.
         MachineInstr *MI = &*I++;
+        assert(!MI->isBundle() && "Not expecting bundles before regalloc!");
         DuplicateInstruction(MI, TailBB, PrevBB, MF, LocalVRMap, UsedByPhi);
         MI->eraseFromParent();
       }

@@ -15,13 +15,15 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # Disable a few warnings for clang, since there are several places in the
 # kernel where fixing them is more trouble than it is worth, or where there is
 # a false positive.
-.if ${CC:T:Mclang} == "clang"
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
 NO_WARRAY_BOUNDS=		-Wno-array-bounds
 NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
 NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 NO_WUNUSED_VALUE=		-Wno-unused-value
 NO_WSELF_ASSIGN=		-Wno-self-assign
+NO_WFORMAT_SECURITY=		-Wno-format-security
+NO_WUNNEEDED_INTERNAL_DECL=	-Wno-unneeded-internal-declaration
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
@@ -45,16 +47,16 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 # Setting -mno-sse implies -mno-sse2, -mno-sse3 and -mno-ssse3
 #
 # clang:
-# Setting -mno-mmx implies -mno-3dnow, -mno-3dnowa, -mno-sse, -mno-sse2,
-#                          -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
+# Setting -mno-mmx implies -mno-3dnow and -mno-3dnowa
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 #
 .if ${MACHINE_CPUARCH} == "i386"
-.if ${CC:T:Mclang} != "clang"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 -mno-sse
+.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
+CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
 .else
 CFLAGS+=	-mno-aes -mno-avx
 .endif
-CFLAGS+=	-mno-mmx -msoft-float
+CFLAGS+=	-mno-mmx -mno-sse -msoft-float
 INLINE_LIMIT?=	8000
 .endif
 
@@ -92,17 +94,15 @@ INLINE_LIMIT?=	15000
 # Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3 and -mfpmath=387
 #
 # clang:
-# Setting -mno-mmx implies -mno-3dnow, -mno-3dnowa, -mno-sse, -mno-sse2,
-#                          -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
+# Setting -mno-mmx implies -mno-3dnow and -mno-3dnowa
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${CC:T:Mclang} != "clang"
-CFLAGS+=	-mno-sse
-.else
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 CFLAGS+=	-mno-aes -mno-avx
 .endif
-CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -msoft-float \
+CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -msoft-float \
 		-fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
 .endif

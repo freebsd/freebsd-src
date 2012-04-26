@@ -254,9 +254,9 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 */
 			aa->aa_ifp = ifp;
 			ifa_ref(&aa->aa_ifa);		/* if_addrhead */
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_WLOCK(ifp);
 			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_WUNLOCK(ifp);
 		} else {
 			/*
 			 * If we DID find one then we clobber any routes
@@ -357,9 +357,9 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 * remove the ifaddr from the interface
 		 */
 		ifa = (struct ifaddr *)aa;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_WLOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		ifa_free(ifa);				/* if_addrhead */
 
 		/*

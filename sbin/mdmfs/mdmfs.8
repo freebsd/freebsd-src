@@ -40,7 +40,7 @@ driver
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar blocks-per-cylinder-group
-.Op Fl d Ar max-extent-size 
+.Op Fl d Ar max-extent-size
 .Op Fl E Ar path-mdconfig
 .Op Fl e Ar maxbpg
 .Op Fl F Ar file
@@ -75,8 +75,8 @@ was specified) using
 .Xr newfs 8 ,
 and mounts it using
 .Xr mount 8 .
-It can handle 
-.Xr geom_uzip 4 
+It can handle
+.Xr geom_uzip 4
 compressed disk images, as long as the kernel supports this GEOM class.
 All the command line options are passed to the appropriate program
 at the appropriate stage in order to achieve the desired effect.
@@ -318,7 +318,7 @@ do not use soft-updates on it and mount it
 .Pp
 .Dl "mdmfs -M -S -o async -s 16m md1 /tmp"
 .Pp
-Create and mount a 
+Create and mount a
 .Xr geom_uzip 4
 based compressed disk image:
 .Pp

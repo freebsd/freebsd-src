@@ -100,8 +100,9 @@ archive_read_extract2(struct archive *_a, struct archive_entry *entry,
 	int r, r2;
 
 	/* Set up for this particular entry. */
-	archive_write_disk_set_skip_file(ad,
-	    a->skip_file_dev, a->skip_file_ino);
+	if (a->skip_file_set)
+		archive_write_disk_set_skip_file(ad,
+		    a->skip_file_dev, a->skip_file_ino);
 	r = archive_write_header(ad, entry);
 	if (r < ARCHIVE_WARN)
 		r = ARCHIVE_WARN;
@@ -116,7 +117,7 @@ archive_read_extract2(struct archive *_a, struct archive_entry *entry,
 		r2 = ARCHIVE_WARN;
 	/* Use the first message. */
 	if (r2 != ARCHIVE_OK && r == ARCHIVE_OK)
- 		archive_copy_error(&a->archive, ad);
+		archive_copy_error(&a->archive, ad);
 	/* Use the worst error return. */
 	if (r2 < r)
 		r = r2;
@@ -138,13 +139,15 @@ archive_read_extract_set_progress_callback(struct archive *_a,
 static int
 copy_data(struct archive *ar, struct archive *aw)
 {
-	off_t offset;
+	int64_t offset;
 	const void *buff;
 	struct extract *extract;
 	size_t size;
 	int r;
 
 	extract = get_extract((struct archive_read *)ar);
+	if (extract == NULL)
+		return (ARCHIVE_FATAL);
 	for (;;) {
 		r = archive_read_data_block(ar, &buff, &size, &offset);
 		if (r == ARCHIVE_EOF)

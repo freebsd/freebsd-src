@@ -38,6 +38,88 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120415: new clang import which bumps version from 3.0 to 3.1
+OLD_FILES+=usr/include/clang/3.0/altivec.h
+OLD_FILES+=usr/include/clang/3.0/avxintrin.h
+OLD_FILES+=usr/include/clang/3.0/emmintrin.h
+OLD_FILES+=usr/include/clang/3.0/immintrin.h
+OLD_FILES+=usr/include/clang/3.0/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.0/mmintrin.h
+OLD_FILES+=usr/include/clang/3.0/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/smmintrin.h
+OLD_FILES+=usr/include/clang/3.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/x86intrin.h
+OLD_FILES+=usr/include/clang/3.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.0
+# 20120322: Update heimdal to 1.5.1.
+OLD_FILES+=usr/include/krb5-v4compat.h \
+	usr/include/krb_err.h \
+	usr/include/hdb-private.h \
+        usr/share/man/man3/krb5_addresses.3.gz \
+        usr/share/man/man3/krb5_cc_cursor.3.gz \
+        usr/share/man/man3/krb5_cc_ops.3.gz \
+        usr/share/man/man3/krb5_config.3.gz \
+        usr/share/man/man3/krb5_config_get_int_default.3.gz \
+        usr/share/man/man3/krb5_context.3.gz \
+        usr/share/man/man3/krb5_data.3.gz \
+        usr/share/man/man3/krb5_err.3.gz \
+        usr/share/man/man3/krb5_errx.3.gz \
+        usr/share/man/man3/krb5_keyblock.3.gz \
+        usr/share/man/man3/krb5_keytab_entry.3.gz \
+        usr/share/man/man3/krb5_kt_cursor.3.gz \
+        usr/share/man/man3/krb5_kt_ops.3.gz \
+        usr/share/man/man3/krb5_set_warn_dest.3.gz \
+        usr/share/man/man3/krb5_verr.3.gz \
+        usr/share/man/man3/krb5_verrx.3.gz \
+        usr/share/man/man3/krb5_vwarnx.3.gz \
+        usr/share/man/man3/krb5_warn.3.gz \
+        usr/share/man/man3/krb5_warnx.3.gz
+OLD_LIBS+=usr/lib/libasn1.so.10 \
+	usr/lib/libhdb.so.10 \
+	usr/lib/libheimntlm.so.10 \
+	usr/lib/libhx509.so.10 \
+	usr/lib/libkadm5clnt.so.10 \
+	usr/lib/libkadm5srv.so.10 \
+	usr/lib/libkafs5.so.10 \
+	usr/lib/libkrb5.so.10 \
+	usr/lib/libroken.so.10 \
+	usr/lib32/libasn1.so.10 \
+	usr/lib32/libhdb.so.10 \
+	usr/lib32/libheimntlm.so.10 \
+	usr/lib32/libhx509.so.10 \
+	usr/lib32/libkadm5clnt.so.10 \
+	usr/lib32/libkadm5srv.so.10 \
+	usr/lib32/libkafs5.so.10 \
+	usr/lib32/libkrb5.so.10 \
+	usr/lib32/libroken.so.10
+# 20120309: Remove fifofs header files.
+OLD_FILES+=usr/include/fs/fifofs/fifo.h
+OLD_DIRS+=usr/include/fs/fifofs
+# 20120225: libarchive 3.0.3
+OLD_FILES+=usr/share/man/man3/archive_read_data_into_buffer.3.gz \
+	usr/share/man/man3/archive_read_support_compression_all.3.gz \
+	usr/share/man/man3/archive_read_support_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_read_support_compression_compress.3.gz \
+	usr/share/man/man3/archive_read_support_compression_gzip.3.gz \
+	usr/share/man/man3/archive_read_support_compression_lzma.3.gz \
+	usr/share/man/man3/archive_read_support_compression_none.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program_signature.3.gz \
+	usr/share/man/man3/archive_read_support_compression_xz.3.gz \
+	usr/share/man/man3/archive_write_set_callbacks.3.gz \
+	usr/share/man/man3/archive_write_set_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_write_set_compression_compress.3.gz \
+	usr/share/man/man3/archive_write_set_compression_gzip.3.gz \
+	usr/share/man/man3/archive_write_set_compression_none.3.gz \
+	usr/share/man/man3/archive_write_set_compression_program.3.gz
+OLD_LIBS+=usr/lib/libarchive.so.5
+OLD_LIBS+=usr/lib32/libarchive.so.5
+# 20120113: removal of wtmpcvt(1)
+OLD_FILES+=usr/bin/wtmpcvt
+OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
 # 20111214: eventtimers(7) moved to eventtimers(4)
 OLD_FILES+=usr/share/man/man7/eventtimers.7.gz
 # 20111125: amd(4) removed
@@ -47,12 +129,10 @@ OLD_FILES+=usr/lib/libodialog.a
 OLD_FILES+=usr/lib/libodialog.so
 OLD_LIBS+=usr/lib/libodialog.so.7
 OLD_FILES+=usr/lib/libodialog_p.a
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libodialog.a
 OLD_FILES+=usr/lib32/libodialog.so
 OLD_LIBS+=usr/lib32/libodialog.so.7
 OLD_FILES+=usr/lib32/libodialog_p.a
-.endif
 # 20110930: sysinstall removed
 OLD_FILES+=usr/sbin/sysinstall
 OLD_FILES+=usr/share/man/man8/sysinstall.8.gz
@@ -60,12 +140,10 @@ OLD_FILES+=usr/lib/libftpio.a
 OLD_FILES+=usr/lib/libftpio.so
 OLD_LIBS+=usr/lib/libftpio.so.8
 OLD_FILES+=usr/lib/libftpio_p.a
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libftpio.a
 OLD_FILES+=usr/lib32/libftpio.so
 OLD_LIBS+=usr/lib32/libftpio.so.8
 OLD_FILES+=usr/lib32/libftpio_p.a
-.endif
 OLD_FILES+=usr/include/ftpio.h
 OLD_FILES+=usr/share/man/man3/ftpio.3.gz
 # 20110915: rename congestion control manpages
@@ -84,7 +162,6 @@ OLD_LIBS+=usr/lib/libdwarf.so.2
 OLD_LIBS+=usr/lib/libopie.so.6
 OLD_LIBS+=usr/lib/librtld_db.so.1
 OLD_LIBS+=usr/lib/libtacplus.so.4
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libcam.so.5
 OLD_LIBS+=usr/lib32/libpcap.so.7
 OLD_LIBS+=usr/lib32/libufs.so.5
@@ -93,7 +170,6 @@ OLD_LIBS+=usr/lib32/libdwarf.so.2
 OLD_LIBS+=usr/lib32/libopie.so.6
 OLD_LIBS+=usr/lib32/librtld_db.so.1
 OLD_LIBS+=usr/lib32/libtacplus.so.4
-.endif
 # 20110817: no more acd.4, ad.4, afd.4 and ast.4
 OLD_FILES+=usr/share/man/man4/acd.4.gz
 OLD_FILES+=usr/share/man/man4/ad.4.gz
@@ -133,17 +209,13 @@ OLD_FILES+=usr/lib/libpkg.a
 OLD_FILES+=usr/lib/libpkg.so
 OLD_LIBS+=usr/lib/libpkg.so.0
 OLD_FILES+=usr/lib/libpkg_p.a
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libpkg.a
 OLD_FILES+=usr/lib32/libpkg.so
 OLD_LIBS+=usr/lib32/libpkg.so.0
 OLD_FILES+=usr/lib32/libpkg_p.a
-.endif
 # 20110517: libsbuf version bump
 OLD_LIBS+=lib/libsbuf.so.5
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libsbuf.so.5
-.endif
 # 20110502: new clang import which bumps version from 2.9 to 3.0
 OLD_FILES+=usr/include/clang/2.9/emmintrin.h
 OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
@@ -172,12 +244,10 @@ OLD_FILES+=usr/lib/libobjc_p.a
 OLD_FILES+=usr/libexec/cc1obj
 OLD_LIBS+=usr/lib/libobjc.so.4
 OLD_DIRS+=usr/include/objc
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libobjc.a
 OLD_FILES+=usr/lib32/libobjc.so
 OLD_FILES+=usr/lib32/libobjc_p.a
 OLD_LIBS+=usr/lib32/libobjc.so.4
-.endif
 # 20110331: firmware.img created at build time
 OLD_FILES+=usr/share/examples/kld/firmware/fwimage/firmware.img
 # 20110224: sticky.8 -> sticky.7
@@ -299,9 +369,7 @@ OLD_FILES+=usr/include/machine/intr.h
 .endif
 # 20100514: library version bump for versioned symbols for liblzma
 OLD_LIBS+=usr/lib/liblzma.so.0
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/liblzma.so.0
-.endif
 # 20100511: move GCC-specific headers to /usr/include/gcc
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/emmintrin.h
@@ -342,9 +410,7 @@ OLD_FILES+=usr/share/info/cpio.info.gz
 OLD_FILES+=usr/share/man/man1/gcpio.1.gz
 # 20100322: libz update
 OLD_LIBS+=lib/libz.so.5
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libz.so.5
-.endif
 # 20100314: removal of regexp.h
 OLD_FILES+=usr/include/regexp.h
 OLD_FILES+=usr/share/man/man3/regexp.3.gz
@@ -393,6 +459,7 @@ OLD_FILES+=usr/share/man/man5/lastlog.5.gz
 OLD_FILES+=usr/share/man/man5/utmp.5.gz
 OLD_FILES+=usr/share/man/man5/wtmp.5.gz
 OLD_LIBS+=lib/libutil.so.8
+OLB_LIBS+=usr/lib32/libutil.so.8
 # 20100105: new userland semaphore implementation
 OLD_FILES+=usr/include/sys/semaphore.h
 # 20100103: ntptrace(8) removed
@@ -600,7 +667,6 @@ OLD_LIBS+=usr/lib/snmp_hostres.so.5
 OLD_LIBS+=usr/lib/snmp_mibII.so.5
 OLD_LIBS+=usr/lib/snmp_netgraph.so.5
 OLD_LIBS+=usr/lib/snmp_pf.so.5
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libalias.so.6
 OLD_LIBS+=usr/lib32/libarchive.so.4
 OLD_LIBS+=usr/lib32/libauditd.so.4
@@ -701,9 +767,10 @@ OLD_LIBS+=usr/lib32/pam_self.so.4
 OLD_LIBS+=usr/lib32/pam_ssh.so.4
 OLD_LIBS+=usr/lib32/pam_tacplus.so.4
 OLD_LIBS+=usr/lib32/pam_unix.so.4
-.endif
 # 20090718: the gdm pam.d file is no longer required.
 OLD_FILES+=etc/pam.d/gdm
+# 20090714: net_add_domain(9) renamed to domain_add(9)
+OLD_FILES+=usr/share/man/man9/net_add_domain.9.gz
 # 20090713: vimage container structs removed.
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h
@@ -886,9 +953,7 @@ OLD_FILES+=usr/share/man/man8/sliplogin.8.gz
 OLD_FILES+=usr/share/man/man8/slstat.8.gz
 # 20090321: libpcap upgraded to 1.0.0
 OLD_LIBS+=lib/libpcap.so.5
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libpcap.so.5
-.endif
 # 20090319: uscanner(4) has been removed
 OLD_FILES+=usr/share/man/man4/uscanner.4.gz
 # 20090313: k8temp(4) renamed to amdtemp(4)
@@ -900,17 +965,13 @@ OLD_FILES+=usr/lib/libusb20.so
 OLD_FILES+=usr/lib/libusb20_p.a
 OLD_FILES+=usr/include/libusb20_compat01.h
 OLD_FILES+=usr/include/libusb20_compat10.h
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libusb20.so.1
 OLD_FILES+=usr/lib32/libusb20.a
 OLD_FILES+=usr/lib32/libusb20.so
 OLD_FILES+=usr/lib32/libusb20_p.a
-.endif
 # 20090226: libmp(3) functions renamed
 OLD_LIBS+=usr/lib/libmp.so.6
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libmp.so.6
-.endif
 # 20090223: changeover of USB stacks
 OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
 OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
@@ -1213,9 +1274,7 @@ OLD_LIBS+=usr/lib/libkadm5srv.so.9
 OLD_LIBS+=usr/lib/libkafs5.so.9
 OLD_LIBS+=usr/lib/libkrb5.so.9
 OLD_LIBS+=usr/lib/libroken.so.9
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libgssapi.so.9
-.endif
 # 20080420: Symbol card support dropped
 OLD_FILES+=usr/include/dev/wi/spectrum24t_cf.h
 # 20080420: awi removal
@@ -1242,10 +1301,8 @@ OLD_FILES+=usr/share/man/man2/kse_release.2.gz
 OLD_FILES+=usr/share/man/man2/kse_switchin.2.gz
 OLD_FILES+=usr/share/man/man2/kse_thr_interrupt.2.gz
 OLD_FILES+=usr/share/man/man2/kse_wakeup.2.gz
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libkse.so
 OLD_LIBS+=usr/lib32/libkse.so.3
-.endif
 # 20080220: geom_lvm rename to geom_linux_lvm
 OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal
@@ -1265,11 +1322,9 @@ OLD_FILES+=usr/include/sys/xrpuio.h
 OLD_FILES+=usr/lib/libkse.a
 OLD_FILES+=usr/lib/libkse_p.a
 OLD_FILES+=usr/lib/libkse_pic.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libkse.a
 OLD_FILES+=usr/lib32/libkse_p.a
 OLD_FILES+=usr/lib32/libkse_pic.a
-.endif
 # 20071129: Removed a Solaris compatibility header
 OLD_FILES+=usr/include/sys/_elf_solaris.h
 # 20071125: Renamed to pmc_get_msr()
@@ -1369,12 +1424,10 @@ OLD_DIRS+=usr/include/netatm/ipatm
 OLD_DIRS+=usr/include/netatm/uni
 OLD_DIRS+=usr/include/netatm
 OLD_DIRS+=usr/share/examples/atm
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libatm.a
 OLD_FILES+=usr/lib32/libatm.so
 OLD_LIBS+=usr/lib32/libatm.so.5
 OLD_FILES+=usr/lib32/libatm_p.a
-.endif
 # 20070705: I4B headers repo-copied to include/i4b/
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/i4b_cause.h
@@ -1459,7 +1512,6 @@ OLD_LIBS+=usr/lib/snmp_hostres.so.4
 OLD_LIBS+=usr/lib/snmp_mibII.so.4
 OLD_LIBS+=usr/lib/snmp_netgraph.so.4
 OLD_LIBS+=usr/lib/snmp_pf.so.4
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libalias.so.5
 OLD_LIBS+=usr/lib32/libbsnmp.so.3
 OLD_LIBS+=usr/lib32/libdialog.so.5
@@ -1494,7 +1546,6 @@ OLD_LIBS+=usr/lib32/pam_self.so.3
 OLD_LIBS+=usr/lib32/pam_ssh.so.3
 OLD_LIBS+=usr/lib32/pam_tacplus.so.3
 OLD_LIBS+=usr/lib32/pam_unix.so.3
-.endif
 # 20070613: IPX over IP tunnel removal
 OLD_FILES+=usr/include/netipx/ipx_ip.h
 # 20070605: sched_core removal
@@ -1564,7 +1615,6 @@ OLD_LIBS+=usr/lib/libwrap.so.4
 OLD_LIBS+=usr/lib/libypclnt.so.2
 OLD_LIBS+=usr/lib/snmp_bridge.so.3
 OLD_LIBS+=usr/lib/snmp_hostres.so.3
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libatm.so.4
 OLD_LIBS+=usr/lib32/libbegemot.so.2
 OLD_LIBS+=usr/lib32/libbluetooth.so.2
@@ -1623,7 +1673,6 @@ OLD_LIBS+=usr/lib32/libvgl.so.4
 OLD_LIBS+=usr/lib32/libwrap.so.4
 OLD_LIBS+=usr/lib32/libypclnt.so.2
 OLD_LIBS+=usr/lib32/libz.so.3
-.endif
 # 20070519: GCC 4.2
 OLD_FILES+=usr/bin/f77
 OLD_FILES+=usr/bin/protoize
@@ -1870,9 +1919,7 @@ OLD_FILES+=usr/bin/uuidgen
 OLD_FILES+=usr/share/info/bzip2.info.gz
 # 20070303: libarchive 2.0
 OLD_LIBS+=usr/lib/libarchive.so.3
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libarchive.so.3
-.endif
 # 20070301: remove addr2ascii and ascii2addr
 OLD_FILES+=usr/share/man/man3/addr2ascii.3.gz
 OLD_FILES+=usr/share/man/man3/ascii2addr.3.gz
@@ -1889,14 +1936,12 @@ OLD_FILES+=usr/lib/libmytinfo_p.a
 OLD_FILES+=usr/lib/libmytinfow.a
 OLD_FILES+=usr/lib/libmytinfow.so
 OLD_FILES+=usr/lib/libmytinfow_p.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libmytinfo.a
 OLD_FILES+=usr/lib32/libmytinfo.so
 OLD_FILES+=usr/lib32/libmytinfo_p.a
 OLD_FILES+=usr/lib32/libmytinfow.a
 OLD_FILES+=usr/lib32/libmytinfow.so
 OLD_FILES+=usr/lib32/libmytinfow_p.a
-.endif
 # 20070128: remove vnconfig
 OLD_FILES+=usr/sbin/vnconfig
 # 20070127: remove bpf_compat.h
@@ -4579,9 +4624,7 @@ OLD_FILES+=usr/share/man/man1/x509.1.gz
 OLD_FILES+=usr/share/man/man3/SSL_COMP_add_compression_method.3.gz
 OLD_FILES+=usr/share/man/man3/SSL_CTX_get_ex_new_index.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_dup.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_hardlink_w.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_set_tartype.3.gz
-OLD_FILES+=usr/share/man/man3/archive_entry_symlink_w.3.gz
 OLD_FILES+=usr/share/man/man3/archive_entry_tartype.3.gz
 OLD_FILES+=usr/share/man/man3/archive_read_data_into_file.3.gz
 OLD_FILES+=usr/share/man/man3/archive_read_open_tar.3.gz
@@ -5240,40 +5283,32 @@ OLD_LIBS+=usr/lib/libkadm5srv.so.8
 OLD_LIBS+=usr/lib/libkafs5.so.8
 OLD_LIBS+=usr/lib/libkrb5.so.8
 OLD_LIBS+=usr/lib/libobjc.so.2
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libgssapi.so.8
 OLD_LIBS+=usr/lib32/libobjc.so.2
-.endif
 # 20070519: GCC 4.2
 OLD_LIBS+=usr/lib/libg2c.a
 OLD_LIBS+=usr/lib/libg2c.so
 OLD_LIBS+=usr/lib/libg2c.so.2
 OLD_LIBS+=usr/lib/libg2c_p.a
 OLD_LIBS+=usr/lib/libgcc_pic.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libg2c.a
 OLD_LIBS+=usr/lib32/libg2c.so
 OLD_LIBS+=usr/lib32/libg2c.so.2
 OLD_LIBS+=usr/lib32/libg2c_p.a
 OLD_LIBS+=usr/lib32/libgcc_pic.a
-.endif
 # 20060729: OpenSSL 0.9.7e -> 0.9.8b upgrade
 OLD_LIBS+=lib/libcrypto.so.4
 OLD_LIBS+=usr/lib/libssl.so.4
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libcrypto.so.4
 OLD_LIBS+=usr/lib32/libssl.so.4
-.endif
 # 20060521: gethostbyaddr(3) ABI change
 OLD_LIBS+=usr/lib/libroken.so.8
 OLD_LIBS+=lib/libatm.so.3
 OLD_LIBS+=lib/libc.so.6
 OLD_LIBS+=lib/libutil.so.5
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libatm.so.3
 OLD_LIBS+=usr/lib32/libc.so.6
 OLD_LIBS+=usr/lib32/libutil.so.5
-.endif
 # 20060413: shared library moved to /usr/lib
 OLD_LIBS+=lib/libgpib.so.1
 # 20060413: libpcap.so.4 moved to /lib/
@@ -5287,12 +5322,10 @@ OLD_LIBS+=usr/lib/libc_r.a
 OLD_LIBS+=usr/lib/libc_r.so
 OLD_LIBS+=usr/lib/libc_r.so.7
 OLD_LIBS+=usr/lib/libc_r_p.a
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libc_r.a
 OLD_LIBS+=usr/lib32/libc_r.so
 OLD_LIBS+=usr/lib32/libc_r.so.7
 OLD_LIBS+=usr/lib32/libc_r_p.a
-.endif
 # 20050722: bump for 6.0-RELEASE
 OLD_LIBS+=lib/libalias.so.4
 OLD_LIBS+=lib/libatm.so.2
@@ -5504,10 +5537,8 @@ OLD_LIBS+=usr/lib/libc_r.so.3
 OLD_LIBS+=usr/lib/libarchive.so.2
 OLD_LIBS+=usr/lib/libbsnmp.so.1
 OLD_LIBS+=usr/lib/libc_r.so.6
-.if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libarchive.so.2
 OLD_LIBS+=usr/lib32/libc_r.so.6
-.endif
 OLD_LIBS+=usr/lib/libcipher.so.2
 OLD_LIBS+=usr/lib/libgssapi.so.6
 OLD_LIBS+=usr/lib/libkse.so.1

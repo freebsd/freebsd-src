@@ -103,6 +103,7 @@ GEOM_PART_BSD	opt_geom.h
 GEOM_PART_EBR	opt_geom.h
 GEOM_PART_EBR_COMPAT	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
+GEOM_PART_LDM	opt_geom.h
 GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h
 GEOM_PART_VTOC8	opt_geom.h
@@ -112,6 +113,7 @@ GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
+GEOM_UNCOMPRESS	opt_geom.h
 GEOM_UZIP	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
@@ -185,6 +187,7 @@ SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
+UMTX_PROFILING
 VFS_AIO
 VFS_ALLOW_NONMPSAFE
 VERBOSE_SYSINIT	opt_global.h
@@ -777,6 +780,7 @@ ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
 ATH_ENABLE_11N		opt_ath.h
 ATH_ENABLE_DFS		opt_ath.h
+ATH_EEPROM_FIRMWARE	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -826,12 +830,15 @@ DCONS_FORCE_GDB		opt_dcons.h
 
 # HWPMC options
 HWPMC_HOOKS
+HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
 
 # XFS
 XFS
+
+ZFS			opt_dontuse.h
 
 # Interrupt filtering
 INTR_FILTER
@@ -844,6 +851,7 @@ IEEE80211_SUPPORT_MESH	opt_wlan.h
 IEEE80211_SUPPORT_SUPERG	opt_wlan.h
 IEEE80211_SUPPORT_TDMA	opt_wlan.h
 IEEE80211_ALQ		opt_wlan.h
+IEEE80211_DFS_DEBUG	opt_wlan.h
 
 # 802.11 TDMA support
 TDMA_SLOTLEN_DEFAULT	opt_tdma.h
@@ -886,6 +894,7 @@ OFED		opt_ofed.h
 OFED_DEBUG_INIT	opt_ofed.h
 SDP		opt_ofed.h
 SDP_DEBUG	opt_ofed.h
+IPOIB		opt_ofed.h
 IPOIB_DEBUG	opt_ofed.h
 IPOIB_CM	opt_ofed.h
 
@@ -898,6 +907,7 @@ RCTL		opt_global.h
 # At least one of the AR71XX ubiquiti boards has a Redboot configuration
 # that "lies" about the amount of RAM it has. Until a cleaner method is
 # defined, this option will suffice in overriding what Redboot says.
-AR71XX_REALMEM    opt_global.h
-AR71XX_ENV_UBOOT	opt_global.h
-AR71XX_ENV_REDBOOT	opt_global.h
+AR71XX_REALMEM		opt_ar71xx.h
+AR71XX_ENV_UBOOT	opt_ar71xx.h
+AR71XX_ENV_REDBOOT	opt_ar71xx.h
+AR71XX_ATH_EEPROM	opt_ar71xx.h

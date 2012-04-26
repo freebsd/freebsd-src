@@ -230,7 +230,8 @@
 #define	_Alignof(e)		alignof(e)
 #define	_Noreturn		[[noreturn]]
 #define	_Static_assert(e, s)	static_assert(e, s)
-#define	_Thread_local		thread_local
+/* FIXME: change this to thread_local when clang in base supports it */
+#define	_Thread_local		__thread
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 /* Do nothing.  They are language keywords. */
 #else
@@ -246,6 +247,24 @@
 #else
 #define	_Static_assert(x, y)	struct __hack
 #endif
+#endif
+
+/*
+ * Emulation of C11 _Generic().  Unlike the previously defined C11
+ * keywords, it is not possible to implement this using exactly the same
+ * syntax.  Therefore implement something similar under the name
+ * __generic().  Unlike _Generic(), this macro can only distinguish
+ * between a single type, so it requires nested invocations to
+ * distinguish multiple cases.
+ */
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define	__generic(expr, t, yes, no)					\
+	_Generic(expr, t: yes, default: no)
+#elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
+#define	__generic(expr, t, yes, no)					\
+	__builtin_choose_expr(						\
+	    __builtin_types_compatible_p(__typeof(expr), t), yes, no)
 #endif
 
 #if __GNUC_PREREQ__(2, 96)
@@ -382,12 +401,18 @@
 #define	__printflike(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #define	__format_arg(fmtarg)
+#define	__strfmonlike(fmtarg, firstvararg)
+#define	__strftimelike(fmtarg, firstvararg)
 #else
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
 #define	__scanflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
 #define	__format_arg(fmtarg)	__attribute__((__format_arg__ (fmtarg)))
+#define	__strfmonlike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__strfmon__, fmtarg, firstvararg)))
+#define	__strftimelike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
@@ -630,6 +655,10 @@
 #endif
 #ifndef	__has_builtin
 #define	__has_builtin(x) 0
+#endif
+
+#if defined(__mips) || defined(__powerpc64__)
+#define __NO_TLS 1
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */

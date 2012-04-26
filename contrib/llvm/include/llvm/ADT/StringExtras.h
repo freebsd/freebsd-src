@@ -15,12 +15,7 @@
 #define LLVM_ADT_STRINGEXTRAS_H
 
 #include "llvm/Support/DataTypes.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/StringRef.h"
-#include <cctype>
-#include <cstdio>
-#include <string>
 
 namespace llvm {
 template<typename T> class SmallVectorImpl;
@@ -99,38 +94,6 @@ static inline std::string itostr(int64_t X) {
     return utostr(static_cast<uint64_t>(-X), true);
   else
     return utostr(static_cast<uint64_t>(X));
-}
-
-static inline std::string ftostr(double V) {
-  char Buffer[200];
-  sprintf(Buffer, "%20.6e", V);
-  char *B = Buffer;
-  while (*B == ' ') ++B;
-  return B;
-}
-
-static inline std::string ftostr(const APFloat& V) {
-  if (&V.getSemantics() == &APFloat::IEEEdouble)
-    return ftostr(V.convertToDouble());
-  else if (&V.getSemantics() == &APFloat::IEEEsingle)
-    return ftostr((double)V.convertToFloat());
-  return "<unknown format in ftostr>"; // error
-}
-
-static inline std::string LowercaseString(const std::string &S) {
-  std::string result(S);
-  for (unsigned i = 0; i < S.length(); ++i)
-    if (isupper(result[i]))
-      result[i] = char(tolower(result[i]));
-  return result;
-}
-
-static inline std::string UppercaseString(const std::string &S) {
-  std::string result(S);
-  for (unsigned i = 0; i < S.length(); ++i)
-    if (islower(result[i]))
-      result[i] = char(toupper(result[i]));
-  return result;
 }
 
 /// StrInStrNoCase - Portable version of strcasestr.  Locates the first

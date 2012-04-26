@@ -28,41 +28,12 @@
 #ifndef	_POWERPC_POWERMAC_UNINORTHVAR_H_
 #define	_POWERPC_POWERMAC_UNINORTHVAR_H_
 
-struct uninorth_range {
-	u_int32_t	pci_hi;
-	u_int32_t	pci_mid;
-	u_int32_t	pci_lo;
-	u_int32_t	host;
-	u_int32_t	size_hi;
-	u_int32_t	size_lo;
-};
-
-struct uninorth_range64 {
-	u_int32_t	pci_hi;
-	u_int32_t	pci_mid;
-	u_int32_t	pci_lo;
-	u_int32_t	host_hi;
-	u_int32_t	host_lo;
-	u_int32_t	size_hi;
-	u_int32_t	size_lo;
-};
+#include <powerpc/ofw/ofw_pci.h>
 
 struct uninorth_softc {
-	device_t		sc_dev;
-	phandle_t		sc_node;
+	struct ofw_pci_softc	pci_sc;
 	vm_offset_t		sc_addr;
 	vm_offset_t		sc_data;
-	int			sc_bus;
-	struct			uninorth_range sc_range[7];
-	int			sc_nrange;
-	int			sc_iostart;
-	struct			rman sc_io_rman;
-	struct			rman sc_mem_rman;
-	bus_space_tag_t		sc_iot;
-	bus_space_tag_t		sc_memt;
-	bus_dma_tag_t		sc_dmat;
-	struct ofw_bus_iinfo	sc_pci_iinfo;
-
 	int			sc_ver;
 };
 

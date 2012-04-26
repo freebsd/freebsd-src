@@ -28,7 +28,7 @@
 .\"     @(#)mktemp.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 11, 1998
+.Dd March 4, 2012
 .Dt MKTEMP 3
 .Os
 .Sh NAME
@@ -180,12 +180,6 @@ with an argument of
 will result in a core dump due to
 .Fn mkstemp
 attempting to modify the string constant that was given.
-If the program in question makes heavy use of that type
-of function call, you do have the option of compiling the program
-so that it will store string constants in a writable segment of memory.
-See
-.Xr gcc 1
-for more information.
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr getpid 2 ,
@@ -242,10 +236,3 @@ and the return status of the call should be tested for failure.
 This will ensure that the program does not continue blindly
 in the event that an attacker has already created the file
 with the intention of manipulating or reading its contents.
-.Pp
-The implementation of these functions calls
-.Xr arc4random 3 ,
-which is not reentrant.
-You must provide your own locking around this and other consumers of the
-.Xr arc4random 3
-API.

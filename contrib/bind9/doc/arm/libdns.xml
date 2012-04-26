@@ -527,4 +527,4 @@ $ <userinput>sample-update -a sample-update -k Kxxx.+nnn+mmmm.key delete "foo.dy
   programs.</para>
   </sect2>
 </sect1>
-<!-- $Id: libdns.xml,v 1.3 2010-02-03 23:49:07 tbox Exp $ -->
+<!-- $Id: libdns.xml,v 1.3 2010/02/03 23:49:07 tbox Exp $ -->

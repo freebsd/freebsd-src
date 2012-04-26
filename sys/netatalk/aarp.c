@@ -406,7 +406,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 		 * Since we don't know the net, we just look for the first
 		 * phase 1 address on the interface.
 		 */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ifp->if_addrhead);
 		    aa;
 		    aa = (struct at_ifaddr *)aa->aa_ifa.ifa_link.tqe_next) {
@@ -416,12 +416,12 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 			}
 		}
 		if (aa == NULL) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			m_freem(m);
 			return;
 		}
 		ifa_ref(&aa->aa_ifa);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		tpa.s_net = spa.s_net = AA_SAT(aa)->sat_addr.s_net;
 	}
 
@@ -467,7 +467,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 	if (aat != NULL) {
 		if (op == AARPOP_PROBE) {
 			/*
-			 * Someone's probing for spa, dealocate the one we've
+			 * Someone's probing for spa, deallocate the one we've
 			 * got, so that if the prober keeps the address,
 			 * we'll be able to arp for him.
 			 */

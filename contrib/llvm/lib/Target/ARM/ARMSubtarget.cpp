@@ -1,4 +1,4 @@
-//===-- ARMSubtarget.cpp - ARM Subtarget Information ------------*- C++ -*-===//
+//===-- ARMSubtarget.cpp - ARM Subtarget Information ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,7 +16,6 @@
 #include "llvm/GlobalValue.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/ADT/SmallVector.h"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
@@ -47,13 +46,13 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   , HasV7Ops(false)
   , HasVFPv2(false)
   , HasVFPv3(false)
+  , HasVFPv4(false)
   , HasNEON(false)
   , UseNEONForSinglePrecisionFP(false)
   , SlowFPVMLx(false)
   , HasVMLxForwarding(false)
   , SlowFPBrcc(false)
   , InThumbMode(false)
-  , InNaClMode(false)
   , HasThumb2(false)
   , IsMClass(false)
   , NoARM(false)
@@ -104,18 +103,19 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   computeIssueWidth();
 
   if (TT.find("eabi") != std::string::npos)
+    // FIXME: We might want to separate AAPCS and EABI. Some systems, e.g.
+    // Darwin-EABI conforms to AACPS but not the rest of EABI.
     TargetABI = ARM_ABI_AAPCS;
 
   if (isAAPCS_ABI())
     stackAlignment = 8;
 
-  if (!isTargetDarwin())
+  if (!isTargetIOS())
     UseMovt = hasV6T2Ops();
   else {
     IsR9Reserved = ReserveR9 | !HasV6Ops;
     UseMovt = DarwinUseMOVT && hasV6T2Ops();
-    const Triple &T = getTargetTriple();
-    SupportsTailCall = T.getOS() == Triple::IOS && !T.isOSVersionLT(5, 0);
+    SupportsTailCall = !getTargetTriple().isOSVersionLT(5, 0);
   }
 
   if (!isThumb() || hasThumb2())

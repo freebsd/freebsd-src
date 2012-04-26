@@ -116,14 +116,73 @@ template <class... Types>
 #include <__config>
 #include <__tuple>
 #include <cstddef>
-#include <memory>
 #include <type_traits>
+#include <__functional_base>
+#include <utility>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
+
+// allocator_arg_t
+
+struct _LIBCPP_VISIBLE allocator_arg_t { };
+
+extern const allocator_arg_t allocator_arg;
+
+// uses_allocator
+
+template <class _Tp>
+struct __has_allocator_type
+{
+private:
+    struct __two {char _; char __;};
+    template <class _Up> static __two __test(...);
+    template <class _Up> static char __test(typename _Up::allocator_type* = 0);
+public:
+    static const bool value = sizeof(__test<_Tp>(0)) == 1;
+};
+
+template <class _Tp, class _Alloc, bool = __has_allocator_type<_Tp>::value>
+struct __uses_allocator
+    : public integral_constant<bool,
+        is_convertible<_Alloc, typename _Tp::allocator_type>::value>
+{
+};
+
+template <class _Tp, class _Alloc>
+struct __uses_allocator<_Tp, _Alloc, false>
+    : public false_type
+{
+};
+
+template <class _Tp, class _Alloc>
+struct _LIBCPP_VISIBLE uses_allocator
+    : public __uses_allocator<_Tp, _Alloc>
+{
+};
+
+#ifndef _LIBCPP_HAS_NO_VARIADICS
+
+// uses-allocator construction
+
+template <class _Tp, class _Alloc, class ..._Args>
+struct __uses_alloc_ctor_imp
+{
+    static const bool __ua = uses_allocator<_Tp, _Alloc>::value;
+    static const bool __ic =
+        is_constructible<_Tp, allocator_arg_t, _Alloc, _Args...>::value;
+    static const int value = __ua ? 2 - __ic : 0;
+};
+
+template <class _Tp, class _Alloc, class ..._Args>
+struct __uses_alloc_ctor
+    : integral_constant<int, __uses_alloc_ctor_imp<_Tp, _Alloc, _Args...>::value>
+    {};
+
+#endif  // _LIBCPP_HAS_NO_VARIADICS
 
 #ifndef _LIBCPP_HAS_NO_VARIADICS
 
@@ -146,7 +205,11 @@ public:
 
 // __tuple_leaf
 
-template <size_t _Ip, class _Hp, bool=is_empty<_Hp>::value>
+template <size_t _Ip, class _Hp, bool=is_empty<_Hp>::value
+#if __has_feature(is_final)
+                                 && !__is_final(_Hp)
+#endif
+         >
 class __tuple_leaf;
 
 template <size_t _Ip, class _Hp, bool _Ep>
@@ -195,13 +258,13 @@ public:
         explicit __tuple_leaf(_Tp&& __t)
             : value(_VSTD::forward<_Tp>(__t))
         {static_assert(!is_reference<_Hp>::value ||
-                        is_lvalue_reference<_Hp>::value &&
+                       (is_lvalue_reference<_Hp>::value &&
                         (is_lvalue_reference<_Tp>::value ||
                          is_same<typename remove_reference<_Tp>::type,
                                  reference_wrapper<
                                     typename remove_reference<_Hp>::type
                                  >
-                                >::value) ||
+                                >::value)) ||
                         (is_rvalue_reference<_Hp>::value &&
                          !is_lvalue_reference<_Tp>::value),
        "Attempted to construct a reference element in a tuple with an rvalue");}
@@ -211,13 +274,13 @@ public:
         explicit __tuple_leaf(integral_constant<int, 0>, const _Alloc&, _Tp&& __t)
             : value(_VSTD::forward<_Tp>(__t))
         {static_assert(!is_lvalue_reference<_Hp>::value ||
-                        is_lvalue_reference<_Hp>::value &&
+                       (is_lvalue_reference<_Hp>::value &&
                         (is_lvalue_reference<_Tp>::value ||
                          is_same<typename remove_reference<_Tp>::type,
                                  reference_wrapper<
                                     typename remove_reference<_Hp>::type
                                  >
-                                >::value),
+                                >::value)),
        "Attempted to construct a reference element in a tuple with an rvalue");}
 
     template <class _Tp, class _Alloc>
@@ -225,13 +288,13 @@ public:
         explicit __tuple_leaf(integral_constant<int, 1>, const _Alloc& __a, _Tp&& __t)
             : value(allocator_arg_t(), __a, _VSTD::forward<_Tp>(__t))
         {static_assert(!is_lvalue_reference<_Hp>::value ||
-                        is_lvalue_reference<_Hp>::value &&
+                       (is_lvalue_reference<_Hp>::value &&
                         (is_lvalue_reference<_Tp>::value ||
                          is_same<typename remove_reference<_Tp>::type,
                                  reference_wrapper<
                                     typename remove_reference<_Hp>::type
                                  >
-                                >::value),
+                                >::value)),
        "Attempted to construct a reference element in a tuple with an rvalue");}
 
     template <class _Tp, class _Alloc>
@@ -239,13 +302,13 @@ public:
         explicit __tuple_leaf(integral_constant<int, 2>, const _Alloc& __a, _Tp&& __t)
             : value(_VSTD::forward<_Tp>(__t), __a)
         {static_assert(!is_lvalue_reference<_Hp>::value ||
-                        is_lvalue_reference<_Hp>::value &&
+                       (is_lvalue_reference<_Hp>::value &&
                         (is_lvalue_reference<_Tp>::value ||
                          is_same<typename remove_reference<_Tp>::type,
                                  reference_wrapper<
                                     typename remove_reference<_Hp>::type
                                  >
-                                >::value),
+                                >::value)),
        "Attempted to construct a reference element in a tuple with an rvalue");}
 
     __tuple_leaf(const __tuple_leaf& __t)
@@ -359,10 +422,10 @@ struct __all<>
     static const bool value = true;
 };
 
-template <bool _B0, bool ... _B>
-struct __all<_B0, _B...>
+template <bool _B0, bool ... _Bp>
+struct __all<_B0, _Bp...>
 {
-    static const bool value = _B0 && __all<_B...>::value;
+    static const bool value = _B0 && __all<_Bp...>::value;
 };
 
 // __tuple_impl
@@ -437,6 +500,14 @@ struct __tuple_impl<__tuple_indices<_Indx...>, _Tp...>
             return *this;
         }
 
+        _LIBCPP_INLINE_VISIBILITY
+        __tuple_impl&
+        operator=(const __tuple_impl& __t)
+        {
+            __swallow(__tuple_leaf<_Indx, _Tp>::operator=(static_cast<const __tuple_leaf<_Indx, _Tp>&>(__t).get())...);
+            return *this;
+        }
+
     _LIBCPP_INLINE_VISIBILITY
     void swap(__tuple_impl& __t)
         _NOEXCEPT_(__all<__is_nothrow_swappable<_Tp>::value...>::value)
@@ -453,11 +524,11 @@ class _LIBCPP_VISIBLE tuple
     base base_;
 
     template <size_t _Jp, class ..._Up> friend
-        typename tuple_element<_Jp, tuple<_Up...> >::type& get(tuple<_Up...>&);
+        typename tuple_element<_Jp, tuple<_Up...> >::type& get(tuple<_Up...>&) _NOEXCEPT;
     template <size_t _Jp, class ..._Up> friend
-        const typename tuple_element<_Jp, tuple<_Up...> >::type& get(const tuple<_Up...>&);
+        const typename tuple_element<_Jp, tuple<_Up...> >::type& get(const tuple<_Up...>&) _NOEXCEPT;
     template <size_t _Jp, class ..._Up> friend
-        typename tuple_element<_Jp, tuple<_Up...> >::type&& get(tuple<_Up...>&&);
+        typename tuple_element<_Jp, tuple<_Up...> >::type&& get(tuple<_Up...>&&) _NOEXCEPT;
 public:
 
     _LIBCPP_INLINE_VISIBILITY
@@ -577,12 +648,12 @@ public:
     template <class _Alloc>
     _LIBCPP_INLINE_VISIBILITY
         tuple(allocator_arg_t, const _Alloc&, const tuple&) {}
-    template <class _U>
+    template <class _Up>
     _LIBCPP_INLINE_VISIBILITY
-        tuple(array<_U, 0>) {}
-    template <class _Alloc, class _U>
+        tuple(array<_Up, 0>) {}
+    template <class _Alloc, class _Up>
     _LIBCPP_INLINE_VISIBILITY
-        tuple(allocator_arg_t, const _Alloc&, array<_U, 0>) {}
+        tuple(allocator_arg_t, const _Alloc&, array<_Up, 0>) {}
     _LIBCPP_INLINE_VISIBILITY
     void swap(tuple&) _NOEXCEPT {}
 };
@@ -603,7 +674,7 @@ swap(tuple<_Tp...>& __t, tuple<_Tp...>& __u)
 template <size_t _Ip, class ..._Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 typename tuple_element<_Ip, tuple<_Tp...> >::type&
-get(tuple<_Tp...>& __t)
+get(tuple<_Tp...>& __t) _NOEXCEPT
 {
     typedef typename tuple_element<_Ip, tuple<_Tp...> >::type type;
     return static_cast<__tuple_leaf<_Ip, type>&>(__t.base_).get();
@@ -612,7 +683,7 @@ get(tuple<_Tp...>& __t)
 template <size_t _Ip, class ..._Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 const typename tuple_element<_Ip, tuple<_Tp...> >::type&
-get(const tuple<_Tp...>& __t)
+get(const tuple<_Tp...>& __t) _NOEXCEPT
 {
     typedef typename tuple_element<_Ip, tuple<_Tp...> >::type type;
     return static_cast<const __tuple_leaf<_Ip, type>&>(__t.base_).get();
@@ -621,7 +692,7 @@ get(const tuple<_Tp...>& __t)
 template <size_t _Ip, class ..._Tp>
 inline _LIBCPP_INLINE_VISIBILITY
 typename tuple_element<_Ip, tuple<_Tp...> >::type&&
-get(tuple<_Tp...>&& __t)
+get(tuple<_Tp...>&& __t) _NOEXCEPT
 {
     typedef typename tuple_element<_Ip, tuple<_Tp...> >::type type;
     return static_cast<type&&>(
@@ -684,14 +755,14 @@ forward_as_tuple(_Tp&&... __t)
     return tuple<_Tp&&...>(_VSTD::forward<_Tp>(__t)...);
 }
 
-template <size_t _I>
+template <size_t _Ip>
 struct __tuple_equal
 {
     template <class _Tp, class _Up>
     _LIBCPP_INLINE_VISIBILITY
     bool operator()(const _Tp& __x, const _Up& __y)
     {
-        return __tuple_equal<_I - 1>()(__x, __y) && get<_I-1>(__x) == get<_I-1>(__y);
+        return __tuple_equal<_Ip - 1>()(__x, __y) && get<_Ip-1>(__x) == get<_Ip-1>(__y);
     }
 };
 
@@ -722,15 +793,15 @@ operator!=(const tuple<_Tp...>& __x, const tuple<_Up...>& __y)
     return !(__x == __y);
 }
 
-template <size_t _I>
+template <size_t _Ip>
 struct __tuple_less
 {
     template <class _Tp, class _Up>
     _LIBCPP_INLINE_VISIBILITY
     bool operator()(const _Tp& __x, const _Up& __y)
     {
-        return __tuple_less<_I-1>()(__x, __y) ||
-             (!__tuple_less<_I-1>()(__y, __x) && get<_I-1>(__x) < get<_I-1>(__y));
+        return __tuple_less<_Ip-1>()(__x, __y) ||
+             (!__tuple_less<_Ip-1>()(__y, __x) && get<_Ip-1>(__x) < get<_Ip-1>(__y));
     }
 };
 
@@ -835,7 +906,7 @@ tuple_cat()
     return tuple<>();
 }
 
-template <class _R, class _Indices, class _Tuple0, class ..._Tuples>
+template <class _Rp, class _Indices, class _Tuple0, class ..._Tuples>
 struct __tuple_cat_return_ref_imp;
 
 template <class ..._Types, size_t ..._I0, class _Tuple0>

@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="powerd"
-rcvar=`set_rcvar`
+rcvar="powerd_enable"
 command="/usr/sbin/${name}"
 stop_postcmd=powerd_poststop
 

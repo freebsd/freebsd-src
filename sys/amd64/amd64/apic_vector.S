@@ -321,12 +321,9 @@ IDTVEC(cpustop)
 IDTVEC(cpususpend)
 	PUSH_FRAME
 
-	DO_EOI
-
 	call	cpususpend_handler
-
-	POP_FRAME
-	jmp	doreti_iret
+	DO_EOI
+	jmp	doreti
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.

@@ -52,6 +52,9 @@
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_MIPS
+#if __ELF_WORD_SIZE == 32
+#define	ELF_ARCH32	EM_MIPS
+#endif
 #define	ELF_MACHINE_OK(x) ((x) == EM_MIPS || (x) == EM_MIPS_RS4_BE)
 
 /* Architecture dependent Segment types - p_type */
@@ -189,9 +192,27 @@ typedef struct {
 #define	R_MIPS_REL16	33
 #define	R_MIPS_ADD_IMMEDIATE 34
 #define	R_MIPS_PJUMP	35
-#define	R_MIPS_ERLGOT	36
+#define	R_MIPS_RELGOT	36
+#define	R_MIPS_JALR	37
 
-#define	R_MIPS_max	37
+/* 
+ * TLS relocations 
+ */
+#define	R_MIPS_TLS_DTPMOD32	38	/* Module number 32 bit */
+#define	R_MIPS_TLS_DTPREL32	39	/* Module-relative offset 32 bit */
+#define	R_MIPS_TLS_DTPMOD64	40	/* Module number 64 bit */
+#define	R_MIPS_TLS_DTPREL64	41	/* Module-relative offset 64 bit */
+#define	R_MIPS_TLS_GD		42	/* 16 bit GOT offset for GD */
+#define	R_MIPS_TLS_LDM		43	/* 16 bit GOT offset for LDM */
+#define	R_MIPS_TLS_DTPREL_HI16	44	/* Module-relative offset, high 16 bits */
+#define	R_MIPS_TLS_DTPREL_LO16	45	/* Module-relative offset, low 16 bits */
+#define	R_MIPS_TLS_GOTTPREL	46	/* 16 bit GOT offset for IE */
+#define	R_MIPS_TLS_TPREL32	47	/* TP-relative offset, 32 bit */
+#define	R_MIPS_TLS_TPREL64	48	/* TP-relative offset, 64 bit */
+#define	R_MIPS_TLS_TPREL_HI16	49	/* TP-relative offset, high 16 bits */
+#define	R_MIPS_TLS_TPREL_LO16	50	/* TP-relative offset, low 16 bits */
+
+#define	R_MIPS_max	51
 #define	R_TYPE(name)		__CONCAT(R_MIPS_,name)
 
 /* Define "machine" characteristics */

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.color.c,v 1.25 2008/10/17 19:57:33 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.color.c,v 1.27 2010/08/19 05:52:19 christos Exp $ */
 /*
  * tw.color.c: builtin color ls-F
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tw.color.c,v 1.25 2008/10/17 19:57:33 christos Exp $")
+RCSID("$tcsh: tw.color.c,v 1.27 2010/08/19 05:52:19 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -86,6 +86,9 @@ static Variable variables[] = {
     VAR(NOS, "ow", ""),		/* Other writable dir (o+w) but not sticky */
     VAR(NOS, "st", ""),		/* Sticky dir (+t) but not other writable */
     VAR(NOS, "rs", "0"),	/* Reset to normal color */
+    VAR(NOS, "hl", "44;37"),    /* Reg file extra hard links, obsolete? */
+    VAR(NOS, "mh", "44;37"),    /* Reg file extra hard links */
+    VAR(NOS, "ca", "30;41"),    /* File with capability */
 };
 
 enum FileType {

@@ -1,41 +1,39 @@
 /*
- * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1999 - 2003 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include "krb5/gsskrb5_locl.h"
+#include "gsskrb5_locl.h"
 
-RCSID("$Id: import_sec_context.c 19031 2006-11-13 18:02:57Z lha $");
-
-OM_uint32
+OM_uint32 GSSAPI_CALLCONV
 _gsskrb5_import_sec_context (
     OM_uint32 * minor_status,
     const gss_buffer_t interprocess_token,
@@ -52,8 +50,7 @@ _gsskrb5_import_sec_context (
     krb5_data data;
     gss_buffer_desc buffer;
     krb5_keyblock keyblock;
-    int32_t tmp;
-    int32_t flags;
+    int32_t flags, tmp;
     gsskrb5_ctx ctx;
     gss_name_t name;
 
@@ -96,8 +93,9 @@ _gsskrb5_import_sec_context (
     /* retrieve the auth context */
 
     ac = ctx->auth_context;
-    if (krb5_ret_uint32 (sp, &ac->flags) != 0)
+    if (krb5_ret_int32 (sp, &tmp) != 0)
 	goto failure;
+    ac->flags = tmp;
     if (flags & SC_LOCAL_ADDRESS) {
 	if (krb5_ret_address (sp, localp = &local) != 0)
 	    goto failure;
@@ -184,7 +182,7 @@ _gsskrb5_import_sec_context (
 	    krb5_data_free (&data);
 	    goto failure;
 	}
-    }    
+    }
     ctx->target = (krb5_principal)name;
     krb5_data_free (&data);
 
@@ -200,9 +198,11 @@ _gsskrb5_import_sec_context (
 
     ret = _gssapi_msg_order_import(minor_status, sp, &ctx->order);
     if (ret)
-        goto failure;    
-    
+        goto failure;
+
     krb5_storage_free (sp);
+
+    _gsskrb5i_is_cfx(context, ctx, (ctx->more_flags & LOCAL) == 0);
 
     *context_handle = (gss_ctx_id_t)ctx;
 

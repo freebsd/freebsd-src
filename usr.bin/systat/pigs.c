@@ -81,7 +81,6 @@ closepigs(WINDOW *w)
 	delwin(w);
 }
 
-
 void
 showpigs(void)
 {

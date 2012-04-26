@@ -82,8 +82,8 @@ WlanMgmtReasonCode ::= TEXTUAL-CONVENTION
 		    associationLeave(8),
 		    associationNotAuthenticated(9),
 -- XXX: TODO - FIXME
-		    disassocPwrcapBad(10),
-		    disassocSuperchanBad(11),
+		    dissassocPwrcapBad(10),
+		    dissassocSuperchanBad(11),
 		    ieInvalid(13),
 		    micFailure(14),
 		    fourWayHandshakeTimeout(15),

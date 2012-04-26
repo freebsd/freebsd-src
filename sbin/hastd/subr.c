@@ -86,13 +86,13 @@ provinfo(struct hast_resource *res, bool dowrite)
 	if (res->hr_localfd == -1) {
 		res->hr_localfd = open(res->hr_localpath,
 		    dowrite ? O_RDWR : O_RDONLY);
-		if (res->hr_localfd < 0) {
+		if (res->hr_localfd == -1) {
 			pjdlog_errno(LOG_ERR, "Unable to open %s",
 			    res->hr_localpath);
 			return (-1);
 		}
 	}
-	if (fstat(res->hr_localfd, &sb) < 0) {
+	if (fstat(res->hr_localfd, &sb) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to stat %s", res->hr_localpath);
 		return (-1);
 	}
@@ -101,14 +101,14 @@ provinfo(struct hast_resource *res, bool dowrite)
 		 * If this is character device, it is most likely GEOM provider.
 		 */
 		if (ioctl(res->hr_localfd, DIOCGMEDIASIZE,
-		    &res->hr_local_mediasize) < 0) {
+		    &res->hr_local_mediasize) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable obtain provider %s mediasize",
 			    res->hr_localpath);
 			return (-1);
 		}
 		if (ioctl(res->hr_localfd, DIOCGSECTORSIZE,
-		    &res->hr_local_sectorsize) < 0) {
+		    &res->hr_local_sectorsize) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable obtain provider %s sectorsize",
 			    res->hr_localpath);
@@ -149,7 +149,7 @@ role2str(int role)
 }
 
 int
-drop_privs(struct hast_resource *res)
+drop_privs(const struct hast_resource *res)
 {
 	char jailhost[sizeof(res->hr_name) * 2];
 	struct jail jailst;

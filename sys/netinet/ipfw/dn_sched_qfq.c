@@ -608,7 +608,7 @@ static inline void
 qfq_update_start(struct qfq_sched *q, struct qfq_class *cl)
 {
 	unsigned long mask;
-	uint32_t limit, roundedF;
+	uint64_t limit, roundedF;
 	int slot_shift = cl->grp->slot_shift;
 
 	roundedF = qfq_round_down(cl->F, slot_shift);

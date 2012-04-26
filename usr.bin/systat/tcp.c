@@ -324,4 +324,3 @@ fetchtcp(void)
 	if (sysctl(name, 4, &curstat, &len, 0, 0) < 0)
 		return;
 }
-

@@ -86,7 +86,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
-static MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
+#include <ufs/ufs/quota.h>
+
+MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
@@ -132,7 +134,7 @@ sys_sync(td, uap)
 	struct sync_args *uap;
 {
 	struct mount *mp, *nmp;
-	int vfslocked;
+	int save, vfslocked;
 
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
@@ -143,18 +145,10 @@ sys_sync(td, uap)
 		vfslocked = VFS_LOCK_GIANT(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
 		    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
-			MNT_ILOCK(mp);
-			mp->mnt_noasync++;
-			mp->mnt_kern_flag &= ~MNTK_ASYNC;
-			MNT_IUNLOCK(mp);
+			save = curthread_pflags_set(TDP_SYNCIO);
 			vfs_msync(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT);
-			MNT_ILOCK(mp);
-			mp->mnt_noasync--;
-			if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
-			    mp->mnt_noasync == 0)
-				mp->mnt_kern_flag |= MNTK_ASYNC;
-			MNT_IUNLOCK(mp);
+			curthread_pflags_restore(save);
 			vn_finished_write(mp);
 		}
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -212,7 +206,20 @@ sys_quotactl(td, uap)
 		return (error);
 	}
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
-	vfs_unbusy(mp);
+
+	/*
+	 * Since quota on operation typically needs to open quota
+	 * file, the Q_QUOTAON handler needs to unbusy the mount point
+	 * before calling into namei.  Otherwise, unmount might be
+	 * started between two vfs_busy() invocations (first is our,
+	 * second is from mount point cross-walk code in lookup()),
+	 * causing deadlock.
+	 *
+	 * Require that Q_QUOTAON handles the vfs_busy() reference on
+	 * its own, always returning with ubusied mount point.
+	 */
+	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON)
+		vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -2685,7 +2692,7 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
-	if (count > INT_MAX)
+	if (count > IOSIZE_MAX)
 		return (EINVAL);
 
 	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
@@ -2736,6 +2743,10 @@ setfflags(td, vp, flags)
 	int error;
 	struct mount *mp;
 	struct vattr vattr;
+
+	/* We can't support the value matching VNOVAL. */
+	if (flags == VNOVAL)
+		return (EOPNOTSUPP);
 
 	/*
 	 * Prevent non-root users from setting flags on devices.  When
@@ -4146,8 +4157,9 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	int error, eofflag;
 
 	AUDIT_ARG_FD(fd);
-	if (count > INT_MAX)
+	if (count > IOSIZE_MAX)
 		return (EINVAL);
+	auio.uio_resid = count;
 	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_READ | CAP_SEEK,
 	    &fp)) != 0)
 		return (error);
@@ -4170,7 +4182,6 @@ unionread:
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_resid = count;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
 	loff = auio.uio_offset = fp->f_offset;
@@ -4584,16 +4595,22 @@ sys_fhopen(td, uap)
 	if (error)
 		goto bad;
 
-	if (fmode & FWRITE)
+	if (fmode & FWRITE) {
 		vp->v_writecount++;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+		    __func__, vp, vp->v_writecount);
+	}
 
 	/*
 	 * end of vn_open code
 	 */
 
 	if ((error = falloc(td, &nfp, &indx, fmode)) != 0) {
-		if (fmode & FWRITE)
+		if (fmode & FWRITE) {
 			vp->v_writecount--;
+			CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+			    __func__, vp, vp->v_writecount);
+		}
 		goto bad;
 	}
 	/* An extra reference on `nfp' has been held for us by falloc(). */

@@ -22,7 +22,7 @@ bgfsck_start ()
 		background_fsck_delay=0
 	fi
 	if [ ${background_fsck_delay} -lt 0 ]; then
-		echo "Background file system checks delayed indefinitly"
+		echo "Background file system checks delayed indefinitely"
 		return 0
 	fi
 

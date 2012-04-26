@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 
 #include "iommu_if.h"
@@ -62,7 +63,7 @@ struct bounce_zone;
 struct bus_dma_tag {
 	bus_dma_tag_t	  parent;
 	bus_size_t	  alignment;
-	bus_size_t	  boundary;
+	bus_addr_t	  boundary;
 	bus_addr_t	  lowaddr;
 	bus_addr_t	  highaddr;
 	bus_dma_filter_t *filter;
@@ -218,7 +219,7 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
  */
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t boundary, bus_addr_t lowaddr,
 		   bus_addr_t highaddr, bus_dma_filter_t *filter,
 		   void *filterarg, bus_size_t maxsize, int nsegments,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
@@ -979,6 +980,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
+
+	powerpc_sync();
 }
 
 static void

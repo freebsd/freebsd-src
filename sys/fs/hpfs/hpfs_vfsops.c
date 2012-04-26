@@ -73,7 +73,7 @@ static int
 hpfs_cmount ( 
 	struct mntarg *ma,
 	void *data,
-	int flags)
+	uint64_t flags)
 {
 	struct hpfs_args args;
 	struct export_args exp;
@@ -283,11 +283,11 @@ hpfs_mountfs(devvp, mp, td)
 	hpmp->hpm_devvp = devvp;
 	hpmp->hpm_dev = devvp->v_rdev;
 	hpmp->hpm_mp = mp;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v) == 1)
 		hpmp->hpm_uid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v) == 1)
 		hpmp->hpm_gid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "mode", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "mode", "%d", &v) == 1)
 		hpmp->hpm_mode = v;
 
 	error = hpfs_bminit(hpmp);

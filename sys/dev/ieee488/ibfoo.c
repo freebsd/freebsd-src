@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * High-level driver for µPD7210 based GPIB cards.
+ * High-level driver for ÂµPD7210 based GPIB cards.
  *
  */
 

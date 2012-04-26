@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmipo
 
 SRCDIR=	lib/Transforms/IPO
@@ -22,6 +24,10 @@ SRCS=	ArgumentPromotion.cpp \
 	PruneEH.cpp \
 	StripDeadPrototypes.cpp \
 	StripSymbols.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	IPO.cpp
+.endif
 
 TGHDRS=	Intrinsics
 

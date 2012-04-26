@@ -663,6 +663,23 @@ intr_disable(void)
 	return (rflags);
 }
 
+#ifndef	CR0_TS
+/* Defined in <machine/specialreg.h> */
+#define	CR0_TS	0x00000008
+#endif
+static __inline void
+start_emulating(void)
+{
+	__asm __volatile("smsw %%ax; orb %0,%%al; lmsw %%ax"
+			 : : "n" (CR0_TS) : "ax");
+}
+
+static __inline void
+stop_emulating(void)
+{
+	__asm __volatile("clts");
+}
+
 static __inline void
 intr_restore(register_t rflags)
 {
@@ -727,7 +744,7 @@ uint64_t rdr5(void);
 uint64_t rdr6(void);
 uint64_t rdr7(void);
 uint64_t rdtsc(void);
-u_int	read_rflags(void);
+u_long	read_rflags(void);
 u_int	rfs(void);
 u_int	rgs(void);
 void	wbinvd(void);

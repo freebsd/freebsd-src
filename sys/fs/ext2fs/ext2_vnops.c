@@ -71,8 +71,6 @@
 
 #include "opt_directio.h"
 
-#include <fs/fifofs/fifo.h>
-
 #include <ufs/ufs/dir.h>
 
 #include <fs/ext2fs/fs.h>
@@ -360,11 +358,15 @@ ext2_getattr(ap)
 	vap->va_rdev = ip->i_rdev;
 	vap->va_size = ip->i_size;
 	vap->va_atime.tv_sec = ip->i_atime;
-	vap->va_atime.tv_nsec = ip->i_atimensec;
+	vap->va_atime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_atimensec : 0;
 	vap->va_mtime.tv_sec = ip->i_mtime;
-	vap->va_mtime.tv_nsec = ip->i_mtimensec;
+	vap->va_mtime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_mtimensec : 0;
 	vap->va_ctime.tv_sec = ip->i_ctime;
-	vap->va_ctime.tv_nsec = ip->i_ctimensec;
+	vap->va_ctime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_ctimensec : 0;
+	if E2DI_HAS_XTIME(ip) {
+		vap->va_birthtime.tv_sec = ip->i_birthtime;
+		vap->va_birthtime.tv_nsec = ip->i_birthnsec;
+	}
 	vap->va_flags = ip->i_flags;
 	vap->va_gen = ip->i_gen;
 	vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
@@ -422,23 +424,19 @@ ext2_setattr(ap)
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
 		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
 					return (error);
 			}
-			ip->i_flags = vap->va_flags;
 		} else {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
+			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND) ||
+			    ((vap->va_flags ^ ip->i_flags) & SF_SETTABLE))
 				return (EPERM);
-			ip->i_flags &= SF_SETTABLE;
-			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
 		}
+		ip->i_flags = vap->va_flags;
 		ip->i_flag |= IN_CHANGE;
-		if (vap->va_flags & (IMMUTABLE | APPEND))
+		if (ip->i_flags & (IMMUTABLE | APPEND))
 			return (0);
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND))
@@ -501,6 +499,8 @@ ext2_setattr(ap)
 			ip->i_mtime = vap->va_mtime.tv_sec;
 			ip->i_mtimensec = vap->va_mtime.tv_nsec;
 		}
+		ip->i_birthtime = vap->va_birthtime.tv_sec;
+		ip->i_birthnsec = vap->va_birthtime.tv_nsec;
 		error = ext2_update(vp, 0);
 		if (error)
 			return (error);

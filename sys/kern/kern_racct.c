@@ -267,9 +267,6 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 	int error;
 #endif
 
-	if (p->p_flag & P_SYSTEM)
-		return (0);
-
 	SDT_PROBE(racct, kernel, rusage, add, p, resource, amount, 0, 0);
 
 	/*
@@ -344,9 +341,6 @@ void
 racct_add_force(struct proc *p, int resource, uint64_t amount)
 {
 
-	if (p->p_flag & P_SYSTEM)
-		return;
-
 	SDT_PROBE(racct, kernel, rusage, add_force, p, resource, amount, 0, 0);
 
 	/*
@@ -367,9 +361,6 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 #ifdef RCTL
 	int error;
 #endif
-
-	if (p->p_flag & P_SYSTEM)
-		return (0);
 
 	SDT_PROBE(racct, kernel, rusage, set, p, resource, amount, 0, 0);
 
@@ -425,9 +416,6 @@ void
 racct_set_force(struct proc *p, int resource, uint64_t amount)
 {
 	int64_t diff;
-
-	if (p->p_flag & P_SYSTEM)
-		return;
 
 	SDT_PROBE(racct, kernel, rusage, set, p, resource, amount, 0, 0);
 
@@ -486,9 +474,6 @@ racct_get_available(struct proc *p, int resource)
 void
 racct_sub(struct proc *p, int resource, uint64_t amount)
 {
-
-	if (p->p_flag & P_SYSTEM)
-		return;
 
 	SDT_PROBE(racct, kernel, rusage, sub, p, resource, amount, 0, 0);
 
@@ -555,12 +540,6 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 	 * Create racct for the child process.
 	 */
 	racct_create(&child->p_racct);
-
-	/*
-	 * No resource accounting for kernel processes.
-	 */
-	if (child->p_flag & P_SYSTEM)
-		return (0);
 
 	PROC_LOCK(parent);
 	PROC_LOCK(child);
@@ -697,6 +676,18 @@ racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 #endif
 }
 
+void
+racct_move(struct racct *dest, struct racct *src)
+{
+
+	mtx_lock(&racct_lock);
+
+	racct_add_racct(dest, src);
+	racct_sub_racct(src, src);
+
+	mtx_unlock(&racct_lock);
+}
+
 static void
 racctd(void)
 {
@@ -711,18 +702,13 @@ racctd(void)
 		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_state != PRS_NORMAL)
 				continue;
-			if (p->p_flag & P_SYSTEM)
-				continue;
 
 			microuptime(&wallclock);
 			timevalsub(&wallclock, &p->p_stats->p_start);
 			PROC_LOCK(p);
 			PROC_SLOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td) {
+			FOREACH_THREAD_IN_PROC(p, td)
 				ruxagg(p, td);
-				thread_lock(td);
-				thread_unlock(td);
-			}
 			runtime = cputick2usec(p->p_rux.rux_runtime);
 			PROC_SUNLOCK(p);
 #ifdef notyet
@@ -736,7 +722,8 @@ racctd(void)
 			mtx_lock(&racct_lock);
 			racct_set_locked(p, RACCT_CPU, runtime);
 			racct_set_locked(p, RACCT_WALLCLOCK,
-			    wallclock.tv_sec * 1000000 + wallclock.tv_usec);
+			    (uint64_t)wallclock.tv_sec * 1000000 +
+			    wallclock.tv_usec);
 			mtx_unlock(&racct_lock);
 			PROC_UNLOCK(p);
 		}

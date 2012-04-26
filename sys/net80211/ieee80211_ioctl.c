@@ -1397,6 +1397,17 @@ setmlme_common(struct ieee80211vap *vap, int op,
 			    IEEE80211_FC0_SUBTYPE_DEAUTH, reason);
 			ieee80211_free_node(ni);
 			break;
+		case IEEE80211_M_MBSS:
+			IEEE80211_NODE_LOCK(nt);
+			ni = ieee80211_find_node_locked(nt, mac);
+			if (ni != NULL) {
+				ieee80211_node_leave(ni);
+				ieee80211_free_node(ni);
+			} else {
+				error = ENOENT;
+			}
+			IEEE80211_NODE_UNLOCK(nt);
+			break;
 		default:
 			error = EINVAL;
 			break;

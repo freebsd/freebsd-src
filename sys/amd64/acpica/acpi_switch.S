@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
- * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,6 @@ ENTRY(acpi_restorecpu)
 
 	/* Restore CR0 except for FPU mode. */
 	movq	PCB_CR0(%rdi), %rax
-	movq	%rax, %rcx
 	andq	$~(CR0_EM | CR0_TS), %rax
 	movq	%rax, %cr0
 
@@ -121,15 +120,6 @@ ENTRY(acpi_restorecpu)
 #undef	SDT_SYSTSS
 #undef	SDT_SYSBSY
 
-	/* Restore other callee saved registers. */
-	movq	PCB_R15(%rdi), %r15
-	movq	PCB_R14(%rdi), %r14
-	movq	PCB_R13(%rdi), %r13
-	movq	PCB_R12(%rdi), %r12
-	movq	PCB_RBP(%rdi), %rbp
-	movq	PCB_RSP(%rdi), %rsp
-	movq	PCB_RBX(%rdi), %rbx
-
 	/* Restore debug registers. */
 	movq	PCB_DR0(%rdi), %rax
 	movq	%rax, %dr0
@@ -146,10 +136,34 @@ ENTRY(acpi_restorecpu)
 
 	/* Restore FPU state. */
 	fninit
-	fxrstor	PCB_USERFPU(%rdi)
+	movq	WAKEUP_CTX(fpusave), %rbx
+	movq	WAKEUP_CTX(xsmask), %rax
+	testq	%rax, %rax
+	jz	1f
+	movq	%rax, %rdx
+	shrq	$32, %rdx
+	movl	$XCR0, %ecx
+/*	xsetbv	*/
+	.byte	0x0f, 0x01, 0xd1
+/*	xrstor	(%rbx) */
+	.byte	0x0f, 0xae, 0x2b
+	jmp	2f
+1:
+	fxrstor	(%rbx)
+2:
 
 	/* Reload CR0. */
-	movq	%rcx, %cr0
+	movq	PCB_CR0(%rdi), %rax
+	movq	%rax, %cr0
+
+	/* Restore other callee saved registers. */
+	movq	PCB_R15(%rdi), %r15
+	movq	PCB_R14(%rdi), %r14
+	movq	PCB_R13(%rdi), %r13
+	movq	PCB_R12(%rdi), %r12
+	movq	PCB_RBP(%rdi), %rbp
+	movq	PCB_RSP(%rdi), %rsp
+	movq	PCB_RBX(%rdi), %rbx
 
 	/* Restore return address. */
 	movq	PCB_RIP(%rdi), %rax

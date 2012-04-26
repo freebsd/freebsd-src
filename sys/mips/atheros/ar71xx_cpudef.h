@@ -36,6 +36,7 @@ struct ar71xx_cpu_def {
 	void (* ar71xx_chip_device_start) (uint32_t);
 	int (* ar71xx_chip_device_stopped) (uint32_t);
 	void (* ar71xx_chip_set_pll_ge) (int, int);
+	void (* ar71xx_chip_set_mii_speed) (uint32_t, uint32_t);
 	void (* ar71xx_chip_ddr_flush_ge) (int);
 	uint32_t (* ar71xx_chip_get_eth_pll) (unsigned int, int);
 
@@ -82,6 +83,11 @@ static inline int ar71xx_device_stopped(uint32_t mask)
 static inline void ar71xx_device_set_pll_ge(int unit, int speed)
 {
 	ar71xx_cpu_ops->ar71xx_chip_set_pll_ge(unit, speed);
+}
+
+static inline void ar71xx_device_set_mii_speed(int unit, int speed)
+{
+	ar71xx_cpu_ops->ar71xx_chip_set_mii_speed(unit, speed);
 }
 
 static inline void ar71xx_device_flush_ddr_ge(int unit)

@@ -380,6 +380,14 @@ nd6_options(union nd_opts *ndopts)
 			ndopts->nd_opts_pi_end =
 				(struct nd_opt_prefix_info *)nd_opt;
 			break;
+		/* What about ND_OPT_ROUTE_INFO? RFC 4191 */
+		case ND_OPT_RDNSS:	/* RFC 6106 */
+		case ND_OPT_DNSSL:	/* RFC 6106 */
+			/*
+			 * Silently ignore options we know and do not care about
+			 * in the kernel.
+			 */
+			break;
 		default:
 			/*
 			 * Unknown options must be silently ignored,
@@ -575,7 +583,6 @@ nd6_timer(void *arg)
 	struct nd_defrouter *dr, *ndr;
 	struct nd_prefix *pr, *npr;
 	struct in6_ifaddr *ia6, *nia6;
-	struct in6_addrlifetime *lt6;
 
 	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
 	    nd6_timer, curvnet);
@@ -598,7 +605,6 @@ nd6_timer(void *arg)
   addrloop:
 	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
-		lt6 = &ia6->ia6_lifetime;
 		if (IFA6_IS_INVALID(ia6)) {
 			int regen = 0;
 
@@ -692,7 +698,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 	struct in6_ifaddr *public_ifa6 = NULL;
 
 	ifp = ia6->ia_ifa.ifa_ifp;
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *it6;
 
@@ -734,7 +740,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		if (public_ifa6 != NULL)
 			ifa_ref(&public_ifa6->ia_ifa);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	if (public_ifa6 != NULL) {
 		int e;
@@ -902,7 +908,10 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 
 		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
 			struct rtentry *rt;
-			rt = rtalloc1((struct sockaddr *)&pr->ndpr_prefix, 0, 0);
+
+			/* Always use the default FIB here. */
+			rt = in6_rtalloc1((struct sockaddr *)&pr->ndpr_prefix,
+			    0, 0, RT_DEFAULT_FIB);
 			if (rt == NULL)
 				continue;
 			/*
@@ -1344,16 +1353,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		struct ifaddr *ifa;
 		struct in6_ifaddr *ia;
 
-		/*
-		 * Try to clear ifdisabled flag when enabling
-		 * accept_rtadv or auto_linklocal.
-		 */
-		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
-		    !(ND.flags & ND6_IFF_IFDISABLED) &&
-		    (ND.flags & (ND6_IFF_ACCEPT_RTADV |
-		    ND6_IFF_AUTO_LINKLOCAL)))
-			ND.flags &= ~ND6_IFF_IFDISABLED;
-
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 		    !(ND.flags & ND6_IFF_IFDISABLED)) {
 			/* ifdisabled 1->0 transision */
@@ -1366,7 +1365,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			 */
 			int duplicated_linklocal = 0;
 
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
@@ -1377,7 +1376,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					break;
 				}
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 
 			if (duplicated_linklocal) {
 				ND.flags |= ND6_IFF_IFDISABLED;
@@ -1395,14 +1394,14 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			/* Mark all IPv6 address as tentative. */
 
 			ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
 				ia->ia6_flags |= IN6_IFF_TENTATIVE;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 		}
 
 		if (ND.flags & ND6_IFF_AUTO_LINKLOCAL) {
@@ -1422,7 +1421,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				 */
 				int haslinklocal = 0;
 			
-				IF_ADDR_LOCK(ifp);
+				IF_ADDR_RLOCK(ifp);
 				TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 					if (ifa->ifa_addr->sa_family != AF_INET6)
 						continue;
@@ -1432,7 +1431,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 						break;
 					}
 				}
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				if (!haslinklocal)
 					in6_ifattach(ifp, NULL);
 			}

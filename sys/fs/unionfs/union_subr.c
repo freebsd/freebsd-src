@@ -952,6 +952,8 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 		goto unionfs_vn_create_on_upper_free_out1;
 	}
 	vp->v_writecount++;
+	CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",  __func__, vp,
+	    vp->v_writecount);
 	*vpp = vp;
 
 unionfs_vn_create_on_upper_free_out1:
@@ -1087,6 +1089,8 @@ unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred,
 	}
 	VOP_CLOSE(uvp, FWRITE, cred, td);
 	uvp->v_writecount--;
+	CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d", __func__, uvp,
+	    uvp->v_writecount);
 
 	vn_finished_write(mp);
 

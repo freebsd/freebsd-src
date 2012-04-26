@@ -44,19 +44,28 @@ __FBSDID("$FreeBSD$");
 static
 struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
+	{ "7zip",	archive_write_set_format_7zip },
 	{ "ar",		archive_write_set_format_ar_bsd },
 	{ "arbsd",	archive_write_set_format_ar_bsd },
 	{ "argnu",	archive_write_set_format_ar_svr4 },
 	{ "arsvr4",	archive_write_set_format_ar_svr4 },
+	{ "bsdtar",	archive_write_set_format_pax_restricted },
+	{ "cd9660",	archive_write_set_format_iso9660 },
 	{ "cpio",	archive_write_set_format_cpio },
+	{ "gnutar",	archive_write_set_format_gnutar },
+	{ "iso",	archive_write_set_format_iso9660 },
+	{ "iso9660",	archive_write_set_format_iso9660 },
 	{ "mtree",	archive_write_set_format_mtree },
 	{ "newc",	archive_write_set_format_cpio_newc },
 	{ "odc",	archive_write_set_format_cpio },
 	{ "pax",	archive_write_set_format_pax },
+	{ "paxr",	archive_write_set_format_pax_restricted },
 	{ "posix",	archive_write_set_format_pax },
+	{ "rpax",	archive_write_set_format_pax_restricted },
 	{ "shar",	archive_write_set_format_shar },
 	{ "shardump",	archive_write_set_format_shar_dump },
 	{ "ustar",	archive_write_set_format_ustar },
+	{ "xar",	archive_write_set_format_xar },
 	{ "zip",	archive_write_set_format_zip },
 	{ NULL,		NULL }
 };
@@ -72,5 +81,6 @@ archive_write_set_format_by_name(struct archive *a, const char *name)
 	}
 
 	archive_set_error(a, EINVAL, "No such format '%s'", name);
+	a->state = ARCHIVE_STATE_FATAL;
 	return (ARCHIVE_FATAL);
 }

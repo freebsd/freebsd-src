@@ -1,5 +1,5 @@
 : # -*- perl -*-
-# $tcsh: tcsh.man2html,v 1.14 2006/03/02 18:46:45 christos Exp $
+# $tcsh: tcsh.man2html,v 1.15 2011/02/05 16:15:56 christos Exp $
 
 # tcsh.man2html, Dave Schweisguth <dcs@proton.chem.yale.edu>
 #
@@ -689,10 +689,9 @@ sub font {
 
     $bold = $italic = 0;
     foreach $i (0 .. $#begin) {
-	$* = 1;
 	$part = join('', @para[$begin[$i] .. $end[$i]]);
-	$part =~ s/^\.([BI])\s+(.*)$/\\f$1$2\\fR/g;	    # .B, .I
-	@pieces = split(/(\\f[BIR])/, $part);
+	$part =~ s/^\.([BI])\s+(.*)$/\\f$1$2\\fR/gm;	    # .B, .I
+	@pieces = split(/(\\f[BIR])/m, $part);
 	$part = '';
 	foreach $j (@pieces) {
 	    if ($j eq '\fB') {
@@ -725,7 +724,6 @@ sub font {
 		$part .= $j;	
 	    }
 	}
-	$* = 0;
 
 	# Close bold/italic before break
 

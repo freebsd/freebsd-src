@@ -124,7 +124,7 @@ linux_driver_get_name_dev(device_t dev)
 }
 
 int
-linux_driver_get_major_minor(char *node, int *major, int *minor)
+linux_driver_get_major_minor(const char *node, int *major, int *minor)
 {
 	struct device_element *de;
 

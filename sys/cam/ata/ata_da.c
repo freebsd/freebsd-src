@@ -456,17 +456,16 @@ adaclose(struct disk *dp)
 	struct	cam_periph *periph;
 	struct	ada_softc *softc;
 	union ccb *ccb;
-	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
 	cam_periph_lock(periph);
-	if ((error = cam_periph_hold(periph, PRIBIO)) != 0) {
+	if (cam_periph_hold(periph, PRIBIO) != 0) {
 		cam_periph_unlock(periph);
 		cam_periph_release(periph);
-		return (error);
+		return (0);
 	}
 
 	softc = (struct ada_softc *)periph->softc;
@@ -1098,7 +1097,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 */
 	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
 	callout_reset(&softc->sendordered_c,
-	    (ADA_DEFAULT_TIMEOUT * hz) / ADA_ORDEREDTAG_INTERVAL,
+	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
 
 	if (ADA_RA >= 0 &&
@@ -1653,7 +1652,7 @@ adasendorderedtag(void *arg)
 	}
 	/* Queue us up again */
 	callout_reset(&softc->sendordered_c,
-	    (ADA_DEFAULT_TIMEOUT * hz) / ADA_ORDEREDTAG_INTERVAL,
+	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
 }
 

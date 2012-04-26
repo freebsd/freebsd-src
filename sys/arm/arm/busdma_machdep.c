@@ -68,7 +68,7 @@ struct bounce_zone;
 struct bus_dma_tag {
 	bus_dma_tag_t		parent;
 	bus_size_t		alignment;
-	bus_size_t		boundary;
+	bus_addr_t		boundary;
 	bus_addr_t		lowaddr;
 	bus_addr_t		highaddr;
 	bus_dma_filter_t	*filter;
@@ -332,7 +332,7 @@ _busdma_free_dmamap(bus_dmamap_t map)
 
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t boundary, bus_addr_t lowaddr,
 		   bus_addr_t highaddr, bus_dma_filter_t *filter,
 		   void *filterarg, bus_size_t maxsize, int nsegments,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
@@ -378,12 +378,12 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	 * Take into account any restrictions imposed by our parent tag
 	 */
         if (parent != NULL) {
-                newtag->lowaddr = min(parent->lowaddr, newtag->lowaddr);
-                newtag->highaddr = max(parent->highaddr, newtag->highaddr);
+                newtag->lowaddr = MIN(parent->lowaddr, newtag->lowaddr);
+                newtag->highaddr = MAX(parent->highaddr, newtag->highaddr);
 		if (newtag->boundary == 0)
 			newtag->boundary = parent->boundary;
 		else if (parent->boundary != 0)
-                	newtag->boundary = min(parent->boundary,
+                	newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
 		if ((newtag->filter != NULL) ||
 		    ((parent->flags & BUS_DMA_COULD_BOUNCE) != 0))
@@ -1091,14 +1091,16 @@ static void
 bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 {
 	char _tmp_cl[arm_dcache_align], _tmp_clend[arm_dcache_align];
+	register_t s;
+	int partial; 
 
 	if ((op & BUS_DMASYNC_PREWRITE) && !(op & BUS_DMASYNC_PREREAD)) {
 		cpu_dcache_wb_range((vm_offset_t)buf, len);
 		cpu_l2cache_wb_range((vm_offset_t)buf, len);
 	}
+	partial = (((vm_offset_t)buf) | len) & arm_dcache_align_mask;
 	if (op & BUS_DMASYNC_PREREAD) {
-		if (!(op & BUS_DMASYNC_PREWRITE) &&
-		    ((((vm_offset_t)(buf) | len) & arm_dcache_align_mask) == 0)) {
+		if (!(op & BUS_DMASYNC_PREWRITE) && !partial) {
 			cpu_dcache_inv_range((vm_offset_t)buf, len);
 			cpu_l2cache_inv_range((vm_offset_t)buf, len);
 		} else {
@@ -1107,27 +1109,32 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 		}
 	}
 	if (op & BUS_DMASYNC_POSTREAD) {
-		if ((vm_offset_t)buf & arm_dcache_align_mask) {
-			memcpy(_tmp_cl, (void *)((vm_offset_t)buf & ~
-			    arm_dcache_align_mask),
-			    (vm_offset_t)buf & arm_dcache_align_mask);
-		}
-		if (((vm_offset_t)buf + len) & arm_dcache_align_mask) {
-			memcpy(_tmp_clend, (void *)((vm_offset_t)buf + len),
-			    arm_dcache_align - (((vm_offset_t)(buf) + len) &
-			   arm_dcache_align_mask));
+		if (partial) {
+			s = intr_disable();
+			if ((vm_offset_t)buf & arm_dcache_align_mask)
+				memcpy(_tmp_cl, (void *)((vm_offset_t)buf &
+				    ~arm_dcache_align_mask),
+				    (vm_offset_t)buf & arm_dcache_align_mask);
+			if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
+				memcpy(_tmp_clend, 
+				    (void *)((vm_offset_t)buf + len),
+				    arm_dcache_align - (((vm_offset_t)(buf) +
+				    len) & arm_dcache_align_mask));
 		}
 		cpu_dcache_inv_range((vm_offset_t)buf, len);
 		cpu_l2cache_inv_range((vm_offset_t)buf, len);
-
-		if ((vm_offset_t)buf & arm_dcache_align_mask)
-			memcpy((void *)((vm_offset_t)buf &
-			    ~arm_dcache_align_mask), _tmp_cl, 
-			    (vm_offset_t)buf & arm_dcache_align_mask);
-		if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
-			memcpy((void *)((vm_offset_t)buf + len), _tmp_clend,
-			    arm_dcache_align - (((vm_offset_t)(buf) + len) &
-			   arm_dcache_align_mask));
+		if (partial) {
+			if ((vm_offset_t)buf & arm_dcache_align_mask)
+				memcpy((void *)((vm_offset_t)buf &
+				    ~arm_dcache_align_mask), _tmp_cl, 
+				    (vm_offset_t)buf & arm_dcache_align_mask);
+			if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
+				memcpy((void *)((vm_offset_t)buf + len), 
+				    _tmp_clend, arm_dcache_align - 
+				    (((vm_offset_t)(buf) + len) &
+				    arm_dcache_align_mask));
+			intr_restore(s);
+		}
 	}
 }
 

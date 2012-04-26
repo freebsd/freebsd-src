@@ -690,7 +690,8 @@ powerpc_intr(int cpu, struct trapframe *tf)
 		powerpc_pmcn_write(i, v);
 
 		/* Restart the counter if logging succeeded. */
-		error = pmc_process_interrupt(cpu, pm, tf, TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
+		    TRAPF_USERMODE(tf));
 		mtspr(SPR_MMCR0, config);
 		if (error != 0)
 			powerpc_stop_pmc(cpu, i);
@@ -802,11 +803,9 @@ pmc_md_initialize()
 			   M_WAITOK|M_ZERO);
 
 	/* Just one class */
-	pmc_mdep = malloc(sizeof(struct pmc_mdep) + sizeof(struct pmc_classdep),
-			  M_PMC, M_WAITOK|M_ZERO);
+	pmc_mdep = pmc_mdep_alloc(1);
 
 	pmc_mdep->pmd_cputype = PMC_CPU_PPC_7450;
-	pmc_mdep->pmd_nclass  = 1;
 
 	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC7450];
 	pcd->pcd_caps  = POWERPC_PMC_CAPS;

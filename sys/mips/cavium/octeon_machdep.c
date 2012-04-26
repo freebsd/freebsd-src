@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
 #include <contrib/octeon-sdk/cvmx-version.h>
 
+#include <mips/cavium/octeon_irq.h>
+
 #if defined(__mips_n64) 
 #define MAX_APP_DESC_ADDR     0xffffffffafffffff
 #else
@@ -112,6 +114,16 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_DFA,			"DFA" },
 	{ OCTEON_FEATURE_MDIO_CLAUSE_45,	"MDIO_CLAUSE_45" },
 	{ OCTEON_FEATURE_NPEI,			"NPEI" },
+	{ OCTEON_FEATURE_ILK,			"ILK" },
+	{ OCTEON_FEATURE_HFA,			"HFA" },
+	{ OCTEON_FEATURE_DFM,			"DFM" },
+	{ OCTEON_FEATURE_CIU2,			"CIU2" },
+	{ OCTEON_FEATURE_DICI_MODE,		"DICI_MODE" },
+	{ OCTEON_FEATURE_BIT_EXTRACTOR,		"BIT_EXTRACTOR" },
+	{ OCTEON_FEATURE_NAND,			"NAND" },
+	{ OCTEON_FEATURE_MMC,			"MMC" },
+	{ OCTEON_FEATURE_PKND,			"PKND" },
+	{ OCTEON_FEATURE_CN68XX_WQE,		"CN68XX_WQE" },
 	{ 0,					NULL }
 };
 
@@ -248,6 +260,8 @@ octeon_debug_symbol(void)
 void
 octeon_ciu_reset(void)
 {
+	uint64_t cvmctl;
+
 	/* Disable all CIU interrupts by default */
 	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2), 0);
 	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2+1), 0);
@@ -257,9 +271,17 @@ octeon_ciu_reset(void)
 #ifdef SMP
 	/* Enable the MBOX interrupts.  */
 	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2+1),
-		       (1ull << (CVMX_IRQ_MBOX0 - 8)) |
-		       (1ull << (CVMX_IRQ_MBOX1 - 8)));
+		       (1ull << (OCTEON_IRQ_MBOX0 - 8)) |
+		       (1ull << (OCTEON_IRQ_MBOX1 - 8)));
 #endif
+
+	/* 
+	 * Move the Performance Counter interrupt to OCTEON_PMC_IRQ
+	 */
+	cvmctl = mips_rd_cvmctl();
+	cvmctl &= ~(7 << 7);
+	cvmctl |= (OCTEON_PMC_IRQ + 2) << 7;
+	mips_wr_cvmctl(cvmctl);
 }
 
 static void
@@ -350,6 +372,8 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	 * and somehow handle the PCI console, which we lack code for
 	 * entirely.
 	 */
+
+	mips_postboot_fixup();
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -575,6 +599,7 @@ octeon_process_app_desc_ver_6(void)
 		octeon_bootinfo->compact_flash_common_base_addr;
 	cvmx_sysinfo_get()->compact_flash_attribute_base_addr = 
 		octeon_bootinfo->compact_flash_attribute_base_addr;
+	cvmx_sysinfo_get()->core_mask = octeon_bootinfo->core_mask;
 }
 
 static void

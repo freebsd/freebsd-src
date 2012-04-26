@@ -55,7 +55,7 @@
  * or implied warranty.
  */
 
-/* $Id: enc-proto.h 10809 2002-01-18 12:58:49Z joda $ */
+/* $Id$ */
 
 #if	defined(ENCRYPTION)
 Encryptions *findencryption (int);
@@ -81,12 +81,12 @@ void encrypt_dec_keyid(unsigned char*, int);
 void encrypt_display(void);
 void encrypt_enc_keyid(unsigned char*, int);
 void encrypt_end(void);
-void encrypt_gen_printsub(unsigned char*, int, unsigned char*, int);
+void encrypt_gen_printsub(unsigned char*, size_t, unsigned char*, size_t);
 void encrypt_init(const char*, int);
 void encrypt_is(unsigned char*, int);
 void encrypt_list_types(void);
 void encrypt_not(void);
-void encrypt_printsub(unsigned char*, int, unsigned char*, int);
+void encrypt_printsub(unsigned char*, size_t, unsigned char*, size_t);
 void encrypt_reply(unsigned char*, int);
 void encrypt_request_end(void);
 void encrypt_request_start(unsigned char*, int);
@@ -118,7 +118,7 @@ int cfb64_is (unsigned char *, int);
 int cfb64_reply (unsigned char *, int);
 void cfb64_session (Session_Key *, int);
 int cfb64_keyid (int, unsigned char *, int *);
-void cfb64_printsub (unsigned char *, int, unsigned char *, int);
+void cfb64_printsub (unsigned char *, size_t, unsigned char *, size_t);
 
 void ofb64_encrypt (unsigned char *, int);
 int ofb64_decrypt (int);
@@ -128,6 +128,6 @@ int ofb64_is (unsigned char *, int);
 int ofb64_reply (unsigned char *, int);
 void ofb64_session (Session_Key *, int);
 int ofb64_keyid (int, unsigned char *, int *);
-void ofb64_printsub (unsigned char *, int, unsigned char *, int);
+void ofb64_printsub (unsigned char *, size_t, unsigned char *, size_t);
 
 #endif

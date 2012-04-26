@@ -2,10 +2,11 @@
 
 .PATH: ${.CURDIR}/../../../contrib/llvm/tools/clang/lib/Headers
 
-INCSDIR=${INCLUDEDIR}/clang/3.0
+INCSDIR=${INCLUDEDIR}/clang/3.1
 
 INCS=	altivec.h \
 	avxintrin.h \
+	cpuid.h \
 	emmintrin.h \
 	immintrin.h \
 	mm3dnow.h \
@@ -14,7 +15,9 @@ INCS=	altivec.h \
 	nmmintrin.h \
 	pmmintrin.h \
 	smmintrin.h \
+	stdalign.h \
 	tmmintrin.h \
+	unwind.h \
 	wmmintrin.h \
 	x86intrin.h \
 	xmmintrin.h

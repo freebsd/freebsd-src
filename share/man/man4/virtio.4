@@ -24,11 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2011
+.Dd January 22, 2012
 .Dt VIRTIO 4
 .Os
 .Sh NAME
-.Nm virtio 
+.Nm virtio
 .Nd VirtIO Device Support
 .Sh SYNOPSIS
 To compile VirtIO device support into the kernel, place the following lines
@@ -48,24 +48,25 @@ virtio_pci_load="YES"
 .Sh DESCRIPTION
 VirtIO is a specification for para-virtualized I/O in a virtual machine (VM).
 Traditionally, the hypervisor emulated real devices such as an Ethernet
-interface or disk controller to provide the VM with I/O. This emulation is
-often inefficient.
+interface or disk controller to provide the VM with I/O.
+This emulation is often inefficient.
 .Pp
 VirtIO defines an interface for efficient I/O between the hypervisor and VM.
-The 
-.Xr virtio 4 
+The
+.Xr virtio 4
 module provides a shared memory transport called a virtqueue.
 The
 .Xr virtio_pci 4
 device driver represents an emulated PCI device that the hypervisor makes
-available to the VM. This device provides the probing, configuration, and 
-interrupt notifications need to interact with the hypervisor.
+available to the VM.
+This device provides the probing, configuration, and
+interrupt notifications needed to interact with the hypervisor.
 .Fx
 supports the following VirtIO devices:
 .Bl -hang -offset indent -width xxxxxxxx
 .It Nm Ethernet
 An emulated Ethernet device is provided by the
-.Xr if_vtnet 4
+.Xr vtnet 4
 device driver.
 .It Nm Block
 An emulated disk controller is provided by the
@@ -78,9 +79,9 @@ provided by the
 device driver.
 .El
 .Sh SEE ALSO
-.Xr if_vtnet 4 ,
+.Xr virtio_balloon 4 ,
 .Xr virtio_blk 4 ,
-.Xr virtio_balloon 4
+.Xr vtnet 4
 .Sh HISTORY
 Support for VirtIO first appeared in
 .Fx 9.0 .

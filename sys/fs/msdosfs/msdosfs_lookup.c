@@ -649,7 +649,7 @@ createde(dep, ddep, depp, cnp)
 		dirclust = de_clcount(pmp, diroffset);
 		error = extendfile(ddep, dirclust, 0, 0, DE_CLEAR);
 		if (error) {
-			(void)detrunc(ddep, ddep->de_FileSize, 0, NOCRED, NULL);
+			(void)detrunc(ddep, ddep->de_FileSize, 0, NOCRED);
 			return error;
 		}
 
@@ -690,7 +690,7 @@ createde(dep, ddep, depp, cnp)
 
 		while (--ddep->de_fndcnt >= 0) {
 			if (!(ddep->de_fndoffset & pmp->pm_crbomask)) {
-				if (DETOV(ddep)->v_mount->mnt_flag & MNT_ASYNC)
+				if (DOINGASYNC(DETOV(ddep)))
 					bdwrite(bp);
 				else if ((error = bwrite(bp)) != 0)
 					return error;
@@ -720,7 +720,7 @@ createde(dep, ddep, depp, cnp)
 		}
 	}
 
-	if (DETOV(ddep)->v_mount->mnt_flag & MNT_ASYNC)
+	if (DOINGASYNC(DETOV(ddep)))
 		bdwrite(bp);
 	else if ((error = bwrite(bp)) != 0)
 		return error;
@@ -1022,7 +1022,7 @@ removede(pdep, dep)
 			    || ep->deAttributes != ATTR_WIN95)
 				break;
 		}
-		if (DETOV(pdep)->v_mount->mnt_flag & MNT_ASYNC)
+		if (DOINGASYNC(DETOV(pdep)))
 			bdwrite(bp);
 		else if ((error = bwrite(bp)) != 0)
 			return error;

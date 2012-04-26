@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 static dbbe_init_f gdb_init;
 static dbbe_trap_f gdb_trap;
 
-KDB_BACKEND(gdb, gdb_init, NULL, gdb_trap);
+KDB_BACKEND(gdb, gdb_init, NULL, NULL, gdb_trap);
 
 static struct gdb_dbgport null_gdb_dbgport;
 DATA_SET(gdb_dbgport_set, null_gdb_dbgport);

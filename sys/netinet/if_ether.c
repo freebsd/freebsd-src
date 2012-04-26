@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
 #include <netinet/if_ether.h>
-#if defined(INET) || defined(INET6)
+#ifdef INET
 #include <netinet/ip_carp.h>
 #endif
 
@@ -123,8 +123,6 @@ SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
 	"Number of packets to hold per ARP entry");
 
 static void	arp_init(void);
-void		arprequest(struct ifnet *,
-			struct in_addr *, struct in_addr *, u_char *);
 static void	arpintr(struct mbuf *);
 static void	arptimer(void *);
 #ifdef INET
@@ -213,29 +211,41 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	struct mbuf *m;
 	struct arphdr *ah;
 	struct sockaddr sa;
+	u_char *carpaddr = NULL;
 
 	if (sip == NULL) {
-		/* XXX don't believe this can happen (or explain why) */
 		/*
 		 * The caller did not supply a source address, try to find
 		 * a compatible one among those assigned to this interface.
 		 */
 		struct ifaddr *ifa;
 
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (!ifa->ifa_addr ||
-			    ifa->ifa_addr->sa_family != AF_INET)
+			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
-			sip = &SIN(ifa->ifa_addr)->sin_addr;
+
+			if (ifa->ifa_carp) {
+				if ((*carp_iamatch_p)(ifa, &carpaddr) == 0)
+					continue;
+				sip = &IA_SIN(ifa)->sin_addr;
+			} else {
+				carpaddr = NULL;
+				sip = &IA_SIN(ifa)->sin_addr;
+			}
+
 			if (0 == ((sip->s_addr ^ tip->s_addr) &
-			    SIN(ifa->ifa_netmask)->sin_addr.s_addr) )
+			    IA_MASKSIN(ifa)->sin_addr.s_addr))
 				break;  /* found it. */
 		}
+		IF_ADDR_RUNLOCK(ifp);
 		if (sip == NULL) {  
 			printf("%s: cannot find matching address\n", __func__);
 			return;
 		}
 	}
+	if (enaddr == NULL)
+		enaddr = carpaddr ? carpaddr : (u_char *)IF_LLADDR(ifp);
 
 	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
 		return;
@@ -330,9 +340,7 @@ retry:
 		 */
 		if (!(la->la_flags & LLE_STATIC) &&
 		    time_uptime + la->la_preempt > la->la_expire) {
-			arprequest(ifp, NULL,
-			    &SIN(dst)->sin_addr, IF_LLADDR(ifp));
-
+			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
 			la->la_preempt--;
 		}
 		
@@ -408,8 +416,7 @@ retry:
 			LLE_REMREF(la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
-		arprequest(ifp, NULL, &SIN(dst)->sin_addr,
-		    IF_LLADDR(ifp));
+		arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
 		return (error);
 	}
 done:
@@ -608,17 +615,17 @@ in_arpinput(struct mbuf *m)
 	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (ifa->ifa_carp == NULL ||
 		    (*carp_iamatch_p)(ifa, &enaddr))) {
 			ia = ifatoia(ifa);
 			ifa_ref(ifa);
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto match;
 		}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	/*
 	 * If bridging, fall back to using any inet address.

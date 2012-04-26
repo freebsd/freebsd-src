@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig_250.h,v 1.25 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: tsig_250.h,v 1.25 2007/06/19 23:47:17 tbox Exp $ */
 
 #ifndef ANY_255_TSIG_250_H
 #define ANY_255_TSIG_250_H 1

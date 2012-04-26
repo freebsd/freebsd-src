@@ -564,8 +564,6 @@ static void	mremote_clientchg(int add);
 static int	kidspad(u_char rxc, mousestatus_t *act);
 static int	gtco_digipad(u_char, mousestatus_t *);
 
-static int	usbmodule(void);
-
 int
 main(int argc, char *argv[])
 {
@@ -880,8 +878,7 @@ main(int argc, char *argv[])
 
     retry = 1;
     if (strncmp(rodent.portname, "/dev/ums", 8) == 0) {
-	if (usbmodule() != 0)
-	    retry = 5;
+	retry = 5;
     }
 
     for (;;) {
@@ -951,12 +948,6 @@ main(int argc, char *argv[])
     /* NOT REACHED */
 
     exit(0);
-}
-
-static int
-usbmodule(void)
-{
-    return (kld_isloaded("uhub/ums") || kld_load("ums") != -1);
 }
 
 /*
@@ -3242,7 +3233,7 @@ kidspad(u_char rxc, mousestatus_t *act)
     static int buf[5];
     static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1;
     static k_status status = S_IDLE;
-    static struct timespec old, now;
+    static struct timespec now;
 
     int x, y;
 
@@ -3280,7 +3271,6 @@ kidspad(u_char rxc, mousestatus_t *act)
 	x_prev = x;
 	y_prev = y;
     }
-    old = now;
     act->dx = x - x_prev;
     act->dy = y - y_prev;
     if (act->dx || act->dy)

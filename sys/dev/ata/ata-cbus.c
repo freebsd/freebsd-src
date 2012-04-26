@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2002 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -248,7 +248,7 @@ static device_method_t ata_cbus_methods[] = {
     DEVMETHOD(bus_setup_intr,           ata_cbus_setup_intr),
     DEVMETHOD(bus_print_child,          ata_cbus_print_child),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_cbus_driver = {
@@ -339,11 +339,14 @@ static int
 ata_cbuschannel_banking(device_t dev, int flags)
 {
     struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
+#ifndef ATA_CAM
     struct ata_channel *ch = device_get_softc(dev);
+#endif
     int res;
 
     mtx_lock(&ctlr->bank_mtx);
     switch (flags) {
+#ifndef ATA_CAM
     case ATA_LF_LOCK:
 	if (ctlr->locked_bank == -1)
 	    ctlr->locked_bank = ch->unit;
@@ -368,6 +371,7 @@ ata_cbuschannel_banking(device_t dev, int flags)
 	    }
 	}
 	break;
+#endif
 
     case ATA_LF_WHICH:
 	break;
@@ -385,9 +389,11 @@ static device_method_t ata_cbuschannel_methods[] = {
     DEVMETHOD(device_suspend,   ata_cbuschannel_suspend),
     DEVMETHOD(device_resume,    ata_cbuschannel_resume),
 
+#ifndef ATA_CAM
     /* ATA methods */
     DEVMETHOD(ata_locking,      ata_cbuschannel_banking),
-    { 0, 0 }
+#endif
+    DEVMETHOD_END
 };
 
 static driver_t ata_cbuschannel_driver = {
@@ -396,5 +402,5 @@ static driver_t ata_cbuschannel_driver = {
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atacbus, ata_cbuschannel_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, atacbus, ata_cbuschannel_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);

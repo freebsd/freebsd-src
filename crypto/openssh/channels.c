@@ -824,7 +824,7 @@ channel_tcpwinsz(void)
 	u_int maxlen;
 
 	/* If we are not on a socket return 128KB. */
-	if (!packet_connection_is_on_socket()) 
+	if (!packet_connection_is_on_socket())
 		return (128 * 1024);
 
 	tcpwinsz = 0;
@@ -854,7 +854,7 @@ channel_pre_open(Channel *c, fd_set *readset, fd_set *writeset)
 
 	limit = MIN(compat20 ? c->remote_window : packet_get_maxsize(),
 	    2 * c->tcpwinsz);
-	
+
 	if (c->istate == CHAN_INPUT_OPEN &&
 	    limit > 0 &&
 	    buffer_len(&c->input) < limit &&
@@ -2687,10 +2687,10 @@ channel_set_af(int af)
 	IPv4or6 = af;
 }
 
-void 
+void
 channel_set_hpn(int disabled, u_int buf_size)
 {
-      	hpn_disabled = disabled;
+	hpn_disabled = disabled;
 	buffer_size = buf_size;
 	debug("HPN Disabled: %d, HPN Buffer Size: %d",
 	    hpn_disabled, buffer_size);
@@ -2856,10 +2856,10 @@ channel_setup_fwd_listener(int type, const char *listen_addr,
 			c = channel_new("port listener", type, sock, sock, -1,
 			    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
 			    0, "port listener", 1);
- 		else
- 			c = channel_new("port listener", type, sock, sock, -1,
- 		    	    buffer_size, CHAN_TCP_PACKET_DEFAULT,
- 		    	    0, "port listener", 1);
+		else
+			c = channel_new("port listener", type, sock, sock, -1,
+			    buffer_size, CHAN_TCP_PACKET_DEFAULT,
+			    0, "port listener", 1);
 		c->path = xstrdup(host);
 		c->host_port = port_to_connect;
 		c->listening_port = listen_port;

@@ -85,11 +85,21 @@ typedef struct {
 #define	_RUNE_MAGIC_1	"RuneMagi"	/* Indicates version 0 of RuneLocale */
 __BEGIN_DECLS
 extern const _RuneLocale _DefaultRuneLocale;
-__attribute__((deprecated))
-extern _RuneLocale *_CurrentRuneLocale;
-/* TODO: This is called quite a lot, so we should use a __thread variable when
- * it's available. */
-extern _RuneLocale *__getCurrentRuneLocale(void);
+extern const _RuneLocale *_CurrentRuneLocale;
+#if defined(__NO_TLS) || defined(__RUNETYPE_INTERNAL)
+extern const _RuneLocale *__getCurrentRuneLocale(void);
+#else
+extern _Thread_local const _RuneLocale *_ThreadRuneLocale;
+static __inline const _RuneLocale *__getCurrentRuneLocale(void)
+{
+
+	if (_ThreadRuneLocale) 
+		return _ThreadRuneLocale;
+	if (_CurrentRuneLocale) 
+		return _CurrentRuneLocale;
+	return &_DefaultRuneLocale;
+}
+#endif /* __NO_TLS || __RUNETYPE_INTERNAL */
 #define _CurrentRuneLocale (__getCurrentRuneLocale())
 __END_DECLS
 

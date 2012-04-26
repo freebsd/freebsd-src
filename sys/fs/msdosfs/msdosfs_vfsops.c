@@ -149,13 +149,13 @@ update_mp(struct mount *mp, struct thread *td)
 		}
 	}
 
-	if (1 == vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v) == 1)
 		pmp->pm_gid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v) == 1)
 		pmp->pm_uid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "mask", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "mask", "%d", &v) == 1)
 		pmp->pm_mask = v & ALLPERMS;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "dirmask", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "dirmask", "%d", &v) == 1)
 		pmp->pm_dirmask = v & ALLPERMS;
 	vfs_flagopt(mp->mnt_optnew, "shortname",
 	    &pmp->pm_flags, MSDOSFSMNT_SHORTNAME);
@@ -197,7 +197,7 @@ update_mp(struct mount *mp, struct thread *td)
 }
 
 static int
-msdosfs_cmount(struct mntarg *ma, void *data, int flags)
+msdosfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct msdosfs_args args;
 	struct export_args exp;
@@ -401,6 +401,8 @@ msdosfs_mount(struct mount *mp)
 		return error;
 	}
 
+	if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
+		devvp->v_rdev->si_mountpt = mp;
 	vfs_mountedfrom(mp, from);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_mount(): mp %p, pmp %p, inusemap %p\n", mp, pmp, pmp->pm_inusemap);
@@ -832,7 +834,7 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 		vn_printf(vp,
 		    "msdosfs_umount(): just before calling VOP_CLOSE()\n");
 		printf("freef %p, freeb %p, mount %p\n",
-		    TAILQ_NEXT(vp, v_freelist), vp->v_freelist.tqe_prev,
+		    TAILQ_NEXT(vp, v_actfreelist), vp->v_actfreelist.tqe_prev,
 		    vp->v_mount);
 		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %ld, type %d\n",
 		    TAILQ_FIRST(&vp->v_bufobj.bo_clean.bv_hd),
@@ -843,6 +845,8 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	}
 #endif
 	DROP_GIANT();
+	if (pmp->pm_devvp->v_type == VCHR && pmp->pm_devvp->v_rdev != NULL)
+		pmp->pm_devvp->v_rdev->si_mountpt = NULL;
 	g_topology_lock();
 	g_vfs_close(pmp->pm_cp);
 	g_topology_unlock();
@@ -919,27 +923,22 @@ msdosfs_sync(struct mount *mp, int waitfor)
 	/*
 	 * Write back each (modified) denode.
 	 */
-	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
-		VI_LOCK(vp);
-		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED)) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
+		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		dep = VTODE(vp);
 		if ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
 		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY)) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -949,9 +948,7 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 
 	/*
 	 * Flush filesystem control info.

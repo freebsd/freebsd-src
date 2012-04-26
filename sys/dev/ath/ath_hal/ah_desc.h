@@ -23,6 +23,19 @@
 #include "opt_ah.h"		/* NB: required for AH_SUPPORT_AR5416 */
 
 /*
+ * For now, define this for the structure definitions.
+ * Because of how the HAL / driver module currently builds,
+ * it's not very feasible to build the module without
+ * this defined.  The rest of the code (eg in the driver
+ * body) can work fine with these fields being uninitialised;
+ * they'll be initialised to 0 anyway.
+ */
+
+#ifndef	AH_SUPPORT_AR5416
+#define	AH_SUPPORT_AR5416	1
+#endif
+
+/*
  * Transmit descriptor status.  This structure is filled
  * in only after the tx descriptor process method finds a
  * ``done'' descriptor; at which point it returns something

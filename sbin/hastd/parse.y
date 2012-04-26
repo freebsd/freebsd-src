@@ -85,7 +85,7 @@ isitme(const char *name)
 	size_t bufsize;
 
 	/*
-	 * First check if the give name matches our full hostname.
+	 * First check if the given name matches our full hostname.
 	 */
 	if (gethostname(buf, sizeof(buf)) < 0) {
 		pjdlog_errno(LOG_ERR, "gethostname() failed");
@@ -369,8 +369,8 @@ yy_config_free(struct hastd_config *config)
 }
 %}
 
-%token CONTROL PIDFILE LISTEN PORT REPLICATION CHECKSUM COMPRESSION METAFLUSH
-%token TIMEOUT EXEC EXTENTSIZE RESOURCE NAME LOCAL REMOTE SOURCE ON OFF
+%token CONTROL PIDFILE LISTEN REPLICATION CHECKSUM COMPRESSION METAFLUSH
+%token TIMEOUT EXEC RESOURCE NAME LOCAL REMOTE SOURCE ON OFF
 %token FULLSYNC MEMSYNC ASYNC NONE CRC32 SHA256 HOLE LZF
 %token NUM STR OB CB
 
@@ -812,6 +812,7 @@ resource_start:	STR
 		    sizeof(curres->hr_name)) >=
 		    sizeof(curres->hr_name)) {
 			pjdlog_error("Resource name is too long.");
+			free(curres);
 			free($1);
 			return (1);
 		}

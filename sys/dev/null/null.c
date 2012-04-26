@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/disk.h>
 #include <sys/bus.h>
+#include <sys/filio.h>
 
 #include <machine/bus.h>
 #include <machine/vmparam.h>
@@ -49,6 +50,7 @@ static struct cdev *zero_dev;
 
 static d_write_t null_write;
 static d_ioctl_t null_ioctl;
+static d_ioctl_t zero_ioctl;
 static d_read_t zero_read;
 
 static struct cdevsw null_cdevsw = {
@@ -63,6 +65,7 @@ static struct cdevsw zero_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_read =	zero_read,
 	.d_write =	null_write,
+	.d_ioctl =	zero_ioctl,
 	.d_name =	"zero",
 	.d_flags =	D_MMAP_ANON,
 };
@@ -82,14 +85,47 @@ null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
     int flags __unused, struct thread *td)
 {
 	int error;
+	error = 0;
 
-	if (cmd != DIOCSKERNELDUMP)
-		return (ENOIOCTL);
-	error = priv_check(td, PRIV_SETDUMPER);
-	if (error)
-		return (error);
-	return (set_dumper(NULL));
+	switch (cmd) {
+	case DIOCSKERNELDUMP:
+		error = priv_check(td, PRIV_SETDUMPER);
+		if (error == 0)
+			error = set_dumper(NULL);
+		break;
+	case FIONBIO:
+		break;
+	case FIOASYNC:
+		if (*(int *)data != 0)
+			error = EINVAL;
+		break;
+	default:
+		error = ENOIOCTL;
+	}
+	return (error);
 }
+
+/* ARGSUSED */
+static int
+zero_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
+	   int flags __unused, struct thread *td)
+{
+	int error;
+	error = 0;
+
+	switch (cmd) {
+	case FIONBIO:
+		break;
+	case FIOASYNC:
+		if (*(int *)data != 0)
+			error = EINVAL;
+		break;
+	default:
+		error = ENOIOCTL;
+	}
+	return (error);
+}
+
 
 /* ARGSUSED */
 static int

@@ -520,7 +520,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "udpinp", &lock_class_rw },
 	{ "in_multi_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_mtx", &lock_class_mtx_sleep },
+	{ "if_addr_lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*
 	 * IPv6 multicast:
@@ -529,7 +529,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "udpinp", &lock_class_rw },
 	{ "in6_multi_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_mtx", &lock_class_mtx_sleep },
+	{ "if_addr_lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets
@@ -563,8 +563,8 @@ static struct witness_order_list_entry order_lists[] = {
 	 * BPF
 	 */
 	{ "bpf global lock", &lock_class_mtx_sleep },
-	{ "bpf interface lock", &lock_class_mtx_sleep },
-	{ "bpf cdev lock", &lock_class_mtx_sleep },
+	{ "bpf interface lock", &lock_class_rw },
+	{ "bpf cdev lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*
 	 * NFS server

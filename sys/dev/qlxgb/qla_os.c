@@ -660,7 +660,6 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = (1 * 1000 * 1000 *1000);
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;
@@ -678,7 +677,6 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ifp->if_capabilities = IFCAP_HWCSUM |
 				IFCAP_TSO4 |
-				IFCAP_TSO6 |
 				IFCAP_JUMBO_MTU;
 
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
@@ -760,7 +758,7 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 	int mcnt = 0;
 	struct ifnet *ifp = ha->ifp;
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
@@ -776,7 +774,7 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 		mcnt++;
 	}
 
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	qla_hw_set_multi(ha, mta, mcnt, add_multi);
 

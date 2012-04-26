@@ -64,13 +64,24 @@ extern const fenv_t	__fe_dfl_env;
 #define _FPUSW_SHIFT	16
 #define	_ENABLE_MASK	(FE_ALL_EXCEPT << _FPUSW_SHIFT)
 
-#ifdef	ARM_HARD_FLOAT
+#ifndef	ARM_HARD_FLOAT
+
+int feclearexcept(int __excepts);
+int fegetexceptflag(fexcept_t *__flagp, int __excepts);
+int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
+int feraiseexcept(int __excepts);
+int fetestexcept(int __excepts);
+int fegetround(void);
+int fesetround(int __round);
+int fegetenv(fenv_t *__envp);
+int feholdexcept(fenv_t *__envp);
+int fesetenv(const fenv_t *__envp);
+int feupdateenv(const fenv_t *__envp);
+
+#else	/* ARM_HARD_FLOAT */
+
 #define	__rfs(__fpsr)	__asm __volatile("rfs %0" : "=r" (*(__fpsr)))
 #define	__wfs(__fpsr)	__asm __volatile("wfs %0" : : "r" (__fpsr))
-#else
-#define __rfs(__fpsr)
-#define __wfs(__fpsr)
-#endif
 
 __fenv_static inline int
 feclearexcept(int __excepts)
@@ -217,6 +228,8 @@ fegetexcept(void)
 }
 
 #endif /* __BSD_VISIBLE */
+
+#endif	/* ARM_HARD_FLOAT */
 
 __END_DECLS
 

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnsconf.h,v 1.3 2009-09-02 23:48:02 tbox Exp $ */
+/* $Id: dnsconf.h,v 1.3 2009/09/02 23:48:02 tbox Exp $ */
 
 #ifndef IRS_DNSCONF_H
 #define IRS_DNSCONF_H 1

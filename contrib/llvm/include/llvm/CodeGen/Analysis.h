@@ -27,6 +27,7 @@ namespace llvm {
 class GlobalVariable;
 class TargetLowering;
 class SDNode;
+class SDValue;
 class SelectionDAG;
 
 /// ComputeLinearIndex - Given an LLVM IR aggregate type and a sequence
@@ -70,6 +71,10 @@ bool hasInlineAsmMemConstraint(InlineAsm::ConstraintInfoVector &CInfos,
 ///
 ISD::CondCode getFCmpCondCode(FCmpInst::Predicate Pred);
 
+/// getFCmpCodeWithoutNaN - Given an ISD condition code comparing floats,
+/// return the equivalent code if we're allowed to assume that NaNs won't occur.
+ISD::CondCode getFCmpCodeWithoutNaN(ISD::CondCode CC);
+
 /// getICmpCondCode - Return the ISD condition code corresponding to
 /// the given LLVM IR integer condition code.
 ///
@@ -85,7 +90,7 @@ bool isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
                           const TargetLowering &TLI);
 
 bool isInTailCallPosition(SelectionDAG &DAG, SDNode *Node,
-                          const TargetLowering &TLI);
+                          SDValue &Chain, const TargetLowering &TLI);
 
 } // End llvm namespace
 

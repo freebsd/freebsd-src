@@ -381,8 +381,8 @@ initarm(void *arg, void *arg2)
 	
 	i = 0;
 #ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[i++] = 0x00000000;
-	phys_avail[i++] = 0x00001000; 	/*
+	phys_avail[i++] = 0x00001000;
+	phys_avail[i++] = 0x00002000; 	/*
 					 *XXX: Gross hack to get our
 					 * pages in the vm_page_array
 					 . */

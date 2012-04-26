@@ -42,18 +42,86 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
 #include <fs/tmpfs/tmpfs.h>
 #include <fs/tmpfs/tmpfs_fifoops.h>
 #include <fs/tmpfs/tmpfs_vnops.h>
+
+SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW, 0, "tmpfs file system");
+
+static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
+
+static int
+sysctl_mem_reserved(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	long pages, bytes;
+
+	pages = *(long *)arg1;
+	bytes = pages * PAGE_SIZE;
+
+	error = sysctl_handle_long(oidp, &bytes, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	pages = bytes / PAGE_SIZE;
+	if (pages < TMPFS_PAGES_MINRESERVED)
+		return (EINVAL);
+
+	*(long *)arg1 = pages;
+	return (0);
+}
+
+SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_reserved, CTLTYPE_LONG|CTLFLAG_RW,
+    &tmpfs_pages_reserved, 0, sysctl_mem_reserved, "L",
+    "Amount of available memory and swap below which tmpfs growth stops");
+
+size_t
+tmpfs_mem_avail(void)
+{
+	vm_ooffset_t avail;
+
+	avail = swap_pager_avail + cnt.v_free_count + cnt.v_cache_count -
+	    tmpfs_pages_reserved;
+	if (__predict_false(avail < 0))
+		avail = 0;
+	return (avail);
+}
+
+size_t
+tmpfs_pages_used(struct tmpfs_mount *tmp)
+{
+	const size_t node_size = sizeof(struct tmpfs_node) +
+	    sizeof(struct tmpfs_dirent);
+	size_t meta_pages;
+
+	meta_pages = howmany((uintmax_t)tmp->tm_nodes_inuse * node_size,
+	    PAGE_SIZE);
+	return (meta_pages + tmp->tm_pages_used);
+}
+
+static size_t
+tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
+{
+	if (tmpfs_mem_avail() < req_pages)
+		return (0);
+
+	if (tmp->tm_pages_max != SIZE_MAX &&
+	    tmp->tm_pages_max < req_pages + tmpfs_pages_used(tmp))
+			return (0);
+
+	return (1);
+}
 
 /* --------------------------------------------------------------------- */
 
@@ -94,6 +162,8 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	MPASS(IFF(type == VBLK || type == VCHR, rdev != VNOVAL));
 
 	if (tmp->tm_nodes_inuse >= tmp->tm_nodes_max)
+		return (ENOSPC);
+	if (tmpfs_pages_check_avail(tmp, 1) == 0)
 		return (ENOSPC);
 
 	nnode = (struct tmpfs_node *)uma_zalloc_arg(
@@ -319,9 +389,11 @@ loop:
 		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
 		VI_LOCK(vp);
 		TMPFS_NODE_UNLOCK(node);
-		vholdl(vp);
-		(void) vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, curthread);
-		vdrop(vp);
+		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
+		if (error != 0) {
+			vp = NULL;
+			goto out;
+		}
 
 		/*
 		 * Make sure the vnode is still there after
@@ -419,11 +491,13 @@ unlock:
 out:
 	*vpp = vp;
 
-	MPASS(IFF(error == 0, *vpp != NULL && VOP_ISLOCKED(*vpp)));
 #ifdef INVARIANTS
-	TMPFS_NODE_LOCK(node);
-	MPASS(*vpp == node->tn_vnode);
-	TMPFS_NODE_UNLOCK(node);
+	if (error == 0) {
+		MPASS(*vpp != NULL && VOP_ISLOCKED(*vpp));
+		TMPFS_NODE_LOCK(node);
+		MPASS(*vpp == node->tn_vnode);
+		TMPFS_NODE_UNLOCK(node);
+	}
 #endif
 
 	return error;
@@ -881,15 +955,15 @@ tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
  * Returns zero on success or an appropriate error code on failure.
  */
 int
-tmpfs_reg_resize(struct vnode *vp, off_t newsize)
+tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 {
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
 	vm_object_t uobj;
-	vm_page_t m;
-	vm_pindex_t newpages, oldpages;
+	vm_page_t m, ma[1];
+	vm_pindex_t idx, newpages, oldpages;
 	off_t oldsize;
-	size_t zerolen;
+	int base, rv;
 
 	MPASS(vp->v_type == VREG);
 	MPASS(newsize >= 0);
@@ -909,17 +983,63 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	MPASS(oldpages == uobj->size);
 	newpages = OFF_TO_IDX(newsize + PAGE_MASK);
 	if (newpages > oldpages &&
-	    newpages - oldpages > TMPFS_PAGES_AVAIL(tmp))
+	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
 
-	TMPFS_LOCK(tmp);
-	tmp->tm_pages_used += (newpages - oldpages);
-	TMPFS_UNLOCK(tmp);
-
-	node->tn_size = newsize;
-	vnode_pager_setsize(vp, newsize);
 	VM_OBJECT_LOCK(uobj);
 	if (newsize < oldsize) {
+		/*
+		 * Zero the truncated part of the last page.
+		 */
+		base = newsize & PAGE_MASK;
+		if (base != 0) {
+			idx = OFF_TO_IDX(newsize);
+retry:
+			m = vm_page_lookup(uobj, idx);
+			if (m != NULL) {
+				if ((m->oflags & VPO_BUSY) != 0 ||
+				    m->busy != 0) {
+					vm_page_sleep(m, "tmfssz");
+					goto retry;
+				}
+				MPASS(m->valid == VM_PAGE_BITS_ALL);
+			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
+				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
+				if (m == NULL) {
+					VM_OBJECT_UNLOCK(uobj);
+					VM_WAIT;
+					VM_OBJECT_LOCK(uobj);
+					goto retry;
+				} else if (m->valid != VM_PAGE_BITS_ALL) {
+					ma[0] = m;
+					rv = vm_pager_get_pages(uobj, ma, 1, 0);
+					m = vm_page_lookup(uobj, idx);
+				} else
+					/* A cached page was reactivated. */
+					rv = VM_PAGER_OK;
+				vm_page_lock(m);
+				if (rv == VM_PAGER_OK) {
+					vm_page_deactivate(m);
+					vm_page_unlock(m);
+					vm_page_wakeup(m);
+				} else {
+					vm_page_free(m);
+					vm_page_unlock(m);
+					if (ignerr)
+						m = NULL;
+					else {
+						VM_OBJECT_UNLOCK(uobj);
+						return (EIO);
+					}
+				}
+			}
+			if (m != NULL) {
+				pmap_zero_page_area(m, base, PAGE_SIZE - base);
+				vm_page_dirty(m);
+				vm_pager_page_unswapped(m);
+			}
+		}
+
 		/*
 		 * Release any swap space and free any whole pages.
 		 */
@@ -928,19 +1048,16 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 			    newpages);
 			vm_object_page_remove(uobj, newpages, 0, 0);
 		}
-
-		/*
-		 * Zero the truncated part of the last page.
-		 */
-		zerolen = round_page(newsize) - newsize;
-		if (zerolen > 0) {
-			m = vm_page_grab(uobj, OFF_TO_IDX(newsize),
-			    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-			pmap_zero_page_area(m, PAGE_SIZE - zerolen, zerolen);
-		}
 	}
 	uobj->size = newpages;
 	VM_OBJECT_UNLOCK(uobj);
+
+	TMPFS_LOCK(tmp);
+	tmp->tm_pages_used += (newpages - oldpages);
+	TMPFS_UNLOCK(tmp);
+
+	node->tn_size = newsize;
+	vnode_pager_setsize(vp, newsize);
 	return (0);
 }
 
@@ -961,6 +1078,11 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
+	if ((flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
+	    UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND |
+	    SF_NOUNLINK)) != 0)
+		return (EOPNOTSUPP);
+
 	/* Disallow this operation if the file system is mounted read-only. */
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return EROFS;
@@ -976,27 +1098,19 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 	 * flags, or modify flags if any system flags are set.
 	 */
 	if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-		if (node->tn_flags
-		  & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+		if (node->tn_flags &
+		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 			error = securelevel_gt(cred, 0);
 			if (error)
 				return (error);
 		}
-		/* Snapshot flag cannot be set or cleared */
-		if (((flags & SF_SNAPSHOT) != 0 &&
-		  (node->tn_flags & SF_SNAPSHOT) == 0) ||
-		  ((flags & SF_SNAPSHOT) == 0 &&
-		  (node->tn_flags & SF_SNAPSHOT) != 0))
-			return (EPERM);
-		node->tn_flags = flags;
 	} else {
-		if (node->tn_flags
-		  & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-		  (flags & UF_SETTABLE) != flags)
+		if (node->tn_flags &
+		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
+		    ((flags ^ node->tn_flags) & SF_SETTABLE))
 			return (EPERM);
-		node->tn_flags &= SF_SETTABLE;
-		node->tn_flags |= (flags & UF_SETTABLE);
 	}
+	node->tn_flags = flags;
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
 	MPASS(VOP_ISLOCKED(vp));
@@ -1311,7 +1425,7 @@ tmpfs_truncate(struct vnode *vp, off_t length)
 	if (length > VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
-	error = tmpfs_reg_resize(vp, length);
+	error = tmpfs_reg_resize(vp, length, FALSE);
 	if (error == 0) {
 		node->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
 	}

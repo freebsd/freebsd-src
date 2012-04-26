@@ -1,7 +1,7 @@
 #! /usr/pkg/bin/perl
 # -*- mode: perl; perl-indent-level: 8 -*-
 # 
-# Copyright (c) 2003 Kungliga Tekniska Högskolan
+# Copyright (c) 2003 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 # 
@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: kdc-log-analyze.pl 17173 2006-04-23 13:19:21Z lha $
+# $Id$
 #
 # kdc-log-analyze - Analyze a KDC log file and give a report on the contents
 #

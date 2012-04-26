@@ -45,10 +45,11 @@ find_kernel()
 		nextline=1
 		next
 	}
-	// {
-		if (nextline) {
-			print
+	nextline==1 {
+		if ($0 ~ "^  [A-Za-z ]+: ") {
 			nextline=0
+		} else {
+			print
 		}
 	}' $INFO)
 

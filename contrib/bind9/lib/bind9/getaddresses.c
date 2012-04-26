@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddresses.c,v 1.22 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: getaddresses.c,v 1.22 2007/06/19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

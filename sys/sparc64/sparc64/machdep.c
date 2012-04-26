@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cache.h>
-#include <machine/clock.h>
 #include <machine/cmt.h>
 #include <machine/cpu.h>
 #include <machine/fireplane.h>
@@ -197,6 +196,13 @@ cpu_startup(void *arg)
 		printf("machine: %s\n", sparc64_model);
 
 	cpu_identify(rdpr(ver), PCPU_GET(clock), curcpu);
+
+#ifdef SMP
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
+#endif
 }
 
 void
@@ -376,7 +382,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
-	 * console is inited so cninit gets the right value of boothowto.
+	 * console is inited so cninit() gets the right value of boothowto.
 	 */
 	if (mdp != NULL) {
 		preload_metadata = mdp;
@@ -421,37 +427,19 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	root = OF_peer(0);
 	pc->pc_node = find_bsp(root, pc->pc_mid, cpu_impl);
 	if (pc->pc_node == 0)
-		OF_exit();
+		OF_panic("%s: cannot find boot CPU node", __func__);
 	if (OF_getprop(pc->pc_node, "clock-frequency", &pc->pc_clock,
 	    sizeof(pc->pc_clock)) <= 0)
-		OF_exit();
-
-	/*
-	 * Provide a DELAY() that works before PCPU_REG is set.  We can't
-	 * set PCPU_REG without also taking over the trap table or the
-	 * firmware will overwrite it.  Unfortunately, it's way to early
-	 * to also take over the trap table at this point.
-	 */
-	clock_boot = pc->pc_clock;
-	delay_func = delay_boot;
-
-	/*
-	 * Initialize the console before printing anything.
-	 * NB: the low-level console drivers require a working DELAY() at
-	 * this point.
-	 */
-	cninit();
+		OF_panic("%s: cannot determine boot CPU clock", __func__);
 
 	/*
 	 * Panic if there is no metadata.  Most likely the kernel was booted
 	 * directly, instead of through loader(8).
 	 */
 	if (mdp == NULL || kmdp == NULL || end == 0 ||
-	    kernel_tlb_slots == 0 || kernel_tlbs == NULL) {
-		printf("sparc64_init: missing loader metadata.\n"
-		    "This probably means you are not using loader(8).\n");
-		panic("sparc64_init");
-	}
+	    kernel_tlb_slots == 0 || kernel_tlbs == NULL)
+		OF_panic("%s: missing loader metadata.\nThis probably means "
+		    "you are not using loader(8).", __func__);
 
 	/*
 	 * Work around the broken loader behavior of not demapping no
@@ -461,7 +449,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	for (va = KERNBASE + (kernel_tlb_slots - 1) * PAGE_SIZE_4M;
 	    va >= roundup2(end, PAGE_SIZE_4M); va -= PAGE_SIZE_4M) {
 		if (bootverbose)
-			printf("demapping unused kernel TLB slot "
+			OF_printf("demapping unused kernel TLB slot "
 			    "(va %#lx - %#lx)\n", va, va + PAGE_SIZE_4M - 1);
 		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
 		    ASI_DMMU_DEMAP, 0);
@@ -479,13 +467,15 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
 	    sizeof(dtlb_slots)) == -1)
-		panic("sparc64_init: cannot determine number of dTLB slots");
+		OF_panic("%s: cannot determine number of dTLB slots",
+		    __func__);
 	if (OF_getprop(pc->pc_node, "#itlb-entries", &itlb_slots,
 	    sizeof(itlb_slots)) == -1)
-		panic("sparc64_init: cannot determine number of iTLB slots");
+		OF_panic("%s: cannot determine number of iTLB slots",
+		    __func__);
 
 	/*
-	 * Initialize and enable the caches.  Note that his may include
+	 * Initialize and enable the caches.  Note that this may include
 	 * applying workarounds.
 	 */
 	cache_init(pc);
@@ -573,9 +563,13 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	sun4u_set_traptable(tl0_base);
 
 	/*
-	 * It's now safe to use the real DELAY().
+	 * Initialize the console.
+	 * NB: the low-level console drivers require a working DELAY() and
+	 * some compiler optimizations may cause the curthread accesses of
+	 * mutex(9) to be factored out even if the latter aren't actually
+	 * called, both requiring PCPU_REG to be set.
 	 */
-	delay_func = delay_tick;
+	cninit();
 
 	/*
 	 * Initialize the dynamic per-CPU area for the BSP and the message

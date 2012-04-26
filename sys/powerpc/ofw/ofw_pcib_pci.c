@@ -56,31 +56,10 @@ static int	ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev,
 static device_method_t ofw_pcib_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ofw_pcib_pci_probe),
-	DEVMETHOD(device_attach,		ofw_pcib_pci_attach),
-	DEVMETHOD(device_shutdown,		bus_generic_shutdown),
-	DEVMETHOD(device_suspend,		bus_generic_suspend),
-	DEVMETHOD(device_resume,		bus_generic_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,		pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, 	bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(device_attach,	ofw_pcib_pci_attach),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,		pcib_maxslots),
-	DEVMETHOD(pcib_read_config,		pcib_read_config),
-	DEVMETHOD(pcib_write_config,	pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_pci_route_interrupt),
-	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
-	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
-	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
-	DEVMETHOD(pcib_map_msi,		pcib_map_msi),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_pci_get_node),
@@ -101,8 +80,8 @@ struct ofw_pcib_softc {
         struct ofw_bus_iinfo    ops_iinfo;
 };
 
-DEFINE_CLASS_0(pcib, ofw_pcib_pci_driver, ofw_pcib_pci_methods,
-    sizeof(struct ofw_pcib_softc));
+DEFINE_CLASS_1(pcib, ofw_pcib_pci_driver, ofw_pcib_pci_methods,
+    sizeof(struct ofw_pcib_softc), pcib_driver);
 DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_pci_driver, pcib_devclass, 0, 0);
 
 static int
@@ -114,7 +93,7 @@ ofw_pcib_pci_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 
 	device_set_desc(dev, "OFW PCI-PCI bridge");

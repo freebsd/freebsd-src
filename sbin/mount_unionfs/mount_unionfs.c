@@ -176,8 +176,10 @@ main(int argc, char *argv[])
 		usage();
 
 	/* resolve both target and source with realpath(3) */
-	(void)checkpath(argv[0], target);
-	(void)checkpath(argv[1], source);
+	if (checkpath(argv[0], target) != 0)
+		err(EX_USAGE, "%s", target);
+	if (checkpath(argv[1], source) != 0)
+		err(EX_USAGE, "%s", source);
 
 	if (subdir(target, source) || subdir(source, target))
 		errx(EX_USAGE, "%s (%s) and %s (%s) are not distinct paths",

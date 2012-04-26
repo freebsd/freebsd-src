@@ -101,6 +101,8 @@ radarset(struct radarhandler *radar, int op, u_int32_t param)
 	pe.pe_enmaxrssi = HAL_PHYERR_PARAM_NOVAL;
 
 	pe.pe_extchannel = HAL_PHYERR_PARAM_NOVAL;
+	pe.pe_enrelpwr = HAL_PHYERR_PARAM_NOVAL;
+	pe.pe_en_relstep_check = HAL_PHYERR_PARAM_NOVAL;
 
 	switch (op) {
 	case DFS_PARAM_ENABLE:
@@ -142,7 +144,14 @@ radarset(struct radarhandler *radar, int op, u_int32_t param)
 	case DFS_PARAM_EN_EXTCH:
 		pe.pe_extchannel = param;
 		break;
+	case DFS_PARAM_RELPWR_EN:
+		pe.pe_enrelpwr = param;
+		break;
+	case DFS_PARAM_RELSTEP_EN:
+		pe.pe_en_relstep_check = param;
+		break;
 	}
+
 	radar->atd.ad_id = DFS_SET_THRESH | ATH_DIAG_IN;
 	radar->atd.ad_out_data = NULL;
 	radar->atd.ad_out_size = 0;
@@ -182,16 +191,21 @@ radar_get(struct radarhandler *radar)
 	printf("    pe_blockradar: %d\n", pe.pe_blockradar);
 	printf("    pe_enmaxrssi: %d\n", pe.pe_enmaxrssi);
 	printf("    pe_extchannel: %d\n", pe.pe_extchannel);
+	printf("    pe_enrelpwr: %d\n", pe.pe_enrelpwr);
+	printf("    pe_en_relstep_check: %d\n", pe.pe_en_relstep_check);
 }
 
 static int
-radar_set_param(struct radarhandler *radar, const char *param, const char *val)
+radar_set_param(struct radarhandler *radar, const char *param,
+    const char *val)
 {
 	int v;
 
 	v = atoi(val);
 
-	if (strcmp(param, "firpwr") == 0) {
+	if (strcmp(param, "enabled") == 0) {
+		radarset(radar, DFS_PARAM_ENABLE, v);
+	} else if (strcmp(param, "firpwr") == 0) {
 		radarset(radar, DFS_PARAM_FIRPWR, v);
 	} else if (strcmp(param, "rrssi") == 0) {
 		radarset(radar, DFS_PARAM_RRSSI, v);
@@ -207,8 +221,18 @@ radar_set_param(struct radarhandler *radar, const char *param, const char *val)
 		radarset(radar, DFS_PARAM_RELSTEP, v);
 	} else if (strcmp(param, "maxlen") == 0) {
 		radarset(radar, DFS_PARAM_MAXLEN, v);
+	} else if (strcmp(param, "usefir128") == 0) {
+		radarset(radar, DFS_PARAM_USEFIR128, v);
+	} else if (strcmp(param, "blockradar") == 0) {
+		radarset(radar, DFS_PARAM_BLOCKRADAR, v);
+	} else if (strcmp(param, "enmaxrssi") == 0) {
+		radarset(radar, DFS_PARAM_MAXRSSI_EN, v);
 	} else if (strcmp(param, "extchannel") == 0) {
 		radarset(radar, DFS_PARAM_EN_EXTCH, v);
+	} else if (strcmp(param, "enrelpwr") == 0) {
+		radarset(radar, DFS_PARAM_RELPWR_EN, v);
+	} else if (strcmp(param, "en_relstep_check") == 0) {
+		radarset(radar, DFS_PARAM_RELSTEP_EN, v);
 	} else {
 		return 0;
 	}

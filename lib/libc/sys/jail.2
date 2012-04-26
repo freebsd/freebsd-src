@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2009
+.Dd February 8, 2012
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@ system call sets up a jail and locks the current process in it.
 The argument is a pointer to a structure describing the prison:
 .Bd -literal -offset indent
 struct jail {
-	u_int32_t	version;
+	uint32_t	version;
 	char		*path;
 	char		*hostname;
 	char		*jailname;
@@ -334,7 +334,7 @@ flag is not set.
 The jail referred to by a
 .Va jid
 is not accessible by the process, because the process is in a different
-jail. 
+jail.
 .It Bq Er EEXIST
 The jail referred to by a
 .Va jid
@@ -382,7 +382,7 @@ parameter does not exist.
 The jail referred to by a
 .Va jid
 is not accessible by the process, because the process is in a different
-jail. 
+jail.
 .It Bq Er ENOENT
 The
 .Va lastjid
@@ -400,6 +400,8 @@ and
 system calls
 will fail if:
 .Bl -tag -width Er
+.It Bq Er EPERM
+A user other than the super-user attempted to attach to or remove a jail.
 .It Bq Er EINVAL
 The jail specified by
 .Fa jid

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,7 +82,6 @@ static int ata_via_sata_status(device_t dev);
 #define VIAAHCI         0x08
 #define VIASATA         0x10
 
-
 /*
  * VIA Technologies Inc. chipset support functions
  */
@@ -90,7 +89,7 @@ static int
 ata_via_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_VIA82C586, 0x02, VIA33,  0x00,    ATA_UDMA2, "82C586B" },
      { ATA_VIA82C586, 0x00, VIA33,  0x00,    ATA_WDMA2, "82C586" },
      { ATA_VIA82C596, 0x12, VIA66,  VIACLK,  ATA_UDMA4, "82C596B" },
@@ -114,7 +113,7 @@ ata_via_probe(device_t dev)
      { ATA_VIAVX855,  0x00, VIA133, 0x00,    ATA_UDMA6, "VX855" },
      { ATA_VIAVX900,  0x00, VIA133, VIASATA, ATA_SA300, "VX900" },
      { 0, 0, 0, 0, 0, 0 }};
-    static struct ata_chip_id new_ids[] =
+    static const struct ata_chip_id const new_ids[] =
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
      { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "6420" },
      { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "6421" },
@@ -328,8 +327,10 @@ ata_via_new_setmode(device_t dev, int target, int mode)
 
 	if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1)) {
 	    int piomode;
-    	    u_int8_t pio_timings[] = { 0xa8, 0x65, 0x65, 0x32, 0x20 };
-	    u_int8_t dma_timings[] = { 0xee, 0xe8, 0xe6, 0xe4, 0xe2, 0xe1, 0xe0 };
+    	    static const uint8_t pio_timings[] =
+		{ 0xa8, 0x65, 0x65, 0x32, 0x20 };
+	    static const uint8_t dma_timings[] =
+		{ 0xee, 0xe8, 0xe6, 0xe4, 0xe2, 0xe1, 0xe0 };
 
 	    /* This chip can't do WDMA. */
 	    if (mode >= ATA_WDMA0 && mode < ATA_UDMA0)
@@ -355,8 +356,9 @@ ata_via_old_setmode(device_t dev, int target, int mode)
 	int devno = (ch->unit << 1) + target;
 	int reg = 0x53 - devno;
 	int piomode;
-	uint8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
-	uint8_t modes[][7] = {
+	static const uint8_t timings[] =
+	    { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
+	static const uint8_t modes[][7] = {
 	    { 0xc2, 0xc1, 0xc0, 0x00, 0x00, 0x00, 0x00 },   /* VIA ATA33 */
 	    { 0xee, 0xec, 0xea, 0xe9, 0xe8, 0x00, 0x00 },   /* VIA ATA66 */
 	    { 0xf7, 0xf6, 0xf4, 0xf2, 0xf1, 0xf0, 0x00 },   /* VIA ATA100 */

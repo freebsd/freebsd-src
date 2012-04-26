@@ -819,7 +819,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		if (sc->sc_flags & SCF_TIMESTAMP) {
 			tp->t_flags |= TF_REQ_TSTMP|TF_RCVD_TSTMP;
 			tp->ts_recent = sc->sc_tsreflect;
-			tp->ts_recent_age = ticks;
+			tp->ts_recent_age = tcp_ts_getticks();
 			tp->ts_offset = sc->sc_tsoff;
 		}
 #ifdef TCP_SIGNATURE
@@ -845,7 +845,15 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 */
 	if (sc->sc_rxmits > 1)
 		tp->snd_cwnd = tp->t_maxseg;
-	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
+
+	/*
+	 * Copy and activate timers.
+	 */
+	tp->t_keepinit = sototcpcb(lso)->t_keepinit;
+	tp->t_keepidle = sototcpcb(lso)->t_keepidle;
+	tp->t_keepintvl = sototcpcb(lso)->t_keepintvl;
+	tp->t_keepcnt = sototcpcb(lso)->t_keepcnt;
+	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
 	INP_WUNLOCK(inp);
 
@@ -1218,7 +1226,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (to->to_flags & TOF_TS) {
 			sc->sc_tsreflect = to->to_tsval;
-			sc->sc_ts = ticks;
+			sc->sc_ts = tcp_ts_getticks();
 			sc->sc_flags |= SCF_TIMESTAMP;
 		}
 		if (to->to_flags & TOF_SCALE) {
@@ -1659,7 +1667,7 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc,
 		data |= md5_buffer[2] << 10;		/* more digest bits */
 		data ^= md5_buffer[3];
 		sc->sc_ts = data;
-		sc->sc_tsoff = data - ticks;		/* after XOR */
+		sc->sc_tsoff = data - tcp_ts_getticks();	/* after XOR */
 	}
 
 	TCPSTAT_INC(tcps_sc_sendcookie);
@@ -1744,7 +1752,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 		sc->sc_flags |= SCF_TIMESTAMP;
 		sc->sc_tsreflect = to->to_tsval;
 		sc->sc_ts = to->to_tsecr;
-		sc->sc_tsoff = to->to_tsecr - ticks;
+		sc->sc_tsoff = to->to_tsecr - tcp_ts_getticks();
 		sc->sc_flags |= (data & 0x1) ? SCF_SIGNATURE : 0;
 		sc->sc_flags |= ((data >> 1) & 0x1) ? SCF_SACK : 0;
 		sc->sc_requested_s_scale = min((data >> 2) & 0xf,

@@ -29,7 +29,7 @@ __future_error_category::name() const _NOEXCEPT
 string
 __future_error_category::message(int ev) const
 {
-    switch (ev)
+    switch (static_cast<future_errc>(ev))
     {
     case future_errc::broken_promise:
         return string("The associated promise has been destructed prior "
@@ -152,9 +152,9 @@ __assoc_sub_state::__sub_wait(unique_lock<mutex>& __lk)
 {
     if (!__is_ready())
     {
-        if (__state_ & deferred)
+        if (__state_ & static_cast<unsigned>(deferred))
         {
-            __state_ &= ~deferred;
+            __state_ &= ~static_cast<unsigned>(deferred);
             __lk.unlock();
             __execute();
         }

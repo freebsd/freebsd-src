@@ -247,16 +247,6 @@ ps3_real_maxaddr(platform_t plat)
 static void
 ps3_cpu_idle(void)
 {
-	static volatile int pausing = 0;
-
-	/*
-	 * XXX: It appears that the PS3 can livelock if both threads
-	 * call lv1_pause(0) simultaneously.
-	 */
-	if (!atomic_cmpset_int(&pausing, 0, 1))
-		return;
-
 	lv1_pause(0);
-	pausing = 0;
 }
 

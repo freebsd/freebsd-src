@@ -219,7 +219,7 @@ read:		xor %ax,%ax
 		jc read_load
 		and $0xff7f,%si		/* SCSI MO */
 		mov %di,%cx
-		shr $16,%di
+		shr $16,%edi
 		mov %di,%dx
 		jmp read_load
 read_fd:	or $0xd000,%si

@@ -129,6 +129,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 
 	/* Misc Functions */
 	ah->ah_getCapability		= ar5416GetCapability;
+	ah->ah_setCapability		= ar5416SetCapability;
 	ah->ah_getDiagState		= ar5416GetDiagState;
 	ah->ah_setLedState		= ar5416SetLedState;
 	ah->ah_gpioCfgOutput		= ar5416GpioCfgOutput;
@@ -580,6 +581,8 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
         AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
         AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK);
 
+    OS_REG_WRITE_BUFFER_ENABLE(ah);
+
     OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4_CHAIN(0), new);
 
     new = (AR_PHY_SPUR_REG_MASK_RATE_CNTL |
@@ -764,6 +767,9 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
           | (mask_p[47] <<  2) | (mask_p[46] <<  0);
     OS_REG_WRITE(ah, AR_PHY_BIN_MASK2_4, tmp_mask);
     OS_REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
+
+    OS_REG_WRITE_BUFFER_FLUSH(ah);
+    OS_REG_WRITE_BUFFER_DISABLE(ah);
 }
 
 /*
@@ -884,6 +890,16 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	/* AR5416 may have 3 antennas but is a 2x2 stream device */
 	pCap->halTxStreams = 2;
 	pCap->halRxStreams = 2;
+
+	/*
+	 * If the TX or RX chainmask has less than 2 chains active,
+	 * mark it as a 1-stream device for the relevant stream.
+	 */
+	if (owl_get_ntxchains(pCap->halTxChainMask) == 1)
+		pCap->halTxStreams = 1;
+	/* XXX Eww */
+	if (owl_get_ntxchains(pCap->halRxChainMask) == 1)
+		pCap->halRxStreams = 1;
 	pCap->halRtsAggrLimit = 8*1024;		/* Owl 2.0 limit */
 	pCap->halMbssidAggrSupport = AH_FALSE;	/* Broken on Owl */
 	pCap->halForcePpmSupport = AH_TRUE;

@@ -221,6 +221,9 @@
 				phy0: ethernet-phy@0 {
 					reg = <0x8>;
 				};
+				phy1: ethernet-phy@1 {
+					reg = <0x9>;
+				};
 			};
 		};
 
@@ -234,17 +237,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <45 46 47 44 70>;
 			interrupt-parent = <&PIC>;
-			phy-handle = <&phy0>;
-
-			mdio@0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "mrvl,mdio";
-
-				phy0: ethernet-phy@0 {
-					reg = <0x9>;
-				};
-			};
+			phy-handle = <&phy1>;
 		};
 
 		serial0: serial@12000 {

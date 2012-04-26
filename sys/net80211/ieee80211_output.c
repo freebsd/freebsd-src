@@ -157,8 +157,10 @@ ieee80211_start(struct ifnet *ifp)
 			    "%s: ignore queue, in %s state\n",
 			    __func__, ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_tx_badstate++;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IEEE80211_UNLOCK(ic);
+			IFQ_LOCK(&ifp->if_snd);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_UNLOCK(&ifp->if_snd);
 			return;
 		}
 		IEEE80211_UNLOCK(ic);
@@ -321,8 +323,8 @@ ieee80211_start(struct ifnet *ifp)
 		if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
 		    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
 		    (m->m_flags & M_EAPOL) == 0) {
-			const int ac = M_WME_GETAC(m);
-			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
+			int tid = WME_AC_TO_TID(M_WME_GETAC(m));
+			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
 
 			ieee80211_txampdu_count_packet(tap);
 			if (IEEE80211_AMPDU_RUNNING(tap)) {
@@ -389,7 +391,9 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	int error;
 
+	IFQ_LOCK(&ifp->if_snd);
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+		IFQ_UNLOCK(&ifp->if_snd);
 		/*
 		 * Short-circuit requests if the vap is marked OACTIVE
 		 * as this can happen because a packet came down through
@@ -400,6 +404,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		 */
 		senderr(ENETDOWN);
 	}
+	IFQ_UNLOCK(&ifp->if_snd);
 	vap = ifp->if_softc;
 	/*
 	 * Hand to the 802.3 code if not tagged as
@@ -584,7 +589,7 @@ ieee80211_send_setup(
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
 
-	tap = &ni->ni_tx_ampdu[TID_TO_WME_AC(tid)];
+	tap = &ni->ni_tx_ampdu[tid];
 	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap))
 		m->m_flags |= M_AMPDU_MPDU;
 	else {
@@ -834,7 +839,7 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		uint32_t flow;
 		uint8_t tos;
 		/*
-		 * IPv6 frame, map the DSCP bits from the TOS field.
+		 * IPv6 frame, map the DSCP bits from the traffic class field.
 		 */
 		m_copydata(m, sizeof(struct ether_header) +
 		    offsetof(struct ip6_hdr, ip6_flow), sizeof(flow),
@@ -1069,9 +1074,11 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * ap's require all data frames to be QoS-encapsulated
 	 * once negotiated in which case we'll need to make this
 	 * configurable.
+	 * NB: mesh data frames are QoS.
 	 */
-	addqos = (ni->ni_flags & (IEEE80211_NODE_QOS|IEEE80211_NODE_HT)) &&
-		 (m->m_flags & M_EAPOL) == 0;
+	addqos = ((ni->ni_flags & (IEEE80211_NODE_QOS|IEEE80211_NODE_HT)) ||
+	    (vap->iv_opmode == IEEE80211_M_MBSS)) &&
+	    (m->m_flags & M_EAPOL) == 0;
 	if (addqos)
 		hdrsize = sizeof(struct ieee80211_qosframe);
 	else
@@ -1277,7 +1284,12 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		qos[0] = tid & IEEE80211_QOS_TID;
 		if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[ac].wmep_noackPolicy)
 			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
-		qos[1] = 0;
+#ifdef IEEE80211_SUPPORT_MESH
+		if (vap->iv_opmode == IEEE80211_M_MBSS) {
+			qos[1] |= IEEE80211_QOS_MC;
+		} else
+#endif
+			qos[1] = 0;
 		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;
 
 		if ((m->m_flags & M_AMPDU_MPDU) == 0) {
@@ -1402,9 +1414,20 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 		 * we mark the first fragment with the MORE_FRAG bit
 		 * it automatically is propagated to each fragment; we
 		 * need only clear it on the last fragment (done below).
+		 * NB: frag 1+ dont have Mesh Control field present.
 		 */
 		whf = mtod(m, struct ieee80211_frame *);
 		memcpy(whf, wh, hdrsize);
+#ifdef IEEE80211_SUPPORT_MESH
+		if (vap->iv_opmode == IEEE80211_M_MBSS) {
+			if (IEEE80211_IS_DSTODS(wh))
+				((struct ieee80211_qosframe_addr4 *)
+				    whf)->i_qos[1] &= ~IEEE80211_QOS_MC;
+			else
+				((struct ieee80211_qosframe *)
+				    whf)->i_qos[1] &= ~IEEE80211_QOS_MC;
+		}
+#endif
 		*(uint16_t *)&whf->i_seq[0] |= htole16(
 			(fragno & IEEE80211_SEQ_FRAG_MASK) <<
 				IEEE80211_SEQ_FRAG_SHIFT);

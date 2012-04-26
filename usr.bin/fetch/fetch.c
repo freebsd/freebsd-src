@@ -317,7 +317,7 @@ fetch(char *URL, const char *path)
 	struct stat sb, nsb;
 	struct xferstat xs;
 	FILE *f, *of;
-	size_t size, wr;
+	size_t size, readcnt, wr;
 	off_t count;
 	char flags[8];
 	const char *slash;
@@ -636,21 +636,26 @@ fetch(char *URL, const char *path)
 			stat_end(&xs);
 			siginfo = 0;
 		}
-		if ((size = fread(buf, 1, size, f)) == 0) {
+
+		if (size == 0)
+			break;
+
+		if ((readcnt = fread(buf, 1, size, f)) < size) {
 			if (ferror(f) && errno == EINTR && !sigint)
 				clearerr(f);
-			else
+			else if (readcnt == 0)
 				break;
 		}
-		stat_update(&xs, count += size);
-		for (ptr = buf; size > 0; ptr += wr, size -= wr)
-			if ((wr = fwrite(ptr, 1, size, of)) < size) {
+
+		stat_update(&xs, count += readcnt);
+		for (ptr = buf; readcnt > 0; ptr += wr, readcnt -= wr)
+			if ((wr = fwrite(ptr, 1, readcnt, of)) < readcnt) {
 				if (ferror(of) && errno == EINTR && !sigint)
 					clearerr(of);
 				else
 					break;
 			}
-		if (size != 0)
+		if (readcnt != 0)
 			break;
 	}
 	if (!sigalrm)

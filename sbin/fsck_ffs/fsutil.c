@@ -717,7 +717,7 @@ dofix(struct inodesc *idesc, const char *msg)
 #include <stdarg.h>
 
 /*
- * An unexpected inconsistency occured.
+ * An unexpected inconsistency occurred.
  * Die if preening or file system is running with soft dependency protocol,
  * otherwise just print message and continue.
  */

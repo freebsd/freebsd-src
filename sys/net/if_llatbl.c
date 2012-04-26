@@ -65,9 +65,6 @@ MALLOC_DEFINE(M_LLTABLE, "lltable", "link level address tables");
 static VNET_DEFINE(SLIST_HEAD(, lltable), lltables);
 #define	V_lltables	VNET(lltables)
 
-extern void arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
-	u_char *);
-
 static void vnet_lltable_init(void);
 
 struct rwlock lltable_rwlock;
@@ -125,6 +122,7 @@ llentry_free(struct llentry *lle)
 		("%s: la_numheld %d > 0, pkts_droped %zd", __func__, 
 		 lle->la_numheld, pkts_dropped));
 
+	lle->la_flags &= ~LLE_VALID;
 	LLE_FREE_LOCKED(lle);
 
 	return (pkts_dropped);

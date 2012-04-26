@@ -966,7 +966,7 @@ pcn_tick(xsc)
 	mii_tick(mii);
 
 	/* link just died */
-	if (sc->pcn_link & !(mii->mii_media_status & IFM_ACTIVE))
+	if (sc->pcn_link && !(mii->mii_media_status & IFM_ACTIVE))
 		sc->pcn_link = 0;
 
 	/* link just came up, restart */

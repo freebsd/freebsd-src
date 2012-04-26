@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: sgi,v 1.18 2010/11/25 15:00:12 christos Exp $
 # sgi:  file(1) magic for Silicon Graphics applications
 
 #
@@ -60,7 +61,7 @@
 >11	byte	x				dataformat %d
 
 # Alias Maya files
-0	string	//Maya ASCII	Alias Maya Ascii File,
+0	string/t	//Maya ASCII	Alias Maya Ascii File,
 >13	string	>\0	version %s
 8	string	MAYAFOR4	Alias Maya Binary File,
 >32	string	>\0	version %s scene

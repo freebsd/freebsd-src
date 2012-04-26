@@ -1,4 +1,4 @@
-.\" Copyright (c) 1999 - 2004 Kungliga Tekniska Högskolan
+.\" Copyright (c) 1999 - 2004 Kungliga Tekniska HÃ¶gskolan
 .\" (Royal Institute of Technology, Stockholm, Sweden).
 .\" All rights reserved.
 .\"
@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: krb5_encrypt.3 22071 2007-11-14 20:04:50Z lha $
+.\" $Id$
 .\"
 .Dd March 20, 2004
 .Dt KRB5_ENCRYPT 3
@@ -141,7 +141,7 @@ Kerberos 5 Library (libkrb5, -lkrb5)
 .Ft krb5_error_code
 .Fo krb5_crypto_getconfoundersize
 .Fa "krb5_context context"
-.Fa "krb5_crypto crypto
+.Fa "krb5_crypto crypto"
 .Fa size_t *confoundersize"
 .Fc
 .Ft krb5_error_code
@@ -199,7 +199,7 @@ should be the appropriate key-usage.
 .Fa ivec
 is a pointer to a initial IV, it is modified to the end IV at the end of
 the round.
-Ivec should be the size of 
+Ivec should be the size of
 If
 .Dv NULL
 is passed in, the default IV is used.
@@ -229,7 +229,7 @@ and
 works similarly.
 .Pp
 .Fn krb5_decrypt_ticket
-decrypts the encrypted part of 
+decrypts the encrypted part of
 .Fa ticket
 with
 .Fa key .

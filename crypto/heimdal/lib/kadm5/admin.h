@@ -1,36 +1,36 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2000 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
-/* $Id: admin.h 20237 2007-02-16 23:54:34Z lha $ */
+/* $Id$ */
 
 #ifndef __KADM5_ADMIN_H__
 #define __KADM5_ADMIN_H__
@@ -104,7 +104,7 @@
 #define KADM5_HIST_PRINCIPAL	"kadmin/history"
 #define KADM5_CHANGEPW_SERVICE	"kadmin/changepw"
 
-typedef struct _krb5_key_data {
+typedef struct {
     int16_t key_data_ver;	/* Version */
     int16_t key_data_kvno;	/* Key Version */
     int16_t key_data_type[2];	/* Array of types */
@@ -114,9 +114,9 @@ typedef struct _krb5_key_data {
 
 typedef struct _krb5_tl_data {
     struct _krb5_tl_data* tl_data_next;
-    int16_t tl_data_type;         
-    int16_t tl_data_length;       
-    void*   tl_data_contents;     
+    int16_t tl_data_type;
+    int16_t tl_data_length;
+    void*   tl_data_contents;
 } krb5_tl_data;
 
 #define KRB5_TL_LAST_PWD_CHANGE		0x0001
@@ -223,7 +223,7 @@ typedef krb5_error_code kadm5_ret_t;
 
 #if 0
 /* unimplemented functions */
-kadm5_ret_t 
+kadm5_ret_t
 kadm5_decrypt_key(void *server_handle,
 		  kadm5_principal_ent_t entry, int32_t
 		  ktype, int32_t stype, int32_t
@@ -232,7 +232,7 @@ kadm5_decrypt_key(void *server_handle,
 
 kadm5_ret_t
 kadm5_create_policy(void *server_handle,
-		    kadm5_policy_ent_t policy, uint32_t mask); 
+		    kadm5_policy_ent_t policy, uint32_t mask);
 
 kadm5_ret_t
 kadm5_delete_policy(void *server_handle, char *policy);
@@ -240,17 +240,17 @@ kadm5_delete_policy(void *server_handle, char *policy);
 
 kadm5_ret_t
 kadm5_modify_policy(void *server_handle,
-		    kadm5_policy_ent_t policy, 
+		    kadm5_policy_ent_t policy,
 		    uint32_t mask);
 
 kadm5_ret_t
-kadm5_get_policy(void *server_handle, char *policy, kadm5_policy_ent_t ent); 
+kadm5_get_policy(void *server_handle, char *policy, kadm5_policy_ent_t ent);
 
 kadm5_ret_t
 kadm5_get_policies(void *server_handle, char *exp,
 		   char ***pols, int *count);
 
-void 
+void
 kadm5_free_policy_ent(kadm5_policy_ent_t policy);
 
 #endif

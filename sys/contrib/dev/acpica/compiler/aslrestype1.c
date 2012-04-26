@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -453,6 +453,10 @@ RsDoStartDependentDescriptor (
     PreviousRnode = Rnode;
     Descriptor = Rnode->Buffer;
 
+    /* Increment offset past StartDependent descriptor */
+
+    CurrentByteOffset += sizeof (AML_RESOURCE_START_DEPENDENT);
+
     /* Descriptor has priority byte */
 
     Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
@@ -544,6 +548,10 @@ RsDoStartDependentNoPriDescriptor (
     Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
                                       ASL_RDESC_ST_DEPEND_SIZE;
     PreviousRnode = Rnode;
+
+    /* Increment offset past StartDependentNoPri descriptor */
+
+    CurrentByteOffset += sizeof (AML_RESOURCE_START_DEPENDENT_NOPRIO);
 
     /* Process all child initialization nodes */
 

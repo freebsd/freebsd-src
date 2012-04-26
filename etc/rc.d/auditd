@@ -8,7 +8,7 @@
 # PROVIDE: auditd
 # REQUIRE: syslogd
 # BEFORE:  DAEMON
-# KEYWORD: shutdown
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

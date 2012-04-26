@@ -55,7 +55,6 @@ static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #include <time.h>
 #include <unistd.h>
 
-int	rw(char *, struct stat *, int);
 void	stime_arg1(char *, struct timeval *);
 void	stime_arg2(char *, int, struct timeval *);
 void	stime_file(char *, struct timeval *);
@@ -69,12 +68,12 @@ main(int argc, char *argv[])
 	struct timeval tv[2];
 	int (*stat_f)(const char *, struct stat *);
 	int (*utimes_f)(const char *, const struct timeval *);
-	int Aflag, aflag, cflag, fflag, mflag, ch, fd, len, rval, timeset;
+	int Aflag, aflag, cflag, mflag, ch, fd, len, rval, timeset;
 	char *p;
 	char *myname;
 
 	myname = basename(argv[0]);
-	Aflag = aflag = cflag = fflag = mflag = timeset = 0;
+	Aflag = aflag = cflag = mflag = timeset = 0;
 	stat_f = stat;
 	utimes_f = utimes;
 	if (gettimeofday(&tv[0], NULL))
@@ -92,7 +91,7 @@ main(int argc, char *argv[])
 			cflag = 1;
 			break;
 		case 'f':
-			fflag = 1;
+			/* No-op for compatibility. */
 			break;
 		case 'h':
 			cflag = 1;
@@ -222,14 +221,8 @@ main(int argc, char *argv[])
 		 if (!utimes_f(*argv, NULL))
 			continue;
 
-		/* Try reading/writing. */
-		if (!S_ISLNK(sb.st_mode) && !S_ISDIR(sb.st_mode)) {
-			if (rw(*argv, &sb, fflag))
-				rval = 1;
-		} else {
-			rval = 1;
-			warn("%s", *argv);
-		}
+		rval = 1;
+		warn("%s", *argv);
 	}
 	exit(rval);
 }
@@ -368,59 +361,10 @@ stime_file(char *fname, struct timeval *tvp)
 	TIMESPEC_TO_TIMEVAL(tvp + 1, &sb.st_mtim);
 }
 
-int
-rw(char *fname, struct stat *sbp, int force)
-{
-	int fd, needed_chmod, rval;
-	u_char byte;
-
-	/* Try regular files. */
-	if (!S_ISREG(sbp->st_mode)) {
-		warnx("%s: %s", fname, strerror(EFTYPE));
-		return (1);
-	}
-
-	needed_chmod = rval = 0;
-	if ((fd = open(fname, O_RDWR, 0)) == -1) {
-		if (!force || chmod(fname, DEFFILEMODE))
-			goto err;
-		if ((fd = open(fname, O_RDWR, 0)) == -1)
-			goto err;
-		needed_chmod = 1;
-	}
-
-	if (sbp->st_size != 0) {
-		if (read(fd, &byte, sizeof(byte)) != sizeof(byte))
-			goto err;
-		if (lseek(fd, (off_t)0, SEEK_SET) == -1)
-			goto err;
-		if (write(fd, &byte, sizeof(byte)) != sizeof(byte))
-			goto err;
-	} else {
-		if (write(fd, &byte, sizeof(byte)) != sizeof(byte)) {
-err:			rval = 1;
-			warn("%s", fname);
-		} else if (ftruncate(fd, (off_t)0)) {
-			rval = 1;
-			warn("%s: file modified", fname);
-		}
-	}
-
-	if (close(fd) && rval != 1) {
-		rval = 1;
-		warn("%s", fname);
-	}
-	if (needed_chmod && chmod(fname, sbp->st_mode) && rval != 1) {
-		rval = 1;
-		warn("%s: permissions modified", fname);
-	}
-	return (rval);
-}
-
 void
 usage(char *myname)
 {
-	fprintf(stderr, "usage:\n" "%s [-A [-][[hh]mm]SS] [-acfhm] [-r file] "
+	fprintf(stderr, "usage:\n" "%s [-A [-][[hh]mm]SS] [-achm] [-r file] "
 		"[-t [[CC]YY]MMDDhhmm[.SS]] file ...\n", myname);
 	exit(1);
 }

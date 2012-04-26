@@ -1,40 +1,42 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "test_locl.h"
-#include <gssapi.h>
+#include <gssapi/gssapi.h>
+#include <gssapi/gssapi_krb5.h>
+#include <gssapi/gssapi_spnego.h>
 #include "gss_common.h"
-RCSID("$Id: gssapi_server.c 14762 2005-04-10 14:47:41Z lha $");
+RCSID("$Id$");
 
 static int
 process_it(int sock,
@@ -185,9 +187,9 @@ proto (int sock, const char *service)
     input_chan_bindings.application_data.length = 0;
     input_chan_bindings.application_data.value = NULL;
 #endif
-    
+
     delegated_cred_handle = GSS_C_NO_CREDENTIAL;
-    
+
     do {
 	read_token (sock, input_token);
 	maj_stat =
@@ -214,7 +216,7 @@ proto (int sock, const char *service)
 	    break;
 	}
     } while(maj_stat & GSS_S_CONTINUE_NEEDED);
-    
+
     p = (char *)mech_oid->elements;
     if (mech_oid->length == GSS_KRB5_MECHANISM->length
 	&& memcmp(p, GSS_KRB5_MECHANISM->elements, mech_oid->length) == 0)
@@ -298,6 +300,7 @@ doit (int port, const char *service)
     int sock, sock2;
     struct sockaddr_in my_addr;
     int one = 1;
+    int ret;
 
     sock = socket (AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
@@ -315,14 +318,17 @@ doit (int port, const char *service)
     if (bind (sock, (struct sockaddr *)&my_addr, sizeof(my_addr)) < 0)
 	err (1, "bind");
 
-    if (listen (sock, 1) < 0)
-	err (1, "listen");
+    while (1) {
+        if (listen (sock, 1) < 0)
+	    err (1, "listen");
 
-    sock2 = accept (sock, NULL, NULL);
-    if (sock2 < 0)
-	err (1, "accept");
+        sock2 = accept (sock, NULL, NULL);
+        if (sock2 < 0)
+	    err (1, "accept");
 
-    return proto (sock2, service);
+        ret = proto (sock2, service);
+    }
+    return ret;
 }
 
 int
@@ -332,3 +338,4 @@ main(int argc, char **argv)
     int port = server_setup(&context, argc, argv);
     return doit (port, service);
 }
+

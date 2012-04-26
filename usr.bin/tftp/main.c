@@ -734,7 +734,7 @@ command(void)
                         history(hist, &he, H_ENTER, bp);
 		} else {
 			line[0] = 0;
-			if (fgets(line, sizeof line , stdin) == 0) {
+			if (fgets(line, sizeof line , stdin) == NULL) {
 				if (feof(stdin)) {
 					exit(txrx_error);
 				} else {

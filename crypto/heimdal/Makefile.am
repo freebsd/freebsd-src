@@ -1,4 +1,4 @@
-# $Id: Makefile.am 22497 2008-01-21 12:12:23Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -6,13 +6,21 @@ if KCM
 kcm_dir = kcm
 endif
 
-SUBDIRS=  include lib kuser kdc admin kadmin kpasswd 
-SUBDIRS+= $(kcm_dir) appl doc tools tests packages etc
+SUBDIRS=  include base lib kuser kdc admin kadmin kpasswd 
+SUBDIRS+= $(kcm_dir) appl tools tests packages etc po
+
+if HEIMDAL_DOCUMENTATION
+SUBDIRS+= doc
+endif
+
+
 
 ## ACLOCAL = @ACLOCAL@ -I cf
 ACLOCAL_AMFLAGS = -I cf
 
 EXTRA_DIST = \
+	NTMakefile \
+	windows \
 	TODO \
 	LICENSE \
 	README \

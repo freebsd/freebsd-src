@@ -11,15 +11,15 @@ CFLAGS+= -I${.CURDIR}/../../../sys
 .PATH:	${ACPICA_DIR}					\
 	${ACPICA_DIR}/common				\
 	${ACPICA_DIR}/compiler				\
-	${ACPICA_DIR}/debugger				\
-	${ACPICA_DIR}/disassembler			\
-	${ACPICA_DIR}/dispatcher			\
-	${ACPICA_DIR}/events				\
-	${ACPICA_DIR}/executer				\
-	${ACPICA_DIR}/hardware				\
-	${ACPICA_DIR}/namespace				\
-	${ACPICA_DIR}/os_specific/service_layers	\
-	${ACPICA_DIR}/parser				\
-	${ACPICA_DIR}/resources				\
-	${ACPICA_DIR}/tables				\
-	${ACPICA_DIR}/utilities
+	${ACPICA_DIR}/components/debugger		\
+	${ACPICA_DIR}/components/disassembler		\
+	${ACPICA_DIR}/components/dispatcher		\
+	${ACPICA_DIR}/components/events			\
+	${ACPICA_DIR}/components/executer		\
+	${ACPICA_DIR}/components/hardware		\
+	${ACPICA_DIR}/components/namespace		\
+	${ACPICA_DIR}/components/parser			\
+	${ACPICA_DIR}/components/resources		\
+	${ACPICA_DIR}/components/tables			\
+	${ACPICA_DIR}/components/utilities		\
+	${ACPICA_DIR}/os_specific/service_layers

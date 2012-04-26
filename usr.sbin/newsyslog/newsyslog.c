@@ -484,12 +484,14 @@ do_entry(struct conf_entry * ent)
 	fk_entry free_or_keep;
 	double diffsecs;
 	char temp_reason[REASON_MAX];
+	int oversized;
 
 	free_or_keep = FREE_ENT;
 	if (verbose)
 		printf("%s <%d%s>: ", ent->log, ent->numlogs,
 		    compress_type[ent->compress].flag);
 	ent->fsize = sizefile(ent->log);
+	oversized = ((ent->trsize > 0) && (ent->fsize >= ent->trsize));
 	modtime = age_old_log(ent->log);
 	ent->rotate = 0;
 	ent->firstcreate = 0;
@@ -518,7 +520,8 @@ do_entry(struct conf_entry * ent)
 			printf("does not exist, skipped%s.\n", temp_reason);
 		}
 	} else {
-		if (ent->flags & CE_TRIMAT && !force && !rotatereq) {
+		if (ent->flags & CE_TRIMAT && !force && !rotatereq &&
+		    !oversized) {
 			diffsecs = ptimeget_diff(timenow, ent->trim_at);
 			if (diffsecs < 0.0) {
 				/* trim_at is some time in the future. */
@@ -574,7 +577,7 @@ do_entry(struct conf_entry * ent)
 		} else if (force) {
 			ent->rotate = 1;
 			snprintf(temp_reason, REASON_MAX, " due to -F request");
-		} else if ((ent->trsize > 0) && (ent->fsize >= ent->trsize)) {
+		} else if (oversized) {
 			ent->rotate = 1;
 			snprintf(temp_reason, REASON_MAX, " due to size>%dK",
 			    ent->trsize);
@@ -1600,7 +1603,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
  * Generate a log filename, when using classic filenames.
  */
 static void
-gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
+gen_classiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
     const char *namepart, int numlogs_c)
 {
 
@@ -1612,15 +1615,15 @@ gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
 }
 
 /*
- * Delete a rotated logfiles, when using classic filenames.
+ * Delete a rotated logfile, when using classic filenames.
  */
 static void
-delete_clasiclog(const char *archive_dir, const char *namepart, int numlog_c)
+delete_classiclog(const char *archive_dir, const char *namepart, int numlog_c)
 {
 	char file1[MAXPATHLEN], zfile1[MAXPATHLEN];
 	int c;
 
-	gen_clasiclog_fname(file1, sizeof(file1), archive_dir, namepart,
+	gen_classiclog_fname(file1, sizeof(file1), archive_dir, namepart,
 	    numlog_c);
 
 	for (c = 0; c < COMPRESS_TYPES; c++) {
@@ -1744,10 +1747,10 @@ do_rotate(const struct conf_entry *ent)
 		 * kept ent->numlogs + 1 files.  This code can go away
 		 * at some point in the future.
 		 */
-		delete_clasiclog(dirpart, namepart, ent->numlogs);
+		delete_classiclog(dirpart, namepart, ent->numlogs);
 
 		if (ent->numlogs > 0)
-			delete_clasiclog(dirpart, namepart, ent->numlogs - 1);
+			delete_classiclog(dirpart, namepart, ent->numlogs - 1);
 
 	}
 
@@ -1768,7 +1771,7 @@ do_rotate(const struct conf_entry *ent)
 		/* Don't run the code to move down logs */
 		numlogs_c = -1;
 	} else {
-		gen_clasiclog_fname(file1, sizeof(file1), dirpart, namepart,
+		gen_classiclog_fname(file1, sizeof(file1), dirpart, namepart,
 		    ent->numlogs - 1);
 		numlogs_c = ent->numlogs - 2;		/* copy for countdown */
 	}
@@ -1777,7 +1780,7 @@ do_rotate(const struct conf_entry *ent)
 	for (; numlogs_c >= 0; numlogs_c--) {
 		(void) strlcpy(file2, file1, sizeof(file2));
 
-		gen_clasiclog_fname(file1, sizeof(file1), dirpart, namepart,
+		gen_classiclog_fname(file1, sizeof(file1), dirpart, namepart,
 		    numlogs_c);
 
 		logfile_suffix = get_logfile_suffix(file1);

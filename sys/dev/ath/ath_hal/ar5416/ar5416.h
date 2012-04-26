@@ -207,11 +207,15 @@ extern	HAL_STATUS ar5416SetQuiet(struct ath_hal *ah, uint32_t period,
 	    uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 extern	HAL_STATUS ar5416GetCapability(struct ath_hal *ah,
 	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t *result);
+extern	HAL_BOOL ar5416SetCapability(struct ath_hal *ah,
+	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t val,
+	    HAL_STATUS *status);
 extern	HAL_BOOL ar5416GetDiagState(struct ath_hal *ah, int request,
 	    const void *args, uint32_t argsize,
 	    void **result, uint32_t *resultsize);
 extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan, HAL_BOOL enable);
+
 extern	void ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
@@ -332,8 +336,8 @@ extern	int ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
 
 extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
-		HAL_CIPHER cipher, uint8_t delims, u_int segLen, HAL_BOOL firstSeg,
-		HAL_BOOL lastSeg);
+		HAL_CIPHER cipher, uint8_t delims, u_int segLen,
+		HAL_BOOL firstSeg, HAL_BOOL lastSeg, HAL_BOOL lastAggr);
 extern	HAL_BOOL ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int aggrLen, u_int flags, u_int txPower, u_int txRate0, u_int txTries0,
 		u_int antMode, u_int rtsctsRate, u_int rtsctsDuration);

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resconf.h,v 1.3 2009-09-02 23:48:02 tbox Exp $ */
+/* $Id: resconf.h,v 1.3 2009/09/02 23:48:02 tbox Exp $ */
 
 #ifndef IRS_RESCONF_H
 #define IRS_RESCONF_H 1

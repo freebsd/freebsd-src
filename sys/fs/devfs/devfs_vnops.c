@@ -1156,7 +1156,8 @@ static int
 devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int ioflag, error, ref, resid;
+	int ioflag, error, ref;
+	ssize_t resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
@@ -1634,7 +1635,8 @@ static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int error, ioflag, ref, resid;
+	int error, ioflag, ref;
+	ssize_t resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 

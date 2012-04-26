@@ -111,6 +111,7 @@
 #if __BSD_VISIBLE
 #define	SIGTHR		32	/* reserved by thread library. */
 #define	SIGLWP		SIGTHR
+#define	SIGLIBRT	33	/* reserved by real-time library. */
 #endif
 
 #define	SIGRTMIN	65
@@ -169,12 +170,14 @@ struct sigevent {
 			void (*_function)(union sigval);
 			void *_attribute; /* pthread_attr_t * */
 		} _sigev_thread;
+		unsigned short _kevent_flags;
 		long __spare__[8];
 	} _sigev_un;
 };
 
 #if __BSD_VISIBLE
 #define	sigev_notify_kqueue		sigev_signo
+#define	sigev_notify_kevent_flags	_sigev_un._kevent_flags
 #define	sigev_notify_thread_id		_sigev_un._threadid
 #endif
 #define	sigev_notify_function		_sigev_un._sigev_thread._function

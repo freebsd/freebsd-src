@@ -54,6 +54,12 @@
 
 #define	IEEE80211_RADIOTAP_HDRLEN	64	/* XXX deprecated */
 
+struct ieee80211_radiotap_vendor_header {
+	uint8_t		vh_oui[3];	/* 3 byte vendor OUI */
+	uint8_t		vh_sub_ns;	/* Sub namespace of this section */
+	uint16_t	vh_skip_len;	/* Length of this vendor section */
+} __packed;
+
 /*
  * The radio capture header precedes the 802.11 header.
  *
@@ -190,6 +196,8 @@ enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
 	/* NB: gap for netbsd definitions */
 	IEEE80211_RADIOTAP_XCHANNEL = 18,
+	IEEE80211_RADIOTAP_MCS = 19,
+	IEEE80211_RADIOTAP_VENDOREXT = 30,
 	IEEE80211_RADIOTAP_EXT = 31,
 };
 

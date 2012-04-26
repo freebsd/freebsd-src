@@ -95,13 +95,13 @@ setup_filesystems()
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
      
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
-    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
-    PARTGEOM="`cat ${PARTDIR}/${PART} | cut -d ':' -f 5`"
-    PARTXTRAOPTS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 6`"
-    PARTIMAGE="`cat ${PARTDIR}/${PART} | cut -d ':' -f 7`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
+    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d '#' -f 4`"
+    PARTGEOM="`cat ${PARTDIR}/${PART} | cut -d '#' -f 5`"
+    PARTXTRAOPTS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 6`"
+    PARTIMAGE="`cat ${PARTDIR}/${PART} | cut -d '#' -f 7`"
 
     # Make sure journaling isn't enabled on this device
     if [ -e "${PARTDEV}.journal" ]

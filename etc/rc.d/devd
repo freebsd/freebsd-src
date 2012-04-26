@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="devd"
-rcvar=`set_rcvar`
+rcvar="devd_enable"
 command="/sbin/${name}"
 
 start_precmd=${name}_prestart

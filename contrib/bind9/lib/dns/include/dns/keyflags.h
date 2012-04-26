@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keyflags.h,v 1.16 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: keyflags.h,v 1.16 2007/06/19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_KEYFLAGS_H
 #define DNS_KEYFLAGS_H 1

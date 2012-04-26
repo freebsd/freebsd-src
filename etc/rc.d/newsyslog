@@ -9,7 +9,7 @@
 . /etc/rc.subr
 
 name="newsyslog"
-rcvar=`set_rcvar`
+rcvar="newsyslog_enable"
 required_files="/etc/newsyslog.conf"
 command="/usr/sbin/${name}"
 start_cmd="newsyslog_start"

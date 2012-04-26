@@ -29,7 +29,11 @@
 #include <string.h>
 #include <stdint.h>
 
+#include <machine/sysarch.h>
+
 void
 _set_tp(void *tp)
 {
+
+	sysarch(MIPS_SET_TLS, tp);
 }

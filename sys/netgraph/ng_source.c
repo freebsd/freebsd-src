@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/vnet.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>

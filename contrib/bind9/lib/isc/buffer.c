@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: buffer.c,v 1.49 2008-09-25 04:02:39 tbox Exp $ */
+/* $Id: buffer.c,v 1.49 2008/09/25 04:02:39 tbox Exp $ */
 
 /*! \file */
 

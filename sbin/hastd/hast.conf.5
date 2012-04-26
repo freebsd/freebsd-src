@@ -1,8 +1,8 @@
 .\" Copyright (c) 2010 The FreeBSD Foundation
-.\" Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
+.\" Copyright (c) 2010-2012 Pawel Jakub Dawidek <pawel@dawidek.net>
 .\" All rights reserved.
 .\"
-.\" This software was developed by Pawel Jakub Dawidek under sponsorship from
+.\" This documentation was written by Pawel Jakub Dawidek under sponsorship from
 .\" the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2011
+.Dd January 25, 2012
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -389,7 +389,9 @@ statement.
 .Bl -tag -width ".Pa /var/run/hastctl" -compact
 .It Pa /etc/hast.conf
 The default
-.Nm
+.Xr hastctl 8
+and
+.Xr hastd 8
 configuration file.
 .It Pa /var/run/hastctl
 Control socket used by the

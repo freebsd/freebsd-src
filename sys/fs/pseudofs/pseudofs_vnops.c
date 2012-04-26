@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2001 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -432,6 +432,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 	struct pfs_vdata *pvd = vn->v_data;
 	struct pfs_node *pd = pvd->pvd_pn;
 	struct pfs_node *pn, *pdn = NULL;
+	struct mount *mp;
 	pid_t pid = pvd->pvd_pid;
 	char *pname;
 	int error, i, namelen, visible;
@@ -474,10 +475,26 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		PFS_RETURN (0);
 	}
 
+	mp = vn->v_mount;
+
 	/* parent */
 	if (cnp->cn_flags & ISDOTDOT) {
 		if (pd->pn_type == pfstype_root)
 			PFS_RETURN (EIO);
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error != 0) {
+			vfs_ref(mp);
+			VOP_UNLOCK(vn, 0);
+			error = vfs_busy(mp, 0);
+			vn_lock(vn, LK_EXCLUSIVE | LK_RETRY);
+			vfs_rel(mp);
+			if (error != 0)
+				PFS_RETURN(ENOENT);
+			if (vn->v_iflag & VI_DOOMED) {
+				vfs_unbusy(mp);
+				PFS_RETURN(ENOENT);
+			}
+		}
 		VOP_UNLOCK(vn, 0);
 		KASSERT(pd->pn_parent != NULL,
 		    ("%s(): non-root directory has no parent", __func__));
@@ -535,18 +552,28 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		goto failed;
 	}
 
-	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
+	error = pfs_vncache_alloc(mp, vpp, pn, pid);
 	if (error)
 		goto failed;
 
-	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY);
+	if (cnp->cn_flags & ISDOTDOT) {
+		vfs_unbusy(mp);
+		vn_lock(vn, LK_EXCLUSIVE | LK_RETRY);
+		if (vn->v_iflag & VI_DOOMED) {
+			vput(*vpp);
+			*vpp = NULL;
+			PFS_RETURN(ENOENT);
+		}
+	}
 	if (cnp->cn_flags & MAKEENTRY && !(vn->v_iflag & VI_DOOMED))
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
  failed:
-	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY);
+	if (cnp->cn_flags & ISDOTDOT) {
+		vfs_unbusy(mp);
+		vn_lock(vn, LK_EXCLUSIVE | LK_RETRY);
+		*vpp = NULL;
+	}
 	PFS_RETURN(error);
 }
 
@@ -589,7 +616,8 @@ pfs_read(struct vop_read_args *va)
 	struct proc *proc;
 	struct sbuf *sb = NULL;
 	int error, locked;
-	unsigned int buflen, offset, resid;
+	off_t offset;
+	ssize_t buflen, resid;
 
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);
@@ -630,14 +658,14 @@ pfs_read(struct vop_read_args *va)
 	if (uio->uio_offset < 0 || uio->uio_resid < 0 ||
 	    (offset = uio->uio_offset) != uio->uio_offset ||
 	    (resid = uio->uio_resid) != uio->uio_resid ||
-	    (buflen = offset + resid + 1) < offset || buflen > INT_MAX) {
+	    (buflen = offset + resid) < offset || buflen >= INT_MAX) {
 		error = EINVAL;
 		goto ret;
 	}
-	if (buflen > MAXPHYS + 1)
-		buflen = MAXPHYS + 1;
+	if (buflen > MAXPHYS)
+		buflen = MAXPHYS;
 
-	sb = sbuf_new(sb, NULL, buflen, 0);
+	sb = sbuf_new(sb, NULL, buflen + 1, 0);
 	if (sb == NULL) {
 		error = EIO;
 		goto ret;
@@ -650,8 +678,14 @@ pfs_read(struct vop_read_args *va)
 		goto ret;
 	}
 
-	sbuf_finish(sb);
-	error = uiomove_frombuf(sbuf_data(sb), sbuf_len(sb), uio);
+	/*
+	 * XXX: If the buffer overflowed, sbuf_len() will not return
+	 * the data length. Then just use the full length because an
+	 * overflowed sbuf must be full.
+	 */
+	if (sbuf_finish(sb) == 0)
+		buflen = sbuf_len(sb);
+	error = uiomove_frombuf(sbuf_data(sb), buflen, uio);
 	sbuf_delete(sb);
 ret:
 	vn_lock(vn, locked | LK_RETRY);
@@ -891,7 +925,11 @@ pfs_readlink(struct vop_readlink_args *va)
 		PFS_RETURN (error);
 	}
 
-	sbuf_finish(&sb);
+	if (sbuf_finish(&sb) != 0) {
+		sbuf_delete(&sb);
+		PFS_RETURN (ENAMETOOLONG);
+	}
+
 	error = uiomove_frombuf(sbuf_data(&sb), sbuf_len(&sb), uio);
 	sbuf_delete(&sb);
 	PFS_RETURN (error);
