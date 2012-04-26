@@ -85,7 +85,7 @@ __asm(	"	.text				\n" \
 	"_mcount:				\n" \
 	"	.quad .L._mcount,.TOC.@tocbase,0\n" \
 	"	.previous			\n" \
-	"	.size   main,24			\n" \
+	"	.size   _mcount,24		\n" \
 	"	.type	_mcount,@function	\n" \
 	"	.align	4			\n" \
 	".L._mcount:				\n" \
