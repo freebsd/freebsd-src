@@ -2441,6 +2441,7 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	struct nfsclflayout *flp;
 	struct nfscldevinfo *dip, *ndip;
 	struct nfscllayouthead rlh;
+	struct nfsclrecalllayout *recallp;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
@@ -2635,7 +2636,6 @@ printf("do layoutcommit\n");
 				TAILQ_INSERT_HEAD(&rlh, lyp, nfsly_list);
 			}
 		}
-#ifdef notyet
 		/* Now, look for stale layouts. */
 		lyp = TAILQ_LAST(&clp->nfsc_layout, nfscllayouthead);
 		while (lyp != NULL) {
@@ -2644,10 +2644,16 @@ printf("do layoutcommit\n");
 			    (lyp->nfsly_flags & NFSLY_RECALL) == 0 &&
 			    lyp->nfsly_refcnt == 0) {
 printf("ret stale lay=%d\n", nfscl_layoutcnt);
+				recallp = malloc(sizeof(*recallp),
+				    M_NFSLAYRECALL, M_NOWAIT);
+				if (recallp == NULL)
+					break;
+				(void)nfscl_layoutrecall(NFSLAYOUTRETURN_FILE,
+				    lyp, NFSLAYOUTIOMODE_ANY, 0, UINT64_MAX,
+				    lyp->nfsly_stateid.seqid, recallp);
 			}
 			lyp = nlyp;
 		}
-#endif
 
 		/*
 		 * Free up any unreferenced device info structures.
