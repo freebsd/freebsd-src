@@ -351,7 +351,7 @@ OLD_FILES+=usr/share/man/man5/lastlog.5.gz
 OLD_FILES+=usr/share/man/man5/utmp.5.gz
 OLD_FILES+=usr/share/man/man5/wtmp.5.gz
 OLD_LIBS+=lib/libutil.so.8
-OLB_LIBS+=usr/lib32/libutil.so.8
+OLD_LIBS+=usr/lib32/libutil.so.8
 # 20100105: new userland semaphore implementation
 OLD_FILES+=usr/include/sys/semaphore.h
 # 20100103: ntptrace(8) removed
