@@ -295,7 +295,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_pipe */
 	case 42: {
 		struct linux_pipe_args *p = params;
-		uarg[0] = (intptr_t) p->pipefds; /* l_ulong * */
+		uarg[0] = (intptr_t) p->pipefds; /* l_int * */
 		*n_args = 1;
 		break;
 	}
@@ -772,7 +772,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_iopl */
 	case 110: {
 		struct linux_iopl_args *p = params;
-		iarg[0] = p->level; /* l_ulong */
+		iarg[0] = p->level; /* l_int */
 		*n_args = 1;
 		break;
 	}
@@ -1398,28 +1398,25 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_stat64 */
 	case 195: {
 		struct linux_stat64_args *p = params;
-		uarg[0] = (intptr_t) p->filename; /* char * */
+		uarg[0] = (intptr_t) p->filename; /* const char * */
 		uarg[1] = (intptr_t) p->statbuf; /* struct l_stat64 * */
-		iarg[2] = p->flags; /* l_long */
-		*n_args = 3;
+		*n_args = 2;
 		break;
 	}
 	/* linux_lstat64 */
 	case 196: {
 		struct linux_lstat64_args *p = params;
-		uarg[0] = (intptr_t) p->filename; /* char * */
+		uarg[0] = (intptr_t) p->filename; /* const char * */
 		uarg[1] = (intptr_t) p->statbuf; /* struct l_stat64 * */
-		iarg[2] = p->flags; /* l_long */
-		*n_args = 3;
+		*n_args = 2;
 		break;
 	}
 	/* linux_fstat64 */
 	case 197: {
 		struct linux_fstat64_args *p = params;
-		iarg[0] = p->fd; /* l_ulong */
+		iarg[0] = p->fd; /* l_int */
 		uarg[1] = (intptr_t) p->statbuf; /* struct l_stat64 * */
-		iarg[2] = p->flags; /* l_long */
-		*n_args = 3;
+		*n_args = 2;
 		break;
 	}
 	/* linux_lchown */
@@ -2191,6 +2188,169 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
+	/* linux_move_pages */
+	case 317: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_getcpu */
+	case 318: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_epoll_pwait */
+	case 319: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_utimensat */
+	case 320: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_signalfd */
+	case 321: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_create */
+	case 322: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_eventfd */
+	case 323: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fallocate */
+	case 324: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_settime */
+	case 325: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_timerfd_gettime */
+	case 326: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_signalfd4 */
+	case 327: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_eventfd2 */
+	case 328: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_epoll_create1 */
+	case 329: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_dup3 */
+	case 330: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pipe2 */
+	case 331: {
+		struct linux_pipe2_args *p = params;
+		uarg[0] = (intptr_t) p->pipefds; /* l_int * */
+		iarg[1] = p->flags; /* l_int */
+		*n_args = 2;
+		break;
+	}
+	/* linux_inotify_init1 */
+	case 332: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_preadv */
+	case 333: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pwritev */
+	case 334: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_rt_tsigqueueinfo */
+	case 335: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_perf_event_open */
+	case 336: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_recvmmsg */
+	case 337: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fanotify_init */
+	case 338: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fanotify_mark */
+	case 339: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_prlimit64 */
+	case 340: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_name_to_handle_at */
+	case 341: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_open_by_handle_at */
+	case 342: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_clock_adjtime */
+	case 343: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_syncfs */
+	case 344: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_sendmmsg */
+	case 345: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_setns */
+	case 346: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_process_vm_readv */
+	case 347: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_process_vm_writev */
+	case 348: {
+		*n_args = 0;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -2633,7 +2793,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 42:
 		switch(ndx) {
 		case 0:
-			p = "l_ulong *";
+			p = "l_int *";
 			break;
 		default:
 			break;
@@ -3362,7 +3522,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 110:
 		switch(ndx) {
 		case 0:
-			p = "l_ulong";
+			p = "l_int";
 			break;
 		default:
 			break;
@@ -4331,13 +4491,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 195:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
 			p = "struct l_stat64 *";
-			break;
-		case 2:
-			p = "l_long";
 			break;
 		default:
 			break;
@@ -4347,13 +4504,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 196:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
 			p = "struct l_stat64 *";
-			break;
-		case 2:
-			p = "l_long";
 			break;
 		default:
 			break;
@@ -4363,13 +4517,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 197:
 		switch(ndx) {
 		case 0:
-			p = "l_ulong";
+			p = "l_int";
 			break;
 		case 1:
 			p = "struct l_stat64 *";
-			break;
-		case 2:
-			p = "l_long";
 			break;
 		default:
 			break;
@@ -5459,6 +5610,112 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_vmsplice */
 	case 316:
+		break;
+	/* linux_move_pages */
+	case 317:
+		break;
+	/* linux_getcpu */
+	case 318:
+		break;
+	/* linux_epoll_pwait */
+	case 319:
+		break;
+	/* linux_utimensat */
+	case 320:
+		break;
+	/* linux_signalfd */
+	case 321:
+		break;
+	/* linux_timerfd_create */
+	case 322:
+		break;
+	/* linux_eventfd */
+	case 323:
+		break;
+	/* linux_fallocate */
+	case 324:
+		break;
+	/* linux_timerfd_settime */
+	case 325:
+		break;
+	/* linux_timerfd_gettime */
+	case 326:
+		break;
+	/* linux_signalfd4 */
+	case 327:
+		break;
+	/* linux_eventfd2 */
+	case 328:
+		break;
+	/* linux_epoll_create1 */
+	case 329:
+		break;
+	/* linux_dup3 */
+	case 330:
+		break;
+	/* linux_pipe2 */
+	case 331:
+		switch(ndx) {
+		case 0:
+			p = "l_int *";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_inotify_init1 */
+	case 332:
+		break;
+	/* linux_preadv */
+	case 333:
+		break;
+	/* linux_pwritev */
+	case 334:
+		break;
+	/* linux_rt_tsigqueueinfo */
+	case 335:
+		break;
+	/* linux_perf_event_open */
+	case 336:
+		break;
+	/* linux_recvmmsg */
+	case 337:
+		break;
+	/* linux_fanotify_init */
+	case 338:
+		break;
+	/* linux_fanotify_mark */
+	case 339:
+		break;
+	/* linux_prlimit64 */
+	case 340:
+		break;
+	/* linux_name_to_handle_at */
+	case 341:
+		break;
+	/* linux_open_by_handle_at */
+	case 342:
+		break;
+	/* linux_clock_adjtime */
+	case 343:
+		break;
+	/* linux_syncfs */
+	case 344:
+		break;
+	/* linux_sendmmsg */
+	case 345:
+		break;
+	/* linux_setns */
+	case 346:
+		break;
+	/* linux_process_vm_readv */
+	case 347:
+		break;
+	/* linux_process_vm_writev */
+	case 348:
 		break;
 	default:
 		break;
@@ -6693,6 +6950,73 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 315:
 	/* linux_vmsplice */
 	case 316:
+	/* linux_move_pages */
+	case 317:
+	/* linux_getcpu */
+	case 318:
+	/* linux_epoll_pwait */
+	case 319:
+	/* linux_utimensat */
+	case 320:
+	/* linux_signalfd */
+	case 321:
+	/* linux_timerfd_create */
+	case 322:
+	/* linux_eventfd */
+	case 323:
+	/* linux_fallocate */
+	case 324:
+	/* linux_timerfd_settime */
+	case 325:
+	/* linux_timerfd_gettime */
+	case 326:
+	/* linux_signalfd4 */
+	case 327:
+	/* linux_eventfd2 */
+	case 328:
+	/* linux_epoll_create1 */
+	case 329:
+	/* linux_dup3 */
+	case 330:
+	/* linux_pipe2 */
+	case 331:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_inotify_init1 */
+	case 332:
+	/* linux_preadv */
+	case 333:
+	/* linux_pwritev */
+	case 334:
+	/* linux_rt_tsigqueueinfo */
+	case 335:
+	/* linux_perf_event_open */
+	case 336:
+	/* linux_recvmmsg */
+	case 337:
+	/* linux_fanotify_init */
+	case 338:
+	/* linux_fanotify_mark */
+	case 339:
+	/* linux_prlimit64 */
+	case 340:
+	/* linux_name_to_handle_at */
+	case 341:
+	/* linux_open_by_handle_at */
+	case 342:
+	/* linux_clock_adjtime */
+	case 343:
+	/* linux_syncfs */
+	case 344:
+	/* linux_sendmmsg */
+	case 345:
+	/* linux_setns */
+	case 346:
+	/* linux_process_vm_readv */
+	case 347:
+	/* linux_process_vm_writev */
+	case 348:
 	default:
 		break;
 	};

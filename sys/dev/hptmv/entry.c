@@ -1326,7 +1326,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	_vbus_p->OsExt = (void *)pAdapter; 
 	pMvSataAdapter->IALData = pAdapter;
 
-	if (bus_dma_tag_create(NULL,/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(pAdapter->hpt_dev),/* parent */
 			4,	/* alignment */
 			BUS_SPACE_MAXADDR_32BIT+1, /* boundary */
 			BUS_SPACE_MAXADDR,	/* lowaddr */

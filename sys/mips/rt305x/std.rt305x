@@ -4,5 +4,4 @@
 files	"../rt305x/files.rt305x"
 
 cpu		CPU_MIPS4KC
-options		ISA_MIPS32
 

@@ -423,7 +423,7 @@ static device_method_t afd_methods[] = {
     /* ATA methods */
     DEVMETHOD(ata_reinit,       afd_reinit),
     
-    { 0, 0 }
+    DEVMETHOD_END
 };
     
 static driver_t afd_driver = {

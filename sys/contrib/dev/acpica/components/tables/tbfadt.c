@@ -400,10 +400,6 @@ AcpiTbConvertFadt (
     UINT32                  i;
 
 
-    /* Update the local FADT table header length */
-
-    AcpiGbl_FADT.Header.Length = sizeof (ACPI_TABLE_FADT);
-
     /*
      * Expand the 32-bit FACS and DSDT addresses to 64-bit as necessary.
      * Later code will always use the X 64-bit field.
@@ -435,6 +431,13 @@ AcpiTbConvertFadt (
         AcpiGbl_FADT.CstControl = 0;
         AcpiGbl_FADT.BootFlags = 0;
     }
+
+    /*
+     * Now we can update the local FADT length to the length of the
+     * current FADT version as defined by the ACPI specification.
+     * Thus, we will have a common FADT internally.
+     */
+    AcpiGbl_FADT.Header.Length = sizeof (ACPI_TABLE_FADT);
 
     /*
      * Expand the ACPI 1.0 32-bit addresses to the ACPI 2.0 64-bit "X"

@@ -72,12 +72,28 @@ uart_pxa_probe(device_t dev)
 	bus_space_handle_t	base;
 	struct			uart_softc *sc;
 
-	/* Check to see if the enable bit's on. */
 	base = (bus_space_handle_t)pxa_get_base(dev);
+#ifdef QEMU_WORKAROUNDS
+	/*
+	 * QEMU really exposes only the first uart unless
+	 * you specify several of them in the configuration.
+	 * Otherwise all the rest of UARTs stay unconnected,
+	 * which causes problems in the ns16550 attach routine.
+	 * Unfortunately, even if you provide qemu with 4 uarts
+	 * on the command line, it has a bug where it segfaults
+	 * trying to enable bluetooth on the HWUART.  So we just
+	 * allow the FFUART to be attached.
+	 * Also, don't check the UUE (UART Unit Enable) bit, as
+	 * the gumstix bootloader doesn't set it.
+	 */
+	if (base != PXA2X0_FFUART_BASE)
+		return (ENXIO);
+#else
+	/* Check to see if the enable bit's on. */
 	if ((bus_space_read_4(obio_tag, base,
 	    (REG_IER << 2)) & PXA_UART_UUE) == 0)
 		return (ENXIO);
-
+#endif
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
 

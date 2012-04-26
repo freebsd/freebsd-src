@@ -66,6 +66,7 @@ extern int ncl_numasync;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int newnfs_directio_enable;
+extern int nfs_keep_dirty_on_error;
 
 int ncl_pbuf_freecnt = -1;	/* start out unlimited */
 
@@ -348,9 +349,11 @@ ncl_putpages(struct vop_putpages_args *ap)
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &ncl_pbuf_freecnt);
 
-	vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
-	if (must_commit)
-		ncl_clearcommit(vp->v_mount);
+	if (error == 0 || !nfs_keep_dirty_on_error) {
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
+		if (must_commit)
+			ncl_clearcommit(vp->v_mount);
+	}
 	return rtvals[0];
 }
 
@@ -1816,7 +1819,7 @@ ncl_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 		 * truncation point.  We may have a B_DELWRI and/or B_CACHE
 		 * buffer that now needs to be truncated.
 		 */
-		error = vtruncbuf(vp, cred, td, nsize, biosize);
+		error = vtruncbuf(vp, cred, nsize, biosize);
 		lbn = nsize / biosize;
 		bufsize = nsize & (biosize - 1);
 		bp = nfs_getcacheblk(vp, lbn, bufsize, td);

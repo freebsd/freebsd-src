@@ -97,6 +97,9 @@ struct mtx	acpi_mutex;
 /* Bitmap of device quirks. */
 int		acpi_quirks;
 
+/* Optional ACPI methods for suspend and resume, e.g., _GTS and _BFS. */
+int		acpi_sleep_flags;
+
 /* Supported sleep states. */
 static BOOLEAN	acpi_sleep_states[ACPI_S_STATE_COUNT];
 
@@ -288,6 +291,11 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
 
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
+
+/* Execute optional ACPI methods for suspend and resume. */
+TUNABLE_INT("debug.acpi.sleep_flags", &acpi_sleep_flags);
+SYSCTL_INT(_debug_acpi, OID_AUTO, sleep_flags, CTLFLAG_RW | CTLFLAG_TUN,
+    &acpi_sleep_flags, 0, "Execute optional ACPI methods for suspend/resume.");
 
 static int acpi_susp_bounce;
 SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_bounce, CTLFLAG_RW,
@@ -1960,6 +1968,7 @@ static void
 acpi_shutdown_final(void *arg, int howto)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
+    register_t intr;
     ACPI_STATUS status;
 
     /*
@@ -1975,13 +1984,15 @@ acpi_shutdown_final(void *arg, int howto)
 	    return;
 	}
 	device_printf(sc->acpi_dev, "Powering system off\n");
-	ACPI_DISABLE_IRQS();
-	status = AcpiEnterSleepState(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status))
+	intr = intr_disable();
+	status = AcpiEnterSleepState(ACPI_STATE_S5, acpi_sleep_flags);
+	if (ACPI_FAILURE(status)) {
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
 		AcpiFormatException(status));
-	else {
+	} else {
 	    DELAY(1000000);
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
 	}
     } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
@@ -2633,7 +2644,8 @@ enum acpi_sleep_state {
 static ACPI_STATUS
 acpi_EnterSleepState(struct acpi_softc *sc, int state)
 {
-    ACPI_STATUS	status;
+    register_t intr;
+    ACPI_STATUS status;
     enum acpi_sleep_state slp_state;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
@@ -2722,8 +2734,9 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	if (state == ACPI_STATE_S4)
 	    AcpiEnable();
     } else {
-	ACPI_DISABLE_IRQS();
-	status = AcpiEnterSleepState(state);
+	intr = intr_disable();
+	status = AcpiEnterSleepState(state, acpi_sleep_flags);
+	intr_restore(intr);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
 			  AcpiFormatException(status));
@@ -2742,7 +2755,7 @@ backout:
 	sc->acpi_sstate = ACPI_STATE_S0;
     }
     if (slp_state >= ACPI_SS_SLP_PREP) {
-	AcpiLeaveSleepStatePrep(state);
+	AcpiLeaveSleepStatePrep(state, acpi_sleep_flags);
 	AcpiLeaveSleepState(state);
     }
     if (slp_state >= ACPI_SS_DEV_SUSPEND)
@@ -3532,6 +3545,7 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_INIT",		ACPI_LV_INIT},
     {"ACPI_LV_DEBUG_OBJECT",	ACPI_LV_DEBUG_OBJECT},
     {"ACPI_LV_INFO",		ACPI_LV_INFO},
+    {"ACPI_LV_REPAIR",		ACPI_LV_REPAIR},
     {"ACPI_LV_ALL_EXCEPTIONS",	ACPI_LV_ALL_EXCEPTIONS},
 
     /* Trace verbosity level 1 [Standard Trace Level] */

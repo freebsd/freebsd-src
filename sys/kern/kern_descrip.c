@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mqueue.h>
 #include <sys/mutex.h>
@@ -104,6 +105,8 @@ static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "filedesc_to_leader",
 		     "file desc to leader structures");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
+MALLOC_DECLARE(M_FADVISE);
+
 static uma_zone_t file_zone;
 
 
@@ -124,6 +127,7 @@ static int	fill_pts_info(struct tty *tp, struct kinfo_file *kif);
 static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
 static int	fill_procdesc_info(struct procdesc *pdp,
     struct kinfo_file *kif);
+static int	fill_shm_info(struct file *fp, struct kinfo_file *kif);
 
 /*
  * A process is initially started out with NDFILE descriptors stored within
@@ -813,7 +817,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
 	PROC_UNLOCK(p);
 	if (new >= maxfd)
-		return (flags & DUP_FCNTL ? EINVAL : EMFILE);
+		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 
 	FILEDESC_XLOCK(fdp);
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
@@ -2577,6 +2581,7 @@ _fdrop(struct file *fp, struct thread *td)
 		error = fo_close(fp, td);
 	atomic_subtract_int(&openfiles, 1);
 	crfree(fp->f_cred);
+	free(fp->f_advice, M_FADVISE);
 	uma_zfree(file_zone, fp);
 
 	return (error);
@@ -2955,6 +2960,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct kinfo_ofile *kif;
 	struct filedesc *fdp;
 	int error, i, *name;
+	struct shmfd *shmfd;
 	struct socket *so;
 	struct vnode *vp;
 	struct file *fp;
@@ -2992,6 +2998,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		vp = NULL;
 		so = NULL;
 		tp = NULL;
+		shmfd = NULL;
 		kif->kf_fd = i;
 
 #ifdef CAPABILITIES
@@ -3043,6 +3050,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SHM:
 			kif->kf_type = KF_TYPE_SHM;
+			shmfd = fp->f_data;
 			break;
 
 		case DTYPE_SEM:
@@ -3156,6 +3164,8 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			strlcpy(kif->kf_path, tty_devname(tp),
 			    sizeof(kif->kf_path));
 		}
+		if (shmfd != NULL)
+			shm_path(shmfd, kif->kf_path, sizeof(kif->kf_path));
 		error = SYSCTL_OUT(req, kif, sizeof(*kif));
 		if (error)
 			break;
@@ -3225,6 +3235,9 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 		break;
 	case KF_TYPE_PROCDESC:
 		error = fill_procdesc_info((struct procdesc *)data, kif);
+		break;
+	case KF_TYPE_SHM:
+		error = fill_shm_info((struct file *)data, kif);
 		break;
 	default:
 		error = 0;
@@ -3395,6 +3408,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SHM:
 			type = KF_TYPE_SHM;
+			data = fp;
 			break;
 
 		case DTYPE_SEM:
@@ -3615,6 +3629,23 @@ fill_procdesc_info(struct procdesc *pdp, struct kinfo_file *kif)
 	if (pdp == NULL)
 		return (1);
 	kif->kf_un.kf_proc.kf_pid = pdp->pd_pid;
+	return (0);
+}
+
+static int
+fill_shm_info(struct file *fp, struct kinfo_file *kif)
+{
+	struct thread *td;
+	struct stat sb;
+
+	td = curthread;
+	if (fp->f_data == NULL)
+		return (1);
+	if (fo_stat(fp, &sb, td->td_ucred, td) != 0)
+		return (1);
+	shm_path(fp->f_data, kif->kf_path, sizeof(kif->kf_path));
+	kif->kf_un.kf_file.kf_file_mode = sb.st_mode;
+	kif->kf_un.kf_file.kf_file_size = sb.st_size;
 	return (0);
 }
 

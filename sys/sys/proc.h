@@ -417,6 +417,8 @@ do {									\
 #define	TDP_IGNSUSP	0x00800000 /* Permission to ignore the MNTK_SUSPEND* */
 #define	TDP_AUDITREC	0x01000000 /* Audit record pending on thread */
 #define	TDP_RFPPWAIT	0x02000000 /* Handle RFPPWAIT on syscall exit */
+#define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
+#define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 
 /*
  * Reasons that the current thread can not be run yet.
@@ -838,6 +840,7 @@ struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 #define	PGET_ISCURRENT	0x00008	/* Check that the found process is current. */
 #define	PGET_NOTWEXIT	0x00010	/* Check that the process is not in P_WEXIT. */
 #define	PGET_NOTINEXEC	0x00020	/* Check that the process is not in P_INEXEC. */
+#define	PGET_NOTID	0x00040	/* Do not assume tid if pid > PID_MAX. */
 
 #define	PGET_WANTREAD	(PGET_HOLD | PGET_CANDEBUG | PGET_NOTWEXIT)
 

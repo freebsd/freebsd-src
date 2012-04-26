@@ -40,7 +40,6 @@ DECLARE_CLASS(pci_driver);
 
 struct pci_softc {
 	bus_dma_tag_t sc_dma_tag;
-	int	sc_dma_tag_valid;
 };
 
 extern int 	pci_do_power_resume;

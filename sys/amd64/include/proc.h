@@ -46,6 +46,7 @@ struct proc_ldt {
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_flags;	/* (k) */
+	register_t md_spurflt_addr;	/* (k) Spurious page fault address. */
 };
 
 struct mdproc {

@@ -1091,14 +1091,16 @@ static void
 bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 {
 	char _tmp_cl[arm_dcache_align], _tmp_clend[arm_dcache_align];
+	register_t s;
+	int partial; 
 
 	if ((op & BUS_DMASYNC_PREWRITE) && !(op & BUS_DMASYNC_PREREAD)) {
 		cpu_dcache_wb_range((vm_offset_t)buf, len);
 		cpu_l2cache_wb_range((vm_offset_t)buf, len);
 	}
+	partial = (((vm_offset_t)buf) | len) & arm_dcache_align_mask;
 	if (op & BUS_DMASYNC_PREREAD) {
-		if (!(op & BUS_DMASYNC_PREWRITE) &&
-		    ((((vm_offset_t)(buf) | len) & arm_dcache_align_mask) == 0)) {
+		if (!(op & BUS_DMASYNC_PREWRITE) && !partial) {
 			cpu_dcache_inv_range((vm_offset_t)buf, len);
 			cpu_l2cache_inv_range((vm_offset_t)buf, len);
 		} else {
@@ -1107,27 +1109,32 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 		}
 	}
 	if (op & BUS_DMASYNC_POSTREAD) {
-		if ((vm_offset_t)buf & arm_dcache_align_mask) {
-			memcpy(_tmp_cl, (void *)((vm_offset_t)buf & ~
-			    arm_dcache_align_mask),
-			    (vm_offset_t)buf & arm_dcache_align_mask);
-		}
-		if (((vm_offset_t)buf + len) & arm_dcache_align_mask) {
-			memcpy(_tmp_clend, (void *)((vm_offset_t)buf + len),
-			    arm_dcache_align - (((vm_offset_t)(buf) + len) &
-			   arm_dcache_align_mask));
+		if (partial) {
+			s = intr_disable();
+			if ((vm_offset_t)buf & arm_dcache_align_mask)
+				memcpy(_tmp_cl, (void *)((vm_offset_t)buf &
+				    ~arm_dcache_align_mask),
+				    (vm_offset_t)buf & arm_dcache_align_mask);
+			if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
+				memcpy(_tmp_clend, 
+				    (void *)((vm_offset_t)buf + len),
+				    arm_dcache_align - (((vm_offset_t)(buf) +
+				    len) & arm_dcache_align_mask));
 		}
 		cpu_dcache_inv_range((vm_offset_t)buf, len);
 		cpu_l2cache_inv_range((vm_offset_t)buf, len);
-
-		if ((vm_offset_t)buf & arm_dcache_align_mask)
-			memcpy((void *)((vm_offset_t)buf &
-			    ~arm_dcache_align_mask), _tmp_cl, 
-			    (vm_offset_t)buf & arm_dcache_align_mask);
-		if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
-			memcpy((void *)((vm_offset_t)buf + len), _tmp_clend,
-			    arm_dcache_align - (((vm_offset_t)(buf) + len) &
-			   arm_dcache_align_mask));
+		if (partial) {
+			if ((vm_offset_t)buf & arm_dcache_align_mask)
+				memcpy((void *)((vm_offset_t)buf &
+				    ~arm_dcache_align_mask), _tmp_cl, 
+				    (vm_offset_t)buf & arm_dcache_align_mask);
+			if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
+				memcpy((void *)((vm_offset_t)buf + len), 
+				    _tmp_clend, arm_dcache_align - 
+				    (((vm_offset_t)(buf) + len) &
+				    arm_dcache_align_mask));
+			intr_restore(s);
+		}
 	}
 }
 

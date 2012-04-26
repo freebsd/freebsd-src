@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/psl.h>
+#include <x86/psl.h>

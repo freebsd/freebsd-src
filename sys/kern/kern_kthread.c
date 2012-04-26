@@ -115,6 +115,9 @@ kproc_create(void (*func)(void *), void *arg,
 	va_start(ap, fmt);
 	vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 	va_end(ap);
+#ifdef KTR
+	sched_clear_tdname(td);
+#endif
 
 	/* call the processes' main()... */
 	cpu_set_fork_handler(td, func, arg);
@@ -453,6 +456,9 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 		va_start(ap, fmt);
 		vsnprintf(td->td_name, sizeof(td->td_name), fmt, ap);
 		va_end(ap);
+#ifdef KTR
+		sched_clear_tdname(td);
+#endif
 		return (0); 
 	}
 	va_start(ap, fmt);

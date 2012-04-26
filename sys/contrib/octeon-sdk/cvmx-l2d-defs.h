@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_L2D_TYPEDEFS_H__
-#define __CVMX_L2D_TYPEDEFS_H__
+#ifndef __CVMX_L2D_DEFS_H__
+#define __CVMX_L2D_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_L2D_BST0 CVMX_L2D_BST0_FUNC()
@@ -191,12 +191,10 @@ static inline uint64_t CVMX_L2D_FUS3_FUNC(void)
  * L2D_BST0 = L2C Data Store QUAD0 BIST Status Register
  *
  */
-union cvmx_l2d_bst0
-{
+union cvmx_l2d_bst0 {
 	uint64_t u64;
-	struct cvmx_l2d_bst0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_bst0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_35_63               : 29;
 	uint64_t ftl                          : 1;  /**< L2C Data Store Fatal Defect(across all QUADs)
                                                          2 or more columns were detected bad across all
@@ -244,12 +242,10 @@ typedef union cvmx_l2d_bst0 cvmx_l2d_bst0_t;
  * L2D_BST1 = L2C Data Store QUAD1 BIST Status Register
  *
  */
-union cvmx_l2d_bst1
-{
+union cvmx_l2d_bst1 {
 	uint64_t u64;
-	struct cvmx_l2d_bst1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_bst1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t q1stat                       : 34; /**< Bist Results for QUAD1
                                                          Failure \#1 Status
@@ -291,12 +287,10 @@ typedef union cvmx_l2d_bst1 cvmx_l2d_bst1_t;
  * L2D_BST2 = L2C Data Store QUAD2 BIST Status Register
  *
  */
-union cvmx_l2d_bst2
-{
+union cvmx_l2d_bst2 {
 	uint64_t u64;
-	struct cvmx_l2d_bst2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_bst2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t q2stat                       : 34; /**< Bist Results for QUAD2
                                                          Failure \#1 Status
@@ -338,12 +332,10 @@ typedef union cvmx_l2d_bst2 cvmx_l2d_bst2_t;
  * L2D_BST3 = L2C Data Store QUAD3 BIST Status Register
  *
  */
-union cvmx_l2d_bst3
-{
+union cvmx_l2d_bst3 {
 	uint64_t u64;
-	struct cvmx_l2d_bst3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_bst3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t q3stat                       : 34; /**< Bist Results for QUAD3
                                                          Failure \#1 Status
@@ -386,12 +378,10 @@ typedef union cvmx_l2d_bst3 cvmx_l2d_bst3_t;
  *
  * Description: L2 Data ECC SEC/DED Errors and Interrupt Enable
  */
-union cvmx_l2d_err
-{
+union cvmx_l2d_err {
 	uint64_t u64;
-	struct cvmx_l2d_err_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_err_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t bmhclsel                     : 1;  /**< L2 Bit Map Half CacheLine ECC Selector
 
@@ -450,12 +440,10 @@ typedef union cvmx_l2d_err cvmx_l2d_err_t;
  * When L2D_SEC_ERR or L2D_DED_ERR are set, this field contains the failing L2 Data store index.
  * (A DED Error will always overwrite a SEC Error SYNDROME and FADR).
  */
-union cvmx_l2d_fadr
-{
+union cvmx_l2d_fadr {
 	uint64_t u64;
-	struct cvmx_l2d_fadr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fadr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t fadru                        : 1;  /**< Failing L2 Data Store Upper Index bit(MSB) */
 	uint64_t fowmsk                       : 4;  /**< Failing OW Mask (which one of 4 OWs contained SEC/DED
@@ -475,9 +463,8 @@ union cvmx_l2d_fadr
 	uint64_t reserved_19_63               : 45;
 #endif
 	} s;
-	struct cvmx_l2d_fadr_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fadr_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t fowmsk                       : 4;  /**< Failing OW Mask (which one of 4 OWs contained SEC/DED
                                                          error) */
@@ -494,9 +481,8 @@ union cvmx_l2d_fadr
 	uint64_t reserved_18_63               : 46;
 #endif
 	} cn30xx;
-	struct cvmx_l2d_fadr_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fadr_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t fowmsk                       : 4;  /**< Failing OW Mask (which one of 4 OWs contained SEC/DED
                                                          error) */
@@ -514,9 +500,8 @@ union cvmx_l2d_fadr
 	uint64_t reserved_18_63               : 46;
 #endif
 	} cn31xx;
-	struct cvmx_l2d_fadr_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fadr_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t fowmsk                       : 4;  /**< Failing OW Mask (which one of 4 OWs contained SEC/DED
                                                          error) */
@@ -530,9 +515,8 @@ union cvmx_l2d_fadr
 #endif
 	} cn38xx;
 	struct cvmx_l2d_fadr_cn38xx           cn38xxp2;
-	struct cvmx_l2d_fadr_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fadr_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t fowmsk                       : 4;  /**< Failing OW Mask (which one of 4 OWs contained SEC/DED
                                                          error) */
@@ -550,9 +534,8 @@ union cvmx_l2d_fadr
 	uint64_t reserved_18_63               : 46;
 #endif
 	} cn50xx;
-	struct cvmx_l2d_fadr_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fadr_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_18_63               : 46;
 	uint64_t fowmsk                       : 4;  /**< Failing OW Mask (which one of 4 OWs contained SEC/DED
                                                          error) */
@@ -589,12 +572,10 @@ typedef union cvmx_l2d_fadr cvmx_l2d_fadr_t;
  * When L2D_SEC_ERR or L2D_DED_ERR are set, this field contains the failing L2 Data ECC 10b syndrome.
  * (A DED Error will always overwrite a SEC Error SYNDROME and FADR).
  */
-union cvmx_l2d_fsyn0
-{
+union cvmx_l2d_fsyn0 {
 	uint64_t u64;
-	struct cvmx_l2d_fsyn0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fsyn0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t fsyn_ow1                     : 10; /**< Failing L2 Data Store SYNDROME OW[1,5]
                                                          When L2D_ERR[ECC_ENA]=1 and either L2D_ERR[SEC_ERR]
@@ -649,12 +630,10 @@ typedef union cvmx_l2d_fsyn0 cvmx_l2d_fsyn0_t;
  * When L2D_SEC_ERR or L2D_DED_ERR are set, this field contains the failing L2 Data ECC 10b syndrome.
  * (A DED Error will always overwrite a SEC Error SYNDROME and FADR).
  */
-union cvmx_l2d_fsyn1
-{
+union cvmx_l2d_fsyn1 {
 	uint64_t u64;
-	struct cvmx_l2d_fsyn1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fsyn1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t fsyn_ow3                     : 10; /**< Failing L2 Data Store SYNDROME OW[3,7] */
 	uint64_t fsyn_ow2                     : 10; /**< Failing L2 Data Store SYNDROME OW[2,5] */
@@ -684,12 +663,10 @@ typedef union cvmx_l2d_fsyn1 cvmx_l2d_fsyn1_t;
  * L2D_FUS0 = L2C Data Store QUAD0 Fuse Register
  *
  */
-union cvmx_l2d_fus0
-{
+union cvmx_l2d_fus0 {
 	uint64_t u64;
-	struct cvmx_l2d_fus0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t q0fus                        : 34; /**< Fuse Register for QUAD0
                                                          This is purely for debug and not needed in the general
@@ -731,12 +708,10 @@ typedef union cvmx_l2d_fus0 cvmx_l2d_fus0_t;
  * L2D_FUS1 = L2C Data Store QUAD1 Fuse Register
  *
  */
-union cvmx_l2d_fus1
-{
+union cvmx_l2d_fus1 {
 	uint64_t u64;
-	struct cvmx_l2d_fus1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t q1fus                        : 34; /**< Fuse Register for QUAD1
                                                          This is purely for debug and not needed in the general
@@ -778,12 +753,10 @@ typedef union cvmx_l2d_fus1 cvmx_l2d_fus1_t;
  * L2D_FUS2 = L2C Data Store QUAD2 Fuse Register
  *
  */
-union cvmx_l2d_fus2
-{
+union cvmx_l2d_fus2 {
 	uint64_t u64;
-	struct cvmx_l2d_fus2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t q2fus                        : 34; /**< Fuse Register for QUAD2
                                                          This is purely for debug and not needed in the general
@@ -825,12 +798,10 @@ typedef union cvmx_l2d_fus2 cvmx_l2d_fus2_t;
  * L2D_FUS3 = L2C Data Store QUAD3 Fuse Register
  *
  */
-union cvmx_l2d_fus3
-{
+union cvmx_l2d_fus3 {
 	uint64_t u64;
-	struct cvmx_l2d_fus3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t ema_ctl                      : 3;  /**< L2 Data Store EMA Control
                                                          These bits are used to 'observe' the EMA[1:0] inputs
@@ -864,9 +835,8 @@ union cvmx_l2d_fus3
 	uint64_t reserved_40_63               : 24;
 #endif
 	} s;
-	struct cvmx_l2d_fus3_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_35_63               : 29;
 	uint64_t crip_64k                     : 1;  /**< This is purely for debug and not needed in the general
                                                          manufacturing flow.
@@ -896,9 +866,8 @@ union cvmx_l2d_fus3
 	uint64_t reserved_35_63               : 29;
 #endif
 	} cn30xx;
-	struct cvmx_l2d_fus3_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_35_63               : 29;
 	uint64_t crip_128k                    : 1;  /**< This is purely for debug and not needed in the general
                                                          manufacturing flow.
@@ -928,9 +897,8 @@ union cvmx_l2d_fus3
 	uint64_t reserved_35_63               : 29;
 #endif
 	} cn31xx;
-	struct cvmx_l2d_fus3_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t crip_256k                    : 1;  /**< This is purely for debug and not needed in the general
                                                          manufacturing flow.
@@ -967,9 +935,8 @@ union cvmx_l2d_fus3
 #endif
 	} cn38xx;
 	struct cvmx_l2d_fus3_cn38xx           cn38xxp2;
-	struct cvmx_l2d_fus3_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t ema_ctl                      : 3;  /**< L2 Data Store EMA Control
                                                          These bits are used to 'observe' the EMA[2:0] inputs
@@ -1015,9 +982,8 @@ union cvmx_l2d_fus3
 	uint64_t reserved_40_63               : 24;
 #endif
 	} cn50xx;
-	struct cvmx_l2d_fus3_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t ema_ctl                      : 3;  /**< L2 Data Store EMA Control
                                                          These bits are used to 'observe' the EMA[2:0] inputs
@@ -1064,9 +1030,8 @@ union cvmx_l2d_fus3
 #endif
 	} cn52xx;
 	struct cvmx_l2d_fus3_cn52xx           cn52xxp1;
-	struct cvmx_l2d_fus3_cn56xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_cn56xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t ema_ctl                      : 3;  /**< L2 Data Store EMA Control
                                                          These bits are used to 'observe' the EMA[2:0] inputs
@@ -1115,9 +1080,8 @@ union cvmx_l2d_fus3
 #endif
 	} cn56xx;
 	struct cvmx_l2d_fus3_cn56xx           cn56xxp1;
-	struct cvmx_l2d_fus3_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_l2d_fus3_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_39_63               : 25;
 	uint64_t ema_ctl                      : 2;  /**< L2 Data Store EMA Control
                                                          These bits are used to 'observe' the EMA[1:0] inputs

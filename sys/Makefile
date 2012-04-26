@@ -11,7 +11,7 @@ SUBDIR=	boot
 CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
 		geom gnu isa kern libkern modules net net80211 netatalk \
 		netgraph netinet netinet6 netipsec netipx netnatm netncp \
-		netsmb nfs nfsclient nfsserver nlm opencrypto \
+		netsmb nfs nfsclient nfsserver nlm ofed opencrypto \
 		pci rpc security sys ufs vm xdr xen ${CSCOPE_ARCHDIR}
 .if !defined(CSCOPE_ARCHDIR)
 .if defined(ALL_ARCH)

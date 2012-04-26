@@ -54,12 +54,9 @@ extern vm_offset_t kernel_kseg0_end;
 
 void	MipsSaveCurFPState(struct thread *);
 void	fork_trampoline(void);
-void	cpu_swapin(struct proc *);
 uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
 void MipsSwitchFPState(struct thread *, struct trapframe *);
-u_long	kvtop(void *addr);
 int	is_cacheable_mem(vm_paddr_t addr);
-void	mips_generic_reset(void);
 void	mips_wait(void);
 
 #define	MIPS_DEBUG   0
@@ -75,9 +72,6 @@ void	mips_cpu_init(void);
 void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
 void	mips_postboot_fixup(void);
-
-/* Platform call-downs. */
-void	platform_identify(void);
 
 extern int busdma_swi_pending;
 void	busdma_swi(void);

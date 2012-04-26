@@ -95,6 +95,8 @@ AslInitializeGlobals (
     Gbl_LogicalLineNumber = 1;
     Gbl_CurrentLineOffset = 0;
     Gbl_InputFieldCount = 0;
+    Gbl_InputByteCount = 0;
+    Gbl_NsLookupCount = 0;
     Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
 
     Gbl_ErrorLog = NULL;
@@ -102,17 +104,26 @@ AslInitializeGlobals (
     Gbl_Signature = NULL;
     Gbl_FileType = 0;
 
+    TotalExecutableOpcodes = 0;
+    TotalNamedObjects = 0;
+    TotalKeywords = 0;
+    TotalParseNodes = 0;
+    TotalMethods = 0;
+    TotalAllocations = 0;
+    TotalAllocated = 0;
+    TotalFolds = 0;
+
     AslGbl_NextEvent = 0;
     for (i = 0; i < ASL_NUM_REPORT_LEVELS; i++)
     {
         Gbl_ExceptionCount[i] = 0;
     }
 
-    Gbl_Files[ASL_FILE_AML_OUTPUT].Filename = NULL;
-    Gbl_Files[ASL_FILE_AML_OUTPUT].Handle = NULL;
-
-    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename = NULL;
-    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle = NULL;
+    for (i = ASL_FILE_INPUT; i <= ASL_MAX_FILE_TYPE; i++)
+    {
+        Gbl_Files[i].Handle = NULL;
+        Gbl_Files[i].Filename = NULL;
+    }
 }
 
 
@@ -282,11 +293,12 @@ AslDoOneFile (
     ACPI_STATUS             Status;
 
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
-
-    /* Re-initialize "some" compiler globals */
+    /* Re-initialize "some" compiler/preprocessor globals */
 
     AslInitializeGlobals ();
+    PrInitializeGlobals ();
+
+    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
 
     /*
      * AML Disassembly (Optional)
@@ -392,17 +404,33 @@ AslDoOneFile (
     case ASL_INPUT_TYPE_ASCII_DATA:
 
         Status = DtDoCompile ();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
 
         if (Gbl_Signature)
         {
             ACPI_FREE (Gbl_Signature);
             Gbl_Signature = NULL;
         }
+
+        /* Check if any errors occurred during compile */
+
+        Status = AslCheckForErrorExit ();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Cleanup (for next source file) and exit */
+
         AeClearErrorLog ();
+        PrTerminatePreprocessor ();
         return (Status);
 
     /*
-     * ASL Compilation (Optional)
+     * ASL Compilation
      */
     case ASL_INPUT_TYPE_ASCII_ASL:
 
@@ -414,19 +442,21 @@ AslDoOneFile (
             return (Status);
         }
 
-        Status = CmDoCompile ();
+        (void) CmDoCompile ();
         (void) AcpiTerminate ();
 
-        /*
-         * Return non-zero exit code if there have been errors, unless the
-         * global ignore error flag has been set
-         */
-        if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors))
+        /* Check if any errors occurred during compile */
+
+        Status = AslCheckForErrorExit ();
+        if (ACPI_FAILURE (Status))
         {
-            return (AE_ERROR);
+            return (Status);
         }
 
+        /* Cleanup (for next source file) and exit */
+
         AeClearErrorLog ();
+        PrTerminatePreprocessor ();
         return (AE_OK);
 
     case ASL_INPUT_TYPE_BINARY:
@@ -511,3 +541,47 @@ AslDoOnePathname (
     return (Status);
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslCheckForErrorExit
+ *
+ * PARAMETERS:  None. Examines global exception count array
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Determine if compiler should abort with error status
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AslCheckForErrorExit (
+    void)
+{
+
+    /*
+     * Return non-zero exit code if there have been errors, unless the
+     * global ignore error flag has been set
+     */
+    if (!Gbl_IgnoreErrors)
+    {
+        if (Gbl_ExceptionCount[ASL_ERROR] > 0)
+        {
+            return (AE_ERROR);
+        }
+
+        /* Optionally treat warnings as errors */
+
+        if (Gbl_WarningsAsErrors)
+        {
+            if ((Gbl_ExceptionCount[ASL_WARNING] > 0)  ||
+                (Gbl_ExceptionCount[ASL_WARNING2] > 0) ||
+                (Gbl_ExceptionCount[ASL_WARNING3] > 0))
+            {
+                return (AE_ERROR);
+            }
+        }
+    }
+
+    return (AE_OK);
+}

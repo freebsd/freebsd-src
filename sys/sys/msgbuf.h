@@ -46,9 +46,8 @@ struct msgbuf {
 	u_int	   msg_cksum;		/* checksum of contents */
 	u_int	   msg_seqmod;		/* range for sequence numbers */
 	int	   msg_lastpri;		/* saved priority value */
-	u_int   msg_flags;
-#define MSGBUF_NEEDNL		0x01	/* set when newline needed */
-#define MSGBUF_NEXT_NEW_LINE	0x02
+	u_int      msg_flags;
+#define MSGBUF_NEEDNL	0x01	/* set when newline needed */
 	struct mtx msg_lock;		/* mutex to protect the buffer */
 };
 

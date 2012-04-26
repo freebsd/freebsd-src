@@ -212,6 +212,7 @@ struct ieee80211_meshpann_ie {
 } __packed;
 
 /* Root (MP) Annoucement */
+#define	IEEE80211_MESHRANN_BASE_SZ 	(21)
 struct ieee80211_meshrann_ie {
 	uint8_t		rann_ie;		/* IEEE80211_ELEMID_MESHRANN */
 	uint8_t		rann_len;
@@ -221,10 +222,16 @@ struct ieee80211_meshrann_ie {
 	uint8_t		rann_ttl;
 	uint8_t		rann_addr[IEEE80211_ADDR_LEN];
 	uint32_t	rann_seq;		/* HWMP Sequence Number */
+	uint32_t	rann_interval;
 	uint32_t	rann_metric;
 } __packed;
 
 /* Mesh Path Request */
+#define	IEEE80211_MESHPREQ_BASE_SZ 		(26)
+#define	IEEE80211_MESHPREQ_BASE_SZ_AE 		(32)
+#define	IEEE80211_MESHPREQ_TRGT_SZ 		(11)
+#define	IEEE80211_MESHPREQ_TCNT_OFFSET		(27)
+#define	IEEE80211_MESHPREQ_TCNT_OFFSET_AE	(33)
 struct ieee80211_meshpreq_ie {
 	uint8_t		preq_ie;	/* IEEE80211_ELEMID_MESHPREQ */
 	uint8_t		preq_len;
@@ -238,7 +245,8 @@ struct ieee80211_meshpreq_ie {
 	uint32_t	preq_id;
 	uint8_t		preq_origaddr[IEEE80211_ADDR_LEN];
 	uint32_t	preq_origseq;	/* HWMP Sequence Number */
-	/* NB: may have Originator Proxied Address */
+	/* NB: may have Originator External Address */
+	uint8_t		preq_orig_ext_addr[IEEE80211_ADDR_LEN];
 	uint32_t	preq_lifetime;
 	uint32_t	preq_metric;
 	uint8_t		preq_tcount;	/* target count */
@@ -253,15 +261,19 @@ struct ieee80211_meshpreq_ie {
 } __packed;
 
 /* Mesh Path Reply */
+#define	IEEE80211_MESHPREP_BASE_SZ 	(31)
+#define	IEEE80211_MESHPREP_BASE_SZ_AE 	(37)
 struct ieee80211_meshprep_ie {
 	uint8_t		prep_ie;	/* IEEE80211_ELEMID_MESHPREP */
 	uint8_t		prep_len;
 	uint8_t		prep_flags;
+#define	IEEE80211_MESHPREP_FLAGS_AE	0x40	/* Address Extension */
 	uint8_t		prep_hopcount;
 	uint8_t		prep_ttl;
 	uint8_t		prep_targetaddr[IEEE80211_ADDR_LEN];
 	uint32_t	prep_targetseq;
-	/* NB: May have Target Proxied Address */
+	/* NB: May have Target External Address */
+	uint8_t		prep_target_ext_addr[IEEE80211_ADDR_LEN];
 	uint32_t	prep_lifetime;
 	uint32_t	prep_metric;
 	uint8_t		prep_origaddr[IEEE80211_ADDR_LEN];
@@ -269,6 +281,11 @@ struct ieee80211_meshprep_ie {
 } __packed;
 
 /* Mesh Path Error */
+#define	IEEE80211_MESHPERR_MAXDEST	(19)
+#define	IEEE80211_MESHPERR_NDEST_OFFSET	(3)
+#define	IEEE80211_MESHPERR_BASE_SZ 	(2)
+#define	IEEE80211_MESHPERR_DEST_SZ 	(13)
+#define	IEEE80211_MESHPERR_DEST_SZ_AE 	(19)
 struct ieee80211_meshperr_ie {
 	uint8_t		perr_ie;	/* IEEE80211_ELEMID_MESHPERR */
 	uint8_t		perr_len;
@@ -276,10 +293,13 @@ struct ieee80211_meshperr_ie {
 	uint8_t		perr_ndests;	/* Number of Destinations */
 	struct {
 		uint8_t		dest_flags;
-#define	IEEE80211_MESHPERR_DFLAGS_USN	0x01
-#define	IEEE80211_MESHPERR_DFLAGS_RC	0x02
+#define	IEEE80211_MESHPERR_DFLAGS_USN	0x01	/* XXX: not part of standard */
+#define	IEEE80211_MESHPERR_DFLAGS_RC	0x02	/* XXX: not part of standard */
+#define	IEEE80211_MESHPERR_FLAGS_AE	0x40	/* Address Extension */
 		uint8_t		dest_addr[IEEE80211_ADDR_LEN];
 		uint32_t	dest_seq;	/* HWMP Sequence Number */
+		/* NB: May have Destination External Address */
+		uint8_t		dest_ext_addr[IEEE80211_ADDR_LEN];
 		uint16_t	dest_rcode;
 	} __packed perr_dests[1];		/* NB: variable size */
 } __packed;
@@ -390,6 +410,10 @@ struct ieee80211_meshcntl_ae11 {
 } __packed;
 
 #ifdef _KERNEL
+MALLOC_DECLARE(M_80211_MESH_PREQ);
+MALLOC_DECLARE(M_80211_MESH_PREP);
+MALLOC_DECLARE(M_80211_MESH_PERR);
+
 MALLOC_DECLARE(M_80211_MESH_RT);
 struct ieee80211_mesh_route {
 	TAILQ_ENTRY(ieee80211_mesh_route)	rt_next;

@@ -50,13 +50,13 @@ struct pmc_mdep;
  * measurement architecture have PMCs of the following classes: TSC,
  * IAF, IAP, UCF and UCP.
  */
-#define	PMC_MDEP_CLASS_INDEX_TSC	0
-#define	PMC_MDEP_CLASS_INDEX_K8		1
-#define	PMC_MDEP_CLASS_INDEX_P4		1
-#define	PMC_MDEP_CLASS_INDEX_IAP	1
-#define	PMC_MDEP_CLASS_INDEX_IAF	2
-#define	PMC_MDEP_CLASS_INDEX_UCP	3
-#define	PMC_MDEP_CLASS_INDEX_UCF	4
+#define	PMC_MDEP_CLASS_INDEX_TSC	1
+#define	PMC_MDEP_CLASS_INDEX_K8		2
+#define	PMC_MDEP_CLASS_INDEX_P4		2
+#define	PMC_MDEP_CLASS_INDEX_IAP	2
+#define	PMC_MDEP_CLASS_INDEX_IAF	3
+#define	PMC_MDEP_CLASS_INDEX_UCP	4
+#define	PMC_MDEP_CLASS_INDEX_UCF	5
 
 /*
  * On the amd64 platform we support the following PMCs.
@@ -118,6 +118,15 @@ union pmc_md_pmc {
 	(va) < VM_MAX_KERNEL_ADDRESS))
 
 #define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
+
+/* Build a fake kernel trapframe from current instruction pointer. */
+#define PMC_FAKE_TRAPFRAME(TF)						\
+	do {								\
+	(TF)->tf_cs = 0; (TF)->tf_rflags = 0;				\
+	__asm __volatile("movq %%rbp,%0" : "=r" ((TF)->tf_rbp));	\
+	__asm __volatile("movq %%rsp,%0" : "=r" ((TF)->tf_rsp));	\
+	__asm __volatile("call 1f \n\t1: pop %0" : "=r"((TF)->tf_rip));	\
+	} while (0)
 
 /*
  * Prototypes

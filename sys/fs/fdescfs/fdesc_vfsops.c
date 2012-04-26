@@ -98,7 +98,7 @@ fdesc_mount(struct mount *mp)
 	error = fdesc_allocvp(Froot, -1, FD_ROOT, mp, &rvp);
 	if (error) {
 		free(fmp, M_FDESCMNT);
-		mp->mnt_data = 0;
+		mp->mnt_data = NULL;
 		return (error);
 	}
 	rvp->v_type = VDIR;
@@ -152,7 +152,7 @@ fdesc_unmount(mp, mntflags)
 	 */
 	mtx_lock(&fdesc_hashmtx);
 	data = mp->mnt_data;
-	mp->mnt_data = 0;
+	mp->mnt_data = NULL;
 	mtx_unlock(&fdesc_hashmtx);
 	free(data, M_FDESCMNT);	/* XXX */
 

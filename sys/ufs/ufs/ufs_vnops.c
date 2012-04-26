@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <fs/fifofs/fifo.h>
-
 #include <ufs/ufs/acl.h>
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -528,6 +526,10 @@ ufs_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
+		if ((vap->va_flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND |
+		    UF_OPAQUE | UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE |
+		    SF_APPEND | SF_NOUNLINK | SF_SNAPSHOT)) != 0)
+			return (EOPNOTSUPP);
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		/*
@@ -547,34 +549,33 @@ ufs_setattr(ap)
 		 * processes.
 		 */
 		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+			if (ip->i_flags &
+			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
 					return (error);
 			}
-			/* Snapshot flag cannot be set or cleared */
-			if (((vap->va_flags & SF_SNAPSHOT) != 0 &&
-			     (ip->i_flags & SF_SNAPSHOT) == 0) ||
-			    ((vap->va_flags & SF_SNAPSHOT) == 0 &&
-			     (ip->i_flags & SF_SNAPSHOT) != 0))
+			/* The snapshot flag cannot be toggled. */
+			if ((vap->va_flags ^ ip->i_flags) & SF_SNAPSHOT)
 				return (EPERM);
-			ip->i_flags = vap->va_flags;
-			DIP_SET(ip, i_flags, vap->va_flags);
 		} else {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
+			if (ip->i_flags &
+			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
+			    ((vap->va_flags ^ ip->i_flags) & SF_SETTABLE))
 				return (EPERM);
-			ip->i_flags &= SF_SETTABLE;
-			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
-			DIP_SET(ip, i_flags, ip->i_flags);
 		}
+		ip->i_flags = vap->va_flags;
+		DIP_SET(ip, i_flags, vap->va_flags);
 		ip->i_flag |= IN_CHANGE;
 		error = UFS_UPDATE(vp, 0);
-		if (vap->va_flags & (IMMUTABLE | APPEND))
+		if (ip->i_flags & (IMMUTABLE | APPEND))
 			return (error);
 	}
+	/*
+	 * If immutable or append, no one can change any of its attributes
+	 * except the ones already handled (in some cases, file flags
+	 * including the immutability flags themselves for the superuser).
+	 */
 	if (ip->i_flags & (IMMUTABLE | APPEND))
 		return (EPERM);
 	/*
@@ -620,7 +621,7 @@ ufs_setattr(ap)
 			return (0);
 		}
 		if ((error = UFS_TRUNCATE(vp, vap->va_size, IO_NORMAL,
-		    cred, td)) != 0)
+		    cred)) != 0)
 			return (error);
 	}
 	if (vap->va_atime.tv_sec != VNOVAL ||
@@ -1000,6 +1001,14 @@ ufs_link(ap)
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
 		error = EMLINK;
+		goto out;
+	}
+	/*
+	 * The file may have been removed after namei droped the original
+	 * lock.
+	 */
+	if (ip->i_effnlink == 0) {
+		error = ENOENT;
 		goto out;
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND)) {
@@ -1558,8 +1567,7 @@ unlockout:
 		if (tdp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(tdp, endoff);
 #endif
-		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred,
-		    td);
+		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred);
 	}
 	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
 		error = VOP_FSYNC(tdvp, MNT_WAIT, td);

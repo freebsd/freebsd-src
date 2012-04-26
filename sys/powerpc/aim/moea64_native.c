@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -138,7 +139,7 @@ __FBSDID("$FreeBSD$");
  * Just to add to the fun, exceptions must be off as well
  * so that we can't trap in 64-bit mode. What a pain.
  */
-struct mtx	tlbie_mutex;
+static struct mtx	tlbie_mutex;
 
 static __inline void
 TLBIE(uint64_t vpn) {
@@ -151,25 +152,22 @@ TLBIE(uint64_t vpn) {
 	vpn <<= ADDR_PIDX_SHFT;
 	vpn &= ~(0xffffULL << 48);
 
-	mtx_lock_spin(&tlbie_mutex);
 #ifdef __powerpc64__
-	__asm __volatile("\
-	    ptesync; \
-	    tlbie %0; \
-	    eieio; \
-	    tlbsync; \
-	    ptesync;" 
-	:: "r"(vpn) : "memory");
+	mtx_lock(&tlbie_mutex);
+	__asm __volatile("tlbie %0" :: "r"(vpn) : "memory");
+	mtx_unlock(&tlbie_mutex);
+	__asm __volatile("eieio; tlbsync; ptesync");
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
 
+	/* Note: spin mutex is to disable exceptions while fiddling MSR */
+	mtx_lock_spin(&tlbie_mutex);
 	__asm __volatile("\
 	    mfmsr %0; \
 	    mr %1, %0; \
 	    insrdi %1,%5,1,0; \
 	    mtmsrd %1; isync; \
-	    ptesync; \
 	    \
 	    sld %1,%2,%4; \
 	    or %1,%1,%3; \
@@ -181,8 +179,8 @@ TLBIE(uint64_t vpn) {
 	    ptesync;" 
 	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32), "r"(1)
 	    : "memory");
-#endif
 	mtx_unlock_spin(&tlbie_mutex);
+#endif
 }
 
 #define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR)
@@ -263,7 +261,9 @@ moea64_pte_clear_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
 	 * As shown in Section 7.6.3.2.3
 	 */
 	pt->pte_lo &= ~ptebit;
+	sched_pin();
 	TLBIE(vpn);
+	sched_unpin();
 }
 
 static void
@@ -293,21 +293,16 @@ moea64_pte_unset_native(mmu_t mmu, uintptr_t pt_cookie, struct lpte *pvo_pt,
 {
 	struct lpte *pt = (struct lpte *)pt_cookie;
 
-	pvo_pt->pte_hi &= ~LPTE_VALID;
-
-	/* Finish all pending operations */
-	isync();
-
-	/*
-	 * Force the reg & chg bits back into the PTEs.
-	 */
-	SYNC();
-
 	/*
 	 * Invalidate the pte.
 	 */
+	isync();
+	sched_pin();
+	pvo_pt->pte_hi &= ~LPTE_VALID;
 	pt->pte_hi &= ~LPTE_VALID;
+	PTESYNC();
 	TLBIE(vpn);
+	sched_unpin();
 
 	/*
 	 * Save the reg & chg bits.
@@ -413,7 +408,11 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	/*
 	 * Initialize the TLBIE lock. TLBIE can only be executed by one CPU.
 	 */
-	mtx_init(&tlbie_mutex, "tlbie mutex", NULL, MTX_SPIN);
+#ifdef __powerpc64__
+	mtx_init(&tlbie_mutex, "tlbie", NULL, MTX_DEF);
+#else
+	mtx_init(&tlbie_mutex, "tlbie", NULL, MTX_SPIN);
+#endif
 
 	moea64_mid_bootstrap(mmup, kernelstart, kernelend);
 

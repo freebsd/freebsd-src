@@ -31,7 +31,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_cputype.h"
 
 #define __ELF_WORD_SIZE 32
 
@@ -222,7 +221,7 @@ get_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
 	for (i = 0; i < 33; i++)
 		mcp->mc_fpregs[i] = mcp64.mc_fpregs[i];
 	mcp->mc_fpc_eir = mcp64.mc_fpc_eir;
-	mcp->mc_tls = mcp64.mc_tls;
+	mcp->mc_tls = (int32_t)(intptr_t)mcp64.mc_tls;
 
 	return (0);
 }
@@ -244,7 +243,7 @@ set_mcontext32(struct thread *td, const mcontext32_t *mcp)
 	for (i = 0; i < 33; i++)
 		mcp64.mc_fpregs[i] = mcp->mc_fpregs[i];
 	mcp64.mc_fpc_eir = mcp->mc_fpc_eir;
-	mcp64.mc_tls = mcp->mc_tls;
+	mcp64.mc_tls = (void *)(intptr_t)mcp->mc_tls;
 
 	return (set_mcontext(td, &mcp64));
 }
@@ -395,6 +394,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_pc = regs.r_regs[PC];
 	sf.sf_uc.uc_mcontext.mullo = regs.r_regs[MULLO];
 	sf.sf_uc.uc_mcontext.mulhi = regs.r_regs[MULHI];
+	sf.sf_uc.uc_mcontext.mc_tls = (int32_t)(intptr_t)td->td_md.md_tls;
 	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
 	for (i = 1; i < 32; i++)
 		sf.sf_uc.uc_mcontext.mc_regs[i] = regs.r_regs[i];

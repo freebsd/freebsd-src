@@ -162,12 +162,10 @@ pmc_intel_initialize(void)
 		return (NULL);
 	}
 
-	pmc_mdep = malloc(sizeof(struct pmc_mdep) + nclasses *
-	    sizeof(struct pmc_classdep), M_PMC, M_WAITOK|M_ZERO);
+	/* Allocate base class and initialize machine dependent struct */
+	pmc_mdep = pmc_mdep_alloc(nclasses);
 
 	pmc_mdep->pmd_cputype 	 = cputype;
-	pmc_mdep->pmd_nclass	 = nclasses;
-
 	pmc_mdep->pmd_switch_in	 = intel_switch_in;
 	pmc_mdep->pmd_switch_out = intel_switch_out;
 
@@ -238,6 +236,9 @@ pmc_intel_initialize(void)
 	default:
 		KASSERT(0, ("[intel,%d] Unknown CPU type", __LINE__));
 	}
+
+	if (error)
+		goto error;
 
 	/*
 	 * Init the uncore class.

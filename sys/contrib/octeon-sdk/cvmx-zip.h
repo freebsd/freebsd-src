@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Header file for the zip (deflate) block
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_ZIP_H__
@@ -61,7 +61,7 @@ extern "C" {
 typedef union {
    uint64_t u64;
    struct {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
       uint64_t unused              :  5;
       uint64_t full_block_write    :  1;
       uint64_t no_l2_alloc         :  1;
@@ -101,7 +101,7 @@ typedef union {
    struct {
 
       // WORD 0
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
       uint64_t crc32               : 32;
       uint64_t adler               : 32;
 #else
@@ -110,7 +110,7 @@ typedef union {
 #endif
 
       // WORD 1
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
       uint64_t totalbyteswritten   : 32;
       uint64_t totalbytesread      : 32;
 #else
@@ -119,7 +119,7 @@ typedef union {
 #endif
 
       // WORD 2
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
       uint64_t                      totalbitsprocessed  : 32; // decompression only
       uint64_t                      unused20            :  5;
       uint64_t                      exnum               :  3; // compression only
@@ -146,15 +146,16 @@ typedef union {
    struct {
 
       // WORD 0
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
       uint64_t unused00            :  8;
       uint64_t totaloutputlength   : 24;
       uint64_t unused01            :  5;
       uint64_t exnum               :  3;
       uint64_t unused02            :  1;
       uint64_t exbits              :  7;
-      uint64_t unused03            :  6;
-      uint64_t speed               :  1;
+      uint64_t unused03            :  4;
+      uint64_t flush               :  1;
+      uint64_t speed               :  2;
       uint64_t forcefixed          :  1;
       uint64_t forcedynamic        :  1;
       uint64_t eof                 :  1;
@@ -174,8 +175,9 @@ typedef union {
       uint64_t eof                 :  1;
       uint64_t forcedynamic        :  1;
       uint64_t forcefixed          :  1;
-      uint64_t speed               :  1;
-      uint64_t unused03            :  6;
+      uint64_t speed               :  2;
+      uint64_t flush               :  1;
+      uint64_t unused03            :  4;
       uint64_t exbits              :  7;
       uint64_t unused02            :  1;
       uint64_t exnum               :  3;
@@ -185,7 +187,7 @@ typedef union {
 #endif
 
       // WORD 1
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
       uint64_t historylength       : 16;
       uint64_t unused10            : 16;
       uint64_t adler32             : 32;
@@ -225,12 +227,32 @@ typedef union {
 int cvmx_zip_initialize(void);
 
 /**
+ * Initialize the ZIP QUEUE buffer
+ *
+ * @param queue : ZIP instruction queue
+ * @param zcoremask : ZIP coremask to use for this queue
+ *
+ * @return Zero on success, negative on failure
+ */
+int cvmx_zip_queue_initialize(int queue, int zcoremask);
+
+/**
  * Shutdown the ZIP block. ZIP must be idle when
  * this function is called.
  *
  * @return Zero on success, negative on failure
  */
 int cvmx_zip_shutdown(void);
+
+/**
+ * Shutdown the ZIP block for a queue. ZIP must be idle when
+ * this function is called.
+ *
+ * @param queue   Zip instruction queue of the command
+ *
+ * @return Zero on success, negative on failure
+ */
+int cvmx_zip_queue_shutdown(int queue);
 
 /**
  * Submit a command to the ZIP block
@@ -240,6 +262,16 @@ int cvmx_zip_shutdown(void);
  * @return Zero on success, negative on failure
  */
 int cvmx_zip_submit(cvmx_zip_command_t *command);
+
+/**
+ * Submit a command to the ZIP block
+ *
+ * @param command Zip command to submit
+ * @param queue   Zip instruction queue of the command
+ *
+ * @return Zero on success, negative on failure
+ */
+int cvmx_zip_queue_submit(cvmx_zip_command_t *command, int queue);
 
 /* CSR typedefs have been moved to cvmx-zip-defs.h */
 

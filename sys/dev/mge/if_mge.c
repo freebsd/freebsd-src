@@ -439,7 +439,7 @@ mge_alloc_desc_dma(struct mge_softc *sc, struct mge_desc_wrapper* tab,
 	tab[size - 1].mge_desc->next_desc = desc_paddr;
 
 	/* Allocate a busdma tag for mbufs. */
-	error = bus_dma_tag_create(NULL,	/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),	/* parent */
 	    8, 0,				/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
@@ -477,7 +477,7 @@ mge_allocate_dma(struct mge_softc *sc)
 	int i;
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
-	error = bus_dma_tag_create(NULL,	/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),	/* parent */
 	    16, 0,				/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */

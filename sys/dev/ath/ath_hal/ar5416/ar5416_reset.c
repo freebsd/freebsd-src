@@ -689,7 +689,8 @@ ar5416InitUserSettings(struct ath_hal *ah)
 
 	/* Restore user-specified settings */
 	if (ahp->ah_miscMode != 0)
-		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE)
+		    | ahp->ah_miscMode);
 	if (ahp->ah_sifstime != (u_int) -1)
 		ar5212SetSifsTime(ah, ahp->ah_sifstime);
 	if (ahp->ah_slottime != (u_int) -1)
@@ -1188,7 +1189,8 @@ ar5416SetTransmitPower(struct ath_hal *ah,
 HAL_RFGAIN
 ar5416GetRfgain(struct ath_hal *ah)
 {
-	return HAL_RFGAIN_INACTIVE;
+
+	return (HAL_RFGAIN_INACTIVE);
 }
 
 /*
@@ -1197,13 +1199,14 @@ ar5416GetRfgain(struct ath_hal *ah)
 HAL_BOOL
 ar5416Disable(struct ath_hal *ah)
 {
+
 	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 		return AH_FALSE;
 	if (! ar5416SetResetReg(ah, HAL_RESET_COLD))
 		return AH_FALSE;
 
 	AH5416(ah)->ah_initPLL(ah, AH_NULL);
-	return AH_TRUE;
+	return (AH_TRUE);
 }
 
 /*
@@ -1215,11 +1218,12 @@ ar5416Disable(struct ath_hal *ah)
 HAL_BOOL
 ar5416PhyDisable(struct ath_hal *ah)
 {
+
 	if (! ar5416SetResetReg(ah, HAL_RESET_WARM))
 		return AH_FALSE;
 
 	AH5416(ah)->ah_initPLL(ah, AH_NULL);
-	return AH_TRUE;
+	return (AH_TRUE);
 }
 
 /*
@@ -1383,16 +1387,15 @@ ar5416SetReset(struct ath_hal *ah, int type)
 	if (type == HAL_RESET_COLD) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
-			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD | AR_CFG_SWRG;
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD;
 #ifndef AH_NEED_DESC_SWAP
 			mask |= AR_CFG_SWTD;
 #endif
 			HALDEBUG(ah, HAL_DEBUG_RESET,
 			    "%s Applying descriptor swap\n", __func__);
-			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			OS_REG_WRITE(ah, AR_CFG, mask);
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
@@ -1509,6 +1512,7 @@ ar5416SetDefGainValues(struct ath_hal *ah,
     const struct ar5416eeprom *eep,
     uint8_t txRxAttenLocal, int regChainOffset, int i)
 {
+
 	if (IS_EEP_MINOR_V3(ah)) {
 		txRxAttenLocal = pModal->txRxAttenCh[i];
 
@@ -1705,7 +1709,7 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    eep->baseEepHeader.desiredScaleCCK);
         }
 
-    return AH_TRUE;
+    return (AH_TRUE);
 }
 
 /*
@@ -1739,7 +1743,8 @@ ar5416SetRatesArrayFromTargetPower(struct ath_hal *ah,
 
 	/* Set rates Array from collected data */
 	ratesArray[rate6mb] = ratesArray[rate9mb] = ratesArray[rate12mb] =
-	    ratesArray[rate18mb] = ratesArray[rate24mb] = targetPowerOfdm->tPow2x[0];
+	ratesArray[rate18mb] = ratesArray[rate24mb] =
+	    targetPowerOfdm->tPow2x[0];
 	ratesArray[rate36mb] = targetPowerOfdm->tPow2x[1];
 	ratesArray[rate48mb] = targetPowerOfdm->tPow2x[2];
 	ratesArray[rate54mb] = targetPowerOfdm->tPow2x[3];

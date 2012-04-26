@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -63,6 +63,11 @@
 #include "cvmx-swap.h"
 #include "cvmx-bootmem.h"
 #endif
+#if defined(__U_BOOT__) && defined(CONFIG_HW_WATCHDOG)
+# include <watchdog.h>
+#else
+# define WATCHDOG_RESET()
+#endif
 
 #define NAND_COMMAND_READ_ID            0x90
 #define NAND_COMMAND_READ_PARAM_PAGE    0xec
@@ -74,17 +79,21 @@
 #define NAND_COMMAND_ERASE_FIN          0xd0
 #define NAND_COMMAND_PROGRAM            0x80
 #define NAND_COMMAND_PROGRAM_FIN        0x10
-#define NAND_TIMEOUT_USECS              1000000
+#define NAND_TIMEOUT_USECS_READ         100000
+#define NAND_TIMEOUT_USECS_WRITE        1000000
+#define NAND_TIMEOUT_USECS_BLOCK_ERASE  1000000
 
-#define CVMX_NAND_ROUNDUP(_Dividend, _Divisor) (((_Dividend)+(_Divisor-1))/(_Divisor))
+#define CVMX_NAND_ROUNDUP(_Dividend, _Divisor) (((_Dividend)+((_Divisor)-1))/(_Divisor))
 #undef min
 #define min(X, Y)                               \
-        ({ typeof (X) __x = (X), __y = (Y);     \
+        ({ typeof (X) __x = (X);                \
+           typeof (Y) __y = (Y);                \
                 (__x < __y) ? __x : __y; })
 
 #undef max
 #define max(X, Y)                               \
-        ({ typeof (X) __x = (X), __y = (Y);     \
+        ({ typeof (X) __x = (X);                \
+           typeof (Y) __y = (Y);                \
                 (__x > __y) ? __x : __y; })
 
 
@@ -109,6 +118,7 @@ static const onfi_speed_mode_desc_t onfi_speed_modes[] =
     {15,10, 30, 5,10},  /* Mode 3 */
     {12,10, 25, 5,10},  /* Mode 4, requires EDO timings */
     {10, 7, 20, 5,10},  /* Mode 5, requries EDO timings */
+    {10,10, 25, 5,12},	/* Mode 6, requires EDO timings */
 };
 
 
@@ -142,12 +152,12 @@ typedef struct
  * Array indexed by bootbus chip select with information
  * about NAND devices.
  */
-#if defined(CVMX_BUILD_FOR_UBOOT) && CONFIG_OCTEON_NAND_STAGE2
+#if defined(__U_BOOT__)
 /* For u-boot nand boot we need to play some tricks to be able
 ** to use this early in boot.  We put them in a special section that is merged
 ** with the text segment.  (Using the text segment directly results in an assembler warning.)
 */
-#define USE_DATA_IN_TEXT
+/*#define USE_DATA_IN_TEXT*/
 #endif
 
 #ifdef USE_DATA_IN_TEXT
@@ -351,7 +361,7 @@ void __set_onfi_timing_mode(int *tim_par, int clocks_us, int mode)
     int margin;
     int pulse_adjust;
 
-    if (mode > 5)
+    if (mode > 6)
     {
         cvmx_dprintf("%s: invalid ONFI timing mode: %d\n", __FUNCTION__, mode);
         return;
@@ -463,6 +473,9 @@ cvmx_nand_status_t cvmx_nand_initialize(cvmx_nand_initialize_flags_t flags, int 
     union cvmx_ndf_misc ndf_misc;
     uint8_t nand_id_buffer[16];
 
+    if (!octeon_has_feature(OCTEON_FEATURE_NAND))
+        CVMX_NAND_RETURN(CVMX_NAND_NO_DEVICE);
+
     cvmx_nand_flags = flags;
     CVMX_NAND_LOG_CALLED();
     CVMX_NAND_LOG_PARAM("0x%x", flags);
@@ -472,7 +485,15 @@ cvmx_nand_status_t cvmx_nand_initialize(cvmx_nand_initialize_flags_t flags, int 
 #ifndef USE_DATA_IN_TEXT
     /* cvmx_nand_buffer is statically allocated in the TEXT_IN_DATA case */
     if (!cvmx_nand_buffer)
-        cvmx_nand_buffer = cvmx_bootmem_alloc(CVMX_NAND_MAX_PAGE_AND_OOB_SIZE, 128);
+    {
+        cvmx_nand_buffer = cvmx_bootmem_alloc_named_flags(CVMX_NAND_MAX_PAGE_AND_OOB_SIZE, 128, "__nand_buffer", CVMX_BOOTMEM_FLAG_END_ALLOC);
+    }
+    if (!cvmx_nand_buffer) {
+        const cvmx_bootmem_named_block_desc_t *block_desc = cvmx_bootmem_find_named_block("__nand_buffer");
+        if (block_desc)
+            cvmx_nand_buffer = cvmx_phys_to_ptr(block_desc->base_addr);
+    }
+
     if (!cvmx_nand_buffer)
         CVMX_NAND_RETURN(CVMX_NAND_NO_MEMORY);
 #endif
@@ -698,7 +719,8 @@ cvmx_nand_status_t cvmx_nand_initialize(cvmx_nand_initialize_flags_t flags, int 
                 /* We have a Samsung part, so decode part info from ID bytes */
                 uint64_t nand_size_bits = (64*1024*1024ULL) << ((nand_id_buffer[4] & 0x70) >> 4); /* Plane size */
                 cvmx_nand_state[chip].page_size = 1024 << (nand_id_buffer[3] & 0x3);  /* NAND page size in bytes */
-                cvmx_nand_state[chip].oob_size = 128;     /* NAND OOB (spare) size in bytes (per page) */
+		/* NAND OOB (spare) size in bytes (per page) */
+		cvmx_nand_state[chip].oob_size = (cvmx_nand_state[chip].page_size / 512) * ((nand_id_buffer[3] & 4) ? 16 : 8);
                 cvmx_nand_state[chip].pages_per_block = (0x10000 << ((nand_id_buffer[3] & 0x30) >> 4))/cvmx_nand_state[chip].page_size;
 
                 nand_size_bits *= 1 << ((nand_id_buffer[4] & 0xc) >> 2);
@@ -708,7 +730,15 @@ cvmx_nand_status_t cvmx_nand_initialize(cvmx_nand_initialize_flags_t flags, int 
                     cvmx_nand_state[chip].oob_size *= 2;
 
                 cvmx_nand_state[chip].blocks = nand_size_bits/(8ULL*cvmx_nand_state[chip].page_size*cvmx_nand_state[chip].pages_per_block);
-                cvmx_nand_state[chip].onfi_timing = 2;
+                switch (nand_id_buffer[1]) {
+                case 0xD3:      /* K9F8G08U0M */
+                case 0xDC:      /* K9F4G08U0B */
+                    cvmx_nand_state[chip].onfi_timing = 6;
+                    break;
+                default:
+                    cvmx_nand_state[chip].onfi_timing = 2;
+                    break;
+                }
 
                 if (cvmx_unlikely(cvmx_nand_flags & CVMX_NAND_INITIALIZE_FLAGS_DEBUG))
                 {
@@ -962,7 +992,7 @@ static inline int __cvmx_nand_get_address_cycles(int chip)
  * @INTERNAL
  * Build the set of command common to most transactions
  * @param chip      NAND chip to program
- * @param cmd_data  NAND comamnd for CLE cycle 1
+ * @param cmd_data  NAND command for CLE cycle 1
  * @param num_address_cycles
  *                  Number of address cycles to put on the bus
  * @param nand_address
@@ -1189,7 +1219,7 @@ static void __cvmx_nand_hex_dump(uint64_t buffer_address, int buffer_length)
  * @param nand_address
  *               NAND address to use for address cycles
  * @param nand_command2
- *               NAND comamnd cycle 2 if not zero
+ *               NAND command cycle 2 if not zero
  * @param buffer_address
  *               Physical address to DMA into
  * @param buffer_length
@@ -1261,11 +1291,13 @@ static inline int __cvmx_nand_low_level_read(int chip, int nand_command1, int ad
 
     if (__cvmx_nand_build_post_cmd())
         CVMX_NAND_RETURN(CVMX_NAND_NO_MEMORY);
-
+    WATCHDOG_RESET();
     /* Wait for the DMA to complete */
-    if (CVMX_WAIT_FOR_FIELD64(CVMX_MIO_NDF_DMA_CFG, cvmx_mio_ndf_dma_cfg_t, en, ==, 0, NAND_TIMEOUT_USECS))
+    if (CVMX_WAIT_FOR_FIELD64(CVMX_MIO_NDF_DMA_CFG, cvmx_mio_ndf_dma_cfg_t, en, ==, 0, NAND_TIMEOUT_USECS_READ))
+    {
+        WATCHDOG_RESET();
         CVMX_NAND_RETURN(CVMX_NAND_TIMEOUT);
-
+    }
     /* Return the number of bytes transfered */
     ndf_dma_cfg.u64 = cvmx_read_csr(CVMX_MIO_NDF_DMA_CFG);
     bytes = ndf_dma_cfg.s.adr - buffer_address;
@@ -1403,9 +1435,12 @@ cvmx_nand_status_t cvmx_nand_page_write(int chip, uint64_t nand_address, uint64_
         CVMX_NAND_RETURN(CVMX_NAND_NO_MEMORY);
 
     /* Wait for the DMA to complete */
-    if (CVMX_WAIT_FOR_FIELD64(CVMX_MIO_NDF_DMA_CFG, cvmx_mio_ndf_dma_cfg_t, en, ==, 0, NAND_TIMEOUT_USECS))
+    WATCHDOG_RESET();
+    if (CVMX_WAIT_FOR_FIELD64(CVMX_MIO_NDF_DMA_CFG, cvmx_mio_ndf_dma_cfg_t, en, ==, 0, NAND_TIMEOUT_USECS_WRITE))
+    {
+        WATCHDOG_RESET();
         CVMX_NAND_RETURN(CVMX_NAND_TIMEOUT);
-
+    }
     CVMX_NAND_RETURN(CVMX_NAND_SUCCESS);
 }
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
@@ -1448,8 +1483,12 @@ cvmx_nand_status_t cvmx_nand_block_erase(int chip, uint64_t nand_address)
         CVMX_NAND_RETURN(CVMX_NAND_NO_MEMORY);
 
     /* Wait for the command queue to be idle, which means the wait is done */
-    if (CVMX_WAIT_FOR_FIELD64(CVMX_NDF_ST_REG, cvmx_ndf_st_reg_t, exe_idle, ==, 1, NAND_TIMEOUT_USECS))
+    WATCHDOG_RESET();
+    if (CVMX_WAIT_FOR_FIELD64(CVMX_NDF_ST_REG, cvmx_ndf_st_reg_t, exe_idle, ==, 1, NAND_TIMEOUT_USECS_BLOCK_ERASE))
+    {
+        WATCHDOG_RESET();
         CVMX_NAND_RETURN(CVMX_NAND_TIMEOUT);
+    }
 
     CVMX_NAND_RETURN(CVMX_NAND_SUCCESS);
 }

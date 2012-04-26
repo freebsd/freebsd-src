@@ -256,6 +256,13 @@ null_input(struct ifnet *ifp, struct mbuf *m)
 	m_freem(m);
 }
 
+static void
+null_update_chw(struct ieee80211com *ic)
+{
+
+	if_printf(ic->ic_ifp, "%s: need callback\n", __func__);
+}
+
 /*
  * Attach/setup the common net80211 state.  Called by
  * the driver on attach to prior to creating any vap's.
@@ -287,6 +294,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	ic->ic_update_mcast = null_update_mcast;
 	ic->ic_update_promisc = null_update_promisc;
+	ic->ic_update_chw = null_update_chw;
 
 	ic->ic_hash_key = arc4random();
 	ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;

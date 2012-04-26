@@ -52,7 +52,7 @@ struct cdevsw;
 struct file;
 
 struct cdev {
-	void		*__si_reserved;
+	void		*si_spare0;
 	u_int		si_flags;
 #define	SI_ETERNAL	0x0001	/* never destroyed */
 #define	SI_ALIAS	0x0002	/* carrier of alias name */
@@ -78,7 +78,7 @@ struct cdev {
 	LIST_HEAD(, cdev)	si_children;
 	LIST_ENTRY(cdev)	si_siblings;
 	struct cdev *si_parent;
-	void		*si_spare0;
+	struct mount	*si_mountpt;
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
 	int		si_iosize_max;	/* maximum I/O size (for physio &al) */

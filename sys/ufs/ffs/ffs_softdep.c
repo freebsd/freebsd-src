@@ -773,8 +773,8 @@ struct bmsafemap_hashhead;
 static	void softdep_error(char *, int);
 static	void drain_output(struct vnode *);
 static	struct buf *getdirtybuf(struct buf *, struct mtx *, int);
-static	void clear_remove(struct thread *);
-static	void clear_inodedeps(struct thread *);
+static	void clear_remove(void);
+static	void clear_inodedeps(void);
 static	void unlinked_inodedep(struct mount *, struct inodedep *);
 static	void clear_unlinked_inodedep(struct inodedep *);
 static	struct inodedep *first_unlinked_inodedep(struct ufsmount *);
@@ -1351,12 +1351,12 @@ softdep_flush(void)
 		 * If requested, try removing inode or removal dependencies.
 		 */
 		if (req_clear_inodedeps) {
-			clear_inodedeps(td);
+			clear_inodedeps();
 			req_clear_inodedeps -= 1;
 			wakeup_one(&proc_waiting);
 		}
 		if (req_clear_remove) {
-			clear_remove(td);
+			clear_remove();
 			req_clear_remove -= 1;
 			wakeup_one(&proc_waiting);
 		}
@@ -1499,7 +1499,6 @@ softdep_process_worklist(mp, full)
 	struct mount *mp;
 	int full;
 {
-	struct thread *td = curthread;
 	int cnt, matchcnt;
 	struct ufsmount *ump;
 	long starttime;
@@ -1523,12 +1522,12 @@ softdep_process_worklist(mp, full)
 		 * If requested, try removing inode or removal dependencies.
 		 */
 		if (req_clear_inodedeps) {
-			clear_inodedeps(td);
+			clear_inodedeps();
 			req_clear_inodedeps -= 1;
 			wakeup_one(&proc_waiting);
 		}
 		if (req_clear_remove) {
-			clear_remove(td);
+			clear_remove();
 			req_clear_remove -= 1;
 			wakeup_one(&proc_waiting);
 		}
@@ -2368,8 +2367,7 @@ softdep_mount(devvp, mp, fs, cred)
 	mp->mnt_flag = (mp->mnt_flag & ~MNT_ASYNC) | MNT_SOFTDEP;
 	if ((mp->mnt_kern_flag & MNTK_SOFTDEP) == 0) {
 		mp->mnt_kern_flag = (mp->mnt_kern_flag & ~MNTK_ASYNC) | 
-			MNTK_SOFTDEP;
-		mp->mnt_noasync++;
+			MNTK_SOFTDEP | MNTK_NOASYNC;
 	}
 	MNT_IUNLOCK(mp);
 	ump = VFSTOUFS(mp);
@@ -2849,7 +2847,7 @@ softdep_prealloc(vp, waitok)
 	 * work attached to it.
 	 */
 	if ((curthread->td_pflags & TDP_COWINPROGRESS) == 0)
-		ffs_syncvnode(vp, waitok);
+		ffs_syncvnode(vp, waitok, 0);
 	ACQUIRE_LOCK(&lk);
 	process_removes(vp);
 	process_truncates(vp);
@@ -2888,8 +2886,8 @@ softdep_prelink(dvp, vp)
 	stat_journal_low++;
 	FREE_LOCK(&lk);
 	if (vp)
-		ffs_syncvnode(vp, MNT_NOWAIT);
-	ffs_syncvnode(dvp, MNT_WAIT);
+		ffs_syncvnode(vp, MNT_NOWAIT, 0);
+	ffs_syncvnode(dvp, MNT_WAIT, 0);
 	ACQUIRE_LOCK(&lk);
 	/* Process vp before dvp as it may create .. removes. */
 	if (vp) {
@@ -4324,6 +4322,7 @@ inodedep_lookup_ip(ip)
 	(void) inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags,
 	    &inodedep);
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
+	KASSERT((inodedep->id_state & UNLINKED) == 0, ("inode unlinked"));
 
 	return (inodedep);
 }
@@ -6312,7 +6311,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		DIP_SET(ip, i_size, length);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, frags);
-		ffs_update(vp, MNT_NOWAIT);
+		ffs_update(vp, 0);
 		bawrite(bp);
 	} else if (lastoff != 0 && vp->v_type != VDIR) {
 		int size;
@@ -8456,6 +8455,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	if (inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, 0,
 	    &inodedep) == 0)
 		panic("softdep_setup_remove: Lost inodedep.");
+	KASSERT((inodedep->id_state & UNLINKED) == 0, ("inode unlinked"));
 	dirrem->dm_state |= ONDEPLIST;
 	LIST_INSERT_HEAD(&inodedep->id_dirremhd, dirrem, dm_inonext);
 
@@ -8988,6 +8988,7 @@ first_unlinked_inodedep(ump)
 	struct inodedep *inodedep;
 	struct inodedep *idp;
 
+	mtx_assert(&lk, MA_OWNED);
 	for (inodedep = TAILQ_LAST(&ump->softdep_unlinked, inodedeplst);
 	    inodedep; inodedep = idp) {
 		if ((inodedep->id_state & UNLINKNEXT) == 0)
@@ -8996,11 +8997,8 @@ first_unlinked_inodedep(ump)
 		if (idp == NULL || (idp->id_state & UNLINKNEXT) == 0)
 			break;
 		if ((inodedep->id_state & UNLINKPREV) == 0)
-			panic("first_unlinked_inodedep: prev != next");
+			break;
 	}
-	if (inodedep == NULL)
-		return (NULL);
-
 	return (inodedep);
 }
 
@@ -9039,8 +9037,12 @@ handle_written_sbdep(sbdep, bp)
 	struct mount *mp;
 	struct fs *fs;
 
+	mtx_assert(&lk, MA_OWNED);
 	fs = sbdep->sb_fs;
 	mp = UFSTOVFS(sbdep->sb_ump);
+	/*
+	 * If the superblock doesn't match the in-memory list start over.
+	 */
 	inodedep = first_unlinked_inodedep(sbdep->sb_ump);
 	if ((inodedep && fs->fs_sujfree != inodedep->id_ino) ||
 	    (inodedep == NULL && fs->fs_sujfree != 0)) {
@@ -9050,8 +9052,6 @@ handle_written_sbdep(sbdep, bp)
 	WORKITEM_FREE(sbdep, D_SBDEP);
 	if (fs->fs_sujfree == 0)
 		return (0);
-	if (inodedep_lookup(mp, fs->fs_sujfree, 0, &inodedep) == 0)
-		panic("handle_written_sbdep: lost inodedep");
 	/*
 	 * Now that we have a record of this inode in stable store allow it
 	 * to be written to free up pending work.  Inodes may see a lot of
@@ -9079,10 +9079,13 @@ unlinked_inodedep(mp, inodedep)
 {
 	struct ufsmount *ump;
 
+	mtx_assert(&lk, MA_OWNED);
 	if (MOUNTEDSUJ(mp) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	ump->um_fs->fs_fmod = 1;
+	if (inodedep->id_state & UNLINKED)
+		panic("unlinked_inodedep: %p already unlinked\n", inodedep);
 	inodedep->id_state |= UNLINKED;
 	TAILQ_INSERT_HEAD(&ump->softdep_unlinked, inodedep, id_unlinked);
 }
@@ -9110,6 +9113,10 @@ clear_unlinked_inodedep(inodedep)
 	ino = inodedep->id_ino;
 	error = 0;
 	for (;;) {
+		mtx_assert(&lk, MA_OWNED);
+		KASSERT((inodedep->id_state & UNLINKED) != 0,
+		    ("clear_unlinked_inodedep: inodedep %p not unlinked",
+		    inodedep));
 		/*
 		 * If nothing has yet been written simply remove us from
 		 * the in memory list and return.  This is the most common
@@ -9167,36 +9174,19 @@ clear_unlinked_inodedep(inodedep)
 			ACQUIRE_LOCK(&lk);
 			continue;
 		}
+		nino = 0;
+		idn = TAILQ_NEXT(inodedep, id_unlinked);
+		if (idn)
+			nino = idn->id_ino;
 		/*
 		 * Remove us from the in memory list.  After this we cannot
 		 * access the inodedep.
 		 */
-		idn = TAILQ_NEXT(inodedep, id_unlinked);
-		inodedep->id_state &= ~(UNLINKED | UNLINKLINKS);
+		KASSERT((inodedep->id_state & UNLINKED) != 0,
+		    ("clear_unlinked_inodedep: inodedep %p not unlinked",
+		    inodedep));
+		inodedep->id_state &= ~(UNLINKED | UNLINKLINKS | UNLINKONLIST);
 		TAILQ_REMOVE(&ump->softdep_unlinked, inodedep, id_unlinked);
-		/*
-		 * Determine the next inode number.
-		 */
-		nino = 0;
-		if (idn) {
-			/*
-			 * If next isn't on the list we can just clear prev's
-			 * state and schedule it to be fixed later.  No need
-			 * to synchronously write if we're not in the real
-			 * list.
-			 */
-			if ((idn->id_state & UNLINKPREV) == 0 && pino != 0) {
-				idp->id_state &= ~UNLINKNEXT;
-				if ((idp->id_state & ONWORKLIST) == 0)
-					WORKLIST_INSERT(&bp->b_dep,
-					    &idp->id_list);
-				FREE_LOCK(&lk);
-				bawrite(bp);
-				ACQUIRE_LOCK(&lk);
-				return;
-			}
-			nino = idn->id_ino;
-		}
 		FREE_LOCK(&lk);
 		/*
 		 * The predecessor's next pointer is manually updated here
@@ -9235,13 +9225,14 @@ clear_unlinked_inodedep(inodedep)
 			bwrite(bp);
 			ACQUIRE_LOCK(&lk);
 		}
+
 		if (fs->fs_sujfree != ino)
 			return;
 		panic("clear_unlinked_inodedep: Failed to clear free head");
 	}
 	if (inodedep->id_ino == fs->fs_sujfree)
 		panic("clear_unlinked_inodedep: Freeing head of free list");
-	inodedep->id_state &= ~(UNLINKED | UNLINKLINKS);
+	inodedep->id_state &= ~(UNLINKED | UNLINKLINKS | UNLINKONLIST);
 	TAILQ_REMOVE(&ump->softdep_unlinked, inodedep, id_unlinked);
 	return;
 }
@@ -9839,18 +9830,6 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 
 		inon = TAILQ_NEXT(inodedep, id_unlinked);
 		dp->di_freelink = inon ? inon->id_ino : 0;
-	}
-	if ((inodedep->id_state & (UNLINKED | UNLINKNEXT)) ==
-	    (UNLINKED | UNLINKNEXT)) {
-		struct inodedep *inon;
-		ino_t freelink;
-
-		inon = TAILQ_NEXT(inodedep, id_unlinked);
-		freelink = inon ? inon->id_ino : 0;
-		if (freelink != dp->di_freelink)
-			panic("ino %p(0x%X) %d, %d != %d",
-			    inodedep, inodedep->id_state, inodedep->id_ino,
-			    freelink, dp->di_freelink);
 	}
 	/*
 	 * If the bitmap is not yet written, then the allocated
@@ -10850,10 +10829,9 @@ handle_written_inodeblock(inodedep, bp)
 		freelink = dp2->di_freelink;
 	}
 	/*
-	 * If we wrote a valid freelink pointer during the last write
-	 * record it here.
+	 * Leave this inodeblock dirty until it's in the list.
 	 */
-	if ((inodedep->id_state & (UNLINKED | UNLINKNEXT)) == UNLINKED) {
+	if ((inodedep->id_state & (UNLINKED | UNLINKONLIST)) == UNLINKED) {
 		struct inodedep *inon;
 
 		inon = TAILQ_NEXT(inodedep, id_unlinked);
@@ -10862,12 +10840,9 @@ handle_written_inodeblock(inodedep, bp)
 			if (inon)
 				inon->id_state |= UNLINKPREV;
 			inodedep->id_state |= UNLINKNEXT;
-		} else
-			hadchanges = 1;
-	}
-	/* Leave this inodeblock dirty until it's in the list. */
-	if ((inodedep->id_state & (UNLINKED | UNLINKONLIST)) == UNLINKED)
+		}
 		hadchanges = 1;
+	}
 	/*
 	 * If we had to rollback the inode allocation because of
 	 * bitmaps being incomplete, then simply restore it.
@@ -11842,8 +11817,8 @@ restart:
 					pagedep_new_block = pagedep->pd_state & NEWBLOCK;
 					FREE_LOCK(&lk);
 					locked = 0;
-					if (pagedep_new_block &&
-					    (error = ffs_syncvnode(pvp, MNT_WAIT))) {
+					if (pagedep_new_block && (error =
+					    ffs_syncvnode(pvp, MNT_WAIT, 0))) {
 						vput(pvp);
 						return (error);
 					}
@@ -12347,7 +12322,7 @@ flush_newblk_dep(vp, mp, lbn)
 		 * point at the newdirblk before the dependency
 		 * will go away.
 		 */
-		error = ffs_update(vp, MNT_WAIT);
+		error = ffs_update(vp, 1);
 		if (error)
 			break;
 		ACQUIRE_LOCK(&lk);
@@ -12383,7 +12358,7 @@ restart:
 		 */
 		if (dap->da_state & MKDIR_PARENT) {
 			FREE_LOCK(&lk);
-			if ((error = ffs_update(pvp, MNT_WAIT)) != 0)
+			if ((error = ffs_update(pvp, 1)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -12425,7 +12400,7 @@ restart:
 			 * disk.
 			 */
 			if (error == 0 && dap == LIST_FIRST(diraddhdp))
-				error = ffs_update(vp, MNT_WAIT);
+				error = ffs_update(vp, 1);
 			vput(vp);
 			if (error != 0)
 				break;
@@ -12482,7 +12457,7 @@ retry:
 			if ((error = ffs_vgetf(mp, inum, LK_EXCLUSIVE, &vp,
 			    FFSV_FORCEINSMQ)))
 				break;
-			error = ffs_update(vp, MNT_WAIT);
+			error = ffs_update(vp, 1);
 			vput(vp);
 			if (error)
 				break;
@@ -12666,29 +12641,21 @@ retry:
 	     fs->fs_cstotal.cs_nbfree <= needed) ||
 	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
 	     fs->fs_cstotal.cs_nifree <= needed)) {
-		MNT_ILOCK(mp);
-		MNT_VNODE_FOREACH(lvp, mp, mvp) {
-			VI_LOCK(lvp);
+		MNT_VNODE_FOREACH_ALL(lvp, mp, mvp) {
 			if (TAILQ_FIRST(&lvp->v_bufobj.bo_dirty.bv_hd) == 0) {
 				VI_UNLOCK(lvp);
 				continue;
 			}
-			MNT_IUNLOCK(mp);
 			if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT,
-			    curthread)) {
-				MNT_ILOCK(mp);
+			    curthread))
 				continue;
-			}
 			if (lvp->v_vflag & VV_NOSYNC) {	/* unlinked */
 				vput(lvp);
-				MNT_ILOCK(mp);
 				continue;
 			}
-			(void) ffs_syncvnode(lvp, MNT_NOWAIT);
+			(void) ffs_syncvnode(lvp, MNT_NOWAIT, 0);
 			vput(lvp);
-			MNT_ILOCK(mp);
 		}
-		MNT_IUNLOCK(mp);
 		lvp = ump->um_devvp;
 		if (vn_lock(lvp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
 			VOP_FSYNC(lvp, MNT_NOWAIT, curthread);
@@ -12817,8 +12784,7 @@ pause_timer(arg)
  * reduce the number of dirrem, freefile, and freeblks dependency structures.
  */
 static void
-clear_remove(td)
-	struct thread *td;
+clear_remove(void)
 {
 	struct pagedep_hashhead *pagedephd;
 	struct pagedep *pagedep;
@@ -12857,7 +12823,7 @@ clear_remove(td)
 				softdep_error("clear_remove: vget", error);
 				goto finish_write;
 			}
-			if ((error = ffs_syncvnode(vp, MNT_NOWAIT)))
+			if ((error = ffs_syncvnode(vp, MNT_NOWAIT, 0)))
 				softdep_error("clear_remove: fsync", error);
 			bo = &vp->v_bufobj;
 			BO_LOCK(bo);
@@ -12877,8 +12843,7 @@ clear_remove(td)
  * the number of inodedep dependency structures.
  */
 static void
-clear_inodedeps(td)
-	struct thread *td;
+clear_inodedeps(void)
 {
 	struct inodedep_hashhead *inodedephd;
 	struct inodedep *inodedep;
@@ -12940,10 +12905,10 @@ clear_inodedeps(td)
 		}
 		vfs_unbusy(mp);
 		if (ino == lastino) {
-			if ((error = ffs_syncvnode(vp, MNT_WAIT)))
+			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)))
 				softdep_error("clear_inodedeps: fsync1", error);
 		} else {
-			if ((error = ffs_syncvnode(vp, MNT_NOWAIT)))
+			if ((error = ffs_syncvnode(vp, MNT_NOWAIT, 0)))
 				softdep_error("clear_inodedeps: fsync2", error);
 			BO_LOCK(&vp->v_bufobj);
 			drain_output(vp);

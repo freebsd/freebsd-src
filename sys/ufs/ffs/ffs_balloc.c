@@ -450,7 +450,7 @@ fail:
 	 *
 	 * XXX Still have to journal the free below
 	 */
-	(void) ffs_syncvnode(vp, MNT_WAIT);
+	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	for (deallocated = 0, blkp = allociblk, lbns_remfree = lbns;
 	     blkp < allocblk; blkp++, lbns_remfree++) {
 		/*
@@ -497,7 +497,7 @@ fail:
 		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
-	(void) ffs_syncvnode(vp, MNT_WAIT);
+	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	/*
 	 * After the buffers are invalidated and on-disk pointers are
 	 * cleared, free the blocks.
@@ -994,7 +994,7 @@ fail:
 	 *
 	 * XXX Still have to journal the free below
 	 */
-	(void) ffs_syncvnode(vp, MNT_WAIT);
+	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	for (deallocated = 0, blkp = allociblk, lbns_remfree = lbns;
 	     blkp < allocblk; blkp++, lbns_remfree++) {
 		/*
@@ -1041,7 +1041,7 @@ fail:
 		dp->di_blocks -= btodb(deallocated);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
-	(void) ffs_syncvnode(vp, MNT_WAIT);
+	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	/*
 	 * After the buffers are invalidated and on-disk pointers are
 	 * cleared, free the blocks.

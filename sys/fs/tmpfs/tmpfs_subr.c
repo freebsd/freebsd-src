@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 
@@ -55,6 +56,72 @@ __FBSDID("$FreeBSD$");
 #include <fs/tmpfs/tmpfs.h>
 #include <fs/tmpfs/tmpfs_fifoops.h>
 #include <fs/tmpfs/tmpfs_vnops.h>
+
+SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW, 0, "tmpfs file system");
+
+static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
+
+static int
+sysctl_mem_reserved(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	long pages, bytes;
+
+	pages = *(long *)arg1;
+	bytes = pages * PAGE_SIZE;
+
+	error = sysctl_handle_long(oidp, &bytes, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	pages = bytes / PAGE_SIZE;
+	if (pages < TMPFS_PAGES_MINRESERVED)
+		return (EINVAL);
+
+	*(long *)arg1 = pages;
+	return (0);
+}
+
+SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_reserved, CTLTYPE_LONG|CTLFLAG_RW,
+    &tmpfs_pages_reserved, 0, sysctl_mem_reserved, "L",
+    "Amount of available memory and swap below which tmpfs growth stops");
+
+size_t
+tmpfs_mem_avail(void)
+{
+	vm_ooffset_t avail;
+
+	avail = swap_pager_avail + cnt.v_free_count + cnt.v_cache_count -
+	    tmpfs_pages_reserved;
+	if (__predict_false(avail < 0))
+		avail = 0;
+	return (avail);
+}
+
+size_t
+tmpfs_pages_used(struct tmpfs_mount *tmp)
+{
+	const size_t node_size = sizeof(struct tmpfs_node) +
+	    sizeof(struct tmpfs_dirent);
+	size_t meta_pages;
+
+	meta_pages = howmany((uintmax_t)tmp->tm_nodes_inuse * node_size,
+	    PAGE_SIZE);
+	return (meta_pages + tmp->tm_pages_used);
+}
+
+static size_t
+tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
+{
+	if (tmpfs_mem_avail() < req_pages)
+		return (0);
+
+	if (tmp->tm_pages_max != SIZE_MAX &&
+	    tmp->tm_pages_max < req_pages + tmpfs_pages_used(tmp))
+			return (0);
+
+	return (1);
+}
 
 /* --------------------------------------------------------------------- */
 
@@ -95,6 +162,8 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	MPASS(IFF(type == VBLK || type == VCHR, rdev != VNOVAL));
 
 	if (tmp->tm_nodes_inuse >= tmp->tm_nodes_max)
+		return (ENOSPC);
+	if (tmpfs_pages_check_avail(tmp, 1) == 0)
 		return (ENOSPC);
 
 	nnode = (struct tmpfs_node *)uma_zalloc_arg(
@@ -320,9 +389,11 @@ loop:
 		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
 		VI_LOCK(vp);
 		TMPFS_NODE_UNLOCK(node);
-		vholdl(vp);
-		(void) vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, curthread);
-		vdrop(vp);
+		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
+		if (error != 0) {
+			vp = NULL;
+			goto out;
+		}
 
 		/*
 		 * Make sure the vnode is still there after
@@ -420,11 +491,13 @@ unlock:
 out:
 	*vpp = vp;
 
-	MPASS(IFF(error == 0, *vpp != NULL && VOP_ISLOCKED(*vpp)));
 #ifdef INVARIANTS
-	TMPFS_NODE_LOCK(node);
-	MPASS(*vpp == node->tn_vnode);
-	TMPFS_NODE_UNLOCK(node);
+	if (error == 0) {
+		MPASS(*vpp != NULL && VOP_ISLOCKED(*vpp));
+		TMPFS_NODE_LOCK(node);
+		MPASS(*vpp == node->tn_vnode);
+		TMPFS_NODE_UNLOCK(node);
+	}
 #endif
 
 	return error;
@@ -910,7 +983,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	MPASS(oldpages == uobj->size);
 	newpages = OFF_TO_IDX(newsize + PAGE_MASK);
 	if (newpages > oldpages &&
-	    newpages - oldpages > TMPFS_PAGES_AVAIL(tmp))
+	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
 
 	VM_OBJECT_LOCK(uobj);
@@ -1005,6 +1078,11 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
+	if ((flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
+	    UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND |
+	    SF_NOUNLINK)) != 0)
+		return (EOPNOTSUPP);
+
 	/* Disallow this operation if the file system is mounted read-only. */
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return EROFS;
@@ -1020,27 +1098,19 @@ tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
 	 * flags, or modify flags if any system flags are set.
 	 */
 	if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-		if (node->tn_flags
-		  & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+		if (node->tn_flags &
+		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 			error = securelevel_gt(cred, 0);
 			if (error)
 				return (error);
 		}
-		/* Snapshot flag cannot be set or cleared */
-		if (((flags & SF_SNAPSHOT) != 0 &&
-		  (node->tn_flags & SF_SNAPSHOT) == 0) ||
-		  ((flags & SF_SNAPSHOT) == 0 &&
-		  (node->tn_flags & SF_SNAPSHOT) != 0))
-			return (EPERM);
-		node->tn_flags = flags;
 	} else {
-		if (node->tn_flags
-		  & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-		  (flags & UF_SETTABLE) != flags)
+		if (node->tn_flags &
+		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
+		    ((flags ^ node->tn_flags) & SF_SETTABLE))
 			return (EPERM);
-		node->tn_flags &= SF_SETTABLE;
-		node->tn_flags |= (flags & UF_SETTABLE);
 	}
+	node->tn_flags = flags;
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
 	MPASS(VOP_ISLOCKED(vp));

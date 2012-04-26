@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ufs/quota.h>
 
-static MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
+MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
@@ -2744,6 +2744,10 @@ setfflags(td, vp, flags)
 	struct mount *mp;
 	struct vattr vattr;
 
+	/* We can't support the value matching VNOVAL. */
+	if (flags == VNOVAL)
+		return (EOPNOTSUPP);
+
 	/*
 	 * Prevent non-root users from setting flags on devices.  When
 	 * a device is reused, users can retain ownership of the device
@@ -4153,9 +4157,9 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	int error, eofflag;
 
 	AUDIT_ARG_FD(fd);
-	auio.uio_resid = count;
-	if (auio.uio_resid > IOSIZE_MAX)
+	if (count > IOSIZE_MAX)
 		return (EINVAL);
+	auio.uio_resid = count;
 	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_READ | CAP_SEEK,
 	    &fp)) != 0)
 		return (error);
@@ -4591,16 +4595,22 @@ sys_fhopen(td, uap)
 	if (error)
 		goto bad;
 
-	if (fmode & FWRITE)
+	if (fmode & FWRITE) {
 		vp->v_writecount++;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+		    __func__, vp, vp->v_writecount);
+	}
 
 	/*
 	 * end of vn_open code
 	 */
 
 	if ((error = falloc(td, &nfp, &indx, fmode)) != 0) {
-		if (fmode & FWRITE)
+		if (fmode & FWRITE) {
 			vp->v_writecount--;
+			CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+			    __func__, vp, vp->v_writecount);
+		}
 		goto bad;
 	}
 	/* An extra reference on `nfp' has been held for us by falloc(). */
