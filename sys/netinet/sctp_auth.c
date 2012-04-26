@@ -1801,7 +1801,7 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 			 * shared_key_id, (void
 			 * *)stcb->asoc.authinfo.recv_keyid);
 			 */
-			sctp_notify_authentication(stcb, SCTP_AUTH_NEWKEY,
+			sctp_notify_authentication(stcb, SCTP_AUTH_NEW_KEY,
 			    shared_key_id, stcb->asoc.authinfo.recv_keyid,
 			    SCTP_SO_NOT_LOCKED);
 		/* compute a new recv assoc key and cache it */
