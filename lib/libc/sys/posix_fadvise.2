@@ -28,7 +28,7 @@
 .\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2011
+.Dd February 25, 2012
 .Dt POSIX_FADVISE 2
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ This currently does nothing as the default behavior uses heuristics to
 detect sequential behavior.
 .It Dv POSIX_FADV_WILLNEED
 Tells the system that the specified data will be accessed in the near future.
-The system may initiate an asychronous read of the data if it is not already
+The system may initiate an asynchronous read of the data if it is not already
 present in memory.
 .It Dv POSIX_FADV_DONTNEED
 Tells the system that the specified data will not be accessed in the near
