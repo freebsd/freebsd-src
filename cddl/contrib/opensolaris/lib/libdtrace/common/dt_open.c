@@ -497,6 +497,12 @@ static const dt_ident_t _dtrace_globals[] = {
 { "zonename", DT_IDENT_SCALAR, 0, DIF_VAR_ZONENAME,
 	DT_ATTR_STABCMN, DT_VERS_1_0, &dt_idops_type, "string" },
 #endif
+
+#if !defined(sun)
+{ "cpu", DT_IDENT_SCALAR, 0, DIF_VAR_CPU,
+	DT_ATTR_STABCMN, DT_VERS_1_6_3, &dt_idops_type, "int" },
+#endif
+
 { NULL, 0, 0, 0, { 0, 0, 0 }, 0, NULL, NULL }
 };
 
