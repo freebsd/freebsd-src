@@ -1409,6 +1409,42 @@ OLD_FILES+=usr/share/man/man8/strfile.8.gz
 OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
+.if ${MK_GCC} == no
+OLD_FILES+=usr/bin/c++filt
+OLD_FILES+=usr/bin/g++
+OLD_FILES+=usr/bin/gcc
+OLD_FILES+=usr/bin/gcov
+OLD_FILES+=usr/bin/gcpp
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/gcc/4.2/emmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/mm_malloc.h
+OLD_FILES+=usr/include/gcc/4.2/mmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/pmmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/tmmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/xmmintrin.h
+.elif ${TARGET_ARCH} == "ia64"
+OLD_FILES+=usr/include/gcc/4.2/ia64intrin.h
+.elif ${TARGET_ARCH} == "arm"
+OLD_FILES+=usr/include/gcc/4.2/mmintrin.h
+.elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/include/gcc/4.2/altivec.h
+OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
+OLD_FILES+=usr/include/gcc/4.2/spe.h
+.endif
+OLD_DIRS+=usr/include/gcc/4.2
+OLD_DIRS+=usr/include/gcc
+OLD_FILES+=usr/libexec/cc1
+OLD_FILES+=usr/libexec/cc1plus
+OLD_FILES+=usr/share/info/cpp.info.gz
+OLD_FILES+=usr/share/info/cppinternals.info.gz
+OLD_FILES+=usr/share/info/gcc.info.gz
+OLD_FILES+=usr/share/info/gccint.info.gz
+OLD_FILES+=usr/share/man/man1/g++.1.gz
+OLD_FILES+=usr/share/man/man1/gcc.1.gz
+OLD_FILES+=usr/share/man/man1/gcov.1.gz
+OLD_FILES+=usr/share/man/man1/gcpp.1.gz
+.endif
+
 .if ${MK_GCOV} == no
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
