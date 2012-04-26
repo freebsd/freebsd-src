@@ -1096,14 +1096,14 @@ moea64_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	src = VM_PAGE_TO_PHYS(msrc);
 
 	if (hw_direct_map) {
-		kcopy((void *)src, (void *)dst, PAGE_SIZE);
+		bcopy((void *)src, (void *)dst, PAGE_SIZE);
 	} else {
 		mtx_lock(&moea64_scratchpage_mtx);
 
 		moea64_set_scratchpage_pa(mmu, 0, src);
 		moea64_set_scratchpage_pa(mmu, 1, dst);
 
-		kcopy((void *)moea64_scratchpage_va[0], 
+		bcopy((void *)moea64_scratchpage_va[0], 
 		    (void *)moea64_scratchpage_va[1], PAGE_SIZE);
 
 		mtx_unlock(&moea64_scratchpage_mtx);

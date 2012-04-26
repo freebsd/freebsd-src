@@ -991,7 +991,7 @@ moea_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	dst = VM_PAGE_TO_PHYS(mdst);
 	src = VM_PAGE_TO_PHYS(msrc);
 
-	kcopy((void *)src, (void *)dst, PAGE_SIZE);
+	bcopy((void *)src, (void *)dst, PAGE_SIZE);
 }
 
 /*
