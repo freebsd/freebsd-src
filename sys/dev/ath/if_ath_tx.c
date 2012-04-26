@@ -3455,6 +3455,9 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 	}
 
+	/*
+	 * Schedule the TID to be re-tried.
+	 */
 	ath_tx_tid_sched(sc, tid);
 
 	/*
@@ -3469,12 +3472,9 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		ath_tx_tid_bar_suspend(sc, tid);
 	}
 
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
-
 	/*
 	 * Send BAR if required
 	 */
-	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
 	if (ath_tx_tid_bar_tx_ready(sc, tid))
 		ath_tx_tid_bar_tx(sc, tid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
@@ -3742,24 +3742,28 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 	}
 
-	/* Prepend all frames to the beginning of the queue */
+	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+	    "%s: txa_start now %d\n", __func__, tap->txa_start);
+
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+
+	/* Prepend all frames to the beginning of the queue */
 	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
 		TAILQ_REMOVE(&bf_q, bf, bf_list);
 		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	}
-	ath_tx_tid_sched(sc, atid);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
-	    "%s: txa_start now %d\n", __func__, tap->txa_start);
+	/*
+	 * Reschedule to grab some further frames.
+	 */
+	ath_tx_tid_sched(sc, atid);
 
 	/*
 	 * Send BAR if required
 	 */
-	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
 		ath_tx_tid_bar_tx(sc, atid);
+
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/* Do deferred completion */
