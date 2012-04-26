@@ -424,7 +424,8 @@ struct sctp_authkey_event {
 };
 
 /* indication values */
-#define SCTP_AUTH_NEWKEY	0x0001
+#define SCTP_AUTH_NEW_KEY	0x0001
+#define SCTP_AUTH_NEWKEY	SCTP_AUTH_NEW_KEY
 #define SCTP_AUTH_NO_AUTH	0x0002
 #define SCTP_AUTH_FREE_KEY	0x0003
 
