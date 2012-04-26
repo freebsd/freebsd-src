@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2010
+.Dd February 25, 2012
 .Dt UMCS 4
 .Os
 .Sh NAME
@@ -52,9 +52,11 @@ umcs_load="YES"
 The
 .Nm
 driver provides support for various multiport serial adapters based on the MosCom
-MCS7820 and MCS7840 chips. They are 2- or 4-port adapters with full-featured
-16550-compatible UARTs and very flexible baud generators. Also, these chips
-support RS422/RS485 and IrDA oprations.
+MCS7820 and MCS7840 chips.
+They are 2- or 4-port adapters with full-featured
+16550-compatible UARTs and very flexible baud generators.
+Also, these chips
+support RS422/RS485 and IrDA operations.
 .Pp
 The device is accessed through the
 .Xr ucom 4
