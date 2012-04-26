@@ -1,5 +1,5 @@
-$ $tcsh: set21,v 1.2 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set21,v 1.3 2011/02/04 18:19:37 christos Exp $
 $ tc.disc.c
 $set 21 
-1 Δε μπορώ να διαβάσω τα local chars.\n
-2 Δε μπορώ να γράψω τα local chars.\n
+1 Ξ”Ξµ ΞΌΟ€ΞΏΟΟ Ξ½Ξ± Ξ΄ΞΉΞ±Ξ²Ξ¬ΟƒΟ‰ Ο„Ξ± local chars.\n
+2 Ξ”Ξµ ΞΌΟ€ΞΏΟΟ Ξ½Ξ± Ξ³ΟΞ¬ΟΟ‰ Ο„Ξ± local chars.\n

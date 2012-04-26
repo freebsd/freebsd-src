@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2011
+.Dd March 19, 2012
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -33,11 +33,12 @@
 .Sh SYNOPSIS
 To add support for the disk partitioning GEOM class,
 place one or more of the following
-lines in your kernel configuration file:
+lines in the kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options GEOM_PART_APM"
 .Cd "options GEOM_PART_BSD"
 .Cd "options GEOM_PART_GPT"
+.Cd "options GEOM_PART_LDM"
 .Cd "options GEOM_PART_MBR"
 .Cd "options GEOM_PART_EBR"
 .Cd "options GEOM_PART_EBR_COMPAT"
@@ -48,7 +49,8 @@ lines in your kernel configuration file:
 These options provide support for the various types of partitioning
 schemes supported by the
 .Ns Nm
-utility.  See
+utility.
+See
 .Sx "PARTITIONING SCHEMES"
 below for more details.
 .Pp
@@ -410,13 +412,13 @@ about its use.
 .El
 .\" ==== RESTORE ====
 .It Cm restore
-Restore the partition table from backup previously created by
+Restore the partition table from a backup previously created by the
 .Cm backup
-action and given from standard input.
-Only partition table may be restored.
-This action does not affect content of partitions.
-This mean that you should copy your data from backup after restoring
-partition table and write bootcode again if it is needed.
+action and read from standard input.
+Only the partition table is restored.
+This action does not affect the content of partitions.
+After restoring the partition table and writing bootcode if needed,
+user data must be restored from backup.
 .Pp
 Additional options include:
 .Bl -tag -width 10n
@@ -502,13 +504,19 @@ Traditional BSD disklabel, usually used to subdivide MBR partitions.
 .Po
 This scheme can also be used as the sole partitioning method, without
 an MBR.
-Partition editing tools from other operating systems often do not 
-understand the bare disklabel partition layout, so this is sometimes 
+Partition editing tools from other operating systems often do not
+understand the bare disklabel partition layout, so this is sometimes
 called
 .Dq dangerously dedicated .
 .Pc
 Requires the
 .Cm GEOM_PART_BSD
+kernel option.
+.It Cm LDM
+The Logical Disk Manager is an implementation of volume manager for
+Microsoft Windows NT.
+Requires the
+.Cd GEOM_PART_LDM
 kernel option.
 .It Cm GPT
 GUID Partition Table is used on Intel-based Macintosh computers and
@@ -558,7 +566,7 @@ The
 utility also allows the user to specify scheme-specific partition types
 for partition types that do not have symbolic names.
 Symbolic names currently understood are:
-.Bl -tag -width ".Cm freebsd-vinum"
+.Bl -tag -width ".Cm ms-ldm-metadata"
 .It Cm bios-boot
 The system partition dedicated to second stage of the boot loader program.
 Usually it is used by the GRUB 2 loader for GPT partitioning schemes.
@@ -633,6 +641,18 @@ A partition that is sub-partitioned by a Master Boot Record (MBR).
 This type is known as
 .Qq Li "!024dee41-33e7-11d3-9d69-0008c781f39f"
 by GPT.
+.It Cm ms-ldm-data
+A partition that contains Logical Disk Manager (LDM) volumes.
+The scheme-specific types are
+.Qq Li "!66"
+for MBR,
+.Qq Li "!af9b60a0-1431-4f62-bc68-3311714a69ad"
+for GPT.
+.It Cm ms-ldm-metadata
+A partition that contains Logical Disk Manager (LDM) database.
+The scheme-specifig type is
+.Qq Li "!5808c8aa-7e8f-42e0-85d2-e1e90434cfb3"
+for GPT.
 .El
 .Sh ATTRIBUTES
 The scheme-specific attributes for EBR:
@@ -937,6 +957,23 @@ disk metadata.
 If some inconsistency is detected, the partition table will be
 rejected with a diagnostic message:
 .Sy "GEOM_PART: Integrity check failed (provider, scheme)" .
+.It Va kern.geom.part.ldm.debug : No 0
+Debug level of the Logical Disk Manager (LDM) module.
+This can be set to a number between 0 and 2 inclusive.
+If set to 0 minimal debug information is printed,
+and if set to 2 the maximum amount of debug information is printed.
+.It Va kern.geom.part.ldm.show_mirrors : No 0
+This variable controls how the Logical Disk Manager (LDM) module handles
+mirrored volumes.
+By default mirrored volumes are shown as partitions with type
+.Cm ms-ldm-data
+(see the
+.Sx "PARTITION TYPES"
+section).
+If this variable set to 1 each component of the mirrored volume will be
+present as independet partition.
+.Em NOTE :
+This may break a mirrored volume and lead to data damage.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
@@ -959,17 +996,21 @@ partition that can boot
 from a
 .Cm freebsd-ufs
 partition, and install bootstrap code into it.
-This partition must be larger than
-.Pa /boot/gptboot ,
-or the GPT boot you are planning to write, but smaller than 545 KB.
-A size of 15 blocks (7680 bytes) would be sufficient for
-booting from UFS but 128 blocks (64 KB) is used in
-this example to reserve some space for potential
-future need (e.g.\& a larger
+This partition must be larger than the bootstrap code
+.Po
+usually either
+.Pa /boot/gptboot
+or
 .Pa /boot/gptzfsboot
-for booting from a ZFS partition).
+.Pc ,
+but smaller than 545 kB since the first-stage loader will load the
+entire partition into memory during boot, regardless of how much data
+it actually contains.
+This example uses 94 blocks (47 kB) so the next partition will be
+aligned on a 64 kB boundary without the need to specify an explicit
+offset or alignment.
 .Bd -literal -offset indent
-/sbin/gpart add -b 34 -s 128 -t freebsd-boot ad0
+/sbin/gpart add -b 34 -s 94 -t freebsd-boot ad0
 /sbin/gpart bootcode -p /boot/gptboot -i 1 ad0
 .Ed
 .Pp
@@ -977,7 +1018,7 @@ Create a 512MB-sized
 .Cm freebsd-ufs
 partition to contain a UFS filesystem from which the system can boot.
 .Bd -literal -offset indent
-/sbin/gpart add -b 162 -s 1048576 -t freebsd-ufs ad0
+/sbin/gpart add -s 512M -t freebsd-ufs ad0
 .Ed
 .Pp
 Create an MBR scheme on

@@ -15,7 +15,7 @@
 . /etc/rc.subr
 
 name="sendmail"
-rcvar=`set_rcvar`
+rcvar="sendmail_enable"
 required_files="/etc/mail/${name}.cf"
 start_precmd="sendmail_precmd"
 
@@ -79,14 +79,14 @@ required_files=
 
 if checkyesno sendmail_submit_enable; then
 	name="sendmail_submit"
-	rcvar=`set_rcvar`
+	rcvar="sendmail_submit_enable"
 	start_cmd="${command} ${sendmail_submit_flags}"
 	run_rc_command "$1"
 fi
 
 if checkyesno sendmail_outbound_enable; then
 	name="sendmail_outbound"
-	rcvar=`set_rcvar`
+	rcvar="sendmail_outbound_enable"
 	start_cmd="${command} ${sendmail_outbound_flags}"
 	run_rc_command "$1"
 fi

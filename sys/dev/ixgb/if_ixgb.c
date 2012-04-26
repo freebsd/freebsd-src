@@ -1354,7 +1354,6 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_unit = device_get_unit(dev);
 	ifp->if_name = "ixgb";
 #endif
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = ixgb_init;
 	ifp->if_softc = adapter;
@@ -1422,7 +1421,7 @@ ixgb_dma_malloc(struct adapter * adapter, bus_size_t size,
 	int             r;
 
 	dev = adapter->dev;
-	r = bus_dma_tag_create(NULL,	/* parent */
+	r = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       PAGE_SIZE, 0,	/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1514,7 +1513,7 @@ ixgb_setup_transmit_structures(struct adapter * adapter)
 	/*
 	 * Setup DMA descriptor areas.
 	 */
-	if (bus_dma_tag_create(NULL,	/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(adapter->dev),	/* parent */
 			       PAGE_SIZE, 0,	/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1852,7 +1851,7 @@ ixgb_allocate_receive_structures(struct adapter * adapter)
 	bzero(adapter->rx_buffer_area,
 	      sizeof(struct ixgb_buffer) * adapter->num_rx_desc);
 
-	error = bus_dma_tag_create(NULL,	/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(adapter->dev),/* parent */
 				   PAGE_SIZE, 0,	/* alignment, bounds */
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */

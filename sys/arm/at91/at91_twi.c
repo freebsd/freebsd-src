@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
 
-#define TWI_SLOW_CLOCK		 1500
-#define TWI_FAST_CLOCK 		45000
-#define TWI_FASTEST_CLOCK	90000
+#define	TWI_SLOW_CLOCK		 1500
+#define	TWI_FAST_CLOCK		45000
+#define	TWI_FASTEST_CLOCK	90000
 
 struct at91_twi_softc
 {
@@ -67,24 +67,26 @@ struct at91_twi_softc
 static inline uint32_t
 RD4(struct at91_twi_softc *sc, bus_size_t off)
 {
+
 	return bus_read_4(sc->mem_res, off);
 }
 
 static inline void
 WR4(struct at91_twi_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_write_4(sc->mem_res, off, val);
 }
 
-#define AT91_TWI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	AT91_TWI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	AT91_TWI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define AT91_TWI_LOCK_INIT(_sc) \
+#define	AT91_TWI_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    "twi", MTX_DEF)
-#define AT91_TWI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define AT91_TWI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define AT91_TWI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
-#define TWI_DEF_CLK	100000
+#define	AT91_TWI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define	AT91_TWI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define	AT91_TWI_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define	TWI_DEF_CLK	100000
 
 static devclass_t at91_twi_devclass;
 
@@ -102,6 +104,7 @@ static void at91_twi_deactivate(device_t dev);
 static int
 at91_twi_probe(device_t dev)
 {
+
 	device_set_desc(dev, "TWI");
 	return (0);
 }
@@ -361,6 +364,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 					goto out;
 				WR4(sc, TWI_THR, *buf++);
 			}
+			WR4(sc, TWI_CR, TWI_CR_STOP);
 		}
 		if ((err = at91_twi_wait(sc, TWI_SR_TXCOMP)))
 			break;
@@ -385,7 +389,7 @@ static device_method_t at91_twi_methods[] = {
 	DEVMETHOD(iicbus_callback,	at91_twi_callback),
 	DEVMETHOD(iicbus_reset,		at91_twi_rst_card),
 	DEVMETHOD(iicbus_transfer,	at91_twi_transfer),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t at91_twi_driver = {
@@ -394,6 +398,7 @@ static driver_t at91_twi_driver = {
 	sizeof(struct at91_twi_softc),
 };
 
-DRIVER_MODULE(at91_twi, atmelarm, at91_twi_driver, at91_twi_devclass, 0, 0);
-DRIVER_MODULE(iicbus, at91_twi, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(at91_twi, atmelarm, at91_twi_driver, at91_twi_devclass, NULL,
+    NULL);
+DRIVER_MODULE(iicbus, at91_twi, iicbus_driver, iicbus_devclass, NULL, NULL);
 MODULE_DEPEND(at91_twi, iicbus, 1, 1, 1);

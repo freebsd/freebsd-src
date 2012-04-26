@@ -44,6 +44,15 @@
 extern int	__isthreaded;
 
 /*
+ * Elf_Auxinfo *__elf_aux_vector, the pointer to the ELF aux vector
+ * provided by kernel. Either set for us by rtld, or found at runtime
+ * on stack for static binaries.
+ *
+ * Type is void to avoid polluting whole libc with ELF types.
+ */
+extern void	*__elf_aux_vector;
+
+/*
  * libc should use libc_dlopen internally, which respects a global
  * flag where loading of new shared objects can be restricted.
  */
@@ -71,6 +80,19 @@ void _rtld_error(const char *fmt, ...);
  */
 #define	FLOCKFILE(fp)		if (__isthreaded) _FLOCKFILE(fp)
 #define	FUNLOCKFILE(fp)		if (__isthreaded) _funlockfile(fp)
+
+struct _spinlock;
+extern struct _spinlock __stdio_thread_lock;
+#define STDIO_THREAD_LOCK()				\
+do {							\
+	if (__isthreaded)				\
+		_SPINLOCK(&__stdio_thread_lock);	\
+} while (0)
+#define STDIO_THREAD_UNLOCK()				\
+do {							\
+	if (__isthreaded)				\
+		_SPINUNLOCK(&__stdio_thread_lock);	\
+} while (0)
 
 /*
  * Indexes into the pthread jump table.
@@ -229,6 +251,7 @@ int _execvpe(const char *, char * const *, char * const *);
 int _elf_aux_info(int aux, void *buf, int buflen);
 struct dl_phdr_info;
 int __elf_phdr_match_addr(struct dl_phdr_info *, void *);
+void __init_elf_aux_vector(void);
 
 void	_pthread_cancel_enter(int);
 void	_pthread_cancel_leave(int);

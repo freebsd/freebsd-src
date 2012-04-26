@@ -70,6 +70,7 @@
 #include <sys/tty.h>
 #include <sys/serial.h>
 #include <sys/fcntl.h>
+#include <sys/sysctl.h>
 
 /* Module interface related macros */
 #define	UCOM_MODVER	1
@@ -132,8 +133,11 @@ struct ucom_param_task {
 
 struct ucom_super_softc {
 	struct usb_process sc_tq;
-	uint32_t sc_unit;
-	uint32_t sc_subunits;
+	int sc_unit;
+	int sc_subunits;
+	struct sysctl_oid *sc_sysctl_ttyname;
+	struct sysctl_oid *sc_sysctl_ttyports;
+	char sc_ttyname[16];
 };
 
 struct ucom_softc {
@@ -162,7 +166,7 @@ struct ucom_softc {
 	struct tty *sc_tty;
 	struct mtx *sc_mtx;
 	void   *sc_parent;
-	uint32_t sc_subunit;
+	int sc_subunit;
 	uint16_t sc_portno;
 	uint16_t sc_flag;
 #define	UCOM_FLAG_RTS_IFLOW	0x01	/* use RTS input flow control */
@@ -190,7 +194,7 @@ struct ucom_softc {
     usbd_do_request_proc(udev,&(com)->sc_super->sc_tq,req,ptr,flags,NULL,timo)
 
 int	ucom_attach(struct ucom_super_softc *,
-	    struct ucom_softc *, uint32_t, void *,
+	    struct ucom_softc *, int, void *,
 	    const struct ucom_callback *callback, struct mtx *);
 void	ucom_detach(struct ucom_super_softc *, struct ucom_softc *);
 void	ucom_set_pnpinfo_usb(struct ucom_super_softc *, device_t);

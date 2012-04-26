@@ -3,19 +3,16 @@
 # This file contains all of the "CVSup collections" that make up the
 # CVS development tree of the FreeBSD system.
 #
-# CVSup (CVS Update Protocol) allows you to download the latest CVS
+# csup (CVS Update Protocol) allows you to download the latest CVS
 # tree (or any branch of development therefrom) to your system easily
-# and efficiently (far more so than with sup, which CVSup is aimed
-# at replacing).  If you're running CVSup interactively, and are
-# currently using an X display server, you should run CVSup as follows
-# to keep your CVS tree up-to-date:
+# and efficiently
 #
-#	cvsup cvs-supfile
+# To keep your CVS tree up-to-date run:
 #
-# If not running X, or invoking cvsup from a non-interactive script, then
-# run it as follows:
+#	csup cvs-supfile
 #
-#	cvsup -g -L 2 cvs-supfile
+# Note that this only updates the tree contents and does not
+# update what is actually installed.
 #
 # You may wish to change some of the settings in this file to better
 # suit your system:
@@ -29,7 +26,7 @@
 #		with cvsup's "-h host" option.
 #
 # base=/var/db
-#		This specifies the root where CVSup will store information
+#		This specifies the root where csup will store information
 #		about the collections you have transferred to your system.
 #		A setting of "/var/db" will generate this information in
 #		/var/db/sup.  You can override the "base" setting on the

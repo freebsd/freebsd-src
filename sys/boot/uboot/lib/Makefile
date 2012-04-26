@@ -1,11 +1,13 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../../common
+
 LIB=		uboot
 INTERNALLIB=
 WARNS?=		2
 
-SRCS=	devicename.c elf_freebsd.c console.c copy.c disk.c \
-	module.c net.c reboot.c time.c glue.c
+SRCS=	crc32.c console.c copy.c devicename.c disk.c elf_freebsd.c glue.c
+SRCS+=	module.c net.c reboot.c time.c
 
 CFLAGS+=	-ffreestanding -msoft-float
 

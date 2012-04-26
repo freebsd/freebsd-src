@@ -66,6 +66,7 @@ FILES=	DAEMON \
 	kadmind \
 	kerberos \
 	keyserv \
+	kfd \
 	kld \
 	kldxref \
 	kpasswdd \
@@ -144,6 +145,7 @@ FILES=	DAEMON \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
+	${_utx} \
 	var \
 	virecover \
 	watchdogd \
@@ -175,6 +177,10 @@ _nscd=		nscd
 
 .if ${MK_BLUETOOTH} != "no"
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_UTMPX} != "no"
+_utx=		utx
 .endif
 
 FILESDIR=	/etc/rc.d

@@ -87,7 +87,7 @@ main(int argc, char *argv[])
 	fstype_t	*fstype;
 	fsinfo_t	 fsoptions;
 	fsnode		*root;
-	int	 	 ch, len;
+	int	 	 ch, i, len;
 	char		*subtree;
 	char		*specfile;
 
@@ -241,7 +241,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 2)
+	if (argc < 2)
 		usage();
 
 	/* -x must be accompanied by -F */
@@ -260,7 +260,7 @@ main(int argc, char *argv[])
 	case S_IFDIR:		/* walk the tree */
 		subtree = argv[1];
 		TIMER_START(start);
-		root = walk_dir(subtree, NULL);
+		root = walk_dir(subtree, ".", NULL, NULL);
 		TIMER_RESULTS(start, "walk_dir");
 		break;
 	case S_IFREG:		/* read the manifest file */
@@ -274,6 +274,17 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
+	/* append extra directory */
+	for (i = 2; i < argc; i++) {
+		if (stat(argv[i], &sb) == -1)
+			err(1, "Can't stat `%s'", argv[i]);
+		if (!S_ISDIR(sb.st_mode))
+			errx(1, "%s: not a directory", argv[i]);
+		TIMER_START(start);
+		root = walk_dir(argv[i], ".", NULL, root);
+		TIMER_RESULTS(start, "walk_dir2");
+	}
+
 	if (specfile) {		/* apply a specfile */
 		TIMER_START(start);
 		apply_specfile(specfile, subtree, root, fsoptions.onlyspec);
@@ -282,7 +293,7 @@ main(int argc, char *argv[])
 
 	if (debug & DEBUG_DUMP_FSNODES) {
 		printf("\nparent: %s\n", subtree);
-		dump_fsnodes(".", root);
+		dump_fsnodes(root);
 		putchar('\n');
 	}
 
@@ -336,7 +347,7 @@ usage(void)
 "usage: %s [-t fs-type] [-o fs-options] [-d debug-mask] [-B endian]\n"
 "\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-s image-size]\n"
 "\t[-b free-blocks] [-f free-files] [-F mtree-specfile] [-x]\n"
-"\t[-N userdb-dir] image-file directory | manifest\n",
+"\t[-N userdb-dir] image-file directory | manifest [extra-directory ...]\n",
 	    prog);
 	exit(1);
 }

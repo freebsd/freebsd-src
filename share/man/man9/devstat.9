@@ -45,7 +45,7 @@
 .Fa "struct devstat *ds"
 .Fa "const char *dev_name"
 .Fa "int unit_number"
-.Fa "u_int32_t block_size"
+.Fa "uint32_t block_size"
 .Fa "devstat_support_flags flags"
 .Fa "devstat_type_flags device_type"
 .Fa "devstat_priority priority"
@@ -57,7 +57,7 @@
 .Ft void
 .Fo devstat_end_transaction
 .Fa "struct devstat *ds"
-.Fa "u_int32_t bytes"
+.Fa "uint32_t bytes"
 .Fa "devstat_tag_type tag_type"
 .Fa "devstat_trans_flags flags"
 .Fc

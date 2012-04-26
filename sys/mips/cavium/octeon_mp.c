@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/cavium/octeon_pcmap_regs.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 
 unsigned octeon_ap_boot = ~0;
 

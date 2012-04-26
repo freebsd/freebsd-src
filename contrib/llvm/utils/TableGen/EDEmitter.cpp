@@ -287,6 +287,7 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   IMM("i64i8imm");
   IMM("i64i32imm");
   IMM("SSECC");
+  IMM("AVXCC");
 
   // all R, I, R, I, R
   MEM("i8mem");
@@ -519,6 +520,8 @@ static void X86ExtractSemantics(
       // ignore (doesn't go anywhere we know about)
     } else if (name.find("VMCALL") != name.npos) {
       // ignore (rather different semantics than a regular call)
+    } else if (name.find("VMMCALL") != name.npos) {
+      // ignore (rather different semantics than a regular call)
     } else if (name.find("FAR") != name.npos && name.find("i") != name.npos) {
       CALL("off");
     } else {
@@ -567,12 +570,23 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   REG("DPR");
   REG("DPR_VFP2");
   REG("DPR_8");
+  REG("DPair");
   REG("SPR");
   REG("QPR");
   REG("QQPR");
   REG("QQQQPR");
+  REG("VecListOneD");
+  REG("VecListDPair");
+  REG("VecListDPairSpaced");
+  REG("VecListThreeD");
+  REG("VecListFourD");
+  REG("VecListOneDAllLanes");
+  REG("VecListDPairAllLanes");
+  REG("VecListDPairSpacedAllLanes");
 
   IMM("i32imm");
+  IMM("fbits16");
+  IMM("fbits32");
   IMM("i32imm_hilo16");
   IMM("bf_inv_mask_imm");
   IMM("lsb_pos_imm");
@@ -597,6 +611,20 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("imm1_16");
   IMM("imm1_32");
   IMM("nModImm");
+  IMM("nImmSplatI8");
+  IMM("nImmSplatI16");
+  IMM("nImmSplatI32");
+  IMM("nImmSplatI64");
+  IMM("nImmVMOVI32");
+  IMM("nImmVMOVF32");
+  IMM("imm8");
+  IMM("imm16");
+  IMM("imm32");
+  IMM("imm1_7");
+  IMM("imm1_15");
+  IMM("imm1_31");
+  IMM("imm0_1");
+  IMM("imm0_3");
   IMM("imm0_7");
   IMM("imm0_15");
   IMM("imm0_255");
@@ -735,7 +763,7 @@ static void ARMPopulateOperands(
       errs() << "Operand type: " << rec.getName() << '\n';
       errs() << "Operand name: " << operandInfo.Name << '\n';
       errs() << "Instruction name: " << inst.TheDef->getName() << '\n';
-      llvm_unreachable("Unhandled type");
+      throw("Unhandled type in EDEmitter");
     }
   }
 }
@@ -956,11 +984,7 @@ void EDEmitter::run(raw_ostream &o) {
 
   emitCommonEnums(o, i);
 
-  o << "namespace {\n";
-
-  o << "llvm::EDInstInfo instInfo" << target.getName().c_str() << "[] = ";
+  o << "static const llvm::EDInstInfo instInfo" << target.getName() << "[] = ";
   infoArray.emit(o, i);
   o << ";" << "\n";
-
-  o << "}\n";
 }

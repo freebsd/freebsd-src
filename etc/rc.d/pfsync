@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="pfsync"
-rcvar=`set_rcvar`
+rcvar="pfsync_enable"
 start_precmd="pfsync_prestart"
 start_cmd="pfsync_start"
 stop_cmd="pfsync_stop"
@@ -18,13 +18,6 @@ required_modules="pf"
 
 pfsync_prestart()
 {
-	# XXX Currently pfsync cannot be a module as it must register
-	# a network protocol in a static kernel table.
-	if ! kldstat -q -m pfsync; then
-		warn "pfsync(4) must be statically compiled in the kernel."
-		return 1
-	fi
-
 	case "$pfsync_syncdev" in
 	'')
 		warn "pfsync_syncdev is not set."

@@ -264,6 +264,7 @@ static struct {
 	{ "noneswitch", oNoneSwitch },
 #endif
 	{ "versionaddendum", oVersionAddendum },
+
 	{ NULL, oBadOption }
 };
 
@@ -1092,9 +1093,9 @@ parse_int:
 	case oNoneEnabled:
 		intptr = &options->none_enabled;
 		goto parse_flag;
- 
+
 	/*
-         * We check to see if the command comes from the command line or not.
+	 * We check to see if the command comes from the command line or not.
 	 * If it does then enable it otherwise fail.  NONE must never be a
 	 * default configuration.
 	 */
@@ -1110,7 +1111,7 @@ parse_int:
 			    "from the command line", filename);
 			error("Continuing...");
 			return 0;
-	        }
+		}
 #endif
 
 	case oVersionAddendum:
@@ -1458,7 +1459,7 @@ fill_default_options(Options * options)
 	/* options->host_key_alias should not be set by default */
 	/* options->preferred_authentications will be set in ssh */
 	if (options->hpn_disabled == -1)
-	        options->hpn_disabled = 0;
+		options->hpn_disabled = 0;
 	if (options->hpn_buffer_size > -1)
 	{
 		u_int maxlen;
@@ -1478,7 +1479,7 @@ fill_default_options(Options * options)
 	}
 	if (options->tcp_rcv_buf == 0)
 		options->tcp_rcv_buf = 1;
-	if (options->tcp_rcv_buf > -1) 
+	if (options->tcp_rcv_buf > -1)
 		options->tcp_rcv_buf *= 1024;
 	if (options->tcp_rcv_buf_poll == -1)
 		options->tcp_rcv_buf_poll = 1;

@@ -274,7 +274,7 @@ When using GCC, all atomic operations are executed as if they are using
 .Dv memory_order_seq_cst .
 .Pp
 Instead of using the atomic operations provided by this interface,
-.St -isoC-11
+.St -isoC-2011
 allows the atomic variables to be modified directly using built-in
 language operators.
 This behaviour cannot be emulated for older compilers.
@@ -292,7 +292,7 @@ datatypes, if supported by the CPU.
 .Xr atomic 9
 .Sh STANDARDS
 These macros attempt to conform to
-.St -isoC-11 .
+.St -isoC-2011 .
 .Sh HISTORY
 These macros appeared in
 .Fx 10.0 .

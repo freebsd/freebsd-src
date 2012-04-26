@@ -65,8 +65,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KLD_DEBUG
 int kld_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW,
-        &kld_debug, 0, "Set various levels of KLD debug");
+SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW | CTLFLAG_TUN,
+    &kld_debug, 0, "Set various levels of KLD debug");
+TUNABLE_INT("debug.kld_debug", &kld_debug);
 #endif
 
 #define	KLD_LOCK()		sx_xlock(&kld_sx)
@@ -311,7 +312,7 @@ linker_file_unregister_sysctls(linker_file_t lf)
 {
 	struct sysctl_oid **start, **stop, **oidp;
 
-	KLD_DPF(FILE, ("linker_file_unregister_sysctls: registering SYSCTLs"
+	KLD_DPF(FILE, ("linker_file_unregister_sysctls: unregistering SYSCTLs"
 	    " for %s\n", lf->filename));
 
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
@@ -379,7 +380,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 {
 	linker_class_t lc;
 	linker_file_t lf;
-	int foundfile, error;
+	int foundfile, error, modules;
 
 	/* Refuse to load modules if securelevel raised */
 	if (prison0.pr_securelevel > 0)
@@ -418,11 +419,22 @@ linker_load_file(const char *filename, linker_file_t *result)
 				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 				return (error);
 			}
+			modules = !TAILQ_EMPTY(&lf->modules);
 			KLD_UNLOCK();
 			linker_file_register_sysctls(lf);
 			linker_file_sysinit(lf);
 			KLD_LOCK();
 			lf->flags |= LINKER_FILE_LINKED;
+
+			/*
+			 * If all of the modules in this file failed
+			 * to load, unload the file and return an
+			 * error of ENOEXEC.
+			 */
+			if (modules && TAILQ_EMPTY(&lf->modules)) {
+				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+				return (ENOEXEC);
+			}
 			*result = lf;
 			return (0);
 		}
@@ -626,7 +638,7 @@ linker_file_unload(linker_file_t file, int flags)
 
 	/*
 	 * Inform any modules associated with this file that they are
-	 * being be unloaded.
+	 * being unloaded.
 	 */
 	MOD_XLOCK;
 	for (mod = TAILQ_FIRST(&file->modules); mod; mod = next) {
@@ -637,8 +649,12 @@ linker_file_unload(linker_file_t file, int flags)
 		 * Give the module a chance to veto the unload.
 		 */
 		if ((error = module_unload(mod)) != 0) {
+#ifdef KLD_DEBUG
+			MOD_SLOCK;
 			KLD_DPF(FILE, ("linker_file_unload: module %s"
 			    " failed unload\n", module_getname(mod)));
+			MOD_SUNLOCK;
+#endif
 			return (error);
 		}
 		MOD_XLOCK;
@@ -1748,7 +1764,8 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	struct vattr vattr, mattr;
 	u_char *hints = NULL;
 	u_char *cp, *recptr, *bufend, *result, *best, *pathbuf, *sep;
-	int error, ival, bestver, *intp, reclen, found, flags, clen, blen;
+	int error, ival, bestver, *intp, found, flags, clen, blen;
+	ssize_t reclen;
 	int vfslocked = 0;
 
 	result = NULL;
@@ -1793,7 +1810,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	VFS_UNLOCK_GIANT(vfslocked);
 	nd.ni_vp = NULL;
 	if (reclen != 0) {
-		printf("can't read %d\n", reclen);
+		printf("can't read %zd\n", reclen);
 		goto bad;
 	}
 	intp = (int *)hints;

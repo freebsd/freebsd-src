@@ -18,7 +18,9 @@
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/DeclObjC.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -219,6 +221,17 @@ DefinedOrUnknownSVal StringRegion::getExtent(SValBuilder &svalBuilder) const {
                                 svalBuilder.getArrayIndexType());
 }
 
+ObjCIvarRegion::ObjCIvarRegion(const ObjCIvarDecl *ivd, const MemRegion* sReg)
+  : DeclRegion(ivd, sReg, ObjCIvarRegionKind) {}
+
+const ObjCIvarDecl *ObjCIvarRegion::getDecl() const {
+  return cast<ObjCIvarDecl>(D);
+}
+
+QualType ObjCIvarRegion::getValueType() const {
+  return getDecl()->getType();
+}
+
 QualType CXXBaseObjectRegion::getValueType() const {
   return QualType(decl->getTypeForDecl(), 0);
 }
@@ -245,6 +258,14 @@ void StringRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
                                  const StringLiteral* Str,
                                  const MemRegion* superRegion) {
   ID.AddInteger((unsigned) StringRegionKind);
+  ID.AddPointer(Str);
+  ID.AddPointer(superRegion);
+}
+
+void ObjCStringRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
+                                     const ObjCStringLiteral* Str,
+                                     const MemRegion* superRegion) {
+  ID.AddInteger((unsigned) ObjCStringRegionKind);
   ID.AddPointer(Str);
   ID.AddPointer(superRegion);
 }
@@ -283,6 +304,12 @@ void CXXThisRegion::ProfileRegion(llvm::FoldingSetNodeID &ID,
 
 void CXXThisRegion::Profile(llvm::FoldingSetNodeID &ID) const {
   CXXThisRegion::ProfileRegion(ID, ThisPointerTy, superRegion);
+}
+
+void ObjCIvarRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
+                                   const ObjCIvarDecl *ivd,
+                                   const MemRegion* superRegion) {
+  DeclRegion::ProfileRegion(ID, ivd, superRegion, ObjCIvarRegionKind);
 }
 
 void DeclRegion::ProfileRegion(llvm::FoldingSetNodeID& ID, const Decl *D,
@@ -337,7 +364,7 @@ void FunctionTextRegion::Profile(llvm::FoldingSetNodeID& ID) const {
 
 void BlockTextRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
                                     const BlockDecl *BD, CanQualType,
-                                    const AnalysisContext *AC,
+                                    const AnalysisDeclContext *AC,
                                     const MemRegion*) {
   ID.AddInteger(MemRegion::BlockTextRegionKind);
   ID.AddPointer(BD);
@@ -382,6 +409,20 @@ void CXXBaseObjectRegion::ProfileRegion(llvm::FoldingSetNodeID &ID,
 void CXXBaseObjectRegion::Profile(llvm::FoldingSetNodeID &ID) const {
   ProfileRegion(ID, decl, superRegion);
 }
+
+//===----------------------------------------------------------------------===//
+// Region anchors.
+//===----------------------------------------------------------------------===//
+
+void GlobalsSpaceRegion::anchor() { }
+void HeapSpaceRegion::anchor() { }
+void UnknownSpaceRegion::anchor() { }
+void StackLocalsSpaceRegion::anchor() { }
+void StackArgumentsSpaceRegion::anchor() { }
+void TypedRegion::anchor() { }
+void TypedValueRegion::anchor() { }
+void CodeTextRegion::anchor() { }
+void SubRegion::anchor() { }
 
 //===----------------------------------------------------------------------===//
 // Region pretty-printing.
@@ -445,16 +486,16 @@ void FieldRegion::dumpToStream(raw_ostream &os) const {
   os << superRegion << "->" << *getDecl();
 }
 
-void NonStaticGlobalSpaceRegion::dumpToStream(raw_ostream &os) const {
-  os << "NonStaticGlobalSpaceRegion";
-}
-
 void ObjCIvarRegion::dumpToStream(raw_ostream &os) const {
   os << "ivar{" << superRegion << ',' << *getDecl() << '}';
 }
 
 void StringRegion::dumpToStream(raw_ostream &os) const {
-  Str->printPretty(os, 0, PrintingPolicy(getContext().getLangOptions()));
+  Str->printPretty(os, 0, PrintingPolicy(getContext().getLangOpts()));
+}
+
+void ObjCStringRegion::dumpToStream(raw_ostream &os) const {
+  Str->printPretty(os, 0, PrintingPolicy(getContext().getLangOpts()));
 }
 
 void SymbolicRegion::dumpToStream(raw_ostream &os) const {
@@ -475,6 +516,35 @@ void RegionRawOffset::dumpToStream(raw_ostream &os) const {
 
 void StaticGlobalSpaceRegion::dumpToStream(raw_ostream &os) const {
   os << "StaticGlobalsMemSpace{" << CR << '}';
+}
+
+void NonStaticGlobalSpaceRegion::dumpToStream(raw_ostream &os) const {
+  os << "NonStaticGlobalSpaceRegion";
+}
+
+void GlobalInternalSpaceRegion::dumpToStream(raw_ostream &os) const {
+  os << "GlobalInternalSpaceRegion";
+}
+
+void GlobalSystemSpaceRegion::dumpToStream(raw_ostream &os) const {
+  os << "GlobalSystemSpaceRegion";
+}
+
+void GlobalImmutableSpaceRegion::dumpToStream(raw_ostream &os) const {
+  os << "GlobalImmutableSpaceRegion";
+}
+
+void MemRegion::dumpPretty(raw_ostream &os) const {
+  return;
+}
+
+void VarRegion::dumpPretty(raw_ostream &os) const {
+  os << getDecl()->getName();
+}
+
+void FieldRegion::dumpPretty(raw_ostream &os) const {
+  superRegion->dumpPretty(os);
+  os << "->" << getDecl();
 }
 
 //===----------------------------------------------------------------------===//
@@ -528,10 +598,18 @@ MemRegionManager::getStackArgumentsRegion(const StackFrameContext *STC) {
 }
 
 const GlobalsSpaceRegion
-*MemRegionManager::getGlobalsRegion(const CodeTextRegion *CR) {
-  if (!CR)
-    return LazyAllocate(globals);
+*MemRegionManager::getGlobalsRegion(MemRegion::Kind K,
+                                    const CodeTextRegion *CR) {
+  if (!CR) {
+    if (K == MemRegion::GlobalSystemSpaceRegionKind)
+      return LazyAllocate(SystemGlobals);
+    if (K == MemRegion::GlobalImmutableSpaceRegionKind)
+      return LazyAllocate(ImmutableGlobals);
+    assert(K == MemRegion::GlobalInternalSpaceRegionKind);
+    return LazyAllocate(InternalGlobals);
+  }
 
+  assert(K == MemRegion::StaticGlobalSpaceRegionKind);
   StaticGlobalSpaceRegion *&R = StaticsGlobalSpaceRegions[CR];
   if (R)
     return R;
@@ -556,18 +634,44 @@ const MemSpaceRegion *MemRegionManager::getCodeRegion() {
 //===----------------------------------------------------------------------===//
 // Constructing regions.
 //===----------------------------------------------------------------------===//
-
 const StringRegion* MemRegionManager::getStringRegion(const StringLiteral* Str){
   return getSubRegion<StringRegion>(Str, getGlobalsRegion());
+}
+
+const ObjCStringRegion *
+MemRegionManager::getObjCStringRegion(const ObjCStringLiteral* Str){
+  return getSubRegion<ObjCStringRegion>(Str, getGlobalsRegion());
 }
 
 const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
                                                 const LocationContext *LC) {
   const MemRegion *sReg = 0;
 
-  if (D->hasGlobalStorage() && !D->isStaticLocal())
-    sReg = getGlobalsRegion();
-  else {
+  if (D->hasGlobalStorage() && !D->isStaticLocal()) {
+
+    // First handle the globals defined in system headers.
+    if (C.getSourceManager().isInSystemHeader(D->getLocation())) {
+      // Whitelist the system globals which often DO GET modified, assume the
+      // rest are immutable.
+      if (D->getName().find("errno") != StringRef::npos)
+        sReg = getGlobalsRegion(MemRegion::GlobalSystemSpaceRegionKind);
+      else
+        sReg = getGlobalsRegion(MemRegion::GlobalImmutableSpaceRegionKind);
+
+    // Treat other globals as GlobalInternal unless they are constants.
+    } else {
+      QualType GQT = D->getType();
+      const Type *GT = GQT.getTypePtrOrNull();
+      // TODO: We could walk the complex types here and see if everything is
+      // constified.
+      if (GT && GQT.isConstQualified() && GT->isArithmeticType())
+        sReg = getGlobalsRegion(MemRegion::GlobalImmutableSpaceRegionKind);
+      else
+        sReg = getGlobalsRegion();
+    }
+  
+  // Finally handle static locals.  
+  } else {
     // FIXME: Once we implement scope handling, we will need to properly lookup
     // 'D' to the proper LocationContext.
     const DeclContext *DC = D->getDeclContext();
@@ -585,13 +689,15 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
         assert(D->isStaticLocal());
         const Decl *D = STC->getDecl();
         if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
-          sReg = getGlobalsRegion(getFunctionTextRegion(FD));
+          sReg = getGlobalsRegion(MemRegion::StaticGlobalSpaceRegionKind,
+                                  getFunctionTextRegion(FD));
         else if (const BlockDecl *BD = dyn_cast<BlockDecl>(D)) {
           const BlockTextRegion *BTR =
             getBlockTextRegion(BD,
                      C.getCanonicalType(BD->getSignatureAsWritten()->getType()),
-                     STC->getAnalysisContext());
-          sReg = getGlobalsRegion(BTR);
+                     STC->getAnalysisDeclContext());
+          sReg = getGlobalsRegion(MemRegion::StaticGlobalSpaceRegionKind,
+                                  BTR);
         }
         else {
           // FIXME: For ObjC-methods, we need a new CodeTextRegion.  For now
@@ -614,18 +720,24 @@ const BlockDataRegion *
 MemRegionManager::getBlockDataRegion(const BlockTextRegion *BC,
                                      const LocationContext *LC) {
   const MemRegion *sReg = 0;
-
-  if (LC) {
-    // FIXME: Once we implement scope handling, we want the parent region
-    // to be the scope.
-    const StackFrameContext *STC = LC->getCurrentStackFrame();
-    assert(STC);
-    sReg = getStackLocalsRegion(STC);
+  const BlockDecl *BD = BC->getDecl();
+  if (!BD->hasCaptures()) {
+    // This handles 'static' blocks.
+    sReg = getGlobalsRegion(MemRegion::GlobalImmutableSpaceRegionKind);
   }
   else {
-    // We allow 'LC' to be NULL for cases where want BlockDataRegions
-    // without context-sensitivity.
-    sReg = getUnknownRegion();
+    if (LC) {
+      // FIXME: Once we implement scope handling, we want the parent region
+      // to be the scope.
+      const StackFrameContext *STC = LC->getCurrentStackFrame();
+      assert(STC);
+      sReg = getStackLocalsRegion(STC);
+    }
+    else {
+      // We allow 'LC' to be NULL for cases where want BlockDataRegions
+      // without context-sensitivity.
+      sReg = getUnknownRegion();
+    }
   }
 
   return getSubRegion<BlockDataRegion>(BC, LC, sReg);
@@ -678,7 +790,7 @@ MemRegionManager::getFunctionTextRegion(const FunctionDecl *FD) {
 
 const BlockTextRegion *
 MemRegionManager::getBlockTextRegion(const BlockDecl *BD, CanQualType locTy,
-                                     AnalysisContext *AC) {
+                                     AnalysisDeclContext *AC) {
   return getSubRegion<BlockTextRegion>(BD, locTy, AC, getCodeRegion());
 }
 
@@ -928,8 +1040,8 @@ void BlockDataRegion::LazyInitializeReferencedVars() {
   if (ReferencedVars)
     return;
 
-  AnalysisContext *AC = getCodeRegion()->getAnalysisContext();
-  AnalysisContext::referenced_decls_iterator I, E;
+  AnalysisDeclContext *AC = getCodeRegion()->getAnalysisDeclContext();
+  AnalysisDeclContext::referenced_decls_iterator I, E;
   llvm::tie(I, E) = AC->getReferencedBlockVars(BC->getDecl());
 
   if (I == E) {

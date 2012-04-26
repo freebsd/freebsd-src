@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2011
+.Dd March 23, 2012
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ for printing:
 .Bl -tag -width indent
 .It Fl b
 Display binary information for the process.
-.It Fl c 
+.It Fl c
 Display command line arguments for the process.
 .It Fl e
 Display environment variables for the process.
@@ -110,6 +110,8 @@ Display the process ID, command, and path to the process binary:
 process ID
 .It COMM
 command
+.It OSREL
+osreldate for process binary
 .It PATH
 path to process binary (if available)
 .El
@@ -329,6 +331,8 @@ effective group ID
 real group ID
 .It SVGID
 saved group ID
+.It UMASK
+file creation mode mask
 .It FLAGS
 credential flags
 .It GROUPS

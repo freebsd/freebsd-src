@@ -256,6 +256,13 @@ null_input(struct ifnet *ifp, struct mbuf *m)
 	m_freem(m);
 }
 
+static void
+null_update_chw(struct ieee80211com *ic)
+{
+
+	if_printf(ic->ic_ifp, "%s: need callback\n", __func__);
+}
+
 /*
  * Attach/setup the common net80211 state.  Called by
  * the driver on attach to prior to creating any vap's.
@@ -276,7 +283,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	/* Create a taskqueue for all state changes */
 	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
-	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s taskq",
+	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
 	    ifp->if_xname);
 	/*
 	 * Fill in 802.11 available channel set, mark all
@@ -287,6 +294,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	ic->ic_update_mcast = null_update_mcast;
 	ic->ic_update_promisc = null_update_promisc;
+	ic->ic_update_chw = null_update_chw;
 
 	ic->ic_hash_key = arc4random();
 	ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;

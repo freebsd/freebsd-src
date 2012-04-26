@@ -733,10 +733,11 @@ typedef struct {
 					 */
 	int32_t		pe_extchannel;	/* Enable DFS on ext channel */
 	int32_t		pe_enabled;	/* Whether radar detection is enabled */
+	int32_t		pe_enrelpwr;
+	int32_t		pe_en_relstep_check;
 } HAL_PHYERR_PARAM;
 
 #define	HAL_PHYERR_PARAM_NOVAL	65535
-#define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
 
 /*
  * DFS operating mode flags.
@@ -814,6 +815,7 @@ struct ath_hal {
 	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
 
 	uint32_t	ah_intrstate[8];	/* last int state */
+	uint32_t	ah_syncstate;		/* last sync intr state */
 
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
@@ -1009,7 +1011,7 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
 				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
-				HAL_BOOL);
+				HAL_BOOL, HAL_BOOL);
 	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, u_int,
 				u_int, u_int, u_int, u_int, u_int);
@@ -1168,5 +1170,11 @@ void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
  * Get CCA setting.
  */
 int __ahdecl ath_hal_getcca(struct ath_hal *ah);
+
+/*
+ * Read EEPROM data from ah_eepromdata
+ */
+HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
+		u_int off, uint16_t *data);
 
 #endif /* _ATH_AH_H_ */

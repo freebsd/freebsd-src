@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
@@ -69,7 +70,7 @@ struct vcpu {
 	uint64_t	guest_msrs[VMM_MSR_NUM];
 	struct vlapic	*vlapic;
 	int		 vcpuid;
-	struct savefpu	savefpu;	/* guest fpu state */
+	struct savefpu	*guestfpu;	/* guest fpu state */
 	void		*stats;
 };
 #define	VCPU_F_PINNED	0x0001
@@ -131,11 +132,8 @@ static struct vmm_ops *ops;
 #define	VMSETCAP(vmi, vcpu, num, val)		\
 	(ops != NULL ? (*ops->vmsetcap)(vmi, vcpu, num, val) : ENXIO)
 
-#define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
-#define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
-#define	fpu_start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				      : : "n" (CR0_TS) : "ax")
-#define	fpu_stop_emulating()	__asm("clts")
+#define	fpu_start_emulating()	start_emulating()
+#define	fpu_stop_emulating()	stop_emulating()
 
 static MALLOC_DEFINE(M_VM, "vm", "vm");
 CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
@@ -147,7 +145,8 @@ static void
 vcpu_cleanup(struct vcpu *vcpu)
 {
 	vlapic_cleanup(vcpu->vlapic);
-	vmm_stat_free(vcpu->stats);
+	vmm_stat_free(vcpu->stats);	
+	fpu_save_area_free(vcpu->guestfpu);
 }
 
 static void
@@ -160,8 +159,8 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->hostcpu = -1;
 	vcpu->vcpuid = vcpu_id;
 	vcpu->vlapic = vlapic_init(vm, vcpu_id);
-	fpugetregs(curthread);
-	vcpu->savefpu = curthread->td_pcb->pcb_user_save;
+	vcpu->guestfpu = fpu_save_area_alloc();
+	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
 }
 
@@ -505,25 +504,19 @@ vm_set_pinning(struct vm *vm, int vcpuid, int host_cpuid)
 static void
 restore_guest_fpustate(struct vcpu *vcpu)
 {
-	register_t s;
 
-	s = intr_disable();
+	/* flush host state to the pcb */
+	fpuexit(curthread);
 	fpu_stop_emulating();
-	fxrstor(&vcpu->savefpu);
-	fpu_start_emulating();
-	intr_restore(s);
+	fpurestore(vcpu->guestfpu);
 }
 
 static void
 save_guest_fpustate(struct vcpu *vcpu)
 {
-	register_t s;
 
-	s = intr_disable();
-	fpu_stop_emulating();
-	fxsave(&vcpu->savefpu);
+	fpusave(vcpu->guestfpu);
 	fpu_start_emulating();
-	intr_restore(s);
 }
 
 int
@@ -550,8 +543,7 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 
 	vcpu->hostcpu = curcpu;
 
-	fpuexit(curthread);
-	restore_guest_msrs(vm, vcpuid);
+	restore_guest_msrs(vm, vcpuid);	
 	restore_guest_fpustate(vcpu);
 	error = VMRUN(vm->cookie, vcpuid, vmrun->rip, &vmrun->vm_exit);
 	save_guest_fpustate(vcpu);

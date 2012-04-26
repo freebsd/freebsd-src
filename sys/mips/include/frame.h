@@ -122,17 +122,6 @@ struct trapframe {
 	f_register_t	f31;
 	register_t	fsr;
         register_t   fdummy;
-	/*
-	 * COP2 registers may need to be saved here based on the CPU, and those
-	 * might need to be per process, or even for the kernel, so we need
-	 * some thought here.
-	 */
 };
-
-/* REVISIT */
-struct	frame *get_current_fp(void);
-#define	get_next_fp(fp)		(0)
-#define	get_return_ptr(fp)	(0)
-void	get_stack_trace(u_int32_t depth, u_int32_t *trace);
 
 #endif	/* !_MACHINE_FRAME_H_ */

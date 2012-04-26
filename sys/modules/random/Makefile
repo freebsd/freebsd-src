@@ -6,7 +6,7 @@
 
 KMOD=	random
 SRCS=	randomdev.c probe.c
-.if ${MACHINE} == "i386"
+.if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 SRCS+=	nehemiah.c
 .endif
 SRCS+=	randomdev_soft.c yarrow.c hash.c

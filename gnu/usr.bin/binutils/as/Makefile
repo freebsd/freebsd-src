@@ -43,6 +43,13 @@ SRCS+=	app.c \
 
 .if ${TARGET_CPUARCH} == "mips"
 SRCS+=	itbl-ops.c itbl-parse.y itbl-lex.l
+.if ${TARGET_ARCH:Mmips64*} != ""
+CFLAGS+=	-DMIPS_DEFAULT_ABI=N64_ABI -DMIPS_DEFAULT_64BIT=1
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+CFLAGS+=	-DMIPS_DEFAULT_ABI=N32_ABI
+.else
+MIPS_ABI_DEFAULT=ABI_32
+.endif
 .endif
 
 .if ${TARGET_ARCH} == "amd64"

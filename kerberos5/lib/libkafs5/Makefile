@@ -1,11 +1,12 @@
 # $FreeBSD$
 
 LIB=	kafs5
+LDADD=	-lasn1 -lroken -lkrb5
 LDFLAGS=	-Wl,--no-undefined
-LDADD=	-lasn1 -lkrb5 -lroken
 DPADD=	${LIBASN1} ${LIBKRB5} ${LIBROKEN}
 INCS=	kafs.h
 MAN=	kafs5.3
+VERSION_MAP=	${.CURDIR}/version.map
 
 MLINKS=	kafs5.3 k_afs_cell_of_file.3 \
 	kafs5.3 k_hasafs.3 \
@@ -23,7 +24,16 @@ MLINKS=	kafs5.3 k_afs_cell_of_file.3 \
 	kafs5.3 krb_afslog_uid.3
 
 SRCS=	afssys.c afskrb5.c common.c krb5_err.h
-CFLAGS+=-I${KRB5DIR}/lib/kafs -I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/roken
+SRCS=	afssys.c \
+	afskrb5.c \
+	common.c \
+	kafs_locl.h \
+	afssysdefs.h \
+	roken_rename.h
+CFLAGS+=	-I${KRB5DIR}/lib/kafs \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${.OBJDIR}/../libkrb5/ \
+		-I${KRB5DIR}/lib/roken
 
 CLEANFILES= kafs5.3
 

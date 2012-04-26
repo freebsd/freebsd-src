@@ -33,8 +33,9 @@ case $host in
 *-*-sysv*OpenUNIX*)
         # UnixWare
 	use_threads=true ;;
-*-netbsd[1234].*)
-	# NetBSD earlier than NetBSD 5.0 has poor pthreads.  Don't use it by default.
+[*-netbsd[1234].*])
+	# NetBSD earlier than NetBSD 5.0 has poor pthreads.
+	#  Don't use it by default.
 	use_threads=false ;;
 *-netbsd*)
 	use_threads=true ;;
@@ -44,7 +45,7 @@ case $host in
 	use_threads=false ;;
 *-freebsd*)
 	use_threads=false ;;
-*-bsdi[234]*)
+[*-bsdi[234]*])
 	# Thread signals do not work reliably on some versions of BSD/OS.
 	use_threads=false ;;
 *-bsdi5*)

@@ -70,7 +70,7 @@ static int
 exec_gzip_imgact(imgp)
 	struct image_params *imgp;
 {
-	int             error, error2 = 0;
+	int             error;
 	const u_char   *p = (const u_char *) imgp->image_header;
 	struct imgact_gzip igz;
 	struct inflate  infl;
@@ -136,22 +136,17 @@ exec_gzip_imgact(imgp)
 			VM_PROT_READ|VM_PROT_EXECUTE,0);
 	}
 
-	if (igz.inbuf) {
-		error2 =
-			vm_map_remove(kernel_map, (vm_offset_t) igz.inbuf,
-			    (vm_offset_t) igz.inbuf + PAGE_SIZE);
-	}
-	if (igz.error || error || error2) {
+	if (igz.inbuf)
+		kmem_free_wakeup(exec_map, (vm_offset_t)igz.inbuf, PAGE_SIZE);
+	if (igz.error || error) {
 		printf("Output=%lu ", igz.output);
-		printf("Inflate_error=%d igz.error=%d error2=%d where=%d\n",
-		       error, igz.error, error2, igz.where);
+		printf("Inflate_error=%d igz.error=%d where=%d\n",
+		       error, igz.error, igz.where);
 	}
 	if (igz.error)
 		return igz.error;
 	if (error)
 		return ENOEXEC;
-	if (error2)
-		return error2;
 	return 0;
 }
 
@@ -314,18 +309,11 @@ NextByte(void *vp)
 	if (igz->inbuf && igz->idx < (igz->offset + PAGE_SIZE)) {
 		return igz->inbuf[(igz->idx++) - igz->offset];
 	}
-	if (igz->inbuf) {
-		error = vm_map_remove(kernel_map, (vm_offset_t) igz->inbuf,
-			    (vm_offset_t) igz->inbuf + PAGE_SIZE);
-		if (error) {
-			igz->where = __LINE__;
-			igz->error = error;
-			return GZ_EOF;
-		}
-	}
+	if (igz->inbuf)
+		kmem_free_wakeup(exec_map, (vm_offset_t)igz->inbuf, PAGE_SIZE);
 	igz->offset = igz->idx & ~PAGE_MASK;
 
-	error = vm_mmap(kernel_map,	/* map */
+	error = vm_mmap(exec_map,	/* map */
 			(vm_offset_t *) & igz->inbuf,	/* address */
 			PAGE_SIZE,	/* size */
 			VM_PROT_READ,	/* protection */

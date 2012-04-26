@@ -1,4 +1,4 @@
-$ $tcsh: set23,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set23,v 1.3 2011/02/04 18:19:39 christos Exp $
 $ tc.os.c
 $set 23 
 1 Nome di cpu/macchina non corretto
@@ -29,6 +29,6 @@ $set 23
 26 getwd: non posso aprire la directory "%s" (%s)
 27 getwd: non riesco a trovare "." in ".." (%s)
 28 Tipo di sistema non corretto
-29 Il tipo di sistema non è stato definito
+29 Il tipo di sistema non Ã¨ stato definito
 30 Troppi argomenti
 31 Argomento non corretto

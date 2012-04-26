@@ -98,7 +98,7 @@ MODULE_DEPEND(smbfs, libmchain, 1, 1, 1);
 int smbfs_pbuf_freecnt = -1;	/* start out unlimited */
 
 static int
-smbfs_cmount(struct mntarg *ma, void * data, int flags)
+smbfs_cmount(struct mntarg *ma, void * data, uint64_t flags)
 {
 	struct smbfs_args args;
 	int error;

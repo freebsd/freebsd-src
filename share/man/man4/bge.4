@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2011
+.Dd January 19, 2012
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -188,7 +188,7 @@ SysKonnect SK-9D21 (10/100/1000baseTX)
 SysKonnect SK-9D41 (1000baseSX)
 .El
 .Sh LOADER TUNABLES
-The following tunable can be set at the
+The following tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel, or stored in
 .Xr loader.conf 5 .
@@ -197,6 +197,9 @@ prompt before booting the kernel, or stored in
 Allow the ASF feature for cooperating with IPMI.
 Can cause system lockup problems on a small number of systems.
 Enabled by default.
+.It Va dev.bge.%d.msi
+Non-zero value enables MSI support on the Ethernet hardware.
+The default value is 1.
 .El
 .Sh SYSCTL VARIABLES
 The following variables are available as both

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.prompt.c,v 3.67 2006/11/17 16:26:58 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.prompt.c,v 3.70 2011/10/27 22:41:06 christos Exp $ */
 /*
  * tc.prompt.c: Prompt printing stuff
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.prompt.c,v 3.67 2006/11/17 16:26:58 christos Exp $")
+RCSID("$tcsh: tc.prompt.c,v 3.70 2011/10/27 22:41:06 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -213,8 +213,9 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 		}
 		break;
 	    case '#':
-		Strbuf_append1(&buf,
-			       attributes | ((uid == 0) ? PRCHROOT : PRCH));
+		Scp = (uid == 0 || euid == 0) ? PRCHROOT : PRCH;
+		if (Scp != '\0')
+		    Strbuf_append1(&buf, attributes | Scp);
 		break;
 	    case '!':
 	    case 'h':
@@ -458,6 +459,11 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 			    Strbuf_append1(&buf, attributes | *z++);
 		}
 		break;
+	    case 'N':
+		if ((z = varval(STReuser)) != STRNULL)
+		    while (*z)
+			Strbuf_append1(&buf, attributes | *z++);
+		break;
 	    case 'l':
 #ifndef HAVENOUTMP
 		if (what == FMT_WHO) {
@@ -527,6 +533,8 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 		    struct process *pp;
 
 		    for (pp = proclist.p_next; pp; pp = pp->p_next)
+			njobs++;
+		    if (njobs == -1)
 			njobs++;
 		    p = Itoa(njobs, 1, attributes);
 		    Strbuf_append(&buf, p);

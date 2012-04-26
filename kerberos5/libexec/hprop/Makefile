@@ -2,7 +2,7 @@
 
 PROG=	hprop
 MAN=	hprop.8
-SRCS=	hprop.c mit_dump.c v4_dump.c
+SRCS=	hprop.c mit_dump.c hprop.h
 CFLAGS+=-I${KRB5DIR}/lib/roken
 CFLAGS+=-I${KRB5DIR}/lib/krb5
 CFLAGS+=-I${KRB5DIR}/lib/asn1

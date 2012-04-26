@@ -421,6 +421,56 @@ union	disk_pages /* this is the structure copied from osf */
     	} flexible_disk;	
 };
 
+/*
+ * XXX KDM
+ * Here for CTL compatibility, reconcile this.
+ */
+struct scsi_format_page {
+	uint8_t page_code;
+	uint8_t page_length;
+	uint8_t tracks_per_zone[2];
+	uint8_t alt_sectors_per_zone[2];
+	uint8_t alt_tracks_per_zone[2];
+	uint8_t alt_tracks_per_lun[2];
+	uint8_t sectors_per_track[2];
+	uint8_t bytes_per_sector[2];
+	uint8_t interleave[2];
+	uint8_t track_skew[2];
+	uint8_t cylinder_skew[2];
+	uint8_t flags;
+#define	SFP_SSEC	0x80
+#define	SFP_HSEC	0x40
+#define	SFP_RMB		0x20
+#define	SFP_SURF	0x10
+	uint8_t reserved[3];
+};
+
+/*
+ * XXX KDM
+ * Here for CTL compatibility, reconcile this.
+ */
+struct scsi_rigid_disk_page {
+	uint8_t page_code;
+#define	SMS_RIGID_DISK_PAGE		0x04
+	uint8_t page_length;
+	uint8_t cylinders[3];
+	uint8_t heads;
+	uint8_t start_write_precomp[3];
+	uint8_t start_reduced_current[3];
+	uint8_t step_rate[2];
+	uint8_t landing_zone_cylinder[3];
+	uint8_t rpl;
+#define	SRDP_RPL_DISABLED	0x00
+#define	SRDP_RPL_SLAVE		0x01
+#define	SRDP_RPL_MASTER		0x02
+#define	SRDP_RPL_MASTER_CONTROL	0x03
+	uint8_t rotational_offset;
+	uint8_t reserved1;
+	uint8_t rotation_rate[2];
+	uint8_t reserved2[2];
+};
+
+
 struct scsi_da_rw_recovery_page {
 	u_int8_t page_code;
 #define SMS_RW_ERROR_RECOVERY_PAGE	0x01

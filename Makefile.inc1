@@ -15,8 +15,11 @@
 #	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
+#	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
+#	    list
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
+#	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
 
 #
 # The intended user-driven targets are:
@@ -104,6 +107,10 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+LOCAL_TOOL_DIRS?=
+
+BUILDENV_SHELL?=/bin/sh
+
 CVS?=		cvs
 CVSFLAGS?=	-A -P -d -I!
 SVN?=		svn
@@ -129,7 +136,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -461,13 +468,6 @@ build32:
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if ${MK_KERBEROS} != "no"
-.for _t in obj depend all
-	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=kerberos5/tools/ ${_t}
-.endfor
-.endif
 .for _t in obj includes
 	cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
 	cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
@@ -554,7 +554,7 @@ buildenvvars:
 
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} sh || true
+	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
@@ -828,6 +828,7 @@ buildkernel:
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
+	    PATH=${BPATH}:${PATH} \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
 	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
@@ -835,6 +836,7 @@ buildkernel:
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
 	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
+	    PATH=${BPATH}:${PATH} \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
 	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF ${target}
 .endfor
@@ -883,10 +885,21 @@ distributekernel distributekernel.debug:
 	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
 	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
+.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    KERNEL=${INSTKERNNAME}.${_kernel} \
+	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
+	    ${.TARGET:S/distributekernel/install/}
+.endfor
 
 packagekernel:
-	${_+_}cd ${DESTDIR}/${DISTDIR}/kernel; \
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
+.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
+.endfor
 
 #
 # doxygen
@@ -1034,9 +1047,11 @@ _clang_tblgen= \
 	usr.bin/clang/clang-tblgen
 .endif
 
+# dtrace tools are required for older bootstrap env and cross-build
 .if ${MK_CDDL} != "no" && \
-    ${BOOTSTRAPPING} < 800038 && \
-    !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)
+    ((${BOOTSTRAPPING} < 800038 && \
+          !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)) \
+      || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
@@ -1045,12 +1060,22 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
 _dtc= gnu/usr.bin/dtc
 .endif
 
+.if ${MK_KERBEROS} != "no"
+_kerberos5_bootstrap_tools= \
+	kerberos5/tools/make-roken \
+	kerberos5/lib/libroken \
+	kerberos5/lib/libvers \
+	kerberos5/tools/asn1_compile \
+	kerberos5/tools/slc
+.endif
+
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
 bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen} \
+    ${_kerberos5_bootstrap_tools} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
@@ -1088,8 +1113,8 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if ${MK_KERBEROS} != "no"
-_kerberos5_tools= kerberos5/tools
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
+_gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
 .if ${MK_RESCUE} != "no"
@@ -1101,6 +1126,7 @@ build-tools:
     bin/csh \
     bin/sh \
     ${_rescue} \
+    ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
     ${_share} \
@@ -1115,8 +1141,7 @@ build-tools:
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
-    gnu/usr.bin/cc/cc_tools \
-    ${_kerberos5_tools}
+    ${_gcc_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1145,14 +1170,12 @@ _kgzip=		usr.sbin/kgzip
 _binutils=	gnu/usr.bin/binutils
 .endif
 
-.if ${MK_CLANG} != "no"
-.if ${CC:T:Mclang} == "clang"
+.if ${MK_CLANG} != "no" && (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .endif
-.endif
 
-.if ${MK_GCC} != "no"
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
 _cc=		gnu/usr.bin/cc
 .endif
 
@@ -1220,12 +1243,20 @@ _startup_libs+=	lib/libcxxrt
 .endif
 
 gnu/lib/libgcc__L: lib/libc__L
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libcxxrt__L: gnu/lib/libgcc__L
+.endif
 
-_prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
+_prebuild_libs=	${_kerberos5_lib_libasn1} \
+		${_kerberos5_lib_libhdb} \
+		${_kerberos5_lib_libheimbase} \
 		${_kerberos5_lib_libheimntlm} \
+		${_kerberos5_lib_libheimsqlite} \
+		${_kerberos5_lib_libheimipcc} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
-		lib/libbz2 lib/libcom_err lib/libcrypt \
+		${_kerberos5_lib_libwind} \
+		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
@@ -1275,14 +1306,21 @@ _secure_lib=	secure/lib
 .if ${MK_KERBEROS} != "no"
 kerberos5/lib/libasn1__L: lib/libcom_err__L kerberos5/lib/libroken__L
 kerberos5/lib/libhdb__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
-    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L
-kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L
+    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L \
+    kerberos5/lib/libwind__L kerberos5/lib/libheimsqlite__L 
+kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L \
+    kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libhx509__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
-    secure/lib/libcrypto__L kerberos5/lib/libroken__L
+    secure/lib/libcrypto__L kerberos5/lib/libroken__L kerberos5/lib/libwind__L
 kerberos5/lib/libkrb5__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libcrypt__L secure/lib/libcrypto__L kerberos5/lib/libhx509__L \
-    kerberos5/lib/libroken__L
+    kerberos5/lib/libroken__L kerberos5/lib/libwind__L \
+    kerberos5/lib/libheimbase__L kerberos5/lib/libheimipcc__L
 kerberos5/lib/libroken__L: lib/libcrypt__L
+kerberos5/lib/libwind__L: kerberos5/lib/libroken__L lib/libcom_err__L
+kerberos5/lib/libheimbase__L: lib/libthr__L
+kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbase__L lib/libthr__L
+kerberos5/lib/libheimsqlite__L: lib/libthr__L
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -1297,10 +1335,15 @@ _lib_libipx=	lib/libipx
 _kerberos5_lib=	kerberos5/lib
 _kerberos5_lib_libasn1= kerberos5/lib/libasn1
 _kerberos5_lib_libhdb= kerberos5/lib/libhdb
+_kerberos5_lib_libheimbase= kerberos5/lib/libheimbase
 _kerberos5_lib_libkrb5= kerberos5/lib/libkrb5
 _kerberos5_lib_libhx509= kerberos5/lib/libhx509
 _kerberos5_lib_libroken= kerberos5/lib/libroken
 _kerberos5_lib_libheimntlm= kerberos5/lib/libheimntlm
+_kerberos5_lib_libheimsqlite= kerberos5/lib/libheimsqlite
+_kerberos5_lib_libheimipcc= kerberos5/lib/libheimipcc
+_kerberos5_lib_libwind= kerberos5/lib/libwind
+_libcom_err= lib/libcom_err
 .endif
 
 .if ${MK_NIS} != "no"

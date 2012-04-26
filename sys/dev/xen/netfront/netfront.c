@@ -2145,7 +2145,6 @@ create_netdev(device_t dev)
     	ifp->if_watchdog = xn_watchdog;
 #endif
     	ifp->if_init = xn_ifinit;
-    	ifp->if_mtu = ETHERMTU;
     	ifp->if_snd.ifq_maxlen = NET_TX_RING_SIZE - 1;
 	
     	ifp->if_hwassist = XN_CSUM_FEATURES;

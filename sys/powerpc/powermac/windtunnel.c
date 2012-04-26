@@ -59,8 +59,7 @@ struct adm1030_softc {
 	device_t	sc_dev;
 	struct intr_config_hook enum_hook;
 	uint32_t	sc_addr;
-	phandle_t	sc_thermostat_phandle;
-	device_t	sc_thermostat_dev;
+	int		sc_pwm;
 };
 
 /* Regular bus attachment functions */
@@ -70,7 +69,8 @@ static int	adm1030_attach(device_t);
 /* Utility functions */
 static void	adm1030_start(void *xdev);
 static int	adm1030_write_byte(device_t dev, uint32_t addr, uint8_t reg, uint8_t buf);
-static int adm1030_set(struct adm1030_softc *fan, int pwm);
+static int	adm1030_set(struct adm1030_softc *fan, int pwm);
+static int	adm1030_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t adm1030_methods[] = {
 	/* Device interface */
@@ -151,6 +151,8 @@ static int
 adm1030_attach(device_t dev)
 {
 	struct adm1030_softc *sc;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
 
 	sc = device_get_softc(dev);
 
@@ -158,16 +160,18 @@ adm1030_attach(device_t dev)
 	sc->enum_hook.ich_arg = dev;
 
 	/*
-	 * We have to wait until interrupts are enabled. I2C read and write
-	 * only works if the interrupts are available. The unin/i2c is
-	 * controlled by the htpic on unin. But this is not the master. The
-	 * openpic on mac-io is controlling the htpic. This one gets attached
-	 * after the mac-io probing and then the interrupts will be
-	 * available.
+	 * Wait until interrupts are available, which won't be until the openpic is
+	 * intialized.
 	 */
 
 	if (config_intrhook_establish(&sc->enum_hook) != 0)
 		return (ENOMEM);
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "pwm",
+			CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev,
+			0, adm1030_sysctl, "I", "Fan PWM Rate");
 
 	return (0);
 }
@@ -188,7 +192,7 @@ adm1030_start(void *xdev)
 
 	/* Use the RPM fields as PWM duty cycles. */
 	sc->fan.min_rpm = 0;
-	sc->fan.max_rpm = 15;
+	sc->fan.max_rpm = 0x0F;
 	sc->fan.default_rpm = 2;
 
 	strcpy(sc->fan.name, "MDD Case fan");
@@ -211,6 +215,26 @@ static int adm1030_set(struct adm1030_softc *fan, int pwm)
 	if (adm1030_write_byte(fan->sc_dev, fan->sc_addr, 0x22, pwm) < 0)
 		return (-1);
 
+	fan->sc_pwm = pwm;
 	return (0);
 }
 
+static int
+adm1030_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t adm1030;
+	struct adm1030_softc *sc;
+	int pwm, error;
+
+	adm1030 = arg1;
+	sc = device_get_softc(adm1030);
+
+	pwm = sc->sc_pwm;
+
+	error = sysctl_handle_int(oidp, &pwm, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+
+	return (adm1030_set(sc, pwm));
+}

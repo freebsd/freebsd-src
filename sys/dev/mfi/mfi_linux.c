@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/file.h>
 #include <sys/proc.h>
+#include <machine/bus.h>
 
 #if defined(__amd64__) /* Assume amd64 wants 32 bit Linux */
 #include <machine/../linux32/linux.h>

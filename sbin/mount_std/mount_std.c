@@ -112,7 +112,8 @@ main(int argc, char *argv[])
 		usage();
 
 	/* resolve the mountpoint with realpath(3) */
-	(void)checkpath(argv[1], mntpath);
+	if (checkpath(argv[1], mntpath) != 0)
+		err(EX_USAGE, "%s", mntpath);
 
 	iov[0].iov_base = "fstype";
 	iov[0].iov_len = sizeof("fstype");

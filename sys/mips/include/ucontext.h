@@ -39,6 +39,10 @@
 
 #ifndef _LOCORE
 
+#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
+#include "opt_compat.h"
+#endif
+
 typedef struct	__mcontext {
 	/*
 	 * These fields must match the corresponding fields in struct 
@@ -56,6 +60,32 @@ typedef struct	__mcontext {
 	void		*mc_tls;	/* pointer to TLS area */
 	int		__spare__[8];	/* XXX reserved */ 
 } mcontext_t;
+
+#if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
+#include <compat/freebsd32/freebsd32_signal.h>
+
+typedef struct __mcontext32 {
+	int		mc_onstack;
+	int32_t		mc_pc;
+	int32_t		mc_regs[32];
+	int32_t		sr;
+	int32_t		mullo, mulhi;
+	int		mc_fpused;
+	int32_t		mc_fpregs[33];
+	int32_t		mc_fpc_eir;
+	int32_t		mc_tls;
+	int		__spare__[8];
+} mcontext32_t;
+
+typedef struct __ucontext32 {
+	sigset_t		uc_sigmask;
+	mcontext32_t		uc_mcontext;
+	uint32_t		uc_link;
+	struct sigaltstack32    uc_stack;
+	uint32_t		uc_flags;
+	uint32_t		__spare__[4];
+} ucontext32_t;
+#endif
 #endif
 
 #ifndef SZREG

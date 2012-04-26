@@ -429,7 +429,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 		return (error);
 
 	/* XXX ifma_protospec must be covered by IF_ADDR_LOCK */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 
 	/*
 	 * If something other than netinet is occupying the link-layer
@@ -453,11 +453,11 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 #endif
 		++inm->inm_refcount;
 		*pinm = inm;
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		return (0);
 	}
 
-	IF_ADDR_LOCK_ASSERT(ifp);
+	IF_ADDR_WLOCK_ASSERT(ifp);
 
 	/*
 	 * A new in_multi record is needed; allocate and initialize it.
@@ -469,7 +469,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
 		if_delmulti_ifma(ifma);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		return (ENOMEM);
 	}
 	inm->inm_addr = *group;
@@ -492,7 +492,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 
 	*pinm = inm;
 
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	return (0);
 }
 
@@ -1178,10 +1178,7 @@ out_inm_release:
 int
 in_leavegroup(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 {
-	struct ifnet *ifp;
 	int error;
-
-	ifp = inm->inm_ifp;
 
 	IN_MULTI_LOCK();
 	error = in_leavegroup_locked(inm, imf);
@@ -2832,7 +2829,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 
 	IN_MULTI_LOCK();
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
@@ -2865,7 +2862,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	IN_MULTI_UNLOCK();
 

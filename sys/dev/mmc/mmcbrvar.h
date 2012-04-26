@@ -56,6 +56,7 @@
 #define DEV_MMC_MMCBRVAR_H
 
 #include <dev/mmc/bridge.h>
+#include <dev/mmc/mmcreg.h>
 #include "mmcbr_if.h"
 
 enum mmcbr_device_ivars {
@@ -72,8 +73,7 @@ enum mmcbr_device_ivars {
     MMCBR_IVAR_VDD,
     MMCBR_IVAR_CAPS,
     MMCBR_IVAR_TIMING,
-    MMCBR_IVAR_MAX_DATA,
-//    MMCBR_IVAR_,
+    MMCBR_IVAR_MAX_DATA
 };
 
 /*

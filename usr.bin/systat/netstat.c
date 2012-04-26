@@ -349,7 +349,6 @@ enter_sysctl(struct inpcb *inp, struct xsocket *so, int state, const char *proto
 	}
 }
 
-
 static struct netinfo *
 enter(struct inpcb *inp, int state, const char *proto)
 {
@@ -436,7 +435,6 @@ enter(struct inpcb *inp, int state, const char *proto)
 #define	RCVCC	PROTO+6
 #define	SNDCC	RCVCC+7
 #define	STATE	SNDCC+7
-
 
 void
 labelnetstat(void)

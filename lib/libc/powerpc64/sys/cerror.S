@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 	 * programs and the initial threaded in threaded programs,
 	 * it returns a pointer to the global errno variable.
 	 */
-ENTRY(HIDENAME(cerror))
+ENTRY_NOPROF(HIDENAME(cerror))
 	mflr	%r0
 	std	%r0,16(%r1)		/* save lr */
 	stdu	%r1,-64(%r1)		/* allocate new stack frame */

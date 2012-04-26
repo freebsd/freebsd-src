@@ -1636,7 +1636,6 @@ msk_attach(device_t dev)
 	}
 	ifp->if_softc = sc_if;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
 	/*
@@ -3735,6 +3734,9 @@ msk_intr(void *xsc)
 	if ((status & Y2_IS_STAT_BMU) != 0 && domore == 0)
 		CSR_WRITE_4(sc, STAT_CTRL, SC_STAT_CLR_IRQ);
 
+	/* Clear TWSI IRQ. */
+	if ((status & Y2_IS_TWSI_RDY) != 0)
+		CSR_WRITE_4(sc, B2_I2C_IRQ, 1);
 	/* Reenable interrupts. */
 	CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
 

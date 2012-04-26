@@ -320,6 +320,9 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BSD_CPIO \
     BSNMP \
+    SOURCELESS \
+    SOURCELESS_HOST \
+    SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
@@ -415,6 +418,8 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    CLANG_EXTRAS \
+    CLANG_IS_CC \
     CTF \
     HESIOD \
     ICONV \
@@ -436,7 +441,8 @@ __T=${TARGET_ARCH}
 __T=${MACHINE_ARCH}
 .endif
 # Clang is only for x86 and powerpc right now, by default.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+# XXX: Temporarily disabled for 32-bit powerpc, due to a binutils bug.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc64"
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
@@ -511,9 +517,18 @@ MK_BIND_UTILS:=	no
 MK_BIND_ETC:=	no
 .endif
 
+.if ${MK_SOURCELESS} == "no"
+MK_SOURCELESS_HOST:=	no
+MK_SOURCELESS_UCODE:= no
+.endif
+
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
 MK_CTF:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_EXTRAS:= no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -559,6 +574,10 @@ MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_IS_CC:= no
 .endif
 
 #

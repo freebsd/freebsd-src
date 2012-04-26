@@ -139,6 +139,7 @@ ENTRY(cpu_switch)
 
 	addi	%r1,%r1,48
 
+	sync				/* Make sure all of that finished */
 	std	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:
@@ -268,7 +269,8 @@ ENTRY(savectx)
  * fork_trampoline()
  * Set up the return from cpu_fork()
  */
-ENTRY(fork_trampoline)
+
+ENTRY_NOPROF(fork_trampoline)
 	ld	%r3,CF_FUNC(%r1)
 	ld	%r4,CF_ARG0(%r1)
 	ld	%r5,CF_ARG1(%r1)

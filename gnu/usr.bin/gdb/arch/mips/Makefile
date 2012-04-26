@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+#
+# XXX Should set DEFAULT_BFD_VEC based on target.
+#
 .if !defined(GDB_CROSS_DEBUGGER)
 LIBSRCS+= mipsfbsd-nat.c fbsd-threads.c
 .endif

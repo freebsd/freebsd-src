@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,6 +154,10 @@ DtCompileTable (
 
 
 /* dtio - binary and text input/output */
+
+UINT32
+DtGetNextLine (
+    FILE                    *Handle);
 
 DT_FIELD *
 DtScanFile (

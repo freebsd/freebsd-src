@@ -108,7 +108,7 @@ Beware that data traffic is also gated by whether the associated
 .Dq port
 is authorized.
 When WPA/802.11i/802.1x is operational authorization may happen separately;
-e.g. in station mode 
+e.g. in station mode
 .Xr wpa_supplicant 8
 must complete the handshakes and plumb the necessary keys before a port
 is authorized.
@@ -143,14 +143,14 @@ Certain
 .Nm net80211
 data are valid only in certain states; e.g. the
 .Vt iv_bsschan
-that specifies the channel for the operating BSS should never be used 
+that specifies the channel for the operating BSS should never be used
 except in
 .Dv IEEE80211_S_RUN
 or greater.
 .Sh STATE CHANGES
 State machine changes are typically handled internal to the
 .Nm net80211
-layer in response to 
+layer in response to
 .Xr ioctl 2
 requests, received frames, or external events such as a beacon miss.
 The
@@ -161,7 +161,7 @@ The request is initially processed to handle coordination of multiple vaps.
 For example, only one vap at a time can be scanning, if multiple vaps
 request a change to
 .Dv IEEE80211_S_SCAN
-the first will be permitted to run and the others will be 
+the first will be permitted to run and the others will be
 .Em deferred
 until the scan operation completes at which time the selected channel
 will be adopted.
@@ -197,12 +197,12 @@ call the
 handles two state changes specially.
 On transition to
 .Dv IEEE80211_S_RUN
-the 
+the
 .Dv IFF_DRV_OACTIVE
 bit on the vap's transmit queue is cleared so traffic can flow.
 On transition to
 .Dv IEEE80211_S_INIT
-any state in the scan cache associated with the vap is flushed 
+any state in the scan cache associated with the vap is flushed
 and any frames pending on the transmit queue are flushed.
 .Sh DRIVER INTEGRATION
 Drivers are expected to override the

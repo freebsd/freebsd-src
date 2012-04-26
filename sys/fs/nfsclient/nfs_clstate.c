@@ -559,8 +559,12 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 			NFSUNLOCKCLSTATE();
 			return (ENOENT);
 		}
-		/* for read aheads or write behinds, use the open cred */
-		newnfs_copycred(&op->nfso_cred, cred);
+		/*
+		 * For read aheads or write behinds, use the open cred.
+		 * A read ahead or write behind is indicated by p == NULL.
+		 */
+		if (p == NULL)
+			newnfs_copycred(&op->nfso_cred, cred);
 	}
 
 	/*

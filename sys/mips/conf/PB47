@@ -24,28 +24,19 @@ options		AR71XX_ENV_UBOOT
 # XXX TODO: add uboot boot parameter parsing to extract MAC, RAM.
 # Right now it will just detect 32mb out of 64mb, as well as
 # return a garbage MAC address.
-
-# don't compile these in - the default flash area for kernel space
-# is only 1.2 megabytes.  To keep the flash allocation in line with
-# what the documentation says for this board, we'll just have to keep
-# the kernel smaller than that.
-nodevice wlan, wlan_wep, wlan_ccmp, wlan_tkip, wlan_xauth
-nodevice ath, ath_pci, ath_hal, ath_rate_sample
-
-# Since the module build doesn't like TDMA..
-nooptions	IEEE80211_SUPPORT_TDMA
+options		AR71XX_REALMEM=64*1024*1024
 
 # For DOS - enable if required
-#options		GEOM_PART_BSD
-#options		GEOM_PART_MBR
-#options		MSDOSFS
+options		GEOM_PART_BSD
+options		GEOM_PART_MBR
+options		MSDOSFS
 
-# uzip - to boot natively from flash
-device		geom_uzip
-options		GEOM_UZIP
+# uncompress - to boot read-only lzma natively from flash
+device		geom_uncompress
+options		GEOM_UNCOMPRESS
 
 # Used for the static uboot partition map
 device		geom_map
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options		ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+options		ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"

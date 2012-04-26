@@ -60,16 +60,19 @@ append_uint(struct archive_string *as, uintmax_t d, unsigned base)
 static void
 append_int(struct archive_string *as, intmax_t d, unsigned base)
 {
+	uintmax_t ud;
+
 	if (d < 0) {
 		archive_strappend_char(as, '-');
-		d = -d;
-	}
-	append_uint(as, d, base);
+		ud = (d == INTMAX_MIN) ? (uintmax_t)(INTMAX_MAX) + 1 : (uintmax_t)(-d);
+	} else
+		ud = d;
+	append_uint(as, ud, base);
 }
 
 
 void
-__archive_string_sprintf(struct archive_string *as, const char *fmt, ...)
+archive_string_sprintf(struct archive_string *as, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -83,15 +86,16 @@ __archive_string_sprintf(struct archive_string *as, const char *fmt, ...)
  * necessary.
  */
 void
-__archive_string_vsprintf(struct archive_string *as, const char *fmt,
+archive_string_vsprintf(struct archive_string *as, const char *fmt,
     va_list ap)
 {
 	char long_flag;
 	intmax_t s; /* Signed integer temp. */
 	uintmax_t u; /* Unsigned integer temp. */
 	const char *p, *p2;
+	const wchar_t *pw;
 
-	if (__archive_string_ensure(as, 64) == NULL)
+	if (archive_string_ensure(as, 64) == NULL)
 		__archive_errx(1, "Out of memory");
 
 	if (fmt == NULL) {
@@ -112,40 +116,58 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
 		long_flag = '\0';
 		switch(*p) {
 		case 'j':
-			long_flag = 'j';
-			p++;
-			break;
 		case 'l':
-			long_flag = 'l';
+		case 'z':
+			long_flag = *p;
 			p++;
 			break;
 		}
 
 		switch (*p) {
 		case '%':
-			__archive_strappend_char(as, '%');
+			archive_strappend_char(as, '%');
 			break;
 		case 'c':
 			s = va_arg(ap, int);
-			__archive_strappend_char(as, s);
+			archive_strappend_char(as, s);
 			break;
 		case 'd':
 			switch(long_flag) {
 			case 'j': s = va_arg(ap, intmax_t); break;
 			case 'l': s = va_arg(ap, long); break;
+			case 'z': s = va_arg(ap, ssize_t); break;
 			default:  s = va_arg(ap, int); break;
 			}
 		        append_int(as, s, 10);
 			break;
 		case 's':
-			p2 = va_arg(ap, char *);
-			archive_strcat(as, p2);
+			switch(long_flag) {
+			case 'l':
+				pw = va_arg(ap, wchar_t *);
+				if (pw == NULL)
+					pw = L"(null)";
+				archive_string_append_from_wcs(as, pw, wcslen(pw));
+				break;
+			default:
+				p2 = va_arg(ap, char *);
+				if (p2 == NULL)
+					p2 = "(null)";
+				archive_strcat(as, p2);
+				break;
+			}
+			break;
+		case 'S':
+			pw = va_arg(ap, wchar_t *);
+			if (pw == NULL)
+				pw = L"(null)";
+			archive_string_append_from_wcs(as, pw, wcslen(pw));
 			break;
 		case 'o': case 'u': case 'x': case 'X':
 			/* Common handling for unsigned integer formats. */
 			switch(long_flag) {
 			case 'j': u = va_arg(ap, uintmax_t); break;
 			case 'l': u = va_arg(ap, unsigned long); break;
+			case 'z': u = va_arg(ap, size_t); break;
 			default:  u = va_arg(ap, unsigned int); break;
 			}
 			/* Format it in the correct base. */

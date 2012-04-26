@@ -90,7 +90,6 @@ to restore the current terminal state as per
 The following arguments are available to set the terminal
 characteristics:
 .Ss Control Modes:
-.Pp
 Control mode flags affect hardware characteristics associated with the
 terminal.
 This corresponds to the c_cflag in the termios structure.
@@ -256,7 +255,6 @@ Do not (do) output CRs at column zero.
 On the terminal NL performs (does not perform) the CR function.
 .El
 .Ss Local Modes:
-.Pp
 Local mode flags (lflags) affect various and sundry characteristics of terminal
 processing.
 Historically the term "local" pertained to new job control features
@@ -386,7 +384,7 @@ is disabled (i.e., set to
 Recognized control-characters:
 .Bd -ragged -offset indent
 .Bl -column character Subscript
-.It control-
+.It control- Ta \& Ta \&
 .It character Ta Subscript Ta Description
 .It _________ Ta _________ Ta _______________
 .It eof Ta Tn VEOF Ta EOF No character
@@ -513,7 +511,6 @@ The size of the terminal is printed as two numbers on a single line,
 first rows, then columns.
 .El
 .Ss Compatibility Modes:
-.Pp
 These modes remain for compatibility with the previous version of
 the
 .Nm

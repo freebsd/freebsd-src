@@ -18,16 +18,10 @@ FBSD_1.0 {
 };
 
 FBSDprivate_1.0 {
-	_softfloat_float_exception_flags;
-	_softfloat_float_exception_mask;
-	_softfloat_float_rounding_mode;
-	_softfloat_float_raise;
-	_softfloat_float32_eq;
-	_softfloat_float32_le;
-	_softfloat_float32_lt;
-	_softfloat_float64_eq;
-	_softfloat_float64_le;
-	_softfloat_float64_lt;
+	__softfloat_float_exception_flags;
+	__softfloat_float_exception_mask;
+	__softfloat_float_rounding_mode;
+	__softfloat_float_raise;
 	__eqdf2;
 	__eqsf2;
 	__gedf2;

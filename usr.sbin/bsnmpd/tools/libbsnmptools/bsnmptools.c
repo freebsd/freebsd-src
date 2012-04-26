@@ -132,6 +132,7 @@ snmptool_init(struct snmp_toolinfo *snmptoolctx)
 	snmptoolctx->flags = SNMP_PDU_GET;	/* XXX */
 	SLIST_INIT(&snmptoolctx->filelist);
 	snmp_client_init(&snmp_client);
+	SET_MAXREP(snmptoolctx, SNMP_MAX_REPETITIONS);
 
 	if (add_filename(snmptoolctx, bsnmpd_defs, &IsoOrgDod_OID, 0) < 0)
 		warnx("Error adding file %s to list", bsnmpd_defs);
@@ -2039,14 +2040,20 @@ snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 }
 
 int32_t
-snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
+snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu,
+    struct asn_oid *root)
 {
 	int32_t error;
 	char p[ASN_OIDSTRLEN];
 	uint32_t i;
 	struct snmp_object object;
 
-	for (i = 0, error = 0; i < pdu->nbindings; i++) {
+	i = error = 0;
+	while (i < pdu->nbindings) {
+		if (root != NULL && !(asn_is_suboid(root,
+		    &(pdu->bindings[i].var))))
+			break;
+
 		if (GET_OUTPUT(snmptoolctx) != OUTPUT_QUIET) {
 			if (!ISSET_NUMERIC(snmptoolctx) &&
 			    (snmp_fill_object(snmptoolctx, &object,
@@ -2058,9 +2065,13 @@ snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 			}
 		}
 		error |= snmp_output_numval(snmptoolctx, &(pdu->bindings[i]), object.info);
+		i++;
 	}
 
-	return (error);
+	if (error)
+		return (-1);
+
+	return (i);
 }
 
 void

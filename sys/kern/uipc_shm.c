@@ -39,13 +39,6 @@
  *
  * (3) Resource limits?  Does this need its own resource limits or are the
  *     existing limits in mmap(2) sufficient?
- *
- * (4) Partial page truncation.  vnode_pager_setsize() will zero any parts
- *     of a partially mapped page as a result of ftruncate(2)/truncate(2).
- *     We can do the same (with the same pmap evil), but do we need to
- *     worry about the bits on disk if the page is swapped out or will the
- *     swapper zero the parts of a page that are invalid if the page is
- *     swapped back in for us?
  */
 
 #include <sys/cdefs.h>
@@ -86,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
@@ -253,9 +247,10 @@ static int
 shm_dotruncate(struct shmfd *shmfd, off_t length)
 {
 	vm_object_t object;
-	vm_page_t m;
-	vm_pindex_t nobjsize;
+	vm_page_t m, ma[1];
+	vm_pindex_t idx, nobjsize;
 	vm_ooffset_t delta;
+	int base, rv;
 
 	object = shmfd->shm_object;
 	VM_OBJECT_LOCK(object);
@@ -275,6 +270,56 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			VM_OBJECT_UNLOCK(object);
 			return (EBUSY);
 		}
+
+		/*
+		 * Zero the truncated part of the last page.
+		 */
+		base = length & PAGE_MASK;
+		if (base != 0) {
+			idx = OFF_TO_IDX(length);
+retry:
+			m = vm_page_lookup(object, idx);
+			if (m != NULL) {
+				if ((m->oflags & VPO_BUSY) != 0 ||
+				    m->busy != 0) {
+					vm_page_sleep(m, "shmtrc");
+					goto retry;
+				}
+			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
+				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
+				if (m == NULL) {
+					VM_OBJECT_UNLOCK(object);
+					VM_WAIT;
+					VM_OBJECT_LOCK(object);
+					goto retry;
+				} else if (m->valid != VM_PAGE_BITS_ALL) {
+					ma[0] = m;
+					rv = vm_pager_get_pages(object, ma, 1,
+					    0);
+					m = vm_page_lookup(object, idx);
+				} else
+					/* A cached page was reactivated. */
+					rv = VM_PAGER_OK;
+				vm_page_lock(m);
+				if (rv == VM_PAGER_OK) {
+					vm_page_deactivate(m);
+					vm_page_unlock(m);
+					vm_page_wakeup(m);
+				} else {
+					vm_page_free(m);
+					vm_page_unlock(m);
+					VM_OBJECT_UNLOCK(object);
+					return (EIO);
+				}
+			}
+			if (m != NULL) {
+				pmap_zero_page_area(m, base, PAGE_SIZE - base);
+				KASSERT(m->valid == VM_PAGE_BITS_ALL,
+				    ("shm_dotruncate: page %p is invalid", m));
+				vm_page_dirty(m);
+				vm_pager_page_unswapped(m);
+			}
+		}
 		delta = ptoa(object->size - nobjsize);
 
 		/* Toss in memory pages. */
@@ -289,45 +334,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		/* Free the swap accounted for shm */
 		swap_release_by_cred(delta, object->cred);
 		object->charge -= delta;
-
-		/*
-		 * If the last page is partially mapped, then zero out
-		 * the garbage at the end of the page.  See comments
-		 * in vnode_pager_setsize() for more details.
-		 *
-		 * XXXJHB: This handles in memory pages, but what about
-		 * a page swapped out to disk?
-		 */
-		if ((length & PAGE_MASK) &&
-		    (m = vm_page_lookup(object, OFF_TO_IDX(length))) != NULL &&
-		    m->valid != 0) {
-			int base = (int)length & PAGE_MASK;
-			int size = PAGE_SIZE - base;
-
-			pmap_zero_page_area(m, base, size);
-
-			/*
-			 * Update the valid bits to reflect the blocks that
-			 * have been zeroed.  Some of these valid bits may
-			 * have already been set.
-			 */
-			vm_page_set_valid_range(m, base, size);
-
-			/*
-			 * Round "base" to the next block boundary so that the
-			 * dirty bit for a partially zeroed block is not
-			 * cleared.
-			 */
-			base = roundup2(base, DEV_BSIZE);
-
-			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-		} else if ((length & PAGE_MASK) &&
-		    __predict_false(object->cache != NULL)) {
-			vm_page_cache_free(object, OFF_TO_IDX(length),
-			    nobjsize);
-		}
 	} else {
-
 		/* Attempt to reserve the swap */
 		delta = ptoa(nobjsize - object->size);
 		if (!swap_reserve_by_cred(delta, object->cred)) {
@@ -461,6 +468,7 @@ shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd)
 	map->sm_path = path;
 	map->sm_fnv = fnv;
 	map->sm_shmfd = shm_hold(shmfd);
+	shmfd->shm_path = path;
 	LIST_INSERT_HEAD(SHM_HASH(fnv), map, sm_link);
 }
 
@@ -483,6 +491,7 @@ shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 			    FREAD | FWRITE);
 			if (error)
 				return (error);
+			map->sm_shmfd->shm_path = NULL;
 			LIST_REMOVE(map, sm_link);
 			shm_drop(map->sm_shmfd);
 			free(map->sm_path, M_SHMFD);
@@ -836,4 +845,16 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 	shmfd->shm_kmappings--;
 	VM_OBJECT_UNLOCK(obj);
 	return (0);
+}
+
+void
+shm_path(struct shmfd *shmfd, char *path, size_t size)
+{
+
+	if (shmfd->shm_path == NULL)
+		return;
+	sx_slock(&shm_dict_lock);
+	if (shmfd->shm_path != NULL)
+		strlcpy(path, shmfd->shm_path, size);
+	sx_sunlock(&shm_dict_lock);
 }

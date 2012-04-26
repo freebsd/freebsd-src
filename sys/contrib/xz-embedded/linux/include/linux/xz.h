@@ -15,8 +15,13 @@
 #	include <linux/stddef.h>
 #	include <linux/types.h>
 #else
+#ifdef __FreeBSD__
+#	include <sys/stddef.h>
+#	include <sys/types.h>
+#else
 #	include <stddef.h>
 #	include <stdint.h>
+#endif
 #endif
 
 #ifdef __cplusplus

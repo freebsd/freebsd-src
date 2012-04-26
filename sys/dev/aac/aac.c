@@ -292,6 +292,15 @@ aac_attach(struct aac_softc *sc)
 	aac_describe_controller(sc);
 
 	/*
+	 * Add sysctls.
+	 */
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->aac_dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->aac_dev)),
+	    OID_AUTO, "firmware_build", CTLFLAG_RD,
+	    &sc->aac_revision.buildNumber, 0,
+	    "firmware build number");
+
+	/*
 	 * Register to probe our containers later.
 	 */
 	sc->aac_ich.ich_func = aac_startup;

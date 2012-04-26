@@ -50,6 +50,7 @@
 #define	M_ZERO		0x0100		/* bzero the allocation */
 #define	M_NOVM		0x0200		/* don't ask VM for pages */
 #define	M_USE_RESERVE	0x0400		/* can alloc out of reserve memory */
+#define	M_NODUMP	0x0800		/* don't dump pages in this allocation */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
@@ -170,7 +171,7 @@ typedef void malloc_type_list_func_t(struct malloc_type *, void *);
 void	contigfree(void *addr, unsigned long size, struct malloc_type *type);
 void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 	    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
-	    unsigned long boundary) __malloc_like;
+	    vm_paddr_t boundary) __malloc_like;
 void	free(void *addr, struct malloc_type *type);
 void	*malloc(unsigned long size, struct malloc_type *type, int flags) __malloc_like;
 void	malloc_init(void *);

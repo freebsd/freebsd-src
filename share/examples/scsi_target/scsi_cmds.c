@@ -328,7 +328,7 @@ tcmd_inquiry(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 		bcopy(&inq_data, ctio->data_ptr, sizeof(inq_data));
 		ctio->dxfer_len = inq_data.additional_length + 4;
 		ctio->dxfer_len = min(ctio->dxfer_len,
-				      SCSI_CDB6_LEN(inq->length));
+				      scsi_2btoul(inq->length));
 		ctio->ccb_h.flags |= CAM_DIR_IN | CAM_SEND_STATUS;
 		ctio->scsi_status = SCSI_STATUS_OK;
 	}

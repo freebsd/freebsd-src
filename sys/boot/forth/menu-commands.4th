@@ -62,30 +62,21 @@ marker task-menu-commands.4th
 	-rot 2dup 12 + c! rot    \ replace 'N' with ASCII numeral
 
 	evaluate 0= if
-		s" hint.apic.0.disabled" unsetenv
+		s" kern.smp.disabled" unsetenv
 		s" hw.ata.ata_dma" unsetenv
 		s" hw.ata.atapi_dma" unsetenv
 		s" hw.ata.wc" unsetenv
 		s" hw.eisa_slots" unsetenv
-		s" hint.kbdmux.0.disabled" unsetenv
+		s" kern.eventtimer.periodic" unsetenv
+		s" kern.geom.part.check_integrity" unsetenv
 	else
-		\ 
-		\ Toggle ACPI elements if necessary
-		\ 
-		acpipresent? if acpienabled? if
-			menuacpi @ dup 0<> if
-				toggle_menuitem ( N -- N )
-			then
-			drop
-			acpi_disable
-		then then
-
-		s" set hint.apic.0.disabled=1" evaluate
+		s" set kern.smp.disabled=1" evaluate
 		s" set hw.ata.ata_dma=0" evaluate
 		s" set hw.ata.atapi_dma=0" evaluate
 		s" set hw.ata.wc=0" evaluate
 		s" set hw.eisa_slots=0" evaluate
-		s" set hint.kbdmux.0.disabled=1" evaluate
+		s" set kern.eventtimer.periodic=1" evaluate
+		s" set kern.geom.part.check_integrity=0" evaluate
 	then
 
 	menu-redraw

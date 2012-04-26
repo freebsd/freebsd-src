@@ -33,7 +33,7 @@ DEFINE_TEST(test_read_format_cpio_bin_be)
 
 	extract_reference_file(reference);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, reference, 10));
@@ -49,7 +49,7 @@ DEFINE_TEST(test_read_format_cpio_bin_be)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_BE);
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

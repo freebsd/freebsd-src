@@ -125,7 +125,10 @@ main:		cld				# String ops inc
 		mov $start,%sp			#  stack
 /*
  * Relocate ourself to MEM_REL.  Since %cx == 0, the inc %ch sets
- * %cx == 0x100.
+ * %cx == 0x100.  Note that boot1 does not use this relocated copy
+ * of itself while loading boot2; however, BTX reclaims the memory
+ * used by boot1 during its initialization.  As a result, boot2 uses
+ * xread from the relocated copy.
  */
 		mov %sp,%si			# Source
 		mov $MEM_REL,%di		# Destination

@@ -400,7 +400,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	 * re-acquire around the call.
 	 */
 	IN6_MULTI_LOCK_ASSERT();
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 
 	inm = in6m_lookup_locked(ifp, group);
 	if (inm != NULL) {
@@ -424,11 +424,11 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	 * Check if a link-layer group is already associated
 	 * with this network-layer group on the given ifnet.
 	 */
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	error = if_addmulti(ifp, (struct sockaddr *)&gsin6, &ifma);
 	if (error != 0)
 		return (error);
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 
 	/*
 	 * If something other than netinet6 is occupying the link-layer
@@ -455,7 +455,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 		goto out_locked;
 	}
 
-	IF_ADDR_LOCK_ASSERT(ifp);
+	IF_ADDR_WLOCK_ASSERT(ifp);
 
 	/*
 	 * A new in6_multi record is needed; allocate and initialize it.
@@ -487,7 +487,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	*pinm = inm;
 
 out_locked:
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	return (error);
 }
 
@@ -1764,7 +1764,7 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  * Returns NULL if no ifp could be found.
  */
 static struct ifnet *
-in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
+in6p_lookup_mcast_ifp(const struct inpcb *in6p,
     const struct sockaddr_in6 *gsin6)
 {
 	struct route_in6	 ro6;
@@ -1780,11 +1780,8 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
 	ifp = NULL;
 	memset(&ro6, 0, sizeof(struct route_in6));
 	memcpy(&ro6.ro_dst, gsin6, sizeof(struct sockaddr_in6));
-#ifdef notyet
-	rtalloc_ign_fib(&ro6, 0, inp ? inp->inp_inc.inc_fibnum : 0);
-#else
-	rtalloc_ign((struct route *)&ro6, 0);
-#endif
+	rtalloc_ign_fib((struct route *)&ro6, 0,
+	    in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB);
 	if (ro6.ro_rt != NULL) {
 		ifp = ro6.ro_rt->rt_ifp;
 		KASSERT(ifp != NULL, ("%s: null ifp", __func__));
@@ -2719,7 +2716,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 
 	IN6_MULTI_LOCK();
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
@@ -2748,7 +2745,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	IN6_MULTI_UNLOCK();
 

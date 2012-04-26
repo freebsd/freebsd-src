@@ -222,6 +222,7 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
+static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 
@@ -1337,7 +1338,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		return;
 
 	if (cmd == PRC_MSGSIZE)
-		notify = tcp_mtudisc;
+		notify = tcp_mtudisc_notify;
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
 		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
@@ -1410,9 +1411,10 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					     */
 					    if (mtu <= tcp_maxmtu(&inc, NULL))
 						tcp_hc_updatemtu(&inc, mtu);
-					}
-
-					inp = (*notify)(inp, inetctlerrmap[cmd]);
+					    tcp_mtudisc(inp, mtu);
+					} else
+						inp = (*notify)(inp,
+						    inetctlerrmap[cmd]);
 				}
 			}
 			if (inp != NULL)
@@ -1452,7 +1454,7 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		return;
 
 	if (cmd == PRC_MSGSIZE)
-		notify = tcp_mtudisc;
+		notify = tcp_mtudisc_notify;
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
 		return;
@@ -1653,12 +1655,19 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 
 /*
  * When `need fragmentation' ICMP is received, update our idea of the MSS
- * based on the new value in the route.  Also nudge TCP to send something,
- * since we know the packet we just sent was dropped.
+ * based on the new value. Also nudge TCP to send something, since we
+ * know the packet we just sent was dropped.
  * This duplicates some code in the tcp_mss() function in tcp_input.c.
  */
+static struct inpcb *
+tcp_mtudisc_notify(struct inpcb *inp, int error)
+{
+
+	return (tcp_mtudisc(inp, -1));
+}
+
 struct inpcb *
-tcp_mtudisc(struct inpcb *inp, int errno)
+tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 {
 	struct tcpcb *tp;
 	struct socket *so;
@@ -1671,7 +1680,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
 
-	tcp_mss_update(tp, -1, NULL, NULL);
+	tcp_mss_update(tp, -1, mtuoffer, NULL, NULL);
   
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_snd);
@@ -1750,7 +1759,7 @@ tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 		sro6.ro_dst.sin6_family = AF_INET6;
 		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
 		sro6.ro_dst.sin6_addr = inc->inc6_faddr;
-		rtalloc_ign((struct route *)&sro6, 0);
+		in6_rtalloc_ign(&sro6, 0, inc->inc_fibnum);
 	}
 	if (sro6.ro_rt != NULL) {
 		ifp = sro6.ro_rt->rt_ifp;
@@ -2184,7 +2193,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
+SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
     CTLTYPE_STRUCT|CTLFLAG_WR|CTLFLAG_SKIP, NULL,
     0, sysctl_drop, "", "Drop TCP connection");
 

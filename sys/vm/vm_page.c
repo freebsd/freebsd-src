@@ -131,7 +131,7 @@ TUNABLE_INT("vm.boot_pages", &boot_pages);
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
 
-static int pa_tryrelock_restart;
+int pa_tryrelock_restart;
 SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
     &pa_tryrelock_restart, 0, "Number of tryrelock restarts");
 
@@ -1181,7 +1181,7 @@ vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
  *
  *	The free page queue must be locked.
  */
-void
+static void
 vm_page_cache_remove(vm_page_t m)
 {
 	vm_object_t object;
@@ -1285,6 +1285,33 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 }
 
 /*
+ *	Returns TRUE if a cached page is associated with the given object and
+ *	offset, and FALSE otherwise.
+ *
+ *	The object must be locked.
+ */
+boolean_t
+vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	/*
+	 * Insertion into an object's collection of cached pages requires the
+	 * object to be locked.  Therefore, if the object is locked and the
+	 * object's collection is empty, there is no need to acquire the free
+	 * page queues lock in order to prove that the specified page doesn't
+	 * exist.
+	 */
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (__predict_true(object->cache == NULL))
+		return (FALSE);
+	mtx_lock(&vm_page_queue_free_mtx);
+	m = vm_page_cache_lookup(object, pindex);
+	mtx_unlock(&vm_page_queue_free_mtx);
+	return (m != NULL);
+}
+
+/*
  *	vm_page_alloc:
  *
  *	Allocate and return a page that is associated with the specified
@@ -1305,6 +1332,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
  *	VM_ALLOC_NOBUSY		do not set the flag VPO_BUSY on the page
+ *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
  *				should not have the flag VPO_BUSY set
  *	VM_ALLOC_WIRED		wire the allocated page
@@ -1429,6 +1457,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	 * must be cleared before the free page queues lock is released.
 	 */
 	flags = 0;
+	if (req & VM_ALLOC_NODUMP)
+		flags |= PG_NODUMP;
 	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
 		if (req & VM_ALLOC_ZERO)
@@ -1599,6 +1629,8 @@ retry:
 	flags = 0;
 	if ((req & VM_ALLOC_ZERO) != 0)
 		flags = PG_ZERO;
+	if ((req & VM_ALLOC_NODUMP) != 0)
+		flags |= PG_NODUMP;
 	if ((req & VM_ALLOC_WIRED) != 0)
 		atomic_add_int(&cnt.v_wire_count, npages);
 	oflags = VPO_UNMANAGED;
@@ -2123,13 +2155,10 @@ vm_page_unwire(vm_page_t m, int activate)
 			if ((m->oflags & VPO_UNMANAGED) != 0 ||
 			    m->object == NULL)
 				return;
-			vm_page_lock_queues();
-			if (activate)
-				vm_page_enqueue(PQ_ACTIVE, m);
-			else {
+			if (!activate)
 				m->flags &= ~PG_WINATCFLS;
-				vm_page_enqueue(PQ_INACTIVE, m);
-			}
+			vm_page_lock_queues();
+			vm_page_enqueue(activate ? PQ_ACTIVE : PQ_INACTIVE, m);
 			vm_page_unlock_queues();
 		}
 	} else
@@ -2169,8 +2198,8 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	if ((queue = m->queue) == PQ_INACTIVE)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		vm_page_lock_queues();
 		m->flags &= ~PG_WINATCFLS;
+		vm_page_lock_queues();
 		if (queue != PQ_NONE)
 			vm_page_queue_remove(queue, m);
 		if (athead)

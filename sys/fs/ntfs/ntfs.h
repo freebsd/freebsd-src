@@ -36,7 +36,7 @@ typedef u_int16_t wchar;
 #pragma pack(1)
 #define BBSIZE			1024
 #define	BBOFF			((off_t)(0))
-#define	BBLOCK			((daddr_t)(0))
+#define	BBLOCK			0
 #define	NTFS_MFTINO		0
 #define	NTFS_VOLUMEINO		3
 #define	NTFS_ATTRDEFINO		4

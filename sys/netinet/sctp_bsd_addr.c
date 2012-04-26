@@ -180,9 +180,11 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 	case IFT_SLIP:
 	case IFT_GIF:
 	case IFT_L2VLAN:
+	case IFT_STF:
 	case IFT_IP:
 	case IFT_IPOVERCDLC:
 	case IFT_IPOVERCLAW:
+	case IFT_PROPVIRTUAL:	/* NetGraph Virtual too */
 	case IFT_VIRTUALIPADDRESS:
 		result = 1;
 		break;
@@ -216,7 +218,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
-		IF_ADDR_LOCK(ifn);
+		IF_ADDR_RLOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
 			if (ifa->ifa_addr == NULL) {
 				continue;
@@ -273,7 +275,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 				sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
 			}
 		}
-		IF_ADDR_UNLOCK(ifn);
+		IF_ADDR_RUNLOCK(ifn);
 	}
 	IFNET_RUNLOCK();
 }

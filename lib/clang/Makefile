@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .if !make(install)
 SUBDIR=	libclanganalysis \
 	libclangarcmigrate \
@@ -7,6 +9,7 @@ SUBDIR=	libclanganalysis \
 	libclangbasic \
 	libclangcodegen \
 	libclangdriver \
+	libclangedit \
 	libclangfrontend \
 	libclangfrontendtool \
 	libclangindex \
@@ -20,6 +23,7 @@ SUBDIR=	libclanganalysis \
 	libclangstaticanalyzerfrontend \
 	\
 	libllvmanalysis \
+	libllvmarchive \
 	libllvmasmparser \
 	libllvmasmprinter \
 	libllvmbitreader \
@@ -30,14 +34,17 @@ SUBDIR=	libclanganalysis \
 	libllvminstrumentation \
 	libllvmipa \
 	libllvmipo \
+	libllvmlinker \
 	libllvmmc \
 	libllvmmcparser \
+	libllvmobject \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
 	libllvmtablegen \
 	libllvmtarget \
 	libllvmtransformutils \
+	libllvmvectorize \
 	\
 	libllvmarmasmparser \
 	libllvmarmcodegen \
@@ -45,6 +52,7 @@ SUBDIR=	libclanganalysis \
 	libllvmarmdisassembler \
 	libllvmarminfo \
 	libllvmarminstprinter \
+	libllvmmipsasmparser \
 	libllvmmipscodegen \
 	libllvmmipsdesc \
 	libllvmmipsinfo \
@@ -60,6 +68,19 @@ SUBDIR=	libclanganalysis \
 	libllvmx86info \
 	libllvmx86instprinter \
 	libllvmx86utils
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SUBDIR+=libllvmarchive \
+	libllvmdebuginfo \
+	libllvmexecutionengine \
+	libllvminterpreter \
+	libllvmjit \
+	libllvmlinker \
+	libllvmmcdisassembler \
+	libllvmmcjit \
+	libllvmobject \
+	libllvmruntimedyld
+.endif
 .endif
 
 SUBDIR+= include

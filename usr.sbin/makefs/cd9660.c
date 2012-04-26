@@ -472,8 +472,6 @@ cd9660_makefs(const char *image, const char *dir, fsnode *root,
 		return;
 	}
 
-	diskStructure.rootFilesystemPath = dir;
-
 	if (diskStructure.verbose_level > 0)
 		printf("cd9660_makefs: image %s directory %s root %p\n",
 		    image, dir, root);
@@ -623,10 +621,6 @@ static void
 cd9660_finalize_PVD(void)
 {
 	time_t tim;
-	unsigned char *temp;
-
-	/* Copy the root directory record */
-	temp = (unsigned char *) &diskStructure.primaryDescriptor;
 
 	/* root should be a fixed size of 34 bytes since it has no name */
 	memcpy(diskStructure.primaryDescriptor.root_directory_record,
@@ -1053,7 +1047,7 @@ static cd9660node *
 cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 {
 	int i = 0;
-	int numbts, dot, semi, digit, digits, temp, powers, multiplier, count;
+	int numbts, digit, digits, temp, powers, count;
 	char *naming;
 	int maxlength;
         char *tmp;
@@ -1075,7 +1069,6 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		powers = 1;
 		count = 0;
 		digits = 1;
-		multiplier = 1;
 		while (((int)(i / powers) ) >= 10) {
 			digits++;
 			powers = powers * 10;
@@ -1090,15 +1083,9 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		}
 		*/
 
-		dot = -1;
-		semi = -1;
 		while (count < maxlength) {
-			if (*naming == '.')
-				dot = count;
-			else if (*naming == ';') {
-				semi = count;
+			if (*naming == ';')
 				break;
-			}
 			naming++;
 			count++;
 		}
@@ -1529,7 +1516,6 @@ cd9660_generate_path_table(void)
 	cd9660node *last = dirNode;
 	int pathTableSize = 0;	/* computed as we go */
 	int counter = 1;	/* root gets a count of 0 */
-	int parentRecNum = 0;	/* root's parent is '0' */
 
 	TAILQ_HEAD(cd9660_pt_head, ptq_entry) pt_head;
 	TAILQ_INIT(&pt_head);
@@ -1559,10 +1545,6 @@ cd9660_generate_path_table(void)
 		}
 		last = dirNode;
 
-		parentRecNum = 1;
-		if (dirNode->parent != 0)
-			parentRecNum = dirNode->parent->ptnumber;
-
 		/* Push children onto queue */
 		TAILQ_FOREACH(cn, &dirNode->cn_children, cn_next_child) {
 			/*
@@ -1584,24 +1566,15 @@ cd9660_generate_path_table(void)
 }
 
 void
-cd9660_compute_full_filename(cd9660node *node, char *buf, int level)
+cd9660_compute_full_filename(cd9660node *node, char *buf)
 {
-	cd9660node *parent;
+	int len;
 
-	parent = (node->rr_real_parent == NULL ?
-		  node->parent : node->rr_real_parent);
-	if (parent != NULL) {
-		cd9660_compute_full_filename(parent, buf, level + 1);
-		strcat(buf, node->node->name);
-	} else {
-		/* We are at the root */
-		strcat(buf, diskStructure.rootFilesystemPath);
-		if (buf[strlen(buf) - 1] == '/')
-			buf[strlen(buf) - 1] = '\0';
-	}
-
-	if (level != 0)
-		strcat(buf, "/");
+	len = CD9660MAXPATH + 1;
+	len = snprintf(buf, len, "%s/%s/%s", node->node->root,
+	    node->node->path, node->node->name);
+	if (len > CD9660MAXPATH)
+		errx(1, "Pathname too long.");
 }
 
 /* NEW filename conversion method */

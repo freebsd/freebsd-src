@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include "pccarddevs.h"
 
-static const struct pccard_product ata_pccard_products[] = {
+static const struct pccard_product const ata_pccard_products[] = {
 	PCMCIA_CARD(FREECOM, PCCARDIDE),
 	PCMCIA_CARD(EXP, EXPMULTIMEDIA),
 	PCMCIA_CARD(IODATA3, CBIDE2),
@@ -172,7 +172,7 @@ static device_method_t ata_pccard_methods[] = {
     DEVMETHOD(device_attach,            ata_pccard_attach),
     DEVMETHOD(device_detach,            ata_pccard_detach),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_pccard_driver = {
@@ -181,5 +181,5 @@ static driver_t ata_pccard_driver = {
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, pccard, ata_pccard_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, pccard, ata_pccard_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);

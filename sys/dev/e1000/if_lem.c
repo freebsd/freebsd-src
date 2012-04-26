@@ -2354,7 +2354,6 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  lem_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -2669,18 +2668,15 @@ lem_setup_transmit_structures(struct adapter *adapter)
 		tx_buffer->m_head = NULL;
 #ifdef DEV_NETMAP
 		if (slot) {
-			/* slot si is mapped to the i-th NIC-ring entry */
-			int si = i + na->tx_rings[0].nkr_hwofs;
+			/* the i-th NIC entry goes to slot si */
+			int si = netmap_idx_n2k(&na->tx_rings[0], i);
+			uint64_t paddr;
 			void *addr;
 
-			if (si > na->num_tx_desc)
-				si -= na->num_tx_desc;
-			addr = NMB(slot + si);
-			adapter->tx_desc_base[si].buffer_addr =
-			    htole64(vtophys(addr));
+			addr = PNMB(slot + si, &paddr);
+			adapter->tx_desc_base[si].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(adapter->txtag,
-			    tx_buffer->map, addr, na->buff_size);
+			netmap_load_map(adapter->txtag, tx_buffer->map, addr);
 		}
 #endif /* DEV_NETMAP */
 		tx_buffer->next_eop = -1;
@@ -3246,18 +3242,15 @@ lem_setup_receive_structures(struct adapter *adapter)
 	for (i = 0; i < adapter->num_rx_desc; i++) {
 #ifdef DEV_NETMAP
 		if (slot) {
-			/* slot si is mapped to the i-th NIC-ring entry */
-			int si = i + na->rx_rings[0].nkr_hwofs;
+			/* the i-th NIC entry goes to slot si */
+			int si = netmap_idx_n2k(&na->rx_rings[0], i);
+			uint64_t paddr;
 			void *addr;
 
-			if (si > na->num_rx_desc)
-				si -= na->num_rx_desc;
-			addr = NMB(slot + si);
-			netmap_load_map(adapter->rxtag,
-			    rx_buffer->map, addr, na->buff_size);
+			addr = PNMB(slot + si, &paddr);
+			netmap_load_map(adapter->rxtag, rx_buffer->map, addr);
 			/* Update descriptor */
-			adapter->rx_desc_base[i].buffer_addr =
-			    htole64(vtophys(addr));
+			adapter->rx_desc_base[i].buffer_addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
@@ -3482,7 +3475,9 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
-		selwakeuppri(&NA(ifp)->rx_rings[0].si, PI_NET);
+		struct netmap_adapter *na = NA(ifp);
+		na->rx_rings[0].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&na->rx_rings[0].si, PI_NET);
 		EM_RX_UNLOCK(adapter);
 		return (0);
 	}
@@ -3591,8 +3586,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 #endif
 				if (status & E1000_RXD_STAT_VP) {
 					adapter->fmp->m_pkthdr.ether_vtag =
-					    (le16toh(current_desc->special) &
-					    E1000_RXD_SPC_VLAN_MASK);
+					    le16toh(current_desc->special);
 					adapter->fmp->m_flags |= M_VLANTAG;
 				}
 #ifndef __NO_STRICT_ALIGNMENT

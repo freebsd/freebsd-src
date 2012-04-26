@@ -1,4 +1,4 @@
-//===- XCoreSubtarget.cpp - XCore Subtarget Information -----------*- C++ -*-=//
+//===-- XCoreSubtarget.cpp - XCore Subtarget Information ------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,6 +20,8 @@
 #include "XCoreGenSubtargetInfo.inc"
 
 using namespace llvm;
+
+void XCoreSubtarget::anchor() { }
 
 XCoreSubtarget::XCoreSubtarget(const std::string &TT,
                                const std::string &CPU, const std::string &FS)

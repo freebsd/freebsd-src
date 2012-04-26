@@ -93,6 +93,10 @@ class Attr {
   list<string> Namespaces = [];
   // Set to true for attributes with arguments which require delayed parsing. 
   bit LateParsed = 0;  
+  // Set to true for attributes which must be instantiated within templates
+  bit TemplateDependent = 0;
+  // Set to true for attributes which have handler in Sema.
+  bit SemaHandler = 1;
   // Any additional text that should be included verbatim in the class.  
   code AdditionalMembers = [{}];
 }
@@ -122,6 +126,7 @@ def Aligned : InheritableAttr {
 
 def AlignMac68k : InheritableAttr {
   let Spellings = [];
+  let SemaHandler = 0;
 }
 
 def AlwaysInline : InheritableAttr {
@@ -140,13 +145,14 @@ def Annotate : InheritableParamAttr {
 def AsmLabel : InheritableAttr {
   let Spellings = [];
   let Args = [StringArgument<"Label">];
+  let SemaHandler = 0;
 }
 
 def Availability : InheritableAttr {
   let Spellings = ["availability"];
   let Args = [IdentifierArgument<"platform">, VersionArgument<"introduced">,
               VersionArgument<"deprecated">, VersionArgument<"obsoleted">,
-              BoolArgument<"unavailable">];
+              BoolArgument<"unavailable">, StringArgument<"message">];
   let AdditionalMembers =
 [{static llvm::StringRef getPrettyPlatformName(llvm::StringRef Platform) {
     return llvm::StringSwitch<llvm::StringRef>(Platform)
@@ -274,6 +280,7 @@ def FastCall : InheritableAttr {
 
 def Final : InheritableAttr { 
   let Spellings = [];
+  let SemaHandler = 0;
 }
 
 def MsStruct : InheritableAttr {
@@ -315,6 +322,7 @@ def Malloc : InheritableAttr {
 def MaxFieldAlignment : InheritableAttr {
   let Spellings = [];
   let Args = [UnsignedArgument<"Alignment">];
+  let SemaHandler = 0;
 }
 
 def MayAlias : InheritableAttr {
@@ -324,14 +332,17 @@ def MayAlias : InheritableAttr {
 def MSP430Interrupt : InheritableAttr {
   let Spellings = [];
   let Args = [UnsignedArgument<"Number">];
+  let SemaHandler = 0;
 }
 
 def MBlazeInterruptHandler : InheritableAttr {
   let Spellings = [];
+  let SemaHandler = 0;
 }
 
 def MBlazeSaveVolatiles : InheritableAttr {
   let Spellings = [];
+  let SemaHandler = 0;
 }
 
 def Naked : InheritableAttr {
@@ -441,12 +452,18 @@ def ObjCReturnsInnerPointer : Attr {
   let Subjects = [ObjCMethod];
 }
 
+def ObjCRootClass : Attr {
+  let Spellings = ["objc_root_class"];
+  let Subjects = [ObjCInterface];
+}
+
 def Overloadable : Attr {
   let Spellings = ["overloadable"];
 }
 
 def Override : InheritableAttr { 
   let Spellings = [];
+  let SemaHandler = 0;
 }
 
 def Ownership : InheritableAttr {
@@ -522,6 +539,12 @@ def Unavailable : InheritableAttr {
 
 def ArcWeakrefUnavailable : InheritableAttr {
   let Spellings = ["objc_arc_weak_reference_unavailable"];
+  let Subjects = [ObjCInterface];
+}
+
+def ObjCRequiresPropertyDefs : InheritableAttr {
+  let Spellings = ["objc_requires_property_definitions"];
+  let Subjects = [ObjCInterface];
 }
 
 def Unused : InheritableAttr {
@@ -570,6 +593,10 @@ def X86ForceAlignArgPointer : InheritableAttr {
   let Spellings = [];
 }
 
+// AddressSafety attribute (e.g. for AddressSanitizer)
+def NoAddressSafetyAnalysis : InheritableAttr {
+  let Spellings = ["no_address_safety_analysis"];
+}
 
 // C/C++ Thread safety attributes (e.g. for deadlock, data race checking)
 
@@ -597,36 +624,42 @@ def GuardedBy : InheritableAttr {
   let Spellings = ["guarded_by"];
   let Args = [ExprArgument<"Arg">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def PtGuardedBy : InheritableAttr {
   let Spellings = ["pt_guarded_by"];
   let Args = [ExprArgument<"Arg">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def AcquiredAfter : InheritableAttr {
   let Spellings = ["acquired_after"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def AcquiredBefore : InheritableAttr {
   let Spellings = ["acquired_before"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def ExclusiveLockFunction : InheritableAttr {
   let Spellings = ["exclusive_lock_function"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def SharedLockFunction : InheritableAttr {
   let Spellings = ["shared_lock_function"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 // The first argument is an integer or boolean value specifying the return value
@@ -635,6 +668,7 @@ def ExclusiveTrylockFunction : InheritableAttr {
   let Spellings = ["exclusive_trylock_function"];
   let Args = [ExprArgument<"SuccessValue">, VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 // The first argument is an integer or boolean value specifying the return value
@@ -643,34 +677,40 @@ def SharedTrylockFunction : InheritableAttr {
   let Spellings = ["shared_trylock_function"];
   let Args = [ExprArgument<"SuccessValue">, VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def UnlockFunction : InheritableAttr {
   let Spellings = ["unlock_function"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def LockReturned : InheritableAttr {
   let Spellings = ["lock_returned"];
   let Args = [ExprArgument<"Arg">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def LocksExcluded : InheritableAttr {
   let Spellings = ["locks_excluded"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def ExclusiveLocksRequired : InheritableAttr {
   let Spellings = ["exclusive_locks_required"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }
 
 def SharedLocksRequired : InheritableAttr {
   let Spellings = ["shared_locks_required"];
   let Args = [VariadicExprArgument<"Args">];
   let LateParsed = 1;
+  let TemplateDependent = 1;
 }

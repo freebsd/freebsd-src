@@ -92,6 +92,7 @@ struct sigevent32 {
 			uint32_t _function;
 			uint32_t _attribute;
 		} _sigev_thread;
+		unsigned short	_kevent_flags;
 		uint32_t __spare__[8];
 	} _sigev_un;
 };

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2008
+.Dd March 27, 2012
 .Dt PSM 4
 .Os
 .Sh NAME
@@ -329,9 +329,6 @@ It will cause the
 .Nm
 driver to reset and re-initialize the pointing device
 after the `resume' event.
-It has no effect unless the
-.Em HOOKRESUME
-flag is set as well.
 .El
 .Sh LOADER TUNABLES
 Extended support for Synaptics touchpads can be enabled by setting
@@ -445,10 +442,8 @@ Microsoft IntelliMouse
 .El
 .Pp
 .It Dv MOUSE_SYN_GETHWINFO Ar synapticshw_t *synhw
-Retrieves extra information associated with Synaptics Touchpads.
-Only available when
-.Va hw.psm.synaptics_support
-has been enabled.
+Retrieves extra information associated with Synaptics Touchpad.
+Only available when a supported device has been detected.
 .Bd -literal
 typedef struct synapticshw {
     int infoMajor;	/* major hardware revision */
@@ -837,12 +832,11 @@ In contrast, some pad products, e.g.\& some versions of ALPS GlidePoint
 and Interlink VersaPad, treat the tapping action
 as fourth button events.
 .Pp
-It is reported that Interlink VersaPad requires both
-.Em HOOKRESUME
-and
+It is reported that ALPS GlidePoint, Synaptics Touchpad, and
+Interlink VersaPad require
 .Em INITAFTERSUSPEND
-flags in order to recover from suspended state.
-These flags are automatically set when VersaPad is detected by the
+flag in order to recover from suspended state.
+This flag is automatically set when one of these devices is detected by the
 .Nm
 driver.
 .Pp

@@ -188,7 +188,7 @@ cmdscanner(void)
 			history(hist, &he, H_ENTER, bp);
 
 		} else {
-			if (fgets(cmdline, MAX_CMDLINE, stdin) == 0)
+			if (fgets(cmdline, MAX_CMDLINE, stdin) == NULL)
 				quit(0, NULL);
 			if (cmdline[0] == 0 || cmdline[0] == '\n')
 				break;

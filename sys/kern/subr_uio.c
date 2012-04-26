@@ -171,7 +171,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 {
 	struct thread *td;
 	struct iovec *iov;
-	u_int cnt;
+	size_t cnt;
 	int error, newflags, save;
 
 	td = curthread;
@@ -187,8 +187,12 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 
 	/* XXX does it make a sense to set TDP_DEADLKTREAT for UIO_SYSSPACE ? */
 	newflags = TDP_DEADLKTREAT;
-	if (uio->uio_segflg == UIO_USERSPACE && nofault)
-		newflags |= TDP_NOFAULTING;
+	if (uio->uio_segflg == UIO_USERSPACE && nofault) {
+		/*
+		 * Fail if a non-spurious page fault occurs.
+		 */
+		newflags |= TDP_NOFAULTING | TDP_RESETSPUR;
+	}
 	save = curthread_pflags_set(newflags);
 
 	while (n > 0 && uio->uio_resid) {
@@ -245,14 +249,14 @@ out:
 int
 uiomove_frombuf(void *buf, int buflen, struct uio *uio)
 {
-	unsigned int offset, n;
+	size_t offset, n;
 
 	if (uio->uio_offset < 0 || uio->uio_resid < 0 ||
 	    (offset = uio->uio_offset) != uio->uio_offset)
 		return (EINVAL);
 	if (buflen <= 0 || offset >= buflen)
 		return (0);
-	if ((n = buflen - offset) > INT_MAX)
+	if ((n = buflen - offset) > IOSIZE_MAX)
 		return (EINVAL);
 	return (uiomove((char *)buf + offset, n, uio));
 }
@@ -479,7 +483,7 @@ copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 	uio->uio_offset = -1;
 	uio->uio_resid = 0;
 	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - uio->uio_resid) {
+		if (iov->iov_len > IOSIZE_MAX - uio->uio_resid) {
 			free(uio, M_IOV);
 			return (EINVAL);
 		}

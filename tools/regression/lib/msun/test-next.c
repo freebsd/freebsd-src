@@ -211,7 +211,9 @@ main(int argc, char *argv[])
 	test(idd(nextafter(DBL_MAX, INFINITY)), INFINITY, ex_over);
 	test(idd(nextafter(INFINITY, 0.0)), DBL_MAX, 0);
 	test(idd(nexttoward(DBL_MAX, DBL_MAX * 2.0L)), INFINITY, ex_over);
+#if LDBL_MANT_DIG > 53
 	test(idd(nexttoward(INFINITY, DBL_MAX * 2.0L)), DBL_MAX, 0);
+#endif
 
 	testf(idf(nextafterf(FLT_MAX, INFINITY)), INFINITY, ex_over);
 	testf(idf(nextafterf(INFINITY, 0.0)), FLT_MAX, 0);

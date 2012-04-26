@@ -761,7 +761,6 @@ an_attach(struct an_softc *sc, int flags)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->an_dev),
 	    device_get_unit(sc->an_dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = an_ioctl;
 	ifp->if_start = an_start;

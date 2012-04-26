@@ -47,6 +47,7 @@ arm/arm/vm_machdep.c		standard
 arm/fpe-arm/armfpe_glue.S	optional	armfpe
 arm/fpe-arm/armfpe_init.c	optional	armfpe
 arm/fpe-arm/armfpe.S		optional	armfpe
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs compile-with "${ZFS_C}"
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/ofw/openfirm.c		optional	fdt
 dev/ofw/openfirmio.c		optional	fdt

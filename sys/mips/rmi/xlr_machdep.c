@@ -517,30 +517,12 @@ platform_cpu_init()
 }
 
 void
-platform_identify(void)
-{
-
-	printf("Board [%d:%d], processor 0x%08x\n", (int)xlr_boot1_info.board_major_version,
-	    (int)xlr_boot1_info.board_minor_version, mips_rd_prid());
-}
-
-void
-platform_trap_enter(void)
-{
-}
-
-void
 platform_reset(void)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_GPIO_OFFSET);
 
 	/* write 1 to GPIO software reset register */
 	xlr_write_reg(mmio, 8, 1);
-}
-
-void
-platform_trap_exit(void)
-{
 }
 
 #ifdef SMP

@@ -32,7 +32,7 @@ TARGET_ARCH?=	${MACHINE_ARCH}
 TARGET_ARCH?=	${TARGET}
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
-DISTDIR=	${.OBJDIR}/dist
+DISTDIR=	dist
 
 .if !exists(${DOCDIR})
 NODOC= true
@@ -53,78 +53,79 @@ EXTRA_PACKAGES+= reldoc
 .endif
 
 RELEASE_TARGETS= ftp
+IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
+IMAGES+=	release.iso bootonly.iso
 .endif
 .if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
 RELEASE_TARGETS+= memstick
+IMAGES+=	memstick
 .endif
 
 .include <bsd.obj.mk>
 
 base.txz:
-	-mkdir ${DISTDIR}
-	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${DISTDIR}
+	mkdir -p ${DISTDIR}
+	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR}
 # Set up mergemaster root database
 	sh ${.CURDIR}/scripts/mm-mtree.sh -m ${WORLDDIR} -F \
-	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
+	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${.OBJDIR}/${DISTDIR}/base"
 # Package all components
-	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${DISTDIR}
-	mv ${DISTDIR}/*.txz ${.OBJDIR}
+	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR}
+	mv ${DISTDIR}/*.txz .
 
 kernel.txz:
-	-mkdir ${DISTDIR}
-	cd ${WORLDDIR} && ${IMAKE} distributekernel packagekernel DISTDIR=${DISTDIR}
-	mv ${DISTDIR}/kernel.txz ${.OBJDIR}
+	mkdir -p ${DISTDIR}
+	cd ${WORLDDIR} && ${IMAKE} distributekernel packagekernel DISTDIR=${.OBJDIR}/${DISTDIR}
+	mv ${DISTDIR}/kernel*.txz .
 
 src.txz:
-	-mkdir -p ${DISTDIR}/usr
+	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
 	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/src.txz --exclude .svn \
 	    --exclude CVS usr/src
 
 ports.txz:
-	-mkdir -p ${DISTDIR}/usr
+	mkdir -p ${DISTDIR}/usr
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
 	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz \
+	    --exclude CVS --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports
 
 reldoc:
 	cd ${.CURDIR}/doc && ${MAKE} all install clean 'FORMATS=html txt' \
 	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
-	-mkdir ${.OBJDIR}/reldoc
+	mkdir -p reldoc
 .for i in hardware readme relnotes errata
-	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/${i}/article.txt \
-	    ${.OBJDIR}/reldoc/${i:U}.TXT
-	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/${i}/article.html \
-	    ${.OBJDIR}/reldoc/${i:U}.HTM
+	ln -f rdoc/${RELNOTES_LANG}/${i}/article.txt reldoc/${i:U}.TXT
+	ln -f rdoc/${RELNOTES_LANG}/${i}/article.html reldoc/${i:U}.HTM
 .endfor
-	cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/readme/docbook.css ${.OBJDIR}/reldoc
+	cp rdoc/${RELNOTES_LANG}/readme/docbook.css reldoc
 
 system: packagesystem
 # Install system
-	-mkdir ${.OBJDIR}/release
+	mkdir -p release
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 	    DESTDIR=${.OBJDIR}/release WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1
 # Copy distfiles
-	mkdir ${.OBJDIR}/release/usr/freebsd-dist
-	cp ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST \
-	    ${.OBJDIR}/release/usr/freebsd-dist
+	mkdir -p release/usr/freebsd-dist
+	cp *.txz MANIFEST release/usr/freebsd-dist
 # Copy documentation, if generated
 .if !defined(NODOC)
-	cp ${.OBJDIR}/reldoc/* ${.OBJDIR}/release
+	cp reldoc/* release
 .endif
 # Set up installation environment
-	ln -s /tmp/bsdinstall_etc/resolv.conf ${.OBJDIR}/release/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > ${.OBJDIR}/release/etc/rc.conf
-	echo hostid_enable=\"NO\" >> ${.OBJDIR}/release/etc/rc.conf
-	cp ${.CURDIR}/rc.local ${.OBJDIR}/release/etc
-	touch ${.OBJDIR}/${.TARGET}
+	ln -s /tmp/bsdinstall_etc/resolv.conf release/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
+	echo hostid_enable=\"NO\" >> release/etc/rc.conf
+	cp ${.CURDIR}/rc.local release/etc
+	touch ${.TARGET}
 
 bootonly: packagesystem
 # Install system
-	mkdir ${.OBJDIR}/bootonly
+	mkdir -p bootonly
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 	    DESTDIR=${.OBJDIR}/bootonly WITHOUT_AMD=1 WITHOUT_AT=1 \
 	    WITHOUT_BIND_DNSSEC=1 WITHOUT_BIND_ETC=1 WITHOUT_BIND_MTREE=1 \
@@ -134,35 +135,35 @@ bootonly: packagesystem
 	    WITHOUT_INSTALLIB=1 WITHOUT_RESCUE=1 WITHOUT_DICT=1 \
 	    WITHOUT_KERNEL_SYMBOLS=1
 # Copy manifest only (no distfiles) to get checksums
-	mkdir ${.OBJDIR}/bootonly/usr/freebsd-dist
-	cp ${.OBJDIR}/MANIFEST ${.OBJDIR}/bootonly/usr/freebsd-dist
+	mkdir -p bootonly/usr/freebsd-dist
+	cp MANIFEST bootonly/usr/freebsd-dist
 # Copy documentation, if generated
 .if !defined(NODOC)
-	cp ${.OBJDIR}/reldoc/* ${.OBJDIR}/bootonly
+	cp reldoc/* bootonly
 .endif
 # Set up installation environment
-	ln -s /tmp/bsdinstall_etc/resolv.conf ${.OBJDIR}/bootonly/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > ${.OBJDIR}/bootonly/etc/rc.conf
-	echo hostid_enable=\"NO\" >> ${.OBJDIR}/bootonly/etc/rc.conf
-	cp ${.CURDIR}/rc.local ${.OBJDIR}/bootonly/etc
+	ln -s /tmp/bsdinstall_etc/resolv.conf bootonly/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
+	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
+	cp ${.CURDIR}/rc.local bootonly/etc
 
 release.iso: system
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/release.iso ${.OBJDIR}/release
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
 
 bootonly.iso: bootonly
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/bootonly.iso ${.OBJDIR}/bootonly
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
 
 memstick: system
-	sh ${.CURDIR}/${TARGET}/make-memstick.sh ${.OBJDIR}/release ${.OBJDIR}/memstick
+	sh ${.CURDIR}/${TARGET}/make-memstick.sh release ${.TARGET}
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
-	sh ${.CURDIR}/scripts/make-manifest.sh ${.OBJDIR}/*.txz > ${.OBJDIR}/MANIFEST
+	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
 	touch ${.TARGET}
 
 cdrom: release.iso bootonly.iso
 ftp: packagesystem
 	rm -rf ftp
-	mkdir ftp
+	mkdir -p ftp
 	cp *.txz MANIFEST ftp
 
 release:
@@ -170,7 +171,7 @@ release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
 
 clean:
-	chflags -R noschg ${.OBJDIR}
+	chflags -R noschg .
 	rm -rf dist ftp
 	rm -f packagesystem
 	rm -f *.txz MANIFEST
@@ -179,6 +180,7 @@ clean:
 	rm -f release.iso bootonly.iso memstick
 
 install:
-	-mkdir ${DESTDIR}
-	cp -a *.iso memstick ftp ${DESTDIR}/
-
+.if defined(DESTDIR) && !empty(DESTDIR)
+	mkdir -p ${DESTDIR}
+.endif
+	cp -a ${IMAGES} ftp ${DESTDIR}/

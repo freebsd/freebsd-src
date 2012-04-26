@@ -327,7 +327,7 @@ public:
   }
 
   /// doesAccessArgPointees - Return true if functions with the specified
-  /// behavior are known to potentially read or write  from objects pointed
+  /// behavior are known to potentially read or write from objects pointed
   /// to be their pointer-typed arguments (with arbitrary offsets).
   ///
   static bool doesAccessArgPointees(ModRefBehavior MRB) {
@@ -567,6 +567,11 @@ bool isNoAliasCall(const Value *V);
 ///    NoAlias returns
 ///
 bool isIdentifiedObject(const Value *V);
+
+/// isKnownNonNull - Return true if this pointer couldn't possibly be null by
+/// its definition.  This returns true for allocas, non-extern-weak globals and
+/// byval arguments.
+bool isKnownNonNull(const Value *V);
 
 } // End llvm namespace
 

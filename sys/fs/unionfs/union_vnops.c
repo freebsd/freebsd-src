@@ -1702,7 +1702,7 @@ static int
 unionfs_inactive(struct vop_inactive_args *ap)
 {
 	ap->a_vp->v_object = NULL;
-	vrecycle(ap->a_vp, ap->a_td);
+	vrecycle(ap->a_vp);
 	return (0);
 }
 

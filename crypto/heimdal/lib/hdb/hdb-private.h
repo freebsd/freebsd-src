@@ -5,17 +5,24 @@
 #include <stdarg.h>
 
 krb5_error_code
-_hdb_fetch (
+_hdb_fetch_kvno (
 	krb5_context /*context*/,
 	HDB */*db*/,
 	krb5_const_principal /*principal*/,
 	unsigned /*flags*/,
+	krb5_kvno /*kvno*/,
 	hdb_entry_ex */*entry*/);
 
 hdb_master_key
 _hdb_find_master_key (
 	uint32_t */*mkvno*/,
 	hdb_master_key /*mkey*/);
+
+krb5_error_code
+_hdb_keytab2hdb_entry (
+	krb5_context /*context*/,
+	const krb5_keytab_entry */*ktentry*/,
+	hdb_entry_ex */*entry*/);
 
 int
 _hdb_mkey_decrypt (

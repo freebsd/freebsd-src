@@ -40,7 +40,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_apic.h"
 #include "opt_atalk.h"
+#include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
@@ -130,6 +132,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef SMP
 #include <machine/smp.h>
+#endif
+
+#ifdef DEV_APIC
+#include <machine/apicvar.h>
 #endif
 
 #ifdef DEV_ISA
@@ -265,6 +271,13 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 	cpu_setregs();
+
+#ifdef SMP
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
+#endif
 }
 
 /*
@@ -588,8 +601,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sdp = &td->td_pcb->pcb_gsd;
 	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
-	bzero(sf.sf_uc.uc_mcontext.mc_spare1,
-	    sizeof(sf.sf_uc.uc_mcontext.mc_spare1));
+	sf.sf_uc.uc_mcontext.mc_flags = 0;
 	bzero(sf.sf_uc.uc_mcontext.mc_spare2,
 	    sizeof(sf.sf_uc.uc_mcontext.mc_spare2));
 	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
@@ -2297,7 +2309,21 @@ init386(first)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 #ifdef DEV_ISA
+#ifdef DEV_ATPIC
 	atpic_startup();
+#else
+	/* Reset and mask the atpics and leave them shut down. */
+	atpic_reset();
+
+	/*
+	 * Point the ICU spurious interrupt vectors at the APIC spurious
+	 * interrupt handler.
+	 */
+	setidt(IDT_IO_INTS + 7, IDTVEC(spuriousint), SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IDT_IO_INTS + 15, IDTVEC(spuriousint), SDT_SYS386IGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
 #endif
 
 #ifdef DDB
@@ -2694,7 +2720,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
-	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	mcp->mc_flags = 0;
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	return (0);
 }

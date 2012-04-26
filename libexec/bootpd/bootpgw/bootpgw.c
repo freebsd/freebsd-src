@@ -534,7 +534,7 @@ handle_request()
 	/* Has this packet hopped too many times? */
 	hops = bp->bp_hops;
 	if (++hops > maxhops) {
-		report(LOG_NOTICE, "reqest from %s reached hop limit",
+		report(LOG_NOTICE, "request from %s reached hop limit",
 			   inet_ntoa(recv_addr.sin_addr));
 		return;
 	}

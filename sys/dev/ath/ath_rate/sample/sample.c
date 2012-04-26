@@ -495,6 +495,14 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 
 	ath_rate_update_static_rix(sc, &an->an_node);
 
+	if (sn->currates != sc->sc_currates) {
+		device_printf(sc->sc_dev, "%s: currates != sc_currates!\n",
+		    __func__);
+		rix = 0;
+		*try0 = ATH_TXMAXTRY;
+		goto done;
+	}
+
 	if (sn->static_rix != -1) {
 		rix = sn->static_rix;
 		*try0 = ATH_TXMAXTRY;
@@ -621,6 +629,20 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	}
 	*try0 = mrr ? sn->sched[rix].t0 : ATH_TXMAXTRY;
 done:
+
+	/*
+	 * This bug totally sucks and should be fixed.
+	 *
+	 * For now though, let's not panic, so we can start to figure
+	 * out how to better reproduce it.
+	 */
+	if (rix < 0 || rix >= rt->rateCount) {
+		printf("%s: ERROR: rix %d out of bounds (rateCount=%d)\n",
+		    __func__,
+		    rix,
+		    rt->rateCount);
+		    rix = 0;	/* XXX just default for now */
+	}
 	KASSERT(rix >= 0 && rix < rt->rateCount, ("rix is %d", rix));
 
 	*rix0 = rix;
@@ -1072,6 +1094,8 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 
         sn->static_rix = -1;
 	ath_rate_update_static_rix(sc, ni);
+
+	sn->currates = sc->sc_currates;
 
 	/*
 	 * Construct a bitmask of usable rates.  This has all

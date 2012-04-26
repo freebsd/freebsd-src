@@ -61,14 +61,14 @@ metadata_read(struct hast_resource *res, bool openrw)
 	 * Is this first metadata_read() call for this resource?
 	 */
 	if (res->hr_localfd == -1) {
-		if (provinfo(res, openrw) < 0) {
+		if (provinfo(res, openrw) == -1) {
 			rerrno = errno;
 			goto fail;
 		}
 		opened_here = true;
 		pjdlog_debug(1, "Obtained info about %s.", res->hr_localpath);
 		if (openrw) {
-			if (flock(res->hr_localfd, LOCK_EX | LOCK_NB) < 0) {
+			if (flock(res->hr_localfd, LOCK_EX | LOCK_NB) == -1) {
 				rerrno = errno;
 				if (errno == EOPNOTSUPP) {
 					pjdlog_warning("Unable to lock %s (operation not supported), but continuing.",
@@ -91,7 +91,7 @@ metadata_read(struct hast_resource *res, bool openrw)
 		    "Unable to allocate memory to read metadata");
 		goto fail;
 	}
-	if (ebuf_add_tail(eb, NULL, METADATA_SIZE) < 0) {
+	if (ebuf_add_tail(eb, NULL, METADATA_SIZE) == -1) {
 		rerrno = errno;
 		pjdlog_errno(LOG_ERR,
 		    "Unable to allocate memory to read metadata");
@@ -101,7 +101,7 @@ metadata_read(struct hast_resource *res, bool openrw)
 	buf = ebuf_data(eb, NULL);
 	PJDLOG_ASSERT(buf != NULL);
 	done = pread(res->hr_localfd, buf, METADATA_SIZE, 0);
-	if (done < 0 || done != METADATA_SIZE) {
+	if (done == -1 || done != METADATA_SIZE) {
 		rerrno = errno;
 		pjdlog_errno(LOG_ERR, "Unable to read metadata");
 		ebuf_free(eb);
@@ -213,7 +213,7 @@ metadata_write(struct hast_resource *res)
 	PJDLOG_ASSERT(size < METADATA_SIZE);
 	bcopy(ptr, buf, size);
 	done = pwrite(res->hr_localfd, buf, METADATA_SIZE, 0);
-	if (done < 0 || done != METADATA_SIZE) {
+	if (done == -1 || done != METADATA_SIZE) {
 		pjdlog_errno(LOG_ERR, "Unable to write metadata");
 		goto end;
 	}

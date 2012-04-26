@@ -1166,7 +1166,7 @@ main(int argc, char *argv[])
 
 			/*
 			 * receive control messages only. Process the
-			 * exceptions (currently the only possiblity is
+			 * exceptions (currently the only possibility is
 			 * a path MTU notification.)
 			 */
 			if ((mtu = get_pathmtu(&m)) > 0) {
@@ -1812,7 +1812,7 @@ pr_ip6opt(void *extbuf, size_t bufsize)
 	struct ip6_hbh *ext;
 	int currentlen;
 	u_int8_t type;
-	socklen_t extlen, len, origextlen;
+	socklen_t extlen, len;
 	void *databuf;
 	size_t offset;
 	u_int16_t value2;
@@ -1828,7 +1828,6 @@ pr_ip6opt(void *extbuf, size_t bufsize)
 	 *     subtract the size of a cmsg structure from the buffer size.
 	 */
 	if (bufsize < (extlen  + CMSG_SPACE(0))) {
-		origextlen = extlen;
 		extlen = bufsize - CMSG_SPACE(0);
 		warnx("options truncated, showing only %u (total=%u)",
 		    (unsigned int)(extlen / 8 - 1),

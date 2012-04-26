@@ -66,8 +66,12 @@ const char *cfgpath = HAST_CONFIG;
 static struct hastd_config *cfg;
 /* Was SIGINT or SIGTERM signal received? */
 bool sigexit_received = false;
+/* Path to pidfile. */
+static const char *pidfile;
 /* PID file handle. */
 struct pidfh *pfh;
+/* Do we run in foreground? */
+static bool foreground;
 
 /* How often check for hooks running for too long. */
 #define	REPORT_INTERVAL	5
@@ -97,10 +101,10 @@ g_gate_load(void)
 void
 descriptors_cleanup(struct hast_resource *res)
 {
-	struct hast_resource *tres;
+	struct hast_resource *tres, *tmres;
 	struct hastd_listen *lst;
 
-	TAILQ_FOREACH(tres, &cfg->hc_resources, hr_next) {
+	TAILQ_FOREACH_SAFE(tres, &cfg->hc_resources, hr_next, tmres) {
 		if (tres == res) {
 			PJDLOG_VERIFY(res->hr_role == HAST_ROLE_SECONDARY ||
 			    (res->hr_remotein == NULL &&
@@ -117,13 +121,17 @@ descriptors_cleanup(struct hast_resource *res)
 			proto_close(tres->hr_event);
 		if (tres->hr_conn != NULL)
 			proto_close(tres->hr_conn);
+		TAILQ_REMOVE(&cfg->hc_resources, tres, hr_next);
+		free(tres);
 	}
 	if (cfg->hc_controlin != NULL)
 		proto_close(cfg->hc_controlin);
 	proto_close(cfg->hc_controlconn);
-	TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next) {
+	while ((lst = TAILQ_FIRST(&cfg->hc_listen)) != NULL) {
+		TAILQ_REMOVE(&cfg->hc_listen, lst, hl_next);
 		if (lst->hl_conn != NULL)
 			proto_close(lst->hl_conn);
+		free(lst);
 	}
 	(void)pidfile_close(pfh);
 	hook_fini();
@@ -172,7 +180,7 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 	msg[0] = '\0';
 
 	maxfd = sysconf(_SC_OPEN_MAX);
-	if (maxfd < 0) {
+	if (maxfd == -1) {
 		pjdlog_init(pjdlogmode);
 		pjdlog_prefix_set("[%s] (%s) ", res->hr_name,
 		    role2str(res->hr_role));
@@ -450,7 +458,7 @@ resource_reload(const struct hast_resource *res)
 		pjdlog_error("Unable to allocate header for reload message.");
 		return;
 	}
-	if (hast_proto_send(res, res->hr_ctrl, nvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_ctrl, nvout, NULL, 0) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to send reload message");
 		nv_free(nvout);
 		return;
@@ -458,7 +466,7 @@ resource_reload(const struct hast_resource *res)
 	nv_free(nvout);
 
 	/* Receive response. */
-	if (hast_proto_recv_hdr(res->hr_ctrl, &nvin) < 0) {
+	if (hast_proto_recv_hdr(res->hr_ctrl, &nvin) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to receive reload reply");
 		return;
 	}
@@ -494,7 +502,7 @@ hastd_reload(void)
 	 */
 	if (strcmp(cfg->hc_controladdr, newcfg->hc_controladdr) != 0) {
 		if (proto_server(newcfg->hc_controladdr,
-		    &newcfg->hc_controlconn) < 0) {
+		    &newcfg->hc_controlconn) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to listen on control address %s",
 			    newcfg->hc_controladdr);
@@ -531,7 +539,8 @@ hastd_reload(void)
 	/*
 	 * Check if pidfile's path has changed.
 	 */
-	if (strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
+	if (!foreground && pidfile == NULL &&
+	    strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
 		newpfh = pidfile_open(newcfg->hc_pidfile, 0600, &otherpid);
 		if (newpfh == NULL) {
 			if (errno == EEXIST) {
@@ -543,7 +552,7 @@ hastd_reload(void)
 				    "Unable to open or create pidfile %s",
 				    newcfg->hc_pidfile);
 			}
-		} else if (pidfile_write(newpfh) < 0) {
+		} else if (pidfile_write(newpfh) == -1) {
 			/* Write PID to a file. */
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to write PID to file %s",
@@ -571,10 +580,14 @@ hastd_reload(void)
 	/*
 	 * Switch to new pidfile.
 	 */
-	(void)pidfile_remove(pfh);
-	pfh = newpfh;
-	(void)strlcpy(cfg->hc_pidfile, newcfg->hc_pidfile,
-	    sizeof(cfg->hc_pidfile));
+	if (newpfh != NULL) {
+		pjdlog_info("Pidfile changed from %s to %s.", cfg->hc_pidfile,
+		    newcfg->hc_pidfile);
+		(void)pidfile_remove(pfh);
+		pfh = newpfh;
+		(void)strlcpy(cfg->hc_pidfile, newcfg->hc_pidfile,
+		    sizeof(cfg->hc_pidfile));
+	}
 	/*
 	 * Switch to new listen addresses. Close all that were removed.
 	 */
@@ -742,7 +755,7 @@ listen_accept(struct hastd_listen *lst)
 	proto_local_address(lst->hl_conn, laddr, sizeof(laddr));
 	pjdlog_debug(1, "Accepting connection to %s.", laddr);
 
-	if (proto_accept(lst->hl_conn, &conn) < 0) {
+	if (proto_accept(lst->hl_conn, &conn) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to accept connection %s", laddr);
 		return;
 	}
@@ -752,7 +765,7 @@ listen_accept(struct hastd_listen *lst)
 	pjdlog_info("Connection from %s to %s.", raddr, laddr);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(conn, HAST_TIMEOUT) < 0)
+	if (proto_timeout(conn, HAST_TIMEOUT) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
 	nvin = nvout = nverr = NULL;
@@ -771,7 +784,7 @@ listen_accept(struct hastd_listen *lst)
 	}
 	/* Ok, remote host can access at least one resource. */
 
-	if (hast_proto_recv_hdr(conn, &nvin) < 0) {
+	if (hast_proto_recv_hdr(conn, &nvin) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to receive header from %s",
 		    raddr);
 		goto close;
@@ -786,7 +799,7 @@ listen_accept(struct hastd_listen *lst)
 	pjdlog_debug(2, "%s: resource=%s", raddr, resname);
 	token = nv_get_uint8_array(nvin, &size, "token");
 	/*
-	 * NULL token means that this is first conection.
+	 * NULL token means that this is first connection.
 	 */
 	if (token != NULL && size != sizeof(res->hr_token)) {
 		pjdlog_error("Received token of invalid size from %s (expected %zu, got %zu).",
@@ -859,7 +872,7 @@ listen_accept(struct hastd_listen *lst)
 			    "Worker process exists (pid=%u), stopping it.",
 			    (unsigned int)res->hr_workerpid);
 			/* Stop child process. */
-			if (kill(res->hr_workerpid, SIGINT) < 0) {
+			if (kill(res->hr_workerpid, SIGINT) == -1) {
 				pjdlog_errno(LOG_ERR,
 				    "Unable to stop worker process (pid=%u)",
 				    (unsigned int)res->hr_workerpid);
@@ -909,7 +922,7 @@ listen_accept(struct hastd_listen *lst)
 			    strerror(nv_error(nvout)));
 			goto fail;
 		}
-		if (hast_proto_send(NULL, conn, nvout, NULL, 0) < 0) {
+		if (hast_proto_send(NULL, conn, nvout, NULL, 0) == -1) {
 			int error = errno;
 
 			pjdlog_errno(LOG_ERR, "Unable to send response to %s",
@@ -938,7 +951,7 @@ fail:
 		    "Unable to prepare error header for %s", raddr);
 		goto close;
 	}
-	if (hast_proto_send(NULL, conn, nverr, NULL, 0) < 0) {
+	if (hast_proto_send(NULL, conn, nverr, NULL, 0) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to send error to %s", raddr);
 		goto close;
 	}
@@ -963,20 +976,20 @@ connection_migrate(struct hast_resource *res)
 
 	PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
 
-	if (proto_recv(res->hr_conn, &val, sizeof(val)) < 0) {
+	if (proto_recv(res->hr_conn, &val, sizeof(val)) == -1) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to receive connection command");
 		return;
 	}
 	if (proto_client(res->hr_sourceaddr[0] != '\0' ? res->hr_sourceaddr : NULL,
-	    res->hr_remoteaddr, &conn) < 0) {
+	    res->hr_remoteaddr, &conn) == -1) {
 		val = errno;
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to create outgoing connection to %s",
 		    res->hr_remoteaddr);
 		goto out;
 	}
-	if (proto_connect(conn, -1) < 0) {
+	if (proto_connect(conn, -1) == -1) {
 		val = errno;
 		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
 		    res->hr_remoteaddr);
@@ -985,11 +998,11 @@ connection_migrate(struct hast_resource *res)
 	}
 	val = 0;
 out:
-	if (proto_send(res->hr_conn, &val, sizeof(val)) < 0) {
+	if (proto_send(res->hr_conn, &val, sizeof(val)) == -1) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to send reply to connection request");
 	}
-	if (val == 0 && proto_connection_send(res->hr_conn, conn) < 0)
+	if (val == 0 && proto_connection_send(res->hr_conn, conn) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to send connection");
 
 	pjdlog_prefix_set("%s", "");
@@ -1153,15 +1166,12 @@ int
 main(int argc, char *argv[])
 {
 	struct hastd_listen *lst;
-	const char *pidfile;
 	pid_t otherpid;
-	bool foreground;
 	int debuglevel;
 	sigset_t mask;
 
 	foreground = false;
 	debuglevel = 0;
-	pidfile = NULL;
 
 	for (;;) {
 		int ch;
@@ -1220,16 +1230,23 @@ main(int argc, char *argv[])
 			pjdlog_exitx(EX_CONFIG, "Pidfile path is too long.");
 		}
 	}
-	pfh = pidfile_open(cfg->hc_pidfile, 0600, &otherpid);
-	if (pfh == NULL) {
-		if (errno == EEXIST) {
-			pjdlog_exitx(EX_TEMPFAIL,
-			    "Another hastd is already running, pidfile: %s, pid: %jd.",
-			    cfg->hc_pidfile, (intmax_t)otherpid);
+
+	if (pidfile != NULL || !foreground) {
+		pfh = pidfile_open(cfg->hc_pidfile, 0600, &otherpid);
+		if (pfh == NULL) {
+			if (errno == EEXIST) {
+				pjdlog_exitx(EX_TEMPFAIL,
+				    "Another hastd is already running, pidfile: %s, pid: %jd.",
+				    cfg->hc_pidfile, (intmax_t)otherpid);
+			}
+			/*
+			 * If we cannot create pidfile for other reasons,
+			 * only warn.
+			 */
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to open or create pidfile %s",
+			    cfg->hc_pidfile);
 		}
-		/* If we cannot create pidfile for other reasons, only warn. */
-		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile %s",
-		    cfg->hc_pidfile);
 	}
 
 	/*
@@ -1253,14 +1270,14 @@ main(int argc, char *argv[])
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Listen on control address. */
-	if (proto_server(cfg->hc_controladdr, &cfg->hc_controlconn) < 0) {
+	if (proto_server(cfg->hc_controladdr, &cfg->hc_controlconn) == -1) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR, "Unable to listen on control address %s",
 		    cfg->hc_controladdr);
 	}
 	/* Listen for remote connections. */
 	TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next) {
-		if (proto_server(lst->hl_addr, &lst->hl_conn) < 0) {
+		if (proto_server(lst->hl_addr, &lst->hl_conn) == -1) {
 			KEEP_ERRNO((void)pidfile_remove(pfh));
 			pjdlog_exit(EX_OSERR, "Unable to listen on address %s",
 			    lst->hl_addr);
@@ -1268,16 +1285,17 @@ main(int argc, char *argv[])
 	}
 
 	if (!foreground) {
-		if (daemon(0, 0) < 0) {
+		if (daemon(0, 0) == -1) {
 			KEEP_ERRNO((void)pidfile_remove(pfh));
 			pjdlog_exit(EX_OSERR, "Unable to daemonize");
 		}
 
 		/* Start logging to syslog. */
 		pjdlog_mode_set(PJDLOG_MODE_SYSLOG);
-
+	}
+	if (pidfile != NULL || !foreground) {
 		/* Write PID to a file. */
-		if (pidfile_write(pfh) < 0) {
+		if (pidfile_write(pfh) == -1) {
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to write PID to a file %s",
 			    cfg->hc_pidfile);

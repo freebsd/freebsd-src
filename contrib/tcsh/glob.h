@@ -80,6 +80,8 @@ typedef struct {
 #define	GLOB_TILDE	0x0800	/* Expand tilde names from the passwd file. */
 #define	GLOB_ALTNOT     0x1000	/* use alternate glob character [^ not !] */ 
 #define	GLOB_QUOTE	0x2000	/* XXX: source compatibility */
+#define	GLOB_STAR	0x4000	/* use glob ** to recurse directories */
+#define	GLOB_DOT	0x8000	/* don't skip dotfiles (except . and ..) */
 
 #define	GLOB_ABEND	GLOB_ABORTED	/* source compatibility */
 /* #endif */

@@ -187,7 +187,7 @@ bootp_print(bp, length, sport, dport)
 
 /*
  * Option description data follows.
- * These are decribed in: RFC-1048, RFC-1395, RFC-1497, RFC-1533
+ * These are described in: RFC-1048, RFC-1395, RFC-1497, RFC-1533
  *
  * The first char of each option string encodes the data format:
  * ?: unknown

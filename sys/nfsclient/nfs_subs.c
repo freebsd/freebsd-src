@@ -866,16 +866,10 @@ nfs_clearcommit(struct mount *mp)
 	struct bufobj *bo;
 
 	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
 		bo = &vp->v_bufobj;
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
 		vholdl(vp);
 		VI_UNLOCK(vp);
-		MNT_IUNLOCK(mp);
 		BO_LOCK(bo);
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (!BUF_ISLOCKED(bp) &&
@@ -885,9 +879,7 @@ nfs_clearcommit(struct mount *mp)
 		}
 		BO_UNLOCK(bo);
 		vdrop(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -978,8 +970,8 @@ nfsm_loadattr_xx(struct vnode **v, struct vattr *va, struct mbuf **md,
 }
 
 int
-nfsm_postop_attr_xx(struct vnode **v, int *f, struct mbuf **md,
-		    caddr_t *dpos)
+nfsm_postop_attr_xx(struct vnode **v, int *f, struct vattr *va,
+		    struct mbuf **md, caddr_t *dpos)
 {
 	u_int32_t *tl;
 	int t1;
@@ -990,7 +982,7 @@ nfsm_postop_attr_xx(struct vnode **v, int *f, struct mbuf **md,
 		return EBADRPC;
 	*f = fxdr_unsigned(int, *tl);
 	if (*f != 0) {
-		t1 = nfs_loadattrcache(&ttvp, md, dpos, NULL, 1);
+		t1 = nfs_loadattrcache(&ttvp, md, dpos, va, 1);
 		if (t1 != 0) {
 			*f = 0;
 			return t1;
@@ -1020,7 +1012,7 @@ nfsm_wcc_data_xx(struct vnode **v, int *f, struct mbuf **md, caddr_t *dpos)
 				  VTONFS(*v)->n_mtime.tv_nsec == fxdr_unsigned(u_int32_t, *(tl + 3))); 
 		mtx_unlock(&(VTONFS(*v))->n_mtx);
 	}
-	t1 = nfsm_postop_attr_xx(v, &ttattrf, md, dpos);
+	t1 = nfsm_postop_attr_xx(v, &ttattrf, NULL, md, dpos);
 	if (t1)
 		return t1;
 	if (*f)

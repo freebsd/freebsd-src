@@ -77,19 +77,19 @@ struct inode {
 	uint32_t i_block_group;
 	uint32_t i_next_alloc_block;
 	uint32_t i_next_alloc_goal;
-	uint32_t i_prealloc_block;
-	uint32_t i_prealloc_count;
 
 	/* Fields from struct dinode in UFS. */
 	uint16_t	i_mode;		/* IFMT, permissions; see below. */
 	int16_t		i_nlink;	/* File link count. */
 	uint64_t	i_size;		/* File byte count. */
 	int32_t		i_atime;	/* Last access time. */
-	int32_t		i_atimensec;	/* Last access time. */
 	int32_t		i_mtime;	/* Last modified time. */
-	int32_t		i_mtimensec;	/* Last modified time. */
 	int32_t		i_ctime;	/* Last inode change time. */
+	int32_t		i_birthtime;	/* Inode creation time. */
+	int32_t		i_mtimensec;	/* Last modified time. */
+	int32_t		i_atimensec;	/* Last access time. */
 	int32_t		i_ctimensec;	/* Last inode change time. */
+	int32_t		i_birthnsec;	/* Inode creation time. */
 	int32_t		i_db[NDADDR];	/* Direct disk blocks. */
 	int32_t		i_ib[NIADDR];	/* Indirect disk blocks. */
 	uint32_t	i_flags;	/* Status flags (chflags). */
@@ -157,9 +157,6 @@ struct indir {
 /* Convert between inode pointers and vnode pointers. */
 #define VTOI(vp)	((struct inode *)(vp)->v_data)
 #define ITOV(ip)	((ip)->i_vnode)
-
-/* Check whether the MNTK_ASYNC flag has been set for a mount point */
-#define DOINGASYNC(vp)		((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {

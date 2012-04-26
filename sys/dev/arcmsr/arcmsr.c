@@ -3486,7 +3486,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			return ENOMEM;
 		}
 	}
-	if(bus_dma_tag_create(  /*parent*/		NULL,
+	if(bus_dma_tag_create(  /*PCI parent*/		bus_get_dma_tag(dev),
 							/*alignemnt*/	1,
 							/*boundary*/	0,
 							/*lowaddr*/		BUS_SPACE_MAXADDR,
@@ -3861,7 +3861,7 @@ static int arcmsr_probe(device_t dev)
 		return(ENXIO);
 	sprintf(buf, "Areca %s Host Adapter RAID Controller %s\n", type, raid6 ? "(RAID6 capable)" : "");
 	device_set_desc_copy(dev, buf);
-	return 0;
+	return (BUS_PROBE_DEFAULT);
 }
 /*
 ************************************************************************

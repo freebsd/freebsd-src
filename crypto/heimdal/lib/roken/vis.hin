@@ -1,5 +1,4 @@
-/*	$NetBSD: vis.h,v 1.11 1999/11/25 16:55:50 wennmach Exp $	*/
-/*	$Id: vis.hin 19341 2006-12-15 11:53:09Z lha $	*/
+/*	$NetBSD: vis.h,v 1.16 2005/09/13 01:44:32 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -37,11 +36,17 @@
 
 #ifndef ROKEN_LIB_FUNCTION
 #ifdef _WIN32
-#define ROKEN_LIB_FUNCTION _stdcall
+#define ROKEN_LIB_FUNCTION
+#define ROKEN_LIB_CALL     __cdecl
 #else
 #define ROKEN_LIB_FUNCTION
+#define ROKEN_LIB_CALL
 #endif
 #endif
+
+#include <sys/types.h>
+
+#include <roken.h>
 
 /*
  * to select alternate encoding format
@@ -63,6 +68,7 @@
  * other
  */
 #define	VIS_NOSLASH	0x40	/* inhibit printing '\' */
+#define	VIS_HTTPSTYLE	0x80	/* http-style escape % HEX HEX */
 
 /*
  * unvis return codes
@@ -78,38 +84,68 @@
  */
 #define	UNVIS_END	1	/* no more characters */
 
-char ROKEN_LIB_FUNCTION
-	*rk_vis (char *, int, int, int);
-char ROKEN_LIB_FUNCTION
-	*rk_svis (char *, int, int, int, const char *);
-int ROKEN_LIB_FUNCTION
-	rk_strvis (char *, const char *, int);
-int ROKEN_LIB_FUNCTION
-	rk_strsvis (char *, const char *, int, const char *);
-int ROKEN_LIB_FUNCTION
-	rk_strvisx (char *, const char *, size_t, int);
-int ROKEN_LIB_FUNCTION
-	rk_strsvisx (char *, const char *, size_t, int, const char *);
-int ROKEN_LIB_FUNCTION
-	rk_strunvis (char *, const char *);
-int ROKEN_LIB_FUNCTION
-	rk_unvis (char *, int, int *, int);
+ROKEN_CPP_START
 
+ROKEN_LIB_FUNCTION char * ROKEN_LIB_CALL
+	rk_vis(char *, int, int, int);
+ROKEN_LIB_FUNCTION char * ROKEN_LIB_CALL
+	rk_svis(char *, int, int, int, const char *);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+	rk_strvis(char *, const char *, int);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+	rk_strsvis(char *, const char *, int, const char *);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+	rk_strvisx(char *, const char *, size_t, int);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+	rk_strsvisx(char *, const char *, size_t, int, const char *);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+	rk_strunvis(char *, const char *);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+	rk_strunvisx(char *, const char *, int);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+	rk_unvis(char *, int, int *, int);
+
+ROKEN_CPP_END
+
+#ifndef HAVE_VIS
 #undef vis
 #define vis(a,b,c,d) rk_vis(a,b,c,d)
+#endif
+
+#ifndef HAVE_SVIS
 #undef svis
 #define svis(a,b,c,d,e) rk_svis(a,b,c,d,e)
+#endif
+
+#ifndef HAVE_STRVIS
 #undef strvis
 #define strvis(a,b,c) rk_strvis(a,b,c)
+#endif
+
+#ifndef HAVE_STRSVIS
 #undef strsvis
 #define strsvis(a,b,c,d) rk_strsvis(a,b,c,d)
+#endif
+
+#ifndef HAVE_STRVISX
 #undef strvisx
 #define strvisx(a,b,c,d) rk_strvisx(a,b,c,d)
+#endif
+
+#ifndef HAVE_STRSVISX
 #undef strsvisx
 #define strsvisx(a,b,c,d,e) rk_strsvisx(a,b,c,d,e)
+#endif
+
+#ifndef HAVE_STRUNVIS
 #undef strunvis
 #define strunvis(a,b) rk_strunvis(a,b)
+#endif
+
+
+#ifndef HAVE_UNVIS
 #undef unvis
 #define unvis(a,b,c,d) rk_unvis(a,b,c,d)
+#endif
 
 #endif /* !_VIS_H_ */

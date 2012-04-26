@@ -240,21 +240,39 @@ delete_part_metadata(const char *name)
 static int
 validate_setup(void)
 {
-	struct partition_metadata *md;
-	int root_found = FALSE;
+	struct partition_metadata *md, *root = NULL;
+	int cancel;
 
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->fstab != NULL && strcmp(md->fstab->fs_file, "/") == 0)
-			root_found = TRUE;
+			root = md;
 
 		/* XXX: Check for duplicate mountpoints */
 	}
 
-	if (!root_found) {
+	if (root == NULL) {
 		dialog_msgbox("Error", "No root partition was found. "
 		    "The root FreeBSD partition must have a mountpoint of '/'.",
 		0, 0, TRUE);
 		return (FALSE);
+	}
+
+	/*
+	 * Check for root partitions that we aren't formatting, which is 
+	 * usually a mistake
+	 */
+	if (root->newfs == NULL) {
+		dialog_vars.defaultno = TRUE;
+		cancel = dialog_yesno("Warning", "The chosen root partition "
+		    "has a preexisting filesystem. If it contains an existing "
+		    "FreeBSD system, please update it with freebsd-update "
+		    "instead of installing a new system on it. The partition "
+		    "can also be erased by pressing \"No\" and then deleting "
+		    "and recreating it. Are you sure you want to proceed?",
+		    0, 0);
+		dialog_vars.defaultno = FALSE;
+		if (cancel)
+			return (FALSE);
 	}
 
 	return (TRUE);

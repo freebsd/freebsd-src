@@ -254,7 +254,7 @@ cleanup(struct hast_resource *res)
 		ggiod.gctl_version = G_GATE_VERSION;
 		ggiod.gctl_unit = res->hr_ggateunit;
 		ggiod.gctl_force = 1;
-		if (ioctl(res->hr_ggatefd, G_GATE_CMD_DESTROY, &ggiod) < 0) {
+		if (ioctl(res->hr_ggatefd, G_GATE_CMD_DESTROY, &ggiod) == -1) {
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to destroy hast/%s device",
 			    res->hr_provname);
@@ -451,7 +451,7 @@ init_resuid(struct hast_resource *res)
 		/* Initialize unique resource identifier. */
 		arc4random_buf(&res->hr_resuid, sizeof(res->hr_resuid));
 		mtx_unlock(&metadata_lock);
-		if (metadata_write(res) < 0)
+		if (metadata_write(res) == -1)
 			exit(EX_NOINPUT);
 		return (true);
 	}
@@ -463,19 +463,19 @@ init_local(struct hast_resource *res)
 	unsigned char *buf;
 	size_t mapsize;
 
-	if (metadata_read(res, true) < 0)
+	if (metadata_read(res, true) == -1)
 		exit(EX_NOINPUT);
 	mtx_init(&res->hr_amp_lock);
 	if (activemap_init(&res->hr_amp, res->hr_datasize, res->hr_extentsize,
-	    res->hr_local_sectorsize, res->hr_keepdirty) < 0) {
+	    res->hr_local_sectorsize, res->hr_keepdirty) == -1) {
 		primary_exit(EX_TEMPFAIL, "Unable to create activemap");
 	}
 	mtx_init(&range_lock);
 	cv_init(&range_regular_cond);
-	if (rangelock_init(&range_regular) < 0)
+	if (rangelock_init(&range_regular) == -1)
 		primary_exit(EX_TEMPFAIL, "Unable to create regular range lock");
 	cv_init(&range_sync_cond);
-	if (rangelock_init(&range_sync) < 0)
+	if (rangelock_init(&range_sync) == -1)
 		primary_exit(EX_TEMPFAIL, "Unable to create sync range lock");
 	mapsize = activemap_ondisk_size(res->hr_amp);
 	buf = calloc(1, mapsize);
@@ -500,7 +500,7 @@ init_local(struct hast_resource *res)
 	 */
 	res->hr_primary_localcnt = 0;
 	res->hr_primary_remotecnt = 0;
-	if (metadata_write(res) < 0)
+	if (metadata_write(res) == -1)
 		exit(EX_NOINPUT);
 }
 
@@ -511,11 +511,11 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 	int16_t val;
 
 	val = 1;
-	if (proto_send(res->hr_conn, &val, sizeof(val)) < 0) {
+	if (proto_send(res->hr_conn, &val, sizeof(val)) == -1) {
 		primary_exit(EX_TEMPFAIL,
 		    "Unable to send connection request to parent");
 	}
-	if (proto_recv(res->hr_conn, &val, sizeof(val)) < 0) {
+	if (proto_recv(res->hr_conn, &val, sizeof(val)) == -1) {
 		primary_exit(EX_TEMPFAIL,
 		    "Unable to receive reply to connection request from parent");
 	}
@@ -525,18 +525,18 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 		    res->hr_remoteaddr);
 		return (-1);
 	}
-	if (proto_connection_recv(res->hr_conn, true, &conn) < 0) {
+	if (proto_connection_recv(res->hr_conn, true, &conn) == -1) {
 		primary_exit(EX_TEMPFAIL,
 		    "Unable to receive connection from parent");
 	}
-	if (proto_connect_wait(conn, res->hr_timeout) < 0) {
+	if (proto_connect_wait(conn, res->hr_timeout) == -1) {
 		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
 		    res->hr_remoteaddr);
 		proto_close(conn);
 		return (-1);
 	}
 	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(conn, res->hr_timeout) < 0)
+	if (proto_timeout(conn, res->hr_timeout) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
 	*connp = conn;
@@ -583,7 +583,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		nv_free(nvout);
 		goto close;
 	}
-	if (hast_proto_send(res, out, nvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, out, nvout, NULL, 0) == -1) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to send handshake header to %s",
 		    res->hr_remoteaddr);
@@ -591,7 +591,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		goto close;
 	}
 	nv_free(nvout);
-	if (hast_proto_recv_hdr(out, &nvin) < 0) {
+	if (hast_proto_recv_hdr(out, &nvin) == -1) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to receive handshake header from %s",
 		    res->hr_remoteaddr);
@@ -655,7 +655,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		nv_free(nvout);
 		goto close;
 	}
-	if (hast_proto_send(res, in, nvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, in, nvout, NULL, 0) == -1) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to send handshake header to %s",
 		    res->hr_remoteaddr);
@@ -663,7 +663,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		goto close;
 	}
 	nv_free(nvout);
-	if (hast_proto_recv_hdr(out, &nvin) < 0) {
+	if (hast_proto_recv_hdr(out, &nvin) == -1) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to receive handshake header from %s",
 		    res->hr_remoteaddr);
@@ -726,7 +726,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		 * download its activemap.
 		 */
 		if (hast_proto_recv_data(res, out, nvin, map,
-		    mapsize) < 0) {
+		    mapsize) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to receive remote activemap");
 			nv_free(nvin);
@@ -801,7 +801,7 @@ init_ggate(struct hast_resource *res)
 	 * We communicate with ggate via /dev/ggctl. Open it.
 	 */
 	res->hr_ggatefd = open("/dev/" G_GATE_CTL_NAME, O_RDWR);
-	if (res->hr_ggatefd < 0)
+	if (res->hr_ggatefd == -1)
 		primary_exit(EX_OSFILE, "Unable to open /dev/" G_GATE_CTL_NAME);
 	/*
 	 * Create provider before trying to connect, as connection failure
@@ -859,7 +859,7 @@ hastd_primary(struct hast_resource *res)
 	 * Create communication channel for sending control commands from
 	 * parent to child.
 	 */
-	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) == -1) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -868,7 +868,7 @@ hastd_primary(struct hast_resource *res)
 	/*
 	 * Create communication channel for sending events from child to parent.
 	 */
-	if (proto_client(NULL, "socketpair://", &res->hr_event) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_event) == -1) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -878,7 +878,7 @@ hastd_primary(struct hast_resource *res)
 	 * Create communication channel for sending connection requests from
 	 * child to parent.
 	 */
-	if (proto_client(NULL, "socketpair://", &res->hr_conn) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_conn) == -1) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -886,7 +886,7 @@ hastd_primary(struct hast_resource *res)
 	}
 
 	pid = fork();
-	if (pid < 0) {
+	if (pid == -1) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_TEMPFAIL, "Unable to fork");
@@ -933,7 +933,7 @@ hastd_primary(struct hast_resource *res)
 
 	/*
 	 * Create the guard thread first, so we can handle signals from the
-	 * very begining.
+	 * very beginning.
 	 */
 	error = pthread_create(&td, NULL, guard_thread, res);
 	PJDLOG_ASSERT(error == 0);
@@ -1095,7 +1095,7 @@ write_complete(struct hast_resource *res, struct hio *hio)
 		mtx_unlock(&metadata_lock);
 	}
 	rw_unlock(&hio_remote_lock[ncomp]);
-	if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) < 0)
+	if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) == -1)
 		primary_exit(EX_OSERR, "G_GATE_CMD_DONE failed");
 	hio->hio_done = true;
 }
@@ -1133,7 +1133,7 @@ ggate_recv_thread(void *arg)
 		pjdlog_debug(2,
 		    "ggate_recv: (%p) Waiting for request from the kernel.",
 		    hio);
-		if (ioctl(res->hr_ggatefd, G_GATE_CMD_START, ggio) < 0) {
+		if (ioctl(res->hr_ggatefd, G_GATE_CMD_START, ggio) == -1) {
 			if (sigexit_received)
 				pthread_exit(NULL);
 			primary_exit(EX_OSERR, "G_GATE_CMD_START failed");
@@ -1225,7 +1225,7 @@ ggate_recv_thread(void *arg)
 					continue;
 				}
 				if (rangelock_add(range_regular,
-				    ggio->gctl_offset, ggio->gctl_length) < 0) {
+				    ggio->gctl_offset, ggio->gctl_length) == -1) {
 					mtx_unlock(&range_lock);
 					pjdlog_debug(2,
 					    "regular: Range offset=%jd length=%zu is already locked, waiting.",
@@ -1255,7 +1255,7 @@ ggate_recv_thread(void *arg)
 		pjdlog_debug(2,
 		    "ggate_recv: (%p) Moving request to the send queues.", hio);
 		refcount_init(&hio->hio_countdown, ncomps);
-		for (ii = ncomp; ii < ncomps; ii++)
+		for (ii = ncomp; ii < ncomp + ncomps; ii++)
 			QUEUE_INSERT1(hio, send, ii);
 	}
 	/* NOTREACHED */
@@ -1296,7 +1296,7 @@ local_send_thread(void *arg)
 				/*
 				 * If READ failed, try to read from remote node.
 				 */
-				if (ret < 0) {
+				if (ret == -1) {
 					reqlog(LOG_WARNING, 0, ggio,
 					    "Local request failed (%s), trying remote node. ",
 					    strerror(errno));
@@ -1313,7 +1313,7 @@ local_send_thread(void *arg)
 			ret = pwrite(res->hr_localfd, ggio->gctl_data,
 			    ggio->gctl_length,
 			    ggio->gctl_offset + res->hr_localoff);
-			if (ret < 0) {
+			if (ret == -1) {
 				hio->hio_errors[ncomp] = errno;
 				reqlog(LOG_WARNING, 0, ggio,
 				    "Local request failed (%s): ",
@@ -1326,7 +1326,8 @@ local_send_thread(void *arg)
 			} else {
 				hio->hio_errors[ncomp] = 0;
 				if (hio->hio_replication ==
-				    HAST_REPLICATION_ASYNC) {
+				    HAST_REPLICATION_ASYNC &&
+				    !ISSYNCREQ(hio)) {
 					ggio->gctl_error = 0;
 					write_complete(res, hio);
 				}
@@ -1336,7 +1337,7 @@ local_send_thread(void *arg)
 			ret = g_delete(res->hr_localfd,
 			    ggio->gctl_offset + res->hr_localoff,
 			    ggio->gctl_length);
-			if (ret < 0) {
+			if (ret == -1) {
 				hio->hio_errors[ncomp] = errno;
 				reqlog(LOG_WARNING, 0, ggio,
 				    "Local request failed (%s): ",
@@ -1352,7 +1353,7 @@ local_send_thread(void *arg)
 				break;
 			}
 			ret = g_flush(res->hr_localfd);
-			if (ret < 0) {
+			if (ret == -1) {
 				if (errno == EOPNOTSUPP)
 					res->hr_localflush = false;
 				hio->hio_errors[ncomp] = errno;
@@ -1406,7 +1407,7 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 		    "keepalive_send: Unable to prepare header to send.");
 		return;
 	}
-	if (hast_proto_send(res, res->hr_remoteout, nv, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_remoteout, nv, NULL, 0) == -1) {
 		rw_unlock(&hio_remote_lock[ncomp]);
 		pjdlog_common(LOG_DEBUG, 1, errno,
 		    "keepalive_send: Unable to send request");
@@ -1520,7 +1521,7 @@ remote_send_thread(void *arg)
 		TAILQ_INSERT_TAIL(&hio_recv_list[ncomp], hio, hio_next[ncomp]);
 		mtx_unlock(&hio_recv_list_lock[ncomp]);
 		if (hast_proto_send(res, res->hr_remoteout, nv, data,
-		    data != NULL ? length : 0) < 0) {
+		    data != NULL ? length : 0) == -1) {
 			hio->hio_errors[ncomp] = errno;
 			rw_unlock(&hio_remote_lock[ncomp]);
 			pjdlog_debug(2,
@@ -1617,7 +1618,7 @@ remote_recv_thread(void *arg)
 			mtx_unlock(&hio_recv_list_lock[ncomp]);
 			goto done_queue;
 		}
-		if (hast_proto_recv_hdr(res->hr_remotein, &nv) < 0) {
+		if (hast_proto_recv_hdr(res->hr_remotein, &nv) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to receive reply header");
 			rw_unlock(&hio_remote_lock[ncomp]);
@@ -1665,7 +1666,7 @@ remote_recv_thread(void *arg)
 				goto done_queue;
 			}
 			if (hast_proto_recv_data(res, res->hr_remotein, nv,
-			    ggio->gctl_data, ggio->gctl_length) < 0) {
+			    ggio->gctl_data, ggio->gctl_length) == -1) {
 				hio->hio_errors[ncomp] = errno;
 				pjdlog_errno(LOG_ERR,
 				    "Unable to receive reply data");
@@ -1766,7 +1767,7 @@ ggate_send_thread(void *arg)
 			if (!hio->hio_done)
 				write_complete(res, hio);
 		} else {
-			if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) < 0) {
+			if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) == -1) {
 				primary_exit(EX_OSERR,
 				    "G_GATE_CMD_DONE failed");
 			}
@@ -1834,7 +1835,7 @@ sync_thread(void *arg __unused)
 		mtx_unlock(&res->hr_amp_lock);
 		if (dorewind) {
 			dorewind = false;
-			if (offset < 0)
+			if (offset == -1)
 				pjdlog_info("Nodes are in sync.");
 			else {
 				pjdlog_info("Synchronization started. %NB to go.",
@@ -1844,7 +1845,7 @@ sync_thread(void *arg __unused)
 				gettimeofday(&tstart, NULL);
 			}
 		}
-		if (offset < 0) {
+		if (offset == -1) {
 			sync_stop();
 			pjdlog_debug(1, "Nothing to synchronize.");
 			/*
@@ -1903,7 +1904,7 @@ sync_thread(void *arg __unused)
 				mtx_unlock(&range_lock);
 				continue;
 			}
-			if (rangelock_add(range_sync, offset, length) < 0) {
+			if (rangelock_add(range_sync, offset, length) == -1) {
 				mtx_unlock(&range_lock);
 				pjdlog_debug(2,
 				    "sync: Range offset=%jd length=%jd is already locked, waiting.",
@@ -2124,12 +2125,12 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 			}
 			rw_unlock(&hio_remote_lock[ii]);
 			if (proto_timeout(gres->hr_remotein,
-			    gres->hr_timeout) < 0) {
+			    gres->hr_timeout) == -1) {
 				pjdlog_errno(LOG_WARNING,
 				    "Unable to set connection timeout");
 			}
 			if (proto_timeout(gres->hr_remoteout,
-			    gres->hr_timeout) < 0) {
+			    gres->hr_timeout) == -1) {
 				pjdlog_errno(LOG_WARNING,
 				    "Unable to set connection timeout");
 			}

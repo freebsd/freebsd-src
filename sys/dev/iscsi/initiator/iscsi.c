@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2011 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iscsi/initiator/iscsi.h>
 #include <dev/iscsi/initiator/iscsivar.h>
-static char *iscsi_driver_version = "2.2.4.2";
+static char *iscsi_driver_version = "2.3.1";
 
 static struct isc_softc *isc;
 
@@ -231,8 +231,8 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	  if(error == 0) {
 	       sp->proc = td->td_proc;
 	       SYSCTL_ADD_INT(&sp->clist, SYSCTL_CHILDREN(sp->oid),
-		   OID_AUTO, "pid", CTLFLAG_RD,
-		   &sp->proc->p_pid, sizeof(pid_t), "control process id");
+			       OID_AUTO, "pid", CTLFLAG_RD,
+			       &sp->proc->p_pid, sizeof(pid_t), "control process id");
 	  }
 	  break;
 
@@ -290,8 +290,7 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 	       sprintf(buf, "%03d] '%s' '%s'\n", i++, sp->opt.targetAddress, sp->opt.targetName);
 	       uiomove(buf, strlen(buf), uio);
 	  }
-	  sprintf(buf, "%d/%d /---- free -----/\n", sc->npdu_alloc, sc->npdu_max);
-	  i = 0;
+	  sprintf(buf, "free npdu_alloc=%d, npdu_max=%d\n", sc->npdu_alloc, sc->npdu_max);
 	  uiomove(buf, strlen(buf), uio);
      }
      else {
@@ -696,7 +695,6 @@ iscsi_shutdown(void *v)
 static void
 free_pdus(struct isc_softc *sc)
 {
-
      debug_called(8);
 
      if(sc->pdu_zone != NULL) {
@@ -777,6 +775,10 @@ iscsi_start(void)
 		    sizeof(isc->nsess),
 		    "number of active session");
 
+#ifdef ISCSI_INITIATOR_DEBUG
+     mtx_init(&iscsi_dbg_mtx, "iscsi_dbg", NULL, MTX_DEF);
+#endif
+
      printf("iscsi: version %s\n", iscsi_driver_version);
 }
 
@@ -814,6 +816,11 @@ iscsi_stop(void)
 	  xdebug("sysctl_ctx_free failed");
 
      iscsi_shutdown(isc); // XXX: check EVENTHANDLER_ ...
+
+#ifdef ISCSI_INITIATOR_DEBUG
+     mtx_destroy(&iscsi_dbg_mtx);
+#endif
+
      free(isc, M_ISCSI);
 }
 

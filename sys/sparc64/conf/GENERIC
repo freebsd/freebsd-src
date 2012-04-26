@@ -27,7 +27,7 @@ makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 #	At this time all platforms are supported, as-is.
 
 options 	SCHED_ULE		# ULE scheduler
-#options 	PREEMPTION		# Enable kernel thread preemption
+options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	SCTP			# Stream Control Transmission Protocol
@@ -119,6 +119,7 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# SCSI Environmental Services (and SAF-TE)
+device		ctl		# CAM Target Layer
 
 # RAID controllers
 #device		amr		# AMI MegaRAID
@@ -217,7 +218,6 @@ device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
-device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)

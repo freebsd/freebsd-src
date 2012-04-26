@@ -22,7 +22,8 @@ namespace llvm {
 // Debug info constants.
 
 enum {
-  LLVMDebugVersion = (11 << 16),        // Current version of debug information.
+  LLVMDebugVersion = (12 << 16),        // Current version of debug information.
+  LLVMDebugVersion11 = (11 << 16),      // Constant for version 11.
   LLVMDebugVersion10 = (10 << 16),      // Constant for version 10.
   LLVMDebugVersion9 = (9 << 16),        // Constant for version 9.
   LLVMDebugVersion8 = (8 << 16),        // Constant for version 8.
@@ -130,6 +131,7 @@ enum dwarf_constants {
   DW_TAG_GNU_template_parameter_pack = 0x4107,
   DW_TAG_GNU_formal_parameter_pack = 0x4108,
   DW_TAG_lo_user = 0x4080,
+  DW_TAG_APPLE_property = 0x4200,
   DW_TAG_hi_user = 0xffff,
 
   // Children flag
@@ -269,6 +271,7 @@ enum dwarf_constants {
   DW_AT_APPLE_property_setter = 0x3fea,
   DW_AT_APPLE_property_attribute = 0x3feb,
   DW_AT_APPLE_objc_complete_type = 0x3fec,
+  DW_AT_APPLE_property = 0x3fed,
 
   // Attribute form encodings
   DW_FORM_addr = 0x01,
@@ -526,6 +529,7 @@ enum dwarf_constants {
   DW_LANG_D = 0x0013,
   DW_LANG_Python = 0x0014,
   DW_LANG_lo_user = 0x8000,
+  DW_LANG_Mips_Assembler = 0x8001,
   DW_LANG_hi_user = 0xffff,
 
   // Identifier case codes

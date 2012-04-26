@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2007 Kungliga Tekniska Högskolan
+# Copyright (c) 2007 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -65,5 +65,20 @@ ${hxtool} certificate-copy DER-FILE:cert-der.tmp PEM-FILE:cert-pem2.tmp || exit 
 
 cmp cert-pem.tmp cert-pem2.tmp || exit 1
 
+echo "verify n0ll cert (fail)"
+${hxtool} verify --missing-revoke \
+	--hostname=foo.com \
+	cert:FILE:$srcdir/data/n0ll.pem \
+	anchor:FILE:$srcdir/data/n0ll.pem && exit 1
+
+echo "verify n0ll cert (fail)"
+${hxtool} verify --missing-revoke \
+	cert:FILE:$srcdir/data/n0ll.pem \
+	anchor:FILE:$srcdir/data/n0ll.pem && exit 1
+
+echo "check that windows cert with utf16 in printable string works"
+${hxtool} verify --missing-revoke \
+	cert:FILE:$srcdir/data/win-u16-in-printablestring.der \
+	anchor:FILE:$srcdir/data/win-u16-in-printablestring.der || exit 1
 
 exit 0

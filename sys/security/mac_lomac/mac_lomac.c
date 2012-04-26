@@ -1032,19 +1032,21 @@ lomac_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_lomac *ml;
+	const char *dn;
 	int lomac_type;
 
 	ml = SLOT(delabel);
-	if (strcmp(dev->si_name, "null") == 0 ||
-	    strcmp(dev->si_name, "zero") == 0 ||
-	    strcmp(dev->si_name, "random") == 0 ||
-	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0 ||
-	    strncmp(dev->si_name, "ttyv", strlen("ttyv")) == 0)
+	dn = devtoname(dev);
+	if (strcmp(dn, "null") == 0 ||
+	    strcmp(dn, "zero") == 0 ||
+	    strcmp(dn, "random") == 0 ||
+	    strncmp(dn, "fd/", strlen("fd/")) == 0 ||
+	    strncmp(dn, "ttyv", strlen("ttyv")) == 0)
 		lomac_type = MAC_LOMAC_TYPE_EQUAL;
 	else if (ptys_equal &&
-	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
-	    strncmp(dev->si_name, "pts/", strlen("pts/")) == 0 ||
-	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+	    (strncmp(dn, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dn, "pts/", strlen("pts/")) == 0 ||
+	    strncmp(dn, "ptyp", strlen("ptyp")) == 0))
 		lomac_type = MAC_LOMAC_TYPE_EQUAL;
 	else
 		lomac_type = MAC_LOMAC_TYPE_HIGH;

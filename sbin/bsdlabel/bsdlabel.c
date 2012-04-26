@@ -189,8 +189,8 @@ main(int argc, char *argv[])
 				break;
 			case 'r':
 				/*
-				 * We accept and ignode -r for compatibility with
-				 * historically disklabel usage.
+				 * We accept and ignore -r for compatibility with
+				 * historical disklabel usage.
 				 */
 				break;
 			case 'w':
@@ -386,7 +386,7 @@ writelabel(void)
 	struct disklabel *lp = &lab;
 
 	if (disable_write) {
-		warnx("write to disk label supressed - label was as follows:");
+		warnx("write to disk label suppressed - label was as follows:");
 		display(stdout, NULL);
 		return (0);
 	}
@@ -1194,7 +1194,8 @@ checklabel(struct disklabel *lp)
 			lp->d_interleave = vl->d_interleave;
 		if (lp->d_secpercyl == 0)
 			lp->d_secpercyl = vl->d_secpercyl;
-		if (lp->d_secperunit == 0)
+		if (lp->d_secperunit == 0 ||
+		    lp->d_secperunit > vl->d_secperunit)
 			lp->d_secperunit = vl->d_secperunit;
 		if (lp->d_bbsize == 0)
 			lp->d_bbsize = vl->d_bbsize;
@@ -1512,8 +1513,8 @@ getvirginlabel(void)
 	loclab.d_secperunit = mediasize / secsize;
 
 	/*
-	 * Nobody in these enligthened days uses the CHS geometry for
-	 * anything, but nontheless try to get it right.  If we fail
+	 * Nobody in these enlightened days uses the CHS geometry for
+	 * anything, but nonetheless try to get it right.  If we fail
 	 * to get any good ideas from the device, construct something
 	 * which is IBM-PC friendly.
 	 */

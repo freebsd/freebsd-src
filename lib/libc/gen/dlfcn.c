@@ -34,6 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <dlfcn.h>
 #include <link.h>
 #include <stddef.h>
+#include "namespace.h"
+#include <pthread.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 
 static char sorry[] = "Service unavailable";
 
@@ -138,13 +142,67 @@ _rtld_thread_init(void * li)
 	_rtld_error(sorry);
 }
 
+static pthread_once_t dl_phdr_info_once = PTHREAD_ONCE_INIT;
+static struct dl_phdr_info phdr_info;
+
+static void
+dl_init_phdr_info(void)
+{
+	Elf_Auxinfo *auxp;
+	size_t phent;
+	unsigned int i;
+
+	phent = 0;
+	for (auxp = __elf_aux_vector; auxp->a_type != AT_NULL; auxp++) {
+		switch (auxp->a_type) {
+		case AT_BASE:
+			phdr_info.dlpi_addr = (Elf_Addr)auxp->a_un.a_ptr;
+			break;
+		case AT_EXECPATH:
+			phdr_info.dlpi_name = (const char *)auxp->a_un.a_ptr;
+			break;
+		case AT_PHDR:
+			phdr_info.dlpi_phdr =
+			    (const Elf_Phdr *)auxp->a_un.a_ptr;
+			break;
+		case AT_PHENT:
+			phent = auxp->a_un.a_val;
+			break;
+		case AT_PHNUM:
+			phdr_info.dlpi_phnum = (Elf_Half)auxp->a_un.a_val;
+			break;
+		}
+	}
+	for (i = 0; i < phdr_info.dlpi_phnum; i++) {
+		if (phdr_info.dlpi_phdr[i].p_type == PT_TLS) {
+			phdr_info.dlpi_tls_modid = 1;
+			phdr_info.dlpi_tls_data =
+			    (void*)phdr_info.dlpi_phdr[i].p_vaddr;
+		}
+	}
+	phdr_info.dlpi_adds = 1;
+}
+
 #pragma weak dl_iterate_phdr
 int
 dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *),
     void *data)
 {
+
+	__init_elf_aux_vector();
+	if (__elf_aux_vector == NULL)
+		return (1);
+	_once(&dl_phdr_info_once, dl_init_phdr_info);
+	return (callback(&phdr_info, sizeof(phdr_info), data));
+}
+
+#pragma weak fdlopen
+void *
+fdlopen(int fd, int mode)
+{
+
 	_rtld_error(sorry);
-	return 0;
+	return NULL;
 }
 
 #pragma weak _rtld_atfork_pre

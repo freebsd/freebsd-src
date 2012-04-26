@@ -107,8 +107,11 @@ ASSYM(USER_ADDR, USER_ADDR);
 #ifdef __powerpc64__
 ASSYM(PC_KERNSLB, offsetof(struct pcpu, pc_slb));
 ASSYM(PC_USERSLB, offsetof(struct pcpu, pc_userslb));
+ASSYM(PC_SLBSAVE, offsetof(struct pcpu, pc_slbsave));
+ASSYM(PC_SLBSTACK, offsetof(struct pcpu, pc_slbstack));
 ASSYM(USER_SLB_SLOT, USER_SLB_SLOT);
 ASSYM(USER_SLB_SLBE, USER_SLB_SLBE);
+ASSYM(SEGMENT_MASK, SEGMENT_MASK);
 #else
 ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
 ASSYM(USER_SR, USER_SR);

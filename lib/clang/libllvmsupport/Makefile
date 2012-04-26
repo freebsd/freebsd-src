@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmsupport
 
 SRCDIR=	lib/Support
@@ -8,6 +10,7 @@ SRCS=	APFloat.cpp \
 	APSInt.cpp \
 	Allocator.cpp \
 	Atomic.cpp \
+	BlockFrequency.cpp \
 	BranchProbability.cpp \
 	CommandLine.cpp \
 	ConstantRange.cpp \
@@ -22,12 +25,16 @@ SRCS=	APFloat.cpp \
 	FoldingSet.cpp \
 	FormattedStream.cpp \
 	GraphWriter.cpp \
+	Hashing.cpp \
 	Host.cpp \
 	IntervalMap.cpp \
 	IntEqClasses.cpp \
+	IntrusiveRefCntPtr.cpp \
+	LockFileManager.cpp \
 	ManagedStatic.cpp \
 	Memory.cpp \
 	MemoryBuffer.cpp \
+	MemoryObject.cpp \
 	Mutex.cpp \
 	Path.cpp \
 	PathV2.cpp \
@@ -43,6 +50,7 @@ SRCS=	APFloat.cpp \
 	SmallVector.cpp \
 	SourceMgr.cpp \
 	Statistic.cpp \
+	StreamableMemoryObject.cpp \
 	StringExtras.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
@@ -66,5 +74,16 @@ SRCS=	APFloat.cpp \
 	regstrlcpy.c \
 	system_error.cpp
 LLVM_REQUIRES_RTTI=
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	BlockFrequency.cpp \
+	BranchProbability.cpp \
+	DataExtractor.cpp \
+	DataStream.cpp \
+	Disassembler.cpp \
+	FileUtilities.cpp \
+	MemoryObject.cpp \
+	SystemUtils.cpp
+.endif
 
 .include "../clang.lib.mk"

@@ -718,7 +718,7 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	struct ggeom *gp;
 	const char *s, *scheme;
 	off_t sector, end;
-	off_t length, secsz;
+	off_t length;
 	int error, i, windex, wblocks, wtype;
 
 	if (gctl_get_int(req, "nargs") != 1)
@@ -744,7 +744,6 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	if (scheme == NULL)
 		abort();
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
-	secsz = pp->lg_sectorsize;
 	s = find_geomcfg(gp, "last");
 	wblocks = strlen(s);
 	wtype = 0;

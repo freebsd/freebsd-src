@@ -586,7 +586,7 @@ main(int argc, char** argv)
 	term.c_lflag &= ~(ICANON|ECHO);
 	term.c_iflag &= ~ICRNL;
 	tcsetattr(0, TCSAFLUSH, &term);
-	h = dlopen("./userboot.so", RTLD_LOCAL);
+	h = dlopen("/boot/userboot.so", RTLD_LOCAL);
 	if (!h) {
 		printf("%s\n", dlerror());
 		return (1);

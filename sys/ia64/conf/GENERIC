@@ -113,7 +113,8 @@ device		ch		# Media changer
 device		da		# Direct Access (ie disk)
 device		pass		# Passthrough (direct ATA/SCSI access)
 device		sa		# Sequential Access (ie tape)
-device		ses		# Environmental Services (and SAF-TE)
+device		ses		# Enclosure Services (SES and SAF-TE)
+device		ctl		# CAM Target Layer
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
@@ -180,6 +181,15 @@ device		uslcom		# SI Labs CP2101/CP2102 serial adapters
 device		uvisor		# Visor and Palm devices
 device		uvscom		# USB serial support for DDI pocket's PHS
 
+# Wireless NIC cards.
+# The wlan(4) module assumes this, so just define it so it
+# at least correctly loads.
+options		IEEE80211_SUPPORT_MESH
+
+# The ath(4) and ath_hal(4) code requires this.  The module currently
+# builds everything including AR5416 (and later 11n NIC) support.
+options		AH_SUPPORT_AR5416
+
 # FireWire support
 device		fwip		# IP over FireWire (RFC 2734,3146)
 # sbp(4) works for some systems but causes boot failure on others
@@ -191,7 +201,6 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		gif		# IPv6 and IPv4 tunneling
 device		loop		# Network loopback
 device		md		# Memory "disks"
-device		pty		# BSD-style compatibility pseudo ttys
 device		puc		# Multi I/O cards and multi-channel UARTs
 device		random		# Entropy device
 device		tun		# Packet tunnel.

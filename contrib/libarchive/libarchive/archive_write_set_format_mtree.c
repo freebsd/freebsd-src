@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2009 Michihiro NAKAJIMA
  * Copyright (c) 2008 Joerg Sonnenberger
+ * Copyright (c) 2009-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,17 +35,68 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "archive.h"
+#include "archive_crypto_private.h"
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 
-#include "archive_hash.h"
-
 #define INDENTNAMELEN	15
 #define MAXLINELEN	80
+#define SET_KEYS	\
+	(F_FLAGS | F_GID | F_GNAME | F_MODE | F_TYPE | F_UID | F_UNAME)
+
+struct mtree_entry {
+	struct mtree_entry *next;
+
+	char *pathname;
+	char *symlink;
+	unsigned int nlink;
+	mode_t filetype;
+	mode_t mode;
+	int64_t uid;
+	int64_t gid;
+	char *uname;
+	char *gname;
+	char *fflags_text;
+	unsigned long fflags_set;
+	unsigned long fflags_clear;
+	time_t mtime;
+	long mtime_nsec;
+	dev_t rdevmajor;
+	dev_t rdevminor;
+	int64_t size;
+
+	int compute_sum;
+	uint32_t crc;
+#ifdef ARCHIVE_HAS_MD5
+	unsigned char buf_md5[16];
+#endif
+#ifdef ARCHIVE_HAS_RMD160
+	unsigned char buf_rmd160[20];
+#endif
+#ifdef ARCHIVE_HAS_SHA1
+	unsigned char buf_sha1[20];
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	unsigned char buf_sha256[32];
+#endif
+#ifdef ARCHIVE_HAS_SHA384
+	unsigned char buf_sha384[48];
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	unsigned char buf_sha512[64];
+#endif
+};
+
+struct attr_counter {
+	struct attr_counter *prev;
+	struct attr_counter *next;
+	int count;
+	struct mtree_entry *m_entry;
+};
 
 struct mtree_writer {
-	struct archive_entry *entry;
+	struct mtree_entry *mtree_entry;
 	struct archive_string ebuf;
 	struct archive_string buf;
 	int first;
@@ -56,13 +107,20 @@ struct mtree_writer {
 		struct archive_string parent;
 		mode_t		type;
 		int		keys;
-		uid_t		uid;
-		gid_t		gid;
+		int64_t		uid;
+		int64_t		gid;
 		mode_t		mode;
 		unsigned long	fflags_set;
 		unsigned long	fflags_clear;
+
+		struct attr_counter *uid_list;
+		struct attr_counter *gid_list;
+		struct attr_counter *mode_list;
+		struct attr_counter *flags_list;
+		struct mtree_entry *me_first;
+		struct mtree_entry **me_last;
 	} set;
-	/* chekc sum */
+	/* check sum */
 	int compute_sum;
 	uint32_t crc;
 	uint64_t crc_len;
@@ -124,6 +182,18 @@ struct mtree_writer {
 #define DEFAULT_KEYS	(F_DEV | F_FLAGS | F_GID | F_GNAME | F_SLINK | F_MODE\
 			 | F_NLINK | F_SIZE | F_TIME | F_TYPE | F_UID\
 			 | F_UNAME)
+
+static struct attr_counter * new_attr_count(struct mtree_entry *,
+	struct attr_counter *);
+static void free_attr_count(struct attr_counter **);
+static int inc_attr_count(struct attr_counter **, struct attr_counter *,
+	struct attr_counter *, struct mtree_entry *);
+static int collect_set_values(struct mtree_writer *, struct mtree_entry *);
+static int get_keys(struct mtree_writer *, struct mtree_entry *);
+static void sum_init(struct mtree_writer *);
+static void sum_update(struct mtree_writer *, const void *, size_t);
+static void sum_final(struct mtree_writer *, struct mtree_entry *);
+static void sum_write(struct archive_string *, struct mtree_entry *);
 
 #define	COMPUTE_CRC(var, ch)	(var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
 static const uint32_t crctab[] = {
@@ -227,6 +297,9 @@ mtree_quote(struct archive_string *s, const char *str)
 		archive_strncat(s, start, str - start);
 }
 
+/*
+ * Indent a line as mtree utility to be readable for people.
+ */
 static void
 mtree_indent(struct mtree_writer *mtree)
 {
@@ -281,11 +354,11 @@ mtree_indent(struct mtree_writer *mtree)
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
 static size_t
-dir_len(struct archive_entry *entry)
+dir_len(struct mtree_entry *me)
 {
 	const char *path, *r;
 
-	path = archive_entry_pathname(entry);
+	path = me->pathname;
 	r = strrchr(path, '/');
 	if (r == NULL)
 		return (0);
@@ -301,14 +374,14 @@ dir_len(struct archive_entry *entry)
  * code.
  */
 static size_t
-dir_len(struct archive_entry *entry)
+dir_len(struct mtree_entry *me)
 {
 	wchar_t wc;
 	const char *path;
 	const char *p, *rp;
 	size_t al, l, size;
 
-	path = archive_entry_pathname(entry);
+	path = me->pathname;
 	al = l = -1;
 	for (p = path; *p != '\0'; ++p) {
 		if (*p == '\\')
@@ -337,14 +410,17 @@ alen:
 }
 #endif /* _WIN32 && !__CYGWIN__ */
 
+/*
+ * Test if a parent directory of the current entry is changed.
+ */
 static int
-parent_dir_changed(struct archive_string *dir, struct archive_entry *entry)
+parent_dir_changed(struct archive_string *dir, struct mtree_entry *me)
 {
 	const char *path;
 	size_t l;
 
-	l = dir_len(entry);
-	path = archive_entry_pathname(entry);
+	l = dir_len(me);
+	path = me->pathname;
 	if (archive_strlen(dir) > 0) {
 		if (l == 0) {
 			archive_string_empty(dir);
@@ -359,129 +435,141 @@ parent_dir_changed(struct archive_string *dir, struct archive_entry *entry)
 }
 
 /*
- * Write /set keyword. It means set global datas.
- * [directory-only mode]
- *   - It is only once to write /set keyword. It is using values of the
- *     first entry.
- * [normal mode]
- *   - Write /set keyword. It is using values of the first entry whose
- *     filetype is a regular file.
- *   - When a parent directory of the entry whose filetype is the regular
- *     file is changed, check the global datas and write it again if its
- *     values are different from the entry's.
+ * Write /set keyword.
+ * Set most used value of uid,gid,mode and fflags, which are
+ * collected by collect_set_values() function.
  */
 static void
-set_global(struct mtree_writer *mtree, struct archive_entry *entry)
+write_global(struct mtree_writer *mtree)
 {
 	struct archive_string setstr;
 	struct archive_string unsetstr;
 	const char *name;
 	int keys, oldkeys, effkeys;
-	mode_t set_type = 0;
-
-	switch (archive_entry_filetype(entry)) {
-	case AE_IFLNK: case AE_IFSOCK: case AE_IFCHR:
-	case AE_IFBLK: case AE_IFIFO:
-		break;
-	case AE_IFDIR:
-		if (mtree->dironly)
-			set_type = AE_IFDIR;
-		break;
-	case AE_IFREG:
-	default:	/* Handle unknown file types as regular files. */
-		if (!mtree->dironly)
-			set_type = AE_IFREG;
-		break;
-	}
-	if (set_type == 0)
-		return;
-	if (mtree->set.processed &&
-	    !parent_dir_changed(&mtree->set.parent, entry))
-		return;
-	/* At first, save a parent directory of the entry for following
-	 * entries. */
-	if (!mtree->set.processed && set_type == AE_IFREG)
-		parent_dir_changed(&mtree->set.parent, entry);
+	struct attr_counter *ac;
 
 	archive_string_init(&setstr);
 	archive_string_init(&unsetstr);
-	keys = mtree->keys & (F_FLAGS | F_GID | F_GNAME | F_NLINK | F_MODE
-	    | F_TYPE | F_UID | F_UNAME);
+	keys = mtree->keys & SET_KEYS;
 	oldkeys = mtree->set.keys;
 	effkeys = keys;
 	if (mtree->set.processed) {
 		/*
-		 * Check the global datas for whether it needs updating.
+		 * Check if the global data needs updating.
 		 */
 		effkeys &= ~F_TYPE;
-		if ((oldkeys & (F_UNAME | F_UID)) != 0 &&
-		    mtree->set.uid == archive_entry_uid(entry))
-			effkeys &= ~(F_UNAME | F_UID);
-		if ((oldkeys & (F_GNAME | F_GID)) != 0 &&
-		    mtree->set.gid == archive_entry_gid(entry))
-			effkeys &= ~(F_GNAME | F_GID);
-		if ((oldkeys & F_MODE) != 0 &&
-		    mtree->set.mode == (archive_entry_mode(entry) & 07777))
-			effkeys &= ~F_MODE;
+		if (oldkeys & (F_UNAME | F_UID)) {
+			ac = mtree->set.uid_list;
+			do {
+				if (mtree->set.uid == ac->m_entry->uid) {
+					effkeys &= ~(F_UNAME | F_UID);
+					break;
+				}
+				if (ac->next != NULL &&
+				    ac->next->count == ac->count)
+					continue;
+			} while (0);
+		}
+		if (oldkeys & (F_GNAME | F_GID)) {
+			ac = mtree->set.gid_list;
+			do {
+				if (mtree->set.gid == ac->m_entry->gid) {
+					effkeys &= ~(F_GNAME | F_GID);
+					break;
+				}
+				if (ac->next != NULL &&
+				    ac->next->count == ac->count)
+					continue;
+			} while (0);
+		}
+		if (oldkeys & F_MODE) {
+			ac = mtree->set.mode_list;
+			do {
+				if (mtree->set.mode == ac->m_entry->mode) {
+					effkeys &= ~F_MODE;
+					break;
+				}
+				if (ac->next != NULL &&
+				    ac->next->count == ac->count)
+					continue;
+			} while (0);
+		}
 		if ((oldkeys & F_FLAGS) != 0) {
-			unsigned long	fflags_set;
-			unsigned long	fflags_clear;
-
-			archive_entry_fflags(entry, &fflags_set, &fflags_clear);
-			if (fflags_set == mtree->set.fflags_set &&
-			    fflags_clear == mtree->set.fflags_clear)
-				effkeys &= ~F_FLAGS;
+			ac = mtree->set.flags_list;
+			do {
+				if (ac->m_entry->fflags_set ==
+					mtree->set.fflags_set &&
+				    ac->m_entry->fflags_clear ==
+					mtree->set.fflags_clear) {
+					effkeys &= ~F_FLAGS;
+					break;
+				}
+				if (ac->next != NULL &&
+				    ac->next->count == ac->count)
+					continue;
+			} while (0);
 		}
 	}
 	if ((keys & effkeys & F_TYPE) != 0) {
-		mtree->set.type = set_type;
-		if (set_type == AE_IFDIR)
+		if (mtree->dironly) {
 			archive_strcat(&setstr, " type=dir");
-		else
+			mtree->set.type = AE_IFDIR;
+		} else {
 			archive_strcat(&setstr, " type=file");
+			mtree->set.type = AE_IFREG;
+		}
 	}
 	if ((keys & effkeys & F_UNAME) != 0) {
-		if ((name = archive_entry_uname(entry)) != NULL) {
+		name = mtree->set.uid_list->m_entry->uname;
+		if (name != NULL) {
 			archive_strcat(&setstr, " uname=");
 			mtree_quote(&setstr, name);
-		} else if ((oldkeys & F_UNAME) != 0)
-			archive_strcat(&unsetstr, " uname");
-		else
+		} else {
 			keys &= ~F_UNAME;
+			if ((oldkeys & F_UNAME) != 0)
+				archive_strcat(&unsetstr, " uname");
+		}
 	}
 	if ((keys & effkeys & F_UID) != 0) {
-		mtree->set.uid = archive_entry_uid(entry);
+		mtree->set.uid = mtree->set.uid_list->m_entry->uid;
 		archive_string_sprintf(&setstr, " uid=%jd",
 		    (intmax_t)mtree->set.uid);
 	}
 	if ((keys & effkeys & F_GNAME) != 0) {
-		if ((name = archive_entry_gname(entry)) != NULL) {
+		name = mtree->set.gid_list->m_entry->gname;
+		if (name != NULL) {
 			archive_strcat(&setstr, " gname=");
 			mtree_quote(&setstr, name);
-		} else if ((oldkeys & F_GNAME) != 0)
-			archive_strcat(&unsetstr, " gname");
-		else
+		} else {
 			keys &= ~F_GNAME;
+			if ((oldkeys & F_GNAME) != 0)
+				archive_strcat(&unsetstr, " gname");
+		}
 	}
 	if ((keys & effkeys & F_GID) != 0) {
-		mtree->set.gid = archive_entry_gid(entry);
+		mtree->set.gid = mtree->set.gid_list->m_entry->gid;
 		archive_string_sprintf(&setstr, " gid=%jd",
 		    (intmax_t)mtree->set.gid);
 	}
 	if ((keys & effkeys & F_MODE) != 0) {
-		mtree->set.mode = archive_entry_mode(entry) & 07777;
-		archive_string_sprintf(&setstr, " mode=%o", mtree->set.mode);
+		mtree->set.mode = mtree->set.mode_list->m_entry->mode;
+		archive_string_sprintf(&setstr, " mode=%o",
+		    (unsigned int)mtree->set.mode);
 	}
 	if ((keys & effkeys & F_FLAGS) != 0) {
-		if ((name = archive_entry_fflags_text(entry)) != NULL) {
+		name = mtree->set.flags_list->m_entry->fflags_text;
+		if (name != NULL) {
 			archive_strcat(&setstr, " flags=");
 			mtree_quote(&setstr, name);
-			archive_entry_fflags(entry, &mtree->set.fflags_set,
-			    &mtree->set.fflags_clear);
-		} else if ((oldkeys & F_FLAGS) != 0)
-			archive_strcat(&unsetstr, " flags");
-		else
+			mtree->set.fflags_set =
+			    mtree->set.flags_list->m_entry->fflags_set;
+			mtree->set.fflags_clear =
+			    mtree->set.flags_list->m_entry->fflags_clear;
+		} else {
 			keys &= ~F_FLAGS;
+			if ((oldkeys & F_FLAGS) != 0)
+				archive_strcat(&unsetstr, " flags");
+		}
 	}
 	if (unsetstr.length > 0)
 		archive_string_sprintf(&mtree->buf, "/unset%s\n", unsetstr.s);
@@ -491,38 +579,196 @@ set_global(struct mtree_writer *mtree, struct archive_entry *entry)
 	archive_string_free(&setstr);
 	mtree->set.keys = keys;
 	mtree->set.processed = 1;
-	/* On directory-only mode, it is only once to write /set keyword. */
-	if (mtree->dironly)
-		mtree->set.output = 0;
+
+	free_attr_count(&mtree->set.uid_list);
+	free_attr_count(&mtree->set.gid_list);
+	free_attr_count(&mtree->set.mode_list);
+	free_attr_count(&mtree->set.flags_list);
+}
+
+static struct attr_counter *
+new_attr_count(struct mtree_entry *me, struct attr_counter *prev)
+{
+	struct attr_counter *ac;
+
+	ac = malloc(sizeof(*ac));
+	if (ac != NULL) {
+		ac->prev = prev;
+		ac->next = NULL;
+		ac->count = 1;
+		ac->m_entry = me;
+	}
+	return (ac);
+}
+
+static void
+free_attr_count(struct attr_counter **top)
+{
+	struct attr_counter *ac, *tac;
+
+	if (*top == NULL)
+		return;
+	ac = *top;
+        while (ac != NULL) {
+		tac = ac->next;
+		free(ac);
+		ac = tac;
+	}
+	*top = NULL;
 }
 
 static int
-get_keys(struct mtree_writer *mtree, struct archive_entry *entry)
+inc_attr_count(struct attr_counter **top, struct attr_counter *ac,
+    struct attr_counter *last, struct mtree_entry *me)
+{
+	struct attr_counter *pac;
+
+	if (ac != NULL) {
+		ac->count++;
+		if (*top == ac || ac->prev->count >= ac->count)
+			return (0);
+		for (pac = ac->prev; pac; pac = pac->prev) {
+			if (pac->count >= ac->count)
+				break;
+		}
+		ac->prev->next = ac->next;
+		if (ac->next != NULL)
+			ac->next->prev = ac->prev;
+		if (pac != NULL) {
+			ac->prev = pac;
+			ac->next = pac->next;
+			pac->next = ac;
+			if (ac->next != NULL)
+				ac->next->prev = ac;
+		} else {
+			ac->prev = NULL;
+			ac->next = *top;
+			*top = ac;
+			ac->next->prev = ac;
+		}
+	} else {
+		ac = new_attr_count(me, last);
+		if (ac == NULL)
+			return (-1);
+		last->next = ac;
+	}
+	return (0);
+}
+
+static int
+collect_set_values(struct mtree_writer *mtree, struct mtree_entry *me)
+{
+	int keys = mtree->keys;
+	struct attr_counter *ac, *last;
+
+	if (keys & (F_UNAME | F_UID)) {
+		if (mtree->set.uid_list == NULL) {
+			mtree->set.uid_list = new_attr_count(me, NULL);
+			if (mtree->set.uid_list == NULL)
+				return (-1);
+		} else {
+			last = NULL;
+			for (ac = mtree->set.uid_list; ac; ac = ac->next) {
+				if (ac->m_entry->uid == me->uid)
+					break;
+				last = ac;
+			}
+			if (inc_attr_count(
+			    &mtree->set.uid_list, ac, last, me) < 0)
+				return (-1);
+		}
+	}
+	if (keys & (F_GNAME | F_GID)) {
+		if (mtree->set.gid_list == NULL) {
+			mtree->set.gid_list = new_attr_count(me, NULL);
+			if (mtree->set.gid_list == NULL)
+				return (-1);
+		} else {
+			last = NULL;
+			for (ac = mtree->set.gid_list; ac; ac = ac->next) {
+				if (ac->m_entry->gid == me->gid)
+					break;
+				last = ac;
+			}
+			if (inc_attr_count(
+			    &mtree->set.gid_list, ac, last, me) < 0)
+				return (-1);
+		}
+	}
+	if (keys & F_MODE) {
+		if (mtree->set.mode_list == NULL) {
+			mtree->set.mode_list = new_attr_count(me, NULL);
+			if (mtree->set.mode_list == NULL)
+				return (-1);
+		} else {
+			last = NULL;
+			for (ac = mtree->set.mode_list; ac; ac = ac->next) {
+				if (ac->m_entry->mode == me->mode)
+					break;
+				last = ac;
+			}
+			if (inc_attr_count(
+			    &mtree->set.mode_list, ac, last, me) < 0)
+				return (-1);
+		}
+	}
+	if (keys & F_FLAGS) {
+		if (mtree->set.flags_list == NULL) {
+			mtree->set.flags_list = new_attr_count(me, NULL);
+			if (mtree->set.flags_list == NULL)
+				return (-1);
+		} else {
+			last = NULL;
+			for (ac = mtree->set.flags_list; ac; ac = ac->next) {
+				if (ac->m_entry->fflags_set == me->fflags_set &&
+				    ac->m_entry->fflags_clear == me->fflags_clear)
+					break;
+				last = ac;
+			}
+			if (inc_attr_count(
+			    &mtree->set.flags_list, ac, last, me) < 0)
+				return (-1);
+		}
+	}
+
+	/*
+	 * Save a entry.
+	 */
+	me->next = NULL;
+	*mtree->set.me_last = me;
+	mtree->set.me_last = &me->next;
+	return (0);
+}
+
+static int
+get_keys(struct mtree_writer *mtree, struct mtree_entry *me)
 {
 	int keys;
 
 	keys = mtree->keys;
+
+	/*
+	 * If a keyword has been set by /set, we do not need to
+	 * output it.
+	 */
 	if (mtree->set.keys == 0)
-		return (keys);
+		return (keys);/* /set is not used. */
+
 	if ((mtree->set.keys & (F_GNAME | F_GID)) != 0 &&
-	     mtree->set.gid == archive_entry_gid(entry))
+	     mtree->set.gid == me->gid)
 		keys &= ~(F_GNAME | F_GID);
 	if ((mtree->set.keys & (F_UNAME | F_UID)) != 0 &&
-	     mtree->set.uid == archive_entry_uid(entry))
+	     mtree->set.uid == me->uid)
 		keys &= ~(F_UNAME | F_UID);
 	if (mtree->set.keys & F_FLAGS) {
-		unsigned long set, clear;
-
-		archive_entry_fflags(entry, &set, &clear);
-		if (mtree->set.fflags_set == set &&
-		    mtree->set.fflags_clear == clear)
+		if (mtree->set.fflags_set == me->fflags_set &&
+		    mtree->set.fflags_clear == me->fflags_clear)
 			keys &= ~F_FLAGS;
 	}
-	if ((mtree->set.keys & F_MODE) != 0 &&
-	     mtree->set.mode == (archive_entry_mode(entry) & 07777))
+	if ((mtree->set.keys & F_MODE) != 0 && mtree->set.mode == me->mode)
 		keys &= ~F_MODE;
 
-	switch (archive_entry_filetype(entry)) {
+	switch (me->filetype) {
 	case AE_IFLNK: case AE_IFSOCK: case AE_IFCHR:
 	case AE_IFBLK: case AE_IFIFO:
 		break;
@@ -542,171 +788,145 @@ get_keys(struct mtree_writer *mtree, struct archive_entry *entry)
 	return (keys);
 }
 
+static struct mtree_entry *
+new_mtree_entry(struct archive_entry *entry)
+{
+	struct mtree_entry *me;
+	const char *s;
+
+	me = calloc(1, sizeof(*me));
+	if (me == NULL)
+		return (NULL);
+	me->pathname = strdup(archive_entry_pathname(entry));
+	if ((s = archive_entry_symlink(entry)) != NULL)
+		me->symlink = strdup(s);
+	else
+		me->symlink = NULL;
+	me->nlink = archive_entry_nlink(entry);
+	me->filetype = archive_entry_filetype(entry);
+	me->mode = archive_entry_mode(entry) & 07777;
+	me->uid = archive_entry_uid(entry);
+	me->gid = archive_entry_gid(entry);
+	if ((s = archive_entry_uname(entry)) != NULL)
+		me->uname = strdup(s);
+	else
+		me->uname = NULL;
+	if ((s = archive_entry_gname(entry)) != NULL)
+		me->gname = strdup(s);
+	else
+		me->gname = NULL;
+	if ((s = archive_entry_fflags_text(entry)) != NULL)
+		me->fflags_text = strdup(s);
+	else
+		me->fflags_text = NULL;
+	archive_entry_fflags(entry, &me->fflags_set, &me->fflags_clear);
+	me->mtime = archive_entry_mtime(entry);
+	me->mtime_nsec = archive_entry_mtime_nsec(entry);
+	me->rdevmajor =	archive_entry_rdevmajor(entry);
+	me->rdevminor = archive_entry_rdevminor(entry);
+	me->size = archive_entry_size(entry);
+	me->compute_sum = 0;
+
+	return (me);
+}
+
+static void
+free_mtree_entry(struct mtree_entry *me)
+{
+	free(me->pathname);
+	free(me->symlink);
+	free(me->uname);
+	free(me->gname);
+	free(me->fflags_text);
+	free(me);
+}
+
 static int
 archive_write_mtree_header(struct archive_write *a,
     struct archive_entry *entry)
 {
 	struct mtree_writer *mtree= a->format_data;
-	struct archive_string *str;
-	const char *path;
-
-	mtree->entry = archive_entry_clone(entry);
-	path = archive_entry_pathname(mtree->entry);
 
 	if (mtree->first) {
 		mtree->first = 0;
 		archive_strcat(&mtree->buf, "#mtree\n");
+		if ((mtree->keys & SET_KEYS) == 0)
+			mtree->set.output = 0;/* Disalbed. */
 	}
-	if (mtree->set.output)
-		set_global(mtree, entry);
-
-	archive_string_empty(&mtree->ebuf);
-	str = (mtree->indent)? &mtree->ebuf : &mtree->buf;
-	if (!mtree->dironly || archive_entry_filetype(entry) == AE_IFDIR)
-		mtree_quote(str, path);
 
 	mtree->entry_bytes_remaining = archive_entry_size(entry);
-	if ((mtree->keys & F_CKSUM) != 0 &&
-	    archive_entry_filetype(entry) == AE_IFREG) {
-		mtree->compute_sum |= F_CKSUM;
-		mtree->crc = 0;
-		mtree->crc_len = 0;
-	} else
-		mtree->compute_sum &= ~F_CKSUM;
-#ifdef ARCHIVE_HAS_MD5
-	if ((mtree->keys & F_MD5) != 0 &&
-	    archive_entry_filetype(entry) == AE_IFREG) {
-		mtree->compute_sum |= F_MD5;
-		archive_md5_init(&mtree->md5ctx);
-	} else
-		mtree->compute_sum &= ~F_MD5;
-#endif
-#ifdef ARCHIVE_HAS_RMD160
-	if ((mtree->keys & F_RMD160) != 0 &&
-	    archive_entry_filetype(entry) == AE_IFREG) {
-		mtree->compute_sum |= F_RMD160;
-		archive_rmd160_init(&mtree->rmd160ctx);
-	} else
-		mtree->compute_sum &= ~F_RMD160;
-#endif
-#ifdef ARCHIVE_HAS_SHA1
-	if ((mtree->keys & F_SHA1) != 0 &&
-	    archive_entry_filetype(entry) == AE_IFREG) {
-		mtree->compute_sum |= F_SHA1;
-		archive_sha1_init(&mtree->sha1ctx);
-	} else
-		mtree->compute_sum &= ~F_SHA1;
-#endif
-#ifdef ARCHIVE_HAS_SHA256
-	if ((mtree->keys & F_SHA256) != 0 &&
-	    archive_entry_filetype(entry) == AE_IFREG) {
-		mtree->compute_sum |= F_SHA256;
-		archive_sha256_init(&mtree->sha256ctx);
-	} else
-		mtree->compute_sum &= ~F_SHA256;
-#endif
-#ifdef ARCHIVE_HAS_SHA384
-	if ((mtree->keys & F_SHA384) != 0 &&
-	    archive_entry_filetype(entry) == AE_IFREG) {
-		mtree->compute_sum |= F_SHA384;
-		archive_sha384_init(&mtree->sha384ctx);
-	} else
-		mtree->compute_sum &= ~F_SHA384;
-#endif
-#ifdef ARCHIVE_HAS_SHA512
-	if ((mtree->keys & F_SHA512) != 0 &&
-	    archive_entry_filetype(entry) == AE_IFREG) {
-		mtree->compute_sum |= F_SHA512;
-		archive_sha512_init(&mtree->sha512ctx);
-	} else
-		mtree->compute_sum &= ~F_SHA512;
-#endif
+	if (mtree->dironly && archive_entry_filetype(entry) != AE_IFDIR)
+		return (ARCHIVE_OK);
+
+	mtree->mtree_entry = new_mtree_entry(entry);
+	if (mtree->mtree_entry == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate mtree entry");
+		return (ARCHIVE_FATAL);
+	}
+
+	mtree->compute_sum = 0;
+
+	/* If current file is not a regular file, we do not have to
+	 * compute the sum of its content. */ 
+	if (archive_entry_filetype(entry) != AE_IFREG)
+		return (ARCHIVE_OK);
+		
+	/* Initialize a bunch of sum check context. */
+	sum_init(mtree);
 
 	return (ARCHIVE_OK);
 }
 
-#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) || \
-    defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) || \
-    defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
-static void
-strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
-{
-	static const char hex[] = "0123456789abcdef";
-	int i;
-
-	for (i = 0; i < n; i++) {
-		archive_strappend_char(s, hex[bin[i] >> 4]);
-		archive_strappend_char(s, hex[bin[i] & 0x0f]);
-	}
-}
-#endif
-
 static int
-archive_write_mtree_finish_entry(struct archive_write *a)
+write_entry(struct archive_write *a, struct mtree_entry *me)
 {
 	struct mtree_writer *mtree = a->format_data;
-	struct archive_entry *entry;
 	struct archive_string *str;
-	const char *name;
 	int keys, ret;
 
-	entry = mtree->entry;
-	if (entry == NULL) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "Finished entry without being open first.");
-		return (ARCHIVE_FATAL);
-	}
-	mtree->entry = NULL;
-
-	if (mtree->dironly && archive_entry_filetype(entry) != AE_IFDIR) {
-		archive_entry_free(entry);
-		return (ARCHIVE_OK);
-	}
-
+	archive_string_empty(&mtree->ebuf);
 	str = (mtree->indent)? &mtree->ebuf : &mtree->buf;
-	keys = get_keys(mtree, entry);
+	mtree_quote(str, me->pathname);
+	keys = get_keys(mtree, me);
 	if ((keys & F_NLINK) != 0 &&
-	    archive_entry_nlink(entry) != 1 &&
-	    archive_entry_filetype(entry) != AE_IFDIR)
-		archive_string_sprintf(str,
-		    " nlink=%u", archive_entry_nlink(entry));
+	    me->nlink != 1 && me->filetype != AE_IFDIR)
+		archive_string_sprintf(str, " nlink=%u", me->nlink);
 
-	if ((keys & F_GNAME) != 0 &&
-	    (name = archive_entry_gname(entry)) != NULL) {
+	if ((keys & F_GNAME) != 0 && me->gname != NULL) {
 		archive_strcat(str, " gname=");
-		mtree_quote(str, name);
+		mtree_quote(str, me->gname);
 	}
-	if ((keys & F_UNAME) != 0 &&
-	    (name = archive_entry_uname(entry)) != NULL) {
+	if ((keys & F_UNAME) != 0 && me->uname != NULL) {
 		archive_strcat(str, " uname=");
-		mtree_quote(str, name);
+		mtree_quote(str, me->uname);
 	}
-	if ((keys & F_FLAGS) != 0 &&
-	    (name = archive_entry_fflags_text(entry)) != NULL) {
-		archive_strcat(str, " flags=");
-		mtree_quote(str, name);
+	if ((keys & F_FLAGS) != 0) {
+		if (me->fflags_text != NULL) {
+			archive_strcat(str, " flags=");
+			mtree_quote(str, me->fflags_text);
+		} else if (mtree->set.processed &&
+		    (mtree->set.keys & F_FLAGS) != 0)
+			/* Overwrite the global parameter. */
+			archive_strcat(str, " flags=none");
 	}
 	if ((keys & F_TIME) != 0)
 		archive_string_sprintf(str, " time=%jd.%jd",
-		    (intmax_t)archive_entry_mtime(entry),
-		    (intmax_t)archive_entry_mtime_nsec(entry));
+		    (intmax_t)me->mtime, (intmax_t)me->mtime_nsec);
 	if ((keys & F_MODE) != 0)
-		archive_string_sprintf(str, " mode=%o",
-		    archive_entry_mode(entry) & 07777);
+		archive_string_sprintf(str, " mode=%o", (unsigned int)me->mode);
 	if ((keys & F_GID) != 0)
-		archive_string_sprintf(str, " gid=%jd",
-		    (intmax_t)archive_entry_gid(entry));
+		archive_string_sprintf(str, " gid=%jd", (intmax_t)me->gid);
 	if ((keys & F_UID) != 0)
-		archive_string_sprintf(str, " uid=%jd",
-		    (intmax_t)archive_entry_uid(entry));
+		archive_string_sprintf(str, " uid=%jd", (intmax_t)me->uid);
 
-	switch (archive_entry_filetype(entry)) {
+	switch (me->filetype) {
 	case AE_IFLNK:
 		if ((keys & F_TYPE) != 0)
 			archive_strcat(str, " type=link");
 		if ((keys & F_SLINK) != 0) {
 			archive_strcat(str, " link=");
-			mtree_quote(str, archive_entry_symlink(entry));
+			mtree_quote(str, me->symlink);
 		}
 		break;
 	case AE_IFSOCK:
@@ -718,9 +938,9 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 			archive_strcat(str, " type=char");
 		if ((keys & F_DEV) != 0) {
 			archive_string_sprintf(str,
-			    " device=native,%d,%d",
-			    archive_entry_rdevmajor(entry),
-			    archive_entry_rdevminor(entry));
+			    " device=native,%ju,%ju",
+			    (uintmax_t)me->rdevmajor,
+			    (uintmax_t)me->rdevminor);
 		}
 		break;
 	case AE_IFBLK:
@@ -728,9 +948,9 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 			archive_strcat(str, " type=block");
 		if ((keys & F_DEV) != 0) {
 			archive_string_sprintf(str,
-			    " device=native,%d,%d",
-			    archive_entry_rdevmajor(entry),
-			    archive_entry_rdevminor(entry));
+			    " device=native,%ju,%ju",
+			    (uintmax_t)me->rdevmajor,
+			    (uintmax_t)me->rdevminor);
 		}
 		break;
 	case AE_IFDIR:
@@ -747,96 +967,110 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 			archive_strcat(str, " type=file");
 		if ((keys & F_SIZE) != 0)
 			archive_string_sprintf(str, " size=%jd",
-			    (intmax_t)archive_entry_size(entry));
+			    (intmax_t)me->size);
 		break;
 	}
 
-	if (mtree->compute_sum & F_CKSUM) {
-		uint64_t len;
-		/* Include the length of the file. */
-		for (len = mtree->crc_len; len != 0; len >>= 8)
-			COMPUTE_CRC(mtree->crc, len & 0xff);
-		mtree->crc = ~mtree->crc;
-		archive_string_sprintf(str, " cksum=%ju",
-		    (uintmax_t)mtree->crc);
-	}
-#ifdef ARCHIVE_HAS_MD5
-	if (mtree->compute_sum & F_MD5) {
-		unsigned char buf[16];
+	/* Write a bunch of sum. */
+	if (me->filetype == AE_IFREG)
+		sum_write(str, me);
 
-		archive_md5_final(&mtree->md5ctx, buf);
-		archive_strcat(str, " md5digest=");
-		strappend_bin(str, buf, sizeof(buf));
-	}
-#endif
-#ifdef ARCHIVE_HAS_RMD160
-	if (mtree->compute_sum & F_RMD160) {
-		unsigned char buf[20];
-
-		archive_rmd160_final(&mtree->rmd160ctx, buf);
-		archive_strcat(str, " rmd160digest=");
-		strappend_bin(str, buf, sizeof(buf));
-	}
-#endif
-#ifdef ARCHIVE_HAS_SHA1
-	if (mtree->compute_sum & F_SHA1) {
-		unsigned char buf[20];
-
-		archive_sha1_final(&mtree->sha1ctx, buf);
-		archive_strcat(str, " sha1digest=");
-		strappend_bin(str, buf, sizeof(buf));
-	}
-#endif
-#ifdef ARCHIVE_HAS_SHA256
-	if (mtree->compute_sum & F_SHA256) {
-		unsigned char buf[32];
-
-		archive_sha256_final(&mtree->sha256ctx, buf);
-		archive_strcat(str, " sha256digest=");
-		strappend_bin(str, buf, sizeof(buf));
-	}
-#endif
-#ifdef ARCHIVE_HAS_SHA384
-	if (mtree->compute_sum & F_SHA384) {
-		unsigned char buf[48];
-
-		archive_sha384_final(&mtree->sha384ctx, buf);
-		archive_strcat(str, " sha384digest=");
-		strappend_bin(str, buf, sizeof(buf));
-	}
-#endif
-#ifdef ARCHIVE_HAS_SHA512
-	if (mtree->compute_sum & F_SHA512) {
-		unsigned char buf[64];
-
-		archive_sha512_final(&mtree->sha512ctx, buf);
-		archive_strcat(str, " sha512digest=");
-		strappend_bin(str, buf, sizeof(buf));
-	}
-#endif
 	archive_strcat(str, "\n");
 	if (mtree->indent)
 		mtree_indent(mtree);
 
-	archive_entry_free(entry);
-
 	if (mtree->buf.length > 32768) {
-		ret = (a->compressor.write)(a, mtree->buf.s, mtree->buf.length);
+		ret = __archive_write_output(a, mtree->buf.s, mtree->buf.length);
 		archive_string_empty(&mtree->buf);
 	} else
 		ret = ARCHIVE_OK;
+	return (ret);
+}
 
+/*
+ * Write mtree entries saved at collect_set_values() function.
+ */
+static int
+write_mtree_entries(struct archive_write *a)
+{
+	struct mtree_writer *mtree = a->format_data;
+	struct mtree_entry *me, *tme;
+	int ret;
+
+	for (me = mtree->set.me_first; me; me = me->next) {
+		ret = write_entry(a, me);
+		if (ret != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	}
+
+	me = mtree->set.me_first;
+	while (me != NULL) {
+		tme = me->next;
+		free_mtree_entry(me);
+		me = tme;
+	}
+	mtree->set.me_first = NULL;
+	mtree->set.me_last = &mtree->set.me_first;
+	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_mtree_finish_entry(struct archive_write *a)
+{
+	struct mtree_writer *mtree = a->format_data;
+	struct mtree_entry *me;
+	int ret;
+
+	if ((me = mtree->mtree_entry) == NULL)
+		return (ARCHIVE_OK);
+	mtree->mtree_entry = NULL;
+
+	if (me->filetype == AE_IFREG)
+		sum_final(mtree, me);
+
+	if (mtree->set.output) {
+		if (!mtree->dironly) {
+			if (archive_strlen(&mtree->set.parent) == 0)
+				parent_dir_changed(&mtree->set.parent, me);
+			if (parent_dir_changed(&mtree->set.parent, me)) {
+				/* Write /set keyword */
+				write_global(mtree);
+				/* Write entries saved by
+				 * collect_set_values() function. */
+				ret = write_mtree_entries(a);
+				if (ret != ARCHIVE_OK)
+					return (ARCHIVE_FATAL);
+			}
+		}
+		/* Tabulate uid,gid,mode and fflags of a entry
+		 * in order to be used for /set. and, at this time
+		 * we do not write a entry.  */
+		collect_set_values(mtree, me);
+		return (ARCHIVE_OK);
+	} else {
+		/* Write the current entry and free it. */
+		ret = write_entry(a, me);
+		free_mtree_entry(me);
+	}
 	return (ret == ARCHIVE_OK ? ret : ARCHIVE_FATAL);
 }
 
 static int
-archive_write_mtree_finish(struct archive_write *a)
+archive_write_mtree_close(struct archive_write *a)
 {
 	struct mtree_writer *mtree= a->format_data;
+	int ret;
+
+	if (mtree->set.output && mtree->set.me_first != NULL) {
+		write_global(mtree);
+		ret = write_mtree_entries(a);
+		if (ret != ARCHIVE_OK)
+			return (ARCHIVE_FATAL);
+	}
 
 	archive_write_set_bytes_in_last_block(&a->archive, 1);
 
-	return (a->compressor.write)(a, mtree->buf.s, mtree->buf.length);
+	return __archive_write_output(a, mtree->buf.s, mtree->buf.length);
 }
 
 static ssize_t
@@ -846,59 +1080,41 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 
 	if (n > mtree->entry_bytes_remaining)
 		n = mtree->entry_bytes_remaining;
-	if (mtree->dironly)
-		/* We don't need compute a regular file sum */
-		return (n);
-	if (mtree->compute_sum & F_CKSUM) {
-		/*
-		 * Compute a POSIX 1003.2 checksum
-		 */
-		const unsigned char *p;
-		size_t nn;
+	mtree->entry_bytes_remaining -= n;
 
-		for (nn = n, p = buff; nn--; ++p)
-			COMPUTE_CRC(mtree->crc, *p);
-		mtree->crc_len += n;
-	}
-#ifdef ARCHIVE_HAS_MD5
-	if (mtree->compute_sum & F_MD5)
-		archive_md5_update(&mtree->md5ctx, buff, n);
-#endif
-#ifdef ARCHIVE_HAS_RMD160
-	if (mtree->compute_sum & F_RMD160)
-		archive_rmd160_update(&mtree->rmd160ctx, buff, n);
-#endif
-#ifdef ARCHIVE_HAS_SHA1
-	if (mtree->compute_sum & F_SHA1)
-		archive_sha1_update(&mtree->sha1ctx, buff, n);
-#endif
-#ifdef ARCHIVE_HAS_SHA256
-	if (mtree->compute_sum & F_SHA256)
-		archive_sha256_update(&mtree->sha256ctx, buff, n);
-#endif
-#ifdef ARCHIVE_HAS_SHA384
-	if (mtree->compute_sum & F_SHA384)
-		archive_sha384_update(&mtree->sha384ctx, buff, n);
-#endif
-#ifdef ARCHIVE_HAS_SHA512
-	if (mtree->compute_sum & F_SHA512)
-		archive_sha512_update(&mtree->sha512ctx, buff, n);
-#endif
+	/* We don't need to compute a regular file sum */
+	if (mtree->mtree_entry == NULL)
+		return (n);
+
+	if (mtree->mtree_entry->filetype == AE_IFREG)
+		sum_update(mtree, buff, n);
+
 	return (n);
 }
 
 static int
-archive_write_mtree_destroy(struct archive_write *a)
+archive_write_mtree_free(struct archive_write *a)
 {
 	struct mtree_writer *mtree= a->format_data;
+	struct mtree_entry *me, *tme;
 
 	if (mtree == NULL)
 		return (ARCHIVE_OK);
 
-	archive_entry_free(mtree->entry);
+	/* Make sure we dot not leave any entries. */
+	me = mtree->set.me_first;
+	while (me != NULL) {
+		tme = me->next;
+		free_mtree_entry(me);
+		me = tme;
+	}
 	archive_string_free(&mtree->ebuf);
 	archive_string_free(&mtree->buf);
 	archive_string_free(&mtree->set.parent);
+	free_attr_count(&mtree->set.uid_list);
+	free_attr_count(&mtree->set.gid_list);
+	free_attr_count(&mtree->set.mode_list);
+	free_attr_count(&mtree->set.flags_list);
 	free(mtree);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -1006,6 +1222,9 @@ archive_write_mtree_options(struct archive_write *a, const char *key,
 		return (ARCHIVE_OK);
 	}
 
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
 	return (ARCHIVE_WARN);
 }
 
@@ -1015,16 +1234,19 @@ archive_write_set_format_mtree(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct mtree_writer *mtree;
 
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_mtree");
 
-	if ((mtree = malloc(sizeof(*mtree))) == NULL) {
+	if (a->format_free != NULL)
+		(a->format_free)(a);
+
+	if ((mtree = calloc(1, sizeof(*mtree))) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate mtree data");
 		return (ARCHIVE_FATAL);
 	}
 
-	mtree->entry = NULL;
+	mtree->mtree_entry = NULL;
 	mtree->first = 1;
 	memset(&(mtree->set), 0, sizeof(mtree->set));
 	archive_string_init(&mtree->set.parent);
@@ -1033,18 +1255,217 @@ archive_write_set_format_mtree(struct archive *_a)
 	mtree->indent = 0;
 	archive_string_init(&mtree->ebuf);
 	archive_string_init(&mtree->buf);
+	mtree->set.me_first = NULL;
+	mtree->set.me_last = &mtree->set.me_first;
 	a->format_data = mtree;
-	a->format_destroy = archive_write_mtree_destroy;
-
-	a->pad_uncompressed = 0;
+	a->format_free = archive_write_mtree_free;
 	a->format_name = "mtree";
 	a->format_options = archive_write_mtree_options;
 	a->format_write_header = archive_write_mtree_header;
-	a->format_finish = archive_write_mtree_finish;
+	a->format_close = archive_write_mtree_close;
 	a->format_write_data = archive_write_mtree_data;
 	a->format_finish_entry = archive_write_mtree_finish_entry;
 	a->archive.archive_format = ARCHIVE_FORMAT_MTREE;
 	a->archive.archive_format_name = "mtree";
 
 	return (ARCHIVE_OK);
+}
+
+static void
+sum_init(struct mtree_writer *mtree)
+{
+	if (mtree->keys & F_CKSUM) {
+		mtree->compute_sum |= F_CKSUM;
+		mtree->crc = 0;
+		mtree->crc_len = 0;
+	}
+#ifdef ARCHIVE_HAS_MD5
+	if (mtree->keys & F_MD5) {
+		if (archive_md5_init(&mtree->md5ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_MD5;
+		else
+			mtree->keys &= ~F_MD5;/* Not supported. */
+	}
+#endif
+#ifdef ARCHIVE_HAS_RMD160
+	if (mtree->keys & F_RMD160) {
+		if (archive_rmd160_init(&mtree->rmd160ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_RMD160;
+		else
+			mtree->keys &= ~F_RMD160;/* Not supported. */
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA1
+	if (mtree->keys & F_SHA1) {
+		if (archive_sha1_init(&mtree->sha1ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA1;
+		else
+			mtree->keys &= ~F_SHA1;/* Not supported. */
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	if (mtree->keys & F_SHA256) {
+		if (archive_sha256_init(&mtree->sha256ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA256;
+		else
+			mtree->keys &= ~F_SHA256;/* Not supported. */
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA384
+	if (mtree->keys & F_SHA384) {
+		if (archive_sha384_init(&mtree->sha384ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA384;
+		else
+			mtree->keys &= ~F_SHA384;/* Not supported. */
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	if (mtree->keys & F_SHA512) {
+		if (archive_sha512_init(&mtree->sha512ctx) == ARCHIVE_OK)
+			mtree->compute_sum |= F_SHA512;
+		else
+			mtree->keys &= ~F_SHA512;/* Not supported. */
+	}
+#endif
+}
+
+static void
+sum_update(struct mtree_writer *mtree, const void *buff, size_t n)
+{
+	if (mtree->compute_sum & F_CKSUM) {
+		/*
+		 * Compute a POSIX 1003.2 checksum
+		 */
+		const unsigned char *p;
+		size_t nn;
+
+		for (nn = n, p = buff; nn--; ++p)
+			COMPUTE_CRC(mtree->crc, *p);
+		mtree->crc_len += n;
+	}
+#ifdef ARCHIVE_HAS_MD5
+	if (mtree->compute_sum & F_MD5)
+		archive_md5_update(&mtree->md5ctx, buff, n);
+#endif
+#ifdef ARCHIVE_HAS_RMD160
+	if (mtree->compute_sum & F_RMD160)
+		archive_rmd160_update(&mtree->rmd160ctx, buff, n);
+#endif
+#ifdef ARCHIVE_HAS_SHA1
+	if (mtree->compute_sum & F_SHA1)
+		archive_sha1_update(&mtree->sha1ctx, buff, n);
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	if (mtree->compute_sum & F_SHA256)
+		archive_sha256_update(&mtree->sha256ctx, buff, n);
+#endif
+#ifdef ARCHIVE_HAS_SHA384
+	if (mtree->compute_sum & F_SHA384)
+		archive_sha384_update(&mtree->sha384ctx, buff, n);
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	if (mtree->compute_sum & F_SHA512)
+		archive_sha512_update(&mtree->sha512ctx, buff, n);
+#endif
+}
+
+static void
+sum_final(struct mtree_writer *mtree, struct mtree_entry *me)
+{
+
+	if (mtree->compute_sum & F_CKSUM) {
+		uint64_t len;
+		/* Include the length of the file. */
+		for (len = mtree->crc_len; len != 0; len >>= 8)
+			COMPUTE_CRC(mtree->crc, len & 0xff);
+		me->crc = ~mtree->crc;
+	}
+#ifdef ARCHIVE_HAS_MD5
+	if (mtree->compute_sum & F_MD5)
+		archive_md5_final(&mtree->md5ctx, me->buf_md5);
+#endif
+#ifdef ARCHIVE_HAS_RMD160
+	if (mtree->compute_sum & F_RMD160)
+		archive_rmd160_final(&mtree->rmd160ctx, me->buf_rmd160);
+#endif
+#ifdef ARCHIVE_HAS_SHA1
+	if (mtree->compute_sum & F_SHA1)
+		archive_sha1_final(&mtree->sha1ctx, me->buf_sha1);
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	if (mtree->compute_sum & F_SHA256)
+		archive_sha256_final(&mtree->sha256ctx, me->buf_sha256);
+#endif
+#ifdef ARCHIVE_HAS_SHA384
+	if (mtree->compute_sum & F_SHA384)
+		archive_sha384_final(&mtree->sha384ctx, me->buf_sha384);
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	if (mtree->compute_sum & F_SHA512)
+		archive_sha512_final(&mtree->sha512ctx, me->buf_sha512);
+#endif
+	/* Save what types of sum are computed. */
+	me->compute_sum = mtree->compute_sum;
+}
+
+#if defined(ARCHIVE_HAS_MD5) || defined(ARCHIVE_HAS_RMD160) || \
+    defined(ARCHIVE_HAS_SHA1) || defined(ARCHIVE_HAS_SHA256) || \
+    defined(ARCHIVE_HAS_SHA384) || defined(ARCHIVE_HAS_SHA512)
+static void
+strappend_bin(struct archive_string *s, const unsigned char *bin, int n)
+{
+	static const char hex[] = "0123456789abcdef";
+	int i;
+
+	for (i = 0; i < n; i++) {
+		archive_strappend_char(s, hex[bin[i] >> 4]);
+		archive_strappend_char(s, hex[bin[i] & 0x0f]);
+	}
+}
+#endif
+
+static void
+sum_write(struct archive_string *str, struct mtree_entry *me)
+{
+
+	if (me->compute_sum & F_CKSUM) {
+		archive_string_sprintf(str, " cksum=%ju",
+		    (uintmax_t)me->crc);
+	}
+#ifdef ARCHIVE_HAS_MD5
+	if (me->compute_sum & F_MD5) {
+		archive_strcat(str, " md5digest=");
+		strappend_bin(str, me->buf_md5, sizeof(me->buf_md5));
+	}
+#endif
+#ifdef ARCHIVE_HAS_RMD160
+	if (me->compute_sum & F_RMD160) {
+		archive_strcat(str, " rmd160digest=");
+		strappend_bin(str, me->buf_rmd160, sizeof(me->buf_rmd160));
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA1
+	if (me->compute_sum & F_SHA1) {
+		archive_strcat(str, " sha1digest=");
+		strappend_bin(str, me->buf_sha1, sizeof(me->buf_sha1));
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	if (me->compute_sum & F_SHA256) {
+		archive_strcat(str, " sha256digest=");
+		strappend_bin(str, me->buf_sha256, sizeof(me->buf_sha256));
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA384
+	if (me->compute_sum & F_SHA384) {
+		archive_strcat(str, " sha384digest=");
+		strappend_bin(str, me->buf_sha384, sizeof(me->buf_sha384));
+	}
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	if (me->compute_sum & F_SHA512) {
+		archive_strcat(str, " sha512digest=");
+		strappend_bin(str, me->buf_sha512, sizeof(me->buf_sha512));
+	}
+#endif
 }
