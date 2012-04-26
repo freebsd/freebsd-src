@@ -887,6 +887,7 @@ printf("foreslots growing %d\n", retval);
 			     nd->nd_procnum != NFSPROC_DELEGRETURN &&
 			     nd->nd_procnum != NFSPROC_SETATTR &&
 			     nd->nd_procnum != NFSPROC_READ &&
+			     nd->nd_procnum != NFSPROC_READDS &&
 			     nd->nd_procnum != NFSPROC_WRITE &&
 			     nd->nd_procnum != NFSPROC_WRITEDS &&
 			     nd->nd_procnum != NFSPROC_OPEN &&

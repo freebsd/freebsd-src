@@ -110,8 +110,8 @@ static struct {
 	{ NFSV4OP_LAYOUTRETURN, 1, "LayoutReturn", 12, },
 	{ NFSV4OP_RECLAIMCOMPL, 1, "ReclaimComplete", 15, },
 	{ NFSV4OP_WRITE, 1, "WriteDS", 7, },
+	{ NFSV4OP_READ, 1, "ReadDS", 6, },
 };
-
 
 /*
  * NFS RPCS that have large request message size.
@@ -119,7 +119,7 @@ static struct {
 static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1
+	0, 0, 0, 0, 0, 0, 1, 0
 };
 
 /*

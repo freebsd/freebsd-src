@@ -315,11 +315,12 @@
 #define	NFSPROC_LAYOUTRETURN	49
 #define	NFSPROC_RECLAIMCOMPL	50
 #define	NFSPROC_WRITEDS		51
+#define	NFSPROC_READDS		52
 
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		52
+#define	NFSV41_NPROCS		53
 
 #endif	/* NFS_V3NPROCS */
 

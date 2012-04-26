@@ -5499,7 +5499,7 @@ nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
 	struct nfssockreq *nrp;
 
 	nd->nd_mrep = NULL;
-	nfscl_reqstart(nd, NFSPROC_READ, nmp, fhp->nfh_fh, fhp->nfh_len,
+	nfscl_reqstart(nd, NFSPROC_READDS, nmp, fhp->nfh_fh, fhp->nfh_len,
 	    NULL, &dsp->nfsclds_sess);
 	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED * 3);
