@@ -501,7 +501,7 @@ fail:
 		FREE(this->optv);
 	}
 	FREE(this);
-	FREE(line);
+	FREE(line0);
 	FREE(name);
 	fclose(f);
 	return (PAM_SYSTEM_ERR);
