@@ -608,13 +608,6 @@ struct sctp_getaddresses {
 	struct sockaddr addr[1];
 };
 
-struct sctp_setstrm_timeout {
-	sctp_assoc_t ssto_assoc_id;
-	uint32_t ssto_timeout;
-	uint32_t ssto_streamid_start;
-	uint32_t ssto_streamid_end;
-};
-
 struct sctp_status {
 	sctp_assoc_t sstat_assoc_id;
 	int32_t sstat_state;
