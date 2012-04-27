@@ -1017,10 +1017,10 @@ performNewfs(PartInfo *pi, char *dname, int queue)
 		}
 
 		if (queue == QUEUE_YES) {
-			command_shell_add(pi->mountpoint, buffer);
+			command_shell_add(pi->mountpoint, "%s", buffer);
 			return (0);
 		} else
-			return (vsystem(buffer));
+			return (vsystem("%s", buffer));
 	}
 	return (0);
 }
