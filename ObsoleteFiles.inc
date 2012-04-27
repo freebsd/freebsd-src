@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120425: libusb version bump (r234684)
+OLD_LIBS+=usr/lib/libusb.so.2
+OLD_LIBS+=usr/lib32/libusb.so.2
 # 20120415: new clang import which bumps version from 3.0 to 3.1
 OLD_FILES+=usr/include/clang/3.0/altivec.h
 OLD_FILES+=usr/include/clang/3.0/avxintrin.h
@@ -633,7 +636,6 @@ OLD_LIBS+=usr/lib/libssl.so.5
 OLD_LIBS+=usr/lib/libtacplus.so.3
 OLD_LIBS+=usr/lib/libugidfw.so.3
 OLD_LIBS+=usr/lib/libusb.so.1
-OLD_LIBS+=usr/lib/libusb.so.2
 OLD_LIBS+=usr/lib/libusbhid.so.3
 OLD_LIBS+=usr/lib/libvgl.so.5
 OLD_LIBS+=usr/lib/libwrap.so.5
@@ -735,7 +737,6 @@ OLD_LIBS+=usr/lib32/libufs.so.4
 OLD_LIBS+=usr/lib32/libugidfw.so.3
 OLD_LIBS+=usr/lib32/libumem.so.1
 OLD_LIBS+=usr/lib32/libusb.so.1
-OLD_LIBS+=usr/lib32/libusb.so.2
 OLD_LIBS+=usr/lib32/libusbhid.so.3
 OLD_LIBS+=usr/lib32/libutil.so.7
 OLD_LIBS+=usr/lib32/libuutil.so.1
