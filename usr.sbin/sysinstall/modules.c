@@ -198,7 +198,7 @@ kldBrowser(dialogMenuItem *self)
     if (err != NULL) {
 	what |= DITEM_FAILURE;
 	if (!variable_get(VAR_NO_ERROR))
-	    msgConfirm(err);
+	    msgConfirm("%s", err);
     }
     
     return (what);
