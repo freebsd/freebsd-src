@@ -174,7 +174,7 @@ TLBIE(uint64_t vpn) {
 	    ptesync;" 
 	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32), "r"(1)
 	    : "memory");
-	intr_enable();
+	intr_restore(intr);
 #endif
 
 	/* No barriers or special ops -- taken care of by ptesync above */
