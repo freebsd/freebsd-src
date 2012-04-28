@@ -1284,6 +1284,33 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 }
 
 /*
+ *	Returns TRUE if a cached page is associated with the given object and
+ *	offset, and FALSE otherwise.
+ *
+ *	The object must be locked.
+ */
+boolean_t
+vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t m;
+
+	/*
+	 * Insertion into an object's collection of cached pages requires the
+	 * object to be locked.  Therefore, if the object is locked and the
+	 * object's collection is empty, there is no need to acquire the free
+	 * page queues lock in order to prove that the specified page doesn't
+	 * exist.
+	 */
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (object->cache == NULL)
+		return (FALSE);
+	mtx_lock(&vm_page_queue_free_mtx);
+	m = vm_page_cache_lookup(object, pindex);
+	mtx_unlock(&vm_page_queue_free_mtx);
+	return (m != NULL);
+}
+
+/*
  *	vm_page_alloc:
  *
  *	Allocate and return a memory cell associated
