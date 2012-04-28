@@ -108,6 +108,17 @@ struct vm_pptdev_msi {
 	int		destcpu;
 };
 
+struct vm_pptdev_msix {
+	int		vcpu;
+	int		bus;
+	int		slot;
+	int		func;
+	int		idx;
+	uint32_t	msg;
+	uint32_t	vector_control;
+	uint64_t	addr;
+};
+
 struct vm_nmi {
 	int		cpuid;
 };
@@ -143,6 +154,7 @@ enum {
 	IOCNUM_UNBIND_PPTDEV,
 	IOCNUM_MAP_PPTDEV_MMIO,
 	IOCNUM_PPTDEV_MSI,
+	IOCNUM_PPTDEV_MSIX,
 	IOCNUM_INJECT_NMI,
 	IOCNUM_VM_STATS,
 	IOCNUM_VM_STAT_DESC,
@@ -182,6 +194,8 @@ enum {
 	_IOW('v', IOCNUM_MAP_PPTDEV_MMIO, struct vm_pptdev_mmio)
 #define	VM_PPTDEV_MSI \
 	_IOW('v', IOCNUM_PPTDEV_MSI, struct vm_pptdev_msi)
+#define	VM_PPTDEV_MSIX \
+	_IOW('v', IOCNUM_PPTDEV_MSIX, struct vm_pptdev_msix)
 #define VM_INJECT_NMI \
 	_IOW('v', IOCNUM_INJECT_NMI, struct vm_nmi)
 #define	VM_STATS \

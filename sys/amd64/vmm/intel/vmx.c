@@ -1185,6 +1185,10 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_CPUID:
 		handled = vmx_handle_cpuid(vcpu, vmxctx);
 		break;
+	case EXIT_REASON_EPT_FAULT:
+		vmexit->exitcode = VM_EXITCODE_PAGING;
+		vmexit->u.paging.cr3 = vmcs_guest_cr3();
+		break;
 	default:
 		break;
 	}

@@ -77,6 +77,8 @@ int	vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 			   vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int	vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 		     int dest, int vector, int numvec);
+int	vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
+		      int idx, uint32_t msg, uint32_t vector_control, uint64_t addr);
 
 /*
  * Return a pointer to the statistics buffer. Note that this is not MT-safe.

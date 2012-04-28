@@ -454,6 +454,25 @@ vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 	return (ioctl(ctx->fd, VM_PPTDEV_MSI, &pptmsi));
 }
 
+int	
+vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
+	      int idx, uint32_t msg, uint32_t vector_control, uint64_t addr)
+{
+	struct vm_pptdev_msix pptmsix;
+
+	bzero(&pptmsix, sizeof(pptmsix));
+	pptmsix.vcpu = vcpu;
+	pptmsix.bus = bus;
+	pptmsix.slot = slot;
+	pptmsix.func = func;
+	pptmsix.idx = idx;
+	pptmsix.msg = msg;
+	pptmsix.addr = addr;
+	pptmsix.vector_control = vector_control;
+
+	return ioctl(ctx->fd, VM_PPTDEV_MSIX, &pptmsix);
+}
+
 uint64_t *
 vm_get_stats(struct vmctx *ctx, int vcpu, struct timeval *ret_tv,
 	     int *ret_entries)

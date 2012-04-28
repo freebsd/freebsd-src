@@ -65,6 +65,7 @@ uint64_t vmcs_read(uint32_t encoding);
 #define	vmcs_instruction_error()	vmcs_read(VMCS_INSTRUCTION_ERROR)
 #define	vmcs_exit_reason()		(vmcs_read(VMCS_EXIT_REASON) & 0xffff)
 #define	vmcs_exit_qualification()	vmcs_read(VMCS_EXIT_QUALIFICATION)
+#define	vmcs_guest_cr3()		vmcs_read(VMCS_GUEST_CR3)
 
 #endif	/* _KERNEL */
 

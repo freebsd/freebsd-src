@@ -778,6 +778,7 @@ vlapic_init(struct vm *vm, int vcpuid)
 void
 vlapic_cleanup(struct vlapic *vlapic)
 {
+	vlapic_op_halt(vlapic);
 	vdev_unregister(vlapic);
 	free(vlapic, M_VLAPIC);
 }

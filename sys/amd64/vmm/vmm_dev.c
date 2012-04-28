@@ -158,6 +158,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
 	struct vm_pptdev_msi *pptmsi;
+	struct vm_pptdev_msix *pptmsix;
 	struct vm_nmi *vmnmi;
 	struct vm_stats *vmstats;
 	struct vm_stat_desc *statdesc;
@@ -239,6 +240,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 				      pptmsi->bus, pptmsi->slot, pptmsi->func,
 				      pptmsi->destcpu, pptmsi->vector,
 				      pptmsi->numvec);
+		break;
+	case VM_PPTDEV_MSIX:
+		pptmsix = (struct vm_pptdev_msix *)data;
+		error = ppt_setup_msix(sc->vm, pptmsix->vcpu,
+				       pptmsix->bus, pptmsix->slot, 
+				       pptmsix->func, pptmsix->idx,
+				       pptmsix->msg, pptmsix->vector_control,
+				       pptmsix->addr);
 		break;
 	case VM_MAP_PPTDEV_MMIO:
 		pptmmio = (struct vm_pptdev_mmio *)data;

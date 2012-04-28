@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "mevent.h"
 #include "pci_emul.h"
 #include "xmsr.h"
+#include "instruction_emul.h"
 
 #define	DEFAULT_GUEST_HZ	100
 #define	DEFAULT_GUEST_TSLICE	200
@@ -108,6 +109,7 @@ struct fbsdstats {
         uint64_t        vmexit_hlt;
         uint64_t        vmexit_pause;
         uint64_t        vmexit_mtrap;
+        uint64_t        vmexit_paging;
         uint64_t        cpu_switch_rotate;
         uint64_t        cpu_switch_direct;
         int             io_reset;
@@ -412,6 +414,20 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_RESTART);
 }
 
+static int
+vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+
+	stats.vmexit_paging++;
+
+	if (emulate_instruction(ctx, *pvcpu, vmexit->rip, vmexit->u.paging.cr3) != 0) {
+		printf("Failed to emulate instruction at 0x%lx\n", vmexit->rip);
+		return (VMEXIT_ABORT);
+	}
+
+	return (VMEXIT_CONTINUE);
+}
+
 static void
 sigalrm(int sig)
 {
@@ -446,12 +462,13 @@ setup_timeslice(void)
 }
 
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
-	[VM_EXITCODE_INOUT] = vmexit_inout,
-	[VM_EXITCODE_VMX]   = vmexit_vmx,
-	[VM_EXITCODE_BOGUS] = vmexit_bogus,
-	[VM_EXITCODE_RDMSR] = vmexit_rdmsr,
-	[VM_EXITCODE_WRMSR] = vmexit_wrmsr,
-	[VM_EXITCODE_MTRAP] = vmexit_mtrap,
+	[VM_EXITCODE_INOUT]  = vmexit_inout,
+	[VM_EXITCODE_VMX]    = vmexit_vmx,
+	[VM_EXITCODE_BOGUS]  = vmexit_bogus,
+	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
+	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
+	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
+	[VM_EXITCODE_PAGING] = vmexit_paging
 };
 
 static void

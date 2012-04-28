@@ -227,7 +227,8 @@ enum vm_exitcode {
 	VM_EXITCODE_HLT,
 	VM_EXITCODE_MTRAP,
 	VM_EXITCODE_PAUSE,
-	VM_EXITCODE_MAX,
+	VM_EXITCODE_PAGING,
+	VM_EXITCODE_MAX
 };
 
 struct vm_exit {
@@ -243,6 +244,9 @@ struct vm_exit {
 			uint16_t	port;
 			uint32_t	eax;		/* valid for out */
 		} inout;
+		struct {
+			uint64_t	cr3;
+		} paging;
 		/*
 		 * VMX specific payload. Used when there is no "better"
 		 * exitcode to represent the VM-exit.

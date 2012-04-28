@@ -42,6 +42,7 @@
 
 struct vmctx;
 struct pci_devinst;
+struct memory_region;
 
 struct pci_devemu {
 	char      *pe_emu;		/* Name of device emulation */
@@ -73,13 +74,29 @@ enum pcibar_type {
 	PCIBAR_MEMHI64
 };
 
+typedef int (*bar_write_func_t)(struct pci_devinst *pdi, int idx, uint64_t bar);
+
 struct pcibar {
 	enum pcibar_type	type;		/* io or memory */
 	uint64_t		size;
 	uint64_t		addr;
+	bar_write_func_t	handler;
 };
 
 #define PI_NAMESZ	40
+
+struct msix_table_entry {
+	uint64_t	addr;
+	uint32_t	msg_data;
+	uint32_t	vector_control;
+} __packed;
+
+/* 
+ * In case the structure is modified to hold extra information, use a define
+ * for the size that should be emulated.
+ */
+#define MSIX_TABLE_ENTRY_SIZE 16
+#define MAX_MSIX_TABLE_SIZE 2048
 
 struct pci_devinst {
 	struct pci_devemu *pi_d;
@@ -96,6 +113,19 @@ struct pci_devinst {
 		int	msgnum;
 	} pi_msi;
 
+	struct {
+		int	enabled;
+		int	table_bar;
+		int	pba_bar;
+		size_t	table_offset;
+		uintptr_t table_gpa;
+		size_t	table_size;
+		int	table_count;
+		size_t	pba_offset;
+		struct memory_region *table_bar_region;
+		struct msix_table_entry table[MAX_MSIX_TABLE_SIZE];
+	} pi_msix;
+
 	void      *pi_arg;		/* devemu-private data */
 
 	u_char	  pi_cfgdata[PCI_REGMAX + 1];
@@ -111,6 +141,14 @@ struct msicap {
 	uint16_t	msgdata;
 } __packed;
 
+struct msixcap {
+	uint8_t		capid;
+	uint8_t		nextptr;
+	uint16_t	msgctrl;
+	uint32_t	table_offset;
+	uint32_t	pba_offset;
+} __packed;
+
 void  init_pci(struct vmctx *ctx);
 void  pci_parse_slot(char *opt);
 void  pci_parse_name(char *opt);
@@ -120,6 +158,8 @@ int   pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 int   pci_emul_add_msicap(struct pci_devinst *pi, int msgnum);
 void  msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		      int bytes, uint32_t val);
+void  msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
+		       int bytes, uint32_t val);
 
 void  pci_generate_msi(struct pci_devinst *pi, int msgnum);
 int   pci_msi_enabled(struct pci_devinst *pi);
