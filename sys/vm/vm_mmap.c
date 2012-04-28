@@ -1449,9 +1449,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 {
 	boolean_t fitit;
 	vm_object_t object = NULL;
-	int rv = KERN_SUCCESS;
-	int docow, error;
 	struct thread *td = curthread;
+	int docow, error, rv;
 	boolean_t writecounted;
 
 	if (size == 0)
@@ -1557,31 +1556,35 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);
 
-	if (rv != KERN_SUCCESS) {
+	if (rv == KERN_SUCCESS) {
 		/*
-		 * Lose the object reference. Will destroy the
-		 * object if it's an unnamed anonymous mapping
-		 * or named anonymous without other references.
-		 *
+		 * If the process has requested that all future mappings
+		 * be wired, then heed this.
+		 */
+		if (map->flags & MAP_WIREFUTURE)
+			vm_map_wire(map, *addr, *addr + size,
+			    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+	} else {
+		/*
 		 * If this mapping was accounted for in the vnode's
 		 * writecount, then undo that now.
 		 */
 		if (writecounted)
 			vnode_pager_release_writecount(object, 0, size);
+		/*
+		 * Lose the object reference.  Will destroy the
+		 * object if it's an unnamed anonymous mapping
+		 * or named anonymous without other references.
+		 */
 		vm_object_deallocate(object);
 	}
-
-	/*
-	 * If the process has requested that all future mappings
-	 * be wired, then heed this.
-	 */
-	if ((rv == KERN_SUCCESS) && (map->flags & MAP_WIREFUTURE))
-		vm_map_wire(map, *addr, *addr + size,
-		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
-
 	return (vm_mmap_to_errno(rv));
 }
 
+/*
+ * Translate a Mach VM return code to zero on success or the appropriate errno
+ * on failure.
+ */
 int
 vm_mmap_to_errno(int rv)
 {
