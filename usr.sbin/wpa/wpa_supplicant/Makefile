@@ -5,14 +5,7 @@
 .PATH.c:${WPA_DISTDIR}/src/drivers
 
 PROG=	wpa_supplicant
-SRCS=	aes-cbc.c \
-	aes-ctr.c \
-	aes-eax.c \
-	aes-encblock.c \
-	aes-internal.c \
-	aes-omac1.c \
-	aes-unwrap.c \
-	aes-wrap.c \
+SRCS=	aes-unwrap.c \
 	base64.c \
 	blacklist.c \
 	bss.c \
@@ -36,8 +29,6 @@ SRCS=	aes-cbc.c \
 	preauth.c \
 	scan.c \
 	sha1-pbkdf2.c \
-	sha1-tlsprf.c \
-	sha1-tprf.c \
 	sha1.c \
 	wpa.c \
 	wpa_common.c \
@@ -78,9 +69,6 @@ LDADD+=${WPA_SUPPLICANT_LDADD}
 #LDFLAGS+=${WPA_SUPPLICANT_LDFLAGS}
 
 .if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
-
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
-
 CFLAGS+=-DEAP_GTC \
 	-DEAP_LEAP \
 	-DEAP_MD5 \
@@ -89,13 +77,9 @@ CFLAGS+=-DEAP_GTC \
 	-DEAP_PEAP \
 	-DEAP_PSK \
 	-DEAP_TLS \
-	-DEAP_TLV \
-	-DEAP_TLS_FUNCS \
-	-DEAP_TLS_OPENSSL \
 	-DEAP_TTLS \
 	-DIEEE8021X_EAPOL
 SRCS+=	chap.c \
-	crypto_openssl.c \
 	eap.c \
 	eap_common.c \
 	eap_gtc.c \
@@ -113,21 +97,29 @@ SRCS+=	chap.c \
 	eap_ttls.c \
 	eapol_supp_sm.c \
 	ms_funcs.c \
-	mschapv2.c \
-	tls_openssl.c
+	mschapv2.c
+TLS_FUNCS=y
+NEED_AES_EAX=y
+NEED_AES_ENCBLOCK=y
+NEED_AES_OMAC1=y
+NEED_SHA256=y
+.endif
 
 .if !empty(CFLAGS:M*-DEAP_AKA)
-NEED_SIM_COMMON=	true
 SRCS+=	eap_aka.c
+NEED_SIM_COMMON=y
+NEED_AES_CBC=y
 .endif
 
 .if !empty(CFLAGS:M*-DEAP_SIM)
-NEED_SIM_COMMON=	true
 SRCS+=	eap_sim.c
+NEED_SIM_COMMON=y
+NEED_AES_CBC=y
 .endif
 
 .if defined(NEED_SIM_COMMON)
 SRCS+=	eap_sim_common.c
+NEED_FIPS186_2_PRF=y
 .endif
 
 # PC/SC interface for smartcards (USIM, GSM SIM)
@@ -147,7 +139,7 @@ LDADD+=-lpcsclite -lpthread
 CFLAGS+=-DEAP_GPSK_SHA256
 SRCS+=	eap_gpsk.c \
 	eap_gpsk_common.c
-NEED_SHA256=	true
+NEED_AES_OMAC1=y
 .endif
 
 .if !empty(CFLAGS:M*-DEAP_PAX)
@@ -160,32 +152,6 @@ SRCS+=	eap_sake.c \
 	eap_sake_common.c
 .endif
 
-NEED_LIBSSL=	true
-.else
-CFLAGS+= -DEAP_TLS_NONE
-SRCS+=	tls_none.c
-.endif
-
-.endif
-
-#
-# Configure crypto/cipher support.
-#
-# EAPOL support requires openssl in which case we use their
-# cipher code.  Otherwise we use our internal versions.
-#
-.if !defined(NEED_LIBSSL)
-CFLAGS+= -DINTERNAL_AES
-CFLAGS+= -DINTERNAL_SHA1
-CFLAGS+= -DINTERNAL_MD5
-.else
-DPADD+= ${LIBSSL} ${LIBCRYPTO}
-LDADD+= -lssl -lcrypto
-.endif
-
-.if defined(NEED_SHA256)
-CFLAGS+=-DINTERNAL_SHA256
-SRCS+=	sha256.c
-.endif
+.include "${.CURDIR}/../Makefile.crypto"
 
 .include <bsd.prog.mk>
