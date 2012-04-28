@@ -83,6 +83,9 @@ normally does) it is line buffered.
 The standard error stream
 .Dv stderr
 is always unbuffered.
+Note that these defaults maybe be altered using the
+.Xr stdbuf 1
+utility.
 .Pp
 The
 .Fn setvbuf
@@ -177,6 +180,7 @@ function returns what the equivalent
 .Fn setvbuf
 would have returned.
 .Sh SEE ALSO
+.Xr stdbuf 1 ,
 .Xr fclose 3 ,
 .Xr fopen 3 ,
 .Xr fread 3 ,
