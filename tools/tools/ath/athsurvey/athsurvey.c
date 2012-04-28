@@ -201,9 +201,9 @@ main(int argc, char *argv[])
 			    "min                   "
 			    "avg                   "
 			    "max\n");
-			printf("  tx%%  rx%%  cc%%  ec%%  ");
-			printf("  tx%%  rx%%  cc%%  ec%%  ");
-			printf("  tx%%  rx%%  cc%%  ec%%\n");
+			printf("  tx%%  rx%%  bc%%  ec%%  ");
+			printf("  tx%%  rx%%  bc%%  ec%%  ");
+			printf("  tx%%  rx%%  bc%%  ec%%\n");
 		}
 		process_survey_stats(&hs);
 		sleep(1);
