@@ -827,10 +827,8 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 		ath_hal_printf(ah, "%s: ah_curchan = NULL?\n", __func__);
 		return (0);
 	}
-	/* XXX bounds check? */
-	if (AH_PRIVATE(ah)->ah_curchan != AH_NULL)
-		cs =
-		    &ahp->ah_chansurvey[AH_PRIVATE(ah)->ah_curchan->ic_devdata];
+
+	cs = &ahp->ah_chansurvey;
 
 	/*
 	 * Fetch the current statistics, squirrel away the current
