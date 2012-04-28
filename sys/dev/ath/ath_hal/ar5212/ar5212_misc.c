@@ -1090,6 +1090,14 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 				return AH_FALSE;
 			return ar5212AniSetParams(ah, args, args);
 		}
+		break;
+	case HAL_DIAG_CHANSURVEY:
+		if (AH_PRIVATE(ah)->ah_curchan == NULL)
+			return AH_FALSE;
+		*result =
+		    &ahp->ah_chansurvey[AH_PRIVATE(ah)->ah_curchan->ic_devdata];
+		*resultsize = sizeof(HAL_CHANNEL_SURVEY);
+		return AH_TRUE;
 	}
 	return AH_FALSE;
 }
