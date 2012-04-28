@@ -11,10 +11,10 @@ SRCS=	accounting.c \
 	ap_drv_ops.c \
 	ap_mlme.c \
 	authsrv.c \
+	base64.c \
 	chap.c \
 	common.c \
 	config_file.c \
-	crypto_openssl.c \
 	ctrl_iface.c \
 	ctrl_iface_ap.c \
 	drivers.c \
@@ -42,7 +42,6 @@ SRCS=	accounting.c \
 	radius.c \
 	radius_client.c \
 	sha1-pbkdf2.c \
-	sha1-tlsprf.c \
 	sha1.c \
 	sta_info.c \
 	tkip_countermeasures.c \
@@ -73,16 +72,14 @@ CFLAGS+=-DCONFIG_DRIVER_BSD \
 CFLAGS+= -DCONFIG_IPV6
 .endif
 #CFLAGS+= -g
-DPADD+=	${LIBPCAP} ${LIBSSL}
-LDADD+=	-lpcap -lssl
+DPADD+=	${LIBPCAP}
+LDADD+=	-lpcap
 
 # User customizations for wpa_supplicant/hostapd build environment
 CFLAGS+=${HOSTAPD_CFLAGS}
 #DPADD+=${HOSTAPD_DPADD}
 LDADD+=${HOSTAPD_LDADD}
 #LDFLAGS+=${HOSTAPD_LDFLAGS}
-
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 
 CFLAGS+=-DDPKCS12_FUNCS \
 	-DEAP_SERVER \
@@ -103,33 +100,32 @@ SRCS+=	dump_state.c \
 	eap_server_peap.c \
 	eap_server_tls.c \
 	eap_server_tls_common.c \
-	eap_server_ttls.c \
-	tls_openssl.c
+	eap_server_ttls.c
+TLS_FUNCS=y
+NEED_SHA256=y
 
 .if !empty(CFLAGS:M*-DEAP_SERVER_AKA)
-NEED_SIM_COMMON=	true
-NEED_SHA256=	true
 SRCS+=	eap_server_aka.c
+NEED_SIM_COMMON=y
 .endif
 
 .if !empty(CFLAGS:M*-DEAP_SERVER_SIM)
-NEED_SIM_COMMON=	true
 SRCS+=	eap_server_sim.c
+NEED_SIM_COMMON=y
 .endif
 
 .if defined(NEED_SIM_COMMON)
 SRCS+=	eap_sim_common.c \
 	eap_sim_db.c
-NEED_AES_CBC=	true
-NEED_FIPS186_2_PRF=	true
+NEED_AES_CBC=y
+NEED_FIPS186_2_PRF=y
 .endif
 
 .if !empty(CFLAGS:M*-DEAP_SERVER_GPSK)
 CFLAGS+=-DEAP_GPSK_SHA256
 SRCS+=	eap_server_gpsk.c \
 	eap_gpsk_common.c
-NEED_SHA256=	true
-NEED_AES_OMAC1=	true
+NEED_AES_OMAC1=y
 .endif
 
 .if !empty(CFLAGS:M*-DEAP_SERVER_PAX)
@@ -142,34 +138,6 @@ SRCS+=	eap_server_sake.c \
 	eap_sake_common.c
 .endif
 
-DPADD+= ${LIBSSL} ${LIBCRYPTO}
-LDADD+= -lssl -lcrypto
-.else
-NEED_TLS_NONE=	true
-.endif
-
-.if defined(NEED_AES_CBC)
-SRCS+=	aes-cbc.c
-.endif
-
-.if defined(NEED_AES_OMAC1)
-SRCS+=	aes-omac1.c
-.endif
-
-.if defined(NEED_FIPS186_2_PRF)
-SRCS+=	fips_prf_openssl.c
-.endif
-
-.if defined(NEED_SHA256)
-SRCS+=	sha256.c
-.endif
-
-.if defined(NEED_TLS_NONE)
-CFLAGS+= -DEAP_TLS_NONE
-CFLAGS+= -DINTERNAL_AES
-CFLAGS+= -DINTERNAL_SHA1
-CFLAGS+= -DINTERNAL_MD5
-SRCS+=	tls_none.c
-.endif
+.include "${.CURDIR}/../Makefile.crypto"
 
 .include <bsd.prog.mk>
