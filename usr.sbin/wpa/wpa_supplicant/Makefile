@@ -81,9 +81,11 @@ LDADD+=${WPA_SUPPLICANT_LDADD}
 
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 
-CFLAGS+=-DEAP_LEAP \
+CFLAGS+=-DEAP_GTC \
+	-DEAP_LEAP \
 	-DEAP_MD5 \
 	-DEAP_MSCHAPv2 \
+	-DEAP_OTP \
 	-DEAP_PEAP \
 	-DEAP_PSK \
 	-DEAP_TLS \
@@ -96,10 +98,12 @@ SRCS+=	chap.c \
 	crypto_openssl.c \
 	eap.c \
 	eap_common.c \
+	eap_gtc.c \
 	eap_leap.c \
 	eap_md5.c \
 	eap_methods.c \
 	eap_mschapv2.c \
+	eap_otp.c \
 	eap_peap.c \
 	eap_peap_common.c \
 	eap_psk.c \
@@ -111,14 +115,6 @@ SRCS+=	chap.c \
 	ms_funcs.c \
 	mschapv2.c \
 	tls_openssl.c
-
-.if !empty(CFLAGS:M*-DEAP_GTC)
-SRCS+=	eap_gtc.c
-.endif
-
-.if !empty(CFLAGS:M*-DEAP_OTP)
-SRCS+=	eap_otp.c
-.endif
 
 .if !empty(CFLAGS:M*-DEAP_AKA)
 NEED_SIM_COMMON=	true
