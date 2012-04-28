@@ -119,9 +119,9 @@ __FBSDID("$FreeBSD$");
 CTASSERT(ATH_BCBUF <= 8);
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
@@ -849,16 +849,17 @@ assign_bslot(struct ath_softc *sc)
 }
 
 static struct ieee80211vap *
-ath_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_vap *avp;
 	struct ieee80211vap *vap;
 	uint8_t mac[IEEE80211_ADDR_LEN];
-	int ic_opmode, needbeacon, error;
+	int needbeacon, error;
+	enum ieee80211_opmode ic_opmode;
 
 	avp = (struct ath_vap *) malloc(sizeof(struct ath_vap),
 	    M_80211_VAP, M_WAITOK | M_ZERO);
