@@ -254,9 +254,9 @@ static const struct usb_config uath_usbconfig[UATH_N_XFERS] = {
 };
 
 static struct ieee80211vap *uath_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	uath_vap_delete(struct ieee80211vap *);
 static int	uath_alloc_cmd_list(struct uath_softc *, struct uath_cmd [],
 		    int, int);
@@ -1065,10 +1065,10 @@ uath_free_tx_data_list(struct uath_softc *sc)
 }
 
 static struct ieee80211vap *
-uath_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+uath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct uath_vap *uvp;
 	struct ieee80211vap *vap;
