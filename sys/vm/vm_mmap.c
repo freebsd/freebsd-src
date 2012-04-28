@@ -1564,9 +1564,11 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		 * If the process has requested that all future mappings
 		 * be wired, then heed this.
 		 */
-		if (map->flags & MAP_WIREFUTURE)
+		if (map->flags & MAP_WIREFUTURE) {
 			vm_map_wire(map, *addr, *addr + size,
-			    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+			    VM_MAP_WIRE_USER | ((flags & MAP_STACK) ?
+			    VM_MAP_WIRE_HOLESOK : VM_MAP_WIRE_NOHOLES));
+		}
 	} else {
 		/*
 		 * If this mapping was accounted for in the vnode's
