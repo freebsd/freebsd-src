@@ -582,6 +582,7 @@ OLD_LIBS+=lib/libipx.so.4
 OLD_LIBS+=lib/libkiconv.so.3
 OLD_LIBS+=lib/libkvm.so.4
 OLD_LIBS+=lib/libmd.so.4
+OLD_LIBS+=lib/libmd.so.5
 OLD_LIBS+=lib/libncurses.so.7
 OLD_LIBS+=lib/libncursesw.so.7
 OLD_LIBS+=lib/libnvpair.so.1
