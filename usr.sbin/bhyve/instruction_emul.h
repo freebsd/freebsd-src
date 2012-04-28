@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2012 Sandvine, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,22 @@
  * $FreeBSD$
  */
 
-#ifndef _IO_PPT_H_
-#define	_IO_PPT_H_
+#ifndef _INSTRUCTION_EMUL_H_
+#define _INSTRUCTION_EMUL_H_
 
-int	ppt_assign_device(struct vm *vm, int bus, int slot, int func);
-int	ppt_unassign_device(struct vm *vm, int bus, int slot, int func);
-int	ppt_unassign_all(struct vm *vm);
-int	ppt_map_mmio(struct vm *vm, int bus, int slot, int func,
-		     vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
-int	ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
-		      int destcpu, int vector, int numvec);
-int	ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
-		       int idx, uint32_t msg, uint32_t vector_control, uint64_t addr);
+struct memory_region;
+
+typedef int (*emulated_read_func_t)(struct vmctx *vm, int vcpu, uintptr_t addr, 
+				    int size, uint64_t *data, void *arg);
+typedef int (*emulated_write_func_t)(struct vmctx *vm, int vcpu, uintptr_t addr, 
+				     int size, uint64_t data, void *arg);
+
+int emulate_instruction(struct vmctx *vm, int vcpu, uint64_t rip, 
+			uint64_t cr3);
+struct memory_region *register_emulated_memory(uintptr_t start, size_t len, 
+					       emulated_read_func_t memread, 
+					       emulated_write_func_t memwrite, 
+					       void *arg);
+void move_memory_region(struct memory_region *memory_region, uintptr_t start);
+
 #endif

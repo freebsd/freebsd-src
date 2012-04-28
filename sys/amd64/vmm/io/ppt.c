@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/pciio.h>
@@ -56,9 +57,12 @@ __FBSDID("$FreeBSD$");
 #define	MAX_MMIOSEGS	(PCIR_MAX_BAR_0 + 1)
 #define	MAX_MSIMSGS	32
 
+MALLOC_DEFINE(M_PPTMSIX, "pptmsix", "Passthru MSI-X resources");
+
 struct pptintr_arg {				/* pptintr(pptintr_arg) */
 	struct pptdev	*pptdev;
-	int		msg;
+	int		vec;
+	int 		vcpu;
 };
 
 static struct pptdev {
@@ -75,6 +79,16 @@ static struct pptdev {
 		void	*cookie[MAX_MSIMSGS];
 		struct pptintr_arg arg[MAX_MSIMSGS];
 	} msi;
+
+	struct {
+		int num_msgs;
+		int startrid;
+		int msix_table_rid;
+		struct resource *msix_table_res;
+		struct resource **res;
+		void **cookie;
+		struct pptintr_arg *arg;
+	} msix;
 } pptdevs[32];
 
 static int num_pptdevs;
@@ -209,6 +223,57 @@ ppt_teardown_msi(struct pptdev *ppt)
 	ppt->msi.num_msgs = 0;
 }
 
+static void 
+ppt_teardown_msix_intr(struct pptdev *ppt, int idx)
+{
+	int rid;
+	struct resource *res;
+	void *cookie;
+
+	rid = ppt->msix.startrid + idx;
+	res = ppt->msix.res[idx];
+	cookie = ppt->msix.cookie[idx];
+
+	if (cookie != NULL) 
+		bus_teardown_intr(ppt->dev, res, cookie);
+
+	if (res != NULL) 
+		bus_release_resource(ppt->dev, SYS_RES_IRQ, rid, res);
+
+	ppt->msix.res[idx] = NULL;
+	ppt->msix.cookie[idx] = NULL;
+}
+
+static void 
+ppt_teardown_msix(struct pptdev *ppt)
+{
+	int i, error;
+
+	if (ppt->msix.num_msgs == 0) 
+		return;
+
+	for (i = 0; i < ppt->msix.num_msgs; i++) 
+		ppt_teardown_msix_intr(ppt, i);
+
+	if (ppt->msix.msix_table_res) {
+		bus_release_resource(ppt->dev, SYS_RES_MEMORY, 
+				     ppt->msix.msix_table_rid,
+				     ppt->msix.msix_table_res);
+		ppt->msix.msix_table_res = NULL;
+		ppt->msix.msix_table_rid = 0;
+	}
+
+	free(ppt->msix.res, M_PPTMSIX);
+	free(ppt->msix.cookie, M_PPTMSIX);
+	free(ppt->msix.arg, M_PPTMSIX);
+
+	error = pci_release_msi(ppt->dev);
+	if (error) 
+		printf("ppt_teardown_msix: Failed to release MSI-X resources (error %i)\n", error);
+
+	ppt->msix.num_msgs = 0;
+}
+
 int
 ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 {
@@ -244,6 +309,7 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 			return (EBUSY);
 		ppt_unmap_mmio(vm, ppt);
 		ppt_teardown_msi(ppt);
+		ppt_teardown_msix(ppt);
 		iommu_remove_device(vm_iommu_domain(vm), bus, slot, func);
 		ppt->vm = NULL;
 		return (0);
@@ -309,10 +375,10 @@ pptintr(void *arg)
 	
 	pptarg = arg;
 	ppt = pptarg->pptdev;
-	vec = ppt->msi.vector + pptarg->msg;
+	vec = pptarg->vec;
 
 	if (ppt->vm != NULL)
-		(void) lapic_set_intr(ppt->vm, ppt->msi.vcpu, vec);
+		(void) lapic_set_intr(ppt->vm, pptarg->vcpu, vec);
 	else {
 		/*
 		 * XXX
@@ -431,7 +497,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 			break;
 
 		ppt->msi.arg[i].pptdev = ppt;
-		ppt->msi.arg[i].msg = i;
+		ppt->msi.arg[i].vec = vector + i;
 
 		error = bus_setup_intr(ppt->dev, ppt->msi.res[i],
 				       INTR_TYPE_NET | INTR_MPSAFE,
@@ -448,3 +514,110 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 
 	return (0);
 }
+
+int
+ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
+	       int idx, uint32_t msg, uint32_t vector_control, uint64_t addr)
+{
+	struct pptdev *ppt;
+	struct pci_devinfo *dinfo;
+	int numvec, vector_count, rid, error;
+	size_t res_size, cookie_size, arg_size;
+
+	ppt = ppt_find(bus, slot, func);
+	if (ppt == NULL)
+		return (ENOENT);
+	if (ppt->vm != vm)		/* Make sure we own this device */
+		return (EBUSY);
+
+	dinfo = device_get_ivars(ppt->dev);
+	if (!dinfo) 
+		return (ENXIO);
+
+	/* 
+	 * First-time configuration:
+	 * 	Allocate the MSI-X table
+	 *	Allocate the IRQ resources
+	 *	Set up some variables in ppt->msix
+	 */
+	if (!ppt->msix.msix_table_res) {
+		ppt->msix.res = NULL;
+		ppt->msix.cookie = NULL;
+		ppt->msix.arg = NULL;
+
+		rid = dinfo->cfg.msix.msix_table_bar;
+		ppt->msix.msix_table_res = bus_alloc_resource_any(ppt->dev, SYS_RES_MEMORY,
+								  &rid, RF_ACTIVE);
+		if (ppt->msix.msix_table_res == NULL) 
+			return (ENOSPC);
+
+		ppt->msix.msix_table_rid = rid;
+
+		vector_count = numvec = pci_msix_count(ppt->dev);
+
+		error = pci_alloc_msix(ppt->dev, &numvec);
+		if (error) 
+			return (error);
+		else if (vector_count != numvec) {
+			pci_release_msi(ppt->dev);
+			return (ENOSPC);
+		} 
+
+		ppt->msix.num_msgs = numvec;
+
+		ppt->msix.startrid = 1;
+
+		res_size = numvec * sizeof(ppt->msix.res[0]);
+		cookie_size = numvec * sizeof(ppt->msix.cookie[0]);
+		arg_size = numvec * sizeof(ppt->msix.arg[0]);
+
+		ppt->msix.res = malloc(res_size, M_PPTMSIX, M_WAITOK);
+		ppt->msix.cookie = malloc(cookie_size, M_PPTMSIX, M_WAITOK);
+		ppt->msix.arg = malloc(arg_size, M_PPTMSIX, M_WAITOK);
+		if (ppt->msix.res == NULL || ppt->msix.cookie == NULL || 
+		    ppt->msix.arg == NULL) {
+			ppt_teardown_msix(ppt);
+			return (ENOSPC);
+		}
+		bzero(ppt->msix.res, res_size);
+		bzero(ppt->msix.cookie, cookie_size);
+		bzero(ppt->msix.arg, arg_size);
+	}
+
+	if ((vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
+		/* Tear down the IRQ if it's already set up */
+		ppt_teardown_msix_intr(ppt, idx);
+
+		/* Allocate the IRQ resource */
+		ppt->msix.cookie[idx] = NULL;
+		rid = ppt->msix.startrid + idx;
+		ppt->msix.res[idx] = bus_alloc_resource_any(ppt->dev, SYS_RES_IRQ,
+							    &rid, RF_ACTIVE);
+		if (ppt->msix.res[idx] == NULL)
+			return (ENXIO);
+	
+		ppt->msix.arg[idx].pptdev = ppt;
+		ppt->msix.arg[idx].vec = msg;
+		ppt->msix.arg[idx].vcpu = (addr >> 12) & 0xFF;
+	
+		/* Setup the MSI-X interrupt */
+		error = bus_setup_intr(ppt->dev, ppt->msix.res[idx],
+				       INTR_TYPE_NET | INTR_MPSAFE,
+				       pptintr, NULL, &ppt->msix.arg[idx],
+				       &ppt->msix.cookie[idx]);
+	
+		if (error != 0) {
+			bus_teardown_intr(ppt->dev, ppt->msix.res[idx], ppt->msix.cookie[idx]);
+			bus_release_resource(ppt->dev, SYS_RES_IRQ, rid, ppt->msix.res[idx]);
+			ppt->msix.cookie[idx] = NULL;
+			ppt->msix.res[idx] = NULL;
+			return (ENXIO);
+		}
+	} else {
+		/* Masked, tear it down if it's already been set up */
+		ppt_teardown_msix_intr(ppt, idx);
+	}
+
+	return (0);
+}
+

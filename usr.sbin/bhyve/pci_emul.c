@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "fbsdrun.h"
 #include "inout.h"
 #include "pci_emul.h"
+#include "instruction_emul.h"
 
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
@@ -572,6 +573,29 @@ pci_emul_add_msicap(struct pci_devinst *pi, int msgnum)
 }
 
 void
+msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
+		 int bytes, uint32_t val)
+{
+	uint16_t msgctrl, rwmask;
+	int off, table_bar;
+        
+	off = offset - capoff;
+	table_bar = pi->pi_msix.table_bar;
+	/* Message Control Register */
+	if (off == 2 && bytes == 2) {
+		rwmask = PCIM_MSIXCTRL_MSIX_ENABLE | PCIM_MSIXCTRL_FUNCTION_MASK;
+		msgctrl = pci_get_cfgdata16(pi, offset);
+		msgctrl &= ~rwmask;
+		msgctrl |= val & rwmask;
+		val = msgctrl;
+
+		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
+	} 
+	
+	CFGWRITE(pi, offset, val, bytes);
+}
+
+void
 msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		int bytes, uint32_t val)
 {
@@ -847,6 +871,11 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 				assert(0);
 			}
 			pci_set_cfgdata32(pi, coff, bar);
+
+			if (pi->pi_bar[idx].handler) {
+				pi->pi_bar[idx].handler(pi, idx, bar);
+			}
+
 		} else if (pci_emul_iscap(pi, coff)) {
 			pci_emul_capwrite(pi, coff, bytes, *eax);
 		} else {
