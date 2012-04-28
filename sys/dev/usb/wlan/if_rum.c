@@ -152,9 +152,9 @@ static usb_callback_t rum_bulk_write_callback;
 static usb_error_t	rum_do_request(struct rum_softc *sc,
 			    struct usb_device_request *req, void *data);
 static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
-			    const char name[IFNAMSIZ], int unit, int opmode,
-			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+			    const char [IFNAMSIZ], int, enum ieee80211_opmode,
+			    int, const uint8_t [IEEE80211_ADDR_LEN],
+			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		rum_vap_delete(struct ieee80211vap *);
 static void		rum_tx_free(struct rum_tx_data *, int);
 static void		rum_setup_tx_list(struct rum_softc *);
@@ -580,10 +580,10 @@ rum_do_request(struct rum_softc *sc,
 }
 
 static struct ieee80211vap *
-rum_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+rum_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct rum_softc *sc = ic->ic_ifp->if_softc;
 	struct rum_vap *rvp;

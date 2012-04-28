@@ -96,9 +96,9 @@ struct bwi_myaddr_bssid {
 } __packed;
 
 static struct ieee80211vap *bwi_vap_create(struct ieee80211com *,
-		   const char [IFNAMSIZ], int, int, int,
-		   const uint8_t [IEEE80211_ADDR_LEN],
-		   const uint8_t [IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	bwi_vap_delete(struct ieee80211vap *);
 static void	bwi_init(void *);
 static int	bwi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -118,8 +118,7 @@ static void	bwi_calibrate(void *);
 
 static int	bwi_calc_rssi(struct bwi_softc *, const struct bwi_rxbuf_hdr *);
 static int	bwi_calc_noise(struct bwi_softc *);
-static __inline uint8_t bwi_ofdm_plcp2rate(const uint32_t *);
-static __inline uint8_t bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *);
+static __inline uint8_t bwi_plcp2rate(uint32_t, enum ieee80211_phytype);
 static void	bwi_rx_radiotap(struct bwi_softc *, struct mbuf *,
 			struct bwi_rxbuf_hdr *, const void *, int, int, int);
 
@@ -221,7 +220,7 @@ static const struct {
 } bwi_bbpid_map[] = {
 	{ 0x4301, 0x4301, 0x4301 },
 	{ 0x4305, 0x4307, 0x4307 },
-	{ 0x4403, 0x4403, 0x4402 },
+	{ 0x4402, 0x4403, 0x4402 },
 	{ 0x4610, 0x4615, 0x4610 },
 	{ 0x4710, 0x4715, 0x4710 },
 	{ 0x4720, 0x4725, 0x4309 }
@@ -592,10 +591,10 @@ bwi_detach(struct bwi_softc *sc)
 }
 
 static struct ieee80211vap *
-bwi_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+bwi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct bwi_vap *bvp;
 	struct ieee80211vap *vap;
@@ -2629,7 +2628,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		struct ieee80211_frame_min *wh;
 		struct ieee80211_node *ni;
 		struct mbuf *m;
-		const void *plcp;
+		uint32_t plcp;
 		uint16_t flags2;
 		int buflen, wh_ofs, hdr_extra, rssi, noise, type, rate;
 
@@ -2659,7 +2658,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 			goto next;
 		}
 
-		plcp = ((const uint8_t *)(hdr + 1) + hdr_extra);
+	        bcopy((uint8_t *)(hdr + 1) + hdr_extra, &plcp, sizeof(plcp));	
 		rssi = bwi_calc_rssi(sc, hdr);
 		noise = bwi_calc_noise(sc);
 
@@ -2668,13 +2667,13 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		m_adj(m, sizeof(*hdr) + wh_ofs);
 
 		if (htole16(hdr->rxh_flags1) & BWI_RXH_F1_OFDM)
-			rate = bwi_ofdm_plcp2rate(plcp);
+			rate = bwi_plcp2rate(plcp, IEEE80211_T_OFDM);
 		else
-			rate = bwi_ds_plcp2rate(plcp);
+			rate = bwi_plcp2rate(plcp, IEEE80211_T_CCK);
 
 		/* RX radio tap */
 		if (ieee80211_radiotap_active(ic))
-			bwi_rx_radiotap(sc, m, hdr, plcp, rate, rssi, noise);
+			bwi_rx_radiotap(sc, m, hdr, &plcp, rate, rssi, noise);
 
 		m_adj(m, -IEEE80211_CRC_LEN);
 
@@ -3802,20 +3801,10 @@ bwi_calc_noise(struct bwi_softc *sc)
 }
 
 static __inline uint8_t
-bwi_ofdm_plcp2rate(const uint32_t *plcp0)
+bwi_plcp2rate(const uint32_t plcp0, enum ieee80211_phytype type)
 {
-	uint32_t plcp;
-	uint8_t plcp_rate;
-
-	plcp = le32toh(*plcp0);
-	plcp_rate = __SHIFTOUT(plcp, IEEE80211_OFDM_PLCP_RATE_MASK);
-	return ieee80211_plcp2rate(plcp_rate, IEEE80211_T_OFDM);
-}
-
-static __inline uint8_t
-bwi_ds_plcp2rate(const struct ieee80211_ds_plcp_hdr *hdr)
-{
-	return ieee80211_plcp2rate(hdr->i_signal, IEEE80211_T_DS);
+	uint32_t plcp = le32toh(plcp0) & IEEE80211_OFDM_PLCP_RATE_MASK;
+	return (ieee80211_plcp2rate(plcp, type));
 }
 
 static void
