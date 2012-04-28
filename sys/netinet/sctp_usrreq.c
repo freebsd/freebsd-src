@@ -79,7 +79,6 @@ sctp_init(void)
 	 * now I will just copy.
 	 */
 	SCTP_BASE_SYSCTL(sctp_recvspace) = SCTP_BASE_SYSCTL(sctp_sendspace);
-
 	SCTP_BASE_VAR(first_time) = 0;
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 0;
 	sctp_pcb_init();
@@ -88,8 +87,6 @@ sctp_init(void)
 	SCTP_BASE_VAR(packet_log_end) = 0;
 	bzero(&SCTP_BASE_VAR(packet_log_buffer), SCTP_PACKET_LOG_SIZE);
 #endif
-
-
 }
 
 void
