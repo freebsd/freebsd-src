@@ -106,13 +106,13 @@ SRCS+=	dump_state.c \
 	eap_server_ttls.c \
 	tls_openssl.c
 
-.if !empty(CFLAGS:M*-DEAP_AKA)
+.if !empty(CFLAGS:M*-DEAP_SERVER_AKA)
 NEED_SIM_COMMON=	true
 NEED_SHA256=	true
 SRCS+=	eap_server_aka.c
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_SIM)
+.if !empty(CFLAGS:M*-DEAP_SERVER_SIM)
 NEED_SIM_COMMON=	true
 SRCS+=	eap_server_sim.c
 .endif
@@ -124,7 +124,7 @@ NEED_AES_CBC=	true
 NEED_FIPS186_2_PRF=	true
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_GPSK)
+.if !empty(CFLAGS:M*-DEAP_SERVER_GPSK)
 CFLAGS+=-DEAP_GPSK_SHA256
 SRCS+=	eap_server_gpsk.c \
 	eap_gpsk_common.c
@@ -132,12 +132,12 @@ NEED_SHA256=	true
 NEED_AES_OMAC1=	true
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_PAX)
+.if !empty(CFLAGS:M*-DEAP_SERVER_PAX)
 SRCS+=	eap_server_pax.c \
 	eap_pax_common.c
 .endif
 
-.if !empty(CFLAGS:M*-DEAP_SAKE)
+.if !empty(CFLAGS:M*-DEAP_SERVER_SAKE)
 SRCS+=	eap_server_sake.c \
 	eap_sake_common.c
 .endif
