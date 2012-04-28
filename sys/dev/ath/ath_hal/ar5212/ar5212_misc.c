@@ -1092,10 +1092,7 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 		}
 		break;
 	case HAL_DIAG_CHANSURVEY:
-		if (AH_PRIVATE(ah)->ah_curchan == NULL)
-			return AH_FALSE;
-		*result =
-		    &ahp->ah_chansurvey[AH_PRIVATE(ah)->ah_curchan->ic_devdata];
+		*result = &ahp->ah_chansurvey;
 		*resultsize = sizeof(HAL_CHANNEL_SURVEY);
 		return AH_TRUE;
 	}
