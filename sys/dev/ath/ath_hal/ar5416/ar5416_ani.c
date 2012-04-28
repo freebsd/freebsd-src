@@ -815,7 +815,7 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState = NULL;
-	int32_t listenTime;
+	int32_t listenTime = 0;
 	int good;
 	HAL_SURVEY_SAMPLE hs;
 	HAL_CHANNEL_SURVEY *cs = AH_NULL;
