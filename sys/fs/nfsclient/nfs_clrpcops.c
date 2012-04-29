@@ -4469,7 +4469,7 @@ int
 nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
     uint32_t sequenceid, struct ucred *cred, NFSPROC_T *p)
 {
-	uint32_t *tl;
+	uint32_t crflags, *tl;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	int error, irdcnt;
@@ -4480,11 +4480,10 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	*tl++ = sep->nfsess_clientid.lval[1];
 	*tl++ = txdr_unsigned(sequenceid);
 printf("clseq0=0x%x\n",sequenceid);
+	crflags = (NFSMNT_RDONLY(nmp->nm_mountp) ? 0 : NFSV4CRSESS_PERSIST);
 	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0)
-		*tl = txdr_unsigned(NFSV4CRSESS_PERSIST |
-		    NFSV4CRSESS_CONNBACKCHAN);
-	else
-		*tl = txdr_unsigned(NFSV4CRSESS_PERSIST);
+		crflags |= NFSV4CRSESS_CONNBACKCHAN;
+	*tl = txdr_unsigned(crflags);
 
 	/* Fill in fore channel attributes. */
 	NFSM_BUILD(tl, uint32_t *, 7 * NFSX_UNSIGNED);
@@ -4528,9 +4527,14 @@ printf("clseq0=0x%x\n",sequenceid);
 		bcopy(tl, sep->nfsess_sessionid, NFSX_V4SESSIONID);
 		tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 		sep->nfsess_sequenceid = fxdr_unsigned(uint32_t, *tl++);
+		crflags = fxdr_unsigned(uint32_t, *tl);
 printf("clseq=0x%x\n",sep->nfsess_sequenceid);
-printf("crfl=0x%x\n",fxdr_unsigned(uint32_t, *tl));
-		/* Don't care about replied flags for now. */
+printf("crfl=0x%x\n",crflags);
+		if ((crflags & NFSV4CRSESS_PERSIST) != 0) {
+			NFSLOCKMNT(nmp);
+			nmp->nm_state |= NFSSTA_SESSPERSIST;
+			NFSUNLOCKMNT(nmp);
+		}
 
 		/* Get the fore channel slot count. */
 		NFSM_DISSECT(tl, uint32_t *, 7 * NFSX_UNSIGNED);
