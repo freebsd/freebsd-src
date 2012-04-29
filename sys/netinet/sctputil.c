@@ -5443,28 +5443,31 @@ found_one:
 	}
 #endif
 	if (fromlen && from) {
-		struct sockaddr *to;
-
-#ifdef INET
-		cp_len = min((size_t)fromlen, (size_t)control->whoFrom->ro._l_addr.sin.sin_len);
-		memcpy(from, &control->whoFrom->ro._l_addr, cp_len);
-		((struct sockaddr_in *)from)->sin_port = control->port_from;
-#else
-		/* No AF_INET use AF_INET6 */
-		cp_len = min((size_t)fromlen, (size_t)control->whoFrom->ro._l_addr.sin6.sin6_len);
-		memcpy(from, &control->whoFrom->ro._l_addr, cp_len);
-		((struct sockaddr_in6 *)from)->sin6_port = control->port_from;
+		cp_len = min((size_t)fromlen, (size_t)control->whoFrom->ro._l_addr.sa.sa_len);
+		switch (control->whoFrom->ro._l_addr.sa.sa_family) {
+#ifdef INET6
+		case AF_INET6:
+			((struct sockaddr_in6 *)from)->sin6_port = control->port_from;
+			break;
 #endif
+#ifdef INET
+		case AF_INET:
+			((struct sockaddr_in *)from)->sin_port = control->port_from;
+			break;
+#endif
+		default:
+			break;
+		}
+		memcpy(from, &control->whoFrom->ro._l_addr, cp_len);
 
-		to = from;
 #if defined(INET) && defined(INET6)
 		if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) &&
-		    (to->sa_family == AF_INET) &&
+		    (from->sa_family == AF_INET) &&
 		    ((size_t)fromlen >= sizeof(struct sockaddr_in6))) {
 			struct sockaddr_in *sin;
 			struct sockaddr_in6 sin6;
 
-			sin = (struct sockaddr_in *)to;
+			sin = (struct sockaddr_in *)from;
 			bzero(&sin6, sizeof(sin6));
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_len = sizeof(struct sockaddr_in6);
@@ -5473,15 +5476,15 @@ found_one:
 			    &sin6.sin6_addr.s6_addr32[3],
 			    sizeof(sin6.sin6_addr.s6_addr32[3]));
 			sin6.sin6_port = sin->sin_port;
-			memcpy(from, (caddr_t)&sin6, sizeof(sin6));
+			memcpy(from, &sin6, sizeof(struct sockaddr_in6));
 		}
 #endif
 #if defined(INET6)
 		{
-			struct sockaddr_in6 lsa6, *to6;
+			struct sockaddr_in6 lsa6, *from6;
 
-			to6 = (struct sockaddr_in6 *)to;
-			sctp_recover_scope_mac(to6, (&lsa6));
+			from6 = (struct sockaddr_in6 *)from;
+			sctp_recover_scope_mac(from6, (&lsa6));
 		}
 #endif
 	}
