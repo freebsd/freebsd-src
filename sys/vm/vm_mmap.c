@@ -1435,7 +1435,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	 */
 	if ((rv == KERN_SUCCESS) && (map->flags & MAP_WIREFUTURE))
 		vm_map_wire(map, *addr, *addr + size,
-		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+		    VM_MAP_WIRE_USER | ((flags & MAP_STACK) ?
+		    VM_MAP_WIRE_HOLESOK : VM_MAP_WIRE_NOHOLES));
 
 	return (vm_mmap_to_errno(rv));
 }
