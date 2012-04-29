@@ -1823,8 +1823,8 @@ g_raid_create_node(struct g_class *mp,
 	sc->sc_flags = 0;
 	TAILQ_INIT(&sc->sc_volumes);
 	TAILQ_INIT(&sc->sc_disks);
-	sx_init(&sc->sc_lock, "gmirror:lock");
-	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
+	sx_init(&sc->sc_lock, "graid:lock");
+	mtx_init(&sc->sc_queue_mtx, "graid:queue", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_events);
 	bioq_init(&sc->sc_queue);
 	gp->softc = sc;
