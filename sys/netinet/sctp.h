@@ -155,8 +155,22 @@ struct sctp_paramhdr {
  * field.
  */
 
-/* these should probably go into sockets API */
-#define SCTP_RESET_STREAMS		0x00001004	/* wo */
+#define SCTP_ENABLE_STREAM_RESET	0x00000900	/* struct
+							 * sctp_assoc_value */
+#define SCTP_RESET_STREAMS		0x00000901	/* struct
+							 * sctp_reset_streams */
+#define SCTP_RESET_ASSOC		0x00000902	/* sctp_assoc_t */
+#define SCTP_ADD_STREAMS		0x00000903	/* struct
+							 * sctp_add_streams */
+
+/* For enable stream reset */
+#define SCTP_ENABLE_RESET_STREAM_REQ 	0x00000001
+#define SCTP_ENABLE_RESET_ASSOC_REQ 	0x00000002
+#define SCTP_ENABLE_CHANGE_ASSOC_REQ 	0x00000004
+#define SCTP_ENABLE_VALUE_MASK		0x00000007
+/* For reset streams */
+#define SCTP_STREAM_RESET_INCOMING	0x00000001
+#define SCTP_STREAM_RESET_OUTGOING	0x00000002
 
 
 /* here on down are more implementation specific */
