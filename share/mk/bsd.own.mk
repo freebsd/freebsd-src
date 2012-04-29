@@ -425,7 +425,8 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
-    OFED
+    OFED \
+    SHARED_TOOLCHAIN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
