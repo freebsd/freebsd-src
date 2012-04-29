@@ -4088,17 +4088,52 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			break;
 		}
+	case SCTP_ENABLE_STREAM_RESET:
+		{
+			struct sctp_assoc_value *av;
+			uint8_t set_value = 0;
 
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
+			if (av->assoc_value & (~SCTP_ENABLE_VALUE_MASK)) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+				error = EINVAL;
+				break;
+			}
+			set_value = av->assoc_value & SCTP_ENABLE_VALUE_MASK;
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+			if (stcb) {
+				stcb->asoc.local_strreset_support = set_value;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC) ||
+				    (av->assoc_id == SCTP_ALL_ASSOC)) {
+					SCTP_INP_WLOCK(inp);
+					inp->local_strreset_support = set_value;
+					SCTP_INP_WUNLOCK(inp);
+				}
+				if ((av->assoc_id == SCTP_CURRENT_ASSOC) ||
+				    (av->assoc_id == SCTP_ALL_ASSOC)) {
+					SCTP_INP_RLOCK(inp);
+					LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+						SCTP_TCB_LOCK(stcb);
+						stcb->asoc.local_strreset_support = set_value;
+						SCTP_TCB_UNLOCK(stcb);
+					}
+					SCTP_INP_RUNLOCK(inp);
+				}
+			}
+			break;
+		}
 	case SCTP_RESET_STREAMS:
 		{
-			struct sctp_stream_reset *strrst;
-			uint8_t send_in = 0, send_tsn = 0, send_out = 0,
-			        addstream = 0;
-			uint16_t addstrmcnt = 0;
-			int i;
+			struct sctp_reset_streams *strrst;
+			int i, send_out = 0;
+			int send_in = 0;
 
-			SCTP_CHECK_AND_CAST(strrst, optval, struct sctp_stream_reset, optsize);
-			SCTP_FIND_STCB(inp, stcb, strrst->strrst_assoc_id);
+			SCTP_CHECK_AND_CAST(strrst, optval, struct sctp_reset_streams, optsize);
+			SCTP_FIND_STCB(inp, stcb, strrst->srs_assoc_id);
 
 			if (stcb == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
@@ -4107,13 +4142,19 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			if (stcb->asoc.peer_supports_strreset == 0) {
 				/*
-				 * Peer does not support it, we return
-				 * protocol not supported since this is true
-				 * for this feature and this peer, not the
-				 * socket request in general.
+				 * Peer does not support the chunk type.
 				 */
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EPROTONOSUPPORT);
-				error = EPROTONOSUPPORT;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
+				error = EOPNOTSUPP;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
+			if (!(stcb->asoc.local_strreset_support & SCTP_ENABLE_RESET_STREAM_REQ)) {
+				/*
+				 * User did not enable the operation.
+				 */
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EPERM);
+				error = EPERM;
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
@@ -4123,129 +4164,137 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
-			if (strrst->strrst_flags == SCTP_RESET_LOCAL_RECV) {
+			if (strrst->srs_flags & SCTP_STREAM_RESET_INCOMING) {
 				send_in = 1;
-			} else if (strrst->strrst_flags == SCTP_RESET_LOCAL_SEND) {
+			}
+			if (strrst->srs_flags & SCTP_STREAM_RESET_OUTGOING) {
 				send_out = 1;
-			} else if (strrst->strrst_flags == SCTP_RESET_BOTH) {
-				send_in = 1;
-				send_out = 1;
-			} else if (strrst->strrst_flags == SCTP_RESET_TSN) {
-				send_tsn = 1;
-			} else if (strrst->strrst_flags == SCTP_RESET_ADD_STREAMS) {
-				if (send_tsn ||
-				    send_in ||
-				    send_out) {
-					/* We can't do that and add streams */
-					error = EINVAL;
-					goto skip_stuff;
-				}
-				if (stcb->asoc.stream_reset_outstanding) {
-					error = EBUSY;
-					goto skip_stuff;
-				}
-				addstream = 1;
-				/* We allocate here */
-				addstrmcnt = strrst->strrst_num_streams;
-				if ((int)(addstrmcnt + stcb->asoc.streamoutcnt) > 0xffff) {
-					/* You can't have more than 64k */
-					error = EINVAL;
-					goto skip_stuff;
-				}
-				if ((stcb->asoc.strm_realoutsize - stcb->asoc.streamoutcnt) < addstrmcnt) {
-					/* Need to allocate more */
-					struct sctp_stream_out *oldstream;
-					struct sctp_stream_queue_pending *sp,
-					                         *nsp;
-
-					oldstream = stcb->asoc.strmout;
-					/* get some more */
-					SCTP_MALLOC(stcb->asoc.strmout, struct sctp_stream_out *,
-					    ((stcb->asoc.streamoutcnt + addstrmcnt) * sizeof(struct sctp_stream_out)),
-					    SCTP_M_STRMO);
-					if (stcb->asoc.strmout == NULL) {
-						stcb->asoc.strmout = oldstream;
-						error = ENOMEM;
-						goto skip_stuff;
-					}
-					/*
-					 * Ok now we proceed with copying
-					 * the old out stuff and
-					 * initializing the new stuff.
-					 */
-					SCTP_TCB_SEND_LOCK(stcb);
-					stcb->asoc.ss_functions.sctp_ss_clear(stcb, &stcb->asoc, 0, 1);
-					for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
-						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
-						stcb->asoc.strmout[i].next_sequence_sent = oldstream[i].next_sequence_sent;
-						stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
-						stcb->asoc.strmout[i].stream_no = i;
-						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], &oldstream[i]);
-						/*
-						 * now anything on those
-						 * queues?
-						 */
-						TAILQ_FOREACH_SAFE(sp, &oldstream[i].outqueue, next, nsp) {
-							TAILQ_REMOVE(&oldstream[i].outqueue, sp, next);
-							TAILQ_INSERT_TAIL(&stcb->asoc.strmout[i].outqueue, sp, next);
-						}
-						/*
-						 * Now move assoc pointers
-						 * too
-						 */
-						if (stcb->asoc.last_out_stream == &oldstream[i]) {
-							stcb->asoc.last_out_stream = &stcb->asoc.strmout[i];
-						}
-						if (stcb->asoc.locked_on_sending == &oldstream[i]) {
-							stcb->asoc.locked_on_sending = &stcb->asoc.strmout[i];
-						}
-					}
-					/* now the new streams */
-					stcb->asoc.ss_functions.sctp_ss_init(stcb, &stcb->asoc, 1);
-					for (i = stcb->asoc.streamoutcnt; i < (stcb->asoc.streamoutcnt + addstrmcnt); i++) {
-						stcb->asoc.strmout[i].next_sequence_sent = 0x0;
-						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
-						stcb->asoc.strmout[i].stream_no = i;
-						stcb->asoc.strmout[i].last_msg_incomplete = 0;
-						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
-					}
-					stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt + addstrmcnt;
-					SCTP_FREE(oldstream, SCTP_M_STRMO);
-				}
-				SCTP_TCB_SEND_UNLOCK(stcb);
-				goto skip_stuff;
-			} else {
+			}
+			if ((send_in == 0) && (send_out == 0)) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
-			for (i = 0; i < strrst->strrst_num_streams; i++) {
+			for (i = 0; i < strrst->srs_number_streams; i++) {
 				if ((send_in) &&
-
-				    (strrst->strrst_list[i] > stcb->asoc.streamincnt)) {
+				    (strrst->srs_stream_list[i] > stcb->asoc.streamincnt)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
-					goto get_out;
+					break;
 				}
 				if ((send_out) &&
-				    (strrst->strrst_list[i] > stcb->asoc.streamoutcnt)) {
+				    (strrst->srs_stream_list[i] > stcb->asoc.streamoutcnt)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
-					goto get_out;
+					break;
 				}
 			}
-	skip_stuff:
 			if (error) {
-		get_out:
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
-			error = sctp_send_str_reset_req(stcb, strrst->strrst_num_streams,
-			    strrst->strrst_list,
-			    send_out, (stcb->asoc.str_reset_seq_in - 3),
-			    send_in, send_tsn, addstream, addstrmcnt);
+			error = sctp_send_str_reset_req(stcb, strrst->srs_number_streams,
+			    strrst->srs_stream_list,
+			    send_out, send_in, 0, 0, 0, 0, 0);
 
+			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_REQ, SCTP_SO_LOCKED);
+			SCTP_TCB_UNLOCK(stcb);
+			break;
+		}
+	case SCTP_ADD_STREAMS:
+		{
+			struct sctp_add_streams *stradd;
+			uint8_t addstream = 0;
+			uint16_t add_o_strmcnt = 0;
+			uint16_t add_i_strmcnt = 0;
+
+			SCTP_CHECK_AND_CAST(stradd, optval, struct sctp_add_streams, optsize);
+			SCTP_FIND_STCB(inp, stcb, stradd->sas_assoc_id);
+			if (stcb == NULL) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
+				error = ENOENT;
+				break;
+			}
+			if ((stradd->sas_outstrms == 0) &&
+			    (stradd->sas_instrms == 0)) {
+				error = EINVAL;
+				goto skip_stuff;
+			}
+			if (stradd->sas_outstrms) {
+				addstream = 1;
+				/* We allocate here */
+				add_o_strmcnt = stradd->sas_outstrms;
+				if ((((int)add_o_strmcnt) + ((int)stcb->asoc.streamoutcnt)) > 0x0000ffff) {
+					/* You can't have more than 64k */
+					error = EINVAL;
+					goto skip_stuff;
+				}
+			}
+			if (stradd->sas_instrms) {
+				int cnt;
+
+				addstream |= 2;
+				/*
+				 * We allocate inside
+				 * sctp_send_str_reset_req()
+				 */
+				add_i_strmcnt = stradd->sas_instrms;
+				cnt = add_i_strmcnt;
+				cnt += stcb->asoc.streamincnt;
+				if (cnt > 0x0000ffff) {
+					/* You can't have more than 64k */
+					error = EINVAL;
+					goto skip_stuff;
+				}
+				if (cnt > (int)stcb->asoc.max_inbound_streams) {
+					/* More than you are allowed */
+					error = EINVAL;
+					goto skip_stuff;
+				}
+			}
+			error = sctp_send_str_reset_req(stcb, 0, NULL, 0, 0, 0, addstream, add_o_strmcnt, add_i_strmcnt, 0);
+			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_REQ, SCTP_SO_LOCKED);
+	skip_stuff:
+			SCTP_TCB_UNLOCK(stcb);
+			break;
+		}
+	case SCTP_RESET_ASSOC:
+		{
+			uint32_t *value;
+
+			SCTP_CHECK_AND_CAST(value, optval, uint32_t, optsize);
+			SCTP_FIND_STCB(inp, stcb, (sctp_assoc_t) * value);
+			if (stcb == NULL) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
+				error = ENOENT;
+				break;
+			}
+			if (stcb->asoc.peer_supports_strreset == 0) {
+				/*
+				 * Peer does not support the chunk type.
+				 */
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
+				error = EOPNOTSUPP;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
+			if (!(stcb->asoc.local_strreset_support & SCTP_ENABLE_RESET_ASSOC_REQ)) {
+				/*
+				 * User did not enable the operation.
+				 */
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EPERM);
+				error = EPERM;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
+			if (stcb->asoc.stream_reset_outstanding) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EALREADY);
+				error = EALREADY;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
+			error = sctp_send_str_reset_req(stcb, 0, NULL, 0, 0, 1, 0, 0, 0, 0);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_REQ, SCTP_SO_LOCKED);
 			SCTP_TCB_UNLOCK(stcb);
 			break;
