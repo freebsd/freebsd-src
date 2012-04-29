@@ -109,6 +109,7 @@ struct uhub_softc {
 #define	UHUB_PROTO(sc) ((sc)->sc_udev->ddesc.bDeviceProtocol)
 #define	UHUB_IS_HIGH_SPEED(sc) (UHUB_PROTO(sc) != UDPROTO_FSHUB)
 #define	UHUB_IS_SINGLE_TT(sc) (UHUB_PROTO(sc) == UDPROTO_HSHUBSTT)
+#define	UHUB_IS_MULTI_TT(sc) (UHUB_PROTO(sc) == UDPROTO_HSHUBMTT)
 #define	UHUB_IS_SUPER_SPEED(sc) (UHUB_PROTO(sc) == UDPROTO_SSHUB)
 
 /* prototypes for type checking: */
@@ -948,6 +949,16 @@ uhub_attach(device_t dev)
 		    "bus powered HUB. HUB ignored\n");
 		goto error;
 	}
+
+	if (UHUB_IS_MULTI_TT(sc)) {
+		err = usbd_set_alt_interface_index(udev, 0, 1);
+		if (err) {
+			device_printf(dev, "MTT could not be enabled\n");
+			goto error;
+		}
+		device_printf(dev, "MTT enabled\n");
+	}
+
 	/* get HUB descriptor */
 
 	DPRINTFN(2, "Getting HUB descriptor\n");
@@ -1057,10 +1068,6 @@ uhub_attach(device_t dev)
 	}
 	udev->hub = hub;
 
-#if USB_HAVE_TT_SUPPORT
-	/* init FULL-speed ISOCHRONOUS schedule */
-	usbd_fs_isoc_schedule_init_all(hub->fs_isoc_schedule);
-#endif
 	/* initialize HUB structure */
 	hub->hubsoftc = sc;
 	hub->explore = &uhub_explore;
@@ -1656,42 +1663,6 @@ usb_hs_bandwidth_free(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usbd_fs_isoc_schedule_init_sub
- *
- * This function initialises an USB FULL speed isochronous schedule
- * entry.
- *------------------------------------------------------------------------*/
-#if USB_HAVE_TT_SUPPORT
-static void
-usbd_fs_isoc_schedule_init_sub(struct usb_fs_isoc_schedule *fss)
-{
-	fss->total_bytes = (USB_FS_ISOC_UFRAME_MAX *
-	    USB_FS_BYTES_PER_HS_UFRAME);
-	fss->frame_bytes = (USB_FS_BYTES_PER_HS_UFRAME);
-	fss->frame_slot = 0;
-}
-#endif
-
-/*------------------------------------------------------------------------*
- *	usbd_fs_isoc_schedule_init_all
- *
- * This function will reset the complete USB FULL speed isochronous
- * bandwidth schedule.
- *------------------------------------------------------------------------*/
-#if USB_HAVE_TT_SUPPORT
-void
-usbd_fs_isoc_schedule_init_all(struct usb_fs_isoc_schedule *fss)
-{
-	struct usb_fs_isoc_schedule *fss_end = fss + USB_ISOC_TIME_MAX;
-
-	while (fss != fss_end) {
-		usbd_fs_isoc_schedule_init_sub(fss);
-		fss++;
-	}
-}
-#endif
-
-/*------------------------------------------------------------------------*
  *	usb_isoc_time_expand
  *
  * This function will expand the time counter from 7-bit to 16-bit.
@@ -1723,114 +1694,130 @@ usb_isoc_time_expand(struct usb_bus *bus, uint16_t isoc_time_curr)
 }
 
 /*------------------------------------------------------------------------*
- *	usbd_fs_isoc_schedule_isoc_time_expand
- *
- * This function does multiple things. First of all it will expand the
- * passed isochronous time, which is the return value. Then it will
- * store where the current FULL speed isochronous schedule is
- * positioned in time and where the end is. See "pp_start" and
- * "pp_end" arguments.
- *
- * Returns:
- *   Expanded version of "isoc_time".
- *
- * NOTE: This function depends on being called regularly with
- * intervals less than "USB_ISOC_TIME_MAX".
- *------------------------------------------------------------------------*/
-#if USB_HAVE_TT_SUPPORT
-uint16_t
-usbd_fs_isoc_schedule_isoc_time_expand(struct usb_device *udev,
-    struct usb_fs_isoc_schedule **pp_start,
-    struct usb_fs_isoc_schedule **pp_end,
-    uint16_t isoc_time)
-{
-	struct usb_fs_isoc_schedule *fss_end;
-	struct usb_fs_isoc_schedule *fss_a;
-	struct usb_fs_isoc_schedule *fss_b;
-	struct usb_hub *hs_hub;
-
-	isoc_time = usb_isoc_time_expand(udev->bus, isoc_time);
-
-	hs_hub = udev->parent_hs_hub->hub;
-
-	if (hs_hub != NULL) {
-
-		fss_a = hs_hub->fs_isoc_schedule +
-		    (hs_hub->isoc_last_time % USB_ISOC_TIME_MAX);
-
-		hs_hub->isoc_last_time = isoc_time;
-
-		fss_b = hs_hub->fs_isoc_schedule +
-		    (isoc_time % USB_ISOC_TIME_MAX);
-
-		fss_end = hs_hub->fs_isoc_schedule + USB_ISOC_TIME_MAX;
-
-		*pp_start = hs_hub->fs_isoc_schedule;
-		*pp_end = fss_end;
-
-		while (fss_a != fss_b) {
-			if (fss_a == fss_end) {
-				fss_a = hs_hub->fs_isoc_schedule;
-				continue;
-			}
-			usbd_fs_isoc_schedule_init_sub(fss_a);
-			fss_a++;
-		}
-
-	} else {
-
-		*pp_start = NULL;
-		*pp_end = NULL;
-	}
-	return (isoc_time);
-}
-#endif
-
-/*------------------------------------------------------------------------*
- *	usbd_fs_isoc_schedule_alloc
+ *	usbd_fs_isoc_schedule_alloc_slot
  *
  * This function will allocate bandwidth for an isochronous FULL speed
- * transaction in the FULL speed schedule. The microframe slot where
- * the transaction should be started is stored in the byte pointed to
- * by "pstart". The "len" argument specifies the length of the
- * transaction in bytes.
+ * transaction in the FULL speed schedule.
  *
  * Returns:
- *    0: Success
+ *    <8: Success
  * Else: Error
  *------------------------------------------------------------------------*/
 #if USB_HAVE_TT_SUPPORT
 uint8_t
-usbd_fs_isoc_schedule_alloc(struct usb_fs_isoc_schedule *fss,
-    uint8_t *pstart, uint16_t len)
+usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time)
 {
-	uint8_t slot = fss->frame_slot;
+	struct usb_xfer *xfer;
+	struct usb_xfer *pipe_xfer;
+	struct usb_bus *bus;
+	usb_frlength_t len;
+	usb_frlength_t data_len;
+	uint16_t delta;
+	uint16_t slot;
+	uint8_t retval;
 
-	/* Compute overhead and bit-stuffing */
+	data_len = 0;
+	slot = 0;
 
-	len += 8;
+	bus = isoc_xfer->xroot->bus;
 
-	len *= 7;
-	len /= 6;
+	TAILQ_FOREACH(xfer, &bus->intr_q.head, wait_entry) {
 
-	if (len > fss->total_bytes) {
-		*pstart = 0;		/* set some dummy value */
-		return (1);		/* error */
-	}
-	if (len > 0) {
+		/* skip self, if any */
 
-		fss->total_bytes -= len;
+		if (xfer == isoc_xfer)
+			continue;
 
-		while (len >= fss->frame_bytes) {
-			len -= fss->frame_bytes;
-			fss->frame_bytes = USB_FS_BYTES_PER_HS_UFRAME;
-			fss->frame_slot++;
+		/* check if this USB transfer is going through the same TT */
+
+		if (xfer->xroot->udev->parent_hs_hub !=
+		    isoc_xfer->xroot->udev->parent_hs_hub) {
+			continue;
+		}
+		if ((isoc_xfer->xroot->udev->parent_hs_hub->
+		    ddesc.bDeviceProtocol == UDPROTO_HSHUBMTT) &&
+		    (xfer->xroot->udev->hs_port_no !=
+		    isoc_xfer->xroot->udev->hs_port_no)) {
+			continue;
+		}
+		if (xfer->endpoint->methods != isoc_xfer->endpoint->methods)
+			continue;
+
+		/* check if isoc_time is part of this transfer */
+
+		delta = xfer->isoc_time_complete - isoc_time;
+		if (delta > 0 && delta <= xfer->nframes) {
+			delta = xfer->nframes - delta;
+
+			len = xfer->frlengths[delta];
+			len += 8;
+			len *= 7;
+			len /= 6;
+
+			data_len += len;
 		}
 
-		fss->frame_bytes -= len;
+		/* check double buffered transfers */
+
+		TAILQ_FOREACH(pipe_xfer, &xfer->endpoint->endpoint_q.head,
+		    wait_entry) {
+
+			/* skip self, if any */
+
+			if (pipe_xfer == isoc_xfer)
+				continue;
+
+			/* check if isoc_time is part of this transfer */
+
+			delta = pipe_xfer->isoc_time_complete - isoc_time;
+			if (delta > 0 && delta <= pipe_xfer->nframes) {
+				delta = pipe_xfer->nframes - delta;
+
+				len = pipe_xfer->frlengths[delta];
+				len += 8;
+				len *= 7;
+				len /= 6;
+
+				data_len += len;
+			}
+		}
 	}
-	*pstart = slot;
-	return (0);			/* success */
+
+	while (data_len >= USB_FS_BYTES_PER_HS_UFRAME) {
+		data_len -= USB_FS_BYTES_PER_HS_UFRAME;
+		slot++;
+	}
+
+	/* check for overflow */
+
+	if (slot >= USB_FS_ISOC_UFRAME_MAX)
+		return (255);
+
+	retval = slot;
+
+	delta = isoc_xfer->isoc_time_complete - isoc_time;
+	if (delta > 0 && delta <= isoc_xfer->nframes) {
+		delta = isoc_xfer->nframes - delta;
+
+		len = isoc_xfer->frlengths[delta];
+		len += 8;
+		len *= 7;
+		len /= 6;
+
+		data_len += len;
+	}
+
+	while (data_len >= USB_FS_BYTES_PER_HS_UFRAME) {
+		data_len -= USB_FS_BYTES_PER_HS_UFRAME;
+		slot++;
+	}
+
+	/* check for overflow */
+
+	if (slot >= USB_FS_ISOC_UFRAME_MAX)
+		return (255);
+
+	return (retval);
 }
 #endif
 
