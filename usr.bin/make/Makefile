@@ -2,13 +2,17 @@
 #	$Id: Makefile,v 1.6 1994/06/30 05:33:39 cgd Exp $
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	make
 CFLAGS+=-I${.CURDIR}
 SRCS=	arch.c buf.c cond.c dir.c for.c hash.c hash_tables.c job.c	\
 	lst.c main.c make.c parse.c proc.c shell.c str.c suff.c targ.c	\
 	util.c var.c
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=	YES
+.endif
 
 # Version has the RYYYYMMDDX format, where R is from RELENG_<R>
 CFLAGS+=-DMAKE_VERSION=\"5201111300\"
