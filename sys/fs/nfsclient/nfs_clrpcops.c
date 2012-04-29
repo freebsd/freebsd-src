@@ -827,7 +827,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 if (error) printf("exch=%d\n",error);
 		if (error == 0) {
 			error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
-			    dsp->nfsclds_sess.nfsess_sequenceid, cred, p);
+			    dsp->nfsclds_sess.nfsess_sequenceid, 1, cred, p);
 			if (error == 0) {
 				KASSERT(TAILQ_FIRST(&nmp->nm_sess) == NULL,
 				    ("nfscl session non-NULL"));
@@ -4467,7 +4467,7 @@ nfsmout:
  */
 int
 nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
-    uint32_t sequenceid, struct ucred *cred, NFSPROC_T *p)
+    uint32_t sequenceid, int mds, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t crflags, *tl;
 	struct nfsrv_descript nfsd;
@@ -4481,7 +4481,7 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	*tl++ = txdr_unsigned(sequenceid);
 printf("clseq0=0x%x\n",sequenceid);
 	crflags = (NFSMNT_RDONLY(nmp->nm_mountp) ? 0 : NFSV4CRSESS_PERSIST);
-	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0)
+	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0 && mds != 0)
 		crflags |= NFSV4CRSESS_CONNBACKCHAN;
 	*tl = txdr_unsigned(crflags);
 
@@ -4530,7 +4530,7 @@ printf("clseq0=0x%x\n",sequenceid);
 		crflags = fxdr_unsigned(uint32_t, *tl);
 printf("clseq=0x%x\n",sep->nfsess_sequenceid);
 printf("crfl=0x%x\n",crflags);
-		if ((crflags & NFSV4CRSESS_PERSIST) != 0) {
+		if ((crflags & NFSV4CRSESS_PERSIST) != 0 && mds != 0) {
 			NFSLOCKMNT(nmp);
 			nmp->nm_state |= NFSSTA_SESSPERSIST;
 			NFSUNLOCKMNT(nmp);
@@ -5216,7 +5216,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 			sequenceid = dsp->nfsclds_sess.nfsess_sequenceid;
 		NFSUNLOCKMNT(nmp);
 		error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
-		    sequenceid, nrp->nr_cred, p);
+		    sequenceid, 0, nrp->nr_cred, p);
 	} else {
 		NFSFREECRED(nrp->nr_cred);
 		NFSFREEMUTEX(&nrp->nr_mtx);

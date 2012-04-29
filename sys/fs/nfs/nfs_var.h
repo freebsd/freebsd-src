@@ -440,7 +440,7 @@ int nfsrpc_exchangeid(struct nfsmount *, struct nfsclclient *,
     struct nfssockreq *, uint32_t, struct nfsclds **, struct ucred *,
     NFSPROC_T *);
 int nfsrpc_createsession(struct nfsmount *, struct nfsclsession *,
-    uint32_t, struct ucred *, NFSPROC_T *);
+    uint32_t, int, struct ucred *, NFSPROC_T *);
 int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
