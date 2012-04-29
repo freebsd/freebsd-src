@@ -230,6 +230,7 @@ struct nfscllayout {
 	LIST_ENTRY(nfscllayout)		nfsly_hash;
 	nfsv4stateid_t			nfsly_stateid;
 	uint64_t			nfsly_filesid[2];
+	uint64_t			nfsly_lastbyte;
 	struct nfsclflayouthead		nfsly_flayread;
 	struct nfsclflayouthead		nfsly_flayrw;
 	struct nfsclrecalllayouthead	nfsly_recall;

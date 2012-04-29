@@ -451,7 +451,7 @@ int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t, uint64_t,
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
     struct nfscldevinfo **, struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutcommit(struct nfsmount *, uint8_t *, int, int,
-    uint64_t, uint64_t, nfsv4stateid_t *, int, int, uint8_t *,
+    uint64_t, uint64_t, uint64_t, nfsv4stateid_t *, int, int, uint8_t *,
     struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
     int, uint64_t, uint64_t, nfsv4stateid_t *, int, uint32_t *, struct ucred *,

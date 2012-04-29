@@ -4668,6 +4668,7 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 		lyp->nfsly_stateid.other[0] = stateidp->other[0];
 		lyp->nfsly_stateid.other[1] = stateidp->other[1];
 		lyp->nfsly_stateid.other[2] = stateidp->other[2];
+		lyp->nfsly_lastbyte = 0;
 		LIST_INIT(&lyp->nfsly_flayread);
 		LIST_INIT(&lyp->nfsly_flayrw);
 		LIST_INIT(&lyp->nfsly_recall);
@@ -5039,7 +5040,7 @@ nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
 	else
 		len = flp->nfsfl_end - flp->nfsfl_off;
 	error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh, lyp->nfsly_fhlen,
-	    0, flp->nfsfl_off, len, &lyp->nfsly_stateid,
+	    0, flp->nfsfl_off, len, lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
 	    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
 }
 
@@ -5071,6 +5072,7 @@ tryagain:
 		if ((flp->nfsfl_flags & NFSFL_WRITTEN) != 0) {
 			flp->nfsfl_flags &= ~NFSFL_WRITTEN;
 			NFSUNLOCKCLSTATE();
+printf("do layoutcommit2\n");
 			nfscl_dolayoutcommit(clp->nfsc_nmp, lyp, flp,
 			    NFSPROCCRED(p), p);
 			NFSLOCKCLSTATE();

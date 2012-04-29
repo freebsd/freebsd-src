@@ -4923,9 +4923,9 @@ nfsmout:
  */
 int
 nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
-    uint64_t off, uint64_t len, nfsv4stateid_t *stateidp, int layouttype,
-    int layoutupdatecnt, uint8_t *layp, struct ucred *cred, NFSPROC_T *p,
-    void *stuff)
+    uint64_t off, uint64_t len, uint64_t lastbyte, nfsv4stateid_t *stateidp,
+    int layouttype, int layoutupdatecnt, uint8_t *layp, struct ucred *cred,
+    NFSPROC_T *p, void *stuff)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -4933,7 +4933,7 @@ nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 	uint8_t *cp;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTCOMMIT, nmp, fh, fhlen, NULL, NULL);
-	NFSM_BUILD(tl, uint32_t *, 5 * NFSX_UNSIGNED + 2 * NFSX_HYPER +
+	NFSM_BUILD(tl, uint32_t *, 5 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
 	    NFSX_STATEID);
 	txdr_hyper(off, tl);
 	tl += 2;
@@ -4947,7 +4947,13 @@ nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 	*tl++ = stateidp->other[0];
 	*tl++ = stateidp->other[1];
 	*tl++ = stateidp->other[2];
-	*tl++ = newnfs_false;
+	*tl++ = newnfs_true;
+	if (lastbyte < off)
+		lastbyte = off;
+	else if (lastbyte >= (off + len))
+		lastbyte = off + len - 1;
+	txdr_hyper(lastbyte, tl);
+	tl += 2;
 	*tl++ = newnfs_false;
 	*tl++ = txdr_unsigned(layouttype);
 	*tl = txdr_unsigned(layoutupdatecnt);
@@ -5285,7 +5291,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	struct nfsclflayout *rflp;
 	nfsv4stateid_t stateid;
 	struct ucred *newcred;
-	uint64_t len, off, oresid, xfer;
+	uint64_t lastbyte, len, off, oresid, xfer;
 	int eof, error, iolaymode, recalled;
 	void *lckp;
 
@@ -5351,6 +5357,14 @@ if (error == 2) printf("rwacc=0x%x\n", rwaccess);
 				    must_commit, &eof, &stateid, rwaccess, dip,
 				    rflp, off, xfer, newcred, p);
 				nfscl_reldevinfo(dip);
+				lastbyte = off + xfer - 1;
+				if (error == 0) {
+					NFSLOCKCLSTATE();
+					if (lastbyte > layp->nfsly_lastbyte)
+						layp->nfsly_lastbyte = lastbyte;
+					NFSUNLOCKCLSTATE();
+printf("lastb=%qd\n", layp->nfsly_lastbyte);
+				}
 			} else
 				error = EIO;
 			if (error == 0)
