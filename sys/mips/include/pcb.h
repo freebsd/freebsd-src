@@ -78,7 +78,7 @@ struct pcb
 extern struct pcb *curpcb;		/* the current running pcb */
 
 void makectx(struct trapframe *, struct pcb *);
-int savectx(struct pcb *);
+int savectx(struct pcb *) __returns_twice;
 #endif
 
 #endif	/* !_MACHINE_PCB_H_ */
