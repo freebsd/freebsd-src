@@ -2,7 +2,8 @@
 
 .include "${.CURDIR}/../Makefile.inc"
 
-.PATH.c:${WPA_DISTDIR}/src/drivers
+.PATH.c:${WPA_SUPPLICANT_DISTDIR} \
+	${WPA_DISTDIR}/src/drivers
 
 PROG=	wpa_supplicant
 SRCS=	aes-unwrap.c \
