@@ -3570,7 +3570,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
 			if ((av->assoc_value != SCTP_SS_DEFAULT) &&
-			    (av->assoc_value != SCTP_SS_DEFAULT) &&
 			    (av->assoc_value != SCTP_SS_ROUND_ROBIN) &&
 			    (av->assoc_value != SCTP_SS_ROUND_ROBIN_PACKET) &&
 			    (av->assoc_value != SCTP_SS_PRIORITY) &&
