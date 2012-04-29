@@ -2463,12 +2463,10 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 		struct mbuf *mat;
 
-		mat = m_sig;
-		while (mat) {
+		for (mat = m_sig; mat; mat = SCTP_BUF_NEXT(mat)) {
 			if (SCTP_BUF_IS_EXTENDED(mat)) {
 				sctp_log_mb(mat, SCTP_MBUF_SPLIT);
 			}
-			mat = SCTP_BUF_NEXT(mat);
 		}
 	}
 #endif
@@ -5470,12 +5468,10 @@ process_control_chunks:
 							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 								struct mbuf *mat;
 
-								mat = SCTP_BUF_NEXT(mm);
-								while (mat) {
+								for (mat = SCTP_BUF_NEXT(mm); mat; mat = SCTP_BUF_NEXT(mat)) {
 									if (SCTP_BUF_IS_EXTENDED(mat)) {
 										sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 									}
-									mat = SCTP_BUF_NEXT(mat);
 								}
 							}
 #endif
@@ -5808,10 +5804,6 @@ sctp_print_mbuf_chain(struct mbuf *m)
 void
 sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 {
-#ifdef SCTP_MBUF_LOGGING
-	struct mbuf *mat;
-
-#endif
 	struct mbuf *m;
 	int iphlen;
 	uint32_t vrf_id = 0;
@@ -5846,6 +5838,8 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 #ifdef SCTP_MBUF_LOGGING
 	/* Log in any input mbufs */
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+		struct mbuf *mat;
+
 		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
 			if (SCTP_BUF_IS_EXTENDED(mat)) {
 				sctp_log_mb(mat, SCTP_MBUF_INPUT);
