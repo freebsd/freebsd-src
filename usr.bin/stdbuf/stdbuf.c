@@ -52,7 +52,7 @@ main(int argc, char *argv[])
 	int i;
 
 	ibuf = obuf = ebuf = NULL;
-	while ((i = getopt(argc, argv, ":e:i:o:")) != -1) {
+	while ((i = getopt(argc, argv, "e:i:o:")) != -1) {
 		switch (i) {
 		case 'e':
 			ebuf = optarg;
@@ -63,13 +63,8 @@ main(int argc, char *argv[])
 		case 'o':
 			obuf = optarg;
 			break;
-		case ':':
-			warnx("Missing argument for option -%c", optopt);
-			usage(1);
-			break;
 		case '?':
 		default:
-			warnx("Unknown option: %c", optopt);
 			usage(1);
 			break;
 		}
