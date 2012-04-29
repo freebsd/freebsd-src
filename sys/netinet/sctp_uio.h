@@ -449,9 +449,11 @@ struct sctp_stream_reset_event {
 };
 
 /* flags in stream_reset_event (strreset_flags) */
-#define SCTP_STREAM_RESET_DENIED        0x0004	/* SCTP_STRRESET_FAILED */
-#define SCTP_STREAM_RESET_FAILED        0x0008	/* SCTP_STRRESET_FAILED */
-#define SCTP_STREAM_CHANGED_DENIED	0x0010
+#define SCTP_STREAM_RESET_INCOMING_SSN  0x0001
+#define SCTP_STREAM_RESET_OUTGOING_SSN  0x0002
+#define SCTP_STREAM_RESET_DENIED        0x0004
+#define SCTP_STREAM_RESET_FAILED        0x0008
+#define SCTP_STREAM_CHANGED_DENIED      0x0010
 
 /*
  * Assoc reset event - subscribe to SCTP_ASSOC_RESET_EVENT
