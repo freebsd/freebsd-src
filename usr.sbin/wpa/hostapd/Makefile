@@ -2,7 +2,8 @@
 
 .include "${.CURDIR}/../Makefile.inc"
 
-.PATH.c:${WPA_DISTDIR}/src/drivers
+.PATH.c:${HOSTAPD_DISTDIR} \
+	${WPA_DISTDIR}/src/drivers
 
 PROG=	hostapd
 SRCS=	accounting.c \
