@@ -2553,7 +2553,7 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
-kern/subr_acl_nfs4.c		optional ufs_acl
+kern/subr_acl_nfs4.c		optional ufs_acl | zfs
 kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
