@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_input.h>
 #include <netinet/sctp_crc32.h>
 #include <netinet/udp.h>
+#include <netinet/udp_var.h>
 #include <machine/in_cksum.h>
 
 
@@ -4064,7 +4065,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 				udp->uh_dport = port;
 				udp->uh_ulen = htons(packet_length - sizeof(struct ip));
-				udp->uh_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+				if (V_udp_cksum) {
+					udp->uh_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+				} else {
+					udp->uh_sum = 0;
+				}
 				sctphdr = (struct sctphdr *)((caddr_t)udp + sizeof(struct udphdr));
 			} else {
 				sctphdr = (struct sctphdr *)((caddr_t)ip + sizeof(struct ip));
@@ -4127,7 +4132,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 					SCTP_STAT_INCR(sctps_sendnocrc);
 				}
 #endif
-				SCTP_ENABLE_UDP_CSUM(o_pak);
+				if (V_udp_cksum) {
+					SCTP_ENABLE_UDP_CSUM(o_pak);
+				}
 			} else {
 #if defined(SCTP_WITH_NO_CSUM)
 				SCTP_STAT_INCR(sctps_sendnocrc);
@@ -11007,8 +11014,13 @@ sctp_send_shutdown_complete2(struct mbuf *m, struct sctphdr *sh,
 		udp->uh_dport = port;
 		udp->uh_ulen = htons(sizeof(struct sctp_shutdown_complete_msg) + sizeof(struct udphdr));
 #ifdef INET
-		if (iph_out)
-			udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+		if (iph_out) {
+			if (V_udp_cksum) {
+				udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+			} else {
+				udp->uh_sum = 0;
+			}
+		}
 #endif
 		offset_out += sizeof(struct udphdr);
 		comp_cp = (struct sctp_shutdown_complete_msg *)((caddr_t)comp_cp + sizeof(struct udphdr));
@@ -11047,7 +11059,9 @@ sctp_send_shutdown_complete2(struct mbuf *m, struct sctphdr *sh,
 			comp_cp->sh.checksum = sctp_calculate_cksum(mout, offset_out);
 			SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
-			SCTP_ENABLE_UDP_CSUM(mout);
+			if (V_udp_cksum) {
+				SCTP_ENABLE_UDP_CSUM(mout);
+			}
 		} else {
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);
@@ -12024,7 +12038,11 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		bzero(&ro, sizeof ro);
 		if (port) {
 			udp->uh_ulen = htons(len - sizeof(struct ip));
-			udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+			if (V_udp_cksum) {
+				udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+			} else {
+				udp->uh_sum = 0;
+			}
 		}
 		SCTPDBG(SCTP_DEBUG_OUTPUT2, "sctp_send_abort calling ip_output:\n");
 		SCTPDBG_PKT(SCTP_DEBUG_OUTPUT2, iph_out, &abm->sh);
@@ -12043,7 +12061,9 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 			abm->sh.checksum = sctp_calculate_cksum(mout, iphlen_out);
 			SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
-			SCTP_ENABLE_UDP_CSUM(o_pak);
+			if (V_udp_cksum) {
+				SCTP_ENABLE_UDP_CSUM(o_pak);
+			}
 		} else {
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);
@@ -12286,7 +12306,11 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 		bzero(&ro, sizeof ro);
 		if (port) {
 			udp->uh_ulen = htons(len - sizeof(struct ip));
-			udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+			if (V_udp_cksum) {
+				udp->uh_sum = in_pseudo(iph_out->ip_src.s_addr, iph_out->ip_dst.s_addr, udp->uh_ulen + htons(IPPROTO_UDP));
+			} else {
+				udp->uh_sum = 0;
+			}
 		}
 		/* set IPv4 length */
 		iph_out->ip_len = len;
@@ -12303,7 +12327,9 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 			sh_out->checksum = sctp_calculate_cksum(mout, iphlen_out);
 			SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
-			SCTP_ENABLE_UDP_CSUM(o_pak);
+			if (V_udp_cksum) {
+				SCTP_ENABLE_UDP_CSUM(o_pak);
+			}
 		} else {
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);
