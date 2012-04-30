@@ -1,7 +1,8 @@
 /*-
  * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
- * Copyright 2009, 2010, 2011 Konstantin Belousov <kib@FreeBSD.ORG>.
+ * Copyright 2009-2012 Konstantin Belousov <kib@FreeBSD.ORG>.
+ * Copyright 2012 John Marino <draco@marino.st>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -149,6 +150,8 @@ static int  object_match_name(const Obj_Entry *, const char *);
 static void ld_utrace_log(int, void *, void *, size_t, int, const char *);
 static void rtld_fill_dl_phdr_info(const Obj_Entry *obj,
     struct dl_phdr_info *phdr_info);
+static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
+    const unsigned long);
 
 void r_debug_state(struct r_debug *, struct link_map *) __noinline;
 
@@ -3439,27 +3442,14 @@ symlook_obj(SymLook *req, const Obj_Entry *obj)
     return (mres);
 }
 
-static int
-symlook_obj1(SymLook *req, const Obj_Entry *obj)
+/* Symbol match routine common to both hash functions */
+static bool
+matched_symbol(SymLook *req, const Obj_Entry *obj, Sym_Match_Result *result,
+    const unsigned long symnum)
 {
-    unsigned long symnum;
-    const Elf_Sym *vsymp;
-    Elf_Versym verndx;
-    int vcount;
-
-    if (obj->buckets == NULL)
-	return (ESRCH);
-
-    vsymp = NULL;
-    vcount = 0;
-    symnum = obj->buckets[req->hash % obj->nbuckets];
-
-    for (; symnum != STN_UNDEF; symnum = obj->chains[symnum]) {
+	Elf_Versym verndx;
 	const Elf_Sym *symp;
 	const char *strp;
-
-	if (symnum >= obj->nchains)
-	    return (ESRCH);	/* Bad object */
 
 	symp = obj->symtab + symnum;
 	strp = obj->strtab + symp->st_name;
@@ -3468,103 +3458,128 @@ symlook_obj1(SymLook *req, const Obj_Entry *obj)
 	case STT_FUNC:
 	case STT_NOTYPE:
 	case STT_OBJECT:
+	case STT_COMMON:
 	case STT_GNU_IFUNC:
-	    if (symp->st_value == 0)
-		continue;
+		if (symp->st_value == 0)
+			return (false);
 		/* fallthrough */
 	case STT_TLS:
-	    if (symp->st_shndx != SHN_UNDEF)
-		break;
+		if (symp->st_shndx != SHN_UNDEF)
+			break;
 #ifndef __mips__
-	    else if (((req->flags & SYMLOOK_IN_PLT) == 0) &&
-		 (ELF_ST_TYPE(symp->st_info) == STT_FUNC))
-		break;
+		else if (((req->flags & SYMLOOK_IN_PLT) == 0) &&
+		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC))
+			break;
 		/* fallthrough */
 #endif
 	default:
-	    continue;
+		return (false);
 	}
 	if (req->name[0] != strp[0] || strcmp(req->name, strp) != 0)
-	    continue;
+		return (false);
 
 	if (req->ventry == NULL) {
-	    if (obj->versyms != NULL) {
-		verndx = VER_NDX(obj->versyms[symnum]);
-		if (verndx > obj->vernum) {
-		    _rtld_error("%s: symbol %s references wrong version %d",
-			obj->path, obj->strtab + symnum, verndx);
-		    continue;
+		if (obj->versyms != NULL) {
+			verndx = VER_NDX(obj->versyms[symnum]);
+			if (verndx > obj->vernum) {
+				_rtld_error(
+				    "%s: symbol %s references wrong version %d",
+				    obj->path, obj->strtab + symnum, verndx);
+				return (false);
+			}
+			/*
+			 * If we are not called from dlsym (i.e. this
+			 * is a normal relocation from unversioned
+			 * binary), accept the symbol immediately if
+			 * it happens to have first version after this
+			 * shared object became versioned.  Otherwise,
+			 * if symbol is versioned and not hidden,
+			 * remember it. If it is the only symbol with
+			 * this name exported by the shared object, it
+			 * will be returned as a match by the calling
+			 * function. If symbol is global (verndx < 2)
+			 * accept it unconditionally.
+			 */
+			if ((req->flags & SYMLOOK_DLSYM) == 0 &&
+			    verndx == VER_NDX_GIVEN) {
+				result->sym_out = symp;
+				return (true);
+			}
+			else if (verndx >= VER_NDX_GIVEN) {
+				if ((obj->versyms[symnum] & VER_NDX_HIDDEN)
+				    == 0) {
+					if (result->vsymp == NULL)
+						result->vsymp = symp;
+					result->vcount++;
+				}
+				return (false);
+			}
 		}
-		/*
-		 * If we are not called from dlsym (i.e. this is a normal
-		 * relocation from unversioned binary), accept the symbol
-		 * immediately if it happens to have first version after
-		 * this shared object became versioned. Otherwise, if
-		 * symbol is versioned and not hidden, remember it. If it
-		 * is the only symbol with this name exported by the
-		 * shared object, it will be returned as a match at the
-		 * end of the function. If symbol is global (verndx < 2)
-		 * accept it unconditionally.
-		 */
-		if ((req->flags & SYMLOOK_DLSYM) == 0 &&
-		  verndx == VER_NDX_GIVEN) {
-		    req->sym_out = symp;
-		    req->defobj_out = obj;
-		    return (0);
-		}
-		else if (verndx >= VER_NDX_GIVEN) {
-		    if ((obj->versyms[symnum] & VER_NDX_HIDDEN) == 0) {
-			if (vsymp == NULL)
-			    vsymp = symp;
-			vcount ++;
-		    }
-		    continue;
-		}
-	    }
-	    req->sym_out = symp;
-	    req->defobj_out = obj;
-	    return (0);
-	} else {
-	    if (obj->versyms == NULL) {
+		result->sym_out = symp;
+		return (true);
+	}
+	if (obj->versyms == NULL) {
 		if (object_match_name(obj, req->ventry->name)) {
-		    _rtld_error("%s: object %s should provide version %s for "
-			"symbol %s", obj_rtld.path, obj->path,
-			req->ventry->name, obj->strtab + symnum);
-		    continue;
+			_rtld_error("%s: object %s should provide version %s "
+			    "for symbol %s", obj_rtld.path, obj->path,
+			    req->ventry->name, obj->strtab + symnum);
+			return (false);
 		}
-	    } else {
+	} else {
 		verndx = VER_NDX(obj->versyms[symnum]);
 		if (verndx > obj->vernum) {
-		    _rtld_error("%s: symbol %s references wrong version %d",
-			obj->path, obj->strtab + symnum, verndx);
-		    continue;
+			_rtld_error("%s: symbol %s references wrong version %d",
+			    obj->path, obj->strtab + symnum, verndx);
+			return (false);
 		}
 		if (obj->vertab[verndx].hash != req->ventry->hash ||
 		    strcmp(obj->vertab[verndx].name, req->ventry->name)) {
-		    /*
-		     * Version does not match. Look if this is a global symbol
-		     * and if it is not hidden. If global symbol (verndx < 2)
-		     * is available, use it. Do not return symbol if we are
-		     * called by dlvsym, because dlvsym looks for a specific
-		     * version and default one is not what dlvsym wants.
-		     */
-		    if ((req->flags & SYMLOOK_DLSYM) ||
-			(obj->versyms[symnum] & VER_NDX_HIDDEN) ||
-			(verndx >= VER_NDX_GIVEN))
-			continue;
+			/*
+			 * Version does not match. Look if this is a
+			 * global symbol and if it is not hidden. If
+			 * global symbol (verndx < 2) is available,
+			 * use it. Do not return symbol if we are
+			 * called by dlvsym, because dlvsym looks for
+			 * a specific version and default one is not
+			 * what dlvsym wants.
+			 */
+			if ((req->flags & SYMLOOK_DLSYM) ||
+			    (verndx >= VER_NDX_GIVEN) ||
+			    (obj->versyms[symnum] & VER_NDX_HIDDEN))
+				return (false);
 		}
-	    }
-	    req->sym_out = symp;
-	    req->defobj_out = obj;
-	    return (0);
 	}
-    }
-    if (vcount == 1) {
-	req->sym_out = vsymp;
-	req->defobj_out = obj;
-	return (0);
-    }
-    return (ESRCH);
+	result->sym_out = symp;
+	return (true);
+}
+
+static int
+symlook_obj1(SymLook *req, const Obj_Entry *obj)
+{
+	unsigned long symnum;
+	Sym_Match_Result matchres;
+
+	matchres.sym_out = NULL;
+	matchres.vsymp = NULL;
+	matchres.vcount = 0;
+
+	for (symnum = obj->buckets[req->hash % obj->nbuckets];
+	    symnum != STN_UNDEF; symnum = obj->chains[symnum]) {
+		if (symnum >= obj->nchains)
+			return (ESRCH);	/* Bad object */
+
+		if (matched_symbol(req, obj, &matchres, symnum)) {
+			req->sym_out = matchres.sym_out;
+			req->defobj_out = obj;
+			return (0);
+		}
+	}
+	if (matchres.vcount == 1) {
+		req->sym_out = matchres.vsymp;
+		req->defobj_out = obj;
+		return (0);
+	}
+	return (ESRCH);
 }
 
 static void
