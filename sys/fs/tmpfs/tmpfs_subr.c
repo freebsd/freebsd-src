@@ -58,6 +58,70 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW, 0, "tmpfs file system");
 
+static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
+
+static int
+sysctl_mem_reserved(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	long pages, bytes;
+
+	pages = *(long *)arg1;
+	bytes = pages * PAGE_SIZE;
+
+	error = sysctl_handle_long(oidp, &bytes, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	pages = bytes / PAGE_SIZE;
+	if (pages < TMPFS_PAGES_MINRESERVED)
+		return (EINVAL);
+
+	*(long *)arg1 = pages;
+	return (0);
+}
+
+SYSCTL_PROC(_vfs_tmpfs, OID_AUTO, memory_reserved, CTLTYPE_LONG|CTLFLAG_RW,
+    &tmpfs_pages_reserved, 0, sysctl_mem_reserved, "L",
+    "Amount of available memory and swap below which tmpfs growth stops");
+
+size_t
+tmpfs_mem_avail(void)
+{
+	vm_ooffset_t avail;
+
+	avail = swap_pager_avail + cnt.v_free_count + cnt.v_cache_count -
+	    tmpfs_pages_reserved;
+	if (__predict_false(avail < 0))
+		avail = 0;
+	return (avail);
+}
+
+size_t
+tmpfs_pages_used(struct tmpfs_mount *tmp)
+{
+	const size_t node_size = sizeof(struct tmpfs_node) +
+	    sizeof(struct tmpfs_dirent);
+	size_t meta_pages;
+
+	meta_pages = howmany((uintmax_t)tmp->tm_nodes_inuse * node_size,
+	    PAGE_SIZE);
+	return (meta_pages + tmp->tm_pages_used);
+}
+
+static size_t
+tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
+{
+	if (tmpfs_mem_avail() < req_pages)
+		return (0);
+
+	if (tmp->tm_pages_max != SIZE_MAX &&
+	    tmp->tm_pages_max < req_pages + tmpfs_pages_used(tmp))
+			return (0);
+
+	return (1);
+}
+
 /* --------------------------------------------------------------------- */
 
 /*
@@ -97,6 +161,8 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	MPASS(IFF(type == VBLK || type == VCHR, rdev != VNOVAL));
 
 	if (tmp->tm_nodes_inuse >= tmp->tm_nodes_max)
+		return (ENOSPC);
+	if (tmpfs_pages_check_avail(tmp, 1) == 0)
 		return (ENOSPC);
 
 	nnode = (struct tmpfs_node *)uma_zalloc_arg(
@@ -916,7 +982,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	MPASS(oldpages == uobj->size);
 	newpages = OFF_TO_IDX(newsize + PAGE_MASK);
 	if (newpages > oldpages &&
-	    newpages - oldpages > TMPFS_PAGES_AVAIL(tmp))
+	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
 
 	TMPFS_LOCK(tmp);
