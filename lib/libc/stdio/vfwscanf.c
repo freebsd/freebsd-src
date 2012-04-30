@@ -138,7 +138,7 @@ static const mbstate_t initial_mbs;
  */
 
 static __inline int
-convert_char(FILE *fp, char * __restrict mbp, int width, locale_t locale)
+convert_char(FILE *fp, char * mbp, int width, locale_t locale)
 {
 	mbstate_t mbs;
 	size_t nconv;
@@ -179,7 +179,7 @@ convert_wchar(FILE *fp, wchar_t *wcp, int width, locale_t locale)
 }
 
 static __inline int
-convert_ccl(FILE *fp, char * __restrict mbp, int width, const struct ccl *ccl,
+convert_ccl(FILE *fp, char * mbp, int width, const struct ccl *ccl,
     locale_t locale)
 {
 	mbstate_t mbs;
@@ -237,7 +237,7 @@ convert_wccl(FILE *fp, wchar_t *wcp, int width, const struct ccl *ccl,
 }
 
 static __inline int
-convert_string(FILE *fp, char * __restrict mbp, int width, locale_t locale)
+convert_string(FILE *fp, char * mbp, int width, locale_t locale)
 {
 	mbstate_t mbs;
 	size_t nconv;
@@ -372,7 +372,7 @@ parseint(FILE *fp, wchar_t *buf, int width, int base, int flags,
 				goto ok;
 			}
 			break;
-					
+
 		/*
 		 * x ok iff flag still set & 2nd char (or 3rd char if
 		 * we have a sign).
