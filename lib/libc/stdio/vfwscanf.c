@@ -144,29 +144,16 @@ convert_char(FILE *fp, char * __restrict mbp, int width, locale_t locale)
 	size_t nconv;
 	wint_t wi;
 	int n;
-	char mbbuf[MB_LEN_MAX];
 
 	n = 0;
 	mbs = initial_mbs;
-	while (width != 0 && (wi = __fgetwc(fp, locale)) != WEOF) {
-		if (width >= MB_CUR_MAX && mbp != SUPPRESS_PTR) {
+	while (width-- != 0 && (wi = __fgetwc(fp, locale)) != WEOF) {
+		if (mbp != SUPPRESS_PTR) {
 			nconv = wcrtomb(mbp, wi, &mbs);
 			if (nconv == (size_t)-1)
 				return (-1);
-		} else {
-			nconv = wcrtomb(mbbuf, wi, &mbs);
-			if (nconv == (size_t)-1)
-				return (-1);
-			if (nconv > width) {
-				__ungetwc(wi, fp, locale);
-				break;
-			}
-			if (mbp != SUPPRESS_PTR)
-				memcpy(mbp, mbbuf, nconv);
-		}
-		if (mbp != SUPPRESS_PTR)
 			mbp += nconv;
-		width -= nconv;
+		}
 		n++;
 	}
 	if (n == 0)
@@ -199,28 +186,17 @@ convert_ccl(FILE *fp, char * __restrict mbp, int width, const struct ccl *ccl,
 	size_t nconv;
 	wint_t wi;
 	int n;
-	char mbbuf[MB_LEN_MAX];
 
 	n = 0;
 	mbs = initial_mbs;
 	while ((wi = __fgetwc(fp, locale)) != WEOF &&
-	    width != 0 && inccl(ccl, wi)) {
-		if (width >= MB_CUR_MAX && mbp != SUPPRESS_PTR) {
+	    width-- != 0 && inccl(ccl, wi)) {
+		if (mbp != SUPPRESS_PTR) {
 			nconv = wcrtomb(mbp, wi, &mbs);
 			if (nconv == (size_t)-1)
 				return (-1);
-		} else {
-			nconv = wcrtomb(mbbuf, wi, &mbs);
-			if (nconv == (size_t)-1)
-				return (-1);
-			if (nconv > width)
-				break;
-			if (mbp != SUPPRESS_PTR)
-				memcpy(mbp, mbbuf, nconv);
-		}
-		if (mbp != SUPPRESS_PTR)
 			mbp += nconv;
-		width -= nconv;
+		}
 		n++;
 	}
 	if (wi != WEOF)
@@ -267,28 +243,17 @@ convert_string(FILE *fp, char * __restrict mbp, int width, locale_t locale)
 	size_t nconv;
 	wint_t wi;
 	int nread;
-	char mbbuf[MB_LEN_MAX];
 
 	mbs = initial_mbs;
 	nread = 0;
-	while ((wi = __fgetwc(fp, locale)) != WEOF && width != 0 &&
+	while ((wi = __fgetwc(fp, locale)) != WEOF && width-- != 0 &&
 	    !iswspace(wi)) {
-		if (width >= MB_CUR_MAX && mbp != SUPPRESS_PTR) {
+		if (mbp != SUPPRESS_PTR) {
 			nconv = wcrtomb(mbp, wi, &mbs);
 			if (nconv == (size_t)-1)
 				return (-1);
-		} else {
-			nconv = wcrtomb(mbbuf, wi, &mbs);
-			if (nconv == (size_t)-1)
-				return (-1);
-			if (nconv > width)
-				break;
-			if (mbp != SUPPRESS_PTR)
-				memcpy(mbp, mbbuf, nconv);
-		}
-		if (mbp != SUPPRESS_PTR)
 			mbp += nconv;
-		width -= nconv;
+		}
 		nread++;
 	}
 	if (wi != WEOF)
