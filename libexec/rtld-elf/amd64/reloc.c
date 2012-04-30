@@ -132,7 +132,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
 	if (obj != obj_rtld) {
-	    cache = calloc(obj->nchains, sizeof(SymCache));
+	    cache = calloc(obj->dynsymcount, sizeof(SymCache));
 	    /* No need to check for NULL here */
 	} else
 	    cache = NULL;
