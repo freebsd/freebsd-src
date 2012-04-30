@@ -133,7 +133,8 @@ static int symlook_global(SymLook *, DoneList *);
 static void symlook_init_from_req(SymLook *, const SymLook *);
 static int symlook_list(SymLook *, const Objlist *, DoneList *);
 static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
-static int symlook_obj1(SymLook *, const Obj_Entry *);
+static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
+static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
 static void trace_loaded_objects(Obj_Entry *);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
@@ -150,6 +151,7 @@ static int  object_match_name(const Obj_Entry *, const char *);
 static void ld_utrace_log(int, void *, void *, size_t, int, const char *);
 static void rtld_fill_dl_phdr_info(const Obj_Entry *obj,
     struct dl_phdr_info *phdr_info);
+static uint32_t gnu_hash(const char *);
 static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
     const unsigned long);
 
@@ -488,6 +490,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     }
 
     digest_dynamic(obj_main, 0);
+    dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d",
+	obj_main->path, obj_main->valid_hash_sysv, obj_main->valid_hash_gnu,
+	obj_main->dynsymcount);
 
     linkmap_add(obj_main);
     linkmap_add(&obj_rtld);
@@ -825,6 +830,11 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
     Needed_Entry **needed_tail = &obj->needed;
     Needed_Entry **needed_filtees_tail = &obj->needed_filtees;
     Needed_Entry **needed_aux_filtees_tail = &obj->needed_aux_filtees;
+    const Elf_Hashelt *hashtab;
+    const Elf32_Word *hashval;
+    Elf32_Word bkt, nmaskwords;
+    int bloom_size32;
+    bool nmw_power2;
     int plttype = DT_REL;
 
     *dyn_rpath = NULL;
@@ -914,12 +924,35 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 	case DT_HASH:
 	    {
-		const Elf_Hashelt *hashtab = (const Elf_Hashelt *)
-		  (obj->relocbase + dynp->d_un.d_ptr);
+		hashtab = (const Elf_Hashelt *)(obj->relocbase +
+		    dynp->d_un.d_ptr);
 		obj->nbuckets = hashtab[0];
 		obj->nchains = hashtab[1];
 		obj->buckets = hashtab + 2;
 		obj->chains = obj->buckets + obj->nbuckets;
+		obj->valid_hash_sysv = obj->nbuckets > 0 && obj->nchains > 0 &&
+		  obj->buckets != NULL;
+	    }
+	    break;
+
+	case DT_GNU_HASH:
+	    {
+		hashtab = (const Elf_Hashelt *)(obj->relocbase +
+		    dynp->d_un.d_ptr);
+		obj->nbuckets_gnu = hashtab[0];
+		obj->symndx_gnu = hashtab[1];
+		nmaskwords = hashtab[2];
+		bloom_size32 = (__ELF_WORD_SIZE / 32) * nmaskwords;
+		/* Number of bitmask words is required to be power of 2 */
+		nmw_power2 = ((nmaskwords & (nmaskwords - 1)) == 0);
+		obj->maskwords_bm_gnu = nmaskwords - 1;
+		obj->shift2_gnu = hashtab[3];
+		obj->bloom_gnu = (Elf_Addr *) (hashtab + 4);
+		obj->buckets_gnu = hashtab + 4 + bloom_size32;
+		obj->chain_zero_gnu = obj->buckets_gnu + obj->nbuckets_gnu -
+		  obj->symndx_gnu;
+		obj->valid_hash_gnu = nmw_power2 && obj->nbuckets_gnu > 0 &&
+		  obj->buckets_gnu != NULL;
 	    }
 	    break;
 
@@ -1095,6 +1128,22 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	obj->pltrel = NULL;
 	obj->pltrelasize = obj->pltrelsize;
 	obj->pltrelsize = 0;
+    }
+
+    /* Determine size of dynsym table (equal to nchains of sysv hash) */
+    if (obj->valid_hash_sysv)
+	obj->dynsymcount = obj->nchains;
+    else if (obj->valid_hash_gnu) {
+	obj->dynsymcount = 0;
+	for (bkt = 0; bkt < obj->nbuckets_gnu; bkt++) {
+	    if (obj->buckets_gnu[bkt] == 0)
+		continue;
+	    hashval = &obj->chain_zero_gnu[obj->buckets_gnu[bkt]];
+	    do
+		obj->dynsymcount++;
+	    while ((*hashval++ & 1u) == 0);
+	}
+	obj->dynsymcount += obj->symndx_gnu;
     }
 }
 
@@ -1312,6 +1361,22 @@ elf_hash(const char *name)
 }
 
 /*
+ * The GNU hash function is the Daniel J. Bernstein hash clipped to 32 bits
+ * unsigned in case it's implemented with a wider type.
+ */
+static uint32_t
+gnu_hash(const char *s)
+{
+	uint32_t h;
+	unsigned char c;
+
+	h = 5381;
+	for (c = *s; c != '\0'; c = *++s)
+		h = h * 33 + c;
+	return (h & 0xffffffff);
+}
+
+/*
  * Find the library with the given name, and return its full pathname.
  * The returned string is dynamically allocated.  Generates an error
  * message and returns NULL if the library cannot be found.
@@ -1387,7 +1452,7 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
      * If we have already found this symbol, get the information from
      * the cache.
      */
-    if (symnum >= refobj->nchains)
+    if (symnum >= refobj->dynsymcount)
 	return NULL;	/* Bad object */
     if (cache != NULL && cache[symnum].sym != NULL) {
 	*defobj_out = cache[symnum].obj;
@@ -1885,6 +1950,8 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
 	object_add_name(obj, name);
     obj->path = path;
     digest_dynamic(obj, 0);
+    dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d", obj->path,
+	obj->valid_hash_sysv, obj->valid_hash_gnu, obj->dynsymcount);
     if (obj->z_noopen && (flags & (RTLD_LO_DLOPEN | RTLD_LO_TRACE)) ==
       RTLD_LO_DLOPEN) {
 	dbg("refusing to load non-loadable \"%s\"", obj->path);
@@ -2168,8 +2235,8 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	if (obj != rtldobj)
 	    dbg("relocating \"%s\"", obj->path);
 
-	if (obj->nbuckets == 0 || obj->nchains == 0 || obj->buckets == NULL ||
-	    obj->symtab == NULL || obj->strtab == NULL) {
+	if (obj->symtab == NULL || obj->strtab == NULL ||
+	  !(obj->valid_hash_sysv || obj->valid_hash_gnu)) {
 	    _rtld_error("%s: Shared object has no run-time symbol table",
 	      obj->path);
 	    return -1;
@@ -2841,7 +2908,7 @@ dladdr(const void *addr, Dl_info *info)
      * Walk the symbol list looking for the symbol whose address is
      * closest to the address sent in.
      */
-    for (symoffset = 0; symoffset < obj->nchains; symoffset++) {
+    for (symoffset = 0; symoffset < obj->dynsymcount; symoffset++) {
         def = obj->symtab + symoffset;
 
         /*
@@ -3412,7 +3479,15 @@ symlook_obj(SymLook *req, const Obj_Entry *obj)
     SymLook req1;
     int flags, res, mres;
 
-    mres = symlook_obj1(req, obj);
+    /*
+     * There is at least one valid hash at this point, and we prefer to use
+     * the faster GNU version if available.
+     */
+    if (obj->valid_hash_gnu)
+	mres = symlook_obj1_gnu(req, obj);
+    else
+	mres = symlook_obj1_sysv(req, obj);
+
     if (mres == 0) {
 	if (obj->needed_filtees != NULL) {
 	    flags = (req->flags & SYMLOOK_EARLY) ? RTLD_LO_EARLY : 0;
@@ -3553,8 +3628,13 @@ matched_symbol(SymLook *req, const Obj_Entry *obj, Sym_Match_Result *result,
 	return (true);
 }
 
+/*
+ * Search for symbol using SysV hash function.
+ * obj->buckets is known not to be NULL at this point; the test for this was
+ * performed with the obj->valid_hash_sysv assignment.
+ */
 static int
-symlook_obj1(SymLook *req, const Obj_Entry *obj)
+symlook_obj1_sysv(SymLook *req, const Obj_Entry *obj)
 {
 	unsigned long symnum;
 	Sym_Match_Result matchres;
@@ -3574,6 +3654,56 @@ symlook_obj1(SymLook *req, const Obj_Entry *obj)
 			return (0);
 		}
 	}
+	if (matchres.vcount == 1) {
+		req->sym_out = matchres.vsymp;
+		req->defobj_out = obj;
+		return (0);
+	}
+	return (ESRCH);
+}
+
+/* Search for symbol using GNU hash function */
+static int
+symlook_obj1_gnu(SymLook *req, const Obj_Entry *obj)
+{
+	Elf_Addr bloom_word;
+	const Elf32_Word *hashval;
+	Elf32_Word bucket;
+	Sym_Match_Result matchres;
+	unsigned int h1, h2;
+	unsigned long symnum;
+
+	matchres.sym_out = NULL;
+	matchres.vsymp = NULL;
+	matchres.vcount = 0;
+
+	/* Pick right bitmask word from Bloom filter array */
+	bloom_word = obj->bloom_gnu[(req->hash_gnu / __ELF_WORD_SIZE) &
+	    obj->maskwords_bm_gnu];
+
+	/* Calculate modulus word size of gnu hash and its derivative */
+	h1 = req->hash_gnu & (__ELF_WORD_SIZE - 1);
+	h2 = ((req->hash_gnu >> obj->shift2_gnu) & (__ELF_WORD_SIZE - 1));
+
+	/* Filter out the "definitely not in set" queries */
+	if (((bloom_word >> h1) & (bloom_word >> h2) & 1) == 0)
+		return (ESRCH);
+
+	/* Locate hash chain and corresponding value element*/
+	bucket = obj->buckets_gnu[req->hash_gnu % obj->nbuckets_gnu];
+	if (bucket == 0)
+		return (ESRCH);
+	hashval = &obj->chain_zero_gnu[bucket];
+	do {
+		if (((*hashval ^ req->hash_gnu) >> 1) == 0) {
+			symnum = hashval - obj->chain_zero_gnu;
+			if (matched_symbol(req, obj, &matchres, symnum)) {
+				req->sym_out = matchres.sym_out;
+				req->defobj_out = obj;
+				return (0);
+			}
+		}
+	} while ((*hashval++ & 1) == 0);
 	if (matchres.vcount == 1) {
 		req->sym_out = matchres.vsymp;
 		req->defobj_out = obj;
@@ -4365,6 +4495,7 @@ symlook_init(SymLook *dst, const char *name)
 	bzero(dst, sizeof(*dst));
 	dst->name = name;
 	dst->hash = elf_hash(name);
+	dst->hash_gnu = gnu_hash(name);
 }
 
 static void
@@ -4373,6 +4504,7 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 
 	dst->name = src->name;
 	dst->hash = src->hash;
+	dst->hash_gnu = src->hash_gnu;
 	dst->ventry = src->ventry;
 	dst->flags = src->flags;
 	dst->defobj_out = NULL;
