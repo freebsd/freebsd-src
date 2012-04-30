@@ -163,6 +163,14 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 				break;
 			}
 		}
+		if (argc < 1) {
+			printf("error: No printer name(s) specified before"
+			    " '-msg'.\n");
+			printf("usage: %s  {all | printer ...}",
+			    generic_cmdname);
+			printf(" [-msg <text> ...]\n");
+			return;
+		}
 	}
 
 	/* call initialization routine, if there is one for this cmd */
