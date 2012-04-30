@@ -402,6 +402,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
+	TASK_INIT(&sc->sc_fataltask,0, ath_fatal_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -1527,7 +1528,7 @@ ath_intr(void *arg)
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		ath_fatal_proc(sc, 0);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_fataltask);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
@@ -4906,6 +4907,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
+#ifdef	IEEE80211_SUPPORT_SUPERG
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+#endif	/* IEEE80211_SUPPORT_SUPERG */
 	int nacked;
 	HAL_STATUS status;
 
@@ -5413,6 +5417,10 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
 	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
+	/*
+	 * TODO: see if this particular DELAY() is required; it may be
+	 * masking some missing FIFO flush or DMA sync.
+	 */
 	if (dodelay)
 		DELAY(3000);		/* 3ms is long enough for 1 frame */
 #ifdef ATH_DEBUG

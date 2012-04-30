@@ -3714,12 +3714,10 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 		struct mbuf *mat;
 
-		mat = copy_init;
-		while (mat) {
+		for (mat = copy_init; mat; mat = SCTP_BUF_NEXT(mat)) {
 			if (SCTP_BUF_IS_EXTENDED(mat)) {
 				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 			}
-			mat = SCTP_BUF_NEXT(mat);
 		}
 	}
 #endif
@@ -3734,12 +3732,10 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 		struct mbuf *mat;
 
-		mat = copy_initack;
-		while (mat) {
+		for (mat = copy_initack; mat; mat = SCTP_BUF_NEXT(mat)) {
 			if (SCTP_BUF_IS_EXTENDED(mat)) {
 				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 			}
-			mat = SCTP_BUF_NEXT(mat);
 		}
 	}
 #endif
@@ -6446,12 +6442,10 @@ error_out:
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 				struct mbuf *mat;
 
-				mat = appendchain;
-				while (mat) {
+				for (mat = appendchain; mat; mat = SCTP_BUF_NEXT(mat)) {
 					if (SCTP_BUF_IS_EXTENDED(mat)) {
 						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 					}
-					mat = SCTP_BUF_NEXT(mat);
 				}
 			}
 #endif
@@ -6547,12 +6541,10 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 			struct mbuf *mat;
 
-			mat = m;
-			while (mat) {
+			for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
 				if (SCTP_BUF_IS_EXTENDED(mat)) {
 					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 				}
-				mat = SCTP_BUF_NEXT(mat);
 			}
 		}
 #endif
@@ -7350,12 +7342,10 @@ dont_do_it:
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 			struct mbuf *mat;
 
-			mat = chk->data;
-			while (mat) {
+			for (mat = chk->data; mat; mat = SCTP_BUF_NEXT(mat)) {
 				if (SCTP_BUF_IS_EXTENDED(mat)) {
 					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 				}
-				mat = SCTP_BUF_NEXT(mat);
 			}
 		}
 #endif
@@ -8953,12 +8943,10 @@ sctp_send_cookie_echo(struct mbuf *m,
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 				struct mbuf *mat;
 
-				mat = cookie;
-				while (mat) {
+				for (mat = cookie; mat; mat = SCTP_BUF_NEXT(mat)) {
 					if (SCTP_BUF_IS_EXTENDED(mat)) {
 						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 					}
-					mat = SCTP_BUF_NEXT(mat);
 				}
 			}
 #endif
@@ -9027,12 +9015,10 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 		struct mbuf *mat;
 
-		mat = outchain;
-		while (mat) {
+		for (mat = outchain; mat; mat = SCTP_BUF_NEXT(mat)) {
 			if (SCTP_BUF_IS_EXTENDED(mat)) {
 				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 			}
-			mat = SCTP_BUF_NEXT(mat);
 		}
 	}
 #endif
@@ -9313,12 +9299,10 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 			struct mbuf *mat;
 
-			mat = m_ack;
-			while (mat) {
+			for (mat = m_ack; mat; mat = SCTP_BUF_NEXT(mat)) {
 				if (SCTP_BUF_IS_EXTENDED(mat)) {
 					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 				}
-				mat = SCTP_BUF_NEXT(mat);
 			}
 		}
 #endif

@@ -326,12 +326,11 @@ deupdat(dep, waitfor)
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(dep, length, flags, cred, td)
+detrunc(dep, length, flags, cred)
 	struct denode *dep;
 	u_long length;
 	int flags;
 	struct ucred *cred;
-	struct thread *td;
 {
 	int error;
 	int allerror;
@@ -426,7 +425,7 @@ detrunc(dep, length, flags, cred, td)
 	dep->de_FileSize = length;
 	if (!isadir)
 		dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	allerror = vtruncbuf(DETOV(dep), cred, td, length, pmp->pm_bpcluster);
+	allerror = vtruncbuf(DETOV(dep), cred, length, pmp->pm_bpcluster);
 #ifdef MSDOSFS_DEBUG
 	if (allerror)
 		printf("detrunc(): vtruncbuf error %d\n", allerror);
@@ -504,7 +503,7 @@ deextend(dep, length, cred)
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
 		if (error) {
 			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0, cred, NULL);
+			(void) detrunc(dep, dep->de_FileSize, 0, cred);
 			return (error);
 		}
 	}
@@ -584,7 +583,6 @@ msdosfs_inactive(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	struct thread *td = ap->a_td;
 	int error = 0;
 
 #ifdef MSDOSFS_DEBUG
@@ -607,7 +605,7 @@ msdosfs_inactive(ap)
 	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
 #endif
 	if (dep->de_refcnt <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		error = detrunc(dep, (u_long) 0, 0, NOCRED, td);
+		error = detrunc(dep, (u_long) 0, 0, NOCRED);
 		dep->de_flag |= DE_UPDATE;
 		dep->de_Name[0] = SLOT_DELETED;
 	}
@@ -623,6 +621,6 @@ out:
 	       vrefcnt(vp), dep->de_Name[0]);
 #endif
 	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
-		vrecycle(vp, td);
+		vrecycle(vp);
 	return (error);
 }

@@ -1,4 +1,4 @@
-//===-- MBlazeMCTargetDesc.cpp - MBlaze Target Descriptions -----*- C++ -*-===//
+//===-- MBlazeMCTargetDesc.cpp - MBlaze Target Descriptions ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -62,13 +62,14 @@ static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
 }
 
 static MCCodeGenInfo *createMBlazeMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                                CodeModel::Model CM) {
+                                                CodeModel::Model CM,
+                                                CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
   if (RM == Reloc::Default)
     RM = Reloc::Static;
   if (CM == CodeModel::Default)
     CM = CodeModel::Small;
-  X->InitMCCodeGenInfo(RM, CM);
+  X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
@@ -82,12 +83,10 @@ static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
 
   if (TheTriple.isOSDarwin()) {
     llvm_unreachable("MBlaze does not support Darwin MACH-O format");
-    return NULL;
   }
 
   if (TheTriple.isOSWindows()) {
     llvm_unreachable("MBlaze does not support Windows COFF format");
-    return NULL;
   }
 
   return createELFStreamer(Ctx, MAB, _OS, _Emitter, RelaxAll, NoExecStack);
@@ -96,9 +95,11 @@ static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
 static MCInstPrinter *createMBlazeMCInstPrinter(const Target &T,
                                                 unsigned SyntaxVariant,
                                                 const MCAsmInfo &MAI,
+                                                const MCInstrInfo &MII,
+                                                const MCRegisterInfo &MRI,
                                                 const MCSubtargetInfo &STI) {
   if (SyntaxVariant == 0)
-    return new MBlazeInstPrinter(MAI);
+    return new MBlazeInstPrinter(MAI, MII, MRI);
   return 0;
 }
 

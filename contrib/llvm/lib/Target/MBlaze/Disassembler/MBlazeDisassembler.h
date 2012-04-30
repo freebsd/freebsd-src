@@ -1,4 +1,4 @@
-//===- MBlazeDisassembler.h - Disassembler for MicroBlaze  ------*- C++ -*-===//
+//===-- MBlazeDisassembler.h - Disassembler for MicroBlaze  -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,8 +16,6 @@
 #define MBLAZEDISASSEMBLER_H
 
 #include "llvm/MC/MCDisassembler.h"
-
-struct InternalInstruction;
 
 namespace llvm {
   
@@ -48,7 +46,7 @@ public:
                       raw_ostream &cStream) const;
 
   /// getEDInfo - See MCDisassembler.
-  EDInstInfo *getEDInfo() const;
+  const EDInstInfo *getEDInfo() const;
 };
 
 } // namespace llvm

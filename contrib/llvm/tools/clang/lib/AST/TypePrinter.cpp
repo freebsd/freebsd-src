@@ -75,7 +75,7 @@ static void AppendTypeQualList(std::string &S, unsigned TypeQuals) {
 
 void TypePrinter::print(QualType t, std::string &buffer) {
   SplitQualType split = t.split();
-  print(split.first, split.second, buffer);
+  print(split.Ty, split.Quals, buffer);
 }
 
 void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
@@ -264,8 +264,9 @@ void TypePrinter::printRValueReference(const RValueReferenceType *T,
 
 void TypePrinter::printMemberPointer(const MemberPointerType *T, 
                                      std::string &S) { 
-  std::string C;
-  print(QualType(T->getClass(), 0), C);
+  PrintingPolicy InnerPolicy(Policy);
+  Policy.SuppressTag = true;
+  std::string C = QualType(T->getClass(), 0).getAsString(InnerPolicy);
   C += "::*";
   S = C + S;
   
@@ -397,6 +398,35 @@ void TypePrinter::printExtVector(const ExtVectorType *T, std::string &S) {
   print(T->getElementType(), S);
 }
 
+void 
+FunctionProtoType::printExceptionSpecification(std::string &S, 
+                                               PrintingPolicy Policy) const {
+  
+  if (hasDynamicExceptionSpec()) {
+    S += " throw(";
+    if (getExceptionSpecType() == EST_MSAny)
+      S += "...";
+    else
+      for (unsigned I = 0, N = getNumExceptions(); I != N; ++I) {
+        if (I)
+          S += ", ";
+        
+        S += getExceptionType(I).getAsString(Policy);
+      }
+    S += ")";
+  } else if (isNoexceptExceptionSpec(getExceptionSpecType())) {
+    S += " noexcept";
+    if (getExceptionSpecType() == EST_ComputedNoexcept) {
+      S += "(";
+      llvm::raw_string_ostream EOut(S);
+      getNoexceptExpr()->printPretty(EOut, 0, Policy);
+      EOut.flush();
+      S += EOut.str();
+      S += ")";
+    }
+  }
+}
+
 void TypePrinter::printFunctionProto(const FunctionProtoType *T, 
                                      std::string &S) { 
   // If needed for precedence reasons, wrap the inner part in grouping parens.
@@ -427,8 +457,7 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
 
   FunctionType::ExtInfo Info = T->getExtInfo();
   switch(Info.getCC()) {
-  case CC_Default:
-  default: break;
+  case CC_Default: break;
   case CC_C:
     S += " __attribute__((cdecl))";
     break;
@@ -471,34 +500,13 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
     S += " &&";
     break;
   }
-
-  if (T->hasDynamicExceptionSpec()) {
-    S += " throw(";
-    if (T->getExceptionSpecType() == EST_MSAny)
-      S += "...";
-    else
-      for (unsigned I = 0, N = T->getNumExceptions(); I != N; ++I) {
-        if (I)
-          S += ", ";
-
-        std::string ExceptionType;
-        print(T->getExceptionType(I), ExceptionType);
-        S += ExceptionType;
-      }
-    S += ")";
-  } else if (isNoexceptExceptionSpec(T->getExceptionSpecType())) {
-    S += " noexcept";
-    if (T->getExceptionSpecType() == EST_ComputedNoexcept) {
-      S += "(";
-      llvm::raw_string_ostream EOut(S);
-      T->getNoexceptExpr()->printPretty(EOut, 0, Policy);
-      EOut.flush();
-      S += EOut.str();
-      S += ")";
-    }
-  }
-
-  print(T->getResultType(), S);
+  T->printExceptionSpecification(S, Policy);
+  if (T->hasTrailingReturn()) {
+    std::string ResultS;
+    print(T->getResultType(), ResultS);
+    S = "auto " + S + " -> " + ResultS;
+  } else
+    print(T->getResultType(), S);
 }
 
 void TypePrinter::printFunctionNoProto(const FunctionNoProtoType *T, 
@@ -600,6 +608,9 @@ void TypePrinter::AppendScope(DeclContext *DC, std::string &Buffer) {
   unsigned OldSize = Buffer.size();
 
   if (NamespaceDecl *NS = dyn_cast<NamespaceDecl>(DC)) {
+    if (Policy.SuppressUnwrittenScope && 
+        (NS->isAnonymousNamespace() || NS->isInline()))
+      return;
     if (NS->getIdentifier())
       Buffer += NS->getNameAsString();
     else
@@ -620,6 +631,8 @@ void TypePrinter::AppendScope(DeclContext *DC, std::string &Buffer) {
       Buffer += Typedef->getIdentifier()->getName();
     else if (Tag->getIdentifier())
       Buffer += Tag->getIdentifier()->getName();
+    else
+      return;
   }
 
   if (Buffer.size() != OldSize)
@@ -660,8 +673,14 @@ void TypePrinter::printTag(TagDecl *D, std::string &InnerString) {
     // Make an unambiguous representation for anonymous types, e.g.
     //   <anonymous enum at /usr/include/string.h:120:9>
     llvm::raw_string_ostream OS(Buffer);
-    OS << "<anonymous";
-
+    
+    if (isa<CXXRecordDecl>(D) && cast<CXXRecordDecl>(D)->isLambda()) {
+      OS << "<lambda";
+      HasKindDecoration = true;
+    } else {
+      OS << "<anonymous";
+    }
+    
     if (Policy.AnonymousTagLocations) {
       // Suppress the redundant tag keyword if we just printed one.
       // We don't have to worry about ElaboratedTypes here because you can't
@@ -930,7 +949,7 @@ void TypePrinter::printAttributed(const AttributedType *T,
   case AttributedType::attr_objc_ownership:
     S += "objc_ownership(";
     switch (T->getEquivalentType().getObjCLifetime()) {
-    case Qualifiers::OCL_None: llvm_unreachable("no ownership!"); break;
+    case Qualifiers::OCL_None: llvm_unreachable("no ownership!");
     case Qualifiers::OCL_ExplicitNone: S += "none"; break;
     case Qualifiers::OCL_Strong: S += "strong"; break;
     case Qualifiers::OCL_Weak: S += "weak"; break;
@@ -1157,9 +1176,21 @@ void Qualifiers::getAsStringInternal(std::string &S,
   AppendTypeQualList(S, getCVRQualifiers());
   if (unsigned addrspace = getAddressSpace()) {
     if (!S.empty()) S += ' ';
-    S += "__attribute__((address_space(";
-    S += llvm::utostr_32(addrspace);
-    S += ")))";
+    switch (addrspace) {
+      case LangAS::opencl_global:
+        S += "__global";
+        break;
+      case LangAS::opencl_local:
+        S += "__local";
+        break;
+      case LangAS::opencl_constant:
+        S += "__constant";
+        break;
+      default:
+        S += "__attribute__((address_space(";
+        S += llvm::utostr_32(addrspace);
+        S += ")))";
+    }
   }
   if (Qualifiers::GC gc = getObjCGCAttr()) {
     if (!S.empty()) S += ' ';

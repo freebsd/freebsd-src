@@ -136,7 +136,7 @@ ar71xx_chip_device_stopped(uint32_t mask)
 	return ((reg & mask) == mask);
 }
 
-static void
+void
 ar71xx_chip_set_mii_speed(uint32_t unit, uint32_t speed)
 {
 	uint32_t val, reg, ctrl;

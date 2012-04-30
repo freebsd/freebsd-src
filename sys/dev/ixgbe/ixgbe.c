@@ -1143,6 +1143,14 @@ ixgbe_init_locked(struct adapter *adapter)
 		txdctl |= IXGBE_TXDCTL_ENABLE;
 		/* Set WTHRESH to 8, burst writeback */
 		txdctl |= (8 << 16);
+		/*
+		 * When the internal queue falls below PTHRESH (32),
+		 * start prefetching as long as there are at least
+		 * HTHRESH (1) buffers ready. The values are taken
+		 * from the Intel linux driver 3.8.21.
+		 * Prefetching enables tx line rate even with 1 queue.
+		 */
+		txdctl |= (16 << 0) | (1 << 8);
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(i), txdctl);
 	}
 
@@ -3804,6 +3812,9 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 
 	rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
+#ifdef DEV_NETMAP /* crcstrip is optional in netmap */
+	if (adapter->ifp->if_capenable & IFCAP_NETMAP && !ix_crcstrip)
+#endif /* DEV_NETMAP */
 	rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
 	rdrxctl |= IXGBE_RDRXCTL_RSCACKC;
 	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
@@ -4096,6 +4107,13 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
 	else
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
+#ifdef DEV_NETMAP
+	/* crcstrip is conditional in netmap (in RDRXCTL too ?) */
+	if (ifp->if_capenable & IFCAP_NETMAP && !ix_crcstrip)
+		hlreg &= ~IXGBE_HLREG0_RXCRCSTRP;
+	else
+		hlreg |= IXGBE_HLREG0_RXCRCSTRP;
+#endif /* DEV_NETMAP */
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
 
 	bufsz = (adapter->rx_mbuf_sz +

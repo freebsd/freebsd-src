@@ -47,14 +47,58 @@
 #define	AR_GPIO_IN_OUT		0x4048	/* GPIO input/output register */
 #define	AR_GPIO_OE_OUT		0x404c	/* GPIO output enable register */
 #define	AR_GPIO_INTR_POL	0x4050	/* GPIO interrupt polarity */
+
 #define	AR_GPIO_INPUT_EN_VAL	0x4054	/* GPIO input enable and value */
+#define	AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF     0x00000004
+#define	AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_S       2
+#define	AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_DEF    0x00000008
+#define	AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_S      3
+#define	AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_DEF       0x00000010
+#define	AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_S         4
+#define	AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF        0x00000080
+#define	AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF_S      7
+#define	AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB      0x00000400
+#define	AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB_S    10
+#define	AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_BB     0x00000800
+#define	AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_BB_S   11
+#define	AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB        0x00001000
+#define	AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB_S      12
+#define	AR_GPIO_INPUT_EN_VAL_RFSILENT_BB         0x00008000
+#define	AR_GPIO_INPUT_EN_VAL_RFSILENT_BB_S       15
+#define	AR_GPIO_RTC_RESET_OVERRIDE_ENABLE        0x00010000
+#define	AR_GPIO_JTAG_DISABLE                     0x00020000
+
 #define	AR_GPIO_INPUT_MUX1	0x4058
+#define	AR_GPIO_INPUT_MUX1_BT_PRIORITY           0x00000f00
+#define	AR_GPIO_INPUT_MUX1_BT_PRIORITY_S         8
+#define	AR_GPIO_INPUT_MUX1_BT_FREQUENCY          0x0000f000
+#define	AR_GPIO_INPUT_MUX1_BT_FREQUENCY_S        12
+#define	AR_GPIO_INPUT_MUX1_BT_ACTIVE             0x000f0000
+#define	AR_GPIO_INPUT_MUX1_BT_ACTIVE_S           16
+
 #define	AR_GPIO_INPUT_MUX2	0x405c
+#define	AR_GPIO_INPUT_MUX2_CLK25                 0x0000000f
+#define	AR_GPIO_INPUT_MUX2_CLK25_S               0
+#define	AR_GPIO_INPUT_MUX2_RFSILENT              0x000000f0
+#define	AR_GPIO_INPUT_MUX2_RFSILENT_S            4
+#define	AR_GPIO_INPUT_MUX2_RTC_RESET             0x00000f00
+#define	AR_GPIO_INPUT_MUX2_RTC_RESET_S           8
+
 #define	AR_GPIO_OUTPUT_MUX1	0x4060
 #define	AR_GPIO_OUTPUT_MUX2	0x4064
 #define	AR_GPIO_OUTPUT_MUX3	0x4068
+
+#define	AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
+#define	AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
+#define	AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
+#define	AR_GPIO_OUTPUT_MUX_AS_TX_FRAME           3
+#define	AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL  4
+#define	AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
+#define	AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
+
 #define	AR_EEPROM_STATUS_DATA	0x407c
 #define	AR_OBS			0x4080
+#define	AR_GPIO_PDPU		0x4088
 
 #ifdef	AH_SUPPORT_AR9130
 #define	AR_RTC_BASE		0x20000
@@ -95,6 +139,7 @@
 #define	AR_TSFOOR_THRESHOLD	0x813c
 #define	AR_PHY_ERR_3		0x8168
 #define	AR_PHY_ERR_MASK_3	0x816c	/* mask for AR_PHY_ERR_3 */
+#define	AR_BT_COEX_WEIGHT2	0x81c4
 #define	AR_TXOP_X		0x81ec	/* txop for legacy non-qos */
 #define	AR_TXOP_0_3		0x81f0	/* txop for various tid's */
 #define	AR_TXOP_4_7		0x81f4
@@ -460,6 +505,8 @@
 #define	AR_PCU_MISS_BCN_IN_SLEEP	0x00004000 /* count bmiss's when sleeping */
 #define	AR_PCU_BUG_12306_FIX_ENA	0x00020000 /* use rx_clear to count sifs */
 #define	AR_PCU_FORCE_QUIET_COLL		0x00040000 /* kill xmit for channel change */
+#define	AR_PCU_BT_ANT_PREVENT_RX	0x00100000
+#define	AR_PCU_BT_ANT_PREVENT_RX_S	20
 #define	AR_PCU_TBTT_PROTECT		0x00200000 /* no xmit upto tbtt+20 uS */
 #define	AR_PCU_CLEAR_VMF		0x01000000 /* clear vmf mode (fast cc)*/
 #define	AR_PCU_CLEAR_BA_VALID		0x04000000 /* clear ba state */

@@ -85,7 +85,7 @@ static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
 static Obj_Entry *dlopen_object(const char *name, int fd, Obj_Entry *refobj,
-    int lo_flags, int mode);
+    int lo_flags, int mode, RtldLockState *lockstate);
 static Obj_Entry *do_load_object(int, const char *, char *, struct stat *, int);
 static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
@@ -1672,13 +1672,14 @@ unload_filtees(Obj_Entry *obj)
 }
 
 static void
-load_filtee1(Obj_Entry *obj, Needed_Entry *needed, int flags)
+load_filtee1(Obj_Entry *obj, Needed_Entry *needed, int flags,
+    RtldLockState *lockstate)
 {
 
     for (; needed != NULL; needed = needed->next) {
 	needed->obj = dlopen_object(obj->strtab + needed->name, -1, obj,
 	  flags, ((ld_loadfltr || obj->z_loadfltr) ? RTLD_NOW : RTLD_LAZY) |
-	  RTLD_LOCAL);
+	  RTLD_LOCAL, lockstate);
     }
 }
 
@@ -1688,8 +1689,8 @@ load_filtees(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     lock_restart_for_upgrade(lockstate);
     if (!obj->filtees_loaded) {
-	load_filtee1(obj, obj->needed_filtees, flags);
-	load_filtee1(obj, obj->needed_aux_filtees, flags);
+	load_filtee1(obj, obj->needed_filtees, flags, lockstate);
+	load_filtee1(obj, obj->needed_aux_filtees, flags, lockstate);
 	obj->filtees_loaded = true;
     }
 }
@@ -2489,7 +2490,7 @@ rtld_dlopen(const char *name, int fd, int mode)
 	    lo_flags |= RTLD_LO_TRACE;
 
     return (dlopen_object(name, fd, obj_main, lo_flags,
-      mode & (RTLD_MODEMASK | RTLD_GLOBAL)));
+      mode & (RTLD_MODEMASK | RTLD_GLOBAL), NULL));
 }
 
 static void
@@ -2504,17 +2505,20 @@ dlopen_cleanup(Obj_Entry *obj)
 
 static Obj_Entry *
 dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
-    int mode)
+    int mode, RtldLockState *lockstate)
 {
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    RtldLockState lockstate;
+    RtldLockState mlockstate;
     int result;
 
     objlist_init(&initlist);
 
-    wlock_acquire(rtld_bind_lock, &lockstate);
+    if (lockstate == NULL && !(lo_flags & RTLD_LO_EARLY)) {
+	wlock_acquire(rtld_bind_lock, &mlockstate);
+	lockstate = &mlockstate;
+    }
     GDB_STATE(RT_ADD,NULL);
 
     old_obj_tail = obj_tail;
@@ -2543,7 +2547,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	    if (result == -1 || (relocate_objects(obj,
 	     (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
 	      (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-	      &lockstate)) == -1) {
+	      lockstate)) == -1) {
 		dlopen_cleanup(obj);
 		obj = NULL;
 	    } else if (lo_flags & RTLD_LO_EARLY) {
@@ -2587,28 +2591,31 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
     if (!(lo_flags & RTLD_LO_EARLY)) {
-	map_stacks_exec(&lockstate);
+	map_stacks_exec(lockstate);
     }
 
     if (initlist_objects_ifunc(&initlist, (mode & RTLD_MODEMASK) == RTLD_NOW,
       (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-      &lockstate) == -1) {
+      lockstate) == -1) {
 	objlist_clear(&initlist);
 	dlopen_cleanup(obj);
-	lock_release(rtld_bind_lock, &lockstate);
+	if (lockstate == &mlockstate)
+	    lock_release(rtld_bind_lock, lockstate);
 	return (NULL);
     }
 
     if (!(lo_flags & RTLD_LO_EARLY)) {
 	/* Call the init functions. */
-	objlist_call_init(&initlist, &lockstate);
+	objlist_call_init(&initlist, lockstate);
     }
     objlist_clear(&initlist);
-    lock_release(rtld_bind_lock, &lockstate);
+    if (lockstate == &mlockstate)
+	lock_release(rtld_bind_lock, lockstate);
     return obj;
 trace:
     trace_loaded_objects(obj);
-    lock_release(rtld_bind_lock, &lockstate);
+    if (lockstate == &mlockstate)
+	lock_release(rtld_bind_lock, lockstate);
     exit(0);
 }
 

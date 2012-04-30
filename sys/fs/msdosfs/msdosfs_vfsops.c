@@ -834,7 +834,7 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 		vn_printf(vp,
 		    "msdosfs_umount(): just before calling VOP_CLOSE()\n");
 		printf("freef %p, freeb %p, mount %p\n",
-		    TAILQ_NEXT(vp, v_freelist), vp->v_freelist.tqe_prev,
+		    TAILQ_NEXT(vp, v_actfreelist), vp->v_actfreelist.tqe_prev,
 		    vp->v_mount);
 		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %ld, type %d\n",
 		    TAILQ_FIRST(&vp->v_bufobj.bo_clean.bv_hd),
@@ -923,27 +923,22 @@ msdosfs_sync(struct mount *mp, int waitfor)
 	/*
 	 * Write back each (modified) denode.
 	 */
-	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
-		VI_LOCK(vp);
-		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED)) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
+		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		dep = VTODE(vp);
 		if ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
 		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY)) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -953,9 +948,7 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 
 	/*
 	 * Flush filesystem control info.

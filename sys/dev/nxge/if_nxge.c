@@ -1272,7 +1272,7 @@ xge_callback_event(xge_queue_item_t *item)
 	lldev  = xge_hal_device_private(hldev);
 	ifnetp = lldev->ifnetp;
 
-	switch(item->event_type) {
+	switch((int)item->event_type) {
 	    case XGE_LL_EVENT_TRY_XMIT_AGAIN:
 	        if(lldev->initialized) {
 	            if(xge_hal_channel_dtr_count(lldev->fifo_channel[0]) > 0) {

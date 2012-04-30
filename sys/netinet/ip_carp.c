@@ -223,6 +223,13 @@ SYSCTL_STRUCT(_net_inet_carp, OID_AUTO, stats, CTLFLAG_RW, &carpstats,
 #define	CIF_LOCK_ASSERT(cif)	mtx_assert(&(cif)->cif_mtx, MA_OWNED)
 #define	CIF_LOCK(cif)		mtx_lock(&(cif)->cif_mtx)
 #define	CIF_UNLOCK(cif)		mtx_unlock(&(cif)->cif_mtx)
+#define	CIF_FREE(cif)	do {				\
+		CIF_LOCK_ASSERT(cif);			\
+		if (TAILQ_EMPTY(&(cif)->cif_vrs))	\
+			carp_free_if(cif);		\
+		else					\
+			CIF_UNLOCK(cif);		\
+} while (0)
 
 #define	CARP_LOG(...)	do {				\
 	if (carp_log > 0)				\
@@ -257,6 +264,7 @@ SYSCTL_STRUCT(_net_inet_carp, OID_AUTO, stats, CTLFLAG_RW, &carpstats,
 static void	carp_input_c(struct mbuf *, struct carp_header *, sa_family_t);
 static struct carp_softc
 		*carp_alloc(struct ifnet *);
+static void	carp_detach_locked(struct ifaddr *);
 static void	carp_destroy(struct carp_softc *);
 static struct carp_if
 		*carp_alloc_if(struct ifnet *);
@@ -1214,11 +1222,12 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
  * Setup multicast structures.
  */
 static int
-carp_multicast_setup(struct carp_softc *sc, sa_family_t sa)
+carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 {
-	struct ifnet *ifp = sc->sc_carpdev;
-	struct carp_if *cif = ifp->if_carp;
+	struct ifnet *ifp = cif->cif_ifp;
 	int error = 0;
+
+	CIF_LOCK_ASSERT(cif);
 
 	switch (sa) {
 #ifdef INET
@@ -1232,7 +1241,9 @@ carp_multicast_setup(struct carp_softc *sc, sa_family_t sa)
 
 		imo->imo_membership = (struct in_multi **)malloc(
 		    (sizeof(struct in_multi *) * IP_MIN_MEMBERSHIPS), M_CARP,
-		    M_WAITOK);
+		    M_NOWAIT);
+		if (imo->imo_membership == NULL)
+			return (ENOMEM);
 		imo->imo_mfilters = NULL;
 		imo->imo_max_memberships = IP_MIN_MEMBERSHIPS;
 		imo->imo_multicast_vif = -1;
@@ -1262,7 +1273,9 @@ carp_multicast_setup(struct carp_softc *sc, sa_family_t sa)
 
 		im6o->im6o_membership = (struct in6_multi **)malloc(
 		    (sizeof(struct in6_multi *) * IPV6_MIN_MEMBERSHIPS), M_CARP,
-		    M_ZERO|M_WAITOK);
+		    M_ZERO | M_NOWAIT);
+		if (im6o->im6o_membership == NULL)
+			return (ENOMEM);
 		im6o->im6o_mfilters = NULL;
 		im6o->im6o_max_memberships = IPV6_MIN_MEMBERSHIPS;
 		im6o->im6o_multicast_hlim = CARP_DFLTTL;
@@ -1316,15 +1329,14 @@ carp_multicast_setup(struct carp_softc *sc, sa_family_t sa)
  * Free multicast structures.
  */
 static void
-carp_multicast_cleanup(struct carp_softc *sc, sa_family_t sa)
+carp_multicast_cleanup(struct carp_if *cif, sa_family_t sa)
 {
-	struct ifnet *ifp = sc->sc_carpdev;
-	struct carp_if *cif = ifp->if_carp;
 
+	CIF_LOCK_ASSERT(cif);
 	switch (sa) {
 #ifdef INET
 	case AF_INET:
-		if (sc->sc_naddrs == 0) {
+		if (cif->cif_naddrs == 0) {
 			struct ip_moptions *imo = &cif->cif_imo;
 
 			in_leavegroup(imo->imo_membership[0], NULL);
@@ -1338,7 +1350,7 @@ carp_multicast_cleanup(struct carp_softc *sc, sa_family_t sa)
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if (sc->sc_naddrs6 == 0) {
+		if (cif->cif_naddrs6 == 0) {
 			struct ip6_moptions *im6o = &cif->cif_im6o;
 
 			in6_mc_leave(im6o->im6o_membership[0], NULL);
@@ -1496,12 +1508,9 @@ carp_destroy(struct carp_softc *sc)
 	struct ifnet *ifp = sc->sc_carpdev;
 	struct carp_if *cif = ifp->if_carp;
 
-	CIF_LOCK(cif);
+	CIF_LOCK_ASSERT(cif);
+
 	TAILQ_REMOVE(&cif->cif_vrs, sc, sc_list);
-	if (TAILQ_EMPTY(&cif->cif_vrs))
-		carp_free_if(cif);
-	else
-		CIF_UNLOCK(cif);
 
 	mtx_lock(&carp_mtx);
 	LIST_REMOVE(sc, sc_next);
@@ -1777,6 +1786,7 @@ int
 carp_attach(struct ifaddr *ifa, int vhid)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
+	struct carp_if *cif = ifp->if_carp;
 	struct carp_softc *sc;
 	int index, error;
 
@@ -1795,43 +1805,51 @@ carp_attach(struct ifaddr *ifa, int vhid)
 		return (EPROTOTYPE);
 	}
 
-	CIF_LOCK(ifp->if_carp);
+	CIF_LOCK(cif);
 	IFNET_FOREACH_CARP(ifp, sc)
 		if (sc->sc_vhid == vhid)
 			break;
-	CIF_UNLOCK(ifp->if_carp);
-	if (sc == NULL)
+	if (sc == NULL) {
+		CIF_UNLOCK(cif);
 		return (ENOENT);
+	}
 
 	if (ifa->ifa_carp) {
 		if (ifa->ifa_carp->sc_vhid != vhid)
-			carp_detach(ifa);
-		else
+			carp_detach_locked(ifa);
+		else {
+			CIF_UNLOCK(cif);
 			return (0);
+		}
 	}
 
-	error = carp_multicast_setup(sc, ifa->ifa_addr->sa_family);
-	if (error)
+	error = carp_multicast_setup(cif, ifa->ifa_addr->sa_family);
+	if (error) {
+		CIF_FREE(cif);
 		return (error);
+	}
 
 	CARP_LOCK(sc);
 	index = sc->sc_naddrs + sc->sc_naddrs6 + 1;
 	if (index > sc->sc_ifasiz / sizeof(struct ifaddr *))
 		if ((error = carp_grow_ifas(sc)) != 0) {
-			carp_multicast_cleanup(sc,
+			carp_multicast_cleanup(cif,
 			    ifa->ifa_addr->sa_family);
 			CARP_UNLOCK(sc);
+			CIF_FREE(cif);
 			return (error);
 		}
 
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	case AF_INET:
+		cif->cif_naddrs++;
 		sc->sc_naddrs++;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
+		cif->cif_naddrs6++;
 		sc->sc_naddrs6++;
 		break;
 #endif
@@ -1845,6 +1863,7 @@ carp_attach(struct ifaddr *ifa, int vhid)
 	carp_sc_state(sc);
 
 	CARP_UNLOCK(sc);
+	CIF_UNLOCK(cif);
 
 	return (0);
 }
@@ -1852,11 +1871,25 @@ carp_attach(struct ifaddr *ifa, int vhid)
 void
 carp_detach(struct ifaddr *ifa)
 {
+	struct ifnet *ifp = ifa->ifa_ifp;
+	struct carp_if *cif = ifp->if_carp;
+
+	CIF_LOCK(cif);
+	carp_detach_locked(ifa);
+	CIF_FREE(cif);
+}
+
+static void
+carp_detach_locked(struct ifaddr *ifa)
+{
+	struct ifnet *ifp = ifa->ifa_ifp;
+	struct carp_if *cif = ifp->if_carp;
 	struct carp_softc *sc = ifa->ifa_carp;
 	int i, index;
 
 	KASSERT(sc != NULL, ("%s: %p not attached", __func__, ifa));
 
+	CIF_LOCK_ASSERT(cif);
 	CARP_LOCK(sc);
 
 	/* Shift array. */
@@ -1872,18 +1905,20 @@ carp_detach(struct ifaddr *ifa)
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	case AF_INET:
+		cif->cif_naddrs--;
 		sc->sc_naddrs--;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
+		cif->cif_naddrs6--;
 		sc->sc_naddrs6--;
 		break;
 #endif
 	}
 
 	carp_ifa_delroute(ifa);
-	carp_multicast_cleanup(sc, ifa->ifa_addr->sa_family);
+	carp_multicast_cleanup(cif, ifa->ifa_addr->sa_family);
 
 	ifa->ifa_carp = NULL;
 	ifa_free(ifa);

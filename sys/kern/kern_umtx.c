@@ -271,15 +271,15 @@ umtxq_sysinit(void *arg __unused)
 			TAILQ_INIT(&umtxq_chains[i][j].uc_pi_list);
 			umtxq_chains[i][j].uc_busy = 0;
 			umtxq_chains[i][j].uc_waiters = 0;
-			#ifdef UMTX_PROFILING
+#ifdef UMTX_PROFILING
 			umtxq_chains[i][j].length = 0;
 			umtxq_chains[i][j].max_length = 0;	
-			#endif
+#endif
 		}
 	}
-	#ifdef UMTX_PROFILING
+#ifdef UMTX_PROFILING
 	umtx_init_profiling();
-	#endif
+#endif
 	mtx_init(&umtx_lock, "umtx lock", NULL, MTX_SPIN);
 	EVENTHANDLER_REGISTER(process_exec, umtx_exec_hook, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -430,14 +430,14 @@ umtxq_insert_queue(struct umtx_q *uq, int q)
 
 	TAILQ_INSERT_TAIL(&uh->head, uq, uq_link);
 	uh->length++;
-	#ifdef UMTX_PROFILING
+#ifdef UMTX_PROFILING
 	uc->length++;
 	if (uc->length > uc->max_length) {
 		uc->max_length = uc->length;
 		if (uc->max_length > max_length)
 			max_length = uc->max_length;	
 	}
-	#endif
+#endif
 	uq->uq_flags |= UQF_UMTXQ;
 	uq->uq_cur_queue = uh;
 	return;
@@ -455,9 +455,9 @@ umtxq_remove_queue(struct umtx_q *uq, int q)
 		uh = uq->uq_cur_queue;
 		TAILQ_REMOVE(&uh->head, uq, uq_link);
 		uh->length--;
-		#ifdef UMTX_PROFILING
+#ifdef UMTX_PROFILING
 		uc->length--;
-		#endif
+#endif
 		uq->uq_flags &= ~UQF_UMTXQ;
 		if (TAILQ_EMPTY(&uh->head)) {
 			KASSERT(uh->length == 0,

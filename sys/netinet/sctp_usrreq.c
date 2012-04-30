@@ -79,7 +79,6 @@ sctp_init(void)
 	 * now I will just copy.
 	 */
 	SCTP_BASE_SYSCTL(sctp_recvspace) = SCTP_BASE_SYSCTL(sctp_sendspace);
-
 	SCTP_BASE_VAR(first_time) = 0;
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 0;
 	sctp_pcb_init();
@@ -88,8 +87,6 @@ sctp_init(void)
 	SCTP_BASE_VAR(packet_log_end) = 0;
 	bzero(&SCTP_BASE_VAR(packet_log_buffer), SCTP_PACKET_LOG_SIZE);
 #endif
-
-
 }
 
 void
@@ -1616,7 +1613,7 @@ out_now:
   }
 
 
-#define SCTP_CHECK_AND_CAST(destp, srcp, type, size)  {\
+#define SCTP_CHECK_AND_CAST(destp, srcp, type, size) {\
 	if (size < sizeof(type)) { \
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL); \
 		error = EINVAL; \
@@ -2882,6 +2879,7 @@ flags_out:
 				} else {
 					/* copy in the chunks */
 					(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
+					sac->gauth_number_of_chunks = (uint32_t) size;
 					*optsize = sizeof(struct sctp_authchunks) + size;
 				}
 				SCTP_TCB_UNLOCK(stcb);
@@ -2900,6 +2898,7 @@ flags_out:
 					} else {
 						/* copy in the chunks */
 						(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
+						sac->gauth_number_of_chunks = (uint32_t) size;
 						*optsize = sizeof(struct sctp_authchunks) + size;
 					}
 					SCTP_INP_RUNLOCK(inp);
@@ -2930,6 +2929,7 @@ flags_out:
 				} else {
 					/* copy in the chunks */
 					(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
+					sac->gauth_number_of_chunks = (uint32_t) size;
 					*optsize = sizeof(struct sctp_authchunks) + size;
 				}
 				SCTP_TCB_UNLOCK(stcb);

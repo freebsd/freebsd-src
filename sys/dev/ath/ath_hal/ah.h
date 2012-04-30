@@ -660,7 +660,11 @@ typedef struct {
 	uint32_t        tx_busy;
 	uint32_t        rx_busy;
 	uint32_t        chan_busy;
+	uint32_t        ext_chan_busy;
 	uint32_t        cycle_count;
+	/* XXX TODO */
+	uint32_t        ofdm_phyerr_count;
+	uint32_t        cck_phyerr_count;
 } HAL_SURVEY_SAMPLE;
 
 /*

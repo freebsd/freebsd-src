@@ -25,6 +25,7 @@
 
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 
 namespace llvm {
@@ -35,8 +36,9 @@ class MCContext;
 class MCAsmInfo;
 class MCAsmLexer;
 class MCDisassembler;
-class MCInstPrinter;
 class MCInst;
+class MCInstPrinter;
+class MCInstrInfo;
 class MCParsedAsmOperand;
 class MCRegisterInfo;
 class MCStreamer;
@@ -74,28 +76,26 @@ struct EDDisassembler {
   ///   pair
   struct CPUKey {
     /// The architecture type
-    llvm::Triple::ArchType Arch;
+    std::string Triple;
     
     /// The assembly syntax
     AssemblySyntax Syntax;
     
     /// operator== - Equality operator
     bool operator==(const CPUKey &key) const {
-      return (Arch == key.Arch &&
+      return (Triple == key.Triple &&
               Syntax == key.Syntax);
     }
     
     /// operator< - Less-than operator
     bool operator<(const CPUKey &key) const {
-      return ((Arch < key.Arch) ||
-              ((Arch == key.Arch) && Syntax < (key.Syntax)));
+      return ((Triple < key.Triple) ||
+              ((Triple == key.Triple) && Syntax < (key.Syntax)));
     }
   };
   
   typedef std::map<CPUKey, EDDisassembler*> DisassemblerMap_t;
   
-  /// True if the disassembler registry has been initialized; false if not
-  static bool sInitialized;
   /// A map from disassembler specifications to disassemblers.  Populated
   ///   lazily.
   static DisassemblerMap_t sDisassemblers;
@@ -116,9 +116,6 @@ struct EDDisassembler {
   static EDDisassembler *getDisassembler(llvm::StringRef str,
                                          AssemblySyntax syntax);
   
-  /// initialize - Initializes the disassembler registry and the LLVM backend
-  static void initialize();
-  
   ////////////////////////
   // Per-object members //
   ////////////////////////
@@ -131,14 +128,18 @@ struct EDDisassembler {
   /// The stream to write errors to
   llvm::raw_ostream &ErrorStream;
 
-  /// The architecture/syntax pair for the current architecture
+  /// The triple/syntax pair for the current architecture
   CPUKey Key;
+  /// The Triple fur the current architecture
+  Triple TgtTriple;
   /// The LLVM target corresponding to the disassembler
   const llvm::Target *Tgt;
   /// The assembly information for the target architecture
   llvm::OwningPtr<const llvm::MCAsmInfo> AsmInfo;
   /// The subtarget information for the target architecture
   llvm::OwningPtr<const llvm::MCSubtargetInfo> STI;
+  // The instruction information for the target architecture.
+  llvm::OwningPtr<const llvm::MCInstrInfo> MII;
   // The register information for the target architecture.
   llvm::OwningPtr<const llvm::MCRegisterInfo> MRI;
   /// The disassembler for the target architecture

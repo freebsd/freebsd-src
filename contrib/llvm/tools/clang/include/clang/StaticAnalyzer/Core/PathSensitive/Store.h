@@ -29,6 +29,7 @@ class StackFrameContext;
 
 namespace ento {
 
+class CallOrObjCMessage;
 class ProgramState;
 class ProgramStateManager;
 class SubRegionMap;
@@ -54,7 +55,7 @@ public:
   ///   expected type of the returned value.  This is used if the value is
   ///   lazily computed.
   /// \return The value bound to the location \c loc.
-  virtual SVal Retrieve(Store store, Loc loc, QualType T = QualType()) = 0;
+  virtual SVal getBinding(Store store, Loc loc, QualType T = QualType()) = 0;
 
   /// Return a state with the specified value bound to the given location.
   /// \param[in] state The analysis state.
@@ -93,18 +94,12 @@ public:
     return svalBuilder.makeLoc(MRMgr.getVarRegion(VD, LC));
   }
 
-  virtual Loc getLValueString(const StringLiteral* S) {
-    return svalBuilder.makeLoc(MRMgr.getStringRegion(S));
-  }
-
   Loc getLValueCompoundLiteral(const CompoundLiteralExpr *CL,
                                const LocationContext *LC) {
     return loc::MemRegionVal(MRMgr.getCompoundLiteralRegion(CL, LC));
   }
 
-  virtual SVal getLValueIvar(const ObjCIvarDecl *decl, SVal base) {
-    return getLValueFieldOrIvar(decl, base);
-  }
+  virtual SVal getLValueIvar(const ObjCIvarDecl *decl, SVal base);
 
   virtual SVal getLValueField(const FieldDecl *D, SVal Base) {
     return getLValueFieldOrIvar(D, Base);
@@ -114,7 +109,7 @@ public:
 
   // FIXME: This should soon be eliminated altogether; clients should deal with
   // region extents directly.
-  virtual DefinedOrUnknownSVal getSizeInElements(const ProgramState *state, 
+  virtual DefinedOrUnknownSVal getSizeInElements(ProgramStateRef state, 
                                                  const MemRegion *region,
                                                  QualType EleTy) {
     return UnknownVal();
@@ -125,17 +120,26 @@ public:
   virtual SVal ArrayToPointer(Loc Array) = 0;
 
   /// Evaluates DerivedToBase casts.
-  virtual SVal evalDerivedToBase(SVal derived, QualType basePtrType) {
-    return UnknownVal();
-  }
+  virtual SVal evalDerivedToBase(SVal derived, QualType basePtrType) = 0;
+
+  /// \brief Evaluates C++ dynamic_cast cast.
+  /// The callback may result in the following 3 scenarios:
+  ///  - Successful cast (ex: derived is subclass of base).
+  ///  - Failed cast (ex: derived is definitely not a subclass of base).
+  ///  - We don't know (base is a symbolic region and we don't have 
+  ///    enough info to determine if the cast will succeed at run time).
+  /// The function returns an SVal representing the derived class; it's
+  /// valid only if Failed flag is set to false.
+  virtual SVal evalDynamicCast(SVal base, QualType derivedPtrType,
+                                 bool &Failed) = 0;
 
   class CastResult {
-    const ProgramState *state;
+    ProgramStateRef state;
     const MemRegion *region;
   public:
-    const ProgramState *getState() const { return state; }
+    ProgramStateRef getState() const { return state; }
     const MemRegion* getRegion() const { return region; }
-    CastResult(const ProgramState *s, const MemRegion* r = 0) : state(s), region(r){}
+    CastResult(ProgramStateRef s, const MemRegion* r = 0) : state(s), region(r){}
   };
 
   const ElementRegion *GetElementZeroRegion(const MemRegion *R, QualType T);
@@ -180,8 +184,8 @@ public:
   ///   symbols to mark the values of invalidated regions.
   /// \param[in,out] IS A set to fill with any symbols that are no longer
   ///   accessible. Pass \c NULL if this information will not be used.
-  /// \param[in] invalidateGlobals If \c true, any non-static global regions
-  ///   are invalidated as well.
+  /// \param[in] Call The call expression which will be used to determine which
+  ///   globals should get invalidated.
   /// \param[in,out] Regions A vector to fill with any regions being
   ///   invalidated. This should include any regions explicitly invalidated
   ///   even if they do not currently have bindings. Pass \c NULL if this
@@ -189,14 +193,16 @@ public:
   virtual StoreRef invalidateRegions(Store store,
                                      ArrayRef<const MemRegion *> Regions,
                                      const Expr *E, unsigned Count,
+                                     const LocationContext *LCtx,
                                      InvalidatedSymbols &IS,
-                                     bool invalidateGlobals,
+                                     const CallOrObjCMessage *Call,
                                      InvalidatedRegions *Invalidated) = 0;
 
   /// enterStackFrame - Let the StoreManager to do something when execution
   /// engine is about to execute into a callee.
-  virtual StoreRef enterStackFrame(const ProgramState *state,
-                                   const StackFrameContext *frame);
+  virtual StoreRef enterStackFrame(ProgramStateRef state,
+                                   const LocationContext *callerCtx,
+                                   const StackFrameContext *calleeCtx);
 
   virtual void print(Store store, raw_ostream &Out,
                      const char* nl, const char *sep) = 0;
@@ -206,6 +212,21 @@ public:
     virtual ~BindingsHandler();
     virtual bool HandleBinding(StoreManager& SMgr, Store store,
                                const MemRegion *region, SVal val) = 0;
+  };
+
+  class FindUniqueBinding :
+  public BindingsHandler {
+    SymbolRef Sym;
+    const MemRegion* Binding;
+    bool First;
+
+  public:
+    FindUniqueBinding(SymbolRef sym) : Sym(sym), Binding(0), First(true) {}
+
+    bool HandleBinding(StoreManager& SMgr, Store store, const MemRegion* R,
+                       SVal val);
+    operator bool() { return First && Binding; }
+    const MemRegion *getRegion() { return Binding; }
   };
 
   /// iterBindings - Iterate over the bindings in the Store.
@@ -258,10 +279,12 @@ inline StoreRef &StoreRef::operator=(StoreRef const &newStore) {
 /// SubRegionMap - An abstract interface that represents a queryable map
 ///  between MemRegion objects and their subregions.
 class SubRegionMap {
+  virtual void anchor();
 public:
   virtual ~SubRegionMap() {}
 
   class Visitor {
+    virtual void anchor();
   public:
     virtual ~Visitor() {}
     virtual bool Visit(const MemRegion* Parent, const MemRegion* SubRegion) = 0;

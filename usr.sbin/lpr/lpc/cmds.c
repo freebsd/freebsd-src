@@ -79,7 +79,7 @@ static char	*args2line(int argc, char **argv);
 static int	 doarg(char *_job);
 static int	 doselect(const struct dirent *_d);
 static int	 kill_qtask(const char *lf);
-static int	 sortq(const void *_a, const void *_b);
+static int	 sortq(const struct dirent **a, const struct dirent **b);
 static int	 touch(struct jobqueue *_jq);
 static void	 unlinkf(char *_name);
 static void	 upstat(struct printer *_pp, const char *_msg, int _notify);
@@ -162,6 +162,14 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 				generic_msg = args2line(targc - 1, targv + 1);
 				break;
 			}
+		}
+		if (argc < 1) {
+			printf("error: No printer name(s) specified before"
+			    " '-msg'.\n");
+			printf("usage: %s  {all | printer ...}",
+			    generic_cmdname);
+			printf(" [-msg <text> ...]\n");
+			return;
 		}
 	}
 
@@ -486,14 +494,14 @@ doselect(const struct dirent *d)
  *   filenames (they will have datafile names which start with `dfB*').
  */
 static int
-sortq(const void *a, const void *b)
+sortq(const struct dirent **a, const struct dirent **b)
 {
 	const int a_lt_b = -1, a_gt_b = 1, cat_other = 10;
 	const char *fname_a, *fname_b, *jnum_a, *jnum_b;
 	int cat_a, cat_b, ch, res, seq_a, seq_b;
 
-	fname_a = (*(const struct dirent * const *)a)->d_name;
-	fname_b = (*(const struct dirent * const *)b)->d_name;
+	fname_a = (*a)->d_name;
+	fname_b = (*b)->d_name;
 
 	/*
 	 * First separate filenames into categories.  Categories are
@@ -1001,12 +1009,30 @@ setstatus_gi(int argc __unused, char *argv[] __unused)
 void
 setstatus_q(struct printer *pp)
 {
+	struct stat stbuf;
+	int not_shown;
 	char lf[MAXPATHLEN];
 
 	lock_file_name(pp, lf, sizeof lf);
 	printf("%s:\n", pp->printer);
 
 	upstat(pp, generic_msg, 1);
+
+	/*
+	 * Warn the user if 'lpq' will not display this new status-message.
+	 * Note that if lock file does not exist, then the queue is enabled
+	 * for both queuing and printing.
+	 */
+	not_shown = 1;
+	if (stat(lf, &stbuf) >= 0) {
+		if (stbuf.st_mode & LFM_PRINT_DIS)
+			not_shown = 0;
+	}
+	if (not_shown) {
+		printf("\tnote: This queue currently has printing enabled,\n");
+		printf("\t    so this -msg will only be shown by 'lpq' if\n");
+		printf("\t    a job is actively printing on it.\n");
+	}
 }
 
 /*

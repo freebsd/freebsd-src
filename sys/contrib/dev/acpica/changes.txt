@@ -1,4 +1,71 @@
 ----------------------------------------
+20 April 2012. Summary of changes for version 20120420:
+
+This release is available at www.acpica.org/downloads.
+The ACPI 5.0 specification is available at www.acpi.info.
+
+1) ACPICA Core Subsystem:
+
+Implemented support for multiple notify handlers. This change adds support to 
+allow multiple system and device notify handlers on Device, Thermal Zone, and 
+Processor objects. This can simplify the host OS notification implementation. 
+Also re-worked and restructured the entire notify support code to simplify 
+handler installation, handler removal, notify event queuing, and notify 
+dispatch to handler(s). Note: there can still only be two global notify 
+handlers - one for system notifies and one for device notifies. There are no 
+changes to the existing handler install/remove interfaces. Lin Ming, Bob 
+Moore, Rafael Wysocki.
+
+Fixed a regression in the package repair code where the object reference 
+count was calculated incorrectly. Regression was introduced in the commit 
+"Support to add Package wrappers".
+
+Fixed a couple possible memory leaks in the AML parser, in the error recovery 
+path. Jesper Juhl, Lin Ming.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  92.9K Code, 25.0K Data, 117.9K Total
+    Debug Version:     172.5K Code, 73.2K Data, 245.7K Total
+  Current Release:
+    Non-Debug Version:  92.9K Code, 25.0K Data, 117.9K Total
+    Debug Version:     172.6K Code, 73.4K Data, 246.0K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a problem with the resource descriptor support where the length 
+of the StartDependentFn and StartDependentFnNoPrio descriptors were not 
+included in cumulative descriptor offset, resulting in incorrect values for 
+resource tags within resource descriptors appearing after a StartDependent* 
+descriptor. Reported by Petr Vandrovec. ACPICA BZ 949.
+
+iASL and Preprocessor: Implemented full support for the #line directive to 
+correctly track original source file line numbers through the .i preprocessor 
+output file - for error and warning messages.
+
+iASL: Expand the allowable byte constants for address space IDs. Previously, 
+the allowable range was 0x80-0xFF (user-defined spaces), now the range is 
+0x0A-0xFF to allow for custom and new IDs without changing the compiler.
+
+iASL: Add option to treat all warnings as errors (-we). ACPICA BZ 948.
+
+iASL: Add option to completely disable the preprocessor (-Pn).
+
+iASL: Now emit all error/warning messages to standard error (stderr) by 
+default (instead of the previous stdout).
+
+ASL Test Suite (ASLTS): Reduce iASL warnings due to use of Switch(). Update 
+for resource descriptor offset fix above. Update/cleanup error output 
+routines. Enable and send iASL errors/warnings to an error logfile 
+(error.txt). Send all other iASL output to a logfile (compiler.txt). Fixed 
+several extraneous "unrecognized operator" messages.
+
+----------------------------------------
 20 March 2012. Summary of changes for version 20120320:
 
 This release is available at www.acpica.org/downloads.

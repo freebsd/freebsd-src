@@ -522,17 +522,14 @@ restart:
 	    FSMAXSNAP + 1 /* superblock */ + 1 /* last block */ + 1 /* size */;
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
+	MNT_IUNLOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(xvp, mp, mvp) {
-		VI_LOCK(xvp);
-		MNT_IUNLOCK(mp);
-		if ((xvp->v_iflag & VI_DOOMED) ||
-		    (xvp->v_usecount == 0 &&
+	MNT_VNODE_FOREACH_ALL(xvp, mp, mvp) {
+		if ((xvp->v_usecount == 0 &&
 		     (xvp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == 0) ||
 		    xvp->v_type == VNON ||
 		    IS_SNAPSHOT(VTOI(xvp))) {
 			VI_UNLOCK(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		/*
@@ -541,13 +538,11 @@ loop:
 		 */
 		if (xvp == nd.ni_dvp) {
 			VI_UNLOCK(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		vholdl(xvp);
 		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK) != 0) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			vdrop(xvp);
 			goto loop;
 		}
@@ -557,7 +552,6 @@ loop:
 			VI_UNLOCK(xvp);
 			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		VI_UNLOCK(xvp);
@@ -567,14 +561,12 @@ loop:
 		    vat.va_nlink > 0) {
 			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		xp = VTOI(xvp);
 		if (ffs_checkfreefile(copy_fs, vp, xp->i_number)) {
 			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		/*
@@ -610,12 +602,10 @@ loop:
 			free(copy_fs->fs_csp, M_UFSMNT);
 			free(copy_fs, M_UFSMNT);
 			copy_fs = NULL;
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto out1;
 		}
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	/*
 	 * Erase the journal file from the snapshot.
 	 */
@@ -860,7 +850,7 @@ out:
 	mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	MNT_IUNLOCK(mp);
 	if (error)
-		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
+		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED);
 	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	if (error)
 		vput(vp);
@@ -1999,7 +1989,7 @@ ffs_snapshot_mount(mp)
 				reason = "non-snapshot";
 			} else {
 				reason = "old format snapshot";
-				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
+				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED);
 				(void)ffs_syncvnode(vp, MNT_WAIT, 0);
 			}
 			printf("ffs_snapshot_mount: %s inode %d\n",
@@ -2532,31 +2522,26 @@ process_deferred_inactive(struct mount *mp)
 
 	td = curthread;
 	(void) vn_start_secondary_write(NULL, &mp, V_WAIT);
-	MNT_ILOCK(mp);
  loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
 		 * IN_LAZYACCESS is checked here without holding any
 		 * vnode lock, but this flag is set only while holding
 		 * vnode interlock.
 		 */
-		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED) != 0 ||
+		if (vp->v_type == VNON ||
 		    ((VTOI(vp)->i_flag & IN_LAZYACCESS) == 0 &&
-			((vp->v_iflag & VI_OWEINACT) == 0 ||
-			vp->v_usecount > 0))) {
+		    ((vp->v_iflag & VI_OWEINACT) == 0 || vp->v_usecount > 0))) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		vholdl(vp);
 		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		if (error != 0) {
 			vdrop(vp);
-			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				continue;	/* vnode recycled */
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		ip = VTOI(vp);
@@ -2569,29 +2554,15 @@ process_deferred_inactive(struct mount *mp)
 			VI_UNLOCK(vp);
 			VOP_UNLOCK(vp, 0);
 			vdrop(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
-		
-		VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
-			 ("process_deferred_inactive: "
-			  "recursed on VI_DOINGINACT"));
-		vp->v_iflag |= VI_DOINGINACT;
-		vp->v_iflag &= ~VI_OWEINACT;
-		VI_UNLOCK(vp);
-		(void) VOP_INACTIVE(vp, td);
-		VI_LOCK(vp);
-		VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
-			 ("process_deferred_inactive: lost VI_DOINGINACT"));
+		vinactive(vp, td);
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 			 ("process_deferred_inactive: got VI_OWEINACT"));
-		vp->v_iflag &= ~VI_DOINGINACT;
 		VI_UNLOCK(vp);
 		VOP_UNLOCK(vp, 0);
 		vdrop(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	vn_finished_secondary_write(mp);
 }
 

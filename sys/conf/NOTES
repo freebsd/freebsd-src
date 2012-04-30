@@ -300,7 +300,8 @@ options 	MPROF_HASH_SIZE="1543"
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING
 options 	TURNSTILE_PROFILING
-options		UMTX_PROFILING
+options 	UMTX_PROFILING
+
 
 #####################################################################
 # COMPATIBILITY OPTIONS

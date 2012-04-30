@@ -1,4 +1,4 @@
-//===-- SPUMCTargetDesc.cpp - Cell SPU Target Descriptions -----*- C++ -*-===//
+//===-- SPUMCTargetDesc.cpp - Cell SPU Target Descriptions ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,6 +18,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
@@ -62,11 +63,12 @@ static MCAsmInfo *createSPUMCAsmInfo(const Target &T, StringRef TT) {
 }
 
 static MCCodeGenInfo *createSPUMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                      CodeModel::Model CM) {
+                                             CodeModel::Model CM,
+                                             CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
   // For the time being, use static relocations, since there's really no
   // support for PIC yet.
-  X->InitMCCodeGenInfo(Reloc::Static, CM);
+  X->InitMCCodeGenInfo(Reloc::Static, CM, OL);
   return X;
 }
 
