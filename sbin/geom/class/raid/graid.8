@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2012
+.Dd April 30, 2012
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -200,6 +200,19 @@ The GEOM RAID class follows a modular design, allowing different metadata
 formats to be used.
 Support is currently implemented for the following formats:
 .Bl -tag -width "Intel"
+.It DDF
+The format defined by the SNIA Common RAID Disk Data Format v2.0 specification.
+Used by some Adaptec RAID BIOSes and some hardware RAID controllers.
+Because of high format flexibility different implementations support
+different set of features and have different on-disk metadata layouts.
+To provide compatibility, the GEOM RAID class mimics capabilities and
+metadata layout of the first detected DDF array.
+Respecting that, it may support different number of disks per volume,
+volumes per array, partitions per disk, etc.
+The following configurations are supported: RAID0 (2+ disks), RAID1 (2+ disks),
+RAID1E (3+ disks), RAID3 (3+ disks), RAID4 (3+ disks), RAID5 (3+ disks),
+RAID5E (4+ disks), RAID5EE (4+ disks), RAID5R (3+ disks), RAID6 (4+ disks),
+RAIDMDF (5+ disks), RAID10 (4+ disks), SINGLE (1 disk), CONCAT (2+ disks).
 .It Intel
 The format used by Intel RAID BIOS.
 Supports up to two volumes per array.

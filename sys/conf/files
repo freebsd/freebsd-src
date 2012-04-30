@@ -2396,6 +2396,7 @@ geom/raid/g_raid.c		optional geom_raid
 geom/raid/g_raid_ctl.c		optional geom_raid
 geom/raid/g_raid_md_if.m	optional geom_raid
 geom/raid/g_raid_tr_if.m	optional geom_raid
+geom/raid/md_ddf.c		optional geom_raid
 geom/raid/md_intel.c		optional geom_raid
 geom/raid/md_jmicron.c		optional geom_raid
 geom/raid/md_nvidia.c		optional geom_raid
