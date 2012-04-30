@@ -103,6 +103,9 @@ struct g_part_alias_list {
 	{ "netbsd-lfs", G_PART_ALIAS_NETBSD_LFS },
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
+	{ "vmware-vmfs", G_PART_ALIAS_VMFS },
+	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
+	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
 };
 
 SYSCTL_DECL(_kern_geom);

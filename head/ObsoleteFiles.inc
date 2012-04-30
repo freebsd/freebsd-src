@@ -38,6 +38,25 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120425: libusb version bump (r234684)
+OLD_LIBS+=usr/lib/libusb.so.2
+OLD_LIBS+=usr/lib32/libusb.so.2
+# 20120415: new clang import which bumps version from 3.0 to 3.1
+OLD_FILES+=usr/include/clang/3.0/altivec.h
+OLD_FILES+=usr/include/clang/3.0/avxintrin.h
+OLD_FILES+=usr/include/clang/3.0/emmintrin.h
+OLD_FILES+=usr/include/clang/3.0/immintrin.h
+OLD_FILES+=usr/include/clang/3.0/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.0/mmintrin.h
+OLD_FILES+=usr/include/clang/3.0/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/smmintrin.h
+OLD_FILES+=usr/include/clang/3.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/x86intrin.h
+OLD_FILES+=usr/include/clang/3.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.0
 # 20120322: Update heimdal to 1.5.1.
 OLD_FILES+=usr/include/krb5-v4compat.h \
 	usr/include/krb_err.h \
@@ -443,7 +462,7 @@ OLD_FILES+=usr/share/man/man5/lastlog.5.gz
 OLD_FILES+=usr/share/man/man5/utmp.5.gz
 OLD_FILES+=usr/share/man/man5/wtmp.5.gz
 OLD_LIBS+=lib/libutil.so.8
-OLB_LIBS+=usr/lib32/libutil.so.8
+OLD_LIBS+=usr/lib32/libutil.so.8
 # 20100105: new userland semaphore implementation
 OLD_FILES+=usr/include/sys/semaphore.h
 # 20100103: ntptrace(8) removed
@@ -563,6 +582,7 @@ OLD_LIBS+=lib/libipx.so.4
 OLD_LIBS+=lib/libkiconv.so.3
 OLD_LIBS+=lib/libkvm.so.4
 OLD_LIBS+=lib/libmd.so.4
+OLD_LIBS+=lib/libmd.so.5
 OLD_LIBS+=lib/libncurses.so.7
 OLD_LIBS+=lib/libncursesw.so.7
 OLD_LIBS+=lib/libnvpair.so.1

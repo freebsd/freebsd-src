@@ -95,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp_var.h>
 #include <netinet/if_ether.h>
 #include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h> /* XXX: only for DIR_IN/DIR_OUT */
 
 #include <net/pfvar.h>
 #include <net/if_pflog.h>

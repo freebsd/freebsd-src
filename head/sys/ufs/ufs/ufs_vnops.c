@@ -555,23 +555,17 @@ ufs_setattr(ap)
 				if (error)
 					return (error);
 			}
-			/* Snapshot flag cannot be set or cleared */
-			if (((vap->va_flags & SF_SNAPSHOT) != 0 &&
-			     (ip->i_flags & SF_SNAPSHOT) == 0) ||
-			    ((vap->va_flags & SF_SNAPSHOT) == 0 &&
-			     (ip->i_flags & SF_SNAPSHOT) != 0))
+			/* The snapshot flag cannot be toggled. */
+			if ((vap->va_flags ^ ip->i_flags) & SF_SNAPSHOT)
 				return (EPERM);
-			ip->i_flags = vap->va_flags;
-			DIP_SET(ip, i_flags, vap->va_flags);
 		} else {
 			if (ip->i_flags &
 			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
-			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
+			    ((vap->va_flags ^ ip->i_flags) & SF_SETTABLE))
 				return (EPERM);
-			ip->i_flags &= SF_SETTABLE;
-			ip->i_flags |= (vap->va_flags & UF_SETTABLE);
-			DIP_SET(ip, i_flags, ip->i_flags);
 		}
+		ip->i_flags = vap->va_flags;
+		DIP_SET(ip, i_flags, vap->va_flags);
 		ip->i_flag |= IN_CHANGE;
 		error = UFS_UPDATE(vp, 0);
 		if (ip->i_flags & (IMMUTABLE | APPEND))
@@ -579,9 +573,8 @@ ufs_setattr(ap)
 	}
 	/*
 	 * If immutable or append, no one can change any of its attributes
-	 * except the ones already handled (exec atime and, in some cases
-	 * for the superuser, file flags including the immutability flags
-	 * themselves).
+	 * except the ones already handled (in some cases, file flags
+	 * including the immutability flags themselves for the superuser).
 	 */
 	if (ip->i_flags & (IMMUTABLE | APPEND))
 		return (EPERM);
@@ -628,7 +621,7 @@ ufs_setattr(ap)
 			return (0);
 		}
 		if ((error = UFS_TRUNCATE(vp, vap->va_size, IO_NORMAL,
-		    cred, td)) != 0)
+		    cred)) != 0)
 			return (error);
 	}
 	if (vap->va_atime.tv_sec != VNOVAL ||
@@ -1574,8 +1567,7 @@ unlockout:
 		if (tdp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(tdp, endoff);
 #endif
-		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred,
-		    td);
+		UFS_TRUNCATE(tdvp, endoff, IO_NORMAL | IO_SYNC, tcnp->cn_cred);
 	}
 	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
 		error = VOP_FSYNC(tdvp, MNT_WAIT, td);

@@ -1817,7 +1817,7 @@ ncl_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 		 * truncation point.  We may have a B_DELWRI and/or B_CACHE
 		 * buffer that now needs to be truncated.
 		 */
-		error = vtruncbuf(vp, cred, td, nsize, biosize);
+		error = vtruncbuf(vp, cred, nsize, biosize);
 		lbn = nsize / biosize;
 		bufsize = nsize & (biosize - 1);
 		bp = nfs_getcacheblk(vp, lbn, bufsize, td);

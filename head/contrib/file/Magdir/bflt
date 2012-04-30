@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: bflt,v 1.4 2009/09/19 16:28:08 christos Exp $
 # bFLT: file(1) magic for BFLT uclinux binary files
 #
 # From Philippe De Muyter <phdm@macqel.be>

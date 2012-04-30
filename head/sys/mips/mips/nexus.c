@@ -237,11 +237,14 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	device_t child;
 	long	maddr;
 	int	msize;
+	int	order;
 	int	result;
 	int	irq;
 	int	mem_hints_count;
 
-	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
+	if ((resource_int_value(dname, dunit, "order", &order)) != 0)
+		order = 1000;
+	child = BUS_ADD_CHILD(bus, order, dname, dunit);
 	if (child == NULL)
 		return;
 

@@ -1,4 +1,4 @@
-//===-- MipsTargetObjectFile.cpp - Mips object files ----------------------===//
+//===-- MipsTargetObjectFile.cpp - Mips Object Files ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //

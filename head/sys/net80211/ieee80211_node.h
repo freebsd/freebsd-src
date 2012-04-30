@@ -214,7 +214,7 @@ struct ieee80211_node {
 	uint8_t			ni_htstbc;	/* HT */
 	uint8_t			ni_chw;		/* negotiated channel width */
 	struct ieee80211_htrateset ni_htrates;	/* negotiated ht rate set */
-	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_AC];
+	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_TID];
 	struct ieee80211_rx_ampdu ni_rx_ampdu[WME_NUM_TID];
 
 	/* others */

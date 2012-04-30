@@ -545,6 +545,88 @@ struct ipfw_flow_id {
 
 #define IS_IP6_FLOW_ID(id)	((id)->addr_type == 6)
 
+#ifdef _KERNEL
+/* Return values from ipfw_[ether_]chk() */
+enum {
+	IP_FW_PASS = 0,
+	IP_FW_DENY,
+	IP_FW_DIVERT,
+	IP_FW_TEE,
+	IP_FW_DUMMYNET,
+	IP_FW_NETGRAPH,
+	IP_FW_NGTEE,
+	IP_FW_NAT,
+	IP_FW_REASS,
+};
+
+/*
+ * Hooks sometime need to know the direction of the packet
+ * (divert, dummynet, netgraph, ...)
+ * We use a generic definition here, with bit0-1 indicating the
+ * direction, bit 2 indicating layer2 or 3, bit 3-4 indicating the
+ * specific protocol (if necessary)
+ */
+enum {
+	DIR_MASK =	0x3,
+	DIR_OUT =	0,
+	DIR_IN =	1,
+	DIR_FWD =	2,
+	DIR_DROP =	3,
+	PROTO_LAYER2 =	0x4, /* set for layer 2 */
+	/* PROTO_DEFAULT = 0, */
+	PROTO_IPV4 =	0x08,
+	PROTO_IPV6 =	0x10,
+	PROTO_IFB =	0x0c, /* layer2 + ifbridge */
+   /*	PROTO_OLDBDG =	0x14, unused, old bridge */
+};
+
+/*
+ * Structure for collecting parameters to dummynet for ip6_output forwarding
+ */
+struct _ip6dn_args {
+       struct ip6_pktopts *opt_or;
+       struct route_in6 ro_or;
+       int flags_or;
+       struct ip6_moptions *im6o_or;
+       struct ifnet *origifp_or;
+       struct ifnet *ifp_or;
+       struct sockaddr_in6 dst_or;
+       u_long mtu_or;
+       struct route_in6 ro_pmtu_or;
+};
+
+/*
+ * Arguments for calling ipfw_chk() and dummynet_io(). We put them
+ * all into a structure because this way it is easier and more
+ * efficient to pass variables around and extend the interface.
+ */
+struct ip_fw_args {
+	struct mbuf	*m;		/* the mbuf chain		*/
+	struct ifnet	*oif;		/* output interface		*/
+	struct sockaddr_in *next_hop;	/* forward address		*/
+	struct sockaddr_in6 *next_hop6; /* ipv6 forward address		*/
+
+	/*
+	 * On return, it points to the matching rule.
+	 * On entry, rule.slot > 0 means the info is valid and
+	 * contains the starting rule for an ipfw search.
+	 * If chain_id == chain->id && slot >0 then jump to that slot.
+	 * Otherwise, we locate the first rule >= rulenum:rule_id
+	 */
+	struct ipfw_rule_ref rule;	/* match/restart info		*/
+
+	struct ether_header *eh;	/* for bridged packets		*/
+
+	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
+	//uint32_t	cookie;		/* a cookie depending on rule action */
+	struct inpcb	*inp;
+
+	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
+	struct sockaddr_in hopstore;	/* store here if cannot use a pointer */
+};
+
+#endif	/* _KERNEL */
+
 /*
  * Dynamic ipfw rule.
  */

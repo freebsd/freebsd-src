@@ -1465,6 +1465,8 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 	}
 	PROC_UNLOCK(p);
+	td->td_errno = EINTR;
+	td->td_pflags |= TDP_NERRNO;
 	return (EJUSTRETURN);
 }
 

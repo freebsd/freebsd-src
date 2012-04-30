@@ -3455,6 +3455,9 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		ATH_TXQ_INSERT_HEAD(tid, bf, bf_list);
 	}
 
+	/*
+	 * Schedule the TID to be re-tried.
+	 */
 	ath_tx_tid_sched(sc, tid);
 
 	/*
@@ -3469,12 +3472,9 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 		ath_tx_tid_bar_suspend(sc, tid);
 	}
 
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
-
 	/*
 	 * Send BAR if required
 	 */
-	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
 	if (ath_tx_tid_bar_tx_ready(sc, tid))
 		ath_tx_tid_bar_tx(sc, tid);
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[tid->ac]);
@@ -3742,24 +3742,28 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 	}
 
-	/* Prepend all frames to the beginning of the queue */
+	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+	    "%s: txa_start now %d\n", __func__, tap->txa_start);
+
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+
+	/* Prepend all frames to the beginning of the queue */
 	while ((bf = TAILQ_LAST(&bf_q, ath_bufhead_s)) != NULL) {
 		TAILQ_REMOVE(&bf_q, bf, bf_list);
 		ATH_TXQ_INSERT_HEAD(atid, bf, bf_list);
 	}
-	ath_tx_tid_sched(sc, atid);
-	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
-	    "%s: txa_start now %d\n", __func__, tap->txa_start);
+	/*
+	 * Reschedule to grab some further frames.
+	 */
+	ath_tx_tid_sched(sc, atid);
 
 	/*
 	 * Send BAR if required
 	 */
-	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
 		ath_tx_tid_bar_tx(sc, atid);
+
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/* Do deferred completion */
@@ -4214,14 +4218,11 @@ ath_tx_get_tx_tid(struct ath_node *an, int tid)
 {
 	struct ieee80211_node *ni = &an->an_node;
 	struct ieee80211_tx_ampdu *tap;
-	int ac;
 
 	if (tid == IEEE80211_NONQOS_TID)
 		return NULL;
 
-	ac = TID_TO_WME_AC(tid);
-
-	tap = &ni->ni_tx_ampdu[ac];
+	tap = &ni->ni_tx_ampdu[tid];
 	return tap;
 }
 
@@ -4279,7 +4280,7 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int baparamset, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 
@@ -4346,7 +4347,7 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status, int code, int batimeout)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 	int r;
@@ -4387,7 +4388,7 @@ void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 
@@ -4424,7 +4425,7 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 	int attempts = tap->txa_attempts;
@@ -4457,7 +4458,7 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap)
 {
 	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
-	int tid = WME_AC_TO_TID(tap->txa_ac);
+	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
 

@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: att3b,v 1.8 2009/09/19 16:28:08 christos Exp $
 # att3b:  file(1) magic for AT&T 3B machines
 #
 # The `versions' should be un-commented if they work for you.
