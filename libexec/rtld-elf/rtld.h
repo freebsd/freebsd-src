@@ -126,6 +126,12 @@ typedef struct Struct_Ver_Entry {
 	const char  *file;
 } Ver_Entry;
 
+typedef struct Struct_Sym_Match_Result {
+    const Elf_Sym *sym_out;
+    const Elf_Sym *vsymp;
+    int vcount;
+} Sym_Match_Result;
+
 #define VER_INFO_HIDDEN	0x01
 
 /*
