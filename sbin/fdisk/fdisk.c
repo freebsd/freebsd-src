@@ -218,6 +218,7 @@ static const char *const part_types[256] = {
 	[0xF1] = "SpeedStor",
 	[0xF2] = "DOS 3.3+ Secondary",
 	[0xF4] = "SpeedStor large partition",
+	[0xFB] = "VMware VMFS",
 	[0xFE] = "SpeedStor >1024 cyl. or LANstep",
 	[0xFF] = "Xenix bad blocks table",
 };
