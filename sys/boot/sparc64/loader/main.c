@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/queue.h>
 #include <sys/types.h>
+#ifdef LOADER_ZFS_SUPPORT
+#include <sys/vtoc.h>
+#endif
 
 #include <vm/vm.h>
 #include <machine/asi.h>
@@ -143,6 +146,11 @@ static vm_offset_t heapva;
 
 static phandle_t root;
 
+#ifdef LOADER_ZFS_SUPPORT
+static int zfs_dev_init(void);
+#include "zfs.c"
+#endif
+
 /*
  * Machine dependent structures that the machine independent
  * loader part uses.
@@ -153,6 +161,9 @@ struct devsw *devsw[] = {
 #endif
 #ifdef LOADER_NET_SUPPORT
 	&netdev,
+#endif
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_dev,
 #endif
 	0
 };
@@ -166,12 +177,16 @@ struct file_format *file_formats[] = {
 	&sparc64_elf,
 	0
 };
+
 struct fs_ops *file_system[] = {
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
 #ifdef LOADER_CD9660_SUPPORT
 	&cd9660_fsops,
+#endif
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_fsops,
 #endif
 #ifdef LOADER_ZIP_SUPPORT
 	&zipfs_fsops,
@@ -721,6 +736,82 @@ tlb_init_sun4u(void)
 		panic("%s: can't allocate TLB store", __func__);
 }
 
+#ifdef LOADER_ZFS_SUPPORT
+
+static int
+zfs_dev_init(void)
+{
+	struct vtoc8 vtoc;
+	char devname[512];
+	spa_t *spa;
+	vdev_t *vdev;
+	uint64_t guid;
+	int fd, part, unit;
+
+	zfs_init();
+
+	guid = 0;
+	/* Get the GUID of the ZFS pool on the boot device. */
+	fd = open(getenv("currdev"), O_RDONLY);
+	if (fd != -1) {
+		if (vdev_probe(vdev_read, (void *)(uintptr_t) fd, &spa) == 0)
+			guid = spa->spa_guid;
+		close(fd);
+	}
+
+	/* Clean up the environment to let ZFS work. */
+	while ((vdev = STAILQ_FIRST(&zfs_vdevs)) != NULL) {
+		STAILQ_REMOVE_HEAD(&zfs_vdevs, v_alllink);
+		free(vdev);
+	}
+	while ((spa = STAILQ_FIRST(&zfs_pools)) != NULL) {
+		STAILQ_REMOVE_HEAD(&zfs_pools, spa_link);
+		free(spa);
+	}
+
+	for (unit = 0; unit < MAXBDDEV; unit++) {
+		/* Find freebsd-zfs slices in the VTOC. */
+		sprintf(devname, "disk%d:", unit);
+		fd = open(devname, O_RDONLY);
+		if (fd == -1)
+			continue;
+		lseek(fd, 0, SEEK_SET);
+		if (read(fd, &vtoc, sizeof(vtoc)) != sizeof(vtoc)) {
+			close(fd);
+			continue;
+		}
+		close(fd);
+
+		for (part = 0; part < 8; part++) {
+			if (part == 2 || vtoc.part[part].tag !=
+			     VTOC_TAG_FREEBSD_ZFS)
+				continue;
+			sprintf(devname, "disk%d:%c", unit, part + 'a');
+			fd = open(devname, O_RDONLY);
+			if (fd == -1)
+				break;
+
+			if (vdev_probe(vdev_read, (void*)(uintptr_t) fd, 0))
+				close(fd);
+		}
+	}
+
+	if (guid != 0) {
+		unit = zfs_guid_to_unit(guid);
+		if (unit >= 0) {
+			/* Update the environment for ZFS. */
+			sprintf(devname, "zfs%d", unit);
+			env_setenv("currdev", EV_VOLATILE, devname,
+			   ofw_setcurrdev, env_nounset);
+			env_setenv("loaddev", EV_VOLATILE, devname,
+			   env_noset, env_nounset);
+		}
+	}
+	return (0);
+}
+
+#endif /* LOADER_ZFS_SUPPORT */
+
 int
 main(int (*openfirm)(void *))
 {
@@ -756,14 +847,6 @@ main(int (*openfirm)(void *))
 	mmu_ops->tlb_init();
 
 	/*
-	 * Initialize devices.
-	 */
-	for (dp = devsw; *dp != 0; dp++) {
-		if ((*dp)->dv_init != 0)
-			(*dp)->dv_init();
-	}
-
-	/*
 	 * Set up the current device.
 	 */
 	OF_getprop(chosen, "bootpath", bootpath, sizeof(bootpath));
@@ -780,7 +863,8 @@ main(int (*openfirm)(void *))
 	 * needs to be altered.
 	 */
 	if (bootpath[strlen(bootpath) - 2] == ':' &&
-	    bootpath[strlen(bootpath) - 1] == 'f') {
+	    bootpath[strlen(bootpath) - 1] == 'f' &&
+	    strstr(bootpath, "cdrom")) {
 		bootpath[strlen(bootpath) - 1] = 'a';
 		printf("Boot path set to %s\n", bootpath);
 	}
@@ -789,6 +873,13 @@ main(int (*openfirm)(void *))
 	    ofw_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, bootpath,
 	    env_noset, env_nounset);
+
+	/*
+	 * Initialize devices.
+	 */
+	for (dp = devsw; *dp != 0; dp++)
+		if ((*dp)->dv_init != 0)
+			(*dp)->dv_init();
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
