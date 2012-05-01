@@ -143,9 +143,6 @@ typedef uint32_t ieee80211_hwmp_seq;
 #define	HWMP_SEQ_GT(a, b)	((int32_t)((a)-(b)) > 0)
 #define	HWMP_SEQ_GEQ(a, b)	((int32_t)((a)-(b)) >= 0)
 
-/* The longer one of the lifetime should be stored as new lifetime */
-#define MESH_ROUTE_LIFETIME_MAX(a, b)	(a > b ? a : b)
-
 /*
  * Private extension of ieee80211_mesh_route.
  */
@@ -938,7 +935,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	/* Data creation and update of forwarding information
 	 * according to Table 11C-8 for originator mesh STA.
 	 */
-	if(HWMP_SEQ_GT(preq->preq_origseq, hrorig->hr_seq) ||
+	if (HWMP_SEQ_GT(preq->preq_origseq, hrorig->hr_seq) ||
 	    (HWMP_SEQ_EQ(preq->preq_origseq, hrorig->hr_seq) &&
 	    preq->preq_metric < rtorig->rt_metric)) {
 		hrorig->hr_seq = preq->preq_origseq;
@@ -946,8 +943,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		rtorig->rt_metric = preq->preq_metric +
 			ms->ms_pmetric->mpm_metric(ni);
 		rtorig->rt_nhops  = preq->preq_hopcount + 1;
-		rtorig->rt_lifetime  = MESH_ROUTE_LIFETIME_MAX(
-		    preq->preq_lifetime, rtorig->rt_lifetime);
+		ieee80211_mesh_rt_update(rtorig, preq->preq_lifetime);
 		/* path to orig is valid now */
 		rtorig->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID;
 	}else if(hrtarg != NULL &&
@@ -1124,7 +1120,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 				}
 			}
 			rt->rt_metric = preq->preq_metric;
-			rt->rt_lifetime = preq->preq_lifetime;
+			ieee80211_mesh_rt_update(rt, preq->preq_lifetime);
 			hrorig = IEEE80211_MESH_ROUTE_PRIV(rt,
 			    struct ieee80211_hwmp_route);
 			hrorig->hr_seq = preq->preq_origseq;
@@ -1221,7 +1217,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			}
 			IEEE80211_ADDR_COPY(rt->rt_nexthop, wh->i_addr2);
 			rt->rt_nhops = prep->prep_hopcount;
-			rt->rt_lifetime = prep->prep_lifetime;
+			ieee80211_mesh_rt_update(rt, prep->prep_lifetime);
 			rt->rt_metric = prep->prep_metric;
 			rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID;
 			IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
@@ -1300,7 +1296,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			    rt->rt_metric, prep->prep_metric);
 			IEEE80211_ADDR_COPY(rt->rt_nexthop, wh->i_addr2);
 			rt->rt_nhops = prep->prep_hopcount + 1;
-			rt->rt_lifetime = prep->prep_lifetime;
+			ieee80211_mesh_rt_update(rt, prep->prep_lifetime);
 			rt->rt_metric = metric;
 			rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID;
 		} else {
@@ -1594,8 +1590,9 @@ hwmp_discover(struct ieee80211vap *vap,
 			if (hr->hr_origseq == 0)
 				hr->hr_origseq = ++hs->hs_seq;
 			rt->rt_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
-			rt->rt_lifetime =
-			    ticks_to_msecs(ieee80211_hwmp_pathtimeout);
+			/* XXX: special discovery timeout, larger lifetime? */
+			ieee80211_mesh_rt_update(rt,
+			    ticks_to_msecs(ieee80211_hwmp_pathtimeout));
 			/* XXX check preq retries */
 			sendpreq = 1;
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, dest,
@@ -1613,7 +1610,8 @@ hwmp_discover(struct ieee80211vap *vap,
 			preq.preq_id = ++hs->hs_preqid;
 			IEEE80211_ADDR_COPY(preq.preq_origaddr, vap->iv_myaddr);
 			preq.preq_origseq = hr->hr_origseq;
-			preq.preq_lifetime = rt->rt_lifetime;
+			preq.preq_lifetime =
+			    ticks_to_msecs(ieee80211_hwmp_pathtimeout);
 			preq.preq_metric = rt->rt_metric;
 			preq.preq_tcount = 1;
 			IEEE80211_ADDR_COPY(PREQ_TADDR(0), dest);
