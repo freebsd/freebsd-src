@@ -138,6 +138,10 @@ static const struct ieee80211_mesh_proto_metric mesh_metric_airtime = {
 static struct ieee80211_mesh_proto_path		mesh_proto_paths[4];
 static struct ieee80211_mesh_proto_metric	mesh_proto_metrics[4];
 
+#define	RT_ENTRY_LOCK(rt)	mtx_lock(&(rt)->rt_lock)
+#define	RT_ENTRY_LOCK_ASSERT(rt) mtx_assert(&(rt)->rt_lock, MA_OWNED)
+#define	RT_ENTRY_UNLOCK(rt)	mtx_unlock(&(rt)->rt_lock)
+
 #define	MESH_RT_LOCK(ms)	mtx_lock(&(ms)->ms_rt_lock)
 #define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
 #define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
@@ -145,6 +149,9 @@ static struct ieee80211_mesh_proto_metric	mesh_proto_metrics[4];
 MALLOC_DEFINE(M_80211_MESH_PREQ, "80211preq", "802.11 MESH Path Request frame");
 MALLOC_DEFINE(M_80211_MESH_PREP, "80211prep", "802.11 MESH Path Reply frame");
 MALLOC_DEFINE(M_80211_MESH_PERR, "80211perr", "802.11 MESH Path Error frame");
+
+/* The longer one of the lifetime should be stored as new lifetime */
+#define MESH_ROUTE_LIFETIME_MAX(a, b)	(a > b ? a : b)
 
 MALLOC_DEFINE(M_80211_MESH_RT, "80211mesh", "802.11s routing table");
 
@@ -183,7 +190,8 @@ mesh_rt_add_locked(struct ieee80211_mesh_state *ms,
 	if (rt != NULL) {
 		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
 		rt->rt_priv = (void *)ALIGN(&rt[1]);
-		rt->rt_crtime = ticks;
+		mtx_init(&rt->rt_lock, "MBSS_RT", "802.11s route entry", MTX_DEF);
+		rt->rt_updtime = ticks;	/* create time */
 		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
 	}
 	return rt;
@@ -218,6 +226,41 @@ ieee80211_mesh_rt_add(struct ieee80211vap *vap,
 	rt = mesh_rt_add_locked(ms, dest);
 	MESH_RT_UNLOCK(ms);
 	return rt;
+}
+
+/*
+ * Update the route lifetime and returns the updated lifetime.
+ * If new_lifetime is zero and route is timedout it will be invalidated.
+ * new_lifetime is in msec
+ */
+int
+ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int new_lifetime)
+{
+	int timesince, now;
+	uint32_t lifetime = 0;
+
+	now = ticks;
+	RT_ENTRY_LOCK(rt);
+	timesince = ticks_to_msecs(now - rt->rt_updtime);
+	rt->rt_updtime = now;
+	if (timesince >= rt->rt_lifetime) {
+		if (new_lifetime != 0) {
+			rt->rt_lifetime = new_lifetime;
+		}
+		else {
+			rt->rt_flags &= ~IEEE80211_MESHRT_FLAGS_VALID;
+			rt->rt_lifetime = 0;
+		}
+	} else {
+		/* update what is left of lifetime */
+		rt->rt_lifetime = rt->rt_lifetime - timesince;
+		rt->rt_lifetime  = MESH_ROUTE_LIFETIME_MAX(
+			new_lifetime, rt->rt_lifetime);
+	}
+	lifetime = rt->rt_lifetime;
+	RT_ENTRY_UNLOCK(rt);
+
+	return lifetime;
 }
 
 /*
@@ -271,6 +314,12 @@ static __inline void
 mesh_rt_del(struct ieee80211_mesh_state *ms, struct ieee80211_mesh_route *rt)
 {
 	TAILQ_REMOVE(&ms->ms_routes, rt, rt_next);
+	/*
+	 * Grab the lock before destroying it, to be sure no one else
+	 * is holding the route.
+	 */
+	RT_ENTRY_LOCK(rt);
+	mtx_destroy(&rt->rt_lock);
 	free(rt, M_80211_MESH_RT);
 }
 
@@ -335,8 +384,13 @@ mesh_rt_flush_invalid(struct ieee80211vap *vap)
 		return;
 	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next) {
+		ieee80211_mesh_rt_update(rt, 0);
+		/*
+		 * NB: we check for lifetime == 0 so that we give a chance
+		 * for route discovery to complete.
+		 */
 		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 &&
-		    ticks - rt->rt_crtime >= ms->ms_ppath->mpp_inact)
+		    rt->rt_lifetime == 0)
 			mesh_rt_del(ms, rt);
 	}
 	MESH_RT_UNLOCK(ms);
@@ -1338,6 +1392,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_frame *wh;
+	struct ieee80211_mesh_route *rt;
 	uint8_t *frm, *efrm;
 
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -1430,20 +1485,40 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		 * XXX backoff on repeated failure
 		 */
 		if (ni != vap->iv_bss &&
-		    (ms->ms_flags & IEEE80211_MESHFLAGS_AP) &&
-		    ni->ni_mlstate == IEEE80211_NODE_MESH_IDLE) {
-			uint16_t args[1];
+		    (ms->ms_flags & IEEE80211_MESHFLAGS_AP)) {
+			switch (ni->ni_mlstate) {
+			case IEEE80211_NODE_MESH_IDLE:
+			{
+				uint16_t args[1];
 
-			ni->ni_mlpid = mesh_generateid(vap);
-			if (ni->ni_mlpid == 0)
-				return;
-			mesh_linkchange(ni, IEEE80211_NODE_MESH_OPENSNT);
-			args[0] = ni->ni_mlpid;
-			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_SELF_PROT,
-			    IEEE80211_ACTION_MESHPEERING_OPEN, args);
-			ni->ni_mlrcnt = 0;
-			mesh_peer_timeout_setup(ni);
+				ni->ni_mlpid = mesh_generateid(vap);
+				if (ni->ni_mlpid == 0)
+					return;
+				mesh_linkchange(ni, IEEE80211_NODE_MESH_OPENSNT);
+				args[0] = ni->ni_mlpid;
+				ieee80211_send_action(ni,
+				IEEE80211_ACTION_CAT_SELF_PROT,
+				IEEE80211_ACTION_MESHPEERING_OPEN, args);
+				ni->ni_mlrcnt = 0;
+				mesh_peer_timeout_setup(ni);
+				break;
+			}
+			case IEEE80211_NODE_MESH_ESTABLISHED:
+			{
+				/*
+				 * Valid beacon from a peer mesh STA
+				 * bump TA lifetime
+				 */
+				rt = ieee80211_mesh_rt_find(vap, wh->i_addr2);
+				if(rt != NULL) {
+					ieee80211_mesh_rt_update(rt,
+					    ms->ms_ppath->mpp_inact);
+				}
+				break;
+			}
+			default:
+				break; /* ignore */
+			}
 		}
 		break;
 	}
@@ -2701,15 +2776,16 @@ mesh_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 					break;
 				imr = (struct ieee80211req_mesh_route *)
 				    (p + off);
-				imr->imr_flags = rt->rt_flags;
 				IEEE80211_ADDR_COPY(imr->imr_dest,
 				    rt->rt_dest);
 				IEEE80211_ADDR_COPY(imr->imr_nexthop,
 				    rt->rt_nexthop);
 				imr->imr_metric = rt->rt_metric;
 				imr->imr_nhops = rt->rt_nhops;
-				imr->imr_lifetime = rt->rt_lifetime;
+				imr->imr_lifetime =
+				    ieee80211_mesh_rt_update(rt, 0);
 				imr->imr_lastmseq = rt->rt_lastmseq;
+				imr->imr_flags = rt->rt_flags; /* last */
 				off += sizeof(*imr);
 			}
 			MESH_RT_UNLOCK(ms);

@@ -409,9 +409,19 @@ MALLOC_DECLARE(M_80211_MESH_PREP);
 MALLOC_DECLARE(M_80211_MESH_PERR);
 
 MALLOC_DECLARE(M_80211_MESH_RT);
+/*
+ * Basic forwarding information:
+ * o Destination MAC
+ * o Next-hop MAC
+ * o Precursor list (not implemented yet)
+ * o Path timeout
+ * The rest is part of the active Mesh path selection protocol.
+ * XXX: to be moved out later.
+ */
 struct ieee80211_mesh_route {
 	TAILQ_ENTRY(ieee80211_mesh_route)	rt_next;
-	int			rt_crtime;	/* creation time */
+	struct mtx		rt_lock;	/* fine grained route lock */
+	int			rt_updtime;	/* last update time */
 	uint8_t			rt_dest[IEEE80211_ADDR_LEN];
 	uint8_t			rt_nexthop[IEEE80211_ADDR_LEN];
 	uint32_t		rt_metric;	/* path metric */
@@ -419,7 +429,7 @@ struct ieee80211_mesh_route {
 	uint16_t		rt_flags;
 #define	IEEE80211_MESHRT_FLAGS_VALID	0x01	/* patch discovery complete */
 #define	IEEE80211_MESHRT_FLAGS_PROXY	0x02	/* proxy entry */
-	uint32_t		rt_lifetime;
+	uint32_t		rt_lifetime;	/* route timeout */
 	uint32_t		rt_lastmseq;	/* last seq# seen dest */
 	void			*rt_priv;	/* private data */
 };
@@ -508,6 +518,7 @@ void		ieee80211_mesh_rt_del(struct ieee80211vap *,
 void		ieee80211_mesh_rt_flush(struct ieee80211vap *);
 void		ieee80211_mesh_rt_flush_peer(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN]);
+int		ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int);
 void		ieee80211_mesh_proxy_check(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 
