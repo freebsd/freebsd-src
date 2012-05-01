@@ -1450,7 +1450,7 @@ hwmp_peerdown(struct ieee80211_node *ni)
 		PERR_DFLAGS(0) |= IEEE80211_MESHPERR_DFLAGS_USN;
 	PERR_DFLAGS(0) |= IEEE80211_MESHPERR_DFLAGS_RC;
 	IEEE80211_ADDR_COPY(PERR_DADDR(0), rt->rt_dest);
-	PERR_DSEQ(0) = hr->hr_seq;
+	PERR_DSEQ(0) = ++hr->hr_seq;
 	PERR_DRCODE(0) = IEEE80211_REASON_MESH_PERR_DEST_UNREACH;
 	/* NB: flush everything passing through peer */
 	ieee80211_mesh_rt_flush_peer(vap, ni->ni_macaddr);
@@ -1461,60 +1461,117 @@ hwmp_peerdown(struct ieee80211_node *ni)
 #undef	PERR_DSEQ
 #undef	PERR_DRCODE
 
-#define	PERR_DFLAGS(n)	perr->perr_dests[n].dest_flags
-#define	PERR_DADDR(n)	perr->perr_dests[n].dest_addr
-#define	PERR_DSEQ(n)	perr->perr_dests[n].dest_seq
-#define	PERR_DRCODE(n)	perr->perr_dests[n].dest_rcode
+#define	PERR_DFLAGS(n)		perr->perr_dests[n].dest_flags
+#define	PERR_DADDR(n)		perr->perr_dests[n].dest_addr
+#define	PERR_DSEQ(n)		perr->perr_dests[n].dest_seq
+#define	PERR_DEXTADDR(n)	perr->perr_dests[n].dest_ext_addr
+#define	PERR_DRCODE(n)		perr->perr_dests[n].dest_rcode
 static void
 hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
     const struct ieee80211_frame *wh, const struct ieee80211_meshperr_ie *perr)
 {
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_mesh_route *rt = NULL;
+	struct ieee80211_mesh_route *rt_ext = NULL;
 	struct ieee80211_hwmp_route *hr;
-	struct ieee80211_meshperr_ie pperr;
-	int i, forward = 0;
+	struct ieee80211_meshperr_ie *pperr = NULL;
+	int i, j = 0, forward = 0;
+
+	if (ni == vap->iv_bss ||
+	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
+		return;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
+	    "received PERR from %6D", wh->i_addr2, ":");
 
 	/*
-	 * Acceptance criteria: check if we received a PERR from a
-	 * neighbor and forwarding is enabled.
+	 * if forwarding is true, prepare pperr
 	 */
-	if (ni == vap->iv_bss ||
-	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED ||
-	    !(ms->ms_flags & IEEE80211_MESHFLAGS_FWD))
-		return;
+	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD) {
+		forward = 1;
+		pperr = malloc(sizeof(*perr) + 31*sizeof(*perr->perr_dests),
+		    M_80211_MESH_PERR, M_NOWAIT); /* XXX: magic number, 32 err dests */
+	}
+
 	/*
-	 * Find all routing entries that match and delete them.
+	 * Acceptance criteria: check if we have forwarding information
+	 * stored about destination, and that nexthop == TA of this PERR.
+	 * NB: we also build a new PERR to propagate in case we should forward.
 	 */
 	for (i = 0; i < perr->perr_ndests; i++) {
 		rt = ieee80211_mesh_rt_find(vap, PERR_DADDR(i));
-		if (rt == NULL)
+		if (rt == NULL || rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)
 			continue;
+		if (!IEEE80211_ADDR_EQ(rt->rt_nexthop, wh->i_addr2))
+			continue;
+
+		/* found and accepted a PERR ndest element, process it... */
+		if (forward)
+			memcpy(&pperr->perr_dests[j], &perr->perr_dests[i],
+			    sizeof(*perr->perr_dests));
 		hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
-		if (!(PERR_DFLAGS(0) & IEEE80211_MESHPERR_DFLAGS_USN) &&
-		    HWMP_SEQ_GEQ(PERR_DSEQ(i), hr->hr_seq)) {
-			ieee80211_mesh_rt_del(vap, rt->rt_dest);
-			ieee80211_mesh_rt_flush_peer(vap, rt->rt_dest);
-			rt = NULL;
-			forward = 1;
+		switch(PERR_DFLAGS(i)) {
+		case (IEEE80211_REASON_MESH_PERR_NO_FI):
+			if (PERR_DSEQ(i) == 0) {
+				hr->hr_seq++;
+				if (forward) {
+					pperr->perr_dests[j].dest_seq =
+					    hr->hr_seq;
+				}
+			} else {
+				hr->hr_seq = PERR_DSEQ(i);
+			}
+			rt->rt_flags &= ~IEEE80211_MESHRT_FLAGS_VALID;
+			j++;
+			break;
+		case (IEEE80211_REASON_MESH_PERR_DEST_UNREACH):
+			if(HWMP_SEQ_GT(PERR_DSEQ(i), hr->hr_seq)) {
+				hr->hr_seq = PERR_DSEQ(i);
+				rt->rt_flags &= ~IEEE80211_MESHRT_FLAGS_VALID;
+				j++;
+			}
+			break;
+		case (IEEE80211_REASON_MESH_PERR_NO_PROXY):
+			rt_ext = ieee80211_mesh_rt_find(vap, PERR_DEXTADDR(i));
+			if (rt_ext != NULL) {
+				rt_ext->rt_flags &=
+				    ~IEEE80211_MESHRT_FLAGS_VALID;
+				j++;
+			}
+			break;
+		default:
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_HWMP, wh, NULL,
+			    "PERR, unknown reason code %u\n", PERR_DFLAGS(i));
+			goto done; /* XXX: stats?? */
 		}
+		ieee80211_mesh_rt_flush_peer(vap, rt->rt_dest);
+		KASSERT(j < 32, ("PERR, error ndest >= 32 (%u)", j));
 	}
+	if (j == 0) {
+		IEEE80211_DISCARD(vap, IEEE80211_MSG_HWMP, wh, NULL, "%s",
+		    "PERR not accepted");
+		goto done; /* XXX: stats?? */
+	}
+
 	/*
 	 * Propagate the PERR if we previously found it on our routing table.
-	 * XXX handle ndest > 1
 	 */
 	if (forward && perr->perr_ttl > 1) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 		    "propagate PERR from %6D", wh->i_addr2, ":");
-		memcpy(&pperr, perr, sizeof(*perr));
-		pperr.perr_ttl--;
+		pperr->perr_ndests = j;
+		pperr->perr_ttl--;
 		hwmp_send_perr(vap->iv_bss, vap->iv_myaddr, broadcastaddr,
-		    &pperr);
+		    pperr);
 	}
+done:
+	if (pperr != NULL)
+		free(pperr, M_80211_MESH_PERR);
 }
 #undef	PERR_DFLAGS
 #undef	PEER_DADDR
 #undef	PERR_DSEQ
+#undef	PERR_DEXTADDR
 #undef	PERR_DRCODE
 
 static int
