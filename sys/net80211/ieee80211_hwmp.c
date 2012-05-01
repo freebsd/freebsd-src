@@ -904,7 +904,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
     const struct ieee80211_frame *wh, const struct ieee80211_meshpreq_ie *preq)
 {
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
-	struct ieee80211_mesh_route *rt = NULL; /* pro-active code */
 	struct ieee80211_mesh_route *rtorig = NULL;
 	struct ieee80211_mesh_route *rtorig_ext = NULL;
 	struct ieee80211_mesh_route *rttarg = NULL;
@@ -1083,33 +1082,20 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 */
 	if (IEEE80211_ADDR_EQ(PREQ_TADDR(0), broadcastaddr) &&
 	    (PREQ_TFLAGS(0) & IEEE80211_MESHPREQ_TFLAGS_TO)) {
-		uint8_t rootmac[IEEE80211_ADDR_LEN];
-
-		IEEE80211_ADDR_COPY(rootmac, preq->preq_origaddr);
-		rt = ieee80211_mesh_rt_find(vap, rootmac);
-		if (rt == NULL) {
-			rt = ieee80211_mesh_rt_add(vap, rootmac);
-			if (rt == NULL) {
-				IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
-				    "unable to add root mesh path to %6D",
-				    rootmac, ":");
-				vap->iv_stats.is_mesh_rtaddfailed++;
-				return;
-			}
-		}
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
-		    "root mesh station @ %6D", rootmac, ":");
+		    "root mesh station @ %6D", preq->preq_origaddr, ":");
 
 		/*
 		 * Reply with a PREP if we don't have a path to the root
 		 * or if the root sent us a proactive PREQ.
 		 */
-		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 ||
+		if ((rtorig->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 ||
 		    (preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_PP)) {
 			prep.prep_flags = 0;
 			prep.prep_hopcount = 0;
 			prep.prep_ttl = ms->ms_ttl;
-			IEEE80211_ADDR_COPY(prep.prep_origaddr, rootmac);
+			IEEE80211_ADDR_COPY(prep.prep_origaddr,
+			    preq->preq_origaddr);
 			prep.prep_origseq = preq->preq_origseq;
 			prep.prep_lifetime = preq->preq_lifetime;
 			prep.prep_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
@@ -1117,7 +1103,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			    vap->iv_myaddr);
 			prep.prep_targetseq = ++hs->hs_seq;
 			hwmp_send_prep(vap->iv_bss, vap->iv_myaddr,
-			    broadcastaddr, &prep);
+			    rtorig->rt_nexthop, &prep);
 		}
 	}
 
@@ -1319,7 +1305,11 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	rt->rt_metric = metric;
 	rt->rt_nhops = prep->prep_hopcount + 1;
 	ieee80211_mesh_rt_update(rt, prep->prep_lifetime);
-	rt->rt_flags = IEEE80211_MESHRT_FLAGS_VALID; /* mark valid */
+	if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_DISCOVER) {
+		/* discovery complete */
+		rt->rt_flags &= ~IEEE80211_MESHRT_FLAGS_DISCOVER;
+	}
+	rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID; /* mark valid */
 
 	/*
 	 * If it's NOT for us, propagate the PREP
