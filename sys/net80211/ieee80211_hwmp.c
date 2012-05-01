@@ -840,9 +840,9 @@ hwmp_rootmode_cb(void *arg)
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, vap->iv_bss,
 	    "%s", "send broadcast PREQ");
 
-	preq.preq_flags = 0;
-	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
-		preq.preq_flags |= IEEE80211_MESHPREQ_FLAGS_PR;
+	preq.preq_flags = IEEE80211_MESHPREQ_FLAGS_AM;
+	if (ms->ms_flags & IEEE80211_MESHFLAGS_GATE)
+		preq.preq_flags |= IEEE80211_MESHPREQ_FLAGS_GATE;
 	if (hs->hs_rootmode == IEEE80211_HWMP_ROOTMODE_PROACTIVE)
 		preq.preq_flags |= IEEE80211_MESHPREQ_FLAGS_PP;
 	preq.preq_hopcount = 0;
@@ -882,8 +882,8 @@ hwmp_rootmode_rann_cb(void *arg)
 	    "%s", "send broadcast RANN");
 
 	rann.rann_flags = 0;
-	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
-		rann.rann_flags |= IEEE80211_MESHRANN_FLAGS_PR;
+	if (ms->ms_flags & IEEE80211_MESHFLAGS_GATE)
+		rann.rann_flags |= IEEE80211_MESHFLAGS_GATE;
 	rann.rann_hopcount = 0;
 	rann.rann_ttl = ms->ms_ttl;
 	IEEE80211_ADDR_COPY(rann.rann_addr, vap->iv_myaddr);
