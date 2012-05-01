@@ -824,7 +824,7 @@ hwmp_rootmode_cb(void *arg)
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, vap->iv_bss,
 	    "%s", "send broadcast PREQ");
 
-	preq.preq_flags = IEEE80211_MESHPREQ_FLAGS_AM;
+	preq.preq_flags = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
 		preq.preq_flags |= IEEE80211_MESHPREQ_FLAGS_PR;
 	if (hs->hs_rootmode == IEEE80211_HWMP_ROOTMODE_PROACTIVE)
@@ -1092,8 +1092,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 				 * Propagate the original PREQ.
 				 * PREQ is unicast now to rttarg->rt_nexthop
 				 */
-				ppreq.preq_flags &=
-				    ~IEEE80211_MESHPREQ_FLAGS_AM;
+				ppreq.preq_flags |=
+				    IEEE80211_MESHPREQ_FLAGS_AM;
 				ppreq.preq_hopcount += 1;
 				ppreq.preq_ttl -= 1;
 				ppreq.preq_metric +=
@@ -1701,7 +1701,7 @@ hwmp_discover(struct ieee80211vap *vap,
 			 * Try to discover the path for this node.
 			 * Group addressed PREQ Case A
 			 */
-			preq.preq_flags = IEEE80211_MESHPREQ_FLAGS_AM;
+			preq.preq_flags = 0;
 			preq.preq_hopcount = 0;
 			preq.preq_ttl = ms->ms_ttl;
 			preq.preq_id = ++hs->hs_preqid;
