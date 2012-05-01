@@ -140,25 +140,24 @@ struct ieee80211_meshcngst_ie {
 } __packed;
 
 /* Peer Link Management */
+#define IEEE80211_MPM_BASE_SZ	(4)
+#define IEEE80211_MPM_MAX_SZ	(8)
 struct ieee80211_meshpeer_ie {
 	uint8_t		peer_ie;	/* IEEE80211_ELEMID_MESHPEER */
 	uint8_t		peer_len;
-	uint8_t		peer_proto[4];	/* Peer Management Protocol */
+	uint16_t	peer_proto;	/* Peer Management Protocol */
 	uint16_t	peer_llinkid;	/* Local Link ID */
 	uint16_t	peer_linkid;	/* Peer Link ID */
 	uint16_t	peer_rcode;
 } __packed;
 
-/* Mesh Peering Management Protocol */
-#define	IEEE80211_MESH_PEER_PROTO_OUI		0x00, 0x0f, 0xac
-#define	IEEE80211_MESH_PEER_PROTO_VALUE		0x2a
-#define	IEEE80211_MESH_PEER_PROTO	{ IEEE80211_MESH_PEER_PROTO_OUI, \
-					  IEEE80211_MESH_PEER_PROTO_VALUE }
-/* Abbreviated Handshake Protocol */
-#define	IEEE80211_MESH_PEER_PROTO_AH_OUI	0x00, 0x0f, 0xac
-#define	IEEE80211_MESH_PEER_PROTO_AH_VALUE	0x2b
-#define	IEEE80211_MESH_PEER_PROTO_AH	{ IEEE80211_MESH_PEER_PROTO_AH_OUI, \
-					  IEEE80211_MESH_PEER_PROTO_AH_VALUE }
+/* Mesh Peering Protocol Identifier field value */
+enum {
+	IEEE80211_MPPID_MPM		= 0,	/* Mesh peering management */
+	IEEE80211_MPPID_AUTH_MPM	= 1,	/* Auth. mesh peering exchange */
+	/* 2-65535 reserved */
+};
+
 #ifdef notyet
 /* Mesh Channel Switch Annoucement */
 struct ieee80211_meshcsa_ie {
