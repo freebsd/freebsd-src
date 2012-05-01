@@ -344,6 +344,13 @@ ieee80211_mesh_rt_del(struct ieee80211vap *vap,
 	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next) {
 		if (IEEE80211_ADDR_EQ(rt->rt_dest, dest)) {
+			if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY) {
+				ms->ms_ppath->mpp_senderror(vap, dest, rt,
+				    IEEE80211_REASON_MESH_PERR_NO_PROXY);
+			} else {
+				ms->ms_ppath->mpp_senderror(vap, dest, rt,
+				    IEEE80211_REASON_MESH_PERR_DEST_UNREACH);
+			}
 			mesh_rt_del(ms, rt);
 			MESH_RT_UNLOCK(ms);
 			return;
@@ -972,10 +979,12 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 			 * [Optional] any of the following three actions:
 			 * o silently discard
 			 * o trigger a path discovery
-			 * o inform TA that meshDA is unreachable.
+			 * o inform TA that meshDA is unknown.
 			 */
 			IEEE80211_NOTE_FRAME(vap, IEEE80211_MSG_MESH, wh,
 			    "%s", "frame not fwd'd, no path");
+			ms->ms_ppath->mpp_senderror(vap, whcopy->i_addr3, NULL,
+			    IEEE80211_REASON_MESH_PERR_NO_FI);
 			vap->iv_stats.is_mesh_fwd_nopath++;
 			m_freem(mcopy);
 			return;
