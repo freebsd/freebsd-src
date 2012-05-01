@@ -32,6 +32,7 @@
 #define _NET80211_IEEE80211_MESH_H_
 
 #define	IEEE80211_MESH_DEFAULT_TTL	31
+#define	IEEE80211_MESH_MAX_NEIGHBORS	15
 
 /*
  * NB: all structures are __packed  so sizeof works on arm, et. al.
