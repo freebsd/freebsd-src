@@ -847,7 +847,7 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 	if (ANI_ENA(ah))
 		aniState = ahp->ah_curani;
 
-	if (good == 0) {
+	if (good == AH_FALSE) {
 		/*
 		 * Cycle counter wrap (or initial call); it's not possible
 		 * to accurately calculate a value because the registers
