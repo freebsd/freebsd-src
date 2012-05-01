@@ -241,6 +241,13 @@ ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int new_lifetime)
 
 	now = ticks;
 	RT_ENTRY_LOCK(rt);
+
+	/* dont clobber a proxy entry gated by us */
+	if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY && rt->rt_nhops == 0) {
+		RT_ENTRY_UNLOCK(rt);
+		return rt->rt_lifetime;
+	}
+
 	timesince = ticks_to_msecs(now - rt->rt_updtime);
 	rt->rt_updtime = now;
 	if (timesince >= rt->rt_lifetime) {
@@ -1115,15 +1122,30 @@ static int
 mesh_recv_indiv_data_to_fwrd(struct ieee80211vap *vap, struct mbuf *m,
     struct ieee80211_frame *wh, const struct ieee80211_meshcntl *mc)
 {
+	struct ieee80211_qosframe_addr4 *qwh;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_mesh_route *rt_meshda, *rt_meshsa;
+
+	qwh = (struct ieee80211_qosframe_addr4 *)wh;
 
 	/*
 	 * TODO:
 	 * o verify addr2 is  a legitimate transmitter
-	 * o set lifetime of addr3 to initial value
-	 * o set lifetime of addr4 to initial value
 	 * o lifetime of precursor of addr3 (addr2) is max(init, curr)
 	 * o lifetime of precursor of addr4 (nexthop) is max(init, curr)
 	 */
+
+	/* set lifetime of addr3 (meshDA) to initial value */
+	rt_meshda = ieee80211_mesh_rt_find(vap, qwh->i_addr3);
+	KASSERT(rt_meshda != NULL, ("no route"));
+	ieee80211_mesh_rt_update(rt_meshda, ticks_to_msecs(
+	    ms->ms_ppath->mpp_inact));
+
+	/* set lifetime of addr4 (meshSA) to initial value */
+	rt_meshsa = ieee80211_mesh_rt_find(vap, qwh->i_addr4);
+	KASSERT(rt_meshsa != NULL, ("no route"));
+	ieee80211_mesh_rt_update(rt_meshsa, ticks_to_msecs(
+	    ms->ms_ppath->mpp_inact));
 
 	mesh_forward(vap, m, mc);
 	return (1); /* dont process locally */
@@ -1144,6 +1166,7 @@ mesh_recv_indiv_data_to_me(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211_qosframe_addr4 *qwh;
 	const struct ieee80211_meshcntl_ae10 *mc10;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_mesh_route *rt;
 	int ae;
 
@@ -1153,9 +1176,14 @@ mesh_recv_indiv_data_to_me(struct ieee80211vap *vap, struct mbuf *m,
 	/*
 	 * TODO:
 	 * o verify addr2 is  a legitimate transmitter
-	 * o set lifetime of addr4 to initial value
 	 * o lifetime of precursor entry is max(init, curr)
 	 */
+
+	/* set lifetime of addr4 (meshSA) to initial value */
+	rt = ieee80211_mesh_rt_find(vap, qwh->i_addr4);
+	KASSERT(rt != NULL, ("no route"));
+	ieee80211_mesh_rt_update(rt, ticks_to_msecs(ms->ms_ppath->mpp_inact));
+	rt = NULL;
 
 	ae = mc10->mc_flags & IEEE80211_MESH_AE_MASK;
 	KASSERT(ae == IEEE80211_MESH_AE_00 ||
@@ -1673,7 +1701,8 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				rt = ieee80211_mesh_rt_find(vap, wh->i_addr2);
 				if(rt != NULL) {
 					ieee80211_mesh_rt_update(rt,
-					    ms->ms_ppath->mpp_inact);
+					    ticks_to_msecs(
+					    ms->ms_ppath->mpp_inact));
 				}
 				break;
 			}
