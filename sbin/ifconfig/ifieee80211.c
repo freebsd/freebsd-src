@@ -4020,6 +4020,8 @@ list_mesh(int s)
 			ether_ntoa((const struct ether_addr *)rt->imr_nexthop),
 			rt->imr_nhops, rt->imr_metric, rt->imr_lifetime,
 			rt->imr_lastmseq,
+			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_DISCOVER) ?
+			    'D' :
 			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_VALID) ?
 			    'V' : '!',
 			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_PROXY) ?
