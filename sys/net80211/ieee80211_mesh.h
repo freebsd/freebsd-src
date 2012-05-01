@@ -230,7 +230,7 @@ struct ieee80211_meshpreq_ie {
 	uint8_t		preq_len;
 	uint8_t		preq_flags;
 #define	IEEE80211_MESHPREQ_FLAGS_PR	0x01	/* Portal Role */
-#define	IEEE80211_MESHPREQ_FLAGS_AM	0x02	/* 0 = ucast / 1 = bcast */
+#define	IEEE80211_MESHPREQ_FLAGS_AM	0x02	/* 0 = bcast / 1 = ucast */
 #define	IEEE80211_MESHPREQ_FLAGS_PP	0x04	/* Proactive PREP */
 #define	IEEE80211_MESHPREQ_FLAGS_AE	0x40	/* Address Extension */
 	uint8_t		preq_hopcount;
