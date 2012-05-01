@@ -246,7 +246,6 @@ struct ieee80211_meshpreq_ie {
 	struct {
 		uint8_t		target_flags;
 #define	IEEE80211_MESHPREQ_TFLAGS_TO	0x01	/* Target Only */
-#define	IEEE80211_MESHPREQ_TFLAGS_RF	0x02	/* Reply and Forward */
 #define	IEEE80211_MESHPREQ_TFLAGS_USN	0x04	/* Unknown HWMP seq number */
 		uint8_t		target_addr[IEEE80211_ADDR_LEN];
 		uint32_t	target_seq;	/* HWMP Sequence Number */
