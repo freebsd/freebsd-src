@@ -284,12 +284,14 @@ ieee80211_mesh_proxy_check(struct ieee80211vap *vap,
 		} else {
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, dest,
 			    "%s", "add proxy entry");
+			IEEE80211_ADDR_COPY(rt->rt_mesh_gate, vap->iv_myaddr);
 			IEEE80211_ADDR_COPY(rt->rt_nexthop, vap->iv_myaddr);
 			rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID
 				     |  IEEE80211_MESHRT_FLAGS_PROXY;
 		}
-	/* XXX assert PROXY? */
 	} else if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0) {
+		KASSERT(rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY,
+		    ("no proxy flag for poxy entry"));
 		struct ieee80211com *ic = vap->iv_ic;
 		/*
 		 * Fix existing entry created by received frames from
@@ -910,9 +912,14 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	struct ieee80211_node *ni;
 	int err;
 
-	if (mc->mc_ttl == 0) {
+	/*
+	 * mesh ttl of 1 means we are the last one receving it,
+	 * according to amendment we decrement and then check if
+	 * 0, if so we dont forward.
+	 */
+	if (mc->mc_ttl < 1) {
 		IEEE80211_NOTE_FRAME(vap, IEEE80211_MSG_MESH, wh,
-		    "%s", "frame not fwd'd, ttl 0");
+		    "%s", "frame not fwd'd, ttl 1");
 		vap->iv_stats.is_mesh_fwd_ttl++;
 		return;
 	}
@@ -952,6 +959,12 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	} else {
 		ni = mesh_find_txnode(vap, whcopy->i_addr3);
 		if (ni == NULL) {
+			/*
+			 * [Optional] any of the following three actions:
+			 * o silently discard
+			 * o trigger a path discovery
+			 * o inform TA that meshDA is unreachable.
+			 */
 			IEEE80211_NOTE_FRAME(vap, IEEE80211_MSG_MESH, wh,
 			    "%s", "frame not fwd'd, no path");
 			vap->iv_stats.is_mesh_fwd_nopath++;
@@ -980,9 +993,10 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 static struct mbuf *
 mesh_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen, int meshdrlen)
 {
-#define	WHDIR(wh) ((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK)
+#define	WHDIR(wh)	((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK)
+#define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)
 	uint8_t b[sizeof(struct ieee80211_qosframe_addr4) +
-		  sizeof(struct ieee80211_meshcntl_ae11)];
+		  sizeof(struct ieee80211_meshcntl_ae10)];
 	const struct ieee80211_qosframe_addr4 *wh;
 	const struct ieee80211_meshcntl_ae10 *mc;
 	struct ether_header *eh;
@@ -1016,13 +1030,14 @@ mesh_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen, int meshdrlen)
 		m_adj(m, hdrlen - sizeof(*eh));
 	}
 	eh = mtod(m, struct ether_header *);
-	ae = mc->mc_flags & 3;
+	ae = mc->mc_flags & IEEE80211_MESH_AE_MASK;
 	if (WHDIR(wh) == IEEE80211_FC1_DIR_FROMDS) {
 		IEEE80211_ADDR_COPY(eh->ether_dhost, wh->i_addr1);
-		if (ae == 0) {
+		if (ae == IEEE80211_MESH_AE_00) {
 			IEEE80211_ADDR_COPY(eh->ether_shost, wh->i_addr3);
-		} else if (ae == 1) {
-			IEEE80211_ADDR_COPY(eh->ether_shost, mc->mc_addr4);
+		} else if (ae == IEEE80211_MESH_AE_01) {
+			IEEE80211_ADDR_COPY(eh->ether_shost,
+			    MC01(mc)->mc_addr4);
 		} else {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 			    (const struct ieee80211_frame *)wh, NULL,
@@ -1032,12 +1047,12 @@ mesh_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen, int meshdrlen)
 			return NULL;
 		}
 	} else {
-		if (ae == 0) {
+		if (ae == IEEE80211_MESH_AE_00) {
 			IEEE80211_ADDR_COPY(eh->ether_dhost, wh->i_addr3);
 			IEEE80211_ADDR_COPY(eh->ether_shost, wh->i_addr4);
-		} else if (ae == 2) {
-			IEEE80211_ADDR_COPY(eh->ether_dhost, mc->mc_addr4);
-			IEEE80211_ADDR_COPY(eh->ether_shost, mc->mc_addr5);
+		} else if (ae == IEEE80211_MESH_AE_10) {
+			IEEE80211_ADDR_COPY(eh->ether_dhost, mc->mc_addr5);
+			IEEE80211_ADDR_COPY(eh->ether_shost, mc->mc_addr6);
 		} else {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 			    (const struct ieee80211_frame *)wh, NULL,
@@ -1059,7 +1074,8 @@ mesh_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen, int meshdrlen)
 		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
 	}
 	return m;
-#undef WDIR
+#undef	WDIR
+#undef	MC01
 }
 
 /*
@@ -1075,12 +1091,13 @@ mesh_isucastforme(struct ieee80211vap *vap, const struct ieee80211_frame *wh,
 
 	KASSERT((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS,
 	    ("bad dir 0x%x:0x%x", wh->i_fc[0], wh->i_fc[1]));
-	KASSERT(ae == 0 || ae == 2, ("bad AE %d", ae));
-	if (ae == 2) {				/* ucast w/ proxy */
+	KASSERT(ae == IEEE80211_MESH_AE_00 || ae == IEEE80211_MESH_AE_10,
+	    ("bad AE %d", ae));
+	if (ae == IEEE80211_MESH_AE_10) {	/* ucast w/ proxy */
 		const struct ieee80211_meshcntl_ae10 *mc10 =
 		    (const struct ieee80211_meshcntl_ae10 *) mc;
 		struct ieee80211_mesh_route *rt =
-		    ieee80211_mesh_rt_find(vap, mc10->mc_addr4);
+		    ieee80211_mesh_rt_find(vap, mc10->mc_addr5);
 		/* check for proxy route to ourself */
 		return (rt != NULL &&
 		    (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY));
@@ -1088,19 +1105,139 @@ mesh_isucastforme(struct ieee80211vap *vap, const struct ieee80211_frame *wh,
 		return IEEE80211_ADDR_EQ(wh->i_addr3, vap->iv_myaddr);
 }
 
+/*
+ * Verifies transmitter, updates lifetime, precursor list and forwards data.
+ * > 0 means we have forwarded data and no need to process locally
+ * == 0 means we want to process locally (and we may have forwarded data
+ * < 0 means there was an error and data should be discarded
+ */
+static int
+mesh_recv_indiv_data_to_fwrd(struct ieee80211vap *vap, struct mbuf *m,
+    struct ieee80211_frame *wh, const struct ieee80211_meshcntl *mc)
+{
+
+	/*
+	 * TODO:
+	 * o verify addr2 is  a legitimate transmitter
+	 * o set lifetime of addr3 to initial value
+	 * o set lifetime of addr4 to initial value
+	 * o lifetime of precursor of addr3 (addr2) is max(init, curr)
+	 * o lifetime of precursor of addr4 (nexthop) is max(init, curr)
+	 */
+
+	mesh_forward(vap, m, mc);
+	return (1); /* dont process locally */
+}
+
+/*
+ * Verifies transmitter, updates lifetime, precursor list and process data
+ * locally, if data is is proxy with AE = 10 it could mean data should go
+ * on another mesh path or data should be forwarded to the DS.
+ *
+ * > 0 means we have forwarded data and no need to process locally
+ * == 0 means we want to process locally (and we may have forwarded data
+ * < 0 means there was an error and data should be discarded
+ */
+static int
+mesh_recv_indiv_data_to_me(struct ieee80211vap *vap, struct mbuf *m,
+    struct ieee80211_frame *wh, const struct ieee80211_meshcntl *mc)
+{
+	struct ieee80211_qosframe_addr4 *qwh;
+	const struct ieee80211_meshcntl_ae10 *mc10;
+	struct ieee80211_mesh_route *rt;
+	int ae;
+
+	qwh = (struct ieee80211_qosframe_addr4 *)wh;
+	mc10 = (const struct ieee80211_meshcntl_ae10 *)mc;
+
+	/*
+	 * TODO:
+	 * o verify addr2 is  a legitimate transmitter
+	 * o set lifetime of addr4 to initial value
+	 * o lifetime of precursor entry is max(init, curr)
+	 */
+
+	ae = mc10->mc_flags & IEEE80211_MESH_AE_MASK;
+	KASSERT(ae == IEEE80211_MESH_AE_00 ||
+	    ae == IEEE80211_MESH_AE_10, ("bad AE %d", ae));
+	if (ae == IEEE80211_MESH_AE_10) {
+		if (IEEE80211_ADDR_EQ(mc10->mc_addr5, qwh->i_addr3)) {
+			return (0); /* process locally */
+		}
+
+		rt =  ieee80211_mesh_rt_find(vap, mc10->mc_addr5);
+		if (rt != NULL &&
+		    (rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) &&
+		    (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY) == 0) {
+			/*
+			 * Forward on another mesh-path, according to
+			 * amendment as specified in 9.32.4.1
+			 */
+			IEEE80211_ADDR_COPY(qwh->i_addr3, mc10->mc_addr5);
+			mesh_forward(vap, m,
+			    (const struct ieee80211_meshcntl *)mc10);
+			return (1); /* dont process locally */
+		}
+		/*
+		 * All other cases: forward of MSDUs from the MBSS to DS indiv.
+		 * addressed according to 13.11.3.2.
+		 */
+	}
+	return (0); /* process locally */
+}
+
+/*
+ * Try to forward the group addressed data on to other mesh STAs, and
+ * also to the DS.
+ *
+ * > 0 means we have forwarded data and no need to process locally
+ * == 0 means we want to process locally (and we may have forwarded data
+ * < 0 means there was an error and data should be discarded
+ */
+static int
+mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
+    struct ieee80211_frame *wh, const struct ieee80211_meshcntl *mc)
+{
+#define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+
+	mesh_forward(vap, m, mc);
+
+	if(mc->mc_ttl > 0) {
+		if (mc->mc_flags & IEEE80211_MESH_AE_01) {
+			/*
+			 * Forward of MSDUs from the MBSS to DS group addressed
+			 * (according to 13.11.3.2)
+			 * This happens by delivering the packet, and a bridge
+			 * will sent it on another port member.
+			 */
+			if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL &&
+			    ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
+				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH,
+				    MC01(mc)->mc_addr4, "%s",
+				    "forward from MBSS to the DS");
+		}
+	}
+	return (0); /* process locally */
+#undef	MC01
+}
+
 static int
 mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
+#define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)
+#define	MC10(mc)	((const struct ieee80211_meshcntl_ae10 *)mc)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211_frame *wh;
 	const struct ieee80211_meshcntl *mc;
-	int hdrspace, meshdrlen, need_tap;
-	uint8_t dir, type, subtype;
+	int hdrspace, meshdrlen, need_tap, error;
+	uint8_t dir, type, subtype, ae;
 	uint32_t seq;
-	uint8_t *addr, qos[2];
+	const uint8_t *addr;
+	uint8_t qos[2];
 	ieee80211_seq rxseq;
 
 	KASSERT(ni != NULL, ("null node"));
@@ -1189,7 +1326,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			    ni->ni_mlstate);
 			vap->iv_stats.is_mesh_nolink++;
 			goto out;
-		}	
+		}
 		if (dir != IEEE80211_FC1_DIR_FROMDS &&
 		    dir != IEEE80211_FC1_DIR_DSTODS) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
@@ -1271,12 +1408,28 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 */
 		mc = (const struct ieee80211_meshcntl *)
 		    (mtod(m, const uint8_t *) + hdrspace);
+		ae = mc->mc_flags & IEEE80211_MESH_AE_MASK;
 		meshdrlen = sizeof(struct ieee80211_meshcntl) +
-		    (mc->mc_flags & 3) * IEEE80211_ADDR_LEN;
+		    ae * IEEE80211_ADDR_LEN;
 		hdrspace += meshdrlen;
+
+		/* pull complete hdrspace = ieee80211_hdrspace + meshcontrol */
+		if ((meshdrlen > sizeof(struct ieee80211_meshcntl)) &&
+		    (m->m_len < hdrspace) &&
+		    ((m = m_pullup(m, hdrspace)) == NULL)) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
+			    ni->ni_macaddr, NULL,
+			    "data too short: expecting %u", hdrspace);
+			vap->iv_stats.is_rx_tooshort++;
+			goto out;		/* XXX */
+		}
+		/* XXX: are we sure there is no reallocating after m_pullup? */
+
 		seq = LE_READ_4(mc->mc_seq);
 		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 			addr = wh->i_addr3;
+		else if (ae == IEEE80211_MESH_AE_01)
+			addr = MC01(mc)->mc_addr4;
 		else
 			addr = ((struct ieee80211_qosframe_addr4 *)wh)->i_addr4;
 		if (IEEE80211_ADDR_EQ(vap->iv_myaddr, addr)) {
@@ -1290,17 +1443,22 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			goto out;
 		}
 
-		/*
-		 * Potentially forward packet.  See table s36 (p140)
-		 * for the rules.  XXX tap fwd'd packets not for us?
-		 */
-		if (dir == IEEE80211_FC1_DIR_FROMDS ||
-		    !mesh_isucastforme(vap, wh, mc)) {
-			mesh_forward(vap, m, mc);
-			if (dir == IEEE80211_FC1_DIR_DSTODS)
-				goto out;
-			/* NB: fall thru to deliver mcast frames locally */
-		}
+		/* This code "routes" the frame to the right control path */
+		if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+			if (IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr3))
+				error =
+				    mesh_recv_indiv_data_to_me(vap, m, wh, mc);
+			else if (IEEE80211_IS_MULTICAST(wh->i_addr3))
+				error = mesh_recv_group_data(vap, m, wh, mc);
+			else
+				error = mesh_recv_indiv_data_to_fwrd(vap, m,
+				    wh, mc);
+		} else
+			error = mesh_recv_group_data(vap, m, wh, mc);
+		if (error < 0)
+			goto err;
+		else if (error > 0)
+			goto out;
 
 		if (ieee80211_radiotap_active_vap(vap))
 			ieee80211_radiotap_rx(vap, m);
@@ -1382,6 +1540,9 @@ out:
 		m_freem(m);
 	}
 	return type;
+#undef	HAS_SEQ
+#undef	MC01
+#undef	MC10
 }
 
 static void
@@ -2616,7 +2777,7 @@ ieee80211_add_meshpeer(uint8_t *frm, uint8_t subtype, uint16_t localid,
  */
 #define IEEE80211_MESH_MAXOVERHEAD \
 	(sizeof(struct ieee80211_qosframe_addr4) \
-	 + sizeof(struct ieee80211_meshcntl_ae11) \
+	 + sizeof(struct ieee80211_meshcntl_ae10) \
 	+ sizeof(struct llc) \
 	+ IEEE80211_ADDR_LEN \
 	+ IEEE80211_WEP_IVLEN \
