@@ -1962,10 +1962,26 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(NFSV4OPEN_CREATE);
 	if (fmode & O_EXCL) {
-		*tl = txdr_unsigned(NFSCREATE_EXCLUSIVE);
-		NFSM_BUILD(tl, u_int32_t *, NFSX_VERF);
-		*tl++ = cverf.lval[0];
-		*tl = cverf.lval[1];
+		if (NFSHASNFSV4N(nmp)) {
+			if (NFSHASSESSPERSIST(nmp)) {
+				/* Use GUARDED for persistent sessions. */
+				*tl = txdr_unsigned(NFSCREATE_GUARDED);
+				nfscl_fillsattr(nd, vap, dvp, 0, 0);
+			} else {
+				/* Otherwise, use EXCLUSIVE4_1. */
+				*tl = txdr_unsigned(NFSCREATE_EXCLUSIVE41);
+				NFSM_BUILD(tl, u_int32_t *, NFSX_VERF);
+				*tl++ = cverf.lval[0];
+				*tl = cverf.lval[1];
+				nfscl_fillsattr(nd, vap, dvp, 0, 0);
+			}
+		} else {
+			/* NFSv4.0 */
+			*tl = txdr_unsigned(NFSCREATE_EXCLUSIVE);
+			NFSM_BUILD(tl, u_int32_t *, NFSX_VERF);
+			*tl++ = cverf.lval[0];
+			*tl = cverf.lval[1];
+		}
 	} else {
 		*tl = txdr_unsigned(NFSCREATE_UNCHECKED);
 		nfscl_fillsattr(nd, vap, dvp, 0, 0);
