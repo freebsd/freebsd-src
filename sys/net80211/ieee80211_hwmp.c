@@ -835,7 +835,8 @@ hwmp_rootmode_cb(void *arg)
 	preq.preq_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 	preq.preq_tcount = 1;
 	IEEE80211_ADDR_COPY(PREQ_TADDR(0), broadcastaddr);
-	PREQ_TFLAGS(0) = IEEE80211_MESHPREQ_TFLAGS_TO;
+	PREQ_TFLAGS(0) = IEEE80211_MESHPREQ_TFLAGS_TO |
+	    IEEE80211_MESHPREQ_TFLAGS_USN;
 	PREQ_TSEQ(0) = 0;
 	vap->iv_stats.is_hwmp_rootreqs++;
 	hwmp_send_preq(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &preq,
