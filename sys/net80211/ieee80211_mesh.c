@@ -1137,7 +1137,19 @@ mesh_recv_indiv_data_to_fwrd(struct ieee80211vap *vap, struct mbuf *m,
 
 	/* set lifetime of addr3 (meshDA) to initial value */
 	rt_meshda = ieee80211_mesh_rt_find(vap, qwh->i_addr3);
-	KASSERT(rt_meshda != NULL, ("no route"));
+	if (rt_meshda == NULL) {
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, qwh->i_addr2,
+		    "no route to meshDA(%6D)", qwh->i_addr3, ":");
+		/*
+		 * [Optional] any of the following three actions:
+		 * o silently discard 				[X]
+		 * o trigger a path discovery			[ ]
+		 * o inform TA that meshDA is unknown.		[ ]
+		 */
+		/* XXX: stats */
+		return (-1);
+	}
+
 	ieee80211_mesh_rt_update(rt_meshda, ticks_to_msecs(
 	    ms->ms_ppath->mpp_inact));
 
