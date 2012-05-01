@@ -89,9 +89,9 @@ struct g_raid_md_ddf_pervolume {
 struct g_raid_md_ddf_object {
 	struct g_raid_md_object	 mdio_base;
 	struct ddf_meta		 mdio_meta;
+	int			 mdio_starting;
 	struct callout		 mdio_start_co;	/* STARTING state timer. */
 	int			 mdio_started;
-	int			 mdio_incomplete;
 	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
 };
 
@@ -835,7 +835,8 @@ ddf_vol_meta_create(struct ddf_vol_meta *meta, struct ddf_meta *sample)
 }
 
 static void
-ddf_vol_meta_update(struct ddf_vol_meta *dst, struct ddf_meta *src, uint8_t *GUID)
+ddf_vol_meta_update(struct ddf_vol_meta *dst, struct ddf_meta *src,
+    uint8_t *GUID, int started)
 {
 	struct ddf_header *hdr;
 	struct ddf_vd_entry *vde;
@@ -850,15 +851,15 @@ ddf_vol_meta_update(struct ddf_vol_meta *dst, struct ddf_meta *src, uint8_t *GUI
 	size = GET16(src, hdr->Configuration_Record_Length) * src->sectorsize;
 
 	if (dst->vdc == NULL ||
-	    ((int32_t)(GET32D(src, vdc->Sequence_Number) -
-	    GET32(dst, vdc->Sequence_Number))) > 0)
+	    (!started && ((int32_t)(GET32D(src, vdc->Sequence_Number) -
+	    GET32(dst, vdc->Sequence_Number))) > 0))
 		vnew = 1;
 	else
 		vnew = 0;
 
 	if (dst->bvdc[bvd] == NULL ||
-	    ((int32_t)(GET32D(src, vdc->Sequence_Number) -
-	    GET32(dst, bvdc[bvd]->Sequence_Number))) > 0)
+	    (!started && ((int32_t)(GET32D(src, vdc->Sequence_Number) -
+	    GET32(dst, bvdc[bvd]->Sequence_Number))) > 0))
 		bvnew = 1;
 	else
 		bvnew = 0;
@@ -1803,6 +1804,7 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	struct g_raid_disk *disk;
 	struct g_raid_md_object *md;
 	struct g_raid_md_ddf_pervolume *pv;
+	struct g_raid_md_ddf_object *mdi;
 	struct ddf_vol_meta *vmeta;
 	struct ddf_vdc_record *vdc;
 	uint64_t *val2;
@@ -1810,6 +1812,7 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 
 	sc = vol->v_softc;
 	md = sc->sc_md;
+	mdi = (struct g_raid_md_ddf_object *)md;
 	pv = vol->v_md_data;
 	vmeta = &pv->pv_meta;
 	vdc = vmeta->vdc;
@@ -1862,6 +1865,7 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	}
 
 	pv->pv_started = 1;
+	mdi->mdio_starting--;
 	callout_stop(&pv->pv_start_co);
 	G_RAID_DEBUG1(0, sc, "Volume started.");
 	g_raid_md_write_ddf(md, vol, NULL, NULL);
@@ -1948,13 +1952,13 @@ g_raid_md_ddf_new_disk(struct g_raid_disk *disk)
 			callout_reset(&pv->pv_start_co,
 			    g_raid_start_timeout * hz,
 			    g_raid_ddf_go, vol);
+			mdi->mdio_starting++;
 		} else
 			pv = vol->v_md_data;
 
 		/* If we haven't started yet - check metadata freshness. */
 		vmeta = &pv->pv_meta;
-		if (vmeta->hdr == NULL || !pv->pv_started)
-			ddf_vol_meta_update(vmeta, pdmeta, vdc->VD_GUID);
+		ddf_vol_meta_update(vmeta, pdmeta, vdc->VD_GUID, pv->pv_started);
 	}
 
 	if (spare == 1) {
@@ -2649,26 +2653,29 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
 		return (0);
 
-	/* Generate new per-volume metadata for affected volumes. */
-	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-		if (vol->v_stopping)
-			continue;
-
-		/* Skip volumes not related to specified targets. */
-		if (tvol != NULL && vol != tvol)
-			continue;
-		if (tsd != NULL && vol != tsd->sd_volume)
-			continue;
-		if (tdisk != NULL) {
-			for (i = 0; i < vol->v_disks_count; i++) {
-				if (vol->v_subdisks[i].sd_disk == tdisk)
-					break;
-			}
-			if (i >= vol->v_disks_count)
+	/*
+	 * Clear disk flags to let only really needed ones to be reset.
+	 * Do it only if there are no volumes in starting state now,
+	 * as they can update disk statuses yet and we may kill innocent.
+	 */
+	if (mdi->mdio_starting == 0) {
+		for (i = 0; i < GET16(gmeta, pdr->Populated_PDEs); i++) {
+			if (isff(gmeta->pdr->entry[i].PD_GUID, 24))
 				continue;
+			SET16(gmeta, pdr->entry[i].PD_Type,
+			    GET16(gmeta, pdr->entry[i].PD_Type) &
+			    ~DDF_PDE_PARTICIPATING);
+			if ((GET16(gmeta, pdr->entry[i].PD_State) &
+			    DDF_PDE_PFA) == 0)
+				SET16(gmeta, pdr->entry[i].PD_State, 0);
 		}
+	}
 
+	/* Generate/update new per-volume metadata. */
+	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 		pv = (struct g_raid_md_ddf_pervolume *)vol->v_md_data;
+		if (vol->v_stopping || !pv->pv_started)
+			continue;
 		vmeta = &pv->pv_meta;
 
 		SET32(vmeta, vdc->Sequence_Number,
@@ -2711,7 +2718,9 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			SET8(vmeta, vde->VD_State, DDF_VDE_PARTIAL);
 		else
 			SET8(vmeta, vde->VD_State, DDF_VDE_OPTIMAL);
-		if (vol->v_dirty)
+		if (vol->v_dirty ||
+		    g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_STALE) > 0 ||
+		    g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_RESYNC) > 0)
 			SET8(vmeta, vde->VD_State,
 			    GET8(vmeta, vde->VD_State) | DDF_VDE_DIRTY);
 		SET8(vmeta, vde->Init_State, DDF_VDE_INIT_FULL); // XXX
@@ -2719,45 +2728,50 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 
 		for (i = 0; i < vol->v_disks_count; i++) {
 			sd = &vol->v_subdisks[i];
-			disk = sd->sd_disk;
-			if (disk == NULL)
-				continue;
-			pd = (struct g_raid_md_ddf_perdisk *)disk->d_md_data;
 			bvd = i / GET16(vmeta, vdc->Primary_Element_Count);
 			pos = i % GET16(vmeta, vdc->Primary_Element_Count);
-			if (vmeta->bvdc[bvd] == NULL) {
-				size = GET16(vmeta,
-				    hdr->Configuration_Record_Length) *
-				    vmeta->sectorsize;
-				vmeta->bvdc[bvd] = malloc(size, M_MD_DDF, M_WAITOK);
-				memcpy(vmeta->bvdc[bvd], vmeta->vdc, size);
+			disk = sd->sd_disk;
+			if (disk != NULL) {
+				pd = (struct g_raid_md_ddf_perdisk *)disk->d_md_data;
+				if (vmeta->bvdc[bvd] == NULL) {
+					size = GET16(vmeta,
+					    hdr->Configuration_Record_Length) *
+					    vmeta->sectorsize;
+					vmeta->bvdc[bvd] = malloc(size,
+					    M_MD_DDF, M_WAITOK);
+					memset(vmeta->bvdc[bvd], 0xff, size);
+				}
+				memcpy(vmeta->bvdc[bvd], vmeta->vdc,
+				    sizeof(struct ddf_vdc_record));
 				SET8(vmeta, bvdc[bvd]->Secondary_Element_Seq, bvd);
+				SET64(vmeta, bvdc[bvd]->Block_Count,
+				    sd->sd_size / vol->v_sectorsize);
+				SET32(vmeta, bvdc[bvd]->Physical_Disk_Sequence[pos],
+				    GET32(&pd->pd_meta, pdd->PD_Reference));
+				val2 = (uint64_t *)&(vmeta->bvdc[bvd]->Physical_Disk_Sequence[
+				    GET16(vmeta, hdr->Max_Primary_Element_Entries)]);
+				SET64P(vmeta, val2 + pos,
+				    sd->sd_offset / vol->v_sectorsize);
 			}
-			SET64(vmeta, bvdc[bvd]->Block_Count,
-			    sd->sd_size / vol->v_sectorsize);
-			SET32(vmeta, bvdc[bvd]->Physical_Disk_Sequence[pos],
-			    GET32(&pd->pd_meta, pdd->PD_Reference));
-			val2 = (uint64_t *)&(vmeta->bvdc[bvd]->Physical_Disk_Sequence[
-			    GET16(vmeta, hdr->Max_Primary_Element_Entries)]);
-			SET64P(vmeta, val2 + pos,
-			    sd->sd_offset / vol->v_sectorsize);
+			if (vmeta->bvdc[bvd] == NULL)
+				continue;
 
 			j = ddf_meta_find_pd(gmeta, NULL,
-			    GET32(&pd->pd_meta, pdd->PD_Reference));
+			    GET32(vmeta, bvdc[bvd]->Physical_Disk_Sequence[pos]));
 			if (j < 0)
 				continue;
 			SET32(gmeta, pdr->entry[j].PD_Type,
 			    GET32(gmeta, pdr->entry[j].PD_Type) |
 			    DDF_PDE_PARTICIPATING);
-			if (sd->sd_state == G_RAID_SUBDISK_S_FAILED)
+			if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
+				SET32(gmeta, pdr->entry[j].PD_State,
+				    GET32(gmeta, pdr->entry[j].PD_State) |
+				    DDF_PDE_FAILED | DDF_PDE_MISSING);
+			else if (sd->sd_state == G_RAID_SUBDISK_S_FAILED)
 				SET32(gmeta, pdr->entry[j].PD_State,
 				    GET32(gmeta, pdr->entry[j].PD_State) |
 				    DDF_PDE_FAILED | DDF_PDE_PFA);
-			else if (sd->sd_state <= G_RAID_SUBDISK_S_UNINITIALIZED)
-				SET32(gmeta, pdr->entry[j].PD_State,
-				    GET32(gmeta, pdr->entry[j].PD_State) |
-				    DDF_PDE_FAILED);
-			else if (sd->sd_state < G_RAID_SUBDISK_S_ACTIVE)
+			else if (sd->sd_state <= G_RAID_SUBDISK_S_REBUILD)
 				SET32(gmeta, pdr->entry[j].PD_State,
 				    GET32(gmeta, pdr->entry[j].PD_State) |
 				    DDF_PDE_FAILED);
@@ -2768,17 +2782,33 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		}
 	}
 
+	/* Remove disks without "participating" flag (unused). */
+	for (i = 0, j = -1; i < GET16(gmeta, pdr->Populated_PDEs); i++) {
+		if (isff(gmeta->pdr->entry[i].PD_GUID, 24))
+			continue;
+		if (GET16(gmeta, pdr->entry[i].PD_Type) & DDF_PDE_PARTICIPATING)
+			j = i;
+		else
+			memset(&gmeta->pdr->entry[i], 0xff,
+			    sizeof(struct ddf_pd_entry));
+	}
+	SET16(gmeta, pdr->Populated_PDEs, j + 1);
+
+	/* Update per-disk metadata and write them. */
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_ddf_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
 			continue;
+		/* Update PDR. */
 		memcpy(pd->pd_meta.pdr, gmeta->pdr,
 		    GET32(&pd->pd_meta, hdr->pdr_length) *
 		    pd->pd_meta.sectorsize);
-		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-			vol = sd->sd_volume;
+		/* Update VDR. */
+		SET16(&pd->pd_meta, vdr->Populated_VDEs, 0);
+		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+			if (vol->v_stopping)
+				continue;
 			pv = (struct g_raid_md_ddf_pervolume *)vol->v_md_data;
-			vmeta = &pv->pv_meta;
 			i = ddf_meta_find_vd(&pd->pd_meta,
 			    pv->pv_meta.vde->VD_GUID);
 			if (i < 0)
@@ -2787,14 +2817,22 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 				memcpy(&pd->pd_meta.vdr->entry[i],
 				    pv->pv_meta.vde,
 				    sizeof(struct ddf_vd_entry));
+		}
+		/* Update VDC. */
+		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+			vol = sd->sd_volume;
+			if (vol->v_stopping)
+				continue;
+			pv = (struct g_raid_md_ddf_pervolume *)vol->v_md_data;
+			vmeta = &pv->pv_meta;
 			vdc = ddf_meta_find_vdc(&pd->pd_meta,
-			    pv->pv_meta.vde->VD_GUID);
+			    vmeta->vde->VD_GUID);
 			if (vdc == NULL)
 				vdc = ddf_meta_find_vdc(&pd->pd_meta, NULL);
 			if (vdc != NULL) {
 				bvd = sd->sd_pos / GET16(vmeta,
 				    vdc->Primary_Element_Count);
-				memcpy(vdc, pv->pv_meta.bvdc[bvd],
+				memcpy(vdc, vmeta->bvdc[bvd],
 				    GET16(&pd->pd_meta,
 				    hdr->Configuration_Record_Length) *
 				    pd->pd_meta.sectorsize);
