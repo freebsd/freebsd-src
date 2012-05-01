@@ -271,12 +271,23 @@
  * AR71xx MII control region
  */
 #define	AR71XX_MII0_CTRL	0x18070000
-#define	AR71XX_MII1_CTRL	0x18070004
 #define			MII_CTRL_SPEED_SHIFT	4
 #define			MII_CTRL_SPEED_MASK	3
-#define			MII_CTRL_SPEED_10	0
-#define			MII_CTRL_SPEED_100	1
-#define			MII_CTRL_SPEED_1000	2
+#define				MII_CTRL_SPEED_10	0
+#define				MII_CTRL_SPEED_100	1
+#define				MII_CTRL_SPEED_1000	2
+#define			MII_CTRL_IF_MASK	3
+#define			MII_CTRL_IF_SHIFT	0
+#define				MII0_CTRL_IF_GMII	0
+#define				MII0_CTRL_IF_MII	1
+#define				MII0_CTRL_IF_RGMII	2
+#define				MII0_CTRL_IF_RMII	3
+
+#define	AR71XX_MII1_CTRL	0x18070004
+
+#define				MII1_CTRL_IF_RGMII	0
+#define				MII1_CTRL_IF_RMII	1
+
 
 /*
  * GigE adapters region
