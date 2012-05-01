@@ -171,9 +171,6 @@ static SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD, 0,
 static int	ieee80211_hwmp_targetonly = 0;
 SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_targetonly, 0, "Set TO bit on generated PREQs");
-static int	ieee80211_hwmp_replyforward = 1;
-SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, replyforward, CTLTYPE_INT | CTLFLAG_RW,
-    &ieee80211_hwmp_replyforward, 0, "Set RF bit on generated PREQs");
 static int	ieee80211_hwmp_pathtimeout = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, pathlifetime, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_pathtimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
@@ -838,8 +835,7 @@ hwmp_rootmode_cb(void *arg)
 	preq.preq_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 	preq.preq_tcount = 1;
 	IEEE80211_ADDR_COPY(PREQ_TADDR(0), broadcastaddr);
-	PREQ_TFLAGS(0) = IEEE80211_MESHPREQ_TFLAGS_TO |
-	    IEEE80211_MESHPREQ_TFLAGS_RF;
+	PREQ_TFLAGS(0) = IEEE80211_MESHPREQ_TFLAGS_TO;
 	PREQ_TSEQ(0) = 0;
 	vap->iv_stats.is_hwmp_rootreqs++;
 	hwmp_send_preq(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &preq,
@@ -1104,8 +1100,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 				 */
 				ppreq.preq_targets[0].target_flags |=
 				    IEEE80211_MESHPREQ_TFLAGS_TO;
-				ppreq.preq_targets[0].target_flags &=
-				    ~IEEE80211_MESHPREQ_TFLAGS_RF;
 				hwmp_send_preq(ni, vap->iv_myaddr,
 				    rttarg->rt_nexthop, &ppreq,
 				    &hrtarg->hr_lastpreq,
@@ -1709,16 +1703,14 @@ hwmp_discover(struct ieee80211vap *vap,
 			preq.preq_origseq = hr->hr_origseq;
 			preq.preq_lifetime =
 			    ticks_to_msecs(ieee80211_hwmp_pathtimeout);
-			preq.preq_metric = rt->rt_metric;
+			preq.preq_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 			preq.preq_tcount = 1;
 			IEEE80211_ADDR_COPY(PREQ_TADDR(0), dest);
 			PREQ_TFLAGS(0) = 0;
 			if (ieee80211_hwmp_targetonly)
 				PREQ_TFLAGS(0) |= IEEE80211_MESHPREQ_TFLAGS_TO;
-			if (ieee80211_hwmp_replyforward)
-				PREQ_TFLAGS(0) |= IEEE80211_MESHPREQ_TFLAGS_RF;
 			PREQ_TFLAGS(0) |= IEEE80211_MESHPREQ_TFLAGS_USN;
-			PREQ_TSEQ(0) = hr->hr_seq;
+			PREQ_TSEQ(0) = 0; /* RESERVED when USN flag is set */
 			/* XXX check return value */
 			hwmp_send_preq(vap->iv_bss, vap->iv_myaddr,
 			    broadcastaddr, &preq, &hr->hr_lastpreq,
