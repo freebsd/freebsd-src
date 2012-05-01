@@ -154,7 +154,8 @@ struct ieee80211_hwmp_route {
 	ieee80211_hwmp_seq	hr_preqid;	/* last PREQ ID seen from dst */
 	ieee80211_hwmp_seq	hr_origseq;	/* seq. no. on our latest PREQ*/
 	struct timeval		hr_lastpreq;	/* last time we sent a PREQ */
-	int			hr_preqretries;
+	int			hr_preqretries;	/* number of discoveries */
+	int			hr_lastdiscovery; /* last discovery in ticks */
 };
 struct ieee80211_hwmp_state {
 	ieee80211_hwmp_seq	hs_seq;		/* next seq to be used */
@@ -177,6 +178,15 @@ static int	ieee80211_hwmp_pathtimeout = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, pathlifetime, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_pathtimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "path entry lifetime (ms)");
+static int	ieee80211_hwmp_maxpreq_retries = -1;
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, maxpreq_retries, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_hwmp_maxpreq_retries, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "maximum number of preq retries");
+static int	ieee80211_hwmp_net_diameter_traversaltime = -1;
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, net_diameter_traversal_time,
+    CTLTYPE_INT | CTLFLAG_RW, &ieee80211_hwmp_net_diameter_traversaltime, 0,
+    ieee80211_sysctl_msecs_ticks, "I",
+    "estimate travelse time across the MBSS (ms)");
 static int	ieee80211_hwmp_roottimeout = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, roottimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_roottimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
@@ -212,10 +222,17 @@ SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, inact, CTLTYPE_INT | CTLFLAG_RW,
 static void
 ieee80211_hwmp_init(void)
 {
+	/* Default values as per amendment */
 	ieee80211_hwmp_pathtimeout = msecs_to_ticks(5*1000);
 	ieee80211_hwmp_roottimeout = msecs_to_ticks(5*1000);
 	ieee80211_hwmp_rootint = msecs_to_ticks(2*1000);
 	ieee80211_hwmp_rannint = msecs_to_ticks(1*1000);
+	ieee80211_hwmp_maxpreq_retries = 3;
+	/*
+	 * (TU): A measurement of time equal to 1024 μs,
+	 * 500 TU is 512 ms.
+	 */
+	ieee80211_hwmp_net_diameter_traversaltime = msecs_to_ticks(512);
 
 	/*
 	 * Register action frame handler.
@@ -1288,6 +1305,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    rt->rt_metric, metric);
 
 	hr->hr_seq = prep->prep_targetseq;
+	hr->hr_preqretries = 0;
 	IEEE80211_ADDR_COPY(rt->rt_nexthop, ni->ni_macaddr);
 	rt->rt_metric = metric;
 	rt->rt_nhops = prep->prep_hopcount + 1;
@@ -1648,13 +1666,31 @@ hwmp_discover(struct ieee80211vap *vap,
 		hr = IEEE80211_MESH_ROUTE_PRIV(rt,
 		    struct ieee80211_hwmp_route);
 		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0) {
+			if (hr->hr_lastdiscovery != 0 &&
+			    (ticks - hr->hr_lastdiscovery <
+			    (ieee80211_hwmp_net_diameter_traversaltime * 2))) {
+				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
+			            dest, NULL, "%s",
+				    "too frequent discovery requeust");
+				/* XXX: stats? */
+				goto done;
+			}
+			hr->hr_lastdiscovery = ticks;
+			if (hr->hr_preqretries >=
+			    ieee80211_hwmp_maxpreq_retries) {
+				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
+			            dest, NULL, "%s",
+				    "no valid path , max number of discovery");
+				vap->iv_stats.is_mesh_fwd_nopath++;
+				goto done;
+			}
+			hr->hr_preqretries++;
 			if (hr->hr_origseq == 0)
 				hr->hr_origseq = ++hs->hs_seq;
 			rt->rt_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 			/* XXX: special discovery timeout, larger lifetime? */
 			ieee80211_mesh_rt_update(rt,
 			    ticks_to_msecs(ieee80211_hwmp_pathtimeout));
-			/* XXX check preq retries */
 			sendpreq = 1;
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, dest,
 			    "start path discovery (src %s), target seq %u",
