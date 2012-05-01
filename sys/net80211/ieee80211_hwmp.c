@@ -157,6 +157,7 @@ struct ieee80211_hwmp_route {
 	ieee80211_hwmp_seq	hr_preqid;	/* last PREQ ID seen from dst */
 	ieee80211_hwmp_seq	hr_origseq;	/* seq. no. on our latest PREQ*/
 	struct timeval		hr_lastpreq;	/* last time we sent a PREQ */
+	struct timeval		hr_lastrootconf; /* last sent PREQ root conf */
 	int			hr_preqretries;	/* number of discoveries */
 	int			hr_lastdiscovery; /* last discovery in ticks */
 };
@@ -199,6 +200,11 @@ static int	ieee80211_hwmp_rannint = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rannint, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_rannint, 0, ieee80211_sysctl_msecs_ticks, "I",
     "root announcement interval (ms)");
+static struct timeval ieee80211_hwmp_rootconfint = { 0, 0 };
+static int	ieee80211_hwmp_rootconfint_internal = -1;
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rootconfint, CTLTYPE_INT | CTLFLAG_RD,
+    &ieee80211_hwmp_rootconfint_internal, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "root confirmation interval (ms) (read-only)");
 
 #define	IEEE80211_HWMP_DEFAULT_MAXHOPS	31
 
@@ -228,12 +234,20 @@ ieee80211_hwmp_init(void)
 	ieee80211_hwmp_roottimeout = msecs_to_ticks(5*1000);
 	ieee80211_hwmp_rootint = msecs_to_ticks(2*1000);
 	ieee80211_hwmp_rannint = msecs_to_ticks(1*1000);
+	ieee80211_hwmp_rootconfint_internal = msecs_to_ticks(2*1000);
 	ieee80211_hwmp_maxpreq_retries = 3;
 	/*
 	 * (TU): A measurement of time equal to 1024 μs,
 	 * 500 TU is 512 ms.
 	 */
 	ieee80211_hwmp_net_diameter_traversaltime = msecs_to_ticks(512);
+
+	/*
+	 * NB: I dont know how to make SYSCTL_PROC that calls ms to ticks
+	 * and return a struct timeval...
+	 */
+	ieee80211_hwmp_rootconfint.tv_usec =
+	    ieee80211_hwmp_rootconfint_internal * 1000;
 
 	/*
 	 * Register action frame handler.
@@ -555,6 +569,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 			}
 			memcpy(&rann, mrann, sizeof(rann));
 			rann.rann_seq = LE_READ_4(&mrann->rann_seq);
+			rann.rann_interval = LE_READ_4(&mrann->rann_interval);
 			rann.rann_metric = LE_READ_4(&mrann->rann_metric);
 			hwmp_recv_rann(vap, ni, wh, &rann);
 			found++;
@@ -873,6 +888,7 @@ hwmp_rootmode_rann_cb(void *arg)
 	rann.rann_ttl = ms->ms_ttl;
 	IEEE80211_ADDR_COPY(rann.rann_addr, vap->iv_myaddr);
 	rann.rann_seq = ++hs->hs_seq;
+	rann.rann_interval = ieee80211_hwmp_rannint;
 	rann.rann_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 
 	vap->iv_stats.is_hwmp_rootrann++;
@@ -1684,7 +1700,9 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
 	struct ieee80211_mesh_route *rt = NULL;
 	struct ieee80211_hwmp_route *hr;
+	struct ieee80211_meshpreq_ie preq;
 	struct ieee80211_meshrann_ie prann;
+	uint32_t metric = 0;
 
 	if (ni == vap->iv_bss ||
 	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED ||
@@ -1692,27 +1710,74 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		return;
 
 	rt = ieee80211_mesh_rt_find(vap, rann->rann_addr);
-	/*
-	 * Discover the path to the root mesh STA.
-	 * If we already know it, propagate the RANN element.
-	 */
+	if (rt != NULL && rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) {
+		hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
+
+		/* Acceptance criteria: if RANN.seq < stored seq, discard RANN */
+		if (HWMP_SEQ_LT(rann->rann_seq, hr->hr_seq)) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_HWMP, wh, NULL,
+			"RANN seq %u < %u", rann->rann_seq, hr->hr_seq);
+			return;
+		}
+
+		/* Acceptance criteria: if RANN.seq == stored seq AND
+		* RANN.metric > stored metric, discard RANN */
+		if (HWMP_SEQ_EQ(rann->rann_seq, hr->hr_seq) &&
+		rann->rann_metric > rt->rt_metric) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_HWMP, wh, NULL,
+			"RANN metric %u > %u", rann->rann_metric, rt->rt_metric);
+			return;
+		}
+	}
+
+	/* RANN ACCEPTED */
+
+	ieee80211_hwmp_rannint = rann->rann_interval; /* XXX: mtx lock? */
+	metric = rann->rann_metric + ms->ms_pmetric->mpm_metric(ni);
+
 	if (rt == NULL) {
-		hwmp_discover(vap, rann->rann_addr, NULL);
-		return;
+		rt = ieee80211_mesh_rt_add(vap, rann->rann_addr);
+		if (rt == NULL) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_HWMP, wh, NULL,
+			    "unable to add mac for RANN root %6D",
+			    rann->rann_addr, ":");
+			    vap->iv_stats.is_mesh_rtaddfailed++;
+			return;
+		}
 	}
 	hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
-	if (HWMP_SEQ_GT(rann->rann_seq, hr->hr_seq)) {
+	/* discovery timeout */
+	ieee80211_mesh_rt_update(rt,
+	    ticks_to_msecs(ieee80211_hwmp_roottimeout));
+
+	preq.preq_flags = IEEE80211_MESHPREQ_FLAGS_AM;
+	preq.preq_hopcount = 0;
+	preq.preq_ttl = ms->ms_ttl;
+	preq.preq_id = 0; /* reserved */
+	IEEE80211_ADDR_COPY(preq.preq_origaddr, vap->iv_myaddr);
+	preq.preq_origseq = ++hs->hs_seq;
+	preq.preq_lifetime = ieee80211_hwmp_roottimeout;
+	preq.preq_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
+	preq.preq_tcount = 1;
+	preq.preq_targets[0].target_flags = IEEE80211_MESHPREQ_TFLAGS_TO;
+	/* NB: IEEE80211_MESHPREQ_TFLAGS_USN = 0 implicitly implied */
+	IEEE80211_ADDR_COPY(preq.preq_targets[0].target_addr, rann->rann_addr);
+	preq.preq_targets[0].target_seq = rann->rann_seq;
+	/* XXX: if rootconfint have not passed, we built this preq in vain */
+	hwmp_send_preq(vap->iv_bss, vap->iv_myaddr, wh->i_addr2, &preq,
+	    &hr->hr_lastrootconf, &ieee80211_hwmp_rootconfint);
+
+	/* propagate a RANN */
+	if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID &&
+	    rann->rann_ttl > 1 &&
+	    ms->ms_flags & IEEE80211_MESHFLAGS_FWD) {
 		hr->hr_seq = rann->rann_seq;
-		if (rann->rann_ttl > 1 &&
-		    rann->rann_hopcount < hs->hs_maxhops &&
-		    (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)) {
-			memcpy(&prann, rann, sizeof(prann));
-			prann.rann_hopcount += 1;
-			prann.rann_ttl -= 1;
-			prann.rann_metric += ms->ms_pmetric->mpm_metric(ni);
-			hwmp_send_rann(vap->iv_bss, vap->iv_myaddr,
-			    broadcastaddr, &prann);
-		}
+		memcpy(&prann, rann, sizeof(prann));
+		prann.rann_hopcount += 1;
+		prann.rann_ttl -= 1;
+		prann.rann_metric += ms->ms_pmetric->mpm_metric(ni);
+		hwmp_send_rann(vap->iv_bss, vap->iv_myaddr,
+		    broadcastaddr, &prann);
 	}
 }
 
