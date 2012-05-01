@@ -390,18 +390,17 @@ struct ieee80211_meshcntl_ae10 {
 	uint8_t		mc_flags;	/* Address Extension 10 */
 	uint8_t		mc_ttl;		/* TTL */
 	uint8_t		mc_seq[4];	/* Sequence No. */
-	uint8_t		mc_addr4[IEEE80211_ADDR_LEN];
-	uint8_t		mc_addr5[IEEE80211_ADDR_LEN];
-} __packed;
-
-struct ieee80211_meshcntl_ae11 {
-	uint8_t		mc_flags;	/* Address Extension 11 */
-	uint8_t		mc_ttl;		/* TTL */
-	uint8_t		mc_seq[4];	/* Sequence No. */
-	uint8_t		mc_addr4[IEEE80211_ADDR_LEN];
 	uint8_t		mc_addr5[IEEE80211_ADDR_LEN];
 	uint8_t		mc_addr6[IEEE80211_ADDR_LEN];
 } __packed;
+
+#define IEEE80211_MESH_AE_MASK		0x03
+enum {
+	IEEE80211_MESH_AE_00		= 0,	/* MC has no AE subfield */
+	IEEE80211_MESH_AE_01		= 1,	/* MC contain addr4 */
+	IEEE80211_MESH_AE_10		= 2,	/* MC contain addr5 & addr6 */
+	IEEE80211_MESH_AE_11		= 3,	/* RESERVED */
+};
 
 #ifdef _KERNEL
 MALLOC_DECLARE(M_80211_MESH_PREQ);
@@ -423,6 +422,7 @@ struct ieee80211_mesh_route {
 	struct mtx		rt_lock;	/* fine grained route lock */
 	int			rt_updtime;	/* last update time */
 	uint8_t			rt_dest[IEEE80211_ADDR_LEN];
+	uint8_t			rt_mesh_gate[IEEE80211_ADDR_LEN]; /* meshDA */
 	uint8_t			rt_nexthop[IEEE80211_ADDR_LEN];
 	uint32_t		rt_metric;	/* path metric */
 	uint16_t		rt_nhops;	/* number of hops */
@@ -431,6 +431,7 @@ struct ieee80211_mesh_route {
 #define	IEEE80211_MESHRT_FLAGS_PROXY	0x02	/* proxy entry */
 	uint32_t		rt_lifetime;	/* route timeout */
 	uint32_t		rt_lastmseq;	/* last seq# seen dest */
+	uint32_t		rt_ext_seq;	/* proxy seq number */
 	void			*rt_priv;	/* private data */
 };
 #define	IEEE80211_MESH_ROUTE_PRIV(rt, cast)	((cast *)rt->rt_priv)
