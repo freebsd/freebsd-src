@@ -179,6 +179,10 @@ static struct g_raid_md_class g_raid_md_ddf_class = {
 	(n) * GET16((m), hdr->Configuration_Record_Length) *		\
 	(m)->sectorsize))
 
+#define GETSAPTR(m, n)	((struct ddf_sa_record *)((uint8_t *)(m)->cr +	\
+	(n) * GET16((m), hdr->Configuration_Record_Length) *		\
+	(m)->sectorsize))
+
 static int
 isff(uint8_t *buf, int size)
 {
@@ -294,8 +298,8 @@ g_raid_md_ddf_print(struct ddf_meta *meta)
 		printf("\n");
 		printf("VD_Number            0x%04x\n",
 		    GET16(meta, vdr->entry[j].VD_Number));
-		printf("VD_Type              0x%02x\n",
-		    GET8(meta, vdr->entry[j].VD_Type));
+		printf("VD_Type              0x%04x\n",
+		    GET16(meta, vdr->entry[j].VD_Type));
 		printf("VD_State             0x%02x\n",
 		    GET8(meta, vdr->entry[j].VD_State));
 		printf("Init_State           0x%02x\n",
@@ -396,6 +400,7 @@ g_raid_md_ddf_print(struct ddf_meta *meta)
 				    GET16D(meta, sa->entry[i].Secondary_Element));
 			}
 			break;
+		case 0x00000000:
 		case 0xFFFFFFFF:
 			break;
 		default:
@@ -476,7 +481,8 @@ ddf_meta_find_vdc(struct ddf_meta *meta, uint8_t *GUID)
 			    memcmp(vdc->VD_GUID, GUID, 24) == 0)
 				return (vdc);
 		} else
-			if (GET32D(meta, vdc->Signature) == 0xffffffff)
+			if (GET32D(meta, vdc->Signature) == 0xffffffff ||
+			    GET32D(meta, vdc->Signature) == 0)
 				return (vdc);
 	}
 	return (NULL);
@@ -525,6 +531,29 @@ ddf_meta_find_disk(struct ddf_vol_meta *vmeta, uint32_t PD_Reference,
 		}
 	}
 	return (-1);
+}
+
+static struct ddf_sa_record *
+ddf_meta_find_sa(struct ddf_meta *meta, int create)
+{
+	struct ddf_sa_record *sa;
+	int i, num;
+
+	num = GETCRNUM(meta);
+	for (i = 0; i < num; i++) {
+		sa = GETSAPTR(meta, i);
+		if (GET32D(meta, sa->Signature) == DDF_SA_SIGNATURE)
+			return (sa);
+	}
+	if (create) {
+		for (i = 0; i < num; i++) {
+			sa = GETSAPTR(meta, i);
+			if (GET32D(meta, sa->Signature) == 0xffffffff ||
+			    GET32D(meta, sa->Signature) == 0)
+				return (sa);
+		}
+	}
+	return (NULL);
 }
 
 static void
@@ -643,9 +672,9 @@ ddf_meta_create(struct g_raid_disk *disk, struct ddf_meta *sample)
 	pos += GET32(meta, hdr->Diagnostic_Space_Length);
 	SET32(meta, hdr->Vendor_Specific_Logs,
 	    GET32(meta, hdr->Vendor_Specific_Logs_Length) != 0 ? pos : 0xffffffff);
-	pos += GET32(meta, hdr->Vendor_Specific_Logs_Length);
+	pos += min(GET32(meta, hdr->Vendor_Specific_Logs_Length), 1);
 	SET64(meta, hdr->Primary_Header_LBA,
-	    anchorlba - pos - 16);
+	    anchorlba - pos);
 	SET64(meta, hdr->Secondary_Header_LBA,
 	    0xffffffffffffffffULL);
 	SET64(meta, hdr->WorkSpace_LBA,
@@ -1318,29 +1347,6 @@ ddf_meta_erase(struct g_consumer *cp)
 	return (error);
 }
 
-#if 0
-static int
-ddf_meta_write_spare(struct g_consumer *cp)
-{
-	struct ddf_header *meta;
-	int error;
-
-	meta = malloc(sizeof(*meta), M_MD_DDF, M_WAITOK | M_ZERO);
-	memcpy(&meta->ddf_id[0], DDF_MAGIC, sizeof(DDF_MAGIC) - 1);
-	meta->dummy_0 = 0x00020000;
-	meta->integrity = DDF_I_VALID;
-	meta->disk.flags = DDF_F_SPARE | DDF_F_ONLINE | DDF_F_VALID;
-	meta->disk.number = 0xff;
-	arc4rand(&meta->disk.id, sizeof(meta->disk.id), 0);
-	meta->disk_sectors = cp->provider->mediasize / cp->provider->sectorsize;
-	meta->disk_sectors -= 131072;
-	meta->rebuild_lba = UINT32_MAX;
-	error = ddf_meta_write(cp, &meta, 1);
-	free(meta, M_MD_DDF);
-	return (error);
-}
-#endif
-
 static struct g_raid_volume *
 g_raid_md_ddf_get_volume(struct g_raid_softc *sc, uint8_t *GUID)
 {
@@ -1574,6 +1580,7 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 	struct ddf_vol_meta *vmeta;
 	struct ddf_meta *pdmeta, *gmeta;
 	struct ddf_vdc_record *vdc1;
+	struct ddf_sa_record *sa;
 	off_t size, eoff = 0, esize = 0;
 	uint64_t *val2;
 	int disk_pos, md_disk_bvd = -1, md_disk_pos = -1, md_pde_pos;
@@ -1596,7 +1603,8 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 	md_pde_pos = ddf_meta_find_pd(gmeta, NULL, reference);
 
 	if (disk_pos < 0) {
-		G_RAID_DEBUG1(1, sc, "Disk %s is not part of the volume %s",
+		G_RAID_DEBUG1(1, sc,
+		    "Disk %s is not a present part of the volume %s",
 		    g_raid_get_diskname(disk), vol->v_name);
 
 		/* Failed stale disk is useless for us. */
@@ -1606,10 +1614,8 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 		}
 
 		/* If disk has some metadata for this volume - erase. */
-		if (pdmeta->cr != NULL &&
-		    (vdc1 = ddf_meta_find_vdc(pdmeta, vmeta->vdc->VD_GUID)) != NULL) {
+		if ((vdc1 = ddf_meta_find_vdc(pdmeta, vmeta->vdc->VD_GUID)) != NULL)
 			SET32D(pdmeta, vdc1->Signature, 0xffffffff);
-		}
 
 		/* If we are in the start process, that's all for now. */
 		if (!pv->pv_started)
@@ -1656,12 +1662,28 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 			md_disk_pos = disk_pos % GET16(vmeta, vdc->Primary_Element_Count); // XXX
 		} else {
 nofit:
-			if (ddf_meta_count_vdc(&pd->pd_meta, NULL) == 0) {
+			if (disk->d_state == G_RAID_DISK_S_NONE)
 				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_SPARE);
-			}
+				    G_RAID_DISK_S_STALE);
 			return (0);
 		}
+
+		/*
+		 * If spare is committable, delete spare record.
+		 * Othersize, mark it active and leave there.
+		 */
+		sa = ddf_meta_find_sa(&pd->pd_meta, 0);
+		if (sa != NULL) {
+			if ((GET8D(&pd->pd_meta, sa->Spare_Type) &
+			    DDF_SAR_TYPE_REVERTIBLE) == 0) {
+				SET32D(&pd->pd_meta, sa->Signature, 0xffffffff);
+			} else {
+				SET8D(&pd->pd_meta, sa->Spare_Type,
+				    GET8D(&pd->pd_meta, sa->Spare_Type) |
+				    DDF_SAR_TYPE_ACTIVE);
+			}
+		}
+
 		G_RAID_DEBUG1(1, sc, "Disk %s takes pos %d in the volume %s",
 		    g_raid_get_diskname(disk), disk_pos, vol->v_name);
 		resurrection = 1;
@@ -1798,6 +1820,7 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
 	struct g_raid_md_object *md;
+	struct g_raid_md_ddf_perdisk *pd;
 	struct g_raid_md_ddf_pervolume *pv;
 	struct g_raid_md_ddf_object *mdi;
 	struct ddf_vol_meta *vmeta;
@@ -1846,16 +1869,9 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	g_raid_start_volume(vol);
 
 	/* Make all disks found till the moment take their places. */
-	for (i = 0, j = 0, bvd = 0; i < vol->v_disks_count; i++, j++) {
-		if (j == GET16(vmeta, vdc->Primary_Element_Count)) {
-			j = 0;
-			bvd++;
-		}
-		if (vmeta->bvdc[bvd] == NULL)
-			continue;
-		disk = g_raid_md_ddf_get_disk(sc, NULL,
-		    GET32(vmeta, bvdc[bvd]->Physical_Disk_Sequence[j]));
-		if (disk != NULL)
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		pd = (struct g_raid_md_ddf_perdisk *)disk->d_md_data;
+		if (ddf_meta_find_vdc(&pd->pd_meta, vmeta->vdc->VD_GUID) != NULL)
 			g_raid_md_ddf_start_disk(disk, vol);
 	}
 
@@ -1901,7 +1917,7 @@ g_raid_md_ddf_new_disk(struct g_raid_disk *disk)
 	struct ddf_vol_meta *vmeta;
 	struct ddf_vdc_record *vdc;
 	struct ddf_vd_entry *vde;
-	int i, j, k, num, have, need, needthis, cnt, spare;
+	int i, j, k, num, have, need, cnt, spare;
 	uint32_t val;
 	char buf[17];
 
@@ -1963,9 +1979,17 @@ g_raid_md_ddf_new_disk(struct g_raid_disk *disk)
 		pv = vol->v_md_data;
 		vmeta = &pv->pv_meta;
 
+		if (ddf_meta_find_vdc(pdmeta, vmeta->vdc->VD_GUID) == NULL)
+			continue;
+
+		if (pv->pv_started) {
+			if (g_raid_md_ddf_start_disk(disk, vol))
+				g_raid_md_write_ddf(md, vol, NULL, NULL);
+			continue;
+		}
+
 		/* If we collected all needed disks - start array. */
 		need = 0;
-		needthis = 0;
 		have = 0;
 		for (k = 0; k < GET8(vmeta, vdc->Secondary_Element_Count); k++) {
 			if (vmeta->bvdc[k] == NULL) {
@@ -1976,23 +2000,14 @@ g_raid_md_ddf_new_disk(struct g_raid_disk *disk)
 			need += cnt;
 			for (i = 0; i < cnt; i++) {
 				val = GET32(vmeta, bvdc[k]->Physical_Disk_Sequence[i]);
-				if (GET32(pdmeta, pdd->PD_Reference) == val)
-					needthis++;
-				else if (g_raid_md_ddf_get_disk(sc, NULL, val) != NULL)
+				if (g_raid_md_ddf_get_disk(sc, NULL, val) != NULL)
 					have++;
 			}
 		}
-		if (!needthis)
-			continue;
-		if (pv->pv_started) {
-			if (g_raid_md_ddf_start_disk(disk, vol))
-				g_raid_md_write_ddf(md, vol, NULL, NULL);
-		} else {
-			G_RAID_DEBUG1(1, sc, "Volume %s now has %d of %d disks",
-			    vol->v_name, have + needthis, need);
-			if (have + needthis == need)
-				g_raid_md_ddf_start(vol);
-		}
+		G_RAID_DEBUG1(1, sc, "Volume %s now has %d of %d disks",
+		    vol->v_name, have, need);
+		if (have == need)
+			g_raid_md_ddf_start(vol);
 	}
 }
 
@@ -2173,6 +2188,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 	struct g_raid_md_ddf_perdisk *pd;
 	struct g_raid_md_ddf_pervolume *pv;
 	struct g_raid_md_ddf_object *mdi;
+	struct ddf_sa_record *sa;
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char arg[16];
@@ -2610,11 +2626,23 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			/* Welcome the "new" disk. */
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
 			ddf_meta_create(disk, &mdi->mdio_meta);
+			sa = ddf_meta_find_sa(&pd->pd_meta, 1);
+			if (sa != NULL) {
+				SET32D(&pd->pd_meta, sa->Signature,
+				    DDF_SA_SIGNATURE);
+				SET8D(&pd->pd_meta, sa->Spare_Type, 0);
+				SET16D(&pd->pd_meta, sa->Populated_SAEs, 0);
+				SET16D(&pd->pd_meta, sa->MAX_SAE_Supported,
+				    (GET16(&pd->pd_meta, hdr->Configuration_Record_Length) *
+				     pd->pd_meta.sectorsize -
+				     sizeof(struct ddf_sa_record)) /
+				    sizeof(struct ddf_sa_entry));
+			}
 			if (mdi->mdio_meta.hdr == NULL)
 				ddf_meta_copy(&mdi->mdio_meta, &pd->pd_meta);
 			else
 				ddf_meta_update(&mdi->mdio_meta, &pd->pd_meta);
-//			ddf_meta_write_spare(cp);
+			g_raid_md_write_ddf(md, NULL, NULL, NULL);
 			g_raid_md_ddf_refill(sc);
 		}
 		return (error);
@@ -2636,6 +2664,7 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	struct ddf_meta *gmeta;
 	struct ddf_vol_meta *vmeta;
 	struct ddf_vdc_record *vdc;
+	struct ddf_sa_record *sa;
 	uint64_t *val2;
 	int i, j, pos, bvd, size;
 
@@ -2657,7 +2686,8 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 				continue;
 			SET16(gmeta, pdr->entry[i].PD_Type,
 			    GET16(gmeta, pdr->entry[i].PD_Type) &
-			    ~DDF_PDE_PARTICIPATING);
+			    ~(DDF_PDE_PARTICIPATING |
+			      DDF_PDE_GLOBAL_SPARE | DDF_PDE_CONFIG_SPARE));
 			if ((GET16(gmeta, pdr->entry[i].PD_State) &
 			    DDF_PDE_PFA) == 0)
 				SET16(gmeta, pdr->entry[i].PD_State, 0);
@@ -2759,15 +2789,15 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
 				SET32(gmeta, pdr->entry[j].PD_State,
 				    GET32(gmeta, pdr->entry[j].PD_State) |
-				    DDF_PDE_FAILED | DDF_PDE_MISSING);
+				    (DDF_PDE_FAILED | DDF_PDE_MISSING));
 			else if (sd->sd_state == G_RAID_SUBDISK_S_FAILED)
 				SET32(gmeta, pdr->entry[j].PD_State,
 				    GET32(gmeta, pdr->entry[j].PD_State) |
-				    DDF_PDE_FAILED | DDF_PDE_PFA);
+				    (DDF_PDE_FAILED | DDF_PDE_PFA));
 			else if (sd->sd_state <= G_RAID_SUBDISK_S_REBUILD)
 				SET32(gmeta, pdr->entry[j].PD_State,
 				    GET32(gmeta, pdr->entry[j].PD_State) |
-				    DDF_PDE_FAILED);
+				    DDF_PDE_REBUILD);
 			else
 				SET32(gmeta, pdr->entry[j].PD_State,
 				    GET32(gmeta, pdr->entry[j].PD_State) |
@@ -2775,11 +2805,46 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		}
 	}
 
+	/* Mark spare and failed disks as such. */
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		pd = (struct g_raid_md_ddf_perdisk *)disk->d_md_data;
+		i = ddf_meta_find_pd(gmeta, NULL,
+		    GET32(&pd->pd_meta, pdd->PD_Reference));
+		if (i < 0)
+			continue;
+		if (disk->d_state == G_RAID_DISK_S_FAILED) {
+			SET32(gmeta, pdr->entry[i].PD_State,
+			    GET32(gmeta, pdr->entry[i].PD_State) |
+			    (DDF_PDE_FAILED | DDF_PDE_PFA));
+		}
+		if (disk->d_state != G_RAID_DISK_S_SPARE)
+			continue;
+		sa = ddf_meta_find_sa(&pd->pd_meta, 0);
+		if (sa == NULL ||
+		    (GET8D(&pd->pd_meta, sa->Spare_Type) &
+		     DDF_SAR_TYPE_DEDICATED) == 0) {
+			SET16(gmeta, pdr->entry[i].PD_Type,
+			    GET16(gmeta, pdr->entry[i].PD_Type) |
+			    DDF_PDE_GLOBAL_SPARE);
+		} else {
+			SET16(gmeta, pdr->entry[i].PD_Type,
+			    GET16(gmeta, pdr->entry[i].PD_Type) |
+			    DDF_PDE_CONFIG_SPARE);
+		}
+		SET32(gmeta, pdr->entry[i].PD_State,
+		    GET32(gmeta, pdr->entry[i].PD_State) |
+		    DDF_PDE_ONLINE);
+	}
+
 	/* Remove disks without "participating" flag (unused). */
 	for (i = 0, j = -1; i < GET16(gmeta, pdr->Populated_PDEs); i++) {
 		if (isff(gmeta->pdr->entry[i].PD_GUID, 24))
 			continue;
-		if (GET16(gmeta, pdr->entry[i].PD_Type) & DDF_PDE_PARTICIPATING)
+		if ((GET16(gmeta, pdr->entry[i].PD_Type) &
+		    (DDF_PDE_PARTICIPATING |
+		     DDF_PDE_GLOBAL_SPARE | DDF_PDE_CONFIG_SPARE)) != 0 ||
+		    g_raid_md_ddf_get_disk(sc,
+		     NULL, GET32(gmeta, pdr->entry[i].PD_Reference)) != NULL)
 			j = i;
 		else
 			memset(&gmeta->pdr->entry[i], 0xff,
@@ -2790,7 +2855,8 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	/* Update per-disk metadata and write them. */
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_ddf_perdisk *)disk->d_md_data;
-		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
+		if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
+		    disk->d_state != G_RAID_DISK_S_SPARE)
 			continue;
 		/* Update PDR. */
 		memcpy(pd->pd_meta.pdr, gmeta->pdr,
