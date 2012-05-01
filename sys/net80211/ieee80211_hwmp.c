@@ -105,6 +105,9 @@ static int	hwmp_send_perr(struct ieee80211_node *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    struct ieee80211_meshperr_ie *);
+static void	hwmp_senderror(struct ieee80211vap *,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    struct ieee80211_mesh_route *, int);
 static void	hwmp_recv_rann(struct ieee80211vap *, struct ieee80211_node *,
 		   const struct ieee80211_frame *,
 		   const struct ieee80211_meshrann_ie *);
@@ -206,6 +209,7 @@ static struct ieee80211_mesh_proto_path mesh_proto_hwmp = {
 	.mpp_ie		= IEEE80211_MESHCONF_PATH_HWMP,
 	.mpp_discover	= hwmp_discover,
 	.mpp_peerdown	= hwmp_peerdown,
+	.mpp_senderror	= hwmp_senderror,
 	.mpp_vattach	= hwmp_vattach,
 	.mpp_vdetach	= hwmp_vdetach,
 	.mpp_newstate	= hwmp_newstate,
@@ -1569,7 +1573,7 @@ done:
 		free(pperr, M_80211_MESH_PERR);
 }
 #undef	PERR_DFLAGS
-#undef	PEER_DADDR
+#undef	PERR_DADDR
 #undef	PERR_DSEQ
 #undef	PERR_DEXTADDR
 #undef	PERR_DRCODE
@@ -1613,6 +1617,64 @@ hwmp_send_perr(struct ieee80211_node *ni,
 	perr->perr_len =length;
 	return hwmp_send_action(ni, sa, da, (uint8_t *)perr, perr->perr_len+2);
 }
+
+/*
+ * Called from the rest of the net80211 code (mesh code for example).
+ * NB: IEEE80211_REASON_MESH_PERR_DEST_UNREACH can be trigger by the fact that
+ * a mesh STA is unable to forward an MSDU/MMPDU to a next-hop mesh STA.
+ */
+#define	PERR_DFLAGS(n)		perr.perr_dests[n].dest_flags
+#define	PERR_DADDR(n)		perr.perr_dests[n].dest_addr
+#define	PERR_DSEQ(n)		perr.perr_dests[n].dest_seq
+#define	PERR_DEXTADDR(n)	perr.perr_dests[n].dest_ext_addr
+#define	PERR_DRCODE(n)		perr.perr_dests[n].dest_rcode
+static void
+hwmp_senderror(struct ieee80211vap *vap,
+    const uint8_t addr[IEEE80211_ADDR_LEN],
+    struct ieee80211_mesh_route *rt, int rcode)
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_hwmp_route *hr = NULL;
+	struct ieee80211_meshperr_ie perr;
+
+	if (rt != NULL)
+		hr = IEEE80211_MESH_ROUTE_PRIV(rt,
+		    struct ieee80211_hwmp_route);
+
+	perr.perr_ndests = 1;
+	perr.perr_ttl = ms->ms_ttl;
+	PERR_DFLAGS(0) = 0;
+	PERR_DRCODE(0) = rcode;
+
+	switch (rcode) {
+	case IEEE80211_REASON_MESH_PERR_NO_FI:
+		IEEE80211_ADDR_COPY(PERR_DADDR(0), addr);
+		PERR_DSEQ(0) = 0; /* reserved */
+		break;
+	case IEEE80211_REASON_MESH_PERR_NO_PROXY:
+		KASSERT(rt != NULL, ("no proxy info for sending PERR"));
+		KASSERT(rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY,
+		    ("route is not marked proxy"));
+		PERR_DFLAGS(0) |= IEEE80211_MESHPERR_FLAGS_AE;
+		IEEE80211_ADDR_COPY(PERR_DADDR(0), vap->iv_myaddr);
+		PERR_DSEQ(0) = rt->rt_ext_seq;
+		IEEE80211_ADDR_COPY(PERR_DEXTADDR(0), addr);
+		break;
+	case IEEE80211_REASON_MESH_PERR_DEST_UNREACH:
+		KASSERT(rt != NULL, ("no route info for sending PERR"));
+		IEEE80211_ADDR_COPY(PERR_DADDR(0), addr);
+		PERR_DSEQ(0) = hr->hr_seq;
+		break;
+	default:
+		KASSERT(0, ("unknown reason code for HWMP PERR (%u)", rcode));
+	}
+	hwmp_send_perr(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &perr);
+}
+#undef	PERR_DFLAGS
+#undef	PEER_DADDR
+#undef	PERR_DSEQ
+#undef	PERR_DEXTADDR
+#undef	PERR_DRCODE
 
 static void
 hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
