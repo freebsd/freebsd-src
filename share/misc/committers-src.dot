@@ -177,6 +177,7 @@ jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
+jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
 kargl [label="Steven G. Kargl\nkargl@FreeBSD.org\n2011/01/17"]
@@ -438,6 +439,7 @@ jhb -> rnoland
 jkh -> imp
 jkh -> jlemon
 jkh -> joerg
+jkh -> jwd
 jkh -> phk
 jkh -> wes
 jkh -> yar
@@ -540,6 +542,8 @@ pjd -> lulf
 pjd -> trociny
 
 rgrimes -> markm
+
+rmacklem -> jwd
 
 rpaulo -> avg
 rpaulo -> bschmidt
