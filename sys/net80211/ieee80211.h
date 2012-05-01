@@ -333,6 +333,8 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_BA		3	/* BA */
 #define	IEEE80211_ACTION_CAT_HT		7	/* HT */
 #define	IEEE80211_ACTION_CAT_MESH	13	/* Mesh */
+#define	IEEE80211_ACTION_CAT_SELF_PROT	15	/* Self-protected */
+/* 16 - 125 reserved */
 #define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/

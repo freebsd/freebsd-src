@@ -430,25 +430,25 @@ ieee80211_mesh_init(void)
 	/*
 	 * Register action frame handlers.
 	 */
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_SELF_PROT,
 	    IEEE80211_ACTION_MESHPEERING_OPEN,
 	    mesh_recv_action_meshpeering_open);
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_SELF_PROT,
 	    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 	    mesh_recv_action_meshpeering_confirm);
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_SELF_PROT,
 	    IEEE80211_ACTION_MESHPEERING_CLOSE,
 	    mesh_recv_action_meshpeering_close);
 	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESH,
 	    IEEE80211_ACTION_MESH_LMETRIC, mesh_recv_action_meshlmetric);
 
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_SELF_PROT,
 	    IEEE80211_ACTION_MESHPEERING_OPEN,
 	    mesh_send_action_meshpeering_open);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_SELF_PROT,
 	    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 	    mesh_send_action_meshpeering_confirm);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_SELF_PROT,
 	    IEEE80211_ACTION_MESHPEERING_CLOSE,
 	    mesh_send_action_meshpeering_close);
 	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESH,
@@ -485,7 +485,7 @@ mesh_vdetach_peers(void *arg, struct ieee80211_node *ni)
 		args[1] = ni->ni_mllid;
 		args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
 		    args);
 	}
@@ -1440,7 +1440,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 			mesh_linkchange(ni, IEEE80211_NODE_MESH_OPENSNT);
 			args[0] = ni->ni_mlpid;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_OPEN, args);
 			ni->ni_mlrcnt = 0;
 			mesh_peer_timeout_setup(ni);
@@ -1602,7 +1602,7 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			memset(mp, 0, sizeof(*mp));
 			mp->peer_llinkid = LE_READ_2(&mpie->peer_llinkid);
 			/* NB: peer link ID is optional on these frames */
-			if (subtype == IEEE80211_MESH_PEER_LINK_CLOSE &&
+			if (subtype == IEEE80211_ACTION_MESHPEERING_CLOSE &&
 			    mpie->peer_len == 8) {
 				mp->peer_linkid = 0;
 				mp->peer_rcode = LE_READ_2(&mpie->peer_linkid);
@@ -1646,7 +1646,7 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			args[1] = ni->ni_mllid;
 			args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE,
 			    args);
 			mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
@@ -1689,13 +1689,13 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 		args[0] = ni->ni_mlpid;
 		/* Announce we're open too... */
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_OPEN, args);
 		/* ...and confirm the link. */
 		args[0] = ni->ni_mlpid;
 		args[1] = ni->ni_mllid;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 		    args);
 		mesh_peer_timeout_setup(ni);
@@ -1707,7 +1707,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 			args[1] = ni->ni_mlpid;
 			args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE,
 			    args);
 			mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
@@ -1718,7 +1718,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 		args[0] = ni->ni_mlpid;
 		args[1] = ni->ni_mllid;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 		    args);
 		break;
@@ -1728,7 +1728,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 		args[0] = ni->ni_mlpid;
 		args[1] = ni->ni_mllid;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 		    args);
 		/* NB: don't setup/clear any timeout */
@@ -1740,7 +1740,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 			args[1] = ni->ni_mllid;
 			args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE,
 			    args);
 			mesh_linkchange(ni,
@@ -1753,7 +1753,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 		args[0] = ni->ni_mlpid;
 		args[1] = ni->ni_mllid;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 		    args);
 		mesh_peer_timeout_stop(ni);
@@ -1764,7 +1764,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 			args[1] = ni->ni_mlpid;
 			args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE,
 			    args);
 			mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
@@ -1774,7 +1774,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 		args[0] = ni->ni_mlpid;
 		args[1] = ni->ni_mllid;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 		    args);
 		break;
@@ -1783,7 +1783,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 		args[1] = meshpeer->peer_llinkid;
 		args[2] = IEEE80211_REASON_MESH_MAX_RETRIES;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
 		    args);
 		break;
@@ -1825,7 +1825,7 @@ mesh_recv_action_meshpeering_confirm(struct ieee80211_node *ni,
 		args[1] = meshpeer->peer_llinkid;
 		args[2] = IEEE80211_REASON_MESH_MAX_RETRIES;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
 		    args);
 		break;
@@ -1835,7 +1835,7 @@ mesh_recv_action_meshpeering_confirm(struct ieee80211_node *ni,
 			args[1] = ni->ni_mllid;
 			args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE,
 			    args);
 			mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
@@ -1875,7 +1875,7 @@ mesh_recv_action_meshpeering_close(struct ieee80211_node *ni,
 		args[1] = ni->ni_mllid;
 		args[2] = IEEE80211_REASON_MESH_CLOSE_RCVD;
 		ieee80211_send_action(ni,
-		    IEEE80211_ACTION_CAT_MESHPEERING,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
 		    args);
 		mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
@@ -1991,7 +1991,7 @@ mesh_send_action_meshpeering_open(struct ieee80211_node *ni,
 		frm = ieee80211_add_xrates(frm, rs);
 		frm = ieee80211_add_meshid(frm, vap);
 		frm = ieee80211_add_meshconf(frm, vap);
-		frm = ieee80211_add_meshpeer(frm, IEEE80211_MESH_PEER_LINK_OPEN,
+		frm = ieee80211_add_meshpeer(frm, IEEE80211_ACTION_MESHPEERING_OPEN,
 		    args[0], 0, 0);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 		return mesh_send_action(ni, m);
@@ -2059,7 +2059,7 @@ mesh_send_action_meshpeering_confirm(struct ieee80211_node *ni,
 		frm = ieee80211_add_meshid(frm, vap);
 		frm = ieee80211_add_meshconf(frm, vap);
 		frm = ieee80211_add_meshpeer(frm,
-		    IEEE80211_MESH_PEER_LINK_CONFIRM,
+		    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 		    args[0], args[1], 0);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 		return mesh_send_action(ni, m);
@@ -2110,7 +2110,7 @@ mesh_send_action_meshpeering_close(struct ieee80211_node *ni,
 		ADDSHORT(frm, args[2]);		/* reason code */
 		frm = ieee80211_add_meshid(frm, vap);
 		frm = ieee80211_add_meshpeer(frm,
-		    IEEE80211_MESH_PEER_LINK_CLOSE,
+		    IEEE80211_ACTION_MESHPEERING_CLOSE,
 		    args[0], args[1], args[2]);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 		return mesh_send_action(ni, m);
@@ -2234,7 +2234,7 @@ mesh_peer_timeout_cb(void *arg)
 			args[0] = ni->ni_mlpid;
 			args[2] = IEEE80211_REASON_MESH_MAX_RETRIES;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE, args);
 			ni->ni_mlrcnt = 0;
 			mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
@@ -2242,7 +2242,7 @@ mesh_peer_timeout_cb(void *arg)
 		} else {
 			args[0] = ni->ni_mlpid;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_OPEN, args);
 			ni->ni_mlrcnt++;
 			mesh_peer_timeout_backoff(ni);
@@ -2253,7 +2253,7 @@ mesh_peer_timeout_cb(void *arg)
 			args[0] = ni->ni_mlpid;
 			args[2] = IEEE80211_REASON_MESH_CONFIRM_TIMEOUT;
 			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_MESHPEERING,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE, args);
 			ni->ni_mlrcnt = 0;
 			mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
@@ -2341,15 +2341,15 @@ mesh_verify_meshpeer(struct ieee80211vap *vap, uint8_t subtype,
 	    meshpeer->peer_len > 10)
 		return 1;
 	switch (subtype) {
-	case IEEE80211_MESH_PEER_LINK_OPEN:
+	case IEEE80211_ACTION_MESHPEERING_OPEN:
 		if (meshpeer->peer_len != 6)
 			return 1;
 		break;
-	case IEEE80211_MESH_PEER_LINK_CONFIRM:
+	case IEEE80211_ACTION_MESHPEERING_CONFIRM:
 		if (meshpeer->peer_len != 8)
 			return 1;
 		break;
-	case IEEE80211_MESH_PEER_LINK_CLOSE:
+	case IEEE80211_ACTION_MESHPEERING_CLOSE:
 		if (meshpeer->peer_len < 8)
 			return 1;
 		if (meshpeer->peer_len == 8 && meshpeer->peer_linkid != 0)
@@ -2425,13 +2425,13 @@ ieee80211_add_meshpeer(uint8_t *frm, uint8_t subtype, uint16_t localid,
 
 	*frm++ = IEEE80211_ELEMID_MESHPEER;
 	switch (subtype) {
-	case IEEE80211_MESH_PEER_LINK_OPEN:
+	case IEEE80211_ACTION_MESHPEERING_OPEN:
 		*frm++ = 6;		/* length */
 		memcpy(frm, meshpeerproto, 4);
 		frm += 4;
 		ADDSHORT(frm, localid);	/* local ID */
 		break;
-	case IEEE80211_MESH_PEER_LINK_CONFIRM:
+	case IEEE80211_ACTION_MESHPEERING_CONFIRM:
 		KASSERT(peerid != 0, ("sending peer confirm without peer id"));
 		*frm++ = 8;		/* length */
 		memcpy(frm, meshpeerproto, 4);
@@ -2439,7 +2439,7 @@ ieee80211_add_meshpeer(uint8_t *frm, uint8_t subtype, uint16_t localid,
 		ADDSHORT(frm, localid);	/* local ID */
 		ADDSHORT(frm, peerid);	/* peer ID */
 		break;
-	case IEEE80211_MESH_PEER_LINK_CLOSE:
+	case IEEE80211_ACTION_MESHPEERING_CLOSE:
 		if (peerid)
 			*frm++ = 10;	/* length */
 		else
