@@ -98,7 +98,7 @@ enum {
 };
 
 /* Mesh Formation Info */
-#define	IEEE80211_MESHCONF_FORM_MP	0x01 	/* Connected to Portal */
+#define	IEEE80211_MESHCONF_FORM_GATE	0x01 	/* Connected to Gate */
 #define	IEEE80211_MESHCONF_FORM_NNEIGH_MASK 0x7E /* Number of Neighbours */
 #define	IEEE80211_MESHCONF_FORM_SA	0xF0 	/* indicating 802.1X auth */
 
@@ -193,9 +193,9 @@ struct ieee80211_meshbeacont_ie {
 } __packed;
 #endif
 
-/* Portal (MP) Annoucement */
-struct ieee80211_meshpann_ie {
-	uint8_t		pann_ie;		/* IEEE80211_ELEMID_MESHPANN */
+/* Gate (GANN) Annoucement */
+struct ieee80211_meshgann_ie {
+	uint8_t		pann_ie;		/* IEEE80211_ELEMID_MESHGANN */
 	uint8_t		pann_len;
 	uint8_t		pann_flags;
 	uint8_t		pann_hopcount;
@@ -210,7 +210,7 @@ struct ieee80211_meshrann_ie {
 	uint8_t		rann_ie;		/* IEEE80211_ELEMID_MESHRANN */
 	uint8_t		rann_len;
 	uint8_t		rann_flags;
-#define	IEEE80211_MESHRANN_FLAGS_PR	0x01	/* Portal Role */
+#define	IEEE80211_MESHRANN_FLAGS_GATE	0x01	/* Mesh Gate */
 	uint8_t		rann_hopcount;
 	uint8_t		rann_ttl;
 	uint8_t		rann_addr[IEEE80211_ADDR_LEN];
@@ -229,7 +229,7 @@ struct ieee80211_meshpreq_ie {
 	uint8_t		preq_ie;	/* IEEE80211_ELEMID_MESHPREQ */
 	uint8_t		preq_len;
 	uint8_t		preq_flags;
-#define	IEEE80211_MESHPREQ_FLAGS_PR	0x01	/* Portal Role */
+#define	IEEE80211_MESHPREQ_FLAGS_GATE	0x01	/* Mesh Gate */
 #define	IEEE80211_MESHPREQ_FLAGS_AM	0x02	/* 0 = bcast / 1 = ucast */
 #define	IEEE80211_MESHPREQ_FLAGS_PP	0x04	/* Proactive PREP */
 #define	IEEE80211_MESHPREQ_FLAGS_AE	0x40	/* Address Extension */
@@ -357,14 +357,6 @@ enum {
 	IEEE80211_ACTION_MESH_TBTT_REQ	= 9,	/* TBTT Adjustment Request */
 	IEEE80211_ACTION_MESH_TBTT_RES	= 10,	/* TBTT Adjustment Response */
 	/* 11-255 reserved */
-};
-
-/*
- * Mesh Portal Annoucement Action codes.
- */
-enum {
-	IEEE80211_ACTION_MESHPANN	= 0,
-	/* 1-255 reserved */
 };
 
 /*
@@ -498,7 +490,7 @@ struct ieee80211_mesh_state {
 	uint16_t			ms_neighbors;
 	uint8_t				ms_ttl;	/* mesh ttl set in packets */
 #define IEEE80211_MESHFLAGS_AP		0x01	/* accept peers */
-#define IEEE80211_MESHFLAGS_PORTAL	0x02	/* mesh portal role */
+#define IEEE80211_MESHFLAGS_GATE	0x02	/* mesh gate role */
 #define IEEE80211_MESHFLAGS_FWD		0x04	/* forward packets */
 	uint8_t				ms_flags;
 	struct mtx			ms_rt_lock;
@@ -556,7 +548,7 @@ ieee80211_mesh_isproxyena(struct ieee80211vap *vap)
 {
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	return (ms->ms_flags &
-	    (IEEE80211_MESHFLAGS_AP | IEEE80211_MESHFLAGS_PORTAL)) != 0;
+	    (IEEE80211_MESHFLAGS_AP | IEEE80211_MESHFLAGS_GATE)) != 0;
 }
 
 /*

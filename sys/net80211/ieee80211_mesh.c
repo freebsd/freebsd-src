@@ -1262,7 +1262,7 @@ mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
 			 * This happens by delivering the packet, and a bridge
 			 * will sent it on another port member.
 			 */
-			if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL &&
+			if (ms->ms_flags & IEEE80211_MESHFLAGS_GATE &&
 			    ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
 				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH,
 				    MC01(mc)->mc_addr4, "%s",
@@ -2768,8 +2768,8 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 	/* NB: set the number of neighbors before the rest */
 	*frm = (ms->ms_neighbors > IEEE80211_MESH_MAX_NEIGHBORS ?
 	    IEEE80211_MESH_MAX_NEIGHBORS : ms->ms_neighbors) << 1;
-	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
-		*frm |= IEEE80211_MESHCONF_FORM_MP;
+	if (ms->ms_flags & IEEE80211_MESHFLAGS_GATE)
+		*frm |= IEEE80211_MESHCONF_FORM_GATE;
 	frm += 1;
 	caps = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_AP)
@@ -2961,6 +2961,9 @@ mesh_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	case IEEE80211_IOC_MESH_FWRD:
 		ireq->i_val = (ms->ms_flags & IEEE80211_MESHFLAGS_FWD) != 0;
 		break;
+	case IEEE80211_IOC_MESH_GATE:
+		ireq->i_val = (ms->ms_flags & IEEE80211_MESHFLAGS_GATE) != 0;
+		break;
 	case IEEE80211_IOC_MESH_TTL:
 		ireq->i_val = ms->ms_ttl;
 		break;
@@ -3075,6 +3078,12 @@ mesh_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			ms->ms_flags |= IEEE80211_MESHFLAGS_FWD;
 		else
 			ms->ms_flags &= ~IEEE80211_MESHFLAGS_FWD;
+		break;
+	case IEEE80211_IOC_MESH_GATE:
+		if (ireq->i_val)
+			ms->ms_flags |= IEEE80211_MESHFLAGS_GATE;
+		else
+			ms->ms_flags &= ~IEEE80211_MESHFLAGS_GATE;
 		break;
 	case IEEE80211_IOC_MESH_TTL:
 		ms->ms_ttl = (uint8_t) ireq->i_val;

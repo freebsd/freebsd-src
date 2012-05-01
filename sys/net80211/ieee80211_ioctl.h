@@ -709,6 +709,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_MESH_PR_SIG	178	/* mesh sig protocol */
 #define	IEEE80211_IOC_MESH_PR_CC	179	/* mesh congestion protocol */
 #define	IEEE80211_IOC_MESH_PR_AUTH	180	/* mesh auth protocol */
+#define	IEEE80211_IOC_MESH_GATE		181	/* mesh gate XXX: 173? */
 
 #define	IEEE80211_IOC_HWMP_ROOTMODE	190	/* HWMP root mode */
 #define	IEEE80211_IOC_HWMP_MAXHOPS	191	/* number of hops before drop */
