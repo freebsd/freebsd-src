@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_device_polling.h"
 #endif
 
+#include "opt_arge.h"
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
