@@ -283,10 +283,6 @@
  */
 #define AR71XX_MAC0_BASE	0x19000000
 #define AR71XX_MAC1_BASE	0x1A000000
-/*
- * All 5 PHYs accessible only through MAC0 register space
- */
-#define AR71XX_MII_BASE		0x19000000
 
 #define		AR71XX_MAC_CFG1			0x00
 #define			MAC_CFG1_SOFT_RESET		(1 << 31)
