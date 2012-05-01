@@ -149,13 +149,6 @@ struct ieee80211_meshpeer_ie {
 	uint16_t	peer_rcode;
 } __packed;
 
-enum {
-	IEEE80211_MESH_PEER_LINK_OPEN		= 0,
-	IEEE80211_MESH_PEER_LINK_CONFIRM	= 1,
-	IEEE80211_MESH_PEER_LINK_CLOSE		= 2,
-	/* values 3-255 are reserved */
-};
-
 /* Mesh Peering Management Protocol */
 #define	IEEE80211_MESH_PEER_PROTO_OUI		0x00, 0x0f, 0xac
 #define	IEEE80211_MESH_PEER_PROTO_VALUE		0x2a
@@ -331,9 +324,9 @@ struct ieee80211_meshpuc_ie {
 
 /*
  * 802.11s Action Frames
+ * XXX: these are wrong, and some of them should be
+ * under MESH category while PROXY is under MULTIHOP category.
  */
-#define	IEEE80211_ACTION_CAT_MESHPEERING	30	/* XXX Linux */
-/* XXX: these need to be looked into */
 #define	IEEE80211_ACTION_CAT_INTERWORK		15
 #define	IEEE80211_ACTION_CAT_RESOURCE		16
 #define	IEEE80211_ACTION_CAT_PROXY		17
@@ -342,10 +335,11 @@ struct ieee80211_meshpuc_ie {
  * Mesh Peering Action codes.
  */
 enum {
-	IEEE80211_ACTION_MESHPEERING_OPEN	= 0,
-	IEEE80211_ACTION_MESHPEERING_CONFIRM	= 1,
-	IEEE80211_ACTION_MESHPEERING_CLOSE	= 2,
-	/* 3-255 reserved */
+	/* 0 reserved */
+	IEEE80211_ACTION_MESHPEERING_OPEN	= 1,
+	IEEE80211_ACTION_MESHPEERING_CONFIRM	= 2,
+	IEEE80211_ACTION_MESHPEERING_CLOSE	= 3,
+	/* 4-255 reserved */
 };
 
 /*
