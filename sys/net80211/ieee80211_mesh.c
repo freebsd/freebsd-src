@@ -1573,8 +1573,7 @@ mesh_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
 }
 
 /*
- * Parse meshpeering action ie's for open+confirm frames; the
- * important bits are returned in the supplied structure.
+ * Parse meshpeering action ie's for open+confirm frames
  */
 static const struct ieee80211_meshpeer_ie *
 mesh_parse_meshpeering_action(struct ieee80211_node *ni,
@@ -1600,15 +1599,27 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			meshpeer = frm;
 			mpie = (const struct ieee80211_meshpeer_ie *) frm;
 			memset(mp, 0, sizeof(*mp));
+			mp->peer_proto = LE_READ_2(&mpie->peer_proto);
 			mp->peer_llinkid = LE_READ_2(&mpie->peer_llinkid);
-			/* NB: peer link ID is optional on these frames */
-			if (subtype == IEEE80211_ACTION_MESHPEERING_CLOSE &&
-			    mpie->peer_len == 8) {
-				mp->peer_linkid = 0;
-				mp->peer_rcode = LE_READ_2(&mpie->peer_linkid);
-			} else {
-				mp->peer_linkid = LE_READ_2(&mpie->peer_linkid);
-				mp->peer_rcode = LE_READ_2(&mpie->peer_rcode);
+			switch (subtype) {
+			case IEEE80211_ACTION_MESHPEERING_CONFIRM:
+				mp->peer_linkid =
+				    LE_READ_2(&mpie->peer_linkid);
+				break;
+			case IEEE80211_ACTION_MESHPEERING_CLOSE:
+				/* NB: peer link ID is optional */
+				if (mpie->peer_len ==
+				    (IEEE80211_MPM_BASE_SZ + 2)) {
+					mp->peer_linkid = 0;
+					mp->peer_rcode =
+					    LE_READ_2(&mpie->peer_linkid);
+				} else {
+					mp->peer_linkid =
+					    LE_READ_2(&mpie->peer_linkid);
+					mp->peer_rcode =
+					    LE_READ_2(&mpie->peer_rcode);
+				}
+				break;
 			}
 			break;
 		}
@@ -2337,22 +2348,31 @@ mesh_verify_meshpeer(struct ieee80211vap *vap, uint8_t subtype,
 	const struct ieee80211_meshpeer_ie *meshpeer =
 	    (const struct ieee80211_meshpeer_ie *) ie;
 
-	if (meshpeer == NULL || meshpeer->peer_len < 6 ||
-	    meshpeer->peer_len > 10)
+	if (meshpeer == NULL ||
+	    meshpeer->peer_len < IEEE80211_MPM_BASE_SZ ||
+	    meshpeer->peer_len > IEEE80211_MPM_MAX_SZ)
 		return 1;
+	if (meshpeer->peer_proto != IEEE80211_MPPID_MPM) {
+		IEEE80211_DPRINTF(vap,
+		    IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
+		    "Only MPM protocol is supported (proto: 0x%02X)",
+		    meshpeer->peer_proto);
+		return 1;
+	}
 	switch (subtype) {
 	case IEEE80211_ACTION_MESHPEERING_OPEN:
-		if (meshpeer->peer_len != 6)
+		if (meshpeer->peer_len != IEEE80211_MPM_BASE_SZ)
 			return 1;
 		break;
 	case IEEE80211_ACTION_MESHPEERING_CONFIRM:
-		if (meshpeer->peer_len != 8)
+		if (meshpeer->peer_len != IEEE80211_MPM_BASE_SZ + 2)
 			return 1;
 		break;
 	case IEEE80211_ACTION_MESHPEERING_CLOSE:
-		if (meshpeer->peer_len < 8)
+		if (meshpeer->peer_len < IEEE80211_MPM_BASE_SZ + 2)
 			return 1;
-		if (meshpeer->peer_len == 8 && meshpeer->peer_linkid != 0)
+		if (meshpeer->peer_len == (IEEE80211_MPM_BASE_SZ + 2) &&
+		    meshpeer->peer_linkid != 0)
 			return 1;
 		if (meshpeer->peer_rcode == 0)
 			return 1;
@@ -2418,34 +2438,29 @@ uint8_t *
 ieee80211_add_meshpeer(uint8_t *frm, uint8_t subtype, uint16_t localid,
     uint16_t peerid, uint16_t reason)
 {
-	/* XXX change for AH */
-	static const uint8_t meshpeerproto[4] = IEEE80211_MESH_PEER_PROTO;
 
 	KASSERT(localid != 0, ("localid == 0"));
 
 	*frm++ = IEEE80211_ELEMID_MESHPEER;
 	switch (subtype) {
 	case IEEE80211_ACTION_MESHPEERING_OPEN:
-		*frm++ = 6;		/* length */
-		memcpy(frm, meshpeerproto, 4);
-		frm += 4;
-		ADDSHORT(frm, localid);	/* local ID */
+		*frm++ = IEEE80211_MPM_BASE_SZ;		/* length */
+		ADDSHORT(frm, IEEE80211_MPPID_MPM);	/* proto */
+		ADDSHORT(frm, localid);			/* local ID */
 		break;
 	case IEEE80211_ACTION_MESHPEERING_CONFIRM:
 		KASSERT(peerid != 0, ("sending peer confirm without peer id"));
-		*frm++ = 8;		/* length */
-		memcpy(frm, meshpeerproto, 4);
-		frm += 4;
-		ADDSHORT(frm, localid);	/* local ID */
-		ADDSHORT(frm, peerid);	/* peer ID */
+		*frm++ = IEEE80211_MPM_BASE_SZ + 2;	/* length */
+		ADDSHORT(frm, IEEE80211_MPPID_MPM);	/* proto */
+		ADDSHORT(frm, localid);			/* local ID */
+		ADDSHORT(frm, peerid);			/* peer ID */
 		break;
 	case IEEE80211_ACTION_MESHPEERING_CLOSE:
 		if (peerid)
-			*frm++ = 10;	/* length */
+			*frm++ = IEEE80211_MPM_MAX_SZ;	/* length */
 		else
-			*frm++ = 8;	/* length */
-		memcpy(frm, meshpeerproto, 4);
-		frm += 4;
+			*frm++ = IEEE80211_MPM_BASE_SZ + 2; /* length */
+		ADDSHORT(frm, IEEE80211_MPPID_MPM);	/* proto */
 		ADDSHORT(frm, localid);	/* local ID */
 		if (peerid)
 			ADDSHORT(frm, peerid);	/* peer ID */
