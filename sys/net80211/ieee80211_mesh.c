@@ -175,9 +175,10 @@ mesh_rt_find_locked(struct ieee80211_mesh_state *ms,
 }
 
 static struct ieee80211_mesh_route *
-mesh_rt_add_locked(struct ieee80211_mesh_state *ms,
+mesh_rt_add_locked(struct ieee80211vap *vap,
     const uint8_t dest[IEEE80211_ADDR_LEN])
 {
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_mesh_route *rt;
 
 	KASSERT(!IEEE80211_ADDR_EQ(broadcastaddr, dest),
@@ -188,9 +189,11 @@ mesh_rt_add_locked(struct ieee80211_mesh_state *ms,
 	rt = malloc(ALIGN(sizeof(struct ieee80211_mesh_route)) +
 	    ms->ms_ppath->mpp_privlen, M_80211_MESH_RT, M_NOWAIT | M_ZERO);
 	if (rt != NULL) {
+		rt->rt_vap = vap;
 		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
 		rt->rt_priv = (void *)ALIGN(&rt[1]);
 		mtx_init(&rt->rt_lock, "MBSS_RT", "802.11s route entry", MTX_DEF);
+		callout_init(&rt->rt_discovery, CALLOUT_MPSAFE);
 		rt->rt_updtime = ticks;	/* create time */
 		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
 	}
@@ -223,7 +226,7 @@ ieee80211_mesh_rt_add(struct ieee80211vap *vap,
 	    ("%s: adding self to the routing table", __func__));
 
 	MESH_RT_LOCK(ms);
-	rt = mesh_rt_add_locked(ms, dest);
+	rt = mesh_rt_add_locked(vap, dest);
 	MESH_RT_UNLOCK(ms);
 	return rt;
 }
@@ -285,7 +288,7 @@ ieee80211_mesh_proxy_check(struct ieee80211vap *vap,
 	MESH_RT_LOCK(ms);
 	rt = mesh_rt_find_locked(ms, dest);
 	if (rt == NULL) {
-		rt = mesh_rt_add_locked(ms, dest);
+		rt = mesh_rt_add_locked(vap, dest);
 		if (rt == NULL) {
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, dest,
 			    "%s", "unable to add proxy entry");
@@ -330,6 +333,7 @@ mesh_rt_del(struct ieee80211_mesh_state *ms, struct ieee80211_mesh_route *rt)
 	 * is holding the route.
 	 */
 	RT_ENTRY_LOCK(rt);
+	callout_drain(&rt->rt_discovery);
 	mtx_destroy(&rt->rt_lock);
 	free(rt, M_80211_MESH_RT);
 }
@@ -402,13 +406,11 @@ mesh_rt_flush_invalid(struct ieee80211vap *vap)
 		return;
 	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next) {
+		/* Discover paths will be deleted by their own callout */
+		if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_DISCOVER)
+			continue;
 		ieee80211_mesh_rt_update(rt, 0);
-		/*
-		 * NB: we check for lifetime == 0 so that we give a chance
-		 * for route discovery to complete.
-		 */
-		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 &&
-		    rt->rt_lifetime == 0)
+		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0)
 			mesh_rt_del(ms, rt);
 	}
 	MESH_RT_UNLOCK(ms);
