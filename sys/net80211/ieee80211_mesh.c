@@ -239,6 +239,8 @@ ieee80211_mesh_rt_update(struct ieee80211_mesh_route *rt, int new_lifetime)
 	int timesince, now;
 	uint32_t lifetime = 0;
 
+	KASSERT(rt != NULL, ("route is NULL"));
+
 	now = ticks;
 	RT_ENTRY_LOCK(rt);
 
