@@ -907,13 +907,17 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    PREQ_TADDR(0), ":");
 
 	/*
-	 * Acceptance criteria: if the PREQ is not for us or not broadcast
+	 * Acceptance criteria: (if the PREQ is not for us or not broadcast,
+	 * or an external mac address not proxied by us),
 	 * AND forwarding is disabled, discard this PREQ.
-	 * XXX: need to check PROXY
 	 */
-	if ((!IEEE80211_ADDR_EQ(vap->iv_myaddr, PREQ_TADDR(0)) ||
-	    !IEEE80211_IS_MULTICAST(PREQ_TADDR(0))) &&
-	    !(ms->ms_flags & IEEE80211_MESHFLAGS_FWD)) {
+	rttarg = ieee80211_mesh_rt_find(vap, PREQ_TADDR(0));
+	if (!(ms->ms_flags & IEEE80211_MESHFLAGS_FWD) &&
+	    (!IEEE80211_ADDR_EQ(vap->iv_myaddr, PREQ_TADDR(0)) ||
+	    !IEEE80211_IS_MULTICAST(PREQ_TADDR(0)) ||
+	    (rttarg != NULL &&
+	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY &&
+	    IEEE80211_ADDR_EQ(vap->iv_myaddr, rttarg->rt_mesh_gate)))) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_HWMP,
 		    preq->preq_origaddr, NULL, "%s", "not accepting PREQ");
 		return;
@@ -922,7 +926,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * Acceptance criteria: if unicast addressed 
 	 * AND no valid forwarding for Target of PREQ, discard this PREQ.
 	 */
-	rttarg = ieee80211_mesh_rt_find(vap, PREQ_TADDR(0));
 	if(rttarg != NULL)
 		hrtarg = IEEE80211_MESH_ROUTE_PRIV(rttarg,
 		    struct ieee80211_hwmp_route);
