@@ -410,7 +410,9 @@ MALLOC_DECLARE(M_80211_MESH_RT);
  */
 struct ieee80211_mesh_route {
 	TAILQ_ENTRY(ieee80211_mesh_route)	rt_next;
+	struct ieee80211vap	*rt_vap;
 	struct mtx		rt_lock;	/* fine grained route lock */
+	struct callout		rt_discovery;	/* discovery timeout */
 	int			rt_updtime;	/* last update time */
 	uint8_t			rt_dest[IEEE80211_ADDR_LEN];
 	uint8_t			rt_mesh_gate[IEEE80211_ADDR_LEN]; /* meshDA */
@@ -418,8 +420,9 @@ struct ieee80211_mesh_route {
 	uint32_t		rt_metric;	/* path metric */
 	uint16_t		rt_nhops;	/* number of hops */
 	uint16_t		rt_flags;
-#define	IEEE80211_MESHRT_FLAGS_VALID	0x01	/* path discovery complete */
-#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02	/* proxy entry */
+#define	IEEE80211_MESHRT_FLAGS_DISCOVER	0x01	/* path discovery */
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x02	/* path discovery complete */
+#define	IEEE80211_MESHRT_FLAGS_PROXY	0x04	/* proxy entry */
 	uint32_t		rt_lifetime;	/* route timeout */
 	uint32_t		rt_lastmseq;	/* last seq# seen dest */
 	uint32_t		rt_ext_seq;	/* proxy seq number */

@@ -1319,7 +1319,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	rt->rt_metric = metric;
 	rt->rt_nhops = prep->prep_hopcount + 1;
 	ieee80211_mesh_rt_update(rt, prep->prep_lifetime);
-	rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID; /* mark valid */
+	rt->rt_flags = IEEE80211_MESHRT_FLAGS_VALID; /* mark valid */
 
 	/*
 	 * If it's NOT for us, propagate the PREP
@@ -1805,6 +1805,64 @@ hwmp_send_rann(struct ieee80211_node *ni,
 #define	PREQ_TFLAGS(n)	preq.preq_targets[n].target_flags
 #define	PREQ_TADDR(n)	preq.preq_targets[n].target_addr
 #define	PREQ_TSEQ(n)	preq.preq_targets[n].target_seq
+static void
+hwmp_rediscover_cb(void *arg)
+{
+	struct ieee80211_mesh_route *rt = arg;
+	struct ieee80211vap *vap = rt->rt_vap;
+	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_hwmp_route *hr;
+	struct ieee80211_meshpreq_ie preq; /* Optimize: storing first preq? */
+
+	if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID))
+		return ; /* nothing to do */
+
+	hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
+	if (hr->hr_preqretries >=
+		ieee80211_hwmp_maxpreq_retries) {
+		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
+			rt->rt_dest, NULL, "%s",
+			"no valid path , max number of discovery, send GATE");
+		/* TODO: send to known gates */
+		vap->iv_stats.is_mesh_fwd_nopath++;
+		rt->rt_flags = 0; /* Mark invalid */
+		return ; /* XXX: flush queue? */
+	}
+
+	hr->hr_preqretries++;
+
+
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, rt->rt_dest,
+	    "start path rediscovery , target seq %u", hr->hr_seq);
+	/*
+	 * Try to discover the path for this node.
+	 * Group addressed PREQ Case A
+	 */
+	preq.preq_flags = 0;
+	preq.preq_hopcount = 0;
+	preq.preq_ttl = ms->ms_ttl;
+	preq.preq_id = ++hs->hs_preqid;
+	IEEE80211_ADDR_COPY(preq.preq_origaddr, vap->iv_myaddr);
+	preq.preq_origseq = hr->hr_origseq;
+	preq.preq_lifetime = ticks_to_msecs(ieee80211_hwmp_pathtimeout);
+	preq.preq_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
+	preq.preq_tcount = 1;
+	IEEE80211_ADDR_COPY(PREQ_TADDR(0), rt->rt_dest);
+	PREQ_TFLAGS(0) = 0;
+	if (ieee80211_hwmp_targetonly)
+		PREQ_TFLAGS(0) |= IEEE80211_MESHPREQ_TFLAGS_TO;
+	PREQ_TFLAGS(0) |= IEEE80211_MESHPREQ_TFLAGS_USN;
+	PREQ_TSEQ(0) = 0; /* RESERVED when USN flag is set */
+	/* XXX check return value */
+	hwmp_send_preq(vap->iv_bss, vap->iv_myaddr,
+		broadcastaddr, &preq, &hr->hr_lastpreq,
+		&ieee80211_hwmp_preqminint);
+	callout_reset(&rt->rt_discovery,
+		ieee80211_hwmp_net_diameter_traversaltime * 2,
+		hwmp_rediscover_cb, rt);
+}
+
 static struct ieee80211_node *
 hwmp_discover(struct ieee80211vap *vap,
     const uint8_t dest[IEEE80211_ADDR_LEN], struct mbuf *m)
@@ -1857,13 +1915,11 @@ hwmp_discover(struct ieee80211vap *vap,
 				vap->iv_stats.is_mesh_fwd_nopath++;
 				goto done;
 			}
+			rt->rt_flags = IEEE80211_MESHRT_FLAGS_DISCOVER;
 			hr->hr_preqretries++;
 			if (hr->hr_origseq == 0)
 				hr->hr_origseq = ++hs->hs_seq;
 			rt->rt_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
-			/* XXX: special discovery timeout, larger lifetime? */
-			ieee80211_mesh_rt_update(rt,
-			    ticks_to_msecs(ieee80211_hwmp_pathtimeout));
 			sendpreq = 1;
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, dest,
 			    "start path discovery (src %s), target seq %u",
@@ -1894,6 +1950,9 @@ hwmp_discover(struct ieee80211vap *vap,
 			hwmp_send_preq(vap->iv_bss, vap->iv_myaddr,
 			    broadcastaddr, &preq, &hr->hr_lastpreq,
 			    &ieee80211_hwmp_preqminint);
+			callout_reset(&rt->rt_discovery,
+			    ieee80211_hwmp_net_diameter_traversaltime * 2,
+			    hwmp_rediscover_cb, rt);
 		}
 		if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)
 			ni = ieee80211_find_txnode(vap, rt->rt_nexthop);
