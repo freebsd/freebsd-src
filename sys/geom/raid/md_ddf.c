@@ -172,6 +172,13 @@ static struct g_raid_md_class g_raid_md_ddf_class = {
 #define SET32D(m, f, v)	SET32P((m), &(f), (v))
 #define SET64D(m, f, v)	SET64P((m), &(f), (v))
 
+#define GETCRNUM(m)	(GET32((m), hdr->cr_length) /			\
+	GET16((m), hdr->Configuration_Record_Length))
+
+#define GETVDCPTR(m, n)	((struct ddf_vdc_record *)((uint8_t *)(m)->cr +	\
+	(n) * GET16((m), hdr->Configuration_Record_Length) *		\
+	(m)->sectorsize))
+
 static int
 isff(uint8_t *buf, int size)
 {
@@ -254,7 +261,7 @@ g_raid_md_ddf_print(struct ddf_meta *meta)
 	    GET16(meta, cdr->Controller_Type.SubVendor_ID),
 	    GET16(meta, cdr->Controller_Type.SubDevice_ID));
 	printf("Product_ID           '%.16s'\n", (char *)&meta->cdr->Product_ID[0]);
-	printf("**** Physical Disk Data ****\n");
+	printf("**** Physical Disk Records ****\n");
 	printf("Populated_PDEs       %u\n", GET16(meta, pdr->Populated_PDEs));
 	printf("Max_PDE_Supported    %u\n", GET16(meta, pdr->Max_PDE_Supported));
 	for (j = 0; j < GET16(meta, pdr->Populated_PDEs); j++) {
@@ -276,7 +283,7 @@ g_raid_md_ddf_print(struct ddf_meta *meta)
 		printf("Block_Size           %u\n",
 		    GET16(meta, pdr->entry[j].Block_Size));
 	}
-	printf("**** Virtual Disk Data ****\n");
+	printf("**** Virtual Disk Records ****\n");
 	printf("Populated_VDEs       %u\n", GET16(meta, vdr->Populated_VDEs));
 	printf("Max_VDE_Supported    %u\n", GET16(meta, vdr->Max_VDE_Supported));
 	for (j = 0; j < GET16(meta, vdr->Populated_VDEs); j++) {
@@ -299,11 +306,9 @@ g_raid_md_ddf_print(struct ddf_meta *meta)
 		    (char *)&meta->vdr->entry[j].VD_Name);
 	}
 	printf("**** Configuration Records ****\n");
-	num = GET32(meta, hdr->cr_length) / GET16(meta, hdr->Configuration_Record_Length);
+	num = GETCRNUM(meta);
 	for (j = 0; j < num; j++) {
-		vdc = (struct ddf_vdc_record *)((uint8_t *)meta->cr +
-		    j * GET16(meta, hdr->Configuration_Record_Length) *
-		    meta->sectorsize);
+		vdc = GETVDCPTR(meta, j);
 		val = GET32D(meta, vdc->Signature);
 		switch (val) {
 		case DDF_VDCR_SIGNATURE:
@@ -463,11 +468,9 @@ ddf_meta_find_vdc(struct ddf_meta *meta, uint8_t *GUID)
 	struct ddf_vdc_record *vdc;
 	int i, num;
 
-	num = GET32(meta, hdr->cr_length) / GET16(meta, hdr->Configuration_Record_Length);
+	num = GETCRNUM(meta);
 	for (i = 0; i < num; i++) {
-		vdc = (struct ddf_vdc_record *)((uint8_t *)meta->cr +
-		    i * GET16(meta, hdr->Configuration_Record_Length) *
-		    meta->sectorsize);
+		vdc = GETVDCPTR(meta, i);
 		if (GUID != NULL) {
 			if (GET32D(meta, vdc->Signature) == DDF_VDCR_SIGNATURE &&
 			    memcmp(vdc->VD_GUID, GUID, 24) == 0)
@@ -486,11 +489,9 @@ ddf_meta_count_vdc(struct ddf_meta *meta, uint8_t *GUID)
 	int i, num, cnt;
 
 	cnt = 0;
-	num = GET32(meta, hdr->cr_length) / GET16(meta, hdr->Configuration_Record_Length);
+	num = GETCRNUM(meta);
 	for (i = 0; i < num; i++) {
-		vdc = (struct ddf_vdc_record *)((uint8_t *)meta->cr +
-		    i * GET16(meta, hdr->Configuration_Record_Length) *
-		    meta->sectorsize);
+		vdc = GETVDCPTR(meta, i);
 		if (GET32D(meta, vdc->Signature) != DDF_VDCR_SIGNATURE)
 			continue;
 		if (GUID == NULL || memcmp(vdc->VD_GUID, GUID, 24) == 0)
@@ -937,12 +938,9 @@ ddf_meta_unused_range(struct ddf_meta *meta, off_t *off, off_t *size)
 	beg[0] = 0;
 	end[0] = GET64(meta, pdr->entry[pos].Configured_Size);
 	n = 1;
-	num = GET32(meta, hdr->cr_length) /
-	    GET16(meta, hdr->Configuration_Record_Length);
+	num = GETCRNUM(meta);
 	for (i = 0; i < num; i++) {
-		vdc = (struct ddf_vdc_record *)((uint8_t *)meta->cr +
-		    i * GET16(meta, hdr->Configuration_Record_Length) *
-		    meta->sectorsize);
+		vdc = GETVDCPTR(meta, i);
 		if (GET32D(meta, vdc->Signature) != DDF_VDCR_SIGNATURE)
 			continue;
 		for (pos = 0; pos < GET16D(meta, vdc->Primary_Element_Count); pos++)
@@ -1261,11 +1259,10 @@ err:
 	if (error != 0)
 		goto err;
 
-	size = GET16(meta, hdr->Configuration_Record_Length);
-	num = GET32(meta, hdr->cr_length) / size;
-	size *= ss;
+	size = GET16(meta, hdr->Configuration_Record_Length) * ss;
+	num = GETCRNUM(meta);
 	for (i = 0; i < num; i++) {
-		vdc = (struct ddf_vdc_record *)((uint8_t *)meta->cr + i * size);
+		vdc = GETVDCPTR(meta, i);
 		SET32D(meta, vdc->CRC, 0xffffffff);
 		SET32D(meta, vdc->CRC, crc32(vdc, size));
 	}
@@ -1518,9 +1515,7 @@ g_raid_md_ddf_supported(int level, int qual, int disks, int force)
 		if (qual != G_RAID_VOLUME_RLQ_R1EA &&
 		    qual != G_RAID_VOLUME_RLQ_R1EO)
 			return (0);
-		if (disks < 2)
-			return (0);
-		if (disks % 2 != 0)
+		if (disks < 3)
 			return (0);
 		break;
 	case G_RAID_VOLUME_RL_SINGLE:
@@ -1922,11 +1917,9 @@ g_raid_md_ddf_new_disk(struct g_raid_disk *disk)
 	else
 		ddf_meta_update(&mdi->mdio_meta, pdmeta);
 
-	num = GET32(pdmeta, hdr->cr_length) / GET16(pdmeta, hdr->Configuration_Record_Length);
+	num = GETCRNUM(pdmeta);
 	for (j = 0; j < num; j++) {
-		vdc = (struct ddf_vdc_record *)((uint8_t *)pdmeta->cr +
-		    j * GET16(pdmeta, hdr->Configuration_Record_Length) *
-		    pdmeta->sectorsize);
+		vdc = GETVDCPTR(pdmeta, j);
 		val = GET32D(pdmeta, vdc->Signature);
 
 		if (val == DDF_SA_SIGNATURE && spare == -1)
@@ -2819,6 +2812,17 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 				    sizeof(struct ddf_vd_entry));
 		}
 		/* Update VDC. */
+		if (mdi->mdio_starting == 0) {
+			/* Remove all VDCs to restore needed later. */
+			j = GETCRNUM(&pd->pd_meta);
+			for (i = 0; i < j; i++) {
+				vdc = GETVDCPTR(&pd->pd_meta, i);
+				if (GET32D(&pd->pd_meta, vdc->Signature) !=
+				    DDF_VDCR_SIGNATURE)
+					continue;
+				SET32D(&pd->pd_meta, vdc->Signature, 0xffffffff);
+			}
+		}
 		TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 			vol = sd->sd_volume;
 			if (vol->v_stopping)
@@ -2906,12 +2910,15 @@ static int
 g_raid_md_free_volume_ddf(struct g_raid_md_object *md,
     struct g_raid_volume *vol)
 {
+	struct g_raid_md_ddf_object *mdi;
 	struct g_raid_md_ddf_pervolume *pv;
 
+	mdi = (struct g_raid_md_ddf_object *)md;
 	pv = (struct g_raid_md_ddf_pervolume *)vol->v_md_data;
 	ddf_vol_meta_free(&pv->pv_meta);
 	if (!pv->pv_started) {
 		pv->pv_started = 1;
+		mdi->mdio_starting--;
 		callout_stop(&pv->pv_start_co);
 	}
 	return (0);
