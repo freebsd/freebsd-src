@@ -684,7 +684,7 @@ ufoma_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			DPRINTF("too short message\n");
 			goto tr_setup;
 		}
-		if (actlen > sizeof(pkt)) {
+		if (actlen > (int)sizeof(pkt)) {
 			DPRINTF("truncating message\n");
 			actlen = sizeof(pkt);
 		}

@@ -113,6 +113,7 @@ ENTRY(cpu_switch)
 	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
+	sync				/* Make sure all of that finished */
 	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:

@@ -698,25 +698,6 @@ linux_iopl(struct thread *td, struct linux_iopl_args *args)
 }
 
 int
-linux_pipe(struct thread *td, struct linux_pipe_args *args)
-{
-	int error;
-	int fildes[2];
-
-#ifdef DEBUG
-	if (ldebug(pipe))
-		printf(ARGS(pipe, "*"));
-#endif
-
-	error = kern_pipe(td, fildes);
-	if (error)
-		return (error);
-
-	/* XXX: Close descriptors on error. */
-	return (copyout(fildes, args->pipefds, sizeof fildes));
-}
-
-int
 linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 {
 	l_osigaction_t osa;

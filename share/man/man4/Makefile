@@ -414,6 +414,7 @@ MAN=	aac.4 \
 	snd_fm801.4 \
 	snd_gusc.4 \
 	snd_hda.4 \
+	snd_hdspe.4 \
 	snd_ich.4 \
 	snd_maestro3.4 \
 	snd_maestro.4 \

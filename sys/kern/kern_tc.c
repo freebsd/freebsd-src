@@ -123,6 +123,7 @@ static void cpu_tick_calibrate(int);
 static int
 sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
 {
+#ifndef __mips__
 #ifdef SCTL_MASK32
 	int tv[2];
 
@@ -131,6 +132,7 @@ sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
 		tv[1] = boottime.tv_usec;
 		return SYSCTL_OUT(req, tv, sizeof(tv));
 	} else
+#endif
 #endif
 		return SYSCTL_OUT(req, &boottime, sizeof(boottime));
 }

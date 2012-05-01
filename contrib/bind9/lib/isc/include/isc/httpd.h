@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: httpd.h,v 1.9 2008-08-08 05:06:49 marka Exp $ */
+/* $Id: httpd.h,v 1.9 2008/08/08 05:06:49 marka Exp $ */
 
 #ifndef ISC_HTTPD_H
 #define ISC_HTTPD_H 1

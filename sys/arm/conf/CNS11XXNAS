@@ -98,7 +98,6 @@ device		mii		# Minimal mii routines
 device		ether
 device		bpf
 
-device		pty
 device		loop
 
 device		md

@@ -32,35 +32,8 @@
 #ifndef ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 #define	ARCHIVE_ENTRY_PRIVATE_H_INCLUDED
 
+#include "archive_acl_private.h"
 #include "archive_string.h"
-
-/*
- * Handle wide character (i.e., Unicode) and non-wide character
- * strings transparently.
- */
-
-struct aes {
-	struct archive_string aes_mbs;
-	struct archive_string aes_utf8;
-	const wchar_t *aes_wcs;
-	/* Bitmap of which of the above are valid.  Because we're lazy
-	 * about malloc-ing and reusing the underlying storage, we
-	 * can't rely on NULL pointers to indicate whether a string
-	 * has been set. */
-	int aes_set;
-#define	AES_SET_MBS 1
-#define	AES_SET_UTF8 2
-#define	AES_SET_WCS 4
-};
-
-struct ae_acl {
-	struct ae_acl *next;
-	int	type;			/* E.g., access or default */
-	int	tag;			/* E.g., user/group/other/mask */
-	int	permset;		/* r/w/x bits */
-	int	id;			/* uid/gid for user/group */
-	struct aes name;		/* uname/gname */
-};
 
 struct ae_xattr {
 	struct ae_xattr *next;
@@ -68,6 +41,13 @@ struct ae_xattr {
 	char	*name;
 	void	*value;
 	size_t	size;
+};
+
+struct ae_sparse {
+	struct ae_sparse *next;
+
+	int64_t	 offset;
+	int64_t	 length;
 };
 
 /*
@@ -91,6 +71,8 @@ struct ae_xattr {
  * TODO: Design a good API for handling sparse files.
  */
 struct archive_entry {
+	struct archive *archive;
+
 	/*
 	 * Note that ae_stat.st_mode & AE_IFMT  can be  0!
 	 *
@@ -101,10 +83,15 @@ struct archive_entry {
 	 */
 
 	/*
-	 * Read archive_entry_copy_stat.c for an explanation of why I
-	 * don't just use "struct stat" instead of "struct aest" here
-	 * and why I have this odd pointer to a separately-allocated
-	 * struct stat.
+	 * We have a "struct aest" for holding file metadata rather than just
+	 * a "struct stat" because on some platforms the "struct stat" has
+	 * fields which are too narrow to hold the range of possible values;
+	 * we don't want to lose information if we read an archive and write
+	 * out another (e.g., in "tar -cf new.tar @old.tar").
+	 *
+	 * The "stat" pointer points to some form of platform-specific struct
+	 * stat; it is declared as a void * rather than a struct stat * as
+	 * some platforms have multiple varieties of stat structures.
 	 */
 	void *stat;
 	int  stat_valid; /* Set to 0 whenever a field in aest changes. */
@@ -118,12 +105,11 @@ struct archive_entry {
 		uint32_t	aest_mtime_nsec;
 		int64_t		aest_birthtime;
 		uint32_t	aest_birthtime_nsec;
-		gid_t		aest_gid;
+		int64_t		aest_gid;
 		int64_t		aest_ino;
-		mode_t		aest_mode;
 		uint32_t	aest_nlink;
 		uint64_t	aest_size;
-		uid_t		aest_uid;
+		int64_t		aest_uid;
 		/*
 		 * Because converting between device codes and
 		 * major/minor values is platform-specific and
@@ -150,35 +136,41 @@ struct archive_entry {
 #define	AE_SET_MTIME	16
 #define	AE_SET_BIRTHTIME 32
 #define	AE_SET_SIZE	64
+#define	AE_SET_INO	128
+#define	AE_SET_DEV	256
 
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
 	 */
-	struct aes ae_fflags_text;	/* Text fflags per fflagstostr(3) */
+	struct archive_mstring ae_fflags_text;	/* Text fflags per fflagstostr(3) */
 	unsigned long ae_fflags_set;		/* Bitmap fflags */
 	unsigned long ae_fflags_clear;
-	struct aes ae_gname;		/* Name of owning group */
-	struct aes ae_hardlink;	/* Name of target for hardlink */
-	struct aes ae_pathname;	/* Name of entry */
-	struct aes ae_symlink;		/* symlink contents */
-	struct aes ae_uname;		/* Name of owner */
+	struct archive_mstring ae_gname;		/* Name of owning group */
+	struct archive_mstring ae_hardlink;	/* Name of target for hardlink */
+	struct archive_mstring ae_pathname;	/* Name of entry */
+	struct archive_mstring ae_symlink;		/* symlink contents */
+	struct archive_mstring ae_uname;		/* Name of owner */
 
 	/* Not used within libarchive; useful for some clients. */
-	struct aes ae_sourcepath;	/* Path this entry is sourced from. */
+	struct archive_mstring ae_sourcepath;	/* Path this entry is sourced from. */
+
+	void *mac_metadata;
+	size_t mac_metadata_size;
 
 	/* ACL support. */
-	struct ae_acl	*acl_head;
-	struct ae_acl	*acl_p;
-	int		 acl_state;	/* See acl_next for details. */
-	wchar_t		*acl_text_w;
+	struct archive_acl    acl;
 
 	/* extattr support. */
 	struct ae_xattr *xattr_head;
 	struct ae_xattr *xattr_p;
 
+	/* sparse support. */
+	struct ae_sparse *sparse_head;
+	struct ae_sparse *sparse_tail;
+	struct ae_sparse *sparse_p;
+
 	/* Miscellaneous. */
 	char		 strmode[12];
 };
-
 
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

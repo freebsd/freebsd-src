@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/stack.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
@@ -308,6 +309,30 @@ pfind(pid)
 	return (p);
 }
 
+static struct proc *
+pfind_tid(pid_t tid)
+{
+	struct proc *p;
+	struct thread *td;
+
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (td->td_tid == tid)
+				goto found;
+		}
+		PROC_UNLOCK(p);
+	}
+found:
+	sx_sunlock(&allproc_lock);
+	return (p);
+}
+
 /*
  * Locate a process group by number.
  * The caller must hold proctree_lock.
@@ -338,7 +363,12 @@ pget(pid_t pid, int flags, struct proc **pp)
 	struct proc *p;
 	int error;
 
-	p = pfind(pid);
+	if (pid <= PID_MAX)
+		p = pfind(pid);
+	else if ((flags & PGET_NOTID) == 0)
+		p = pfind_tid(pid);
+	else
+		p = NULL;
 	if (p == NULL)
 		return (ESRCH);
 	if ((flags & PGET_CANSEE) != 0) {
@@ -2471,6 +2501,79 @@ sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * This sysctl allows a process to retrieve umask of another process.
+ */
+static int
+sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	int error;
+	u_short fd_cmask;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	if (error != 0)
+		return (error);
+
+	FILEDESC_SLOCK(p->p_fd);
+	fd_cmask = p->p_fd->fd_cmask;
+	FILEDESC_SUNLOCK(p->p_fd);
+	PRELE(p);
+	error = SYSCTL_OUT(req, &fd_cmask, sizeof(fd_cmask));
+	return (error);
+}
+
+/*
+ * This sysctl allows a process to set and retrieve binary osreldate of
+ * another process.
+ */
+static int
+sysctl_kern_proc_osrel(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	int flags, error, osrel;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	if (req->newptr != NULL && req->newlen != sizeof(osrel))
+		return (EINVAL);
+
+	flags = PGET_HOLD | PGET_NOTWEXIT;
+	if (req->newptr != NULL)
+		flags |= PGET_CANDEBUG;
+	else
+		flags |= PGET_CANSEE;
+	error = pget((pid_t)name[0], flags, &p);
+	if (error != 0)
+		return (error);
+
+	error = SYSCTL_OUT(req, &p->p_osrel, sizeof(p->p_osrel));
+	if (error != 0)
+		goto errout;
+
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &osrel, sizeof(osrel));
+		if (error != 0)
+			goto errout;
+		if (osrel < 0) {
+			error = EINVAL;
+			goto errout;
+		}
+		p->p_osrel = osrel;
+	}
+errout:
+	PRELE(p);
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2572,3 +2675,10 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RW |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_ps_strings,
 	"Process ps_strings location");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_UMASK, umask, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_umask, "Process umask");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OSREL, osrel, CTLFLAG_RW |
+	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_osrel,
+	"Process binary osreldate");

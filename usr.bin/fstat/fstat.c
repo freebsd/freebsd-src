@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
-#include <sys/un.h>
 
 #include <netinet/in.h>
 
@@ -84,6 +83,8 @@ static void	print_file_info(struct procstat *procstat,
 static void	print_pipe_info(struct procstat *procstat,
     struct filestat *fst);
 static void	print_pts_info(struct procstat *procstat,
+    struct filestat *fst);
+static void	print_shm_info(struct procstat *procstat,
     struct filestat *fst);
 static void	print_socket_info(struct procstat *procstat,
     struct filestat *fst);
@@ -225,53 +226,28 @@ static void
 print_file_info(struct procstat *procstat, struct filestat *fst,
     const char *uname, const char *cmd, int pid)
 {
-	struct sockstat sock;
 	struct vnstat vn;
 	DEVS *d;
 	const char *filename;
 	int error, fsmatch = 0;
 	char errbuf[_POSIX2_LINE_MAX];
 
-	error = 0;
 	filename = NULL;
 	if (checkfile != 0) {
-		switch (fst->fs_type) {
-		case PS_FST_TYPE_VNODE:
-		case PS_FST_TYPE_FIFO:
-			error = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
-			break;
-		case PS_FST_TYPE_SOCKET:
-			error = procstat_get_socket_info(procstat, fst, &sock, errbuf);
-			break;
-		default:
+		if (fst->fs_type != PS_FST_TYPE_VNODE &&
+		    fst->fs_type != PS_FST_TYPE_FIFO)
 			return;
-		}
+		error = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
 		if (error != 0)
 			return;
 
 		for (d = devs; d != NULL; d = d->next)
-			switch (fst->fs_type) {
-			case PS_FST_TYPE_VNODE:
-			case PS_FST_TYPE_FIFO:			
-				if (d->fsid == vn.vn_fsid) {
-					fsmatch = 1;
-					if ((unsigned)d->ino == vn.vn_fileid) {
-						filename = d->name;
-						break;
-					}
+			if (d->fsid == vn.vn_fsid) {
+				fsmatch = 1;
+				if ((unsigned)d->ino == vn.vn_fileid) {
+					filename = d->name;
+					break;
 				}
-				break;
-			case PS_FST_TYPE_SOCKET:
-				if (sock.dom_family == AF_UNIX) {
-					fsmatch = 1;
-					if (strcmp(((struct sockaddr_un *)
-					    (&sock.sa_local))->sun_path,
-					    d->name) == 0) {
-						filename = d->name;
-						break;
-					}
-				}
-				break;
 			}
 		if (fsmatch == 0 || (filename == NULL && fsflg == 0))
 			return;
@@ -314,6 +290,9 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 		break;
 	case PS_FST_TYPE_PTS:
 		print_pts_info(procstat, fst);
+		break;
+	case PS_FST_TYPE_SHM:
+		print_shm_info(procstat, fst);
 		break;
 	default:	
 		if (vflg)
@@ -441,6 +420,30 @@ print_pts_info(struct procstat *procstat, struct filestat *fst)
 	} else {
 		printf("%10s", pts.devname);
 	}
+	print_access_flags(fst->fs_fflags);
+}
+
+static void
+print_shm_info(struct procstat *procstat, struct filestat *fst)
+{
+	struct shmstat shm;
+	char errbuf[_POSIX2_LINE_MAX];
+	char mode[15];
+	int error;
+
+	error = procstat_get_shm_info(procstat, fst, &shm, errbuf);
+	if (error != 0) {
+		printf("* error");
+		return;
+	}
+	if (nflg) {
+		printf("             ");
+		(void)snprintf(mode, sizeof(mode), "%o", shm.mode);
+	} else {
+		printf(" %-15s", fst->fs_path != NULL ? fst->fs_path : "-");
+		strmode(shm.mode, mode);
+	}
+	printf(" %10s %6ju", mode, shm.size);
 	print_access_flags(fst->fs_fflags);
 }
 

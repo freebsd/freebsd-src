@@ -80,7 +80,8 @@ tunable:
 .Bl -tag -width indent
 .It Va dev.amdtemp.%d.sensor_offset
 .El
-Add the given offset to the temperature of the sensor.  Default is 0.
+Add the given offset to the temperature of the sensor.
+Default is 0.
 .Sh SEE ALSO
 .Xr loader 8 ,
 .Xr sysctl 8
@@ -98,10 +99,10 @@ For Family 10h and later processors,
 .Do
 (the reported temperature) is a non-physical temperature measured on
 an arbitrary scale and it does not represent an actual physical
-temperature like die or case temperature.  Instead, it specifies
-the processor temperature relative to the point at which the system
-must supply the maximum cooling for the processor's specified maximum
-case temperature and maximum thermal power dissipation
+temperature like die or case temperature.
+Instead, it specifies the processor temperature relative to the point
+at which the system must supply the maximum cooling for the processor's
+specified maximum case temperature and maximum thermal power dissipation
 .Dc
 according to
 .Rs

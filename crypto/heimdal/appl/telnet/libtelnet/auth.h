@@ -53,7 +53,7 @@
  * or implied warranty.
  */
 
-/* $Id: auth.h 5027 1998-06-09 19:25:40Z joda $ */
+/* $Id$ */
 
 #ifndef	__AUTH__
 #define	__AUTH__
@@ -72,7 +72,7 @@ typedef struct XauthP {
 	void	(*is) (struct XauthP *, unsigned char *, int);
 	void	(*reply) (struct XauthP *, unsigned char *, int);
 	int	(*status) (struct XauthP *, char *, size_t, int);
-	void	(*printsub) (unsigned char *, int, unsigned char *, int);
+	void	(*printsub) (unsigned char *, size_t, unsigned char *, size_t);
 } Authenticator;
 
 #include "auth-proto.h"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Kungliga Tekniska Högskolan
+ * Copyright (c) 2004 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $Id: ktutil-commands.in 14793 2005-04-14 16:45:14Z lha $ */
+/* $Id$ */
 
 command = {
 	name = "add"
@@ -227,36 +227,17 @@ command = {
 	min_args = "2"
 	max_args = "2"
 	help = "Renames an entry in the keytab."
+	option = {
+		long = "delete"
+		type = "-flag"
+		help = "don't delete orignal entry"
+	}
 }
 command = {
-	name = "srvconvert"
-	name = "srv2keytab"
-	option = {
-		long = "srvtab"
-		short = "s"
-		type = "string"
-		argument = "file"
-		help = "name of Kerberos 4 srvtab"
-		default = "/etc/srvtab"
-	}
+	name = "destroy"
+	function = "kt_destroy"
 	max_args = "0"
-	function = "srvconv"
-	help = "Convert a Kerberos 4 srvtab to a keytab."
-}
-command = {
-	name = "srvcreate"
-	name = "key2srvtab"
-	option = {
-		long = "srvtab"
-		short = "s"
-		type = "string"
-		argument = "file"
-		help = "name of Kerberos 4 srvtab"
-		default = "/etc/srvtab"
-	}
-	max_args = "0"
-	function = "srvcreate"
-	help = "Convert a keytab to a Kerberos 4 srvtab."
+	help = "Destroy (remove) the keytab."
 }
 command = {
 	name = "help"

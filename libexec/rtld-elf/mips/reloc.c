@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 
 #include <machine/sysarch.h>
+#include <machine/tls.h>
 
 #include "debug.h"
 #include "rtld.h"
@@ -257,7 +258,8 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 }
 
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
+    RtldLockState *lockstate)
 {
 	const Elf_Rel *rel;
 	const Elf_Rel *rellim;
@@ -316,7 +318,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			 * to 0 if there are non-PLT references, but older
 			 * versions of GNU ld do not do this.
 			 */
-			def = find_symdef(i, obj, &defobj, false, NULL,
+			def = find_symdef(i, obj, &defobj, flags, NULL,
 			    lockstate);
 			if (def == NULL)
 				return -1;
@@ -358,7 +360,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			}
 		} else {
 			/* TODO: add cache here */
-			def = find_symdef(i, obj, &defobj, false, NULL,
+			def = find_symdef(i, obj, &defobj, flags, NULL,
 			    lockstate);
 			if (def == NULL) {
 				dbg("Warning4, can't find symbole %d", i);
@@ -457,7 +459,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			Elf_Addr old = load_ptr(where, rlen);
 			Elf_Addr val = old;
 
-        		def = find_symdef(r_symndx, obj, &defobj, false, NULL,
+        		def = find_symdef(r_symndx, obj, &defobj, flags, NULL,
 	    			lockstate);
 			if (def == NULL)
 				return -1;
@@ -481,7 +483,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			Elf_Addr old = load_ptr(where, rlen);
 			Elf_Addr val = old;
 
-        		def = find_symdef(r_symndx, obj, &defobj, false, NULL,
+        		def = find_symdef(r_symndx, obj, &defobj, flags, NULL,
 	    			lockstate);
 			if (def == NULL)
 				return -1;
@@ -508,7 +510,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			Elf_Addr old = load_ptr(where, rlen);
 			Elf_Addr val = old;
 
-        		def = find_symdef(r_symndx, obj, &defobj, false, NULL,
+        		def = find_symdef(r_symndx, obj, &defobj, flags, NULL,
 	    			lockstate);
 
 			if (def == NULL)
@@ -576,7 +578,7 @@ reloc_plt(Obj_Entry *obj)
  * LD_BIND_NOW was set - force relocation for all jump slots
  */
 int
-reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
+reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
 	/* Do nothing */
 	obj->jmpslots_done = true;
@@ -593,7 +595,8 @@ reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
 }
 
 int
-reloc_gnu_ifunc(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+reloc_gnu_ifunc(Obj_Entry *obj, int flags,
+    struct Struct_RtldLockState *lockstate)
 {
 
 	/* XXX not implemented */
@@ -622,8 +625,7 @@ allocate_initial_tls(Obj_Entry *objs)
 	 */
 	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-	tls = ((char *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8) 
-	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
+	tls = (char *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8);
 
 	sysarch(MIPS_SET_TLS, tls);
 }
@@ -636,8 +638,7 @@ __tls_get_addr(tls_index* ti)
 
 	sysarch(MIPS_GET_TLS, &tls);
 
-	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)tls - TLS_TP_OFFSET 
-	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset + TLS_DTP_OFFSET);
+	p = tls_get_addr_common(tls, ti->ti_module, ti->ti_offset + TLS_DTP_OFFSET);
 
 	return (p);
 }

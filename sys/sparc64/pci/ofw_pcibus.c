@@ -100,8 +100,8 @@ struct ofw_pcibus_devinfo {
 
 static devclass_t pci_devclass;
 
-DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods, 1 /* no softc */,
-    pci_driver);
+DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
+    sizeof(struct pci_softc), pci_driver);
 EARLY_DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0,
     BUS_PASS_BUS);
 MODULE_VERSION(ofw_pcibus, 1);
@@ -111,7 +111,7 @@ static int
 ofw_pcibus_probe(device_t dev)
 {
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 	device_set_desc(dev, "OFW PCI bus");
 
@@ -230,13 +230,14 @@ ofw_pcibus_attach(device_t dev)
 	phandle_t node, child;
 	uint32_t clock;
 	u_int busno, domain, func, slot;
+	int error;
 
+	error = pci_attach_common(dev);
+	if (error)
+		return (error);
 	pcib = device_get_parent(dev);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	if (bootverbose)
-		device_printf(dev, "domain=%d, physical bus=%d\n",
-		    domain, busno);
 	node = ofw_bus_get_node(dev);
 
 	/*

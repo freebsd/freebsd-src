@@ -13582,7 +13582,8 @@ bxe_host_structures_alloc(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-	rc = bus_dma_tag_create(NULL,	/* parent tag */
+	rc = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),	/* PCI parent tag */
 	    1,				/* alignment for segs */
 	    BXE_DMA_BOUNDARY,		/* cannot cross */
 	    BUS_SPACE_MAXADDR,		/* restricted low */

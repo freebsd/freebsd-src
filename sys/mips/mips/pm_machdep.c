@@ -39,7 +39,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_cputype.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -110,6 +109,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_pc = regs->pc;
 	sf.sf_uc.uc_mcontext.mullo = regs->mullo;
 	sf.sf_uc.uc_mcontext.mulhi = regs->mulhi;
+	sf.sf_uc.uc_mcontext.mc_tls = td->td_md.md_tls;
 	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
 	bcopy((void *)&regs->ast, (void *)&sf.sf_uc.uc_mcontext.mc_regs[1],
 	    sizeof(sf.sf_uc.uc_mcontext.mc_regs) - sizeof(register_t));
@@ -215,50 +215,21 @@ cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
 int
 sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct trapframe *regs;
-	ucontext_t *ucp;
 	ucontext_t uc;
 	int error;
-
-	ucp = &uc;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
 	    return (error);
 
-	regs = td->td_frame;
+	error = set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
 
-/* #ifdef DEBUG */
-	if (ucp->uc_mcontext.mc_regs[ZERO] != UCONTEXT_MAGIC) {
-		printf("sigreturn: pid %d, ucp %p\n", td->td_proc->p_pid, ucp);
-		printf("  old sp %p ra %p pc %p\n",
-		    (void *)(intptr_t)regs->sp, (void *)(intptr_t)regs->ra, (void *)(intptr_t)regs->pc);
-		printf("  new sp %p ra %p pc %p z %p\n",
-		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[SP],
-		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[RA],
-		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[PC],
-		    (void *)(intptr_t)ucp->uc_mcontext.mc_regs[ZERO]);
-		return EINVAL;
-	}
-/* #endif */
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
-	bcopy((const void *)&ucp->uc_mcontext.mc_regs[1], (void *)&regs->ast,
-	    sizeof(ucp->uc_mcontext.mc_regs) - sizeof(register_t));
-
-	if (ucp->uc_mcontext.mc_fpused)
-		bcopy((const void *)ucp->uc_mcontext.mc_fpregs,
-		    (void *)&td->td_frame->f0,
-		    sizeof(ucp->uc_mcontext.mc_fpregs));
-
-	regs->pc = ucp->uc_mcontext.mc_pc;
-	regs->mullo = ucp->uc_mcontext.mullo;
-	regs->mulhi = ucp->uc_mcontext.mulhi;
-
-	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-
-	return(EJUSTRETURN);
+	return (EJUSTRETURN);
 }
-
 
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
@@ -518,10 +489,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	td->td_frame->sr |= MIPS_SR_PX;
 #elif  defined(__mips_n64)
 	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
-#endif
-#ifdef CPU_CNMIPS
-	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX |
-	    MIPS_SR_KX | MIPS_SR_SX;
 #endif
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:

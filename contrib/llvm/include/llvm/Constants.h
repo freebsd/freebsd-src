@@ -34,9 +34,12 @@ class IntegerType;
 class StructType;
 class PointerType;
 class VectorType;
+class SequentialType;
 
 template<class ConstantClass, class TypeClass, class ValType>
 struct ConstantCreator;
+template<class ConstantClass, class TypeClass>
+struct ConstantArrayCreator;
 template<class ConstantClass, class TypeClass>
 struct ConvertConstantType;
 
@@ -45,6 +48,7 @@ struct ConvertConstantType;
 /// represents both boolean and integral constants.
 /// @brief Class for constant integers.
 class ConstantInt : public Constant {
+  virtual void anchor();
   void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
   ConstantInt(const ConstantInt &);      // DO NOT IMPLEMENT
   ConstantInt(IntegerType *Ty, const APInt& V);
@@ -229,6 +233,7 @@ public:
 ///
 class ConstantFP : public Constant {
   APFloat Val;
+  virtual void anchor();
   void *operator new(size_t, unsigned);// DO NOT IMPLEMENT
   ConstantFP(const ConstantFP &);      // DO NOT IMPLEMENT
   friend class LLVMContextImpl;
@@ -296,7 +301,6 @@ public:
 /// ConstantAggregateZero - All zero aggregate value
 ///
 class ConstantAggregateZero : public Constant {
-  friend struct ConstantCreator<ConstantAggregateZero, Type, char>;
   void *operator new(size_t, unsigned);                      // DO NOT IMPLEMENT
   ConstantAggregateZero(const ConstantAggregateZero &);      // DO NOT IMPLEMENT
 protected:
@@ -308,9 +312,25 @@ protected:
     return User::operator new(s, 0);
   }
 public:
-  static ConstantAggregateZero* get(Type *Ty);
+  static ConstantAggregateZero *get(Type *Ty);
   
   virtual void destroyConstant();
+
+  /// getSequentialElement - If this CAZ has array or vector type, return a zero
+  /// with the right element type.
+  Constant *getSequentialElement() const;
+
+  /// getStructElement - If this CAZ has struct type, return a zero with the
+  /// right element type for the specified element.
+  Constant *getStructElement(unsigned Elt) const;
+
+  /// getElementValue - Return a zero of the right value for the specified GEP
+  /// index.
+  Constant *getElementValue(Constant *C) const;
+
+  /// getElementValue - Return a zero of the right value for the specified GEP
+  /// index.
+  Constant *getElementValue(unsigned Idx) const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   ///
@@ -325,8 +345,7 @@ public:
 /// ConstantArray - Constant Array Declarations
 ///
 class ConstantArray : public Constant {
-  friend struct ConstantCreator<ConstantArray, ArrayType,
-                                    std::vector<Constant*> >;
+  friend struct ConstantArrayCreator<ConstantArray, ArrayType>;
   ConstantArray(const ConstantArray &);      // DO NOT IMPLEMENT
 protected:
   ConstantArray(ArrayType *T, ArrayRef<Constant *> Val);
@@ -334,15 +353,6 @@ public:
   // ConstantArray accessors
   static Constant *get(ArrayType *T, ArrayRef<Constant*> V);
                              
-  /// This method constructs a ConstantArray and initializes it with a text
-  /// string. The default behavior (AddNull==true) causes a null terminator to
-  /// be placed at the end of the array. This effectively increases the length
-  /// of the array by one (you've been warned).  However, in some situations 
-  /// this is not desired so if AddNull==false then the string is copied without
-  /// null termination.
-  static Constant *get(LLVMContext &Context, StringRef Initializer,
-                       bool AddNull = true);
-  
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
 
@@ -352,28 +362,6 @@ public:
   inline ArrayType *getType() const {
     return reinterpret_cast<ArrayType*>(Value::getType());
   }
-
-  /// isString - This method returns true if the array is an array of i8 and
-  /// the elements of the array are all ConstantInt's.
-  bool isString() const;
-
-  /// isCString - This method returns true if the array is a string (see
-  /// @verbatim
-  /// isString) and it ends in a null byte \0 and does not contains any other
-  /// @endverbatim
-  /// null bytes except its terminator.
-  bool isCString() const;
-
-  /// getAsString - If this array is isString(), then this method converts the
-  /// array to an std::string and returns it.  Otherwise, it asserts out.
-  ///
-  std::string getAsString() const;
-
-  /// getAsCString - If this array is isCString(), then this method converts the
-  /// array (without the trailing null byte) to an std::string and returns it.
-  /// Otherwise, it asserts out.
-  ///
-  std::string getAsCString() const;
 
   virtual void destroyConstant();
   virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
@@ -396,8 +384,7 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ConstantArray, Constant)
 // ConstantStruct - Constant Struct Declarations
 //
 class ConstantStruct : public Constant {
-  friend struct ConstantCreator<ConstantStruct, StructType,
-                                    std::vector<Constant*> >;
+  friend struct ConstantArrayCreator<ConstantStruct, StructType>;
   ConstantStruct(const ConstantStruct &);      // DO NOT IMPLEMENT
 protected:
   ConstantStruct(StructType *T, ArrayRef<Constant *> Val);
@@ -457,14 +444,17 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ConstantStruct, Constant)
 /// ConstantVector - Constant Vector Declarations
 ///
 class ConstantVector : public Constant {
-  friend struct ConstantCreator<ConstantVector, VectorType,
-                                    std::vector<Constant*> >;
+  friend struct ConstantArrayCreator<ConstantVector, VectorType>;
   ConstantVector(const ConstantVector &);      // DO NOT IMPLEMENT
 protected:
   ConstantVector(VectorType *T, ArrayRef<Constant *> Val);
 public:
   // ConstantVector accessors
   static Constant *get(ArrayRef<Constant*> V);
+  
+  /// getSplat - Return a ConstantVector with the specified constant in each
+  /// element.
+  static Constant *getSplat(unsigned NumElts, Constant *Elt);
   
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
@@ -475,12 +465,6 @@ public:
   inline VectorType *getType() const {
     return reinterpret_cast<VectorType*>(Value::getType());
   }
-  
-  /// This function will return true iff every element in this vector constant
-  /// is set to all ones.
-  /// @returns true iff this constant's emements are all set to all ones.
-  /// @brief Determine if the value is all ones.
-  bool isAllOnesValue() const;
 
   /// getSplatValue - If this is a splat constant, meaning that all of the
   /// elements have the same value, return that value. Otherwise return NULL.
@@ -507,7 +491,6 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ConstantVector, Constant)
 /// ConstantPointerNull - a constant pointer value that points to null
 ///
 class ConstantPointerNull : public Constant {
-  friend struct ConstantCreator<ConstantPointerNull, PointerType, char>;
   void *operator new(size_t, unsigned);                  // DO NOT IMPLEMENT
   ConstantPointerNull(const ConstantPointerNull &);      // DO NOT IMPLEMENT
 protected:
@@ -539,6 +522,240 @@ public:
     return V->getValueID() == ConstantPointerNullVal;
   }
 };
+  
+//===----------------------------------------------------------------------===//
+/// ConstantDataSequential - A vector or array constant whose element type is a
+/// simple 1/2/4/8-byte integer or float/double, and whose elements are just
+/// simple data values (i.e. ConstantInt/ConstantFP).  This Constant node has no
+/// operands because it stores all of the elements of the constant as densely
+/// packed data, instead of as Value*'s.
+///
+/// This is the common base class of ConstantDataArray and ConstantDataVector.
+///
+class ConstantDataSequential : public Constant {
+  friend class LLVMContextImpl;
+  /// DataElements - A pointer to the bytes underlying this constant (which is
+  /// owned by the uniquing StringMap).
+  const char *DataElements;
+  
+  /// Next - This forms a link list of ConstantDataSequential nodes that have
+  /// the same value but different type.  For example, 0,0,0,1 could be a 4
+  /// element array of i8, or a 1-element array of i32.  They'll both end up in
+  /// the same StringMap bucket, linked up.
+  ConstantDataSequential *Next;
+  void *operator new(size_t, unsigned);                      // DO NOT IMPLEMENT
+  ConstantDataSequential(const ConstantDataSequential &);    // DO NOT IMPLEMENT
+protected:
+  explicit ConstantDataSequential(Type *ty, ValueTy VT, const char *Data)
+    : Constant(ty, VT, 0, 0), DataElements(Data), Next(0) {}
+  ~ConstantDataSequential() { delete Next; }
+  
+  static Constant *getImpl(StringRef Bytes, Type *Ty);
+
+protected:
+  // allocate space for exactly zero operands.
+  void *operator new(size_t s) {
+    return User::operator new(s, 0);
+  }
+public:
+  
+  /// isElementTypeCompatible - Return true if a ConstantDataSequential can be
+  /// formed with a vector or array of the specified element type.
+  /// ConstantDataArray only works with normal float and int types that are
+  /// stored densely in memory, not with things like i42 or x86_f80.
+  static bool isElementTypeCompatible(const Type *Ty);
+  
+  /// getElementAsInteger - If this is a sequential container of integers (of
+  /// any size), return the specified element in the low bits of a uint64_t.
+  uint64_t getElementAsInteger(unsigned i) const;
+
+  /// getElementAsAPFloat - If this is a sequential container of floating point
+  /// type, return the specified element as an APFloat.
+  APFloat getElementAsAPFloat(unsigned i) const;
+
+  /// getElementAsFloat - If this is an sequential container of floats, return
+  /// the specified element as a float.
+  float getElementAsFloat(unsigned i) const;
+  
+  /// getElementAsDouble - If this is an sequential container of doubles, return
+  /// the specified element as a double.
+  double getElementAsDouble(unsigned i) const;
+  
+  /// getElementAsConstant - Return a Constant for a specified index's element.
+  /// Note that this has to compute a new constant to return, so it isn't as
+  /// efficient as getElementAsInteger/Float/Double.
+  Constant *getElementAsConstant(unsigned i) const;
+  
+  /// getType - Specialize the getType() method to always return a
+  /// SequentialType, which reduces the amount of casting needed in parts of the
+  /// compiler.
+  inline SequentialType *getType() const {
+    return reinterpret_cast<SequentialType*>(Value::getType());
+  }
+  
+  /// getElementType - Return the element type of the array/vector.
+  Type *getElementType() const;
+  
+  /// getNumElements - Return the number of elements in the array or vector.
+  unsigned getNumElements() const;
+
+  /// getElementByteSize - Return the size (in bytes) of each element in the
+  /// array/vector.  The size of the elements is known to be a multiple of one
+  /// byte.
+  uint64_t getElementByteSize() const;
+
+  
+  /// isString - This method returns true if this is an array of i8.
+  bool isString() const;
+  
+  /// isCString - This method returns true if the array "isString", ends with a
+  /// nul byte, and does not contains any other nul bytes.
+  bool isCString() const;
+  
+  /// getAsString - If this array is isString(), then this method returns the
+  /// array as a StringRef.  Otherwise, it asserts out.
+  ///
+  StringRef getAsString() const {
+    assert(isString() && "Not a string");
+    return getRawDataValues();
+  }
+  
+  /// getAsCString - If this array is isCString(), then this method returns the
+  /// array (without the trailing null byte) as a StringRef. Otherwise, it
+  /// asserts out.
+  ///
+  StringRef getAsCString() const {
+    assert(isCString() && "Isn't a C string");
+    StringRef Str = getAsString();
+    return Str.substr(0, Str.size()-1);
+  }
+  
+  /// getRawDataValues - Return the raw, underlying, bytes of this data.  Note
+  /// that this is an extremely tricky thing to work with, as it exposes the
+  /// host endianness of the data elements.
+  StringRef getRawDataValues() const;
+  
+  virtual void destroyConstant();
+  
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
+  ///
+  static bool classof(const ConstantDataSequential *) { return true; }
+  static bool classof(const Value *V) {
+    return V->getValueID() == ConstantDataArrayVal ||
+           V->getValueID() == ConstantDataVectorVal;
+  }
+private:
+  const char *getElementPointer(unsigned Elt) const;
+};
+
+//===----------------------------------------------------------------------===//
+/// ConstantDataArray - An array constant whose element type is a simple
+/// 1/2/4/8-byte integer or float/double, and whose elements are just simple
+/// data values (i.e. ConstantInt/ConstantFP).  This Constant node has no
+/// operands because it stores all of the elements of the constant as densely
+/// packed data, instead of as Value*'s.
+class ConstantDataArray : public ConstantDataSequential {
+  void *operator new(size_t, unsigned);            // DO NOT IMPLEMENT
+  ConstantDataArray(const ConstantDataArray &);    // DO NOT IMPLEMENT
+  virtual void anchor();
+  friend class ConstantDataSequential;
+  explicit ConstantDataArray(Type *ty, const char *Data)
+    : ConstantDataSequential(ty, ConstantDataArrayVal, Data) {}
+protected:
+  // allocate space for exactly zero operands.
+  void *operator new(size_t s) {
+    return User::operator new(s, 0);
+  }
+public:
+  
+  /// get() constructors - Return a constant with array type with an element
+  /// count and element type matching the ArrayRef passed in.  Note that this
+  /// can return a ConstantAggregateZero object.
+  static Constant *get(LLVMContext &Context, ArrayRef<uint8_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<uint16_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<uint32_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<uint64_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<float> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<double> Elts);
+  
+  /// getString - This method constructs a CDS and initializes it with a text
+  /// string. The default behavior (AddNull==true) causes a null terminator to
+  /// be placed at the end of the array (increasing the length of the string by
+  /// one more than the StringRef would normally indicate.  Pass AddNull=false
+  /// to disable this behavior.
+  static Constant *getString(LLVMContext &Context, StringRef Initializer,
+                             bool AddNull = true);
+
+  /// getType - Specialize the getType() method to always return an ArrayType,
+  /// which reduces the amount of casting needed in parts of the compiler.
+  ///
+  inline ArrayType *getType() const {
+    return reinterpret_cast<ArrayType*>(Value::getType());
+  }
+  
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
+  ///
+  static bool classof(const ConstantDataArray *) { return true; }
+  static bool classof(const Value *V) {
+    return V->getValueID() == ConstantDataArrayVal;
+  }
+};
+  
+//===----------------------------------------------------------------------===//
+/// ConstantDataVector - A vector constant whose element type is a simple
+/// 1/2/4/8-byte integer or float/double, and whose elements are just simple
+/// data values (i.e. ConstantInt/ConstantFP).  This Constant node has no
+/// operands because it stores all of the elements of the constant as densely
+/// packed data, instead of as Value*'s.
+class ConstantDataVector : public ConstantDataSequential {
+  void *operator new(size_t, unsigned);              // DO NOT IMPLEMENT
+  ConstantDataVector(const ConstantDataVector &);    // DO NOT IMPLEMENT
+  virtual void anchor();
+  friend class ConstantDataSequential;
+  explicit ConstantDataVector(Type *ty, const char *Data)
+  : ConstantDataSequential(ty, ConstantDataVectorVal, Data) {}
+protected:
+  // allocate space for exactly zero operands.
+  void *operator new(size_t s) {
+    return User::operator new(s, 0);
+  }
+public:
+  
+  /// get() constructors - Return a constant with vector type with an element
+  /// count and element type matching the ArrayRef passed in.  Note that this
+  /// can return a ConstantAggregateZero object.
+  static Constant *get(LLVMContext &Context, ArrayRef<uint8_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<uint16_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<uint32_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<uint64_t> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<float> Elts);
+  static Constant *get(LLVMContext &Context, ArrayRef<double> Elts);
+  
+  /// getSplat - Return a ConstantVector with the specified constant in each
+  /// element.  The specified constant has to be a of a compatible type (i8/i16/
+  /// i32/i64/float/double) and must be a ConstantFP or ConstantInt.
+  static Constant *getSplat(unsigned NumElts, Constant *Elt);
+
+  /// getSplatValue - If this is a splat constant, meaning that all of the
+  /// elements have the same value, return that value. Otherwise return NULL.
+  Constant *getSplatValue() const;
+  
+  /// getType - Specialize the getType() method to always return a VectorType,
+  /// which reduces the amount of casting needed in parts of the compiler.
+  ///
+  inline VectorType *getType() const {
+    return reinterpret_cast<VectorType*>(Value::getType());
+  }
+  
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
+  ///
+  static bool classof(const ConstantDataVector *) { return true; }
+  static bool classof(const Value *V) {
+    return V->getValueID() == ConstantDataVectorVal;
+  }
+};
+
+
 
 /// BlockAddress - The address of a basic block.
 ///
@@ -897,7 +1114,6 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ConstantExpr, Constant)
 /// LangRef.html#undefvalues for details.
 ///
 class UndefValue : public Constant {
-  friend struct ConstantCreator<UndefValue, Type, char>;
   void *operator new(size_t, unsigned); // DO NOT IMPLEMENT
   UndefValue(const UndefValue &);      // DO NOT IMPLEMENT
 protected:
@@ -912,6 +1128,22 @@ public:
   /// type.
   ///
   static UndefValue *get(Type *T);
+
+  /// getSequentialElement - If this Undef has array or vector type, return a
+  /// undef with the right element type.
+  UndefValue *getSequentialElement() const;
+  
+  /// getStructElement - If this undef has struct type, return a undef with the
+  /// right element type for the specified element.
+  UndefValue *getStructElement(unsigned Elt) const;
+  
+  /// getElementValue - Return an undef of the right value for the specified GEP
+  /// index.
+  UndefValue *getElementValue(Constant *C) const;
+
+  /// getElementValue - Return an undef of the right value for the specified GEP
+  /// index.
+  UndefValue *getElementValue(unsigned Idx) const;
 
   virtual void destroyConstant();
 

@@ -75,8 +75,14 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 int iosize_max_clamp = 1;
-SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW, &iosize_max_clamp, 0,
-    "Clamp max i/o size to INT_MAX");
+SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
+    &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
+/*
+ * Assert that the return value of read(2) and write(2) syscalls fits
+ * into a register.  If not, an architecture will need to provide the
+ * usermode wrappers to reconstruct the result.
+ */
+CTASSERT(sizeof(register_t) >= sizeof(size_t));
 
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
@@ -338,12 +344,7 @@ dofileread(td, fd, fp, auio, offset, flags)
 		ktrgenio(fd, UIO_READ, ktruio, error);
 	}
 #endif
-#if SSIZE_MAX > LONG_MAX
-	td->td_retval[1] = cnt >> (sizeof(register_t) * CHAR_BIT);
 	td->td_retval[0] = cnt;
-#else
-	td->td_retval[0] = cnt;
-#endif
 	return (error);
 }
 
@@ -555,12 +556,7 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 		ktrgenio(fd, UIO_WRITE, ktruio, error);
 	}
 #endif
-#if SSIZE_MAX > LONG_MAX
-	td->td_retval[1] = cnt >> (sizeof(register_t) * CHAR_BIT);
 	td->td_retval[0] = cnt;
-#else
-	td->td_retval[0] = cnt;
-#endif
 	return (error);
 }
 

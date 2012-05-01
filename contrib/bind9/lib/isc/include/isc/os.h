@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.12 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: os.h,v 1.12 2007/06/19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_OS_H
 #define ISC_OS_H 1

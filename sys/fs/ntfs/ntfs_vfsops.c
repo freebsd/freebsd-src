@@ -345,11 +345,11 @@ ntfs_mountfs(devvp, mp, td)
 
 	ntmp->ntm_mountp = mp;
 	ntmp->ntm_devvp = devvp;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v) == 1)
 		ntmp->ntm_uid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v) == 1)
 		ntmp->ntm_gid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "mode", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "mode", "%d", &v) == 1)
 		ntmp->ntm_mode = v & ACCESSPERMS;
 	vfs_flagopt(mp->mnt_optnew,
 	    "caseins", &ntmp->ntm_flag, NTFS_MFLAG_CASEINS);

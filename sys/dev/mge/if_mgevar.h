@@ -106,6 +106,7 @@ struct mge_softc {
 	int		mge_intr_cnt;
 	uint8_t		mge_hw_csum;
 
+	struct mge_softc *phy_sc;
 };
 
 

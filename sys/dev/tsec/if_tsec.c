@@ -106,8 +106,6 @@ static void	tsec_offload_process_frame(struct tsec_softc *sc,
 static void	tsec_setup_multicast(struct tsec_softc *sc);
 static int	tsec_set_mtu(struct tsec_softc *sc, unsigned int mtu);
 
-struct tsec_softc *tsec0_sc = NULL; /* XXX ugly hack! */
-
 devclass_t tsec_devclass;
 DRIVER_MODULE(miibus, tsec, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(tsec, ether, 1, 1, 1);
@@ -406,14 +404,14 @@ tsec_init_locked(struct tsec_softc *sc)
 	TSEC_WRITE(sc, TSEC_REG_TBIPA, 5);
 
 	/* Step 6: Reset the management interface */
-	TSEC_WRITE(tsec0_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_RESETMGMT);
+	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_RESETMGMT);
 
 	/* Step 7: Setup the MII Mgmt clock speed */
-	TSEC_WRITE(tsec0_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_CLKDIV28);
+	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_CLKDIV28);
 
 	/* Step 8: Read MII Mgmt indicator register and check for Busy = 0 */
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_READ(tsec0_sc, TSEC_REG_MIIMIND) &
+	while (--timeout && (TSEC_READ(sc->phy_sc, TSEC_REG_MIIMIND) &
 	    TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 	if (timeout == 0) {
@@ -1561,21 +1559,21 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 	struct tsec_softc *sc;
 	uint32_t timeout;
 
-	sc = tsec0_sc;
+	sc = device_get_softc(dev);
 
-	TSEC_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
-	TSEC_WRITE(sc, TSEC_REG_MIIMCOM, 0);
-	TSEC_WRITE(sc, TSEC_REG_MIIMCOM, TSEC_MIIMCOM_READCYCLE);
+	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
+	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCOM, 0);
+	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCOM, TSEC_MIIMCOM_READCYCLE);
 
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && TSEC_READ(sc, TSEC_REG_MIIMIND) &
+	while (--timeout && TSEC_READ(sc->phy_sc, TSEC_REG_MIIMIND) &
 	    (TSEC_MIIMIND_NOTVALID | TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 
 	if (timeout == 0)
 		device_printf(dev, "Timeout while reading from PHY!\n");
 
-	return (TSEC_READ(sc, TSEC_REG_MIIMSTAT));
+	return (TSEC_READ(sc->phy_sc, TSEC_REG_MIIMSTAT));
 }
 
 int
@@ -1584,13 +1582,13 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 	struct tsec_softc *sc;
 	uint32_t timeout;
 
-	sc = tsec0_sc;
+	sc = device_get_softc(dev);
 
-	TSEC_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
-	TSEC_WRITE(sc, TSEC_REG_MIIMCON, value);
+	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
+	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCON, value);
 
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_READ(sc, TSEC_REG_MIIMIND) &
+	while (--timeout && (TSEC_READ(sc->phy_sc, TSEC_REG_MIIMIND) &
 	    TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 

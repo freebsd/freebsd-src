@@ -2160,10 +2160,6 @@ vga_save_state(video_adapter_t *adp, void *p, size_t size)
 	    buf[1] = info.vi_height - 1;	/* ROWS */
 	}
 	buf[2] = info.vi_cheight;		/* POINTS */
-    } else {
-	/* XXX: shouldn't be happening... */
-	printf("vga%d: %s: failed to obtain mode info. (vga_save_state())\n",
-	       adp->va_unit, adp->va_name);
     }
 #else
     buf[0] = readb(BIOS_PADDRTOVADDR(0x44a));	/* COLS */

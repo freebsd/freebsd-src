@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: sniffer,v 1.18 2011/08/08 08:49:27 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -73,6 +74,7 @@
 # that use "libpcap", or that use the same capture file format.)
 #
 0	ubelong		0xa1b2c3d4	tcpdump capture file (big-endian)
+!:mime	application/vnd.tcpdump.pcap
 >4	beshort		x		- version %d
 >6	beshort		x		\b.%d
 >20	belong		0		(No link-layer encapsulation
@@ -137,6 +139,7 @@
 >20	belong		163		(802.11 with AVS header
 >16	belong		x		\b, capture length %d)
 0	ulelong		0xa1b2c3d4	tcpdump capture file (little-endian)
+!:mime	application/vnd.tcpdump.pcap
 >4	leshort		x		- version %d
 >6	leshort		x		\b.%d
 >20	lelong		0		(No link-layer encapsulation
@@ -245,6 +248,21 @@
 >20	lelong		13		(BSD/OS SLIP
 >20	lelong		14		(BSD/OS PPP
 >16	lelong		x		\b, capture length %d)
+
+#
+# "pcap-ng" capture files.
+# http://www.winpcap.org/ntar/draft/PCAP-DumpFileFormat.html
+# Pcap-ng files can contain multiple sections. Printing the endianness,
+# snaplen, or other information from the first SHB may be misleading.
+#
+0	ubelong		0x0a0d0d0a
+>8	ubelong		0x1a2b3c4d	pcap-ng capture file
+>>12	beshort		x		- version %d
+>>14	beshort		x		\b.%d
+0	ulelong		0x0a0d0d0a
+>8	ulelong		0x1a2b3c4d	pcap-ng capture file
+>>12	leshort		x		- version %d
+>>14	leshort		x		\b.%d
 
 #
 # AIX "iptrace" capture files.

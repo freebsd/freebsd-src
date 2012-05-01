@@ -2669,7 +2669,7 @@ lem_setup_transmit_structures(struct adapter *adapter)
 #ifdef DEV_NETMAP
 		if (slot) {
 			/* the i-th NIC entry goes to slot si */
-			int si = netmap_tidx_n2k(na, 0, i);
+			int si = netmap_idx_n2k(&na->tx_rings[0], i);
 			uint64_t paddr;
 			void *addr;
 
@@ -3243,7 +3243,7 @@ lem_setup_receive_structures(struct adapter *adapter)
 #ifdef DEV_NETMAP
 		if (slot) {
 			/* the i-th NIC entry goes to slot si */
-			int si = netmap_ridx_n2k(na, 0, i);
+			int si = netmap_idx_n2k(&na->rx_rings[0], i);
 			uint64_t paddr;
 			void *addr;
 
@@ -3475,7 +3475,9 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
-		selwakeuppri(&NA(ifp)->rx_rings[0].si, PI_NET);
+		struct netmap_adapter *na = NA(ifp);
+		na->rx_rings[0].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&na->rx_rings[0].si, PI_NET);
 		EM_RX_UNLOCK(adapter);
 		return (0);
 	}

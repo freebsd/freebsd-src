@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar91xxreg.h>
 #include <mips/atheros/ar91xx_chip.h>
 
@@ -209,6 +210,7 @@ struct ar71xx_cpu_def ar91xx_chip_def = {
 	&ar91xx_chip_device_start,
 	&ar91xx_chip_device_stopped,
 	&ar91xx_chip_set_pll_ge,
+	&ar71xx_chip_set_mii_speed,
 	&ar91xx_chip_ddr_flush_ge,
 	&ar91xx_chip_get_eth_pll,
 	&ar91xx_chip_ddr_flush_ip2,

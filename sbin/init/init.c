@@ -86,13 +86,13 @@ static const char rcsid[] =
  */
 #define	GETTY_SPACING		 5	/* N secs minimum getty spacing */
 #define	GETTY_SLEEP		30	/* sleep N secs after spacing problem */
-#define	GETTY_NSPACE             3      /* max. spacing count to bring reaction */
+#define	GETTY_NSPACE		 3	/* max. spacing count to bring reaction */
 #define	WINDOW_WAIT		 3	/* wait N secs after starting window */
 #define	STALL_TIMEOUT		30	/* wait N secs after warning */
 #define	DEATH_WATCH		10	/* wait N secs for procs to die */
 #define	DEATH_SCRIPT		120	/* wait for 2min for /etc/rc.shutdown */
 #define	RESOURCE_RC		"daemon"
-#define	RESOURCE_WINDOW 	"default"
+#define	RESOURCE_WINDOW		"default"
 #define	RESOURCE_GETTY		"default"
 
 static void handle(sig_t, ...);
@@ -138,7 +138,7 @@ static void transition(state_t);
 static state_t requested_transition;
 static state_t current_state = death_single;
 
-static void setctty(const char *);
+static void open_console(void);
 static const char *get_shell(void);
 static void write_stderr(const char *message);
 
@@ -149,15 +149,15 @@ typedef struct init_session {
 	int	se_flags;		/* status of session */
 #define	SE_SHUTDOWN	0x1		/* session won't be restarted */
 #define	SE_PRESENT	0x2		/* session is in /etc/ttys */
-	int     se_nspace;              /* spacing count */
+	int	se_nspace;		/* spacing count */
 	char	*se_device;		/* filename of port */
 	char	*se_getty;		/* what to run on that port */
-	char    *se_getty_argv_space;   /* pre-parsed argument array space */
+	char	*se_getty_argv_space;   /* pre-parsed argument array space */
 	char	**se_getty_argv;	/* pre-parsed argument array */
 	char	*se_window;		/* window system (started only once) */
-	char    *se_window_argv_space;  /* pre-parsed argument array space */
+	char	*se_window_argv_space;  /* pre-parsed argument array space */
 	char	**se_window_argv;	/* pre-parsed argument array */
-	char    *se_type;               /* default terminal type */
+	char	*se_type;		/* default terminal type */
 	struct	init_session *se_prev;
 	struct	init_session *se_next;
 } session_t;
@@ -568,19 +568,39 @@ transition(state_t s)
  * Only called by children of init after forking.
  */
 static void
-setctty(const char *name)
+open_console(void)
 {
 	int fd;
 
-	revoke(name);
-	if ((fd = open(name, O_RDWR)) == -1) {
-		stall("can't open %s: %m", name);
+	/*
+	 * Try to open /dev/console.  Open the device with O_NONBLOCK to
+	 * prevent potential blocking on a carrier.
+	 */
+	revoke(_PATH_CONSOLE);
+	if ((fd = open(_PATH_CONSOLE, O_RDWR | O_NONBLOCK)) != -1) {
+		(void)fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
+		if (login_tty(fd) == 0)
+			return;
+		close(fd);
+	}
+
+	/* No luck.  Log output to file if possible. */
+	if ((fd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+		stall("cannot open null device.");
 		_exit(1);
 	}
-	if (login_tty(fd) == -1) {
-		stall("can't get %s for controlling terminal: %m", name);
-		_exit(1);
+	if (fd != STDIN_FILENO) {
+		dup2(fd, STDIN_FILENO);
+		close(fd);
 	}
+	fd = open(_PATH_INITLOG, O_WRONLY | O_APPEND | O_CREAT, 0644);
+	if (fd == -1)
+		dup2(STDIN_FILENO, STDOUT_FILENO);
+	else if (fd != STDOUT_FILENO) {
+		dup2(fd, STDOUT_FILENO);
+		close(fd);
+	}
+	dup2(STDOUT_FILENO, STDERR_FILENO);
 }
 
 static const char *
@@ -638,7 +658,7 @@ single_user(void)
 		/*
 		 * Start the single user session.
 		 */
-		setctty(_PATH_CONSOLE);
+		open_console();
 
 #ifdef SECURE
 		/*
@@ -657,7 +677,7 @@ single_user(void)
 					_exit(0);
 				password = crypt(clear, pp->pw_passwd);
 				bzero(clear, _PASSWORD_LEN);
-				if (password == NULL || 
+				if (password == NULL ||
 				    strcmp(password, pp->pw_passwd) == 0)
 					break;
 				warning("single-user login failed\n");
@@ -798,9 +818,9 @@ run_script(const char *script)
 		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		sigaction(SIGHUP, &sa, (struct sigaction *)0);
 
-		setctty(_PATH_CONSOLE);
+		open_console();
 
-		char _sh[]	 	= "sh";
+		char _sh[]		= "sh";
 		char _autoboot[]	= "autoboot";
 
 		argv[0] = _sh;
@@ -1572,7 +1592,7 @@ runshutdown(void)
 		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		sigaction(SIGHUP, &sa, (struct sigaction *)0);
 
-		setctty(_PATH_CONSOLE);
+		open_console();
 
 		char _sh[]	= "sh";
 		char _reboot[]	= "reboot";

@@ -1,34 +1,36 @@
 /*
- * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "der_locl.h"
@@ -39,9 +41,8 @@
 #include <err.h>
 #include <der.h>
 
-RCSID("$Id: asn1_print.c 19539 2006-12-28 17:15:05Z lha $");
-
 static int indent_flag = 1;
+static int inner_flag = 0;
 
 static unsigned long indefinite_form_loop;
 static unsigned long indefinite_form_loop_max = 10000;
@@ -151,13 +152,13 @@ loop (unsigned char *buf, size_t len, int indent)
 
 		    ret = der_get_heim_integer(buf, length, &vali, NULL);
 		    if (ret)
-			errx (1, "der_get_heim_integer: %s", 
+			errx (1, "der_get_heim_integer: %s",
 			      error_message (ret));
 		    ret = der_print_hex_heim_integer(&vali, &p);
 		    if (ret)
-			errx (1, "der_print_hex_heim_integer: %s", 
+			errx (1, "der_print_hex_heim_integer: %s",
 			      error_message (ret));
-		    printf ("BIG NUM integer: length %lu %s\n", 
+		    printf ("BIG NUM integer: length %lu %s\n",
 			    (unsigned long)length, p);
 		    free(p);
 		}
@@ -165,24 +166,70 @@ loop (unsigned char *buf, size_t len, int indent)
 	    }
 	    case UT_OctetString : {
 		heim_octet_string str;
-		int i;
-		unsigned char *uc;
+		size_t i;
 
 		ret = der_get_octet_string (buf, length, &str, NULL);
 		if (ret)
 		    errx (1, "der_get_octet_string: %s", error_message (ret));
 		printf ("(length %lu), ", (unsigned long)length);
-		uc = (unsigned char *)str.data;
-		for (i = 0; i < min(16,length); ++i)
-		    printf ("%02x", uc[i]);
-		printf ("\n");
+
+		if (inner_flag) {
+		    Der_class class;
+		    Der_type type;
+		    unsigned int tag;
+
+		    ret = der_get_tag(str.data, str.length,
+				      &class, &type, &tag, &sz);
+		    if (ret || sz > str.length ||
+			type != CONS || tag != UT_Sequence)
+			goto just_an_octet_string;
+
+		    printf("{\n");
+		    loop (str.data, str.length, indent + 2);
+		    for (i = 0; i < indent; ++i)
+			printf (" ");
+		    printf ("}\n");
+
+		} else {
+		    unsigned char *uc;
+
+		just_an_octet_string:
+		    uc = (unsigned char *)str.data;
+		    for (i = 0; i < min(16,length); ++i)
+			printf ("%02x", uc[i]);
+		    printf ("\n");
+		}
 		free (str.data);
+		break;
+	    }
+	    case UT_IA5String :
+	    case UT_PrintableString : {
+		heim_printable_string str;
+		unsigned char *s;
+		size_t n;
+
+		memset(&str, 0, sizeof(str));
+
+		ret = der_get_printable_string (buf, length, &str, NULL);
+		if (ret)
+		    errx (1, "der_get_general_string: %s",
+			  error_message (ret));
+		s = str.data;
+		printf("\"");
+		for (n = 0; n < str.length; n++) {
+		    if (isprint((int)s[n]))
+			printf ("%c", s[n]);
+		    else
+			printf ("#%02x", s[n]);
+		}
+		printf("\"\n");
+		der_free_printable_string(&str);
 		break;
 	    }
 	    case UT_GeneralizedTime :
 	    case UT_GeneralString :
-	    case UT_PrintableString :
-	    case UT_VisibleString : {
+	    case UT_VisibleString :
+	    case UT_UTF8String : {
 		heim_general_string str;
 
 		ret = der_get_general_string (buf, length, &str, NULL);
@@ -215,7 +262,7 @@ loop (unsigned char *buf, size_t len, int indent)
 		ret = der_get_integer (buf, length, &num, NULL);
 		if (ret)
 		    errx (1, "der_get_enum: %s", error_message (ret));
-		
+
 		printf("%u\n", num);
 		break;
 	    }
@@ -226,7 +273,7 @@ loop (unsigned char *buf, size_t len, int indent)
 	}
 	if (end_tag) {
 	    if (loop_length == 0)
-		errx(1, "zero length INDEFINITE data ? indent = %d\n", 
+		errx(1, "zero length INDEFINITE data ? indent = %d\n",
 		     indent / 2);
 	    if (loop_length < length)
 		length = loop_length;
@@ -261,7 +308,7 @@ doit (const char *filename)
     close (fd);
     ret = loop (buf, len, 0);
     free (buf);
-    return 0;
+    return ret;
 }
 
 
@@ -269,6 +316,7 @@ static int version_flag;
 static int help_flag;
 struct getargs args[] = {
     { "indent", 0, arg_negative_flag, &indent_flag },
+    { "inner", 0, arg_flag, &inner_flag, "try to parse inner structures of OCTET STRING" },
     { "version", 0, arg_flag, &version_flag },
     { "help", 0, arg_flag, &help_flag }
 };

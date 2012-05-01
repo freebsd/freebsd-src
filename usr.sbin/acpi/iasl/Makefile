@@ -20,7 +20,8 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslutils.c asluuid.c aslwalks.c dtcompile.c dtexpress.c	\
 	dtfield.c dtio.c dtparser.y.h dtparserlex.c		\
 	dtparserparse.c dtsubtable.c dttable.c dttemplate.c	\
-	dtutils.c
+	dtutils.c prexpress.c prmacros.c prparser.y.h		\
+	prparserlex.c prparserparse.c prscan.c prutils.c
 
 # components/debugger
 SRCS+=	dbfileio.c
@@ -72,22 +73,35 @@ CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
 	dtparserparse.c dtparserparse.h
 
-aslcompilerlex.c: aslcompiler.l
-	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} ${.ALLSRC}
+aslcompilerlex.c: aslcompiler.l aslsupport.l
+	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} \
+	    ${ACPICA_DIR}/compiler/aslcompiler.l
 
-aslcompilerparse.c: aslcompiler.y
-	${YACC} ${YFLAGS} -pAslCompiler -o${.TARGET} ${.ALLSRC}
+.ORDER: aslcompilerparse.c aslcompilerparse.h
+aslcompilerparse.c aslcompilerparse.h: aslcompiler.y
+	${YACC} ${YFLAGS} -pAslCompiler -oaslcompilerparse.c ${.ALLSRC}
 
-aslcompiler.y.h: aslcompilerparse.c
-	mv -f aslcompilerparse.h ${.TARGET}
+aslcompiler.y.h: aslcompilerparse.h
+	ln -f ${.ALLSRC} ${.TARGET}
 
 dtparserlex.c: dtparser.l
 	${LEX} ${LFLAGS} -PDtParser -o${.TARGET} ${.ALLSRC}
 
-dtparserparse.c: dtparser.y
-	${YACC} ${YFLAGS} -pDtParser -o${.TARGET} ${.ALLSRC}
+.ORDER: dtparserparse.c dtparserparse.h
+dtparserparse.c dtparserparse.h: dtparser.y
+	${YACC} ${YFLAGS} -pDtParser -odtparserparse.c ${.ALLSRC}
 
-dtparser.y.h: dtparserparse.c
-	mv -f dtparserparse.h ${.TARGET}
+dtparser.y.h: dtparserparse.h
+	ln -f ${.ALLSRC} ${.TARGET}
+
+prparserlex.c: prparser.l
+	${LEX} ${LFLAGS} -PPrParser -o${.TARGET} ${.ALLSRC}
+
+.ORDER: prparserparse.c prparserparse.h
+prparserparse.c prparserparse.h: prparser.y
+	${YACC} ${YFLAGS} -pPrParser -oprparserparse.c ${.ALLSRC}
+
+prparser.y.h: prparserparse.h
+	ln -f ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

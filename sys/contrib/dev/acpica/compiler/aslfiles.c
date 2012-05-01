@@ -50,7 +50,7 @@
 
 /* Local prototypes */
 
-static FILE *
+FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename);
@@ -81,12 +81,12 @@ AslAbort (
     void)
 {
 
-    AePrintErrorLog (ASL_FILE_STDOUT);
+    AePrintErrorLog (ASL_FILE_STDERR);
     if (Gbl_DebugFlag)
     {
-        /* Print error summary to the debug file */
+        /* Print error summary to stdout also */
 
-        AePrintErrorLog (ASL_FILE_STDERR);
+        AePrintErrorLog (ASL_FILE_STDOUT);
     }
 
     exit (1);
@@ -363,14 +363,13 @@ FlCloseFile (
     }
 
     Error = fclose (Gbl_Files[FileId].Handle);
-    Gbl_Files[FileId].Handle = NULL;
-
     if (Error)
     {
         FlFileError (FileId, ASL_MSG_CLOSE);
         AslAbort ();
     }
 
+    Gbl_Files[FileId].Handle = NULL;
     return;
 }
 
@@ -389,11 +388,38 @@ FlCloseFile (
 
 void
 FlSetLineNumber (
-    ACPI_PARSE_OBJECT       *Op)
+    UINT32                  LineNumber)
 {
 
-    Gbl_CurrentLineNumber = (UINT32) Op->Asl.Value.Integer;
-    Gbl_LogicalLineNumber = (UINT32) Op->Asl.Value.Integer;
+    DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New line number %u (old %u)\n",
+         LineNumber, Gbl_LogicalLineNumber);
+
+    Gbl_CurrentLineNumber = LineNumber;
+    Gbl_LogicalLineNumber = LineNumber;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlSetFilename
+ *
+ * PARAMETERS:  Op        - Parse node for the LINE asl statement
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Set the current filename
+ *
+ ******************************************************************************/
+
+void
+FlSetFilename (
+    char                    *Filename)
+{
+
+    DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New filename %s (old %s)\n",
+         Filename, Gbl_Files[ASL_FILE_INPUT].Filename);
+
+    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
 }
 
 
@@ -478,7 +504,7 @@ FlAddIncludeDirectory (
  *
  ******************************************************************************/
 
-static FILE *
+FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename)
@@ -549,7 +575,7 @@ FlOpenIncludeFile (
      * Flush out the "include ()" statement on this line, start
      * the actual include file on the next line
      */
-    ResetCurrentLineBuffer ();
+    AslResetCurrentLineBuffer ();
     FlPrintFile (ASL_FILE_SOURCE_OUTPUT, "\n");
     Gbl_CurrentLineOffset++;
 
@@ -740,6 +766,13 @@ FlOpenMiscOutputFiles (
         Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
             freopen (Filename, "w+t", stderr);
 
+        if (!Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_DEBUG_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
         AslCompilerSignon (ASL_FILE_DEBUG_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_DEBUG_OUTPUT);
     }
@@ -764,12 +797,29 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_LISTING_OUTPUT);
     }
 
+    /* Create the preprocessor output file if preprocessor enabled */
+
+    if (Gbl_PreprocessFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROCESSOR);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_PREPROCESSOR_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+b");
+    }
+
+    /* All done for data table compiler */
+
     if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         return (AE_OK);
     }
 
-    /* Create/Open a combined source output file */
+   /* Create/Open a combined source output file */
 
     Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_SOURCE);
     if (!Filename)
@@ -786,6 +836,10 @@ FlOpenMiscOutputFiles (
      */
     FlOpenFile (ASL_FILE_SOURCE_OUTPUT, Filename, "w+b");
 
+/*
+// TBD: TEMP
+//    AslCompilerin = Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
+*/
     /* Create/Open a assembly code source output file if asked */
 
     if (Gbl_AsmOutputFlag)

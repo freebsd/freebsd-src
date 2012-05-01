@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: iterated_hash.h,v 1.3 2008-09-25 04:02:39 tbox Exp $ */
+/* $Id: iterated_hash.h,v 1.3 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef ISC_ITERATED_HASH_H
 #define ISC_ITERATED_HASH_H 1

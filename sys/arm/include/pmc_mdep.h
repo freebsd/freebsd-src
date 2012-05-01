@@ -29,7 +29,7 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_XSCALE	0
+#define	PMC_MDEP_CLASS_INDEX_XSCALE	1
 /*
  * On the ARM platform we support the following PMCs.
  *

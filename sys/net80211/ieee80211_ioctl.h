@@ -241,8 +241,12 @@ struct ieee80211_stats {
 	uint32_t	is_mesh_notproxy;	/* dropped 'cuz not proxying */
 	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
 	uint32_t	is_hwmp_proxy;		/* PREP for proxy route */
-	
-	uint32_t	is_spare[11];
+	uint32_t	is_beacon_bad;		/* Number of bad beacons */
+	uint32_t	is_ampdu_bar_tx;	/* A-MPDU BAR frames TXed */
+	uint32_t	is_ampdu_bar_tx_retry;	/* A-MPDU BAR frames TX rtry */
+	uint32_t	is_ampdu_bar_tx_fail;	/* A-MPDU BAR frames TX fail */
+
+	uint32_t	is_spare[7];
 };
 
 /*

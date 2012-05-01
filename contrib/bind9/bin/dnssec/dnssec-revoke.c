@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-revoke.c,v 1.22 2010-05-06 23:50:56 tbox Exp $ */
+/* $Id: dnssec-revoke.c,v 1.22.124.2 2011/10/20 23:46:27 tbox Exp $ */
 
 /*! \file */
 
@@ -92,6 +92,7 @@ main(int argc, char **argv) {
 	isc_buffer_t buf;
 	isc_boolean_t force = ISC_FALSE;
 	isc_boolean_t remove = ISC_FALSE;
+	isc_boolean_t id = ISC_FALSE;
 
 	if (argc == 1)
 		usage();
@@ -104,7 +105,7 @@ main(int argc, char **argv) {
 
 	isc_commandline_errprint = ISC_FALSE;
 
-	while ((ch = isc_commandline_parse(argc, argv, "E:fK:rhv:")) != -1) {
+	while ((ch = isc_commandline_parse(argc, argv, "E:fK:rRhv:")) != -1) {
 		switch (ch) {
 		    case 'E':
 			engine = isc_commandline_argument;
@@ -125,6 +126,9 @@ main(int argc, char **argv) {
 			break;
 		    case 'r':
 			remove = ISC_TRUE;
+			break;
+		    case 'R':
+			id = ISC_TRUE;
 			break;
 		    case 'v':
 			verbose = strtol(isc_commandline_argument, &endp, 0);
@@ -186,6 +190,10 @@ main(int argc, char **argv) {
 		fatal("Invalid keyfile name %s: %s",
 		      filename, isc_result_totext(result));
 
+	if (id) {
+		fprintf(stdout, "%u\n", dst_key_rid(key));
+		goto cleanup;
+	}
 	dst_key_format(key, keystr, sizeof(keystr));
 
 	if (verbose > 2)

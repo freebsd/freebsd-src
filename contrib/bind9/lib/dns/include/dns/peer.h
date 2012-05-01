@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: peer.h,v 1.35 2009-01-17 23:47:43 tbox Exp $ */
+/* $Id: peer.h,v 1.35 2009/01/17 23:47:43 tbox Exp $ */
 
 #ifndef DNS_PEER_H
 #define DNS_PEER_H 1

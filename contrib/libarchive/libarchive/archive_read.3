@@ -24,179 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2009
+.Dd March 23, 2011
 .Dt ARCHIVE_READ 3
 .Os
 .Sh NAME
-.Nm archive_read_new ,
-.Nm archive_read_set_filter_options ,
-.Nm archive_read_set_format_options ,
-.Nm archive_read_set_options ,
-.Nm archive_read_support_compression_all ,
-.Nm archive_read_support_compression_bzip2 ,
-.Nm archive_read_support_compression_compress ,
-.Nm archive_read_support_compression_gzip ,
-.Nm archive_read_support_compression_lzma ,
-.Nm archive_read_support_compression_none ,
-.Nm archive_read_support_compression_xz ,
-.Nm archive_read_support_compression_program ,
-.Nm archive_read_support_compression_program_signature ,
-.Nm archive_read_support_format_all ,
-.Nm archive_read_support_format_ar ,
-.Nm archive_read_support_format_cpio ,
-.Nm archive_read_support_format_empty ,
-.Nm archive_read_support_format_iso9660 ,
-.Nm archive_read_support_format_mtree,
-.Nm archive_read_support_format_raw,
-.Nm archive_read_support_format_tar ,
-.Nm archive_read_support_format_zip ,
-.Nm archive_read_open ,
-.Nm archive_read_open2 ,
-.Nm archive_read_open_fd ,
-.Nm archive_read_open_FILE ,
-.Nm archive_read_open_filename ,
-.Nm archive_read_open_memory ,
-.Nm archive_read_next_header ,
-.Nm archive_read_next_header2 ,
-.Nm archive_read_data ,
-.Nm archive_read_data_block ,
-.Nm archive_read_data_skip ,
-.\" #if ARCHIVE_API_VERSION < 3
-.Nm archive_read_data_into_buffer ,
-.\" #endif
-.Nm archive_read_data_into_fd ,
-.Nm archive_read_extract ,
-.Nm archive_read_extract2 ,
-.Nm archive_read_extract_set_progress_callback ,
-.Nm archive_read_close ,
-.Nm archive_read_free
+.Nm archive_read
 .Nd functions for reading streaming archives
 .Sh SYNOPSIS
 .In archive.h
-.Ft struct archive *
-.Fn archive_read_new "void"
-.Ft int
-.Fn archive_read_support_compression_all "struct archive *"
-.Ft int
-.Fn archive_read_support_compression_bzip2 "struct archive *"
-.Ft int
-.Fn archive_read_support_compression_compress "struct archive *"
-.Ft int
-.Fn archive_read_support_compression_gzip "struct archive *"
-.Ft int
-.Fn archive_read_support_compression_lzma "struct archive *"
-.Ft int
-.Fn archive_read_support_compression_none "struct archive *"
-.Ft int
-.Fn archive_read_support_compression_xz "struct archive *"
-.Ft int
-.Fo archive_read_support_compression_program
-.Fa "struct archive *"
-.Fa "const char *cmd"
-.Fc
-.Ft int
-.Fo archive_read_support_compression_program_signature
-.Fa "struct archive *"
-.Fa "const char *cmd"
-.Fa "const void *signature"
-.Fa "size_t signature_length"
-.Fc
-.Ft int
-.Fn archive_read_support_format_all "struct archive *"
-.Ft int
-.Fn archive_read_support_format_ar "struct archive *"
-.Ft int
-.Fn archive_read_support_format_cpio "struct archive *"
-.Ft int
-.Fn archive_read_support_format_empty "struct archive *"
-.Ft int
-.Fn archive_read_support_format_iso9660 "struct archive *"
-.Ft int
-.Fn archive_read_support_format_mtree "struct archive *"
-.Ft int
-.Fn archive_read_support_format_raw "struct archive *"
-.Ft int
-.Fn archive_read_support_format_tar "struct archive *"
-.Ft int
-.Fn archive_read_support_format_zip "struct archive *"
-.Ft int
-.Fn archive_read_set_filter_options "struct archive *" "const char *"
-.Ft int
-.Fn archive_read_set_format_options "struct archive *" "const char *"
-.Ft int
-.Fn archive_read_set_options "struct archive *" "const char *"
-.Ft int
-.Fo archive_read_open
-.Fa "struct archive *"
-.Fa "void *client_data"
-.Fa "archive_open_callback *"
-.Fa "archive_read_callback *"
-.Fa "archive_close_callback *"
-.Fc
-.Ft int
-.Fo archive_read_open2
-.Fa "struct archive *"
-.Fa "void *client_data"
-.Fa "archive_open_callback *"
-.Fa "archive_read_callback *"
-.Fa "archive_skip_callback *"
-.Fa "archive_close_callback *"
-.Fc
-.Ft int
-.Fn archive_read_open_FILE "struct archive *" "FILE *file"
-.Ft int
-.Fn archive_read_open_fd "struct archive *" "int fd" "size_t block_size"
-.Ft int
-.Fo archive_read_open_filename
-.Fa "struct archive *"
-.Fa "const char *filename"
-.Fa "size_t block_size"
-.Fc
-.Ft int
-.Fn archive_read_open_memory "struct archive *" "void *buff" "size_t size"
-.Ft int
-.Fn archive_read_next_header "struct archive *" "struct archive_entry **"
-.Ft int
-.Fn archive_read_next_header2 "struct archive *" "struct archive_entry *"
-.Ft ssize_t
-.Fn archive_read_data "struct archive *" "void *buff" "size_t len"
-.Ft int
-.Fo archive_read_data_block
-.Fa "struct archive *"
-.Fa "const void **buff"
-.Fa "size_t *len"
-.Fa "off_t *offset"
-.Fc
-.Ft int
-.Fn archive_read_data_skip "struct archive *"
-.\" #if ARCHIVE_API_VERSION < 3
-.Ft int
-.Fn archive_read_data_into_buffer "struct archive *" "void *" "ssize_t len"
-.\" #endif
-.Ft int
-.Fn archive_read_data_into_fd "struct archive *" "int fd"
-.Ft int
-.Fo archive_read_extract
-.Fa "struct archive *"
-.Fa "struct archive_entry *"
-.Fa "int flags"
-.Fc
-.Ft int
-.Fo archive_read_extract2
-.Fa "struct archive *src"
-.Fa "struct archive_entry *"
-.Fa "struct archive *dest"
-.Fc
-.Ft void
-.Fo archive_read_extract_set_progress_callback
-.Fa "struct archive *"
-.Fa "void (*func)(void *)"
-.Fa "void *user_data"
-.Fc
-.Ft int
-.Fn archive_read_close "struct archive *"
-.Ft int
-.Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for reading streaming archives.
 The general process is to first create the
@@ -204,375 +39,120 @@ The general process is to first create the
 object, set options, initialize the reader, iterate over the archive
 headers and associated data, then close the archive and release all
 resources.
-The following summary describes the functions in approximately the
-order they would be used:
-.Bl -tag -compact -width indent
-.It Fn archive_read_new
-Allocates and initializes a
-.Tn struct archive
-object suitable for reading from an archive.
-.It Xo
-.Fn archive_read_support_compression_bzip2 ,
-.Fn archive_read_support_compression_compress ,
-.Fn archive_read_support_compression_gzip ,
-.Fn archive_read_support_compression_lzma ,
-.Fn archive_read_support_compression_none ,
-.Fn archive_read_support_compression_xz
-.Xc
-Enables auto-detection code and decompression support for the
-specified compression.
-Returns
-.Cm ARCHIVE_OK
-if the compression is fully supported, or
-.Cm ARCHIVE_WARN
-if the compression is supported only through an external program.
-Note that decompression using an external program is usually slower than
-decompression through built-in libraries.
-Note that
-.Dq none
-is always enabled by default.
-.It Fn archive_read_support_compression_all
-Enables all available decompression filters.
-.It Fn archive_read_support_compression_program
-Data is fed through the specified external program before being dearchived.
-Note that this disables automatic detection of the compression format,
-so it makes no sense to specify this in conjunction with any other
-decompression option.
-.It Fn archive_read_support_compression_program_signature
-This feeds data through the specified external program
-but only if the initial bytes of the data match the specified
-signature value.
-.It Xo
-.Fn archive_read_support_format_all ,
-.Fn archive_read_support_format_ar ,
-.Fn archive_read_support_format_cpio ,
-.Fn archive_read_support_format_empty ,
-.Fn archive_read_support_format_iso9660 ,
-.Fn archive_read_support_format_mtree ,
-.Fn archive_read_support_format_tar ,
-.Fn archive_read_support_format_zip
-.Xc
-Enables support---including auto-detection code---for the
-specified archive format.
-For example,
-.Fn archive_read_support_format_tar
-enables support for a variety of standard tar formats, old-style tar,
-ustar, pax interchange format, and many common variants.
-For convenience,
-.Fn archive_read_support_format_all
-enables support for all available formats.
-Only empty archives are supported by default.
-.It Fn archive_read_support_format_raw
-The
-.Dq raw
-format handler allows libarchive to be used to read arbitrary data.
-It treats any data stream as an archive with a single entry.
-The pathname of this entry is
-.Dq data ;
-all other entry fields are unset.
-This is not enabled by
-.Fn archive_read_support_format_all
-in order to avoid erroneous handling of damaged archives.
-.It Xo
-.Fn archive_read_set_filter_options ,
-.Fn archive_read_set_format_options ,
-.Fn archive_read_set_options
-.Xc
-Specifies options that will be passed to currently-registered
-filters (including decompression filters) and/or format readers.
-The argument is a comma-separated list of individual options.
-Individual options have one of the following forms:
-.Bl -tag -compact -width indent
-.It Ar option=value
-The option/value pair will be provided to every module.
-Modules that do not accept an option with this name will ignore it.
-.It Ar option
-The option will be provided to every module with a value of
-.Dq 1 .
-.It Ar !option
-The option will be provided to every module with a NULL value.
-.It Ar module:option=value , Ar module:option , Ar module:!option
-As above, but the corresponding option and value will be provided
-only to modules whose name matches
-.Ar module .
-.El
-The return value will be
-.Cm ARCHIVE_OK
-if any module accepts the option, or
-.Cm ARCHIVE_WARN
-if no module accepted the option, or
-.Cm ARCHIVE_FATAL
-if there was a fatal error while attempting to process the option.
+.\"
+.Ss Create archive object
+See
+.Xr archive_read_new 3 .
 .Pp
-The currently supported options are:
-.Bl -tag -compact -width indent
-.It Format iso9660
-.Bl -tag -compact -width indent
-.It Cm joliet
-Support Joliet extensions.
-Defaults to enabled, use
-.Cm !joliet
-to disable.
-.El
-.El
-.It Fn archive_read_open
-The same as
-.Fn archive_read_open2 ,
-except that the skip callback is assumed to be
-.Dv NULL .
-.It Fn archive_read_open2
-Freeze the settings, open the archive, and prepare for reading entries.
-This is the most generic version of this call, which accepts
-four callback functions.
-Most clients will want to use
-.Fn archive_read_open_filename ,
-.Fn archive_read_open_FILE ,
-.Fn archive_read_open_fd ,
-or
-.Fn archive_read_open_memory
-instead.
-The library invokes the client-provided functions to obtain
-raw bytes from the archive.
-.It Fn archive_read_open_FILE
-Like
-.Fn archive_read_open ,
-except that it accepts a
+To read an archive, you must first obtain an initialized
+.Tn struct archive
+object from
+.Fn archive_read_new .
+.\"
+.Ss Enable filters and formats
+See
+.Xr archive_read_filter 3
+and
+.Xr archive_read_format 3 .
+.Pp
+You can then modify this object for the desired operations with the
+various
+.Fn archive_read_set_XXX
+and
+.Fn archive_read_support_XXX
+functions.
+In particular, you will need to invoke appropriate
+.Fn archive_read_support_XXX
+functions to enable the corresponding compression and format
+support.
+Note that these latter functions perform two distinct operations:
+they cause the corresponding support code to be linked into your
+program, and they enable the corresponding auto-detect code.
+Unless you have specific constraints, you will generally want
+to invoke
+.Fn archive_read_support_filter_all
+and
+.Fn archive_read_support_format_all
+to enable auto-detect for all formats and compression types
+currently supported by the library.
+.\"
+.Ss Set options
+See
+.Xr archive_read_set_options 3 .
+.\"
+.Ss Open archive
+See
+.Xr archive_read_open 3 .
+.Pp
+Once you have prepared the
+.Tn struct archive
+object, you call
+.Fn archive_read_open
+to actually open the archive and prepare it for reading.
+There are several variants of this function;
+the most basic expects you to provide pointers to several
+functions that can provide blocks of bytes from the archive.
+There are convenience forms that allow you to
+specify a filename, file descriptor,
 .Ft "FILE *"
-pointer.
-This function should not be used with tape drives or other devices
-that require strict I/O blocking.
-.It Fn archive_read_open_fd
-Like
-.Fn archive_read_open ,
-except that it accepts a file descriptor and block size rather than
-a set of function pointers.
-Note that the file descriptor will not be automatically closed at
-end-of-archive.
-This function is safe for use with tape drives or other blocked devices.
-.It Fn archive_read_open_file
-This is a deprecated synonym for
-.Fn archive_read_open_filename .
-.It Fn archive_read_open_filename
-Like
-.Fn archive_read_open ,
-except that it accepts a simple filename and a block size.
-A NULL filename represents standard input.
-This function is safe for use with tape drives or other blocked devices.
-.It Fn archive_read_open_memory
-Like
-.Fn archive_read_open ,
-except that it accepts a pointer and size of a block of
-memory containing the archive data.
-.It Fn archive_read_next_header
-Read the header for the next entry and return a pointer to
-a
-.Tn struct archive_entry .
-This is a convenience wrapper around
-.Fn archive_read_next_header2
-that reuses an internal
+object, or a block of memory from which to read the archive data.
+Note that the core library makes no assumptions about the
+size of the blocks read;
+callback functions are free to read whatever block size is
+most appropriate for the medium.
+.\"
+.Ss Consume archive
+See
+.Xr archive_read_header 3 ,
+.Xr archive_read_data 3
+and
+.Xr archive_read_extract 3 .
+.Pp
+Each archive entry consists of a header followed by a certain
+amount of data.
+You can obtain the next header with
+.Fn archive_read_next_header ,
+which returns a pointer to an
 .Tn struct archive_entry
-object for each request.
-.It Fn archive_read_next_header2
-Read the header for the next entry and populate the provided
-.Tn struct archive_entry .
-.It Fn archive_read_data
-Read data associated with the header just read.
-Internally, this is a convenience function that calls
-.Fn archive_read_data_block
-and fills any gaps with nulls so that callers see a single
-continuous stream of data.
-.It Fn archive_read_data_block
-Return the next available block of data for this entry.
-Unlike
-.Fn archive_read_data ,
-the
-.Fn archive_read_data_block
-function avoids copying data and allows you to correctly handle
-sparse files, as supported by some archive formats.
-The library guarantees that offsets will increase and that blocks
-will not overlap.
-Note that the blocks returned from this function can be much larger
-than the block size read from disk, due to compression
-and internal buffer optimizations.
-.It Fn archive_read_data_skip
-A convenience function that repeatedly calls
-.Fn archive_read_data_block
-to skip all of the data for this archive entry.
-.\" #if ARCHIVE_API_VERSION < 3
-.It Fn archive_read_data_into_buffer
-This function is deprecated and will be removed.
-Use
+structure with information about the current archive element.
+If the entry is a regular file, then the header will be followed
+by the file data.
+You can use
 .Fn archive_read_data
-instead.
-.\" #endif
-.It Fn archive_read_data_into_fd
-A convenience function that repeatedly calls
+(which works much like the
+.Xr read 2
+system call)
+to read this data from the archive, or
 .Fn archive_read_data_block
-to copy the entire entry to the provided file descriptor.
-.It Fn archive_read_extract , Fn archive_read_extract_set_skip_file
-A convenience function that wraps the corresponding
-.Xr archive_write_disk 3
-interfaces.
-The first call to
+which provides a slightly more efficient interface.
+You may prefer to use the higher-level
+.Fn archive_read_data_skip ,
+which reads and discards the data for this entry,
+.Fn archive_read_data_to_file ,
+which copies the data to the provided file descriptor, or
+.Fn archive_read_extract ,
+which recreates the specified entry on disk and copies data
+from the archive.
+In particular, note that
 .Fn archive_read_extract
-creates a restore object using
-.Xr archive_write_disk_new 3
-and
-.Xr archive_write_disk_set_standard_lookup 3 ,
-then transparently invokes
-.Xr archive_write_disk_set_options 3 ,
-.Xr archive_write_header 3 ,
-.Xr archive_write_data 3 ,
-and
-.Xr archive_write_finish_entry 3
-to create the entry on disk and copy data into it.
-The
-.Va flags
-argument is passed unmodified to
-.Xr archive_write_disk_set_options 3 .
-.It Fn archive_read_extract2
-This is another version of
-.Fn archive_read_extract
-that allows you to provide your own restore object.
-In particular, this allows you to override the standard lookup functions
-using
-.Xr archive_write_disk_set_group_lookup 3 ,
-and
-.Xr archive_write_disk_set_user_lookup 3 .
-Note that
-.Fn archive_read_extract2
-does not accept a
-.Va flags
-argument; you should use
-.Fn archive_write_disk_set_options
-to set the restore options yourself.
-.It Fn archive_read_extract_set_progress_callback
-Sets a pointer to a user-defined callback that can be used
-for updating progress displays during extraction.
-The progress function will be invoked during the extraction of large
-regular files.
-The progress function will be invoked with the pointer provided to this call.
-Generally, the data pointed to should include a reference to the archive
-object and the archive_entry object so that various statistics
-can be retrieved for the progress display.
-.It Fn archive_read_close
-Complete the archive and invoke the close callback.
-.It Fn archive_read_free
-Invokes
-.Fn archive_read_close
-if it was not invoked manually, then release all resources.
-Note: In libarchive 1.x, this function was declared to return
-.Ft void ,
-which made it impossible to detect certain errors when
-.Fn archive_read_close
-was invoked implicitly from this function.
-The declaration is corrected beginning with libarchive 2.0.
-.El
-.Pp
-Note that the library determines most of the relevant information about
-the archive by inspection.
-In particular, it automatically detects
-.Xr gzip 1
-or
-.Xr bzip2 1
-compression and transparently performs the appropriate decompression.
-It also automatically detects the archive format.
-.Pp
-A complete description of the
-.Tn struct archive
-and
+uses the
 .Tn struct archive_entry
-objects can be found in the overview manual page for
-.Xr libarchive 3 .
-.Sh CLIENT CALLBACKS
-The callback functions must match the following prototypes:
-.Bl -item -offset indent
-.It
-.Ft typedef ssize_t
-.Fo archive_read_callback
-.Fa "struct archive *"
-.Fa "void *client_data"
-.Fa "const void **buffer"
-.Fc
-.It
-.\" #if ARCHIVE_API_VERSION < 2
-.Ft typedef int
-.Fo archive_skip_callback
-.Fa "struct archive *"
-.Fa "void *client_data"
-.Fa "size_t request"
-.Fc
-.\" #else
-.\" .Ft typedef off_t
-.\" .Fo archive_skip_callback
-.\" .Fa "struct archive *"
-.\" .Fa "void *client_data"
-.\" .Fa "off_t request"
-.\" .Fc
-.\" #endif
-.It
-.Ft typedef int
-.Fn archive_open_callback "struct archive *" "void *client_data"
-.It
-.Ft typedef int
-.Fn archive_close_callback "struct archive *" "void *client_data"
-.El
+structure that you provide it, which may differ from the
+entry just read from the archive.
+In particular, many applications will want to override the
+pathname, file permissions, or ownership.
+.\"
+.Ss Release resources
+See
+.Xr archive_read_free 3 .
 .Pp
-The open callback is invoked by
-.Fn archive_open .
-It should return
-.Cm ARCHIVE_OK
-if the underlying file or data source is successfully
-opened.
-If the open fails, it should call
-.Fn archive_set_error
-to register an error code and message and return
-.Cm ARCHIVE_FATAL .
-.Pp
-The read callback is invoked whenever the library
-requires raw bytes from the archive.
-The read callback should read data into a buffer,
-set the
-.Li const void **buffer
-argument to point to the available data, and
-return a count of the number of bytes available.
-The library will invoke the read callback again
-only after it has consumed this data.
-The library imposes no constraints on the size
-of the data blocks returned.
-On end-of-file, the read callback should
-return zero.
-On error, the read callback should invoke
-.Fn archive_set_error
-to register an error code and message and
-return -1.
-.Pp
-The skip callback is invoked when the
-library wants to ignore a block of data.
-The return value is the number of bytes actually
-skipped, which may differ from the request.
-If the callback cannot skip data, it should return
-zero.
-If the skip callback is not provided (the
-function pointer is
-.Dv NULL ),
-the library will invoke the read function
-instead and simply discard the result.
-A skip callback can provide significant
-performance gains when reading uncompressed
-archives from slow disk drives or other media
-that can skip quickly.
-.Pp
-The close callback is invoked by archive_close when
-the archive processing is complete.
-The callback should return
-.Cm ARCHIVE_OK
-on success.
-On failure, the callback should invoke
-.Fn archive_set_error
-to register an error code and message and
-return
-.Cm ARCHIVE_FATAL.
+Once you have finished reading data from the archive, you
+should call
+.Fn archive_read_close
+to close the archive, then call
+.Fn archive_read_free
+to release all resources, including all memory allocated by the library.
+.\"
 .Sh EXAMPLE
 The following illustrates basic usage of the library.
 In this example,
@@ -593,7 +173,7 @@ list_archive(const char *name)
   mydata = malloc(sizeof(struct mydata));
   a = archive_read_new();
   mydata->name = name;
-  archive_read_support_compression_all(a);
+  archive_read_support_filter_all(a);
   archive_read_support_format_all(a);
   archive_read_open(a, mydata, myopen, myread, myclose);
   while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
@@ -632,62 +212,18 @@ myclose(struct archive *a, void *client_data)
   return (ARCHIVE_OK);
 }
 .Ed
-.Sh RETURN VALUES
-Most functions return zero on success, non-zero on error.
-The possible return codes include:
-.Cm ARCHIVE_OK
-(the operation succeeded),
-.Cm ARCHIVE_WARN
-(the operation succeeded but a non-critical error was encountered),
-.Cm ARCHIVE_EOF
-(end-of-archive was encountered),
-.Cm ARCHIVE_RETRY
-(the operation failed but can be retried),
-and
-.Cm ARCHIVE_FATAL
-(there was a fatal error; the archive should be closed immediately).
-Detailed error codes and textual descriptions are available from the
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions.
-.Pp
-.Fn archive_read_new
-returns a pointer to a freshly allocated
-.Tn struct archive
-object.
-It returns
-.Dv NULL
-on error.
-.Pp
-.Fn archive_read_data
-returns a count of bytes actually read or zero at the end of the entry.
-On error, a value of
-.Cm ARCHIVE_FATAL ,
-.Cm ARCHIVE_WARN ,
-or
-.Cm ARCHIVE_RETRY
-is returned and an error code and textual description can be retrieved from the
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions.
-.Pp
-The library expects the client callbacks to behave similarly.
-If there is an error, you can use
-.Fn archive_set_error
-to set an appropriate error code and description,
-then return one of the non-zero values above.
-(Note that the value eventually returned to the client may
-not be the same; many errors that are not critical at the level
-of basic I/O can prevent the archive from being properly read,
-thus most I/O errors eventually cause
-.Cm ARCHIVE_FATAL
-to be returned.)
 .\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr tar 1 ,
-.Xr archive 3 ,
+.Xr libarchive 3 ,
+.Xr archive_read_new 3 ,
+.Xr archive_read_data 3 ,
+.Xr archive_read_extract 3 ,
+.Xr archive_read_filter 3 ,
+.Xr archive_read_format 3 ,
+.Xr archive_read_header 3 ,
+.Xr archive_read_open 3 ,
+.Xr archive_read_set_options 3 ,
 .Xr archive_util 3 ,
 .Xr tar 5
 .Sh HISTORY

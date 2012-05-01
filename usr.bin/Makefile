@@ -143,6 +143,7 @@ SUBDIR=	alias \
 	sockstat \
 	split \
 	stat \
+	stdbuf \
 	su \
 	systat \
 	tabs \
@@ -261,6 +262,10 @@ SUBDIR+=	csup
 SUBDIR+=	locate
 .endif
 
+.if ${MK_KERBEROS_SUPPORT} != "no"
+SUBDIR+=	compile_et
+.endif
+
 # XXX msgs?
 .if ${MK_MAIL} != "no"
 SUBDIR+=	biff
@@ -317,7 +322,6 @@ SUBDIR+=	ul
 SUBDIR+=	ar
 SUBDIR+=	c89
 SUBDIR+=	c99
-SUBDIR+=	compile_et
 SUBDIR+=	ctags
 SUBDIR+=	file2c
 SUBDIR+=	gprof

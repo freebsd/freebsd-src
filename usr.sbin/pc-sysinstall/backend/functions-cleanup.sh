@@ -34,8 +34,8 @@ zfs_cleanup_unmount()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'`
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
     ZPOOLNAME=$(get_zpool_name "${PARTDEV}")
 
     if [ "$PARTFS" = "ZFS" ]
@@ -84,9 +84,9 @@ zfs_cleanup_unmount()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'`
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
     ZPOOLNAME=$(get_zpool_name "${PARTDEV}")
 
     if [ "$PARTFS" = "ZFS" ]
@@ -101,17 +101,20 @@ zfs_cleanup_unmount()
       # Check if we have multiple zfs mounts specified
       for ZMNT in `echo ${PARTMNT} | sed 's|,| |g'`
       do
+	ZMNT="`echo $ZMNT | cut -d '(' -f 1`"
         PARTMNTREV="${ZMNT} ${PARTMNTREV}"
       done
 
       for ZMNT in ${PARTMNTREV}
       do
-        if [ "${ZMNT}" != "/" ]
-        then
-          rc_halt "zfs set mountpoint=${ZMNT} ${ZPOOLNAME}${ZMNT}"
+        if [ "${ZMNT}" = "/" ] ; then continue ; fi
+        # Some ZFS like /swap aren't mounted, and dont need unmounting
+        mount | grep -q "${FSMNT}${ZMNT}"
+	if [ $? -eq 0 ] ; then
           rc_halt "zfs unmount ${ZPOOLNAME}${ZMNT}"
-          sleep 2
+          rc_halt "zfs set mountpoint=${ZMNT} ${ZPOOLNAME}${ZMNT}"
         fi
+        sleep 2
       done
     fi
   done
@@ -154,10 +157,10 @@ setup_fstab()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'`
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
-    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
+    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d '#' -f 4`"
 
     # Unset EXT
     EXT=""

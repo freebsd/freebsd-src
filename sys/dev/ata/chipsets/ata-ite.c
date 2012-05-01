@@ -57,7 +57,6 @@ static int ata_ite_ch_attach(device_t dev);
 static int ata_ite_821x_setmode(device_t dev, int target, int mode);
 static int ata_ite_8213_setmode(device_t dev, int target, int mode);
 
-
 /*
  * Integrated Technology Express Inc. (ITE) chipset support functions
  */
@@ -65,7 +64,7 @@ static int
 ata_ite_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_IT8213F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8213F" },
      { ATA_IT8212F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8212F" },
      { ATA_IT8211F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8211F" },
@@ -132,9 +131,9 @@ ata_ite_821x_setmode(device_t dev, int target, int mode)
 	int devno = (ch->unit << 1) + target;
 	int piomode;
 	uint8_t *timings = (uint8_t*)(&ctlr->chipset_data);
-	u_int8_t udmatiming[] =
+	static const uint8_t udmatiming[] =
 		{ 0x44, 0x42, 0x31, 0x21, 0x11, 0xa2, 0x91 };
-	u_int8_t chtiming[] =
+	static const uint8_t chtiming[] =
 		{ 0xaa, 0xa3, 0xa1, 0x33, 0x31, 0x88, 0x32, 0x31 };
 
 	mode = min(mode, ctlr->chip->max_dma);
@@ -182,8 +181,10 @@ ata_ite_8213_setmode(device_t dev, int target, int mode)
 	u_int16_t reg54 = pci_read_config(parent, 0x54, 2);
 	u_int16_t mask40 = 0, new40 = 0;
 	u_int8_t mask44 = 0, new44 = 0;
-	u_int8_t timings[] = { 0x00, 0x00, 0x10, 0x21, 0x23, 0x00, 0x21, 0x23 };
-	u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
+	static const uint8_t timings[] =
+	    { 0x00, 0x00, 0x10, 0x21, 0x23, 0x00, 0x21, 0x23 };
+	static const uint8_t utimings[] =
+	    { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
 
 	mode = min(mode, ctlr->chip->max_dma);
 

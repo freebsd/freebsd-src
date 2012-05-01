@@ -1,4 +1,4 @@
-//===-- llvm/Target/X86/X86TargetObjectFile.h - X86 Object Info -*- C++ -*-===//
+//===-- X86TargetObjectFile.h - X86 Object Info -----------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,7 +15,6 @@
 #include "llvm/Target/TargetLoweringObjectFile.h"
 
 namespace llvm {
-  class X86TargetMachine;
 
   /// X8664_MachoTargetObjectFile - This TLOF implementation is used for Darwin
   /// x86-64.

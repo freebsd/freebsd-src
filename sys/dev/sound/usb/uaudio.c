@@ -1272,15 +1272,15 @@ uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
-	uint32_t n;
-	uint32_t m;
-	uint32_t blockcount;
 	uint32_t offset0;
 	uint32_t offset1;
 	uint32_t mfl;
+	int m;
+	int n;
 	int len;
 	int actlen;
 	int nframes;
+	int blockcount;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
 	mfl = usbd_xfer_max_framelen(xfer);
@@ -1307,9 +1307,9 @@ uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 
 				m = (ch->end - ch->cur);
 
-				if (m > len) {
+				if (m > len)
 					m = len;
-				}
+
 				usbd_copy_out(pc, offset1, ch->cur, m);
 
 				len -= m;
@@ -1884,10 +1884,10 @@ uaudio_mixer_add_selector(struct uaudio_softc *sc,
 
 static uint32_t
 uaudio_mixer_feature_get_bmaControls(const struct usb_audio_feature_unit *d,
-    uint8_t index)
+    uint8_t i)
 {
 	uint32_t temp = 0;
-	uint32_t offset = (index * d->bControlSize);
+	uint32_t offset = (i * d->bControlSize);
 
 	if (d->bControlSize > 0) {
 		temp |= d->bmaControls[offset];
@@ -2636,8 +2636,8 @@ uaudio_mixer_feature_name(const struct uaudio_terminal_node *iot,
 	return (uat->feature);
 }
 
-const static struct uaudio_terminal_node *
-uaudio_mixer_get_input(const struct uaudio_terminal_node *iot, uint8_t index)
+static const struct uaudio_terminal_node *
+uaudio_mixer_get_input(const struct uaudio_terminal_node *iot, uint8_t i)
 {
 	struct uaudio_terminal_node *root = iot->root;
 	uint8_t n;
@@ -2645,17 +2645,16 @@ uaudio_mixer_get_input(const struct uaudio_terminal_node *iot, uint8_t index)
 	n = iot->usr.id_max;
 	do {
 		if (iot->usr.bit_input[n / 8] & (1 << (n % 8))) {
-			if (!index--) {
+			if (!i--)
 				return (root + n);
-			}
 		}
 	} while (n--);
 
 	return (NULL);
 }
 
-const static struct uaudio_terminal_node *
-uaudio_mixer_get_output(const struct uaudio_terminal_node *iot, uint8_t index)
+static const struct uaudio_terminal_node *
+uaudio_mixer_get_output(const struct uaudio_terminal_node *iot, uint8_t i)
 {
 	struct uaudio_terminal_node *root = iot->root;
 	uint8_t n;
@@ -2663,9 +2662,8 @@ uaudio_mixer_get_output(const struct uaudio_terminal_node *iot, uint8_t index)
 	n = iot->usr.id_max;
 	do {
 		if (iot->usr.bit_output[n / 8] & (1 << (n % 8))) {
-			if (!index--) {
+			if (!i--)
 				return (root + n);
-			}
 		}
 	} while (n--);
 

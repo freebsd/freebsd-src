@@ -5,8 +5,11 @@ LDFLAGS=	-Wl,--no-undefined
 LDADD=	-lcom_err -lhdb -lkrb5 -lroken
 DPADD=	${LIBCOM_ERR} ${LIBHDB} ${LIBKRB5} ${LIBROKEN}
 VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map
+MAN=	kadm5_pwcheck.3
 
 SRCS=	acl.c \
+	admin.h \
+	admin.h \
 	bump_pw_expire.c \
 	chpass_s.c \
 	common_glue.c \
@@ -23,11 +26,13 @@ SRCS=	acl.c \
 	init_s.c \
 	kadm5_err.c \
 	kadm5_err.h \
+	kadm5_locl.h \
 	keys.c \
 	log.c \
 	marshall.c \
 	modify_s.c \
 	password_quality.c \
+	private.h \
 	privs_s.c \
 	randkey_s.c \
 	rename_s.c \

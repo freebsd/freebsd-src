@@ -2,12 +2,14 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/queue.h>
 #include <sys/param.h>
+#include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <sys/queue.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "debug.h"
 #include "rtld.h"
@@ -26,7 +28,6 @@ TAILQ_HEAD(lm_list, lm);
 struct lm {
 	char *f;
 	char *t;
-
 	TAILQ_ENTRY(lm)	lm_link;
 };
 
@@ -38,76 +39,112 @@ struct lmp {
 	TAILQ_ENTRY(lmp) lmp_link;
 };
 
-static int	lm_count;
+static int lm_count;
 
-static void		lmc_parse	(FILE *);
-static void		lm_add		(const char *, const char *, const char *);
-static void		lm_free		(struct lm_list *);
-static char *		lml_find	(struct lm_list *, const char *);
-static struct lm_list *	lmp_find	(const char *);
-static struct lm_list *	lmp_init	(char *);
-static const char * quickbasename	(const char *);
-static int	readstrfn	(void * cookie, char *buf, int len);
-static int	closestrfn	(void * cookie);
+static void lmc_parse(char *, size_t);
+static void lm_add(const char *, const char *, const char *);
+static void lm_free(struct lm_list *);
+static char *lml_find(struct lm_list *, const char *);
+static struct lm_list *lmp_find(const char *);
+static struct lm_list *lmp_init(char *);
+static const char *quickbasename(const char *);
 
 #define	iseol(c)	(((c) == '#') || ((c) == '\0') || \
 			 ((c) == '\n') || ((c) == '\r'))
 
+/*
+ * Do not use ctype.h macros, which rely on working TLS.  It is
+ * too early to have thread-local variables functional.
+ */
+#define	rtld_isspace(c)	((c) == ' ' || (c) == '\t')
+
 int
-lm_init (char *libmap_override)
+lm_init(char *libmap_override)
 {
-	FILE	*fp;
+	struct stat st;
+	char *lm_map, *p;
+	int fd;
 
-	dbg("%s(\"%s\")", __func__, libmap_override);
-
+	dbg("lm_init(\"%s\")", libmap_override);
 	TAILQ_INIT(&lmp_head);
 
-	fp = fopen(_PATH_LIBMAP_CONF, "r");
-	if (fp) {
-		lmc_parse(fp);
-		fclose(fp);
+	fd = open(_PATH_LIBMAP_CONF, O_RDONLY);
+	if (fd == -1) {
+		dbg("lm_init: open(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
+		    rtld_strerror(errno));
+		goto override;
 	}
+	if (fstat(fd, &st) == -1) {
+		close(fd);
+		dbg("lm_init: fstat(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
+		    rtld_strerror(errno));
+		goto override;
+	}
+	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (lm_map == (const char *)MAP_FAILED) {
+		close(fd);
+		dbg("lm_init: mmap(\"%s\") failed, %s", _PATH_LIBMAP_CONF,
+		    rtld_strerror(errno));
+		goto override;
+	}
+	close(fd);
+	lmc_parse(lm_map, st.st_size);
+	munmap(lm_map, st.st_size);
 
+override:
 	if (libmap_override) {
-		char	*p;
-		/* do some character replacement to make $LIBMAP look like a
-		   text file, then "open" it with funopen */
+		/*
+		 * Do some character replacement to make $LIBMAP look
+		 * like a text file, then parse it.
+		 */
 		libmap_override = xstrdup(libmap_override);
-
 		for (p = libmap_override; *p; p++) {
 			switch (*p) {
-				case '=':
-					*p = ' '; break;
-				case ',':
-					*p = '\n'; break;
+			case '=':
+				*p = ' ';
+				break;
+			case ',':
+				*p = '\n';
+				break;
 			}
 		}
-		fp = funopen(libmap_override, readstrfn, NULL, NULL, closestrfn);
-		if (fp) {
-			lmc_parse(fp);
-			fclose(fp);
-		}
+		lmc_parse(p, strlen(p));
+		free(p);
 	}
 
 	return (lm_count == 0);
 }
 
 static void
-lmc_parse (FILE *fp)
+lmc_parse(char *lm_p, size_t lm_len)
 {
-	char	*cp;
-	char	*f, *t, *c, *p;
-	char	prog[MAXPATHLEN];
-	char	line[MAXPATHLEN + 2];
-
-	dbg("%s(%p)", __func__, fp);
+	char *cp, *f, *t, *c, *p;
+	char prog[MAXPATHLEN];
+	char line[MAXPATHLEN + 2];
+	size_t cnt;
+	int i;
 	
+	cnt = 0;
 	p = NULL;
-	while ((cp = fgets(line, MAXPATHLEN + 1, fp)) != NULL) {
+	while (cnt < lm_len) {
+		i = 0;
+		while (lm_p[cnt] != '\n' && cnt < lm_len &&
+		    i < sizeof(line) - 1) {
+			line[i] = lm_p[cnt];
+			cnt++;
+			i++;
+		}
+		line[i] = '\0';
+		while (lm_p[cnt] != '\n' && cnt < lm_len)
+			cnt++;
+		/* skip over nl */
+		cnt++;
+
+		cp = &line[0];
 		t = f = c = NULL;
 
 		/* Skip over leading space */
-		while (isspace(*cp)) cp++;
+		while (rtld_isspace(*cp)) cp++;
 
 		/* Found a comment or EOL */
 		if (iseol(*cp)) continue;
@@ -117,7 +154,7 @@ lmc_parse (FILE *fp)
 			cp++;
 
 			/* Skip leading space */
-			while (isspace(*cp)) cp++;
+			while (rtld_isspace(*cp)) cp++;
 
 			/* Found comment, EOL or end of selector */
 			if  (iseol(*cp) || *cp == ']')
@@ -125,11 +162,11 @@ lmc_parse (FILE *fp)
 
 			c = cp++;
 			/* Skip to end of word */
-			while (!isspace(*cp) && !iseol(*cp) && *cp != ']')
+			while (!rtld_isspace(*cp) && !iseol(*cp) && *cp != ']')
 				cp++;
 
 			/* Skip and zero out trailing space */
-			while (isspace(*cp)) *cp++ = '\0';
+			while (rtld_isspace(*cp)) *cp++ = '\0';
 
 			/* Check if there is a closing brace */
 			if (*cp != ']') continue;
@@ -141,7 +178,7 @@ lmc_parse (FILE *fp)
 			 * There should be nothing except whitespace or comment
 			  from this point to the end of the line.
 			 */
-			while(isspace(*cp)) cp++;
+			while(rtld_isspace(*cp)) cp++;
 			if (!iseol(*cp)) continue;
 
 			strcpy(prog, c);
@@ -151,20 +188,20 @@ lmc_parse (FILE *fp)
 
 		/* Parse the 'from' candidate. */
 		f = cp++;
-		while (!isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp)) *cp++ = '\0';
 
 		/* Found a comment or EOL */
 		if (iseol(*cp)) continue;
 
 		/* Parse 'to' mapping */
 		t = cp++;
-		while (!isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp)) *cp++ = '\0';
 
 		/* Should be no extra tokens at this point */
 		if (!iseol(*cp)) continue;
@@ -338,32 +375,4 @@ quickbasename (const char *path)
 			p = path+1;
 	}
 	return (p);
-}
-
-static int
-readstrfn(void * cookie, char *buf, int len)
-{
-	static char	*current;
-	static int	left;
-	int 	copied;
-	
-	copied = 0;
-	if (!current) {
-		current = cookie;
-		left = strlen(cookie);
-	}
-	while (*current && left && len) {
-		*buf++ = *current++;
-		left--;
-		len--;
-		copied++;
-	}
-	return copied;
-}
-
-static int
-closestrfn(void * cookie)
-{
-	free(cookie);
-	return 0;
 }

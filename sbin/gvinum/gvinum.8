@@ -42,7 +42,7 @@
 .Bl -tag -width indent
 .It Ic attach Ar plex volume Op Cm rename
 .It Ic attach Ar subdisk plex Oo Ar offset Oc Op Cm rename
-Attach a plex to a volume, or a subdisk to a plex. 
+Attach a plex to a volume, or a subdisk to a plex.
 If offset is specified, the subdisk will be attached to the given offset within
 the plex.
 If rename is specified, the subdisk or plex will change name according to the
@@ -103,10 +103,10 @@ and
 .Fl V
 flags provide progressively more detailed output.
 .It Ic mirror Oo Fl fsv Oc Oo Fl n Ar name Oc Ar drives
-Create a mirrored volume from the specified drives. 
+Create a mirrored volume from the specified drives.
 It requires at least a multiple of 2 drives.
 If no name is specified, a unique name will be set by gvinum.
-If the 
+If the
 .Fl s
 flag is specified, a striped mirror will be created, and thus requires a
 multiple of 4 drives.
@@ -149,7 +149,7 @@ EOF character.
 .It Ic raid5 Oo Fl fv Oc Oo Fl s Ar stripesize Oc Oo Fl n Ar name Oc Ar drives
 Create a RAID-5 volume from the specified drives.
 If no name is specified,a unique name will be set by
-.Ic gvinum. 
+.Ic gvinum.
 This organization requires at least three drives.
 .It Ic rename Oo Fl r Oc Ar drive | subdisk | plex | volume newname
 Change the name of the specified object.
@@ -282,7 +282,7 @@ unmount and then stop Ic gvinum:
 .Pp
 .Dl "gvinum mirror /dev/ad1 /dev/ad2"
 .Dl "newfs /dev/gvinum/gvinumvolume0"
-.Dl "mount /dev/gvinum/gvinumvolume0 /mnt" 
+.Dl "mount /dev/gvinum/gvinumvolume0 /mnt"
 .Dl "..."
 .Dl "unmount /mnt"
 .Dl "gvinum stop"
@@ -356,7 +356,6 @@ command.
 .Pp
 For a more advanced usage and detailed explanation of gvinum, the
 handbook is recommended.
-.Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8

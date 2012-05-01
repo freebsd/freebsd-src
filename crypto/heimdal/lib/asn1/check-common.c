@@ -1,34 +1,36 @@
 /*
- * Copyright (c) 1999 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1999 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -42,9 +44,10 @@
 #include <err.h>
 #include <roken.h>
 
+#include "asn1-common.h"
 #include "check-common.h"
 
-RCSID("$Id: check-common.c 18751 2006-10-21 14:49:13Z lha $");
+RCSID("$Id$");
 
 struct map_page {
     void *start;
@@ -57,14 +60,14 @@ struct map_page {
 /* #undef HAVE_MMAP */
 
 void *
-map_alloc(enum map_type type, const void *buf, 
+map_alloc(enum map_type type, const void *buf,
 	  size_t size, struct map_page **map)
 {
 #ifndef HAVE_MMAP
     unsigned char *p;
     size_t len = size + sizeof(long) * 2;
     int i;
-    
+
     *map = ecalloc(1, sizeof(**map));
 
     p = emalloc(len);
@@ -136,18 +139,18 @@ map_free(struct map_page *map, const char *test_name, const char *map_name)
 #ifndef HAVE_MMAP
     unsigned char *p = map->start;
     int i;
-    
+
     for (i = sizeof(long); i > 0; i--)
 	if (p[sizeof(long) - i] != 0xff - i)
 	    errx(1, "%s: %s underrun %d\n", test_name, map_name, i);
     for (i = sizeof(long); i > 0; i--)
 	if (p[map->size - i] != 0xff - i)
-	    errx(1, "%s: %s overrun %lu\n", test_name, map_name, 
+	    errx(1, "%s: %s overrun %lu\n", test_name, map_name,
 		 (unsigned long)map->size - i);
     free(map->start);
 #else
     int ret;
-    
+
     ret = munmap (map->start, map->size);
     if (ret < 0)
 	err (1, "munmap");
@@ -176,7 +179,7 @@ segv_handler(int sig)
 {
     int fd;
     char msg[] = "SIGSEGV i current test: ";
-    
+
     fd = open("/dev/stdout", O_WRONLY, 0600);
     if (fd >= 0) {
 	write(fd, msg, sizeof(msg));
@@ -193,11 +196,12 @@ int
 generic_test (const struct test_case *tests,
 	      unsigned ntests,
 	      size_t data_size,
-	      int (*encode)(unsigned char *, size_t, void *, size_t *),
-	      int (*length)(void *),
-	      int (*decode)(unsigned char *, size_t, void *, size_t *),
-	      int (*free_data)(void *),
-	      int (*cmp)(void *a, void *b))
+	      int (ASN1CALL *encode)(unsigned char *, size_t, void *, size_t *),
+	      int (ASN1CALL *length)(void *),
+	      int (ASN1CALL *decode)(unsigned char *, size_t, void *, size_t *),
+	      int (ASN1CALL *free_data)(void *),
+	      int (*cmp)(void *a, void *b),
+	      int (ASN1CALL *copy)(const void *from, void *to))
 {
     unsigned char *buf, *buf2;
     int i;
@@ -205,16 +209,20 @@ generic_test (const struct test_case *tests,
     void *data;
     struct map_page *data_map, *buf_map, *buf2_map;
 
+#ifdef HAVE_SIGACTION
     struct sigaction sa, osa;
+#endif
 
     for (i = 0; i < ntests; ++i) {
 	int ret;
 	size_t sz, consumed_sz, length_sz, buf_sz;
+	void *to = NULL;
 
 	current_test = tests[i].name;
 
 	current_state = "init";
 
+#ifdef HAVE_SIGACTION
 	sigemptyset (&sa.sa_mask);
 	sa.sa_flags = 0;
 #ifdef SA_RESETHAND
@@ -222,6 +230,7 @@ generic_test (const struct test_case *tests,
 #endif
 	sa.sa_handler = segv_handler;
 	sigaction (SIGSEGV, &sa, &osa);
+#endif
 
 	data = map_alloc(OVERRUN, NULL, data_size, &data_map);
 
@@ -237,8 +246,8 @@ generic_test (const struct test_case *tests,
 	    continue;
 	}
 	if (sz != tests[i].byte_len) {
-	    printf ("encoding of %s has wrong len (%lu != %lu)\n",
-		    tests[i].name, 
+ 	    printf ("encoding of %s has wrong len (%lu != %lu)\n",
+		    tests[i].name,
 		    (unsigned long)sz, (unsigned long)tests[i].byte_len);
 	    ++failures;
 	    continue;
@@ -261,6 +270,11 @@ generic_test (const struct test_case *tests,
 	    printf ("\nactual:  ");
 	    print_bytes (buf, sz);
 	    printf ("\n");
+#if 0
+	    rk_dumpdata("correct", tests[i].bytes, tests[i].byte_len);
+	    rk_dumpdata("actual", buf, sz);
+	    exit (1);
+#endif
 	    ++failures;
 	    continue;
 	}
@@ -276,7 +290,7 @@ generic_test (const struct test_case *tests,
 	}
 	if (sz != consumed_sz) {
 	    printf ("different length decoding %s (%ld != %ld)\n",
-		    tests[i].name, 
+		    tests[i].name,
 		    (unsigned long)sz, (unsigned long)consumed_sz);
 	    ++failures;
 	    continue;
@@ -287,16 +301,42 @@ generic_test (const struct test_case *tests,
 	    ++failures;
 	    continue;
 	}
+
+	current_state = "copy";
+	if (copy) {
+	    to = emalloc(data_size);
+	    ret = (*copy)(data, to);
+	    if (ret != 0) {
+		printf ("copy of %s failed %d\n", tests[i].name, ret);
+		++failures;
+		continue;
+	    }
+
+	    current_state = "cmp-copy";
+	    if ((*cmp)(data, to) != 0) {
+		printf ("%s: copy comparison failed\n", tests[i].name);
+		++failures;
+		continue;
+	    }
+	}
+
 	current_state = "free";
-	if (free_data)
+	if (free_data) {
 	    (*free_data)(data);
+	    if (to) {
+		(*free_data)(to);
+		free(to);
+	    }
+	}
 
 	current_state = "free";
 	map_free(buf_map, tests[i].name, "encode");
 	map_free(buf2_map, tests[i].name, "decode");
 	map_free(data_map, tests[i].name, "data");
 
+#ifdef HAVE_SIGACTION
 	sigaction (SIGSEGV, &osa, NULL);
+#endif
     }
     current_state = "done";
     return failures;
@@ -304,7 +344,7 @@ generic_test (const struct test_case *tests,
 
 /*
  * check for failures
- * 
+ *
  * a test size (byte_len) of -1 means that the test tries to trigger a
  * integer overflow (and later a malloc of to little memory), just
  * allocate some memory and hope that is enough for that test.
@@ -314,7 +354,7 @@ int
 generic_decode_fail (const struct test_case *tests,
 		     unsigned ntests,
 		     size_t data_size,
-		     int (*decode)(unsigned char *, size_t, void *, size_t *))
+		     int (ASN1CALL *decode)(unsigned char *, size_t, void *, size_t *))
 {
     unsigned char *buf;
     int i;
@@ -322,17 +362,20 @@ generic_decode_fail (const struct test_case *tests,
     void *data;
     struct map_page *data_map, *buf_map;
 
+#ifdef HAVE_SIGACTION
     struct sigaction sa, osa;
+#endif
 
     for (i = 0; i < ntests; ++i) {
 	int ret;
 	size_t sz;
 	const void *bytes;
-	
+
 	current_test = tests[i].name;
 
 	current_state = "init";
 
+#ifdef HAVE_SIGACTION
 	sigemptyset (&sa.sa_mask);
 	sa.sa_flags = 0;
 #ifdef SA_RESETHAND
@@ -340,6 +383,7 @@ generic_decode_fail (const struct test_case *tests,
 #endif
 	sa.sa_handler = segv_handler;
 	sigaction (SIGSEGV, &sa, &osa);
+#endif
 
 	data = map_alloc(OVERRUN, NULL, data_size, &data_map);
 
@@ -350,7 +394,7 @@ generic_decode_fail (const struct test_case *tests,
 	    sz = 4096;
 	    bytes = NULL;
 	}
-		
+
 	buf = map_alloc(OVERRUN, bytes, sz, &buf_map);
 
 	if (tests[i].byte_len == -1)
@@ -369,7 +413,9 @@ generic_decode_fail (const struct test_case *tests,
 	    map_free(buf_map, tests[i].name, "encode");
 	map_free(data_map, tests[i].name, "data");
 
+#ifdef HAVE_SIGACTION
 	sigaction (SIGSEGV, &osa, NULL);
+#endif
     }
     current_state = "done";
     return failures;

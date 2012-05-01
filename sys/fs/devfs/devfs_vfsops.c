@@ -58,7 +58,7 @@ static vfs_root_t	devfs_root;
 static vfs_statfs_t	devfs_statfs;
 
 static const char *devfs_opts[] = {
-	"from", "ruleset", NULL
+	"from", "export", "ruleset", NULL
 };
 
 /*
@@ -90,6 +90,9 @@ devfs_mount(struct mount *mp)
 	if (mp->mnt_optnew != NULL) {
 		if (vfs_filteropt(mp->mnt_optnew, devfs_opts))
 			return (EINVAL);
+
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+			return (EOPNOTSUPP);
 
 		if (vfs_getopt(mp->mnt_optnew, "ruleset", NULL, NULL) == 0 &&
 		    (vfs_scanopt(mp->mnt_optnew, "ruleset", "%d",

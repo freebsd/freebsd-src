@@ -52,6 +52,9 @@
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_MIPS
+#if __ELF_WORD_SIZE == 32
+#define	ELF_ARCH32	EM_MIPS
+#endif
 #define	ELF_MACHINE_OK(x) ((x) == EM_MIPS || (x) == EM_MIPS_RS4_BE)
 
 /* Architecture dependent Segment types - p_type */

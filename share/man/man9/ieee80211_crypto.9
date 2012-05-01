@@ -127,7 +127,7 @@ driver is unable to provide necessary hardware services.
 cipher modules register their services using
 .Fn ieee80211_crypto_register
 and supply a template that describes their operation.
-This 
+This
 .Vt ieee80211_cipher
 structure defines protocol-related state such as the number of bytes
 of space in the 802.11 header to reserve/remove during encap/decap
@@ -153,7 +153,7 @@ hardware.
 .Sh CRYPTO KEY MANAGEMENT
 The
 .Nm net80211
-layer implements a per-vap 4-element 
+layer implements a per-vap 4-element
 .Dq global key table
 and a per-station
 .Dq unicast key
@@ -235,7 +235,7 @@ to the driver that are already prepared for transmission.
 For receive, drivers mark frames with the
 .Dv M_WEP
 mbuf flag to indicate the hardware has decrypted the payload.
-If frames have the 
+If frames have the
 .Dv IEEE80211_FC1_WEP
 bit marked in their 802.11 header and are not tagged with
 .Dv M_WEP

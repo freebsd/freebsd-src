@@ -161,7 +161,6 @@ kmem_alloc(map, size)
 {
 	vm_offset_t addr;
 	vm_offset_t offset;
-	vm_offset_t i;
 
 	size = round_page(size);
 
@@ -185,35 +184,6 @@ kmem_alloc(map, size)
 	vm_map_insert(map, kernel_object, offset, addr, addr + size,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
-
-	/*
-	 * Guarantee that there are pages already in this object before
-	 * calling vm_map_wire.  This is to prevent the following
-	 * scenario:
-	 *
-	 * 1) Threads have swapped out, so that there is a pager for the
-	 * kernel_object. 2) The kmsg zone is empty, and so we are
-	 * kmem_allocing a new page for it. 3) vm_map_wire calls vm_fault;
-	 * there is no page, but there is a pager, so we call
-	 * pager_data_request.  But the kmsg zone is empty, so we must
-	 * kmem_alloc. 4) goto 1 5) Even if the kmsg zone is not empty: when
-	 * we get the data back from the pager, it will be (very stale)
-	 * non-zero data.  kmem_alloc is defined to return zero-filled memory.
-	 *
-	 * We're intentionally not activating the pages we allocate to prevent a
-	 * race with page-out.  vm_map_wire will wire the pages.
-	 */
-	VM_OBJECT_LOCK(kernel_object);
-	for (i = 0; i < size; i += PAGE_SIZE) {
-		vm_page_t mem;
-
-		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
-		    VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-		mem->valid = VM_PAGE_BITS_ALL;
-		KASSERT((mem->oflags & VPO_UNMANAGED) != 0,
-		    ("kmem_alloc: page %p is managed", mem));
-	}
-	VM_OBJECT_UNLOCK(kernel_object);
 
 	/*
 	 * And finally, mark the data as non-pageable.

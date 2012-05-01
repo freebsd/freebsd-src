@@ -130,6 +130,7 @@ static char *prison_path(struct prison *pr1, struct prison *pr2);
 static void prison_remove_one(struct prison *pr);
 #ifdef RACCT
 static void prison_racct_attach(struct prison *pr);
+static void prison_racct_modify(struct prison *pr);
 static void prison_racct_detach(struct prison *pr);
 #endif
 #ifdef INET
@@ -203,6 +204,8 @@ static char *pr_allow_names[] = {
 	"allow.socket_af",
 	"allow.mount.devfs",
 	"allow.mount.nullfs",
+	"allow.mount.zfs",
+	"allow.mount.procfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -216,6 +219,8 @@ static char *pr_allow_nonames[] = {
 	"allow.nosocket_af",
 	"allow.mount.nodevfs",
 	"allow.mount.nonullfs",
+	"allow.mount.nozfs",
+	"allow.mount.noprocfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -1826,6 +1831,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		if (!(flags & JAIL_ATTACH))
 			sx_sunlock(&allprison_lock);
 	}
+
+#ifdef RACCT
+	if (!created)
+		prison_racct_modify(pr);
+#endif
+
 	td->td_retval[0] = pr->pr_id;
 	goto done_errmsg;
 
@@ -4199,11 +4210,19 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount/unmount the devfs file system");
+    "Processes in jail can mount the devfs file system");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount/unmount the nullfs file system");
+    "Processes in jail can mount the nullfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_procfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_PROCFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the procfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_zfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_ZFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the zfs file system");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
@@ -4347,9 +4366,13 @@ SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount/unmount jail-friendly file systems in general");
 SYSCTL_JAIL_PARAM(_allow_mount, devfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount/unmount the devfs file system");
+    "B", "Jail may mount the devfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount/unmount the nullfs file system");
+    "B", "Jail may mount the nullfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, procfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the procfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the zfs file system");
 
 void
 prison_racct_foreach(void (*callback)(struct racct *racct,
@@ -4411,24 +4434,32 @@ prison_racct_hold(struct prison_racct *prr)
 	refcount_acquire(&prr->prr_refcount);
 }
 
+static void
+prison_racct_free_locked(struct prison_racct *prr)
+{
+
+	sx_assert(&allprison_lock, SA_XLOCKED);
+
+	if (refcount_release(&prr->prr_refcount)) {
+		racct_destroy(&prr->prr_racct);
+		LIST_REMOVE(prr, prr_next);
+		free(prr, M_PRISON_RACCT);
+	}
+}
+
 void
 prison_racct_free(struct prison_racct *prr)
 {
 	int old;
+
+	sx_assert(&allprison_lock, SA_UNLOCKED);
 
 	old = prr->prr_refcount;
 	if (old > 1 && atomic_cmpset_int(&prr->prr_refcount, old, old - 1))
 		return;
 
 	sx_xlock(&allprison_lock);
-	if (refcount_release(&prr->prr_refcount)) {
-		racct_destroy(&prr->prr_racct);
-		LIST_REMOVE(prr, prr_next);
-		sx_xunlock(&allprison_lock);
-		free(prr, M_PRISON_RACCT);
-
-		return;
-	}
+	prison_racct_free_locked(prr);
 	sx_xunlock(&allprison_lock);
 }
 
@@ -4438,15 +4469,63 @@ prison_racct_attach(struct prison *pr)
 {
 	struct prison_racct *prr;
 
+	sx_assert(&allprison_lock, SA_XLOCKED);
+
 	prr = prison_racct_find_locked(pr->pr_name);
 	KASSERT(prr != NULL, ("cannot find prison_racct"));
 
 	pr->pr_prison_racct = prr;
 }
 
+/*
+ * Handle jail renaming.  From the racct point of view, renaming means
+ * moving from one prison_racct to another.
+ */
+static void
+prison_racct_modify(struct prison *pr)
+{
+	struct proc *p;
+	struct ucred *cred;
+	struct prison_racct *oldprr;
+
+	sx_slock(&allproc_lock);
+	sx_xlock(&allprison_lock);
+
+	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0)
+		return;
+
+	oldprr = pr->pr_prison_racct;
+	pr->pr_prison_racct = NULL;
+
+	prison_racct_attach(pr);
+
+	/*
+	 * Move resource utilisation records.
+	 */
+	racct_move(pr->pr_prison_racct->prr_racct, oldprr->prr_racct);
+
+	/*
+	 * Force rctl to reattach rules to processes.
+	 */
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		cred = crhold(p->p_ucred);
+		PROC_UNLOCK(p);
+		racct_proc_ucred_changed(p, cred, cred);
+		crfree(cred);
+	}
+
+	sx_sunlock(&allproc_lock);
+	prison_racct_free_locked(oldprr);
+	sx_xunlock(&allprison_lock);
+}
+
 static void
 prison_racct_detach(struct prison *pr)
 {
+
+	sx_assert(&allprison_lock, SA_UNLOCKED);
+
 	prison_racct_free(pr->pr_prison_racct);
 	pr->pr_prison_racct = NULL;
 }

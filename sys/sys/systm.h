@@ -153,7 +153,7 @@ struct uio;
 struct _jmp_buf;
 struct trapframe;
 
-int	setjmp(struct _jmp_buf *);
+int	setjmp(struct _jmp_buf *) __returns_twice;
 void	longjmp(struct _jmp_buf *, int) __dead2;
 int	dumpstatus(vm_offset_t addr, off_t count);
 int	nullop(void);
@@ -247,12 +247,14 @@ void	realitexpire(void *);
 int	sysbeep(int hertz, int period);
 
 void	hardclock(int usermode, uintfptr_t pc);
-void	hardclock_anycpu(int cnt, int usermode);
+void	hardclock_cnt(int cnt, int usermode);
 void	hardclock_cpu(int usermode);
 void	hardclock_sync(int cpu);
 void	softclock(void *);
 void	statclock(int usermode);
+void	statclock_cnt(int cnt, int usermode);
 void	profclock(int usermode, uintfptr_t pc);
+void	profclock_cnt(int cnt, int usermode, uintfptr_t pc);
 
 int	hardclockintr(void);
 

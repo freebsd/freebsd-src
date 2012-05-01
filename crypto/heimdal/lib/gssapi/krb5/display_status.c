@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 1998 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1998 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include "krb5/gsskrb5_locl.h"
-
-RCSID("$Id: display_status.c 19031 2006-11-13 18:02:57Z lha $");
+#include "gsskrb5_locl.h"
 
 static const char *
 calling_error(OM_uint32 v)
@@ -118,29 +116,30 @@ _gsskrb5_clear_status (void)
 
     if (_gsskrb5_init (&context) != 0)
 	return;
-    krb5_clear_error_string(context);
+    krb5_clear_error_message(context);
 }
 
 void
-_gsskrb5_set_status (const char *fmt, ...)
+_gsskrb5_set_status (int ret, const char *fmt, ...)
 {
     krb5_context context;
     va_list args;
     char *str;
+    int e;
 
     if (_gsskrb5_init (&context) != 0)
 	return;
 
     va_start(args, fmt);
-    vasprintf(&str, fmt, args);
+    e = vasprintf(&str, fmt, args);
     va_end(args);
-    if (str) {
-	krb5_set_error_string(context, str);
+    if (e >= 0 && str) {
+	krb5_set_error_message(context, ret, "%s", str);
 	free(str);
     }
 }
 
-OM_uint32 _gsskrb5_display_status
+OM_uint32 GSSAPI_CALLCONV _gsskrb5_display_status
 (OM_uint32		*minor_status,
  OM_uint32		 status_value,
  int			 status_type,
@@ -149,7 +148,8 @@ OM_uint32 _gsskrb5_display_status
  gss_buffer_t	 status_string)
 {
     krb5_context context;
-    char *buf;
+    char *buf = NULL;
+    int e = 0;
 
     GSSAPI_KRB5_INIT (&context);
 
@@ -164,28 +164,27 @@ OM_uint32 _gsskrb5_display_status
 
     if (status_type == GSS_C_GSS_CODE) {
 	if (GSS_SUPPLEMENTARY_INFO(status_value))
-	    asprintf(&buf, "%s", 
-		     supplementary_error(GSS_SUPPLEMENTARY_INFO(status_value)));
+	    e = asprintf(&buf, "%s",
+			 supplementary_error(GSS_SUPPLEMENTARY_INFO(status_value)));
 	else
-	    asprintf (&buf, "%s %s",
-		      calling_error(GSS_CALLING_ERROR(status_value)),
-		      routine_error(GSS_ROUTINE_ERROR(status_value)));
+	    e = asprintf (&buf, "%s %s",
+			  calling_error(GSS_CALLING_ERROR(status_value)),
+			  routine_error(GSS_ROUTINE_ERROR(status_value)));
     } else if (status_type == GSS_C_MECH_CODE) {
-	buf = krb5_get_error_string(context);
-	if (buf == NULL) {
-	    const char *tmp = krb5_get_err_text (context, status_value);
-	    if (tmp == NULL)
-		asprintf(&buf, "unknown mech error-code %u",
+	const char *buf2 = krb5_get_error_message(context, status_value);
+	if (buf2) {
+	    buf = strdup(buf2);
+	    krb5_free_error_message(context, buf2);
+	} else {
+	    e = asprintf(&buf, "unknown mech error-code %u",
 			 (unsigned)status_value);
-	    else
-		buf = strdup(tmp);
 	}
     } else {
 	*minor_status = EINVAL;
 	return GSS_S_BAD_STATUS;
     }
 
-    if (buf == NULL) {
+    if (e < 0 || buf == NULL) {
 	*minor_status = ENOMEM;
 	return GSS_S_FAILURE;
     }
@@ -195,6 +194,6 @@ OM_uint32 _gsskrb5_display_status
 
     status_string->length = strlen(buf);
     status_string->value  = buf;
-  
+
     return GSS_S_COMPLETE;
 }

@@ -98,7 +98,11 @@ static struct _pcsid
 	 { 0x1d688086,	"Intel(R) C600 Series Chipset SAS Controller"  },
 	 { 0x1d698086,	"Intel(R) C600 Series Chipset SAS Controller"  },
 	 { 0x1d6a8086,	"Intel(R) C600 Series Chipset SAS Controller (SATA mode)"  },
-	 { 0x1d6b8086,	"Intel(R) C600 Series Chipset SAS Controller (SATA mode)"  },
+	 { 0x1d6b8086,  "Intel(R) C600 Series Chipset SAS Controller (SATA mode)"  },
+	 { 0x1d6c8086,	"Intel(R) C600 Series Chipset SAS Controller"  },
+	 { 0x1d6d8086,	"Intel(R) C600 Series Chipset SAS Controller"  },
+	 { 0x1d6e8086,	"Intel(R) C600 Series Chipset SAS Controller"  },
+	 { 0x1d6f8086,	"Intel(R) C600 Series Chipset SAS Controller (SATA mode)"  },
 	 { 0x00000000,	NULL				}
 };
 
@@ -114,7 +118,7 @@ isci_probe (device_t device)
 	if (ep->desc)
 	{
 		device_set_desc(device, ep->desc);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	else
 		return (ENXIO);
