@@ -426,7 +426,7 @@ struct ieee80211_mesh_route {
 	uint32_t		rt_metric;	/* path metric */
 	uint16_t		rt_nhops;	/* number of hops */
 	uint16_t		rt_flags;
-#define	IEEE80211_MESHRT_FLAGS_VALID	0x01	/* patch discovery complete */
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x01	/* path discovery complete */
 #define	IEEE80211_MESHRT_FLAGS_PROXY	0x02	/* proxy entry */
 	uint32_t		rt_lifetime;	/* route timeout */
 	uint32_t		rt_lastmseq;	/* last seq# seen dest */
