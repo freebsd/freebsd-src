@@ -1573,7 +1573,7 @@ mesh_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
 }
 
 /*
- * Parse meshpeering action ie's for open+confirm frames
+ * Parse meshpeering action ie's for MPM frames
  */
 static const struct ieee80211_meshpeer_ie *
 mesh_parse_meshpeering_action(struct ieee80211_node *ni,
@@ -1583,7 +1583,9 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_meshpeer_ie *mpie;
+	uint16_t args[3];
 	const uint8_t *meshid, *meshconf, *meshpeer;
+	uint8_t sendclose = 0; /* 1 = MPM frame rejected, close will be sent */
 
 	meshid = meshconf = meshpeer = NULL;
 	while (efrm - frm > 1) {
@@ -1599,6 +1601,7 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			meshpeer = frm;
 			mpie = (const struct ieee80211_meshpeer_ie *) frm;
 			memset(mp, 0, sizeof(*mp));
+			mp->peer_len = mpie->peer_len;
 			mp->peer_proto = LE_READ_2(&mpie->peer_proto);
 			mp->peer_llinkid = LE_READ_2(&mpie->peer_llinkid);
 			switch (subtype) {
@@ -1627,22 +1630,46 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 	}
 
 	/*
-	 * Verify the contents of the frame. Action frames with
-	 * close subtype don't have a Mesh Configuration IE.
-	 * If if fails validation, close the peer link.
+	 * Verify the contents of the frame.
+	 * If it fails validation, close the peer link.
 	 */
-	KASSERT(meshpeer != NULL &&
-	    subtype != IEEE80211_ACTION_MESHPEERING_CLOSE,
-	    ("parsing close action"));
+	if (mesh_verify_meshpeer(vap, subtype, (const uint8_t *)mp)) {
+		sendclose = 1;
+		IEEE80211_DISCARD(vap,
+		    IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
+		    wh, NULL, "%s", "MPM validation failed");
+	}
 
-	if (mesh_verify_meshid(vap, meshid) ||
-	    mesh_verify_meshpeer(vap, subtype, meshpeer) ||
-	    mesh_verify_meshconf(vap, meshconf)) {
-		uint16_t args[3];
-
+	/* If meshid is not the same reject any frames type. */
+	if (sendclose == 0 && mesh_verify_meshid(vap, meshid)) {
+		sendclose = 1;
 		IEEE80211_DISCARD(vap,
 		    IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
 		    wh, NULL, "%s", "not for our mesh");
+		if (subtype == IEEE80211_ACTION_MESHPEERING_CLOSE) {
+			/*
+			 * Standard not clear about this, if we dont ignore
+			 * there will be an endless loop between nodes sending
+			 * CLOSE frames between each other with wrong meshid.
+			 * Discard and timers will bring FSM to IDLE state.
+			 */
+			return NULL;
+		}
+	}
+	
+	/*
+	 * Close frames are accepted if meshid is the same.
+	 * Verify the other two types.
+	 */
+	if (sendclose == 0 && subtype != IEEE80211_ACTION_MESHPEERING_CLOSE &&
+	    mesh_verify_meshconf(vap, meshconf)) {
+		sendclose = 1;
+		IEEE80211_DISCARD(vap,
+		    IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
+		    wh, NULL, "%s", "configuration missmatch");
+	}
+
+	if (sendclose) {
 		vap->iv_stats.is_rx_mgtdiscard++;
 		switch (ni->ni_mlstate) {
 		case IEEE80211_NODE_MESH_IDLE:
@@ -1655,7 +1682,15 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 		case IEEE80211_NODE_MESH_CONFIRMRCV:
 			args[0] = ni->ni_mlpid;
 			args[1] = ni->ni_mllid;
-			args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
+			/* Reason codes for rejection */
+			switch (subtype) {
+			case IEEE80211_ACTION_MESHPEERING_OPEN:
+				args[2] = IEEE80211_REASON_MESH_CPVIOLATION;
+				break;
+			case IEEE80211_ACTION_MESHPEERING_CONFIRM:
+				args[2] = IEEE80211_REASON_MESH_INCONS_PARAMS;
+				break;
+			}
 			ieee80211_send_action(ni,
 			    IEEE80211_ACTION_CAT_SELF_PROT,
 			    IEEE80211_ACTION_MESHPEERING_CLOSE,
@@ -1666,6 +1701,7 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 		}
 		return NULL;
 	}
+	
 	return (const struct ieee80211_meshpeer_ie *) mp;
 }
 
@@ -1675,6 +1711,7 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 	const uint8_t *frm, const uint8_t *efrm)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_meshpeer_ie ie;
 	const struct ieee80211_meshpeer_ie *meshpeer;
 	uint16_t args[3];
@@ -1692,6 +1729,19 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 
 	switch (ni->ni_mlstate) {
 	case IEEE80211_NODE_MESH_IDLE:
+		/* Reject open request if reached our maximum neighbor count */
+		if (ms->ms_neighbors >= IEEE80211_MESH_MAX_NEIGHBORS) {
+			args[0] = meshpeer->peer_llinkid;
+			args[1] = 0;
+			args[2] = IEEE80211_REASON_MESH_MAX_PEERS;
+			ieee80211_send_action(ni,
+			    IEEE80211_ACTION_CAT_SELF_PROT,
+			    IEEE80211_ACTION_MESHPEERING_CLOSE,
+			    args);
+			/* stay in IDLE state */
+			return (0);
+		}
+		/* Open frame accepted */
 		mesh_linkchange(ni, IEEE80211_NODE_MESH_OPENRCV);
 		ni->ni_mllid = meshpeer->peer_llinkid;
 		ni->ni_mlpid = mesh_generateid(vap);
@@ -1792,7 +1842,8 @@ mesh_recv_action_meshpeering_open(struct ieee80211_node *ni,
 	case IEEE80211_NODE_MESH_HOLDING:
 		args[0] = ni->ni_mlpid;
 		args[1] = meshpeer->peer_llinkid;
-		args[2] = IEEE80211_REASON_MESH_MAX_RETRIES;
+		/* Standard not clear about what the reaason code should be */
+		args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 		ieee80211_send_action(ni,
 		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
@@ -1830,11 +1881,13 @@ mesh_recv_action_meshpeering_confirm(struct ieee80211_node *ni,
 		break;
 	case IEEE80211_NODE_MESH_OPENSNT:
 		mesh_linkchange(ni, IEEE80211_NODE_MESH_CONFIRMRCV);
+		mesh_peer_timeout_setup(ni);
 		break;
 	case IEEE80211_NODE_MESH_HOLDING:
 		args[0] = ni->ni_mlpid;
 		args[1] = meshpeer->peer_llinkid;
-		args[2] = IEEE80211_REASON_MESH_MAX_RETRIES;
+		/* Standard not clear about what the reaason code should be */
+		args[2] = IEEE80211_REASON_PEER_LINK_CANCELED;
 		ieee80211_send_action(ni,
 		    IEEE80211_ACTION_CAT_SELF_PROT,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
@@ -1869,7 +1922,22 @@ mesh_recv_action_meshpeering_close(struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh,
 	const uint8_t *frm, const uint8_t *efrm)
 {
+	struct ieee80211_meshpeer_ie ie;
+	const struct ieee80211_meshpeer_ie *meshpeer;
 	uint16_t args[3];
+
+	/* +2 for action + code */
+	meshpeer = mesh_parse_meshpeering_action(ni, wh, frm+2, efrm, &ie,
+	    IEEE80211_ACTION_MESHPEERING_CLOSE);
+	if (meshpeer == NULL) {
+		return 0;
+	}
+
+	/*
+	 * XXX: check reason code, for example we could receive
+	 * IEEE80211_REASON_MESH_MAX_PEERS then we should not attempt
+	 * to peer again.
+	 */
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
 	    ni, "%s", "recv PEER CLOSE");
@@ -1894,7 +1962,7 @@ mesh_recv_action_meshpeering_close(struct ieee80211_node *ni,
 		break;
 	case IEEE80211_NODE_MESH_HOLDING:
 		mesh_linkchange(ni, IEEE80211_NODE_MESH_IDLE);
-		mesh_peer_timeout_setup(ni);
+		mesh_peer_timeout_stop(ni);
 		break;
 	}
 	return 0;
@@ -2112,13 +2180,11 @@ mesh_send_action_meshpeering_close(struct ieee80211_node *ni,
 		 * mesh peer close action frame format:
 		 *   [1] category
 		 *   [1] action
-		 *   [2] reason code
 		 *   [tlv] mesh id
 		 *   [tlv] mesh peer link mgmt
 		 */
 		*frm++ = category;
 		*frm++ = action;
-		ADDSHORT(frm, args[2]);		/* reason code */
 		frm = ieee80211_add_meshid(frm, vap);
 		frm = ieee80211_add_meshpeer(frm,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
@@ -2260,19 +2326,13 @@ mesh_peer_timeout_cb(void *arg)
 		}
 		break;
 	case IEEE80211_NODE_MESH_CONFIRMRCV:
-		if (ni->ni_mlrcnt == ieee80211_mesh_maxretries) {
-			args[0] = ni->ni_mlpid;
-			args[2] = IEEE80211_REASON_MESH_CONFIRM_TIMEOUT;
-			ieee80211_send_action(ni,
-			    IEEE80211_ACTION_CAT_SELF_PROT,
-			    IEEE80211_ACTION_MESHPEERING_CLOSE, args);
-			ni->ni_mlrcnt = 0;
-			mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
-			mesh_peer_timeout_setup(ni);
-		} else {
-			ni->ni_mlrcnt++;
-			mesh_peer_timeout_setup(ni);
-		}
+		args[0] = ni->ni_mlpid;
+		args[2] = IEEE80211_REASON_MESH_CONFIRM_TIMEOUT;
+		ieee80211_send_action(ni,
+		    IEEE80211_ACTION_CAT_SELF_PROT,
+		    IEEE80211_ACTION_MESHPEERING_CLOSE, args);
+		mesh_linkchange(ni, IEEE80211_NODE_MESH_HOLDING);
+		mesh_peer_timeout_setup(ni);
 		break;
 	case IEEE80211_NODE_MESH_HOLDING:
 		mesh_linkchange(ni, IEEE80211_NODE_MESH_IDLE);
@@ -2418,7 +2478,8 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 	*frm++ = IEEE80211_MESHCONF_SYNC_NEIGHOFF;
 	*frm++ = IEEE80211_MESHCONF_AUTH_DISABLED;
 	/* NB: set the number of neighbors before the rest */
-	*frm = (ms->ms_neighbors > 15 ? 15 : ms->ms_neighbors) << 1;
+	*frm = (ms->ms_neighbors > IEEE80211_MESH_MAX_NEIGHBORS ?
+	    IEEE80211_MESH_MAX_NEIGHBORS : ms->ms_neighbors) << 1;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
 		*frm |= IEEE80211_MESHCONF_FORM_MP;
 	frm += 1;
