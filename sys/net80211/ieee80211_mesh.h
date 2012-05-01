@@ -449,6 +449,9 @@ struct ieee80211_mesh_proto_path {
 				const uint8_t [IEEE80211_ADDR_LEN],
 				struct mbuf *);
 	void		(*mpp_peerdown)(struct ieee80211_node *);
+	void		(*mpp_senderror)(struct ieee80211vap *,
+				const uint8_t [IEEE80211_ADDR_LEN],
+				struct ieee80211_mesh_route *, int);
 	void		(*mpp_vattach)(struct ieee80211vap *);
 	void		(*mpp_vdetach)(struct ieee80211vap *);
 	int		(*mpp_newstate)(struct ieee80211vap *,
