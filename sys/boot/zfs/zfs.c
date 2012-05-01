@@ -399,6 +399,7 @@ zfs_guid_to_unit(uint64_t guid)
 	return (-1);
 }
 
+#if defined(__amd64__) || defined(__i386__)
 static int
 zfs_dev_init(void) 
 {
@@ -441,6 +442,7 @@ zfs_dev_init(void)
 
 	return (0);
 }
+#endif
 
 /*
  * Print information about ZFS pools
