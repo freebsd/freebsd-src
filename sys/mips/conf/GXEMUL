@@ -1,0 +1,52 @@
+#
+# GXEMUL "oldtestmips" sample kernel configuration.
+#
+# $FreeBSD$
+#
+
+ident		GXEMUL
+
+machine		mips mips64eb
+cpu		CPU_MIPS4KC
+
+options 	HZ=100
+
+makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
+
+makeoptions 	KERNLOADADDR=0xffffffff80100000
+
+include		"../gxemul/std.gxemul"
+
+hints		"GXEMUL.hints"		#Default places to look for devices.
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+
+makeoptions	MODULES_OVERRIDE=""
+
+options 	DDB
+options 	KDB
+
+options 	SCHED_ULE
+
+options 	FFS			#Berkeley Fast Filesystem
+
+# Debugging for use in -current
+#options 	DEADLKRES		#Enable the deadlock resolver
+options 	INVARIANTS		#Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+#options 	WITNESS			#Enable checks to detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+
+#
+# This kernel configuration uses an embedded 8MB memory root file system.
+# Adjust the following path based on local requirements.
+#
+options 	MD_ROOT			# MD is a potential root device
+options 	MD_ROOT_SIZE=8192
+#makeoptions	MFS_IMAGE=/local/scratch/rnw24/mdroot.img
+options 	ROOTDEVNAME=\"ufs:md0\"
+
+device		gxemul_cons
+device		md
+device		loop
+device		random
