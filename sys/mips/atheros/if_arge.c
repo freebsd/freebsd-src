@@ -776,10 +776,13 @@ arge_update_link_locked(struct arge_softc *sc)
 	if (mii->mii_media_status & IFM_ACTIVE) {
 
 		media = IFM_SUBTYPE(mii->mii_media_active);
-
 		if (media != IFM_NONE) {
 			sc->arge_link_status = 1;
 			duplex = mii->mii_media_active & IFM_GMASK;
+			ARGEDEBUG(sc, ARGE_DBG_MII, "%s: media=%d, duplex=%d\n",
+			    __func__,
+			    media,
+			    duplex);
 			arge_set_pll(sc, media, duplex);
 		}
 	} else {
@@ -791,7 +794,7 @@ static void
 arge_set_pll(struct arge_softc *sc, int media, int duplex)
 {
 	uint32_t		cfg, ifcontrol, rx_filtmask;
-	uint32_t		fifo_tx;
+	uint32_t		fifo_tx, pll;
 	int if_speed;
 
 	ARGEDEBUG(sc, ARGE_DBG_MII, "set_pll(%04x, %s)\n", media,
@@ -832,6 +835,8 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		    "Unknown media %d\n", media);
 	}
 
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: if_speed=%d\n", __func__, if_speed);
+
 	switch (ar71xx_soc) {
 		case AR71XX_SOC_AR7240:
 		case AR71XX_SOC_AR7241:
@@ -853,7 +858,13 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD, fifo_tx);
 
 	/* set PLL registers */
-	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed);
+	pll = ar71xx_device_get_eth_pll(sc->arge_mac_unit, if_speed);
+
+	/* XXX ensure pll != 0 */
+	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed, pll);
+
+	/* set MII registers */
+	ar71xx_device_set_mii_speed(sc->arge_mac_unit, if_speed);
 }
 
 
