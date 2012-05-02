@@ -49,27 +49,20 @@ _start:
  * syscall()
  */
 ENTRY(syscall)
-	/* Save caller's lr */
+	/* Save caller's lr and r8 */
 	ldr	ip, =saved_regs
 	str	lr, [ip, #4]
-	/* Save loader's r8 */
-	ldr	ip, =saved_regs
 	str	r8, [ip, #8]
-
 	/* Restore U-Boot's r8 */
-	ldr	ip, =saved_regs
 	ldr	r8, [ip, #0]
 	/* Call into U-Boot */
 	ldr	lr, =return_from_syscall
 	ldr	ip, =syscall_ptr
 	ldr	pc, [ip]
-
 return_from_syscall:
-	/* Restore loader's r8 */
+	/* Restore loader's r8 and lr */
 	ldr	ip, =saved_regs
 	ldr	r8, [ip, #8]
-	/* Restore caller's lr */
-	ldr	ip, =saved_regs
 	ldr	lr, [ip, #4]
 	/* Return to caller */
 	mov	pc, lr
