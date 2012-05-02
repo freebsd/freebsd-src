@@ -147,6 +147,7 @@ ar91xx_chip_set_pll_ge(int unit, int speed)
 		    __func__, unit);
 		return;
 	}
+	ar71xx_chip_set_mii_speed(unit, speed);
 }
 
 static void
@@ -211,6 +212,7 @@ struct ar71xx_cpu_def ar91xx_chip_def = {
 	&ar91xx_chip_device_stopped,
 	&ar91xx_chip_set_pll_ge,
 	&ar71xx_chip_set_mii_speed,
+	&ar71xx_chip_set_mii_if,
 	&ar91xx_chip_ddr_flush_ge,
 	&ar91xx_chip_get_eth_pll,
 	&ar91xx_chip_ddr_flush_ip2,
