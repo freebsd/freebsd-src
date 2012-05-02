@@ -135,6 +135,7 @@ struct arge_softc {
 	void			*arge_intrhand;
 	device_t		arge_miibus;
 	device_t		arge_miiproxy;
+	ar71xx_mii_mode		arge_miicfg;
 	bus_dma_tag_t		arge_parent_tag;
 	bus_dma_tag_t		arge_tag;
 	struct mtx		arge_mtx;
