@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar724x_chip.h>
 
 #include <mips/sentry5/s5reg.h>
@@ -130,6 +131,13 @@ ar724x_chip_set_mii_speed(uint32_t unit, uint32_t speed)
 	return;
 }
 
+/*
+ * XXX TODO: set the PLL for arge0 only on AR7242.
+ * The PLL/clock requirements are different.
+ *
+ * Otherwise, it's a NULL function for AR7240, AR7241 and
+ * AR7242 arge1.
+ */
 static void
 ar724x_chip_set_pll_ge(int unit, int speed)
 {
@@ -229,6 +237,7 @@ struct ar71xx_cpu_def ar724x_chip_def = {
 	&ar724x_chip_device_stopped,
 	&ar724x_chip_set_pll_ge,
 	&ar724x_chip_set_mii_speed,
+	&ar71xx_chip_set_mii_if,
 	&ar724x_chip_ddr_flush_ge,
 	&ar724x_chip_get_eth_pll,
 	&ar724x_chip_ddr_flush_ip2,
