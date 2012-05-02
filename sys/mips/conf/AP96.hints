@@ -23,7 +23,7 @@ hint.arge.0.mdio=mdioproxy0
 
 # TODO: RGMII
 hint.arge.1.phymask=0x10
-hint.arge.1.pll_1000 = 0x1f000000
+# hint.arge.1.pll_1000 = 0x1f000000
 # For now, rendezouvs this on the arge0 mdiobus.
 # Later, this will rendezvous via the AR8316 switch.
 hint.arge.1.miimode=3		# RGMII
