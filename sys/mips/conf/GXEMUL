@@ -6,7 +6,7 @@
 
 ident		GXEMUL
 
-machine		mips mips64eb
+machine		mips mips64
 cpu		CPU_MIPS4KC
 
 options 	HZ=100
