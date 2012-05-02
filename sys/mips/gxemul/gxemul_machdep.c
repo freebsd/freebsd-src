@@ -102,19 +102,6 @@ mips_init(void)
 #endif
 }
 
-void
-platform_halt(void)
-{
-
-}
-
-
-void
-platform_identify(void)
-{
-
-}
-
 /*
  * Perform a board-level soft-reset.
  *
@@ -125,18 +112,6 @@ platform_reset(void)
 {
 
 	panic("%s: not yet", __func__);
-}
-
-void
-platform_trap_enter(void)
-{
-
-}
-
-void
-platform_trap_exit(void)
-{
-
 }
 
 void
