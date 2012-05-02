@@ -222,25 +222,8 @@ ar71xx_chip_set_mii_if(uint32_t unit, uint32_t mii_mode)
 
 /* Speed is either 10, 100 or 1000 */
 static void
-ar71xx_chip_set_pll_ge(int unit, int speed)
+ar71xx_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 {
-	uint32_t pll;
-
-	switch (speed) {
-	case 10:
-		pll = PLL_ETH_INT_CLK_10;
-		break;
-	case 100:
-		pll = PLL_ETH_INT_CLK_100;
-		break;
-	case 1000:
-		pll = PLL_ETH_INT_CLK_1000;
-		break;
-	default:
-		printf("%s%d: invalid speed %d\n",
-		    __func__, unit, speed);
-		return;
-	}
 
 	switch (unit) {
 	case 0:
@@ -258,12 +241,6 @@ ar71xx_chip_set_pll_ge(int unit, int speed)
 		    __func__, unit);
 		return;
 	}
-
-	/*
-	 * AR71xx and AR913x require this; AR724x doesn't require
-	 * an MII clock change at all.
-	 */
-	ar71xx_chip_set_mii_speed(unit, speed);
 }
 
 static void
@@ -293,7 +270,24 @@ ar71xx_chip_ddr_flush_ip2(void)
 static uint32_t
 ar71xx_chip_get_eth_pll(unsigned int mac, int speed)
 {
-	return 0;
+	uint32_t pll;
+
+	switch (speed) {
+	case 10:
+		pll = PLL_ETH_INT_CLK_10;
+		break;
+	case 100:
+		pll = PLL_ETH_INT_CLK_100;
+		break;
+	case 1000:
+		pll = PLL_ETH_INT_CLK_1000;
+		break;
+	default:
+		printf("%s%d: invalid speed %d\n", __func__, mac, speed);
+		pll = 0;
+	}
+
+	return (pll);
 }
 
 static void
