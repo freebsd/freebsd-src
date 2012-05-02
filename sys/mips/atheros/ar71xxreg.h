@@ -274,6 +274,7 @@ typedef enum {
 	AR71XX_MII_MODE_RGMII,
 	AR71XX_MII_MODE_RMII,
 } ar71xx_mii_mode;
+
 /*
  * AR71xx MII control region
  */
