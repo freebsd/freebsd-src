@@ -118,6 +118,15 @@ struct arge_ring_data {
 	bus_addr_t		arge_tx_ring_paddr;
 };
 
+/*
+ * Allow PLL values to be overridden.
+ */
+struct arge_pll_data {
+	uint32_t pll_10;
+	uint32_t pll_100;
+	uint32_t pll_1000;
+};
+
 struct arge_softc {
 	struct ifnet		*arge_ifp;	/* interface info */
 	device_t		arge_dev;
@@ -136,6 +145,7 @@ struct arge_softc {
 	device_t		arge_miibus;
 	device_t		arge_miiproxy;
 	ar71xx_mii_mode		arge_miicfg;
+	struct arge_pll_data	arge_pllcfg;
 	bus_dma_tag_t		arge_parent_tag;
 	bus_dma_tag_t		arge_tag;
 	struct mtx		arge_mtx;
