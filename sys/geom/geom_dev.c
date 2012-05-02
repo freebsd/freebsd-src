@@ -113,8 +113,9 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
-	int error;
-	struct cdev *dev;
+	int error, len;
+	struct cdev *dev, *adev;
+	char buf[64], *val;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -128,12 +129,35 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
 	dev = make_dev(&g_dev_cdevsw, 0,
 	    UID_ROOT, GID_OPERATOR, 0640, "%s", gp->name);
+
+	/* Search for device alias name and create it if found. */
+	adev = NULL;
+	for (len = MIN(strlen(gp->name), sizeof(buf) - 15); len > 0; len--) {
+		snprintf(buf, sizeof(buf), "kern.devalias.%s", gp->name);
+		buf[14 + len] = 0;
+		val = getenv(buf);
+		if (val != NULL) {
+			snprintf(buf, sizeof(buf), "%s%s",
+			    val, gp->name + len);
+			freeenv(val);
+			adev = make_dev_alias(dev, buf);
+			break;
+		}
+	}
+
 	if (pp->flags & G_PF_CANDELETE)
 		dev->si_flags |= SI_CANDELETE;
 	dev->si_iosize_max = MAXPHYS;
 	gp->softc = dev;
 	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;
+	if (adev != NULL) {
+		if (pp->flags & G_PF_CANDELETE)
+			adev->si_flags |= SI_CANDELETE;
+		adev->si_iosize_max = MAXPHYS;
+		adev->si_drv1 = gp;
+		adev->si_drv2 = cp;
+	}
 	return (gp);
 }
 
