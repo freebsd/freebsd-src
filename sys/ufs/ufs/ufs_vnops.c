@@ -547,8 +547,8 @@ ufs_setattr(ap)
 		 * processes.
 		 */
 		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
+			if (ip->i_flags &
+			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
 					return (error);
@@ -562,8 +562,8 @@ ufs_setattr(ap)
 			ip->i_flags = vap->va_flags;
 			DIP_SET(ip, i_flags, vap->va_flags);
 		} else {
-			if (ip->i_flags
-			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
+			if (ip->i_flags &
+			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND) ||
 			    (vap->va_flags & UF_SETTABLE) != vap->va_flags)
 				return (EPERM);
 			ip->i_flags &= SF_SETTABLE;
@@ -572,9 +572,14 @@ ufs_setattr(ap)
 		}
 		ip->i_flag |= IN_CHANGE;
 		error = UFS_UPDATE(vp, 0);
-		if (vap->va_flags & (IMMUTABLE | APPEND))
+		if (ip->i_flags & (IMMUTABLE | APPEND))
 			return (error);
 	}
+	/*
+	 * If immutable or append, no one can change any of its attributes
+	 * except the ones already handled (in some cases, file flags
+	 * including the immutability flags themselves for the superuser).
+	 */
 	if (ip->i_flags & (IMMUTABLE | APPEND))
 		return (EPERM);
 	/*
