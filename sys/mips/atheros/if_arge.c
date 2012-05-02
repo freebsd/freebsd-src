@@ -101,6 +101,7 @@ typedef enum {
 	ARGE_DBG_RX	=	0x00000008,
 	ARGE_DBG_ERR	=	0x00000010,
 	ARGE_DBG_RESET	=	0x00000020,
+	ARGE_DBG_PLL	=	0x00000040,
 } arge_debug_flags;
 
 static const char * arge_miicfg_str[] = {
@@ -331,6 +332,34 @@ arge_reset_miibus(struct arge_softc *sc)
 	DELAY(100);
 }
 
+static void
+arge_fetch_pll_config(struct arge_softc *sc)
+{
+	long int val;
+
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_10", &val) == 0) {
+		sc->arge_pllcfg.pll_10 = val;
+		device_printf(sc->arge_dev, "%s: pll_10 = 0x%x\n",
+		    __func__, (int) val);
+	}
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_100", &val) == 0) {
+		sc->arge_pllcfg.pll_100 = val;
+		device_printf(sc->arge_dev, "%s: pll_100 = 0x%x\n",
+		    __func__, (int) val);
+	}
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_1000", &val) == 0) {
+		sc->arge_pllcfg.pll_1000 = val;
+		device_printf(sc->arge_dev, "%s: pll_1000 = 0x%x\n",
+		    __func__, (int) val);
+	}
+}
+
 static int
 arge_attach(device_t dev)
 {
@@ -370,6 +399,11 @@ arge_attach(device_t dev)
 
 	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)),
 	    ("if_arge: Only MAC0 and MAC1 supported"));
+
+	/*
+	 * Fetch the PLL configuration.
+	 */
+	arge_fetch_pll_config(sc);
 
 	/*
 	 * Get the MII configuration, if applicable.
@@ -821,7 +855,7 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	uint32_t		fifo_tx, pll;
 	int if_speed;
 
-	ARGEDEBUG(sc, ARGE_DBG_MII, "set_pll(%04x, %s)\n", media,
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "set_pll(%04x, %s)\n", media,
 	    duplex == IFM_FDX ? "full" : "half");
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
 	cfg &= ~(MAC_CFG2_IFACE_MODE_1000
@@ -859,7 +893,7 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		    "Unknown media %d\n", media);
 	}
 
-	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: if_speed=%d\n", __func__, if_speed);
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: if_speed=%d\n", __func__, if_speed);
 
 	switch (ar71xx_soc) {
 		case AR71XX_SOC_AR7240:
@@ -881,8 +915,18 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	    rx_filtmask);
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD, fifo_tx);
 
-	/* set PLL registers */
+	/* fetch PLL registers */
 	pll = ar71xx_device_get_eth_pll(sc->arge_mac_unit, if_speed);
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: pll=0x%x\n", __func__, pll);
+
+	/* Override if required by platform data */
+	if (if_speed == 10 && sc->arge_pllcfg.pll_10 != 0)
+		pll = sc->arge_pllcfg.pll_10;
+	else if (if_speed == 100 && sc->arge_pllcfg.pll_100 != 0)
+		pll = sc->arge_pllcfg.pll_100;
+	else if (if_speed == 1000 && sc->arge_pllcfg.pll_1000 != 0)
+		pll = sc->arge_pllcfg.pll_1000;
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: final pll=0x%x\n", __func__, pll);
 
 	/* XXX ensure pll != 0 */
 	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed, pll);
