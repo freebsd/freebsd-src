@@ -103,6 +103,14 @@ typedef enum {
 	ARGE_DBG_RESET	=	0x00000020,
 } arge_debug_flags;
 
+static const char * arge_miicfg_str[] = {
+	"NONE",
+	"GMII",
+	"MII",
+	"RGMII",
+	"RMII"
+};
+
 #ifdef ARGE_DEBUG
 #define	ARGEDEBUG(_sc, _m, ...) 					\
 	do {								\
@@ -333,6 +341,7 @@ arge_attach(device_t dev)
 	int			is_base_mac_empty, i;
 	uint32_t		hint;
 	long			eeprom_mac_addr = 0;
+	int			miicfg = 0;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
@@ -361,6 +370,17 @@ arge_attach(device_t dev)
 
 	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)),
 	    ("if_arge: Only MAC0 and MAC1 supported"));
+
+	/*
+	 * Get the MII configuration, if applicable.
+	 */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "miimode", &miicfg) == 0) {
+		/* XXX bounds check? */
+		device_printf(dev, "%s: overriding MII mode to '%s'\n",
+		    __func__, arge_miicfg_str[miicfg]);
+		sc->arge_miicfg = miicfg;
+	}
 
 	/*
 	 *  Get which PHY of 5 available we should use for this unit
@@ -496,6 +516,10 @@ arge_attach(device_t dev)
 	arge_reset_mac(sc);
 	arge_reset_miibus(sc);
 #endif
+
+	/* Configure MII mode, just for convienence */
+	if (sc->arge_miicfg != 0)
+		ar71xx_device_set_mii_if(sc->arge_mac_unit, sc->arge_miicfg);
 
 	/*
 	 * Set all Ethernet address registers to the same initial values
