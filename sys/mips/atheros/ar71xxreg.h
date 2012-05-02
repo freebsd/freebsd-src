@@ -267,6 +267,13 @@
 #define		AR91XX_REV_ID_REVISION_MASK	0x3
 #define		AR91XX_REV_ID_REVISION_SHIFT	2
 
+typedef enum {
+	AR71XX_MII_MODE_NONE = 0,
+	AR71XX_MII_MODE_GMII,
+	AR71XX_MII_MODE_MII,
+	AR71XX_MII_MODE_RGMII,
+	AR71XX_MII_MODE_RMII,
+} ar71xx_mii_mode;
 /*
  * AR71xx MII control region
  */
@@ -287,7 +294,6 @@
 
 #define				MII1_CTRL_IF_RGMII	0
 #define				MII1_CTRL_IF_RMII	1
-
 
 /*
  * GigE adapters region
