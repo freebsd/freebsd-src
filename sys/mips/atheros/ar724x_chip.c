@@ -139,7 +139,7 @@ ar724x_chip_set_mii_speed(uint32_t unit, uint32_t speed)
  * AR7242 arge1.
  */
 static void
-ar724x_chip_set_pll_ge(int unit, int speed)
+ar724x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 {
 
 	switch (unit) {
@@ -185,7 +185,7 @@ static uint32_t
 ar724x_chip_get_eth_pll(unsigned int mac, int speed)
 {
 
-	return 0;
+	return (0);
 }
 
 static void
