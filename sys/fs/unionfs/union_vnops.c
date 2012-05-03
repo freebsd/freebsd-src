@@ -1642,7 +1642,7 @@ unionfs_readdir(struct vop_readdir_args *ap)
 		pos = newcookies;
 
 		memcpy(pos, cookies_bk, ncookies_bk * sizeof(u_long));
-		pos += ncookies_bk * sizeof(u_long);
+		pos += ncookies_bk;
 		memcpy(pos, *(ap->a_cookies), *(ap->a_ncookies) * sizeof(u_long));
 		free(cookies_bk, M_TEMP);
 		free(*(ap->a_cookies), M_TEMP);
