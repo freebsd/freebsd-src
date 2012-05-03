@@ -13,6 +13,7 @@ entry:
 	%xort = alloca i32		; <i32*> [#uses=2]
 	%old = alloca i32		; <i32*> [#uses=18]
 	%temp = alloca i32		; <i32*> [#uses=2]
+	%temp64 = alloca i64
 	store i32 %argc, i32* %argc.addr
 	store i8** %argv, i8*** %argv.addr
 	store i32 0, i32* %val1
@@ -106,6 +107,25 @@ entry:
         ; CHECK: cmpxchgl
   %17 = cmpxchg i32* %val2, i32 1976, i32 1 monotonic
 	store i32 %17, i32* %old
+        ; CHECK: movl	$1401, %[[R17mask:[a-z]*]]
+        ; CHECK: movl	[[R17atomic:.*]], %eax
+        ; CHECK: movl	%eax, %[[R17newval:[a-z]*]]
+        ; CHECK: andl	%[[R17mask]], %[[R17newval]]
+        ; CHECK: notl	%[[R17newval]]
+        ; CHECK: lock
+        ; CHECK: cmpxchgl	%[[R17newval]], [[R17atomic]]
+        ; CHECK: jne
+        ; CHECK: movl	%eax,
+  %18 = atomicrmw nand i32* %val2, i32 1401 monotonic
+  store i32 %18, i32* %old
+        ; CHECK: andl
+        ; CHECK: andl
+        ; CHECK: notl
+        ; CHECK: notl
+        ; CHECK: lock
+        ; CHECK: cmpxchg8b
+  %19 = atomicrmw nand i64* %temp64, i64 17361641481138401520 monotonic
+  store i64 %19, i64* %temp64
 	ret void
 }
 

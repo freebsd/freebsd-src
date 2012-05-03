@@ -110,9 +110,9 @@ if( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
   endif( LLVM_BUILD_32_BITS )
 endif( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
 
-if( MSVC_IDE AND ( MSVC90 OR MSVC10 ) )
-  # Only Visual Studio 2008 and 2010 officially supports /MP.
-  # Visual Studio 2005 do support it but it's experimental there.
+# On Win32 using MS tools, provide an option to set the number of parallel jobs
+# to use.
+if( MSVC_IDE )
   set(LLVM_COMPILER_JOBS "0" CACHE STRING
     "Number of parallel compiler jobs. 0 means use all processors. Default is 0.")
   if( NOT LLVM_COMPILER_JOBS STREQUAL "1" )

@@ -17,22 +17,23 @@
 #include "CodeGenTarget.h"
 #include "CodeGenRegisters.h"
 #include "SequenceToOffsetTable.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/Format.h"
 #include <algorithm>
 #include <set>
 using namespace llvm;
 
 // runEnums - Print out enum values for all of the registers.
-void
-RegisterInfoEmitter::runEnums(raw_ostream &OS,
-                              CodeGenTarget &Target, CodeGenRegBank &Bank) {
+void RegisterInfoEmitter::runEnums(raw_ostream &OS,
+                                   CodeGenTarget &Target, CodeGenRegBank &Bank) {
   const std::vector<CodeGenRegister*> &Registers = Bank.getRegisters();
 
-  // Register enums are stored as uint16_t in the tables. Make sure we'll fit
+  // Register enums are stored as uint16_t in the tables. Make sure we'll fit.
   assert(Registers.size() <= 0xffff && "Too many regs to fit in tables");
 
   std::string Namespace = Registers[0]->TheDef->getValueAsString("Namespace");
@@ -208,8 +209,8 @@ RegisterInfoEmitter::EmitRegMappingTables(raw_ostream &OS,
     std::vector<int64_t> RegNums = Reg->getValueAsListOfInts("DwarfNumbers");
     maxLength = std::max((size_t)maxLength, RegNums.size());
     if (DwarfRegNums.count(Reg))
-      errs() << "Warning: DWARF numbers for register " << getQualifiedName(Reg)
-             << "specified multiple times\n";
+      PrintWarning(Reg->getLoc(), Twine("DWARF numbers for register ") +
+                   getQualifiedName(Reg) + "specified multiple times");
     DwarfRegNums[Reg] = RegNums;
   }
 

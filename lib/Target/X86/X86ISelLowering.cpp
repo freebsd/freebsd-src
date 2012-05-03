@@ -2935,6 +2935,7 @@ static SDValue getTargetShuffleNode(unsigned Opc, DebugLoc dl, EVT VT,
   case X86ISD::PSHUFHW:
   case X86ISD::PSHUFLW:
   case X86ISD::VPERMILP:
+  case X86ISD::VPERMI:
     return DAG.getNode(Opc, dl, VT, V1, DAG.getConstant(TargetMask, MVT::i8));
   }
 }
@@ -3976,6 +3977,27 @@ unsigned X86::getInsertVINSERTF128Immediate(SDNode *N) {
   return Index / NumElemsPerChunk;
 }
 
+/// getShuffleCLImmediate - Return the appropriate immediate to shuffle
+/// the specified VECTOR_SHUFFLE mask with VPERMQ and VPERMPD instructions.
+/// Handles 256-bit.
+static unsigned getShuffleCLImmediate(ShuffleVectorSDNode *N) {
+  EVT VT = N->getValueType(0);
+
+  unsigned NumElts = VT.getVectorNumElements();
+
+  assert((VT.is256BitVector() && NumElts == 4) &&
+         "Unsupported vector type for VPERMQ/VPERMPD");
+
+  unsigned Mask = 0;
+  for (unsigned i = 0; i != NumElts; ++i) {
+    int Elt = N->getMaskElt(i);
+    if (Elt < 0)
+      continue;
+    Mask |= Elt << (i*2);
+  }
+
+  return Mask;
+}
 /// isZeroNode - Returns true if Elt is a constant zero or a floating point
 /// constant +0.0.
 bool X86::isZeroNode(SDValue Elt) {
@@ -4408,6 +4430,7 @@ static bool getTargetShuffleMask(SDNode *N, EVT VT,
   case X86ISD::VPERM2X128:
     ImmN = N->getOperand(N->getNumOperands()-1);
     DecodeVPERM2X128Mask(VT, cast<ConstantSDNode>(ImmN)->getZExtValue(), Mask);
+    if (Mask.empty()) return false;
     break;
   case X86ISD::MOVDDUP:
   case X86ISD::MOVLHPD:
@@ -6627,6 +6650,23 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const {
   SDValue BlendOp = LowerVECTOR_SHUFFLEtoBlend(Op, Subtarget, DAG);
   if (BlendOp.getNode())
     return BlendOp;
+
+  if (V2IsUndef && HasAVX2 && (VT == MVT::v8i32 || VT == MVT::v8f32)) {
+    SmallVector<SDValue, 8> permclMask;
+    for (unsigned i = 0; i != 8; ++i) {
+      permclMask.push_back(DAG.getConstant((M[i]>=0) ? M[i] : 0, MVT::i32));
+    }
+    SDValue Mask = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v8i32,
+                               &permclMask[0], 8);
+    // Bitcast is for VPERMPS since mask is v8i32 but node takes v8f32
+    return DAG.getNode(X86ISD::VPERMV, dl, VT,
+                       DAG.getNode(ISD::BITCAST, dl, VT, Mask), V1);
+  }
+
+  if (V2IsUndef && HasAVX2 && (VT == MVT::v4i64 || VT == MVT::v4f64))
+    return getTargetShuffleNode(X86ISD::VPERMI, dl, VT, V1,
+                                getShuffleCLImmediate(SVOp), DAG);
+
 
   //===--------------------------------------------------------------------===//
   // Since no target specific shuffle was selected for this generic one,
@@ -9552,12 +9592,12 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const 
   case Intrinsic::x86_avx2_vperm2i128:
     return DAG.getNode(X86ISD::VPERM2X128, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
-  case Intrinsic::x86_avx_vpermil_ps:
-  case Intrinsic::x86_avx_vpermil_pd:
-  case Intrinsic::x86_avx_vpermil_ps_256:
-  case Intrinsic::x86_avx_vpermil_pd_256:
-    return DAG.getNode(X86ISD::VPERMILP, dl, Op.getValueType(),
-                       Op.getOperand(1), Op.getOperand(2));
+  case Intrinsic::x86_avx2_permd:
+  case Intrinsic::x86_avx2_permps:
+    // Operands intentionally swapped. Mask is last operand to intrinsic,
+    // but second operand for node/intruction.
+    return DAG.getNode(X86ISD::VPERMV, dl, Op.getValueType(),
+                       Op.getOperand(2), Op.getOperand(1));
 
   // ptest and testp intrinsics. The intrinsic these come from are designed to
   // return an integer value, not just an instruction so lower it to the ptest
@@ -11141,6 +11181,8 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::VBROADCAST:         return "X86ISD::VBROADCAST";
   case X86ISD::VPERMILP:           return "X86ISD::VPERMILP";
   case X86ISD::VPERM2X128:         return "X86ISD::VPERM2X128";
+  case X86ISD::VPERMV:             return "X86ISD::VPERMV";
+  case X86ISD::VPERMI:             return "X86ISD::VPERMI";
   case X86ISD::PMULUDQ:            return "X86ISD::PMULUDQ";
   case X86ISD::VASTART_SAVE_XMM_REGS: return "X86ISD::VASTART_SAVE_XMM_REGS";
   case X86ISD::VAARG_64:           return "X86ISD::VAARG_64";
@@ -11298,14 +11340,15 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
                                                        unsigned notOpc,
                                                        unsigned EAXreg,
                                                  const TargetRegisterClass *RC,
-                                                       bool invSrc) const {
+                                                       bool Invert) const {
   // For the atomic bitwise operator, we generate
   //   thisMBB:
   //   newMBB:
   //     ld  t1 = [bitinstr.addr]
   //     op  t2 = t1, [bitinstr.val]
+  //     not t3 = t2  (if Invert)
   //     mov EAX = t1
-  //     lcs dest = [bitinstr.addr], t2  [EAX is implicit]
+  //     lcs dest = [bitinstr.addr], t3  [EAX is implicit]
   //     bz  newMBB
   //     fallthrough -->nextMBB
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
@@ -11353,13 +11396,6 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   for (int i=0; i <= lastAddrIndx; ++i)
     (*MIB).addOperand(*argOpers[i]);
 
-  unsigned tt = F->getRegInfo().createVirtualRegister(RC);
-  if (invSrc) {
-    MIB = BuildMI(newMBB, dl, TII->get(notOpc), tt).addReg(t1);
-  }
-  else
-    tt = t1;
-
   unsigned t2 = F->getRegInfo().createVirtualRegister(RC);
   assert((argOpers[valArgIndx]->isReg() ||
           argOpers[valArgIndx]->isImm()) &&
@@ -11368,8 +11404,15 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
     MIB = BuildMI(newMBB, dl, TII->get(regOpc), t2);
   else
     MIB = BuildMI(newMBB, dl, TII->get(immOpc), t2);
-  MIB.addReg(tt);
+  MIB.addReg(t1);
   (*MIB).addOperand(*argOpers[valArgIndx]);
+
+  unsigned t3 = F->getRegInfo().createVirtualRegister(RC);
+  if (Invert) {
+    MIB = BuildMI(newMBB, dl, TII->get(notOpc), t3).addReg(t2);
+  }
+  else
+    t3 = t2;
 
   MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), EAXreg);
   MIB.addReg(t1);
@@ -11377,7 +11420,7 @@ X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
   MIB = BuildMI(newMBB, dl, TII->get(CXchgOpc));
   for (int i=0; i <= lastAddrIndx; ++i)
     (*MIB).addOperand(*argOpers[i]);
-  MIB.addReg(t2);
+  MIB.addReg(t3);
   assert(bInstr->hasOneMemOperand() && "Unexpected number of memoperand");
   (*MIB).setMemRefs(bInstr->memoperands_begin(),
                     bInstr->memoperands_end());
@@ -11400,7 +11443,7 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
                                                        unsigned regOpcH,
                                                        unsigned immOpcL,
                                                        unsigned immOpcH,
-                                                       bool invSrc) const {
+                                                       bool Invert) const {
   // For the atomic bitwise operator, we generate
   //   thisMBB (instructions are in pairs, except cmpxchg8b)
   //     ld t1,t2 = [bitinstr.addr]
@@ -11408,6 +11451,7 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
   //     out1, out2 = phi (thisMBB, t1/t2) (newMBB, t3/t4)
   //     op  t5, t6 <- out1, out2, [bitinstr.val]
   //      (for SWAP, substitute:  mov t5, t6 <- [bitinstr.val])
+  //     neg t7, t8 < t5, t6  (if Invert)
   //     mov ECX, EBX <- t5, t6
   //     mov EAX, EDX <- t1, t2
   //     cmpxchg8b [bitinstr.addr]  [EAX, EDX, EBX, ECX implicit]
@@ -11491,16 +11535,9 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
     .addReg(t2).addMBB(thisMBB).addReg(t4).addMBB(newMBB);
 
   // The subsequent operations should be using the destination registers of
-  //the PHI instructions.
-  if (invSrc) {
-    t1 = F->getRegInfo().createVirtualRegister(RC);
-    t2 = F->getRegInfo().createVirtualRegister(RC);
-    MIB = BuildMI(newMBB, dl, TII->get(NotOpc), t1).addReg(dest1Oper.getReg());
-    MIB = BuildMI(newMBB, dl, TII->get(NotOpc), t2).addReg(dest2Oper.getReg());
-  } else {
-    t1 = dest1Oper.getReg();
-    t2 = dest2Oper.getReg();
-  }
+  // the PHI instructions.
+  t1 = dest1Oper.getReg();
+  t2 = dest2Oper.getReg();
 
   int valArgIndx = lastAddrIndx + 1;
   assert((argOpers[valArgIndx]->isReg() ||
@@ -11527,15 +11564,26 @@ X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
     MIB.addReg(t2);
   (*MIB).addOperand(*argOpers[valArgIndx + 1]);
 
+  unsigned t7, t8;
+  if (Invert) {
+    t7 = F->getRegInfo().createVirtualRegister(RC);
+    t8 = F->getRegInfo().createVirtualRegister(RC);
+    MIB = BuildMI(newMBB, dl, TII->get(NotOpc), t7).addReg(t5);
+    MIB = BuildMI(newMBB, dl, TII->get(NotOpc), t8).addReg(t6);
+  } else {
+    t7 = t5;
+    t8 = t6;
+  }
+
   MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EAX);
   MIB.addReg(t1);
   MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EDX);
   MIB.addReg(t2);
 
   MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EBX);
-  MIB.addReg(t5);
+  MIB.addReg(t7);
   MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::ECX);
-  MIB.addReg(t6);
+  MIB.addReg(t8);
 
   MIB = BuildMI(newMBB, dl, TII->get(X86::LCMPXCHG8B));
   for (int i=0; i <= lastAddrIndx; ++i)

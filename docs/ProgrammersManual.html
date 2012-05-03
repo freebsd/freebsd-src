@@ -1734,6 +1734,9 @@ already in the table, and each pair in the map is store in a single allocation
 
 <p>StringMap also provides query methods that take byte ranges, so it only ever
 copies a string if a value is inserted into the table.</p>
+
+<p>StringMap iteratation order, however, is not guaranteed to be deterministic,
+so any uses which require that should instead use a std::map.</p>
 </div>
 
 <!-- _______________________________________________________________________ -->
@@ -4125,7 +4128,7 @@ arguments. An argument has a pointer to the parent Function.</p>
   <a href="mailto:dhurjati@cs.uiuc.edu">Dinakar Dhurjati</a> and
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2012-03-27 13:25:16 +0200 (Tue, 27 Mar 2012) $
+  Last modified: $Date: 2012-04-18 22:28:55 +0200 (Wed, 18 Apr 2012) $
 </address>
 
 </body>
