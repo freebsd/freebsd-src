@@ -12,7 +12,6 @@ SUBDIR=	libclanganalysis \
 	libclangedit \
 	libclangfrontend \
 	libclangfrontendtool \
-	libclangindex \
 	libclanglex \
 	libclangparse \
 	libclangrewrite \
