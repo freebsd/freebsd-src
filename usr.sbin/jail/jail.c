@@ -81,7 +81,7 @@ static struct permspec perm_sysctl[] = {
 };
 
 static const enum intparam startcommands[] = {
-    0,
+    IP__NULL,
 #ifdef INET
     IP__IP4_IFADDR,
 #endif
@@ -97,11 +97,11 @@ static const enum intparam startcommands[] = {
     IP_EXEC_START,
     IP_COMMAND,
     IP_EXEC_POSTSTART,
-    0
+    IP__NULL
 };
 
 static const enum intparam stopcommands[] = {
-    0,
+    IP__NULL,
     IP_EXEC_PRESTOP,
     IP_EXEC_STOP,
     IP_STOP_TIMEOUT,
@@ -116,7 +116,7 @@ static const enum intparam stopcommands[] = {
 #ifdef INET
     IP__IP4_IFADDR,
 #endif
-    0
+    IP__NULL
 };
 
 int
