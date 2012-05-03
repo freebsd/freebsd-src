@@ -28,7 +28,7 @@
 .\"	From: @(#)err.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd March 6, 1999
+.Dd March 29, 2012
 .Dt ERR 3
 .Os
 .Sh NAME
@@ -211,6 +211,18 @@ if (error != 0)
 .Xr printf 3 ,
 .Xr strerror 3 ,
 .Xr sysexits 3
+.Sh STANDARDS
+The
+.Fn err
+and
+.Fn warn
+families of functions are
+.Bx
+extensions.
+As such they should not be used in truly portable code.
+Use
+.Fn strerror
+or similar functions instead.
 .Sh HISTORY
 The
 .Fn err
