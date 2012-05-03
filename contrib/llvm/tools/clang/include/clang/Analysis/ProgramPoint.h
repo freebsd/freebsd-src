@@ -19,6 +19,7 @@
 #include "clang/Analysis/CFG.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/StringRef.h"
@@ -28,7 +29,7 @@
 
 namespace clang {
 
-class AnalysisContext;
+class AnalysisDeclContext;
 class FunctionDecl;
 class LocationContext;
 class ProgramPointTag;
@@ -51,44 +52,72 @@ public:
               CallEnterKind,
               CallExitKind,
               MinPostStmtKind = PostStmtKind,
-              MaxPostStmtKind = CallExitKind };
+              MaxPostStmtKind = CallExitKind,
+              EpsilonKind};
 
 private:
-  std::pair<const void *, const void *> Data;
-  Kind K;
+  llvm::PointerIntPair<const void *, 2, unsigned> Data1;
+  llvm::PointerIntPair<const void *, 2, unsigned> Data2;
 
   // The LocationContext could be NULL to allow ProgramPoint to be used in
   // context insensitive analysis.
-  const LocationContext *L;
+  llvm::PointerIntPair<const LocationContext *, 2, unsigned> L;
+
   const ProgramPointTag *Tag;
 
   ProgramPoint();
   
 protected:
-  ProgramPoint(const void *P, Kind k, const LocationContext *l,
+  ProgramPoint(const void *P,
+               Kind k,
+               const LocationContext *l,
                const ProgramPointTag *tag = 0)
-    : Data(P, static_cast<const void*>(NULL)), K(k), L(l), Tag(tag) {}
-
-  ProgramPoint(const void *P1, const void *P2, Kind k, const LocationContext *l,
+    : Data1(P, ((unsigned) k) & 0x3),
+      Data2(0, (((unsigned) k) >> 2) & 0x3),
+      L(l, (((unsigned) k) >> 4) & 0x3),
+      Tag(tag) {
+        assert(getKind() == k);
+        assert(getLocationContext() == l);
+        assert(getData1() == P);
+      }
+        
+  ProgramPoint(const void *P1,
+               const void *P2,
+               Kind k,
+               const LocationContext *l,
                const ProgramPointTag *tag = 0)
-    : Data(P1, P2), K(k), L(l), Tag(tag) {}
+    : Data1(P1, ((unsigned) k) & 0x3),
+      Data2(P2, (((unsigned) k) >> 2) & 0x3),
+      L(l, (((unsigned) k) >> 4) & 0x3),
+      Tag(tag) {}
 
 protected:
-  const void *getData1() const { return Data.first; }
-  const void *getData2() const { return Data.second; }
+  const void *getData1() const { return Data1.getPointer(); }
+  const void *getData2() const { return Data2.getPointer(); }
+  void setData2(const void *d) { Data2.setPointer(d); }
 
 public:
   /// Create a new ProgramPoint object that is the same as the original
   /// except for using the specified tag value.
   ProgramPoint withTag(const ProgramPointTag *tag) const {
-    return ProgramPoint(Data.first, Data.second, K, L, tag);
+    return ProgramPoint(getData1(), getData2(), getKind(),
+                        getLocationContext(), tag);
   }
 
-  Kind getKind() const { return K; }
+  Kind getKind() const {
+    unsigned x = L.getInt();
+    x <<= 2;
+    x |= Data2.getInt();
+    x <<= 2;
+    x |= Data1.getInt();
+    return (Kind) x;
+  }
 
   const ProgramPointTag *getTag() const { return Tag; }
 
-  const LocationContext *getLocationContext() const { return L; }
+  const LocationContext *getLocationContext() const {
+    return L.getPointer();
+  }
 
   // For use with DenseMap.  This hash is probably slow.
   unsigned getHashValue() const {
@@ -100,25 +129,30 @@ public:
   static bool classof(const ProgramPoint*) { return true; }
 
   bool operator==(const ProgramPoint & RHS) const {
-    return K == RHS.K && Data == RHS.Data && L == RHS.L && Tag == RHS.Tag;
+    return Data1 == Data1 &&
+           Data2 == RHS.Data2 &&
+           L == RHS.L &&
+           Tag == RHS.Tag;
   }
 
   bool operator!=(const ProgramPoint &RHS) const {
-    return K != RHS.K || Data != RHS.Data || L != RHS.L || Tag != RHS.Tag;
+    return Data1 != RHS.Data1 ||
+           Data2 != RHS.Data2 ||
+           L != RHS.L ||
+           Tag != RHS.Tag;
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) const {
-    ID.AddInteger((unsigned) K);
-    ID.AddPointer(Data.first);
-    ID.AddPointer(Data.second);
-    ID.AddPointer(L);
+    ID.AddInteger((unsigned) getKind());
+    ID.AddPointer(getData1());
+    ID.AddPointer(getData2());
+    ID.AddPointer(getLocationContext());
     ID.AddPointer(Tag);
   }
 
   static ProgramPoint getProgramPoint(const Stmt *S, ProgramPoint::Kind K,
                                       const LocationContext *LC,
                                       const ProgramPointTag *tag);
-
 };
 
 class BlockEntrance : public ProgramPoint {
@@ -195,7 +229,7 @@ public:
 class PostStmt : public StmtPoint {
 protected:
   PostStmt(const Stmt *S, const void *data, Kind k, const LocationContext *L,
-           const ProgramPointTag *tag =0)
+           const ProgramPointTag *tag = 0)
     : StmtPoint(S, data, k, L, tag) {}
 
 public:
@@ -270,15 +304,29 @@ public:
   }
 };
 
+/// \class Represents a program point after a store evaluation.
 class PostStore : public PostStmt {
 public:
-  PostStore(const Stmt *S, const LocationContext *L,
+  /// Construct the post store point.
+  /// \param Loc can be used to store the information about the location 
+  /// used in the form it was uttered in the code.
+  PostStore(const Stmt *S, const LocationContext *L, const void *Loc,
             const ProgramPointTag *tag = 0)
-    : PostStmt(S, PostStoreKind, L, tag) {}
+    : PostStmt(S, PostStoreKind, L, tag) {
+    assert(getData2() == 0);
+    setData2(Loc);
+  }
 
   static bool classof(const ProgramPoint* Location) {
     return Location->getKind() == PostStoreKind;
   }
+  
+  /// \brief Returns the information about the location used in the store,
+  /// how it was uttered in the code.
+  const void *getLocationValue() const {
+    return getData2();
+  }
+
 };
 
 class PostLValue : public PostStmt {
@@ -362,6 +410,21 @@ public:
 
   static bool classof(const ProgramPoint *Location) {
     return Location->getKind() == CallExitKind;
+  }
+};
+
+/// This is a meta program point, which should be skipped by all the diagnostic
+/// reasoning etc.
+class EpsilonPoint : public ProgramPoint {
+public:
+  EpsilonPoint(const LocationContext *L, const void *Data1,
+               const void *Data2 = 0, const ProgramPointTag *tag = 0)
+    : ProgramPoint(Data1, Data2, EpsilonKind, L, tag) {}
+
+  const void *getData() const { return getData1(); }
+
+  static bool classof(const ProgramPoint* Location) {
+    return Location->getKind() == EpsilonKind;
   }
 };
 

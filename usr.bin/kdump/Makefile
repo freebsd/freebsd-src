@@ -21,7 +21,7 @@ NO_WERROR?=	YES
 CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h linux_syscalls.c
 
 ioctl.c: mkioctls
-	env MACHINE=${MACHINE} \
+	env MACHINE=${MACHINE} CPP="${CPP}" \
 	    sh ${.CURDIR}/mkioctls print ${DESTDIR}/usr/include > ${.TARGET}
 
 kdump_subr.h: mksubr

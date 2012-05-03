@@ -394,12 +394,10 @@ the supported values of
 .Fa req
 and their argument types and what they do are:
 .Bl -column "CLSET_RETRY_TIMEOUT" "struct sockaddr_in"
-.It Dv CLSET_TIMEOUT Ta Xo
+.It Dv CLSET_TIMEOUT Ta
 .Vt "struct timeval" Ta "set total timeout"
-.Xc
-.It Dv CLGET_TIMEOUT Ta Xo
+.It Dv CLGET_TIMEOUT Ta
 .Vt "struct timeval" Ta "get total timeout"
-.Xc
 .El
 .Pp
 Note: if you set the timeout using
@@ -408,21 +406,18 @@ the timeout argument passed to
 .Fn clnt_call
 will be ignored in all future calls.
 .Bl -column "CLSET_RETRY_TIMEOUT" "struct sockaddr_in"
-.It Dv CLGET_SERVER_ADDR Ta Xo
+.It Dv CLGET_SERVER_ADDR Ta
 .Vt "struct sockaddr_in" Ta "get server's address"
-.Xc
 .El
 .Pp
 The following operations are valid for
 .Tn UDP
 only:
 .Bl -column "CLSET_RETRY_TIMEOUT" "struct sockaddr_in"
-.It Dv CLSET_RETRY_TIMEOUT Ta Xo
+.It Dv CLSET_RETRY_TIMEOUT Ta
 .Vt "struct timeval" Ta "set the retry timeout"
-.Xc
-.It Dv CLGET_RETRY_TIMEOUT Ta Xo
+.It Dv CLGET_RETRY_TIMEOUT Ta
 .Vt "struct timeval" Ta "get the retry timeout"
-.Xc
 .El
 .Pp
 The retry timeout is the time that

@@ -587,25 +587,6 @@ linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 }
 
 int
-linux_pipe(struct thread *td, struct linux_pipe_args *args)
-{
-	int error;
-	int fildes[2];
-
-#ifdef DEBUG
-	if (ldebug(pipe))
-		printf(ARGS(pipe, "*"));
-#endif
-
-	error = kern_pipe(td, fildes);
-	if (error)
-		return (error);
-
-	/* XXX: Close descriptors on error. */
-	return (copyout(fildes, args->pipefds, sizeof fildes));
-}
-
-int
 linux_ioperm(struct thread *td, struct linux_ioperm_args *args)
 {
 	int error;

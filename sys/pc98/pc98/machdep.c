@@ -271,6 +271,11 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 	cpu_setregs();
+
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
 }
 
 /*

@@ -17,7 +17,6 @@ doing so.  It will make life easier for you and everyone else.
 * Modifying the database::
 * Checking the setup::
 * keytabs::
-* Serving Kerberos 4/524/kaserver::
 * Remote administration::
 * Password changing::
 * Testing clients and servers::
@@ -282,7 +281,7 @@ database check by run by the following command :
 kadmin -l check REALM.EXAMPLE.ORG
 @end example
 
-@node keytabs, Serving Kerberos 4/524/kaserver, Checking the setup, Setting up a realm
+@node keytabs, Remote administration, Checking the setup, Setting up a realm
 @section keytabs
 
 To extract a service ticket from the database and put it in a keytab, you
@@ -305,59 +304,7 @@ Version  Type             Principal
      1   des3-cbc-sha1    host/my.host.name@@MY.REALM
 @end example
 
-@node Serving Kerberos 4/524/kaserver, Remote administration, keytabs, Setting up a realm
-@section Serving Kerberos 4/524/kaserver
-
-Heimdal can be configured to support 524, Kerberos 4 or kaserver. All
-these services are turned off by default. Kerberos 4 is always
-supported by the KDC, but the Kerberos 4 client support also depends
-on Kerberos 4 support having been included at compile-time, using
-@kbd{--with-krb4=dir}.
-
-@subsection 524
-
-524 is a service that allows the KDC to convert Kerberos 5 tickets to
-Kerberos 4 tickets for backward compatibility. See also Using 2b
-tokens with AFS in @xref{AFS}.
-
-524 can be turned on by adding this to the configuration file
-
-@example
-[kdc]
-	enable-524 = yes
-@end example
-
-@subsection Kerberos 4
-
-Kerberos 4 is the predecessor to to Kerberos 5. It only supports
-single DES@. You should only enable Kerberos 4 support if you have
-needs for compatibility with an installed base of Kerberos 4
-clients/servers.
-
-Kerberos 4 can be turned on by adding this to the configuration file
-
-@example
-[kdc]
-	enable-kerberos4 = yes
-@end example
-
-@subsection kaserver
-
-Kaserver is a Kerberos 4 that is used in AFS@.  The protocol has some
-extra features over plain Kerberos 4, but like Kerberos 4, only uses
-single DES@.
-
-You should only enable Kaserver support if you have needs for
-compatibility with an installed base of AFS machines.
-
-Kaserver can be turned on by adding this to the configuration file
-
-@example
-[kdc]
-	enable-kaserver = yes
-@end example
-
-@node Remote administration, Password changing, Serving Kerberos 4/524/kaserver, Setting up a realm
+@node Remote administration, Password changing, keytabs, Setting up a realm
 @section Remote administration
 
 The administration server, @command{kadmind}, can be started by

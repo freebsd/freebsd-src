@@ -104,6 +104,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
+	libstdbuf \
 	libstdthreads \
 	${_libtelnet} \
 	${_libthr} \

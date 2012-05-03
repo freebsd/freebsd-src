@@ -127,6 +127,8 @@ dfr [label="Doug Rabson\ndfr@FreeBSD.org\n????/??/??"]
 dg [label="David Greenman\ndg@FreeBSD.org\n1993/06/14"]
 dim [label="Dimitry Andric\ndim@FreeBSD.org\n2010/08/30"]
 dougb [label="Doug Barton\ndougb@FreeBSD.org\n2000/10/26"]
+dteske [label="Devin Teske\ndteske@FreeBSD.org\n2012/04/10"]
+dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2004/11/29"]
 dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
 ed [label="Ed Schouten\ned@FreeBSD.org\n2008/05/22"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2007/06/25"]
@@ -156,6 +158,7 @@ iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
+jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
 jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
 jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
@@ -167,12 +170,14 @@ jimharris [label="Jim Harris\njimharris@FreeBSD.org\n2011/12/09"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jkoshy [label="A. Joseph Koshy\njkoshy@FreeBSD.org\n1998/05/13"]
+jlh [label="Jeremie Le Hen\njlh@FreeBSD.org\n2012/04/22"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
+jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
 kargl [label="Steven G. Kargl\nkargl@FreeBSD.org\n2011/01/17"]
@@ -195,6 +200,7 @@ mdodd [label="Matthew N. Dodd\nmdodd@FreeBSD.org\n1999/07/27"]
 melifaro [label="Alexander V. Chernikov\nmelifaro@FreeBSD.org\n2011/10/04"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
+monthadar [label="Monthadar Al Jaberi\nmonthadar@FreeBSD.org\n2012/04/02"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
 mux [label="Maxime Henrion\nmux@FreeBSD.org\n2002/03/03"]
 neel [label="Neel Natu\nneel@FreeBSD.org\n2009/09/20"]
@@ -280,6 +286,7 @@ day1 -> rgrimes
 day1 -> alm
 day1 -> dg
 
+adrian -> monthadar
 adrian -> ray
 adrian -> rmh
 
@@ -359,6 +366,7 @@ eivind -> des
 eivind -> rwatson
 
 emaste -> rstone
+emaste -> dteske
 
 emax -> markus
 
@@ -431,6 +439,7 @@ jhb -> rnoland
 jkh -> imp
 jkh -> jlemon
 jkh -> joerg
+jkh -> jwd
 jkh -> phk
 jkh -> wes
 jkh -> yar
@@ -457,6 +466,7 @@ kan -> kib
 
 kib -> ae
 kib -> dchagin
+kib -> jlh
 kib -> jpaetzel
 kib -> lulf
 kib -> melifaro
@@ -476,6 +486,7 @@ marcel -> arun
 marcel -> marius
 marcel -> nwhitehorn
 
+markm -> jasone
 markm -> sheldonh
 
 mav -> ae
@@ -492,11 +503,13 @@ mlaier -> thompsa
 mlaier -> eri
 
 msmith -> cokane
+msmith -> jasone
 msmith -> scottl
 
 murray -> delphij
 
 mux -> cognet
+mux -> dumbbell
 
 netchild -> ariff
 
@@ -529,6 +542,8 @@ pjd -> lulf
 pjd -> trociny
 
 rgrimes -> markm
+
+rmacklem -> jwd
 
 rpaulo -> avg
 rpaulo -> bschmidt

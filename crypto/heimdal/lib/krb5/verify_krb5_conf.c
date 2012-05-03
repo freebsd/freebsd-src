@@ -508,7 +508,7 @@ struct entry kdc_entries[] = {
     { "allow-null-ticket-addresses", krb5_config_string, check_boolean },
     { "allow-anonymous", krb5_config_string, check_boolean },
     { "v4_realm", krb5_config_string, NULL },
-    { "enable-kaserver", krb5_config_string, check_boolean },
+    { "enable-kaserver", krb5_config_string, check_boolean, 1 },
     { "encode_as_rep_as_tgs_rep", krb5_config_string, check_boolean },
     { "kdc_warn_pwexpire", krb5_config_string, check_time },
     { "use_2b", krb5_config_list, NULL },

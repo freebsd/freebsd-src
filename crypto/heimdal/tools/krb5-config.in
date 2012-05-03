@@ -136,7 +136,7 @@ if test "$do_libs" = "yes"; then
 	;;
     esac
     lib_flags="$lib_flags -lkrb5 @LIB_pkinit@ -lcom_err"
-    lib_flags="$lib_flags @LIB_hcrypto_appl@ -lasn1 -lwind -lroken"
+    lib_flags="$lib_flags @LIB_hcrypto_appl@ -lasn1 -lwind -lheimbase -lroken"
     lib_flags="$lib_flags @LIB_crypt@ @PTHREAD_LIBADD@ @LIB_dlopen@"
     lib_flags="$lib_flags @LIB_door_create@ @LIBS@"
     echo $lib_flags

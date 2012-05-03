@@ -545,7 +545,7 @@ kue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen <= (2 + sizeof(struct ether_header))) {
+		if (actlen <= (int)(2 + sizeof(struct ether_header))) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}

@@ -1699,7 +1699,9 @@ server_lookup:
 	    Key *skey;
 
 	    ret = _kdc_find_etype(context,
-				  config->tgs_use_strongest_session_key, FALSE,
+				  krb5_principal_is_krbtgt(context, sp) ?
+				  config->tgt_use_strongest_session_key :
+				  config->svc_use_strongest_session_key, FALSE,
 				  server, b->etype.val, b->etype.len, NULL,
 				  &skey);
 	    if(ret) {

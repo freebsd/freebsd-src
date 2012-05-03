@@ -147,7 +147,6 @@ i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
-i386/i386/legacy.c		standard
 i386/i386/locore.s		standard	no-obj
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
@@ -252,6 +251,7 @@ x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
+x86/x86/legacy.c		standard
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic

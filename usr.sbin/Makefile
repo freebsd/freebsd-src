@@ -258,6 +258,7 @@ SUBDIR+=	ftp-proxy
 
 .if ${MK_PKGTOOLS} != "no"
 SUBDIR+=	pkg_install
+SUBDIR+=	pkg
 .endif
 
 # XXX MK_TOOLCHAIN?

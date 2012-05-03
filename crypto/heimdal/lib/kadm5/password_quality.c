@@ -34,8 +34,6 @@
 #include "kadm5_locl.h"
 #include "kadm5-pwcheck.h"
 
-RCSID("$Id$");
-
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -473,7 +471,8 @@ kadm5_check_password_quality (krb5_context context,
 				NULL);
     if (v == NULL) {
 	msg = (*passwd_quality_check) (context, principal, pwd_data);
-	krb5_set_error_message(context, 0, "password policy failed: %s", msg);
+	if (msg)
+	    krb5_set_error_message(context, 0, "password policy failed: %s", msg);
 	return msg;
     }
 

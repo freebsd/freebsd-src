@@ -63,11 +63,11 @@
 #define	BYTE_ORDER	_BYTE_ORDER
 #endif
 
-#define	__bswap16_gen(x)	((__uint16_t)((x) << 8 | (x) >> 8))
+#define	__bswap16_gen(x)	(__uint16_t)((x) << 8 | (x) >> 8)
 #define	__bswap32_gen(x)		\
-	(((__uint32_t)__bswap16_gen(x) << 16) | __bswap16_gen((x) >> 16))
+	(((__uint32_t)__bswap16((x) & 0xffff) << 16) | __bswap16((x) >> 16))
 #define	__bswap64_gen(x)		\
-	(((__uint64_t)__bswap32_gen(x) << 32) | __bswap32_gen((x) >> 32))
+	(((__uint64_t)__bswap32((x) & 0xffffffff) << 32) | __bswap32((x) >> 32))
 
 #ifdef __GNUCLIKE_BUILTIN_CONSTANT_P
 #define	__bswap16(x)				\

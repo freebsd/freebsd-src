@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: encore,v 1.6 2009/09/19 16:28:09 christos Exp $
 # encore:  file(1) magic for Encore machines
 #
 # XXX - needs to have the byte order specified (NS32K was little-endian,

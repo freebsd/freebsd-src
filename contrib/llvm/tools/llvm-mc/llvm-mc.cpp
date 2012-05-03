@@ -70,9 +70,6 @@ RelaxAll("mc-relax-all", cl::desc("Relax all fixups"));
 static cl::opt<bool>
 NoExecStack("mc-no-exec-stack", cl::desc("File doesn't need an exec stack"));
 
-static cl::opt<bool>
-EnableLogging("enable-api-logging", cl::desc("Enable MC API logging"));
-
 enum OutputFileType {
   OFT_Null,
   OFT_AssemblyFile,
@@ -152,6 +149,10 @@ NoInitialTextSection("n", cl::desc("Don't assume assembly file starts "
 static cl::opt<bool>
 SaveTempLabels("L", cl::desc("Don't discard temporary labels"));
 
+static cl::opt<bool>
+GenDwarfForAssembly("g", cl::desc("Generate dwarf debugging info for assembly "
+                                  "source files"));
+
 enum ActionType {
   AC_AsLex,
   AC_Assemble,
@@ -175,7 +176,7 @@ Action(cl::desc("Action to perform:"),
 static const Target *GetTarget(const char *ProgName) {
   // Figure out the target triple.
   if (TripleName.empty())
-    TripleName = sys::getHostTriple();
+    TripleName = sys::getDefaultTargetTriple();
   Triple TheTriple(Triple::normalize(TripleName));
 
   const Target *TheTarget = 0;
@@ -230,6 +231,17 @@ static tool_output_file *GetOutputStream() {
   return Out;
 }
 
+static std::string DwarfDebugFlags;
+static void setDwarfDebugFlags(int argc, char **argv) {
+  if (!getenv("RC_DEBUG_OPTIONS"))
+    return;
+  for (int i = 0; i < argc; i++) {
+    DwarfDebugFlags += argv[i];
+    if (i + 1 < argc)
+      DwarfDebugFlags += " ";
+  }
+}
+
 static int AsLexInput(const char *ProgName) {
   OwningPtr<MemoryBuffer> BufferPtr;
   if (error_code ec = MemoryBuffer::getFileOrSTDIN(InputFilename, BufferPtr)) {
@@ -267,7 +279,8 @@ static int AsLexInput(const char *ProgName) {
 
     switch (Tok.getKind()) {
     default:
-      SrcMgr.PrintMessage(Lexer.getLoc(), "unknown token", "warning");
+      SrcMgr.PrintMessage(Lexer.getLoc(), SourceMgr::DK_Warning,
+                          "unknown token");
       Error = true;
       break;
     case AsmToken::Error:
@@ -370,11 +383,15 @@ static int AssembleInput(const char *ProgName) {
   // FIXME: This is not pretty. MCContext has a ptr to MCObjectFileInfo and
   // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
   OwningPtr<MCObjectFileInfo> MOFI(new MCObjectFileInfo());
-  MCContext Ctx(*MAI, *MRI, MOFI.get());
+  MCContext Ctx(*MAI, *MRI, MOFI.get(), &SrcMgr);
   MOFI->InitMCObjectFileInfo(TripleName, RelocModel, CMModel, Ctx);
 
   if (SaveTempLabels)
     Ctx.setAllowTemporaryLabels(false);
+
+  Ctx.setGenDwarfForAssembly(GenDwarfForAssembly);
+  if (!DwarfDebugFlags.empty()) 
+    Ctx.setDwarfDebugFlags(StringRef(DwarfDebugFlags));
 
   // Package up features to be passed to target/subtarget
   std::string FeaturesStr;
@@ -399,7 +416,7 @@ static int AssembleInput(const char *ProgName) {
   // FIXME: There is a bit of code duplication with addPassesToEmitFile.
   if (FileType == OFT_AssemblyFile) {
     MCInstPrinter *IP =
-      TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *STI);
+      TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *MCII, *MRI, *STI);
     MCCodeEmitter *CE = 0;
     MCAsmBackend *MAB = 0;
     if (ShowEncoding) {
@@ -408,8 +425,10 @@ static int AssembleInput(const char *ProgName) {
     }
     Str.reset(TheTarget->createAsmStreamer(Ctx, FOS, /*asmverbose*/true,
                                            /*useLoc*/ true,
-                                           /*useCFI*/ true, IP, CE, MAB,
-                                           ShowInst));
+                                           /*useCFI*/ true,
+                                           /*useDwarfDirectory*/ true,
+                                           IP, CE, MAB, ShowInst));
+
   } else if (FileType == OFT_Null) {
     Str.reset(createNullStreamer(Ctx));
   } else {
@@ -419,10 +438,6 @@ static int AssembleInput(const char *ProgName) {
     Str.reset(TheTarget->createMCObjectStreamer(TripleName, Ctx, *MAB,
                                                 FOS, CE, RelaxAll,
                                                 NoExecStack));
-  }
-
-  if (EnableLogging) {
-    Str.reset(createLoggingStreamer(Str.take(), errs()));
   }
 
   OwningPtr<MCAsmParser> Parser(createMCAsmParser(SrcMgr, Ctx,
@@ -497,11 +512,14 @@ int main(int argc, char **argv) {
   llvm::InitializeAllAsmParsers();
   llvm::InitializeAllDisassemblers();
 
+  // Register the target printer for --version.
+  cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
+
   cl::ParseCommandLineOptions(argc, argv, "llvm machine code playground\n");
   TripleName = Triple::normalize(TripleName);
+  setDwarfDebugFlags(argc, argv);
 
   switch (Action) {
-  default:
   case AC_AsLex:
     return AsLexInput(argv[0]);
   case AC_Assemble:
@@ -511,7 +529,4 @@ int main(int argc, char **argv) {
   case AC_EDisassemble:
     return DisassembleInput(argv[0], true);
   }
-
-  return 0;
 }
-

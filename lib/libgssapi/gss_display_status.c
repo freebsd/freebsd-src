@@ -173,7 +173,7 @@ supplementary_error(OM_uint32 v)
 	return msgs[v];
 }
 
-#if defined(__sparc64__) || defined(__arm__) || defined(__mips__)
+#if defined(__NO_TLS)
 
 /*
  * These platforms don't support TLS on FreeBSD - threads will just

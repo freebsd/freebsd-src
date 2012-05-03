@@ -662,7 +662,7 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
-		if (__predict_false(vobj->cache != NULL))
+		if (vm_page_is_cached(vobj, idx))
 			vm_page_cache_free(vobj, idx, idx + 1);
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
@@ -1577,7 +1577,6 @@ static int
 tmpfs_inactive(struct vop_inactive_args *v)
 {
 	struct vnode *vp = v->a_vp;
-	struct thread *l = v->a_td;
 
 	struct tmpfs_node *node;
 
@@ -1586,7 +1585,7 @@ tmpfs_inactive(struct vop_inactive_args *v)
 	node = VP_TO_TMPFS_NODE(vp);
 
 	if (node->tn_links == 0)
-		vrecycle(vp, l);
+		vrecycle(vp);
 
 	return 0;
 }

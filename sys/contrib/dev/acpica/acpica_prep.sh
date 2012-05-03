@@ -31,7 +31,7 @@ src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	actbl2.h actbl3.h actypes.h acutils.h amlcode.h amlresrc.h	\
 	platform/acenv.h platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
-	asltypes.h dtcompiler.h dttemplate.h preprocess.h"
+	aslsupport.l asltypes.h dtcompiler.h dttemplate.h preprocess.h"
 platform_headers="acfreebsd.h acgcc.h"
 
 # pre-clean

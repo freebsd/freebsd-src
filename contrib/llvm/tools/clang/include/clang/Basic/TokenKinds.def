@@ -90,7 +90,8 @@ PPKEYWORD(assert)
 PPKEYWORD(unassert)
 
 // Clang extensions
-PPKEYWORD(__export_macro__)
+PPKEYWORD(__public_macro)
+PPKEYWORD(__private_macro)
 
 //===----------------------------------------------------------------------===//
 // Language keywords.
@@ -203,7 +204,7 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //              is a keyword in the implementation namespace that should
 //              always be treated as a keyword
 //   KEYC99   - This is a keyword introduced to C in C99
-//   KEYC1X   - This is a keyword introduced to C in C1X
+//   KEYC11   - This is a keyword introduced to C in C11
 //   KEYCXX   - This is a C++ keyword, or a C++-specific keyword in the
 //              implementation namespace
 //   KEYNOCXX - This is a keyword in every non-C++ dialect.
@@ -257,6 +258,9 @@ KEYWORD(_Generic                    , KEYALL)
 KEYWORD(_Imaginary                  , KEYALL)
 KEYWORD(_Static_assert              , KEYALL)
 KEYWORD(__func__                    , KEYALL)
+KEYWORD(__objc_yes                  , KEYALL)
+KEYWORD(__objc_no                   , KEYALL)
+
 
 // C++ 2.11p1: Keywords.
 KEYWORD(asm                         , KEYCXX|KEYGNU)
@@ -328,6 +332,7 @@ KEYWORD(__builtin_types_compatible_p, KEYALL)
 KEYWORD(__builtin_va_arg            , KEYALL)
 KEYWORD(__extension__               , KEYALL)
 KEYWORD(__imag                      , KEYALL)
+KEYWORD(__int128                    , KEYALL)
 KEYWORD(__label__                   , KEYALL)
 KEYWORD(__real                      , KEYALL)
 KEYWORD(__thread                    , KEYALL)
@@ -352,6 +357,7 @@ KEYWORD(__is_class                  , KEYCXX)
 KEYWORD(__is_convertible_to         , KEYCXX)
 KEYWORD(__is_empty                  , KEYCXX)
 KEYWORD(__is_enum                   , KEYCXX)
+KEYWORD(__is_final                  , KEYCXX)
 // Tentative name - there's no implementation of std::is_literal_type yet.
 KEYWORD(__is_literal                , KEYCXX)
 // Name for GCC 4.6 compatibility - people have already written libraries using
@@ -363,7 +369,9 @@ KEYWORD(__is_trivial                , KEYCXX)
 KEYWORD(__is_union                  , KEYCXX)
 
 // Clang-only C++ Type Traits
+KEYWORD(__is_trivially_constructible, KEYCXX)
 KEYWORD(__is_trivially_copyable     , KEYCXX)
+KEYWORD(__is_trivially_assignable   , KEYCXX)
 KEYWORD(__underlying_type           , KEYCXX)
 
 // Embarcadero Expression Traits
@@ -403,7 +411,6 @@ KEYWORD(__array_extent              , KEYCXX)
 
 // Apple Extension.
 KEYWORD(__private_extern__          , KEYALL)
-KEYWORD(__import_module__           , KEYALL)
 KEYWORD(__module_private__          , KEYALL)
 
 // Microsoft Extension.
@@ -484,7 +491,6 @@ KEYWORD(__ptr32                   , KEYMS)
 KEYWORD(__w64                     , KEYMS)
 KEYWORD(__uuidof                  , KEYMS | KEYBORLAND)
 KEYWORD(__try                     , KEYMS | KEYBORLAND)
-KEYWORD(__except                  , KEYMS | KEYBORLAND)
 KEYWORD(__finally                 , KEYMS | KEYBORLAND)
 KEYWORD(__leave                   , KEYMS | KEYBORLAND)
 KEYWORD(__int64                   , KEYMS)
@@ -501,7 +507,7 @@ ALIAS("_thiscall"    , __thiscall , KEYMS)
 ALIAS("_uuidof"      , __uuidof   , KEYMS | KEYBORLAND)
 ALIAS("_inline"      , inline     , KEYMS)
 ALIAS("_declspec"    , __declspec , KEYMS)
-ALIAS("__interface"  , class      , KEYMS)
+ALIAS("__interface"  , struct     , KEYMS)
 
 // Borland Extensions which should be disabled in strict conformance mode.
 ALIAS("_pascal"      , __pascal   , KEYBORLAND)
@@ -547,6 +553,7 @@ OBJC2_AT_KEYWORD(required)
 OBJC2_AT_KEYWORD(optional)
 OBJC2_AT_KEYWORD(synthesize)
 OBJC2_AT_KEYWORD(dynamic)
+OBJC2_AT_KEYWORD(__experimental_modules_import)
 
 // TODO: What to do about context-sensitive keywords like:
 //       bycopy/byref/in/inout/oneway/out?
@@ -559,11 +566,23 @@ ANNOTATION(template_id)  // annotation for a C++ template-id that names a
                          // function template specialization (not a type),
                          // e.g., "std::swap<int>"
 ANNOTATION(primary_expr) // annotation for a primary expression
+ANNOTATION(decltype)     // annotation for a decltype expression,
+                         // e.g., "decltype(foo.bar())"
 
 // Annotation for #pragma unused(...)
 // For each argument inside the parentheses the pragma handler will produce
 // one 'pragma_unused' annotation token followed by the argument token.
 ANNOTATION(pragma_unused)
+
+// Annotation for #pragma GCC visibility...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_vis)
+
+// Annotation for #pragma pack...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_pack)
 
 #undef ANNOTATION
 #undef TESTING_KEYWORD

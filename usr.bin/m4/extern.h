@@ -87,6 +87,7 @@ extern ndptr macro_getbuiltin(const char *);
 /* main.c */
 extern void outputstr(const char *);
 extern void do_emit_synchline(void);
+extern int exit_code;
 #define emit_synchline() do { if (synch_lines) do_emit_synchline(); } while(0)
 
 /* misc.c */

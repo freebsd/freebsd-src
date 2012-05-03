@@ -137,10 +137,9 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 		for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
 			printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:%04x%s\n",
 			    ds, (const struct ath_desc *)bf->bf_daddr + i,
-			    ds->ds_link, ds->ds_data, bf->bf_txflags,
+			    ds->ds_link, ds->ds_data, bf->bf_state.bfs_txflags,
 			    !done ? "" : (ts->ts_status == 0) ? " *" : " !");
-			printf("        TXF: %04x Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
-			    bf->bf_state.bfs_flags,
+			printf("        Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
 			    bf->bf_state.bfs_seqno,
 			    bf->bf_state.bfs_retries,
 			    bf->bf_state.bfs_addedbaw,

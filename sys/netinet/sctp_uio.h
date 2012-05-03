@@ -169,7 +169,7 @@ struct sctp_default_prinfo {
 };
 
 struct sctp_authinfo {
-	uint16_t auth_keyid;
+	uint16_t auth_keynumber;
 };
 
 struct sctp_rcvinfo {
@@ -424,7 +424,8 @@ struct sctp_authkey_event {
 };
 
 /* indication values */
-#define SCTP_AUTH_NEWKEY	0x0001
+#define SCTP_AUTH_NEW_KEY	0x0001
+#define SCTP_AUTH_NEWKEY	SCTP_AUTH_NEW_KEY
 #define SCTP_AUTH_NO_AUTH	0x0002
 #define SCTP_AUTH_FREE_KEY	0x0003
 
@@ -449,9 +450,11 @@ struct sctp_stream_reset_event {
 };
 
 /* flags in stream_reset_event (strreset_flags) */
-#define SCTP_STREAM_RESET_DENIED        0x0004	/* SCTP_STRRESET_FAILED */
-#define SCTP_STREAM_RESET_FAILED        0x0008	/* SCTP_STRRESET_FAILED */
-#define SCTP_STREAM_CHANGED_DENIED	0x0010
+#define SCTP_STREAM_RESET_INCOMING_SSN  0x0001
+#define SCTP_STREAM_RESET_OUTGOING_SSN  0x0002
+#define SCTP_STREAM_RESET_DENIED        0x0004
+#define SCTP_STREAM_RESET_FAILED        0x0008
+#define SCTP_STREAM_CHANGED_DENIED      0x0010
 
 /*
  * Assoc reset event - subscribe to SCTP_ASSOC_RESET_EVENT
@@ -605,13 +608,6 @@ struct sctp_getaddresses {
 	struct sockaddr addr[1];
 };
 
-struct sctp_setstrm_timeout {
-	sctp_assoc_t ssto_assoc_id;
-	uint32_t ssto_timeout;
-	uint32_t ssto_streamid_start;
-	uint32_t ssto_streamid_end;
-};
-
 struct sctp_status {
 	sctp_assoc_t sstat_assoc_id;
 	int32_t sstat_state;
@@ -664,6 +660,7 @@ struct sctp_authkeyid {
 /* SCTP_PEER_AUTH_CHUNKS / SCTP_LOCAL_AUTH_CHUNKS */
 struct sctp_authchunks {
 	sctp_assoc_t gauth_assoc_id;
+	uint32_t gauth_number_of_chunks;
 	uint8_t gauth_chunks[];
 };
 

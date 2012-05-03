@@ -5,7 +5,7 @@ LDFLAGS=	-Wl,--no-undefined
 INCS=	asn1_err.h asn1-common.h heim_asn1.h der.h der-protos.h der-private.h
 LDADD=	-lcom_err -lroken
 DPADD=	${LIBCOM_ERR} ${LIBROKEN}
-VERSION_MAP=	${KRB5DIR}/lib/asn1/version-script.map
+VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	asn1_err.c \
 	asn1_err.h \

@@ -948,9 +948,8 @@ libusb20_dev_get_config_index(struct libusb20_device *pdev)
 	}
 
 	error = pdev->methods->get_config_index(pdev, &cfg_index);
-	if (error) {
-		cfg_index = 0 - 1;	/* current config index */
-	}
+	if (error)
+		cfg_index = 0xFF;	/* current config index */
 	if (do_close) {
 		if (libusb20_dev_close(pdev)) {
 			/* ignore */

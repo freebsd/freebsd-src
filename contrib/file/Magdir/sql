@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: sql,v 1.6 2009/09/19 16:28:12 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>

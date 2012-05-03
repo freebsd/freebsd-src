@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: parseint.c,v 1.8 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: parseint.c,v 1.8 2007/06/19 23:47:17 tbox Exp $ */
 
 /*! \file */
 

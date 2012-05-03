@@ -129,8 +129,10 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_getAckCTSRate		= ar5210GetAckCTSRate,
 	.ah_setCTSTimeout		= ar5210SetCTSTimeout,
 	.ah_getCTSTimeout		= ar5210GetCTSTimeout,
-	.ah_setDecompMask               = ar5210SetDecompMask,
-	.ah_setCoverageClass            = ar5210SetCoverageClass,
+	.ah_setDecompMask		= ar5210SetDecompMask,
+	.ah_setCoverageClass		= ar5210SetCoverageClass,
+	.ah_get11nExtBusy		= ar5210Get11nExtBusy,
+	.ah_getMibCycleCounts		= ar5210GetMibCycleCounts,
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5210GetKeyCacheSize,

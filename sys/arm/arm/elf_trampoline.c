@@ -614,6 +614,17 @@ __start(void)
 		    (unsigned int)&func_end + 800 , 0);
 		if (altdst > dst)
 			dst = altdst;
+
+		/*
+		 * Disable MMU.  Otherwise, setup_pagetables call below
+		 * might overwrite the L1 table we are currently using.
+		 */
+		cpu_idcache_wbinv_all();
+		cpu_l2cache_wbinv_all();
+		__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n"
+		  "bic %0, %0, #1\n" /* MMU_DISABLE */
+		  "mcr p15, 0, %0, c1, c0, 0\n"
+		  :"=r" (pt_addr));
 	} else
 #endif
 		dst = 4 + load_kernel((unsigned int)&kernel_start, 
