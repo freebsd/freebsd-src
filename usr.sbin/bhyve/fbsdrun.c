@@ -138,6 +138,7 @@ usage(int code)
 		"       -h: help\n"
 		"       -z: guest hz (default is %d)\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"	-n: <slot,name> PCI slot naming\n"
 		"       -m: lowmem in MB\n"
 		"       -M: highmem in MB\n"
@@ -530,7 +531,7 @@ main(int argc, char *argv[])
 	gdb_port = DEFAULT_GDB_PORT;
 	guest_ncpus = 1;
 
-	while ((c = getopt(argc, argv, "ehBHPxp:g:c:z:s:n:m:M:")) != -1) {
+	while ((c = getopt(argc, argv, "ehBHPxp:g:c:z:s:S:n:m:M:")) != -1) {
 		switch (c) {
 		case 'B':
 			inject_bkpt = 1;
@@ -554,7 +555,10 @@ main(int argc, char *argv[])
 			guest_tslice = atoi(optarg);
 			break;
 		case 's':
-			pci_parse_slot(optarg);
+			pci_parse_slot(optarg, 0);
+			break;
+		case 'S':
+			pci_parse_slot(optarg, 1);
 			break;
 		case 'n':
 			pci_parse_name(optarg);

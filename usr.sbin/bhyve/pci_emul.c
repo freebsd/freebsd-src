@@ -64,14 +64,26 @@ do {									\
 #define MAXSLOTS	32
 
 static struct slotinfo {
-	char *si_name;
-	char *si_param;
+	char	*si_name;
+	char	*si_param;
 	struct pci_devinst *si_devi;
-	int si_titled;
-	int  si_pslot;
-	char si_prefix;
-	char si_suffix;
+	int	si_titled;
+	int	si_pslot;
+	char	si_prefix;
+	char	si_suffix;
+	int	si_legacy;
 } pci_slotinfo[MAXSLOTS];
+
+/*
+ * Used to keep track of legacy interrupt owners/requestors
+ */
+#define NLIRQ		16
+
+static struct lirqinfo {
+	int	li_generic;
+	int	li_acount;
+	struct pci_devinst *li_owner;	/* XXX should be a list */
+} lirq[NLIRQ];
 
 /*
  * NetApp specific:
@@ -147,7 +159,7 @@ pci_parse_slot_usage(char *aopt)
 }
 
 void
-pci_parse_slot(char *opt)
+pci_parse_slot(char *opt, int legacy)
 {
 	char *slot, *emul, *config;
 	char *str, *cpy;
@@ -174,6 +186,7 @@ pci_parse_slot(char *opt)
 	} else {
 		pci_slotinfo[snum].si_name = emul;
 		pci_slotinfo[snum].si_param = config;
+		pci_slotinfo[snum].si_legacy = legacy;
 	}
 }
 
@@ -377,7 +390,12 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 		addr = mask = lobits = 0;
 		break;
 	case PCIBAR_IO:
-		baseptr = &pci_emul_iobase;
+		if (hostbase && pci_slotinfo[pdi->pi_slot].si_legacy) {
+			assert(hostbase < PCI_EMUL_IOBASE);
+			baseptr = &hostbase;
+		} else {
+			baseptr = &pci_emul_iobase;
+		}
 		limit = PCI_EMUL_IOLIMIT;
 		mask = PCIM_BAR_IO_BASE;
 		lobits = PCIM_BAR_IO_SPACE;
@@ -729,6 +747,16 @@ init_pci(struct vmctx *ctx)
 		}
 	}
 	pci_finish_mptable_names();
+
+	/*
+	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
+	 * generic use
+	 */
+	lirq[5].li_generic = 1;
+	lirq[10].li_generic = 1;
+	lirq[11].li_generic = 1;
+	lirq[12].li_generic = 1;
+	lirq[15].li_generic = 1;
 }
 
 int
@@ -756,6 +784,69 @@ pci_generate_msi(struct pci_devinst *pi, int msg)
 			     pi->pi_msi.vector + msg);
 	}
 }
+
+int
+pci_is_legacy(struct pci_devinst *pi)
+{
+
+	return (pci_slotinfo[pi->pi_slot].si_legacy);
+}
+
+static int
+pci_lintr_alloc(struct pci_devinst *pi, int vec)
+{
+	int i;
+
+	assert(vec < NLIRQ);
+
+	if (vec == -1) {
+		for (i = 0; i < NLIRQ; i++) {
+			if (lirq[i].li_generic &&
+			    lirq[i].li_owner == NULL) {
+				vec = i;
+				break;
+			}
+		}
+	} else {
+		if (lirq[i].li_owner != NULL) {
+			vec = -1;
+		}
+	}
+	assert(vec != -1);
+
+	lirq[vec].li_owner = pi;
+	pi->pi_lintr_pin = vec;
+
+	return (vec);
+}
+
+int
+pci_lintr_request(struct pci_devinst *pi, int vec)
+{
+
+	vec = pci_lintr_alloc(pi, vec);
+	pci_set_cfgdata8(pi, PCIR_INTLINE, vec);
+	pci_set_cfgdata8(pi, PCIR_INTPIN, 1);
+	return (0);
+}
+
+void
+pci_lintr_assert(struct pci_devinst *pi)
+{
+
+	assert(pi->pi_lintr_pin);
+	/* ioapic_assert_pin(pi->pi_vmctx, pi->pi_lintr_pin); */
+}
+
+void
+pci_lintr_deassert(struct pci_devinst *pi)
+{
+
+	assert(pi->pi_lintr_pin);
+	/* ioapic_deassert_pin(pi->pi_vmctx, pi->pi_lintr_pin); */
+}
+
+
 
 static int cfgbus, cfgslot, cfgfunc, cfgoff;
 
