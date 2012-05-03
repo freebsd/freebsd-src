@@ -729,9 +729,9 @@ void Parser::ParseLexedAttributes(ParsingClass &Class) {
   if (HasTemplateScope)
     Actions.ActOnReenterTemplateScope(getCurScope(), Class.TagOrTemplate);
 
-  // Set or update the scope flags to include Scope::ThisScope.
+  // Set or update the scope flags.
   bool AlreadyHasClassScope = Class.TopLevelClass;
-  unsigned ScopeFlags = Scope::ClassScope|Scope::DeclScope|Scope::ThisScope;
+  unsigned ScopeFlags = Scope::ClassScope|Scope::DeclScope;
   ParseScope ClassScope(this, ScopeFlags, !AlreadyHasClassScope);
   ParseScopeFlags ClassScopeFlags(this, ScopeFlags, AlreadyHasClassScope);
 
@@ -739,11 +739,16 @@ void Parser::ParseLexedAttributes(ParsingClass &Class) {
   if (!AlreadyHasClassScope)
     Actions.ActOnStartDelayedMemberDeclarations(getCurScope(),
                                                 Class.TagOrTemplate);
-
-  for (unsigned i = 0, ni = Class.LateParsedDeclarations.size(); i < ni; ++i) {
-    Class.LateParsedDeclarations[i]->ParseLexedAttributes();
+  {
+    // Allow 'this' within late-parsed attributes.
+    Sema::CXXThisScopeRAII ThisScope(Actions, Class.TagOrTemplate, 
+                                     /*TypeQuals=*/0);
+    
+    for (unsigned i = 0, ni = Class.LateParsedDeclarations.size(); i < ni; ++i){
+      Class.LateParsedDeclarations[i]->ParseLexedAttributes();
+    }
   }
-
+  
   if (!AlreadyHasClassScope)
     Actions.ActOnFinishDelayedMemberDeclarations(getCurScope(),
                                                  Class.TagOrTemplate);
@@ -756,6 +761,7 @@ void Parser::ParseLexedAttributeList(LateParsedAttrList &LAs, Decl *D,
   for (unsigned i = 0, ni = LAs.size(); i < ni; ++i) {
     LAs[i]->addDecl(D);
     ParseLexedAttribute(*LAs[i], EnterScope, OnDefinition);
+    delete LAs[i];
   }
   LAs.clear();
 }
@@ -958,7 +964,7 @@ void Parser::DiagnoseProhibitedAttributes(ParsedAttributesWithRange &attrs) {
 /// [C++]   namespace-definition
 /// [C++]   using-directive
 /// [C++]   using-declaration
-/// [C++0x/C11] static_assert-declaration
+/// [C++11/C11] static_assert-declaration
 ///         others... [FIXME]
 ///
 Parser::DeclGroupPtrTy Parser::ParseDeclaration(StmtVector &Stmts,
@@ -4191,6 +4197,7 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
   SmallVector<ParsedType, 2> DynamicExceptions;
   SmallVector<SourceRange, 2> DynamicExceptionRanges;
   ExprResult NoexceptExpr;
+  CachedTokens *ExceptionSpecTokens = 0;
   ParsedAttributes FnAttrs(AttrFactory);
   ParsedType TrailingReturnType;
 
@@ -4241,11 +4248,34 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
         EndLoc = RefQualifierLoc;
       }
 
+      // C++11 [expr.prim.general]p3:
+      //   If a declaration declares a member function or member function 
+      //   template of a class X, the expression this is a prvalue of type 
+      //   "pointer to cv-qualifier-seq X" between the optional cv-qualifer-seq
+      //   and the end of the function-definition, member-declarator, or 
+      //   declarator.
+      bool IsCXX11MemberFunction = 
+        getLangOpts().CPlusPlus0x &&
+        (D.getContext() == Declarator::MemberContext ||
+         (D.getContext() == Declarator::FileContext &&
+          D.getCXXScopeSpec().isValid() && 
+          Actions.CurContext->isRecord()));
+      Sema::CXXThisScopeRAII ThisScope(Actions,
+                               dyn_cast<CXXRecordDecl>(Actions.CurContext),
+                               DS.getTypeQualifiers(),
+                               IsCXX11MemberFunction);
+      
       // Parse exception-specification[opt].
-      ESpecType = MaybeParseExceptionSpecification(ESpecRange,
-                                                   DynamicExceptions,
-                                                   DynamicExceptionRanges,
-                                                   NoexceptExpr);
+      bool Delayed = (D.getContext() == Declarator::MemberContext &&
+                      D.getDeclSpec().getStorageClassSpec()
+                        != DeclSpec::SCS_typedef &&
+                      !D.getDeclSpec().isFriendSpecified());
+      ESpecType = tryParseExceptionSpecification(Delayed,
+                                                 ESpecRange,
+                                                 DynamicExceptions,
+                                                 DynamicExceptionRanges,
+                                                 NoexceptExpr,
+                                                 ExceptionSpecTokens);
       if (ESpecType != EST_None)
         EndLoc = ESpecRange.getEnd();
 
@@ -4280,6 +4310,7 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
                                              DynamicExceptions.size(),
                                              NoexceptExpr.isUsable() ?
                                                NoexceptExpr.get() : 0,
+                                             ExceptionSpecTokens,
                                              Tracker.getOpenLocation(), 
                                              EndLoc, D,
                                              TrailingReturnType),
@@ -4481,7 +4512,6 @@ void Parser::ParseParameterDeclarationClause(
           // If we're inside a class definition, cache the tokens
           // corresponding to the default argument. We'll actually parse
           // them when we see the end of the class definition.
-          // FIXME: Templates will require something similar.
           // FIXME: Can we use a smart pointer for Toks?
           DefArgToks = new CachedTokens;
 

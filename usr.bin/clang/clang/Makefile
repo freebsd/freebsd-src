@@ -41,7 +41,6 @@ LIBDEPS=clangfrontendtool \
 	clangstaticanalyzercheckers \
 	clangstaticanalyzercore \
 	clanganalysis \
-	clangindex \
 	clangarcmigrate \
 	clangrewrite \
 	clangedit \
