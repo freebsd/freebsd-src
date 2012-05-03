@@ -25,6 +25,7 @@
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/TypeOrdering.h"
@@ -124,14 +125,17 @@ namespace {
   }
 }
 
-void Sema::ImplicitExceptionSpecification::CalledDecl(CXXMethodDecl *Method) {
-  assert(Context && "ImplicitExceptionSpecification without an ASTContext");
+void Sema::ImplicitExceptionSpecification::CalledDecl(SourceLocation CallLoc,
+                                                      CXXMethodDecl *Method) {
   // If we have an MSAny or unknown spec already, don't bother.
   if (!Method || ComputedEST == EST_MSAny || ComputedEST == EST_Delayed)
     return;
 
   const FunctionProtoType *Proto
     = Method->getType()->getAs<FunctionProtoType>();
+  Proto = Self->ResolveExceptionSpec(CallLoc, Proto);
+  if (!Proto)
+    return;
 
   ExceptionSpecificationType EST = Proto->getExceptionSpecType();
 
@@ -163,7 +167,8 @@ void Sema::ImplicitExceptionSpecification::CalledDecl(CXXMethodDecl *Method) {
 
   // Check out noexcept specs.
   if (EST == EST_ComputedNoexcept) {
-    FunctionProtoType::NoexceptResult NR = Proto->getNoexceptSpec(*Context);
+    FunctionProtoType::NoexceptResult NR =
+        Proto->getNoexceptSpec(Self->Context);
     assert(NR != FunctionProtoType::NR_NoNoexcept &&
            "Must have noexcept result for EST_ComputedNoexcept.");
     assert(NR != FunctionProtoType::NR_Dependent &&
@@ -187,7 +192,7 @@ void Sema::ImplicitExceptionSpecification::CalledDecl(CXXMethodDecl *Method) {
   for (FunctionProtoType::exception_iterator E = Proto->exception_begin(),
                                           EEnd = Proto->exception_end();
        E != EEnd; ++E)
-    if (ExceptionsSeen.insert(Context->getCanonicalType(*E)))
+    if (ExceptionsSeen.insert(Self->Context.getCanonicalType(*E)))
       Exceptions.push_back(*E);
 }
 
@@ -216,7 +221,7 @@ void Sema::ImplicitExceptionSpecification::CalledExpr(Expr *E) {
   // implicit definition. For now, we assume that any non-nothrow expression can
   // throw any exception.
 
-  if (E->CanThrow(*Context))
+  if (Self->canThrow(E))
     ComputedEST = EST_None;
 }
 
@@ -3921,7 +3926,7 @@ void Sema::CheckExplicitlyDefaultedCopyConstructor(CXXConstructorDecl *CD) {
     HadError = true;
   }
 
-  ImplicitExceptionSpecification Spec(Context);
+  ImplicitExceptionSpecification Spec(*this);
   bool Const;
   llvm::tie(Spec, Const) =
     ComputeDefaultedCopyCtorExceptionSpecAndConst(CD->getParent());
@@ -4030,7 +4035,7 @@ void Sema::CheckExplicitlyDefaultedCopyAssignment(CXXMethodDecl *MD) {
     HadError = true;
   }
 
-  ImplicitExceptionSpecification Spec(Context);
+  ImplicitExceptionSpecification Spec(*this);
   bool Const;
   llvm::tie(Spec, Const) =
     ComputeDefaultedCopyCtorExceptionSpecAndConst(MD->getParent());
@@ -5920,10 +5925,12 @@ Decl *Sema::ActOnUsingDeclaration(Scope *S,
       
   case UnqualifiedId::IK_ConstructorName:
   case UnqualifiedId::IK_ConstructorTemplateId:
-    // C++0x inherited constructors.
+    // C++11 inheriting constructors.
     Diag(Name.getLocStart(),
          getLangOpts().CPlusPlus0x ?
-           diag::warn_cxx98_compat_using_decl_constructor :
+           // FIXME: Produce warn_cxx98_compat_using_decl_constructor
+           //        instead once inheriting constructors work.
+           diag::err_using_decl_constructor_unsupported :
            diag::err_using_decl_constructor)
       << SS.getRange();
 
@@ -6813,7 +6820,7 @@ Sema::ComputeDefaultedDefaultCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
   // C++ [except.spec]p14:
   //   An implicitly declared special member function (Clause 12) shall have an 
   //   exception-specification. [...]
-  ImplicitExceptionSpecification ExceptSpec(Context);
+  ImplicitExceptionSpecification ExceptSpec(*this);
   if (ClassDecl->isInvalidDecl())
     return ExceptSpec;
 
@@ -6830,7 +6837,7 @@ Sema::ComputeDefaultedDefaultCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
       // If this is a deleted function, add it anyway. This might be conformant
       // with the standard. This might not. I'm not sure. It might not matter.
       if (Constructor)
-        ExceptSpec.CalledDecl(Constructor);
+        ExceptSpec.CalledDecl(B->getLocStart(), Constructor);
     }
   }
 
@@ -6844,7 +6851,7 @@ Sema::ComputeDefaultedDefaultCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
       // If this is a deleted function, add it anyway. This might be conformant
       // with the standard. This might not. I'm not sure. It might not matter.
       if (Constructor)
-        ExceptSpec.CalledDecl(Constructor);
+        ExceptSpec.CalledDecl(B->getLocStart(), Constructor);
     }
   }
 
@@ -6867,7 +6874,7 @@ Sema::ComputeDefaultedDefaultCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
       // might just be ill-formed because this function attempts to refer to
       // a deleted function here.
       if (Constructor)
-        ExceptSpec.CalledDecl(Constructor);
+        ExceptSpec.CalledDecl(F->getLocation(), Constructor);
     }
   }
 
@@ -6989,6 +6996,7 @@ void Sema::ActOnFinishDelayedMemberInitializers(Decl *D) {
   const FunctionProtoType *CtorTy =
     CtorDecl->getType()->castAs<FunctionProtoType>();
   if (CtorTy->getExceptionSpecType() == EST_Delayed) {
+    // FIXME: Don't do this unless the exception spec is needed.
     ImplicitExceptionSpecification Spec = 
       ComputeDefaultedDefaultCtorExceptionSpec(ClassDecl);
     FunctionProtoType::ExtProtoInfo EPI = Spec.getEPI();
@@ -7189,7 +7197,7 @@ Sema::ComputeDefaultedDtorExceptionSpec(CXXRecordDecl *ClassDecl) {
   // C++ [except.spec]p14: 
   //   An implicitly declared special member function (Clause 12) shall have 
   //   an exception-specification.
-  ImplicitExceptionSpecification ExceptSpec(Context);
+  ImplicitExceptionSpecification ExceptSpec(*this);
   if (ClassDecl->isInvalidDecl())
     return ExceptSpec;
 
@@ -7201,7 +7209,7 @@ Sema::ComputeDefaultedDtorExceptionSpec(CXXRecordDecl *ClassDecl) {
       continue;
     
     if (const RecordType *BaseType = B->getType()->getAs<RecordType>())
-      ExceptSpec.CalledDecl(
+      ExceptSpec.CalledDecl(B->getLocStart(),
                    LookupDestructor(cast<CXXRecordDecl>(BaseType->getDecl())));
   }
 
@@ -7210,7 +7218,7 @@ Sema::ComputeDefaultedDtorExceptionSpec(CXXRecordDecl *ClassDecl) {
                                        BEnd = ClassDecl->vbases_end();
        B != BEnd; ++B) {
     if (const RecordType *BaseType = B->getType()->getAs<RecordType>())
-      ExceptSpec.CalledDecl(
+      ExceptSpec.CalledDecl(B->getLocStart(),
                   LookupDestructor(cast<CXXRecordDecl>(BaseType->getDecl())));
   }
 
@@ -7220,7 +7228,7 @@ Sema::ComputeDefaultedDtorExceptionSpec(CXXRecordDecl *ClassDecl) {
        F != FEnd; ++F) {
     if (const RecordType *RecordTy
         = Context.getBaseElementType(F->getType())->getAs<RecordType>())
-      ExceptSpec.CalledDecl(
+      ExceptSpec.CalledDecl(F->getLocation(),
                   LookupDestructor(cast<CXXRecordDecl>(RecordTy->getDecl())));
   }
 
@@ -7545,7 +7553,7 @@ std::pair<Sema::ImplicitExceptionSpecification, bool>
 Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
                                                    CXXRecordDecl *ClassDecl) {
   if (ClassDecl->isInvalidDecl())
-    return std::make_pair(ImplicitExceptionSpecification(Context), false);
+    return std::make_pair(ImplicitExceptionSpecification(*this), false);
 
   // C++ [class.copy]p10:
   //   If the class definition does not explicitly declare a copy
@@ -7618,7 +7626,7 @@ Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
   // Based on a similar decision made for constness in C++0x, we're erring on
   // the side of assuming such calls to be made regardless of whether they
   // actually happen.
-  ImplicitExceptionSpecification ExceptSpec(Context);
+  ImplicitExceptionSpecification ExceptSpec(*this);
   unsigned ArgQuals = HasConstCopyAssignment ? Qualifiers::Const : 0;
   for (CXXRecordDecl::base_class_iterator Base = ClassDecl->bases_begin(),
                                        BaseEnd = ClassDecl->bases_end();
@@ -7630,7 +7638,7 @@ Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXMethodDecl *CopyAssign = LookupCopyingAssignment(BaseClassDecl,
                                                             ArgQuals, false, 0))
-      ExceptSpec.CalledDecl(CopyAssign);
+      ExceptSpec.CalledDecl(Base->getLocStart(), CopyAssign);
   }
 
   for (CXXRecordDecl::base_class_iterator Base = ClassDecl->vbases_begin(),
@@ -7640,7 +7648,7 @@ Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXMethodDecl *CopyAssign = LookupCopyingAssignment(BaseClassDecl,
                                                             ArgQuals, false, 0))
-      ExceptSpec.CalledDecl(CopyAssign);
+      ExceptSpec.CalledDecl(Base->getLocStart(), CopyAssign);
   }
 
   for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
@@ -7651,7 +7659,7 @@ Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
     if (CXXRecordDecl *FieldClassDecl = FieldType->getAsCXXRecordDecl()) {
       if (CXXMethodDecl *CopyAssign =
           LookupCopyingAssignment(FieldClassDecl, ArgQuals, false, 0))
-        ExceptSpec.CalledDecl(CopyAssign);
+        ExceptSpec.CalledDecl(Field->getLocation(), CopyAssign);
     }
   }
 
@@ -7664,7 +7672,7 @@ CXXMethodDecl *Sema::DeclareImplicitCopyAssignment(CXXRecordDecl *ClassDecl) {
   // for determining the argument type of the operator. Note also that
   // operators taking an object instead of a reference are allowed.
 
-  ImplicitExceptionSpecification Spec(Context);
+  ImplicitExceptionSpecification Spec(*this);
   bool Const;
   llvm::tie(Spec, Const) =
     ComputeDefaultedCopyAssignmentExceptionSpecAndConst(ClassDecl);
@@ -8031,7 +8039,7 @@ void Sema::DefineImplicitCopyAssignment(SourceLocation CurrentLocation,
 
 Sema::ImplicitExceptionSpecification
 Sema::ComputeDefaultedMoveAssignmentExceptionSpec(CXXRecordDecl *ClassDecl) {
-  ImplicitExceptionSpecification ExceptSpec(Context);
+  ImplicitExceptionSpecification ExceptSpec(*this);
 
   if (ClassDecl->isInvalidDecl())
     return ExceptSpec;
@@ -8058,7 +8066,7 @@ Sema::ComputeDefaultedMoveAssignmentExceptionSpec(CXXRecordDecl *ClassDecl) {
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXMethodDecl *MoveAssign = LookupMovingAssignment(BaseClassDecl,
                                                            false, 0))
-      ExceptSpec.CalledDecl(MoveAssign);
+      ExceptSpec.CalledDecl(Base->getLocStart(), MoveAssign);
   }
 
   for (CXXRecordDecl::base_class_iterator Base = ClassDecl->vbases_begin(),
@@ -8068,7 +8076,7 @@ Sema::ComputeDefaultedMoveAssignmentExceptionSpec(CXXRecordDecl *ClassDecl) {
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXMethodDecl *MoveAssign = LookupMovingAssignment(BaseClassDecl,
                                                            false, 0))
-      ExceptSpec.CalledDecl(MoveAssign);
+      ExceptSpec.CalledDecl(Base->getLocStart(), MoveAssign);
   }
 
   for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
@@ -8079,7 +8087,7 @@ Sema::ComputeDefaultedMoveAssignmentExceptionSpec(CXXRecordDecl *ClassDecl) {
     if (CXXRecordDecl *FieldClassDecl = FieldType->getAsCXXRecordDecl()) {
       if (CXXMethodDecl *MoveAssign = LookupMovingAssignment(FieldClassDecl,
                                                              false, 0))
-        ExceptSpec.CalledDecl(MoveAssign);
+        ExceptSpec.CalledDecl(Field->getLocation(), MoveAssign);
     }
   }
 
@@ -8577,7 +8585,7 @@ void Sema::DefineImplicitMoveAssignment(SourceLocation CurrentLocation,
 std::pair<Sema::ImplicitExceptionSpecification, bool>
 Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
   if (ClassDecl->isInvalidDecl())
-    return std::make_pair(ImplicitExceptionSpecification(Context), false);
+    return std::make_pair(ImplicitExceptionSpecification(*this), false);
 
   // C++ [class.copy]p5:
   //   The implicitly-declared copy constructor for a class X will
@@ -8638,7 +8646,7 @@ Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
   // C++ [except.spec]p14:
   //   An implicitly declared special member function (Clause 12) shall have an 
   //   exception-specification. [...]
-  ImplicitExceptionSpecification ExceptSpec(Context);
+  ImplicitExceptionSpecification ExceptSpec(*this);
   unsigned Quals = HasConstCopyConstructor? Qualifiers::Const : 0;
   for (CXXRecordDecl::base_class_iterator Base = ClassDecl->bases_begin(),
                                        BaseEnd = ClassDecl->bases_end();
@@ -8652,7 +8660,7 @@ Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXConstructorDecl *CopyConstructor =
           LookupCopyingConstructor(BaseClassDecl, Quals))
-      ExceptSpec.CalledDecl(CopyConstructor);
+      ExceptSpec.CalledDecl(Base->getLocStart(), CopyConstructor);
   }
   for (CXXRecordDecl::base_class_iterator Base = ClassDecl->vbases_begin(),
                                        BaseEnd = ClassDecl->vbases_end();
@@ -8662,7 +8670,7 @@ Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
     if (CXXConstructorDecl *CopyConstructor =
           LookupCopyingConstructor(BaseClassDecl, Quals))
-      ExceptSpec.CalledDecl(CopyConstructor);
+      ExceptSpec.CalledDecl(Base->getLocStart(), CopyConstructor);
   }
   for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
                                   FieldEnd = ClassDecl->field_end();
@@ -8672,7 +8680,7 @@ Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
     if (CXXRecordDecl *FieldClassDecl = FieldType->getAsCXXRecordDecl()) {
       if (CXXConstructorDecl *CopyConstructor =
         LookupCopyingConstructor(FieldClassDecl, Quals))
-      ExceptSpec.CalledDecl(CopyConstructor);
+      ExceptSpec.CalledDecl(Field->getLocation(), CopyConstructor);
     }
   }
 
@@ -8685,7 +8693,7 @@ CXXConstructorDecl *Sema::DeclareImplicitCopyConstructor(
   //   If the class definition does not explicitly declare a copy
   //   constructor, one is declared implicitly.
 
-  ImplicitExceptionSpecification Spec(Context);
+  ImplicitExceptionSpecification Spec(*this);
   bool Const;
   llvm::tie(Spec, Const) =
     ComputeDefaultedCopyCtorExceptionSpecAndConst(ClassDecl);
@@ -8783,7 +8791,7 @@ Sema::ComputeDefaultedMoveCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
   // C++ [except.spec]p14:
   //   An implicitly declared special member function (Clause 12) shall have an 
   //   exception-specification. [...]
-  ImplicitExceptionSpecification ExceptSpec(Context);
+  ImplicitExceptionSpecification ExceptSpec(*this);
   if (ClassDecl->isInvalidDecl())
     return ExceptSpec;
 
@@ -8800,7 +8808,7 @@ Sema::ComputeDefaultedMoveCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
       // If this is a deleted function, add it anyway. This might be conformant
       // with the standard. This might not. I'm not sure. It might not matter.
       if (Constructor)
-        ExceptSpec.CalledDecl(Constructor);
+        ExceptSpec.CalledDecl(B->getLocStart(), Constructor);
     }
   }
 
@@ -8814,7 +8822,7 @@ Sema::ComputeDefaultedMoveCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
       // If this is a deleted function, add it anyway. This might be conformant
       // with the standard. This might not. I'm not sure. It might not matter.
       if (Constructor)
-        ExceptSpec.CalledDecl(Constructor);
+        ExceptSpec.CalledDecl(B->getLocStart(), Constructor);
     }
   }
 
@@ -8832,7 +8840,7 @@ Sema::ComputeDefaultedMoveCtorExceptionSpec(CXXRecordDecl *ClassDecl) {
       // might just be ill-formed because this function attempts to refer to
       // a deleted function here.
       if (Constructor)
-        ExceptSpec.CalledDecl(Constructor);
+        ExceptSpec.CalledDecl(F->getLocation(), Constructor);
     }
   }
 
@@ -11051,6 +11059,265 @@ void Sema::CheckDelegatingCtorCycles() {
 
   for (CI = Invalid.begin(), CE = Invalid.end(); CI != CE; ++CI)
     (*CI)->setInvalidDecl();
+}
+
+namespace {
+  /// \brief AST visitor that finds references to the 'this' expression.
+  class FindCXXThisExpr : public RecursiveASTVisitor<FindCXXThisExpr> {
+    Sema &S;
+    
+  public:
+    explicit FindCXXThisExpr(Sema &S) : S(S) { }
+    
+    bool VisitCXXThisExpr(CXXThisExpr *E) {
+      S.Diag(E->getLocation(), diag::err_this_static_member_func)
+        << E->isImplicit();
+      return false;
+    }
+  };
+}
+
+bool Sema::checkThisInStaticMemberFunctionType(CXXMethodDecl *Method) {
+  TypeSourceInfo *TSInfo = Method->getTypeSourceInfo();
+  if (!TSInfo)
+    return false;
+  
+  TypeLoc TL = TSInfo->getTypeLoc();
+  FunctionProtoTypeLoc *ProtoTL = dyn_cast<FunctionProtoTypeLoc>(&TL);
+  if (!ProtoTL)
+    return false;
+  
+  // C++11 [expr.prim.general]p3:
+  //   [The expression this] shall not appear before the optional 
+  //   cv-qualifier-seq and it shall not appear within the declaration of a 
+  //   static member function (although its type and value category are defined
+  //   within a static member function as they are within a non-static member
+  //   function). [ Note: this is because declaration matching does not occur
+  //  until the complete declarator is known. - end note ]
+  const FunctionProtoType *Proto = ProtoTL->getTypePtr();
+  FindCXXThisExpr Finder(*this);
+  
+  // If the return type came after the cv-qualifier-seq, check it now.
+  if (Proto->hasTrailingReturn() &&
+      !Finder.TraverseTypeLoc(ProtoTL->getResultLoc()))
+    return true;
+
+  // Check the exception specification.
+  if (checkThisInStaticMemberFunctionExceptionSpec(Method))
+    return true;
+  
+  return checkThisInStaticMemberFunctionAttributes(Method);
+}
+
+bool Sema::checkThisInStaticMemberFunctionExceptionSpec(CXXMethodDecl *Method) {
+  TypeSourceInfo *TSInfo = Method->getTypeSourceInfo();
+  if (!TSInfo)
+    return false;
+  
+  TypeLoc TL = TSInfo->getTypeLoc();
+  FunctionProtoTypeLoc *ProtoTL = dyn_cast<FunctionProtoTypeLoc>(&TL);
+  if (!ProtoTL)
+    return false;
+  
+  const FunctionProtoType *Proto = ProtoTL->getTypePtr();
+  FindCXXThisExpr Finder(*this);
+
+  switch (Proto->getExceptionSpecType()) {
+  case EST_Uninstantiated:
+  case EST_BasicNoexcept:
+  case EST_Delayed:
+  case EST_DynamicNone:
+  case EST_MSAny:
+  case EST_None:
+    break;
+    
+  case EST_ComputedNoexcept:
+    if (!Finder.TraverseStmt(Proto->getNoexceptExpr()))
+      return true;
+    
+  case EST_Dynamic:
+    for (FunctionProtoType::exception_iterator E = Proto->exception_begin(),
+         EEnd = Proto->exception_end();
+         E != EEnd; ++E) {
+      if (!Finder.TraverseType(*E))
+        return true;
+    }
+    break;
+  }
+
+  return false;
+}
+
+bool Sema::checkThisInStaticMemberFunctionAttributes(CXXMethodDecl *Method) {
+  FindCXXThisExpr Finder(*this);
+
+  // Check attributes.
+  for (Decl::attr_iterator A = Method->attr_begin(), AEnd = Method->attr_end();
+       A != AEnd; ++A) {
+    // FIXME: This should be emitted by tblgen.
+    Expr *Arg = 0;
+    ArrayRef<Expr *> Args;
+    if (GuardedByAttr *G = dyn_cast<GuardedByAttr>(*A))
+      Arg = G->getArg();
+    else if (PtGuardedByAttr *G = dyn_cast<PtGuardedByAttr>(*A))
+      Arg = G->getArg();
+    else if (AcquiredAfterAttr *AA = dyn_cast<AcquiredAfterAttr>(*A))
+      Args = ArrayRef<Expr *>(AA->args_begin(), AA->args_size());
+    else if (AcquiredBeforeAttr *AB = dyn_cast<AcquiredBeforeAttr>(*A))
+      Args = ArrayRef<Expr *>(AB->args_begin(), AB->args_size());
+    else if (ExclusiveLockFunctionAttr *ELF 
+               = dyn_cast<ExclusiveLockFunctionAttr>(*A))
+      Args = ArrayRef<Expr *>(ELF->args_begin(), ELF->args_size());
+    else if (SharedLockFunctionAttr *SLF 
+               = dyn_cast<SharedLockFunctionAttr>(*A))
+      Args = ArrayRef<Expr *>(SLF->args_begin(), SLF->args_size());
+    else if (ExclusiveTrylockFunctionAttr *ETLF
+               = dyn_cast<ExclusiveTrylockFunctionAttr>(*A)) {
+      Arg = ETLF->getSuccessValue();
+      Args = ArrayRef<Expr *>(ETLF->args_begin(), ETLF->args_size());
+    } else if (SharedTrylockFunctionAttr *STLF
+                 = dyn_cast<SharedTrylockFunctionAttr>(*A)) {
+      Arg = STLF->getSuccessValue();
+      Args = ArrayRef<Expr *>(STLF->args_begin(), STLF->args_size());
+    } else if (UnlockFunctionAttr *UF = dyn_cast<UnlockFunctionAttr>(*A))
+      Args = ArrayRef<Expr *>(UF->args_begin(), UF->args_size());
+    else if (LockReturnedAttr *LR = dyn_cast<LockReturnedAttr>(*A))
+      Arg = LR->getArg();
+    else if (LocksExcludedAttr *LE = dyn_cast<LocksExcludedAttr>(*A))
+      Args = ArrayRef<Expr *>(LE->args_begin(), LE->args_size());
+    else if (ExclusiveLocksRequiredAttr *ELR 
+               = dyn_cast<ExclusiveLocksRequiredAttr>(*A))
+      Args = ArrayRef<Expr *>(ELR->args_begin(), ELR->args_size());
+    else if (SharedLocksRequiredAttr *SLR 
+               = dyn_cast<SharedLocksRequiredAttr>(*A))
+      Args = ArrayRef<Expr *>(SLR->args_begin(), SLR->args_size());
+
+    if (Arg && !Finder.TraverseStmt(Arg))
+      return true;
+    
+    for (unsigned I = 0, N = Args.size(); I != N; ++I) {
+      if (!Finder.TraverseStmt(Args[I]))
+        return true;
+    }
+  }
+  
+  return false;
+}
+
+void
+Sema::checkExceptionSpecification(ExceptionSpecificationType EST,
+                                  ArrayRef<ParsedType> DynamicExceptions,
+                                  ArrayRef<SourceRange> DynamicExceptionRanges,
+                                  Expr *NoexceptExpr,
+                                  llvm::SmallVectorImpl<QualType> &Exceptions,
+                                  FunctionProtoType::ExtProtoInfo &EPI) {
+  Exceptions.clear();
+  EPI.ExceptionSpecType = EST;
+  if (EST == EST_Dynamic) {
+    Exceptions.reserve(DynamicExceptions.size());
+    for (unsigned ei = 0, ee = DynamicExceptions.size(); ei != ee; ++ei) {
+      // FIXME: Preserve type source info.
+      QualType ET = GetTypeFromParser(DynamicExceptions[ei]);
+
+      SmallVector<UnexpandedParameterPack, 2> Unexpanded;
+      collectUnexpandedParameterPacks(ET, Unexpanded);
+      if (!Unexpanded.empty()) {
+        DiagnoseUnexpandedParameterPacks(DynamicExceptionRanges[ei].getBegin(),
+                                         UPPC_ExceptionType,
+                                         Unexpanded);
+        continue;
+      }
+
+      // Check that the type is valid for an exception spec, and
+      // drop it if not.
+      if (!CheckSpecifiedExceptionType(ET, DynamicExceptionRanges[ei]))
+        Exceptions.push_back(ET);
+    }
+    EPI.NumExceptions = Exceptions.size();
+    EPI.Exceptions = Exceptions.data();
+    return;
+  }
+  
+  if (EST == EST_ComputedNoexcept) {
+    // If an error occurred, there's no expression here.
+    if (NoexceptExpr) {
+      assert((NoexceptExpr->isTypeDependent() ||
+              NoexceptExpr->getType()->getCanonicalTypeUnqualified() ==
+              Context.BoolTy) &&
+             "Parser should have made sure that the expression is boolean");
+      if (NoexceptExpr && DiagnoseUnexpandedParameterPack(NoexceptExpr)) {
+        EPI.ExceptionSpecType = EST_BasicNoexcept;
+        return;
+      }
+      
+      if (!NoexceptExpr->isValueDependent())
+        NoexceptExpr = VerifyIntegerConstantExpression(NoexceptExpr, 0,
+                         PDiag(diag::err_noexcept_needs_constant_expression),
+                         /*AllowFold*/ false).take();
+      EPI.NoexceptExpr = NoexceptExpr;
+    }
+    return;
+  }
+}
+
+void Sema::actOnDelayedExceptionSpecification(Decl *MethodD,
+             ExceptionSpecificationType EST,
+             SourceRange SpecificationRange,
+             ArrayRef<ParsedType> DynamicExceptions,
+             ArrayRef<SourceRange> DynamicExceptionRanges,
+             Expr *NoexceptExpr) {
+  if (!MethodD)
+    return;
+  
+  // Dig out the method we're referring to.
+  CXXMethodDecl *Method = 0;
+  if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(MethodD))
+    Method = dyn_cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl());
+  else
+    Method = dyn_cast<CXXMethodDecl>(MethodD);
+  
+  if (!Method)
+    return;
+  
+  // Dig out the prototype. This should never fail.
+  const FunctionProtoType *Proto
+    = dyn_cast<FunctionProtoType>(Method->getType());
+  if (!Proto)
+    return;
+  
+  // Check the exception specification.
+  llvm::SmallVector<QualType, 4> Exceptions;
+  FunctionProtoType::ExtProtoInfo EPI = Proto->getExtProtoInfo();
+  checkExceptionSpecification(EST, DynamicExceptions, DynamicExceptionRanges,
+                              NoexceptExpr, Exceptions, EPI);
+  
+  // Rebuild the function type.
+  QualType T = Context.getFunctionType(Proto->getResultType(),
+                                       Proto->arg_type_begin(),
+                                       Proto->getNumArgs(),
+                                       EPI);
+  if (TypeSourceInfo *TSInfo = Method->getTypeSourceInfo()) {
+    // FIXME: When we get proper type location information for exceptions,
+    // we'll also have to rebuild the TypeSourceInfo. For now, we just patch
+    // up the TypeSourceInfo;
+    assert(TypeLoc::getFullDataSizeForType(T)
+             == TypeLoc::getFullDataSizeForType(Method->getType()) &&
+           "TypeLoc size mismatch with delayed exception specification");
+    TSInfo->overrideType(T);
+  }
+
+  Method->setType(T);
+  
+  if (Method->isStatic())
+    checkThisInStaticMemberFunctionExceptionSpec(Method);
+  
+  if (Method->isVirtual()) {
+    // Check overrides, which we previously had to delay.
+    for (CXXMethodDecl::method_iterator O = Method->begin_overridden_methods(),
+                                     OEnd = Method->end_overridden_methods();
+         O != OEnd; ++O)
+      CheckOverridingFunctionExceptionSpec(Method, *O);
+  }
 }
 
 /// IdentifyCUDATarget - Determine the CUDA compilation target for this function
