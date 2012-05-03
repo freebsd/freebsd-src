@@ -154,6 +154,8 @@ int pcap_setdirection(pcap_t *p, pcap_direction_t d);
 char *pcap_lookupdev(char *errbuf);
 int pcap_inject(pcap_t *p, const void *buf, size_t size);
 int pcap_fileno(pcap_t *p);
+const char *pcap_lib_version(void);
+
 
 struct eproto {
 	const char *s;
@@ -317,6 +319,11 @@ struct eproto eproto_db[] = {
 	{ (char *)0, 0 }
 };
 
+
+const char *pcap_lib_version(void)
+{
+	return pcap_version;
+}
 
 int
 pcap_findalldevs(pcap_if_t **alldevsp, __unused char *errbuf)
@@ -532,10 +539,8 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 	struct my_ring *me = p;
 	ND("");
 
-	me->st.ps_recv += 10;
 	*ps = me->st;
-	sprintf(me->msg, "stats not supported");
-	return -1;
+	return 0;	/* accumulate from pcap_dispatch() */
 };
 
 char *
@@ -670,6 +675,7 @@ pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			got++;
 		}
 	}
+	me->st.ps_recv += got;
 	return got;
 }
 
