@@ -2638,11 +2638,29 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	/* update isoc_next */
 	xfer->endpoint->isoc_next = (pp_last - &sc->sc_isoc_fs_p_last[0]) &
 	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
+
+	/*
+	 * We don't allow cancelling of the SPLIT transaction USB FULL
+	 * speed transfer, because it disturbs the bandwidth
+	 * computation algorithm.
+	 */
+	xfer->flags_int.can_cancel_immed = 0;
 }
 
 static void
 ehci_device_isoc_fs_start(struct usb_xfer *xfer)
 {
+	/*
+	 * We don't allow cancelling of the SPLIT transaction USB FULL
+	 * speed transfer, because it disturbs the bandwidth
+	 * computation algorithm.
+	 */
+	xfer->flags_int.can_cancel_immed = 0;
+
+	/* set a default timeout */
+	if (xfer->timeout == 0)
+		xfer->timeout = 500; /* ms */
+
 	/* put transfer on interrupt queue */
 	ehci_transfer_intr_enqueue(xfer);
 }
