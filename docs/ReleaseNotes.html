@@ -206,6 +206,36 @@ Release Notes</a>.</h1>
 
 </div>
 
+
+<!--=========================================================================-->
+<h3>
+<a name="Polly">Polly: Polyhedral Optimizer</a>
+</h3>
+
+<div>
+
+  <p><a href="http://polly.llvm.org/">Polly</a> is an <em>experimental</em>
+  optimizer for data locality and parallelism. It currently provides high-level
+  loop optimizations and automatic parallelisation (using the OpenMP run time).
+  Work in the area of automatic SIMD and accelerator code generation was
+  started.
+
+  <p>Within the LLVM 3.1 time-frame there were the following highlights:</p>
+
+  <ul>
+  <li>Polly became an official LLVM project</li>
+  <li>Polly can be loaded directly into clang (Enabled by '-O3 -mllvm -polly'
+  )</li>
+  <li>An automatic scheduling optimizer (derived from <a
+  href="http://pluto-compiler.sourceforge.net/">Pluto</a>) was integrated. It
+  performs loop transformations to optimize for data-locality and parallelism.
+  The transformations include, but are not limited to interchange, fusion,
+  fission, skewing and tiling.
+  </li>
+  </ul>
+
+</div>
+
 </div>
 
 <!-- *********************************************************************** -->
@@ -269,6 +299,8 @@ Release Notes</a>.</h1>
       Support to model instruction bundling / packing.</li>
   <li><a href="#armintegratedassembler">ARM Integrated Assembler</a>,
       A full featured assembler and direct-to-object support for ARM.</li>
+  <li><a href="#blockplacement">Basic Block Placement</a>
+      Probability driven basic block placement.</li>
   <li>....</li>
 </ul>
 
@@ -292,6 +324,9 @@ Release Notes</a>.</h1>
         module as a whole to LLVM subsystems.</li>
     <li>Loads can now have range metadata attached to them to describe the
         possible values being loaded.</li>
+    <li>Inline cost heuristics have been completely overhauled and now closely
+        model constant propagation through call sites, disregard trivially dead
+        code costs, and can model C++ STL iterator patterns.</li>
     <li>....</li>
   </ul>
 </div>
@@ -308,6 +343,14 @@ Release Notes</a>.</h1>
    optimizers:</p>
 
 <ul>
+  <li>The loop unroll pass now is able to unroll loops with run-time trip counts.
+      This feature is turned off by default, and is enabled with the
+      <code>-unroll-runtime</code> flag.</li>
+  <li>A new basic-block autovectorization pass is available. Pass
+      <code>-vectorize</code> to run this pass along with some associated
+      post-vectorization cleanup passes. For more information, see the EuroLLVM
+      2012 slides: <a href="http://llvm.org/devmtg/2012-04-12/Slides/Hal_Finkel.pdf">
+      Autovectorization with LLVM</a>.</li>
   <li>....</li>
 </ul>
 
@@ -373,6 +416,19 @@ Release Notes</a>.</h1>
     target's schedule description which can be queried to determine
     legal groupings of instructions in a bundle.</p>
 
+<p> We have added a new target independent VLIW packetizer based on the
+    DFA infrastructure to group machine instructions into bundles.</p>
+
+</div>
+
+<h4>
+<a name="blockplacement">Basic Block Placement</a>
+</h4>
+<div>
+<p>A probability based block placement and code layout algorithm was added to
+LLVM's code generator. This layout pass supports probabilities derived from
+static heuristics as well as source code annotations such as
+<code>__builtin_expect</code>.</p>
 </div>
 
 <!--=========================================================================-->
@@ -391,6 +447,7 @@ Release Notes</a>.</h1>
   times and better support for different calling conventions.  The old WINCALL
   instructions are no longer needed.</li>
   <li>DW2 Exception Handling is enabled on Cygwin and MinGW.</li>
+  <li>Support for implicit TLS model used with MS VC runtime</li>
 </ul>
 
 </div>
@@ -450,6 +507,8 @@ syntax, there are still significant gaps in that support.</p>
 </h3>
 
 <div>
+
+<p>Support for Qualcomm's Hexagon VLIW processor has been added.</p>
 
 <ul>
   <li>....</li>
@@ -524,6 +583,8 @@ syntax, there are still significant gaps in that support.</p>
 <li><code>llvm::getTrapFunctionName()</code></li>
 <li><code>llvm::EnableSegmentedStacks</code></li>
 </ul></li>
+  <li>The MDBuilder class has been added to simplify the creation of
+      metadata.</li>
   <li>....</li>
 </ul>
 
@@ -621,7 +682,7 @@ syntax, there are still significant gaps in that support.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2012-04-12 17:17:35 +0200 (Thu, 12 Apr 2012) $
+  Last modified: $Date: 2012-04-17 03:13:53 +0200 (Tue, 17 Apr 2012) $
 </address>
 
 </body>

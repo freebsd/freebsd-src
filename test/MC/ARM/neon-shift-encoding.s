@@ -250,112 +250,123 @@ _foo:
 @ CHECK: vsli.64 q7, q7, #63            @ encoding: [0xde,0xe5,0xbf,0xf3]
 
 
-@ CHECK: vshll.s8	q8, d16, #7  @ encoding: [0x30,0x0a,0xcf,0xf2]
 	vshll.s8	q8, d16, #7
-@ CHECK: vshll.s16	q8, d16, #15  @ encoding: [0x30,0x0a,0xdf,0xf2]
 	vshll.s16	q8, d16, #15
-@ CHECK: vshll.s32	q8, d16, #31  @ encoding: [0x30,0x0a,0xff,0xf2]
 	vshll.s32	q8, d16, #31
-@ CHECK: vshll.u8	q8, d16, #7  @ encoding: [0x30,0x0a,0xcf,0xf3]
 	vshll.u8	q8, d16, #7
-@ CHECK: vshll.u16	q8, d16, #15  @ encoding: [0x30,0x0a,0xdf,0xf3]
 	vshll.u16	q8, d16, #15
-@ CHECK: vshll.u32	q8, d16, #31  @ encoding: [0x30,0x0a,0xff,0xf3]
 	vshll.u32	q8, d16, #31
-@ CHECK: vshll.i8	q8, d16, #8  @ encoding: [0x20,0x03,0xf2,0xf3]
 	vshll.i8	q8, d16, #8
-@ CHECK: vshll.i16	q8, d16, #16  @ encoding: [0x20,0x03,0xf6,0xf3]
 	vshll.i16	q8, d16, #16
-@ CHECK: vshll.i32	q8, d16, #32  @ encoding: [0x20,0x03,0xfa,0xf3]
 	vshll.i32	q8, d16, #32
-@ CHECK: vshrn.i16	d16, q8, #8  @ encoding: [0x30,0x08,0xc8,0xf2]
+
+@ CHECK: vshll.s8	q8, d16, #7  @ encoding: [0x30,0x0a,0xcf,0xf2]
+@ CHECK: vshll.s16	q8, d16, #15  @ encoding: [0x30,0x0a,0xdf,0xf2]
+@ CHECK: vshll.s32	q8, d16, #31  @ encoding: [0x30,0x0a,0xff,0xf2]
+@ CHECK: vshll.u8	q8, d16, #7  @ encoding: [0x30,0x0a,0xcf,0xf3]
+@ CHECK: vshll.u16	q8, d16, #15  @ encoding: [0x30,0x0a,0xdf,0xf3]
+@ CHECK: vshll.u32	q8, d16, #31  @ encoding: [0x30,0x0a,0xff,0xf3]
+@ CHECK: vshll.i8	q8, d16, #8  @ encoding: [0x20,0x03,0xf2,0xf3]
+@ CHECK: vshll.i16	q8, d16, #16  @ encoding: [0x20,0x03,0xf6,0xf3]
+@ CHECK: vshll.i32	q8, d16, #32  @ encoding: [0x20,0x03,0xfa,0xf3]
+
 	vshrn.i16	d16, q8, #8
-@ CHECK: vshrn.i32	d16, q8, #16  @ encoding: [0x30,0x08,0xd0,0xf2]
 	vshrn.i32	d16, q8, #16
-@ CHECK: vshrn.i64	d16, q8, #32  @ encoding: [0x30,0x08,0xe0,0xf2]
 	vshrn.i64	d16, q8, #32
-@ CHECK: vrshl.s8	d16, d17, d16  @ encoding: [0xa1,0x05,0x40,0xf2]
+
+@ CHECK: vshrn.i16	d16, q8, #8  @ encoding: [0x30,0x08,0xc8,0xf2]
+@ CHECK: vshrn.i32	d16, q8, #16  @ encoding: [0x30,0x08,0xd0,0xf2]
+@ CHECK: vshrn.i64	d16, q8, #32  @ encoding: [0x30,0x08,0xe0,0xf2]
+
 	vrshl.s8	d16, d17, d16
-@ CHECK: vrshl.s16	d16, d17, d16  @ encoding: [0xa1,0x05,0x50,0xf2]
 	vrshl.s16	d16, d17, d16
-@ CHECK: vrshl.s32	d16, d17, d16  @ encoding: [0xa1,0x05,0x60,0xf2]
 	vrshl.s32	d16, d17, d16
-@ CHECK: vrshl.s64	d16, d17, d16  @ encoding: [0xa1,0x05,0x70,0xf2]
 	vrshl.s64	d16, d17, d16
-@ CHECK: vrshl.u8	d16, d17, d16  @ encoding: [0xa1,0x05,0x40,0xf3]
 	vrshl.u8	d16, d17, d16
-@ CHECK: vrshl.u16	d16, d17, d16  @ encoding: [0xa1,0x05,0x50,0xf3]
 	vrshl.u16	d16, d17, d16
-@ CHECK: vrshl.u32	d16, d17, d16  @ encoding: [0xa1,0x05,0x60,0xf3]
 	vrshl.u32	d16, d17, d16
-@ CHECK: vrshl.u64	d16, d17, d16  @ encoding: [0xa1,0x05,0x70,0xf3]
 	vrshl.u64	d16, d17, d16
-@ CHECK: vrshl.s8	q8, q9, q8  @ encoding: [0xe2,0x05,0x40,0xf2]
 	vrshl.s8	q8, q9, q8
-@ CHECK: vrshl.s16	q8, q9, q8  @ encoding: [0xe2,0x05,0x50,0xf2]
 	vrshl.s16	q8, q9, q8
-@ CHECK: vrshl.s32	q8, q9, q8  @ encoding: [0xe2,0x05,0x60,0xf2]
 	vrshl.s32	q8, q9, q8
-@ CHECK: vrshl.s64	q8, q9, q8  @ encoding: [0xe2,0x05,0x70,0xf2]
 	vrshl.s64	q8, q9, q8
-@ CHECK: vrshl.u8	q8, q9, q8  @ encoding: [0xe2,0x05,0x40,0xf3]
 	vrshl.u8	q8, q9, q8
-@ CHECK: vrshl.u16	q8, q9, q8  @ encoding: [0xe2,0x05,0x50,0xf3]
 	vrshl.u16	q8, q9, q8
-@ CHECK: vrshl.u32	q8, q9, q8  @ encoding: [0xe2,0x05,0x60,0xf3]
 	vrshl.u32	q8, q9, q8
-@ CHECK: vrshl.u64	q8, q9, q8  @ encoding: [0xe2,0x05,0x70,0xf3]
 	vrshl.u64	q8, q9, q8
-@ CHECK: vrshr.s8	d16, d16, #8  @ encoding: [0x30,0x02,0xc8,0xf2]
+
+@ CHECK: vrshl.s8	d16, d17, d16  @ encoding: [0xa1,0x05,0x40,0xf2]
+@ CHECK: vrshl.s16	d16, d17, d16  @ encoding: [0xa1,0x05,0x50,0xf2]
+@ CHECK: vrshl.s32	d16, d17, d16  @ encoding: [0xa1,0x05,0x60,0xf2]
+@ CHECK: vrshl.s64	d16, d17, d16  @ encoding: [0xa1,0x05,0x70,0xf2]
+@ CHECK: vrshl.u8	d16, d17, d16  @ encoding: [0xa1,0x05,0x40,0xf3]
+@ CHECK: vrshl.u16	d16, d17, d16  @ encoding: [0xa1,0x05,0x50,0xf3]
+@ CHECK: vrshl.u32	d16, d17, d16  @ encoding: [0xa1,0x05,0x60,0xf3]
+@ CHECK: vrshl.u64	d16, d17, d16  @ encoding: [0xa1,0x05,0x70,0xf3]
+@ CHECK: vrshl.s8	q8, q9, q8  @ encoding: [0xe2,0x05,0x40,0xf2]
+@ CHECK: vrshl.s16	q8, q9, q8  @ encoding: [0xe2,0x05,0x50,0xf2]
+@ CHECK: vrshl.s32	q8, q9, q8  @ encoding: [0xe2,0x05,0x60,0xf2]
+@ CHECK: vrshl.s64	q8, q9, q8  @ encoding: [0xe2,0x05,0x70,0xf2]
+@ CHECK: vrshl.u8	q8, q9, q8  @ encoding: [0xe2,0x05,0x40,0xf3]
+@ CHECK: vrshl.u16	q8, q9, q8  @ encoding: [0xe2,0x05,0x50,0xf3]
+@ CHECK: vrshl.u32	q8, q9, q8  @ encoding: [0xe2,0x05,0x60,0xf3]
+@ CHECK: vrshl.u64	q8, q9, q8  @ encoding: [0xe2,0x05,0x70,0xf3]
+
 	vrshr.s8	d16, d16, #8
-@ CHECK: vrshr.s16	d16, d16, #16  @ encoding: [0x30,0x02,0xd0,0xf2]
 	vrshr.s16	d16, d16, #16
-@ CHECK: vrshr.s32	d16, d16, #32  @ encoding: [0x30,0x02,0xe0,0xf2]
 	vrshr.s32	d16, d16, #32
-@ CHECK: vrshr.s64	d16, d16, #64  @ encoding: [0xb0,0x02,0xc0,0xf2]
 	vrshr.s64	d16, d16, #64
-@ CHECK: vrshr.u8	d16, d16, #8  @ encoding: [0x30,0x02,0xc8,0xf3]
 	vrshr.u8	d16, d16, #8
-@ CHECK: vrshr.u16	d16, d16, #16  @ encoding: [0x30,0x02,0xd0,0xf3]
 	vrshr.u16	d16, d16, #16
-@ CHECK: vrshr.u32	d16, d16, #32  @ encoding: [0x30,0x02,0xe0,0xf3]
 	vrshr.u32	d16, d16, #32
-@ CHECK: vrshr.u64	d16, d16, #64  @ encoding: [0xb0,0x02,0xc0,0xf3]
 	vrshr.u64	d16, d16, #64
-@ CHECK: vrshr.s8	q8, q8, #8  @ encoding: [0x70,0x02,0xc8,0xf2]
 	vrshr.s8	q8, q8, #8
-@ CHECK: vrshr.s16	q8, q8, #16  @ encoding: [0x70,0x02,0xd0,0xf2]
 	vrshr.s16	q8, q8, #16
-@ CHECK: vrshr.s32	q8, q8, #32  @ encoding: [0x70,0x02,0xe0,0xf2]
 	vrshr.s32	q8, q8, #32
-@ CHECK: vrshr.s64	q8, q8, #64  @ encoding: [0xf0,0x02,0xc0,0xf2]
 	vrshr.s64	q8, q8, #64
-@ CHECK: vrshr.u8	q8, q8, #8  @ encoding: [0x70,0x02,0xc8,0xf3]
 	vrshr.u8	q8, q8, #8
-@ CHECK: vrshr.u16	q8, q8, #16  @ encoding: [0x70,0x02,0xd0,0xf3]
 	vrshr.u16	q8, q8, #16
-@ CHECK: vrshr.u32	q8, q8, #32  @ encoding: [0x70,0x02,0xe0,0xf3]
 	vrshr.u32	q8, q8, #32
-@ CHECK: vrshr.u64	q8, q8, #64  @ encoding: [0xf0,0x02,0xc0,0xf3]
 	vrshr.u64	q8, q8, #64
-@ CHECK: vrshrn.i16	d16, q8, #8  @ encoding: [0x70,0x08,0xc8,0xf2]
+
+@ CHECK: vrshr.s8	d16, d16, #8  @ encoding: [0x30,0x02,0xc8,0xf2]
+@ CHECK: vrshr.s16	d16, d16, #16  @ encoding: [0x30,0x02,0xd0,0xf2]
+@ CHECK: vrshr.s32	d16, d16, #32  @ encoding: [0x30,0x02,0xe0,0xf2]
+@ CHECK: vrshr.s64	d16, d16, #64  @ encoding: [0xb0,0x02,0xc0,0xf2]
+@ CHECK: vrshr.u8	d16, d16, #8  @ encoding: [0x30,0x02,0xc8,0xf3]
+@ CHECK: vrshr.u16	d16, d16, #16  @ encoding: [0x30,0x02,0xd0,0xf3]
+@ CHECK: vrshr.u32	d16, d16, #32  @ encoding: [0x30,0x02,0xe0,0xf3]
+@ CHECK: vrshr.u64	d16, d16, #64  @ encoding: [0xb0,0x02,0xc0,0xf3]
+@ CHECK: vrshr.s8	q8, q8, #8  @ encoding: [0x70,0x02,0xc8,0xf2]
+@ CHECK: vrshr.s16	q8, q8, #16  @ encoding: [0x70,0x02,0xd0,0xf2]
+@ CHECK: vrshr.s32	q8, q8, #32  @ encoding: [0x70,0x02,0xe0,0xf2]
+@ CHECK: vrshr.s64	q8, q8, #64  @ encoding: [0xf0,0x02,0xc0,0xf2]
+@ CHECK: vrshr.u8	q8, q8, #8  @ encoding: [0x70,0x02,0xc8,0xf3]
+@ CHECK: vrshr.u16	q8, q8, #16  @ encoding: [0x70,0x02,0xd0,0xf3]
+@ CHECK: vrshr.u32	q8, q8, #32  @ encoding: [0x70,0x02,0xe0,0xf3]
+@ CHECK: vrshr.u64	q8, q8, #64  @ encoding: [0xf0,0x02,0xc0,0xf3]
+
+
 	vrshrn.i16	d16, q8, #8
-@ CHECK: vrshrn.i32	d16, q8, #16  @ encoding: [0x70,0x08,0xd0,0xf2]
 	vrshrn.i32	d16, q8, #16
-@ CHECK: vrshrn.i64	d16, q8, #32  @ encoding: [0x70,0x08,0xe0,0xf2]
 	vrshrn.i64	d16, q8, #32
-@ CHECK: vqrshrn.s16	d16, q8, #4  @ encoding: [0x70,0x09,0xcc,0xf2]
 	vqrshrn.s16	d16, q8, #4
-@ CHECK: vqrshrn.s32	d16, q8, #13  @ encoding: [0x70,0x09,0xd3,0xf2]
 	vqrshrn.s32	d16, q8, #13
-@ CHECK: vqrshrn.s64	d16, q8, #13  @ encoding: [0x70,0x09,0xf3,0xf2]
 	vqrshrn.s64	d16, q8, #13
-@ CHECK: vqrshrn.u16	d16, q8, #4  @ encoding: [0x70,0x09,0xcc,0xf3]
 	vqrshrn.u16	d16, q8, #4
-@ CHECK: vqrshrn.u32	d16, q8, #13  @ encoding: [0x70,0x09,0xd3,0xf3]
 	vqrshrn.u32	d16, q8, #13
-@ CHECK: vqrshrn.u64	d16, q8, #13  @ encoding: [0x70,0x09,0xf3,0xf3]
 	vqrshrn.u64	d16, q8, #13
+
+@ CHECK: vrshrn.i16	d16, q8, #8  @ encoding: [0x70,0x08,0xc8,0xf2]
+@ CHECK: vrshrn.i32	d16, q8, #16  @ encoding: [0x70,0x08,0xd0,0xf2]
+@ CHECK: vrshrn.i64	d16, q8, #32  @ encoding: [0x70,0x08,0xe0,0xf2]
+@ CHECK: vqrshrn.s16	d16, q8, #4  @ encoding: [0x70,0x09,0xcc,0xf2]
+@ CHECK: vqrshrn.s32	d16, q8, #13  @ encoding: [0x70,0x09,0xd3,0xf2]
+@ CHECK: vqrshrn.s64	d16, q8, #13  @ encoding: [0x70,0x09,0xf3,0xf2]
+@ CHECK: vqrshrn.u16	d16, q8, #4  @ encoding: [0x70,0x09,0xcc,0xf3]
+@ CHECK: vqrshrn.u32	d16, q8, #13  @ encoding: [0x70,0x09,0xd3,0xf3]
+@ CHECK: vqrshrn.u64	d16, q8, #13  @ encoding: [0x70,0x09,0xf3,0xf3]
+
 
 @ Optional destination operand variants.
         vshl.s8 q4, q5
@@ -417,6 +428,41 @@ _foo:
 @ CHECK: vshl.i16	d4, d4, #10     @ encoding: [0x14,0x45,0x9a,0xf2]
 @ CHECK: vshl.i32	d4, d4, #17     @ encoding: [0x14,0x45,0xb1,0xf2]
 @ CHECK: vshl.i64	d4, d4, #43     @ encoding: [0x94,0x45,0xab,0xf2]
+
+        @ Two-operand VRSHL forms.
+	vrshl.s8	d11, d4
+	vrshl.s16	d12, d5
+	vrshl.s32	d13, d6
+	vrshl.s64	d14, d7
+	vrshl.u8	d15, d8
+	vrshl.u16	d16, d9
+	vrshl.u32	d17, d10
+	vrshl.u64	d18, d11
+	vrshl.s8	q1, q8
+	vrshl.s16	q2, q15
+	vrshl.s32	q3, q14
+	vrshl.s64	q4, q13
+	vrshl.u8	q5, q12
+	vrshl.u16	q6, q11
+	vrshl.u32	q7, q10
+	vrshl.u64	q8, q9
+
+@ CHECK: vrshl.s8	d11, d11, d4    @ encoding: [0x0b,0xb5,0x04,0xf2]
+@ CHECK: vrshl.s16	d12, d12, d5    @ encoding: [0x0c,0xc5,0x15,0xf2]
+@ CHECK: vrshl.s32	d13, d13, d6    @ encoding: [0x0d,0xd5,0x26,0xf2]
+@ CHECK: vrshl.s64	d14, d14, d7    @ encoding: [0x0e,0xe5,0x37,0xf2]
+@ CHECK: vrshl.u8	d15, d15, d8    @ encoding: [0x0f,0xf5,0x08,0xf3]
+@ CHECK: vrshl.u16	d16, d16, d9    @ encoding: [0x20,0x05,0x59,0xf3]
+@ CHECK: vrshl.u32	d17, d17, d10   @ encoding: [0x21,0x15,0x6a,0xf3]
+@ CHECK: vrshl.u64	d18, d18, d11   @ encoding: [0x22,0x25,0x7b,0xf3]
+@ CHECK: vrshl.s8	q1, q1, q8      @ encoding: [0xc2,0x25,0x00,0xf2]
+@ CHECK: vrshl.s16	q2, q2, q15     @ encoding: [0xc4,0x45,0x1e,0xf2]
+@ CHECK: vrshl.s32	q3, q3, q14     @ encoding: [0xc6,0x65,0x2c,0xf2]
+@ CHECK: vrshl.s64	q4, q4, q13     @ encoding: [0xc8,0x85,0x3a,0xf2]
+@ CHECK: vrshl.u8	q5, q5, q12     @ encoding: [0xca,0xa5,0x08,0xf3]
+@ CHECK: vrshl.u16	q6, q6, q11     @ encoding: [0xcc,0xc5,0x16,0xf3]
+@ CHECK: vrshl.u32	q7, q7, q10     @ encoding: [0xce,0xe5,0x24,0xf3]
+@ CHECK: vrshl.u64	q8, q8, q9      @ encoding: [0xe0,0x05,0x72,0xf3]
 
 
 @ Two-operand forms.

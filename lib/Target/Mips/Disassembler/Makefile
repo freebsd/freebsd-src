@@ -1,4 +1,4 @@
-##===- utils/FileCheck/Makefile ----------------------------*- Makefile -*-===##
+##===- lib/Target/Mips/Disassembler/Makefile ----------------*- Makefile -*-===##
 #
 #                     The LLVM Compiler Infrastructure
 #
@@ -7,15 +7,10 @@
 #
 ##===----------------------------------------------------------------------===##
 
-LEVEL = ../..
-TOOLNAME = json-bench
-USEDLIBS = LLVMSupport.a
+LEVEL = ../../../..
+LIBRARYNAME = LLVMMipsDisassembler
 
-# This tool has no plugins, optimize startup time.
-TOOL_NO_EXPORTS = 1
-
-# Don't install this utility
-NO_INSTALL = 1
+# Hack: we need to include 'main' Mips target directory to grab private headers
+CPP.Flags += -I$(PROJ_OBJ_DIR)/.. -I$(PROJ_SRC_DIR)/..
 
 include $(LEVEL)/Makefile.common
-

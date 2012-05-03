@@ -50,9 +50,15 @@ N: Cameron Buschardt
 E: buschard@uiuc.edu
 D: The `mem2reg' pass - promotes values stored in memory to registers
 
+N: Brendon Cahoon
+E: bcahoon@codeaurora.org
+D: Loop unrolling with run-time trip counts.
+
 N: Chandler Carruth
 E: chandlerc@gmail.com
-D: LinkTimeOptimizer for Linux, via binutils integration, and C API
+D: Hashing algorithms and interfaces
+D: Inline cost analysis
+D: Machine block placement pass
 
 N: Casey Carter
 E: ccarter@uiuc.edu
@@ -210,6 +216,10 @@ N: Benjamin Kramer
 E: benny.kra@gmail.com
 D: Miscellaneous bug fixes
 
+N: Sundeep Kushwaha
+E: sundeepk@codeaurora.org
+D: Implemented DFA-based target independent VLIW packetizer
+
 N: Christopher Lamb
 E: christopher.lamb@gmail.com
 D: aligned load/store support, parts of noalias and restrict support
@@ -245,6 +255,10 @@ N: Nick Lewycky
 E: nicholas@mxc.ca
 D: PredicateSimplifier pass
 
+N: Tony Linthicum, et. al.
+E: tlinth@codeaurora.org
+D: Backend for Qualcomm's Hexagon VLIW processor.
+
 N: Bruno Cardoso Lopes
 E: bruno.cardoso@gmail.com
 W: http://www.brunocardoso.org
@@ -270,6 +284,10 @@ D: Test suite fixes for FreeBSD
 N: Scott Michel
 E: scottm@aero.org
 D: Added STI Cell SPU backend.
+
+N: Kai Nacke
+E: kai@redstar.de
+D: Support for implicit TLS model used with MS VC runtime
 
 N: Takumi Nakamura
 E: geek4civic@gmail.com

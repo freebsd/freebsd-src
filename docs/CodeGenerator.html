@@ -1617,9 +1617,9 @@ def : Pat&lt;(i32 imm:$imm),
    range from 1 to 1023. To see how this numbering is defined for a particular
    architecture, you can read the <tt>GenRegisterNames.inc</tt> file for that
    architecture. For instance, by
-   inspecting <tt>lib/Target/X86/X86GenRegisterNames.inc</tt> we see that the
-   32-bit register <tt>EAX</tt> is denoted by 15, and the MMX register
-   <tt>MM0</tt> is mapped to 48.</p>
+   inspecting <tt>lib/Target/X86/X86GenRegisterInfo.inc</tt> we see that the
+   32-bit register <tt>EAX</tt> is denoted by 43, and the MMX register
+   <tt>MM0</tt> is mapped to 65.</p>
 
 <p>Some architectures contain registers that share the same physical location. A
    notable example is the X86 platform. For instance, in the X86 architecture,
@@ -1627,7 +1627,7 @@ def : Pat&lt;(i32 imm:$imm),
    bits. These physical registers are marked as <i>aliased</i> in LLVM. Given a
    particular architecture, you can check which registers are aliased by
    inspecting its <tt>RegisterInfo.td</tt> file. Moreover, the method
-   <tt>TargetRegisterInfo::getAliasSet(p_reg)</tt> returns an array containing
+   <tt>MCRegisterInfo::getAliasSet(p_reg)</tt> returns an array containing
    all the physical registers aliased to the register <tt>p_reg</tt>.</p>
 
 <p>Physical registers, in LLVM, are grouped in <i>Register Classes</i>.
@@ -3182,7 +3182,7 @@ MOVSX32rm16 -&gt; movsx, 32-bit register, 16-bit memory
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2012-03-27 13:25:16 +0200 (Tue, 27 Mar 2012) $
+  Last modified: $Date: 2012-04-15 22:22:36 +0200 (Sun, 15 Apr 2012) $
 </address>
 
 </body>
