@@ -15,7 +15,6 @@
 #define LLVM_CLANG_PARSE_PARSER_H
 
 #include "clang/Basic/Specifiers.h"
-#include "clang/Basic/DelayedCleanupPool.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Sema/Sema.h"
@@ -192,9 +191,9 @@ class Parser : public CodeCompletionHandler {
   /// Factory object for creating AttributeList objects.
   AttributeFactory AttrFactory;
 
-  /// \brief Gathers and cleans up objects when parsing of a top-level
-  /// declaration is finished.
-  DelayedCleanupPool TopLevelDeclCleanupPool;
+  /// \brief Gathers and cleans up TemplateIdAnnotations when parsing of a
+  /// top-level declaration is finished.
+  SmallVector<TemplateIdAnnotation *, 16> TemplateIds;
 
   IdentifierInfo *getSEHExceptKeyword();
 
@@ -568,9 +567,7 @@ private:
                                 const char *&PrevSpec, unsigned &DiagID,
                                 bool &isInvalid);
 
-  /// \brief Get the TemplateIdAnnotation from the token and put it in the
-  /// cleanup pool so that it gets destroyed when parsing the current top level
-  /// declaration is finished.
+  /// \brief Get the TemplateIdAnnotation from the token.
   TemplateIdAnnotation *takeTemplateIdAnnotation(const Token &tok);
 
   /// TentativeParsingAction - An object that is used as a kind of "tentative
@@ -858,7 +855,7 @@ private:
   /// argument (C++ [class.mem]p2).
   struct LateParsedMethodDeclaration : public LateParsedDeclaration {
     explicit LateParsedMethodDeclaration(Parser *P, Decl *M)
-      : Self(P), Method(M), TemplateScope(false) { }
+      : Self(P), Method(M), TemplateScope(false), ExceptionSpecTokens(0) { }
 
     virtual void ParseLexedMethodDeclarations();
 
@@ -878,6 +875,10 @@ private:
     /// method will be stored so that they can be reintroduced into
     /// scope at the appropriate times.
     SmallVector<LateParsedDefaultArgument, 8> DefaultArgs;
+  
+    /// \brief The set of tokens that make up an exception-specification that
+    /// has not yet been parsed.
+    CachedTokens *ExceptionSpecTokens;
   };
 
   /// LateParsedMemberInitializer - An initializer for a non-static class data
@@ -1420,11 +1421,13 @@ private:
   // C++ 15: C++ Throw Expression
   ExprResult ParseThrowExpression();
 
-  ExceptionSpecificationType MaybeParseExceptionSpecification(
+  ExceptionSpecificationType tryParseExceptionSpecification(
+                    bool Delayed,
                     SourceRange &SpecificationRange,
                     SmallVectorImpl<ParsedType> &DynamicExceptions,
                     SmallVectorImpl<SourceRange> &DynamicExceptionRanges,
-                    ExprResult &NoexceptExpr);
+                    ExprResult &NoexceptExpr,
+                    CachedTokens *&ExceptionSpecTokens);
 
   // EndLoc is filled with the location of the last token of the specification.
   ExceptionSpecificationType ParseDynamicExceptionSpecification(
@@ -1517,42 +1520,40 @@ private:
   //===--------------------------------------------------------------------===//
   // C99 6.8: Statements and Blocks.
 
-  StmtResult ParseStatement(SourceLocation *TrailingElseLoc = NULL) {
+  StmtResult ParseStatement(SourceLocation *TrailingElseLoc = 0) {
     StmtVector Stmts(Actions);
     return ParseStatementOrDeclaration(Stmts, true, TrailingElseLoc);
   }
-  StmtResult ParseStatementOrDeclaration(StmtVector& Stmts,
+  StmtResult ParseStatementOrDeclaration(StmtVector &Stmts,
                                          bool OnlyStatement,
-                                        SourceLocation *TrailingElseLoc = NULL);
-  StmtResult ParseExprStatement(ParsedAttributes &Attrs);
-  StmtResult ParseLabeledStatement(ParsedAttributes &Attr);
-  StmtResult ParseCaseStatement(ParsedAttributes &Attr,
-                                bool MissingCase = false,
+                                         SourceLocation *TrailingElseLoc = 0);
+  StmtResult ParseStatementOrDeclarationAfterAttributes(
+                                         StmtVector &Stmts,
+                                         bool OnlyStatement,
+                                         SourceLocation *TrailingElseLoc,
+                                         ParsedAttributesWithRange &Attrs);
+  StmtResult ParseExprStatement();
+  StmtResult ParseLabeledStatement(ParsedAttributesWithRange &attrs);
+  StmtResult ParseCaseStatement(bool MissingCase = false,
                                 ExprResult Expr = ExprResult());
-  StmtResult ParseDefaultStatement(ParsedAttributes &Attr);
-  StmtResult ParseCompoundStatement(ParsedAttributes &Attr,
-                                    bool isStmtExpr = false);
-  StmtResult ParseCompoundStatement(ParsedAttributes &Attr,
-                                    bool isStmtExpr,
+  StmtResult ParseDefaultStatement();
+  StmtResult ParseCompoundStatement(bool isStmtExpr = false);
+  StmtResult ParseCompoundStatement(bool isStmtExpr,
                                     unsigned ScopeFlags);
   StmtResult ParseCompoundStatementBody(bool isStmtExpr = false);
   bool ParseParenExprOrCondition(ExprResult &ExprResult,
                                  Decl *&DeclResult,
                                  SourceLocation Loc,
                                  bool ConvertToBoolean);
-  StmtResult ParseIfStatement(ParsedAttributes &Attr,
-                              SourceLocation *TrailingElseLoc);
-  StmtResult ParseSwitchStatement(ParsedAttributes &Attr,
-                                  SourceLocation *TrailingElseLoc);
-  StmtResult ParseWhileStatement(ParsedAttributes &Attr,
-                                 SourceLocation *TrailingElseLoc);
-  StmtResult ParseDoStatement(ParsedAttributes &Attr);
-  StmtResult ParseForStatement(ParsedAttributes &Attr,
-                               SourceLocation *TrailingElseLoc);
-  StmtResult ParseGotoStatement(ParsedAttributes &Attr);
-  StmtResult ParseContinueStatement(ParsedAttributes &Attr);
-  StmtResult ParseBreakStatement(ParsedAttributes &Attr);
-  StmtResult ParseReturnStatement(ParsedAttributes &Attr);
+  StmtResult ParseIfStatement(SourceLocation *TrailingElseLoc);
+  StmtResult ParseSwitchStatement(SourceLocation *TrailingElseLoc);
+  StmtResult ParseWhileStatement(SourceLocation *TrailingElseLoc);
+  StmtResult ParseDoStatement();
+  StmtResult ParseForStatement(SourceLocation *TrailingElseLoc);
+  StmtResult ParseGotoStatement();
+  StmtResult ParseContinueStatement();
+  StmtResult ParseBreakStatement();
+  StmtResult ParseReturnStatement();
   StmtResult ParseAsmStatement(bool &msAsm);
   StmtResult ParseMicrosoftAsmStatement(SourceLocation AsmLoc);
 
@@ -1586,7 +1587,7 @@ private:
     /// \brief The behavior of this __if_exists or __if_not_exists block
     /// should.
     IfExistsBehavior Behavior;
-};
+  };
 
   bool ParseMicrosoftIfExistsCondition(IfExistsCondition& Result);
   void ParseMicrosoftIfExistsStatement(StmtVector &Stmts);
@@ -1602,14 +1603,14 @@ private:
   //===--------------------------------------------------------------------===//
   // C++ 6: Statements and Blocks
 
-  StmtResult ParseCXXTryBlock(ParsedAttributes &Attr);
+  StmtResult ParseCXXTryBlock();
   StmtResult ParseCXXTryBlockCommon(SourceLocation TryLoc);
   StmtResult ParseCXXCatchBlock();
 
   //===--------------------------------------------------------------------===//
   // MS: SEH Statements and Blocks
 
-  StmtResult ParseSEHTryBlock(ParsedAttributes &Attr);
+  StmtResult ParseSEHTryBlock();
   StmtResult ParseSEHTryBlockCommon(SourceLocation Loc);
   StmtResult ParseSEHExceptBlock(SourceLocation Loc);
   StmtResult ParseSEHFinallyBlock(SourceLocation Loc);
@@ -1883,6 +1884,7 @@ private:
   void ProhibitAttributes(ParsedAttributesWithRange &attrs) {
     if (!attrs.Range.isValid()) return;
     DiagnoseProhibitedAttributes(attrs);
+    attrs.clear();
   }
   void DiagnoseProhibitedAttributes(ParsedAttributesWithRange &attrs);
 
@@ -1967,7 +1969,7 @@ private:
 
   void ParseTypeofSpecifier(DeclSpec &DS);
   SourceLocation ParseDecltypeSpecifier(DeclSpec &DS);
-  void AnnotateExistingDecltypeSpecifier(const DeclSpec &DS, 
+  void AnnotateExistingDecltypeSpecifier(const DeclSpec &DS,
                                          SourceLocation StartLoc,
                                          SourceLocation EndLoc);
   void ParseUnderlyingTypeSpecifier(DeclSpec &DS);
@@ -2106,8 +2108,8 @@ private:
                                  ParsingDeclRAIIObject *DiagsFromTParams = 0);
   void ParseConstructorInitializer(Decl *ConstructorDecl);
   MemInitResult ParseMemInitializer(Decl *ConstructorDecl);
-  void HandleMemberFunctionDefaultArgs(Declarator& DeclaratorInfo,
-                                       Decl *ThisDecl);
+  void HandleMemberFunctionDeclDelays(Declarator& DeclaratorInfo,
+                                      Decl *ThisDecl);
 
   //===--------------------------------------------------------------------===//
   // C++ 10: Derived classes [class.derived]
