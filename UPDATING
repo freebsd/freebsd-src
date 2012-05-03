@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20120503:	p7	FreeBSD-SA-12:01.openssl
+	Fix multiple OpenSSL vulnerabilities.
+
 20120104:	p6	FreeBSD-EN-12:01.freebsd-update
 	Extend the character set accepted by freebsd-update(8) in file
 	names in order to allow upgrades to FreeBSD 9.0-RELEASE.
