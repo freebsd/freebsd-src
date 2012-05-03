@@ -169,7 +169,7 @@ struct sctp_default_prinfo {
 };
 
 struct sctp_authinfo {
-	uint16_t auth_keyid;
+	uint16_t auth_keynumber;
 };
 
 struct sctp_rcvinfo {
