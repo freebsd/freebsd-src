@@ -9,6 +9,9 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20120503:	p1	FreeBSD-SA-12:01.openssl
+	Fix multiple OpenSSL vulnerabilities.
+
 20120106:
 	9.0-RELEASE.
 
