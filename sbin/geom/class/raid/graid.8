@@ -34,6 +34,7 @@
 .Nm
 .Cm label
 .Op Fl f
+.Op Fl o Ar fmtopt
 .Op Fl S Ar size
 .Op Fl s Ar strip
 .Ar format
@@ -119,6 +120,8 @@ Additional options include:
 .It Fl f
 Enforce specified configuration creation if it is officially unsupported,
 but technically can be created.
+.It Fl o Ar fmtopt
+Specifies metadata format options.
 .It Fl S Ar size
 Use
 .Ar size
@@ -205,14 +208,18 @@ The format defined by the SNIA Common RAID Disk Data Format v2.0 specification.
 Used by some Adaptec RAID BIOSes and some hardware RAID controllers.
 Because of high format flexibility different implementations support
 different set of features and have different on-disk metadata layouts.
-To provide compatibility, the GEOM RAID class mimics capabilities and
-metadata layout of the first detected DDF array.
+To provide compatibility, the GEOM RAID class mimics capabilities
+of the first detected DDF array.
 Respecting that, it may support different number of disks per volume,
 volumes per array, partitions per disk, etc.
 The following configurations are supported: RAID0 (2+ disks), RAID1 (2+ disks),
 RAID1E (3+ disks), RAID3 (3+ disks), RAID4 (3+ disks), RAID5 (3+ disks),
 RAID5E (4+ disks), RAID5EE (4+ disks), RAID5R (3+ disks), RAID6 (4+ disks),
 RAIDMDF (5+ disks), RAID10 (4+ disks), SINGLE (1 disk), CONCAT (2+ disks).
+.Pp
+Format supports two options "BE" and "LE", that mean big-endian byte order
+defined by specification (default) and little-endian used by some Adaptec
+controllers.
 .It Intel
 The format used by Intel RAID BIOS.
 Supports up to two volumes per array.
