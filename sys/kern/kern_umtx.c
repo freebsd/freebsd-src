@@ -1261,6 +1261,78 @@ do_wake_umutex(struct thread *td, struct umutex *m)
 	return (0);
 }
 
+/*
+ * Check if the mutex has waiters and tries to fix contention bit.
+ */
+static int
+do_wake2_umutex(struct thread *td, struct umutex *m, uint32_t flags)
+{
+	struct umtx_key key;
+	uint32_t owner, old;
+	int type;
+	int error;
+	int count;
+
+	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
+	case 0:
+		type = TYPE_NORMAL_UMUTEX;
+		break;
+	case UMUTEX_PRIO_INHERIT:
+		type = TYPE_PI_UMUTEX;
+		break;
+	case UMUTEX_PRIO_PROTECT:
+		type = TYPE_PP_UMUTEX;
+		break;
+	default:
+		return (EINVAL);
+	}
+	if ((error = umtx_key_get(m, type, GET_SHARE(flags),
+	    &key)) != 0)
+		return (error);
+
+	owner = 0;
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	count = umtxq_count(&key);
+	umtxq_unlock(&key);
+	/*
+	 * Only repair contention bit if there is a waiter, this means the mutex
+	 * is still being referenced by userland code, otherwise don't update
+	 * any memory.
+	 */
+	if (count > 1) {
+		owner = fuword32(__DEVOLATILE(uint32_t *, &m->m_owner));
+		while ((owner & UMUTEX_CONTESTED) ==0) {
+			old = casuword32(&m->m_owner, owner,
+			    owner|UMUTEX_CONTESTED);
+			if (old == owner)
+				break;
+			owner = old;
+		}
+	} else if (count == 1) {
+		owner = fuword32(__DEVOLATILE(uint32_t *, &m->m_owner));
+		while ((owner & ~UMUTEX_CONTESTED) != 0 &&
+		       (owner & UMUTEX_CONTESTED) == 0) {
+			old = casuword32(&m->m_owner, owner,
+			    owner|UMUTEX_CONTESTED);
+			if (old == owner)
+				break;
+			owner = old;
+		}
+	}
+	umtxq_lock(&key);
+	if (owner == -1) {
+		error = EFAULT;
+		umtxq_signal(&key, INT_MAX);
+	}
+	else if (count != 0 && (owner & ~UMUTEX_CONTESTED) == 0)
+		umtxq_signal(&key, 1);
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
+	return (error);
+}
+
 static inline struct umtx_pi *
 umtx_pi_alloc(int flags)
 {
@@ -3026,6 +3098,18 @@ __umtx_op_rw_unlock(struct thread *td, struct _umtx_op_args *uap)
 	return do_rw_unlock(td, uap->obj);
 }
 
+static int
+__umtx_op_wake2_umutex(struct thread *td, struct _umtx_op_args *uap)
+{
+	return do_wake2_umutex(td, uap->obj, uap->val);
+}
+
+static int
+__umtx_op_not_sup(struct thread *td __unused, struct _umtx_op_args *uap __unused)
+{
+	return ENOTSUP;
+}
+
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
 
 static _umtx_op_func op_table[] = {
@@ -3047,7 +3131,11 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_wait_uint_private,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex,		/* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_not_sup,		/* UMTX_OP_SEM_WAIT */
+	__umtx_op_not_sup,		/* UMTX_OP_SEM_WAKE */
+	__umtx_op_not_sup,		/* UMTX_OP_NWAKE_PRIVATE */
+	__umtx_op_wake2_umutex		/* UMTX_OP_UMUTEX_WAKE2 */
 };
 
 int
@@ -3266,7 +3354,11 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_wait_uint_private_compat32,	/* UMTX_OP_WAIT_UINT_PRIVATE */
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex_compat32, /* UMTX_OP_UMUTEX_WAIT */
-	__umtx_op_wake_umutex		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_wake_umutex,		/* UMTX_OP_UMUTEX_WAKE */
+	__umtx_op_not_sup,		/* UMTX_OP_SEM_WAIT */
+	__umtx_op_not_sup,		/* UMTX_OP_SEM_WAKE */
+	__umtx_op_not_sup,		/* UMTX_OP_NWAKE_PRIVATE */
+	__umtx_op_wake2_umutex		/* UMTX_OP_UMUTEX_WAKE2 */
 };
 
 int

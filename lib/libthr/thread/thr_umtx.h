@@ -34,6 +34,7 @@
 
 #define DEFAULT_UMUTEX	{0,0, {0,0},{0,0,0,0}}
 
+int _umtx_op_err(void *, int op, u_long, void *, void *) __hidden;
 int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
 int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 	const struct timespec *timeout) __hidden;
@@ -100,9 +101,9 @@ _thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 static inline int
 _thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 {
-    if (atomic_cmpset_rel_32(&mtx->m_owner, id, UMUTEX_UNOWNED))
-	return (0);
-    return (__thr_umutex_unlock(mtx, id));
+    	if (atomic_cmpset_rel_32(&mtx->m_owner, id, UMUTEX_UNOWNED))
+		return (0);
+	return (__thr_umutex_unlock(mtx, id));
 }
 
 static inline int
