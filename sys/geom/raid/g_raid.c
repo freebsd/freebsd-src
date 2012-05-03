@@ -2143,7 +2143,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
-	gp = g_new_geomf(mp, "mirror:taste");
+	gp = g_new_geomf(mp, "raid:taste");
 	/*
 	 * This orphan function should be never called.
 	 */
@@ -2173,7 +2173,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 int
-g_raid_create_node_format(const char *format, struct g_geom **gp)
+g_raid_create_node_format(const char *format, struct gctl_req *req,
+    struct g_geom **gp)
 {
 	struct g_raid_md_class *class;
 	struct g_raid_md_object *obj;
@@ -2191,7 +2192,7 @@ g_raid_create_node_format(const char *format, struct g_geom **gp)
 	obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
 	    M_WAITOK);
 	obj->mdo_class = class;
-	status = G_RAID_MD_CREATE(obj, &g_raid_class, gp);
+	status = G_RAID_MD_CREATE_REQ(obj, &g_raid_class, req, gp);
 	if (status != G_RAID_MD_TASTE_NEW)
 		kobj_delete((kobj_t)obj, M_RAID);
 	return (status);
