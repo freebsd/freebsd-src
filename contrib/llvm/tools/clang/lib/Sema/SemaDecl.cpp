@@ -4471,6 +4471,11 @@ static bool FindOverriddenMethod(const CXXBaseSpecifier *Specifier,
   return false;
 }
 
+static bool hasDelayedExceptionSpec(CXXMethodDecl *Method) {
+  const FunctionProtoType *Proto =Method->getType()->getAs<FunctionProtoType>();
+  return Proto && Proto->getExceptionSpecType() == EST_Delayed;
+}
+
 /// AddOverriddenMethods - See if a method overrides any in the base classes,
 /// and if so, check that it's a valid override and remember it.
 bool Sema::AddOverriddenMethods(CXXRecordDecl *DC, CXXMethodDecl *MD) {
@@ -4486,7 +4491,8 @@ bool Sema::AddOverriddenMethods(CXXRecordDecl *DC, CXXMethodDecl *MD) {
       if (CXXMethodDecl *OldMD = dyn_cast<CXXMethodDecl>(*I)) {
         MD->addOverriddenMethod(OldMD->getCanonicalDecl());
         if (!CheckOverridingFunctionReturnType(MD, OldMD) &&
-            !CheckOverridingFunctionExceptionSpec(MD, OldMD) &&
+            (hasDelayedExceptionSpec(MD) ||
+             !CheckOverridingFunctionExceptionSpec(MD, OldMD)) &&
             !CheckIfOverriddenFunctionIsMarkedFinal(MD, OldMD)) {
           AddedAny = true;
         }
@@ -5834,6 +5840,9 @@ bool Sema::CheckFunctionDeclaration(Scope *S, FunctionDecl *NewFD,
           }
         }
       }
+      
+      if (Method->isStatic())
+        checkThisInStaticMemberFunctionType(Method);
     }
 
     // Extra checking for C++ overloaded operators (C++ [over.oper]).
@@ -7176,8 +7185,7 @@ void Sema::ActOnFinishKNRParamDeclarations(Scope *S, Declarator &D,
   }
 }
 
-Decl *Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope,
-                                         Declarator &D) {
+Decl *Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, Declarator &D) {
   assert(getCurFunctionDecl() == 0 && "Function parsing confused");
   assert(D.isFunctionDeclarator() && "Not a function declarator!");
   Scope *ParentScope = FnBodyScope->getParent();
@@ -7349,6 +7357,10 @@ Decl *Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, Decl *D) {
       }
     }
   }
+
+  // Ensure that the function's exception specification is instantiated.
+  if (const FunctionProtoType *FPT = FD->getType()->getAs<FunctionProtoType>())
+    ResolveExceptionSpec(D->getLocation(), FPT);
 
   // Checking attributes of current function definition
   // dllimport attribute.
@@ -7554,7 +7566,11 @@ void Sema::ActOnFinishDelayedAttribute(Scope *S, Decl *D,
   // Always attach attributes to the underlying decl.
   if (TemplateDecl *TD = dyn_cast<TemplateDecl>(D))
     D = TD->getTemplatedDecl();
-  ProcessDeclAttributeList(S, D, Attrs.getList());
+  ProcessDeclAttributeList(S, D, Attrs.getList());  
+  
+  if (CXXMethodDecl *Method = dyn_cast_or_null<CXXMethodDecl>(D))
+    if (Method->isStatic())
+      checkThisInStaticMemberFunctionAttributes(Method);
 }
 
 
@@ -7619,7 +7635,7 @@ NamedDecl *Sema::ImplicitlyDefineFunction(SourceLocation Loc,
                                              SourceLocation(), SourceLocation(),
                                              SourceLocation(),
                                              EST_None, SourceLocation(),
-                                             0, 0, 0, 0, Loc, Loc, D),
+                                             0, 0, 0, 0, 0, Loc, Loc, D),
                 DS.getAttributes(),
                 SourceLocation());
   D.SetIdentifier(&II, Loc);
