@@ -123,19 +123,26 @@ indicates the cause of the error.
 .Sh ERRORS
 The
 .Fn dup
-and
-.Fn dup2
-system calls fail if:
+system call fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
 .Fa oldd
-or
-.Fa newd
 argument
 is not a valid active descriptor
 .It Bq Er EMFILE
 Too many descriptors are active.
+.El
+The
+.Fn dup2
+system call fails if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa oldd
+argument is not a valid active descriptor or the
+.Fa newd
+argument is negative or exceeds the maximum allowable descriptor number
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
