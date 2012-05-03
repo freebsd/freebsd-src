@@ -192,21 +192,23 @@ ar71xx_chip_set_mii_if(uint32_t unit, uint32_t mii_mode)
 			mii_if = MII0_CTRL_IF_RGMII;
 		else if (mii_mode == AR71XX_MII_MODE_RMII)
 			mii_if = MII0_CTRL_IF_RMII;
-		else
+		else {
 			printf("%s: invalid MII mode (%d) for unit %d\n",
 			    __func__, mii_mode, unit);
 			return;
+		}
 		break;
 	case 1:
 		reg = AR71XX_MII1_CTRL;
 		if (mii_mode == AR71XX_MII_MODE_RGMII)
 			mii_if = MII1_CTRL_IF_RGMII;
-		if (mii_mode == AR71XX_MII_MODE_RMII)
+		else if (mii_mode == AR71XX_MII_MODE_RMII)
 			mii_if = MII1_CTRL_IF_RMII;
-		else
+		else {
 			printf("%s: invalid MII mode (%d) for unit %d\n",
 			    __func__, mii_mode, unit);
 			return;
+		}
 		break;
 	default:
 		printf("%s: invalid MII unit set for arge unit: %d\n",
