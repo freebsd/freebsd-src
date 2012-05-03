@@ -50,41 +50,39 @@ get_fs_line_xvars()
   ACTIVEDEV="${1}"
   LINE="${2}"
 
-  echo $LINE | cut -d ' ' -f 4 | grep -q ' (' 2>/dev/null
+  echo $LINE | cut -d ' ' -f 4 | grep -q '(' 2>/dev/null
+  if [ $? -ne 0 ] ; then return ; fi
+
+  # See if we are looking for ZFS specific options
+  echo $LINE | grep -q '^ZFS' 2>/dev/null
   if [ $? -eq 0 ] ; then
+    ZTYPE="NONE"
+    ZFSVARS="`echo $LINE | cut -d ' ' -f 4-20 |cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
 
-    # See if we are looking for ZFS specific options
-    echo $LINE | grep -q '^ZFS' 2>/dev/null
+    echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2|3)?|spare|log|cache):" 2>/dev/null
     if [ $? -eq 0 ] ; then
-      ZTYPE="NONE"
-      ZFSVARS="`echo $LINE | cut -d ' ' -f 4 |cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
-
-      echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2|3)?|spare|log|cache):" 2>/dev/null
-	  if [ $? -eq 0 ] ; then
        ZTYPE=`echo $ZFSVARS | cut -f1 -d:`
        ZFSVARS=`echo $ZFSVARS | sed "s|$ZTYPE: ||g" | sed "s|$ZTYPE:||g"`
-	  fi
-
-      # Return the ZFS options
-      if [ "${ZTYPE}" = "NONE" ] ; then
-        VAR="${ACTIVEDEV} ${ZFSVARS}"
-      else
-        VAR="${ZTYPE} ${ACTIVEDEV} ${ZFSVARS}"
-      fi
-      export VAR
-      return
-    fi # End of ZFS block
-
-    # See if we are looking for UFS specific newfs options
-    echo $LINE | grep -q '^UFS' 2>/dev/null
-    if [ $? -eq 0 ] ; then
-      FSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
-      VAR="${FSVARS}"
-      export VAR
-      return
     fi
 
-  fi # End of xtra-options block
+    # Return the ZFS options
+    if [ "${ZTYPE}" = "NONE" ] ; then
+      VAR="${ACTIVEDEV} ${ZFSVARS}"
+    else
+      VAR="${ZTYPE} ${ACTIVEDEV} ${ZFSVARS}"
+    fi
+    export VAR
+    return
+  fi # End of ZFS block
+
+  # See if we are looking for UFS specific newfs options
+  echo $LINE | grep -q '^UFS' 2>/dev/null
+  if [ $? -eq 0 ] ; then
+    FSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
+    VAR="${FSVARS}"
+    export VAR
+    return
+  fi
 
   # If we got here, set VAR to empty and export
   export VAR=""
@@ -96,8 +94,10 @@ setup_zfs_mirror_parts()
 {
   _nZFS=""
 
+  ZTYPE="`echo ${1} | awk '{print $1}'`"
+
   # Using mirroring, setup boot partitions on each disk
-  _mirrline="`echo ${1} | sed 's|mirror ||g'`"
+  _mirrline="`echo ${1} | sed 's|mirror ||g' | sed 's|raidz1 ||g' | sed 's|raidz2 ||g' | sed 's|raidz3 ||g' | sed 's|raidz ||g'`"
   for _zvars in $_mirrline
   do
     echo "Looping through _zvars: $_zvars" >>${LOGOUT}
@@ -107,15 +107,16 @@ setup_zfs_mirror_parts()
 
     is_disk "$_zvars" >/dev/null 2>/dev/null
     if [ $? -eq 0 ] ; then
-      echo "Setting up ZFS mirror disk $_zvars" >>${LOGOUT}
+      echo "Setting up ZFS disk $_zvars" >>${LOGOUT}
       init_gpt_full_disk "$_zvars" >/dev/null 2>/dev/null
-      rc_halt "gpart add -t freebsd-zfs ${_zvars}" >/dev/null 2>/dev/null
+      rc_halt "gpart add -a 4k -t freebsd-zfs ${_zvars}" >/dev/null 2>/dev/null
+      rc_halt "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ${_zvars}" >/dev/null 2>/dev/null
       _nZFS="$_nZFS ${_zvars}p2"	
     else
       _nZFS="$_nZFS ${_zvars}"	
     fi	
   done
-  echo "mirror $2 `echo $_nZFS | tr -s ' '`"
+  echo "$ZTYPE $2 `echo $_nZFS | tr -s ' '`"
 } ;
 
 # Function which creates a unique label name for the specified mount
@@ -290,15 +291,15 @@ setup_gpart_partitions()
       else
         get_fs_line_xvars "${_wSlice}${PARTLETTER}" "${STRING}"
       fi
-      XTRAOPTS="${VAR}"
+      XTRAOPTS="$VAR"
 
       # Check if using zfs mirror
-      echo ${XTRAOPTS} | grep -q "mirror" 2>/dev/null
+      echo ${XTRAOPTS} | grep -q -e "mirror" -e "raidz"
       if [ $? -eq 0 -a "$FS" = "ZFS" ] ; then
         if [ "${_pType}" = "gpt" -o "${_pType}" = "gptslice" ] ; then
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}p${CURPART}")
         else
-       	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_wSlice}")
+       	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_wSlice}${PARTLETTER}")
         fi
       fi
 
