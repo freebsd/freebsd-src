@@ -105,6 +105,13 @@ x86_emulate_cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx,
 			regs[2] |= CPUID2_X2APIC | CPUID2_HV;
 
 			/*
+			 * Hide xsave/osxsave/avx until the FPU save/restore
+			 * issues are resolved
+			 */
+			regs[2] &= ~(CPUID2_XSAVE | CPUID2_OSXSAVE |
+				     CPUID2_AVX);
+
+			/*
 			 * Hide thermal monitoring
 			 */
 			regs[3] &= ~(CPUID_ACPI | CPUID_TM);
