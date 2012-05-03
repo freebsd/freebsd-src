@@ -8,6 +8,7 @@ LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	IPv6 \
 	bootforth \
+	csh \
 	cvsup \
 	diskless \
 	drivers \
@@ -48,6 +49,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	bootforth/menu.4th \
 	bootforth/menuconf.4th \
 	bootforth/screen.4th \
+	csh/dot.cshrc \
 	cvsup/README \
 	cvsup/cvs-supfile \
 	cvsup/doc-supfile \
