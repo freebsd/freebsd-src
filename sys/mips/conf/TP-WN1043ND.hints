@@ -4,7 +4,8 @@
 # $FreeBSD$
 
 # Hard-code the PHY for now, until there's switch phy support.
-hint.arge.0.phymask=0x000c
+# hint.arge.0.phymask=0x000c
+hint.arge.0.phymask=0x0000
 hint.arge.0.media=1000
 hint.arge.0.fduplex=1
 # Where is the MAC address stored in flash for this particular unit.
