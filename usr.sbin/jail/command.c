@@ -100,7 +100,7 @@ next_command(struct cfjail *j)
 		if (j->comstring == NULL) {
 			j->comparam += create_failed ? -1 : 1;
 			switch ((comparam = *j->comparam)) {
-			case 0:
+			case IP__NULL:
 				return 0;
 			case IP_MOUNT_DEVFS:
 				if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
