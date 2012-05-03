@@ -122,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #ifdef __FreeBSD__
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h> /* XXX: only for DIR_IN/DIR_OUT */
 #endif
 
 #ifndef __FreeBSD__
