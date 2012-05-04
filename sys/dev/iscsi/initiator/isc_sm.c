@@ -645,8 +645,8 @@ ism_out(void *vp)
 	     if  (sp->cam_flags & ISC_QUNFREEZE) {
 		     CAM_LOCK(sp);
 		     if  (sp->cam_flags & ISC_QUNFREEZE) {
-			     xpt_release_simq(sp->cam_sim, 1);
 			     sp->cam_flags &= ~(ISC_QUNFREEZE|ISC_QFROZEN);
+			     xpt_release_simq(sp->cam_sim, 1);
 		     }
 		     CAM_UNLOCK(sp);
 	     }
