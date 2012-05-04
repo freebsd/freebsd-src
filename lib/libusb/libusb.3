@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd April 12, 2012
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -43,7 +43,6 @@ The
 library contains interfaces for directly managing a usb device.
 The current implementation supports v1.0 of the libusb API.
 .Sh LIBRARY INITIALISATION / DEINITIALISATION
-.Pp
 .Ft int
 .Fn libusb_init libusb_context **ctx
 This function initialises libusb.
@@ -118,6 +117,12 @@ LIBUSB_SPEED_UNKNOWN is returned in case of unknown wire speed.
 .Fn libusb_get_max_packet_size "libusb_device *dev" "unsigned char endpoint"
 Returns the wMaxPacketSize value on success, LIBUSB_ERROR_NOT_FOUND if the
 endpoint does not exist and LIBUSB_ERROR_OTHERS on other failure.
+.Pp
+.Ft int
+.Fn libusb_get_max_iso_packet_size "libusb_device *dev" "unsigned char endpoint"
+Returns the packet size multiplied by the packet multiplier on success,
+LIBUSB_ERROR_NOT_FOUND if the endpoint does not exist and
+LIBUSB_ERROR_OTHERS on other failure.
 .Pp
 .Ft libusb_device *
 .Fn libusb_ref_device "libusb_device *dev"
@@ -270,9 +275,7 @@ LIBUSB_ERROR_NO_DEVICE
 if the device has been disconnected, LIBUSB_ERROR_BUSY if the driver cannot be
 attached because the interface is claimed by a program or driver and a
 LIBUSB_ERROR code on failure.
-.Pp
 .Sh USB DESCRIPTORS
-.Pp
 .Ft int
 .Fn libusb_get_device_descriptor "libusb_device *dev" "libusb_device_descriptor *desc"
 Get the USB device descriptor for the device
@@ -282,7 +285,7 @@ Returns 0 on success and a LIBUSB_ERROR code on
 failure.
 .Pp
 .Ft int
-.Fn libsub_get_active_config_descriptor "libusb_device *dev" "struct libusb_config_descriptor **config"
+.Fn libusb_get_active_config_descriptor "libusb_device *dev" "struct libusb_config_descriptor **config"
 Get the USB configuration descriptor for the active configuration.
 Returns 0 on
 success, LIBUSB_ERROR_NOT_FOUND if the device is in
@@ -349,9 +352,7 @@ libusb_free_bos_descriptor function.
 .Ft void
 .Fn libusb_free_bos_descriptor "libusb_bos_descriptor *bos"
 This function is NULL safe and frees a parsed BOS descriptor.
-.Pp
 .Sh USB ASYNCHRONOUS I/O
-.Pp
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"
 Allocate a transfer with the number of isochronous packet descriptors
@@ -374,9 +375,7 @@ LIBUSB_ERROR code on other failure.
 .Fn libusb_cancel_transfer "struct libusb_transfer *tr"
 This function asynchronously cancels a transfer.
 Returns 0 on success and a LIBUSB_ERROR code on failure.
-.Pp
 .Sh USB SYNCHRONOUS I/O
-.Pp
 .Ft int
 .Fn libusb_control_transfer "libusb_device_handle *devh" "uint8_t bmRequestType" "uint8_t bRequest" "uint16_t wValue" "uint16_t wIndex" "unsigned char *data" "uint16_t wLength" "unsigned int timeout"
 Perform a USB control transfer.
@@ -411,9 +410,7 @@ if the transfer timed out, LIBUSB_ERROR_PIPE if the control request was not
 supported, LIBUSB_ERROR_OVERFLOW if the device offered more data,
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and
 a LIBUSB_ERROR code on other failure.
-.Pp
 .Sh USB EVENTS
-.Pp
 .Ft int
 .Fn libusb_try_lock_events "libusb_context *ctx"
 Try to acquire the event handling lock.
@@ -429,7 +426,7 @@ This function is blocking.
 Release the event handling lock.
 This will wake up any thread blocked
 on
-.B libusb_wait_for_event() .
+.Fn libusb_wait_for_event .
 .Pp
 .Ft int
 .Fn libusb_event_handling_ok "libusb_context *ctx"
@@ -506,7 +503,6 @@ Retrive a list of file descriptors that should be polled by your main loop as
 libusb event sources.
 Returns a NULL-terminated list on success or NULL on failure.
 .Sh LIBUSB VERSION 0.1 COMPATIBILITY
-.Pp
 The library is also compliant with LibUSB version 0.1.12.
 .Pp
 .Fn usb_open

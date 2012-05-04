@@ -390,8 +390,8 @@ libusb_parse_bos_descriptor(const void *buf, int len,
     struct libusb_bos_descriptor **bos)
 {
 	struct libusb_bos_descriptor *ptr;
-	struct libusb_usb_2_0_device_capability_descriptor *dcap_20;
-	struct libusb_ss_usb_device_capability_descriptor *ss_cap;
+	struct libusb_usb_2_0_device_capability_descriptor *dcap_20 = NULL;
+	struct libusb_ss_usb_device_capability_descriptor *ss_cap = NULL;
 
 	if (buf == NULL || bos == NULL || len < 1)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -438,7 +438,7 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 		    dtype == LIBUSB_DT_DEVICE_CAPABILITY) {
 			switch (((const uint8_t *)buf)[2]) {
 			case LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY:
-				if (ptr->usb_2_0_ext_cap != NULL)
+				if (ptr->usb_2_0_ext_cap != NULL || dcap_20 == NULL)
 					break;
 				if (dlen < LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY_SIZE)
 					break;
@@ -455,7 +455,7 @@ libusb_parse_bos_descriptor(const void *buf, int len,
 				break;
 
 			case LIBUSB_SS_USB_DEVICE_CAPABILITY:
-				if (ptr->ss_usb_cap != NULL)
+				if (ptr->ss_usb_cap != NULL || ss_cap == NULL)
 					break;
 				if (dlen < LIBUSB_SS_USB_DEVICE_CAPABILITY_SIZE)
 					break;
