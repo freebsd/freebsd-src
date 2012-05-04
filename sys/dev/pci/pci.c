@@ -2746,16 +2746,15 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	    prefetch ? RF_PREFETCHABLE : 0);
 	if (res == NULL) {
 		/*
-		 * If the allocation fails, clear the BAR and delete
-		 * the resource list entry to force
-		 * pci_alloc_resource() to allocate resources from the
-		 * parent.
+		 * If the allocation fails, delete the resource list entry
+		 * to force pci_alloc_resource() to allocate resources
+		 * from the parent.
 		 */
 		resource_list_delete(rl, type, reg);
-		start = 0;
-	} else
+	} else {
 		start = rman_get_start(res);
-	pci_write_bar(dev, pm, start);
+		pci_write_bar(dev, pm, start);
+	}
 	return (barlen);
 }
 
@@ -3824,7 +3823,7 @@ pci_describe_device(device_t dev)
 	if ((desc = malloc(strlen(vp) + strlen(dp) + 3, M_DEVBUF, M_NOWAIT)) !=
 	    NULL)
 		sprintf(desc, "%s, %s", vp, dp);
- out:
+out:
 	if (vp != NULL)
 		free(vp, M_DEVBUF);
 	if (dp != NULL)
@@ -4100,7 +4099,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 		    count, *rid, type, rman_get_start(res));
 	map = rman_get_start(res);
 	pci_write_bar(child, pm, map);
-out:;
+out:
 	return (res);
 }
 
@@ -4289,19 +4288,6 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			    type, rid, rman_get_start(rle->res));
 			return;
 		}
-
-#ifndef __PCI_BAR_ZERO_VALID
-		/*
-		 * If this is a BAR, clear the BAR so it stops
-		 * decoding before releasing the resource.
-		 */
-		switch (type) {
-		case SYS_RES_IOPORT:
-		case SYS_RES_MEMORY:
-			pci_write_bar(child, pci_find_bar(child, rid), 0);
-			break;
-		}
-#endif
 		resource_list_unreserve(rl, dev, child, type, rid);
 	}
 	resource_list_delete(rl, type, rid);
