@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2012
+.Dd April 24, 2012
 .Dt USBDUMP 8
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@
 .Op Fl v
 .Op Fl w Ar file
 .Op Fl f Ar filter
+.Op Fl b Ar file
+.Op Fl h
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,12 +48,17 @@ utility provides a way to dump USB packets on host controllers.
 .Pp
 The following options are accepted:
 .Bl -tag -width ".Fl f Ar file"
+.It Fl b Ar file
+Store data part of the USB trace in binary format to the given
+.Ar file .
+This option also works with the -r and -f options.
 .It Fl i Ar ifname
 Listen on USB bus interface
 .Ar ifname .
 .It Fl r Ar file
 Read the raw packets from
 .Ar file .
+This option also works with the -f option.
 .It Fl s Ar snaplen
 Snapshot
 .Ar snaplen
@@ -62,6 +69,7 @@ When defined multiple times the verbosity level increases.
 .It Fl w Ar file
 Write the raw packets to
 .Ar file .
+This option also works with the -s and -v options.
 .It Fl f Ar filter
 The filter argument consists of either one or two numbers separated by a dot.
 The first indicates the device unit number which should be traced.
@@ -72,6 +80,8 @@ If 128 is added to the endpoint number that means IN direction, else OUT directi
 A device unit or endpoint value of -1 means ignore this field.
 If no filters are specified, all packets are passed through using the default -1,-1 filter.
 This option can be specified multiple times.
+.It Fl h
+This option displays a summary of the command line options.
 .El
 .Sh EXAMPLES
 Capture the USB raw packets on usbus2:
