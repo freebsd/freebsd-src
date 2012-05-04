@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.57 2011/01/09 22:16:46 jeremy Exp $
+.\"     $OpenBSD: nc.1,v 1.60 2012/02/07 12:11:43 lum Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: January 8 2011 $
+.Dd $Mdocdate: October 4 2011 $
 .Dt NC 1
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
 .Op Fl s Ar source
-.Op Fl T Ar ToS
+.Op Fl T Ar toskeyword
 .Op Fl V Ar rtable
 .Op Fl w Ar timeout
 .Op Fl X Ar proxy_protocol
@@ -164,14 +164,21 @@ to create and use so that datagrams can be received.
 It is an error to use this option in conjunction with the
 .Fl l
 option.
-.It Fl T Ar ToS
-Specifies IP Type of Service (ToS) for the connection.
-Valid values are the tokens
-.Dq lowdelay ,
-.Dq throughput ,
-.Dq reliability ,
-or an 8-bit hexadecimal value preceded by
-.Dq 0x .
+.It Fl T Ar toskeyword
+Change IPv4 TOS value.
+.Ar toskeyword
+may be one of
+.Ar critical ,
+.Ar inetcontrol ,
+.Ar lowdelay ,
+.Ar netcontrol ,
+.Ar throughput ,
+.Ar reliability ,
+or one of the DiffServ Code Points:
+.Ar ef ,
+.Ar af11 ... af43 ,
+.Ar cs0 ... cs7 ;
+or a number in either hex or decimal.
 .It Fl t
 Causes
 .Nm
@@ -203,9 +210,9 @@ Have
 .Nm
 give more verbose output.
 .It Fl w Ar timeout
-If a connection and stdin are idle for more than
+Connections which cannot be established or are idle timeout after
 .Ar timeout
-seconds, then the connection is silently closed.
+seconds.
 The
 .Fl w
 flag has no effect on the
@@ -442,8 +449,15 @@ Original implementation by *Hobbit*
 Rewritten with IPv6 support by
 .An Eric Jackson Aq ericj@monkey.org .
 .Sh CAVEATS
-UDP port scans will always succeed
-(i.e. report the port as open),
-rendering the
+UDP port scans using the
 .Fl uz
-combination of flags relatively useless.
+combination of flags will always report success irrespective of
+the target machine's state.
+However,
+in conjunction with a traffic sniffer either on the target machine
+or an intermediary device,
+the
+.Fl uz
+combination could be useful for communications diagnostics.
+Note that the amount of UDP traffic generated may be limited either
+due to hardware resources and/or configuration settings.
