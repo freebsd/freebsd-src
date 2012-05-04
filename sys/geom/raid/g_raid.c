@@ -376,17 +376,17 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 	else if (strcasecmp(str, "RAID3-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
 		*qual = G_RAID_VOLUME_RLQ_R3P0;
-	} else if (strcasecmp(str, "RAID3-PN") == 0 &&
+	} else if (strcasecmp(str, "RAID3-PN") == 0 ||
 		   strcasecmp(str, "RAID3") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
-		*qual = G_RAID_VOLUME_RLQ_R3P0;
+		*qual = G_RAID_VOLUME_RLQ_R3PN;
 	} else if (strcasecmp(str, "RAID4-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
 		*qual = G_RAID_VOLUME_RLQ_R4P0;
-	} else if (strcasecmp(str, "RAID4-PN") == 0 &&
+	} else if (strcasecmp(str, "RAID4-PN") == 0 ||
 		   strcasecmp(str, "RAID4") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
-		*qual = G_RAID_VOLUME_RLQ_R4P0;
+		*qual = G_RAID_VOLUME_RLQ_R4PN;
 	} else if (strcasecmp(str, "RAID5-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5;
 		*qual = G_RAID_VOLUME_RLQ_R5RA;
