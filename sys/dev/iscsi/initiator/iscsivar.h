@@ -336,6 +336,13 @@ XPT_DONE(isc_session_t *sp, union ccb *ccb)
 		inq->flags |= SID_CmdQue;
 	}
 	CAM_LOCK(sp);
+	if (sp->cam_flags & ISC_QFROZEN) {
+		if (sbspace(&sp->soc->so_snd) >= sp->space_needed) {
+			sp->space_needed = 0;
+			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+			sp->cam_flags &= ~ISC_QFROZEN;
+		}
+	}
 	xpt_done(ccb);
 	CAM_UNLOCK(sp);
 }

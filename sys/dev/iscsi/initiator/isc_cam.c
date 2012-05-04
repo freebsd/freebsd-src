@@ -251,16 +251,8 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 
 	  if (rc == EWOULDBLOCK) {
 		  if ((sp->cam_flags & ISC_QFROZEN) == 0) {
-			  CAM_UNLOCK(sp);
-			  SOCKBUF_LOCK(&sp->soc->so_snd);
-			  CAM_LOCK(sp);
-			  if ((sp->cam_flags & ISC_QFROZEN) == 0) {
-				  sp->cam_flags |= ISC_QFROZEN;
-				  xpt_freeze_simq(sim, 1);			  
-				  soupcall_set(sp->soc, SO_SND, isc_so_snd_upcall, sp);
-			  }
-			  /* else we lost the race and someone else froze it for us oh well */
-			  SOCKBUF_UNLOCK(&sp->soc->so_snd);
+			  sp->cam_flags |= ISC_QFROZEN;
+			  xpt_freeze_simq(sim, 1);			  
 		  }
 		  status = ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 		  csio->ccb_h.status = status | CAM_REQUEUE_REQ;
