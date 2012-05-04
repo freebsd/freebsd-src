@@ -543,7 +543,7 @@ ulpt_attach(device_t dev)
 	/* search through all the descriptors looking for bidir mode */
 
 	id = usbd_get_interface_descriptor(uaa->iface);
-	alt_index = 0 - 1;
+	alt_index = 0xFF;
 	while (1) {
 		if (id == NULL) {
 			break;
@@ -631,14 +631,14 @@ found:
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ulpt_fifo_methods, &sc->sc_fifo,
-	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    unit, -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;
 	}
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &unlpt_fifo_methods, &sc->sc_fifo_noreset,
-	    unit, 0 - 1, uaa->info.bIfaceIndex,
+	    unit, -1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
 	if (error) {
 		goto detach;

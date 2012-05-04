@@ -2121,7 +2121,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		0x5c,	/* Keyboard Intl' 6 (Keypad ,) (For PC-9821 layout) */
 	};
 
-	if ((code >= 89) && (code < (89 + (sizeof(scan) / sizeof(scan[0]))))) {
+	if ((code >= 89) && (code < (int)(89 + (sizeof(scan) / sizeof(scan[0]))))) {
 		code = scan[code - 89];
 	}
 	/* Pause/Break */
