@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/ioccom.h>
-#include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
@@ -59,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <dev/iscsi/initiator/iscsi.h>
+
+#include <dev/iscsi/initiator/iscsiopt.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 static char *iscsi_driver_version = "2.3.1";
 
@@ -82,6 +83,32 @@ SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_sessions, CTLFLAG_RDTUN, &max_ses
 static int max_pdus = MAX_PDUS;
 SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_pdus, CTLFLAG_RDTUN, &max_pdus, MAX_PDUS,
 	   "Max pdu pool");
+
+
+static int malloc_failures = 0;
+SYSCTL_INT(_net, OID_AUTO, iscsi_malloc_failures, CTLFLAG_RD, &malloc_failures, 0,
+	   "malloc failures");
+
+int pdu_alloc_failures = 0;
+SYSCTL_INT(_net, OID_AUTO, iscsi_pdu_alloc_failures, CTLFLAG_RD, &pdu_alloc_failures, 0,
+	   "pdu allocation failures");
+
+int rx_sleep = 0;
+SYSCTL_INT(_net, OID_AUTO, iscsi_rx_sleep, CTLFLAG_RD, &rx_sleep, 0,
+	   "sleeps in rx");
+
+int isc_encap_sleep = 0;
+SYSCTL_INT(_net, OID_AUTO, iscsi_encap_sleep, CTLFLAG_RD, &isc_encap_sleep, 0,
+	   "isc_encap sleeps");
+
+int isc_r2t_sleep = 0;
+SYSCTL_INT(_net, OID_AUTO, iscsi_r2t_sleep, CTLFLAG_RD, &isc_r2t_sleep, 0,
+	   "isc_r2t sleeps");
+
+int isc_in_sleep = 0;
+SYSCTL_INT(_net, OID_AUTO, iscsi_in_sleep, CTLFLAG_RD, &isc_in_sleep, 0,
+	   "isc_in sleeps");
+
 
 static char isid[6+1] = {
      0x80,
@@ -389,7 +416,7 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
 
      error = fget(td, fd, CAP_SOCK_ALL, &sp->fp);
      if(error)
-	  return error;
+         return (error);
 
      if((error = fgetsock(td, fd, CAP_SOCK_ALL, &sp->soc, 0)) == 0) {
 	  sp->td = td;
@@ -400,7 +427,10 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
 	  sp->fp = NULL;
      }
 
-     return error;
+     if (error == 0 && (sp->soc->so_snd.sb_mbmax < MINSNDBUF))
+	     sp->soc->so_snd.sb_mbmax = MINSNDBUF;
+
+     return (error);
 }
 
 static int
@@ -422,12 +452,13 @@ i_send(struct cdev *dev, caddr_t arg, struct thread *td)
      pp = &pq->pdu;
      pq->pdu = *(pdu_t *)arg;
      if((error = i_prepPDU(sp, pq)) != 0)
-	  goto out;
+	     goto out;
 
      bp = NULL;
      if((pq->len - sizeof(union ipdu_u)) > 0) {
 	  pq->buf = bp = malloc(pq->len - sizeof(union ipdu_u), M_ISCSIBUF, M_NOWAIT);
 	  if(pq->buf == NULL) {
+	    malloc_failures++;
 	       error = EAGAIN;
 	       goto out;
 	  }
@@ -465,12 +496,10 @@ i_send(struct cdev *dev, caddr_t arg, struct thread *td)
      }
 
      error = isc_qout(sp, pq);
-     if(error == 0)
-	  wakeup(&sp->flags); // XXX: to 'push' proc_out ...
+     return (error);
 out:
-     if(error)
-	  pdu_free(sp->isc, pq);
-
+     if (pq != NULL)
+	     pdu_free(sp->isc, pq);
      return error;
 }
 
@@ -494,7 +523,8 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
      cnt = 6;     // XXX: maybe the user can request a time out?
      mtx_lock(&sp->rsp_mtx);
      while((pq = TAILQ_FIRST(&sp->rsp)) == NULL) {
-	  msleep(&sp->rsp, &sp->rsp_mtx, PRIBIO, "isc_rsp", hz*10);
+       rx_sleep++;
+	  msleep(&sp->rsp, &sp->rsp_mtx, PRIBIO, "isc_rsp", hz >> 2);
 	  if(cnt-- == 0) break; // XXX: for now, needs work
      }
      if(pq != NULL) {

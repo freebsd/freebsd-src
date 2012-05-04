@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/ioccom.h>
-#include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
@@ -57,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 
 #include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi/initiator/iscsiopt.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 
 #ifndef NO_USE_MBUF
@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef USE_MBUF
-static int ou_refcnt = 0;
 /*
  | function for freeing external storage for mbuf
  */
@@ -74,7 +73,7 @@ ext_free(void *a, void *b)
      pduq_t *pq = b;
 
      if(pq->buf != NULL) {
-	  debug(3, "ou_refcnt=%d a=%p b=%p", ou_refcnt, a, pq->buf);
+	  debug(3, "ext_free a=%p b=%p", a, pq->buf);
 	  free(pq->buf, M_ISCSIBUF);
 	  pq->buf = NULL;
      }
@@ -91,7 +90,9 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
      /* 
       | mbuf for the iSCSI header
       */
-     MGETHDR(mh, M_TRYWAIT, MT_DATA);
+     MGETHDR(mh, M_NOWAIT, MT_DATA);
+     if (mh == NULL) 
+       return (EAGAIN);
      mh->m_pkthdr.rcvif = NULL;
      mh->m_next = NULL;
      mh->m_len = sizeof(union ipdu_u);
@@ -126,31 +127,31 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
      mp = &mh->m_next;
      if(pp->ds_len && pq->pdu.ds_addr) {
           struct mbuf *md;
-          int	off = 0;
 
           len = pp->ds_len;
-          while(len > 0) {
-	       int l;
-
-	       MGET(md, M_TRYWAIT, MT_DATA);
-	       md->m_ext.ref_cnt = &ou_refcnt;
-	       l = min(MCLBYTES, len);
-	       debug(4, "setting ext_free(arg=%p len/l=%d/%d)", pq->buf, len, l);
-	       MEXTADD(md, pp->ds_addr + off, l, ext_free, 
+	  MGET(md, M_NOWAIT, MT_DATA);
+	  if (md == NULL) {
+		  m_freem(mh);
+		  return (EAGAIN);
+	  }
+	  debug(4, "setting ext_free(arg=%p len/l=%d/%d)", pq->buf, len, len);
+	  MEXTADD(md, pp->ds_addr, len, ext_free, 
 #if __FreeBSD_version >= 800000
-		       pp->ds_addr + off,
+		  pp->ds_addr,
 #endif
-		       pq, 0, EXT_EXTREF);
-	       md->m_len = l;
-	       md->m_next = NULL;
-	       mh->m_pkthdr.len += l;
-	       *mp = md;
-	       mp = &md->m_next;
-	       len -= l;
-	       off += l;
-          }
+		  pq, 0, EXT_MOD_TYPE);
+	  md->m_len = len;
+	  mh->m_pkthdr.len += len;
+	  md->m_next = NULL;
+	  *mp = md;
+	  mp = &md->m_next;
+
 	  if(((pp->ds_len & 03) != 0) || ISOK2DIG(sp->dataDigest, pp)) {
-	       MGET(md, M_TRYWAIT, MT_DATA);
+	       MGET(md, M_NOWAIT, MT_DATA);
+	       if (md == NULL) {
+		       m_freem(mh);
+		       return (EAGAIN);
+	       }
 	       if(pp->ds_len & 03)
 		    len = 4 - (pp->ds_len & 03);
 	       else
@@ -619,6 +620,7 @@ isc_in(void *vp)
 	       break;
 	  }
 	  else if(error == EAGAIN) {
+	    isc_in_sleep++;
 	       if(so->so_state & SS_ISCONNECTED) 
 		    // there seems to be a problem in 6.0 ...
 		    tsleep(sp, PRIBIO, "isc_soc", 2*hz);

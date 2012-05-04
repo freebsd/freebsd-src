@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_iscsi_initiator.h"
 
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/callout.h>
@@ -45,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
+#include <sys/socketvar.h>
 #include <sys/sx.h>
 
 #include <cam/cam.h>
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 
 #include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi/initiator/iscsiopt.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 
 static void
@@ -74,7 +77,7 @@ _inq(struct cam_sim *sim, union ccb *ccb)
      cpi->initiator_id = ISCSI_MAX_TARGETS;
      cpi->max_lun = sp->opt.maxluns - 1;
      cpi->bus_id = cam_sim_bus(sim);
-     cpi->base_transfer_speed = 3300; // 40000; // XXX:
+     cpi->base_transfer_speed = 3300000; // 40000; // XXX:
      strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
      strncpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);
      strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -197,10 +200,25 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	  return;
      }	  
      switch(ccb_h->func_code) {
-     case XPT_PATH_INQ:
-	  _inq(sim, ccb);
-	  break;
+     case XPT_PATH_INQ:       
+     {
+	     struct ccb_pathinq *cpi = &ccb->cpi;
 
+	     _inq(sim, ccb);
+	     cpi->version_num = 1;
+	     cpi->target_sprt = 0;
+	     cpi->hba_misc = 0;
+	     cpi->unit_number = cam_sim_unit(sim);
+	     cpi->bus_id = cam_sim_bus(sim);
+	     cpi->base_transfer_speed = 132 * 1024;	/* XXX what to set this to? */
+	     cpi->transport = XPORT_SPI;
+	     cpi->transport_version = 2;
+	     cpi->protocol = PROTO_SCSI;
+	     cpi->protocol_version = SCSI_REV_2;
+	     cpi->maxio = 128*PAGE_SIZE;
+	     ccb->ccb_h.status = CAM_REQ_CMP;
+	     break;
+     }
      case XPT_RESET_BUS: // (can just be a stub that does nothing and completes)
      {
 	  struct ccb_pathinq *cpi = &ccb->cpi;
@@ -213,6 +231,7 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
      case XPT_SCSI_IO: 
      {
 	  struct ccb_scsiio* csio = &ccb->csio;
+	  int status, rc;
 
 	  debug(4, "XPT_SCSI_IO cmd=0x%x", csio->cdb_io.cdb_bytes[0]);
 	  if(sp == NULL) {
@@ -225,8 +244,24 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	       ccb_h->status = CAM_LUN_INVALID;
 	       break;
 	  }
-	  if(_scsi_encap(sim, ccb) != 0)
-	       return;
+
+	  rc = _scsi_encap(sim, ccb);
+	  if (rc == 0)
+		  return;
+
+	  if (rc == EWOULDBLOCK) {
+		  if (sim->devq->send_queue.qfrozen_cnt[0] == 0) {
+			  xpt_freeze_simq(sim, 1);
+			  CAM_UNLOCK(sp);
+			  SOCKBUF_LOCK(&sp->soc->so_snd);
+			  soupcall_set(sp->soc, SO_SND, isc_so_snd_upcall, sp);
+			  SOCKBUF_UNLOCK(&sp->soc->so_snd);
+			  CAM_LOCK(sp);
+		  }
+		  status = ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		  csio->ccb_h.status = status | CAM_REQUEUE_REQ;
+		  break;
+	  } 
 	  break;
      }
  
@@ -268,6 +303,30 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
      }
 
      case XPT_GET_TRAN_SETTINGS:
+     {
+	       struct ccb_trans_settings	*cts = &ccb->cts;
+	       int				bus, target;
+	       struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
+	       struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
+	       
+	       bus = cam_sim_bus(sim);
+	       target = cts->ccb_h.target_id;
+	       
+	       debug(1, "XPT_GET_TRAN_SETTINGS %d:%d", bus, target);
+	       /* disconnect always OK */
+	       cts->protocol = PROTO_SCSI;
+	       cts->protocol_version = SCSI_REV_2;
+	       cts->transport = XPORT_SPI;
+	       cts->transport_version = 2;
+	       spi->valid = CTS_SPI_VALID_DISC;
+	       spi->flags = CTS_SPI_FLAGS_DISC_ENB;
+	       
+	       scsi->valid = CTS_SCSI_VALID_TQ;
+	       scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
+	       
+	       cts->ccb_h.status = CAM_REQ_CMP;
+	       break;
+     }
      default:
 	  ccb_h->status = CAM_REQ_INVALID;
 	  break;
@@ -348,8 +407,8 @@ ic_init(isc_session_t *sp)
 #if __FreeBSD_version >= 700000
 			 &sp->cam_mtx,
 #endif
-			 1,		// max_dev_transactions
-			 0,		// max_tagged_dev_transactions
+			 256,		// max_dev_transactions
+			 256,		// max_tagged_dev_transactions
 			 devq);
      if(sim == NULL) {
 	  cam_simq_free(devq);

@@ -52,8 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/scsi/scsi_message.h>
 #include <sys/eventhandler.h>
+#include <sys/socketvar.h>
 
 #include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi/initiator/iscsiopt.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 
 /*
@@ -103,8 +105,9 @@ iscsi_r2t(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 
 			 while((wpq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL) {
 			      sdebug(2, "waiting...");
+			      isc_r2t_sleep++;
 #if __FreeBSD_version >= 700000
-			      pause("isc_r2t", 5*hz);
+			      pause("isc_r2t", hz >> 1);
 #else
 			      tsleep(sp->isc, 0, "isc_r2t", 5*hz);
 #endif
@@ -456,11 +459,20 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      struct ccb_hdr	*ccb_h = &ccb->ccb_h;
      pduq_t		*pq;
      scsi_req_t		*cmd;
+     struct socket      *so = sp->soc;
+     int error = EINVAL;
 
      debug_called(8);
 
      debug(4, "ccb->sp=%p", ccb_h->spriv_ptr0);
      sp = ccb_h->spriv_ptr0;
+
+     if (isc_sowouldblock(sp, ccb)) {
+	     SOCKBUF_LOCK(&so->so_snd);
+	     soupcall_set(so, SO_SND, isc_so_snd_upcall, sp);
+	     SOCKBUF_UNLOCK(&so->so_snd);
+	     return (EWOULDBLOCK);
+     }
 
      if((pq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL) {
 	  debug(2, "ccb->sp=%p", ccb_h->spriv_ptr0);
@@ -469,6 +481,7 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
 	  while((pq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL) {
 	       sdebug(2, "waiting...");
 #if __FreeBSD_version >= 700000
+	       isc_encap_sleep++;
 	       pause("isc_encap", 5*hz);
 #else
 	       tsleep(sp->isc, 0, "isc_encap", 5*hz);
@@ -478,20 +491,16 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      cmd = &pq->pdu.ipdu.scsi_req;
      cmd->opcode = ISCSI_SCSI_CMD;
      cmd->F = 1;
-#if 0
-// this breaks at least Isilon's iscsi target.
-     /*
-      | map tag option, default is UNTAGGED
-      */
-     switch(csio->tag_action) {
-     case MSG_SIMPLE_Q_TAG:	cmd->attr = iSCSI_TASK_SIMPLE;	break;
-     case MSG_HEAD_OF_Q_TAG:	cmd->attr = iSCSI_TASK_HOFQ;	break;
-     case MSG_ORDERED_Q_TAG:	cmd->attr = iSCSI_TASK_ORDER;	break;
-     case MSG_ACA_TASK:		cmd->attr = iSCSI_TASK_ACA;	break;
-     }
-#else
-     cmd->attr = iSCSI_TASK_SIMPLE;
-#endif
+
+     if (ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) {
+	     switch(csio->tag_action) {
+	     case MSG_SIMPLE_Q_TAG:	cmd->attr = iSCSI_TASK_SIMPLE;	break;
+	     case MSG_HEAD_OF_Q_TAG:	cmd->attr = iSCSI_TASK_HOFQ;	break;
+	     case MSG_ORDERED_Q_TAG:	cmd->attr = iSCSI_TASK_ORDER;	break;
+	     case MSG_ACA_TASK:	        cmd->attr = iSCSI_TASK_ACA;	break;
+	     }
+     } else 
+	     cmd->attr = iSCSI_TASK_SIMPLE;
 
      dwl(sp, ccb_h->target_lun, (u_char *)&cmd->lun);
 
@@ -523,13 +532,13 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      /*
       | place it in the out queue
       */
-     if(isc_qout(sp, pq) == 0)
-	  return 1; 
+     return (isc_qout(sp, pq));
+
  invalid:
      ccb->ccb_h.status = CAM_REQ_INVALID;
      pdu_free(sp->isc, pq);
 
-     return 0;
+     return (error);
 }
 
 int

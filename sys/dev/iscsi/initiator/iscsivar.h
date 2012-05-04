@@ -26,6 +26,35 @@
  * $FreeBSD$
  */
 
+#ifndef __ISCSIVAR__H_
+#define __ISCSIVAR__H_
+
+
+#include <sys/queue.h> 
+#undef TRASHIT
+#define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
+#undef QMD_SAVELINK
+#define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
+
+#undef TAILQ_REMOVE
+#define	TAILQ_REMOVE(head, elm, field) do {				\
+	QMD_SAVELINK(oldnext, (elm)->field.tqe_next);			\
+	QMD_SAVELINK(oldprev, (elm)->field.tqe_prev);			\
+	QMD_TAILQ_CHECK_NEXT(elm, field);				\
+	QMD_TAILQ_CHECK_PREV(elm, field);				\
+	if ((TAILQ_NEXT((elm), field)) != NULL)				\
+		TAILQ_NEXT((elm), field)->field.tqe_prev = 		\
+		    (elm)->field.tqe_prev;				\
+	else {								\
+		(head)->tqh_last = (elm)->field.tqe_prev;		\
+		QMD_TRACE_HEAD(head);					\
+	}								\
+	*(elm)->field.tqe_prev = TAILQ_NEXT((elm), field);		\
+	TRASHIT(*oldnext);						\
+	TRASHIT(*oldprev);						\
+	QMD_TRACE_ELEM(&(elm)->field);					\
+} while (0)
+
 /*
  | $Id: iscsivar.h 743 2009-08-08 10:54:53Z danny $
  */
@@ -150,6 +179,7 @@ typedef struct isc_session {
      struct mtx		snd_mtx;
      struct mtx		hld_mtx;
      struct mtx		io_mtx;
+     struct sx          tx_sx;
      queue_t		rsp;
      queue_t		rsv;
      queue_t		csnd;
@@ -175,6 +205,7 @@ typedef struct isc_session {
      struct sysctl_ctx_list	clist;
      struct sysctl_oid	*oid;
      int	douio;	//XXX: turn on/off uio on read
+	int        space_needed;
 } isc_session_t;
 
 typedef struct pduq {
@@ -218,12 +249,18 @@ struct isc_softc {
      struct sysctl_oid		*oid;
 };
 
+#define MINSNDBUF  DFLTPHYS + 8*1024
+
 #ifdef  ISCSI_INITIATOR_DEBUG
 extern struct mtx iscsi_dbg_mtx;
 #endif
 
 void	isc_start_receiver(isc_session_t *sp);
 void	isc_stop_receiver(isc_session_t *sp);
+
+
+int     isc_sowouldblock(isc_session_t *sp, union ccb *ccb);
+int     isc_so_snd_upcall(struct socket *so, void *arg, int flags);
 
 int	isc_sendPDU(isc_session_t *sp, pduq_t *pq);
 int	isc_qout(isc_session_t *sp, pduq_t *pq);
@@ -283,9 +320,19 @@ XPT_DONE(isc_session_t *sp, union ccb *ccb)
 static __inline void
 XPT_DONE(isc_session_t *sp, union ccb *ccb)
 {
-     CAM_LOCK(sp);
-     xpt_done(ccb);
-     CAM_UNLOCK(sp);
+	struct ccb_scsiio* csio = &ccb->csio;
+	uint8_t *cdb;
+
+	cdb = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
+		(uint8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes;
+	if (cdb[0] == INQUIRY &&  (cdb[1] & SI_EVPD) == 0) {
+		struct scsi_inquiry_data *inq = 
+			(struct scsi_inquiry_data *)csio->data_ptr;
+		inq->flags |= SID_CmdQue;
+	}
+	CAM_LOCK(sp);
+	xpt_done(ccb);
+	CAM_UNLOCK(sp);
 }
 #else
 //__FreeBSD_version >= 600000
@@ -296,6 +343,12 @@ XPT_DONE(isc_session_t *sp, union ccb *ccb)
 
 #endif /* _CAM_CAM_XPT_SIM_H */
 
+extern int pdu_alloc_failures;
+extern int rx_sleep;
+extern int isc_encap_sleep;
+extern int isc_r2t_sleep;
+extern int isc_in_sleep;
+
 static __inline pduq_t *
 pdu_alloc(struct isc_softc *isc, int wait)
 {
@@ -303,6 +356,7 @@ pdu_alloc(struct isc_softc *isc, int wait)
 
      pq = (pduq_t *)uma_zalloc(isc->pdu_zone, wait /* M_WAITOK or M_NOWAIT*/);
      if(pq == NULL) {
+       pdu_alloc_failures++;
 	  debug(7, "out of mem");
 	  return NULL;
      }
@@ -318,22 +372,7 @@ pdu_alloc(struct isc_softc *isc, int wait)
      return pq;
 }
 
-static __inline void
-pdu_free(struct isc_softc *isc, pduq_t *pq)
-{
-     if(pq->mp)
-	  m_freem(pq->mp);
-#ifdef NO_USE_MBUF
-     if(pq->buf != NULL)
-	  free(pq->buf, M_ISCSIBUF);
-#endif
-     uma_zfree(isc->pdu_zone, pq);
-#ifdef ISCSI_INITIATOR_DEBUG
-     mtx_lock(&iscsi_dbg_mtx);
-     isc->npdu_alloc--;
-     mtx_unlock(&iscsi_dbg_mtx);
-#endif
-}
+void pdu_free(struct isc_softc *isc, pduq_t *pq);
 
 static __inline void
 i_nqueue_rsp(isc_session_t *sp, pduq_t *pq)
@@ -597,3 +636,5 @@ i_mbufcopy(struct mbuf *mp, caddr_t dp, int len)
 	       break;
      }
 }
+
+#endif /* __ISCSIVAR__H_ */

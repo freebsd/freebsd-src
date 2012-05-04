@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/ioccom.h>
-#include <sys/queue.h>
 #include <sys/kthread.h>
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
@@ -63,7 +62,34 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 
 #include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi/initiator/iscsiopt.h>
 #include <dev/iscsi/initiator/iscsivar.h>
+
+static int proc_out(isc_session_t *sp);
+
+void
+pdu_free(struct isc_softc *isc, pduq_t *pq)
+{
+	KASSERT(pq->pq_link.tqe_next == NULL ||
+	    pq->pq_link.tqe_next == (void *) -1,
+		("tqe_next still set %p", pq->pq_link.tqe_next));
+	KASSERT(pq->pq_link.tqe_prev == NULL ||
+	    pq->pq_link.tqe_prev == (void *) -1,
+		("tqe_prev still set %p", pq->pq_link.tqe_prev));
+     if(pq->mp)
+	  m_freem(pq->mp);
+#ifdef NO_USE_MBUF
+     if(pq->buf != NULL)
+	  free(pq->buf, M_ISCSIBUF);
+#endif
+     uma_zfree(isc->pdu_zone, pq);
+#ifdef ISCSI_INITIATOR_DEBUG
+     mtx_lock(&iscsi_dbg_mtx);
+     isc->npdu_alloc--;
+     mtx_unlock(&iscsi_dbg_mtx);
+#endif
+}
+
 
 static void
 _async(isc_session_t *sp, pduq_t *pq)
@@ -112,7 +138,7 @@ _r2t(isc_session_t *sp, pduq_t *pq)
      debug_called(8);
      opq = i_search_hld(sp, pq->pdu.ipdu.bhs.itt, 1);
      if(opq != NULL) {
-	  iscsi_r2t(sp, opq, pq);
+	 iscsi_r2t(sp, opq, pq);
      } 
      else {
 	  r2t_t		*r2t = &pq->pdu.ipdu.r2t;
@@ -188,7 +214,6 @@ _nop_out(isc_session_t *sp)
 	  nop_out->F = 1;
 	  if(isc_qout(sp, pq) != 0) {
 	       sdebug(1, "failed");
-	       pdu_free(sp->isc, pq);
 	  }
      }
 }
@@ -302,15 +327,67 @@ i_prepPDU(isc_session_t *sp, pduq_t *pq)
 }
 
 int
+isc_sowouldblock(isc_session_t *sp, union ccb *ccb)
+{
+	struct ccb_scsiio *csio = &ccb->csio;
+	int space_needed;
+
+	if (ccb == NULL) 
+		return (0);
+
+	space_needed = 256 + csio->cdb_len;
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
+		space_needed += csio->dxfer_len;
+	if (space_needed > sp->soc->so_snd.sb_mbmax)
+		sp->soc->so_snd.sb_mbmax = space_needed + PAGE_SIZE;
+	if (space_needed > sp->soc->so_snd.sb_hiwat)
+		sp->soc->so_snd.sb_hiwat = space_needed + PAGE_SIZE;
+	debug(4, "space_needed=%d sbspace=%ld", 
+	    space_needed, sbspace(&sp->soc->so_snd));
+	if ((space_needed > sbspace(&sp->soc->so_snd)) &&
+	    (space_needed > sp->space_needed))
+		sp->space_needed = space_needed;
+	return (space_needed > sbspace(&sp->soc->so_snd));
+}
+
+
+int
+isc_so_snd_upcall(struct socket *so, void *arg, int flags)
+{
+	isc_session_t *sp = arg;
+
+	if (sbspace(&so->so_snd) < sp->space_needed) 
+		return (SU_OK);
+
+	soupcall_clear(so, SO_SND);
+	sp->space_needed = 0;
+
+	mtx_lock(sp->cam_sim->mtx);
+	xpt_release_simq(sp->cam_sim, 0);
+	mtx_unlock(sp->cam_sim->mtx);
+	return (SU_OK);
+}
+
+int
 isc_qout(isc_session_t *sp, pduq_t *pq)
 {
-     int error = 0;
+     int txed = 0, error = 0;
 
      debug_called(8);
-
-     if(pq->len == 0 && (error = i_prepPDU(sp, pq)))
-	  return error;
-
+	
+     if(pq->len == 0 && (error = i_prepPDU(sp, pq))) {
+	     pdu_free(sp->isc, pq);
+	     return (error);
+     }
+     if ((sp->flags & ISC_HOLD) || (sp->soc == NULL)) {
+	     pdu_free(sp->isc, pq);
+	     return (EWOULDBLOCK);
+     }
+     if (isc_sowouldblock(sp, pq->ccb)) {
+	     pdu_free(sp->isc, pq);
+	     return (EWOULDBLOCK);
+     }
+	     
      if(pq->pdu.ipdu.bhs.I)
 	  i_nqueue_isnd(sp, pq);
      else
@@ -321,12 +398,16 @@ isc_qout(isc_session_t *sp, pduq_t *pq)
 
      sdebug(5, "enqued: pq=%p", pq);
 
-     mtx_lock(&sp->io_mtx);
-     sp->flags |= ISC_OQNOTEMPTY;
-     if(sp->flags & ISC_OWAITING)
-	  wakeup(&sp->flags);
-     mtx_unlock(&sp->io_mtx);
-
+     if (sx_try_xlock(&sp->tx_sx)) {
+	     error = proc_out(sp);
+	     txed = 1;
+	     sx_xunlock(&sp->tx_sx);
+     }
+     if (txed == 0) {
+	     mtx_lock(&sp->io_mtx);
+	     sp->flags |= ISC_OQNOTEMPTY;
+	     mtx_unlock(&sp->io_mtx);
+     }
      return error;
 }
 /*
@@ -425,11 +506,12 @@ proc_out(isc_session_t *sp)
 {
      sn_t	*sn = &sp->sn;
      pduq_t	*pq;
-     int	error, which;
+     int	error, which, flags;
 
      debug_called(8);
      error = 0;
 
+restart:
      while(sp->flags & ISC_LINK_UP) {
 	  pdu_t *pp;
 	  bhs_t	*bhs;
@@ -509,15 +591,26 @@ proc_out(isc_session_t *sp)
 	       default:
 		    if(pq->ccb) {
 			 xdebug("back to cam");
-			 pq->ccb->ccb_h.status |= CAM_REQUEUE_REQ; // some better error?
-			 XPT_DONE(sp, pq->ccb);
-			 pdu_free(sp->isc, pq);
+			 if (error == ENOBUFS || error == EHOSTUNREACH || 
+			     error == EPIPE || error == ENETDOWN)
+			   error = EWOULDBLOCK;
+			 return (error);
 		    }
 		    else
 			 xdebug("we lost it!");
 	       }
 	  }
      }
+     if (error == 0) {
+	     mtx_lock(&sp->io_mtx);
+	     flags = sp->flags;
+	     sp->flags &= ~ISC_OQNOTEMPTY;
+	     mtx_unlock(&sp->io_mtx);
+	     if ((flags & (ISC_LINK_UP|ISC_OQNOTEMPTY)) == 
+		 (ISC_LINK_UP|ISC_OQNOTEMPTY))
+		     goto restart;
+     }  
+
      return error;
 }
 
@@ -535,12 +628,16 @@ ism_out(void *vp)
      sp->flags |= ISC_SM_RUNNING;
      sdebug(3, "started sp->flags=%x", sp->flags);
      do {
-	  if((sp->flags & ISC_HOLD) == 0) {
-	       error = proc_out(sp);
-	       if(error) {
-		    sdebug(3, "error=%d", error);
-	       }
-	  }
+         if((sp->flags & ISC_HOLD) == 0) {
+		 error = 0;
+		 if (sx_try_xlock(&sp->tx_sx)) {
+			 error = proc_out(sp);
+			 sx_xunlock(&sp->tx_sx);
+		 }
+	      if(error) {
+		   sdebug(3, "error=%d", error);
+	      }
+	 }
 	  mtx_lock(&sp->io_mtx);
 	  if((sp->flags & ISC_LINK_UP) == 0) {
 	       sdebug(3, "ISC_LINK_UP==0, sp->flags=%x ", sp->flags);
@@ -548,7 +645,6 @@ ism_out(void *vp)
 		    sdebug(3, "so_state=%x", sp->soc->so_state);
 	       wakeup(&sp->soc);
 	  }
-
 	  if(!(sp->flags & ISC_OQNOTEMPTY)) {
 	       sp->flags |= ISC_OWAITING;
 	       if(msleep(&sp->flags, &sp->io_mtx, PRIBIO, "isc_proc", hz*30) == EWOULDBLOCK) {
@@ -743,6 +839,7 @@ ism_stop(isc_session_t *sp)
      mtx_destroy(&sp->hld_mtx);
      mtx_destroy(&sp->snd_mtx);
      mtx_destroy(&sp->io_mtx);
+     sx_destroy(&sp->tx_sx);
 
      i_freeopt(&sp->opt);
 
@@ -771,6 +868,7 @@ ism_start(isc_session_t *sp)
      mtx_init(&sp->snd_mtx, "iscsi-snd", NULL, MTX_DEF);
      mtx_init(&sp->hld_mtx, "iscsi-hld", NULL, MTX_DEF);
      mtx_init(&sp->io_mtx, "iscsi-io", NULL, MTX_DEF);
+     sx_init(&sp->tx_sx, "iscsi-tx");
 
      isc_add_sysctls(sp);
 
