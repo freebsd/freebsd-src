@@ -676,8 +676,8 @@ static void		urtw_ledtask(void *, int);
 static void		urtw_watchdog(void *);
 static void		urtw_set_multi(void *);
 static int		urtw_isbmode(uint16_t);
-static uint16_t		urtw_rate2rtl(int);
-static uint16_t		urtw_rtl2rate(int);
+static uint16_t		urtw_rate2rtl(uint32_t);
+static uint16_t		urtw_rtl2rate(uint32_t);
 static usb_error_t	urtw_set_rate(struct urtw_softc *);
 static usb_error_t	urtw_update_msr(struct urtw_softc *);
 static usb_error_t	urtw_read8_c(struct urtw_softc *, int, uint8_t *);
@@ -1092,7 +1092,7 @@ urtw_init(void *arg)
 static usb_error_t
 urtw_adapter_start_b(struct urtw_softc *sc)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	uint8_t data8;
 	usb_error_t error;
 
@@ -1939,9 +1939,9 @@ fail:
 }
 
 static uint16_t
-urtw_rate2rtl(int rate)
+urtw_rate2rtl(uint32_t rate)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int i;
 
 	for (i = 0; i < N(urtw_ratetable); i++) {
@@ -1954,9 +1954,9 @@ urtw_rate2rtl(int rate)
 }
 
 static uint16_t
-urtw_rtl2rate(int rate)
+urtw_rtl2rate(uint32_t rate)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int i;
 
 	for (i = 0; i < N(urtw_ratetable); i++) {
@@ -2481,7 +2481,7 @@ fail:
 static usb_error_t
 urtw_8225_rf_init(struct urtw_softc *sc)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int i;
 	uint16_t data;
 	usb_error_t error;
@@ -2878,7 +2878,7 @@ fail:
 static usb_error_t
 urtw_8225v2_rf_init(struct urtw_softc *sc)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int i;
 	uint16_t data;
 	uint32_t data32;
@@ -3212,7 +3212,7 @@ fail:
 static usb_error_t
 urtw_8225v2b_rf_init(struct urtw_softc *sc)
 {
-#define N(a)	(sizeof(a) / sizeof((a)[0]))
+#define N(a)	((int)(sizeof(a) / sizeof((a)[0])))
 	int i;
 	uint8_t data8;
 	usb_error_t error;
@@ -3958,7 +3958,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
-	if (actlen < URTW_MIN_RXBUFSZ) {
+	if (actlen < (int)URTW_MIN_RXBUFSZ) {
 		ifp->if_ierrors++;
 		return (NULL);
 	}
@@ -4434,9 +4434,9 @@ static device_method_t urtw_methods[] = {
 	{ 0, 0 }
 };
 static driver_t urtw_driver = {
-	"urtw",
-	urtw_methods,
-	sizeof(struct urtw_softc)
+	.name = "urtw",
+	.methods = urtw_methods,
+	.size = sizeof(struct urtw_softc)
 };
 static devclass_t urtw_devclass;
 
