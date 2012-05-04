@@ -115,6 +115,7 @@ struct xhci_std_temp {
 	uint8_t			tbc;
 	uint8_t			tlbpc;
 	uint8_t			step_td;
+	uint8_t			do_isoc_sync;
 };
 
 static void	xhci_do_poll(struct usb_bus *);
@@ -1657,10 +1658,14 @@ restart:
 			td->td_trb[x].dwTrb2 = htole32(dword);
 
 			dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-			  XHCI_TRB_3_TYPE_SET(temp->trb_type) | 
-			  XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8) | 
+			  XHCI_TRB_3_TYPE_SET(temp->trb_type) |
+			  (temp->do_isoc_sync ?
+			   XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8) :
+			   XHCI_TRB_3_ISO_SIA_BIT) |
 			  XHCI_TRB_3_TBC_SET(temp->tbc) |
 			  XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+
+			temp->do_isoc_sync = 0;
 
 			if (temp->direction == UE_DIR_IN) {
 				dword |= XHCI_TRB_3_DIR_IN;
@@ -1764,6 +1769,7 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 	uint32_t y;
 	uint8_t mult;
 
+	temp.do_isoc_sync = 0;
 	temp.step_td = 0;
 	temp.tbc = 0;
 	temp.tlbpc = 0;
@@ -1841,6 +1847,8 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 			 */
 			xfer->endpoint->isoc_next = XHCI_MFINDEX_GET(x + (3 * 8));
 			xfer->endpoint->is_synced = 1;
+			temp.do_isoc_sync = 1;
+
 			DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
 		}
 
@@ -1931,7 +1939,10 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 
 			uint8_t tdpc;
 
-			/* isochronous transfers don't have short packet termination */
+			/*
+			 * Isochronous transfers don't have short
+			 * packet termination:
+			 */
 
 			temp.shortpkt = 1;
 
@@ -2271,12 +2282,29 @@ xhci_configure_device(struct usb_device *udev)
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
 		temp |= XHCI_SCTX_0_SPEED_SET(2);
+		if (udev->parent_hs_hub != NULL &&
+		    udev->parent_hs_hub->ddesc.bDeviceProtocol ==
+		    UDPROTO_HSHUBMTT) {
+			DPRINTF("Device inherits MTT\n");
+			temp |= XHCI_SCTX_0_MTT_SET(1);
+		}
 		break;
 	case USB_SPEED_HIGH:
 		temp |= XHCI_SCTX_0_SPEED_SET(3);
+		if (sc->sc_hw.devs[index].nports != 0 &&
+		    udev->ddesc.bDeviceProtocol == UDPROTO_HSHUBMTT) {
+			DPRINTF("HUB supports MTT\n");
+			temp |= XHCI_SCTX_0_MTT_SET(1);
+		}
 		break;
 	case USB_SPEED_FULL:
 		temp |= XHCI_SCTX_0_SPEED_SET(1);
+		if (udev->parent_hs_hub != NULL &&
+		    udev->parent_hs_hub->ddesc.bDeviceProtocol ==
+		    UDPROTO_HSHUBMTT) {
+			DPRINTF("Device inherits MTT\n");
+			temp |= XHCI_SCTX_0_MTT_SET(1);
+		}
 		break;
 	default:
 		temp |= XHCI_SCTX_0_SPEED_SET(4);
@@ -2287,15 +2315,8 @@ xhci_configure_device(struct usb_device *udev)
 	    (udev->speed == USB_SPEED_SUPER ||
 	    udev->speed == USB_SPEED_HIGH);
 
-	if (is_hub) {
+	if (is_hub)
 		temp |= XHCI_SCTX_0_HUB_SET(1);
-#if 0
-		if (udev->ddesc.bDeviceProtocol == UDPROTO_HSHUBMTT) {
-			DPRINTF("HUB supports MTT\n");
-			temp |= XHCI_SCTX_0_MTT_SET(1);
-		}
-#endif
-	}
 
 	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
 
@@ -2327,8 +2348,10 @@ xhci_configure_device(struct usb_device *udev)
 
 	temp = XHCI_SCTX_2_IRQ_TARGET_SET(0);
 
-	if (is_hub)
-		temp |= XHCI_SCTX_2_TT_THINK_TIME_SET(sc->sc_hw.devs[index].tt);
+	if (is_hub) {
+		temp |= XHCI_SCTX_2_TT_THINK_TIME_SET(
+		    sc->sc_hw.devs[index].tt);
+	}
 
 	hubdev = udev->parent_hs_hub;
 
