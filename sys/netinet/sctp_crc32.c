@@ -124,7 +124,9 @@ void
 sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 {
 #if defined(SCTP_WITH_NO_CSUM)
+#ifdef INVARIANTS
 	panic("sctp_delayed_cksum() called when using no SCTP CRC.");
+#endif
 #else
 	uint32_t checksum;
 
