@@ -90,8 +90,6 @@ static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
 		    struct mfi_evt_log_state **);
 static int	mfi_parse_entries(struct mfi_softc *, int, int);
-static int	mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
-		    uint32_t, void **, size_t);
 static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
 static void	mfi_startup(void *arg);
 static void	mfi_intr(void *arg);
@@ -377,6 +375,7 @@ mfi_attach(struct mfi_softc *sc)
 	TAILQ_INIT(&sc->mfi_syspd_tqh);
 	TAILQ_INIT(&sc->mfi_evt_queue);
 	TASK_INIT(&sc->mfi_evt_task, 0, mfi_handle_evt, sc);
+	TASK_INIT(&sc->mfi_map_sync_task, 0, mfi_handle_map_sync, sc);
 	TAILQ_INIT(&sc->mfi_aen_pids);
 	TAILQ_INIT(&sc->mfi_cam_ccbq);
 
@@ -696,7 +695,6 @@ mfi_attach(struct mfi_softc *sc)
 			return (EINVAL);
 		}
 		sc->mfi_enable_intr(sc);
-		sc->map_id = 0;
 	} else {
 		if ((error = mfi_comms_init(sc)) != 0)
 			return (error);
@@ -761,6 +759,10 @@ mfi_attach(struct mfi_softc *sc)
 	callout_init(&sc->mfi_watchdog_callout, CALLOUT_MPSAFE);
 	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
 	    mfi_timeout, sc);
+
+	if (sc->mfi_flags & MFI_FLAGS_TBOLT) {
+		mfi_tbolt_sync_map_info(sc);
+	}
 
 	return (0);
 }
@@ -845,7 +847,7 @@ mfi_release_command(struct mfi_command *cm)
 	mfi_enqueue_free(cm);
 }
 
-static int
+int
 mfi_dcmd_command(struct mfi_softc *sc, struct mfi_command **cmp,
     uint32_t opcode, void **bufp, size_t bufsize)
 {
@@ -1286,8 +1288,8 @@ mfi_shutdown(struct mfi_softc *sc)
 	if (sc->mfi_aen_cm != NULL)
 		mfi_abort(sc, sc->mfi_aen_cm);
 
-	if (sc->map_update_cmd != NULL)
-		mfi_abort(sc, sc->map_update_cmd);
+	if (sc->mfi_map_sync_cm != NULL)
+		mfi_abort(sc, sc->mfi_map_sync_cm);
 
 	dcmd = &cm->cm_frame->dcmd;
 	dcmd->header.flags = MFI_FRAME_DIR_NONE;
@@ -1664,9 +1666,9 @@ mfi_aen_complete(struct mfi_command *cm)
 	if (sc->mfi_aen_cm == NULL)
 		return;
 
-	if (sc->mfi_aen_cm->cm_aen_abort ||
+	if (sc->cm_aen_abort ||
 	    hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
-		sc->mfi_aen_cm->cm_aen_abort = 0;
+		sc->cm_aen_abort = 0;
 		aborted = 1;
 	} else {
 		sc->mfi_aen_triggered = 1;
@@ -2385,12 +2387,19 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	cm->cm_flags = MFI_CMD_POLLED;
 
 	if (sc->mfi_aen_cm)
-		sc->mfi_aen_cm->cm_aen_abort = 1;
+		sc->cm_aen_abort = 1;
+	if (sc->mfi_map_sync_cm)
+		sc->cm_map_abort = 1;
 	mfi_mapcmd(sc, cm);
 	mfi_release_command(cm);
 
 	while (i < 5 && sc->mfi_aen_cm != NULL) {
 		msleep(&sc->mfi_aen_cm, &sc->mfi_io_lock, 0, "mfiabort",
+		    5 * hz);
+		i++;
+	}
+	while (i < 5 && sc->mfi_map_sync_cm != NULL) {
+		msleep(&sc->mfi_map_sync_cm, &sc->mfi_io_lock, 0, "mfiabort",
 		    5 * hz);
 		i++;
 	}
@@ -3549,9 +3558,9 @@ mfi_timeout(void *data)
 	}
 	mtx_lock(&sc->mfi_io_lock);
 	TAILQ_FOREACH(cm, &sc->mfi_busy, cm_link) {
-		if (sc->mfi_aen_cm == cm)
+		if (sc->mfi_aen_cm == cm || sc->mfi_map_sync_cm == cm)
 			continue;
-		if ((sc->mfi_aen_cm != cm) && (cm->cm_timestamp < deadline)) {
+		if (cm->cm_timestamp < deadline) {
 			if (sc->adpreset != 0 && sc->issuepend_done == 0) {
 				cm->cm_timestamp = time_uptime;
 			} else {
