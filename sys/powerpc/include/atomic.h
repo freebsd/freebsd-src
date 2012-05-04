@@ -51,13 +51,8 @@
  * with the atomic lXarx/stXcx. sequences below. See Appendix B.2 of Book II
  * of the architecture manual.
  */
-#ifdef __powerpc64__
-#define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
-#define __ATOMIC_ACQ()	__asm __volatile("lwsync" : : : "memory")
-#else
 #define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
 #define __ATOMIC_ACQ()	__asm __volatile("isync" : : : "memory")
-#endif
 
 /*
  * atomic_add(p, v)
