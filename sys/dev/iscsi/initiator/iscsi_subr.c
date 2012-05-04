@@ -468,9 +468,6 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      sp = ccb_h->spriv_ptr0;
 
      if (isc_sowouldblock(sp, ccb)) {
-	     SOCKBUF_LOCK(&so->so_snd);
-	     soupcall_set(so, SO_SND, isc_so_snd_upcall, sp);
-	     SOCKBUF_UNLOCK(&so->so_snd);
 	     return (EWOULDBLOCK);
      }
 
