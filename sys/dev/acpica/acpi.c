@@ -294,7 +294,7 @@ static int acpi_cpu_unordered;
 TUNABLE_INT("debug.acpi.cpu_unordered", &acpi_cpu_unordered);
 SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
     &acpi_cpu_unordered, 0,
-    "Do not use the MADT to match ACPI processor objects to CPUs.");
+    "Do not use the MADT to match ACPI Processor objects to CPUs.");
 
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
