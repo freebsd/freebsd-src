@@ -331,6 +331,30 @@ out:
 	return (ret);
 }
 
+int
+libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint)
+{
+	int multiplier;
+	int ret;
+
+	ret = libusb_get_max_packet_size(dev, endpoint);
+
+	switch (libusb20_dev_get_speed(dev->os_priv)) {
+	case LIBUSB20_SPEED_LOW:
+	case LIBUSB20_SPEED_FULL:
+		break;
+	default:
+		if (ret > -1) {
+			multiplier = (1 + ((ret >> 11) & 3));
+			if (multiplier > 3)
+				multiplier = 3;
+			ret = (ret & 0x7FF) * multiplier;
+		}
+		break;
+	}
+	return (ret);
+}
+
 libusb_device *
 libusb_ref_device(libusb_device *dev)
 {
@@ -417,9 +441,12 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	if ((i = libusb_get_device_list(ctx, &devs)) < 0)
 		return (NULL);
 
+	pdev = NULL;
 	for (j = 0; j < i; j++) {
-		pdev = devs[j]->os_priv;
-		pdesc = libusb20_dev_get_device_desc(pdev);
+		struct libusb20_device *tdev;
+
+		tdev = devs[j]->os_priv;
+		pdesc = libusb20_dev_get_device_desc(tdev);
 		/*
 		 * NOTE: The USB library will automatically swap the
 		 * fields in the device descriptor to be of host
@@ -427,13 +454,10 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 		 */
 		if (pdesc->idVendor == vendor_id &&
 		    pdesc->idProduct == product_id) {
-			if (libusb_open(devs[j], &pdev) < 0)
-				pdev = NULL;
+			libusb_open(devs[j], &pdev);
 			break;
 		}
 	}
-	if (j == i)
-		pdev = NULL;
 
 	libusb_free_device_list(devs, 1);
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid leave");
@@ -627,17 +651,17 @@ libusb_set_interface_alt_setting(struct libusb20_device *pdev,
 
 static struct libusb20_transfer *
 libusb10_get_transfer(struct libusb20_device *pdev,
-    uint8_t endpoint, uint8_t index)
+    uint8_t endpoint, uint8_t xfer_index)
 {
-	index &= 1;			/* double buffering */
+	xfer_index &= 1;	/* double buffering */
 
-	index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
+	xfer_index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
 
 	if (endpoint & LIBUSB20_ENDPOINT_DIR_MASK) {
 		/* this is an IN endpoint */
-		index |= 2;
+		xfer_index |= 2;
 	}
-	return (libusb20_tr_get_pointer(pdev, index));
+	return (libusb20_tr_get_pointer(pdev, xfer_index));
 }
 
 int
