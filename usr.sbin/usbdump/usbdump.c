@@ -35,6 +35,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <sys/queue.h>
 #include <net/if.h>
 #include <net/bpf.h>
 #include <dev/usb/usb.h>
@@ -45,11 +46,32 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <sysexits.h>
 #include <err.h>
+
+#define	BPF_STORE_JUMP(x,_c,_k,_jt,_jf) do {	\
+  (x).code = (_c);				\
+  (x).k = (_k);					\
+  (x).jt = (_jt);				\
+  (x).jf = (_jf);				\
+} while (0)
+
+#define	BPF_STORE_STMT(x,_c,_k) do {		\
+  (x).code = (_c);				\
+  (x).k = (_k);					\
+  (x).jt = 0;					\
+  (x).jf = 0;					\
+} while (0)
+
+struct usb_filt {
+	STAILQ_ENTRY(usb_filt) entry;
+	int unit;
+	int endpoint;
+};
 
 struct usbcap {
 	int		fd;		/* fd for /dev/usbpf */
@@ -60,6 +82,8 @@ struct usbcap {
 	int		wfd;
 	/* for -r option */
 	int		rfd;
+	/* for -b option */
+	int		bfd;
 };
 
 struct usbcap_filehdr {
@@ -90,6 +114,8 @@ static int uf_minor;
 static const char *i_arg = "usbus0";
 static const char *r_arg = NULL;
 static const char *w_arg = NULL;
+static const char *b_arg = NULL;
+static struct usbcap uc;
 static const char *errstr_table[USB_ERR_MAX] = {
 	[USB_ERR_NORMAL_COMPLETION]	= "0",
 	[USB_ERR_PENDING_REQUESTS]	= "PENDING_REQUESTS",
@@ -136,6 +162,130 @@ static const char *speed_table[USB_SPEED_MAX] = {
 	[USB_SPEED_VARIABLE] = "VARI",
 	[USB_SPEED_SUPER] = "SUPER",
 };
+
+static STAILQ_HEAD(,usb_filt) usb_filt_head =
+    STAILQ_HEAD_INITIALIZER(usb_filt_head);
+
+static void
+add_filter(int usb_filt_unit, int usb_filt_ep)
+{
+	struct usb_filt *puf;
+
+	puf = malloc(sizeof(struct usb_filt));
+	if (puf == NULL)
+		errx(EX_SOFTWARE, "Out of memory.");
+
+	puf->unit = usb_filt_unit;
+	puf->endpoint = usb_filt_ep;
+
+	STAILQ_INSERT_TAIL(&usb_filt_head, puf, entry);
+}
+
+static void
+make_filter(struct bpf_program *pprog, int snapshot)
+{
+	struct usb_filt *puf;
+	struct bpf_insn *dynamic_insn;
+	int len;
+
+	len = 0;
+
+	STAILQ_FOREACH(puf, &usb_filt_head, entry)
+		len++;
+
+	dynamic_insn = malloc(((len * 5) + 1) * sizeof(struct bpf_insn));
+
+	if (dynamic_insn == NULL)
+		errx(EX_SOFTWARE, "Out of memory.");
+
+	len++;
+
+	if (len == 1) {
+		/* accept all packets */
+
+		BPF_STORE_STMT(dynamic_insn[0], BPF_RET | BPF_K, snapshot);
+
+		goto done;
+	}
+
+	len = 0;
+
+	STAILQ_FOREACH(puf, &usb_filt_head, entry) {
+		const int addr_off = (uintptr_t)&((struct usbpf_pkthdr *)0)->up_address;
+		const int addr_ep = (uintptr_t)&((struct usbpf_pkthdr *)0)->up_endpoint;
+		
+		if (puf->unit != -1) {
+			if (puf->endpoint != -1) {
+				BPF_STORE_STMT(dynamic_insn[len],
+				    BPF_LD | BPF_B | BPF_ABS, addr_off);
+				len++;
+				BPF_STORE_JUMP(dynamic_insn[len],
+				    BPF_JMP | BPF_JEQ | BPF_K, (uint8_t)puf->unit, 0, 3);
+				len++;
+				BPF_STORE_STMT(dynamic_insn[len],
+				    BPF_LD | BPF_W | BPF_ABS, addr_ep);
+				len++;
+				BPF_STORE_JUMP(dynamic_insn[len],
+				    BPF_JMP | BPF_JEQ | BPF_K, htobe32(puf->endpoint), 0, 1);
+				len++;
+			} else {
+				BPF_STORE_STMT(dynamic_insn[len],
+				    BPF_LD | BPF_B | BPF_ABS, addr_off);
+				len++;
+				BPF_STORE_JUMP(dynamic_insn[len],
+				    BPF_JMP | BPF_JEQ | BPF_K, (uint8_t)puf->unit, 0, 1);
+				len++;
+			}
+		} else {
+			if (puf->endpoint != -1) {
+				BPF_STORE_STMT(dynamic_insn[len],
+				    BPF_LD | BPF_W | BPF_ABS, addr_ep);
+				len++;
+				BPF_STORE_JUMP(dynamic_insn[len],
+				    BPF_JMP | BPF_JEQ | BPF_K, htobe32(puf->endpoint), 0, 1);
+				len++;
+			}
+		}
+		BPF_STORE_STMT(dynamic_insn[len],
+		    BPF_RET | BPF_K, snapshot);
+		len++;
+	}
+
+	BPF_STORE_STMT(dynamic_insn[len], BPF_RET | BPF_K, 0);
+	len++;
+
+done:
+	pprog->bf_len = len;
+	pprog->bf_insns = dynamic_insn;
+}
+
+static int
+match_filter(int unit, int endpoint)
+{
+	struct usb_filt *puf;
+
+	if (STAILQ_FIRST(&usb_filt_head) == NULL)
+		return (1);
+
+	STAILQ_FOREACH(puf, &usb_filt_head, entry) {
+		if ((puf->unit == -1 || puf->unit == unit) &&
+		    (puf->endpoint == -1 || puf->endpoint == endpoint))
+			return (1);
+	}
+	return (0);
+}
+
+static void
+free_filter(struct bpf_program *pprog)
+{
+	struct usb_filt *puf;
+
+	while ((puf = STAILQ_FIRST(&usb_filt_head)) != NULL) {
+		STAILQ_REMOVE_HEAD(&usb_filt_head, entry);
+		free(puf);
+	}
+	free(pprog->bf_insns);
+}
 
 static void
 handle_sigint(int sig)
@@ -332,28 +482,33 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 	up->up_packet_count = le32toh(up->up_packet_count);
 	up->up_endpoint = le32toh(up->up_endpoint);
 
+	if (!match_filter(up->up_address, up->up_endpoint))
+		return;
+
 	tv.tv_sec = hdr->ts_sec;
 	tv.tv_usec = hdr->ts_usec;
 	tm = localtime(&tv.tv_sec);
 
 	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
 
-	printf("%.*s.%06ld usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
-	    (int)len, buf, tv.tv_usec,
-	    (int)up->up_busunit, (int)up->up_address,
-	    (up->up_type == USBPF_XFERTAP_SUBMIT) ? "SUBM" : "DONE",
-	    xfertype_table[up->up_xfertype],
-	    (unsigned int)up->up_endpoint,
-	    usb_speedstr(up->up_speed),
-	    (int)up->up_frames,
-	    (int)(up->up_totlen - USBPF_HDR_LEN -
-	    (USBPF_FRAME_HDR_LEN * up->up_frames)),
-	    (int)up->up_interval,
-	    (up->up_type == USBPF_XFERTAP_DONE) ? ",ERR=" : "",
-	    (up->up_type == USBPF_XFERTAP_DONE) ?
-	    usb_errstr(up->up_error) : "");
+	if (verbose >= 0) {
+		printf("%.*s.%06ld usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
+		    (int)len, buf, tv.tv_usec,
+		    (int)up->up_busunit, (int)up->up_address,
+		    (up->up_type == USBPF_XFERTAP_SUBMIT) ? "SUBM" : "DONE",
+		    xfertype_table[up->up_xfertype],
+		    (unsigned int)up->up_endpoint,
+		    usb_speedstr(up->up_speed),
+		    (int)up->up_frames,
+		    (int)(up->up_totlen - USBPF_HDR_LEN -
+		    (USBPF_FRAME_HDR_LEN * up->up_frames)),
+		    (int)up->up_interval,
+		    (up->up_type == USBPF_XFERTAP_DONE) ? ",ERR=" : "",
+		    (up->up_type == USBPF_XFERTAP_DONE) ?
+		    usb_errstr(up->up_error) : "");
+	}
 
-	if (verbose >= 1) {
+	if (verbose >= 1 || b_arg != NULL) {
 		for (x = 0; x != up->up_frames; x++) {
 			const struct usbpf_framehdr *uf;
 			uint32_t framelen;
@@ -368,10 +523,12 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 			framelen = le32toh(uf->length);
 			flags = le32toh(uf->flags);
 
-			printf(" frame[%u] %s %d bytes\n",
-			    (unsigned int)x,
-			    (flags & USBPF_FRAMEFLAG_READ) ? "READ" : "WRITE",
-			    (int)framelen);
+			if (verbose >= 1) {
+				printf(" frame[%u] %s %d bytes\n",
+				    (unsigned int)x,
+				    (flags & USBPF_FRAMEFLAG_READ) ? "READ" : "WRITE",
+				    (int)framelen);
+			}
 
 			if (flags & USBPF_FRAMEFLAG_DATA_FOLLOWS) {
 
@@ -385,7 +542,15 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 				    (int)framelen < 0 || (int)ptr_len < 0)
 					break;
 
-				hexdump(ptr, framelen);
+				if (b_arg != NULL) {
+					struct usbcap *p = &uc;
+					int ret;
+					ret = write(p->bfd, ptr, framelen);
+					if (ret != (int)framelen)
+						err(EXIT_FAILURE, "Could not write binary data");
+				}
+				if (verbose >= 1)
+					hexdump(ptr, framelen);
 
 				ptr += tot_frame_len;
 			}
@@ -462,7 +627,7 @@ print_packets(uint8_t *data, const int datalen)
 		if (next <= ptr)
 			err(EXIT_FAILURE, "Invalid length");
 
-		if (w_arg == NULL || r_arg != NULL) {
+		if (verbose >= 0 || r_arg != NULL || b_arg != NULL) {
 			print_apacket(&temp, ptr +
 			    temp.hdrlen, temp.caplen);
 		}
@@ -604,10 +769,13 @@ usage(void)
 #define FMT "    %-14s %s\n"
 	fprintf(stderr, "usage: usbdump [options]\n");
 	fprintf(stderr, FMT, "-i <usbusX>", "Listen on USB bus interface");
+	fprintf(stderr, FMT, "-f <unit[.endpoint]>", "Specify a device and endpoint filter");
 	fprintf(stderr, FMT, "-r <file>", "Read the raw packets from file");
 	fprintf(stderr, FMT, "-s <snaplen>", "Snapshot bytes from each packet");
 	fprintf(stderr, FMT, "-v", "Increase the verbose level");
+	fprintf(stderr, FMT, "-b <file>", "Save raw version of all recorded data to file");
 	fprintf(stderr, FMT, "-w <file>", "Write the raw packets to file");
+	fprintf(stderr, FMT, "-h", "Display summary of command line options");
 #undef FMT
 	exit(EX_USAGE);
 }
@@ -616,20 +784,21 @@ int
 main(int argc, char *argv[])
 {
 	struct timeval tv;
-	struct bpf_insn total_insn;
 	struct bpf_program total_prog;
 	struct bpf_stat us;
 	struct bpf_version bv;
-	struct usbcap uc, *p = &uc;
+	struct usbcap *p = &uc;
 	struct ifreq ifr;
 	long snapshot = 192;
 	uint32_t v;
-	int fd, o;
+	int fd;
+	int o;
+	int filt_unit;
+	int filt_ep;
 	const char *optstring;
+	char *pp;
 
-	memset(&uc, 0, sizeof(struct usbcap));
-
-	optstring = "i:r:s:vw:";
+	optstring = "b:hi:r:s:vw:f:";
 	while ((o = getopt(argc, argv, optstring)) != -1) {
 		switch (o) {
 		case 'i':
@@ -640,13 +809,18 @@ main(int argc, char *argv[])
 			init_rfile(p);
 			break;
 		case 's':
-			snapshot = strtol(optarg, NULL, 10);
+			snapshot = strtol(optarg, &pp, 10);
 			errno = 0;
+			if (pp != NULL && *pp != 0)
+				usage();
 			if (snapshot == 0 && errno == EINVAL)
 				usage();
 			/* snapeshot == 0 is special */
 			if (snapshot == 0)
 				snapshot = -1;
+			break;
+		case 'b':
+			b_arg = optarg;
 			break;
 		case 'v':
 			verbose++;
@@ -655,11 +829,41 @@ main(int argc, char *argv[])
 			w_arg = optarg;
 			init_wfile(p);
 			break;
+		case 'f':
+			filt_unit = strtol(optarg, &pp, 10);
+			filt_ep = -1;
+			if (pp != NULL) {
+				if (*pp == '.') {
+					filt_ep = strtol(pp + 1, &pp, 10);
+					if (pp != NULL && *pp != 0)
+						usage();
+				} else if (*pp != 0) {
+					usage();
+				}
+			}
+			add_filter(filt_unit, filt_ep);
+			break;
 		default:
 			usage();
 			/* NOTREACHED */
 		}
 	}
+
+	if (b_arg != NULL) {
+		p->bfd = open(b_arg, O_CREAT | O_TRUNC |
+		    O_WRONLY, S_IRUSR | S_IWUSR);
+		if (p->bfd < 0) {
+			err(EXIT_FAILURE, "Could not open "
+			    "'%s' for write", b_arg);
+		}
+	}
+
+	/*
+	 * Require more verbosity to print anything when -w or -b is
+	 * specified on the command line:
+	 */
+	if (w_arg != NULL || b_arg != NULL)
+		verbose--;
 
 	if (r_arg != NULL) {
 		read_file(p);
@@ -700,16 +904,12 @@ main(int argc, char *argv[])
 	if (p->buffer == NULL)
 		errx(EX_SOFTWARE, "Out of memory.");
 
-	/* XXX no read filter rules yet so at this moment accept everything */
-	total_insn.code = (u_short)(BPF_RET | BPF_K);
-	total_insn.jt = 0;
-	total_insn.jf = 0;
-	total_insn.k = snapshot;
+	make_filter(&total_prog, snapshot);
 
-	total_prog.bf_len = 1;
-	total_prog.bf_insns = &total_insn;
 	if (ioctl(p->fd, BIOCSETF, (caddr_t)&total_prog) < 0)
 		err(EXIT_FAILURE, "BIOCSETF ioctl failed");
+
+	free_filter(&total_prog);
 
 	/* 1 second read timeout */
 	tv.tv_sec = 1;
@@ -736,6 +936,8 @@ main(int argc, char *argv[])
 		close(p->rfd);
 	if (p->wfd > 0)
 		close(p->wfd);
+	if (p->bfd > 0)
+		close(p->bfd);
 
 	return (EXIT_SUCCESS);
 }
