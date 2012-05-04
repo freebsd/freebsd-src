@@ -199,7 +199,10 @@ typedef struct isc_session {
      struct cam_sim	*cam_sim;
      struct cam_path	*cam_path;
      struct mtx		cam_mtx;
-#define ISC_QFROZEN   0x1
+#define ISC_QFROZEN     0x1
+#define ISC_QUNFREEZE   0x2
+
+
      int cam_flags;
      /*
       | sysctl stuff

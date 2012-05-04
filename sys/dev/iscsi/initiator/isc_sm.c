@@ -370,14 +370,17 @@ isc_so_snd_upcall(struct socket *so, void *arg, int flags)
 		if (sp->cam_sim->devq->send_queue.qfrozen_cnt[0] != 0) 
 			printf("qfrozen_cnt went to bad value %d\n",
 			    sp->cam_sim->devq->send_queue.qfrozen_cnt[0]);
-		sp->cam_sim->devq->send_queue.qfrozen_cnt[0] = 1;
 	}
-	if (sp->cam_sim->devq->send_queue.qfrozen_cnt[0] > 0)
-		xpt_release_simq(sp->cam_sim, 0);
-	else
+	if (sp->cam_sim->devq->send_queue.qfrozen_cnt[0] > 0) {
+		sp->flags |= ISC_QUNFREEZE;
+
+		mtx_lock(&sp->io_mtx);
+		if (sp->flags & ISC_OWAITING)
+			wakeup(&sp->flags);
+		mtx_unlock(&sp->io_mtx);
+	} else
 		printf("queue already released !!! %d\n",
 		    sp->cam_sim->devq->send_queue.qfrozen_cnt[0]);
-	sp->cam_flags &= ~ISC_QFROZEN;
 	mtx_unlock(sp->cam_sim->mtx);
 
 	return (SU_OK);
@@ -643,6 +646,12 @@ ism_out(void *vp)
      sp->flags |= ISC_SM_RUNNING;
      sdebug(3, "started sp->flags=%x", sp->flags);
      do {
+	     CAM_LOCK(sp);
+	     if  (sp->flags & ISC_QUNFREEZE) {
+		     xpt_release_simq(sp->cam_sim, 1);
+		     sp->flags &= ~(ISC_QUNFREEZE|ISC_QFROZEN);
+	     }
+	     CAM_UNLOCK(sp);
          if((sp->flags & ISC_HOLD) == 0) {
 		 error = 0;
 		 if (sx_try_xlock(&sp->tx_sx)) {
