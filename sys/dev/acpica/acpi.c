@@ -289,6 +289,13 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
     &acpi_reset_clock, 1, "Reset system clock while resuming.");
 #endif
 
+/* Allow users to ignore processor orders in MADT. */
+static int acpi_cpu_unordered;
+TUNABLE_INT("debug.acpi.cpu_unordered", &acpi_cpu_unordered);
+SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
+    &acpi_cpu_unordered, 0,
+    "Do not use the MADT to match ACPI processor objects to CPUs.");
+
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
 
@@ -1856,11 +1863,15 @@ static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
     struct acpi_prw_data prw;
+    ACPI_BUFFER buf;
+    ACPI_OBJECT obj;
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
+    struct pcpu *pc;
     device_t bus, child;
     char *handle_str;
-    int order;
+    u_int cpuid;
+    int order, unit;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -1898,6 +1909,31 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_POWER:
+	    unit = -1;
+	    if (type == ACPI_TYPE_PROCESSOR && acpi_cpu_unordered == 0) {
+		ACPI_STATUS s;
+		buf.Pointer = &obj;
+		buf.Length = sizeof(obj);
+		s = AcpiEvaluateObject(handle, NULL, NULL, &buf);
+		if (ACPI_SUCCESS(s)) {
+		    CPU_FOREACH(cpuid) {
+			pc = pcpu_find(cpuid);
+			if (pc->pc_acpi_id == obj.Processor.ProcId) {
+			    unit = cpuid;
+			    if (bootverbose)
+				printf("ACPI: %s (ACPI ID %u) -> cpu%d\n",
+				    handle_str, obj.Processor.ProcId, unit);
+			    break;
+			}
+		    }
+		    if (unit == -1) {
+			if (bootverbose)
+			    printf("ACPI: %s (ACPI ID %u) ignored\n",
+				handle_str, obj.Processor.ProcId);
+			break;
+		    }
+		}
+	    }
 	    /* 
 	     * Create a placeholder device for this node.  Sort the
 	     * placeholder so that the probe/attach passes will run
@@ -1908,7 +1944,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
 	    order = level * 10 + ACPI_DEV_BASE_ORDER;
 	    acpi_probe_order(handle, &order);
-	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
+	    child = BUS_ADD_CHILD(bus, order, NULL, unit);
 	    if (child == NULL)
 		break;
 
