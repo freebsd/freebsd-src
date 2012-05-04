@@ -362,7 +362,7 @@ isc_so_snd_upcall(struct socket *so, void *arg, int flags)
 	soupcall_clear(so, SO_SND);
 	sp->space_needed = 0;
 
-	mtx_lock(sp->cam_sim->mtx);
+	CAM_LOCK(sp);
 
 	if (sp->cam_sim->devq->send_queue.qfrozen_cnt[0] != 1) {
 
@@ -371,17 +371,13 @@ isc_so_snd_upcall(struct socket *so, void *arg, int flags)
 			printf("qfrozen_cnt went to bad value %d\n",
 			    sp->cam_sim->devq->send_queue.qfrozen_cnt[0]);
 	}
-	if (sp->cam_flags & ISC_QFROZEN) {
-		sp->cam_flags |= ISC_QUNFREEZE;
-
-		mtx_lock(&sp->io_mtx);
-		if (sp->flags & ISC_OWAITING)
-			wakeup(&sp->flags);
-		mtx_unlock(&sp->io_mtx);
-	} else
-		printf("queue already released !!! %d\n",
-		    sp->cam_sim->devq->send_queue.qfrozen_cnt[0]);
-	mtx_unlock(sp->cam_sim->mtx);
+	sp->cam_flags |= ISC_QUNFREEZE;
+	
+	mtx_lock(&sp->io_mtx);
+	if (sp->flags & ISC_OWAITING)
+	  wakeup(&sp->flags);
+	mtx_unlock(&sp->io_mtx);
+	CAM_UNLOCK(sp);
 
 	return (SU_OK);
 }
