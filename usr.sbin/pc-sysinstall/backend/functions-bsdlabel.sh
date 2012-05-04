@@ -177,6 +177,8 @@ setup_gpart_partitions()
   # Lets read in the config file now and setup our partitions
   if [ "${_pType}" = "gpt" ] ; then
     CURPART="2"
+  elif [ "${_pType}" = "apm" ] ; then
+    CURPART="3"
   else
     PARTLETTER="a"
     CURPART="1"
@@ -255,6 +257,9 @@ setup_gpart_partitions()
         if [ "${CURPART}" = "2" -a "$_pType" = "gpt" ] ; then
           export FOUNDROOT="0"
         fi
+        if [ "${CURPART}" = "3" -a "$_pType" = "apm" ] ; then
+          export FOUNDROOT="0"
+        fi
         if [ "${CURPART}" = "1" -a "$_pType" = "mbr" ] ; then
           export FOUNDROOT="0"
         fi
@@ -267,6 +272,9 @@ setup_gpart_partitions()
       if [ $? -eq 0 ] ; then
         export USINGBOOTPART="0"
         if [ "${CURPART}" != "2" -a "${_pType}" = "gpt" ] ; then
+            exit_err "/boot partition must be first partition"
+        fi
+        if [ "${CURPART}" != "3" -a "${_pType}" = "apm" ] ; then
             exit_err "/boot partition must be first partition"
         fi
         if [ "${CURPART}" != "1" -a "${_pType}" = "mbr" ] ; then
@@ -288,6 +296,8 @@ setup_gpart_partitions()
       # Get any extra options for this fs / line
       if [ "${_pType}" = "gpt" ] ; then
         get_fs_line_xvars "${_pDisk}p${CURPART}" "${STRING}"
+      elif [ "${_pType}" = "apm" ] ; then
+        get_fs_line_xvars "${_pDisk}s${CURPART}" "${STRING}"
       else
         get_fs_line_xvars "${_wSlice}${PARTLETTER}" "${STRING}"
       fi
@@ -298,6 +308,8 @@ setup_gpart_partitions()
       if [ $? -eq 0 -a "$FS" = "ZFS" ] ; then
         if [ "${_pType}" = "gpt" -o "${_pType}" = "gptslice" ] ; then
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}p${CURPART}")
+        elif [ "${_pType}" = "apm" ] ; then
+       	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}s${CURPART}")
         else
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_wSlice}${PARTLETTER}")
         fi
@@ -323,6 +335,9 @@ setup_gpart_partitions()
       elif [ "${_pType}" = "gptslice" ]; then
         sleep 2
         rc_halt "gpart add ${SOUT} -t ${PARTYPE} ${_wSlice}"
+      elif [ "${_pType}" = "apm" ]; then
+        sleep 2
+        rc_halt "gpart add ${SOUT} -t ${PARTYPE} ${_pDisk}"
       else
         sleep 2
         rc_halt "gpart add ${SOUT} -t ${PARTYPE} -i ${CURPART} ${_wSlice}"
@@ -352,6 +367,18 @@ setup_gpart_partitions()
         if [ -n "${ENCPASS}" ] ; then
           echo "${ENCPASS}" >${PARTDIR}-enc/${_dFile}p${CURPART}-encpass
         fi
+      elif [ "${_pType}" = "apm" ] ; then
+	_dFile="`echo $_pDisk | sed 's|/|-|g'`"
+        echo "${FS}#${MNT}#${ENC}#${PLABEL}#GPT#${XTRAOPTS}" >${PARTDIR}/${_dFile}s${CURPART}
+
+        # Clear out any headers
+        sleep 2
+        dd if=/dev/zero of=${_pDisk}s${CURPART} count=2048 2>/dev/null
+
+        # If we have a enc password, save it as well
+        if [ -n "${ENCPASS}" ] ; then
+          echo "${ENCPASS}" >${PARTDIR}-enc/${_dFile}s${CURPART}-encpass
+        fi
       else
 	# MBR Partition or GPT slice
 	_dFile="`echo $_wSlice | sed 's|/|-|g'`"
@@ -368,9 +395,10 @@ setup_gpart_partitions()
 
 
       # Increment our parts counter
-      if [ "$_pType" = "gpt" ] ; then 
+      if [ "$_pType" = "gpt" -o "$_pType" = "apm" ] ; then 
           CURPART=$((CURPART+1))
-        # If this is a gpt partition, we can continue and skip the MBR part letter stuff
+        # If this is a gpt/apm partition, 
+        # we can continue and skip the MBR part letter stuff
         continue
       else
           CURPART=$((CURPART+1))
@@ -437,6 +465,9 @@ populate_disk_label()
   if [ "$type" = "mbr" ] ; then
     wrkslice="${diskid}s${slicenum}"
   fi
+  if [ "$type" = "apm" ] ; then
+    wrkslice="${diskid}s${slicenum}"
+  fi
   if [ "$type" = "gpt" -o "$type" = "gptslice" ] ; then
     wrkslice="${diskid}p${slicenum}"
   fi
@@ -472,6 +503,9 @@ setup_disk_label()
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
     if [ "$type" = "gpt" -a ! -e "${disk}p${pnum}" ] ; then
+      exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
+    fi
+    if [ "$type" = "apm" -a ! -e "${disk}s${pnum}" ] ; then
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
     if [ "$type" = "gptslice" -a ! -e "${disk}p${pnum}" ] ; then
