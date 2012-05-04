@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: zilog,v 1.7 2009/09/19 16:28:13 christos Exp $
 # zilog:  file(1) magic for Zilog Z8000.
 #
 # Was it big-endian or little-endian?  My Product Specification doesn't

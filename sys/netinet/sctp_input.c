@@ -786,12 +786,12 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 	sctp_abort_notification(stcb, 0, SCTP_SO_NOT_LOCKED);
 	/* free the tcb */
 #if defined(SCTP_PANIC_ON_ABORT)
-	printf("stcb:%p state:%d rport:%d net:%p\n",
+	SCTP_PRINTF("stcb:%p state:%d rport:%d net:%p\n",
 	    stcb, stcb->asoc.state, stcb->rport, net);
 	if (!(stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
 		panic("Received an ABORT");
 	} else {
-		printf("No panic its in state %x closed\n", stcb->asoc.state);
+		SCTP_PRINTF("No panic its in state %x closed\n", stcb->asoc.state);
 	}
 #endif
 	SCTP_STAT_INCR_COUNTER32(sctps_aborted);
@@ -2463,12 +2463,10 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 		struct mbuf *mat;
 
-		mat = m_sig;
-		while (mat) {
+		for (mat = m_sig; mat; mat = SCTP_BUF_NEXT(mat)) {
 			if (SCTP_BUF_IS_EXTENDED(mat)) {
 				sctp_log_mb(mat, SCTP_MBUF_SPLIT);
 			}
-			mat = SCTP_BUF_NEXT(mat);
 		}
 	}
 #endif
@@ -5461,23 +5459,24 @@ process_control_chunks:
 					phd->param_type = htons(SCTP_CAUSE_UNRECOG_CHUNK);
 					phd->param_length = htons(chk_length + sizeof(*phd));
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
-					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, SCTP_SIZE32(chk_length),
-					    M_DONTWAIT);
+					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, chk_length, M_DONTWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
+						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL)) {
+							sctp_m_freem(mm);
+						} else {
 #ifdef SCTP_MBUF_LOGGING
-						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-							struct mbuf *mat;
+							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+								struct mbuf *mat;
 
-							mat = SCTP_BUF_NEXT(mm);
-							while (mat) {
-								if (SCTP_BUF_IS_EXTENDED(mat)) {
-									sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+								for (mat = SCTP_BUF_NEXT(mm); mat; mat = SCTP_BUF_NEXT(mat)) {
+									if (SCTP_BUF_IS_EXTENDED(mat)) {
+										sctp_log_mb(mat, SCTP_MBUF_ICOPY);
+									}
 								}
-								mat = SCTP_BUF_NEXT(mat);
 							}
-						}
 #endif
-						sctp_queue_op_err(stcb, mm);
+							sctp_queue_op_err(stcb, mm);
+						}
 					} else {
 						sctp_m_freem(mm);
 					}
@@ -5793,9 +5792,9 @@ static void
 sctp_print_mbuf_chain(struct mbuf *m)
 {
 	for (; m; m = SCTP_BUF_NEXT(m)) {
-		printf("%p: m_len = %ld\n", m, SCTP_BUF_LEN(m));
+		SCTP_PRINTF("%p: m_len = %ld\n", m, SCTP_BUF_LEN(m));
 		if (SCTP_BUF_IS_EXTENDED(m))
-			printf("%p: extend_size = %d\n", m, SCTP_BUF_EXTEND_SIZE(m));
+			SCTP_PRINTF("%p: extend_size = %d\n", m, SCTP_BUF_EXTEND_SIZE(m));
 	}
 }
 
@@ -5805,10 +5804,6 @@ sctp_print_mbuf_chain(struct mbuf *m)
 void
 sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 {
-#ifdef SCTP_MBUF_LOGGING
-	struct mbuf *mat;
-
-#endif
 	struct mbuf *m;
 	int iphlen;
 	uint32_t vrf_id = 0;
@@ -5843,6 +5838,8 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 #ifdef SCTP_MBUF_LOGGING
 	/* Log in any input mbufs */
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+		struct mbuf *mat;
+
 		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
 			if (SCTP_BUF_IS_EXTENDED(mat)) {
 				sctp_log_mb(mat, SCTP_MBUF_INPUT);

@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stddef.h>
@@ -480,6 +481,7 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 		if ((n = fmt - cp) != 0) {
 			if ((unsigned)ret + n > INT_MAX) {
 				ret = EOF;
+				errno = EOVERFLOW;
 				goto error;
 			}
 			PRINT(cp, n);
@@ -935,6 +937,7 @@ number:			if ((dprec = prec) >= 0)
 		prsize = width > realsz ? width : realsz;
 		if ((unsigned)ret + prsize > INT_MAX) {
 			ret = EOF;
+			errno = EOVERFLOW;
 			goto error;
 		}
 

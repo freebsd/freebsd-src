@@ -1577,7 +1577,6 @@ static int
 tmpfs_inactive(struct vop_inactive_args *v)
 {
 	struct vnode *vp = v->a_vp;
-	struct thread *l = v->a_td;
 
 	struct tmpfs_node *node;
 
@@ -1586,7 +1585,7 @@ tmpfs_inactive(struct vop_inactive_args *v)
 	node = VP_TO_TMPFS_NODE(vp);
 
 	if (node->tn_links == 0)
-		vrecycle(vp, l);
+		vrecycle(vp);
 
 	return 0;
 }

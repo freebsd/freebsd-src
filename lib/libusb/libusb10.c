@@ -651,17 +651,17 @@ libusb_set_interface_alt_setting(struct libusb20_device *pdev,
 
 static struct libusb20_transfer *
 libusb10_get_transfer(struct libusb20_device *pdev,
-    uint8_t endpoint, uint8_t index)
+    uint8_t endpoint, uint8_t xfer_index)
 {
-	index &= 1;			/* double buffering */
+	xfer_index &= 1;	/* double buffering */
 
-	index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
+	xfer_index |= (endpoint & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 4;
 
 	if (endpoint & LIBUSB20_ENDPOINT_DIR_MASK) {
 		/* this is an IN endpoint */
-		index |= 2;
+		xfer_index |= 2;
 	}
-	return (libusb20_tr_get_pointer(pdev, index));
+	return (libusb20_tr_get_pointer(pdev, xfer_index));
 }
 
 int
@@ -1322,7 +1322,7 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	uint32_t endpoint;
+	uint8_t endpoint;
 	int err;
 
 	if (uxfer == NULL)
@@ -1332,9 +1332,6 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	endpoint = uxfer->endpoint;
-
-	if (endpoint > 255)
-		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(uxfer->dev_handle);
 
@@ -1385,7 +1382,7 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	uint32_t endpoint;
+	uint8_t endpoint;
 	int retval;
 
 	if (uxfer == NULL)
@@ -1396,9 +1393,6 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 		return (LIBUSB_ERROR_NOT_FOUND);
 
 	endpoint = uxfer->endpoint;
-
-	if (endpoint > 255)
-		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	dev = libusb_get_device(uxfer->dev_handle);
 

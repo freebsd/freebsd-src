@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2012
+.Dd May 1, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1979,6 +1979,12 @@ Enable or disable forwarding packets by a mesh interface.
 By default
 .Cm meshforward
 is enabled.
+.It Cm meshgate
+This attribute specifies whether or not the mesh STA activates mesh gate
+announcements.
+By default
+.Cm meshgate
+is disabled.
 .It Cm meshmetric Ar protocol
 Set the specified
 .Ar protocol

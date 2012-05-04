@@ -811,6 +811,27 @@ static struct da_quirk_entry da_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "???PVT*", "*" },
 		/*quirks*/DA_Q_4K
 	},
+	{
+		/*
+		 * Olympus FE-210 camera
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "FE210*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * LG UP3S MP3 player
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "LG", "UP3S",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Laser MP3-2GA13 MP3 player
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB 2.0", "(HS) Flash Disk",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -938,7 +959,9 @@ daopen(struct disk *dp)
 	if (error != 0)
 		xpt_print(periph->path, "unable to retrieve capacity data");
 
-	if (periph->flags & CAM_PERIPH_INVALID)
+	if (periph->flags & CAM_PERIPH_INVALID ||
+	    softc->disk->d_sectorsize == 0 ||
+	    softc->disk->d_mediasize == 0)
 		error = ENXIO;
 
 	if (error == 0 && (softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&

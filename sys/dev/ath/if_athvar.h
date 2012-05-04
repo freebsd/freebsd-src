@@ -508,6 +508,7 @@ struct ath_softc {
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
 	struct task		sc_resettask;	/* interface reset task */
+	struct task		sc_fataltask;	/* fatal task */
 	enum {
 		OK,				/* no change needed */
 		UPDATE,				/* update pending */
@@ -1010,6 +1011,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_isFastClockEnabled)((_ah)))
 #define	ath_hal_radar_wait(_ah, _chan) \
 	((*(_ah)->ah_radarWait)((_ah), (_chan)))
+#define	ath_hal_get_mib_cycle_counts(_ah, _sample) \
+	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
 

@@ -174,7 +174,7 @@ TUNABLE_INT("hw.cxgbe.nofldrxq1g", &t4_nofldrxq1g);
 static int t4_tmr_idx_10g = TMR_IDX_10G;
 TUNABLE_INT("hw.cxgbe.holdoff_timer_idx_10G", &t4_tmr_idx_10g);
 
-#define PKTC_IDX_10G 2
+#define PKTC_IDX_10G (-1)
 static int t4_pktc_idx_10g = PKTC_IDX_10G;
 TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_10G", &t4_pktc_idx_10g);
 
@@ -182,7 +182,7 @@ TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_10G", &t4_pktc_idx_10g);
 static int t4_tmr_idx_1g = TMR_IDX_1G;
 TUNABLE_INT("hw.cxgbe.holdoff_timer_idx_1G", &t4_tmr_idx_1g);
 
-#define PKTC_IDX_1G 2
+#define PKTC_IDX_1G (-1)
 static int t4_pktc_idx_1g = PKTC_IDX_1G;
 TUNABLE_INT("hw.cxgbe.holdoff_pktc_idx_1G", &t4_pktc_idx_1g);
 
@@ -1449,6 +1449,11 @@ prep_firmware(struct adapter *sc)
 
 	/* Check firmware version and install a different one if necessary */
 	rc = t4_check_fw_version(sc);
+	snprintf(sc->fw_version, sizeof(sc->fw_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
 	if (rc != 0) {
 		uint32_t v = 0;
 
@@ -1505,6 +1510,12 @@ prep_firmware(struct adapter *sc)
 			} else {
 				/* refresh */
 				(void) t4_check_fw_version(sc);
+				snprintf(sc->fw_version,
+				    sizeof(sc->fw_version), "%u.%u.%u.%u",
+				    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
+				    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
+				    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
+				    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
 			}
 		}
 	}
@@ -1548,11 +1559,6 @@ prep_firmware(struct adapter *sc)
 			goto done;	/* error message displayed already */
 	}
 
-	snprintf(sc->fw_version, sizeof(sc->fw_version), "%u.%u.%u.%u",
-	    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
-	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
-	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
-	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
 	sc->flags |= FW_OK;
 
 done:

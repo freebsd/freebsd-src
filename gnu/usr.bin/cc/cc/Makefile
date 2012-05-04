@@ -9,7 +9,9 @@ PROG=	gcc
 MAN=	gcc.1
 SRCS+=  gccspec.c
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=yes
+.endif
 
 MLINKS=	gcc.1 g++.1
 .if ${MK_CLANG_IS_CC} == "no"

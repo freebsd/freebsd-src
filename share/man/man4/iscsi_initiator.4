@@ -25,8 +25,8 @@
 .\" $FreeBSD$
 .\"
 .Dd August 3, 2010
-.Os
 .Dt ISCSI_INITIATOR 4
+.Os
 .Sh NAME
 .Nm iscsi_initiator
 .Nd kernel driver for the iSCSI protocol
@@ -75,9 +75,9 @@ is the IP address of the target of session
 .Em n .
 .It Va net.iscsi.n.stats
 are some statistics for session
-.EM n
+.Em n
 .It Va net.iscsi.n.pid
-is the 
+is the
 .Em "process id"
 of the userland side of session
 .Em n ,
@@ -85,11 +85,11 @@ see
 .Xr iscontrol 8 .
 .El
 .Sh FILES
-The 
+The
 .Nm
 driver creates the following:
-.Bl -tag -width ".Pa /dev/iscsi%dxx" -compact
 .Pp
+.Bl -tag -width ".Pa /dev/iscsi%dxx" -compact
 .It Pa /dev/iscsi
 used to create new sessions.
 .It Pa /dev/iscsi%d
@@ -102,7 +102,7 @@ for each new session.
 .Sh STANDARDS
 iSCSI RFC 3720
 .\" .Sh HISTORY
-.\" .Sh AUTHORS
+.Sh AUTHORS
 This software was written by Daniel Braniss <danny@cs.huji.ac.il>
 .Sh BUGS
 The lun discovery method is old-fashioned.

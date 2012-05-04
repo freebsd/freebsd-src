@@ -625,24 +625,6 @@ void Interpreter::visitReturnInst(ReturnInst &I) {
   popStackAndReturnValueToCaller(RetTy, Result);
 }
 
-void Interpreter::visitUnwindInst(UnwindInst &I) {
-  // Unwind stack
-  Instruction *Inst;
-  do {
-    ECStack.pop_back();
-    if (ECStack.empty())
-      report_fatal_error("Empty stack during unwind!");
-    Inst = ECStack.back().Caller.getInstruction();
-  } while (!(Inst && isa<InvokeInst>(Inst)));
-
-  // Return from invoke
-  ExecutionContext &InvokingSF = ECStack.back();
-  InvokingSF.Caller = CallSite();
-
-  // Go to exceptional destination BB of invoke instruction
-  SwitchToNewBasicBlock(cast<InvokeInst>(Inst)->getUnwindDest(), InvokingSF);
-}
-
 void Interpreter::visitUnreachableInst(UnreachableInst &I) {
   report_fatal_error("Program executed an 'unreachable' instruction!");
 }
@@ -668,12 +650,10 @@ void Interpreter::visitSwitchInst(SwitchInst &I) {
 
   // Check to see if any of the cases match...
   BasicBlock *Dest = 0;
-  unsigned NumCases = I.getNumCases();
-  // Skip the first item since that's the default case.
-  for (unsigned i = 1; i < NumCases; ++i) {
-    GenericValue CaseVal = getOperandValue(I.getCaseValue(i), SF);
+  for (SwitchInst::CaseIt i = I.case_begin(), e = I.case_end(); i != e; ++i) {
+    GenericValue CaseVal = getOperandValue(i.getCaseValue(), SF);
     if (executeICMP_EQ(CondVal, CaseVal, ElTy).IntVal != 0) {
-      Dest = cast<BasicBlock>(I.getSuccessor(i));
+      Dest = cast<BasicBlock>(i.getCaseSuccessor());
       break;
     }
   }
@@ -1253,8 +1233,7 @@ GenericValue Interpreter::getConstantExprValue (ConstantExpr *CE,
     break;
   default:
     dbgs() << "Unhandled ConstantExpr: " << *CE << "\n";
-    llvm_unreachable(0);
-    return GenericValue();
+    llvm_unreachable("Unhandled ConstantExpr");
   }
   return Dest;
 }

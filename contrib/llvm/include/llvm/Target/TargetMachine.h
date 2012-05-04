@@ -14,7 +14,8 @@
 #ifndef LLVM_TARGET_TARGETMACHINE_H
 #define LLVM_TARGET_TARGETMACHINE_H
 
-#include "llvm/MC/MCCodeGenInfo.h"
+#include "llvm/Support/CodeGen.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/StringRef.h"
 #include <cassert>
 #include <string>
@@ -23,11 +24,10 @@ namespace llvm {
 
 class InstrItineraryData;
 class JITCodeEmitter;
+class GlobalValue;
 class MCAsmInfo;
 class MCCodeGenInfo;
 class MCContext;
-class Pass;
-class PassManager;
 class PassManagerBase;
 class Target;
 class TargetData;
@@ -37,31 +37,12 @@ class TargetInstrInfo;
 class TargetIntrinsicInfo;
 class TargetJITInfo;
 class TargetLowering;
+class TargetPassConfig;
 class TargetRegisterInfo;
 class TargetSelectionDAGInfo;
 class TargetSubtargetInfo;
 class formatted_raw_ostream;
 class raw_ostream;
-
-// Code generation optimization level.
-namespace CodeGenOpt {
-  enum Level {
-    None,        // -O0
-    Less,        // -O1
-    Default,     // -O2, -Os
-    Aggressive   // -O3
-  };
-}
-
-namespace Sched {
-  enum Preference {
-    None,             // No preference
-    Latency,          // Scheduling for shortest total latency.
-    RegPressure,      // Scheduling for lowest register pressure.
-    Hybrid,           // Scheduling for both latency and register pressure.
-    ILP               // Scheduling for ILP in low register pressure mode.
-  };
-}
 
 //===----------------------------------------------------------------------===//
 ///
@@ -74,7 +55,7 @@ class TargetMachine {
   void operator=(const TargetMachine &);  // DO NOT IMPLEMENT
 protected: // Can only create subclasses.
   TargetMachine(const Target &T, StringRef TargetTriple,
-                StringRef CPU, StringRef FS);
+                StringRef CPU, StringRef FS, const TargetOptions &Options);
 
   /// getSubtargetImpl - virtual method implemented by subclasses that returns
   /// a reference to that target's TargetSubtargetInfo-derived member variable.
@@ -101,6 +82,7 @@ protected: // Can only create subclasses.
   unsigned MCSaveTempLabels : 1;
   unsigned MCUseLoc : 1;
   unsigned MCUseCFI : 1;
+  unsigned MCUseDwarfDirectory : 1;
 
 public:
   virtual ~TargetMachine();
@@ -110,6 +92,8 @@ public:
   const StringRef getTargetTriple() const { return TargetTriple; }
   const StringRef getTargetCPU() const { return TargetCPU; }
   const StringRef getTargetFeatureString() const { return TargetFS; }
+
+  TargetOptions Options;
 
   // Interfaces to the major aspects of target machine information:
   // -- Instruction opcode and operand information
@@ -196,6 +180,14 @@ public:
   /// setMCUseCFI - Set whether all we should use dwarf's .cfi_* directives.
   void setMCUseCFI(bool Value) { MCUseCFI = Value; }
 
+  /// hasMCUseDwarfDirectory - Check whether we should use .file directives with
+  /// explicit directories.
+  bool hasMCUseDwarfDirectory() const { return MCUseDwarfDirectory; }
+
+  /// setMCUseDwarfDirectory - Set whether all we should use .file directives
+  /// with explicit directories.
+  void setMCUseDwarfDirectory(bool Value) { MCUseDwarfDirectory = Value; }
+
   /// getRelocationModel - Returns the code generation relocation model. The
   /// choices are static, PIC, and dynamic-no-pic, and target default.
   Reloc::Model getRelocationModel() const;
@@ -203,6 +195,18 @@ public:
   /// getCodeModel - Returns the code model. The choices are small, kernel,
   /// medium, large, and target default.
   CodeModel::Model getCodeModel() const;
+
+  /// getTLSModel - Returns the TLS model which should be used for the given
+  /// global variable.
+  TLSModel::Model getTLSModel(const GlobalValue *GV) const;
+
+  /// getOptLevel - Returns the optimization level: None, Less,
+  /// Default, or Aggressive.
+  CodeGenOpt::Level getOptLevel() const;
+
+  void setFastISel(bool Enable) { Options.EnableFastISel = Enable; }
+
+  bool shouldPrintMachineCode() const { return Options.PrintMachineCode; }
 
   /// getAsmVerbosityDefault - Returns the default value of asm verbosity.
   ///
@@ -236,10 +240,6 @@ public:
     CGFT_Null         // Do not emit any output.
   };
 
-  /// getEnableTailMergeDefault - the default setting for -enable-tail-merge
-  /// on this target.  User flag overrides.
-  virtual bool getEnableTailMergeDefault() const { return true; }
-
   /// addPassesToEmitFile - Add passes to the specified pass manager to get the
   /// specified file emitted.  Typically this will involve several steps of code
   /// generation.  This method should return true if emission of this file type
@@ -247,8 +247,7 @@ public:
   virtual bool addPassesToEmitFile(PassManagerBase &,
                                    formatted_raw_ostream &,
                                    CodeGenFileType,
-                                   CodeGenOpt::Level,
-                                   bool = true) {
+                                   bool /*DisableVerify*/ = true) {
     return true;
   }
 
@@ -260,8 +259,7 @@ public:
   ///
   virtual bool addPassesToEmitMachineCode(PassManagerBase &,
                                           JITCodeEmitter &,
-                                          CodeGenOpt::Level,
-                                          bool = true) {
+                                          bool /*DisableVerify*/ = true) {
     return true;
   }
 
@@ -273,8 +271,7 @@ public:
   virtual bool addPassesToEmitMC(PassManagerBase &,
                                  MCContext *&,
                                  raw_ostream &,
-                                 CodeGenOpt::Level,
-                                 bool = true) {
+                                 bool /*DisableVerify*/ = true) {
     return true;
   }
 };
@@ -285,25 +282,21 @@ public:
 class LLVMTargetMachine : public TargetMachine {
 protected: // Can only create subclasses.
   LLVMTargetMachine(const Target &T, StringRef TargetTriple,
-                    StringRef CPU, StringRef FS,
-                    Reloc::Model RM, CodeModel::Model CM);
-
-private:
-  /// addCommonCodeGenPasses - Add standard LLVM codegen passes used for
-  /// both emitting to assembly files or machine code output.
-  ///
-  bool addCommonCodeGenPasses(PassManagerBase &, CodeGenOpt::Level,
-                              bool DisableVerify, MCContext *&OutCtx);
+                    StringRef CPU, StringRef FS, TargetOptions Options,
+                    Reloc::Model RM, CodeModel::Model CM,
+                    CodeGenOpt::Level OL);
 
 public:
+  /// createPassConfig - Create a pass configuration object to be used by
+  /// addPassToEmitX methods for generating a pipeline of CodeGen passes.
+  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
+
   /// addPassesToEmitFile - Add passes to the specified pass manager to get the
   /// specified file emitted.  Typically this will involve several steps of code
-  /// generation.  If OptLevel is None, the code generator should emit code as
-  /// fast as possible, though the generated code may be less efficient.
+  /// generation.
   virtual bool addPassesToEmitFile(PassManagerBase &PM,
                                    formatted_raw_ostream &Out,
                                    CodeGenFileType FileType,
-                                   CodeGenOpt::Level,
                                    bool DisableVerify = true);
 
   /// addPassesToEmitMachineCode - Add passes to the specified pass manager to
@@ -314,7 +307,6 @@ public:
   ///
   virtual bool addPassesToEmitMachineCode(PassManagerBase &PM,
                                           JITCodeEmitter &MCE,
-                                          CodeGenOpt::Level,
                                           bool DisableVerify = true);
 
   /// addPassesToEmitMC - Add passes to the specified pass manager to get
@@ -325,65 +317,15 @@ public:
   virtual bool addPassesToEmitMC(PassManagerBase &PM,
                                  MCContext *&Ctx,
                                  raw_ostream &OS,
-                                 CodeGenOpt::Level OptLevel,
                                  bool DisableVerify = true);
-
-  /// Target-Independent Code Generator Pass Configuration Options.
-
-  /// addPreISelPasses - This method should add any "last minute" LLVM->LLVM
-  /// passes (which are run just before instruction selector).
-  virtual bool addPreISel(PassManagerBase &, CodeGenOpt::Level) {
-    return true;
-  }
-
-  /// addInstSelector - This method should install an instruction selector pass,
-  /// which converts from LLVM code to machine instructions.
-  virtual bool addInstSelector(PassManagerBase &, CodeGenOpt::Level) {
-    return true;
-  }
-
-  /// addPreRegAlloc - This method may be implemented by targets that want to
-  /// run passes immediately before register allocation. This should return
-  /// true if -print-machineinstrs should print after these passes.
-  virtual bool addPreRegAlloc(PassManagerBase &, CodeGenOpt::Level) {
-    return false;
-  }
-
-  /// addPostRegAlloc - This method may be implemented by targets that want
-  /// to run passes after register allocation but before prolog-epilog
-  /// insertion.  This should return true if -print-machineinstrs should print
-  /// after these passes.
-  virtual bool addPostRegAlloc(PassManagerBase &, CodeGenOpt::Level) {
-    return false;
-  }
-
-  /// addPreSched2 - This method may be implemented by targets that want to
-  /// run passes after prolog-epilog insertion and before the second instruction
-  /// scheduling pass.  This should return true if -print-machineinstrs should
-  /// print after these passes.
-  virtual bool addPreSched2(PassManagerBase &, CodeGenOpt::Level) {
-    return false;
-  }
-
-  /// addPreEmitPass - This pass may be implemented by targets that want to run
-  /// passes immediately before machine code is emitted.  This should return
-  /// true if -print-machineinstrs should print out the code after the passes.
-  virtual bool addPreEmitPass(PassManagerBase &, CodeGenOpt::Level) {
-    return false;
-  }
-
 
   /// addCodeEmitter - This pass should be overridden by the target to add a
   /// code emitter, if supported.  If this is not supported, 'true' should be
   /// returned.
-  virtual bool addCodeEmitter(PassManagerBase &, CodeGenOpt::Level,
+  virtual bool addCodeEmitter(PassManagerBase &,
                               JITCodeEmitter &) {
     return true;
   }
-
-  /// getEnableTailMergeDefault - the default setting for -enable-tail-merge
-  /// on this target.  User flag overrides.
-  virtual bool getEnableTailMergeDefault() const { return true; }
 };
 
 } // End llvm namespace

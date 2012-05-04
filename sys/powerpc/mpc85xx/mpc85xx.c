@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/pio.h>
 #include <machine/spr.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
@@ -60,7 +61,7 @@ ccsr_write4(uintptr_t addr, uint32_t val)
 	volatile uint32_t *ptr = (void *)addr;
 
 	*ptr = val;
-	__asm __volatile("eieio; sync");
+	powerpc_iomb();
 }
 
 int

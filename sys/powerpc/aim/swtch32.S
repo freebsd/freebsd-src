@@ -113,6 +113,7 @@ ENTRY(cpu_switch)
 	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
+	sync				/* Make sure all of that finished */
 	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:
@@ -123,7 +124,8 @@ cpu_switchin:
 blocked_loop:
 	lwz	%r7,TD_LOCK(%r2)
 	cmpw	%r6,%r7 
-	beq	blocked_loop
+	beq-	blocked_loop
+	isync
 #endif
 
 	mfsprg	%r7,0			/* Get the pcpu pointer */

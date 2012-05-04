@@ -1,7 +1,9 @@
+
 #------------------------------------------------------------------------------
+# $File: apple,v 1.24 2010/11/25 15:00:12 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
-0	search/1	FiLeStArTfIlEsTaRt	binscii (apple ][) text
+0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
 0	string		\x0aGL			Binary II (apple ][) data
 0	string		\x76\xff		Squeezed (apple ][) data
 0	string		NuFile			NuFile archive (apple ][) data

@@ -1,4 +1,4 @@
-//=====-- X86MCAsmInfo.h - X86 asm properties -----------------*- C++ -*--====//
+//===-- X86MCAsmInfo.h - X86 asm properties --------------------*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -21,7 +21,9 @@
 namespace llvm {
   class Triple;
 
-  struct X86MCAsmInfoDarwin : public MCAsmInfoDarwin {
+  class X86MCAsmInfoDarwin : public MCAsmInfoDarwin {
+    virtual void anchor();
+  public:
     explicit X86MCAsmInfoDarwin(const Triple &Triple);
   };
 
@@ -33,13 +35,23 @@ namespace llvm {
                                 MCStreamer &Streamer) const;
   };
 
-  struct X86ELFMCAsmInfo : public MCAsmInfo {
+  class X86ELFMCAsmInfo : public MCAsmInfo {
+    virtual void anchor();
+  public:
     explicit X86ELFMCAsmInfo(const Triple &Triple);
     virtual const MCSection *getNonexecutableStackSection(MCContext &Ctx) const;
   };
 
-  struct X86MCAsmInfoCOFF : public MCAsmInfoCOFF {
-    explicit X86MCAsmInfoCOFF(const Triple &Triple);
+  class X86MCAsmInfoMicrosoft : public MCAsmInfoMicrosoft {
+    virtual void anchor();
+  public:
+    explicit X86MCAsmInfoMicrosoft(const Triple &Triple);
+  };
+
+  class X86MCAsmInfoGNUCOFF : public MCAsmInfoGNUCOFF {
+    virtual void anchor();
+  public:
+    explicit X86MCAsmInfoGNUCOFF(const Triple &Triple);
   };
 } // namespace llvm
 

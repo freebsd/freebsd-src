@@ -16,6 +16,7 @@
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
+#include "llvm/Support/Compiler.h"
 #include <utility>
 #include <functional>
 #include <cassert>
@@ -245,6 +246,7 @@ public:
   /// the last token.  Return false if the end of this range specifies the last
   /// character in the range.
   bool isTokenRange() const { return IsTokenRange; }
+  bool isCharRange() const { return !IsTokenRange; }
   
   SourceLocation getBegin() const { return Range.getBegin(); }
   SourceLocation getEnd() const { return Range.getEnd(); }
@@ -323,7 +325,7 @@ public:
 
   /// Prints information about this FullSourceLoc to stderr. Useful for
   ///  debugging.
-  void dump() const { SourceLocation::dump(*SrcMgr); }
+  LLVM_ATTRIBUTE_USED void dump() const;
 
   friend inline bool
   operator==(const FullSourceLoc &LHS, const FullSourceLoc &RHS) {

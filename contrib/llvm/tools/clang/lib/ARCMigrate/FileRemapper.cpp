@@ -8,8 +8,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/ARCMigrate/FileRemapper.h"
-#include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Frontend/PreprocessorOptions.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/Diagnostic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/FileSystem.h"
@@ -50,9 +51,15 @@ std::string FileRemapper::getRemapInfoFile(StringRef outputDir) {
 
 bool FileRemapper::initFromDisk(StringRef outputDir, DiagnosticsEngine &Diag,
                                 bool ignoreIfFilesChanged) {
+  std::string infoFile = getRemapInfoFile(outputDir);
+  return initFromFile(infoFile, Diag, ignoreIfFilesChanged);
+}
+
+bool FileRemapper::initFromFile(StringRef filePath, DiagnosticsEngine &Diag,
+                                bool ignoreIfFilesChanged) {
   assert(FromToMappings.empty() &&
          "initFromDisk should be called before any remap calls");
-  std::string infoFile = getRemapInfoFile(outputDir);
+  std::string infoFile = filePath;
   bool fileExists = false;
   llvm::sys::fs::exists(infoFile, fileExists);
   if (!fileExists)
@@ -60,9 +67,8 @@ bool FileRemapper::initFromDisk(StringRef outputDir, DiagnosticsEngine &Diag,
 
   std::vector<std::pair<const FileEntry *, const FileEntry *> > pairs;
   
-  llvm::OwningPtr<llvm::MemoryBuffer> fileBuf;
-  if (llvm::error_code ec = llvm::MemoryBuffer::getFile(infoFile.c_str(),
-                                                        fileBuf))
+  OwningPtr<llvm::MemoryBuffer> fileBuf;
+  if (llvm::MemoryBuffer::getFile(infoFile.c_str(), fileBuf))
     return report("Error opening file: " + infoFile, Diag);
   
   SmallVector<StringRef, 64> lines;
@@ -109,8 +115,15 @@ bool FileRemapper::flushToDisk(StringRef outputDir, DiagnosticsEngine &Diag) {
   if (fs::create_directory(outputDir, existed) != llvm::errc::success)
     return report("Could not create directory: " + outputDir, Diag);
 
-  std::string errMsg;
   std::string infoFile = getRemapInfoFile(outputDir);
+  return flushToFile(infoFile, Diag);
+}
+
+bool FileRemapper::flushToFile(StringRef outputPath, DiagnosticsEngine &Diag) {
+  using namespace llvm::sys;
+
+  std::string errMsg;
+  std::string infoFile = outputPath;
   llvm::raw_fd_ostream infoOut(infoFile.c_str(), errMsg,
                                llvm::raw_fd_ostream::F_Binary);
   if (!errMsg.empty())
@@ -120,18 +133,18 @@ bool FileRemapper::flushToDisk(StringRef outputDir, DiagnosticsEngine &Diag) {
          I = FromToMappings.begin(), E = FromToMappings.end(); I != E; ++I) {
 
     const FileEntry *origFE = I->first;
-    llvm::SmallString<200> origPath = StringRef(origFE->getName());
+    SmallString<200> origPath = StringRef(origFE->getName());
     fs::make_absolute(origPath);
     infoOut << origPath << '\n';
     infoOut << (uint64_t)origFE->getModificationTime() << '\n';
 
     if (const FileEntry *FE = I->second.dyn_cast<const FileEntry *>()) {
-      llvm::SmallString<200> newPath = StringRef(FE->getName());
+      SmallString<200> newPath = StringRef(FE->getName());
       fs::make_absolute(newPath);
       infoOut << newPath << '\n';
     } else {
 
-      llvm::SmallString<64> tempPath;
+      SmallString<64> tempPath;
       tempPath = path::filename(origFE->getName());
       tempPath += "-%%%%%%%%";
       tempPath += path::extension(origFE->getName());
@@ -190,8 +203,7 @@ bool FileRemapper::overwriteOriginal(DiagnosticsEngine &Diag,
   return false;
 }
 
-void FileRemapper::applyMappings(CompilerInvocation &CI) const {
-  PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+void FileRemapper::applyMappings(PreprocessorOptions &PPOpts) const {
   for (MappingsTy::const_iterator
          I = FromToMappings.begin(), E = FromToMappings.end(); I != E; ++I) {
     if (const FileEntry *FE = I->second.dyn_cast<const FileEntry *>()) {
@@ -205,8 +217,7 @@ void FileRemapper::applyMappings(CompilerInvocation &CI) const {
   PPOpts.RetainRemappedFileBuffers = true;
 }
 
-void FileRemapper::transferMappingsAndClear(CompilerInvocation &CI) {
-  PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+void FileRemapper::transferMappingsAndClear(PreprocessorOptions &PPOpts) {
   for (MappingsTy::iterator
          I = FromToMappings.begin(), E = FromToMappings.end(); I != E; ++I) {
     if (const FileEntry *FE = I->second.dyn_cast<const FileEntry *>()) {
@@ -269,15 +280,12 @@ void FileRemapper::resetTarget(Target &targ) {
     delete oldmem;
   } else {
     const FileEntry *toFE = targ.get<const FileEntry *>();
-    llvm::DenseMap<const FileEntry *, const FileEntry *>::iterator
-      I = ToFromMappings.find(toFE);
-    if (I != ToFromMappings.end())
-      ToFromMappings.erase(I);
+    ToFromMappings.erase(toFE);
   }
 }
 
 bool FileRemapper::report(const Twine &err, DiagnosticsEngine &Diag) {
-  llvm::SmallString<128> buf;
+  SmallString<128> buf;
   unsigned ID = Diag.getDiagnosticIDs()->getCustomDiagID(DiagnosticIDs::Error,
                                                          err.toStringRef(buf));
   Diag.Report(ID);

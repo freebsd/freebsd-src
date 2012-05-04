@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: lisp,v 1.23 2009/09/19 16:28:10 christos Exp $
 # lisp:  file(1) magic for lisp programs
 #
 # various lisp types, from Daniel Quinlan (quinlan@yggdrasil.com)
@@ -11,8 +13,6 @@
 #>2	search/4096	!\r		Lisp/Scheme program text
 #>2	search/4096	\r		Windows INF file
 
-0	search/4096	(if\ 			Lisp/Scheme program text
-!:mime	text/x-lisp
 0	search/4096	(setq\ 			Lisp/Scheme program text
 !:mime	text/x-lisp
 0	search/4096	(defvar\ 		Lisp/Scheme program text
