@@ -789,7 +789,7 @@ ddf_meta_update(struct ddf_meta *meta, struct ddf_meta *src)
 		if (isff(spde->PD_GUID, 24))
 			continue;
 		j = ddf_meta_find_pd(meta, NULL,
-		    src->pdr->entry[i].PD_Reference);
+		    GET32(src, pdr->entry[i].PD_Reference));
 		if (j < 0) {
 			j = ddf_meta_find_pd(meta, NULL, 0xffffffff);
 			pde = &meta->pdr->entry[j];
