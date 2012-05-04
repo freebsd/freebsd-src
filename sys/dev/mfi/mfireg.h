@@ -403,6 +403,7 @@ typedef enum {
 #define MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED	0x0152
 #define MR_EVT_PD_REMOVED			0x0070
 #define MR_EVT_PD_INSERTED			0x005b
+#define MR_EVT_LD_CHANGE			0x0051
 
 typedef enum {
 	MR_LD_CACHE_WRITE_BACK =	0x01,
