@@ -141,11 +141,12 @@ mfi_tbolt_issue_cmd_ppc(struct mfi_softc *sc, bus_addr_t bus_add,
 	MFI_WRITE4(sc, MFI_IQPH, (uint32_t)((uint64_t)bus_add >> 32));
 }
 
-/**
+/*
  * mfi_tbolt_adp_reset - For controller reset
  * @regs: MFI register set
  */
-int mfi_tbolt_adp_reset(struct mfi_softc *sc)
+int
+mfi_tbolt_adp_reset(struct mfi_softc *sc)
 {
 	int retry = 0, i = 0;
 	int HostDiag;
@@ -193,12 +194,10 @@ int mfi_tbolt_adp_reset(struct mfi_softc *sc)
 }
 
 /*
- *******************************************************************************************
- * Description:
- *      This routine initialize Thunderbolt specific device information
- *******************************************************************************************
+ * This routine initialize Thunderbolt specific device information
  */
-void mfi_tbolt_init_globals(struct mfi_softc *sc)
+void
+mfi_tbolt_init_globals(struct mfi_softc *sc)
 {
 	/* Initialize single reply size and Message size */
 	sc->reply_size = MEGASAS_THUNDERBOLT_REPLY_SIZE;
@@ -240,16 +239,12 @@ void mfi_tbolt_init_globals(struct mfi_softc *sc)
 }
 
 /*
- ****************************************************************************
- * Description:
- *      This function calculates the memory requirement for Thunderbolt
- *      controller
- * Return Value:
- *      Total required memory in bytes
- ****************************************************************************
+ * This function calculates the memory requirement for Thunderbolt
+ * controller, returns the total required memory in bytes
  */
 
-uint32_t mfi_tbolt_get_memory_requirement(struct mfi_softc *sc)
+uint32_t
+mfi_tbolt_get_memory_requirement(struct mfi_softc *sc)
 {
 	uint32_t size;
 	size = MEGASAS_THUNDERBOLT_MSG_ALLIGNMENT;	/* for Alignment */
@@ -261,7 +256,6 @@ uint32_t mfi_tbolt_get_memory_requirement(struct mfi_softc *sc)
 }
 
 /*
- ****************************************************************************
  * Description:
  *      This function will prepare message pools for the Thunderbolt controller
  * Arguments:
@@ -270,9 +264,9 @@ uint32_t mfi_tbolt_get_memory_requirement(struct mfi_softc *sc)
  * Return Value:
  *      TRUE if successful
  *      FALSE if failed
- ****************************************************************************
  */
-int mfi_tbolt_init_desc_pool(struct mfi_softc *sc, uint8_t* mem_location,
+int
+mfi_tbolt_init_desc_pool(struct mfi_softc *sc, uint8_t* mem_location,
     uint32_t tbolt_contg_length)
 {
 	uint32_t     offset = 0;
@@ -329,10 +323,7 @@ int mfi_tbolt_init_desc_pool(struct mfi_softc *sc, uint8_t* mem_location,
 }
 
 /*
- ****************************************************************************
- * Description:
- *   This routine prepare and issue INIT2 frame to the Firmware
- ****************************************************************************
+ * This routine prepare and issue INIT2 frame to the Firmware
  */
 
 int
@@ -443,7 +434,8 @@ mfi_tbolt_init_MFI_queue(struct mfi_softc *sc)
 
 }
 
-int mfi_tbolt_alloc_cmd(struct mfi_softc *sc)
+int
+mfi_tbolt_alloc_cmd(struct mfi_softc *sc)
 {
 	struct mfi_cmd_tbolt *cmd;
 	bus_addr_t io_req_base_phys;
@@ -516,7 +508,8 @@ int mfi_tbolt_alloc_cmd(struct mfi_softc *sc)
 	return 0;
 }
 
-int mfi_tbolt_reset(struct mfi_softc *sc)
+int
+mfi_tbolt_reset(struct mfi_softc *sc)
 {
 	uint32_t fw_state;
 
@@ -551,7 +544,8 @@ int mfi_tbolt_reset(struct mfi_softc *sc)
 /*
  * mfi_intr_tbolt - isr entry point
  */
-void mfi_intr_tbolt(void *arg)
+void
+mfi_intr_tbolt(void *arg)
 {
 	struct mfi_softc *sc = (struct mfi_softc *)arg;
 
@@ -569,7 +563,7 @@ void mfi_intr_tbolt(void *arg)
 	return;
 }
 
-/**
+/*
  * map_cmd_status -	Maps FW cmd status to OS cmd status
  * @cmd :		Pointer to cmd
  * @status :		status of cmd returned by FW
@@ -582,7 +576,6 @@ map_tbolt_cmd_status(struct mfi_command *mfi_cmd, uint8_t status,
 {
 
 	switch (status) {
-
 		case MFI_STAT_OK:
 			mfi_cmd->cm_frame->header.cmd_status = 0;
 			mfi_cmd->cm_frame->dcmd.header.cmd_status = 0;
@@ -615,7 +608,7 @@ map_tbolt_cmd_status(struct mfi_command *mfi_cmd, uint8_t status,
 		}
 }
 
-/**
+/*
  * mfi_tbolt_return_cmd -	Return a cmd to free command pool
  * @instance:		Adapter soft state
  * @cmd:		Command packet to be returned to free command pool
@@ -718,15 +711,15 @@ mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 	return;
 }
 
-/**
+/*
  * mfi_get_cmd -	Get a command from the free pool
  * @instance:		Adapter soft state
  *
  * Returns a free command from the pool
  */
 
-struct mfi_cmd_tbolt *mfi_tbolt_get_cmd(struct mfi_softc
-						  *sc)
+struct mfi_cmd_tbolt *
+mfi_tbolt_get_cmd(struct mfi_softc *sc)
 {
 	struct mfi_cmd_tbolt *cmd = NULL;
 
@@ -831,7 +824,8 @@ mfi_tbolt_build_ldio(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 	    * MFI_SECTOR_LEN;
 }
 
-int mfi_tbolt_is_ldio(struct mfi_command *mfi_cmd)
+int
+mfi_tbolt_is_ldio(struct mfi_command *mfi_cmd)
 {
 	if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_READ
 	    || mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
@@ -841,7 +835,8 @@ int mfi_tbolt_is_ldio(struct mfi_command *mfi_cmd)
 }
 
 int
-mfi_tbolt_build_io(struct mfi_softc *sc, struct mfi_command *mfi_cmd, struct mfi_cmd_tbolt *cmd)
+mfi_tbolt_build_io(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
+    struct mfi_cmd_tbolt *cmd)
 {
 	uint32_t device_id;
 	uint32_t sge_count;
@@ -930,8 +925,7 @@ mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		cdb[3] = (uint8_t) (lba_lo >> 16);
 		cdb[2] = (uint8_t) (lba_lo >> 24);
 		cdb_len = 10;
-	}
-	else if ((num_lba > 0xFFFF) && (lba_hi == 0)) {
+	} else if ((num_lba > 0xFFFF) && (lba_hi == 0)) {
 		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
 			/* Read 12 or Write 12 */
 			cdb[0] = (uint8_t) (0xAA);
@@ -1150,7 +1144,7 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 		if (tm <= 0)
 		break;
 	}
- 
+
 	if (hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
 		device_printf(sc->mfi_dev, "Frame %p timed out "
 		    "command 0x%X\n", hdr, cm->cm_frame->dcmd.opcode);
@@ -1159,7 +1153,8 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	return 0;
 }
 
-static void mfi_issue_pending_cmds_again (struct mfi_softc *sc)
+static void
+mfi_issue_pending_cmds_again (struct mfi_softc *sc)
 {
 	struct mfi_command *cm, *tmp;
 
@@ -1204,7 +1199,8 @@ static void mfi_issue_pending_cmds_again (struct mfi_softc *sc)
 	mfi_startio(sc);
 }
 
-static void mfi_kill_hba (struct mfi_softc *sc)
+static void
+mfi_kill_hba (struct mfi_softc *sc)
 {
 	if (sc->mfi_flags & MFI_FLAGS_TBOLT)
 		MFI_WRITE4 (sc, 0x00,MFI_STOP_ADP);
@@ -1212,7 +1208,8 @@ static void mfi_kill_hba (struct mfi_softc *sc)
 		MFI_WRITE4 (sc, MFI_IDB,MFI_STOP_ADP);
 }
 
-static void mfi_process_fw_state_chg_isr(void *arg)
+static void
+mfi_process_fw_state_chg_isr(void *arg)
 {
 	struct mfi_softc *sc= (struct mfi_softc *)arg;
 	struct mfi_cmd_tbolt *cmd;
@@ -1296,7 +1293,7 @@ static void mfi_process_fw_state_chg_isr(void *arg)
 
 /*
  * The ThunderBolt HW has an option for the driver to directly
- * access the underlying disks and operate on the RAID.  To 
+ * access the underlying disks and operate on the RAID.  To
  * do this there needs to be a capability to keep the RAID controller
  * and driver in sync.  The FreeBSD driver does not take advantage
  * of this feature since it adds a lot of complexity and slows down

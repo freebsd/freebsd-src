@@ -1319,7 +1319,7 @@ mfi_syspdprobe(struct mfi_softc *sc)
 	/* Add SYSTEM PD's */
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_PD_LIST_QUERY,
 	    (void **)&pdlist, sizeof(*pdlist));
-	if (error){
+	if (error) {
 		device_printf(sc->mfi_dev,
 		    "Error while forming SYSTEM PD list\n");
 		goto out;
@@ -1958,6 +1958,7 @@ mfi_add_sys_pd_complete(struct mfi_command *cm)
 	mtx_unlock(&Giant);
 	mtx_lock(&sc->mfi_io_lock);
 }
+
 static struct mfi_command *
 mfi_bio_command(struct mfi_softc *sc)
 {
@@ -1965,7 +1966,7 @@ mfi_bio_command(struct mfi_softc *sc)
 	struct mfi_command *cm = NULL;
 
 	/*reserving two commands to avoid starvation for IOCTL*/
-	if (sc->mfi_qstat[MFIQ_FREE].q_length < 2){
+	if (sc->mfi_qstat[MFIQ_FREE].q_length < 2) {
 		return (NULL);
 	}
 	if ((bio = mfi_dequeue_bio(sc)) == NULL) {
@@ -2694,12 +2695,12 @@ static int mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm)
 	int error = 0;
 
 	if ((cm->cm_frame->dcmd.opcode == MFI_DCMD_CFG_ADD) &&
-	    (conf_data->ld[0].params.isSSCD == 1)){
+	    (conf_data->ld[0].params.isSSCD == 1)) {
 		error = 1;
 	} else if (cm->cm_frame->dcmd.opcode == MFI_DCMD_LD_DELETE) {
 		error = mfi_dcmd_command (sc, &ld_cm, MFI_DCMD_LD_GET_INFO,
 		    (void **)&ld_info, sizeof(*ld_info));
-		if (error){
+		if (error) {
 			device_printf(sc->mfi_dev, "Failed to allocate"
 			    "MFI_DCMD_LD_GET_INFO %d", error);
 			if (ld_info)
@@ -2709,7 +2710,7 @@ static int mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm)
 		ld_cm->cm_flags = MFI_CMD_DATAIN;
 		ld_cm->cm_frame->dcmd.mbox[0]= cm->cm_frame->dcmd.mbox[0];
 		ld_cm->cm_frame->header.target_id = cm->cm_frame->dcmd.mbox[0];
-		if (mfi_wait_command(sc, ld_cm) != 0){
+		if (mfi_wait_command(sc, ld_cm) != 0) {
 			device_printf(sc->mfi_dev, "failed to get log drv\n");
 			mfi_release_command(ld_cm);
 			free(ld_info, M_MFIBUF);
