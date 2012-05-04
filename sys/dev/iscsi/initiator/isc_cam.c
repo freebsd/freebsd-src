@@ -251,14 +251,14 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 
 	  if (rc == EWOULDBLOCK) {
 		  if ((sp->cam_flags & ISC_QFROZEN) == 0) {
-			  xpt_freeze_simq(sim, 1);
+			  int freeze_count = xpt_freeze_simq(sim, 1);
 			  sp->cam_flags |= ISC_QFROZEN;
 			  CAM_UNLOCK(sp);
 			  SOCKBUF_LOCK(&sp->soc->so_snd);
 			  CAM_LOCK(sp);
-			  if (sp->cam_sim->devq->send_queue.qfrozen_cnt[0] != 1) {
-				  printf("lost race when acquiring socket buffer lock qfrozen_cnt=%d\n", sp->cam_sim->devq->send_queue.qfrozen_cnt[0]);
-				  sp->cam_sim->devq->send_queue.qfrozen_cnt[0] = 1;
+			  if (sp->cam_sim->devq->send_queue.qfrozen_cnt[0] != freeze_count) {
+			    printf("lost race when acquiring socket buffer lock qfrozen_cnt=%d freeze_count=%d\n", sp->cam_sim->devq->send_queue.qfrozen_cnt[0], freeze_count);
+				  sp->cam_sim->devq->send_queue.qfrozen_cnt[0] = freeze_count;
 			  }
 			  soupcall_set(sp->soc, SO_SND, isc_so_snd_upcall, sp);
 			  SOCKBUF_UNLOCK(&sp->soc->so_snd);
