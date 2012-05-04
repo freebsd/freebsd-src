@@ -124,7 +124,8 @@ cpu_switchin:
 blocked_loop:
 	lwz	%r7,TD_LOCK(%r2)
 	cmpw	%r6,%r7 
-	beq	blocked_loop
+	beq-	blocked_loop
+	isync
 #endif
 
 	mfsprg	%r7,0			/* Get the pcpu pointer */
