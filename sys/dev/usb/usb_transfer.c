@@ -2699,7 +2699,8 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 				(bus->methods->start_dma_delay) (xfer);
 			} else {
 				usbd_transfer_timeout_ms(xfer,
-				    (void *)&usb_dma_delay_done_cb, temp);
+				    (void (*)(void *))&usb_dma_delay_done_cb,
+				    temp);
 			}
 			USB_BUS_UNLOCK(bus);
 			return (1);	/* wait for new callback */

@@ -1482,7 +1482,7 @@ umass_t_bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* Zero missing parts of the CSW: */
 
-		if (actlen < sizeof(sc->csw))
+		if (actlen < (int)sizeof(sc->csw))
 			memset(&sc->csw, 0, sizeof(sc->csw));
 
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -2016,7 +2016,7 @@ umass_t_cbi_status_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen < sizeof(sc->sbl)) {
+		if (actlen < (int)sizeof(sc->sbl)) {
 			goto tr_setup;
 		}
 		pc = usbd_xfer_get_frame(xfer, 0);
