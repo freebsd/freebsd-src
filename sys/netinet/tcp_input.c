@@ -3286,22 +3286,19 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  * are present.  Store the upper limit of the length of options plus
  * data in maxopd.
  *
- * In case of T/TCP, we call this routine during implicit connection
- * setup as well (offer = -1), to initialize maxseg from the cached
- * MSS of our peer.
- *
  * NOTE that this routine is only called when we process an incoming
- * segment. Outgoing SYN/ACK MSS settings are handled in tcp_mssopt().
+ * segment, or an ICMP need fragmentation datagram. Outgoing SYN/ACK MSS
+ * settings are handled in tcp_mssopt().
  */
 void
-tcp_mss_update(struct tcpcb *tp, int offer,
+tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
     struct hc_metrics_lite *metricptr, int *mtuflags)
 {
 	int mss;
 	u_long maxmtu;
 	struct inpcb *inp = tp->t_inpcb;
 	struct hc_metrics_lite metrics;
-	int origoffer = offer;
+	int origoffer;
 #ifdef INET6
 	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
 	size_t min_protoh = isipv6 ?
@@ -3312,6 +3309,12 @@ tcp_mss_update(struct tcpcb *tp, int offer,
 #endif
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (mtuoffer != -1) {
+		KASSERT(offer == -1, ("%s: conflict", __func__));
+		offer = mtuoffer - min_protoh;
+	}
+	origoffer = offer;
 
 	/* Initialize. */
 #ifdef INET6
@@ -3461,7 +3464,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
 	
-	tcp_mss_update(tp, offer, &metrics, &mtuflags);
+	tcp_mss_update(tp, offer, -1, &metrics, &mtuflags);
 
 	mss = tp->t_maxseg;
 	inp = tp->t_inpcb;
