@@ -1298,7 +1298,7 @@ out:
 			 */
 			if (tso)
 				tp->t_flags &= ~TF_TSO;
-			tcp_mtudisc(tp->t_inpcb, 0);
+			tcp_mtudisc(tp->t_inpcb, -1);
 			return (0);
 		case EHOSTDOWN:
 		case EHOSTUNREACH:
