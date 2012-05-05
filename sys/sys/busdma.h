@@ -22,26 +22,19 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _SYS_BUSDMA_H_
+#define	_SYS_BUSDMA_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/bus.h>
-#include <sys/busdma.h>
+#include <machine/_bus.h>
 
-struct busdma_tag {
-	device_t	dt_device;
-};
+struct busdma_tag;
+typedef struct busdma_tag *busdma_tag_t;
 
-int
-busdma_tag_create(device_t device, struct resource *res, bus_addr_t maxaddr,
-    bus_addr_t align, bus_addr_t bndry, u_int nsegs, bus_size_t maxsegsz,
-    u_int flags, busdma_tag_t *tag_p)
-{
+int busdma_tag_create(device_t, struct resource *, bus_addr_t, bus_addr_t,
+    bus_addr_t, u_int, bus_size_t, u_int, busdma_tag_t *);
 
-	return (ENOSYS);
-}
+#endif /* _SYS_BUSDMA_H_ */
