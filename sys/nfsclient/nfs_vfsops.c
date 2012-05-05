@@ -1452,6 +1452,7 @@ nfs_sync(struct mount *mp, int waitfor)
 		MNT_IUNLOCK(mp);
 		return (EBADF);
 	}
+	MNT_IUNLOCK(mp);
 
 	/*
 	 * Force stale buffer cache information to be flushed.
