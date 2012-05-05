@@ -117,6 +117,7 @@ static struct nfsclclient *nfscl_getclnt(u_int32_t);
 static struct nfsclclient *nfscl_getclntsess(uint8_t *);
 static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
     int);
+static void nfscl_retoncloselayout(struct nfsclclient *, uint8_t *, int);
 static void nfscl_reldevinfo_locked(struct nfscldevinfo *);
 static struct nfscllayout *nfscl_findlayout(struct nfsclclient *, u_int8_t *,
     int);
@@ -3062,6 +3063,9 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 		}
 	}
 
+	/* Return any layouts marked return on close. */
+	nfscl_retoncloselayout(clp, nfhp->nfh_fh, nfhp->nfh_len);
+
 	/* Now process the opens against the server. */
 lookformore:
 	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
@@ -4734,6 +4738,30 @@ nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
 	}
 	NFSUNLOCKCLSTATE();
 	return (lyp);
+}
+
+/*
+ * Search for a layout by MDS file handle. If one is found that is marked
+ * "return on close", delete it, since it should now be forgotten.
+ */
+static void
+nfscl_retoncloselayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen)
+{
+	struct nfscllayout *lyp;
+
+tryagain:
+	lyp = nfscl_findlayout(clp, fhp, fhlen);
+	if (lyp != NULL && (lyp->nfsly_flags & NFSLY_RETONCLOSE) != 0) {
+		/*
+		 * Wait for outstanding I/O ops to be done.
+		 */
+		if (lyp->nfsly_refcnt > 0) {
+			(void)mtx_sleep(&lyp->nfsly_refcnt,
+			    NFSCLSTATEMUTEXPTR, PZERO, "nfslyd", 0);
+			goto tryagain;
+		}
+		nfscl_freelayout(lyp);
+	}
 }
 
 /*
