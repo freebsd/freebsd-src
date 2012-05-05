@@ -52,11 +52,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <machine/cpu.h>
+#include <machine/endian.h>
 
 #include <machine/cpuconf.h>
 #include <machine/md_var.h>
 
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 char machine[] = "arm";
+#else
+char machine[] = "armeb";
+#endif
 
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
         machine, 0, "Machine class");
