@@ -42,6 +42,7 @@ extern u_char linux_debug_map[];
 #define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
 #define	ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
 #define	LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
+#define	LINUX_DTRACE	linuxulator32
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
