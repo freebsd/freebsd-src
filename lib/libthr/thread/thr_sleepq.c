@@ -113,11 +113,11 @@ _sleepq_add(void *wchan, struct pthread *td)
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
 
+	sc = SC_LOOKUP(wchan);
 	sq = _sleepq_lookup(wchan);
 	if (sq != NULL) {
 		SLIST_INSERT_HEAD(&sq->sq_freeq, td->sleepqueue, sq_flink);
 	} else {
-		sc = SC_LOOKUP(wchan);
 		sq = td->sleepqueue;
 		LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_hash);
 		sq->sq_wchan = wchan;
