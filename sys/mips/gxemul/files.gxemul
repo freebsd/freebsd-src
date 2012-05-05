@@ -1,0 +1,5 @@
+# $FreeBSD$
+dev/gxemul/cons/gxemul_cons.c		optional gxemul_cons
+mips/gxemul/gxemul_machdep.c		standard
+mips/mips/intr_machdep.c		standard
+mips/mips/tick.c			standard

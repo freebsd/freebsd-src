@@ -289,7 +289,8 @@ void AsmWriterEmitter::EmitPrintInstruction(raw_ostream &O) {
   for (unsigned i = 0, e = NumberedInstructions.size(); i != e; ++i) {
     AsmWriterInst *AWI = CGIAWIMap[NumberedInstructions[i]];
     if (AWI != 0 &&
-        AWI->Operands[0].OperandType == AsmWriterOperand::isLiteralTextOperand &&
+        AWI->Operands[0].OperandType ==
+                 AsmWriterOperand::isLiteralTextOperand &&
         !AWI->Operands[0].Str.empty()) {
       std::string Str = AWI->Operands[0].Str;
       UnescapeString(Str);
@@ -589,7 +590,7 @@ class IAPrinter {
   std::map<StringRef, unsigned> OpMap;
   std::string Result;
   std::string AsmString;
-  std::vector<Record*> ReqFeatures;
+  SmallVector<Record*, 4> ReqFeatures;
 public:
   IAPrinter(std::string R, std::string AS)
     : Result(R), AsmString(AS) {}
@@ -919,7 +920,7 @@ void AsmWriterEmitter::EmitPrintAliasInstruction(raw_ostream &O) {
   O << "      }\n";
   O << "    }\n";
   O << "  }\n\n";
-  
+
   O << "  return true;\n";
   O << "}\n\n";
 

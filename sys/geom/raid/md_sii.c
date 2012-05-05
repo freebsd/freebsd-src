@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1148,7 +1149,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			return (-3);
 		}
 		if (strcasecmp(levelname, "RAID5") == 0)
-			levelname = "RAID5LS";
+			levelname = "RAID5-LS";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);

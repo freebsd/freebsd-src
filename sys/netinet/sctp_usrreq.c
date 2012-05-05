@@ -79,7 +79,6 @@ sctp_init(void)
 	 * now I will just copy.
 	 */
 	SCTP_BASE_SYSCTL(sctp_recvspace) = SCTP_BASE_SYSCTL(sctp_sendspace);
-
 	SCTP_BASE_VAR(first_time) = 0;
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 0;
 	sctp_pcb_init();
@@ -88,8 +87,6 @@ sctp_init(void)
 	SCTP_BASE_VAR(packet_log_end) = 0;
 	bzero(&SCTP_BASE_VAR(packet_log_buffer), SCTP_PACKET_LOG_SIZE);
 #endif
-
-
 }
 
 void
@@ -2882,6 +2879,7 @@ flags_out:
 				} else {
 					/* copy in the chunks */
 					(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
+					sac->gauth_number_of_chunks = (uint32_t) size;
 					*optsize = sizeof(struct sctp_authchunks) + size;
 				}
 				SCTP_TCB_UNLOCK(stcb);
@@ -2900,6 +2898,7 @@ flags_out:
 					} else {
 						/* copy in the chunks */
 						(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
+						sac->gauth_number_of_chunks = (uint32_t) size;
 						*optsize = sizeof(struct sctp_authchunks) + size;
 					}
 					SCTP_INP_RUNLOCK(inp);
@@ -2930,6 +2929,7 @@ flags_out:
 				} else {
 					/* copy in the chunks */
 					(void)sctp_serialize_auth_chunks(chklist, sac->gauth_chunks);
+					sac->gauth_number_of_chunks = (uint32_t) size;
 					*optsize = sizeof(struct sctp_authchunks) + size;
 				}
 				SCTP_TCB_UNLOCK(stcb);
@@ -2982,6 +2982,12 @@ flags_out:
 				event_type = 0;
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOTSUP);
 				error = ENOTSUP;
+				break;
+			case SCTP_ASSOC_RESET_EVENT:
+				event_type = SCTP_PCB_FLAGS_ASSOC_RESETEVNT;
+				break;
+			case SCTP_STREAM_CHANGE_EVENT:
+				event_type = SCTP_PCB_FLAGS_STREAM_CHANGEEVNT;
 				break;
 			default:
 				event_type = 0;
@@ -3287,6 +3293,33 @@ flags_out:
 			}
 			if (error == 0) {
 				*optsize = sizeof(struct sctp_paddrparams);
+			}
+			break;
+		}
+	case SCTP_ENABLE_STREAM_RESET:
+		{
+			struct sctp_assoc_value *av;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, *optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				av->assoc_value = (uint32_t) stcb->asoc.local_strreset_support;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					SCTP_INP_RLOCK(inp);
+					av->assoc_value = (uint32_t) inp->local_strreset_support;
+					SCTP_INP_RUNLOCK(inp);
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			if (error == 0) {
+				*optsize = sizeof(struct sctp_assoc_value);
 			}
 			break;
 		}
@@ -4090,7 +4123,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_ENABLE_STREAM_RESET:
 		{
 			struct sctp_assoc_value *av;
-			uint8_t set_value = 0;
 
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
 			if (av->assoc_value & (~SCTP_ENABLE_VALUE_MASK)) {
@@ -4098,10 +4130,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				error = EINVAL;
 				break;
 			}
-			set_value = av->assoc_value & SCTP_ENABLE_VALUE_MASK;
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 			if (stcb) {
-				stcb->asoc.local_strreset_support = set_value;
+				stcb->asoc.local_strreset_support = (uint8_t) av->assoc_value;
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -4109,7 +4140,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				    (av->assoc_id == SCTP_FUTURE_ASSOC) ||
 				    (av->assoc_id == SCTP_ALL_ASSOC)) {
 					SCTP_INP_WLOCK(inp);
-					inp->local_strreset_support = set_value;
+					inp->local_strreset_support = (uint8_t) av->assoc_value;
 					SCTP_INP_WUNLOCK(inp);
 				}
 				if ((av->assoc_id == SCTP_CURRENT_ASSOC) ||
@@ -4117,7 +4148,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					SCTP_INP_RLOCK(inp);
 					LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 						SCTP_TCB_LOCK(stcb);
-						stcb->asoc.local_strreset_support = set_value;
+						stcb->asoc.local_strreset_support = (uint8_t) av->assoc_value;
 						SCTP_TCB_UNLOCK(stcb);
 					}
 					SCTP_INP_RUNLOCK(inp);
@@ -4133,7 +4164,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			SCTP_CHECK_AND_CAST(strrst, optval, struct sctp_reset_streams, optsize);
 			SCTP_FIND_STCB(inp, stcb, strrst->srs_assoc_id);
-
 			if (stcb == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 				error = ENOENT;
@@ -4145,15 +4175,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				 */
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
 				error = EOPNOTSUPP;
-				SCTP_TCB_UNLOCK(stcb);
-				break;
-			}
-			if (!(stcb->asoc.local_strreset_support & SCTP_ENABLE_RESET_STREAM_REQ)) {
-				/*
-				 * User did not enable the operation.
-				 */
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EPERM);
-				error = EPERM;
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
@@ -4213,6 +4234,21 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if (stcb == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 				error = ENOENT;
+				break;
+			}
+			if (stcb->asoc.peer_supports_strreset == 0) {
+				/*
+				 * Peer does not support the chunk type.
+				 */
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
+				error = EOPNOTSUPP;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
+			if (stcb->asoc.stream_reset_outstanding) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EALREADY);
+				error = EALREADY;
+				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
 			if ((stradd->sas_outstrms == 0) &&
@@ -4275,15 +4311,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				 */
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
 				error = EOPNOTSUPP;
-				SCTP_TCB_UNLOCK(stcb);
-				break;
-			}
-			if (!(stcb->asoc.local_strreset_support & SCTP_ENABLE_RESET_ASSOC_REQ)) {
-				/*
-				 * User did not enable the operation.
-				 */
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EPERM);
-				error = EPERM;
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
@@ -5378,6 +5405,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				event_type = 0;
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOTSUP);
 				error = ENOTSUP;
+				break;
+			case SCTP_ASSOC_RESET_EVENT:
+				event_type = SCTP_PCB_FLAGS_ASSOC_RESETEVNT;
+				break;
+			case SCTP_STREAM_CHANGE_EVENT:
+				event_type = SCTP_PCB_FLAGS_STREAM_CHANGEEVNT;
 				break;
 			default:
 				event_type = 0;

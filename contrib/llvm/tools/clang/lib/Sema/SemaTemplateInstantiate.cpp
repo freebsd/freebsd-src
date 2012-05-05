@@ -153,6 +153,7 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
 bool Sema::ActiveTemplateInstantiation::isInstantiationRecord() const {
   switch (Kind) {
   case TemplateInstantiation:
+  case ExceptionSpecInstantiation:
   case DefaultTemplateArgumentInstantiation:
   case DefaultFunctionArgumentInstantiation:
     return true;
@@ -180,6 +181,29 @@ InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
   if (!Invalid) {
     ActiveTemplateInstantiation Inst;
     Inst.Kind = ActiveTemplateInstantiation::TemplateInstantiation;
+    Inst.PointOfInstantiation = PointOfInstantiation;
+    Inst.Entity = reinterpret_cast<uintptr_t>(Entity);
+    Inst.TemplateArgs = 0;
+    Inst.NumTemplateArgs = 0;
+    Inst.InstantiationRange = InstantiationRange;
+    SemaRef.InNonInstantiationSFINAEContext = false;
+    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
+  }
+}
+
+Sema::InstantiatingTemplate::
+InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
+                      FunctionDecl *Entity, ExceptionSpecification,
+                      SourceRange InstantiationRange)
+  : SemaRef(SemaRef),
+    SavedInNonInstantiationSFINAEContext(
+                                        SemaRef.InNonInstantiationSFINAEContext)
+{
+  Invalid = CheckInstantiationDepth(PointOfInstantiation,
+                                    InstantiationRange);
+  if (!Invalid) {
+    ActiveTemplateInstantiation Inst;
+    Inst.Kind = ActiveTemplateInstantiation::ExceptionSpecInstantiation;
     Inst.PointOfInstantiation = PointOfInstantiation;
     Inst.Entity = reinterpret_cast<uintptr_t>(Entity);
     Inst.TemplateArgs = 0;
@@ -592,6 +616,13 @@ void Sema::PrintInstantiationStack() {
         << Active->InstantiationRange;
       break;
     }
+
+    case ActiveTemplateInstantiation::ExceptionSpecInstantiation:
+      Diags.Report(Active->PointOfInstantiation,
+                   diag::note_template_exception_spec_instantiation_here)
+        << cast<FunctionDecl>((Decl *)Active->Entity)
+        << Active->InstantiationRange;
+      break;
     }
   }
 }
@@ -609,6 +640,7 @@ llvm::Optional<TemplateDeductionInfo *> Sema::isSFINAEContext() const {
     switch(Active->Kind) {
     case ActiveTemplateInstantiation::DefaultFunctionArgumentInstantiation:
     case ActiveTemplateInstantiation::TemplateInstantiation:
+    case ActiveTemplateInstantiation::ExceptionSpecInstantiation:
       // This is a template instantiation, so there is no SFINAE.
       return llvm::Optional<TemplateDeductionInfo *>();
 
@@ -789,6 +821,11 @@ namespace {
     
     QualType TransformFunctionProtoType(TypeLocBuilder &TLB,
                                         FunctionProtoTypeLoc TL);
+    QualType TransformFunctionProtoType(TypeLocBuilder &TLB,
+                                        FunctionProtoTypeLoc TL,
+                                        CXXRecordDecl *ThisContext,
+                                        unsigned ThisTypeQuals);
+
     ParmVarDecl *TransformFunctionTypeParam(ParmVarDecl *OldParm,
                                             int indexAdjustment,
                                         llvm::Optional<unsigned> NumExpansions,
@@ -1211,6 +1248,16 @@ QualType TemplateInstantiator::TransformFunctionProtoType(TypeLocBuilder &TLB,
   return inherited::TransformFunctionProtoType(TLB, TL);
 }
 
+QualType TemplateInstantiator::TransformFunctionProtoType(TypeLocBuilder &TLB,
+                                 FunctionProtoTypeLoc TL,
+                                 CXXRecordDecl *ThisContext,
+                                 unsigned ThisTypeQuals) {
+  // We need a local instantiation scope for this function prototype.
+  LocalInstantiationScope Scope(SemaRef, /*CombineWithOuterScope=*/true);
+  return inherited::TransformFunctionProtoType(TLB, TL, ThisContext, 
+                                               ThisTypeQuals);  
+}
+
 ParmVarDecl *
 TemplateInstantiator::TransformFunctionTypeParam(ParmVarDecl *OldParm,
                                                  int indexAdjustment,
@@ -1446,7 +1493,9 @@ static bool NeedsInstantiationAsFunctionType(TypeSourceInfo *T) {
 TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
                                 const MultiLevelTemplateArgumentList &Args,
                                 SourceLocation Loc,
-                                DeclarationName Entity) {
+                                DeclarationName Entity,
+                                CXXRecordDecl *ThisContext,
+                                unsigned ThisTypeQuals) {
   assert(!ActiveTemplateInstantiations.empty() &&
          "Cannot perform an instantiation without some context on the "
          "instantiation stack");
@@ -1461,7 +1510,14 @@ TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
   TypeLoc TL = T->getTypeLoc();
   TLB.reserve(TL.getFullDataSize());
 
-  QualType Result = Instantiator.TransformType(TLB, TL);
+  QualType Result;
+  
+  if (FunctionProtoTypeLoc *Proto = dyn_cast<FunctionProtoTypeLoc>(&TL)) {
+    Result = Instantiator.TransformFunctionProtoType(TLB, *Proto, ThisContext,
+                                                     ThisTypeQuals);
+  } else {
+    Result = Instantiator.TransformType(TLB, TL);
+  }
   if (Result.isNull())
     return 0;
 
@@ -1878,24 +1934,33 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   CheckCompletedCXXClass(Instantiation);
 
   // Attach any in-class member initializers now the class is complete.
-  for (unsigned I = 0, N = FieldsWithMemberInitializers.size(); I != N; ++I) {
-    FieldDecl *OldField = FieldsWithMemberInitializers[I].first;
-    FieldDecl *NewField = FieldsWithMemberInitializers[I].second;
-    Expr *OldInit = OldField->getInClassInitializer();
+  {
+    // C++11 [expr.prim.general]p4:
+    //   Otherwise, if a member-declarator declares a non-static data member 
+    //  (9.2) of a class X, the expression this is a prvalue of type "pointer
+    //  to X" within the optional brace-or-equal-initializer. It shall not 
+    //  appear elsewhere in the member-declarator.
+    CXXThisScopeRAII ThisScope(*this, Instantiation, (unsigned)0);
+    
+    for (unsigned I = 0, N = FieldsWithMemberInitializers.size(); I != N; ++I) {
+      FieldDecl *OldField = FieldsWithMemberInitializers[I].first;
+      FieldDecl *NewField = FieldsWithMemberInitializers[I].second;
+      Expr *OldInit = OldField->getInClassInitializer();
 
-    ExprResult NewInit = SubstInitializer(OldInit, TemplateArgs,
-                                          /*CXXDirectInit=*/false);
-    if (NewInit.isInvalid())
-      NewField->setInvalidDecl();
-    else {
-      Expr *Init = NewInit.take();
-      assert(Init && "no-argument initializer in class");
-      assert(!isa<ParenListExpr>(Init) && "call-style init in class");
-      ActOnCXXInClassMemberInitializer(NewField,
-                                       Init->getSourceRange().getBegin(), Init);
+      ExprResult NewInit = SubstInitializer(OldInit, TemplateArgs,
+                                            /*CXXDirectInit=*/false);
+      if (NewInit.isInvalid())
+        NewField->setInvalidDecl();
+      else {
+        Expr *Init = NewInit.take();
+        assert(Init && "no-argument initializer in class");
+        assert(!isa<ParenListExpr>(Init) && "call-style init in class");
+        ActOnCXXInClassMemberInitializer(NewField, 
+                                         Init->getSourceRange().getBegin(), 
+                                         Init);
+      }
     }
   }
-
   // Instantiate late parsed attributes, and attach them to their decls.
   // See Sema::InstantiateAttrs
   for (LateInstantiatedAttrVec::iterator I = LateAttrs.begin(),

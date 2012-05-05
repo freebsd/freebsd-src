@@ -133,7 +133,7 @@ TUNABLE_INT("vm.boot_pages", &boot_pages);
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
 
-static int pa_tryrelock_restart;
+int pa_tryrelock_restart;
 SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
     &pa_tryrelock_restart, 0, "Number of tryrelock restarts");
 
@@ -1970,13 +1970,10 @@ vm_page_unwire(vm_page_t m, int activate)
 			if ((m->oflags & VPO_UNMANAGED) != 0 ||
 			    m->object == NULL)
 				return;
-			vm_page_lock_queues();
-			if (activate)
-				vm_page_enqueue(PQ_ACTIVE, m);
-			else {
+			if (!activate)
 				m->flags &= ~PG_WINATCFLS;
-				vm_page_enqueue(PQ_INACTIVE, m);
-			}
+			vm_page_lock_queues();
+			vm_page_enqueue(activate ? PQ_ACTIVE : PQ_INACTIVE, m);
 			vm_page_unlock_queues();
 		}
 	} else
@@ -2016,8 +2013,8 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	if ((queue = m->queue) == PQ_INACTIVE)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		vm_page_lock_queues();
 		m->flags &= ~PG_WINATCFLS;
+		vm_page_lock_queues();
 		if (queue != PQ_NONE)
 			vm_page_queue_remove(queue, m);
 		if (athead)

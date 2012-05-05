@@ -296,12 +296,10 @@ cpu_startup(dummy)
 
 	cpu_setregs();
 
-#ifdef SMP
 	/*
 	 * Add BSP as an interrupt target.
 	 */
 	intr_add_cpu(0);
-#endif
 }
 
 /*

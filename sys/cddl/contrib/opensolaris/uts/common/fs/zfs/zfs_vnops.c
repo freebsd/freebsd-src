@@ -4563,7 +4563,7 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		ASSERT(vp->v_count <= 1);
 		vp->v_count = 0;
 		VI_UNLOCK(vp);
-		vrecycle(vp, curthread);
+		vrecycle(vp);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
 		return;
 	}

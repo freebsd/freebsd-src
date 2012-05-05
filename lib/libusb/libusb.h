@@ -340,7 +340,7 @@ typedef void (*libusb_transfer_cb_fn) (struct libusb_transfer *transfer);
 typedef struct libusb_transfer {
 	libusb_device_handle *dev_handle;
 	uint8_t	flags;
-	uint32_t endpoint;
+	uint8_t endpoint;
 	uint8_t type;
 	uint32_t timeout;
 	enum libusb_transfer_status status;
@@ -349,7 +349,6 @@ typedef struct libusb_transfer {
 	libusb_transfer_cb_fn callback;
 	void   *user_data;
 	uint8_t *buffer;
-	void *os_priv;
 	int	num_iso_packets;
 	struct libusb_iso_packet_descriptor iso_packet_desc[0];
 }	libusb_transfer __aligned(sizeof(void *));

@@ -75,6 +75,10 @@ struct ath_hal;
  * domain registers are not byte swapped!  Thus, on big-endian
  * platforms we have to explicitly byte-swap those registers.
  * OS_REG_UNSWAPPED identifies the registers that need special handling.
+ *
+ * This is not currently used by the FreeBSD HAL osdep code; the HAL
+ * currently does not configure hardware byteswapping for register space
+ * accesses and instead does it through the FreeBSD bus space code.
  */
 #if _BYTE_ORDER == _BIG_ENDIAN
 #define	OS_REG_UNSWAPPED(_reg) \
@@ -83,6 +87,20 @@ struct ath_hal;
 #else /* _BYTE_ORDER == _LITTLE_ENDIAN */
 #define	OS_REG_UNSWAPPED(_reg)	(0)
 #endif /* _BYTE_ORDER */
+
+/*
+ * For USB/SDIO support (where access latencies are quite high);
+ * some write accesses may be buffered and then flushed when
+ * either a read is done, or an explicit flush is done.
+ *
+ * These are simply placeholders for now.
+ */
+#define	OS_REG_WRITE_BUFFER_ENABLE(_ah)		\
+	    do { } while (0)
+#define	OS_REG_WRITE_BUFFER_DISABLE(_ah)	\
+	    do { } while (0)
+#define	OS_REG_WRITE_BUFFER_FLUSH(_ah)		\
+	    do { } while (0)
 
 /*
  * Register read/write operations are either handled through

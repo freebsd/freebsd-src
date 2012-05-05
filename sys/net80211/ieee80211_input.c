@@ -792,6 +792,24 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			return EINVAL;
 		}
 		break;
+	case IEEE80211_ACTION_CAT_SELF_PROT:
+		/* If TA or RA group address discard silently */
+		if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
+			IEEE80211_IS_MULTICAST(wh->i_addr2))
+			return EINVAL;
+		/*
+		 * XXX: Should we verify complete length now or it is
+		 * to varying in sizes?
+		 */
+		switch (ia->ia_action) {
+		case IEEE80211_ACTION_MESHPEERING_CONFIRM:
+		case IEEE80211_ACTION_MESHPEERING_CLOSE:
+			/* is not a peering candidate (yet) */
+			if (ni == vap->iv_bss)
+				return EINVAL;
+			break;
+		}
+		break;
 #endif
 	}
 	return 0;

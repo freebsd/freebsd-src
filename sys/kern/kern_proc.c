@@ -309,6 +309,30 @@ pfind(pid)
 	return (p);
 }
 
+static struct proc *
+pfind_tid(pid_t tid)
+{
+	struct proc *p;
+	struct thread *td;
+
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		PROC_LOCK(p);
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (td->td_tid == tid)
+				goto found;
+		}
+		PROC_UNLOCK(p);
+	}
+found:
+	sx_sunlock(&allproc_lock);
+	return (p);
+}
+
 /*
  * Locate a process group by number.
  * The caller must hold proctree_lock.
@@ -339,7 +363,12 @@ pget(pid_t pid, int flags, struct proc **pp)
 	struct proc *p;
 	int error;
 
-	p = pfind(pid);
+	if (pid <= PID_MAX)
+		p = pfind(pid);
+	else if ((flags & PGET_NOTID) == 0)
+		p = pfind_tid(pid);
+	else
+		p = NULL;
 	if (p == NULL)
 		return (ESRCH);
 	if ((flags & PGET_CANSEE) != 0) {

@@ -56,7 +56,7 @@ extern int	_ftello(FILE *, fpos_t *);
 extern int	_fseeko(FILE *, off_t, int, int);
 extern int	__fflush(FILE *fp);
 extern void	__fcloseall(void);
-extern wint_t	__fgetwc(FILE *, locale_t);
+extern wint_t	__fgetwc_mbs(FILE *, mbstate_t *, int *, locale_t);
 extern wint_t	__fputwc(wchar_t, FILE *, locale_t);
 extern int	__sflush(FILE *);
 extern FILE	*__sfp(void);
@@ -85,6 +85,13 @@ extern size_t	__fread(void * __restrict buf, size_t size, size_t count,
 		FILE * __restrict fp);
 extern int	__sdidinit;
 
+static inline wint_t
+__fgetwc(FILE *fp, locale_t locale)
+{
+	int nread;
+
+	return (__fgetwc_mbs(fp, &fp->_mbstate, &nread, locale));
+}
 
 /*
  * Prepare the given FILE for writing, and return 0 iff it

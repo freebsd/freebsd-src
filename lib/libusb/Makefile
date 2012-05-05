@@ -5,7 +5,7 @@
 #
 
 LIB=		usb
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 SHLIB_MINOR=	0
 SRCS=		libusb20.c
 SRCS+=		libusb20_desc.c
@@ -70,7 +70,7 @@ MLINKS += libusb.3 libusb_detach_kernel_driver.3
 MLINKS += libusb.3 libusb_detach_kernel_driver_np.3
 MLINKS += libusb.3 libusb_attach_kernel_driver.3
 MLINKS += libusb.3 libusb_get_device_descriptor.3
-MLINKS += libusb.3 libsub_get_active_config_descriptor.3
+MLINKS += libusb.3 libusb_get_active_config_descriptor.3
 MLINKS += libusb.3 libusb_get_config_descriptor.3
 MLINKS += libusb.3 libusb_get_config_descriptor_by_value.3
 MLINKS += libusb.3 libusb_free_config_descriptor.3
