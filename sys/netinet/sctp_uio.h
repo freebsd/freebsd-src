@@ -454,7 +454,6 @@ struct sctp_stream_reset_event {
 #define SCTP_STREAM_RESET_OUTGOING_SSN  0x0002
 #define SCTP_STREAM_RESET_DENIED        0x0004
 #define SCTP_STREAM_RESET_FAILED        0x0008
-#define SCTP_STREAM_CHANGED_DENIED      0x0010
 
 /*
  * Assoc reset event - subscribe to SCTP_ASSOC_RESET_EVENT
