@@ -779,10 +779,9 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_SPECIAL_SP_FAIL             27
 #define SCTP_NOTIFY_NO_PEER_AUTH                28
 #define SCTP_NOTIFY_SENDER_DRY                  29
-#define SCTP_NOTIFY_STR_RESET_ADD_OK            30
-#define SCTP_NOTIFY_STR_RESET_ADD_FAIL          31
-#define SCTP_NOTIFY_STR_RESET_INSTREAM_ADD_OK   32
-#define SCTP_NOTIFY_MAX                         32
+#define SCTP_NOTIFY_STR_RESET_DENIED_OUT        30
+#define SCTP_NOTIFY_STR_RESET_DENIED_IN         31
+#define SCTP_NOTIFY_MAX                         31
 
 
 /* This is the value for messages that are NOT completely
