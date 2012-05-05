@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120505: new clang import installed a redundant internal header
+OLD_FILES+=usr/include/clang/3.1/stdalign.h
 # 20120425: libusb version bump (r234684)
 OLD_LIBS+=usr/lib/libusb.so.2
 OLD_LIBS+=usr/lib32/libusb.so.2
