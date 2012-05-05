@@ -57,14 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuconf.h>
 #include <machine/md_var.h>
 
-#if _BYTE_ORDER == _LITTLE_ENDIAN
 char machine[] = "arm";
-#else
-char machine[] = "armeb";
-#endif
 
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
-        machine, 0, "Machine class");
+	machine, 0, "Machine class");
 
 static const char * const generic_steppings[16] = {
 	"rev 0",	"rev 1",	"rev 2",	"rev 3",
@@ -140,7 +136,7 @@ static const char * const pxa2x0_steppings[16] = {
 };
 
 /* Steppings for PXA255/26x.
- * rev 5: PXA26x B0, rev 6: PXA255 A0  
+ * rev 5: PXA26x B0, rev 6: PXA255 A0
  */
 static const char * const pxa255_steppings[16] = {
 	"rev 0",	"rev 1",	"rev 2",	"step A-0",
@@ -460,7 +456,7 @@ identify_arm_cpu(void)
 		printf("  %dKB/%dB %d-way %s Data cache\n",
 		    arm_pdcache_size / 1024,
 		    arm_pdcache_line_size, arm_pdcache_ways,
-		    wtnames[arm_pcache_type]);                
+		    wtnames[arm_pcache_type]);
 	}
 }
 
