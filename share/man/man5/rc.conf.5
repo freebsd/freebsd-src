@@ -2086,6 +2086,19 @@ If
 is set to
 .Dq Li YES
 this is the path to Kerberos 5 Password-Changing Daemon.
+.It Va kfd_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to start
+.Xr kfd 8 ,
+the Kerberos 5 ticket forwarding daemon, at the boot time.
+.It Va kfd_program
+.Pq Vt str
+Path to
+.Xr kfd 8
+(default
+.Pa /usr/libexec/kfd ) .
 .It Va rwhod_enable
 .Pq Vt bool
 If set to
