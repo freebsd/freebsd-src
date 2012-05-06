@@ -37,16 +37,10 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
-#
-# This kernel configuration uses an embedded 8MB memory root file system.
-# Adjust the following path based on local requirements.
-#
-options 	MD_ROOT			# MD is a potential root device
-options 	MD_ROOT_SIZE=8192
-#makeoptions	MFS_IMAGE=/local/scratch/rnw24/mdroot.img
-options 	ROOTDEVNAME=\"ufs:md0\"
+options 	ROOTDEVNAME=\"ufs:gxemul_disk0\"
 
 device		gxemul_cons
+device		gxemul_disk
 device		md
 device		loop
 device		random
