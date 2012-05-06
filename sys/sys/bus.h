@@ -432,6 +432,11 @@ void	device_disable(device_t dev);
 void	device_enable(device_t dev);
 device_t	device_find_child(device_t dev, const char *classname,
 				  int unit);
+/*
+ * XXX busdma/mi
+ * device_get_busdma_tag() returns a busdma_tag_t
+ */
+void 	*device_get_busdma_tag(device_t dev);
 const char	*device_get_desc(device_t dev);
 devclass_t	device_get_devclass(device_t dev);
 driver_t	*device_get_driver(device_t dev);
@@ -458,6 +463,12 @@ int	device_probe_and_attach(device_t dev);
 int	device_probe_child(device_t bus, device_t dev);
 int	device_quiesce(device_t dev);
 void	device_quiet(device_t dev);
+/*
+ * XXX busdma/mi
+ * device_set_busdma_tag() returns a busdma_tag_t
+ * The tag argument is of type busdma_tag_t as well.
+ */
+void    *device_set_busdma_tag(device_t dev, void *tag);
 void	device_set_desc(device_t dev, const char* desc);
 void	device_set_desc_copy(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);

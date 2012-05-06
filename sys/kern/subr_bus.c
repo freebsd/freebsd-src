@@ -134,6 +134,8 @@ struct device {
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
 
+	void	*busdma_tag;		/**< first created DMA tag */
+
 	struct sysctl_ctx_list sysctl_ctx; /**< state for sysctl variables  */
 	struct sysctl_oid *sysctl_tree;	/**< state for sysctl variables */
 };
@@ -2259,6 +2261,15 @@ device_get_unit(device_t dev)
 }
 
 /**
+ * @brief Return the first DMA root tag created for the device
+ */
+void *
+device_get_busdma_tag(device_t dev)
+{
+	return (dev->busdma_tag);
+}
+
+/**
  * @brief Return the device's description string
  */
 const char *
@@ -2347,6 +2358,19 @@ device_set_desc_internal(device_t dev, const char* desc, int copy)
 	}
 
 	bus_data_generation_update();
+}
+
+/**
+ * @brief Set or replace the first DMA root tag
+ */
+void *
+device_set_busdma_tag(device_t dev, void *tag)
+{
+	void *prev;
+
+	prev = dev->busdma_tag;
+	dev->busdma_tag = tag;
+	return (prev);
 }
 
 /**
