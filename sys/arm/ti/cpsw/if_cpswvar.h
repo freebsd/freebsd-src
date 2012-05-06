@@ -70,6 +70,8 @@ struct cpsw_softc {
 	int		eoq;
 	int		tc[CPSW_MAX_TX_BUFFERS];
 	int		tc_unload[CPSW_MAX_TX_BUFFERS];
+	
+	struct cpsw_softc *phy_sc;
 };
 
 #define CPDMA_BD_SOP		(1<<15)

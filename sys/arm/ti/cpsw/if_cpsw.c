@@ -76,8 +76,6 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-static struct cpsw_softc *cpsw_sc = NULL;
-
 static int cpsw_probe(device_t dev);
 static int cpsw_attach(device_t dev);
 static int cpsw_detach(device_t dev);
@@ -227,11 +225,8 @@ cpsw_attach(device_t dev)
 	memcpy(sc->mac_addr, mac_addr, ETHER_ADDR_LEN);
 	sc->node = ofw_bus_get_node(dev);
 
-	if (device_get_unit(dev) == 0)
-		cpsw_sc = sc;
-
 	/* Get phy address from fdt */
-	if (fdt_get_phyaddr(sc->node, &phy) != 0) {
+	if (fdt_get_phyaddr(sc->node, sc->dev, &phy, (void **)&sc->phy_sc) != 0) {
 		device_printf(dev, "failed to get PHY address from FDT\n");
 		return (ENXIO);
 	}
