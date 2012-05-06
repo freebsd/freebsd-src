@@ -116,16 +116,6 @@ meminfo(void)
 	}
 }
 
-static uint64_t
-uboot_loadaddr(u_int type, void *data, uint64_t addr)
-{
-	printf("uboot_loadaddr: type=%d data=0x%x addr=0x%x\n",
-	    type, data, addr);
-	if (type == 1)
-		return 0x40000000;
-	return (addr);
-}
-
 int
 main(void)
 {
@@ -221,7 +211,6 @@ main(void)
 	archsw.arch_copyout = uboot_copyout;
 	archsw.arch_readin = uboot_readin;
 	archsw.arch_autoload = uboot_autoload;
-	archsw.arch_loadaddr = uboot_loadaddr;
 
 	interact();				/* doesn't return */
 
