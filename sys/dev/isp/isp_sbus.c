@@ -484,7 +484,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN,
+	if (isp_dma_tag_derive(isp->isp_osinfo.dmat, QENTRY_LEN,
 	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, len, ns,
 	    BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_osinfo.cdmat)) {

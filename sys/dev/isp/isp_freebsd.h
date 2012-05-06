@@ -658,10 +658,26 @@ void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
 /*
  * Platform Version specific defines
  */
+#ifdef ISP_USE_BUSDMA
+#include <sys/busdma.h>
+
+#define	BUS_DMA_ROOTARG(x)	x
+#define	isp_dma_tag_create(dev, align, bndry, lowaddr, hiaddr, filter,	\
+		f_arg, maxsize, nsegs, maxsegsz, flags, tag_p)		\
+	busdma_tag_create(dev, lowaddr, align, bndry, maxsize, nsegs,	\
+	    maxsegsz, flags, (busdma_tag_t *)tag_p)
+
+#define	isp_dma_tag_derive(parent, align, bndry, lowaddr, highaddr,	\
+		filter, f_arg, maxsize, nsegs, maxsegsz, flags, tag_p)	\
+	busdma_tag_derive((busdma_tag_t)parent, lowaddr, align, bndry,	\
+	    maxsize, nsegs, maxsegsz, flags, (busdma_tag_t *)tag_p)
+#else
 #define	BUS_DMA_ROOTARG(x)	bus_get_dma_tag(x)
 #define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
 	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
 	busdma_lock_mutex, &isp->isp_osinfo.lock, z)
+#define	isp_dma_tag_derive	isp_dma_tag_create
+#endif /* ISP_USE_BUSDMA */
 
 #define	isp_setup_intr	bus_setup_intr
 

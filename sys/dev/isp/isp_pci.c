@@ -1604,7 +1604,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	 * Create a tag for the control spaces. We don't always need this
 	 * to be 32 bits, but we do this for simplicity and speed's sake.
 	 */
-	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, ns, slim, 0, &isp->isp_osinfo.cdmat)) {
+	if (isp_dma_tag_derive(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, ns, slim, 0, &isp->isp_osinfo.cdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
@@ -1641,7 +1641,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (IS_FC(isp)) {
 		for (cmap = 0; cmap < isp->isp_nchan; cmap++) {
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
-			if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, ISP_FC_SCRLEN, 1, slim, 0, &fc->tdmat)) {
+			if (isp_dma_tag_derive(isp->isp_osinfo.dmat, 64, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, ISP_FC_SCRLEN, 1, slim, 0, &fc->tdmat)) {
 				goto bad;
 			}
 			if (bus_dmamem_alloc(fc->tdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &fc->tdmap) != 0) {
