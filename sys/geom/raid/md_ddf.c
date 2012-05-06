@@ -1639,6 +1639,8 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 			    g_raid_get_diskname(disk));
 			goto nofit;
 		}
+		eoff *= pd->pd_meta.sectorsize;
+		esize *= pd->pd_meta.sectorsize;
 		size = INT64_MAX;
 		for (i = 0; i < vol->v_disks_count; i++) {
 			sd = &vol->v_subdisks[i];
@@ -1651,16 +1653,15 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 		}
 		if (disk_pos >= 0 &&
 		    vol->v_raid_level != G_RAID_VOLUME_RL_CONCAT &&
-		    (off_t)esize * 512 < size) {
+		    esize < size) {
 			G_RAID_DEBUG1(1, sc, "Disk %s free space "
 			    "is too small (%ju < %ju)",
-			    g_raid_get_diskname(disk),
-			    (off_t)esize * 512, size);
+			    g_raid_get_diskname(disk), esize, size);
 			disk_pos = -1;
 		}
 		if (disk_pos >= 0) {
 			if (vol->v_raid_level != G_RAID_VOLUME_RL_CONCAT)
-				esize = size / 512;
+				esize = size;
 			md_disk_bvd = disk_pos / GET16(vmeta, vdc->Primary_Element_Count); // XXX
 			md_disk_pos = disk_pos % GET16(vmeta, vdc->Primary_Element_Count); // XXX
 		} else {
@@ -1712,8 +1713,8 @@ nofit:
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 
 	if (resurrection) {
-		sd->sd_offset = (off_t)eoff * 512;
-		sd->sd_size = (off_t)esize * 512;
+		sd->sd_offset = eoff;
+		sd->sd_size = esize;
 	} else if (pdmeta->cr != NULL &&
 	    (vdc1 = ddf_meta_find_vdc(pdmeta, vmeta->vdc->VD_GUID)) != NULL) {
 		val2 = (uint64_t *)&(vdc1->Physical_Disk_Sequence[GET16(vmeta, hdr->Max_Primary_Element_Entries)]);
@@ -2317,6 +2318,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				disks[i] = disk;
 				ddf_meta_unused_range(&pd->pd_meta,
 				    &offs[i], &esize);
+				offs[i] *= pp->sectorsize;
 				size = MIN(size, (off_t)esize * pp->sectorsize);
 				sectorsize = MAX(sectorsize, pp->sectorsize);
 				continue;
@@ -2356,7 +2358,8 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				    cp->provider->name);
 
 			/* Reserve some space for metadata. */
-			size = MIN(size, pp->mediasize - 131072llu * pp->sectorsize);
+			size = MIN(size, GET64(&pd->pd_meta,
+			    pdr->entry[0].Configured_Size) * pp->sectorsize);
 			sectorsize = MAX(sectorsize, pp->sectorsize);
 		}
 		if (error != 0) {
@@ -2466,7 +2469,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			disk = disks[i];
 			sd = &vol->v_subdisks[i];
 			sd->sd_disk = disk;
-			sd->sd_offset = (off_t)offs[i] * 512;
+			sd->sd_offset = offs[i];
 			sd->sd_size = size;
 			if (disk == NULL)
 				continue;
