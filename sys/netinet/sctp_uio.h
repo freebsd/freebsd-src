@@ -296,16 +296,23 @@ struct sctp_assoc_change {
 	uint16_t sac_outbound_streams;
 	uint16_t sac_inbound_streams;
 	sctp_assoc_t sac_assoc_id;
+	uint8_t sac_info[];
 };
 
 /* sac_state values */
-#define SCTP_COMM_UP		0x0001
-#define SCTP_COMM_LOST		0x0002
-#define SCTP_RESTART		0x0003
-#define SCTP_SHUTDOWN_COMP	0x0004
-#define SCTP_CANT_STR_ASSOC	0x0005
+#define SCTP_COMM_UP            0x0001
+#define SCTP_COMM_LOST          0x0002
+#define SCTP_RESTART            0x0003
+#define SCTP_SHUTDOWN_COMP      0x0004
+#define SCTP_CANT_STR_ASSOC     0x0005
 
-
+/* sac_info values */
+#define SCTP_ASSOC_SUPPORTS_PR        0x01
+#define SCTP_ASSOC_SUPPORTS_AUTH      0x02
+#define SCTP_ASSOC_SUPPORTS_ASCONF    0x03
+#define SCTP_ASSOC_SUPPORTS_MULTIBUF  0x04
+#define SCTP_ASSOC_SUPPORTS_RE_CONFIG 0x05
+#define SCTP_ASSOC_SUPPORTS_MAX       0x05
 /*
  * Address event
  */
