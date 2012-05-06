@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 
 struct busdma_tag {
 	struct busdma_tag *dt_chain;
+	struct busdma_tag *dt_child;
+	struct busdma_tag *dt_parent;
 	device_t	dt_device;
 	bus_addr_t	dt_minaddr;
 	bus_addr_t	dt_maxaddr;
@@ -93,7 +95,7 @@ _busdma_tag_get_base(device_t dev)
 
 static int
 _busdma_tag_make(device_t dev, busdma_tag_t base, bus_addr_t maxaddr,
-    bus_addr_t align, bus_addr_t bndry, bus_addr_t maxsz, u_int nsegs,
+    bus_addr_t align, bus_addr_t bndry, bus_size_t maxsz, u_int nsegs,
     bus_size_t maxsegsz, u_int flags, busdma_tag_t *tag_p)
 {
 	busdma_tag_t tag;
@@ -122,7 +124,7 @@ _busdma_tag_make(device_t dev, busdma_tag_t base, bus_addr_t maxaddr,
 
 int
 busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
-    bus_addr_t bndry, bus_addr_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+    bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
     u_int flags, busdma_tag_t *tag_p)
 {
 	busdma_tag_t base, first, tag;
@@ -139,6 +141,29 @@ busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
 	 */
 	first = device_set_busdma_tag(dev, tag);
 	tag->dt_chain = first;
+	*tag_p = tag;
+	return (0);
+}
+
+int
+busdma_tag_derive(busdma_tag_t base, bus_addr_t maxaddr, bus_addr_t align,
+    bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+    u_int flags, busdma_tag_t *tag_p)
+{
+	busdma_tag_t tag;
+	int error;
+
+	error = _busdma_tag_make(base->dt_device, base, maxaddr, align, bndry,
+	    maxsz, nsegs, maxsegsz, flags, &tag);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * This is a derived tag. Link it with the base tag.
+	 */
+	tag->dt_parent = base;
+	tag->dt_chain = base->dt_child;
+	base->dt_child = tag;
 	*tag_p = tag;
 	return (0);
 }
