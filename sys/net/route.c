@@ -68,6 +68,24 @@
 
 #include <vm/uma.h>
 
+/* We use 4 bits in the mbuf flags, thus we are limited to 16 FIBS. */
+#define	RT_MAXFIBS	16
+
+/* Kernel config default option. */
+#ifdef ROUTETABLES
+#if ROUTETABLES <= 0
+#error "ROUTETABLES defined too low"
+#endif
+#if ROUTETABLES > RT_MAXFIBS
+#error "ROUTETABLES defined too big"
+#endif
+#define	RT_NUMFIBS	ROUTETABLES
+#endif /* ROUTETABLES */
+/* Initialize to default if not otherwise set. */
+#ifndef	RT_NUMFIBS
+#define	RT_NUMFIBS	1
+#endif
+
 u_int rt_numfibs = RT_NUMFIBS;
 SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
 /*
