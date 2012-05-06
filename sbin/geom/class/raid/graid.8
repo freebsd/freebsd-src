@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2012
+.Dd May 6, 2012
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -276,6 +276,33 @@ corruption!
 .Sh 2TiB BARRIERS
 Promise metadata format does not support disks above 2TiB.
 NVIDIA metadata format does not support volumes above 2TiB.
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variable can be used to control the behavior of the
+.Nm RAID
+GEOM class.
+.Bl -tag -width indent
+.It Va kern.geom.raid.aggressive_spare : No 0
+Use any disks without metadata connected to controllers of the vendor
+matching to volume metadata format as spare.
+Use it with much care to not lose data if connecting unrelated disk!
+.It Va kern.geom.raid.clean_time : No 5
+Mark volume as clean when idle for the specified number of seconds.
+.It Va kern.geom.raid.debug : No 0
+Debug level of the
+.Nm RAID
+GEOM class.
+.It Va kern.geom.raid.idle_threshold : No 1000000
+Time in microseconds to consider a volume idle for rebuild puroses.
+.It Va kern.geom.raid.name_format : No 0
+Providers name format: 0 -- raid/r{num}, 1 -- raid/{label}.
+.It Va kern.geom.raid.read_err_thresh : No 10
+Number of read errors equated to disk failure.
+Write errors are always considered as disk failures.
+.It Va kern.geom.raid.start_timeout : No 30
+Time to wait for missing array components on startup.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, and non-zero if the command fails.
 .Sh SEE ALSO
