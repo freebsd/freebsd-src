@@ -2534,7 +2534,7 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 	int i, error;
 
 	/* Create a child tag for data buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 1,
+	if (mpt_dma_tag_derive(mpt, mpt->parent_dmat, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE,
 	    mpt->max_cam_seg_cnt, BUS_SPACE_MAXSIZE_32BIT, 0,
@@ -2544,7 +2544,7 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 	}
 
 	/* Create a child tag for request buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	if (mpt_dma_tag_derive(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->request_dmat) != 0) {
@@ -2758,7 +2758,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		 * the firmware after any hard-reset.
 		 */
 		mpt->fw_image_size = mpt->ioc_facts.FWImageSize;
-		error = mpt_dma_tag_create(mpt, mpt->parent_dmat, 1, 0,
+		error = mpt_dma_tag_derive(mpt, mpt->parent_dmat, 1, 0,
 		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 		    mpt->fw_image_size, 1, mpt->fw_image_size, 0,
 		    &mpt->fw_dmat);

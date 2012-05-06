@@ -200,7 +200,7 @@ mpt_alloc_buffer(struct mpt_softc *mpt, struct mpt_page_memory *page_mem,
 	/* Limit requests to 16M. */
 	if (len > 16 * 1024 * 1024)
 		return (ENOSPC);
-	error = mpt_dma_tag_create(mpt, mpt->parent_dmat, 1, 0,
+	error = mpt_dma_tag_derive(mpt, mpt->parent_dmat, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    len, 1, len, 0, &page_mem->tag);
 	if (error)

@@ -241,19 +241,19 @@ int mpt_modevent(module_t, int, void *);
 #ifdef MPT_USE_BUSDMA
 #include <sys/busdma.h>
 
-#define	mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,        \
-                           lowaddr, highaddr, filter, filterarg,        \
-                           maxsize, nsegments, maxsegsz, flags,         \
-                           dma_tagp)                                    \
+#define	mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
+		lowaddr, highaddr, filter, filterarg, maxsize,		\
+		nsegments, maxsegsz, flags, dma_tagp)			\
 	busdma_tag_create((mpt)->dev, lowaddr, alignment, boundary,	\
-	    maxsize, nsegments, maxsegsz, flags, (busdma_tag_t *)dma_tagp)
+	    maxsize, nsegments, maxsegsz, flags,			\
+	    (busdma_tag_t *)dma_tagp)
 
-#define	mpt_dma_tag_derive(mpt, parent_tag, alignment, boundary,        \
-                           lowaddr, highaddr, filter, filterarg,        \
-                           maxsize, nsegments, maxsegsz, flags,         \
-                           dma_tagp)                                    \
-	busdma_tag_derive(parent_tag, lowaddr, alignment, boundary,	\
-	    maxsize, nsegments, maxsegsz, flags, (busdma_tag_t *)dma_tagp)
+#define	mpt_dma_tag_derive(mpt, parent_tag, alignment, boundary,	\
+		lowaddr, highaddr, filter, filterarg, maxsize,		\
+		nsegments, maxsegsz, flags, dma_tagp)			\
+	busdma_tag_derive((busdma_tag_t)parent_tag, lowaddr, alignment,	\
+	    boundary, maxsize, nsegments, maxsegsz, flags,		\
+	    (busdma_tag_t *)dma_tagp)
 #else
 #if __FreeBSD_version < 600000
 #define	bus_get_dma_tag(x)	NULL
@@ -278,6 +278,7 @@ int mpt_modevent(module_t, int, void *);
 			   maxsize, nsegments, maxsegsz, flags,		\
 			   dma_tagp)
 #endif
+#define	mpt_dma_tag_derive	mpt_dma_tag_create
 #endif /* MPT_USE_BUSDMA */
 
 struct mpt_map_info {

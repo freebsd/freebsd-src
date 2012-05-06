@@ -775,7 +775,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	}
 
 	/* Create a child tag for reply buffers */
-	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	if (mpt_dma_tag_derive(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, 2 * PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->reply_dmat) != 0) {
