@@ -2048,9 +2048,12 @@ g_part_start(struct bio *bp)
 			/*
 			 * Check that the partition is suitable for kernel
 			 * dumps. Typically only swap partitions should be
-			 * used.
+			 * used. If the request comes from the nested scheme
+			 * we allow dumping there as well.
 			 */
-			if (!G_PART_DUMPTO(table, entry)) {
+			if ((bp->bio_from == NULL ||
+			    bp->bio_from->geom->class != &g_part_class) &&
+			    G_PART_DUMPTO(table, entry) == 0) {
 				g_io_deliver(bp, ENODEV);
 				printf("GEOM_PART: Partition '%s' not suitable"
 				    " for kernel dumps (wrong type?)\n",
