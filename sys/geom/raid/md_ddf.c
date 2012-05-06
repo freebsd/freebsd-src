@@ -1517,7 +1517,7 @@ g_raid_md_ddf_supported(int level, int qual, int disks, int force)
 		    qual != G_RAID_VOLUME_RLQ_RMDFLA &&
 		    qual != G_RAID_VOLUME_RLQ_RMDFLS)
 			return (0);
-		if (disks < 5)
+		if (disks < 4)
 			return (0);
 		break;
 	case G_RAID_VOLUME_RL_RAID1E:
@@ -1850,6 +1850,13 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	vol->v_strip_size = vol->v_sectorsize << GET8(vmeta, vdc->Stripe_Size);
 	vol->v_disks_count = GET16(vmeta, vdc->Primary_Element_Count) *
 	    GET8(vmeta, vdc->Secondary_Element_Count);
+	vol->v_mdf_pdisks = GET8(vmeta, vdc->MDF_Parity_Disks);
+	vol->v_mdf_polynomial = GET16(vmeta, vdc->MDF_Parity_Generator_Polynomial);
+	vol->v_mdf_method = GET8(vmeta, vdc->MDF_Constant_Generation_Method);
+	if (GET8(vmeta, vdc->Rotate_Parity_count) > 31)
+		vol->v_rotate_parity = 1;
+	else
+		vol->v_rotate_parity = 1 << GET8(vmeta, vdc->Rotate_Parity_count);
 	vol->v_mediasize = GET64(vmeta, vdc->VD_Size) * vol->v_sectorsize;
 	for (i = 0, j = 0, bvd = 0; i < vol->v_disks_count; i++, j++) {
 		if (j == GET16(vmeta, vdc->Primary_Element_Count)) {
@@ -2430,16 +2437,24 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			vol->v_mediasize = size;
 		else if (level == G_RAID_VOLUME_RL_RAID3 ||
 		    level == G_RAID_VOLUME_RL_RAID4 ||
-		    level == G_RAID_VOLUME_RL_RAID5 ||
-		    level == G_RAID_VOLUME_RL_RAID5R)
+		    level == G_RAID_VOLUME_RL_RAID5)
 			vol->v_mediasize = size * (numdisks - 1);
-		else if (level == G_RAID_VOLUME_RL_RAID6 ||
+		else if (level == G_RAID_VOLUME_RL_RAID5R) {
+			vol->v_mediasize = size * (numdisks - 1);
+			vol->v_rotate_parity = 1024;
+		} else if (level == G_RAID_VOLUME_RL_RAID6 ||
 		    level == G_RAID_VOLUME_RL_RAID5E ||
 		    level == G_RAID_VOLUME_RL_RAID5EE)
 			vol->v_mediasize = size * (numdisks - 2);
-		else if (level == G_RAID_VOLUME_RL_RAIDMDF)
-			vol->v_mediasize = size * (numdisks - 3);
-		else { /* RAID1E */
+		else if (level == G_RAID_VOLUME_RL_RAIDMDF) {
+			if (numdisks < 5)
+				vol->v_mdf_pdisks = 2;
+			else
+				vol->v_mdf_pdisks = 3;
+			vol->v_mdf_polynomial = 0x11d;
+			vol->v_mdf_method = 0x00;
+			vol->v_mediasize = size * (numdisks - vol->v_mdf_pdisks);
+		} else { /* RAID1E */
 			vol->v_mediasize = ((size * numdisks) / strip / 2) *
 			    strip;
 		}
@@ -2761,6 +2776,13 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		SET64(vmeta, vdc->Block_Count, 0);
 		SET64(vmeta, vdc->VD_Size, vol->v_mediasize / vol->v_sectorsize);
 		SET16(vmeta, vdc->Block_Size, vol->v_sectorsize);
+		SET8(vmeta, vdc->Rotate_Parity_count,
+		    fls(vol->v_rotate_parity) - 1);
+		SET8(vmeta, vdc->MDF_Parity_Disks, vol->v_mdf_pdisks);
+		SET16(vmeta, vdc->MDF_Parity_Generator_Polynomial,
+		    vol->v_mdf_polynomial);
+		SET8(vmeta, vdc->MDF_Constant_Generation_Method,
+		    vol->v_mdf_method);
 
 		SET16(vmeta, vde->VD_Number, vol->v_global_id);
 		if (vol->v_state <= G_RAID_VOLUME_S_BROKEN)

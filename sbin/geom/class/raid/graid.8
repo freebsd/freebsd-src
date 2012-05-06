@@ -215,7 +215,7 @@ volumes per array, partitions per disk, etc.
 The following configurations are supported: RAID0 (2+ disks), RAID1 (2+ disks),
 RAID1E (3+ disks), RAID3 (3+ disks), RAID4 (3+ disks), RAID5 (3+ disks),
 RAID5E (4+ disks), RAID5EE (4+ disks), RAID5R (3+ disks), RAID6 (4+ disks),
-RAIDMDF (5+ disks), RAID10 (4+ disks), SINGLE (1 disk), CONCAT (2+ disks).
+RAIDMDF (4+ disks), RAID10 (4+ disks), SINGLE (1 disk), CONCAT (2+ disks).
 .Pp
 Format supports two options "BE" and "LE", that mean big-endian byte order
 defined by specification (default) and little-endian used by some Adaptec
@@ -264,8 +264,8 @@ to be used.
 Full support for the following RAID levels is currently implemented:
 RAID0, RAID1, RAID1E, RAID10, SINGLE, CONCAT.
 The following RAID levels supported as read-only for volumes in optimal
-state (without using redundancy): RAID4, RAID5, RAID5E, RAID5EE, RAID6,
-RAIDMDF.
+state (without using redundancy): RAID4, RAID5, RAID5E, RAID5EE, RAID5R,
+RAID6, RAIDMDF.
 .Sh RAID LEVEL MIGRATION
 The GEOM RAID class has no support for RAID level migration, allowed by some
 metadata formats.
