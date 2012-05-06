@@ -913,4 +913,5 @@ AR71XX_ENV_REDBOOT	opt_ar71xx.h
 AR71XX_ATH_EEPROM	opt_ar71xx.h
 
 # busdma/mi
+ISP_USE_BUSDMA	opt_global.h
 MPT_USE_BUSDMA	opt_global.h
