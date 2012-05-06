@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 #include <machine/trap.h>
 
+#include <mips/gxemul/mpreg.h>
+
 extern int	*edata;
 extern int	*end;
 
@@ -123,7 +125,6 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	int argc = a0;
 	char **argv = (char **)a1;
 	char **envp = (char **)a2;
-	unsigned int memsize = a3;
 	int i;
 
 	/* clear the BSS and SBSS segments */
@@ -152,14 +153,16 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 			printf("%s ", argv[i]);
 		printf("\n");
 
-		printf("envp:\n");
-		for (i = 0; envp[i]; i += 2)
-			printf("\t%s = %s\n", envp[i], envp[i+1]);
-
-		printf("memsize = %08x\n", memsize);
+		if (envp != NULL) {
+			printf("envp:\n");
+			for (i = 0; envp[i]; i += 2)
+				printf("\t%s = %s\n", envp[i], envp[i+1]);
+		} else {
+			printf("no envp.\n");
+		}
 	}
 
-	realmem = btoc(memsize);
+	realmem = btoc(GXEMUL_MP_DEV_READ(GXEMUL_MP_DEV_MEMORY));
 	mips_init();
 
 	mips_timer_init_params(platform_counter_freq, 0);
