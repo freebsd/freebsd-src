@@ -555,6 +555,27 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Netac", "OnlyDisk*",
 		 "2000"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	}
+	{
+		/*
+		 * Olympus FE-210 camera
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "FE210*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * LG UP3S MP3 player
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "LG", "UP3S",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Laser MP3-2GA13 MP3 player
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB 2.0", "(HS) Flash Disk",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
