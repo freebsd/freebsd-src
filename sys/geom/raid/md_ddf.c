@@ -1228,7 +1228,7 @@ hdrerror:
 	}
 
 done:
-	free(abuf, M_MD_DDF);
+	g_free(abuf);
 	if (error != 0)
 		ddf_meta_free(meta);
 	return (error);
@@ -3039,6 +3039,8 @@ g_raid_md_free_volume_ddf(struct g_raid_md_object *md,
 		mdi->mdio_starting--;
 		callout_stop(&pv->pv_start_co);
 	}
+	free(pv, M_MD_DDF);
+	vol->v_md_data = NULL;
 	return (0);
 }
 
