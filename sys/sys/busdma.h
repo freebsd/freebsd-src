@@ -34,7 +34,22 @@
 struct busdma_tag;
 typedef struct busdma_tag *busdma_tag_t;
 
-int busdma_tag_create(device_t, struct resource *, bus_addr_t, bus_addr_t,
-    bus_addr_t, u_int, bus_size_t, u_int, busdma_tag_t *);
+/*
+ * busdma_tag_create
+ * returns:		errno value
+ * arguments:
+ *	dev		device for which the created tag is a root tag.
+ *	maxaddr		largest address that can be handled by the device.
+ *	align		alignment requirements of the DMA segments.
+ *	bndry		address boundary constraints for DMA.
+ *	maxsz		maximum total DMA size allowed.
+ *	nsegs		maximum number of DMA segments allowed.
+ *	maxsegsz	maximum size of a single DMA segment.
+ *	flags		flags that control the behaviour of the operation.
+ *	tag_p		address in which to return the newly created tag.
+ */
+int busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
+    bus_addr_t bndry, bus_addr_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+    u_int flags, busdma_tag_t *tag_p);
 
 #endif /* _SYS_BUSDMA_H_ */
