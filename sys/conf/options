@@ -911,3 +911,6 @@ AR71XX_REALMEM		opt_ar71xx.h
 AR71XX_ENV_UBOOT	opt_ar71xx.h
 AR71XX_ENV_REDBOOT	opt_ar71xx.h
 AR71XX_ATH_EEPROM	opt_ar71xx.h
+
+# busdma/mi
+MPT_USE_BUSDMA	opt_global.h
