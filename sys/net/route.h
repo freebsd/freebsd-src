@@ -86,27 +86,6 @@ struct rt_metrics {
 #define	RTM_RTTUNIT	1000000	/* units for rtt, rttvar, as units per sec */
 #define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
 
-/* MRT compile-time constants */
-#ifdef _KERNEL
- #ifndef ROUTETABLES
-  #define RT_NUMFIBS 1
-  #define RT_MAXFIBS 1
- #else
-  /* while we use 4 bits in the mbuf flags, we are limited to 16 */
-  #define RT_MAXFIBS 16
-  #if ROUTETABLES > RT_MAXFIBS
-   #define RT_NUMFIBS RT_MAXFIBS
-   #error "ROUTETABLES defined too big"
-  #else
-   #if ROUTETABLES == 0
-    #define RT_NUMFIBS 1
-   #else
-    #define RT_NUMFIBS ROUTETABLES
-   #endif
-  #endif
- #endif
-#endif
-
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 extern u_int rt_numfibs;	/* number fo usable routing tables */
 /*
