@@ -72,6 +72,7 @@ static int
 md_getboothowto(char *kargs)
 {
 	char	*cp;
+	char	*p;
 	int	howto;
 	int	active;
 	int	i;
@@ -132,10 +133,12 @@ md_getboothowto(char *kargs)
 		if (getenv(howto_names[i].ev) != NULL)
 			howto |= howto_names[i].mask;
 	}
-	if (!strcmp(getenv("console"), "comconsole"))
-		howto |= RB_SERIAL;
-	if (!strcmp(getenv("console"), "nullconsole"))
-		howto |= RB_MUTE;
+	if ((p = getenv("console"))) {
+		if (!strcmp(p, "comconsole"))
+			howto |= RB_SERIAL;
+		if (!strcmp(p, "nullconsole"))
+			howto |= RB_MUTE;
+	}
 
 	return(howto);
 }
