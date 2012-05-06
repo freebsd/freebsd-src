@@ -102,9 +102,10 @@ _busdma_tag_make(device_t dev, busdma_tag_t base, bus_addr_t maxaddr,
 
 	/*
 	 * If nsegs is 1, ignore maxsegsz. What this means is that if we have
-	 * just 1 segment, then maxsz should be equal to maxsegsz. Make it so.
+	 * just 1 segment, then maxsz should be equal to maxsegsz. To keep it
+	 * simple for us, limit maxsegsz to maxsz in any case.
 	 */
-	if (nsegs == 1)
+	if (maxsegsz > maxsz || nsegs == 1)
 		maxsegsz = maxsz;
 
 	tag = (busdma_tag_t)malloc(sizeof(*tag), M_BUSDMA_TAG,
