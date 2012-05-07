@@ -34,6 +34,9 @@
 struct busdma_tag;
 typedef struct busdma_tag *busdma_tag_t;
 
+struct busdma_mem;
+typedef struct busdma_mem *busdma_mem_t;
+
 /*
  * busdma_tag_create
  * returns:		errno value
@@ -56,7 +59,7 @@ int busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
  * busdma_tag_derive
  * returns:		errno value
  * arguments:
- *	tag		The root tag that is to be derived from.
+ *	tag		the root tag that is to be derived from.
  *	maxaddr		largest address that can be handled by the device.
  *	align		alignment requirements of the DMA segments.
  *	bndry		address boundary constraints for DMA.
@@ -69,5 +72,15 @@ int busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
 int busdma_tag_derive(busdma_tag_t tag, bus_addr_t maxaddr, bus_addr_t align,
     bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
     u_int flags, busdma_tag_t *tag_p);
+
+/*
+ * busdma_mem_alloc
+ * returns:		errno value
+ * arguments:
+ *	tag		the tag providing the constraints.
+ *	flags		flags that control the behaviour of the operation.
+ *	mem_p		address in which to return the memory descriptor.
+ */
+int busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_mem_t *mem_p);
 
 #endif /* _SYS_BUSDMA_H_ */
