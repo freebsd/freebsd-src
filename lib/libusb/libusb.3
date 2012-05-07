@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2012
+.Dd May 7, 2012
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -312,6 +312,12 @@ LIBUSB_ERROR code on failure.
 .Ft void
 .Fn libusb_free_config_descriptor "libusb_config_descriptor *config"
 Free a configuration descriptor.
+.Pp
+.Ft int
+.Fn libusb_get_string_descriptor "libusb_device_handle *devh" "uint8_t desc_idx" "uint16_t langid" "unsigned char *data" "int length"
+Retrieve a string descriptor in raw format.
+Returns the number of bytes actually transferred on success
+or a negative LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_get_string_descriptor_ascii "libusb_device_handle *devh" "uint8_t desc_idx" "unsigned char *data" "int length"
