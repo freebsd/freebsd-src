@@ -660,6 +660,7 @@ struct sctp_authkeyid {
 /* SCTP_PEER_AUTH_CHUNKS / SCTP_LOCAL_AUTH_CHUNKS */
 struct sctp_authchunks {
 	sctp_assoc_t gauth_assoc_id;
+	uint32_t gauth_number_of_chunks;
 	uint8_t gauth_chunks[];
 };
 
