@@ -772,7 +772,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
 	PROC_UNLOCK(p);
 	if (new >= maxfd)
-		return (flags & DUP_FCNTL ? EINVAL : EMFILE);
+		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 
 	FILEDESC_XLOCK(fdp);
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL) {
