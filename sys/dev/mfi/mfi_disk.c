@@ -256,17 +256,17 @@ mfi_disk_strategy(struct bio *bio)
 		return;
 	}
 
-	if (controller->adpreset){
+	if (controller->adpreset) {
 		bio->bio_error = EBUSY;
 		return;
 	}
 
-	if (controller->hw_crit_error){
+	if (controller->hw_crit_error) {
 		bio->bio_error = EBUSY;
 		return;
 	}
 
-	if (controller->issuepend_done == 0){
+	if (controller->issuepend_done == 0) {
 		bio->bio_error = EBUSY;
 		return;
 	}
