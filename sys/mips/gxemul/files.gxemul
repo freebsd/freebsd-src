@@ -5,4 +5,4 @@ mips/mips/intr_machdep.c		standard
 mips/mips/tick.c			standard
 
 dev/gxemul/disk/gxemul_disk.c		optional gxemul_disk
-dev/gxemul/ether/gxemul_ether.c		optional gxemul_ether
+dev/gxemul/ether/if_gx.c		optional gxemul_ether

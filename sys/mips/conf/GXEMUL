@@ -27,6 +27,8 @@ options 	DDB
 options 	KDB
 
 options 	SCHED_ULE
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
 
 options 	FFS			#Berkeley Fast Filesystem
 
@@ -41,6 +43,18 @@ options 	ROOTDEVNAME=\"ufs:gxemul_disk0\"
 
 device		gxemul_cons
 device		gxemul_disk
-device		md
-device		loop
-device		random
+device		gxemul_ether
+
+# Pseudo devices.
+device		loop		# Network loopback
+device		random		# Entropy device
+device		ether		# Ethernet support
+device		tun		# Packet tunnel.
+device		md		# Memory "disks"
+device		gif		# IPv6 and IPv4 tunneling
+device		faith		# IPv6-to-IPv4 relaying (translation)
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter
