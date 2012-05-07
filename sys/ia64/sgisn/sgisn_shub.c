@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
@@ -59,6 +60,7 @@ struct sgisn_shub_softc {
 	bus_addr_t	sc_mmraddr;
 	bus_space_tag_t sc_tag;
 	bus_space_handle_t sc_hndl;
+	busdma_tag_t	sc_dmatag;
 	u_int		sc_domain;
 	u_int		sc_hubtype;	/* SHub type (0=SHub1, 1=SHub2) */
 	u_int		sc_nasid_mask;
@@ -351,6 +353,7 @@ sgisn_shub_attach(device_t dev)
 	void *ptr;
 	u_long addr;
 	u_int bus, seg, wdgt;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -393,6 +396,15 @@ sgisn_shub_attach(device_t dev)
 
 	if (bootverbose)
 		device_printf(dev, "NASID=%#x\n", sc->sc_nasid);
+
+	/*
+	 * Create a DMA tag to contribute constraints for our children.
+	 */
+	addr = 1UL << (sc->sc_nasid_shft - 2);
+	error = busdma_tag_create(dev, addr - 1UL, 1, 0, addr, ~0U, addr, 0,
+	    &sc->sc_dmatag);
+	if (error)
+		return (error);
 
 	/*
 	 * Allocate contiguous memory, local to the SHub, for collecting
