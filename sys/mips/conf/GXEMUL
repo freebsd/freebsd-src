@@ -26,6 +26,9 @@ makeoptions	MODULES_OVERRIDE=""
 options 	DDB
 options 	KDB
 
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel
+
 options 	SCHED_ULE
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
