@@ -5421,7 +5421,9 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 	 * TODO: see if this particular DELAY() is required; it may be
 	 * masking some missing FIFO flush or DMA sync.
 	 */
+#if 0
 	if (dodelay)
+#endif
 		DELAY(3000);		/* 3ms is long enough for 1 frame */
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & (ATH_DEBUG_RESET | ATH_DEBUG_FATAL)) {
