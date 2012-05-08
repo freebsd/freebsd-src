@@ -177,6 +177,7 @@ SUBDIR=	alias \
 	sockstat \
 	split \
 	stat \
+	stdbuf \
 	su \
 	systat \
 	tabs \
