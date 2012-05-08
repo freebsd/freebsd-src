@@ -527,7 +527,7 @@ SYSCTL_UINT(_hw_bce, OID_AUTO, hdr_split, CTLFLAG_RDTUN, &bce_hdr_split, 0,
 /* Allowable values are TRUE or FALSE. */
 static int bce_strict_rx_mtu = FALSE;
 TUNABLE_INT("hw.bce.strict_rx_mtu", &bce_strict_rx_mtu);
-SYSCTL_UINT(_hw_bce, OID_AUTO, loose_rx_mtu, CTLFLAG_RDTUN,
+SYSCTL_UINT(_hw_bce, OID_AUTO, strict_rx_mtu, CTLFLAG_RDTUN,
     &bce_strict_rx_mtu, 0,
     "Enable/Disable strict RX frame size checking");
 
