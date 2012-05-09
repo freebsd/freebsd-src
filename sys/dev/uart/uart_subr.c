@@ -52,6 +52,7 @@ static struct uart_class *uart_classes[] = {
 	&uart_ns8250_class,
 	&uart_sab82532_class,
 	&uart_z8530_class,
+	&uart_lpc_class,
 };
 static size_t uart_nclasses = sizeof(uart_classes) / sizeof(uart_classes[0]);
 
