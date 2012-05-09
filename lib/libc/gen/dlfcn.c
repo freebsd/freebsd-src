@@ -157,3 +157,11 @@ void
 _rtld_atfork_post(int *locks)
 {
 }
+
+#pragma weak _rtld_addr_phdr
+int
+_rtld_addr_phdr(const void *addr, struct dl_phdr_info *phdr_info)
+{
+
+	return (0);
+}
