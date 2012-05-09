@@ -209,8 +209,8 @@
             ..
             bootforth
             ..
-	    csh
-	    	..
+            csh
+            ..
             cvs
                 contrib
                 ..
