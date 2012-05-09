@@ -370,7 +370,6 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
-    NAND \
     NCP \
     NDIS \
     NETCAT \
@@ -426,6 +425,7 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
+    NAND \
     OFED \
     SHARED_TOOLCHAIN
 
