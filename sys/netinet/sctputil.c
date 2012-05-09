@@ -2602,6 +2602,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	struct mbuf *m_notify;
 	struct sctp_assoc_change *sac;
 	struct sctp_queued_to_read *control;
+	unsigned int i;
 
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
@@ -2666,7 +2667,22 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	sac->sac_outbound_streams = stcb->asoc.streamoutcnt;
 	sac->sac_inbound_streams = stcb->asoc.streamincnt;
 	sac->sac_assoc_id = sctp_get_associd(stcb);
-	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_assoc_change);
+	i = 0;
+	if (stcb->asoc.peer_supports_prsctp) {
+		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_PR;
+	}
+	if (stcb->asoc.peer_supports_auth) {
+		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_AUTH;
+	}
+	if (stcb->asoc.peer_supports_asconf) {
+		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_ASCONF;
+	}
+	sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_MULTIBUF;
+	if (stcb->asoc.peer_supports_strreset) {
+		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_RE_CONFIG;
+	}
+	sac->sac_length += i;
+	SCTP_BUF_LEN(m_notify) = sac->sac_length;
 	SCTP_BUF_NEXT(m_notify) = NULL;
 	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
 	    0, 0, stcb->asoc.context, 0, 0, 0,
