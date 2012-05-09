@@ -2179,6 +2179,8 @@ OLD_FILES+=usr/share/man/man8/ipfstat.8.gz
 OLD_FILES+=usr/share/man/man8/ipmon.8.gz
 OLD_FILES+=usr/share/man/man8/ipnat.8.gz
 OLD_FILES+=usr/share/man/man8/ippool.8.gz
+OLD_FILES+=etc/periodic/security/510.ipfdenied
+OLD_FILES+=etc/periodic/security/610.ipf6denied
 .endif
 
 .if ${MK_IPFW} == no
