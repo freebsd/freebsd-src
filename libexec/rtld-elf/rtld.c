@@ -3719,3 +3719,11 @@ fetch_ventry(const Obj_Entry *obj, unsigned long symnum)
     }
     return NULL;
 }
+
+/*
+ * No unresolved symbols for rtld.
+ */
+void
+__pthread_cxa_finalize(struct dl_phdr_info *a)
+{
+}

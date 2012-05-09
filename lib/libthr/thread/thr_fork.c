@@ -59,6 +59,7 @@
 
 #include "namespace.h"
 #include <errno.h>
+#include <link.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -92,6 +93,27 @@ _pthread_atfork(void (*prepare)(void), void (*parent)(void),
 	TAILQ_INSERT_TAIL(&_thr_atfork_list, af, qe);
 	THR_UMUTEX_UNLOCK(curthread, &_thr_atfork_lock);
 	return (0);
+}
+
+void
+__pthread_cxa_finalize(struct dl_phdr_info *phdr_info)
+{
+	struct pthread *curthread;
+	struct pthread_atfork *af, *af1;
+
+	_thr_check_init();
+
+	curthread = _get_curthread();
+	THR_UMUTEX_LOCK(curthread, &_thr_atfork_lock);
+	TAILQ_FOREACH_SAFE(af, &_thr_atfork_list, qe, af1) {
+		if (__elf_phdr_match_addr(phdr_info, af->prepare) ||
+		    __elf_phdr_match_addr(phdr_info, af->parent) ||
+		    __elf_phdr_match_addr(phdr_info, af->child)) {
+			TAILQ_REMOVE(&_thr_atfork_list, af, qe);
+			free(af);
+		}
+	}
+	THR_UMUTEX_UNLOCK(curthread, &_thr_atfork_lock);
 }
 
 __weak_reference(_fork, fork);
