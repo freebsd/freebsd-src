@@ -88,9 +88,9 @@
 .Ic help
 .Op Fl v
 .Sh COMMAND DESCRIPTION
-Controllers and chips are arranged into a simple hierarchy. There can be up to
-4 controllers configured, each with 4 chip select (CS) lines. A given chip is
-connected to one of the chip selects.
+Controllers and chips are arranged into a simple hierarchy.
+There can be up to 4 controllers configured, each with 4 chip select (CS) lines.
+A given chip is connected to one of the chip selects.
 .Pp
 Controllers are specified as
 .Aq ctrl_no ;
@@ -103,7 +103,8 @@ Gets controller(s) status. If
 or
 .Fl -all
 flag is specified - command will print status of every controller
-currently available. Optional flag
+currently available.
+Optional flag
 .Fl v
 causes printing complete information about the controller, and all
 chips attached to it.
@@ -123,12 +124,12 @@ full stop-start cycle in order to take effect i.e.:
 .It nandsim start ...
 .El
 .It Ic mod
-Alters simulator parameters on-the-fly. If controller number and CS
-pair is not specified, the general simulator parameters (not
-specific to a controller or a chip) will be modified. Changing
-chip's parameters requires specifying both controller number and CS
-to which the given chip is connected. Parameters which can be
-altered:
+Alters simulator parameters on-the-fly.
+If controller number and CS pair is not specified, the general
+simulator parameters (not specific to a controller or a chip) will be modified.
+Changing chip's parameters requires specifying both controller number and CS
+to which the given chip is connected.
+Parameters which can be altered:
 .Pp
 General simulator related:
 .Bl -tag -width flag
@@ -160,12 +161,13 @@ will list parameters which can be altered.
 .El
 .Bl -tag -width periphlist
 .It Ic bb
-Marks/unmarks a specified block as bad. To mark/unmark the bad
-condition an a block, the following parameters have to be supplied:
-controller number, CS number, and at least one block number.  It is
-possible to specify multiple blocks, by separating blocks numbers
-with a comma. The following options can be used for the 'bb'
-command:
+Marks/unmarks a specified block as bad.
+To mark/unmark the bad condition an a block, the following parameters
+have to be supplied: controller number, CS number, and at least one
+block number.
+It is possible to specify multiple blocks, by separating blocks numbers
+with a comma.
+The following options can be used for the 'bb' command:
 .Bl -tag -width flag
 .It Fl U
 unmark the bad previously marked block as bad.
@@ -193,12 +195,13 @@ Stops an already started controller; if the controller number is not
 supplied, attempts to stop all currently working controllers.
 .It Ic destroy
 Removes existing active chip/controller and its configuration from
-memory and releases the resources. Specifying flag
+memory and releases the resources.
+Specifying flag
 .Fl a
 or
 .Fl -all
-causes removal of every chip and controller. Controller must be
-stopped in order to be destroyed.
+causes removal of every chip and controller.
+Controller must be stopped in order to be destroyed.
 .It Ic error
 Directly overwrites a certain number of bytes in the specified page
 at a given offset with a supplied pattern (which mimics the
@@ -208,8 +211,8 @@ Prints synopsis,
 .Fl v
 gives more verbose output.
 .It Ic freeze
-Stops simulation of given controller (simulates power-loss). All
-commands issues to any chip on this controller are ignored.
+Stops simulation of given controller (simulates power-loss).
+All commands issues to any chip on this controller are ignored.
 .El
 .Sh SEE ALSO
 .Xr nand 4 ,
