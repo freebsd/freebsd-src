@@ -2972,6 +2972,12 @@ flags_out:
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOTSUP);
 				error = ENOTSUP;
 				break;
+			case SCTP_ASSOC_RESET_EVENT:
+				event_type = SCTP_PCB_FLAGS_ASSOC_RESETEVNT;
+				break;
+			case SCTP_STREAM_CHANGE_EVENT:
+				event_type = SCTP_PCB_FLAGS_STREAM_CHANGEEVNT;
+				break;
 			default:
 				event_type = 0;
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
@@ -5346,6 +5352,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				event_type = 0;
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOTSUP);
 				error = ENOTSUP;
+				break;
+			case SCTP_ASSOC_RESET_EVENT:
+				event_type = SCTP_PCB_FLAGS_ASSOC_RESETEVNT;
+				break;
+			case SCTP_STREAM_CHANGE_EVENT:
+				event_type = SCTP_PCB_FLAGS_STREAM_CHANGEEVNT;
 				break;
 			default:
 				event_type = 0;
