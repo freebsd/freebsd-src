@@ -742,9 +742,12 @@ mpt_intr(void *arg)
 			 */
 			reply_baddr = MPT_REPLY_BADDR(reply_desc);
 			offset = reply_baddr - (mpt->reply_phys & 0xFFFFFFFF);
+#ifdef MPT_USE_BUSDMA
+#else
 			bus_dmamap_sync_range(mpt->reply_dmat,
 			    mpt->reply_dmap, offset, MPT_REPLY_SIZE,
 			    BUS_DMASYNC_POSTREAD);
+#endif
 			reply_frame = MPT_REPLY_OTOV(mpt, offset);
 			ctxt_idx = le32toh(reply_frame->MsgContext);
 		} else {
@@ -820,15 +823,21 @@ mpt_intr(void *arg)
 			    " 0x%x)\n", req_index, reply_desc);
 		}
 
+#ifdef MPT_USE_BUSDMA
+#else
 		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+#endif
 		free_rf = mpt_reply_handlers[cb_index](mpt, req,
 		    reply_desc, reply_frame);
 
 		if (reply_frame != NULL && free_rf) {
+#ifdef MPT_USE_BUSDMA
+#else
 			bus_dmamap_sync_range(mpt->reply_dmat,
 			    mpt->reply_dmap, offset, MPT_REPLY_SIZE,
 			    BUS_DMASYNC_PREREAD);
+#endif
 			mpt_free_reply(mpt, reply_baddr);
 		}
 
@@ -861,8 +870,11 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
 
+#ifdef MPT_USE_BUSDMA
+#else
 		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+#endif
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
@@ -1250,8 +1262,11 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	mpt_send_event_ack(mpt, req, &record->reply, record->context);
 	offset = (uint32_t)((uint8_t *)record - mpt->reply);
 	reply_baddr = offset + (mpt->reply_phys & 0xFFFFFFFF);
+#ifdef MPT_USE_BUSDMA
+#else
 	bus_dmamap_sync_range(mpt->reply_dmat, mpt->reply_dmap, offset,
 	    MPT_REPLY_SIZE, BUS_DMASYNC_PREREAD);
+#endif
 	mpt_free_reply(mpt, reply_baddr);
 }
 
@@ -1291,8 +1306,11 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 	if (mpt->verbose > MPT_PRT_DEBUG2) {
 		mpt_dump_request(mpt, req);
 	}
+#ifdef MPT_USE_BUSDMA
+#else
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+#endif
 	req->state |= REQ_STATE_QUEUED;
 	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
 	    ("req %p:%u func %x on freelist list in mpt_send_cmd",
@@ -2528,7 +2546,9 @@ mpt_download_fw(struct mpt_softc *mpt)
 static int
 mpt_dma_buf_alloc(struct mpt_softc *mpt)
 {
+#ifndef MPT_USE_BUSDMA
 	struct mpt_map_info mi;
+#endif
 	uint8_t *vptr;
 	uint32_t pptr, end;
 	int i, error;
@@ -2552,6 +2572,16 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 		return (1);
 	}
 
+#ifdef MPT_USE_BUSDMA
+	error = busdma_mem_alloc((busdma_tag_t)mpt->request_dmat, 0,
+	    &mpt->request_dmam);
+	if (error != 0) {
+		mpt_prt(mpt, "cannot allocate DMA memory for requests\n");
+		return (error);
+	}
+	mpt->request = (void *)busdma_mem_get_seg_addr(mpt->request_dmam, 0);
+	mpt->request_phys = busdma_mem_get_seg_busaddr(mpt->request_dmam, 0);
+#else
 	/* Allocate some DMA accessible memory for requests */
 	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &mpt->request_dmap) != 0) {
@@ -2573,6 +2603,7 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 		return (1);
 	}
 	mpt->request_phys = mi.phys;
+#endif
 
 	/*
 	 * Now create per-request dma maps
@@ -2618,11 +2649,14 @@ mpt_dma_buf_free(struct mpt_softc *mpt)
 	for (i = 0; i < MPT_MAX_REQUESTS(mpt); i++) {
 		bus_dmamap_destroy(mpt->buffer_dmat, mpt->request_pool[i].dmap);
 	}
+#ifdef MPT_USE_BUSDMA
+#else
 	bus_dmamap_unload(mpt->request_dmat, mpt->request_dmap);
 	bus_dmamem_free(mpt->request_dmat, mpt->request, mpt->request_dmap);
 	bus_dma_tag_destroy(mpt->request_dmat);
 	mpt->request_dmat = 0;
 	bus_dma_tag_destroy(mpt->buffer_dmat);
+#endif
 }
 
 /*

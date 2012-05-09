@@ -734,7 +734,10 @@ static int
 mpt_dma_mem_alloc(struct mpt_softc *mpt)
 {
 	size_t len;
+#ifndef MPT_USE_BUSDMA
 	struct mpt_map_info mi;
+#endif
+	int error;
 
 	/* Check if we alreay have allocated the reply memory */
 	if (mpt->reply_phys != 0) {
@@ -746,14 +749,14 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK);
 	if (mpt->request_pool == NULL) {
 		mpt_prt(mpt, "cannot allocate request pool\n");
-		return (1);
+		return (ENOMEM);
 	}
 	memset(mpt->request_pool, 0, len);
 #else
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 	if (mpt->request_pool == NULL) {
 		mpt_prt(mpt, "cannot allocate request pool\n");
-		return (1);
+		return (ENOMEM);
 	}
 #endif
 
@@ -763,32 +766,45 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	 * Align at byte boundaries,
 	 * Limit to 32-bit addressing for request/reply queues.
 	 */
-	if (mpt_dma_tag_create(mpt, /*parent*/bus_get_dma_tag(mpt->dev),
+	error = mpt_dma_tag_create(mpt, /*parent*/bus_get_dma_tag(mpt->dev),
 	    /*alignment*/1, /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
 	    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
 	    /*nsegments*/BUS_SPACE_UNRESTRICTED,
 	    /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT, /*flags*/0,
-	    &mpt->parent_dmat) != 0) {
+	    &mpt->parent_dmat);
+	if (error != 0) {
 		mpt_prt(mpt, "cannot create parent dma tag\n");
-		return (1);
+		return (error);
 	}
 
 	/* Create a child tag for reply buffers */
-	if (mpt_dma_tag_derive(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
+	error = mpt_dma_tag_derive(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 	    NULL, NULL, 2 * PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->reply_dmat) != 0) {
+	    &mpt->reply_dmat);
+	if (error != 0) {
 		mpt_prt(mpt, "cannot create a dma tag for replies\n");
-		return (1);
+		return (error);
 	}
 
+#ifdef MPT_USE_BUSDMA
+	error = busdma_mem_alloc((busdma_tag_t)mpt->reply_dmat, 0,
+	    &mpt->reply_dmam);
+	if (error != 0) {
+		mpt_prt(mpt, "cannot allocate DMA memory for replies\n");
+		return (error);
+	}
+	mpt->reply = (void *)busdma_mem_get_seg_addr(mpt->reply_dmam, 0);
+	mpt->reply_phys = busdma_mem_get_seg_busaddr(mpt->reply_dmam, 0);
+#else
 	/* Allocate some DMA accessible memory for replies */
-	if (bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
-	    BUS_DMA_NOWAIT, &mpt->reply_dmap) != 0) {
+	error = bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
+	    BUS_DMA_NOWAIT, &mpt->reply_dmap);
+	if (error != 0) {
 		mpt_prt(mpt, "cannot allocate %lu bytes of reply memory\n",
 		    (u_long) (2 * PAGE_SIZE));
-		return (1);
+		return (error);
 	}
 
 	mi.mpt = mpt;
@@ -801,9 +817,10 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	if (mi.error) {
 		mpt_prt(mpt, "error %d loading dma map for DMA reply queue\n",
 		    mi.error);
-		return (1);
+		return (mi.error);
 	}
 	mpt->reply_phys = mi.phys;
+#endif /* MPT_USE_BUSDMA */
 
 	return (0);
 }
@@ -819,11 +836,13 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "already released dma memory\n");
 		return;
         }
-                
+#ifdef MPT_USE_BUSDMA
+#else
 	bus_dmamap_unload(mpt->reply_dmat, mpt->reply_dmap);
 	bus_dmamem_free(mpt->reply_dmat, mpt->reply, mpt->reply_dmap);
 	bus_dma_tag_destroy(mpt->reply_dmat);
 	bus_dma_tag_destroy(mpt->parent_dmat);
+#endif
 	mpt->reply_dmat = NULL;
 	free(mpt->request_pool, M_DEVBUF);
 	mpt->request_pool = NULL;

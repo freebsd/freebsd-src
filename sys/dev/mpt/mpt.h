@@ -752,13 +752,21 @@ struct mpt_softc {
 
 	bus_dma_tag_t		parent_dmat;	/* DMA tag for parent PCI bus */
 	bus_dma_tag_t		reply_dmat;	/* DMA tag for reply memory */
+#ifdef MPT_USE_BUSDMA
+	busdma_mem_t		reply_dmam;
+#else
 	bus_dmamap_t		reply_dmap;	/* DMA map for reply memory */
+#endif
 	uint8_t		       *reply;		/* KVA of reply memory */
 	bus_addr_t		reply_phys;	/* BusAddr of reply memory */
 
 	bus_dma_tag_t		buffer_dmat;	/* DMA tag for buffers */
 	bus_dma_tag_t		request_dmat;	/* DMA tag for request memroy */
+#ifdef MPT_USE_BUSDMA
+	busdma_mem_t		request_dmam;
+#else
 	bus_dmamap_t		request_dmap;	/* DMA map for request memroy */
+#endif
 	uint8_t		       *request;	/* KVA of Request memory */
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
