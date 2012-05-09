@@ -256,11 +256,11 @@ nandfs_cp_set_snapshot(struct nandfs_node *cp_node, uint64_t cno)
 	while (prev > cno) {
 		curr = prev;
 		nandfs_checkpoint_blk_offset(fsdev, prev, &prev_blk, &offset);
-			error = nandfs_bread(cp_node, prev_blk, NOCRED, 0, &bp);
-			if (error) {
-				brelse(bp);
-				return (error);
-			}
+		error = nandfs_bread(cp_node, prev_blk, NOCRED, 0, &bp);
+		if (error) {
+			brelse(bp);
+			return (error);
+		}
 		cnp = (struct nandfs_checkpoint *)(bp->b_data + offset);
 		list = &cnp->cp_snapshot_list;
 		prev = list->ssl_prev;
@@ -484,7 +484,7 @@ nandfs_cpinfo_fill(struct nandfs_checkpoint *cnp, struct nandfs_cpinfo *nci)
 
 static int
 nandfs_get_cpinfo_cp(struct nandfs_node *node, uint64_t cno,
-   struct nandfs_cpinfo *nci, uint32_t mnmembs, uint32_t *nmembs)
+    struct nandfs_cpinfo *nci, uint32_t mnmembs, uint32_t *nmembs)
 {
 	struct nandfs_device *fsdev;
 	struct buf *bp;
@@ -521,7 +521,7 @@ nandfs_get_cpinfo_cp(struct nandfs_node *node, uint64_t cno,
 	do {
 		nandfs_checkpoint_blk_offset(fsdev, cno, &blk, &offset);
 		remaining = nandfs_checkpoint_blk_remaining(fsdev, cno,
-				blk, offset);
+		    blk, offset);
 		error = nandfs_bread(node, blk, NOCRED, 0, &bp);
 		if (error) {
 			brelse(bp);
@@ -555,7 +555,7 @@ nandfs_get_cpinfo_cp(struct nandfs_node *node, uint64_t cno,
 
 static int
 nandfs_get_cpinfo_sp(struct nandfs_node *node, uint64_t cno,
-   struct nandfs_cpinfo *nci, uint32_t mnmembs, uint32_t *nmembs)
+    struct nandfs_cpinfo *nci, uint32_t mnmembs, uint32_t *nmembs)
 {
 	struct nandfs_checkpoint *cnp;
 	struct nandfs_cpfile_header *cnh;
@@ -606,7 +606,7 @@ nandfs_get_cpinfo_sp(struct nandfs_node *node, uint64_t cno,
 		cnp = (struct nandfs_checkpoint *)(bp->b_data + offset);
 		flag = cnp->cp_flags;
 		if (!(flag & NANDFS_CHECKPOINT_SNAPSHOT) ||
-		   (flag & NANDFS_CHECKPOINT_INVALID))
+		    (flag & NANDFS_CHECKPOINT_INVALID))
 			break;
 
 		nci->nci_flags = flag;

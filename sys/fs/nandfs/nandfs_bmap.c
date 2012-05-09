@@ -73,37 +73,19 @@ int
 nandfs_bmap_lookup(struct nandfs_node *node, nandfs_lbn_t lblk,
     nandfs_daddr_t *vblk)
 {
-	int error;
-
-	error = bmap_lookup(node, lblk, vblk);
-	if (error)
-		nandfs_error("%s: returned %d", __func__, error);
-
-	return (error);
-}
-
-int
-nandfs_bmap_nlookup(struct nandfs_node *node, nandfs_lbn_t from, uint64_t blks,
-    uint64_t *l2vmap)
-{
 	int error = 0;
-	nandfs_lbn_t lblk, *vblk;
 
-	MPASS(blks == 1);
-
-	lblk = from;
-	vblk = l2vmap;
-	if (node->nn_ino == NANDFS_GC_INO && from >= 0)
+	if (node->nn_ino == NANDFS_GC_INO && lblk >= 0)
 		*vblk = lblk;
 	else
-		error = nandfs_bmap_lookup(node, from, l2vmap);
+		error = bmap_lookup(node, lblk, vblk);
 
 	DPRINTF(TRANSLATE, ("%s: error %d ino %#jx lblocknr %#jx -> %#jx\n",
 	    __func__, error, (uintmax_t)node->nn_ino, (uintmax_t)lblk,
 	    (uintmax_t)*vblk));
 
 	if (error)
-		nandfs_error("%s: return %d", __func__, error);
+		nandfs_error("%s: returned %d", __func__, error);
 
 	return (error);
 }

@@ -286,7 +286,7 @@ nandfs_alloc_entry(struct nandfs_mdt* mdt, struct nandfs_alloc_request *req)
 	uint32_t *mask, maskrw;
 
 	nandfs_calc_idx_entry(mdt, req->entrynum, &group, &bitmap_idx,
-	     &bitmap_off);
+	    &bitmap_off);
 
 	DPRINTF(ALLOC, ("nandfs_alloc_entry: req->entrynum=%jx bitmap_idx=%jx"
 	    " bitmap_off=%jx group=%jx\n", (uintmax_t)req->entrynum,

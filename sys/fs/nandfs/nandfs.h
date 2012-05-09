@@ -97,6 +97,7 @@ int nandfs_init(struct vfsconf *);
 int nandfs_uninit(struct vfsconf *);
 
 extern struct vop_vector nandfs_vnodeops;
+extern struct vop_vector nandfs_system_vnodeops;
 
 struct nandfs_node;
 
@@ -222,9 +223,8 @@ struct nandfs_device {
 
 extern SLIST_HEAD(_nandfs_devices, nandfs_device) nandfs_devices;
 
-#define	NANDFS_KILL_SYNCER	0x1
-#define	NANDFS_FORCE_SYNCER	0x2
-#define	NANDFS_UMOUNT		0x4
+#define	NANDFS_FORCE_SYNCER	0x1
+#define	NANDFS_UMOUNT		0x2
 
 #define	SYNCER_UMOUNT		0x0
 #define	SYNCER_VFS_SYNC		0x1
@@ -233,10 +233,32 @@ extern SLIST_HEAD(_nandfs_devices, nandfs_device) nandfs_devices;
 #define	SYNCER_FSYNC		0x4
 #define	SYNCER_ROUPD		0x5
 
-#define NANDFS_WRITELOCK(vp, fsdev)	nandfs_writelock(vp, fsdev)
-#define NANDFS_WRITEUNLOCK(fsdev)	nandfs_writeunlock(fsdev)
+static __inline int
+nandfs_writelockflags(struct nandfs_device *fsdev, int flags)
+{
+	int error = 0;
 
-#define NANDFS_WRITEASSERT(fsdev)	nandfs_writeassert(fsdev)
+	if (lockstatus(&fsdev->nd_seg_const) != LK_EXCLUSIVE)
+		error = lockmgr(&fsdev->nd_seg_const, flags | LK_SHARED, NULL);
+
+	return (error);
+}
+
+static __inline void
+nandfs_writeunlock(struct nandfs_device *fsdev)
+{
+
+	if (lockstatus(&fsdev->nd_seg_const) != LK_EXCLUSIVE)
+		lockmgr(&(fsdev)->nd_seg_const, LK_RELEASE, NULL);
+}
+
+#define NANDFS_WRITELOCKFLAGS(fsdev, flags)	nandfs_writelockflags(fsdev, flags)
+
+#define NANDFS_WRITELOCK(fsdev) NANDFS_WRITELOCKFLAGS(fsdev, 0)
+
+#define NANDFS_WRITEUNLOCK(fsdev) nandfs_writeunlock(fsdev)
+
+#define NANDFS_WRITEASSERT(fsdev) lockmgr_assert(&(fsdev)->nd_seg_const, KA_LOCKED)
 
 /* Specific mountpoint; head or a checkpoint/snapshot */
 struct nandfsmount {

@@ -187,8 +187,13 @@ static int
 nandfs_cleaner_bdesc_is_alive(struct nandfs_device *fsdev,
     struct nandfs_bdesc *bdesc)
 {
+	int alive;
 
-	return (bdesc->bd_oblocknr == bdesc->bd_blocknr);
+	alive = bdesc->bd_oblocknr == bdesc->bd_blocknr;
+	if (!alive)
+		MPASS(abs(bdesc->bd_oblocknr - bdesc->bd_blocknr) > 2);
+
+	return (alive);
 }
 
 static void
@@ -213,7 +218,12 @@ nandfs_cleaner_iterate_psegment(struct nandfs_device *fsdev,
 	for (i = 0; i < segsum->ss_nbinfos; i++) {
 		if (binfo[i].bi_v.bi_ino == NANDFS_DAT_INO) {
 			(*bdpp)->bd_oblocknr = blk + segsum->ss_nblocks -
-			    segsum->ss_nbinfos + i - 1;
+			    segsum->ss_nbinfos + i;
+			/*
+			 * XXX Hack
+			 */
+			if (segsum->ss_flags & NANDFS_SS_SR)
+				(*bdpp)->bd_oblocknr--;
 			(*bdpp)->bd_level = binfo[i].bi_dat.bi_level;
 			(*bdpp)->bd_offset = binfo[i].bi_dat.bi_blkoff;
 			(*bdpp)++;
@@ -288,9 +298,10 @@ nandfs_cleaner_choose_segment(struct nandfs_device *fsdev, uint64_t **segpp,
 	suinfo = malloc(sizeof(*suinfo) * nsegs, M_NANDFSTEMP,
 	    M_ZERO | M_WAITOK);
 
-	if (*rseg >= fsdev->nd_seg_num)
+	if (*rseg >= fsdev->nd_fsdata.f_nsegments)
 		*rseg = 0;
 
+retry:
 	error = nandfs_get_segment_info_filter(fsdev, suinfo, nsegs, *rseg,
 	    &ssegs, NANDFS_SEGMENT_USAGE_DIRTY,
 	    NANDFS_SEGMENT_USAGE_ACTIVE | NANDFS_SEGMENT_USAGE_ERROR |
@@ -298,6 +309,11 @@ nandfs_cleaner_choose_segment(struct nandfs_device *fsdev, uint64_t **segpp,
 	if (error) {
 		nandfs_error("%s:%d", __FILE__, __LINE__);
 		goto out;
+	}
+
+	if (ssegs == 0 && *rseg != 0) {
+		*rseg = 0;
+		goto retry;
 	}
 
 	print_suinfo(suinfo, ssegs);
@@ -392,7 +408,8 @@ nandfs_cleaner_body(struct nandfs_device *fsdev, uint64_t *rseg)
 		}
 	}
 
-	lockmgr(&fsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
+	NANDFS_WRITELOCK(fsdev);
+	DPRINTF(CLEAN, ("%s: got lock\n", __func__));
 
 	error = nandfs_get_dat_vinfo(fsdev, vinfo, vip - vinfo);
 	if (error) {
@@ -430,7 +447,7 @@ nandfs_cleaner_body(struct nandfs_device *fsdev, uint64_t *rseg)
 		nandfs_error("%s:%d\n", __FILE__, __LINE__);
 
 out_locked:
-	lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+	NANDFS_WRITEUNLOCK(fsdev);
 out:
 	free(cpinfo, M_NANDFSTEMP);
 	free(segnums, M_NANDFSTEMP);
@@ -447,7 +464,7 @@ nandfs_cleaner(struct nandfs_device *fsdev)
 	int error;
 
 	while (!nandfs_cleaner_finished(fsdev)) {
-		if (!nandfs_cleaner_enable)
+		if (!nandfs_cleaner_enable || rebooting)
 			continue;
 
 		DPRINTF(CLEAN, ("%s: run started\n", __func__));
@@ -478,7 +495,6 @@ nandfs_cleaner_clean_segments(struct nandfs_device *nffsdev,
 
 	gc = nffsdev->nd_gc_node;
 
-
 	DPRINTF(CLEAN, ("%s: enter\n", __func__));
 
 	VOP_LOCK(NTOV(gc), LK_EXCLUSIVE);
@@ -504,7 +520,7 @@ nandfs_cleaner_clean_segments(struct nandfs_device *nffsdev,
 	/* Delete checkpoints */
 	for (i = 0; i < npd; i++) {
 		DPRINTF(CLEAN, ("delete checkpoint: %jx\n",
-		   (uintmax_t)pd[i].p_start));
+		    (uintmax_t)pd[i].p_start));
 		error = nandfs_delete_cp(nffsdev->nd_cp_node, pd[i].p_start,
 		    pd[i].p_end);
 		if (error) {

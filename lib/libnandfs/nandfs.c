@@ -108,7 +108,7 @@ void
 nandfs_init(struct nandfs *fs, const char *dir)
 {
 
-	snprintf(fs->n_ioc, sizeof(fs->n_ioc), "%s/%s", dir, ".nandfs");
+	snprintf(fs->n_ioc, sizeof(fs->n_ioc), "%s/%s", dir, ".");
 	fs->n_iocfd = -1;
 	fs->n_flags = NANDFS_IS_VALID;
 }

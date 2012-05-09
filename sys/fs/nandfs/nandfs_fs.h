@@ -148,7 +148,7 @@ struct nandfs_fsdata {
 
 	uint64_t	f_ctime;	/* creation time (execution time
 					   of newfs)			*/
-	 /* Block size represented as: blocksize = 1 << (f_log_block_size + 10)	*/
+	/* Block size represented as: blocksize = 1 << (f_log_block_size + 10)	*/
 	uint32_t	f_log_block_size;
 
 	uint16_t	f_inode_size;		/* size of an inode		*/
@@ -164,15 +164,13 @@ struct nandfs_fsdata {
 
 	uint32_t	f_erasesize;
 	uint64_t	f_nsegments;		/* number of segm. in filesystem	*/
-	uint64_t	f_first_data_block;	/* 1st seg disk block number		*/
+	nandfs_daddr_t	f_first_data_block;	/* 1st seg disk block number		*/
 	uint32_t	f_blocks_per_segment;	/* number of blocks per segment		*/
 	uint32_t	f_r_segments_percentage;	/* reserved segments percentage		*/
 
-	uint32_t	f_crc_seed;		/* seed value of CRC calculation	*/
-
 	struct uuid	f_uuid;			/* 128-bit uuid for volume		*/
 	char		f_volume_name[16];	/* volume name				*/
-	uint32_t	f_pad[103];
+	uint32_t	f_pad[104];
 } __packed;
 
 #ifdef _KERNEL
@@ -220,7 +218,7 @@ CTASSERT(sizeof(struct nandfs_super_block) == 256);
 
 #define	NANDFS_MIN_SEGSIZE	NANDFS_DEF_ERASESIZE
 
-#define	NANDFS_CURRENT_REV	8	/* current major revision */
+#define	NANDFS_CURRENT_REV	9	/* current major revision */
 
 #define	NANDFS_FSDATA_CRC_BYTES offsetof(struct nandfs_fsdata, f_pad)
 /* Bytes count of super_block for CRC-calculation */
@@ -297,8 +295,8 @@ CTASSERT(sizeof(struct nandfs_binfo_v) == sizeof(struct nandfs_binfo_dat));
 
 /* Convenience union for both types of binfo's */
 union nandfs_binfo {
-         struct nandfs_binfo_v bi_v;
-         struct nandfs_binfo_dat bi_dat;
+	struct nandfs_binfo_v bi_v;
+	struct nandfs_binfo_dat bi_dat;
 };
 
 /* Indirect buffers path */

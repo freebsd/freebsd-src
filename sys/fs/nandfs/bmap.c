@@ -490,7 +490,7 @@ direct:
 				nandfs_error("%s: cannot destroy "
 				    "block %jx, error %d\n", __func__,
 				    (uintmax_t)ip->i_db[i], error);
-				    return (error);
+				return (error);
 			}
 			ip->i_db[i] = 0;
 		}

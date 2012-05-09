@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/buf.h>
 #include <sys/bio.h>
+#include <sys/libkern.h>
 
 #include <ddb/ddb.h>
 
@@ -275,7 +276,7 @@ nandfs_add_superroot(struct nandfs_seginfo *seginfo)
 	struct nandfs_super_root *sr;
 	struct buf *bp = NULL;
 	uint64_t crc_skip;
-	uint32_t crc_seed, crc_calc;
+	uint32_t crc_calc;
 	int error;
 
 	fsdev = seginfo->fsdev;
@@ -300,9 +301,7 @@ nandfs_add_superroot(struct nandfs_seginfo *seginfo)
 	    sizeof(struct nandfs_inode));
 
 	crc_skip = sizeof(sr->sr_sum);
-	crc_seed = fsdev->nd_fsdata.f_crc_seed;
-	crc_calc = crc32_le(crc_seed, (uint8_t *)sr + crc_skip,
-	    NANDFS_SR_BYTES - crc_skip);
+	crc_calc = crc32((uint8_t *)sr + crc_skip, NANDFS_SR_BYTES - crc_skip);
 
 	sr->sr_sum = crc_calc;
 
@@ -663,9 +662,9 @@ nandfs_fill_segsum(struct nandfs_segment *seg, int has_sr)
 	struct nandfs_segment_summary *ss;
 	struct nandfs_device *fsdev;
 	struct buf *bp;
-	uint32_t rest, segsum_size, blocksize;
+	uint32_t rest, segsum_size, blocksize, crc_calc;
 	uint16_t flags;
-	uint8_t *crc_area, crc_skip, crc_seed, crc_calc = 0;
+	uint8_t *crc_area, crc_skip;
 
 	DPRINTF(SYNC, ("%s: seg %#jx nblocks %#x sumbytes %#x\n",
 	    __func__, (uintmax_t) seg->seg_num,
@@ -673,7 +672,6 @@ nandfs_fill_segsum(struct nandfs_segment *seg, int has_sr)
 	    seg->segsum_bytes));
 
 	fsdev = seg->fsdev;
-	crc_seed = fsdev->nd_fsdata.f_crc_seed;
 
 	flags = NANDFS_SS_LOGBGN | NANDFS_SS_LOGEND;
 	if (has_sr)
@@ -697,9 +695,9 @@ nandfs_fill_segsum(struct nandfs_segment *seg, int has_sr)
 	segsum_size = seg->segsum_bytes - crc_skip;
 	rest = min(seg->segsum_bytes, blocksize) - crc_skip;
 	crc_area = (uint8_t *)ss + crc_skip;
-	crc_calc = crc_seed;
+	crc_calc = ~0U;
 	while (segsum_size > 0) {
-		crc_calc = crc32_le(crc_calc, crc_area, rest);
+		crc_calc = crc32_raw(crc_area, rest, crc_calc);
 		segsum_size -= rest;
 		if (!segsum_size)
 			break;
@@ -707,7 +705,7 @@ nandfs_fill_segsum(struct nandfs_segment *seg, int has_sr)
 		crc_area = (uint8_t *)bp->b_data;
 		rest = segsum_size <= blocksize ? segsum_size : blocksize;
 	}
-	ss->ss_sumsum = crc_calc;
+	ss->ss_sumsum = crc_calc ^ ~0U;
 
 	return (ss);
 
@@ -887,7 +885,7 @@ clean_seginfo(struct nandfs_seginfo *seginfo, uint8_t unlock)
 	DPRINTF(SYNC, ("%s: seginfo %p\n", __func__, seginfo));
 
 	LIST_FOREACH(seg, &seginfo->seg_list, seg_link) {
-		 nandfs_clean_segblocks(seg, unlock);
+		nandfs_clean_segblocks(seg, unlock);
 	}
 }
 
@@ -1015,7 +1013,14 @@ nandfs_sync_file(struct vnode *vp)
 	cp = fsdev->nd_cp_node;
 	ifile = nmp->nm_ifile_node;
 
-	lockmgr(&fsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
+	NANDFS_WRITEASSERT(fsdev);
+	if (lockmgr(&fsdev->nd_seg_const, LK_UPGRADE, NULL) != 0) {
+		DPRINTF(SYNC, ("%s: lost shared lock\n", __func__));
+		if (lockmgr(&fsdev->nd_seg_const, LK_EXCLUSIVE, NULL) != 0)
+			panic("couldn't lock exclusive");
+	}
+	DPRINTF(SYNC, ("%s: got lock\n", __func__));
+
 	VOP_LOCK(NTOV(su), LK_EXCLUSIVE);
 	create_seginfo(fsdev, &seginfo);
 
@@ -1033,7 +1038,7 @@ nandfs_sync_file(struct vnode *vp)
 			clean_seginfo(seginfo, 0);
 			delete_seginfo(seginfo);
 			VOP_UNLOCK(NTOV(su), 0);
-			lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+			lockmgr(&fsdev->nd_seg_const, LK_DOWNGRADE, NULL);
 			nandfs_error("%s: err:%d iterating dirty bufs vp:%p",
 			    __func__, error, vp);
 			return (error);
@@ -1049,7 +1054,7 @@ nandfs_sync_file(struct vnode *vp)
 			delete_seginfo(seginfo);
 			VOP_UNLOCK(NTOV(ifile), 0);
 			VOP_UNLOCK(NTOV(su), 0);
-			lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+			lockmgr(&fsdev->nd_seg_const, LK_DOWNGRADE, NULL);
 			nandfs_error("%s: err:%d updating vp:%p",
 			    __func__, error, vp);
 			return (error);
@@ -1068,7 +1073,7 @@ nandfs_sync_file(struct vnode *vp)
 			delete_seginfo(seginfo);
 			VOP_UNLOCK(NTOV(cp), 0);
 			VOP_UNLOCK(NTOV(su), 0);
-			lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+			lockmgr(&fsdev->nd_seg_const, LK_DOWNGRADE, NULL);
 			nandfs_error("%s: err:%d getting cp:%jx",
 			    __func__, error, fsdev->nd_last_cno + 1);
 			return (error);
@@ -1085,7 +1090,7 @@ nandfs_sync_file(struct vnode *vp)
 			delete_seginfo(seginfo);
 			VOP_UNLOCK(NTOV(cp), 0);
 			VOP_UNLOCK(NTOV(su), 0);
-			lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+			lockmgr(&fsdev->nd_seg_const, LK_DOWNGRADE, NULL);
 			nandfs_error("%s: err:%d setting cp:%jx",
 			    __func__, error, fsdev->nd_last_cno + 1);
 			return (error);
@@ -1103,7 +1108,7 @@ nandfs_sync_file(struct vnode *vp)
 			delete_seginfo(seginfo);
 			VOP_UNLOCK(NTOV(dat), 0);
 			VOP_UNLOCK(NTOV(su), 0);
-			lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+			lockmgr(&fsdev->nd_seg_const, LK_DOWNGRADE, NULL);
 			nandfs_error("%s: err:%d updating seg",
 			    __func__, error);
 			return (error);
@@ -1114,7 +1119,7 @@ nandfs_sync_file(struct vnode *vp)
 	VOP_UNLOCK(NTOV(su), 0);
 
 	delete_seginfo(seginfo);
-	lockmgr(&fsdev->nd_seg_const, LK_RELEASE, NULL);
+	lockmgr(&fsdev->nd_seg_const, LK_DOWNGRADE, NULL);
 
 	if (cno_changed && !error) {
 		if (nandfs_cps_between_sblocks != 0 &&
@@ -1140,6 +1145,7 @@ nandfs_segment_constructor(struct nandfsmount *nmp, int flags)
 	fsdev = nmp->nm_nandfsdev;
 
 	lockmgr(&fsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
+	DPRINTF(SYNC, ("%s: git lock\n", __func__));
 again:
 	create_seginfo(fsdev, &seginfo);
 

@@ -51,7 +51,6 @@ uint64_t nandfs_get_segnum_of_block(struct nandfs_device *, nandfs_daddr_t);
 void nandfs_get_segment_range(struct nandfs_device *, uint64_t, uint64_t *,
     uint64_t *);
 void nandfs_calc_mdt_consts(struct nandfs_device *, struct nandfs_mdt *, int);
-uint32_t crc32_le(uint32_t, const uint8_t *, size_t);
 
 /* Log reading / volume helpers */
 int nandfs_search_super_root(struct nandfs_device *);
@@ -71,11 +70,8 @@ int nandfs_bcreate_meta(struct nandfs_node *, nandfs_lbn_t, struct ucred *,
 int nandfs_bread_create(struct nandfs_node *, nandfs_lbn_t, struct ucred *,
     int, struct buf **);
 
-int nandfs_bmap_nlookup(struct nandfs_node *, nandfs_lbn_t, uint64_t,
-    uint64_t *);
-
 /* vtop operations */
-int nandfs_nvtop(struct nandfs_node *, uint64_t, nandfs_daddr_t *, nandfs_daddr_t *);
+int nandfs_vtop(struct nandfs_node *, nandfs_daddr_t, nandfs_daddr_t *);
 
 /* Node action implementators */
 int nandfs_vinit(struct vnode *, uint64_t);
@@ -226,10 +222,6 @@ int nandfs_erase(struct nandfs_device *, off_t, size_t);
 int nandfs_vop_islocked(struct vnode *vp);
 
 nandfs_daddr_t nandfs_block_to_dblock(struct nandfs_device *, nandfs_lbn_t);
-
-void nandfs_writelock(struct vnode *, struct nandfs_device *);
-void nandfs_writeunlock(struct nandfs_device *);
-void nandfs_writeassert(struct nandfs_device *);
 
 #define DEBUG_MODE
 #if defined(DEBUG_MODE)

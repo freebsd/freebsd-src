@@ -43,7 +43,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: nandfs [lssnap | mksnap <snap> | rmsnap] "
+	fprintf(stderr, "usage: nandfs [lssnap | mksnap | rmsnap <snap>] "
 	    "node\n");
 	exit(1);
 }

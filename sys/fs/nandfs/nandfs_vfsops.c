@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/buf.h>
 #include <sys/sysctl.h>
+#include <sys/libkern.h>
 
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
@@ -100,7 +101,7 @@ int nandfs_cps_between_sblocks = NANDFS_CPS_BETWEEN_SBLOCKS; /* write superblock
 SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cps_between_sblocks, CTLFLAG_RW,
     &nandfs_cps_between_sblocks, 0, "");
 
-#define NANDFS_CLEANER_ENABLE 0
+#define NANDFS_CLEANER_ENABLE 1
 int nandfs_cleaner_enable = NANDFS_CLEANER_ENABLE;
 SYSCTL_UINT(_vfs_nandfs, OID_AUTO, cleaner_enable, CTLFLAG_RW,
     &nandfs_cleaner_enable, 0, "");
@@ -148,7 +149,7 @@ nandfs_create_system_nodes(struct nandfs_device *nandfsdev)
 		goto errorout;
 
 	error = nandfs_get_node_raw(nandfsdev, NULL, NANDFS_GC_INO,
-		NULL, &nandfsdev->nd_gc_node);
+	    NULL, &nandfsdev->nd_gc_node);
 	if (error)
 		goto errorout;
 
@@ -203,8 +204,7 @@ nandfs_check_fsdata_crc(struct nandfs_fsdata *fsdata)
 
 	/* Calculate */
 	fsdata->f_sum = (0);
-	comp_crc = crc32_le(fsdata->f_crc_seed, (uint8_t *) fsdata,
-	    fsdata->f_bytes);
+	comp_crc = crc32((uint8_t *)fsdata, fsdata->f_bytes);
 
 	/* Restore */
 	fsdata->f_sum = fsdata_crc;
@@ -228,8 +228,7 @@ nandfs_check_superblock_crc(struct nandfs_fsdata *fsdata,
 
 	/* Calculate */
 	super->s_sum = (0);
-	comp_crc = crc32_le(fsdata->f_crc_seed, (uint8_t *) super,
-	    fsdata->f_sbbytes);
+	comp_crc = crc32((uint8_t *)super, fsdata->f_sbbytes);
 
 	/* Restore */
 	super->s_sum = super_crc;
@@ -246,8 +245,7 @@ nandfs_calc_superblock_crc(struct nandfs_fsdata *fsdata,
 
 	/* Calculate */
 	super->s_sum = 0;
-	comp_crc = crc32_le(fsdata->f_crc_seed, (uint8_t *) super,
-	    fsdata->f_sbbytes);
+	comp_crc = crc32((uint8_t *)super, fsdata->f_sbbytes);
 
 	/* Restore */
 	super->s_sum = comp_crc;
@@ -887,7 +885,7 @@ nandfs_mount_device(struct vnode *devvp, struct mount *mp,
 	mtx_init(&nandfsdev->nd_clean_mtx, "nffscleanmtx", NULL, MTX_DEF);
 	mtx_init(&nandfsdev->nd_mutex, "nandfsdev lock", NULL, MTX_DEF);
 	lockinit(&nandfsdev->nd_seg_const, PVFS, "nffssegcon", VLKTIMEOUT,
-	    LK_NOSHARE|LK_CANRECURSE);
+	    LK_CANRECURSE);
 	STAILQ_INIT(&nandfsdev->nd_mounts);
 
 	nandfsdev->nd_devsize = pp->mediasize;
@@ -1079,8 +1077,8 @@ nandfs_wakeup_wait_sync(struct nandfs_device *nffsdev, int reason)
 		nffsdev->nd_syncer_exit = 1;
 	nffsdev->nd_syncing = 1;
 	wakeup(&nffsdev->nd_syncing);
-
 	cv_wait(&nffsdev->nd_sync_cv, &nffsdev->nd_sync_mtx);
+
 	mtx_unlock(&nffsdev->nd_sync_mtx);
 }
 
@@ -1117,7 +1115,7 @@ nandfs_syncer(struct nandfsmount *nmp)
 		DPRINTF(SYNC, ("%s: syncer run\n", __func__));
 		nffsdev->nd_syncing = 1;
 
-		flags = (nmp->nm_flags & (NANDFS_FORCE_SYNCER|NANDFS_UMOUNT));
+		flags = (nmp->nm_flags & (NANDFS_FORCE_SYNCER | NANDFS_UMOUNT));
 
 		error = nandfs_segment_constructor(nmp, flags);
 		if (error)
@@ -1128,13 +1126,18 @@ nandfs_syncer(struct nandfsmount *nmp)
 
 		nandfs_gc_finished(nffsdev, 0);
 	}
-	nmp->nm_flags &= ~NANDFS_KILL_SYNCER;
-	MPASS(nffsdev->nd_free_base == NULL);
 
+	MPASS(nffsdev->nd_cleaner == NULL);
+	error = nandfs_segment_constructor(nmp,
+	    NANDFS_FORCE_SYNCER | NANDFS_UMOUNT);
+	if (error)
+		nandfs_error("%s: error:%d when creating segments\n",
+		    __func__, error);
 	nandfs_gc_finished(nffsdev, 1);
 	nffsdev->nd_syncer = NULL;
 	MPASS(nffsdev->nd_free_base == NULL);
 
+	DPRINTF(SYNC, ("%s: exiting\n", __func__));
 	kthread_exit();
 }
 
@@ -1365,6 +1368,9 @@ nandfs_mountfs(struct vnode *devvp, struct mount *mp)
 		goto error;
 	}
 
+	printf("WARNING: NANDFS is considered to be a highly experimental "
+	    "feature in FreeBSD.\n");
+
 	error = nandfs_mount_device(devvp, mp, args, &nandfsdev);
 	if (error)
 		goto error;
@@ -1439,11 +1445,6 @@ nandfs_unmount(struct mount *mp, int mntflags)
 	nmp = mp->mnt_data;
 	nandfsdev = nmp->nm_nandfsdev;
 
-	/* Umount already stopped writing */
-	if (!(nmp->nm_ronly)) {
-		nmp->nm_flags |= NANDFS_UMOUNT;
-		nandfs_wakeup_wait_sync(nmp->nm_nandfsdev, SYNCER_VFS_SYNC);
-	}
 	error = vflush(mp, 0, flags | SKIPSYSTEM, curthread);
 	if (error)
 		return (error);

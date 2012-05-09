@@ -439,13 +439,13 @@ nandfs_get_seg_stat(struct nandfs_device *nandfsdev,
 
 	su_node = nandfsdev->nd_su_node;
 
-	lockmgr(&nandfsdev->nd_seg_const, LK_EXCLUSIVE, NULL);
+	NANDFS_WRITELOCK(nandfsdev);
 	VOP_LOCK(NTOV(su_node), LK_SHARED);
 	err = nandfs_bread(nandfsdev->nd_su_node, 0, NOCRED, 0, &bp);
 	if (err) {
 		brelse(bp);
 		VOP_UNLOCK(NTOV(su_node), 0);
-		lockmgr(&nandfsdev->nd_seg_const, LK_RELEASE, NULL);
+		NANDFS_WRITEUNLOCK(nandfsdev);
 		return (-1);
 	}
 
@@ -459,7 +459,8 @@ nandfs_get_seg_stat(struct nandfs_device *nandfsdev,
 
 	brelse(bp);
 	VOP_UNLOCK(NTOV(su_node), 0);
-	lockmgr(&nandfsdev->nd_seg_const, LK_RELEASE, NULL);
+
+	NANDFS_WRITEUNLOCK(nandfsdev);
 
 	return (0);
 }

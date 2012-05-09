@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nandfs/nandfs_fs.h>
 #include "stand.h"
 #include "string.h"
+#include "zlib.h"
 
 #define DEBUG
 #undef DEBUG
@@ -124,27 +125,6 @@ struct fs_ops nandfs_fsops = {
 
 #define	NINDIR(fs)	((fs)->nf_blocksize / sizeof(nandfs_daddr_t))
 
-/* from NetBSD's src/sys/net/if_ethersubr.c */
-static uint32_t
-crc32_le(uint32_t crc, const uint8_t *buf, size_t len)
-{
-	static const uint32_t crctab[] = {
-		0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
-		0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
-		0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
-		0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
-	};
-	size_t i;
-
-	for (i = 0; i < len; i++) {
-		crc ^= buf[i];
-		crc = (crc >> 4) ^ crctab[crc & 0xf];
-		crc = (crc >> 4) ^ crctab[crc & 0xf];
-	}
-
-	return (crc);
-}
-
 static int
 nandfs_check_fsdata_crc(struct nandfs_fsdata *fsdata)
 {
@@ -158,8 +138,7 @@ nandfs_check_fsdata_crc(struct nandfs_fsdata *fsdata)
 
 	/* Calculate */
 	fsdata->f_sum = (0);
-	comp_crc = crc32_le(fsdata->f_crc_seed, (uint8_t *) fsdata,
-	    fsdata->f_bytes);
+	comp_crc = crc32(0, (uint8_t *)fsdata, fsdata->f_bytes);
 
 	/* Restore */
 	fsdata->f_sum = fsdata_crc;
@@ -183,8 +162,7 @@ nandfs_check_superblock_crc(struct nandfs_fsdata *fsdata,
 
 	/* Calculate */
 	super->s_sum = (0);
-	comp_crc = crc32_le(fsdata->f_crc_seed, (uint8_t *) super,
-	    fsdata->f_sbbytes);
+	comp_crc = crc32(0, (uint8_t *)super, fsdata->f_sbbytes);
 
 	/* Restore */
 	super->s_sum = super_crc;
@@ -983,7 +961,7 @@ nandfs_calc_mdt_consts(int blocksize, struct nandfs_mdt *mdt, int entry_size)
 
 static void
 nandfs_mdt_trans(struct nandfs_mdt *mdt, uint64_t index,
-	nandfs_daddr_t *blocknr, uint32_t *entry_in_block)
+    nandfs_daddr_t *blocknr, uint32_t *entry_in_block)
 {
 	nandfs_daddr_t blknr;
 	uint64_t group, group_offset, blocknr_in_group;

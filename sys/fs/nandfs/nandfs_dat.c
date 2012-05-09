@@ -333,7 +333,7 @@ nandfs_get_dat_bdescs(struct nandfs_device *nffsdev, struct nandfs_bdesc *bd,
 		    (uintmax_t)bd[i].bd_oblocknr, (uintmax_t)bd[i].bd_blocknr,
 		    (uintmax_t)bd[i].bd_offset));
 
-		error = nandfs_bmap_nlookup(dat_node, bd[i].bd_offset, 1, &map);
+		error = nandfs_bmap_lookup(dat_node, bd[i].bd_offset, &map);
 		if (error)
 			break;
 		bd[i].bd_blocknr = map;

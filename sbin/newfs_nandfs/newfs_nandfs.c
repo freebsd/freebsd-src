@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 
 #define NANDFS_FIRST_BLOCK	nandfs_first_block()
 #define NANDFS_FIRST_CNO		1
+#define NANDFS_BLOCK_BAD	1
+#define NANDFS_BLOCK_GOOD	0
 
 struct file_info {
 	uint64_t	ino;
@@ -80,8 +82,7 @@ struct file_info {
 
 struct file_info user_files[] =
 {
-	{NANDFS_ROOT_INO, NULL,  S_IFDIR | 0755, 0, 1, NULL, NULL},
-	{NANDFS_USER_INO, ".nandfs",  S_IFREG | 0644, 0, 0, NULL, NULL},
+	{NANDFS_ROOT_INO, NULL, S_IFDIR | 0755, 0, 1, NULL, NULL},
 };
 
 struct file_info ifile = {NANDFS_IFILE_INO, NULL, 0, 0, -1, NULL, NULL};
@@ -117,9 +118,9 @@ static long rsv_segment_percent = 5;
 static time_t nandfs_time;
 static uint32_t bad_segments_count = 0;
 static uint32_t *bad_segments = NULL;
+static uint8_t fsdata_blocks_state[NANDFS_NFSAREAS];
 
 u_char *volumelabel = NULL;
-uint32_t crc_seed;
 
 struct nandfs_super_root *sr;
 
@@ -133,9 +134,18 @@ uint32_t seg_endblock;
 static uint32_t
 nandfs_first_block(void)
 {
-	uint32_t first_free;
+	uint32_t i, first_free, start_bad_segments = 0;
 
-	first_free = (uint32_t)(NANDFS_DATA_OFFSET_BYTES(erasesize)/blocksize);
+	for (i = 0; i < bad_segments_count; i++) {
+		if (i == bad_segments[i])
+			start_bad_segments++;
+		else
+			break;
+	}
+
+	first_free = SIZE_TO_BLOCK(NANDFS_DATA_OFFSET_BYTES(erasesize) +
+	    (start_bad_segments * segsize));
+
 	if (first_free < (uint32_t)blocks_per_segment)
 		return (blocks_per_segment);
 	else
@@ -181,13 +191,15 @@ crc32_le(uint32_t crc, const uint8_t *buf, size_t len)
 	};
 	size_t i;
 
+	crc = crc ^ ~0U;
+
 	for (i = 0; i < len; i++) {
 		crc ^= buf[i];
 		crc = (crc >> 4) ^ crctab[crc & 0xf];
 		crc = (crc >> 4) ^ crctab[crc & 0xf];
 	}
 
-	return (crc);
+	return (crc ^ ~0U);
 }
 
 static void *
@@ -466,7 +478,7 @@ save_segsum(struct nandfs_segment_summary *ss)
 	ss->ss_sumbytes = sum_bytes;
 
 	crc_skip = sizeof(ss->ss_datasum) + sizeof(ss->ss_sumsum);
-	ss->ss_sumsum = crc32_le(crc_seed, (uint8_t *)ss + crc_skip,
+	ss->ss_sumsum = crc32_le(0, (uint8_t *)ss + crc_skip,
 	    sum_bytes - crc_skip);
 	crc_data = 0;
 
@@ -483,7 +495,7 @@ save_segsum(struct nandfs_segment_summary *ss)
 
 	/* save superroot crc */
 	crc_skip = sizeof(sr->sr_sum);
-	sr->sr_sum = crc32_le(crc_seed, (uint8_t *)sr + crc_skip,
+	sr->sr_sum = crc32_le(0, (uint8_t *)sr + crc_skip,
 	    NANDFS_SR_BYTES - crc_skip);
 
 	/* segment checksup */
@@ -492,11 +504,12 @@ save_segsum(struct nandfs_segment_summary *ss)
 		if (block->number < NANDFS_FIRST_BLOCK)
 			continue;
 		if (block->number == NANDFS_FIRST_BLOCK)
-			crc_data = crc32_le(crc_seed,
+			crc_data = crc32_le(0,
 			    (uint8_t *)block->data + crc_skip,
 			    blocksize - crc_skip);
 		else
-			crc_data = crc32_le(crc_data, block->data, blocksize);
+			crc_data = crc32_le(crc_data, (uint8_t *)block->data,
+			    blocksize);
 	}
 	ss->ss_datasum = crc_data;
 }
@@ -513,7 +526,6 @@ create_fsdata(void)
 	fsdata.f_first_data_block = NANDFS_FIRST_BLOCK;
 	fsdata.f_blocks_per_segment = blocks_per_segment;
 	fsdata.f_r_segments_percentage = rsv_segment_percent;
-	fsdata.f_crc_seed = crc_seed;
 	fsdata.f_rev_level = NANDFS_CURRENT_REV;
 	fsdata.f_sbbytes = NANDFS_SB_BYTES;
 	fsdata.f_bytes = NANDFS_FSDATA_CRC_BYTES;
@@ -530,7 +542,7 @@ create_fsdata(void)
 	if (volumelabel)
 		memcpy(fsdata.f_volume_name, volumelabel, 16);
 
-	fsdata.f_sum = crc32_le(crc_seed, (const uint8_t *)&fsdata,
+	fsdata.f_sum = crc32_le(0, (const uint8_t *)&fsdata,
 	    NANDFS_FSDATA_CRC_BYTES);
 }
 
@@ -552,12 +564,12 @@ create_super_block(void)
 	super_block.s_last_pseg = NANDFS_FIRST_BLOCK;
 	super_block.s_last_seq = 1;
 	super_block.s_free_blocks_count =
-		(nsegments - bad_segments_count) * blocks_per_segment;
+	    (nsegments - bad_segments_count) * blocks_per_segment;
 	super_block.s_mtime = 0;
 	super_block.s_wtime = nandfs_time;
 	super_block.s_state = NANDFS_VALID_FS;
 
-	super_block.s_sum = crc32_le(crc_seed, (const uint8_t *)&super_block,
+	super_block.s_sum = crc32_le(0, (const uint8_t *)&super_block,
 	    NANDFS_SB_BYTES);
 }
 
@@ -617,16 +629,17 @@ make_dir(void *block, uint64_t ino, uint64_t parent_ino)
 	de->rec_len = NANDFS_DIR_REC_LEN(2);
 	de->name_len = 2;
 	de->file_type = DT_DIR;
-	memcpy(de->name, "..\0\0\0\0\0\0", 8);
+	memset(de->name, 0, NANDFS_DIR_NAME_LEN(2));
+	memcpy(de->name, "..", 2);
 
 	/* create '.' entry */
 	de = (void *)((uint8_t *)block + NANDFS_DIR_REC_LEN(2));
 	de->inode = ino;
-	de->rec_len = blocksize - NANDFS_DIR_REC_LEN(1) + NANDFS_DIR_REC_LEN(2);
+	de->rec_len = blocksize - NANDFS_DIR_REC_LEN(2);
 	de->name_len = 1;
 	de->file_type = DT_DIR;
-	memcpy(de->name, ".\0\0\0\0\0\0\0", 8);
-
+	memset(de->name, 0, NANDFS_DIR_NAME_LEN(1));
+	memcpy(de->name, ".", 1);
 
 	return (de);
 }
@@ -817,6 +830,9 @@ create_fs(void)
 	create_super_block();
 
 	for (i = 0; i < NANDFS_NFSAREAS; i++) {
+		if (fsdata_blocks_state[i] != NANDFS_BLOCK_GOOD)
+			continue;
+
 		data = get_block((i * erasesize)/blocksize, 0);
 		save_fsdata(data);
 
@@ -899,7 +915,6 @@ check_parameters(void)
 	}
 
 	nandfs_time = time(NULL);
-	crc_seed = (uint32_t)mrand48();
 }
 
 static void
@@ -1003,8 +1018,10 @@ erase_device(int fd)
 		debug("Deleting %jx\n", i * erasesize);
 		if (g_delete(fd, i * erasesize, erasesize)) {
 			printf("cannot delete %jx\n", i * erasesize);
+			fsdata_blocks_state[i] = NANDFS_BLOCK_BAD;
 			failed++;
-		}
+		} else
+			fsdata_blocks_state[i] = NANDFS_BLOCK_GOOD;
 	}
 
 	if (failed == NANDFS_NFSAREAS) {
