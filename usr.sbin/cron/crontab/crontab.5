@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2012
+.Dd April 28, 2012
 .Dt CRONTAB 5
 .Os
 .Sh NAME
@@ -296,10 +296,21 @@ are extensions.
 .An Paul Vixie Aq paul@vix.com
 .Sh BUGS
 If you are in one of the 70-odd countries that observe Daylight
-Savings Time, jobs scheduled during the rollback or advance will be
-affected.
+Savings Time, jobs scheduled during the rollback or advance may be
+affected if
+.Xr cron 8
+is not started with the
+.Fl s
+flag.
 In general, it is not a good idea to schedule jobs during
-this period.
+this period if
+.Xr cron 8
+is not started with the
+.Fl s
+flag, which is enabled by default.
+See
+.Xr cron 8
+for more details.
 .Pp
 For US timezones (except parts of AZ and HI) the time shift occurs at
 2AM local time.

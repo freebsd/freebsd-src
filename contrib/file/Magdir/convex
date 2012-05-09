@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: convex,v 1.7 2009/09/19 16:28:08 christos Exp $
 # convex:  file(1) magic for Convex boxes
 #
 # Convexes are big-endian.

@@ -5417,7 +5417,13 @@ ath_stoprecv(struct ath_softc *sc, int dodelay)
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
 	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
+	/*
+	 * TODO: see if this particular DELAY() is required; it may be
+	 * masking some missing FIFO flush or DMA sync.
+	 */
+#if 0
 	if (dodelay)
+#endif
 		DELAY(3000);		/* 3ms is long enough for 1 frame */
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & (ATH_DEBUG_RESET | ATH_DEBUG_FATAL)) {

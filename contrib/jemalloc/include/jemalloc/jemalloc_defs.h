@@ -39,8 +39,8 @@
  * from being exported, but for static libraries, naming collisions are a real
  * possibility.
  */
-#define JEMALLOC_PRIVATE_NAMESPACE ""
-#define JEMALLOC_N(string_that_no_one_should_want_to_use_as_a_jemalloc_private_namespace_prefix) string_that_no_one_should_want_to_use_as_a_jemalloc_private_namespace_prefix
+#define JEMALLOC_PRIVATE_NAMESPACE "__jemalloc_"
+#define JEMALLOC_N(string_that_no_one_should_want_to_use_as_a_jemalloc_private_namespace_prefix) __jemalloc_##string_that_no_one_should_want_to_use_as_a_jemalloc_private_namespace_prefix
 
 /*
  * Hyper-threaded CPUs may need a special instruction inside spin loops in
@@ -221,13 +221,6 @@
  */
 /* #undef JEMALLOC_PURGE_MADVISE_DONTNEED */
 #define JEMALLOC_PURGE_MADVISE_FREE 
-#ifdef JEMALLOC_PURGE_MADVISE_DONTNEED
-#  define JEMALLOC_MADV_PURGE MADV_DONTNEED
-#elif defined(JEMALLOC_PURGE_MADVISE_FREE)
-#  define JEMALLOC_MADV_PURGE MADV_FREE
-#else
-#  error "No method defined for purging unused dirty pages."
-#endif
 
 /* sizeof(void *) == 2^LG_SIZEOF_PTR. */
 #define LG_SIZEOF_PTR 3

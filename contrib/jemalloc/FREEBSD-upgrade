@@ -72,7 +72,8 @@ do_extract() {
     find . -name '*.orig' -delete
     # Generate various files.
     ./autogen.sh --enable-cc-silence --enable-dss --enable-xmalloc \
-      --enable-utrace --with-xslroot=/usr/local/share/xsl/docbook
+      --enable-utrace --with-xslroot=/usr/local/share/xsl/docbook \
+      --with-private-namespace=__jemalloc_
     gmake dist
   )
 }

@@ -565,4 +565,11 @@ intr_next_cpu(void)
 
 	return (PCPU_GET(apic_id));
 }
+
+/* Use an empty stub for compatibility. */
+void
+intr_add_cpu(u_int cpu __unused)
+{
+
+}
 #endif

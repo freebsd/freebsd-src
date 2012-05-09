@@ -1546,7 +1546,10 @@ again:
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (!error) {
 		newvp = NFSTOV(np);
-		if (attrflag)
+		if (attrflag == 0)
+			error = nfsrpc_getattr(newvp, cnp->cn_cred,
+			    cnp->cn_thread, &nfsva, NULL);
+		if (error == 0)
 			error = nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
 	}

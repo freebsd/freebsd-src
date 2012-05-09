@@ -67,6 +67,40 @@ ar5416SetRxFilter(struct ath_hal *ah, u_int32_t bits)
 }
 
 /*
+ * Stop Receive at the DMA engine
+ */
+HAL_BOOL
+ar5416StopDmaReceive(struct ath_hal *ah)
+{
+	HAL_BOOL status;
+
+	OS_MARK(ah, AH_MARK_RX_CTL, AH_MARK_RX_CTL_DMA_STOP);
+	OS_REG_WRITE(ah, AR_CR, AR_CR_RXD);	/* Set receive disable bit */
+	if (!ath_hal_wait(ah, AR_CR, AR_CR_RXE, 0)) {
+		OS_MARK(ah, AH_MARK_RX_CTL, AH_MARK_RX_CTL_DMA_STOP_ERR);
+#ifdef AH_DEBUG
+		ath_hal_printf(ah, "%s: dma failed to stop in 10ms\n"
+			"AR_CR=0x%08x\nAR_DIAG_SW=0x%08x\n",
+			__func__,
+			OS_REG_READ(ah, AR_CR),
+			OS_REG_READ(ah, AR_DIAG_SW));
+#endif
+		status = AH_FALSE;
+	} else {
+		status = AH_TRUE;
+	}
+
+	/*
+	 * XXX Is this to flush whatever is in a FIFO somewhere?
+	 * XXX If so, what should the correct behaviour should be?
+	 */
+	if (AR_SREV_9100(ah))
+		OS_DELAY(3000);
+
+	return (status);
+}
+
+/*
  * Start receive at the PCU engine
  */
 void

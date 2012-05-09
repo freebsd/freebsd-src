@@ -39,6 +39,7 @@
 
 struct sleepqueue_chain {
 	struct umutex		sc_lock;
+	int			sc_enqcnt;
 	LIST_HEAD(, sleepqueue) sc_queues;
 	int			sc_type;
 };
@@ -112,11 +113,11 @@ _sleepq_add(void *wchan, struct pthread *td)
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
 
+	sc = SC_LOOKUP(wchan);
 	sq = _sleepq_lookup(wchan);
 	if (sq != NULL) {
 		SLIST_INSERT_HEAD(&sq->sq_freeq, td->sleepqueue, sq_flink);
 	} else {
-		sc = SC_LOOKUP(wchan);
 		sq = td->sleepqueue;
 		LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_hash);
 		sq->sq_wchan = wchan;
@@ -124,7 +125,10 @@ _sleepq_add(void *wchan, struct pthread *td)
 	}
 	td->sleepqueue = NULL;
 	td->wchan = wchan;
-	TAILQ_INSERT_TAIL(&sq->sq_blocked, td, wle);
+	if (((++sc->sc_enqcnt << _thr_queuefifo) & 0xff) != 0)
+		TAILQ_INSERT_HEAD(&sq->sq_blocked, td, wle);
+	else
+		TAILQ_INSERT_TAIL(&sq->sq_blocked, td, wle);
 }
 
 int

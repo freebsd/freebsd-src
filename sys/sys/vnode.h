@@ -156,7 +156,7 @@ struct vnode {
 	/*
 	 * The machinery of being a vnode
 	 */
-	TAILQ_ENTRY(vnode) v_freelist;		/* f vnode freelist */
+	TAILQ_ENTRY(vnode) v_actfreelist;	/* f vnode active/free lists */
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 
 	/*
@@ -232,6 +232,7 @@ struct xvnode {
 #define	VI_AGE		0x0040	/* Insert vnode at head of free list */
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
+#define	VI_ACTIVE	0x0200	/* This vnode is on the active list */
 #define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
 #define	VI_OWEINACT	0x1000	/* Need to call inactive */
 
@@ -633,12 +634,12 @@ void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
 void	vinactive(struct vnode *, struct thread *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
-int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
-	    off_t length, int blksize);
+int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
+	    int blksize);
 void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
 #define vprint(label, vp) vn_printf((vp), "%s\n", (label))
-int	vrecycle(struct vnode *vp, struct thread *td);
+int	vrecycle(struct vnode *vp);
 int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);

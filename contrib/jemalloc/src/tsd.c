@@ -32,6 +32,7 @@ malloc_tsd_no_cleanup(void *arg)
 }
 
 #ifdef JEMALLOC_MALLOC_THREAD_CLEANUP
+JEMALLOC_ATTR(visibility("default"))
 void
 _malloc_thread_cleanup(void)
 {
@@ -45,7 +46,7 @@ _malloc_thread_cleanup(void)
 		again = false;
 		for (i = 0; i < ncleanups; i++) {
 			if (pending[i]) {
-				pending[i] = cleanups[i].f(cleanups[i].arg);
+				pending[i] = cleanups[i]();
 				if (pending[i])
 					again = true;
 			}
@@ -55,12 +56,11 @@ _malloc_thread_cleanup(void)
 #endif
 
 void
-malloc_tsd_cleanup_register(bool (*f)(void *), void *arg)
+malloc_tsd_cleanup_register(bool (*f)(void))
 {
 
 	assert(ncleanups < MALLOC_TSD_CLEANUPS_MAX);
-	cleanups[ncleanups].f = f;
-	cleanups[ncleanups].arg = arg;
+	cleanups[ncleanups] = f;
 	ncleanups++;
 }
 

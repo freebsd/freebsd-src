@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: msvc,v 1.5 2009/09/19 16:28:11 christos Exp $
 # msvc:  file(1) magic for msvc
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Microsoft visual C

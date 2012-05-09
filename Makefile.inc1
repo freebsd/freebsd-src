@@ -265,6 +265,7 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 # world stage
 WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
+		_LDSCRIPTROOT= \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
@@ -307,6 +308,7 @@ LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 # Yes, the flags are redundant.
 LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
+		_LDSCRIPTROOT=${LIB32TMP} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
@@ -319,11 +321,11 @@ LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
 		-DWITHOUT_HTML -DNO_CTF -DNO_LINT -ECC -ECXX -EAS -ELD \
 		DESTDIR=${LIB32TMP}
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
 .endif
 
 # install stage
-IMAKEENV=	${CROSSENV}
+IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
@@ -1649,8 +1651,8 @@ _xi-mtree:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 
-.ORDER: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
-xdev-install: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
 
 _xi-cross-tools:
 	@echo "_xi-cross-tools"

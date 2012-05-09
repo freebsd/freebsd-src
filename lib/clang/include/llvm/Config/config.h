@@ -14,6 +14,9 @@
 /* Directories clang will search for headers */
 #define C_INCLUDE_DIRS ""
 
+/* Default <path> to all compiler invocations for --sysroot=<path>. */
+/* #undef DEFAULT_SYSROOT */
+
 /* Define if position independent code is enabled */
 #define ENABLE_PIC 0
 

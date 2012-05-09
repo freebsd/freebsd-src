@@ -699,10 +699,14 @@ ffs_reload(struct mount *mp, struct thread *td)
 	 * We no longer know anything about clusters per cylinder group.
 	 */
 	if (fs->fs_contigsumsize > 0) {
-		lp = fs->fs_maxcluster;
+		fs->fs_maxcluster = lp = space;
 		for (i = 0; i < fs->fs_ncg; i++)
 			*lp++ = fs->fs_contigsumsize;
+		space = lp;
 	}
+	size = fs->fs_ncg * sizeof(u_int8_t);
+	fs->fs_contigdirs = (u_int8_t *)space;
+	bzero(fs->fs_contigdirs, size);
 
 loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
@@ -1432,7 +1436,7 @@ ffs_sync_lazy(mp)
 	td = curthread;
 	if ((mp->mnt_flag & MNT_NOATIME) != 0)
 		goto qupdate;
-	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;

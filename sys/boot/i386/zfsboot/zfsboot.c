@@ -41,9 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "drv.h"
 #include "util.h"
 #include "cons.h"
-
-/* Hint to loader that we came from ZFS */
-#define	KARGS_FLAGS_ZFS		0x4
+#include "bootargs.h"
 
 #define PATH_DOTCONFIG	"/boot.config"
 #define PATH_CONFIG	"/boot/config"
@@ -62,8 +60,6 @@ __FBSDID("$FreeBSD$");
 #define TYPE_DA		1
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
-
-#define	MAXBDDEV	31
 
 extern uint32_t _end;
 

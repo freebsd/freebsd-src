@@ -58,7 +58,8 @@ int	i386_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 extern struct devdesc	currdev;	/* our current device */
 
-#define MAXDEV	31			/* maximum number of distinct devices */
+#define MAXDEV		31		/* maximum number of distinct devices */
+#define MAXBDDEV	MAXDEV
 
 /* exported devices XXX rename? */
 extern struct devsw bioscd;

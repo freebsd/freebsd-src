@@ -2425,6 +2425,7 @@ geom/raid/g_raid.c		optional geom_raid
 geom/raid/g_raid_ctl.c		optional geom_raid
 geom/raid/g_raid_md_if.m	optional geom_raid
 geom/raid/g_raid_tr_if.m	optional geom_raid
+geom/raid/md_ddf.c		optional geom_raid
 geom/raid/md_intel.c		optional geom_raid
 geom/raid/md_jmicron.c		optional geom_raid
 geom/raid/md_nvidia.c		optional geom_raid
@@ -2434,6 +2435,7 @@ geom/raid/tr_concat.c		optional geom_raid
 geom/raid/tr_raid0.c		optional geom_raid
 geom/raid/tr_raid1.c		optional geom_raid
 geom/raid/tr_raid1e.c		optional geom_raid
+geom/raid/tr_raid5.c		optional geom_raid
 geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
@@ -2581,7 +2583,7 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
-kern/subr_acl_nfs4.c		optional ufs_acl
+kern/subr_acl_nfs4.c		optional ufs_acl | zfs
 kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
@@ -3710,3 +3712,7 @@ dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
+
+dev/etherswitch/mdio_if.m	optional miiproxy
+dev/etherswitch/mdio.c		optional miiproxy
+dev/etherswitch/miiproxy.c	optional miiproxy

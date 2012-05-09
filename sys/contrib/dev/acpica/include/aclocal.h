@@ -716,6 +716,15 @@ ACPI_STATUS (*ACPI_PARSE_UPWARDS) (
     struct acpi_walk_state          *WalkState);
 
 
+/* Global handlers for AML Notifies */
+
+typedef struct acpi_global_notify_handler
+{
+    ACPI_NOTIFY_HANDLER             Handler;
+    void                            *Context;
+
+} ACPI_GLOBAL_NOTIFY_HANDLER;
+
 /*
  * Notify info - used to pass info to the deferred notify
  * handler/dispatcher.
@@ -723,8 +732,10 @@ ACPI_STATUS (*ACPI_PARSE_UPWARDS) (
 typedef struct acpi_notify_info
 {
     ACPI_STATE_COMMON
+    UINT8                           HandlerListId;
     ACPI_NAMESPACE_NODE             *Node;
-    union acpi_operand_object       *HandlerObj;
+    union acpi_operand_object       *HandlerListHead;
+    ACPI_GLOBAL_NOTIFY_HANDLER      *Global;
 
 } ACPI_NOTIFY_INFO;
 

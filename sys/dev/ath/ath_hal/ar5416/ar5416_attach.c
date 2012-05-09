@@ -119,6 +119,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	/* Receive Functions */
 	ah->ah_getRxFilter		= ar5416GetRxFilter;
 	ah->ah_setRxFilter		= ar5416SetRxFilter;
+	ah->ah_stopDmaReceive		= ar5416StopDmaReceive;
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
@@ -144,6 +145,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setDecompMask		= ar5416SetDecompMask;
 	ah->ah_setCoverageClass		= ar5416SetCoverageClass;
 	ah->ah_setQuiet			= ar5416SetQuiet;
+	ah->ah_getMibCycleCounts	= ar5416GetMibCycleCounts;
 
 	ah->ah_resetKeyCacheEntry	= ar5416ResetKeyCacheEntry;
 	ah->ah_setKeyCacheEntry		= ar5416SetKeyCacheEntry;
@@ -581,6 +583,8 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
         AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
         AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK);
 
+    OS_REG_WRITE_BUFFER_ENABLE(ah);
+
     OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4_CHAIN(0), new);
 
     new = (AR_PHY_SPUR_REG_MASK_RATE_CNTL |
@@ -765,6 +769,9 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
           | (mask_p[47] <<  2) | (mask_p[46] <<  0);
     OS_REG_WRITE(ah, AR_PHY_BIN_MASK2_4, tmp_mask);
     OS_REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
+
+    OS_REG_WRITE_BUFFER_FLUSH(ah);
+    OS_REG_WRITE_BUFFER_DISABLE(ah);
 }
 
 /*

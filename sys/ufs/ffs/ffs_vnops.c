@@ -812,8 +812,7 @@ ffs_write(ap)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_NORMAL | (ioflag & IO_SYNC),
-			    ap->a_cred, uio->uio_td);
+			    IO_NORMAL | (ioflag & IO_SYNC), ap->a_cred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -1135,7 +1134,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_EXT | (ioflag&IO_SYNC), ucred, uio->uio_td);
+			    IO_EXT | (ioflag&IO_SYNC), ucred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -1326,7 +1325,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 		luio.uio_td = td;
 		/* XXX: I'm not happy about truncating to zero size */
 		if (ip->i_ea_len < dp->di_extsize)
-			error = ffs_truncate(vp, 0, IO_EXT, cred, td);
+			error = ffs_truncate(vp, 0, IO_EXT, cred);
 		error = ffs_extwrite(vp, &luio, IO_EXT | IO_SYNC, cred);
 	}
 	if (--ip->i_ea_refs == 0) {

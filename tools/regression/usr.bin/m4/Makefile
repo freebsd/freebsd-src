@@ -1,4 +1,4 @@
 # $FreeBSD$
 
 all:
-	@sh ${.CURDIR}/regress.sh ${.CURDIR}
+	@m4 ${.CURDIR}/../regress.m4 ${.CURDIR}/regress.sh | sh /dev/stdin ${.CURDIR}
