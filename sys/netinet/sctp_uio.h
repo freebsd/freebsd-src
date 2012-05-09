@@ -343,7 +343,7 @@ struct sctp_remote_error {
 	uint8_t sre_data[4];
 };
 
-/* data send failure event */
+/* data send failure event (deprecated) */
 struct sctp_send_failed {
 	uint16_t ssf_type;
 	uint16_t ssf_flags;
@@ -352,6 +352,17 @@ struct sctp_send_failed {
 	struct sctp_sndrcvinfo ssf_info;
 	sctp_assoc_t ssf_assoc_id;
 	uint8_t ssf_data[];
+};
+
+/* data send failure event (not deprecated) */
+struct sctp_send_failed_event {
+	uint16_t ssfe_type;
+	uint16_t ssfe_flags;
+	uint32_t ssfe_length;
+	uint32_t ssfe_error;
+	struct sctp_sndinfo ssfe_info;
+	sctp_assoc_t ssfe_assoc_id;
+	uint8_t ssfe_data[];
 };
 
 /* flag that indicates state of data */
@@ -513,22 +524,22 @@ union sctp_notification {
 };
 
 /* notification types */
-#define SCTP_ASSOC_CHANGE			0x0001
-#define SCTP_PEER_ADDR_CHANGE			0x0002
-#define SCTP_REMOTE_ERROR			0x0003
-#define SCTP_SEND_FAILED			0x0004
-#define SCTP_SHUTDOWN_EVENT			0x0005
-#define SCTP_ADAPTATION_INDICATION		0x0006
+#define SCTP_ASSOC_CHANGE                       0x0001
+#define SCTP_PEER_ADDR_CHANGE                   0x0002
+#define SCTP_REMOTE_ERROR                       0x0003
+#define SCTP_SEND_FAILED                        0x0004
+#define SCTP_SHUTDOWN_EVENT                     0x0005
+#define SCTP_ADAPTATION_INDICATION              0x0006
 /* same as above */
-#define SCTP_ADAPTION_INDICATION		0x0006
-#define SCTP_PARTIAL_DELIVERY_EVENT		0x0007
-#define SCTP_AUTHENTICATION_EVENT		0x0008
-#define SCTP_STREAM_RESET_EVENT			0x0009
-#define SCTP_SENDER_DRY_EVENT			0x000a
-#define SCTP_NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we don't send this */
-#define SCTP_ASSOC_RESET_EVENT			0x000c
-#define SCTP_STREAM_CHANGE_EVENT		0x000d
-
+#define SCTP_ADAPTION_INDICATION                0x0006
+#define SCTP_PARTIAL_DELIVERY_EVENT             0x0007
+#define SCTP_AUTHENTICATION_EVENT               0x0008
+#define SCTP_STREAM_RESET_EVENT                 0x0009
+#define SCTP_SENDER_DRY_EVENT                   0x000a
+#define SCTP_NOTIFICATIONS_STOPPED_EVENT        0x000b	/* we don't send this */
+#define SCTP_ASSOC_RESET_EVENT                  0x000c
+#define SCTP_STREAM_CHANGE_EVENT                0x000d
+#define SCTP_SEND_FAILED_EVENT                  0x000e
 /*
  * socket option structs
  */
