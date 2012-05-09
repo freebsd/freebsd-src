@@ -134,7 +134,7 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 	offset += offsetof(struct sctphdr, checksum);
 
 	if (offset + sizeof(uint32_t) > (uint32_t) (m->m_len)) {
-		printf("sctp_delayed_cksum(): m->len: %d,  off: %d.\n",
+		SCTP_PRINTF("sctp_delayed_cksum(): m->len: %d,  off: %d.\n",
 		    (uint32_t) m->m_len, offset);
 		/*
 		 * XXX this shouldn't happen, but if it does, the correct

@@ -483,7 +483,7 @@ again_locked:
 	}
 	/* Sanity check */
 	if (thisend >= SCTP_PACKET_LOG_SIZE) {
-		printf("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
+		SCTP_PRINTF("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
 		    thisbegin,
 		    thisend,
 		    SCTP_BASE_VAR(packet_log_writers),

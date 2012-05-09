@@ -2426,8 +2426,8 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 		stcb = sctp_findassoc_by_vtag(NULL, to, ntohl(sh->v_tag), inp_p,
 		    netp, sh->src_port, sh->dest_port, 1, vrf_id, 0);
 		/*
-		 * printf("findassociation_ep_asconf: zero lookup address
-		 * finds stcb 0x%x\n", (uint32_t)stcb);
+		 * SCTP_PRINTF("findassociation_ep_asconf: zero lookup
+		 * address finds stcb 0x%x\n", (uint32_t)stcb);
 		 */
 	} else {
 		stcb = sctp_findassociation_ep_addr(inp_p,
@@ -5745,7 +5745,7 @@ skip_sleep:
 			if (v6 == 0) {
 				sctp_input_with_port(m, off, 0);
 			} else {
-				printf("V6 not yet supported\n");
+				SCTP_PRINTF("V6 not yet supported\n");
 				sctp_m_freem(m);
 			}
 			CURVNET_RESTORE();
@@ -6276,8 +6276,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		ptype = ntohs(phdr->param_type);
 		plen = ntohs(phdr->param_length);
 		/*
-		 * printf("ptype => %0x, plen => %d\n", (uint32_t)ptype,
-		 * (int)plen);
+		 * SCTP_PRINTF("ptype => %0x, plen => %d\n",
+		 * (uint32_t)ptype, (int)plen);
 		 */
 		if (offset + plen > limit) {
 			break;
