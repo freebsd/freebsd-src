@@ -364,6 +364,7 @@ static int  bce_nvram_write		(struct bce_softc *, u32, u8 *, int);
 static void bce_get_rx_buffer_sizes(struct bce_softc *, int);
 static void bce_get_media			(struct bce_softc *);
 static void bce_init_media			(struct bce_softc *);
+static u32 bce_get_rphy_link		(struct bce_softc *);
 static void bce_dma_map_addr		(void *, bus_dma_segment_t *, int, int);
 static int  bce_dma_alloc			(device_t);
 static void bce_dma_free			(struct bce_softc *);
@@ -372,6 +373,7 @@ static void bce_release_resources	(struct bce_softc *);
 /****************************************************************************/
 /* BCE Firmware Synchronization and Load                                    */
 /****************************************************************************/
+static void bce_fw_cap_init			(struct bce_softc *);
 static int  bce_fw_sync			(struct bce_softc *, u32);
 static void bce_load_rv2p_fw		(struct bce_softc *, u32 *, u32, u32);
 static void bce_load_cpu_fw		(struct bce_softc *,
@@ -418,6 +420,7 @@ static void bce_watchdog			(struct bce_softc *);
 static int  bce_ifmedia_upd		(struct ifnet *);
 static int  bce_ifmedia_upd_locked	(struct ifnet *);
 static void bce_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
+static void bce_ifmedia_sts_rphy	(struct bce_softc *, struct ifmediareq *);
 static void bce_init_locked		(struct bce_softc *);
 static void bce_init				(void *);
 static void bce_mgmt_init_locked	(struct bce_softc *sc);
@@ -755,6 +758,13 @@ bce_print_adapter_info(struct bce_softc *sc)
 		if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG) {
 			if (i > 0) printf("|");
 			printf("2.5G"); i++;
+		}
+
+		if (sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) {
+			if (i > 0) printf("|");
+			printf("Remote PHY(%s)",
+			    sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG ?
+			    "FIBER" : "TP"); i++;
 		}
 
 		if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
@@ -1297,6 +1307,9 @@ bce_attach(device_t dev)
 	if (val & BCE_PCICFG_MISC_STATUS_32BIT_DET)
 		sc->bce_flags |= BCE_PCI_32BIT_FLAG;
 
+	/* Find the media type for the adapter. */
+	bce_get_media(sc);
+
 	/* Reset controller and announce to bootcode that driver is present. */
 	if (bce_reset(sc, BCE_DRV_MSG_CODE_RESET)) {
 		BCE_PRINTF("%s(%d): Controller reset failed!\n",
@@ -1344,9 +1357,6 @@ bce_attach(device_t dev)
 	/* Update statistics once every second. */
 	sc->bce_stats_ticks = 1000000 & 0xffff00;
 
-	/* Find the media type for the adapter. */
-	bce_get_media(sc);
-
 	/* Store data needed by PHY driver for backplane applications */
 	sc->bce_shared_hw_cfg = bce_shmem_rd(sc, BCE_SHARED_HW_CFG_CONFIG);
 	sc->bce_port_hw_cfg   = bce_shmem_rd(sc, BCE_PORT_HW_CFG_CONFIG);
@@ -1386,6 +1396,15 @@ bce_attach(device_t dev)
 		ifp->if_capabilities = BCE_IF_CAPABILITIES;
 	}
 
+#if __FreeBSD_version >= 800505
+	/*
+	 * Introducing IFCAP_LINKSTATE didn't bump __FreeBSD_version
+	 * so it's approximate value.
+	 */
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0)
+		ifp->if_capabilities |= IFCAP_LINKSTATE;
+#endif
+
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1409,14 +1428,52 @@ bce_attach(device_t dev)
 	/* Handle any special PHY initialization for SerDes PHYs. */
 	bce_init_media(sc);
 
-	/* MII child bus by attaching the PHY. */
-	rc = mii_attach(dev, &sc->bce_miibus, ifp, bce_ifmedia_upd,
-	    bce_ifmedia_sts, BMSR_DEFCAPMASK, sc->bce_phy_addr,
-	    MII_OFFSET_ANY, MIIF_DOPAUSE);
-	if (rc != 0) {
-		BCE_PRINTF("%s(%d): attaching PHYs failed\n", __FILE__,
-		    __LINE__);
-		goto bce_attach_fail;
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0) {
+		ifmedia_init(&sc->bce_ifmedia, IFM_IMASK, bce_ifmedia_upd,
+		    bce_ifmedia_sts);
+		/*
+		 * We can't manually override remote PHY's link and assume
+		 * PHY port configuration(Fiber or TP) is not changed after
+		 * device attach.  This may not be correct though.
+		 */
+		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) != 0) {
+			if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG) {
+				ifmedia_add(&sc->bce_ifmedia,
+				    IFM_ETHER | IFM_2500_SX, 0, NULL);
+				ifmedia_add(&sc->bce_ifmedia,
+				    IFM_ETHER | IFM_2500_SX | IFM_FDX, 0, NULL);
+			}
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_1000_SX, 0, NULL);
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_1000_SX | IFM_FDX, 0, NULL);
+		} else {
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_10_T, 0, NULL);
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_10_T | IFM_FDX, 0, NULL);
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_100_TX, 0, NULL);
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_100_TX | IFM_FDX, 0, NULL);
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_1000_T, 0, NULL);
+			ifmedia_add(&sc->bce_ifmedia,
+			    IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
+		}
+		ifmedia_add(&sc->bce_ifmedia, IFM_ETHER | IFM_AUTO, 0, NULL);
+		ifmedia_set(&sc->bce_ifmedia, IFM_ETHER | IFM_AUTO);
+		sc->bce_ifmedia.ifm_media = sc->bce_ifmedia.ifm_cur->ifm_media;
+	} else {
+		/* MII child bus by attaching the PHY. */
+		rc = mii_attach(dev, &sc->bce_miibus, ifp, bce_ifmedia_upd,
+		    bce_ifmedia_sts, BMSR_DEFCAPMASK, sc->bce_phy_addr,
+		    MII_OFFSET_ANY, MIIF_DOPAUSE);
+		if (rc != 0) {
+			BCE_PRINTF("%s(%d): attaching PHYs failed\n", __FILE__,
+			    __LINE__);
+			goto bce_attach_fail;
+		}
 	}
 
 	/* Attach to the Ethernet interface list. */
@@ -1521,8 +1578,12 @@ bce_detach(device_t dev)
 	ether_ifdetach(ifp);
 
 	/* If we have a child device on the MII bus remove it too. */
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->bce_miibus);
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0)
+		ifmedia_removeall(&sc->bce_ifmedia);
+	else {
+		bus_generic_detach(dev);
+		device_delete_child(dev, sc->bce_miibus);
+	}
 
 	/* Release all remaining resources. */
 	bce_release_resources(sc);
@@ -1983,13 +2044,23 @@ bce_miibus_statchg(device_t dev)
 {
 	struct bce_softc *sc;
 	struct mii_data *mii;
-	int val;
+	struct ifmediareq ifmr;
+	int media_active, media_status, val;
 
 	sc = device_get_softc(dev);
 
 	DBENTER(BCE_VERBOSE_PHY);
 
-	mii = device_get_softc(sc->bce_miibus);
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0) {
+		bzero(&ifmr, sizeof(ifmr));
+		bce_ifmedia_sts_rphy(sc, &ifmr);
+		media_active = ifmr.ifm_active;
+		media_status = ifmr.ifm_status;
+	} else {
+		mii = device_get_softc(sc->bce_miibus);
+		media_active = mii->mii_media_active;
+		media_status = mii->mii_media_status;
+	}
 
 	val = REG_RD(sc, BCE_EMAC_MODE);
 	val &= ~(BCE_EMAC_MODE_PORT | BCE_EMAC_MODE_HALF_DUPLEX |
@@ -1997,7 +2068,7 @@ bce_miibus_statchg(device_t dev)
 	    BCE_EMAC_MODE_25G);
 
 	/* Set MII or GMII interface based on the PHY speed. */
-	switch (IFM_SUBTYPE(mii->mii_media_active)) {
+	switch (IFM_SUBTYPE(media_active)) {
 	case IFM_10_T:
 		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
 			DBPRINT(sc, BCE_INFO_PHY,
@@ -2026,7 +2097,7 @@ bce_miibus_statchg(device_t dev)
 	}
 
 	/* Set half or full duplex based on PHY settings. */
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_HDX) {
+	if ((IFM_OPTIONS(media_active) & IFM_FDX) == 0) {
 		DBPRINT(sc, BCE_INFO_PHY,
 		    "Setting Half-Duplex interface.\n");
 		val |= BCE_EMAC_MODE_HALF_DUPLEX;
@@ -2036,7 +2107,7 @@ bce_miibus_statchg(device_t dev)
 
 	REG_WR(sc, BCE_EMAC_MODE, val);
 
- 	if ((mii->mii_media_active & IFM_ETH_RXPAUSE) != 0) {
+	if ((IFM_OPTIONS(media_active) & IFM_ETH_RXPAUSE) != 0) {
 		DBPRINT(sc, BCE_INFO_PHY,
 		    "%s(): Enabling RX flow control.\n", __FUNCTION__);
 		BCE_SETBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
@@ -2046,7 +2117,7 @@ bce_miibus_statchg(device_t dev)
 		BCE_CLRBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
 	}
 
- 	if ((mii->mii_media_active & IFM_ETH_TXPAUSE) != 0) {
+	if ((IFM_OPTIONS(media_active) & IFM_ETH_TXPAUSE) != 0) {
 		DBPRINT(sc, BCE_INFO_PHY,
 		    "%s(): Enabling TX flow control.\n", __FUNCTION__);
 		BCE_SETBIT(sc, BCE_EMAC_TX_MODE, BCE_EMAC_TX_MODE_FLOW_EN);
@@ -3130,7 +3201,8 @@ bce_get_media_exit:
 static void
 bce_init_media(struct bce_softc *sc)
 {
-	if ((sc->bce_phy_flags & BCE_PHY_IEEE_CLAUSE_45_FLAG) != 0) {
+	if ((sc->bce_phy_flags & (BCE_PHY_IEEE_CLAUSE_45_FLAG |
+	    BCE_PHY_REMOTE_CAP_FLAG)) == BCE_PHY_IEEE_CLAUSE_45_FLAG) {
 		/*
 		 * Configure 5709S/5716S PHYs to use traditional IEEE
 		 * Clause 22 method. Otherwise we have no way to attach
@@ -5018,6 +5090,8 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 	if (rc)
 		BCE_PRINTF("%s(%d): Firmware did not complete "
 		    "initialization!\n", __FILE__, __LINE__);
+	/* Get firmware capabilities. */
+	bce_fw_cap_init(sc);
 
 bce_reset_exit:
 	DBEXIT(BCE_VERBOSE_RESET);
@@ -6081,6 +6155,55 @@ bce_free_pg_chain(struct bce_softc *sc)
 }
 
 
+static u32
+bce_get_rphy_link(struct bce_softc *sc)
+{
+	u32 advertise, link;
+	int fdpx;
+
+	advertise = 0;
+	fdpx = 0;
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) != 0)
+		link = bce_shmem_rd(sc, BCE_RPHY_SERDES_LINK);
+	else
+		link = bce_shmem_rd(sc, BCE_RPHY_COPPER_LINK);
+	if (link & BCE_NETLINK_ANEG_ENB)
+		advertise |= BCE_NETLINK_ANEG_ENB;
+	if (link & BCE_NETLINK_SPEED_10HALF)
+		advertise |= BCE_NETLINK_SPEED_10HALF;
+	if (link & BCE_NETLINK_SPEED_10FULL) {
+		advertise |= BCE_NETLINK_SPEED_10FULL;
+		fdpx++;
+	}
+	if (link & BCE_NETLINK_SPEED_100HALF)
+		advertise |= BCE_NETLINK_SPEED_100HALF;
+	if (link & BCE_NETLINK_SPEED_100FULL) {
+		advertise |= BCE_NETLINK_SPEED_100FULL;
+		fdpx++;
+	}
+	if (link & BCE_NETLINK_SPEED_1000HALF)
+		advertise |= BCE_NETLINK_SPEED_1000HALF;
+	if (link & BCE_NETLINK_SPEED_1000FULL) {
+		advertise |= BCE_NETLINK_SPEED_1000FULL;
+		fdpx++;
+	}
+	if (link & BCE_NETLINK_SPEED_2500HALF)
+		advertise |= BCE_NETLINK_SPEED_2500HALF;
+	if (link & BCE_NETLINK_SPEED_2500FULL) {
+		advertise |= BCE_NETLINK_SPEED_2500FULL;
+		fdpx++;
+	}
+	if (fdpx)
+		advertise |= BCE_NETLINK_FC_PAUSE_SYM |
+		    BCE_NETLINK_FC_PAUSE_ASYM;
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0)
+		advertise |= BCE_NETLINK_PHY_APP_REMOTE |
+		    BCE_NETLINK_ETH_AT_WIRESPEED;
+
+	return (advertise);
+}
+
+
 /****************************************************************************/
 /* Set media options.                                                       */
 /*                                                                          */
@@ -6116,25 +6239,193 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 	struct bce_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
 	struct mii_softc *miisc;
-	int error;
+	struct ifmedia *ifm;
+	u32 link;
+	int error, fdx;
 
 	DBENTER(BCE_VERBOSE_PHY);
 
 	error = 0;
 	BCE_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->bce_miibus);
+	sc->bce_link_up = FALSE;
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0) {
+		ifm = &sc->bce_ifmedia;
+		if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+			return (EINVAL);
+		link = 0;
+		fdx = IFM_OPTIONS(ifm->ifm_media) & IFM_FDX;
+		switch(IFM_SUBTYPE(ifm->ifm_media)) {
+		case IFM_AUTO:
+			/*
+			 * Check advertised link of remote PHY by reading
+			 * BCE_RPHY_SERDES_LINK or BCE_RPHY_COPPER_LINK.
+			 * Always use the same link type of remote PHY.
+			 */
+			link = bce_get_rphy_link(sc);
+			break;
+		case IFM_2500_SX:
+			if ((sc->bce_phy_flags &
+			    (BCE_PHY_REMOTE_PORT_FIBER_FLAG |
+			    BCE_PHY_2_5G_CAPABLE_FLAG)) == 0)
+				return (EINVAL);
+			/*
+			 * XXX
+			 * Have to enable forced 2.5Gbps configuration.
+			 */
+			if (fdx != 0)
+				link |= BCE_NETLINK_SPEED_2500FULL;
+			else
+				link |= BCE_NETLINK_SPEED_2500HALF;
+			break;
+		case IFM_1000_SX:
+			if ((sc->bce_phy_flags &
+			    BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0)
+				return (EINVAL);
+			/*
+			 * XXX
+			 * Have to disable 2.5Gbps configuration.
+			 */
+			if (fdx != 0)
+				link = BCE_NETLINK_SPEED_1000FULL;
+			else
+				link = BCE_NETLINK_SPEED_1000HALF;
+			break;
+		case IFM_1000_T:
+			if (sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG)
+				return (EINVAL);
+			if (fdx != 0)
+				link = BCE_NETLINK_SPEED_1000FULL;
+			else
+				link = BCE_NETLINK_SPEED_1000HALF;
+			break;
+		case IFM_100_TX:
+			if (sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG)
+				return (EINVAL);
+			if (fdx != 0)
+				link = BCE_NETLINK_SPEED_100FULL;
+			else
+				link = BCE_NETLINK_SPEED_100HALF;
+			break;
+		case IFM_10_T:
+			if (sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG)
+				return (EINVAL);
+			if (fdx != 0)
+				link = BCE_NETLINK_SPEED_10FULL;
+			else
+				link = BCE_NETLINK_SPEED_10HALF;
+			break;
+		default:
+			return (EINVAL);
+		}
+		if (IFM_SUBTYPE(ifm->ifm_media) != IFM_AUTO) {
+			/*
+			 * XXX
+			 * Advertise pause capability for full-duplex media.
+			 */
+			if (fdx != 0)
+				link |= BCE_NETLINK_FC_PAUSE_SYM |
+				    BCE_NETLINK_FC_PAUSE_ASYM;
+			if ((sc->bce_phy_flags &
+			    BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0)
+				link |= BCE_NETLINK_PHY_APP_REMOTE |
+				    BCE_NETLINK_ETH_AT_WIRESPEED;
+		}
 
-	/* Make sure the MII bus has been enumerated. */
-	if (mii) {
-		sc->bce_link_up = FALSE;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-		    PHY_RESET(miisc);
-		error = mii_mediachg(mii);
+		bce_shmem_wr(sc, BCE_MB_ARGS_0, link);
+		error = bce_fw_sync(sc, BCE_DRV_MSG_CODE_CMD_SET_LINK);
+	} else {
+		mii = device_get_softc(sc->bce_miibus);
+
+		/* Make sure the MII bus has been enumerated. */
+		if (mii) {
+			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+				PHY_RESET(miisc);
+			error = mii_mediachg(mii);
+		}
 	}
 
 	DBEXIT(BCE_VERBOSE_PHY);
 	return (error);
+}
+
+
+static void
+bce_ifmedia_sts_rphy(struct bce_softc *sc, struct ifmediareq *ifmr)
+{
+	struct ifnet *ifp;
+	u32 link;
+
+	ifp = sc->bce_ifp;
+	BCE_LOCK_ASSERT(sc);
+
+	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER;
+	link = bce_shmem_rd(sc, BCE_LINK_STATUS);
+	/* XXX Handle heart beat status? */
+	if ((link & BCE_LINK_STATUS_LINK_UP) != 0)
+		ifmr->ifm_status |= IFM_ACTIVE;
+	else {
+		ifmr->ifm_active |= IFM_NONE;
+		ifp->if_baudrate = 0;
+		return;
+	}
+	switch (link & BCE_LINK_STATUS_SPEED_MASK) {
+	case BCE_LINK_STATUS_10HALF:
+		ifmr->ifm_active |= IFM_10_T | IFM_HDX;
+		ifp->if_baudrate = IF_Mbps(10UL);
+		break;
+	case BCE_LINK_STATUS_10FULL:
+		ifmr->ifm_active |= IFM_10_T | IFM_FDX;
+		ifp->if_baudrate = IF_Mbps(10UL);
+		break;
+	case BCE_LINK_STATUS_100HALF:
+		ifmr->ifm_active |= IFM_100_TX | IFM_HDX;
+		ifp->if_baudrate = IF_Mbps(100UL);
+		break;
+	case BCE_LINK_STATUS_100FULL:
+		ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
+		ifp->if_baudrate = IF_Mbps(100UL);
+		break;
+	case BCE_LINK_STATUS_1000HALF:
+		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0)
+			ifmr->ifm_active |= IFM_1000_T | IFM_HDX;
+		else
+			ifmr->ifm_active |= IFM_1000_SX | IFM_HDX;
+		ifp->if_baudrate = IF_Mbps(1000UL);
+		break;
+	case BCE_LINK_STATUS_1000FULL:
+		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0)
+			ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
+		ifp->if_baudrate = IF_Mbps(1000UL);
+		break;
+	case BCE_LINK_STATUS_2500HALF:
+		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0) {
+			ifmr->ifm_active |= IFM_NONE;
+			return;
+		} else
+			ifmr->ifm_active |= IFM_2500_SX | IFM_HDX;
+		ifp->if_baudrate = IF_Mbps(2500UL);
+		break;
+	case BCE_LINK_STATUS_2500FULL:
+		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0) {
+			ifmr->ifm_active |= IFM_NONE;
+			return;
+		} else
+			ifmr->ifm_active |= IFM_2500_SX | IFM_FDX;
+		ifp->if_baudrate = IF_Mbps(2500UL);
+		break;
+	default:
+		ifmr->ifm_active |= IFM_NONE;
+		return;
+	}
+
+	if ((link & BCE_LINK_STATUS_RX_FC_ENABLED) != 0)
+		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
+	if ((link & BCE_LINK_STATUS_TX_FC_ENABLED) != 0)
+		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 }
 
 
@@ -6158,11 +6449,15 @@ bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		BCE_UNLOCK(sc);
 		return;
 	}
-	mii = device_get_softc(sc->bce_miibus);
 
-	mii_pollstat(mii);
-	ifmr->ifm_active = mii->mii_media_active;
-	ifmr->ifm_status = mii->mii_media_status;
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0)
+		bce_ifmedia_sts_rphy(sc, ifmr);
+	else {
+		mii = device_get_softc(sc->bce_miibus);
+		mii_pollstat(mii);
+		ifmr->ifm_active = mii->mii_media_active;
+		ifmr->ifm_status = mii->mii_media_status;
+	}
 
 	BCE_UNLOCK(sc);
 
@@ -6199,14 +6494,26 @@ bce_phy_intr(struct bce_softc *sc)
 			    STATUS_ATTN_BITS_LINK_STATE);
 			DBPRINT(sc, BCE_INFO_PHY, "%s(): Link is now UP.\n",
 			    __FUNCTION__);
-		}
-		else {
+		} else {
 			REG_WR(sc, BCE_PCICFG_STATUS_BIT_CLEAR_CMD,
 			    STATUS_ATTN_BITS_LINK_STATE);
 			DBPRINT(sc, BCE_INFO_PHY, "%s(): Link is now DOWN.\n",
 			    __FUNCTION__);
 		}
 
+		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0) {
+			if (new_link_state) {
+				if (bootverbose)
+					if_printf(sc->bce_ifp, "link UP\n");
+				if_link_state_change(sc->bce_ifp,
+				    LINK_STATE_UP);
+			} else {
+				if (bootverbose)
+					if_printf(sc->bce_ifp, "link DOWN\n");
+				if_link_state_change(sc->bce_ifp,
+				    LINK_STATE_DOWN);
+			}
+		}
 		/*
 		 * Assume link is down and allow
 		 * tick routine to update the state
@@ -7495,10 +7802,14 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		DBPRINT(sc, BCE_VERBOSE_MISC,
 		    "Received SIOCSIFMEDIA/SIOCGIFMEDIA\n");
-
-		mii = device_get_softc(sc->bce_miibus);
-		error = ifmedia_ioctl(ifp, ifr,
-		    &mii->mii_media, command);
+		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0)
+			error = ifmedia_ioctl(ifp, ifr, &sc->bce_ifmedia,
+			    command);
+		else {
+			mii = device_get_softc(sc->bce_miibus);
+			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media,
+			    command);
+		}
 		break;
 
 	/* Set interface capability */
@@ -8163,6 +8474,7 @@ bce_tick(void *xsc)
 	struct bce_softc *sc = xsc;
 	struct mii_data *mii;
 	struct ifnet *ifp;
+	struct ifmediareq ifmr;
 
 	ifp = sc->bce_ifp;
 
@@ -8193,21 +8505,32 @@ bce_tick(void *xsc)
 		goto bce_tick_exit;
 
 	/* Link is down.  Check what the PHY's doing. */
-	mii = device_get_softc(sc->bce_miibus);
-	mii_tick(mii);
+	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0) {
+		bzero(&ifmr, sizeof(ifmr));
+		bce_ifmedia_sts_rphy(sc, &ifmr);
+		if ((ifmr.ifm_status & (IFM_ACTIVE | IFM_AVALID)) ==
+		    (IFM_ACTIVE | IFM_AVALID)) {
+			sc->bce_link_up = TRUE;
+			bce_miibus_statchg(sc->bce_dev);
+		}
+	} else {
+		mii = device_get_softc(sc->bce_miibus);
+		mii_tick(mii);
+		/* Check if the link has come up. */
+		if ((mii->mii_media_status & IFM_ACTIVE) &&
+		    (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)) {
+			DBPRINT(sc, BCE_VERBOSE_MISC, "%s(): Link up!\n",
+			    __FUNCTION__);
+			sc->bce_link_up = TRUE;
+			if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
+			    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX ||
+			    IFM_SUBTYPE(mii->mii_media_active) == IFM_2500_SX) &&
+			    (bce_verbose || bootverbose))
+				BCE_PRINTF("Gigabit link up!\n");
+		}
 
-	/* Check if the link has come up. */
-	if ((mii->mii_media_status & IFM_ACTIVE) &&
-	    (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)) {
-		DBPRINT(sc, BCE_VERBOSE_MISC,
-		    "%s(): Link up!\n", __FUNCTION__);
-		sc->bce_link_up = TRUE;
-		if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_2500_SX) &&
-		    (bce_verbose || bootverbose))
-			BCE_PRINTF("Gigabit link up!\n");
-
+	}
+	if (sc->bce_link_up == TRUE) {
 		/* Now that link is up, handle any outstanding TX traffic. */
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 			DBPRINT(sc, BCE_VERBOSE_MISC, "%s(): Found "
@@ -8220,6 +8543,36 @@ bce_tick_exit:
 	DBEXIT(BCE_EXTREME_MISC);
 	return;
 }
+
+static void
+bce_fw_cap_init(struct bce_softc *sc)
+{
+	u32 ack, cap, link;
+
+	ack = 0;
+	cap = bce_shmem_rd(sc, BCE_FW_CAP_MB);
+	if ((cap & BCE_FW_CAP_SIGNATURE_MAGIC_MASK) !=
+	    BCE_FW_CAP_SIGNATURE_MAGIC)
+		return;
+	if ((cap & (BCE_FW_CAP_MFW_KEEP_VLAN | BCE_FW_CAP_BC_KEEP_VLAN)) ==
+	    (BCE_FW_CAP_MFW_KEEP_VLAN | BCE_FW_CAP_BC_KEEP_VLAN))
+		ack |= BCE_DRV_ACK_CAP_SIGNATURE_MAGIC |
+		    BCE_FW_CAP_MFW_KEEP_VLAN | BCE_FW_CAP_BC_KEEP_VLAN;
+	if ((sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) != 0 &&
+	    (cap & BCE_FW_CAP_REMOTE_PHY_CAP) != 0) {
+		sc->bce_phy_flags &= ~BCE_PHY_REMOTE_PORT_FIBER_FLAG;
+		sc->bce_phy_flags |= BCE_PHY_REMOTE_CAP_FLAG;
+		link = bce_shmem_rd(sc, BCE_LINK_STATUS);
+		if ((link & BCE_LINK_STATUS_SERDES_LINK) != 0)
+			sc->bce_phy_flags |= BCE_PHY_REMOTE_PORT_FIBER_FLAG;
+		ack |= BCE_DRV_ACK_CAP_SIGNATURE_MAGIC |
+		    BCE_FW_CAP_REMOTE_PHY_CAP;
+	}
+
+	if (ack != 0)
+		bce_shmem_wr(sc, BCE_DRV_ACK_CAP_MB, ack);
+}
+
 
 #ifdef BCE_DEBUG
 /****************************************************************************/
