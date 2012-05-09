@@ -83,4 +83,22 @@ int busdma_tag_derive(busdma_tag_t tag, bus_addr_t maxaddr, bus_addr_t align,
  */
 int busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_mem_t *mem_p);
 
+/*
+ * busdma_mem_get_seg_addr
+ * returns:		kernel virtual address of the specified segment.
+ * arguments:
+ *	mem		the DMA memory allocated or mapped.
+ *	idx		the segment index, starting at 0.
+ */
+vm_offset_t busdma_mem_get_seg_addr(busdma_mem_t tag, u_int idx);
+
+/*
+ * busdma_mem_get_seg_busaddr
+ * returns:		(virtual) bus address of the specified segment.
+ * arguments:
+ *	mem		the BMA memory allocated to mapped.
+ *	idx		the segment index, starting at 0.
+ */
+bus_addr_t busdma_mem_get_seg_busaddr(busdma_mem_t mem, u_int idx);
+
 #endif /* _SYS_BUSDMA_H_ */

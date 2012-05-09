@@ -55,10 +55,10 @@ struct busdma_tag {
 
 struct busdma_seg {
 	TAILQ_ENTRY(busdma_seg) ds_chain;
+	bus_addr_t	ds_baddr;
+	vm_paddr_t	ds_paddr;
 	vm_offset_t	ds_vaddr;
 	vm_size_t	ds_size;
-	vm_paddr_t	ds_paddr;
-	bus_addr_t	ds_baddr;
 };
 
 struct busdma_mem {
@@ -156,6 +156,18 @@ _busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t maxaddr,
 	return (0);
 }
 
+static struct busdma_seg *
+_busdma_mem_get_seg(struct busdma_mem *mem, u_int idx)
+{
+	struct busdma_seg *seg;
+ 
+	if (idx >= mem->dm_nsegs)
+		return (NULL);
+
+	seg = TAILQ_FIRST(&mem->dm_seg);
+	return (seg);
+}
+
 int
 busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
     bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
@@ -209,13 +221,13 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_mem **mem_p)
 	struct busdma_seg *seg;
 	vm_size_t maxsz;
 
-	mem = malloc(sizeof(*mem), M_BUSDMA_MEM, M_WAITOK | M_ZERO);
+	mem = malloc(sizeof(*mem), M_BUSDMA_MEM, M_NOWAIT | M_ZERO);
 	mem->dm_tag = tag;
 	TAILQ_INIT(&mem->dm_seg);
 
 	maxsz = tag->dt_maxsz;
 	while (maxsz > 0 && mem->dm_nsegs < tag->dt_nsegs) {
-		seg = malloc(sizeof(*seg), M_BUSDMA_SEG, M_WAITOK | M_ZERO);
+		seg = malloc(sizeof(*seg), M_BUSDMA_SEG, M_NOWAIT | M_ZERO);
 		TAILQ_INSERT_TAIL(&mem->dm_seg, seg, ds_chain);
 		seg->ds_size = MIN(maxsz, tag->dt_maxsegsz);
 		seg->ds_vaddr = kmem_alloc_contig(kernel_map, seg->ds_size, 0,
@@ -226,6 +238,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_mem **mem_p)
 			goto fail;
 		}
 		seg->ds_paddr = pmap_kextract(seg->ds_vaddr);
+		seg->ds_baddr = seg->ds_paddr;
 		maxsz -= seg->ds_size;
 		mem->dm_nsegs++;
 	}
@@ -245,4 +258,22 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_mem **mem_p)
 	}
 	free(mem, M_BUSDMA_MEM);
 	return (ENOMEM);
+}
+
+vm_offset_t
+busdma_mem_get_seg_addr(struct busdma_mem *mem, u_int idx)
+{
+	struct busdma_seg *seg;
+
+	seg = _busdma_mem_get_seg(mem, idx);
+	return ((seg != NULL) ? seg->ds_vaddr : 0);
+}
+
+bus_addr_t
+busdma_mem_get_seg_busaddr(struct busdma_mem *mem, u_int idx)
+{
+	struct busdma_seg *seg;
+
+	seg = _busdma_mem_get_seg(mem, idx);
+	return ((seg != NULL) ? seg->ds_baddr : 0);
 }
