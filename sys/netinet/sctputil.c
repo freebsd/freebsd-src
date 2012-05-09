@@ -2798,39 +2798,66 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 {
 	struct mbuf *m_notify;
 	struct sctp_send_failed *ssf;
+	struct sctp_send_failed_event *ssfe;
 	struct sctp_queued_to_read *control;
 	int length;
 
 	if ((stcb == NULL) ||
-	    sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVSENDFAILEVNT)) {
+	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVSENDFAILEVNT) &&
+	    sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT))) {
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_send_failed), 0, M_DONTWAIT, 1, MT_DATA);
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
+		length = sizeof(struct sctp_send_failed_event);
+	} else {
+		length = sizeof(struct sctp_send_failed);
+	}
+	m_notify = sctp_get_mbuf_for_msg(length, 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
-	length = sizeof(struct sctp_send_failed) + chk->send_size;
+	length += chk->send_size;
 	length -= sizeof(struct sctp_data_chunk);
 	SCTP_BUF_LEN(m_notify) = 0;
-	ssf = mtod(m_notify, struct sctp_send_failed *);
-	ssf->ssf_type = SCTP_SEND_FAILED;
-	if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
-		ssf->ssf_flags = SCTP_DATA_UNSENT;
-	else
-		ssf->ssf_flags = SCTP_DATA_SENT;
-	ssf->ssf_length = length;
-	ssf->ssf_error = error;
-	/* not exactly what the user sent in, but should be close :) */
-	bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
-	ssf->ssf_info.sinfo_stream = chk->rec.data.stream_number;
-	ssf->ssf_info.sinfo_ssn = chk->rec.data.stream_seq;
-	ssf->ssf_info.sinfo_flags = chk->rec.data.rcv_flags;
-	ssf->ssf_info.sinfo_ppid = chk->rec.data.payloadtype;
-	ssf->ssf_info.sinfo_context = chk->rec.data.context;
-	ssf->ssf_info.sinfo_assoc_id = sctp_get_associd(stcb);
-	ssf->ssf_assoc_id = sctp_get_associd(stcb);
-
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
+		ssfe = mtod(m_notify, struct sctp_send_failed_event *);
+		ssfe->ssfe_type = SCTP_SEND_FAILED_EVENT;
+		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
+			ssfe->ssfe_flags = SCTP_DATA_UNSENT;
+		else
+			ssfe->ssfe_flags = SCTP_DATA_SENT;
+		ssfe->ssfe_length = length;
+		ssfe->ssfe_error = error;
+		/* not exactly what the user sent in, but should be close :) */
+		bzero(&ssfe->ssfe_info, sizeof(ssfe->ssfe_info));
+		ssfe->ssfe_info.snd_sid = chk->rec.data.stream_number;
+		ssfe->ssfe_info.snd_flags = chk->rec.data.rcv_flags;
+		ssfe->ssfe_info.snd_ppid = chk->rec.data.payloadtype;
+		ssfe->ssfe_info.snd_context = chk->rec.data.context;
+		ssfe->ssfe_info.snd_assoc_id = sctp_get_associd(stcb);
+		ssfe->ssfe_assoc_id = sctp_get_associd(stcb);
+		SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed_event);
+	} else {
+		ssf = mtod(m_notify, struct sctp_send_failed *);
+		ssf->ssf_type = SCTP_SEND_FAILED;
+		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
+			ssf->ssf_flags = SCTP_DATA_UNSENT;
+		else
+			ssf->ssf_flags = SCTP_DATA_SENT;
+		ssf->ssf_length = length;
+		ssf->ssf_error = error;
+		/* not exactly what the user sent in, but should be close :) */
+		bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
+		ssf->ssf_info.sinfo_stream = chk->rec.data.stream_number;
+		ssf->ssf_info.sinfo_ssn = chk->rec.data.stream_seq;
+		ssf->ssf_info.sinfo_flags = chk->rec.data.rcv_flags;
+		ssf->ssf_info.sinfo_ppid = chk->rec.data.payloadtype;
+		ssf->ssf_info.sinfo_context = chk->rec.data.context;
+		ssf->ssf_info.sinfo_assoc_id = sctp_get_associd(stcb);
+		ssf->ssf_assoc_id = sctp_get_associd(stcb);
+		SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed);
+	}
 	if (chk->data) {
 		/*
 		 * trim off the sctp chunk header(it should be there)
@@ -2842,7 +2869,6 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 		}
 	}
 	SCTP_BUF_NEXT(m_notify) = chk->data;
-	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed);
 	/* Steal off the mbuf */
 	chk->data = NULL;
 	/*
@@ -2882,43 +2908,75 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 {
 	struct mbuf *m_notify;
 	struct sctp_send_failed *ssf;
+	struct sctp_send_failed_event *ssfe;
 	struct sctp_queued_to_read *control;
 	int length;
 
 	if ((stcb == NULL) ||
-	    sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVSENDFAILEVNT)) {
+	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVSENDFAILEVNT) &&
+	    sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT))) {
 		/* event not enabled */
 		return;
 	}
-	length = sizeof(struct sctp_send_failed) + sp->length;
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_send_failed), 0, M_DONTWAIT, 1, MT_DATA);
-	if (m_notify == NULL)
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
+		length = sizeof(struct sctp_send_failed_event);
+	} else {
+		length = sizeof(struct sctp_send_failed);
+	}
+	m_notify = sctp_get_mbuf_for_msg(length, 0, M_DONTWAIT, 1, MT_DATA);
+	if (m_notify == NULL) {
 		/* no space left */
 		return;
-	SCTP_BUF_LEN(m_notify) = 0;
-	ssf = mtod(m_notify, struct sctp_send_failed *);
-	ssf->ssf_type = SCTP_SEND_FAILED;
-	if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
-		ssf->ssf_flags = SCTP_DATA_UNSENT;
-	else
-		ssf->ssf_flags = SCTP_DATA_SENT;
-	ssf->ssf_length = length;
-	ssf->ssf_error = error;
-	/* not exactly what the user sent in, but should be close :) */
-	bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
-	ssf->ssf_info.sinfo_stream = sp->stream;
-	ssf->ssf_info.sinfo_ssn = sp->strseq;
-	if (sp->some_taken) {
-		ssf->ssf_info.sinfo_flags = SCTP_DATA_LAST_FRAG;
-	} else {
-		ssf->ssf_info.sinfo_flags = SCTP_DATA_NOT_FRAG;
 	}
-	ssf->ssf_info.sinfo_ppid = sp->ppid;
-	ssf->ssf_info.sinfo_context = sp->context;
-	ssf->ssf_info.sinfo_assoc_id = sctp_get_associd(stcb);
-	ssf->ssf_assoc_id = sctp_get_associd(stcb);
+	length += sp->length;
+	SCTP_BUF_LEN(m_notify) = 0;
+	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
+		ssfe = mtod(m_notify, struct sctp_send_failed_event *);
+		ssfe->ssfe_type = SCTP_SEND_FAILED;
+		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
+			ssfe->ssfe_flags = SCTP_DATA_UNSENT;
+		else
+			ssfe->ssfe_flags = SCTP_DATA_SENT;
+		ssfe->ssfe_length = length;
+		ssfe->ssfe_error = error;
+		/* not exactly what the user sent in, but should be close :) */
+		bzero(&ssfe->ssfe_info, sizeof(ssfe->ssfe_info));
+		ssfe->ssfe_info.snd_sid = sp->stream;
+		if (sp->some_taken) {
+			ssfe->ssfe_info.snd_flags = SCTP_DATA_LAST_FRAG;
+		} else {
+			ssfe->ssfe_info.snd_flags = SCTP_DATA_NOT_FRAG;
+		}
+		ssfe->ssfe_info.snd_ppid = sp->ppid;
+		ssfe->ssfe_info.snd_context = sp->context;
+		ssfe->ssfe_info.snd_assoc_id = sctp_get_associd(stcb);
+		ssfe->ssfe_assoc_id = sctp_get_associd(stcb);
+		SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed_event);
+	} else {
+		ssf = mtod(m_notify, struct sctp_send_failed *);
+		ssf->ssf_type = SCTP_SEND_FAILED;
+		if (error == SCTP_NOTIFY_DATAGRAM_UNSENT)
+			ssf->ssf_flags = SCTP_DATA_UNSENT;
+		else
+			ssf->ssf_flags = SCTP_DATA_SENT;
+		ssf->ssf_length = length;
+		ssf->ssf_error = error;
+		/* not exactly what the user sent in, but should be close :) */
+		bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
+		ssf->ssf_info.sinfo_stream = sp->stream;
+		ssf->ssf_info.sinfo_ssn = sp->strseq;
+		if (sp->some_taken) {
+			ssf->ssf_info.sinfo_flags = SCTP_DATA_LAST_FRAG;
+		} else {
+			ssf->ssf_info.sinfo_flags = SCTP_DATA_NOT_FRAG;
+		}
+		ssf->ssf_info.sinfo_ppid = sp->ppid;
+		ssf->ssf_info.sinfo_context = sp->context;
+		ssf->ssf_info.sinfo_assoc_id = sctp_get_associd(stcb);
+		ssf->ssf_assoc_id = sctp_get_associd(stcb);
+		SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed);
+	}
 	SCTP_BUF_NEXT(m_notify) = sp->data;
-	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed);
 
 	/* Steal off the mbuf */
 	sp->data = NULL;
