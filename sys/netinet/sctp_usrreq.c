@@ -3285,6 +3285,33 @@ flags_out:
 			}
 			break;
 		}
+	case SCTP_ENABLE_STREAM_RESET:
+		{
+			struct sctp_assoc_value *av;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, *optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				av->assoc_value = (uint32_t) stcb->asoc.local_strreset_support;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					SCTP_INP_RLOCK(inp);
+					av->assoc_value = (uint32_t) inp->local_strreset_support;
+					SCTP_INP_RUNLOCK(inp);
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			if (error == 0) {
+				*optsize = sizeof(struct sctp_assoc_value);
+			}
+			break;
+		}
 	default:
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOPROTOOPT);
 		error = ENOPROTOOPT;
@@ -4085,7 +4112,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_ENABLE_STREAM_RESET:
 		{
 			struct sctp_assoc_value *av;
-			uint8_t set_value = 0;
 
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
 			if (av->assoc_value & (~SCTP_ENABLE_VALUE_MASK)) {
@@ -4093,10 +4119,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				error = EINVAL;
 				break;
 			}
-			set_value = av->assoc_value & SCTP_ENABLE_VALUE_MASK;
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 			if (stcb) {
-				stcb->asoc.local_strreset_support = set_value;
+				stcb->asoc.local_strreset_support = (uint8_t) av->assoc_value;
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -4104,7 +4129,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				    (av->assoc_id == SCTP_FUTURE_ASSOC) ||
 				    (av->assoc_id == SCTP_ALL_ASSOC)) {
 					SCTP_INP_WLOCK(inp);
-					inp->local_strreset_support = set_value;
+					inp->local_strreset_support = (uint8_t) av->assoc_value;
 					SCTP_INP_WUNLOCK(inp);
 				}
 				if ((av->assoc_id == SCTP_CURRENT_ASSOC) ||
@@ -4112,7 +4137,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					SCTP_INP_RLOCK(inp);
 					LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 						SCTP_TCB_LOCK(stcb);
-						stcb->asoc.local_strreset_support = set_value;
+						stcb->asoc.local_strreset_support = (uint8_t) av->assoc_value;
 						SCTP_TCB_UNLOCK(stcb);
 					}
 					SCTP_INP_RUNLOCK(inp);
