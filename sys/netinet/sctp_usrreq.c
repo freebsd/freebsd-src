@@ -4153,7 +4153,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			SCTP_CHECK_AND_CAST(strrst, optval, struct sctp_reset_streams, optsize);
 			SCTP_FIND_STCB(inp, stcb, strrst->srs_assoc_id);
-
 			if (stcb == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 				error = ENOENT;
@@ -4165,15 +4164,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				 */
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
 				error = EOPNOTSUPP;
-				SCTP_TCB_UNLOCK(stcb);
-				break;
-			}
-			if (!(stcb->asoc.local_strreset_support & SCTP_ENABLE_RESET_STREAM_REQ)) {
-				/*
-				 * User did not enable the operation.
-				 */
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EPERM);
-				error = EPERM;
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
@@ -4233,6 +4223,21 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if (stcb == NULL) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT);
 				error = ENOENT;
+				break;
+			}
+			if (stcb->asoc.peer_supports_strreset == 0) {
+				/*
+				 * Peer does not support the chunk type.
+				 */
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
+				error = EOPNOTSUPP;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
+			if (stcb->asoc.stream_reset_outstanding) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EALREADY);
+				error = EALREADY;
+				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
 			if ((stradd->sas_outstrms == 0) &&
@@ -4295,15 +4300,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				 */
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
 				error = EOPNOTSUPP;
-				SCTP_TCB_UNLOCK(stcb);
-				break;
-			}
-			if (!(stcb->asoc.local_strreset_support & SCTP_ENABLE_RESET_ASSOC_REQ)) {
-				/*
-				 * User did not enable the operation.
-				 */
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EPERM);
-				error = EPERM;
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
