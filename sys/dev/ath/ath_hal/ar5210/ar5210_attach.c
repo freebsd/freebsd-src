@@ -133,6 +133,10 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_setCoverageClass		= ar5210SetCoverageClass,
 	.ah_get11nExtBusy		= ar5210Get11nExtBusy,
 	.ah_getMibCycleCounts		= ar5210GetMibCycleCounts,
+	.ah_enableDfs			= ar5210EnableDfs,
+	.ah_getDfsThresh		= ar5210GetDfsThresh,
+	/* XXX procRadarEvent */
+	/* XXX isFastClockEnabled */
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5210GetKeyCacheSize,
