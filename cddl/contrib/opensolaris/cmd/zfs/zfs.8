@@ -18,7 +18,7 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2011 by Delphix. All rights reserved.
+.\" Copyright (c) 2012 by Delphix. All rights reserved.
 .\" Copyright (c) 2012 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\"
@@ -77,10 +77,12 @@
 .Ar clone-filesystem
 .Nm
 .Cm rename
+.Op Fl f
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm rename
+.Op Fl f
 .Fl p
 .Ar filesystem Ns | Ns Ar volume
 .Ar filesystem Ns | Ns Ar volume
@@ -1646,12 +1648,14 @@ subcommand can be used to rename any conflicting snapshots.
 .It Xo
 .Nm
 .Cm rename
+.Op Fl f
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .It Xo
 .Nm
 .Cm rename
+.Op Fl f
 .Fl p
 .Ar filesystem Ns | Ns Ar volume
 .Ar filesystem Ns | Ns Ar volume
@@ -1685,6 +1689,11 @@ property is set to
 or
 .Cm none ,
 file system is not unmounted even if this option is not given.
+.It Fl f
+Force unmount any filesystems that need to be unmounted in the process.
+This flag has no effect if used together with the
+.Fl u
+flag.
 .El
 .It Xo
 .Nm
