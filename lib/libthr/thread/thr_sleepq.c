@@ -94,17 +94,21 @@ _sleepq_unlock(void *wchan)
 	THR_LOCK_RELEASE(curthread, &sc->sc_lock);
 }
 
-struct sleepqueue *
-_sleepq_lookup(void *wchan)
+static inline struct sleepqueue *
+lookup(struct sleepqueue_chain *sc, void *wchan)
 {
-	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
 
-	sc = SC_LOOKUP(wchan);
 	LIST_FOREACH(sq, &sc->sc_queues, sq_hash)
 		if (sq->sq_wchan == wchan)
 			return (sq);
 	return (NULL);
+}
+
+struct sleepqueue *
+_sleepq_lookup(void *wchan)
+{
+	return (lookup(SC_LOOKUP(wchan), wchan));
 }
 
 void
@@ -114,7 +118,7 @@ _sleepq_add(void *wchan, struct pthread *td)
 	struct sleepqueue *sq;
 
 	sc = SC_LOOKUP(wchan);
-	sq = _sleepq_lookup(wchan);
+	sq = lookup(sc, wchan);
 	if (sq != NULL) {
 		SLIST_INSERT_HEAD(&sq->sq_freeq, td->sleepqueue, sq_flink);
 	} else {
