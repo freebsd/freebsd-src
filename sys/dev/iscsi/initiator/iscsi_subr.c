@@ -232,7 +232,7 @@ _scsi_done(isc_session_t *sp, u_int response, u_int status, union ccb *ccb, pduq
 
 	  case 0x18: // Reservation Conflict
 	  case 0x28: // Task Set Full
-	       ccb_h->status = CAM_REQUEUE_REQ;
+	       ccb_h->status |= CAM_REQUEUE_REQ;
 	       break;
 	  default:
 	       //case 0x22: // Command Terminated
@@ -270,9 +270,10 @@ iscsi_requeue(isc_session_t *sp)
      while((pq = i_dqueue_hld(sp)) != NULL) {
 	  i++;
 	  if(pq->ccb != NULL) {
+	    pq->ccb->ccb_h.status = 0;
 	    if (sp->cam_flags & ISC_QFROZEN) {
 	      sp->space_needed = 0;
-	      pq->ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+	      pq->ccb->ccb_h.status = CAM_RELEASE_SIMQ;
 	      sp->cam_flags &= ~ISC_QFROZEN;
 	    }
 	       _scsi_done(sp, 0, 0x28, pq->ccb, NULL);
