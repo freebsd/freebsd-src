@@ -613,6 +613,32 @@ softclock(void *arg)
 					cc_cme_cleanup(cc);
 
 					/*
+					 * Handle deferred callout stops
+					 */
+					if ((c->c_flags & CALLOUT_DFRMIGRATION)
+					    == 0) {
+						CTR3(KTR_CALLOUT,
+					"deferred cancelled %p func %p arg %p",
+						    c, new_func, new_arg);
+						if (cc->cc_next == c) {
+							cc->cc_next =
+							    TAILQ_NEXT(c,
+							    c_links.tqe);
+						}
+						if (c->c_flags &
+						    CALLOUT_LOCAL_ALLOC) {
+							c->c_func = NULL;
+							SLIST_INSERT_HEAD(
+							    &cc->cc_callfree, c,
+							    c_links.sle);
+						}
+						goto nextc;
+					} else {
+						c->c_flags &= ~
+						    CALLOUT_DFRMIGRATION;
+					}
+
+					/*
 					 * It should be assert here that the
 					 * callout is not destroyed but that
 					 * is not easy.
@@ -627,6 +653,9 @@ softclock(void *arg)
 					panic("migration should not happen");
 #endif
 				}
+#ifdef SMP
+nextc:
+#endif
 				steps = 0;
 				c = cc->cc_next;
 			}
@@ -782,6 +811,7 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 			cc->cc_migration_ticks = to_ticks;
 			cc->cc_migration_func = ftn;
 			cc->cc_migration_arg = arg;
+			c->c_flags |= CALLOUT_DFRMIGRATION;
 			CTR5(KTR_CALLOUT,
 		    "migration of %p func %p arg %p in %d to %u deferred",
 			    c, c->c_func, c->c_arg, to_ticks, cpu);
@@ -951,6 +981,12 @@ again:
 			    ("callout wrongly scheduled for migration"));
 			CC_UNLOCK(cc);
 			KASSERT(!sq_locked, ("sleepqueue chain locked"));
+			return (1);
+		} else if ((c->c_flags & CALLOUT_DFRMIGRATION) != 0) {
+			c->c_flags &= ~CALLOUT_DFRMIGRATION;
+			CTR3(KTR_CALLOUT, "postponing stop %p func %p arg %p",
+			    c, c->c_func, c->c_arg);
+			CC_UNLOCK(cc);
 			return (1);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
