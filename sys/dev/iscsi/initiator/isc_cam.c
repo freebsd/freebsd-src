@@ -319,8 +319,13 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	       
 	       scsi->valid = CTS_SCSI_VALID_TQ;
 	       scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
-	       
 	       cts->ccb_h.status = CAM_REQ_CMP;
+	       /* kick a stalled queue */
+	       	if (sp->cam_flags & ISC_QFROZEN) {
+		  sp->space_needed = 0;
+		  cts->ccb_h.status |= CAM_RELEASE_SIMQ;
+		  sp->cam_flags &= ~ISC_QFROZEN;
+		}
 	       break;
      }
      default:

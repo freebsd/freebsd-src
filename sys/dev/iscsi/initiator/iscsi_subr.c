@@ -270,6 +270,11 @@ iscsi_requeue(isc_session_t *sp)
      while((pq = i_dqueue_hld(sp)) != NULL) {
 	  i++;
 	  if(pq->ccb != NULL) {
+	    if (sp->cam_flags & ISC_QFROZEN) {
+	      sp->space_needed = 0;
+	      pq->ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+	      sp->cam_flags &= ~ISC_QFROZEN;
+	    }
 	       _scsi_done(sp, 0, 0x28, pq->ccb, NULL);
 	       n = ntohl(pq->pdu.ipdu.bhs.CmdSN);
 	       if(last==0 || (last > n))
