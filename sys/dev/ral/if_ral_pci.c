@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ral/rt2560var.h>
 #include <dev/ral/rt2661var.h>
+#include <dev/ral/rt2860var.h>
 
 MODULE_DEPEND(ral, pci, 1, 1, 1);
 MODULE_DEPEND(ral, firmware, 1, 1, 1);
@@ -70,11 +71,37 @@ struct ral_pci_ident {
 };
 
 static const struct ral_pci_ident ral_pci_ids[] = {
+	{ 0x1432, 0x7708, "Edimax RT2860" },
+	{ 0x1432, 0x7711, "Edimax RT3591" },
+	{ 0x1432, 0x7722, "Edimax RT3591" },
+	{ 0x1432, 0x7727, "Edimax RT2860" },
+	{ 0x1432, 0x7728, "Edimax RT2860" },
+	{ 0x1432, 0x7738, "Edimax RT2860" },
+	{ 0x1432, 0x7748, "Edimax RT2860" },
+	{ 0x1432, 0x7758, "Edimax RT2860" },
+	{ 0x1432, 0x7768, "Edimax RT2860" },
+	{ 0x1462, 0x891a, "MSI RT3090" },
 	{ 0x1814, 0x0201, "Ralink Technology RT2560" },
 	{ 0x1814, 0x0301, "Ralink Technology RT2561S" },
 	{ 0x1814, 0x0302, "Ralink Technology RT2561" },
 	{ 0x1814, 0x0401, "Ralink Technology RT2661" },
-
+	{ 0x1814, 0x0601, "Ralink Technology RT2860" },
+	{ 0x1814, 0x0681, "Ralink Technology RT2890" },
+	{ 0x1814, 0x0701, "Ralink Technology RT2760" },
+	{ 0x1814, 0x0781, "Ralink Technology RT2790" },
+	{ 0x1814, 0x3060, "Ralink Technology RT3060" },
+	{ 0x1814, 0x3062, "Ralink Technology RT3062" },
+	{ 0x1814, 0x3090, "Ralink Technology RT3090" },
+	{ 0x1814, 0x3091, "Ralink Technology RT3091" },
+	{ 0x1814, 0x3092, "Ralink Technology RT3092" },
+	{ 0x1814, 0x3390, "Ralink Technology RT3390" },
+	{ 0x1814, 0x3562, "Ralink Technology RT3562" },
+	{ 0x1814, 0x3592, "Ralink Technology RT3592" },
+	{ 0x1814, 0x3593, "Ralink Technology RT3593" },
+	{ 0x1814, 0x5390, "Ralink Technology RT5390" },
+	{ 0x1814, 0x539a, "Ralink Technology RT5390" },
+	{ 0x1814, 0x539f, "Ralink Technology RT5390" },
+	{ 0x1a3b, 0x1059, "AWT RT2890" },
 	{ 0, 0, NULL }
 };
 
@@ -101,12 +128,20 @@ static struct ral_opns {
 	rt2661_suspend,
 	rt2661_resume,
 	rt2661_intr
+}, ral_rt2860_opns = {
+	rt2860_attach,
+	rt2860_detach,
+	rt2860_shutdown,
+	rt2860_suspend,
+	rt2860_resume,
+	rt2860_intr
 };
 
 struct ral_pci_softc {
 	union {
 		struct rt2560_softc sc_rt2560;
 		struct rt2661_softc sc_rt2661;
+		struct rt2860_softc sc_rt2860;
 	} u;
 
 	struct ral_opns		*sc_opns;
@@ -180,8 +215,19 @@ ral_pci_attach(device_t dev)
 	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
-	psc->sc_opns = (pci_get_device(dev) == 0x0201) ? &ral_rt2560_opns :
-	    &ral_rt2661_opns;
+	switch (pci_get_device(dev)) {
+	case 0x0201:
+		psc->sc_opns = &ral_rt2560_opns;
+		break;
+	case 0x0301:
+	case 0x0302:
+	case 0x0401:
+		psc->sc_opns = &ral_rt2661_opns;
+		break;
+	default:
+		psc->sc_opns = &ral_rt2860_opns;
+		break;
+	}
 
 	psc->mem_rid = RAL_PCI_BAR0;
 	psc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &psc->mem_rid,
