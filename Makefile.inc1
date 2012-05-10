@@ -223,9 +223,6 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
-.if ${OSRELDATE} < 700044
-CROSSENV+=	AR=gnu-ar RANLIB=gnu-ranlib
-.endif
 .if ${MK_GROFF} != "no"
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
@@ -981,8 +978,8 @@ update:
 # legacy: Build compatibility shims for the next three targets
 #
 legacy:
-.if ${BOOTSTRAPPING} < 600034 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 6.0 not supported."; \
+.if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
+	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
 	false
 .endif
 .for _tool in tools/build
@@ -1010,14 +1007,6 @@ _gperf=		gnu/usr.bin/gperf
 _groff=		gnu/usr.bin/groff
 .endif
 
-.if ${BOOTSTRAPPING} >= 700044 && ${BOOTSTRAPPING} < 800022
-_ar=		usr.bin/ar
-.endif
-
-.if ${BOOTSTRAPPING} < 800013
-_mklocale=	usr.bin/mklocale
-.endif
-
 .if ${BOOTSTRAPPING} < 900002
 _sed=		usr.bin/sed
 .endif
@@ -1031,14 +1020,8 @@ _yacc=		usr.bin/yacc
 _awk=		usr.bin/awk
 .endif
 
-.if ${MK_BSNMP} != "no" && \
-    (${BOOTSTRAPPING} < 700018 || !exists(/usr/sbin/gensnmptree))
+.if ${MK_BSNMP} != "no" &&  !exists(/usr/sbin/gensnmptree)
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
-.endif
-
-.if ${MK_RESCUE} != "no" && \
-    ${BOOTSTRAPPING} < 700026
-_crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
 .if ${MK_CLANG} != "no"
@@ -1051,9 +1034,7 @@ _clang_tblgen= \
 
 # dtrace tools are required for older bootstrap env and cross-build
 .if ${MK_CDDL} != "no" && \
-    ((${BOOTSTRAPPING} < 800038 && \
-          !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)) \
-      || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
+    (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH})
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
@@ -1082,20 +1063,17 @@ bootstrap-tools:
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
-    ${_ar} \
     ${_dtc} \
     ${_awk} \
     usr.bin/lorder \
     usr.bin/makewhatis \
-    ${_mklocale} \
     usr.bin/rpcgen \
     ${_sed} \
     ${_lex} \
     ${_yacc} \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config \
-    ${_crunchgen}
+    usr.sbin/config
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1154,7 +1132,7 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 800035
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
 .endif
