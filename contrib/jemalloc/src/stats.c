@@ -295,16 +295,6 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 		abort();
 	}
 
-	if (write_cb == NULL) {
-		/*
-		 * The caller did not provide an alternate write_cb callback
-		 * function, so use the default one.  malloc_write() is an
-		 * inline function, so use malloc_message() directly here.
-		 */
-		write_cb = je_malloc_message;
-		cbopaque = NULL;
-	}
-
 	if (opts != NULL) {
 		unsigned i;
 
@@ -330,7 +320,8 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 		}
 	}
 
-	write_cb(cbopaque, "___ Begin jemalloc statistics ___\n");
+	malloc_cprintf(write_cb, cbopaque,
+	    "___ Begin jemalloc statistics ___\n");
 	if (general) {
 		int err;
 		const char *cpv;
@@ -375,7 +366,8 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 			    "  opt."#n": \"%s\"\n", cpv);		\
 		}
 
-		write_cb(cbopaque, "Run-time option settings:\n");
+		malloc_cprintf(write_cb, cbopaque,
+		    "Run-time option settings:\n");
 		OPT_WRITE_BOOL(abort)
 		OPT_WRITE_SIZE_T(lg_chunk)
 		OPT_WRITE_SIZE_T(narenas)
@@ -425,7 +417,7 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 			    "Min active:dirty page ratio per arena: %u:1\n",
 			    (1U << ssv));
 		} else {
-			write_cb(cbopaque,
+			malloc_cprintf(write_cb, cbopaque,
 			    "Min active:dirty page ratio per arena: N/A\n");
 		}
 		if ((err = je_mallctl("arenas.tcache_max", &sv, &ssz, NULL, 0))
@@ -447,7 +439,7 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 				    " (2^%zd)\n",
 				    (((uint64_t)1U) << ssv), ssv);
 			} else {
-				write_cb(cbopaque,
+				malloc_cprintf(write_cb, cbopaque,
 				    "Average profile dump interval: N/A\n");
 			}
 		}
@@ -498,11 +490,11 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 
 			CTL_GET("arenas.narenas", &narenas, unsigned);
 			{
-				bool initialized[narenas];
+				VARIABLE_ARRAY(bool, initialized, narenas);
 				size_t isz;
 				unsigned i, ninitialized;
 
-				isz = sizeof(initialized);
+				isz = sizeof(bool) * narenas;
 				xmallctl("arenas.initialized", initialized,
 				    &isz, NULL, 0);
 				for (i = ninitialized = 0; i < narenas; i++) {
@@ -527,11 +519,11 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 
 			CTL_GET("arenas.narenas", &narenas, unsigned);
 			{
-				bool initialized[narenas];
+				VARIABLE_ARRAY(bool, initialized, narenas);
 				size_t isz;
 				unsigned i;
 
-				isz = sizeof(initialized);
+				isz = sizeof(bool) * narenas;
 				xmallctl("arenas.initialized", initialized,
 				    &isz, NULL, 0);
 
@@ -547,5 +539,5 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 			}
 		}
 	}
-	write_cb(cbopaque, "--- End jemalloc statistics ---\n");
+	malloc_cprintf(write_cb, cbopaque, "--- End jemalloc statistics ---\n");
 }
