@@ -617,13 +617,15 @@ isc_in(void *vp)
 	       }
 	       mtx_unlock(&sp->io_mtx);
 	  } else if(error == EPIPE) {
+	       debug(2, "sp->soc=%p error=EPIPE", sp->soc);
 	       break;
 	  }
 	  else if(error == EAGAIN) {
+	    debug(2, "sp->soc=%p error=EAGAIN", sp->soc);
 	    isc_in_sleep++;
 	       if(so->so_state & SS_ISCONNECTED) 
 		    // there seems to be a problem in 6.0 ...
-		    tsleep(sp, PRIBIO, "isc_soc", 2*hz);
+		    tsleep(sp, PRIBIO, "isc_soc", hz>>2);
 	  }
      }
      sdebug(2, "terminated, flags=%x so_count=%d so_state=%x error=%d proc=%p",

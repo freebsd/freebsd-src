@@ -409,7 +409,7 @@ iscsi_reject(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
      union ccb 		*ccb = opq->ccb;
      //reject_t		*reject = &pq->pdu.ipdu.reject;
 
-     debug_called(8);
+     debug_called(3);
      //XXX: check RFC 10.17.1 (page 176)
      ccb->ccb_h.status = CAM_REQ_ABORTED;
      XPT_DONE(sp, ccb);

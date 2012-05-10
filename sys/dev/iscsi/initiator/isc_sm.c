@@ -113,9 +113,9 @@ _reject(isc_session_t *sp, pduq_t *pq)
      pdu = mtod(pq->mp, pdu_t *);
      itt = pdu->ipdu.bhs.itt;
      reject = &pq->pdu.ipdu.reject;
-     sdebug(2, "itt=%x reason=0x%x", ntohl(itt), reject->reason);
+     sdebug(2, "itt=%x rejected reason=0x%x", ntohl(itt), reject->reason);
      opq = i_search_hld(sp, itt, 0);
-     if(opq != NULL)
+     if(opq != NULL && opq->ccb != NULL)
 	  iscsi_reject(sp, opq, pq);
      else {
 	  switch(pq->pdu.ipdu.bhs.opcode) {
