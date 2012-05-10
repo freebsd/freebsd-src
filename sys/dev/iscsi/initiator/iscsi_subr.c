@@ -356,7 +356,8 @@ iscsi_done(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 
      debug_called(8);
 
-     _scsi_done(sp, cmd->response, cmd->status, opq->ccb, pq);
+     if (opq->ccb != NULL)
+       _scsi_done(sp, cmd->response, cmd->status, opq->ccb, pq);
 
      pdu_free(sp->isc, opq);
 }
