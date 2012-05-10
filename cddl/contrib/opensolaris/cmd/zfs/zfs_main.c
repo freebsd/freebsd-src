@@ -24,6 +24,7 @@
  * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright 2012 Milan Jurik. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
@@ -3590,6 +3591,7 @@ zfs_do_send(int argc, char **argv)
 			if (flags.verbose)
 				extraverbose = B_TRUE;
 			flags.verbose = B_TRUE;
+			flags.progress = B_TRUE;
 			break;
 		case 'D':
 			flags.dedup = B_TRUE;

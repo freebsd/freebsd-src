@@ -25,7 +25,7 @@
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
- * All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -573,6 +573,9 @@ typedef struct sendflags {
 
 	/* parsable verbose output (ie. -P) */
 	boolean_t parsable;
+
+	/* show progress (ie. -v) */
+	boolean_t progress;
 } sendflags_t;
 
 typedef boolean_t (snapfilter_cb_t)(zfs_handle_t *, void *);
