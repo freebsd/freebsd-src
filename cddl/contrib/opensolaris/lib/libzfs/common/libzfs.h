@@ -26,6 +26,7 @@
  * All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
  * All rights reserved.
+ * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #ifndef	_LIBZFS_H
@@ -541,6 +542,9 @@ typedef struct renameflags {
 
 	/* don't unmount file systems */
 	int nounmount : 1;
+
+	/* force unmount file systems */
+	int forceunmount : 1;
 } renameflags_t;
 
 extern int zfs_rename(zfs_handle_t *, const char *, renameflags_t flags);
