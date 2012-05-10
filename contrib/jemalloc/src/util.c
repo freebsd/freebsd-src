@@ -40,8 +40,7 @@ static char	*x2s(uintmax_t x, bool alt_form, bool uppercase, char *s,
 /******************************************************************************/
 
 /* malloc_message() setup. */
-JEMALLOC_CATTR(visibility("hidden"), static)
-void
+static void
 wrtmessage(void *cbopaque, const char *s)
 {
 
@@ -57,10 +56,9 @@ wrtmessage(void *cbopaque, const char *s)
 #endif
 }
 
-void	(*je_malloc_message)(void *, const char *s)
-    JEMALLOC_ATTR(visibility("default")) = wrtmessage;
+JEMALLOC_EXPORT void	(*je_malloc_message)(void *, const char *s);
 
-JEMALLOC_CATTR(visibility("hidden"), static)
+JEMALLOC_ATTR(visibility("hidden"))
 void
 wrtmessage_1_0(const char *s1, const char *s2, const char *s3,
     const char *s4)
@@ -77,13 +75,32 @@ void	(*__malloc_message_1_0)(const char *s1, const char *s2, const char *s3,
 __sym_compat(_malloc_message, __malloc_message_1_0, FBSD_1.0);
 
 /*
+ * Wrapper around malloc_message() that avoids the need for
+ * je_malloc_message(...) throughout the code.
+ */
+void
+malloc_write(const char *s)
+{
+
+	if (je_malloc_message != NULL)
+		je_malloc_message(NULL, s);
+	else
+		wrtmessage(NULL, s);
+}
+
+/*
  * glibc provides a non-standard strerror_r() when _GNU_SOURCE is defined, so
  * provide a wrapper.
  */
 int
-buferror(int errnum, char *buf, size_t buflen)
+buferror(char *buf, size_t buflen)
 {
-#ifdef _GNU_SOURCE
+
+#ifdef _WIN32
+	FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(), 0,
+	    (LPSTR)buf, buflen, NULL);
+	return (0);
+#elif defined(_GNU_SOURCE)
 	char *b = strerror_r(errno, buf, buflen);
 	if (b != buf) {
 		strncpy(buf, b, buflen);
@@ -104,7 +121,7 @@ malloc_strtoumax(const char *nptr, char **endptr, int base)
 	const char *p, *ns;
 
 	if (base < 0 || base == 1 || base > 36) {
-		errno = EINVAL;
+		set_errno(EINVAL);
 		return (UINTMAX_MAX);
 	}
 	b = base;
@@ -179,7 +196,7 @@ malloc_strtoumax(const char *nptr, char **endptr, int base)
 		ret += digit;
 		if (ret < pret) {
 			/* Overflow. */
-			errno = ERANGE;
+			set_errno(ERANGE);
 			return (UINTMAX_MAX);
 		}
 		p++;
@@ -299,7 +316,6 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 	int ret;
 	size_t i;
 	const char *f;
-	va_list tap;
 
 #define	APPEND_C(c) do {						\
 	if (i < size)							\
@@ -370,9 +386,6 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 	}								\
 } while (0)
 
-	if (config_debug)
-		va_copy(tap, ap);
-
 	i = 0;
 	f = format;
 	while (true) {
@@ -431,9 +444,9 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 			case '0': case '1': case '2': case '3': case '4':
 			case '5': case '6': case '7': case '8': case '9': {
 				uintmax_t uwidth;
-				errno = 0;
+				set_errno(0);
 				uwidth = malloc_strtoumax(f, (char **)&f, 10);
-				assert(uwidth != UINTMAX_MAX || errno !=
+				assert(uwidth != UINTMAX_MAX || get_errno() !=
 				    ERANGE);
 				width = (int)uwidth;
 				if (*f == '.') {
@@ -457,9 +470,10 @@ malloc_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 			case '0': case '1': case '2': case '3': case '4':
 			case '5': case '6': case '7': case '8': case '9': {
 				uintmax_t uprec;
-				errno = 0;
+				set_errno(0);
 				uprec = malloc_strtoumax(f, (char **)&f, 10);
-				assert(uprec != UINTMAX_MAX || errno != ERANGE);
+				assert(uprec != UINTMAX_MAX || get_errno() !=
+				    ERANGE);
 				prec = (int)uprec;
 				break;
 			}
@@ -610,7 +624,8 @@ malloc_vcprintf(void (*write_cb)(void *, const char *), void *cbopaque,
 		 * function, so use the default one.  malloc_write() is an
 		 * inline function, so use malloc_message() directly here.
 		 */
-		write_cb = je_malloc_message;
+		write_cb = (je_malloc_message != NULL) ? je_malloc_message :
+		    wrtmessage;
 		cbopaque = NULL;
 	}
 
