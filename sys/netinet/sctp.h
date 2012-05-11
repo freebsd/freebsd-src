@@ -265,8 +265,6 @@ struct sctp_paramhdr {
 #define SCTP_PEELOFF                    0x0000800a
 /* the real worker for sctp_getaddrlen() */
 #define SCTP_GET_ADDR_LEN               0x0000800b
-/* temporary workaround for Apple listen() issue, no args used */
-#define SCTP_LISTEN_FIX			0x0000800c
 /* Debug things that need to be purged */
 #define SCTP_SET_INITIAL_DBG_SEQ	0x00009f00
 
