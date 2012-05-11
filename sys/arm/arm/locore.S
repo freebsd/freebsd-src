@@ -42,12 +42,6 @@ __FBSDID("$FreeBSD$");
 /* What size should this really be ? It is only used by initarm() */
 #define INIT_ARM_STACK_SIZE	2048
 
-/*
- * This is for kvm_mkdb, and should be the address of the beginning
- * of the kernel text segment (not necessarily the same as kernbase).
- */
-
-
 #define	CPWAIT_BRANCH							 \
 	sub	pc, pc, #4
 
@@ -56,6 +50,10 @@ __FBSDID("$FreeBSD$");
 	mov	tmp, tmp		/* wait for it to complete */	;\
 	CPWAIT_BRANCH			/* branch to next insn */
 
+/*
+ * This is for kvm_mkdb, and should be the address of the beginning
+ * of the kernel text segment (not necessarily the same as kernbase).
+ */
 	.text
 	.align	0
 .globl kernbase
