@@ -141,6 +141,7 @@ SUBDIR=	alias \
 	shar \
 	showmount \
 	sockstat \
+	sort \
 	split \
 	stat \
 	stdbuf \
