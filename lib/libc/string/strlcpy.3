@@ -169,7 +169,7 @@ if (strlcat(pname, file, sizeof(pname)) >= sizeof(pname))
 .Ed
 .Pp
 Since it is known how many characters were copied the first time, things
-can be sped up a bit by using a copy instead of an append
+can be sped up a bit by using a copy instead of an append.
 .Bd -literal -offset indent
 char *dir, *file, pname[MAXPATHLEN];
 size_t n;
