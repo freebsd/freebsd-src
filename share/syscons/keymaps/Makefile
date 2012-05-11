@@ -36,6 +36,7 @@ FILES=	INDEX.keymaps \
 	ru.cp866.kbd ru.iso5.kbd \
 	si.iso.kbd \
 	sk.iso2.kbd \
+	spanish.dvorak.kbd \
 	spanish.iso.kbd spanish.iso.acc.kbd spanish.iso15.acc.kbd \
 	swedish.iso.kbd swedish.cp850.kbd \
 	swissfrench.iso.kbd swissfrench.iso.acc.kbd swissfrench.cp850.kbd \

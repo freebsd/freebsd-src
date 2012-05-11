@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index e8a5722..cec85b5 100644
+index 93c16dc..b5c5595 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -51,12 +51,23 @@
@@ -27,7 +27,7 @@ index e8a5722..cec85b5 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -2091,4 +2102,16 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+@@ -2101,4 +2112,16 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
@@ -45,7 +45,7 @@ index e8a5722..cec85b5 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index b61abe8..edbb437 100644
+index 268cd14..cfb1fb9 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
@@ -54,12 +54,12 @@ index b61abe8..edbb437 100644
 +#include "libc_private.h"
 +#include "namespace.h"
 +
- #include <sys/mman.h>
- #include <sys/param.h>
- #include <sys/syscall.h>
-@@ -35,6 +38,9 @@
- #include <pthread.h>
  #include <math.h>
+ #ifdef _WIN32
+ #  include <windows.h>
+@@ -54,6 +57,9 @@ typedef intptr_t ssize_t;
+ #endif
+ #include <fcntl.h>
  
 +#include "un-namespace.h"
 +#include "libc_private.h"
@@ -68,10 +68,10 @@ index b61abe8..edbb437 100644
  #include "../jemalloc@install_suffix@.h"
  
 diff --git a/include/jemalloc/internal/mutex.h b/include/jemalloc/internal/mutex.h
-index 8837ef5..d7133f4 100644
+index de44e14..564d604 100644
 --- a/include/jemalloc/internal/mutex.h
 +++ b/include/jemalloc/internal/mutex.h
-@@ -39,9 +39,6 @@ struct malloc_mutex_s {
+@@ -43,9 +43,6 @@ struct malloc_mutex_s {
  
  #ifdef JEMALLOC_LAZY_LOCK
  extern bool isthreaded;
@@ -82,10 +82,10 @@ index 8837ef5..d7133f4 100644
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex);
 diff --git a/include/jemalloc/internal/private_namespace.h b/include/jemalloc/internal/private_namespace.h
-index bb1b63e..00eb169 100644
+index b816647..b8ce6b1 100644
 --- a/include/jemalloc/internal/private_namespace.h
 +++ b/include/jemalloc/internal/private_namespace.h
-@@ -165,7 +165,6 @@
+@@ -186,7 +186,6 @@
  #define	iqalloc JEMALLOC_N(iqalloc)
  #define	iralloc JEMALLOC_N(iralloc)
  #define	isalloc JEMALLOC_N(isalloc)
@@ -94,7 +94,7 @@ index bb1b63e..00eb169 100644
  #define	jemalloc_postfork_child JEMALLOC_N(jemalloc_postfork_child)
  #define	jemalloc_postfork_parent JEMALLOC_N(jemalloc_postfork_parent)
 diff --git a/include/jemalloc/jemalloc.h.in b/include/jemalloc/jemalloc.h.in
-index f0581db..f26d8bc 100644
+index ad06948..505dd38 100644
 --- a/include/jemalloc/jemalloc.h.in
 +++ b/include/jemalloc/jemalloc.h.in
 @@ -15,6 +15,7 @@ extern "C" {
@@ -107,10 +107,10 @@ index f0581db..f26d8bc 100644
  #define	ALLOCM_LG_ALIGN(la)	(la)
 diff --git a/include/jemalloc/jemalloc_FreeBSD.h b/include/jemalloc/jemalloc_FreeBSD.h
 new file mode 100644
-index 0000000..2c5797f
+index 0000000..9efab93
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,80 @@
 +/*
 + * Override settings that were generated in jemalloc_defs.h as necessary.
 + */
@@ -154,7 +154,11 @@ index 0000000..2c5797f
 +#  define LG_SIZEOF_PTR		2
 +#endif
 +#ifdef __mips__
++#ifdef __mips_n64
++#  define LG_SIZEOF_PTR		3
++#else
 +#  define LG_SIZEOF_PTR		2
++#endif
 +#endif
 +#ifdef __powerpc64__
 +#  define LG_SIZEOF_PTR		3
@@ -188,20 +192,21 @@ index 0000000..2c5797f
 +#define	pthread_mutex_lock	_pthread_mutex_lock
 +#define	pthread_mutex_unlock	_pthread_mutex_unlock
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index f9c8916..8e24a5a 100644
+index d42e91d..cdf6222 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
-@@ -8,6 +8,9 @@ malloc_tsd_data(, arenas, arena_t *, NULL)
+@@ -8,6 +8,10 @@ malloc_tsd_data(, arenas, arena_t *, NULL)
  malloc_tsd_data(, thread_allocated, thread_allocated_t,
      THREAD_ALLOCATED_INITIALIZER)
  
-+const char	*__malloc_options_1_0;
++/* Work around <http://llvm.org/bugs/show_bug.cgi?id=12623>: */
++const char	*__malloc_options_1_0 = NULL;
 +__sym_compat(_malloc_options, __malloc_options_1_0, FBSD_1.0);
 +
  /* Runtime configuration options. */
- const char	*je_malloc_conf JEMALLOC_ATTR(visibility("default"));
+ const char	*je_malloc_conf;
  #ifdef JEMALLOC_DEBUG
-@@ -401,7 +404,8 @@ malloc_conf_init(void)
+@@ -429,7 +433,8 @@ malloc_conf_init(void)
  #endif
  			    ;
  
@@ -212,10 +217,10 @@ index f9c8916..8e24a5a 100644
  				 * Do nothing; opts is already initialized to
  				 * the value of the MALLOC_CONF environment
 diff --git a/src/mutex.c b/src/mutex.c
-index 4b8ce57..7be5fc9 100644
+index 37a843e..4a90a05 100644
 --- a/src/mutex.c
 +++ b/src/mutex.c
-@@ -63,6 +63,17 @@ pthread_create(pthread_t *__restrict thread,
+@@ -66,6 +66,17 @@ pthread_create(pthread_t *__restrict thread,
  #ifdef JEMALLOC_MUTEX_INIT_CB
  int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
      void *(calloc_cb)(size_t, size_t));
@@ -234,14 +239,14 @@ index 4b8ce57..7be5fc9 100644
  
  bool
 diff --git a/src/util.c b/src/util.c
-index 99ae26d..b80676c 100644
+index 9b73c3e..f94799f 100644
 --- a/src/util.c
 +++ b/src/util.c
-@@ -60,6 +60,22 @@ wrtmessage(void *cbopaque, const char *s)
- void	(*je_malloc_message)(void *, const char *s)
-     JEMALLOC_ATTR(visibility("default")) = wrtmessage;
+@@ -58,6 +58,22 @@ wrtmessage(void *cbopaque, const char *s)
  
-+JEMALLOC_CATTR(visibility("hidden"), static)
+ JEMALLOC_EXPORT void	(*je_malloc_message)(void *, const char *s);
+ 
++JEMALLOC_ATTR(visibility("hidden"))
 +void
 +wrtmessage_1_0(const char *s1, const char *s2, const char *s3,
 +    const char *s4)
@@ -258,5 +263,5 @@ index 99ae26d..b80676c 100644
 +__sym_compat(_malloc_message, __malloc_message_1_0, FBSD_1.0);
 +
  /*
-  * glibc provides a non-standard strerror_r() when _GNU_SOURCE is defined, so
-  * provide a wrapper.
+  * Wrapper around malloc_message() that avoids the need for
+  * je_malloc_message(...) throughout the code.
