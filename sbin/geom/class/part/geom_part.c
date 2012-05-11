@@ -524,6 +524,8 @@ gpart_autofill(struct gctl_req *req)
 	grade = ~0ULL;
 	a_first = ALIGNUP(first + offset, alignment);
 	last = ALIGNDOWN(last + offset, alignment);
+	if (a_first < start)
+		a_first = start;
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
 		if (s == NULL) {
@@ -563,7 +565,8 @@ gpart_autofill(struct gctl_req *req)
 			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
 		} else
 			first = (off_t)strtoimax(s, NULL, 0) + 1;
-		a_first = ALIGNUP(first + offset, alignment);
+		if (first > a_first)
+			a_first = ALIGNUP(first + offset, alignment);
 	}
 	if (a_first <= last) {
 		/* Free space [first-last] */
