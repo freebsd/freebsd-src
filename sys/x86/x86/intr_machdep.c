@@ -525,9 +525,6 @@ intr_shuffle_irqs(void *arg __unused)
 	return;
 #endif
 
-	/* The BSP is always a valid target. */
-	CPU_SETOF(0, &intr_cpus);
-
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)
 		return;
@@ -567,5 +564,12 @@ intr_next_cpu(void)
 {
 
 	return (PCPU_GET(apic_id));
+}
+
+/* Use an empty stub for compatibility. */
+void
+intr_add_cpu(u_int cpu __unused)
+{
+
 }
 #endif
