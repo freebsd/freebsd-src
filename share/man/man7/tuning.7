@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2010
+.Dd May 11, 2012
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -148,15 +148,15 @@ If you do not use ports all that much and do not intend to keep
 system source
 .Pq Pa /usr/src
 on the machine, you can get away with
-a 1 gigabyte
+a 1 GB
 .Pa /usr
 partition.
 However, if you install a lot of ports
 (especially window managers and Linux-emulated binaries), we recommend
-at least a 2 gigabyte
+at least a 2 GB
 .Pa /usr
 and if you also intend to keep system source
-on the machine, we recommend a 3 gigabyte
+on the machine, we recommend a 3 GB
 .Pa /usr .
 Do not underestimate the
 amount of space you will need in this partition, it can creep up and
@@ -218,22 +218,22 @@ and
 .Em cylinders/group .
 .Pp
 .Fx
-performs best when using 8K or 16K file system block sizes.
-The default file system block size is 16K,
+performs best when using 16K or 32K file system block sizes.
+The default file system block size is 32K,
 which provides best performance for most applications,
 with the exception of those that perform random access on large files
 (such as database server software).
 Such applications tend to perform better with a smaller block size,
 although modern disk characteristics are such that the performance
 gain from using a smaller block size may not be worth consideration.
-Using a block size larger than 16K
+Using a block size larger than 32K
 can cause fragmentation of the buffer cache and
 lead to lower performance.
 .Pp
 The defaults may be unsuitable
 for a file system that requires a very large number of i-nodes
 or is intended to hold a large number of very small files.
-Such a file system should be created with an 8K or 4K block size.
+Such a file system should be created with an 4K, 8K, or 16K block size.
 This also requires you to specify a smaller
 fragment size.
 We recommend always using a fragment size that is 1/8
@@ -256,13 +256,13 @@ Do not use this option
 unless you are actually storing large files on the partition, because if you
 overcompensate you can wind up with a file system that has lots of free
 space remaining but cannot accommodate any more files.
-Using 32768, 65536, or 262144 bytes/i-node is recommended.
+Using 65536, 131072, or 262144 bytes/i-node is recommended.
 You can go higher but
 it will have only incremental effects on
 .Xr fsck 8
 recovery times.
 For example,
-.Dq Li "newfs -i 32768 ..." .
+.Dq Li "newfs -i 65536 ..." .
 .Pp
 .Xr tunefs 8
 may be used to further tune a file system.
@@ -525,8 +525,8 @@ sysctl governs VFS read-ahead and is expressed as the number of blocks
 to pre-read if the heuristics algorithm decides that the reads are
 issued sequentially.
 It is used by the UFS, ext2fs and msdosfs file systems.
-With the default UFS block size of 16 KiB, a setting of 32 will allow
-speculatively reading up to 512 KiB.
+With the default UFS block size of 32 KiB, a setting of 64 will allow
+speculatively reading up to 2 MiB.
 This setting may be increased to get around disk I/O latencies, especially
 where these latencies are large such as in virtual machine emulated
 environments.
