@@ -229,11 +229,6 @@ mmu_init_table:
 	.word	_end
 	.word	svcstk + INIT_ARM_STACK_SIZE
 
-#if defined(FLASHADDR) && defined(LOADERRAMADDR)
-.L_arm_memcpy:
-        .word   _C_LABEL(_arm_memcpy)
-#endif
-
 .Lvirt_done:
 	.word	virt_done
 .Lmainreturned:
