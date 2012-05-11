@@ -3,7 +3,18 @@
 SORTDIR= ${.CURDIR}/../../../contrib/gnu-sort
 .PATH: ${SORTDIR}/lib ${SORTDIR}/src ${SORTDIR}/man
 
+.include <bsd.own.mk>
+
+.if ${MK_BSD_SORT} != "yes"
 PROG=	sort
+.else
+PROG=	gnusort
+
+CLEANFILES+= gnusort.1
+gnusort.1: sort.1
+	cp ${.ALLSRC} ${.TARGET}
+.endif
+
 SRCS=   sort.c \
 	__fpending.c \
 	argmatch.c \
