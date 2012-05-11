@@ -855,7 +855,7 @@ jailparam_type(struct jailparam *jp)
 {
 	char *p, *nname;
 	size_t miblen, desclen;
-	int isarray;
+	int i, isarray;
 	struct {
 	    int i;
 	    char s[MAXPATHLEN];
@@ -977,21 +977,33 @@ jailparam_type(struct jailparam *jp)
 		}
 		break;
 	case CTLTYPE_NODE:
-		/* A node might be described by an empty-named child. */
+		/*
+		 * A node might be described by an empty-named child,
+		 * which would be immediately before or after the node itself.
+		 */
 		mib[1] = 1;
-		mib[(miblen / sizeof(int)) + 2] =
-		    mib[(miblen / sizeof(int)) + 1] - 1;
 		miblen += sizeof(int);
-		desclen = sizeof(desc.s);
-		if (sysctl(mib, (miblen / sizeof(int)) + 2, desc.s, &desclen,
-		    NULL, 0) < 0) {
-			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-			    "sysctl(0.1): %s", strerror(errno));
-			return (-1);
+		for (i = -1; i <= 1; i += 2) {
+			mib[(miblen / sizeof(int)) + 1] =
+			    mib[(miblen / sizeof(int))] + i;
+			desclen = sizeof(desc.s);
+			if (sysctl(mib, (miblen / sizeof(int)) + 2, desc.s,
+			    &desclen, NULL, 0) < 0) {
+				if (errno == ENOENT)
+					continue;
+				snprintf(jail_errmsg, JAIL_ERRMSGLEN,
+				    "sysctl(0.1): %s", strerror(errno));
+				return (-1);
+			}
+			if (desclen ==
+			    sizeof(SJPARAM) + strlen(jp->jp_name) + 2 &&
+			    memcmp(SJPARAM ".", desc.s, sizeof(SJPARAM)) == 0 &&
+			    memcmp(jp->jp_name, desc.s + sizeof(SJPARAM),
+			    desclen - sizeof(SJPARAM) - 2) == 0 &&
+			    desc.s[desclen - 2] == '.')
+				goto mib_desc;
 		}
-		if (desc.s[desclen - 2] != '.')
-			goto unknown_parameter;
-		goto mib_desc;
+		goto unknown_parameter;
 	default:
 		snprintf(jail_errmsg, JAIL_ERRMSGLEN,
 		    "unknown type for %s", jp->jp_name);
