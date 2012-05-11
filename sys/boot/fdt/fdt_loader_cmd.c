@@ -317,6 +317,8 @@ fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 
 	/* We want to modify every subnode of /cpus */
 	o = fdt_path_offset(fdtp, "/cpus");
+	if (o < 0)
+		return;
 
 	/* maxo should contain offset of node next to /cpus */
 	depth = 0;
