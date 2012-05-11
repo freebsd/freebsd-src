@@ -20,6 +20,7 @@ SUBDIR=adjkerntz \
 	dump \
 	dumpfs \
 	dumpon \
+	etherswitchcfg \
 	ffsinfo \
 	fsck \
 	fsck_ffs \
