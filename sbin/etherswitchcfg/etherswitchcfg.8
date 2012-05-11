@@ -1,0 +1,114 @@
+.\" $FreeBSD$
+.Dd December 15, 2011
+.Dt ETHERSWITCHCFG 8
+.Os
+.Sh NAME
+.Nm etherswitchcfg
+.Nd configure a built-in Ethernet switch
+.Sh SYNOPSIS
+.Nm
+.Op Fl "f control file"
+.Ar info
+.Nm
+.Op Fl "f control file"
+.Ar phy
+.Ar phy.register[=value]
+.Nm
+.Op Fl "f control file"
+.Ar port%d
+.Ar command parameter
+.Nm
+.Op Fl "f control file"
+.Ar reg
+.Ar register[=value]
+.Nm
+.Op Fl "f control file"
+.Ar vlangroup%d
+.Ar command parameter
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure an Ethernet switch built into the system.
+.Nm
+accepts a number of options:
+.Bl -tag -width ".Fl f" -compact
+.It Fl "f control file"
+Specifies the
+.Xr etherswitch 4
+control file that represents the switch to be configured.
+It defaults to
+.Li /dev/etherswitch0 .
+.It Fl m
+When reporting port information, also list available media options for
+that port.
+.It Fl v
+Produce more verbose output.
+Without this flag, lines that represent inactive or empty configuration
+options are omitted.
+.El
+.Ss phy
+The phy command provides access to the registers of the PHYs attached
+to or integrated into the switch controller.
+PHY registers are specified as phy.register,
+where
+.Ar phy
+is usually the port number, and
+.Ar register
+is the register number.
+Both can be provided as decimal, octal or hexadecimal numbers in any of the formats
+understood by
+.Xr strtol 4 .
+To set the register value, use the form instance.register=value.
+.Ss port
+The port command selects one of the ports of the switch.
+It supports the following commands:
+.Bl -tag -width ".Ar vlangroup number" -compact
+.It Ar vlangroup number
+Sets the VLAN group number that is used to process incoming frames that are not tagged.
+.It Ar media mediaspec
+Specifies the physical media configuration to be configured for a port.
+.It Ar mediaopt mediaoption
+Specifies a list of media options for a port. See
+.Xr ifconfig 8
+for details on
+.Ar media and 
+.Ar mediaopt .
+.El
+.Ss reg
+The reg command provides access to the registers of the switch controller.
+.Ss vlangroup
+The vlangroup command selects one of the VLAN groups for configuration.
+It supports the following commands:
+.Bl -tag -width ".Ar vlangroup" -compact
+.It Ar vlan VID
+Sets the VLAN ID (802.1q VID) for this VLAN group.
+Frames transmitted on tagged member ports of this group will be tagged
+with this VID.
+Incoming frames carrying this tag will be forwarded according to the
+configuration of this VLAN group.
+.It Ar members port,...
+Configures which ports are to be a member of this VLAN group.
+The port numbers are given as a comma-separated list.
+Each port can optionally be followed by
+.Dq t
+to indicate that frames on this port are tagged.
+.El
+.Sh FILES
+.Bl -tag -width /dev/etherswitch? -compact
+.It Pa /dev/etherswitch?
+Control file for the ethernet switch driver.
+.El
+.Sh EXAMPLES
+Configure VLAN group 1 with a VID of 2 and makes ports 0 and 5 members,
+while excluding all other ports.
+Port 5 will send and receive tagged frames, while port 0 will be untagged.
+Incoming untagged frames on port 0 are assigned to vlangroup1.
+.Dl # etherswitchcfg vlangroup1 vlan 2 members 0,5t port0 vlangroup 1
+.Sh SEE ALSO
+.Xr etherswitch 4
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Stefan Bethke
