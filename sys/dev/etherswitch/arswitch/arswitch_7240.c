@@ -98,7 +98,10 @@ ar7240_hw_global_setup(struct arswitch_softc *sc)
 	/* Setup TAG priority mapping */
 	arswitch_writereg(sc->sc_dev, AR7240_REG_TAG_PRIORITY, 0xfa50);
 
-	/* XXX MTU */
+	/* MTU */
+	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_GLOBAL_CTRL,
+	    AR7240_GLOBAL_CTRL_MTU_MASK,
+	    SM(1536, AR7240_GLOBAL_CTRL_MTU_MASK));
 
 	/* XXX Service Tag */
 
