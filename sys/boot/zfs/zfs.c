@@ -418,16 +418,26 @@ zfs_dev_print(int verbose)
  * Attempt to open the pool described by (dev) for use by (f).
  */
 static int
-zfs_dev_open_spa(struct open_file *f, spa_t *spa, uint64_t root_guid)
+zfs_dev_open(struct open_file *f, ...)
 {
+	va_list		args;
+	struct zfs_devdesc	*dev;
 	struct zfsmount	*mount;
+	spa_t		*spa;
 	int		rv;
 
+	va_start(args, f);
+	dev = va_arg(args, struct zfs_devdesc *);
+	va_end(args);
+
+	spa = spa_find_by_guid(dev->pool_guid);
+	if (!spa)
+		return (ENXIO);
 	rv = zfs_spa_init(spa);
 	if (rv != 0)
 		return (rv);
 	mount = malloc(sizeof(*mount));
-	rv = zfs_mount(spa, root_guid, mount);
+	rv = zfs_mount(spa, dev->root_guid, mount);
 	if (rv != 0) {
 		free(mount);
 		return (rv);
@@ -439,49 +449,6 @@ zfs_dev_open_spa(struct open_file *f, spa_t *spa, uint64_t root_guid)
 		return (EIO);
 	}
 	f->f_devdata = mount;
-	return (0);
-}
-
-static int
-zfs_dev_open(struct open_file *f, ...)
-{
-	va_list			args;
-	struct zfs_devdesc	*dev;
-	spa_t			*spa;
-	int			rv;
-
-	va_start(args, f);
-	dev = va_arg(args, struct zfs_devdesc *);
-	va_end(args);
-
-	spa = spa_find_by_guid(dev->pool_guid);
-	if (!spa)
-		return (ENXIO);
-	rv = zfs_dev_open_spa(f, spa, dev->root_guid);
-	if (rv != 0)
-		return (rv);
-	free(dev);
-	return (0);
-}
-
-static int
-zfs_dev_open_compat(struct open_file *f, ...)
-{
-	va_list		args;
-	struct devdesc	*dev;
-	spa_t		*spa;
-	int		rv;
-
-	va_start(args, f);
-	dev = va_arg(args, struct devdesc *);
-	va_end(args);
-
-	spa = spa_find_by_unit(dev->d_unit);
-	if (!spa)
-		return (ENXIO);
-	rv = zfs_dev_open_spa(f, spa, 0);
-	if (rv != 0)
-		return (rv);
 	free(dev);
 	return (0);
 }
@@ -508,18 +475,6 @@ struct devsw zfs_dev = {
 	.dv_init = zfs_dev_init,
 	.dv_strategy = zfs_dev_strategy,
 	.dv_open = zfs_dev_open,
-	.dv_close = zfs_dev_close,
-	.dv_ioctl = noioctl,
-	.dv_print = zfs_dev_print,
-	.dv_cleanup = NULL
-};
-
-struct devsw zfs_dev_compat = {
-	.dv_name = "zfs",
-	.dv_type = DEVT_ZFS,
-	.dv_init = zfs_dev_init,
-	.dv_strategy = zfs_dev_strategy,
-	.dv_open = zfs_dev_open_compat,
 	.dv_close = zfs_dev_close,
 	.dv_ioctl = noioctl,
 	.dv_print = zfs_dev_print,
