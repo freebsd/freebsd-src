@@ -1,0 +1,255 @@
+The following are examples of py_calltime.d.
+
+This script traces the elapsed time of Python functions and prints a report. 
+Here it traces the example program, Code/Python/func_abc.py
+
+# py_calltime.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Count,
+   FILE                 TYPE       NAME                                COUNT
+   UserDict.py          func       ?                                       1
+   UserDict.py          func       DictMixin                               1
+   UserDict.py          func       IterableUserDict                        1
+   UserDict.py          func       UserDict                                1
+   UserDict.py          func       __init__                                1
+   __init__.py          func       ?                                       1
+   __init__.py          func       CodecRegistryError                      1
+   __init__.py          func       normalize_encoding                      1
+   __init__.py          func       search_function                         1
+   aliases.py           func       ?                                       1
+   ascii.py             func       ?                                       1
+   ascii.py             func       Codec                                   1
+   ascii.py             func       StreamConverter                         1
+   ascii.py             func       StreamReader                            1
+   ascii.py             func       StreamWriter                            1
+   ascii.py             func       getregentry                             1
+   codecs.py            func       ?                                       1
+   codecs.py            func       Codec                                   1
+   codecs.py            func       StreamReader                            1
+   codecs.py            func       StreamReaderWriter                      1
+   codecs.py            func       StreamRecoder                           1
+   codecs.py            func       StreamWriter                            1
+   copy_reg.py          func       ?                                       1
+   func_abc.py          func       ?                                       1
+   func_abc.py          func       func_a                                  1
+   func_abc.py          func       func_b                                  1
+   func_abc.py          func       func_c                                  1
+   linecache.py         func       ?                                       1
+   os.py                func       ?                                       1
+   os.py                func       _Environ                                1
+   os.py                func       __init__                                1
+   os.py                func       _get_exports_list                       1
+   posixpath.py         func       ?                                       1
+   posixpath.py         func       basename                                1
+   posixpath.py         func       dirname                                 1
+   site.py              func       ?                                       1
+   site.py              func       _Helper                                 1
+   site.py              func       _Printer                                1
+   site.py              func       _init_pathinfo                          1
+   site.py              func       abs__file__                             1
+   site.py              func       addsitepackages                         1
+   site.py              func       aliasmbcs                               1
+   site.py              func       execsitecustomize                       1
+   site.py              func       main                                    1
+   site.py              func       removeduppaths                          1
+   site.py              func       setcopyright                            1
+   site.py              func       setencoding                             1
+   site.py              func       sethelper                               1
+   site.py              func       setquit                                 1
+   stat.py              func       ?                                       1
+   types.py             func       ?                                       1
+   types.py             func       _C                                      1
+   warnings.py          func       ?                                       1
+   warnings.py          func       _OptionError                            1
+   warnings.py          func       _processoptions                         1
+   posixpath.py         func       exists                                  2
+   posixpath.py         func       split                                   2
+   site.py              func       addsitedir                              2
+   warnings.py          func       simplefilter                            2
+   copy_reg.py          func       constructor                             3
+   copy_reg.py          func       pickle                                  3
+   site.py              func       __init__                                3
+   site.py              func       addpackage                              3
+   stat.py              func       S_IFMT                                  6
+   stat.py              func       S_ISDIR                                 6
+   posixpath.py         func       isdir                                   8
+   os.py                func       _exists                                10
+   <string>             func       ?                                      11
+   posixpath.py         func       normcase                               14
+   site.py              func       makepath                               14
+   posixpath.py         func       join                                   20
+   posixpath.py         func       abspath                                22
+   posixpath.py         func       isabs                                  22
+   posixpath.py         func       normpath                               22
+   -                    total      -                                     230
+
+Exclusive function elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   ascii.py             func       StreamWriter                            2
+   ascii.py             func       StreamReader                            2
+   site.py              func       setencoding                             2
+   UserDict.py          func       IterableUserDict                        2
+   __init__.py          func       CodecRegistryError                      2
+   ascii.py             func       getregentry                             2
+   site.py              func       aliasmbcs                               2
+   warnings.py          func       _OptionError                            3
+   types.py             func       _C                                      3
+   site.py              func       sethelper                               3
+   warnings.py          func       _processoptions                         3
+   ascii.py             func       StreamConverter                         3
+   ascii.py             func       Codec                                   3
+   site.py              func       _Helper                                 3
+   site.py              func       setquit                                 4
+   codecs.py            func       StreamWriter                            4
+   UserDict.py          func       __init__                                4
+   site.py              func       _Printer                                4
+   codecs.py            func       Codec                                   4
+   os.py                func       _Environ                                4
+   codecs.py            func       StreamRecoder                           5
+   codecs.py            func       StreamReaderWriter                      6
+   codecs.py            func       StreamReader                            6
+   copy_reg.py          func       constructor                             7
+   __init__.py          func       normalize_encoding                      9
+   site.py              func       __init__                               10
+   warnings.py          func       simplefilter                           11
+   linecache.py         func       ?                                      11
+   posixpath.py         func       split                                  13
+   stat.py              func       ?                                      14
+   stat.py              func       S_IFMT                                 14
+   posixpath.py         func       dirname                                16
+   posixpath.py         func       basename                               24
+   os.py                func       __init__                               26
+   posixpath.py         func       normcase                               29
+   UserDict.py          func       UserDict                               32
+   posixpath.py         func       exists                                 37
+   aliases.py           func       ?                                      46
+   <string>             func       ?                                      56
+   copy_reg.py          func       pickle                                 59
+   UserDict.py          func       ?                                      84
+   site.py              func       addsitepackages                        85
+   posixpath.py         func       isabs                                  87
+   site.py              func       setcopyright                           94
+   stat.py              func       S_ISDIR                                98
+   posixpath.py         func       join                                  105
+   types.py             func       ?                                     106
+   site.py              func       removeduppaths                        115
+   ascii.py             func       ?                                     122
+   os.py                func       _get_exports_list                     136
+   site.py              func       _init_pathinfo                        155
+   site.py              func       abs__file__                           158
+   codecs.py            func       ?                                     182
+   UserDict.py          func       DictMixin                             184
+   __init__.py          func       search_function                       205
+   site.py              func       main                                  218
+   posixpath.py         func       normpath                              231
+   copy_reg.py          func       ?                                     239
+   posixpath.py         func       isdir                                 285
+   site.py              func       addpackage                            419
+   site.py              func       addsitedir                            473
+   warnings.py          func       ?                                     500
+   posixpath.py         func       ?                                     546
+   site.py              func       execsitecustomize                     558
+   site.py              func       makepath                              608
+   posixpath.py         func       abspath                               646
+   os.py                func       _exists                               925
+   __init__.py          func       ?                                    1289
+   os.py                func       ?                                    1473
+   site.py              func       ?                                    1510
+   func_abc.py          func       ?                                    1517
+   func_abc.py          func       func_c                            1000071
+   func_abc.py          func       func_a                            1005706
+   func_abc.py          func       func_b                            1010158
+   -                    total      -                                 3029815
+
+Inclusive function elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   ascii.py             func       StreamWriter                            2
+   ascii.py             func       StreamReader                            2
+   site.py              func       setencoding                             2
+   UserDict.py          func       IterableUserDict                        2
+   __init__.py          func       CodecRegistryError                      2
+   ascii.py             func       getregentry                             2
+   site.py              func       aliasmbcs                               2
+   warnings.py          func       _OptionError                            3
+   types.py             func       _C                                      3
+   site.py              func       sethelper                               3
+   warnings.py          func       _processoptions                         3
+   ascii.py             func       StreamConverter                         3
+   ascii.py             func       Codec                                   3
+   site.py              func       _Helper                                 3
+   site.py              func       setquit                                 4
+   codecs.py            func       StreamWriter                            4
+   UserDict.py          func       __init__                                4
+   site.py              func       _Printer                                4
+   codecs.py            func       Codec                                   4
+   os.py                func       _Environ                                4
+   codecs.py            func       StreamRecoder                           5
+   codecs.py            func       StreamReaderWriter                      6
+   codecs.py            func       StreamReader                            6
+   copy_reg.py          func       constructor                             7
+   __init__.py          func       normalize_encoding                      9
+   site.py              func       __init__                               10
+   warnings.py          func       simplefilter                           11
+   linecache.py         func       ?                                      11
+   posixpath.py         func       split                                  13
+   stat.py              func       ?                                      14
+   stat.py              func       S_IFMT                                 14
+   posixpath.py         func       dirname                                22
+   posixpath.py         func       normcase                               29
+   os.py                func       __init__                               31
+   posixpath.py         func       basename                               31
+   UserDict.py          func       UserDict                               32
+   posixpath.py         func       exists                                 37
+   aliases.py           func       ?                                      46
+   copy_reg.py          func       pickle                                 66
+   posixpath.py         func       isabs                                  87
+   posixpath.py         func       join                                  105
+   types.py             func       ?                                     109
+   stat.py              func       S_ISDIR                               113
+   site.py              func       setcopyright                          132
+   ascii.py             func       ?                                     133
+   os.py                func       _get_exports_list                     136
+   UserDict.py          func       DictMixin                             184
+   codecs.py            func       ?                                     210
+   posixpath.py         func       normpath                              231
+   UserDict.py          func       ?                                     303
+   __init__.py          func       search_function                       350
+   copy_reg.py          func       ?                                     377
+   posixpath.py         func       isdir                                 399
+   warnings.py          func       ?                                     530
+   site.py              func       abs__file__                           540
+   site.py              func       execsitecustomize                     558
+   posixpath.py         func       ?                                     560
+   site.py              func       removeduppaths                        565
+   site.py              func       _init_pathinfo                        899
+   os.py                func       _exists                               953
+   posixpath.py         func       abspath                               966
+   site.py              func       makepath                             1296
+   __init__.py          func       ?                                    1548
+   <string>             func       ?                                    1808
+   site.py              func       addsitepackages                      2471
+   site.py              func       addpackage                           2475
+   os.py                func       ?                                    3879
+   site.py              func       addsitedir                           4026
+   site.py              func       main                                 4532
+   site.py              func       ?                                    9930
+   func_abc.py          func       func_c                            1000071
+   func_abc.py          func       func_b                            2010230
+   func_abc.py          func       func_a                            3015936
+   func_abc.py          func       ?                                 3017454
+
+Counts shows us how many times each different function was called, and how
+many functions were called in total.
+
+The exclusive function elapsed times show the time that each function spent 
+processing code - while not in other functions.
+
+The inclusive function elapsed times show the time that each function spent
+processing code, including the time spent in other calls.
+
+These elapsed times are the absolute time from when the function began to
+when it completed - which includes off-CPU time due to other system events
+such as I/O, scheduling, interrupts, etc.
+

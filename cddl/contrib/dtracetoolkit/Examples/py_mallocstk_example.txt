@@ -1,0 +1,314 @@
+Following are examples of running py_mallocstk.d.  This traces malloc() from
+Python, printing byte distributions by user stack trace.
+
+Here we see the script runnin on the program Code/Python/func_abc.py
+
+# py_mallocstk.d -c ./func_abc.py
+
+Tracing... Hit Ctrl-C to end.
+Function A
+Function B
+Function C
+
+Python malloc byte distributions by stack trace,
+
+
+
+              libc.so.1`malloc
+              libpython2.4.so.1.0`r_object+0x52f
+              libpython2.4.so.1.0`r_object+0x491
+              libpython2.4.so.1.0`r_object+0xd3
+              libpython2.4.so.1.0`r_object+0x491
+              libpython2.4.so.1.0`r_object+0xd3
+              libpython2.4.so.1.0`r_object+0x491
+              libpython2.4.so.1.0`r_object+0xd3
+              libpython2.4.so.1.0`PyMarshal_ReadObjectFromString+0x36
+              libpython2.4.so.1.0`PyMarshal_ReadLastObjectFromFile+0x6a
+              libpython2.4.so.1.0`read_compiled_module+0xf
+              libpython2.4.so.1.0`load_source_module+0x63
+              libpython2.4.so.1.0`load_module+0xac
+              libpython2.4.so.1.0`import_submodule+0xfb
+              libpython2.4.so.1.0`load_next+0xee
+              libpython2.4.so.1.0`import_module_ex+0x48
+              libpython2.4.so.1.0`PyImport_ImportModuleEx+0x1d
+              libpython2.4.so.1.0`builtin___import__+0x4e
+              libpython2.4.so.1.0`PyCFunction_Call+0x15f
+              libpython2.4.so.1.0`PyObject_Call+0x1d
+              libpython2.4.so.1.0`PyEval_CallObjectWithKeywords+0xb8
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xd3c
+                [ /usr/lib/python2.4/encodings/__init__.py:28 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`PyImport_ExecCodeModuleEx+0xc0
+              libpython2.4.so.1.0`load_source_module+0xe6
+              libpython2.4.so.1.0`load_module+0xac
+              libpython2.4.so.1.0`load_package+0xef
+              libpython2.4.so.1.0`load_module+0x6a
+              libpython2.4.so.1.0`import_submodule+0xfb
+              libpython2.4.so.1.0`load_next+0xa2
+              libpython2.4.so.1.0`import_module_ex+0x48
+              libpython2.4.so.1.0`PyImport_ImportModuleEx+0x1d
+              libpython2.4.so.1.0`_PyCodecRegistry_Init+0xce
+              libpython2.4.so.1.0`_PyCodec_Lookup+0x2a
+              libpython2.4.so.1.0`PyCodec_Encoder+0xf
+              libpython2.4.so.1.0`Py_InitializeEx+0x257
+              libpython2.4.so.1.0`Py_Initialize+0xd
+              libpython2.4.so.1.0`Py_Main+0x4db
+              python`main+0x11
+              python`_start+0x7a
+
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+
+              libc.so.1`malloc
+              libpython2.4.so.1.0`_PyUnicode_New+0xb2
+              libpython2.4.so.1.0`_PyUnicodeUCS2_Init+0x19
+              libpython2.4.so.1.0`Py_InitializeEx+0x11c
+              libpython2.4.so.1.0`Py_Initialize+0xd
+              libpython2.4.so.1.0`Py_Main+0x4db
+              python`main+0x11
+              python`_start+0x7a
+
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+
+              libc.so.1`malloc
+              libc.so.1`_real_gettext_u+0x81
+              libc.so.1`dgettext+0x5e
+              libc.so.1`strerror+0x40
+              libpython2.4.so.1.0`PyErr_SetFromErrnoWithFilenameObject+0x2d
+              libpython2.4.so.1.0`PyErr_SetFromErrnoWithFilename+0x27
+              libpython2.4.so.1.0`posix_error_with_allocated_filename+0x17
+              libpython2.4.so.1.0`posix_do_stat+0x21f
+              libpython2.4.so.1.0`posix_stat+0x1f
+              libpython2.4.so.1.0`PyCFunction_Call+0x15f
+              libpython2.4.so.1.0`call_function+0x406
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/posixpath.py:195 (isdir) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:202 (addsitepackages) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:382 (main) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:397 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`PyImport_ExecCodeModuleEx+0xc0
+              libpython2.4.so.1.0`load_source_module+0xe6
+              libpython2.4.so.1.0`load_module+0xac
+              libpython2.4.so.1.0`import_submodule+0xfb
+              libpython2.4.so.1.0`load_next+0xa2
+              libpython2.4.so.1.0`import_module_ex+0x48
+              libpython2.4.so.1.0`PyImport_ImportModuleEx+0x1d
+              libpython2.4.so.1.0`builtin___import__+0x4e
+              libpython2.4.so.1.0`PyCFunction_Call+0x15f
+              libpython2.4.so.1.0`PyObject_Call+0x1d
+              libpython2.4.so.1.0`PyObject_CallFunction+0x90
+              libpython2.4.so.1.0`PyImport_Import+0x163
+              libpython2.4.so.1.0`PyImport_ImportModule+0x1f
+              libpython2.4.so.1.0`initsite+0x10
+              libpython2.4.so.1.0`Py_InitializeEx+0x1ea
+              libpython2.4.so.1.0`Py_Initialize+0xd
+              libpython2.4.so.1.0`Py_Main+0x4db
+              python`main+0x11
+              python`_start+0x7a
+
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+[... around 17000 lines truncated ...]
+
+
+              libc.so.1`malloc
+              libpython2.4.so.1.0`PyObject_Malloc+0x126
+              libpython2.4.so.1.0`fixstate+0x26
+              libpython2.4.so.1.0`fixdfa+0x2a
+              libpython2.4.so.1.0`PyGrammar_AddAccelerators+0x1b
+              libpython2.4.so.1.0`PyParser_New+0x18
+              libpython2.4.so.1.0`parsetok+0x17
+              libpython2.4.so.1.0`PyParser_ParseStringFlagsFilename+0x72
+              libpython2.4.so.1.0`PyParser_ParseStringFlags+0x1c
+              libpython2.4.so.1.0`PyParser_SimpleParseStringFlags+0x23
+              libpython2.4.so.1.0`PyRun_StringFlags+0x2c
+              libpython2.4.so.1.0`builtin_eval+0x273
+              libpython2.4.so.1.0`PyCFunction_Call+0x15f
+              libpython2.4.so.1.0`call_function+0x406
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/os.py:503 (_exists) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/os.py:509 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`PyImport_ExecCodeModuleEx+0xc0
+              libpython2.4.so.1.0`load_source_module+0xe6
+              libpython2.4.so.1.0`load_module+0xac
+              libpython2.4.so.1.0`import_submodule+0xfb
+              libpython2.4.so.1.0`load_next+0xa2
+              libpython2.4.so.1.0`import_module_ex+0x48
+              libpython2.4.so.1.0`PyImport_ImportModuleEx+0x1d
+              libpython2.4.so.1.0`builtin___import__+0x4e
+              libpython2.4.so.1.0`PyCFunction_Call+0x15f
+              libpython2.4.so.1.0`PyObject_Call+0x1d
+              libpython2.4.so.1.0`PyEval_CallObjectWithKeywords+0xb8
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xd3c
+                [ /usr/lib/python2.4/site.py:58 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`PyImport_ExecCodeModuleEx+0xc0
+              libpython2.4.so.1.0`load_source_module+0xe6
+              libpython2.4.so.1.0`load_module+0xac
+              libpython2.4.so.1.0`import_submodule+0xfb
+              libpython2.4.so.1.0`load_next+0xa2
+              libpython2.4.so.1.0`import_module_ex+0x48
+              libpython2.4.so.1.0`PyImport_ImportModuleEx+0x1d
+              libpython2.4.so.1.0`builtin___import__+0x4e
+              libpython2.4.so.1.0`PyCFunction_Call+0x15f
+              libpython2.4.so.1.0`PyObject_Call+0x1d
+              libpython2.4.so.1.0`PyObject_CallFunction+0x90
+              libpython2.4.so.1.0`PyImport_Import+0x163
+              libpython2.4.so.1.0`PyImport_ImportModule+0x1f
+              libpython2.4.so.1.0`initsite+0x10
+              libpython2.4.so.1.0`Py_InitializeEx+0x1ea
+              libpython2.4.so.1.0`Py_Initialize+0xd
+              libpython2.4.so.1.0`Py_Main+0x4db
+              python`main+0x11
+              python`_start+0x7a
+
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 331      
+            1024 |                                         0        
+
+
+              libc.so.1`malloc
+              libpython2.4.so.1.0`new_arena+0x13
+              libpython2.4.so.1.0`PyObject_Malloc+0x91
+              libpython2.4.so.1.0`string_concat+0x109
+              libpython2.4.so.1.0`PyString_Concat+0x3b
+              libpython2.4.so.1.0`string_concatenate+0x150
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x27cc
+                [ /usr/lib/python2.4/posixpath.py:62 (join) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`function_call+0x15e
+              libpython2.4.so.1.0`PyObject_Call+0x1d
+              libpython2.4.so.1.0`ext_do_call+0xfb
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xb4f
+                [ /usr/lib/python2.4/site.py:66 (makepath) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`fast_function+0x112
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:138 (addpackage) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`fast_function+0x112
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:166 (addsitedir) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`fast_function+0x112
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ <string>:1 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+              libpython2.4.so.1.0`run_err_node+0x1f
+              libpython2.4.so.1.0`PyRun_String+0x27
+              libpython2.4.so.1.0`exec_statement+0x2b0
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x15d6
+                [ /usr/lib/python2.4/site.py:134 (addpackage) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`fast_function+0x112
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:166 (addsitedir) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`fast_function+0x112
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:203 (addsitepackages) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:382 (main) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ /usr/lib/python2.4/site.py:397 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`PyImport_ExecCodeModuleEx+0xc0
+              libpython2.4.so.1.0`load_source_module+0xe6
+              libpython2.4.so.1.0`load_module+0xac
+              libpython2.4.so.1.0`import_submodule+0xfb
+              libpython2.4.so.1.0`load_next+0xa2
+              libpython2.4.so.1.0`import_module_ex+0x48
+              libpython2.4.so.1.0`PyImport_ImportModuleEx+0x1d
+              libpython2.4.so.1.0`builtin___import__+0x4e
+              libpython2.4.so.1.0`PyCFunction_Call+0x15f
+              libpython2.4.so.1.0`PyObject_Call+0x1d
+              libpython2.4.so.1.0`PyObject_CallFunction+0x90
+              libpython2.4.so.1.0`PyImport_Import+0x163
+              libpython2.4.so.1.0`PyImport_ImportModule+0x1f
+              libpython2.4.so.1.0`initsite+0x10
+              libpython2.4.so.1.0`Py_InitializeEx+0x1ea
+              libpython2.4.so.1.0`Py_Initialize+0xd
+              libpython2.4.so.1.0`Py_Main+0x4db
+
+           value  ------------- Distribution ------------- count    
+          131072 |                                         0        
+          262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+          524288 |                                         0        
+
+
+              libc.so.1`malloc
+              libpython2.4.so.1.0`new_arena+0x13
+              libpython2.4.so.1.0`PyObject_Malloc+0x91
+              libpython2.4.so.1.0`_PyObject_GC_Malloc+0x13
+              libpython2.4.so.1.0`_PyObject_GC_NewVar+0x24
+              libpython2.4.so.1.0`PyTuple_New+0x78
+              libpython2.4.so.1.0`PyType_Ready+0x98
+              libpython2.4.so.1.0`PyType_Ready+0x60
+              libpython2.4.so.1.0`_Py_ReadyTypes+0x10
+              libpython2.4.so.1.0`Py_InitializeEx+0xed
+              libpython2.4.so.1.0`Py_Initialize+0xd
+              libpython2.4.so.1.0`Py_Main+0x4db
+              python`main+0x11
+              python`_start+0x7a
+
+           value  ------------- Distribution ------------- count    
+          131072 |                                         0        
+          262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+          524288 |                                         0        
+
+
+This output looks a little  unusual at first glance, and can be confusing for
+people unfamiliar with stack tracing and Python engine internals. 
+
+Start by looking at the distribution plots below each stack trace - each plot
+shows how many bytes were requested as a histogram by byte size.  This should
+indicated to you if python is malloc()ing much memory or not, and whether it
+is doing so in a few large malloc()s or many small ones.
+
+With this information in mind you can inspect the stack traces - these explain
+why Python called malloc() in that instance, along with translations of Python
+functions buried in the stack trace.  The stack traces can be hard to read at
+first (or even at second or at third) - since you are examining Python engine
+internals. Try looking for lines in square brackets - those are Python language 
+frames, and will show where (or if) the malloc() was caused by Python code.

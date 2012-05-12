@@ -1,0 +1,456 @@
+The following are examples of pl_calldist.d.
+
+This script traces the elapsed time of Perl subroutines (functions) and
+prints a report containing distribution plots per subroutine. Here it
+traces the example program, Code/Perl/func_abc.pl.
+
+   # pl_calldist.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   
+   Exclusive subroutine elapsed times (us),
+      func_abc.pl, sub, func_a 
+              value  ------------- Distribution ------------- count    
+             262144 |                                         0        
+             524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1048576 |                                         0        
+   
+      func_abc.pl, sub, func_b 
+              value  ------------- Distribution ------------- count    
+             262144 |                                         0        
+             524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1048576 |                                         0        
+   
+      func_abc.pl, sub, func_c 
+              value  ------------- Distribution ------------- count    
+             262144 |                                         0        
+             524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1048576 |                                         0        
+   
+   
+   Inclusive subroutine elapsed times (us),
+      func_abc.pl, sub, func_c 
+              value  ------------- Distribution ------------- count    
+             262144 |                                         0        
+             524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1048576 |                                         0        
+   
+      func_abc.pl, sub, func_b 
+              value  ------------- Distribution ------------- count    
+             524288 |                                         0        
+            1048576 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            2097152 |                                         0        
+   
+      func_abc.pl, sub, func_a 
+              value  ------------- Distribution ------------- count    
+            1048576 |                                         0        
+            2097152 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            4194304 |                                         0        
+   
+In total, 3 subroutines were called - func_a(), func_b(), and func_c().
+
+The exclusive subroutine elapsed times show that each subroutine spent
+between 524 and 1048 ms. This exclusive time excludes the time spent in
+other subroutines.
+
+The inclusive subroutine elapsed times show that func_c() took between 0.5 and
+1.0 seconds, func_b() took between 1.0 and 2.1 seconds, and func_a() took
+between 2.1 and 4.2 seconds to execute. This inclusive time includes the
+time spent in other subroutines called, and since func_a() called func_b()
+which called func_c(), these times make sense.
+
+These elapsed times are the absolute time from when the subroutine began to
+when it completed - which includes off-CPU time due to other system events
+such as I/O, scheduling, interrupts, etc.
+
+Elapsed times are useful for identifying where latencies are.
+See Notes/ALLelapsed_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive subroutine time.
+
+
+
+The following traces a Perl network interface statistics tool, "nicstat"
+version 0.99,
+
+# pl_calldist.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Exclusive subroutine elapsed times (us),
+   DynaLoader.pm, sub, dl_load_flags 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   Config.pm, sub, TIEHASH 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   Config.pm, sub, DESTROY 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   Config.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   register.pm, sub, mkMask 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+               8 |                                         0        
+
+   Config.pm, sub, FETCH 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     2        
+               4 |@@@@@@@@@@@@@@@@@@@@                     2        
+               8 |                                         0        
+
+   Config.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |@@@@@@@@@@@@@@@@@@@@                     1        
+              32 |                                         0        
+
+   strict.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@                                 1        
+               4 |@@@@@@@@@@@@@@@@                         2        
+               8 |@@@@@@@@                                 1        
+              16 |@@@@@@@@                                 1        
+              32 |                                         0        
+
+   strict.pm, sub, bits 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              4        
+               8 |@@@@@@@                                  1        
+              16 |@@@@@@@                                  1        
+              32 |                                         0        
+
+   strict.pm, sub, unimport 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           3        
+              16 |@@@@@@@@@@                               1        
+              32 |                                         0        
+
+   AutoLoader.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@                                  1        
+               4 |@@@@@@@                                  1        
+               8 |@@@@@@@@@@@@@@@@@@@@                     3        
+              16 |@@@@@@@                                  1        
+              32 |                                         0        
+
+   Std.pm, sub, getopts 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   register.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   vars.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   Exporter.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@                     1        
+              64 |@@@@@@@@@@@@@@@@@@@@                     1        
+             128 |                                         0        
+
+   DynaLoader.pm, sub, bootstrap 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1024 |                                         0        
+
+   warnings.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1024 |                                         0        
+
+   DynaLoader.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@@@@@@@@                     1        
+             512 |                                         0        
+            1024 |@@@@@@@@@@@@@@@@@@@@                     1        
+            2048 |                                         0        
+
+   nicstat, sub, print_neat 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@                   10       
+             128 |@@@@@@@@@@@@@@@@@@                       8        
+             256 |                                         0        
+
+   vars.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@                            1        
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@                            1        
+              16 |                                         0        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |@@@@@@@@@@@@@                            1        
+            4096 |                                         0        
+
+   Kstat.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              2        
+              16 |                                         0        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |@@@@@@@@@@@@@                            1        
+            4096 |                                         0        
+
+   nicstat, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@                            1        
+             512 |@@@@@@@@@@@@@                            1        
+            1024 |                                         0        
+            2048 |@@@@@@@@@@@@@                            1        
+            4096 |                                         0        
+
+   nicstat, sub, fetch_net_data 
+           value  ------------- Distribution ------------- count    
+           16384 |                                         0        
+           32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+           65536 |                                         0        
+
+   nicstat, sub, find_nets 
+           value  ------------- Distribution ------------- count    
+           16384 |                                         0        
+           32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+           65536 |                                         0        
+
+
+Inclusive subroutine elapsed times (us),
+   DynaLoader.pm, sub, dl_load_flags 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   Config.pm, sub, TIEHASH 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   Config.pm, sub, DESTROY 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   Config.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   register.pm, sub, mkMask 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+               8 |                                         0        
+
+   Config.pm, sub, FETCH 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     2        
+               4 |@@@@@@@@@@@@@@@@@@@@                     2        
+               8 |                                         0        
+
+   strict.pm, sub, bits 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              4        
+               8 |@@@@@@@                                  1        
+              16 |@@@@@@@                                  1        
+              32 |                                         0        
+
+   strict.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@                                 1        
+               4 |@@@@@@@@@@@@@@@@                         2        
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@                         2        
+              32 |                                         0        
+
+   Config.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@                     1        
+              32 |@@@@@@@@@@@@@@@@@@@@                     1        
+              64 |                                         0        
+
+   Std.pm, sub, getopts 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   register.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   strict.pm, sub, unimport 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+              32 |                                         0        
+
+   vars.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   AutoLoader.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@                                  1        
+               4 |@@@@@@@                                  1        
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@                     3        
+              32 |@@@@@@@                                  1        
+              64 |                                         0        
+
+   Exporter.pm, sub, import 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@                     1        
+              64 |@@@@@@@@@@@@@@@@@@@@                     1        
+             128 |                                         0        
+
+   DynaLoader.pm, sub, bootstrap 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1024 |                                         0        
+
+   warnings.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1024 |                                         0        
+
+   nicstat, sub, print_neat 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@                   10       
+             128 |@@@@@@@@@@@@@@@@@@                       8        
+             256 |                                         0        
+
+   vars.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@                            1        
+               4 |                                         0        
+               8 |                                         0        
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@                            1        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |@@@@@@@@@@@@@                            1        
+            4096 |                                         0        
+
+   DynaLoader.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+             512 |                                         0        
+            1024 |@@@@@@@@@@@@@@@@@@@@                     1        
+            2048 |@@@@@@@@@@@@@@@@@@@@                     1        
+            4096 |                                         0        
+
+   Kstat.pm, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@                            1        
+              32 |@@@@@@@@@@@@@                            1        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |@@@@@@@@@@@@@                            1        
+           16384 |                                         0        
+
+   nicstat, sub, BEGIN 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@                            1        
+            1024 |                                         0        
+            2048 |@@@@@@@@@@@@@                            1        
+            4096 |                                         0        
+            8192 |@@@@@@@@@@@@@                            1        
+           16384 |                                         0        
+
+   nicstat, sub, fetch_net_data 
+           value  ------------- Distribution ------------- count    
+           16384 |                                         0        
+           32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+           65536 |                                         0        
+
+   nicstat, sub, find_nets 
+           value  ------------- Distribution ------------- count    
+           16384 |                                         0        
+           32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+           65536 |                                         0        
+
+As an example of interpreting the output: the inclusive elapsed time for
+the "print_neat" subroutine in "nicstat",
+
+   nicstat, sub, print_neat 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@                   10       
+             128 |@@@@@@@@@@@@@@@@@@                       8        
+             256 |                                         0        
+
+shows that "print_neat" was called 18 times, 10 of which took between 64
+and 127 microseconds, and 8 of which took between 128 and 255 microseconds.
+
