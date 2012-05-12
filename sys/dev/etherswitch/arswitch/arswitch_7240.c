@@ -66,11 +66,6 @@
 
 /* XXX belongs in arswitch_7240_reg.h */
 
-#define	AR7240_REG_CPU_PORT		0x78
-#define		AR7240_MIRROR_PORT_MASK		0x000000f0
-#define		AR7240_MIRROR_PORT_S		4
-#define		AR7240_CPU_PORT_EN		0x00000100
-
 #define	AR7240_REG_TAG_PRIORITY		0x70
 
 /*
@@ -81,9 +76,8 @@ ar7240_hw_setup(struct arswitch_softc *sc)
 {
 
 	/* Enable CPU port; disable mirror port */
-	arswitch_writereg(sc->sc_dev, AR7240_REG_CPU_PORT,
-	    AR7240_CPU_PORT_EN |
-	    (15 << AR7240_MIRROR_PORT_S));
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_CPU_PORT,
+	    AR8X16_CPU_PORT_EN | AR8X16_CPU_MIRROR_DIS);
 
 	/*
 	 * Let things settle; probing PHY4 doesn't seem reliable
