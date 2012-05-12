@@ -235,10 +235,11 @@ chmod 1777 /tmp
 .Ed
 .Pp
 Create a 5MB file-backed disk
-.Ns ( Fl a
+.Po Fl a
 and
 .Fl t Ar vnode
-are implied):
+are implied
+.Pc :
 .Bd -literal -offset indent
 dd if=/dev/zero of=somebackingfile bs=1k count=5k
 mdconfig -f somebackingfile -u 0
@@ -250,10 +251,11 @@ mount /dev/md0c /mnt
 Create an
 .Xr md 4
 device out of an ISO 9660 CD image file
-.Ns ( Fl a
+.Po Fl a
 and
 .Fl t Ar vnode
-are implied), using the first available
+are implied
+.Pc , using the first available
 .Xr md 4
 device, and then mount the new memory disk:
 .Bd -literal -offset indent
