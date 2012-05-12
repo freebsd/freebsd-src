@@ -1789,8 +1789,7 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 	 */
 	if (serial_num == (asoc->asconf_seq_out + 1)) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf_ack: got unexpected next serial number! Aborting asoc!\n");
-		sctp_abort_an_association(stcb->sctp_ep, stcb,
-		    SCTP_CAUSE_ILLEGAL_ASCONF_ACK, NULL, SCTP_SO_NOT_LOCKED);
+		sctp_abort_an_association(stcb->sctp_ep, stcb, NULL, SCTP_SO_NOT_LOCKED);
 		*abort_no_unlock = 1;
 		return;
 	}
