@@ -37,7 +37,7 @@ A
 configuration file consists of one or more jail definitions statements,
 and parameter or variable statements within those jail definitions.
 A jail definition statement looks something like a C compound statement.
-A parameter statement looks like a C assigment,
+A parameter statement looks like a C assignment,
 including a terminating semicolon.
 .Pp
 The general syntax of a jail definition is:
@@ -100,17 +100,17 @@ A token is any sequence of characters that aren't considered special in
 the syntax of the configuration file (such as a semicolon or
 whitespace).
 If a value contains anything more than letters, numbers, dots, dashes
-and undescores, it is advisable to put quote marks around that value.
+and underscores, it is advisable to put quote marks around that value.
 Either single or double quotes may be used.
 .Pp
-Special characters may be quoted by preceeding them with a backslash.
+Special characters may be quoted by preceding them with a backslash.
 Common C-style backslash character codes are also supported, including
 control characters and octal or hex ASCII codes.
 A backslash at the end of a line will ignore the subsequent newline and
 continue the string at the start of the next line.
 .Ss Variables
 A string may use shell-style variable substitution.
-A parameter or variable name preceeded by a dollar sign, and possibly
+A parameter or variable name preceded by a dollar sign, and possibly
 enclosed in braces, will be replaced with the value of that parameter or
 variable.
 For example, a jail's path may be defined in terms of its name or
@@ -121,7 +121,7 @@ path = "/var/jail/$name";
 path = "/var/jail/${host.hostname}";
 .Ed
 .Pp
-Variable substition occurs in unquoted tokens or in double-quoted
+Variable substitution occurs in unquoted tokens or in double-quoted
 strings, but not in single-quote strings.
 .Pp
 A variable is defined in the same way a parameter is, except that the
