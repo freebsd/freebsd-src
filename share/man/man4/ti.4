@@ -144,7 +144,7 @@ or
 modes.
 .It 1000baseSX
 Set 1000Mbps (Gigabit Ethernet) operation.
-Only full
+Only
 .Ar full-duplex
 mode is supported at this speed.
 .El
@@ -154,7 +154,7 @@ The
 driver supports the following media options:
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It full-duplex
-Force full duplex operation
+Force full-duplex operation.
 .It half-duplex
 Force half duplex operation.
 .El
@@ -240,14 +240,14 @@ when either of the thresholds is exceeded.
 A value of 0 means that this parameter is ignored and receive BDs
 will only be returned when the receive max coalesced BDs value is
 reached.
-The default valus is 170.
+The default value is 170.
 .It Va dev.ti.%d.rx_max_coal_bds
 This value, receive max coalesced BDs, controls the number of
 receive buffer descriptors that will be coalesced before the NIC
 updates the receive return ring producer index.
 If this value is set to 0 it will disable receive buffer descriptor
 coalescing.
-The default valus is 64.
+The default value is 64.
 .It Va dev.ti.%d.ti_tx_coal_ticks
 This value, send coalesced ticks, controls the number of clock
 ticks (of 1 microseconds each) that must elapse before the NIC DMAs
@@ -263,9 +263,9 @@ The default value is 2000.
 This value, send max coalesced BDs, controls the number of send
 buffer descriptors that will be coalesced before the NIC updates
 the send consumer index.
-If this valus is set to 0 it will disable send buffer descriptor
+If this value is set to 0 it will disable send buffer descriptor
 coalescing.
-The default valus is 32.
+The default value is 32.
 .It Va dev.ti.%d.tx_buf_ratio
 This value controls the ratio of the remaining memory in the NIC
 that should be devoted to transmit buffer vs. receive buffer.
@@ -348,7 +348,7 @@ Write to the requested memory region on the Tigon board.
 The argument is
 .Vt "struct tg_mem" .
 .It Dv ALT_READ_TG_REG
-Read the requested register on the Tigon board.
+Read the requested register from the Tigon board.
 The argument is
 .Vt "struct tg_reg" .
 .It Dv ALT_WRITE_TG_REG
