@@ -1,0 +1,45 @@
+These are examples of the results after running the sh_who.d script. 
+
+This script shows which UIDs and PIDs are running shell scripts, and how 
+active they are.  It measures the number of lines executed according to 
+the line probe - which is a useful, but rough measure of shell activity.
+
+Here it runs as a script executes three times.
+
+# sh_who.d
+Tracing... Hit Ctrl-C to end.
+^C
+      PID    UID  LINES FILE
+    13663      0      9 ./func_abc.sh
+    13667      0      9 ./func_abc.sh
+    13671      0      9 ./func_abc.sh
+
+We see func_abc.sh ran three seperate times, each with nine lines of shell 
+activity.
+
+
+Here we trace an instance of starting Mozilla Firefox.
+
+# sh_who.d
+Tracing... Hit Ctrl-C to end.
+^C
+      PID    UID  LINES FILE
+    13678    100      1 firefox
+    13679    100      1 firefox
+    13680    100      1 firefox
+    13681    100      1 firefox
+    13683    100      1 firefox
+    13685    100      1 firefox
+    13686    100      1 firefox
+    13687    100      1 firefox
+    13690    100      1 firefox
+    13693    100      1 /usr/lib/firefox/run-mozilla.sh
+    13694    100      1 /usr/lib/firefox/run-mozilla.sh
+    13695    100      1 /usr/lib/firefox/run-mozilla.sh
+    13692    100     55 /usr/lib/firefox/run-mozilla.sh
+    13677    100     75 firefox
+
+Firefox itself (PID 13677) ran 75 lines of code.  There are also instances of 
+firefox running a single line of code with a different PID each time.  These 
+are probably calls to subshells.  Use the sh provider to confirm.
+

@@ -1,0 +1,180 @@
+#!/usr/bin/perl
+#
+# errinfo - report on syscall failures and print errno error messages.
+#	    Written using Perl and DTrace (Solaris 10 03/05)
+#
+# When system calls fail, an errno variable is set to convay a meaningful
+# message to the end user - so long as the program does something with it
+# (eg, "ls" printing "No such file or directory"). This program fetches
+# and prints details for all syscall failures along with their message,
+# whether the failing program is already printing this info or not.
+#
+# $Id: errinfo 3 2007-08-01 10:50:08Z brendan $
+#
+# USAGE:	errinfo [-ch] [-p PID] [-n name]
+#
+#		-c		# counts - aggregate style
+#		-p PID		# examine this PID only
+#		-n name		# examine processes with this name only
+#	eg,
+#		errinfo			# default output - snoop event style
+#		errinfo -n ssh		# examine "ssh" processes only
+#		errinfo -cn ssh		# examine "ssh" using counts
+#
+# FIELDS:
+#		EXEC		Program name (truncated)
+#		SYSCALL		System call name
+#		ERR		Value of errno
+#		DESC		Description of errno message
+#
+# SEE ALSO:	/usr/include/sys/errno.h
+#
+# COPYRIGHT: Copyright (c) 2005, 2006 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 18-Apr-2005   Brendan Gregg   Created this.
+# 20-Apr-2006	   "      "	Last update.
+#
+
+use Getopt::Std;
+
+#
+#  Defaults
+#
+$FILTER = "";
+$COUNT = 0;
+
+#
+#  Command line arguments
+#
+&Usage() if $ARGV[0] eq "--help";
+getopts('ch:n:p:') || &Usage();
+&Usage() if $opt_h;
+$COUNT = 1 if $opt_c;
+$FILTER = "&& execname == \"$opt_n\"" if defined $opt_n;
+$FILTER = "&& pid == $opt_p" if defined $opt_p;
+
+#
+#  Load errno descriptions
+#
+open(ERRNO,"/usr/include/sys/errno.h") || die "ERROR1: reading errno.h: $!\n";
+while (chomp($line = <ERRNO>)) {
+	next unless $line =~ /^#define/;
+	($errno,$desc) = $line =~ /^#define\s+\S+\s+(\d+)\s+\/\*(.*)\*\//;
+	$Errno{$errno} = $desc;
+}
+close ERRNO;
+
+#
+#  Declare DTrace script
+#
+ if ($COUNT) {		# aggregate style
+$dtrace = <<END;
+/usr/sbin/dtrace -n '
+	#pragma D option quiet
+	syscall:::return 
+	/errno != 0 && pid != \$pid $FILTER/ 
+	{ 
+		\@Errs[execname, probefunc, errno] = count(); 
+	}
+	dtrace:::END {
+		printa("%s %s %d %\@d\\n", \@Errs);
+	}'
+END
+ } else {		# snoop style
+$dtrace = <<END; 
+/usr/sbin/dtrace -n '
+	#pragma D option quiet
+	#pragma D option switchrate=5hz
+	syscall:::return 
+	/errno != 0 && pid != \$pid $FILTER/ 
+	{ 
+		printf("%s %s %d\\n", execname, probefunc, errno); 
+	}'
+END
+ }
+
+#
+#  Cleanup on signals
+#
+$SIG{INT} = \&Cleanup_Signal;    # Ctrl-C
+$SIG{QUIT} = \&Cleanup_Signal;   # Ctrl-\
+$SIG{TERM} = \&Cleanup_Signal;   # TERM
+
+#
+#  Run DTrace, process output
+#
+
+if ($COUNT) {
+	print STDERR "Tracing... Hit Ctrl-C to end.\n";
+	$header = 1;
+} else {
+	printf("%16s %16s %4s  %s\n","EXEC","SYSCALL","ERR","DESC");
+}
+
+### Open DTrace
+open(DTRACE,"$dtrace |") || die "ERROR2: Can't start dtrace (perms?): $!\n";
+
+### Process DTrace output
+while (chomp($line = <DTRACE>)) {
+
+	### Print count header
+	if ($COUNT && $header) {
+		printf("\n%16s %16s %4s %6s  %s\n",
+		 "EXEC","SYSCALL","ERR","COUNT","DESC");
+		$header = 0;
+	}
+
+	### Split data
+	($execname,$syscall,$errno,$counts) = split(' ',$line);
+	next if $errno eq "";
+
+	### Fetch errno description
+	$desc = $Errno{$errno};
+
+	### Print output line
+	if ($COUNT) {
+		printf("%16s %16s %4d %6d %s\n",
+		 $execname,$syscall,$errno,$counts,$desc);
+	} else {
+		printf("%16s %16s %4d %s\n",$execname,$syscall,$errno,$desc);
+	}
+}
+close(DTRACE);
+
+#
+#  Triggered by signals
+#
+sub Cleanup_Signal {
+}
+
+#
+#  Usage message
+#
+sub Usage {
+        print STDERR "USAGE: errinfo [-ch] [-p PID] [-n name]\n";
+	print STDERR <<ENDUSAGE;
+     eg,
+       errinfo       # default output - snoop event style
+          -c         # counts - aggregate style
+          -p 871     # examine PID 871 only
+          -n ssh     # examine processes with the name "ssh" only
+          -cn ssh    # examine "ssh" using counts
+ENDUSAGE
+        exit(1);
+}

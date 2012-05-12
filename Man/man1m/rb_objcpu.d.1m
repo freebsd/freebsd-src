@@ -1,0 +1,36 @@
+.TH rb_objcpu.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+rb_objcpu.d - measure Ruby object creation on-CPU time using DTrace.
+.SH SYNOPSIS
+.B rb_objcpu.d
+
+.SH DESCRIPTION
+This traces Ruby activity from all programs running on the system with
+Ruby provider support.
+
+Class names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Ruby provider, which may change 
+as additional features are introduced. Check Ruby/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B rb_objcpu.d
+.PP
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+rb_objcpu.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

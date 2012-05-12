@@ -1,0 +1,26 @@
+The following is a demonstration of the writebytes.d script,
+
+
+Here the writebytes.d script is run for a few seconds, then Ctrl-C is hit,
+
+   # writebytes.d
+   dtrace: description 'sysinfo:::writech ' matched 4 probes
+   ^C
+     dtrace                                                            1
+     gnome-settings-d                                                  8
+     xscreensaver                                                      8
+     gnome-panel                                                       8
+     nautilus                                                          8
+     date                                                             29
+     wnck-applet                                                     120
+     bash                                                            210
+     mozilla-bin                                                    1497
+     ls                                                             1947
+     metacity                                                       3172
+     Xorg                                                           7424
+     gnome-terminal                                                51955
+
+
+In this interval the gnome-terminal command has successfully written 51.9 Kb, 
+while Xorg has written 7424 bytes.
+

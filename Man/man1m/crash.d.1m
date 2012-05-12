@@ -1,0 +1,81 @@
+.TH crash.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+crash.d \- Crashed Application info. Uses DTrace.
+.SH SYNOPSIS
+.B crash.d
+.SH DESCRIPTION
+crash.d monitors for applications that crash. 
+When a crash via a SIGSEGV or SIGBUS is detected, a report of the
+process state is printed out.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the proc provider, and uses /usr/bin/prun.
+.SH FIELDS
+.TP
+Type
+signal type
+.TP
+Program
+execname of process
+.TP
+Args
+argument listing of process
+.TP
+PID
+process ID
+.TP
+TID
+thread ID
+.TP
+LWPs
+number of Light Weight Processes
+.TP
+PPID
+parent process ID
+.TP
+UID
+user ID
+.TP
+TaskID
+task ID
+.TP
+ProjID
+project ID
+.TP
+PoolID
+pool ID
+.TP
+ZoneID
+zone ID
+.TP
+zone
+zone name
+.TP
+CWD
+current working directory
+.TP
+errno
+error number of last syscall
+.PP
+.SH EXAMPLES
+.TP
+Monitor for crashing applications.
+# 
+.B crash.d
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+crash.d will run until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M)
+
