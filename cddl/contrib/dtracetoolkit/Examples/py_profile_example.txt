@@ -1,0 +1,399 @@
+The following are examples of py_profile.d.
+
+This samples stack traces for the process specified. This stack trace will 
+cross the Python engine and system libraries, and insert translations for 
+Python stack frames where appropriate.   Here you can see it running on 
+Code/Python/func_slow.py
+
+# py_profile.d -c ./func_slow.py
+Sampling 10-level stacks at 1001 Hertz... Hit Ctrl-C to end.
+Function A
+Function B
+Function C
+Top 25 most frequently sampled stacks,
+
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x266
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               11
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x278
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               11
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x278a
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               11
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x205
+                [ ./func_slow.py:18 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+              libpython2.4.so.1.0`run_err_node+0x1f
+              libpython2.4.so.1.0`PyRun_FileExFlags+0x5e
+              libpython2.4.so.1.0`PyRun_SimpleFileExFlags+0x12f
+               12
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x1fe
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               13
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x35d
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               13
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x1f5
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               14
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x149
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               14
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x5aa
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               14
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x58f
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               15
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x58f
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               15
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x254
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               17
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x286
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               17
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x2fbf
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               17
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x35d
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               18
+
+              libc.so.1`ioctl+0x7
+              libpython2.4.so.1.0`_init+0x25
+              ld.so.1`call_init+0xff
+              ld.so.1`setup+0xf93
+              ld.so.1`_setup+0x310
+              ld.so.1`_rt_boot+0x56
+              0x8047e5c
+               19
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x5a4
+                [ ./func_slow.py:18 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+              libpython2.4.so.1.0`run_err_node+0x1f
+              libpython2.4.so.1.0`PyRun_FileExFlags+0x5e
+              libpython2.4.so.1.0`PyRun_SimpleFileExFlags+0x12f
+               20
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x5ba
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               20
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x583
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               22
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x5a4
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               22
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x278a
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               24
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x205
+                [ ./func_slow.py:10 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+              libpython2.4.so.1.0`PyEval_EvalCodeEx+0x732
+              libpython2.4.so.1.0`PyEval_EvalCode+0x22
+              libpython2.4.so.1.0`run_node+0x35
+               25
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x583
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               35
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x5a4
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               47
+
+              libpython2.4.so.1.0`PyEval_EvalFrame+0x205
+                [ ./func_slow.py:3 (func_c) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:16 (func_b) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:24 (func_a) ]
+              libpython2.4.so.1.0`fast_function+0xa8
+              libpython2.4.so.1.0`call_function+0xda
+              libpython2.4.so.1.0`PyEval_EvalFrame+0xbdf
+                [ ./func_slow.py:26 (?) ]
+               50
+
+ The lines in square brackets are the native Python frames, the rest
+ are the Python engine.
+

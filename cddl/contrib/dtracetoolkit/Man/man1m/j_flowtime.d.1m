@@ -1,0 +1,69 @@
+.TH j_flowtime.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+j_flowtime.d - snoop Java execution with method flow and delta times.
+.SH SYNOPSIS
+.B j_flowtime.d
+
+.SH DESCRIPTION
+This traces activity from all Java processes on the system with hotspot
+provider support (1.6.0) and the flag "+ExtendedDTraceProbes". eg,
+java -XX:+ExtendedDTraceProbes classfile
+
+This watches Java method entries and returns, and indents child
+method calls.
+.SH OS
+Solaris
+.SH STABILITY
+Evolving - uses the DTrace hotspot provider, which may change 
+as additional features are introduced. Check Java/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B j_flowtime.d
+.PP
+.SH FIELDS
+.TP
+C
+CPU-id
+.TP
+PID
+Process ID
+.TP
+TID
+Thread ID
+.TP
+TIME(us)
+Time since boot (us)
+.TP
+DELTA(us)
+Elapsed time from previous line to this line
+.TP
+CLASS.METHOD
+Java class and method name
+.SH LEGEND
+.TP
+\->
+method entry
+.TP
+<\-
+method return
+.SH WARNING
+Watch the first column carefully, it prints the CPU-id. If it
+changes, then it is very likely that the output has been shuffled.
+Changes in TID will appear to shuffle output, as we change from one thread
+depth to the next. See Docs/Notes/ALLjavaflow.txt for additional notes.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+j_flowtime.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

@@ -1,0 +1,144 @@
+The following are examples of sh_calltime.d.
+
+This script traces the elapsed time of Bourne shell functions and
+prints a report. Here it traces the example program, Code/Shell/func_abc.sh.
+
+   # sh_calltime.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   
+   Counts,
+      FILE                 TYPE       NAME                                COUNT
+      func_abc.sh          func       func_a                                  1
+      func_abc.sh          func       func_b                                  1
+      func_abc.sh          func       func_c                                  1
+      func_abc.sh          builtin    echo                                    3
+      func_abc.sh          cmd        sleep                                   3
+      -                    total      -                                       9
+   
+   Elapsed times (us),
+      FILE                 TYPE       NAME                                TOTAL
+      func_abc.sh          builtin    echo                                  108
+      func_abc.sh          cmd        sleep                             3023760
+      -                    total      -                                 3023868
+   
+   Exclusive function elapsed times (us),
+      FILE                 TYPE       NAME                                TOTAL
+      func_abc.sh          func       func_b                               2629
+      func_abc.sh          func       func_c                               2822
+      func_abc.sh          func       func_a                               3249
+      -                    total      -                                    8702
+   
+   Inclusive function elapsed times (us),
+      FILE                 TYPE       NAME                                TOTAL
+      func_abc.sh          func       func_c                            1009659
+      func_abc.sh          func       func_b                            2020077
+      func_abc.sh          func       func_a                            3032571
+
+In total, three functions were called, one builtin and one command.
+
+The elapsed times show that 3.0 seconds was spent in the sleep command,
+which is what would be expected based on the script.
+
+The exclusive function elapsed times show that each function spent around
+2.7 milliseconds of time processing code - while not in other functions.
+
+The inclusive function elapsed times show that func_a() took around 3.0
+seconds to execute, followed by func_b() at 2.0 seconds, and func_c() at 1.0.
+The inclusive time includes the time spent in other calls, and since
+func_a() called func_b() which called func_c(), and they all call "sleep 1",
+these times make sense.
+
+These elapsed times are the absolute time from when the function began to
+when it completed - which includes off-CPU time due to other system events
+such as I/O, scheduling, interrupts, etc. In particular, for this case it has
+included the time waiting for the sleep commands.
+
+Elapsed times are useful for identifying where latencies are.
+See Notes/ALLelapsed_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive function time.
+
+If you study the func_abc.sh program alongside the above output, the numbers
+should make sense. 
+
+
+
+The following traces the firefox start script.
+
+# sh_calltime.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Counts,
+   FILE                 TYPE       NAME                                COUNT
+   firefox              builtin    break                                   1
+   firefox              builtin    pwd                                     1
+   firefox              builtin    test                                    1
+   firefox              cmd        /usr/lib/firefox/run-mozilla.sh         1
+   run-mozilla.sh       builtin    break                                   1
+   run-mozilla.sh       builtin    return                                  1
+   run-mozilla.sh       builtin    shift                                   1
+   run-mozilla.sh       builtin    type                                    1
+   run-mozilla.sh       cmd        /usr/lib/firefox/firefox-bin            1
+   run-mozilla.sh       func       moz_run_program                         1
+   run-mozilla.sh       func       moz_test_binary                         1
+   firefox              builtin    echo                                    2
+   firefox              func       moz_pis_startstop_scripts               2
+   firefox              builtin    cd                                      3
+   firefox              builtin    export                                  3
+   run-mozilla.sh       builtin    export                                  3
+   firefox              builtin    :                                       6
+   firefox              func       moz_spc_verbose_echo                    6
+   firefox              builtin    [                                      18
+   run-mozilla.sh       builtin    [                                      20
+   -                    total      -                                     103
+
+Elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   run-mozilla.sh       builtin    return                                  1
+   run-mozilla.sh       builtin    shift                                   1
+   run-mozilla.sh       builtin    break                                   2
+   firefox              builtin    break                                   4
+   run-mozilla.sh       builtin    export                                  6
+   firefox              builtin    export                                 10
+   firefox              builtin    :                                      15
+   firefox              builtin    pwd                                    50
+   firefox              builtin    cd                                     72
+   run-mozilla.sh       builtin    [                                     210
+   firefox              builtin    echo                                  323
+   firefox              builtin    [                                     480
+   run-mozilla.sh       builtin    type                                  486
+   firefox              builtin    test                                15330
+   run-mozilla.sh       cmd        /usr/lib/firefox/firefox-bin      8941269
+   firefox              cmd        /usr/lib/firefox/run-mozilla.sh   9384335
+   -                    total      -                                18342766
+
+Exclusive function elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   run-mozilla.sh       func       moz_test_binary                        54
+   firefox              func       moz_spc_verbose_echo                  136
+   firefox              func       moz_pis_startstop_scripts          230221
+   run-mozilla.sh       func       moz_run_program                    402343
+   -                    total      -                                  632756
+
+Inclusive function elapsed times (us),
+   FILE                 TYPE       NAME                                TOTAL
+   run-mozilla.sh       func       moz_test_binary                        91
+   firefox              func       moz_spc_verbose_echo                  151
+   firefox              func       moz_pis_startstop_scripts          230587
+   run-mozilla.sh       func       moz_run_program                   9343826
+
+
+
+The output showed that the most inclusive function elapsed time was in
+moz_run_program() at 9.3 seconds, which comes as little suprise since
+I let firefox run for several seconds before closing it. That same duration
+explains the large command times in the elapsed times report.
+
+Of more interest are the exclusive function elapsed times, where 
+moz_pis_startstop_scripts() was the slowest at 230 ms. Other areas of the
+report are also useful to sanity check your software - should it be calling
+these things? Especially if there are any commands called that can be
+builtins instead.
+

@@ -1,0 +1,41 @@
+The following are examples of php_flowtime.d.
+
+This is a simple script to trace the flow of PHP functions.
+Here it traces the example program, Code/Php/func_abc.php
+
+# php_flowtime.d
+  C TIME(us)         FILE             DELTA(us)  -- FUNC
+  0 3646108339057    func_abc.php             9 -> func_a
+  0 3646108339090    func_abc.php            32   -> sleep
+  0 3646109341043    func_abc.php       1001953   <- sleep
+  0 3646109341074    func_abc.php            31   -> func_b
+  0 3646109341098    func_abc.php            23     -> sleep
+  0 3646110350712    func_abc.php       1009614     <- sleep
+  0 3646110350745    func_abc.php            32     -> func_c
+  0 3646110350768    func_abc.php            23       -> sleep
+  0 3646111362323    func_abc.php       1011554       <- sleep
+  0 3646111362351    func_abc.php            27     <- func_c
+  0 3646111362361    func_abc.php            10   <- func_b
+  0 3646111362370    func_abc.php             9 <- func_a
+^C
+
+The fifth column is indented by 2 spaces to show when a new function begins.
+This shows which function is calling which - the output above begins by
+showing that func_a() began; slept, and returned from sleep; and then called
+func_b().
+
+The TIME(us) column shows time since boot.
+
+The DELTA(us) column shows time from that line to the previous line, and
+so can be a bit tricky to read. For example, the second line of data output
+(skipping the header) reads as "the time from func_a() beginning to
+calling the sleep function beginning was 32 microseconds".
+
+The FILE column shows file that was being executed. 
+
+If the output looks shuffled, check the CPU "C" and "TIME" columns, and
+post sort based on TIME if necessary.
+
+See Notes/ALLflow_notes.txt for important notes about reading flow outputs.
+
+

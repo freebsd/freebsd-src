@@ -1,0 +1,64 @@
+.TH dexplorer 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+dexplorer \- run a series of scripts and archive output. Uses DTrace.
+.SH SYNOPSIS
+.B dexplorer
+.SH DESCRIPTION
+This program automatically runs a collection of DTrace scripts to examine
+many areas of the system, and places the output in a meaningful directory
+structure that is tar'd and gzip'd.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - this script uses fbt provider probes which may change for
+future updates of the OS, invalidating this script. Please read
+Docs/Notes/ALLfbt_notes.txt for further details about these fbt scripts.
+.SH OPTIONS
+.TP
+\-q
+quiet mode
+.TP
+\-y
+"yes", don't prompt for confirmation
+.TP
+\-D
+don't delete output dir
+.TP
+\-T
+don't create output tar.gz
+.TP
+\-d outputdir
+output directory
+.TP
+\-i interval
+interval for each sample
+.PP
+.SH EXAMPLES
+.TP
+Create output file in current directory,
+# 
+.B dexplorer
+.TP
+Don't prompt
+#
+.B dexplorer
+\-y
+.TP
+Leave expanded directories, don't archive and compress,
+#
+.B dexplorer
+\-DT
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M)
+
