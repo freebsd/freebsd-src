@@ -1,0 +1,46 @@
+**************************************************************************
+* The following are notes for all scripts that measure elapsed time.
+*
+* $Id: ALLelapsed_notes.txt 44 2007-09-17 07:47:20Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+
+* What is "elapsed" time?
+
+Elapsed time is the absolute time from one point to another. This time
+includes everything that happened between these points, including 
+off-CPU time due to other system events such as I/O, scheduling,
+interrupts, etc. It also includes the small overheads of DTrace itself.
+
+Elapsed times are useful for identifying where latencies are, since
+regardless of their nature (CPU, I/O, ...), they will be visible in
+elapsed time.
+
+Since elapsed times don't filter out anything, they are suseptible to
+"noise" - random system events that are unrelated to the analysis target.
+For that reason, it may be best to take several measurements of elapsed
+time and take the average (or run your workload several times and let
+DTrace take the average).
+
+See Notes/ALLoncpu_notes.txt for a description of a different time
+measurement, "on-CPU" time.
+
+
+* How is "elapsed" time measured?
+
+In DTrace, the following template provides elapsed time as "this->elapsed",
+
+   <start-probe>
+   {
+	   self->start = timestamp;
+   }
+   
+   <end-probe>
+   {
+	   this->elapsed = timestamp - self->start;
+	   self->start = 0;
+	   ...
+   }
+

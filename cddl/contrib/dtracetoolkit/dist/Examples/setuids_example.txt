@@ -1,0 +1,28 @@
+The following is an example of setuids.d. Login events in particular can
+be seen, along with use of the "su" command.
+
+   # ./setuids.d 
+     UID  SUID  PPID   PID PCMD         CMD
+       0   100  3037  3040 in.telnetd   login -p -h mars -d /dev/pts/12
+     100     0  3040  3045 bash         su -
+       0   102  3045  3051 sh           su - fred
+       0   100  3055  3059 sshd         /usr/lib/ssh/sshd
+       0   100  3065  3067 in.rlogind   login -d /dev/pts/12 -r mars
+       0   100  3071  3073 in.rlogind   login -d /dev/pts/12 -r mars
+       0   102  3078  3081 in.telnetd   login -p -h mars -d /dev/pts/12
+   ^C
+
+The first line is a telnet login to the user brendan, UID 100. The parent
+command is "in.telnetd", the telnet daemon spawned by inetd, and the 
+command that in.telnetd runs is "login".
+
+The second line shows UID 100 using the "su" command to become root.
+
+The third line has the root user using "su" to become fred, UID 102.
+
+The fourth line is an example of an ssh login.
+
+The fifth and sixth lines are examples of rsh and rlogin.
+
+The last line is another example of a telnet login for fred, UID 102.
+
