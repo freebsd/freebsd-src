@@ -128,7 +128,14 @@ ar8316_hw_global_setup(struct arswitch_softc *sc)
 {
 
 	arswitch_writereg(sc->sc_dev, 0x38, 0xc000050e);
-	arswitch_writereg(sc->sc_dev, AR8X16_REG_FLOOD_MASK, 0x003f003f);
+
+	/*
+	 * Flood address table misses to all ports, and enable forwarding of
+	 * broadcasts to the cpu port.
+	 */
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_FLOOD_MASK,
+	    AR8X16_FLOOD_MASK_BCAST_TO_CPU | 0x003f003f);
+
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_GLOBAL_CTRL,
 	    AR8316_GLOBAL_CTRL_MTU_MASK, 9018 + 8 + 2);
 
