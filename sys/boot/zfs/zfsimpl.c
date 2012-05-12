@@ -646,38 +646,6 @@ spa_find_by_name(const char *name)
 	return (0);
 }
 
-#ifndef BOOT2
-static spa_t *
-spa_find_by_unit(int unit)
-{
-	spa_t *spa;
-
-	STAILQ_FOREACH(spa, &zfs_pools, spa_link) {
-		if (unit == 0)
-			return (spa);
-		unit--;
-	}
-
-	return (0);
-}
-
-static int
-zfs_guid_to_unit(uint64_t guid)
-{
-	spa_t *spa;
-	int unit;
-
-	unit = 0;
-	STAILQ_FOREACH(spa, &zfs_pools, spa_link) {
-		if (spa->spa_guid == guid)
-			return (unit);
-		unit++;
-	}
-
-	return (-1);
-}
-#endif
-
 static spa_t *
 spa_create(uint64_t guid)
 {

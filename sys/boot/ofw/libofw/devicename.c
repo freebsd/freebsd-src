@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "libofw.h"
+#include "../zfs/libzfs.h"
 
 static int ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
 
@@ -81,6 +82,7 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     char		*ep;
     char		name[256];
     char		type[64];
+    int			err;
     int			len;
     int			i;
 
@@ -114,14 +116,11 @@ found:
     idev->d_dev = dv;
     idev->d_type = dv->dv_type;
     if (idev->d_type == DEVT_ZFS) {
-	idev->d_unit = 0;
-	p = name + strlen(dv->dv_name);
-	if (*p && (*p != ':')) {
-	    idev->d_unit = strtol(p, &ep, 0);
-	    if (ep == p) {
-		free(idev);
-		return (EUNIT);
-	    }
+	p = devspec + strlen(dv->dv_name);
+	err = zfs_parsedev((struct zfs_devdesc *)idev, p, path);
+	if (err != 0) {
+	    free(idev);
+	    return (err);
 	}
     }
 
