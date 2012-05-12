@@ -1,0 +1,215 @@
+The following is a demonstration of the dapptrace command,
+
+This is the usage for version 0.60,
+
+   # dapptrace -h
+   USAGE: dapptrace [-acdeholFLU] [-u lib] { -p PID | command }
+   
+             -p PID          # examine this PID
+             -a              # print all details
+             -c              # print syscall counts
+             -d              # print relative times (us)
+             -e              # print elapsed times (us)
+             -F              # print flow indentation
+             -l              # print pid/lwpid
+             -o              # print CPU on cpu times
+             -u lib          # trace this library instead
+             -U              # trace all libraries + user funcs
+             -b bufsize      # dynamic variable buf size
+      eg,
+          dapptrace df -h       # run and examine "df -h"
+          dapptrace -p 1871     # examine PID 1871
+          dapptrace -Fp 1871    # print using flow indents
+          dapptrace -eop 1871   # print elapsed and CPU times
+
+
+
+The following is an example of the default output. We run dapptrace with
+the "banner hello" command,
+
+   # dapptrace banner hi
+
+    #    #     #
+    #    #     #
+    ######     #
+    #    #     #
+    #    #     #
+    #    #     #
+   
+   CALL(args) 		 = return
+   -> __fsr(0x2, 0x8047D7C, 0x8047D88)		
+   <- __fsr = 122
+   -> main(0x2, 0x8047D7C, 0x8047D88)		
+   -> banner(0x8047E3B, 0x80614C2, 0x8047D38)		
+   -> banset(0x20, 0x80614C2, 0x8047DCC)		
+   <- banset = 36
+   -> convert(0x68, 0x8047DCC, 0x2)		
+   <- convert = 319
+   -> banfil(0x8061412, 0x80614C2, 0x8047DCC)		
+   <- banfil = 57
+   -> convert(0x69, 0x8047DCC, 0x2)		
+   <- convert = 319
+   -> banfil(0x8061419, 0x80614CA, 0x8047DCC)		
+   <- banfil = 57
+   <- banner = 118
+   -> banprt(0x80614C2, 0x8047D38, 0xD27FB824)		
+   <- banprt = 74
+
+The default output shows user function calls. An entry is prefixed
+with a "->", and the return has a "<-".
+
+
+
+Here we run dapptrace with the -F for flow indent option,
+
+   # dapptrace -F banner hi
+   
+    #    #     #
+    #    #     #
+    ######     #
+    #    #     #
+    #    #     #
+    #    #     #
+   
+   CALL(args) 		 = return
+     -> __fsr(0x2, 0x8047D7C, 0x8047D88)		
+     <- __fsr = 122
+     -> main(0x2, 0x8047D7C, 0x8047D88)		
+       -> banner(0x8047E3B, 0x80614C2, 0x8047D38)		
+         -> banset(0x20, 0x80614C2, 0x8047DCC)		
+         <- banset = 36
+         -> convert(0x68, 0x8047DCC, 0x2)		
+         <- convert = 319
+         -> banfil(0x8061412, 0x80614C2, 0x8047DCC)		
+         <- banfil = 57
+         -> convert(0x69, 0x8047DCC, 0x2)		
+         <- convert = 319
+         -> banfil(0x8061419, 0x80614CA, 0x8047DCC)		
+         <- banfil = 57
+       <- banner = 118
+       -> banprt(0x80614C2, 0x8047D38, 0xD27FB824)		
+       <- banprt = 74
+
+The above output illustrates the flow of the program, which functions
+call which other functions.
+
+
+
+Now the same command is run with -d to display relative timestamps,
+
+   # dapptrace -dF banner hi
+   
+    #    #     #
+    #    #     #
+    ######     #
+    #    #     #
+    #    #     #
+    #    #     #
+   
+   RELATIVE CALL(args) 		 = return
+       2512   -> __fsr(0x2, 0x8047D7C, 0x8047D88)		
+       2516   <- __fsr = 122
+       2518   -> main(0x2, 0x8047D7C, 0x8047D88)		
+       2863     -> banner(0x8047E3B, 0x80614C2, 0x8047D38)		
+       2865       -> banset(0x20, 0x80614C2, 0x8047DCC)		
+       2872       <- banset = 36
+       2874       -> convert(0x68, 0x8047DCC, 0x2)		
+       2877       <- convert = 319
+       2879       -> banfil(0x8061412, 0x80614C2, 0x8047DCC)		
+       2882       <- banfil = 57
+       2883       -> convert(0x69, 0x8047DCC, 0x2)		
+       2885       <- convert = 319
+       2886       -> banfil(0x8061419, 0x80614CA, 0x8047DCC)		
+       2888       <- banfil = 57
+       2890     <- banner = 118
+       2892     -> banprt(0x80614C2, 0x8047D38, 0xD27FB824)		
+       3214     <- banprt = 74
+
+The relative times are in microseconds since the program's invocation. Great!
+
+
+
+Even better is if we use the -eo options, to print elapsed times and on-cpu
+times,
+
+   # dapptrace -eoF banner hi
+   
+    #    #     #
+    #    #     #
+    ######     #
+    #    #     #
+    #    #     #
+    #    #     #
+   
+    ELAPSD    CPU CALL(args) 		 = return
+         .      .   -> __fsr(0x2, 0x8047D7C, 0x8047D88)		
+        41      4   <- __fsr = 122
+         .      .   -> main(0x2, 0x8047D7C, 0x8047D88)		
+         .      .     -> banner(0x8047E3B, 0x80614C2, 0x8047D38)		
+         .      .       -> banset(0x20, 0x80614C2, 0x8047DCC)		
+        29      6       <- banset = 36
+         .      .       -> convert(0x68, 0x8047DCC, 0x2)		
+        26      3       <- convert = 319
+         .      .       -> banfil(0x8061412, 0x80614C2, 0x8047DCC)		
+        25      2       <- banfil = 57
+         .      .       -> convert(0x69, 0x8047DCC, 0x2)		
+        23      1       <- convert = 319
+         .      .       -> banfil(0x8061419, 0x80614CA, 0x8047DCC)		
+        23      1       <- banfil = 57
+       309     28     <- banner = 118
+         .      .     -> banprt(0x80614C2, 0x8047D38, 0xD27FB824)		
+       349    322     <- banprt = 74
+
+Now it is easy to see which functions take the longest (elapsed), and 
+which consume the most CPU cycles.
+
+
+
+The following demonstrates the -U option, to trace all libraries,
+
+   # dapptrace -U banner hi
+   
+    #    #     #
+    #    #     #
+    ######     #
+    #    #     #
+    #    #     #
+    #    #     #
+   
+   CALL(args) 		 = return
+   -> ld.so.1:_rt_boot(0x8047E34, 0x8047E3B, 0x0)		
+   -> ld.so.1:_setup(0x8047D38, 0x20AE4, 0x3)		
+   -> ld.so.1:setup(0x8047D88, 0x8047DCC, 0x0)		
+   -> ld.so.1:fmap_setup(0x0, 0xD27FB2E4, 0xD27FB824)		
+   <- ld.so.1:fmap_setup = 125
+   -> ld.so.1:addfree(0xD27FD3C0, 0xC40, 0x0)		
+   <- ld.so.1:addfree = 65
+   -> ld.so.1:security(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)		
+   <- ld.so.1:security = 142
+   -> ld.so.1:readenv_user(0x8047D88, 0xD27FB204, 0xD27FB220)		
+   -> ld.so.1:ld_str_env(0x8047E3E, 0xD27FB204, 0xD27FB220)		
+   <- ld.so.1:ld_str_env = 389
+   -> ld.so.1:ld_str_env(0x8047E45, 0xD27FB204, 0xD27FB220)		
+   <- ld.so.1:ld_str_env = 389
+   -> ld.so.1:ld_str_env(0x8047E49, 0xD27FB204, 0xD27FB220)		
+   <- ld.so.1:ld_str_env = 389
+   -> ld.so.1:ld_str_env(0x8047E50, 0xD27FB204, 0xD27FB220)		
+   -> ld.so.1:strncmp(0x8047E53, 0xD27F7BEB, 0x4)		
+   <- ld.so.1:strncmp = 113
+   -> ld.so.1:rd_event(0xD27FB1F8, 0x3, 0x0)		
+   [...4486 lines deleted...]
+   -> ld.so.1:_lwp_mutex_unlock(0xD27FD380, 0xD27FB824, 0x8047C04)		
+   <- ld.so.1:_lwp_mutex_unlock = 47
+   <- ld.so.1:rt_mutex_unlock = 34
+   -> ld.so.1:rt_bind_clear(0x1, 0xD279ECC0, 0xD27FDB2C)		
+   <- ld.so.1:rt_bind_clear = 34
+   <- ld.so.1:leave = 210
+   <- ld.so.1:elf_bndr = 803
+   <- ld.so.1:elf_rtbndr = 35
+
+The output was huge, around 4500 lines long. Function names are prefixed 
+with their library name, eg "ld.so.1".
+
+This full output should be used with caution, as it enables so many probes
+it could well be a burden on the system.
+

@@ -1,0 +1,250 @@
+#!/usr/bin/sh
+#
+# dvmstat - vmstat by PID/name/command.
+#           Written using DTrace (Solaris 10 3/05).
+#
+# This program provides vmstat like data for one particular PID, a 
+# process name, or when running a command. It prints statistics
+# every second.
+#
+# $Id: dvmstat 3 2007-08-01 10:50:08Z brendan $
+#
+# USAGE:	dvmstat { -p PID | -n name | command }
+#  eg,
+#		dvmstat -p 1871       # examine PID 1871
+#		dvmstat -n tar        # examine processes called "tar"
+#		dvmstat df -h         # run and examine "df -h"
+#
+# FIELDS: 
+#		re	page reclaims		Kbytes
+#		maj	major faults		Kbytes
+#		mf	minor faults		Kbytes
+#		fr	page frees		Kbytes
+#		epi	executable page ins	Kbytes
+#		epo	executable page out	Kbytes
+#		api	anonymous page ins	Kbytes
+#		apo	anonymous page outs	Kbytes
+#		fpi	filesystem page ins	Kbytes
+#		fpo	filesystem page outs	Kbytes
+#		sy	system calls		number
+#
+# SEE ALSO:	vmstat(1M)
+#
+# NOTES:
+#
+# When using dvmstat to run a command - if the command takes some time
+# to execute, dvmstat will print output every second. If the command runs
+# in less than a second, then the only one line of output will be printed.
+#
+# COPYRIGHT: Copyright (c) 2005 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 12-Jun-2005	Brendan Gregg	Created this.
+# 08-Jan-2006	   "      "	Last update.
+# 
+
+##############################
+# --- Process Arguments ---
+#
+
+### Default variables
+opt_pid=0; opt_name=0; pid=0; pname="."; opt_command=0; command=""
+
+### Process options
+while getopts hn:p: name
+do
+        case $name in
+        p)      opt_pid=1; pid=$OPTARG ;;
+        n)      opt_name=1; pname=$OPTARG ;;
+        h|?)    cat <<-END >&2
+		USAGE: dvmstat [-h] { -p PID | -n name | command }
+		           -p PID          # examine this PID
+		           -n name         # examine this process name
+		  eg,
+		       dvmstat -p 1871     # examine PID 1871
+		       dvmstat -n tar      # examine processes called "tar"
+		       dvmstat df -h       # run and examine "df -h"
+		END
+                exit 1
+        esac
+done
+shift `expr $OPTIND - 1`
+
+
+### Option logic
+if [ $opt_pid -eq 0 -a $opt_name -eq 0 ]; then
+        opt_command=1
+        if [ "$*" = "" ]; then
+                $0 -h
+                exit
+        fi
+        command="$*"
+fi
+
+
+#################################
+# --- Main Program, DTrace ---
+#
+dtrace='
+ #pragma D option quiet
+
+ /*
+  * Command line arguments
+  */
+ inline int OPT_pid      = '$opt_pid';
+ inline int OPT_name     = '$opt_name';
+ inline int OPT_command  = '$opt_command';
+ inline int PID          = '$pid';
+ inline string NAME      = "'$pname'";
+ inline string COMMAND   = "'$command'";
+ inline int SCREEN       = 21;
+
+ /*
+  * Initialise variables
+  */
+ dtrace:::BEGIN
+ {
+	epi = 0; epo = 0; api = 0; apo = 0; fpi = 0; fpo = 0;
+	re = 0; mf = 0; maj = 0; fr = 0; sy = 0;
+	lines = SCREEN + 1;
+	header = 0;
+ }
+
+ /*
+  * Print header
+  */
+ dtrace:::BEGIN,
+ dtrace:::END,
+ profile:::tick-1sec
+ /(OPT_command && probename == "END") || 
+  (!(OPT_command && probename == "BEGIN") && lines++ > SCREEN)/
+ {
+	printf("%6s %5s %5s %4s %4s %4s %4s %4s %4s %4s %6s\n",
+	    "re", "maj", "mf", "fr", "epi", "epo", "api", "apo", 
+	    "fpi", "fpo", "sy");
+	lines = 0;
+ }
+
+ /*
+  * Probe events
+  *
+  * this intentionally does not use an associative array for storing data,
+  * for reasons of performance.
+  */
+
+ vminfo:::execpgin
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { epi += arg0; }
+
+ vminfo:::execpgout
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { epo += arg0; }
+
+ vminfo:::anonpgin
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { api += arg0; }
+
+ vminfo:::anonpgout
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { apo += arg0; }
+
+ vminfo:::fspgin
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { fpi += arg0; }
+
+ vminfo:::fspgout
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { fpo += arg0; }
+
+ vminfo:::pgrec
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { re += arg0; }
+
+ vminfo:::as_fault
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { mf += arg0; }
+
+ vminfo:::maj_fault
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { maj += arg0; }
+
+ vminfo:::dfree
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { fr += arg0; }
+
+ syscall:::entry
+ /(OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ { sy++; }
+
+ /* 
+  * Print output line
+  */
+ profile:::tick-1sec,
+ dtrace:::END
+ {
+	/* convert to Kbytes */
+	re  *= `_pagesize / 1024;
+	maj *= `_pagesize / 1024;
+	mf  *= `_pagesize / 1024;
+	fr  *= `_pagesize / 1024;
+	epi *= `_pagesize / 1024;
+	epo *= `_pagesize / 1024;
+	api *= `_pagesize / 1024;
+	apo *= `_pagesize / 1024;
+	fpi *= `_pagesize / 1024;
+	fpo *= `_pagesize / 1024;
+
+	/* print line */
+	printf("%6d %5d %5d %4d %4d %4d %4d %4d %4d %4d %6d\n",
+	    re, maj, mf, fr, epi, epo, api, apo, fpi, fpo, sy);
+
+	/* clear counters */
+	epi = 0; epo = 0; api = 0; apo = 0; fpi = 0; fpo = 0;
+	re = 0; mf = 0; maj = 0; fr = 0; sy = 0;
+ }
+'
+
+### Run DTrace
+if [ $opt_command -eq 1 ]; then
+        /usr/sbin/dtrace -n "$dtrace" -x evaltime=exec -c "$command" >&2
+else
+        /usr/sbin/dtrace -n "$dtrace" >&2
+fi
+
