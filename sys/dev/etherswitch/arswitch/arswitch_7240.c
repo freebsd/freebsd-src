@@ -64,10 +64,6 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
-/* XXX belongs in arswitch_7240_reg.h */
-
-#define	AR7240_REG_TAG_PRIORITY		0x70
-
 /*
  * AR7240 specific functions
  */
@@ -96,14 +92,20 @@ ar7240_hw_global_setup(struct arswitch_softc *sc)
 {
 
 	/* Setup TAG priority mapping */
-	arswitch_writereg(sc->sc_dev, AR7240_REG_TAG_PRIORITY, 0xfa50);
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_TAG_PRIO, 0xfa50);
 
-	/* MTU */
+	/* Enable broadcast frames transmitted to the CPU */
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_FLOOD_MASK,
+	    AR8X16_FLOOD_MASK_BCAST_TO_CPU | 0x003f003f);
+
+	/* Setup MTU */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_GLOBAL_CTRL,
 	    AR7240_GLOBAL_CTRL_MTU_MASK,
 	    SM(1536, AR7240_GLOBAL_CTRL_MTU_MASK));
 
-	/* XXX Service Tag */
+	/* Service Tag */
+	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_SERVICE_TAG,
+	    AR8X16_SERVICE_TAG_MASK, 0);
 
 	return (0);
 }
