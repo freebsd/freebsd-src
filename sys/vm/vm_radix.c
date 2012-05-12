@@ -638,15 +638,37 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 			if (end != 0 && start >= end)
 				goto out;
 			val = vm_radix_match(rnode->rn_child[slot], color);
-			if (val == NULL)
+			if (val == NULL) {
+
+				/*
+				 * The start address can wrap at the
+				 * VM_RADIX_MAXVAL value.
+				 * We need to make sure that start address
+				 * point to the next chunk (even if wrapping)
+				 * to stay consistent with default scanning
+				 * behaviour. Also, because of the nature
+				 * of the wrapping, the wrap up checks must
+				 * be done after all the necessary controls
+				 * on start are completed.
+				 */
+				if ((VM_RADIX_MAXVAL - start) == 0) {
+					start++;
+					goto out;
+				}
 				continue;
+			}
 			CTR4(KTR_VM,
 			    "lookupn: tree %p index %ju slot %d found child %p",
 			    rtree, (uintmax_t)start, slot, val);
 			out[outidx] = val;
 			if (++outidx == cnt)
 				goto out;
-		}
+			if ((VM_RADIX_MAXVAL - start) == 0) {
+				start++;
+				goto out;
+			}
+		} 
+		MPASS((VM_RADIX_MAXVAL - start) != 0);
 		if (end != 0 && start >= end)
 			break;
 	}
@@ -655,6 +677,7 @@ out:
 	return (outidx);
 }
 
+#if 0
 void
 vm_radix_foreach(struct vm_radix *rtree, vm_pindex_t start, vm_pindex_t end,
     int color, void (*iter)(void *))
@@ -678,6 +701,7 @@ vm_radix_foreach(struct vm_radix *rtree, vm_pindex_t start, vm_pindex_t end,
 			return;
 	}
 }
+#endif
 
 
 /*
