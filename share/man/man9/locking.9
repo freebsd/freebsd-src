@@ -280,7 +280,7 @@ This is often a bad idea because it generally relies on the programmer having
 good knowledge of all of the call graph above the place where
 .Fn mtx_sleep
 is being called and assumptions the calling code has made.
-Because the lock gets dropped during sleep, one one must re-test all
+Because the lock gets dropped during sleep, one must re-test all
 the assumptions that were made before, all the way up the call graph to the
 place where the lock was acquired.
 .Pp
