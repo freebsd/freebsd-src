@@ -265,8 +265,6 @@ struct sctp_paramhdr {
 #define SCTP_PEELOFF                    0x0000800a
 /* the real worker for sctp_getaddrlen() */
 #define SCTP_GET_ADDR_LEN               0x0000800b
-/* temporary workaround for Apple listen() issue, no args used */
-#define SCTP_LISTEN_FIX			0x0000800c
 /* Debug things that need to be purged */
 #define SCTP_SET_INITIAL_DBG_SEQ	0x00009f00
 
@@ -526,7 +524,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_RECVASSOCEVNT     0x00000800
 #define SCTP_PCB_FLAGS_RECVPADDREVNT     0x00001000
 #define SCTP_PCB_FLAGS_RECVPEERERR       0x00002000
-#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT  0x00004000
+#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT  0x00004000	/* deprecated */
 #define SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT  0x00008000
 #define SCTP_PCB_FLAGS_ADAPTATIONEVNT    0x00010000
 #define SCTP_PCB_FLAGS_PDAPIEVNT         0x00020000
@@ -542,6 +540,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_RECVNXTINFO       0x10000000
 #define SCTP_PCB_FLAGS_ASSOC_RESETEVNT   0x20000000
 #define SCTP_PCB_FLAGS_STREAM_CHANGEEVNT 0x40000000
+#define SCTP_PCB_FLAGS_RECVNSENDFAILEVNT 0x80000000
 
 /*-
  * mobility_features parameters (by micchie).Note

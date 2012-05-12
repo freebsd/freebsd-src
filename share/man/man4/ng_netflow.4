@@ -218,7 +218,7 @@ struct ng_netflow_settemtu {
 };
 .Ed
 .Pp
-Default is 1500 bytes
+Default is 1500 bytes.
 .It Dv NGM_NETFLOW_SHOW
 This control message asks a node to dump the entire contents of the flow cache.
 It is called from
@@ -284,7 +284,7 @@ node in this example is connected to
 The latter sends us a copy of IP packets, which we analyze and free.
 On
 .Va fxp0:
-we do not use tee, but send packets back to ether node.
+we do not use tee, but send packets back to either node.
 .Bd -literal -offset indent
 /usr/sbin/ngctl -f- <<-SEQ
 	# connect ng0's tee to iface0 hook

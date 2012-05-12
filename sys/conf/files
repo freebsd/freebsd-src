@@ -1759,6 +1759,7 @@ dev/puc/pucdata.c		optional puc pci
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
+dev/ral/rt2860.c		optional ral
 dev/ral/if_ral_pci.c		optional ral pci
 rt2561fw.c			optional rt2561fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561.fw:rt2561fw -mrt2561 -c${.TARGET}" \
@@ -3688,3 +3689,16 @@ dev/xen/xenpci/evtchn.c         optional xenpci
 dev/etherswitch/mdio_if.m	optional miiproxy
 dev/etherswitch/mdio.c		optional miiproxy
 dev/etherswitch/miiproxy.c	optional miiproxy
+
+dev/etherswitch/etherswitch.c	optional etherswitch
+dev/etherswitch/etherswitch_if.m	optional etherswitch
+
+dev/etherswitch/rtl8366/rtl8366rb.c		optional rtl8366rb
+
+dev/etherswitch/arswitch/arswitch.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_reg.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_phy.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch

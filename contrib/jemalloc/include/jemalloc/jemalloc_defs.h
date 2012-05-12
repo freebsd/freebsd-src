@@ -105,11 +105,27 @@
 /* Defined if __attribute__((...)) syntax is supported. */
 #define JEMALLOC_HAVE_ATTR 
 #ifdef JEMALLOC_HAVE_ATTR
-#  define JEMALLOC_CATTR(s, a) __attribute__((s))
-#  define JEMALLOC_ATTR(s) JEMALLOC_CATTR(s,)
+#  define JEMALLOC_ATTR(s) __attribute__((s))
+#  define JEMALLOC_EXPORT JEMALLOC_ATTR(visibility("default"))
+#  define JEMALLOC_ALIGNED(s) JEMALLOC_ATTR(aligned(s))
+#  define JEMALLOC_SECTION(s) JEMALLOC_ATTR(section(s))
+#  define JEMALLOC_NOINLINE JEMALLOC_ATTR(noinline)
+#elif _MSC_VER
+#  define JEMALLOC_ATTR(s)
+#  ifdef DLLEXPORT
+#    define JEMALLOC_EXPORT __declspec(dllexport)
+#  else
+#    define JEMALLOC_EXPORT __declspec(dllimport)
+#  endif
+#  define JEMALLOC_ALIGNED(s) __declspec(align(s))
+#  define JEMALLOC_SECTION(s) __declspec(allocate(s))
+#  define JEMALLOC_NOINLINE __declspec(noinline)
 #else
-#  define JEMALLOC_CATTR(s, a) a
-#  define JEMALLOC_ATTR(s) JEMALLOC_CATTR(s,)
+#  define JEMALLOC_ATTR(s)
+#  define JEMALLOC_EXPORT
+#  define JEMALLOC_ALIGNED(s)
+#  define JEMALLOC_SECTION(s)
+#  define JEMALLOC_NOINLINE
 #endif
 
 /* Defined if sbrk() is supported. */
@@ -178,11 +194,17 @@
 
 /*
  * If defined, use munmap() to unmap freed chunks, rather than storing them for
- * later reuse.  This is automatically disabled if configuration determines
- * that common sequences of mmap()/munmap() calls will cause virtual memory map
- * holes.
+ * later reuse.  This is disabled by default on Linux because common sequences
+ * of mmap()/munmap() calls will cause virtual memory map holes.
  */
 #define JEMALLOC_MUNMAP 
+
+/*
+ * If defined, use mremap(...MREMAP_FIXED...) for huge realloc().  This is
+ * disabled by default because it is Linux-specific and it will cause virtual
+ * memory map holes, much like munmap(2) does.
+ */
+/* #undef JEMALLOC_MREMAP */
 
 /* TLS is used to map arenas and magazine caches to threads. */
 #define JEMALLOC_TLS 
@@ -205,9 +227,6 @@
  */
 /* #undef JEMALLOC_ZONE */
 /* #undef JEMALLOC_ZONE_VERSION */
-
-/* If defined, use mremap(...MREMAP_FIXED...) for huge realloc(). */
-/* #undef JEMALLOC_MREMAP_FIXED */
 
 /*
  * Methods for purging unused pages differ between operating systems.

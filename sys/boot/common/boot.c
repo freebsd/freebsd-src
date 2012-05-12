@@ -311,12 +311,12 @@ getrootmount(char *rootdev)
     if (getenv("vfs.root.mountfrom") != NULL)
 	return(0);
 
+    error = 1;
     sprintf(lbuf, "%s/etc/fstab", rootdev);
     if ((fd = open(lbuf, O_RDONLY)) < 0)
-	return(1);
+	goto notfound;
 
     /* loop reading lines from /etc/fstab    What was that about sscanf again? */
-    error = 1;
     while (fgetstr(lbuf, sizeof(lbuf), fd) >= 0) {
 	if ((lbuf[0] == 0) || (lbuf[0] == '#'))
 	    continue;
@@ -377,6 +377,20 @@ getrootmount(char *rootdev)
 	break;
     }
     close(fd);
+
+notfound:
+    if (error) {
+	const char *currdev;
+
+	currdev = getenv("currdev");
+	if (currdev != NULL && strncmp("zfs:", currdev, 4) == 0) {
+	    cp = strdup(currdev);
+	    cp[strlen(cp) - 1] = '\0';
+	    setenv("vfs.root.mountfrom", cp, 0);
+	    error = 0;
+	}
+    }
+
     return(error);
 }
 
