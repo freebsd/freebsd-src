@@ -1,0 +1,45 @@
+The following is a demonstration of the sysbypid.d command,
+
+   # sysbypid.d 
+   Tracing... Hit Ctrl-C to end.
+   ^C
+               EXEC      PID                    SYS    VALUE
+              xterm    24030                  rawch        1
+              sched        0                 rcvint        1
+            fsflush        3                pswitch        1
+             dtrace    19235              inv_swtch        1
+              xterm    24030               syswrite        2
+               Xorg     3597               syswrite        2
+              xterm    24030              inv_swtch        2
+             dtrace    19235                pswitch        2
+             dtrace    19235               syswrite        2
+        soffice.bin     4019                pswitch        3
+              xterm    24030                pswitch        3
+        mozilla-bin     3730              inv_swtch        4
+              xterm    24030                sysread        4
+        mozilla-bin     3730                 readch        9
+        mozilla-bin     3730                sysread        9
+               Xorg     3597                pswitch       10
+               Xorg     3597                sysread       11
+        mozilla-bin     3730               syswrite       13
+            java_vm    28209                pswitch       13
+              sched        0                pswitch       15
+        mozilla-bin     3730                pswitch       25
+         setiathome     3929                   trap       26
+         setiathome     3929                pswitch       26
+         setiathome     3929              inv_swtch       26
+             dtrace    19235                writech       32
+             dtrace    19235                  outch       34
+             dtrace    19235                   trap       53
+               Xorg     3597                writech       64
+              xterm    24030                 readch       96
+              xterm    24030                writech      133
+        mozilla-bin     3730                writech      905
+               Xorg     3597                 readch     1044
+
+In the above output, the Xorg command with PID 3597 read 1044 bytes, as 
+indicated by readch.
+
+mozilla-bin with PID 3730 wrote 905 bytes, as indicated by the writech.
+
+

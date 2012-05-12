@@ -1,0 +1,99 @@
+.TH shellsnoop 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+shellsnoop \- snoop live shell activity. Uses DTrace.
+.SH SYNOPSIS
+.B shellsnoop
+[\-hqsv] [\-p PID] [\-u UID]
+.SH DESCRIPTION
+A program to print read/write details from shells,
+such as keystrokes and command outputs.
+
+This program sounds somewhat dangerous (snooping keystrokes), but is
+no more so than /usr/bin/truss, and both need root or dtrace privileges to
+run. In fact, less dangerous, as we only print visible text (not password
+text, for example). Having said that, it goes without saying that this
+program shouldn't be used for breeching privacy of other users.
+
+This was written as a tool to demonstrate the capabilities of DTrace.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - this script uses the syscall provider.
+.SH OPTIONS
+.TP
+\-q
+quiet, only print data
+.TP
+\-s
+include start time, us
+.TP
+\-v
+include start time, string
+.TP
+\-p PID
+PID to snoop
+.TP
+\-u UID
+user ID to snoop
+.PP
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B shellsnoop
+.TP
+human readable timestamps,
+# 
+.B shellsnoop
+\-v
+.TP
+watch this PID only,
+#
+.B shellsnoop
+\-p 1892
+.TP
+watch this PID data only,
+#
+.B shellsnoop
+\-qp 1892
+.PP
+.SH FIELDS
+.TP
+UID
+user ID
+.TP
+PID
+process ID
+.TP
+PPID
+parent process ID
+.TP
+COMM
+command name
+.TP
+DIR
+direction (R read, W write)
+.TP
+TEXT
+text contained in the read/write
+.TP
+TIME
+timestamp for the command, us
+.TP
+STRTIME
+timestamp for the command, string
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+shellsnoop will run forever until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M)
