@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
  * PCI/Cardbus front-end for the Broadcom Wireless LAN controller driver.
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/module.h>
