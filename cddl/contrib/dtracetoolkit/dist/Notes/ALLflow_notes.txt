@@ -1,0 +1,64 @@
+**************************************************************************
+* Notes for all scripts that print a function or method flow.
+*
+* $Id: ALLflow_notes.txt 44 2007-09-17 07:47:20Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+
+* What is a flow?
+
+Output that has some meaningful indent, such as function flow indented by
+stack depth. eg,
+
+   # ./pl_flow.d 
+     C TIME(us)          FILE             -- SUB
+     0 2963130861619     func_abc.pl      -> func_a
+     0 2963131870998     func_abc.pl        -> func_b
+     0 2963132871121     func_abc.pl          -> func_c
+     0 2963133881150     func_abc.pl          <- func_c
+     0 2963133881166     func_abc.pl        <- func_b
+     0 2963133881174     func_abc.pl      <- func_a
+   ^C
+
+
+* The output looks shuffled?
+
+Eg,
+
+   # ./pl_flow.d 
+     C TIME(us)          FILE             -- SUB
+     0 2963130861619     func_abc.pl      -> func_a
+     0 2963131870998     func_abc.pl        -> func_b
+     0 2963132871121     func_abc.pl          -> func_c
+     0 2963133881166     func_abc.pl        <- func_b
+     0 2963133881174     func_abc.pl      <- func_a
+     1 2963133881150     func_abc.pl          <- func_c
+   ^C
+
+Yes, this is shuffled. DTrace has been designed with a number of important
+goals in mind - including minimising the enabled performance overhead. To do
+this, per-CPU kernel buffers have been used to collect output, which are
+(currently) dumped in sequence by /usr/sbin/dtrace whenever it wakes
+up ("switchrate" tunable). So, on multi-CPU servers, there is always the
+possibility that any DTrace script can print out-of-order data.
+
+To deal with this behaviour, the flow scripts may,
+
+- print a "C" CPU column. If this changes from one line to the next then
+  the output is probably shuffled around that point. This is why the "C"
+  column appears in these flow scripts.
+- print a "TIME(us)" column. You can eyeball this for shuffles, or just
+  post sort the dtrace output.
+
+Now have a closer look at the pl_flow.d output above. The change in C 
+indicates that a shuffle may have happened, and the out-of-order TIME(us)
+shows that it did happen.
+
+It is possible that DTrace will be enhanced to always sort output before
+printing, and this behaviour is no longer an issue.
+
+See "The output seems shuffled?" in Notes/ALLsnoop_notes.txt for more
+notes on this behaviour.
+

@@ -1,0 +1,98 @@
+.TH dappprof 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+dappprof \- profile user and lib function usage. Uses DTrace.
+.SH SYNOPSIS
+.B dappprof
+[\-acehoTU] [\-u lib] { \-p PID | command }
+.SH DESCRIPTION
+dappprof prints details on user and library call times for processes
+as a summary style aggragation. By default the user fuctions are
+traced, options can be used to trace library activity. Output can
+include function counts, elapsed times and on cpu times.
+
+The elapsed times are interesting, to help identify functions
+that take some time to complete (during which the process may
+have slept). CPU time helps us identify syscalls that
+are consuming CPU cycles to run.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the pid provider.
+.SH OPTIONS
+.TP
+\-a
+print all data
+.TP
+\-c
+print function counts
+.TP
+\-e
+print elapsed times, ns
+.TP
+\-o
+print CPU times, ns
+.TP
+\-T
+print totals
+.TP
+\-p PID
+examine this PID
+.TP
+\-u lib
+trace this library instead
+.TP
+\-U
+trace all library and user functions
+.PP
+.SH EXAMPLES
+.TP
+run and examine the "df \-h" command,
+# 
+.B dappprof
+df \-h
+.PP
+.TP
+print elapsed times, on-cpu times and counts for "df \-h",
+#
+.B dappprof
+-ceo df \-h
+.TP
+print elapsed times for PID 1871,
+# 
+.B dappprof
+\-p 1871
+.PP
+.TP
+print all data for PID 1871,
+#
+.B dappprof
+\-ap 1871
+.PP
+.SH FIELDS
+.TP
+CALL
+Function call name
+.TP
+ELAPSED
+Total elapsed time, nanoseconds
+.TP
+CPU
+Total on-cpu time, nanoseconds
+.TP
+COUNT
+Number of occurrences
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+dappprof will sample until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dapptrace(1M), dtrace(1M), apptrace(1)
+

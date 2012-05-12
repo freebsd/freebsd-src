@@ -1,0 +1,154 @@
+.TH iotop 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+iotop \- display top disk I/O events by process. Uses DTrace.
+.SH SYNOPSIS
+.B iotop
+[\-C] [\-D|\-o|\-P] [\-j|\-Z] [\-d device] [\-f filename]
+[\-m mount_point] [\-t top] [interval [count]]
+.SH DESCRIPTION
+iotop tracks disk I/O by process, and prints a summary report that
+is refreshed every interval.
+
+This is measuring disk events that have made it past system caches.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the io provider.
+.SH OPTIONS
+.TP
+\-C
+don't clear the screen
+.TP
+\-D
+print delta times - elapsed, us
+.TP
+\-j
+print project ID
+.TP
+\-o
+print disk delta times, us
+.TP
+\-P
+print %I/O (disk delta times)
+.TP
+\-Z
+print zone ID
+.TP
+\-d device
+instance name to snoop (eg, dad0)
+.TP
+\-f filename
+full pathname of file to snoop
+.TP
+\-m mount_point
+mountpoint for filesystem to snoop
+.TP
+\-t top
+print top number only
+.PP
+.SH EXAMPLES
+.TP
+Default output, print summary every 5 seconds
+# 
+.B iotop
+.PP
+.TP
+One second samples,
+# 
+.B iotop
+1
+.PP
+.TP
+print %I/O (time based),
+#
+.B iotop
+\-P
+.PP
+.TP
+Snoop events on the root filesystem only,
+#
+.B iotop
+\-m /
+.TP
+Print top 20 lines only,
+#
+.B iotop
+\-t 20
+.TP
+Print 12 x 5 second samples, scrolling,
+#
+.B iotop
+\-C 5 12
+.PP
+.SH FIELDS
+.TP
+UID
+user ID
+.TP
+PID
+process ID
+.TP
+PPID
+parent process ID
+.TP
+PROJ
+project ID
+.TP
+ZONE
+zone ID
+.TP
+CMD
+command name for the process
+.TP
+DEVICE
+device name
+.TP
+MAJ
+device major number
+.TP
+MIN
+device minor number
+.TP
+D
+direction, Read or Write
+.TP
+BYTES
+total size of operations, bytes
+.TP
+ELAPSED
+total elapsed times from request to completion, us (this is the elapsed 
+time from the disk request (strategy) to the disk completion (iodone))
+.TP
+DISKTIME
+total times for disk to complete request, us (this is the time for the 
+disk to complete that event since it's last event (time between iodones),
+or, the time to the strategy if the disk had been idle)
+.TP
+%I/O
+percent disk I/O, based on time (DISKTIME)
+.TP
+load
+1 minute load average
+.TP
+disk_r
+total disk read Kb for sample
+.TP
+disk_w
+total disk write Kb for sample
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+iotop will run forever until Ctrl\-C is hit, or the specified
+interval is reached.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+iosnoop(1M), dtrace(1M)
+

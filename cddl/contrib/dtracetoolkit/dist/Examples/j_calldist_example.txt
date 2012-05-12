@@ -1,0 +1,247 @@
+This is an example of j_calldist.d showing the elapsed times for different
+types of Java operations.
+
+This traces activity from all Java processes on the system with hotspot
+provider support (1.6.0), and produces the output in graphical format, showing
+a histogram of the amount of time taken by each call. Method calls are only 
+visible when using the flag "+ExtendedDTraceProbes". eg, 
+java -XX:+ExtendedDTraceProbes classfile
+
+Because of the extensive results returned otherwise, this script will show you
+a configurable number of results in each section.  The default (as in this
+example) is ten.
+
+Here we see it tracing the activity of Code/Java/Func_abc.
+
+# j_calldist.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Top 10 elapsed times (us),
+
+Top 10 exclusive method elapsed times (us),
+   PID=311342, method, sun/net/www/ParseUtil.decode 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@                            3        
+             512 |                                         0        
+            1024 |@@@@@@@@@@@@@@@@@@@@@@                   5        
+            2048 |@@@@                                     1        
+            4096 |                                         0        
+
+   PID=311342, method, java/net/URLClassLoader.<clinit> 
+           value  ------------- Distribution ------------- count    
+            4096 |                                         0        
+            8192 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+           16384 |                                         0        
+
+   PID=311342, method, java/util/jar/JarFile.hasClassPathAttribute 
+           value  ------------- Distribution ------------- count    
+            4096 |                                         0        
+            8192 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+           16384 |                                         0        
+
+   PID=311342, method, java/util/zip/ZipFile.read 
+           value  ------------- Distribution ------------- count    
+            4096 |                                         0        
+            8192 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+           16384 |                                         0        
+
+   PID=311342, method, sun/nio/cs/US_ASCII.newEncoder 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |                                         0        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |@@@@@@@@@@@@@@@@@@@@                     1        
+           16384 |                                         0        
+
+   PID=311342, method, java/util/zip/ZipFile.getInputStream 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@                     1        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |@@@@@@@@@@@@@@@@@@@@                     1        
+           16384 |                                         0        
+
+   PID=311342, method, sun/nio/cs/US_ASCII.newDecoder 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@                               1        
+              16 |@@@@@@@@@@@@@@@@@@@@                     2        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |@@@@@@@@@@                               1        
+           16384 |                                         0        
+
+   PID=311342, method, java/util/HashMap.<init> 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@                           8        
+              16 |@@@@@@@@@@@@@@@@                         9        
+              32 |@@@@@@@@@                                5        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |@@                                       1        
+           16384 |                                         0        
+
+   PID=311342, method, java/io/UnixFileSystem.normalize 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@                                        1        
+              16 |                                         0        
+              32 |                                         0        
+              64 |@@@@@@@@@                                8        
+             128 |@@@@@@@@@@@@@                            11       
+             256 |@@@@@@                                   5        
+             512 |@@@@@@@@@                                8        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |@                                        1        
+            8192 |                                         0        
+
+   PID=311342, method, java/lang/Thread.sleep 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+         1048576 |                                         0        
+
+
+Top 10 inclusive method elapsed times (us),
+   PID=311342, method, java/net/URLClassLoader$1.run 
+           value  ------------- Distribution ------------- count    
+            8192 |                                         0        
+           16384 |@@@@@@@@@@@@@@@@@@@@                     1        
+           32768 |                                         0        
+           65536 |@@@@@@@@@@@@@@@@@@@@                     1        
+          131072 |                                         0        
+
+   PID=311342, method, java/net/URLClassLoader.findClass 
+           value  ------------- Distribution ------------- count    
+            8192 |                                         0        
+           16384 |@@@@@@@@@@@@@@@@@@@@                     1        
+           32768 |                                         0        
+           65536 |@@@@@@@@@@@@@@@@@@@@                     1        
+          131072 |                                         0        
+
+   PID=311342, method, sun/misc/URLClassPath.getLoader 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@                                      1        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |@@@@@@                                   2        
+            4096 |@@@@@@@@@@@@@@@@@@@@@@@@@                8        
+            8192 |                                         0        
+           16384 |@@@                                      1        
+           32768 |                                         0        
+           65536 |@@@                                      1        
+          131072 |                                         0        
+
+   PID=311342, method, java/lang/ClassLoader.loadClass 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@                                6        
+             256 |@@@@@@@@@@@@@@@@@@@@@@                   15       
+             512 |@@@@                                     3        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |                                         0        
+           16384 |                                         0        
+           32768 |                                         0        
+           65536 |@@@@                                     3        
+          131072 |                                         0        
+
+   PID=311342, method, java/security/AccessController.doPrivileged 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@                                       2        
+              32 |@                                        1        
+              64 |@@@@                                     4        
+             128 |@@@@@@@@@@@@@@@@                         17       
+             256 |@                                        1        
+             512 |@@@@                                     4        
+            1024 |@@                                       2        
+            2048 |@                                        1        
+            4096 |@@@@@@                                   6        
+            8192 |@                                        1        
+           16384 |@@                                       2        
+           32768 |                                         0        
+           65536 |@@                                       2        
+          131072 |                                         0        
+
+   PID=311342, method, Func_abc.func_c 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         1048576 |                                         0        
+
+   PID=311342, method, Func_abc.func_b 
+           value  ------------- Distribution ------------- count    
+          524288 |                                         0        
+         1048576 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         2097152 |                                         0        
+
+   PID=311342, method, java/lang/Thread.sleep 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+         1048576 |                                         0        
+
+   PID=311342, method, Func_abc.func_a 
+           value  ------------- Distribution ------------- count    
+         1048576 |                                         0        
+         2097152 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         4194304 |                                         0        
+
+   PID=311342, method, Func_abc.main 
+           value  ------------- Distribution ------------- count    
+         1048576 |                                         0        
+         2097152 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         4194304 |                                         0        
+
+The elapsed times section is empty.  It would show us anything that is not a 
+Java method - garbage collection for example.  However there was nothing of
+the kind in this example. 
+
+The exclusive method elapsed times show us the time spent in the top ten most
+time consuming methods, not including time spent in subroutines called by 
+those methods.
+
+The inclusive method elapsed times show us the time spent in the top ten most 
+time consuming methods including time spent in subroutines called by those 
+methods.
+
+It is important to pay close attention to the third column, "count" as this
+will indicate if there were any instances in a particular timeframe, even if
+the number is too small to show up on the histogram clearly.

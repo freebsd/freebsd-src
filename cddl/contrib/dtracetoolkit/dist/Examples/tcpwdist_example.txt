@@ -1,0 +1,70 @@
+The following is a demonstration of the tcpwdist.d script.
+
+
+Here the tcpwdist.d script is run for a few seconds then Ctrl-C is hit,
+
+   # tcpwdist.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+    PID: 15300  CMD: finger @mars\0
+   
+              value  ------------- Distribution ------------- count
+                 -1 |                                         0
+                  0 |@@@@@@@@@@@@@@@@@@@@                     1
+                  1 |                                         0
+                  2 |@@@@@@@@@@@@@@@@@@@@                     1
+                  4 |                                         0
+   
+    PID: 4967   CMD: /usr/lib/ssh/sshd\0
+   
+              value  ------------- Distribution ------------- count
+                 16 |                                         0
+                 32 |@@@@@@@@@@@@@@@@@@@@                     1
+                 64 |@@@@@@@@@@@@@@@@@@@@                     1
+                128 |                                         0
+   
+    PID: 9172   CMD: /usr/lib/ssh/sshd\0
+   
+              value  ------------- Distribution ------------- count
+                 16 |                                         0
+                 32 |@@@@@@@@                                 4
+                 64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            14
+                128 |                                         0
+                256 |                                         0
+                512 |@@                                       1
+               1024 |                                         0
+   
+    PID: 15301  CMD: rcp 1Mb.gz mars:/tmp\0
+   
+              value  ------------- Distribution ------------- count
+                  0 |                                         0
+                  1 |@                                        2
+                  2 |@                                        1
+                  4 |                                         0
+                  8 |@                                        2
+                 16 |@                                        2
+                 32 |                                         0
+                 64 |                                         0
+                128 |                                         0
+                256 |                                         0
+                512 |                                         0
+               1024 |                                         0
+               2048 |                                         0
+               4096 |                                         0
+               8192 |                                         0
+              16384 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     64
+              32768 |                                         0
+
+In the above output we can see the "rcp" command dominates, sending 
+large writes (16 to 31 Kb) 64 times. The "sshd" ssh daemons each sent
+several smaller writes, from 32 to 127 bytes - which corresponds to 
+command line activity (eg, screen width of 80 bytes). The finger command
+sent 2 bytes once, and zero data bytes once.
+
+These values are the TCP write payload sizes.
+
+The writes from the "rcp" command seem unusual at over 16 Kb each, when
+this is an Ethernet network with an MTU of 1500 bytes. The reason is that
+at this point the data has not yet been broken down into MTU sized packets,
+so we are looking at the applications behaviour as it writes to TCP.
+
