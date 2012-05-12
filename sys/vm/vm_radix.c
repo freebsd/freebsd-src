@@ -95,7 +95,7 @@
  */
 #ifdef KTR
 #define	KFRMT64(x)	__STRING(x)"l 0x%08lx, "__STRING(x)"h 0x%08lx"
-#define	KSPLT64L(x)	(u_long)((x) & 0xFFFFFFFF)
+#define	KSPLT64L(x)	((u_long)((x) & 0xFFFFFFFF))
 #define	KSPLT64H(x)	((u_long)(((x) >> 32) & 0xFFFFFFFF))
 #endif
 
