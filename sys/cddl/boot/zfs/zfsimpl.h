@@ -1327,5 +1327,5 @@ typedef struct spa {
 	struct uberblock spa_uberblock;	/* best uberblock so far */
 	vdev_list_t	spa_vdevs;	/* list of all toplevel vdevs */
 	objset_phys_t	spa_mos;	/* MOS for this pool */
-	objset_phys_t	spa_root_objset; /* current mounted ZPL objset */
+	int		spa_inited;	/* initialized */
 } spa_t;
