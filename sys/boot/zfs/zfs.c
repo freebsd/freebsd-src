@@ -433,8 +433,8 @@ zfs_dev_open_spa(struct open_file *f, spa_t *spa, uint64_t root_guid)
 		return (rv);
 	}
 	if (mount->objset.os_type != DMU_OST_ZFS) {
-		printf("Unexpected object set type %llu\n",
-		    mount->objset.os_type);
+		printf("Unexpected object set type %ju\n",
+		    (uintmax_t)mount->objset.os_type);
 		free(mount);
 		return (EIO);
 	}

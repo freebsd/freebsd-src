@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/stat.h>
+#include <sys/stdint.h>
 
 #include "zfsimpl.h"
 #include "zfssubr.c"
@@ -290,7 +291,7 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 		case DATA_TYPE_UINT64: {
 			uint64_t val;
 			xdr_uint64_t(&p, &val);
-			printf(" = 0x%llx\n", val);
+			printf(" = 0x%jx\n", (uintmax_t)val);
 			break;
 		}
 
@@ -350,7 +351,7 @@ vdev_read_phys(vdev_t *vdev, const blkptr_t *bp, void *buf,
 		psize = size;
 	}
 
-	/*printf("ZFS: reading %d bytes at 0x%llx to %p\n", psize, offset, buf);*/
+	/*printf("ZFS: reading %d bytes at 0x%jx to %p\n", psize, (uintmax_t)offset, buf);*/
 	rc = vdev->v_phys_read(vdev, vdev->v_read_priv, offset, buf, psize);
 	if (rc)
 		return (rc);
@@ -1375,7 +1376,7 @@ mzap_list(spa_t *spa, const dnode_phys_t *dnode)
 	for (i = 0; i < chunks; i++) {
 		mze = &mz->mz_chunk[i];
 		if (mze->mze_name[0])
-			//printf("%-32s 0x%llx\n", mze->mze_name, mze->mze_value);
+			//printf("%-32s 0x%jx\n", mze->mze_name, (uintmax_t)mze->mze_value);
 			printf("%s\n", mze->mze_name);
 	}
 
@@ -1449,7 +1450,7 @@ fzap_list(spa_t *spa, const dnode_phys_t *dnode)
 			 */
 			value = fzap_leaf_value(&zl, zc);
 
-			printf("%s 0x%llx\n", name, value);
+			printf("%s 0x%jx\n", name, (uintmax_t)value);
 		}
 	}
 
@@ -1649,7 +1650,7 @@ zfs_rlookup(spa_t *spa, uint64_t objnum, char *result)
 	*p = '\0';
 
 	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
-		printf("ZFS: can't find dataset %llu\n", objnum);
+		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
 		return (EIO);
 	}
 	ds = (dsl_dataset_phys_t *)&dataset.dn_bonus;
@@ -1751,13 +1752,14 @@ zfs_mount_dataset(spa_t *spa, uint64_t objnum, objset_phys_t *objset)
 	dsl_dataset_phys_t *ds;
 
 	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
-		printf("ZFS: can't find dataset %llu\n", objnum);
+		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
 		return (EIO);
 	}
 
 	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
 	if (zio_read(spa, &ds->ds_bp, objset)) {
-		printf("ZFS: can't read object set for dataset %llu\n", objnum);
+		printf("ZFS: can't read object set for dataset %ju\n",
+		    (uintmax_t)objnum);
 		return (EIO);
 	}
 
@@ -1921,8 +1923,8 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 
 	spa = mount->spa;
 	if (mount->objset.os_type != DMU_OST_ZFS) {
-		printf("ZFS: unexpected object set type %llu\n",
-		       mount->objset.os_type);
+		printf("ZFS: unexpected object set type %ju\n",
+		    (uintmax_t)mount->objset.os_type);
 		return (EIO);
 	}
 
