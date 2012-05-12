@@ -1,0 +1,268 @@
+#!/usr/bin/sh
+#
+# shellsnoop - A program to print read/write details from shells,
+#	       such as keystrokes and command outputs.
+#	       Written using DTrace (Solaris 10 3/05).
+#
+# This program sounds somewhat dangerous (snooping keystrokes), but is
+# no more so than /usr/bin/truss, and both need root or dtrace privileges to
+# run. In fact, less dangerous, as we only print visible text (not password
+# text, for example). Having said that, it goes without saying that this
+# program shouldn't be used for breeching privacy of other users.
+#
+# This was written as a tool to demonstrate the capabilities of DTrace.
+#
+# $Id: shellsnoop 19 2007-09-12 07:47:59Z brendan $
+#
+# USAGE:	shellsnoop [-hqsv] [-p PID] [-u UID]
+#
+#		-q		# quiet, only print data
+#		-s		# include start time, us
+#		-v		# include start time, string
+#		-p PID		# process ID to snoop
+#		-u UID		# user ID to snoop
+#  eg,
+#		shellsnoop		# default output
+#		shellsnoop -v		# human readable timestamps
+#		shellsnoop -p 1892	# snoop this PID only
+#		shellsnoop -qp 1892	# watch this PID data only
+# 	
+# FIELDS:
+#		UID		User ID
+#		PID		process ID
+#		PPID		parent process ID
+#		COMM		command name
+#		DIR		direction (R read, W write)
+#		TEXT		text contained in the read/write
+#		TIME		timestamp for the command, us
+#		STRTIME		timestamp for the command, string
+#
+# SEE ALSO: ttywatcher
+#
+# COPYRIGHT: Copyright (c) 2005 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 28-Mar-2004	Brendan Gregg	Created this.
+# 21-Jan-2005	   "	  "	Wrapped in sh to provide options.
+# 30-Nov-2005	   "	  "	Fixed trailing buffer text bug.
+# 30-Nov-2005	   "	  "	Fixed sh no keystroke text in quiet bug.
+# 30-Nov-2005	   "	  "	Last update.
+# 
+
+
+##############################
+# --- Process Arguments ---
+#
+opt_pid=0; opt_uid=0; opt_time=0; opt_timestr=0; opt_quiet=0; opt_debug=0
+filter=0; pid=0; uid=0
+
+while getopts dhp:qsu:v name
+do
+	case $name in
+	d)	opt_debug=1 ;;
+	p)	opt_pid=1; pid=$OPTARG ;;
+	q)	opt_quiet=1 ;;
+	s)	opt_time=1 ;;
+	u)	opt_uid=1; uid=$OPTARG ;;
+	v)	opt_timestr=1 ;;
+	h|?)	cat <<-END >&2
+		USAGE: shellsnoop [-hqsv] [-p PID] [-u UID]
+		       shellsnoop		# default output
+		                -q		# quiet, only print data
+		                -s		# include start time, us
+		                -v		# include start time, string
+		                -p PID		# process ID to snoop
+		                -u UID		# user ID to snoop
+		END
+		exit 1
+	esac
+done
+
+if [ $opt_quiet -eq 1 ]; then
+	opt_time=0; opt_timestr=0
+fi
+if [ $opt_pid -eq 1 -o $opt_uid -eq 1 ]; then
+	filter=1
+fi
+
+
+#################################
+# --- Main Program, DTrace ---
+#
+dtrace -n '
+ /*
+  * Command line arguments
+  */
+ inline int OPT_debug 	= '$opt_debug';
+ inline int OPT_quiet 	= '$opt_quiet';
+ inline int OPT_pid 	= '$opt_pid';
+ inline int OPT_uid 	= '$opt_uid';
+ inline int OPT_time 	= '$opt_time';
+ inline int OPT_timestr	= '$opt_timestr';
+ inline int FILTER 	= '$filter';
+ inline int PID 	= '$pid';
+ inline int UID 	= '$uid';
+ 
+ #pragma D option quiet
+ #pragma D option switchrate=20hz
+ 
+ /*
+  * Print header
+  */
+ dtrace:::BEGIN /OPT_time == 1/
+ { 
+ 	printf("%-14s ","TIME");
+ }
+ dtrace:::BEGIN /OPT_timestr == 1/
+ { 
+ 	printf("%-20s ","STRTIME");
+ }
+ dtrace:::BEGIN /OPT_quiet == 0/
+ {
+	printf("%5s %5s %8s %3s  %s\n", "PID", "PPID", "CMD", "DIR", "TEXT");
+ }
+
+ /*
+  * Remember this PID is a shell child
+  */
+ syscall::exec:entry, syscall::exece:entry
+ /execname == "sh"   || execname == "ksh"  || execname == "csh"  || 
+  execname == "tcsh" || execname == "zsh"  || execname == "bash"/
+ {
+	child[pid] = 1;
+ 
+	/* debug */
+	this->parent = (char *)curthread->t_procp->p_parent->p_user.u_comm;
+	OPT_debug == 1 ? printf("PID %d CMD %s started. (%s)\n",
+	    pid, execname, stringof(this->parent)) : 1;
+ }
+ syscall::exec:entry, syscall::exece:entry
+ /(OPT_pid == 1 && PID != ppid) || (OPT_uid == 1 && UID != uid)/
+ {
+	/* forget if filtered */
+	child[pid] = 0;
+ }
+
+ /*
+  * Print shell keystrokes
+  */
+ syscall::write:entry, syscall::read:entry
+ /(execname == "sh"   || execname == "ksh"  || execname == "csh"  ||
+  execname == "tcsh" || execname == "zsh"  || execname == "bash")
+  && (arg0 >= 0 && arg0 <= 2)/
+ {
+	self->buf = arg1;
+ }
+ syscall::write:entry, syscall::read:entry
+ /(OPT_pid == 1 && PID != pid) || (OPT_uid == 1 && UID != uid)/
+ {
+	self->buf = 0;
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && child[pid] == 0 && OPT_time == 1/
+ {
+ 	printf("%-14d ", timestamp/1000);
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && child[pid] == 0 && OPT_timestr == 1/
+ {
+	printf("%-20Y ", walltimestamp);
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && child[pid] == 0 && OPT_quiet == 0/
+ {
+	this->text = (char *)copyin(self->buf, arg0);
+	this->text[arg0] = '\'\\0\'';
+ 
+	printf("%5d %5d %8s %3s  %s\n", pid, curpsinfo->pr_ppid, execname, 
+	    probefunc == "read" ? "R" : "W", stringof(this->text));
+ }
+ syscall::write:return
+ /self->buf && child[pid] == 0 && OPT_quiet == 1/
+ {
+	this->text = (char *)copyin(self->buf, arg0);
+	this->text[arg0] = '\'\\0\'';
+	printf("%s", stringof(this->text));
+ }
+ syscall::read:return
+ /self->buf && execname == "sh" && child[pid] == 0 && OPT_quiet == 1/
+ {
+	this->text = (char *)copyin(self->buf, arg0);
+	this->text[arg0] = '\'\\0\'';
+	printf("%s", stringof(this->text));
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && child[pid] == 0/
+ {
+	self->buf = 0;
+ }
+
+ /*
+  * Print command output
+  */
+ syscall::write:entry, syscall::read:entry
+ /child[pid] == 1 && (arg0 == 1 || arg0 == 2)/
+ {
+	self->buf = arg1;
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && OPT_time == 1/
+ {
+ 	printf("%-14d ", timestamp/1000);
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && OPT_timestr == 1/
+ {
+	printf("%-20Y ", walltimestamp);
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && OPT_quiet == 0/
+ {
+	this->text = (char *)copyin(self->buf, arg0);
+	this->text[arg0] = '\'\\0\'';
+ 
+	printf("%5d %5d %8s %3s  %s", pid, curpsinfo->pr_ppid, execname,
+	    probefunc == "read" ? "R" : "W", stringof(this->text));
+ 
+	/* here we check if a newline is needed */
+	this->length = strlen(this->text);
+	printf("%s", this->text[this->length - 1] == '\'\\n\'' ? "" : "\n");
+	self->buf = 0;
+ }
+ syscall::write:return, syscall::read:return
+ /self->buf && OPT_quiet == 1/
+ {
+	this->text = (char *)copyin(self->buf, arg0);
+	this->text[arg0] = '\'\\0\'';
+	printf("%s", stringof(this->text));
+	self->buf = 0;
+ }
+
+ /*
+  *  Cleanup
+  */
+ syscall::rexit:entry
+ {
+	child[pid] = 0;
+
+	/* debug */
+	this->parent = (char *)curthread->t_procp->p_parent->p_user.u_comm;
+	OPT_debug == 1 ? printf("PID %d CMD %s exited. (%s)\n",
+	 pid, execname, stringof(this->parent)) : 1;
+ }
+'

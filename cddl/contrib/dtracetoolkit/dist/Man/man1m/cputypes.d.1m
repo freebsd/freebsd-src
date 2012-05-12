@@ -1,0 +1,54 @@
+.TH cputypes.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+cputypes.d \- list CPU types. Uses DTrace.
+.SH SYNOPSIS
+.B cputypes.d
+.SH DESCRIPTION
+This program lists CPU type information for the online CPUs 
+in the system.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable.
+.SH EXAMPLES
+.TP
+List CPU types,
+# 
+.B cputypes.d
+.PP
+.SH FIELDS
+.TP
+CPU
+CPU ID
+.TP
+CHIP
+chip ID
+.TP
+PSET
+processor set ID
+.TP
+LGRP
+latency group ID
+.TP
+CLOCK
+clock speed, MHz
+.TP
+TYPE
+CPU type
+.TP
+FPU
+floating point identifier type
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+psrinfo(1M), dtrace(1M)
+

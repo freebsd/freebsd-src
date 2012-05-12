@@ -1,0 +1,20 @@
+The following is a demonstration of the minfbypid.d script,
+
+
+Here we run it for a few seconds then hit Ctrl-C,
+
+   # minfbypid.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+      PID CMD                     MINFAULTS
+    11021 dtrace                         54
+    11023 ls                             56
+    11024 df                             57
+    11023 bash                           75
+    11022 bash                           75
+    11024 bash                           76
+    11022 find                           91
+
+In the above output, we can see that each of the bash shells had about 75
+minor faults each. Minor faults are an indication of memory consumption.
+
