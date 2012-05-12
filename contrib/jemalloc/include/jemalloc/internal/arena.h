@@ -93,13 +93,13 @@ struct arena_chunk_map_s {
 	 * Run address (or size) and various flags are stored together.  The bit
 	 * layout looks like (assuming 32-bit system):
 	 *
-	 *   ???????? ???????? ????---- ----dula
+	 *   ???????? ???????? ????nnnn nnnndula
 	 *
 	 * ? : Unallocated: Run address for first/last pages, unset for internal
 	 *                  pages.
 	 *     Small: Run page offset.
 	 *     Large: Run size for first page, unset for trailing pages.
-	 * - : Unused.
+	 * n : binind for small size class, BININD_INVALID for large size class.
 	 * d : dirty?
 	 * u : unzeroed?
 	 * l : large?
@@ -118,14 +118,14 @@ struct arena_chunk_map_s {
 	 * [dula] : bit unset
 	 *
 	 *   Unallocated (clean):
-	 *     ssssssss ssssssss ssss1111 1111du-a
+	 *     ssssssss ssssssss ssss++++ ++++du-a
 	 *     xxxxxxxx xxxxxxxx xxxxxxxx xxxx-Uxx
-	 *     ssssssss ssssssss ssss1111 1111dU-a
+	 *     ssssssss ssssssss ssss++++ ++++dU-a
 	 *
 	 *   Unallocated (dirty):
-	 *     ssssssss ssssssss ssss1111 1111D--a
+	 *     ssssssss ssssssss ssss++++ ++++D--a
 	 *     xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
-	 *     ssssssss ssssssss ssss1111 1111D--a
+	 *     ssssssss ssssssss ssss++++ ++++D--a
 	 *
 	 *   Small:
 	 *     pppppppp pppppppp ppppnnnn nnnnd--A
@@ -133,15 +133,15 @@ struct arena_chunk_map_s {
 	 *     pppppppp pppppppp ppppnnnn nnnnd--A
 	 *
 	 *   Large:
-	 *     ssssssss ssssssss ssss1111 1111D-LA
+	 *     ssssssss ssssssss ssss++++ ++++D-LA
 	 *     xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
-	 *     -------- -------- ----1111 1111D-LA
+	 *     -------- -------- ----++++ ++++D-LA
 	 *
 	 *   Large (sampled, size <= PAGE):
 	 *     ssssssss ssssssss ssssnnnn nnnnD-LA
 	 *
 	 *   Large (not sampled, size == PAGE):
-	 *     ssssssss ssssssss ssss1111 1111D-LA
+	 *     ssssssss ssssssss ssss++++ ++++D-LA
 	 */
 	size_t				bits;
 #define	CHUNK_MAP_BININD_SHIFT	4
@@ -591,6 +591,7 @@ arena_mapbits_unallocated_set(arena_chunk_t *chunk, size_t pageind, size_t size,
 	mapbitsp = arena_mapbitsp_get(chunk, pageind);
 	assert((size & PAGE_MASK) == 0);
 	assert((flags & ~CHUNK_MAP_FLAGS_MASK) == 0);
+	assert((flags & (CHUNK_MAP_DIRTY|CHUNK_MAP_UNZEROED)) == flags);
 	*mapbitsp = size | CHUNK_MAP_BININD_INVALID | flags;
 }
 
@@ -611,12 +612,14 @@ arena_mapbits_large_set(arena_chunk_t *chunk, size_t pageind, size_t size,
     size_t flags)
 {
 	size_t *mapbitsp;
+	size_t unzeroed;
 
 	mapbitsp = arena_mapbitsp_get(chunk, pageind);
 	assert((size & PAGE_MASK) == 0);
-	assert((flags & ~CHUNK_MAP_FLAGS_MASK) == 0);
-	*mapbitsp = size | CHUNK_MAP_BININD_INVALID | flags | CHUNK_MAP_LARGE |
-	    CHUNK_MAP_ALLOCATED;
+	assert((flags & CHUNK_MAP_DIRTY) == flags);
+	unzeroed = *mapbitsp & CHUNK_MAP_UNZEROED; /* Preserve unzeroed. */
+	*mapbitsp = size | CHUNK_MAP_BININD_INVALID | flags | unzeroed |
+	    CHUNK_MAP_LARGE | CHUNK_MAP_ALLOCATED;
 }
 
 JEMALLOC_INLINE void
@@ -637,13 +640,15 @@ arena_mapbits_small_set(arena_chunk_t *chunk, size_t pageind, size_t runind,
     size_t binind, size_t flags)
 {
 	size_t *mapbitsp;
+	size_t unzeroed;
 
 	assert(binind < BININD_INVALID);
 	mapbitsp = arena_mapbitsp_get(chunk, pageind);
 	assert(pageind - runind >= map_bias);
-	assert((flags & ~CHUNK_MAP_FLAGS_MASK) == 0);
+	assert((flags & CHUNK_MAP_DIRTY) == flags);
+	unzeroed = *mapbitsp & CHUNK_MAP_UNZEROED; /* Preserve unzeroed. */
 	*mapbitsp = (runind << LG_PAGE) | (binind << CHUNK_MAP_BININD_SHIFT) |
-	    flags | CHUNK_MAP_ALLOCATED;
+	    flags | unzeroed | CHUNK_MAP_ALLOCATED;
 }
 
 JEMALLOC_INLINE void
