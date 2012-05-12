@@ -317,6 +317,9 @@ struct arch_switch
 #else
     void	(*arch_loadseg)(void *eh, void *ph, uint64_t delta);
 #endif
+
+    /* Probe ZFS pool(s), if needed. */
+    void	(*arch_zfs_probe)(void);
 };
 extern struct arch_switch archsw;
 

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include "bootstrap.h"
 #include "libi386.h"
+#include "../zfs/libzfs.h"
 
 static int	i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path);
 
@@ -171,7 +172,6 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 
     case DEVT_CD:
     case DEVT_NET:
-    case DEVT_ZFS:
 	unit = 0;
 
 	if (*np && (*np != ':')) {
@@ -192,7 +192,11 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	if (path != NULL)
 	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
-
+    case DEVT_ZFS:
+	err = zfs_parsedev((struct zfs_devdesc *)idev, np, path);
+	if (err != 0)
+	    goto fail;
+	break;
     default:
 	err = EINVAL;
 	goto fail;
@@ -247,9 +251,10 @@ i386_fmtdev(void *vdev)
 	break;
 
     case DEVT_NET:
-    case DEVT_ZFS:
 	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 	break;
+    case DEVT_ZFS:
+	return(zfs_fmtdev(vdev));
     }
     return(buf);
 }

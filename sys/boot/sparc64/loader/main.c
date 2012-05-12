@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "dev_net.h"
 
+#define	MAXBDDEV	31
+
 extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
 enum {
@@ -141,7 +143,7 @@ static vm_offset_t heapva;
 static phandle_t root;
 
 #ifdef LOADER_ZFS_SUPPORT
-static int zfs_dev_init(void);
+static int sparc64_zfs_dev_init(void);
 #include "zfs.c"
 #endif
 
@@ -157,7 +159,7 @@ struct devsw *devsw[] = {
 	&netdev,
 #endif
 #ifdef LOADER_ZFS_SUPPORT
-	&zfs_dev,
+	&zfs_dev_compat,
 #endif
 	0
 };
@@ -733,7 +735,7 @@ tlb_init_sun4u(void)
 #ifdef LOADER_ZFS_SUPPORT
 
 static int
-zfs_dev_init(void)
+sparc64_zfs_dev_init(void)
 {
 	struct vtoc8 vtoc;
 	char devname[512];
@@ -867,6 +869,13 @@ main(int (*openfirm)(void *))
 	    ofw_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, bootpath,
 	    env_noset, env_nounset);
+
+#ifdef LOADER_ZFS_SUPPORT
+	/*
+	 * Patch up ZFS.
+	 */
+	zfs_dev_compat.dv_init = sparc64_zfs_dev_init;
+#endif
 
 	/*
 	 * Initialize devices.
