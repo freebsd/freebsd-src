@@ -3688,3 +3688,16 @@ dev/xen/xenpci/evtchn.c         optional xenpci
 dev/etherswitch/mdio_if.m	optional miiproxy
 dev/etherswitch/mdio.c		optional miiproxy
 dev/etherswitch/miiproxy.c	optional miiproxy
+
+dev/etherswitch/etherswitch.c	optional etherswitch
+dev/etherswitch/etherswitch_if.m	optional etherswitch
+
+dev/etherswitch/rtl8366/rtl8366rb.c		optional rtl8366rb
+
+dev/etherswitch/arswitch/arswitch.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_reg.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_phy.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
