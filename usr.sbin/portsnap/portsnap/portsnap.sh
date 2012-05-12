@@ -143,6 +143,9 @@ parse_cmdline() {
 		cron | extract | fetch | update)
 			COMMANDS="${COMMANDS} $1"
 			;;
+		up)
+			COMMANDS="${COMMANDS} update"
+			;;
 		*)
 			if [ $# -gt 1 ]; then usage; fi
 			if echo ${COMMANDS} | grep -vq extract; then
