@@ -1,0 +1,54 @@
+The following are examples of sh_syscalls.d.
+
+This is a simple script to count Ruby methods and system calls.  Here we trace 
+an example program - Code/Ruby/func_abc.rb
+
+# rb_syscalls.d -c ./func_abc.rb
+Tracing... Hit Ctrl-C to end.
+Function A
+Function B
+Function C
+
+Calls for PID 146493,
+
+ FILE                             TYPE       NAME                      COUNT
+ func_abc.rb                      method     Object::func_a                1
+ func_abc.rb                      method     Object::func_b                1
+ func_abc.rb                      method     Object::func_c                1
+ func_abc.rb                      syscall    getpid                        1
+ func_abc.rb                      syscall    getrlimit                     1
+ func_abc.rb                      syscall    getrlimit64                   1
+ func_abc.rb                      syscall    mmap                          1
+ func_abc.rb                      syscall    munmap                        1
+ func_abc.rb                      syscall    rexit                         1
+ func_abc.rb                      syscall    schedctl                      1
+ func_abc.rb                      syscall    sigpending                    1
+ func_abc.rb                      syscall    sysconfig                     1
+ func_abc.rb                      syscall    sysi86                        1
+ func_abc.rb                      syscall    write                         1
+ func_abc.rb                      syscall    llseek                        2
+ func_abc.rb                      syscall    read                          2
+ func_abc.rb                      syscall    setcontext                    2
+ func_abc.rb                      method     IO::write                     3
+ func_abc.rb                      method     Module::method_added          3
+ func_abc.rb                      method     Object::print                 3
+ func_abc.rb                      method     Object::sleep                 3
+ func_abc.rb                      syscall    fstat64                       3
+ func_abc.rb                      syscall    getgid                        3
+ func_abc.rb                      syscall    getuid                        3
+ func_abc.rb                      syscall    ioctl                         3
+ func_abc.rb                      syscall    pollsys                       3
+ func_abc.rb                      syscall    close                         4
+ func_abc.rb                      syscall    lwp_sigmask                   4
+ func_abc.rb                      syscall    open64                        4
+ func_abc.rb                      syscall    gtime                         6
+ func_abc.rb                      syscall    sigaction                    12
+ func_abc.rb                      syscall    brk                          56
+
+While tracing, three user-defined functions were called - func_a, func_b and 
+func_c.  There were 3 instances of the IO::write method being called. There 
+were also many system calls made, including 56 brk()'s, and 12 sigaction()'s.
+
+This script can provide an insight to how a Ruby program is interacting
+with the system, by providing methods and system calls in the same output.
+

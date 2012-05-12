@@ -1,0 +1,15 @@
+The following examples show the results of running the script js_execs.d.
+
+Here it runs on the program Code/JavaScript/func_clock.html.  The script will
+show you every time something is executed, including page reloads and
+timeouts.  
+
+# js_execs.d 
+TIME                                              FILE:LINENO
+2007 Sep 23 22:54:31                   func_clock.html:32
+2007 Sep 23 22:54:32                   func_clock.html:32
+2007 Sep 23 22:54:34                   func_clock.html:32
+2007 Sep 23 22:54:35                   func_clock.html:32
+2007 Sep 23 22:54:36                   func_clock.html:32
+^C
+

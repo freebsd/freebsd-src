@@ -1,0 +1,94 @@
+The following are demonstrations of the rfileio.d script.
+
+
+rfileio.d prints file system statistics by file,
+
+   # ./rfileio.d
+   
+   Read IOPS, top 20 (count)
+   /lib/ld.so.1                                              logical          2
+   /devices/pseudo/clone@0:ptm                               logical          4
+   /usr/bin/grep                                             logical          4
+   /devices/pseudo/pts@0:3                                   logical          4
+   /extra1/contents                                         physical       1700
+   /extra1/contents                                          logical      11582
+   
+   Read Bandwidth, top 20 (bytes)
+   /devices/pseudo/pts@0:3                                   logical          3
+   /devices/pseudo/clone@0:ptm                               logical         92
+   /lib/ld.so.1                                              logical        212
+   /usr/bin/grep                                             logical        269
+   /extra1/contents                                         physical   48115712
+   /extra1/contents                                          logical   94865162
+   
+   Total File System miss-rate: 50%
+   ^C
+
+   $ ls -l /extra1/contents
+   -rw-r--r--   1 root     root     94865162 Nov  2 21:08 /extra1/contents
+
+The /extra1/contents file was read using the grep command. The output shows
+that half of the contents was returned from the cache, the other half from disk
+(50% miss-rate). It is 94,865,162 bytes in size, which can be seen both in
+the ls -l output and the logical read() bytes reported by rfileio.d. There
+were 11,582 logical read() calls, which the disk driver satisfied by using
+1,700 disk events (aggregation).
+
+
+
+The following demonstrates many files being read. 
+
+   # ./rfileio.d
+   
+   Read IOPS, top 20 (count)
+   /usr/bin/amd64/glib-mkenums                               logical          4
+   /usr/bin/amd64/glib-genmarshal                           physical          4
+   /usr/bin/amd64/gdk-pixbuf-query-loaders                   logical          4
+   /usr/bin/amd64/ls                                         logical          5
+   /usr/bin/amd64/pargs                                      logical          5
+   /usr/bin/amd64/ps                                         logical          5
+   /usr/bin/amd64/gconf-merge-tree                          physical          6
+   /usr/bin/amd64/cputrack                                   logical          6
+   /usr/bin/amd64/gconftool-2                               physical          6
+   /usr/bin/amd64/prctl                                      logical          6
+   /usr/bin/amd64/prstat                                     logical          6
+   /usr/bin/amd64/glib-genmarshal                            logical          7
+   /usr/bin/amd64/truss                                     physical          8
+   /usr/bin/amd64/sort                                       logical          9
+   /usr/bin/amd64/prex                                       logical         10
+   /usr/bin/amd64/gconf-merge-tree                           logical         13
+   /usr/bin/amd64/mdb                                       physical         15
+   /usr/bin/amd64/gconftool-2                                logical         15
+   /usr/bin/amd64/truss                                      logical         26
+   /usr/bin/amd64/mdb                                        logical         63
+   
+   Read Bandwidth, top 20 (bytes)
+   /usr/bin/amd64/prctl                                      logical      36784
+   /usr/bin/amd64/prctl                                     physical      36864
+   /usr/bin/amd64/prstat                                     logical      44760
+   /usr/bin/amd64/prstat                                    physical      45056
+   /usr/bin/amd64/glib-genmarshal                            logical      46064
+   /usr/bin/amd64/glib-genmarshal                           physical      46080
+   /usr/bin/amd64/cputrack                                   logical      46912
+   /usr/bin/amd64/cputrack                                  physical      47104
+   /usr/bin/amd64/sort                                       logical      65120
+   /usr/bin/amd64/sort                                      physical      65536
+   /usr/bin/amd64/prex                                       logical      80968
+   /usr/bin/amd64/prex                                      physical      81920
+   /usr/bin/amd64/gconf-merge-tree                           logical     113592
+   /usr/bin/amd64/gconf-merge-tree                          physical     122880
+   /usr/bin/amd64/gconftool-2                                logical     129208
+   /usr/bin/amd64/gconftool-2                               physical     139264
+   /usr/bin/amd64/truss                                      logical     246360
+   /usr/bin/amd64/truss                                     physical     262144
+   /usr/bin/amd64/mdb                                        logical     627456
+   /usr/bin/amd64/mdb                                       physical     638976
+   
+   Total File System miss-rate: 81%
+   ^C
+
+The miss-rate was 81%, meaning we are returning around 20% of the data from
+the cache. Details for the top 20 files read by-bytes and by-count are listed;
+this shows the /usr/bin/amd64/mdb file was read() 63 times, causing 15 disk
+reads, and while 627,456 bytes were requested, 638,976 bytes were read from 
+disk (the extra bytes are due to read-ahead and file system metadata).
