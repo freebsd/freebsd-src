@@ -41,7 +41,6 @@ A parameter statement looks like a C assigment,
 including a terminating semicolon.
 .Pp
 The general syntax of a jail definition is:
-.Pp
 .Bd -literal -offset indent
 jailname {
 	parameter = "value";
@@ -205,6 +204,7 @@ bar {
 	mount.nodevfs;
 	persist;	// Required because there are no processes
 }
+.Ed
 .Sh SEE ALSO
 .Xr jail_set 2
 .Xr jail 8
