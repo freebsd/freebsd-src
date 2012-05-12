@@ -33,7 +33,13 @@ struct ofw_devdesc {
 	int		d_type;
 	int		d_unit;
 	ihandle_t	d_handle;
-	char		d_path[256];
+	union {
+		char			d_path[256];
+		struct {
+			uint64_t	pool_guid;
+			uint64_t	root_guid;
+		};
+	};
 };
 
 extern int	ofw_getdev(void **vdev, const char *devspec, const char **path);
