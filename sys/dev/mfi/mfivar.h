@@ -176,7 +176,7 @@ struct mfi_softc {
 	// Start: LSIP200113393
 	bus_dma_tag_t			verbuf_h_dmat;
 	bus_dmamap_t			verbuf_h_dmamap;
-	uint32_t			verbuf_h_busaddr;
+	bus_dmamap_t			verbuf_h_busaddr;
 	uint32_t			*verbuf;
 	void				*kbuff_arr[MAX_IOCTL_SGE];
 	bus_dma_tag_t			mfi_kbuff_arr_dmat[2];
@@ -232,7 +232,7 @@ struct mfi_softc {
 
 	bus_dma_tag_t			mfi_sense_dmat;
 	bus_dmamap_t			mfi_sense_dmamap;
-	uint32_t			mfi_sense_busaddr;
+	bus_dmamap_t			mfi_sense_busaddr;
 	struct mfi_sense		*mfi_sense;
 
 	struct resource			*mfi_irq;
@@ -319,7 +319,6 @@ struct mfi_softc {
 	uint8_t	*			request_message_pool;
 	uint8_t *			request_message_pool_align;
 	uint8_t *			request_desc_pool;
-	//uint32_t			request_desc_busaddr;
 	bus_addr_t			request_msg_busaddr;
 	bus_addr_t			reply_frame_busaddr;
 	bus_addr_t			sg_frame_busaddr;
