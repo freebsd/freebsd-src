@@ -1535,9 +1535,9 @@ Matches packets with the corresponding IP protocol.
 .It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar table Ns Pq Ar number Ns Op , Ns Ar value | Ar ipno | Ar any
 Matches packets received, transmitted or going through,
 respectively, the interface specified by exact name
-.Ns No ( Ar ifX Ns No ),
+.Po Ar ifX Pc ,
 by device name
-.Ns No ( Ar if Ns Ar * Ns No ),
+.Po Ar if* Pc ,
 by IP address, or through some interface.
 .Pp
 The
