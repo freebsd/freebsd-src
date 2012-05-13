@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -617,6 +618,8 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	makectx(tf, &kdb_pcb);
 	kdb_thr_select(curthread);
 
+	cngrab();
+
 	for (;;) {
 		handled = be->dbbe_trap(type, code);
 		if (be == kdb_dbbe)
@@ -626,6 +629,8 @@ kdb_trap(int type, int code, struct trapframe *tf)
 			break;
 		printf("Switching to %s back-end\n", be->dbbe_name);
 	}
+
+	cnungrab();
 
 	kdb_active--;
 
