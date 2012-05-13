@@ -1615,7 +1615,14 @@ sc_cngrab(struct consdev *cp)
 {
     scr_stat *scp;
 
+    if (!cold &&
+	sc_console->sc->cur_scp->index != sc_console->index &&
+	sc_console->sc->cur_scp->smode.mode == VT_AUTO &&
+	sc_console->smode.mode == VT_AUTO)
+	    sc_switch_scr(sc_console->sc, sc_console->index);
+
     scp = sc_console->sc->cur_scp;
+
     if (scp->sc->kbd == NULL)
 	return;
 
