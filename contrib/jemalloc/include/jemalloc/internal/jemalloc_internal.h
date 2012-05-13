@@ -101,13 +101,7 @@ static const bool config_fill =
     false
 #endif
     ;
-static const bool config_lazy_lock =
-#ifdef JEMALLOC_LAZY_LOCK
-    true
-#else
-    false
-#endif
-    ;
+static const bool config_lazy_lock = true;
 static const bool config_prof =
 #ifdef JEMALLOC_PROF
     true
