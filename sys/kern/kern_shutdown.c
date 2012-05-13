@@ -121,7 +121,7 @@ SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
 TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
-static int stop_scheduler_on_panic = 0;
+static int stop_scheduler_on_panic = 1;
 SYSCTL_INT(_kern, OID_AUTO, stop_scheduler_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
     &stop_scheduler_on_panic, 0, "stop scheduler upon entering panic");
 TUNABLE_INT("kern.stop_scheduler_on_panic", &stop_scheduler_on_panic);
