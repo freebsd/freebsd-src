@@ -42,10 +42,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/mdioctl.h>
 #include <sys/mount.h>
@@ -486,7 +486,7 @@ parse_dir_ask(char **conf)
 	do {
 		error = EINVAL;
 		printf("\nmountroot> ");
-		gets(name, sizeof(name), GETS_ECHO);
+		cngets(name, sizeof(name), GETS_ECHO);
 		if (name[0] == '\0')
 			break;
 		if (name[0] == '?' && name[1] == '\0') {

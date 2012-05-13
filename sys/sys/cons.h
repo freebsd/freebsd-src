@@ -86,6 +86,11 @@ struct consdev {
 #define	CN_FLAG_NODEBUG	0x00000001	/* Not supported with debugger. */
 #define	CN_FLAG_NOAVAIL	0x00000002	/* Temporarily not available. */
 
+/* Visibility of characters in cngets() */
+#define	GETS_NOECHO	0	/* Disable echoing of characters. */
+#define	GETS_ECHO	1	/* Enable echoing of characters. */
+#define	GETS_ECHOPASS	2	/* Print a * for every character. */
+
 #ifdef _KERNEL
 
 extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
@@ -121,6 +126,7 @@ void	cngrab(void);
 void	cnungrab(void);
 int	cncheckc(void);
 int	cngetc(void);
+void	cngets(char *, size_t, int);
 void	cnputc(int);
 void	cnputs(char *);
 int	cnunavailable(void);
