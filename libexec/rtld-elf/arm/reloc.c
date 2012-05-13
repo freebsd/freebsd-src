@@ -268,7 +268,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
  	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
-	cache = calloc(obj->nchains, sizeof(SymCache));
+	cache = calloc(obj->dynsymcount, sizeof(SymCache));
 	/* No need to check for NULL here */
 
 	rellim = (const Elf_Rel *)((caddr_t)obj->rel + obj->relsize);
