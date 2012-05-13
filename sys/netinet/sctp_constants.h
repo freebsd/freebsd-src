@@ -757,7 +757,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_INTERFACE_UP                 4
 #define SCTP_NOTIFY_DG_FAIL                      5
 #define SCTP_NOTIFY_STRDATA_ERR                  6
-#define SCTP_NOTIFY_ASSOC_ABORTED                7
+#define SCTP_NOTIFY_ASSOC_LOC_ABORTED            7
 #define SCTP_NOTIFY_PEER_OPENED_STREAM           8
 #define SCTP_NOTIFY_STREAM_OPENED_OK             9
 #define SCTP_NOTIFY_ASSOC_RESTART               10
@@ -781,7 +781,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_SENDER_DRY                  29
 #define SCTP_NOTIFY_STR_RESET_DENIED_OUT        30
 #define SCTP_NOTIFY_STR_RESET_DENIED_IN         31
-#define SCTP_NOTIFY_MAX                         31
+#define SCTP_NOTIFY_ASSOC_REM_ABORTED           32
+#define SCTP_NOTIFY_MAX                         32
 
 
 /* This is the value for messages that are NOT completely
