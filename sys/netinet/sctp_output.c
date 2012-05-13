@@ -3815,8 +3815,7 @@ sctp_handle_no_route(struct sctp_tcb *stcb,
 			if ((net->dest_state & SCTP_ADDR_REACHABLE) && stcb) {
 				SCTPDBG(SCTP_DEBUG_OUTPUT1, "no route takes interface %p down\n", net);
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-				    stcb,
-				    SCTP_FAILED_THRESHOLD,
+				    stcb, 0,
 				    (void *)net,
 				    so_locked);
 				net->dest_state &= ~SCTP_ADDR_REACHABLE;
