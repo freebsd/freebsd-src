@@ -418,7 +418,8 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     ICONV \
     IDEA \
-    OFED
+    OFED \
+    SHARED_TOOLCHAIN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .include "../Makefile.inc0"
+.include <bsd.own.mk>
 
 .PATH: ${SRCDIR}/ld
 
@@ -34,7 +35,9 @@ CFLAGS+= -DBINDIR=\"${BINDIR}\" -DTARGET_SYSTEM_ROOT=\"${TOOLS_PREFIX}\"
 CFLAGS+= -DTOOLBINDIR=\"${TOOLS_PREFIX}/${BINDIR}/libexec\"
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?= yes
+.endif
 DPADD=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
