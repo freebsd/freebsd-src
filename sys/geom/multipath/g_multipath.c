@@ -942,7 +942,7 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	struct g_multipath_metadata *md;
+	struct g_multipath_metadata md;
 	const char *name;
 	int error, *val;
 	void *buf;
@@ -978,14 +978,15 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		g_topology_unlock();
-		md = buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
-		strlcpy(md->md_magic, G_MULTIPATH_MAGIC, sizeof(md->md_magic));
-		memcpy(md->md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
-		strlcpy(md->md_name, name, sizeof(md->md_name));
-		md->md_version = G_MULTIPATH_VERSION;
-		md->md_size = pp->mediasize;
-		md->md_sectorsize = pp->sectorsize;
-		md->md_active_active = sc->sc_active_active;
+		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+		strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
+		memcpy(md.md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
+		strlcpy(md.md_name, name, sizeof(md.md_name));
+		md.md_version = G_MULTIPATH_VERSION;
+		md.md_size = pp->mediasize;
+		md.md_sectorsize = pp->sectorsize;
+		md.md_active_active = sc->sc_active_active;
+		multipath_metadata_encode(&md, buf);
 		error = g_write_data(cp, pp->mediasize - pp->sectorsize,
 		    buf, pp->sectorsize);
 		g_topology_lock();
