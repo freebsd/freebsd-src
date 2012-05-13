@@ -102,6 +102,16 @@ ssc_cnterm(struct consdev *cp)
 }
 
 static void
+ssc_cngrab(struct consdev *cp)
+{
+}
+
+static void
+ssc_cnungrab(struct consdev *cp)
+{
+}
+
+static void
 ssc_cnattach(void *arg)
 {
 	struct tty *tp;
