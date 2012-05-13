@@ -1,6 +1,9 @@
 /*-
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
+ * Copyright (c) 1999 Michael Smith
+ * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ *
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -405,6 +408,55 @@ cncheckc(void)
 		}
 	}
 	return (-1);
+}
+
+void
+cngets(char *cp, size_t size, int visible)
+{
+	char *lp, *end;
+	int c;
+
+	cngrab();
+
+	lp = cp;
+	end = cp + size - 1;
+	for (;;) {
+		c = cngetc() & 0177;
+		switch (c) {
+		case '\n':
+		case '\r':
+			cnputc(c);
+			*lp = '\0';
+			cnungrab();
+			return;
+		case '\b':
+		case '\177':
+			if (lp > cp) {
+				if (visible) {
+					cnputc(c);
+					cnputs(" \b");
+				}
+				lp--;
+			}
+			continue;
+		case '\0':
+			continue;
+		default:
+			if (lp < end) {
+				switch (visible) {
+				case GETS_NOECHO:
+					break;
+				case GETS_ECHOPASS:
+					cnputc('*');
+					break;
+				default:
+					cnputc(c);
+					break;
+				}
+				*lp++ = c;
+			}
+		}
+	}
 }
 
 void
