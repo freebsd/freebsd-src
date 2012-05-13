@@ -1613,11 +1613,46 @@ sc_cnterm(struct consdev *cp)
 static void
 sc_cngrab(struct consdev *cp)
 {
+    scr_stat *scp;
+
+    scp = sc_console->sc->cur_scp;
+    if (scp->sc->kbd == NULL)
+	return;
+
+    if (scp->grabbed++ > 0)
+	return;
+
+    /*
+     * Make sure the keyboard is accessible even when the kbd device
+     * driver is disabled.
+     */
+    kbdd_enable(scp->sc->kbd);
+
+    /* we shall always use the keyboard in the XLATE mode here */
+    scp->kbd_prev_mode = scp->kbd_mode;
+    scp->kbd_mode = K_XLATE;
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+
+    kbdd_poll(scp->sc->kbd, TRUE);
 }
 
 static void
 sc_cnungrab(struct consdev *cp)
 {
+    scr_stat *scp;
+
+    scp = sc_console->sc->cur_scp;	/* XXX */
+    if (scp->sc->kbd == NULL)
+	return;
+
+    if (--scp->grabbed > 0)
+	return;
+
+    kbdd_poll(scp->sc->kbd, FALSE);
+
+    scp->kbd_mode = scp->kbd_prev_mode;
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    kbdd_disable(scp->sc->kbd);
 }
 
 static void
@@ -1675,7 +1710,6 @@ sc_cngetc(struct consdev *cd)
     static int fkeycp;
     scr_stat *scp;
     const u_char *p;
-    int cur_mode;
     int s = spltty();	/* block sckbdevent and scrn_timer while we poll */
     int c;
 
@@ -1699,25 +1733,7 @@ sc_cngetc(struct consdev *cd)
 	return -1;
     }
 
-    /* 
-     * Make sure the keyboard is accessible even when the kbd device
-     * driver is disabled.
-     */
-    kbdd_enable(scp->sc->kbd);
-
-    /* we shall always use the keyboard in the XLATE mode here */
-    cur_mode = scp->kbd_mode;
-    scp->kbd_mode = K_XLATE;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-
-    kbdd_poll(scp->sc->kbd, TRUE);
     c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
-    kbdd_poll(scp->sc->kbd, FALSE);
-
-    scp->kbd_mode = cur_mode;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-    kbdd_disable(scp->sc->kbd);
-    splx(s);
 
     switch (KEYFLAGS(c)) {
     case 0:	/* normal char */
