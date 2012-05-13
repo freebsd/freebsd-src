@@ -44,6 +44,8 @@ struct tty;
 typedef	void	cn_probe_t(struct consdev *);
 typedef	void	cn_init_t(struct consdev *);
 typedef	void	cn_term_t(struct consdev *);
+typedef	void	cn_grab_t(struct consdev *);
+typedef	void	cn_ungrab_t(struct consdev *);
 typedef	int	cn_getc_t(struct consdev *);
 typedef	void	cn_putc_t(struct consdev *, int);
 
@@ -58,6 +60,10 @@ struct consdev_ops {
 				/* kernel getchar interface */
 	cn_putc_t	*cn_putc;
 				/* kernel putchar interface */
+	cn_grab_t	*cn_grab;
+				/* grab console for exclusive kernel use */
+	cn_ungrab_t	*cn_ungrab;
+				/* ungrab console */
 };
 
 struct consdev {
@@ -99,6 +105,8 @@ extern	struct tty *constty;	/* Temporary virtual console. */
 		.cn_term = name##_cnterm,				\
 		.cn_getc = name##_cngetc,				\
 		.cn_putc = name##_cnputc,				\
+		.cn_grab = name##_cngrab,				\
+		.cn_ungrab = name##_cnungrab,				\
 	};								\
 	CONSOLE_DEVICE(name##_consdev, name##_consdev_ops, NULL)
 
@@ -109,6 +117,8 @@ int	cnadd(struct consdev *);
 void	cnavailable(struct consdev *, int);
 void	cnremove(struct consdev *);
 void	cnselect(struct consdev *);
+void	cngrab(void);
+void	cnungrab(void);
 int	cncheckc(void);
 int	cngetc(void);
 void	cnputc(int);

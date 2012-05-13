@@ -229,6 +229,8 @@ static cn_init_t	sc_cninit;
 static cn_term_t	sc_cnterm;
 static cn_getc_t	sc_cngetc;
 static cn_putc_t	sc_cnputc;
+static cn_grab_t	sc_cngrab;
+static cn_ungrab_t	sc_cnungrab;
 
 CONSOLE_DRIVER(sc);
 
@@ -1606,6 +1608,16 @@ sc_cnterm(struct consdev *cp)
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
     sc_console = NULL;
+}
+
+static void
+sc_cngrab(struct consdev *cp)
+{
+}
+
+static void
+sc_cnungrab(struct consdev *cp)
+{
 }
 
 static void
