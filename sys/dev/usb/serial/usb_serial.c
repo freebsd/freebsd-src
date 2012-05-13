@@ -1336,6 +1336,8 @@ static cn_init_t ucom_cninit;
 static cn_term_t ucom_cnterm;
 static cn_getc_t ucom_cngetc;
 static cn_putc_t ucom_cnputc;
+static cn_grab_t ucom_cngrab;
+static cn_ungrab_t ucom_cnungrab;
 
 CONSOLE_DRIVER(ucom);
 
@@ -1357,6 +1359,16 @@ ucom_cninit(struct consdev  *cp)
 
 static void
 ucom_cnterm(struct consdev  *cp)
+{
+}
+
+static void
+ucom_cngrab(struct consdev *cp)
+{
+}
+
+static void
+ucom_cnungrab(struct consdev *cp)
 {
 }
 

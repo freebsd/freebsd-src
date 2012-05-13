@@ -50,6 +50,8 @@ static cn_init_t        xc_cninit;
 static cn_term_t        xc_cnterm;
 static cn_getc_t        xc_cngetc;
 static cn_putc_t        xc_cnputc;
+static cn_grab_t        xc_cngrab;
+static cn_ungrab_t      xc_cnungrab;
 
 #define XC_POLLTIME 	(hz/10)
 
@@ -124,6 +126,16 @@ xc_cninit(struct consdev *cp)
 static void
 xc_cnterm(struct consdev *cp)
 { 
+}
+
+static void
+xc_cngrab(struct consdev *cp)
+{
+}
+
+static void
+xc_cnungrab(struct consdev *cp)
+{
 }
 
 static int
