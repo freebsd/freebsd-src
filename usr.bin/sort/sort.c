@@ -74,9 +74,9 @@ MD5_CTX md5_ctx;
  * is found.
  */
 const char *nlsstr[] = { "",
-/* 1*/"you cannot use -%c and -%c together",
+/* 1*/"mutually exclusive flags",
 /* 2*/"extra argument not allowed with -c",
-/* 3*/"Unknown feature: %s",
+/* 3*/"Unknown feature",
 /* 4*/"Wrong memory buffer specification",
 /* 5*/"0 field in key specs",
 /* 6*/"0 column in key specs",
@@ -396,7 +396,7 @@ parse_memory_buffer_value(const char *value)
 		membuf = strtoll(value, &endptr, 10);
 
 		if (errno != 0) {
-			warn(getstr(4));
+			warn("%s",getstr(4));
 			membuf = available_free_memory;
 		} else {
 			switch (*endptr){
@@ -445,12 +445,10 @@ parse_memory_buffer_value(const char *value)
  * Signal handler that clears the temporary files.
  */
 static void
-sig_handler(int sig, siginfo_t *siginfo, void *context)
+sig_handler(int sig __unused, siginfo_t *siginfo __unused,
+    void *context __unused)
 {
 
-	sig = sig;
-	siginfo = siginfo;
-	context = context;
 	clear_tmp_files();
 	exit(-1);
 }
@@ -512,7 +510,7 @@ static void
 unknown(const char *what)
 {
 
-	errx(2, getstr(3), what);
+	errx(2, "%s: %s", getstr(3), what);
 }
 
 /*
@@ -533,14 +531,13 @@ check_mutually_exclusive_flags(char c, bool *mef_flags)
 		if (mec != c) {
 			if (mef_flags[i]) {
 				if (found_this)
-					errx(1, getstr(1), c, mec);
+					errx(1, "%c:%c: %s", c, mec, getstr(1));
 				found_others = true;
 				fo_index = i;
 			}
 		} else {
 			if (found_others)
-				errx(1, getstr(1), c,
-				    mutually_exclusive_flags[fo_index]);
+				errx(1, "%c:%c: %s", c, mutually_exclusive_flags[fo_index], getstr(1));
 			mef_flags[i] = true;
 			found_this = true;
 		}
@@ -661,7 +658,7 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 		if (errno != 0)
 			errx(2, "%s: -k", strerror(errno));
 		if (ks->f2 == 0) {
-			warn(getstr(5));
+			warn("%s",getstr(5));
 			goto end;
 		}
 	} else {
@@ -670,7 +667,7 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 		if (errno != 0)
 			errx(2, "%s: -k", strerror(errno));
 		if (ks->f1 == 0) {
-			warn(getstr(5));
+			warn("%s",getstr(5));
 			goto end;
 		}
 	}
@@ -693,7 +690,7 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 			if (errno != 0)
 				errx(2, "%s: -k", strerror(errno));
 			if (ks->c1 == 0) {
-				warn(getstr(6));
+				warn("%s",getstr(6));
 				goto end;
 			}
 		}
@@ -814,7 +811,7 @@ parse_pos_obs(const char *s, int *nf, int *nc, char* sopts)
 	errno = 0;
 	*nf = (size_t) strtoul(f, NULL, 10);
 	if (errno != 0)
-		errx(2, getstr(11));
+		errx(2, "%s", getstr(11));
 
 	if (pmatch[2].rm_eo > pmatch[2].rm_so) {
 		len = pmatch[2].rm_eo - pmatch[2].rm_so - 1;
@@ -826,7 +823,7 @@ parse_pos_obs(const char *s, int *nf, int *nc, char* sopts)
 		errno = 0;
 		*nc = (size_t) strtoul(c, NULL, 10);
 		if (errno != 0)
-			errx(2, getstr(11));
+			errx(2, "%s", getstr(11));
 	}
 
 	if (pmatch[3].rm_eo > pmatch[3].rm_so) {
@@ -1054,7 +1051,7 @@ main(int argc, char **argv)
 			case 'o':
 				outfile = sort_realloc(outfile, sizeof(char) *
 				    (strlen(optarg) + 1));
-				strlcpy(outfile, optarg, (strlen(optarg) + 1));
+				strlcpy(outfile, optarg, strlen(outfile));
 				break;
 			case 's':
 				sort_opts_vals.sflag = true;
@@ -1183,7 +1180,7 @@ main(int argc, char **argv)
 #endif
 
 	if (sort_opts_vals.cflag && sort_opts_vals.mflag)
-		errx(1, getstr(1), 'm', 'c');
+		errx(1, "%c:%c: %s", 'm', 'c', getstr(1));
 
 #ifndef WITHOUT_NLS
 	catclose(catalog);
