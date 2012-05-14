@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 #
 # opensnoop - snoop file opens as they occur.
 #             Written using DTrace (Solaris 10 3/05).
@@ -189,7 +189,7 @@ fi
  /*
   * Print open event
   */
- syscall::open:entry, syscall::open64:entry
+ syscall::open:entry
  {
 	/* save pathname */
 	self->pathp = arg0;
@@ -203,7 +203,7 @@ fi
 	/* OPT_file is checked on return to ensure pathp is mapped */
  }
 
- syscall::open:return, syscall::open64:return
+ syscall::open:return
  /self->ok && (! OPT_failonly || (int)arg0 < 0) && 
  ((OPT_file == 0) || (OPT_file == 1 && PATHNAME == copyinstr(self->pathp)))/
  {
@@ -235,7 +235,7 @@ fi
  /* 
   * Cleanup 
   */
- syscall::open:return, syscall::open64:return 
+ syscall::open:return
  /self->ok/
  {
 	self->pathp = 0;
