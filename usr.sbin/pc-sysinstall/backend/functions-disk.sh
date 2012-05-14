@@ -766,6 +766,10 @@ run_gpart_gpt_part()
   # Init the MBR partition
   rc_halt "gpart create -s BSD ${DISK}p${slicenum}"
 
+  # Stamp the bootloader
+  sleep 4
+  rc_halt "gpart bootcode -b /boot/boot ${DISK}p${slicenum}"
+
   # Set the slice to the format we'll be using for gpart later
   slice=`echo "${1}:${3}:gptslice" | sed 's|/|-|g'`
 
