@@ -4731,6 +4731,7 @@ nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
 			lyp->nfsly_refcnt++;
 			TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
 			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
 		} else {
 			lyp = NULL;
 			*recalledp = 1;
