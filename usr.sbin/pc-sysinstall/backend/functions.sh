@@ -208,15 +208,11 @@ fetch_file()
   FETCHOUTFILE="$2"
   EXITFAILED="$3"
 
-  SIZEFILE="${TMPDIR}/.fetchSize"
   EXITFILE="${TMPDIR}/.fetchExit"
 
-  rm ${SIZEFILE} 2>/dev/null >/dev/null
   rm ${FETCHOUTFILE} 2>/dev/null >/dev/null
 
-  fetch -s "${FETCHFILE}" >${SIZEFILE}
-  SIZE="`cat ${SIZEFILE}`"
-  SIZE=$((SIZE/1024))
+  SIZE=$(( `fetch -s "${FETCHFILE}"` / 1024 ))
   echo "FETCH: ${FETCHFILE}"
   echo "FETCH: ${FETCHOUTFILE}" >>${LOGOUT}
 
@@ -278,12 +274,10 @@ get_zpool_name()
     NUM=`ls ${TMPDIR}/.zpools/ | wc -l | sed 's| ||g'`
 
     # Is it used in another zpool?
-    while
-    z=1
+    while :
     do
       NEWNAME="${BASENAME}${NUM}"
-      zpool import | grep -q "${NEWNAME}"
-      if [ $? -ne 0 ] ; then break ; fi
+      zpool import | grep -qw "${NEWNAME}" && break
       NUM=$((NUM+1))
     done
 
