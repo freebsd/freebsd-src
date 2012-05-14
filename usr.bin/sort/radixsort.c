@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #define SMALL_NODE(sl) ((sl)->tosort_num < 5)
 
 /* are we sorting in reverse order ? */
-static bool reverse_sort = false;
+static bool reverse_sort;
 
 /* sort sub-levels array size */
 static const size_t slsz = 256 * sizeof(struct sort_level*);
@@ -77,14 +77,14 @@ struct level_stack {
 	struct sort_level	 *sl;
 };
 
-static struct level_stack *g_ls = NULL;
+static struct level_stack *g_ls;
 
 #if defined(SORT_THREADS)
 /* stack guarding mutex */
 static pthread_mutex_t g_ls_mutex;
 
 /* counter: how many items are left */
-static size_t sort_left = 0;
+static size_t sort_left;
 /* guarding mutex */
 static pthread_mutex_t sort_left_mutex;
 
