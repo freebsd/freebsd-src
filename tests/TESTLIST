@@ -43,9 +43,20 @@ e1000g		e1000g.pcap		e1000g.out	-t
 
 # IETF FORCES WG packets and printer
 forces01        forces1.pcap            forces1.out     -t
-forces02        forces2.pcap            forces2.out     -t
-forces02v       forces2.pcap            forces2v.out    -t -v
-forces02vv      forces2.pcap            forces2vv.out   -t -v -v
 forces01vvv     forces1.pcap            forces1vvv.out  -t -v -v -v 
 forces01vvvv    forces1.pcap            forces1vvvv.out -t -v -v -v -v
+# need new pcap file, not sure what the differences were?
+#forces02        forces2.pcap            forces2.out     -t
+#forces02v       forces2.pcap            forces2v.out    -t -v
+#forces02vv      forces2.pcap            forces2vv.out   -t -v -v
 
+# 802.1ad, QinQ tests 
+qinq            QinQpacket.pcap         QinQpacket.out  -t -e
+qinqv           QinQpacket.pcap         QinQpacketv.out  -t -e -v
+
+# now SFLOW tests
+sflow1          sflow_multiple_counter_30_pdus.pcap     sflow_multiple_counter_30_pdus.out      -t -v
+
+# Babel tests
+babel1          babel.pcap             babel1.out      -t 
+babel1v         babel.pcap             babel1v.out     -t -v

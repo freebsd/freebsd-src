@@ -125,7 +125,7 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	case BSD_AFNUM_INET6_BSD:
 	case BSD_AFNUM_INET6_FREEBSD:
 	case BSD_AFNUM_INET6_DARWIN:
-		ip6_print(p, length);
+		ip6_print(gndo, p, length);
 		break;
 #endif
 

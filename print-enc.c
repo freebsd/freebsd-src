@@ -80,7 +80,7 @@ enc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 		break;
 #ifdef INET6
 	case AF_INET6:
-		ip6_print(p, length);
+		ip6_print(gndo, p, length);
 		break;
 #endif /*INET6*/
 	}

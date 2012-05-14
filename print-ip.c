@@ -87,7 +87,7 @@ ip_printroute(register const u_char *cp, u_int length)
  * This is used for UDP and TCP pseudo-header in the checksum
  * calculation.
  */
-u_int32_t
+static u_int32_t
 ip_finddst(const struct ip *ip)
 {
 	int length;
@@ -127,6 +127,39 @@ ip_finddst(const struct ip *ip)
 trunc:
 	memcpy(&retval, &ip->ip_dst.s_addr, sizeof(u_int32_t));
 	return retval;
+}
+
+/*
+ * Compute a V4-style checksum by building a pseudoheader.
+ */
+int
+nextproto4_cksum(const struct ip *ip, const u_int8_t *data,
+		 u_int len, u_int next_proto)
+{
+	struct phdr {
+		u_int32_t src;
+		u_int32_t dst;
+		u_char mbz;
+		u_char proto;
+		u_int16_t len;
+	} ph;
+	struct cksum_vec vec[2];
+
+	/* pseudo-header.. */
+	ph.len = htons((u_int16_t)len);
+	ph.mbz = 0;
+	ph.proto = next_proto;
+	memcpy(&ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
+	if (IP_HL(ip) == 5)
+		memcpy(&ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
+	else
+		ph.dst = ip_finddst(ip);
+
+	vec[0].ptr = (const u_int8_t *)(void *)&ph;
+	vec[0].len = sizeof(ph);
+	vec[1].ptr = data;
+	vec[1].len = len;
+	return (in_cksum(vec, 2));
 }
 
 static void
@@ -268,92 +301,6 @@ trunc:
 	printf("[|ip]");
 }
 
-/*
- * compute an IP header checksum.
- * don't modifiy the packet.
- */
-u_short
-in_cksum(const u_short *addr, register u_int len, int csum)
-{
-	int nleft = len;
-	const u_short *w = addr;
-	u_short answer;
-	int sum = csum;
-
-	/*
-	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
-	 *  we add sequential 16 bit words to it, and at the end, fold
-	 *  back all the carry bits from the top 16 bits into the lower
-	 *  16 bits.
-	 */
-	while (nleft > 1)  {
-		sum += *w++;
-		nleft -= 2;
-	}
-	if (nleft == 1)
-		sum += htons(*(u_char *)w<<8);
-
-	/*
-	 * add back carry outs from top 16 bits to low 16 bits
-	 */
-	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
-	sum += (sum >> 16);			/* add carry */
-	answer = ~sum;				/* truncate to 16 bits */
-	return (answer);
-}
-
-/*
- * Given the host-byte-order value of the checksum field in a packet
- * header, and the network-byte-order computed checksum of the data
- * that the checksum covers (including the checksum itself), compute
- * what the checksum field *should* have been.
- */
-u_int16_t
-in_cksum_shouldbe(u_int16_t sum, u_int16_t computed_sum)
-{
-	u_int32_t shouldbe;
-
-	/*
-	 * The value that should have gone into the checksum field
-	 * is the negative of the value gotten by summing up everything
-	 * *but* the checksum field.
-	 *
-	 * We can compute that by subtracting the value of the checksum
-	 * field from the sum of all the data in the packet, and then
-	 * computing the negative of that value.
-	 *
-	 * "sum" is the value of the checksum field, and "computed_sum"
-	 * is the negative of the sum of all the data in the packets,
-	 * so that's -(-computed_sum - sum), or (sum + computed_sum).
-	 *
-	 * All the arithmetic in question is one's complement, so the
-	 * addition must include an end-around carry; we do this by
-	 * doing the arithmetic in 32 bits (with no sign-extension),
-	 * and then adding the upper 16 bits of the sum, which contain
-	 * the carry, to the lower 16 bits of the sum, and then do it
-	 * again in case *that* sum produced a carry.
-	 *
-	 * As RFC 1071 notes, the checksum can be computed without
-	 * byte-swapping the 16-bit words; summing 16-bit words
-	 * on a big-endian machine gives a big-endian checksum, which
-	 * can be directly stuffed into the big-endian checksum fields
-	 * in protocol headers, and summing words on a little-endian
-	 * machine gives a little-endian checksum, which must be
-	 * byte-swapped before being stuffed into a big-endian checksum
-	 * field.
-	 *
-	 * "computed_sum" is a network-byte-order value, so we must put
-	 * it in host byte order before subtracting it from the
-	 * host-byte-order value from the header; the adjusted checksum
-	 * will be in host byte order, which is what we'll return.
-	 */
-	shouldbe = sum;
-	shouldbe += ntohs(computed_sum);
-	shouldbe = (shouldbe & 0xFFFF) + (shouldbe >> 16);
-	shouldbe = (shouldbe & 0xFFFF) + (shouldbe >> 16);
-	return shouldbe;
-}
-
 #define IP_RES 0x8000
 
 static struct tok ip_frag_values[] = {
@@ -376,6 +323,7 @@ ip_print_demux(netdissect_options *ndo,
 	       struct ip_print_demux_state *ipds)
 {
 	struct protoent *proto;
+	struct cksum_vec vec[1];
 
 again:
 	switch (ipds->nh) {
@@ -480,7 +428,7 @@ again:
 
 	case IPPROTO_IPV4:
 		/* DVMRP multicast tunnel (ip-in-ip encapsulation) */
-		ip_print(gndo, ipds->cp, ipds->len);
+		ip_print(ndo, ipds->cp, ipds->len);
 		if (! vflag) {
 			ND_PRINT((ndo, " (ipip-proto-4)"));
 			return;
@@ -490,7 +438,7 @@ again:
 #ifdef INET6
 	case IPPROTO_IPV6:
 		/* ip6-in-ip encapsulation */
-		ip6_print(ipds->cp, ipds->len);
+		ip6_print(ndo, ipds->cp, ipds->len);
 		break;
 #endif /*INET6*/
 
@@ -508,12 +456,25 @@ again:
 		break;
 
 	case IPPROTO_PIM:
-		pim_print(ipds->cp,  ipds->len,
-			  in_cksum((const u_short*)ipds->cp, ipds->len, 0));
+		vec[0].ptr = ipds->cp;
+		vec[0].len = ipds->len;
+		pim_print(ipds->cp, ipds->len, in_cksum(vec, 1));
 		break;
 
 	case IPPROTO_VRRP:
-		vrrp_print(ipds->cp, ipds->len, ipds->ip->ip_ttl);
+		if (packettype == PT_CARP) {
+			if (vflag)
+				(void)printf("carp %s > %s: ",
+					     ipaddr_string(&ipds->ip->ip_src),
+					     ipaddr_string(&ipds->ip->ip_dst));
+			carp_print(ipds->cp, ipds->len, ipds->ip->ip_ttl);
+		} else {
+			if (vflag)
+				(void)printf("vrrp %s > %s: ",
+					     ipaddr_string(&ipds->ip->ip_src),
+					     ipaddr_string(&ipds->ip->ip_dst));
+			vrrp_print(ipds->cp, ipds->len, ipds->ip->ip_ttl);
+		}
 		break;
 
 	case IPPROTO_PGM:
@@ -561,6 +522,7 @@ ip_print(netdissect_options *ndo,
 	struct ip_print_demux_state *ipds=&ipd;
 	const u_char *ipend;
 	u_int hlen;
+	struct cksum_vec vec[1];
 	u_int16_t sum, ip_sum;
 	struct protoent *proto;
 
@@ -573,7 +535,7 @@ ip_print(netdissect_options *ndo,
         else if (!eflag)
 	    printf("IP ");
 
-	if ((u_char *)(ipds->ip + 1) > snapend) {
+	if ((u_char *)(ipds->ip + 1) > ndo->ndo_snapend) {
 		printf("[|ip]");
 		return;
 	}
@@ -611,8 +573,8 @@ ip_print(netdissect_options *ndo,
 	 * Cut off the snapshot length to the end of the IP payload.
 	 */
 	ipend = bp + ipds->len;
-	if (ipend < snapend)
-		snapend = ipend;
+	if (ipend < ndo->ndo_snapend)
+		ndo->ndo_snapend = ipend;
 
 	ipds->len -= hlen;
 
@@ -658,8 +620,10 @@ ip_print(netdissect_options *ndo,
                 printf(")");
             }
 
-	    if (!Kflag && (u_char *)ipds->ip + hlen <= snapend) {
-	        sum = in_cksum((const u_short *)ipds->ip, hlen, 0);
+	    if (!Kflag && (u_char *)ipds->ip + hlen <= ndo->ndo_snapend) {
+	        vec[0].ptr = (const u_int8_t *)(void *)ipds->ip;
+	        vec[0].len = hlen;
+	        sum = in_cksum(vec, 1);
 		if (sum != 0) {
 		    ip_sum = EXTRACT_16BITS(&ipds->ip->ip_sum);
 		    (void)printf(", bad cksum %x (->%x)!", ip_sum,
@@ -722,7 +686,7 @@ ipN_print(register const u_char *bp, register u_int length)
 		return;
 #ifdef INET6
 	case 6:
-		ip6_print (bp, length);
+		ip6_print (gndo, bp, length);
 		return;
 #endif
 	default:

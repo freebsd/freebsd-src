@@ -871,7 +871,7 @@ lmp_print(register const u_char *pptr, register u_int len) {
         }
         /* do we want to see an additionally hexdump ? */
         if (vflag > 1 || hexdump==TRUE)
-            print_unknown_data(tptr+sizeof(sizeof(struct lmp_object_header)),"\n\t    ",
+            print_unknown_data(tptr+sizeof(struct lmp_object_header),"\n\t    ",
                                lmp_obj_len-sizeof(struct lmp_object_header));
 
         tptr+=lmp_obj_len;

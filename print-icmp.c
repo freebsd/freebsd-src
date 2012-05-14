@@ -346,6 +346,7 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	const struct icmp_mpls_ext_object_header_t *icmp_mpls_ext_object_header;
 	u_int hlen, dport, mtu, obj_tlen, obj_class_num, obj_ctype;
 	char buf[MAXHOSTNAMELEN + 100];
+	struct cksum_vec vec[1];
 
 	dp = (struct icmp *)bp;
         ext_dp = (struct icmp_ext_t *)bp;
@@ -560,8 +561,11 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	(void)printf("ICMP %s, length %u", str, plen);
 	if (vflag && !fragmented) { /* don't attempt checksumming if this is a frag */
 		u_int16_t sum, icmp_sum;
+		struct cksum_vec vec[1];
 		if (TTEST2(*bp, plen)) {
-			sum = in_cksum((u_short*)dp, plen, 0);
+			vec[0].ptr = (const u_int8_t *)(void *)dp;
+			vec[0].len = plen;
+			sum = in_cksum(vec, 1);
 			if (sum != 0) {
 				icmp_sum = EXTRACT_16BITS(&dp->icmp_cksum);
 				(void)printf(" (wrong icmp cksum %x (->%x)!)",
@@ -598,10 +602,12 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
              * to check if an extension header is present. This is expedient,
              * however not all implementations set the length field proper.
              */
-            if (!ext_dp->icmp_length &&
-                in_cksum((const u_short *)&ext_dp->icmp_ext_version_res,
-                         plen - ICMP_EXTD_MINLEN, 0)) {
-                return;
+            if (!ext_dp->icmp_length) {
+                vec[0].ptr = (const u_int8_t *)(void *)&ext_dp->icmp_ext_version_res;
+                vec[0].len = plen - ICMP_EXTD_MINLEN;
+                if (in_cksum(vec, 1)) {
+                    return;
+                }
             }
 
             printf("\n\tMPLS extension v%u",
@@ -617,10 +623,11 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
             }
 
             hlen = plen - ICMP_EXTD_MINLEN;
+            vec[0].ptr = (const u_int8_t *)(void *)&ext_dp->icmp_ext_version_res;
+            vec[0].len = hlen;
             printf(", checksum 0x%04x (%scorrect), length %u",
                    EXTRACT_16BITS(ext_dp->icmp_ext_checksum),
-                   in_cksum((const u_short *)&ext_dp->icmp_ext_version_res,
-                            plen - ICMP_EXTD_MINLEN, 0) ? "in" : "",
+                   in_cksum(vec, 1) ? "in" : "",
                    hlen);
 
             hlen -= 4; /* subtract common header size */

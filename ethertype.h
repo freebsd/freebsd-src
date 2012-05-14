@@ -103,6 +103,20 @@
 #ifndef	ETHERTYPE_8021Q
 #define	ETHERTYPE_8021Q		0x8100
 #endif
+
+/* see:
+        http://en.wikipedia.org/wiki/IEEE_802.1Q
+    and http://en.wikipedia.org/wiki/QinQ
+*/
+#ifndef	ETHERTYPE_8021Q9100
+#define	ETHERTYPE_8021Q9100	0x9100
+#endif
+#ifndef	ETHERTYPE_8021Q9200
+#define	ETHERTYPE_8021Q9200	0x9200
+#endif
+#ifndef	ETHERTYPE_8021QinQ
+#define	ETHERTYPE_8021QinQ      0x88a8
+#endif
 #ifndef ETHERTYPE_IPX
 #define ETHERTYPE_IPX		0x8137
 #endif

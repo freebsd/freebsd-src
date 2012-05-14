@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
+$debug = 0;
 system("mkdir -p NEW DIFF");
 
 if(@ARGV == 1) {
@@ -28,19 +29,11 @@ if(@ARGV == 1) {
   exit 20;
 }
 
-print "Running $name. \n";
-print "   Input: $input, OUTPUT: $output, OPTIONS: $options\n";
-
-if (! -f $input) {
-  ($puu = $input) =~ s/\.pcap/\.puu/;
-  if( -f $puu) {
-    print "Uudecoding $puu to make $input\n";
-    system("uudecode $puu");
-  }
-}
+print "Running $name. \n" if $debug;
+print "   Input: $input, OUTPUT: $output, OPTIONS: $options\n" if $debug;
 
 print "    ";
-exec("../tcpdump -n -r $input $options | tee NEW/$output | diff -w - $output >DIFF/$output.diff");
+exec("../tcpdump 2>/dev/null -n -r $input $options | tee NEW/$output | diff -w - $output >DIFF/$output.diff");
 @cores = glob("core*");
 exit 10 if (@cores > 0);
 exit 0;

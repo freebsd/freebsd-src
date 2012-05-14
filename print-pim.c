@@ -29,7 +29,15 @@ static const char rcsid[] _U_ =
 #endif
 
 #include <tcpdump-stdinc.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "interface.h"
+#include "addrtoname.h"
+#include "extract.h"
+
+#include "ip.h"
 
 #define PIMV2_TYPE_HELLO         0
 #define PIMV2_TYPE_REGISTER      1
@@ -107,16 +115,6 @@ struct pim {
 	u_char  pim_rsv;	/* Reserved */
 	u_short	pim_cksum;	/* IP style check sum */
 };
-
-
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "interface.h"
-#include "addrtoname.h"
-#include "extract.h"
-
-#include "ip.h"
 
 static void pimv2_print(register const u_char *bp, register u_int len, u_int cksum);
 
@@ -399,8 +397,12 @@ cisco_autorp_print(register const u_char *bp, register u_int len)
 			TCHECK2(bp[0], 6);
 			(void)printf("%c%s%s/%d", s, bp[0] & 1 ? "!" : "",
 			    ipaddr_string(&bp[2]), bp[1]);
-			if (bp[0] & 0xfe)
-				(void)printf("[rsvd=0x%02x]", bp[0] & 0xfe);
+			if (bp[0] & 0x02) {
+			    (void)printf(" bidir");
+			}
+			if (bp[0] & 0xfc) {
+			    (void)printf("[rsvd=0x%02x]", bp[0] & 0xfc);
+			}
 			s = ',';
 			bp += 6; len -= 6;
 		}
@@ -768,7 +770,7 @@ pimv2_print(register const u_char *bp, register u_int len, u_int cksum)
 			break;
 #ifdef INET6
 		case 6:	/* IPv6 */
-			ip6_print(bp, len);
+			ip6_print(gndo, bp, len);
 			break;
 #endif
                 default:
