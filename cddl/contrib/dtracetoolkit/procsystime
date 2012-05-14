@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 #
 # procsystime - print process system call time details.
 #               Written using DTrace (Solaris 10 3/05).
