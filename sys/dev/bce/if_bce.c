@@ -6842,6 +6842,8 @@ bce_init_locked(struct bce_softc *sc)
 	bcopy(IF_LLADDR(sc->bce_ifp), sc->eaddr, ETHER_ADDR_LEN);
 	bce_set_mac_addr(sc);
 
+	if (bce_hdr_split == FALSE)
+		bce_get_rx_buffer_sizes(sc, ifp->if_mtu);
 	/*
 	 * Calculate and program the hardware Ethernet MTU
  	 * size. Be generous on the receive if we have room
@@ -7436,22 +7438,10 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		BCE_LOCK(sc);
 		ifp->if_mtu = ifr->ifr_mtu;
-
-		if (bce_hdr_split == FALSE) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				/*
-				 * Because allocation size is used in RX
-				 * buffer allocation, stop controller if
-				 * it is already running.
-				 */
-				bce_stop(sc);
-			}
-
-			bce_get_rx_buffer_sizes(sc, ifp->if_mtu);
-
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			bce_init_locked(sc);
 		}
-
 		BCE_UNLOCK(sc);
 		break;
 
