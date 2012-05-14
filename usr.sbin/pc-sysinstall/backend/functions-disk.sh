@@ -689,6 +689,9 @@ init_mbr_full_disk()
   echo_log "Cleaning up ${_intDISK}s1"
   rc_halt "dd if=/dev/zero of=${_intDISK}s1 count=1024"
   
+  # Make the partition active
+  rc_halt "gpart set -a active -i 1 ${_intDISK}"
+
   if [ "$_intBOOT" = "bsd" ] ; then
     echo_log "Stamping boot0 on ${_intDISK}"
     rc_halt "gpart bootcode -b /boot/boot0 ${_intDISK}"
