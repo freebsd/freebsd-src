@@ -1303,11 +1303,11 @@ ppp_hdlc(const u_char *p, int length)
 		goto cleanup;
 #ifdef INET6
         case PPP_IPV6:
-            ip6_print(b+1, t - b - 1);
-            goto cleanup;
+		ip6_print(gndo, b+1, t - b - 1);
+		goto cleanup;
 #endif
         default: /* no luck - try next guess */
-            break;
+		break;
         }
 
         proto = EXTRACT_16BITS(b); /* next guess - load two octets */
@@ -1368,7 +1368,7 @@ handle_ppp(u_int proto, const u_char *p, int length)
 #ifdef INET6
 	case ETHERTYPE_IPV6:	/*XXX*/
 	case PPP_IPV6:
-		ip6_print(p, length);
+		ip6_print(gndo, p, length);
 		break;
 #endif
 	case ETHERTYPE_IPX:	/*XXX*/
@@ -1675,11 +1675,11 @@ ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_
 			p += hdrlength;
 			switch (ptype) {
 			case PPP_IP:
-				ip_print(p, length);
+				ip_print(gndo, p, length);
 				break;
 #ifdef INET6
 			case PPP_IPV6:
-				ip6_print(p, length);
+				ip6_print(gndo, p, length);
 				break;
 #endif
 			case PPP_MPLS_UCAST:
@@ -1694,11 +1694,11 @@ ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_
 			p += hdrlength;
 			switch (ptype) {
 			case PPP_IP:
-				ip_print(p, length);
+				ip_print(gndo, p, length);
 				break;
 #ifdef INET6
 			case PPP_IPV6:
-				ip6_print(p, length);
+				ip6_print(gndo, p, length);
 				break;
 #endif
 			case PPP_MPLS_UCAST:
@@ -1730,12 +1730,12 @@ ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_
 		break;
 #ifdef INET6
 	case PPP_IPV6:
-		ip6_print(p, length);
+		ip6_print(gndo, p, length);
 		break;
 #endif
         case PPP_MPLS_UCAST:
         case PPP_MPLS_MCAST:
-                mpls_print(p, length);
+                mpls_print(gndo, p, length);
                 break;
 	default:
 		printf("%s ", tok2str(ppptype2str, "unknown PPP protocol (0x%04x)", ptype));

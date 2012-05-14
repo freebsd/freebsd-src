@@ -401,8 +401,11 @@ static struct tok bgp_safi_values[] = {
 
 #define BGP_EXT_COM_L2INFO      0x800a  /* draft-kompella-ppvpn-l2vpn */
 
-#define BGP_EXT_COM_SOURCE_AS   0x0009  /* draft-ietf-l3vpn-2547bis-mcast-bgp-02.txt */
-#define BGP_EXT_COM_VRF_RT_IMP  0x010a  /* draft-ietf-l3vpn-2547bis-mcast-bgp-02.txt */
+#define BGP_EXT_COM_SOURCE_AS   0x0009  /* RFC-ietf-l3vpn-2547bis-mcast-bgp-08.txt */
+#define BGP_EXT_COM_VRF_RT_IMP  0x010b  /* RFC-ietf-l3vpn-2547bis-mcast-bgp-08.txt */
+#define BGP_EXT_COM_L2VPN_RT_0  0x000a  /* L2VPN Identifier,Format AS(2bytes):AN(4bytes) */
+#define BGP_EXT_COM_L2VPN_RT_1  0xF10a  /* L2VPN Identifier,Format IP address:AN(2bytes) */
+
 
 /* http://www.cisco.com/en/US/tech/tk436/tk428/technologies_tech_note09186a00801eb09a.shtml  */
 #define BGP_EXT_COM_EIGRP_GEN   0x8800
@@ -443,6 +446,8 @@ static struct tok bgp_extd_comm_subtype_values[] = {
     { BGP_EXT_COM_EIGRP_EXT_REMPROTO_REMMETRIC , "eigrp-external-route (remote-proto, remote-metric)" },
     { BGP_EXT_COM_SOURCE_AS, "source-AS" },
     { BGP_EXT_COM_VRF_RT_IMP, "vrf-route-import"},
+    { BGP_EXT_COM_L2VPN_RT_0, "l2vpn-id"},
+    { BGP_EXT_COM_L2VPN_RT_1, "l2vpn-id"},
     { 0, NULL},
 };
 
@@ -951,57 +956,84 @@ decode_labeled_vpn_l2(const u_char *pptr, char *buf, u_int buflen)
         plen=EXTRACT_16BITS(pptr);
         tlen=plen;
         pptr+=2;
-	TCHECK2(pptr[0],15);
-	buf[0]='\0';
-        strlen=snprintf(buf, buflen, "RD: %s, CE-ID: %u, Label-Block Offset: %u, Label Base %u",
-                        bgp_vpn_rd_print(pptr),
-                        EXTRACT_16BITS(pptr+8),
-                        EXTRACT_16BITS(pptr+10),
-                        EXTRACT_24BITS(pptr+12)>>4); /* the label is offsetted by 4 bits so lets shift it right */
-        UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-        pptr+=15;
-        tlen-=15;
+	/* Old and new L2VPN NLRI share AFI/SAFI
+         *   -> Assume a 12 Byte-length NLRI is auto-discovery-only
+         *      and > 17 as old format. Complain for the middle case
+         */
+        if (plen==12) { 
+	    /* assume AD-only with RD, BGPNH */
+	    TCHECK2(pptr[0],12);
+	    buf[0]='\0';
+	    strlen=snprintf(buf, buflen, "RD: %s, BGPNH: %s",
+			    bgp_vpn_rd_print(pptr), 
+			    /* need something like getname() here */
+			    getname(pptr+8)
+			    );
+	    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+	    pptr+=12;
+	    tlen-=12;
+	    return plen;
+        } else if (plen>17) { 
+	    /* assume old format */
+	    /* RD, ID, LBLKOFF, LBLBASE */
 
-        /* ok now the variable part - lets read out TLVs*/
-        while (tlen>0) {
-            if (tlen < 3)
-                return -1;
-            TCHECK2(pptr[0], 3);
-            tlv_type=*pptr++;
-            tlv_len=EXTRACT_16BITS(pptr);
-            ttlv_len=tlv_len;
-            pptr+=2;
+	    TCHECK2(pptr[0],15);
+	    buf[0]='\0';
+	    strlen=snprintf(buf, buflen, "RD: %s, CE-ID: %u, Label-Block Offset: %u, Label Base %u",
+			    bgp_vpn_rd_print(pptr),
+			    EXTRACT_16BITS(pptr+8),
+			    EXTRACT_16BITS(pptr+10),
+			    EXTRACT_24BITS(pptr+12)>>4); /* the label is offsetted by 4 bits so lets shift it right */
+	    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+	    pptr+=15;
+	    tlen-=15;
 
-            switch(tlv_type) {
-            case 1:
-                if (buflen!=0) {
-                    strlen=snprintf(buf,buflen, "\n\t\tcircuit status vector (%u) length: %u: 0x",
-                                    tlv_type,
-                                    tlv_len);
-                    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-                }
-                ttlv_len=ttlv_len/8+1; /* how many bytes do we need to read ? */
-                while (ttlv_len>0) {
-                    TCHECK(pptr[0]);
-                    if (buflen!=0) {
-                        strlen=snprintf(buf,buflen, "%02x",*pptr++);
-                        UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-                    }
-                    ttlv_len--;
-                }
-                break;
-            default:
-                if (buflen!=0) {
-                    strlen=snprintf(buf,buflen, "\n\t\tunknown TLV #%u, length: %u",
-                                    tlv_type,
-                                    tlv_len);
-                    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-                }
-                break;
-            }
-            tlen-=(tlv_len<<3); /* the tlv-length is expressed in bits so lets shift it right */
+	    /* ok now the variable part - lets read out TLVs*/
+	    while (tlen>0) {
+		if (tlen < 3)
+		    return -1;
+		TCHECK2(pptr[0], 3);
+		tlv_type=*pptr++;
+		tlv_len=EXTRACT_16BITS(pptr);
+		ttlv_len=tlv_len;
+		pptr+=2;
+
+		switch(tlv_type) {
+		case 1:
+		    if (buflen!=0) {
+			strlen=snprintf(buf,buflen, "\n\t\tcircuit status vector (%u) length: %u: 0x",
+					tlv_type,
+					tlv_len);
+			UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+		    }
+		    ttlv_len=ttlv_len/8+1; /* how many bytes do we need to read ? */
+		    while (ttlv_len>0) {
+			TCHECK(pptr[0]);
+			if (buflen!=0) {
+			    strlen=snprintf(buf,buflen, "%02x",*pptr++);
+			    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+			}
+			ttlv_len--;
+		    }
+		    break;
+		default:
+		    if (buflen!=0) {
+			strlen=snprintf(buf,buflen, "\n\t\tunknown TLV #%u, length: %u",
+					tlv_type,
+					tlv_len);
+			UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+		    }
+		    break;
+		}
+		tlen-=(tlv_len<<3); /* the tlv-length is expressed in bits so lets shift it right */
+	    }
+	    return plen+2;
+	    
+        } else {
+	    /* complain bitterly ? */
+	    /* fall through */
+            goto trunc;
         }
-        return plen+2;
 
 trunc:
         return -2;
@@ -1939,6 +1971,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                     switch(extd_comm) {
                     case BGP_EXT_COM_RT_0:
                     case BGP_EXT_COM_RO_0:
+                    case BGP_EXT_COM_L2VPN_RT_0:
                         printf(": %u:%u (= %s)",
                                EXTRACT_16BITS(tptr+2),
                                EXTRACT_32BITS(tptr+4),
@@ -1946,6 +1979,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                         break;
                     case BGP_EXT_COM_RT_1:
                     case BGP_EXT_COM_RO_1:
+                    case BGP_EXT_COM_L2VPN_RT_1:
                     case BGP_EXT_COM_VRF_RT_IMP:
                         printf(": %s:%u",
                                getname(tptr+2),

@@ -158,6 +158,10 @@ struct ieee80211_radiotap_header {
  *      Unitless indication of the Rx/Tx antenna for this packet.
  *      The first antenna is antenna 0.
  *
+ * IEEE80211_RADIOTAP_RX_FLAGS          u_int16_t       bitmap
+ *
+ *     Properties of received frames. See flags defined below.
+ *
  * IEEE80211_RADIOTAP_XCHANNEL          u_int32_t	bitmap
  *					u_int16_t	MHz
  *					u_int8_t	channel number
@@ -168,6 +172,25 @@ struct ieee80211_radiotap_header {
  *	finally the maximum regulatory transmit power cap in .5 dBm
  *	units.  This property supersedes IEEE80211_RADIOTAP_CHANNEL
  *	and only one of the two should be present.
+ *
+ * IEEE80211_RADIOTAP_MCS		u_int8_t	known
+ *					u_int8_t	flags
+ *					u_int8_t	mcs
+ *
+ *	Bitset indicating which fields have known values, followed
+ *	by bitset of flag values, followed by the MCS rate index as
+ *	in IEEE 802.11n.
+ *
+ * IEEE80211_RADIOTAP_VENDOR_NAMESPACE
+ *					u_int8_t  OUI[3]
+ *                                   u_int8_t  subspace
+ *                                   u_int16_t length
+ *
+ *     The Vendor Namespace Field contains three sub-fields. The first
+ *     sub-field is 3 bytes long. It contains the vendor's IEEE 802
+ *     Organizationally Unique Identifier (OUI). The fourth byte is a
+ *     vendor-specific "namespace selector."
+ *
  */
 enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_TSFT = 0,
@@ -184,8 +207,12 @@ enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_ANTENNA = 11,
 	IEEE80211_RADIOTAP_DB_ANTSIGNAL = 12,
 	IEEE80211_RADIOTAP_DB_ANTNOISE = 13,
+	IEEE80211_RADIOTAP_RX_FLAGS = 14,
 	/* NB: gap for netbsd definitions */
 	IEEE80211_RADIOTAP_XCHANNEL = 18,
+	IEEE80211_RADIOTAP_MCS = 19,
+	IEEE80211_RADIOTAP_NAMESPACE = 29,
+	IEEE80211_RADIOTAP_VENDOR_NAMESPACE = 30,
 	IEEE80211_RADIOTAP_EXT = 31
 };
 
@@ -205,6 +232,19 @@ enum ieee80211_radiotap_type {
 #define	IEEE80211_CHAN_HT20	0x10000	/* HT 20 channel */
 #define	IEEE80211_CHAN_HT40U	0x20000	/* HT 40 channel w/ ext above */
 #define	IEEE80211_CHAN_HT40D	0x40000	/* HT 40 channel w/ ext below */
+
+/* Useful combinations of channel characteristics, borrowed from Ethereal */
+#define IEEE80211_CHAN_A \
+        (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
+#define IEEE80211_CHAN_B \
+        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
+#define IEEE80211_CHAN_G \
+        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
+#define IEEE80211_CHAN_TA \
+        (IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
+#define IEEE80211_CHAN_TG \
+        (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN  | IEEE80211_CHAN_TURBO)
+
 
 /* For IEEE80211_RADIOTAP_FLAGS */
 #define	IEEE80211_RADIOTAP_F_CFP	0x01	/* sent/received
@@ -226,6 +266,26 @@ enum ieee80211_radiotap_type {
 						 * (to 32-bit boundary)
 						 */
 #define	IEEE80211_RADIOTAP_F_BADFCS	0x40	/* does not pass FCS check */
-#define	IEEE80211_RADIOTAP_F_SHORTGI	0x80	/* HT short GI */
+
+/* For IEEE80211_RADIOTAP_RX_FLAGS */
+#define IEEE80211_RADIOTAP_F_RX_BADFCS	0x0001	/* frame failed crc check */
+#define IEEE80211_RADIOTAP_F_RX_PLCP_CRC	0x0002	/* frame failed PLCP CRC check */
+
+/* For IEEE80211_RADIOTAP_MCS known */
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_KNOWN		0x01
+#define IEEE80211_RADIOTAP_MCS_MCS_INDEX_KNOWN		0x02	/* MCS index field */
+#define IEEE80211_RADIOTAP_MCS_GUARD_INTERVAL_KNOWN	0x04
+#define IEEE80211_RADIOTAP_MCS_HT_FORMAT_KNOWN		0x08
+#define IEEE80211_RADIOTAP_MCS_FEC_TYPE_KNOWN		0x10
+
+/* For IEEE80211_RADIOTAP_MCS flags */
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_MASK	0x03
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20	0
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_40	1
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20L	2
+#define IEEE80211_RADIOTAP_MCS_BANDWIDTH_20U	3
+#define IEEE80211_RADIOTAP_MCS_SHORT_GI		0x04 /* short guard interval */
+#define IEEE80211_RADIOTAP_MCS_HT_GREENFIELD	0x08
+#define IEEE80211_RADIOTAP_MCS_FEC_LDPC		0x10
 
 #endif /* _NET_IF_IEEE80211RADIOTAP_H_ */

@@ -73,7 +73,7 @@ sl_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		break;
 #ifdef INET6
 	case 6:
-		ip6_print((u_char *)ip, length);
+		ip6_print(gndo, (u_char *)ip, length);
 		break;
 #endif
 	default:

@@ -197,7 +197,7 @@ static int ospf_decode_v2(const struct ospfhdr *, const u_char *);
 static int ospf_decode_lls(const struct ospfhdr *, register u_int);
 
 int
-ospf_print_grace_lsa (u_int8_t *tptr, u_int ls_length) {
+ospf_print_grace_lsa (const u_int8_t *tptr, u_int ls_length) {
 
     u_int tlv_type, tlv_length;
 
@@ -279,7 +279,7 @@ trunc:
 }
 
 int
-ospf_print_te_lsa (u_int8_t *tptr, u_int ls_length) {
+ospf_print_te_lsa (const u_int8_t *tptr, u_int ls_length) {
 
     u_int tlv_type, tlv_length, subtlv_type, subtlv_length;
     u_int priority_level, te_class, count_srlg;
@@ -1028,7 +1028,7 @@ ospf_decode_v2(register const struct ospfhdr *op,
                 lsap = op->ospf_lsu.lsu_lsa;
                 TCHECK(op->ospf_lsu.lsu_count);
                 lsa_count_max = EXTRACT_32BITS(&op->ospf_lsu.lsu_count);
-                printf(", %d LSA%s",lsa_count_max, lsa_count_max > 1 ? "s" : "");
+                printf(", %d LSA%s",lsa_count_max, PLURAL_SUFFIX(lsa_count_max));
                 for (lsa_count=1;lsa_count <= lsa_count_max;lsa_count++) {
                     printf("\n\t  LSA #%u",lsa_count);
                         lsap = (const struct lsa *)ospf_print_lsa(lsap);

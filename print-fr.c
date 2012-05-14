@@ -256,7 +256,7 @@ fr_print(register const u_char *p, u_int length)
                 if (eflag)
                     fr_hdr_print(length, addr_len, dlci, flags, extracted_ethertype);
 
-                if (ethertype_print(extracted_ethertype,
+                if (ethertype_print(gndo, extracted_ethertype,
                                       p+addr_len+ETHERTYPE_LEN,
                                       length-addr_len-ETHERTYPE_LEN,
                                       length-addr_len-ETHERTYPE_LEN) == 0)
@@ -286,7 +286,7 @@ fr_print(register const u_char *p, u_int length)
 
 #ifdef INET6
 	case NLPID_IP6:
-		ip6_print(p, length);
+		ip6_print(gndo, p, length);
 		break;
 #endif
 	case NLPID_CLNP:

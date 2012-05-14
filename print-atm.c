@@ -270,10 +270,12 @@ sig_print(const u_char *p, int caplen)
 		printf(":%s ",
 		    tok2str(msgtype2str, "msgtype#%d", p[MSG_TYPE_POS]));
 
-		if (caplen < CALL_REF_POS+3) {
-			printf("[|atm]");
-			return;
-		}
+		/*
+		 * The call reference comes before the message type,
+		 * so if we know we have the message type, which we
+		 * do from the caplen test above, we also know we have
+		 * the call reference.
+		 */
 		call_ref = EXTRACT_24BITS(&p[CALL_REF_POS]);
 		printf("CALL_REF:0x%06x", call_ref);
 	} else {

@@ -99,14 +99,10 @@ llap_print(register const u_char *bp, u_int length)
 	u_short snet;
 	u_int hdrlen;
 
-	/*
-	 * Our packet is on a 4-byte boundary, as we're either called
-	 * directly from a top-level link-layer printer (ltalk_if_print)
-	 * or from the UDP printer.  The LLAP+DDP header is a multiple
-	 * of 4 bytes in length, so the DDP payload is also on a 4-byte
-	 * boundary, and we don't need to align it before calling
-	 * "ddp_print()".
-	 */
+	if (length < sizeof(*lp)) {
+		(void)printf(" [|llap %u]", length);
+		return (length);
+	}
 	lp = (const struct LAP *)bp;
 	bp += sizeof(*lp);
 	length -= sizeof(*lp);
@@ -115,7 +111,7 @@ llap_print(register const u_char *bp, u_int length)
 
 	case lapShortDDP:
 		if (length < ddpSSize) {
-			(void)printf(" [|sddp %d]", length);
+			(void)printf(" [|sddp %u]", length);
 			return (length);
 		}
 		sdp = (const struct atShortDDP *)bp;
@@ -131,7 +127,7 @@ llap_print(register const u_char *bp, u_int length)
 
 	case lapDDP:
 		if (length < ddpSize) {
-			(void)printf(" [|ddp %d]", length);
+			(void)printf(" [|ddp %u]", length);
 			return (length);
 		}
 		dp = (const struct atDDP *)bp;
@@ -154,7 +150,7 @@ llap_print(register const u_char *bp, u_int length)
 #endif
 
 	default:
-		printf("%d > %d at-lap#%d %d",
+		printf("%d > %d at-lap#%d %u",
 		    lp->src, lp->dst, lp->type, length);
 		break;
 	}
@@ -176,7 +172,7 @@ atalk_print(register const u_char *bp, u_int length)
             printf("AT ");
 
 	if (length < ddpSize) {
-		(void)printf(" [|ddp %d]", length);
+		(void)printf(" [|ddp %u]", length);
 		return;
 	}
 	dp = (const struct atDDP *)bp;
@@ -265,6 +261,10 @@ atp_print(register const struct atATP *ap, u_int length)
 		fputs(tstr, stdout);
 		return;
 	}
+	if (length < sizeof(*ap)) {
+		(void)printf(" [|atp %u]", length);
+		return;
+	}
 	length -= sizeof(*ap);
 	switch (ap->control & 0xc0) {
 
@@ -276,7 +276,7 @@ atp_print(register const struct atATP *ap, u_int length)
 		atp_bitmap_print(ap->bitmap);
 
 		if (length != 0)
-			(void)printf(" [len=%d]", length);
+			(void)printf(" [len=%u]", length);
 
 		switch (ap->control & (atpEOM|atpSTS)) {
 		case atpEOM:
@@ -292,7 +292,7 @@ atp_print(register const struct atATP *ap, u_int length)
 		break;
 
 	case atpRspCode:
-		(void)printf(" atp-resp%s%d:%d (%d)",
+		(void)printf(" atp-resp%s%d:%d (%u)",
 			     ap->control & atpEOM? "*" : " ",
 			     EXTRACT_16BITS(&ap->transID), ap->bitmap, length);
 		switch (ap->control & (atpXO|atpSTS)) {
@@ -315,7 +315,7 @@ atp_print(register const struct atATP *ap, u_int length)
 
 		/* length should be zero */
 		if (length)
-			(void)printf(" [len=%d]", length);
+			(void)printf(" [len=%u]", length);
 
 		/* there shouldn't be any control flags */
 		if (ap->control & (atpXO|atpEOM|atpSTS)) {
@@ -337,7 +337,7 @@ atp_print(register const struct atATP *ap, u_int length)
 		break;
 
 	default:
-		(void)printf(" atp-0x%x  %d (%d)", ap->control,
+		(void)printf(" atp-0x%x  %d (%u)", ap->control,
 			     EXTRACT_16BITS(&ap->transID), length);
 		break;
 	}
@@ -387,14 +387,14 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 	const u_char *ep;
 
 	if (length < nbpHeaderSize) {
-		(void)printf(" truncated-nbp %d", length);
+		(void)printf(" truncated-nbp %u", length);
 		return;
 	}
 
 	length -= nbpHeaderSize;
 	if (length < 8) {
 		/* must be room for at least one tuple */
-		(void)printf(" truncated-nbp %d", length + nbpHeaderSize);
+		(void)printf(" truncated-nbp %u", length + nbpHeaderSize);
 		return;
 	}
 	/* ep points to end of available data */
@@ -439,7 +439,7 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 		break;
 
 	default:
-		(void)printf(" nbp-0x%x  %d (%d)", np->control, np->id,
+		(void)printf(" nbp-0x%x  %d (%u)", np->control, np->id,
 				length);
 		break;
 	}
@@ -551,26 +551,24 @@ ataddr_string(u_short atnet, u_char athost)
 	if (first && (first = 0, !nflag)
 	    && (fp = fopen("/etc/atalk.names", "r"))) {
 		char line[256];
-		int i1, i2, i3;
+		int i1, i2;
 
 		while (fgets(line, sizeof(line), fp)) {
 			if (line[0] == '\n' || line[0] == 0 || line[0] == '#')
 				continue;
-			if (sscanf(line, "%d.%d.%d %256s", &i1, &i2, &i3,
-				     nambuf) == 4)
+			if (sscanf(line, "%d.%d %256s", &i1, &i2, nambuf) == 3)
 				/* got a hostname. */
-				i3 |= ((i1 << 8) | i2) << 8;
-			else if (sscanf(line, "%d.%d %256s", &i1, &i2,
-					nambuf) == 3)
+				i2 |= (i1 << 8);
+			else if (sscanf(line, "%d %256s", &i1, nambuf) == 2)
 				/* got a net name */
-				i3 = (((i1 << 8) | i2) << 8) | 255;
+				i2 = (i1 << 8) | 255;
 			else
 				continue;
 
-			for (tp = &hnametable[i3 & (HASHNAMESIZE-1)];
+			for (tp = &hnametable[i2 & (HASHNAMESIZE-1)];
 			     tp->nxt; tp = tp->nxt)
 				;
-			tp->addr = i3;
+			tp->addr = i2;
 			tp->nxt = newhnamemem();
 			tp->name = strdup(nambuf);
 		}
@@ -596,11 +594,9 @@ ataddr_string(u_short atnet, u_char athost)
 	tp->addr = (atnet << 8) | athost;
 	tp->nxt = newhnamemem();
 	if (athost != 255)
-		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d.%d",
-		    atnet >> 8, atnet & 0xff, athost);
+		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d", atnet, athost);
 	else
-		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d", atnet >> 8,
-		    atnet & 0xff);
+		(void)snprintf(nambuf, sizeof(nambuf), "%d", atnet);
 	tp->name = strdup(nambuf);
 
 	return (tp->name);
