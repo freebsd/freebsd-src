@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 #
 # execsnoop - snoop process execution as it occurs.
 #             Written using DTrace (Solaris 10 3/05).
@@ -155,7 +155,7 @@ fi
  /*
   * Print exec event
   */
- syscall::exec:return, syscall::exece:return
+ syscall::execve:return
  /(FILTER == 0) || (OPT_cmd == 1 && COMMAND == execname)/ 
  {
 	/* print optional fields */
