@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/exec.h>
 #include <sys/ktr.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
