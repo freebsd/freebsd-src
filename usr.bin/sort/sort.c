@@ -62,10 +62,10 @@ nl_catd catalog;
 #define DEFAULT_RANDOM_SORT_SEED_FILE ("/dev/random")
 #define MAX_DEFAULT_RANDOM_SEED_DATA_SIZE (1024)
 
-static bool need_random = false;
-static const char* random_source = DEFAULT_RANDOM_SORT_SEED_FILE;
-static const void* random_seed = NULL;
-static size_t random_seed_size = 0;
+static bool need_random;
+static const char *random_source = DEFAULT_RANDOM_SORT_SEED_FILE;
+static const void *random_seed;
+static size_t random_seed_size;
 
 MD5_CTX md5_ctx;
 
@@ -98,26 +98,26 @@ const char *nlsstr[] = { "",
 
 struct sort_opts sort_opts_vals;
 
-bool debug_sort = false;
-bool need_hint = false;
+bool debug_sort;
+bool need_hint;
 
 #if defined(SORT_THREADS)
 size_t ncpu = 1;
 size_t nthreads = 1;
 #endif
 
-static bool gnusort_numeric_compatibility = false;
+static bool gnusort_numeric_compatibility;
 
 static struct sort_mods default_sort_mods_object;
 struct sort_mods * const default_sort_mods = &default_sort_mods_object;
 
-static bool print_symbols_on_debug = false;
+static bool print_symbols_on_debug;
 
 /*
  * Arguments from file (when file0-from option is used:
  */
 static int argc_from_file0 = -1;
-static char **argv_from_file0 = NULL;
+static char **argv_from_file0;
 
 /*
  * Placeholder symbols for options which have no single-character equivalent
