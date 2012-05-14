@@ -38,14 +38,14 @@
 .Nd Statistical Information For TCP Research
 .Sh SYNOPSIS
 To load
-.Ns Nm
+the driver
 as a module at run-time, run the following command as root:
 .Bd -literal -offset indent
 kldload siftr
 .Ed
 .Pp
 Alternatively, to load
-.Ns Nm
+the driver
 as a module at boot time, add the following line into the
 .Xr loader.conf 5
 file:
@@ -53,13 +53,16 @@ file:
 siftr_load="YES"
 .Ed
 .Sh DESCRIPTION
+The
 .Nm
-.Ns ( Em S Ns tatistical
+.Po
+.Em S Ns tatistical
 .Em I Ns nformation
 .Em F Ns or
 .Em T Ns CP
-.Em R Ns esearch )
-is a kernel module that logs a range of statistics on active TCP connections to
+.Em R Ns esearch
+.Pc
+kernel module logs a range of statistics on active TCP connections to
 a log file.
 It provides the ability to make highly granular measurements of TCP connection
 state, aimed at system administrators, developers and researchers.
