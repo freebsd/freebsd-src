@@ -2592,8 +2592,8 @@ sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 }
 
 static void
-sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
-    uint32_t error, int so_locked
+sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
+    uint16_t error, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -2602,6 +2602,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	struct mbuf *m_notify;
 	struct sctp_assoc_change *sac;
 	struct sctp_queued_to_read *control;
+	size_t len;
 	unsigned int i;
 
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -2615,7 +2616,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	 */
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
-	    ((event == SCTP_COMM_LOST) || (event == SCTP_CANT_STR_ASSOC))) {
+	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
 		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT) {
 			SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ECONNREFUSED);
 			stcb->sctp_socket->so_error = ECONNREFUSED;
@@ -2651,7 +2652,11 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_assoc_change), 0, M_DONTWAIT, 1, MT_DATA);
+	len = sizeof(struct sctp_assoc_change);
+	if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
+		len += SCTP_ASSOC_SUPPORTS_MAX;
+	}
+	m_notify = sctp_get_mbuf_for_msg(len, 0, M_DONTWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -2661,27 +2666,29 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	sac->sac_type = SCTP_ASSOC_CHANGE;
 	sac->sac_flags = 0;
 	sac->sac_length = sizeof(struct sctp_assoc_change);
-	sac->sac_state = event;
+	sac->sac_state = state;
 	sac->sac_error = error;
 	/* XXX verify these stream counts */
 	sac->sac_outbound_streams = stcb->asoc.streamoutcnt;
 	sac->sac_inbound_streams = stcb->asoc.streamincnt;
 	sac->sac_assoc_id = sctp_get_associd(stcb);
-	i = 0;
-	if (stcb->asoc.peer_supports_prsctp) {
-		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_PR;
+	if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
+		i = 0;
+		if (stcb->asoc.peer_supports_prsctp) {
+			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_PR;
+		}
+		if (stcb->asoc.peer_supports_auth) {
+			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_AUTH;
+		}
+		if (stcb->asoc.peer_supports_asconf) {
+			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_ASCONF;
+		}
+		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_MULTIBUF;
+		if (stcb->asoc.peer_supports_strreset) {
+			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_RE_CONFIG;
+		}
+		sac->sac_length += i;
 	}
-	if (stcb->asoc.peer_supports_auth) {
-		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_AUTH;
-	}
-	if (stcb->asoc.peer_supports_asconf) {
-		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_ASCONF;
-	}
-	sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_MULTIBUF;
-	if (stcb->asoc.peer_supports_strreset) {
-		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_RE_CONFIG;
-	}
-	sac->sac_length += i;
 	SCTP_BUF_LEN(m_notify) = sac->sac_length;
 	SCTP_BUF_NEXT(m_notify) = NULL;
 	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
@@ -2700,7 +2707,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	    control,
 	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD,
 	    so_locked);
-	if (event == SCTP_COMM_LOST) {
+	if (state == SCTP_COMM_LOST) {
 		/* Wake up any sleeper */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(stcb->sctp_ep);
