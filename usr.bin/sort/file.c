@@ -54,7 +54,7 @@ unsigned long long free_memory = 1000000;
 unsigned long long available_free_memory = 1000000;
 
 const char *tmpdir = "/var/tmp";
-const char* compress_program = NULL;
+const char *compress_program;
 
 size_t max_open_files = 16;
 
