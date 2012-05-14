@@ -33,7 +33,7 @@ get_value_from_string()
 {
   if [ -n "${1}" ]
   then
-    export VAL="`echo ${1} | cut -d '=' -f 2-15`"
+    export VAL="`echo ${1} | cut -d '=' -f 2-`"
   else
     echo "Error: Did we forgot to supply a string to parse?"
     exit 1
@@ -45,7 +45,7 @@ get_value_from_cfg_with_spaces()
 {
   if [ -n "${1}" ]
   then
-    export VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2-15`
+    export VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2-`
   else
     exit_err "Error: Did we forgot to supply a setting to grab?"
   fi
@@ -57,7 +57,7 @@ get_value_from_cfg()
 {
   if [ -n "${1}" ]
   then
-    export VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2-15 | tr -d ' '`
+    export VAL=`grep "^${1}=" ${CFGF} | head -n 1 | cut -d '=' -f 2- | tr -d ' '`
   else
     exit_err "Error: Did we forgot to supply a setting to grab?"
   fi
@@ -71,7 +71,7 @@ if_check_value_exists()
   then
     # Get the first occurance of the setting from the config, strip out whitespace
 
-    VAL=`grep "^${1}" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
+    VAL=`grep "^${1}" ${CFGF} | head -n 1 | cut -d '=' -f 2- | tr -d ' '`
     if [ -z "${VAL}" ]
     then
       # This value doesn't exist, lets return
@@ -104,7 +104,7 @@ check_value()
   if [ -n "${1}" -a -n "${2}" ]
   then
     # Get the first occurance of the setting from the config, strip out whitespace
-    VAL=`grep "^${1}" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
+    VAL=`grep "^${1}" ${CFGF} | head -n 1 | cut -d '=' -f 2- | tr -d ' '`
     VALID="1"
     for i in ${2}
     do
@@ -133,7 +133,7 @@ file_sanity_check()
       grep -q "^${i}=" $CFGF 2>/dev/null
       if [ $? -eq 0 ]
       then
-        LN=`grep "^${i}=" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
+        LN=`grep "^${i}=" ${CFGF} | head -n 1 | cut -d '=' -f 2- | tr -d ' '`
         if [ -z "${LN}" ]
         then
           echo "Error: Config fails sanity test! ${i}= is empty"
