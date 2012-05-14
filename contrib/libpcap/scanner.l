@@ -56,7 +56,7 @@ static const char rcsid[] _U_ =
 #include <pcap-stdinc.h>
 
 #ifdef __MINGW32__
-#include "IP6_misc.h"
+#include "ip6_misc.h"
 #endif
 #else /* WIN32 */
 #include <sys/socket.h>	/* for "struct sockaddr" in "struct addrinfo" */
@@ -79,6 +79,7 @@ static int stoi(char *);
 static inline int xdtoi(int);
 
 #ifdef FLEX_SCANNER
+#define YY_NO_INPUT
 #define YY_NO_UNPUT
 static YY_BUFFER_STATE in_buffer;
 #else
@@ -203,6 +204,7 @@ igmp		return IGMP;
 igrp		return IGRP;
 pim		return PIM;
 vrrp		return VRRP;
+carp		return CARP;
 radio		return RADIO;
 
 ip6		{
@@ -274,6 +276,8 @@ address1|addr1	return ADDR1;
 address2|addr2	return ADDR2;
 address3|addr3	return ADDR3;
 address4|addr4	return ADDR4;
+ra		return RA;
+ta		return TA;
 
 less		return LESS;
 greater		return GREATER;
