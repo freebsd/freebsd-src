@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include "bwstring.h"
 #include "sort.h"
 
-bool byte_sort = false;
+bool byte_sort;
 
-static wchar_t **wmonths = NULL;
-static unsigned char **cmonths = NULL;
+static wchar_t **wmonths;
+static unsigned char **cmonths;
 
 /* initialise months */
 
