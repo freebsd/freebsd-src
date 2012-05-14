@@ -598,7 +598,7 @@ openfile(const char *fn, const char *mode)
 				snprintf(cmd, cmdsz - 1, "%s > %s",
 				    compress_program, fn);
 			else
-				err(2, getstr(7));
+				err(2, "%s", getstr(7));
 
 			if ((file = popen(cmd, mode)) == NULL)
 				err(2, NULL);
@@ -939,7 +939,7 @@ file_header_init(struct file_header **fh, const char *fn, size_t file_pos)
 		(*fh)->fr = file_reader_init(fn);
 		if ((*fh)->fr == NULL) {
 			perror(fn);
-			err(2, getstr(8));
+			err(2, "%s", getstr(8));
 		}
 		line = file_reader_readline((*fh)->fr);
 		if (line == NULL) {
@@ -1276,7 +1276,7 @@ sort_list_to_file(struct sort_list *list, const char *outfile)
 			sort_opts_vals.sort_method = SORT_RADIXSORT;
 
 	} else if (sort_opts_vals.sort_method == SORT_RADIXSORT)
-		err(2, getstr(9));
+		err(2, "%s", getstr(9));
 
 	/*
 	 * to handle stable sort and the unique cases in the
@@ -1292,7 +1292,7 @@ sort_list_to_file(struct sort_list *list, const char *outfile)
 			sort_opts_vals.sort_method = SORT_MERGESORT;
 			break;
 		default:
-			errx(2, getstr(10));
+			errx(2, "%s", getstr(10));
 		};
 	}
 
