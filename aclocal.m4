@@ -47,7 +47,7 @@ AC_DEFUN(AC_LBL_C_INIT_BEFORE_CC,
     $1="-O"
     $2=""
     if test "${srcdir}" != "." ; then
-	    $2="-I\$(srcdir)"
+	    $2="-I$srcdir"
     fi
     if test "${CFLAGS+set}" = set; then
 	    LBL_CFLAGS="$CFLAGS"
@@ -309,14 +309,22 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 	    #
 	    # Look for pcap-config.
 	    #
-	    AC_PATH_PROG(PCAP_CONFIG, pcap-config)
+	    AC_PATH_TOOL(PCAP_CONFIG, pcap-config)
 	    if test -n "$PCAP_CONFIG" ; then
 		#
 		# Found - use it to get the include flags for
 		# libpcap and the flags to link with libpcap.
 		#
-		$2="`\"$PCAP_CONFIG\" --cflags` $$2"
-		libpcap="`\"$PCAP_CONFIG\" --libs`"
+		# Please read section 11.6 "Shell Substitutions"
+		# in the autoconf manual before doing anything
+		# to this that involves quoting.  Especially note
+		# the statement "There is just no portable way to use
+		# double-quoted strings inside double-quoted back-quoted
+		# expressions (pfew!)."
+		#
+		cflags=`"$PCAP_CONFIG" --cflags`
+		$2="$cflags $$2"
+		libpcap=`"$PCAP_CONFIG" --libs`
 	    else
 		#
 		# Not found; look for pcap.
@@ -378,9 +386,17 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 		# The libpcap directory has a pcap-config script.
 		# Use it to get any additioal libraries needed
 		# to link with the libpcap archive library in
-		# that directory
+		# that directory.
 		#
-		libpcap="$libpcap `\"$PCAP_CONFIG\" --additional-libs --static`"
+		# Please read section 11.6 "Shell Substitutions"
+		# in the autoconf manual before doing anything
+		# to this that involves quoting.  Especially note
+		# the statement "There is just no portable way to use
+		# double-quoted strings inside double-quoted back-quoted
+		# expressions (pfew!)."
+		#
+		additional_libs=`"$PCAP_CONFIG" --additional-libs --static`
+		libpcap="$libpcap $additional_libs"
 	    fi
     fi
     LIBS="$libpcap $LIBS"
@@ -416,6 +432,21 @@ AC_DEFUN(AC_LBL_LIBPCAP,
 	    ;;
 	esac
     fi
+
+    dnl
+    dnl Check for "pcap_loop()", to make sure we found a working
+    dnl libpcap and have all the right other libraries with which
+    dnl to link.  (Otherwise, the checks below will fail, not
+    dnl because the routines are missing from the library, but
+    dnl because we aren't linking properly with libpcap, and
+    dnl that will cause confusing errors at build time.)
+    dnl
+    AC_CHECK_FUNC(pcap_loop,,
+	[
+	    AC_MSG_ERROR(
+[Report this to tcpdump-workers@lists.tcpdump.org, and include the
+config.log file in your report])
+	])
 
     dnl
     dnl Check for "pcap_list_datalinks()", "pcap_set_datalink()",
@@ -1057,113 +1088,6 @@ AC_DEFUN(AC_STRUCT_SA_STORAGE, [
 ])
 
 dnl
-dnl Checks for macro of IP address size
-AC_DEFUN(AC_CHECK_ADDRSZ, [
-	$1=yes
-dnl check for INADDRSZ
-	AC_MSG_CHECKING(for INADDRSZ)
-	AC_CACHE_VAL(ac_cv_inaddrsz,
-	AC_TRY_COMPILE([
-#		include <arpa/nameser.h>],
-		[int a = INADDRSZ],
-		ac_cv_inaddrsz=yes,
-		ac_cv_inaddrsz=no))
-	AC_MSG_RESULT($ac_cv_inaddrsz)
-	if test $ac_cv_inaddrsz = yes; then
-		AC_DEFINE(HAVE_INADDRSZ)
-	else
-		$1=no
-	fi
-dnl check for IN6ADDRSZ
-	AC_MSG_CHECKING(for IN6ADDRSZ)
-	AC_CACHE_VAL(ac_cv_in6addrsz,
-	AC_TRY_COMPILE([
-#		include <arpa/nameser.h>],
-		[int a = IN6ADDRSZ],
-		ac_cv_in6addrsz=yes,
-		ac_cv_in6addrsz=no))
-	AC_MSG_RESULT($ac_cv_in6addrsz)
-	if test $ac_cv_in6addrsz = yes; then
-		AC_DEFINE(HAVE_IN6ADDRSZ)
-	else
-		$1=no
-	fi
-])
-
-dnl
-dnl check for RES_USE_INET6
-AC_DEFUN(AC_CHECK_RES_USE_INET6, [
-	AC_MSG_CHECKING(for RES_USE_INET6)
-	AC_CACHE_VAL($1,
-	AC_TRY_COMPILE([
-#		include <sys/types.h>
-#		include <netinet/in.h>
-#		include <resolv.h>],
-		[int a = RES_USE_INET6],
-		$1=yes,
-		$1=no))
-	AC_MSG_RESULT($$1)
-	if test $$1 = yes; then
-		AC_DEFINE(HAVE_RES_USE_INET6)
-	fi
-])
-
-dnl
-dnl check for AAAA
-AC_DEFUN(AC_CHECK_AAAA, [
-	AC_MSG_CHECKING(for AAAA)
-	AC_CACHE_VAL($1,
-	AC_TRY_COMPILE([
-#		include <sys/types.h>
-#		include <arpa/nameser.h>],
-		[int a = T_AAAA],
-		$1=yes,
-		$1=no))
-	AC_MSG_RESULT($$1)
-	if test $$1 = yes; then
-		AC_DEFINE(HAVE_AAAA)
-	fi
-])
-
-dnl
-dnl check for struct res_state_ext
-AC_DEFUN(AC_STRUCT_RES_STATE_EXT, [
-	AC_MSG_CHECKING(for res_state_ext)
-	AC_CACHE_VAL($1,
-	AC_TRY_COMPILE([
-#		include <sys/types.h>
-#		include <netinet/in.h>
-#		include <netinet6/in6.h>
-#		include <resolv.h>],
-		[struct __res_state_ext e],
-		$1=yes,
-		$1=no))
-	AC_MSG_RESULT($$1)
-	if test $$1 = yes; then
-		AC_DEFINE(HAVE_RES_STATE_EXT)
-	fi
-])
-
-dnl
-dnl check for struct res_state_ext
-AC_DEFUN(AC_STRUCT_RES_STATE, [
-	AC_MSG_CHECKING(for nsort in res_state)
-	AC_CACHE_VAL($1,
-	AC_TRY_COMPILE([
-#		include <sys/types.h>
-#		include <netinet/in.h>
-#		include <netinet6/in6.h>
-#		include <resolv.h>],
-		[struct __res_state e; e.nsort = 0],
-		$1=yes,
-		$1=no))
-	AC_MSG_RESULT($$1)
-	if test $$1 = yes; then
-		AC_DEFINE(HAVE_NEW_RES_STATE)
-	fi
-])
-
-dnl
 dnl check for h_errno
 AC_DEFUN(AC_VAR_H_ERRNO, [
 	AC_MSG_CHECKING(for h_errno)
@@ -1187,7 +1111,7 @@ dnl
 AC_DEFUN(AC_C___ATTRIBUTE__, [
 AC_MSG_CHECKING(for __attribute__)
 AC_CACHE_VAL(ac_cv___attribute__, [
-AC_COMPILE_IFELSE(
+AC_COMPILE_IFELSE([
   AC_LANG_SOURCE([[
 #include <stdlib.h>
 
@@ -1204,7 +1128,7 @@ main(int argc, char **argv)
 {
   foo();
 }
-  ]]),
+  ]])],
 ac_cv___attribute__=yes,
 ac_cv___attribute__=no)])
 if test "$ac_cv___attribute__" = "yes"; then
@@ -1225,7 +1149,7 @@ dnl
 AC_DEFUN(AC_C___ATTRIBUTE___FORMAT_FUNCTION_POINTER, [
 AC_MSG_CHECKING([whether __attribute__((format)) can be applied to function pointers])
 AC_CACHE_VAL(ac_cv___attribute___format_function_pointer, [
-AC_COMPILE_IFELSE(
+AC_COMPILE_IFELSE([
   AC_LANG_SOURCE([[
 #include <stdlib.h>
 
@@ -1237,7 +1161,7 @@ main(int argc, char **argv)
 {
   (*foo)("%s", "test");
 }
-  ]]),
+  ]])],
 ac_cv___attribute___format_function_pointer=yes,
 ac_cv___attribute___format_function_pointer=no)])
 if test "$ac_cv___attribute___format_function_pointer" = "yes"; then

@@ -124,7 +124,7 @@ cdp_print(const u_char *pptr, u_int length, u_int caplen)
                                tok2str(cdp_tlv_values,"unknown field type", type),
                                type,
                                len,
-                               len>1 ? "s" : ""); /* plural */
+                               PLURAL_SUFFIX(len)); /* plural */
 
                     switch (type) {
 

@@ -33,7 +33,6 @@ static const char rcsid[] _U_ =
 #ifdef SEGSIZE
 #undef SEGSIZE
 #endif
-#include <arpa/tftp.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -287,75 +286,16 @@ static int udp_cksum(register const struct ip *ip,
 		     register const struct udphdr *up,
 		     register u_int len)
 {
-	union phu {
-		struct phdr {
-			u_int32_t src;
-			u_int32_t dst;
-			u_char mbz;
-			u_char proto;
-			u_int16_t len;
-		} ph;
-		u_int16_t pa[6];
-	} phu;
-	register const u_int16_t *sp;
-
-	/* pseudo-header.. */
-	phu.ph.len = htons((u_int16_t)len);
-	phu.ph.mbz = 0;
-	phu.ph.proto = IPPROTO_UDP;
-	memcpy(&phu.ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
-	if (IP_HL(ip) == 5)
-		memcpy(&phu.ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
-	else
-		phu.ph.dst = ip_finddst(ip);
-
-	sp = &phu.pa[0];
-	return in_cksum((u_short *)up, len,
-			sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5]);
+	return (nextproto4_cksum(ip, (const u_int8_t *)(void *)up, len,
+	    IPPROTO_UDP));
 }
 
 #ifdef INET6
 static int udp6_cksum(const struct ip6_hdr *ip6, const struct udphdr *up,
 	u_int len)
 {
-	size_t i;
-	register const u_int16_t *sp;
-	u_int32_t sum;
-	union {
-		struct {
-			struct in6_addr ph_src;
-			struct in6_addr ph_dst;
-			u_int32_t	ph_len;
-			u_int8_t	ph_zero[3];
-			u_int8_t	ph_nxt;
-		} ph;
-		u_int16_t pa[20];
-	} phu;
-
-	/* pseudo-header */
-	memset(&phu, 0, sizeof(phu));
-	phu.ph.ph_src = ip6->ip6_src;
-	phu.ph.ph_dst = ip6->ip6_dst;
-	phu.ph.ph_len = htonl(len);
-	phu.ph.ph_nxt = IPPROTO_UDP;
-
-	sum = 0;
-	for (i = 0; i < sizeof(phu.pa) / sizeof(phu.pa[0]); i++)
-		sum += phu.pa[i];
-
-	sp = (const u_int16_t *)up;
-
-	for (i = 0; i < (len & ~1); i += 2)
-		sum += *sp++;
-
-	if (len & 1)
-		sum += htons((*(const u_int8_t *)sp) << 8);
-
-	while (sum > 0xffff)
-		sum = (sum & 0xffff) + (sum >> 16);
-	sum = ~sum & 0xffff;
-
-	return (sum);
+	return (nextproto6_cksum(ip6, (const u_int8_t *)(void *)up, len,
+	    IPPROTO_UDP));
 }
 #endif
 
@@ -568,31 +508,46 @@ udp_print(register const u_char *bp, u_int length,
 	}
 	udpipaddr_print(ip, sport, dport);
 
-	if (IP_V(ip) == 4 && (vflag > 1) && !Kflag && !fragmented) {
-		int sum = up->uh_sum;
-		if (sum == 0) {
-			(void)printf("[no cksum] ");
-		} else if (TTEST2(cp[0], length)) {
-			sum = udp_cksum(ip, up, length + sizeof(struct udphdr));
-			if (sum != 0)
-				(void)printf("[bad udp cksum %x!] ", sum);
-			else
-				(void)printf("[udp sum ok] ");
+	if (vflag && !Kflag && !fragmented) {
+                /* Check the checksum, if possible. */
+                u_int16_t sum, udp_sum;
+
+		/*
+		 * XXX - do this even if vflag == 1?
+		 * TCP does, and we do so for UDP-over-IPv6.
+		 */
+	        if (IP_V(ip) == 4 && (vflag > 1)) {
+			udp_sum = EXTRACT_16BITS(&up->uh_sum);
+			if (udp_sum == 0) {
+				(void)printf("[no cksum] ");
+			} else if (TTEST2(cp[0], length)) {
+				sum = udp_cksum(ip, up, length + sizeof(struct udphdr));
+
+	                        if (sum != 0) {
+        	                        (void)printf("[bad udp cksum 0x%04x -> 0x%04x!] ",
+					    udp_sum,
+					    in_cksum_shouldbe(udp_sum, sum));
+				} else
+					(void)printf("[udp sum ok] ");
+			}
 		}
-	}
 #ifdef INET6
-	if (IP_V(ip) == 6 && ip6->ip6_plen && vflag && !Kflag && !fragmented) {
-		int sum = up->uh_sum;
-		/* for IPv6, UDP checksum is mandatory */
-		if (TTEST2(cp[0], length)) {
-			sum = udp6_cksum(ip6, up, length + sizeof(struct udphdr));
-			if (sum != 0)
-				(void)printf("[bad udp cksum %x!] ", sum);
-			else
-				(void)printf("[udp sum ok] ");
+		else if (IP_V(ip) == 6 && ip6->ip6_plen) {
+			/* for IPv6, UDP checksum is mandatory */
+			if (TTEST2(cp[0], length)) {
+				sum = udp6_cksum(ip6, up, length + sizeof(struct udphdr));
+				udp_sum = EXTRACT_16BITS(&up->uh_sum);
+
+	                        if (sum != 0) {
+        	                        (void)printf("[bad udp cksum 0x%04x -> 0x%04x!] ",
+					    udp_sum,
+					    in_cksum_shouldbe(udp_sum, sum));
+				} else
+					(void)printf("[udp sum ok] ");
+			}
 		}
-	}
 #endif
+	}
 
 	if (!qflag) {
 #define ISPORT(p) (dport == (p) || sport == (p))
@@ -652,9 +607,10 @@ udp_print(register const u_char *bp, u_int length,
 #ifdef INET6
 		else if (ISPORT(RIPNG_PORT))
 			ripng_print((const u_char *)(up + 1), length);
-		else if (ISPORT(DHCP6_SERV_PORT) || ISPORT(DHCP6_CLI_PORT)) {
+		else if (ISPORT(DHCP6_SERV_PORT) || ISPORT(DHCP6_CLI_PORT))
 			dhcp6_print((const u_char *)(up + 1), length);
-		}
+		else if (ISPORT(BABEL_PORT) || ISPORT(BABEL_PORT_OLD))
+			babel_print((const u_char *)(up + 1), length);
 #endif /*INET6*/
 		/*
 		 * Kludge in test for whiteboard packets.
