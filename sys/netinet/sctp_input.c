@@ -3773,46 +3773,40 @@ sctp_handle_str_reset_request_tsn(struct sctp_tcb *stcb,
 
 	seq = ntohl(req->request_seq);
 	if (asoc->str_reset_seq_in == seq) {
+		asoc->last_reset_action[1] = stcb->asoc.last_reset_action[0];
 		if (!(asoc->local_strreset_support & SCTP_ENABLE_CHANGE_ASSOC_REQ)) {
-			stcb->asoc.last_reset_action[1] = stcb->asoc.last_reset_action[0];
-			stcb->asoc.last_reset_action[0] = SCTP_STREAM_RESET_RESULT_PERFORMED;
-
 			asoc->last_reset_action[0] = SCTP_STREAM_RESET_RESULT_DENIED;
-		} else
+		} else {
 			fwdtsn.ch.chunk_length = htons(sizeof(struct sctp_forward_tsn_chunk));
-		fwdtsn.ch.chunk_type = SCTP_FORWARD_CUM_TSN;
-		fwdtsn.ch.chunk_flags = 0;
-		fwdtsn.new_cumulative_tsn = htonl(stcb->asoc.highest_tsn_inside_map + 1);
-		sctp_handle_forward_tsn(stcb, &fwdtsn, &abort_flag, NULL, 0);
-		if (abort_flag) {
-			return (1);
+			fwdtsn.ch.chunk_type = SCTP_FORWARD_CUM_TSN;
+			fwdtsn.ch.chunk_flags = 0;
+			fwdtsn.new_cumulative_tsn = htonl(stcb->asoc.highest_tsn_inside_map + 1);
+			sctp_handle_forward_tsn(stcb, &fwdtsn, &abort_flag, NULL, 0);
+			if (abort_flag) {
+				return (1);
+			}
+			asoc->highest_tsn_inside_map += SCTP_STREAM_RESET_TSN_DELTA;
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
+				sctp_log_map(0, 10, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
+			}
+			asoc->tsn_last_delivered = asoc->cumulative_tsn = asoc->highest_tsn_inside_map;
+			asoc->mapping_array_base_tsn = asoc->highest_tsn_inside_map + 1;
+			memset(asoc->mapping_array, 0, asoc->mapping_array_size);
+			asoc->highest_tsn_inside_nr_map = asoc->highest_tsn_inside_map;
+			memset(asoc->nr_mapping_array, 0, asoc->mapping_array_size);
+			atomic_add_int(&asoc->sending_seq, 1);
+			/* save off historical data for retrans */
+			asoc->last_sending_seq[1] = asoc->last_sending_seq[0];
+			asoc->last_sending_seq[0] = asoc->sending_seq;
+			asoc->last_base_tsnsent[1] = asoc->last_base_tsnsent[0];
+			asoc->last_base_tsnsent[0] = asoc->mapping_array_base_tsn;
+			sctp_reset_out_streams(stcb, 0, (uint16_t *) NULL);
+			sctp_reset_in_stream(stcb, 0, (uint16_t *) NULL);
+			asoc->last_reset_action[0] = SCTP_STREAM_RESET_RESULT_PERFORMED;
+			sctp_notify_stream_reset_tsn(stcb, asoc->sending_seq, (asoc->mapping_array_base_tsn + 1), 0);
 		}
-		asoc->highest_tsn_inside_map += SCTP_STREAM_RESET_TSN_DELTA;
-		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
-			sctp_log_map(0, 10, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
-		}
-		asoc->tsn_last_delivered = asoc->cumulative_tsn = asoc->highest_tsn_inside_map;
-		asoc->mapping_array_base_tsn = asoc->highest_tsn_inside_map + 1;
-		memset(asoc->mapping_array, 0, asoc->mapping_array_size);
-		asoc->highest_tsn_inside_nr_map = asoc->highest_tsn_inside_map;
-		memset(asoc->nr_mapping_array, 0, asoc->mapping_array_size);
-		atomic_add_int(&asoc->sending_seq, 1);
-		/* save off historical data for retrans */
-		asoc->last_sending_seq[1] = asoc->last_sending_seq[0];
-		asoc->last_sending_seq[0] = asoc->sending_seq;
-		asoc->last_base_tsnsent[1] = asoc->last_base_tsnsent[0];
-		asoc->last_base_tsnsent[0] = asoc->mapping_array_base_tsn;
-
-		sctp_add_stream_reset_result_tsn(chk,
-		    ntohl(req->request_seq),
-		    SCTP_STREAM_RESET_RESULT_PERFORMED,
-		    asoc->sending_seq,
-		    asoc->mapping_array_base_tsn);
-		sctp_reset_out_streams(stcb, 0, (uint16_t *) NULL);
-		sctp_reset_in_stream(stcb, 0, (uint16_t *) NULL);
-		asoc->last_reset_action[1] = asoc->last_reset_action[0];
-		asoc->last_reset_action[0] = SCTP_STREAM_RESET_RESULT_PERFORMED;
-		sctp_notify_stream_reset_tsn(stcb, asoc->sending_seq, (asoc->mapping_array_base_tsn + 1), 0);
+		sctp_add_stream_reset_result_tsn(chk, seq, asoc->last_reset_action[0],
+		    asoc->last_sending_seq[0], asoc->last_base_tsnsent[0]);
 		asoc->str_reset_seq_in++;
 	} else if (asoc->str_reset_seq_in - 1 == seq) {
 		sctp_add_stream_reset_result_tsn(chk, seq, asoc->last_reset_action[0],
