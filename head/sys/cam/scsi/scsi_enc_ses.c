@@ -1670,9 +1670,10 @@ static int
 ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
     union ccb *ccb, uint8_t **bufp, int error, int xfer_len)
 {
-	struct ses_iterator iter;
+	struct ses_iterator iter, titer;
 	int eip;
 	int err;
+	int ignore_index = 0;
 	int length;
 	int offset;
 	enc_cache_t *enc_cache;
@@ -1680,7 +1681,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	uint8_t *buf;
 	ses_element_t *elmpriv;
 	const struct ses_page_hdr *hdr;
-	enc_element_t *element;
+	enc_element_t *element, *telement;
 
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
@@ -1743,15 +1744,24 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 
 		elm_hdr = (struct ses_elm_addlstatus_base_hdr *)&buf[offset];
 		eip = ses_elm_addlstatus_eip(elm_hdr);
-		if (eip) {
+		if (eip && !ignore_index) {
 			struct ses_elm_addlstatus_eip_hdr *eip_hdr;
 			int expected_index;
 
 			eip_hdr = (struct ses_elm_addlstatus_eip_hdr *)elm_hdr;
 			expected_index = iter.individual_element_index;
-			element = ses_iter_seek_to(&iter,
+			titer = iter;
+			telement = ses_iter_seek_to(&titer,
 						   eip_hdr->element_index,
 						   SES_ELEM_INDEX_INDIVIDUAL);
+			if (telement != NULL &&
+			    (ses_typehasaddlstatus(enc, titer.type_index) !=
+			     TYPE_ADDLSTATUS_NONE ||
+			     titer.type_index > ELMTYP_SAS_CONN)) {
+				iter = titer;
+				element = telement;
+			} else
+				ignore_index = 1;
 
 			if (iter.individual_element_index > expected_index
 			 && status_type == TYPE_ADDLSTATUS_MANDATORY) {
