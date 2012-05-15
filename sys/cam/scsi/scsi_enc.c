@@ -81,7 +81,7 @@ SYSCTL_NODE(_kern_cam, OID_AUTO, enc, CTLFLAG_RD, 0,
             "CAM Enclosure Services driver");
 
 static struct periph_driver encdriver = {
-	enc_init, "enc",
+	enc_init, "ses",
 	TAILQ_HEAD_INITIALIZER(encdriver.units), /* generation */ 0
 };
 
@@ -92,7 +92,7 @@ static struct cdevsw enc_cdevsw = {
 	.d_open =	enc_open,
 	.d_close =	enc_close,
 	.d_ioctl =	enc_ioctl,
-	.d_name =	"enc",
+	.d_name =	"ses",
 	.d_flags =	0,
 };
 
@@ -219,7 +219,7 @@ enc_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		}
 
 		status = cam_periph_alloc(enc_ctor, enc_oninvalidate,
-		    enc_dtor, enc_start, "enc", CAM_PERIPH_BIO,
+		    enc_dtor, enc_start, "ses", CAM_PERIPH_BIO,
 		    cgd->ccb_h.path, enc_async, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP && status != CAM_REQ_INPROG) {
