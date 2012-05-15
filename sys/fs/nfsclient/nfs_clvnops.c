@@ -604,7 +604,12 @@ nfs_open(struct vop_open_args *ap)
 		}
 		np->n_directio_opens++;
 	}
+
+	/* If opened for writing via NFSv4.1 or later, mark that for pNFS. */
+	if (NFSHASPNFS(VFSTONFS(vp->v_mount)) && (fmode & FWRITE) != 0)
+		np->n_flag |= NWRITEOPENED;
 	mtx_unlock(&np->n_mtx);
+
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }

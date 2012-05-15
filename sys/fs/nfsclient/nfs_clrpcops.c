@@ -5338,8 +5338,11 @@ if (error == 2) printf("rwacc=0x%x\n", rwaccess);
 	if (layp == NULL) {
 		/* Try and get a Layout, if it is supported. */
 		stateid.seqid = 0;
-		iolaymode = (rwaccess == NFSV4OPEN_ACCESSWRITE) ?
-		    NFSLAYOUTIOMODE_RW : NFSLAYOUTIOMODE_READ;
+		if (rwaccess == NFSV4OPEN_ACCESSWRITE ||
+		    (np->n_flag & NWRITEOPENED) != 0)
+			iolaymode = NFSLAYOUTIOMODE_RW;
+		else
+			iolaymode = NFSLAYOUTIOMODE_READ;
 		error = nfsrpc_getlayout(nmp, vp, np->n_fhp, iolaymode,
 		    NULL, &stateid, &layp, newcred, p);
 		if (error != 0) {
