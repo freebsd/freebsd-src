@@ -9,6 +9,8 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	elf64_freebsd.c \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
+.PATH:	${.CURDIR}/../../zfs
+SRCS+=	devicename_stubs.c
 
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
@@ -54,11 +56,6 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../common \
 # the location of libstand
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-.if ${CC:T:Mclang} == "clang"
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS+=	${.IMPSRC:T:Mamd64_tramp.S:C/^.+$/-no-integrated-as/}
-.endif
-
 .if ${MACHINE_CPUARCH} == "amd64"
 CLEANFILES+=	machine
 machine:
@@ -66,6 +63,10 @@ machine:
 .endif
 
 .include <bsd.lib.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.amd64_tramp.S=	${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine

@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -33,8 +33,6 @@
 #include "krb5_locl.h"
 #include <getarg.h>
 
-RCSID("$Id: test_store.c 20192 2007-02-05 23:21:03Z lha $");
-
 static void
 test_int8(krb5_context context, krb5_storage *sp)
 {
@@ -43,6 +41,8 @@ test_int8(krb5_context context, krb5_storage *sp)
     int8_t val[] = {
 	0, 1, -1, 128, -127
     }, v;
+
+    krb5_storage_truncate(sp, 0);
 
     for (i = 0; i < sizeof(val[0])/sizeof(val); i++) {
 
@@ -67,6 +67,8 @@ test_int16(krb5_context context, krb5_storage *sp)
 	0, 1, -1, 32768, -32767
     }, v;
 
+    krb5_storage_truncate(sp, 0);
+
     for (i = 0; i < sizeof(val[0])/sizeof(val); i++) {
 
 	ret = krb5_store_int16(sp, val[i]);
@@ -89,6 +91,8 @@ test_int32(krb5_context context, krb5_storage *sp)
     int32_t val[] = {
 	0, 1, -1, 2147483647, -2147483646
     }, v;
+
+    krb5_storage_truncate(sp, 0);
 
     for (i = 0; i < sizeof(val[0])/sizeof(val); i++) {
 
@@ -113,6 +117,8 @@ test_uint8(krb5_context context, krb5_storage *sp)
 	0, 1, 255
     }, v;
 
+    krb5_storage_truncate(sp, 0);
+
     for (i = 0; i < sizeof(val[0])/sizeof(val); i++) {
 
 	ret = krb5_store_uint8(sp, val[i]);
@@ -135,6 +141,8 @@ test_uint16(krb5_context context, krb5_storage *sp)
     uint16_t val[] = {
 	0, 1, 65535
     }, v;
+
+    krb5_storage_truncate(sp, 0);
 
     for (i = 0; i < sizeof(val[0])/sizeof(val); i++) {
 
@@ -159,6 +167,8 @@ test_uint32(krb5_context context, krb5_storage *sp)
 	0, 1, 4294967295UL
     }, v;
 
+    krb5_storage_truncate(sp, 0);
+
     for (i = 0; i < sizeof(val[0])/sizeof(val); i++) {
 
 	ret = krb5_store_uint32(sp, val[i]);
@@ -175,22 +185,54 @@ test_uint32(krb5_context context, krb5_storage *sp)
 
 
 static void
-test_storage(krb5_context context)
+test_storage(krb5_context context, krb5_storage *sp)
 {
-    krb5_storage *sp;
-
-    sp = krb5_storage_emem();
-    if (sp == NULL)
-	krb5_errx(context, 1, "krb5_storage_emem: no mem");
-
     test_int8(context, sp);
     test_int16(context, sp);
     test_int32(context, sp);
     test_uint8(context, sp);
     test_uint16(context, sp);
     test_uint32(context, sp);
+}
 
-    krb5_storage_free(sp);
+
+static void
+test_truncate(krb5_context context, krb5_storage *sp, int fd)
+{
+    struct stat sb;
+
+    krb5_store_string(sp, "hej");
+    krb5_storage_truncate(sp, 2);
+
+    if (fstat(fd, &sb) != 0)
+	krb5_err(context, 1, errno, "fstat");
+    if (sb.st_size != 2)
+	krb5_errx(context, 1, "length not 2");
+
+    krb5_storage_truncate(sp, 1024);
+
+    if (fstat(fd, &sb) != 0)
+	krb5_err(context, 1, errno, "fstat");
+    if (sb.st_size != 1024)
+	krb5_errx(context, 1, "length not 2");
+}
+
+static void
+check_too_large(krb5_context context, krb5_storage *sp)
+{
+    uint32_t too_big_sizes[] = { INT_MAX, INT_MAX / 2, INT_MAX / 4, INT_MAX / 8 + 1};
+    krb5_error_code ret;
+    krb5_data data;
+    size_t n;
+
+    for (n = 0; n < sizeof(too_big_sizes) / sizeof(too_big_sizes); n++) {
+	krb5_storage_truncate(sp, 0);
+	krb5_store_uint32(sp, too_big_sizes[n]);
+	krb5_storage_seek(sp, 0, SEEK_SET);
+	ret = krb5_ret_data(sp, &data);
+	if (ret != HEIM_ERR_TOO_BIG)
+	    errx(1, "not too big: %lu", (unsigned long)n);
+    }
 }
 
 /*
@@ -222,13 +264,15 @@ main(int argc, char **argv)
 {
     krb5_context context;
     krb5_error_code ret;
-    int optidx = 0;
+    int fd, optidx = 0;
+    krb5_storage *sp;
+    const char *fn = "test-store-data";
 
     setprogname(argv[0]);
 
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 
@@ -244,7 +288,48 @@ main(int argc, char **argv)
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
 
-    test_storage(context);
+    /*
+     * Test encoding/decoding of primotive types on diffrent backends
+     */
+
+    sp = krb5_storage_emem();
+    if (sp == NULL)
+	krb5_errx(context, 1, "krb5_storage_emem: no mem");
+
+    test_storage(context, sp);
+    check_too_large(context, sp);
+    krb5_storage_free(sp);
+
+
+    fd = open(fn, O_RDWR|O_CREAT|O_TRUNC, 0600);
+    if (fd < 0)
+	krb5_err(context, 1, errno, "open(%s)", fn);
+
+    sp = krb5_storage_from_fd(fd);
+    close(fd);
+    if (sp == NULL)
+	krb5_errx(context, 1, "krb5_storage_from_fd: %s no mem", fn);
+
+    test_storage(context, sp);
+    krb5_storage_free(sp);
+    unlink(fn);
+
+    /*
+     * test truncate behavior
+     */
+
+    fd = open(fn, O_RDWR|O_CREAT|O_TRUNC, 0600);
+    if (fd < 0)
+	krb5_err(context, 1, errno, "open(%s)", fn);
+
+    sp = krb5_storage_from_fd(fd);
+    if (sp == NULL)
+	krb5_errx(context, 1, "krb5_storage_from_fd: %s no mem", fn);
+
+    test_truncate(context, sp, fd);
+    krb5_storage_free(sp);
+    close(fd);
+    unlink(fn);
 
     krb5_free_context(context);
 

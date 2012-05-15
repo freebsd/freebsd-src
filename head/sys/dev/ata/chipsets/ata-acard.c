@@ -51,25 +51,28 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
+#ifndef ATA_CAM
 struct ata_serialize {
     struct mtx  locked_mtx;
     int         locked_ch;
     int         restart_ch;
 };
+#endif
 
 /* local prototypes */
 static int ata_acard_chipinit(device_t dev);
-static int ata_acard_chipdeinit(device_t dev);
 static int ata_acard_ch_attach(device_t dev);
 static int ata_acard_status(device_t dev);
 static int ata_acard_850_setmode(device_t dev, int target, int mode);
 static int ata_acard_86X_setmode(device_t dev, int target, int mode);
+#ifndef ATA_CAM
+static int ata_acard_chipdeinit(device_t dev);
 static int ata_serialize(device_t dev, int flags);
 static void ata_serialize_init(struct ata_serialize *serial);
+#endif
 
 /* misc defines */
 #define ATP_OLD		1
-
 
 /*
  * Acard chipset support functions
@@ -78,7 +81,7 @@ static int
 ata_acard_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_ATP850R, 0, ATP_OLD, 0x00, ATA_UDMA2, "ATP850" },
      { ATA_ATP860A, 0, 0,       0x00, ATA_UDMA4, "ATP860A" },
      { ATA_ATP860R, 0, 0,       0x00, ATA_UDMA4, "ATP860R" },
@@ -94,7 +97,9 @@ ata_acard_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_acard_chipinit;
+#ifndef ATA_CAM
     ctlr->chipdeinit = ata_acard_chipdeinit;
+#endif
     return (BUS_PROBE_DEFAULT);
 }
 
@@ -102,7 +107,9 @@ static int
 ata_acard_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+#ifndef ATA_CAM
     struct ata_serialize *serial;
+#endif
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
@@ -111,17 +118,20 @@ ata_acard_chipinit(device_t dev)
     ctlr->ch_detach = ata_pci_ch_detach;
     if (ctlr->chip->cfg1 == ATP_OLD) {
 	ctlr->setmode = ata_acard_850_setmode;
+#ifndef ATA_CAM
 	ctlr->locking = ata_serialize;
 	serial = malloc(sizeof(struct ata_serialize),
 			      M_ATAPCI, M_WAITOK | M_ZERO);
 	ata_serialize_init(serial);
 	ctlr->chipset_data = serial;
+#endif
     }
     else
 	ctlr->setmode = ata_acard_86X_setmode;
     return 0;
 }
 
+#ifndef ATA_CAM
 static int
 ata_acard_chipdeinit(device_t dev)
 {
@@ -136,6 +146,7 @@ ata_acard_chipdeinit(device_t dev)
 	}
 	return (0);
 }
+#endif
 
 static int
 ata_acard_ch_attach(device_t dev)
@@ -228,6 +239,7 @@ ata_acard_86X_setmode(device_t dev, int target, int mode)
 	return (mode);
 }
 
+#ifndef ATA_CAM
 static void
 ata_serialize_init(struct ata_serialize *serial)
 {
@@ -277,5 +289,6 @@ ata_serialize(device_t dev, int flags)
     mtx_unlock(&serial->locked_mtx);
     return res;
 }
+#endif
 
 ATA_DECLARE_DRIVER(ata_acard);

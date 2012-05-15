@@ -240,7 +240,7 @@ syscall:::entry
  */
 
 /* print 3 args, return as hex */
-syscall::sigprocmask:return
+syscall::lwp_sigmask:return
 /self->start/
 {
 	/* calculate elapsed time */
@@ -268,11 +268,10 @@ syscall::sigprocmask:return
 }
 
 /* print 3 args, arg0 as a string */
-syscall::access*:return,
 syscall::stat*:return, 
 syscall::lstat*:return, 
-syscall::readlink*:return,
-syscall::open*:return
+syscall::open*:return,
+syscall::resolvepath:return
 /self->start/
 {
 	/* calculate elapsed time */
@@ -330,6 +329,7 @@ syscall::*read*:return
 }
 
 /* print 0 arg output */
+syscall::gtime:return,
 syscall::*fork*:return
 /self->start/
 {
@@ -357,6 +357,9 @@ syscall::*fork*:return
 }
 
 /* print 1 arg output */
+syscall::brk:return,
+syscall::times:return,
+syscall::stime:return,
 syscall::close:return
 /self->start/
 {
@@ -384,7 +387,7 @@ syscall::close:return
 }
 
 /* print 2 arg output */
-syscall::utimes:return,
+syscall::utime:return,
 syscall::munmap:return
 /self->start/
 {

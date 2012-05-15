@@ -34,7 +34,7 @@ CFLAGS+= -I${.CURDIR}/rpc
 CLEANFILES+= crypt_clnt.c crypt_xdr.c crypt.h
 
 RPCDIR= ${DESTDIR}/usr/include/rpcsvc
-RPCGEN= rpcgen -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 crypt_clnt.c: ${RPCDIR}/crypt.x crypt.h
 	${RPCGEN} -l -o ${.TARGET} ${RPCDIR}/crypt.x

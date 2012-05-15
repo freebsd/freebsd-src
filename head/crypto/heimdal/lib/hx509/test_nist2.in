@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2004 - 2005 Kungliga Tekniska Högskolan
+# Copyright (c) 2004 - 2008 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -38,6 +38,7 @@ srcdir="@srcdir@"
 objdir="@objdir@"
 nistdir=${objdir}/PKITS_data
 nistzip=${srcdir}/data/PKITS_data.zip
+egrep="@egrep@"
 
 limit="${1:-nolimit}"
 
@@ -54,6 +55,22 @@ fi
 if ${hxtool} info | grep 'rand: not available' > /dev/null ; then
     exit 77
 fi
+
+#--------- Try to find unzip
+
+oldifs=$IFS
+IFS=:
+set -- $PATH
+IFS=$oldifs
+found=
+
+for p in "$@" ; do
+    test -x "$p/unzip" && { found=1 ; break; }
+done
+test "X$found" = "X" && exit 77
+
+#---------
+
 
 echo "nist tests, version 2"
 
@@ -80,13 +97,12 @@ while read result cert other ; do
     args="$args cert:FILE:$nistdir/certs/$cert"
     args="$args chain:DIR:$nistdir/certs"
     args="$args anchor:FILE:$nistdir/certs/TrustAnchorRootCertificate.crt"
-#    args="$args crl:FILE:$nistdir/crls/TrustAnchorRootCRL.crl"
 
     for a in $nistdir/crls/*.crl; do
 	args="$args crl:FILE:$a"
     done
 
-    cmd="${hxtool} verify $args"
+    cmd="${hxtool} verify --time=2008-05-20 $args"
     eval ${cmd} > /dev/null
     res=$?
 
@@ -97,12 +113,14 @@ while read result cert other ; do
     [123],*) r="PASSf";;
     *) echo="unknown result ${result},${res}" ; exit 1 ;;
     esac
-    if grep "${name} FAIL" $srcdir/data/nist-result2 > /dev/null; then
+    if ${egrep} "^${name} FAIL" $srcdir/data/nist-result2 > /dev/null; then
 	if expr "$r" : "PASS" >/dev/null; then
 	    echo "${name} passed when expected not to"
 	    echo "# ${description}" > nist2-passed-${name}.tmp
 	    ec=1
 	fi
+    elif ${egrep} "^${name} EITHER" $srcdir/data/nist-result2 > /dev/null; then
+	:
     elif expr "$r" : "FAIL.*" >/dev/null ; then
 	echo "$r ${name} ${description}"
 	echo "# ${description}" > nist2-failed-${name}.tmp

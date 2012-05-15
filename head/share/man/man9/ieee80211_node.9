@@ -67,18 +67,18 @@
 .Ft void
 .Fo ieee80211_dump_nodes
 .Fa "struct ieee80211_node_table *"
-.Fc 
+.Fc
 .\"
 .Ft void
 .Fo ieee80211_dump_node
 .Fa "struct ieee80211_node *"
-.Fc 
+.Fc
 .Sh DESCRIPTION
 The
 .Nm net80211
 layer that supports 802.11 device drivers maintains a database of
 peer stations called the
-.Dq node table 
+.Dq node table
 in the
 .Vt ic_sta
 entry of the
@@ -125,7 +125,7 @@ field.
 This reference must be reclaimed by the driver when transmit processing
 is done.
 For each frame received the driver must lookup the table entry to
-use in dispatching the frame 
+use in dispatching the frame
 .Dq up the stack .
 This lookup implicitly obtains a reference to the table entry and
 the driver must reclaim the reference when frame processing is completed.
@@ -139,7 +139,7 @@ Entries may be looked up using one of the pre-defined API's or the
 .Fn ieee80211_iterate_nodes
 call may be used to iterate through all entries to do per-node
 processing or implement some non-standard search mechanism.
-Note that 
+Note that
 .Fn ieee80211_iterate_nodes
 is single-threaded per-device
 and the effort processing involved is fairly
@@ -206,7 +206,7 @@ iwi_node_free(struct ieee80211_node *ni)
         struct ieee80211com *ic = ni->ni_ic;
         struct iwi_softc *sc = ic->ic_ifp->if_softc;
         struct iwi_node *in = (struct iwi_node *)ni;
-        
+
         if (in->in_station != -1)
                 free_unr(sc->sc_unr, in->in_station);
         sc->sc_node_free(ni);	/* invoke net80211 free handler */

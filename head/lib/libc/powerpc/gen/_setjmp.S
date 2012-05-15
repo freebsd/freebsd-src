@@ -63,7 +63,6 @@ ENTRY(_longjmp)
 	lmw	%r9,20(%r3)
 	mtlr	%r11
 	mtcr	%r12
-	mr	%r2,%r9
 	mr	%r1,%r10
 	or.	%r3,%r4,%r4
 	bnelr

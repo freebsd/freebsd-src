@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: heim_err.et 13352 2004-02-13 16:23:40Z lha $"
+id "$Id$"
 
 error_table heim
 
@@ -17,6 +17,9 @@ error_code OPNOTSUPP,		"Operation not supported"
 error_code EOF,			"End of file"
 error_code BAD_MKEY,		"Failed to get the master key"
 error_code SERVICE_NOMATCH,	"Unacceptable service used"
+error_code NOT_SEEKABLE,	"File descriptor not seekable"
+error_code TOO_BIG,		"Offset too large"
+error_code BAD_HDBENT_ENCODING,	"Invalid HDB entry encoding"
 
 index 64
 prefix HEIM_PKINIT

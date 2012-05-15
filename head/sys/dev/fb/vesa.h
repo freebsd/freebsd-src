@@ -126,7 +126,7 @@ struct vesa_mode
 
 #ifdef _KERNEL
 
-#define VESA_MODE(x)	((x) >= M_VESA_BASE)
+#define VESA_MODE(x)	((x) >= M_VESA_BASE && (x) <= M_VESA_MODE_MAX)
 
 int vesa_load_ioctl(void);
 int vesa_unload_ioctl(void);

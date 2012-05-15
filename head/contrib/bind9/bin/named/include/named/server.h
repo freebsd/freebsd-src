@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.h,v 1.110 2010-08-16 23:46:52 tbox Exp $ */
+/* $Id: server.h,v 1.110 2010/08/16 23:46:52 tbox Exp $ */
 
 #ifndef NAMED_SERVER_H
 #define NAMED_SERVER_H 1

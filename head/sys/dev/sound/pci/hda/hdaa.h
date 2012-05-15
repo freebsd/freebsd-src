@@ -125,6 +125,7 @@ struct hdaa_widget {
 			uint32_t newconf;
 			uint32_t cap;
 			uint32_t ctrl;
+			int	connected;
 		} pin;
 		struct {
 			uint8_t	stripecap;
@@ -180,6 +181,7 @@ struct hdaa_pcm_devinfo {
 	u_char	digital;
 	uint32_t	ossmask;	/* Mask of supported OSS devices. */
 	uint32_t	recsrc;		/* Mask of supported OSS sources. */
+	int		autorecsrc;
 };
 
 struct hdaa_devinfo {
@@ -259,8 +261,8 @@ struct hdaa_chan {
 		hda_get_device_id(devinfo->dev))
 
 #define hdaa_subvendor_id(devinfo)					\
-		(((uint32_t)hda_get_subvendor_id(devinfo->dev) << 16) +	\
-		hda_get_subdevice_id(devinfo->dev))
+		(((uint32_t)hda_get_subdevice_id(devinfo->dev) << 16) +	\
+		hda_get_subvendor_id(devinfo->dev))
 
 struct hdaa_widget	*hdaa_widget_get(struct hdaa_devinfo *, nid_t);
 uint32_t		hdaa_widget_pin_patch(uint32_t config, const char *str);

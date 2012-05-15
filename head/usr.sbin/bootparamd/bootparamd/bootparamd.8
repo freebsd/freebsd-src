@@ -58,7 +58,7 @@ The SunOS kernel hangs until it receives a reply.
 To accommodate this behaviour add an alias address
 that responds to an all-0 broadcast.
 So, add something like
-.Ql "ifconfig xl0 192.168.200.254 netmask 255.255.255.255 broadcast 192.168.200.0 alias
+.Ql "ifconfig xl0 192.168.200.254 netmask 255.255.255.255 broadcast 192.168.200.0 alias"
 on the relevant network interface on your
 .Nm
 server.

@@ -80,7 +80,7 @@ kdevtoname(kvm_t *kd, struct cdev *dev, char *buf)
 	assert(buf);
 	if (!kvm_read_all(kd, (unsigned long)dev, &si, sizeof(si)))
 		return (1);
-	strlcpy(buf, si.__si_namebuf, SPECNAMELEN + 1);
+	strlcpy(buf, si.si_name, SPECNAMELEN + 1);
 	return (0);
 }
 

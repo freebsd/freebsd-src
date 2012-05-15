@@ -1312,7 +1312,7 @@ usbd_req_get_config_desc(struct usb_device *udev, struct mtx *mtx,
 		goto done;
 	}
 	/* Extra sanity checking */
-	if (UGETW(d->wTotalLength) < sizeof(*d)) {
+	if (UGETW(d->wTotalLength) < (uint16_t)sizeof(*d)) {
 		err = USB_ERR_INVAL;
 	}
 done:
@@ -2226,3 +2226,57 @@ usbd_req_set_port_link_state(struct usb_device *udev, struct mtx *mtx,
 	USETW(req.wLength, 0);
 	return (usbd_do_request(udev, mtx, &req, 0));
 }
+
+/*------------------------------------------------------------------------*
+ *		usbd_req_set_lpm_info
+ *
+ * USB 2.0 specific request for Link Power Management.
+ *
+ * Returns:
+ * 0:				Success
+ * USB_ERR_PENDING_REQUESTS:	NYET
+ * USB_ERR_TIMEOUT:		TIMEOUT
+ * USB_ERR_STALL:		STALL
+ * Else:			Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_set_lpm_info(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port, uint8_t besl, uint8_t addr, uint8_t rwe)
+{
+	struct usb_device_request req;
+	usb_error_t err;
+	uint8_t buf[1];
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_SET_AND_TEST;
+	USETW(req.wValue, UHF_PORT_L1);
+	req.wIndex[0] = (port & 0xF) | ((besl & 0xF) << 4);
+	req.wIndex[1] = (addr & 0x7F) | (rwe ? 0x80 : 0x00);
+	USETW(req.wLength, sizeof(buf));
+
+	/* set default value in case of short transfer */
+	buf[0] = 0x00;
+
+	err = usbd_do_request(udev, mtx, &req, buf);
+	if (err)
+		return (err);
+
+	switch (buf[0]) {
+	case 0x00:	/* SUCCESS */
+		break;
+	case 0x10:	/* NYET */
+		err = USB_ERR_PENDING_REQUESTS;
+		break;
+	case 0x11:	/* TIMEOUT */
+		err = USB_ERR_TIMEOUT;
+		break;
+	case 0x30:	/* STALL */
+		err = USB_ERR_STALLED;
+		break;
+	default:	/* reserved */
+		err = USB_ERR_IOERROR;
+		break;
+	}
+	return (err);
+}
+

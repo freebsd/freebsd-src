@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: order.c,v 1.10 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: order.c,v 1.10 2007/06/19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

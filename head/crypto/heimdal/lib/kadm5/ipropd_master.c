@@ -1,40 +1,38 @@
 /*
- * Copyright (c) 1997 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2008 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "iprop.h"
 #include <rtbl.h>
-
-RCSID("$Id: ipropd_master.c 22211 2007-12-07 19:27:27Z lha $");
 
 static krb5_log_facility *log_facility;
 
@@ -47,12 +45,13 @@ static int time_before_gone;
 
 const char *master_hostname;
 
-static int
+static krb5_socket_t
 make_signal_socket (krb5_context context)
 {
+#ifndef NO_UNIX_SOCKETS
     struct sockaddr_un addr;
     const char *fn;
-    int fd;
+    krb5_socket_t fd;
 
     fn = kadm5_log_signal_socket(context);
 
@@ -66,25 +65,39 @@ make_signal_socket (krb5_context context)
     if (bind (fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
 	krb5_err (context, 1, errno, "bind %s", addr.sun_path);
     return fd;
+#else
+    struct addrinfo *ai = NULL;
+    krb5_socket_t fd;
+
+    kadm5_log_signal_socket_info(context, 1, &ai);
+
+    fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+    if (rk_IS_BAD_SOCKET(fd))
+	krb5_err (context, 1, rk_SOCK_ERRNO, "socket AF=%d", ai->ai_family);
+
+    if (rk_IS_SOCKET_ERROR( bind (fd, ai->ai_addr, ai->ai_addrlen) ))
+	krb5_err (context, 1, rk_SOCK_ERRNO, "bind");
+    return fd;
+#endif
 }
 
-static int
+static krb5_socket_t
 make_listen_socket (krb5_context context, const char *port_str)
 {
-    int fd;
+    krb5_socket_t fd;
     int one = 1;
     struct sockaddr_in addr;
 
     fd = socket (AF_INET, SOCK_STREAM, 0);
-    if (fd < 0)
-	krb5_err (context, 1, errno, "socket AF_INET");
+    if (rk_IS_BAD_SOCKET(fd))
+	krb5_err (context, 1, rk_SOCK_ERRNO, "socket AF_INET");
     setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one));
     memset (&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
 
     if (port_str) {
 	addr.sin_port = krb5_getportbyname (context,
-					      port_str, "tcp", 
+					      port_str, "tcp",
 					      0);
 	if (addr.sin_port == 0) {
 	    char *ptr;
@@ -96,7 +109,7 @@ make_listen_socket (krb5_context context, const char *port_str)
 	    addr.sin_port = htons(port);
 	}
     } else {
-	addr.sin_port = krb5_getportbyname (context, IPROP_SERVICE, 
+	addr.sin_port = krb5_getportbyname (context, IPROP_SERVICE,
 					    "tcp", IPROP_PORT);
     }
     if(bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
@@ -107,7 +120,7 @@ make_listen_socket (krb5_context context, const char *port_str)
 }
 
 struct slave {
-    int fd;
+    krb5_socket_t fd;
     struct sockaddr_in addr;
     char *name;
     krb5_auth_context ac;
@@ -128,9 +141,11 @@ check_acl (krb5_context context, const char *name)
     FILE *fp;
     char buf[256];
     int ret = 1;
-    char *slavefile;
+    char *slavefile = NULL;
 
-    asprintf(&slavefile, "%s/slaves", hdb_db_dir(context));
+    if (asprintf(&slavefile, "%s/slaves", hdb_db_dir(context)) == -1
+	|| slavefile == NULL)
+	errx(1, "out of memory");
 
     fn = krb5_config_get_string_default(context,
 					NULL,
@@ -182,9 +197,9 @@ slave_dead(krb5_context context, slave *s)
 {
     krb5_warnx(context, "slave %s dead", s->name);
 
-    if (s->fd >= 0) {
-	close (s->fd);
-	s->fd = -1;
+    if (!rk_IS_BAD_SOCKET(s->fd)) {
+	rk_closesocket (s->fd);
+	s->fd = rk_INVALID_SOCKET;
     }
     s->flags |= SLAVE_F_DEAD;
     slave_seen(s);
@@ -195,8 +210,8 @@ remove_slave (krb5_context context, slave *s, slave **root)
 {
     slave **p;
 
-    if (s->fd >= 0)
-	close (s->fd);
+    if (!rk_IS_BAD_SOCKET(s->fd))
+	rk_closesocket (s->fd);
     if (s->name)
 	free (s->name);
     if (s->ac)
@@ -211,7 +226,8 @@ remove_slave (krb5_context context, slave *s, slave **root)
 }
 
 static void
-add_slave (krb5_context context, krb5_keytab keytab, slave **root, int fd)
+add_slave (krb5_context context, krb5_keytab keytab, slave **root,
+	   krb5_socket_t fd)
 {
     krb5_principal server;
     krb5_error_code ret;
@@ -230,8 +246,8 @@ add_slave (krb5_context context, krb5_keytab keytab, slave **root, int fd)
 
     addr_len = sizeof(s->addr);
     s->fd = accept (fd, (struct sockaddr *)&s->addr, &addr_len);
-    if (s->fd < 0) {
-	krb5_warn (context, errno, "accept");
+    if (rk_IS_BAD_SOCKET(s->fd)) {
+	krb5_warn (context, rk_SOCK_ERRNO, "accept");
 	goto error;
     }
     if (master_hostname)
@@ -254,6 +270,7 @@ add_slave (krb5_context context, krb5_keytab keytab, slave **root, int fd)
 	goto error;
     }
     ret = krb5_unparse_name (context, ticket->client, &s->name);
+    krb5_free_ticket (context, ticket);
     if (ret) {
 	krb5_warn (context, ret, "krb5_unparse_name");
 	goto error;
@@ -262,8 +279,6 @@ add_slave (krb5_context context, krb5_keytab keytab, slave **root, int fd)
 	krb5_warnx (context, "%s not in acl", s->name);
 	goto error;
     }
-    krb5_free_ticket (context, ticket);
-    ticket = NULL;
 
     {
 	slave *l = *root;
@@ -297,7 +312,7 @@ error:
 
 struct prop_context {
     krb5_auth_context auth_context;
-    int fd;
+    krb5_socket_t fd;
 };
 
 static int
@@ -364,7 +379,7 @@ send_complete (krb5_context context, slave *s,
 	return ret;
     }
 
-    ret = hdb_foreach (context, db, 0, prop_one, s);
+    ret = hdb_foreach (context, db, HDB_F_ADMIN_DATA, prop_one, s);
     if (ret) {
 	krb5_warn (context, ret, "hdb_foreach");
 	slave_dead(context, s);
@@ -407,6 +422,8 @@ send_are_you_there (krb5_context context, slave *s)
 
     if (s->flags & (SLAVE_F_DEAD|SLAVE_F_AYT))
 	return 0;
+
+    krb5_warnx(context, "slave %s missing, sending AYT", s->name);
 
     s->flags |= SLAVE_F_AYT;
 
@@ -467,7 +484,7 @@ send_diffs (krb5_context context, slave *s, int log_fd,
     for (;;) {
 	ret = kadm5_log_previous (context, sp, &ver, &timestamp, &op, &len);
 	if (ret)
-	    krb5_err(context, 1, ret, 
+	    krb5_err(context, 1, ret,
 		     "send_diffs: failed to find previous entry");
 	left = krb5_storage_seek(sp, -16, SEEK_CUR);
 	if (ver == s->version)
@@ -475,6 +492,7 @@ send_diffs (krb5_context context, slave *s, int log_fd,
 	if (ver == s->version + 1)
 	    break;
 	if (left == 0) {
+	    krb5_storage_free(sp);
 	    krb5_warnx(context,
 		       "slave %s (version %lu) out of sync with master "
 		       "(first version in log %lu), sending complete database",
@@ -490,6 +508,7 @@ send_diffs (krb5_context context, slave *s, int log_fd,
 
     ret = krb5_data_alloc (&data, right - left + 4);
     if (ret) {
+	krb5_storage_free(sp);
 	krb5_warn (context, ret, "send_diffs: krb5_data_alloc");
 	slave_dead(context, s);
 	return 1;
@@ -556,14 +575,15 @@ process_msg (krb5_context context, slave *s, int log_fd,
 	}
 	/* new started slave that have old log */
 	if (s->version == 0 && tmp != 0) {
-	    if (s->version < tmp) {
-		krb5_warnx (context, "Slave %s have later version the master "
-			    "OUT OF SYNC", s->name);
-	    } else {
-		s->version = tmp;
+	    if (current_version < (uint32_t)tmp) {
+		krb5_warnx (context, "Slave %s (version %lu) have later version "
+			    "the master (version %lu) OUT OF SYNC",
+			    s->name, (unsigned long)tmp,
+			    (unsigned long)current_version);
 	    }
+	    s->version = tmp;
 	}
-	if (tmp < s->version) {
+	if ((uint32_t)tmp < s->version) {
 	    krb5_warnx (context, "Slave claims to not have "
 			"version we already sent to it");
 	} else {
@@ -580,6 +600,7 @@ process_msg (krb5_context context, slave *s, int log_fd,
     }
 
     krb5_data_free (&out);
+    krb5_storage_free (sp);
 
     slave_seen(s);
 
@@ -627,7 +648,7 @@ write_master_down(krb5_context context)
     fp = open_stats(context);
     if (fp == NULL)
 	return;
-    krb5_format_time(context, t, str, sizeof(str), TRUE); 
+    krb5_format_time(context, t, str, sizeof(str), TRUE);
     fprintf(fp, "master down at %s\n", str);
 
     fclose(fp);
@@ -645,7 +666,7 @@ write_stats(krb5_context context, slave *slaves, uint32_t current_version)
     if (fp == NULL)
 	return;
 
-    krb5_format_time(context, t, str, sizeof(str), TRUE); 
+    krb5_format_time(context, t, str, sizeof(str), TRUE);
     fprintf(fp, "Status for slaves, last updated: %s\n\n", str);
 
     fprintf(fp, "Master version: %lu\n\n", (unsigned long)current_version);
@@ -669,7 +690,7 @@ write_stats(krb5_context context, slave *slaves, uint32_t current_version)
 	krb5_address addr;
 	krb5_error_code ret;
 	rtbl_add_column_entry(tbl, SLAVE_NAME, slaves->name);
-	ret = krb5_sockaddr2address (context, 
+	ret = krb5_sockaddr2address (context,
 				     (struct sockaddr*)&slaves->addr, &addr);
 	if(ret == 0) {
 	    krb5_print_address(&addr, str, sizeof(str), NULL);
@@ -677,7 +698,7 @@ write_stats(krb5_context context, slave *slaves, uint32_t current_version)
 	    rtbl_add_column_entry(tbl, SLAVE_ADDRESS, str);
 	} else
 	    rtbl_add_column_entry(tbl, SLAVE_ADDRESS, "<unknown>");
-	
+
 	snprintf(str, sizeof(str), "%u", (unsigned)slaves->version);
 	rtbl_add_column_entry(tbl, SLAVE_VERSION, str);
 
@@ -686,7 +707,7 @@ write_stats(krb5_context context, slave *slaves, uint32_t current_version)
 	else
 	    rtbl_add_column_entry(tbl, SLAVE_STATUS, "Up");
 
-	ret = krb5_format_time(context, slaves->seen, str, sizeof(str), TRUE); 
+	ret = krb5_format_time(context, slaves->seen, str, sizeof(str), TRUE);
 	rtbl_add_column_entry(tbl, SLAVE_SEEN, str);
 
 	slaves = slaves->next;
@@ -699,35 +720,40 @@ write_stats(krb5_context context, slave *slaves, uint32_t current_version)
 }
 
 
+static char sHDB[] = "HDB:";
 static char *realm;
 static int version_flag;
 static int help_flag;
-static char *keytab_str = "HDB:";
+static char *keytab_str = sHDB;
 static char *database;
 static char *config_file;
 static char *port_str;
+#ifdef SUPPORT_DETACH
 static int detach_from_console = 0;
+#endif
 
 static struct getargs args[] = {
-    { "config-file", 'c', arg_string, &config_file },
-    { "realm", 'r', arg_string, &realm },
+    { "config-file", 'c', arg_string, &config_file, NULL, NULL },
+    { "realm", 'r', arg_string, &realm, NULL, NULL },
     { "keytab", 'k', arg_string, &keytab_str,
       "keytab to get authentication from", "kspec" },
     { "database", 'd', arg_string, &database, "database", "file"},
-    { "slave-stats-file", 0, arg_string, &slave_stats_file, 
+    { "slave-stats-file", 0, arg_string, rk_UNCONST(&slave_stats_file),
       "file for slave status information", "file"},
-    { "time-missing", 0, arg_string, &slave_time_missing, 
+    { "time-missing", 0, arg_string, rk_UNCONST(&slave_time_missing),
       "time before slave is polled for presence", "time"},
-    { "time-gone", 0, arg_string, &slave_time_gone,
+    { "time-gone", 0, arg_string, rk_UNCONST(&slave_time_gone),
       "time of inactivity after which a slave is considered gone", "time"},
     { "port", 0, arg_string, &port_str,
       "port ipropd will listen to", "port"},
-    { "detach", 0, arg_flag, &detach_from_console, 
-      "detach from console" },
-    { "hostname", 0, arg_string, &master_hostname, 
+#ifdef SUPPORT_DETACH
+    { "detach", 0, arg_flag, &detach_from_console,
+      "detach from console", NULL },
+#endif
+    { "hostname", 0, arg_string, rk_UNCONST(&master_hostname),
       "hostname of master (if not same as hostname)", "hostname" },
-    { "version", 0, arg_flag, &version_flag },
-    { "help", 0, arg_flag, &help_flag }
+    { "version", 0, arg_flag, &version_flag, NULL, NULL },
+    { "help", 0, arg_flag, &help_flag, NULL, NULL }
 };
 static int num_args = sizeof(args) / sizeof(args[0]);
 
@@ -739,16 +765,16 @@ main(int argc, char **argv)
     void *kadm_handle;
     kadm5_server_context *server_context;
     kadm5_config_params conf;
-    int signal_fd, listen_fd;
+    krb5_socket_t signal_fd, listen_fd;
     int log_fd;
     slave *slaves = NULL;
     uint32_t current_version = 0, old_version = 0;
     krb5_keytab keytab;
     int optidx;
     char **files;
-    
+
     optidx = krb5_program_setup(&context, argc, argv, args, num_args, NULL);
-    
+
     if(help_flag)
 	krb5_std_usage(0, args, num_args);
     if(version_flag) {
@@ -780,8 +806,10 @@ main(int argc, char **argv)
     if (time_before_missing < 0)
 	krb5_errx (context, 1, "couldn't parse time: %s", slave_time_missing);
 
+#ifdef SUPPORT_DETACH
     if (detach_from_console)
 	daemon(0, 0);
+#endif
     pidfile (NULL);
     krb5_openlog (context, "ipropd-master", &log_facility);
     krb5_set_warn_dest(context, log_facility);
@@ -793,7 +821,7 @@ main(int argc, char **argv)
     ret = krb5_kt_resolve(context, keytab_str, &keytab);
     if(ret)
 	krb5_err(context, 1, ret, "krb5_kt_resolve: %s", keytab_str);
-    
+
     memset(&conf, 0, sizeof(conf));
     if(realm) {
 	conf.mask |= KADM5_CONFIG_REALM;
@@ -803,7 +831,7 @@ main(int argc, char **argv)
 				    KADM5_ADMIN_SERVICE,
 				    NULL,
 				    KADM5_ADMIN_SERVICE,
-				    &conf, 0, 0, 
+				    &conf, 0, 0,
 				    &kadm_handle);
     if (ret)
 	krb5_err (context, 1, ret, "kadm5_init_with_password_ctx");
@@ -820,7 +848,7 @@ main(int argc, char **argv)
 
     kadm5_log_get_version_fd (log_fd, &current_version);
 
-    krb5_warnx(context, "ipropd-master started at version: %lu", 
+    krb5_warnx(context, "ipropd-master started at version: %lu",
 	       (unsigned long)current_version);
 
     while(exit_flag == 0){
@@ -830,8 +858,10 @@ main(int argc, char **argv)
 	struct timeval to = {30, 0};
 	uint32_t vers;
 
+#ifndef NO_LIMIT_FD_SETSIZE
 	if (signal_fd >= FD_SETSIZE || listen_fd >= FD_SETSIZE)
 	    krb5_errx (context, 1, "fd too large");
+#endif
 
 	FD_ZERO(&readset);
 	FD_SET(signal_fd, &readset);
@@ -860,7 +890,7 @@ main(int argc, char **argv)
 	    kadm5_log_get_version_fd (log_fd, &current_version);
 
 	    if (current_version > old_version) {
-		krb5_warnx(context, 
+		krb5_warnx(context,
 			   "Missed a signal, updating slaves %lu to %lu",
 			   (unsigned long)old_version,
 			   (unsigned long)current_version);
@@ -873,7 +903,11 @@ main(int argc, char **argv)
 	}
 
 	if (ret && FD_ISSET(signal_fd, &readset)) {
+#ifndef NO_UNIX_SOCKETS
 	    struct sockaddr_un peer_addr;
+#else
+	    struct sockaddr_storage peer_addr;
+#endif
 	    socklen_t peer_len = sizeof(peer_addr);
 
 	    if(recvfrom(signal_fd, (void *)&vers, sizeof(vers), 0,
@@ -886,14 +920,17 @@ main(int argc, char **argv)
 	    old_version = current_version;
 	    kadm5_log_get_version_fd (log_fd, &current_version);
 	    if (current_version > old_version) {
-		krb5_warnx(context, 
+		krb5_warnx(context,
 			   "Got a signal, updating slaves %lu to %lu",
 			   (unsigned long)old_version,
 			   (unsigned long)current_version);
-		for (p = slaves; p != NULL; p = p->next)
+		for (p = slaves; p != NULL; p = p->next) {
+		    if (p->flags & SLAVE_F_DEAD)
+			continue;
 		    send_diffs (context, p, log_fd, database, current_version);
+		}
 	    } else {
-		krb5_warnx(context, 
+		krb5_warnx(context,
 			   "Got a signal, but no update in log version %lu",
 			   (unsigned long)current_version);
 	    }
@@ -909,10 +946,8 @@ main(int argc, char **argv)
 		    slave_dead(context, p);
 	    } else if (slave_gone_p (p))
 		slave_dead(context, p);
-	    else if (slave_missing_p (p)) {
-		krb5_warnx(context, "slave %s missing, sending AYT", p->name);
+	    else if (slave_missing_p (p))
 		send_are_you_there (context, p);
-	    }
 	}
 
 	if (ret && FD_ISSET(listen_fd, &readset)) {
@@ -923,13 +958,15 @@ main(int argc, char **argv)
 	write_stats(context, slaves, current_version);
     }
 
-    if(exit_flag == SIGXCPU)
-	krb5_warnx(context, "%s CPU time limit exceeded", getprogname());
-    else if(exit_flag == SIGINT || exit_flag == SIGTERM)
+    if(exit_flag == SIGINT || exit_flag == SIGTERM)
 	krb5_warnx(context, "%s terminated", getprogname());
+#ifdef SIGXCPU
+    else if(exit_flag == SIGXCPU)
+	krb5_warnx(context, "%s CPU time limit exceeded", getprogname());
+#endif
     else
-	krb5_warnx(context, "%s unexpected exit reason: %d", 
-		   getprogname(), exit_flag);
+	krb5_warnx(context, "%s unexpected exit reason: %ld",
+		   getprogname(), (long)exit_flag);
 
     write_master_down(context);
 

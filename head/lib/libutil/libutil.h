@@ -71,14 +71,14 @@ typedef	__uid_t		uid_t;
 #define	PROPERTY_MAX_NAME	64
 #define	PROPERTY_MAX_VALUE	512
 
-/* for properties.c */
+/* For properties.c. */
 typedef struct _property {
 	struct _property *next;
 	char	*name;
 	char	*value;
 } *properties;
 
-/* Avoid pulling in all the include files for no need */
+/* Avoid pulling in all the include files for no need. */
 struct in_addr;
 struct pidfh;
 struct sockaddr;
@@ -132,7 +132,11 @@ int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
 int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
 
-#ifdef _STDIO_H_	/* avoid adding new includes */
+/*
+ * Conditionally prototype the following functions if the include
+ * files upon which they depend have been included.
+ */
+#ifdef _STDIO_H_
 char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
 	    const char _delim[3], int _flags);
 #endif
@@ -150,26 +154,26 @@ char	*pw_make(const struct passwd *_pw);
 char	*pw_make_v7(const struct passwd *_pw);
 int	pw_mkdb(const char *_user);
 int	pw_lock(void);
-struct passwd
-	*pw_scan(const char *_line, int _flags);
-const char
-	*pw_tempname(void);
+struct passwd *
+	pw_scan(const char *_line, int _flags);
+const char *
+	pw_tempname(void);
 int	pw_tmp(int _mfd);
 #endif
 
 #ifdef _GRP_H_
 int 	gr_copy(int __ffd, int _tfd, const struct group *_gr,
 	    struct group *_old_gr);
-struct group
-	*gr_dup(const struct group *_gr);
+struct group *
+	gr_dup(const struct group *_gr);
 int	gr_equal(const struct group *_gr1, const struct group *_gr2);
 void	gr_fini(void);
 int	gr_init(const char *_dir, const char *_master);
 int	gr_lock(void);
 char	*gr_make(const struct group *_gr);
 int	gr_mkdb(void);
-struct group
-	*gr_scan(const char *_line);
+struct group *
+	gr_scan(const char *_line);
 int	gr_tmp(int _mdf);
 #endif
 
@@ -209,18 +213,18 @@ __END_DECLS
 #define	HD_OMIT_HEX		(1 << 17)
 #define	HD_OMIT_CHARS		(1 << 18)
 
-/* Flags for humanize_number(3) flags. */
+/* Values for humanize_number(3)'s flags parameter. */
 #define	HN_DECIMAL		0x01
 #define	HN_NOSPACE		0x02
 #define	HN_B			0x04
 #define	HN_DIVISOR_1000		0x08
 #define	HN_IEC_PREFIXES		0x10
 
-/* Flags for humanize_number(3) scale. */
+/* Values for humanize_number(3)'s scale parameter. */
 #define	HN_GETSCALE		0x10
 #define	HN_AUTOSCALE		0x20
 
-/* return values from realhostname(). */
+/* Return values from realhostname(). */
 #define	HOSTNAME_FOUND		0
 #define	HOSTNAME_INCORRECTNAME	1
 #define	HOSTNAME_INVALIDADDR	2
@@ -233,12 +237,12 @@ __END_DECLS
 /* Return values from uu_lock(). */
 #define	UU_LOCK_INUSE		1
 #define	UU_LOCK_OK		0
-#define	UU_LOCK_OPEN_ERR	-1
-#define	UU_LOCK_READ_ERR	-2
-#define	UU_LOCK_CREAT_ERR	-3
-#define	UU_LOCK_WRITE_ERR	-4
-#define	UU_LOCK_LINK_ERR	-5
-#define	UU_LOCK_TRY_ERR		-6
-#define	UU_LOCK_OWNER_ERR	-7
+#define	UU_LOCK_OPEN_ERR	(-1)
+#define	UU_LOCK_READ_ERR	(-2)
+#define	UU_LOCK_CREAT_ERR	(-3)
+#define	UU_LOCK_WRITE_ERR	(-4)
+#define	UU_LOCK_LINK_ERR	(-5)
+#define	UU_LOCK_TRY_ERR		(-6)
+#define	UU_LOCK_OWNER_ERR	(-7)
 
 #endif /* !_LIBUTIL_H_ */

@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: a_1.h,v 1.5 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: a_1.h,v 1.5 2007/06/19 23:47:17 tbox Exp $ */
 
 /* by Bjorn.Victor@it.uu.se, 2005-05-07 */
 /* Based on generic/mx_15.h */

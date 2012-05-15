@@ -78,6 +78,41 @@ __FBSDID("$FreeBSD$");
 				    : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm __volatile("clts")
 
+static __inline void
+xrstor(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	/* xrstor (%rdi) */
+	__asm __volatile(".byte	0x0f,0xae,0x2f" : :
+	    "a" (low), "d" (hi), "D" (addr));
+}
+
+static __inline void
+xsave(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	/* xsave (%rdi) */
+	__asm __volatile(".byte	0x0f,0xae,0x27" : :
+	    "a" (low), "d" (hi), "D" (addr) : "memory");
+}
+
+static __inline void
+xsetbv(uint32_t reg, uint64_t val)
+{
+	uint32_t low, hi;
+
+	low = val;
+	hi = val >> 32;
+	__asm __volatile(".byte 0x0f,0x01,0xd1" : :
+	    "c" (reg), "a" (low), "d" (hi));
+}
+
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
 void	fldcw(u_short cw);
@@ -90,6 +125,9 @@ void	fxrstor(caddr_t addr);
 void	ldmxcsr(u_int csr);
 void	start_emulating(void);
 void	stop_emulating(void);
+void	xrstor(char *addr, uint64_t mask);
+void	xsave(char *addr, uint64_t mask);
+void	xsetbv(uint32_t reg, uint64_t val);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
 

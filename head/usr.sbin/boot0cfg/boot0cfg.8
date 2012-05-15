@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2011
+.Dd February 4, 2012
 .Dt BOOT0CFG 8
 .Os
 .Sh NAME
@@ -114,6 +114,9 @@ Specify slices to be enabled/disabled, where
 .Ar mask
 is an integer between 0 (no slices enabled) and 0xf (all four slices
 enabled).
+Each mask bit enables corresponding slice if set to 1.
+The least significant bit of the mask corresponds to slice 1,
+the most significant bit of the mask corresponds to slice 4.
 .It Fl o Ar options
 A comma-separated string of any of the following options may be
 specified (with
@@ -172,16 +175,15 @@ To boot slice 2 on the next boot:
 .Pp
 .Dl "boot0cfg -s 2 ad0"
 .Pp
-To enable just slices 1 and 2 in the menu:
+To enable just slices 1 and 3 in the menu:
 .Pp
-.Dl "boot0cfg -m 0x3 ad0"
+.Dl "boot0cfg -m 0x5 ad0"
 .Pp
 To go back to non-interactive booting, use
 .Xr fdisk 8
 to install the default MBR:
 .Pp
 .Dl "fdisk -B ad0"
-.Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr boot 8 ,

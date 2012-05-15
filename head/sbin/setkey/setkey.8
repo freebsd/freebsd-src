@@ -130,7 +130,7 @@ are treated as comment lines.
 .Ar src Ar dst Ar protocol Ar spi
 .Op Ar extensions
 .Ar algorithm ...
-.Li ;
+.Li \&;
 .Xc
 Add an SAD entry.
 .Li add
@@ -141,7 +141,7 @@ including when the key length does not match the specified algorithm.
 .Li get
 .Op Fl 46n
 .Ar src Ar dst Ar protocol Ar spi
-.Li ;
+.Li \&;
 .Xc
 Show an SAD entry.
 .\"
@@ -149,7 +149,7 @@ Show an SAD entry.
 .Li delete
 .Op Fl 46n
 .Ar src Ar dst Ar protocol Ar spi
-.Li ;
+.Li \&;
 .Xc
 Remove an SAD entry.
 .\"
@@ -157,14 +157,14 @@ Remove an SAD entry.
 .Li deleteall
 .Op Fl 46n
 .Ar src Ar dst Ar protocol
-.Li ;
+.Li \&;
 .Xc
 Remove all SAD entries that match the specification.
 .\"
 .It Xo
 .Li flush
 .Op Ar protocol
-.Li ;
+.Li \&;
 .Xc
 Clear all SAD entries matched by the options.
 .Fl F
@@ -173,7 +173,7 @@ on the command line achieves the same functionality.
 .It Xo
 .Li dump
 .Op Ar protocol
-.Li ;
+.Li \&;
 .Xc
 Dumps all SAD entries matched by the options.
 .Fl D
@@ -183,7 +183,7 @@ on the command line achieves the same functionality.
 .Li spdadd
 .Op Fl 46n
 .Ar src_range Ar dst_range Ar upperspec Ar policy
-.Li ;
+.Li \&;
 .Xc
 Add an SPD entry.
 .\"
@@ -191,13 +191,13 @@ Add an SPD entry.
 .Li spddelete
 .Op Fl 46n
 .Ar src_range Ar dst_range Ar upperspec Fl P Ar direction
-.Li ;
+.Li \&;
 .Xc
 Delete an SPD entry.
 .\"
 .It Xo
 .Li spdflush
-.Li ;
+.Li \&;
 .Xc
 Clear all SPD entries.
 .Fl FP
@@ -205,7 +205,7 @@ on the command line achieves the same functionality.
 .\"
 .It Xo
 .Li spddump
-.Li ;
+.Li \&;
 .Xc
 Dumps all SPD entries.
 .Fl DP
@@ -567,7 +567,6 @@ See
 .Xr ipsec_set_policy 3
 for details.
 .El
-.Pp
 .\"
 .Sh ALGORITHMS
 The following list shows the supported algorithms.
@@ -652,48 +651,48 @@ deflate		rfc2394
 .Sh EXAMPLES
 Add an ESP SA between two IPv6 addresses using the
 des-cbc encryption algorithm.
-.Bd -literal -offset
+.Bd -literal -offset indent
 add 3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
 	-E des-cbc 0x3ffe05014819ffff ;
 
 .Ed
 .\"
 Add an authentication SA between two FQDN specified hosts:
-.Bd -literal -offset
+.Bd -literal -offset indent
 add -6 myhost.example.com yourhost.example.com ah 123456
 	-A hmac-sha1 "AH SA configuration!" ;
 
 .Ed
 Use both ESP and AH between two numerically specified hosts:
-.Bd -literal -offset
+.Bd -literal -offset indent
 add 10.0.11.41 10.0.11.33 esp 0x10001
 	-E des-cbc 0x3ffe05014819ffff
 	-A hmac-md5 "authentication!!" ;
 
 .Ed
 Get the SA information associated with first example above:
-.Bd -literal -offset
+.Bd -literal -offset indent
 get 3ffe:501:4819::1 3ffe:501:481d::1 ah 123456 ;
 
 .Ed
 Flush all entries from the database:
-.Bd -literal -offset
+.Bd -literal -offset indent
 flush ;
 
 .Ed
 Dump the ESP entries from the database:
-.Bd -literal -offset
+.Bd -literal -offset indent
 dump esp ;
 
 .Ed
 Add a security policy between two networks that uses ESP in tunnel mode:
-.Bd -literal -offset
+.Bd -literal -offset indent
 spdadd 10.0.11.41/32[21] 10.0.11.33/32[any] any
 	-P out ipsec esp/tunnel/192.168.0.1-192.168.1.2/require ;
 
 .Ed
 Use TCP MD5 between two numerically specified hosts:
-.Bd -literal -offset
+.Bd -literal -offset indent
 add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
 
 .Ed

@@ -12,7 +12,6 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 # configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = $(DOXYGEN_SRC_PATH)/dev/ale/ \
-                         $(DOXYGEN_SRC_PATH)/$(DOXYGEN_TARGET_ARCH)/ale/ \
                          $(NOTREVIEWED)
 
 GENERATE_TAGFILE       = dev_ale/dev_ale.tag

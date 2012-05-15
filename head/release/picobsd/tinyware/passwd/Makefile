@@ -26,7 +26,7 @@ CFLAGS+= -DLOGIN_CAP -DCRYPT -I. -I${.CURDIR} \
 
 CLEANFILES= ${GENSRCS}
 
-RPCGEN= rpcgen -C
+RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/yp.x
 RPCSRC_PW= ${DESTDIR}/usr/include/rpcsvc/yppasswd.x
 RPCSRC_PRIV= ${.CURDIR}/../../usr.sbin/rpc.yppasswdd/yppasswd_private.x

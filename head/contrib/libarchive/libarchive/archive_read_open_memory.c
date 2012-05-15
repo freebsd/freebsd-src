@@ -41,18 +41,16 @@ __FBSDID("$FreeBSD$");
  */
 
 struct read_memory_data {
-	unsigned char	*buffer;
+	unsigned char	*start;
+	unsigned char	*p;
 	unsigned char	*end;
 	ssize_t	 read_size;
 };
 
 static int	memory_read_close(struct archive *, void *);
 static int	memory_read_open(struct archive *, void *);
-#if ARCHIVE_API_VERSION < 2
-static ssize_t	memory_read_skip(struct archive *, void *, size_t request);
-#else
-static off_t	memory_read_skip(struct archive *, void *, off_t request);
-#endif
+static int64_t	memory_read_seek(struct archive *, void *, int64_t offset, int whence);
+static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 
 int
@@ -78,11 +76,16 @@ archive_read_open_memory2(struct archive *a, void *buff,
 		return (ARCHIVE_FATAL);
 	}
 	memset(mine, 0, sizeof(*mine));
-	mine->buffer = (unsigned char *)buff;
-	mine->end = mine->buffer + size;
+	mine->start = mine->p = (unsigned char *)buff;
+	mine->end = mine->start + size;
 	mine->read_size = read_size;
-	return (archive_read_open2(a, mine, memory_read_open,
-		    memory_read, memory_read_skip, memory_read_close));
+	archive_read_set_open_callback(a, memory_read_open);
+	archive_read_set_read_callback(a, memory_read);
+	archive_read_set_seek_callback(a, memory_read_seek);
+	archive_read_set_skip_callback(a, memory_read_skip);
+	archive_read_set_close_callback(a, memory_read_close);
+	archive_read_set_callback_data(a, mine);
+	return (archive_read_open1(a));
 }
 
 /*
@@ -110,11 +113,11 @@ memory_read(struct archive *a, void *client_data, const void **buff)
 	ssize_t size;
 
 	(void)a; /* UNUSED */
-	*buff = mine->buffer;
-	size = mine->end - mine->buffer;
+	*buff = mine->p;
+	size = mine->end - mine->p;
 	if (size > mine->read_size)
 		size = mine->read_size;
-        mine->buffer += size;
+        mine->p += size;
 	return (size);
 }
 
@@ -123,24 +126,52 @@ memory_read(struct archive *a, void *client_data, const void **buff)
  * necessary in order to better exercise internal code when used
  * as a test harness.
  */
-#if ARCHIVE_API_VERSION < 2
-static ssize_t
-memory_read_skip(struct archive *a, void *client_data, size_t skip)
-#else
-static off_t
-memory_read_skip(struct archive *a, void *client_data, off_t skip)
-#endif
+static int64_t
+memory_read_skip(struct archive *a, void *client_data, int64_t skip)
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 
 	(void)a; /* UNUSED */
-	if ((off_t)skip > (off_t)(mine->end - mine->buffer))
-		skip = mine->end - mine->buffer;
+	if ((int64_t)skip > (int64_t)(mine->end - mine->p))
+		skip = mine->end - mine->p;
 	/* Round down to block size. */
 	skip /= mine->read_size;
 	skip *= mine->read_size;
-	mine->buffer += skip;
+	mine->p += skip;
 	return (skip);
+}
+
+/*
+ * Seeking.
+ */
+static int64_t
+memory_read_seek(struct archive *a, void *client_data, int64_t offset, int whence)
+{
+	struct read_memory_data *mine = (struct read_memory_data *)client_data;
+
+	(void)a; /* UNUSED */
+	switch (whence) {
+	case SEEK_SET:
+		mine->p = mine->start + offset;
+		break;
+	case SEEK_CUR:
+		mine->p += offset;
+		break;
+	case SEEK_END:
+		mine->p = mine->end + offset;
+		break;
+	default:
+		return ARCHIVE_FATAL;
+	}
+	if (mine->p < mine->start) {
+		mine->p = mine->start;
+		return ARCHIVE_FAILED;
+	}
+	if (mine->p > mine->end) {
+		mine->p = mine->end;
+		return ARCHIVE_FAILED;
+	}
+	return (mine->p - mine->start);
 }
 
 /*

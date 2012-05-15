@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-settime.docbook,v 1.11.70.2 2011-03-21 23:46:58 tbox Exp $ -->
+<!-- $Id: dnssec-settime.docbook,v 1.11.70.3 2011/11/03 20:21:30 each Exp $ -->
 <refentry id="man.dnssec-settime">
   <refentryinfo>
     <date>July 15, 2009</date>
@@ -82,7 +82,8 @@
       <filename>Knnnn.+aaa+iiiii.private</filename>) are regenerated.
       Metadata fields are stored in the private file.  A human-readable
       description of the metadata is also placed in comments in the key
-      file.
+      file.  The private file's permissions are always set to be
+      inaccessible to anyone other than the owner (mode 0600).
     </para>
   </refsect1>
 

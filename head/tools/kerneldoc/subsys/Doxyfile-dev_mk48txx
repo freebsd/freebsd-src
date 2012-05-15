@@ -12,7 +12,6 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 # configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = $(DOXYGEN_SRC_PATH)/dev/mk48txx/ \
-                         $(DOXYGEN_SRC_PATH)/$(DOXYGEN_TARGET_ARCH)/mk48txx/ \
                          $(NOTREVIEWED)
 
 GENERATE_TAGFILE       = dev_mk48txx/dev_mk48txx.tag

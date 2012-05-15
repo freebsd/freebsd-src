@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ar71xx.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -60,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_pci_bus_space.h>
 
 #include <mips/atheros/ar71xx_cpudef.h>
+
+#ifdef	AR71XX_ATH_EEPROM
+#include <mips/atheros/ar71xx_fixup.h>
+#endif	/* AR71XX_ATH_EEPROM */
 
 #undef	AR724X_PCI_DEBUG
 #ifdef AR724X_PCI_DEBUG
@@ -243,27 +249,21 @@ ar724x_pci_setup(device_t dev)
 	return (0);
 }
 
+#ifdef	AR71XX_ATH_EEPROM
 #define	AR5416_EEPROM_MAGIC		0xa55a
 
 /*
  * XXX - This should not be here ! And this looks like Atheros (if_ath) only.
  */
 static void
-ar724x_load_eeprom_data(device_t dev)
+ar724x_pci_fixup(device_t dev, long flash_addr, int len)
 {
-	uint32_t	bar0, hint, reg, val;
-	uint16_t	*data = NULL;
+	uint32_t bar0, reg, val;
+	uint16_t *cal_data = (uint16_t *) MIPS_PHYS_TO_KSEG1(flash_addr);
 
-	/* Search for a hint of eeprom data offset */
-	if (resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "eepromdata", &hint) != 0)
-		return;
-
-	device_printf(dev, "Loading the eeprom fixup data from %#x\n", hint);
-	data = (uint16_t *)MIPS_PHYS_TO_KSEG1(hint);
-
-	if (*data != AR5416_EEPROM_MAGIC) {
-		device_printf(dev, "Invalid calibration data from %#x\n", hint);
+	if (cal_data[0] != AR5416_EEPROM_MAGIC) {
+		device_printf(dev, "%s: Invalid calibration data from 0x%x\n",
+		    __func__, (uintptr_t) flash_addr);
 		return;
 	}
 
@@ -275,11 +275,14 @@ ar724x_load_eeprom_data(device_t dev)
 	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2); 
 
 	/* set pointer to first reg address */
-	data += 3;
-	while (*data != 0xffff) {
-		reg = *data++;
-		val = *data++;
-		val |= (*data++) << 16;
+	cal_data += 3;
+	while (*cal_data != 0xffff) {
+		reg = *cal_data++;
+		val = *cal_data++;
+		val |= (*cal_data++) << 16;
+
+		if (bootverbose)
+			printf("    0x%08x=0x%04x\n", reg, val);
 
 		/* Write eeprom fixup data to device memory */
 		ATH_WRITE_REG(AR71XX_PCI_MEM_BASE + reg, val);
@@ -293,8 +296,50 @@ ar724x_load_eeprom_data(device_t dev)
 	/* Write the saved bar(0) address */
 	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_BAR(0), bar0, 4);
 }
-
 #undef	AR5416_EEPROM_MAGIC
+
+/*
+ * XXX This is (mostly) duplicated with ar71xx_pci.c.
+ * It should at some point be fixed.
+ */
+static void
+ar724x_pci_slot_fixup(device_t dev)
+{
+	long int flash_addr;
+	char buf[64];
+	int size;
+
+	/*
+	 * Check whether the given slot has a hint to poke.
+	 */
+	if (bootverbose)
+	device_printf(dev, "%s: checking dev %s, %d/%d/%d\n",
+	    __func__, device_get_nameunit(dev), 0, 0, 0);
+
+	snprintf(buf, sizeof(buf), "bus.%d.%d.%d.ath_fixup_addr",
+	    0, 0, 0);
+
+	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
+	    buf, &flash_addr) == 0) {
+		snprintf(buf, sizeof(buf), "bus.%d.%d.%d.ath_fixup_size",
+		    0, 0, 0);
+		if (resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), buf, &size) != 0) {
+			device_printf(dev,
+			    "%s: missing hint '%s', aborting EEPROM\n",
+			    __func__, buf);
+			return;
+		}
+
+
+		device_printf(dev, "found EEPROM at 0x%lx on %d.%d.%d\n",
+		    flash_addr, 0, 0, 0);
+		ar724x_pci_fixup(dev, flash_addr, size);
+		ar71xx_pci_slot_create_eeprom_firmware(dev, 0, 0, 0,
+		    flash_addr, size);
+	}
+}
+#endif	/* AR71XX_ATH_EEPROM */
 
 static int
 ar724x_pci_probe(device_t dev)
@@ -357,8 +402,9 @@ ar724x_pci_attach(device_t dev)
 	if (ar724x_pci_setup(dev))
 		return (ENXIO);
 
-	/* XXX - Load eeprom fixup data */
-	ar724x_load_eeprom_data(dev);
+#ifdef	AR71XX_ATH_EEPROM
+	ar724x_pci_slot_fixup(dev);
+#endif	/* AR71XX_ATH_EEPROM */
 
 	/* Fixup internal PCI bridge */
 	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, 

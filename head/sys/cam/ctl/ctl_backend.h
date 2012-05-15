@@ -280,6 +280,11 @@ int ctl_lun_power_lock(struct ctl_be_lun *be_lun, struct ctl_nexus *nexus,
 int ctl_lun_offline(struct ctl_be_lun *be_lun);
 int ctl_lun_online(struct ctl_be_lun *be_lun);
 
+/*
+ * Let the backend notify the initiator about changed capacity.
+ */
+void ctl_lun_capacity_changed(struct ctl_be_lun *be_lun);
+
 #endif /* _KERNEL */
 #endif /* _CTL_BACKEND_H_ */
 

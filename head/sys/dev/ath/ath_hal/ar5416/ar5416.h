@@ -196,9 +196,8 @@ extern	uint32_t ar5416GetCurRssi(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
 extern	HAL_BOOL ar5416SetDecompMask(struct ath_hal *, uint16_t, int);
 extern	void ar5416SetCoverageClass(struct ath_hal *, uint8_t, int);
-extern	uint32_t ar5416GetMibCycleCountsPct(struct ath_hal *ah,
-    uint32_t *rxc_pcnt, uint32_t *rxextc_pcnt, uint32_t *rxf_pcnt,
-    uint32_t *txf_pcnt);
+extern	HAL_BOOL ar5416GetMibCycleCounts(struct ath_hal *ah,
+	    HAL_SURVEY_SAMPLE *hsample);
 extern	uint32_t ar5416Get11nExtBusy(struct ath_hal *ah);
 extern	void ar5416Set11nMac2040(struct ath_hal *ah, HAL_HT_MACMODE mode);
 extern	HAL_HT_RXCLEAR ar5416Get11nRxClear(struct ath_hal *ah);
@@ -207,11 +206,15 @@ extern	HAL_STATUS ar5416SetQuiet(struct ath_hal *ah, uint32_t period,
 	    uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 extern	HAL_STATUS ar5416GetCapability(struct ath_hal *ah,
 	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t *result);
+extern	HAL_BOOL ar5416SetCapability(struct ath_hal *ah,
+	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t val,
+	    HAL_STATUS *status);
 extern	HAL_BOOL ar5416GetDiagState(struct ath_hal *ah, int request,
 	    const void *args, uint32_t argsize,
 	    void **result, uint32_t *resultsize);
 extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan, HAL_BOOL enable);
+
 extern	void ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
@@ -230,6 +233,7 @@ extern	HAL_BOOL ar5416SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 
 extern	uint32_t ar5416GetRxFilter(struct ath_hal *ah);
 extern	void ar5416SetRxFilter(struct ath_hal *ah, uint32_t bits);
+extern	HAL_BOOL ar5416StopDmaReceive(struct ath_hal *ah);
 extern	void ar5416StartPcuReceive(struct ath_hal *ah);
 extern	void ar5416StopPcuReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetupRxDesc(struct ath_hal *,
@@ -332,8 +336,8 @@ extern	int ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
 
 extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
-		HAL_CIPHER cipher, uint8_t delims, u_int segLen, HAL_BOOL firstSeg,
-		HAL_BOOL lastSeg);
+		HAL_CIPHER cipher, uint8_t delims, u_int segLen,
+		HAL_BOOL firstSeg, HAL_BOOL lastSeg, HAL_BOOL lastAggr);
 extern	HAL_BOOL ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int aggrLen, u_int flags, u_int txPower, u_int txRate0, u_int txTries0,
 		u_int antMode, u_int rtsctsRate, u_int rtsctsDuration);

@@ -79,33 +79,35 @@ struct iwn_ident {
 };
 
 static const struct iwn_ident iwn_ident_table[] = {
-	{ 0x8086, 0x0082, "Intel(R) Centrino(R) Advanced-N 6205"	 },
-	{ 0x8086, 0x0083, "Intel(R) Centrino(R) Wireless-N 1000"	 },
-	{ 0x8086, 0x0084, "Intel(R) Centrino(R) Wireless-N 1000"	 },
-	{ 0x8086, 0x0085, "Intel(R) Centrino(R) Advanced-N 6205"	 },
-	{ 0x8086, 0x0087, "Intel(R) Centrino(R) Advanced-N + WiMAX 6250" },
-	{ 0x8086, 0x0089, "Intel(R) Centrino(R) Advanced-N + WiMAX 6250" },
-	{ 0x8086, 0x008a, "Intel(R) Centrino(R) Wireless-N 1030"	 },
-	{ 0x8086, 0x008b, "Intel(R) Centrino(R) Wireless-N 1030"	 },
-	{ 0x8086, 0x0090, "Intel(R) Centrino(R) Advanced-N 6230"	 },
-	{ 0x8086, 0x0091, "Intel(R) Centrino(R) Advanced-N 6230"	 },
-	{ 0x8086, 0x0896, "Intel(R) Centrino(R) Wireless-N 130"		 },
-	{ 0x8086, 0x4229, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x422b, "Intel(R) Centrino(R) Ultimate-N 6300"	 },
-	{ 0x8086, 0x422c, "Intel(R) Centrino(R) Advanced-N 6200"	 },
-	{ 0x8086, 0x422d, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x4230, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x4232, "Intel(R) WiFi Link 5100"			 },
-	{ 0x8086, 0x4233, "Intel(R) Wireless WiFi Link 4965"		 },
-	{ 0x8086, 0x4235, "Intel(R) Ultimate N WiFi Link 5300"		 },
-	{ 0x8086, 0x4236, "Intel(R) Ultimate N WiFi Link 5300"		 },
-	{ 0x8086, 0x4237, "Intel(R) WiFi Link 5100"			 },
-	{ 0x8086, 0x4238, "Intel(R) Centrino(R) Ultimate-N 6300"	 },
-	{ 0x8086, 0x4239, "Intel(R) Centrino(R) Advanced-N 6200"	 },
-	{ 0x8086, 0x423a, "Intel(R) WiMAX/WiFi Link 5350"		 },
-	{ 0x8086, 0x423b, "Intel(R) WiMAX/WiFi Link 5350"		 },
-	{ 0x8086, 0x423c, "Intel(R) WiMAX/WiFi Link 5150"		 },
-	{ 0x8086, 0x423d, "Intel(R) WiMAX/WiFi Link 5150"		 },
+	{ 0x8086, 0x0082, "Intel Centrino Advanced-N 6205"		},
+	{ 0x8086, 0x0083, "Intel Centrino Wireless-N 1000"		},
+	{ 0x8086, 0x0084, "Intel Centrino Wireless-N 1000"		},
+	{ 0x8086, 0x0085, "Intel Centrino Advanced-N 6205"		},
+	{ 0x8086, 0x0087, "Intel Centrino Advanced-N + WiMAX 6250"	},
+	{ 0x8086, 0x0089, "Intel Centrino Advanced-N + WiMAX 6250"	},
+	{ 0x8086, 0x008a, "Intel Centrino Wireless-N 1030"		},
+	{ 0x8086, 0x008b, "Intel Centrino Wireless-N 1030"		},
+	{ 0x8086, 0x0090, "Intel Centrino Advanced-N 6230"		},
+	{ 0x8086, 0x0091, "Intel Centrino Advanced-N 6230"		},
+	{ 0x8086, 0x0885, "Intel Centrino Wireless-N + WiMAX 6150"	},
+	{ 0x8086, 0x0886, "Intel Centrino Wireless-N + WiMAX 6150"	},
+	{ 0x8086, 0x0896, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x4229, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x422b, "Intel Centrino Ultimate-N 6300"		},
+	{ 0x8086, 0x422c, "Intel Centrino Advanced-N 6200"		},
+	{ 0x8086, 0x422d, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x4230, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x4232, "Intel WiFi Link 5100"			},
+	{ 0x8086, 0x4233, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, 0x4235, "Intel Ultimate N WiFi Link 5300"		},
+	{ 0x8086, 0x4236, "Intel Ultimate N WiFi Link 5300"		},
+	{ 0x8086, 0x4237, "Intel WiFi Link 5100"			},
+	{ 0x8086, 0x4238, "Intel Centrino Ultimate-N 6300"		},
+	{ 0x8086, 0x4239, "Intel Centrino Advanced-N 6200"		},
+	{ 0x8086, 0x423a, "Intel WiMAX/WiFi Link 5350"			},
+	{ 0x8086, 0x423b, "Intel WiMAX/WiFi Link 5350"			},
+	{ 0x8086, 0x423c, "Intel WiMAX/WiFi Link 5150"			},
+	{ 0x8086, 0x423d, "Intel WiMAX/WiFi Link 5150"			},
 	{ 0, 0, NULL }
 };
 
@@ -945,13 +947,9 @@ static int
 iwn_suspend(device_t dev)
 {
 	struct iwn_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
-	iwn_stop(sc);
-	if (vap != NULL)
-		ieee80211_stop(vap);
+	ieee80211_suspend_all(ic);
 	return 0;
 }
 
@@ -959,20 +957,12 @@ static int
 iwn_resume(device_t dev)
 {
 	struct iwn_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 	/* Clear device-specific "PCI retry timeout" register (41h). */
 	pci_write_config(dev, 0x41, 0, 1);
 
-	if (ifp->if_flags & IFF_UP) {
-		iwn_init(sc);
-		if (vap != NULL)
-			ieee80211_init(vap);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			iwn_start(ifp);
-	}
+	ieee80211_resume_all(ic);
 	return 0;
 }
 
@@ -2455,7 +2445,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	txq = &sc->txq[le16toh(ba->qid)];
 	tap = sc->qid2tap[le16toh(ba->qid)];
-	tid = WME_AC_TO_TID(tap->txa_ac);
+	tid = tap->txa_tid;
 	ni = tap->txa_ni;
 	wn = (void *)ni;
 
@@ -2813,11 +2803,13 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		bitmap |= 1ULL << bit;
 	}
 	tap = sc->qid2tap[qid];
-	tid = WME_AC_TO_TID(tap->txa_ac);
-	wn = (void *)tap->txa_ni;
-	wn->agg[tid].bitmap = bitmap;
-	wn->agg[tid].startidx = start;
-	wn->agg[tid].nframes = nframes;
+	if (tap != NULL) {
+		tid = tap->txa_tid;
+		wn = (void *)tap->txa_ni;
+		wn->agg[tid].bitmap = bitmap;
+		wn->agg[tid].startidx = start;
+		wn->agg[tid].nframes = nframes;
+	}
 
 	seqno = le32toh(*(status + nframes)) & 0xfff;
 	for (lastidx = (seqno & 0xff); ring->read != lastidx;) {
@@ -3316,18 +3308,15 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		tid = 0;
 	}
 	ac = M_WME_GETAC(m);
-
-	if (IEEE80211_QOS_HAS_SEQ(wh) &&
-	    IEEE80211_AMPDU_RUNNING(&ni->ni_tx_ampdu[ac])) {
+	if (m->m_flags & M_AMPDU_MPDU) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
-		ring = &sc->txq[*(int *)tap->txa_private];
+		ac = *(int *)tap->txa_private;
 		*(uint16_t *)wh->i_seq =
 		    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
 		ni->ni_txseqs[tid]++;
-	} else {
-		ring = &sc->txq[ac];
 	}
+	ring = &sc->txq[ac];
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 
@@ -5596,7 +5585,7 @@ iwn_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 {
 	struct iwn_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int qid = *(int *)tap->txa_private;
-	uint8_t tid = WME_AC_TO_TID(tap->txa_ac);
+	uint8_t tid = tap->txa_tid;
 	int ret;
 
 	if (code == IEEE80211_STATUS_SUCCESS) {
@@ -5620,7 +5609,7 @@ static int
 iwn_ampdu_tx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
     uint8_t tid)
 {
-	struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[TID_TO_WME_AC(tid)];
+	struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
 	struct iwn_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_node *wn = (void *)ni;
@@ -5653,7 +5642,7 @@ iwn_ampdu_tx_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	struct iwn_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	struct iwn_ops *ops = &sc->ops;
-	uint8_t tid = WME_AC_TO_TID(tap->txa_ac);
+	uint8_t tid = tap->txa_tid;
 	int qid;
 
 	if (tap->txa_private == NULL)

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwbuffer.h,v 1.22 2007-06-19 23:47:23 tbox Exp $ */
+/* $Id: lwbuffer.h,v 1.22 2007/06/19 23:47:23 tbox Exp $ */
 
 
 /*! \file lwres/lwbuffer.h

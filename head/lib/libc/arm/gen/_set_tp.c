@@ -27,9 +27,13 @@
  */
 
 #include <string.h>
-#include <stdint.h>
+#include <sys/types.h>
+
+#include <machine/sysarch.h>
 
 void
 _set_tp(void *tp)
 {
+
+	*((struct tcb **)ARM_TP_ADDRESS) = tp;
 }

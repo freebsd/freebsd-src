@@ -189,7 +189,7 @@ static device_method_t vtpci_methods[] = {
 	DEVMETHOD(virtio_bus_read_device_config,  vtpci_read_dev_config),
 	DEVMETHOD(virtio_bus_write_device_config, vtpci_write_dev_config),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t vtpci_driver = {
@@ -251,10 +251,10 @@ vtpci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (pci_find_extcap(dev, PCIY_MSI, NULL) != 0)
+	if (pci_find_cap(dev, PCIY_MSI, NULL) != 0)
 		sc->vtpci_flags |= VIRTIO_PCI_FLAG_NO_MSI;
 
-	if (pci_find_extcap(dev, PCIY_MSIX, NULL) == 0) {
+	if (pci_find_cap(dev, PCIY_MSIX, NULL) == 0) {
 		rid = PCIR_BAR(1);
 		sc->vtpci_msix_res = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);

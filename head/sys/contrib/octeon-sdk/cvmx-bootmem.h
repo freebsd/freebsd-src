@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -47,7 +47,7 @@
  * Simple allocate only memory allocator.  Used to allocate memory at application
  * start time.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 
@@ -66,6 +66,14 @@ extern "C" {
 #define CVMX_BOOTMEM_FLAG_END_ALLOC    (1 << 0)     /* Allocate from end of block instead of beginning */
 #define CVMX_BOOTMEM_FLAG_NO_LOCKING   (1 << 1)     /* Don't do any locking. */
 
+/* Real physical addresses of memory regions */
+#define OCTEON_DDR0_BASE    (0x0ULL)
+#define OCTEON_DDR0_SIZE    (0x010000000ULL)
+#define OCTEON_DDR1_BASE    ((OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) ? 0x20000000ULL : 0x410000000ULL)
+#define OCTEON_DDR1_SIZE    (0x010000000ULL)
+#define OCTEON_DDR2_BASE    ((OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) ? 0x30000000ULL : 0x20000000ULL)
+#define OCTEON_DDR2_SIZE    ((OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) ? 0x7d0000000ULL : 0x3e0000000ULL)
+#define OCTEON_MAX_PHY_MEM_SIZE ((OCTEON_IS_MODEL(OCTEON_CN68XX)) ? 128*1024*1024*1024ULL : (OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) ? 32*1024*1024*1024ull : 16*1024*1024*1024ULL)
 
 /* First bytes of each free physical block of memory contain this structure,
  * which is used to maintain the free memory list.  Since the bootloader is
@@ -162,6 +170,21 @@ extern void *cvmx_bootmem_alloc(uint64_t size, uint64_t alignment);
  */
 extern void *cvmx_bootmem_alloc_address(uint64_t size, uint64_t address, uint64_t alignment);
 
+/**
+ * Allocate a block of memory from the free list that was
+ * passed to the application by the bootloader within a specified
+ * address range. This is an allocate-only algorithm, so
+ * freeing memory is not possible. Allocation will fail if
+ * memory cannot be allocated in the requested range.
+ *
+ * @param size      Size in bytes of block to allocate
+ * @param min_addr  defines the minimum address of the range
+ * @param max_addr  defines the maximum address of the range
+ * @param alignment Alignment required - must be power of 2
+ * @param flags     Flags to control options for the allocation.
+ * @return pointer to block of memory, NULL on error
+ */
+extern void *cvmx_bootmem_alloc_range_flags(uint64_t size, uint64_t alignment, uint64_t min_addr, uint64_t max_addr, uint32_t flags);
 
 
 /**
@@ -193,6 +216,21 @@ extern void *cvmx_bootmem_alloc_range(uint64_t size, uint64_t alignment, uint64_
  * @return pointer to block of memory, NULL on error
  */
 extern void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment, const char *name);
+
+/**
+ * Allocate a block of memory from the free list that was passed
+ * to the application by the bootloader, and assign it a name in the
+ * global named block table.  (part of the cvmx_bootmem_descriptor_t structure)
+ * Named blocks can later be freed.
+ *
+ * @param size      Size in bytes of block to allocate
+ * @param alignment Alignment required - must be power of 2
+ * @param name      name of block - must be less than CVMX_BOOTMEM_NAME_LEN bytes
+ * @param flags     Flags to control options for the allocation.
+ *
+ * @return pointer to block of memory, NULL on error
+ */
+extern void *cvmx_bootmem_alloc_named_flags(uint64_t size, uint64_t alignment, const char *name, uint32_t flags);
 
 
 
@@ -229,6 +267,25 @@ extern void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address, c
  * @return pointer to block of memory, NULL on error
  */
 extern void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr, uint64_t max_addr, uint64_t align, const char *name);
+
+/**
+ * Allocate if needed a block of memory from a specific range of the free list that was passed
+ * to the application by the bootloader, and assign it a name in the
+ * global named block table.  (part of the cvmx_bootmem_descriptor_t structure)
+ * Named blocks can later be freed.
+ * If the requested name block is already allocated, return the pointer to block of memory.
+ * If request cannot be satisfied within the address range specified, NULL is returned
+ *
+ * @param size      Size in bytes of block to allocate
+ * @param min_addr  minimum address of range
+ * @param max_addr  maximum address of range
+ * @param align     Alignment of memory to be allocated. (must be a power of 2)
+ * @param name      name of block - must be less than CVMX_BOOTMEM_NAME_LEN bytes
+ * @param init      Initialization function
+ *
+ * @return pointer to block of memory, NULL on error
+ */
+extern void *cvmx_bootmem_alloc_named_range_once(uint64_t size, uint64_t min_addr, uint64_t max_addr, uint64_t align, const char *name, void (*init)(void*));
 
 /**
  * Frees a previously allocated named bootmem block.

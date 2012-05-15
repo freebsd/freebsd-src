@@ -195,6 +195,9 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		saveFrameSeqCount = OS_REG_READ(ah, AR_D_SEQNUM);
 	} else
 		saveFrameSeqCount = 0;		/* NB: silence compiler */
+
+	/* Blank the channel survey statistics */
+	OS_MEMZERO(&ahp->ah_chansurvey, sizeof(ahp->ah_chansurvey));
 #if 0
 	/*
 	 * XXX disable for now; this appears to sometimes cause OFDM
@@ -1273,14 +1276,13 @@ ar5212SetResetReg(struct ath_hal *ah, uint32_t resetMask)
         if ((resetMask & AR_RC_MAC) == 0) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
-			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD | AR_CFG_SWRG;
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD;
 #ifndef AH_NEED_DESC_SWAP
 			mask |= AR_CFG_SWTD;
 #endif
-			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			OS_REG_WRITE(ah, AR_CFG, mask);
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 		if (ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))

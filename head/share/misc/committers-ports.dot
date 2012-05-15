@@ -44,6 +44,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15"]
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
+ak [label="Alex Kozlov\nak@FreeBSD.org\n2012/02/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 alexbl [label="Alexander Botero-Lowry\nalexbl@FreeBSD.org\n2006/09/11"]
@@ -127,6 +128,7 @@ lme [label="Lars Engels\nlme@FreeBSD.org\n2007/07/09"]
 lth [label="Lars Thegler\nlth@FreeBSD.org\n2004/05/04"]
 lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2007/04/03"]
 lx [label="David Thiel\nlx@FreeBSD.org\n2006/11/29"]
+madpilot [label="Guido Falsi\nmadpilot@FreeBSD.org\n2012/04/12"]
 maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
 mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
@@ -134,6 +136,7 @@ marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2004/02/21"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
+matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
@@ -170,6 +173,7 @@ shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
+sperber[label="Armin Pirkovitsch\nsperber@FreeBSD.org\n2012/04/15"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
 stephen [label="Stephen Montgomery-Smith\nstephen@FreeBSD.org\n2011/06/13"]
@@ -184,6 +188,7 @@ trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
+uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
@@ -220,6 +225,8 @@ bapt -> eadler
 bapt -> jlaffaye
 
 beat -> decke
+beat -> sperber
+beat -> uqs
 
 beech -> glarkin
 beech -> mva
@@ -236,11 +243,16 @@ clsung -> lwhsu
 clsung -> tabthorpe
 
 crees -> jgh
+crees -> madpilot
+
+decke -> sperber
 
 delphij -> nemoliu
 delphij -> rafan
 
 demon -> mat
+
+eadler -> ak
 
 edwin -> cperciva
 edwin -> erwin
@@ -293,6 +305,7 @@ glewis -> jkim
 
 ijliao -> leeym
 
+itetcu -> ak
 itetcu -> araujo
 itetcu -> dryice
 itetcu -> sahil
@@ -361,6 +374,7 @@ miwi -> nox
 miwi -> pawel
 miwi -> rm
 miwi -> sbz
+miwi -> sperber
 miwi -> sylvio
 miwi -> tabthorpe
 miwi -> trasz
@@ -411,6 +425,7 @@ sem -> delphij
 sem -> stas
 
 shaun -> timur
+shaun -> matthew
 
 sobomax -> demon
 sobomax -> glewis
@@ -432,6 +447,7 @@ tabthorpe -> fluffy
 tabthorpe -> jacula
 tabthorpe -> jadawin
 tabthorpe -> jlaffaye
+tabthorpe -> madpilot
 tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi

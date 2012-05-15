@@ -1764,7 +1764,7 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  * Returns NULL if no ifp could be found.
  */
 static struct ifnet *
-in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
+in6p_lookup_mcast_ifp(const struct inpcb *in6p,
     const struct sockaddr_in6 *gsin6)
 {
 	struct route_in6	 ro6;
@@ -1780,11 +1780,8 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
 	ifp = NULL;
 	memset(&ro6, 0, sizeof(struct route_in6));
 	memcpy(&ro6.ro_dst, gsin6, sizeof(struct sockaddr_in6));
-#ifdef notyet
-	rtalloc_ign_fib(&ro6, 0, inp ? inp->inp_inc.inc_fibnum : 0);
-#else
-	rtalloc_ign((struct route *)&ro6, 0);
-#endif
+	rtalloc_ign_fib((struct route *)&ro6, 0,
+	    in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB);
 	if (ro6.ro_rt != NULL) {
 		ifp = ro6.ro_rt->rt_ifp;
 		KASSERT(ifp != NULL, ("%s: null ifp", __func__));

@@ -214,6 +214,33 @@ AcpiOsTableOverride (
 
 /******************************************************************************
  *
+ * FUNCTION:    AcpiOsPhysicalTableOverride
+ *
+ * PARAMETERS:  ExistingTable       - Header of current table (probably firmware)
+ *              NewAddress          - Where new table address is returned
+ *                                    (Physical address)
+ *              NewTableLength      - Where new table length is returned
+ *
+ * RETURN:      Status, address/length of new table. Null pointer returned
+ *              if no table is available to override.
+ *
+ * DESCRIPTION: Returns AE_SUPPORT, function not used in user space.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+AcpiOsPhysicalTableOverride (
+    ACPI_TABLE_HEADER       *ExistingTable,
+    ACPI_PHYSICAL_ADDRESS   *NewAddress,
+    UINT32                  *NewTableLength)
+{
+
+    return (AE_SUPPORT);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    AcpiOsRedirectOutput
  *
  * PARAMETERS:  Destination         - An open file handle/pointer
@@ -1017,9 +1044,10 @@ AcpiOsWritePort (
  *
  * PARAMETERS:  Address             - Physical Memory Address to read
  *              Value               - Where value is placed
- *              Width               - Number of bits
+ *              Width               - Number of bits (8,16,32, or 64)
  *
- * RETURN:      Value read from physical memory address
+ * RETURN:      Value read from physical memory address. Always returned
+ *              as a 64-bit integer, regardless of the read width.
  *
  * DESCRIPTION: Read data from a physical memory address
  *
@@ -1028,7 +1056,7 @@ AcpiOsWritePort (
 ACPI_STATUS
 AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
-    UINT32                  *Value,
+    UINT64                  *Value,
     UINT32                  Width)
 {
 
@@ -1037,6 +1065,7 @@ AcpiOsReadMemory (
     case 8:
     case 16:
     case 32:
+    case 64:
         *Value = 0;
         break;
 
@@ -1053,7 +1082,7 @@ AcpiOsReadMemory (
  *
  * PARAMETERS:  Address             - Physical Memory Address to write
  *              Value               - Value to write
- *              Width               - Number of bits
+ *              Width               - Number of bits (8,16,32, or 64)
  *
  * RETURN:      None
  *
@@ -1064,7 +1093,7 @@ AcpiOsReadMemory (
 ACPI_STATUS
 AcpiOsWriteMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
-    UINT32                  Value,
+    UINT64                  Value,
     UINT32                  Width)
 {
 

@@ -96,7 +96,10 @@
  * offset is calculated.
  */
 #define	USRSTACK		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
- 
+#ifdef __mips_n64
+#define	FREEBSD32_USRSTACK	(((vm_offset_t)0x80000000) - PAGE_SIZE)
+#endif
+
 /*
  * Only one memory domain.
  */

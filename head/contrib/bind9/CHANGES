@@ -1,8 +1,308 @@
-	--- 9.8.1-P1 released ---
+	--- 9.8.2 released ---
+
+3298.	[bug]		Named could dereference a NULL pointer in
+			zmgr_start_xfrin_ifquota if the zone was being removed.
+			[RT #28419]
+
+3297.	[bug]		Named could die on a malformed master file. [RT #28467]
+
+3295.	[bug]		Adjust isc_time_secondsastimet range check to be more
+			portable. [RT # 26542]
+
+3294.	[bug]		isccc/cc.c:table_fromwire failed to free alist on
+			error. [RT #28265]
+
+3291.	[port]		Fixed a build error on systems without ENOTSUP.
+			[RT #28200]
+
+3290.	[bug]		<isc/hmacsha.h> was not being installed. [RT #28169]
+
+3288.	[bug]		dlz_destroy() function wasn't correctly registered
+			by the DLZ dlopen driver. [RT #28056]
+
+3287.	[port]		Update ans.pl to work with Net::DNS 0.68. [RT #28028]
+
+3286.	[bug]		Managed key maintenance timer could fail to start
+			after 'rndc reconfig'. [RT #26786]
+
+	--- 9.8.2rc2 released ---
+
+3285.	[bug]		val-frdataset was incorrectly disassociated in
+			proveunsecure after calling startfinddlvsep.
+			[RT #27928]
+
+3284.	[bug]		Address race conditions with the handling of
+			rbtnode.deadlink. [RT #27738]
+
+3283.	[bug]		Raw zones with with more than 512 records in a RRset
+			failed to load. [RT #27863]
+
+3282.	[bug]		Restrict the TTL of NS RRset to no more than that
+			of the old NS RRset when replacing it.
+			[RT #27792] [RT #27884]
+
+3281.	[bug]		SOA refresh queries could be treated as cancelled
+			despite succeeding over the loopback interface.
+			[RT #27782]
+
+3280.	[bug]		Potential double free of a rdataset on out of memory
+			with DNS64. [RT #27762]
+
+3278.	[bug]		Make sure automatic key maintenance is started
+			when "auto-dnssec maintain" is turned on during
+			"rndc reconfig". [RT #26805]
+
+3276.	[bug]		win32: ns_os_openfile failed to return NULL on
+			safe_open failure. [RT #27696]
+
+3274.	[bug]		Log when a zone is not reusable.  Only set loadtime
+			on successful loads.  [RT #27650]
+
+3273.   [bug]           AAAA responses could be returned in the additional
+                        section even when filter-aaaa-on-v4 was in use.
+                        [RT #27292]
+
+3271.	[port]		darwin: mksymtbl is not always stable, loop several
+			times before giving up.  mksymtbl was using non
+			portable perl to covert 64 bit hex strings. [RT #27653]
+
+3268.	[bug]		Convert RRSIG expiry times to 64 timestamps to work
+			out the earliest expiry time. [RT #23311]
+
+3267.	[bug]		Memory allocation failures could be mis-reported as
+			unexpected error.  New ISC_R_UNSET result code.
+			[RT #27336]
+
+3266.	[bug]		The maximum number of NSEC3 iterations for a
+			DNSKEY RRset was not being properly computed.
+			[RT #26543]
+
+3262.	[bug]		Signed responses were handled incorrectly by RPZ.
+			[RT #27316]
+
+	--- 9.8.2rc1 released ---
+
+3260.	[bug]		"rrset-order cyclic" could appear not to rotate
+			for some query patterns.  [RT #27170/27185]
+
+3259.	[bug]		named-compilezone: Suppress "dump zone to <file>"
+			message when writing to stdout. [RT #27109]
+
+3258.	[test]		Add "forcing full sign with unreadable keys" test.
+			[RT #27153]
+
+3257.	[bug]		Do not generate a error message when calling fsync()
+			in a pipe or socket. [RT #27109]
+
+3256.	[bug]		Disable empty zones for lwresd -C. [RT #27139]
+
+3254.	[bug]		Set isc_socket_ipv6only() on the IPv6 control channels.
+			[RT #22249]
+
+3253.	[bug]		Return DNS_R_SYNTAX when the input to a text field is
+			too long. [RT #26956]
+
+3251.	[bug]		Enforce a upper bound (65535 bytes) on the amount of
+			memory dns_sdlz_putrr() can allocate per record to
+			prevent run away memory consumption on ISC_R_NOSPACE.
+			[RT #26956]
+
+3250.	[func]		'configure --enable-developer'; turn on various
+			configure options, normally off by default, that
+			we want developers to build and test with. [RT #27103]
+
+3249.	[bug]		Update log message when saving slave zones files for
+			analysis after load failures. [RT #27087]
+
+3248.	[bug]		Configure options --enable-fixed-rrset and
+			--enable-exportlib were incompatible with each
+			other. [RT #27087]
+
+3247.	[bug]		'raw' format zones failed to preserve load order
+			breaking 'fixed' sort order. [RT #27087]
+
+3243.	[port]		netbsd,bsdi: the thread defaults were not being
+			properly set.
+
+3241.	[bug]		Address race conditions in the resolver code.
+			[RT #26889]
+
+3240.	[bug]		DNSKEY state change events could be missed. [RT #26874]
+
+3239.	[bug]		dns_dnssec_findmatchingkeys needs to use a consistent
+			timestamp. [RT #26883]
+
+3238.	[bug]		keyrdata was not being reinitialized in
+			lib/dns/rbtdb.c:iszonesecure. [RT#26913]
+
+3237.	[bug]		dig -6 didn't work with +trace. [RT #26906]
+
+	--- 9.8.2b1 released ---
+
+3234.	[bug]		'make depend' produced invalid makefiles. [RT #26830]
+
+3231.	[bug]		named could fail to send a uncompressable zone.
+			[RT #26796]
+
+3230.	[bug]		'dig axfr' failed to properly handle a multi-message
+			axfr with a serial of 0. [RT #26796]
+
+3229.	[bug]		Fix local variable to struct var assignment
+			found by CLANG warning.
+
+3228.	[tuning]	Dynamically grow symbol table to improve zone
+			loading performance. [RT #26523]
+
+3227.	[bug]		Interim fix to make WKS's use of getprotobyname()
+			and getservbyname() self thread safe. [RT #26232]
+
+3226.	[bug]		Address minor resource leakages. [RT #26624]
+
+3221.	[bug]		Fixed a potential coredump on shutdown due to
+			referencing fetch context after it's been freed.
+			[RT #26720]
+
+3220.	[bug]		Change #3186 was incomplete; dns_db_rpz_findips()
+			could fail to set the database version correctly,
+			causing an assertion failure. [RT #26180]
 
 3218.	[security]	Cache lookup could return RRSIG data associated with
 			nonexistent records, leading to an assertion
 			failure. [RT #26590]
+
+3217.	[cleanup]	Fix build problem with --disable-static. [RT #26476]
+
+3216.	[bug]		resolver.c:validated() was not thread-safe. [RT #26478]
+
+3213.	[doc]		Clarify ixfr-from-differences behavior. [RT #25188]
+
+3212.	[bug]		rbtdb.c: failed to remove a node from the deadnodes
+			list prior to adding a reference to it leading a
+			possible assertion failure. [RT #23219]
+
+3209.	[func]		Add "dnssec-lookaside 'no'".  [RT #24858]
+
+3208.	[bug]		'dig -y' handle unknown tsig alorithm better.
+			[RT #25522]
+
+3207.	[contrib]	Fixed build error in Berkeley DB DLZ module. [RT #26444]
+
+3206.	[cleanup]	Add ISC information to log at start time. [RT #25484]
+
+3204.	[bug]		When a master server that has been marked as
+			unreachable sends a NOTIFY, mark it reachable
+			again. [RT #25960]
+
+3203.	[bug]		Increase log level to 'info' for validation failures
+			from expired or not-yet-valid RRSIGs. [RT #21796]
+
+3200.	[doc]		Some rndc functions were undocumented or were
+			missing from 'rndc -h' output. [RT #25555]
+
+3198.	[doc]		Clarified that dnssec-settime can alter keyfile
+			permissions. [RT #24866]
+
+3196.	[bug]		nsupdate: return nonzero exit code when target zone
+			doesn't exist. [RT #25783]
+
+3195.	[cleanup]	Silence "file not found" warnings when loading
+			managed-keys zone. [RT #26340]
+
+3194.	[doc]		Updated RFC references in the 'empty-zones-enable'
+			documentation. [RT #25203]
+
+3193.	[cleanup]	Changed MAXZONEKEYS to DNS_MAXZONEKEYS, moved to
+			dnssec.h. [RT #26415]
+
+3192.	[bug]		A query structure could be used after being freed.
+			[RT #22208]
+
+3191.	[bug]		Print NULL records using "unknown" format. [RT #26392]
+
+3190.	[bug]		Underflow in error handling in isc_mutexblock_init.
+			[RT #26397]
+
+3189.	[test]		Added a summary report after system tests. [RT #25517]
+
+3188.	[bug]		zone.c:zone_refreshkeys() could fail to detach
+			references correctly when errors occurred, causing
+			a hang on shutdown. [RT #26372]
+
+3187.	[port]		win32: support for Visual Studio 2008.  [RT #26356]
+
+3186.	[bug]		Version/db mis-match in rpz code. [RT #26180]
+
+3179.	[port]		kfreebsd: build issues. [RT #26273]
+
+3175.	[bug]		Fix how DNSSEC positive wildcard responses from a
+			NSEC3 signed zone are validated.  Stop sending a
+			unnecessary NSEC3 record when generating such
+			responses. [RT #26200]
+
+3174.	[bug]		Always compute to revoked key tag from scratch.
+			[RT #26186]
+
+3173.	[port]		Correctly validate root DS responses. [RT #25726]
+
+3171.	[bug]		Exclusively lock the task when adding a zone using
+			'rndc addzone'.  [RT #25600]
+
+3170.	[func]		RPZ update:
+			- fix precedence among competing rules
+			- improve ARM text including documenting rule precedence
+			- try to rewrite CNAME chains until first hit
+			- new "rpz" logging channel
+			- RDATA for CNAME rules can include wildcards
+			- replace "NO-OP" named.conf policy override with
+			  "PASSTHRU" and add "DISABLED" override ("NO-OP"
+			  is still recognized)
+			[RT #25172]
+
+3169.	[func]		Catch db/version mis-matches when calling dns_db_*().
+			[RT #26017]
+
+3167.	[bug]		Negative answers from forwarders were not being
+			correctly tagged making them appear to not be cached.
+			[RT #25380]
+
+3162.	[test]		start.pl: modified to allow for "named.args" in
+			ns*/ subdirectory to override stock arguments to
+			named. Largely from RT#26044, but no separate ticket.
+
+3161.	[bug]		zone.c:del_sigs failed to always reset rdata leading
+			assertion failures. [RT #25880]
+
+3157.	[tuning]	Reduce the time spent in "rndc reconfig" by parsing
+			the config file before pausing the server. [RT #21373]
+
+3155.	[bug]		Fixed a build failure when using contrib DLZ
+			drivers (e.g., mysql, postgresql, etc). [RT #25710]
+
+3154.	[bug]		Attempting to print an empty rdataset could trigger
+			an assert. [RT #25452]
+
+3152.	[cleanup]	Some versions of gcc and clang failed due to
+			incorrect use of __builtin_expect. [RT #25183]
+
+3151.	[bug]		Queries for type RRSIG or SIG could be handled
+			incorrectly.  [RT #21050]
+
+3148.	[bug]		Processing of normal queries could be stalled when
+			forwarding a UPDATE message. [RT #24711]
+
+3146.	[test]		Fixed gcc4.6.0 errors in ATF. [RT #25598]
+
+3145.	[test]		Capture output of ATF unit tests in "./atf.out" if
+			there were any errors while running them. [RT #25527]
+
+3144.	[bug]		dns_dbiterator_seek() could trigger an assert when
+			used with a nonexistent database node. [RT #25358]
+
+3143.	[bug]		Silence clang compiler warnings. [RT #25174]
+
+3139.	[test]		Added tests from RFC 6234, RFC 2202, and RFC 1321
+			for the hashing algorithms (md5, sha1 - sha512, and
+			their hmac counterparts).  [RT #25067]
 
 	--- 9.8.1 released ---
 
@@ -14,7 +314,7 @@
 3138.	[bug]		Address memory leaks and out-of-order operations when
 			shutting named down. [RT #25210]
 
-3136.	[func]		Add RFC 1918 reverse zones to the list of built-in 
+3136.	[func]		Add RFC 1918 reverse zones to the list of built-in
 			empty zones switched on by the 'empty-zones-enable'
 			option. [RT #24990]
 
@@ -34,9 +334,9 @@
 
 3133.	[bug]		Change #3114 was incomplete. [RT #24577]
 
-3131.   [tuning]        Improve scalability by allocating one zone task
-                        per 100 zones at startup time, rather than using a
-                        fixed-size task table. [RT #24406]
+3131.	[tuning]	Improve scalability by allocating one zone task
+			per 100 zones at startup time, rather than using a
+			fixed-size task table. [RT #24406]
 
 3129.	[bug]		Named could crash on 'rndc reconfig' when
 			allow-new-zones was set to yes and named ACLs
@@ -62,10 +362,10 @@
 
 3122.	[cleanup]	dnssec-settime: corrected usage message. [RT #24664]
 
-3121.   [security]      An authoritative name server sending a negative
-                        response containing a very large RRset could
-                        trigger an off-by-one error in the ncache code
-                        and crash named. [RT #24650]
+3121.	[security]	An authoritative name server sending a negative
+			response containing a very large RRset could
+			trigger an off-by-one error in the ncache code
+			and crash named. [RT #24650]
 
 3120.	[bug]		Named could fail to validate zones listed in a DLV
 			that validated insecure without using DLV and had
@@ -99,9 +399,9 @@
 			"krb5-subdomain", which allow machines to update
 			their own records, to the BIND 9 ARM.
 
-3111.   [bug]           Improved consistency checks for dnssec-enable and
-                        dnssec-validation, added test cases to the
-                        checkconf system test. [RT #24398]
+3111.	[bug]		Improved consistency checks for dnssec-enable and
+			dnssec-validation, added test cases to the
+			checkconf system test. [RT #24398]
 
 3110.	[bug]		dnssec-signzone: Wrong error message could appear
 			when attempting to sign with no KSK. [RT #24369]
@@ -109,10 +409,10 @@
 3107.	[bug]		dnssec-signzone: Report the correct number of ZSKs
 			when using -x. [RT #20852]
 
-3105.   [bug]           GOST support can be suppressed by "configure
-                        --without-gost" [RT #24367]
+3105.	[bug]		GOST support can be suppressed by "configure
+			--without-gost" [RT #24367]
 
-3104.   [bug]           Better support for cross-compiling. [RT #24367]
+3104.	[bug]		Better support for cross-compiling. [RT #24367]
 
 3103.	[bug]		Configuring 'dnssec-validation auto' in a view
 			instead of in the options statement could trigger
@@ -142,7 +442,7 @@
 
 3094.	[doc]		Expand dns64 documentation.
 
-3093.   [bug]           Fix gssapi/kerberos dependencies [RT #23836]
+3093.	[bug]		Fix gssapi/kerberos dependencies [RT #23836]
 
 3092.	[bug]		Signatures for records at the zone apex could go
 			stale due to an incorrect timer setting. [RT #23769]
@@ -151,7 +451,7 @@
 			and then subsequently activated could fail to trigger
 			automatic signing. [RT #22911]
 
-3090.   [func]          Make --with-gssapi default [RT #23738]
+3090.	[func]		Make --with-gssapi default [RT #23738]
 
 3088.	[bug]		Remove bin/tests/system/logfileconfig/ns1/named.conf
 			and add setup.sh in order to resolve changing
@@ -269,9 +569,9 @@
 
 3043.	[test]		Merged in the NetBSD ATF test framework (currently
 			version 0.12) for development of future unit tests.
-                        Use configure --with-atf to build ATF internally
-                        or configure --with-atf=prefix to use an external
-                        copy.  [RT #23209]
+			Use configure --with-atf to build ATF internally
+			or configure --with-atf=prefix to use an external
+			copy.  [RT #23209]
 
 3042.	[bug]		dig +trace could fail attempting to use IPv6
 			addresses on systems with only IPv4 connectivity.
@@ -706,7 +1006,7 @@
 2929.	[bug]		Improved handling of GSS security contexts:
 			 - added LRU expiration for generated TSIGs
 			 - added the ability to use a non-default realm
-                         - added new "realm" keyword in nsupdate
+			 - added new "realm" keyword in nsupdate
 			 - limited lifetime of generated keys to 1 hour
 			   or the lifetime of the context (whichever is
 			   smaller)
@@ -1535,7 +1835,7 @@
 			--with-export-includedir. [RT #20252]
 
 2675.	[bug]		dnssec-signzone could crash if the key directory
-                        did not exist. [RT #20232]
+			did not exist. [RT #20232]
 
 	--- 9.7.0a3 released ---
 
@@ -1626,7 +1926,7 @@
 			64-bit systems. [RT #20076]
 
 2650.	[bug]		Assertion failure in dnssec-signzone when trying
-                        to read keyset-* files. [RT #20075]
+			to read keyset-* files. [RT #20075]
 
 2649.	[bug]		Set the domain for forward only zones. [RT #19944]
 
@@ -1698,7 +1998,7 @@
 2630.	[func]		Improved syntax for DDNS autoconfiguration:  use
 			"update-policy local;" to switch on local DDNS in a
 			zone. (The "ddns-autoconf" option has been removed.)
-                        [RT #19875]
+			[RT #19875]
 
 2629.	[port]		Check for seteuid()/setegid(), use setresuid()/
 			setresgid() if not present. [RT #19932]
@@ -2383,10 +2683,10 @@
 			time. [RT #18277]
 
 2423.	[security]	Randomize server selection on queries, so as to
-                        make forgery a little more difficult.  Instead of
-                        always preferring the server with the lowest RTT,
-                        pick a server with RTT within the same 128
-                        millisecond band.  [RT #18441]
+			make forgery a little more difficult.  Instead of
+			always preferring the server with the lowest RTT,
+			pick a server with RTT within the same 128
+			millisecond band.  [RT #18441]
 
 2422.	[bug]		Handle the special return value of a empty node as
 			if it was a NXRRSET in the validator. [RT #18447]
@@ -2467,7 +2767,7 @@
 
 2399.	[placeholder]
 
-2398.	[bug]           Improve file descriptor management.  New,
+2398.	[bug]		Improve file descriptor management.  New,
 			temporary, named.conf option reserved-sockets,
 			default 512. [RT #18344]
 

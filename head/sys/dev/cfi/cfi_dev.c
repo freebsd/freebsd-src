@@ -103,7 +103,7 @@ cfi_block_start(struct cfi_softc *sc, u_int ofs)
 	/* Read the block from flash for byte-serving. */
 	ptr.x8 = sc->sc_wrbuf;
 	for (r = 0; r < sc->sc_wrbufsz; r += sc->sc_width) {
-		val = cfi_read(sc, sc->sc_wrofs + r);
+		val = cfi_read_raw(sc, sc->sc_wrofs + r);
 		switch (sc->sc_width) {
 		case 1:
 			*(ptr.x8)++ = val;
@@ -189,7 +189,7 @@ cfi_devread(struct cdev *dev, struct uio *uio, int ioflag)
 	while (error == 0 && uio->uio_resid > 0 &&
 	    uio->uio_offset < sc->sc_size) {
 		ofs = uio->uio_offset;
-		val = cfi_read(sc, ofs);
+		val = cfi_read_raw(sc, ofs);
 		switch (sc->sc_width) {
 		case 1:
 			buf.x8[0] = val;

@@ -127,14 +127,14 @@ static int	bstp_rerooted(struct bstp_state *, struct bstp_port *);
 static uint32_t	bstp_calc_path_cost(struct bstp_port *);
 static void	bstp_notify_state(void *, int);
 static void	bstp_notify_rtage(void *, int);
-static void	bstp_ifupdstatus(struct bstp_state *, struct bstp_port *);
+static void	bstp_ifupdstatus(void *, int);
 static void	bstp_enable_port(struct bstp_state *, struct bstp_port *);
 static void	bstp_disable_port(struct bstp_state *, struct bstp_port *);
 static void	bstp_tick(void *);
 static void	bstp_timer_start(struct bstp_timer *, uint16_t);
 static void	bstp_timer_stop(struct bstp_timer *);
 static void	bstp_timer_latch(struct bstp_timer *);
-static int	bstp_timer_expired(struct bstp_timer *);
+static int	bstp_timer_dectest(struct bstp_timer *);
 static void	bstp_hello_timer_expiry(struct bstp_state *,
 		    struct bstp_port *);
 static void	bstp_message_age_expiry(struct bstp_state *,
@@ -446,7 +446,7 @@ bstp_pdu_flags(struct bstp_port *bp)
 	return (flags);
 }
 
-struct mbuf *
+void
 bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 {
 	struct bstp_state *bs = bp->bp_bs;
@@ -456,7 +456,7 @@ bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 
 	if (bp->bp_active == 0) {
 		m_freem(m);
-		return (NULL);
+		return;
 	}
 
 	BSTP_LOCK(bs);
@@ -521,7 +521,6 @@ out:
 	BSTP_UNLOCK(bs);
 	if (m)
 		m_freem(m);
-	return (NULL);
 }
 
 static void
@@ -1678,7 +1677,7 @@ bstp_set_autoptp(struct bstp_port *bp, int set)
 	if (set) {
 		bp->bp_flags |= BSTP_PORT_AUTOPTP;
 		if (bp->bp_role != BSTP_ROLE_DISABLED)
-			bstp_ifupdstatus(bs, bp);
+			taskqueue_enqueue(taskqueue_swi, &bp->bp_mediatask);
 	} else
 		bp->bp_flags &= ~BSTP_PORT_AUTOPTP;
 	BSTP_UNLOCK(bs);
@@ -1768,85 +1767,93 @@ bstp_notify_rtage(void *arg, int pending)
 }
 
 void
-bstp_linkstate(struct ifnet *ifp, int state)
+bstp_linkstate(struct bstp_port *bp)
 {
-	struct bstp_state *bs;
-	struct bstp_port *bp;
+	struct bstp_state *bs = bp->bp_bs;
 
-	/* search for the stp port */
-	mtx_lock(&bstp_list_mtx);
-	LIST_FOREACH(bs, &bstp_list, bs_list) {
-		BSTP_LOCK(bs);
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
-			if (bp->bp_ifp == ifp) {
-				bstp_ifupdstatus(bs, bp);
-				bstp_update_state(bs, bp);
-				/* it only exists once so return */
-				BSTP_UNLOCK(bs);
-				mtx_unlock(&bstp_list_mtx);
-				return;
-			}
-		}
-		BSTP_UNLOCK(bs);
-	}
-	mtx_unlock(&bstp_list_mtx);
+	if (!bp->bp_active)
+		return;
+
+	bstp_ifupdstatus(bp, 0);
+	BSTP_LOCK(bs);
+	bstp_update_state(bs, bp);
+	BSTP_UNLOCK(bs);
 }
 
 static void
-bstp_ifupdstatus(struct bstp_state *bs, struct bstp_port *bp)
+bstp_ifupdstatus(void *arg, int pending)
 {
+	struct bstp_port *bp = (struct bstp_port *)arg;
+	struct bstp_state *bs = bp->bp_bs;
 	struct ifnet *ifp = bp->bp_ifp;
 	struct ifmediareq ifmr;
-	int error = 0;
+	int error, changed;
 
-	BSTP_LOCK_ASSERT(bs);
+	if (!bp->bp_active)
+		return;
 
 	bzero((char *)&ifmr, sizeof(ifmr));
 	error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (caddr_t)&ifmr);
 
+	BSTP_LOCK(bs);
+	changed = 0;
 	if ((error == 0) && (ifp->if_flags & IFF_UP)) {
 		if (ifmr.ifm_status & IFM_ACTIVE) {
 			/* A full-duplex link is assumed to be point to point */
 			if (bp->bp_flags & BSTP_PORT_AUTOPTP) {
-				bp->bp_ptp_link =
-				    ifmr.ifm_active & IFM_FDX ? 1 : 0;
+				int fdx;
+
+				fdx = ifmr.ifm_active & IFM_FDX ? 1 : 0;
+				if (bp->bp_ptp_link ^ fdx) {
+					bp->bp_ptp_link = fdx;
+					changed = 1;
+				}
 			}
 
 			/* Calc the cost if the link was down previously */
 			if (bp->bp_flags & BSTP_PORT_PNDCOST) {
-				bp->bp_path_cost = bstp_calc_path_cost(bp);
+				uint32_t cost;
+
+				cost = bstp_calc_path_cost(bp);
+				if (bp->bp_path_cost != cost) {
+					bp->bp_path_cost = cost;
+					changed = 1;
+				}
 				bp->bp_flags &= ~BSTP_PORT_PNDCOST;
 			}
 
-			if (bp->bp_role == BSTP_ROLE_DISABLED)
+			if (bp->bp_role == BSTP_ROLE_DISABLED) {
 				bstp_enable_port(bs, bp);
+				changed = 1;
+			}
 		} else {
 			if (bp->bp_role != BSTP_ROLE_DISABLED) {
 				bstp_disable_port(bs, bp);
+				changed = 1;
 				if ((bp->bp_flags & BSTP_PORT_ADMEDGE) &&
 				    bp->bp_protover == BSTP_PROTO_RSTP)
 					bp->bp_operedge = 1;
 			}
 		}
-		return;
-	}
-
-	if (bp->bp_infois != BSTP_INFO_DISABLED)
+	} else if (bp->bp_infois != BSTP_INFO_DISABLED) {
 		bstp_disable_port(bs, bp);
+		changed = 1;
+	}
+	if (changed)
+		bstp_assign_roles(bs);
+	BSTP_UNLOCK(bs);
 }
 
 static void
 bstp_enable_port(struct bstp_state *bs, struct bstp_port *bp)
 {
 	bp->bp_infois = BSTP_INFO_AGED;
-	bstp_assign_roles(bs);
 }
 
 static void
 bstp_disable_port(struct bstp_state *bs, struct bstp_port *bp)
 {
 	bp->bp_infois = BSTP_INFO_DISABLED;
-	bstp_assign_roles(bs);
 }
 
 static void
@@ -1862,30 +1869,32 @@ bstp_tick(void *arg)
 
 	CURVNET_SET(bs->bs_vnet);
 
-	/* slow timer to catch missed link events */
-	if (bstp_timer_expired(&bs->bs_link_timer)) {
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
-			bstp_ifupdstatus(bs, bp);
+	/* poll link events on interfaces that do not support linkstate */
+	if (bstp_timer_dectest(&bs->bs_link_timer)) {
+		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+			if (!(bp->bp_ifp->if_capabilities & IFCAP_LINKSTATE))
+				taskqueue_enqueue(taskqueue_swi, &bp->bp_mediatask);
+		}
 		bstp_timer_start(&bs->bs_link_timer, BSTP_LINK_TIMER);
 	}
 
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
 		/* no events need to happen for these */
-		bstp_timer_expired(&bp->bp_tc_timer);
-		bstp_timer_expired(&bp->bp_recent_root_timer);
-		bstp_timer_expired(&bp->bp_forward_delay_timer);
-		bstp_timer_expired(&bp->bp_recent_backup_timer);
+		bstp_timer_dectest(&bp->bp_tc_timer);
+		bstp_timer_dectest(&bp->bp_recent_root_timer);
+		bstp_timer_dectest(&bp->bp_forward_delay_timer);
+		bstp_timer_dectest(&bp->bp_recent_backup_timer);
 
-		if (bstp_timer_expired(&bp->bp_hello_timer))
+		if (bstp_timer_dectest(&bp->bp_hello_timer))
 			bstp_hello_timer_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_message_age_timer))
+		if (bstp_timer_dectest(&bp->bp_message_age_timer))
 			bstp_message_age_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_migrate_delay_timer))
+		if (bstp_timer_dectest(&bp->bp_migrate_delay_timer))
 			bstp_migrate_delay_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_edge_delay_timer))
+		if (bstp_timer_dectest(&bp->bp_edge_delay_timer))
 			bstp_edge_delay_expiry(bs, bp);
 
 		/* update the various state machines for the port */
@@ -1924,7 +1933,7 @@ bstp_timer_latch(struct bstp_timer *t)
 }
 
 static int
-bstp_timer_expired(struct bstp_timer *t)
+bstp_timer_dectest(struct bstp_timer *t)
 {
 	if (t->active == 0 || t->latched)
 		return (0);
@@ -2012,24 +2021,33 @@ bstp_reinit(struct bstp_state *bs)
 	struct bstp_port *bp;
 	struct ifnet *ifp, *mif;
 	u_char *e_addr;
+	void *bridgeptr;
 	static const u_char llzero[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	BSTP_LOCK_ASSERT(bs);
 
+	if (LIST_EMPTY(&bs->bs_bplist))
+		goto disablestp;
+
 	mif = NULL;
+	bridgeptr = LIST_FIRST(&bs->bs_bplist)->bp_ifp->if_bridge;
+	KASSERT(bridgeptr != NULL, ("Invalid bridge pointer"));
 	/*
 	 * Search through the Ethernet adapters and find the one with the
-	 * lowest value. The adapter which we take the MAC address from does
-	 * not need to be part of the bridge, it just needs to be a unique
-	 * value.
+	 * lowest value. Make sure the adapter which we take the MAC address
+	 * from is part of this bridge, so we can have more than one independent
+	 * bridges in the same STP domain.
 	 */
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
-			continue;
+			continue;	/* Not Ethernet */
+
+		if (ifp->if_bridge != bridgeptr)
+			continue;	/* Not part of our bridge */
 
 		if (bstp_addr_cmp(IF_LLADDR(ifp), llzero) == 0)
-			continue;
+			continue;	/* No mac address set */
 
 		if (mif == NULL) {
 			mif = ifp;
@@ -2041,21 +2059,8 @@ bstp_reinit(struct bstp_state *bs)
 		}
 	}
 	IFNET_RUNLOCK_NOSLEEP();
-
-	if (LIST_EMPTY(&bs->bs_bplist) || mif == NULL) {
-		/* Set the bridge and root id (lower bits) to zero */
-		bs->bs_bridge_pv.pv_dbridge_id =
-		    ((uint64_t)bs->bs_bridge_priority) << 48;
-		bs->bs_bridge_pv.pv_root_id = bs->bs_bridge_pv.pv_dbridge_id;
-		bs->bs_root_pv = bs->bs_bridge_pv;
-		/* Disable any remaining ports, they will have no MAC address */
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
-			bp->bp_infois = BSTP_INFO_DISABLED;
-			bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
-		}
-		callout_stop(&bs->bs_bstpcallout);
-		return;
-	}
+	if (mif == NULL)
+		goto disablestp;
 
 	e_addr = IF_LLADDR(mif);
 	bs->bs_bridge_pv.pv_dbridge_id =
@@ -2078,11 +2083,25 @@ bstp_reinit(struct bstp_state *bs)
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
 		bp->bp_port_id = (bp->bp_priority << 8) |
 		    (bp->bp_ifp->if_index  & 0xfff);
-		bstp_ifupdstatus(bs, bp);
+		taskqueue_enqueue(taskqueue_swi, &bp->bp_mediatask);
 	}
 
 	bstp_assign_roles(bs);
 	bstp_timer_start(&bs->bs_link_timer, BSTP_LINK_TIMER);
+	return;
+
+disablestp:
+	/* Set the bridge and root id (lower bits) to zero */
+	bs->bs_bridge_pv.pv_dbridge_id =
+	    ((uint64_t)bs->bs_bridge_priority) << 48;
+	bs->bs_bridge_pv.pv_root_id = bs->bs_bridge_pv.pv_dbridge_id;
+	bs->bs_root_pv = bs->bs_bridge_pv;
+	/* Disable any remaining ports, they will have no MAC address */
+	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+		bp->bp_infois = BSTP_INFO_DISABLED;
+		bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
+	}
+	callout_stop(&bs->bs_bstpcallout);
 }
 
 static int
@@ -2092,10 +2111,8 @@ bstp_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		mtx_init(&bstp_list_mtx, "bridgestp list", NULL, MTX_DEF);
 		LIST_INIT(&bstp_list);
-		bstp_linkstate_p = bstp_linkstate;
 		break;
 	case MOD_UNLOAD:
-		bstp_linkstate_p = NULL;
 		mtx_destroy(&bstp_list_mtx);
 		break;
 	default:
@@ -2187,6 +2204,7 @@ bstp_create(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 	bp->bp_priority = BSTP_DEFAULT_PORT_PRIORITY;
 	TASK_INIT(&bp->bp_statetask, 0, bstp_notify_state, bp);
 	TASK_INIT(&bp->bp_rtagetask, 0, bstp_notify_rtage, bp);
+	TASK_INIT(&bp->bp_mediatask, 0, bstp_ifupdstatus, bp);
 
 	/* Init state */
 	bp->bp_infois = BSTP_INFO_DISABLED;
@@ -2250,4 +2268,5 @@ bstp_destroy(struct bstp_port *bp)
 	KASSERT(bp->bp_active == 0, ("port is still attached"));
 	taskqueue_drain(taskqueue_swi, &bp->bp_statetask);
 	taskqueue_drain(taskqueue_swi, &bp->bp_rtagetask);
+	taskqueue_drain(taskqueue_swi, &bp->bp_mediatask);
 }

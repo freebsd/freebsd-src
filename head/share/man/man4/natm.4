@@ -23,11 +23,11 @@ The NATM layer uses a
 to specify a virtual circuit:
 .Bd -literal -offset indent
 struct sockaddr_natm {
-  u_int8_t      snatm_len;              /* length */
-  u_int8_t      snatm_family;           /* AF_NATM */
+  uint8_t       snatm_len;              /* length */
+  uint8_t       snatm_family;           /* AF_NATM */
   char          snatm_if[IFNAMSIZ];     /* interface name */
-  u_int16_t     snatm_vci;              /* vci */
-  u_int8_t      snatm_vpi;              /* vpi */
+  uint16_t      snatm_vci;              /* vci */
+  uint8_t       snatm_vpi;              /* vpi */
 };
 .Ed
 .Pp

@@ -169,3 +169,8 @@
 	* doc/extend.texi: Document SSSE3 built-in functions.
 
 	* doc/invoke.texi: Document -mssse3/-mno-ssse3 switches.
+
+2006-10-21  Richard Guenther  <rguenther@suse.de>
+
+	* builtins.c (fold_builtin_classify): Fix typo.
+

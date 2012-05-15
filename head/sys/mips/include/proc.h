@@ -80,11 +80,6 @@ struct mdproc {
 };
 
 #ifdef _KERNEL
-struct thread;
-
-void	mips_cpu_switch(struct thread *, struct thread *, struct mtx *);
-void	mips_cpu_throw(struct thread *, struct thread *);
-
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
@@ -96,6 +91,7 @@ struct syscall_args {
 
 #ifdef __mips_n64
 #define	KINFO_PROC_SIZE 1088
+#define	KINFO_PROC32_SIZE 816
 #else
 #define	KINFO_PROC_SIZE 816
 #endif

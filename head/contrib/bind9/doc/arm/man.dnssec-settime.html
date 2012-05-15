@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dnssec-settime.html,v 1.58.8.11 2011-08-03 02:35:13 tbox Exp $ -->
+<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,7 +50,7 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-settime</code>  [<code class="option">-f</code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-A <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-R <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-I <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-h</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] {keyfile}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2615479"></a><h2>DESCRIPTION</h2>
+<a name="id2615924"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-settime</strong></span>
       reads a DNSSEC private key file and sets the key timing metadata
       as specified by the <code class="option">-P</code>, <code class="option">-A</code>,
@@ -71,11 +71,12 @@
       <code class="filename">Knnnn.+aaa+iiiii.private</code>) are regenerated.
       Metadata fields are stored in the private file.  A human-readable
       description of the metadata is also placed in comments in the key
-      file.
+      file.  The private file's permissions are always set to be
+      inaccessible to anyone other than the owner (mode 0600).
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2615538"></a><h2>OPTIONS</h2>
+<a name="id2616051"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-f</span></dt>
 <dd><p>
@@ -108,7 +109,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2615632"></a><h2>TIMING OPTIONS</h2>
+<a name="id2616145"></a><h2>TIMING OPTIONS</h2>
 <p>
       Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
       If the argument begins with a '+' or '-', it is interpreted as
@@ -187,7 +188,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2616453"></a><h2>PRINTING OPTIONS</h2>
+<a name="id2616488"></a><h2>PRINTING OPTIONS</h2>
 <p>
       <span><strong class="command">dnssec-settime</strong></span> can also be used to print the
       timing metadata associated with a key.
@@ -213,7 +214,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2616533"></a><h2>SEE ALSO</h2>
+<a name="id2616636"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
@@ -221,7 +222,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2616566"></a><h2>AUTHOR</h2>
+<a name="id2617693"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

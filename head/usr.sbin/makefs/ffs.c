@@ -780,8 +780,8 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		cur->inode->flags |= FI_WRITTEN;
 
 		if (cur->contents == NULL) {
-			if (snprintf(path, sizeof(path), "%s/%s", dir,
-			    cur->name) >= sizeof(path))
+			if (snprintf(path, sizeof(path), "%s/%s/%s", cur->root,
+			    cur->path, cur->name) >= (int)sizeof(path))
 				errx(1, "Pathname too long.");
 		}
 

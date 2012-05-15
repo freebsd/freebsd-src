@@ -19,6 +19,7 @@
 #	    list
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
+#	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
 
 #
 # The intended user-driven targets are:
@@ -108,6 +109,8 @@ CLEANDIR=	cleandir
 
 LOCAL_TOOL_DIRS?=
 
+BUILDENV_SHELL?=/bin/sh
+
 CVS?=		cvs
 CVSFLAGS?=	-A -P -d -I!
 SVN?=		svn
@@ -133,7 +136,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -220,9 +223,6 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
-.if ${OSRELDATE} < 700044
-CROSSENV+=	AR=gnu-ar RANLIB=gnu-ranlib
-.endif
 .if ${MK_GROFF} != "no"
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
@@ -262,6 +262,7 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 # world stage
 WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
+		_LDSCRIPTROOT= \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
@@ -304,6 +305,7 @@ LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 # Yes, the flags are redundant.
 LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
+		_LDSCRIPTROOT=${LIB32TMP} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
@@ -316,11 +318,11 @@ LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
 		-DWITHOUT_HTML -DNO_CTF -DNO_LINT -ECC -ECXX -EAS -ELD \
 		DESTDIR=${LIB32TMP}
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
 .endif
 
 # install stage
-IMAKEENV=	${CROSSENV}
+IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
@@ -465,13 +467,6 @@ build32:
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if ${MK_KERBEROS} != "no"
-.for _t in obj depend all
-	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=kerberos5/tools/ ${_t}
-.endfor
-.endif
 .for _t in obj includes
 	cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
 	cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
@@ -558,7 +553,7 @@ buildenvvars:
 
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} sh || true
+	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
@@ -832,6 +827,7 @@ buildkernel:
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
+	    PATH=${BPATH}:${PATH} \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
 	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
@@ -839,6 +835,7 @@ buildkernel:
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
 	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
+	    PATH=${BPATH}:${PATH} \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
 	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF ${target}
 .endfor
@@ -981,8 +978,8 @@ update:
 # legacy: Build compatibility shims for the next three targets
 #
 legacy:
-.if ${BOOTSTRAPPING} < 600034 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 6.0 not supported."; \
+.if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
+	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
 	false
 .endif
 .for _tool in tools/build
@@ -1010,14 +1007,6 @@ _gperf=		gnu/usr.bin/gperf
 _groff=		gnu/usr.bin/groff
 .endif
 
-.if ${BOOTSTRAPPING} >= 700044 && ${BOOTSTRAPPING} < 800022
-_ar=		usr.bin/ar
-.endif
-
-.if ${BOOTSTRAPPING} < 800013
-_mklocale=	usr.bin/mklocale
-.endif
-
 .if ${BOOTSTRAPPING} < 900002
 _sed=		usr.bin/sed
 .endif
@@ -1031,14 +1020,8 @@ _yacc=		usr.bin/yacc
 _awk=		usr.bin/awk
 .endif
 
-.if ${MK_BSNMP} != "no" && \
-    (${BOOTSTRAPPING} < 700018 || !exists(/usr/sbin/gensnmptree))
+.if ${MK_BSNMP} != "no" &&  !exists(/usr/sbin/gensnmptree)
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
-.endif
-
-.if ${MK_RESCUE} != "no" && \
-    ${BOOTSTRAPPING} < 700026
-_crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
 .if ${MK_CLANG} != "no"
@@ -1049,9 +1032,9 @@ _clang_tblgen= \
 	usr.bin/clang/clang-tblgen
 .endif
 
+# dtrace tools are required for older bootstrap env and cross-build
 .if ${MK_CDDL} != "no" && \
-    ${BOOTSTRAPPING} < 800038 && \
-    !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)
+    (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH})
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
@@ -1060,30 +1043,37 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
 _dtc= gnu/usr.bin/dtc
 .endif
 
+.if ${MK_KERBEROS} != "no"
+_kerberos5_bootstrap_tools= \
+	kerberos5/tools/make-roken \
+	kerberos5/lib/libroken \
+	kerberos5/lib/libvers \
+	kerberos5/tools/asn1_compile \
+	kerberos5/tools/slc
+.endif
+
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
 bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen} \
+    ${_kerberos5_bootstrap_tools} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
-    ${_ar} \
     ${_dtc} \
     ${_awk} \
     usr.bin/lorder \
     usr.bin/makewhatis \
-    ${_mklocale} \
     usr.bin/rpcgen \
     ${_sed} \
     ${_lex} \
     ${_yacc} \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config \
-    ${_crunchgen}
+    usr.sbin/config
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1103,8 +1093,8 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if ${MK_KERBEROS} != "no"
-_kerberos5_tools= kerberos5/tools
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
+_gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
 .if ${MK_RESCUE} != "no"
@@ -1131,8 +1121,7 @@ build-tools:
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
-    gnu/usr.bin/cc/cc_tools \
-    ${_kerberos5_tools}
+    ${_gcc_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1143,7 +1132,7 @@ build-tools:
 #
 # cross-tools: Build cross-building tools
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 800035
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
 .endif
@@ -1161,14 +1150,12 @@ _kgzip=		usr.sbin/kgzip
 _binutils=	gnu/usr.bin/binutils
 .endif
 
-.if ${MK_CLANG} != "no"
-.if ${CC:T:Mclang} == "clang"
+.if ${MK_CLANG} != "no" && (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .endif
-.endif
 
-.if ${MK_GCC} != "no"
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
 _cc=		gnu/usr.bin/cc
 .endif
 
@@ -1236,12 +1223,20 @@ _startup_libs+=	lib/libcxxrt
 .endif
 
 gnu/lib/libgcc__L: lib/libc__L
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libcxxrt__L: gnu/lib/libgcc__L
+.endif
 
-_prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
+_prebuild_libs=	${_kerberos5_lib_libasn1} \
+		${_kerberos5_lib_libhdb} \
+		${_kerberos5_lib_libheimbase} \
 		${_kerberos5_lib_libheimntlm} \
+		${_kerberos5_lib_libheimsqlite} \
+		${_kerberos5_lib_libheimipcc} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
-		lib/libbz2 lib/libcom_err lib/libcrypt \
+		${_kerberos5_lib_libwind} \
+		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
@@ -1291,14 +1286,21 @@ _secure_lib=	secure/lib
 .if ${MK_KERBEROS} != "no"
 kerberos5/lib/libasn1__L: lib/libcom_err__L kerberos5/lib/libroken__L
 kerberos5/lib/libhdb__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
-    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L
-kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L
+    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L \
+    kerberos5/lib/libwind__L kerberos5/lib/libheimsqlite__L 
+kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L \
+    kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libhx509__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
-    secure/lib/libcrypto__L kerberos5/lib/libroken__L
+    secure/lib/libcrypto__L kerberos5/lib/libroken__L kerberos5/lib/libwind__L
 kerberos5/lib/libkrb5__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libcrypt__L secure/lib/libcrypto__L kerberos5/lib/libhx509__L \
-    kerberos5/lib/libroken__L
+    kerberos5/lib/libroken__L kerberos5/lib/libwind__L \
+    kerberos5/lib/libheimbase__L kerberos5/lib/libheimipcc__L
 kerberos5/lib/libroken__L: lib/libcrypt__L
+kerberos5/lib/libwind__L: kerberos5/lib/libroken__L lib/libcom_err__L
+kerberos5/lib/libheimbase__L: lib/libthr__L
+kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbase__L lib/libthr__L
+kerberos5/lib/libheimsqlite__L: lib/libthr__L
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -1313,10 +1315,15 @@ _lib_libipx=	lib/libipx
 _kerberos5_lib=	kerberos5/lib
 _kerberos5_lib_libasn1= kerberos5/lib/libasn1
 _kerberos5_lib_libhdb= kerberos5/lib/libhdb
+_kerberos5_lib_libheimbase= kerberos5/lib/libheimbase
 _kerberos5_lib_libkrb5= kerberos5/lib/libkrb5
 _kerberos5_lib_libhx509= kerberos5/lib/libhx509
 _kerberos5_lib_libroken= kerberos5/lib/libroken
 _kerberos5_lib_libheimntlm= kerberos5/lib/libheimntlm
+_kerberos5_lib_libheimsqlite= kerberos5/lib/libheimsqlite
+_kerberos5_lib_libheimipcc= kerberos5/lib/libheimipcc
+_kerberos5_lib_libwind= kerberos5/lib/libwind
+_libcom_err= lib/libcom_err
 .endif
 
 .if ${MK_NIS} != "no"
@@ -1622,8 +1629,8 @@ _xi-mtree:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 
-.ORDER: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
-xdev-install: _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
 
 _xi-cross-tools:
 	@echo "_xi-cross-tools"

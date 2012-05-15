@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.print.c,v 3.33 2006/08/23 15:03:14 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.print.c,v 3.36 2011/05/25 20:17:20 christos Exp $ */
 /*
  * sh.print.c: Primitive Output routines.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.print.c,v 3.33 2006/08/23 15:03:14 christos Exp $")
+RCSID("$tcsh: sh.print.c,v 3.36 2011/05/25 20:17:20 christos Exp $")
 
 #include "ed.h"
 
@@ -222,7 +222,7 @@ drainoline(void)
 void
 flush(void)
 {
-    int unit;
+    int unit, oldexitset = exitset;
     static int interrupted = 0;
 
     /* int lmode; */
@@ -231,10 +231,16 @@ flush(void)
 	return;
     if (GettingInput && !Tty_raw_mode && linp < &linbuf[sizeof linbuf - 10])
 	return;
+    if (handle_intr)
+	exitset = 1;
+
     if (interrupted) {
 	interrupted = 0;
 	linp = linbuf;		/* avoid recursion as stderror calls flush */
-	stderror(ERR_SILENT);
+	if (handle_intr)
+	    fixerror();
+	else
+	    stderror(ERR_SILENT);
     }
     interrupted = 1;
     if (haderr)
@@ -279,6 +285,12 @@ flush(void)
 	 */
 	case ESTALE:
 #endif
+#ifdef ENOENT
+	/*
+	 * Deal with SoFS bogocity: returns ENOENT instead of ESTALE.
+	 */
+	case ENOENT:
+#endif
 	/*
 	 * Over our quota, writing the history file
 	 */
@@ -286,13 +298,18 @@ flush(void)
 	case EDQUOT:
 #endif
 	/* Nothing to do, but die */
-	    xexit(1);
-	    break;
+	    if (handle_intr == 0)
+		xexit(1);
+	    /*FALLTHROUGH*/
 	default:
-	    stderror(ERR_SILENT);
+	    if (handle_intr)
+		fixerror();
+	    else
+		stderror(ERR_SILENT);
 	    break;
 	}
 
+    exitset = oldexitset;
     linp = linbuf;
     interrupted = 0;
 }

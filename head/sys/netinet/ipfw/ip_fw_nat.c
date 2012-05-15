@@ -315,7 +315,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	}
 
 	if (retval == PKT_ALIAS_RESPOND)
-		m->m_flags |= M_SKIP_FIREWALL;
+		mcl->m_flags |= M_SKIP_FIREWALL;
 	mcl->m_pkthdr.len = mcl->m_len = ntohs(ip->ip_len);
 
 	/*

@@ -97,6 +97,9 @@ struct mtx	acpi_mutex;
 /* Bitmap of device quirks. */
 int		acpi_quirks;
 
+/* Optional ACPI methods for suspend and resume, e.g., _GTS and _BFS. */
+int		acpi_sleep_flags;
+
 /* Supported sleep states. */
 static BOOLEAN	acpi_sleep_states[ACPI_S_STATE_COUNT];
 
@@ -152,6 +155,7 @@ static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 static BOOLEAN	acpi_has_hid(ACPI_HANDLE handle);
+static void	acpi_resync_clock(struct acpi_softc *sc);
 static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_run_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_prep_walk(int sstate);
@@ -277,14 +281,28 @@ TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
+#ifdef __amd64__
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
 TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
 SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
     &acpi_reset_clock, 1, "Reset system clock while resuming.");
+#endif
+
+/* Allow users to ignore processor orders in MADT. */
+static int acpi_cpu_unordered;
+TUNABLE_INT("debug.acpi.cpu_unordered", &acpi_cpu_unordered);
+SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
+    &acpi_cpu_unordered, 0,
+    "Do not use the MADT to match ACPI Processor objects to CPUs.");
 
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
+
+/* Execute optional ACPI methods for suspend and resume. */
+TUNABLE_INT("debug.acpi.sleep_flags", &acpi_sleep_flags);
+SYSCTL_INT(_debug_acpi, OID_AUTO, sleep_flags, CTLFLAG_RW | CTLFLAG_TUN,
+    &acpi_sleep_flags, 0, "Execute optional ACPI methods for suspend/resume.");
 
 static int acpi_susp_bounce;
 SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_bounce, CTLFLAG_RW,
@@ -1812,23 +1830,29 @@ acpi_probe_children(device_t bus)
 static void
 acpi_probe_order(ACPI_HANDLE handle, int *order)
 {
-    ACPI_OBJECT_TYPE type;
+	ACPI_OBJECT_TYPE type;
 
-    /*
-     * 1. CPUs
-     * 2. I/O port and memory system resource holders
-     * 3. Embedded controllers (to handle early accesses)
-     * 4. PCI Link Devices
-     */
-    AcpiGetType(handle, &type);
-    if (type == ACPI_TYPE_PROCESSOR)
-	*order = 1;
-    else if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
-	*order = 2;
-    else if (acpi_MatchHid(handle, "PNP0C09"))
-	*order = 3;
-    else if (acpi_MatchHid(handle, "PNP0C0F"))
-	*order = 4;
+	/*
+	 * 0. CPUs
+	 * 1. I/O port and memory system resource holders
+	 * 2. Clocks and timers (to handle early accesses)
+	 * 3. Embedded controllers (to handle early accesses)
+	 * 4. PCI Link Devices
+	 */
+	AcpiGetType(handle, &type);
+	if (type == ACPI_TYPE_PROCESSOR)
+		*order = 0;
+	else if (acpi_MatchHid(handle, "PNP0C01") ||
+	    acpi_MatchHid(handle, "PNP0C02"))
+		*order = 1;
+	else if (acpi_MatchHid(handle, "PNP0100") ||
+	    acpi_MatchHid(handle, "PNP0103") ||
+	    acpi_MatchHid(handle, "PNP0B00"))
+		*order = 2;
+	else if (acpi_MatchHid(handle, "PNP0C09"))
+		*order = 3;
+	else if (acpi_MatchHid(handle, "PNP0C0F"))
+		*order = 4;
 }
 
 /*
@@ -1839,11 +1863,15 @@ static ACPI_STATUS
 acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
     struct acpi_prw_data prw;
+    ACPI_BUFFER buf;
+    ACPI_OBJECT obj;
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
+    struct pcpu *pc;
     device_t bus, child;
     char *handle_str;
-    int order;
+    u_int cpuid;
+    int order, unit;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -1881,6 +1909,31 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_POWER:
+	    unit = -1;
+	    if (type == ACPI_TYPE_PROCESSOR && acpi_cpu_unordered == 0) {
+		ACPI_STATUS s;
+		buf.Pointer = &obj;
+		buf.Length = sizeof(obj);
+		s = AcpiEvaluateObject(handle, NULL, NULL, &buf);
+		if (ACPI_SUCCESS(s)) {
+		    CPU_FOREACH(cpuid) {
+			pc = pcpu_find(cpuid);
+			if (pc->pc_acpi_id == obj.Processor.ProcId) {
+			    unit = cpuid;
+			    if (bootverbose)
+				printf("ACPI: %s (ACPI ID %u) -> cpu%d\n",
+				    handle_str, obj.Processor.ProcId, unit);
+			    break;
+			}
+		    }
+		    if (unit == -1) {
+			if (bootverbose)
+			    printf("ACPI: %s (ACPI ID %u) ignored\n",
+				handle_str, obj.Processor.ProcId);
+			break;
+		    }
+		}
+	    }
 	    /* 
 	     * Create a placeholder device for this node.  Sort the
 	     * placeholder so that the probe/attach passes will run
@@ -1889,9 +1942,9 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * resources).
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
-	    order = level * 10 + 100;
+	    order = level * 10 + ACPI_DEV_BASE_ORDER;
 	    acpi_probe_order(handle, &order);
-	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
+	    child = BUS_ADD_CHILD(bus, order, NULL, unit);
 	    if (child == NULL)
 		break;
 
@@ -1951,6 +2004,7 @@ static void
 acpi_shutdown_final(void *arg, int howto)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
+    register_t intr;
     ACPI_STATUS status;
 
     /*
@@ -1966,13 +2020,15 @@ acpi_shutdown_final(void *arg, int howto)
 	    return;
 	}
 	device_printf(sc->acpi_dev, "Powering system off\n");
-	ACPI_DISABLE_IRQS();
-	status = AcpiEnterSleepState(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status))
+	intr = intr_disable();
+	status = AcpiEnterSleepState(ACPI_STATE_S5, acpi_sleep_flags);
+	if (ACPI_FAILURE(status)) {
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
 		AcpiFormatException(status));
-	else {
+	} else {
 	    DELAY(1000000);
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
 	}
     } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
@@ -2624,7 +2680,8 @@ enum acpi_sleep_state {
 static ACPI_STATUS
 acpi_EnterSleepState(struct acpi_softc *sc, int state)
 {
-    ACPI_STATUS	status;
+    register_t intr;
+    ACPI_STATUS status;
     enum acpi_sleep_state slp_state;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
@@ -2706,14 +2763,16 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	DELAY(sc->acpi_sleep_delay * 1000000);
 
     if (state != ACPI_STATE_S1) {
-	acpi_sleep_machdep(sc, state);
+	if (acpi_sleep_machdep(sc, state))
+		goto backout;
 
 	/* Re-enable ACPI hardware on wakeup from sleep state 4. */
 	if (state == ACPI_STATE_S4)
 	    AcpiEnable();
     } else {
-	ACPI_DISABLE_IRQS();
-	status = AcpiEnterSleepState(state);
+	intr = intr_disable();
+	status = AcpiEnterSleepState(state, acpi_sleep_flags);
+	intr_restore(intr);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
 			  AcpiFormatException(status));
@@ -2731,12 +2790,16 @@ backout:
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
     }
-    if (slp_state >= ACPI_SS_SLP_PREP)
+    if (slp_state >= ACPI_SS_SLP_PREP) {
+	AcpiLeaveSleepStatePrep(state, acpi_sleep_flags);
 	AcpiLeaveSleepState(state);
+    }
     if (slp_state >= ACPI_SS_DEV_SUSPEND)
 	DEVICE_RESUME(root_bus);
-    if (slp_state >= ACPI_SS_SLEPT)
+    if (slp_state >= ACPI_SS_SLEPT) {
+	acpi_resync_clock(sc);
 	acpi_enable_fixed_events(sc);
+    }
     sc->acpi_next_sstate = 0;
 
     mtx_unlock(&Giant);
@@ -2759,10 +2822,10 @@ backout:
     return_ACPI_STATUS (status);
 }
 
-void
+static void
 acpi_resync_clock(struct acpi_softc *sc)
 {
-
+#ifdef __amd64__
     if (!acpi_reset_clock)
 	return;
 
@@ -2772,6 +2835,7 @@ acpi_resync_clock(struct acpi_softc *sc)
     (void)timecounter->tc_get_timecount(timecounter);
     (void)timecounter->tc_get_timecount(timecounter);
     inittodr(time_second + sc->acpi_sleep_delay);
+#endif
 }
 
 /* Enable or disable the device's wake GPE. */
@@ -3517,6 +3581,7 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_INIT",		ACPI_LV_INIT},
     {"ACPI_LV_DEBUG_OBJECT",	ACPI_LV_DEBUG_OBJECT},
     {"ACPI_LV_INFO",		ACPI_LV_INFO},
+    {"ACPI_LV_REPAIR",		ACPI_LV_REPAIR},
     {"ACPI_LV_ALL_EXCEPTIONS",	ACPI_LV_ALL_EXCEPTIONS},
 
     /* Trace verbosity level 1 [Standard Trace Level] */

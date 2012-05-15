@@ -56,7 +56,11 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
+#ifdef __ARMEB__
+#define	MACHINE_ARCH	"armeb"
+#else
 #define	MACHINE_ARCH	"arm"
+#endif
 #endif
 #define	MID_MACHINE	MID_ARM6 
 

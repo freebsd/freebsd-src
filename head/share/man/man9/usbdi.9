@@ -179,7 +179,7 @@ zero upon success. A non-zero return value indicates failure.
 .
 .Fn usbd_transfer_unsetup
 This function will release the given USB transfers and all allocated
-resources associated with these USB transfers. 
+resources associated with these USB transfers.
 .Fa pxfer
 is a pointer to an array of USB transfer pointers, that may be NULL,
 that should be freed by the USB system.
@@ -283,15 +283,15 @@ usb_default_callback(struct usb_xfer *xfer, usb_error_t error)
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_SETUP: 
+	case USB_ST_SETUP:
 		/*
 		 * Setup xfer frame lengths/count and data
 		 */
 		usbd_transfer_submit(xfer);
 		break;
 
-	case USB_ST_TRANSFERRED: 
-		/* 
+	case USB_ST_TRANSFERRED:
+		/*
 		 * Read	usb frame data, if any.
 		 * "actlen" has the total length for all frames
 		 * transferred.
@@ -300,13 +300,13 @@ usb_default_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	default: /* Error */
 		/*
-		 * Print error message and clear stall 
+		 * Print error message and clear stall
 		 * for example.
 		 */
 		break;
 	}
-	/* 
-	 * Here it is safe to do something without the private 
+	/*
+	 * Here it is safe to do something without the private
 	 * USB mutex locked.
 	 */
 	return;
@@ -320,7 +320,7 @@ First the SETUP packet, then DATA packet(s) and then a STATUS
 packet.
 .
 The SETUP packet is always pointed to by frame 0 and the
-length is set by 
+length is set by
 .Fn usbd_xfer_frame_len
 also if there should not be
 sent any SETUP packet! If an USB control transfer has no DATA stage,
@@ -375,7 +375,7 @@ module defines a USB config structure where it is possible to specify
 the characteristics of the wanted endpoint.
 .Bd -literal -offset indent
 
-struct usb_config { 
+struct usb_config {
 	bufsize,
 	callback
 	direction,
@@ -435,7 +435,7 @@ The value of this field is given in milliseconds and is independent of
 device speed.
 .
 Depending on the endpoint type, this field has different meaning:
-.Bl -tag
+.Bl -tag -width "UE_ISOCHRONOUS"
 .It UE_INTERRUPT
 "0" use the default interrupt interval based on endpoint descriptor.
 "Else" use the given value for polling rate.
@@ -461,7 +461,7 @@ timeout of 250ms will be used.
 .Fa frames
 field sets the maximum number of frames. If zero is specified it will
 yield the following results:
-.Bl -tag
+.Bl -tag -width "UE_INTERRUPT"
 .It UE_BULK
 xfer->nframes = 1;
 .It UE_INTERRUPT
@@ -487,7 +487,7 @@ be used when setting up the given USB transfer.
 .Fa flags
 field has type "struct usb_xfer_flags" and allows one to set initial
 flags an USB transfer. Valid flags are:
-.Bl -tag
+.Bl -tag -width "force_short_xfer"
 .It force_short_xfer
 This flag forces the last transmitted USB packet to be short.  A short
 packet has a length of less than "xfer->max_packet_size", which
@@ -507,7 +507,7 @@ This flag causes a failing USB transfer to remain first in the PIPE
 queue except in the case of "xfer->error" equal to
 "USB_ERR_CANCELLED". No other USB transfers in the affected PIPE queue
 will be started until either:
-.Bl -tag
+.Bl -tag -width "1"
 .It 1
 The failing USB transfer is stopped using "usbd_transfer_stop()".
 .It 2
@@ -574,7 +574,7 @@ flag can not be changed during operation.
 .
 .
 .It stall_pipe
-.Bl -tag
+.Bl -tag -width "Device Side Mode"
 .It Device Side Mode
 Setting this flag will cause STALL pids to be sent to the endpoint
 belonging to this transfer before the transfer is started.

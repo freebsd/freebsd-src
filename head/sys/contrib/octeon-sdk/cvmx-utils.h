@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -95,7 +95,6 @@ extern "C" {
 
 #define CAST64(v) ((long long)(long)(v)) // use only when 'v' is a pointer
 #define CASTPTR(type, v) ((type *)(long)(v))
-#define CVMX_MAX_CORES          (16)
 #define CVMX_CACHE_LINE_SIZE    (128)   // In bytes
 #define CVMX_CACHE_LINE_MASK    (CVMX_CACHE_LINE_SIZE - 1)   // In bytes
 #define CVMX_CACHE_LINE_ALIGNED __attribute__ ((aligned (CVMX_CACHE_LINE_SIZE)))
@@ -129,6 +128,9 @@ extern "C" {
         }                                                               \
     } while (0);                                                        \
     result;})
+
+#define CVMX_BUILD_ASSERT_ZERO(e)    (sizeof(struct {int __static_assert:(e)?1:-1;}))
+#define CVMX_BUILD_ASSERT(condition) ((void)CVMX_BUILD_ASSERT_ZERO(condition))
 
 /**
  * Builds a bit mask given the required size in bits.
@@ -185,7 +187,7 @@ static inline uint64_t cvmx_build_bits(uint64_t high_bit, uint64_t low_bit, uint
  */
 static inline uint32_t cvmx_octeon_num_cores(void)
 {
-    uint32_t ciu_fuse = (uint32_t)cvmx_read_csr(CVMX_CIU_FUSE) & 0xffff;
+    uint32_t ciu_fuse = (uint32_t)cvmx_read_csr(CVMX_CIU_FUSE) & 0xffffffffull;
     return cvmx_pop(ciu_fuse);
 }
 
@@ -201,80 +203,6 @@ static inline int cvmx_octeon_model_CN36XX(void)
            &&cvmx_fuse_read(264));
 }
 
-
-/**
- * @deprecated
- * Determine if Octeon supports the DFA state machines. This function is
- * deprecated, use octeon_has_feature(OCTEON_FEATURE_DFA) instead.
- *
- * @return Non zero if DFA is supported
- */
-static inline int cvmx_octeon_dfa_present(void) __attribute__((deprecated));
-static inline int cvmx_octeon_dfa_present(void)
-{
-    return octeon_has_feature(OCTEON_FEATURE_DFA);
-}
-
-
-/**
- * @deprecated
- * Determine if Octeon supports ZIP. This function is deprecated, use
- * octeon_has_feature(OCTEON_FEATURE_ZIP) instead.
- *
- * @return Non zero if DFA is supported
- */
-static inline int cvmx_octeon_zip_present(void) __attribute__((deprecated));
-static inline int cvmx_octeon_zip_present(void)
-{
-    return octeon_has_feature(OCTEON_FEATURE_ZIP);
-}
-
-
-/**
- * @deprecated
- * Determine if Octeon supports Crypto acceleration. This function is
- * deprecated, use octeon_has_feature(OCTEON_FEATURE_CRYPTO) instead.
- *
- * @return Non zero if DFA is supported
- */
-static inline int cvmx_octeon_crypto_present(void) __attribute__((deprecated));
-static inline int cvmx_octeon_crypto_present(void)
-{
-    return octeon_has_feature(OCTEON_FEATURE_CRYPTO);
-}
-
-
-/**
- * @deprecated
- * This function is a trival wrapper around cvmx_read64_uint64(). Use
- * cvmx_read64_uint64() instead as this function is deprecated.
- *
- * @param address
- *
- * @return
- */
-static inline uint64_t cvmx_read64(uint64_t address) __attribute__((deprecated));
-static inline uint64_t cvmx_read64(uint64_t address)
-{
-    return cvmx_read64_uint64(address);
-}
-
-
-/**
- * @deprecated
- * This function is a trival wrapper around cvmx_write64_uint64(). Use
- * cvmx_write64_uint64() instead as this function is deprecated.
- *
- * @param address Location to write ro
- * @param value Value to write
- *
- * @return
- */
-static inline void cvmx_write64(uint64_t address, uint64_t value) __attribute__((deprecated));
-static inline void cvmx_write64(uint64_t address, uint64_t value)
-{
-    cvmx_write64_uint64(address, value);
-}
 
 #ifdef	__cplusplus
 }

@@ -169,7 +169,6 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 
 	ar5416InitState(AH5416(ah), devid, sc, st, sh, status);
 
-
 	/*
 	 * Use the "local" EEPROM data given to us by the higher layers.
 	 * This is a private copy out of system flash. The Linux ath9k
@@ -822,10 +821,6 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 #if 0
 	pCap->halWowMatchPatternDword = AH_TRUE;
 #endif
-	/* AR9280 is a 2x2 stream device */
-	pCap->halTxStreams = 2;
-	pCap->halRxStreams = 2;
-
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;
 	pCap->halRifsTxSupport = AH_TRUE;

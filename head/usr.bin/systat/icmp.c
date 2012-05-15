@@ -277,4 +277,3 @@ fetchicmp(void)
 	if (sysctl(name, 4, &icmpstat, &len, 0, 0) < 0)
 		return;
 }
-

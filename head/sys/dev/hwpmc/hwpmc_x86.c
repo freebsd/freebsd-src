@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+#include "hwpmc_soft.h"
+
 /*
  * Attempt to walk a user call stack using a too-simple algorithm.
  * In the general case we need unwind information associated with
@@ -250,9 +252,12 @@ pmc_md_initialize()
 		return (NULL);
 
 	/* disallow sampling if we do not have an LAPIC */
-	if (!lapic_enable_pmc())
-		for (i = 1; i < md->pmd_nclass; i++)
+	if (md != NULL && !lapic_enable_pmc())
+		for (i = 0; i < md->pmd_nclass; i++) {
+			if (i == PMC_CLASS_INDEX_SOFT)
+				continue;
 			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
+		}
 
 	return (md);
 }

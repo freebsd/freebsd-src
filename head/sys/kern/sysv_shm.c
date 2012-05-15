@@ -413,14 +413,12 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	vm_object_reference(shmseg->object);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object,
 	    0, &attach_va, size, (flags & MAP_FIXED) ? VMFS_NO_SPACE :
-	    VMFS_ANY_SPACE, prot, prot, 0);
+	    VMFS_ANY_SPACE, prot, prot, MAP_INHERIT_SHARE);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(shmseg->object);
 		error = ENOMEM;
 		goto done2;
 	}
-	vm_map_inherit(&p->p_vmspace->vm_map,
-		attach_va, attach_va + size, VM_INHERIT_SHARE);
 
 	shmmap_s->va = attach_va;
 	shmmap_s->shmid = shmid;
@@ -891,14 +889,14 @@ shminit()
 		printf("kern.ipc.shmmaxpgs is now called kern.ipc.shmall!\n");
 #endif
 	TUNABLE_ULONG_FETCH("kern.ipc.shmall", &shminfo.shmall);
-
-	/* Initialize shmmax dealing with possible overflow. */
-	for (i = PAGE_SIZE; i > 0; i--) {
-		shminfo.shmmax = shminfo.shmall * i;
-		if (shminfo.shmmax >= shminfo.shmall)
-			break;
+	if (!TUNABLE_ULONG_FETCH("kern.ipc.shmmax", &shminfo.shmmax)) {
+		/* Initialize shmmax dealing with possible overflow. */
+		for (i = PAGE_SIZE; i > 0; i--) {
+			shminfo.shmmax = shminfo.shmall * i;
+			if (shminfo.shmmax >= shminfo.shmall)
+				break;
+		}
 	}
-
 	TUNABLE_ULONG_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
 	TUNABLE_ULONG_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
 	TUNABLE_ULONG_FETCH("kern.ipc.shmseg", &shminfo.shmseg);

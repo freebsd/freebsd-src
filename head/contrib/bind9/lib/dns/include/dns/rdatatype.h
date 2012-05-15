@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatatype.h,v 1.26 2008-09-25 04:02:39 tbox Exp $ */
+/* $Id: rdatatype.h,v 1.26 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef DNS_RDATATYPE_H
 #define DNS_RDATATYPE_H 1

@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Install BSD-licensed sort as 'sort' instead of GNU sort.

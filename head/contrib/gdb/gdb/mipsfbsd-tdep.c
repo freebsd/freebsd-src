@@ -205,6 +205,8 @@ static struct core_fns mipsfbsd_elfcore_fns =
  * 0x7ffeffec    sigcode       -> 44 bytes
  *
  * 0x7ffeffc4    sigcode end   env strings etc start
+ *
+ * XXX This is out-of-date and varies by ABI.
  */
 #define MIPS_FBSD_SIGTRAMP_START           (0x7ffeffc4)
 #define MIPS_FBSD_SIGTRAMP_END             (0x7ffeffec)

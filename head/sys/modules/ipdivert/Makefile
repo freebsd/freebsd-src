@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/../../netinet
 
 KMOD=   ipdivert
-SRCS=   ip_divert.c opt_inet.h opt_inet6.h
+SRCS=   ip_divert.c opt_inet.h opt_inet6.h opt_sctp.h
 
 .if !defined(KERNBUILDDIR)
 .if ${MK_INET_SUPPORT} != "no"

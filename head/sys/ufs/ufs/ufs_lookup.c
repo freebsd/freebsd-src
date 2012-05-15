@@ -1133,7 +1133,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
 #endif
 		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
-		    IO_NORMAL | IO_SYNC, cr, td);
+		    IO_NORMAL | IO_SYNC, cr);
 		if (tvp != NULL)
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
 	}
@@ -1337,7 +1337,8 @@ ufs_dirempty(ip, parentino, cred)
 	doff_t off;
 	struct dirtemplate dbuf;
 	struct direct *dp = (struct direct *)&dbuf;
-	int error, count, namlen;
+	int error, namlen;
+	ssize_t count;
 #define	MINDIRSIZ (sizeof (struct dirtemplate) / 2)
 
 	for (off = 0; off < ip->i_size; off += dp->d_reclen) {

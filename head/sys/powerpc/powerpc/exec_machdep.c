@@ -441,6 +441,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 {
 	struct pcb *pcb;
 	struct trapframe *tf;
+	register_t tls;
 
 	pcb = td->td_pcb;
 	tf = td->td_frame;
@@ -448,16 +449,25 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	if (mcp->mc_vers != _MC_VERSION || mcp->mc_len != sizeof(*mcp))
 		return (EINVAL);
 
-	#ifdef AIM
+#ifdef AIM
 	/*
 	 * Don't let the user set privileged MSR bits
 	 */
 	if ((mcp->mc_srr1 & PSL_USERSTATIC) != (tf->srr1 & PSL_USERSTATIC)) {
 		return (EINVAL);
 	}
-	#endif
+#endif
 
+	/* Copy trapframe, preserving TLS pointer across context change */
+	if (SV_PROC_FLAG(td->td_proc, SV_LP64))
+		tls = tf->fixreg[13];
+	else
+		tls = tf->fixreg[2];
 	memcpy(tf, mcp->mc_frame, sizeof(mcp->mc_frame));
+	if (SV_PROC_FLAG(td->td_proc, SV_LP64))
+		tf->fixreg[13] = tls;
+	else
+		tf->fixreg[2] = tls;
 
 #ifdef AIM
 	if (mcp->mc_flags & _MC_FP_VALID) {

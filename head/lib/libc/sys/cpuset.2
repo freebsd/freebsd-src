@@ -77,7 +77,7 @@ while application developers will manipulate anonymous sets using
 To select the correct set a value of type
 .Ft cpulevel_t
 is used.
-The following values for 
+The following values for
 .Fa level
 are supported:
 .Bl -column CPU_LEVEL_CPUSET -offset indent
@@ -137,7 +137,7 @@ Children inherit this set after a call to
 .Xr fork 2 .
 .Pp
 .Fn cpuset_setid
-attempts to set the id of the object specified by the 
+attempts to set the id of the object specified by the
 .Fa which
 argument.
 Currently
@@ -149,12 +149,12 @@ Upon successful completion all of the threads in the target process will
 be running on CPUs permitted by the set.
 .Pp
 .Fn cpuset_getid
-retrieves a set id from the object indicated by 
+retrieves a set id from the object indicated by
 .Fa which
 and stores it in the space pointed to by
 .Fa setid .
 The retrieved id may be that of either the root or assigned set
-depending on the value of 
+depending on the value of
 .Fa level .
 .Fa level
 should be

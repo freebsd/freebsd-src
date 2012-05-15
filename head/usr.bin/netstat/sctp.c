@@ -611,7 +611,8 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			memset(&zerostat, 0, len);
 		if (sysctlbyname("net.inet.sctp.stats", &sctpstat, &len,
 		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.sctp.stats");
+			if (errno != ENOENT)
+				warn("sysctl: net.inet.sctp.stats");
 			return;
 		}
 	} else

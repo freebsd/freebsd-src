@@ -31,14 +31,14 @@
 
 #ifndef MIPS_INCLUDE__BUS_H
 #define	MIPS_INCLUDE__BUS_H
+
 /*
  * Bus address and size types
  */
-#include "opt_cputype.h" 
-#if !(defined(CPU_CNMIPS) && defined(ISA_MIPS32))
-typedef uintptr_t bus_addr_t;
-#else
+#if defined(CPU_CNMIPS) && !defined(__mips_n64)
 typedef uint64_t bus_addr_t;
+#else
+typedef uintptr_t bus_addr_t;
 #endif
 typedef uintptr_t bus_size_t;
 

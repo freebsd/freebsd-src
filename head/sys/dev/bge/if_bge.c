@@ -380,6 +380,9 @@ static void bge_dma_free(struct bge_softc *);
 static int bge_dma_ring_alloc(struct bge_softc *, bus_size_t, bus_size_t,
     bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *, const char *);
 
+static void bge_devinfo(struct bge_softc *);
+static int bge_mbox_reorder(struct bge_softc *);
+
 static int bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[]);
 static int bge_get_eaddr_mem(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr_nvram(struct bge_softc *, uint8_t[]);
@@ -635,6 +638,8 @@ bge_writembx(struct bge_softc *sc, int off, int val)
 		off += BGE_LPMBX_IRQ0_HI - BGE_MBX_IRQ0_HI;
 
 	CSR_WRITE_4(sc, off, val);
+	if ((sc->bge_flags & BGE_FLAG_MBOX_REORDER) != 0)
+		CSR_READ_4(sc, off);
 }
 
 /*
@@ -2457,14 +2462,10 @@ bge_dma_ring_alloc(struct bge_softc *sc, bus_size_t alignment,
     bus_addr_t *paddr, const char *msg)
 {
 	struct bge_dmamap_arg ctx;
-	bus_addr_t lowaddr;
-	bus_size_t ring_end;
 	int error;
 
-	lowaddr = BUS_SPACE_MAXADDR;
-again:
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-	    alignment, 0, lowaddr, BUS_SPACE_MAXADDR, NULL,
+	    alignment, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, maxsize, 1, maxsize, 0, NULL, NULL, tag);
 	if (error != 0) {
 		device_printf(sc->bge_dev,
@@ -2489,25 +2490,6 @@ again:
 		return (ENOMEM);
 	}
 	*paddr = ctx.bge_busaddr;
-	ring_end = *paddr + maxsize;
-	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0 &&
-	    BGE_ADDR_HI(*paddr) != BGE_ADDR_HI(ring_end)) {
-		/*
-		 * 4GB boundary crossed.  Limit maximum allowable DMA
-		 * address space to 32bit and try again.
-		 */
-		bus_dmamap_unload(*tag, *map);
-		bus_dmamem_free(*tag, *ring, *map);
-		bus_dma_tag_destroy(*tag);
-		if (bootverbose)
-			device_printf(sc->bge_dev, "4GB boundary crossed, "
-			    "limit DMA address space to 32bit for %s\n", msg);
-		*ring = NULL;
-		*tag = NULL;
-		*map = NULL;
-		lowaddr = BUS_SPACE_MAXADDR_32BIT;
-		goto again;
-	}
 	return (0);
 }
 
@@ -2515,7 +2497,7 @@ static int
 bge_dma_alloc(struct bge_softc *sc)
 {
 	bus_addr_t lowaddr;
-	bus_size_t boundary, sbsz, rxmaxsegsz, txsegsz, txmaxsegsz;
+	bus_size_t rxmaxsegsz, sbsz, txsegsz, txmaxsegsz;
 	int i, error;
 
 	lowaddr = BUS_SPACE_MAXADDR;
@@ -2602,23 +2584,21 @@ bge_dma_alloc(struct bge_softc *sc)
 	}
 
 	/* Create parent tag for buffers. */
-	boundary = 0;
 	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0) {
-		boundary = BGE_DMA_BNDRY;
 		/*
 		 * XXX
 		 * watchdog timeout issue was observed on BCM5704 which
 		 * lives behind PCI-X bridge(e.g AMD 8131 PCI-X bridge).
-		 * Limiting DMA address space to 32bits seems to address
-		 * it.
+		 * Both limiting DMA address space to 32bits and flushing
+		 * mailbox write seem to address the issue.
 		 */
-		if (sc->bge_flags & BGE_FLAG_PCIX)
+		if (sc->bge_pcixcap != 0)
 			lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	}
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
-	    1, boundary, lowaddr, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
-	    0, NULL, NULL, &sc->bge_cdata.bge_buffer_tag);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev), 1, 0, lowaddr,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->bge_cdata.bge_buffer_tag);
 	if (error != 0) {
 		device_printf(sc->bge_dev,
 		    "could not allocate buffer dma tag\n");
@@ -2775,6 +2755,109 @@ bge_can_use_msi(struct bge_softc *sc)
 }
 
 static int
+bge_mbox_reorder(struct bge_softc *sc)
+{
+	/* Lists of PCI bridges that are known to reorder mailbox writes. */
+	static const struct mbox_reorder {
+		const uint16_t vendor;
+		const uint16_t device;
+		const char *desc;
+	} const mbox_reorder_lists[] = {
+		{ 0x1022, 0x7450, "AMD-8131 PCI-X Bridge" },
+	};
+	devclass_t pci, pcib;
+	device_t bus, dev;
+	int count, i;
+
+	count = sizeof(mbox_reorder_lists) / sizeof(mbox_reorder_lists[0]);
+	pci = devclass_find("pci");
+	pcib = devclass_find("pcib");
+	dev = sc->bge_dev;
+	bus = device_get_parent(dev);
+	for (;;) {
+		dev = device_get_parent(bus);
+		bus = device_get_parent(dev);
+		device_printf(sc->bge_dev, "dev : %s%d, bus : %s%d\n",
+		    device_get_name(dev), device_get_unit(dev),
+		    device_get_name(bus), device_get_unit(bus));
+		if (device_get_devclass(dev) != pcib)
+			break;
+		for (i = 0; i < count; i++) {
+			device_printf(sc->bge_dev,
+			    "probing dev : %s%d, vendor : 0x%04x "
+			    "device : 0x%04x\n",
+			    device_get_name(dev), device_get_unit(dev),
+			    pci_get_vendor(dev), pci_get_device(dev));
+			if (pci_get_vendor(dev) ==
+			    mbox_reorder_lists[i].vendor &&
+			    pci_get_device(dev) ==
+			    mbox_reorder_lists[i].device) {
+				device_printf(sc->bge_dev,
+				    "enabling MBOX workaround for %s\n",
+				    mbox_reorder_lists[i].desc);
+				return (1);
+			}
+		}
+		if (device_get_devclass(bus) != pci)
+			break;
+	}
+	return (0);
+}
+
+static void
+bge_devinfo(struct bge_softc *sc)
+{
+	uint32_t cfg, clk;
+
+	device_printf(sc->bge_dev,
+	    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; ",
+	    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev);
+	if (sc->bge_flags & BGE_FLAG_PCIE)
+		printf("PCI-E\n");
+	else if (sc->bge_flags & BGE_FLAG_PCIX) {
+		printf("PCI-X ");
+		cfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID_MASK;
+		if (cfg == BGE_MISCCFG_BOARD_ID_5704CIOBE)
+			clk = 133;
+		else {
+			clk = CSR_READ_4(sc, BGE_PCI_CLKCTL) & 0x1F;
+			switch (clk) {
+			case 0:
+				clk = 33;
+				break;
+			case 2:
+				clk = 50;
+				break;
+			case 4:
+				clk = 66;
+				break;
+			case 6:
+				clk = 100;
+				break;
+			case 7:
+				clk = 133;
+				break;
+			}
+		}
+		printf("%u MHz\n", clk);
+	} else {
+		if (sc->bge_pcixcap != 0)
+			printf("PCI on PCI-X ");
+		else
+			printf("PCI ");
+		cfg = pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4);
+		if (cfg & BGE_PCISTATE_PCI_BUSSPEED)
+			clk = 66;
+		else
+			clk = 33;
+		if (cfg & BGE_PCISTATE_32BIT_BUS)
+			printf("%u MHz; 32bit\n", clk);
+		else
+			printf("%u MHz; 64bit\n", clk);
+	}
+}
+
+static int
 bge_attach(device_t dev)
 {
 	struct ifnet *ifp;
@@ -2785,6 +2868,8 @@ bge_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
+
+	bge_add_sysctls(sc);
 
 	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
 
@@ -3000,7 +3085,7 @@ bge_attach(device_t dev)
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5719)
 		sc->bge_flags |= BGE_FLAG_4K_RDMA_BUG;
 
-	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
+	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID_MASK;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
 		if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
 		    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
@@ -3092,6 +3177,16 @@ bge_attach(device_t dev)
 	if (BGE_IS_5714_FAMILY(sc) && (sc->bge_flags & BGE_FLAG_PCIX))
 		sc->bge_flags |= BGE_FLAG_40BIT_BUG;
 	/*
+	 * Some PCI-X bridges are known to trigger write reordering to
+	 * the mailbox registers. Typical phenomena is watchdog timeouts
+	 * caused by out-of-order TX completions.  Enable workaround for
+	 * PCI-X devices that live behind these bridges.
+	 * Note, PCI-X controllers can run in PCI mode so we can't use
+	 * BGE_FLAG_PCIX flag to detect PCI-X controllers.
+	 */
+	if (sc->bge_pcixcap != 0 && bge_mbox_reorder(sc) != 0)
+		sc->bge_flags |= BGE_FLAG_MBOX_REORDER;
+	/*
 	 * Allocate the interrupt, using MSI if possible.  These devices
 	 * support 8 MSI messages, but only the first one is used in
 	 * normal operation.
@@ -3130,11 +3225,7 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-	device_printf(dev,
-	    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
-	    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
-	    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
-	    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
+	bge_devinfo(sc);
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
@@ -3197,8 +3288,6 @@ bge_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	bge_add_sysctls(sc);
 
 	/* Set default tuneable values. */
 	sc->bge_stat_ticks = BGE_TICKS_PER_SEC;
@@ -4400,6 +4489,12 @@ bge_stats_update(struct bge_softc *sc)
 	ifp->if_collisions += (uint32_t)(cnt - sc->bge_tx_collisions);
 	sc->bge_tx_collisions = cnt;
 
+	cnt = READ_STAT(sc, stats, nicNoMoreRxBDs.bge_addr_lo);
+	ifp->if_ierrors += (uint32_t)(cnt - sc->bge_rx_nobds);
+	sc->bge_rx_nobds = cnt;
+	cnt = READ_STAT(sc, stats, ifInErrors.bge_addr_lo);
+	ifp->if_ierrors += (uint32_t)(cnt - sc->bge_rx_inerrs);
+	sc->bge_rx_inerrs = cnt;
 	cnt = READ_STAT(sc, stats, ifInDiscards.bge_addr_lo);
 	ifp->if_ierrors += (uint32_t)(cnt - sc->bge_rx_discards);
 	sc->bge_rx_discards = cnt;

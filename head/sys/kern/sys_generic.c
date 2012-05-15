@@ -74,6 +74,16 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+int iosize_max_clamp = 1;
+SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
+    &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
+/*
+ * Assert that the return value of read(2) and write(2) syscalls fits
+ * into a register.  If not, an architecture will need to provide the
+ * usermode wrappers to reconstruct the result.
+ */
+CTASSERT(sizeof(register_t) >= sizeof(size_t));
+
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
@@ -145,7 +155,7 @@ sys_read(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -178,7 +188,7 @@ sys_pread(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -354,7 +364,7 @@ sys_write(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -387,7 +397,7 @@ sys_pwrite(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;

@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995 - 2001, 2003 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001, 2003 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kafs.h 20652 2007-05-10 19:30:18Z lha $ */
+/* $Id$ */
 
 #ifndef __KAFS_H
 #define __KAFS_H
@@ -82,15 +82,15 @@
 #define VIOC_AFS_SYSNAME	_VICEIOCTL(38)
 #define VIOC_EXPORTAFS		_VICEIOCTL(39)
 #define VIOCGETCACHEPARAMS	_VICEIOCTL(40)
-#define VIOC_GCPAGS		_VICEIOCTL(48) 
+#define VIOC_GCPAGS		_VICEIOCTL(48)
 
 #define VIOCGETTOK2		_AFSCIOCTL(7)
 #define VIOCSETTOK2		_AFSCIOCTL(8)
 
 struct ViceIoctl {
   caddr_t in, out;
-  short in_size;
-  short out_size;
+  unsigned short in_size;
+  unsigned short out_size;
 };
 
 struct ClearToken {
@@ -157,7 +157,7 @@ krb5_error_code krb5_afslog_uid (krb5_context context,
 				     krb5_const_realm realm,
 				     uid_t uid);
 krb5_error_code krb5_afslog (krb5_context context,
-				 krb5_ccache id, 
+				 krb5_ccache id,
 				 const char *cell,
 				 krb5_const_realm realm);
 krb5_error_code krb5_afslog_uid_home (krb5_context context,

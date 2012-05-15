@@ -86,11 +86,12 @@ static const unsigned char flags[NOPT] = {
 	RBX_VERBOSE
 };
 
+unsigned board_id; /* board type to pass to kernel, if set by board_* code */
 unsigned dsk_start;
 static char cmd[512];
 static char kname[1024];
 static uint32_t opts;
-static int dsk_meta;
+static uint8_t dsk_meta;
 
 static void load(void);
 static int parse(void);
@@ -241,7 +242,7 @@ load(void)
 #ifdef FIXUP_BOOT_DRV
 	fixup_boot_drv(staddr, klen, bootslice, bootpart);
 #endif
-	((void(*)(int))addr)(opts & RBX_MASK);
+	((void(*)(int, int, int, int))addr)(opts & RBX_MASK, board_id, 0, 0);
 }
 
 static int

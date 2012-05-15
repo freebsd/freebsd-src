@@ -44,7 +44,6 @@ options 	KDB
 
 # Pseudo devices
 device		random
-device		pty
 device		loop
 
 # Serial ports

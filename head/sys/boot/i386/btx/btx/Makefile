@@ -12,11 +12,7 @@ BOOT_BTX_FLAGS=0x0
 .endif
 
 CFLAGS+=-DBTX_FLAGS=${BOOT_BTX_FLAGS}
-
-.if ${CC:T:Mclang} == "clang"
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS+=${.IMPSRC:T:Mbtx.S:C/^.+$/-no-integrated-as/}
-.endif
+CFLAGS+=-I${.CURDIR}/../../common
 
 .if defined(BTX_SERIAL)
 BOOT_COMCONSOLE_PORT?= 0x3f8
@@ -32,3 +28,7 @@ ORG=	0x9000
 LDFLAGS=-e start -Ttext ${ORG} -Wl,-N,-S,--oformat,binary
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.btx.S=		${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

@@ -133,17 +133,6 @@ const char *const cf_type[] = {
 	"True IDE"
 };
 
-/* Device softc */
-struct cf_priv {
-	device_t dev;
-	struct drive_param *drive_param;
-
-	struct bio_queue_head cf_bq;
-	struct g_geom *cf_geom;
-	struct g_provider *cf_provider;
-
-};
-
 /* Device parameters */
 struct drive_param{
 	union {
@@ -157,8 +146,18 @@ struct drive_param{
 	uint16_t heads;
 	uint16_t tracks;
 	uint16_t sec_track;
+};
 
-} drive_param;
+/* Device softc */
+struct cf_priv {
+	device_t dev;
+	struct drive_param drive_param;
+
+	struct bio_queue_head cf_bq;
+	struct g_geom *cf_geom;
+	struct g_provider *cf_provider;
+
+};
 
 /* GEOM class implementation */
 static g_access_t       cf_access;
@@ -179,15 +178,14 @@ DECLARE_GEOM_CLASS(g_cf_class, g_cf);
 static int	cf_probe(device_t);
 static void	cf_identify(driver_t *, device_t);
 static int	cf_attach(device_t);
-static int	cf_attach_geom(void *, int);
+static void	cf_attach_geom(void *, int);
 
 /* ATA methods */
-static int	cf_cmd_identify(void);
+static int	cf_cmd_identify(struct cf_priv *);
 static int	cf_cmd_write(uint32_t, uint32_t, void *);
 static int	cf_cmd_read(uint32_t, uint32_t, void *);
 static int	cf_wait_busy(void);
 static int	cf_send_cmd(uint32_t, uint8_t);
-static void	cf_attach_geom_proxy(void *arg, int flag);
 
 /* Miscelenous */
 static void	cf_swap_ascii(unsigned char[], char[]);
@@ -198,11 +196,6 @@ static void	cf_swap_ascii(unsigned char[], char[]);
  * ------------------------------------------------------------------- */
 static int cf_access (struct g_provider *pp, int r, int w, int e)
 {
-
-	pp->sectorsize = drive_param.sector_size;
-        pp->stripesize = drive_param.heads * drive_param.sec_track * drive_param.sector_size;
-        pp->mediasize  = pp->stripesize * drive_param.tracks;
-
 	return (0);
 }
 
@@ -212,7 +205,10 @@ static int cf_access (struct g_provider *pp, int r, int w, int e)
  * ------------------------------------------------------------------- */
 static void cf_start (struct bio *bp)
 {
+	struct cf_priv *cf_priv;
 	int error;
+
+	cf_priv = bp->bio_to->geom->softc;
 
 	/*
 	* Handle actual I/O requests. The request is passed down through
@@ -220,9 +216,9 @@ static void cf_start (struct bio *bp)
 	*/
 
 	if(bp->bio_cmd & BIO_GETATTR) {
-		if (g_handleattr_int(bp, "GEOM::fwsectors", drive_param.sec_track))
+		if (g_handleattr_int(bp, "GEOM::fwsectors", cf_priv->drive_param.sec_track))
                         return;
-                if (g_handleattr_int(bp, "GEOM::fwheads",   drive_param.heads))
+                if (g_handleattr_int(bp, "GEOM::fwheads", cf_priv->drive_param.heads))
                         return;
                 g_io_deliver(bp, ENOIOCTL);
                 return;
@@ -231,11 +227,11 @@ static void cf_start (struct bio *bp)
 	if ((bp->bio_cmd & (BIO_READ | BIO_WRITE))) {
 
 		if (bp->bio_cmd & BIO_READ) {
-			error = cf_cmd_read(bp->bio_length / drive_param.sector_size,
-			    bp->bio_offset / drive_param.sector_size, bp->bio_data);
+			error = cf_cmd_read(bp->bio_length / cf_priv->drive_param.sector_size,
+			    bp->bio_offset / cf_priv->drive_param.sector_size, bp->bio_data);
 		} else if (bp->bio_cmd & BIO_WRITE) {
-			error = cf_cmd_write(bp->bio_length / drive_param.sector_size,
-			    bp->bio_offset/drive_param.sector_size, bp->bio_data);
+			error = cf_cmd_write(bp->bio_length / cf_priv->drive_param.sector_size,
+			    bp->bio_offset/cf_priv->drive_param.sector_size, bp->bio_data);
 		} else {
 			printf("%s: unrecognized bio_cmd %x.\n", __func__, bp->bio_cmd);
 			error = ENOTSUP;
@@ -443,7 +439,7 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
  * it in the drive_param structure
  *
  */
-static int cf_cmd_identify (void)
+static int cf_cmd_identify(struct cf_priv *cf_priv)
 {
 	int count;
 	int error;
@@ -457,7 +453,7 @@ static int cf_cmd_identify (void)
 	{
 	case CF_8:
 		for (count = 0; count < SECTOR_SIZE; count++) 
-			drive_param.u.buf[count] = cf_inb_8(TF_DATA);
+			cf_priv->drive_param.u.buf[count] = cf_inb_8(TF_DATA);
 		break;
 	case CF_TRUE_IDE_8:
 	case CF_16:
@@ -467,25 +463,25 @@ static int cf_cmd_identify (void)
 			temp = cf_inw_16(TF_DATA);
 				
 			/* endianess will be swapped below */
-			drive_param.u.buf[count]   = (temp & 0xff);
-			drive_param.u.buf[count + 1] = (temp & 0xff00) >> 8;
+			cf_priv->drive_param.u.buf[count]   = (temp & 0xff);
+			cf_priv->drive_param.u.buf[count + 1] = (temp & 0xff00) >> 8;
 		}
 		break;
 	}
 
-	cf_swap_ascii(drive_param.u.driveid.model, drive_param.model);
+	cf_swap_ascii(cf_priv->drive_param.u.driveid.model, cf_priv->drive_param.model);
 
-	drive_param.sector_size =  512;   //=  SWAP_SHORT (drive_param.u.driveid.sector_bytes);
-	drive_param.heads 	=  SWAP_SHORT (drive_param.u.driveid.current_heads);
-	drive_param.tracks	=  SWAP_SHORT (drive_param.u.driveid.current_cylinders); 
-	drive_param.sec_track   =  SWAP_SHORT (drive_param.u.driveid.current_sectors);
-	drive_param.nr_sectors  = (uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_1) |
-	    ((uint32_t)SWAP_SHORT (drive_param.u.driveid.lba_size_2));
+	cf_priv->drive_param.sector_size =  512;   //=  SWAP_SHORT (cf_priv->drive_param.u.driveid.sector_bytes);
+	cf_priv->drive_param.heads 	=  SWAP_SHORT (cf_priv->drive_param.u.driveid.current_heads);
+	cf_priv->drive_param.tracks	=  SWAP_SHORT (cf_priv->drive_param.u.driveid.current_cylinders); 
+	cf_priv->drive_param.sec_track   =  SWAP_SHORT (cf_priv->drive_param.u.driveid.current_sectors);
+	cf_priv->drive_param.nr_sectors  = (uint32_t)SWAP_SHORT (cf_priv->drive_param.u.driveid.lba_size_1) |
+	    ((uint32_t)SWAP_SHORT (cf_priv->drive_param.u.driveid.lba_size_2));
 	if (bootverbose) {
-		printf("    model %s\n", drive_param.model);
+		printf("    model %s\n", cf_priv->drive_param.model);
 		printf("    heads %d tracks %d sec_tracks %d sectors %d\n",
-			drive_param.heads, drive_param.tracks,
-			drive_param.sec_track, drive_param.nr_sectors);
+			cf_priv->drive_param.heads, cf_priv->drive_param.tracks,
+			cf_priv->drive_param.sec_track, cf_priv->drive_param.nr_sectors);
 	}
 
 	return (0);
@@ -627,7 +623,7 @@ static int cf_probe (device_t dev)
 
         device_set_desc(dev, "Octeon Compact Flash Driver");
 
-	return (cf_cmd_identify());
+	return (0);
 }
 
 /* ------------------------------------------------------------------- *
@@ -644,12 +640,12 @@ static void cf_identify (driver_t *drv, device_t parent)
 	int bus_region;
 	int count = 0;
 	cvmx_mio_boot_reg_cfgx_t cfg;
-
-	uint64_t phys_base = cvmx_sysinfo_get()->compact_flash_common_base_addr;
-
+	uint64_t phys_base;
+	
     	if (octeon_is_simulation())
 		return;
 
+	phys_base = cvmx_sysinfo_get()->compact_flash_common_base_addr;
 	base_addr = cvmx_phys_to_ptr(phys_base);
 
         for (bus_region = 0; bus_region < 8; bus_region++)
@@ -700,28 +696,18 @@ static void cf_identify (driver_t *drv, device_t parent)
  *                      cf_attach_geom()                               *
  * ------------------------------------------------------------------- */
 
-static int cf_attach_geom (void *arg, int flag)
+static void cf_attach_geom (void *arg, int flag)
 {
 	struct cf_priv *cf_priv;
 
 	cf_priv = (struct cf_priv *) arg;
 	cf_priv->cf_geom = g_new_geomf(&g_cf_class, "cf%d", device_get_unit(cf_priv->dev));
-	cf_priv->cf_provider = g_new_providerf(cf_priv->cf_geom, cf_priv->cf_geom->name);
 	cf_priv->cf_geom->softc = cf_priv;
+	cf_priv->cf_provider = g_new_providerf(cf_priv->cf_geom, cf_priv->cf_geom->name);
+	cf_priv->cf_provider->sectorsize = cf_priv->drive_param.sector_size;
+	cf_priv->cf_provider->mediasize = cf_priv->drive_param.nr_sectors * cf_priv->cf_provider->sectorsize;
         g_error_provider(cf_priv->cf_provider, 0);
-
-        return (0);
 }
-
-/* ------------------------------------------------------------------- *
- *                      cf_attach_geom()                               *
- * ------------------------------------------------------------------- */
-static void cf_attach_geom_proxy (void *arg, int flag)
-{
-	cf_attach_geom(arg, flag);
-}
-
-
 
 /* ------------------------------------------------------------------- *
  *                      cf_attach()                                    *
@@ -730,15 +716,21 @@ static void cf_attach_geom_proxy (void *arg, int flag)
 static int cf_attach (device_t dev)
 {
 	struct cf_priv *cf_priv;
+	int error;
 
     	if (octeon_is_simulation())
 		return (ENXIO);
 
 	cf_priv = device_get_softc(dev);
 	cf_priv->dev = dev;
-	cf_priv->drive_param = &drive_param;
 
-	g_post_event(cf_attach_geom_proxy, cf_priv, M_WAITOK, NULL);
+	error = cf_cmd_identify(cf_priv);
+	if (error != 0) {
+		device_printf(dev, "cf_cmd_identify failed: %d\n", error);
+		return (error);
+	}
+
+	g_post_event(cf_attach_geom, cf_priv, M_WAITOK, NULL);
 	bioq_init(&cf_priv->cf_bq);
 
         return 0;

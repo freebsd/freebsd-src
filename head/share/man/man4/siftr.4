@@ -38,14 +38,14 @@
 .Nd Statistical Information For TCP Research
 .Sh SYNOPSIS
 To load
-.Ns Nm
+the driver
 as a module at run-time, run the following command as root:
 .Bd -literal -offset indent
 kldload siftr
 .Ed
 .Pp
 Alternatively, to load
-.Ns Nm
+the driver
 as a module at boot time, add the following line into the
 .Xr loader.conf 5
 file:
@@ -53,13 +53,16 @@ file:
 siftr_load="YES"
 .Ed
 .Sh DESCRIPTION
+The
 .Nm
-.Ns ( Em S Ns tatistical
+.Po
+.Em S Ns tatistical
 .Em I Ns nformation
 .Em F Ns or
 .Em T Ns CP
-.Em R Ns esearch )
-is a kernel module that logs a range of statistics on active TCP connections to
+.Em R Ns esearch
+.Pc
+kernel module logs a range of statistics on active TCP connections to
 a log file.
 It provides the ability to make highly granular measurements of TCP connection
 state, aimed at system administrators, developers and researchers.
@@ -137,7 +140,7 @@ All messages are written in plain ASCII text.
 Note: The
 .Qq \e
 present in the example log messages in this section indicates a
-line continuation and is not part of the actual log message
+line continuation and is not part of the actual log message.
 .Pp
 The first type of log message is written to the file when the module is
 enabled and starts collecting data from the running kernel. The text below
@@ -169,15 +172,15 @@ tick rate of the kernel in ticks per second.
 .El
 .Bl -tag -offset indent
 .It Va tcp_rtt_scale
-smoothed RTT estimate scaling factor
+smoothed RTT estimate scaling factor.
 .El
 .Bl -tag -offset indent
 .It Va sysname
-operating system name
+operating system name.
 .El
 .Bl -tag -offset indent
 .It Va sysver
-operating system version
+operating system version.
 .El
 .Bl -tag -offset indent
 .It Va ipmode
@@ -598,11 +601,11 @@ To change the log file location to /tmp/siftr.log, run the following
 command as root:
 sysctl net.inet.siftr.logfile=/tmp/siftr.log
 .Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr tcp 4 ,
+.Xr sysctl 8 ,
 .Xr alq 9 ,
 .Xr pfil 9
-.Xr sysctl 8 ,
-.Xr tcp 4 ,
-.Xr tcpdump 1 ,
 .Sh ACKNOWLEDGEMENTS
 Development of this software was made possible in part by grants from the
 Cisco University Research Program Fund at Community Foundation Silicon Valley,

@@ -1,10 +1,10 @@
-//======- X86InstrFragmentsSIMD.td - x86 ISA -------------*- tablegen -*-=====//
+//===-- X86InstrFragmentsSIMD.td - x86 SIMD ISA ------------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file provides pattern fragments useful for SIMD instructions.
@@ -41,24 +41,20 @@ def X86fsrl    : SDNode<"X86ISD::FSRL",      SDTX86FPShiftOp>;
 def X86fgetsign: SDNode<"X86ISD::FGETSIGNx86",SDTFPToIntOp>;
 def X86fhadd   : SDNode<"X86ISD::FHADD",     SDTFPBinOp>;
 def X86fhsub   : SDNode<"X86ISD::FHSUB",     SDTFPBinOp>;
+def X86hadd    : SDNode<"X86ISD::HADD",      SDTIntBinOp>;
+def X86hsub    : SDNode<"X86ISD::HSUB",      SDTIntBinOp>;
 def X86comi    : SDNode<"X86ISD::COMI",      SDTX86CmpTest>;
 def X86ucomi   : SDNode<"X86ISD::UCOMI",     SDTX86CmpTest>;
 def X86cmpss   : SDNode<"X86ISD::FSETCCss",    SDTX86Cmpss>;
 def X86cmpsd   : SDNode<"X86ISD::FSETCCsd",    SDTX86Cmpsd>;
 def X86pshufb  : SDNode<"X86ISD::PSHUFB",
-                 SDTypeProfile<1, 2, [SDTCisVT<0, v16i8>, SDTCisSameAs<0,1>,
+                 SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
 def X86andnp   : SDNode<"X86ISD::ANDNP",
                  SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
-def X86psignb  : SDNode<"X86ISD::PSIGNB",
-                 SDTypeProfile<1, 2, [SDTCisVT<0, v16i8>, SDTCisSameAs<0,1>,
-                                      SDTCisSameAs<0,2>]>>;
-def X86psignw  : SDNode<"X86ISD::PSIGNW",
-                 SDTypeProfile<1, 2, [SDTCisVT<0, v8i16>, SDTCisSameAs<0,1>,
-                                      SDTCisSameAs<0,2>]>>;
-def X86psignd  : SDNode<"X86ISD::PSIGND",
-                 SDTypeProfile<1, 2, [SDTCisVT<0, v4i32>, SDTCisSameAs<0,1>,
+def X86psign   : SDNode<"X86ISD::PSIGN",
+                 SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
 def X86pextrb  : SDNode<"X86ISD::PEXTRB",
                  SDTypeProfile<1, 2, [SDTCisVT<0, i32>, SDTCisPtrTy<2>]>>;
@@ -75,26 +71,47 @@ def X86insrtps : SDNode<"X86ISD::INSERTPS",
                                       SDTCisVT<2, v4f32>, SDTCisPtrTy<3>]>>;
 def X86vzmovl  : SDNode<"X86ISD::VZEXT_MOVL",
                  SDTypeProfile<1, 1, [SDTCisSameAs<0,1>]>>;
+def X86vsmovl  : SDNode<"X86ISD::VSEXT_MOVL",
+                 SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisInt<1>, SDTCisInt<0>]>>;
+                 
 def X86vzload  : SDNode<"X86ISD::VZEXT_LOAD", SDTLoad,
                         [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
-def X86vshl    : SDNode<"X86ISD::VSHL",      SDTIntShiftOp>;
-def X86vshr    : SDNode<"X86ISD::VSRL",      SDTIntShiftOp>;
-def X86cmpps   : SDNode<"X86ISD::CMPPS",     SDTX86VFCMP>;
-def X86cmppd   : SDNode<"X86ISD::CMPPD",     SDTX86VFCMP>;
-def X86pcmpeqb : SDNode<"X86ISD::PCMPEQB", SDTIntBinOp, [SDNPCommutative]>;
-def X86pcmpeqw : SDNode<"X86ISD::PCMPEQW", SDTIntBinOp, [SDNPCommutative]>;
-def X86pcmpeqd : SDNode<"X86ISD::PCMPEQD", SDTIntBinOp, [SDNPCommutative]>;
-def X86pcmpeqq : SDNode<"X86ISD::PCMPEQQ", SDTIntBinOp, [SDNPCommutative]>;
-def X86pcmpgtb : SDNode<"X86ISD::PCMPGTB", SDTIntBinOp>;
-def X86pcmpgtw : SDNode<"X86ISD::PCMPGTW", SDTIntBinOp>;
-def X86pcmpgtd : SDNode<"X86ISD::PCMPGTD", SDTIntBinOp>;
-def X86pcmpgtq : SDNode<"X86ISD::PCMPGTQ", SDTIntBinOp>;
+def X86vshldq  : SDNode<"X86ISD::VSHLDQ",    SDTIntShiftOp>;
+def X86vshrdq  : SDNode<"X86ISD::VSRLDQ",    SDTIntShiftOp>;
+def X86cmpp    : SDNode<"X86ISD::CMPP",      SDTX86VFCMP>;
+def X86pcmpeq  : SDNode<"X86ISD::PCMPEQ", SDTIntBinOp, [SDNPCommutative]>;
+def X86pcmpgt  : SDNode<"X86ISD::PCMPGT", SDTIntBinOp>;
+
+def X86vshl    : SDNode<"X86ISD::VSHL",
+                        SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
+                                      SDTCisVec<2>]>>;
+def X86vsrl    : SDNode<"X86ISD::VSRL",
+                        SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
+                                      SDTCisVec<2>]>>;
+def X86vsra    : SDNode<"X86ISD::VSRA",
+                        SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
+                                      SDTCisVec<2>]>>;
+
+def X86vshli   : SDNode<"X86ISD::VSHLI", SDTIntShiftOp>;
+def X86vsrli   : SDNode<"X86ISD::VSRLI", SDTIntShiftOp>;
+def X86vsrai   : SDNode<"X86ISD::VSRAI", SDTIntShiftOp>;
 
 def SDTX86CmpPTest : SDTypeProfile<1, 2, [SDTCisVT<0, i32>,
                                           SDTCisVec<1>,
                                           SDTCisSameAs<2, 1>]>;
 def X86ptest   : SDNode<"X86ISD::PTEST", SDTX86CmpPTest>;
 def X86testp   : SDNode<"X86ISD::TESTP", SDTX86CmpPTest>;
+
+def X86vpcom   : SDNode<"X86ISD::VPCOM",
+                        SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
+                                      SDTCisSameAs<0,2>, SDTCisVT<3, i8>]>>;
+def X86vpcomu  : SDNode<"X86ISD::VPCOMU",
+                        SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
+                                      SDTCisSameAs<0,2>, SDTCisVT<3, i8>]>>;
+
+def X86pmuludq : SDNode<"X86ISD::PMULUDQ",
+                        SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisVec<1>,
+                                      SDTCisSameAs<1,2>]>>;
 
 // Specific shuffle nodes - At some point ISD::VECTOR_SHUFFLE will always get
 // translated into one of the target nodes below during lowering.
@@ -109,6 +126,8 @@ def SDTShuff3OpI : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                  SDTCisSameAs<0,2>, SDTCisInt<3>]>;
 
 def SDTVBroadcast : SDTypeProfile<1, 1, [SDTCisVec<0>]>;
+def SDTBlend : SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCisSameAs<0,1>,
+SDTCisSameAs<1,2>, SDTCisVT<3, i32>]>;
 
 def X86PAlign : SDNode<"X86ISD::PALIGN", SDTShuff3OpI>;
 
@@ -116,8 +135,7 @@ def X86PShufd  : SDNode<"X86ISD::PSHUFD", SDTShuff2OpI>;
 def X86PShufhw : SDNode<"X86ISD::PSHUFHW", SDTShuff2OpI>;
 def X86PShuflw : SDNode<"X86ISD::PSHUFLW", SDTShuff2OpI>;
 
-def X86Shufpd : SDNode<"X86ISD::SHUFPD", SDTShuff3OpI>;
-def X86Shufps : SDNode<"X86ISD::SHUFPS", SDTShuff3OpI>;
+def X86Shufp : SDNode<"X86ISD::SHUFP", SDTShuff3OpI>;
 
 def X86Movddup  : SDNode<"X86ISD::MOVDDUP", SDTShuff1Op>;
 def X86Movshdup : SDNode<"X86ISD::MOVSHDUP", SDTShuff1Op>;
@@ -129,39 +147,24 @@ def X86Movss : SDNode<"X86ISD::MOVSS", SDTShuff2Op>;
 def X86Movlhps : SDNode<"X86ISD::MOVLHPS", SDTShuff2Op>;
 def X86Movlhpd : SDNode<"X86ISD::MOVLHPD", SDTShuff2Op>;
 def X86Movhlps : SDNode<"X86ISD::MOVHLPS", SDTShuff2Op>;
-def X86Movhlpd : SDNode<"X86ISD::MOVHLPD", SDTShuff2Op>;
 
 def X86Movlps : SDNode<"X86ISD::MOVLPS", SDTShuff2Op>;
 def X86Movlpd : SDNode<"X86ISD::MOVLPD", SDTShuff2Op>;
 
-def X86Unpcklps  : SDNode<"X86ISD::UNPCKLPS", SDTShuff2Op>;
-def X86Unpcklpd  : SDNode<"X86ISD::UNPCKLPD", SDTShuff2Op>;
-def X86Unpcklpsy : SDNode<"X86ISD::VUNPCKLPSY", SDTShuff2Op>;
-def X86Unpcklpdy : SDNode<"X86ISD::VUNPCKLPDY", SDTShuff2Op>;
+def X86Unpckl : SDNode<"X86ISD::UNPCKL", SDTShuff2Op>;
+def X86Unpckh : SDNode<"X86ISD::UNPCKH", SDTShuff2Op>;
 
-def X86Unpckhps  : SDNode<"X86ISD::UNPCKHPS", SDTShuff2Op>;
-def X86Unpckhpd  : SDNode<"X86ISD::UNPCKHPD", SDTShuff2Op>;
-def X86Unpckhpsy : SDNode<"X86ISD::VUNPCKHPSY", SDTShuff2Op>;
-def X86Unpckhpdy : SDNode<"X86ISD::VUNPCKHPDY", SDTShuff2Op>;
+def X86VPermilp  : SDNode<"X86ISD::VPERMILP", SDTShuff2OpI>;
+def X86VPermv    : SDNode<"X86ISD::VPERMV",   SDTShuff2Op>;
+def X86VPermi    : SDNode<"X86ISD::VPERMI",   SDTShuff2OpI>;
 
-def X86Punpcklbw  : SDNode<"X86ISD::PUNPCKLBW", SDTShuff2Op>;
-def X86Punpcklwd  : SDNode<"X86ISD::PUNPCKLWD", SDTShuff2Op>;
-def X86Punpckldq  : SDNode<"X86ISD::PUNPCKLDQ", SDTShuff2Op>;
-def X86Punpcklqdq : SDNode<"X86ISD::PUNPCKLQDQ", SDTShuff2Op>;
-
-def X86Punpckhbw  : SDNode<"X86ISD::PUNPCKHBW", SDTShuff2Op>;
-def X86Punpckhwd  : SDNode<"X86ISD::PUNPCKHWD", SDTShuff2Op>;
-def X86Punpckhdq  : SDNode<"X86ISD::PUNPCKHDQ", SDTShuff2Op>;
-def X86Punpckhqdq : SDNode<"X86ISD::PUNPCKHQDQ", SDTShuff2Op>;
-
-def X86VPermilps  : SDNode<"X86ISD::VPERMILPS", SDTShuff2OpI>;
-def X86VPermilpsy : SDNode<"X86ISD::VPERMILPSY", SDTShuff2OpI>;
-def X86VPermilpd  : SDNode<"X86ISD::VPERMILPD", SDTShuff2OpI>;
-def X86VPermilpdy : SDNode<"X86ISD::VPERMILPDY", SDTShuff2OpI>;
-
-def X86VPerm2f128 : SDNode<"X86ISD::VPERM2F128", SDTShuff3OpI>;
+def X86VPerm2x128 : SDNode<"X86ISD::VPERM2X128", SDTShuff3OpI>;
 
 def X86VBroadcast : SDNode<"X86ISD::VBROADCAST", SDTVBroadcast>;
+
+def X86Blendpw : SDNode<"X86ISD::BLENDPW", SDTBlend>;
+def X86Blendps : SDNode<"X86ISD::BLENDPS", SDTBlend>;
+def X86Blendpd : SDNode<"X86ISD::BLENDPD", SDTBlend>;
 
 //===----------------------------------------------------------------------===//
 // SSE Complex Patterns
@@ -195,15 +198,15 @@ def sdmem : Operand<v2f64> {
 //===----------------------------------------------------------------------===//
 
 // 128-bit load pattern fragments
+// NOTE: all 128-bit integer vector loads are promoted to v2i64
 def loadv4f32    : PatFrag<(ops node:$ptr), (v4f32 (load node:$ptr))>;
 def loadv2f64    : PatFrag<(ops node:$ptr), (v2f64 (load node:$ptr))>;
-def loadv4i32    : PatFrag<(ops node:$ptr), (v4i32 (load node:$ptr))>;
 def loadv2i64    : PatFrag<(ops node:$ptr), (v2i64 (load node:$ptr))>;
 
 // 256-bit load pattern fragments
+// NOTE: all 256-bit integer vector loads are promoted to v4i64
 def loadv8f32    : PatFrag<(ops node:$ptr), (v8f32 (load node:$ptr))>;
 def loadv4f64    : PatFrag<(ops node:$ptr), (v4f64 (load node:$ptr))>;
-def loadv8i32    : PatFrag<(ops node:$ptr), (v8i32 (load node:$ptr))>;
 def loadv4i64    : PatFrag<(ops node:$ptr), (v4i64 (load node:$ptr))>;
 
 // Like 'store', but always requires 128-bit vector alignment.
@@ -223,6 +226,11 @@ def alignedload : PatFrag<(ops node:$ptr), (load node:$ptr), [{
   return cast<LoadSDNode>(N)->getAlignment() >= 16;
 }]>;
 
+// Like 'X86vzload', but always requires 128-bit vector alignment.
+def alignedX86vzload : PatFrag<(ops node:$ptr), (X86vzload node:$ptr), [{
+  return cast<MemSDNode>(N)->getAlignment() >= 16;
+}]>;
+
 // Like 'load', but always requires 256-bit vector alignment.
 def alignedload256 : PatFrag<(ops node:$ptr), (load node:$ptr), [{
   return cast<LoadSDNode>(N)->getAlignment() >= 32;
@@ -234,22 +242,20 @@ def alignedloadfsf64 : PatFrag<(ops node:$ptr),
                                (f64 (alignedload node:$ptr))>;
 
 // 128-bit aligned load pattern fragments
+// NOTE: all 128-bit integer vector loads are promoted to v2i64
 def alignedloadv4f32 : PatFrag<(ops node:$ptr),
                                (v4f32 (alignedload node:$ptr))>;
 def alignedloadv2f64 : PatFrag<(ops node:$ptr),
                                (v2f64 (alignedload node:$ptr))>;
-def alignedloadv4i32 : PatFrag<(ops node:$ptr),
-                               (v4i32 (alignedload node:$ptr))>;
 def alignedloadv2i64 : PatFrag<(ops node:$ptr),
                                (v2i64 (alignedload node:$ptr))>;
 
 // 256-bit aligned load pattern fragments
+// NOTE: all 256-bit integer vector loads are promoted to v4i64
 def alignedloadv8f32 : PatFrag<(ops node:$ptr),
                                (v8f32 (alignedload256 node:$ptr))>;
 def alignedloadv4f64 : PatFrag<(ops node:$ptr),
                                (v4f64 (alignedload256 node:$ptr))>;
-def alignedloadv8i32 : PatFrag<(ops node:$ptr),
-                               (v8i32 (alignedload256 node:$ptr))>;
 def alignedloadv4i64 : PatFrag<(ops node:$ptr),
                                (v4i64 (alignedload256 node:$ptr))>;
 
@@ -268,19 +274,16 @@ def memopfsf32 : PatFrag<(ops node:$ptr), (f32   (memop node:$ptr))>;
 def memopfsf64 : PatFrag<(ops node:$ptr), (f64   (memop node:$ptr))>;
 
 // 128-bit memop pattern fragments
+// NOTE: all 128-bit integer vector loads are promoted to v2i64
 def memopv4f32 : PatFrag<(ops node:$ptr), (v4f32 (memop node:$ptr))>;
 def memopv2f64 : PatFrag<(ops node:$ptr), (v2f64 (memop node:$ptr))>;
-def memopv4i32 : PatFrag<(ops node:$ptr), (v4i32 (memop node:$ptr))>;
 def memopv2i64 : PatFrag<(ops node:$ptr), (v2i64 (memop node:$ptr))>;
-def memopv8i16 : PatFrag<(ops node:$ptr), (v8i16 (memop node:$ptr))>;
-def memopv16i8 : PatFrag<(ops node:$ptr), (v16i8 (memop node:$ptr))>;
 
 // 256-bit memop pattern fragments
-def memopv32i8 : PatFrag<(ops node:$ptr), (v32i8 (memop node:$ptr))>;
+// NOTE: all 256-bit integer vector loads are promoted to v4i64
 def memopv8f32 : PatFrag<(ops node:$ptr), (v8f32 (memop node:$ptr))>;
 def memopv4f64 : PatFrag<(ops node:$ptr), (v4f64 (memop node:$ptr))>;
 def memopv4i64 : PatFrag<(ops node:$ptr), (v4i64 (memop node:$ptr))>;
-def memopv8i32 : PatFrag<(ops node:$ptr), (v8i32 (memop node:$ptr))>;
 
 // SSSE3 uses MMX registers for some instructions. They aren't aligned on a
 // 16-byte boundary.
@@ -326,6 +329,8 @@ def bc_v4i32 : PatFrag<(ops node:$in), (v4i32 (bitconvert node:$in))>;
 def bc_v2i64 : PatFrag<(ops node:$in), (v2i64 (bitconvert node:$in))>;
 
 // 256-bit bitconvert pattern fragments
+def bc_v32i8 : PatFrag<(ops node:$in), (v32i8 (bitconvert node:$in))>;
+def bc_v16i16 : PatFrag<(ops node:$in), (v16i16 (bitconvert node:$in))>;
 def bc_v8i32 : PatFrag<(ops node:$in), (v8i32 (bitconvert node:$in))>;
 def bc_v4i64 : PatFrag<(ops node:$in), (v4i64 (bitconvert node:$in))>;
 
@@ -350,30 +355,6 @@ def BYTE_imm  : SDNodeXForm<imm, [{
   return getI32Imm(N->getZExtValue() >> 3);
 }]>;
 
-// SHUFFLE_get_shuf_imm xform function: convert vector_shuffle mask to PSHUF*,
-// SHUFP* etc. imm.
-def SHUFFLE_get_shuf_imm : SDNodeXForm<vector_shuffle, [{
-  return getI8Imm(X86::getShuffleSHUFImmediate(N));
-}]>;
-
-// SHUFFLE_get_pshufhw_imm xform function: convert vector_shuffle mask to
-// PSHUFHW imm.
-def SHUFFLE_get_pshufhw_imm : SDNodeXForm<vector_shuffle, [{
-  return getI8Imm(X86::getShufflePSHUFHWImmediate(N));
-}]>;
-
-// SHUFFLE_get_pshuflw_imm xform function: convert vector_shuffle mask to
-// PSHUFLW imm.
-def SHUFFLE_get_pshuflw_imm : SDNodeXForm<vector_shuffle, [{
-  return getI8Imm(X86::getShufflePSHUFLWImmediate(N));
-}]>;
-
-// SHUFFLE_get_palign_imm xform function: convert vector_shuffle mask to
-// a PALIGNR imm.
-def SHUFFLE_get_palign_imm : SDNodeXForm<vector_shuffle, [{
-  return getI8Imm(X86::getShufflePALIGNRImmediate(N));
-}]>;
-
 // EXTRACT_get_vextractf128_imm xform function: convert extract_subvector index
 // to VEXTRACTF128 imm.
 def EXTRACT_get_vextractf128_imm : SDNodeXForm<extract_subvector, [{
@@ -385,72 +366,6 @@ def EXTRACT_get_vextractf128_imm : SDNodeXForm<extract_subvector, [{
 def INSERT_get_vinsertf128_imm : SDNodeXForm<insert_subvector, [{
   return getI8Imm(X86::getInsertVINSERTF128Immediate(N));
 }]>;
-
-def splat_lo : PatFrag<(ops node:$lhs, node:$rhs),
-                       (vector_shuffle node:$lhs, node:$rhs), [{
-  ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
-  return SVOp->isSplat() && SVOp->getSplatIndex() == 0;
-}]>;
-
-def movddup : PatFrag<(ops node:$lhs, node:$rhs),
-                      (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isMOVDDUPMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def movhlps : PatFrag<(ops node:$lhs, node:$rhs),
-                      (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isMOVHLPSMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def movhlps_undef : PatFrag<(ops node:$lhs, node:$rhs),
-                            (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isMOVHLPS_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def movlhps : PatFrag<(ops node:$lhs, node:$rhs),
-                      (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isMOVLHPSMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def movlp : PatFrag<(ops node:$lhs, node:$rhs),
-                    (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isMOVLPMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def movl : PatFrag<(ops node:$lhs, node:$rhs),
-                   (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isMOVLMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def unpckl : PatFrag<(ops node:$lhs, node:$rhs),
-                     (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKLMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def unpckh : PatFrag<(ops node:$lhs, node:$rhs),
-                     (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isUNPCKHMask(cast<ShuffleVectorSDNode>(N));
-}]>;
-
-def pshufd : PatFrag<(ops node:$lhs, node:$rhs),
-                     (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isPSHUFDMask(cast<ShuffleVectorSDNode>(N));
-}], SHUFFLE_get_shuf_imm>;
-
-def shufp : PatFrag<(ops node:$lhs, node:$rhs),
-                    (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isSHUFPMask(cast<ShuffleVectorSDNode>(N));
-}], SHUFFLE_get_shuf_imm>;
-
-def pshufhw : PatFrag<(ops node:$lhs, node:$rhs),
-                      (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isPSHUFHWMask(cast<ShuffleVectorSDNode>(N));
-}], SHUFFLE_get_pshufhw_imm>;
-
-def pshuflw : PatFrag<(ops node:$lhs, node:$rhs),
-                      (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isPSHUFLWMask(cast<ShuffleVectorSDNode>(N));
-}], SHUFFLE_get_pshuflw_imm>;
 
 def vextractf128_extract : PatFrag<(ops node:$bigvec, node:$index),
                                    (extract_subvector node:$bigvec,

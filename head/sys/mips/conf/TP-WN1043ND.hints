@@ -4,7 +4,8 @@
 # $FreeBSD$
 
 # Hard-code the PHY for now, until there's switch phy support.
-hint.arge.0.phymask=0x000c
+# hint.arge.0.phymask=0x000c
+hint.arge.0.phymask=0x0000
 hint.arge.0.media=1000
 hint.arge.0.fduplex=1
 # Where is the MAC address stored in flash for this particular unit.
@@ -81,7 +82,7 @@ hint.map.4.readonly=1
 # Don't flip on anything that isn't already enabled.
 # This includes leaving the SPI CS1/CS2 pins as GPIO pins as they're
 # not used here.
-hint.gpio.0.function_set=0x00000000
+hint.gpio.0.function_set=0x00002000
 hint.gpio.0.function_clear=0x00000000
 
 # These are the GPIO LEDs and buttons which can be software controlled.
@@ -101,9 +102,9 @@ hint.gpio.0.pinmask=0x001c02ae
 # Pin 20 - "GPIO20"
 
 # LEDs are configured separately and driven by the LED device
-hint.gpioled.0.at="gpiobus0"
-hint.gpioled.0.name="usb"
-hint.gpioled.0.pins=0x0002
+#hint.gpioled.0.at="gpiobus0"
+#hint.gpioled.0.name="usb"
+#hint.gpioled.0.pins=0x0002
 
 hint.gpioled.1.at="gpiobus0"
 hint.gpioled.1.name="system"
@@ -116,3 +117,17 @@ hint.gpioled.2.pins=0x0020
 hint.gpioled.3.at="gpiobus0"
 hint.gpioled.3.name="wlan"
 hint.gpioled.3.pins=0x0200
+
+# GPIO I2C bus
+hint.gpioiic.0.at="gpiobus0"
+hint.gpioiic.0.pins=0xc0000
+hint.gpioiic.0.scl=1
+hint.gpioiic.0.sda=0
+
+# I2C bus
+# Don't be strict about I2C protocol - the relaxed semantics are required
+# by the realtek switch PHY.
+hint.iicbus.0.strict=0
+
+# Bit bang bus - override default delay
+#hint.iicbb.0.udelay=3

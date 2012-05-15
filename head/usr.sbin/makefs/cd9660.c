@@ -472,8 +472,6 @@ cd9660_makefs(const char *image, const char *dir, fsnode *root,
 		return;
 	}
 
-	diskStructure.rootFilesystemPath = dir;
-
 	if (diskStructure.verbose_level > 0)
 		printf("cd9660_makefs: image %s directory %s root %p\n",
 		    image, dir, root);
@@ -1086,6 +1084,8 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		*/
 
 		while (count < maxlength) {
+			if (*naming == ';')
+				break;
 			naming++;
 			count++;
 		}
@@ -1566,24 +1566,15 @@ cd9660_generate_path_table(void)
 }
 
 void
-cd9660_compute_full_filename(cd9660node *node, char *buf, int level)
+cd9660_compute_full_filename(cd9660node *node, char *buf)
 {
-	cd9660node *parent;
+	int len;
 
-	parent = (node->rr_real_parent == NULL ?
-		  node->parent : node->rr_real_parent);
-	if (parent != NULL) {
-		cd9660_compute_full_filename(parent, buf, level + 1);
-		strcat(buf, node->node->name);
-	} else {
-		/* We are at the root */
-		strcat(buf, diskStructure.rootFilesystemPath);
-		if (buf[strlen(buf) - 1] == '/')
-			buf[strlen(buf) - 1] = '\0';
-	}
-
-	if (level != 0)
-		strcat(buf, "/");
+	len = CD9660MAXPATH + 1;
+	len = snprintf(buf, len, "%s/%s/%s", node->node->root,
+	    node->node->path, node->node->name);
+	if (len > CD9660MAXPATH)
+		errx(1, "Pathname too long.");
 }
 
 /* NEW filename conversion method */

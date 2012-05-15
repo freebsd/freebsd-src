@@ -785,8 +785,6 @@ init_secondary(void)
  * We tell the I/O APIC code about all the CPUs we want to receive
  * interrupts.  If we don't want certain CPUs to receive IRQs we
  * can simply not tell the I/O APIC code about them in this function.
- * We also do not tell it about the BSP since it tells itself about
- * the BSP internally to work with UP kernels and on UP machines.
  */
 static void
 set_interrupt_apic_ids(void)
@@ -796,8 +794,6 @@ set_interrupt_apic_ids(void)
 	for (i = 0; i < MAXCPU; i++) {
 		apic_id = cpu_apic_ids[i];
 		if (apic_id == -1)
-			continue;
-		if (cpu_info[apic_id].cpu_bsp)
 			continue;
 		if (cpu_info[apic_id].cpu_disabled)
 			continue;
@@ -1414,13 +1410,9 @@ cpustop_handler(void)
 void
 cpususpend_handler(void)
 {
-	register_t cr3, rf;
 	u_int cpu;
 
 	cpu = PCPU_GET(cpuid);
-
-	rf = intr_disable();
-	cr3 = rcr3();
 
 	if (savectx(susppcbs[cpu])) {
 		ctx_fpusave(suspfpusave[cpu]);
@@ -1428,6 +1420,8 @@ cpususpend_handler(void)
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
 	} else {
 		pmap_init_pat();
+		load_cr3(susppcbs[cpu]->pcb_cr3);
+		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 	}
@@ -1439,11 +1433,9 @@ cpususpend_handler(void)
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 
-	/* Restore CR3 and enable interrupts */
-	load_cr3(cr3);
+	/* Resume MCA and local APIC */
 	mca_resume();
 	lapic_setup(0);
-	intr_restore(rf);
 }
 
 /*
@@ -1479,6 +1471,8 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_invlrng_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:invlpg", i);
 		intrcnt_add(buf, &ipi_invlpg_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:invlcache", i);
+		intrcnt_add(buf, &ipi_invlcache_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:preempt", i);
 		intrcnt_add(buf, &ipi_preempt_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:ast", i);

@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdlib.h>
 
-size_t
+int
 __getcontextx_size(void)
 {
 

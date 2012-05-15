@@ -8,6 +8,16 @@
 extern "C" {
 #endif
 
+krb5_error_code
+kdc_check_flags (
+	krb5_context /*context*/,
+	krb5_kdc_configuration */*config*/,
+	hdb_entry_ex */*client_ex*/,
+	const char */*client_name*/,
+	hdb_entry_ex */*server_ex*/,
+	const char */*server_name*/,
+	krb5_boolean /*is_as_req*/);
+
 void
 kdc_log (
 	krb5_context /*context*/,
@@ -35,12 +45,27 @@ kdc_log_msg_va (
 void
 kdc_openlog (
 	krb5_context /*context*/,
+	const char */*service*/,
 	krb5_kdc_configuration */*config*/);
 
 krb5_error_code
 krb5_kdc_get_config (
 	krb5_context /*context*/,
 	krb5_kdc_configuration **/*config*/);
+
+krb5_error_code
+krb5_kdc_pk_initialize (
+	krb5_context /*context*/,
+	krb5_kdc_configuration */*config*/,
+	const char */*user_id*/,
+	const char */*anchors*/,
+	char **/*pool*/,
+	char **/*revoke_list*/);
+
+krb5_error_code
+krb5_kdc_pkinit_config (
+	krb5_context /*context*/,
+	krb5_kdc_configuration */*config*/);
 
 int
 krb5_kdc_process_krb5_request (

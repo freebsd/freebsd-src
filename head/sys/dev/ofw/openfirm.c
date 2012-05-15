@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 
 #include "ofw_if.h"
 
+static void OF_putchar(int c, void *arg);
+
 MALLOC_DEFINE(M_OFWPROP, "openfirm", "Open Firmware properties");
 
 static ihandle_t stdout;
@@ -82,7 +84,7 @@ static struct ofw_kobj	ofw_kernel_obj;
 static struct kobj_ops	ofw_kernel_kops;
 
 /*
- * OFW install routines. Highest priority wins, equal priority also
+ * OFW install routines.  Highest priority wins, equal priority also
  * overrides allowing last-set to win.
  */
 SET_DECLARE(ofw_set, ofw_def_t);
@@ -138,15 +140,27 @@ OF_init(void *cookie)
 	return (rv);
 }
 
+static void
+OF_putchar(int c, void *arg __unused)
+{
+	char cbuf;
+
+	if (c == '\n') {
+		cbuf = '\r';
+		OF_write(stdout, &cbuf, 1);
+	}
+
+	cbuf = c;
+	OF_write(stdout, &cbuf, 1);
+}
+
 void
 OF_printf(const char *fmt, ...)
 {
 	va_list	va;
-	char buf[1024];
 
 	va_start(va, fmt);
-	vsprintf(buf, fmt, va);
-	OF_write(stdout, buf, strlen(buf));
+	(void)kvprintf(fmt, OF_putchar, NULL, 10, va);
 	va_end(va);
 }
 

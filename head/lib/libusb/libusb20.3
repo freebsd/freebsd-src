@@ -235,7 +235,6 @@ applications should consider using
 .
 .Sh USB TRANSFER OPERATIONS
 .
-.Pp
 .
 .Fn libusb20_tr_close
 will release all kernel resources associated with an USB
@@ -332,7 +331,7 @@ packets are avoided for proxy buffers.
 .Pp
 .
 .Fn libusb20_tr_get_max_total_length
-function will return the maximum value for the data length sum of all USB
+will return the maximum value for the data length sum of all USB
 frames associated with an USB transfer.
 In case of control transfers the value returned does not include the
 length of the SETUP packet, 8 bytes, which is part of frame zero.
@@ -534,7 +533,6 @@ with an USB transfer.
 .
 .Sh USB DEVICE OPERATIONS
 .
-.Pp
 .
 .Fn libusb20_dev_get_backend_name
 returns a zero terminated string describing the backend used.
@@ -542,7 +540,7 @@ returns a zero terminated string describing the backend used.
 .Pp
 .
 .Fn libusb20_dev_get_info
-retrieves the BSD specific usb_device_info structure into the memory location given by 
+retrieves the BSD specific usb_device_info structure into the memory location given by
 .Fa pinfo .
 The USB device given by
 .Fa pdev
@@ -817,7 +815,7 @@ returns the current speed of the given USB device.
 .Pp
 .
 .Fn libusb20_dev_get_config_index
-This function returns the currently select config index for the given
+returns the currently selected config index for the given
 USB device.
 .
 .Pp
@@ -834,7 +832,7 @@ will set the debug level for the given USB device.
 .Pp
 .
 .Fn libusb20_dev_wait_process
-function will wait until a pending USB transfer has completed on
+will wait until a pending USB transfer has completed on
 the given USB device.
 .
 A timeout value can be specified which is passed on to the
@@ -868,7 +866,7 @@ returned.
 .Pp
 .
 .Fn libusb20_be_get_dev_quirk
-This function will return the device quirk according to
+will return the device quirk according to
 .Fa index
 into the libusb20_quirk structure pointed to by
 .Fa pq .
@@ -950,7 +948,7 @@ Dequeued USB devices will not be freed when the backend is freed.
 .Pp
 .
 .Fn libusb20_be_enqueue_device
-This function will enqueue the given USB device pointer in the backend USB device list.
+will enqueue the given USB device pointer in the backend USB device list.
 .
 Enqueued USB devices will get freed when the backend is freed.
 .
@@ -1000,7 +998,6 @@ The buffer pointer cannot be NULL.
 .
 .
 .Sh USB DEBUGGING
-.Pp
 .Ft const char *
 .Fn libusb20_strerror "int code"
 Get the ASCII representation of the error given by the

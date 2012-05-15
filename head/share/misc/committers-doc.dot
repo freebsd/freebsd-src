@@ -60,6 +60,7 @@ ganbold [label="Ganbold Tsagaankhuu\nganbold@FreeBSD.org\n2008/02/26"]
 gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2011/07/18"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2010/09/01"]
 hrs [label="Hiroki Sato\nhrs@FreeBSD.org\n2000/07/06"]
+issyl0 [label="Isabell Long\nissyl0@FreeBSD.org\n2012/04/25"]
 jkois [label="Johann Kois\njkois@FreeBSD.org\n2004/11/11"]
 joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
@@ -72,6 +73,7 @@ maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
+pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
 roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14"]
@@ -106,6 +108,7 @@ delphij -> loader
 gabor -> pgj
 gabor -> manolis
 gabor -> taras
+gabor -> issyl0
 
 gjb -> wblock
 
@@ -129,6 +132,7 @@ keramida -> gjb
 keramida -> pav
 
 marck -> bvs
+marck -> pluknet
 marck -> taras
 
 maxim -> taras

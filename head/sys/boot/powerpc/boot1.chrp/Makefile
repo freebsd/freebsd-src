@@ -8,17 +8,17 @@ BINDIR?=        /boot
 INSTALLFLAGS=   -b
 
 FILES=		boot1.hfs
-SRCS=		boot1.c ashldi3.c
+SRCS=		boot1.c ashldi3.c syncicache.c
 
-INTERNALPROG=
 NO_MAN=
 
 CFLAGS= -ffreestanding -msoft-float -Os \
-	-I${.CURDIR}/../../common -I${.CURDIR}/../../../
+	-I${.CURDIR}/../../common -I${.CURDIR}/../../../ \
+	-D_STANDALONE
 LDFLAGS=-nostdlib -static -N
 
 .include "${.CURDIR}/../Makefile.inc"
-.PATH:  ${.CURDIR}/../../../libkern ${.CURDIR}
+.PATH:  ${.CURDIR}/../../../libkern ${.CURDIR}/../../../../lib/libc/powerpc/gen ${.CURDIR}
 
 # The following inserts out objects into a template HFS 
 # created by generate-hfs.sh

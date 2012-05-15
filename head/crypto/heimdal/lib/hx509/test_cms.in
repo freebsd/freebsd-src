@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2005 Kungliga Tekniska Högskolan
+# Copyright (c) 2005 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: test_cms.in 21311 2007-06-25 18:26:37Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -48,6 +48,23 @@ if ${hxtool} info | grep 'rand: not available' > /dev/null ; then
     exit 77
 fi
 
+if ${hxtool} info | grep 'ecdsa: hcrypto null' > /dev/null ; then
+    echo "not testing ECDSA since hcrypto doesnt support ECDSA"
+else
+    echo "create signed data (ec)"
+    ${hxtool} cms-create-sd \
+    	--certificate=FILE:$srcdir/data/secp160r2TestClient.pem \
+    	"$srcdir/test_chain.in" \
+    	sd.data > /dev/null || exit 1
+    
+    echo "verify signed data (ec)"
+    ${hxtool} cms-verify-sd \
+    	--missing-revoke \
+    	--anchors=FILE:$srcdir/data/secp160r1TestCA.cert.pem \
+    	sd.data sd.data.out > /dev/null || exit 1
+    cmp "$srcdir/test_chain.in" sd.data.out || exit 1
+fi
+    
 echo "create signed data"
 ${hxtool} cms-create-sd \
 	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
@@ -60,6 +77,29 @@ ${hxtool} cms-verify-sd \
 	--anchors=FILE:$srcdir/data/ca.crt \
 	sd.data sd.data.out > /dev/null || exit 1
 cmp "$srcdir/test_chain.in" sd.data.out || exit 1
+
+echo "create signed data (no signer)"
+${hxtool} cms-create-sd \
+        --no-signer \
+	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
+	"$srcdir/test_chain.in" \
+	sd.data > /dev/null || exit 1
+
+echo "verify signed data (no signer)"
+${hxtool} cms-verify-sd \
+	--missing-revoke \
+        --no-signer-allowed \
+	--anchors=FILE:$srcdir/data/ca.crt \
+	sd.data sd.data.out > signer.tmp || exit 1
+cmp "$srcdir/test_chain.in" sd.data.out || exit 1
+grep "unsigned" signer.tmp > /dev/null || exit 1
+
+echo "verify signed data (no signer) (test failure)"
+${hxtool} cms-verify-sd \
+	--missing-revoke \
+	--anchors=FILE:$srcdir/data/ca.crt \
+	sd.data sd.data.out 2> signer.tmp && exit 1
+grep "No signers where found" signer.tmp > /dev/null || exit 1
 
 echo "create signed data (id-by-name)"
 ${hxtool} cms-create-sd \
@@ -145,6 +185,14 @@ ${hxtool} cms-create-sd \
 	"$srcdir/test_chain.in" \
 	sd.data > /dev/null || exit 1
 
+echo "verify signed data (pem)"
+${hxtool} cms-verify-sd \
+	--missing-revoke \
+	--anchors=FILE:$srcdir/data/ca.crt \
+	--pem \
+        sd.data sd.data.out > /dev/null
+cmp "$srcdir/test_chain.in" sd.data.out || exit 1
+
 echo "create signed data (pem, detached)"
 ${hxtool} cms-create-sd \
 	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
@@ -152,6 +200,15 @@ ${hxtool} cms-create-sd \
 	--pem \
 	"$srcdir/test_chain.in" \
 	sd.data > /dev/null || exit 1
+
+echo "verify signed data (pem, detached)"
+${hxtool} cms-verify-sd \
+	--missing-revoke \
+	--anchors=FILE:$srcdir/data/ca.crt \
+	--pem \
+        --signed-content="$srcdir/test_chain.in" \
+        sd.data sd.data.out > /dev/null
+cmp "$srcdir/test_chain.in" sd.data.out || exit 1
 
 echo "create signed data (p12)"
 ${hxtool} cms-create-sd \
@@ -194,6 +251,31 @@ ${hxtool} cms-verify-sd \
 	"$srcdir/data/test-signed-data-noattr-nocerts" \
 	sd.data.out > /dev/null || exit 1
 cmp "$srcdir/data/static-file" sd.data.out || exit 1
+
+echo "verify signed data - sha1"
+${hxtool} cms-verify-sd \
+	--missing-revoke \
+	--anchors=FILE:$srcdir/data/ca.crt \
+	--content-info \
+	"$srcdir/data/test-signed-sha-1" sd.data.out > /dev/null || exit 1
+cmp "$srcdir/data/static-file" sd.data.out || exit 1
+
+echo "verify signed data - sha256"
+${hxtool} cms-verify-sd \
+	--missing-revoke \
+	--anchors=FILE:$srcdir/data/ca.crt \
+	--content-info \
+	"$srcdir/data/test-signed-sha-256" sd.data.out > /dev/null || exit 1
+cmp "$srcdir/data/static-file" sd.data.out || exit 1
+
+#echo "verify signed data - sha512"
+#${hxtool} cms-verify-sd \
+#	--missing-revoke \
+#	--anchors=FILE:$srcdir/data/ca.crt \
+#	--content-info \
+#	"$srcdir/data/test-signed-sha-512" sd.data.out > /dev/null || exit 1
+#cmp "$srcdir/data/static-file" sd.data.out || exit 1
+
 
 echo "create signed data (subcert, no certs)"
 ${hxtool} cms-create-sd \
@@ -317,6 +399,60 @@ ${hxtool} cms-verify-sd \
 	sd.data sd.data.out > /dev/null 2>/dev/null || exit 1
 cmp "$srcdir/test_chain.in" sd.data.out || exit 1
 
+echo "create signed data (pem, detached)"
+cp "$srcdir/test_chain.in" sd
+${hxtool} cms-sign \
+	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
+	--detached-signature \
+	--pem \
+	sd > /dev/null || exit 1
+
+echo "verify signed data (pem, detached)"
+${hxtool} cms-verify-sd \
+	--missing-revoke \
+	--anchors=FILE:$srcdir/data/ca.crt \
+	--pem \
+	sd.pem > /dev/null
+
+echo "create signed data (no certs, detached sig)"
+cp "$srcdir/test_chain.in" sd
+${hxtool} cms-sign \
+	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
+	--detached-signature \
+	--no-embedded-certs \
+	"$srcdir/data/static-file" \
+	sd > /dev/null || exit 1
+
+echo "create signed data (leif only, detached sig)"
+cp "$srcdir/test_chain.in" sd
+${hxtool} cms-sign \
+	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
+	--detached-signature \
+	--embed-leaf-only \
+	"$srcdir/data/static-file" \
+	sd > /dev/null || exit 1
+
+echo "create signed data (no certs, detached sig, 2 signers)"
+cp "$srcdir/test_chain.in" sd
+${hxtool} cms-sign \
+	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
+	--certificate=FILE:$srcdir/data/sub-cert.crt,$srcdir/data/sub-cert.key \
+	--detached-signature \
+	--no-embedded-certs \
+	"$srcdir/data/static-file" \
+	sd > /dev/null || exit 1
+
+echo "create signed data (no certs, detached sig, 3 signers)"
+cp "$srcdir/test_chain.in" sd
+${hxtool} cms-sign \
+	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
+	--certificate=FILE:$srcdir/data/sub-cert.crt,$srcdir/data/sub-cert.key \
+	--certificate=FILE:$srcdir/data/test-ds-only.crt,$srcdir/data/test-ds-only.key \
+	--detached-signature \
+	--no-embedded-certs \
+	"$srcdir/data/static-file" \
+	sd > /dev/null || exit 1
+
 echo "envelope data (content-type)"
 ${hxtool} cms-envelope \
 	--certificate=FILE:$srcdir/data/test.crt \
@@ -370,6 +506,7 @@ for a in rc2-40 rc2-64 rc2-128 des-ede3 aes-128 aes-256; do
     ${hxtool} cms-unenvelope \
 	--certificate=FILE:$srcdir/data/test.crt,$srcdir/data/test.key \
 	--content-info \
+	--allow-weak \
 	"$srcdir/data/test-enveloped-$a" ev.data.out > /dev/null || exit 1
     cmp "$srcdir/data/static-file" ev.data.out || exit 1
 done
