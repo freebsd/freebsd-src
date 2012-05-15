@@ -125,10 +125,10 @@ typedef struct encioc_element {
 	unsigned int	elm_idx;	
 
 	/* ID of SubEnclosure containing Element*/
-	unsigned int	elm_subenc_id;
+	unsigned char	elm_subenc_id;
 
 	/* Element Type */
-	elm_type_t	elm_type;
+	unsigned char	elm_type;
 } encioc_element_t;
 
 /*
