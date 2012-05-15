@@ -48,8 +48,8 @@ struct mpt_user_raid_action_result {
 };
 
 struct mpt_page_memory {
-	bus_dma_tag_t	tag;
-	bus_dmamap_t	map;
+	busdma_tag_t	tag;
+	busdma_md_t	map;
 	bus_addr_t	paddr;
 	void		*vaddr;
 };
@@ -192,7 +192,6 @@ static int
 mpt_alloc_buffer(struct mpt_softc *mpt, struct mpt_page_memory *page_mem,
     size_t len)
 {
-	struct mpt_map_info mi;
 	int error;
 
 	page_mem->vaddr = NULL;
@@ -200,29 +199,18 @@ mpt_alloc_buffer(struct mpt_softc *mpt, struct mpt_page_memory *page_mem,
 	/* Limit requests to 16M. */
 	if (len > 16 * 1024 * 1024)
 		return (ENOSPC);
-	error = mpt_dma_tag_derive(mpt, mpt->parent_dmat, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    len, 1, len, 0, &page_mem->tag);
+	error = busdma_tag_derive(mpt->parent_dmat, 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, len, 1, len, 0, &page_mem->tag);
 	if (error)
 		return (error);
-	error = bus_dmamem_alloc(page_mem->tag, &page_mem->vaddr,
+	error = busdma_mem_alloc(page_mem->tag,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &page_mem->map);
 	if (error) {
-		bus_dma_tag_destroy(page_mem->tag);
+		busdma_tag_destroy(page_mem->tag);
 		return (error);
 	}
-	mi.mpt = mpt;
-	error = bus_dmamap_load(page_mem->tag, page_mem->map, page_mem->vaddr,
-	    len, mpt_map_rquest, &mi, BUS_DMA_NOWAIT);
-	if (error == 0)
-		error = mi.error;
-	if (error) {
-		bus_dmamem_free(page_mem->tag, page_mem->vaddr, page_mem->map);
-		bus_dma_tag_destroy(page_mem->tag);
-		page_mem->vaddr = NULL;
-		return (error);
-	}
-	page_mem->paddr = mi.phys;
+	page_mem->vaddr = busdma_md_get_pointer(page_mem->map, 0);
+	page_mem->paddr = busdma_md_get_busaddr(page_mem->map, 0);
 	return (0);
 }
 
@@ -232,9 +220,8 @@ mpt_free_buffer(struct mpt_page_memory *page_mem)
 
 	if (page_mem->vaddr == NULL)
 		return;
-	bus_dmamap_unload(page_mem->tag, page_mem->map);
-	bus_dmamem_free(page_mem->tag, page_mem->vaddr, page_mem->map);
-	bus_dma_tag_destroy(page_mem->tag);
+	busdma_mem_free(page_mem->map);
+	busdma_tag_destroy(page_mem->tag);
 	page_mem->vaddr = NULL;
 }
 
@@ -304,7 +291,7 @@ mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
 	params.PageNumber = hdr->PageNumber;
 	params.PageType = hdr->PageType & MPI_CONFIG_PAGETYPE_MASK;
 	params.PageAddress = le32toh(page_req->page_address);
-	bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+	busdma_sync(mpt_page->map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
 	    le32toh(page_req->len), TRUE, 5000);
@@ -315,7 +302,7 @@ mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
 
 	page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
-		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+		busdma_sync(mpt_page->map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);
@@ -394,7 +381,7 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 	params.PageAddress = le32toh(ext_page_req->page_address);
 	params.ExtPageType = hdr->ExtPageType;
 	params.ExtPageLength = hdr->ExtPageLength;
-	bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+	busdma_sync(mpt_page->map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
 	    le32toh(ext_page_req->len), TRUE, 5000);
@@ -405,7 +392,7 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 
 	ext_page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
-		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+		busdma_sync(mpt_page->map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);
@@ -441,7 +428,7 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	if (req == NULL)
 		return (ENOMEM);
 
-	bus_dmamap_sync(mpt_page->tag, mpt_page->map, BUS_DMASYNC_PREREAD |
+	busdma_sync(mpt_page->map, BUS_DMASYNC_PREREAD |
 	    BUS_DMASYNC_PREWRITE);
 
 	/*
@@ -469,7 +456,7 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	}
 
 	page_req->ioc_status = htole16(req->IOCStatus);
-	bus_dmamap_sync(mpt_page->tag, mpt_page->map, BUS_DMASYNC_POSTREAD |
+	busdma_sync(mpt_page->map, BUS_DMASYNC_POSTREAD |
 	    BUS_DMASYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);
@@ -541,7 +528,7 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	rap->PhysDiskNum = raid_act->phys_disk_num;
 	se = (SGE_SIMPLE32 *)&rap->ActionDataSGE;
 	if (mpt_page->vaddr != NULL && raid_act->len != 0) {
-		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+		busdma_sync(mpt_page->map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		se->Address = htole32(mpt_page->paddr);
 		MPI_pSGE_SET_LENGTH(se, le32toh(raid_act->len));
@@ -580,7 +567,7 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	bcopy(res->action_data, raid_act->action_data,
 	    sizeof(res->action_data));
 	if (mpt_page->vaddr != NULL)
-		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
+		busdma_sync(mpt_page->map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	mpt_free_request(mpt, req);
 	return (0);

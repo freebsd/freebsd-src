@@ -53,31 +53,56 @@ struct busdma_tag {
 	bus_size_t	dt_maxsegsz;
 };
 
-struct busdma_seg {
-	TAILQ_ENTRY(busdma_seg) ds_chain;
-	bus_addr_t	ds_baddr;
-	vm_paddr_t	ds_paddr;
-	vm_offset_t	ds_vaddr;
-	vm_size_t	ds_size;
+struct busdma_md_seg {
+	bus_addr_t	mds_busaddr;
+	vm_paddr_t	mds_paddr;
+	vm_offset_t	mds_vaddr;
+	vm_size_t	mds_size;
 };
 
-struct busdma_mem {
-	struct busdma_tag *dm_tag;
-	TAILQ_HEAD(,busdma_seg) dm_seg;
-	u_int		dm_nsegs;
+struct busdma_md {
+	struct busdma_tag *md_tag;
+	u_int		md_flags;
+	u_int		md_nsegs;
+	struct busdma_md_seg md_seg[0];
 };
+
+#define	BUSDMA_MD_FLAG_ALLOCATED	0x1	/* busdma_mem_alloc() created
+						   this MD. */
+#define	BUSDMA_MD_FLAG_LOADED		0x2	/* The MD is loaded. */
+#define	BUSDMA_MD_FLAG_MAPPED		0x4	/* KVA is valid. */
+#define	BUSDMA_MD_FLAG_USED		\
+		(BUSDMA_MD_FLAG_ALLOCATED | BUSDMA_MD_FLAG_LOADED)
 
 static struct busdma_tag busdma_root_tag = {
 	.dt_maxaddr = ~0UL,
 	.dt_align = 1,
-	.dt_maxsz = ~0UL,
-	.dt_nsegs = ~0U,
-	.dt_maxsegsz = ~0UL,
+
+	/*
+	 * Make dt_maxsz the largest power of 2. I don't like ~0 as the
+	 * maximum size. 0 would be a good number to signal (virtually)
+	 * unrestricted DMA sizes, but that creates an irregularity for
+	 * merging restrictions.
+	 */
+	.dt_maxsz = (~0UL >> 1) + 1,
+
+	/*
+	 * Arbitrarily limit the number of scatter/gather segments to
+	 * 1K. This to avoid that some driver actually tries to do
+	 * DMA with unlimited segments and we try to allocate a memory
+	 * descriptor for it. Why 1K? "It looked like a good idea at
+	 * the time" (read: no particular reason).
+	 */
+	.dt_nsegs = 1024,
+
+	/*
+	 * Just like dt_maxsz, limit to the largest power of 2.
+	 */
+	.dt_maxsegsz = (~0UL >> 1) + 1,
 };
 
-static MALLOC_DEFINE(M_BUSDMA_MEM, "busdma_mem", "busdma mem structures");
-static MALLOC_DEFINE(M_BUSDMA_SEG, "busdma_seg", "busdma seg structures");
-static MALLOC_DEFINE(M_BUSDMA_TAG, "busdma_tag", "busdma tag structures");
+static MALLOC_DEFINE(M_BUSDMA_MD, "busdma_md", "DMA memory descriptors");
+static MALLOC_DEFINE(M_BUSDMA_TAG, "busdma_tag", "DMA tags");
 
 static void
 _busdma_tag_dump(const char *func, device_t dev, struct busdma_tag *tag)
@@ -93,16 +118,26 @@ _busdma_tag_dump(const char *func, device_t dev, struct busdma_tag *tag)
 }
 
 static void
-_busdma_mem_dump(const char *func, struct busdma_mem *mem) 
+_busdma_md_dump(const char *func, struct busdma_md *md) 
 {
-	struct busdma_seg *seg;
+	struct busdma_tag *tag;
+	struct busdma_md_seg *seg;
+	int idx;
 
-	printf("[%s: %s: mem=%p (tag=%p, nsegs=%u)", func,
-	    device_get_nameunit(mem->dm_tag->dt_device), mem,
-	    mem->dm_tag, mem->dm_nsegs);
-	TAILQ_FOREACH(seg, &mem->dm_seg, ds_chain)
-		printf(", {size=%jx, paddr=%jx, vaddr=%jx}", seg->ds_size,
-		    seg->ds_paddr, seg->ds_vaddr);
+	tag = md->md_tag;
+	printf("[%s: %s: md=%p (tag=%p, flags=%x, nsegs=%u)", func,
+	    device_get_nameunit(tag->dt_device), md, tag, md->md_flags,
+	    md->md_nsegs);
+	if (md->md_nsegs == 0) {
+		printf(" -- UNUSED]\n");
+		return;
+	}
+	for (idx = 0; idx < md->md_nsegs; idx++) {
+		seg = &md->md_seg[idx];
+		printf(", %u={size=%jx, busaddr=%jx, paddr=%jx, vaddr=%jx}",
+		    idx, seg->mds_size, seg->mds_busaddr, seg->mds_paddr,
+		    seg->mds_vaddr);
+	}
 	printf("]\n");
 }
 
@@ -128,8 +163,8 @@ _busdma_tag_get_base(device_t dev)
 }
 
 static int
-_busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t maxaddr,
-    bus_addr_t align, bus_addr_t bndry, bus_size_t maxsz, u_int nsegs,
+_busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t align,
+    bus_addr_t bndry, bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs,
     bus_size_t maxsegsz, u_int flags, struct busdma_tag **tag_p)
 {
 	struct busdma_tag *tag;
@@ -156,28 +191,16 @@ _busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t maxaddr,
 	return (0);
 }
 
-static struct busdma_seg *
-_busdma_mem_get_seg(struct busdma_mem *mem, u_int idx)
-{
-	struct busdma_seg *seg;
- 
-	if (idx >= mem->dm_nsegs)
-		return (NULL);
-
-	seg = TAILQ_FIRST(&mem->dm_seg);
-	return (seg);
-}
-
 int
-busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
-    bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
     u_int flags, struct busdma_tag **tag_p)
 {
 	struct busdma_tag *base, *first, *tag;
 	int error;
 
 	base = _busdma_tag_get_base(dev);
-	error = _busdma_tag_make(dev, base, maxaddr, align, bndry, maxsz,
+	error = _busdma_tag_make(dev, base, align, bndry, maxaddr, maxsz,
 	    nsegs, maxsegsz, flags, &tag);
 	if (error != 0)
 		return (error);
@@ -192,14 +215,14 @@ busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
 }
 
 int
-busdma_tag_derive(struct busdma_tag *base, bus_addr_t maxaddr, bus_addr_t align,
-    bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+busdma_tag_derive(struct busdma_tag *base, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
     u_int flags, struct busdma_tag **tag_p)
 {
 	struct busdma_tag *tag;
 	int error;
 
-	error = _busdma_tag_make(base->dt_device, base, maxaddr, align, bndry,
+	error = _busdma_tag_make(base->dt_device, base, align, bndry, maxaddr,
 	    maxsz, nsegs, maxsegsz, flags, &tag);
 	if (error != 0)
 		return (error);
@@ -215,65 +238,151 @@ busdma_tag_derive(struct busdma_tag *base, bus_addr_t maxaddr, bus_addr_t align,
 }
 
 int
-busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_mem **mem_p)
+busdma_tag_destroy(struct busdma_tag *tag)
 {
-	struct busdma_mem *mem;
-	struct busdma_seg *seg;
+
+	return (0);
+}
+
+int
+busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
+{
+
+	return (ENOSYS);
+}
+
+int
+busdma_md_destroy(struct busdma_md *md)
+{
+
+	return (ENOSYS);
+}
+
+bus_addr_t
+busdma_md_get_busaddr(struct busdma_md *md, u_int idx)
+{
+
+	if (idx >= md->md_tag->dt_nsegs)
+		return (0);
+
+	return (md->md_seg[idx].mds_busaddr);
+}
+
+u_int
+busdma_md_get_nsegs(struct busdma_md *md)
+{
+
+	return (md->md_nsegs);
+}
+
+vm_paddr_t
+busdma_md_get_paddr(struct busdma_md *md, u_int idx)
+{
+
+	if (idx >= md->md_tag->dt_nsegs)
+		return (0);
+
+	return (md->md_seg[idx].mds_paddr);
+}
+
+vm_size_t
+busdma_md_get_size(struct busdma_md *md, u_int idx)
+{
+
+	if (idx >= md->md_tag->dt_nsegs)
+		return (0);
+
+	return (md->md_seg[idx].mds_size);
+}
+
+vm_offset_t
+busdma_md_get_vaddr(struct busdma_md *md, u_int idx)
+{
+
+	if (idx >= md->md_tag->dt_nsegs)
+		return (0);
+
+	return (md->md_seg[idx].mds_vaddr);
+}
+
+int
+busdma_md_load_linear(struct busdma_md *md, void *buf, size_t len,
+    busdma_callback_f cb, void *arg, u_int flags)
+{
+
+	return (ENOSYS);
+}
+
+int
+busdma_md_unload(struct busdma_md *md)
+{
+
+	return (ENOSYS);
+}
+
+int
+busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
+{
+	struct busdma_md *md;
+	struct busdma_md_seg *seg;
+	size_t mdsz;
 	vm_size_t maxsz;
+	u_int idx;
 
-	mem = malloc(sizeof(*mem), M_BUSDMA_MEM, M_NOWAIT | M_ZERO);
-	mem->dm_tag = tag;
-	TAILQ_INIT(&mem->dm_seg);
+	mdsz = sizeof(struct busdma_md) +
+	    sizeof(struct busdma_md_seg) * tag->dt_nsegs;
+	md = malloc(mdsz, M_BUSDMA_MD, M_NOWAIT | M_ZERO);
+	md->md_tag = tag;
 
+	idx = 0;
 	maxsz = tag->dt_maxsz;
-	while (maxsz > 0 && mem->dm_nsegs < tag->dt_nsegs) {
-		seg = malloc(sizeof(*seg), M_BUSDMA_SEG, M_NOWAIT | M_ZERO);
-		TAILQ_INSERT_TAIL(&mem->dm_seg, seg, ds_chain);
-		seg->ds_size = MIN(maxsz, tag->dt_maxsegsz);
-		seg->ds_vaddr = kmem_alloc_contig(kernel_map, seg->ds_size, 0,
-		    tag->dt_minaddr, tag->dt_maxaddr, tag->dt_align,
+	while (maxsz > 0 && idx < tag->dt_nsegs) {
+		seg = &md->md_seg[idx];
+		seg->mds_size = MIN(maxsz, tag->dt_maxsegsz);
+		seg->mds_vaddr = kmem_alloc_contig(kernel_map, seg->mds_size,
+		    0, tag->dt_minaddr, tag->dt_maxaddr, tag->dt_align,
 		    tag->dt_bndry, VM_MEMATTR_DEFAULT);
-		if (seg->ds_vaddr == 0) {
+		if (seg->mds_vaddr == 0) {
 			/* TODO: try a smaller segment size */
 			goto fail;
 		}
-		seg->ds_paddr = pmap_kextract(seg->ds_vaddr);
-		seg->ds_baddr = seg->ds_paddr;
-		maxsz -= seg->ds_size;
-		mem->dm_nsegs++;
+		seg->mds_paddr = pmap_kextract(seg->mds_vaddr);
+		seg->mds_busaddr = seg->mds_paddr;
+		maxsz -= seg->mds_size;
+		idx++;
 	}
 	if (maxsz == 0) {
-		_busdma_mem_dump(__func__, mem);
-		*mem_p = mem;
+		md->md_nsegs = idx;
+		_busdma_md_dump(__func__, md);
+		*md_p = md;
 		return (0);
 	}
 
  fail:
-	while (!TAILQ_EMPTY(&mem->dm_seg)) {
-		seg = TAILQ_FIRST(&mem->dm_seg);
-		if (seg->ds_vaddr != 0)
-			kmem_free(kernel_map, seg->ds_vaddr, seg->ds_size);
-		TAILQ_REMOVE(&mem->dm_seg, seg, ds_chain);
-		free(seg, M_BUSDMA_SEG);
+	seg = &md->md_seg[0];
+	while (seg != &md->md_seg[idx]) {
+		kmem_free(kernel_map, seg->mds_vaddr, seg->mds_size);
+		seg++;
 	}
-	free(mem, M_BUSDMA_MEM);
+	free(md, M_BUSDMA_MD);
 	return (ENOMEM);
 }
 
-vm_offset_t
-busdma_mem_get_seg_addr(struct busdma_mem *mem, u_int idx)
+int
+busdma_mem_free(struct busdma_md *md)
 {
-	struct busdma_seg *seg;
 
-	seg = _busdma_mem_get_seg(mem, idx);
-	return ((seg != NULL) ? seg->ds_vaddr : 0);
+	free(md, M_BUSDMA_MD);
+	return (0);
 }
 
-bus_addr_t
-busdma_mem_get_seg_busaddr(struct busdma_mem *mem, u_int idx)
+void
+busdma_sync(struct busdma_md *md, u_int op)
 {
-	struct busdma_seg *seg;
+}
 
-	seg = _busdma_mem_get_seg(mem, idx);
-	return ((seg != NULL) ? seg->ds_baddr : 0);
+void
+busdma_sync_range(struct busdma_md *md, u_int op, bus_addr_t addr,
+    bus_size_t len)
+{
 }

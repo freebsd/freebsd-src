@@ -1266,14 +1266,14 @@ mpt_timeout(void *arg)
 }
 
 /*
- * Callback routine from "bus_dmamap_load" or, in simple cases, called directly.
+ * Callback routine for "busdma_md_load" or, in simple cases, called directly.
  *
  * Takes a list of physical segments and builds the SGL for SCSI IO command
  * and forwards the commard to the IOC after one last check that CAM has not
  * aborted the transaction.
  */
 static void
-mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+mpt_execute_req_a64(void *arg, busdma_md_t md, int error)
 {
 	request_t *req, *trq;
 	char *mpt_off;
@@ -1281,12 +1281,13 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct mpt_softc *mpt;
 	bus_addr_t chain_list_addr;
 	int first_lim, seg, this_seg_lim;
-	uint32_t addr, cur_off, flags, nxt_off, tf;
+	uint32_t cur_off, flags, nxt_off, tf;
 	void *sglp = NULL;
 	MSG_REQUEST_HEADER *hdrp;
 	SGE_SIMPLE64 *se;
 	SGE_CHAIN64 *ce;
 	int istgt = 0;
+	u_int nseg;
 
 	req = (request_t *)arg;
 	ccb = req->ccb;
@@ -1296,10 +1297,6 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	hdrp = req->req_vbuf;
 	mpt_off = req->req_vbuf;
-
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-	}
 
 	if (error == 0) {
 		switch (hdrp->Function) {
@@ -1318,12 +1315,6 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			error = EINVAL;
 			break;
 		}
-	}
-
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-		mpt_prt(mpt, "segment count %d too large (max %u)\n",
-		    nseg, mpt->max_seg_cnt);
 	}
 
 bad:
@@ -1375,6 +1366,8 @@ bad:
 		memset(&mpt_off[tidx], 0xff, MPT_REQUEST_AREA - tidx);
 	}
 
+	nseg = busdma_md_get_nsegs(md);
+
 	if (nseg == 0) {
 		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) sglp;
 		MPI_pSGE_SET_FLAGS(se1,
@@ -1397,21 +1390,21 @@ bad:
 	}
 
 	if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
-		bus_dmasync_op_t op;
+		u_int op;
 		if (istgt == 0) {
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-				op = BUS_DMASYNC_PREREAD;
+				op = BUSDMA_SYNC_PREREAD;
 			} else {
-				op = BUS_DMASYNC_PREWRITE;
+				op = BUSDMA_SYNC_PREWRITE;
 			}
 		} else {
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-				op = BUS_DMASYNC_PREWRITE;
+				op = BUSDMA_SYNC_PREWRITE;
 			} else {
-				op = BUS_DMASYNC_PREREAD;
+				op = BUSDMA_SYNC_PREREAD;
 			}
 		}
-		bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
+		busdma_sync(req->md, op);
 	}
 
 	/*
@@ -1434,19 +1427,22 @@ bad:
 	}
 
 	se = (SGE_SIMPLE64 *) sglp;
-	for (seg = 0; seg < first_lim; seg++, se++, dm_segs++) {
+	for (seg = 0; seg < first_lim; seg++, se++) {
+		bus_addr_t addr;
+
 		tf = flags;
 		memset(se, 0, sizeof (*se));
-		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
-		se->Address.Low = htole32(dm_segs->ds_addr & 0xffffffff);
+		MPI_pSGE_SET_LENGTH(se, busdma_md_get_size(md, seg));
+		addr = busdma_md_get_busaddr(md, seg);
+		se->Address.Low = htole32(addr & 0xffffffff);
 		if (sizeof(bus_addr_t) > 4) {
-			addr = ((uint64_t)dm_segs->ds_addr) >> 32;
 			/* SAS1078 36GB limitation WAR */
-			if (mpt->is_1078 && (((uint64_t)dm_segs->ds_addr +
+			if (mpt->is_1078 && ((addr +
 			    MPI_SGE_LENGTH(se->FlagsLength)) >> 32) == 9) {
-				addr |= (1 << 31);
+				addr = (addr >> 32) | (1 << 31);
 				tf |= MPI_SGE_FLAGS_LOCAL_ADDRESS;
-			}
+			} else
+				addr >>= 32;
 			se->Address.High = htole32(addr);
 		}
 		if (seg == first_lim - 1) {
@@ -1555,21 +1551,21 @@ bad:
 		 * set the end of list and end of buffer flags.
 		 */
 		while (seg < this_seg_lim) {
+			bus_addr_t addr;
 			tf = flags;
 			memset(se, 0, sizeof (*se));
-			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
-			se->Address.Low = htole32(dm_segs->ds_addr &
-			    0xffffffff);
+			MPI_pSGE_SET_LENGTH(se, busdma_md_get_size(md, seg));
+			addr = busdma_md_get_busaddr(md, seg);
+			se->Address.Low = htole32(addr & 0xffffffff);
 			if (sizeof (bus_addr_t) > 4) {
-				addr = ((uint64_t)dm_segs->ds_addr) >> 32;
 				/* SAS1078 36GB limitation WAR */
-				if (mpt->is_1078 &&
-				    (((uint64_t)dm_segs->ds_addr +
+				if (mpt->is_1078 && ((addr +
 				    MPI_SGE_LENGTH(se->FlagsLength)) >>
 				    32) == 9) {
-					addr |= (1 << 31);
+					addr = (addr >> 32) | (1 << 31);
 					tf |= MPI_SGE_FLAGS_LOCAL_ADDRESS;
-				}
+				} else
+					addr >>= 32;
 				se->Address.High = htole32(addr);
 			}
 			if (seg == this_seg_lim - 1) {
@@ -1583,7 +1579,6 @@ bad:
 			se->FlagsLength = htole32(se->FlagsLength);
 			se++;
 			seg++;
-			dm_segs++;
 		}
 
     next_chain:
@@ -1640,7 +1635,7 @@ out:
 		    "mpt_execute_req_a64: I/O cancelled (status 0x%x)\n",
 		    ccb->ccb_h.status & CAM_STATUS_MASK);
 		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
-			bus_dmamap_unload(mpt->buffer_dmat, req->dmap);
+			busdma_md_unload(req->md);
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
@@ -1685,7 +1680,7 @@ out:
 }
 
 static void
-mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+mpt_execute_req(void *arg, busdma_md_t md, int error)
 {
 	request_t *req, *trq;
 	char *mpt_off;
@@ -1698,6 +1693,7 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	SGE_SIMPLE32 *se;
 	SGE_CHAIN32 *ce;
 	int istgt = 0;
+	u_int nseg;
 
 	req = (request_t *)arg;
 	ccb = req->ccb;
@@ -1707,11 +1703,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	hdrp = req->req_vbuf;
 	mpt_off = req->req_vbuf;
-
-
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-	}
 
 	if (error == 0) {
 		switch (hdrp->Function) {
@@ -1729,12 +1720,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			error = EINVAL;
 			break;
 		}
-	}
-
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-		mpt_prt(mpt, "segment count %d too large (max %u)\n",
-		    nseg, mpt->max_seg_cnt);
 	}
 
 bad:
@@ -1786,6 +1771,8 @@ bad:
 		memset(&mpt_off[tidx], 0xff, MPT_REQUEST_AREA - tidx);
 	}
 
+	nseg = busdma_md_get_nsegs(md);
+
 	if (nseg == 0) {
 		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) sglp;
 		MPI_pSGE_SET_FLAGS(se1,
@@ -1808,21 +1795,21 @@ bad:
 	}
 
 	if (!(ccb->ccb_h.flags & (CAM_SG_LIST_PHYS|CAM_DATA_PHYS))) {
-		bus_dmasync_op_t op;
+		u_int op;
 		if (istgt) {
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-				op = BUS_DMASYNC_PREREAD;
+				op = BUSDMA_SYNC_PREREAD;
 			} else {
-				op = BUS_DMASYNC_PREWRITE;
+				op = BUSDMA_SYNC_PREWRITE;
 			}
 		} else {
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-				op = BUS_DMASYNC_PREWRITE;
+				op = BUSDMA_SYNC_PREWRITE;
 			} else {
-				op = BUS_DMASYNC_PREREAD;
+				op = BUSDMA_SYNC_PREREAD;
 			}
 		}
-		bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
+		busdma_sync(req->md, op);
 	}
 
 	/*
@@ -1845,13 +1832,13 @@ bad:
 	}
 
 	se = (SGE_SIMPLE32 *) sglp;
-	for (seg = 0; seg < first_lim; seg++, se++, dm_segs++) {
+	for (seg = 0; seg < first_lim; seg++, se++) {
 		uint32_t tf;
 
 		memset(se, 0,sizeof (*se));
-		se->Address = htole32(dm_segs->ds_addr);
+		se->Address = htole32(busdma_md_get_busaddr(md, seg));
 
-		MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
+		MPI_pSGE_SET_LENGTH(se, busdma_md_get_size(md, seg));
 		tf = flags;
 		if (seg == first_lim - 1) {
 			tf |= MPI_SGE_FLAGS_LAST_ELEMENT;
@@ -1963,9 +1950,9 @@ bad:
 		 */
 		while (seg < this_seg_lim) {
 			memset(se, 0, sizeof (*se));
-			se->Address = htole32(dm_segs->ds_addr);
+			se->Address = htole32(busdma_md_get_busaddr(md, seg));
 
-			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
+			MPI_pSGE_SET_LENGTH(se, busdma_md_get_size(md, seg));
 			tf = flags;
 			if (seg == this_seg_lim - 1) {
 				tf |=	MPI_SGE_FLAGS_LAST_ELEMENT;
@@ -1978,7 +1965,6 @@ bad:
 			se->FlagsLength = htole32(se->FlagsLength);
 			se++;
 			seg++;
-			dm_segs++;
 		}
 
     next_chain:
@@ -2035,7 +2021,7 @@ out:
 		    "mpt_execute_req: I/O cancelled (status 0x%x)\n",
 		    ccb->ccb_h.status & CAM_STATUS_MASK);
 		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
-			bus_dmamap_unload(mpt->buffer_dmat, req->dmap);
+			busdma_md_unload(req->md);
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
@@ -2087,7 +2073,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	MSG_SCSI_IO_REQUEST *mpt_req;
 	struct ccb_scsiio *csio = &ccb->csio;
 	struct ccb_hdr *ccbh = &ccb->ccb_h;
-	bus_dmamap_callback_t *cb;
+	busdma_callback_f cb;
 	target_id_t tgt;
 	int raid_passthru;
 
@@ -2255,9 +2241,9 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 				 */
 				int error;
 				int s = splsoftvm();
-				error = bus_dmamap_load(mpt->buffer_dmat,
-				    req->dmap, csio->data_ptr, csio->dxfer_len,
-				    cb, req, 0);
+				error = busdma_md_load_linear(req->md,
+				    csio->data_ptr, csio->dxfer_len, cb, req,
+				    0);
 				splx(s);
 				if (error == EINPROGRESS) {
 					/*
@@ -2270,6 +2256,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 					ccbh->status |= CAM_RELEASE_SIMQ;
 				}
 			} else {
+#if 0
 				/*
 				 * We have been given a pointer to single
 				 * physical buffer.
@@ -2279,8 +2266,10 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 				    (bus_addr_t)(vm_offset_t)csio->data_ptr;
 				seg.ds_len = csio->dxfer_len;
 				(*cb)(req, &seg, 1, 0);
+#endif
 			}
 		} else {
+#if 0
 			/*
 			 * We have been given a list of addresses.
 			 * This case could be easily supported but they are not
@@ -2295,9 +2284,12 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 				segs = (struct bus_dma_segment *)csio->data_ptr;
 				(*cb)(req, segs, csio->sglist_cnt, 0);
 			}
+#endif
 		}
 	} else {
+#if 0
 		(*cb)(req, NULL, 0, 0);
+#endif
 	}
 }
 
@@ -2703,14 +2695,14 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		bus_dmasync_op_t op;
+		u_int op;
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-			op = BUS_DMASYNC_POSTREAD;
+			op = BUSDMA_SYNC_POSTREAD;
 		else
-			op = BUS_DMASYNC_POSTWRITE;
-		bus_dmamap_sync(mpt->buffer_dmat, req->dmap, op);
-		bus_dmamap_unload(mpt->buffer_dmat, req->dmap);
+			op = BUSDMA_SYNC_POSTWRITE;
+		busdma_sync(req->md, op);
+		busdma_md_unload(req->md);
 	}
 
 	if (reply_frame == NULL) {
@@ -4555,7 +4547,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 	}
 
 	if (csio->dxfer_len) {
-		bus_dmamap_callback_t *cb;
+		busdma_callback_f cb;
 		PTR_MSG_TARGET_ASSIST_REQUEST ta;
 		request_t *req;
 
@@ -4651,15 +4643,16 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 			if ((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0) {
 				int error;
 				int s = splsoftvm();
-				error = bus_dmamap_load(mpt->buffer_dmat,
-				    req->dmap, csio->data_ptr, csio->dxfer_len,
-				    cb, req, 0);
+				error = busdma_md_load_linear(req->md,
+				    csio->data_ptr, csio->dxfer_len, cb, req,
+				    0);
 				splx(s);
 				if (error == EINPROGRESS) {
 					xpt_freeze_simq(mpt->sim, 1);
 					ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 				}
 			} else {
+#if 0
 				/*
 				 * We have been given a pointer to single
 				 * physical buffer.
@@ -4669,8 +4662,10 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 				    (vm_offset_t)csio->data_ptr;
 				seg.ds_len = csio->dxfer_len;
 				(*cb)(req, &seg, 1, 0);
+#endif
 			}
 		} else {
+#if 0
 			/*
 			 * We have been given a list of addresses.
 			 * This case could be easily supported but they are not
@@ -4685,6 +4680,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 				sgs = (struct bus_dma_segment *)csio->data_ptr;
 				(*cb)(req, sgs, csio->sglist_cnt, 0);
 			}
+#endif
 		}
 		CAMLOCK_2_MPTLOCK(mpt);
 	} else {

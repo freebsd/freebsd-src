@@ -34,25 +34,25 @@
 struct busdma_tag;
 typedef struct busdma_tag *busdma_tag_t;
 
-struct busdma_mem;
-typedef struct busdma_mem *busdma_mem_t;
+struct busdma_md;
+typedef struct busdma_md *busdma_md_t;
 
 /*
  * busdma_tag_create
  * returns:		errno value
  * arguments:
  *	dev		device for which the created tag is a root tag.
- *	maxaddr		largest address that can be handled by the device.
  *	align		alignment requirements of the DMA segments.
  *	bndry		address boundary constraints for DMA.
+ *	maxaddr		largest address that can be handled by the device.
  *	maxsz		maximum total DMA size allowed.
  *	nsegs		maximum number of DMA segments allowed.
  *	maxsegsz	maximum size of a single DMA segment.
  *	flags		flags that control the behaviour of the operation.
  *	tag_p		address in which to return the newly created tag.
  */
-int busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
-    bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+int busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
     u_int flags, busdma_tag_t *tag_p);
 
 /*
@@ -60,18 +60,50 @@ int busdma_tag_create(device_t dev, bus_addr_t maxaddr, bus_addr_t align,
  * returns:		errno value
  * arguments:
  *	tag		the root tag that is to be derived from.
- *	maxaddr		largest address that can be handled by the device.
  *	align		alignment requirements of the DMA segments.
  *	bndry		address boundary constraints for DMA.
+ *	maxaddr		largest address that can be handled by the device.
  *	maxsz		maximum total DMA size allowed.
  *	nsegs		maximum number of DMA segments allowed.
  *	maxsegsz	maximum size of a single DMA segment.
  *	flags		flags that control the behaviour of the operation.
  *	tag_p		address in which to return the newly created tag.
  */
-int busdma_tag_derive(busdma_tag_t tag, bus_addr_t maxaddr, bus_addr_t align,
-    bus_addr_t bndry, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
+int busdma_tag_derive(busdma_tag_t tag, bus_addr_t align, bus_addr_t bndry,
+    bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
     u_int flags, busdma_tag_t *tag_p);
+
+/*
+ * busdma_tag_destroy
+ * returns:		errno value
+ * arguments:
+ *	tag		the tag to be destroyed.
+ */
+int busdma_tag_destroy(busdma_tag_t tag);
+
+/*
+ *
+ */
+typedef void (*busdma_callback_f)(void *, busdma_md_t, int);
+
+int busdma_md_create(busdma_tag_t tag, u_int flags, busdma_md_t *md_p);
+int busdma_md_destroy(busdma_md_t md);
+int busdma_md_load_linear(busdma_md_t md, void *buf, size_t size,
+    busdma_callback_f cb, void *arg, u_int flags);
+int busdma_md_load_mbuf(busdma_md_t md, void *buf, size_t size);
+int busdma_md_load_uio(busdma_md_t md, void *buf, size_t size);
+int busdma_md_unload(busdma_md_t md);
+u_int busdma_md_get_nsegs(busdma_md_t md);
+bus_addr_t busdma_md_get_busaddr(busdma_md_t md, u_int idx);
+vm_paddr_t busdma_md_get_paddr(busdma_md_t md, u_int idx);
+vm_offset_t busdma_md_get_vaddr(busdma_md_t md, u_int idx);
+vm_size_t busdma_md_get_size(busdma_md_t md, u_int idx);
+
+static __inline void *
+busdma_md_get_pointer(busdma_md_t md, u_int idx)
+{
+	return ((void *)(uintptr_t)busdma_md_get_vaddr(md, idx));
+}
 
 /*
  * busdma_mem_alloc
@@ -79,26 +111,31 @@ int busdma_tag_derive(busdma_tag_t tag, bus_addr_t maxaddr, bus_addr_t align,
  * arguments:
  *	tag		the tag providing the constraints.
  *	flags		flags that control the behaviour of the operation.
- *	mem_p		address in which to return the memory descriptor.
+ *	md_p		address in which to return the memory descriptor.
  */
-int busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_mem_t *mem_p);
+int busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *md_p);
 
 /*
- * busdma_mem_get_seg_addr
- * returns:		kernel virtual address of the specified segment.
+ * busdma_mem_free
+ * returns:		errno value
  * arguments:
- *	mem		the DMA memory allocated or mapped.
- *	idx		the segment index, starting at 0.
+ *	tag		the memory descriptor of the memory to be freed.
  */
-vm_offset_t busdma_mem_get_seg_addr(busdma_mem_t tag, u_int idx);
+int busdma_mem_free(busdma_md_t md);
 
-/*
- * busdma_mem_get_seg_busaddr
- * returns:		(virtual) bus address of the specified segment.
- * arguments:
- *	mem		the BMA memory allocated to mapped.
- *	idx		the segment index, starting at 0.
- */
-bus_addr_t busdma_mem_get_seg_busaddr(busdma_mem_t mem, u_int idx);
+int busdma_start(busdma_md_t md, u_int);
+int busdma_stop(busdma_md_t md);
+void busdma_sync(busdma_md_t md, u_int);
+void busdma_sync_range(busdma_md_t md, u_int, vm_paddr_t, vm_size_t);
+
+#define	BUSDMA_SYNC_READ	0x1
+#define	BUSDMA_SYNC_WRITE	0x2
+#define	BUSDMA_SYNC_BEFORE	0x0
+#define	BUSDMA_SYNC_AFTER	0x4
+
+#define	BUSDMA_SYNC_PREREAD	(BUSDMA_SYNC_BEFORE | BUSDMA_SYNC_READ)
+#define	BUSDMA_SYNC_PREWRITE	(BUSDMA_SYNC_BEFORE | BUSDMA_SYNC_WRITE)
+#define	BUSDMA_SYNC_POSTREAD	(BUSDMA_SYNC_AFTER | BUSDMA_SYNC_READ)
+#define	BUSDMA_SYNC_POSTWRITE	(BUSDMA_SYNC_AFTER | BUSDMA_SYNC_WRITE)
 
 #endif /* _SYS_BUSDMA_H_ */

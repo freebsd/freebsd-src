@@ -234,52 +234,8 @@ int mpt_modevent(module_t, int, void *);
 	MPT_PERSONALITY_DEPEND(name, mpt_core, 1, 1, 1)
 
 /******************************* Bus DMA Support ******************************/
-/* XXX Need to update bus_dmamap_sync to take a range argument. */
-#define bus_dmamap_sync_range(dma_tag, dmamap, offset, len, op)	\
-	bus_dmamap_sync(dma_tag, dmamap, op)
 
-#ifdef MPT_USE_BUSDMA
 #include <sys/busdma.h>
-
-#define	mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
-		lowaddr, highaddr, filter, filterarg, maxsize,		\
-		nsegments, maxsegsz, flags, dma_tagp)			\
-	busdma_tag_create((mpt)->dev, lowaddr, alignment, boundary,	\
-	    maxsize, nsegments, maxsegsz, flags,			\
-	    (busdma_tag_t *)dma_tagp)
-
-#define	mpt_dma_tag_derive(mpt, parent_tag, alignment, boundary,	\
-		lowaddr, highaddr, filter, filterarg, maxsize,		\
-		nsegments, maxsegsz, flags, dma_tagp)			\
-	busdma_tag_derive((busdma_tag_t)parent_tag, lowaddr, alignment,	\
-	    boundary, maxsize, nsegments, maxsegsz, flags,		\
-	    (busdma_tag_t *)dma_tagp)
-#else
-#if __FreeBSD_version < 600000
-#define	bus_get_dma_tag(x)	NULL
-#endif
-#if __FreeBSD_version >= 501102
-#define mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)					\
-	bus_dma_tag_create(parent_tag, alignment, boundary,		\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   busdma_lock_mutex, &(mpt)->mpt_lock,		\
-			   dma_tagp)
-#else
-#define mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)					\
-	bus_dma_tag_create(parent_tag, alignment, boundary,		\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)
-#endif
-#define	mpt_dma_tag_derive	mpt_dma_tag_create
-#endif /* MPT_USE_BUSDMA */
 
 struct mpt_map_info {
 	struct mpt_softc *mpt;
@@ -287,7 +243,6 @@ struct mpt_map_info {
 	uint32_t	  phys;
 };
 
-void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 /* **************************** NewBUS interrupt Crock ************************/
 #if __FreeBSD_version < 700031
 #define	mpt_setup_intr(d, i, f, U, if, ifa, hp)	\
@@ -397,7 +352,7 @@ struct req_entry {
 	void	       *sense_vbuf;	/* Virtual Address of sense data */
 	bus_addr_t	req_pbuf;	/* Physical Address of Entry */
 	bus_addr_t	sense_pbuf;	/* Physical Address of sense data */
-	bus_dmamap_t	dmap;		/* DMA map for data buffers */
+	busdma_md_t	md;		/* DMA map for data buffers */
 	struct req_entry *chain;	/* for SGE overallocations */
 	struct callout  callout;	/* Timeout for the request */
 };
@@ -750,23 +705,15 @@ struct mpt_softc {
 	bus_space_tag_t		pci_pio_st;
 	bus_space_handle_t	pci_pio_sh;
 
-	bus_dma_tag_t		parent_dmat;	/* DMA tag for parent PCI bus */
-	bus_dma_tag_t		reply_dmat;	/* DMA tag for reply memory */
-#ifdef MPT_USE_BUSDMA
-	busdma_mem_t		reply_dmam;
-#else
-	bus_dmamap_t		reply_dmap;	/* DMA map for reply memory */
-#endif
+	busdma_tag_t		parent_dmat;	/* DMA tag for parent PCI bus */
+	busdma_tag_t		reply_dmat;	/* DMA tag for reply memory */
+	busdma_md_t		reply_md;
 	uint8_t		       *reply;		/* KVA of reply memory */
 	bus_addr_t		reply_phys;	/* BusAddr of reply memory */
 
-	bus_dma_tag_t		buffer_dmat;	/* DMA tag for buffers */
-	bus_dma_tag_t		request_dmat;	/* DMA tag for request memroy */
-#ifdef MPT_USE_BUSDMA
-	busdma_mem_t		request_dmam;
-#else
-	bus_dmamap_t		request_dmap;	/* DMA map for request memroy */
-#endif
+	busdma_tag_t		buffer_dmat;	/* DMA tag for buffers */
+	busdma_tag_t		request_dmat;	/* DMA tag for request memroy */
+	busdma_md_t		request_md;
 	uint8_t		       *request;	/* KVA of Request memory */
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
@@ -830,8 +777,8 @@ struct mpt_softc {
 	/* FW Image management */
 	uint32_t		fw_image_size;
 	uint8_t		       *fw_image;
-	bus_dma_tag_t		fw_dmat;	/* DMA tag for firmware image */
-	bus_dmamap_t		fw_dmap;	/* DMA map for firmware image */
+	busdma_tag_t		fw_dmat;	/* DMA tag for firmware image */
+	busdma_md_t		fw_md;		/* DMA map for firmware image */
 	bus_addr_t		fw_phys;	/* BusAddr of firmware image */
 
 	/* SAS Topology */

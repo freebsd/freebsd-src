@@ -392,17 +392,6 @@ mpt_postattach(void *unused)
 }
 SYSINIT(mptdev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, mpt_postattach, NULL);
 
-/******************************* Bus DMA Support ******************************/
-void
-mpt_map_rquest(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct mpt_map_info *map_info;
-
-	map_info = (struct mpt_map_info *)arg;
-	map_info->error = error;
-	map_info->phys = segs->ds_addr;
-}
-
 /**************************** Reply/Event Handling ****************************/
 int
 mpt_register_handler(struct mpt_softc *mpt, mpt_handler_type type,
@@ -742,12 +731,8 @@ mpt_intr(void *arg)
 			 */
 			reply_baddr = MPT_REPLY_BADDR(reply_desc);
 			offset = reply_baddr - (mpt->reply_phys & 0xFFFFFFFF);
-#ifdef MPT_USE_BUSDMA
-#else
-			bus_dmamap_sync_range(mpt->reply_dmat,
-			    mpt->reply_dmap, offset, MPT_REPLY_SIZE,
-			    BUS_DMASYNC_POSTREAD);
-#endif
+			busdma_sync_range(mpt->reply_md, reply_baddr,
+			    MPT_REPLY_SIZE, BUS_DMASYNC_POSTREAD);
 			reply_frame = MPT_REPLY_OTOV(mpt, offset);
 			ctxt_idx = le32toh(reply_frame->MsgContext);
 		} else {
@@ -823,21 +808,14 @@ mpt_intr(void *arg)
 			    " 0x%x)\n", req_index, reply_desc);
 		}
 
-#ifdef MPT_USE_BUSDMA
-#else
-		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+		busdma_sync(mpt->request_md,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-#endif
 		free_rf = mpt_reply_handlers[cb_index](mpt, req,
 		    reply_desc, reply_frame);
 
 		if (reply_frame != NULL && free_rf) {
-#ifdef MPT_USE_BUSDMA
-#else
-			bus_dmamap_sync_range(mpt->reply_dmat,
-			    mpt->reply_dmap, offset, MPT_REPLY_SIZE,
-			    BUS_DMASYNC_PREREAD);
-#endif
+			busdma_sync_range(mpt->reply_md, reply_baddr,
+			    MPT_REPLY_SIZE, BUS_DMASYNC_PREREAD);
 			mpt_free_reply(mpt, reply_baddr);
 		}
 
@@ -870,11 +848,8 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
 
-#ifdef MPT_USE_BUSDMA
-#else
-		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+		busdma_sync(mpt->request_md,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-#endif
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
@@ -1262,11 +1237,8 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	mpt_send_event_ack(mpt, req, &record->reply, record->context);
 	offset = (uint32_t)((uint8_t *)record - mpt->reply);
 	reply_baddr = offset + (mpt->reply_phys & 0xFFFFFFFF);
-#ifdef MPT_USE_BUSDMA
-#else
-	bus_dmamap_sync_range(mpt->reply_dmat, mpt->reply_dmap, offset,
-	    MPT_REPLY_SIZE, BUS_DMASYNC_PREREAD);
-#endif
+	busdma_sync_range(mpt->reply_md, offset, MPT_REPLY_SIZE,
+	    BUS_DMASYNC_PREREAD);
 	mpt_free_reply(mpt, reply_baddr);
 }
 
@@ -1306,11 +1278,8 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 	if (mpt->verbose > MPT_PRT_DEBUG2) {
 		mpt_dump_request(mpt, req);
 	}
-#ifdef MPT_USE_BUSDMA
-#else
-	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+	busdma_sync(mpt->request_md,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-#endif
 	req->state |= REQ_STATE_QUEUED;
 	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
 	    ("req %p:%u func %x on freelist list in mpt_send_cmd",
@@ -2437,12 +2406,12 @@ mpt_upload_fw(struct mpt_softc *mpt)
 	flags <<= MPI_SGE_FLAGS_SHIFT;
 	sge->FlagsLength = htole32(flags | mpt->fw_image_size);
 	sge->Address = htole32(mpt->fw_phys);
-	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_PREREAD);
+	busdma_sync(mpt->fw_md, BUS_DMASYNC_PREREAD);
 	error = mpt_send_handshake_cmd(mpt, sizeof(fw_req_buf), &fw_req_buf);
 	if (error)
 		return(error);
 	error = mpt_recv_handshake_reply(mpt, sizeof(fw_reply), &fw_reply);
-	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_POSTREAD);
+	busdma_sync(mpt->fw_md, BUS_DMASYNC_POSTREAD);
 	return (error);
 }
 
@@ -2492,10 +2461,10 @@ mpt_download_fw(struct mpt_softc *mpt)
 		  MPI_DIAG_RW_ENABLE|MPI_DIAG_DISABLE_ARM);
 
 	fw_hdr = (MpiFwHeader_t *)mpt->fw_image;
-	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_PREWRITE);
+	busdma_sync(mpt->fw_md, BUS_DMASYNC_PREWRITE);
 	mpt_diag_outsl(mpt, fw_hdr->LoadStartAddress, (uint32_t*)fw_hdr,
 		       fw_hdr->ImageSize);
-	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_POSTWRITE);
+	busdma_sync(mpt->fw_md, BUS_DMASYNC_POSTWRITE);
 
 	ext_offset = fw_hdr->NextImageHeaderOffset;
 	while (ext_offset != 0) {
@@ -2503,12 +2472,10 @@ mpt_download_fw(struct mpt_softc *mpt)
 
 		ext = (MpiExtImageHeader_t *)((uintptr_t)fw_hdr + ext_offset);
 		ext_offset = ext->NextImageHeaderOffset;
-		bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap,
-		    BUS_DMASYNC_PREWRITE);
+		busdma_sync(mpt->fw_md, BUS_DMASYNC_PREWRITE);
 		mpt_diag_outsl(mpt, ext->LoadStartAddress, (uint32_t*)ext,
 			       ext->ImageSize);
-		bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap,
-		    BUS_DMASYNC_POSTWRITE);
+		busdma_sync(mpt->fw_md, BUS_DMASYNC_POSTWRITE);
 	}
 
 	if (mpt->is_sas) {
@@ -2546,64 +2513,35 @@ mpt_download_fw(struct mpt_softc *mpt)
 static int
 mpt_dma_buf_alloc(struct mpt_softc *mpt)
 {
-#ifndef MPT_USE_BUSDMA
-	struct mpt_map_info mi;
-#endif
 	uint8_t *vptr;
 	uint32_t pptr, end;
 	int i, error;
 
 	/* Create a child tag for data buffers */
-	if (mpt_dma_tag_derive(mpt, mpt->parent_dmat, 1,
-	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE,
-	    mpt->max_cam_seg_cnt, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->buffer_dmat) != 0) {
+	error = busdma_tag_derive(mpt->parent_dmat, 1, 0, BUS_SPACE_MAXADDR,
+	    (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE, mpt->max_cam_seg_cnt,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, &mpt->buffer_dmat);
+	if (error != 0) {
 		mpt_prt(mpt, "cannot create a dma tag for data buffers\n");
-		return (1);
+		return (error);
 	}
 
 	/* Create a child tag for request buffers */
-	if (mpt_dma_tag_derive(mpt, mpt->parent_dmat, PAGE_SIZE, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
-	    &mpt->request_dmat) != 0) {
+	error = busdma_tag_derive(mpt->parent_dmat, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, MPT_REQ_MEM_SIZE(mpt), 1,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, &mpt->request_dmat);
+	if (error != 0) {
 		mpt_prt(mpt, "cannot create a dma tag for requests\n");
-		return (1);
+		return (error);
 	}
 
-#ifdef MPT_USE_BUSDMA
-	error = busdma_mem_alloc((busdma_tag_t)mpt->request_dmat, 0,
-	    &mpt->request_dmam);
+	error = busdma_mem_alloc(mpt->request_dmat, 0, &mpt->request_md);
 	if (error != 0) {
 		mpt_prt(mpt, "cannot allocate DMA memory for requests\n");
 		return (error);
 	}
-	mpt->request = (void *)busdma_mem_get_seg_addr(mpt->request_dmam, 0);
-	mpt->request_phys = busdma_mem_get_seg_busaddr(mpt->request_dmam, 0);
-#else
-	/* Allocate some DMA accessible memory for requests */
-	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
-	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &mpt->request_dmap) != 0) {
-		mpt_prt(mpt, "cannot allocate %d bytes of request memory\n",
-		    MPT_REQ_MEM_SIZE(mpt));
-		return (1);
-	}
-
-	mi.mpt = mpt;
-	mi.error = 0;
-
-	/* Load and lock it into "bus space" */
-	bus_dmamap_load(mpt->request_dmat, mpt->request_dmap, mpt->request,
-	    MPT_REQ_MEM_SIZE(mpt), mpt_map_rquest, &mi, 0);
-
-	if (mi.error) {
-		mpt_prt(mpt, "error %d loading dma map for DMA request queue\n",
-		    mi.error);
-		return (1);
-	}
-	mpt->request_phys = mi.phys;
-#endif
+	mpt->request = busdma_md_get_pointer(mpt->request_md, 0);
+	mpt->request_phys = busdma_md_get_busaddr(mpt->request_md, 0);
 
 	/*
 	 * Now create per-request dma maps
@@ -2626,11 +2564,11 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 		req->sense_pbuf = (pptr - MPT_SENSE_SIZE);
 		req->sense_vbuf = (vptr - MPT_SENSE_SIZE);
 
-		error = bus_dmamap_create(mpt->buffer_dmat, 0, &req->dmap);
+		error = busdma_md_create(mpt->buffer_dmat, 0, &req->md);
 		if (error) {
 			mpt_prt(mpt, "error %d creating per-cmd DMA maps\n",
 			    error);
-			return (1);
+			return (error);
 		}
 	}
 
@@ -2647,16 +2585,12 @@ mpt_dma_buf_free(struct mpt_softc *mpt)
 		return;
 	}
 	for (i = 0; i < MPT_MAX_REQUESTS(mpt); i++) {
-		bus_dmamap_destroy(mpt->buffer_dmat, mpt->request_pool[i].dmap);
+		busdma_md_destroy(mpt->request_pool[i].md);
 	}
-#ifdef MPT_USE_BUSDMA
-#else
-	bus_dmamap_unload(mpt->request_dmat, mpt->request_dmap);
-	bus_dmamem_free(mpt->request_dmat, mpt->request, mpt->request_dmap);
-	bus_dma_tag_destroy(mpt->request_dmat);
+	busdma_mem_free(mpt->request_md);
+	busdma_tag_destroy(mpt->request_dmat);
 	mpt->request_dmat = 0;
-	bus_dma_tag_destroy(mpt->buffer_dmat);
-#endif
+	busdma_tag_destroy(mpt->buffer_dmat);
 }
 
 /*
@@ -2780,7 +2714,6 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 
 	if ((mpt->ioc_facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT) &&
 	    (mpt->fw_uploaded == 0)) {
-		struct mpt_map_info mi;
 
 		/*
 		 * In some configurations, the IOC's firmware is
@@ -2792,35 +2725,28 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		 * the firmware after any hard-reset.
 		 */
 		mpt->fw_image_size = mpt->ioc_facts.FWImageSize;
-		error = mpt_dma_tag_derive(mpt, mpt->parent_dmat, 1, 0,
-		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-		    mpt->fw_image_size, 1, mpt->fw_image_size, 0,
-		    &mpt->fw_dmat);
+		error = busdma_tag_derive(mpt->parent_dmat, 1, 0,
+		    BUS_SPACE_MAXADDR_32BIT, mpt->fw_image_size, 1,
+		    mpt->fw_image_size, 0, &mpt->fw_dmat);
 		if (error != 0) {
 			mpt_prt(mpt, "cannot create firmware dma tag\n");
 			return (ENOMEM);
 		}
-		error = bus_dmamem_alloc(mpt->fw_dmat,
-		    (void **)&mpt->fw_image, BUS_DMA_NOWAIT |
-		    BUS_DMA_COHERENT, &mpt->fw_dmap);
+		error = busdma_mem_alloc(mpt->fw_dmat,
+		    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &mpt->fw_md);
 		if (error != 0) {
 			mpt_prt(mpt, "cannot allocate firmware memory\n");
-			bus_dma_tag_destroy(mpt->fw_dmat);
+			busdma_tag_destroy(mpt->fw_dmat);
 			return (ENOMEM);
 		}
-		mi.mpt = mpt;
-		mi.error = 0;
-		bus_dmamap_load(mpt->fw_dmat, mpt->fw_dmap,
-		    mpt->fw_image, mpt->fw_image_size, mpt_map_rquest, &mi, 0);
-		mpt->fw_phys = mi.phys;
+		mpt->fw_image = busdma_md_get_pointer(mpt->fw_md, 0);
+		mpt->fw_phys = busdma_md_get_busaddr(mpt->fw_md, 0);
 
 		error = mpt_upload_fw(mpt);
 		if (error != 0) {
 			mpt_prt(mpt, "firmware upload failed.\n");
-			bus_dmamap_unload(mpt->fw_dmat, mpt->fw_dmap);
-			bus_dmamem_free(mpt->fw_dmat, mpt->fw_image,
-			    mpt->fw_dmap);
-			bus_dma_tag_destroy(mpt->fw_dmat);
+			busdma_mem_free(mpt->fw_md);
+			busdma_tag_destroy(mpt->fw_dmat);
 			mpt->fw_image = NULL;
 			return (EIO);
 		}
