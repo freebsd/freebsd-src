@@ -67,8 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
-#include <fs/fifofs/fifo.h>
-
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -509,6 +507,7 @@ nfs_open(struct vop_open_args *ap)
 	struct vattr vattr;
 	int error;
 	int fmode = ap->a_mode;
+	struct ucred *cred;
 
 	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		return (EOPNOTSUPP);
@@ -565,7 +564,22 @@ nfs_open(struct vop_open_args *ap)
 		}
 		np->n_directio_opens++;
 	}
+
+	/*
+	 * If this is an open for writing, capture a reference to the
+	 * credentials, so they can be used by nfs_putpages(). Using
+	 * these write credentials is preferable to the credentials of
+	 * whatever thread happens to be doing the VOP_PUTPAGES() since
+	 * the write RPCs are less likely to fail with EACCES.
+	 */
+	if ((fmode & FWRITE) != 0) {
+		cred = np->n_writecred;
+		np->n_writecred = crhold(ap->a_cred);
+	} else
+		cred = NULL;
 	mtx_unlock(&np->n_mtx);
+	if (cred != NULL)
+		crfree(cred);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
@@ -912,7 +926,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct mount *mp = dvp->v_mount;
-	struct vattr vattr;
+	struct vattr dvattr, vattr;
 	struct timespec nctime;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
@@ -938,7 +952,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		*vpp = NULLVP;
 		return (error);
 	}
-	error = cache_lookup_times(dvp, vpp, cnp, &nctime, &ncticks);
+	error = cache_lookup(dvp, vpp, cnp, &nctime, &ncticks);
 	if (error > 0 && error != ENOENT)
 		return (error);
 	if (error == -1) {
@@ -959,7 +973,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * We only accept a positive hit in the cache if the
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
-		 * to doing a lookup RPC.
+		 * to doing a lookup RPC.  We also only trust cache
+		 * entries for less than nm_nametimeo seconds.
 		 *
 		 * To better handle stale file handles and attributes,
 		 * clear the attribute cache of this node if it is a
@@ -980,7 +995,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
 			mtx_unlock(&newnp->n_mtx);
 		}
-		if (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+		if ((u_int)(ticks - ncticks) < (nmp->nm_nametimeo * hz) &&
+		    VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
 		    timespeccmp(&vattr.va_ctime, &nctime, ==)) {
 			nfsstats.lookupcache_hits++;
 			if (cnp->cn_nameiop != LOOKUP &&
@@ -1127,7 +1143,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 	if (v3) {
 		nfsm_postop_attr_va(newvp, attrflag, &vattr);
-		nfsm_postop_attr(dvp, dattrflag);
+		nfsm_postop_attr_va(dvp, dattrflag, &dvattr);
 	} else {
 		nfsm_loadattr(newvp, &vattr);
 		attrflag = 1;
@@ -1135,9 +1151,10 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
-	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) && attrflag) {
-		cache_enter_time(dvp, newvp, cnp, &vattr.va_ctime);
-	}
+	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) &&
+	    attrflag != 0 && (newvp->v_type != VDIR || dattrflag != 0))
+		cache_enter_time(dvp, newvp, cnp, &vattr.va_ctime,
+		    newvp->v_type != VDIR ? NULL : &dvattr.va_ctime);
 	*vpp = newvp;
 	m_freem(mrep);
 nfsmout:
@@ -1179,7 +1196,7 @@ nfsmout:
 			    &vattr.va_mtime, ==)) {
 				mtx_unlock(&np->n_mtx);
 				cache_enter_time(dvp, NULL, cnp,
-				    &vattr.va_mtime);
+				    &vattr.va_mtime, NULL);
 			} else
 				mtx_unlock(&np->n_mtx);
 		}
@@ -1446,7 +1463,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		tsiz -= len;
 	}
 nfsmout:
-	if (vp->v_mount->mnt_kern_flag & MNTK_ASYNC)
+	if (DOINGASYNC(vp))
 		committed = NFSV3WRITE_FILESYNC;
 	*iomode = committed;
 	if (error)
@@ -1530,8 +1547,6 @@ nfsmout:
 		if (newvp)
 			vput(newvp);
 	} else {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
 		*vpp = newvp;
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
@@ -1670,8 +1685,6 @@ nfsmout:
 			vput(newvp);
 	}
 	if (!error) {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
@@ -2465,11 +2478,11 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	nfsuint64 cookie;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *dnp = VTONFS(vp), *np;
-	struct vattr vattr;
+	struct vattr vattr, dvattr;
 	nfsfh_t *fhp;
 	u_quad_t fileno;
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, doit, bigenough = 1, i;
-	int attrflag, fhsize;
+	int attrflag, dattrflag, fhsize;
 
 #ifndef nolint
 	dp = NULL;
@@ -2515,7 +2528,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		*tl++ = txdr_unsigned(nmp->nm_readdirsize);
 		*tl = txdr_unsigned(nmp->nm_rsize);
 		nfsm_request(vp, NFSPROC_READDIRPLUS, uiop->uio_td, cred);
-		nfsm_postop_attr(vp, attrflag);
+		nfsm_postop_attr_va(vp, dattrflag, &dvattr);
 		if (error) {
 			m_freem(mrep);
 			goto nfsmout;
@@ -2651,8 +2664,11 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				md = mdsav2;
 				dp->d_type = IFTODT(VTTOIF(vattr.va_type));
 				ndp->ni_vp = newvp;
-			        cache_enter_time(ndp->ni_dvp, ndp->ni_vp, cnp,
-				    &vattr.va_ctime);
+				if (newvp->v_type != VDIR || dattrflag != 0)
+				    cache_enter_time(ndp->ni_dvp, ndp->ni_vp,
+					cnp, &vattr.va_ctime,
+					newvp->v_type != VDIR ? NULL :
+					&dvattr.va_ctime);
 			    }
 			} else {
 			    /* Just skip over the file handle */

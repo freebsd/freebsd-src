@@ -122,6 +122,11 @@ bool InternalizePass::runOnModule(Module &M) {
 
   bool Changed = false;
 
+  // Never internalize functions which code-gen might insert.
+  // FIXME: We should probably add this (and the __stack_chk_guard) via some
+  // type of call-back in CodeGen.
+  ExternalNames.insert("__stack_chk_fail");
+
   // Mark all functions not in the api as internal.
   // FIXME: maybe use private linkage?
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
@@ -148,8 +153,10 @@ bool InternalizePass::runOnModule(Module &M) {
   // won't find them.  (see MachineModuleInfo.)
   ExternalNames.insert("llvm.global_ctors");
   ExternalNames.insert("llvm.global_dtors");
-  ExternalNames.insert("llvm.noinline");
   ExternalNames.insert("llvm.global.annotations");
+
+  // Never internalize symbols code-gen inserts.
+  ExternalNames.insert("__stack_chk_guard");
 
   // Mark all global variables with initializers that are not in the api as
   // internal as well.

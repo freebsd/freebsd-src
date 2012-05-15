@@ -490,33 +490,30 @@ ng_getsockaddr(struct socket *so, struct sockaddr **addr)
 	int sg_len;
 	int error = 0;
 
-	/* Why isn't sg_data a `char[1]' ? :-( */
-	sg_len = sizeof(struct sockaddr_ng) - sizeof(sg->sg_data) + 1;
-
 	pcbp = sotongpcb(so);
 	if ((pcbp == NULL) || (pcbp->sockdata == NULL))
 		/* XXXGL: can this still happen? */
 		return (EINVAL);
 
+	sg_len = sizeof(struct sockaddr_ng) + NG_NODESIZ -
+	    sizeof(sg->sg_data);
+	sg = malloc(sg_len, M_SONAME, M_WAITOK | M_ZERO);
+
 	mtx_lock(&pcbp->sockdata->mtx);
 	if (pcbp->sockdata->node != NULL) {
 		node_p node = pcbp->sockdata->node;
-		int namelen = 0;	/* silence compiler! */
 
 		if (NG_NODE_HAS_NAME(node))
-			sg_len += namelen = strlen(NG_NODE_NAME(node));
-
-		sg = malloc(sg_len, M_SONAME, M_WAITOK | M_ZERO);
-
-		if (NG_NODE_HAS_NAME(node))
-			bcopy(NG_NODE_NAME(node), sg->sg_data, namelen);
+			bcopy(NG_NODE_NAME(node), sg->sg_data,
+			    strlen(NG_NODE_NAME(node)));
+		mtx_unlock(&pcbp->sockdata->mtx);
 
 		sg->sg_len = sg_len;
 		sg->sg_family = AF_NETGRAPH;
 		*addr = (struct sockaddr *)sg;
-		mtx_unlock(&pcbp->sockdata->mtx);
 	} else {
 		mtx_unlock(&pcbp->sockdata->mtx);
+		free(sg, M_SONAME);
 		error = EINVAL;
 	}
 
@@ -850,12 +847,9 @@ ngs_findhook(node_p node, const char *name)
 	uint32_t h;
 
 	/*
-	 * Microoptimisations for a ng_socket with no
-	 * hooks, or with a single hook, which is a
-	 * common case.
+	 * Microoptimisation for an ng_socket with
+	 * a single hook, which is a common case.
 	 */
-	if (node->nd_numhooks == 0)
-		return (NULL);
 	if (node->nd_numhooks == 1) {
 		hook_p hook;
 

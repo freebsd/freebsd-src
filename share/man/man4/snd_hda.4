@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2012
+.Dd January 25, 2012
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -182,6 +182,18 @@ May be specified as a 32-bit hexadecimal value with a leading
 or as a set of space-separated
 .Dq Ar option Ns = Ns Ar value
 pairs.
+.It Va hint.pcm.%d.rec.autosrc
+Controls automatic recording source feature:
+.Bl -tag -compact
+.It 0
+disabled,
+.It 1
+once on attach,
+.It 2
+enabled.
+.El
+When enabled, driver will automatically set recording source of the mixer to
+connected input using jack presence detection statuses.
 .El
 .Pp
 Pin configuration is the UAA driver's main source of information about codec
@@ -223,10 +235,10 @@ first pin in that association.
 .Pp
 The sequence numbers 14 and 15 has a special meaning for input associations.
 Their presence in association defines it as multiplexed or mixed respectively.
-If none of them present and there are more then one pin in association,
+If none of them are present and there are more than one pin in association,
 the association will provide multichannel input.
 .Pp
-For multichannel input/output assotiations sequence numbers encode
+For multichannel input/output associations sequence numbers encode
 channel pairs positions:
 0 - Front, 1 - Center/LFE, 2 - Back, 3 - Front Wide Center, 4 - Side.
 Standard combinations are: (0) - Stereo; (0, 2), (0, 4) - Quadro;
@@ -356,7 +368,17 @@ Original pin configuration written by BIOS.
 .It Va dev.hdaa.%d.reconfig
 Setting this to a non-zero value makes driver to destroy existing pcm devices
 and process new pins configuration set via
-.Va dev.hdaa.%d.nid%d_config.
+.Va dev.hdaa.%d.nid%d_config .
+.It Va dev.pcm.%d.play.32bit , dev.pcm.%d.rec.32bit
+HDA controller uses 32bit representation for all samples of more then 16 bits.
+These variables allow to specify how many bits of these 32 should be
+used by CODEC.
+Depending on codec capabilities, possible values are 20, 24 and 32 bit.
+The default value is 24.
+.It Va dev.pcm.%d.rec.autosrc
+Run-time equivalent of the
+.Va hint.pcm.%d.rec.autosrc
+tunable.
 .El
 .Sh EXAMPLES
 Taking HP Compaq DX2300 with Realtek ALC888 HDA codec for example.
@@ -458,7 +480,6 @@ Recording on
 will go from two external microphones and line-in jacks.
 .Li pcm1
 playback will go to the internal speaker.
-.Pp
 .Ss Example 2
 Setting the
 .Xr device.hints 5
@@ -481,7 +502,6 @@ The
 .Li pcm1
 device will be completely dedicated to a headset (headphones and mic)
 connected to the front connectors.
-.Pp
 .Ss Example 3
 Setting the
 .Xr device.hints 5
@@ -505,7 +525,6 @@ will give 4 independent devices:
 and
 .Li pcm3
 .Pq internal speaker .
-.Pp
 .Ss Example 4
 Setting the
 .Xr device.hints 5
@@ -567,7 +586,7 @@ subclass 3 (HDA), compatible with Intel HDA specification.
 .Pp
 The
 .Nm
-driver supports more then two hundred different controllers and CODECs.
+driver supports more than two hundred different controllers and CODECs.
 There is no sense to list all of them here, as in most cases specific CODEC
 configuration and wiring are more important then type of the CODEC itself.
 .Sh SEE ALSO

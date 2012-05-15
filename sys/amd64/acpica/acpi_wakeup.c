@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/clock.h>
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/pcb.h>
@@ -74,7 +76,7 @@ static struct pcb	**susppcbs;
 static void		**suspfpusave;
 #endif
 
-int			acpi_restorecpu(vm_offset_t, struct pcb *);
+int			acpi_restorecpu(uint64_t, vm_offset_t);
 
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
@@ -92,11 +94,12 @@ static void		acpi_wakeup_cpus(struct acpi_softc *, const cpuset_t *);
 	*addr = val;					\
 } while (0)
 
-/* Turn off bits 1&2 of the PIT, stopping the beep. */
 static void
 acpi_stop_beep(void *arg)
 {
-	outb(0x61, inb(0x61) & ~0x3);
+
+	if (acpi_resume_beep != 0)
+		timer_spkr_release();
 }
 
 #ifdef SMP
@@ -220,7 +223,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef SMP
 	cpuset_t	wakeup_cpus;
 #endif
-	register_t	cr3, rf;
+	register_t	rf;
 	ACPI_STATUS	status;
 	int		ret;
 
@@ -234,18 +237,13 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	CPU_CLR(PCPU_GET(cpuid), &wakeup_cpus);
 #endif
 
+	if (acpi_resume_beep != 0)
+		timer_spkr_acquire();
+
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
 	rf = intr_disable();
 	intr_suspend();
-
-	/*
-	 * Temporarily switch to the kernel pmap because it provides
-	 * an identity mapping (setup at boot) for the low physical
-	 * memory region containing the wakeup code.
-	 */
-	cr3 = rcr3();
-	load_cr3(KPML4phys);
 
 	if (savectx(susppcbs[0])) {
 		ctx_fpusave(suspfpusave[0]);
@@ -272,7 +270,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
 			status = AcpiEnterSleepStateS4bios();
 		else
-			status = AcpiEnterSleepState(state);
+			status = AcpiEnterSleepState(state, acpi_sleep_flags);
 
 		if (status != AE_OK) {
 			device_printf(sc->acpi_dev,
@@ -285,13 +283,14 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			ia32_pause();
 	} else {
 		pmap_init_pat();
+		load_cr3(susppcbs[0]->pcb_cr3);
+		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 #ifdef SMP
 		if (!CPU_EMPTY(&wakeup_cpus))
 			acpi_wakeup_cpus(sc, &wakeup_cpus);
 #endif
-		acpi_resync_clock(sc);
 		ret = 0;
 	}
 
@@ -301,7 +300,6 @@ out:
 		restart_cpus(wakeup_cpus);
 #endif
 
-	load_cr3(cr3);
 	mca_resume();
 	intr_resume();
 	intr_restore(rf);
@@ -311,10 +309,6 @@ out:
 	if (ret == 0 && mem_range_softc.mr_op != NULL &&
 	    mem_range_softc.mr_op->reinit != NULL)
 		mem_range_softc.mr_op->reinit(&mem_range_softc);
-
-	/* If we beeped, turn it off after a delay. */
-	if (acpi_resume_beep)
-		timeout(acpi_stop_beep, NULL, 3 * hz);
 
 	return (ret);
 }
@@ -332,10 +326,16 @@ acpi_alloc_wakeup_handler(void)
 	 * and ROM area (0xa0000 and above).  The temporary page tables must be
 	 * page-aligned.
 	 */
-	wakeaddr = contigmalloc(4 * PAGE_SIZE, M_DEVBUF, M_NOWAIT, 0x500,
+	wakeaddr = contigmalloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK, 0x500,
 	    0xa0000, PAGE_SIZE, 0ul);
 	if (wakeaddr == NULL) {
 		printf("%s: can't alloc wake memory\n", __func__);
+		return (NULL);
+	}
+	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
+	    EVENTHANDLER_PRI_LAST) == NULL) {
+		printf("%s: can't register event handler\n", __func__);
+		contigfree(wakeaddr, 4 * PAGE_SIZE, M_DEVBUF);
 		return (NULL);
 	}
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
@@ -386,6 +386,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	WAKECODE_FIXUP(wakeup_lstar, uint64_t, rdmsr(MSR_LSTAR));
 	WAKECODE_FIXUP(wakeup_cstar, uint64_t, rdmsr(MSR_CSTAR));
 	WAKECODE_FIXUP(wakeup_sfmask, uint64_t, rdmsr(MSR_SF_MASK));
+	WAKECODE_FIXUP(wakeup_xsmask, uint64_t, xsave_mask);
 
 	/* Build temporary page tables below realmode code. */
 	pt4 = wakeaddr;

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
@@ -54,11 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-#include <machine/_inttypes.h>
-
-#include <fs/fifofs/fifo.h>
 #include <fs/tmpfs/tmpfs_vnops.h>
 #include <fs/tmpfs/tmpfs.h>
+
+SYSCTL_DECL(_vfs_tmpfs);
+
+static volatile int tmpfs_rename_restarts;
+SYSCTL_INT(_vfs_tmpfs, OID_AUTO, rename_restarts, CTLFLAG_RD,
+    __DEVOLATILE(int *, &tmpfs_rename_restarts), 0,
+    "Times rename had to restart due to lock contention");
 
 /* --------------------------------------------------------------------- */
 
@@ -657,7 +662,7 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
-		if (__predict_false(vobj->cache != NULL))
+		if (vm_page_is_cached(vobj, idx))
 			vm_page_cache_free(vobj, idx, idx + 1);
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
@@ -921,6 +926,139 @@ out:
 
 /* --------------------------------------------------------------------- */
 
+/*
+ * We acquire all but fdvp locks using non-blocking acquisitions.  If we
+ * fail to acquire any lock in the path we will drop all held locks,
+ * acquire the new lock in a blocking fashion, and then release it and
+ * restart the rename.  This acquire/release step ensures that we do not
+ * spin on a lock waiting for release.  On error release all vnode locks
+ * and decrement references the way tmpfs_rename() would do.
+ */
+static int
+tmpfs_rename_relock(struct vnode *fdvp, struct vnode **fvpp,
+    struct vnode *tdvp, struct vnode **tvpp,
+    struct componentname *fcnp, struct componentname *tcnp)
+{
+	struct vnode *nvp;
+	struct mount *mp;
+	struct tmpfs_dirent *de;
+	int error, restarts = 0;
+
+	VOP_UNLOCK(tdvp, 0);
+	if (*tvpp != NULL && *tvpp != tdvp)
+		VOP_UNLOCK(*tvpp, 0);
+	mp = fdvp->v_mount;
+
+relock:
+	restarts += 1;
+	error = vn_lock(fdvp, LK_EXCLUSIVE);
+	if (error)
+		goto releout;
+	if (vn_lock(tdvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
+		VOP_UNLOCK(fdvp, 0);
+		error = vn_lock(tdvp, LK_EXCLUSIVE);
+		if (error)
+			goto releout;
+		VOP_UNLOCK(tdvp, 0);
+		goto relock;
+	}
+	/*
+	 * Re-resolve fvp to be certain it still exists and fetch the
+	 * correct vnode.
+	 */
+	de = tmpfs_dir_lookup(VP_TO_TMPFS_DIR(fdvp), NULL, fcnp);
+	if (de == NULL) {
+		VOP_UNLOCK(fdvp, 0);
+		VOP_UNLOCK(tdvp, 0);
+		if ((fcnp->cn_flags & ISDOTDOT) != 0 ||
+		    (fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.'))
+			error = EINVAL;
+		else
+			error = ENOENT;
+		goto releout;
+	}
+	error = tmpfs_alloc_vp(mp, de->td_node, LK_EXCLUSIVE | LK_NOWAIT, &nvp);
+	if (error != 0) {
+		VOP_UNLOCK(fdvp, 0);
+		VOP_UNLOCK(tdvp, 0);
+		if (error != EBUSY)
+			goto releout;
+		error = tmpfs_alloc_vp(mp, de->td_node, LK_EXCLUSIVE, &nvp);
+		if (error != 0)
+			goto releout;
+		VOP_UNLOCK(nvp, 0);
+		/*
+		 * Concurrent rename race.
+		 */
+		if (nvp == tdvp) {
+			vrele(nvp);
+			error = EINVAL;
+			goto releout;
+		}
+		vrele(*fvpp);
+		*fvpp = nvp;
+		goto relock;
+	}
+	vrele(*fvpp);
+	*fvpp = nvp;
+	VOP_UNLOCK(*fvpp, 0);
+	/*
+	 * Re-resolve tvp and acquire the vnode lock if present.
+	 */
+	de = tmpfs_dir_lookup(VP_TO_TMPFS_DIR(tdvp), NULL, tcnp);
+	/*
+	 * If tvp disappeared we just carry on.
+	 */
+	if (de == NULL && *tvpp != NULL) {
+		vrele(*tvpp);
+		*tvpp = NULL;
+	}
+	/*
+	 * Get the tvp ino if the lookup succeeded.  We may have to restart
+	 * if the non-blocking acquire fails.
+	 */
+	if (de != NULL) {
+		nvp = NULL;
+		error = tmpfs_alloc_vp(mp, de->td_node,
+		    LK_EXCLUSIVE | LK_NOWAIT, &nvp);
+		if (*tvpp != NULL)
+			vrele(*tvpp);
+		*tvpp = nvp;
+		if (error != 0) {
+			VOP_UNLOCK(fdvp, 0);
+			VOP_UNLOCK(tdvp, 0);
+			if (error != EBUSY)
+				goto releout;
+			error = tmpfs_alloc_vp(mp, de->td_node, LK_EXCLUSIVE,
+			    &nvp);
+			if (error != 0)
+				goto releout;
+			VOP_UNLOCK(nvp, 0);
+			/*
+			 * fdvp contains fvp, thus tvp (=fdvp) is not empty.
+			 */
+			if (nvp == fdvp) {
+				error = ENOTEMPTY;
+				goto releout;
+			}
+			goto relock;
+		}
+	}
+	tmpfs_rename_restarts += restarts;
+
+	return (0);
+
+releout:
+	vrele(fdvp);
+	vrele(*fvpp);
+	vrele(tdvp);
+	if (*tvpp != NULL)
+		vrele(*tvpp);
+	tmpfs_rename_restarts += restarts;
+
+	return (error);
+}
+
 static int
 tmpfs_rename(struct vop_rename_args *v)
 {
@@ -930,6 +1068,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	struct vnode *tdvp = v->a_tdvp;
 	struct vnode *tvp = v->a_tvp;
 	struct componentname *tcnp = v->a_tcnp;
+	struct mount *mp = NULL;
 
 	char *newname;
 	int error;
@@ -945,8 +1084,6 @@ tmpfs_rename(struct vop_rename_args *v)
 	MPASS(fcnp->cn_flags & HASBUF);
 	MPASS(tcnp->cn_flags & HASBUF);
 
-  	tnode = (tvp == NULL) ? NULL : VP_TO_TMPFS_NODE(tvp);
-
 	/* Disallow cross-device renames.
 	 * XXX Why isn't this done by the caller? */
 	if (fvp->v_mount != tdvp->v_mount ||
@@ -954,9 +1091,6 @@ tmpfs_rename(struct vop_rename_args *v)
 		error = EXDEV;
 		goto out;
 	}
-
-	tmp = VFS_TO_TMPFS(tdvp->v_mount);
-	tdnode = VP_TO_TMPFS_DIR(tdvp);
 
 	/* If source and target are the same file, there is nothing to do. */
 	if (fvp == tvp) {
@@ -966,8 +1100,37 @@ tmpfs_rename(struct vop_rename_args *v)
 
 	/* If we need to move the directory between entries, lock the
 	 * source so that we can safely operate on it. */
-	if (fdvp != tdvp && fdvp != tvp)
-		vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
+	if (fdvp != tdvp && fdvp != tvp) {
+		if (vn_lock(fdvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
+			mp = tdvp->v_mount;
+			error = vfs_busy(mp, 0);
+			if (error != 0) {
+				mp = NULL;
+				goto out;
+			}
+			error = tmpfs_rename_relock(fdvp, &fvp, tdvp, &tvp,
+			    fcnp, tcnp);
+			if (error != 0) {
+				vfs_unbusy(mp);
+				return (error);
+			}
+			ASSERT_VOP_ELOCKED(fdvp,
+			    "tmpfs_rename: fdvp not locked");
+			ASSERT_VOP_ELOCKED(tdvp,
+			    "tmpfs_rename: tdvp not locked");
+			if (tvp != NULL)
+				ASSERT_VOP_ELOCKED(tvp,
+				    "tmpfs_rename: tvp not locked");
+			if (fvp == tvp) {
+				error = 0;
+				goto out_locked;
+			}
+		}
+	}
+
+	tmp = VFS_TO_TMPFS(tdvp->v_mount);
+	tdnode = VP_TO_TMPFS_DIR(tdvp);
+	tnode = (tvp == NULL) ? NULL : VP_TO_TMPFS_NODE(tvp);
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
@@ -1137,6 +1300,8 @@ tmpfs_rename(struct vop_rename_args *v)
 		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), de, TRUE);
 	}
 	cache_purge(fvp);
+	if (tvp != NULL)
+		cache_purge(tvp);
 
 	error = 0;
 
@@ -1158,6 +1323,9 @@ out:
 	/* Release source nodes. */
 	vrele(fdvp);
 	vrele(fvp);
+
+	if (mp != NULL)
+		vfs_unbusy(mp);
 
 	return error;
 }
@@ -1409,7 +1577,6 @@ static int
 tmpfs_inactive(struct vop_inactive_args *v)
 {
 	struct vnode *vp = v->a_vp;
-	struct thread *l = v->a_td;
 
 	struct tmpfs_node *node;
 
@@ -1418,7 +1585,7 @@ tmpfs_inactive(struct vop_inactive_args *v)
 	node = VP_TO_TMPFS_NODE(vp);
 
 	if (node->tn_links == 0)
-		vrecycle(vp, l);
+		vrecycle(vp);
 
 	return 0;
 }
@@ -1471,10 +1638,9 @@ tmpfs_print(struct vop_print_args *v)
 
 	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%x, links %d\n",
 	    node, node->tn_flags, node->tn_links);
-	printf("\tmode 0%o, owner %d, group %d, size %" PRIdMAX
-	    ", status 0x%x\n",
+	printf("\tmode 0%o, owner %d, group %d, size %jd, status 0x%x\n",
 	    node->tn_mode, node->tn_uid, node->tn_gid,
-	    (uintmax_t)node->tn_size, node->tn_status);
+	    (intmax_t)node->tn_size, node->tn_status);
 
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);

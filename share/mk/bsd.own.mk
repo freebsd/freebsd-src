@@ -320,6 +320,9 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BSD_CPIO \
     BSNMP \
+    SOURCELESS \
+    SOURCELESS_HOST \
+    SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
@@ -410,17 +413,21 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
+    BSD_SORT \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    CLANG_EXTRAS \
+    CLANG_IS_CC \
     CTF \
     HESIOD \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
-    OFED
+    OFED \
+    SHARED_TOOLCHAIN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -511,9 +518,18 @@ MK_BIND_UTILS:=	no
 MK_BIND_ETC:=	no
 .endif
 
+.if ${MK_SOURCELESS} == "no"
+MK_SOURCELESS_HOST:=	no
+MK_SOURCELESS_UCODE:= no
+.endif
+
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
 MK_CTF:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_EXTRAS:= no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -559,6 +575,10 @@ MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_IS_CC:= no
 .endif
 
 #

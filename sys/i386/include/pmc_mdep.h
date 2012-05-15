@@ -66,16 +66,16 @@ struct pmc_mdep;
  * measurement architecture have PMCs of the following classes: TSC,
  * IAF, IAP, UCF and UCP.
  */
-#define	PMC_MDEP_CLASS_INDEX_TSC	0
-#define	PMC_MDEP_CLASS_INDEX_K7		1
-#define	PMC_MDEP_CLASS_INDEX_K8		1
-#define	PMC_MDEP_CLASS_INDEX_P4		1
-#define	PMC_MDEP_CLASS_INDEX_P5		1
-#define	PMC_MDEP_CLASS_INDEX_P6		1
-#define	PMC_MDEP_CLASS_INDEX_IAP	1
-#define	PMC_MDEP_CLASS_INDEX_IAF	2
-#define PMC_MDEP_CLASS_INDEX_UCP	3
-#define PMC_MDEP_CLASS_INDEX_UCF	4
+#define	PMC_MDEP_CLASS_INDEX_TSC	1
+#define	PMC_MDEP_CLASS_INDEX_K7		2
+#define	PMC_MDEP_CLASS_INDEX_K8		2
+#define	PMC_MDEP_CLASS_INDEX_P4		2
+#define	PMC_MDEP_CLASS_INDEX_P5		2
+#define	PMC_MDEP_CLASS_INDEX_P6		2
+#define	PMC_MDEP_CLASS_INDEX_IAP	2
+#define	PMC_MDEP_CLASS_INDEX_IAF	3
+#define	PMC_MDEP_CLASS_INDEX_UCP	4
+#define	PMC_MDEP_CLASS_INDEX_UCF	5
 
 /*
  * Architecture specific extensions to <sys/pmc.h> structures.
@@ -153,6 +153,15 @@ struct pmc_mdep;
 	(((I) & 0x0000ffff) == 0xe589)	/* movl %esp,%ebp */
 #define	PMC_AT_FUNCTION_EPILOGUE_RET(I)			\
 	(((I) & 0xFF) == 0xC3)		   /* ret */
+
+/* Build a fake kernel trapframe from current instruction pointer. */
+#define PMC_FAKE_TRAPFRAME(TF)						\
+	do {								\
+	(TF)->tf_cs = 0; (TF)->tf_eflags = 0;				\
+	__asm __volatile("movl %%ebp,%0" : "=r" ((TF)->tf_ebp));	\
+	__asm __volatile("movl %%esp,%0" : "=r" ((TF)->tf_esp));	\
+	__asm __volatile("call 1f \n\t1: pop %0" : "=r"((TF)->tf_eip));	\
+	} while (0)
 
 /*
  * Prototypes

@@ -1,0 +1,53 @@
+.TH setuids.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+setuids.d \- snoop setuid calls as they occur. Uses DTrace.
+.SH SYNOPSIS
+.B setuids.d
+.SH DESCRIPTION
+setuids.d is a simple DTrace program to print details of setuid
+calls, where a process assumes a different UID. These are usually
+related to login events.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH EXAMPLES
+.TP
+Default output, print setuids as they occur,
+# 
+.B setuids.d
+.PP
+.SH FIELDS
+.TP
+UID
+user ID (from)
+.TP
+SUID
+set user ID (to)
+.TP
+PPID
+parent process ID
+.TP
+PID
+process ID
+.TP
+PCMD
+parent command
+.TP
+CMD
+command (with arguments)
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+setuids.d will run forever until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), bsmconv(1M)
+

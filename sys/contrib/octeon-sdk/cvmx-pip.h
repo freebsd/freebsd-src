@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -43,7 +43,7 @@
  *
  * Interface to the hardware Packet Input Processing unit.
  *
- * <hr>$Revision: 49504 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 
@@ -60,12 +60,15 @@
 #endif
 #endif
 
+#include "cvmx-helper.h"
+#include "cvmx-helper-util.h"
+
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-#define CVMX_PIP_NUM_INPUT_PORTS                44
+#define CVMX_PIP_NUM_INPUT_PORTS                46
 
 /*
  * Encodes the different error and exception codes
@@ -199,6 +202,40 @@ typedef struct
     uint32_t    inb_packets;            /**< Number of packets without GMX/SPX/PCI errors received by PIP */
     uint64_t    inb_octets;             /**< Total number of octets from all packets received by PIP, including CRC */
     uint16_t    inb_errors;             /**< Number of packets with GMX/SPX/PCI errors received by PIP */
+    uint32_t    mcast_l2_red_packets;   /**< Number of packets with L2 Multicast DMAC
+                                             that were dropped due to RED.
+                                             The HW will consider a packet to be an L2
+                                             multicast packet when the least-significant bit
+                                             of the first byte of the DMAC is set and the
+                                             packet is not an L2 broadcast packet.
+                                             Only applies when the parse mode for the packets
+                                             is SKIP-TO-L2 */ 
+    uint32_t    bcast_l2_red_packets;   /**< Number of packets with L2 Broadcast DMAC
+                                             that were dropped due to RED.
+                                             The HW will consider a packet to be an L2
+                                             broadcast packet when the 48-bit DMAC is all 1's.
+                                             Only applies when the parse mode for the packets
+                                             is SKIP-TO-L2 */ 
+    uint32_t    mcast_l3_red_packets;   /**< Number of packets with L3 Multicast Dest Address
+                                             that were dropped due to RED.
+                                             The HW considers an IPv4 packet to be multicast
+                                             when the most-significant nibble of the 32-bit
+                                             destination address is 0xE (i.e it is a class D
+                                             address). The HW considers an IPv6 packet to be 
+                                             multicast when the most-significant byte of the
+                                             128-bit destination address is all 1's.
+                                             Only applies when the parse mode for the packets
+                                             is SKIP-TO-L2 and the packet is IP or the parse
+                                             mode for the packet is SKIP-TO-IP */ 
+    uint32_t    bcast_l3_red_packets;   /**< Number of packets with L3 Broadcast Dest Address
+                                             that were dropped due to RED.
+                                             The HW considers an IPv4 packet to be broadcast
+                                             when all bits are set in the MSB of the
+                                             destination address. IPv6 does not have the 
+                                             concept of a broadcast packets.
+                                             Only applies when the parse mode for the packet
+                                             is SKIP-TO-L2 and the packet is IP or the parse
+                                             mode for the packet is SKIP-TO-IP */ 
 } cvmx_pip_port_status_t;
 
 
@@ -217,7 +254,9 @@ typedef union
         cvmx_pip_port_parse_mode_t  parse_mode  : 2;    /**< PIP parse mode for this packet */
         uint64_t                    reserved1   : 1;    /**< Must be zero */
         uint64_t                    skip_len    : 7;    /**< Skip amount, including this header, to the beginning of the packet */
-        uint64_t                    reserved2   : 2;    /**< Must be zero */
+        uint64_t                    grpext      : 2;    /**< These bits get concatenated with the
+                                                             PKT_INST_HDR[GRP] bits, creating a 6-bit
+                                                             GRP field. Added in pass2. */
         uint64_t                    nqos        : 1;    /**< Must be 0 when PKT_INST_HDR[R] = 0.
                                                              When set to 1, NQOS prevents PIP from directly using
                                                              PKT_INST_HDR[QOS] for the QOS value in WQE.
@@ -256,39 +295,20 @@ static inline void cvmx_pip_config_port(uint64_t port_num,
                                         cvmx_pip_prt_cfgx_t port_cfg,
                                         cvmx_pip_prt_tagx_t port_tag_cfg)
 {
+
+    if (octeon_has_feature(OCTEON_FEATURE_PKND))
+    {
+        int interface, index, pknd;
+
+        interface = cvmx_helper_get_interface_num(port_num);
+        index = cvmx_helper_get_interface_index_num(port_num);
+	pknd = cvmx_helper_get_pknd(interface, index);
+
+	port_num = pknd; /* overload port_num with pknd */
+    }
+
     cvmx_write_csr(CVMX_PIP_PRT_CFGX(port_num), port_cfg.u64);
     cvmx_write_csr(CVMX_PIP_PRT_TAGX(port_num), port_tag_cfg.u64);
-}
-
-
-/**
- * @deprecated      This function is a thin wrapper around the Pass1 version
- *                  of the CVMX_PIP_QOS_WATCHX CSR; Pass2 has added a field for
- *                  setting the group that is incompatible with this function,
- *                  the preferred upgrade path is to use the CSR directly.
- *
- * Configure the global QoS packet watchers. Each watcher is
- * capable of matching a field in a packet to determine the
- * QoS queue for scheduling.
- *
- * @param watcher    Watcher number to configure (0 - 3).
- * @param match_type Watcher match type
- * @param match_value
- *                   Value the watcher will match against
- * @param qos        QoS queue for packets matching this watcher
- */
-static inline void cvmx_pip_config_watcher(uint64_t watcher,
-                                           cvmx_pip_qos_watch_types match_type,
-                                           uint64_t match_value, uint64_t qos)
-{
-    cvmx_pip_qos_watchx_t watcher_config;
-
-    watcher_config.u64 = 0;
-    watcher_config.s.match_type = match_type;
-    watcher_config.s.match_value = match_value;
-    watcher_config.s.qos = qos;
-
-    cvmx_write_csr(CVMX_PIP_QOS_WATCHX(watcher), watcher_config.u64);
 }
 
 
@@ -301,10 +321,17 @@ static inline void cvmx_pip_config_watcher(uint64_t watcher,
  */
 static inline void cvmx_pip_config_vlan_qos(uint64_t vlan_priority, uint64_t qos)
 {
-    cvmx_pip_qos_vlanx_t pip_qos_vlanx;
-    pip_qos_vlanx.u64 = 0;
-    pip_qos_vlanx.s.qos = qos;
-    cvmx_write_csr(CVMX_PIP_QOS_VLANX(vlan_priority), pip_qos_vlanx.u64);
+    if (octeon_has_feature(OCTEON_FEATURE_PKND))
+    {
+        /* FIXME for 68xx. */
+    }
+    else
+    {
+        cvmx_pip_qos_vlanx_t pip_qos_vlanx;
+        pip_qos_vlanx.u64 = 0;
+        pip_qos_vlanx.s.qos = qos;
+        cvmx_write_csr(CVMX_PIP_QOS_VLANX(vlan_priority), pip_qos_vlanx.u64);
+    }
 }
 
 
@@ -316,17 +343,24 @@ static inline void cvmx_pip_config_vlan_qos(uint64_t vlan_priority, uint64_t qos
  */
 static inline void cvmx_pip_config_diffserv_qos(uint64_t diffserv, uint64_t qos)
 {
-    cvmx_pip_qos_diffx_t pip_qos_diffx;
-    pip_qos_diffx.u64 = 0;
-    pip_qos_diffx.s.qos = qos;
-    cvmx_write_csr(CVMX_PIP_QOS_DIFFX(diffserv), pip_qos_diffx.u64);
+    if (octeon_has_feature(OCTEON_FEATURE_PKND))
+    {
+        /* FIXME for 68xx. */
+    }
+    else
+    {
+        cvmx_pip_qos_diffx_t pip_qos_diffx;
+        pip_qos_diffx.u64 = 0;
+        pip_qos_diffx.s.qos = qos;
+        cvmx_write_csr(CVMX_PIP_QOS_DIFFX(diffserv), pip_qos_diffx.u64);
+    }
 }
 
 
 /**
  * Get the status counters for a port.
  *
- * @param port_num Port number to get statistics for.
+ * @param port_num Port number (ipd_port) to get statistics for.
  * @param clear    Set to 1 to clear the counters after they are read
  * @param status   Where to put the results.
  */
@@ -343,43 +377,93 @@ static inline void cvmx_pip_get_port_status(uint64_t port_num, uint64_t clear, c
     cvmx_pip_stat7_prtx_t stat7;
     cvmx_pip_stat8_prtx_t stat8;
     cvmx_pip_stat9_prtx_t stat9;
+    cvmx_pip_stat10_x_t stat10;
+    cvmx_pip_stat11_x_t stat11;
     cvmx_pip_stat_inb_pktsx_t pip_stat_inb_pktsx;
     cvmx_pip_stat_inb_octsx_t pip_stat_inb_octsx;
     cvmx_pip_stat_inb_errsx_t pip_stat_inb_errsx;
+    int interface = cvmx_helper_get_interface_num(port_num);
+    int index = cvmx_helper_get_interface_index_num(port_num);
 
     pip_stat_ctl.u64 = 0;
     pip_stat_ctl.s.rdclr = clear;
     cvmx_write_csr(CVMX_PIP_STAT_CTL, pip_stat_ctl.u64);
 
-    if (port_num >= 40)
+    if (octeon_has_feature(OCTEON_FEATURE_PKND))
     {
-        stat0.u64 = cvmx_read_csr(CVMX_PIP_XSTAT0_PRTX(port_num));
-        stat1.u64 = cvmx_read_csr(CVMX_PIP_XSTAT1_PRTX(port_num));
-        stat2.u64 = cvmx_read_csr(CVMX_PIP_XSTAT2_PRTX(port_num));
-        stat3.u64 = cvmx_read_csr(CVMX_PIP_XSTAT3_PRTX(port_num));
-        stat4.u64 = cvmx_read_csr(CVMX_PIP_XSTAT4_PRTX(port_num));
-        stat5.u64 = cvmx_read_csr(CVMX_PIP_XSTAT5_PRTX(port_num));
-        stat6.u64 = cvmx_read_csr(CVMX_PIP_XSTAT6_PRTX(port_num));
-        stat7.u64 = cvmx_read_csr(CVMX_PIP_XSTAT7_PRTX(port_num));
-        stat8.u64 = cvmx_read_csr(CVMX_PIP_XSTAT8_PRTX(port_num));
-        stat9.u64 = cvmx_read_csr(CVMX_PIP_XSTAT9_PRTX(port_num));
+        int pknd = cvmx_helper_get_pknd(interface, index);
+        /*
+         * PIP_STAT_CTL[MODE] 0 means pkind.
+         */
+        stat0.u64 = cvmx_read_csr(CVMX_PIP_STAT0_X(pknd));
+        stat1.u64 = cvmx_read_csr(CVMX_PIP_STAT1_X(pknd));
+        stat2.u64 = cvmx_read_csr(CVMX_PIP_STAT2_X(pknd));
+        stat3.u64 = cvmx_read_csr(CVMX_PIP_STAT3_X(pknd));
+        stat4.u64 = cvmx_read_csr(CVMX_PIP_STAT4_X(pknd));
+        stat5.u64 = cvmx_read_csr(CVMX_PIP_STAT5_X(pknd));
+        stat6.u64 = cvmx_read_csr(CVMX_PIP_STAT6_X(pknd));
+        stat7.u64 = cvmx_read_csr(CVMX_PIP_STAT7_X(pknd));
+        stat8.u64 = cvmx_read_csr(CVMX_PIP_STAT8_X(pknd));
+        stat9.u64 = cvmx_read_csr(CVMX_PIP_STAT9_X(pknd));
+        stat10.u64 = cvmx_read_csr(CVMX_PIP_STAT10_X(pknd));
+        stat11.u64 = cvmx_read_csr(CVMX_PIP_STAT11_X(pknd));
+    }
+    else 
+    {
+        if (port_num >= 40)
+        {
+            stat0.u64 = cvmx_read_csr(CVMX_PIP_XSTAT0_PRTX(port_num));
+            stat1.u64 = cvmx_read_csr(CVMX_PIP_XSTAT1_PRTX(port_num));
+            stat2.u64 = cvmx_read_csr(CVMX_PIP_XSTAT2_PRTX(port_num));
+            stat3.u64 = cvmx_read_csr(CVMX_PIP_XSTAT3_PRTX(port_num));
+            stat4.u64 = cvmx_read_csr(CVMX_PIP_XSTAT4_PRTX(port_num));
+            stat5.u64 = cvmx_read_csr(CVMX_PIP_XSTAT5_PRTX(port_num));
+            stat6.u64 = cvmx_read_csr(CVMX_PIP_XSTAT6_PRTX(port_num));
+            stat7.u64 = cvmx_read_csr(CVMX_PIP_XSTAT7_PRTX(port_num));
+            stat8.u64 = cvmx_read_csr(CVMX_PIP_XSTAT8_PRTX(port_num));
+            stat9.u64 = cvmx_read_csr(CVMX_PIP_XSTAT9_PRTX(port_num));
+            if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+            {
+                stat10.u64 = cvmx_read_csr(CVMX_PIP_XSTAT10_PRTX(port_num));
+                stat11.u64 = cvmx_read_csr(CVMX_PIP_XSTAT11_PRTX(port_num));
+            }
+        }
+        else
+        {
+            stat0.u64 = cvmx_read_csr(CVMX_PIP_STAT0_PRTX(port_num));
+            stat1.u64 = cvmx_read_csr(CVMX_PIP_STAT1_PRTX(port_num));
+            stat2.u64 = cvmx_read_csr(CVMX_PIP_STAT2_PRTX(port_num));
+            stat3.u64 = cvmx_read_csr(CVMX_PIP_STAT3_PRTX(port_num));
+            stat4.u64 = cvmx_read_csr(CVMX_PIP_STAT4_PRTX(port_num));
+            stat5.u64 = cvmx_read_csr(CVMX_PIP_STAT5_PRTX(port_num));
+            stat6.u64 = cvmx_read_csr(CVMX_PIP_STAT6_PRTX(port_num));
+            stat7.u64 = cvmx_read_csr(CVMX_PIP_STAT7_PRTX(port_num));
+            stat8.u64 = cvmx_read_csr(CVMX_PIP_STAT8_PRTX(port_num));
+            stat9.u64 = cvmx_read_csr(CVMX_PIP_STAT9_PRTX(port_num));
+            if (OCTEON_IS_MODEL(OCTEON_CN52XX)
+                || OCTEON_IS_MODEL(OCTEON_CN56XX)
+                || OCTEON_IS_MODEL(OCTEON_CN6XXX)
+                || OCTEON_IS_MODEL(OCTEON_CNF7XXX))
+            {
+                stat10.u64 = cvmx_read_csr(CVMX_PIP_STAT10_PRTX(port_num));
+                stat11.u64 = cvmx_read_csr(CVMX_PIP_STAT11_PRTX(port_num));
+            }
+        }
+    }
+    if (octeon_has_feature(OCTEON_FEATURE_PKND))
+    {
+        int pknd = cvmx_helper_get_pknd(interface, index);
+
+        pip_stat_inb_pktsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_PKTS_PKNDX(pknd));
+        pip_stat_inb_octsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_OCTS_PKNDX(pknd));
+        pip_stat_inb_errsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_ERRS_PKNDX(pknd));
     }
     else
     {
-        stat0.u64 = cvmx_read_csr(CVMX_PIP_STAT0_PRTX(port_num));
-        stat1.u64 = cvmx_read_csr(CVMX_PIP_STAT1_PRTX(port_num));
-        stat2.u64 = cvmx_read_csr(CVMX_PIP_STAT2_PRTX(port_num));
-        stat3.u64 = cvmx_read_csr(CVMX_PIP_STAT3_PRTX(port_num));
-        stat4.u64 = cvmx_read_csr(CVMX_PIP_STAT4_PRTX(port_num));
-        stat5.u64 = cvmx_read_csr(CVMX_PIP_STAT5_PRTX(port_num));
-        stat6.u64 = cvmx_read_csr(CVMX_PIP_STAT6_PRTX(port_num));
-        stat7.u64 = cvmx_read_csr(CVMX_PIP_STAT7_PRTX(port_num));
-        stat8.u64 = cvmx_read_csr(CVMX_PIP_STAT8_PRTX(port_num));
-        stat9.u64 = cvmx_read_csr(CVMX_PIP_STAT9_PRTX(port_num));
+        pip_stat_inb_pktsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_PKTSX(port_num));
+        pip_stat_inb_octsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_OCTSX(port_num));
+        pip_stat_inb_errsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_ERRSX(port_num));
     }
-    pip_stat_inb_pktsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_PKTSX(port_num));
-    pip_stat_inb_octsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_OCTSX(port_num));
-    pip_stat_inb_errsx.u64 = cvmx_read_csr(CVMX_PIP_STAT_INB_ERRSX(port_num));
 
     status->dropped_octets          = stat0.s.drp_octs;
     status->dropped_packets         = stat0.s.drp_pkts;
@@ -400,10 +484,19 @@ static inline void cvmx_pip_get_port_status(uint64_t port_num, uint64_t clear, c
     status->runt_crc_packets        = stat8.s.frag;
     status->oversize_packets        = stat9.s.oversz;
     status->oversize_crc_packets    = stat9.s.jabber;
+    if (OCTEON_IS_MODEL(OCTEON_CN52XX)
+        || OCTEON_IS_MODEL(OCTEON_CN56XX)
+        || OCTEON_IS_MODEL(OCTEON_CN6XXX)
+        || OCTEON_IS_MODEL(OCTEON_CNF7XXX))
+    {
+        status->mcast_l2_red_packets        = stat10.s.mcast;
+        status->bcast_l2_red_packets        = stat10.s.bcast;
+        status->mcast_l3_red_packets        = stat11.s.mcast;
+        status->bcast_l3_red_packets        = stat11.s.bcast;
+    }
     status->inb_packets             = pip_stat_inb_pktsx.s.pkts;
     status->inb_octets              = pip_stat_inb_octsx.s.octs;
     status->inb_errors              = pip_stat_inb_errsx.s.errs;
-
 }
 
 
@@ -481,6 +574,229 @@ static inline void cvmx_pip_tag_mask_set(uint64_t mask_index, uint64_t offset, u
         cvmx_write_csr(CVMX_PIP_TAG_INCX(index), pip_tag_incx.u64);
         offset++;
     }
+}
+
+/**
+ * Initialize Bit Select Extractor config. Their are 8 bit positions and valids
+ * to be used when using the corresponding extractor.
+ * 
+ * @param bit     Bit Select Extractor to use
+ * @param pos     Which position to update
+ * @param val     The value to update the position with
+ */
+static inline void cvmx_pip_set_bsel_pos(int bit, int pos, int val)
+{
+    cvmx_pip_bsel_ext_posx_t bsel_pos;
+
+    /* The bit select extractor is available in CN61XX and CN68XX pass2.0 onwards. */
+    if (!octeon_has_feature(OCTEON_FEATURE_BIT_EXTRACTOR))
+        return;
+
+    if (bit < 0 || bit > 3)
+    {
+        cvmx_dprintf("ERROR: cvmx_pip_set_bsel_pos: Invalid Bit-Select Extractor (%d) passed\n", bit);
+        return;
+    }
+
+    bsel_pos.u64 = cvmx_read_csr(CVMX_PIP_BSEL_EXT_POSX(bit));
+    switch(pos)
+    {
+        case 0:
+            bsel_pos.s.pos0_val = 1;
+            bsel_pos.s.pos0 = val & 0x7f;
+            break;
+        case 1:
+            bsel_pos.s.pos1_val = 1;
+            bsel_pos.s.pos1 = val & 0x7f;
+            break;
+        case 2:
+            bsel_pos.s.pos2_val = 1;
+            bsel_pos.s.pos2 = val & 0x7f;
+            break;
+        case 3:
+            bsel_pos.s.pos3_val = 1;
+            bsel_pos.s.pos3 = val & 0x7f;
+            break;
+        case 4:
+            bsel_pos.s.pos4_val = 1;
+            bsel_pos.s.pos4 = val & 0x7f;
+            break;
+        case 5:
+            bsel_pos.s.pos5_val = 1;
+            bsel_pos.s.pos5 = val & 0x7f;
+            break;
+        case 6:
+            bsel_pos.s.pos6_val = 1;
+            bsel_pos.s.pos6 = val & 0x7f;
+            break;
+        case 7:
+            bsel_pos.s.pos7_val = 1;
+            bsel_pos.s.pos7 = val & 0x7f;
+            break;
+        default:
+            cvmx_dprintf("Warning: cvmx_pip_set_bsel_pos: Invalid pos(%d)\n", pos);
+            break;
+    }
+    cvmx_write_csr(CVMX_PIP_BSEL_EXT_POSX(bit), bsel_pos.u64);
+}
+
+/**
+ * Initialize offset and skip values to use by bit select extractor.
+
+ * @param bit     Bit Select Extractor to use
+ * @param offset  Offset to add to extractor mem addr to get final address
+                  to lookup table.
+ * @param skip    Number of bytes to skip from start of packet 0-64
+ */
+static inline void cvmx_pip_bsel_config(int bit, int offset, int skip)
+{
+    cvmx_pip_bsel_ext_cfgx_t bsel_cfg;
+
+    /* The bit select extractor is available in CN61XX and CN68XX pass2.0 onwards. */
+    if (!octeon_has_feature(OCTEON_FEATURE_BIT_EXTRACTOR))
+        return;
+
+    bsel_cfg.u64 = cvmx_read_csr(CVMX_PIP_BSEL_EXT_CFGX(bit));
+    bsel_cfg.s.offset = offset;
+    bsel_cfg.s.skip = skip;
+    cvmx_write_csr(CVMX_PIP_BSEL_EXT_CFGX(bit), bsel_cfg.u64);
+}
+
+
+/**
+ * Get the entry for the Bit Select Extractor Table. 
+ * @param work   pointer to work queue entry
+ * @return       Index of the Bit Select Extractor Table
+ */
+static inline int cvmx_pip_get_bsel_table_index(cvmx_wqe_t *work)
+{
+    int bit = cvmx_wqe_get_port(work) & 0x3;
+    /* Get the Bit select table index. */
+    int index;
+    int y;
+    cvmx_pip_bsel_ext_cfgx_t bsel_cfg;
+    cvmx_pip_bsel_ext_posx_t bsel_pos;
+
+    /* The bit select extractor is available in CN61XX and CN68XX pass2.0 onwards. */
+    if (!octeon_has_feature(OCTEON_FEATURE_BIT_EXTRACTOR))
+        return -1;
+
+    bsel_cfg.u64 = cvmx_read_csr(CVMX_PIP_BSEL_EXT_CFGX(bit));
+    bsel_pos.u64 = cvmx_read_csr(CVMX_PIP_BSEL_EXT_POSX(bit));
+
+    for (y = 0; y < 8; y++)
+    {
+        char *ptr = (char *)cvmx_phys_to_ptr(work->packet_ptr.s.addr);
+        int bit_loc = 0;
+        int bit;
+
+        ptr += bsel_cfg.s.skip;
+        switch(y)
+        {
+            case 0:
+                ptr += (bsel_pos.s.pos0 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos0 & 0x3);
+                break;
+            case 1:
+                ptr += (bsel_pos.s.pos1 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos1 & 0x3);
+                break;
+            case 2:
+                ptr += (bsel_pos.s.pos2 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos2 & 0x3);
+                break;
+            case 3:
+                ptr += (bsel_pos.s.pos3 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos3 & 0x3);
+                break;
+            case 4:
+                ptr += (bsel_pos.s.pos4 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos4 & 0x3);
+                break;
+            case 5:
+                ptr += (bsel_pos.s.pos5 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos5 & 0x3);
+                break;
+            case 6:
+                ptr += (bsel_pos.s.pos6 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos6 & 0x3);
+                break;
+            case 7:
+                ptr += (bsel_pos.s.pos7 >> 3);
+                bit_loc = 7 - (bsel_pos.s.pos7 & 0x3);
+                break;
+        }
+        bit = (*ptr >> bit_loc) & 1;
+        index |= bit << y;
+    }
+    index += bsel_cfg.s.offset;
+    index &= 0x1ff;
+    return index;
+}
+
+static inline int cvmx_pip_get_bsel_qos(cvmx_wqe_t *work)
+{
+    int index = cvmx_pip_get_bsel_table_index(work);
+    cvmx_pip_bsel_tbl_entx_t bsel_tbl;
+
+    /* The bit select extractor is available in CN61XX and CN68XX pass2.0 onwards. */
+    if (!octeon_has_feature(OCTEON_FEATURE_BIT_EXTRACTOR))
+        return -1;
+
+    bsel_tbl.u64 = cvmx_read_csr(CVMX_PIP_BSEL_TBL_ENTX(index));
+
+    return bsel_tbl.s.qos;
+}
+                                                                                
+static inline int cvmx_pip_get_bsel_grp(cvmx_wqe_t *work)
+{
+    int index = cvmx_pip_get_bsel_table_index(work);
+    cvmx_pip_bsel_tbl_entx_t bsel_tbl;
+
+    /* The bit select extractor is available in CN61XX and CN68XX pass2.0 onwards. */
+    if (!octeon_has_feature(OCTEON_FEATURE_BIT_EXTRACTOR))
+        return -1;
+
+    bsel_tbl.u64 = cvmx_read_csr(CVMX_PIP_BSEL_TBL_ENTX(index));
+
+    return bsel_tbl.s.grp;
+}
+                                                                                
+static inline int cvmx_pip_get_bsel_tt(cvmx_wqe_t *work)
+{
+    int index = cvmx_pip_get_bsel_table_index(work);
+    cvmx_pip_bsel_tbl_entx_t bsel_tbl;
+
+    /* The bit select extractor is available in CN61XX and CN68XX pass2.0 onwards. */
+    if (!octeon_has_feature(OCTEON_FEATURE_BIT_EXTRACTOR))
+        return -1;
+
+    bsel_tbl.u64 = cvmx_read_csr(CVMX_PIP_BSEL_TBL_ENTX(index));
+
+    return bsel_tbl.s.tt;
+}
+                                                                                
+static inline int cvmx_pip_get_bsel_tag(cvmx_wqe_t *work)
+{
+    int index = cvmx_pip_get_bsel_table_index(work);
+    int port = cvmx_wqe_get_port(work);
+    int bit = port & 0x3;
+    int upper_tag = 0;
+    cvmx_pip_bsel_tbl_entx_t bsel_tbl;
+    cvmx_pip_bsel_ext_cfgx_t bsel_cfg;
+    cvmx_pip_prt_tagx_t prt_tag;
+
+    /* The bit select extractor is available in CN61XX and CN68XX pass2.0 onwards. */
+    if (!octeon_has_feature(OCTEON_FEATURE_BIT_EXTRACTOR))
+        return -1;
+
+    bsel_tbl.u64 = cvmx_read_csr(CVMX_PIP_BSEL_TBL_ENTX(index));
+    bsel_cfg.u64 = cvmx_read_csr(CVMX_PIP_BSEL_EXT_CFGX(bit));
+
+    prt_tag.u64 = cvmx_read_csr(CVMX_PIP_PRT_TAGX(port));
+    if (prt_tag.s.inc_prt_flag == 0) 
+        upper_tag = bsel_cfg.s.upper_tag;
+    return (bsel_tbl.s.tag | ((bsel_cfg.s.tag << 8) & 0xff00) | ((upper_tag << 16) & 0xffff0000));
 }
 
 #ifdef	__cplusplus

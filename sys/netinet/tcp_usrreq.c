@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -1118,7 +1119,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
 	tp->t_state = TCPS_SYN_SENT;
-	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
+	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1191,7 +1192,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
 	tp->t_state = TCPS_SYN_SENT;
-	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
+	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1272,6 +1273,7 @@ int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	int	error, opt, optval;
+	u_int	ui;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
 	struct	tcp_info ti;
@@ -1436,6 +1438,59 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 				}
 			}
 			CC_LIST_RUNLOCK();
+			INP_WUNLOCK(inp);
+			break;
+
+		case TCP_KEEPIDLE:
+		case TCP_KEEPINTVL:
+		case TCP_KEEPCNT:
+		case TCP_KEEPINIT:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
+			if (error)
+				return (error);
+
+			if (ui > (UINT_MAX / hz)) {
+				error = EINVAL;
+				break;
+			}
+			ui *= hz;
+
+			INP_WLOCK_RECHECK(inp);
+			switch (sopt->sopt_name) {
+			case TCP_KEEPIDLE:
+				tp->t_keepidle = ui;
+				/*
+				 * XXX: better check current remaining
+				 * timeout and "merge" it with new value.
+				 */
+				if ((tp->t_state > TCPS_LISTEN) &&
+				    (tp->t_state <= TCPS_CLOSING))
+					tcp_timer_activate(tp, TT_KEEP,
+					    TP_KEEPIDLE(tp));
+				break;
+			case TCP_KEEPINTVL:
+				tp->t_keepintvl = ui;
+				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+				    (TP_MAXIDLE(tp) > 0))
+					tcp_timer_activate(tp, TT_2MSL,
+					    TP_MAXIDLE(tp));
+				break;
+			case TCP_KEEPCNT:
+				tp->t_keepcnt = ui;
+				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+				    (TP_MAXIDLE(tp) > 0))
+					tcp_timer_activate(tp, TT_2MSL,
+					    TP_MAXIDLE(tp));
+				break;
+			case TCP_KEEPINIT:
+				tp->t_keepinit = ui;
+				if (tp->t_state == TCPS_SYN_RECEIVED ||
+				    tp->t_state == TCPS_SYN_SENT)
+					tcp_timer_activate(tp, TT_KEEP,
+					    TP_KEEPINIT(tp));
+				break;
+			}
 			INP_WUNLOCK(inp);
 			break;
 
@@ -1636,7 +1691,7 @@ tcp_usrclosed(struct tcpcb *tp)
 			int timeout;
 
 			timeout = (tcp_fast_finwait2_recycle) ? 
-			    tcp_finwait2_timeout : tcp_maxidle;
+			    tcp_finwait2_timeout : TP_MAXIDLE(tp);
 			tcp_timer_activate(tp, TT_2MSL, timeout);
 		}
 	}

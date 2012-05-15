@@ -12,7 +12,6 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 # configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = $(DOXYGEN_SRC_PATH)/dev/ahci/ \
-                         $(DOXYGEN_SRC_PATH)/$(DOXYGEN_TARGET_ARCH)/ahci/ \
                          $(NOTREVIEWED)
 
 GENERATE_TAGFILE       = dev_ahci/dev_ahci.tag

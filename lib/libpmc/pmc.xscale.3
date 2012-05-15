@@ -9,17 +9,17 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" This software is provided by Rui Paulo ``as is'' and
-.\" any express or implied warranties, including, but not limited to, the
-.\" implied warranties of merchantability and fitness for a particular purpose
-.\" are disclaimed.  in no event shall Joseph Koshy be liable
-.\" for any direct, indirect, incidental, special, exemplary, or consequential
-.\" damages (including, but not limited to, procurement of substitute goods
-.\" or services; loss of use, data, or profits; or business interruption)
-.\" however caused and on any theory of liability, whether in contract, strict
-.\" liability, or tort (including negligence or otherwise) arising in any way
-.\" out of the use of this software, even if advised of the possibility of
-.\" such damage.
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
 .\"
@@ -45,7 +45,7 @@ have 4 counters.
 Third generation cores also have an increased number of PMC events.
 .Pp
 .Tn Intel XScale
-PMCs are documented in 
+PMCs are documented in
 .Rs
 .%B "3rd Generation Intel XScale Microarchitecture Developer's Manual"
 .%D May 2007
@@ -117,23 +117,24 @@ Self initiated address bus transaction.
 .It Li DATA_BUS_TRANS
 Data bus transaction.
 .El
-.Ss Event Name Aliases  
+.Ss Event Name Aliases
 The following table shows the mapping between the PMC-independent
 aliases supported by
 .Lb libpmc
 and the underlying hardware events used.
 .Bl -column "branch-mispredicts" "BRANCH_MISPRED"
-.It Em Alias Ta Em Event Ta
-.It Li branches Ta Li BRANCH_RETIRED Ta
-.It Li branch-mispredicts Ta Li BRANCH_MISPRED Ta
-.It Li dc-misses Ta Li DC_MISS Ta
-.It Li ic-misses Ta Li IC_MISS Ta
-.It Li instructions Ta Li INSTR_RETIRED Ta
+.It Em Alias Ta Em Event
+.It Li branches Ta Li BRANCH_RETIRED
+.It Li branch-mispredicts Ta Li BRANCH_MISPRED
+.It Li dc-misses Ta Li DC_MISS
+.It Li ic-misses Ta Li IC_MISS
+.It Li instructions Ta Li INSTR_RETIRED
 .El
 .Sh SEE ALSO
 .Xr pmc 3 ,
 .Xr pmc_cpuinfo 3 ,
 .Xr pmclog 3 ,
+.Xr pmc.soft 3 ,
 .Xr hwpmc 4
 .Sh HISTORY
 The

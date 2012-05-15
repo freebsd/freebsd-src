@@ -336,9 +336,8 @@ loop:
 		nfsaddr_match(NETFAMILY(rp), &rp->rc_haddr, nd->nd_nam)) {
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
 				rp->rc_flag |= RC_WANTED;
-				NFSUNLOCKCACHE();
-				(void) tsleep((caddr_t)rp, PZERO - 1,
-				    "nfsrc", 10 * hz);
+				(void)mtx_sleep(rp, NFSCACHEMUTEXPTR,
+				    (PZERO - 1) | PDROP, "nfsrc", 10 * hz);
 				goto loop;
 			}
 			if (rp->rc_flag == 0)
@@ -622,8 +621,8 @@ tryagain:
 		rp = hitrp;
 		if ((rp->rc_flag & RC_LOCKED) != 0) {
 			rp->rc_flag |= RC_WANTED;
-			NFSUNLOCKCACHE();
-			(void) tsleep((caddr_t)rp, PZERO-1, "nfsrc", 10 * hz);
+			(void)mtx_sleep(rp, NFSCACHEMUTEXPTR,
+			    (PZERO - 1) | PDROP, "nfsrc", 10 * hz);
 			goto tryagain;
 		}
 		if (rp->rc_flag == 0)
@@ -694,7 +693,7 @@ nfsrc_lock(struct nfsrvcache *rp)
 	NFSCACHELOCKREQUIRED();
 	while ((rp->rc_flag & RC_LOCKED) != 0) {
 		rp->rc_flag |= RC_WANTED;
-		(void) nfsmsleep((caddr_t)rp, NFSCACHEMUTEXPTR, PZERO - 1,
+		(void)mtx_sleep(rp, NFSCACHEMUTEXPTR, PZERO - 1,
 		    "nfsrc", 0);
 	}
 	rp->rc_flag |= RC_LOCKED;

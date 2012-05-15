@@ -182,6 +182,7 @@ MAN=	aac.4 \
 	ipsec.4 \
 	ipw.4 \
 	ipwfw.4 \
+	isci.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
@@ -327,6 +328,7 @@ MAN=	aac.4 \
 	${_nvram.4} \
 	${_nvram2env.4} \
 	${_nxge.4} \
+	oce.4 \
 	ohci.4 \
 	orm.4 \
 	${_padlock.4} \
@@ -412,6 +414,7 @@ MAN=	aac.4 \
 	snd_fm801.4 \
 	snd_gusc.4 \
 	snd_hda.4 \
+	snd_hdspe.4 \
 	snd_ich.4 \
 	snd_maestro3.4 \
 	snd_maestro.4 \
@@ -531,6 +534,7 @@ MAN=	aac.4 \
 	${_xen.4} \
 	xhci.4 \
 	xl.4 \
+	${_xnb.4} \
 	xpt.4 \
 	zero.4 \
 	zyd.4
@@ -731,6 +735,7 @@ _urtw.4=	urtw.4
 _viawd.4=	viawd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
+_xnb.4=		xnb.4
 
 MLINKS+=lindev.4 full.4
 .endif

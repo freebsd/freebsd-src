@@ -40,7 +40,7 @@
 .Sh DESCRIPTION
 The
 .Nm deflate
-node type implements the Deflate sub-protocols of the Compression Control 
+node type implements the Deflate sub-protocols of the Compression Control
 Protocol (CCP).
 .Pp
 The node has two hooks,
@@ -111,7 +111,7 @@ The receiver should respond by sending a PPP CCP Reset-Request to the peer.
 .Pp
 This message may also be received by this node type when a CCP Reset-Request
 or Reset-Ack is received by the local PPP entity.
-The node will respond by flushing its compression state so the sides 
+The node will respond by flushing its compression state so the sides
 can resynchronize.
 .It Dv NGM_DEFLATE_GET_STATS Pq Li getstats
 This control message obtains statistics for a given hook.
@@ -154,5 +154,5 @@ control message, or when hook have been disconnected.
 .An Alexander Motin Aq mav@alkar.net
 .Sh BUGS
 Due to nature of netgraph PPP implementation there are possible race conditions
-between data packet and ResetAck CCP packet in case of packet loss. As result, 
+between data packet and ResetAck CCP packet in case of packet loss. As result,
 packet loss can produce bigger performance degradation than supposed by protocol.

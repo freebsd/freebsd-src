@@ -879,7 +879,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 
 		bzero(&ia_ro, sizeof(ia_ro));
 		*((struct sockaddr_in *)(&ia_ro.ro_dst)) = ia->ia_addr;
-		rtalloc_ign_fib(&ia_ro, 0, 0);
+		rtalloc_ign_fib(&ia_ro, 0, RT_DEFAULT_FIB);
 		if ((ia_ro.ro_rt != NULL) && (ia_ro.ro_rt->rt_ifp != NULL) &&
 		    (ia_ro.ro_rt->rt_ifp == V_loif)) {
 			RT_LOCK(ia_ro.ro_rt);
@@ -1260,27 +1260,6 @@ struct in_llentry {
 	struct sockaddr_in	l3_addr4;
 };
 
-static struct llentry *
-in_lltable_new(const struct sockaddr *l3addr, u_int flags)
-{
-	struct in_llentry *lle;
-
-	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_DONTWAIT | M_ZERO);
-	if (lle == NULL)		/* NB: caller generates msg */
-		return NULL;
-
-	callout_init(&lle->base.la_timer, CALLOUT_MPSAFE);
-	/*
-	 * For IPv4 this will trigger "arpresolve" to generate
-	 * an ARP request.
-	 */
-	lle->base.la_expire = time_uptime; /* mark expired */
-	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
-	lle->base.lle_refcnt = 1;
-	LLE_LOCK_INIT(&lle->base);
-	return &lle->base;
-}
-
 /*
  * Deletes an address from the address table.
  * This function is called by the timer functions
@@ -1295,6 +1274,27 @@ in_lltable_free(struct lltable *llt, struct llentry *lle)
 	free(lle, M_LLTABLE);
 }
 
+static struct llentry *
+in_lltable_new(const struct sockaddr *l3addr, u_int flags)
+{
+	struct in_llentry *lle;
+
+	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
+	if (lle == NULL)		/* NB: caller generates msg */
+		return NULL;
+
+	callout_init(&lle->base.la_timer, CALLOUT_MPSAFE);
+	/*
+	 * For IPv4 this will trigger "arpresolve" to generate
+	 * an ARP request.
+	 */
+	lle->base.la_expire = time_uptime; /* mark expired */
+	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
+	lle->base.lle_refcnt = 1;
+	lle->base.lle_free = in_lltable_free;
+	LLE_LOCK_INIT(&lle->base);
+	return &lle->base;
+}
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
 	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
@@ -1577,7 +1577,6 @@ in_domifattach(struct ifnet *ifp)
 
 	llt = lltable_init(ifp, AF_INET);
 	if (llt != NULL) {
-		llt->llt_free = in_lltable_free;
 		llt->llt_prefix_free = in_lltable_prefix_free;
 		llt->llt_lookup = in_lltable_lookup;
 		llt->llt_dump = in_lltable_dump;

@@ -268,7 +268,7 @@ g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 static int
 g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
-	char psn[8];
+	char type[64];
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	uint32_t msize;
@@ -285,10 +285,15 @@ g_part_ebr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (basetable->gpt_depth == 0)
 		return (ENXIO);
 	cp = LIST_FIRST(&pp->consumers);
-	error = g_getattr("PART::scheme", cp, &psn);
-	if (error)
+	error = g_getattr("PART::scheme", cp, &type);
+	if (error != 0)
 		return (error);
-	if (strcmp(psn, "MBR"))
+	if (strcmp(type, "MBR") != 0)
+		return (ENXIO);
+	error = g_getattr("PART::type", cp, &type);
+	if (error != 0)
+		return (error);
+	if (strcmp(type, "ebr") != 0)
 		return (ENXIO);
 
 	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
@@ -405,7 +410,7 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
 static int
 g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 {
-	char psn[8];
+	char type[64];
 	struct g_provider *pp;
 	u_char *buf, *p;
 	int error, index, res;
@@ -422,10 +427,16 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 	/* Check that we have a parent and that it's a MBR. */
 	if (table->gpt_depth == 0)
 		return (ENXIO);
-	error = g_getattr("PART::scheme", cp, &psn);
-	if (error)
+	error = g_getattr("PART::scheme", cp, &type);
+	if (error != 0)
 		return (error);
-	if (strcmp(psn, "MBR"))
+	if (strcmp(type, "MBR") != 0)
+		return (ENXIO);
+	/* Check that partition has type DOSPTYP_EBR. */
+	error = g_getattr("PART::type", cp, &type);
+	if (error != 0)
+		return (error);
+	if (strcmp(type, "ebr") != 0)
 		return (ENXIO);
 
 	/* Check that there's a EBR. */

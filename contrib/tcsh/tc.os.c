@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.c,v 3.69 2006/08/24 20:56:31 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.c,v 3.72 2011/01/25 13:58:19 christos Exp $ */
 /*
  * tc.os.c: OS Dependent builtin functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.os.c,v 3.69 2006/08/24 20:56:31 christos Exp $")
+RCSID("$tcsh: tc.os.c,v 3.72 2011/01/25 13:58:19 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -1584,3 +1584,42 @@ isapad(void)
     return(res);
 }
 #endif
+
+#ifdef __ANDROID__
+#include <stdio.h>
+/* Android (<= 2.1?) has an incomplete ttyname implementation. */
+char *
+ttyname(int fd)
+{
+    char path[64];
+    ssize_t siz;
+    static char ttyname[32];
+
+    if (!isatty(fd))
+	return NULL;
+
+    (void)snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
+    siz = readlink(path, ttyname, sizeof(ttyname));
+    if (siz < 0 || siz == sizeof(ttyname))
+	return NULL;
+    ttyname[siz] = '\0';
+    return ttyname;
+}
+#endif /* __ANDROID__ */
+
+#if defined(__CYGWIN__) && !defined(NO_CRYPT)
+#undef CHAR		/* Collides with Win32 API */
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <sys/cygwin.h>
+char *
+cygwin_xcrypt(struct passwd *pw, const char *password, const char *expected_pwd)
+{
+    static char invalid_password[] = "\377";
+    HANDLE token = cygwin_logon_user(pw, password);
+    if (token == INVALID_HANDLE_VALUE)
+	return invalid_password;
+    CloseHandle(token);
+    return (char *) expected_pwd;
+}
+#endif /* __CYGWIN__ && !NO_CRYPT */

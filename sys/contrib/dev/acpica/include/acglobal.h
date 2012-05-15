@@ -150,8 +150,7 @@ BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
  */
 BOOLEAN                     AcpiGbl_ReducedHardware;
 
-
-#endif
+#endif /* DEFINE_ACPI_GLOBALS */
 
 /* Do not disassemble buffers to resource descriptors */
 
@@ -168,7 +167,11 @@ ACPI_EXTERN UINT8       ACPI_INIT_GLOBAL (AcpiGbl_NoResourceDisassembly, FALSE);
  * found in the RSDT/XSDT.
  */
 ACPI_EXTERN ACPI_TABLE_LIST             AcpiGbl_RootTableList;
+
+#if (!ACPI_REDUCED_HARDWARE)
 ACPI_EXTERN ACPI_TABLE_FACS            *AcpiGbl_FACS;
+
+#endif /* !ACPI_REDUCED_HARDWARE */
 
 /* These addresses are calculated from the FADT Event Block addresses */
 
@@ -251,8 +254,7 @@ ACPI_EXTERN ACPI_CACHE_T               *AcpiGbl_OperandCache;
 
 /* Global handlers */
 
-ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_DeviceNotify;
-ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_SystemNotify;
+ACPI_EXTERN ACPI_GLOBAL_NOTIFY_HANDLER  AcpiGbl_GlobalNotify[2];
 ACPI_EXTERN ACPI_EXCEPTION_HANDLER      AcpiGbl_ExceptionHandler;
 ACPI_EXTERN ACPI_INIT_HANDLER           AcpiGbl_InitHandler;
 ACPI_EXTERN ACPI_TABLE_HANDLER          AcpiGbl_TableHandler;
@@ -381,6 +383,8 @@ ACPI_EXTERN UINT8                       AcpiGbl_SleepTypeB;
  *
  ****************************************************************************/
 
+#if (!ACPI_REDUCED_HARDWARE)
+
 ACPI_EXTERN UINT8                       AcpiGbl_AllGpesInitialized;
 ACPI_EXTERN ACPI_GPE_XRUPT_INFO        *AcpiGbl_GpeXruptListHead;
 ACPI_EXTERN ACPI_GPE_BLOCK_INFO        *AcpiGbl_GpeFadtBlocks[ACPI_MAX_GPE_BLOCKS];
@@ -389,6 +393,7 @@ ACPI_EXTERN void                       *AcpiGbl_GlobalEventHandlerContext;
 ACPI_EXTERN ACPI_FIXED_EVENT_HANDLER    AcpiGbl_FixedEventHandlers[ACPI_NUM_FIXED_EVENTS];
 extern      ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS];
 
+#endif /* !ACPI_REDUCED_HARDWARE */
 
 /*****************************************************************************
  *

@@ -97,10 +97,10 @@ struct ng_pptpgre_conf {
     u_char      enableDelayedAck; /* enables delayed acks */
     u_char      enableAlwaysAck;  /* always send ack with data */
     u_char      enableWindowing;  /* enable windowing algorithm */
-    u_int16_t   cid;              /* my call id */
-    u_int16_t   peerCid;          /* peer call id */
-    u_int16_t   recvWin;          /* peer recv window size */
-    u_int16_t   peerPpd;          /* peer packet processing delay
+    uint16_t    cid;              /* my call id */
+    uint16_t    peerCid;          /* peer call id */
+    uint16_t    recvWin;          /* peer recv window size */
+    uint16_t    peerPpd;          /* peer packet processing delay
                                      (in 1/10 of a second) */
 };
 .Ed

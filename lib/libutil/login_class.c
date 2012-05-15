@@ -452,18 +452,21 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	    p = (rtp.prio > RTP_PRIO_MAX) ? 31 : p;
 	    if (rtprio(RTP_SET, 0, &rtp))
 		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
-		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
+		    pwd ? pwd->pw_name : "-",
+		    lc ? lc->lc_class : LOGIN_DEFCLASS);
 	} else if (p < PRIO_MIN) {
 	    rtp.type = RTP_PRIO_REALTIME;
 	    rtp.prio = abs(p - PRIO_MIN + RTP_PRIO_MAX);
 	    p = (rtp.prio > RTP_PRIO_MAX) ? 1 : p;
 	    if (rtprio(RTP_SET, 0, &rtp))
 		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
-		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
+		    pwd ? pwd->pw_name : "-",
+		    lc ? lc->lc_class : LOGIN_DEFCLASS);
 	} else {
 	    if (setpriority(PRIO_PROCESS, 0, (int)p) != 0)
 		syslog(LOG_WARNING, "setpriority '%s' (%s): %m",
-		    pwd->pw_name, lc ? lc->lc_class : LOGIN_DEFCLASS);
+		    pwd ? pwd->pw_name : "-",
+		    lc ? lc->lc_class : LOGIN_DEFCLASS);
 	}
     }
 

@@ -2,7 +2,7 @@
               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.478.8.11 2011-08-02 04:58:46 each Exp $ -->
+<!-- File: $Id$ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -32,6 +32,7 @@
       <year>2009</year>
       <year>2010</year>
       <year>2011</year>
+      <year>2012</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -1462,6 +1463,31 @@ zone "eng.example.com" {
                   </varlistentry>
 
                   <varlistentry>
+                    <term><userinput>tsig-list</userinput></term>
+                    <listitem>
+                      <para>
+                        List the names of all TSIG keys currently configured
+                        for use by <command>named</command> in each view.  The
+                        list both statically configured keys and dynamic
+                        TKEY-negotiated keys.
+                      </para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term><userinput>tsig-delete</userinput>
+                     <replaceable>keyname</replaceable>
+                     <optional><replaceable>view</replaceable></optional></term>
+                    <listitem>
+                      <para>
+                        Delete a given TKEY-negotated key from the server.
+                        (This does not apply to statically configured TSIG
+                        keys.)
+                      </para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
                     <term><userinput>addzone
                         <replaceable>zone</replaceable>
                         <optional><replaceable>class</replaceable>
@@ -1898,11 +1924,13 @@ controls {
       </para>
 
       <para>
-        When acting as a slave, <acronym>BIND</acronym> 9 will
-        attempt to use IXFR unless
-        it is explicitly disabled. For more information about disabling
-        IXFR, see the description of the <command>request-ixfr</command> clause
-        of the <command>server</command> statement.
+        When acting as a slave, <acronym>BIND</acronym> 9 will attempt
+        to use IXFR unless it is explicitly disabled via the
+        <command>request-ixfr</command> option or the use of
+        <command>ixfr-from-differences</command>.  For
+        more information about disabling IXFR, see the description
+        of the <command>request-ixfr</command> clause of the
+        <command>server</command> statement.
       </para>
     </sect1>
 
@@ -4645,6 +4673,19 @@ category notify { null; };
 		    </para>
 		  </entry>
 		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><command>RPZ</command></para>
+                  </entry>
+		  <entry colname="2">
+		    <para>
+		      Information about errors in response policy zone files,
+		      rewritten responses, and at the highest
+		      <command>debug</command> levels, mere rewriting
+		      attempts.
+		    </para>
+		  </entry>
+		</row>
 	      </tbody>
 	    </tgroup>
 	  </informaltable>
@@ -4993,6 +5034,10 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> cache-file <replaceable>path_name</replaceable>; </optional>
     <optional> dump-file <replaceable>path_name</replaceable>; </optional>
     <optional> bindkeys-file <replaceable>path_name</replaceable>; </optional>
+    <optional> secroots-file <replaceable>path_name</replaceable>; </optional>
+    <optional> session-keyfile <replaceable>path_name</replaceable>; </optional>
+    <optional> session-keyname <replaceable>key_name</replaceable>; </optional>
+    <optional> session-keyalg <replaceable>algorithm_id</replaceable>; </optional>
     <optional> memstatistics <replaceable>yes_or_no</replaceable>; </optional>
     <optional> memstatistics-file <replaceable>path_name</replaceable>; </optional>
     <optional> pid-file <replaceable>path_name</replaceable>; </optional>
@@ -5018,7 +5063,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> ixfr-from-differences (<replaceable>yes_or_no</replaceable> | <constant>master</constant> | <constant>slave</constant>); </optional>
     <optional> dnssec-enable <replaceable>yes_or_no</replaceable>; </optional>
     <optional> dnssec-validation (<replaceable>yes_or_no</replaceable> | <constant>auto</constant>); </optional>
-    <optional> dnssec-lookaside ( <replaceable>auto</replaceable> | 
+    <optional> dnssec-lookaside ( <replaceable>auto</replaceable> |
+			<replaceable>no</replaceable> |
                         <replaceable>domain</replaceable> trust-anchor <replaceable>domain</replaceable> ); </optional>
     <optional> dnssec-must-be-secure <replaceable>domain yes_or_no</replaceable>; </optional>
     <optional> dnssec-accept-expired <replaceable>yes_or_no</replaceable>; </optional>
@@ -5166,7 +5212,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> resolver-query-timeout <replaceable>number</replaceable> ; </optional>
     <optional> deny-answer-addresses { <replaceable>address_match_list</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
     <optional> deny-answer-aliases { <replaceable>namelist</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
-    <optional> response-policy { <replaceable>zone_name</replaceable> <optional> policy <replaceable>given</replaceable> | <replaceable>no-op</replaceable> | <replaceable>nxdomain</replaceable> | <replaceable>nodata</replaceable> | <replaceable>cname domain</replaceable> </optional> ; } ; </optional>
+    <optional> response-policy { <replaceable>zone_name</replaceable> <optional> policy given | disabled | passthru | nxdomain | nodata | cname <replaceable>domain</replaceable> </optional> ; } ; </optional>
 };
 </programlisting>
 
@@ -5516,7 +5562,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
                 The pathname of the file the server dumps
                 security roots to when instructed to do so with
                 <command>rndc secroots</command>.
-                If not specified, the default is <filename>named.secroots</filename>.
+                If not specified, the default is
+		<filename>named.secroots</filename>.
               </para>
             </listitem>
           </varlistentry>
@@ -5556,19 +5603,6 @@ badresp:1,adberr:0,findfail:0,valfail:0]
                 Valid values are hmac-sha1, hmac-sha224, hmac-sha256,
                 hmac-sha384, hmac-sha512 and hmac-md5.  If not
                 specified, the default is hmac-sha256.
-              </para>
-            </listitem>
-          </varlistentry>
-
-          <varlistentry>
-            <term><command>session-keyfile</command></term>
-            <listitem>
-              <para>
-                The pathname of the file into which to write a session TSIG
-                key for use by <command>nsupdate -l</command>.  (See the
-                discussion of the <command>update-policy</command>
-                statement's <userinput>local</userinput> option for more
-                details on this feature.)
               </para>
             </listitem>
           </varlistentry>
@@ -5707,6 +5741,11 @@ options {
 		<userinput>auto</userinput>, then built-in default
 		values for the DLV domain and trust anchor will be
 		used, along with a built-in key for validation.
+	      </para>
+	      <para>
+		If <command>dnssec-lookaside</command> is set to
+		<userinput>no</userinput>, then dnssec-lookaside
+		is not used.
 	      </para>
               <para>
                 The default DLV key is stored in the file
@@ -8590,7 +8629,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		<para>
 		  Specify a private RDATA type to be used when generating
 		  key signing records.  The default is
-		  <literal>65535</literal>.
+		  <literal>65534</literal>.
 		</para>
 		<para>
 		  It is expected that this parameter may be removed
@@ -8853,10 +8892,11 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	    and which queries should not be sent to the Internet's root
 	    servers.  The official servers which cover these namespaces
 	    return NXDOMAIN responses to these queries.  In particular,
-	    these cover the reverse namespace for addresses from RFC 1918 and
-	    RFC 3330.  They also include the reverse namespace for IPv6 local
-	    address (locally assigned), IPv6 link local addresses, the IPv6
-	    loopback address and the IPv6 unknown address.
+            these cover the reverse namespaces for addresses from
+            RFC 1918, RFC 4193, and RFC 5737.  They also include the
+            reverse namespace for IPv6 local address (locally assigned),
+            IPv6 link local addresses, the IPv6 loopback address and the
+            IPv6 unknown address.
 	  </para>
 	  <para>
 	    Named will attempt to determine if a built-in zone already exists
@@ -9227,141 +9267,228 @@ deny-answer-aliases { "example.net"; };
 	  <title>Response Policy Zone (RPZ) Rewriting</title>
 	  <para>
 	    <acronym>BIND</acronym> 9 includes an intentionally limited
-            mechanism to modify DNS responses for recursive requests
-            similar to email anti-spam DNS blacklists.
-            All response policy zones are named in the
-            <command>response-policy</command> option for the view or among the
-            global options if there is no response-policy option for the view.
-          </para>
-
-          <para>
-            The rules encoded in a response policy zone (RPZ) are applied
-            only to responses to queries that ask for recursion (RD=1).
-            RPZs are normal DNS zones containing RRsets
-            that can be queried normally if allowed.
-            It is usually best to restrict those queries with something like
-            <command>allow-query {none; };</command> or
-            <command>allow-query { 127.0.0.1; };</command>.
-          </para>
-
-          <para>
-            There are four kinds of RPZ rewrite rules.  QNAME rules are
-            applied to query names in requests and to targets of CNAME
-            records resolved in the process of generating the response.
-            The owner name of a QNAME rule is the query name relativized
-            to the RPZ.
-	    The records in a rewrite rule are usually A, AAAA, or special
-	    CNAMEs, but can be any type except DNAME.
-          </para>
-
-          <para>
-            IP rules are triggered by addresses in A and AAAA records.
-            All IP addresses in A or AAAA RRsets are tested and the rule
-            longest prefix is applied.  Ties between rules with equal prefixes
-            are broken in favor of the first RPZ mentioned in the
-            response-policy option.
-            The rule matching the smallest IP address is chosen among equal
-            prefix rules from a single RPZ.
-            IP rules are expressed in RRsets with owner names that are
-            subdomains of rpz-ip and encoding an IP address block, reversed
-            as in IN-ARPA.
-            prefix.B.B.B.B with prefix between 1 and 32 and B between 1 and 255
-            encodes an IPv4 address.
-            IPv6 addresses are encoded by with prefix.W.W.W.W.W.W.W.W or
-            prefix.WORDS.zz.WORDS.  The words in the standard IPv6 text
-            representation are reversed, "::" is replaced with ".zz.",
-            and ":" becomes ".".
-          </para>
-
-          <para>
-            NSDNAME rules match names in NS RRsets for the response or a
-            parent.  They are encoded as subdomains of rpz-nsdomain relativized
-            to the RPZ origin name.
-          </para>
-
-          <para>
-            NSIP rules match IP addresses in A and AAAA RRsets for names of
-            responsible servers or the names that can be matched by NSDNAME
-            rules.  The are encoded like IP rules except as subdomains of
-            rpz-nsip.
+	    mechanism to modify DNS responses for recursive requests
+	    somewhat similar to email anti-spam DNS blacklists.
+	    Responses can be changed to deny the existence of domains(NXDOMAIN),
+	    deny the existence of IP addresses for domains (NODATA),
+	    or contain other IP addresses or data.
 	  </para>
 
 	  <para>
-            Authority verification issues and variations in authority data in
-	    the current version of <acronym>BIND</acronym> 9 can cause
-	    inconsistent results from NSIP and NSDNAME.  So they are available
+	    The actions encoded in a response policy zone (RPZ) are applied
+	    only to queries that ask for recursion (RD=1).
+	    Response policy zones are named in the
+	    <command>response-policy</command> option for the view or among the
+	    global options if there is no response-policy option for the view.
+	    RPZs are ordinary DNS zones containing RRsets
+	    that can be queried normally if allowed.
+	    It is usually best to restrict those queries with something like
+	    <command>allow-query { localhost; };</command>.
+	  </para>
+
+	  <para>
+	    There are four kinds of RPZ records, QNAME, IP, NSIP,
+	    and NSDNAME.
+	    QNAME records are applied to query names of requests and targets
+	    of CNAME records resolved to generate the response.
+	    The owner name of a QNAME RPZ record is the query name relativized
+	    to the RPZ.
+	  </para>
+
+	  <para>
+	    The second kind of RPZ record, an IP policy record,
+	    is triggered by addresses in A and AAAA records
+	    for the ANSWER sections of responses.
+	    IP policy records have owner names that are
+	    subdomains of <userinput>rpz-ip</userinput> relativized to the
+	    RPZ origin name and encode an IP address or address block.
+	    IPv4 addresses are encoded as
+	    <userinput>prefixlength.B4.B3.B2.B1.rpz-ip</userinput>.
+	    The prefix length must be between 1 and 32.
+	    All four bytes, B4, B3, B2, and B1, must be present.
+	    B4 is the decimal value of the least significant byte of the
+	    IPv4 address as in IN-ADDR.ARPA.
+	    IPv6 addresses are encoded in a format similar to the standard
+	    IPv6 text representation,
+	    <userinput>prefixlength.W8.W7.W6.W5.W4.W3.W2.W1.rpz-ip</userinput>.
+	    Each of W8,...,W1 is a one to four digit hexadecimal number
+	    representing 16 bits of the IPv6 address as in the standard text
+	    representation of IPv6 addresses, but reversed as in IN-ADDR.ARPA.
+	    All 8 words must be present except when consecutive
+	    zero words are replaced with <userinput>.zz.</userinput>
+	    analogous to double colons (::) in standard IPv6 text encodings.
+	    The prefix length must be between 1 and 128.
+	  </para>
+
+	  <para>
+	    NSDNAME policy records match names of authoritative servers
+	    for the query name, a parent of the query name, a CNAME,
+	    or a parent of a CNAME.
+	    They are encoded as subdomains of
+	    <userinput>rpz-nsdomain</userinput> relativized
+	    to the RPZ origin name.
+	  </para>
+
+	  <para>
+	    NSIP policy records match IP addresses in A and AAAA RRsets
+	    for domains that can be checked against NSDNAME policy records.
+	    The are encoded like IP policies except as subdomains of
+	    <userinput>rpz-nsip</userinput>.
+	  </para>
+
+	  <para>
+	    The query response is checked against all RPZs, so
+	    two or more policy records can apply to a single response.
+	    Because DNS responses can be rewritten according by at most a
+	    single policy record, a single policy (other than
+	    <command>DISABLED</command> policies) must be chosen.
+	    Policies are chosen in the following order:
+	    <itemizedlist>
+	      <listitem>Among applicable zones, use the RPZ that appears first
+		in the response-policy option.
+	      </listitem>
+	      <listitem>Prefer QNAME to IP to NSDNAME to NSIP policy records
+		in a single RPZ
+	      </listitem>
+	      <listitem>Among applicable NSDNAME policy records, prefer the
+		policy record that matches the lexically smallest name
+	      </listitem>
+	      <listitem>Among IP or NSIP policy records, prefer the record
+		with the longest prefix.
+	      </listitem>
+	      <listitem>Among records with the same prefex length,
+		prefer the IP or NSIP policy record that matches
+		the smallest IP address.
+	      </listitem>
+	    </itemizedlist>
+	  </para>
+
+	  <para>
+	    When the processing of a response is restarted to resolve
+	    DNAME or CNAME records and an applicable policy record set has
+	    not been found,
+	    all RPZs are again consulted for the DNAME or CNAME names
+	    and addresses.
+	  </para>
+
+	  <para>
+	    Authority verification issues and variations in authority data
+	    can cause inconsistent results for NSIP and NSDNAME policy records.
+	    Glue NS records often differ from authoritative NS records.
+	    So they are available
 	    only when <acronym>BIND</acronym> is built with the
 	    <userinput>--enable-rpz-nsip</userinput> or
 	    <userinput>--enable-rpz-nsdname</userinput> options
-            on the "configure" command line.
-          </para>
+	    on the "configure" command line.
+	  </para>
 
-          <para>
-            Four policies can be expressed.
-            The <command>NXDOMAIN</command> policy causes a NXDOMAIN response
-            and is expressed with an RRset consisting of a single CNAME
-            whose target is the root domain (.).
-            <command>NODATA</command> generates NODATA or ANCOUNT=1 regardless
-            of query type.
-            It is expressed with a CNAME whose target is the wildcard
-            top-level domain (*.).
-            The <command>NO-OP</command> policy does not change the response
-            and is used to "poke holes" in policies for larger CIDR blocks or in
-            zones named later in the <command>response-policy</command> option.
-            The NO-OP policy is expressed by a CNAME with a target consisting
-            of the variable part of the owner name, such as "example.com." for
-            a QNAME rule or "128.1.0.0.127." for an IP rule.
-            The <command>CNAME</command> policy is used to replace the RRsets
-            of response.
-            A and AAAA RRsets are most common and useful to capture
-            an evil domain in a walled garden, but any valid set of RRsets
-            is possible.
-          </para>
+	  <para>
+	    RPZ record sets are special CNAME records or one or more
+	    of any types of DNS record except DNAME or DNSSEC.
+	    Except when a policy record is a CNAME, there can be more
+	    more than one record and more than one type
+	    in a set of policy records.
+	    Except for three kinds of CNAME records that are illegal except
+	    in policy zones, the records in a set are used in the response as if
+	    their owner name were the query name.  They are copied to the
+	    response as dictated by their types.
+	    <itemizedlist>
+	      <listitem>A CNAME whose target is the root domain (.)
+		specifies the <command>NXDOMAIN</command> policy,
+		which generates an NXDOMAIN response.
+	      </listitem>
+	      <listitem>A CNAME whose target is the wildcard top-level
+		domain (*.) specifies the <command>NODATA</command> policy,
+		which rewrites the response to NODATA or ANCOUNT=1.
+	      </listitem>
+	      <listitem>A CNAME whose target is a wildcard hostname such
+		as *.example.com is used normally after the astrisk (*)
+		has been replaced with the query name.
+		These records are usually resolved with ordinary CNAMEs
+		outside the policy zones.  They can be useful for logging.
+	      </listitem>
+	      <listitem>The <command>PASSTHRU</command> policy is specified
+		by a CNAME whose target is the variable part of its own
+		owner name.  It causes the response to not be rewritten
+		and is most often used to "poke holes" in policies for
+		CIDR blocks.
+	      </listitem>
+	    </itemizedlist>
+	  </para>
 
-          <para>
-            All of the policies in an RPZ can be overridden with a
-            <command>policy</command> clause.
-            <command>given</command> says "do not override."
-            <command>no-op</command> says "do nothing" regardless of the policy
-            in RPZ records.
-            <command>nxdomain</command> causes all RPZ rules to generate
-            NXDOMAIN results.
-            <command>nodata</command> gives nodata.
-            <command>cname domain</command> causes all RPZ rules to act as if
-            the consisted of a "cname domain" record.
-          </para>
+	  <para>
+	    The policies specified in individual records
+	    in an RPZ can be overridden with a <command>policy</command> clause
+	    in the <command>response-policy</command> option.
+	    An organization using an RPZ provided by another organization might
+	    use this mechanism to redirect domains to its own walled garden.
+	    <itemizedlist>
+	      <listitem><command>GIVEN</command> says "do not override."
+	      </listitem>
+	      <listitem><command>DISABLED</command> causes policy records to do
+		nothing but log what they might have done.
+		The response to the DNS query will be written according to
+		any matching policy records that are not disabled.
+		Policy zones overridden with <command>DISABLED</command> should
+		appear first, because they will often not be logged
+		if a higher precedence policy is found first.
+	      </listitem>
+	      <listitem><command>PASSTHRU</command> causes all policy records
+		to act as if they were CNAME records with targets the variable
+		part of their owner name.  They protect the response from
+		being changed.
+	      </listitem>
+	      <listitem><command>NXDOMAIN</command> causes all RPZ records
+		to specify NXDOMAIN policies.
+	      </listitem>
+	      <listitem><command>NODATA</command> overrides with the
+		NODATA policy
+	      </listitem>
+	      <listitem><command>CNAME domain</command> causes all RPZ
+		policy records to act as if they were "cname domain" records.
+	      </listitem>
+	    </itemizedlist>
+	  </para>
 
-          <para>
-            For example, you might use this option statement
+	  <para>
+	    For example, you might use this option statement
           </para>
-<programlisting>response-policy { zone "bl"; };</programlisting>
+<programlisting>    response-policy { zone "badlist"; };</programlisting>
           <para>
             and this zone statement
           </para>
-<programlisting>zone "bl" {type master; file "example/bl"; allow-query {none;}; };</programlisting>
+<programlisting>    zone "badlist" {type master; file "master/badlist"; allow-query {none;}; };</programlisting>
           <para>
             with this zone file
           </para>
 <programlisting>$TTL 1H
-@                   SOA LOCALHOST. named-mgr.example.com (1 1h 15m 30d 2h)
+@                       SOA LOCALHOST. named-mgr.example.com (1 1h 15m 30d 2h)
+                        NS  LOCALHOST.
 
-; QNAME rules
-nxdomain.domain.com         CNAME   .
-nodata.domain.com           CNAME   *.
-bad.domain.com              A       10.0.0.1
-                            AAAA    2001:2::1
-ok.domain.com               CNAME   ok.domain.com.
-*.badzone.domain.com	    CNAME   garden.example.com.
+; QNAME policy records.  There are no periods (.) after the owner names.
+nxdomain.domain.com     CNAME   .               ; NXDOMAIN policy
+nodata.domain.com       CNAME   *.              ; NODATA policy
+bad.domain.com          A       10.0.0.1        ; redirect to a walled garden
+                        AAAA    2001:2::1
 
-; IP rules rewriting all answers for 127/8 except 127.0.0.1
-8.0.0.0.127.ip              CNAME   .
-32.1.0.0.127.ip             CNAME   32.1.0.0.127.
+; do not rewrite (PASSTHRU) OK.DOMAIN.COM
+ok.domain.com           CNAME   ok.domain.com.
 
-; NSDNAME and NSIP rules
+bzone.domain.com        CNAME   garden.example.com.
+
+; redirect x.bzone.domain.com to x.bzone.domain.com.garden.example.com
+*.bzone.domain.com      CNAME   *.garden.example.com.
+
+
+; IP policy records that rewrite all answers for 127/8 except 127.0.0.1
+8.0.0.0.127.rpz-ip      CNAME   .
+32.1.0.0.127.rpz-ip     CNAME   32.1.0.0.127.   ; PASSTHRU for 127.0.0.1
+
+; NSDNAME and NSIP policy records
 ns.domain.com.rpz-nsdname   CNAME   .
 48.zz.2.2001.rpz-nsip       CNAME   .
 </programlisting>
-	</sect3>
+        </sect3>
       </sect2>
 
       <sect2 id="server_statement_grammar">
@@ -14725,9 +14852,8 @@ HOST-127.EXAMPLE. MX 0 .
 // RFC1918 space and some reserved space, which is
 // commonly used in spoofing attacks.
 acl bogusnets {
-        0.0.0.0/8; 1.0.0.0/8; 2.0.0.0/8; 192.0.2.0/24;
-        224.0.0.0/3; 10.0.0.0/8; 172.16.0.0/12;
-        192.168.0.0/16;
+        0.0.0.0/8;  192.0.2.0/24; 224.0.0.0/3;
+        10.0.0.0/8; 172.16.0.0/12; 192.168.0.0/16;
 };
 
 // Set up an ACL called our-nets. Replace this with the

@@ -62,6 +62,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 
 #include <sys/param.h>
@@ -1509,6 +1511,10 @@ wi_info_intr(struct wi_softc *sc)
 	case WI_INFO_LINK_STAT:
 		wi_read_bap(sc, fid, sizeof(ltbuf), &stat, sizeof(stat));
 		DPRINTF(("wi_info_intr: LINK_STAT 0x%x\n", le16toh(stat)));
+
+		if (vap == NULL)
+			goto finish;
+
 		switch (le16toh(stat)) {
 		case WI_INFO_LINK_STAT_CONNECTED:
 			if (vap->iv_state == IEEE80211_S_RUN &&
@@ -1564,6 +1570,7 @@ wi_info_intr(struct wi_softc *sc)
 		    le16toh(ltbuf[1]), le16toh(ltbuf[0])));
 		break;
 	}
+finish:
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_INFO);
 }
 

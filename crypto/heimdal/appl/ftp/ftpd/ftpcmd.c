@@ -242,7 +242,7 @@
 
 
 #include "ftpd_locl.h"
-RCSID("$Id: ftpcmd.y 15677 2005-07-19 18:33:08Z lha $");
+RCSID("$Id$");
 
 off_t	restart_point;
 
@@ -665,16 +665,16 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   129,   129,   131,   136,   140,   146,   153,   164,   170,
-     175,   180,   186,   223,   237,   251,   257,   263,   272,   281,
-     290,   295,   304,   309,   315,   322,   327,   334,   348,   353,
-     358,   365,   370,   387,   392,   399,   406,   411,   416,   426,
-     433,   438,   443,   451,   464,   478,   485,   502,   525,   530,
-     539,   552,   563,   576,   583,   588,   595,   613,   630,   658,
-     665,   671,   681,   691,   696,   701,   706,   711,   716,   721,
-     726,   734,   739,   742,   746,   750,   763,   767,   771,   778,
-     783,   788,   793,   798,   802,   807,   813,   821,   825,   829,
-     836,   840,   844,   851,   879,   883,   909,   917,   928
+       0,   129,   129,   131,   136,   140,   146,   154,   175,   181,
+     186,   191,   197,   234,   248,   262,   268,   274,   283,   292,
+     301,   306,   315,   320,   326,   333,   338,   345,   359,   364,
+     373,   380,   385,   402,   407,   414,   421,   426,   431,   441,
+     448,   453,   458,   466,   479,   493,   500,   517,   521,   526,
+     530,   534,   545,   558,   565,   570,   577,   595,   612,   640,
+     647,   653,   663,   673,   678,   683,   688,   693,   698,   703,
+     708,   716,   721,   724,   728,   732,   745,   749,   753,   760,
+     765,   770,   775,   780,   784,   789,   795,   803,   807,   811,
+     818,   822,   826,   833,   861,   865,   891,   899,   910
 };
 #endif
 
@@ -1794,21 +1794,31 @@ yyreduce:
     break;
 
   case 7:
-#line 154 "ftpcmd.y"
+#line 155 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i)) {
-			usedefault = 0;
-			if (pdata >= 0) {
+			if (paranoid &&
+			    (data_dest->sa_family != his_addr->sa_family ||
+			     (socket_get_port(data_dest) < IPPORT_RESERVED) ||
+			     memcmp(socket_get_address(data_dest),
+				    socket_get_address(his_addr),
+				    socket_addr_size(his_addr)) != 0)) {
+			    usedefault = 1;
+			    reply(500, "Illegal PORT range rejected.");
+			} else {
+			    usedefault = 0;
+			    if (pdata >= 0) {
 				close(pdata);
 				pdata = -1;
+			    }
+			    reply(200, "PORT command successful.");
 			}
-			reply(200, "PORT command successful.");
 		    }
 		}
     break;
 
   case 8:
-#line 165 "ftpcmd.y"
+#line 176 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i))
 			eprt ((yyvsp[(3) - (5)].s));
@@ -1817,7 +1827,7 @@ yyreduce:
     break;
 
   case 9:
-#line 171 "ftpcmd.y"
+#line 182 "ftpcmd.y"
     {
 		    if((yyvsp[(3) - (3)].i))
 			pasv ();
@@ -1825,7 +1835,7 @@ yyreduce:
     break;
 
   case 10:
-#line 176 "ftpcmd.y"
+#line 187 "ftpcmd.y"
     {
 		    if((yyvsp[(3) - (3)].i))
 			epsv (NULL);
@@ -1833,7 +1843,7 @@ yyreduce:
     break;
 
   case 11:
-#line 181 "ftpcmd.y"
+#line 192 "ftpcmd.y"
     {
 		    if((yyvsp[(5) - (5)].i))
 			epsv ((yyvsp[(3) - (5)].s));
@@ -1842,7 +1852,7 @@ yyreduce:
     break;
 
   case 12:
-#line 187 "ftpcmd.y"
+#line 198 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i)) {
 			switch (cmd_type) {
@@ -1882,7 +1892,7 @@ yyreduce:
     break;
 
   case 13:
-#line 224 "ftpcmd.y"
+#line 235 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i)) {
 			switch ((yyvsp[(3) - (5)].i)) {
@@ -1899,7 +1909,7 @@ yyreduce:
     break;
 
   case 14:
-#line 238 "ftpcmd.y"
+#line 249 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i)) {
 			switch ((yyvsp[(3) - (5)].i)) {
@@ -1916,7 +1926,7 @@ yyreduce:
     break;
 
   case 15:
-#line 252 "ftpcmd.y"
+#line 263 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i)) {
 			reply(202, "ALLO command ignored.");
@@ -1925,7 +1935,7 @@ yyreduce:
     break;
 
   case 16:
-#line 258 "ftpcmd.y"
+#line 269 "ftpcmd.y"
     {
 		    if ((yyvsp[(9) - (9)].i)) {
 			reply(202, "ALLO command ignored.");
@@ -1934,7 +1944,7 @@ yyreduce:
     break;
 
   case 17:
-#line 264 "ftpcmd.y"
+#line 275 "ftpcmd.y"
     {
 			char *name = (yyvsp[(3) - (5)].s);
 
@@ -1946,7 +1956,7 @@ yyreduce:
     break;
 
   case 18:
-#line 273 "ftpcmd.y"
+#line 284 "ftpcmd.y"
     {
 			char *name = (yyvsp[(3) - (5)].s);
 
@@ -1958,7 +1968,7 @@ yyreduce:
     break;
 
   case 19:
-#line 282 "ftpcmd.y"
+#line 293 "ftpcmd.y"
     {
 			char *name = (yyvsp[(3) - (5)].s);
 
@@ -1970,7 +1980,7 @@ yyreduce:
     break;
 
   case 20:
-#line 291 "ftpcmd.y"
+#line 302 "ftpcmd.y"
     {
 			if ((yyvsp[(3) - (3)].i))
 				send_file_list(".");
@@ -1978,7 +1988,7 @@ yyreduce:
     break;
 
   case 21:
-#line 296 "ftpcmd.y"
+#line 307 "ftpcmd.y"
     {
 			char *name = (yyvsp[(3) - (5)].s);
 
@@ -1990,7 +2000,7 @@ yyreduce:
     break;
 
   case 22:
-#line 305 "ftpcmd.y"
+#line 316 "ftpcmd.y"
     {
 		    if((yyvsp[(3) - (3)].i))
 			list_file(".");
@@ -1998,7 +2008,7 @@ yyreduce:
     break;
 
   case 23:
-#line 310 "ftpcmd.y"
+#line 321 "ftpcmd.y"
     {
 		    if((yyvsp[(5) - (5)].i))
 			list_file((yyvsp[(3) - (5)].s));
@@ -2007,7 +2017,7 @@ yyreduce:
     break;
 
   case 24:
-#line 316 "ftpcmd.y"
+#line 327 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL)
 				statfilecmd((yyvsp[(3) - (5)].s));
@@ -2017,7 +2027,7 @@ yyreduce:
     break;
 
   case 25:
-#line 323 "ftpcmd.y"
+#line 334 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i))
 			statcmd();
@@ -2025,7 +2035,7 @@ yyreduce:
     break;
 
   case 26:
-#line 328 "ftpcmd.y"
+#line 339 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL)
 				do_delete((yyvsp[(3) - (5)].s));
@@ -2035,7 +2045,7 @@ yyreduce:
     break;
 
   case 27:
-#line 335 "ftpcmd.y"
+#line 346 "ftpcmd.y"
     {
 			if((yyvsp[(5) - (5)].i)){
 				if (fromname) {
@@ -2052,7 +2062,7 @@ yyreduce:
     break;
 
   case 28:
-#line 349 "ftpcmd.y"
+#line 360 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i))
 			reply(225, "ABOR command successful.");
@@ -2060,15 +2070,19 @@ yyreduce:
     break;
 
   case 29:
-#line 354 "ftpcmd.y"
+#line 365 "ftpcmd.y"
     {
-			if ((yyvsp[(3) - (3)].i))
-				cwd(pw->pw_dir);
+			if ((yyvsp[(3) - (3)].i)) {
+				const char *path = pw->pw_dir;
+				if (dochroot || guest)
+					path = "/";
+				cwd(path);
+			}
 		}
     break;
 
   case 30:
-#line 359 "ftpcmd.y"
+#line 374 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL)
 				cwd((yyvsp[(3) - (5)].s));
@@ -2078,7 +2092,7 @@ yyreduce:
     break;
 
   case 31:
-#line 366 "ftpcmd.y"
+#line 381 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i))
 			help(cmdtab, (char *) 0);
@@ -2086,7 +2100,7 @@ yyreduce:
     break;
 
   case 32:
-#line 371 "ftpcmd.y"
+#line 386 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i)) {
 			char *cp = (yyvsp[(3) - (5)].s);
@@ -2106,7 +2120,7 @@ yyreduce:
     break;
 
   case 33:
-#line 388 "ftpcmd.y"
+#line 403 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i))
 			reply(200, "NOOP command successful.");
@@ -2114,7 +2128,7 @@ yyreduce:
     break;
 
   case 34:
-#line 393 "ftpcmd.y"
+#line 408 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL)
 				makedir((yyvsp[(3) - (5)].s));
@@ -2124,7 +2138,7 @@ yyreduce:
     break;
 
   case 35:
-#line 400 "ftpcmd.y"
+#line 415 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL)
 				removedir((yyvsp[(3) - (5)].s));
@@ -2134,7 +2148,7 @@ yyreduce:
     break;
 
   case 36:
-#line 407 "ftpcmd.y"
+#line 422 "ftpcmd.y"
     {
 			if ((yyvsp[(3) - (3)].i))
 				pwd();
@@ -2142,7 +2156,7 @@ yyreduce:
     break;
 
   case 37:
-#line 412 "ftpcmd.y"
+#line 427 "ftpcmd.y"
     {
 			if ((yyvsp[(3) - (3)].i))
 				cwd("..");
@@ -2150,7 +2164,7 @@ yyreduce:
     break;
 
   case 38:
-#line 417 "ftpcmd.y"
+#line 432 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i)) {
 			lreply(211, "Supported features:");
@@ -2163,7 +2177,7 @@ yyreduce:
     break;
 
   case 39:
-#line 427 "ftpcmd.y"
+#line 442 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i))
 			reply(501, "Bad options");
@@ -2172,7 +2186,7 @@ yyreduce:
     break;
 
   case 40:
-#line 434 "ftpcmd.y"
+#line 449 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i))
 			help(sitetab, (char *) 0);
@@ -2180,7 +2194,7 @@ yyreduce:
     break;
 
   case 41:
-#line 439 "ftpcmd.y"
+#line 454 "ftpcmd.y"
     {
 		    if ((yyvsp[(7) - (7)].i))
 			help(sitetab, (yyvsp[(5) - (7)].s));
@@ -2188,7 +2202,7 @@ yyreduce:
     break;
 
   case 42:
-#line 444 "ftpcmd.y"
+#line 459 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i)) {
 				int oldmask = umask(0);
@@ -2199,7 +2213,7 @@ yyreduce:
     break;
 
   case 43:
-#line 452 "ftpcmd.y"
+#line 467 "ftpcmd.y"
     {
 			if ((yyvsp[(7) - (7)].i)) {
 				if (((yyvsp[(5) - (7)].i) == -1) || ((yyvsp[(5) - (7)].i) > 0777)) {
@@ -2215,7 +2229,7 @@ yyreduce:
     break;
 
   case 44:
-#line 465 "ftpcmd.y"
+#line 480 "ftpcmd.y"
     {
 			if ((yyvsp[(9) - (9)].i) && (yyvsp[(7) - (9)].s) != NULL) {
 				if ((yyvsp[(5) - (9)].i) > 0777)
@@ -2232,7 +2246,7 @@ yyreduce:
     break;
 
   case 45:
-#line 479 "ftpcmd.y"
+#line 494 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i))
 			reply(200,
@@ -2242,7 +2256,7 @@ yyreduce:
     break;
 
   case 46:
-#line 486 "ftpcmd.y"
+#line 501 "ftpcmd.y"
     {
 		    if ((yyvsp[(7) - (7)].i)) {
 			if ((yyvsp[(5) - (7)].i) < 30 || (yyvsp[(5) - (7)].i) > maxtimeout) {
@@ -2261,33 +2275,14 @@ yyreduce:
     break;
 
   case 47:
-#line 503 "ftpcmd.y"
+#line 518 "ftpcmd.y"
     {
-#ifdef KRB4
-			char *p;
-			
-			if(guest)
-				reply(500, "Can't be done as guest.");
-			else{
-				if((yyvsp[(7) - (7)].i) && (yyvsp[(5) - (7)].s) != NULL){
-				    p = strpbrk((yyvsp[(5) - (7)].s), " \t");
-				    if(p){
-					*p++ = 0;
-					kauth((yyvsp[(5) - (7)].s), p + strspn(p, " \t"));
-				    }else
-					kauth((yyvsp[(5) - (7)].s), NULL);
-				}
-			}
-			if((yyvsp[(5) - (7)].s) != NULL)
-			    free((yyvsp[(5) - (7)].s));
-#else
 			reply(500, "Command not implemented.");
-#endif
 		}
     break;
 
   case 48:
-#line 526 "ftpcmd.y"
+#line 522 "ftpcmd.y"
     {
 		    if((yyvsp[(5) - (5)].i))
 			klist();
@@ -2295,37 +2290,23 @@ yyreduce:
     break;
 
   case 49:
-#line 531 "ftpcmd.y"
+#line 527 "ftpcmd.y"
     {
-#ifdef KRB4
-		    if((yyvsp[(5) - (5)].i))
-			kdestroy();
-#else
 		    reply(500, "Command not implemented.");
-#endif
 		}
     break;
 
   case 50:
-#line 540 "ftpcmd.y"
+#line 531 "ftpcmd.y"
     {
-#ifdef KRB4
-		    if(guest)
-			reply(500, "Can't be done as guest.");
-		    else if((yyvsp[(7) - (7)].i) && (yyvsp[(5) - (7)].s))
-			krbtkfile((yyvsp[(5) - (7)].s));
-		    if((yyvsp[(5) - (7)].s))
-			free((yyvsp[(5) - (7)].s));
-#else
 		    reply(500, "Command not implemented.");
-#endif
 		}
     break;
 
   case 51:
-#line 553 "ftpcmd.y"
+#line 535 "ftpcmd.y"
     {
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 		    if(guest)
 			reply(500, "Can't be done as guest.");
 		    else if((yyvsp[(5) - (5)].i))
@@ -2337,9 +2318,9 @@ yyreduce:
     break;
 
   case 52:
-#line 564 "ftpcmd.y"
+#line 546 "ftpcmd.y"
     {
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 		    if(guest)
 			reply(500, "Can't be done as guest.");
 		    else if((yyvsp[(7) - (7)].i))
@@ -2353,7 +2334,7 @@ yyreduce:
     break;
 
   case 53:
-#line 577 "ftpcmd.y"
+#line 559 "ftpcmd.y"
     {
 		    if((yyvsp[(7) - (7)].i) && (yyvsp[(5) - (7)].s) != NULL)
 			find((yyvsp[(5) - (7)].s));
@@ -2363,7 +2344,7 @@ yyreduce:
     break;
 
   case 54:
-#line 584 "ftpcmd.y"
+#line 566 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i))
 			reply(200, "http://www.pdc.kth.se/heimdal/");
@@ -2371,7 +2352,7 @@ yyreduce:
     break;
 
   case 55:
-#line 589 "ftpcmd.y"
+#line 571 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL)
 				do_store((yyvsp[(3) - (5)].s), "w", 1);
@@ -2381,7 +2362,7 @@ yyreduce:
     break;
 
   case 56:
-#line 596 "ftpcmd.y"
+#line 578 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i)) {
 #if !defined(WIN32) && !defined(__EMX__) && !defined(__OS2__) && !defined(__CYGWIN32__)
@@ -2394,7 +2375,7 @@ yyreduce:
     break;
 
   case 57:
-#line 614 "ftpcmd.y"
+#line 596 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL)
 				sizecmd((yyvsp[(3) - (5)].s));
@@ -2404,7 +2385,7 @@ yyreduce:
     break;
 
   case 58:
-#line 631 "ftpcmd.y"
+#line 613 "ftpcmd.y"
     {
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s) != NULL) {
 				struct stat stbuf;
@@ -2435,7 +2416,7 @@ yyreduce:
     break;
 
   case 59:
-#line 659 "ftpcmd.y"
+#line 641 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i)) {
 			reply(221, "Goodbye.");
@@ -2445,14 +2426,14 @@ yyreduce:
     break;
 
   case 60:
-#line 666 "ftpcmd.y"
+#line 648 "ftpcmd.y"
     {
 			yyerrok;
 		}
     break;
 
   case 61:
-#line 672 "ftpcmd.y"
+#line 654 "ftpcmd.y"
     {
 			restart_point = (off_t) 0;
 			if ((yyvsp[(5) - (5)].i) && (yyvsp[(3) - (5)].s)) {
@@ -2465,7 +2446,7 @@ yyreduce:
     break;
 
   case 62:
-#line 682 "ftpcmd.y"
+#line 664 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i)) {
 			fromname = (char *) 0;
@@ -2478,7 +2459,7 @@ yyreduce:
     break;
 
   case 63:
-#line 692 "ftpcmd.y"
+#line 674 "ftpcmd.y"
     {
 			auth((yyvsp[(3) - (4)].s));
 			free((yyvsp[(3) - (4)].s));
@@ -2486,7 +2467,7 @@ yyreduce:
     break;
 
   case 64:
-#line 697 "ftpcmd.y"
+#line 679 "ftpcmd.y"
     {
 			adat((yyvsp[(3) - (4)].s));
 			free((yyvsp[(3) - (4)].s));
@@ -2494,7 +2475,7 @@ yyreduce:
     break;
 
   case 65:
-#line 702 "ftpcmd.y"
+#line 684 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i))
 			pbsz((yyvsp[(3) - (5)].i));
@@ -2502,7 +2483,7 @@ yyreduce:
     break;
 
   case 66:
-#line 707 "ftpcmd.y"
+#line 689 "ftpcmd.y"
     {
 		    if ((yyvsp[(5) - (5)].i))
 			prot((yyvsp[(3) - (5)].s));
@@ -2510,7 +2491,7 @@ yyreduce:
     break;
 
   case 67:
-#line 712 "ftpcmd.y"
+#line 694 "ftpcmd.y"
     {
 		    if ((yyvsp[(3) - (3)].i))
 			ccc();
@@ -2518,7 +2499,7 @@ yyreduce:
     break;
 
   case 68:
-#line 717 "ftpcmd.y"
+#line 699 "ftpcmd.y"
     {
 			mec((yyvsp[(3) - (4)].s), prot_safe);
 			free((yyvsp[(3) - (4)].s));
@@ -2526,7 +2507,7 @@ yyreduce:
     break;
 
   case 69:
-#line 722 "ftpcmd.y"
+#line 704 "ftpcmd.y"
     {
 			mec((yyvsp[(3) - (4)].s), prot_confidential);
 			free((yyvsp[(3) - (4)].s));
@@ -2534,7 +2515,7 @@ yyreduce:
     break;
 
   case 70:
-#line 727 "ftpcmd.y"
+#line 709 "ftpcmd.y"
     {
 			mec((yyvsp[(3) - (4)].s), prot_private);
 			free((yyvsp[(3) - (4)].s));
@@ -2542,47 +2523,47 @@ yyreduce:
     break;
 
   case 72:
-#line 739 "ftpcmd.y"
+#line 721 "ftpcmd.y"
     {
 			(yyval.s) = (char *)calloc(1, sizeof(char));
 		}
     break;
 
   case 75:
-#line 752 "ftpcmd.y"
+#line 734 "ftpcmd.y"
     {
 			struct sockaddr_in *sin4 = (struct sockaddr_in *)data_dest;
 
 			sin4->sin_family = AF_INET;
 			sin4->sin_port = htons((yyvsp[(9) - (11)].i) * 256 + (yyvsp[(11) - (11)].i));
-			sin4->sin_addr.s_addr = 
+			sin4->sin_addr.s_addr =
 			    htonl(((yyvsp[(1) - (11)].i) << 24) | ((yyvsp[(3) - (11)].i) << 16) | ((yyvsp[(5) - (11)].i) << 8) | (yyvsp[(7) - (11)].i));
 		}
     break;
 
   case 76:
-#line 764 "ftpcmd.y"
+#line 746 "ftpcmd.y"
     {
 			(yyval.i) = FORM_N;
 		}
     break;
 
   case 77:
-#line 768 "ftpcmd.y"
+#line 750 "ftpcmd.y"
     {
 			(yyval.i) = FORM_T;
 		}
     break;
 
   case 78:
-#line 772 "ftpcmd.y"
+#line 754 "ftpcmd.y"
     {
 			(yyval.i) = FORM_C;
 		}
     break;
 
   case 79:
-#line 779 "ftpcmd.y"
+#line 761 "ftpcmd.y"
     {
 			cmd_type = TYPE_A;
 			cmd_form = FORM_N;
@@ -2590,7 +2571,7 @@ yyreduce:
     break;
 
   case 80:
-#line 784 "ftpcmd.y"
+#line 766 "ftpcmd.y"
     {
 			cmd_type = TYPE_A;
 			cmd_form = (yyvsp[(3) - (3)].i);
@@ -2598,7 +2579,7 @@ yyreduce:
     break;
 
   case 81:
-#line 789 "ftpcmd.y"
+#line 771 "ftpcmd.y"
     {
 			cmd_type = TYPE_E;
 			cmd_form = FORM_N;
@@ -2606,7 +2587,7 @@ yyreduce:
     break;
 
   case 82:
-#line 794 "ftpcmd.y"
+#line 776 "ftpcmd.y"
     {
 			cmd_type = TYPE_E;
 			cmd_form = (yyvsp[(3) - (3)].i);
@@ -2614,14 +2595,14 @@ yyreduce:
     break;
 
   case 83:
-#line 799 "ftpcmd.y"
+#line 781 "ftpcmd.y"
     {
 			cmd_type = TYPE_I;
 		}
     break;
 
   case 84:
-#line 803 "ftpcmd.y"
+#line 785 "ftpcmd.y"
     {
 			cmd_type = TYPE_L;
 			cmd_bytesz = NBBY;
@@ -2629,7 +2610,7 @@ yyreduce:
     break;
 
   case 85:
-#line 808 "ftpcmd.y"
+#line 790 "ftpcmd.y"
     {
 			cmd_type = TYPE_L;
 			cmd_bytesz = (yyvsp[(3) - (3)].i);
@@ -2637,7 +2618,7 @@ yyreduce:
     break;
 
   case 86:
-#line 814 "ftpcmd.y"
+#line 796 "ftpcmd.y"
     {
 			cmd_type = TYPE_L;
 			cmd_bytesz = (yyvsp[(2) - (2)].i);
@@ -2645,49 +2626,49 @@ yyreduce:
     break;
 
   case 87:
-#line 822 "ftpcmd.y"
+#line 804 "ftpcmd.y"
     {
 			(yyval.i) = STRU_F;
 		}
     break;
 
   case 88:
-#line 826 "ftpcmd.y"
+#line 808 "ftpcmd.y"
     {
 			(yyval.i) = STRU_R;
 		}
     break;
 
   case 89:
-#line 830 "ftpcmd.y"
+#line 812 "ftpcmd.y"
     {
 			(yyval.i) = STRU_P;
 		}
     break;
 
   case 90:
-#line 837 "ftpcmd.y"
+#line 819 "ftpcmd.y"
     {
 			(yyval.i) = MODE_S;
 		}
     break;
 
   case 91:
-#line 841 "ftpcmd.y"
+#line 823 "ftpcmd.y"
     {
 			(yyval.i) = MODE_B;
 		}
     break;
 
   case 92:
-#line 845 "ftpcmd.y"
+#line 827 "ftpcmd.y"
     {
 			(yyval.i) = MODE_C;
 		}
     break;
 
   case 93:
-#line 852 "ftpcmd.y"
+#line 834 "ftpcmd.y"
     {
 			/*
 			 * Problem: this production is used for all pathname
@@ -2715,7 +2696,7 @@ yyreduce:
     break;
 
   case 95:
-#line 884 "ftpcmd.y"
+#line 866 "ftpcmd.y"
     {
 			int ret, dec, multby, digit;
 
@@ -2741,7 +2722,7 @@ yyreduce:
     break;
 
   case 96:
-#line 910 "ftpcmd.y"
+#line 892 "ftpcmd.y"
     {
 			(yyval.i) = (yyvsp[(1) - (1)].i) && !guest;
 			if((yyvsp[(1) - (1)].i) && !(yyval.i))
@@ -2750,7 +2731,7 @@ yyreduce:
     break;
 
   case 97:
-#line 918 "ftpcmd.y"
+#line 900 "ftpcmd.y"
     {
 		    if((yyvsp[(1) - (1)].i)) {
 			if(((yyval.i) = logged_in) == 0)
@@ -2761,7 +2742,7 @@ yyreduce:
     break;
 
   case 98:
-#line 928 "ftpcmd.y"
+#line 910 "ftpcmd.y"
     {
 		    (yyval.i) = 1;
 		    if(sec_complete && !ccc_passed && !secure_command()) {
@@ -2774,7 +2755,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 2778 "ftpcmd.c"
+#line 2759 "ftpcmd.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2988,7 +2969,7 @@ yyreturn:
 }
 
 
-#line 938 "ftpcmd.y"
+#line 920 "ftpcmd.y"
 
 
 #define	CMD	0	/* beginning of command */
@@ -3085,7 +3066,7 @@ struct tab sitetab[] = {
 	{ "FIND", LOCATE, STR1, 1,	"<sp> globexpr" },
 
 	{ "URL",  URL,  ARGS, 1,	"?" },
-	
+
 	{ NULL,   0,    0,    0,	0 }
 };
 

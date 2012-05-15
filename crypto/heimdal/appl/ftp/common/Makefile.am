@@ -1,4 +1,4 @@
-# $Id: Makefile.am 14164 2004-08-26 11:55:29Z joda $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -10,3 +10,5 @@ libcommon_a_SOURCES = \
 	sockbuf.c \
 	buffer.c \
 	common.h
+
+EXTRA_DIST = NTMakefile

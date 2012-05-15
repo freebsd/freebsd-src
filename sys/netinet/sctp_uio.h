@@ -169,7 +169,7 @@ struct sctp_default_prinfo {
 };
 
 struct sctp_authinfo {
-	uint16_t auth_keyid;
+	uint16_t auth_keynumber;
 };
 
 struct sctp_rcvinfo {
@@ -296,16 +296,23 @@ struct sctp_assoc_change {
 	uint16_t sac_outbound_streams;
 	uint16_t sac_inbound_streams;
 	sctp_assoc_t sac_assoc_id;
+	uint8_t sac_info[];
 };
 
 /* sac_state values */
-#define SCTP_COMM_UP		0x0001
-#define SCTP_COMM_LOST		0x0002
-#define SCTP_RESTART		0x0003
-#define SCTP_SHUTDOWN_COMP	0x0004
-#define SCTP_CANT_STR_ASSOC	0x0005
+#define SCTP_COMM_UP            0x0001
+#define SCTP_COMM_LOST          0x0002
+#define SCTP_RESTART            0x0003
+#define SCTP_SHUTDOWN_COMP      0x0004
+#define SCTP_CANT_STR_ASSOC     0x0005
 
-
+/* sac_info values */
+#define SCTP_ASSOC_SUPPORTS_PR        0x01
+#define SCTP_ASSOC_SUPPORTS_AUTH      0x02
+#define SCTP_ASSOC_SUPPORTS_ASCONF    0x03
+#define SCTP_ASSOC_SUPPORTS_MULTIBUF  0x04
+#define SCTP_ASSOC_SUPPORTS_RE_CONFIG 0x05
+#define SCTP_ASSOC_SUPPORTS_MAX       0x05
 /*
  * Address event
  */
@@ -343,7 +350,7 @@ struct sctp_remote_error {
 	uint8_t sre_data[4];
 };
 
-/* data send failure event */
+/* data send failure event (deprecated) */
 struct sctp_send_failed {
 	uint16_t ssf_type;
 	uint16_t ssf_flags;
@@ -352,6 +359,17 @@ struct sctp_send_failed {
 	struct sctp_sndrcvinfo ssf_info;
 	sctp_assoc_t ssf_assoc_id;
 	uint8_t ssf_data[];
+};
+
+/* data send failure event (not deprecated) */
+struct sctp_send_failed_event {
+	uint16_t ssfe_type;
+	uint16_t ssfe_flags;
+	uint32_t ssfe_length;
+	uint32_t ssfe_error;
+	struct sctp_sndinfo ssfe_info;
+	sctp_assoc_t ssfe_assoc_id;
+	uint8_t ssfe_data[];
 };
 
 /* flag that indicates state of data */
@@ -424,7 +442,8 @@ struct sctp_authkey_event {
 };
 
 /* indication values */
-#define SCTP_AUTH_NEWKEY	0x0001
+#define SCTP_AUTH_NEW_KEY	0x0001
+#define SCTP_AUTH_NEWKEY	SCTP_AUTH_NEW_KEY
 #define SCTP_AUTH_NO_AUTH	0x0002
 #define SCTP_AUTH_FREE_KEY	0x0003
 
@@ -438,23 +457,52 @@ struct sctp_sender_dry_event {
 
 
 /*
- * stream reset event
+ * Stream reset event - subscribe to SCTP_STREAM_RESET_EVENT
  */
 struct sctp_stream_reset_event {
 	uint16_t strreset_type;
 	uint16_t strreset_flags;
 	uint32_t strreset_length;
 	sctp_assoc_t strreset_assoc_id;
-	uint16_t strreset_list[];
+	uint16_t strreset_stream_list[];
 };
 
-/* flags in strreset_flags field */
-#define SCTP_STRRESET_INBOUND_STR  0x0001
-#define SCTP_STRRESET_OUTBOUND_STR 0x0002
-#define SCTP_STRRESET_ALL_STREAMS  0x0004
-#define SCTP_STRRESET_STREAM_LIST  0x0008
-#define SCTP_STRRESET_FAILED       0x0010
-#define SCTP_STRRESET_ADD_STREAM   0x0020
+/* flags in stream_reset_event (strreset_flags) */
+#define SCTP_STREAM_RESET_INCOMING_SSN  0x0001
+#define SCTP_STREAM_RESET_OUTGOING_SSN  0x0002
+#define SCTP_STREAM_RESET_DENIED        0x0004
+#define SCTP_STREAM_RESET_FAILED        0x0008
+
+/*
+ * Assoc reset event - subscribe to SCTP_ASSOC_RESET_EVENT
+ */
+struct sctp_assoc_reset_event {
+	uint16_t assocreset_type;
+	uint16_t assocreset_flags;
+	uint32_t assocreset_length;
+	sctp_assoc_t assocreset_assoc_id;
+	uint32_t assocreset_local_tsn;
+	uint32_t assocreset_remote_tsn;
+};
+
+#define SCTP_ASSOC_RESET_DENIED		0x0004
+#define SCTP_ASSOC_RESET_FAILED		0x0008
+
+/*
+ * Stream change event - subscribe to SCTP_STREAM_CHANGE_EVENT
+ */
+struct sctp_stream_change_event {
+	uint16_t strchange_type;
+	uint16_t strchange_flags;
+	uint32_t strchange_length;
+	sctp_assoc_t strchange_assoc_id;
+	uint16_t strchange_instrms;
+	uint16_t strchange_outstrms;
+};
+
+#define SCTP_STREAM_CHANGE_DENIED	0x0004
+#define SCTP_STREAM_CHANGE_FAILED	0x0008
+
 
 /* SCTP notification event */
 struct sctp_tlv {
@@ -477,22 +525,28 @@ union sctp_notification {
 	struct sctp_authkey_event sn_auth_event;
 	struct sctp_sender_dry_event sn_sender_dry_event;
 	struct sctp_stream_reset_event sn_strreset_event;
+	struct sctp_assoc_reset_event sn_assocreset_event;
+	struct sctp_stream_change_event sn_strchange_event;
+
 };
 
 /* notification types */
-#define SCTP_ASSOC_CHANGE			0x0001
-#define SCTP_PEER_ADDR_CHANGE			0x0002
-#define SCTP_REMOTE_ERROR			0x0003
-#define SCTP_SEND_FAILED			0x0004
-#define SCTP_SHUTDOWN_EVENT			0x0005
-#define SCTP_ADAPTATION_INDICATION		0x0006
+#define SCTP_ASSOC_CHANGE                       0x0001
+#define SCTP_PEER_ADDR_CHANGE                   0x0002
+#define SCTP_REMOTE_ERROR                       0x0003
+#define SCTP_SEND_FAILED                        0x0004
+#define SCTP_SHUTDOWN_EVENT                     0x0005
+#define SCTP_ADAPTATION_INDICATION              0x0006
 /* same as above */
-#define SCTP_ADAPTION_INDICATION		0x0006
-#define SCTP_PARTIAL_DELIVERY_EVENT		0x0007
-#define SCTP_AUTHENTICATION_EVENT		0x0008
-#define SCTP_STREAM_RESET_EVENT			0x0009
-#define SCTP_SENDER_DRY_EVENT			0x000a
-#define SCTP_NOTIFICATIONS_STOPPED_EVENT	0x000b	/* we don't send this */
+#define SCTP_ADAPTION_INDICATION                0x0006
+#define SCTP_PARTIAL_DELIVERY_EVENT             0x0007
+#define SCTP_AUTHENTICATION_EVENT               0x0008
+#define SCTP_STREAM_RESET_EVENT                 0x0009
+#define SCTP_SENDER_DRY_EVENT                   0x000a
+#define SCTP_NOTIFICATIONS_STOPPED_EVENT        0x000b	/* we don't send this */
+#define SCTP_ASSOC_RESET_EVENT                  0x000c
+#define SCTP_STREAM_CHANGE_EVENT                0x000d
+#define SCTP_SEND_FAILED_EVENT                  0x000e
 /*
  * socket option structs
  */
@@ -571,13 +625,6 @@ struct sctp_getaddresses {
 	struct sockaddr addr[1];
 };
 
-struct sctp_setstrm_timeout {
-	sctp_assoc_t ssto_assoc_id;
-	uint32_t ssto_timeout;
-	uint32_t ssto_streamid_start;
-	uint32_t ssto_streamid_end;
-};
-
 struct sctp_status {
 	sctp_assoc_t sstat_assoc_id;
 	int32_t sstat_state;
@@ -630,6 +677,7 @@ struct sctp_authkeyid {
 /* SCTP_PEER_AUTH_CHUNKS / SCTP_LOCAL_AUTH_CHUNKS */
 struct sctp_authchunks {
 	sctp_assoc_t gauth_assoc_id;
+	uint32_t gauth_number_of_chunks;
 	uint8_t gauth_chunks[];
 };
 
@@ -707,19 +755,18 @@ struct sctp_blk_args {
  */
 #define SCTP_MAX_EXPLICT_STR_RESET   1000
 
-#define SCTP_RESET_LOCAL_RECV  0x0001
-#define SCTP_RESET_LOCAL_SEND  0x0002
-#define SCTP_RESET_BOTH        0x0003
-#define SCTP_RESET_TSN         0x0004
-#define SCTP_RESET_ADD_STREAMS 0x0005
-
-struct sctp_stream_reset {
-	sctp_assoc_t strrst_assoc_id;
-	uint16_t strrst_flags;
-	uint16_t strrst_num_streams;	/* 0 == ALL */
-	uint16_t strrst_list[];	/* list if strrst_num_streams is not 0 */
+struct sctp_reset_streams {
+	sctp_assoc_t srs_assoc_id;
+	uint16_t srs_flags;
+	uint16_t srs_number_streams;	/* 0 == ALL */
+	uint16_t srs_stream_list[];	/* list if strrst_num_streams is not 0 */
 };
 
+struct sctp_add_streams {
+	sctp_assoc_t sas_assoc_id;
+	uint16_t sas_instrms;
+	uint16_t sas_outstrms;
+};
 
 struct sctp_get_nonce_values {
 	sctp_assoc_t gn_assoc_id;

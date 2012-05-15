@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 
 #include <dev/pci/pcireg.h>
@@ -591,7 +592,7 @@ t3_sge_alloc(adapter_t *sc)
 {
 
 	/* The parent tag. */
-	if (bus_dma_tag_create( NULL,			/* parent */
+	if (bus_dma_tag_create( bus_get_dma_tag(sc->dev),/* PCI parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1492,10 +1493,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		check_ring_tx_db(sc, txq, 0);
 		return (0);		
 	} else if (tso_info) {
-		int eth_type;
+		uint16_t eth_type;
 		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *)txd;
 		struct ether_header *eh;
-		struct ip *ip;
+		void *l3hdr;
 		struct tcphdr *tcp;
 
 		txd->flit[2] = 0;
@@ -1521,18 +1522,37 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		}
 
 		eh = mtod(m0, struct ether_header *);
-		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			eth_type = CPL_ETH_II_VLAN;
-			ip = (struct ip *)((struct ether_vlan_header *)eh + 1);
-		} else {
-			eth_type = CPL_ETH_II;
-			ip = (struct ip *)(eh + 1);
-		}
-		tcp = (struct tcphdr *)(ip + 1);
+		eth_type = eh->ether_type;
+		if (eth_type == htons(ETHERTYPE_VLAN)) {
+			struct ether_vlan_header *evh = (void *)eh;
 
-		tso_info |= V_LSO_ETH_TYPE(eth_type) |
-			    V_LSO_IPHDR_WORDS(ip->ip_hl) |
-			    V_LSO_TCPHDR_WORDS(tcp->th_off);
+			tso_info |= V_LSO_ETH_TYPE(CPL_ETH_II_VLAN);
+			l3hdr = evh + 1;
+			eth_type = evh->evl_proto;
+		} else {
+			tso_info |= V_LSO_ETH_TYPE(CPL_ETH_II);
+			l3hdr = eh + 1;
+		}
+
+		if (eth_type == htons(ETHERTYPE_IP)) {
+			struct ip *ip = l3hdr;
+
+			tso_info |= V_LSO_IPHDR_WORDS(ip->ip_hl);
+			tcp = (struct tcphdr *)(ip + 1);
+		} else if (eth_type == htons(ETHERTYPE_IPV6)) {
+			struct ip6_hdr *ip6 = l3hdr;
+
+			KASSERT(ip6->ip6_nxt == IPPROTO_TCP,
+			    ("%s: CSUM_TSO with ip6_nxt %d",
+			    __func__, ip6->ip6_nxt));
+
+			tso_info |= F_LSO_IPV6;
+			tso_info |= V_LSO_IPHDR_WORDS(sizeof(*ip6) >> 2);
+			tcp = (struct tcphdr *)(ip6 + 1);
+		} else
+			panic("%s: CSUM_TSO but neither ip nor ip6", __func__);
+
+		tso_info |= V_LSO_TCPHDR_WORDS(tcp->th_off);
 		hdr->lso_info = htonl(tso_info);
 
 		if (__predict_false(mlen <= PIO_LEN)) {
@@ -1766,19 +1786,6 @@ cxgb_transmit(struct ifnet *ifp, struct mbuf *m)
 	} else
 		error = drbr_enqueue(ifp, qs->txq[TXQ_ETH].txq_mr, m);
 	return (error);
-}
-void
-cxgb_start(struct ifnet *ifp)
-{
-	struct port_info *pi = ifp->if_softc;
-	struct sge_qset *qs = &pi->adapter->sge.qs[pi->first_qset];
-	
-	if (!pi->link_config.link_ok)
-		return;
-
-	TXQ_LOCK(qs);
-	cxgb_start_locked(qs);
-	TXQ_UNLOCK(qs);
 }
 
 void

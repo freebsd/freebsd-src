@@ -40,6 +40,13 @@
 #include <net80211/ieee80211_ratectl.h>
 #include "if_medium.h"
 
+/*
+ * This _requires_ vimage to be useful.
+ */
+#ifndef	VIMAGE
+#error	if_wtap requires VIMAGE.
+#endif	/* VIMAGE */
+
 /* device for IOCTL and read/write for debuggin purposes */
 /* Function prototypes */
 static	d_open_t	wtap_node_open;
@@ -84,7 +91,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 	uint8_t buf[1024];
 	int buf_len;
 
-	uprintf("write device %s \"echo.\"\n", dev->si_name);
+	uprintf("write device %s \"echo.\"\n", devtoname(dev));
 	buf_len = MIN(uio->uio_iov->iov_len, 1024);
 	err = copyin(uio->uio_iov->iov_base, buf, buf_len);
 
@@ -101,7 +108,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		printf("ifp->if_xname = %s\n", ifp->if_xname);
-		if(strcmp(dev->si_name, ifp->if_xname) == 0){
+		if(strcmp(devtoname(dev), ifp->if_xname) == 0){
 			printf("found match, correspoding wtap = %s\n",
 			    ifp->if_xname);
 			sc = (struct wtap_softc *)ifp->if_softc;
@@ -315,7 +322,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	    M_80211_VAP, M_NOWAIT | M_ZERO);
 	avp->id = sc->id;
 	avp->av_md = sc->sc_md;
-	avp->av_bcinterval = BEACON_INTRERVAL + 100*sc->id;
+	avp->av_bcinterval = msecs_to_ticks(BEACON_INTRERVAL + 100*sc->id);
 	vap = (struct ieee80211vap *) avp;
 	error = ieee80211_vap_setup(ic, vap, name, unit, IEEE80211_M_MBSS,
 	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);

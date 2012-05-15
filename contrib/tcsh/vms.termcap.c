@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/vms.termcap.c,v 1.11 2006/03/02 18:46:45 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/vms.termcap.c,v 1.12 2011/01/09 16:25:29 christos Exp $ */
 /*
  *	termcap.c	1.1	20/7/87		agc	Joypace Ltd
  *
@@ -9,8 +9,8 @@
  *	A public domain implementation of the termcap(3) routines.
  */
 #include "sh.h"
-RCSID("$tcsh: vms.termcap.c,v 1.11 2006/03/02 18:46:45 christos Exp $")
-#if defined(_VMS_POSIX) || defined(_OSD_POSIX)
+RCSID("$tcsh: vms.termcap.c,v 1.12 2011/01/09 16:25:29 christos Exp $")
+#if defined(_VMS_POSIX) || defined(_OSD_POSIX) || defined(__ANDROID__)
 /*    efth      1988-Apr-29
 
     - Correct when TERM != name and TERMCAP is defined   [tgetent]
@@ -43,10 +43,30 @@ extern FILE	*fopen();	/* old fopen */
  *	in bp (which must be an array of 1024 chars). Returns 1 if
  *	termcap entry found, 0 if not found, and -1 if file not found.
  */
-
 int
 tgetent(char *bp, char *name)
 {
+#ifdef __ANDROID__
+	/* Use static termcap entry since termcap file usually doesn't exist. */
+	capab = bp;
+	strcpy(bp,
+	"linux|linux console:"
+        ":am:eo:mi:ms:xn:xo:"
+        ":it#8:"
+        ":AL=\\E[%dL:DC=\\E[%dP:DL=\\E[%dM:IC=\\E[%d@:K2=\\E[G:al=\\E[L:"
+        ":bl=^G:cd=\\E[J:ce=\\E[K:cl=\\E[H\\E[J:cm=\\E[%i%d;%dH:cr=^M:"
+        ":cs=\\E[%i%d;%dr:ct=\\E[3g:dc=\\E[P:dl=\\E[M:do=^J:ec=\\E[%dX:"
+        ":ei=\\E[4l:ho=\\E[H:ic=\\E[@:im=\\E[4h:k1=\\E[[A:k2=\\E[[B:"
+        ":k3=\\E[[C:k4=\\E[[D:k5=\\E[[E:k6=\\E[17~:k7=\\E[18~:k8=\\E[19~:"
+        ":k9=\\E[20~:kD=\\E[3~:kI=\\E[2~:kN=\\E[6~:kP=\\E[5~:kb=\\177:"
+        ":kd=\\E[B:kh=\\E[1~:kl=\\E[D:kr=\\E[C:ku=\\E[A:le=^H:mb=\\E[5m:"
+        ":md=\\E[1m:me=\\E[0m:mh=\\E[2m:mr=\\E[7m:nd=\\E[C:nw=^M^J:"
+        ":rc=\\E8:sc=\\E7:se=\\E[27m:sf=^J:so=\\E[7m:sr=\\EM:st=\\EH:ta=^I:"
+        ":ue=\\E[24m:up=\\E[A:us=\\E[4m:vb=200\\E[?5h\\E[?5l:"
+        ":ve=\\E[?25h\\E[?0c:vi=\\E[?25l\\E[?1c:vs=\\E[?25h\\E[?0c:"
+	);
+	return(1);
+#else
 	FILE	*fp;
 	char	*termfile;
 	char	*cp,
@@ -118,6 +138,7 @@ sscanf to look at aliases.  These are delimited by '|'. */
 	sleep(1);
 #endif /* DEBUG */
 	return(0);
+#endif /* ANDROID */
 }
 
 /*

@@ -855,7 +855,7 @@ jailparam_type(struct jailparam *jp)
 {
 	char *p, *nname;
 	size_t miblen, desclen;
-	int isarray;
+	int i, isarray;
 	struct {
 	    int i;
 	    char s[MAXPATHLEN];
@@ -885,36 +885,20 @@ jailparam_type(struct jailparam *jp)
 		 * the "no" counterpart to a boolean.
 		 */
 		nname = nononame(jp->jp_name);
-		if (nname != NULL) {
-			snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", nname);
-			free(nname);
-			miblen = sizeof(mib) - 2 * sizeof(int);
-			if (sysctl(mib, 2, mib + 2, &miblen, desc.s,
-			    strlen(desc.s)) >= 0) {
-				mib[1] = 4;
-				desclen = sizeof(desc);
-				if (sysctl(mib, (miblen / sizeof(int)) + 2,
-				    &desc, &desclen, NULL, 0) < 0) {
-					snprintf(jail_errmsg,
-					    JAIL_ERRMSGLEN,
-					    "sysctl(0.4.%s): %s", desc.s,
-					    strerror(errno));
-					return (-1);
-				}
-				if ((desc.i & CTLTYPE) == CTLTYPE_INT &&
-				    desc.s[0] == 'B') {
-					jp->jp_ctltype = desc.i;
-					jp->jp_flags |= JP_NOBOOL;
-					jp->jp_valuelen = sizeof(int);
-					return (0);
-				}
-			}
+		if (nname == NULL) {
+		unknown_parameter:
+			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
+			    "unknown parameter: %s", jp->jp_name);
+			errno = ENOENT;
+			return (-1);
 		}
-	unknown_parameter:
-		snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-		    "unknown parameter: %s", jp->jp_name);
-		errno = ENOENT;
-		return (-1);
+		snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", nname);
+		free(nname);
+		miblen = sizeof(mib) - 2 * sizeof(int);
+		if (sysctl(mib, 2, mib + 2, &miblen, desc.s,
+		    strlen(desc.s)) < 0)
+			goto unknown_parameter;
+		jp->jp_flags |= JP_NOBOOL;
 	}
  mib_desc:
 	mib[1] = 4;
@@ -924,6 +908,16 @@ jailparam_type(struct jailparam *jp)
 		snprintf(jail_errmsg, JAIL_ERRMSGLEN,
 		    "sysctl(0.4.%s): %s", jp->jp_name, strerror(errno));
 		return (-1);
+	}
+	jp->jp_ctltype = desc.i;
+	/* If this came from removing a "no", it better be a boolean. */
+	if (jp->jp_flags & JP_NOBOOL) {
+		if ((desc.i & CTLTYPE) == CTLTYPE_INT && desc.s[0] == 'B') {
+			jp->jp_valuelen = sizeof(int);
+			return (0);
+		}
+		else if ((desc.i & CTLTYPE) != CTLTYPE_NODE)
+			goto unknown_parameter;
 	}
 	/* See if this is an array type. */
 	p = strchr(desc.s, '\0');
@@ -935,7 +929,6 @@ jailparam_type(struct jailparam *jp)
 		p[-2] = 0;
 	}
 	/* Look for types we understand. */
-	jp->jp_ctltype = desc.i;
 	switch (desc.i & CTLTYPE) {
 	case CTLTYPE_INT:
 		if (desc.s[0] == 'B')
@@ -984,21 +977,33 @@ jailparam_type(struct jailparam *jp)
 		}
 		break;
 	case CTLTYPE_NODE:
-		/* A node might be described by an empty-named child. */
+		/*
+		 * A node might be described by an empty-named child,
+		 * which would be immediately before or after the node itself.
+		 */
 		mib[1] = 1;
-		mib[(miblen / sizeof(int)) + 2] =
-		    mib[(miblen / sizeof(int)) + 1] - 1;
 		miblen += sizeof(int);
-		desclen = sizeof(desc.s);
-		if (sysctl(mib, (miblen / sizeof(int)) + 2, desc.s, &desclen,
-		    NULL, 0) < 0) {
-			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-			    "sysctl(0.1): %s", strerror(errno));
-			return (-1);
+		for (i = -1; i <= 1; i += 2) {
+			mib[(miblen / sizeof(int)) + 1] =
+			    mib[(miblen / sizeof(int))] + i;
+			desclen = sizeof(desc.s);
+			if (sysctl(mib, (miblen / sizeof(int)) + 2, desc.s,
+			    &desclen, NULL, 0) < 0) {
+				if (errno == ENOENT)
+					continue;
+				snprintf(jail_errmsg, JAIL_ERRMSGLEN,
+				    "sysctl(0.1): %s", strerror(errno));
+				return (-1);
+			}
+			if (desclen ==
+			    sizeof(SJPARAM) + strlen(jp->jp_name) + 2 &&
+			    memcmp(SJPARAM ".", desc.s, sizeof(SJPARAM)) == 0 &&
+			    memcmp(jp->jp_name, desc.s + sizeof(SJPARAM),
+			    desclen - sizeof(SJPARAM) - 2) == 0 &&
+			    desc.s[desclen - 2] == '.')
+				goto mib_desc;
 		}
-		if (desc.s[desclen - 2] != '.')
-			goto unknown_parameter;
-		goto mib_desc;
+		goto unknown_parameter;
 	default:
 		snprintf(jail_errmsg, JAIL_ERRMSGLEN,
 		    "unknown type for %s", jp->jp_name);

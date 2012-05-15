@@ -77,19 +77,28 @@
 #include <algorithm>
 using namespace llvm;
 
-namespace llvm {
-cl::opt<bool> EnableNested(
-  "enable-lsr-nested", cl::Hidden, cl::desc("Enable LSR on nested loops"));
-
-cl::opt<bool> EnableRetry(
-    "enable-lsr-retry", cl::Hidden, cl::desc("Enable LSR retry"));
+/// MaxIVUsers is an arbitrary threshold that provides an early opportunitiy for
+/// bail out. This threshold is far beyond the number of users that LSR can
+/// conceivably solve, so it should not affect generated code, but catches the
+/// worst cases before LSR burns too much compile time and stack space.
+static const unsigned MaxIVUsers = 200;
 
 // Temporary flag to cleanup congruent phis after LSR phi expansion.
 // It's currently disabled until we can determine whether it's truly useful or
 // not. The flag should be removed after the v3.0 release.
-cl::opt<bool> EnablePhiElim(
-    "enable-lsr-phielim", cl::Hidden, cl::desc("Enable LSR phi elimination"));
-}
+// This is now needed for ivchains.
+static cl::opt<bool> EnablePhiElim(
+  "enable-lsr-phielim", cl::Hidden, cl::init(true),
+  cl::desc("Enable LSR phi elimination"));
+
+#ifndef NDEBUG
+// Stress test IV chain generation.
+static cl::opt<bool> StressIVChain(
+  "stress-ivchain", cl::Hidden, cl::init(false),
+  cl::desc("Stress test LSR IV chains"));
+#else
+static bool StressIVChain = false;
+#endif
 
 namespace {
 
@@ -636,6 +645,91 @@ static Type *getAccessType(const Instruction *Inst) {
   return AccessTy;
 }
 
+/// isExistingPhi - Return true if this AddRec is already a phi in its loop.
+static bool isExistingPhi(const SCEVAddRecExpr *AR, ScalarEvolution &SE) {
+  for (BasicBlock::iterator I = AR->getLoop()->getHeader()->begin();
+       PHINode *PN = dyn_cast<PHINode>(I); ++I) {
+    if (SE.isSCEVable(PN->getType()) &&
+        (SE.getEffectiveSCEVType(PN->getType()) ==
+         SE.getEffectiveSCEVType(AR->getType())) &&
+        SE.getSCEV(PN) == AR)
+      return true;
+  }
+  return false;
+}
+
+/// Check if expanding this expression is likely to incur significant cost. This
+/// is tricky because SCEV doesn't track which expressions are actually computed
+/// by the current IR.
+///
+/// We currently allow expansion of IV increments that involve adds,
+/// multiplication by constants, and AddRecs from existing phis.
+///
+/// TODO: Allow UDivExpr if we can find an existing IV increment that is an
+/// obvious multiple of the UDivExpr.
+static bool isHighCostExpansion(const SCEV *S,
+                                SmallPtrSet<const SCEV*, 8> &Processed,
+                                ScalarEvolution &SE) {
+  // Zero/One operand expressions
+  switch (S->getSCEVType()) {
+  case scUnknown:
+  case scConstant:
+    return false;
+  case scTruncate:
+    return isHighCostExpansion(cast<SCEVTruncateExpr>(S)->getOperand(),
+                               Processed, SE);
+  case scZeroExtend:
+    return isHighCostExpansion(cast<SCEVZeroExtendExpr>(S)->getOperand(),
+                               Processed, SE);
+  case scSignExtend:
+    return isHighCostExpansion(cast<SCEVSignExtendExpr>(S)->getOperand(),
+                               Processed, SE);
+  }
+
+  if (!Processed.insert(S))
+    return false;
+
+  if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(S)) {
+    for (SCEVAddExpr::op_iterator I = Add->op_begin(), E = Add->op_end();
+         I != E; ++I) {
+      if (isHighCostExpansion(*I, Processed, SE))
+        return true;
+    }
+    return false;
+  }
+
+  if (const SCEVMulExpr *Mul = dyn_cast<SCEVMulExpr>(S)) {
+    if (Mul->getNumOperands() == 2) {
+      // Multiplication by a constant is ok
+      if (isa<SCEVConstant>(Mul->getOperand(0)))
+        return isHighCostExpansion(Mul->getOperand(1), Processed, SE);
+
+      // If we have the value of one operand, check if an existing
+      // multiplication already generates this expression.
+      if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(Mul->getOperand(1))) {
+        Value *UVal = U->getValue();
+        for (Value::use_iterator UI = UVal->use_begin(), UE = UVal->use_end();
+             UI != UE; ++UI) {
+          // If U is a constant, it may be used by a ConstantExpr.
+          Instruction *User = dyn_cast<Instruction>(*UI);
+          if (User && User->getOpcode() == Instruction::Mul
+              && SE.isSCEVable(User->getType())) {
+            return SE.getSCEV(User) == Mul;
+          }
+        }
+      }
+    }
+  }
+
+  if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S)) {
+    if (isExistingPhi(AR, SE))
+      return false;
+  }
+
+  // Fow now, consider any other type of expression (div/mul/min/max) high cost.
+  return true;
+}
+
 /// DeleteTriviallyDeadInstructions - If any of the instructions is the
 /// specified set are trivially dead, delete them and see if this makes any of
 /// their operands subsequently dead.
@@ -705,7 +799,8 @@ public:
                    const DenseSet<const SCEV *> &VisitedRegs,
                    const Loop *L,
                    const SmallVectorImpl<int64_t> &Offsets,
-                   ScalarEvolution &SE, DominatorTree &DT);
+                   ScalarEvolution &SE, DominatorTree &DT,
+                   SmallPtrSet<const SCEV *, 16> *LoserRegs = 0);
 
   void print(raw_ostream &OS) const;
   void dump() const;
@@ -718,7 +813,8 @@ private:
   void RatePrimaryRegister(const SCEV *Reg,
                            SmallPtrSet<const SCEV *, 16> &Regs,
                            const Loop *L,
-                           ScalarEvolution &SE, DominatorTree &DT);
+                           ScalarEvolution &SE, DominatorTree &DT,
+                           SmallPtrSet<const SCEV *, 16> *LoserRegs);
 };
 
 }
@@ -729,41 +825,20 @@ void Cost::RateRegister(const SCEV *Reg,
                         const Loop *L,
                         ScalarEvolution &SE, DominatorTree &DT) {
   if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(Reg)) {
-    if (AR->getLoop() == L)
-      AddRecCost += 1; /// TODO: This should be a function of the stride.
-
     // If this is an addrec for another loop, don't second-guess its addrec phi
     // nodes. LSR isn't currently smart enough to reason about more than one
-    // loop at a time. LSR has either already run on inner loops, will not run
-    // on other loops, and cannot be expected to change sibling loops. If the
-    // AddRec exists, consider it's register free and leave it alone. Otherwise,
-    // do not consider this formula at all.
-    // FIXME: why do we need to generate such fomulae?
-    else if (!EnableNested || L->contains(AR->getLoop()) ||
-             (!AR->getLoop()->contains(L) &&
-              DT.dominates(L->getHeader(), AR->getLoop()->getHeader()))) {
-      for (BasicBlock::iterator I = AR->getLoop()->getHeader()->begin();
-           PHINode *PN = dyn_cast<PHINode>(I); ++I) {
-        if (SE.isSCEVable(PN->getType()) &&
-            (SE.getEffectiveSCEVType(PN->getType()) ==
-             SE.getEffectiveSCEVType(AR->getType())) &&
-            SE.getSCEV(PN) == AR)
-          return;
-      }
-      if (!EnableNested) {
-        Loose();
+    // loop at a time. LSR has already run on inner loops, will not run on outer
+    // loops, and cannot be expected to change sibling loops.
+    if (AR->getLoop() != L) {
+      // If the AddRec exists, consider it's register free and leave it alone.
+      if (isExistingPhi(AR, SE))
         return;
-      }
-      // If this isn't one of the addrecs that the loop already has, it
-      // would require a costly new phi and add. TODO: This isn't
-      // precisely modeled right now.
-      ++NumBaseAdds;
-      if (!Regs.count(AR->getStart())) {
-        RateRegister(AR->getStart(), Regs, L, SE, DT);
-        if (isLoser())
-          return;
-      }
+
+      // Otherwise, do not consider this formula at all.
+      Loose();
+      return;
     }
+    AddRecCost += 1; /// TODO: This should be a function of the stride.
 
     // Add the step value register, if it needs one.
     // TODO: The non-affine case isn't precisely modeled here.
@@ -791,13 +866,22 @@ void Cost::RateRegister(const SCEV *Reg,
 }
 
 /// RatePrimaryRegister - Record this register in the set. If we haven't seen it
-/// before, rate it.
+/// before, rate it. Optional LoserRegs provides a way to declare any formula
+/// that refers to one of those regs an instant loser.
 void Cost::RatePrimaryRegister(const SCEV *Reg,
                                SmallPtrSet<const SCEV *, 16> &Regs,
                                const Loop *L,
-                               ScalarEvolution &SE, DominatorTree &DT) {
-  if (Regs.insert(Reg))
+                               ScalarEvolution &SE, DominatorTree &DT,
+                               SmallPtrSet<const SCEV *, 16> *LoserRegs) {
+  if (LoserRegs && LoserRegs->count(Reg)) {
+    Loose();
+    return;
+  }
+  if (Regs.insert(Reg)) {
     RateRegister(Reg, Regs, L, SE, DT);
+    if (isLoser())
+      LoserRegs->insert(Reg);
+  }
 }
 
 void Cost::RateFormula(const Formula &F,
@@ -805,14 +889,15 @@ void Cost::RateFormula(const Formula &F,
                        const DenseSet<const SCEV *> &VisitedRegs,
                        const Loop *L,
                        const SmallVectorImpl<int64_t> &Offsets,
-                       ScalarEvolution &SE, DominatorTree &DT) {
+                       ScalarEvolution &SE, DominatorTree &DT,
+                       SmallPtrSet<const SCEV *, 16> *LoserRegs) {
   // Tally up the registers.
   if (const SCEV *ScaledReg = F.ScaledReg) {
     if (VisitedRegs.count(ScaledReg)) {
       Loose();
       return;
     }
-    RatePrimaryRegister(ScaledReg, Regs, L, SE, DT);
+    RatePrimaryRegister(ScaledReg, Regs, L, SE, DT, LoserRegs);
     if (isLoser())
       return;
   }
@@ -823,7 +908,7 @@ void Cost::RateFormula(const Formula &F,
       Loose();
       return;
     }
-    RatePrimaryRegister(BaseReg, Regs, L, SE, DT);
+    RatePrimaryRegister(BaseReg, Regs, L, SE, DT, LoserRegs);
     if (isLoser())
       return;
   }
@@ -1105,7 +1190,6 @@ bool LSRUse::InsertFormula(const Formula &F) {
   Formulae.push_back(F);
 
   // Record registers now being used by this use.
-  if (F.ScaledReg) Regs.insert(F.ScaledReg);
   Regs.insert(F.BaseRegs.begin(), F.BaseRegs.end());
 
   return true;
@@ -1116,7 +1200,6 @@ void LSRUse::DeleteFormula(Formula &F) {
   if (&F != &Formulae.back())
     std::swap(F, Formulae.back());
   Formulae.pop_back();
-  assert(!Formulae.empty() && "LSRUse has no formulae left!");
 }
 
 /// RecomputeRegs - Recompute the Regs field, and update RegUses.
@@ -1205,10 +1288,19 @@ static bool isLegalUse(const TargetLowering::AddrMode &AM,
     // If we have low-level target information, ask the target if it can fold an
     // integer immediate on an icmp.
     if (AM.BaseOffs != 0) {
-      if (TLI) return TLI->isLegalICmpImmediate(-(uint64_t)AM.BaseOffs);
-      return false;
+      if (!TLI)
+        return false;
+      // We have one of:
+      // ICmpZero     BaseReg + Offset => ICmp BaseReg, -Offset
+      // ICmpZero -1*ScaleReg + Offset => ICmp ScaleReg, Offset
+      // Offs is the ICmp immediate.
+      int64_t Offs = AM.BaseOffs;
+      if (AM.Scale == 0)
+        Offs = -(uint64_t)Offs; // The cast does the right thing with INT64_MIN.
+      return TLI->isLegalICmpImmediate(Offs);
     }
 
+    // ICmpZero BaseReg + -1*ScaleReg => ICmp BaseReg, ScaleReg
     return true;
 
   case LSRUse::Basic:
@@ -1220,7 +1312,7 @@ static bool isLegalUse(const TargetLowering::AddrMode &AM,
     return AM.Scale == 0 || AM.Scale == -1;
   }
 
-  return false;
+  llvm_unreachable("Invalid LSRUse Kind!");
 }
 
 static bool isLegalUse(TargetLowering::AddrMode AM,
@@ -1327,6 +1419,36 @@ struct UseMapDenseMapInfo {
   }
 };
 
+/// IVInc - An individual increment in a Chain of IV increments.
+/// Relate an IV user to an expression that computes the IV it uses from the IV
+/// used by the previous link in the Chain.
+///
+/// For the head of a chain, IncExpr holds the absolute SCEV expression for the
+/// original IVOperand. The head of the chain's IVOperand is only valid during
+/// chain collection, before LSR replaces IV users. During chain generation,
+/// IncExpr can be used to find the new IVOperand that computes the same
+/// expression.
+struct IVInc {
+  Instruction *UserInst;
+  Value* IVOperand;
+  const SCEV *IncExpr;
+
+  IVInc(Instruction *U, Value *O, const SCEV *E):
+    UserInst(U), IVOperand(O), IncExpr(E) {}
+};
+
+// IVChain - The list of IV increments in program order.
+// We typically add the head of a chain without finding subsequent links.
+typedef SmallVector<IVInc,1> IVChain;
+
+/// ChainUsers - Helper for CollectChains to track multiple IV increment uses.
+/// Distinguish between FarUsers that definitely cross IV increments and
+/// NearUsers that may be used between IV increments.
+struct ChainUsers {
+  SmallPtrSet<Instruction*, 4> FarUsers;
+  SmallPtrSet<Instruction*, 4> NearUsers;
+};
+
 /// LSRInstance - This class holds state for the main loop strength reduction
 /// logic.
 class LSRInstance {
@@ -1359,10 +1481,28 @@ class LSRInstance {
   /// RegUses - Track which uses use which register candidates.
   RegUseTracker RegUses;
 
+  // Limit the number of chains to avoid quadratic behavior. We don't expect to
+  // have more than a few IV increment chains in a loop. Missing a Chain falls
+  // back to normal LSR behavior for those uses.
+  static const unsigned MaxChains = 8;
+
+  /// IVChainVec - IV users can form a chain of IV increments.
+  SmallVector<IVChain, MaxChains> IVChainVec;
+
+  /// IVIncSet - IV users that belong to profitable IVChains.
+  SmallPtrSet<Use*, MaxChains> IVIncSet;
+
   void OptimizeShadowIV();
   bool FindIVUserForCond(ICmpInst *Cond, IVStrideUse *&CondUse);
   ICmpInst *OptimizeMax(ICmpInst *Cond, IVStrideUse* &CondUse);
   void OptimizeLoopTermCond();
+
+  void ChainInstruction(Instruction *UserInst, Instruction *IVOper,
+                        SmallVectorImpl<ChainUsers> &ChainUsersVec);
+  void FinalizeChain(IVChain &Chain);
+  void CollectChains();
+  void GenerateIVChain(const IVChain &Chain, SCEVExpander &Rewriter,
+                       SmallVectorImpl<WeakVH> &DeadInsts);
 
   void CollectInterestingTypesAndFactors();
   void CollectFixupsAndInitialFormulae();
@@ -1389,7 +1529,6 @@ class LSRInstance {
 
   LSRUse *FindUseWithSimilarFormula(const Formula &F, const LSRUse &OrigLU);
 
-public:
   void InsertInitialFormula(const SCEV *S, LSRUse &LU, size_t LUIdx);
   void InsertSupplementalFormula(const SCEV *S, LSRUse &LU, size_t LUIdx);
   void CountRegisters(const Formula &F, size_t LUIdx);
@@ -1428,9 +1567,11 @@ public:
   BasicBlock::iterator
     HoistInsertPosition(BasicBlock::iterator IP,
                         const SmallVectorImpl<Instruction *> &Inputs) const;
-  BasicBlock::iterator AdjustInsertPositionForExpand(BasicBlock::iterator IP,
-                                                     const LSRFixup &LF,
-                                                     const LSRUse &LU) const;
+  BasicBlock::iterator
+    AdjustInsertPositionForExpand(BasicBlock::iterator IP,
+                                  const LSRFixup &LF,
+                                  const LSRUse &LU,
+                                  SCEVExpander &Rewriter) const;
 
   Value *Expand(const LSRFixup &LF,
                 const Formula &F,
@@ -1450,6 +1591,7 @@ public:
   void ImplementSolution(const SmallVectorImpl<const Formula *> &Solution,
                          Pass *P);
 
+public:
   LSRInstance(const TargetLowering *tli, Loop *l, Pass *P);
 
   bool getChanged() const { return Changed; }
@@ -2045,7 +2187,8 @@ void LSRInstance::CollectInterestingTypesAndFactors() {
     do {
       const SCEV *S = Worklist.pop_back_val();
       if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S)) {
-        Strides.insert(AR->getStepRecurrence(SE));
+        if (AR->getLoop() == L)
+          Strides.insert(AR->getStepRecurrence(SE));
         Worklist.push_back(AR->getStart());
       } else if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(S)) {
         Worklist.append(Add->op_begin(), Add->op_end());
@@ -2091,11 +2234,544 @@ void LSRInstance::CollectInterestingTypesAndFactors() {
   DEBUG(print_factors_and_types(dbgs()));
 }
 
+/// findIVOperand - Helper for CollectChains that finds an IV operand (computed
+/// by an AddRec in this loop) within [OI,OE) or returns OE. If IVUsers mapped
+/// Instructions to IVStrideUses, we could partially skip this.
+static User::op_iterator
+findIVOperand(User::op_iterator OI, User::op_iterator OE,
+              Loop *L, ScalarEvolution &SE) {
+  for(; OI != OE; ++OI) {
+    if (Instruction *Oper = dyn_cast<Instruction>(*OI)) {
+      if (!SE.isSCEVable(Oper->getType()))
+        continue;
+
+      if (const SCEVAddRecExpr *AR =
+          dyn_cast<SCEVAddRecExpr>(SE.getSCEV(Oper))) {
+        if (AR->getLoop() == L)
+          break;
+      }
+    }
+  }
+  return OI;
+}
+
+/// getWideOperand - IVChain logic must consistenctly peek base TruncInst
+/// operands, so wrap it in a convenient helper.
+static Value *getWideOperand(Value *Oper) {
+  if (TruncInst *Trunc = dyn_cast<TruncInst>(Oper))
+    return Trunc->getOperand(0);
+  return Oper;
+}
+
+/// isCompatibleIVType - Return true if we allow an IV chain to include both
+/// types.
+static bool isCompatibleIVType(Value *LVal, Value *RVal) {
+  Type *LType = LVal->getType();
+  Type *RType = RVal->getType();
+  return (LType == RType) || (LType->isPointerTy() && RType->isPointerTy());
+}
+
+/// getExprBase - Return an approximation of this SCEV expression's "base", or
+/// NULL for any constant. Returning the expression itself is
+/// conservative. Returning a deeper subexpression is more precise and valid as
+/// long as it isn't less complex than another subexpression. For expressions
+/// involving multiple unscaled values, we need to return the pointer-type
+/// SCEVUnknown. This avoids forming chains across objects, such as:
+/// PrevOper==a[i], IVOper==b[i], IVInc==b-a.
+///
+/// Since SCEVUnknown is the rightmost type, and pointers are the rightmost
+/// SCEVUnknown, we simply return the rightmost SCEV operand.
+static const SCEV *getExprBase(const SCEV *S) {
+  switch (S->getSCEVType()) {
+  default: // uncluding scUnknown.
+    return S;
+  case scConstant:
+    return 0;
+  case scTruncate:
+    return getExprBase(cast<SCEVTruncateExpr>(S)->getOperand());
+  case scZeroExtend:
+    return getExprBase(cast<SCEVZeroExtendExpr>(S)->getOperand());
+  case scSignExtend:
+    return getExprBase(cast<SCEVSignExtendExpr>(S)->getOperand());
+  case scAddExpr: {
+    // Skip over scaled operands (scMulExpr) to follow add operands as long as
+    // there's nothing more complex.
+    // FIXME: not sure if we want to recognize negation.
+    const SCEVAddExpr *Add = cast<SCEVAddExpr>(S);
+    for (std::reverse_iterator<SCEVAddExpr::op_iterator> I(Add->op_end()),
+           E(Add->op_begin()); I != E; ++I) {
+      const SCEV *SubExpr = *I;
+      if (SubExpr->getSCEVType() == scAddExpr)
+        return getExprBase(SubExpr);
+
+      if (SubExpr->getSCEVType() != scMulExpr)
+        return SubExpr;
+    }
+    return S; // all operands are scaled, be conservative.
+  }
+  case scAddRecExpr:
+    return getExprBase(cast<SCEVAddRecExpr>(S)->getStart());
+  }
+}
+
+/// Return true if the chain increment is profitable to expand into a loop
+/// invariant value, which may require its own register. A profitable chain
+/// increment will be an offset relative to the same base. We allow such offsets
+/// to potentially be used as chain increment as long as it's not obviously
+/// expensive to expand using real instructions.
+static const SCEV *
+getProfitableChainIncrement(Value *NextIV, Value *PrevIV,
+                            const IVChain &Chain, Loop *L,
+                            ScalarEvolution &SE, const TargetLowering *TLI) {
+  // Prune the solution space aggressively by checking that both IV operands
+  // are expressions that operate on the same unscaled SCEVUnknown. This
+  // "base" will be canceled by the subsequent getMinusSCEV call. Checking first
+  // avoids creating extra SCEV expressions.
+  const SCEV *OperExpr = SE.getSCEV(NextIV);
+  const SCEV *PrevExpr = SE.getSCEV(PrevIV);
+  if (getExprBase(OperExpr) != getExprBase(PrevExpr) && !StressIVChain)
+    return 0;
+
+  const SCEV *IncExpr = SE.getMinusSCEV(OperExpr, PrevExpr);
+  if (!SE.isLoopInvariant(IncExpr, L))
+    return 0;
+
+  // We are not able to expand an increment unless it is loop invariant,
+  // however, the following checks are purely for profitability.
+  if (StressIVChain)
+    return IncExpr;
+
+  // Do not replace a constant offset from IV head with a nonconstant IV
+  // increment.
+  if (!isa<SCEVConstant>(IncExpr)) {
+    const SCEV *HeadExpr = SE.getSCEV(getWideOperand(Chain[0].IVOperand));
+    if (isa<SCEVConstant>(SE.getMinusSCEV(OperExpr, HeadExpr)))
+      return 0;
+  }
+
+  SmallPtrSet<const SCEV*, 8> Processed;
+  if (isHighCostExpansion(IncExpr, Processed, SE))
+    return 0;
+
+  return IncExpr;
+}
+
+/// Return true if the number of registers needed for the chain is estimated to
+/// be less than the number required for the individual IV users. First prohibit
+/// any IV users that keep the IV live across increments (the Users set should
+/// be empty). Next count the number and type of increments in the chain.
+///
+/// Chaining IVs can lead to considerable code bloat if ISEL doesn't
+/// effectively use postinc addressing modes. Only consider it profitable it the
+/// increments can be computed in fewer registers when chained.
+///
+/// TODO: Consider IVInc free if it's already used in another chains.
+static bool
+isProfitableChain(IVChain &Chain, SmallPtrSet<Instruction*, 4> &Users,
+                  ScalarEvolution &SE, const TargetLowering *TLI) {
+  if (StressIVChain)
+    return true;
+
+  if (Chain.size() <= 2)
+    return false;
+
+  if (!Users.empty()) {
+    DEBUG(dbgs() << "Chain: " << *Chain[0].UserInst << " users:\n";
+          for (SmallPtrSet<Instruction*, 4>::const_iterator I = Users.begin(),
+                 E = Users.end(); I != E; ++I) {
+            dbgs() << "  " << **I << "\n";
+          });
+    return false;
+  }
+  assert(!Chain.empty() && "empty IV chains are not allowed");
+
+  // The chain itself may require a register, so intialize cost to 1.
+  int cost = 1;
+
+  // A complete chain likely eliminates the need for keeping the original IV in
+  // a register. LSR does not currently know how to form a complete chain unless
+  // the header phi already exists.
+  if (isa<PHINode>(Chain.back().UserInst)
+      && SE.getSCEV(Chain.back().UserInst) == Chain[0].IncExpr) {
+    --cost;
+  }
+  const SCEV *LastIncExpr = 0;
+  unsigned NumConstIncrements = 0;
+  unsigned NumVarIncrements = 0;
+  unsigned NumReusedIncrements = 0;
+  for (IVChain::const_iterator I = llvm::next(Chain.begin()), E = Chain.end();
+       I != E; ++I) {
+
+    if (I->IncExpr->isZero())
+      continue;
+
+    // Incrementing by zero or some constant is neutral. We assume constants can
+    // be folded into an addressing mode or an add's immediate operand.
+    if (isa<SCEVConstant>(I->IncExpr)) {
+      ++NumConstIncrements;
+      continue;
+    }
+
+    if (I->IncExpr == LastIncExpr)
+      ++NumReusedIncrements;
+    else
+      ++NumVarIncrements;
+
+    LastIncExpr = I->IncExpr;
+  }
+  // An IV chain with a single increment is handled by LSR's postinc
+  // uses. However, a chain with multiple increments requires keeping the IV's
+  // value live longer than it needs to be if chained.
+  if (NumConstIncrements > 1)
+    --cost;
+
+  // Materializing increment expressions in the preheader that didn't exist in
+  // the original code may cost a register. For example, sign-extended array
+  // indices can produce ridiculous increments like this:
+  // IV + ((sext i32 (2 * %s) to i64) + (-1 * (sext i32 %s to i64)))
+  cost += NumVarIncrements;
+
+  // Reusing variable increments likely saves a register to hold the multiple of
+  // the stride.
+  cost -= NumReusedIncrements;
+
+  DEBUG(dbgs() << "Chain: " << *Chain[0].UserInst << " Cost: " << cost << "\n");
+
+  return cost < 0;
+}
+
+/// ChainInstruction - Add this IV user to an existing chain or make it the head
+/// of a new chain.
+void LSRInstance::ChainInstruction(Instruction *UserInst, Instruction *IVOper,
+                                   SmallVectorImpl<ChainUsers> &ChainUsersVec) {
+  // When IVs are used as types of varying widths, they are generally converted
+  // to a wider type with some uses remaining narrow under a (free) trunc.
+  Value *NextIV = getWideOperand(IVOper);
+
+  // Visit all existing chains. Check if its IVOper can be computed as a
+  // profitable loop invariant increment from the last link in the Chain.
+  unsigned ChainIdx = 0, NChains = IVChainVec.size();
+  const SCEV *LastIncExpr = 0;
+  for (; ChainIdx < NChains; ++ChainIdx) {
+    Value *PrevIV = getWideOperand(IVChainVec[ChainIdx].back().IVOperand);
+    if (!isCompatibleIVType(PrevIV, NextIV))
+      continue;
+
+    // A phi node terminates a chain.
+    if (isa<PHINode>(UserInst)
+        && isa<PHINode>(IVChainVec[ChainIdx].back().UserInst))
+      continue;
+
+    if (const SCEV *IncExpr =
+        getProfitableChainIncrement(NextIV, PrevIV, IVChainVec[ChainIdx],
+                                    L, SE, TLI)) {
+      LastIncExpr = IncExpr;
+      break;
+    }
+  }
+  // If we haven't found a chain, create a new one, unless we hit the max. Don't
+  // bother for phi nodes, because they must be last in the chain.
+  if (ChainIdx == NChains) {
+    if (isa<PHINode>(UserInst))
+      return;
+    if (NChains >= MaxChains && !StressIVChain) {
+      DEBUG(dbgs() << "IV Chain Limit\n");
+      return;
+    }
+    LastIncExpr = SE.getSCEV(NextIV);
+    // IVUsers may have skipped over sign/zero extensions. We don't currently
+    // attempt to form chains involving extensions unless they can be hoisted
+    // into this loop's AddRec.
+    if (!isa<SCEVAddRecExpr>(LastIncExpr))
+      return;
+    ++NChains;
+    IVChainVec.resize(NChains);
+    ChainUsersVec.resize(NChains);
+    DEBUG(dbgs() << "IV Head: (" << *UserInst << ") IV=" << *LastIncExpr
+          << "\n");
+  }
+  else
+    DEBUG(dbgs() << "IV  Inc: (" << *UserInst << ") IV+" << *LastIncExpr
+          << "\n");
+
+  // Add this IV user to the end of the chain.
+  IVChainVec[ChainIdx].push_back(IVInc(UserInst, IVOper, LastIncExpr));
+
+  SmallPtrSet<Instruction*,4> &NearUsers = ChainUsersVec[ChainIdx].NearUsers;
+  // This chain's NearUsers become FarUsers.
+  if (!LastIncExpr->isZero()) {
+    ChainUsersVec[ChainIdx].FarUsers.insert(NearUsers.begin(),
+                                            NearUsers.end());
+    NearUsers.clear();
+  }
+
+  // All other uses of IVOperand become near uses of the chain.
+  // We currently ignore intermediate values within SCEV expressions, assuming
+  // they will eventually be used be the current chain, or can be computed
+  // from one of the chain increments. To be more precise we could
+  // transitively follow its user and only add leaf IV users to the set.
+  for (Value::use_iterator UseIter = IVOper->use_begin(),
+         UseEnd = IVOper->use_end(); UseIter != UseEnd; ++UseIter) {
+    Instruction *OtherUse = dyn_cast<Instruction>(*UseIter);
+    if (!OtherUse || OtherUse == UserInst)
+      continue;
+    if (SE.isSCEVable(OtherUse->getType())
+        && !isa<SCEVUnknown>(SE.getSCEV(OtherUse))
+        && IU.isIVUserOrOperand(OtherUse)) {
+      continue;
+    }
+    NearUsers.insert(OtherUse);
+  }
+
+  // Since this user is part of the chain, it's no longer considered a use
+  // of the chain.
+  ChainUsersVec[ChainIdx].FarUsers.erase(UserInst);
+}
+
+/// CollectChains - Populate the vector of Chains.
+///
+/// This decreases ILP at the architecture level. Targets with ample registers,
+/// multiple memory ports, and no register renaming probably don't want
+/// this. However, such targets should probably disable LSR altogether.
+///
+/// The job of LSR is to make a reasonable choice of induction variables across
+/// the loop. Subsequent passes can easily "unchain" computation exposing more
+/// ILP *within the loop* if the target wants it.
+///
+/// Finding the best IV chain is potentially a scheduling problem. Since LSR
+/// will not reorder memory operations, it will recognize this as a chain, but
+/// will generate redundant IV increments. Ideally this would be corrected later
+/// by a smart scheduler:
+///        = A[i]
+///        = A[i+x]
+/// A[i]   =
+/// A[i+x] =
+///
+/// TODO: Walk the entire domtree within this loop, not just the path to the
+/// loop latch. This will discover chains on side paths, but requires
+/// maintaining multiple copies of the Chains state.
+void LSRInstance::CollectChains() {
+  SmallVector<ChainUsers, 8> ChainUsersVec;
+
+  SmallVector<BasicBlock *,8> LatchPath;
+  BasicBlock *LoopHeader = L->getHeader();
+  for (DomTreeNode *Rung = DT.getNode(L->getLoopLatch());
+       Rung->getBlock() != LoopHeader; Rung = Rung->getIDom()) {
+    LatchPath.push_back(Rung->getBlock());
+  }
+  LatchPath.push_back(LoopHeader);
+
+  // Walk the instruction stream from the loop header to the loop latch.
+  for (SmallVectorImpl<BasicBlock *>::reverse_iterator
+         BBIter = LatchPath.rbegin(), BBEnd = LatchPath.rend();
+       BBIter != BBEnd; ++BBIter) {
+    for (BasicBlock::iterator I = (*BBIter)->begin(), E = (*BBIter)->end();
+         I != E; ++I) {
+      // Skip instructions that weren't seen by IVUsers analysis.
+      if (isa<PHINode>(I) || !IU.isIVUserOrOperand(I))
+        continue;
+
+      // Ignore users that are part of a SCEV expression. This way we only
+      // consider leaf IV Users. This effectively rediscovers a portion of
+      // IVUsers analysis but in program order this time.
+      if (SE.isSCEVable(I->getType()) && !isa<SCEVUnknown>(SE.getSCEV(I)))
+        continue;
+
+      // Remove this instruction from any NearUsers set it may be in.
+      for (unsigned ChainIdx = 0, NChains = IVChainVec.size();
+           ChainIdx < NChains; ++ChainIdx) {
+        ChainUsersVec[ChainIdx].NearUsers.erase(I);
+      }
+      // Search for operands that can be chained.
+      SmallPtrSet<Instruction*, 4> UniqueOperands;
+      User::op_iterator IVOpEnd = I->op_end();
+      User::op_iterator IVOpIter = findIVOperand(I->op_begin(), IVOpEnd, L, SE);
+      while (IVOpIter != IVOpEnd) {
+        Instruction *IVOpInst = cast<Instruction>(*IVOpIter);
+        if (UniqueOperands.insert(IVOpInst))
+          ChainInstruction(I, IVOpInst, ChainUsersVec);
+        IVOpIter = findIVOperand(llvm::next(IVOpIter), IVOpEnd, L, SE);
+      }
+    } // Continue walking down the instructions.
+  } // Continue walking down the domtree.
+  // Visit phi backedges to determine if the chain can generate the IV postinc.
+  for (BasicBlock::iterator I = L->getHeader()->begin();
+       PHINode *PN = dyn_cast<PHINode>(I); ++I) {
+    if (!SE.isSCEVable(PN->getType()))
+      continue;
+
+    Instruction *IncV =
+      dyn_cast<Instruction>(PN->getIncomingValueForBlock(L->getLoopLatch()));
+    if (IncV)
+      ChainInstruction(PN, IncV, ChainUsersVec);
+  }
+  // Remove any unprofitable chains.
+  unsigned ChainIdx = 0;
+  for (unsigned UsersIdx = 0, NChains = IVChainVec.size();
+       UsersIdx < NChains; ++UsersIdx) {
+    if (!isProfitableChain(IVChainVec[UsersIdx],
+                           ChainUsersVec[UsersIdx].FarUsers, SE, TLI))
+      continue;
+    // Preserve the chain at UsesIdx.
+    if (ChainIdx != UsersIdx)
+      IVChainVec[ChainIdx] = IVChainVec[UsersIdx];
+    FinalizeChain(IVChainVec[ChainIdx]);
+    ++ChainIdx;
+  }
+  IVChainVec.resize(ChainIdx);
+}
+
+void LSRInstance::FinalizeChain(IVChain &Chain) {
+  assert(!Chain.empty() && "empty IV chains are not allowed");
+  DEBUG(dbgs() << "Final Chain: " << *Chain[0].UserInst << "\n");
+
+  for (IVChain::const_iterator I = llvm::next(Chain.begin()), E = Chain.end();
+       I != E; ++I) {
+    DEBUG(dbgs() << "        Inc: " << *I->UserInst << "\n");
+    User::op_iterator UseI =
+      std::find(I->UserInst->op_begin(), I->UserInst->op_end(), I->IVOperand);
+    assert(UseI != I->UserInst->op_end() && "cannot find IV operand");
+    IVIncSet.insert(UseI);
+  }
+}
+
+/// Return true if the IVInc can be folded into an addressing mode.
+static bool canFoldIVIncExpr(const SCEV *IncExpr, Instruction *UserInst,
+                             Value *Operand, const TargetLowering *TLI) {
+  const SCEVConstant *IncConst = dyn_cast<SCEVConstant>(IncExpr);
+  if (!IncConst || !isAddressUse(UserInst, Operand))
+    return false;
+
+  if (IncConst->getValue()->getValue().getMinSignedBits() > 64)
+    return false;
+
+  int64_t IncOffset = IncConst->getValue()->getSExtValue();
+  if (!isAlwaysFoldable(IncOffset, /*BaseGV=*/0, /*HaseBaseReg=*/false,
+                       LSRUse::Address, getAccessType(UserInst), TLI))
+    return false;
+
+  return true;
+}
+
+/// GenerateIVChains - Generate an add or subtract for each IVInc in a chain to
+/// materialize the IV user's operand from the previous IV user's operand.
+void LSRInstance::GenerateIVChain(const IVChain &Chain, SCEVExpander &Rewriter,
+                                  SmallVectorImpl<WeakVH> &DeadInsts) {
+  // Find the new IVOperand for the head of the chain. It may have been replaced
+  // by LSR.
+  const IVInc &Head = Chain[0];
+  User::op_iterator IVOpEnd = Head.UserInst->op_end();
+  User::op_iterator IVOpIter = findIVOperand(Head.UserInst->op_begin(),
+                                             IVOpEnd, L, SE);
+  Value *IVSrc = 0;
+  while (IVOpIter != IVOpEnd) {
+    IVSrc = getWideOperand(*IVOpIter);
+
+    // If this operand computes the expression that the chain needs, we may use
+    // it. (Check this after setting IVSrc which is used below.)
+    //
+    // Note that if Head.IncExpr is wider than IVSrc, then this phi is too
+    // narrow for the chain, so we can no longer use it. We do allow using a
+    // wider phi, assuming the LSR checked for free truncation. In that case we
+    // should already have a truncate on this operand such that
+    // getSCEV(IVSrc) == IncExpr.
+    if (SE.getSCEV(*IVOpIter) == Head.IncExpr
+        || SE.getSCEV(IVSrc) == Head.IncExpr) {
+      break;
+    }
+    IVOpIter = findIVOperand(llvm::next(IVOpIter), IVOpEnd, L, SE);
+  }
+  if (IVOpIter == IVOpEnd) {
+    // Gracefully give up on this chain.
+    DEBUG(dbgs() << "Concealed chain head: " << *Head.UserInst << "\n");
+    return;
+  }
+
+  DEBUG(dbgs() << "Generate chain at: " << *IVSrc << "\n");
+  Type *IVTy = IVSrc->getType();
+  Type *IntTy = SE.getEffectiveSCEVType(IVTy);
+  const SCEV *LeftOverExpr = 0;
+  for (IVChain::const_iterator IncI = llvm::next(Chain.begin()),
+         IncE = Chain.end(); IncI != IncE; ++IncI) {
+
+    Instruction *InsertPt = IncI->UserInst;
+    if (isa<PHINode>(InsertPt))
+      InsertPt = L->getLoopLatch()->getTerminator();
+
+    // IVOper will replace the current IV User's operand. IVSrc is the IV
+    // value currently held in a register.
+    Value *IVOper = IVSrc;
+    if (!IncI->IncExpr->isZero()) {
+      // IncExpr was the result of subtraction of two narrow values, so must
+      // be signed.
+      const SCEV *IncExpr = SE.getNoopOrSignExtend(IncI->IncExpr, IntTy);
+      LeftOverExpr = LeftOverExpr ?
+        SE.getAddExpr(LeftOverExpr, IncExpr) : IncExpr;
+    }
+    if (LeftOverExpr && !LeftOverExpr->isZero()) {
+      // Expand the IV increment.
+      Rewriter.clearPostInc();
+      Value *IncV = Rewriter.expandCodeFor(LeftOverExpr, IntTy, InsertPt);
+      const SCEV *IVOperExpr = SE.getAddExpr(SE.getUnknown(IVSrc),
+                                             SE.getUnknown(IncV));
+      IVOper = Rewriter.expandCodeFor(IVOperExpr, IVTy, InsertPt);
+
+      // If an IV increment can't be folded, use it as the next IV value.
+      if (!canFoldIVIncExpr(LeftOverExpr, IncI->UserInst, IncI->IVOperand,
+                            TLI)) {
+        assert(IVTy == IVOper->getType() && "inconsistent IV increment type");
+        IVSrc = IVOper;
+        LeftOverExpr = 0;
+      }
+    }
+    Type *OperTy = IncI->IVOperand->getType();
+    if (IVTy != OperTy) {
+      assert(SE.getTypeSizeInBits(IVTy) >= SE.getTypeSizeInBits(OperTy) &&
+             "cannot extend a chained IV");
+      IRBuilder<> Builder(InsertPt);
+      IVOper = Builder.CreateTruncOrBitCast(IVOper, OperTy, "lsr.chain");
+    }
+    IncI->UserInst->replaceUsesOfWith(IncI->IVOperand, IVOper);
+    DeadInsts.push_back(IncI->IVOperand);
+  }
+  // If LSR created a new, wider phi, we may also replace its postinc. We only
+  // do this if we also found a wide value for the head of the chain.
+  if (isa<PHINode>(Chain.back().UserInst)) {
+    for (BasicBlock::iterator I = L->getHeader()->begin();
+         PHINode *Phi = dyn_cast<PHINode>(I); ++I) {
+      if (!isCompatibleIVType(Phi, IVSrc))
+        continue;
+      Instruction *PostIncV = dyn_cast<Instruction>(
+        Phi->getIncomingValueForBlock(L->getLoopLatch()));
+      if (!PostIncV || (SE.getSCEV(PostIncV) != SE.getSCEV(IVSrc)))
+        continue;
+      Value *IVOper = IVSrc;
+      Type *PostIncTy = PostIncV->getType();
+      if (IVTy != PostIncTy) {
+        assert(PostIncTy->isPointerTy() && "mixing int/ptr IV types");
+        IRBuilder<> Builder(L->getLoopLatch()->getTerminator());
+        Builder.SetCurrentDebugLocation(PostIncV->getDebugLoc());
+        IVOper = Builder.CreatePointerCast(IVSrc, PostIncTy, "lsr.chain");
+      }
+      Phi->replaceUsesOfWith(PostIncV, IVOper);
+      DeadInsts.push_back(PostIncV);
+    }
+  }
+}
+
 void LSRInstance::CollectFixupsAndInitialFormulae() {
   for (IVUsers::const_iterator UI = IU.begin(), E = IU.end(); UI != E; ++UI) {
+    Instruction *UserInst = UI->getUser();
+    // Skip IV users that are part of profitable IV Chains.
+    User::op_iterator UseI = std::find(UserInst->op_begin(), UserInst->op_end(),
+                                       UI->getOperandValToReplace());
+    assert(UseI != UserInst->op_end() && "cannot find IV operand");
+    if (IVIncSet.count(UseI))
+      continue;
+
     // Record the uses.
     LSRFixup &LF = getNewFixup();
-    LF.UserInst = UI->getUser();
+    LF.UserInst = UserInst;
     LF.OperandValToReplace = UI->getOperandValToReplace();
     LF.PostIncLoops = UI->getPostIncLoops();
 
@@ -2914,6 +3590,7 @@ LSRInstance::GenerateAllReuseFormulae() {
 void LSRInstance::FilterOutUndesirableDedicatedRegisters() {
   DenseSet<const SCEV *> VisitedRegs;
   SmallPtrSet<const SCEV *, 16> Regs;
+  SmallPtrSet<const SCEV *, 16> LoserRegs;
 #ifndef NDEBUG
   bool ChangedFormulae = false;
 #endif
@@ -2933,46 +3610,66 @@ void LSRInstance::FilterOutUndesirableDedicatedRegisters() {
          FIdx != NumForms; ++FIdx) {
       Formula &F = LU.Formulae[FIdx];
 
-      SmallVector<const SCEV *, 2> Key;
-      for (SmallVectorImpl<const SCEV *>::const_iterator J = F.BaseRegs.begin(),
-           JE = F.BaseRegs.end(); J != JE; ++J) {
-        const SCEV *Reg = *J;
-        if (RegUses.isRegUsedByUsesOtherThan(Reg, LUIdx))
-          Key.push_back(Reg);
+      // Some formulas are instant losers. For example, they may depend on
+      // nonexistent AddRecs from other loops. These need to be filtered
+      // immediately, otherwise heuristics could choose them over others leading
+      // to an unsatisfactory solution. Passing LoserRegs into RateFormula here
+      // avoids the need to recompute this information across formulae using the
+      // same bad AddRec. Passing LoserRegs is also essential unless we remove
+      // the corresponding bad register from the Regs set.
+      Cost CostF;
+      Regs.clear();
+      CostF.RateFormula(F, Regs, VisitedRegs, L, LU.Offsets, SE, DT,
+                        &LoserRegs);
+      if (CostF.isLoser()) {
+        // During initial formula generation, undesirable formulae are generated
+        // by uses within other loops that have some non-trivial address mode or
+        // use the postinc form of the IV. LSR needs to provide these formulae
+        // as the basis of rediscovering the desired formula that uses an AddRec
+        // corresponding to the existing phi. Once all formulae have been
+        // generated, these initial losers may be pruned.
+        DEBUG(dbgs() << "  Filtering loser "; F.print(dbgs());
+              dbgs() << "\n");
       }
-      if (F.ScaledReg &&
-          RegUses.isRegUsedByUsesOtherThan(F.ScaledReg, LUIdx))
-        Key.push_back(F.ScaledReg);
-      // Unstable sort by host order ok, because this is only used for
-      // uniquifying.
-      std::sort(Key.begin(), Key.end());
+      else {
+        SmallVector<const SCEV *, 2> Key;
+        for (SmallVectorImpl<const SCEV *>::const_iterator J = F.BaseRegs.begin(),
+               JE = F.BaseRegs.end(); J != JE; ++J) {
+          const SCEV *Reg = *J;
+          if (RegUses.isRegUsedByUsesOtherThan(Reg, LUIdx))
+            Key.push_back(Reg);
+        }
+        if (F.ScaledReg &&
+            RegUses.isRegUsedByUsesOtherThan(F.ScaledReg, LUIdx))
+          Key.push_back(F.ScaledReg);
+        // Unstable sort by host order ok, because this is only used for
+        // uniquifying.
+        std::sort(Key.begin(), Key.end());
 
-      std::pair<BestFormulaeTy::const_iterator, bool> P =
-        BestFormulae.insert(std::make_pair(Key, FIdx));
-      if (!P.second) {
+        std::pair<BestFormulaeTy::const_iterator, bool> P =
+          BestFormulae.insert(std::make_pair(Key, FIdx));
+        if (P.second)
+          continue;
+
         Formula &Best = LU.Formulae[P.first->second];
 
-        Cost CostF;
-        CostF.RateFormula(F, Regs, VisitedRegs, L, LU.Offsets, SE, DT);
-        Regs.clear();
         Cost CostBest;
-        CostBest.RateFormula(Best, Regs, VisitedRegs, L, LU.Offsets, SE, DT);
         Regs.clear();
+        CostBest.RateFormula(Best, Regs, VisitedRegs, L, LU.Offsets, SE, DT);
         if (CostF < CostBest)
           std::swap(F, Best);
         DEBUG(dbgs() << "  Filtering out formula "; F.print(dbgs());
               dbgs() << "\n"
                         "    in favor of formula "; Best.print(dbgs());
               dbgs() << '\n');
-#ifndef NDEBUG
-        ChangedFormulae = true;
-#endif
-        LU.DeleteFormula(F);
-        --FIdx;
-        --NumForms;
-        Any = true;
-        continue;
       }
+#ifndef NDEBUG
+      ChangedFormulae = true;
+#endif
+      LU.DeleteFormula(F);
+      --FIdx;
+      --NumForms;
+      Any = true;
     }
 
     // Now that we've filtered out some formulae, recompute the Regs set.
@@ -3284,24 +3981,29 @@ void LSRInstance::SolveRecurse(SmallVectorImpl<const Formula *> &Solution,
     if (LU.Regs.count(*I))
       ReqRegs.insert(*I);
 
-  bool AnySatisfiedReqRegs = false;
   SmallPtrSet<const SCEV *, 16> NewRegs;
   Cost NewCost;
-retry:
   for (SmallVectorImpl<Formula>::const_iterator I = LU.Formulae.begin(),
        E = LU.Formulae.end(); I != E; ++I) {
     const Formula &F = *I;
 
     // Ignore formulae which do not use any of the required registers.
+    bool SatisfiedReqReg = true;
     for (SmallSetVector<const SCEV *, 4>::const_iterator J = ReqRegs.begin(),
          JE = ReqRegs.end(); J != JE; ++J) {
       const SCEV *Reg = *J;
       if ((!F.ScaledReg || F.ScaledReg != Reg) &&
           std::find(F.BaseRegs.begin(), F.BaseRegs.end(), Reg) ==
-          F.BaseRegs.end())
-        goto skip;
+          F.BaseRegs.end()) {
+        SatisfiedReqReg = false;
+        break;
+      }
     }
-    AnySatisfiedReqRegs = true;
+    if (!SatisfiedReqReg) {
+      // If none of the formulae satisfied the required registers, then we could
+      // clear ReqRegs and try again. Currently, we simply give up in this case.
+      continue;
+    }
 
     // Evaluate the cost of the current formula. If it's already worse than
     // the current best, prune the search at that point.
@@ -3317,7 +4019,7 @@ retry:
           VisitedRegs.insert(F.ScaledReg ? F.ScaledReg : F.BaseRegs[0]);
       } else {
         DEBUG(dbgs() << "New best at "; NewCost.print(dbgs());
-              dbgs() << ". Regs:";
+              dbgs() << ".\n Regs:";
               for (SmallPtrSet<const SCEV *, 16>::const_iterator
                    I = NewRegs.begin(), E = NewRegs.end(); I != E; ++I)
                 dbgs() << ' ' << **I;
@@ -3328,18 +4030,6 @@ retry:
       }
       Workspace.pop_back();
     }
-  skip:;
-  }
-
-  if (!EnableRetry && !AnySatisfiedReqRegs)
-    return;
-
-  // If none of the formulae had all of the required registers, relax the
-  // constraint so that we don't exclude all formulae.
-  if (!AnySatisfiedReqRegs) {
-    assert(!ReqRegs.empty() && "Solver failed even without required registers");
-    ReqRegs.clear();
-    goto retry;
   }
 }
 
@@ -3418,7 +4108,7 @@ LSRInstance::HoistInsertPosition(BasicBlock::iterator IP,
       // Attempt to find an insert position in the middle of the block,
       // instead of at the end, so that it can be used for other expansions.
       if (IDom == Inst->getParent() &&
-          (!BetterPos || DT.dominates(BetterPos, Inst)))
+          (!BetterPos || !DT.dominates(Inst, BetterPos)))
         BetterPos = llvm::next(BasicBlock::iterator(Inst));
     }
     if (!AllDominate)
@@ -3435,9 +4125,10 @@ LSRInstance::HoistInsertPosition(BasicBlock::iterator IP,
 /// AdjustInsertPositionForExpand - Determine an input position which will be
 /// dominated by the operands and which will dominate the result.
 BasicBlock::iterator
-LSRInstance::AdjustInsertPositionForExpand(BasicBlock::iterator IP,
+LSRInstance::AdjustInsertPositionForExpand(BasicBlock::iterator LowestIP,
                                            const LSRFixup &LF,
-                                           const LSRUse &LU) const {
+                                           const LSRUse &LU,
+                                           SCEVExpander &Rewriter) const {
   // Collect some instructions which must be dominated by the
   // expanding replacement. These must be dominated by any operands that
   // will be required in the expansion.
@@ -3472,9 +4163,13 @@ LSRInstance::AdjustInsertPositionForExpand(BasicBlock::iterator IP,
     }
   }
 
+  assert(!isa<PHINode>(LowestIP) && !isa<LandingPadInst>(LowestIP)
+         && !isa<DbgInfoIntrinsic>(LowestIP) &&
+         "Insertion point must be a normal instruction");
+
   // Then, climb up the immediate dominator tree as far as we can go while
   // still being dominated by the input positions.
-  IP = HoistInsertPosition(IP, Inputs);
+  BasicBlock::iterator IP = HoistInsertPosition(LowestIP, Inputs);
 
   // Don't insert instructions before PHI nodes.
   while (isa<PHINode>(IP)) ++IP;
@@ -3484,6 +4179,11 @@ LSRInstance::AdjustInsertPositionForExpand(BasicBlock::iterator IP,
 
   // Ignore debug intrinsics.
   while (isa<DbgInfoIntrinsic>(IP)) ++IP;
+
+  // Set IP below instructions recently inserted by SCEVExpander. This keeps the
+  // IP consistent across expansions and allows the previously inserted
+  // instructions to be reused by subsequent expansion.
+  while (Rewriter.isInsertedInstruction(IP) && IP != LowestIP) ++IP;
 
   return IP;
 }
@@ -3499,7 +4199,7 @@ Value *LSRInstance::Expand(const LSRFixup &LF,
 
   // Determine an input position which will be dominated by the operands and
   // which will dominate the result.
-  IP = AdjustInsertPositionForExpand(IP, LF, LU);
+  IP = AdjustInsertPositionForExpand(IP, LF, LU, Rewriter);
 
   // Inform the Rewriter if we have a post-increment use, so that it can
   // perform an advantageous expansion.
@@ -3775,9 +4475,19 @@ LSRInstance::ImplementSolution(const SmallVectorImpl<const Formula *> &Solution,
   SmallVector<WeakVH, 16> DeadInsts;
 
   SCEVExpander Rewriter(SE, "lsr");
+#ifndef NDEBUG
+  Rewriter.setDebugType(DEBUG_TYPE);
+#endif
   Rewriter.disableCanonicalMode();
   Rewriter.enableLSRMode();
   Rewriter.setIVIncInsertPos(L, IVIncInsertPos);
+
+  // Mark phi nodes that terminate chains so the expander tries to reuse them.
+  for (SmallVectorImpl<IVChain>::const_iterator ChainI = IVChainVec.begin(),
+         ChainE = IVChainVec.end(); ChainI != ChainE; ++ChainI) {
+    if (PHINode *PN = dyn_cast<PHINode>(ChainI->back().UserInst))
+      Rewriter.setChainedPhi(PN);
+  }
 
   // Expand the new value definitions and update the users.
   for (SmallVectorImpl<LSRFixup>::const_iterator I = Fixups.begin(),
@@ -3789,6 +4499,11 @@ LSRInstance::ImplementSolution(const SmallVectorImpl<const Formula *> &Solution,
     Changed = true;
   }
 
+  for (SmallVectorImpl<IVChain>::const_iterator ChainI = IVChainVec.begin(),
+         ChainE = IVChainVec.end(); ChainI != ChainE; ++ChainI) {
+    GenerateIVChain(*ChainI, Rewriter, DeadInsts);
+    Changed = true;
+  }
   // Clean up after ourselves. This must be done before deleting any
   // instructions.
   Rewriter.clear();
@@ -3804,10 +4519,39 @@ LSRInstance::LSRInstance(const TargetLowering *tli, Loop *l, Pass *P)
     TLI(tli), L(l), Changed(false), IVIncInsertPos(0) {
 
   // If LoopSimplify form is not available, stay out of trouble.
-  if (!L->isLoopSimplifyForm()) return;
+  if (!L->isLoopSimplifyForm())
+    return;
 
   // If there's no interesting work to be done, bail early.
   if (IU.empty()) return;
+
+  // If there's too much analysis to be done, bail early. We won't be able to
+  // model the problem anyway.
+  unsigned NumUsers = 0;
+  for (IVUsers::const_iterator UI = IU.begin(), E = IU.end(); UI != E; ++UI) {
+    if (++NumUsers > MaxIVUsers) {
+      DEBUG(dbgs() << "LSR skipping loop, too many IV Users in " << *L
+            << "\n");
+      return;
+    }
+  }
+
+#ifndef NDEBUG
+  // All dominating loops must have preheaders, or SCEVExpander may not be able
+  // to materialize an AddRecExpr whose Start is an outer AddRecExpr.
+  //
+  // IVUsers analysis should only create users that are dominated by simple loop
+  // headers. Since this loop should dominate all of its users, its user list
+  // should be empty if this loop itself is not within a simple loop nest.
+  for (DomTreeNode *Rung = DT.getNode(L->getLoopPreheader());
+       Rung; Rung = Rung->getIDom()) {
+    BasicBlock *BB = Rung->getBlock();
+    const Loop *DomLoop = LI.getLoopFor(BB);
+    if (DomLoop && DomLoop->getHeader() == BB) {
+      assert(DomLoop->getLoopPreheader() && "LSR needs a simplified loop nest");
+    }
+  }
+#endif // DEBUG
 
   DEBUG(dbgs() << "\nLSR on loop ";
         WriteAsOperand(dbgs(), L->getHeader(), /*PrintType=*/false);
@@ -3821,24 +4565,18 @@ LSRInstance::LSRInstance(const TargetLowering *tli, Loop *l, Pass *P)
   if (IU.empty()) return;
 
   // Skip nested loops until we can model them better with formulae.
-  if (!EnableNested && !L->empty()) {
-
-    if (EnablePhiElim) {
-      // Remove any extra phis created by processing inner loops.
-      SmallVector<WeakVH, 16> DeadInsts;
-      SCEVExpander Rewriter(SE, "lsr");
-      Changed |= Rewriter.replaceCongruentIVs(L, &DT, DeadInsts);
-      Changed |= DeleteTriviallyDeadInstructions(DeadInsts);
-    }
+  if (!L->empty()) {
     DEBUG(dbgs() << "LSR skipping outer loop " << *L << "\n");
     return;
   }
 
   // Start collecting data and preparing for the solver.
+  CollectChains();
   CollectInterestingTypesAndFactors();
   CollectFixupsAndInitialFormulae();
   CollectLoopInvariantFixupsAndFormulae();
 
+  assert(!Uses.empty() && "IVUsers reported at least one use");
   DEBUG(dbgs() << "LSR found " << Uses.size() << " uses:\n";
         print_uses(dbgs()));
 
@@ -3875,14 +4613,6 @@ LSRInstance::LSRInstance(const TargetLowering *tli, Loop *l, Pass *P)
 
   // Now that we've decided what we want, make it so.
   ImplementSolution(Solution, P);
-
-  if (EnablePhiElim) {
-    // Remove any extra phis created by processing inner loops.
-    SmallVector<WeakVH, 16> DeadInsts;
-    SCEVExpander Rewriter(SE, "lsr");
-    Changed |= Rewriter.replaceCongruentIVs(L, &DT, DeadInsts);
-    Changed |= DeleteTriviallyDeadInstructions(DeadInsts);
-  }
 }
 
 void LSRInstance::print_factors_and_types(raw_ostream &OS) const {
@@ -4008,9 +4738,21 @@ bool LoopStrengthReduce::runOnLoop(Loop *L, LPPassManager & /*LPM*/) {
   // Run the main LSR transformation.
   Changed |= LSRInstance(TLI, L, this).getChanged();
 
-  // At this point, it is worth checking to see if any recurrence PHIs are also
-  // dead, so that we can remove them as well.
+  // Remove any extra phis created by processing inner loops.
   Changed |= DeleteDeadPHIs(L->getHeader());
-
+  if (EnablePhiElim) {
+    SmallVector<WeakVH, 16> DeadInsts;
+    SCEVExpander Rewriter(getAnalysis<ScalarEvolution>(), "lsr");
+#ifndef NDEBUG
+    Rewriter.setDebugType(DEBUG_TYPE);
+#endif
+    unsigned numFolded = Rewriter.
+      replaceCongruentIVs(L, &getAnalysis<DominatorTree>(), DeadInsts, TLI);
+    if (numFolded) {
+      Changed = true;
+      DeleteTriviallyDeadInstructions(DeadInsts);
+      DeleteDeadPHIs(L->getHeader());
+    }
+  }
   return Changed;
 }

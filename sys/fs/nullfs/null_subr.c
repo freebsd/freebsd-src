@@ -169,17 +169,26 @@ null_hashins(mp, xp)
 }
 
 static void
+null_destroy_proto(struct vnode *vp, void *xp)
+{
+
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+	VI_LOCK(vp);
+	vp->v_data = NULL;
+	vp->v_vnlock = &vp->v_lock;
+	vp->v_op = &dead_vnodeops;
+	VI_UNLOCK(vp);
+	vgone(vp);
+	vput(vp);
+	free(xp, M_NULLFSNODE);
+}
+
+static void
 null_insmntque_dtr(struct vnode *vp, void *xp)
 {
 
 	vput(((struct null_node *)xp)->null_lowervp);
-	vp->v_data = NULL;
-	vp->v_vnlock = &vp->v_lock;
-	free(xp, M_NULLFSNODE);
-	vp->v_op = &dead_vnodeops;
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	vgone(vp);
-	vput(vp);
+	null_destroy_proto(vp, xp);
 }
 
 /*
@@ -200,7 +209,11 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
-	ASSERT_VOP_LOCKED(lowervp, "lowervp");
+	/*
+	 * The insmntque1() call below requires the exclusive lock on
+	 * the nullfs vnode.
+	 */
+	ASSERT_VOP_ELOCKED(lowervp, "lowervp");
 	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", lowervp));
 
 	/* Lookup the hash firstly */
@@ -213,12 +226,9 @@ null_nodeget(mp, lowervp, vpp)
 	/*
 	 * We do not serialize vnode creation, instead we will check for
 	 * duplicates later, when adding new vnode to hash.
-	 *
 	 * Note that duplicate can only appear in hash if the lowervp is
 	 * locked LK_SHARED.
-	 */
-
-	/*
+	 *
 	 * Do the MALLOC before the getnewvnode since doing so afterward
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
@@ -250,9 +260,7 @@ null_nodeget(mp, lowervp, vpp)
 	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
-		vp->v_vnlock = &vp->v_lock;
-		xp->null_lowervp = NULL;
-		vrele(vp);
+		null_destroy_proto(vp, xp);
 		return (0);
 	}
 	*vpp = vp;

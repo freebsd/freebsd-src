@@ -295,7 +295,7 @@ acpi_ec_ecdt_probe(device_t parent)
     }
 
     /* Create the child device with the given unit number. */
-    child = BUS_ADD_CHILD(parent, 0, "acpi_ec", ecdt->Uid);
+    child = BUS_ADD_CHILD(parent, 3, "acpi_ec", ecdt->Uid);
     if (child == NULL) {
 	printf("%s: can't add child\n", __func__);
 	return;

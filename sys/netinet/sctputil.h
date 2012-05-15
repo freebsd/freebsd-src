@@ -88,6 +88,12 @@ int sctp_init_asoc(struct sctp_inpcb *, struct sctp_tcb *, uint32_t, uint32_t);
 void sctp_fill_random_store(struct sctp_pcb *);
 
 void
+sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin,
+    uint16_t numberout, int flag);
+void
+     sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32_t recv_tsn, int flag);
+
+void
 sctp_timer_start(int, struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 
@@ -164,7 +170,7 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 
 void 
-sctp_report_all_outbound(struct sctp_tcb *, int, int
+sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -173,7 +179,8 @@ sctp_report_all_outbound(struct sctp_tcb *, int, int
 int sctp_expand_mapping_array(struct sctp_association *, uint32_t);
 
 void 
-sctp_abort_notification(struct sctp_tcb *, int, int
+sctp_abort_notification(struct sctp_tcb *, uint8_t, uint16_t,
+    struct sctp_abort_chunk *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -187,7 +194,7 @@ sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *,
 
 /* We choose to abort via user input */
 void
-sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *, int,
+sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *,
     struct mbuf *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -237,7 +244,7 @@ void sctp_print_address_pkt(struct ip *, struct sctphdr *);
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
-    int, int
+    uint8_t, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif

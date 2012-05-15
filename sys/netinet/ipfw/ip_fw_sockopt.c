@@ -163,8 +163,6 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 
 	l = RULESIZE(input_rule);
 	rule = malloc(l, M_IPFW, M_WAITOK | M_ZERO);
-	if (rule == NULL)
-		return (ENOSPC);
 	/* get_map returns with IPFW_UH_WLOCK if successful */
 	map = get_map(chain, 1, 0 /* not locked */);
 	if (map == NULL) {
@@ -569,7 +567,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPPRECEDENCE:
 		case O_IPVER:
 		case O_SOCKARG:
-		case O_TCPWIN:
 		case O_TCPFLAGS:
 		case O_TCPOPTS:
 		case O_ESTAB:
@@ -668,7 +665,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			    cmdlen != F_INSN_SIZE(ipfw_insn_u32))
 				goto bad_size;
 			break;
-
 		case O_MACADDR2:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
 				goto bad_size;
@@ -679,6 +675,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPTTL:
 		case O_IPLEN:
 		case O_TCPDATALEN:
+		case O_TCPWIN:
 		case O_TAGGED:
 			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;
@@ -941,6 +938,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 }
 
 
+#define IP_FW3_OPLENGTH(x)	((x)->sopt_valsize - sizeof(ip_fw3_opheader))
 /**
  * {set|get}sockopt parser.
  */
@@ -949,10 +947,13 @@ ipfw_ctl(struct sockopt *sopt)
 {
 #define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
 	int error;
-	size_t size;
+	size_t size, len, valsize;
 	struct ip_fw *buf, *rule;
 	struct ip_fw_chain *chain;
 	u_int32_t rulenum[2];
+	uint32_t opt;
+	char xbuf[128];
+	ip_fw3_opheader *op3 = NULL;
 
 	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
 	if (error)
@@ -972,7 +973,21 @@ ipfw_ctl(struct sockopt *sopt)
 	chain = &V_layer3_chain;
 	error = 0;
 
-	switch (sopt->sopt_name) {
+	/* Save original valsize before it is altered via sooptcopyin() */
+	valsize = sopt->sopt_valsize;
+	if ((opt = sopt->sopt_name) == IP_FW3) {
+		/* 
+		 * Copy not less than sizeof(ip_fw3_opheader).
+		 * We hope any IP_FW3 command will fit into 128-byte buffer.
+		 */
+		if ((error = sooptcopyin(sopt, xbuf, sizeof(xbuf),
+			sizeof(ip_fw3_opheader))) != 0)
+			return (error);
+		op3 = (ip_fw3_opheader *)xbuf;
+		opt = op3->opcode;
+	}
+
+	switch (opt) {
 	case IP_FW_GET:
 		/*
 		 * pass up a copy of the current rules. Static rules
@@ -993,8 +1008,6 @@ ipfw_ctl(struct sockopt *sopt)
 			if (size >= sopt->sopt_valsize)
 				break;
 			buf = malloc(size, M_TEMP, M_WAITOK);
-			if (buf == NULL)
-				break;
 			IPFW_UH_RLOCK(chain);
 			/* check again how much space we need */
 			want = chain->static_len + ipfw_dyn_len();
@@ -1111,7 +1124,8 @@ ipfw_ctl(struct sockopt *sopt)
 			if (error)
 				break;
 			error = ipfw_add_table_entry(chain, ent.tbl,
-			    ent.addr, ent.masklen, ent.value);
+			    &ent.addr, sizeof(ent.addr), ent.masklen, 
+			    IPFW_TABLE_CIDR, ent.value);
 		}
 		break;
 
@@ -1124,7 +1138,34 @@ ipfw_ctl(struct sockopt *sopt)
 			if (error)
 				break;
 			error = ipfw_del_table_entry(chain, ent.tbl,
-			    ent.addr, ent.masklen);
+			    &ent.addr, sizeof(ent.addr), ent.masklen, IPFW_TABLE_CIDR);
+		}
+		break;
+
+	case IP_FW_TABLE_XADD: /* IP_FW3 */
+	case IP_FW_TABLE_XDEL: /* IP_FW3 */
+		{
+			ipfw_table_xentry *xent = (ipfw_table_xentry *)(op3 + 1);
+
+			/* Check minimum header size */
+			if (IP_FW3_OPLENGTH(sopt) < offsetof(ipfw_table_xentry, k)) {
+				error = EINVAL;
+				break;
+			}
+
+			/* Check if len field is valid */
+			if (xent->len > sizeof(ipfw_table_xentry)) {
+				error = EINVAL;
+				break;
+			}
+			
+			len = xent->len - offsetof(ipfw_table_xentry, k);
+
+			error = (opt == IP_FW_TABLE_XADD) ?
+				ipfw_add_table_entry(chain, xent->tbl, &xent->k, 
+					len, xent->masklen, xent->type, xent->value) :
+				ipfw_del_table_entry(chain, xent->tbl, &xent->k,
+					len, xent->masklen, xent->type);
 		}
 		break;
 
@@ -1136,9 +1177,7 @@ ipfw_ctl(struct sockopt *sopt)
 			    sizeof(tbl), sizeof(tbl));
 			if (error)
 				break;
-			IPFW_WLOCK(chain);
 			error = ipfw_flush_table(chain, tbl);
-			IPFW_WUNLOCK(chain);
 		}
 		break;
 
@@ -1182,6 +1221,62 @@ ipfw_ctl(struct sockopt *sopt)
 				free(tbl, M_TEMP);
 				break;
 			}
+			error = sooptcopyout(sopt, tbl, size);
+			free(tbl, M_TEMP);
+		}
+		break;
+
+	case IP_FW_TABLE_XGETSIZE: /* IP_FW3 */
+		{
+			uint32_t *tbl;
+
+			if (IP_FW3_OPLENGTH(sopt) < sizeof(uint32_t)) {
+				error = EINVAL;
+				break;
+			}
+
+			tbl = (uint32_t *)(op3 + 1);
+
+			IPFW_RLOCK(chain);
+			error = ipfw_count_xtable(chain, *tbl, tbl);
+			IPFW_RUNLOCK(chain);
+			if (error)
+				break;
+			error = sooptcopyout(sopt, op3, sopt->sopt_valsize);
+		}
+		break;
+
+	case IP_FW_TABLE_XLIST: /* IP_FW3 */
+		{
+			ipfw_xtable *tbl;
+
+			if ((size = valsize) < sizeof(ipfw_xtable)) {
+				error = EINVAL;
+				break;
+			}
+
+			tbl = malloc(size, M_TEMP, M_ZERO | M_WAITOK);
+			memcpy(tbl, op3, sizeof(ipfw_xtable));
+
+			/* Get maximum number of entries we can store */
+			tbl->size = (size - sizeof(ipfw_xtable)) /
+			    sizeof(ipfw_table_xentry);
+			IPFW_RLOCK(chain);
+			error = ipfw_dump_xtable(chain, tbl);
+			IPFW_RUNLOCK(chain);
+			if (error) {
+				free(tbl, M_TEMP);
+				break;
+			}
+
+			/* Revert size field back to bytes */
+			tbl->size = tbl->size * sizeof(ipfw_table_xentry) +
+				sizeof(ipfw_table);
+			/* 
+			 * Since we call sooptcopyin() with small buffer, sopt_valsize is
+			 * decreased to reflect supplied buffer size. Set it back to original value
+			 */
+			sopt->sopt_valsize = valsize;
 			error = sooptcopyout(sopt, tbl, size);
 			free(tbl, M_TEMP);
 		}

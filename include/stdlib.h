@@ -72,6 +72,9 @@ typedef struct {
 #define	RAND_MAX	0x7fffffff
 
 __BEGIN_DECLS
+#ifdef _XLOCALE_H_
+#include <xlocale/_stdlib.h>
+#endif
 extern int __mb_cur_max;
 extern int ___mb_cur_max(void);
 #define	MB_CUR_MAX	(___mb_cur_max())
@@ -151,8 +154,8 @@ _Noreturn void	 _Exit(int);
 /*
  * If we're in a mode greater than C99, expose C11 functions.
  */
-#if __ISO_C_VISIBLE >= 2011
-void *	aligned_alloc(size_t, size_t);
+#if __ISO_C_VISIBLE >= 2011 || __cplusplus >= 201103L
+void *	aligned_alloc(size_t, size_t) __malloc_like;
 int	at_quick_exit(void (*)(void));
 _Noreturn void
 	quick_exit(int);
@@ -225,9 +228,8 @@ int	 unlockpt(int);
 #endif /* __XSI_VISIBLE */
 
 #if __BSD_VISIBLE
-extern const char *_malloc_options;
-extern void (*_malloc_message)(const char *, const char *, const char *,
-	    const char *);
+extern const char *malloc_conf;
+extern void (*malloc_message)(void *, const char *);
 
 /*
  * The alloca() function can't be implemented in C, and on some

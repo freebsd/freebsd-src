@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: grammar.h,v 1.24 2011-01-04 23:47:14 tbox Exp $ */
+/* $Id: grammar.h,v 1.24 2011/01/04 23:47:14 tbox Exp $ */
 
 #ifndef ISCCFG_GRAMMAR_H
 #define ISCCFG_GRAMMAR_H 1

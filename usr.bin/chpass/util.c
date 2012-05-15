@@ -110,10 +110,10 @@ atot(char *p, time_t *store)
 			}
 		}
 	}
-	if (!(t = strtok((char *)NULL, " \t,")) || !isdigit(*t))
+	if (!(t = strtok(NULL, " \t,")) || !isdigit(*t))
 		goto bad;
 	day = atoi(t);
-	if (!(t = strtok((char *)NULL, " \t,")) || !isdigit(*t))
+	if (!(t = strtok(NULL, " \t,")) || !isdigit(*t))
 		goto bad;
 	year = atoi(t);
 	if (day < 1 || day > 31 || month < 1 || month > 12)

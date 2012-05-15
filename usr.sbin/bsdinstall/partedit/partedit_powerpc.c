@@ -67,7 +67,7 @@ is_scheme_bootable(const char *part_type) {
 
 size_t
 bootpart_size(const char *part_type) {
-	if (strcmp(part_type, "APM") == 0)
+	if (strcmp(part_type, "APM") == 0 || strcmp(part_type, "MBR") == 0)
 		return (800*1024);
 	return (0);
 }
@@ -81,6 +81,8 @@ const char *
 partcode_path(const char *part_type) {
 	if (strcmp(part_type, "APM") == 0)
 		return ("/boot/boot1.hfs");
+	if (strcmp(part_type, "MBR") == 0)
+		return ("/boot/boot1.elf");
 	return (NULL);
 }
 

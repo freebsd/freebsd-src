@@ -163,7 +163,7 @@ ffs_rawread_sync(struct vnode *vp)
 		/* Flush dirty buffers */
 		if (bo->bo_dirty.bv_cnt > 0) {
 			BO_UNLOCK(bo);
-			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0) {
+			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0) {
 				if (upgraded != 0)
 					VOP_LOCK(vp, LK_DOWNGRADE);
 				vn_finished_write(mp);

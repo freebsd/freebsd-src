@@ -49,7 +49,8 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acapps.h>
 
-#define ERR(szz,czz) if(AcpiGbl_Opterr){fprintf(stderr,"%s%s%c\n",argv[0],szz,czz);}
+#define ACPI_OPTION_ERROR(msg, badchar) \
+    if (AcpiGbl_Opterr) {fprintf (stderr, "%s%c\n", msg, badchar);}
 
 
 int   AcpiGbl_Opterr = 1;
@@ -87,12 +88,12 @@ AcpiGetopt(
             argv[AcpiGbl_Optind][0] != '-' ||
             argv[AcpiGbl_Optind][1] == '\0')
         {
-            return(EOF);
+            return (EOF);
         }
         else if (strcmp (argv[AcpiGbl_Optind], "--") == 0)
         {
             AcpiGbl_Optind++;
-            return(EOF);
+            return (EOF);
         }
     }
 
@@ -105,7 +106,7 @@ AcpiGetopt(
     if (CurrentChar == ':' ||
        (OptsPtr = strchr (opts, CurrentChar)) == NULL)
     {
-        ERR (": illegal option -- ", CurrentChar);
+        ACPI_OPTION_ERROR ("Illegal option: -", CurrentChar);
 
         if (argv[AcpiGbl_Optind][++CurrentCharPtr] == '\0')
         {
@@ -126,7 +127,7 @@ AcpiGetopt(
         }
         else if (++AcpiGbl_Optind >= argc)
         {
-            ERR (": option requires an argument -- ", CurrentChar);
+            ACPI_OPTION_ERROR ("Option requires an argument: -", CurrentChar);
 
             CurrentCharPtr = 1;
             return ('?');
@@ -150,6 +151,26 @@ AcpiGetopt(
         else
         {
             AcpiGbl_Optarg = "^";
+        }
+
+        AcpiGbl_Optind++;
+        CurrentCharPtr = 1;
+    }
+
+    /* Option has a required single-char argument? */
+
+    else if (*OptsPtr == '|')
+    {
+        if (argv[AcpiGbl_Optind][(int) (CurrentCharPtr+1)] != '\0')
+        {
+            AcpiGbl_Optarg = &argv[AcpiGbl_Optind][(int) (CurrentCharPtr+1)];
+        }
+        else
+        {
+            ACPI_OPTION_ERROR ("Option requires a single-character suboption: -", CurrentChar);
+
+            CurrentCharPtr = 1;
+            return ('?');
         }
 
         AcpiGbl_Optind++;

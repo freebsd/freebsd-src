@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/condvar.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>

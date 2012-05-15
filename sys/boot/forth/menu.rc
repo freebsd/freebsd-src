@@ -18,9 +18,9 @@ menu-init     \ initialize the menu area (see `menu.4th')
 \ Initialize main menu constructs (see `menu.4th')
 \ NOTE: To use the `ansi' variants, add `loader_color=1' to loader.conf(5)
 
-set menu_caption[1]="Boot [ENTER]"
+set menu_caption[1]="Boot [Enter]"
 set menu_command[1]="boot"
-set ansi_caption[1]="[1mB[37moot [1m[ENTER][37m"
+set ansi_caption[1]="[1mB[37moot [1m[Enter][37m"
 set menu_keycode[1]="98"
 
 set menu_caption[2]="[Esc]ape to loader prompt"
@@ -38,34 +38,34 @@ set menu_reboot
 \ 
 set menu_options=4
 
-set menu_caption[4]="[A]CPI Support: Disabled"
-set toggled_text[4]="[A]CPI Support: Enabled"
+set menu_caption[4]="[A]CPI Support off"
+set toggled_text[4]="[A]CPI Support On"
 set menu_command[4]="toggle_acpi"
 set menu_keycode[4]="97"
 set menu_acpi=4
-set ansi_caption[4]="[1mA[37mCPI Support: [34;1mDisabled[37m"
-set toggled_ansi[4]="[1mA[37mCPI Support: [32mEnabled[37m"
+set ansi_caption[4]="[1mA[37mCPI Support [34;1mOff[37m"
+set toggled_ansi[4]="[1mA[37mCPI Support [32;7mOn[0;37m"
 
-set menu_caption[5]="Boot Safe [M]ode: NO"
-set toggled_text[5]="Boot Safe [M]ode: YES"
+set menu_caption[5]="Safe [M]ode... off"
+set toggled_text[5]="Safe [M]ode... On"
 set menu_command[5]="toggle_safemode"
 set menu_keycode[5]="109"
-set ansi_caption[5]="Boot Safe [1mM[37mode: [34;1mNO[37m"
-set toggled_ansi[5]="Boot Safe [1mM[37mode: [32mYES[37m"
+set ansi_caption[5]="Safe [1mM[37mode... [34;1mOff[37m"
+set toggled_ansi[5]="Safe [1mM[37mode... [32;7mOn[0;37m"
 
-set menu_caption[6]="Boot [S]ingle User: NO"
-set toggled_text[6]="Boot [S]ingle User: YES"
+set menu_caption[6]="[S]ingle User. off"
+set toggled_text[6]="[S]ingle User. On"
 set menu_command[6]="toggle_singleuser"
 set menu_keycode[6]="115"
-set ansi_caption[6]="Boot [1mS[37mingle User: [34;1mNO[37m"
-set toggled_ansi[6]="Boot [1mS[37mingle User: [32mYES[37m"
+set ansi_caption[6]="[1mS[37mingle User. [34;1mOff[37m"
+set toggled_ansi[6]="[1mS[37mingle User. [32;7mOn[0;37m"
 
-set menu_caption[7]="Boot [V]erbose: NO"
-set toggled_text[7]="Boot [V]erbose: YES"
+set menu_caption[7]="[V]erbose..... off"
+set toggled_text[7]="[V]erbose..... On"
 set menu_command[7]="toggle_verbose"
 set menu_keycode[7]="118"
-set ansi_caption[7]="Boot [1mV[37merbose: [34;1mNO[37m"
-set toggled_ansi[7]="Boot [1mV[37merbose: [32mYES[37m"
+set ansi_caption[7]="[1mV[37merbose..... [34;1mOff[37m"
+set toggled_ansi[7]="[1mV[37merbose..... [32;7mOn[0;37m"
 
 \ Enable automatic booting (add ``autoboot_delay=N'' to loader.conf(5) to
 \ customize the timeout; default is 10-seconds)

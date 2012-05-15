@@ -1,12 +1,11 @@
-.\" $Id: login.1 14891 2005-04-22 15:49:25Z joda $
-.\" 
+.\" $Id$
+.\"
 .Dd April 22, 2005
 .Dt LOGIN 1
 .Os HEIMDAL
 .Sh NAME
 .Nm login
-.Nd
-authenticate a user and start new session
+.Nd authenticate a user and start new session
 .Sh SYNOPSIS
 .Nm
 .Op Fl fp
@@ -14,8 +13,8 @@ authenticate a user and start new session
 .Op Fl h Ar hostname
 .Ar [username]
 .Sh DESCRIPTION
-This manual page documents  the 
-.Nm login 
+This manual page documents  the
+.Nm login
 program distributed with the Heimdal Kerberos 5 implementation, it may
 differ in important ways from your system version.
 .Pp
@@ -23,7 +22,7 @@ The
 .Nm login
 programs logs users into the system. It is intended to be run by
 system daemons like
-.Xr getty 8 
+.Xr getty 8
 or
 .Xr telnetd 8 .
 If you are already logged in, but want to change to another user, you
@@ -33,16 +32,16 @@ should use
 A username can be given on the command line, else one will be prompted
 for.
 .Pp
-A password is required to login, unless the 
+A password is required to login, unless the
 .Fl f
 option is given (indicating that the calling program has already done
 proper authentication). With
 .Fl f
-the user will be logged in without further questions. 
+the user will be logged in without further questions.
 .Pp
 For password authentication Kerberos 5, Kerberos 4 (if compiled in),
 OTP (if compiled in) and local
-.No ( Pa /etc/passwd ) 
+.No ( Pa /etc/passwd )
 passwords are supported. OTP will be used if the the user is
 registered to use it, and
 .Nm login
@@ -71,7 +70,7 @@ to preserve all environment variables. If not given, only the
 and
 .Dv TZ
 variables are preserved. It could be a security risk to pass random
-variables to 
+variables to
 .Nm login
 or the user shell, so the calling daemon should make sure it only
 passes
@@ -91,12 +90,12 @@ Then various system parameters are set up, like changing the owner of
 the tty to the user, setting up signals, setting the group list, and
 user and group id. Also various machine specific tasks are performed.
 .Pp
-Next 
+Next
 .Nm login
-changes to the users home directory, or if that fails, to 
+changes to the users home directory, or if that fails, to
 .Pa / .
 The environment is setup, by adding some required variables (such as
-.Dv PATH ) , 
+.Dv PATH ) ,
 and also authentication related ones (such as
 .Dv KRB5CCNAME ) .
 If an environment file exists
@@ -108,31 +107,31 @@ If one or more login message files are configured, their contents is
 printed to the terminal.
 .Pp
 If a login time command is configured, it is executed. A logout time
-command can also be configured, which makes 
+command can also be configured, which makes
 .Nm login
 fork, and wait for the user shell to exit, and then run the command.
 This can be used to clean up user credentials.
 .Pp
 Finally, the user's shell is executed. If the user logging in is root,
-and root's login shell does not exist, a default shell (usually 
+and root's login shell does not exist, a default shell (usually
 .Pa /bin/sh )
 is also tried before giving up.
 .Sh ENVIRONMENT
-These environment variables are set by login (not including ones set by 
+These environment variables are set by login (not including ones set by
 .Pa /etc/environment ) :
 .Pp
 .Bl -tag -compact -width USERXXLOGNAME
 .It Dv PATH
 the default system path
 .It Dv HOME
-the user's home directory (or possibly 
+the user's home directory (or possibly
 .Pa / )
 .It Dv USER , Dv LOGNAME
 both set to the username
 .It Dv SHELL
 the user's shell
 .It Dv TERM , Dv TZ
-set to whatever is passed to 
+set to whatever is passed to
 .Nm login
 .It Dv KRB5CCNAME
 if the password is verified via Kerberos 5, this will point to the
@@ -145,7 +144,7 @@ ticket file
 .Bl -tag -compact -width Ds
 .It Pa /etc/environment
 Contains a set of environment variables that should be set in addition
-to the ones above. It should contain sh-style assignments like 
+to the ones above. It should contain sh-style assignments like
 .Dq VARIABLE=value .
 Note that they are not parsed the way a shell would. No variable
 expansion is performed, and all strings are literal, and quotation
@@ -161,7 +160,7 @@ FOO="this is a string"
 BAR= FOO='this is a string'
 .Ed
 .It Pa /etc/login.access
-See 
+See
 .Xr login.access 5 .
 .It Pa /etc/login.conf
 This is a termcap style configuration file, that contains various
@@ -205,14 +204,14 @@ programs typically print all sorts of information by default, such as
 last time you logged in, if you have mail, and system message files.
 This version of
 .Nm login
-does not, so there is no reason for 
+does not, so there is no reason for
 .Pa .hushlogin
 files or similar. We feel that these tasks are best left to the user's
-shell, but the 
+shell, but the
 .Li login_program
 facility allows for a shell independent solution, if that is desired.
 .Sh EXAMPLES
-A 
+A
 .Pa login.conf
 file could look like:
 .Bd -literal -offset indent
@@ -225,8 +224,8 @@ The
 .Pa limits.conf
 file consists of a table with four whitespace separated fields. First
 field is a username or a groupname (prefixed with
-.Sq @ ) , 
-or 
+.Sq @ ) ,
+or
 .Sq * .
 Second field is
 .Sq soft ,
@@ -235,11 +234,11 @@ or
 .Sq -
 (the last meaning both soft and hard).
 Third field is a limit name (such as
-.Sq cpu 
-or 
+.Sq cpu
+or
 .Sq core ) .
 Last field is the limit value (a number or
-.Sq - 
+.Sq -
 for unlimited). In the case of data sizes, the value is in kilobytes,
 and cputime is in minutes.
 .Sh SEE ALSO

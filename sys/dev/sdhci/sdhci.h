@@ -38,6 +38,15 @@
 #define  PCI_SLOT_INFO_FIRST_BAR(x)	((x) & 7)
 
 /*
+ * RICOH specific PCI registers
+ */
+#define	SDHC_PCI_MODE_KEY		0xf9
+#define	SDHC_PCI_MODE			0x150
+#define	SDHC_PCI_MODE_SD20		0x10
+#define	SDHC_PCI_BASE_FREQ_KEY		0xfc
+#define	SDHC_PCI_BASE_FREQ		0xe1
+
+/*
  * Controller registers
  */
 

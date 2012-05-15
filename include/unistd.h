@@ -479,7 +479,7 @@ char	*getwd(char *);			/* obsoleted by getcwd() */
 useconds_t
 	 ualarm(useconds_t, useconds_t);
 int	 usleep(useconds_t);
-pid_t	 vfork(void);
+pid_t	 vfork(void) __returns_twice;
 #endif
 
 #if __BSD_VISIBLE

@@ -129,8 +129,14 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_getAckCTSRate		= ar5211GetAckCTSRate,
 	.ah_setCTSTimeout		= ar5211SetCTSTimeout,
 	.ah_getCTSTimeout		= ar5211GetCTSTimeout,
-	.ah_setDecompMask               = ar5211SetDecompMask,
-	.ah_setCoverageClass            = ar5211SetCoverageClass,
+	.ah_setDecompMask		= ar5211SetDecompMask,
+	.ah_setCoverageClass		= ar5211SetCoverageClass,
+	.ah_get11nExtBusy		= ar5211Get11nExtBusy,
+	.ah_getMibCycleCounts		= ar5211GetMibCycleCounts,
+	.ah_enableDfs			= ar5211EnableDfs,
+	.ah_getDfsThresh		= ar5211GetDfsThresh,
+	/* XXX procRadarEvent */
+	/* XXX isFastClockEnabled */
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5211GetKeyCacheSize,
@@ -493,6 +499,12 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 	/* XXX not needed */
 	pCap->halChanHalfRate = AH_FALSE;
 	pCap->halChanQuarterRate = AH_FALSE;
+
+	/*
+	 * RSSI uses the combined field; some 11n NICs may use
+	 * the control chain RSSI.
+	 */
+	pCap->halUseCombinedRadarRssi = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

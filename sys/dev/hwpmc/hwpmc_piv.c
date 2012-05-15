@@ -1463,7 +1463,7 @@ p4_intr(int cpu, struct trapframe *tf)
 			    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 				continue;
 			}
-			(void) pmc_process_interrupt(cpu, pm, tf,
+			(void) pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 			    TRAPF_USERMODE(tf));
 			continue;
 		}
@@ -1513,7 +1513,7 @@ p4_intr(int cpu, struct trapframe *tf)
 		 * Process the interrupt.  Re-enable the PMC if
 		 * processing was successful.
 		 */
-		error = pmc_process_interrupt(cpu, pm, tf,
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
 
 		/*

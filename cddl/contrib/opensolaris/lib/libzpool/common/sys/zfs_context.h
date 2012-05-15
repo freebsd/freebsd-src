@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_CONTEXT_H
@@ -228,6 +229,7 @@ struct proc {
 };
 
 extern struct proc p0;
+#define	curproc		(&p0)
 
 #define	PS_NONE		-1
 
@@ -331,6 +333,7 @@ extern void cv_broadcast(kcondvar_t *cv);
 #define	KM_NOSLEEP		UMEM_DEFAULT
 #define	KMC_NODEBUG		UMC_NODEBUG
 #define	KMC_NOTOUCH		0	/* not needed for userland caches */
+#define	KM_NODEBUG		0
 #define	kmem_alloc(_s, _f)	umem_alloc(_s, _f)
 #define	kmem_zalloc(_s, _f)	umem_zalloc(_s, _f)
 #define	kmem_free(_b, _s)	umem_free(_b, _s)

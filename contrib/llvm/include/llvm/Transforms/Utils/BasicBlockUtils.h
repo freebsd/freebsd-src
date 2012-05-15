@@ -110,7 +110,8 @@ bool isCriticalEdge(const TerminatorInst *TI, unsigned SuccNum,
 ///
 BasicBlock *SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
                               Pass *P = 0, bool MergeIdenticalEdges = false,
-                              bool DontDeleteUselessPHIs = false);
+                              bool DontDeleteUselessPHIs = false,
+                              bool SplitLandingPads = false);
 
 inline BasicBlock *SplitCriticalEdge(BasicBlock *BB, succ_iterator SI,
                                      Pass *P = 0) {
@@ -173,9 +174,8 @@ BasicBlock *SplitBlock(BasicBlock *Old, Instruction *SplitPt, Pass *P);
 /// complicated to handle the case where one of the edges being split
 /// is an exit of a loop with other exits).
 ///
-BasicBlock *SplitBlockPredecessors(BasicBlock *BB, BasicBlock *const *Preds,
-                                   unsigned NumPreds, const char *Suffix,
-                                   Pass *P = 0);
+BasicBlock *SplitBlockPredecessors(BasicBlock *BB, ArrayRef<BasicBlock*> Preds,
+                                   const char *Suffix, Pass *P = 0);
 
 /// SplitLandingPadPredecessors - This method transforms the landing pad,
 /// OrigBB, by introducing two new basic blocks into the function. One of those

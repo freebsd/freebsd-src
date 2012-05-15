@@ -97,7 +97,7 @@ static driver_t aibs_driver = {
 static devclass_t aibs_devclass;
 
 DRIVER_MODULE(aibs, acpi, aibs_driver, aibs_devclass, NULL, NULL);
-
+MODULE_DEPEND(aibs, acpi, 1, 1, 1);
 
 static char* aibs_hids[] = {
 	"ATK0110",

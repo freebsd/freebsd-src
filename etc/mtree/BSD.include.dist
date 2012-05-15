@@ -88,7 +88,7 @@
         ..
     ..
     clang
-        3.0
+        3.1
         ..
     ..
     crypto
@@ -151,8 +151,6 @@
         devfs
         ..
         fdescfs
-        ..
-        fifofs
         ..
         msdosfs
         ..
@@ -234,6 +232,8 @@
         ..
     ..
     kadm5
+    ..
+    krb5
     ..
     libmilter
     ..
@@ -328,5 +328,7 @@
         ..
     ..
     vm
+    ..
+    xlocale
     ..
 ..

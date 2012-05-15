@@ -2,7 +2,6 @@
 files	"../malta/files.malta"
 
 cpu		CPU_MIPS4KC
-#options 	ISA_MIPS32
 device		pci
 device		ata
 options 	ATA_CAM

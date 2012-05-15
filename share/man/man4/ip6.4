@@ -75,12 +75,12 @@ The header has the following definition:
 struct ip6_hdr {
      union {
           struct ip6_hdrctl {
-               u_int32_t ip6_un1_flow;	/* 20 bits of flow ID */
-               u_int16_t ip6_un1_plen;	/* payload length */
-               u_int8_t	 ip6_un1_nxt;	/* next header */
-               u_int8_t	 ip6_un1_hlim;	/* hop limit */
+               uint32_t ip6_un1_flow;	/* 20 bits of flow ID */
+               uint16_t ip6_un1_plen;	/* payload length */
+               uint8_t  ip6_un1_nxt;	/* next header */
+               uint8_t  ip6_un1_hlim;	/* hop limit */
           } ip6_un1;
-          u_int8_t ip6_un2_vfc;   /* version and class */
+          uint8_t ip6_un2_vfc;	/* version and class */
      } ip6_ctlun;
      struct in6_addr ip6_src;	/* source address */
      struct in6_addr ip6_dst;	/* destination address */
@@ -121,8 +121,8 @@ The IPv6 header may be followed by any number of extension headers that start
 with the following generic definition:
 .Bd -literal -offset indent
 struct ip6_ext {
-     u_int8_t ip6e_nxt;
-     u_int8_t ip6e_len;
+     uint8_t ip6e_nxt;
+     uint8_t ip6e_len;
 } __packed;
 .Ed
 .Ss Options
@@ -281,8 +281,8 @@ The option is stored in the following structure in the ancillary data
 returned:
 .Bd -literal
 struct ip6_hbh {
-	u_int8_t ip6h_nxt;	/* next header */
-	u_int8_t ip6h_len;	/* length in units of 8 octets */
+	uint8_t ip6h_nxt;	/* next header */
+	uint8_t ip6h_len;	/* length in units of 8 octets */
 /* followed by options */
 } __packed;
 .Ed
@@ -301,8 +301,8 @@ The option is stored in the following structure in the ancillary data
 returned:
 .Bd -literal
 struct ip6_dest {
-	u_int8_t ip6d_nxt;	/* next header */
-	u_int8_t ip6d_len;	/* length in units of 8 octets */
+	uint8_t ip6d_nxt;	/* next header */
+	uint8_t ip6d_len;	/* length in units of 8 octets */
 /* followed by options */
 } __packed;
 .Ed
@@ -333,10 +333,10 @@ The header is stored in the following structure in the ancillary data
 returned:
 .Bd -literal
 struct ip6_rthdr {
-	u_int8_t ip6r_nxt;	/* next header */
-	u_int8_t ip6r_len;	/* length in units of 8 octets */
-	u_int8_t ip6r_type;	/* routing type */
-	u_int8_t ip6r_segleft;	/* segments left */
+	uint8_t ip6r_nxt;	/* next header */
+	uint8_t ip6r_len;	/* length in units of 8 octets */
+	uint8_t ip6r_type;	/* routing type */
+	uint8_t ip6r_segleft;	/* segments left */
 /* followed by routing-type-specific data */
 } __packed;
 .Ed

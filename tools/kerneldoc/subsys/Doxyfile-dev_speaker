@@ -12,7 +12,6 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 # configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = $(DOXYGEN_SRC_PATH)/dev/speaker/ \
-                         $(DOXYGEN_SRC_PATH)/$(DOXYGEN_TARGET_ARCH)/speaker/ \
                          $(NOTREVIEWED)
 
 GENERATE_TAGFILE       = dev_speaker/dev_speaker.tag

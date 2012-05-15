@@ -194,40 +194,39 @@ SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 #define	SA_IGNORE	0x10		/* ignore by default */
 #define	SA_CONT		0x20		/* continue if suspended */
 #define	SA_CANTMASK	0x40		/* non-maskable, catchable */
-#define	SA_PROC		0x80		/* deliverable to any thread */
 
 static int sigproptbl[NSIG] = {
-        SA_KILL|SA_PROC,		/* SIGHUP */
-        SA_KILL|SA_PROC,		/* SIGINT */
-        SA_KILL|SA_CORE|SA_PROC,	/* SIGQUIT */
+        SA_KILL,			/* SIGHUP */
+        SA_KILL,			/* SIGINT */
+        SA_KILL|SA_CORE,		/* SIGQUIT */
         SA_KILL|SA_CORE,		/* SIGILL */
         SA_KILL|SA_CORE,		/* SIGTRAP */
         SA_KILL|SA_CORE,		/* SIGABRT */
-        SA_KILL|SA_CORE|SA_PROC,	/* SIGEMT */
+        SA_KILL|SA_CORE,		/* SIGEMT */
         SA_KILL|SA_CORE,		/* SIGFPE */
-        SA_KILL|SA_PROC,		/* SIGKILL */
+        SA_KILL,			/* SIGKILL */
         SA_KILL|SA_CORE,		/* SIGBUS */
         SA_KILL|SA_CORE,		/* SIGSEGV */
         SA_KILL|SA_CORE,		/* SIGSYS */
-        SA_KILL|SA_PROC,		/* SIGPIPE */
-        SA_KILL|SA_PROC,		/* SIGALRM */
-        SA_KILL|SA_PROC,		/* SIGTERM */
-        SA_IGNORE|SA_PROC,		/* SIGURG */
-        SA_STOP|SA_PROC,		/* SIGSTOP */
-        SA_STOP|SA_TTYSTOP|SA_PROC,	/* SIGTSTP */
-        SA_IGNORE|SA_CONT|SA_PROC,	/* SIGCONT */
-        SA_IGNORE|SA_PROC,		/* SIGCHLD */
-        SA_STOP|SA_TTYSTOP|SA_PROC,	/* SIGTTIN */
-        SA_STOP|SA_TTYSTOP|SA_PROC,	/* SIGTTOU */
-        SA_IGNORE|SA_PROC,		/* SIGIO */
+        SA_KILL,			/* SIGPIPE */
+        SA_KILL,			/* SIGALRM */
+        SA_KILL,			/* SIGTERM */
+        SA_IGNORE,			/* SIGURG */
+        SA_STOP,			/* SIGSTOP */
+        SA_STOP|SA_TTYSTOP,		/* SIGTSTP */
+        SA_IGNORE|SA_CONT,		/* SIGCONT */
+        SA_IGNORE,			/* SIGCHLD */
+        SA_STOP|SA_TTYSTOP,		/* SIGTTIN */
+        SA_STOP|SA_TTYSTOP,		/* SIGTTOU */
+        SA_IGNORE,			/* SIGIO */
         SA_KILL,			/* SIGXCPU */
         SA_KILL,			/* SIGXFSZ */
-        SA_KILL|SA_PROC,		/* SIGVTALRM */
-        SA_KILL|SA_PROC,		/* SIGPROF */
-        SA_IGNORE|SA_PROC,		/* SIGWINCH  */
-        SA_IGNORE|SA_PROC,		/* SIGINFO */
-        SA_KILL|SA_PROC,		/* SIGUSR1 */
-        SA_KILL|SA_PROC,		/* SIGUSR2 */
+        SA_KILL,			/* SIGVTALRM */
+        SA_KILL,			/* SIGPROF */
+        SA_IGNORE,			/* SIGWINCH  */
+        SA_IGNORE,			/* SIGINFO */
+        SA_KILL,			/* SIGUSR1 */
+        SA_KILL,			/* SIGUSR2 */
 };
 
 static void reschedule_signals(struct proc *p, sigset_t block, int flags);
@@ -1466,6 +1465,8 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 	}
 	PROC_UNLOCK(p);
+	td->td_errno = EINTR;
+	td->td_pflags |= TDP_NERRNO;
 	return (EJUSTRETURN);
 }
 

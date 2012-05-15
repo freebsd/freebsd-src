@@ -295,6 +295,11 @@ cpu_startup(dummy)
 	vm_pager_bufferinit();
 
 	cpu_setregs();
+
+	/*
+	 * Add BSP as an interrupt target.
+	 */
+	intr_add_cpu(0);
 }
 
 /*
@@ -1381,7 +1386,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
-	u_long physmem_tunable, memtest;
+	u_long physmem_start, physmem_tunable, memtest;
 	pt_entry_t *pte;
 	struct bios_smap *smapbase, *smap, *smapend;
 	u_int32_t smapsize;
@@ -1469,8 +1474,19 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 
 	/*
 	 * Size up each available chunk of physical memory.
+	 *
+	 * XXX Some BIOSes corrupt low 64KB between suspend and resume.
+	 * By default, mask off the first 16 pages unless we appear to be
+	 * running in a VM.
 	 */
-	physmap[0] = PAGE_SIZE;		/* mask off page 0 */
+	physmem_start = (vm_guest > VM_GUEST_NO ? 1 : 16) << PAGE_SHIFT;
+	TUNABLE_ULONG_FETCH("hw.physmem.start", &physmem_start);
+	if (physmem_start < PAGE_SIZE)
+		physmap[0] = PAGE_SIZE;
+	else if (physmem_start >= physmap[1])
+		physmap[0] = round_page(physmap[1] - PAGE_SIZE);
+	else
+		physmap[0] = round_page(physmem_start);
 	pa_indx = 0;
 	da_indx = 1;
 	phys_avail[pa_indx++] = physmap[0];

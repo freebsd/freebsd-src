@@ -2862,7 +2862,8 @@ NdisMapFile(status, mappedbuffer, filehandle)
 	struct thread		*td = curthread;
 	linker_file_t		lf;
 	caddr_t			kldstart;
-	int			error, resid, vfslocked;
+	int			error, vfslocked;
+	ssize_t			resid;
 	struct vnode		*vp;
 
 	if (filehandle == NULL) {

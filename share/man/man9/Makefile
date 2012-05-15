@@ -12,6 +12,7 @@ MAN=	accept_filter.9 \
 	boot.9 \
 	bpf.9 \
 	buf.9 \
+	buf_ring.9 \
 	BUF_ISLOCKED.9 \
 	BUF_LOCK.9 \
 	BUF_LOCKFREE.9 \
@@ -99,6 +100,7 @@ MAN=	accept_filter.9 \
 	devtoname.9 \
 	disk.9 \
 	domain.9 \
+	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
@@ -410,6 +412,16 @@ MLINKS+=bpf.9 bpfattach.9 \
 	bpf.9 bpf_tap.9 \
 	bpf.9 bpf_validate.9
 MLINKS+=buf.9 bp.9
+MLINKS+=buf_ring.9 buf_ring_alloc.9 \
+	buf_ring.9 buf_ring_free.9 \
+	buf_ring.9 buf_ring_enqueue.9 \
+	buf_ring.9 buf_ring_enqueue_bytes.9 \
+	buf_ring.9 buf_ring_dequeue_mc.9 \
+	buf_ring.9 buf_ring_dequeue_sc.9 \
+	buf_ring.9 buf_ring_count.9 \
+	buf_ring.9 buf_ring_empty.9 \
+	buf_ring.9 buf_ring_full.9 \
+	buf_ring.9 buf_ring_peek.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
 MLINKS+=bus_alloc_resource.9 bus_alloc_resource_any.9
 MLINKS+=BUS_BIND_INTR.9 bus_bind_intr.9
@@ -603,11 +615,19 @@ MLINKS+=disk.9 disk_alloc.9 \
 	disk.9 disk_destroy.9 \
 	disk.9 disk_gone.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
-	domain.9 net_add_domain.9 \
+	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
 	domain.9 pfctlinput2.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
+MLINKS+=drbr.9 drbr_free.9 \
+	drbr.9 drbr_enqueue.9 \
+	drbr.9 drbr_dequeue.9 \
+	drbr.9 drbr_dequeue_cond.9 \
+	drbr.9 drbr_flush.9 \
+	drbr.9 drbr_empty.9 \
+	drbr.9 drbr_inuse.9 \
+	drbr.9 drbr_stats_update.9
 MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
 	EVENTHANDLER.9 eventhandler_deregister.9 \
@@ -753,6 +773,8 @@ MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 knlist_destroy.9 \
 	kqueue.9 knlist_empty.9 \
 	kqueue.9 knlist_init.9 \
+	kqueue.9 knlist_init_mtx.9 \
+	kqueue.9 knlist_init_rw_reader.9 \
 	kqueue.9 knlist_remove.9 \
 	kqueue.9 knlist_remove_inevent.9 \
 	kqueue.9 knote_fdclose.9 \
@@ -951,16 +973,32 @@ MLINKS+=namei.9 NDFREE.9 \
 MLINKS+=pbuf.9 getpbuf.9 \
 	pbuf.9 relpbuf.9 \
 	pbuf.9 trypbuf.9
-MLINKS+=pci.9 pci_disable_busmaster.9 \
+MLINKS+=pci.9 pci_alloc_msi.9 \
+	pci.9 pci_alloc_msix.9 \
+	pci.9 pci_disable_busmaster.9 \
 	pci.9 pci_disable_io.9 \
 	pci.9 pci_enable_busmaster.9 \
 	pci.9 pci_enable_io.9 \
 	pci.9 pci_find_bsf.9 \
+	pci.9 pci_find_cap.9 \
 	pci.9 pci_find_dbsf.9 \
 	pci.9 pci_find_device.9 \
+	pci.9 pci_find_extcap.9 \
+	pci.9 pci_find_htcap.9 \
+	pci.9 pci_get_max_read_req.9 \
 	pci.9 pci_get_powerstate.9 \
+	pci.9 pci_get_vpd_ident.9 \
+	pci.9 pci_get_vpd_readonly.9 \
+	pci.9 pci_msi_count.9 \
+	pci.9 pci_msix_count.9 \
+	pci.9 pci_pending_msix.9 \
 	pci.9 pci_read_config.9 \
+	pci.9 pci_release_msi.9 \
+	pci.9 pci_remap_msix.9 \
+	pci.9 pci_restore_state.9 \
+	pci.9 pci_save_state.9 \
 	pci.9 pci_set_powerstate.9 \
+	pci.9 pci_set_max_read_req.9 \
 	pci.9 pci_write_config.9
 MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_hook_get.9 \
@@ -1212,6 +1250,7 @@ MLINKS+=store.9 subyte.9 \
 	store.9 suword32.9 \
 	store.9 suword64.9
 MLINKS+=swi.9 swi_add.9 \
+	swi.9 swi_remove.9 \
 	swi.9 swi_sched.9
 MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_destroy.9 \

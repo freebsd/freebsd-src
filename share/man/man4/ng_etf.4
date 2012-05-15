@@ -102,7 +102,7 @@ are specified in a structure of type
 .Bd -literal -offset 4n
 struct ng_etffilter {
         char       matchhook[NG_HOOKSIZ];     /* hook name */
-        u_int16_t  ethertype;	              /* catch these */
+        uint16_t   ethertype;	              /* catch these */
 };
 .Ed
 .El
@@ -135,7 +135,6 @@ nghook -a etf: newproto &
 # Filter two random ethertypes to that hook.
 ngctl 'msg etf: setfilter { matchhook="newproto" ethertype=${MATCH1} }
 ngctl 'msg etf: setfilter { matchhook="newproto" ethertype=${MATCH2} }
-DONE
 .Ed
 .Sh SHUTDOWN
 This node shuts down upon receipt of a

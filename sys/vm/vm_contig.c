@@ -137,7 +137,8 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 			   object->type == OBJT_DEFAULT) {
 			vm_page_unlock_queues();
 			m_tmp = m;
-			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC, 0, NULL);
+			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC, 0,
+			    NULL, NULL);
 			VM_OBJECT_UNLOCK(object);
 			vm_page_lock_queues();
 			return (0);
@@ -315,6 +316,8 @@ kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
 	if (flags & M_ZERO)
 		pflags |= VM_ALLOC_ZERO;
+	if (flags & M_NODUMP)
+		pflags |= VM_ALLOC_NODUMP;
 	VM_OBJECT_LOCK(object);
 	tries = 0;
 retry:

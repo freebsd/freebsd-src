@@ -5325,8 +5325,8 @@ void
 scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 		      void (*cbfcnp)(struct cam_periph *, union ccb *),
 		      uint8_t tag_action, uint64_t lba, int reladr, int pmi,
-		      struct scsi_read_capacity_data_long *rcap_buf,
-		      uint8_t sense_len, uint32_t timeout)
+		      uint8_t *rcap_buf, int rcap_buf_len, uint8_t sense_len,
+		      uint32_t timeout)
 {
 	struct scsi_read_capacity_16 *scsi_cmd;
 
@@ -5337,7 +5337,7 @@ scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 		      /*flags*/CAM_DIR_IN,
 		      tag_action,
 		      /*data_ptr*/(u_int8_t *)rcap_buf,
-		      /*dxfer_len*/sizeof(*rcap_buf),
+		      /*dxfer_len*/rcap_buf_len,
 		      sense_len,
 		      sizeof(*scsi_cmd),
 		      timeout);
@@ -5346,7 +5346,7 @@ scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 	scsi_cmd->opcode = SERVICE_ACTION_IN;
 	scsi_cmd->service_action = SRC16_SERVICE_ACTION;
 	scsi_u64to8b(lba, scsi_cmd->addr);
-	scsi_ulto4b(sizeof(*rcap_buf), scsi_cmd->alloc_len);
+	scsi_ulto4b(rcap_buf_len, scsi_cmd->alloc_len);
 	if (pmi)
 		reladr |= SRC16_PMI;
 	if (reladr)

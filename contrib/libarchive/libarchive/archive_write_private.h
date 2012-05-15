@@ -36,10 +36,42 @@
 #include "archive_string.h"
 #include "archive_private.h"
 
+struct archive_write;
+
+struct archive_write_filter {
+	int64_t bytes_written;
+	struct archive *archive; /* Associated archive. */
+	struct archive_write_filter *next_filter; /* Who I write to. */
+	int	(*options)(struct archive_write_filter *,
+	    const char *key, const char *value);
+	int	(*open)(struct archive_write_filter *);
+	int	(*write)(struct archive_write_filter *, const void *, size_t);
+	int	(*close)(struct archive_write_filter *);
+	int	(*free)(struct archive_write_filter *);
+	void	 *data;
+	const char *name;
+	int	  code;
+	int	  bytes_per_block;
+	int	  bytes_in_last_block;
+};
+
+#if ARCHIVE_VERSION < 4000000
+void __archive_write_filters_free(struct archive *);
+#endif
+
+struct archive_write_filter *__archive_write_allocate_filter(struct archive *);
+
+int __archive_write_output(struct archive_write *, const void *, size_t);
+int __archive_write_nulls(struct archive_write *, size_t);
+int __archive_write_filter(struct archive_write_filter *, const void *, size_t);
+int __archive_write_open_filter(struct archive_write_filter *);
+int __archive_write_close_filter(struct archive_write_filter *);
+
 struct archive_write {
 	struct archive	archive;
 
 	/* Dev/ino of the archive being written. */
+	int		  skip_file_set;
 	dev_t		  skip_file_dev;
 	int64_t		  skip_file_ino;
 
@@ -63,29 +95,10 @@ struct archive_write {
 	int		  bytes_in_last_block;
 
 	/*
-	 * These control whether data within a gzip/bzip2 compressed
-	 * stream gets padded or not.  If pad_uncompressed is set,
-	 * the data will be padded to a full block before being
-	 * compressed.  The pad_uncompressed_byte determines the value
-	 * that will be used for padding.  Note that these have no
-	 * effect on compression "none."
+	 * First and last write filters in the pipeline.
 	 */
-	int		  pad_uncompressed;
-	int		  pad_uncompressed_byte; /* TODO: Support this. */
-
-	/*
-	 * On write, the client just invokes an archive_write_set function
-	 * which sets up the data here directly.
-	 */
-	struct {
-		void	 *data;
-		void	 *config;
-		int	(*init)(struct archive_write *);
-		int	(*options)(struct archive_write *,
-			    const char *key, const char *value);
-		int	(*finish)(struct archive_write *);
-		int	(*write)(struct archive_write *, const void *, size_t);
-	} compressor;
+	struct archive_write_filter *filter_first;
+	struct archive_write_filter *filter_last;
 
 	/*
 	 * Pointers to format-specific functions for writing.  They're
@@ -96,13 +109,13 @@ struct archive_write {
 	int	(*format_init)(struct archive_write *);
 	int	(*format_options)(struct archive_write *,
 		    const char *key, const char *value);
-	int	(*format_finish)(struct archive_write *);
-	int	(*format_destroy)(struct archive_write *);
 	int	(*format_finish_entry)(struct archive_write *);
 	int 	(*format_write_header)(struct archive_write *,
 		    struct archive_entry *);
 	ssize_t	(*format_write_data)(struct archive_write *,
 		    const void *buff, size_t);
+	int	(*format_close)(struct archive_write *);
+	int	(*format_free)(struct archive_write *);
 };
 
 /*
@@ -117,6 +130,7 @@ struct archive_write {
  */
 int
 __archive_write_format_header_ustar(struct archive_write *, char buff[512],
-    struct archive_entry *, int tartype, int strict);
+    struct archive_entry *, int tartype, int strict,
+    struct archive_string_conv *);
 
 #endif

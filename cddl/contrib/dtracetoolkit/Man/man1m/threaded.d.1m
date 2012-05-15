@@ -1,0 +1,50 @@
+.TH threaded.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+threaded.d \- sample multi-threaded CPU usage. Uses DTrace.
+.SH SYNOPSIS
+.B threaded.d
+.SH DESCRIPTION
+This measures thread IDs as a process runs across multiple CPUs.
+It is a simple script that can help determine if a multi-threaded
+application is effectively using it's threads, or if the threads have
+serialised. See the example file in Docs/Examples/threaded_example.txt
+for a demonstration.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Any
+.SH STABILITY
+stable.
+.SH EXAMPLES
+.TP
+This runs until Ctrl\-C is hit.
+# 
+.B threaded.d
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+CMD
+process name
+.TP
+value
+thread ID
+.TP
+count
+number of samples
+.PP
+.SH SEE ALSO
+prstat \-L
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+threaded.d will run until Ctrl\-C is hit.
+.SH SEE ALSO
+dtrace(1M)
+

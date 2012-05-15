@@ -1,4 +1,4 @@
--- $Id: test.asn1 21455 2007-07-10 12:51:19Z lha $ --
+-- $Id$ --
 
 TEST DEFINITIONS ::=
 
@@ -6,8 +6,11 @@ BEGIN
 
 IMPORTS heim_any FROM heim;
 
+TESTuint32 ::= INTEGER (0..4294967295)
+
 TESTLargeTag ::= SEQUENCE {
-	foo[127] INTEGER (-2147483648..2147483647)
+	foo[127] INTEGER (-2147483648..2147483647),
+	bar[128] INTEGER (-2147483648..2147483647)
 }
 
 TESTSeq ::= SEQUENCE {
@@ -20,12 +23,12 @@ TESTSeq ::= SEQUENCE {
 TESTChoice1 ::= CHOICE {
 	i1[1]	INTEGER (-2147483648..2147483647),
 	i2[2]	INTEGER (-2147483648..2147483647),
-	...	
+	...
 }
 
 TESTChoice2 ::= CHOICE {
 	i1[1]	INTEGER (-2147483648..2147483647),
-	...	
+	...
 }
 
 TESTInteger ::= INTEGER (-2147483648..2147483647)
@@ -35,7 +38,7 @@ TESTInteger3 ::= [5] IMPLICIT TESTInteger2
 
 TESTImplicit ::= SEQUENCE {
 	ti1[0] IMPLICIT INTEGER (-2147483648..2147483647),
-	ti2[1] IMPLICIT SEQUENCE { 
+	ti2[1] IMPLICIT SEQUENCE {
 		foo[127] INTEGER (-2147483648..2147483647)
 	},
 	ti3[2] IMPLICIT [5] IMPLICIT [4] IMPLICIT INTEGER (-2147483648..2147483647)
@@ -57,21 +60,26 @@ TESTAlloc ::= SEQUENCE {
 	  tagless2 heim_any OPTIONAL
 }
 
+TESTOptional ::= SEQUENCE {
+	  zero [0] INTEGER (-2147483648..2147483647) OPTIONAL,
+	  one [1] INTEGER (-2147483648..2147483647) OPTIONAL
+}
+
 
 TESTCONTAINING ::= OCTET STRING ( CONTAINING INTEGER )
-TESTENCODEDBY ::= OCTET STRING ( ENCODED BY 
+TESTENCODEDBY ::= OCTET STRING ( ENCODED BY
   { joint-iso-itu-t(2) asn(1) ber-derived(2) distinguished-encoding(1) }
 )
 
-TESTDer OBJECT IDENTIFIER ::= { 
+TESTDer OBJECT IDENTIFIER ::= {
 	joint-iso-itu-t(2) asn(1) ber-derived(2) distinguished-encoding(1)
 }
 
-TESTCONTAININGENCODEDBY ::= OCTET STRING ( CONTAINING INTEGER ENCODED BY 
+TESTCONTAININGENCODEDBY ::= OCTET STRING ( CONTAINING INTEGER ENCODED BY
   { joint-iso-itu-t(2) asn(1) ber-derived(2) distinguished-encoding(1) }
 )
 
-TESTCONTAININGENCODEDBY2 ::= OCTET STRING ( 
+TESTCONTAININGENCODEDBY2 ::= OCTET STRING (
 	CONTAINING INTEGER ENCODED BY TESTDer
 )
 
@@ -91,5 +99,40 @@ TESTSeqSizeOf3 ::= SEQUENCE SIZE (1..MAX) OF TESTInteger
 TESTSeqSizeOf4 ::= SEQUENCE SIZE (MIN..2) OF TESTInteger
 
 TESTOSSize1 ::= OCTET STRING SIZE (1..2)
+
+TESTSeqOfSeq ::= SEQUENCE OF SEQUENCE {
+	zero [0] TESTInteger
+}
+
+TESTSeqOfSeq2 ::= SEQUENCE OF SEQUENCE {
+	string [0] GeneralString
+}
+
+TESTSeqOfSeq3 ::= SEQUENCE OF SEQUENCE {
+	zero [0] TESTInteger,
+	string [0] GeneralString
+}
+
+TESTSeqOf2 ::= SEQUENCE {
+	strings SEQUENCE OF GeneralString
+}
+
+TESTSeqOf3 ::= SEQUENCE {
+	strings SEQUENCE OF GeneralString OPTIONAL
+}
+
+TESTPreserve ::= SEQUENCE {
+	zero [0] TESTInteger,
+	one [1] TESTInteger
+}
+
+TESTBitString ::= BIT STRING {
+	      zero(0),
+	      eight(8),
+	      thirtyone(31)
+}
+
+TESTMechType::= OBJECT IDENTIFIER
+TESTMechTypeList ::= SEQUENCE OF TESTMechType
 
 END

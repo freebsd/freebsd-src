@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------
 # Project related configuration options
 #---------------------------------------------------------------------------
-PROJECT_NAME           = "FreeBSD kernel XEN device code"
+PROJECT_NAME           = "FreeBSD kernel /$(DOXYGEN_TARGET_ARCH) XEN device code"
 OUTPUT_DIRECTORY       = $(DOXYGEN_DEST_PATH)/dev_xen/
 EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 #---------------------------------------------------------------------------

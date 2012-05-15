@@ -35,6 +35,32 @@
 #include <xen/blkif.h>
 
 /**
+ * Given a number of blkif segments, compute the maximum I/O size supported.
+ *
+ * \note This calculation assumes that all but the first and last segments 
+ *       of the I/O are fully utilized.
+ *
+ * \note We reserve a segement from the maximum supported by the transport to
+ *       guarantee we can handle an unaligned transfer without the need to
+ *       use a bounce buffer.
+ */
+#define	XBF_SEGS_TO_SIZE(segs)						\
+	(((segs) - 1) * PAGE_SIZE)
+
+/**
+ * Compute the maximum number of blkif segments requried to represent
+ * an I/O of the given size.
+ *
+ * \note This calculation assumes that all but the first and last segments
+ *       of the I/O are fully utilized.
+ *
+ * \note We reserve a segement to guarantee we can handle an unaligned
+ *       transfer without the need to use a bounce buffer.
+ */
+#define	XBF_SIZE_TO_SEGS(size)						\
+	((size / PAGE_SIZE) + 1)
+
+/**
  * The maximum number of outstanding requests blocks (request headers plus
  * additional segment blocks) we will allow in a negotiated block-front/back
  * communication channel.
@@ -44,22 +70,18 @@
 /**
  * The maximum mapped region size per request we will allow in a negotiated
  * block-front/back communication channel.
- *
- * \note We reserve a segement from the maximum supported by the transport to
- *       guarantee we can handle an unaligned transfer without the need to
- *       use a bounce buffer..
  */
-#define	XBF_MAX_REQUEST_SIZE		\
-	MIN(MAXPHYS, (BLKIF_MAX_SEGMENTS_PER_REQUEST - 1) * PAGE_SIZE)
+#define	XBF_MAX_REQUEST_SIZE						\
+	MIN(MAXPHYS, XBF_SEGS_TO_SIZE(BLKIF_MAX_SEGMENTS_PER_REQUEST))
 
 /**
  * The maximum number of segments (within a request header and accompanying
  * segment blocks) per request we will allow in a negotiated block-front/back
  * communication channel.
  */
-#define	XBF_MAX_SEGMENTS_PER_REQUEST		\
-	(MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,	\
-	     (XBF_MAX_REQUEST_SIZE / PAGE_SIZE) + 1))
+#define	XBF_MAX_SEGMENTS_PER_REQUEST					\
+	(MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,				\
+	     XBF_SIZE_TO_SEGS(XBF_MAX_REQUEST_SIZE)))
 
 /**
  * The maximum number of shared memory ring pages we will allow in a

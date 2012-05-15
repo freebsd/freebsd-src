@@ -347,7 +347,8 @@ pw_edit(int notsetuid)
 	sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 	if (stat(tempname, &st2) == -1)
 		return (-1);
-	return (st1.st_mtime != st2.st_mtime);
+	return (st1.st_mtim.tv_sec != st2.st_mtim.tv_sec ||
+	    st1.st_mtim.tv_nsec != st2.st_mtim.tv_nsec);
 }
 
 /*

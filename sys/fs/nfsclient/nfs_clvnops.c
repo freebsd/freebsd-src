@@ -241,6 +241,10 @@ int newnfs_directio_enable = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &newnfs_directio_enable, 0, "Enable NFS directio");
 
+int nfs_keep_dirty_on_error;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_keep_dirty_on_error, CTLFLAG_RW,
+    &nfs_keep_dirty_on_error, 0, "Retry pageout if error returned");
+
 /*
  * This sysctl allows other processes to mmap a file that has been opened
  * O_DIRECT by a process.  In general, having processes mmap the file while
@@ -509,6 +513,7 @@ nfs_open(struct vop_open_args *ap)
 	struct vattr vattr;
 	int error;
 	int fmode = ap->a_mode;
+	struct ucred *cred;
 
 	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		return (EOPNOTSUPP);
@@ -600,7 +605,22 @@ nfs_open(struct vop_open_args *ap)
 		}
 		np->n_directio_opens++;
 	}
+
+	/*
+	 * If this is an open for writing, capture a reference to the
+	 * credentials, so they can be used by ncl_putpages(). Using
+	 * these write credentials is preferable to the credentials of
+	 * whatever thread happens to be doing the VOP_PUTPAGES() since
+	 * the write RPCs are less likely to fail with EACCES.
+	 */
+	if ((fmode & FWRITE) != 0) {
+		cred = np->n_writecred;
+		np->n_writecred = crhold(ap->a_cred);
+	} else
+		cred = NULL;
 	mtx_unlock(&np->n_mtx);
+	if (cred != NULL)
+		crfree(cred);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
@@ -1042,7 +1062,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0)
 		return (error);
-	error = cache_lookup_times(dvp, vpp, cnp, &nctime, &ncticks);
+	error = cache_lookup(dvp, vpp, cnp, &nctime, &ncticks);
 	if (error > 0 && error != ENOENT)
 		return (error);
 	if (error == -1) {
@@ -1063,7 +1083,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		 * We only accept a positive hit in the cache if the
 		 * change time of the file matches our cached copy.
 		 * Otherwise, we discard the cache entry and fallback
-		 * to doing a lookup RPC.
+		 * to doing a lookup RPC.  We also only trust cache
+		 * entries for less than nm_nametimeo seconds.
 		 *
 		 * To better handle stale file handles and attributes,
 		 * clear the attribute cache of this node if it is a
@@ -1085,7 +1106,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			mtx_unlock(&newnp->n_mtx);
 		}
 		if (nfscl_nodeleg(newvp, 0) == 0 ||
-		    (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+		    ((u_int)(ticks - ncticks) < (nmp->nm_nametimeo * hz) &&
+		    VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
 		    timespeccmp(&vattr.va_ctime, &nctime, ==))) {
 			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
 			if (cnp->cn_nameiop != LOOKUP &&
@@ -1170,7 +1192,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			    &dnfsva.na_mtime, ==)) {
 				mtx_unlock(&np->n_mtx);
 				cache_enter_time(dvp, NULL, cnp,
-				    &dnfsva.na_mtime);
+				    &dnfsva.na_mtime, NULL);
 			} else
 				mtx_unlock(&np->n_mtx);
 		}
@@ -1269,9 +1291,10 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
-	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) && attrflag) {
-		cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime);
-	}
+	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) &&
+	    attrflag != 0 && (newvp->v_type != VDIR || dattrflag != 0))
+		cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime,
+		    newvp->v_type != VDIR ? NULL : &dnfsva.na_ctime);
 	*vpp = newvp;
 	return (0);
 }
@@ -1374,7 +1397,7 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		if (ret && !error)
 			error = ret;
 	}
-	if (vp->v_mount->mnt_kern_flag & MNTK_ASYNC)
+	if (DOINGASYNC(vp))
 		*iomode = NFSWRITE_FILESYNC;
 	if (error && NFS_ISV4(vp))
 		error = nfscl_maperr(uiop->uio_td, error, (uid_t)0, (gid_t)0);
@@ -1431,8 +1454,6 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		}
 	}
 	if (!error) {
-		if ((cnp->cn_flags & MAKEENTRY))
-			cache_enter(dvp, newvp, cnp);
 		*vpp = newvp;
 	} else if (NFS_ISV4(dvp)) {
 		error = nfscl_maperr(cnp->cn_thread, error, vap->va_uid,
@@ -1541,7 +1562,10 @@ again:
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (!error) {
 		newvp = NFSTOV(np);
-		if (attrflag)
+		if (attrflag == 0)
+			error = nfsrpc_getattr(newvp, cnp->cn_cred,
+			    cnp->cn_thread, &nfsva, NULL);
+		if (error == 0)
 			error = nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
 	}
@@ -1590,8 +1614,9 @@ again:
 		}
 	}
 	if (!error) {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
+		if ((cnp->cn_flags & MAKEENTRY) && attrflag)
+			cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime,
+			    NULL);
 		*ap->a_vpp = newvp;
 	} else if (NFS_ISV4(dvp)) {
 		error = nfscl_maperr(cnp->cn_thread, error, vap->va_uid,
@@ -1966,8 +1991,9 @@ nfs_link(struct vop_link_args *ap)
 	 * must care about lookup caching hit rate, so...
 	 */
 	if (VFSTONFS(vp->v_mount)->nm_negnametimeo != 0 &&
-	    (cnp->cn_flags & MAKEENTRY))
-		cache_enter(tdvp, vp, cnp);
+	    (cnp->cn_flags & MAKEENTRY) && attrflag != 0 && error == 0) {
+		cache_enter_time(tdvp, vp, cnp, &nfsva.na_ctime, NULL);
+	}
 	if (error && NFS_ISV4(vp))
 		error = nfscl_maperr(cnp->cn_thread, error, (uid_t)0,
 		    (gid_t)0);
@@ -2023,15 +2049,6 @@ nfs_symlink(struct vop_symlink_args *ap)
 			error = nfscl_maperr(cnp->cn_thread, error,
 			    vap->va_uid, vap->va_gid);
 	} else {
-		/*
-		 * If negative lookup caching is enabled, I might as well
-		 * add an entry for this node. Not necessary for correctness,
-		 * but if negative caching is enabled, then the system
-		 * must care about lookup caching hit rate, so...
-		 */
-		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
-		    (cnp->cn_flags & MAKEENTRY))
-			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
 
@@ -2045,6 +2062,16 @@ nfs_symlink(struct vop_symlink_args *ap)
 		dnp->n_attrstamp = 0;
 		mtx_unlock(&dnp->n_mtx);
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
+	}
+	/*
+	 * If negative lookup caching is enabled, I might as well
+	 * add an entry for this node. Not necessary for correctness,
+	 * but if negative caching is enabled, then the system
+	 * must care about lookup caching hit rate, so...
+	 */
+	if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
+	    (cnp->cn_flags & MAKEENTRY) && attrflag != 0 && error == 0) {
+		cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime, NULL);
 	}
 	return (error);
 }
@@ -2116,8 +2143,10 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 		 * must care about lookup caching hit rate, so...
 		 */
 		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
-		    (cnp->cn_flags & MAKEENTRY))
-			cache_enter(dvp, newvp, cnp);
+		    (cnp->cn_flags & MAKEENTRY) &&
+		    attrflag != 0 && dattrflag != 0)
+			cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime,
+			    &dnfsva.na_ctime);
 		*ap->a_vpp = newvp;
 	}
 	return (error);
@@ -2174,7 +2203,8 @@ nfs_readdir(struct vop_readdir_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct uio *uio = ap->a_uio;
-	int tresid, error = 0;
+	ssize_t tresid;
+	int error = 0;
 	struct vattr vattr;
 	
 	if (vp->v_type != VDIR) 

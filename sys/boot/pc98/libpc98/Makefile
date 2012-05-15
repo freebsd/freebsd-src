@@ -10,6 +10,8 @@ SRCS=	bioscd.c biosdisk.c biosmem.c biospnp.c \
 	comconsole.c devicename.c elf32_freebsd.c \
 	i386_copy.c i386_module.c nullconsole.c pc98_sys.c pxe.c pxetramp.s \
 	time.c vidconsole.c
+.PATH:	${.CURDIR}/../../zfs
+SRCS+=	devicename_stubs.c
 
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)

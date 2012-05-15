@@ -63,6 +63,10 @@ UINT64                      DtParserResult; /* Expression return value */
 #define YYERROR_VERBOSE     1               /* Verbose error messages */
 #define YYFLAG              -32768
 
+/* Define YYMALLOC/YYFREE to prevent redefinition errors  */
+
+#define YYMALLOC            malloc
+#define YYFREE              free
 %}
 
 %union

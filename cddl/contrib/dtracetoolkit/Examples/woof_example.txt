@@ -1,0 +1,28 @@
+The following explains how to demonstrate the woof.d DTrace script.
+
+This script is only useful if you have an audio device, /dev/audio. To test
+audio, you can run:
+
+	$ audioplay /usr/share/audio/samples/au/sample.au
+
+The volume can be adjusted from a few tools, including,
+
+	$ /usr/dt/bin/sdtaudiocontrol
+
+...
+
+woof.d will bark whenever a new process is created. In order to demonstrate
+it, first run the following:
+
+	# ./woof.d &
+
+You have now installed the dog (if the dog becomes a nusience, you are
+allowed to kill it). Now compare the difference between these recursive
+grep commands:
+
+	$ find /etc -type f -exec grep localhost {} \;
+
+	$ find /etc -type f -exec grep localhost {} +
+
+The first find command is the "bad way", the second is the "good way". You
+will hear for yourself why this is the case.

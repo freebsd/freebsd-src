@@ -4335,7 +4335,8 @@ xpt_done(union ccb *done_ccb)
 		TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
 		    sim_links.tqe);
 		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-		if ((sim->flags & (CAM_SIM_ON_DONEQ | CAM_SIM_POLLED)) == 0) {
+		if ((sim->flags & (CAM_SIM_ON_DONEQ | CAM_SIM_POLLED |
+		    CAM_SIM_BATCH)) == 0) {
 			mtx_lock(&cam_simq_lock);
 			first = TAILQ_EMPTY(&cam_simq);
 			TAILQ_INSERT_TAIL(&cam_simq, sim, links);
@@ -4345,6 +4346,25 @@ xpt_done(union ccb *done_ccb)
 				swi_sched(cambio_ih, 0);
 		}
 	}
+}
+
+void
+xpt_batch_start(struct cam_sim *sim)
+{
+
+	KASSERT((sim->flags & CAM_SIM_BATCH) == 0, ("Batch flag already set"));
+	sim->flags |= CAM_SIM_BATCH;
+}
+
+void
+xpt_batch_done(struct cam_sim *sim)
+{
+
+	KASSERT((sim->flags & CAM_SIM_BATCH) != 0, ("Batch flag was not set"));
+	sim->flags &= ~CAM_SIM_BATCH;
+	if (!TAILQ_EMPTY(&sim->sim_doneq) &&
+	    (sim->flags & CAM_SIM_ON_DONEQ) == 0)
+		camisr_runqueue(&sim->sim_doneq);
 }
 
 union ccb *
@@ -4591,6 +4611,17 @@ xpt_release_device(struct cam_ed *device)
 		cam_devq_resize(devq, devq->alloc_queue.array_size - 1);
 		camq_fini(&device->drvq);
 		cam_ccbq_fini(&device->ccbq);
+		/*
+		 * Free allocated memory.  free(9) does nothing if the
+		 * supplied pointer is NULL, so it is safe to call without
+		 * checking.
+		 */
+		free(device->supported_vpds, M_CAMXPT);
+		free(device->device_id, M_CAMXPT);
+		free(device->physpath, M_CAMXPT);
+		free(device->rcap_buf, M_CAMXPT);
+		free(device->serial_num, M_CAMXPT);
+
 		xpt_release_target(device->target);
 		free(device, M_CAMXPT);
 	} else

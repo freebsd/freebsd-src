@@ -2668,13 +2668,11 @@ lem_setup_transmit_structures(struct adapter *adapter)
 		tx_buffer->m_head = NULL;
 #ifdef DEV_NETMAP
 		if (slot) {
-			/* slot si is mapped to the i-th NIC-ring entry */
-			int si = i + na->tx_rings[0].nkr_hwofs;
+			/* the i-th NIC entry goes to slot si */
+			int si = netmap_idx_n2k(&na->tx_rings[0], i);
 			uint64_t paddr;
 			void *addr;
 
-			if (si > na->num_tx_desc)
-				si -= na->num_tx_desc;
 			addr = PNMB(slot + si, &paddr);
 			adapter->tx_desc_base[si].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
@@ -3244,13 +3242,11 @@ lem_setup_receive_structures(struct adapter *adapter)
 	for (i = 0; i < adapter->num_rx_desc; i++) {
 #ifdef DEV_NETMAP
 		if (slot) {
-			/* slot si is mapped to the i-th NIC-ring entry */
-			int si = i + na->rx_rings[0].nkr_hwofs;
+			/* the i-th NIC entry goes to slot si */
+			int si = netmap_idx_n2k(&na->rx_rings[0], i);
 			uint64_t paddr;
 			void *addr;
 
-			if (si > na->num_rx_desc)
-				si -= na->num_rx_desc;
 			addr = PNMB(slot + si, &paddr);
 			netmap_load_map(adapter->rxtag, rx_buffer->map, addr);
 			/* Update descriptor */
@@ -3479,7 +3475,9 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
-		selwakeuppri(&NA(ifp)->rx_rings[0].si, PI_NET);
+		struct netmap_adapter *na = NA(ifp);
+		na->rx_rings[0].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&na->rx_rings[0].si, PI_NET);
 		EM_RX_UNLOCK(adapter);
 		return (0);
 	}

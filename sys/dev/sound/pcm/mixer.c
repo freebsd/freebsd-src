@@ -1463,7 +1463,7 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 			 *
 			 * XXX Described by Hannu@4Front, but not found in
 			 *     soundcard.h.
-			strlcpy(mi->devnode, d->mixer_dev->si_name,
+			strlcpy(mi->devnode, devtoname(d->mixer_dev),
 			sizeof(mi->devnode));
 			mi->legacy_device = i;
 			 */

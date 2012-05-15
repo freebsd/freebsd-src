@@ -119,4 +119,9 @@
 #define	EXC_PGM_PRIV		(1UL << 18)
 #define	EXC_PGM_TRAP		(1UL << 17)
 
+#ifndef LOCORE
+struct	trapframe;
+void    trap(struct trapframe *);
+#endif
+
 #endif	/* _POWERPC_TRAP_H_ */

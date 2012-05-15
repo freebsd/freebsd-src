@@ -1461,6 +1461,7 @@ ssh_session2_open(void)
 		c->dynamic_window = 1;
 		debug("Enabled Dynamic Window Scaling\n");
 	}
+
 	debug3("ssh_session2_open: channel_new: %d", c->self);
 
 	channel_send_open(c->self);

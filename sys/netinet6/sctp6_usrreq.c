@@ -388,10 +388,8 @@ sctp6_notify(struct sctp_inpcb *inp,
 	struct socket *so;
 
 #endif
+
 	/* protection */
-	int reason;
-
-
 	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
 	    (sh == NULL) || (to == NULL)) {
 		if (stcb)
@@ -428,8 +426,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 			net->dest_state &= ~SCTP_ADDR_REACHABLE;
 			net->dest_state &= ~SCTP_ADDR_PF;
 			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-			    stcb, SCTP_FAILED_THRESHOLD,
-			    (void *)net, SCTP_SO_NOT_LOCKED);
+			    stcb, 0, (void *)net, SCTP_SO_NOT_LOCKED);
 		}
 		SCTP_TCB_UNLOCK(stcb);
 	} else if ((icmph->icmp6_code == ICMP_UNREACH_PROTOCOL) ||
@@ -441,8 +438,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 		 * now is dead. In either case treat it like a OOTB abort
 		 * with no TCB
 		 */
-		reason = SCTP_PEER_FAULTY;
-		sctp_abort_notification(stcb, reason, SCTP_SO_NOT_LOCKED);
+		sctp_abort_notification(stcb, 1, 0, NULL, SCTP_SO_NOT_LOCKED);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(inp);
 		atomic_add_int(&stcb->asoc.refcnt, 1);
@@ -632,7 +628,7 @@ sctp6_abort(struct socket *so)
 	uint32_t flags;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return;
 	}
@@ -720,7 +716,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	int error;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return (EINVAL);
 	}
@@ -960,7 +956,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 
 	inp6 = (struct in6pcb *)so->so_pcb;
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0) {
+	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
 		return (ECONNRESET);	/* I made the same as TCP since we are
 					 * not setup? */
@@ -1199,7 +1195,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 static int
 sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 {
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)*addr;
+	struct sockaddr_in6 *sin6;
 	int fnd;
 	struct sockaddr_in6 *sin_a6;
 	struct sctp_inpcb *inp;

@@ -32,11 +32,13 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap.h 9753 2011-11-28 15:10:43Z luigi $
+ * $Id: netmap.h 10601 2012-02-21 16:40:14Z luigi $
  *
- * This header contains the definitions of the constants and the
- * structures needed by the ``netmap'' module, both kernel and
- * userspace.
+ * Definitions of constants and the structures used by the netmap
+ * framework, for the part visible to both kernel and userspace.
+ * Detailed info on netmap is available with "man netmap" or at
+ * 
+ *	http://info.iet.unipi.it/~luigi/netmap/
  */
 
 #ifndef _NET_NETMAP_H_
@@ -48,14 +50,8 @@
  * The data structures used by netmap are shown below. Those in
  * capital letters are in an mmapp()ed area shared with userspace,
  * while others are private to the kernel.
- * Shared structures do not contain pointers but only relative
+ * Shared structures do not contain pointers but only memory
  * offsets, so that addressing is portable between kernel and userspace.
- *
- * The 'softc' of each interface is extended with a struct netmap_adapter
- * containing information to support netmap operation. In addition to
- * the fixed fields, it has two pointers to reach the arrays of
- * 'struct netmap_kring' which in turn reaches the various
- * struct netmap_ring, shared with userspace.
 
 
  softc
@@ -67,25 +63,28 @@
 +----------------+<------+
 |(netmap_adapter)|
 |                |                             netmap_kring
-| tx_rings *--------------------------------->+-------------+
-|                |       netmap_kring         | ring *---------> ...
-| rx_rings *---------->+--------------+       | nr_hwcur    |
-+----------------+     | ring    *-------+    | nr_hwavail  |
-                       | nr_hwcur     |  |    | selinfo     |
-                       | nr_hwavail   |  |    +-------------+
-                       | selinfo      |  |    |     ...     |
-                       +--------------+  |  (na_num_rings+1 entries)
-                       |    ....      |  |    |             |
-                    (na_num_rings+1 entries)  +-------------+
-                       |              |  |
-                       +--------------+  |
-                                         |      NETMAP_RING
+| tx_rings *--------------------------------->+---------------+
+|                |       netmap_kring         | ring    *---------.
+| rx_rings *--------->+---------------+       | nr_hwcur      |   |
++----------------+    | ring    *--------.    | nr_hwavail    |   V
+                      | nr_hwcur      |  |    | selinfo       |   |
+                      | nr_hwavail    |  |    +---------------+   .
+                      | selinfo       |  |    |     ...       |   .
+                      +---------------+  |    |(ntx+1 entries)|
+                      |    ....       |  |    |               |
+                      |(nrx+1 entries)|  |    +---------------+
+                      |               |  |
+   KERNEL             +---------------+  |
+                                         |
+  ====================================================================
+                                         |
+   USERSPACE                             |      NETMAP_RING
                                          +---->+-------------+
                                              / | cur         |
    NETMAP_IF  (nifp, one per file desc.)    /  | avail       |
     +---------------+                      /   | buf_ofs     |
-    | ni_num_queues |                     /    +=============+
-    |               |                    /     | buf_idx     | slot[0]
+    | ni_tx_rings   |                     /    +=============+
+    | ni_rx_rings   |                    /     | buf_idx     | slot[0]
     |               |                   /      | len, flags  |
     |               |                  /       +-------------+
     +===============+                 /        | buf_idx     | slot[1]
@@ -100,16 +99,23 @@
     | txring_ofs[n] |
     +---------------+
 
- * The NETMAP_RING is the shadow ring that mirrors the NIC rings.
+ * The private descriptor ('softc' or 'adapter') of each interface
+ * is extended with a "struct netmap_adapter" containing netmap-related
+ * info (see description in dev/netmap/netmap_kernel.h.
+ * Among other things, tx_rings and rx_rings point to the arrays of
+ * "struct netmap_kring" which in turn reache the various
+ * "struct netmap_ring", shared with userspace.
+
+ * The NETMAP_RING is the userspace-visible replica of the NIC ring.
  * Each slot has the index of a buffer, its length and some flags.
  * In user space, the buffer address is computed as
- *	(char *)ring + buf_ofs + index*MAX_BUF_SIZE
+ *	(char *)ring + buf_ofs + index*NETMAP_BUF_SIZE
  * In the kernel, buffers do not necessarily need to be contiguous,
  * and the virtual and physical addresses are derived through
- * a lookup table. When userspace wants to use a different buffer
- * in a location, it must set the NS_BUF_CHANGED flag to make
- * sure that the kernel recomputes updates the hardware ring and
- * other fields (bus_dmamap, etc.) as needed.
+ * a lookup table.
+ * To associate a different buffer to a slot, applications must
+ * write the new index in buf_idx, and set NS_BUF_CHANGED flag to
+ * make sure that the kernel updates the hardware ring as needed.
  *
  * Normally the driver is not requested to report the result of
  * transmissions (this can dramatically speed up operation).
@@ -133,13 +139,16 @@ struct netmap_slot {
  *
  * In TX rings:
  *	avail	indicates the number of slots available for transmission.
- *		It is decremented by the application when it appends a
- *		packet, and set to nr_hwavail (see below) on a
- *		NIOCTXSYNC to reflect the actual state of the queue
- *		(keeping track of completed transmissions).
- *	cur	indicates the empty slot to use for the next packet
+ *		It is updated by the kernel after every netmap system call.
+ *		It MUST BE decremented by the application when it appends a
+ *		packet.
+ *	cur	indicates the slot to use for the next packet
  *		to send (i.e. the "tail" of the queue).
- *		It is incremented by the application.
+ *		It MUST BE incremented by the application before
+ *		netmap system calls to reflect the number of newly
+ *		sent packets.
+ *		It is checked by the kernel on netmap system calls
+ *		(normally unmodified by the kernel unless invalid).
  *
  *   The kernel side of netmap uses two additional fields in its own
  *   private ring structure, netmap_kring:
@@ -153,12 +162,17 @@ struct netmap_slot {
  *
  * In RX rings:
  *	avail	is the number of packets available (possibly 0).
- *		It is decremented by the software when it consumes
- *		a packet, and set to nr_hwavail on a NIOCRXSYNC
- *	cur	indicates the first slot that contains a packet
- *		(the "head" of the queue).
- *		It is incremented by the software when it consumes
+ *		It MUST BE decremented by the application when it consumes
+ *		a packet, and it is updated to nr_hwavail on a NIOCRXSYNC
+ *	cur	indicates the first slot that contains a packet not
+ *		processed yet (the "head" of the queue).
+ *		It MUST BE incremented by the software when it consumes
  *		a packet.
+ *	reserved	indicates the number of buffers before 'cur'
+ *		that the application has still in use. Normally 0,
+ *		it MUST BE incremented by the application when it
+ *		does not return the buffer immediately, and decremented
+ *		when the buffer is finally freed.
  *
  *   The kernel side of netmap uses two additional fields in the kring:
  *	nr_hwcur is a copy of nr_cur on an NIOCRXSYNC
@@ -182,7 +196,8 @@ struct netmap_ring {
 	const ssize_t	buf_ofs;
 	const uint32_t	num_slots;	/* number of slots in the ring. */
 	uint32_t	avail;		/* number of usable slots */
-	uint32_t	cur;		/* 'current' r/w position */
+	uint32_t        cur;		/* 'current' r/w position */
+	uint32_t	reserved;	/* not refilled before current */
 
 	const uint16_t	nr_buf_size;
 	uint16_t	flags;
@@ -191,7 +206,7 @@ struct netmap_ring {
 	struct timeval	ts;		/* time of last *sync() */
 
 	/* the slots follow. This struct has variable size */
-	struct netmap_slot slot[0]; /* array of slots. */
+	struct netmap_slot slot[0];	/* array of slots. */
 };
 
 
@@ -204,25 +219,20 @@ struct netmap_ring {
  * nmr_queueid passed on the ioctl.
  */
 struct netmap_if {
-	char ni_name[IFNAMSIZ]; /* name of the interface. */
-	const u_int ni_version;	/* API version, currently unused */
-	const u_int ni_num_queues; /* number of queue pairs (TX/RX). */
-	const u_int ni_rx_queues;  /* if zero, use ni_num_queues */
+	char		ni_name[IFNAMSIZ]; /* name of the interface. */
+	const u_int	ni_version;	/* API version, currently unused */
+	const u_int	ni_rx_rings;	/* number of rx rings */
+	const u_int	ni_tx_rings;	/* if zero, same as ni_rx_rings */
 	/*
-	 * the following array contains the offset of the
-	 * each netmap ring from this structure. The first num_queues+1
-	 * refer to the tx rings, the next n+1 refer to the rx rings.
+	 * The following array contains the offset of each netmap ring
+	 * from this structure. The first ni_tx_queues+1 entries refer
+	 * to the tx rings, the next ni_rx_queues+1 refer to the rx rings
+	 * (the last entry in each block refers to the host stack rings).
 	 * The area is filled up by the kernel on NIOCREG,
 	 * and then only read by userspace code.
-	 * entries 0..ni_num_queues-1 indicate the hardware queues,
-	 * entry ni_num_queues is the queue from/to the stack.
 	 */
 	const ssize_t	ring_ofs[0];
 };
-
-#ifndef IFCAP_NETMAP	/* this should go in net/if.h */
-#define	IFCAP_NETMAP	0x100000
-#endif
 
 #ifndef NIOCREGIF	
 /*
@@ -246,24 +256,29 @@ struct netmap_if {
  */
 struct nmreq {
 	char		nr_name[IFNAMSIZ];
-	uint32_t	nr_version;	/* API version (unused) */
+	uint32_t	nr_version;	/* API version */
+#define	NETMAP_API	3		/* current version */
 	uint32_t	nr_offset;	/* nifp offset in the shared region */
 	uint32_t	nr_memsize;	/* size of the shared region */
-	uint32_t	nr_numslots;	/* descriptors per queue */
-	uint16_t	nr_numrings;
+	uint32_t	nr_tx_slots;	/* slots in tx rings */
+	uint32_t	nr_rx_slots;	/* slots in rx rings */
+	uint16_t	nr_tx_rings;	/* number of tx rings */
+	uint16_t	nr_rx_rings;	/* number of rx rings */
 	uint16_t	nr_ringid;	/* ring(s) we care about */
 #define NETMAP_HW_RING	0x4000		/* low bits indicate one hw ring */
-#define NETMAP_SW_RING	0x2000		/* we process the sw ring */
-#define NETMAP_NO_TX_POLL	0x1000	/* no gratuitous txsync on poll */
+#define NETMAP_SW_RING	0x2000		/* process the sw ring */
+#define NETMAP_NO_TX_POLL	0x1000	/* no automatic txsync on poll */
 #define NETMAP_RING_MASK 0xfff		/* the ring number */
+	uint16_t	spare1;
+	uint32_t	spare2[4];
 };
 
 /*
- * default buf size is 2048, but it may make sense to have
- * it shorter for better cache usage.
+ * FreeBSD uses the size value embedded in the _IOWR to determine
+ * how much to copy in/out. So we need it to match the actual
+ * data structure we pass. We put some spares in the structure
+ * to ease compatibility with other versions
  */
-
-#define	NETMAP_BUF_SIZE	(2048)
 #define NIOCGINFO	_IOWR('i', 145, struct nmreq) /* return IF info */
 #define NIOCREGIF	_IOWR('i', 146, struct nmreq) /* interface register */
 #define NIOCUNREGIF	_IO('i', 147) /* interface unregister */

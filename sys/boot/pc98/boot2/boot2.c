@@ -130,9 +130,9 @@ static struct dsk {
     unsigned part;
     unsigned start;
 } dsk;
-static char cmd[512], cmddup[512];
+static char cmd[512], cmddup[512], knamebuf[1024];
 static const char *kname = NULL;
-static uint32_t opts;
+static uint32_t opts = 0;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -352,6 +352,7 @@ main(void)
 #endif
     uint8_t autoboot;
     ino_t ino;
+    size_t nbyte;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
@@ -378,8 +379,10 @@ main(void)
     autoboot = 1;
 
     if ((ino = lookup(PATH_CONFIG)) ||
-        (ino = lookup(PATH_DOTCONFIG)))
-	fsread(ino, cmd, sizeof(cmd));
+        (ino = lookup(PATH_DOTCONFIG))) {
+	nbyte = fsread(ino, cmd, sizeof(cmd) - 1);
+	cmd[nbyte] = '\0';
+    }
 
     if (*cmd) {
 	memcpy(cmddup, cmd, sizeof(cmd));
@@ -396,9 +399,9 @@ main(void)
      * or in case of failure, try to load a kernel directly instead.
      */
 
-    if (autoboot && !kname) {
+    if (!kname) {
 	kname = PATH_BOOT3;
-	if (!keyhit(3*SECOND)) {
+	if (autoboot && !keyhit(3*SECOND)) {
 	    load();
 	    kname = PATH_KERNEL;
 	}
@@ -595,7 +598,12 @@ parse()
 		dsk.daua = dsk.disk | dsk.unit;
 		dsk_meta = 0;
 	    }
-            kname = arg;
+	    if ((i = ep - arg)) {
+		if ((size_t)i >= sizeof(knamebuf))
+		    return -1;
+		memcpy(knamebuf, arg, i + 1);
+		kname = knamebuf;
+	    }
 	}
 	arg = p;
     }

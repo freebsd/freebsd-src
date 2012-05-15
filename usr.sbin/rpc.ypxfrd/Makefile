@@ -17,7 +17,7 @@ LDADD=	-lrpcsvc
 CLEANFILES= ypxfrd_svc.c ypxfrd.h
 
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
-RPCGEN= rpcgen -I -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # ypxfrd_main.c can see it.

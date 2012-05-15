@@ -1864,13 +1864,26 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	case CAM_DEV_NOT_THERE:
 	{
 		struct cam_path *newpath;
+		lun_id_t lun_id;
 
 		error = ENXIO;
+
+		/*
+		 * For a selection timeout, we consider all of the LUNs on
+		 * the target to be gone.  If the status is CAM_DEV_NOT_THERE,
+		 * then we only get rid of the device(s) specified by the
+		 * path in the original CCB.
+		 */
+		if (status == CAM_DEV_NOT_THERE)
+			lun_id = xpt_path_lun_id(ccb->ccb_h.path);
+		else
+			lun_id = CAM_LUN_WILDCARD;
+
 		/* Should we do more if we can't create the path?? */
 		if (xpt_create_path(&newpath, periph,
 				    xpt_path_path_id(ccb->ccb_h.path),
 				    xpt_path_target_id(ccb->ccb_h.path),
-				    CAM_LUN_WILDCARD) != CAM_REQ_CMP) 
+				    lun_id) != CAM_REQ_CMP) 
 			break;
 
 		/*

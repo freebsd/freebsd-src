@@ -141,7 +141,7 @@ and how to destroy it.
 # Load the geom_sched module:
 kldload geom_sched
 # Load some scheduler classes used by geom_sched:
-kldload gsched_rr gsched_as
+kldload gsched_rr
 # Configure device ad0 to use scheduler "rr":
 geom sched insert -a rr ad0
 # Now provider ad0 uses the "rr" algorithm;
@@ -149,7 +149,6 @@ geom sched insert -a rr ad0
 # Remove the scheduler on the device:
 geom sched destroy -v ad0.sched.
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8

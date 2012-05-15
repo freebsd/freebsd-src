@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <utmpx.h>
 
 static void	heading(void);
-static void	boottime(void);
 static void	process_utmp(void);
 static void	quick(void);
 static void	row(const struct utmpx *);
@@ -57,6 +56,7 @@ static void	usage(void);
 static void	whoami(void);
 
 static int	Hflag;			/* Write column headings */
+static int	aflag;			/* Print all entries */
 static int	bflag;			/* Show date of the last reboot */
 static int	mflag;			/* Show info about current terminal */
 static int	qflag;			/* "Quick" mode */
@@ -71,13 +71,16 @@ main(int argc, char *argv[])
 
 	setlocale(LC_TIME, "");
 
-	while ((ch = getopt(argc, argv, "HTbmqsu")) != -1) {
+	while ((ch = getopt(argc, argv, "HTabmqsu")) != -1) {
 		switch (ch) {
 		case 'H':		/* Write column headings */
 			Hflag = 1;
 			break;
 		case 'T':		/* Show terminal state */
 			Tflag = 1;
+			break;
+		case 'a':		/* Same as -bdlprtTu */
+			aflag = bflag = Tflag = uflag = 1;
 			break;
 		case 'b':		/* Show date of the last reboot */
 			bflag = 1;
@@ -126,8 +129,6 @@ main(int argc, char *argv[])
 			heading();
 		if (mflag)
 			whoami();
-		else if (bflag)
-			boottime();
 		else
 			process_utmp();
 	}
@@ -141,7 +142,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: who [-bHmqsTu] [am I] [file]\n");
+	fprintf(stderr, "usage: who [-abHmqsTu] [am I] [file]\n");
 	exit(1);
 }
 
@@ -226,23 +227,11 @@ process_utmp(void)
 	struct utmpx *utx;
 
 	while ((utx = getutxent()) != NULL) {
-		if (utx->ut_type != USER_PROCESS)
-			continue;
-		if (ttystat(utx->ut_line) != 0)
-			continue;
-		row(utx);
+		if (((aflag || !bflag) && utx->ut_type == USER_PROCESS) ||
+		    (bflag && utx->ut_type == BOOT_TIME))
+			if (ttystat(utx->ut_line) == 0)
+				row(utx);
 	}
-}
-
-static void
-boottime(void)
-{
-	struct utmpx u1, *u2;
-
-	u1.ut_type = BOOT_TIME;
-	if ((u2 = getutxid(&u1)) == NULL)
-		return;
-	row(u2);
 }
 
 static void

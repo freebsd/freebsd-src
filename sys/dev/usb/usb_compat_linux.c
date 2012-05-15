@@ -880,7 +880,7 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 	 */
 	for (pass = 0; pass < 2; pass++) {
 
-		iface_no_curr = 0 - 1;
+		iface_no_curr = 0xFFFF;
 		niface_total = 0;
 		iface_index = 0;
 		nedesc = 0;

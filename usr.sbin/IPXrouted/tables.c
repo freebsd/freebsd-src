@@ -172,7 +172,6 @@ rtadd_clone(struct rt_entry *ort, struct sockaddr *dst,
 {
 	struct afhash h;
 	register struct rt_entry *rt;
-	struct rthash *rh;
 	int af = dst->sa_family, flags;
 	u_int hash;
 
@@ -183,7 +182,6 @@ rtadd_clone(struct rt_entry *ort, struct sockaddr *dst,
 	(*afswitch[af].af_hash)(dst, &h);
 	flags = (*afswitch[af].af_ishost)(dst) ? RTF_HOST : 0;
 	hash = h.afh_nethash;
-	rh = &nethash[hash & ROUTEHASHMASK];
 	rt = (struct rt_entry *)malloc(sizeof (*rt));
 	if (rt == 0)
 		return;
@@ -213,7 +211,6 @@ rtchange(struct rt_entry *rt, struct sockaddr *gate, short metric,
     short ticks)
 {
 	int doioctl = 0, metricchanged = 0;
-	struct rtuentry oldroute;
 
 	FIXLEN(gate);
 	/*
@@ -281,7 +278,6 @@ rtchange(struct rt_entry *rt, struct sockaddr *gate, short metric,
 	if (doioctl || metricchanged) {
 		TRACE_ACTION("CHANGE FROM", rt);
 		if (doioctl) {
-			oldroute = rt->rt_rt;
 			rt->rt_router = *gate;
 		}
 		rt->rt_metric = metric;

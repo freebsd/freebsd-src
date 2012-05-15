@@ -256,6 +256,7 @@ SUBDIR+=	ftp-proxy
 
 .if ${MK_PKGTOOLS} != "no"
 SUBDIR+=	pkg_install
+SUBDIR+=	pkg
 .endif
 
 # XXX MK_TOOLCHAIN?
@@ -306,7 +307,7 @@ SUBDIR+=	usbdump
 .if ${MK_UTMPX} != "no"
 SUBDIR+=	ac
 SUBDIR+=	lastlogin
-SUBDIR+=	utxrm
+SUBDIR+=	utx
 .endif
 
 .if ${MK_WIRELESS} != "no"

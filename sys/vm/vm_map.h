@@ -112,8 +112,9 @@ struct vm_map_entry {
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
+	uint8_t read_ahead;		/* pages in the read-ahead window */
 	int wired_count;		/* can be paged if = 0 */
-	vm_pindex_t lastr;		/* last read */
+	vm_pindex_t next_read;		/* index of the next sequential read */
 	struct ucred *cred;		/* tmp storage for creator ref */
 };
 
@@ -139,6 +140,7 @@ struct vm_map_entry {
 #define	MAP_ENTRY_GROWS_UP		0x2000	/* Bottom-up stacks */
 
 #define	MAP_ENTRY_WIRE_SKIPPED		0x4000
+#define	MAP_ENTRY_VN_WRITECNT		0x8000	/* writeable vnode mapping */
 
 #ifdef	_KERNEL
 static __inline u_char
@@ -307,7 +309,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
 /*
  * Copy-on-write flags for vm_map operations
  */
-#define MAP_UNUSED_01		0x0001
+#define MAP_INHERIT_SHARE	0x0001
 #define MAP_COPY_ON_WRITE	0x0002
 #define MAP_NOFAULT		0x0004
 #define MAP_PREFAULT		0x0008
@@ -315,6 +317,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define MAP_DISABLE_SYNCER	0x0020
 #define MAP_DISABLE_COREDUMP	0x0100
 #define MAP_PREFAULT_MADVISE	0x0200	/* from (user) madvise request */
+#define	MAP_VN_WRITECOUNT	0x0400
 #define	MAP_STACK_GROWS_DOWN	0x1000
 #define	MAP_STACK_GROWS_UP	0x2000
 #define	MAP_ACC_CHARGED		0x4000
@@ -326,6 +329,14 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define VM_FAULT_NORMAL 0		/* Nothing special */
 #define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
 #define	VM_FAULT_DIRTY 2		/* Dirty the page; use w/VM_PROT_COPY */
+
+/*
+ * Initially, mappings are slightly sequential.  The maximum window size must
+ * account for the map entry's "read_ahead" field being defined as an uint8_t.
+ */
+#define	VM_FAULT_READ_AHEAD_MIN		7
+#define	VM_FAULT_READ_AHEAD_INIT	15
+#define	VM_FAULT_READ_AHEAD_MAX		min(atop(MAXPHYS) - 1, UINT8_MAX)
 
 /*
  * The following "find_space" options are supported by vm_map_find()

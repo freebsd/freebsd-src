@@ -48,14 +48,12 @@ __FBSDID("$FreeBSD$");
  * close a directory.
  */
 int
-closedir(dirp)
-	DIR *dirp;
+closedir(DIR *dirp)
 {
 	int fd;
 
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
-	_seekdir(dirp, dirp->dd_rewind);	/* free seekdir storage */
 	fd = dirp->dd_fd;
 	dirp->dd_fd = -1;
 	dirp->dd_loc = 0;
