@@ -1,0 +1,49 @@
+.TH php_who.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+php_who.d - trace PHP function execution by process using DTrace.
+.SH SYNOPSIS
+.B php_who.d
+
+.SH DESCRIPTION
+This traces PHP activity from all PHP programs on the system that are
+running with PHP provider support.
+
+Filenames are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Php provider, which may change 
+as additional features are introduced. Check Php/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B php_who.d
+.PP
+.SH FIELDS
+.TP
+PID
+Process ID of PHP
+.TP
+UID
+User ID of the owner
+.TP
+FUNCS
+Number of function calls
+.TP
+FILE
+Pathname of the PHP program
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+php_who.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 93c16dc..b5c5595 100644
+index 877c500..7d659a7 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -51,12 +51,23 @@
@@ -45,7 +45,7 @@ index 93c16dc..b5c5595 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 268cd14..cfb1fb9 100644
+index 268cd14..2acd2eb 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
@@ -67,6 +67,21 @@ index 268cd14..cfb1fb9 100644
  #define	JEMALLOC_NO_DEMANGLE
  #include "../jemalloc@install_suffix@.h"
  
+@@ -95,13 +101,7 @@ static const bool config_fill =
+     false
+ #endif
+     ;
+-static const bool config_lazy_lock =
+-#ifdef JEMALLOC_LAZY_LOCK
+-    true
+-#else
+-    false
+-#endif
+-    ;
++static const bool config_lazy_lock = true;
+ static const bool config_prof =
+ #ifdef JEMALLOC_PROF
+     true
 diff --git a/include/jemalloc/internal/mutex.h b/include/jemalloc/internal/mutex.h
 index de44e14..564d604 100644
 --- a/include/jemalloc/internal/mutex.h
@@ -192,7 +207,7 @@ index 0000000..9efab93
 +#define	pthread_mutex_lock	_pthread_mutex_lock
 +#define	pthread_mutex_unlock	_pthread_mutex_unlock
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index d42e91d..cdf6222 100644
+index bc54cd7..fa9fcf0 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -8,6 +8,10 @@ malloc_tsd_data(, arenas, arena_t *, NULL)

@@ -3597,9 +3597,16 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	pktlen = bf_first->bf_state.bfs_pktlen;
 
 	/*
-	 * handle errors first
+	 * Handle errors first!
+	 *
+	 * Here, handle _any_ error as a "exceeded retries" error.
+	 * Later on (when filtered frames are to be specially handled)
+	 * it'll have to be expanded.
 	 */
+#if 0
 	if (ts.ts_status & HAL_TXERR_XRETRY) {
+#endif
+	if (ts.ts_status != 0) {
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		ath_tx_comp_aggr_error(sc, bf_first, atid);
 		return;
@@ -3839,7 +3846,10 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * Don't bother with the retry check if all frames
 	 * are being failed (eg during queue deletion.)
 	 */
+#if 0
 	if (fail == 0 && ts->ts_status & HAL_TXERR_XRETRY) {
+#endif
+	if (fail == 0 && ts->ts_status != 0) {
 		ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: retry_unaggr\n",
 		    __func__);

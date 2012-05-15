@@ -1,0 +1,35 @@
+**************************************************************************
+* Notes for all scripts that trace Java using the hotspot provider.
+*
+* $Id: ALLjava_notes.txt 52 2007-09-24 04:28:01Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+* I see "drops"
+
+If you see the following output,
+   
+   dtrace: 2547 drops on CPU 0
+
+This means that JVM events (usually methods) were executed too quickly for
+DTrace to keep up, and as a safety measure DTrace has let events slip by.
+This means, at least, that the output is missing lines. At worst, the
+output may contain corrupted values (time deltas between events that were
+dropped).
+
+If you see drops, you should first ask yourself whether you need to be
+tracing such frequent events at all - is there another way to get the same
+data?  For example, see the j_profile.d script, which uses a different
+technique (sampling) than most of the other Java scripts (tracing).
+
+You can try tweaking DTrace tunables to prevent DTrace from dropping events.
+A key tunable is "bufsize", and can be set in scripts like so,
+
+   #pragma D option bufsize=32m
+
+That line means that 32 Mbytes will be allocated to the DTrace primary
+buffer per-CPU (how depends on bufpolicy). If you have many CPUs, say 8,
+then the above line means that 256 Mbytes (32 * 8) will be allocated as a
+buffer while your D script is running. 
+

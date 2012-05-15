@@ -1,0 +1,42 @@
+.TH pidpersec.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+pidpersec.d \- print new PIDs per sec. Uses DTrace.
+.SH SYNOPSIS
+.B pidpersec.d
+.SH DESCRIPTION
+This script prints the number of new processes created per second.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the proc provider.
+.SH EXAMPLES
+.TP
+Print PID statistics per second,
+# 
+.B pidpersec.d
+.PP
+.SH FIELDS
+.TP
+TIME
+time, as a string
+.TP
+LASTPID
+last PID created
+.TP
+PID/s
+Number of processes created per second
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+pidpersec.d will run until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+execsnoop(1M), dtrace(1M)

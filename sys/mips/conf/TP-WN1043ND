@@ -15,6 +15,18 @@ hints           "TP-WN1043ND.hints"
 # Force the board memory - 32mb
 options         AR71XX_REALMEM=32*1024*1024
 
+# i2c GPIO bus
+device		gpioiic
+device		iicbb
+device		iicbus
+device		iic
+
+# ethernet switch device
+device		etherswitch
+
+# RTL8366RB support
+device		rtl8366rb
+
 # read MSDOS formatted disks - USB
 options		MSDOSFS
 options		GEOM_PART_BSD

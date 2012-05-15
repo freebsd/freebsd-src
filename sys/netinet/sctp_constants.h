@@ -460,18 +460,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_HAS_NAT_SUPPORT            0xc007
 #define SCTP_NAT_VTAGS                  0xc008
 
-/* Notification error codes */
-#define SCTP_NOTIFY_DATAGRAM_UNSENT	0x0001
-#define SCTP_NOTIFY_DATAGRAM_SENT	0x0002
-#define SCTP_FAILED_THRESHOLD		0x0004
-#define SCTP_HEARTBEAT_SUCCESS		0x0008
-#define SCTP_RESPONSE_TO_USER_REQ	0x0010
-#define SCTP_INTERNAL_ERROR		0x0020
-#define SCTP_SHUTDOWN_GUARD_EXPIRES	0x0040
-#define SCTP_RECEIVED_SACK		0x0080
-#define SCTP_PEER_FAULTY		0x0100
-#define SCTP_ICMP_REFUSED		0x0200
-
 /* bits for TOS field */
 #define SCTP_ECT0_BIT		0x02
 #define SCTP_ECT1_BIT		0x01
@@ -755,34 +743,29 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_ASSOC_DOWN                   2
 #define SCTP_NOTIFY_INTERFACE_DOWN               3
 #define SCTP_NOTIFY_INTERFACE_UP                 4
-#define SCTP_NOTIFY_DG_FAIL                      5
-#define SCTP_NOTIFY_STRDATA_ERR                  6
-#define SCTP_NOTIFY_ASSOC_ABORTED                7
-#define SCTP_NOTIFY_PEER_OPENED_STREAM           8
-#define SCTP_NOTIFY_STREAM_OPENED_OK             9
+#define SCTP_NOTIFY_SENT_DG_FAIL                 5
+#define SCTP_NOTIFY_UNSENT_DG_FAIL               6
+#define SCTP_NOTIFY_SPECIAL_SP_FAIL              7
+#define SCTP_NOTIFY_ASSOC_LOC_ABORTED            8
+#define SCTP_NOTIFY_ASSOC_REM_ABORTED            9
 #define SCTP_NOTIFY_ASSOC_RESTART               10
-#define SCTP_NOTIFY_HB_RESP                     11
-#define SCTP_NOTIFY_ASCONF_SUCCESS              12
-#define SCTP_NOTIFY_ASCONF_FAILED               13
-#define SCTP_NOTIFY_PEER_SHUTDOWN               14
-#define SCTP_NOTIFY_ASCONF_ADD_IP               15
-#define SCTP_NOTIFY_ASCONF_DELETE_IP            16
-#define SCTP_NOTIFY_ASCONF_SET_PRIMARY          17
-#define SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION 18
-#define SCTP_NOTIFY_INTERFACE_CONFIRMED         20
-#define SCTP_NOTIFY_STR_RESET_RECV              21
-#define SCTP_NOTIFY_STR_RESET_SEND              22
-#define SCTP_NOTIFY_STR_RESET_FAILED_OUT        23
-#define SCTP_NOTIFY_STR_RESET_FAILED_IN         24
-#define SCTP_NOTIFY_AUTH_NEW_KEY                25
-#define SCTP_NOTIFY_AUTH_FREE_KEY               26
-#define SCTP_NOTIFY_SPECIAL_SP_FAIL             27
-#define SCTP_NOTIFY_NO_PEER_AUTH                28
-#define SCTP_NOTIFY_SENDER_DRY                  29
-#define SCTP_NOTIFY_STR_RESET_DENIED_OUT        30
-#define SCTP_NOTIFY_STR_RESET_DENIED_IN         31
-#define SCTP_NOTIFY_MAX                         31
-
+#define SCTP_NOTIFY_PEER_SHUTDOWN               11
+#define SCTP_NOTIFY_ASCONF_ADD_IP               12
+#define SCTP_NOTIFY_ASCONF_DELETE_IP            13
+#define SCTP_NOTIFY_ASCONF_SET_PRIMARY          14
+#define SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION 15
+#define SCTP_NOTIFY_INTERFACE_CONFIRMED         16
+#define SCTP_NOTIFY_STR_RESET_RECV              17
+#define SCTP_NOTIFY_STR_RESET_SEND              18
+#define SCTP_NOTIFY_STR_RESET_FAILED_OUT        19
+#define SCTP_NOTIFY_STR_RESET_FAILED_IN         20
+#define SCTP_NOTIFY_STR_RESET_DENIED_OUT        21
+#define SCTP_NOTIFY_STR_RESET_DENIED_IN         22
+#define SCTP_NOTIFY_AUTH_NEW_KEY                23
+#define SCTP_NOTIFY_AUTH_FREE_KEY               24
+#define SCTP_NOTIFY_NO_PEER_AUTH                25
+#define SCTP_NOTIFY_SENDER_DRY                  26
+#define SCTP_NOTIFY_REMOTE_ERROR                27
 
 /* This is the value for messages that are NOT completely
  * copied down where we will start to split the message.

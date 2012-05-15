@@ -1,0 +1,46 @@
+.TH woof.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+woof.d \- Bark for new processes. Needs /dev/audio. Uses DTrace.
+.SH SYNOPSIS
+.B woof.d &
+.SH DESCRIPTION
+This is an audio alert daemon for process creation. It is a virtual dog which
+barks when it sees new processes. If many processes are being created
+quickly, it will bark a lot (and become a nuisance - not just the noise, 
+but also from consuming too much CPU).
+
+This exists in the DTraceToolkit more for entertainment than 
+practicality.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the proc provider, /usr/bin/audioplay, and bark.au.
+.SH EXAMPLES
+.TP
+Run the dog,
+# 
+.B woof.d &
+.TP
+Hear the dog,
+$ find /etc -type f -exec grep localhost {} +
+.TP
+Drive the dog crazy,
+$ find /etc -type f -exec grep localhost {} \\;
+.PP
+.SH NOTES
+Beware of the dog!
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+woof.d will exit on Ctrl-C.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+sdtaudiocontrol(1), dtrace(1M)

@@ -3,4 +3,4 @@ Set to build the toolchain binaries shared.
 The set includes
 .Xr cc 1 ,
 .Xr make 1
-and neccessary utilites like assembler, linker and library archive manager.
+and necessary utilities like assembler, linker and library archive manager.

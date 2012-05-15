@@ -1,0 +1,96 @@
+**************************************************************************
+* The following are notes regarding the overheads of running DTrace.
+*
+* $Id: ALLoverhead.txt 58 2007-10-01 13:36:29Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+
+The following are notes regarding the overheads of running DTrace.
+
+* What are the overheads of running DTrace?
+
+Often negligible.
+
+It depends what the DTrace script does, in particular, the frequency of
+events that it is tracing.
+
+The following tips should explain what the overheads probably are,
+
+- if your script traces less than 1000 events per second, then the overhead
+  is probably negligible. ie, less than 0.1% CPU.
+- if your script traces more than 100,000 events per second, then the
+  overhead will start to be significant. If you are tracing kernel events,
+  then perhaps this could be 10% per CPU. If you are tracing user land
+  application events, then the overhead can be greater than 30% per CPU.
+- if your script produes pages of output, then the CPU cost of drawing
+  this output to the screen and rendering the fonts is usually far greater
+  than DTrace itself. Redirect the output of DTrace to a file in /tmp
+  ("-o" or ">").
+- a ballpark figure for the overhead of a DTrace probe would be 500 ns.
+  This can be much less (kernel only), or much more (many user to kerel
+  copyin()s); I've provided it to give you a very rough idea. Of course,
+  as CPUs become faster, this overhead will become smaller.
+
+If overheads are a concern - then perform tests to measure their magnitude
+for both your workload and the scripts applied, such as benchmarks with
+and without DTrace running. Also read the scripts you are using, and
+consider how frequent the probes will fire, and if you can customise the
+script to reduce the frequency of probes.
+
+For example, scripts that trace,
+
+	pid$target:::entry,
+	pid$target:::return
+
+would usually cause significant performance overhead, since they fire two
+probes for every function called (and can easily reach 100,000 per second).
+You could reduce this by modifying the script to only trace the libraries
+you are interested in. For example, if you were only interested in
+libsocket and libnsl, then change the above lines wherever they appeared to,
+
+	pid$target:libsocket::entry,
+	pid$target:libsocket::return,
+	pid$target:libnsl::entry,
+	pid$target:libnsl::return
+
+and you may notice the overheads are significantly reduced (especially anytime
+you drop libc and libdl). To go further, only list functions of interest,
+
+	pid$target:libsocket:connect:entry,
+	pid$target:libsocket:connect:return,
+	pid$target:libsocket:listen:entry,
+	pid$target:libsocket:listen:return,
+	[...]
+
+There are additional notes in Docs/Faq about the DTraceToolkit's scripts
+and performance overhead.
+
+
+* When are the overheads a problem?
+
+When they are significant (due to frequent events), and you are tracing
+in a production environment that is sensitive to additional CPU load.
+
+Overheads should be considered if you are measuring times (delta, elapsed,
+on-CPU, etc) for performance analysis. In practise, overheads aren't
+that much of a problem -- the script will either identify your issues
+correctly (great), or not (keep looking). Any it is usually easy to quickly
+confirm what DTrace does find by using other tools, or by hacking quick
+code changes. You might be using DTrace output that you know has a
+significant margin of error - but that becomes moot after you prove that
+the performance fix works through benchmarking a quick fix.
+
+At the end of the day, if DTrace helps find real measurable performance wins
+(and it should), then it has been successful.
+
+
+* When are overheads not a problem?
+
+When the script is not tracing extreamly frequent events.
+
+Also, when you are in development and tracing events for troubleshooting
+purposes (args to functions, for example), DTrace overheads are usually 
+not an issue at all.
+

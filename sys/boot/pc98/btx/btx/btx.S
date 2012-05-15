@@ -15,6 +15,8 @@
  * $FreeBSD$
  */
 
+#include <bootargs.h>
+
 /*
  * Memory layout.
  */
@@ -205,7 +207,7 @@ init.8: 	xorl %ecx,%ecx			# Zero
 		andl $0x7,%eax
 		incl %eax
 		shll $0x11,%eax			# To bytes
-		subl $0x1000,%eax		# Less arg space
+		subl $ARGSPACE,%eax		# Less arg space
 		subl %edx,%eax			# Less base
 		movb $SEL_UDATA,%cl		# User data selector
 		pushl %ecx			# Set SS

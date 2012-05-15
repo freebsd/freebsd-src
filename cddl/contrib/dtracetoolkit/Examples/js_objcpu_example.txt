@@ -1,0 +1,317 @@
+The following are examples of running js_objcpu.d.  
+
+This script will show the time on-CPU of object creation events in graphical
+format.  
+
+Here we see it running on Code/JavaScript/func_clock.html 
+
+# js_objcpu.d 
+Tracing... Hit Ctrl-C to end.
+^C
+Total object creation on-CPU time (ms): 0
+
+Object creation on-CPU time distributions (us),
+
+  Date                                              
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              16 |                                         0   
+
+We can see that there were two object creation events, both of type 'Date'
+that spent between 8 microseconds and 15 microseconds on-CPU each.
+
+
+Here we see the results of having Code/JavaScript/func_slow.html in a browser
+window and hitting reload.  This includes events that happen due to mouse
+movement.
+
+# js_objcpu.d
+Tracing... Hit Ctrl-C to end.
+^C
+Total object creation on-CPU time (ms): 2
+
+Object creation on-CPU time distributions (us),
+
+  HTMLBodyElement                                   
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  HTMLCollection                                    
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  HTMLDocument                                      
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  HTMLHtmlElement                                   
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  Location                                          
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  NodeList                                          
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  StyleSheetList                                    
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  Window                                            
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  chrome://global/content/bindings/popup.xml#popup 8830492
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  chrome://global/content/bindings/scrollbar.xml#scrollbar 8beef52
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+  BarProp                                           
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+  BoxObject                                         
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+  CSSStyleDeclaration                               
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+  chrome://global/content/bindings/popup.xml#popup 8bef592
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+  nsXPCComponents_Classes                           
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+  nsJSCID                                           
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |@@@@@@@@@@@@@@@@@@@@                     1        
+               8 |                                         0        
+
+  nsXPCComponents                                   
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+               4 |                                         0        
+
+  Global Scope Polluter                             
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+  JavaArray                                         
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |                                         0        
+
+  JavaClass                                         
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |                                         0        
+
+  JavaMember                                        
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |                                         0        
+
+  JavaObject                                        
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |                                         0        
+
+  KeyboardEvent                                     
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |                                         0        
+
+  XPC_WN_NoMods_Proto_JSClass                       
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           3        
+               4 |@@@@@@@@@@                               1        
+               8 |                                         0        
+
+  PageTransitionEvent                               
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@                     1        
+               8 |@@@@@@@@@@@@@@@@@@@@                     1        
+              16 |                                         0        
+
+  JSOptions                                         
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              16 |                                         0        
+
+  Call                                              
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 5        
+               8 |                                         0        
+
+  DOM Constructor.prototype                         
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              2        
+               4 |                                         0        
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@                            1        
+              32 |                                         0        
+
+  With                                              
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@                            1        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              2        
+              16 |                                         0        
+
+  Constructor                                       
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     9        
+               4 |@@@@                                     1        
+               8 |                                         0        
+
+  Object                                            
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@                          3        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@                5        
+               8 |                                         0        
+
+  XPCNativeWrapper                                  
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@                                  1        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              4        
+               8 |@@@@@@@                                  1        
+              16 |                                         0        
+
+  XULElement                                        
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@                   5        
+               4 |@@@@@@@@@@@@@@@@@@                       4        
+               8 |                                         0        
+
+  Array                                             
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@                               2        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           6        
+               8 |                                         0        
+
+  XPCWrappedNative_NoHelper                         
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@                          3        
+               4 |@@@@@@@@@@@@@@@@@@@@                     4        
+               8 |@@@@@                                    1        
+              16 |                                         0        
+
+  XPC_WN_ModsAllowed_Proto_JSClass                  
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@                 6        
+               4 |@@@@@@@@@@@@                             3        
+               8 |@@@@                                     1        
+              16 |                                         0        
+
+  MouseEvent                                        
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@                        3        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@                  4        
+              16 |                                         0        
+
+  String                                            
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 11       
+               8 |                                         0        
+
+  Event                                             
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@                                      1        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            10       
+               8 |@@@@@@@@@                                3        
+              16 |                                         0        
+
+  JavaPackage                                       
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  40       
+               4 |                                         0        
+               8 |@                                        1        
+              16 |                                         0        
+
+  Function                                          
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          246      
+               4 |@@@@@@@                                  58       
+               8 |@                                        8        
+              16 |@                                        9        
+              32 |                                         0        
+
+

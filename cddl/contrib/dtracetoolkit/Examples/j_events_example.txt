@@ -1,0 +1,134 @@
+The following are examples of j_events.d.
+
+This counts events from all Java processes on the system with hotspot
+provider support (1.6.0). Some events such as method calls are only visible
+when using the flag "+ExtendedDTraceProbes". eg, 
+java -XX:+ExtendedDTraceProbes classfile
+
+Here you can see it running while the program Code/Java/Func_abc
+
+# j_events.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+    PID  EVENT                                   COUNT
+ 311379  AttachCurrentThread-entry                   1
+ 311379  AttachCurrentThread-return                  1
+ 311379  CallIntMethod-entry                         1
+ 311379  CallIntMethod-return                        1
+ 311379  CallStaticBooleanMethod-entry               1
+ 311379  CallStaticBooleanMethod-return              1
+ 311379  CallStaticObjectMethod-entry                1
+ 311379  CallStaticObjectMethod-return               1
+ 311379  CallStaticObjectMethodV-entry               1
+ 311379  CallStaticObjectMethodV-return              1
+ 311379  CallStaticVoidMethod-entry                  1
+ 311379  CallStaticVoidMethod-return                 1
+ 311379  CreateJavaVM-entry                          1
+ 311379  CreateJavaVM-return                         1
+ 311379  DestroyJavaVM-entry                         1
+ 311379  DestroyJavaVM-return                        1
+ 311379  DetachCurrentThread-entry                   1
+ 311379  DetachCurrentThread-return                  1
+ 311379  ExceptionCheck-entry                        1
+ 311379  ExceptionCheck-return                       1
+ 311379  ExceptionClear-entry                        1
+ 311379  ExceptionClear-return                       1
+ 311379  GetDefaultJavaVMInitArgs-entry              1
+ 311379  GetDefaultJavaVMInitArgs-return             1
+ 311379  GetJavaVM-entry                             1
+ 311379  GetJavaVM-return                            1
+ 311379  GetStringRegion-entry                       1
+ 311379  GetStringRegion-return                      1
+ 311379  NewByteArray-entry                          1
+ 311379  NewByteArray-return                         1
+ 311379  NewObject-entry                             1
+ 311379  NewObject-return                            1
+ 311379  NewObjectV-entry                            1
+ 311379  NewObjectV-return                           1
+ 311379  SetBooleanField-entry                       1
+ 311379  SetBooleanField-return                      1
+ 311379  ToReflectedMethod-entry                     1
+ 311379  ToReflectedMethod-return                    1
+ 311379  vm-init-begin                               1
+ 311379  vm-init-end                                 1
+ 311379  vm-shutdown                                 1
+ 311379  NewGlobalRef-entry                          2
+ 311379  NewGlobalRef-return                         2
+ 311379  monitor-wait                                2
+ 311379  GetStaticFieldID-entry                      3
+ 311379  GetStaticFieldID-return                     3
+ 311379  NewObjectArray-entry                        3
+ 311379  NewObjectArray-return                       3
+ 311379  SetStaticObjectField-entry                  3
+ 311379  SetStaticObjectField-return                 3
+ 311379  GetStaticMethodID-entry                     4
+ 311379  GetStaticMethodID-return                    4
+ 311379  EnsureLocalCapacity-entry                   5
+ 311379  EnsureLocalCapacity-return                  5
+ 311379  SetByteArrayRegion-entry                    5
+ 311379  SetByteArrayRegion-return                   5
+ 311379  SetLongField-entry                          5
+ 311379  SetLongField-return                         5
+ 311379  GetMethodID-entry                           6
+ 311379  GetMethodID-return                          6
+ 311379  GetObjectArrayElement-entry                 6
+ 311379  GetObjectArrayElement-return                6
+ 311379  GetSuperclass-entry                         6
+ 311379  GetSuperclass-return                        6
+ 311379  thread-start                                6
+ 311379  SetIntField-entry                           8
+ 311379  SetIntField-return                          8
+ 311379  GetArrayLength-entry                        9
+ 311379  GetArrayLength-return                       9
+ 311379  GetByteArrayRegion-entry                    9
+ 311379  GetByteArrayRegion-return                   9
+ 311379  RegisterNatives-entry                       9
+ 311379  RegisterNatives-return                      9
+ 311379  GetObjectClass-entry                       10
+ 311379  GetObjectClass-return                      10
+ 311379  FindClass-entry                            11
+ 311379  FindClass-return                           11
+ 311379  SetObjectArrayElement-entry                12
+ 311379  SetObjectArrayElement-return               12
+ 311379  GetStringUTFLength-entry                   18
+ 311379  GetStringUTFLength-return                  18
+ 311379  GetStringUTFRegion-entry                   18
+ 311379  GetStringUTFRegion-return                  18
+ 311379  GetFieldID-entry                           21
+ 311379  GetFieldID-return                          21
+ 309790  CallStaticVoidMethod-entry                 24
+ 309790  CallStaticVoidMethod-return                24
+ 194441  CallStaticVoidMethod-entry                 26
+ 194441  CallStaticVoidMethod-return                26
+ 311379  GetStringUTFChars-entry                    29
+ 311379  GetStringUTFChars-return                   29
+ 311379  ReleaseStringUTFChars-entry                29
+ 311379  ReleaseStringUTFChars-return               29
+ 311379  CallObjectMethod-entry                     30
+ 311379  CallObjectMethod-return                    30
+ 311379  GetStringCritical-entry                    35
+ 311379  GetStringCritical-return                   35
+ 311379  ReleaseStringCritical-entry                35
+ 311379  ReleaseStringCritical-return               35
+ 311379  ExceptionOccurred-entry                    46
+ 311379  ExceptionOccurred-return                   46
+ 311379  GetStringLength-entry                      54
+ 311379  GetStringLength-return                     54
+ 311379  NewStringUTF-entry                         54
+ 311379  NewStringUTF-return                        54
+ 311379  NewString-entry                            55
+ 311379  NewString-return                           55
+ 311379  GetObjectField-entry                       60
+ 311379  GetObjectField-return                      60
+ 311379  DeleteLocalRef-entry                      108
+ 311379  DeleteLocalRef-return                     108
+ 311379  class-loaded                              327
+ 311379  object-alloc                             5389
+ 311379  method-return                           12024
+ 311379  method-entry                            12031
+
+You can see that nearly all of the events recorded are from PID 311379, which
+we can assume in this case is the program in question.  Not all of the lines
+correspond to this, however, which is something to be aware of while analysing
+the results.
