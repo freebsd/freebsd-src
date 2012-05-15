@@ -27,6 +27,7 @@
  */
 
 #include "opt_witness.h"
+#include "opt_kdtrace.h"
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/cdefs.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
@@ -58,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 #include <sys/eventhandler.h>
+
+SDT_PROVIDER_DECLARE(proc);
+SDT_PROBE_DEFINE(proc, , , lwp_exit, lwp-exit);
+
 
 /*
  * thread related storage.
