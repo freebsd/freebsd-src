@@ -185,6 +185,7 @@ authunix_create(machname, uid, gid, len, aup_gids)
 AUTH *
 authunix_create_default()
 {
+	AUTH *auth;
 	int ngids;
 	long ngids_max;
 	char machname[MAXHOSTNAMELEN + 1];
@@ -207,8 +208,10 @@ authunix_create_default()
 	if (ngids > NGRPS)
 		ngids = NGRPS;
 	/* XXX: interface problem; those should all have been unsigned */
-	return (authunix_create(machname, (int)uid, (int)gid, ngids,
-	    (int *)gids));
+	auth = authunix_create(machname, (int)uid, (int)gid, ngids,
+	    (int *)gids);
+	free(gids);
+	return (auth);
 }
 
 /*
