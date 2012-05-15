@@ -92,6 +92,7 @@
 #define	SDT_PROBE_DEFINE4(prov, mod, func, name, sname, arg0, arg1, arg2, arg3)
 #define	SDT_PROBE_DEFINE5(prov, mod, func, name, sname, arg0, arg1, arg2, arg3, arg4)
 
+#define	SDT_PROBE0(prov, mod, func, name)
 #define	SDT_PROBE1(prov, mod, func, name, arg0)
 #define	SDT_PROBE2(prov, mod, func, name, arg0, arg1)
 #define	SDT_PROBE3(prov, mod, func, name, arg0, arg1, arg2)
@@ -231,6 +232,8 @@ struct sdt_provider {
 	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
 	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4)
 
+#define	SDT_PROBE0(prov, mod, func, name)				\
+	SDT_PROBE(prov, mod, func, name, 0, 0, 0, 0, 0)
 #define	SDT_PROBE1(prov, mod, func, name, arg0)				\
 	SDT_PROBE(prov, mod, func, name, arg0, 0, 0, 0, 0)
 #define	SDT_PROBE2(prov, mod, func, name, arg0, arg1)			\
