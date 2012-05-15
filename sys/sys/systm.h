@@ -47,7 +47,6 @@
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* kern_reboot() has been called. */
-extern int stop_scheduler;	/* only one thread runs after panic */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
@@ -115,7 +114,7 @@ enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
  * Otherwise, the kernel will deadlock since the scheduler isn't
  * going to run the thread that holds any lock we need.
  */
-#define	SCHEDULER_STOPPED() __predict_false(stop_scheduler)
+#define	SCHEDULER_STOPPED() __predict_false(curthread->td_stopsched)
 
 /*
  * XXX the hints declarations are even more misplaced than most declarations
