@@ -165,14 +165,17 @@ send_wakeup(int bpf, struct ether_addr const *addr)
 int
 main(int argc, char *argv[])
 {
-	int n;
+	int n, rval;
 
 	if (argc < 3)
 		usage();
 
-	for (n = 2; n < argc; n++)
-		if (wake(argv[1], argv[n]))
+	for (n = 2; n < argc; n++) {
+		if (wake(argv[1], argv[n])) {
+			rval = 1;
 			warnx("error sending Wake on LAN frame over %s to %s",
 			    argv[1], argv[n]);
-	return (0);
+		}
+	}
+	exit(rval);
 }
