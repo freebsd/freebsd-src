@@ -85,6 +85,7 @@ struct mca_internal {
 static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
 static int mca_count;		/* Number of records stored. */
+static int mca_banks;		/* Number of per-CPU register banks. */
 
 SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL, "Machine Check Architecture");
 
@@ -102,16 +103,17 @@ int workaround_erratum383;
 SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RD, &workaround_erratum383, 0,
     "Is the workaround for Erratum 383 on AMD Family 10h processors enabled?");
 
+static STAILQ_HEAD(, mca_internal) mca_freelist;
+static int mca_freecount;
 static STAILQ_HEAD(, mca_internal) mca_records;
 static struct callout mca_timer;
 static int mca_ticks = 3600;	/* Check hourly by default. */
 static struct taskqueue *mca_tq;
-static struct task mca_task;
+static struct task mca_refill_task, mca_scan_task;
 static struct mtx mca_lock;
 
 #ifdef DEV_APIC
 static struct cmc_state **cmc_state;	/* Indexed by cpuid, bank */
-static int cmc_banks;
 static int cmc_throttle = 60;	/* Time in seconds to throttle CMCI. */
 #endif
 
@@ -415,24 +417,63 @@ mca_check_status(int bank, struct mca_record *rec)
 	return (1);
 }
 
-static void __nonnull(1)
-mca_record_entry(const struct mca_record *record)
+static void
+mca_fill_freelist(void)
+{
+	struct mca_internal *rec;
+	int desired;
+
+	/*
+	 * Ensure we have at least one record for each bank and one
+	 * record per CPU.
+	 */
+	desired = imax(mp_ncpus, mca_banks);
+	mtx_lock_spin(&mca_lock);
+	while (mca_freecount < desired) {
+		mtx_unlock_spin(&mca_lock);
+		rec = malloc(sizeof(*rec), M_MCA, M_WAITOK);
+		mtx_lock_spin(&mca_lock);
+		STAILQ_INSERT_TAIL(&mca_freelist, rec, link);
+		mca_freecount++;
+	}
+	mtx_unlock_spin(&mca_lock);
+}
+
+static void
+mca_refill(void *context, int pending)
+{
+
+	mca_fill_freelist();
+}
+
+static void __nonnull(2)
+mca_record_entry(enum scan_mode mode, const struct mca_record *record)
 {
 	struct mca_internal *rec;
 
-	rec = malloc(sizeof(*rec), M_MCA, M_NOWAIT);
-	if (rec == NULL) {
-		printf("MCA: Unable to allocate space for an event.\n");
-		mca_log(record);
-		return;
+	if (mode == POLLED) {
+		rec = malloc(sizeof(*rec), M_MCA, M_WAITOK);
+		mtx_lock_spin(&mca_lock);
+	} else {
+		mtx_lock_spin(&mca_lock);
+		rec = STAILQ_FIRST(&mca_freelist);
+		if (rec == NULL) {
+			printf("MCA: Unable to allocate space for an event.\n");
+			mca_log(record);
+			mtx_unlock_spin(&mca_lock);
+			return;
+		}
+		STAILQ_REMOVE_HEAD(&mca_freelist, link);
+		mca_freecount--;
 	}
 
 	rec->rec = *record;
 	rec->logged = 0;
-	mtx_lock_spin(&mca_lock);
 	STAILQ_INSERT_TAIL(&mca_records, rec, link);
 	mca_count++;
 	mtx_unlock_spin(&mca_lock);
+	if (mode == CMCI)
+		taskqueue_enqueue_fast(mca_tq, &mca_refill_task);
 }
 
 #ifdef DEV_APIC
@@ -549,9 +590,11 @@ mca_scan(enum scan_mode mode)
 			count++;
 			if (rec.mr_status & ucmask) {
 				recoverable = 0;
+				mtx_lock_spin(&mca_lock);
 				mca_log(&rec);
+				mtx_unlock_spin(&mca_lock);
 			}
-			mca_record_entry(&rec);
+			mca_record_entry(mode, &rec);
 		}
 	
 #ifdef DEV_APIC
@@ -563,6 +606,8 @@ mca_scan(enum scan_mode mode)
 			cmci_update(mode, i, valid, &rec);
 #endif
 	}
+	if (mode == POLLED)
+		mca_fill_freelist();
 	return (mode == MCE ? recoverable : count);
 }
 
@@ -578,6 +623,7 @@ mca_scan_cpus(void *context, int pending)
 	struct thread *td;
 	int count, cpu;
 
+	mca_fill_freelist();
 	td = curthread;
 	count = 0;
 	thread_lock(td);
@@ -594,9 +640,7 @@ mca_scan_cpus(void *context, int pending)
 		STAILQ_FOREACH(mca, &mca_records, link) {
 			if (!mca->logged) {
 				mca->logged = 1;
-				mtx_unlock_spin(&mca_lock);
 				mca_log(&mca->rec);
-				mtx_lock_spin(&mca_lock);
 			}
 		}
 		mtx_unlock_spin(&mca_lock);
@@ -607,7 +651,7 @@ static void
 mca_periodic_scan(void *arg)
 {
 
-	taskqueue_enqueue(mca_tq, &mca_task);
+	taskqueue_enqueue_fast(mca_tq, &mca_scan_task);
 	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan, NULL);
 }
 
@@ -621,36 +665,43 @@ sysctl_mca_scan(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 	if (i)
-		taskqueue_enqueue(mca_tq, &mca_task);
+		taskqueue_enqueue_fast(mca_tq, &mca_scan_task);
 	return (0);
 }
+
+static void
+mca_createtq(void *dummy)
+{
+	if (mca_banks <= 0)
+		return;
+
+	mca_tq = taskqueue_create_fast("mca", M_WAITOK,
+	    taskqueue_thread_enqueue, &mca_tq);
+	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
+}
+SYSINIT(mca_createtq, SI_SUB_CONFIGURE, SI_ORDER_ANY, mca_createtq, NULL);
 
 static void
 mca_startup(void *dummy)
 {
 
-	if (!mca_enabled || !(cpu_feature & CPUID_MCA))
+	if (mca_banks <= 0)
 		return;
 
-	mca_tq = taskqueue_create("mca", M_WAITOK, taskqueue_thread_enqueue,
-	    &mca_tq);
-	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
-	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan,
-		    NULL);
+	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan, NULL);
 }
 SYSINIT(mca_startup, SI_SUB_SMP, SI_ORDER_ANY, mca_startup, NULL);
 
 #ifdef DEV_APIC
 static void
-cmci_setup(uint64_t mcg_cap)
+cmci_setup(void)
 {
 	int i;
 
 	cmc_state = malloc((mp_maxid + 1) * sizeof(struct cmc_state **),
 	    M_MCA, M_WAITOK);
-	cmc_banks = mcg_cap & MCG_CAP_COUNT;
 	for (i = 0; i <= mp_maxid; i++)
-		cmc_state[i] = malloc(sizeof(struct cmc_state) * cmc_banks,
+		cmc_state[i] = malloc(sizeof(struct cmc_state) * mca_banks,
 		    M_MCA, M_WAITOK | M_ZERO);
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -672,10 +723,14 @@ mca_setup(uint64_t mcg_cap)
 	    CPUID_TO_FAMILY(cpu_id) == 0x10 && amd10h_L1TP)
 		workaround_erratum383 = 1;
 
+	mca_banks = mcg_cap & MCG_CAP_COUNT;
 	mtx_init(&mca_lock, "mca", NULL, MTX_SPIN);
 	STAILQ_INIT(&mca_records);
-	TASK_INIT(&mca_task, 0, mca_scan_cpus, NULL);
+	TASK_INIT(&mca_scan_task, 0, mca_scan_cpus, NULL);
 	callout_init(&mca_timer, CALLOUT_MPSAFE);
+	STAILQ_INIT(&mca_freelist);
+	TASK_INIT(&mca_refill_task, 0, mca_refill, NULL);
+	mca_fill_freelist();
 	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "count", CTLFLAG_RD, &mca_count, 0, "Record count");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
@@ -689,7 +744,7 @@ mca_setup(uint64_t mcg_cap)
 	    sysctl_mca_scan, "I", "Force an immediate scan for machine checks");
 #ifdef DEV_APIC
 	if (mcg_cap & MCG_CAP_CMCI_P)
-		cmci_setup(mcg_cap);
+		cmci_setup();
 #endif
 }
 
@@ -707,7 +762,7 @@ cmci_monitor(int i)
 	struct cmc_state *cc;
 	uint64_t ctl;
 
-	KASSERT(i < cmc_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
 
 	ctl = rdmsr(MSR_MC_CTL2(i));
 	if (ctl & MC_CTL2_CMCI_EN)
@@ -751,7 +806,7 @@ cmci_resume(int i)
 	struct cmc_state *cc;
 	uint64_t ctl;
 
-	KASSERT(i < cmc_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
 
 	/* Ignore banks not monitored by this CPU. */
 	if (!(PCPU_GET(cmci_mask) & 1 << i))
@@ -879,7 +934,7 @@ mca_init_bsp(void *arg __unused)
 SYSINIT(mca_init_bsp, SI_SUB_CPU, SI_ORDER_ANY, mca_init_bsp, NULL);
 
 /* Called when a machine check exception fires. */
-int
+void
 mca_intr(void)
 {
 	uint64_t mcg_status;
@@ -893,7 +948,7 @@ mca_intr(void)
 		printf("MC Type: 0x%jx  Address: 0x%jx\n",
 		    (uintmax_t)rdmsr(MSR_P5_MC_TYPE),
 		    (uintmax_t)rdmsr(MSR_P5_MC_ADDR));
-		return (0);
+		panic("Machine check");
 	}
 
 	/* Scan the banks and check for any non-recoverable errors. */
@@ -904,7 +959,8 @@ mca_intr(void)
 
 	/* Clear MCIP. */
 	wrmsr(MSR_MCG_STATUS, mcg_status & ~MCG_STATUS_MCIP);
-	return (recoverable);
+	if (!recoverable)
+		panic("Unrecoverable machine check exception");
 }
 
 #ifdef DEV_APIC
@@ -927,9 +983,7 @@ cmc_intr(void)
 		STAILQ_FOREACH(mca, &mca_records, link) {
 			if (!mca->logged) {
 				mca->logged = 1;
-				mtx_unlock_spin(&mca_lock);
 				mca_log(&mca->rec);
-				mtx_lock_spin(&mca_lock);
 			}
 		}
 		mtx_unlock_spin(&mca_lock);
