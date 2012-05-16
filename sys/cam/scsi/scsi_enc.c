@@ -172,6 +172,7 @@ enc_dtor(struct cam_periph *periph)
 		enc->enc_boot_hold_ch.ich_func = NULL;
 	}
 
+	sx_destroy(&enc->enc_cache_lock);
 	ENC_FREE(enc);
 }
 
