@@ -234,8 +234,7 @@ trap(struct trapframe *frame)
 #endif
 
 	if (type == T_MCHK) {
-		if (!mca_intr())
-			trap_fatal(frame, 0);
+		mca_intr();
 		goto out;
 	}
 
