@@ -2673,7 +2673,7 @@ ath_tx_tid_bar_suspend(struct ath_softc *sc, struct ath_tid *tid)
 {
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 	    "%s: tid=%p, called\n",
 	    __func__,
 	    tid);
@@ -2704,7 +2704,7 @@ ath_tx_tid_bar_unsuspend(struct ath_softc *sc, struct ath_tid *tid)
 {
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 	    "%s: tid=%p, called\n",
 	    __func__,
 	    tid);
@@ -2732,6 +2732,9 @@ ath_tx_tid_bar_tx_ready(struct ath_softc *sc, struct ath_tid *tid)
 	if (tid->bar_wait == 0 || tid->hwq_depth > 0)
 		return (0);
 
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR, "%s: tid=%p (%d), bar ready\n",
+	    __func__, tid, tid->tid);
+
 	return (1);
 }
 
@@ -2754,7 +2757,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 	    "%s: tid=%p, called\n",
 	    __func__,
 	    tid);
@@ -2776,7 +2779,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 
 	/* Don't do anything if we still have pending frames */
 	if (tid->hwq_depth > 0) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+		DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 		    "%s: tid=%p, hwq_depth=%d, waiting\n",
 		    __func__,
 		    tid,
@@ -2793,7 +2796,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 *
 	 * XXX verify this is _actually_ the valid value to begin at!
 	 */
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
 	    "%s: tid=%p, new BAW left edge=%d\n",
 	    __func__,
 	    tid,
@@ -2865,10 +2868,11 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 			    SEQNO(bf->bf_state.bfs_seqno),
 			    bf->bf_state.bfs_retries);
 			device_printf(sc->sc_dev,
-			    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d\n",
+			    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d, bar_wait=%d\n",
 			    __func__, ni, bf,
 			    tid->axq_depth,
-			    tid->hwq_depth);
+			    tid->hwq_depth,
+			    tid->bar_wait);
 			device_printf(sc->sc_dev,
 			    "%s: node %p: bf=%p: tid %d: txq_depth=%d, "
 			    "txq_aggr_depth=%d, sched=%d, paused=%d, "
@@ -4440,8 +4444,11 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	struct ath_tid *atid = &an->an_tid[tid];
 	int attempts = tap->txa_attempts;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-	    "%s: called; status=%d\n", __func__, status);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
+	    "%s: called; status=%d, attempts=%d\n",
+	    __func__,
+	    status,
+	    attempts);
 
 	/* Note: This may update the BAW details */
 	sc->sc_bar_response(ni, tap, status);

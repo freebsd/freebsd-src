@@ -1347,7 +1347,7 @@ sched_add(struct thread *td, int flags)
 	    sched_tdname(curthread));
 	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
 	    KTR_ATTR_LINKED, sched_tdname(td));
-	STD_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
+	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
 	    flags & SRQ_PREEMPTED);
 
 	/*
