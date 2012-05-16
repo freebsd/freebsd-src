@@ -52,7 +52,7 @@
 #define IGB_MAX_TXD		4096
 
 /*
- * IGB_RXD: Maximum number of Transmit Descriptors
+ * IGB_RXD: Maximum number of Receive Descriptors
  *
  *   This value is the number of receive descriptors allocated by the driver.
  *   Increasing this value allows the driver to buffer more incoming packets.
@@ -188,9 +188,13 @@
 #define IGB_TX_BUFFER_SIZE		((uint32_t) 1514)
 #define IGB_FC_PAUSE_TIME		0x0680
 #define IGB_EEPROM_APME			0x400;
-#define IGB_QUEUE_IDLE			0
-#define IGB_QUEUE_WORKING		1
-#define IGB_QUEUE_HUNG			2
+/* Queue minimum free for use */
+#define IGB_QUEUE_THRESHOLD		(adapter->num_tx_desc / 8)
+/* Queue bit defines */
+#define IGB_QUEUE_IDLE			1
+#define IGB_QUEUE_WORKING		2
+#define IGB_QUEUE_HUNG			4
+#define IGB_QUEUE_DEPLETED		8
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
