@@ -161,9 +161,6 @@ VNET_DEFINE(struct pf_tags, pf_qids);
 static u_int16_t	 tagname2tag(struct pf_tags *, char *);
 static u_int16_t	 pf_tagname2tag(char *);
 void			 tag_unref(struct pf_tags *, u_int16_t);
-static int		 pf_rtlabel_add(struct pf_addr_wrap *);
-static void		 pf_rtlabel_remove(struct pf_addr_wrap *);
-static void		 pf_rtlabel_copyout(struct pf_addr_wrap *);
 
 #define DPFPRINTF(n, x) if (V_pf_status.debug >= (n)) printf x
 
@@ -410,8 +407,6 @@ pf_free_rule(struct pf_rule *rule)
 		pf_qid_unref(rule->pqid);
 	pf_qid_unref(rule->qid);
 #endif
-	pf_rtlabel_remove(&rule->src.addr);
-	pf_rtlabel_remove(&rule->dst.addr);
 	pfi_dynaddr_remove(&rule->src.addr);
 	pfi_dynaddr_remove(&rule->dst.addr);
 	pf_tbladdr_remove(&rule->src.addr);
@@ -509,27 +504,6 @@ void
 pf_tag_unref(u_int16_t tag)
 {
 	tag_unref(&V_pf_tags, tag);
-}
-
-static int
-pf_rtlabel_add(struct pf_addr_wrap *a)
-{
-	/* XXX_IMPORT: later */
-	return (0);
-}
-
-static void
-pf_rtlabel_remove(struct pf_addr_wrap *a)
-{
-	/* XXX_IMPORT: later */
-}
-
-static void
-pf_rtlabel_copyout(struct pf_addr_wrap *a)
-{
-	/* XXX_IMPORT: later */
-	if (a->type == PF_ADDR_RTLABEL && a->v.rtlabel)
-		strlcpy(a->v.rtlabelname, "?", sizeof(a->v.rtlabelname));
 }
 
 #ifdef ALTQ
@@ -845,9 +819,6 @@ pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 			PF_MD5_UPD(pfr, addr.v.a.addr.addr32);
 			PF_MD5_UPD(pfr, addr.v.a.mask.addr32);
 			break;
-		case PF_ADDR_RTLABEL:
-			PF_MD5_UPD(pfr, addr.v.rtlabelname);
-			break;
 	}
 
 	PF_MD5_UPD(pfr, port[0]);
@@ -1011,7 +982,6 @@ pf_addr_copyout(struct pf_addr_wrap *addr)
 {
 	pfi_dynaddr_copyout(addr);
 	pf_tbladdr_copyout(addr);
-	pf_rtlabel_copyout(addr);
 }
 
 static int
@@ -1297,9 +1267,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (rule->logif >= PFLOGIFS_MAX)
 			error = EINVAL;
 #endif
-		if (pf_rtlabel_add(&rule->src.addr) ||
-		    pf_rtlabel_add(&rule->dst.addr))
-			error = EBUSY;
 		if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
 			error = EINVAL;
 		if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))
@@ -1560,9 +1527,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (newrule->logif >= PFLOGIFS_MAX)
 				error = EINVAL;
 #endif
-			if (pf_rtlabel_add(&newrule->src.addr) ||
-			    pf_rtlabel_add(&newrule->dst.addr))
-				error = EBUSY;
 			if (pf_addr_setup(ruleset, &newrule->src.addr, newrule->af))
 				error = EINVAL;
 			if (pf_addr_setup(ruleset, &newrule->dst.addr, newrule->af))

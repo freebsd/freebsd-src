@@ -1788,8 +1788,6 @@ pf_addr_wrap_neq(struct pf_addr_wrap *aw1, struct pf_addr_wrap *aw2)
 		return (0);
 	case PF_ADDR_TABLE:
 		return (aw1->p.tbl != aw2->p.tbl);
-	case PF_ADDR_RTLABEL:
-		return (aw1->v.rtlabel != aw2->v.rtlabel);
 	default:
 		printf("invalid address type: %d\n", aw1->type);
 		return (1);
@@ -5042,67 +5040,6 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 out:
 	if (ro.ro_rt != NULL)
 		RTFREE(ro.ro_rt);
-	return (ret);
-}
-
-int
-pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw,
-    int rtableid)
-{
-	struct sockaddr_in	*dst;
-#ifdef INET6
-	struct sockaddr_in6	*dst6;
-	struct route_in6	 ro;
-#else
-	struct route		 ro;
-#endif
-	int			 ret = 0;
-
-	bzero(&ro, sizeof(ro));
-	switch (af) {
-	case AF_INET:
-		dst = satosin(&ro.ro_dst);
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = addr->v4;
-		break;
-#ifdef INET6
-	case AF_INET6:
-		dst6 = (struct sockaddr_in6 *)&ro.ro_dst;
-		dst6->sin6_family = AF_INET6;
-		dst6->sin6_len = sizeof(*dst6);
-		dst6->sin6_addr = addr->v6;
-		break;
-#endif /* INET6 */
-	default:
-		return (0);
-	}
-
-	switch (af) {
-#ifdef INET6
-	case AF_INET6:
-		in6_rtalloc_ign(&ro, 0, rtableid);
-		break;
-#endif
-#ifdef INET
-	case AF_INET:
-		in_rtalloc_ign((struct route *)&ro, 0, rtableid);
-		break;
-#endif
-	default:
-		rtalloc_ign((struct route *)&ro, 0);
-		break;
-	}
-
-	if (ro.ro_rt != NULL) {
-#if 0
-		/* XXX_IMPORT: later */
-		if (ro.ro_rt->rt_labelid == aw->v.rtlabel)
-			ret = 1;
-#endif
-		RTFREE(ro.ro_rt);
-	}
-
 	return (ret);
 }
 
