@@ -250,10 +250,7 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 void
 kdb_panic(const char *msg)
 {
-	
-#ifdef SMP
-	stop_cpus_hard(PCPU_GET(other_cpus));
-#endif
+
 	printf("KDB: panic\n");
 	panic("%s", msg);
 }
@@ -611,8 +608,11 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	intr = intr_disable();
 
 #ifdef SMP
-	if ((did_stop_cpus = kdb_stop_cpus) != 0)
-		stop_cpus_hard(PCPU_GET(other_cpus));
+	if (!SCHEDULER_STOPPED()) {
+		if ((did_stop_cpus = kdb_stop_cpus) != 0)
+			stop_cpus_hard(PCPU_GET(other_cpus));
+	} else
+		did_stop_cpus = 0;
 #endif
 
 	kdb_active++;

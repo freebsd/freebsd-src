@@ -238,6 +238,8 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 {
 	int error = 0;
 
+	if (SCHEDULER_STOPPED())
+		return (0);
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_slock() of destroyed sx @ %s:%d", file, line));
@@ -256,6 +258,9 @@ int
 _sx_try_slock(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	for (;;) {
 		x = sx->sx_lock;
@@ -280,6 +285,8 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 {
 	int error = 0;
 
+	if (SCHEDULER_STOPPED())
+		return (0);
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xlock() of destroyed sx @ %s:%d", file, line));
@@ -300,6 +307,9 @@ int
 _sx_try_xlock(struct sx *sx, const char *file, int line)
 {
 	int rval;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
@@ -327,6 +337,8 @@ void
 _sx_sunlock(struct sx *sx, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
@@ -342,6 +354,8 @@ void
 _sx_xunlock(struct sx *sx, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
@@ -365,6 +379,9 @@ _sx_try_upgrade(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 	int success;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_try_upgrade() of destroyed sx @ %s:%d", file, line));
@@ -395,6 +412,9 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 	int wakeup_swapper;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_downgrade() of destroyed sx @ %s:%d", file, line));
@@ -477,6 +497,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
 #endif
+
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	/* If we already hold an exclusive lock, then recurse. */
 	if (sx_xlocked(sx)) {
@@ -678,6 +701,9 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 	uintptr_t x;
 	int queue, wakeup_swapper;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	MPASS(!(sx->sx_lock & SX_LOCK_SHARED));
 
 	/* If the lock is recursed, then unrecurse one level. */
@@ -749,6 +775,9 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
 #endif
+
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	/*
 	 * As with rwlocks, we don't make any attempt to try to block
@@ -915,6 +944,9 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 	int wakeup_swapper;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	for (;;) {
 		x = sx->sx_lock;
