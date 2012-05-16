@@ -879,6 +879,9 @@ will not protect your data against replay attacks.
 It is recommended to write the whole provider before the first use,
 in order to make sure that all sectors and their corresponding
 checksums are properly initialized into a consistent state.
+One can safely ignore data authentication errors that occur immediately
+after the first time a provider is attached and before it is
+initialized in this way.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr gbde 4 ,
