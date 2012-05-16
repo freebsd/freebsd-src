@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -901,7 +901,7 @@ static s32 e1000_phy_hw_reset_82543(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_82543(struct e1000_hw *hw)
 {
-	u32 ctrl;
+	u32 ctrl, icr;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_reset_hw_82543");
@@ -943,7 +943,7 @@ static s32 e1000_reset_hw_82543(struct e1000_hw *hw)
 
 	/* Masking off and clearing any pending interrupts */
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
-	E1000_READ_REG(hw, E1000_ICR);
+	icr = E1000_READ_REG(hw, E1000_ICR);
 
 	return ret_val;
 }
@@ -1079,7 +1079,6 @@ static s32 e1000_setup_copper_link_82543(struct e1000_hw *hw)
 		ret_val = hw->phy.ops.reset(hw);
 		if (ret_val)
 			goto out;
-		hw->phy.reset_disable = FALSE;
 	} else {
 		ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 		E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
