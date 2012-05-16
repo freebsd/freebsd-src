@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/disklabel.h>
 #include <sys/gpt.h>
+#include <sys/proc.h>
 #include <sys/uuid.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
