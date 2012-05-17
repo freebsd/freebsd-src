@@ -99,15 +99,7 @@ tftp_print(register const u_char *bp, u_int length)
 	case RRQ:
 	case WRQ:
 	case OACK:
-		/*
-		 * XXX Not all arpa/tftp.h's specify th_stuff as any
-		 * array; use address of th_block instead
-		 */
-#ifdef notdef
 		p = (u_char *)tp->th_stuff;
-#else
-		p = (u_char *)&tp->th_block;
-#endif
 		putchar(' ');
 		/* Print filename or first option */
 		if (opcode != OACK)
