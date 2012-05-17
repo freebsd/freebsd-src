@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -179,14 +179,16 @@
 #define IXGBE_82599_SCATTER		32
 #define MSIX_82598_BAR			3
 #define MSIX_82599_BAR			4
-#define IXGBE_TSO_SIZE			65535
+#define IXGBE_TSO_SIZE			262140
 #define IXGBE_TX_BUFFER_SIZE		((u32) 1514)
 #define IXGBE_RX_HDR			128
 #define IXGBE_VFTA_SIZE			128
 #define IXGBE_BR_SIZE			4096
-#define IXGBE_QUEUE_IDLE		0
-#define IXGBE_QUEUE_WORKING		1
-#define IXGBE_QUEUE_HUNG		2
+#define IXGBE_QUEUE_MIN_FREE		32
+#define IXGBE_QUEUE_IDLE		1
+#define IXGBE_QUEUE_WORKING		2
+#define IXGBE_QUEUE_HUNG		4
+#define IXGBE_QUEUE_DEPLETED		8
 
 /* Offload bits in mbuf flag */
 #if __FreeBSD_version >= 800000
@@ -323,6 +325,7 @@ struct rx_ring {
 	bool			hdr_split;
 	bool			hw_rsc;
 	bool			discard;
+	bool			vtag_strip;
         u32			next_to_refresh;
         u32 			next_to_check;
 	char			mtx_name[16];
@@ -387,6 +390,7 @@ struct adapter {
 
 	/* Info about the interface */
 	u32			optics;
+	u32			fc; /* local flow ctrl setting */
 	int			advertise;  /* link speeds */
 	bool			link_active;
 	u16			max_frame_size;
