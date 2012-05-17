@@ -216,6 +216,9 @@ parse_intarray(char *array, int **buffer)
 		tmpstr = (char *)strtok(NULL, ",");
 	}
 
+	if (count == 0)
+		goto out;
+
 	/* Allocate buffer of ints */
 	tmpstr = (char *)strtok(origstr, ",");
 	*buffer = malloc(count * sizeof(int));
@@ -237,6 +240,7 @@ parse_intarray(char *array, int **buffer)
 		(*buffer)[currbufp++] = from;
 		tmpstr = (char *)strtok(NULL, ",");
 	}
+out:
 	free(origstr);
 	return (count);
 }
@@ -380,7 +384,7 @@ destroy_ctrls(struct sim_ctrl *ctrls)
 static int
 create_chips(struct rcfile *f, struct sim_chip **chips, int *cnt)
 {
-	struct sim_chip *chipsptr = *chips;
+	struct sim_chip *chipsptr;
 	int count, i;
 
 	count = rc_getsectionscount(f, "chip");

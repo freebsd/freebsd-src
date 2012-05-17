@@ -330,7 +330,7 @@ cmdstatus(int gargc, char **gargv)
 		}
 	}
 	close(fd);
-	return(EX_OK);
+	return (err);
 }
 
 static int
@@ -644,6 +644,7 @@ cmdbb(int gargc, char **gargv)
 			err = ioctl(fd, NANDSIM_GET_BLOCK_STATE, &bs);
 			if (err) {
 				error("Could not acquire block state");
+				err = EX_SOFTWARE;
 				continue;
 			}
 			printf("Block#%d: wear count: %d %s\n", blkidx,
@@ -652,7 +653,7 @@ cmdbb(int gargc, char **gargv)
 		}
 	}
 	close(fd);
-	return (0);
+	return (err);
 }
 
 static int
@@ -1139,8 +1140,8 @@ cmddestroy(int gargc __unused, char **gargv)
 				continue;
 			}
 		}
+		close(fd);
 	}
-	close(fd);
 	return (err);
 }
 
