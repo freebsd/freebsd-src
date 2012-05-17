@@ -32,14 +32,13 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_user.h 9495 2011-10-18 15:28:23Z luigi $
+ * $Id: netmap_user.h 10597 2012-02-21 05:08:32Z luigi $
  *
  * This header contains the macros used to manipulate netmap structures
  * and packets in userspace. See netmap(4) for more information.
  *
- * The address of the struct netmap_if, say nifp, is determined
- * by the value returned from ioctl(.., NIOCREG, ...) and the mmap
- * region:
+ * The address of the struct netmap_if, say nifp, is computed from the
+ * value returned from ioctl(.., NIOCREG, ...) and the mmap region:
  *	ioctl(fd, NIOCREG, &req);
  *	mem = mmap(0, ... );
  *	nifp = NETMAP_IF(mem, req.nr_nifp);
@@ -71,21 +70,25 @@
 
 #define NETMAP_RXRING(nifp, index)			\
 	((struct netmap_ring *)((char *)(nifp) +	\
-	    (nifp)->ring_ofs[index + (nifp)->ni_num_queues+1] ) )
+	    (nifp)->ring_ofs[index + (nifp)->ni_tx_rings + 1] ) )
 
 #define NETMAP_BUF(ring, index)				\
 	((char *)(ring) + (ring)->buf_ofs + ((index)*(ring)->nr_buf_size))
 
+#define NETMAP_BUF_IDX(ring, buf)			\
+	( ((char *)(buf) - ((char *)(ring) + (ring)->buf_ofs) ) / \
+		(ring)->nr_buf_size ) 
+
 #define	NETMAP_RING_NEXT(r, i)				\
 	((i)+1 == (r)->num_slots ? 0 : (i) + 1 )
 
+#define	NETMAP_RING_FIRST_RESERVED(r)			\
+	( (r)->cur < (r)->reserved ?			\
+	  (r)->cur + (r)->num_slots - (r)->reserved :	\
+	  (r)->cur - (r)->reserved )
+
 /*
  * Return 1 if the given tx ring is empty.
- *
- * @r netmap_ring descriptor pointer.
- * Special case, a negative value in hwavail indicates that the
- * transmit queue is idle.
- * XXX revise
  */
 #define NETMAP_TX_RING_EMPTY(r)	((r)->avail >= (r)->num_slots - 1)
 
