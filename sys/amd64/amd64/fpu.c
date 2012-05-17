@@ -141,7 +141,7 @@ CTASSERT(sizeof(struct savefpu_ymm) == 832);
 /*
  * This requirement is to make it easier for asm code to calculate
  * offset of the fpu save area from the pcb address. FPU save area
- * must by 64-bytes aligned.
+ * must be 64-bytes aligned.
  */
 CTASSERT(sizeof(struct pcb) % XSAVE_AREA_ALIGN == 0);
 
