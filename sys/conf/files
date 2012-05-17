@@ -1660,6 +1660,21 @@ dev/mxge/mxge_ethp_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
+dev/nand/nand.c			optional nand
+dev/nand/nand_bbt.c		optional nand
+dev/nand/nand_cdev.c		optional nand
+dev/nand/nand_generic.c		optional nand
+dev/nand/nand_geom.c		optional nand
+dev/nand/nand_id.c		optional nand
+dev/nand/nandbus.c		optional nand
+dev/nand/nandbus_if.m		optional nand
+dev/nand/nand_if.m		optional nand
+dev/nand/nandsim.c		optional nandsim nand
+dev/nand/nandsim_chip.c		optional nandsim nand
+dev/nand/nandsim_ctrl.c		optional nandsim nand
+dev/nand/nandsim_log.c		optional nandsim nand
+dev/nand/nandsim_swap.c		optional nandsim nand
+dev/nand/nfc_if.m		optional nand
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
@@ -2252,6 +2267,20 @@ fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
 fs/msdosfs/msdosfs_vnops.c	optional msdosfs
+fs/nandfs/bmap.c		optional nandfs
+fs/nandfs/nandfs_alloc.c	optional nandfs
+fs/nandfs/nandfs_bmap.c		optional nandfs
+fs/nandfs/nandfs_buffer.c	optional nandfs
+fs/nandfs/nandfs_cleaner.c	optional nandfs
+fs/nandfs/nandfs_cpfile.c	optional nandfs
+fs/nandfs/nandfs_dat.c		optional nandfs
+fs/nandfs/nandfs_dir.c		optional nandfs
+fs/nandfs/nandfs_ifile.c	optional nandfs
+fs/nandfs/nandfs_segment.c	optional nandfs
+fs/nandfs/nandfs_subr.c		optional nandfs
+fs/nandfs/nandfs_sufile.c	optional nandfs
+fs/nandfs/nandfs_vfsops.c	optional nandfs
+fs/nandfs/nandfs_vnops.c	optional nandfs
 fs/nfs/nfs_commonkrpc.c		optional nfscl | nfsd
 fs/nfs/nfs_commonsubs.c		optional nfscl | nfsd
 fs/nfs/nfs_commonport.c		optional nfscl | nfsd

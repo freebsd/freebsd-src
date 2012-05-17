@@ -85,6 +85,10 @@ MLINKS+=resolver.5 resolv.conf.5
 MAN+=	hesiod.conf.5 
 .endif
 
+.if ${MK_NAND} != "no"
+MAN+=	nandfs.5
+.endif
+
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _boot.config.5=	boot.config.5
 .endif
