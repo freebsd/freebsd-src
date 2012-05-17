@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: pkt-gen.c 9827 2011-12-05 11:29:34Z luigi $
+ * $Id: pkt-gen.c 10967 2012-05-03 11:29:23Z luigi $
  *
  * Example program to show how to build a multithreaded packet
  * source/sink using the netmap device.
@@ -90,6 +90,36 @@ int verbose = 0;
 
 #define SKIP_PAYLOAD 1 /* do not check payload. */
 
+inline void prefetch (const void *x)
+{
+        __asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
+}
+
+// XXX only for multiples of 32 bytes, non overlapped.
+static inline void
+pkt_copy(void *_src, void *_dst, int l)
+{
+	uint64_t *src = _src;
+	uint64_t *dst = _dst;
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)       __builtin_expect(!!(x), 0)
+	if (unlikely(l >= 1024)) {
+		bcopy(src, dst, l);
+		return;
+	}
+	for (; l > 0; l-=64) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
+}
+
+
 #if EXPERIMENTAL
 /* Wrapper around `rdtsc' to take reliable timestamps flushing the pipeline */ 
 #define netmap_rdtsc(t) \
@@ -140,6 +170,11 @@ struct glob_arg {
 	int npackets;	/* total packets to send */
 	int nthreads;
 	int cpus;
+	int options;	/* testing */
+#define OPT_PREFETCH	1
+#define OPT_ACCESS	2
+#define OPT_COPY	4
+#define OPT_MEMCPY	8
 	int use_pcap;
 	pcap_t *p;
 };
@@ -394,19 +429,35 @@ check_payload(char *p, int psize)
  */
 static int
 send_packets(struct netmap_ring *ring, struct pkt *pkt, 
-		int size, u_int count, int fill_all)
+		int size, u_int count, int options)
 {
 	u_int sent, cur = ring->cur;
 
 	if (ring->avail < count)
 		count = ring->avail;
 
+#if 0
+	if (options & (OPT_COPY | OPT_PREFETCH) ) {
+		for (sent = 0; sent < count; sent++) {
+			struct netmap_slot *slot = &ring->slot[cur];
+			char *p = NETMAP_BUF(ring, slot->buf_idx);
+
+			prefetch(p);
+			cur = NETMAP_RING_NEXT(ring, cur);
+		}
+		cur = ring->cur;
+	}
+#endif
 	for (sent = 0; sent < count; sent++) {
 		struct netmap_slot *slot = &ring->slot[cur];
 		char *p = NETMAP_BUF(ring, slot->buf_idx);
 
-		if (fill_all)
+		if (options & OPT_COPY)
+			pkt_copy(pkt, p, size);
+		else if (options & OPT_MEMCPY)
 			memcpy(p, pkt, size);
+		else if (options & OPT_PREFETCH)
+			prefetch(p);
 
 		slot->len = size;
 		if (sent == count - 1)
@@ -428,8 +479,8 @@ sender_body(void *data)
 	struct netmap_if *nifp = targ->nifp;
 	struct netmap_ring *txring;
 	int i, n = targ->g->npackets / targ->g->nthreads, sent = 0;
-	int fill_all = 1;
-
+	int options = targ->g->options | OPT_COPY;
+D("start");
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
 	/* setup poll(2) mechanism. */
@@ -444,9 +495,13 @@ sender_body(void *data)
 	void *pkt = &targ->pkt;
 	pcap_t *p = targ->g->p;
 
-	for (; sent < n; sent++) {
-		if (pcap_inject(p, pkt, size) == -1)
-			break;
+	for (i = 0; sent < n; i++) {
+		if (pcap_inject(p, pkt, size) != -1)
+			sent++;
+		if (i > 10000) {
+			targ->count = sent;
+			i = 0;
+		}
 	}
     } else {
 	while (sent < n) {
@@ -461,8 +516,8 @@ sender_body(void *data)
 		/*
 		 * scan our queues and send on those with room
 		 */
-		if (sent > 100000)
-			fill_all = 0;
+		if (sent > 100000 && !(targ->g->options & OPT_COPY) )
+			options &= ~OPT_COPY;
 		for (i = targ->qfirst; i < targ->qlast; i++) {
 			int m, limit = MIN(n - sent, targ->g->burst);
 
@@ -470,12 +525,12 @@ sender_body(void *data)
 			if (txring->avail == 0)
 				continue;
 			m = send_packets(txring, &targ->pkt, targ->g->pkt_size,
-					 limit, fill_all);
+					 limit, options);
 			sent += m;
 			targ->count = sent;
 		}
 	}
-	/* Tell the interface that we have new packets. */
+	/* flush any remaining packets */
 	ioctl(fds[0].fd, NIOCTXSYNC, NULL);
 
 	/* final part: wait all the TX queues to be empty. */
@@ -672,6 +727,7 @@ int
 main(int arc, char **argv)
 {
 	int i, fd;
+	char pcap_errbuf[PCAP_ERRBUF_SIZE];
 
 	struct glob_arg g;
 
@@ -696,11 +752,14 @@ main(int arc, char **argv)
 	g.cpus = 1;
 
 	while ( (ch = getopt(arc, argv,
-			"i:t:r:l:d:s:D:S:b:c:p:T:w:v")) != -1) {
+			"i:t:r:l:d:s:D:S:b:c:o:p:PT:w:v")) != -1) {
 		switch(ch) {
 		default:
 			D("bad option %c %s", ch, optarg);
 			usage();
+			break;
+		case 'o':
+			g.options = atoi(optarg);
 			break;
 		case 'i':	/* interface */
 			ifname = optarg;
@@ -775,7 +834,28 @@ main(int arc, char **argv)
 		usage();
 	}
 
+	if (td_body == sender_body && g.src_mac == NULL) {
+		static char mybuf[20] = "ff:ff:ff:ff:ff:ff";
+		/* retrieve source mac address. */
+		if (source_hwaddr(ifname, mybuf) == -1) {
+			D("Unable to retrieve source mac");
+			// continue, fail later
+		}
+		g.src_mac = mybuf;
+	}
+
+    if (g.use_pcap) {
+	D("using pcap on %s", ifname);
+	g.p = pcap_open_live(ifname, 0, 1, 100, pcap_errbuf);
+	if (g.p == NULL) {
+		D("cannot open pcap on %s", ifname);
+		usage();
+	}
+	mmap_addr = NULL;
+	fd = -1;
+    } else {
 	bzero(&nmr, sizeof(nmr));
+	nmr.nr_version = NETMAP_API;
 	/*
 	 * Open the netmap device to fetch the number of queues of our
 	 * interface.
@@ -796,27 +876,18 @@ main(int arc, char **argv)
 			D("map size is %d Kb", nmr.nr_memsize >> 10);
 		}
 		bzero(&nmr, sizeof(nmr));
+		nmr.nr_version = NETMAP_API;
 		strncpy(nmr.nr_name, ifname, sizeof(nmr.nr_name));
 		if ((ioctl(fd, NIOCGINFO, &nmr)) == -1) {
 			D("Unable to get if info for %s", ifname);
 		}
-		devqueues = nmr.nr_numrings;
+		devqueues = nmr.nr_rx_rings;
 	}
 
 	/* validate provided nthreads. */
 	if (g.nthreads < 1 || g.nthreads > devqueues) {
 		D("bad nthreads %d, have %d queues", g.nthreads, devqueues);
 		// continue, fail later
-	}
-
-	if (td_body == sender_body && g.src_mac == NULL) {
-		static char mybuf[20] = "ff:ff:ff:ff:ff:ff";
-		/* retrieve source mac address. */
-		if (source_hwaddr(ifname, mybuf) == -1) {
-			D("Unable to retrieve source mac");
-			// continue, fail later
-		}
-		g.src_mac = mybuf;
 	}
 
 	/*
@@ -841,6 +912,7 @@ main(int arc, char **argv)
 	 * We decide to put the first interface registration here to
 	 * give time to cards that take a long time to reset the PHY.
 	 */
+	nmr.nr_version = NETMAP_API;
 	if (ioctl(fd, NIOCREGIF, &nmr) == -1) {
 		D("Unable to register interface %s", ifname);
 		//continue, fail later
@@ -866,8 +938,15 @@ main(int arc, char **argv)
 		D("aborting");
 		usage();
 	}
+    }
 
-
+	if (g.options) {
+		D("special options:%s%s%s%s\n",
+			g.options & OPT_PREFETCH ? " prefetch" : "",
+			g.options & OPT_ACCESS ? " access" : "",
+			g.options & OPT_MEMCPY ? " memcpy" : "",
+			g.options & OPT_COPY ? " copy" : "");
+	}
 	/* Wait for PHY reset. */
 	D("Wait %d secs for phy reset", wait_link);
 	sleep(wait_link);
@@ -878,7 +957,12 @@ main(int arc, char **argv)
 	signal(SIGINT, sigint_h);
 
 	if (g.use_pcap) {
-		// XXX g.p = pcap_open_live(..);
+		g.p = pcap_open_live(ifname, 0, 1, 100, NULL);
+		if (g.p == NULL) {
+			D("cannot open pcap on %s", ifname);
+			usage();
+		} else
+			D("using pcap %p on %s", g.p, ifname);
 	}
 
 	targs = calloc(g.nthreads, sizeof(*targs));
@@ -904,6 +988,7 @@ main(int arc, char **argv)
 
 		bzero(&tifreq, sizeof(tifreq));
 		strncpy(tifreq.nr_name, ifname, sizeof(tifreq.nr_name));
+		tifreq.nr_version = NETMAP_API;
 		tifreq.nr_ringid = (g.nthreads > 1) ? (i | NETMAP_HW_RING) : 0;
 
 		/*
@@ -930,7 +1015,8 @@ main(int arc, char **argv)
 		targs[i].nmr = tifreq;
 		targs[i].nifp = tnifp;
 		targs[i].qfirst = (g.nthreads > 1) ? i : 0;
-		targs[i].qlast = (g.nthreads > 1) ? i+1 : tifreq.nr_numrings;
+		targs[i].qlast = (g.nthreads > 1) ? i+1 :
+			(td_body == receiver_body ? tifreq.nr_rx_rings : tifreq.nr_tx_rings);
 		targs[i].me = i;
 		targs[i].affinity = g.cpus ? i % g.cpus : -1;
 		if (td_body == sender_body) {
@@ -1013,9 +1099,11 @@ main(int arc, char **argv)
 		rx_output(count, delta_t);
     }
 
+    if (g.use_pcap == 0) {
 	ioctl(fd, NIOCUNREGIF, &nmr);
 	munmap(mmap_addr, nmr.nr_memsize);
 	close(fd);
+    }
 
 	return (0);
 }

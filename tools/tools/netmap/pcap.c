@@ -49,6 +49,34 @@ int verbose = 0;
         __FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	} while (0)
 
+inline void prefetch (const void *x)
+{
+	__asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
+}
+
+// XXX only for multiples of 64 bytes, non overlapped.
+static inline void
+pkt_copy(const void *_src, void *_dst, int l)
+{
+        const uint64_t *src = _src;
+        uint64_t *dst = _dst;
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)       __builtin_expect(!!(x), 0)
+        if (unlikely(l >= 1024)) {
+                bcopy(src, dst, l);
+                return;
+        }
+        for (; l > 0; l-=64) {
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+        }
+}
 
 /*
  * We redefine here a number of structures that are in pcap.h
@@ -126,6 +154,8 @@ int pcap_setdirection(pcap_t *p, pcap_direction_t d);
 char *pcap_lookupdev(char *errbuf);
 int pcap_inject(pcap_t *p, const void *buf, size_t size);
 int pcap_fileno(pcap_t *p);
+const char *pcap_lib_version(void);
+
 
 struct eproto {
 	const char *s;
@@ -232,6 +262,7 @@ netmap_open(struct my_ring *me, int ringid)
 	bzero(&req, sizeof(req));
 	strncpy(req.nr_name, me->nmr.nr_name, sizeof(req.nr_name));
 	req.nr_ringid = ringid;
+	req.nr_version = NETMAP_API;
 	err = ioctl(fd, NIOCGINFO, &req);
 	if (err) {
 		D("cannot get info on %s", me->nmr.nr_name);
@@ -257,14 +288,14 @@ netmap_open(struct my_ring *me, int ringid)
 	me->nifp = NETMAP_IF(me->mem, req.nr_offset);
 	me->queueid = ringid;
 	if (ringid & NETMAP_SW_RING) {
-		me->begin = req.nr_numrings;
+		me->begin = req.nr_rx_rings;
 		me->end = me->begin + 1;
 	} else if (ringid & NETMAP_HW_RING) {
 		me->begin = ringid & NETMAP_RING_MASK;
 		me->end = me->begin + 1;
 	} else {
 		me->begin = 0;
-		me->end = req.nr_numrings;
+		me->end = req.nr_rx_rings;
 	}
 	/* request timestamps for packets */
 	for (i = me->begin; i < me->end; i++) {
@@ -288,6 +319,11 @@ struct eproto eproto_db[] = {
 	{ (char *)0, 0 }
 };
 
+
+const char *pcap_lib_version(void)
+{
+	return pcap_version;
+}
 
 int
 pcap_findalldevs(pcap_if_t **alldevsp, __unused char *errbuf)
@@ -478,21 +514,21 @@ pcap_setfilter(__unused pcap_t *p, __unused  struct bpf_program *fp)
 int
 pcap_datalink(__unused pcap_t *p)
 {
-	D("");
+	D("returns 1");
 	return 1;	// ethernet
 }
 
 const char *
 pcap_datalink_val_to_name(int dlt)
 {
-	D("%d", dlt);
+	D("%d returns DLT_EN10MB", dlt);
 	return "DLT_EN10MB";
 }
 
 const char *
 pcap_datalink_val_to_description(int dlt)
 {
-	D("%d", dlt);
+	D("%d returns Ethernet link", dlt);
 	return "Ethernet link";
 }
 
@@ -503,10 +539,8 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 	struct my_ring *me = p;
 	ND("");
 
-	me->st.ps_recv += 10;
 	*ps = me->st;
-	sprintf(me->msg, "stats not supported");
-	return -1;
+	return 0;	/* accumulate from pcap_dispatch() */
 };
 
 char *
@@ -524,7 +558,8 @@ pcap_open_live(const char *device, __unused int snaplen,
 {
 	struct my_ring *me;
 
-	D("request to open %s", device);
+	D("request to open %s snaplen %d promisc %d timeout %dms",
+		device, snaplen, promisc, to_ms);
 	me = calloc(1, sizeof(*me));
 	if (me == NULL) {
 		D("failed to allocate struct for %s", device);
@@ -609,6 +644,8 @@ pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	u_int si;
 
 	ND("cnt %d", cnt);
+	if (cnt == 0)
+		cnt = -1;
 	/* scan all rings */
 	for (si = me->begin; si < me->end; si++) {
 		struct netmap_ring *ring = NETMAP_RXRING(me->nifp, si);
@@ -616,6 +653,10 @@ pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		if (ring->avail == 0)
 			continue;
 		me->hdr.ts = ring->ts;
+		/*
+		 * XXX a proper prefetch should be done as
+		 *	prefetch(i); callback(i-1); ...
+		 */
 		while ((cnt == -1 || cnt != got) && ring->avail > 0) {
 			u_int i = ring->cur;
 			u_int idx = ring->slot[i].buf_idx;
@@ -625,6 +666,7 @@ pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 				sleep(2);
 			}
 			u_char *buf = (u_char *)NETMAP_BUF(ring, idx);
+			prefetch(buf);
 			me->hdr.len = me->hdr.caplen = ring->slot[i].len;
 			// D("call %p len %d", p, me->hdr.len);
 			callback(user, &me->hdr, buf);
@@ -633,6 +675,7 @@ pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			got++;
 		}
 	}
+	me->st.ps_recv += got;
 	return got;
 }
 
@@ -659,7 +702,7 @@ pcap_inject(pcap_t *p, const void *buf, size_t size)
 		}
 		u_char *dst = (u_char *)NETMAP_BUF(ring, idx);
 		ring->slot[i].len = size;
-		bcopy(buf, dst, size);
+		pkt_copy(buf, dst, size);
 		ring->cur = NETMAP_RING_NEXT(ring, i);
 		ring->avail--;
 		// if (ring->avail == 0) ioctl(me->fd, NIOCTXSYNC, NULL);
