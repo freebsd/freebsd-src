@@ -362,7 +362,7 @@ static const struct usb_config uhid_config[UHID_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.flags = {.pipe_bof = 1, },
+		.flags = {.pipe_bof = 1,.no_pipe_ok = 1, },
 		.bufsize = UHID_BSIZE,
 		.callback = &uhid_intr_write_callback,
 	},
@@ -421,7 +421,8 @@ uhid_start_write(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = usb_fifo_softc(fifo);
 
-	if (sc->sc_flags & UHID_FLAG_IMMED) {
+	if ((sc->sc_flags & UHID_FLAG_IMMED) ||
+	    sc->sc_xfer[UHID_INTR_DT_WR] == NULL) {
 		usbd_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
 	} else {
 		usbd_transfer_start(sc->sc_xfer[UHID_INTR_DT_WR]);
