@@ -352,6 +352,10 @@ SRCS		List of source files to build the library.  Suffix types
 		to .c files of the same name.  (This is not the default for
 		versions of make.)
 
+SHLIB_LDSCRIPT	Template file to generate shared library linker script.
+		Unless used, a simple symlink is created to the real
+		shared object.
+
 The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.
 
