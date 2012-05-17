@@ -85,7 +85,7 @@ chdlc_print(register const u_char *p, u_int length) {
 		break;
 #ifdef INET6
 	case ETHERTYPE_IPV6:
-		ip6_print(p, length);
+		ip6_print(gndo, p, length);
 		break;
 #endif
 	case CHDLC_TYPE_SLARP:
