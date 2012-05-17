@@ -296,6 +296,10 @@ static void re_setwol		(struct rl_softc *);
 static void re_clrwol		(struct rl_softc *);
 static void re_set_linkspeed	(struct rl_softc *);
 
+#ifdef DEV_NETMAP	/* see ixgbe.c for details */
+#include <dev/netmap/if_re_netmap.h>
+#endif /* !DEV_NETMAP */
+
 #ifdef RE_DIAG
 static int re_diag		(struct rl_softc *);
 #endif
@@ -1641,6 +1645,9 @@ re_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
+#ifdef DEV_NETMAP
+	re_netmap_attach(sc);
+#endif /* DEV_NETMAP */
 #ifdef RE_DIAG
 	/*
 	 * Perform hardware diagnostic on the original RTL8169.
@@ -1836,6 +1843,9 @@ re_detach(device_t dev)
 		bus_dma_tag_destroy(sc->rl_ldata.rl_stag);
 	}
 
+#ifdef DEV_NETMAP
+	netmap_detach(ifp);
+#endif /* DEV_NETMAP */
 	if (sc->rl_parent_tag)
 		bus_dma_tag_destroy(sc->rl_parent_tag);
 
@@ -2010,6 +2020,9 @@ re_tx_list_init(struct rl_softc *sc)
 	    sc->rl_ldata.rl_tx_desc_cnt * sizeof(struct rl_desc));
 	for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++)
 		sc->rl_ldata.rl_tx_desc[i].tx_m = NULL;
+#ifdef DEV_NETMAP
+	re_netmap_tx_init(sc);
+#endif /* DEV_NETMAP */
 	/* Set EOR. */
 	desc = &sc->rl_ldata.rl_tx_list[sc->rl_ldata.rl_tx_desc_cnt - 1];
 	desc->rl_cmdstat |= htole32(RL_TDESC_CMD_EOR);
@@ -2037,6 +2050,9 @@ re_rx_list_init(struct rl_softc *sc)
 		if ((error = re_newbuf(sc, i)) != 0)
 			return (error);
 	}
+#ifdef DEV_NETMAP
+	re_netmap_rx_init(sc);
+#endif /* DEV_NETMAP */
 
 	/* Flush the RX descriptors */
 
@@ -2093,6 +2109,13 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 	RL_LOCK_ASSERT(sc);
 
 	ifp = sc->rl_ifp;
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		NA(ifp)->rx_rings->nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&NA(ifp)->rx_rings->si, PI_NET);
+		return 0;
+	}
+#endif /* DEV_NETMAP */
 	if (ifp->if_mtu > RL_MTU && (sc->rl_flags & RL_FLAG_JUMBOV2) != 0)
 		jumbo = 1;
 	else
@@ -2334,6 +2357,12 @@ re_txeof(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		selwakeuppri(&NA(ifp)->tx_rings[0].si, PI_NET);
+		return;
+	}
+#endif /* DEV_NETMAP */
 	/* Invalidate the TX descriptor list */
 	bus_dmamap_sync(sc->rl_ldata.rl_tx_list_tag,
 	    sc->rl_ldata.rl_tx_list_map,
@@ -2852,6 +2881,21 @@ re_start_locked(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
+#ifdef DEV_NETMAP
+	/* XXX is this necessary ? */
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_kring *kring = &NA(ifp)->tx_rings[0];
+		if (sc->rl_ldata.rl_tx_prodidx != kring->nr_hwcur) {
+			/* kick the tx unit */
+			CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
+#ifdef RE_TX_MODERATION
+			CSR_WRITE_4(sc, RL_TIMERCNT, 1);
+#endif
+			sc->rl_watchdog_timer = 5;
+		}
+		return;
+	}
+#endif /* DEV_NETMAP */
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0)
 		return;
