@@ -322,7 +322,7 @@ static int fdir_pballoc = 1;
  * be a reference on how to implement netmap support in a driver.
  * Additional comments are in ixgbe_netmap.h .
  *
- * <dev/netma/ixgbe_netmap.h> contains functions for netmap support
+ * <dev/netmap/ixgbe_netmap.h> contains functions for netmap support
  * that extend the standard driver.
  */
 #include <dev/netmap/ixgbe_netmap.h>
