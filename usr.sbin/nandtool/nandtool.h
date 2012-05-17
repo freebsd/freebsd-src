@@ -37,10 +37,12 @@ struct cmd_param
 
 char *param_get_string(struct cmd_param *, const char *);
 int param_get_int(struct cmd_param *, const char *);
+int param_get_intx(struct cmd_param *, const char *);
 int param_get_boolean(struct cmd_param *, const char *);
 int param_has_value(struct cmd_param *, const char *);
 int param_get_count(struct cmd_param *);
 void perrorf(const char *, ...);
+void hexdumpoffset(uint8_t *, int, int);
 void hexdump(uint8_t *, int);
 void *xmalloc(size_t);
 

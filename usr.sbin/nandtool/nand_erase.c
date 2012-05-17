@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/disk.h>
@@ -41,46 +40,47 @@ int nand_erase(struct cmd_param *params)
 {
 	struct chip_param_io chip_params;
 	char *dev;
-	int fd = -1;
-	off_t pos, count, err = 0;
+	int fd = -1, ret = 0;
+	off_t pos, count;
 	off_t start, nblocks, i;
 	int block_size, mult;
 
 	if (!(dev = param_get_string(params, "dev"))) {
 		fprintf(stderr, "Please supply valid 'dev' parameter.\n");
-		return (EINVAL);
+		return (1);
 	}
+
+	if (param_has_value(params, "count"))
+		count = param_get_intx(params, "count");
+	else
+		count = 1;
 
 	if ((fd = g_open(dev, 1)) < 0) {
 		perrorf("Cannot open %s", dev);
-		return (errno);
+		return (1);
 	}
-
-	if ((count = param_get_int(params, "count")) < 0)
-		count = 1;
 
 	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
 		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 	block_size = chip_params.page_size * chip_params.pages_per_block;
 
 	if (param_has_value(params, "page")) {
-		pos = chip_params.page_size * param_get_int(params, "page");
+		pos = chip_params.page_size * param_get_intx(params, "page");
 		mult = chip_params.page_size;
 	} else if (param_has_value(params, "block")) {
-		pos = block_size * param_get_int(params, "block");
+		pos = block_size * param_get_intx(params, "block");
 		mult = block_size;
 	} else if (param_has_value(params, "pos")) {
-		pos = param_get_int(params, "pos");
+		pos = param_get_intx(params, "pos");
 		mult = 1;
-
 	} else {
-		/* Erase all chip */
+		/* Erase whole chip */
 		if (ioctl(fd, DIOCGMEDIASIZE, &count) == -1) {
-			err = errno;
+			ret = 1;
 			goto out;
 		}
 
@@ -90,7 +90,7 @@ int nand_erase(struct cmd_param *params)
 
 	if (pos % block_size) {
 		fprintf(stderr, "Position must be block-size aligned!\n");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -99,16 +99,16 @@ int nand_erase(struct cmd_param *params)
 	nblocks = count / block_size;
 
 	for (i = 0; i < nblocks; i++) {
-		if (g_delete(fd, (start + i) * block_size, block_size) < 0) {
+		if (g_delete(fd, (start + i) * block_size, block_size) == -1) {
 			perrorf("Cannot erase block %d - probably a bad block",
 			    start + i);
+			ret = 1;
 		}
 	}
 
 out:
-	if (fd)
-		g_close(fd);
+	g_close(fd);
 
-	return (err);
+	return (ret);
 }
 

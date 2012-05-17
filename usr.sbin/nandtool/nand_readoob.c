@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <libgeom.h>
 #include <sys/types.h>
@@ -43,44 +42,44 @@ int nand_read_oob(struct cmd_param *params)
 	struct chip_param_io chip_params;
 	struct nand_oob_rw req;
 	char *dev, *out;
-	int fd = -1, fd_out = -1;
-	int page, err = 0;
+	int fd = -1, fd_out = -1, ret = 0;
+	int page;
 	uint8_t *buf = NULL;
 
 	if ((page = param_get_int(params, "page")) < 0) {
 		fprintf(stderr, "You must supply valid 'page' argument.\n");
-		return (EINVAL);
+		return (1);
 	}
 
 	if (!(dev = param_get_string(params, "dev"))) {
 		fprintf(stderr, "You must supply 'dev' argument.\n");
-		return (EINVAL);
+		return (1);
 	}
 
 	if ((out = param_get_string(params, "out"))) {
-		if ((fd_out = open(out, O_WRONLY | O_CREAT)) < 0) {
+		if ((fd_out = open(out, O_WRONLY | O_CREAT)) == -1) {
 			perrorf("Cannot open %s", out);
-			err = errno;
+			ret = 1;
 			goto out;
 		}
 	}
 
-	if ((fd = g_open(dev, 1)) < 0) {
+	if ((fd = g_open(dev, 1)) == -1) {
 		perrorf("Cannot open %s", dev);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
 		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 	buf = malloc(chip_params.oob_size);
 	if (buf == NULL) {
 		perrorf("Cannot allocate %d bytes\n", chip_params.oob_size);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -90,7 +89,7 @@ int nand_read_oob(struct cmd_param *params)
 
 	if (ioctl(fd, NAND_IO_OOB_READ, &req) == -1) {
 		perrorf("Cannot read OOB from %s", dev);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -100,13 +99,13 @@ int nand_read_oob(struct cmd_param *params)
 		hexdump(buf, chip_params.oob_size);
 
 out:
+	close(fd_out);
+
 	if (fd != -1)
-		close(fd);
-	if (fd_out != -1)
-		g_close(fd_out);
+		g_close(fd);
 	if (buf)
 		free(buf);
 
-	return (err);
+	return (ret);
 }
 

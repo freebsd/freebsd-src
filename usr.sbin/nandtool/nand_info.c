@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <errno.h>
 #include <libgeom.h>
 #include <sys/disk.h>
 #include <dev/nand/nand_dev.h>
@@ -40,30 +39,31 @@ __FBSDID("$FreeBSD$");
 int nand_info(struct cmd_param *params)
 {
 	struct chip_param_io chip_params;
-	int fd = -1, err = 0, block_size;
+	int fd = -1, ret = 0;
+	int block_size;
 	off_t chip_size, media_size;
 	const char *dev;
 
 	if ((dev = param_get_string(params, "dev")) == NULL) {
 		fprintf(stderr, "Please supply 'dev' parameter, eg. "
 		    "'dev=/dev/gnand0'\n");
-		return (EINVAL);
+		return (1);
 	}
 
-	if ((fd = g_open(dev, 1)) < 0) {
+	if ((fd = g_open(dev, 1)) == -1) {
 		perrorf("Cannot open %s", dev);
-		return (errno);
+		return (1);
 	}
 
 	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
 		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 	if (ioctl(fd, DIOCGMEDIASIZE, &media_size) == -1) {
 		perrorf("Cannot ioctl(DIOCGMEDIASIZE)");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -80,8 +80,7 @@ int nand_info(struct cmd_param *params)
 	    (uintmax_t)(media_size / 1024 / 1024));
 
 out:
-	if (fd != -1)
-		g_close(fd);
+	g_close(fd);
 
-	return (err);
+	return (ret);
 }

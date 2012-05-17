@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <libgeom.h>
 #include <sys/disk.h>
@@ -40,34 +39,33 @@ __FBSDID("$FreeBSD$");
 int nand_read(struct cmd_param *params)
 {
 	struct chip_param_io chip_params;
-	int fd = -1, out_fd = -1, ret;
+	int fd = -1, out_fd = -1, done = 0, ret = 0;
 	char *dev, *out;
+	int pos, count, mult, block_size;
 	uint8_t *buf = NULL;
-	int pos, done = 0, count, mult, block_size;
-	int err = 0;
 
 	if (!(dev = param_get_string(params, "dev"))) {
 		fprintf(stderr, "You must specify 'dev' parameter\n");
-		return (EINVAL);
+		return (1);
 	}
 
 	if ((out = param_get_string(params, "out"))) {
 		out_fd = open(out, O_WRONLY|O_CREAT);
-		if (out_fd < 0) {
+		if (out_fd == -1) {
 			perrorf("Cannot open %s for writing", out);
-			return (EINVAL);
+			return (1);
 		}
 	}
 
-	if ((fd = g_open(dev, 1)) < 0) {
+	if ((fd = g_open(dev, 1)) == -1) {
 		perrorf("Cannot open %s", dev);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
 		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -84,13 +82,13 @@ int nand_read(struct cmd_param *params)
 		mult = 1;
 		if (pos % chip_params.page_size) {
 			fprintf(stderr, "Position must be page-size aligned!\n");
-			err = errno;
+			ret = 1;
 			goto out;
 		}
 	} else {
 		fprintf(stderr, "You must specify one of: 'block', 'page',"
 		    "'pos' arguments\n");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -102,7 +100,7 @@ int nand_read(struct cmd_param *params)
 	if (!(buf = malloc(chip_params.page_size))) {
 		perrorf("Cannot allocate buffer [size %x]",
 		    chip_params.page_size);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -115,27 +113,27 @@ int nand_read(struct cmd_param *params)
 			goto out;
 		}
 
-		done += ret;
-
 		if (out_fd != -1) {
+			done += ret;
 			if ((ret = write(out_fd, buf, chip_params.page_size)) !=
 			    (int32_t)chip_params.page_size) {
 				perrorf("write error (written %d bytes)", ret);
-				err = errno;
+				ret = 1;
 				goto out;
 			}
-		} else
-			hexdump(buf, chip_params.page_size);
+		} else {
+			hexdumpoffset(buf, chip_params.page_size, done);
+			done += ret;
+		}
 	}
 
 out:
-	if (fd != -1)
-		g_close(fd);
+	g_close(fd);
 	if (out_fd != -1)
 		close(out_fd);
 	if (buf)
 		free(buf);
 
-	return (err);
+	return (ret);
 }
 

@@ -27,10 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <stdarg.h>
 #include <ctype.h>
 #include <sysexits.h>
@@ -55,8 +55,8 @@ static const struct {
 	{ NULL, NULL, NULL },
 };
 
-char *
-param_get_string(struct cmd_param *params, const char *name)
+static char *
+_param_get_stringx(struct cmd_param *params, const char *name, int doexit)
 {
 	int i;
 
@@ -65,26 +65,54 @@ param_get_string(struct cmd_param *params, const char *name)
 			return params[i].value;
 	}
 
+	if (doexit) {
+		perrorf("Missing parameter %s", name);
+		exit(1);
+	}
 	return (NULL);
+}
+
+char *
+param_get_string(struct cmd_param *params, const char *name)
+{
+
+	return (_param_get_stringx(params, name, 0));
+}
+
+static int
+_param_get_intx(struct cmd_param *params, const char *name, int doexit)
+{
+	int ret;
+	char *str = _param_get_stringx(params, name, doexit);
+
+	if (!str)
+		return (-1);
+
+	errno = 0;
+	ret = (int)strtol(str, (char **)NULL, 10);
+	if (errno) {
+		if (doexit) {
+			perrorf("Invalid value for parameter %s", name);
+			exit(1);
+		}
+		return (-1);
+	}
+
+	return (ret);
+}
+
+int
+param_get_intx(struct cmd_param *params, const char *name)
+{
+
+	return (_param_get_intx(params, name, 1));
 }
 
 int
 param_get_int(struct cmd_param *params, const char *name)
 {
-	unsigned long ret;
-	char *str = param_get_string(params, name);
 
-	if (!str)  {
-		errno = EINVAL;
-		return (-1);
-	}
-
-	ret = strtoul(str, NULL, 0);
-
-	if (!ret && errno == EINVAL)
-		return (-1);
-
-	return (ret);
+	return (_param_get_intx(params, name, 0));
 }
 
 int
@@ -125,11 +153,11 @@ param_get_count(struct cmd_param *params)
 }
 
 void
-hexdump(uint8_t *buf, int length)
+hexdumpoffset(uint8_t *buf, int length, int off)
 {
 	int i, j;
 	for (i = 0; i < length; i += 16) {
-		printf("%08x: ", i);
+		printf("%08x: ", off + i);
 
 		for (j = 0; j < 16; j++)
 			printf("%02x ", buf[i+j]);
@@ -144,6 +172,13 @@ hexdump(uint8_t *buf, int length)
 
 		printf("\n");
 	}
+}
+
+void
+hexdump(uint8_t *buf, int length)
+{
+
+	hexdumpoffset(buf, length, 0);
 }
 
 void *

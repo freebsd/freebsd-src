@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <libgeom.h>
 #include <sys/disk.h>
@@ -41,36 +40,34 @@ int nand_write(struct cmd_param *params)
 {
 	struct chip_param_io chip_params;
 	char *dev, *file;
-	int fd = -1, in_fd = -1, ret, err = 0;
+	int in_fd = -1, ret = 0, done = 0;
+	int fd, block_size, mult, pos, count;
 	uint8_t *buf = NULL;
-	int block_size, mult, pos, done = 0, count, raw;
-
-	raw = param_get_boolean(params, "raw");
 
 	if (!(dev = param_get_string(params, "dev"))) {
 		fprintf(stderr, "Please supply 'dev' argument.\n");
-		return (EINVAL);
+		return (1);
 	}
 
 	if (!(file = param_get_string(params, "in"))) {
 		fprintf(stderr, "Please supply 'in' argument.\n");
-		return (EINVAL);
+		return (1);
 	}
 
-	if ((fd = g_open(dev, 1)) < 0) {
+	if ((fd = g_open(dev, 1)) == -1) {
 		perrorf("Cannot open %s", dev);
-		return (errno);
+		return (1);
 	}
 
-	if ((in_fd = open(file, O_RDONLY)) < 0) {
+	if ((in_fd = open(file, O_RDONLY)) == -1) {
 		perrorf("Cannot open file %s", file);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
 		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -88,13 +85,13 @@ int nand_write(struct cmd_param *params)
 		if (pos % chip_params.page_size) {
 			fprintf(stderr, "Position must be page-size "
 			    "aligned!\n");
-			errno = EINVAL;
+			ret = 1;
 			goto out;
 		}
 	} else {
 		fprintf(stderr, "You must specify one of: 'block', 'page',"
 		    "'pos' arguments\n");
-		errno = EINVAL;
+		ret = 1;
 		goto out;
 	}
 
@@ -106,7 +103,7 @@ int nand_write(struct cmd_param *params)
 	if (!(buf = malloc(chip_params.page_size))) {
 		perrorf("Cannot allocate buffer [size %x]",
 		    chip_params.page_size);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -120,14 +117,14 @@ int nand_write(struct cmd_param *params)
 				break;
 			} else {
 				perrorf("Cannot read from %s", file);
-				err = errno;
+				ret = 1;
 				goto out;
 			}
 		}
 
 		if ((ret = write(fd, buf, chip_params.page_size)) !=
 		    (int32_t)chip_params.page_size) {
-			err = errno;
+			ret = 1;
 			goto out;
 		}
 
@@ -135,13 +132,12 @@ int nand_write(struct cmd_param *params)
 	}
 
 out:
-	if (fd != -1)
-		g_close(fd);
+	g_close(fd);
 	if (in_fd != -1)
 		close(in_fd);
 	if (buf)
 		free(buf);
 
-	return (0);
+	return (ret);
 }
 

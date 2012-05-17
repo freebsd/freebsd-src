@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <libgeom.h>
 #include <sys/disk.h>
@@ -42,52 +41,52 @@ int nand_write_oob(struct cmd_param *params)
 	struct chip_param_io chip_params;
 	struct nand_oob_rw req;
 	char *dev, *in;
-	int fd = -1, fd_in = -1;
+	int fd = -1, fd_in = -1, ret = 0;
 	uint8_t *buf = NULL;
-	int page, err = 0;
+	int page;
 
 	if (!(dev = param_get_string(params, "dev"))) {
 		fprintf(stderr, "Please supply valid 'dev' parameter.\n");
-		return (EINVAL);
+		return (1);
 	}
 
 	if (!(in = param_get_string(params, "in"))) {
 		fprintf(stderr, "Please supply valid 'in' parameter.\n");
-		return (EINVAL);
+		return (1);
 	}
 
 	if ((page = param_get_int(params, "page")) < 0) {
 		fprintf(stderr, "Please supply valid 'page' parameter.\n");
-		return (EINVAL);
+		return (1);
 	}
 
-	if ((fd = g_open(dev, 1)) < 0) {
+	if ((fd = g_open(dev, 1)) == -1) {
 		perrorf("Cannot open %s", dev);
-		return (errno);
+		return (1);
 	}
 
-	if ((fd_in = open(in, O_RDONLY)) < 0) {
+	if ((fd_in = open(in, O_RDONLY)) == -1) {
 		perrorf("Cannot open %s", in);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 	if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1) {
 		perrorf("Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
-	buf = xmalloc(chip_params.oob_size);
+	buf = malloc(chip_params.oob_size);
 	if (buf == NULL) {
 		perrorf("Cannot allocate %d bytes\n", chip_params.oob_size);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
-	if (read(fd_in, buf, chip_params.oob_size) < 0) {
+	if (read(fd_in, buf, chip_params.oob_size) == -1) {
 		perrorf("Cannot read from %s", in);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
@@ -97,19 +96,18 @@ int nand_write_oob(struct cmd_param *params)
 
 	if (ioctl(fd, NAND_IO_OOB_PROG, &req) == -1) {
 		perrorf("Cannot write OOB to %s", dev);
-		err = errno;
+		ret = 1;
 		goto out;
 	}
 
 out:
-	if (fd != -1)
-		g_close(fd);
+	g_close(fd);
 	if (fd_in != -1)
 		close(fd_in);
 	if (buf)
 		free(buf);
 
-	return (err);
+	return (ret);
 }
 
 
