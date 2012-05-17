@@ -94,7 +94,7 @@ utilises the
 .Xr sysctl 8
 interface to export its configuration variables to user-space.
 The following variables are available:
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va net.inet.siftr.enabled
 controls whether the module performs its
 measurements or not.
@@ -107,7 +107,7 @@ packet filtering hooks are only inserted when
 .Va net.inet.siftr.enabled
 is set to 1.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va net.inet.siftr.ppl
 controls how many inbound/outbound packets for a given TCP connection will cause
 a log message to be generated for the connection.
@@ -116,13 +116,13 @@ every packet of every TCP connection.
 The value can be set to any integer in the range [1,2^32], and can be changed at
 any time, even while the module is enabled.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va net.inet.siftr.logfile
 controls the path to the file that the module writes its log messages to.
 By default, the file /var/log/siftr.log is used.
 The path can be changed at any time, even while the module is enabled.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va net.inet.siftr.genhashes
 controls whether a hash is generated for each TCP packet seen by
 .Nm .
@@ -153,36 +153,36 @@ sysname=FreeBSD    sysver=604000    ipmode=4
 .Ed
 .Pp
 Field descriptions are as follows:
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va enable_time_secs
 time at which the module was enabled, in seconds since the UNIX epoch.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va enable_time_usecs
 time at which the module was enabled, in microseconds since enable_time_secs.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va siftrver
 version of
 .Nm .
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va hz
 tick rate of the kernel in ticks per second.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va tcp_rtt_scale
 smoothed RTT estimate scaling factor.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va sysname
 operating system name.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va sysver
 operating system version.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va ipmode
 IP mode as defined at compile time.
 An ipmode of "4" means IPv6 is not supported and IP addresses are logged in
@@ -205,7 +205,7 @@ o,0xbec491a5,1238556193.463551,172.16.7.28,22,172.16.2.5,55931, \\
 .Ed
 .Pp
 Field descriptions are as follows:
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 1
 Direction of packet that triggered the log message.
 Either
@@ -214,77 +214,77 @@ for in, or
 .Qq o
 for out.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 2
 Hash of the packet that triggered the log message.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 3
 Time at which the packet that triggered the log message was processed by
 the
 .Xr pfil 9
 hook function, in seconds and microseconds since the UNIX epoch.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 4
 The IPv4 or IPv6 address of the local host, in dotted quad (IPv4 packet)
 or colon-separated hex (IPv6 packet) notation.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 5
 The TCP port that the local host is communicating via.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 6
 The IPv4 or IPv6 address of the foreign host, in dotted quad (IPv4 packet)
 or colon-separated hex (IPv6 packet) notation.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 7
 The TCP port that the foreign host is communicating via.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 8
 The slow start threshold for the flow, in bytes.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 9
 The current congestion window for the flow, in bytes.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 10
 The current bandwidth-controlled window for the flow, in bytes.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 11
 The current sending window for the flow, in bytes.
 The post scaled value is reported, except during the initial handshake (first
 few packets), during which time the unscaled value is reported.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 12
 The current receive window for the flow, in bytes.
 The post scaled value is always reported.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 13
 The current window scaling factor for the sending window.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 14
 The current window scaling factor for the receiving window.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 15
 The current state of the TCP finite state machine, as defined
 in
 .Aq Pa netinet/tcp_fsm.h .
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 16
 The maximum segment size for the flow, in bytes.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 17
 The current smoothed RTT estimate for the flow, in units of TCP_RTT_SCALE * HZ,
 where TCP_RTT_SCALE is a define found in tcp_var.h, and HZ is the kernel's tick
@@ -292,46 +292,46 @@ timer.
 Divide by TCP_RTT_SCALE * HZ to get the RTT in secs. TCP_RTT_SCALE and HZ are
 reported in the enable log message.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 18
 SACK enabled indicator. 1 if SACK enabled, 0 otherwise.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 19
 The current state of the TCP flags for the flow.
 See
 .Aq Pa netinet/tcp_var.h
 for information about the various flags.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 20
 The current retransmission timeout length for the flow, in units of HZ, where HZ
 is the kernel's tick timer.
 Divide by HZ to get the timeout length in seconds. HZ is reported in the
 enable log message.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 21
 The current size of the socket send buffer in bytes.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 22
 The current number of bytes in the socket send buffer.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 23
 The current size of the socket receive buffer in bytes.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 24
 The current number of bytes in the socket receive buffer.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 25
 The current number of unacknowledged bytes in-flight.
 Bytes acknowledged via SACK are not excluded from this count.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va 26
 The current number of segments in the reassembly queue.
 .El
@@ -353,82 +353,82 @@ flow_list=172.16.7.28;22-172.16.2.5;55931,
 .Ed
 .Pp
 Field descriptions are as follows:
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va disable_time_secs
 Time at which the module was disabled, in seconds since the UNIX epoch.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va disable_time_usecs
 Time at which the module was disabled, in microseconds since disable_time_secs.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_inbound_tcp_pkts
 Number of TCP packets that traversed up the network stack.
 This only includes inbound TCP packets during the periods when
 .Nm
 was enabled.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_outbound_tcp_pkts
 Number of TCP packets that traversed down the network stack.
 This only includes outbound TCP packets during the periods when
 .Nm
 was enabled.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va total_tcp_pkts
 The summation of num_inbound_tcp_pkts and num_outbound_tcp_pkts.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_inbound_skipped_pkts_malloc
 Number of inbound packets that were not processed because of failed malloc() calls.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_outbound_skipped_pkts_malloc
 Number of outbound packets that were not processed because of failed malloc() calls.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_inbound_skipped_pkts_mtx
 Number of inbound packets that were not processed because of failure to add the
 packet to the packet processing queue.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_outbound_skipped_pkts_mtx
 Number of outbound packets that were not processed because of failure to add the
 packet to the packet processing queue.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_inbound_skipped_pkts_tcb
 Number of inbound packets that were not processed because of failure to find the
 TCP control block associated with the packet.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_outbound_skipped_pkts_tcb
 Number of outbound packets that were not processed because of failure to find
 the TCP control block associated with the packet.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_inbound_skipped_pkts_icb
 Number of inbound packets that were not processed because of failure to find the
 IP control block associated with the packet.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va num_outbound_skipped_pkts_icb
 Number of outbound packets that were not processed because of failure to find
 the IP control block associated with the packet.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va total_skipped_tcp_pkts
 The summation of all skipped packet counters.
 .El
-.Bl -tag -offset indent
+.Bl -tag -offset indent -width Va
 .It Va flow_list
 A CSV list of TCP flows that triggered data log messages to be generated since
 the module was loaded.
 Each flow entry in the CSV list is
 formatted as
 .Qq local_ip;local_port-foreign_ip;foreign_port .
-If there are no entries in the list (i.e. no data log messages were generated),
+If there are no entries in the list (i.e., no data log messages were generated),
 the value will be blank.
 If there is at least one entry in the list, a trailing comma will always be
 present.
@@ -501,10 +501,10 @@ the system to trigger a dump of the state of the TCP control block for that
 flow.
 With the PPL set to 1, we are in effect sampling each TCP flow's control block
 state as frequently as flow packets enter/leave the system.
-For example, setting PPL to 2 halves the sampling rate i.e. every second flow
+For example, setting PPL to 2 halves the sampling rate i.e., every second flow
 packet (inbound OR outbound) causes a dump of the control block state.
 .Pp
-The distinction between interrogating individual packets vs interrogating the
+The distinction between interrogating individual packets versus interrogating the
 control block is important, because
 .Nm
 does not remove the need for packet capturing tools like
@@ -546,7 +546,7 @@ If one thread holds the lock, the other must wait before it can obtain it.
 This does introduce some additional bounded delay into the kernel's packet
 processing code path.
 .Pp
-In some cases (e.g. low memory, connection termination), TCP packets that enter
+In some cases (e.g., low memory, connection termination), TCP packets that enter
 the
 .Nm
 .Xr pfil 9
