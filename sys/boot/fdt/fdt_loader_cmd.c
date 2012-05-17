@@ -57,11 +57,17 @@ __FBSDID("$FreeBSD$");
 #define STR(number) #number
 #define STRINGIFY(number) STR(number)
 
-#define COPYOUT(s,d,l)	archsw.arch_copyout((vm_offset_t)(s), d, l)
+#define COPYOUT(s,d,l)	archsw.arch_copyout(s, d, l)
+#define COPYIN(s,d,l)	archsw.arch_copyin(s, d, l)
 
 #define FDT_STATIC_DTB_SYMBOL	"fdt_static_dtb"
 
+/* Local copy of FDT */
 static struct fdt_header *fdtp = NULL;
+/* Size of FDT blob */
+static size_t fdtp_size = 0;
+/* Location of FDT in kernel or module */
+static vm_offset_t fdtp_va = 0;
 
 static int fdt_cmd_nyi(int argc, char *argv[]);
 
@@ -98,21 +104,19 @@ static const struct cmdtab commands[] = {
 static char cwd[FDT_CWD_LEN] = "/";
 
 static vm_offset_t
-fdt_find_static_dtb(void)
+fdt_find_static_dtb()
 {
+	Elf_Dyn dyn;
 	Elf_Sym sym;
-	vm_offset_t dyntab, esym;
+	vm_offset_t dyntab, esym, strtab, symtab, fdt_start;
 	uint64_t offs;
 	struct preloaded_file *kfp;
 	struct file_metadata *md;
-	Elf_Sym *symtab;
-	Elf_Dyn *dyn;
-	char *strtab, *strp;
-	int i, sym_count;
+	char *strp;
+	int sym_count;
 
-	symtab = NULL;
-	dyntab = esym = 0;
-	strtab = strp = NULL;
+	symtab = strtab = dyntab = esym = 0;
+	strp = NULL;
 
 	offs = __elfN(relocation_offset);
 
@@ -123,28 +127,29 @@ fdt_find_static_dtb(void)
 	md = file_findmetadata(kfp, MODINFOMD_ESYM);
 	if (md == NULL)
 		return (0);
-	COPYOUT(md->md_data, &esym, sizeof(esym));
+	bcopy(md->md_data, &esym, sizeof(esym));
+	// esym is already offset
 
 	md = file_findmetadata(kfp, MODINFOMD_DYNAMIC);
 	if (md == NULL)
 		return (0);
-	COPYOUT(md->md_data, &dyntab, sizeof(dyntab));
-
+	bcopy(md->md_data, &dyntab, sizeof(dyntab));
 	dyntab += offs;
 
 	/* Locate STRTAB and DYNTAB */
-	for (dyn = (Elf_Dyn *)dyntab; dyn->d_tag != DT_NULL; dyn++) {
-		if (dyn->d_tag == DT_STRTAB) {
-			strtab = (char *)(uintptr_t)(dyn->d_un.d_ptr + offs);
-			continue;
-		} else if (dyn->d_tag == DT_SYMTAB) {
-			symtab = (Elf_Sym *)(uintptr_t)
-			    (dyn->d_un.d_ptr + offs);
-			continue;
+	for (;;) {
+		COPYOUT(dyntab, &dyn, sizeof(dyn));
+		if (dyn.d_tag == DT_STRTAB) {
+			strtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
+		} else if (dyn.d_tag == DT_SYMTAB) {
+			symtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
+		} else if (dyn.d_tag == DT_NULL) {
+			break;
 		}
+		dyntab += sizeof(dyn);
 	}
 
-	if (symtab == NULL || strtab == NULL) {
+	if (symtab == 0 || strtab == 0) {
 		/*
 		 * No symtab? No strtab? That should not happen here,
 		 * and should have been verified during __elfN(loadimage).
@@ -153,7 +158,7 @@ fdt_find_static_dtb(void)
 		return (0);
 	}
 
-	sym_count = (int)((Elf_Sym *)esym - symtab) / sizeof(Elf_Sym);
+	sym_count = (int)(esym - symtab) / sizeof(Elf_Sym);
 
 	/*
 	 * The most efficent way to find a symbol would be to calculate a
@@ -165,26 +170,27 @@ fdt_find_static_dtb(void)
 	 * we are eliminating symbols type of which is not STT_NOTYPE, or(and)
 	 * those which binding attribute is not STB_GLOBAL.
 	 */
-	for (i = 0; i < sym_count; i++) {
-		COPYOUT(symtab + i, &sym, sizeof(sym));
+	fdt_start = 0;
+	while (sym_count > 0 && fdt_start == 0) {
+		COPYOUT(symtab, &sym, sizeof(sym));
+		symtab += sizeof(sym);
+		--sym_count;
 		if (ELF_ST_BIND(sym.st_info) != STB_GLOBAL ||
 		    ELF_ST_TYPE(sym.st_info) != STT_NOTYPE)
 			continue;
-
-		strp = strdupout((vm_offset_t)(strtab + sym.st_name));
-		if (strcmp(strp, FDT_STATIC_DTB_SYMBOL) == 0) {
-			/* Found a match ! */
-			free(strp);
-			return ((vm_offset_t)(sym.st_value + offs));
-		}
+		strp = strdupout(strtab + sym.st_name);
+		if (strcmp(strp, FDT_STATIC_DTB_SYMBOL) == 0)
+			fdt_start = (vm_offset_t)sym.st_value + offs;
 		free(strp);
 	}
-	return (0);
+	printf("fdt_start: 0x%08jX\n", (intmax_t)fdt_start);
+	return (fdt_start);
 }
 
 static int
 fdt_setup_fdtp()
 {
+	struct fdt_header header;
 	struct preloaded_file *bfp;
 	int err;
 
@@ -193,14 +199,25 @@ fdt_setup_fdtp()
 	 */
 	bfp = file_findfile(NULL, "dtb");
 	if (bfp == NULL) {
-		if ((fdtp = (struct fdt_header *)fdt_find_static_dtb()) == 0) {
+		if ((fdtp_va = fdt_find_static_dtb()) == 0) {
 			command_errmsg = "no device tree blob found!";
+			printf("%s\n", command_errmsg);
 			return (CMD_ERROR);
 		}
 	} else {
 		/* Dynamic blob has precedence over static. */
-		fdtp = (struct fdt_header *)bfp->f_addr;
+		fdtp_va = bfp->f_addr;
 	}
+
+	COPYOUT(fdtp_va, &header, sizeof(header));
+	fdtp_size = fdt_totalsize(&header);
+	fdtp = malloc(fdtp_size);
+	if (fdtp == NULL) {
+		command_errmsg = "can't allocate memory for device tree copy";
+			printf("%s\n", command_errmsg);
+		return (CMD_ERROR);
+	}
+	COPYOUT(fdtp_va, fdtp, fdtp_size);
 
 	/*
 	 * Validate the blob.
@@ -547,7 +564,7 @@ fixup_stdout(const char *env)
 /*
  * Locate the blob, fix it up and return its location.
  */
-void *
+vm_offset_t
 fdt_fixup(void)
 {
 	const char *env;
@@ -563,7 +580,7 @@ fdt_fixup(void)
 	err = fdt_setup_fdtp();
 	if (err) {
 		sprintf(command_errbuf, "No valid device tree blob found!");
-		return (NULL);
+		return (0);
 	}
 
 	/* Create /chosen node (if not exists) */
@@ -618,7 +635,9 @@ fdt_fixup(void)
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
 
 success:
-	return (fdtp);
+	/* Overwrite the FDT with the fixed version. */
+	COPYIN(fdtp, fdtp_va, fdtp_size);
+	return (fdtp_va);
 }
 
 int
@@ -636,7 +655,7 @@ command_fdt_internal(int argc, char *argv[])
 	/*
 	 * Check if uboot env vars were parsed already. If not, do it now.
 	 */
-	if (fdt_fixup() == NULL)
+	if (fdt_fixup() == 0)
 		return (CMD_ERROR);
 
 	/*
@@ -1153,6 +1172,8 @@ fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 		else
 			sprintf(command_errbuf,
 			    "Could not add/modify property!\n");
+	} else {
+		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (rv);
 }
@@ -1373,6 +1394,8 @@ fdt_cmd_rm(int argc, char *argv[])
 	if (rv) {
 		sprintf(command_errbuf, "could not delete node");
 		return (CMD_ERROR);
+	} else {
+		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }
@@ -1403,6 +1426,8 @@ fdt_cmd_mknode(int argc, char *argv[])
 			sprintf(command_errbuf,
 			    "Could not add node!\n");
 		return (CMD_ERROR);
+	} else {
+		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }
