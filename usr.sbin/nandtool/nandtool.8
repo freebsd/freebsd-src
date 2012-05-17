@@ -62,7 +62,6 @@ Write OOB area bound to specified page.
 Get usage info.
 .El
 .Sh COMMAND read
-.Pp
 The following operands are available for
 .Nm
 .Cm read
@@ -87,13 +86,11 @@ to page granularity).
 Count of objects (pages, blocks, bytes).
 .El
 .Sh COMMAND readoob
-.Bl -tag -width ".Cm of Ns = Ns Ar file"
-.Pp
 The following operands are available for
 .Nm
 .Cm readoob
 command:
-.Pp
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
 .It Cm dev Ns = Ns Ar <path>
 Path to NAND device node.
 .It Cm page Ns = Ns Ar <n>
@@ -102,11 +99,11 @@ Offset on device, expressed as page number.
 Output file path, optional.
 .El
 .Sh COMMAND write
-.Bl -tag -width ".Cm of Ns = Ns Ar file"
 The following operands are available for
 .Nm
 .Cm write
 command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
 .It Cm dev Ns = Ns Ar <path>
 Path to NAND device node.
 .It Cm page Ns = Ns Ar <n>
@@ -120,11 +117,11 @@ to page granularity).
 Input file path.
 .El
 .Sh COMMAND writeoob
-.Bl -tag -width ".Cm of Ns = Ns Ar file"
 The following operands are available for
 .Nm
 .Cm writeoob
 command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
 .It Cm dev Ns = Ns Ar <path>
 Path to NAND device node.
 .It Cm page Ns = Ns Ar <n>
@@ -133,11 +130,11 @@ Offset on device, expressed as page number.
 Input file path.
 .El
 .Sh COMMAND erase
-.Bl -tag -width ".Cm of Ns = Ns Ar file"
 The following operands are available for
 .Nm
 .Cm erase
 command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
 .It Cm dev Ns = Ns Ar <path>
 Path to NAND device node.
 .It Cm page Ns = Ns Ar <n>
@@ -155,21 +152,20 @@ WARNING: The only required parameter for the \fBerase\fP command is
 .Ar dev .
 When no other arguments are provided the whole device is erased!
 .Sh COMMAND info
-.Bl -tag -width ".Cm of Ns = Ns Ar file"
 There is only one operand available for
 .Nm
 .Cm info
 command:
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
 .It Cm dev Ns = Ns Ar <path>
 Path to NAND device node.
 .El
 .Sh COMMAND help
-.Bl -tag -width ".Cm of Ns = Ns Ar file"
 There is only one operand available for
 .Nm
 .Cm help
 command:
-.Pp
+.Bl -tag -width ".Cm of Ns = Ns Ar file"
 .It Cm topic Ns = Ns Ar <name>
 Help topic.
 .El
