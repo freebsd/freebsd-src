@@ -1049,9 +1049,8 @@ main(int argc, char **argv)
 				sort_opts_vals.mflag = true;
 				break;
 			case 'o':
-				outfile = sort_realloc(outfile, sizeof(char) *
-				    (strlen(optarg) + 1));
-				strlcpy(outfile, optarg, strlen(outfile));
+				outfile = sort_realloc(outfile, (strlen(optarg) + 1));
+				strcpy(outfile, optarg);
 				break;
 			case 's':
 				sort_opts_vals.sflag = true;
