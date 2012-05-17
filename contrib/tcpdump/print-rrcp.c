@@ -111,8 +111,8 @@ rrcp_print(netdissect_options *ndo,
 	if (rrcp_opcode==1 || rrcp_opcode==2){
 	    ND_TCHECK2(*(rrcp + RRCP_REG_ADDR_OFFSET), 6);
     	    ND_PRINT((ndo, " addr=0x%04x, data=0x%08x",
-		     EXTRACT_16BITS(rrcp + RRCP_REG_ADDR_OFFSET),
-		     EXTRACT_32BITS(rrcp + RRCP_REG_DATA_OFFSET)));
+                     EXTRACT_LE_16BITS(rrcp + RRCP_REG_ADDR_OFFSET),
+                     EXTRACT_LE_32BITS(rrcp + RRCP_REG_DATA_OFFSET)));
 	}
 	if (rrcp_proto==1){
 	    ND_TCHECK2(*(rrcp + RRCP_AUTHKEY_OFFSET), 2);

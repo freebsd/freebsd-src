@@ -55,6 +55,7 @@ const struct tok ipproto_values[] = {
     { IPPROTO_PGM, "PGM" },
     { IPPROTO_SCTP, "SCTP" },
     { IPPROTO_MOBILITY, "Mobility" },
+    { IPPROTO_CARP, "CARP" },
     { 0, NULL }
 };
 
