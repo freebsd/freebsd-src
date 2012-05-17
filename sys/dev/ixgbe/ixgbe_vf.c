@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -37,25 +37,6 @@
 #include "ixgbe_type.h"
 #include "ixgbe_vf.h"
 
-s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw);
-s32 ixgbe_init_hw_vf(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_vf(struct ixgbe_hw *hw);
-s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw);
-s32 ixgbe_stop_hw_vf(struct ixgbe_hw *hw);
-u32 ixgbe_get_num_of_tx_queues_vf(struct ixgbe_hw *hw);
-u32 ixgbe_get_num_of_rx_queues_vf(struct ixgbe_hw *hw);
-s32 ixgbe_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr);
-s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw,
-                                  ixgbe_link_speed speed, bool autoneg,
-                                  bool autoneg_wait_to_complete);
-s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-                            bool *link_up, bool autoneg_wait_to_complete);
-s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
-		      u32 enable_addr);
-s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
-				 u32 mc_addr_count, ixgbe_mc_addr_itr);
-s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on);
-
 #ifndef IXGBE_VFWRITE_REG
 #define IXGBE_VFWRITE_REG IXGBE_WRITE_REG
 #endif
@@ -82,7 +63,7 @@ s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 	hw->mac.ops.clear_hw_cntrs = NULL;
 	hw->mac.ops.get_media_type = NULL;
 	hw->mac.ops.get_mac_addr = ixgbe_get_mac_addr_vf;
-	hw->mac.ops.stop_adapter = ixgbe_stop_hw_vf;
+	hw->mac.ops.stop_adapter = ixgbe_stop_adapter_vf;
 	hw->mac.ops.get_bus_info = NULL;
 
 	/* Link */
@@ -92,6 +73,7 @@ s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 
 	/* RAR, Multicast, VLAN */
 	hw->mac.ops.set_rar = ixgbe_set_rar_vf;
+	hw->mac.ops.set_uc_addr = ixgbevf_set_uc_addr_vf;
 	hw->mac.ops.init_rx_addrs = NULL;
 	hw->mac.ops.update_mc_addr_list = ixgbe_update_mc_addr_list_vf;
 	hw->mac.ops.enable_mc = NULL;
@@ -161,11 +143,12 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	hw->mac.ops.stop_adapter(hw);
 
 	DEBUGOUT("Issuing a function level reset to MAC\n");
-		ctrl = IXGBE_VFREAD_REG(hw, IXGBE_VFCTRL);
-		IXGBE_VFWRITE_REG(hw, IXGBE_VFCTRL, (ctrl | IXGBE_CTRL_RST));
-		IXGBE_WRITE_FLUSH(hw);
 
-	usec_delay(1);
+	ctrl = IXGBE_VFREAD_REG(hw, IXGBE_VFCTRL) | IXGBE_CTRL_RST;
+	IXGBE_VFWRITE_REG(hw, IXGBE_VFCTRL, ctrl);
+	IXGBE_WRITE_FLUSH(hw);
+
+	msec_delay(50);
 
 	/* we cannot reset while the RSTI / RSTD bits are asserted */
 	while (!mbx->ops.check_for_rst(hw, 0) && timeout) {
@@ -182,9 +165,11 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 
 		msec_delay(10);
 
-		/* set our "perm_addr" based on info provided by PF */
-		/* also set up the mc_filter_type which is piggy backed
-		 * on the mac address in word 3 */
+		/*
+		 * set our "perm_addr" based on info provided by PF
+		 * also set up the mc_filter_type which is piggy backed
+		 * on the mac address in word 3
+		 */
 		ret_val = mbx->ops.read_posted(hw, msgbuf,
 					       IXGBE_VF_PERMADDR_MSG_LEN, 0);
 		if (!ret_val) {
@@ -204,7 +189,7 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_stop_hw_vf - Generic stop Tx/Rx units
+ *  ixgbe_stop_adapter_vf - Generic stop Tx/Rx units
  *  @hw: pointer to hardware structure
  *
  *  Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
@@ -212,9 +197,8 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
  *  the shared code and drivers to determine if the adapter is in a stopped
  *  state and should not touch the hardware.
  **/
-s32 ixgbe_stop_hw_vf(struct ixgbe_hw *hw)
+s32 ixgbe_stop_adapter_vf(struct ixgbe_hw *hw)
 {
-	u32 number_of_queues;
 	u32 reg_val;
 	u16 i;
 
@@ -224,33 +208,26 @@ s32 ixgbe_stop_hw_vf(struct ixgbe_hw *hw)
 	 */
 	hw->adapter_stopped = TRUE;
 
-	/* Disable the receive unit by stopped each queue */
-	number_of_queues = hw->mac.max_rx_queues;
-	for (i = 0; i < number_of_queues; i++) {
-		reg_val = IXGBE_VFREAD_REG(hw, IXGBE_VFRXDCTL(i));
-		if (reg_val & IXGBE_RXDCTL_ENABLE) {
-			reg_val &= ~IXGBE_RXDCTL_ENABLE;
-			IXGBE_VFWRITE_REG(hw, IXGBE_VFRXDCTL(i), reg_val);
-		}
-	}
-
-	IXGBE_WRITE_FLUSH(hw);
-
 	/* Clear interrupt mask to stop from interrupts being generated */
 	IXGBE_VFWRITE_REG(hw, IXGBE_VTEIMC, IXGBE_VF_IRQ_CLEAR_MASK);
 
-	/* Clear any pending interrupts */
+	/* Clear any pending interrupts, flush previous writes */
 	IXGBE_VFREAD_REG(hw, IXGBE_VTEICR);
 
 	/* Disable the transmit unit.  Each queue must be disabled. */
-	number_of_queues = hw->mac.max_tx_queues;
-	for (i = 0; i < number_of_queues; i++) {
-		reg_val = IXGBE_VFREAD_REG(hw, IXGBE_VFTXDCTL(i));
-		if (reg_val & IXGBE_TXDCTL_ENABLE) {
-			reg_val &= ~IXGBE_TXDCTL_ENABLE;
-			IXGBE_VFWRITE_REG(hw, IXGBE_VFTXDCTL(i), reg_val);
-		}
+	for (i = 0; i < hw->mac.max_tx_queues; i++)
+		IXGBE_VFWRITE_REG(hw, IXGBE_VFTXDCTL(i), IXGBE_TXDCTL_SWFLSH);
+
+	/* Disable the receive unit by stopping each queue */
+	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		reg_val = IXGBE_VFREAD_REG(hw, IXGBE_VFRXDCTL(i));
+		reg_val &= ~IXGBE_RXDCTL_ENABLE;
+		IXGBE_VFWRITE_REG(hw, IXGBE_VFRXDCTL(i), reg_val);
 	}
+
+	/* flush all queues disables */
+	IXGBE_WRITE_FLUSH(hw);
+	msec_delay(2);
 
 	return IXGBE_SUCCESS;
 }
@@ -304,15 +281,13 @@ static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
  *  @enable_addr: set flag that address is active
  **/
 s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
-		      u32 enable_addr)
+		     u32 enable_addr)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[3];
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
-	UNREFERENCED_PARAMETER(vmdq);
-	UNREFERENCED_PARAMETER(enable_addr);
-	UNREFERENCED_PARAMETER(index);
+	UNREFERENCED_3PARAMETER(vmdq, enable_addr, index);
 
 	memset(msgbuf, 0, 12);
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
@@ -342,7 +317,8 @@ s32 ixgbe_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
  *  Updates the Multicast Table Array.
  **/
 s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
-				  u32 mc_addr_count, ixgbe_mc_addr_itr next)
+				 u32 mc_addr_count, ixgbe_mc_addr_itr next,
+				 bool clear)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
@@ -350,6 +326,8 @@ s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 	u32 vector;
 	u32 cnt, i;
 	u32 vmdq;
+
+	UNREFERENCED_1PARAMETER(clear);
 
 	DEBUGFUNC("ixgbe_update_mc_addr_list_vf");
 
@@ -388,14 +366,14 @@ s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
-	UNREFERENCED_PARAMETER(vind);
+	UNREFERENCED_1PARAMETER(vind);
 
 	msgbuf[0] = IXGBE_VF_SET_VLAN;
 	msgbuf[1] = vlan;
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	return(mbx->ops.write_posted(hw, msgbuf, 2, 0));
+	return mbx->ops.write_posted(hw, msgbuf, 2, 0);
 }
 
 /**
@@ -406,7 +384,7 @@ s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on)
  **/
 u32 ixgbe_get_num_of_tx_queues_vf(struct ixgbe_hw *hw)
 {
-	UNREFERENCED_PARAMETER(hw);
+	UNREFERENCED_1PARAMETER(hw);
 	return IXGBE_VF_MAX_TX_QUEUES;
 }
 
@@ -418,7 +396,7 @@ u32 ixgbe_get_num_of_tx_queues_vf(struct ixgbe_hw *hw)
  **/
 u32 ixgbe_get_num_of_rx_queues_vf(struct ixgbe_hw *hw)
 {
-	UNREFERENCED_PARAMETER(hw);
+	UNREFERENCED_1PARAMETER(hw);
 	return IXGBE_VF_MAX_RX_QUEUES;
 }
 
@@ -436,6 +414,38 @@ s32 ixgbe_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 	return IXGBE_SUCCESS;
 }
 
+s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	u32 msgbuf[3];
+	u8 *msg_addr = (u8 *)(&msgbuf[1]);
+	s32 ret_val;
+
+	memset(msgbuf, 0, sizeof(msgbuf));
+	/*
+	 * If index is one then this is the start of a new list and needs
+	 * indication to the PF so it can do it's own list management.
+	 * If it is zero then that tells the PF to just clear all of
+	 * this VF's macvlans and there is no new list.
+	 */
+	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
+	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
+	if (addr)
+		memcpy(msg_addr, addr, 6);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 3, 0);
+
+	if (!ret_val)
+		ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
+
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+	if (!ret_val)
+		if (msgbuf[0] == (IXGBE_VF_SET_MACVLAN | IXGBE_VT_MSGTYPE_NACK))
+			ret_val = IXGBE_ERR_OUT_OF_MEM;
+
+	return ret_val;
+}
+
 /**
  *  ixgbe_setup_mac_link_vf - Setup MAC link settings
  *  @hw: pointer to hardware structure
@@ -446,13 +456,10 @@ s32 ixgbe_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw,
-                                  ixgbe_link_speed speed, bool autoneg,
-                                  bool autoneg_wait_to_complete)
+			    ixgbe_link_speed speed, bool autoneg,
+			    bool autoneg_wait_to_complete)
 {
-	UNREFERENCED_PARAMETER(hw);
-	UNREFERENCED_PARAMETER(speed);
-	UNREFERENCED_PARAMETER(autoneg);
-	UNREFERENCED_PARAMETER(autoneg_wait_to_complete);
+	UNREFERENCED_4PARAMETER(hw, speed, autoneg, autoneg_wait_to_complete);
 	return IXGBE_SUCCESS;
 }
 
@@ -466,10 +473,10 @@ s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw,
  *  Reads the links register to determine if link is up and the current speed
  **/
 s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-                            bool *link_up, bool autoneg_wait_to_complete)
+			    bool *link_up, bool autoneg_wait_to_complete)
 {
 	u32 links_reg;
-	UNREFERENCED_PARAMETER(autoneg_wait_to_complete);
+	UNREFERENCED_1PARAMETER(autoneg_wait_to_complete);
 
 	if (!(hw->mbx.ops.check_for_rst(hw, 0))) {
 		*link_up = FALSE;
