@@ -2199,10 +2199,6 @@ DIOCGETSTATES_full:
 	case DIOCADDADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 
-		if (pp->ticket != V_ticket_pabuf) {
-			error = EBUSY;
-			break;
-		}
 #ifndef INET
 		if (pp->af == AF_INET) {
 			error = EAFNOSUPPORT;
@@ -2222,8 +2218,14 @@ DIOCGETSTATES_full:
 			break;
 		}
 		pa = uma_zalloc(V_pf_pooladdr_z, M_WAITOK);
-		bcopy(&pp->addr, pa, sizeof(struct pf_pooladdr));
 		PF_LOCK();
+		if (pp->ticket != V_ticket_pabuf) {
+			PF_UNLOCK();
+			uma_zfree(V_pf_pooladdr_z, pa);
+			error = EBUSY;
+			break;
+		}
+		bcopy(&pp->addr, pa, sizeof(struct pf_pooladdr));
 		if (pa->ifname[0]) {
 			pa->kif = pfi_kif_get(pa->ifname);
 			if (pa->kif == NULL) {
