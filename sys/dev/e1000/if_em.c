@@ -193,13 +193,14 @@ static int	em_detach(device_t);
 static int	em_shutdown(device_t);
 static int	em_suspend(device_t);
 static int	em_resume(device_t);
-static void	em_start(struct ifnet *);
-static void	em_start_locked(struct ifnet *, struct tx_ring *);
 #ifdef EM_MULTIQUEUE
 static int	em_mq_start(struct ifnet *, struct mbuf *);
 static int	em_mq_start_locked(struct ifnet *,
 		    struct tx_ring *, struct mbuf *);
 static void	em_qflush(struct ifnet *);
+#else
+static void	em_start(struct ifnet *);
+static void	em_start_locked(struct ifnet *, struct tx_ring *);
 #endif
 static int	em_ioctl(struct ifnet *, u_long, caddr_t);
 static void	em_init(void *);
@@ -234,7 +235,7 @@ static void	em_enable_intr(struct adapter *);
 static void	em_disable_intr(struct adapter *);
 static void	em_update_stats_counters(struct adapter *);
 static void	em_add_hw_stats(struct adapter *adapter);
-static bool	em_txeof(struct tx_ring *);
+static void	em_txeof(struct tx_ring *);
 static bool	em_rxeof(struct rx_ring *, int, int *);
 #ifndef __NO_STRICT_ALIGNMENT
 static int	em_fixup_rx(struct rx_ring *);
@@ -836,6 +837,7 @@ static int
 em_resume(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
+	struct tx_ring	*txr = adapter->tx_rings;
 	struct ifnet *ifp = adapter->ifp;
 
 	EM_CORE_LOCK(adapter);
@@ -843,8 +845,22 @@ em_resume(device_t dev)
 		e1000_resume_workarounds_pchlan(&adapter->hw);
 	em_init_locked(adapter);
 	em_init_manageability(adapter);
+
+	if ((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) && adapter->link_active) {
+		for (int i = 0; i < adapter->num_queues; i++, txr++) {
+			EM_TX_LOCK(txr);
+#ifdef EM_MULTIQUEUE
+			if (!drbr_empty(ifp, txr->br))
+				em_mq_start_locked(ifp, txr, NULL);
+#else
+			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+				em_start_locked(ifp, txr);
+#endif
+			EM_TX_UNLOCK(txr);
+		}
+	}
 	EM_CORE_UNLOCK(adapter);
-	em_start(ifp);
 
 	return bus_generic_resume(dev);
 }
@@ -948,7 +964,7 @@ em_qflush(struct ifnet *ifp)
 	}
 	if_qflush(ifp);
 }
-#endif /* EM_MULTIQUEUE */
+#else  /* !EM_MULTIQUEUE */
 
 static void
 em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
@@ -1009,14 +1025,9 @@ em_start(struct ifnet *ifp)
 		em_start_locked(ifp, txr);
 		EM_TX_UNLOCK(txr);
 	}
-	/*
-	** If we went inactive schedule
-	** a task to clean up.
-	*/
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
-		taskqueue_enqueue(txr->tq, &txr->tx_task);
 	return;
 }
+#endif /* EM_MULTIQUEUE */
 
 /*********************************************************************
  *  Ioctl entry point
@@ -1413,7 +1424,8 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr, NULL);
 #else
-	em_start_locked(ifp, txr);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		em_start_locked(ifp, txr);
 #endif
 	EM_TX_UNLOCK(txr);
 
@@ -1486,10 +1498,11 @@ em_handle_que(void *context, int pending)
 		if (!drbr_empty(ifp, txr->br))
 			em_mq_start_locked(ifp, txr, NULL);
 #else
-		em_start_locked(ifp, txr);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			em_start_locked(ifp, txr);
 #endif
 		EM_TX_UNLOCK(txr);
-		if (more || (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
+		if (more) {
 			taskqueue_enqueue(adapter->tq, &adapter->que_task);
 			return;
 		}
@@ -1510,17 +1523,21 @@ em_msix_tx(void *arg)
 {
 	struct tx_ring *txr = arg;
 	struct adapter *adapter = txr->adapter;
-	bool		more;
+	struct ifnet	*ifp = adapter->ifp;
 
 	++txr->tx_irq;
 	EM_TX_LOCK(txr);
-	more = em_txeof(txr);
+	em_txeof(txr);
+#ifdef EM_MULTIQUEUE
+	if (!drbr_empty(ifp, txr->br))
+		em_mq_start_locked(ifp, txr, NULL);
+#else
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		em_start_locked(ifp, txr);
+#endif
+	/* Reenable this interrupt */
+	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	EM_TX_UNLOCK(txr);
-	if (more)
-		taskqueue_enqueue(txr->tq, &txr->tx_task);
-	else
-		/* Reenable this interrupt */
-		E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	return;
 }
 
@@ -1598,7 +1615,8 @@ em_handle_tx(void *context, int pending)
 	if (!drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr, NULL);
 #else
-	em_start_locked(ifp, txr);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		em_start_locked(ifp, txr);
 #endif
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	EM_TX_UNLOCK(txr);
@@ -1608,6 +1626,7 @@ static void
 em_handle_link(void *context, int pending)
 {
 	struct adapter	*adapter = context;
+	struct tx_ring	*txr = adapter->tx_rings;
 	struct ifnet *ifp = adapter->ifp;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
@@ -1619,6 +1638,19 @@ em_handle_link(void *context, int pending)
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS,
 	    EM_MSIX_LINK | E1000_IMS_LSC);
+	if (adapter->link_active) {
+		for (int i = 0; i < adapter->num_queues; i++, txr++) {
+			EM_TX_LOCK(txr);
+#ifdef EM_MULTIQUEUE
+			if (!drbr_empty(ifp, txr->br))
+				em_mq_start_locked(ifp, txr, NULL);
+#else
+			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+				em_start_locked(ifp, txr);
+#endif
+			EM_TX_UNLOCK(txr);
+		}
+	}
 	EM_CORE_UNLOCK(adapter);
 }
 
@@ -2891,20 +2923,21 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = em_ioctl;
+#ifdef EM_MULTIQUEUE
+	/* Multiqueue stack interface */
+	ifp->if_transmit = em_mq_start;
+	ifp->if_qflush = em_qflush;
+#else
 	ifp->if_start = em_start;
 	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 1);
 	ifp->if_snd.ifq_drv_maxlen = adapter->num_tx_desc - 1;
 	IFQ_SET_READY(&ifp->if_snd);
+#endif	
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
-#ifdef EM_MULTIQUEUE
-	/* Multiqueue stack interface */
-	ifp->if_transmit = em_mq_start;
-	ifp->if_qflush = em_qflush;
-#endif	
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_TSO4;
@@ -3710,7 +3743,7 @@ em_tso_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
  *  tx_buffer is put back on the free queue.
  *
  **********************************************************************/
-static bool
+static void
 em_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
@@ -3724,7 +3757,7 @@ em_txeof(struct tx_ring *txr)
 	/* No work, make sure watchdog is off */
         if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = EM_QUEUE_IDLE;
-                return (FALSE);
+                return;
 	}
 
 	processed = 0;
@@ -3813,10 +3846,7 @@ em_txeof(struct tx_ring *txr)
 	/* Disable watchdog if all clean */
 	if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = EM_QUEUE_IDLE;
-		return (FALSE);
 	} 
-
-	return (TRUE);
 }
 
 
