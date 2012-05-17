@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/nexusvar.h>
 
-SYSCTL_DECL(_debug_acpi);
-
 uint32_t acpi_resume_beep;
 TUNABLE_INT("debug.acpi.resume_beep", &acpi_resume_beep);
 SYSCTL_UINT(_debug_acpi, OID_AUTO, resume_beep, CTLFLAG_RW, &acpi_resume_beep,
