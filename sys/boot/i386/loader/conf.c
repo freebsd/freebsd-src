@@ -74,6 +74,9 @@ struct fs_ops *file_system[] = {
     &ext2fs_fsops,
     &dosfs_fsops,
     &cd9660_fsops,
+#if defined(LOADER_NANDFS_SUPPORT)
+    &nandfs_fsops,
+#endif
     &splitfs_fsops,
 #if defined(LOADER_ZFS_SUPPORT)
     &zfs_fsops,

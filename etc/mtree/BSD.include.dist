@@ -122,6 +122,8 @@
             mpilib
             ..
         ..
+        nand
+        ..
         ofw
         ..
         pbio
@@ -153,6 +155,8 @@
         fdescfs
         ..
         msdosfs
+        ..
+        nandfs
         ..
         nfs
         ..
