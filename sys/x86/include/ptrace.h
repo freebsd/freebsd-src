@@ -40,8 +40,10 @@
  * PT_GETXSTATE and PT_SETXSTATE.  They should not be (re)used.
  */
 
-#define	PT_GETXMMREGS	(PT_FIRSTMACH + 0)	/* i386 only */
-#define	PT_SETXMMREGS	(PT_FIRSTMACH + 1)	/* i386 only */
+#ifdef __i386__
+#define	PT_GETXMMREGS	(PT_FIRSTMACH + 0)
+#define	PT_SETXMMREGS	(PT_FIRSTMACH + 1)
+#endif
 #define	PT_GETXSTATE	(PT_FIRSTMACH + 2)
 #define	PT_SETXSTATE	(PT_FIRSTMACH + 3)
 
