@@ -163,19 +163,19 @@ AddCodeToMergeInOperand(Record *R, BitsInit *BI, const std::string &VarName,
       --bit;
     }
      
-    unsigned opMask = ~0U >> (32-N);
+    uint64_t opMask = ~(uint64_t)0 >> (64-N);
     int opShift = beginVarBit - N + 1;
     opMask <<= opShift;
     opShift = beginInstBit - beginVarBit;
     
     if (opShift > 0) {
-      Case += "      Value |= (op & " + utostr(opMask) + "U) << " +
+      Case += "      Value |= (op & UINT64_C(" + utostr(opMask) + ")) << " +
               itostr(opShift) + ";\n";
     } else if (opShift < 0) {
-      Case += "      Value |= (op & " + utostr(opMask) + "U) >> " + 
+      Case += "      Value |= (op & UINT64_C(" + utostr(opMask) + ")) >> " + 
               itostr(-opShift) + ";\n";
     } else {
-      Case += "      Value |= op & " + utostr(opMask) + "U;\n";
+      Case += "      Value |= op & UINT64_C(" + utostr(opMask) + ");\n";
     }
   }
 }
@@ -220,7 +220,7 @@ void CodeEmitterGen::run(raw_ostream &o) {
     Target.getInstructionsByEnumValue();
 
   // Emit function declaration
-  o << "unsigned " << Target.getName();
+  o << "uint64_t " << Target.getName();
   if (MCEmitter)
     o << "MCCodeEmitter::getBinaryCodeForInstr(const MCInst &MI,\n"
       << "    SmallVectorImpl<MCFixup> &Fixups) const {\n";
@@ -228,7 +228,7 @@ void CodeEmitterGen::run(raw_ostream &o) {
     o << "CodeEmitter::getBinaryCodeForInstr(const MachineInstr &MI) const {\n";
 
   // Emit instruction base values
-  o << "  static const unsigned InstBits[] = {\n";
+  o << "  static const uint64_t InstBits[] = {\n";
   for (std::vector<const CodeGenInstruction*>::const_iterator
           IN = NumberedInstructions.begin(),
           EN = NumberedInstructions.end();
@@ -238,21 +238,21 @@ void CodeEmitterGen::run(raw_ostream &o) {
 
     if (R->getValueAsString("Namespace") == "TargetOpcode" ||
         R->getValueAsBit("isPseudo")) {
-      o << "    0U,\n";
+      o << "    UINT64_C(0),\n";
       continue;
     }
 
     BitsInit *BI = R->getValueAsBitsInit("Inst");
 
     // Start by filling in fixed values.
-    unsigned Value = 0;
+    uint64_t Value = 0;
     for (unsigned i = 0, e = BI->getNumBits(); i != e; ++i) {
       if (BitInit *B = dynamic_cast<BitInit*>(BI->getBit(e-i-1)))
-        Value |= B->getValue() << (e-i-1);
+        Value |= (uint64_t)B->getValue() << (e-i-1);
     }
-    o << "    " << Value << "U," << '\t' << "// " << R->getName() << "\n";
+    o << "    UINT64_C(" << Value << ")," << '\t' << "// " << R->getName() << "\n";
   }
-  o << "    0U\n  };\n";
+  o << "    UINT64_C(0)\n  };\n";
 
   // Map to accumulate all the cases.
   std::map<std::string, std::vector<std::string> > CaseMap;
@@ -273,8 +273,8 @@ void CodeEmitterGen::run(raw_ostream &o) {
 
   // Emit initial function code
   o << "  const unsigned opcode = MI.getOpcode();\n"
-    << "  unsigned Value = InstBits[opcode];\n"
-    << "  unsigned op = 0;\n"
+    << "  uint64_t Value = InstBits[opcode];\n"
+    << "  uint64_t op = 0;\n"
     << "  (void)op;  // suppress warning\n"
     << "  switch (opcode) {\n";
 

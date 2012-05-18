@@ -1,10 +1,10 @@
-//====- X86MachineFuctionInfo.h - X86 machine function info -----*- C++ -*-===//
-// 
+//===-- X86MachineFuctionInfo.h - X86 machine function info -----*- C++ -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file declares X86-specific per-machine-function information.
@@ -21,6 +21,8 @@ namespace llvm {
 /// X86MachineFunctionInfo - This class is derived from MachineFunction and
 /// contains private X86 target-specific information for each MachineFunction.
 class X86MachineFunctionInfo : public MachineFunctionInfo {
+  virtual void anchor();
+
   /// ForceFramePointer - True if the function is required to use of frame
   /// pointer for reasons other than it containing dynamic allocation or 
   /// that FP eliminatation is turned off. For example, Cygwin main function

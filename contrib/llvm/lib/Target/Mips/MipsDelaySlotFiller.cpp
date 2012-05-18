@@ -1,4 +1,4 @@
-//===-- DelaySlotFiller.cpp - Mips delay slot filler ---------------------===//
+//===-- DelaySlotFiller.cpp - Mips Delay Slot Filler ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -96,7 +96,7 @@ runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   LastFiller = MBB.end();
 
   for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ++I)
-    if (I->getDesc().hasDelaySlot()) {
+    if (I->hasDelaySlot()) {
       ++FilledSlots;
       Changed = true;
 
@@ -105,8 +105,7 @@ runOnMachineBasicBlock(MachineBasicBlock &MBB) {
       if (EnableDelaySlotFiller && findDelayInstr(MBB, I, D)) {
         MBB.splice(llvm::next(I), &MBB, D);
         ++UsefulSlots;
-      }
-      else 
+      } else
         BuildMI(MBB, llvm::next(I), I->getDebugLoc(), TII->get(Mips::NOP));
 
       // Record the filler instruction that filled the delay slot.
@@ -146,7 +145,7 @@ bool Filler::findDelayInstr(MachineBasicBlock &MBB,
         || I->isInlineAsm()
         || I->isLabel()
         || FI == LastFiller
-        || I->getDesc().isPseudo()
+        || I->isPseudo()
         //
         // Should not allow:
         // ERET, DERET or WAIT, PAUSE. Need to add these to instruction
@@ -167,23 +166,21 @@ bool Filler::findDelayInstr(MachineBasicBlock &MBB,
 }
 
 bool Filler::delayHasHazard(MachineBasicBlock::iterator candidate,
-                            bool &sawLoad,
-                            bool &sawStore,
+                            bool &sawLoad, bool &sawStore,
                             SmallSet<unsigned, 32> &RegDefs,
                             SmallSet<unsigned, 32> &RegUses) {
   if (candidate->isImplicitDef() || candidate->isKill())
     return true;
 
-  MCInstrDesc MCID = candidate->getDesc();
   // Loads or stores cannot be moved past a store to the delay slot
-  // and stores cannot be moved past a load. 
-  if (MCID.mayLoad()) {
+  // and stores cannot be moved past a load.
+  if (candidate->mayLoad()) {
     if (sawStore)
       return true;
     sawLoad = true;
   }
 
-  if (MCID.mayStore()) {
+  if (candidate->mayStore()) {
     if (sawStore)
       return true;
     sawStore = true;
@@ -191,7 +188,7 @@ bool Filler::delayHasHazard(MachineBasicBlock::iterator candidate,
       return true;
   }
 
-  assert((!MCID.isCall() && !MCID.isReturn()) &&
+  assert((!candidate->isCall() && !candidate->isReturn()) &&
          "Cannot put calls or returns in delay slot.");
 
   for (unsigned i = 0, e = candidate->getNumOperands(); i!= e; ++i) {
@@ -221,11 +218,11 @@ void Filler::insertDefsUses(MachineBasicBlock::iterator MI,
                             SmallSet<unsigned, 32>& RegUses) {
   // If MI is a call or return, just examine the explicit non-variadic operands.
   MCInstrDesc MCID = MI->getDesc();
-  unsigned e = MCID.isCall() || MCID.isReturn() ? MCID.getNumOperands() :
-                                                  MI->getNumOperands();
-  
-  // Add RA to RegDefs to prevent users of RA from going into delay slot. 
-  if (MCID.isCall())
+  unsigned e = MI->isCall() || MI->isReturn() ? MCID.getNumOperands() :
+                                                MI->getNumOperands();
+
+  // Add RA to RegDefs to prevent users of RA from going into delay slot.
+  if (MI->isCall())
     RegDefs.insert(Mips::RA);
 
   for (unsigned i = 0; i != e; ++i) {
@@ -247,7 +244,7 @@ bool Filler::IsRegInSet(SmallSet<unsigned, 32>& RegSet, unsigned Reg) {
   if (RegSet.count(Reg))
     return true;
   // check Aliased Registers
-  for (const unsigned *Alias = TM.getRegisterInfo()->getAliasSet(Reg);
+  for (const uint16_t *Alias = TM.getRegisterInfo()->getAliasSet(Reg);
        *Alias; ++Alias)
     if (RegSet.count(*Alias))
       return true;

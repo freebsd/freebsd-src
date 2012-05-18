@@ -14,31 +14,31 @@
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/HostInfo.h"
 #include "clang/Driver/ObjCRuntime.h"
 #include "clang/Driver/Options.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace clang::driver;
 using namespace clang;
 
-ToolChain::ToolChain(const HostInfo &H, const llvm::Triple &T)
-  : Host(H), Triple(T) {
+ToolChain::ToolChain(const Driver &D, const llvm::Triple &T)
+  : D(D), Triple(T) {
 }
 
 ToolChain::~ToolChain() {
 }
 
 const Driver &ToolChain::getDriver() const {
- return Host.getDriver();
+ return D;
 }
 
 std::string ToolChain::GetFilePath(const char *Name) const {
-  return Host.getDriver().GetFilePath(Name, *this);
+  return D.GetFilePath(Name, *this);
 
 }
 
 std::string ToolChain::GetProgramPath(const char *Name, bool WantFile) const {
-  return Host.getDriver().GetProgramPath(Name, *this, WantFile);
+  return D.GetProgramPath(Name, *this, WantFile);
 }
 
 types::ID ToolChain::LookupTypeForExtension(const char *Ext) const {
@@ -55,6 +55,7 @@ void ToolChain::configureObjCRuntime(ObjCRuntime &runtime) const {
     // Assume a minimal NeXT runtime.
     runtime.HasARC = false;
     runtime.HasWeak = false;
+    runtime.HasSubscripting = false;
     runtime.HasTerminate = false;
     return;
 
@@ -62,6 +63,7 @@ void ToolChain::configureObjCRuntime(ObjCRuntime &runtime) const {
     // Assume a maximal GNU runtime.
     runtime.HasARC = true;
     runtime.HasWeak = true;
+    runtime.HasSubscripting = false; // to be added
     runtime.HasTerminate = false; // to be added
     return;
   }
@@ -73,11 +75,15 @@ void ToolChain::configureObjCRuntime(ObjCRuntime &runtime) const {
 // FIXME: tblgen this.
 static const char *getARMTargetCPU(const ArgList &Args,
                                    const llvm::Triple &Triple) {
-  // FIXME: Warn on inconsistent use of -mcpu and -march.
-
-  // If we have -mcpu=, use that.
-  if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
-    return A->getValue(Args);
+  // For Darwin targets, the -arch option (which is translated to a
+  // corresponding -march option) should determine the architecture
+  // (and the Mach-O slice) regardless of any -mcpu options.
+  if (!Triple.isOSDarwin()) {
+    // FIXME: Warn on inconsistent use of -mcpu and -march.
+    // If we have -mcpu=, use that.
+    if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
+      return A->getValue(Args);
+  }
 
   StringRef MArch;
   if (Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
@@ -88,45 +94,27 @@ static const char *getARMTargetCPU(const ArgList &Args,
     MArch = Triple.getArchName();
   }
 
-  if (MArch == "armv2" || MArch == "armv2a")
-    return "arm2";
-  if (MArch == "armv3")
-    return "arm6";
-  if (MArch == "armv3m")
-    return "arm7m";
-  if (MArch == "armv4" || MArch == "armv4t")
-    return "arm7tdmi";
-  if (MArch == "armv5" || MArch == "armv5t")
-    return "arm10tdmi";
-  if (MArch == "armv5e" || MArch == "armv5te")
-    return "arm1026ejs";
-  if (MArch == "armv5tej")
-    return "arm926ej-s";
-  if (MArch == "armv6" || MArch == "armv6k")
-    return "arm1136jf-s";
-  if (MArch == "armv6j")
-    return "arm1136j-s";
-  if (MArch == "armv6z" || MArch == "armv6zk")
-    return "arm1176jzf-s";
-  if (MArch == "armv6t2")
-    return "arm1156t2-s";
-  if (MArch == "armv7" || MArch == "armv7a" || MArch == "armv7-a")
-    return "cortex-a8";
-  if (MArch == "armv7r" || MArch == "armv7-r")
-    return "cortex-r4";
-  if (MArch == "armv7m" || MArch == "armv7-m")
-    return "cortex-m3";
-  if (MArch == "ep9312")
-    return "ep9312";
-  if (MArch == "iwmmxt")
-    return "iwmmxt";
-  if (MArch == "xscale")
-    return "xscale";
-  if (MArch == "armv6m" || MArch == "armv6-m")
-    return "cortex-m0";
-
-  // If all else failed, return the most base CPU LLVM supports.
-  return "arm7tdmi";
+  return llvm::StringSwitch<const char *>(MArch)
+    .Cases("armv2", "armv2a","arm2")
+    .Case("armv3", "arm6")
+    .Case("armv3m", "arm7m")
+    .Cases("armv4", "armv4t", "arm7tdmi")
+    .Cases("armv5", "armv5t", "arm10tdmi")
+    .Cases("armv5e", "armv5te", "arm1026ejs")
+    .Case("armv5tej", "arm926ej-s")
+    .Cases("armv6", "armv6k", "arm1136jf-s")
+    .Case("armv6j", "arm1136j-s")
+    .Cases("armv6z", "armv6zk", "arm1176jzf-s")
+    .Case("armv6t2", "arm1156t2-s")
+    .Cases("armv7", "armv7a", "armv7-a", "cortex-a8")
+    .Cases("armv7r", "armv7-r", "cortex-r4")
+    .Cases("armv7m", "armv7-m", "cortex-m3")
+    .Case("ep9312", "ep9312")
+    .Case("iwmmxt", "iwmmxt")
+    .Case("xscale", "xscale")
+    .Cases("armv6m", "armv6-m", "cortex-m0")
+    // If all else failed, return the most base CPU LLVM supports.
+    .Default("arm7tdmi");
 }
 
 /// getLLVMArchSuffixForARM - Get the LLVM arch name to use for a particular
@@ -135,38 +123,23 @@ static const char *getARMTargetCPU(const ArgList &Args,
 // FIXME: This is redundant with -mcpu, why does LLVM use this.
 // FIXME: tblgen this, or kill it!
 static const char *getLLVMArchSuffixForARM(StringRef CPU) {
-  if (CPU == "arm7tdmi" || CPU == "arm7tdmi-s" || CPU == "arm710t" ||
-      CPU == "arm720t" || CPU == "arm9" || CPU == "arm9tdmi" ||
-      CPU == "arm920" || CPU == "arm920t" || CPU == "arm922t" ||
-      CPU == "arm940t" || CPU == "ep9312")
-    return "v4t";
-
-  if (CPU == "arm10tdmi" || CPU == "arm1020t")
-    return "v5";
-
-  if (CPU == "arm9e" || CPU == "arm926ej-s" || CPU == "arm946e-s" ||
-      CPU == "arm966e-s" || CPU == "arm968e-s" || CPU == "arm10e" ||
-      CPU == "arm1020e" || CPU == "arm1022e" || CPU == "xscale" ||
-      CPU == "iwmmxt")
-    return "v5e";
-
-  if (CPU == "arm1136j-s" || CPU == "arm1136jf-s" || CPU == "arm1176jz-s" ||
-      CPU == "arm1176jzf-s" || CPU == "mpcorenovfp" || CPU == "mpcore")
-    return "v6";
-
-  if (CPU == "arm1156t2-s" || CPU == "arm1156t2f-s")
-    return "v6t2";
-
-  if (CPU == "cortex-a8" || CPU == "cortex-a9")
-    return "v7";
-
-  if (CPU == "cortex-m3")
-    return "v7m";
-
-  if (CPU == "cortex-m0")
-    return "v6m";
-
-  return "";
+  return llvm::StringSwitch<const char *>(CPU)
+    .Cases("arm7tdmi", "arm7tdmi-s", "arm710t", "v4t")
+    .Cases("arm720t", "arm9", "arm9tdmi", "v4t")
+    .Cases("arm920", "arm920t", "arm922t", "v4t")
+    .Cases("arm940t", "ep9312","v4t")
+    .Cases("arm10tdmi",  "arm1020t", "v5")
+    .Cases("arm9e",  "arm926ej-s",  "arm946e-s", "v5e")
+    .Cases("arm966e-s",  "arm968e-s",  "arm10e", "v5e")
+    .Cases("arm1020e",  "arm1022e",  "xscale", "iwmmxt", "v5e")
+    .Cases("arm1136j-s",  "arm1136jf-s",  "arm1176jz-s", "v6")
+    .Cases("arm1176jzf-s",  "mpcorenovfp",  "mpcore", "v6")
+    .Cases("arm1156t2-s",  "arm1156t2f-s", "v6t2")
+    .Cases("cortex-a8", "cortex-a9", "v7")
+    .Case("cortex-m3", "v7m")
+    .Case("cortex-m4", "v7m")
+    .Case("cortex-m0", "v6m")
+    .Default("");
 }
 
 std::string ToolChain::ComputeLLVMTriple(const ArgList &Args, 
@@ -216,6 +189,22 @@ void ToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   // Each toolchain should provide the appropriate include flags.
 }
 
+ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
+  const ArgList &Args) const
+{
+  if (Arg *A = Args.getLastArg(options::OPT_rtlib_EQ)) {
+    StringRef Value = A->getValue(Args);
+    if (Value == "compiler-rt")
+      return ToolChain::RLT_CompilerRT;
+    if (Value == "libgcc")
+      return ToolChain::RLT_Libgcc;
+    getDriver().Diag(diag::err_drv_invalid_rtlib_name)
+      << A->getAsString(Args);
+  }
+
+  return GetDefaultRuntimeLibType();
+}
+
 ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
   if (Arg *A = Args.getLastArg(options::OPT_stdlib_EQ)) {
     StringRef Value = A->getValue(Args);
@@ -228,6 +217,40 @@ ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
   }
 
   return ToolChain::CST_Libstdcxx;
+}
+
+/// \brief Utility function to add a system include directory to CC1 arguments.
+/*static*/ void ToolChain::addSystemInclude(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args,
+                                            const Twine &Path) {
+  CC1Args.push_back("-internal-isystem");
+  CC1Args.push_back(DriverArgs.MakeArgString(Path));
+}
+
+/// \brief Utility function to add a system include directory with extern "C"
+/// semantics to CC1 arguments.
+///
+/// Note that this should be used rarely, and only for directories that
+/// historically and for legacy reasons are treated as having implicit extern
+/// "C" semantics. These semantics are *ignored* by and large today, but its
+/// important to preserve the preprocessor changes resulting from the
+/// classification.
+/*static*/ void ToolChain::addExternCSystemInclude(const ArgList &DriverArgs,
+                                                   ArgStringList &CC1Args,
+                                                   const Twine &Path) {
+  CC1Args.push_back("-internal-externc-isystem");
+  CC1Args.push_back(DriverArgs.MakeArgString(Path));
+}
+
+/// \brief Utility function to add a list of system include directories to CC1.
+/*static*/ void ToolChain::addSystemIncludes(const ArgList &DriverArgs,
+                                             ArgStringList &CC1Args,
+                                             ArrayRef<StringRef> Paths) {
+  for (ArrayRef<StringRef>::iterator I = Paths.begin(), E = Paths.end();
+       I != E; ++I) {
+    CC1Args.push_back("-internal-isystem");
+    CC1Args.push_back(DriverArgs.MakeArgString(*I));
+  }
 }
 
 void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,

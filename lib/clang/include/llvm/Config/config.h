@@ -11,32 +11,20 @@
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
 
-/* 32 bit multilib directory. */
-#define CXX_INCLUDE_32BIT_DIR ""
-
-/* 64 bit multilib directory. */
-#define CXX_INCLUDE_64BIT_DIR ""
-
-/* Arch the libstdc++ headers. */
-#define CXX_INCLUDE_ARCH ""
-
-/* Directory with the libstdc++ headers. */
-#define CXX_INCLUDE_ROOT ""
-
 /* Directories clang will search for headers */
 #define C_INCLUDE_DIRS ""
 
-/* Define if CBE is enabled for printf %a output */
-#define ENABLE_CBE_PRINTF_A 1
+/* Default <path> to all compiler invocations for --sysroot=<path>. */
+/* #undef DEFAULT_SYSROOT */
 
 /* Define if position independent code is enabled */
 #define ENABLE_PIC 0
 
-/* Define if threads enabled */
-#define ENABLE_THREADS 0
-
 /* Define if timestamp information (e.g., __DATE___) is allowed */
 #define ENABLE_TIMESTAMPS 0
+
+/* Directory where gcc is installed. */
+#define GCC_INSTALL_PREFIX ""
 
 /* Define to 1 if you have the `argz_append' function. */
 /* #undef HAVE_ARGZ_APPEND */
@@ -297,6 +285,9 @@
 /* Define to 1 if you have the `powf' function. */
 #define HAVE_POWF 1
 
+/* Define to 1 if you have the `pread' function. */
+#define HAVE_PREAD 1
+
 /* Define if libtool can extract symbol lists from object files. */
 #define HAVE_PRELOADED_SYMBOLS 1
 
@@ -373,7 +364,7 @@
 #define HAVE_STDLIB_H 1
 
 /* Set to 1 if the std::isinf function is found in <cmath> */
-/* #undef HAVE_STD_ISINF_IN_CMATH */
+#define HAVE_STD_ISINF_IN_CMATH 1
 
 /* Set to 1 if the std::isnan function is found in <cmath> */
 #define HAVE_STD_ISNAN_IN_CMATH 1
@@ -545,17 +536,20 @@
 /* Installation directory for data files */
 /* #undef LLVM_DATADIR */
 
+/* Target triple LLVM will generate code for by default */
+/* #undef LLVM_DEFAULT_TARGET_TRIPLE */
+
 /* Installation directory for documentation */
 /* #undef LLVM_DOCSDIR */
+
+/* Define if threads enabled */
+#define LLVM_ENABLE_THREADS 0
 
 /* Installation directory for config files */
 /* #undef LLVM_ETCDIR */
 
 /* Has gcc/MSVC atomic intrinsics */
 #define LLVM_HAS_ATOMICS 0
-
-/* Host triple we were built on */
-/* #undef LLVM_HOSTTRIPLE */
 
 /* Installation directory for include files */
 /* #undef LLVM_INCLUDEDIR */
@@ -577,6 +571,9 @@
 
 /* LLVM name for the native AsmPrinter init function, if available */
 #define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
+
+/* LLVM name for the native Disassembler init function, if available */
+#define LLVM_NATIVE_DISASSEMBLER LLVMInitializeX86Disassembler
 
 /* LLVM name for the native Target init function, if available */
 #define LLVM_NATIVE_TARGET LLVMInitializeX86Target
@@ -623,6 +620,18 @@
 /* Installation prefix directory */
 /* #undef LLVM_PREFIX */
 
+/* Define if we have the Intel JIT API runtime support library */
+#define LLVM_USE_INTEL_JITEVENTS 0
+
+/* Define if we have the oprofile JIT-support library */
+#define LLVM_USE_OPROFILE 0
+
+/* Major version of the LLVM API */
+#define LLVM_VERSION_MAJOR 3
+
+/* Minor version of the LLVM API */
+#define LLVM_VERSION_MINOR 1
+
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
 
@@ -648,19 +657,19 @@
 /* #undef NEED_USCORE */
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "llvmbugs@cs.uiuc.edu"
+#define PACKAGE_BUGREPORT "http://llvm.org/bugs/"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "llvm"
+#define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "llvm 3.0"
+#define PACKAGE_STRING "LLVM 3.1svn"
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME "-llvm-"
+#define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.0"
+#define PACKAGE_VERSION "3.1svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -676,9 +685,6 @@
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 /* #undef TM_IN_SYS_TIME */
-
-/* Define if we have the oprofile JIT-support library */
-#define USE_OPROFILE 0
 
 /* Define if use udis86 library */
 #define USE_UDIS86 0

@@ -125,7 +125,7 @@
 .\" ========================================================================
 .\"
 .IX Title "TBLGEN 1"
-.TH TBLGEN 1 "2011-04-23" "LLVM 3.0" "LLVM Command Guide"
+.TH TBLGEN 1 "2012-04-05" "LLVM 3.1" "LLVM Command Guide"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -161,6 +161,9 @@ sends its output to standard output.
 Specify where to find other target description files for inclusion. The
 \&\fIdirectory\fR value should be a full or partial path to a directory that contains
 target description files.
+.IP "\fB\-asmparsernum\fR \fIN\fR" 4
+.IX Item "-asmparsernum N"
+Make \-gen\-asm\-parser emit assembly writer number \fIN\fR.
 .IP "\fB\-asmwriternum\fR \fIN\fR" 4
 .IX Item "-asmwriternum N"
 Make \-gen\-asm\-writer emit assembly writer number \fIN\fR.
@@ -173,36 +176,51 @@ Print all records to standard output (default).
 .IP "\fB\-print\-enums\fR" 4
 .IX Item "-print-enums"
 Print enumeration values for a class.
+.IP "\fB\-print\-sets\fR" 4
+.IX Item "-print-sets"
+Print expanded sets for testing \s-1DAG\s0 exprs.
 .IP "\fB\-gen\-emitter\fR" 4
 .IX Item "-gen-emitter"
 Generate machine code emitter.
-.IP "\fB\-gen\-register\-enums\fR" 4
-.IX Item "-gen-register-enums"
-Generate the enumeration values for all registers.
-.IP "\fB\-gen\-register\-desc\fR" 4
-.IX Item "-gen-register-desc"
-Generate a register info description for each register.
-.IP "\fB\-gen\-register\-desc\-header\fR" 4
-.IX Item "-gen-register-desc-header"
-Generate a register info description header for each register.
-.IP "\fB\-gen\-instr\-enums\fR" 4
-.IX Item "-gen-instr-enums"
-Generate enumeration values for instructions.
-.IP "\fB\-gen\-instr\-desc\fR" 4
-.IX Item "-gen-instr-desc"
+.IP "\fB\-gen\-register\-info\fR" 4
+.IX Item "-gen-register-info"
+Generate registers and register classes info.
+.IP "\fB\-gen\-instr\-info\fR" 4
+.IX Item "-gen-instr-info"
 Generate instruction descriptions.
 .IP "\fB\-gen\-asm\-writer\fR" 4
 .IX Item "-gen-asm-writer"
 Generate the assembly writer.
+.IP "\fB\-gen\-disassembler\fR" 4
+.IX Item "-gen-disassembler"
+Generate disassembler.
+.IP "\fB\-gen\-pseudo\-lowering\fR" 4
+.IX Item "-gen-pseudo-lowering"
+Generate pseudo instruction lowering.
 .IP "\fB\-gen\-dag\-isel\fR" 4
 .IX Item "-gen-dag-isel"
 Generate a \s-1DAG\s0 (Directed Acycle Graph) instruction selector.
+.IP "\fB\-gen\-asm\-matcher\fR" 4
+.IX Item "-gen-asm-matcher"
+Generate assembly instruction matcher.
+.IP "\fB\-gen\-dfa\-packetizer\fR" 4
+.IX Item "-gen-dfa-packetizer"
+Generate \s-1DFA\s0 Packetizer for \s-1VLIW\s0 targets.
+.IP "\fB\-gen\-fast\-isel\fR" 4
+.IX Item "-gen-fast-isel"
+Generate a \*(L"fast\*(R" instruction selector.
 .IP "\fB\-gen\-subtarget\fR" 4
 .IX Item "-gen-subtarget"
 Generate subtarget enumerations.
 .IP "\fB\-gen\-intrinsic\fR" 4
 .IX Item "-gen-intrinsic"
 Generate intrinsic information.
+.IP "\fB\-gen\-tgt\-intrinsic\fR" 4
+.IX Item "-gen-tgt-intrinsic"
+Generate target intrinsic information.
+.IP "\fB\-gen\-enhanced\-disassembly\-info\fR" 4
+.IX Item "-gen-enhanced-disassembly-info"
+Generate enhanced disassembly info.
 .IP "\fB\-version\fR" 4
 .IX Item "-version"
 Show the version number of this program.
