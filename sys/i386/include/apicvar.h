@@ -126,7 +126,8 @@
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
-#define	IPI_STOP_HARD	(APIC_IPI_INTS + 8)	/* Stop CPU with a NMI. */
+#define	IPI_SUSPEND	(APIC_IPI_INTS + 8)	/* Suspend CPU until restarted. */
+#define	IPI_STOP_HARD	(APIC_IPI_INTS + 9)	/* Stop CPU with a NMI. */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since
