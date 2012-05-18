@@ -1727,9 +1727,6 @@ VNET_DECLARE(u_long, pf_srchashmask);
 VNET_DECLARE(void *, pf_swi_cookie);
 #define V_pf_swi_cookie	VNET(pf_swi_cookie)
 
-TAILQ_HEAD(pf_poolqueue, pf_pool);
-VNET_DECLARE(struct pf_poolqueue,	 pf_pools[2]);
-#define	V_pf_pools			 VNET(pf_pools)
 TAILQ_HEAD(pf_altqqueue, pf_altq);
 VNET_DECLARE(struct pf_altqqueue,	 pf_altqs[2]);
 #define	V_pf_altqs			 VNET(pf_altqs)
@@ -1748,10 +1745,6 @@ VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_active);
 #define	V_pf_altqs_active		 VNET(pf_altqs_active)
 VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_inactive);
 #define	V_pf_altqs_inactive		 VNET(pf_altqs_inactive)
-VNET_DECLARE(struct pf_poolqueue *,	 pf_pools_active);
-#define	V_pf_pools_active		 VNET(pf_pools_active)
-VNET_DECLARE(struct pf_poolqueue *,	 pf_pools_inactive);
-#define	V_pf_pools_inactive		 VNET(pf_pools_inactive)
 
 VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);  
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
