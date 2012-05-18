@@ -188,7 +188,7 @@ u_int cp_ndrives;  /* number of drives */
 This call can be used by applications to query the dimensions of
 the jukebox before using the
 .Dv CHIGSTATUS
-ioctl to query the jukebox' status.
+ioctl to query the jukebox status.
 .It Dv CHIOIELEM
 Perform the
 .Sy INITIALIZE ELEMENT STATUS
@@ -231,7 +231,8 @@ base address and number of elements for which information is to be
 returned in the array of
 .Vt changer_element_status
 structures pointed to by the
-.Va cesr_element_status field .
+.Va cesr_element_status
+field.
 The application must allocate enough
 memory for
 .Va cesr_element_count

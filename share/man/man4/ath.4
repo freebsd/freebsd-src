@@ -180,7 +180,7 @@ ifconfig wlan0 meshid my_mesh mode 11a inet 192.168.0.10/24
 .Ed
 .Pp
 Create two virtual 802.11a host-based access points, one with
-with WEP enabled and one with no security, and bridge them to
+WEP enabled and one with no security, and bridge them to
 the fxp0 (wired) device:
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev ath0 wlanmode hostap \e
@@ -215,7 +215,7 @@ data frames failed.
 This should not happen.
 .It "ath%d: unable to setup a beacon xmit queue!"
 The request to the HAL to set up the transmit queue for 802.11 beacon frames
-frames failed.
+failed.
 This should not happen.
 .It "ath%d: 802.11 address: %s"
 The MAC address programmed in the EEPROM is displayed.

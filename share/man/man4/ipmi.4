@@ -130,7 +130,7 @@ Send a message to the interface.
 Possible error values:
 .Bl -tag -width Er
 .It Bq Er EFAULT
-An address supplied was invalid
+An address supplied was invalid.
 .It Bq Er ENOMEM
 Buffers could not be allowed for the command, out of memory.
 .El
@@ -146,7 +146,7 @@ Get the slave LUN for source messages.
 .Ss Unimplemented Ioctls
 .Bl -tag -width indent
 .It Dv IPMICTL_REGISTER_FOR_CMD Pq Vt "struct ipmi_cmdspec"
-Register to receive a specific command
+Register to receive a specific command.
 Possible error values:
 .Bl -tag -width Er
 .It Bq Er EFAULT
@@ -157,7 +157,7 @@ The network function/command is already in use.
 Could not allocate memory.
 .El
 .It Dv IPMICTL_UNREGISTER_FOR_CMD Pq Vt "struct ipmi_cmdspec"
-Unregister to receive a specific command
+Unregister to receive a specific command.
 Possible error values:
 .Bl -tag -width Er
 .It Bq Er EFAULT
