@@ -88,6 +88,14 @@ ufs_inactive(ap)
 #ifdef UFS_GJOURNAL
 	ufs_gjournal_close(vp);
 #endif
+#ifdef QUOTA
+	/*
+	 * Before moving off the active list, we must be sure that
+	 * any modified quotas have been pushed since these will no
+	 * longer be checked once the vnode is on the inactive list.
+	 */
+	qsyncvp(vp);
+#endif
 	if ((ip->i_effnlink == 0 && DOINGSOFTDEP(vp)) ||
 	    (ip->i_nlink <= 0 && !UFS_RDONLY(ip))) {
 	loop:

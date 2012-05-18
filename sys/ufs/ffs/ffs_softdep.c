@@ -12641,29 +12641,21 @@ retry:
 	     fs->fs_cstotal.cs_nbfree <= needed) ||
 	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
 	     fs->fs_cstotal.cs_nifree <= needed)) {
-		MNT_ILOCK(mp);
-		MNT_VNODE_FOREACH(lvp, mp, mvp) {
-			VI_LOCK(lvp);
+		MNT_VNODE_FOREACH_ALL(lvp, mp, mvp) {
 			if (TAILQ_FIRST(&lvp->v_bufobj.bo_dirty.bv_hd) == 0) {
 				VI_UNLOCK(lvp);
 				continue;
 			}
-			MNT_IUNLOCK(mp);
 			if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT,
-			    curthread)) {
-				MNT_ILOCK(mp);
+			    curthread))
 				continue;
-			}
 			if (lvp->v_vflag & VV_NOSYNC) {	/* unlinked */
 				vput(lvp);
-				MNT_ILOCK(mp);
 				continue;
 			}
 			(void) ffs_syncvnode(lvp, MNT_NOWAIT, 0);
 			vput(lvp);
-			MNT_ILOCK(mp);
 		}
-		MNT_IUNLOCK(mp);
 		lvp = ump->um_devvp;
 		if (vn_lock(lvp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
 			VOP_FSYNC(lvp, MNT_NOWAIT, curthread);
