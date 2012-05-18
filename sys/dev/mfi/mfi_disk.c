@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <sys/bio.h>
@@ -223,7 +224,7 @@ mfi_disk_disable(struct mfi_disk *sc)
 	if (sc->ld_flags & MFI_DISK_FLAGS_OPEN) {
 		if (sc->ld_controller->mfi_delete_busy_volumes)
 			return (0);
-		device_printf(sc->ld_dev, "Unable to delete busy device\n");
+		device_printf(sc->ld_dev, "Unable to delete busy ld device\n");
 		return (EBUSY);
 	}
 	sc->ld_flags |= MFI_DISK_FLAGS_DISABLED;
@@ -245,6 +246,7 @@ mfi_disk_strategy(struct bio *bio)
 	struct mfi_softc *controller;
 
 	sc = bio->bio_disk->d_drv1;
+	controller = sc->ld_controller;
 
 	if (sc == NULL) {
 		bio->bio_error = EINVAL;
@@ -254,8 +256,24 @@ mfi_disk_strategy(struct bio *bio)
 		return;
 	}
 
-	controller = sc->ld_controller;
+	if (controller->adpreset) {
+		bio->bio_error = EBUSY;
+		return;
+	}
+
+	if (controller->hw_crit_error) {
+		bio->bio_error = EBUSY;
+		return;
+	}
+
+	if (controller->issuepend_done == 0) {
+		bio->bio_error = EBUSY;
+		return;
+	}
+
 	bio->bio_driver1 = (void *)(uintptr_t)sc->ld_id;
+	/* Mark it as LD IO */
+	bio->bio_driver2 = (void *)MFI_LD_IO;
 	mtx_lock(&controller->mfi_io_lock);
 	mfi_enqueue_bio(controller, bio);
 	mfi_startio(controller);

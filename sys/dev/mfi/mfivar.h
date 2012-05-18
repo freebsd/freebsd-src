@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/sx.h>
 
+#include <sys/types.h>
+#include <sys/taskqueue.h>
+
 /*
  * SCSI structures and definitions are used from here, but no linking
  * requirements are made to CAM.
@@ -70,6 +73,8 @@ struct mfi_hwcomms {
 	uint32_t		hw_ci;
 	uint32_t		hw_reply_q[1];
 };
+#define	MEGASAS_MAX_NAME	32
+#define	MEGASAS_VERSION		"4.23"
 
 struct mfi_softc;
 struct disk;
@@ -80,13 +85,14 @@ struct mfi_command {
 	time_t			cm_timestamp;
 	struct mfi_softc	*cm_sc;
 	union mfi_frame		*cm_frame;
-	uint32_t		cm_frame_busaddr;
+	bus_addr_t		cm_frame_busaddr;
 	struct mfi_sense	*cm_sense;
-	uint32_t		cm_sense_busaddr;
+	bus_addr_t		cm_sense_busaddr;
 	bus_dmamap_t		cm_dmamap;
 	union mfi_sgl		*cm_sg;
 	void			*cm_data;
 	int			cm_len;
+	int			cm_stp_len;
 	int			cm_total_frame_size;
 	int			cm_extra_frames;
 	int			cm_flags;
@@ -99,7 +105,7 @@ struct mfi_command {
 #define MFI_ON_MFIQ_READY	(1<<6)
 #define MFI_ON_MFIQ_BUSY	(1<<7)
 #define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
-	int			cm_aen_abort;
+	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
 	int			cm_index;
@@ -119,10 +125,41 @@ struct mfi_disk {
 #define	MFI_DISK_FLAGS_DISABLED	0x02
 };
 
+struct mfi_system_pd {
+	TAILQ_ENTRY(mfi_system_pd) pd_link;
+	device_t	pd_dev;
+	int		pd_id;
+	int		pd_unit;
+	struct mfi_softc *pd_controller;
+	struct mfi_pd_info *pd_info;
+	struct disk	*pd_disk;
+	int		pd_flags;
+};
+
+struct mfi_evt_queue_elm {
+	TAILQ_ENTRY(mfi_evt_queue_elm)	link;
+	struct mfi_evt_detail		detail;
+};
+
 struct mfi_aen {
 	TAILQ_ENTRY(mfi_aen) aen_link;
 	struct proc			*p;
 };
+
+struct mfi_skinny_dma_info {
+	bus_dma_tag_t			dmat[514];
+	bus_dmamap_t			dmamap[514];
+	uint32_t			mem[514];
+	int				noofmaps;
+};
+
+struct megasas_sge
+{
+	bus_addr_t			phys_addr;
+	uint32_t			length;
+};
+
+struct mfi_cmd_tbolt;
 
 struct mfi_softc {
 	device_t			mfi_dev;
@@ -134,11 +171,22 @@ struct mfi_softc {
 #define MFI_FLAGS_1064R		(1<<4)
 #define MFI_FLAGS_1078		(1<<5)
 #define MFI_FLAGS_GEN2		(1<<6)
+#define MFI_FLAGS_SKINNY	(1<<7)
+#define MFI_FLAGS_TBOLT		(1<<8)
+	// Start: LSIP200113393
+	bus_dma_tag_t			verbuf_h_dmat;
+	bus_dmamap_t			verbuf_h_dmamap;
+	bus_addr_t			verbuf_h_busaddr;
+	uint32_t			*verbuf;
+	void				*kbuff_arr[MAX_IOCTL_SGE];
+	bus_dma_tag_t			mfi_kbuff_arr_dmat[2];
+	bus_dmamap_t			mfi_kbuff_arr_dmamap[2];
+	bus_addr_t			mfi_kbuff_arr_busaddr[2];
 
 	struct mfi_hwcomms		*mfi_comms;
 	TAILQ_HEAD(,mfi_command)	mfi_free;
 	TAILQ_HEAD(,mfi_command)	mfi_ready;
-	TAILQ_HEAD(,mfi_command)	mfi_busy;
+	TAILQ_HEAD(BUSYQ,mfi_command)	mfi_busy;
 	struct bio_queue_head		mfi_bioq;
 	struct mfi_qstat		mfi_qstat[MFIQ_COUNT];
 
@@ -152,17 +200,31 @@ struct mfi_softc {
 
 	bus_dma_tag_t			mfi_comms_dmat;
 	bus_dmamap_t			mfi_comms_dmamap;
-	uint32_t			mfi_comms_busaddr;
+	bus_addr_t			mfi_comms_busaddr;
 
 	bus_dma_tag_t			mfi_frames_dmat;
 	bus_dmamap_t			mfi_frames_dmamap;
-	uint32_t			mfi_frames_busaddr;
+	bus_addr_t			mfi_frames_busaddr;
 	union mfi_frame			*mfi_frames;
 
+	bus_dma_tag_t			mfi_tb_init_dmat;
+	bus_dmamap_t			mfi_tb_init_dmamap;
+	bus_addr_t			mfi_tb_init_busaddr;
+	bus_addr_t			mfi_tb_ioc_init_busaddr;
+	union mfi_frame			*mfi_tb_init;
+
+	TAILQ_HEAD(,mfi_evt_queue_elm)	mfi_evt_queue;
+	struct task			mfi_evt_task;
+	struct task			mfi_map_sync_task;
 	TAILQ_HEAD(,mfi_aen)		mfi_aen_pids;
 	struct mfi_command		*mfi_aen_cm;
+	struct mfi_command		*mfi_skinny_cm;
+	struct mfi_command		*mfi_map_sync_cm;
+	int				cm_aen_abort;
+	int				cm_map_abort;
 	uint32_t			mfi_aen_triggered;
 	uint32_t			mfi_poll_waiting;
+	uint32_t			mfi_boot_seq_num;
 	struct selinfo			mfi_select;
 	int				mfi_delete_busy_volumes;
 	int				mfi_keep_deleted_volumes;
@@ -170,7 +232,7 @@ struct mfi_softc {
 
 	bus_dma_tag_t			mfi_sense_dmat;
 	bus_dmamap_t			mfi_sense_dmamap;
-	uint32_t			mfi_sense_busaddr;
+	bus_addr_t			mfi_sense_busaddr;
 	struct mfi_sense		*mfi_sense;
 
 	struct resource			*mfi_irq;
@@ -179,6 +241,13 @@ struct mfi_softc {
 
 	struct intr_config_hook		mfi_ich;
 	eventhandler_tag		eh;
+	/* OCR flags */
+	uint8_t adpreset;
+	uint8_t issuepend_done;
+	uint8_t disableOnlineCtrlReset;
+	uint32_t mfiStatus;
+	uint32_t last_seq_num;
+	uint32_t volatile hw_crit_error;
 
 	/*
 	 * Allocation for the command array.  Used as an indexable array to
@@ -195,7 +264,7 @@ struct mfi_softc {
 	 */
 	int				mfi_max_fw_cmds;
 	/*
-	 * How many S/G elements we'll ever actually use 
+	 * How many S/G elements we'll ever actually use
 	 */
 	int				mfi_max_sge;
 	/*
@@ -214,6 +283,7 @@ struct mfi_softc {
 	uint32_t			mfi_max_io;
 
 	TAILQ_HEAD(,mfi_disk)		mfi_ld_tqh;
+	TAILQ_HEAD(,mfi_system_pd)	mfi_syspd_tqh;
 	eventhandler_tag		mfi_eh;
 	struct cdev			*mfi_cdev;
 
@@ -225,9 +295,95 @@ struct mfi_softc {
 
 	/* Controller type specific interfaces */
 	void	(*mfi_enable_intr)(struct mfi_softc *sc);
+	void	(*mfi_disable_intr)(struct mfi_softc *sc);
 	int32_t	(*mfi_read_fw_status)(struct mfi_softc *sc);
 	int	(*mfi_check_clear_intr)(struct mfi_softc *sc);
- 	void	(*mfi_issue_cmd)(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt);
+	void	(*mfi_issue_cmd)(struct mfi_softc *sc, bus_addr_t bus_add,
+		    uint32_t frame_cnt);
+	int	(*mfi_adp_reset)(struct mfi_softc *sc);
+	int	(*mfi_adp_check_reset)(struct mfi_softc *sc);
+
+	/* ThunderBolt */
+	uint32_t			mfi_tbolt;
+	uint32_t			MFA_enabled;
+	/* Single Reply structure size */
+	uint16_t			reply_size;
+	/* Singler message size. */
+	uint16_t			raid_io_msg_size;
+	TAILQ_HEAD(TB, mfi_cmd_tbolt)	mfi_cmd_tbolt_tqh;
+	/* ThunderBolt base contiguous memory mapping. */
+	bus_dma_tag_t			mfi_tb_dmat;
+	bus_dmamap_t			mfi_tb_dmamap;
+	bus_addr_t			mfi_tb_busaddr;
+	/* ThunderBolt Contiguous DMA memory Mapping */
+	uint8_t	*			request_message_pool;
+	uint8_t *			request_message_pool_align;
+	uint8_t *			request_desc_pool;
+	bus_addr_t			request_msg_busaddr;
+	bus_addr_t			reply_frame_busaddr;
+	bus_addr_t			sg_frame_busaddr;
+	/* ThunderBolt IOC Init Descriptor */
+	bus_dma_tag_t			mfi_tb_ioc_init_dmat;
+	bus_dmamap_t			mfi_tb_ioc_init_dmamap;
+	uint8_t *			mfi_tb_ioc_init_desc;
+	struct mfi_cmd_tbolt		**mfi_cmd_pool_tbolt;
+	/* Virtual address of reply Frame Pool */
+	struct mfi_mpi2_reply_header*	reply_frame_pool;
+	struct mfi_mpi2_reply_header*	reply_frame_pool_align;
+
+	/* Last reply frame address */
+	uint8_t *			reply_pool_limit;
+	uint16_t			last_reply_idx;
+	uint8_t				max_SGEs_in_chain_message;
+	uint8_t				max_SGEs_in_main_message;
+	uint8_t				chain_offset_value_for_main_message;
+	uint8_t				chain_offset_value_for_mpt_ptmsg;
+};
+
+union desc_value {
+	uint64_t	word;
+	struct {
+		uint32_t	low;
+		uint32_t	high;
+	}u;
+};
+
+// TODO find the right definition
+#define XXX_MFI_CMD_OP_INIT2                    0x9
+/*
+ * Request descriptor types
+ */
+#define MFI_REQ_DESCRIPT_FLAGS_LD_IO           0x7
+#define MFI_REQ_DESCRIPT_FLAGS_MFA             0x1
+#define MFI_REQ_DESCRIPT_FLAGS_TYPE_SHIFT	0x1
+#define MFI_FUSION_FP_DEFAULT_TIMEOUT		0x14
+#define MFI_LOAD_BALANCE_FLAG			0x1
+#define MFI_DCMD_MBOX_PEND_FLAG			0x1
+
+//#define MR_PROT_INFO_TYPE_CONTROLLER	0x08
+#define	MEGASAS_SCSI_VARIABLE_LENGTH_CMD	0x7f
+#define MEGASAS_SCSI_SERVICE_ACTION_READ32	0x9
+#define MEGASAS_SCSI_SERVICE_ACTION_WRITE32	0xB
+#define	MEGASAS_SCSI_ADDL_CDB_LEN   		0x18
+#define MEGASAS_RD_WR_PROTECT_CHECK_ALL		0x20
+#define MEGASAS_RD_WR_PROTECT_CHECK_NONE	0x60
+#define MEGASAS_EEDPBLOCKSIZE			512
+struct mfi_cmd_tbolt {
+	union mfi_mpi2_request_descriptor *request_desc;
+	struct mfi_mpi2_request_raid_scsi_io *io_request;
+	bus_addr_t		io_request_phys_addr;
+	bus_addr_t		sg_frame_phys_addr;
+	bus_addr_t 		sense_phys_addr;
+	MPI2_SGE_IO_UNION	*sg_frame;
+	uint8_t			*sense;
+	TAILQ_ENTRY(mfi_cmd_tbolt) next;
+	/*
+	 * Context for a MFI frame.
+	 * Used to get the mfi cmd from list when a MFI cmd is completed
+	 */
+	uint32_t		sync_cmd_idx;
+	uint16_t		index;
+	uint8_t			status;
 };
 
 extern int mfi_attach(struct mfi_softc *);
@@ -238,6 +394,33 @@ extern void mfi_disk_complete(struct bio *);
 extern int mfi_disk_disable(struct mfi_disk *);
 extern void mfi_disk_enable(struct mfi_disk *);
 extern int mfi_dump_blocks(struct mfi_softc *, int id, uint64_t, void *, int);
+extern int mfi_syspd_disable(struct mfi_system_pd *);
+extern void mfi_syspd_enable(struct mfi_system_pd *);
+extern int mfi_dump_syspd_blocks(struct mfi_softc *, int id, uint64_t, void *,
+    int);
+extern int mfi_transition_firmware(struct mfi_softc *sc);
+extern int mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start);
+extern void mfi_complete(struct mfi_softc *sc, struct mfi_command *cm);
+extern int mfi_mapcmd(struct mfi_softc *sc,struct mfi_command *cm);
+extern int mfi_wait_command(struct mfi_softc *sc, struct mfi_command *cm);
+extern void mfi_tbolt_enable_intr_ppc(struct mfi_softc *);
+extern void mfi_tbolt_disable_intr_ppc(struct mfi_softc *);
+extern int32_t mfi_tbolt_read_fw_status_ppc(struct mfi_softc *);
+extern int32_t mfi_tbolt_check_clear_intr_ppc(struct mfi_softc *);
+extern void mfi_tbolt_issue_cmd_ppc(struct mfi_softc *, bus_addr_t, uint32_t);
+extern void mfi_tbolt_init_globals(struct mfi_softc*);
+extern uint32_t mfi_tbolt_get_memory_requirement(struct mfi_softc *);
+extern int mfi_tbolt_init_desc_pool(struct mfi_softc *, uint8_t *, uint32_t);
+extern int mfi_tbolt_init_MFI_queue(struct mfi_softc *);
+extern void mfi_intr_tbolt(void *arg);
+extern int mfi_tbolt_alloc_cmd(struct mfi_softc *sc);
+extern int mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm);
+extern int mfi_tbolt_adp_reset(struct mfi_softc *sc);
+extern int mfi_tbolt_reset(struct mfi_softc *sc);
+extern void mfi_tbolt_sync_map_info(struct mfi_softc *sc);
+extern void mfi_handle_map_sync(void *context, int pending);
+extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
+		    uint32_t, void **, size_t);
 
 #define MFIQ_ADD(sc, qname)					\
 	do {							\
@@ -377,8 +560,14 @@ mfi_print_sense(struct mfi_softc *sc, void *sense)
 	(sc)->mfi_bhandle, (reg))
 
 MALLOC_DECLARE(M_MFIBUF);
+SYSCTL_DECL(_hw_mfi);
 
+#define MFI_RESET_WAIT_TIME 180
 #define MFI_CMD_TIMEOUT 30
+#define MFI_SYS_PD_IO	0
+#define MFI_LD_IO	1
+#define MFI_SKINNY_MEMORY 0x02000000
+#define MFI_MAXPHYS (128 * 1024)
 
 #ifdef MFI_DEBUG
 extern void mfi_print_cmd(struct mfi_command *cm);

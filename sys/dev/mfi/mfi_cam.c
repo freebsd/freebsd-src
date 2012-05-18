@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -54,12 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <sys/bus.h>
-#include <sys/conf.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <dev/mfi/mfireg.h>
 #include <dev/mfi/mfi_ioctl.h>
@@ -272,11 +270,17 @@ mfip_start(void *data)
 	struct mfip_softc *sc;
 	struct mfi_pass_frame *pt;
 	struct mfi_command *cm;
+	uint32_t context = 0;
 
 	sc = ccbh->ccb_mfip_ptr;
 
 	if ((cm = mfi_dequeue_free(sc->mfi_sc)) == NULL)
 		return (NULL);
+
+	/* Zero out the MFI frame */
+	context = cm->cm_frame->header.context;
+	bzero(cm->cm_frame, sizeof(union mfi_frame));
+	cm->cm_frame->header.context = context;
 
 	pt = &cm->cm_frame->pass;
 	pt->header.cmd = MFI_CMD_PD_SCSI_IO;
@@ -289,8 +293,8 @@ mfip_start(void *data)
 	pt->header.data_len = csio->dxfer_len;
 	pt->header.sense_len = MFI_SENSE_LEN;
 	pt->header.cdb_len = csio->cdb_len;
-	pt->sense_addr_lo = cm->cm_sense_busaddr;
-	pt->sense_addr_hi = 0;
+	pt->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
+	pt->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	if (ccbh->flags & CAM_CDB_POINTER)
 		bcopy(csio->cdb_io.cdb_ptr, &pt->cdb[0], csio->cdb_len);
 	else
