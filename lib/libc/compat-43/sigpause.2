@@ -62,7 +62,7 @@
 .Sy This interface is made obsolete by
 .Xr sigsuspend 2
 .Sy and
-.Xr sigaction 2
+.Xr sigaction 2 .
 .Pp
 The
 .Fn sigset
@@ -172,7 +172,8 @@ returns
 if the signal had been blocked and the signal's previous disposition if
 it had not been blocked.
 Otherwise,
-.Dv SIG_ERR is returned and
+.Dv SIG_ERR
+is returned and
 .Va errno
 set to indicate the error.
 .Pp
