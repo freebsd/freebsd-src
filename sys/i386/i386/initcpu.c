@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #define CPU_ENABLE_SSE
 #endif
 
-void initializecpu(void);
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
 void	enable_K5_wt_alloc(void);
 void	enable_K6_wt_alloc(void);
