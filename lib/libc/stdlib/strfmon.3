@@ -115,14 +115,14 @@ character is written.
 .El
 .Sh RETURN VALUES
 If the total number of resulting bytes including the terminating
-.Dv NULL
+.Dv NUL
 byte is not more than
 .Fa maxsize ,
 .Fn strfmon
 returns the number of bytes placed into the array pointed to by
 .Fa s ,
 not including the terminating
-.Dv NULL
+.Dv NUL
 byte.
 Otherwise, \-1 is returned,
 the contents of the array are indeterminate,
