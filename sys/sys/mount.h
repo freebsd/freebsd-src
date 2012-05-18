@@ -148,6 +148,7 @@ struct vfsopt {
  * Lock reference:
  *	m - mountlist_mtx
  *	i - interlock
+ *	v - vnode freelist mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
@@ -164,6 +165,8 @@ struct mount {
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
+	struct vnodelst	mnt_activevnodelist;	/* (v) list of active vnodes */
+	int		mnt_activevnodelistsize;/* (v) # of active vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */
@@ -188,6 +191,49 @@ struct mount {
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 };
 
+/*
+ * Definitions for MNT_VNODE_FOREACH_ALL.
+ */
+struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
+struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
+void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
+
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
+
+#define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
+	do {								\
+		MNT_ILOCK(mp);						\
+		__mnt_vnode_markerfree_all(&(mvp), (mp));		\
+		/* MNT_IUNLOCK(mp); -- done in above function */	\
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
+	} while (0)
+
+/*
+ * Definitions for MNT_VNODE_FOREACH_ACTIVE.
+ */
+struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
+struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
+void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
+
+#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) \
+	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); \
+		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
+
+#define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
+	do {								\
+		MNT_ILOCK(mp);						\
+		__mnt_vnode_markerfree_active(&(mvp), (mp));		\
+		/* MNT_IUNLOCK(mp); -- done in above function */	\
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
+	} while (0)
+
+/*
+ * Definitions for MNT_VNODE_FOREACH.
+ *
+ * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
+ */
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
