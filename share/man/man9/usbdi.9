@@ -436,7 +436,7 @@ The value of this field is given in milliseconds and is independent of
 device speed.
 .
 Depending on the endpoint type, this field has different meaning:
-.Bl -tag
+.Bl -tag -width "UE_ISOCHRONOUS"
 .It UE_INTERRUPT
 "0" use the default interrupt interval based on endpoint descriptor.
 "Else" use the given value for polling rate.
@@ -462,7 +462,7 @@ timeout of 250ms will be used.
 .Fa frames
 field sets the maximum number of frames. If zero is specified it will
 yield the following results:
-.Bl -tag
+.Bl -tag -width "UE_INTERRUPT"
 .It UE_BULK
 xfer->nframes = 1;
 .It UE_INTERRUPT
@@ -488,7 +488,7 @@ be used when setting up the given USB transfer.
 .Fa flags
 field has type "struct usb_xfer_flags" and allows one to set initial
 flags an USB transfer. Valid flags are:
-.Bl -tag
+.Bl -tag -width "force_short_xfer"
 .It force_short_xfer
 This flag forces the last transmitted USB packet to be short.  A short
 packet has a length of less than "xfer->max_packet_size", which
@@ -508,7 +508,7 @@ This flag causes a failing USB transfer to remain first in the PIPE
 queue except in the case of "xfer->error" equal to
 "USB_ERR_CANCELLED". No other USB transfers in the affected PIPE queue
 will be started until either:
-.Bl -tag
+.Bl -tag -width "1"
 .It 1
 The failing USB transfer is stopped using "usbd_transfer_stop()".
 .It 2
@@ -575,7 +575,7 @@ flag can not be changed during operation.
 .
 .
 .It stall_pipe
-.Bl -tag
+.Bl -tag -width "Device Side Mode"
 .It Device Side Mode
 Setting this flag will cause STALL pids to be sent to the endpoint
 belonging to this transfer before the transfer is started.
