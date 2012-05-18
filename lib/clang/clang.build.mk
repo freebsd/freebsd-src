@@ -10,12 +10,11 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 
 # Correct for gcc miscompilation when compiling on PPC with -O2
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+= -O1
+CFLAGS+= -O1 -mminimal-toc
 .endif
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-# XXX: 8.0, to keep __FreeBSD_cc_version happy
-CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd9.0\"
+CFLAGS+=-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd9.0\"
 
 .ifndef LLVM_REQUIRES_EH
 CXXFLAGS+=-fno-exceptions
@@ -28,9 +27,7 @@ LLVM_REQUIRES_RTTI=
 CXXFLAGS+=-fno-rtti
 .endif
 
-.ifdef TOOLS_PREFIX
-CFLAGS+=-DCLANG_PREFIX=\"${TOOLS_PREFIX}\"
-.endif
+CFLAGS+=-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
@@ -85,6 +82,16 @@ AttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    -gen-clang-attr-list -o ${.TARGET} \
 	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
+AttrParsedAttrKinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-attr-parsed-attr-kinds -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
+
+AttrParsedAttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-attr-parsed-attr-list -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
+
 AttrPCHRead.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Serialization \
 	    ${TBLINC} -gen-clang-attr-pch-read -o ${.TARGET} \
@@ -98,6 +105,11 @@ AttrPCHWrite.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 AttrSpellings.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Lex ${TBLINC} \
 	    -gen-clang-attr-spelling-list -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
+
+AttrTemplateInstantiate.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-attr-template-instantiate -o ${.TARGET} \
 	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
 DeclNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
@@ -120,7 +132,7 @@ DiagnosticIndexName.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
 	    -gen-clang-diags-index-name -o ${.TARGET} ${.ALLSRC}
 
-.for hdr in AST Analysis Common Driver Frontend Lex Parse Sema
+.for hdr in AST Analysis Common Driver Frontend Lex Parse Sema Serialization
 Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
 	    -gen-clang-diags-defs -clang-component=${hdr} \

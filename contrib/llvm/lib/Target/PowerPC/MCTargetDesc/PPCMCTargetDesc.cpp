@@ -1,4 +1,4 @@
-//===-- PPCMCTargetDesc.cpp - PowerPC Target Descriptions -------*- C++ -*-===//
+//===-- PPCMCTargetDesc.cpp - PowerPC Target Descriptions -----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,6 +20,7 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
@@ -76,7 +77,8 @@ static MCAsmInfo *createPPCMCAsmInfo(const Target &T, StringRef TT) {
 }
 
 static MCCodeGenInfo *createPPCMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                             CodeModel::Model CM) {
+                                             CodeModel::Model CM,
+                                             CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
 
   if (RM == Reloc::Default) {
@@ -86,7 +88,7 @@ static MCCodeGenInfo *createPPCMCCodeGenInfo(StringRef TT, Reloc::Model RM,
     else
       RM = Reloc::Static;
   }
-  X->InitMCCodeGenInfo(RM, CM);
+  X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
@@ -106,8 +108,10 @@ static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
 static MCInstPrinter *createPPCMCInstPrinter(const Target &T,
                                              unsigned SyntaxVariant,
                                              const MCAsmInfo &MAI,
+                                             const MCInstrInfo &MII,
+                                             const MCRegisterInfo &MRI,
                                              const MCSubtargetInfo &STI) {
-  return new PPCInstPrinter(MAI, SyntaxVariant);
+  return new PPCInstPrinter(MAI, MII, MRI, SyntaxVariant);
 }
 
 extern "C" void LLVMInitializePowerPCTargetMC() {

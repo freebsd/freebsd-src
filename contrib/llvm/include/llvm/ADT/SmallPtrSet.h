@@ -126,9 +126,6 @@ protected:
 private:
   bool isSmall() const { return CurArray == SmallArray; }
 
-  unsigned Hash(const void *Ptr) const {
-    return static_cast<unsigned>(((uintptr_t)Ptr >> 4) & (CurArraySize-1));
-  }
   const void * const *FindBucketFor(const void *Ptr) const;
   void shrink_and_clear();
 
@@ -137,6 +134,10 @@ private:
 
   void operator=(const SmallPtrSetImpl &RHS);  // DO NOT IMPLEMENT.
 protected:
+  /// swap - Swaps the elements of two sets.
+  /// Note: This method assumes that both sets have the same small size.
+  void swap(SmallPtrSetImpl &RHS);
+
   void CopyFrom(const SmallPtrSetImpl &RHS);
 };
 
@@ -287,8 +288,20 @@ public:
     return *this;
   }
 
+  /// swap - Swaps the elements of two sets.
+  void swap(SmallPtrSet<PtrType, SmallSize> &RHS) {
+    SmallPtrSetImpl::swap(RHS);
+  }
 };
 
+}
+
+namespace std {
+  /// Implement std::swap in terms of SmallPtrSet swap.
+  template<class T, unsigned N>
+  inline void swap(llvm::SmallPtrSet<T, N> &LHS, llvm::SmallPtrSet<T, N> &RHS) {
+    LHS.swap(RHS);
+  }
 }
 
 #endif

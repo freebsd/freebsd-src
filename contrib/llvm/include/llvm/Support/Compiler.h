@@ -49,16 +49,22 @@
 #define LLVM_ATTRIBUTE_UNUSED
 #endif
 
-#ifdef __GNUC__ // aka 'ATTRIBUTE_CONST' but following LLVM Conventions.
-#define LLVM_ATTRIBUTE_READNONE __attribute__((__const__))
+#if (__GNUC__ >= 4) && !defined(__MINGW32__) && !defined(__CYGWIN__)
+#define LLVM_ATTRIBUTE_WEAK __attribute__((__weak__))
 #else
-#define LLVM_ATTRIBUTE_READNONE
+#define LLVM_ATTRIBUTE_WEAK
 #endif
 
-#ifdef __GNUC__  // aka 'ATTRIBUTE_PURE' but following LLVM Conventions.
-#define LLVM_ATTRIBUTE_READONLY __attribute__((__pure__))
+#ifdef __GNUC__ // aka 'CONST' but following LLVM Conventions.
+#define LLVM_READNONE __attribute__((__const__))
 #else
-#define LLVM_ATTRIBUTE_READONLY
+#define LLVM_READNONE
+#endif
+
+#ifdef __GNUC__  // aka 'PURE' but following LLVM Conventions.
+#define LLVM_READONLY __attribute__((__pure__))
+#else
+#define LLVM_READONLY
 #endif
 
 #if (__GNUC__ >= 4)
@@ -66,6 +72,7 @@
 #else
 #define BUILTIN_EXPECT(EXPR, VALUE) (EXPR)
 #endif
+
 
 // C++ doesn't support 'extern template' of template specializations.  GCC does,
 // but requires __extension__ before it.  In the header, use this:
@@ -109,6 +116,14 @@
 #define LLVM_ATTRIBUTE_NORETURN __declspec(noreturn)
 #else
 #define LLVM_ATTRIBUTE_NORETURN
+#endif
+
+// LLVM_EXTENSION - Support compilers where we have a keyword to suppress
+// pedantic diagnostics.
+#ifdef __GNUC__
+#define LLVM_EXTENSION __extension__
+#else
+#define LLVM_EXTENSION
 #endif
 
 // LLVM_ATTRIBUTE_DEPRECATED(decl, "message")

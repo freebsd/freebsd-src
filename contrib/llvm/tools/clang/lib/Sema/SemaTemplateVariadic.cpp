@@ -73,15 +73,6 @@ namespace {
       return true;
     }
     
-    // \brief Record occurrences of function and non-type template parameter
-    // packs in a block-captured expression.
-    bool VisitBlockDeclRefExpr(BlockDeclRefExpr *E) {
-      if (E->getDecl()->isParameterPack())
-        Unexpanded.push_back(std::make_pair(E->getDecl(), E->getLocation()));
-      
-      return true;
-    }
-    
     /// \brief Record occurrences of template template parameter packs.
     bool TraverseTemplateName(TemplateName Template) {
       if (TemplateTemplateParmDecl *TTP 
@@ -93,6 +84,22 @@ namespace {
       return inherited::TraverseTemplateName(Template);
     }
 
+    /// \brief Suppress traversal into Objective-C container literal
+    /// elements that are pack expansions.
+    bool TraverseObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
+      if (!E->containsUnexpandedParameterPack())
+        return true;
+
+      for (unsigned I = 0, N = E->getNumElements(); I != N; ++I) {
+        ObjCDictionaryElement Element = E->getKeyValueElement(I);
+        if (Element.isPackExpansion())
+          continue;
+
+        TraverseStmt(Element.Key);
+        TraverseStmt(Element.Value);
+      }
+      return true;
+    }
     //------------------------------------------------------------------------
     // Pruning the search for unexpanded parameter packs.
     //------------------------------------------------------------------------
@@ -155,10 +162,13 @@ namespace {
 
 /// \brief Diagnose all of the unexpanded parameter packs in the given
 /// vector.
-static void 
-DiagnoseUnexpandedParameterPacks(Sema &S, SourceLocation Loc,
-                                 Sema::UnexpandedParameterPackContext UPPC,
-             const SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
+void
+Sema::DiagnoseUnexpandedParameterPacks(SourceLocation Loc,
+                                       UnexpandedParameterPackContext UPPC,
+                                 ArrayRef<UnexpandedParameterPack> Unexpanded) {
+  if (Unexpanded.empty())
+    return;
+  
   SmallVector<SourceLocation, 4> Locations;
   SmallVector<IdentifierInfo *, 4> Names;
   llvm::SmallPtrSet<IdentifierInfo *, 4> NamesKnown;
@@ -179,13 +189,13 @@ DiagnoseUnexpandedParameterPacks(Sema &S, SourceLocation Loc,
   }
 
   DiagnosticBuilder DB
-    = Names.size() == 0? S.Diag(Loc, diag::err_unexpanded_parameter_pack_0)
+    = Names.size() == 0? Diag(Loc, diag::err_unexpanded_parameter_pack_0)
                            << (int)UPPC
-    : Names.size() == 1? S.Diag(Loc, diag::err_unexpanded_parameter_pack_1)
+    : Names.size() == 1? Diag(Loc, diag::err_unexpanded_parameter_pack_1)
                            << (int)UPPC << Names[0]
-    : Names.size() == 2? S.Diag(Loc, diag::err_unexpanded_parameter_pack_2)
+    : Names.size() == 2? Diag(Loc, diag::err_unexpanded_parameter_pack_2)
                            << (int)UPPC << Names[0] << Names[1]
-    : S.Diag(Loc, diag::err_unexpanded_parameter_pack_3_or_more)
+    : Diag(Loc, diag::err_unexpanded_parameter_pack_3_or_more)
         << (int)UPPC << Names[0] << Names[1];
 
   for (unsigned I = 0, N = Locations.size(); I != N; ++I)
@@ -205,7 +215,7 @@ bool Sema::DiagnoseUnexpandedParameterPack(SourceLocation Loc,
   CollectUnexpandedParameterPacksVisitor(Unexpanded).TraverseTypeLoc(
                                                               T->getTypeLoc());
   assert(!Unexpanded.empty() && "Unable to find unexpanded parameter packs");
-  DiagnoseUnexpandedParameterPacks(*this, Loc, UPPC, Unexpanded);
+  DiagnoseUnexpandedParameterPacks(Loc, UPPC, Unexpanded);
   return true;
 }
 
@@ -220,7 +230,7 @@ bool Sema::DiagnoseUnexpandedParameterPack(Expr *E,
   SmallVector<UnexpandedParameterPack, 2> Unexpanded;
   CollectUnexpandedParameterPacksVisitor(Unexpanded).TraverseStmt(E);
   assert(!Unexpanded.empty() && "Unable to find unexpanded parameter packs");
-  DiagnoseUnexpandedParameterPacks(*this, E->getLocStart(), UPPC, Unexpanded);
+  DiagnoseUnexpandedParameterPacks(E->getLocStart(), UPPC, Unexpanded);
   return true;
 }
 
@@ -237,7 +247,7 @@ bool Sema::DiagnoseUnexpandedParameterPack(const CXXScopeSpec &SS,
   CollectUnexpandedParameterPacksVisitor(Unexpanded)
     .TraverseNestedNameSpecifier(SS.getScopeRep());
   assert(!Unexpanded.empty() && "Unable to find unexpanded parameter packs");
-  DiagnoseUnexpandedParameterPacks(*this, SS.getRange().getBegin(), 
+  DiagnoseUnexpandedParameterPacks(SS.getRange().getBegin(), 
                                    UPPC, Unexpanded);
   return true;
 }
@@ -274,7 +284,7 @@ bool Sema::DiagnoseUnexpandedParameterPack(const DeclarationNameInfo &NameInfo,
   CollectUnexpandedParameterPacksVisitor(Unexpanded)
     .TraverseType(NameInfo.getName().getCXXNameType());
   assert(!Unexpanded.empty() && "Unable to find unexpanded parameter packs");
-  DiagnoseUnexpandedParameterPacks(*this, NameInfo.getLoc(), UPPC, Unexpanded);
+  DiagnoseUnexpandedParameterPacks(NameInfo.getLoc(), UPPC, Unexpanded);
   return true;
 }
 
@@ -289,7 +299,7 @@ bool Sema::DiagnoseUnexpandedParameterPack(SourceLocation Loc,
   CollectUnexpandedParameterPacksVisitor(Unexpanded)
     .TraverseTemplateName(Template);
   assert(!Unexpanded.empty() && "Unable to find unexpanded parameter packs");
-  DiagnoseUnexpandedParameterPacks(*this, Loc, UPPC, Unexpanded);
+  DiagnoseUnexpandedParameterPacks(Loc, UPPC, Unexpanded);
   return true;
 }
 
@@ -303,7 +313,7 @@ bool Sema::DiagnoseUnexpandedParameterPack(TemplateArgumentLoc Arg,
   CollectUnexpandedParameterPacksVisitor(Unexpanded)
     .TraverseTemplateArgumentLoc(Arg);
   assert(!Unexpanded.empty() && "Unable to find unexpanded parameter packs");
-  DiagnoseUnexpandedParameterPacks(*this, Arg.getLocation(), UPPC, Unexpanded);
+  DiagnoseUnexpandedParameterPacks(Arg.getLocation(), UPPC, Unexpanded);
   return true;  
 }
 
@@ -328,6 +338,24 @@ void Sema::collectUnexpandedParameterPacks(TypeLoc TL,
                    SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
   CollectUnexpandedParameterPacksVisitor(Unexpanded).TraverseTypeLoc(TL);  
 }  
+
+void Sema::collectUnexpandedParameterPacks(CXXScopeSpec &SS,
+                                           SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
+  NestedNameSpecifier *Qualifier = SS.getScopeRep();
+  if (!Qualifier)
+    return;
+  
+  NestedNameSpecifierLoc QualifierLoc(Qualifier, SS.location_data());
+  CollectUnexpandedParameterPacksVisitor(Unexpanded)
+    .TraverseNestedNameSpecifierLoc(QualifierLoc);
+}
+
+void Sema::collectUnexpandedParameterPacks(const DeclarationNameInfo &NameInfo,
+                         SmallVectorImpl<UnexpandedParameterPack> &Unexpanded) {
+  CollectUnexpandedParameterPacksVisitor(Unexpanded)
+    .TraverseDeclarationNameInfo(NameInfo);
+}
+
 
 ParsedTemplateArgument 
 Sema::ActOnPackExpansion(const ParsedTemplateArgument &Arg,
@@ -367,7 +395,6 @@ Sema::ActOnPackExpansion(const ParsedTemplateArgument &Arg,
     return Arg.getTemplatePackExpansion(EllipsisLoc);
   }
   llvm_unreachable("Unhandled template argument kind?");
-  return ParsedTemplateArgument();
 }
 
 TypeResult Sema::ActOnPackExpansion(ParsedType Type, 
@@ -611,7 +638,6 @@ unsigned Sema::getNumArgumentsInExpansion(QualType T,
   }
   
   llvm_unreachable("No unexpanded parameter packs in type expansion.");
-  return 0;
 }
 
 bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
@@ -641,6 +667,7 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
   case TST_char16:
   case TST_char32:
   case TST_int:
+  case TST_int128:
   case TST_half:
   case TST_float:
   case TST_double:
@@ -674,7 +701,6 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
       // declarator-id (conceptually), so the parser should not invoke this
       // routine at this time.
       llvm_unreachable("Could not have seen this kind of declarator chunk");
-      break;
         
     case DeclaratorChunk::MemberPointer:
       if (Chunk.Mem.Scope().getScopeRep() &&
@@ -685,6 +711,19 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
   }
   
   return false;
+}
+
+namespace {
+
+// Callback to only accept typo corrections that refer to parameter packs.
+class ParameterPackValidatorCCC : public CorrectionCandidateCallback {
+ public:
+  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
+    NamedDecl *ND = candidate.getCorrectionDecl();
+    return ND && ND->isParameterPack();
+  }
+};
+
 }
 
 /// \brief Called when an expression computing the size of a parameter pack
@@ -712,6 +751,7 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
   LookupName(R, S);
   
   NamedDecl *ParameterPack = 0;
+  ParameterPackValidatorCCC Validator;
   switch (R.getResultKind()) {
   case LookupResult::Found:
     ParameterPack = R.getFoundDecl();
@@ -720,19 +760,16 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
   case LookupResult::NotFound:
   case LookupResult::NotFoundInCurrentInstantiation:
     if (TypoCorrection Corrected = CorrectTypo(R.getLookupNameInfo(),
-                                               R.getLookupKind(), S, 0, 0,
-                                               false, CTC_NoKeywords)) {
-      if (NamedDecl *CorrectedResult = Corrected.getCorrectionDecl())
-        if (CorrectedResult->isParameterPack()) {
-          std::string CorrectedQuotedStr(Corrected.getQuoted(getLangOptions()));
-          ParameterPack = CorrectedResult;
-          Diag(NameLoc, diag::err_sizeof_pack_no_pack_name_suggest)
-            << &Name << CorrectedQuotedStr
-            << FixItHint::CreateReplacement(
-                NameLoc, Corrected.getAsString(getLangOptions()));
-          Diag(ParameterPack->getLocation(), diag::note_parameter_pack_here)
-            << CorrectedQuotedStr;
-        }
+                                               R.getLookupKind(), S, 0,
+                                               Validator)) {
+      std::string CorrectedQuotedStr(Corrected.getQuoted(getLangOpts()));
+      ParameterPack = Corrected.getCorrectionDecl();
+      Diag(NameLoc, diag::err_sizeof_pack_no_pack_name_suggest)
+        << &Name << CorrectedQuotedStr
+        << FixItHint::CreateReplacement(
+            NameLoc, Corrected.getAsString(getLangOpts()));
+      Diag(ParameterPack->getLocation(), diag::note_parameter_pack_here)
+        << CorrectedQuotedStr;
     }
       
   case LookupResult::FoundOverloaded:
@@ -749,6 +786,8 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
       << &Name;
     return ExprError();
   }
+
+  MarkAnyDeclReferenced(OpLoc, ParameterPack);
 
   return new (Context) SizeOfPackExpr(Context.getSizeType(), OpLoc, 
                                       ParameterPack, NameLoc, RParenLoc);

@@ -17,6 +17,7 @@
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/MDBuilder.h"
 
 namespace llvm {
   class LLVMContext;
@@ -41,6 +42,9 @@ class CodeGenTBAA {
   const LangOptions &Features;
   MangleContext &MContext;
 
+  // MDHelper - Helper for creating metadata.
+  llvm::MDBuilder MDHelper;
+
   /// MetadataCache - This maps clang::Types to llvm::MDNodes describing them.
   llvm::DenseMap<const Type *, llvm::MDNode *> MetadataCache;
 
@@ -55,10 +59,6 @@ class CodeGenTBAA {
   /// considered to be equivalent to it.
   llvm::MDNode *getChar();
 
-  llvm::MDNode *getTBAAInfoForNamedType(StringRef NameStr,
-                                        llvm::MDNode *Parent,
-                                        bool Readonly = false);
-
 public:
   CodeGenTBAA(ASTContext &Ctx, llvm::LLVMContext &VMContext,
               const LangOptions &Features,
@@ -68,6 +68,10 @@ public:
   /// getTBAAInfo - Get the TBAA MDNode to be used for a dereference
   /// of the given type.
   llvm::MDNode *getTBAAInfo(QualType QTy);
+
+  /// getTBAAInfoForVTablePtr - Get the TBAA MDNode to be used for a
+  /// dereference of a vtable pointer.
+  llvm::MDNode *getTBAAInfoForVTablePtr();
 };
 
 }  // end namespace CodeGen

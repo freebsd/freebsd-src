@@ -43,7 +43,7 @@ public:
 
   // getBinaryCodeForInstr - TableGen'erated function for getting the
   // binary encoding for an instruction.
-  unsigned getBinaryCodeForInstr(const MCInst &MI) const;
+  uint64_t getBinaryCodeForInstr(const MCInst &MI) const;
 
   /// getMachineOpValue - Return binary encoding of operand. If the machine
   /// operand requires relocation, record the relocation and return zero.
@@ -54,8 +54,8 @@ public:
 
   static unsigned GetMBlazeRegNum(const MCOperand &MO) {
     // FIXME: getMBlazeRegisterNumbering() is sufficient?
-    assert(0 && "MBlazeMCCodeEmitter::GetMBlazeRegNum() not yet implemented.");
-    return 0;
+    llvm_unreachable("MBlazeMCCodeEmitter::GetMBlazeRegNum() not yet "
+                     "implemented.");
   }
 
   void EmitByte(unsigned char C, unsigned &CurByte, raw_ostream &OS) const {
@@ -109,17 +109,14 @@ unsigned MBlazeMCCodeEmitter::getMachineOpValue(const MCInst &MI,
                                              const MCOperand &MO) const {
   if (MO.isReg())
     return getMBlazeRegisterNumbering(MO.getReg());
-  else if (MO.isImm())
+  if (MO.isImm())
     return static_cast<unsigned>(MO.getImm());
-  else if (MO.isExpr())
-      return 0; // The relocation has already been recorded at this point.
-  else {
+  if (MO.isExpr())
+    return 0; // The relocation has already been recorded at this point.
 #ifndef NDEBUG
-    errs() << MO;
+  errs() << MO;
 #endif
-    llvm_unreachable(0);
-  }
-  return 0;
+  llvm_unreachable(0);
 }
 
 void MBlazeMCCodeEmitter::
