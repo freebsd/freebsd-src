@@ -38,6 +38,22 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120415: new clang import which bumps version from 3.0 to 3.1
+OLD_FILES+=usr/include/clang/3.0/altivec.h
+OLD_FILES+=usr/include/clang/3.0/avxintrin.h
+OLD_FILES+=usr/include/clang/3.0/emmintrin.h
+OLD_FILES+=usr/include/clang/3.0/immintrin.h
+OLD_FILES+=usr/include/clang/3.0/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.0/mmintrin.h
+OLD_FILES+=usr/include/clang/3.0/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/smmintrin.h
+OLD_FILES+=usr/include/clang/3.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.0/x86intrin.h
+OLD_FILES+=usr/include/clang/3.0/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.0
 # 20110915: rename congestion control manpages
 OLD_FILES+=usr/share/man/man4/cc.4.gz
 OLD_FILES+=usr/share/man/man9/cc.9.gz

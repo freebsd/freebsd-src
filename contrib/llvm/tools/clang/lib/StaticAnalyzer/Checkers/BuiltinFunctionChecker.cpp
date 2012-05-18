@@ -30,12 +30,10 @@ public:
 }
 
 bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
-                                      CheckerContext &C) const{
-  const ProgramState *state = C.getState();
-  const Expr *Callee = CE->getCallee();
-  SVal L = state->getSVal(Callee);
-  const FunctionDecl *FD = L.getAsFunctionDecl();
-
+                                      CheckerContext &C) const {
+  ProgramStateRef state = C.getState();
+  const FunctionDecl *FD = C.getCalleeDecl(CE);
+  const LocationContext *LCtx = C.getLocationContext();
   if (!FD)
     return false;
 
@@ -48,8 +46,8 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
   case Builtin::BI__builtin_expect: {
     // For __builtin_expect, just return the value of the subexpression.
     assert (CE->arg_begin() != CE->arg_end());
-    SVal X = state->getSVal(*(CE->arg_begin()));
-    C.generateNode(state->BindExpr(CE, X));
+    SVal X = state->getSVal(*(CE->arg_begin()), LCtx);
+    C.addTransition(state->BindExpr(CE, LCtx, X));
     return true;
   }
 
@@ -57,14 +55,13 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     // FIXME: Refactor into StoreManager itself?
     MemRegionManager& RM = C.getStoreManager().getRegionManager();
     const AllocaRegion* R =
-      RM.getAllocaRegion(CE, C.getCurrentBlockCount(),
-                         C.getPredecessor()->getLocationContext());
+      RM.getAllocaRegion(CE, C.getCurrentBlockCount(), C.getLocationContext());
 
     // Set the extent of the region in bytes. This enables us to use the
     // SVal of the argument directly. If we save the extent in bits, we
     // cannot represent values like symbol*8.
     DefinedOrUnknownSVal Size =
-      cast<DefinedOrUnknownSVal>(state->getSVal(*(CE->arg_begin())));
+      cast<DefinedOrUnknownSVal>(state->getSVal(*(CE->arg_begin()), LCtx));
 
     SValBuilder& svalBuilder = C.getSValBuilder();
     DefinedOrUnknownSVal Extent = R->getExtent(svalBuilder);
@@ -72,7 +69,7 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
       svalBuilder.evalEQ(state, Extent, Size);
     state = state->assume(extentMatchesSizeArg, true);
 
-    C.generateNode(state->BindExpr(CE, loc::MemRegionVal(R)));
+    C.addTransition(state->BindExpr(CE, LCtx, loc::MemRegionVal(R)));
     return true;
   }
   }

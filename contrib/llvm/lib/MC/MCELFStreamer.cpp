@@ -11,13 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCELFStreamer.h"
 #include "MCELF.h"
-#include "llvm/MC/MCStreamer.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCCodeEmitter.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCELFSymbolFlags.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCObjectStreamer.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
@@ -28,6 +32,123 @@
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+
+namespace {
+class MCELFStreamer : public MCObjectStreamer {
+public:
+  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB,
+                  raw_ostream &OS, MCCodeEmitter *Emitter)
+    : MCObjectStreamer(Context, TAB, OS, Emitter) {}
+
+  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB,
+                raw_ostream &OS, MCCodeEmitter *Emitter,
+                MCAssembler *Assembler)
+    : MCObjectStreamer(Context, TAB, OS, Emitter, Assembler) {}
+
+
+  ~MCELFStreamer() {}
+
+  /// @name MCStreamer Interface
+  /// @{
+
+  virtual void InitSections();
+  virtual void ChangeSection(const MCSection *Section);
+  virtual void EmitLabel(MCSymbol *Symbol);
+  virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
+  virtual void EmitThumbFunc(MCSymbol *Func);
+  virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
+  virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol);
+  virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
+  virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
+    llvm_unreachable("ELF doesn't support this directive");
+  }
+  virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                unsigned ByteAlignment);
+  virtual void BeginCOFFSymbolDef(const MCSymbol *Symbol) {
+    llvm_unreachable("ELF doesn't support this directive");
+  }
+
+  virtual void EmitCOFFSymbolStorageClass(int StorageClass) {
+    llvm_unreachable("ELF doesn't support this directive");
+  }
+
+  virtual void EmitCOFFSymbolType(int Type) {
+    llvm_unreachable("ELF doesn't support this directive");
+  }
+
+  virtual void EndCOFFSymbolDef() {
+    llvm_unreachable("ELF doesn't support this directive");
+  }
+
+  virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
+     MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
+     SD.setSize(Value);
+  }
+
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                     unsigned ByteAlignment);
+
+  virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
+                            unsigned Size = 0, unsigned ByteAlignment = 0) {
+    llvm_unreachable("ELF doesn't support this directive");
+  }
+  virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
+                              uint64_t Size, unsigned ByteAlignment = 0) {
+    llvm_unreachable("ELF doesn't support this directive");
+  }
+  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
+  virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
+                                    unsigned ValueSize = 1,
+                                    unsigned MaxBytesToEmit = 0);
+  virtual void EmitCodeAlignment(unsigned ByteAlignment,
+                                 unsigned MaxBytesToEmit = 0);
+  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
+                             unsigned AddrSpace);
+
+  virtual void EmitFileDirective(StringRef Filename);
+
+  virtual void FinishImpl();
+
+private:
+  virtual void EmitInstToFragment(const MCInst &Inst);
+  virtual void EmitInstToData(const MCInst &Inst);
+
+  void fixSymbolsInTLSFixups(const MCExpr *expr);
+
+  struct LocalCommon {
+    MCSymbolData *SD;
+    uint64_t Size;
+    unsigned ByteAlignment;
+  };
+  std::vector<LocalCommon> LocalCommons;
+
+  SmallPtrSet<MCSymbol *, 16> BindingExplicitlySet;
+  /// @}
+  void SetSection(StringRef Section, unsigned Type, unsigned Flags,
+                  SectionKind Kind) {
+    SwitchSection(getContext().getELFSection(Section, Type, Flags, Kind));
+  }
+
+  void SetSectionData() {
+    SetSection(".data", ELF::SHT_PROGBITS,
+               ELF::SHF_WRITE |ELF::SHF_ALLOC,
+               SectionKind::getDataRel());
+    EmitCodeAlignment(4, 0);
+  }
+  void SetSectionText() {
+    SetSection(".text", ELF::SHT_PROGBITS,
+               ELF::SHF_EXECINSTR |
+               ELF::SHF_ALLOC, SectionKind::getText());
+    EmitCodeAlignment(4, 0);
+  }
+  void SetSectionBss() {
+    SetSection(".bss", ELF::SHT_NOBITS,
+               ELF::SHF_WRITE |
+               ELF::SHF_ALLOC, SectionKind::getBSS());
+    EmitCodeAlignment(4, 0);
+  }
+};
+}
 
 void MCELFStreamer::InitSections() {
   // This emulates the same behavior of GNU as. This makes it easier
@@ -61,7 +182,7 @@ void MCELFStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
     return;
   }
 
-  assert(0 && "invalid assembler flag!");
+  llvm_unreachable("invalid assembler flag!");
 }
 
 void MCELFStreamer::EmitThumbFunc(MCSymbol *Func) {
@@ -130,10 +251,8 @@ void MCELFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   case MCSA_WeakDefinition:
   case MCSA_WeakDefAutoPrivate:
   case MCSA_Invalid:
-  case MCSA_ELF_TypeIndFunction:
   case MCSA_IndirectSymbol:
-    assert(0 && "Invalid symbol attribute for ELF!");
-    break;
+    llvm_unreachable("Invalid symbol attribute for ELF!");
 
   case MCSA_ELF_TypeGnuUniqueObject:
     // Ignore for now.
@@ -160,6 +279,10 @@ void MCELFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
 
   case MCSA_ELF_TypeFunction:
     MCELF::SetType(SD, ELF::STT_FUNC);
+    break;
+
+  case MCSA_ELF_TypeIndFunction:
+    MCELF::SetType(SD, ELF::STT_GNU_IFUNC);
     break;
 
   case MCSA_ELF_TypeObject:
@@ -205,10 +328,10 @@ void MCELFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 
   if (MCELF::GetBinding(SD) == ELF_STB_Local) {
     const MCSection *Section = getAssembler().getContext().getELFSection(".bss",
-                                                                    ELF::SHT_NOBITS,
-                                                                    ELF::SHF_WRITE |
-                                                                    ELF::SHF_ALLOC,
-                                                                    SectionKind::getBSS());
+                                                         ELF::SHT_NOBITS,
+                                                         ELF::SHF_WRITE |
+                                                         ELF::SHF_ALLOC,
+                                                         SectionKind::getBSS());
     Symbol->setSection(*Section);
 
     struct LocalCommon L = {&SD, Size, ByteAlignment};
@@ -266,6 +389,13 @@ void MCELFStreamer::EmitCodeAlignment(unsigned ByteAlignment,
     getCurrentSectionData()->setAlignment(ByteAlignment);
 }
 
+void MCELFStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
+                                  unsigned AddrSpace) {
+  fixSymbolsInTLSFixups(Value);
+  MCObjectStreamer::EmitValueImpl(Value, Size, AddrSpace);
+}
+
+
 // Add a symbol for the file name of this module. This is the second
 // entry in the module's symbol table (the first being the null symbol).
 void MCELFStreamer::EmitFileDirective(StringRef Filename) {
@@ -308,6 +438,10 @@ void  MCELFStreamer::fixSymbolsInTLSFixups(const MCExpr *expr) {
     case MCSymbolRefExpr::VK_ARM_TLSGD:
     case MCSymbolRefExpr::VK_ARM_TPOFF:
     case MCSymbolRefExpr::VK_ARM_GOTTPOFF:
+    case MCSymbolRefExpr::VK_Mips_TLSGD:
+    case MCSymbolRefExpr::VK_Mips_GOTTPREL:
+    case MCSymbolRefExpr::VK_Mips_TPREL_HI:
+    case MCSymbolRefExpr::VK_Mips_TPREL_LO:
       break;
     }
     MCSymbolData &SD = getAssembler().getOrCreateSymbolData(symRef.getSymbol());
@@ -349,7 +483,7 @@ void MCELFStreamer::EmitInstToData(const MCInst &Inst) {
   DF->getContents().append(Code.begin(), Code.end());
 }
 
-void MCELFStreamer::Finish() {
+void MCELFStreamer::FinishImpl() {
   EmitFrames(true);
 
   for (std::vector<LocalCommon>::const_iterator i = LocalCommons.begin(),
@@ -372,7 +506,7 @@ void MCELFStreamer::Finish() {
       SectData.setAlignment(ByteAlignment);
   }
 
-  this->MCObjectStreamer::Finish();
+  this->MCObjectStreamer::FinishImpl();
 }
 
 MCStreamer *llvm::createELFStreamer(MCContext &Context, MCAsmBackend &MAB,

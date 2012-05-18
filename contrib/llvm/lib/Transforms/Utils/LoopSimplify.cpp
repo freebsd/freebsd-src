@@ -99,7 +99,8 @@ namespace {
     bool ProcessLoop(Loop *L, LPPassManager &LPM);
     BasicBlock *RewriteLoopExitBlock(Loop *L, BasicBlock *Exit);
     BasicBlock *InsertPreheaderForLoop(Loop *L);
-    Loop *SeparateNestedLoop(Loop *L, LPPassManager &LPM);
+    Loop *SeparateNestedLoop(Loop *L, LPPassManager &LPM,
+                             BasicBlock *Preheader);
     BasicBlock *InsertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader);
     void PlaceSplitBlockCarefully(BasicBlock *NewBB,
                                   SmallVectorImpl<BasicBlock*> &SplitPreds,
@@ -240,7 +241,7 @@ ReprocessLoop:
     // this for loops with a giant number of backedges, just factor them into a
     // common backedge instead.
     if (L->getNumBackEdges() < 8) {
-      if (SeparateNestedLoop(L, LPM)) {
+      if (SeparateNestedLoop(L, LPM, Preheader)) {
         ++NumNested;
         // This is a big restructuring change, reprocess the whole loop.
         Changed = true;
@@ -265,7 +266,7 @@ ReprocessLoop:
   PHINode *PN;
   for (BasicBlock::iterator I = L->getHeader()->begin();
        (PN = dyn_cast<PHINode>(I++)); )
-    if (Value *V = SimplifyInstruction(PN, 0, DT)) {
+    if (Value *V = SimplifyInstruction(PN, 0, 0, DT)) {
       if (AA) AA->deleteValue(PN);
       if (SE) SE->forgetValue(PN);
       PN->replaceAllUsesWith(V);
@@ -379,19 +380,27 @@ BasicBlock *LoopSimplify::InsertPreheaderForLoop(Loop *L) {
   }
 
   // Split out the loop pre-header.
-  BasicBlock *NewBB =
-    SplitBlockPredecessors(Header, &OutsideBlocks[0], OutsideBlocks.size(),
-                           ".preheader", this);
+  BasicBlock *PreheaderBB;
+  if (!Header->isLandingPad()) {
+    PreheaderBB = SplitBlockPredecessors(Header, OutsideBlocks, ".preheader",
+                                         this);
+  } else {
+    SmallVector<BasicBlock*, 2> NewBBs;
+    SplitLandingPadPredecessors(Header, OutsideBlocks, ".preheader",
+                                ".split-lp", this, NewBBs);
+    PreheaderBB = NewBBs[0];
+  }
 
-  NewBB->getTerminator()->setDebugLoc(Header->getFirstNonPHI()->getDebugLoc());
-  DEBUG(dbgs() << "LoopSimplify: Creating pre-header " << NewBB->getName()
-               << "\n");
+  PreheaderBB->getTerminator()->setDebugLoc(
+                                      Header->getFirstNonPHI()->getDebugLoc());
+  DEBUG(dbgs() << "LoopSimplify: Creating pre-header "
+               << PreheaderBB->getName() << "\n");
 
   // Make sure that NewBB is put someplace intelligent, which doesn't mess up
   // code layout too horribly.
-  PlaceSplitBlockCarefully(NewBB, OutsideBlocks, L);
+  PlaceSplitBlockCarefully(PreheaderBB, OutsideBlocks, L);
 
-  return NewBB;
+  return PreheaderBB;
 }
 
 /// RewriteLoopExitBlock - Ensure that the loop preheader dominates all exit
@@ -420,9 +429,7 @@ BasicBlock *LoopSimplify::RewriteLoopExitBlock(Loop *L, BasicBlock *Exit) {
                                 this, NewBBs);
     NewExitBB = NewBBs[0];
   } else {
-    NewExitBB = SplitBlockPredecessors(Exit, &LoopBlocks[0],
-                                       LoopBlocks.size(), ".loopexit",
-                                       this);
+    NewExitBB = SplitBlockPredecessors(Exit, LoopBlocks, ".loopexit", this);
   }
 
   DEBUG(dbgs() << "LoopSimplify: Creating dedicated exit block "
@@ -456,7 +463,7 @@ static PHINode *FindPHIToPartitionLoops(Loop *L, DominatorTree *DT,
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ) {
     PHINode *PN = cast<PHINode>(I);
     ++I;
-    if (Value *V = SimplifyInstruction(PN, 0, DT)) {
+    if (Value *V = SimplifyInstruction(PN, 0, 0, DT)) {
       // This is a degenerate PHI already, don't modify it!
       PN->replaceAllUsesWith(V);
       if (AA) AA->deleteValue(PN);
@@ -529,7 +536,16 @@ void LoopSimplify::PlaceSplitBlockCarefully(BasicBlock *NewBB,
 /// If we are able to separate out a loop, return the new outer loop that was
 /// created.
 ///
-Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
+Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM,
+                                       BasicBlock *Preheader) {
+  // Don't try to separate loops without a preheader.
+  if (!Preheader)
+    return 0;
+
+  // The header is not a landing pad; preheader insertion should ensure this.
+  assert(!L->getHeader()->isLandingPad() &&
+         "Can't insert backedge to landing pad");
+
   PHINode *PN = FindPHIToPartitionLoops(L, DT, AA, LI);
   if (PN == 0) return 0;  // No known way to partition.
 
@@ -537,16 +553,15 @@ Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
   // handles the case when a PHI node has multiple instances of itself as
   // arguments.
   SmallVector<BasicBlock*, 8> OuterLoopPreds;
-  for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
+  for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
     if (PN->getIncomingValue(i) != PN ||
         !L->contains(PN->getIncomingBlock(i))) {
       // We can't split indirectbr edges.
       if (isa<IndirectBrInst>(PN->getIncomingBlock(i)->getTerminator()))
         return 0;
-
       OuterLoopPreds.push_back(PN->getIncomingBlock(i));
     }
-
+  }
   DEBUG(dbgs() << "LoopSimplify: Splitting out a new outer loop\n");
 
   // If ScalarEvolution is around and knows anything about values in
@@ -556,9 +571,8 @@ Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
     SE->forgetLoop(L);
 
   BasicBlock *Header = L->getHeader();
-  BasicBlock *NewBB = SplitBlockPredecessors(Header, &OuterLoopPreds[0],
-                                             OuterLoopPreds.size(),
-                                             ".outer", this);
+  BasicBlock *NewBB =
+    SplitBlockPredecessors(Header, OuterLoopPreds,  ".outer", this);
 
   // Make sure that NewBB is put someplace intelligent, which doesn't mess up
   // code layout too horribly.
@@ -639,6 +653,9 @@ LoopSimplify::InsertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader) {
   // Unique backedge insertion currently depends on having a preheader.
   if (!Preheader)
     return 0;
+
+  // The header is not a landing pad; preheader insertion should ensure this.
+  assert(!Header->isLandingPad() && "Can't insert backedge to landing pad");
 
   // Figure out which basic blocks contain back-edges to the loop header.
   std::vector<BasicBlock*> BackedgeBlocks;
