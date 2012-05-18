@@ -10687,6 +10687,7 @@ handle_jwork(wkhd)
 		case D_FREEFRAG:
 			rele_jseg(WK_JSEG(WK_FREEFRAG(wk)->ff_jdep));
 			WORKITEM_FREE(wk, D_FREEFRAG);
+			continue;
 		case D_FREEWORK:
 			handle_written_freework(WK_FREEWORK(wk));
 			continue;
