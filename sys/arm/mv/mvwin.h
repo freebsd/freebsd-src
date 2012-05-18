@@ -57,20 +57,17 @@
 #define MV_PCI_MEM_BASE		MV_PCI_MEM_PHYS_BASE
 #define MV_PCI_MEM_SIZE		(64 * 1024 * 1024)
 
-/* XXX DEV_BOOT, CSx are board specific, should be defined per platform */
+#define MV_DEV_BOOT_BASE	0xF9300000
+#define MV_DEV_BOOT_SIZE	(1024 * 1024)		/* 1 MB */
 
-/* 512KB NOR FLASH */
-#define MV_DEV_BOOT_PHYS_BASE	(MV_PCI_MEM_PHYS_BASE + MV_PCI_MEM_SIZE)
-#define MV_DEV_BOOT_SIZE		(512 * 1024)
-/* CS0: 7-seg LED */
-#define MV_DEV_CS0_PHYS_BASE	0xFA000000
-#define MV_DEV_CS0_SIZE	(1024 * 1024) /* XXX u-boot has 2MB */
-/* CS1: 32MB NOR FLASH */
-#define MV_DEV_CS1_PHYS_BASE	(MV_DEV_CS0_PHYS_BASE + MV_DEV_CS0_SIZE)
-#define MV_DEV_CS1_SIZE	(32 * 1024 * 1024)
-/* CS2: 32MB NAND FLASH */
-#define MV_DEV_CS2_PHYS_BASE	(MV_DEV_CS1_PHYS_BASE + MV_DEV_CS1_SIZE)
-#define MV_DEV_CS2_SIZE	1024	/* XXX u-boot has 1MB */
+#define MV_DEV_CS0_BASE		0xF9400000
+#define MV_DEV_CS0_SIZE		(1024 * 1024)		/* 1 MB */
+
+#define MV_DEV_CS1_BASE		0xF9500000
+#define MV_DEV_CS1_SIZE		(32 * 1024 * 1024)	/* 32 MB */
+
+#define MV_DEV_CS2_BASE		0xFB500000
+#define MV_DEV_CS2_SIZE		(1024 * 1024)		/* 1 MB */
 
 #define MV_CESA_SRAM_PHYS_BASE	0xFD000000
 #define MV_CESA_SRAM_BASE	MV_CESA_SRAM_PHYS_BASE /* VA == PA mapping */
@@ -106,8 +103,6 @@
 #define MV_PCIE11_BASE		(MV_PCIE_BASE + 0x44000)
 #define MV_PCIE12_BASE		(MV_PCIE_BASE + 0x48000)
 #define MV_PCIE13_BASE		(MV_PCIE_BASE + 0x4C000)
-
-#define MV_DEV_CS0_BASE		MV_DEV_CS0_PHYS_BASE
 
 /*
  * Decode windows definitions and macros
