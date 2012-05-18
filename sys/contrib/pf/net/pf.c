@@ -300,7 +300,7 @@ int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 
 VNET_DECLARE(int, pf_end_threads);
 
-VNET_DEFINE(struct pf_pool_limit, pf_pool_limits[PF_LIMIT_MAX]);
+VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 
 #define	PACKET_LOOPED(pd)	((pd)->pf_mtag->flags & PF_PACKET_LOOPED)
 
@@ -670,7 +670,7 @@ pf_initialize()
 	/* States and state keys storage. */
 	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_pool_limits[PF_LIMIT_STATES].pp = V_pf_state_z;
+	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
         uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
 
 	V_pf_state_key_z = uma_zcreate("pf state keys",
@@ -691,7 +691,7 @@ pf_initialize()
 	V_pf_sources_z = uma_zcreate("pf source nodes",
 	    sizeof(struct pf_src_node), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
-	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_sources_z;
+	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
 	V_pf_srchash = malloc((PF_HASHSIZ / 4) * sizeof(struct pf_srchash),
 	  M_PFHASH, M_WAITOK|M_ZERO);
@@ -725,11 +725,11 @@ pf_initialize()
 	V_pfr_ktable_z = uma_zcreate("pf tables",
 	    sizeof(struct pfr_ktable), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
-	V_pf_pool_limits[PF_LIMIT_TABLES].pp = V_pfr_ktable_z;
+	V_pf_limits[PF_LIMIT_TABLES].zone = V_pfr_ktable_z;
 	V_pfr_kentry_z = uma_zcreate("pf table entries",
 	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
-	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].pp = V_pfr_kentry_z;
+	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].zone = V_pfr_kentry_z;
 	V_pfi_addr_z = uma_zcreate("pf pfi_dynaddr", sizeof(struct pfi_dynaddr),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }

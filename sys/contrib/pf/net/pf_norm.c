@@ -188,8 +188,8 @@ pf_normalize_init(void)
 	uma_zone_set_max(V_pf_cache_z, PFFRAG_FRCACHE_HIWAT);
 	uma_zone_set_max(V_pf_cent_z, PFFRAG_FRCENT_HIWAT);
 
-	V_pf_pool_limits[PF_LIMIT_FRAGS].pp = V_pf_frent_z;
-	V_pf_pool_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
+	V_pf_limits[PF_LIMIT_FRAGS].zone = V_pf_frent_z;
+	V_pf_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
 
 	mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
 
