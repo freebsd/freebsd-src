@@ -84,7 +84,7 @@ isofs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 	}
 	vn->vn_fsid = dev2udev(kd, mnt.im_dev);
 	vn->vn_mode = (mode_t)isonode.inode.iso_mode;
-	vn->vn_fileid = (long)isonode.i_number;
-	vn->vn_size = (u_long)isonode.i_size;
+	vn->vn_fileid = isonode.i_number;
+	vn->vn_size = isonode.i_size;
 	return (0);
 }
