@@ -560,7 +560,7 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	char param[16];
 	int *nargs;
-	u_int i;
+	u_int i, active;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -587,6 +587,7 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		    "first.");
 		return;
 	}
+	active = g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE);
 	for (i = 1; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
@@ -598,6 +599,16 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		if (disk == NULL) {
 			gctl_error(req, "No such provider: %s.", name);
 			continue;
+		}
+		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE) {
+			if (active > 1)
+				active--;
+			else {
+				gctl_error(req, "%s: Can't remove the last "
+				    "ACTIVE component %s.", sc->sc_geom->name,
+				    name);
+				continue;
+			}
 		}
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DESTROY,
 		    G_MIRROR_EVENT_DONTWAIT);
