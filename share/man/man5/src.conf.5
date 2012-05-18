@@ -209,7 +209,7 @@ This requires ports/textproc/libxml2 to be installed in /usr/local.
 .It Va WITHOUT_BINUTILS
 .\" from FreeBSD: stable/9/tools/build/options/WITHOUT_BINUTILS 222090 2011-05-19 05:13:25Z imp
 Set to not install binutils (as, c++-filt, gconv, gnu-ar, gnu-randlib,
-ld, nm, objcopy, objdump, readelf, size and strip)
+ld, nm, objcopy, objdump, readelf, size and strip).
 .Bf -symbolic
 The option does not generally work for build targets, unless some alternative
 toolchain is enabled.
@@ -286,12 +286,10 @@ Set to build additional clang and llvm tools, such as bugpoint.
 .It Va WITH_CLANG_IS_CC
 .\" from FreeBSD: stable/9/tools/build/options/WITH_CLANG_IS_CC 233099 2012-03-17 22:29:05Z dim
 Set to install the Clang C/C++ compiler as
-.Pa /usr/bin/cc
-,
+.Pa /usr/bin/cc ,
 .Pa /usr/bin/c++
 and
-.Pa /usr/bin/cpp
-.
+.Pa /usr/bin/cpp .
 .It Va WITHOUT_CPP
 .\" from FreeBSD: stable/9/tools/build/options/WITHOUT_CPP 156932 2006-03-21 07:50:50Z ru
 Set to not build
@@ -884,7 +882,7 @@ Set to build the toolchain binaries shared.
 The set includes
 .Xr cc 1 ,
 .Xr make 1
-and neccessary utilites like assembler, linker and library archive manager.
+and necessary utilities like assembler, linker and library archive manager.
 .It Va WITHOUT_SOURCELESS
 .\" from FreeBSD: stable/9/tools/build/options/WITHOUT_SOURCELESS 231905 2012-02-19 07:44:38Z rmh
 Set to not build kernel modules that include sourceless code (either microcode or native code for host CPU).
@@ -1003,7 +1001,7 @@ protocols (usable only via 802.1X).
 Set to not build ZFS file system.
 .It Va WITHOUT_ZONEINFO
 .\" from FreeBSD: stable/9/tools/build/options/WITHOUT_ZONEINFO 171994 2007-08-27 20:01:08Z remko
-Set to not build the timezone database
+Set to not build the timezone database.
 .El
 .Sh FILES
 .Bl -tag -compact
