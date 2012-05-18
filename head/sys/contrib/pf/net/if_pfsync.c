@@ -1140,7 +1140,7 @@ pfsync_in_bus(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	switch (bus->status) {
 	case PFSYNC_BUS_START:
 		callout_reset(&sc->sc_bulkfail_tmo, 4 * hz +
-		    V_pf_pool_limits[PF_LIMIT_STATES].limit /
+		    V_pf_limits[PF_LIMIT_STATES].limit /
 		    ((sc->sc_ifp->if_mtu - PFSYNC_MINPKT) /
 		    sizeof(struct pfsync_state)),
 		    pfsync_bulk_fail, sc);

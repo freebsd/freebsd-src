@@ -1951,12 +1951,12 @@ void		 pf_qid2qname(u_int32_t, char *);
 VNET_DECLARE(struct pf_status,		 pf_status);
 #define	V_pf_status			 VNET(pf_status)
 
-struct pf_pool_limit {
-	void		*pp;
-	unsigned	 limit;
+struct pf_limit {
+	uma_zone_t	zone;
+	u_int		limit;
 };
-VNET_DECLARE(struct pf_pool_limit,		 pf_pool_limits[PF_LIMIT_MAX]);
-#define	V_pf_pool_limits			 VNET(pf_pool_limits)
+VNET_DECLARE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
+#define	V_pf_limits VNET(pf_limits)
 
 #endif /* _KERNEL */
 

@@ -254,11 +254,11 @@ pfattach(void)
 	pf_osfp_initialize();
 	pf_normalize_init();
 
-	V_pf_pool_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_TABLES].limit = PFR_KTABLE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].pp = V_pfr_kentry_z;
-	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].limit = PFR_KENTRY_HIWAT;
+	V_pf_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
+	V_pf_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
+	V_pf_limits[PF_LIMIT_TABLES].limit = PFR_KTABLE_HIWAT;
+	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].zone = V_pfr_kentry_z;
+	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].limit = PFR_KENTRY_HIWAT;
 
 	RB_INIT(&V_pf_anchors);
 	pf_init_ruleset(&pf_main_ruleset);
@@ -1934,7 +1934,7 @@ DIOCGETSTATES_full:
 			error = EINVAL;
 			break;
 		}
-		pl->limit = V_pf_pool_limits[pl->index].limit;
+		pl->limit = V_pf_limits[pl->index].limit;
 		break;
 	}
 
@@ -1944,14 +1944,14 @@ DIOCGETSTATES_full:
 
 		PF_LOCK();
 		if (pl->index < 0 || pl->index >= PF_LIMIT_MAX ||
-		    V_pf_pool_limits[pl->index].pp == NULL) {
+		    V_pf_limits[pl->index].zone == NULL) {
 			PF_UNLOCK();
 			error = EINVAL;
 			break;
 		}
-		uma_zone_set_max(V_pf_pool_limits[pl->index].pp, pl->limit);
-		old_limit = V_pf_pool_limits[pl->index].limit;
-		V_pf_pool_limits[pl->index].limit = pl->limit;
+		uma_zone_set_max(V_pf_limits[pl->index].zone, pl->limit);
+		old_limit = V_pf_limits[pl->index].limit;
+		V_pf_limits[pl->index].limit = pl->limit;
 		pl->limit = old_limit;
 		PF_UNLOCK();
 		break;
