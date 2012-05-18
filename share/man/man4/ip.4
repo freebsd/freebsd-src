@@ -215,7 +215,8 @@ before transmission.
 This is in contrast to the default behavior of the
 system, which is to transmit undirected broadcasts
 via the first network interface with the
-.Dv IFF_BROADCAST flag set.
+.Dv IFF_BROADCAST
+flag set.
 .Pp
 This option allows applications to choose which
 interface is used to transmit an undirected broadcast
@@ -235,12 +236,14 @@ sendto(s, msg, sizeof(msg), 0, &sin, sizeof(sin));
 .Ed
 .Pp
 It is the application's responsibility to set the
-.Dv IP_TTL option
+.Dv IP_TTL
+option
 to an appropriate value in order to prevent broadcast storms.
 The application must have sufficient credentials to set the
 .Dv SO_BROADCAST
 socket level option, otherwise the
-.Dv IP_ONESBCAST option has no effect.
+.Dv IP_ONESBCAST
+option has no effect.
 .Pp
 If the
 .Dv IP_BINDANY

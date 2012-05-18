@@ -235,10 +235,10 @@ first pin in that association.
 .Pp
 The sequence numbers 14 and 15 has a special meaning for input associations.
 Their presence in association defines it as multiplexed or mixed respectively.
-If none of them present and there are more then one pin in association,
+If none of them are present and there are more than one pin in association,
 the association will provide multichannel input.
 .Pp
-For multichannel input/output assotiations sequence numbers encode
+For multichannel input/output associations sequence numbers encode
 channel pairs positions:
 0 - Front, 1 - Center/LFE, 2 - Back, 3 - Front Wide Center, 4 - Side.
 Standard combinations are: (0) - Stereo; (0, 2), (0, 4) - Quadro;
@@ -368,7 +368,7 @@ Original pin configuration written by BIOS.
 .It Va dev.hdaa.%d.reconfig
 Setting this to a non-zero value makes driver to destroy existing pcm devices
 and process new pins configuration set via
-.Va dev.hdaa.%d.nid%d_config.
+.Va dev.hdaa.%d.nid%d_config .
 .It Va dev.pcm.%d.play.32bit , dev.pcm.%d.rec.32bit
 HDA controller uses 32bit representation for all samples of more then 16 bits.
 These variables allow to specify how many bits of these 32 should be
@@ -589,7 +589,7 @@ subclass 3 (HDA), compatible with Intel HDA specification.
 .Pp
 The
 .Nm
-driver supports more then two hundred different controllers and CODECs.
+driver supports more than two hundred different controllers and CODECs.
 There is no sense to list all of them here, as in most cases specific CODEC
 configuration and wiring are more important then type of the CODEC itself.
 .Sh SEE ALSO
