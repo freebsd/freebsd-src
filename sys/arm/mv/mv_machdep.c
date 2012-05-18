@@ -314,7 +314,7 @@ initarm(void *mdp, void *unused __unused)
 	uint32_t memsize, l2size;
 	void *kmdp;
 	u_int l1pagetable;
-	int i = 0, j = 0;
+	int i = 0, j = 0, err_devmap = 0;
 
 	kmdp = NULL;
 	lastaddr = 0;
@@ -496,8 +496,7 @@ initarm(void *mdp, void *unused __unused)
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	/* Map pmap_devmap[] entries */
-	if (platform_devmap_init() != 0)
-		while (1);
+	err_devmap = platform_devmap_init();
 	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
@@ -530,12 +529,17 @@ initarm(void *mdp, void *unused __unused)
 	print_kernel_section_addr();
 	print_kenv();
 
+	if (err_devmap != 0)
+		printf("WARNING: could not fully configure devmap, error=%d\n",
+                    err_devmap);
+
 	/*
 	 * Re-initialise decode windows
 	 */
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
 		    "Running with existing settings...\n");
+
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
@@ -733,25 +737,34 @@ moveon:
 	return (0);
 }
 
-#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)
+#define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 1)
 static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
 /*
+ * XXX: When device entry in devmap has pd_size smaller than section size,
+ * system will freeze during initialization
+ */
+
+/*
  * Construct pmap_devmap[] with DT-derived config data.
  */
+
 static int
 platform_devmap_init(void)
 {
 	phandle_t root, child;
+	pcell_t bank_count;
 	u_long base, size;
-	int i;
+	int i, num_mapped;
+
+	i = 0;
+	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 
 	/*
 	 * IMMR range.
 	 */
-	i = 0;
 	fdt_devmap[i].pd_va = fdt_immr_va;
 	fdt_devmap[i].pd_pa = fdt_immr_pa;
 	fdt_devmap[i].pd_size = fdt_immr_size;
@@ -760,12 +773,12 @@ platform_devmap_init(void)
 	i++;
 
 	/*
-	 * PCI range(s).
+	 * PCI range(s) and localbus.
 	 */
 	if ((root = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
-	for (child = OF_child(root); child != 0; child = OF_peer(child))
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (fdt_is_type(child, "pci")) {
 			/*
 			 * Check space: each PCI node will consume 2 devmap
@@ -773,7 +786,6 @@ platform_devmap_init(void)
 			 */
 			if (i + 1 >= FDT_DEVMAP_MAX) {
 				return (ENOMEM);
-				break;
 			}
 
 			/*
@@ -786,6 +798,29 @@ platform_devmap_init(void)
 			i += 2;
 		}
 
+		if (fdt_is_compatible(child, "mrvl,lbc")) {
+			/* Check available space */
+			if (OF_getprop(child, "bank-count", (void *)&bank_count,
+			    sizeof(bank_count)) <= 0)
+				/* If no property, use default value */
+				bank_count = 1;
+			else
+				bank_count = fdt32_to_cpu(bank_count);
+
+			if ((i + bank_count) >= FDT_DEVMAP_MAX)
+				return (ENOMEM);
+
+			/* Add all localbus ranges to device map */
+			num_mapped = 0;
+
+			if (fdt_localbus_devmap(child, &fdt_devmap[i],
+			    (int)bank_count, &num_mapped) != 0)
+				return (ENXIO);
+
+			i += num_mapped;
+		}
+	}
+
 	/*
 	 * CESA SRAM range.
 	 */
@@ -795,7 +830,7 @@ platform_devmap_init(void)
 
 	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0)
 		/* No CESA SRAM node. */
-		goto out;
+		return (0);
 moveon:
 	if (i >= FDT_DEVMAP_MAX)
 		return (ENOMEM);
@@ -809,8 +844,6 @@ moveon:
 	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
 	fdt_devmap[i].pd_cache = PTE_NOCACHE;
 
-out:
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 	return (0);
 }
 
