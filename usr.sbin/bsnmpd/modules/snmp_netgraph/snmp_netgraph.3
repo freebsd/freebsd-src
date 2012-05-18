@@ -306,7 +306,7 @@ This buffer should be at least
 .Li NG_NODESIZ
 bytes long.
 The function returns the node id or 0 if the
-node is not found
+node is not found.
 .Pp
 The function
 .Fn ng_node_type
@@ -397,7 +397,8 @@ of the node with id
 .Fa peer .
 The functions return 0 on success or -1 otherwise.
 The function
-.Fn ng_connect2_tee_id does the same as
+.Fn ng_connect2_tee_id
+does the same as
 .Fn ng_connect2_id
 except, that it puts an unnamed tee node between the two nodes.
 .Pp
