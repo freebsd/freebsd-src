@@ -269,7 +269,7 @@ ida_pci_attach(device_t dev)
 	}
 
 	error = bus_dma_tag_create(
-		/* parent	*/ NULL,
+		/* parent	*/ bus_get_dma_tag(dev),
 		/* alignment	*/ 1,
 		/* boundary	*/ 0,
 		/* lowaddr	*/ BUS_SPACE_MAXADDR_32BIT,

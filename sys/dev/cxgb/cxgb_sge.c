@@ -426,7 +426,7 @@ t3_sge_alloc(adapter_t *sc)
 {
 
 	/* The parent tag. */
-	if (bus_dma_tag_create( NULL,			/* parent */
+	if (bus_dma_tag_create( bus_get_dma_tag(sc->dev),/* PCI parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */

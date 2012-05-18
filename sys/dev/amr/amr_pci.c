@@ -277,7 +277,7 @@ amr_pci_attach(device_t dev)
     /*
      * Allocate the parent bus DMA tag appropriate for PCI.
      */
-    if (bus_dma_tag_create(NULL, 			/* parent */
+    if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* PCI parent */
 			   1, 0, 			/* alignment,boundary */
 			   AMR_IS_SG64(sc) ?
 			   BUS_SPACE_MAXADDR :
