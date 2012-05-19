@@ -168,7 +168,7 @@
 #define IXGBE_82599_SCATTER		32
 #define MSIX_82598_BAR			3
 #define MSIX_82599_BAR			4
-#define IXGBE_TSO_SIZE			65535
+#define IXGBE_TSO_SIZE			262140
 #define IXGBE_TX_BUFFER_SIZE		((u32) 1514)
 #define IXGBE_RX_HDR			128
 #define CSUM_OFFLOAD			7	/* Bits in csum flags */
