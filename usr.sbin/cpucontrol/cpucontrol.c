@@ -292,7 +292,7 @@ do_update(const char *dev)
 	int error;
 	struct ucode_handler *handler;
 	struct datadir *dir;
-	DIR *dirfd;
+	DIR *dirp;
 	struct dirent *direntry;
 	char buf[MAXPATHLEN];
 
@@ -321,12 +321,12 @@ do_update(const char *dev)
 	 * Process every image in specified data directories.
 	 */
 	SLIST_FOREACH(dir, &datadirs, next) {
-		dirfd  = opendir(dir->path);
-		if (dirfd == NULL) {
+		dirp = opendir(dir->path);
+		if (dirp == NULL) {
 			WARNX(1, "skipping directory %s: not accessible", dir->path);
 			continue;
 		}
-		while ((direntry = readdir(dirfd)) != NULL) {
+		while ((direntry = readdir(dirp)) != NULL) {
 			if (direntry->d_namlen == 0)
 				continue;
 			error = snprintf(buf, sizeof(buf), "%s/%s", dir->path,
@@ -340,7 +340,7 @@ do_update(const char *dev)
 			}
 			handler->update(dev, buf);
 		}
-		error = closedir(dirfd);
+		error = closedir(dirp);
 		if (error != 0)
 			WARN(0, "closedir(%s)", dir->path);
 	}

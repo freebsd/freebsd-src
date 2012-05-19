@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -25,25 +25,35 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rewinddir.c	8.1 (Berkeley) 6/8/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _GEN_PRIVATE_H_
+#define	_GEN_PRIVATE_H_
 
-#include <sys/types.h>
-#include <dirent.h>
+struct _telldir;		/* see telldir.h */
+struct pthread_mutex;
 
-#include "gen-private.h"
-#include "telldir.h"
+/*
+ * Structure describing an open directory.
+ *
+ * NOTE. Change structure layout with care, at least dd_fd field has to
+ * remain unchanged to guarantee backward compatibility.
+ */
+struct _dirdesc {
+	int	dd_fd;		/* file descriptor associated with directory */
+	long	dd_loc;		/* offset in current buffer */
+	long	dd_size;	/* amount of data returned by getdirentries */
+	char	*dd_buf;	/* data buffer */
+	int	dd_len;		/* size of data buffer */
+	long	dd_seek;	/* magic cookie returned by getdirentries */
+	long	dd_rewind;	/* magic cookie for rewinding */
+	int	dd_flags;	/* flags for readdir */
+	struct pthread_mutex	*dd_lock;	/* lock */
+	struct _telldir *dd_td;	/* telldir position recording */
+};
 
-void
-rewinddir(dirp)
-	DIR *dirp;
-{
+#define	_dirfd(dirp)	((dirp)->dd_fd)
 
-	_seekdir(dirp, dirp->dd_rewind);
-	dirp->dd_rewind = telldir(dirp);
-}
+#endif /* !_GEN_PRIVATE_H_ */
