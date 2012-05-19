@@ -427,7 +427,6 @@ DtGetNextLine (
             {
             case DT_START_QUOTED_STRING:
             case DT_SLASH_ASTERISK_COMMENT:
-            case DT_SLASH_SLASH_COMMENT:
 
                 AcpiOsPrintf ("**** EOF within comment/string %u\n", State);
                 break;
@@ -436,7 +435,22 @@ DtGetNextLine (
                 break;
             }
 
-            return (ASL_EOF);
+            /* Standalone EOF is OK */
+
+            if (i == 0)
+            {
+                return (ASL_EOF);
+            }
+
+            /*
+             * Received an EOF in the middle of a line. Terminate the
+             * line with a newline. The next call to this function will
+             * return a standalone EOF. Thus, the upper parsing software
+             * never has to deal with an EOF within a valid line (or
+             * the last line does not get tossed on the floor.)
+             */
+            c = '\n';
+            State = DT_NORMAL_TEXT;
         }
 
         switch (State)

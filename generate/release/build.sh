@@ -37,7 +37,7 @@
 
 # Configuration
 
-ZIP_UTILITY="c:/windows/pkzip25.exe"
+ZIP_UTILITY="/cygdrive/c/windows/pkzip25.exe"
 ACPISRC="libraries/acpisrc.exe"
 DOS2UNIX="dos2unix"
 UNIX2DOS="unix2dos"

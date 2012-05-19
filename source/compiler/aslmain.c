@@ -765,9 +765,18 @@ AslDoOptions (
             break;
 
         case 'i':
-            /* Less verbose error messages */
-
+            /*
+             * Support for integrated development environment(s).
+             *
+             * 1) No compiler signon
+             * 2) Send stderr messages to stdout
+             * 3) Less verbose error messages (single line only for each)
+             * 4) Error/warning messages are formatted appropriately to
+             *    be recognized by MS Visual Studio
+             */
             Gbl_VerboseErrors = FALSE;
+            Gbl_DoSignon = FALSE;
+            Gbl_Files[ASL_FILE_STDERR].Handle = stdout;
             break;
 
         case 'o':

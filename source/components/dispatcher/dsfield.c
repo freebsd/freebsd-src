@@ -57,11 +57,86 @@
 
 /* Local prototypes */
 
+#ifdef ACPI_ASL_COMPILER
+#include "acdisasm.h"
+
+static ACPI_STATUS
+AcpiDsCreateExternalRegion (
+    ACPI_STATUS             LookupStatus,
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Path,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_NAMESPACE_NODE     **Node);
+#endif
+
 static ACPI_STATUS
 AcpiDsGetFieldNames (
     ACPI_CREATE_FIELD_INFO  *Info,
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Arg);
+
+
+#ifdef ACPI_ASL_COMPILER
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDsCreateExternalRegion (iASL Disassembler only)
+ *
+ * PARAMETERS:  LookupStatus    - Status from NsLookup operation
+ *              Op              - Op containing the Field definition and args
+ *              Path            - Pathname of the region
+ *  `           WalkState       - Current method state
+ *              Node            - Where the new region node is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Add region to the external list if NOT_FOUND. Create a new
+ *              region node/object.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDsCreateExternalRegion (
+    ACPI_STATUS             LookupStatus,
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Path,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_NAMESPACE_NODE     **Node)
+{
+    ACPI_STATUS             Status;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+
+
+    if (LookupStatus != AE_NOT_FOUND)
+    {
+        return (LookupStatus);
+    }
+
+    /*
+     * Table disassembly:
+     * OperationRegion not found. Generate an External for it, and
+     * insert the name into the namespace.
+     */
+    AcpiDmAddToExternalList (Op, Path, ACPI_TYPE_REGION, 0);
+    Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_REGION,
+       ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT, WalkState, Node);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Must create and install a region object for the new node */
+
+    ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_REGION);
+    if (!ObjDesc)
+    {
+        return (AE_NO_MEMORY);
+    }
+
+    ObjDesc->Region.Node = *Node;
+    Status = AcpiNsAttachObject (*Node, ObjDesc, ACPI_TYPE_REGION);
+    return (Status);
+}
+#endif
 
 
 /*******************************************************************************
@@ -438,11 +513,16 @@ AcpiDsCreateField (
     /* First arg is the name of the parent OpRegion (must already exist) */
 
     Arg = Op->Common.Value.Arg;
+
     if (!RegionNode)
     {
         Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Common.Value.Name,
                         ACPI_TYPE_REGION, ACPI_IMODE_EXECUTE,
                         ACPI_NS_SEARCH_PARENT, WalkState, &RegionNode);
+#ifdef ACPI_ASL_COMPILER
+        Status = AcpiDsCreateExternalRegion (Status, Arg,
+            Arg->Common.Value.Name, WalkState, &RegionNode);
+#endif
         if (ACPI_FAILURE (Status))
         {
             ACPI_ERROR_NAMESPACE (Arg->Common.Value.Name, Status);
@@ -628,6 +708,10 @@ AcpiDsCreateBankField (
         Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Common.Value.Name,
                         ACPI_TYPE_REGION, ACPI_IMODE_EXECUTE,
                         ACPI_NS_SEARCH_PARENT, WalkState, &RegionNode);
+#ifdef ACPI_ASL_COMPILER
+        Status = AcpiDsCreateExternalRegion (Status, Arg,
+            Arg->Common.Value.Name, WalkState, &RegionNode);
+#endif
         if (ACPI_FAILURE (Status))
         {
             ACPI_ERROR_NAMESPACE (Arg->Common.Value.Name, Status);
