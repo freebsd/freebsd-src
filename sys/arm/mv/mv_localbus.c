@@ -48,9 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/mv/mvwin.h>
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
