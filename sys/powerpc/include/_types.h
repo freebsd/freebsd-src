@@ -154,4 +154,6 @@ typedef	struct {
 typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
 #endif
 
+typedef int		__wchar_t;
+
 #endif /* !_MACHINE__TYPES_H_ */
