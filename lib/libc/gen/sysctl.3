@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2010
+.Dd February 11, 2012
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -568,6 +568,7 @@ The fifth and sixth level names are as follows:
 .It "NET_RT_DUMP	None"
 .It "NET_RT_IFLIST	0 or if_index"
 .It "NET_RT_IFMALIST	0 or if_index"
+.It "NET_RT_IFLISTL	0 or if_index"
 .El
 .Pp
 The
@@ -575,6 +576,19 @@ The
 name returns information about multicast group memberships on all interfaces
 if 0 is specified, or for the interface specified by
 .Va if_index .
+.Pp
+The
+.Dv NET_RT_IFLISTL
+is like
+.Dv NET_RT_IFLIST ,
+just returning message header structs with additional fields allowing the
+interface to be extended without breaking binary compatibility.
+The
+.Dv NET_RT_IFLISTL
+uses 'l' versions of the message header structures:
+.Va struct if_msghdrl
+and
+.Va struct ifa_msghdrl .
 .It Li PF_INET
 Get or set various global information about the IPv4
 (Internet Protocol version 4).
