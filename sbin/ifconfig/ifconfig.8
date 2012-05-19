@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2012
+.Dd May 19, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -400,6 +400,22 @@ It will always disable TSO for
 .Xr ip 4
 and
 .Xr ip6 4 .
+.It Cm tso6 , tso4
+If the driver supports
+.Xr tcp 4
+segmentation offloading for
+.Xr ip6 4
+or
+.Xr ip 4
+use one of these to selectively enabled it only for one protocol family.
+.It Fl tso6 , tso4
+If the driver supports
+.Xr tcp 4
+segmentation offloading for
+.Xr ip6 4
+or
+.Xr ip 4
+use one of these to selectively disable it only for one protocol family.
 .It Cm lro
 If the driver supports
 .Xr tcp 4
