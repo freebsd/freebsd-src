@@ -678,7 +678,6 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ifp->if_capabilities = IFCAP_HWCSUM |
 				IFCAP_TSO4 |
-				IFCAP_TSO6 |
 				IFCAP_JUMBO_MTU;
 
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
