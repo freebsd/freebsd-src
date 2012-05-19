@@ -3388,7 +3388,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			reinit = 1;
 		}
 		if ((mask & IFCAP_TSO4) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TSO) != 0) {
+		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
 			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= CSUM_TSO;
