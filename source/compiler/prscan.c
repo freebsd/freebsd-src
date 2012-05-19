@@ -654,7 +654,7 @@ PrDoDirective (
         }
 
         DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-            "Start #include file %s\n", Gbl_CurrentLineNumber,
+            "Start #include file \"%s\"\n", Gbl_CurrentLineNumber,
             Token, Gbl_CurrentLineNumber);
 
         PrOpenIncludeFile (Token);

@@ -55,6 +55,41 @@
 
 /*******************************************************************************
  *
+ * FUNCTION:    UtConvertBackslashes
+ *
+ * PARAMETERS:  Pathname        - File pathname string to be converted
+ *
+ * RETURN:      Modifies the input Pathname
+ *
+ * DESCRIPTION: Convert all backslashes (0x5C) to forward slashes (0x2F) within
+ *              the entire input file pathname string.
+ *
+ ******************************************************************************/
+
+void
+UtConvertBackslashes (
+    char                    *Pathname)
+{
+
+    if (!Pathname)
+    {
+        return;
+    }
+
+    while (*Pathname)
+    {
+        if (*Pathname == '\\')
+        {
+            *Pathname = '/';
+        }
+
+        Pathname++;
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiUtValidateException
  *
  * PARAMETERS:  Status       - The ACPI_STATUS code to be formatted

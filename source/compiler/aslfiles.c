@@ -492,6 +492,107 @@ FlAddIncludeDirectory (
 
 /*******************************************************************************
  *
+ * FUNCTION:    FlMergePathnames
+ *
+ * PARAMETERS:  PrefixDir       - Prefix directory pathname. Can be NULL or
+ *                                a zero length string.
+ *              FilePathname    - The include filename from the source ASL.
+ *
+ * RETURN:      Merged pathname string
+ *
+ * DESCRIPTION: Merge two pathnames that (probably) have common elements, to
+ *              arrive at a minimal length string. Merge can occur if the
+ *              FilePathname is relative to the PrefixDir.
+ *
+ ******************************************************************************/
+
+char *
+FlMergePathnames (
+    char                    *PrefixDir,
+    char                    *FilePathname)
+{
+    char                    *CommonPath;
+    char                    *Pathname;
+    char                    *LastElement;
+
+
+    DbgPrint (ASL_PARSE_OUTPUT, "Include: Prefix path - \"%s\"\n"
+        "Include: FilePathname - \"%s\"\n",
+         PrefixDir, FilePathname);
+
+    /*
+     * If there is no prefix directory or if the file pathname is absolute,
+     * just return the original file pathname
+     */
+    if (!PrefixDir || (!*PrefixDir) ||
+        (*FilePathname == '/') ||
+         (FilePathname[1] == ':'))
+    {
+        Pathname = ACPI_ALLOCATE (strlen (FilePathname) + 1);
+        strcpy (Pathname, FilePathname);
+        goto ConvertBackslashes;
+    }
+
+    /* Need a local copy of the prefix directory path */
+
+    CommonPath = ACPI_ALLOCATE (strlen (PrefixDir) + 1);
+    strcpy (CommonPath, PrefixDir);
+
+    /*
+     * Walk forward through the file path, and simultaneously backward
+     * through the prefix directory path until there are no more
+     * relative references at the start of the file path.
+     */
+    while (*FilePathname && (!strncmp (FilePathname, "../", 3)))
+    {
+        /* Remove last element of the prefix directory path */
+
+        LastElement = strrchr (CommonPath, '/');
+        if (!LastElement)
+        {
+            goto ConcatenatePaths;
+        }
+
+        *LastElement = 0;   /* Terminate CommonPath string */
+        FilePathname += 3;  /* Point to next path element */
+    }
+
+    /*
+     * Remove the last element of the prefix directory path (it is the same as
+     * the first element of the file pathname), and build the final merged
+     * pathname.
+     */
+    LastElement = strrchr (CommonPath, '/');
+    if (LastElement)
+    {
+        *LastElement = 0;
+    }
+
+    /* Build the final merged pathname */
+
+ConcatenatePaths:
+    Pathname = ACPI_ALLOCATE_ZEROED (strlen (CommonPath) + strlen (FilePathname) + 2);
+    if (LastElement && *CommonPath)
+    {
+        strcpy (Pathname, CommonPath);
+        strcat (Pathname, "/");
+    }
+    strcat (Pathname, FilePathname);
+    ACPI_FREE (CommonPath);
+
+    /* Convert all backslashes to normal slashes */
+
+ConvertBackslashes:
+    UtConvertBackslashes (Pathname);
+
+    DbgPrint (ASL_PARSE_OUTPUT, "Include: Merged Pathname - \"%s\"\n",
+         Pathname);
+    return (Pathname);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    FlOpenIncludeWithPrefix
  *
  * PARAMETERS:  PrefixDir       - Prefix directory pathname. Can be a zero
@@ -515,12 +616,9 @@ FlOpenIncludeWithPrefix (
 
     /* Build the full pathname to the file */
 
-    Pathname = ACPI_ALLOCATE (strlen (PrefixDir) + strlen (Filename) + 1);
+    Pathname = FlMergePathnames (PrefixDir, Filename);
 
-    strcpy (Pathname, PrefixDir);
-    strcat (Pathname, Filename);
-
-    DbgPrint (ASL_PARSE_OUTPUT, "\nAttempt to open include file: path %s\n\n",
+    DbgPrint (ASL_PARSE_OUTPUT, "Include: Opening file - \"%s\"\n\n",
         Pathname);
 
     /* Attempt to open the file, push if successful */

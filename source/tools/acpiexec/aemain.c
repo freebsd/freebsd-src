@@ -239,15 +239,19 @@ FlSplitInputPathname (
         return (AE_NO_MEMORY);
     }
 
-    Substring = strrchr (DirectoryPath, '\\');
+    /* Convert backslashes to slashes in the entire path */
+
+    UtConvertBackslashes (DirectoryPath);
+
+    /* Backup to last slash or colon */
+
+    Substring = strrchr (DirectoryPath, '/');
     if (!Substring)
     {
-        Substring = strrchr (DirectoryPath, '/');
-        if (!Substring)
-        {
-            Substring = strrchr (DirectoryPath, ':');
-        }
+        Substring = strrchr (DirectoryPath, ':');
     }
+
+    /* Extract the simple filename */
 
     if (!Substring)
     {
@@ -267,7 +271,6 @@ FlSplitInputPathname (
 
     *OutDirectoryPath = DirectoryPath;
     *OutFilename = Filename;
-
     return (AE_OK);
 }
 
