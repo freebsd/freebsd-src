@@ -1778,6 +1778,18 @@ pfkey_align(msg, mhp)
 		case SADB_X_EXT_SA2:
 			mhp[ext->sadb_ext_type] = (caddr_t)ext;
 			break;
+		case SADB_X_EXT_NAT_T_TYPE:
+		case SADB_X_EXT_NAT_T_SPORT:
+		case SADB_X_EXT_NAT_T_DPORT:
+		/* case SADB_X_EXT_NAT_T_OA: is OAI */
+		case SADB_X_EXT_NAT_T_OAI:
+		case SADB_X_EXT_NAT_T_OAR:
+		case SADB_X_EXT_NAT_T_FRAG:
+			if (feature_present("ipsec_natt")) {
+				mhp[ext->sadb_ext_type] = (caddr_t)ext;
+				break;
+			}
+			/* FALLTHROUGH */
 		default:
 			__ipsec_errcode = EIPSEC_INVAL_EXTTYPE;
 			return -1;
