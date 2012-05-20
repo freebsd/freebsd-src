@@ -80,6 +80,4 @@ extern void ath_setdefantenna(struct ath_softc *sc, u_int antenna);
  */
 extern void ath_start(struct ifnet *ifp);
 
-extern void ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap);
-
 #endif
