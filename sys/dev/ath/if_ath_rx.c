@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_ath_rx.h>
+#include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
 
 #ifdef ATH_TX99_DIAG
