@@ -336,6 +336,7 @@ IDTVEC(cpustop)
 /*
  * Executed by a CPU when it receives an IPI_SUSPEND from another CPU.
  */
+#ifndef XEN
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(cpususpend)
@@ -350,6 +351,7 @@ IDTVEC(cpususpend)
 
 	POP_FRAME
 	jmp	doreti_iret
+#endif
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.

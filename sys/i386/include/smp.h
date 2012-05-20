@@ -60,7 +60,9 @@ inthand_t
 /* functions in mp_machdep.c */
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
+#ifndef XEN
 void	cpususpend_handler(void);
+#endif
 void	init_secondary(void);
 void	ipi_all_but_self(u_int ipi);
 #ifndef XEN
