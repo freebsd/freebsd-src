@@ -2674,9 +2674,11 @@ ath_tx_tid_bar_suspend(struct ath_softc *sc, struct ath_tid *tid)
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: tid=%p, called\n",
+	    "%s: tid=%p, bar_wait=%d, bar_tx=%d, called\n",
 	    __func__,
-	    tid);
+	    tid,
+	    tid->bar_wait,
+	    tid->bar_tx);
 
 	/* We shouldn't be called when bar_tx is 1 */
 	if (tid->bar_tx) {
@@ -4445,8 +4447,12 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	int attempts = tap->txa_attempts;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: called; status=%d, attempts=%d\n",
+	    "%s: called; tap=%p, atid=%p, txa_tid=%d, atid->tid=%d, status=%d, attempts=%d\n",
 	    __func__,
+	    tap,
+	    atid,
+	    tap->txa_tid,
+	    atid->tid,
 	    status,
 	    attempts);
 
