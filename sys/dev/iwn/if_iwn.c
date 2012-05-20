@@ -2767,7 +2767,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	struct mbuf *m;
 	struct iwn_node *wn;
 	struct ieee80211_node *ni;
-	struct ieee80211vap *vap;
 	struct ieee80211_tx_ampdu *tap;
 	uint64_t bitmap;
 	uint32_t *status = stat;
@@ -2826,7 +2825,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		bus_dmamap_unload(ring->data_dmat, data->map);
 		m = data->m, data->m = NULL;
 		ni = data->ni, data->ni = NULL;
-		vap = ni->ni_vap;
 
 		if (m->m_flags & M_TXCB)
 			ieee80211_process_callback(ni, m, 1);
