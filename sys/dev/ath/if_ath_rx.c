@@ -766,7 +766,6 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
 	struct ath_buf *bf;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct ath_rx_status *rs;
