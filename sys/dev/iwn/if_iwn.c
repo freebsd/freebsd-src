@@ -3314,6 +3314,11 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	if (m->m_flags & M_AMPDU_MPDU) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
+		if (!IEEE80211_AMPDU_RUNNING(tap)) {
+			m_freem(m);
+			return EINVAL;
+		}
+
 		ac = *(int *)tap->txa_private;
 		*(uint16_t *)wh->i_seq =
 		    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
