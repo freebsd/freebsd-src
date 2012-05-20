@@ -2515,6 +2515,11 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     if (!acpi_sleep_states[state])
 	return (EOPNOTSUPP);
 
+    /* Wait until sleep is enabled. */
+    while (sc->acpi_sleep_disabled) {
+	AcpiOsSleep(1000);
+    }
+
     ACPI_LOCK(acpi);
 
     /* If a suspend request is already in progress, just return. */
@@ -2522,6 +2527,7 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     	ACPI_UNLOCK(acpi);
 	return (0);
     }
+    sc->acpi_next_sstate = state;
 
     /* S5 (soft-off) should be entered directly with no waiting. */
     if (state == ACPI_STATE_S5) {
@@ -2531,7 +2537,6 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     }
 
     /* Record the pending state and notify all apm devices. */
-    sc->acpi_next_sstate = state;
     STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
 	clone->notify_status = APM_EV_NONE;
 	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
