@@ -55,7 +55,6 @@ static struct at91_pmc_softc {
 	bus_space_handle_t	sc_sh;
 	struct resource	*mem_res;	/* Memory resource */
 	device_t		dev;
-	unsigned int		main_clock_hz;
 	uint32_t		pllb_init;
 } *pmc_softc;
 
@@ -146,18 +145,6 @@ static struct at91_pmc_clock *clock_list[16+32] = {
 	&mck,
 	&cpu
 };
-
-#if !defined(AT91C_MAIN_CLOCK)
-static const unsigned int at91_mainf_tbl[] = {
-	3000000, 3276800, 3686400, 3840000, 4000000,
-	4433619, 4915200, 5000000, 5242880, 6000000,
-	6144000, 6400000, 6553600, 7159090, 7372800,
-	7864320, 8000000, 9830400, 10000000, 11059200,
-	12000000, 12288000, 13560000, 14318180, 14745600,
-	16000000, 17344700, 18432000, 20000000
-};
-#define	MAINF_TBL_LEN	(sizeof(at91_mainf_tbl) / sizeof(*at91_mainf_tbl))
-#endif
 
 static inline uint32_t
 RD4(struct at91_pmc_softc *sc, bus_size_t off)
@@ -412,7 +399,6 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 		udpck.pmc_mask = PMC_SCER_UDP_SAM9;
 	}
 	mckr = RD4(sc, PMC_MCKR);
-	sc->main_clock_hz = main_clock;
 	main_ck.hz = main_clock;
 
 	at91_pmc_pll_rate(&plla, RD4(sc, CKGR_PLLAR));
@@ -465,7 +451,7 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 
 	device_printf(sc->dev,
 	    "Primary: %d Hz PLLA: %d MHz CPU: %d MHz MCK: %d MHz\n",
-	    sc->main_clock_hz,
+	    main_clock,
 	    plla.hz / 1000000,
 	    cpu.hz / 1000000, mck.hz / 1000000);
 
@@ -520,6 +506,16 @@ at91_pmc_probe(device_t dev)
 }
 
 #if !defined(AT91C_MAIN_CLOCK)
+static const unsigned int at91_mainf_tbl[] = {
+	3000000, 3276800, 3686400, 3840000, 4000000,
+	4433619, 4915200, 5000000, 5242880, 6000000,
+	6144000, 6400000, 6553600, 7159090, 7372800,
+	7864320, 8000000, 9830400, 10000000, 11059200,
+	12000000, 12288000, 13560000, 14318180, 14745600,
+	16000000, 17344700, 18432000, 20000000
+};
+#define	MAINF_TBL_LEN	(sizeof(at91_mainf_tbl) / sizeof(*at91_mainf_tbl))
+
 static unsigned int
 at91_pmc_sense_mainf(struct at91_pmc_softc *sc)
 {
