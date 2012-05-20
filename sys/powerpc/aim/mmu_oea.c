@@ -857,7 +857,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
 	CPU_FILL(&kernel_pmap->pm_active);
-	LIST_INIT(&kernel_pmap->pmap_pvo);
+	RB_INIT(&kernel_pmap->pmap_pvo);
 
 	/*
 	 * Set up the Open Firmware mappings
@@ -1587,7 +1587,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
 	PMAP_LOCK_INIT(pmap);
-	LIST_INIT(&pmap->pmap_pvo);
+	RB_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
@@ -1661,9 +1661,8 @@ void
 moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
     vm_prot_t prot)
 {
-	struct	pvo_entry *pvo;
+	struct	pvo_entry *pvo, *tpvo, key;
 	struct	pte *pt;
-	int	pteidx;
 
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("moea_protect: non current pmap"));
@@ -1675,11 +1674,10 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = moea_pvo_find_va(pm, sva, &pteidx);
-		if (pvo == NULL)
-			continue;
-
+	key.pvo_vaddr = sva;
+	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
+	    pvo != NULL && PVO_VADDR(pvo) < eva; pvo = tpvo) {
+		tpvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo);
 		if ((prot & VM_PROT_EXECUTE) == 0)
 			pvo->pvo_vaddr &= ~PVO_EXECUTABLE;
 
@@ -1687,7 +1685,7 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 		 * Grab the PTE pointer before we diddle with the cached PTE
 		 * copy.
 		 */
-		pt = moea_pvo_to_pte(pvo, pteidx);
+		pt = moea_pvo_to_pte(pvo, -1);
 		/*
 		 * Change the protection of the page.
 		 */
@@ -1766,23 +1764,15 @@ moea_release(mmu_t mmu, pmap_t pmap)
 void
 moea_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	struct	pvo_entry *pvo, *tpvo;
-	int	pteidx;
+	struct	pvo_entry *pvo, *tpvo, key;
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	if ((eva - sva)/PAGE_SIZE < 10) {
-		for (; sva < eva; sva += PAGE_SIZE) {
-			pvo = moea_pvo_find_va(pm, sva, &pteidx);
-			if (pvo != NULL)
-				moea_pvo_remove(pvo, pteidx);
-		}
-	} else {
-		LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
-			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
-				continue;
-			moea_pvo_remove(pvo, -1);
-		}
+	key.pvo_vaddr = sva;
+	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
+	    pvo != NULL && PVO_VADDR(pvo) < eva; pvo = tpvo) {
+		tpvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo);
+		moea_pvo_remove(pvo, -1);
 	}
 	PMAP_UNLOCK(pm);
 	vm_page_unlock_queues();
@@ -1946,7 +1936,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	/*
 	 * Add to pmap list
 	 */
-	LIST_INSERT_HEAD(&pm->pmap_pvo, pvo, pvo_plink);
+	RB_INSERT(pvo_tree, &pm->pmap_pvo, pvo);
 
 	/*
 	 * Remember if the list was empty and therefore will be the first
@@ -2017,7 +2007,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * Remove this PVO from the PV and pmap lists.
 	 */
 	LIST_REMOVE(pvo, pvo_vlink);
-	LIST_REMOVE(pvo, pvo_plink);
+	RB_REMOVE(pvo_tree, &pvo->pvo_pmap->pmap_pvo, pvo);
 
 	/*
 	 * Remove this from the overflow list and return it to the pool

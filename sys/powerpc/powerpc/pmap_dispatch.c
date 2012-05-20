@@ -76,6 +76,20 @@ vm_offset_t virtual_end;
 
 int pmap_bootstrapped;
 
+#ifdef AIM
+int
+pvo_vaddr_compare(struct pvo_entry *a, struct pvo_entry *b)
+{
+	if (PVO_VADDR(a) < PVO_VADDR(b))
+		return (-1);
+	else if (PVO_VADDR(a) > PVO_VADDR(b))
+		return (1);
+	return (0);
+}
+RB_GENERATE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
+#endif
+	
+
 void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
