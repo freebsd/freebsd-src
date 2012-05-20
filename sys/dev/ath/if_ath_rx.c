@@ -437,6 +437,327 @@ ath_rx_tasklet(void *arg, int npending)
 	ath_rx_proc(sc, 1);
 }
 
+static int
+ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
+    uint64_t tsf, int nf, struct ath_buf *bf)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	struct mbuf *m = bf->bf_m;
+	uint64_t rstamp;
+	int len, type;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211_node *ni;
+	int is_good = 0;
+
+	/*
+	 * Calculate the correct 64 bit TSF given
+	 * the TSF64 register value and rs_tstamp.
+	 */
+	rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
+
+	/* These aren't specifically errors */
+#ifdef	AH_SUPPORT_AR5416
+	if (rs->rs_flags & HAL_RX_GI)
+		sc->sc_stats.ast_rx_halfgi++;
+	if (rs->rs_flags & HAL_RX_2040)
+		sc->sc_stats.ast_rx_2040++;
+	if (rs->rs_flags & HAL_RX_DELIM_CRC_PRE)
+		sc->sc_stats.ast_rx_pre_crc_err++;
+	if (rs->rs_flags & HAL_RX_DELIM_CRC_POST)
+		sc->sc_stats.ast_rx_post_crc_err++;
+	if (rs->rs_flags & HAL_RX_DECRYPT_BUSY)
+		sc->sc_stats.ast_rx_decrypt_busy_err++;
+	if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
+		sc->sc_stats.ast_rx_hi_rx_chain++;
+#endif /* AH_SUPPORT_AR5416 */
+
+	if (rs->rs_status != 0) {
+		if (rs->rs_status & HAL_RXERR_CRC)
+			sc->sc_stats.ast_rx_crcerr++;
+		if (rs->rs_status & HAL_RXERR_FIFO)
+			sc->sc_stats.ast_rx_fifoerr++;
+		if (rs->rs_status & HAL_RXERR_PHY) {
+			sc->sc_stats.ast_rx_phyerr++;
+			/* Process DFS radar events */
+			if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
+			    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
+				/* Since we're touching the frame data, sync it */
+				bus_dmamap_sync(sc->sc_dmat,
+				    bf->bf_dmamap,
+				    BUS_DMASYNC_POSTREAD);
+				/* Now pass it to the radar processing code */
+				ath_dfs_process_phy_err(sc, mtod(m, char *), rstamp, rs);
+			}
+
+			/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
+			if (rs->rs_phyerr < 64)
+				sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
+			goto rx_error;	/* NB: don't count in ierrors */
+		}
+		if (rs->rs_status & HAL_RXERR_DECRYPT) {
+			/*
+			 * Decrypt error.  If the error occurred
+			 * because there was no hardware key, then
+			 * let the frame through so the upper layers
+			 * can process it.  This is necessary for 5210
+			 * parts which have no way to setup a ``clear''
+			 * key cache entry.
+			 *
+			 * XXX do key cache faulting
+			 */
+			if (rs->rs_keyix == HAL_RXKEYIX_INVALID)
+				goto rx_accept;
+			sc->sc_stats.ast_rx_badcrypt++;
+		}
+		if (rs->rs_status & HAL_RXERR_MIC) {
+			sc->sc_stats.ast_rx_badmic++;
+			/*
+			 * Do minimal work required to hand off
+			 * the 802.11 header for notification.
+			 */
+			/* XXX frag's and qos frames */
+			len = rs->rs_datalen;
+			if (len >= sizeof (struct ieee80211_frame)) {
+				bus_dmamap_sync(sc->sc_dmat,
+				    bf->bf_dmamap,
+				    BUS_DMASYNC_POSTREAD);
+				ath_handle_micerror(ic,
+				    mtod(m, struct ieee80211_frame *),
+				    sc->sc_splitmic ?
+					rs->rs_keyix-32 : rs->rs_keyix);
+			}
+		}
+		ifp->if_ierrors++;
+rx_error:
+		/*
+		 * Cleanup any pending partial frame.
+		 */
+		if (sc->sc_rxpending != NULL) {
+			m_freem(sc->sc_rxpending);
+			sc->sc_rxpending = NULL;
+		}
+		/*
+		 * When a tap is present pass error frames
+		 * that have been requested.  By default we
+		 * pass decrypt+mic errors but others may be
+		 * interesting (e.g. crc).
+		 */
+		if (ieee80211_radiotap_active(ic) &&
+		    (rs->rs_status & sc->sc_monpass)) {
+			bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+			    BUS_DMASYNC_POSTREAD);
+			/* NB: bpf needs the mbuf length setup */
+			len = rs->rs_datalen;
+			m->m_pkthdr.len = m->m_len = len;
+			bf->bf_m = NULL;
+			ath_rx_tap(ifp, m, rs, rstamp, nf);
+			ieee80211_radiotap_rx_all(ic, m);
+			m_freem(m);
+		}
+		/* XXX pass MIC errors up for s/w reclaculation */
+		goto rx_next;
+	}
+rx_accept:
+	/*
+	 * Sync and unmap the frame.  At this point we're
+	 * committed to passing the mbuf somewhere so clear
+	 * bf_m; this means a new mbuf must be allocated
+	 * when the rx descriptor is setup again to receive
+	 * another frame.
+	 */
+	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+	bf->bf_m = NULL;
+
+	len = rs->rs_datalen;
+	m->m_len = len;
+
+	if (rs->rs_more) {
+		/*
+		 * Frame spans multiple descriptors; save
+		 * it for the next completed descriptor, it
+		 * will be used to construct a jumbogram.
+		 */
+		if (sc->sc_rxpending != NULL) {
+			/* NB: max frame size is currently 2 clusters */
+			sc->sc_stats.ast_rx_toobig++;
+			m_freem(sc->sc_rxpending);
+		}
+		m->m_pkthdr.rcvif = ifp;
+		m->m_pkthdr.len = len;
+		sc->sc_rxpending = m;
+		goto rx_next;
+	} else if (sc->sc_rxpending != NULL) {
+		/*
+		 * This is the second part of a jumbogram,
+		 * chain it to the first mbuf, adjust the
+		 * frame length, and clear the rxpending state.
+		 */
+		sc->sc_rxpending->m_next = m;
+		sc->sc_rxpending->m_pkthdr.len += len;
+		m = sc->sc_rxpending;
+		sc->sc_rxpending = NULL;
+	} else {
+		/*
+		 * Normal single-descriptor receive; setup
+		 * the rcvif and packet length.
+		 */
+		m->m_pkthdr.rcvif = ifp;
+		m->m_pkthdr.len = len;
+	}
+
+	/*
+	 * Validate rs->rs_antenna.
+	 *
+	 * Some users w/ AR9285 NICs have reported crashes
+	 * here because rs_antenna field is bogusly large.
+	 * Let's enforce the maximum antenna limit of 8
+	 * (and it shouldn't be hard coded, but that's a
+	 * separate problem) and if there's an issue, print
+	 * out an error and adjust rs_antenna to something
+	 * sensible.
+	 *
+	 * This code should be removed once the actual
+	 * root cause of the issue has been identified.
+	 * For example, it may be that the rs_antenna
+	 * field is only valid for the lsat frame of
+	 * an aggregate and it just happens that it is
+	 * "mostly" right. (This is a general statement -
+	 * the majority of the statistics are only valid
+	 * for the last frame in an aggregate.
+	 */
+	if (rs->rs_antenna > 7) {
+		device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
+		    __func__, rs->rs_antenna);
+#ifdef	ATH_DEBUG
+		ath_printrxbuf(sc, bf, 0, status == HAL_OK);
+#endif /* ATH_DEBUG */
+		rs->rs_antenna = 0;	/* XXX better than nothing */
+	}
+
+	ifp->if_ipackets++;
+	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
+
+	/*
+	 * Populate the rx status block.  When there are bpf
+	 * listeners we do the additional work to provide
+	 * complete status.  Otherwise we fill in only the
+	 * material required by ieee80211_input.  Note that
+	 * noise setting is filled in above.
+	 */
+	if (ieee80211_radiotap_active(ic))
+		ath_rx_tap(ifp, m, rs, rstamp, nf);
+
+	/*
+	 * From this point on we assume the frame is at least
+	 * as large as ieee80211_frame_min; verify that.
+	 */
+	if (len < IEEE80211_MIN_LEN) {
+		if (!ieee80211_radiotap_active(ic)) {
+			DPRINTF(sc, ATH_DEBUG_RECV,
+			    "%s: short packet %d\n", __func__, len);
+			sc->sc_stats.ast_rx_tooshort++;
+		} else {
+			/* NB: in particular this captures ack's */
+			ieee80211_radiotap_rx_all(ic, m);
+		}
+		m_freem(m);
+		goto rx_next;
+	}
+
+	if (IFF_DUMPPKTS(sc, ATH_DEBUG_RECV)) {
+		const HAL_RATE_TABLE *rt = sc->sc_currates;
+		uint8_t rix = rt->rateCodeToIndex[rs->rs_rate];
+
+		ieee80211_dump_pkt(ic, mtod(m, caddr_t), len,
+		    sc->sc_hwmap[rix].ieeerate, rs->rs_rssi);
+	}
+
+	m_adj(m, -IEEE80211_CRC_LEN);
+
+	/*
+	 * Locate the node for sender, track state, and then
+	 * pass the (referenced) node up to the 802.11 layer
+	 * for its use.
+	 */
+	ni = ieee80211_find_rxnode_withkey(ic,
+		mtod(m, const struct ieee80211_frame_min *),
+		rs->rs_keyix == HAL_RXKEYIX_INVALID ?
+			IEEE80211_KEYIX_NONE : rs->rs_keyix);
+	sc->sc_lastrs = rs;
+
+#ifdef	AH_SUPPORT_AR5416
+	if (rs->rs_isaggr)
+		sc->sc_stats.ast_rx_agg++;
+#endif /* AH_SUPPORT_AR5416 */
+
+	if (ni != NULL) {
+		/*
+		 * Only punt packets for ampdu reorder processing for
+		 * 11n nodes; net80211 enforces that M_AMPDU is only
+		 * set for 11n nodes.
+		 */
+		if (ni->ni_flags & IEEE80211_NODE_HT)
+			m->m_flags |= M_AMPDU;
+
+		/*
+		 * Sending station is known, dispatch directly.
+		 */
+		type = ieee80211_input(ni, m, rs->rs_rssi, nf);
+		ieee80211_free_node(ni);
+		/*
+		 * Arrange to update the last rx timestamp only for
+		 * frames from our ap when operating in station mode.
+		 * This assumes the rx key is always setup when
+		 * associated.
+		 */
+		if (ic->ic_opmode == IEEE80211_M_STA &&
+		    rs->rs_keyix != HAL_RXKEYIX_INVALID)
+			is_good = 1;
+	} else {
+		type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
+	}
+	/*
+	 * Track rx rssi and do any rx antenna management.
+	 */
+	ATH_RSSI_LPF(sc->sc_halstats.ns_avgrssi, rs->rs_rssi);
+	if (sc->sc_diversity) {
+		/*
+		 * When using fast diversity, change the default rx
+		 * antenna if diversity chooses the other antenna 3
+		 * times in a row.
+		 */
+		if (sc->sc_defant != rs->rs_antenna) {
+			if (++sc->sc_rxotherant >= 3)
+				ath_setdefantenna(sc, rs->rs_antenna);
+		} else
+			sc->sc_rxotherant = 0;
+	}
+
+	/* Newer school diversity - kite specific for now */
+	/* XXX perhaps migrate the normal diversity code to this? */
+	if ((ah)->ah_rxAntCombDiversity)
+		(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
+
+	if (sc->sc_softled) {
+		/*
+		 * Blink for any data frame.  Otherwise do a
+		 * heartbeat-style blink when idle.  The latter
+		 * is mainly for station mode where we depend on
+		 * periodic beacon frames to trigger the poll event.
+		 */
+		if (type == IEEE80211_FC0_TYPE_DATA) {
+			const HAL_RATE_TABLE *rt = sc->sc_currates;
+			ath_led_event(sc,
+			    rt->rateCodeToIndex[rs->rs_rate]);
+		} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
+			ath_led_event(sc, 0);
+		}
+rx_next:
+	return (is_good);
+}
+
 void
 ath_rx_proc(struct ath_softc *sc, int resched)
 {
@@ -450,11 +771,10 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	struct ath_desc *ds;
 	struct ath_rx_status *rs;
 	struct mbuf *m;
-	struct ieee80211_node *ni;
-	int len, type, ngood;
+	int ngood;
 	HAL_STATUS status;
 	int16_t nf;
-	u_int64_t tsf, rstamp;
+	u_int64_t tsf;
 	int npkts = 0;
 
 	/* XXX we must not hold the ATH_LOCK here */
@@ -492,7 +812,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 			/* XXX make debug msg */
 			if_printf(ifp, "%s: no mbuf!\n", __func__);
 			TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
-			goto rx_next;
+			goto rx_proc_next;
 		}
 		ds = bf->bf_desc;
 		if (ds->ds_link == bf->bf_daddr) {
@@ -526,311 +846,11 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		npkts++;
 
 		/*
-		 * Calculate the correct 64 bit TSF given
-		 * the TSF64 register value and rs_tstamp.
+		 * Process a single frame.
 		 */
-		rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
-
-		/* These aren't specifically errors */
-#ifdef	AH_SUPPORT_AR5416
-		if (rs->rs_flags & HAL_RX_GI)
-			sc->sc_stats.ast_rx_halfgi++;
-		if (rs->rs_flags & HAL_RX_2040)
-			sc->sc_stats.ast_rx_2040++;
-		if (rs->rs_flags & HAL_RX_DELIM_CRC_PRE)
-			sc->sc_stats.ast_rx_pre_crc_err++;
-		if (rs->rs_flags & HAL_RX_DELIM_CRC_POST)
-			sc->sc_stats.ast_rx_post_crc_err++;
-		if (rs->rs_flags & HAL_RX_DECRYPT_BUSY)
-			sc->sc_stats.ast_rx_decrypt_busy_err++;
-		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
-			sc->sc_stats.ast_rx_hi_rx_chain++;
-#endif /* AH_SUPPORT_AR5416 */
-
-		if (rs->rs_status != 0) {
-			if (rs->rs_status & HAL_RXERR_CRC)
-				sc->sc_stats.ast_rx_crcerr++;
-			if (rs->rs_status & HAL_RXERR_FIFO)
-				sc->sc_stats.ast_rx_fifoerr++;
-			if (rs->rs_status & HAL_RXERR_PHY) {
-				sc->sc_stats.ast_rx_phyerr++;
-				/* Process DFS radar events */
-				if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
-				    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
-					/* Since we're touching the frame data, sync it */
-					bus_dmamap_sync(sc->sc_dmat,
-					    bf->bf_dmamap,
-					    BUS_DMASYNC_POSTREAD);
-					/* Now pass it to the radar processing code */
-					ath_dfs_process_phy_err(sc, mtod(m, char *), rstamp, rs);
-				}
-
-				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
-				if (rs->rs_phyerr < 64)
-					sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
-				goto rx_error;	/* NB: don't count in ierrors */
-			}
-			if (rs->rs_status & HAL_RXERR_DECRYPT) {
-				/*
-				 * Decrypt error.  If the error occurred
-				 * because there was no hardware key, then
-				 * let the frame through so the upper layers
-				 * can process it.  This is necessary for 5210
-				 * parts which have no way to setup a ``clear''
-				 * key cache entry.
-				 *
-				 * XXX do key cache faulting
-				 */
-				if (rs->rs_keyix == HAL_RXKEYIX_INVALID)
-					goto rx_accept;
-				sc->sc_stats.ast_rx_badcrypt++;
-			}
-			if (rs->rs_status & HAL_RXERR_MIC) {
-				sc->sc_stats.ast_rx_badmic++;
-				/*
-				 * Do minimal work required to hand off
-				 * the 802.11 header for notification.
-				 */
-				/* XXX frag's and qos frames */
-				len = rs->rs_datalen;
-				if (len >= sizeof (struct ieee80211_frame)) {
-					bus_dmamap_sync(sc->sc_dmat,
-					    bf->bf_dmamap,
-					    BUS_DMASYNC_POSTREAD);
-					ath_handle_micerror(ic,
-					    mtod(m, struct ieee80211_frame *),
-					    sc->sc_splitmic ?
-						rs->rs_keyix-32 : rs->rs_keyix);
-				}
-			}
-			ifp->if_ierrors++;
-rx_error:
-			/*
-			 * Cleanup any pending partial frame.
-			 */
-			if (sc->sc_rxpending != NULL) {
-				m_freem(sc->sc_rxpending);
-				sc->sc_rxpending = NULL;
-			}
-			/*
-			 * When a tap is present pass error frames
-			 * that have been requested.  By default we
-			 * pass decrypt+mic errors but others may be
-			 * interesting (e.g. crc).
-			 */
-			if (ieee80211_radiotap_active(ic) &&
-			    (rs->rs_status & sc->sc_monpass)) {
-				bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-				    BUS_DMASYNC_POSTREAD);
-				/* NB: bpf needs the mbuf length setup */
-				len = rs->rs_datalen;
-				m->m_pkthdr.len = m->m_len = len;
-				bf->bf_m = NULL;
-				ath_rx_tap(ifp, m, rs, rstamp, nf);
-				ieee80211_radiotap_rx_all(ic, m);
-				m_freem(m);
-			}
-			/* XXX pass MIC errors up for s/w reclaculation */
-			goto rx_next;
-		}
-rx_accept:
-		/*
-		 * Sync and unmap the frame.  At this point we're
-		 * committed to passing the mbuf somewhere so clear
-		 * bf_m; this means a new mbuf must be allocated
-		 * when the rx descriptor is setup again to receive
-		 * another frame.
-		 */
-		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-		bf->bf_m = NULL;
-
-		len = rs->rs_datalen;
-		m->m_len = len;
-
-		if (rs->rs_more) {
-			/*
-			 * Frame spans multiple descriptors; save
-			 * it for the next completed descriptor, it
-			 * will be used to construct a jumbogram.
-			 */
-			if (sc->sc_rxpending != NULL) {
-				/* NB: max frame size is currently 2 clusters */
-				sc->sc_stats.ast_rx_toobig++;
-				m_freem(sc->sc_rxpending);
-			}
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = len;
-			sc->sc_rxpending = m;
-			goto rx_next;
-		} else if (sc->sc_rxpending != NULL) {
-			/*
-			 * This is the second part of a jumbogram,
-			 * chain it to the first mbuf, adjust the
-			 * frame length, and clear the rxpending state.
-			 */
-			sc->sc_rxpending->m_next = m;
-			sc->sc_rxpending->m_pkthdr.len += len;
-			m = sc->sc_rxpending;
-			sc->sc_rxpending = NULL;
-		} else {
-			/*
-			 * Normal single-descriptor receive; setup
-			 * the rcvif and packet length.
-			 */
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = len;
-		}
-
-		/*
-		 * Validate rs->rs_antenna.
-		 *
-		 * Some users w/ AR9285 NICs have reported crashes
-		 * here because rs_antenna field is bogusly large.
-		 * Let's enforce the maximum antenna limit of 8
-		 * (and it shouldn't be hard coded, but that's a
-		 * separate problem) and if there's an issue, print
-		 * out an error and adjust rs_antenna to something
-		 * sensible.
-		 *
-		 * This code should be removed once the actual
-		 * root cause of the issue has been identified.
-		 * For example, it may be that the rs_antenna
-		 * field is only valid for the lsat frame of
-		 * an aggregate and it just happens that it is
-		 * "mostly" right. (This is a general statement -
-		 * the majority of the statistics are only valid
-		 * for the last frame in an aggregate.
-		 */
-		if (rs->rs_antenna > 7) {
-			device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
-			    __func__, rs->rs_antenna);
-#ifdef	ATH_DEBUG
-			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
-#endif /* ATH_DEBUG */
-			rs->rs_antenna = 0;	/* XXX better than nothing */
-		}
-
-		ifp->if_ipackets++;
-		sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
-
-		/*
-		 * Populate the rx status block.  When there are bpf
-		 * listeners we do the additional work to provide
-		 * complete status.  Otherwise we fill in only the
-		 * material required by ieee80211_input.  Note that
-		 * noise setting is filled in above.
-		 */
-		if (ieee80211_radiotap_active(ic))
-			ath_rx_tap(ifp, m, rs, rstamp, nf);
-
-		/*
-		 * From this point on we assume the frame is at least
-		 * as large as ieee80211_frame_min; verify that.
-		 */
-		if (len < IEEE80211_MIN_LEN) {
-			if (!ieee80211_radiotap_active(ic)) {
-				DPRINTF(sc, ATH_DEBUG_RECV,
-				    "%s: short packet %d\n", __func__, len);
-				sc->sc_stats.ast_rx_tooshort++;
-			} else {
-				/* NB: in particular this captures ack's */
-				ieee80211_radiotap_rx_all(ic, m);
-			}
-			m_freem(m);
-			goto rx_next;
-		}
-
-		if (IFF_DUMPPKTS(sc, ATH_DEBUG_RECV)) {
-			const HAL_RATE_TABLE *rt = sc->sc_currates;
-			uint8_t rix = rt->rateCodeToIndex[rs->rs_rate];
-
-			ieee80211_dump_pkt(ic, mtod(m, caddr_t), len,
-			    sc->sc_hwmap[rix].ieeerate, rs->rs_rssi);
-		}
-
-		m_adj(m, -IEEE80211_CRC_LEN);
-
-		/*
-		 * Locate the node for sender, track state, and then
-		 * pass the (referenced) node up to the 802.11 layer
-		 * for its use.
-		 */
-		ni = ieee80211_find_rxnode_withkey(ic,
-			mtod(m, const struct ieee80211_frame_min *),
-			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
-				IEEE80211_KEYIX_NONE : rs->rs_keyix);
-		sc->sc_lastrs = rs;
-
-#ifdef	AH_SUPPORT_AR5416
-		if (rs->rs_isaggr)
-			sc->sc_stats.ast_rx_agg++;
-#endif /* AH_SUPPORT_AR5416 */
-
-		if (ni != NULL) {
-			/*
- 			 * Only punt packets for ampdu reorder processing for
-			 * 11n nodes; net80211 enforces that M_AMPDU is only
-			 * set for 11n nodes.
- 			 */
-			if (ni->ni_flags & IEEE80211_NODE_HT)
-				m->m_flags |= M_AMPDU;
-
-			/*
-			 * Sending station is known, dispatch directly.
-			 */
-			type = ieee80211_input(ni, m, rs->rs_rssi, nf);
-			ieee80211_free_node(ni);
-			/*
-			 * Arrange to update the last rx timestamp only for
-			 * frames from our ap when operating in station mode.
-			 * This assumes the rx key is always setup when
-			 * associated.
-			 */
-			if (ic->ic_opmode == IEEE80211_M_STA &&
-			    rs->rs_keyix != HAL_RXKEYIX_INVALID)
-				ngood++;
-		} else {
-			type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
-		}
-		/*
-		 * Track rx rssi and do any rx antenna management.
-		 */
-		ATH_RSSI_LPF(sc->sc_halstats.ns_avgrssi, rs->rs_rssi);
-		if (sc->sc_diversity) {
-			/*
-			 * When using fast diversity, change the default rx
-			 * antenna if diversity chooses the other antenna 3
-			 * times in a row.
-			 */
-			if (sc->sc_defant != rs->rs_antenna) {
-				if (++sc->sc_rxotherant >= 3)
-					ath_setdefantenna(sc, rs->rs_antenna);
-			} else
-				sc->sc_rxotherant = 0;
-		}
-
-		/* Newer school diversity - kite specific for now */
-		/* XXX perhaps migrate the normal diversity code to this? */
-		if ((ah)->ah_rxAntCombDiversity)
-			(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
-
-		if (sc->sc_softled) {
-			/*
-			 * Blink for any data frame.  Otherwise do a
-			 * heartbeat-style blink when idle.  The latter
-			 * is mainly for station mode where we depend on
-			 * periodic beacon frames to trigger the poll event.
-			 */
-			if (type == IEEE80211_FC0_TYPE_DATA) {
-				const HAL_RATE_TABLE *rt = sc->sc_currates;
-				ath_led_event(sc,
-				    rt->rateCodeToIndex[rs->rs_rate]);
-			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
-				ath_led_event(sc, 0);
-		}
-rx_next:
+		if (ath_rx_pkt(sc, rs, status, tsf, nf, bf))
+			ngood++;
+rx_proc_next:
 		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
 	} while (ath_rxbuf_init(sc, bf) == 0);
 
