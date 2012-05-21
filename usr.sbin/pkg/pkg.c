@@ -371,7 +371,7 @@ bootstrap_pkg(void)
 		config = fopen(conf, "w+");
 		if (config == NULL)
 			goto cleanup;
-		fprintf(config, "packagesite: %s", url);
+		fprintf(config, "packagesite: %s\n", url);
 		fclose(config);
 	}
 
