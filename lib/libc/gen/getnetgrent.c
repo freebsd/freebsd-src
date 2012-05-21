@@ -292,12 +292,12 @@ _listmatch(const char *list, const char *group, int len)
 		while(*ptr != ','  && *ptr != '\0' && !isspace((unsigned char)*ptr))
 			ptr++;
 		if (strncmp(cptr, group, glen) == 0 && glen == (ptr - cptr))
-			return(1);
+			return (1);
 		while(*ptr == ','  || isspace((unsigned char)*ptr))
 			ptr++;
 	}
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -311,32 +311,35 @@ _revnetgr_lookup(char* lookupdom, char* map, const char* str,
 
 	for (rot = 0; ; rot++) {
 		switch (rot) {
-			case(0): snprintf(key, MAXHOSTNAMELEN, "%s.%s",
-					  str, dom?dom:lookupdom);
-				 break;
-			case(1): snprintf(key, MAXHOSTNAMELEN, "%s.*",
-					  str);
-				 break;
-			case(2): snprintf(key, MAXHOSTNAMELEN, "*.%s",
-					  dom?dom:lookupdom);
-				 break;
-			case(3): snprintf(key, MAXHOSTNAMELEN, "*.*");
-				 break;
-			default: return(0);
+		case(0):
+			snprintf(key, MAXHOSTNAMELEN, "%s.%s", str,
+			    dom ? dom : lookupdom);
+			break;
+		case(1):
+			snprintf(key, MAXHOSTNAMELEN, "%s.*", str);
+			break;
+		case(2):
+			snprintf(key, MAXHOSTNAMELEN, "*.%s",
+			    dom ? dom : lookupdom);
+			break;
+		case(3):
+			snprintf(key, MAXHOSTNAMELEN, "*.*");
+			break;
+		default: return (0);
 		}
 		y = yp_match(lookupdom, map, key, strlen(key), &result,
 			     &resultlen);
 		if (y == 0) {
 			rv = _listmatch(result, group, resultlen);
 			free(result);
-			if (rv) return(1);
+			if (rv) return (1);
 		} else if (y != YPERR_KEY) {
 			/*
 			 * If we get an error other than 'no
 			 * such key in map' then something is
 			 * wrong and we should stop the search.
 			 */
-			return(-1);
+			return (-1);
 		}
 	}
 }
@@ -386,14 +389,14 @@ innetgr(const char *group, const char *host, const char *user, const char *dom)
 	if (_use_only_yp && (host == NULL) != (user == NULL)) {
 		int ret;
 		if(yp_get_default_domain(&_netgr_yp_domain))
-			return(0);
+			return (0);
 		ret = _revnetgr_lookup(_netgr_yp_domain, 
 				      host?"netgroup.byhost":"netgroup.byuser",
 				      host?host:user, dom, group);
 		if (ret == 1)
-			return(1);
+			return (1);
 		else if (ret == 0 && dom != NULL)
-			return(0);
+			return (0);
 	}
 
 	setnetgrent(group);
