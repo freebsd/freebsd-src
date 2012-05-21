@@ -804,7 +804,7 @@ static	int
 bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct bpf_d *d;
-	int error;
+	int error, size;
 
 	d = malloc(sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
 	error = devfs_set_cdevpriv(d, bpf_dtor);
@@ -830,6 +830,10 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mtx_init(&d->bd_lock, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init_mtx(&d->bd_callout, &d->bd_lock, 0);
 	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_lock);
+
+	/* Allocate default buffers */
+	size = d->bd_bufsize;
+	bpf_buffer_ioctl_sblen(d, &size);
 
 	return (0);
 }
@@ -1664,7 +1668,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	struct bpf_insn *fcode, *old;
 	u_int wfilter, flen, size;
 #ifdef BPF_JITTER
-	bpf_jit_filter *ofunc;
+	bpf_jit_filter *ofunc, *jfunc;
 #endif
 	int need_upgrade;
 #ifdef COMPAT_FREEBSD32
@@ -1694,6 +1698,13 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		fcode = (struct bpf_insn *)malloc(size, M_BPF, M_WAITOK);
 	else
 		fcode = NULL; /* Make compiler happy */
+
+#ifdef BPF_JITTER
+	if (fp->bf_insns != NULL)
+		jfunc = bpf_jitter(fcode, flen);
+	else
+		jfunc = NULL; /* Make compiler happy */
+#endif
 
 	BPF_LOCK();
 
@@ -1755,7 +1766,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		else {
 			d->bd_rfilter = fcode;
 #ifdef BPF_JITTER
-			d->bd_bfilter = bpf_jitter(fcode, flen);
+			d->bd_bfilter = jfunc;
 #endif
 			if (cmd == BIOCSETF)
 				reset_d(d);
@@ -1827,11 +1838,6 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 	 */
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_BUFFER:
-		if (d->bd_sbuf == NULL)
-			bpf_buffer_alloc(d);
-		KASSERT(d->bd_sbuf != NULL, ("bpf_setif: bd_sbuf NULL"));
-		break;
-
 	case BPF_BUFMODE_ZBUF:
 		if (d->bd_sbuf == NULL)
 			return (EINVAL);
