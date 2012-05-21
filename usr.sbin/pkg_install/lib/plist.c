@@ -551,7 +551,7 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
     char *cp1, *cp2;
 
     cp1 = cp2 = strdup(dir);
-    if (!fexists(dir)) {
+    if (!fexists(dir) && !issymlink(dir)) {
 	if (!ign_err)
 	    warnx("%s '%s' doesn't exist",
 		isdir(dir) ? "directory" : "file", dir);
