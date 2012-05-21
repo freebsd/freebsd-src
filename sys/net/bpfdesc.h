@@ -88,7 +88,7 @@ struct bpf_d {
 	int		bd_sig;		/* signal to send upon packet reception */
 	struct sigio *	bd_sigio;	/* information for async I/O */
 	struct selinfo	bd_sel;		/* bsd select info */
-	struct rwlock	bd_lock;	/* per-descriptor lock */
+	struct mtx	bd_lock;	/* per-descriptor lock */
 	struct callout	bd_callout;	/* for BPF timeouts with select */
 	struct label	*bd_label;	/* MAC label for descriptor */
 	u_int64_t	bd_fcount;	/* number of packets which matched filter */
@@ -107,12 +107,9 @@ struct bpf_d {
 #define BPF_WAITING	1		/* waiting for read timeout in select */
 #define BPF_TIMED_OUT	2		/* read timeout has expired in select */
 
-#define BPFD_RLOCK(bd)		rw_rlock(&(bd)->bd_lock)
-#define BPFD_RUNLOCK(bd)	rw_runlock(&(bd)->bd_lock)
-#define BPFD_WLOCK(bd)		rw_wlock(&(bd)->bd_lock)
-#define BPFD_WUNLOCK(bd)	rw_wunlock(&(bd)->bd_lock)
-#define BPFD_WLOCK_ASSERT(bd)	rw_assert(&(bd)->bd_lock, RA_WLOCKED)
-#define BPFD_LOCK_ASSERT(bd)	rw_assert(&(bd)->bd_lock, RA_LOCKED)
+#define BPFD_LOCK(bd)		mtx_lock(&(bd)->bd_lock)
+#define BPFD_UNLOCK(bd)		mtx_unlock(&(bd)->bd_lock)
+#define BPFD_LOCK_ASSERT(bd)	mtx_assert(&(bd)->bd_lock, MA_OWNED)
 
 #define BPF_PID_REFRESH(bd, td)	(bd)->bd_pid = (td)->td_proc->p_pid
 #define BPF_PID_REFRESH_CUR(bd)	(bd)->bd_pid = curthread->td_proc->p_pid
@@ -158,5 +155,7 @@ struct xbpf_d {
 #define BPFIF_RUNLOCK(bif)	rw_runlock(&(bif)->bif_lock)
 #define BPFIF_WLOCK(bif)	rw_wlock(&(bif)->bif_lock)
 #define BPFIF_WUNLOCK(bif)	rw_wunlock(&(bif)->bif_lock)
+
+#define BPFIF_FLAG_DYING	1	/* Reject new bpf consumers */
 
 #endif
