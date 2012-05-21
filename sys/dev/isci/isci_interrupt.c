@@ -177,6 +177,9 @@ isci_interrupt_legacy_handler(void *arg)
 			if (interrupt_handler(scic_controller_handle)) {
 				mtx_lock(&controller->lock);
 				completion_handler(scic_controller_handle);
+				if (controller->release_queued_ccbs == TRUE)
+					isci_controller_release_queued_ccbs(
+					    controller);
 				mtx_unlock(&controller->lock);
 			}
 		}
@@ -204,6 +207,13 @@ isci_interrupt_msix_handler(void *arg)
 	if (interrupt_handler(scic_controller_handle)) {
 		mtx_lock(&controller->lock);
 		completion_handler(scic_controller_handle);
+		/*
+		 * isci_controller_release_queued_ccb() is a relatively
+		 *  expensive routine, so we don't call it until the controller
+		 *  level flag is set to TRUE.
+		 */
+		if (controller->release_queued_ccbs == TRUE)
+			isci_controller_release_queued_ccbs(controller);
 		mtx_unlock(&controller->lock);
 	}
 }
