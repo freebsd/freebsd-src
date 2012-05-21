@@ -113,10 +113,6 @@ make_playpen(char *pen, off_t sz)
 	cleanup(0);
 	errx(2, "%s: can't mktemp '%s'", __func__, pen);
     }
-    if (chmod(pen, 0700) == FAIL) {
-	cleanup(0);
-	errx(2, "%s: can't mkdir '%s'", __func__, pen);
-    }
 
     if (Verbose) {
 	if (sz) {
