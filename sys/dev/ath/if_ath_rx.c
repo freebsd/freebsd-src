@@ -767,6 +767,9 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	struct ath_buf *bf;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
+#ifdef IEEE80211_SUPPORT_SUPERG
+	struct ieee80211com *ic = ifp->if_l2com;
+#endif
 	struct ath_desc *ds;
 	struct ath_rx_status *rs;
 	struct mbuf *m;
