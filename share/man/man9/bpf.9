@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2006
+.Dd May 11, 2012
 .Dt BPF 9
 .Os
 .\"
@@ -246,9 +246,31 @@ The
 function
 returns 0 when the program is not a valid filter program.
 .\"
+.Sh EVENT HANDLERS
+.Nm
+invokes
+.Fa bpf_track
+.Xr EVENTHANDLER 9
+event each time listener attaches to or detaches from an interface.
+Pointer to
+.Pq Vt "struct ifnet *"
+is passed as the first argument, interface
+.Fa dlt
+follows. Last argument indicates listener is attached (1) or
+detached (0).
+Note that handler is invoked with
+.Nm
+global lock held, which implies restriction on sleeping and calling
+.Nm
+subsystem inside
+.Xr EVENTHANDLER 9
+dispatcher.
+Note that handler is not called for write-only listeners.
+.\"
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
-.Xr bpf 4
+.Xr bpf 4 ,
+.Xr EVENTHANDLER 9
 .\"
 .Sh HISTORY
 The Enet packet filter was created in 1980 by Mike Accetta and
