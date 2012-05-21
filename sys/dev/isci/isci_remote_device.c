@@ -297,14 +297,18 @@ isci_remote_device_release_device_queue(
 		for (lun = 0; lun < ISCI_MAX_LUN; lun++)
 			isci_remote_device_release_lun_queue(device, lun);
 	} else {
-		struct ccb_hdr *ccb_h;
+		/*
+		 * We cannot unfreeze the devq, because there are still
+		 *  CCBs in our internal queue that need to be processed
+		 *  first.  Mark this device, and the controller, so that
+		 *  the first CCB in this device's internal queue will be
+		 *  resubmitted after the current completion context
+		 *  unwinds.
+		 */
+		device->release_queued_ccb = TRUE;
+		device->domain->controller->release_queued_ccbs = TRUE;
 
-		ccb_h = TAILQ_FIRST(&device->queued_ccbs);
-		TAILQ_REMOVE(&device->queued_ccbs, ccb_h, sim_links.tqe);
-		ccb_h->status &= ~CAM_SIM_QUEUED;
-		isci_log_message(1, "ISCI", "release %p %x\n", ccb_h,
-		    ((union ccb*)ccb_h)->csio.cdb_io.cdb_bytes[0]);
-		isci_io_request_execute_scsi_io((union ccb *)ccb_h,
-		    device->domain->controller);
+		isci_log_message(1, "ISCI", "schedule %p for release\n",
+		    device);
 	}
 }
