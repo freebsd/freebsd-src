@@ -1225,6 +1225,7 @@ struct bpf_if {
 	struct ifnet *bif_ifp;		/* corresponding interface */
 	struct rwlock bif_lock;		/* interface lock */
 	LIST_HEAD(, bpf_d)	bif_wlist;	/* writer-only list */
+	int flags;			/* Interface flags */
 #endif
 };
 
