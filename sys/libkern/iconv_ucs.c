@@ -102,12 +102,12 @@ iconv_ucs_open(struct iconv_converter_class *dcp,
 	if (cspf)
 		dp->convtype |= KICONV_UCS_COMBINE;
 	for (i = 0; unicode_family[i].name; i++) {
-		if (strcmp(from, unicode_family[i].name) == 0)
+		if (strcasecmp(from, unicode_family[i].name) == 0)
 			dp->convtype |= unicode_family[i].from_flag;
-		if (strcmp(to, unicode_family[i].name) == 0)
+		if (strcasecmp(to, unicode_family[i].name) == 0)
 			dp->convtype |= unicode_family[i].to_flag;
 	}
-	if (strcmp(ENCODING_UNICODE, ENCODING_UTF16) == 0)
+	if (strcasecmp(ENCODING_UNICODE, ENCODING_UTF16) == 0)
 		dp->convtype |= KICONV_UCS_UCS4;
 	else
 		dp->convtype &= ~KICONV_UCS_UCS4;
@@ -457,8 +457,6 @@ utf8_to_ucs4(const char *src, size_t *utf8width, size_t srclen)
 		/* out of utf-16 range or having illegal bits */
 		return (0);
 	}
-	if (w == 0)
-		return (0);
 
 	if (srclen < w)
 		return (0);
