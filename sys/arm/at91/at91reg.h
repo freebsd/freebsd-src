@@ -35,6 +35,9 @@
 /* Where builtin peripherals start in KVM */
 #define	AT91_BASE		0xd0000000
 
+/* Where builtin peripherals start PA */
+#define	AT91_PA_BASE		0xf0000000
+
 /* A few things that we count on being the same
  * throught the whole family of SOCs */
 
