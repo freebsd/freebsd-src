@@ -1229,7 +1229,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case BIOCGDLTLIST32:
 	case BIOCGRTIMEOUT32:
 	case BIOCSRTIMEOUT32:
+		BPFD_LOCK(d);
 		d->bd_compat32 = 1;
+		BPFD_UNLOCK(d);
 	}
 #endif
 
@@ -1274,7 +1276,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get buffer len [for read()].
 	 */
 	case BIOCGBLEN:
+		BPFD_LOCK(d);
 		*(u_int *)addr = d->bd_bufsize;
+		BPFD_UNLOCK(d);
 		break;
 
 	/*
@@ -1329,10 +1333,12 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get current data link type.
 	 */
 	case BIOCGDLT:
+		BPF_LOCK();
 		if (d->bd_bif == NULL)
 			error = EINVAL;
 		else
 			*(u_int *)addr = d->bd_bif->bif_dlt;
+		BPF_UNLOCK();
 		break;
 
 	/*
@@ -1347,6 +1353,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			list32 = (struct bpf_dltlist32 *)addr;
 			dltlist.bfl_len = list32->bfl_len;
 			dltlist.bfl_list = PTRIN(list32->bfl_list);
+			BPF_LOCK();
 			if (d->bd_bif == NULL)
 				error = EINVAL;
 			else {
@@ -1354,15 +1361,18 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 				if (error == 0)
 					list32->bfl_len = dltlist.bfl_len;
 			}
+			BPF_UNLOCK();
 			break;
 		}
 #endif
 
 	case BIOCGDLTLIST:
+		BPF_LOCK();
 		if (d->bd_bif == NULL)
 			error = EINVAL;
 		else
 			error = bpf_getdltlist(d, (struct bpf_dltlist *)addr);
+		BPF_UNLOCK();
 		break;
 
 	/*
@@ -1381,6 +1391,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get interface name.
 	 */
 	case BIOCGETIF:
+		BPF_LOCK();
 		if (d->bd_bif == NULL)
 			error = EINVAL;
 		else {
@@ -1390,6 +1401,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			strlcpy(ifr->ifr_name, ifp->if_xname,
 			    sizeof(ifr->ifr_name));
 		}
+		BPF_UNLOCK();
 		break;
 
 	/*
@@ -1481,7 +1493,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set immediate mode.
 	 */
 	case BIOCIMMEDIATE:
+		BPFD_LOCK(d);
 		d->bd_immediate = *(u_int *)addr;
+		BPFD_UNLOCK(d);
 		break;
 
 	case BIOCVERSION:
@@ -1497,21 +1511,27 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get "header already complete" flag
 	 */
 	case BIOCGHDRCMPLT:
+		BPFD_LOCK(d);
 		*(u_int *)addr = d->bd_hdrcmplt;
+		BPFD_UNLOCK(d);
 		break;
 
 	/*
 	 * Set "header already complete" flag
 	 */
 	case BIOCSHDRCMPLT:
+		BPFD_LOCK(d);
 		d->bd_hdrcmplt = *(u_int *)addr ? 1 : 0;
+		BPFD_UNLOCK(d);
 		break;
 
 	/*
 	 * Get packet direction flag
 	 */
 	case BIOCGDIRECTION:
+		BPFD_LOCK(d);
 		*(u_int *)addr = d->bd_direction;
+		BPFD_UNLOCK(d);
 		break;
 
 	/*
@@ -1526,7 +1546,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			case BPF_D_IN:
 			case BPF_D_INOUT:
 			case BPF_D_OUT:
+				BPFD_LOCK(d);
 				d->bd_direction = direction;
+				BPFD_UNLOCK(d);
 				break;
 			default:
 				error = EINVAL;
@@ -1538,7 +1560,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Get packet timestamp format and resolution.
 	 */
 	case BIOCGTSTAMP:
+		BPFD_LOCK(d);
 		*(u_int *)addr = d->bd_tstamp;
+		BPFD_UNLOCK(d);
 		break;
 
 	/*
@@ -1557,26 +1581,38 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		break;
 
 	case BIOCFEEDBACK:
+		BPFD_LOCK(d);
 		d->bd_feedback = *(u_int *)addr;
+		BPFD_UNLOCK(d);
 		break;
 
 	case BIOCLOCK:
+		BPFD_LOCK(d);
 		d->bd_locked = 1;
+		BPFD_UNLOCK(d);
 		break;
 
 	case FIONBIO:		/* Non-blocking I/O */
 		break;
 
 	case FIOASYNC:		/* Send signal on receive packets */
+		BPFD_LOCK(d);
 		d->bd_async = *(int *)addr;
+		BPFD_UNLOCK(d);
 		break;
 
 	case FIOSETOWN:
+		/*
+		 * XXX: Add some sort of locking here?
+		 * fsetown() can sleep.
+		 */
 		error = fsetown(*(int *)addr, &d->bd_sigio);
 		break;
 
 	case FIOGETOWN:
+		BPFD_LOCK(d);
 		*(int *)addr = fgetown(&d->bd_sigio);
+		BPFD_UNLOCK(d);
 		break;
 
 	/* This is deprecated, FIOSETOWN should be used instead. */
@@ -1597,16 +1633,23 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 			if (sig >= NSIG)
 				error = EINVAL;
-			else
+			else {
+				BPFD_LOCK(d);
 				d->bd_sig = sig;
+				BPFD_UNLOCK(d);
+			}
 			break;
 		}
 	case BIOCGRSIG:
+		BPFD_LOCK(d);
 		*(u_int *)addr = d->bd_sig;
+		BPFD_UNLOCK(d);
 		break;
 
 	case BIOCGETBUFMODE:
+		BPFD_LOCK(d);
 		*(u_int *)addr = d->bd_bufmode;
+		BPFD_UNLOCK(d);
 		break;
 
 	case BIOCSETBUFMODE:
@@ -2544,24 +2587,22 @@ bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 	struct ifnet *ifp;
 	struct bpf_if *bp;
 
+	BPF_LOCK_ASSERT();
+
 	ifp = d->bd_bif->bif_ifp;
 	n = 0;
 	error = 0;
-	BPF_LOCK();
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
 		if (bfl->bfl_list != NULL) {
-			if (n >= bfl->bfl_len) {
-				BPF_UNLOCK();
+			if (n >= bfl->bfl_len)
 				return (ENOMEM);
-			}
 			error = copyout(&bp->bif_dlt,
 			    bfl->bfl_list + n, sizeof(u_int));
 		}
 		n++;
 	}
-	BPF_UNLOCK();
 	bfl->bfl_len = n;
 	return (error);
 }
