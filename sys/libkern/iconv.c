@@ -133,6 +133,7 @@ iconv_register_converter(struct iconv_converter_class *dcp)
 static int
 iconv_unregister_converter(struct iconv_converter_class *dcp)
 {
+	dcp->refs--;
 	if (dcp->refs > 1) {
 		ICDEBUG("converter have %d referenses left\n", dcp->refs);
 		return EBUSY;
