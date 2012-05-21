@@ -78,6 +78,7 @@ pkg_do(char *pkg)
     char pre_arg[FILENAME_MAX], post_arg[FILENAME_MAX];
     char *conflict[2];
     char **matched;
+    int fd;
 
     conflictsfound = 0;
     code = 0;
@@ -408,8 +409,10 @@ pkg_do(char *pkg)
 	goto bomb;
 
     /* Look for the requirements file */
-    if (fexists(REQUIRE_FNAME)) {
-	vsystem("/bin/chmod +x %s", REQUIRE_FNAME);	/* be sure */
+    if ((fd = open(REQUIRE_FNAME, O_RDWR)) != -1) {
+	fstat(fd, &sb);
+	fchmod(fd, sb.st_mode | S_IXALL);	/* be sure, chmod a+x */
+	close(fd);
 	if (Verbose)
 	    printf("Running requirements file first for %s..\n", Plist.name);
 	if (!Fake && vsystem("./%s %s INSTALL", REQUIRE_FNAME, Plist.name)) {
@@ -441,8 +444,10 @@ pkg_do(char *pkg)
     }
 
     /* If we're really installing, and have an installation file, run it */
-    if (!NoInstall && fexists(pre_script)) {
-	vsystem("/bin/chmod +x %s", pre_script);	/* make sure */
+    if (!NoInstall && (fd = open(pre_script, O_RDWR)) != -1) {
+	fstat(fd, &sb);
+	fchmod(fd, sb.st_mode | S_IXALL);	/* be sure, chmod a+x */
+	close(fd);
 	if (Verbose)
 	    printf("Running pre-install for %s..\n", Plist.name);
 	if (!Fake && vsystem("./%s %s %s", pre_script, Plist.name, pre_arg)) {
@@ -470,8 +475,10 @@ pkg_do(char *pkg)
     }
 
     /* Run the installation script one last time? */
-    if (!NoInstall && fexists(post_script)) {
-	vsystem("/bin/chmod +x %s", post_script);	/* make sure */
+    if (!NoInstall && (fd = open(post_script, O_RDWR)) != -1) {
+	fstat(fd, &sb);
+	fchmod(fd, sb.st_mode | S_IXALL);	/* be sure, chmod a+x */
+	close(fd);
 	if (Verbose)
 	    printf("Running post-install for %s..\n", Plist.name);
 	if (!Fake && vsystem("./%s %s %s", post_script, Plist.name, post_arg)) {
@@ -503,7 +510,10 @@ pkg_do(char *pkg)
 	    goto success;	/* close enough for government work */
 	}
 	/* Make sure pkg_info can read the entry */
-	vsystem("/bin/chmod a+rx %s", LogDir);
+	fd = open(LogDir, O_RDWR);
+	fstat(fd, &sb);
+	fchmod(fd, sb.st_mode | S_IRALL | S_IXALL);	/* be sure, chmod a+rx */
+	close(fd);
 	move_file(".", DESC_FNAME, LogDir);
 	move_file(".", COMMENT_FNAME, LogDir);
 	if (fexists(INSTALL_FNAME))
