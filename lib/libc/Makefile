@@ -26,7 +26,9 @@ SHLIB_MAJOR= 7
 WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${LIBC_ARCH}
+.if ${MK_NLS} != "no"
 CFLAGS+=-DNLS
+.endif
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
 PRECIOUSLIB=
