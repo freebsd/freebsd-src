@@ -388,11 +388,65 @@ fail:
 	return (0);
 }
 
-static void
-at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
+#if !defined(AT91C_MAIN_CLOCK)
+static const unsigned int at91_main_clock_tbl[] = {
+	3000000, 3276800, 3686400, 3840000, 4000000,
+	4433619, 4915200, 5000000, 5242880, 6000000,
+	6144000, 6400000, 6553600, 7159090, 7372800,
+	7864320, 8000000, 9830400, 10000000, 11059200,
+	12000000, 12288000, 13560000, 14318180, 14745600,
+	16000000, 17344700, 18432000, 20000000
+};
+#define	MAIN_CLOCK_TBL_LEN	(sizeof(at91_main_clock_tbl) / sizeof(*at91_main_clock_tbl))
+
+static unsigned int
+at91_pmc_sense_main_clock(struct at91_pmc_softc *sc)
 {
+	unsigned int ckgr_val;
+	unsigned int diff, matchdiff, freq;
+	int i;
+
+	ckgr_val = (RD4(sc, CKGR_MCFR) & CKGR_MCFR_MAINF_MASK) << 11;
+
+	/*
+	 * Clocks up to 50MHz can be connected to some models.  If
+	 * the frequency is >= 21MHz, assume that the slow clock can
+	 * measure it correctly, and that any error can be adequately
+	 * compensated for by roudning to the nearest 500Hz.  Users
+	 * with fast, or odd-ball clocks will need to set
+	 * AT91C_MASTER_CLOCK in the kernel config file.
+	 */
+	if (ckgr_val >= 21000000)
+		return ((ckgr_val + 250) / 500 * 500);
+
+	/*
+	 * Try to find the standard frequency that match best.
+	 */
+	freq = at91_main_clock_tbl[0];
+	matchdiff = abs(ckgr_val - at91_main_clock_tbl[0]);
+	for (i = 1; i < MAIN_CLOCK_TBL_LEN; i++) {
+		diff = abs(ckgr_val - at91_main_clock_tbl[i]);
+		if (diff < matchdiff) {
+			freq = at91_main_clock_tbl[i];
+			matchdiff = diff;
+		}
+	}
+	return (freq);
+}
+#endif
+
+static void
+at91_pmc_init_clock(struct at91_pmc_softc *sc)
+{
+	unsigned int main_clock;
 	uint32_t mckr;
 	uint32_t mdiv;
+
+#if !defined(AT91C_MAIN_CLOCK)
+	main_clock = at91_pmc_sense_main_clock(pmc_softc);
+#else
+	main_clock = AT91C_MAIN_CLOCK;
+#endif
 
 	if (at91_is_sam9() || at91_is_sam9xe()) {
 		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
@@ -449,11 +503,9 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 
 	at91_master_clock = mck.hz;
 
-	device_printf(sc->dev,
-	    "Primary: %d Hz PLLA: %d MHz CPU: %d MHz MCK: %d MHz\n",
-	    main_clock,
-	    plla.hz / 1000000,
-	    cpu.hz / 1000000, mck.hz / 1000000);
+	/* These clocks refrenced by "special" names */
+	at91_pmc_clock_alias("ohci0", "ohci_clk");
+	at91_pmc_clock_alias("udp0",  "udp_clk");
 
 	/* Turn off "Progamable" clocks */
 	WR4(sc, PMC_SCDR, PMC_SCER_PCK0 | PMC_SCER_PCK1 | PMC_SCER_PCK2 |
@@ -505,46 +557,9 @@ at91_pmc_probe(device_t dev)
 	return (0);
 }
 
-#if !defined(AT91C_MAIN_CLOCK)
-static const unsigned int at91_mainf_tbl[] = {
-	3000000, 3276800, 3686400, 3840000, 4000000,
-	4433619, 4915200, 5000000, 5242880, 6000000,
-	6144000, 6400000, 6553600, 7159090, 7372800,
-	7864320, 8000000, 9830400, 10000000, 11059200,
-	12000000, 12288000, 13560000, 14318180, 14745600,
-	16000000, 17344700, 18432000, 20000000
-};
-#define	MAINF_TBL_LEN	(sizeof(at91_mainf_tbl) / sizeof(*at91_mainf_tbl))
-
-static unsigned int
-at91_pmc_sense_mainf(struct at91_pmc_softc *sc)
-{
-	unsigned int ckgr_val;
-	unsigned int diff, matchdiff;
-	int i, match;
-
-	ckgr_val = (RD4(sc, CKGR_MCFR) & CKGR_MCFR_MAINF_MASK) << 11;
-
-	/*
-	 * Try to find the standard frequency that match best.
-	 */
-	match = 0;
-	matchdiff = abs(ckgr_val - at91_mainf_tbl[0]);
-	for (i = 1; i < MAINF_TBL_LEN; i++) {
-		diff = abs(ckgr_val - at91_mainf_tbl[i]);
-		if (diff < matchdiff) {
-			match = i;
-			matchdiff = diff;
-		}
-	}
-	return (at91_mainf_tbl[match]);
-}
-#endif
-
 static int
 at91_pmc_attach(device_t dev)
 {
-	unsigned int mainf;
 	int err;
 
 	pmc_softc = device_get_softc(dev);
@@ -555,16 +570,13 @@ at91_pmc_attach(device_t dev)
 	/*
 	 * Configure main clock frequency.
 	 */
-#if !defined(AT91C_MAIN_CLOCK)
-	mainf = at91_pmc_sense_mainf(pmc_softc);
-#else
-	mainf = AT91C_MAIN_CLOCK;
-#endif
-	at91_pmc_init_clock(pmc_softc, mainf);
+	at91_pmc_init_clock(pmc_softc);
 
-	/* These clocks refrenced by "special" names */
-	at91_pmc_clock_alias("ohci0", "ohci_clk");
-	at91_pmc_clock_alias("udp0",  "udp_clk");
+	device_printf(dev,
+	    "Primary: %d Hz PLLA: %d MHz CPU: %d MHz MCK: %d MHz\n",
+	    main_ck.hz,
+	    plla.hz / 1000000,
+	    cpu.hz / 1000000, mck.hz / 1000000);
 
 	return (0);
 }
