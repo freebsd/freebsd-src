@@ -3094,7 +3094,7 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
  * The caller is responsible for pausing the TID.
  */
 static void
-ath_tx_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
@@ -4419,11 +4419,11 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	sc->sc_addba_stop(ni, tap);
 
 	/*
-	 * ath_tx_cleanup will resume the TID if possible, otherwise
+	 * ath_tx_tid_cleanup will resume the TID if possible, otherwise
 	 * it'll set the cleanup flag, and it'll be unpaused once
 	 * things have been cleaned up.
 	 */
-	ath_tx_cleanup(sc, an, tid);
+	ath_tx_tid_cleanup(sc, an, tid);
 }
 
 /*
