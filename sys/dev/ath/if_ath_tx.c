@@ -1298,6 +1298,18 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		return EIO;
 	}
 
+	/* Check if the TXQ wouldn't match what the hardware TXQ is! */
+	if (txq != sc->sc_ac2q[pri]) {
+		device_printf(sc->sc_dev,
+		    "%s: txq=%p (%d), pri=%d, pri txq=%p (%d)\n",
+		    __func__,
+		    txq,
+		    txq->axq_qnum,
+		    pri,
+		    sc->sc_ac2q[pri],
+		    sc->sc_ac2q[pri]->axq_qnum);
+	}
+
 	/*
 	 * Calculate miscellaneous flags.
 	 */
