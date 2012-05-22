@@ -55,13 +55,11 @@ int	mallctlbymib(const size_t *mib, size_t miblen, void *oldp,
 #define	ALLOCM_ERR_OOM		1
 #define	ALLOCM_ERR_NOT_MOVED	2
 
-int	allocm(void **ptr, size_t *rsize, size_t size, int flags)
-    __attribute__(nonnull(1));
+int	allocm(void **ptr, size_t *rsize, size_t size, int flags) __nonnull(1);
 int	rallocm(void **ptr, size_t *rsize, size_t size, size_t extra,
-    int flags) __attribute__(nonnull(1));
-int	sallocm(const void *ptr, size_t *rsize, int flags)
-    __attribute__(nonnull(1));
-int	dallocm(void *ptr, int flags) __attribute__(nonnull(1));
+    int flags) __nonnull(1);
+int	sallocm(const void *ptr, size_t *rsize, int flags) __nonnull(1);
+int	dallocm(void *ptr, int flags) __nonnull(1);
 int	nallocm(size_t *rsize, size_t size, int flags);
 __END_DECLS
 
