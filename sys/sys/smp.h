@@ -163,7 +163,7 @@ void	forward_signal(struct thread *);
 int	restart_cpus(cpuset_t);
 int	stop_cpus(cpuset_t);
 int	stop_cpus_hard(cpuset_t);
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 int	suspend_cpus(cpuset_t);
 #endif
 void	smp_rendezvous_action(void);
