@@ -48,7 +48,9 @@ SUBDIR_ORDERED=	${_csu} \
 	libsbuf \
 	libtacplus \
 	libutil \
-	${_libypclnt}
+	${_libypclnt} \
+	${_libcxxrt} \
+	${_libcplusplus}
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
@@ -209,6 +211,11 @@ _libsmb=	libsmb
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
 .endif
 
 .if ${MK_PMC} != "no"
