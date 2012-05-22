@@ -1021,6 +1021,9 @@ _sed=		usr.bin/sed
 
 .if ${BOOTSTRAPPING} < 900006
 _lex=		usr.bin/lex
+.endif
+
+.if ${BOOTSTRAPPING} < 1000013
 _yacc=		usr.bin/yacc
 .endif
 
@@ -1081,8 +1084,8 @@ bootstrap-tools:
     ${_mklocale} \
     usr.bin/rpcgen \
     ${_sed} \
-    ${_lex} \
     ${_yacc} \
+    ${_lex} \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config
