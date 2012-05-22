@@ -4491,8 +4491,11 @@ prison_racct_modify(struct prison *pr)
 	sx_slock(&allproc_lock);
 	sx_xlock(&allprison_lock);
 
-	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0)
+	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0) {
+		sx_xunlock(&allprison_lock);
+		sx_sunlock(&allproc_lock);
 		return;
+	}
 
 	oldprr = pr->pr_prison_racct;
 	pr->pr_prison_racct = NULL;
