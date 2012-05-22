@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
+ * Copyright (c) 2011 David Chisnall
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,49 +26,55 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_STDINT_H_
-#define _SYS_STDINT_H_
+#include <stdlib.h>
+#include <pthread.h>
 
-#include <sys/cdefs.h>
-#include <sys/_types.h>
+/**
+ * Linked list of quick exit handlers.  This is simpler than the atexit()
+ * version, because it is not required to support C++ destructors or
+ * DSO-specific cleanups.
+ */
+struct quick_exit_handler {
+	struct quick_exit_handler *next;
+	void (*cleanup)(void);
+};
 
-#include <machine/_stdint.h>
-#include <sys/_stdint.h>
+/**
+ * Lock protecting the handlers list.
+ */
+static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
+/**
+ * Stack of cleanup handlers.  These will be invoked in reverse order when 
+ */
+static struct quick_exit_handler *handlers;
 
-typedef	__int_least8_t		int_least8_t;
-typedef	__int_least16_t		int_least16_t;
-typedef	__int_least32_t		int_least32_t;
-typedef	__int_least64_t		int_least64_t;
+int
+at_quick_exit(void (*func)(void))
+{
+	struct quick_exit_handler *h;
+	
+	h = malloc(sizeof(*h));
 
-typedef	__uint_least8_t		uint_least8_t;
-typedef	__uint_least16_t	uint_least16_t;
-typedef	__uint_least32_t	uint_least32_t;
-typedef	__uint_least64_t	uint_least64_t;
+	if (NULL == h)
+		return (1);
+	h->cleanup = func;
+	pthread_mutex_lock(&atexit_mutex);
+	h->next = handlers;
+	handlers = h;
+	pthread_mutex_unlock(&atexit_mutex);
+	return (0);
+}
 
-typedef	__int_fast8_t		int_fast8_t;
-typedef	__int_fast16_t		int_fast16_t;
-typedef	__int_fast32_t		int_fast32_t;
-typedef	__int_fast64_t		int_fast64_t;
+void
+quick_exit(int status)
+{
+	struct quick_exit_handler *h;
 
-typedef	__uint_fast8_t		uint_fast8_t;
-typedef	__uint_fast16_t		uint_fast16_t;
-typedef	__uint_fast32_t		uint_fast32_t;
-typedef	__uint_fast64_t		uint_fast64_t;
-
-#ifndef _INTMAX_T_DECLARED
-typedef	__intmax_t		intmax_t;
-#define	_INTMAX_T_DECLARED
-#endif
-#ifndef _UINTMAX_T_DECLARED
-typedef	__uintmax_t		uintmax_t;
-#define	_UINTMAX_T_DECLARED
-#endif
-
-/* GNU and Darwin define this and people seem to think it's portable */
-#if defined(UINTPTR_MAX) && defined(UINT64_MAX) && (UINTPTR_MAX == UINT64_MAX)
-#define	__WORDSIZE		64
-#else
-#define	__WORDSIZE		32
-#endif
-
-#endif /* !_SYS_STDINT_H_ */
+	/*
+	 * XXX: The C++ spec requires us to call std::terminate if there is an
+	 * exception here.
+	 */
+	for (h = handlers; NULL != h; h = h->next)
+		h->cleanup();
+	_Exit(status);
+}
