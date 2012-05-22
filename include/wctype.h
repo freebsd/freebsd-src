@@ -87,6 +87,11 @@ wint_t	iswrune(wint_t);
 wint_t	iswspecial(wint_t);
 wint_t	nextwctype(wint_t, wctype_t);
 #endif
+
+#if __POSIX_VISIBLE >= 200809
+#define _XLOCALE_WCTYPES 1
+#include <xlocale/_ctype.h>
+#endif /* __POSIX_VISIBLE >= 200809 */
 __END_DECLS
 
 #define	iswalnum(wc)		__istype((wc), _CTYPE_A|_CTYPE_D)
