@@ -39,4 +39,3 @@ extern int	 debug;
 extern int	 line_number;
 extern int	 yyerror(const char *);
 extern int	 yylex(void);
-extern int	 yyparse(void);
