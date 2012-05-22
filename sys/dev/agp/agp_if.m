@@ -36,6 +36,14 @@
 #
 INTERFACE agp;
 
+CODE {
+	static int
+	null_agp_chipset_flush(device_t dev)
+	{
+		return (ENXIO);
+	}
+};
+
 #
 # Return the current aperture size.
 #
@@ -132,3 +140,7 @@ METHOD int unbind_memory {
 	device_t	dev;
 	struct agp_memory *handle;
 };
+
+METHOD int chipset_flush {
+	device_t	dev;
+} DEFAULT null_agp_chipset_flush;
