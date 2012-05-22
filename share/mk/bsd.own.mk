@@ -418,6 +418,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     ICONV \
     IDEA \
+    LIBCPLUSPLUS \
     OFED \
     SHARED_TOOLCHAIN
 
@@ -571,6 +572,10 @@ MK_GDB:=	no
 .if ${MK_CLANG} == "no"
 MK_CLANG_IS_CC:= no
 .endif
+
+MK_LIBCPLUSPLUS?= no
+
+MK_LIBCPLUSPLUS?= no
 
 #
 # Set defaults for the MK_*_SUPPORT variables.
