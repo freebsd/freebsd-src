@@ -74,7 +74,6 @@ int		to_integer(struct val *);
 void		to_string(struct val *);
 int		yyerror(const char *);
 int		yylex(void);
-int		yyparse(void);
 
 %}
 
