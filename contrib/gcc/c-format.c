@@ -287,7 +287,11 @@ static const format_length_info printf_length_specs[] =
 {
   { "h", FMT_LEN_h, STD_C89, "hh", FMT_LEN_hh, STD_C99 },
   { "l", FMT_LEN_l, STD_C89, "ll", FMT_LEN_ll, STD_C9L },
+#ifdef __LP64__
+  { "q", FMT_LEN_l, STD_EXT, NULL, 0, 0 },
+#else
   { "q", FMT_LEN_ll, STD_EXT, NULL, 0, 0 },
+#endif
   { "L", FMT_LEN_L, STD_C89, NULL, 0, 0 },
   { "z", FMT_LEN_z, STD_C99, NULL, 0, 0 },
   { "Z", FMT_LEN_z, STD_EXT, NULL, 0, 0 },
