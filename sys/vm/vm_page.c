@@ -647,7 +647,7 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 	long pi;
 
 	pi = atop(pa);
-	if (pi >= first_page && pi < vm_page_array_size) {
+	if (pi >= first_page && (pi - first_page) < vm_page_array_size) {
 		m = &vm_page_array[pi - first_page];
 		return (m);
 	}
