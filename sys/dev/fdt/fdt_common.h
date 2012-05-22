@@ -32,6 +32,7 @@
 #ifndef _FDT_COMMON_H_
 #define _FDT_COMMON_H_
 
+#include <sys/slicer.h>
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
 #include <machine/fdt.h>
