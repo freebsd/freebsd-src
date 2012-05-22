@@ -89,7 +89,16 @@
 			bank-width = <2>;
 			device-width = <1>;
 
+			slice@0 {
+				reg = <0x0 0x200000>;
+				label = "u-boot";
+				read-only;
+			};
 
+			slice@200000 {
+				reg = <0x200000 0x7e00000>;
+				label = "root";
+			};
 		};
 	};
 
