@@ -939,8 +939,8 @@ fail:
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif
-fail1:
 	racct_proc_exit(newproc);
+fail1:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
