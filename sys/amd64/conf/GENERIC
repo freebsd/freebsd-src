@@ -337,6 +337,9 @@ device		dcons_crom	# Configuration ROM for dcons
 
 # Sound support
 device		sound		# Generic sound driver (required)
+device		snd_cmi		# CMedia CMI8338/CMI8738
+device		snd_csa		# Crystal Semiconductor CS461x/428x
+device		snd_emu10kx	# Creative SoundBlaster Live! and Audigy
 device		snd_es137x	# Ensoniq AudioPCI ES137x
 device		snd_hda		# Intel High Definition Audio
 device		snd_ich		# Intel, NVidia and other ICH AC'97 Audio
