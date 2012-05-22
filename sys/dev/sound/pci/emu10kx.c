@@ -1137,7 +1137,7 @@ emu_memalloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, const char *ow
 	ofs = 0;
 	for (idx = start; idx < start + blksz; idx++) {
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
-		tmp = (uint32_t) (u_long) ((uint8_t *) blk->buf_addr + ofs);
+		tmp = (uint32_t) (blk->buf_addr + ofs);
 		mem->ptb_pages[idx] = (tmp << 1) | idx;
 		ofs += EMUPAGESIZE;
 	}
