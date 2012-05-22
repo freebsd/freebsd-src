@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -35,26 +40,33 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <string.h>
+#include "xlocale_private.h"
 
 /*
  * Find the first occurrence of find in s, ignore case.
  */
 char *
-strcasestr(const char *s, const char *find)
+strcasestr_l(const char *s, const char *find, locale_t locale)
 {
 	char c, sc;
 	size_t len;
+	FIX_LOCALE(locale);
 
 	if ((c = *find++) != 0) {
-		c = tolower((unsigned char)c);
+		c = tolower_l((unsigned char)c, locale);
 		len = strlen(find);
 		do {
 			do {
 				if ((sc = *s++) == 0)
 					return (NULL);
-			} while ((char)tolower((unsigned char)sc) != c);
-		} while (strncasecmp(s, find, len) != 0);
+			} while ((char)tolower_l((unsigned char)sc, locale) != c);
+		} while (strncasecmp_l(s, find, len, locale) != 0);
 		s--;
 	}
 	return ((char *)s);
+}
+char *
+strcasestr(const char *s, const char *find)
+{
+	return strcasestr_l(s, find, __get_locale());
 }

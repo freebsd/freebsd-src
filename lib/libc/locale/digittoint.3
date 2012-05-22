@@ -40,12 +40,20 @@
 .In ctype.h
 .Ft int
 .Fn digittoint "int c"
+.Ft int
+.Fn digittoint_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn digittoint
 function converts a numeric character to its corresponding integer value.
 The character can be any decimal digit or hexadecimal digit.
 With hexadecimal characters, the case of the values does not matter.
+.Pp
+The 
+.Fn digittoint_l
+function takes an explicit locale argument, whereas the
+.Fn digittoint
+function use the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn digittoint
@@ -56,4 +64,5 @@ the function will return 0.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr isdigit 3 ,
-.Xr isxdigit 3
+.Xr isxdigit 3,
+.Xr xlocale 3

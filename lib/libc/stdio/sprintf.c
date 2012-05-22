@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -40,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <limits.h>
 #include "local.h"
+#include "xlocale_private.h"
 
 int
 sprintf(char * __restrict str, char const * __restrict fmt, ...)
@@ -49,6 +55,19 @@ sprintf(char * __restrict str, char const * __restrict fmt, ...)
 
 	va_start(ap, fmt);
 	ret = vsprintf(str, fmt, ap);
+	va_end(ap);
+	return (ret);
+}
+int
+sprintf_l(char * __restrict str, locale_t locale, char const * __restrict fmt,
+		...)
+{
+	int ret;
+	va_list ap;
+	FIX_LOCALE(locale);
+
+	va_start(ap, fmt);
+	ret = vsprintf_l(str, locale, fmt, ap);
 	va_end(ap);
 	return (ret);
 }

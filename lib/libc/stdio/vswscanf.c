@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Donn Seeley at UUNET Technologies, Inc.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -46,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 #include "local.h"
+#include "xlocale_private.h"
 
 static int	eofread(void *, char *, int);
 
@@ -57,8 +63,8 @@ eofread(void *cookie, char *buf, int len)
 }
 
 int
-vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
-    va_list ap)
+vswscanf_l(const wchar_t * __restrict str, locale_t locale,
+		const wchar_t * __restrict fmt, va_list ap)
 {
 	static const mbstate_t initial;
 	mbstate_t mbs;
@@ -67,6 +73,7 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 	size_t mlen;
 	int r;
 	const wchar_t *strp;
+	FIX_LOCALE(locale);
 
 	/*
 	 * XXX Convert the wide character string to multibyte, which
@@ -76,7 +83,7 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 		return (EOF);
 	mbs = initial;
 	strp = str;
-	if ((mlen = wcsrtombs(mbstr, &strp, SIZE_T_MAX, &mbs)) == (size_t)-1) {
+	if ((mlen = wcsrtombs_l(mbstr, &strp, SIZE_T_MAX, &mbs, locale)) == (size_t)-1) {
 		free(mbstr);
 		return (EOF);
 	}
@@ -84,8 +91,14 @@ vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
 	f._bf._base = f._p = (unsigned char *)mbstr;
 	f._bf._size = f._r = mlen;
 	f._read = eofread;
-	r = __vfwscanf(&f, fmt, ap);
+	r = __vfwscanf(&f, locale, fmt, ap);
 	free(mbstr);
 
 	return (r);
+}
+int
+vswscanf(const wchar_t * __restrict str, const wchar_t * __restrict fmt,
+    va_list ap)
+{
+	return vswscanf_l(str, __get_locale(), fmt, ap);
 }

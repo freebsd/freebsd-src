@@ -40,6 +40,8 @@
 .In ctype.h
 .Ft int
 .Fn isblank "int c"
+.Ft int
+.Fn isblank "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn isblank
@@ -56,6 +58,12 @@ The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of
 .Dv EOF .
+.Pp
+The 
+.Fn isblank_l
+function takes an explicit locale argument, whereas the
+.Fn isblank
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isblank
@@ -74,6 +82,7 @@ function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr iswblank 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
@@ -81,3 +90,7 @@ The
 function
 conforms to
 .St -isoC-99 .
+The
+.Fn isblank_l
+function conforms to
+.St -p1003.1-2008 .

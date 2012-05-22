@@ -44,6 +44,8 @@
 .In ctype.h
 .Ft int
 .Fn isalnum "int c"
+.Ft int
+.Fn isalnum_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn isalnum
@@ -74,6 +76,12 @@ In the ASCII character set, this includes the following characters
 .It "\&164\ ``t'' \t165\ ``u'' \t166\ ``v'' \t167\ ``w'' \t170\ ``x''"
 .It "\&171\ ``y'' \t172\ ``z''"
 .El
+.Pp
+The 
+.Fn isalnum_l
+function takes an explicit locale argument, whereas the
+.Fn isalnum
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isalnum
@@ -94,9 +102,14 @@ function should be used instead.
 .Xr isalpha 3 ,
 .Xr isdigit 3 ,
 .Xr iswalnum 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
 .Fn isalnum
 function conforms to
 .St -isoC .
+The
+.Fn isalnum_l
+function conforms to
+.St -p1003.1-2008 .

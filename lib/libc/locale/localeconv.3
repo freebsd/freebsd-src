@@ -44,6 +44,9 @@
 .In locale.h
 .Ft struct lconv *
 .Fn localeconv "void"
+.In xlocale.h
+.Ft struct lconv *
+.Fn localeconv_l "locale_t locale"
 .Sh DESCRIPTION
 The
 .Fn localeconv
@@ -196,6 +199,11 @@ a value that is not in the current locale.
 A
 .Dv CHAR_MAX
 result similarly denotes an unavailable value.
+.Pp
+The
+.Fn localeconv_l
+function takes an explicit locale parameter.  For more information, see
+.Xr xlocale 3 .  
 .Sh RETURN VALUES
 The
 .Fn localeconv
@@ -204,6 +212,13 @@ which may be altered by later calls to
 .Xr setlocale 3
 or
 .Fn localeconv .
+The return value for 
+.Fn localeconv_l
+is stored with the locale.  It will remain valid until a subsequent call to
+.Xr freelocale 3 .
+If a thread-local locale is in effect then the return value from
+.Fn localeconv
+will remain valid until the locale is destroyed.
 .Sh ERRORS
 No errors are defined.
 .Sh SEE ALSO
