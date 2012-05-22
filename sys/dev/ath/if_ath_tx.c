@@ -1580,21 +1580,21 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * reached.)
 	 */
 	if (txq == &avp->av_mcastq) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: bf=%p: mcastq: TX'ing\n", __func__, bf);
 		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
 		ATH_TXQ_UNLOCK(txq);
 	} else if (type == IEEE80211_FC0_TYPE_CTL &&
 		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: BAR: TX'ing direct\n", __func__);
 		ATH_TXQ_LOCK(txq);
 		ath_tx_xmit_normal(sc, txq, bf);
 		ATH_TXQ_UNLOCK(txq);
 	} else {
 		/* add to software queue */
-		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: bf=%p: swq: TX'ing\n", __func__, bf);
 		ath_tx_swq(sc, ni, txq, bf);
 	}
@@ -3113,7 +3113,7 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 	struct ath_buf *bf, *bf_next;
 	ath_bufhead bf_cq;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
 	    "%s: TID %d: called\n", __func__, tid);
 
 	TAILQ_INIT(&bf_cq);
@@ -4336,7 +4336,15 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	 * fall within it.
 	 */
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
-	ath_tx_tid_pause(sc, atid);
+	/*
+	 * This is a bit annoying.  Until net80211 HT code inherits some
+	 * (any) locking, we may have this called in parallel BUT only
+	 * one response/timeout will be called.  Grr.
+	 */
+	if (atid->addba_tx_pending == 0) {
+		ath_tx_tid_pause(sc, atid);
+		atid->addba_tx_pending = 1;
+	}
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
@@ -4397,6 +4405,7 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	r = sc->sc_addba_response(ni, tap, status, code, batimeout);
 
 	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+	atid->addba_tx_pending = 0;
 	/*
 	 * XXX dirty!
 	 * Slide the BAW left edge to wherever net80211 left it for us.
@@ -4499,6 +4508,10 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 	    "%s: called; resuming\n", __func__);
+
+	ATH_TXQ_LOCK(sc->sc_ac2q[atid->ac]);
+	atid->addba_tx_pending = 0;
+	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 
 	/* Note: This updates the aggregate state to (again) pending */
 	sc->sc_addba_response_timeout(ni, tap);
