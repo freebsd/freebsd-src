@@ -106,6 +106,7 @@ struct ath_tid {
 	TAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
 	int			paused;	/* >0 if the TID has been paused */
+	int			addba_tx_pending;	/* TX ADDBA pending */
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
 
