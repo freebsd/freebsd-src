@@ -2,6 +2,11 @@
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -34,10 +39,19 @@ static char sccsid[] = "@(#)atof.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
+#include <xlocale.h>
 
 double
 atof(ascii)
 	const char *ascii;
 {
 	return strtod(ascii, (char **)NULL);
+}
+
+double
+atof_l(ascii, locale)
+	const char *ascii;
+	locale_t locale;
+{
+	return strtod_l(ascii, (char **)NULL, locale);
 }

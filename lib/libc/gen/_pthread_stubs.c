@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "libc_private.h"
 
@@ -53,6 +54,7 @@ static int		stub_main(void);
 static void 		*stub_null(void);
 static struct pthread	*stub_self(void);
 static int		stub_zero(void);
+static int		stub_fail(void);
 static int		stub_true(void);
 static void		stub_exit(void);
 
@@ -93,7 +95,7 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	{PJT_DUAL_ENTRY(stub_exit)},    /* PJT_EXIT */
 	{PJT_DUAL_ENTRY(stub_null)},    /* PJT_GETSPECIFIC */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_JOIN */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KEY_CREATE */
+	{PJT_DUAL_ENTRY(stub_fail)},    /* PJT_KEY_CREATE */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KEY_DELETE */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KILL */
 	{PJT_DUAL_ENTRY(stub_main)},    /* PJT_MAIN_NP */
@@ -105,7 +107,7 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_LOCK */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_TRYLOCK */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_UNLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ONCE */
+	{PJT_DUAL_ENTRY(stub_fail)},    /* PJT_ONCE */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_DESTROY */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_INIT */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_RDLOCK */
@@ -290,6 +292,12 @@ static struct pthread *
 stub_self(void)
 {
 	return (&main_thread);
+}
+
+static int
+stub_fail(void)
+{
+	return (ENOSYS);
 }
 
 static int

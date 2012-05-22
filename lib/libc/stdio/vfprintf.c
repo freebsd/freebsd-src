@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -57,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <printf.h>
 
 #include <stdarg.h>
+#include "xlocale_private.h"
 #include "un-namespace.h"
 
 #include "libc_private.h"
@@ -64,8 +70,8 @@ __FBSDID("$FreeBSD$");
 #include "fvwrite.h"
 #include "printflocal.h"
 
-static int	__sprint(FILE *, struct __suio *);
-static int	__sbprintf(FILE *, const char *, va_list) __printflike(2, 0)
+static int	__sprint(FILE *, struct __suio *, locale_t);
+static int	__sbprintf(FILE *, locale_t, const char *, va_list) __printflike(3, 0)
 	__noinline;
 static char	*__wcsconv(wchar_t *, int);
 
@@ -87,11 +93,11 @@ struct grouping_state {
  * of bytes that will be needed.
  */
 static int
-grouping_init(struct grouping_state *gs, int ndigits)
+grouping_init(struct grouping_state *gs, int ndigits, locale_t loc)
 {
 	struct lconv *locale;
 
-	locale = localeconv();
+	locale = localeconv_l(loc);
 	gs->grouping = locale->grouping;
 	gs->thousands_sep = locale->thousands_sep;
 	gs->thousep_len = strlen(gs->thousands_sep);
@@ -116,11 +122,11 @@ grouping_init(struct grouping_state *gs, int ndigits)
  */
 static int
 grouping_print(struct grouping_state *gs, struct io_state *iop,
-	       const CHAR *cp, const CHAR *ep)
+	       const CHAR *cp, const CHAR *ep, locale_t locale)
 {
 	const CHAR *cp0 = cp;
 
-	if (io_printandpad(iop, cp, ep, gs->lead, zeroes))
+	if (io_printandpad(iop, cp, ep, gs->lead, zeroes, locale))
 		return (-1);
 	cp += gs->lead;
 	while (gs->nseps > 0 || gs->nrepeats > 0) {
@@ -130,9 +136,9 @@ grouping_print(struct grouping_state *gs, struct io_state *iop,
 			gs->grouping--;
 			gs->nseps--;
 		}
-		if (io_print(iop, gs->thousands_sep, gs->thousep_len))
+		if (io_print(iop, gs->thousands_sep, gs->thousep_len, locale))
 			return (-1);
-		if (io_printandpad(iop, cp, ep, *gs->grouping, zeroes))
+		if (io_printandpad(iop, cp, ep, *gs->grouping, zeroes, locale))
 			return (-1);
 		cp += *gs->grouping;
 	}
@@ -146,7 +152,7 @@ grouping_print(struct grouping_state *gs, struct io_state *iop,
  * then reset it so that it can be reused.
  */
 static int
-__sprint(FILE *fp, struct __suio *uio)
+__sprint(FILE *fp, struct __suio *uio, locale_t locale)
 {
 	int err;
 
@@ -166,7 +172,7 @@ __sprint(FILE *fp, struct __suio *uio)
  * worries about ungetc buffers and so forth.
  */
 static int
-__sbprintf(FILE *fp, const char *fmt, va_list ap)
+__sbprintf(FILE *fp, locale_t locale, const char *fmt, va_list ap)
 {
 	int ret;
 	FILE fake = FAKE_FILE;
@@ -190,7 +196,7 @@ __sbprintf(FILE *fp, const char *fmt, va_list ap)
 	fake._lbfsize = 0;	/* not actually used, but Just In Case */
 
 	/* do the work, then copy any error status */
-	ret = __vfprintf(&fake, fmt, ap);
+	ret = __vfprintf(&fake, locale, fmt, ap);
 	if (ret >= 0 && __fflush(&fake))
 		ret = EOF;
 	if (fake._flags & __SERR)
@@ -261,20 +267,26 @@ __wcsconv(wchar_t *wcsarg, int prec)
  * MT-safe version
  */
 int
-vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
-
+vfprintf_l(FILE * __restrict fp, locale_t locale, const char * __restrict fmt0,
+		va_list ap)
 {
 	int ret;
+	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
 	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
 	    fp->_file >= 0)
-		ret = __sbprintf(fp, fmt0, ap);
+		ret = __sbprintf(fp, locale, fmt0, ap);
 	else
-		ret = __vfprintf(fp, fmt0, ap);
+		ret = __vfprintf(fp, locale, fmt0, ap);
 	FUNLOCKFILE(fp);
 	return (ret);
+}
+int
+vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
+{
+	return vfprintf_l(fp, __get_locale(), fmt0, ap);
 }
 
 /*
@@ -292,7 +304,7 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
  * Non-MT-safe version
  */
 int
-__vfprintf(FILE *fp, const char *fmt0, va_list ap)
+__vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 {
 	char *fmt;		/* format string */
 	int ch;			/* character from fmt */
@@ -357,19 +369,19 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 
 	/* BEWARE, these `goto error' on error. */
 #define	PRINT(ptr, len) { \
-	if (io_print(&io, (ptr), (len)))	\
+	if (io_print(&io, (ptr), (len), locale))	\
 		goto error; \
 }
 #define	PAD(howmany, with) { \
-	if (io_pad(&io, (howmany), (with))) \
+	if (io_pad(&io, (howmany), (with), locale)) \
 		goto error; \
 }
 #define	PRINTANDPAD(p, ep, len, with) {	\
-	if (io_printandpad(&io, (p), (ep), (len), (with))) \
+	if (io_printandpad(&io, (p), (ep), (len), (with), locale)) \
 		goto error; \
 }
 #define	FLUSH() { \
-	if (io_flush(&io)) \
+	if (io_flush(&io, locale)) \
 		goto error; \
 }
 
@@ -454,7 +466,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	ret = 0;
 #ifndef NO_FLOATING_POINT
 	dtoaresult = NULL;
-	decimal_point = localeconv()->decimal_point;
+	decimal_point = localeconv_l(locale)->decimal_point;
 	/* The overwhelmingly common case is decpt_len == 1. */
 	decpt_len = (decimal_point[1] == '\0' ? 1 : strlen(decimal_point));
 #endif
@@ -750,7 +762,7 @@ fp_common:
 				if (prec || flags & ALT)
 					size += prec + decpt_len;
 				if ((flags & GROUPING) && expt > 0)
-					size += grouping_init(&gs, expt);
+					size += grouping_init(&gs, expt, locale);
 			}
 			break;
 #endif /* !NO_FLOATING_POINT */
@@ -887,7 +899,7 @@ number:			if ((dprec = prec) >= 0)
 			if (size > BUF)	/* should never happen */
 				abort();
 			if ((flags & GROUPING) && size != 0)
-				size += grouping_init(&gs, size);
+				size += grouping_init(&gs, size, locale);
 			break;
 		default:	/* "%?" prints ?, unless ? is NUL */
 			if (ch == '\0')
@@ -950,7 +962,7 @@ number:			if ((dprec = prec) >= 0)
 			/* leading zeroes from decimal precision */
 			PAD(dprec - size, zeroes);
 			if (gs.grouping) {
-				if (grouping_print(&gs, &io, cp, buf+BUF) < 0)
+				if (grouping_print(&gs, &io, cp, buf+BUF, locale) < 0)
 					goto error;
 			} else {
 				PRINT(cp, size);
@@ -968,7 +980,7 @@ number:			if ((dprec = prec) >= 0)
 				} else {
 					if (gs.grouping) {
 						n = grouping_print(&gs, &io,
-						    cp, dtoaend);
+						    cp, dtoaend, locale);
 						if (n < 0)
 							goto error;
 						cp += n;

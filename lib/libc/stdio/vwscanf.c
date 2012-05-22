@@ -2,6 +2,11 @@
  * Copyright (c) 2002 Tim J. Robbins
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -30,10 +35,15 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdio.h>
 #include <wchar.h>
+#include <xlocale.h>
 
 int
 vwscanf(const wchar_t * __restrict fmt, va_list ap)
 {
-
 	return (vfwscanf(stdin, fmt, ap));
+}
+int
+vwscanf_l(locale_t locale, const wchar_t * __restrict fmt, va_list ap)
+{
+	return (vfwscanf_l(stdin, locale, fmt, ap));
 }
