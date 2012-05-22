@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s
 
 // C++11 [class.mem]p2:
 //   A class is considered a completely-defined object type (or

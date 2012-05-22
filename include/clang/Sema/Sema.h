@@ -331,6 +331,11 @@ public:
   /// cycle detection at the end of the TU.
   DelegatingCtorDeclsType DelegatingCtorDecls;
 
+  /// \brief All the destructors seen during a class definition that had their
+  /// exception spec computation delayed because it depended on an unparsed
+  /// exception spec.
+  SmallVector<CXXDestructorDecl*, 2> DelayedDestructorExceptionSpecs;
+
   /// \brief All the overriding destructors seen during a class definition
   /// (there could be multiple due to nested classes) that had their exception
   /// spec checks delayed, plus the overridden destructor.
@@ -653,23 +658,19 @@ public:
   /// SpecialMemberOverloadResult - The overloading result for a special member
   /// function.
   ///
-  /// This is basically a wrapper around PointerIntPair. The lowest bit of the
-  /// integer is used to determine whether we have a parameter qualification
-  /// match, the second-lowest is whether we had success in resolving the
-  /// overload to a unique non-deleted function.
-  ///
-  /// The ConstParamMatch bit represents whether, when looking up a copy
-  /// constructor or assignment operator, we found a potential copy
-  /// constructor/assignment operator whose first parameter is const-qualified.
-  /// This is used for determining parameter types of other objects and is
-  /// utterly meaningless on other types of special members.
+  /// This is basically a wrapper around PointerIntPair. The lowest bits of the
+  /// integer are used to determine whether overload resolution succeeded, and
+  /// whether, when looking up a copy constructor or assignment operator, we
+  /// found a potential copy constructor/assignment operator whose first
+  /// parameter is const-qualified. This is used for determining parameter types
+  /// of other objects and is utterly meaningless on other types of special
+  /// members.
   class SpecialMemberOverloadResult : public llvm::FastFoldingSetNode {
   public:
     enum Kind {
       NoMemberOrDeleted,
       Ambiguous,
-      SuccessNonConst,
-      SuccessConst
+      Success
     };
 
   private:
@@ -685,9 +686,6 @@ public:
 
     Kind getKind() const { return static_cast<Kind>(Pair.getInt()); }
     void setKind(Kind K) { Pair.setInt(K); }
-
-    bool hasSuccess() const { return getKind() >= SuccessNonConst; }
-    bool hasConstParamMatch() const { return getKind() == SuccessConst; }
   };
 
   /// \brief A cache of special member function overload resolution results
@@ -1909,11 +1907,9 @@ public:
   DeclContextLookupResult LookupConstructors(CXXRecordDecl *Class);
   CXXConstructorDecl *LookupDefaultConstructor(CXXRecordDecl *Class);
   CXXConstructorDecl *LookupCopyingConstructor(CXXRecordDecl *Class,
-                                               unsigned Quals,
-                                               bool *ConstParam = 0);
+                                               unsigned Quals);
   CXXMethodDecl *LookupCopyingAssignment(CXXRecordDecl *Class, unsigned Quals,
-                                         bool RValueThis, unsigned ThisQuals,
-                                         bool *ConstParam = 0);
+                                         bool RValueThis, unsigned ThisQuals);
   CXXConstructorDecl *LookupMovingConstructor(CXXRecordDecl *Class);
   CXXMethodDecl *LookupMovingAssignment(CXXRecordDecl *Class, bool RValueThis,
                                         unsigned ThisQuals);
@@ -3158,16 +3154,6 @@ public:
                                    llvm::SmallVectorImpl<QualType> &Exceptions,
                                    FunctionProtoType::ExtProtoInfo &EPI);
 
-  /// \brief Add an exception-specification to the given member function
-  /// (or member function template). The exception-specification was parsed
-  /// after the method itself was declared.
-  void actOnDelayedExceptionSpecification(Decl *Method,
-         ExceptionSpecificationType EST,
-         SourceRange SpecificationRange,
-         ArrayRef<ParsedType> DynamicExceptions,
-         ArrayRef<SourceRange> DynamicExceptionRanges,
-         Expr *NoexceptExpr);
-
   /// \brief Determine if a special member function should have a deleted
   /// definition when it is defaulted.
   bool ShouldDeleteSpecialMember(CXXMethodDecl *MD, CXXSpecialMember CSM,
@@ -3205,7 +3191,8 @@ public:
   /// C++11 says that user-defined destructors with no exception spec get one
   /// that looks as if the destructor was implicitly declared.
   void AdjustDestructorExceptionSpec(CXXRecordDecl *ClassDecl,
-                                     CXXDestructorDecl *Destructor);
+                                     CXXDestructorDecl *Destructor,
+                                     bool WasDelayed = false);
 
   /// \brief Declare all inherited constructors for the given class.
   ///
@@ -4043,6 +4030,7 @@ public:
                                          SourceLocation LBrac,
                                          SourceLocation RBrac,
                                          AttributeList *AttrList);
+  void ActOnFinishCXXMemberDecls();
 
   void ActOnReenterTemplateScope(Scope *S, Decl *Template);
   void ActOnReenterDeclaratorTemplateScope(Scope *S, DeclaratorDecl *D);

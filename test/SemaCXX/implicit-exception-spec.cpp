@@ -40,9 +40,12 @@ namespace InClassInitializers {
 }
 
 namespace ExceptionSpecification {
-  struct Nested {
+  // A type is permitted to be used in a dynamic exception specification when it
+  // is still being defined, but isn't complete within such an exception
+  // specification.
+  struct Nested { // expected-note {{not complete}}
     struct T {
-      T() noexcept(!noexcept(Nested())); // expected-error{{exception specification is not available until end of class definition}}
+      T() noexcept(!noexcept(Nested())); // expected-error{{incomplete type}}
     } t;
   };
 }
@@ -52,5 +55,35 @@ namespace DefaultArgument {
     struct T {
       T(int = ExceptionIf<noexcept(Default())::f()); // expected-error {{call to implicitly-deleted default constructor}}
     } t; // expected-note {{has no default constructor}}
+  };
+}
+
+namespace ImplicitDtorExceptionSpec {
+  struct A {
+    virtual ~A();
+
+    struct Inner {
+      ~Inner() throw();
+    };
+    Inner inner;
+  };
+
+  struct B {
+    virtual ~B() {} // expected-note {{here}}
+  };
+
+  struct C : B {
+    virtual ~C() {}
+    A a;
+  };
+
+  struct D : B {
+    ~D(); // expected-error {{more lax than base}}
+    struct E {
+      ~E();
+      struct F {
+        ~F() throw(A);
+      } f;
+    } e;
   };
 }
