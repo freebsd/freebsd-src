@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2005
+.Dd May 23, 2012
 .Dt UUIDGEN 1
 .Os
 .Sh NAME
@@ -52,8 +52,11 @@ instructs
 to not generate them in batch, but one at a time.
 .It Fl n
 This option controls the number of identifiers generated.
-By default, multiple
-identifiers are generated in batch.
+By default, multiple identifiers are generated in batch.
+The upper hard limit is 2048
+.Po see
+.Xr uuidgen 2
+.Pc .
 .It Fl o
 Redirect output to
 .Ar filename
