@@ -489,8 +489,10 @@ acpi_pcpu_get_id(device_t dev, uint32_t *acpi_id, uint32_t *cpu_id)
 	} else {
 	    if (pc->pc_acpi_id == *acpi_id) {
 		if (bootverbose)
-		    device_printf(dev, "(ACPI ID %u) -> APIC ID %d\n",
-			*acpi_id, pc->pc_cpuid);
+		    device_printf(dev,
+			"Processor %s (ACPI ID %u) -> APIC ID %d\n",
+			acpi_name(acpi_get_handle(dev)), *acpi_id,
+			pc->pc_cpuid);
 		*cpu_id = pc->pc_cpuid;
 		return (0);
 	    }
