@@ -392,8 +392,9 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 	struct pf_ruleset	*ruleset = NULL;
 	int			 rv = 0;
 
-	if (aw->type != PF_ADDR_DYNIFTL)
-		return (0);
+	KASSERT(aw->type == PF_ADDR_DYNIFTL, ("%s: type %u",
+	    __func__, aw->type));
+	KASSERT(aw->p.dyn == NULL, ("%s: dyn is %p", __func__, aw->p.dyn));
 
 	if ((dyn = uma_zalloc(V_pfi_addr_z, M_NOWAIT | M_ZERO)) == NULL)
 		return (ENOMEM);
@@ -627,27 +628,26 @@ pfi_address_add(struct sockaddr *sa, int af, int net)
 }
 
 void
-pfi_dynaddr_remove(struct pf_addr_wrap *aw)
+pfi_dynaddr_remove(struct pfi_dynaddr *dyn)
 {
 
-	if (aw->type != PF_ADDR_DYNIFTL || aw->p.dyn == NULL ||
-	    aw->p.dyn->pfid_kif == NULL || aw->p.dyn->pfid_kt == NULL)
-		return;
+	KASSERT(dyn->pfid_kif != NULL, ("%s: null pfid_kif", __func__));
+	KASSERT(dyn->pfid_kt != NULL, ("%s: null pfid_kt", __func__));
 
-	TAILQ_REMOVE(&aw->p.dyn->pfid_kif->pfik_dynaddrs, aw->p.dyn, entry);
-	pfi_kif_unref(aw->p.dyn->pfid_kif, PFI_KIF_REF_RULE);
-	aw->p.dyn->pfid_kif = NULL;
-	pfr_detach_table(aw->p.dyn->pfid_kt);
-	aw->p.dyn->pfid_kt = NULL;
-	uma_zfree(V_pfi_addr_z, aw->p.dyn);
-	aw->p.dyn = NULL;
+	TAILQ_REMOVE(&dyn->pfid_kif->pfik_dynaddrs, dyn, entry);
+	pfi_kif_unref(dyn->pfid_kif, PFI_KIF_REF_RULE);
+	pfr_detach_table(dyn->pfid_kt);
+	uma_zfree(V_pfi_addr_z, dyn);
 }
 
 void
 pfi_dynaddr_copyout(struct pf_addr_wrap *aw)
 {
-	if (aw->type != PF_ADDR_DYNIFTL || aw->p.dyn == NULL ||
-	    aw->p.dyn->pfid_kif == NULL)
+
+	KASSERT(aw->type == PF_ADDR_DYNIFTL,
+	    ("%s: type %u", __func__, aw->type));
+
+	if (aw->p.dyn == NULL || aw->p.dyn->pfid_kif == NULL)
 		return;
 	aw->p.dyncnt = aw->p.dyn->pfid_acnt4 + aw->p.dyn->pfid_acnt6;
 }
