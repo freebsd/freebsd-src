@@ -674,9 +674,9 @@ fake_preload_metadata(void)
 	static uint32_t fake_preload[35];
 
 	fake_preload[i++] = MODINFO_NAME;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
+	fake_preload[i++] = strlen("kernel") + 1;
+	strcpy((char*)&fake_preload[i++], "kernel");
+	i += 1;
 	fake_preload[i++] = MODINFO_TYPE;
 	fake_preload[i++] = strlen("elf kernel") + 1;
 	strcpy((char*)&fake_preload[i++], "elf kernel");
