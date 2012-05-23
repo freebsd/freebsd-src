@@ -159,7 +159,7 @@ struct kinfo_proc {
 	u_int	ki_estcpu;	 	/* Time averaged value of ki_cpticks */
 	u_int	ki_slptime;	 	/* Time since last blocked */
 	u_int	ki_swtime;	 	/* Time swapped in or out */
-	int	ki_spareint1;	 	/* unused (just here for alignment) */
+	u_int	ki_cow;			/* number of copy-on-write faults */
 	u_int64_t ki_runtime;		/* Real time in microsec */
 	struct	timeval ki_start;	/* starting time */
 	struct	timeval ki_childtime;	/* time used by process children */
