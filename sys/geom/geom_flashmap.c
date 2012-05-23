@@ -78,7 +78,7 @@ static void
 g_flashmap_print(struct g_flashmap_slice *slice)
 {
 
-	printf("%08jx-%08jx: %s (%lluKB)\n", (intmax_t)slice->sl_start, (intmax_t)slice->sl_end,
+	printf("%08jx-%08jx: %s (%juKB)\n", (intmax_t)slice->sl_start, (intmax_t)slice->sl_end,
 	    slice->sl_name, (uintmax_t)(slice->sl_end - slice->sl_start) / 1024);
 }
 
