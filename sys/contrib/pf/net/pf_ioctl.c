@@ -172,9 +172,6 @@ struct cdev *pf_dev;
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_src_node *);
-static int		 pf_tbladdr_setup(struct pf_ruleset *,
-			    struct pf_addr_wrap *);
-static void		 pf_tbladdr_remove(struct pf_addr_wrap *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
  
 /*
@@ -371,14 +368,20 @@ pf_mv_pool(struct pf_palist *poola, struct pf_palist *poolb)
 static void
 pf_empty_pool(struct pf_palist *poola)
 {
-	struct pf_pooladdr	*empty_pool_pa;
+	struct pf_pooladdr *pa;
 
-	while ((empty_pool_pa = TAILQ_FIRST(poola)) != NULL) {
-		pfi_dynaddr_remove(&empty_pool_pa->addr);
-		pf_tbladdr_remove(&empty_pool_pa->addr);
-		pfi_kif_unref(empty_pool_pa->kif, PFI_KIF_REF_RULE);
-		TAILQ_REMOVE(poola, empty_pool_pa, entries);
-		uma_zfree(V_pf_pooladdr_z, empty_pool_pa);
+	while ((pa = TAILQ_FIRST(poola)) != NULL) {
+		switch (pa->addr.type) {
+		case PF_ADDR_DYNIFTL:
+			pfi_dynaddr_remove(pa->addr.p.dyn);
+			break;
+		case PF_ADDR_TABLE:
+			pfr_detach_table(pa->addr.p.tbl);
+			break;
+		}
+		pfi_kif_unref(pa->kif, PFI_KIF_REF_RULE);
+		TAILQ_REMOVE(poola, pa, entries);
+		uma_zfree(V_pf_pooladdr_z, pa);
 	}
 }
 
@@ -407,10 +410,22 @@ pf_free_rule(struct pf_rule *rule)
 		pf_qid_unref(rule->pqid);
 	pf_qid_unref(rule->qid);
 #endif
-	pfi_dynaddr_remove(&rule->src.addr);
-	pfi_dynaddr_remove(&rule->dst.addr);
-	pf_tbladdr_remove(&rule->src.addr);
-	pf_tbladdr_remove(&rule->dst.addr);
+	switch (rule->src.addr.type) {
+	case PF_ADDR_DYNIFTL:
+		pfi_dynaddr_remove(rule->src.addr.p.dyn);
+		break;
+	case PF_ADDR_TABLE:
+		pfr_detach_table(rule->src.addr.p.tbl);
+		break;
+	}
+	switch (rule->dst.addr.type) {
+	case PF_ADDR_DYNIFTL:
+		pfi_dynaddr_remove(rule->dst.addr.p.dyn);
+		break;
+	case PF_ADDR_TABLE:
+		pfr_detach_table(rule->dst.addr.p.tbl);
+		break;
+	}
 	if (rule->overload_tbl)
 		pfr_detach_table(rule->overload_tbl);
 	pfi_kif_unref(rule->kif, PFI_KIF_REF_RULE);
@@ -968,11 +983,18 @@ static int
 pf_addr_setup(struct pf_ruleset *ruleset, struct pf_addr_wrap *addr,
     sa_family_t af)
 {
-	int error;
+	int error = 0;
 
-	error = pfi_dynaddr_setup(addr, af);
-	if (error == 0)
-		error = pf_tbladdr_setup(ruleset, addr);
+	switch (addr->type) {
+	case PF_ADDR_TABLE:
+		addr->p.tbl = pfr_attach_table(ruleset, addr->v.tblname);
+		if (addr->p.tbl == NULL)
+			error = ENOMEM;
+		break;
+	case PF_ADDR_DYNIFTL:
+		error = pfi_dynaddr_setup(addr, af);
+		break;
+	}
 
 	return (error);
 }
@@ -980,8 +1002,15 @@ pf_addr_setup(struct pf_ruleset *ruleset, struct pf_addr_wrap *addr,
 static void
 pf_addr_copyout(struct pf_addr_wrap *addr)
 {
-	pfi_dynaddr_copyout(addr);
-	pf_tbladdr_copyout(addr);
+
+	switch (addr->type) {
+	case PF_ADDR_DYNIFTL:
+		pfi_dynaddr_copyout(addr);
+		break;
+	case PF_ADDR_TABLE:
+		pf_tbladdr_copyout(addr);
+		break;
+	}
 }
 
 static int
@@ -1268,14 +1297,18 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EINVAL;
 #endif
 		if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
-			error = EINVAL;
+			error = ENOMEM;
 		if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))
-			error = EINVAL;
+			error = ENOMEM;
 		if (pf_anchor_setup(rule, ruleset, pr->anchor_call))
 			error = EINVAL;
 		TAILQ_FOREACH(pa, &V_pf_pabuf, entries)
-			if (pf_tbladdr_setup(ruleset, &pa->addr))
-				error = EINVAL;
+			if (pa->addr.type == PF_ADDR_TABLE) {
+				pa->addr.p.tbl = pfr_attach_table(ruleset,
+				    pa->addr.v.tblname);
+				if (pa->addr.p.tbl == NULL)
+					error = ENOMEM;
+			}
 
 		if (rule->overload_tblname[0]) {
 			if ((rule->overload_tbl = pfr_attach_table(ruleset,
@@ -1528,14 +1561,19 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				error = EINVAL;
 #endif
 			if (pf_addr_setup(ruleset, &newrule->src.addr, newrule->af))
-				error = EINVAL;
+				error = ENOMEM;
 			if (pf_addr_setup(ruleset, &newrule->dst.addr, newrule->af))
-				error = EINVAL;
+				error = ENOMEM;
 			if (pf_anchor_setup(newrule, ruleset, pcr->anchor_call))
 				error = EINVAL;
 			TAILQ_FOREACH(pa, &V_pf_pabuf, entries)
-				if (pf_tbladdr_setup(ruleset, &pa->addr))
-					error = EINVAL;
+				if (pa->addr.type == PF_ADDR_TABLE) {
+					pa->addr.p.tbl =
+					    pfr_attach_table(ruleset,
+					    pa->addr.v.tblname);
+					if (pa->addr.p.tbl == NULL)
+						error = ENOMEM;
+				}
 
 			if (newrule->overload_tblname[0]) {
 				if ((newrule->overload_tbl = pfr_attach_table(
@@ -2236,9 +2274,8 @@ DIOCGETSTATES_full:
 			}
 			pfi_kif_ref(pa->kif, PFI_KIF_REF_RULE);
 		}
-		error = pfi_dynaddr_setup(&pa->addr, pp->af);
-		if (error) {
-			pfi_dynaddr_remove(&pa->addr);
+		if (pa->addr.type == PF_ADDR_DYNIFTL && ((error =
+		    pfi_dynaddr_setup(&pa->addr, pp->af)) != 0)) {
 			pfi_kif_unref(pa->kif, PFI_KIF_REF_RULE);
 			PF_UNLOCK();
 			uma_zfree(V_pf_pooladdr_z, pa);
@@ -2362,10 +2399,20 @@ DIOCGETSTATES_full:
 				pfi_kif_ref(newpa->kif, PFI_KIF_REF_RULE);
 			} else
 				newpa->kif = NULL;
-			if ((error = pfi_dynaddr_setup(&newpa->addr,
-			    pca->af)) != 0 || ((error =
-			    pf_tbladdr_setup(ruleset, &newpa->addr)) != 0 )) {
-				pfi_dynaddr_remove(&newpa->addr);
+
+			switch (newpa->addr.type) {
+			case PF_ADDR_DYNIFTL: 
+				error = pfi_dynaddr_setup(&newpa->addr,
+				    pca->af);
+				break;
+			case PF_ADDR_TABLE:
+				newpa->addr.p.tbl = pfr_attach_table(ruleset,
+				    newpa->addr.v.tblname);
+				if (newpa->addr.p.tbl == NULL)
+					error = ENOMEM;
+				break;
+			}
+			if (error) {
 				pfi_kif_unref(newpa->kif, PFI_KIF_REF_RULE);
 				PF_UNLOCK();
 				uma_zfree(V_pf_pooladdr_z, newpa);
@@ -2394,8 +2441,14 @@ DIOCGETSTATES_full:
 
 		if (pca->action == PF_CHANGE_REMOVE) {
 			TAILQ_REMOVE(&pool->list, oldpa, entries);
-			pfi_dynaddr_remove(&oldpa->addr);
-			pf_tbladdr_remove(&oldpa->addr);
+			switch (oldpa->addr.type) {
+			case PF_ADDR_DYNIFTL:
+				pfi_dynaddr_remove(oldpa->addr.p.dyn);
+				break;
+			case PF_ADDR_TABLE:
+				pfr_detach_table(oldpa->addr.p.tbl);
+				break;
+			}
 			pfi_kif_unref(oldpa->kif, PFI_KIF_REF_RULE);
 			uma_zfree(V_pf_pooladdr_z, oldpa);
 		} else {
@@ -3342,32 +3395,14 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 
 }
 
-static int
-pf_tbladdr_setup(struct pf_ruleset *rs, struct pf_addr_wrap *aw)
-{
-	if (aw->type != PF_ADDR_TABLE)
-		return (0);
-	if ((aw->p.tbl = pfr_attach_table(rs, aw->v.tblname)) == NULL)
-		return (ENOMEM);
-	return (0);
-}
-
-static void
-pf_tbladdr_remove(struct pf_addr_wrap *aw)
-{
-	if (aw->type != PF_ADDR_TABLE || aw->p.tbl == NULL)
-		return;
-	pfr_detach_table(aw->p.tbl);
-	aw->p.tbl = NULL;
-}
-
 static void
 pf_tbladdr_copyout(struct pf_addr_wrap *aw)
 {
-	struct pfr_ktable *kt = aw->p.tbl;
+	struct pfr_ktable *kt;
 
-	if (aw->type != PF_ADDR_TABLE || kt == NULL)
-		return;
+	KASSERT(aw->type == PF_ADDR_TABLE, ("%s: type %u", __func__, aw->type));
+
+	kt = aw->p.tbl;
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE) && kt->pfrkt_root != NULL)
 		kt = kt->pfrkt_root;
 	aw->p.tbl = NULL;

@@ -1934,7 +1934,7 @@ int		 pfi_kif_match(struct pfi_kif *, struct pfi_kif *);
 int		 pfi_match_addr(struct pfi_dynaddr *, struct pf_addr *,
 		    sa_family_t);
 int		 pfi_dynaddr_setup(struct pf_addr_wrap *, sa_family_t);
-void		 pfi_dynaddr_remove(struct pf_addr_wrap *);
+void		 pfi_dynaddr_remove(struct pfi_dynaddr *);
 void		 pfi_dynaddr_copyout(struct pf_addr_wrap *);
 void		 pfi_update_status(const char *, struct pf_status *);
 void		 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
