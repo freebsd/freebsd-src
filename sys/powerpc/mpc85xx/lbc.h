@@ -33,10 +33,35 @@
 #define	LBC_DEV_MAX	8
 
 /* Local access registers */
-#define	LBC85XX_BR(n)	(8 * n)
-#define	LBC85XX_OR(n)	(4 + (8 * n))
-#define	LBC85XX_LBCR	(0xd0)
-#define	LBC85XX_LCRR	(0xd4)
+#define	LBC85XX_BR(n)	(0x0 + (8 * n))	/* Base register 0-7 */
+#define	LBC85XX_OR(n)	(0x4 + (8 * n))	/* Options register 0-7 */
+#define	LBC85XX_MAR	0x068		/* UPM address register */
+#define	LBC85XX_MAMR	0x070		/* UPMA mode register */
+#define	LBC85XX_MBMR	0x074		/* UPMB mode register */
+#define	LBC85XX_MCMR	0x078		/* UPMC mode register */
+#define	LBC85XX_MRTPR	0x084		/* Memory refresh timer prescaler */
+#define	LBC85XX_MDR	0x088		/* UPM data register */
+#define	LBC85XX_LSOR	0x090		/* Special operation initiation */
+#define	LBC85XX_LURT	0x0a0		/* UPM refresh timer */
+#define	LBC85XX_LSRT	0x0a4		/* SDRAM refresh timer */
+#define	LBC85XX_LTESR	0x0b0		/* Transfer error status register */
+#define	LBC85XX_LTEDR	0x0b4		/* Transfer error disable register */
+#define	LBC85XX_LTEIR	0x0b8		/* Transfer error interrupt register */
+#define	LBC85XX_LTEATR	0x0bc		/* Transfer error attributes register */
+#define	LBC85XX_LTEAR	0x0c0		/* Transfer error address register */
+#define	LBC85XX_LTECCR	0x0c4		/* Transfer error ECC register */
+#define	LBC85XX_LBCR	0x0d0		/* Configuration register */
+#define	LBC85XX_LCRR	0x0d4		/* Clock ratio register */
+#define	LBC85XX_FMR	0x0e0		/* Flash mode register */
+#define	LBC85XX_FIR	0x0e4		/* Flash instruction register */
+#define	LBC85XX_FCR	0x0e8		/* Flash command register */
+#define	LBC85XX_FBAR	0x0ec		/* Flash block address register */
+#define	LBC85XX_FPAR	0x0f0		/* Flash page address register */
+#define	LBC85XX_FBCR	0x0f4		/* Flash byte count register */
+#define	LBC85XX_FECC0	0x100		/* Flash ECC block 0 register */
+#define	LBC85XX_FECC1	0x104		/* Flash ECC block 0 register */
+#define	LBC85XX_FECC2	0x108		/* Flash ECC block 0 register */
+#define	LBC85XX_FECC3	0x10c		/* Flash ECC block 0 register */
 
 /* LBC machine select */
 #define	LBCRES_MSEL_GPCM	0
@@ -55,10 +80,16 @@
 #define	LBCRES_ATOM_RAWA	1
 #define	LBCRES_ATOM_WARA	2
 
+struct lbc_memrange {
+	vm_paddr_t	addr;
+	vm_size_t	size;
+	vm_offset_t	kva;
+};
+
 struct lbc_bank {
-	u_long		pa;		/* physical addr of the bank */
-	u_long		size;		/* bank size */
-	vm_offset_t	va;		/* VA of the bank */
+	vm_paddr_t	addr;		/* physical addr of the bank */
+	vm_size_t	size;		/* bank size */
+	vm_offset_t	kva;		/* VA of the bank */
 
 	/*
 	 * XXX the following bank attributes do not have properties specified
@@ -84,6 +115,7 @@ struct lbc_softc {
 	int			sc_addr_cells;
 	int			sc_size_cells;
 
+	struct lbc_memrange	sc_range[LBC_DEV_MAX];
 	struct lbc_bank		sc_banks[LBC_DEV_MAX];
 };
 
@@ -92,5 +124,8 @@ struct lbc_devinfo {
 	struct resource_list	di_res;
 	int			di_bank;
 };
+
+uint32_t	lbc_read_reg(device_t child, u_int off);
+void		lbc_write_reg(device_t child, u_int off, uint32_t val);
 
 #endif /* _MACHINE_LBC_H_ */
