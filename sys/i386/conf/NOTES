@@ -973,6 +973,10 @@ device		lindev
 
 options 	KSTACK_PAGES=3
 
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
+
 #####################################################################
 
 # More undocumented options for linting.
