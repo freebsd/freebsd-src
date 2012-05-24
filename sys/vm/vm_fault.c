@@ -114,9 +114,11 @@ static int prefault_pageorder[] = {
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
 static void vm_fault_prefault(pmap_t, vm_offset_t, vm_map_entry_t);
 
-#define VM_FAULT_READ_AHEAD 8
-#define VM_FAULT_READ_BEHIND 7
-#define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
+#define	VM_FAULT_READ_BEHIND	8
+#define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
+#define	VM_FAULT_NINCR		(VM_FAULT_READ_MAX / VM_FAULT_READ_BEHIND)
+#define	VM_FAULT_SUM		(VM_FAULT_NINCR * (VM_FAULT_NINCR + 1) / 2)
+#define	VM_FAULT_CACHE_BEHIND	(VM_FAULT_READ_BEHIND * VM_FAULT_SUM)
 
 struct faultstate {
 	vm_page_t m;
@@ -131,6 +133,8 @@ struct faultstate {
 	struct vnode *vp;
 	int vfslocked;
 };
+
+static void vm_fault_cache_behind(const struct faultstate *fs, int distance);
 
 static inline void
 release_page(struct faultstate *fs)
@@ -219,13 +223,13 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
-	int is_first_object_locked, result;
-	boolean_t growstack, wired;
+	long ahead, behind;
+	int alloc_req, era, faultcount, nera, reqpage, result;
+	boolean_t growstack, is_first_object_locked, wired;
 	int map_generation;
 	vm_object_t next_object;
-	vm_page_t marray[VM_FAULT_READ], mt, mt_prev;
+	vm_page_t marray[VM_FAULT_READ_MAX];
 	int hardfault;
-	int faultcount, ahead, behind, alloc_req;
 	struct faultstate fs;
 	struct vnode *vp;
 	int locked, error;
@@ -235,7 +239,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
 	fs.vfslocked = 0;
-	faultcount = behind = 0;
+	faultcount = reqpage = 0;
 
 RetryFault:;
 
@@ -443,75 +447,47 @@ readrest:
 		 */
 		if (TRYPAGER) {
 			int rv;
-			int reqpage = 0;
 			u_char behavior = vm_map_entry_behavior(fs.entry);
 
 			if (behavior == MAP_ENTRY_BEHAV_RANDOM ||
 			    P_KILLED(curproc)) {
-				ahead = 0;
 				behind = 0;
+				ahead = 0;
+			} else if (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL) {
+				behind = 0;
+				ahead = atop(fs.entry->end - vaddr) - 1;
+				if (ahead > VM_FAULT_READ_AHEAD_MAX)
+					ahead = VM_FAULT_READ_AHEAD_MAX;
+				if (fs.pindex == fs.entry->next_read)
+					vm_fault_cache_behind(&fs,
+					    VM_FAULT_READ_MAX);
 			} else {
-				behind = (vaddr - fs.entry->start) >> PAGE_SHIFT;
+				/*
+				 * If this is a sequential page fault, then
+				 * arithmetically increase the number of pages
+				 * in the read-ahead window.  Otherwise, reset
+				 * the read-ahead window to its smallest size.
+				 */
+				behind = atop(vaddr - fs.entry->start);
 				if (behind > VM_FAULT_READ_BEHIND)
 					behind = VM_FAULT_READ_BEHIND;
-
-				ahead = ((fs.entry->end - vaddr) >> PAGE_SHIFT) - 1;
-				if (ahead > VM_FAULT_READ_AHEAD)
-					ahead = VM_FAULT_READ_AHEAD;
+				ahead = atop(fs.entry->end - vaddr) - 1;
+				era = fs.entry->read_ahead;
+				if (fs.pindex == fs.entry->next_read) {
+					nera = era + behind;
+					if (nera > VM_FAULT_READ_AHEAD_MAX)
+						nera = VM_FAULT_READ_AHEAD_MAX;
+					behind = 0;
+					if (ahead > nera)
+						ahead = nera;
+					if (era == VM_FAULT_READ_AHEAD_MAX)
+						vm_fault_cache_behind(&fs,
+						    VM_FAULT_CACHE_BEHIND);
+				} else if (ahead > VM_FAULT_READ_AHEAD_MIN)
+					ahead = VM_FAULT_READ_AHEAD_MIN;
+				if (era != ahead)
+					fs.entry->read_ahead = ahead;
 			}
-			is_first_object_locked = FALSE;
-			if ((behavior == MAP_ENTRY_BEHAV_SEQUENTIAL ||
-			     (behavior != MAP_ENTRY_BEHAV_RANDOM &&
-			      fs.pindex >= fs.entry->lastr &&
-			      fs.pindex < fs.entry->lastr + VM_FAULT_READ)) &&
-			    (fs.first_object == fs.object ||
-			     (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object))) &&
-			    fs.first_object->type != OBJT_DEVICE &&
-			    fs.first_object->type != OBJT_PHYS &&
-			    fs.first_object->type != OBJT_SG) {
-				vm_pindex_t firstpindex;
-
-				if (fs.first_pindex < 2 * VM_FAULT_READ)
-					firstpindex = 0;
-				else
-					firstpindex = fs.first_pindex - 2 * VM_FAULT_READ;
-				mt = fs.first_object != fs.object ?
-				    fs.first_m : fs.m;
-				KASSERT(mt != NULL, ("vm_fault: missing mt"));
-				KASSERT((mt->oflags & VPO_BUSY) != 0,
-				    ("vm_fault: mt %p not busy", mt));
-				mt_prev = vm_page_prev(mt);
-
-				/*
-				 * note: partially valid pages cannot be 
-				 * included in the lookahead - NFS piecemeal
-				 * writes will barf on it badly.
-				 */
-				while ((mt = mt_prev) != NULL &&
-				    mt->pindex >= firstpindex &&
-				    mt->valid == VM_PAGE_BITS_ALL) {
-					mt_prev = vm_page_prev(mt);
-					if (mt->busy ||
-					    (mt->oflags & VPO_BUSY))
-						continue;
-					vm_page_lock(mt);
-					if (mt->hold_count ||
-					    mt->wire_count) {
-						vm_page_unlock(mt);
-						continue;
-					}
-					pmap_remove_all(mt);
-					if (mt->dirty != 0)
-						vm_page_deactivate(mt);
-					else
-						vm_page_cache(mt);
-					vm_page_unlock(mt);
-				}
-				ahead += behind;
-				behind = 0;
-			}
-			if (is_first_object_locked)
-				VM_OBJECT_UNLOCK(fs.first_object);
 
 			/*
 			 * Call the pager to retrieve the data, if any, after
@@ -882,7 +858,7 @@ vnode_locked:
 	 * without holding a write lock on it.
 	 */
 	if (hardfault)
-		fs.entry->lastr = fs.pindex + faultcount - behind;
+		fs.entry->next_read = fs.pindex + faultcount - reqpage;
 
 	if ((prot & VM_PROT_WRITE) != 0 ||
 	    (fault_flags & VM_FAULT_DIRTY) != 0) {
@@ -972,6 +948,60 @@ vnode_locked:
 		curthread->td_ru.ru_minflt++;
 
 	return (KERN_SUCCESS);
+}
+
+/*
+ * Speed up the reclamation of up to "distance" pages that precede the
+ * faulting pindex within the first object of the shadow chain.
+ */
+static void
+vm_fault_cache_behind(const struct faultstate *fs, int distance)
+{
+	vm_object_t first_object, object;
+	vm_page_t m, m_prev;
+	vm_pindex_t pindex;
+
+	object = fs->object;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	first_object = fs->first_object;
+	if (first_object != object) {
+		if (!VM_OBJECT_TRYLOCK(first_object)) {
+			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_LOCK(first_object);
+			VM_OBJECT_LOCK(object);
+		}
+	}
+	if (first_object->type != OBJT_DEVICE &&
+	    first_object->type != OBJT_PHYS && first_object->type != OBJT_SG) {
+		if (fs->first_pindex < distance)
+			pindex = 0;
+		else
+			pindex = fs->first_pindex - distance;
+		if (pindex < OFF_TO_IDX(fs->entry->offset))
+			pindex = OFF_TO_IDX(fs->entry->offset);
+		m = first_object != object ? fs->first_m : fs->m;
+		KASSERT((m->oflags & VPO_BUSY) != 0,
+		    ("vm_fault_cache_behind: page %p is not busy", m));
+		m_prev = vm_page_prev(m);
+		while ((m = m_prev) != NULL && m->pindex >= pindex &&
+		    m->valid == VM_PAGE_BITS_ALL) {
+			m_prev = vm_page_prev(m);
+			if (m->busy != 0 || (m->oflags & VPO_BUSY) != 0)
+				continue;
+			vm_page_lock(m);
+			if (m->hold_count == 0 && m->wire_count == 0) {
+				pmap_remove_all(m);
+				vm_page_aflag_clear(m, PGA_REFERENCED);
+				if (m->dirty != 0)
+					vm_page_deactivate(m);
+				else
+					vm_page_cache(m);
+			}
+			vm_page_unlock(m);
+		}
+	}
+	if (first_object != object)
+		VM_OBJECT_UNLOCK(first_object);
 }
 
 /*
