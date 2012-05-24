@@ -160,6 +160,9 @@ _acl_denies(const struct acl *aclp, int access_mask, struct ucred *cred,
 			return (0);
 	}
 
+	if (access_mask == 0)
+		return (0);
+
 	return (1);
 }
 
