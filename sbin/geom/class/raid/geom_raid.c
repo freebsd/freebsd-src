@@ -48,11 +48,12 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
+		{ 'o', "fmtopt", G_VAL_OPTIONAL, G_TYPE_STRING },
 		{ 'S', "size", G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		{ 's', "strip", G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] [-S size] [-s stripsize] format label level prov ..."
+	    NULL, "[-fv] [-o fmtopt] [-S size] [-s stripsize] format label level prov ..."
 	},
 	{ "add", G_FLAG_VERBOSE, NULL,
 	    {
