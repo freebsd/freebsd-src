@@ -38,7 +38,7 @@ build-tools: mkinit mknodes mksyntax
 
 .ORDER: builtins.c builtins.h
 builtins.c builtins.h: mkbuiltins builtins.def
-	cd ${.CURDIR}; sh mkbuiltins ${.OBJDIR}
+	sh ${.CURDIR}/mkbuiltins ${.CURDIR}
 
 init.c: mkinit alias.c eval.c exec.c input.c jobs.c options.c parser.c \
 	redir.c trap.c var.c
