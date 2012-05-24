@@ -1,4 +1,115 @@
-/* XXX: Copyright */
+/*-
+ *
+ * Copyright (c) 1991 Regents of the University of California.
+ * All rights reserved.
+ * Copyright (c) 1994 John S. Dyson
+ * All rights reserved.
+ * Copyright (c) 1994 David Greenman
+ * All rights reserved.
+ * Copyright (c) 2005 Alan L. Cox <alc@cs.rice.edu>
+ * All rights reserved.
+ * Copyright (c) 2012 Spectra Logic Corporation
+ * All rights reserved.
+ * 
+ * This code is derived from software contributed to Berkeley by
+ * the Systems Programming Group of the University of Utah Computer
+ * Science Department and William Jolitz of UUNET Technologies Inc.
+ *
+ * Portions of this software were developed by
+ * Cherry G. Mathew <cherry.g.mathew@gmail.com> under sponsorship
+ * from Spectra Logic Corporation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
+ */
+/*-
+ * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project by Jake Burkholder,
+ * Safeport Network Services, and Network Associates Laboratories, the
+ * Security Research Division of Network Associates, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ *	Manages physical address maps.
+ *
+ *	In addition to hardware address maps, this
+ *	module is called upon to provide software-use-only
+ *	maps which may or may not be stored in the same
+ *	form as hardware maps.  These pseudo-maps are
+ *	used to store intermediate results from copy
+ *	operations to and from address spaces.
+ *
+ *	Since the information managed by this module is
+ *	also stored by the logical address mapping module,
+ *	this module may throw away valid virtual-to-physical
+ *	mappings at almost any time.  However, invalidations
+ *	of virtual-to-physical mappings must be done as
+ *	requested.
+ *
+ *	In order to cope with hardware architectures which
+ *	make virtual-to-physical map invalidates expensive,
+ *	this module may delay invalidate or reduced protection
+ *	operations until such time as they are actually
+ *	necessary.  This module is given full information as
+ *	to which processors are currently using which maps,
+ *	and to when physical maps must be made correct.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -8,6 +119,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #ifdef SMP
 #include <sys/smp.h>
@@ -21,6 +135,11 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/hypervisor.h>
 #include <machine/xen/xenvar.h>
+
+#include <amd64/xen/mmu_map.h>
+
+extern vm_offset_t pa_index; /* from machdep.c */
+extern unsigned long physfree; /* from machdep.c */
 
 struct pmap kernel_pmap_store;
 
@@ -54,17 +173,32 @@ static vm_paddr_t	boot_ptendphys;	/* phys addr of end of kernel
 					 * bootstrap page tables
 					 */
 
+static size_t tsz; /* mmu_map.h opaque cookie size */
+static vm_offset_t (*ptmb_mappedalloc)(size_t) = NULL;
+static void (*ptmb_mappedfree)(size_t) = NULL;
+static vm_offset_t ptmb_ptov(vm_paddr_t p)
+{
+	return PTOV(p);
+}
+static vm_paddr_t ptmb_vtop(vm_offset_t v)
+{
+	return VTOP(v);
+}
+
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
 
 /* return kernel virtual address of  'n' claimed physical pages at boot. */
 static vm_offset_t
 vallocpages(vm_paddr_t *firstaddr, int n)
 {
-	u_int64_t ret;
-
-	ret = *firstaddr + KERNBASE;
+	u_int64_t ret = *firstaddr + KERNBASE;
 	bzero((void *)ret, n * PAGE_SIZE);
 	*firstaddr += n * PAGE_SIZE;
+
+	/* Make sure we are still inside of available mapped va. */
+	KASSERT(PTOV(*firstaddr) <= (xenstack + 512 * 1024), 
+		("Attempt to use unmapped va\n"));
+
 	return (ret);
 }
 
@@ -102,23 +236,14 @@ extern int end;		/* End of kernel binary (virtual address) */
 static pt_entry_t
 pmap_xen_kernel_vaflags(vm_offset_t va)
 {
-	/* See: interface/xen.h */
-	/* 
-	 * i) si->mfn_list 
-	 * ii) start info page
-	 * iii) bootstrap stack
-	 * iv) Everything in and above the "scratch area
-	 * Everything else is r/o
-	 */
-
 	if ((va > (vm_offset_t) &etext && /* .data, .bss et. al */
 	     (va < (vm_offset_t) &end))
 	    ||
-	    (va > (vm_offset_t)(xen_start_info->pt_base +
-	    			xen_start_info->nr_pt_frames * PAGE_SIZE) &&
-	     va < xenstack)
+	    ((va > (vm_offset_t)(xen_start_info->pt_base +
+	    			xen_start_info->nr_pt_frames * PAGE_SIZE)) &&
+	     va < PTOV(boot_ptphys))
 	    ||
-	    va >= PTOV(boot_ptendphys + 1)) {
+	    va > PTOV(boot_ptendphys)) {
 		return PG_RW;
 	}
 
@@ -130,13 +255,14 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 {
 	int i;
 	int nkpt, nkpdpe;
-	int mapspan = (xenstack - KERNBASE + 
-		       512 * 1024 + PAGE_SIZE) / PAGE_SIZE;
+	int nkmapped = atop(VTOP(xenstack + 512 * 1024 + PAGE_SIZE));
+
+	kernel_vm_end = PTOV(ptoa(nkmapped - 1));
 
 	boot_ptphys = *firstaddr; /* lowest available r/w area */
 
 	/* Allocate pseudo-physical pages for kernel page tables. */
-	nkpt = howmany(mapspan, NPTEPG);
+	nkpt = howmany(nkmapped, NPTEPG);
 	nkpdpe = howmany(nkpt, NPDEPG);
 	KPML4phys = vallocpages(firstaddr, 1);
 	KPDPphys = vallocpages(firstaddr, NKPML4E);
@@ -148,13 +274,14 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
-	DMPDPphys = vallocpages(firstaddr, NDMPML4E);
+	DMPDPphys = vallocpages(firstaddr, NDMPML4E, VALLOC_MAPPED);
 	ndm1g = 0;
 	if ((amd_feature & AMDID_PAGE1GB) != 0)
 		ndm1g = ptoa(Maxmem) >> PDPSHIFT;
 
 	if (ndm1g < ndmpdp)
-		DMPDphys = vallocpages(firstaddr, ndmpdp - ndm1g);
+		DMPDphys = vallocpages(firstaddr, ndmpdp - ndm1g, 
+				       VALLOC_MAPPED);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 #endif /* SUPERPAGESUPPORT */
 
@@ -166,9 +293,7 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 		("bootstrap mapped memory insufficient.\n"));
 
 	/* Fill in the underlying page table pages */
-	/* Read-only from zero to physfree */
-	/* XXX not fully used, underneath 2M pages */
-	for (i = 0; (i << PAGE_SHIFT) < (mapspan * PAGE_SIZE); i++) {
+	for (i = 0; ptoa(i) < ptoa(nkmapped); i++) {
 		((pt_entry_t *)KPTphys)[i] = phystomach(i << PAGE_SHIFT);
 		((pt_entry_t *)KPTphys)[i] |= PG_V | PG_G | PG_U;
 		((pt_entry_t *)KPTphys)[i] |= 
@@ -321,9 +446,34 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 	HYPERVISOR_shared_info = (void *) va;
 }
 
+/* alloc from linear mapped boot time virtual address space */
+static vm_offset_t
+mmu_alloc(size_t size)
+{
+	KASSERT(size != 0, ("mmu_alloc size must not be zero\n"));
+	KASSERT(physfree != 0,
+		("physfree must have been set before using mmu_alloc"));
+				
+	size = round_page(size); /* We can allocate only in page sizes */
+
+	vm_offset_t va = vallocpages(&physfree, atop(size));
+
+	/* 
+	 * Xen requires the page table hierarchy to be R/O.
+	 */
+
+	pmap_xen_setpages_ro(va, atop(size));
+
+	return va;
+}
+
 void
 pmap_bootstrap(vm_paddr_t *firstaddr)
 {
+
+	/* setup mmu_map backend function pointers for boot */
+	ptmb_mappedalloc = mmu_alloc;
+	ptmb_mappedfree = NULL;
 
 	create_boot_pagetables(firstaddr);
 
@@ -335,17 +485,65 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	pmap_xen_setpages_rw(xen_start_info->pt_base,
 			     xen_start_info->nr_pt_frames);
 
-	/* Map in Xen related pages into VA space */
-	pmap_xen_bootpages(firstaddr);
-
 	/* 
 	 * gc newly free pages (bootstrap PTs and bootstrap stack,
 	 * mostly, I think.).
+	 * Record the pages as available to the VM via phys_avail[] 
 	 */
-	virtual_avail = (vm_offset_t) KERNBASE + *firstaddr;
-	virtual_end = VM_MAX_KERNEL_ADDRESS; /* XXX: Check we don't
-						overlap xen pgdir entries. */
 
+	/* This is the first free phys segment. see: xen.h */
+	KASSERT(pa_index == 0, 
+		("reclaimed page table pages are not the lowest available!"));
+
+	phys_avail[pa_index] = VTOP(xen_start_info->pt_base);
+	phys_avail[pa_index + 1] = phys_avail[pa_index] +
+		ptoa(xen_start_info->nr_pt_frames - 1);
+	pa_index += 2;
+
+	/* Map in Xen related pages into VA space */
+	pmap_xen_bootpages(firstaddr);
+
+	/*
+	 * Xen guarantees mapped virtual addresses at boot time upto
+	 * xenstack + 512KB. We want to use these for vallocpages()
+	 * and therefore don't want to touch these mappings since
+	 * they're scarce resources. Move along to the end of
+	 * guaranteed mapping.
+	 *
+	 * Note: Xen *may* provide mappings upto xenstack + 2MB, but
+	 * this is not guaranteed. We therefore assum that only 512KB
+	 * is available.
+	 */
+
+	virtual_avail = (vm_offset_t) xenstack + 512 * 1024;
+	/* XXX: Check we don't overlap xen pgdir entries. */
+	virtual_end = VM_MAX_KERNEL_ADDRESS; 
+
+	virtual_avail =  xenstack + 1052 * 1024;
+
+	/*
+	 * Initialize the kernel pmap (which is statically allocated).
+	 */
+	PMAP_LOCK_INIT(kernel_pmap);
+	kernel_pmap->pm_pml4 = (pdp_entry_t *)KPML4phys;
+	kernel_pmap->pm_root = NULL;
+	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
+	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
+
+	tsz = mmu_map_t_size();
+
+#if 0
+	/* XXX test */
+	vm_offset_t va = virtual_avail + 4096 * 1024;
+
+	vm_paddr_t pa = phys_avail[pa_index - 1];
+
+	pmap_kenter(va, pa);
+
+	memset((void *)va, 0, PAGE_SIZE);
+	while(1);
+	/* test XXX */
+#endif
 }
 
 void
@@ -476,23 +674,107 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return 0;
 }
 
+/***************************************************
+ * Low level mapping routines.....
+ ***************************************************/
+
+/*
+ * Add a wired page to the kva.
+ * Note: not SMP coherent.
+ *
+ * This function may be used before pmap_bootstrap() is called.
+ */
+
 void 
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+
+	mmu_map_t_init(tptr, &mb);
+
+	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
+		mmu_map_hold_va(kernel_pmap, tptr, va); /* PT hierarchy */
+		xen_flush_queue();
+	}
+
+	/* Backing page tables are in place, let xen do the maths */
+
+	PT_SET_MA(va, xpmap_ptom(pa) | PG_RW | PG_V | PG_U);
+	PT_UPDATES_FLUSH();
+
+	mmu_map_release_va(kernel_pmap, tptr, va);
+	mmu_map_t_fini(tptr);
+
 }
+
+/*
+ * Remove a page from the kernel pagetables.
+ * Note: not SMP coherent.
+ *
+ * This function may be used before pmap_bootstrap() is called.
+ */
 
 __inline void
 pmap_kremove(vm_offset_t va)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	pt_entry_t *pte;
+
+	pte = vtopte(va);
+	PT_CLEAR_VA(pte, FALSE);
 }
+
+/*
+ *	Used to map a range of physical addresses into kernel
+ *	virtual address space.
+ *
+ *	The value passed in '*virt' is a suggested virtual address for
+ *	the mapping. Architectures which can support a direct-mapped
+ *	physical to virtual region can return the appropriate address
+ *	within that region, leaving '*virt' unchanged. Other
+ *	architectures should map the pages starting at '*virt' and
+ *	update '*virt' with the first usable address after the mapped
+ *	region.
+ */
 
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
-	KASSERT(0, ("XXX: TODO\n"));
-	return -1;
+	vm_offset_t va, sva;
+
+	va = sva = *virt;
+	CTR4(KTR_PMAP, "pmap_map: va=0x%x start=0x%jx end=0x%jx prot=0x%x",
+	    va, start, end, prot);
+
+	while (start < end) {
+#if 0
+		if (PTOV(start) < xenstack + 512 * 1024) { /* XXX:
+							      remove me */
+			continue;
+		}
+#endif
+	
+		pmap_kenter(va, start);
+		va += PAGE_SIZE;
+		start += PAGE_SIZE;
+
+		while(1);
+	}
+
+	// XXX: pmap_invalidate_range(kernel_pmap, sva, va);
+	*virt = va;
+	return (sva);
 }
 
 void
