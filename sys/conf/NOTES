@@ -1295,7 +1295,7 @@ device		ch		#SCSI media changers
 device		da		#SCSI direct access devices (aka disks)
 device		sa		#SCSI tapes
 device		cd		#SCSI CD-ROMs
-device		ses		#SCSI Environmental Services (and SAF-TE)
+device		ses		#Enclosure Services (SES and SAF-TE)
 device		pt		#SCSI processor
 device		targ		#SCSI Target Mode Code
 device		targbh		#SCSI Target Mode Blackhole Device
