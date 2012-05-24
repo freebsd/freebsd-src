@@ -1528,7 +1528,8 @@ freebsd32_getdirentries(struct thread *td,
 	int32_t base32;
 	int error;
 
-	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
+	    NULL, UIO_USERSPACE);
 	if (error)
 		return (error);
 	if (uap->basep != NULL) {
