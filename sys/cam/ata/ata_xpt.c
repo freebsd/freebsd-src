@@ -93,6 +93,8 @@ typedef enum {
 	PROBE_FULL_INQUIRY,
 	PROBE_PM_PID,
 	PROBE_PM_PRV,
+	PROBE_IDENTIFY_SES,
+	PROBE_IDENTIFY_SAFTE,
 	PROBE_INVALID
 } probe_action;
 
@@ -110,6 +112,8 @@ static char *probe_action_text[] = {
 	"PROBE_FULL_INQUIRY",
 	"PROBE_PM_PID",
 	"PROBE_PM_PRV",
+	"PROBE_IDENTIFY_SES",
+	"PROBE_IDENTIFY_SAFTE",
 	"PROBE_INVALID"
 };
 
@@ -266,7 +270,8 @@ probeschedule(struct cam_periph *periph)
 	ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 
 	if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) ||
-	    periph->path->device->protocol == PROTO_SATAPM)
+	    periph->path->device->protocol == PROTO_SATAPM ||
+	    periph->path->device->protocol == PROTO_SEMB)
 		PROBE_SET_ACTION(softc, PROBE_RESET);
 	else
 		PROBE_SET_ACTION(softc, PROBE_IDENTIFY);
@@ -300,7 +305,8 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	if (softc->restart) {
 		softc->restart = 0;
 		if ((path->device->flags & CAM_DEV_UNCONFIGURED) ||
-		    path->device->protocol == PROTO_SATAPM)
+		    path->device->protocol == PROTO_SATAPM ||
+		    path->device->protocol == PROTO_SEMB)
 			softc->action = PROBE_RESET;
 		else
 			softc->action = PROBE_IDENTIFY;
@@ -622,6 +628,30 @@ negotiate:
 		      10 * 1000);
 		ata_pm_read_cmd(ataio, 1, 15);
 		break;
+	case PROBE_IDENTIFY_SES:
+		cam_fill_ataio(ataio,
+		      1,
+		      probedone,
+		      /*flags*/CAM_DIR_IN,
+		      0,
+		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
+		      /*dxfer_len*/sizeof(softc->ident_data),
+		      30 * 1000);
+		ata_28bit_cmd(ataio, ATA_SEP_ATTN, 0xEC, 0x02,
+		    sizeof(softc->ident_data) / 4);
+		break;
+	case PROBE_IDENTIFY_SAFTE:
+		cam_fill_ataio(ataio,
+		      1,
+		      probedone,
+		      /*flags*/CAM_DIR_IN,
+		      0,
+		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
+		      /*dxfer_len*/sizeof(softc->ident_data),
+		      30 * 1000);
+		ata_28bit_cmd(ataio, ATA_SEP_ATTN, 0xEC, 0x00,
+		    sizeof(softc->ident_data) / 4);
+		break;
 	case PROBE_INVALID:
 		CAM_DEBUG(path, CAM_DEBUG_INFO,
 		    ("probestart: invalid action state\n"));
@@ -758,12 +788,16 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct ccb_trans_settings cts;
 	struct ata_params *ident_buf;
+	struct scsi_inquiry_data *inq_buf;
 	probe_softc *softc;
 	struct cam_path *path;
 	cam_status status;
 	u_int32_t  priority;
 	u_int caps;
-	int found = 1;
+	int changed = 1, found = 1;
+	static const uint8_t fake_device_id_hdr[8] =
+	    {0, SVPD_DEVICE_ID, 0, 12,
+	     SVPD_ID_CODESET_BINARY, SVPD_ID_TYPE_NAA, 0, 8};
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probedone\n"));
 
@@ -771,6 +805,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	path = done_ccb->ccb_h.path;
 	priority = done_ccb->ccb_h.pinfo.priority;
 	ident_buf = &path->device->ident_data;
+	inq_buf = &path->device->inq_data;
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if (softc->restart) {
@@ -819,6 +854,18 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		} else if (softc->action == PROBE_SETDMAAA &&
 		    status == CAM_ATA_STATUS_ERROR) {
 			goto noerror;
+
+		/*
+		 * SES and SAF-TE SEPs have different IDENTIFY commands,
+		 * but SATA specification doesn't tell how to identify them.
+		 * Until better way found, just try another if first fail.
+		 */
+		} else if (softc->action == PROBE_IDENTIFY_SES &&
+		    status == CAM_ATA_STATUS_ERROR) {
+			PROBE_SET_ACTION(softc, PROBE_IDENTIFY_SAFTE);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
 		}
 
 		/*
@@ -862,6 +909,10 @@ noerror:
 			xpt_action((union ccb *)&cts);
 			path->device->protocol = PROTO_SATAPM;
 			PROBE_SET_ACTION(softc, PROBE_PM_PID);
+		} else if (sign == 0xc33c &&
+		    done_ccb->ccb_h.target_id != 15) {
+			path->device->protocol = PROTO_SEMB;
+			PROBE_SET_ACTION(softc, PROBE_IDENTIFY_SES);
 		} else if (sign == 0xeb14 &&
 		    done_ccb->ccb_h.target_id != 15) {
 			path->device->protocol = PROTO_SCSI;
@@ -881,7 +932,6 @@ noerror:
 	{
 		struct ccb_pathinq cpi;
 		int16_t *ptr;
-		int changed = 1;
 
 		ident_buf = &softc->ident_data;
 		for (ptr = (int16_t *)ident_buf;
@@ -936,6 +986,11 @@ noerror:
 				path->device->serial_num = NULL;
 				path->device->serial_num_len = 0;
 			}
+			if (path->device->device_id != NULL) {
+				free(path->device->device_id, M_CAMXPT);
+				path->device->device_id = NULL;
+				path->device->device_id_len = 0;
+			}
 			path->device->serial_num =
 				(u_int8_t *)malloc((sizeof(ident_buf->serial) + 1),
 					   M_CAMXPT, M_NOWAIT);
@@ -947,6 +1002,18 @@ noerror:
 				    = '\0';
 				path->device->serial_num_len =
 				    strlen(path->device->serial_num);
+			}
+			if (ident_buf->enabled.extension &
+			    ATA_SUPPORT_64BITWWN) {
+				path->device->device_id =
+				    malloc(16, M_CAMXPT, M_NOWAIT);
+				if (path->device->device_id != NULL) {
+					path->device->device_id_len = 16;
+					bcopy(&fake_device_id_hdr,
+					    path->device->device_id, 8);
+					bcopy(ident_buf->wwn,
+					    path->device->device_id + 8, 8);
+				}
 			}
 
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
@@ -1092,11 +1159,9 @@ notsata:
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
 	{
-		struct scsi_inquiry_data *inq_buf;
 		u_int8_t periph_qual, len;
 
 		path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
-		inq_buf = &path->device->inq_data;
 
 		periph_qual = SID_QUAL(inq_buf);
 
@@ -1198,6 +1263,48 @@ notsata:
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
 			xpt_async(AC_SCSI_AEN, done_ccb->ccb_h.path, done_ccb);
+		}
+		break;
+	case PROBE_IDENTIFY_SES:
+	case PROBE_IDENTIFY_SAFTE:
+		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
+			/* Check that it is the same device. */
+			if (bcmp(&softc->ident_data, ident_buf, 53)) {
+				/* Device changed. */
+				xpt_async(AC_LOST_DEVICE, path, NULL);
+			} else {
+				bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
+				changed = 0;
+			}
+		}
+		if (changed) {
+			bcopy(&softc->ident_data, ident_buf, sizeof(struct ata_params));
+			/* Clean up from previous instance of this device */
+			if (path->device->device_id != NULL) {
+				free(path->device->device_id, M_CAMXPT);
+				path->device->device_id = NULL;
+				path->device->device_id_len = 0;
+			}
+			path->device->device_id =
+			    malloc(16, M_CAMXPT, M_NOWAIT);
+			if (path->device->device_id != NULL) {
+				path->device->device_id_len = 16;
+				bcopy(&fake_device_id_hdr,
+				    path->device->device_id, 8);
+				bcopy(((uint8_t*)ident_buf) + 2,
+				    path->device->device_id + 8, 8);
+			}
+
+			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
+		}
+
+		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
+			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+			xpt_acquire_device(path->device);
+			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+			xpt_action(done_ccb);
+			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
+			    done_ccb);
 		}
 		break;
 	case PROBE_INVALID:
@@ -1624,10 +1731,20 @@ ata_dev_advinfo(union ccb *start_ccb)
 	device = start_ccb->ccb_h.path->device;
 	cdai = &start_ccb->cdai;
 	switch(cdai->buftype) {
+	case CDAI_TYPE_SCSI_DEVID:
+		if (cdai->flags & CDAI_FLAG_STORE)
+			return;
+		cdai->provsiz = device->device_id_len;
+		if (device->device_id_len == 0)
+			break;
+		amt = device->device_id_len;
+		if (cdai->provsiz > cdai->bufsiz)
+			amt = cdai->bufsiz;
+		memcpy(cdai->buf, device->device_id, amt);
+		break;
 	case CDAI_TYPE_SERIAL_NUM:
 		if (cdai->flags & CDAI_FLAG_STORE)
-			break;
-		start_ccb->ccb_h.status = CAM_REQ_CMP;
+			return;
 		cdai->provsiz = device->serial_num_len;
 		if (device->serial_num_len == 0)
 			break;
@@ -1636,8 +1753,45 @@ ata_dev_advinfo(union ccb *start_ccb)
 			amt = cdai->bufsiz;
 		memcpy(cdai->buf, device->serial_num, amt);
 		break;
-	default:
+	case CDAI_TYPE_PHYS_PATH:
+		if (cdai->flags & CDAI_FLAG_STORE) {
+			if (device->physpath != NULL)
+				free(device->physpath, M_CAMXPT);
+			device->physpath_len = cdai->bufsiz;
+			/* Clear existing buffer if zero length */
+			if (cdai->bufsiz == 0)
+				break;
+			device->physpath = malloc(cdai->bufsiz, M_CAMXPT, M_NOWAIT);
+			if (device->physpath == NULL) {
+				start_ccb->ccb_h.status = CAM_REQ_ABORTED;
+				return;
+			}
+			memcpy(device->physpath, cdai->buf, cdai->bufsiz);
+		} else {
+			cdai->provsiz = device->physpath_len;
+			if (device->physpath_len == 0)
+				break;
+			amt = device->physpath_len;
+			if (cdai->provsiz > cdai->bufsiz)
+				amt = cdai->bufsiz;
+			memcpy(cdai->buf, device->physpath, amt);
+		}
 		break;
+	default:
+		return;
+	}
+	start_ccb->ccb_h.status = CAM_REQ_CMP;
+
+	if (cdai->flags & CDAI_FLAG_STORE) {
+		int owned;
+
+		owned = mtx_owned(start_ccb->ccb_h.path->bus->sim->mtx);
+		if (owned == 0)
+			mtx_lock(start_ccb->ccb_h.path->bus->sim->mtx);
+		xpt_async(AC_ADVINFO_CHANGED, start_ccb->ccb_h.path,
+			  (void *)(uintptr_t)cdai->buftype);
+		if (owned == 0)
+			mtx_unlock(start_ccb->ccb_h.path->bus->sim->mtx);
 	}
 }
 
