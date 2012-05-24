@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2011
+.Dd May 6, 2012
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm
 .Cm label
 .Op Fl f
+.Op Fl o Ar fmtopt
 .Op Fl S Ar size
 .Op Fl s Ar strip
 .Ar format
@@ -119,6 +120,8 @@ Additional options include:
 .It Fl f
 Enforce specified configuration creation if it is officially unsupported,
 but technically can be created.
+.It Fl o Ar fmtopt
+Specifies metadata format options.
 .It Fl S Ar size
 Use
 .Ar size
@@ -200,6 +203,23 @@ The GEOM RAID class follows a modular design, allowing different metadata
 formats to be used.
 Support is currently implemented for the following formats:
 .Bl -tag -width "Intel"
+.It DDF
+The format defined by the SNIA Common RAID Disk Data Format v2.0 specification.
+Used by some Adaptec RAID BIOSes and some hardware RAID controllers.
+Because of high format flexibility different implementations support
+different set of features and have different on-disk metadata layouts.
+To provide compatibility, the GEOM RAID class mimics capabilities
+of the first detected DDF array.
+Respecting that, it may support different number of disks per volume,
+volumes per array, partitions per disk, etc.
+The following configurations are supported: RAID0 (2+ disks), RAID1 (2+ disks),
+RAID1E (3+ disks), RAID3 (3+ disks), RAID4 (3+ disks), RAID5 (3+ disks),
+RAID5E (4+ disks), RAID5EE (4+ disks), RAID5R (3+ disks), RAID6 (4+ disks),
+RAIDMDF (4+ disks), RAID10 (4+ disks), SINGLE (1 disk), CONCAT (2+ disks).
+.Pp
+Format supports two options "BE" and "LE", that mean big-endian byte order
+defined by specification (default) and little-endian used by some Adaptec
+controllers.
 .It Intel
 The format used by Intel RAID BIOS.
 Supports up to two volumes per array.
@@ -241,8 +261,11 @@ own risk: RAID1 (3+ disks), RAID10 (6+ disks).
 .Sh SUPPORTED RAID LEVELS
 The GEOM RAID class follows a modular design, allowing different RAID levels
 to be used.
-Support for the following RAID levels is currently implemented: RAID0, RAID1,
-RAID1E, RAID10, SINGLE, CONCAT.
+Full support for the following RAID levels is currently implemented:
+RAID0, RAID1, RAID1E, RAID10, SINGLE, CONCAT.
+The following RAID levels supported as read-only for volumes in optimal
+state (without using redundancy): RAID4, RAID5, RAID5E, RAID5EE, RAID5R,
+RAID6, RAIDMDF.
 .Sh RAID LEVEL MIGRATION
 The GEOM RAID class has no support for RAID level migration, allowed by some
 metadata formats.
@@ -253,6 +276,33 @@ corruption!
 .Sh 2TiB BARRIERS
 Promise metadata format does not support disks above 2TiB.
 NVIDIA metadata format does not support volumes above 2TiB.
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variable can be used to control the behavior of the
+.Nm RAID
+GEOM class.
+.Bl -tag -width indent
+.It Va kern.geom.raid.aggressive_spare : No 0
+Use any disks without metadata connected to controllers of the vendor
+matching to volume metadata format as spare.
+Use it with much care to not lose data if connecting unrelated disk!
+.It Va kern.geom.raid.clean_time : No 5
+Mark volume as clean when idle for the specified number of seconds.
+.It Va kern.geom.raid.debug : No 0
+Debug level of the
+.Nm RAID
+GEOM class.
+.It Va kern.geom.raid.idle_threshold : No 1000000
+Time in microseconds to consider a volume idle for rebuild puroses.
+.It Va kern.geom.raid.name_format : No 0
+Providers name format: 0 -- raid/r{num}, 1 -- raid/{label}.
+.It Va kern.geom.raid.read_err_thresh : No 10
+Number of read errors equated to disk failure.
+Write errors are always considered as disk failures.
+.It Va kern.geom.raid.start_timeout : No 30
+Time to wait for missing array components on startup.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, and non-zero if the command fails.
 .Sh SEE ALSO

@@ -401,13 +401,15 @@ g_raid_md_jmicron_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_RAID5:
 		if (disks < 3)
 			return (0);
+		if (qual != G_RAID_VOLUME_RLQ_R5LA)
+			return (0);
 		if (!force)
 			return (0);
 		break;
 	default:
 		return (0);
 	}
-	if (qual != G_RAID_VOLUME_RLQ_NONE)
+	if (level != G_RAID_VOLUME_RL_RAID5 && qual != G_RAID_VOLUME_RLQ_NONE)
 		return (0);
 	return (1);
 }
@@ -658,6 +660,7 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 	vol = g_raid_create_volume(sc, buf, -1);
 	size = ((off_t)meta->disk_sectors_high << 16) + meta->disk_sectors_low;
 	size *= 512; //ZZZ
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	if (meta->type == JMICRON_T_RAID0) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 		vol->v_mediasize = size * mdi->mdio_total_disks;
@@ -675,12 +678,12 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 		vol->v_mediasize = 0;
 	} else if (meta->type == JMICRON_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_R5LA;
 		vol->v_mediasize = size * (mdi->mdio_total_disks - 1);
 	} else {
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		vol->v_mediasize = 0;
 	}
-	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	vol->v_strip_size = 1024 << meta->stripe_shift; //ZZZ
 	vol->v_disks_count = mdi->mdio_total_disks;
 	vol->v_sectorsize = 512; //ZZZ
@@ -1058,6 +1061,8 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			gctl_error(req, "No RAID level.");
 			return (-3);
 		}
+		if (strcasecmp(levelname, "RAID5") == 0)
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1193,7 +1198,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_raid_level_qualifier = qual;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0 ||
