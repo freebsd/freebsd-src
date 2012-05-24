@@ -718,11 +718,8 @@ racctd(void)
 			timevalsub(&wallclock, &p->p_stats->p_start);
 			PROC_LOCK(p);
 			PROC_SLOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td) {
+			FOREACH_THREAD_IN_PROC(p, td)
 				ruxagg(p, td);
-				thread_lock(td);
-				thread_unlock(td);
-			}
 			runtime = cputick2usec(p->p_rux.rux_runtime);
 			PROC_SUNLOCK(p);
 #ifdef notyet
