@@ -83,6 +83,20 @@ struct ata_res {
 	u_int8_t	sector_count_exp;
 };
 
+struct sep_identify_data {
+	uint8_t		length;		/* Enclosure descriptor length */
+	uint8_t		subenc_id;	/* Sub-enclosure identifier */
+	uint8_t		logical_id[8];	/* Enclosure logical identifier (WWN) */
+	uint8_t		vendor_id[8];	/* Vendor identification string */
+	uint8_t		product_id[16];	/* Product identification string */
+	uint8_t		product_rev[4];	/* Product revision string */
+	uint8_t		channel_id;	/* Channel identifier */
+	uint8_t		firmware_rev[4];/* Firmware revision */
+	uint8_t		interface_id[6];/* Interface spec ("S-E-S "/"SAF-TE")*/
+	uint8_t		interface_rev[4];/* Interface spec revision */
+	uint8_t		vend_spec[11];	/* Vendor specific information */
+};
+
 int	ata_version(int ver);
 
 char *	ata_op_string(struct ata_cmd *cmd);
@@ -125,5 +139,27 @@ int	ata_speed2revision(u_int speed);
 
 int	ata_identify_match(caddr_t identbuffer, caddr_t table_entry);
 int	ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry);
+
+void	semb_print_ident(struct sep_identify_data *ident_data);
+
+void semb_receive_diagnostic_results(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+	uint8_t tag_action, int pcv, uint8_t page_code,
+	uint8_t *data_ptr, uint16_t allocation_length, uint32_t timeout);
+
+void semb_send_diagnostic(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+	uint8_t tag_action, uint8_t *data_ptr, uint16_t param_list_length,
+	uint32_t timeout);
+
+void semb_read_buffer(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),
+	uint8_t tag_action, uint8_t page_code,
+	uint8_t *data_ptr, uint16_t allocation_length, uint32_t timeout);
+
+void semb_write_buffer(struct ccb_ataio *ataio,
+	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb *),
+	uint8_t tag_action, uint8_t *data_ptr, uint16_t param_list_length,
+	uint32_t timeout);
 
 #endif
