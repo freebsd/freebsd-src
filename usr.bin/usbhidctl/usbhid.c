@@ -189,11 +189,11 @@ usage(void)
 
 	fprintf(stderr,
                 "usage: %s -f device "
-                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] name ...\n",
+                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] [-z] name ...\n",
                 getprogname());
 	fprintf(stderr,
                 "       %s -f device "
-                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] -a\n",
+                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] [-z] -a\n",
                 getprogname());
 	fprintf(stderr,
                 "       %s -f device "
@@ -311,7 +311,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	u_char *dbuf;
 	enum hid_kind kind;
 
-	kind = 0;
+	kind = zflag ? 3 : 0;
 	rid = -1;
 	use_rid = !!hid_get_report_id(f);
 	do {
