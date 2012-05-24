@@ -56,7 +56,8 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 extern void *ap_pcpu;
 extern uint8_t __boot_page[];		/* Boot page body */
-extern uint32_t kernload_ap;		/* Kernel physical load address */
+extern uint32_t bp_kernload;		/* Kernel physical load address */
+extern uint32_t bp_trace;		/* AP boot trace field */
 #endif
 
 extern uint32_t *bootinfo;
@@ -262,8 +263,8 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 
 	eebpcr = ccsr_read4(OCP85XX_EEBPCR);
 	if ((eebpcr & (1 << (pc->pc_cpuid + 24))) != 0) {
-		printf("%s: CPU=%d already out of hold-off state!\n",
-		    __func__, pc->pc_cpuid);
+		printf("SMP: CPU %d already out of hold-off state!\n",
+		    pc->pc_cpuid);
 		return (ENXIO);
 	}
 
@@ -273,12 +274,13 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/*
 	 * Set BPTR to the physical address of the boot page
 	 */
-	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload_ap;
+	bptr = ((uint32_t)__boot_page - KERNBASE) + bp_kernload;
 	ccsr_write4(OCP85XX_BPTR, (bptr >> 12) | 0x80000000);
 
 	/*
 	 * Release AP from hold-off state
 	 */
+	bp_trace = 0;
 	eebpcr |= (1 << (pc->pc_cpuid + 24));
 	ccsr_write4(OCP85XX_EEBPCR, eebpcr);
 	__asm __volatile("isync; msync");
@@ -287,6 +289,16 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	while (!pc->pc_awake && timeout--)
 		DELAY(1000);	/* wait 1ms */
 
+	/*
+	 * Disable boot page translation so that the 4K page at the default
+	 * address (= 0xfffff000) isn't permanently remapped and thus not
+	 * usable otherwise.
+	 */
+	ccsr_write4(OCP85XX_BPTR, 0);
+
+	if (!pc->pc_awake)
+		printf("SMP: CPU %d didn't wake up (trace code %#x).\n",
+		    pc->pc_awake, bp_trace);
 	return ((pc->pc_awake) ? 0 : EBUSY);
 #else
 	/* No SMP support */
