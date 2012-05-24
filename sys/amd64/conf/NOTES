@@ -557,6 +557,10 @@ options 	LINSYSFS
 
 options 	KSTACK_PAGES=5
 
+# Enable detailed accounting by the PV entry allocator.
+
+options 	PV_STATS
+
 #####################################################################
 
 # More undocumented options for linting.
