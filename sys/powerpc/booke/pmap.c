@@ -291,7 +291,7 @@ static boolean_t	mmu_booke_is_modified(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
 static boolean_t	mmu_booke_is_referenced(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_ts_referenced(mmu_t, vm_page_t);
-static vm_offset_t	mmu_booke_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t,
+static vm_offset_t	mmu_booke_map(mmu_t, vm_offset_t *, vm_paddr_t, vm_paddr_t,
     int);
 static int		mmu_booke_mincore(mmu_t, pmap_t, vm_offset_t,
     vm_paddr_t *);
@@ -316,12 +316,12 @@ static void		mmu_booke_zero_page_idle(mmu_t, vm_page_t);
 static void		mmu_booke_activate(mmu_t, struct thread *);
 static void		mmu_booke_deactivate(mmu_t, struct thread *);
 static void		mmu_booke_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
-static void		*mmu_booke_mapdev(mmu_t, vm_offset_t, vm_size_t);
+static void		*mmu_booke_mapdev(mmu_t, vm_paddr_t, vm_size_t);
 static void		mmu_booke_unmapdev(mmu_t, vm_offset_t, vm_size_t);
-static vm_offset_t	mmu_booke_kextract(mmu_t, vm_offset_t);
-static void		mmu_booke_kenter(mmu_t, vm_offset_t, vm_offset_t);
+static vm_paddr_t	mmu_booke_kextract(mmu_t, vm_offset_t);
+static void		mmu_booke_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 static void		mmu_booke_kremove(mmu_t, vm_offset_t);
-static boolean_t	mmu_booke_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
+static boolean_t	mmu_booke_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void		mmu_booke_sync_icache(mmu_t, pmap_t, vm_offset_t,
     vm_size_t);
 static vm_offset_t	mmu_booke_dumpsys_map(mmu_t, struct pmap_md *,
@@ -1391,7 +1391,7 @@ mmu_booke_qremove(mmu_t mmu, vm_offset_t sva, int count)
  * Map a wired page into kernel virtual address space.
  */
 static void
-mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
+mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_paddr_t pa)
 {
 	unsigned int pdir_idx = PDIR_IDX(va);
 	unsigned int ptbl_idx = PTBL_IDX(va);
@@ -1814,8 +1814,8 @@ mmu_booke_remove_all(mmu_t mmu, vm_page_t m)
  * Map a range of physical addresses into kernel virtual address space.
  */
 static vm_offset_t
-mmu_booke_map(mmu_t mmu, vm_offset_t *virt, vm_offset_t pa_start,
-    vm_offset_t pa_end, int prot)
+mmu_booke_map(mmu_t mmu, vm_offset_t *virt, vm_paddr_t pa_start,
+    vm_paddr_t pa_end, int prot)
 {
 	vm_offset_t sva = *virt;
 	vm_offset_t va = sva;
@@ -2441,7 +2441,7 @@ mmu_booke_page_wired_mappings(mmu_t mmu, vm_page_t m)
 }
 
 static int
-mmu_booke_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+mmu_booke_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
 	int i;
 	vm_offset_t va;
@@ -2599,7 +2599,7 @@ mmu_booke_scan_md(mmu_t mmu, struct pmap_md *prev)
  * for mapping device memory, NOT real memory.
  */
 static void *
-mmu_booke_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+mmu_booke_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
 	void *res;
 	uintptr_t va;
