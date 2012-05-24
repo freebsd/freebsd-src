@@ -57,7 +57,7 @@
 #define	__INT_MAX	0x7fffffff	/* max value for an int */
 #define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
 
-#ifdef	_LP64
+#ifdef	__LP64__
 #define	__ULONG_MAX	0xffffffffffffffff	/* max for an unsigned long */
 #define	__LONG_MAX	0x7fffffffffffffff	/* max for a long */
 #define	__LONG_MIN	(-0x7fffffffffffffff - 1) /* min for a long */
@@ -72,7 +72,7 @@
 #define	__LLONG_MAX	0x7fffffffffffffffLL	/* max value for a long long */
 #define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1)  /* min for a long long */
 
-#ifdef	_LP64
+#ifdef	__LP64__
 #define	__SSIZE_MAX	__LONG_MAX	/* max value for a ssize_t */
 #define	__SIZE_T_MAX	__ULONG_MAX	/* max value for a size_t */
 #define	__OFF_MAX	__LONG_MAX	/* max value for an off_t */
