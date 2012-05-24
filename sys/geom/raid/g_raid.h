@@ -219,14 +219,48 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_RL_RAID4		0x04
 #define G_RAID_VOLUME_RL_RAID5		0x05
 #define G_RAID_VOLUME_RL_RAID6		0x06
+#define G_RAID_VOLUME_RL_RAIDMDF	0x07
 #define G_RAID_VOLUME_RL_RAID1E		0x11
 #define G_RAID_VOLUME_RL_SINGLE		0x0f
 #define G_RAID_VOLUME_RL_CONCAT		0x1f
 #define G_RAID_VOLUME_RL_RAID5E		0x15
 #define G_RAID_VOLUME_RL_RAID5EE	0x25
+#define G_RAID_VOLUME_RL_RAID5R		0x35
 #define G_RAID_VOLUME_RL_UNKNOWN	0xff
 
 #define G_RAID_VOLUME_RLQ_NONE		0x00
+#define G_RAID_VOLUME_RLQ_R1SM		0x00
+#define G_RAID_VOLUME_RLQ_R1MM		0x01
+#define G_RAID_VOLUME_RLQ_R3P0		0x00
+#define G_RAID_VOLUME_RLQ_R3PN		0x01
+#define G_RAID_VOLUME_RLQ_R4P0		0x00
+#define G_RAID_VOLUME_RLQ_R4PN		0x01
+#define G_RAID_VOLUME_RLQ_R5RA		0x00
+#define G_RAID_VOLUME_RLQ_R5RS		0x01
+#define G_RAID_VOLUME_RLQ_R5LA		0x02
+#define G_RAID_VOLUME_RLQ_R5LS		0x03
+#define G_RAID_VOLUME_RLQ_R6RA		0x00
+#define G_RAID_VOLUME_RLQ_R6RS		0x01
+#define G_RAID_VOLUME_RLQ_R6LA		0x02
+#define G_RAID_VOLUME_RLQ_R6LS		0x03
+#define G_RAID_VOLUME_RLQ_RMDFRA	0x00
+#define G_RAID_VOLUME_RLQ_RMDFRS	0x01
+#define G_RAID_VOLUME_RLQ_RMDFLA	0x02
+#define G_RAID_VOLUME_RLQ_RMDFLS	0x03
+#define G_RAID_VOLUME_RLQ_R1EA		0x00
+#define G_RAID_VOLUME_RLQ_R1EO		0x01
+#define G_RAID_VOLUME_RLQ_R5ERA		0x00
+#define G_RAID_VOLUME_RLQ_R5ERS		0x01
+#define G_RAID_VOLUME_RLQ_R5ELA		0x02
+#define G_RAID_VOLUME_RLQ_R5ELS		0x03
+#define G_RAID_VOLUME_RLQ_R5EERA	0x00
+#define G_RAID_VOLUME_RLQ_R5EERS	0x01
+#define G_RAID_VOLUME_RLQ_R5EELA	0x02
+#define G_RAID_VOLUME_RLQ_R5EELS	0x03
+#define G_RAID_VOLUME_RLQ_R5RRA		0x00
+#define G_RAID_VOLUME_RLQ_R5RRS		0x01
+#define G_RAID_VOLUME_RLQ_R5RLA		0x02
+#define G_RAID_VOLUME_RLQ_R5RLS		0x03
 #define G_RAID_VOLUME_RLQ_UNKNOWN	0xff
 
 struct g_raid_volume;
@@ -244,7 +278,13 @@ struct g_raid_volume {
 	u_int			 v_raid_level;	/* Array RAID level. */
 	u_int			 v_raid_level_qualifier; /* RAID level det. */
 	u_int			 v_disks_count;	/* Number of disks in array. */
+	u_int			 v_mdf_pdisks;	/* Number of parity disks
+						   in RAIDMDF array. */
+	uint16_t		 v_mdf_polynomial; /* Polynomial for RAIDMDF. */
+	uint8_t			 v_mdf_method;	/* Generation method for RAIDMDF. */
 	u_int			 v_strip_size;	/* Array strip size. */
+	u_int			 v_rotate_parity; /* Rotate RAID5R parity
+						   after numer of stripes. */
 	u_int			 v_sectorsize;	/* Volume sector size. */
 	off_t			 v_mediasize;	/* Volume media size.  */
 	struct bio_queue_head	 v_inflight;	/* In-flight write requests. */
@@ -348,7 +388,8 @@ const char * g_raid_disk_state2str(int state);
 
 struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);
-int g_raid_create_node_format(const char *format, struct g_geom **gp);
+int g_raid_create_node_format(const char *format, struct gctl_req *req,
+    struct g_geom **gp);
 struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
     const char *name, int id);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
