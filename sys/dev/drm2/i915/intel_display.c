@@ -8858,7 +8858,7 @@ static void ironlake_disable_rc6(struct drm_device *dev)
 	if (I915_READ(PWRCTXA)) {
 		/* Wake the GPU, prevent RC6, then restore RSTDBYCTL */
 		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) | RCX_SW_EXIT);
-		_intel_wait_for(dev,
+		(void)_intel_wait_for(dev,
 		    ((I915_READ(RSTDBYCTL) & RSX_STATUS_MASK) == RSX_STATUS_ON),
 		    50, 1, "915pro");
 
