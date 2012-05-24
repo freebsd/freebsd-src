@@ -52,7 +52,7 @@
 #define rmb()		__asm __volatile("lwsync" : : : "memory")
 #define wmb()		__asm __volatile("lwsync" : : : "memory")
 #define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
-#define __ATOMIC_ACQ()	__asm __volatile("lwsync" : : : "memory")
+#define __ATOMIC_ACQ()	__asm __volatile("isync" : : : "memory")
 #else
 #define mb()		__asm __volatile("sync" : : : "memory")
 #define rmb()		__asm __volatile("sync" : : : "memory")
