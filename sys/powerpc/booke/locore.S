@@ -242,14 +242,20 @@ done_mapping:
 __boot_page:
 	bl	1f
 
-	.globl	kernload_ap
-kernload_ap:
+	.globl	bp_trace
+bp_trace:
+	.long	0
+
+	.globl	bp_kernload
+bp_kernload:
 	.long	0
 
 /*
  * Initial configuration
  */
 1:
+	mflr    %r31		/* r31 hold the address of bp_trace */
+
 	/* Set HIDs */
 	lis	%r3, HID0_E500_DEFAULT_SET@h
 	ori	%r3, %r3, HID0_E500_DEFAULT_SET@l
@@ -318,15 +324,15 @@ kernload_ap:
 	mtspr	SPR_MAS2, %r3
 	isync
 
-	/* Retrieve kernel load [physical] address from kernload_ap */
+	/* Retrieve kernel load [physical] address from bp_kernload */
 	bl	4f
 4:	mflr	%r3
 	rlwinm	%r3, %r3, 0, 0, 19
-	lis	%r4, kernload_ap@h
-	ori	%r4, %r4, kernload_ap@l
+	lis	%r4, bp_kernload@h
+	ori	%r4, %r4, bp_kernload@l
 	lis	%r5, __boot_page@h
 	ori	%r5, %r5, __boot_page@l
-	sub	%r4, %r4, %r5	/* offset of kernload_ap within __boot_page */
+	sub	%r4, %r4, %r5	/* offset of bp_kernload within __boot_page */
 	lwzx	%r3, %r4, %r3
 
 	/* Set RPN and protection */

@@ -115,7 +115,7 @@ extern unsigned char _end[];
 extern uint32_t *bootinfo;
 
 #ifdef SMP
-extern uint32_t kernload_ap;
+extern uint32_t bp_kernload;
 #endif
 
 vm_paddr_t kernload;
@@ -967,9 +967,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("mmu_booke_bootstrap: entered\n");
 
 #ifdef SMP
-	kernload_ap = kernload;
+	bp_kernload = kernload;
 #endif
-
 
 	/* Initialize invalidation mutex */
 	mtx_init(&tlbivax_mutex, "tlbivax", NULL, MTX_SPIN);
@@ -981,8 +980,13 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * Align kernel start and end address (kernel image).
 	 * Note that kernel end does not necessarily relate to kernsize.
 	 * kernsize is the size of the kernel that is actually mapped.
+	 * Also note that "start - 1" is deliberate. With SMP, the
+	 * entry point is exactly a page from the actual load address.
+	 * As such, trunc_page() has no effect and we're off by a page.
+	 * Since we always have the ELF header between the load address
+	 * and the entry point, we can safely subtract 1 to compensate.
 	 */
-	kernstart = trunc_page(start);
+	kernstart = trunc_page(start - 1);
 	data_start = round_page(kernelend);
 	data_end = data_start;
 
@@ -1233,9 +1237,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * entries, but for pte_vatopa() to work correctly with kernel area
 	 * addresses.
 	 */
-	for (va = KERNBASE; va < data_end; va += PAGE_SIZE) {
+	for (va = kernstart; va < data_end; va += PAGE_SIZE) {
 		pte = &(kernel_pmap->pm_pdir[PDIR_IDX(va)][PTBL_IDX(va)]);
-		pte->rpn = kernload + (va - KERNBASE);
+		pte->rpn = kernload + (va - kernstart);
 		pte->flags = PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
 		    PTE_VALID;
 	}
@@ -1397,9 +1401,7 @@ mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	KASSERT(((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va <= VM_MAX_KERNEL_ADDRESS)), ("mmu_booke_kenter: invalid va"));
 
-	flags = 0;
-	flags |= (PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID);
-	flags |= PTE_M;
+	flags = PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
 
 	pte = &(kernel_pmap->pm_pdir[pdir_idx][ptbl_idx]);
 
