@@ -54,8 +54,12 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	*regsz = gdb_cpu_regsz(regnum);
 
 	if (kdb_thread == curthread) {
-		if (regnum < 15)
+		if (regnum < 13)
 			return (&kdb_frame->tf_r0 + regnum);
+		if (regnum == 13)
+			return (&kdb_frame->tf_svc_sp);
+		if (regnum == 14)
+			return (&kdb_frame->tf_svc_lr);
 		if (regnum == 15)
 			return (&kdb_frame->tf_pc);
 		if (regnum == 25)
