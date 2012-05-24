@@ -73,6 +73,7 @@ FEATURE(rctl, "Resource Limits");
 
 /* Default buffer size for rctl_get_rules(2). */
 #define	RCTL_DEFAULT_BUFSIZE	4096
+#define	RCTL_MAX_INBUFLEN	4096
 #define	RCTL_LOG_BUFSIZE	128
 
 /*
@@ -1191,6 +1192,8 @@ rctl_read_inbuf(char **inputstr, const char *inbufp, size_t inbuflen)
 
 	if (inbuflen <= 0)
 		return (EINVAL);
+	if (inbuflen > RCTL_MAX_INBUFLEN)
+		return (E2BIG);
 
 	str = malloc(inbuflen + 1, M_RCTL, M_WAITOK);
 	error = copyinstr(inbufp, str, inbuflen, NULL);
