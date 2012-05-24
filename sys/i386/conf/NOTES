@@ -850,10 +850,12 @@ hint.pcf.0.irq="5"
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# wbwd: Winbond watchdog timer
 #
 device		ichwd
 device		amdsbwd
 device		viawd
+device		wbwd
 
 #
 # Temperature sensors:
