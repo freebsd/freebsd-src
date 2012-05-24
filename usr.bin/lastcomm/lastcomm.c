@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 #include "pathnames.h"
@@ -87,10 +88,12 @@ main(int argc, char *argv[])
 	int (*readrec)(FILE *f, struct acctv2 *av2);
 	time_t t;
 	int ch, rv;
-	const char *acctfile;
+	const char *acctfile, *format;
+	char buf[1024];
 	int flags = 0;
 
 	acctfile = _PATH_ACCT;
+	format = NULL;
 	while ((ch = getopt(argc, argv, "f:usecSE")) != -1)
 		switch((char)ch) {
 		case 'f':
@@ -130,6 +133,12 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
+
+	if (argc > 0 && **argv == '+') {
+		format = *argv + 1; /* skip + */
+		argc--;
+		argv++;
+	}
 
 	if (strcmp(acctfile, "-") == 0) {
 		fp = stdin;
@@ -182,14 +191,24 @@ main(int argc, char *argv[])
 		
 		/* starting time */
 		if (flags & AC_BTIME) {
-			(void)printf(" %.16s", ctime(&ab.ac_btime));
+			if (format != NULL) {
+				(void)strftime(buf, sizeof(buf), format,
+				    localtime(&ab.ac_btime));
+				(void)printf(" %s", buf);
+			} else
+				(void)printf(" %.16s", ctime(&ab.ac_btime));
 		}
 		
 		/* exit time (starting time + elapsed time )*/
 		if (flags & AC_FTIME) {
 			t = ab.ac_btime;
 			t += (time_t)(ab.ac_etime / 1000000);
-			(void)printf(" %.16s", ctime(&t));
+			if (format != NULL) {
+				(void)strftime(buf, sizeof(buf), format,
+				    localtime(&t));
+				(void)printf(" %s", buf);
+			} else
+				(void)printf(" %.16s", ctime(&t));
 		}
 		printf("\n");
  	}
@@ -255,6 +274,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: lastcomm [-EScesu] [-f file] [command ...] [user ...] [terminal ...]\n");
+	    "usage: lastcomm [-EScesu] [-f file] [+format] [command ...] "
+	    "[user ...] [terminal ...]\n");
 	exit(1);
 }
