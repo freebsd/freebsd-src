@@ -166,7 +166,6 @@ __FBSDID("$FreeBSD$");
 #define PMAP_INLINE
 #endif
 
-#define PV_STATS
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
 #else
