@@ -632,7 +632,9 @@ struct ip6_mtuinfo {
 
 #ifdef _KERNEL
 struct cmsghdr;
+struct ip6_hdr;
 
+int	in6_cksum_pseudo(struct ip6_hdr *, uint32_t, uint8_t, uint16_t);
 int	in6_cksum __P((struct mbuf *, u_int8_t, u_int32_t, u_int32_t));
 int	in6_localaddr __P((struct in6_addr *));
 int	in6_localip(struct in6_addr *);
