@@ -32,7 +32,7 @@
 .\"	From: @(#)lastcomm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2007
+.Dd May 17, 2012
 .Dt LASTCOMM 1
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Nm
 .Op Fl EScesu
 .Op Fl f Ar file
+.Op Cm + Ns Ar format
 .Op Ar command ...\&
 .Op Ar user ...\&
 .Op Ar terminal ...\&
@@ -80,6 +81,15 @@ is a single dash
 .Nm
 reads accounting entries from the standard input.
 .El
+.Pp
+An operand with a leading plus sign
+.Pq Sq +
+is followed a user-defined format string which specifies the format
+in which to display the process's start or exit date and time.
+The format string may contain any of the conversion specifications
+described in the
+.Xr strftime 3
+manual page, as well as arbitrary text.
 .Pp
 If no options are specified,
 .Fl cS
@@ -169,6 +179,7 @@ will print details of each terminating command.
 .Sh SEE ALSO
 .Xr last 1 ,
 .Xr sigaction 2 ,
+.Xr strftime 3 ,
 .Xr acct 5 ,
 .Xr core 5
 .Sh HISTORY
