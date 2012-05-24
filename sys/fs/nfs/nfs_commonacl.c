@@ -468,9 +468,7 @@ nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
 		error = NFSERR_ATTRNOTSUPP;
 		goto out;
 	}
-	error = VOP_ACLCHECK(vp, ACL_TYPE_NFS4, aclp, cred, p);
-	if (!error)
-		error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
+	error = VOP_SETACL(vp, ACL_TYPE_NFS4, aclp, cred, p);
 
 out:
 	NFSEXITCODE(error);
