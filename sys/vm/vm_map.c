@@ -3087,27 +3087,25 @@ struct vmspace *
 vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 {
 	struct vmspace *vm2;
-	vm_map_t old_map = &vm1->vm_map;
-	vm_map_t new_map;
-	vm_map_entry_t old_entry;
-	vm_map_entry_t new_entry;
+	vm_map_t new_map, old_map;
+	vm_map_entry_t new_entry, old_entry;
 	vm_object_t object;
 	int locked;
 
-	vm_map_lock(old_map);
-	if (old_map->busy)
-		vm_map_wait_busy(old_map);
-	new_map = NULL; /* silence gcc */
+	old_map = &vm1->vm_map;
+	/* Copy immutable fields of vm1 to vm2. */
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	if (vm2 == NULL)
-		goto unlock_and_return;
+		return (NULL);
 	vm2->vm_taddr = vm1->vm_taddr;
 	vm2->vm_daddr = vm1->vm_daddr;
 	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
-	new_map = &vm2->vm_map;	/* XXX */
+	vm_map_lock(old_map);
+	if (old_map->busy)
+		vm_map_wait_busy(old_map);
+	new_map = &vm2->vm_map;
 	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
 	KASSERT(locked, ("vmspace_fork: lock failed"));
-	new_map->timestamp = 1;
 
 	old_entry = old_map->header.next;
 
@@ -3228,15 +3226,13 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 		}
 		old_entry = old_entry->next;
 	}
-unlock_and_return:
 	/*
 	 * Use inlined vm_map_unlock() to postpone handling the deferred
 	 * map entries, which cannot be done until both old_map and
 	 * new_map locks are released.
 	 */
 	sx_xunlock(&old_map->lock);
-	if (vm2 != NULL)
-		sx_xunlock(&new_map->lock);
+	sx_xunlock(&new_map->lock);
 	vm_map_process_deferred();
 
 	return (vm2);
