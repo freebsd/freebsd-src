@@ -224,16 +224,16 @@ extern	struct pmap kernel_pmap_store;
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
-void		pmap_kenter(vm_offset_t va, vm_offset_t pa);
+void		pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void		pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t);
 void		pmap_kremove(vm_offset_t);
-void		*pmap_mapdev(vm_offset_t, vm_size_t);
+void		*pmap_mapdev(vm_paddr_t, vm_size_t);
 void		*pmap_mapdev_attr(vm_offset_t, vm_size_t, vm_memattr_t);
 void		pmap_unmapdev(vm_offset_t, vm_size_t);
 void		pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 void		pmap_deactivate(struct thread *);
-vm_offset_t	pmap_kextract(vm_offset_t);
-int		pmap_dev_direct_mapped(vm_offset_t, vm_size_t);
+vm_paddr_t	pmap_kextract(vm_offset_t);
+int		pmap_dev_direct_mapped(vm_paddr_t, vm_size_t);
 boolean_t	pmap_mmu_install(char *name, int prio);
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
