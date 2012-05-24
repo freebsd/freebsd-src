@@ -46,6 +46,7 @@ $FreeBSD$
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_dl.h>
+#include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
 #include <machine/bus.h>
