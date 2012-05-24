@@ -255,7 +255,7 @@ They can also be given the values
 .Dq true
 and
 .Dq false .
-Other partameters may have more than one value, specified as a
+Other parameters may have more than one value, specified as a
 comma-separated list or with
 .Dq +=
 in the configuration file (see
@@ -269,7 +269,7 @@ parameters that are passed to the kernel when the jail is created,
 can be seen with
 .Xr jls 8 ,
 and can (usually) be changed with
-.Dq Nm Fl m.
+.Dq Nm Fl m .
 Then there are pseudo-parameters that are only used by
 .Nm
 itself.
@@ -580,7 +580,7 @@ command parameters are
 command lines that are run in either the system or prison environment.
 They may be given multiple values, which run would the specified
 commands in sequence.
-All commands must succed (return a zero exit status), or the jail will
+All commands must succeed (return a zero exit status), or the jail will
 not be created or removed.
 .Pp
 The pseudo-parameters are:
@@ -657,7 +657,8 @@ The maximum amount of time to wait for a prison's processes to exit
 after sending them a
 .Dv SIGTERM
 signal (which happens after the
-.Va exec.stop commands have completed).
+.Va exec.stop
+commands have completed).
 After this many seconds have passed, the prison will be removed, which
 will kill any remaining processes.
 If this is set to zero, no
