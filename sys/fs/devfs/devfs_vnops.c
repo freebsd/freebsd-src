@@ -1266,53 +1266,8 @@ static int
 devfs_readlink(struct vop_readlink_args *ap)
 {
 	struct devfs_dirent *de;
-	struct cdev_priv *cdp;
 
 	de = ap->a_vp->v_data;
-	cdp = de->de_cdp;
-
-	if (cdp != NULL && (cdp->cdp_c.si_flags & SI_ALIAS) != 0) {
-		struct devfs_mount *dmp;
-		struct prison *pr;
-		char *mp;
-		int mp_len;
-		int pr_path_len;
-		int err;
-
-		/*
-		 * For device aliases, construct an absolute symlink (to
-		 * shorten its length and avoid the ugliness of a relative
-		 * link) by prepending the fully qualified path to the root
-		 * of this devfs.  For a non-jailed process, the devfs root
-		 * is our mount point.  For a jailed process, we must remove
-		 * any jail prefix in our mount point so that our response
-		 * matches the user process's world view.
-		 */
-		dmp = VFSTODEVFS(ap->a_vp->v_mount);
-		mp = dmp->dm_mount->mnt_stat.f_mntonname;
-		mp_len = strlen(mp);
-
-		pr = ap->a_cred->cr_prison;
-		pr_path_len = strlen(pr->pr_path);
-
-		if (strncmp(pr->pr_path, mp, pr_path_len) == 0
-		 && mp[pr_path_len] == '/') {
-			mp += pr_path_len;
-			mp_len -= pr_path_len;
-		}
-
-		err = uiomove(mp, mp_len, ap->a_uio);
-		if (err != 0)
-			return (err);
-
-		/*
-		 * Devfs cannot be the root file system, so its
-		 * mount point must always be terminated by a '/'.
-		 */
-		err = uiomove("/", 1, ap->a_uio);
-		if (err != 0)
-			return (err);
-	}
 	return (uiomove(de->de_symlink, strlen(de->de_symlink), ap->a_uio));
 }
 
