@@ -160,7 +160,7 @@ nexus_print_child(device_t bus, device_t child)
 	int retval = 0;
 
 	retval += bus_print_child_header(bus, child);
-	retval += printf(" on motherboard\n");	/* XXX "motherboard", ick */
+	retval += printf("\n");
 
 	return (retval);
 }
