@@ -98,15 +98,6 @@ static MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node");
 /* Key length */
 #define KEYLEN(b)		(((b) & MPPE_128) ? 16 : 8)
 
-/*
- * When packets are lost with MPPE, we may have to re-key arbitrarily
- * many times to 'catch up' to the new jumped-ahead sequence number.
- * Since this can be expensive, we pose a limit on how many re-keyings
- * we will do at one time to avoid a possible D.O.S. vulnerability.
- * This should instead be a configurable parameter.
- */
-#define MPPE_MAX_REKEY		1000
-
 /* MPPC packet header bits */
 #define MPPC_FLAG_FLUSHED	0x8000		/* xmitter reset state */
 #define MPPC_FLAG_RESTART	0x4000		/* compress history restart */
@@ -641,20 +632,22 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 #endif
 #ifdef NETGRAPH_MPPC_ENCRYPTION
 		if ((d->cfg.bits & MPPE_BITS) != 0) {
-			u_int rekey;
+                       u_int rekey;
+ 
+                       /* How many times are we going to have to re-key? */
+                       rekey = ((d->cfg.bits & MPPE_STATELESS) != 0) ?
+                           numLost : (numLost / (MPPE_UPDATE_MASK + 1));
+                       if (rekey > 1000)
+                               log(LOG_ERR, "%s: %d packets dropped, "
+				   "node [%x]\n", __func__, numLost,
+				   node->nd_ID);
 
-			/* How many times are we going to have to re-key? */
-			rekey = ((d->cfg.bits & MPPE_STATELESS) != 0) ?
-			    numLost : (numLost / (MPPE_UPDATE_MASK + 1));
-			if (rekey > MPPE_MAX_REKEY) {
-				log(LOG_ERR, "%s: too many (%d) packets"
-				    " dropped, disabling node %p!",
-				    __func__, numLost, node);
-				priv->recv.cfg.enable = 0;
-				goto failed;
-			}
-
-			/* Re-key as necessary to catch up to peer */
+			/*
+			 * When packets are lost or re-ordered with MPPE,
+			 * we may have to re-key up to 0xfff times to 'catch
+			 * up' to the new jumped-ahead sequence number. Yep,
+			 * this is heavy, but what else can we do?
+			 */
 			while (d->cc != cc) {
 				if ((d->cfg.bits & MPPE_STATELESS) != 0
 				    || (d->cc & MPPE_UPDATE_MASK)
