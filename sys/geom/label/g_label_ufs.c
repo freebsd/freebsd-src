@@ -81,12 +81,10 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 		fs = (struct fs *)g_read_data(cp, superblock, SBLOCKSIZE, NULL);
 		if (fs == NULL)
 			continue;
-		/* Check for magic and make sure things are the right size */
-		if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0 &&
-		    pp->mediasize / fs->fs_fsize == fs->fs_old_size) {
+		/* Check for magic */
+		if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0) {
 		    	/* Valid UFS1. */
-		} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0 &&
-		    pp->mediasize / fs->fs_fsize == fs->fs_size) {
+		} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0) {
 		    	/* Valid UFS2. */
 		} else {
 			g_free(fs);
