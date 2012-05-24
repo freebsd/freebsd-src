@@ -60,6 +60,8 @@
 #include <sys/cpu.h>
 #include <sys/imgact.h>
 #include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/msgbuf.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
@@ -98,7 +100,10 @@ start_info_t *xen_start_info;
 shared_info_t *HYPERVISOR_shared_info;
 xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
-vm_paddr_t phys_avail[0]; /* XXX: todo */
+
+#define	PHYSMAP_SIZE	(2 * VM_PHYSSEG_MAX)
+vm_offset_t pa_index = 0;
+vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
 vm_paddr_t dump_avail[0]; /* XXX: todo */
 
 struct pcpu __pcpu[MAXCPU];
@@ -110,6 +115,8 @@ struct mtx icu_lock;
 struct mtx dt_lock;	/* lock for GDT and LDT */ /* XXX : please review its use */
 
 vm_paddr_t initxen(struct start_info *);
+
+extern void identify_cpu(void);
 
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
@@ -268,6 +275,7 @@ initxen(struct start_info *si)
 
 	KASSERT(si != NULL, ("start_info invalid"));
 
+	/* global variables */
 	xen_start_info = si;
 
 	/* xen variables */
@@ -275,6 +283,7 @@ initxen(struct start_info *si)
 
 	physmem = si->nr_pages;
 	Maxmem = si->nr_pages + 1;
+	memset(phys_avail, 0, sizeof phys_avail);
 
 	/* 
 	 * Setup kernel tls registers. pcpu needs them, and other
@@ -297,21 +306,31 @@ initxen(struct start_info *si)
 	/* Address of lowest unused page */
 	physfree = VTOP(si->pt_base + si->nr_pt_frames * PAGE_SIZE);
 
+	/* page tables */
 	pmap_bootstrap(&physfree);
 
+	/* Setup thread context */
 	thread0.td_kstack = PTOV(physfree);
 	thread0.td_kstack_pages = KSTACK_PAGES;
-	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	kstack0_sz = ptoa(thread0.td_kstack_pages);
 	bzero((void *)thread0.td_kstack, kstack0_sz);
+	thread0.td_pcb = get_pcb_td(&thread0);
+
 	physfree += kstack0_sz;
-	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
+
+	/* Make sure we are still inside of available mapped va. */
+	KASSERT(PTOV(physfree) <= (xenstack + 512 * 1024), 
+		("Attempt to use unmapped va\n"));
+
+	/* Register the rest of free physical memory with phys_avail[] */
+	phys_avail[pa_index++] = physfree;
+	phys_avail[pa_index++] = ptoa(physmem);
 
 	/*
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
 	 */
 	proc_linkup0(&proc0, &thread0);
-
 	KASSERT(si->mod_start == 0, ("MISMATCH"));
 
 	if (si->mod_start != 0) { /* we have a ramdisk or kernel module */
@@ -367,16 +386,54 @@ initxen(struct start_info *si)
 	HYPERVISOR_set_segment_base (SEGBASE_GS_KERNEL, (uint64_t) pc);
 	HYPERVISOR_set_segment_base (SEGBASE_GS_USER, (uint64_t) 0);
 
+	/* per cpu structures for cpu0 */
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	PCPU_SET(prvspace, pc);
+	PCPU_SET(curthread, &thread0);
+
+	/*
+	 * Initialize mutexes.
+	 *
+	 * icu_lock: in order to allow an interrupt to occur in a critical
+	 * 	     section, to set pcpu->ipending (etc...) properly, we
+	 *	     must be able to get the icu lock, so it can't be
+	 *	     under witness.
+	 */
+	mutex_init();
+	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
+	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_DEF);
+
 	/* exception handling */
 	init_exception_table();
 
-	/* page tables */
+	identify_cpu();		/* Final stage of CPU initialization */
+
+	//msgbufinit(msgbufp, msgbufsize);
+	//fpuinit();
+
+	/*
+	 * Set up thread0 pcb after fpuinit calculated pcb + fpu save
+	 * area size.  Zero out the extended state header in fpu save
+	 * area.
+	 */
+	thread0.td_pcb = get_pcb_td(&thread0);
+	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
+
+	PCPU_SET(rsp0, (vm_offset_t) thread0.td_pcb & ~0xFul /* 16 byte aligned */);
+	PCPU_SET(curpcb, thread0.td_pcb);
+
+	/* setup user mode selector glue */
+	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
+	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
+	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
+	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
+
+	gdtset = 1;
+
 	/* console */
 	printk("Hello world!\n");
 
-	while(1);
-	KASSERT(0, ("TODO"));
-	return thread0.td_kstack;
+	return (u_int64_t) thread0.td_pcb;
 }
 
 /*
