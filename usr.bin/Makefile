@@ -105,6 +105,7 @@ SUBDIR=	alias \
 	mkfifo \
 	mklocale \
 	mktemp \
+	mkulzma \
 	mkuzip \
 	mt \
 	ncal \
