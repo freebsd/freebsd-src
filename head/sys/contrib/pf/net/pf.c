@@ -1472,8 +1472,6 @@ pf_free_state(struct pf_state *cur)
 	if (cur->anchor.ptr != NULL)
 		--cur->anchor.ptr->states_cur;
 	pf_normalize_tcp_cleanup(cur);
-	if (cur->tag)
-		pf_tag_unref(cur->tag);
 	uma_zfree(V_pf_state_z, cur);
 	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;
 	V_pf_status.states--;
@@ -3446,10 +3444,8 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		*sm = s;
 
 	pf_set_rt_ifp(s, pd->src);	/* needs s->state_key set */
-	if (tag > 0) {
-		pf_tag_ref(tag);
+	if (tag > 0)
 		s->tag = tag;
-	}
 	if (pd->proto == IPPROTO_TCP && (th->th_flags & (TH_SYN|TH_ACK)) ==
 	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY) {
 		s->src.state = PF_TCPS_PROXY_SRC;

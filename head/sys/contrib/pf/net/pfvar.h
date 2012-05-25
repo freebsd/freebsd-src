@@ -1410,13 +1410,6 @@ struct pf_altq {
 	u_int32_t		 qid;		/* return value */
 };
 
-struct pf_tagname {
-	TAILQ_ENTRY(pf_tagname)	entries;
-	char			name[PF_TAG_NAME_SIZE];
-	u_int16_t		tag;
-	int			ref;
-};
-
 struct pf_divert {
 	union {
 		struct in_addr	ipv4;
@@ -1931,8 +1924,6 @@ int		 pfi_clear_flags(const char *, int);
 
 int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *,
 		    struct pf_mtag *);
-void		 pf_tag_ref(u_int16_t);
-void		 pf_tag_unref(u_int16_t);
 int		 pf_tag_packet(struct mbuf *, int, int, struct pf_mtag *);
 void		 pf_qid2qname(u_int32_t, char *);
 
