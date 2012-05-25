@@ -11,7 +11,6 @@ FBSD_1.0 {
 	/* PSEUDO syscalls */
 	_exit;
 
-	__eabi;
 	_mcount;
 	_setjmp;
 	_longjmp;
@@ -37,6 +36,10 @@ FBSD_1.0 {
 	exect;
 	sbrk;
 	vfork;
+};
+
+FBSD_1.3 {
+	__eabi;
 };
 
 FBSDprivate_1.0 {
