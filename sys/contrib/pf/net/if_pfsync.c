@@ -419,7 +419,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	struct pfi_kif	*kif;
 	int error;
 
-	PF_LOCK_ASSERT();
+	PF_RULES_RASSERT();
 
 	if (sp->creatorid == 0 && V_pf_status.debug >= PF_DEBUG_MISC) {
 		printf("%s: invalid creator id: %08x\n", __func__,
@@ -427,7 +427,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 		return (EINVAL);
 	}
 
-	if ((kif = pfi_kif_get(sp->ifname)) == NULL) {
+	if ((kif = pfi_kif_find(sp->ifname)) == NULL) {
 		if (V_pf_status.debug >= PF_DEBUG_MISC)
 			printf("%s: unknown interface: %s\n", __func__,
 			    sp->ifname);
@@ -629,6 +629,12 @@ pfsync_input(struct mbuf *m, __unused int off)
 	pkt.src = ip->ip_src;
 	pkt.flags = 0;
 
+	PF_LOCK();
+	/*
+	 * Trusting pf_chksum during packet processing, as well as seeking
+	 * in interface name tree, require holding PF_RULES_RLOCK().
+	 */
+	PF_RULES_RLOCK();
 	if (!bcmp(&ph->pfcksum, &V_pf_status.pf_chksum, PF_MD5_DIGEST_LENGTH))
 		pkt.flags |= PFSYNC_SI_CKSUM;
 
@@ -639,17 +645,24 @@ pfsync_input(struct mbuf *m, __unused int off)
 
 		if (subh.action >= PFSYNC_ACT_MAX) {
 			V_pfsyncstats.pfsyncs_badact++;
+			PF_RULES_RUNLOCK();
+			PF_UNLOCK();
 			goto done;
 		}
 
 		count = ntohs(subh.count);
 		V_pfsyncstats.pfsyncs_iacts[subh.action] += count;
 		rv = (*pfsync_acts[subh.action])(&pkt, m, offset, count);
-		if (rv == -1)
+		if (rv == -1) {
+			PF_RULES_RUNLOCK();
+			PF_UNLOCK();
 			return;
+		}
 
 		offset += rv;
 	}
+	PF_RULES_RUNLOCK();
+	PF_UNLOCK();
 
 done:
 	m_freem(m);
@@ -671,12 +684,11 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	clr = (struct pfsync_clr *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		creatorid = clr[i].creatorid;
 
 		if (clr[i].ifname[0] != '\0' &&
-		    pfi_kif_get(clr[i].ifname) == NULL)
+		    pfi_kif_find(clr[i].ifname) == NULL)
 			continue;
 
 		for (int i = 0; i <= V_pf_hashmask; i++) {
@@ -694,7 +706,6 @@ relock:
 			PF_HASHROW_UNLOCK(ih);
 		}
 	}
-	PF_UNLOCK();
 
 	return (len);
 }
@@ -714,7 +725,6 @@ pfsync_in_ins(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	sa = (struct pfsync_state *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		sp = &sa[i];
 
@@ -734,7 +744,6 @@ pfsync_in_ins(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			/* Drop out, but process the rest of the actions. */
 			break;
 	}
-	PF_UNLOCK();
 
 	return (len);
 }
@@ -756,7 +765,6 @@ pfsync_in_iack(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	iaa = (struct pfsync_ins_ack *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		ia = &iaa[i];
 
@@ -771,7 +779,6 @@ pfsync_in_iack(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		}
 		PF_STATE_UNLOCK(st);
 	}
-	PF_UNLOCK();
 	/*
 	 * XXX this is not yet implemented, but we know the size of the
 	 * message so we can skip it.
@@ -835,7 +842,6 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	sa = (struct pfsync_state *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		sp = &sa[i];
 
@@ -903,7 +909,6 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
 	}
-	PF_UNLOCK();
 
 	return (len);
 }
@@ -928,7 +933,6 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	ua = (struct pfsync_upd_c *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		up = &ua[i];
 
@@ -997,7 +1001,6 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
 	}
-	PF_UNLOCK();
 
 	return (len);
 }
@@ -1019,7 +1022,6 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	ura = (struct pfsync_upd_req *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		ur = &ura[i];
 
@@ -1040,7 +1042,6 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PF_STATE_UNLOCK(st);
 		}
 	}
-	PF_UNLOCK();
 
 	return (len);
 }
@@ -1061,7 +1062,6 @@ pfsync_in_del(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	sa = (struct pfsync_state *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		sp = &sa[i];
 
@@ -1073,7 +1073,6 @@ pfsync_in_del(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		st->state_flags |= PFSTATE_NOSYNC;
 		pf_unlink_state(st, PF_ENTER_LOCKED);
 	}
-	PF_UNLOCK();
 
 	return (len);
 }
@@ -1094,7 +1093,6 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	sa = (struct pfsync_del_c *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++) {
 		sp = &sa[i];
 
@@ -1107,7 +1105,6 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		st->state_flags |= PFSTATE_NOSYNC;
 		pf_unlink_state(st, PF_ENTER_LOCKED);
 	}
-	PF_UNLOCK();
 
 	return (len);
 }
@@ -1193,10 +1190,8 @@ pfsync_in_tdb(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	tp = (struct pfsync_tdb *)(mp->m_data + offp);
 
-	PF_LOCK();
 	for (i = 0; i < count; i++)
 		pfsync_update_net_tdb(&tp[i]);
-	PF_UNLOCK();
 #endif
 
 	return (len);
@@ -1661,8 +1656,6 @@ static void
 pfsync_insert_state(struct pf_state *st)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
-
-	PF_LOCK_ASSERT();
 
 	if (st->state_flags & PFSTATE_NOSYNC)
 		return;

@@ -379,7 +379,8 @@ pf_empty_pool(struct pf_palist *poola)
 			pfr_detach_table(pa->addr.p.tbl);
 			break;
 		}
-		pfi_kif_unref(pa->kif, PFI_KIF_REF_RULE);
+		if (pa->kif)
+			pfi_kif_unref(pa->kif);
 		TAILQ_REMOVE(poola, pa, entries);
 		uma_zfree(V_pf_pooladdr_z, pa);
 	}
@@ -402,6 +403,8 @@ pf_unlink_rule(struct pf_rulequeue *rulequeue, struct pf_rule *rule)
 void
 pf_free_rule(struct pf_rule *rule)
 {
+
+	PF_RULES_WASSERT();
 
 	pf_tag_unref(rule->tag);
 	pf_tag_unref(rule->match_tag);
@@ -428,7 +431,8 @@ pf_free_rule(struct pf_rule *rule)
 	}
 	if (rule->overload_tbl)
 		pfr_detach_table(rule->overload_tbl);
-	pfi_kif_unref(rule->kif, PFI_KIF_REF_RULE);
+	if (rule->kif)
+		pfi_kif_unref(rule->kif);
 	pf_anchor_remove(rule);
 	pf_empty_pool(&rule->rpool.list);
 	uma_zfree(V_pf_rule_z, rule);
@@ -1016,8 +1020,6 @@ pf_addr_copyout(struct pf_addr_wrap *addr)
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
-	struct pf_pooladdr	*pa = NULL;
-	struct pf_pool		*pool = NULL;
 	int			 error = 0;
 
 	CURVNET_SET(TD_TO_VNET(td));
@@ -1179,75 +1181,57 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_ruleset	*ruleset;
 		struct pf_rule		*rule, *tail;
 		struct pf_pooladdr	*pa;
+		struct pfi_kif		*kif = NULL;
 		int			 rs_num;
 
-		PF_RULES_WLOCK();
-		pr->anchor[sizeof(pr->anchor) - 1] = 0;
-		ruleset = pf_find_ruleset(pr->anchor);
-		if (ruleset == NULL) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-		rs_num = pf_get_ruleset_number(pr->rule.action);
-		if (rs_num >= PF_RULESET_MAX) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
 		if (pr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
-			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
-		if (pr->ticket != ruleset->rules[rs_num].inactive.ticket) {
-			PF_RULES_WUNLOCK();
-			DPFPRINTF(PF_DEBUG_MISC,
-			    ("ticket: %d != [%d]%d\n", pr->ticket, rs_num,
-			    ruleset->rules[rs_num].inactive.ticket));
-			error = EBUSY;
-			break;
-		}
-		if (pr->pool_ticket != V_ticket_pabuf) {
-			PF_RULES_WUNLOCK();
-			DPFPRINTF(PF_DEBUG_MISC,
-			    ("pool_ticket: %d != %d\n", pr->pool_ticket,
-			    V_ticket_pabuf));
-			error = EBUSY;
-			break;
-		}
-		rule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
-		if (rule == NULL) {
-			PF_RULES_WUNLOCK();
-			error = ENOMEM;
-			break;
-		}
-		bcopy(&pr->rule, rule, sizeof(struct pf_rule));
-		rule->cuid = td->td_ucred->cr_ruid;
-		rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
-		rule->anchor = NULL;
-		rule->kif = NULL;
-		TAILQ_INIT(&rule->rpool.list);
-		/* initialize refcounting */
-		rule->states_cur = 0;
-		rule->src_nodes = 0;
-		rule->entries.tqe_prev = NULL;
 #ifndef INET
-		if (rule->af == AF_INET) {
-			PF_RULES_WUNLOCK();
-			uma_zfree(V_pf_rule_z, rule);
+		if (pr->rule.af == AF_INET) {
 			error = EAFNOSUPPORT;
 			break;
 		}
 #endif /* INET */
 #ifndef INET6
-		if (rule->af == AF_INET6) {
-			PF_RULES_WUNLOCK();
-			uma_zfree(V_pf_rule_z, rule);
+		if (pr->rule.af == AF_INET6) {
 			error = EAFNOSUPPORT;
 			break;
 		}
 #endif /* INET6 */
+
+		rule = uma_zalloc(V_pf_rule_z, M_WAITOK);
+		bcopy(&pr->rule, rule, sizeof(struct pf_rule));
+		if (rule->ifname[0])
+			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		rule->cuid = td->td_ucred->cr_ruid;
+		rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
+		TAILQ_INIT(&rule->rpool.list);
+
+#define	ERROUT(x)	{ error = (x); goto DIOCADDRULE_error; }
+
+		PF_RULES_WLOCK();
+		pr->anchor[sizeof(pr->anchor) - 1] = 0;
+		ruleset = pf_find_ruleset(pr->anchor);
+		if (ruleset == NULL)
+			ERROUT(EINVAL);
+		rs_num = pf_get_ruleset_number(pr->rule.action);
+		if (rs_num >= PF_RULESET_MAX)
+			ERROUT(EINVAL);
+		if (pr->ticket != ruleset->rules[rs_num].inactive.ticket) {
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("ticket: %d != [%d]%d\n", pr->ticket, rs_num,
+			    ruleset->rules[rs_num].inactive.ticket));
+			ERROUT(EBUSY);
+		}
+		if (pr->pool_ticket != V_ticket_pabuf) {
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("pool_ticket: %d != %d\n", pr->pool_ticket,
+			    V_ticket_pabuf));
+			ERROUT(EBUSY);
+		}
+
 		tail = TAILQ_LAST(ruleset->rules[rs_num].inactive.ptr,
 		    pf_rulequeue);
 		if (tail)
@@ -1255,15 +1239,10 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		else
 			rule->nr = 0;
 		if (rule->ifname[0]) {
-			rule->kif = pfi_kif_get(rule->ifname);
-			if (rule->kif == NULL) {
-				PF_RULES_WUNLOCK();
-				uma_zfree(V_pf_rule_z, rule);
-				error = EINVAL;
-				break;
-			}
-			pfi_kif_ref(rule->kif, PFI_KIF_REF_RULE);
-		}
+			rule->kif = pfi_kif_attach(kif, rule->ifname);
+			pfi_kif_ref(rule->kif);
+		} else
+			rule->kif = NULL;
 
 		if (rule->rtableid > 0 && rule->rtableid >= rt_numfibs)
 			error = EBUSY;
@@ -1339,6 +1318,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		    rule, entries);
 		ruleset->rules[rs_num].inactive.rcount++;
 		PF_RULES_WUNLOCK();
+		break;
+
+#undef ERROUT
+DIOCADDRULE_error:
+		PF_RULES_WUNLOCK();
+		uma_zfree(V_pf_rule_z, rule);
+		if (kif)
+			free(kif, PFI_MTYPE);
 		break;
 	}
 
@@ -1435,94 +1422,75 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pfioc_rule	*pcr = (struct pfioc_rule *)addr;
 		struct pf_ruleset	*ruleset;
 		struct pf_rule		*oldrule = NULL, *newrule = NULL;
+		struct pfi_kif		*kif = NULL;
+		struct pf_pooladdr	*pa;
 		u_int32_t		 nr = 0;
 		int			 rs_num;
 
-		PF_RULES_WLOCK();
-		if (!(pcr->action == PF_CHANGE_REMOVE ||
-		    pcr->action == PF_CHANGE_GET_TICKET) &&
-		    pcr->pool_ticket != V_ticket_pabuf) {
-			PF_RULES_WUNLOCK();
-			error = EBUSY;
-			break;
-		}
-
 		if (pcr->action < PF_CHANGE_ADD_HEAD ||
 		    pcr->action > PF_CHANGE_GET_TICKET) {
-			PF_RULES_WUNLOCK();
 			error = EINVAL;
 			break;
 		}
-		ruleset = pf_find_ruleset(pcr->anchor);
-		if (ruleset == NULL) {
-			PF_RULES_WUNLOCK();
+		if (pcr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
 			error = EINVAL;
 			break;
-		}
-		rs_num = pf_get_ruleset_number(pcr->rule.action);
-		if (rs_num >= PF_RULESET_MAX) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
-			break;
-		}
-
-		if (pcr->action == PF_CHANGE_GET_TICKET) {
-			pcr->ticket = ++ruleset->rules[rs_num].active.ticket;
-			PF_RULES_WUNLOCK();
-			break;
-		} else {
-			if (pcr->ticket !=
-			    ruleset->rules[rs_num].active.ticket) {
-				PF_RULES_WUNLOCK();
-				error = EINVAL;
-				break;
-			}
-			if (pcr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
-				PF_RULES_WUNLOCK();
-				error = EINVAL;
-				break;
-			}
 		}
 
 		if (pcr->action != PF_CHANGE_REMOVE) {
-			newrule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
-			if (newrule == NULL) {
-				PF_RULES_WUNLOCK();
-				error = ENOMEM;
-				break;
-			}
-			bcopy(&pcr->rule, newrule, sizeof(struct pf_rule));
-			newrule->cuid = td->td_ucred->cr_ruid;
-			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
-			TAILQ_INIT(&newrule->rpool.list);
-			/* initialize refcounting */
-			newrule->states_cur = 0;
-			newrule->entries.tqe_prev = NULL;
 #ifndef INET
-			if (newrule->af == AF_INET) {
-				PF_RULES_WUNLOCK();
-				uma_zfree(V_pf_rule_z, newrule);
+			if (pcr->rule.af == AF_INET) {
 				error = EAFNOSUPPORT;
 				break;
 			}
 #endif /* INET */
 #ifndef INET6
-			if (newrule->af == AF_INET6) {
-				PF_RULES_WUNLOCK();
-				uma_zfree(V_pf_rule_z, newrule);
+			if (pcr->rule.af == AF_INET6) {
 				error = EAFNOSUPPORT;
 				break;
 			}
 #endif /* INET6 */
+			newrule = uma_zalloc(V_pf_rule_z, M_WAITOK);
+			bcopy(&pcr->rule, newrule, sizeof(struct pf_rule));
+			newrule->cuid = td->td_ucred->cr_ruid;
+			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
+			TAILQ_INIT(&newrule->rpool.list);
+			/* Initialize refcounting. */
+			newrule->states_cur = 0;
+			newrule->entries.tqe_prev = NULL;
+
+			if (newrule->ifname[0])
+				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		}
+
+#define	ERROUT(x)	{ error = (x); goto DIOCCHANGERULE_error; }
+
+		PF_RULES_WLOCK();
+		if (!(pcr->action == PF_CHANGE_REMOVE ||
+		    pcr->action == PF_CHANGE_GET_TICKET) &&
+		    pcr->pool_ticket != V_ticket_pabuf)
+			ERROUT(EBUSY);
+
+		ruleset = pf_find_ruleset(pcr->anchor);
+		if (ruleset == NULL)
+			ERROUT(EINVAL);
+
+		rs_num = pf_get_ruleset_number(pcr->rule.action);
+		if (rs_num >= PF_RULESET_MAX)
+			ERROUT(EINVAL);
+
+		if (pcr->action == PF_CHANGE_GET_TICKET) {
+			pcr->ticket = ++ruleset->rules[rs_num].active.ticket;
+			ERROUT(0);
+		} else if (pcr->ticket !=
+			    ruleset->rules[rs_num].active.ticket)
+				ERROUT(EINVAL);
+
+		if (pcr->action != PF_CHANGE_REMOVE) {
 			if (newrule->ifname[0]) {
-				newrule->kif = pfi_kif_get(newrule->ifname);
-				if (newrule->kif == NULL) {
-					PF_RULES_WUNLOCK();
-					uma_zfree(V_pf_rule_z, newrule);
-					error = EINVAL;
-					break;
-				}
-				pfi_kif_ref(newrule->kif, PFI_KIF_REF_RULE);
+				newrule->kif = pfi_kif_attach(kif,
+				    newrule->ifname);
+				pfi_kif_ref(newrule->kif);
 			} else
 				newrule->kif = NULL;
 
@@ -1658,6 +1626,15 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 		PF_RULES_WUNLOCK();
 		break;
+
+#undef ERROUT
+DIOCCHANGERULE_error:
+		PF_RULES_WUNLOCK();
+		if (newrule != NULL)
+			uma_zfree(V_pf_rule_z, newrule);
+		if (kif != NULL)
+			free(kif, PFI_MTYPE);
+		break;
 	}
 
 	case DIOCCLRSTATES: {
@@ -1780,10 +1757,12 @@ relock_DIOCKILLSTATES:
 			error = EINVAL;
 			break;
 		}
-		PF_LOCK();
-		if (pfsync_state_import_ptr != NULL)
+		if (pfsync_state_import_ptr != NULL) {
+			PF_RULES_RLOCK();
 			error = pfsync_state_import_ptr(sp, PFSYNC_SI_IOCTL);
-		PF_UNLOCK();
+			PF_RULES_RUNLOCK();
+		}
+			error = EOPNOTSUPP;
 		break;
 	}
 
@@ -2007,14 +1986,14 @@ DIOCGETSTATES_full:
 		struct pf_ruleset	*ruleset = &pf_main_ruleset;
 		struct pf_rule		*rule;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		TAILQ_FOREACH(rule,
 		    ruleset->rules[PF_RULESET_FILTER].active.ptr, entries) {
 			rule->evaluations = 0;
 			rule->packets[0] = rule->packets[1] = 0;
 			rule->bytes[0] = rule->bytes[1] = 0;
 		}
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -2227,15 +2206,17 @@ DIOCGETSTATES_full:
 	case DIOCBEGINADDRS: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pf_empty_pool(&V_pf_pabuf);
 		pp->ticket = ++V_ticket_pabuf;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
 	case DIOCADDADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
+		struct pf_pooladdr	*pa;
+		struct pfi_kif		*kif;
 
 #ifndef INET
 		if (pp->af == AF_INET) {
@@ -2256,63 +2237,67 @@ DIOCGETSTATES_full:
 			break;
 		}
 		pa = uma_zalloc(V_pf_pooladdr_z, M_WAITOK);
-		PF_LOCK();
+		bcopy(&pp->addr, pa, sizeof(struct pf_pooladdr));
+		if (pa->ifname[0])
+			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		PF_RULES_WLOCK();
 		if (pp->ticket != V_ticket_pabuf) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			uma_zfree(V_pf_pooladdr_z, pa);
+			if (pa->ifname[0])
+				free(kif, PFI_MTYPE);
 			error = EBUSY;
 			break;
 		}
-		bcopy(&pp->addr, pa, sizeof(struct pf_pooladdr));
 		if (pa->ifname[0]) {
-			pa->kif = pfi_kif_get(pa->ifname);
-			if (pa->kif == NULL) {
-				PF_UNLOCK();
-				uma_zfree(V_pf_pooladdr_z, pa);
-				error = EINVAL;
-				break;
-			}
-			pfi_kif_ref(pa->kif, PFI_KIF_REF_RULE);
-		}
+			pa->kif = pfi_kif_attach(kif, pa->ifname);
+			pfi_kif_ref(pa->kif);
+		} else
+			pa->kif = NULL;
 		if (pa->addr.type == PF_ADDR_DYNIFTL && ((error =
 		    pfi_dynaddr_setup(&pa->addr, pp->af)) != 0)) {
-			pfi_kif_unref(pa->kif, PFI_KIF_REF_RULE);
-			PF_UNLOCK();
+			if (pa->ifname[0])
+				pfi_kif_unref(pa->kif);
+			PF_RULES_WUNLOCK();
 			uma_zfree(V_pf_pooladdr_z, pa);
 			break;
 		}
 		TAILQ_INSERT_TAIL(&V_pf_pabuf, pa, entries);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
 	case DIOCGETADDRS: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
+		struct pf_pool		*pool;
+		struct pf_pooladdr	*pa;
 
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		pp->nr = 0;
 		pool = pf_get_pool(pp->anchor, pp->ticket, pp->r_action,
 		    pp->r_num, 0, 1, 0);
 		if (pool == NULL) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = EBUSY;
 			break;
 		}
 		TAILQ_FOREACH(pa, &pool->list, entries)
 			pp->nr++;
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
 	case DIOCGETADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
+		struct pf_pool		*pool;
+		struct pf_pooladdr	*pa;
 		u_int32_t		 nr = 0;
 
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		pool = pf_get_pool(pp->anchor, pp->ticket, pp->r_action,
 		    pp->r_num, 0, 1, 1);
 		if (pool == NULL) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -2334,8 +2319,10 @@ DIOCGETSTATES_full:
 
 	case DIOCCHANGEADDR: {
 		struct pfioc_pooladdr	*pca = (struct pfioc_pooladdr *)addr;
+		struct pf_pool		*pool;
 		struct pf_pooladdr	*oldpa = NULL, *newpa = NULL;
 		struct pf_ruleset	*ruleset;
+		struct pfi_kif		*kif = NULL;
 
 		if (pca->action < PF_CHANGE_ADD_HEAD ||
 		    pca->action > PF_CHANGE_REMOVE) {
@@ -2349,54 +2336,40 @@ DIOCGETSTATES_full:
 			break;
 		}
 
-		PF_LOCK();
-		ruleset = pf_find_ruleset(pca->anchor);
-		if (ruleset == NULL) {
-			PF_UNLOCK();
-			error = EBUSY;
-			break;
-		}
-		pool = pf_get_pool(pca->anchor, pca->ticket, pca->r_action,
-		    pca->r_num, pca->r_last, 1, 1);
-		if (pool == NULL) {
-			PF_UNLOCK();
-			error = EBUSY;
-			break;
-		}
 		if (pca->action != PF_CHANGE_REMOVE) {
-			newpa = uma_zalloc(V_pf_pooladdr_z,
-			    M_NOWAIT);
-			if (newpa == NULL) {
-				PF_UNLOCK();
-				error = ENOMEM;
-				break;
-			}
-			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 #ifndef INET
 			if (pca->af == AF_INET) {
-				PF_UNLOCK();
-				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EAFNOSUPPORT;
 				break;
 			}
 #endif /* INET */
 #ifndef INET6
 			if (pca->af == AF_INET6) {
-				PF_UNLOCK();
-				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EAFNOSUPPORT;
 				break;
 			}
 #endif /* INET6 */
+			newpa = uma_zalloc(V_pf_pooladdr_z, M_WAITOK);
+			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
+			if (newpa->ifname[0])
+				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		}
+
+#define	ERROUT(x)	{ error = (x); goto DIOCCHANGEADDR_error; }
+		PF_RULES_WLOCK();
+		ruleset = pf_find_ruleset(pca->anchor);
+		if (ruleset == NULL)
+			ERROUT(EBUSY);
+
+		pool = pf_get_pool(pca->anchor, pca->ticket, pca->r_action,
+		    pca->r_num, pca->r_last, 1, 1);
+		if (pool == NULL)
+			ERROUT(EBUSY);
+
+		if (pca->action != PF_CHANGE_REMOVE) {
 			if (newpa->ifname[0]) {
-				newpa->kif = pfi_kif_get(newpa->ifname);
-				if (newpa->kif == NULL) {
-					PF_UNLOCK();
-					uma_zfree(V_pf_pooladdr_z, newpa);
-					error = EINVAL;
-					break;
-				}
-				pfi_kif_ref(newpa->kif, PFI_KIF_REF_RULE);
+				newpa->kif = pfi_kif_attach(kif, newpa->ifname);
+				pfi_kif_ref(newpa->kif);
 			} else
 				newpa->kif = NULL;
 
@@ -2413,8 +2386,9 @@ DIOCGETSTATES_full:
 				break;
 			}
 			if (error) {
-				pfi_kif_unref(newpa->kif, PFI_KIF_REF_RULE);
-				PF_UNLOCK();
+				if (newpa->kif)
+					pfi_kif_unref(newpa->kif);
+				PF_RULES_WUNLOCK();
 				uma_zfree(V_pf_pooladdr_z, newpa);
 				break;
 			}
@@ -2433,7 +2407,7 @@ DIOCGETSTATES_full:
 				i++;
 			}
 			if (oldpa == NULL) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				error = EINVAL;
 				break;
 			}
@@ -2449,7 +2423,8 @@ DIOCGETSTATES_full:
 				pfr_detach_table(oldpa->addr.p.tbl);
 				break;
 			}
-			pfi_kif_unref(oldpa->kif, PFI_KIF_REF_RULE);
+			if (oldpa->kif)
+				pfi_kif_unref(oldpa->kif);
 			uma_zfree(V_pf_pooladdr_z, oldpa);
 		} else {
 			if (oldpa == NULL)
@@ -2465,7 +2440,16 @@ DIOCGETSTATES_full:
 		pool->cur = TAILQ_FIRST(&pool->list);
 		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr,
 		    pca->af);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
+		break;
+
+#undef ERROUT
+DIOCCHANGEADDR_error:
+		PF_RULES_WUNLOCK();
+		if (newpa != NULL)
+			uma_zfree(V_pf_pooladdr_z, newpa);
+		if (kif != NULL)
+			free(kif, PFI_MTYPE);
 		break;
 	}
 
@@ -2474,11 +2458,11 @@ DIOCGETSTATES_full:
 		struct pf_ruleset	*ruleset;
 		struct pf_anchor	*anchor;
 
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		pr->path[sizeof(pr->path) - 1] = 0;
 		if ((ruleset = pf_find_ruleset(pr->path)) == NULL) {
-			PF_UNLOCK();
-			error = EINVAL;
+			PF_RULES_RUNLOCK();
+			error = ENOENT;
 			break;
 		}
 		pr->nr = 0;
@@ -2492,7 +2476,7 @@ DIOCGETSTATES_full:
 			    &ruleset->anchor->children)
 				pr->nr++;
 		}
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -2502,11 +2486,11 @@ DIOCGETSTATES_full:
 		struct pf_anchor	*anchor;
 		u_int32_t		 nr = 0;
 
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		pr->path[sizeof(pr->path) - 1] = 0;
 		if ((ruleset = pf_find_ruleset(pr->path)) == NULL) {
-			PF_UNLOCK();
-			error = EINVAL;
+			PF_RULES_RUNLOCK();
+			error = ENOENT;
 			break;
 		}
 		pr->name[0] = 0;
@@ -2529,7 +2513,7 @@ DIOCGETSTATES_full:
 		}
 		if (!pr->name[0])
 			error = EBUSY;
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -2540,10 +2524,10 @@ DIOCGETSTATES_full:
 			error = ENODEV;
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_clr_tables(&io->pfrio_table, &io->pfrio_ndel,
 		    io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -2563,10 +2547,10 @@ DIOCGETSTATES_full:
 			free(pfrts, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_add_tables(pfrts, io->pfrio_size,
 		    &io->pfrio_nadd, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		free(pfrts, M_TEMP);
 		break;
 	}
@@ -2587,10 +2571,10 @@ DIOCGETSTATES_full:
 			free(pfrts, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_del_tables(pfrts, io->pfrio_size,
 		    &io->pfrio_ndel, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		free(pfrts, M_TEMP);
 		break;
 	}
@@ -2606,10 +2590,10 @@ DIOCGETSTATES_full:
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_table);
 		pfrts = malloc(totlen, M_TEMP, M_WAITOK);
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		error = pfr_get_tables(&io->pfrio_table, pfrts,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		if (error == 0)
 			error = copyout(pfrts, io->pfrio_buffer, totlen);
 		free(pfrts, M_TEMP);
@@ -2627,10 +2611,10 @@ DIOCGETSTATES_full:
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_tstats);
 		pfrtstats = malloc(totlen, M_TEMP, M_WAITOK);
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_get_tstats(&io->pfrio_table, pfrtstats,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		if (error == 0)
 			error = copyout(pfrtstats, io->pfrio_buffer, totlen);
 		free(pfrtstats, M_TEMP);
@@ -2653,10 +2637,10 @@ DIOCGETSTATES_full:
 			free(pfrts, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_clr_tstats(pfrts, io->pfrio_size,
 		    &io->pfrio_nzero, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		free(pfrts, M_TEMP);
 		break;
 	}
@@ -2677,11 +2661,11 @@ DIOCGETSTATES_full:
 			free(pfrts, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_set_tflags(pfrts, io->pfrio_size,
 		    io->pfrio_setflag, io->pfrio_clrflag, &io->pfrio_nchange,
 		    &io->pfrio_ndel, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		free(pfrts, M_TEMP);
 		break;
 	}
@@ -2693,10 +2677,10 @@ DIOCGETSTATES_full:
 			error = ENODEV;
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_clr_addrs(&io->pfrio_table, &io->pfrio_ndel,
 		    io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -2716,11 +2700,11 @@ DIOCGETSTATES_full:
 			free(pfras, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_add_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nadd, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
 			error = copyout(pfras, io->pfrio_buffer, totlen);
 		free(pfras, M_TEMP);
@@ -2743,11 +2727,11 @@ DIOCGETSTATES_full:
 			free(pfras, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_del_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_ndel, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
 			error = copyout(pfras, io->pfrio_buffer, totlen);
 		free(pfras, M_TEMP);
@@ -2771,12 +2755,12 @@ DIOCGETSTATES_full:
 			free(pfras, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_set_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_size2, &io->pfrio_nadd,
 		    &io->pfrio_ndel, &io->pfrio_nchange, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL, 0);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
 			error = copyout(pfras, io->pfrio_buffer, totlen);
 		free(pfras, M_TEMP);
@@ -2794,10 +2778,10 @@ DIOCGETSTATES_full:
 		}
 		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = malloc(totlen, M_TEMP, M_WAITOK);
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		error = pfr_get_addrs(&io->pfrio_table, pfras,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		if (error == 0)
 			error = copyout(pfras, io->pfrio_buffer, totlen);
 		free(pfras, M_TEMP);
@@ -2811,10 +2795,10 @@ DIOCGETSTATES_full:
 			error = ENODEV;
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		error = pfr_get_astats(&io->pfrio_table, io->pfrio_buffer,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -2834,11 +2818,11 @@ DIOCGETSTATES_full:
 			free(pfras, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_clr_astats(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nzero, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		if (error == 0 && io->pfrio_flags & PFR_FLAG_FEEDBACK)
 			error = copyout(pfras, io->pfrio_buffer, totlen);
 		free(pfras, M_TEMP);
@@ -2861,11 +2845,11 @@ DIOCGETSTATES_full:
 			free(pfras, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		error = pfr_tst_addrs(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nmatch, io->pfrio_flags |
 		    PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		if (error == 0)
 			error = copyout(pfras, io->pfrio_buffer, totlen);
 		free(pfras, M_TEMP);
@@ -2888,11 +2872,11 @@ DIOCGETSTATES_full:
 			free(pfras, M_TEMP);
 			break;
 		}
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfr_ina_define(&io->pfrio_table, pfras,
 		    io->pfrio_size, &io->pfrio_nadd, &io->pfrio_naddr,
 		    io->pfrio_ticket, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		free(pfras, M_TEMP);
 		break;
 	}
@@ -3296,9 +3280,9 @@ DIOCGETSTATES_full:
 
 		ifstore = malloc(io->pfiio_size * sizeof(struct pfi_kif),
 		    M_TEMP, M_WAITOK);
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		pfi_get_ifaces(io->pfiio_name, ifstore, &io->pfiio_size);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		error = copyout(ifstore, io->pfiio_buffer, io->pfiio_size *
 		    sizeof(struct pfi_kif));
 		free(ifstore, M_TEMP);
@@ -3308,18 +3292,18 @@ DIOCGETSTATES_full:
 	case DIOCSETIFFLAG: {
 		struct pfioc_iface *io = (struct pfioc_iface *)addr;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfi_set_flags(io->pfiio_name, io->pfiio_flags);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
 	case DIOCCLRIFFLAG: {
 		struct pfioc_iface *io = (struct pfioc_iface *)addr;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		error = pfi_clear_flags(io->pfiio_name, io->pfiio_flags);
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
