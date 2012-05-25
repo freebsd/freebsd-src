@@ -126,6 +126,11 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 		*fstype = (u_int)lt;
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS);
+	if (!strcasecmp(type, alias)) {
+		*fstype = FS_NANDFS;
+		return (0);
+	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
 	if (!strcasecmp(type, alias)) {
 		*fstype = FS_SWAP;
@@ -450,6 +455,8 @@ g_part_bsd_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_bsd_entry *)baseentry;
 	type = entry->part.p_fstype;
+	if (type == FS_NANDFS)
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS));
 	if (type == FS_SWAP)
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
 	if (type == FS_BSDFFS)
