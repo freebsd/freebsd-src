@@ -797,10 +797,21 @@ hpfs_de_uiomove (
 }
 
 
-static struct dirent hpfs_de_dot =
-	{ 0, sizeof(struct dirent), DT_DIR, 1, "." };
-static struct dirent hpfs_de_dotdot =
-	{ 0, sizeof(struct dirent), DT_DIR, 2, ".." };
+static struct dirent hpfs_de_dot = {
+	.d_fileno = 0,
+	.d_reclen = sizeof(struct dirent),
+	.d_type = DT_DIR,
+	.d_namlen = 1,
+	.d_name = "."
+};
+static struct dirent hpfs_de_dotdot = {
+	.d_fileno = 0,
+	.d_reclen = sizeof(struct dirent),
+	.d_type = DT_DIR,
+	.d_namlen = 2,
+	.d_name = ".."
+};
+
 int
 hpfs_readdir(ap)
 	struct vop_readdir_args /* {
