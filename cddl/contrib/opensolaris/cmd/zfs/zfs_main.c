@@ -3168,7 +3168,7 @@ zfs_do_rename(int argc, char **argv)
 	}
 
 	if (flags.nounmount && parents) {
-		(void) fprintf(stderr, gettext("-u and -r options are mutually "
+		(void) fprintf(stderr, gettext("-u and -p options are mutually "
 		    "exclusive\n"));
 		usage(B_FALSE);
 	}
