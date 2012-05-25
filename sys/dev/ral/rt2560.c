@@ -144,7 +144,8 @@ static void		rt2560_enable_tsf_sync(struct rt2560_softc *);
 static void		rt2560_enable_tsf(struct rt2560_softc *);
 static void		rt2560_update_plcp(struct rt2560_softc *);
 static void		rt2560_update_slot(struct ifnet *);
-static void		rt2560_set_basicrates(struct rt2560_softc *);
+static void		rt2560_set_basicrates(struct rt2560_softc *,
+			    const struct ieee80211_rateset *);
 static void		rt2560_update_led(struct rt2560_softc *, int, int);
 static void		rt2560_set_bssid(struct rt2560_softc *, const uint8_t *);
 static void		rt2560_set_macaddr(struct rt2560_softc *, uint8_t *);
@@ -779,7 +780,7 @@ rt2560_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			rt2560_update_plcp(sc);
-			rt2560_set_basicrates(sc);
+			rt2560_set_basicrates(sc, &ni->ni_rates);
 			rt2560_set_bssid(sc, ni->ni_bssid);
 		}
 
@@ -2353,22 +2354,29 @@ rt2560_update_slot(struct ifnet *ifp)
 }
 
 static void
-rt2560_set_basicrates(struct rt2560_softc *sc)
+rt2560_set_basicrates(struct rt2560_softc *sc,
+    const struct ieee80211_rateset *rs)
 {
+#define RV(r)	((r) & IEEE80211_RATE_VAL)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	uint32_t mask = 0;
+	uint8_t rate;
+	int i;
 
-	/* update basic rate set */
-	if (ic->ic_curmode == IEEE80211_MODE_11B) {
-		/* 11b basic rates: 1, 2Mbps */
-		RAL_WRITE(sc, RT2560_ARSP_PLCP_1, 0x3);
-	} else if (IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan)) {
-		/* 11a basic rates: 6, 12, 24Mbps */
-		RAL_WRITE(sc, RT2560_ARSP_PLCP_1, 0x150);
-	} else {
-		/* 11g basic rates: 1, 2, 5.5, 11, 6, 12, 24Mbps */
-		RAL_WRITE(sc, RT2560_ARSP_PLCP_1, 0x15f);
+	for (i = 0; i < rs->rs_nrates; i++) {
+		rate = rs->rs_rates[i];
+
+		if (!(rate & IEEE80211_RATE_BASIC))
+			continue;
+
+		mask |= 1 << ic->ic_rt->rateCodeToIndex[RV(rate)];
 	}
+
+	RAL_WRITE(sc, RT2560_ARSP_PLCP_1, mask);
+
+	DPRINTF(sc, "Setting basic rate mask to 0x%x\n", mask);
+#undef RV
 }
 
 static void
