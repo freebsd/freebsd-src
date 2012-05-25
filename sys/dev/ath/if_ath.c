@@ -1318,6 +1318,9 @@ ath_suspend(struct ath_softc *sc)
 	 * mode; pci will power off our socket on suspend and
 	 * CardBus detaches the device.
 	 */
+
+	/* For PCIe, this matters */
+	ath_hal_disablepcie(sc->sc_ah);
 }
 
 /*
@@ -1349,6 +1352,9 @@ ath_resume(struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
 		__func__, ifp->if_flags);
+
+	/* Re-enable PCIe, re-enable the PCIe bus */
+	ath_hal_enablepcie(ah, 1);
 
 	/*
 	 * Must reset the chip before we reload the
