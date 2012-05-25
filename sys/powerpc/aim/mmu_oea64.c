@@ -306,7 +306,7 @@ boolean_t moea64_is_modified(mmu_t, vm_page_t);
 boolean_t moea64_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
 boolean_t moea64_is_referenced(mmu_t, vm_page_t);
 boolean_t moea64_ts_referenced(mmu_t, vm_page_t);
-vm_offset_t moea64_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
+vm_offset_t moea64_map(mmu_t, vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 boolean_t moea64_page_exists_quick(mmu_t, pmap_t, vm_page_t);
 int moea64_page_wired_mappings(mmu_t, vm_page_t);
 void moea64_pinit(mmu_t, pmap_t);
@@ -324,14 +324,14 @@ void moea64_zero_page_area(mmu_t, vm_page_t, int, int);
 void moea64_zero_page_idle(mmu_t, vm_page_t);
 void moea64_activate(mmu_t, struct thread *);
 void moea64_deactivate(mmu_t, struct thread *);
-void *moea64_mapdev(mmu_t, vm_offset_t, vm_size_t);
+void *moea64_mapdev(mmu_t, vm_paddr_t, vm_size_t);
 void *moea64_mapdev_attr(mmu_t, vm_offset_t, vm_size_t, vm_memattr_t);
 void moea64_unmapdev(mmu_t, vm_offset_t, vm_size_t);
-vm_offset_t moea64_kextract(mmu_t, vm_offset_t);
+vm_paddr_t moea64_kextract(mmu_t, vm_offset_t);
 void moea64_page_set_memattr(mmu_t, vm_page_t m, vm_memattr_t ma);
 void moea64_kenter_attr(mmu_t, vm_offset_t, vm_offset_t, vm_memattr_t ma);
-void moea64_kenter(mmu_t, vm_offset_t, vm_offset_t);
-boolean_t moea64_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
+void moea64_kenter(mmu_t, vm_offset_t, vm_paddr_t);
+boolean_t moea64_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 
 static mmu_method_t moea64_methods[] = {
@@ -1641,7 +1641,7 @@ moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 }
 
 void
-moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
+moea64_kenter(mmu_t mmu, vm_offset_t va, vm_paddr_t pa)
 {
 
 	moea64_kenter_attr(mmu, va, pa, VM_MEMATTR_DEFAULT);
@@ -1651,7 +1651,7 @@ moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
  * Extract the physical page address associated with the given kernel virtual
  * address.
  */
-vm_offset_t
+vm_paddr_t
 moea64_kextract(mmu_t mmu, vm_offset_t va)
 {
 	struct		pvo_entry *pvo;
@@ -1692,8 +1692,8 @@ moea64_kremove(mmu_t mmu, vm_offset_t va)
  * first usable address after the mapped region.
  */
 vm_offset_t
-moea64_map(mmu_t mmu, vm_offset_t *virt, vm_offset_t pa_start,
-    vm_offset_t pa_end, int prot)
+moea64_map(mmu_t mmu, vm_offset_t *virt, vm_paddr_t pa_start,
+    vm_paddr_t pa_end, int prot)
 {
 	vm_offset_t	sva, va;
 
@@ -2440,7 +2440,7 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 }
 
 boolean_t
-moea64_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+moea64_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
 	struct pvo_entry *pvo, key;
 	vm_offset_t ppa;
@@ -2493,7 +2493,7 @@ moea64_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 }
 
 void *
-moea64_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+moea64_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
 
 	return moea64_mapdev_attr(mmu, pa, size, VM_MEMATTR_DEFAULT);
