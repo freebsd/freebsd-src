@@ -998,8 +998,8 @@ void	ath_intr(void *);
 /*
  * PCIe suspend/resume/poweron/poweroff related macros
  */
-#define	ath_hal_enablepcie(_ah, _restore) \
-	((*(_ah)->ah_configPCIE)((_ah), (_restore)))
+#define	ath_hal_enablepcie(_ah, _restore, _poweroff) \
+	((*(_ah)->ah_configPCIE)((_ah), (_restore), (_poweroff)))
 #define	ath_hal_disablepcie(_ah) \
 	((*(_ah)->ah_disablePCIE)((_ah)))
 
