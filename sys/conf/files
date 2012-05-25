@@ -1474,6 +1474,7 @@ dev/puc/pucdata.c		optional puc pci
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
+dev/ral/rt2860.c		optional ral
 dev/ral/if_ral_pci.c		optional ral pci
 rt2561fw.c			optional rt2561fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561.fw:rt2561fw -mrt2561 -c${.TARGET}" \
