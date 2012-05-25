@@ -79,12 +79,16 @@ SRCF=	absvdi2 \
 	floatuntidf \
 	floatuntisf \
 	floatuntixf \
+	int_util \
 	lshrdi3 \
 	lshrti3 \
 	moddi3 \
 	modti3 \
 	muldc3 \
 	muldi3 \
+	mulodi4 \
+	mulosi4 \
+	muloti4 \
 	mulsc3 \
 	multi3 \
 	mulvdi3 \
