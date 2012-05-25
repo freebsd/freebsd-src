@@ -135,8 +135,6 @@ static int		 pf_addr_setup(struct pf_ruleset *,
 static void		 pf_addr_copyout(struct pf_addr_wrap *);
 static void		 pf_pkt_addr_changed(struct mbuf *);
 
-#define	TAGID_MAX	 50000
-
 VNET_DEFINE(struct pf_rule,	pf_default_rule);
 VNET_DEFINE(struct sx,		pf_consistency_lock);
 #define V_pf_consistency_lock	VNET(pf_consistency_lock)
@@ -146,13 +144,20 @@ static VNET_DEFINE(int,		pf_altq_running);
 #define	V_pf_altq_running	VNET(pf_altq_running)
 #endif
 
-TAILQ_HEAD(pf_tags, pf_tagname);
+#define	TAGID_MAX	 50000
+struct pf_tagname {
+	TAILQ_ENTRY(pf_tagname)	entries;
+	char			name[PF_TAG_NAME_SIZE];
+	uint16_t		tag;
+	int			ref;
+};
 
+TAILQ_HEAD(pf_tags, pf_tagname);
 #define	V_pf_tags		VNET(pf_tags)
 VNET_DEFINE(struct pf_tags, pf_tags);
 #define	V_pf_qids		VNET(pf_qids)
 VNET_DEFINE(struct pf_tags, pf_qids);
-
+MALLOC_DEFINE(M_PFTAG, "pf tags", "pf tags");
 
 #if (PF_QNAME_SIZE != PF_TAG_NAME_SIZE)
 #error PF_QNAME_SIZE must be equal to PF_TAG_NAME_SIZE
@@ -160,7 +165,7 @@ VNET_DEFINE(struct pf_tags, pf_qids);
 
 static u_int16_t	 tagname2tag(struct pf_tags *, char *);
 static u_int16_t	 pf_tagname2tag(char *);
-void			 tag_unref(struct pf_tags *, u_int16_t);
+static void		 tag_unref(struct pf_tags *, u_int16_t);
 
 #define DPFPRINTF(n, x) if (V_pf_status.debug >= (n)) printf x
 
@@ -406,8 +411,10 @@ pf_free_rule(struct pf_rule *rule)
 
 	PF_RULES_WASSERT();
 
-	pf_tag_unref(rule->tag);
-	pf_tag_unref(rule->match_tag);
+	if (rule->tag)
+		tag_unref(&V_pf_tags, rule->tag);
+	if (rule->match_tag)
+		tag_unref(&V_pf_tags, rule->match_tag);
 #ifdef ALTQ
 	if (rule->pqid != rule->qid)
 		pf_qid_unref(rule->pqid);
@@ -444,6 +451,8 @@ tagname2tag(struct pf_tags *head, char *tagname)
 	struct pf_tagname	*tag, *p = NULL;
 	u_int16_t		 new_tagid = 1;
 
+	PF_RULES_WASSERT();
+
 	TAILQ_FOREACH(tag, head, entries)
 		if (strcmp(tagname, tag->name) == 0) {
 			tag->ref++;
@@ -466,7 +475,7 @@ tagname2tag(struct pf_tags *head, char *tagname)
 		return (0);
 
 	/* allocate and fill new struct pf_tagname */
-	tag = malloc(sizeof(*tag), M_TEMP, M_NOWAIT|M_ZERO);
+	tag = malloc(sizeof(*tag), M_PFTAG, M_NOWAIT|M_ZERO);
 	if (tag == NULL)
 		return (0);
 	strlcpy(tag->name, tagname, sizeof(tag->name));
@@ -481,20 +490,19 @@ tagname2tag(struct pf_tags *head, char *tagname)
 	return (tag->tag);
 }
 
-void
+static void
 tag_unref(struct pf_tags *head, u_int16_t tag)
 {
 	struct pf_tagname	*p, *next;
 
-	if (tag == 0)
-		return;
+	PF_RULES_WASSERT();
 
 	for (p = TAILQ_FIRST(head); p != NULL; p = next) {
 		next = TAILQ_NEXT(p, entries);
 		if (tag == p->tag) {
 			if (--p->ref == 0) {
 				TAILQ_REMOVE(head, p, entries);
-				free(p, M_TEMP);
+				free(p, M_PFTAG);
 			}
 			break;
 		}
@@ -505,24 +513,6 @@ static u_int16_t
 pf_tagname2tag(char *tagname)
 {
 	return (tagname2tag(&V_pf_tags, tagname));
-}
-
-void
-pf_tag_ref(u_int16_t tag)
-{
-	struct pf_tagname *t;
-
-	TAILQ_FOREACH(t, &V_pf_tags, entries)
-		if (t->tag == tag)
-			break;
-	if (t != NULL)
-		t->ref++;
-}
-
-void
-pf_tag_unref(u_int16_t tag)
-{
-	tag_unref(&V_pf_tags, tag);
 }
 
 #ifdef ALTQ
