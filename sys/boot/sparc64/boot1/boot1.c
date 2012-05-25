@@ -415,7 +415,6 @@ loadzfs(void)
 	Elf64_Ehdr eh;
 	Elf64_Phdr ph;
 	caddr_t p;
-	ino_t ino;
 	int i;
 
 	if (zbread((char *)&eh, 0, sizeof(eh)) != sizeof(eh)) {
@@ -459,7 +458,7 @@ load(const char *fname)
 	Elf64_Ehdr eh;
 	Elf64_Phdr ph;
 	caddr_t p;
-	ino_t ino;
+	ufs_ino_t ino;
 	int i;
 
 	if ((ino = lookup(fname)) == 0) {
