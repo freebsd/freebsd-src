@@ -30,7 +30,8 @@
 
 #include "ar5416/ar5416.ini"
 
-static void ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
 static void ar5416DisablePCIE(struct ath_hal *ah);
 static void ar5416WriteIni(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan);
@@ -459,13 +460,13 @@ void
 ar5416AttachPCIE(struct ath_hal *ah)
 {
 	if (AH_PRIVATE(ah)->ah_ispcie)
-		ath_hal_configPCIE(ah, AH_FALSE);
+		ath_hal_configPCIE(ah, AH_FALSE, AH_FALSE);
 	else
 		ath_hal_disablePCIE(ah);
 }
 
 static void
-ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
