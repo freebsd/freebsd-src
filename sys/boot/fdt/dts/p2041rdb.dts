@@ -1,7 +1,7 @@
 /*
- * P3041DS Device Tree Source
+ * P2041RDB Device Tree Source
  *
- * Copyright 2010-2011 Freescale Semiconductor Inc.
+ * Copyright 2011 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,11 +33,11 @@
  */
 /* $FreeBSD$ */
 
-/include/ "p3041si.dtsi"
+/include/ "p2041si.dtsi"
 
 / {
-	model = "fsl,P3041DS";
-	compatible = "fsl,P3041DS";
+	model = "fsl,P2041RDB";
+	compatible = "fsl,P2041RDB";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
@@ -45,15 +45,14 @@
 	aliases {
 		phy_rgmii_0 = &phy_rgmii_0;
 		phy_rgmii_1 = &phy_rgmii_1;
+		phy_sgmii_2 = &phy_sgmii_2;
+		phy_sgmii_3 = &phy_sgmii_3;
+		phy_sgmii_4 = &phy_sgmii_4;
 		phy_sgmii_1c = &phy_sgmii_1c;
 		phy_sgmii_1d = &phy_sgmii_1d;
 		phy_sgmii_1e = &phy_sgmii_1e;
 		phy_sgmii_1f = &phy_sgmii_1f;
-		phy_xgmii_1 = &phy_xgmii_1;
 		phy_xgmii_2 = &phy_xgmii_2;
-		emi1_rgmii = &hydra_mdio_rgmii;
-		emi1_sgmii = &hydra_mdio_sgmii;
-		emi2_xgmii = &hydra_mdio_xgmii;
 	};
 
 	memory {
@@ -92,7 +91,7 @@
 		};
 
 		buffer-pool@0 {
-			compatible = "fsl,p3041-bpool", "fsl,bpool";
+			compatible = "fsl,p2041-bpool", "fsl,bpool";
 			fsl,bpid = <0>;
 			fsl,bpool-cfg = <0 0x100 0 1 0 0x100>;
 		};
@@ -191,7 +190,7 @@
 				#size-cells = <1>;
 				compatible = "spansion,s25sl12801";
 				reg = <0>;
-				spi-max-frequency = <35000000>; /* input clock */
+				spi-max-frequency = <40000000>; /* input clock */
 				partition@u-boot {
 					label = "u-boot";
 					reg = <0x00000000 0x00100000>;
@@ -214,23 +213,30 @@
 			};
 		};
 
-		i2c@118100 {
-			eeprom@51 {
-				compatible = "at24,24c256";
-				reg = <0x51>;
+		i2c@118000 {
+			lm75b@48 {
+				compatible = "nxp,lm75a";
+				reg = <0x48>;
 			};
-			eeprom@52 {
+			eeprom@50 {
 				compatible = "at24,24c256";
-				reg = <0x52>;
+				reg = <0x50>;
+			};
+			rtc@68 {
+				compatible = "pericom,pt7c4338";
+				reg = <0x68>;
 			};
 		};
 
-		i2c@119100 {
-			rtc@68 {
-				compatible = "dallas,ds3232";
-				reg = <0x68>;
-				interrupts = <0x1 0x1 0 0>;
+		i2c@118100 {
+			eeprom@50 {
+				compatible = "at24,24c256";
+				reg = <0x50>;
 			};
+		};
+
+		usb1: usb@211000 {
+			dr_mode = "host";
 		};
 
 		pme: pme@316000 {
@@ -253,8 +259,8 @@
 		fman0: fman@400000 {
 			enet0: ethernet@e0000 {
 				tbi-handle = <&tbi0>;
-				phy-handle = <&phy_rgmii_0>;
-				phy-connection-type = "rgmii";
+				phy-handle = <&phy_sgmii_2>;
+				phy-connection-type = "sgmii";
 			};
 
 			mdio0: mdio@e1120 {
@@ -263,62 +269,38 @@
 					device_type = "tbi-phy";
 				};
 
-				/*
-				 * Virtual MDIO for the two on-board RGMII
-				 * ports.  The fsl,hydra-mdio-muxval property
-				 * is already correct.
-				 */
-				hydra_mdio_rgmii: hydra-mdio-rgmii {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "fsl,hydra-mdio";
-					fsl,mdio-handle = <&mdio0>;
-					fsl,hydra-mdio-muxval = <0x00>;
-					status = "disabled";
-
-					phy_rgmii_0: ethernet-phy@0 {
-						reg = <0x0>;
-					};
-					phy_rgmii_1: ethernet-phy@1 {
-						reg = <0x1>;
-					};
+				phy_rgmii_0: ethernet-phy@0 {
+					reg = <0x0>;
 				};
-
-				/*
-				 * Virtual MDIO for the four-port SGMII card.
-				 * The fsl,hydra-mdio-muxval property will be
-				 * fixed-up by U-Boot based on the slot that
-				 * the SGMII card is in.
-				 *
-				 * Note: we do not support DTSEC5 connected to
-				 * SGMII, so this is the only SGMII node.
-				 */
-				hydra_mdio_sgmii: hydra-mdio-sgmii {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "fsl,hydra-mdio";
-					fsl,mdio-handle = <&mdio0>;
-					fsl,hydra-mdio-muxval = <0x00>;
-					status = "disabled";
-
-					phy_sgmii_1c: ethernet-phy@1c {
-						reg = <0x1c>;
-					};
-					phy_sgmii_1d: ethernet-phy@1d {
-						reg = <0x1d>;
-					};
-					phy_sgmii_1e: ethernet-phy@1e {
-						reg = <0x1e>;
-					};
-					phy_sgmii_1f: ethernet-phy@1f {
-						reg = <0x1f>;
-					};
+				phy_rgmii_1: ethernet-phy@1 {
+					reg = <0x1>;
+				};
+				phy_sgmii_2: ethernet-phy@2 {
+					reg = <0x2>;
+				};
+				phy_sgmii_3: ethernet-phy@3 {
+					reg = <0x3>;
+				};
+				phy_sgmii_4: ethernet-phy@4 {
+					reg = <0x4>;
+				};
+				phy_sgmii_1c: ethernet-phy@1c {
+					reg = <0x1c>;
+				};
+				phy_sgmii_1d: ethernet-phy@1d {
+					reg = <0x1d>;
+				};
+				phy_sgmii_1e: ethernet-phy@1e {
+					reg = <0x1e>;
+				};
+				phy_sgmii_1f: ethernet-phy@1f {
+					reg = <0x1f>;
 				};
 			};
 
 			enet1: ethernet@e2000 {
 				tbi-handle = <&tbi1>;
-				phy-handle = <&phy_sgmii_1d>;
+				phy-handle = <&phy_sgmii_3>;
 				phy-connection-type = "sgmii";
 			};
 
@@ -331,7 +313,7 @@
 
 			enet2: ethernet@e4000 {
 				tbi-handle = <&tbi2>;
-				phy-handle = <&phy_sgmii_1e>;
+				phy-handle = <&phy_sgmii_4>;
 				phy-connection-type = "sgmii";
 			};
 
@@ -344,17 +326,11 @@
 
 			enet3: ethernet@e6000 {
 				tbi-handle = <&tbi3>;
-				phy-handle = <&phy_sgmii_1f>;
-				phy-connection-type = "sgmii";
+				phy-handle = <&phy_rgmii_1>;
+				phy-connection-type = "rgmii";
 			};
 
 			mdio@e7120 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,fman-tbi";
-				reg = <0xe7120 0xee0>;
-				interrupts = <100 1 0 0>;
-
 				tbi3: tbi-phy@8 {
 					reg = <8>;
 					device_type = "tbi-phy";
@@ -363,7 +339,7 @@
 
 			enet4: ethernet@e8000 {
 				tbi-handle = <&tbi4>;
-				phy-handle = <&phy_rgmii_1>;
+				phy-handle = <&phy_rgmii_0>;
 				phy-connection-type = "rgmii";
 			};
 
@@ -379,26 +355,11 @@
 				 * phy-handle will be updated by U-Boot to
 				 * reflect the actual slot the XAUI card is in.
 				 */
-				phy-handle = <&phy_xgmii_1>;
+				phy-handle = <&phy_xgmii_2>;
 				phy-connection-type = "xgmii";
 			};
 
-			/*
-			 * We only support one XAUI card, so the MDIO muxing
-			 * is set by U-Boot, and Linux never touches it.
-			 * Therefore, we don't need a virtual MDIO node.
-			 * However, the phy address depends on the slot, so
-			 * only one of the ethernet-phy nodes below will be
-			 * used.
-			 */
-			hydra_mdio_xgmii: mdio@f1000 {
-				status = "disabled";
-
-				/* XAUI card in slot 1 */
-				phy_xgmii_1: ethernet-phy@4 {
-					reg = <0x4>;
-				};
-
+			mdio@f1000 {
 				/* XAUI card in slot 2 */
 				phy_xgmii_2: ethernet-phy@0 {
 					reg = <0x0>;
@@ -433,49 +394,6 @@
 			reg = <0 0 0x04000000>;
 			bank-width = <2>;
 			device-width = <2>;
-		};
-
-		nand@2,0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,elbc-fcm-nand";
-			reg = <0x2 0x0 0x40000>;
-
-			partition@0 {
-				label = "NAND U-Boot Image";
-				reg = <0x0 0x02000000>;
-				read-only;
-			};
-
-			partition@2000000 {
-				label = "NAND Root File System";
-				reg = <0x02000000 0x10000000>;
-			};
-
-			partition@12000000 {
-				label = "NAND Compressed RFS Image";
-				reg = <0x12000000 0x08000000>;
-			};
-
-			partition@1a000000 {
-				label = "NAND Linux Kernel Image";
-				reg = <0x1a000000 0x04000000>;
-			};
-
-			partition@1e000000 {
-				label = "NAND DTB Image";
-				reg = <0x1e000000 0x01000000>;
-			};
-
-			partition@1f000000 {
-				label = "NAND Writable User area";
-				reg = <0x1f000000 0x21000000>;
-			};
-		};
-
-		board-control@3,0 {
-			compatible = "fsl,p3041ds-fpga", "fsl,fpga-ngpixis";
-			reg = <3 0 0x30>;
 		};
 	};
 
@@ -524,59 +442,44 @@
 		};
 	};
 
-	pci3: pcie@ffe203000 {
-		reg = <0xf 0xfe203000 0 0x1000>;
-		ranges = <0x02000000 0 0xb0000000 0x0 0xb0000000 0 0x08000000
-			  0x01000000 0 0x00000000 0x0 0xff030000 0 0x00010000>;
-		pcie@0 {
-			ranges = <0x02000000 0 0xb0000000
-				  0x02000000 0 0xb0000000
-				  0 0x08000000
-
-				  0x01000000 0 0x00000000
-				  0x01000000 0 0xff030000
-				  0 0x00010000>;
-		};
-	};
-
 	fsl,dpaa {
-		compatible = "fsl,p3041-dpaa", "fsl,dpaa";
+		compatible = "fsl,p2041-dpaa", "fsl,dpaa";
 
 		ethernet@0 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet0>;
-			status="okay";
+			status = "okay";
 		};
 		ethernet@1 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet1>;
-			status = "disabled";
+			status = "okay";
 		};
 		ethernet@2 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet2>;
-			status = "disabled";
+			status = "okay";
 		};
 		ethernet@3 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet3>;
-			status = "disabled";
+			status = "okay";
 		};
 		ethernet@4 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet4>;
 			status = "okay";
 		};
 		ethernet@5 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p2041-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet5>;
-			status = "disabled";
+			status = "okay";
 		};
 	};
 

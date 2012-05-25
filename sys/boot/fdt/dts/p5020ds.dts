@@ -1,5 +1,5 @@
 /*
- * P3041DS Device Tree Source
+ * P5020DS Device Tree Source
  *
  * Copyright 2010-2011 Freescale Semiconductor Inc.
  *
@@ -33,11 +33,11 @@
  */
 /* $FreeBSD$ */
 
-/include/ "p3041si.dtsi"
+/include/ "p5020si.dtsi"
 
 / {
-	model = "fsl,P3041DS";
-	compatible = "fsl,P3041DS";
+	model = "fsl,P5020DS";
+	compatible = "fsl,P5020DS";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
@@ -73,10 +73,8 @@
 			cpu-handle = <&cpu1>;
 		};
 		bman-portal@8000 {
-			cpu-handle = <&cpu2>;
 		};
 		bman-portal@c000 {
-			cpu-handle = <&cpu3>;
 		};
 		bman-portal@10000 {
 		};
@@ -92,7 +90,7 @@
 		};
 
 		buffer-pool@0 {
-			compatible = "fsl,p3041-bpool", "fsl,bpool";
+			compatible = "fsl,p5020-bpool", "fsl,bpool";
 			fsl,bpid = <0>;
 			fsl,bpool-cfg = <0 0x100 0 1 0 0x100>;
 		};
@@ -118,7 +116,6 @@
 		};
 
 		qportal2: qman-portal@8000 {
-			cpu-handle = <&cpu2>;
 			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
 						  &qpool4 &qpool5 &qpool6
 						  &qpool7 &qpool8 &qpool9
@@ -127,7 +124,6 @@
 		};
 
 		qportal3: qman-portal@c000 {
-			cpu-handle = <&cpu3>;
 			fsl,qman-pool-channels = <&qpool1 &qpool2 &qpool3
 						  &qpool4 &qpool5 &qpool6
 						  &qpool7 &qpool8 &qpool9
@@ -191,7 +187,7 @@
 				#size-cells = <1>;
 				compatible = "spansion,s25sl12801";
 				reg = <0>;
-				spi-max-frequency = <35000000>; /* input clock */
+				spi-max-frequency = <40000000>; /* input clock */
 				partition@u-boot {
 					label = "u-boot";
 					reg = <0x00000000 0x00100000>;
@@ -474,7 +470,7 @@
 		};
 
 		board-control@3,0 {
-			compatible = "fsl,p3041ds-fpga", "fsl,fpga-ngpixis";
+			compatible = "fsl,p5020ds-fpga", "fsl,fpga-ngpixis";
 			reg = <3 0 0x30>;
 		};
 	};
@@ -540,40 +536,40 @@
 	};
 
 	fsl,dpaa {
-		compatible = "fsl,p3041-dpaa", "fsl,dpaa";
+		compatible = "fsl,p5020-dpaa", "fsl,dpaa";
 
 		ethernet@0 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p5020-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet0>;
-			status="okay";
+			status = "okay";
 		};
 		ethernet@1 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p5020-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet1>;
 			status = "disabled";
 		};
 		ethernet@2 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p5020-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet2>;
 			status = "disabled";
 		};
 		ethernet@3 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p5020-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet3>;
 			status = "disabled";
 		};
 		ethernet@4 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p5020-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet4>;
 			status = "okay";
 		};
 		ethernet@5 {
-			compatible = "fsl,p3041-dpa-ethernet", "fsl,dpa-ethernet";
+			compatible = "fsl,p5020-dpa-ethernet", "fsl,dpa-ethernet";
 			fsl,qman-channel = <&qpool1>;
 			fsl,fman-mac = <&enet5>;
 			status = "disabled";
