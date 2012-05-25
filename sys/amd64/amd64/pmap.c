@@ -2058,14 +2058,14 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 	pt_entry_t *pte, tpte;
 	pv_entry_t pv;
 	vm_offset_t va;
-	vm_page_t free, m;
+	vm_page_t free, m, m_pc;
 	uint64_t inuse, freemask;
 	int bit, field, freed;
 	
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
 	pmap = NULL;
-	free = m = NULL;
+	free = m_pc = NULL;
 	TAILQ_INIT(&newtail);
 	while ((pc = TAILQ_FIRST(&pv_chunks)) != NULL && free == NULL) {
 		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
@@ -2141,8 +2141,8 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 			PV_STAT(pc_chunk_count--);
 			PV_STAT(pc_chunk_frees++);
 			/* Entire chunk is free; return it. */
-			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
-			dump_drop_page(m->phys_addr);
+			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+			dump_drop_page(m_pc->phys_addr);
 			break;
 		}
 		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
@@ -2157,15 +2157,15 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 		if (pmap != locked_pmap)
 			PMAP_UNLOCK(pmap);
 	}
-	if (m == NULL && free != NULL) {
-		m = free;
-		free = m->right;
+	if (m_pc == NULL && free != NULL) {
+		m_pc = free;
+		free = m_pc->right;
 		/* Recycle a freed page table page. */
-		m->wire_count = 1;
+		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
 	}
 	pmap_free_zero_pages(free);
-	return (m);
+	return (m_pc);
 }
 
 /*
