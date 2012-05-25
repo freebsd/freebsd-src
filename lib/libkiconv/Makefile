@@ -17,4 +17,8 @@ CFLAGS+=	-I${.CURDIR}/../../sys
 
 WARNS?=		1
 
+.if !defined(MK_ICONV)
+CFLAGS+=	-DICONV_DLOPEN
+.endif
+
 .include <bsd.lib.mk>
