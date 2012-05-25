@@ -1319,8 +1319,14 @@ ath_suspend(struct ath_softc *sc)
 	 * CardBus detaches the device.
 	 */
 
-	/* For PCIe, this matters */
-	ath_hal_disablepcie(sc->sc_ah);
+	/*
+	 * XXX ensure none of the taskqueues are running
+	 * XXX ensure sc_invalid is 1
+	 * XXX ensure the calibration callout is disabled
+	 */
+
+	/* Disable the PCIe PHY, complete with workarounds */
+	ath_hal_enablepcie(sc->sc_ah, 1, 1);
 }
 
 /*
@@ -1354,7 +1360,7 @@ ath_resume(struct ath_softc *sc)
 		__func__, ifp->if_flags);
 
 	/* Re-enable PCIe, re-enable the PCIe bus */
-	ath_hal_enablepcie(ah, 1);
+	ath_hal_enablepcie(ah, 0, 0);
 
 	/*
 	 * Must reset the chip before we reload the

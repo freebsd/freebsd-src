@@ -65,7 +65,8 @@ static const HAL_PERCAL_DATA ar9287_adc_init_dc_cal = {
 	.calPostProc	= ar5416AdcDcCalibration
 };
 
-static void ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
 static void ar9287DisablePCIE(struct ath_hal *ah);
 static HAL_BOOL ar9287FillCapabilityInfo(struct ath_hal *ah);
 static void ar9287WriteIni(struct ath_hal *ah,
@@ -359,13 +360,14 @@ bad:
 }
 
 static void
-ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
 		OS_DELAY(1000);
 		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-		OS_REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);	/* Yes, Kiwi uses the Kite PCIe PHY WA */
+		/* Yes, Kiwi uses the Kite PCIe PHY WA */
+		OS_REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
 	}
 }
 

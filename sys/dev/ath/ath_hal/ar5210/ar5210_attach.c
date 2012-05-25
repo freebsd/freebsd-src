@@ -33,7 +33,8 @@ static	HAL_BOOL ar5210GetChannelEdges(struct ath_hal *,
 static	HAL_BOOL ar5210GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 
-static void ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_on);
 static void ar5210DisablePCIE(struct ath_hal *ah);
 
 static const struct ath_hal_private ar5210hal = {{
@@ -332,7 +333,7 @@ ar5210GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 }
 
 static void
-ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 }
 
