@@ -1690,6 +1690,8 @@ g_mirror_can_destroy(struct g_mirror_softc *sc)
 	gp = sc->sc_geom;
 	if (gp->softc == NULL)
 		return (1);
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_TASTING) != 0)
+		return (0);
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (g_mirror_is_busy(sc, cp))
 			return (0);
@@ -3051,6 +3053,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	G_MIRROR_DEBUG(1, "Adding disk %s to %s.", pp->name, gp->name);
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
+	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_TASTING;
 	error = g_mirror_add_disk(sc, pp, &md);
 	if (error != 0) {
 		G_MIRROR_DEBUG(0, "Cannot add disk %s to %s (error=%d).",
@@ -3062,6 +3065,12 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			return (NULL);
 		}
 		gp = NULL;
+	}
+	sc->sc_flags &= ~G_MIRROR_DEVICE_FLAG_TASTING;
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
+		g_mirror_destroy(sc, G_MIRROR_DESTROY_HARD);
+		g_topology_lock();
+		return (NULL);
 	}
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
