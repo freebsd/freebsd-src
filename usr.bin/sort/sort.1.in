@@ -33,7 +33,7 @@
 .\"
 .\"     @(#)sort.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd May 6, 2012
+.Dd May 25, 2012
 .Dt SORT 1
 .Os
 .Sh NAME
@@ -358,6 +358,9 @@ This sort algorithm cannot be used with
 .Fl u
 and
 .Fl s .
+.It Fl Fl mmap
+Try to use file memory mapping system call.
+It may increase speed in some cases.
 .El
 .Pp
 The following operands are available:
