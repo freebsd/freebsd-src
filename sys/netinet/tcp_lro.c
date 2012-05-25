@@ -51,8 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet/ip.h>
+#include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
+
+#include <netinet6/ip6_var.h>
 
 #include <machine/in_cksum.h>
 
@@ -369,6 +372,10 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	switch (eh_type) {
 #ifdef INET6
 	case ETHERTYPE_IPV6:
+		if (V_ip6_forwarding != 0) {
+			/* XXX-BZ stats but changing lro_ctrl is a problem. */
+			return (TCP_LRO_CANNOT);
+		}
 		l3hdr = ip6 = (struct ip6_hdr *)(eh + 1);
 		error = tcp_lro_rx_ipv6(lc, m, ip6, &th);
 		if (error != 0)
@@ -379,6 +386,10 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 #endif
 #ifdef INET
 	case ETHERTYPE_IP:
+		if (V_ipforwarding != 0) {
+			/* XXX-BZ stats but changing lro_ctrl is a problem. */
+			return (TCP_LRO_CANNOT);
+		}
 		l3hdr = ip4 = (struct ip *)(eh + 1);
 		error = tcp_lro_rx_ipv4(lc, m, ip4, &th);
 		if (error != 0)
