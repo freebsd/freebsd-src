@@ -62,6 +62,7 @@ static const HAL_PERCAL_DATA ar9280_adc_init_dc_cal = {
 };
 
 static void ar9280ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar9280DisablePCIE(struct ath_hal *ah);
 static HAL_BOOL ar9280FillCapabilityInfo(struct ath_hal *ah);
 static void ar9280WriteIni(struct ath_hal *ah,
 	const struct ieee80211_channel *chan);
@@ -187,6 +188,7 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 
 	ah->ah_setAntennaSwitch		= ar9280SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9280ConfigPCIE;
+	ah->ah_disablePCIE		= ar9280DisablePCIE;
 
 	AH5416(ah)->ah_cal.iqCalData.calData = &ar9280_iq_cal;
 	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9280_adc_gain_cal;
@@ -423,6 +425,12 @@ ar9280ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
 		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 		OS_REG_WRITE(ah, AR_WA, AR9280_WA_DEFAULT);
 	}
+}
+
+static void
+ar9280DisablePCIE(struct ath_hal *ah)
+{
+	/* XXX TODO */
 }
 
 static void

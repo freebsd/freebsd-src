@@ -67,6 +67,7 @@ static const HAL_PERCAL_DATA ar9280_adc_init_dc_cal = {
 };
 
 static void ar9285ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar9285DisablePCIE(struct ath_hal *ah);
 static HAL_BOOL ar9285FillCapabilityInfo(struct ath_hal *ah);
 static void ar9285WriteIni(struct ath_hal *ah,
 	const struct ieee80211_channel *chan);
@@ -152,6 +153,7 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 
 	ah->ah_setAntennaSwitch		= ar9285SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9285ConfigPCIE;
+	ah->ah_disablePCIE		= ar9285DisablePCIE;
 	ah->ah_setTxPower		= ar9285SetTransmitPower;
 	ah->ah_setBoardValues		= ar9285SetBoardValues;
 
@@ -370,6 +372,12 @@ ar9285ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
 		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 		OS_REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
 	}
+}
+
+static void
+ar9285DisablePCIE(struct ath_hal *ah)
+{
+	/* XXX TODO */
 }
 
 static void

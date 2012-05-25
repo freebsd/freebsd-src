@@ -31,6 +31,7 @@
 #include "ar5416/ar5416.ini"
 
 static void ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5416DisablePCIE(struct ath_hal *ah);
 static void ar5416WriteIni(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan);
 static void ar5416SpurMitigate(struct ath_hal *ah,
@@ -99,6 +100,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_phyDisable		= ar5416PhyDisable;
 	ah->ah_disable			= ar5416Disable;
 	ah->ah_configPCIE		= ar5416ConfigPCIE;
+	ah->ah_disablePCIE		= ar5416DisablePCIE;
 	ah->ah_perCalibration		= ar5416PerCalibration;
 	ah->ah_perCalibrationN		= ar5416PerCalibrationN,
 	ah->ah_resetCalValid		= ar5416ResetCalValid,
@@ -471,6 +473,12 @@ ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
 		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 		OS_REG_WRITE(ah, AR_WA, AR_WA_DEFAULT);
 	}
+}
+
+static void
+ar5416DisablePCIE(struct ath_hal *ah)
+{
+	/* XXX TODO */
 }
 
 static void
