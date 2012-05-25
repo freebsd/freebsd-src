@@ -915,6 +915,18 @@ main(int (*openfirm)(void *))
 	return (1);
 }
 
+COMMAND_SET(heap, "heap", "show heap usage", command_heap);
+
+static int
+command_heap(int argc, char *argv[])
+{
+
+	mallocstats();
+	printf("heap base at %p, top at %p, upper limit at %p\n", heapva,
+	    sbrk(0), heapva + HEAPSZ);
+	return(CMD_OK);
+}
+
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 
 static int
