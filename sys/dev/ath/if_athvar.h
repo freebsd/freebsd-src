@@ -996,6 +996,14 @@ void	ath_intr(void *);
 	((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
 
 /*
+ * PCIe suspend/resume/poweron/poweroff related macros
+ */
+#define	ath_hal_enablepcie(_ah, _restore) \
+	((*(_ah)->ah_configPCIE)((_ah), (_restore)))
+#define	ath_hal_disablepcie(_ah) \
+	((*(_ah)->ah_disablePCIE)((_ah)))
+
+/*
  * This is badly-named; you need to set the correct parameters
  * to begin to receive useful radar events; and even then
  * it doesn't "enable" DFS. See the ath_dfs/null/ module for
