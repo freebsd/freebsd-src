@@ -468,18 +468,63 @@ ar5416AttachPCIE(struct ath_hal *ah)
 static void
 ar5416ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
-	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
+
+	/* This is only applicable for AR5418 (AR5416 PCIe) */
+	if (! AH_PRIVATE(ah)->ah_ispcie)
+		return;
+
+	if (! restore) {
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
 		OS_DELAY(1000);
-		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	}
+
+	if (power_off) {		/* Power-off */
+		/* clear bit 19 to disable L1 */
+		OS_REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	} else {			/* Power-on */
+		/* Set default WAR values for Owl */
 		OS_REG_WRITE(ah, AR_WA, AR_WA_DEFAULT);
+
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 	}
 }
 
+/*
+ * Disable PCIe PHY if PCIe isn't used.
+ */
 static void
 ar5416DisablePCIE(struct ath_hal *ah)
 {
-	/* XXX TODO */
+
+	/* PCIe? Don't */
+	if (AH_PRIVATE(ah)->ah_ispcie)
+		return;
+
+	/* .. Only applicable for AR5416v2 or later */
+	if (! (AR_SREV_OWL(ah) && AR_SREV_OWL_20_OR_LATER(ah)))
+		return;
+
+	OS_REG_WRITE_BUFFER_ENABLE(ah);
+
+	/*
+	 * Disable the PCIe PHY.
+	 */
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x28000029);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x57160824);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x25980579);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x00000000);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
+	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x000e1007);
+
+	/* Load the new settings */
+	OS_REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
+
+	OS_REG_WRITE_BUFFER_FLUSH(ah);
+	OS_REG_WRITE_BUFFER_DISABLE(ah);
 }
 
 static void
