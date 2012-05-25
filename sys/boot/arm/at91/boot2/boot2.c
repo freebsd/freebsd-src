@@ -95,7 +95,6 @@ static uint8_t dsk_meta;
 
 static void load(void);
 static int parse(void);
-static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 #ifdef FIXUP_BOOT_DRV
 static void fixup_boot_drv(caddr_t, int, int, int);
@@ -111,7 +110,7 @@ static void fixup_boot_drv(caddr_t, int, int, int);
 #endif
 
 static inline int
-xfsread(ino_t inode, void *buf, size_t nbyte)
+xfsread(ufs_ino_t inode, void *buf, size_t nbyte)
 {
 	if ((size_t)fsread(inode, buf, nbyte) != nbyte)
 		return -1;
@@ -154,7 +153,7 @@ int
 main(void)
 {
 	int autoboot, c = 0;
-	ino_t ino;
+	ufs_ino_t ino;
 
 	dmadat = (void *)(0x20000000 + (16 << 20));
 	board_init();
@@ -199,7 +198,7 @@ load(void)
 	Elf32_Ehdr eh;
 	static Elf32_Phdr ep[2];
 	caddr_t p;
-	ino_t ino;
+	ufs_ino_t ino;
 	uint32_t addr;
 	int i, j;
 #ifdef FIXUP_BOOT_DRV
