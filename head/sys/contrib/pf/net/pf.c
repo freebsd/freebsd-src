@@ -730,8 +730,6 @@ pf_initialize()
 	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
 	V_pf_limits[PF_LIMIT_TABLE_ENTRIES].zone = V_pfr_kentry_z;
-	V_pfi_addr_z = uma_zcreate("pf pfi_dynaddr", sizeof(struct pfi_dynaddr),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 
 void
@@ -778,7 +776,6 @@ pf_cleanup()
 	uma_zdestroy(V_pf_pooladdr_z);
 	uma_zdestroy(V_pfr_ktable_z);
 	uma_zdestroy(V_pfr_kentry_z);
-	uma_zdestroy(V_pfi_addr_z);
 }
 
 static int
@@ -1051,7 +1048,6 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 
 	V_pf_status.fcounters[FCNT_STATE_INSERT]++;
 	V_pf_status.states++;
-	pfi_kif_ref(kif, PFI_KIF_REF_STATE);
 	if (pfsync_insert_state_ptr != NULL)
 		pfsync_insert_state_ptr(s);
 
@@ -1312,10 +1308,15 @@ pf_purge_thread(void *v)
 
 		/* Purge other expired types every PFTM_INTERVAL seconds. */
 		if (fullrun) {
-			/* Order important: rules should be the last. */
+			/*
+			 * Order is important:
+			 * - states and src nodes reference rules
+			 * - states and rules reference kifs
+			 */
 			pf_purge_expired_fragments();
 			pf_purge_expired_src_nodes();
 			pf_purge_unlinked_rules();
+			pfi_kif_purge();
 		}
 
 		PF_UNLOCK();
@@ -1471,7 +1472,6 @@ pf_free_state(struct pf_state *cur)
 	if (cur->anchor.ptr != NULL)
 		--cur->anchor.ptr->states_cur;
 	pf_normalize_tcp_cleanup(cur);
-	pfi_kif_unref(cur->kif, PFI_KIF_REF_STATE);
 	if (cur->tag)
 		pf_tag_unref(cur->tag);
 	uma_zfree(V_pf_state_z, cur);
@@ -1515,7 +1515,9 @@ relock:
 				s->nat_rule.ptr->rule_flag |= PFRULE_REFS;
 			if (s->anchor.ptr != NULL)
 				s->anchor.ptr->rule_flag |= PFRULE_REFS;
-
+			s->kif->pfik_flags |= PFI_IFLAG_REFS;
+			if (s->rt_kif)
+				s->rt_kif->pfik_flags |= PFI_IFLAG_REFS;
 		}
 		PF_HASHROW_UNLOCK(ih);
 		i++;
@@ -1528,22 +1530,36 @@ relock:
 static void
 pf_purge_unlinked_rules()
 {
+	struct pf_rulequeue tmpq;
 	struct pf_rule *r, *r1;
 
 	/*
 	 * Do naive mark-and-sweep garbage collecting of old rules.
 	 * Reference flag is raised by pf_purge_expired_states()
 	 * and pf_purge_expired_src_nodes().
+	 *
+	 * To avoid LOR between PF_UNLNKDRULES_LOCK/PF_RULES_WLOCK,
+	 * use a temporary queue.
 	 */
+	TAILQ_INIT(&tmpq);
 	PF_UNLNKDRULES_LOCK();
 	TAILQ_FOREACH_SAFE(r, &V_pf_unlinked_rules, entries, r1) {
 		if (!(r->rule_flag & PFRULE_REFS)) {
 			TAILQ_REMOVE(&V_pf_unlinked_rules, r, entries);
-			pf_free_rule(r);
+			TAILQ_INSERT_TAIL(&tmpq, r, entries);
 		} else
 			r->rule_flag &= ~PFRULE_REFS;
 	}
 	PF_UNLNKDRULES_UNLOCK();
+
+	if (!TAILQ_EMPTY(&tmpq)) {
+		PF_RULES_WLOCK();
+		TAILQ_FOREACH_SAFE(r, &tmpq, entries, r1) {
+			TAILQ_REMOVE(&tmpq, r, entries);
+			pf_free_rule(r);
+		}
+		PF_RULES_WUNLOCK();
+	}
 }
 
 void

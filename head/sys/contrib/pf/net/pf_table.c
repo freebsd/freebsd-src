@@ -182,8 +182,8 @@ static int		 pfr_skip_table(struct pfr_table *,
 static struct pfr_kentry
 			*pfr_kentry_byidx(struct pfr_ktable *, int, int);
 
-RB_PROTOTYPE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
-RB_GENERATE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
+static RB_PROTOTYPE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
+static RB_GENERATE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
 
 struct pfr_ktablehead	 pfr_ktables;
 struct pfr_table	 pfr_nulltable;
@@ -206,6 +206,8 @@ pfr_clr_addrs(struct pfr_table *tbl, int *ndel, int flags)
 	struct pfr_ktable	*kt;
 	struct pfr_kentryworkq	 workq;
 
+	PF_RULES_WASSERT();
+
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY);
 	if (pfr_validate_table(tbl, 0, flags & PFR_FLAG_USERIOCTL))
 		return (EINVAL);
@@ -218,11 +220,7 @@ pfr_clr_addrs(struct pfr_table *tbl, int *ndel, int flags)
 
 	if (!(flags & PFR_FLAG_DUMMY)) {
 		pfr_remove_kentries(kt, &workq);
-		if (kt->pfrkt_cnt) {
-			printf("pfr_clr_addrs: corruption detected (%d).\n",
-			    kt->pfrkt_cnt);
-			kt->pfrkt_cnt = 0;
-		}
+		KASSERT(kt->pfrkt_cnt == 0, ("%s: non-null pfrkt_cnt", __func__));
 	}
 	return (0);
 }
@@ -237,6 +235,8 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_addr		*ad;
 	int			 i, rv, xadd = 0;
 	long			 tzero = time_second;
+
+	PF_RULES_WASSERT();
 
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_FEEDBACK);
 	if (pfr_validate_table(tbl, 0, flags & PFR_FLAG_USERIOCTL))
@@ -305,6 +305,8 @@ pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentry	*p;
 	struct pfr_addr		*ad;
 	int			 i, rv, xdel = 0, log = 1;
+
+	PF_RULES_WASSERT();
 
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_FEEDBACK);
 	if (pfr_validate_table(tbl, 0, flags & PFR_FLAG_USERIOCTL))
@@ -384,6 +386,8 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_addr		 ad;
 	int			 i, rv, xadd = 0, xdel = 0, xchange = 0;
 	long			 tzero = time_second;
+
+	PF_RULES_WASSERT();
 
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_FEEDBACK);
 	if (pfr_validate_table(tbl, ignore_pfrt_flags, flags &
@@ -493,6 +497,8 @@ pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_addr		*ad;
 	int			 i, xmatch = 0;
 
+	PF_RULES_RASSERT();
+
 	ACCEPT_FLAGS(flags, PFR_FLAG_REPLACE);
 	if (pfr_validate_table(tbl, 0, 0))
 		return (EINVAL);
@@ -525,6 +531,8 @@ pfr_get_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int *size,
 	struct pfr_ktable	*kt;
 	struct pfr_walktree	 w;
 	int			 rv;
+
+	PF_RULES_RASSERT();
 
 	ACCEPT_FLAGS(flags, 0);
 	if (pfr_validate_table(tbl, 0, 0))
@@ -564,6 +572,8 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 	struct pfr_kentryworkq	 workq;
 	int			 rv;
 	long			 tzero = time_second;
+
+	PF_RULES_RASSERT();
 
 	/* XXX PFR_FLAG_CLSTATS disabled */
 	ACCEPT_FLAGS(flags, 0);
@@ -610,6 +620,8 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pfr_kentry	*p;
 	struct pfr_addr		*ad;
 	int			 i, rv, xzero = 0;
+
+	PF_RULES_WASSERT();
 
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_FEEDBACK);
 	if (pfr_validate_table(tbl, 0, 0))
@@ -1187,6 +1199,8 @@ pfr_get_tables(struct pfr_table *filter, struct pfr_table *tbl, int *size,
 	struct pfr_ktable	*p;
 	int			 n, nn;
 
+	PF_RULES_RASSERT();
+
 	ACCEPT_FLAGS(flags, PFR_FLAG_ALLRSETS);
 	if (pfr_fix_anchor(filter->pfrt_anchor))
 		return (EINVAL);
@@ -1370,6 +1384,8 @@ pfr_ina_define(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	struct pf_ruleset	*rs;
 	int			 i, rv, xadd = 0, xaddr = 0;
 
+	PF_RULES_WASSERT();
+
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY | PFR_FLAG_ADDRSTOO);
 	if (size && !(flags & PFR_FLAG_ADDRSTOO))
 		return (EINVAL);
@@ -1464,6 +1480,8 @@ pfr_ina_rollback(struct pfr_table *trs, u_int32_t ticket, int *ndel, int flags)
 	struct pf_ruleset	*rs;
 	int			 xdel = 0;
 
+	PF_RULES_WASSERT();
+
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY);
 	rs = pf_find_ruleset(trs->pfrt_anchor);
 	if (rs == NULL || !rs->topen || ticket != rs->tticket)
@@ -1496,6 +1514,8 @@ pfr_ina_commit(struct pfr_table *trs, u_int32_t ticket, int *nadd,
 	struct pf_ruleset	*rs;
 	int			 xadd = 0, xchange = 0;
 	long			 tzero = time_second;
+
+	PF_RULES_WASSERT();
 
 	ACCEPT_FLAGS(flags, PFR_FLAG_DUMMY);
 	rs = pf_find_ruleset(trs->pfrt_anchor);
@@ -1535,6 +1555,8 @@ pfr_commit_ktable(struct pfr_ktable *kt, long tzero)
 {
 	struct pfr_ktable	*shadow = kt->pfrkt_shadow;
 	int			 nflags;
+
+	PF_RULES_WASSERT();
 
 	if (shadow->pfrkt_cnt == NO_ADDRESSES) {
 		if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE))
@@ -1644,6 +1666,8 @@ pfr_table_count(struct pfr_table *filter, int flags)
 {
 	struct pf_ruleset *rs;
 
+	PF_RULES_ASSERT();
+
 	if (flags & PFR_FLAG_ALLRSETS)
 		return (pfr_ktable_cnt);
 	if (filter->pfrt_anchor[0]) {
@@ -1675,6 +1699,9 @@ pfr_insert_ktables(struct pfr_ktableworkq *workq)
 static void
 pfr_insert_ktable(struct pfr_ktable *kt)
 {
+
+	PF_RULES_WASSERT();
+
 	RB_INSERT(pfr_ktablehead, &pfr_ktables, kt);
 	pfr_ktable_cnt++;
 	if (kt->pfrkt_root != NULL)
@@ -1698,6 +1725,8 @@ static void
 pfr_setflags_ktable(struct pfr_ktable *kt, int newf)
 {
 	struct pfr_kentryworkq	addrq;
+
+	PF_RULES_WASSERT();
 
 	if (!(newf & PFR_TFLAG_REFERENCED) &&
 	    !(newf & PFR_TFLAG_PERSIST))
@@ -1755,6 +1784,8 @@ pfr_create_ktable(struct pfr_table *tbl, long tzero, int attachruleset)
 {
 	struct pfr_ktable	*kt;
 	struct pf_ruleset	*rs;
+
+	PF_RULES_WASSERT();
 
 	kt = uma_zalloc(V_pfr_ktable_z, M_NOWAIT|M_ZERO);
 	if (kt == NULL)
@@ -1845,6 +1876,8 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 	struct pfr_kentry	*ke = NULL;
 	int			 match;
 
+	PF_RULES_RASSERT();
+
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE) && kt->pfrkt_root != NULL)
 		kt = kt->pfrkt_root;
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE))
@@ -1933,6 +1966,8 @@ pfr_attach_table(struct pf_ruleset *rs, char *name)
 	struct pfr_table	 tbl;
 	struct pf_anchor	*ac = rs->anchor;
 
+	PF_RULES_WASSERT();
+
 	bzero(&tbl, sizeof(tbl));
 	strlcpy(tbl.pfrt_name, name, sizeof(tbl.pfrt_name));
 	if (ac != NULL)
@@ -1965,10 +2000,12 @@ pfr_attach_table(struct pf_ruleset *rs, char *name)
 void
 pfr_detach_table(struct pfr_ktable *kt)
 {
-	if (kt->pfrkt_refcnt[PFR_REFCNT_RULE] <= 0)
-		printf("pfr_detach_table: refcount = %d.\n",
-		    kt->pfrkt_refcnt[PFR_REFCNT_RULE]);
-	else if (!--kt->pfrkt_refcnt[PFR_REFCNT_RULE])
+
+	PF_RULES_WASSERT();
+	KASSERT(kt->pfrkt_refcnt[PFR_REFCNT_RULE] > 0, ("%s: refcount %d\n",
+	    __func__, kt->pfrkt_refcnt[PFR_REFCNT_RULE]));
+
+	if (!--kt->pfrkt_refcnt[PFR_REFCNT_RULE])
 		pfr_setflags_ktable(kt, kt->pfrkt_flags&~PFR_TFLAG_REFERENCED);
 }
 

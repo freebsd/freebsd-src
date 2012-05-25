@@ -181,7 +181,6 @@ struct pfi_dynaddr {
 	struct pf_addr			 pfid_mask6;
 	struct pfr_ktable		*pfid_kt;
 	struct pfi_kif			*pfid_kif;
-	void				*pfid_hook_cookie;
 	int				 pfid_net;	/* mask or 128 */
 	int				 pfid_acnt4;	/* address count IPv4 */
 	int				 pfid_acnt6;	/* address count IPv6 */
@@ -238,9 +237,10 @@ extern struct mtx pf_unlnkdrules_mtx;
 extern struct rwlock pf_rules_lock;
 #define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
 #define	PF_RULES_RUNLOCK()	rw_runlock(&pf_rules_lock)
-#define	PF_RULES_RASSERT()	rw_assert(&pf_rules_lock, RA_RLOCKED)
 #define	PF_RULES_WLOCK()	rw_wlock(&pf_rules_lock)
 #define	PF_RULES_WUNLOCK()	rw_wunlock(&pf_rules_lock)
+#define	PF_RULES_ASSERT()	rw_assert(&pf_rules_lock, RA_LOCKED)
+#define	PF_RULES_RASSERT()	rw_assert(&pf_rules_lock, RA_RLOCKED)
 #define	PF_RULES_WASSERT()	rw_assert(&pf_rules_lock, RA_WLOCKED)
 
 #define	PF_MODVER	1
@@ -1114,22 +1114,13 @@ struct pfr_kentry {
 	struct radix_node	 pfrke_node[2];
 	union sockaddr_union	 pfrke_sa;
 	SLIST_ENTRY(pfr_kentry)	 pfrke_workq;
-	union {
-		
-		struct pfr_kcounters		*pfrke_counters;
-#if 0
-		struct pfr_kroute		*pfrke_route;
-#endif
-	} u;
+	struct pfr_kcounters	*pfrke_counters;
 	long			 pfrke_tzero;
 	u_int8_t		 pfrke_af;
 	u_int8_t		 pfrke_net;
 	u_int8_t		 pfrke_not;
 	u_int8_t		 pfrke_mark;
 };
-#define pfrke_counters	u.pfrke_counters
-#define pfrke_route	u.pfrke_route
-
 
 SLIST_HEAD(pfr_ktableworkq, pfr_ktable);
 RB_HEAD(pfr_ktablehead, pfr_ktable);
@@ -1158,8 +1149,6 @@ struct pfr_ktable {
 #define pfrkt_nomatch	pfrkt_ts.pfrts_nomatch
 #define pfrkt_tzero	pfrkt_ts.pfrts_tzero
 
-RB_HEAD(pfi_ifhead, pfi_kif);
-
 /* keep synced with pfi_kif, used in RB_FIND */
 struct pfi_kif_cmp {
 	char				 pfik_name[IFNAMSIZ];
@@ -1167,25 +1156,23 @@ struct pfi_kif_cmp {
 
 struct pfi_kif {
 	char				 pfik_name[IFNAMSIZ];
-	RB_ENTRY(pfi_kif)		 pfik_tree;
+	union {
+		RB_ENTRY(pfi_kif)	 _pfik_tree;
+		LIST_ENTRY(pfi_kif)	 _pfik_list;
+	} _pfik_glue;
+#define	pfik_tree	_pfik_glue._pfik_tree
+#define	pfik_list	_pfik_glue._pfik_list
 	u_int64_t			 pfik_packets[2][2][2];
 	u_int64_t			 pfik_bytes[2][2][2];
 	u_int32_t			 pfik_tzero;
-	int				 pfik_flags;
-	void				*pfik_ah_cookie;
+	u_int				 pfik_flags;
 	struct ifnet			*pfik_ifp;
 	struct ifg_group		*pfik_group;
-	int				 pfik_states;
-	int				 pfik_rules;
+	u_int				 pfik_rulerefs;
 	TAILQ_HEAD(, pfi_dynaddr)	 pfik_dynaddrs;
 };
 
-enum pfi_kif_refs {
-	PFI_KIF_REF_NONE,
-	PFI_KIF_REF_STATE,
-	PFI_KIF_REF_RULE
-};
-
+#define	PFI_IFLAG_REFS		0x0001	/* has state references */
 #define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
 
 struct pf_pdesc {
@@ -1772,8 +1759,6 @@ VNET_DECLARE(uma_zone_t,	 pfr_kentry_z);
 #define	V_pfr_kentry_z		 VNET(pfr_kentry_z)
 VNET_DECLARE(uma_zone_t,	 pf_state_scrub_z);
 #define	V_pf_state_scrub_z	 VNET(pf_state_scrub_z)
-VNET_DECLARE(uma_zone_t,	 pfi_addr_z);
-#define	V_pfi_addr_z		 VNET(pfi_addr_z)
 
 extern void			 pf_purge_thread(void *);
 extern void			 pf_intr(void *);
@@ -1922,15 +1907,18 @@ int	pfr_ina_commit(struct pfr_table *, u_int32_t, int *, int *, int);
 int	pfr_ina_define(struct pfr_table *, struct pfr_addr *, int, int *,
 	    int *, u_int32_t, int);
 
+MALLOC_DECLARE(PFI_MTYPE);
 VNET_DECLARE(struct pfi_kif *,		 pfi_all);
 #define	V_pfi_all	 		 VNET(pfi_all)
 
 void		 pfi_initialize(void);
 void		 pfi_cleanup(void);
-struct pfi_kif	*pfi_kif_get(const char *);
-void		 pfi_kif_ref(struct pfi_kif *, enum pfi_kif_refs);
-void		 pfi_kif_unref(struct pfi_kif *, enum pfi_kif_refs);
+void		 pfi_kif_ref(struct pfi_kif *);
+void		 pfi_kif_unref(struct pfi_kif *);
+struct pfi_kif	*pfi_kif_find(const char *);
+struct pfi_kif	*pfi_kif_attach(struct pfi_kif *, const char *);
 int		 pfi_kif_match(struct pfi_kif *, struct pfi_kif *);
+void		 pfi_kif_purge(void);
 int		 pfi_match_addr(struct pfi_dynaddr *, struct pf_addr *,
 		    sa_family_t);
 int		 pfi_dynaddr_setup(struct pf_addr_wrap *, sa_family_t);
