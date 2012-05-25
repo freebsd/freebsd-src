@@ -30,6 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -2085,7 +2086,7 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		MTX_DESTROY(&q->rspq.lock);
 	}
 
-#ifdef INET
+#if defined(INET6) || defined(INET)
 	tcp_lro_free(&q->lro.ctrl);
 #endif
 
@@ -2668,7 +2669,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 
 	/* Allocate and setup the lro_ctrl structure */
 	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
-#ifdef INET
+#if defined(INET6) || defined(INET)
 	ret = tcp_lro_init(&q->lro.ctrl);
 	if (ret) {
 		printf("error %d from tcp_lro_init\n", ret);
@@ -2961,9 +2962,11 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct rsp_desc *r = &rspq->desc[rspq->cidx];
 	int budget_left = budget;
 	unsigned int sleeping = 0;
+#if defined(INET6) || defined(INET)
 	int lro_enabled = qs->lro.enabled;
 	int skip_lro;
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
+#endif
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
 	struct t3_mbuf_hdr *mh = &rspq->rspq_mh;
@@ -3082,15 +3085,16 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			 * The mbuf's rcvif was derived from the cpl header and
 			 * is accurate.  Skip LRO and just use that.
 			 */
+#if defined(INET6) || defined(INET)
 			skip_lro = __predict_false(qs->port->ifp != m->m_pkthdr.rcvif);
 
 			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro
-#ifdef INET
 			    && (tcp_lro_rx(lro_ctrl, m, 0) == 0)
-#endif
 			    ) {
 				/* successfully queue'd for LRO */
-			} else {
+			} else
+#endif
+			{
 				/*
 				 * LRO not enabled, packet unsuitable for LRO,
 				 * or unable to queue.  Pass it up right now in
@@ -3109,7 +3113,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 
-#ifdef INET
+#if defined(INET6) || defined(INET)
 	/* Flush LRO */
 	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
 		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
