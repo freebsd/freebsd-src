@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 unsigned long long free_memory = 1000000;
 unsigned long long available_free_memory = 1000000;
 
+bool use_mmap;
+
 const char *tmpdir = "/var/tmp";
 const char *compress_program;
 
@@ -404,23 +406,21 @@ sort_list_dump(struct sort_list *l, const char *fn)
 			err(2, NULL);
 
 		if (l->list) {
-			struct sort_list_item *last_printed_item;
 			size_t i;
-
-			last_printed_item = NULL;
-
-			for (i = 0; i < l->count; i++) {
-				struct sort_list_item *item;
-
-				item = l->list[i];
-
-				if (!(sort_opts_vals.uflag) ||
-				    (last_printed_item == NULL) ||
-				    list_coll(&last_printed_item, &item)) {
-					bwsfwrite(item->str, f,
+			if (!(sort_opts_vals.uflag)) {
+				for (i = 0; i < l->count; ++i)
+					bwsfwrite(l->list[i]->str, f,
 					    sort_opts_vals.zflag);
-					if (sort_opts_vals.uflag)
+			} else {
+				struct sort_list_item *last_printed_item = NULL;
+				struct sort_list_item *item;
+				for (i = 0; i < l->count; ++i) {
+					item = l->list[i];
+					if ((last_printed_item == NULL) ||
+					    list_coll(&last_printed_item, &item)) {
+						bwsfwrite(item->str, f, sort_opts_vals.zflag);
 						last_printed_item = item;
+					}
 				}
 			}
 		}
@@ -657,7 +657,7 @@ file_reader_init(const char *fsrc)
 
 	ret->fname = sort_strdup(fsrc);
 
-	if (strcmp(fsrc, "-") && (compress_program == NULL)) {
+	if (strcmp(fsrc, "-") && (compress_program == NULL) && use_mmap) {
 
 		do {
 			struct stat stat_buf;
@@ -1539,7 +1539,9 @@ mt_sort(struct sort_list *list,
     const char* fn)
 {
 #if defined(SORT_THREADS)
-	if (nthreads < 2 || list->count < nthreads) {
+	if (nthreads < 2 || list->count < MT_SORT_THRESHOLD) {
+		size_t nthreads_save = nthreads;
+		nthreads = 1;
 #endif
 		/* if single thread or small data, do simple sort */
 		sort_func(list->list, list->count,
@@ -1547,6 +1549,7 @@ mt_sort(struct sort_list *list,
 		    (int(*)(const void *, const void *)) list_coll);
 		sort_list_dump(list, fn);
 #if defined(SORT_THREADS)
+		nthreads = nthreads_save;
 	} else {
 		/* multi-threaded sort */
 		struct sort_list **parts;
@@ -1590,7 +1593,18 @@ mt_sort(struct sort_list *list,
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_DETACHED);
 
-			pthread_create(&pth, &attr, mt_sort_thread, parts[i]);
+			for (;;) {
+				int res = pthread_create(&pth, &attr,
+				    mt_sort_thread, parts[i]);
+
+				if (res >= 0)
+					break;
+				if (errno == EAGAIN) {
+					pthread_yield();
+					continue;
+				}
+				err(2, NULL);
+			}
 
 			pthread_attr_destroy(&attr);
 		}

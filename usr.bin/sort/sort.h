@@ -55,6 +55,7 @@ extern nl_catd catalog;
 extern const char *nlsstr[];
 
 #if defined(SORT_THREADS)
+#define MT_SORT_THRESHOLD (10000)
 extern size_t ncpu;
 extern size_t nthreads;
 #endif
