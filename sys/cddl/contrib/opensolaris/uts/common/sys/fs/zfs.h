@@ -23,6 +23,8 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -794,6 +796,7 @@ typedef	unsigned long	zfs_ioc_t;
 #define	ZFS_IOC_POOL_REGUID		_IOWR('Z', 60, struct zfs_cmd)
 #define	ZFS_IOC_SPACE_WRITTEN		_IOWR('Z', 61, struct zfs_cmd)
 #define	ZFS_IOC_SPACE_SNAPS		_IOWR('Z', 62, struct zfs_cmd)
+#define	ZFS_IOC_SEND_PROGRESS		_IOWR('Z', 63, struct zfs_cmd)
 
 /*
  * Internal SPA load state.  Used by FMA diagnosis engine.
