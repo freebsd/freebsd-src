@@ -84,6 +84,9 @@ struct file0_reader
 extern unsigned long long free_memory;
 extern unsigned long long available_free_memory;
 
+/* Are we using mmap ? */
+extern bool use_mmap;
+
 /* temporary file dir */
 
 extern const char *tmpdir;

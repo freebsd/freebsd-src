@@ -89,6 +89,7 @@ const char *nlsstr[] = { "",
       "[+POS1 [-POS2]] [-S memsize] [-T tmpdir] [-t separator] "
       "[-o outfile] [--batch-size size] [--files0-from file] "
       "[--heapsort] [--mergesort] [--radixsort] [--qsort] "
+      "[--mmap] "
 #if defined(SORT_THREADS)
       "[--nthreads thread_no] "
 #endif
@@ -138,7 +139,8 @@ enum
 	QSORT_OPT,
 	MERGESORT_OPT,
 	HEAPSORT_OPT,
-	RADIXSORT_OPT
+	RADIXSORT_OPT,
+	MMAP_OPT
 };
 
 #define	NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS 6
@@ -164,6 +166,7 @@ struct option long_options[] = {
 				{ "key", required_argument, NULL, 'k' },
 				{ "merge", no_argument, NULL, 'm' },
 				{ "mergesort", no_argument, NULL, MERGESORT_OPT },
+				{ "mmap", no_argument, NULL, MMAP_OPT },
 				{ "month-sort", no_argument, NULL, 'M' },
 				{ "numeric-sort", no_argument, NULL, 'n' },
 				{ "output", required_argument, NULL, 'o' },
@@ -1063,12 +1066,16 @@ main(int argc, char **argv)
 				tmpdir = sort_strdup(optarg);
 				break;
 			case 't':
-				if (strlen(optarg) > 1) {
-					if (strcmp(optarg, "\\0")) {
+				while (strlen(optarg) > 1) {
+					if (optarg[0] != '\\') {
 						errx(2, "%s: %s\n",
 						    strerror(EINVAL), optarg);
 					}
-					*optarg = 0;
+					optarg += 1;
+					if (*optarg == '0') {
+						*optarg = 0;
+						break;
+					}
 				}
 				sort_opts_vals.tflag = true;
 				sort_opts_vals.field_sep = btowc(optarg[0]);
@@ -1125,6 +1132,9 @@ main(int argc, char **argv)
 				break;
 			case MERGESORT_OPT:
 				sort_opts_vals.sort_method = SORT_MERGESORT;
+				break;
+			case MMAP_OPT:
+				use_mmap = true;
 				break;
 			case HEAPSORT_OPT:
 				sort_opts_vals.sort_method = SORT_HEAPSORT;
@@ -1257,6 +1267,11 @@ main(int argc, char **argv)
 			}
 		}
 	}
+
+#if defined(SORT_THREADS)
+	if ((argc < 1) || (strcmp(outfile, "-") == 0) || (*outfile == 0))
+		nthreads = 1;
+#endif
 
 	if (!sort_opts_vals.cflag && !sort_opts_vals.mflag) {
 		struct file_list fl;
