@@ -44,4 +44,4 @@ void __trampoline_setup(uint32_t* trampOnStack, int trampSizeAllocated,
     /* clear instruction cache */
     __clear_cache(trampOnStack, &trampOnStack[10]);
 }
-#endif /* __ppc__ */
+#endif /* __ppc__ && !defined(__powerpc64__) */
