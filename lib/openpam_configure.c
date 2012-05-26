@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_configure.c 601 2012-04-14 20:37:45Z des $
+ * $Id: openpam_configure.c 612 2012-05-26 23:02:55Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -261,6 +261,8 @@ openpam_parse_chain(pam_handle_t *pamh,
 		this->optc = wordc - i;
 		for (i = 0; i < wordc - this->optc; ++i) {
 			FREE(wordv[i]);
+		}
+		for (i = 0; i < this->optc; ++i) {
 			wordv[i] = wordv[wordc - this->optc + i];
 			wordv[wordc - this->optc + i] = NULL;
 		}
