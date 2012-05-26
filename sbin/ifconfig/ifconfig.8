@@ -2234,6 +2234,21 @@ Set the aggregation protocol.
 The default is failover.
 The available options are failover, fec, lacp, loadbalance, roundrobin and
 none.
+.It Cm lagghash Ar option Ns Oo , Ns Ar option Oc
+Set the packet layers to hash for aggregation protocols which load balance.
+The default is
+.Dq l2,l3,l4 .
+The options can be combined using commas.
+.Pp
+.Bl -tag -width ".Cm l2" -compact
+.It Cm l2
+src/dst mac address and optional vlan number.
+.It Cm l3
+src/dst address for IPv4 or IPv6.
+.It Cm l4
+src/dst port for TCP/UCP/SCTP.
+.El
+.Pp
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,
