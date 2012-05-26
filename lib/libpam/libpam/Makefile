@@ -47,16 +47,22 @@ SRCS=	openpam_borrow_cred.c \
 	openpam_constants.c \
 	openpam_dispatch.c \
 	openpam_dynamic.c \
+	openpam_features.c \
 	openpam_findenv.c \
 	openpam_free_data.c \
 	openpam_free_envlist.c \
+	openpam_get_feature.c \
 	openpam_get_option.c \
 	openpam_load.c \
 	openpam_log.c \
 	openpam_nullconv.c \
 	openpam_readline.c \
+	openpam_readlinev.c \
+	openpam_readword.c \
 	openpam_restore_cred.c \
+	openpam_set_feature.c \
 	openpam_set_option.c \
+	openpam_straddch.c \
 	openpam_subst.c \
 	openpam_ttyconv.c \
 	pam_acct_mgmt.c \
@@ -91,12 +97,17 @@ MAN=	openpam.3 \
 	openpam_borrow_cred.3 \
 	openpam_free_data.3 \
 	openpam_free_envlist.3 \
+	openpam_get_feature.3 \
 	openpam_get_option.3 \
 	openpam_log.3 \
 	openpam_nullconv.3 \
 	openpam_readline.3 \
+	openpam_readlinev.3 \
+	openpam_readword.3 \
 	openpam_restore_cred.3 \
+	openpam_set_feature.3 \
 	openpam_set_option.3 \
+	openpam_straddch.3 \
 	openpam_subst.3 \
 	openpam_ttyconv.3 \
 	pam.3 \
@@ -137,11 +148,13 @@ MAN=	openpam.3 \
 MLINKS=	pam.conf.5 pam.d.5
 
 CSTD?= c99
-WARNS?=	3
 CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
 CFLAGS+= -DOPENPAM_MODULES_DIR='"${PAM_MOD_DIR:C/\/*$//}/"'
-CFLAGS+= -DHAVE_FPURGE=1 -DHAVE_STRLCPY=1
+CFLAGS+= -DHAVE_FDLOPEN=1
+CFLAGS+= -DHAVE_FPURGE=1
+CFLAGS+= -DHAVE_STRLCAT=1
+CFLAGS+= -DHAVE_STRLCPY=1
 
 HEADERS=	security/openpam.h \
 		security/openpam_attr.h \
