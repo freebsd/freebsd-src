@@ -359,6 +359,9 @@ tsec_init_locked(struct tsec_softc *sc)
 	struct ifnet *ifp = sc->tsec_ifp;
 	uint32_t timeout, val, i;
 
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		return;
+
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 	tsec_stop(sc);
 
