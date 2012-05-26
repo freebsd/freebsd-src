@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_PUTENV 3
 .Os
 .Sh NAME
@@ -49,8 +49,8 @@
 .Fn pam_putenv "pam_handle_t *pamh" "const char *namevalue"
 .Sh DESCRIPTION
 The
-.Nm
-function sets a environment variable.
+.Fn pam_putenv
+function sets an environment variable.
 Its semantics are similar to those of
 .Xr putenv 3 ,
 but it modifies the PAM
@@ -58,7 +58,7 @@ context's environment list instead of the application's.
 .Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_putenv
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_BUF_ERR
@@ -80,11 +80,11 @@ System error.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_putenv
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

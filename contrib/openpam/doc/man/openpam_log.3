@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt OPENPAM_LOG 3
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Fn openpam_log "int level" "const char *fmt" "..."
 .Sh DESCRIPTION
 The
-.Nm
+.Fn openpam_log
 function logs messages using
 .Xr syslog 3 .
 It is primarily intended for internal use by the library and modules.
@@ -60,6 +60,9 @@ The
 argument indicates the importance of the message.
 The following levels are defined:
 .Bl -tag -width 18n
+.It Dv PAM_LOG_LIBDEBUG
+Debugging messages.
+For internal use only.
 .It Dv PAM_LOG_DEBUG
 Debugging messages.
 These messages are normally not logged unless the global
@@ -101,15 +104,15 @@ corresponding arguments.
 .Xr syslog 3
 .Sh STANDARDS
 The
-.Nm
+.Fn openpam_log
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn openpam_log
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

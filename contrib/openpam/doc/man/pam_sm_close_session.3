@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_SM_CLOSE_SESSION 3
 .Os
 .Sh NAME
@@ -50,14 +50,14 @@
 .Fn pam_sm_close_session "pam_handle_t *pamh" "int flags" "int args" "const char **argv"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_sm_close_session
 function is the service module's
 implementation of the
 .Xr pam_close_session 3
 API function.
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_sm_close_session
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_ABORT
@@ -88,11 +88,11 @@ System error.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_sm_close_session
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
