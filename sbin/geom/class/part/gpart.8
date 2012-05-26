@@ -996,17 +996,21 @@ partition that can boot
 from a
 .Cm freebsd-ufs
 partition, and install bootstrap code into it.
-This partition must be larger than
-.Pa /boot/gptboot ,
-or the GPT boot you are planning to write, but smaller than 545 KB.
-A size of 15 blocks (7680 bytes) would be sufficient for
-booting from UFS but 128 blocks (64 KB) is used in
-this example to reserve some space for potential
-future need (e.g.\& a larger
+This partition must be larger than the bootstrap code
+.Po
+usually either
+.Pa /boot/gptboot
+or
 .Pa /boot/gptzfsboot
-for booting from a ZFS partition).
+.Pc ,
+but smaller than 545 kB since the first-stage loader will load the
+entire partition into memory during boot, regardless of how much data
+it actually contains.
+This example uses 94 blocks (47 kB) so the next partition will be
+aligned on a 64 kB boundary without the need to specify an explicit
+offset or alignment.
 .Bd -literal -offset indent
-/sbin/gpart add -b 34 -s 128 -t freebsd-boot ad0
+/sbin/gpart add -b 34 -s 94 -t freebsd-boot ad0
 /sbin/gpart bootcode -p /boot/gptboot -i 1 ad0
 .Ed
 .Pp
@@ -1014,7 +1018,7 @@ Create a 512MB-sized
 .Cm freebsd-ufs
 partition to contain a UFS filesystem from which the system can boot.
 .Bd -literal -offset indent
-/sbin/gpart add -b 162 -s 1048576 -t freebsd-ufs ad0
+/sbin/gpart add -s 512M -t freebsd-ufs ad0
 .Ed
 .Pp
 Create an MBR scheme on
