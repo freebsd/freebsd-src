@@ -73,7 +73,7 @@ static int bare_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int bare_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int bare_smp_start_cpu(platform_t, struct pcpu *cpu);
 
-static void e500_reset(platform_t);
+static void booke_reset(platform_t);
 
 static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		bare_probe),
@@ -85,7 +85,7 @@ static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_smp_get_bsp,	bare_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	bare_smp_start_cpu),
 
-	PLATFORMMETHOD(platform_reset,		e500_reset),
+	PLATFORMMETHOD(platform_reset,		booke_reset),
 
 	{ 0, 0 }
 };
@@ -307,7 +307,7 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 }
 
 static void
-e500_reset(platform_t plat)
+booke_reset(platform_t plat)
 {
 
 	/*
@@ -328,6 +328,7 @@ e500_reset(platform_t plat)
 	mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
 
 	printf("Reset failed...\n");
-	while (1);
+	while (1)
+		;
 }
 
