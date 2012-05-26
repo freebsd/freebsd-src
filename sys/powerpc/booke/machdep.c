@@ -185,8 +185,8 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 
 int hw_direct_map = 0;
 
-static void cpu_e500_startup(void *);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
+static void cpu_booke_startup(void *);
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_booke_startup, NULL);
 
 void print_kernel_section_addr(void);
 void print_kenv(void);
@@ -195,7 +195,7 @@ u_int booke_init(uint32_t, uint32_t);
 extern int elf32_nxstack;
 
 static void
-cpu_e500_startup(void *dummy)
+cpu_booke_startup(void *dummy)
 {
 	int indx, size;
 
@@ -538,7 +538,8 @@ cpu_halt(void)
 {
 
 	mtmsr(mfmsr() & ~(PSL_CE | PSL_EE | PSL_ME | PSL_DE));
-	while (1);
+	while (1)
+		;
 }
 
 int
