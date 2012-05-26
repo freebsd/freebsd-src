@@ -93,7 +93,7 @@ static const int at91_irq_prio[32] =
 	0,	/* Advanced Interrupt Controller IRQ2 */
 };
 
-#define DEVICE(_name, _id, _unit)		\
+#define	DEVICE(_name, _id, _unit)		\
 	{					\
 		_name, _unit,			\
 		AT91SAM9260_ ## _id ##_BASE,	\
@@ -157,7 +157,7 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91SAM9260_BASE) 
+	if (addr != 0 && addr < AT91SAM9260_BASE)
 		addr += AT91SAM9260_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
@@ -182,13 +182,14 @@ at91_pll_outa(int freq)
 
 	if (freq > 195000000)
 		return (0x20000000);
-	else 
+	else
 		return (0x20008000);
 }
 
 static uint32_t
 at91_pll_outb(int freq)
 {
+
 	return (0x4000);
 }
 
@@ -226,7 +227,7 @@ at91_attach(device_t dev)
 	sc->sc_sh = at91sc->sc_sh;
 	sc->dev = dev;
 
-	/* 
+	/*
 	 * XXX These values work for the RM9200, SAM926[01], and SAM9260
 	 * will have to fix this when we want to support anything else. XXX
 	 */
@@ -247,7 +248,7 @@ at91_attach(device_t dev)
 	at91sc->sc_irq_system = AT91SAM9260_IRQ_SYSTEM;
 
 	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR + 
+		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
 		    i * 4, i);
 		/* Priority. */
 		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
@@ -276,9 +277,8 @@ at91_attach(device_t dev)
 	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
 	    AT91SAM9260_EBICSA);
 	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9260_EBICSA, 
+	    AT91SAM9260_EBICSA,
 	    i | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
-
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");
@@ -304,11 +304,12 @@ at91_attach(device_t dev)
 	at91_pmc_clock_deref(clk);
 
 	/*
-	 * Fudge MAX pll in frequence down below 3.0 Mhz to ensure 
-	 * PMC alogrithm choose the divisor that causes the input clock 
-	 * to be near the optimal 2 Mhz per datasheet. We know
-	 * we are going to be using this for the USB clock at 96 Mhz.
-	 * Causes no extra frequency deviation for all recomended crystal values.
+	 * Fudge MAX pll in frequence down below 3.0 MHz to ensure
+	 * PMC alogrithm choose the divisor that causes the input clock
+	 * to be near the optimal 2 MHz per datasheet.  We know
+	 * we are going to be using this for the USB clock at 96 MHz.
+	 * Causes no extra frequency deviation for all recomended crystal
+	 * values.
 	 */
 	clk = at91_pmc_clock_ref("pllb");
 	clk->pll_min_in    = SAM9260_PLL_B_MIN_IN_FREQ;		/*   1 MHz */
@@ -329,7 +330,7 @@ static device_method_t at91sam9260_methods[] = {
 	DEVMETHOD(device_probe, at91_probe),
 	DEVMETHOD(device_attach, at91_attach),
 	DEVMETHOD(device_identify, at91_identify),
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t at91sam9260_driver = {
@@ -340,4 +341,5 @@ static driver_t at91sam9260_driver = {
 
 static devclass_t at91sam9260_devclass;
 
-DRIVER_MODULE(at91sam9260, atmelarm, at91sam9260_driver, at91sam9260_devclass, 0, 0);
+DRIVER_MODULE(at91sam9260, atmelarm, at91sam9260_driver, at91sam9260_devclass,
+    NULL, NULL);
