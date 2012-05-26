@@ -364,6 +364,7 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 					goto out;
 				WR4(sc, TWI_THR, *buf++);
 			}
+			WR4(sc, TWI_CR, TWI_CR_STOP);
 		}
 		if ((err = at91_twi_wait(sc, TWI_SR_TXCOMP)))
 			break;
