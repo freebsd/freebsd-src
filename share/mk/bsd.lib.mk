@@ -67,23 +67,32 @@ PICFLAG=-fpic
 
 PO_FLAG=-pg
 
+.c.o:
+	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+
 .c.po:
-	${CC} ${PO_FLAG} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .c.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
+.cc.o:
+	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+
 .cc.po .C.po .cpp.po .cxx.po:
-	${CXX} ${PO_FLAG} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.So .C.So .cpp.So .cxx.So:
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
