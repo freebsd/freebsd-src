@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_setenv.c 437 2011-09-13 12:00:13Z des $
+ * $Id: pam_setenv.c 539 2012-03-31 20:53:22Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -92,7 +92,7 @@ pam_setenv(pam_handle_t *pamh,
  */
 
 /**
- * The =pam_setenv function sets a environment variable.
+ * The =pam_setenv function sets an environment variable.
  * Its semantics are similar to those of =setenv, but it modifies the PAM
  * context's environment list instead of the application's.
  *
