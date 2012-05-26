@@ -764,28 +764,18 @@ fallback:
 	return (EINVAL);
 }
 
+/*
+ * For direct output to child ports.
+ */
 static int
 lagg_port_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
 {
 	struct lagg_port *lp = ifp->if_lagg;
-	struct ether_header *eh;
-	short type = 0;
 
 	switch (dst->sa_family) {
 		case pseudo_AF_HDRCMPLT:
 		case AF_UNSPEC:
-			eh = (struct ether_header *)dst->sa_data;
-			type = eh->ether_type;
-			break;
-	}
-
-	/*
-	 * Only allow ethernet types required to initiate or maintain the link,
-	 * aggregated frames take a different path.
-	 */
-	switch (ntohs(type)) {
-		case ETHERTYPE_PAE:	/* EAPOL PAE/802.1x */
 			return ((*lp->lp_output)(ifp, m, dst, ro));
 	}
 
