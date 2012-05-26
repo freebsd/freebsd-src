@@ -189,13 +189,13 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 {
 	u_short csum;
 
-	csum = in_cksum_skip(m, ntohl(plen), offset);
+	csum = in_cksum_skip(m, offset + plen, offset);
 	if (m->m_pkthdr.csum_flags & CSUM_UDP && csum == 0)
 		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
 	if (offset + sizeof(u_short) > m->m_len) {
-		printf("%s: delayed m_pullup, m->len: %d  off: %d\n",
+		printf("%s: delayed m_pullup, m->len: %d off: %d\n",
 		    __func__, m->m_len, offset);
 		/*
 		 * XXX this should not happen, but if it does, the correct
@@ -962,7 +962,7 @@ passout:
 	 */
 	if (sw_csum & CSUM_DELAY_DATA) {
 		sw_csum &= ~CSUM_DELAY_DATA;
-		in6_delayed_cksum(m, ip6->ip6_plen, sizeof(struct ip6_hdr));
+		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
 	}
 #ifdef SCTP
 	if (sw_csum & CSUM_SCTP) {
@@ -1077,7 +1077,7 @@ passout:
 		 * XXX-BZ handle the hw offloading case.  Need flags.
 		 */
 		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			in6_delayed_cksum(m, ip6->ip6_plen, sizeof(*ip6));
+			in6_delayed_cksum(m, plen, hlen);
 			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
 #ifdef SCTP
