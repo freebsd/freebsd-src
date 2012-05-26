@@ -1779,7 +1779,9 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 					DEBUG(fprintf(stderr, "failed to parse new URL\n"));
 					goto ouch;
 				}
-				if (!*new->user && !*new->pwd) {
+
+				/* Only copy credentials if the host matches */
+				if (!strcmp(new->host, url->host) && !*new->user && !*new->pwd) {
 					strcpy(new->user, url->user);
 					strcpy(new->pwd, url->pwd);
 				}
