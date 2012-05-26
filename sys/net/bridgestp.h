@@ -326,6 +326,7 @@ struct bstp_port {
 	uint8_t			bp_txcount;
 	struct task		bp_statetask;
 	struct task		bp_rtagetask;
+	struct task		bp_mediatask;
 };
 
 /*
