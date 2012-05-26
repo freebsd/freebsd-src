@@ -1028,7 +1028,7 @@ _sed=		usr.bin/sed
 _lex=		usr.bin/lex
 .endif
 
-.if ${BOOTSTRAPPING} < 900006 || ${BOOTSTRAPPING} > 1000012
+.if ${BOOTSTRAPPING} < 900006 || ${BOOTSTRAPPING} >= 1000013
 _yacc=		usr.bin/yacc
 .endif
 
