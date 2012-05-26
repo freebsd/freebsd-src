@@ -66,10 +66,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <geom/geom_disk.h>
 
-#include <dev/mmc/mmcvar.h>
+#include <dev/mmc/mmcbrvar.h>
 #include <dev/mmc/mmcreg.h>
+#include <dev/mmc/mmcvar.h>
 
 #include "mmcbus_if.h"
+
+#if __FreeBSD_version < 800002
+#define	kproc_create	kthread_create
+#define	kproc_exit	kthread_exit
+#endif
 
 struct mmcsd_softc {
 	device_t dev;
@@ -95,7 +101,6 @@ static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
 	off_t offset, size_t length);
 static void mmcsd_task(void *arg);
 
-static const char *mmcsd_card_name(device_t dev);
 static int mmcsd_bus_bit_width(device_t dev);
 
 #define MMCSD_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
@@ -122,6 +127,8 @@ mmcsd_attach(device_t dev)
 	struct mmcsd_softc *sc;
 	struct disk *d;
 	intmax_t mb;
+	uint32_t speed;
+	uint32_t maxblocks;
 	char unit;
 
 	sc = device_get_softc(dev);
@@ -157,11 +164,22 @@ mmcsd_attach(device_t dev)
 		unit = 'G';
 		mb /= 1024;
 	}
-	device_printf(dev, "%ju%cB <%s Memory Card>%s at %s %dMHz/%dbit\n",
-	    mb, unit, mmcsd_card_name(dev),
+	/*
+	 * Report the clock speed of the underlying hardware, which might be
+	 * different than what the card reports due to hardware limitations.
+	 * Report how many blocks the hardware transfers at once, but clip the
+	 * number to MAXPHYS since the system won't initiate larger transfers.
+	 */
+	speed = mmcbr_get_clock(device_get_parent(dev));
+	maxblocks = mmc_get_max_data(dev);
+	if (maxblocks > MAXPHYS)
+		maxblocks = MAXPHYS;
+	device_printf(dev, "%ju%cB <%s>%s at %s %d.%01dMHz/%dbit/%d-block\n",
+	    mb, unit, mmc_get_card_id_string(dev),
 	    mmc_get_read_only(dev) ? " (read-only)" : "",
 	    device_get_nameunit(device_get_parent(dev)),
-	    mmc_get_tran_speed(dev) / 1000000, mmcsd_bus_bit_width(dev));
+	    speed / 1000000, (speed / 100000) % 10,
+	    mmcsd_bus_bit_width(dev), maxblocks);
 	disk_create(d, DISK_VERSION);
 	bioq_init(&sc->bio_queue);
 
@@ -500,16 +518,6 @@ out:
 	kproc_exit(0);
 }
 
-static const char *
-mmcsd_card_name(device_t dev)
-{
-	if (mmc_get_card_type(dev) == mode_mmc)
-		return ("MMC");
-	if (mmc_get_high_cap(dev))
-		return ("SDHC");
-	return ("SD");
-}
-
 static int
 mmcsd_bus_bit_width(device_t dev)
 {
@@ -526,7 +534,7 @@ static device_method_t mmcsd_methods[] = {
 	DEVMETHOD(device_detach, mmcsd_detach),
 	DEVMETHOD(device_suspend, mmcsd_suspend),
 	DEVMETHOD(device_resume, mmcsd_resume),
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t mmcsd_driver = {
@@ -536,4 +544,4 @@ static driver_t mmcsd_driver = {
 };
 static devclass_t mmcsd_devclass;
 
-DRIVER_MODULE(mmcsd, mmc, mmcsd_driver, mmcsd_devclass, 0, 0);
+DRIVER_MODULE(mmcsd, mmc, mmcsd_driver, mmcsd_devclass, NULL, NULL);
