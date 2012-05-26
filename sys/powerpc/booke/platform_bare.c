@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2009 Semihalf, Rafal Jaworowski
+ * Copyright (c) 2008-2012 Semihalf.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,26 +101,16 @@ PLATFORM_DEF(bare_platform);
 static int
 bare_probe(platform_t plat)
 {
-	uint32_t ver, sr;
+	phandle_t cpus, child;
+	uint32_t sr;
 	int i, law_max, tgt;
 
-	ver = SVR_VER(mfspr(SPR_SVR));
-	switch (ver & ~0x0008) {	/* Mask Security Enabled bit */
-	case SVR_P4080:
-		maxcpu = 8;
-		break;
-	case SVR_P4040:
-		maxcpu = 4;
-		break;
-	case SVR_MPC8572:
-	case SVR_P1020:
-	case SVR_P2020:
-		maxcpu = 2;
-		break;
-	default:
+	if ((cpus = OF_finddevice("/cpus")) != 0) {
+		for (maxcpu = 0, child = OF_child(cpus); child != 0;
+		    child = OF_peer(child), maxcpu++)
+			;
+	} else
 		maxcpu = 1;
-		break;
-	}
 
 	/*
 	 * Clear local access windows. Skip DRAM entries, so we don't shoot
