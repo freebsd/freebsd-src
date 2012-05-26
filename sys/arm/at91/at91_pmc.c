@@ -162,12 +162,14 @@ static const unsigned int at91_mainf_tbl[] = {
 static inline uint32_t
 RD4(struct at91_pmc_softc *sc, bus_size_t off)
 {
+
 	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
 WR4(struct at91_pmc_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_write_4(sc->mem_res, off, val);
 }
 
@@ -225,7 +227,8 @@ at91_pmc_set_periph_mode(struct at91_pmc_clock *clk, int on)
 }
 
 struct at91_pmc_clock *
-at91_pmc_clock_add(const char *name, uint32_t irq, struct at91_pmc_clock *parent)
+at91_pmc_clock_add(const char *name, uint32_t irq,
+    struct at91_pmc_clock *parent)
 {
 	struct at91_pmc_clock *clk;
 	int i, buflen;
@@ -299,11 +302,13 @@ at91_pmc_clock_ref(const char *name)
 void
 at91_pmc_clock_deref(struct at91_pmc_clock *clk)
 {
+
 }
 
 void
 at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 {
+
 	/* XXX LOCKING? XXX */
 	if (clk->parent)
 		at91_pmc_clock_enable(clk->parent);
@@ -314,6 +319,7 @@ at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 void
 at91_pmc_clock_disable(struct at91_pmc_clock *clk)
 {
+
 	/* XXX LOCKING? XXX */
 	if (--clk->refcnt == 0 && clk->set_mode)
 		clk->set_mode(clk, 0);
@@ -341,7 +347,6 @@ at91_pmc_pll_rate(struct at91_pmc_clock *clk, uint32_t reg)
 	} else
 		freq = 0;
 	clk->hz = freq;
-
 
 	return (freq);
 }
@@ -402,7 +407,7 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 	uint32_t mckr;
 	uint32_t mdiv;
 
-	if (at91_is_sam9()) {
+	if (at91_is_sam9() || at91_is_sam9xe()) {
 		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
 		udpck.pmc_mask = PMC_SCER_UDP_SAM9;
 	}
@@ -446,7 +451,7 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 	    (1 << ((mckr & PMC_MCKR_PRES_MASK) >> 2));
 
 	mdiv = (mckr & PMC_MCKR_MDIV_MASK) >> 8;
-	if (at91_is_sam9()) {
+	if (at91_is_sam9() || at91_is_sam9xe()) {
 		if (mdiv > 0)
 			mck.hz /= mdiv * 2;
 	} else
@@ -486,7 +491,6 @@ at91_pmc_deactivate(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	sc->mem_res = 0;
-	return;
 }
 
 static int

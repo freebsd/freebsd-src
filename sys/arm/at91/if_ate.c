@@ -266,7 +266,7 @@ ate_attach(device_t dev)
 	}
 
 	/* New or old version, chooses buffer size. */
-	sc->is_emacb    = at91_is_sam9();
+	sc->is_emacb = at91_is_sam9() || at91_is_sam9xe();
 	sc->rx_buf_size = RX_BUF_SIZE(sc);
 
 	err = ate_activate(dev);

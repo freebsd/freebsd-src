@@ -132,7 +132,7 @@ static int
 wdt_probe(device_t dev)
 {
 
-	if (at91_is_sam9()) {
+	if (at91_is_sam9() || at91_is_sam9xe()) {
 		device_set_desc(dev, "WDT");
 		return (0);
 	}

@@ -64,7 +64,7 @@
 #define	TWI_CWGR_CHDIV(x) ((x) << 8)	/* Clock High Divider */
 #define	TWI_CWGR_CLDIV(x) ((x) << 0)	/* Clock Low Divider */
 #define	TWI_CWGR_DIV(rate) 		 		\
-	(at91_is_sam9() ?				\
+	(at91_is_sam9() || at91_is_sam9xe() ?		\
 	    ((at91_master_clock / (4 * (rate))) - 3) :	\
 	    ((at91_master_clock / (4 * (rate))) - 2))
 
