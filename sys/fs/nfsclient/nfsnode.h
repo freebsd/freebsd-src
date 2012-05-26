@@ -126,6 +126,7 @@ struct nfsnode {
 	int                     n_directio_asyncwr;
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
+	struct ucred		*n_writecred;	/* Cred. for putpages */
 };
 
 #define	n_atim		n_un1.nf_atim
