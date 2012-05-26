@@ -184,6 +184,8 @@
 #define	  MPC8245		  0x8081
 #define	  FSL_E500v1		  0x8020
 #define	  FSL_E500v2		  0x8021
+#define	  FSL_E500mc		  0x8023
+#define	  FSL_E5500		  0x8024
 
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
@@ -421,6 +423,7 @@
 #define	SPR_SRR3		0x3df	/* 4.. Save/Restore Register 3 */
 #define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
+#define	SPR_HID2		0x3f3	/* ..8 Hardware Implementation Register 2 */
 #define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
 #define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
 #define	SPR_HID6		0x3f9	/* ..8 Hardware Implementation Register 6 */
@@ -627,6 +630,8 @@
 
 #elif defined(E500)
 
+#define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
+
 #define	SPR_ESR			0x003e	/* ..8 Exception Syndrome Register */
 #define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
 #define	  ESR_PPR		  0x04000000 /* Program interrupt - privileged */
@@ -637,10 +642,15 @@
 #define	  ESR_BO		  0x00020000 /* Data/instruction storage, byte ordering */
 #define	  ESR_SPE		  0x00000080 /* SPE exception bit */
 
+
 #define	SPR_CSRR0		0x03a	/* ..8 58 Critical SRR0 */
 #define	SPR_CSRR1		0x03b	/* ..8 59 Critical SRR1 */
 #define	SPR_MCSRR0		0x23a	/* ..8 570 Machine check SRR0 */
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
+
+#define	SPR_MMUCSR0		0x3f4	/* ..8 1012 MMU Control and Status Register 0 */
+#define	  MMUCSR0_L2TLB0_FI	0x04	/*  TLB0 flash invalidate */
+#define	  MMUCSR0_L2TLB1_FI	0x02	/*  TLB1 flash invalidate */
 
 #define	SPR_SVR			0x3ff	/* ..8 1023 System Version Register */
 #define	  SVR_MPC8533		  0x8034
@@ -661,10 +671,16 @@
 #define	  SVR_P2010E		  0x80eb
 #define	  SVR_P2020		  0x80e2
 #define	  SVR_P2020E		  0x80ea
+#define	  SVR_P2041		  0x8210
+#define	  SVR_P2041E		  0x8218
+#define	  SVR_P3041		  0x8211
+#define	  SVR_P3041E		  0x8219
 #define	  SVR_P4040		  0x8200
 #define	  SVR_P4040E		  0x8208
 #define	  SVR_P4080		  0x8201
 #define	  SVR_P4080E		  0x8209
+#define	  SVR_P5020		  0x8220
+#define	  SVR_P5020E		  0x8228
 #define	SVR_VER(svr)		(((svr) >> 16) & 0xffff)
 
 #define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */
@@ -707,6 +723,18 @@
 #define	SPR_MAS5		0x275	/* ..8 MMU Assist Register 5 Book-E */
 #define	SPR_MAS6		0x276	/* ..8 MMU Assist Register 6 Book-E/e500 */
 #define	SPR_MAS7		0x3B0	/* ..8 MMU Assist Register 7 Book-E/e500 */
+#define	SPR_MAS8		0x155	/* ..8 MMU Assist Register 8 Book-E/e500 */
+
+#define	SPR_L1CFG0		0x203	/* ..8 L1 cache configuration register 0 */
+#define	SPR_L1CFG1		0x204	/* ..8 L1 cache configuration register 1 */
+
+#define	SPR_CCR1		0x378
+#define	  CCR1_L2COBE		0x00000040
+
+#define	DCR_L2DCDCRAI		0x0000	/* L2 D-Cache DCR Address Pointer */
+#define	DCR_L2DCDCRDI		0x0001	/* L2 D-Cache DCR Data Indirect */
+#define	DCR_L2CR0		0x00	/* L2 Cache Configuration Register 0 */
+#define	  L2CR0_AS		0x30000000
 
 #define	SPR_L1CSR0		0x3F2	/* ..8 L1 Cache Control and Status Register 0 */
 #define	  L1CSR0_DCPE		0x00010000	/* Data Cache Parity Enable */
@@ -715,12 +743,20 @@
 #define	  L1CSR0_DCE		0x00000001	/* Data Cache Enable */
 #define	SPR_L1CSR1		0x3F3	/* ..8 L1 Cache Control and Status Register 1 */
 #define	  L1CSR1_ICPE		0x00010000	/* Instruction Cache Parity Enable */
+#define	  L1CSR1_ICUL		0x00000400      /* Instr Cache Unable to Lock */
 #define	  L1CSR1_ICLFR		0x00000100	/* Instruction Cache Lock Bits Flash Reset */
 #define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
 
+#define	SPR_L2CSR0		0x3F9	/* ..8 L2 Cache Control and Status Register 0 */
+#define	  L2CSR0_L2E		0x80000000	/* L2 Cache Enable */
+#define	  L2CSR0_L2PE		0x40000000	/* L2 Cache Parity Enable */
+#define	  L2CSR0_L2FI		0x00200000	/* L2 Cache Flash Invalidate */
+#define	  L2CSR0_L2LFC		0x00000400	/* L2 Cache Lock Flags Clear */
+
 #define	SPR_BUCSR		0x3F5	/* ..8 Branch Unit Control and Status Register */
 #define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
+#define	  BUCSR_BBFI		0x00000200	/* Branch Buffer Flash Invalidate */
 
 #endif /* #elif defined(E500) */
 
