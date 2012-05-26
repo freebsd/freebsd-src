@@ -113,6 +113,7 @@ static void at91_mci_intr(void *);
 /* helper routines */
 static int at91_mci_activate(device_t dev);
 static void at91_mci_deactivate(device_t dev);
+static int at91_mci_is_mci1rev2xx(void);
 
 #define AT91_MCI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	AT91_MCI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -141,11 +142,16 @@ static void
 at91_mci_init(device_t dev)
 {
 	struct at91_mci_softc *sc = device_get_softc(dev);
+	uint32_t val;
 
 	WR4(sc, MCI_CR, MCI_CR_MCIEN);		/* Enable controller */
 	WR4(sc, MCI_IDR, 0xffffffff);		/* Turn off interrupts */
 	WR4(sc, MCI_DTOR, MCI_DTOR_DTOMUL_1M | 1);
-	WR4(sc, MCI_MR, 0x834a);	// XXX GROSS HACK FROM LINUX
+	val = MCI_MR_PDCMODE;
+	val |= 0x34a;				/* PWSDIV = 3; CLKDIV = 74 */
+	if (at91_mci_is_mci1rev2xx())
+		val |= MCI_MR_RDPROOF | MCI_MR_WRPROOF;
+	WR4(sc, MCI_MR, val);
 #ifndef  AT91_MCI_SLOT_B
 	WR4(sc, MCI_SDCR, 0);			/* SLOT A, 1 bit bus */
 #else
@@ -303,6 +309,29 @@ at91_mci_deactivate(device_t dev)
 	return;
 }
 
+static int
+at91_mci_is_mci1rev2xx(void)
+{
+
+	switch (AT91_CPU(at91_chip_id)) {
+	case AT91_CPU_SAM9260:
+	case AT91_CPU_SAM9263:
+#ifdef notyet
+	case AT91_CPU_CAP9:
+#endif
+	case AT91_CPU_SAM9G10:
+	case AT91_CPU_SAM9G20:
+#ifdef notyet
+	case AT91_CPU_SAM9RL:
+#endif
+	case AT91_CPU_SAM9XE128:
+	case AT91_CPU_SAM9XE256:
+	case AT91_CPU_SAM9XE512:
+		return(1);
+	}
+	return (0);
+}
+
 static void
 at91_mci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
@@ -346,6 +375,7 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 static void
 at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 {
+	size_t len;
 	uint32_t cmdr, ier = 0, mr;
 	uint32_t *src, *dst;
 	int i;
@@ -397,6 +427,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	WR4(sc, MCI_MR, mr | (data->len << 16) | MCI_MR_PDCMODE);
 	WR4(sc, PDC_PTCR, PDC_PTCR_RXTDIS | PDC_PTCR_TXTDIS);
 	if (cmdr & MCI_CMDR_TRCMD_START) {
+		len = data->len;
 		if (cmdr & MCI_CMDR_TRDIR)
 			vaddr = cmd->data->data;
 		else {
@@ -411,6 +442,15 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 			vaddr = sc->bounce_buffer;
 			src = (uint32_t *)cmd->data->data;
 			dst = (uint32_t *)vaddr;
+			/*
+			 * If this is MCI1 revision 2xx controller, apply
+			 * a work-around for the "Data Write Operation and
+			 * number of bytes" erratum.
+			 */
+			if (at91_mci_is_mci1rev2xx() && data->len < 12) {
+				len = 12;
+				memset(dst, 0, 12);
+			}
 			if (sc->sc_cap & CAP_NEEDS_BYTESWAP) {
 				for (i = 0; i < data->len / 4; i++)
 					dst[i] = bswap32(src[i]);
@@ -418,7 +458,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				memcpy(dst, src, data->len);
 		}
 		data->xfer_len = 0;
-		if (bus_dmamap_load(sc->dmatag, sc->map, vaddr, data->len,
+		if (bus_dmamap_load(sc->dmatag, sc->map, vaddr, len,
 		    at91_mci_getaddr, &paddr, 0) != 0) {
 			cmd->error = MMC_ERR_NO_MEMORY;
 			sc->req = NULL;
@@ -430,12 +470,12 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 		if (cmdr & MCI_CMDR_TRDIR) {
 			bus_dmamap_sync(sc->dmatag, sc->map, BUS_DMASYNC_PREREAD);
 			WR4(sc, PDC_RPR, paddr);
-			WR4(sc, PDC_RCR, data->len / 4);
+			WR4(sc, PDC_RCR, len / 4);
 			ier = MCI_SR_ENDRX;
 		} else {
 			bus_dmamap_sync(sc->dmatag, sc->map, BUS_DMASYNC_PREWRITE);
 			WR4(sc, PDC_TPR, paddr);
-			WR4(sc, PDC_TCR, data->len / 4);
+			WR4(sc, PDC_TCR, len / 4);
 			ier = MCI_SR_TXBUFE;
 		}
 	}
@@ -769,7 +809,7 @@ static device_method_t at91_mci_methods[] = {
 	DEVMETHOD(mmcbr_acquire_host, at91_mci_acquire_host),
 	DEVMETHOD(mmcbr_release_host, at91_mci_release_host),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t at91_mci_driver = {
@@ -777,7 +817,8 @@ static driver_t at91_mci_driver = {
 	at91_mci_methods,
 	sizeof(struct at91_mci_softc),
 };
+
 static devclass_t at91_mci_devclass;
 
-
-DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, 0, 0);
+DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, NULL,
+    NULL);
