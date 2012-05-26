@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_sym.h"
 #include <dev/sym/sym_conf.h>
 
-
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/endian.h>
@@ -128,7 +127,6 @@ typedef	u_int32_t u32;
  *  requires memory barriers (and also IO barriers when they
  *  make sense) to be used.
  */
-
 #if	defined	__i386__ || defined __amd64__
 #define MEMORY_BARRIER()	do { ; } while(0)
 #elif	defined	__powerpc__
@@ -144,7 +142,6 @@ typedef	u_int32_t u32;
 /*
  *  A la VMS/CAM-3 queue management.
  */
-
 typedef struct sym_quehead {
 	struct sym_quehead *flink;	/* Forward  pointer */
 	struct sym_quehead *blink;	/* Backward pointer */
@@ -205,7 +202,6 @@ static __inline void sym_que_splice(struct sym_quehead *list,
 
 #define sym_que_entry(ptr, type, member) \
 	((type *)((char *)(ptr)-(size_t)(&((type *)0)->member)))
-
 
 #define sym_insque(new, pos)		__sym_que_add(new, pos, (pos)->flink)
 
@@ -373,7 +369,6 @@ static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
  *  pages of memory that will be useful if we ever need to deal
  *  with IO MMUs for PCI.
  */
-
 #define MEMO_SHIFT	4	/* 16 bytes minimum memory chunk */
 #define MEMO_PAGE_ORDER	0	/* 1 PAGE  maximum */
 #if 0
@@ -566,7 +561,6 @@ static m_pool_s mp0 = {0, 0, ___mp0_getp, ___mp0_freep};
 #else
 static m_pool_s mp0 = {0, 0, ___mp0_getp};
 #endif
-
 
 /*
  * Actual memory allocation routine for non-DMAed memory.
@@ -768,7 +762,6 @@ static m_addr_t __vtobus(bus_dma_tag_t dev_dmat, void *m)
 	return vp ? vp->baddr + (((m_addr_t) m) - a) : 0;
 }
 
-
 /*
  * Verbs for DMAable memory handling.
  * The _uvptv_ macro avoids a nasty warning about pointer to volatile
@@ -782,7 +775,6 @@ static m_addr_t __vtobus(bus_dma_tag_t dev_dmat, void *m)
 #define sym_mfree_dma(p, s, n)		_sym_mfree_dma(np, p, s, n)
 #define _vtobus(np, p)			__vtobus(np->bus_dmat, _uvptv_(p))
 #define vtobus(p)			_vtobus(np, p)
-
 
 /*
  *  Print a buffer in hexadecimal format.
@@ -858,14 +850,12 @@ struct sym_nvram {
  *  Symbios chips (never seen, by the way).
  *  For now, this stuff does not deserve any comments. :)
  */
-
 #define sym_offb(o)	(o)
 #define sym_offw(o)	(o)
 
 /*
  *  Some provision for support for BIG ENDIAN CPU.
  */
-
 #define cpu_to_scr(dw)	htole32(dw)
 #define scr_to_cpu(dw)	le32toh(dw)
 
@@ -874,8 +864,6 @@ struct sym_nvram {
  *  We use the `bus space' interface under FreeBSD-4 and
  *  later kernel versions.
  */
-
-
 #if defined(SYM_CONF_IOMAPPED)
 
 #define INB_OFF(o)	bus_read_1(np->io_res, (o))
@@ -900,7 +888,6 @@ struct sym_nvram {
 
 #define OUTRAM_OFF(o, a, l)	\
 	bus_write_region_1(np->ram_res, (o), (a), (l))
-
 
 /*
  *  Common definitions for both bus space and legacy IO methods.
@@ -1333,7 +1320,6 @@ struct sym_pmc {
  *  For SYMBIOS chips that support LOAD/STORE this copy is
  *  not needed and thus not performed.
  */
-
 struct sym_ccbh {
 	/*
 	 *  Start and restart SCRIPTS addresses (must be at 0).
@@ -1748,7 +1734,6 @@ static __inline const char *sym_name(hcb_p np)
 #define	SYM_GEN_B(s, label)	((short) offsetof(s, label)),
 #define	PADDR_A(label)		SYM_GEN_PADDR_A(struct SYM_FWA_SCR, label)
 #define	PADDR_B(label)		SYM_GEN_PADDR_B(struct SYM_FWB_SCR, label)
-
 
 #ifdef	SYM_CONF_GENERIC_SUPPORT
 /*
@@ -2453,7 +2438,6 @@ static __inline void sym_init_burst(hcb_p np, u_char bc)
 	}
 }
 
-
 /*
  * Print out the list of targets that have some flag disabled by user.
  */
@@ -2848,7 +2832,6 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
  *  negotiation and the nego_status field of the CCB.
  *  Returns the size of the message in bytes.
  */
-
 static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 {
 	tcb_p tp = &np->target[cp->target];
@@ -2965,7 +2948,6 @@ static void sym_put_start_queue(hcb_p np, ccb_p cp)
 	MEMORY_BARRIER();
 	OUTB (nc_istat, SIGP|np->istat_sem);
 }
-
 
 /*
  *  Soft reset the chip.
@@ -3842,7 +3824,6 @@ static void sym_log_hard_error(hcb_p np, u_short sist, u_char dstat)
  *  ask me for any guarantee that it will never fail. :-)
  *  Use at your own decision and risk.
  */
-
 static void sym_intr1 (hcb_p np)
 {
 	u_char	istat, istatc;
@@ -4003,7 +3984,6 @@ static void sym_poll(struct cam_sim *sim)
 {
 	sym_intr1(cam_sim_softc(sim));
 }
-
 
 /*
  *  generic recovery from scsi interrupt
@@ -5292,7 +5272,6 @@ static void sym_sir_task_recovery(hcb_p np, int num)
  *  offset (basically from the MDP message) and returns
  *  the corresponding values of dp_sg and dp_ofs.
  */
-
 static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 {
 	u32	dp_scr;
@@ -5410,7 +5389,6 @@ out_err:
  *  Btw, we assume in that situation that such a message
  *  is equivalent to a MODIFY DATA POINTER (offset=-1).
  */
-
 static void sym_modify_dp(hcb_p np, tcb_p tp, ccb_p cp, int ofs)
 {
 	int dp_ofs	= ofs;
@@ -5494,7 +5472,6 @@ out_reject:
 	OUTL_DSP (SCRIPTB_BA (np, msg_bad));
 }
 
-
 /*
  *  chip calculation of the data residual.
  *
@@ -5509,7 +5486,6 @@ out_reject:
  *  any software that considers this data residual as
  *  a relevant information. :)
  */
-
 static int sym_compute_residual(hcb_p np, ccb_p cp)
 {
 	int dp_sg, dp_sgmin, resid = 0;
@@ -5575,7 +5551,6 @@ static int sym_compute_residual(hcb_p np, ccb_p cp)
 /*
  *  Print out the content of a SCSI message.
  */
-
 static int sym_show_msg (u_char * msg)
 {
 	u_char i;
@@ -7771,7 +7746,6 @@ sym_setup_data_pointers(hcb_p np, ccb_p cp, int dir)
 	cp->startp	    = cp->phys.head.savep;
 }
 
-
 /*
  *  Call back routine for the DMA map service.
  *  If bounce buffers are used (why ?), we may sleep and then
@@ -7985,7 +7959,6 @@ sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp,
 	}
 	return 0;
 }
-
 
 /*
  *  Scatter a SG list with physical addresses into bus addressable chunks.
@@ -8338,9 +8311,7 @@ sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 #undef	cts__scsi
 }
 
-
 /*============= DRIVER INITIALISATION ==================*/
-
 
 static device_method_t sym_pci_methods[] = {
 	DEVMETHOD(device_probe,	 sym_pci_probe),
@@ -8359,7 +8330,6 @@ static devclass_t sym_devclass;
 DRIVER_MODULE(sym, pci, sym_pci_driver, sym_devclass, NULL, NULL);
 MODULE_DEPEND(sym, cam, 1, 1, 1);
 MODULE_DEPEND(sym, pci, 1, 1, 1);
-
 
 static const struct sym_pci_chip sym_pci_dev_table[] = {
  {PCI_ID_SYM53C810, 0x0f, "810", 4, 8, 4, 64,
@@ -9260,7 +9230,6 @@ static void sym_display_Tekram_nvram(hcb_p np, Tekram_nvram *nvram)
 #endif	/* SYM_CONF_DEBUG_NVRAM */
 #endif	/* SYM_CONF_NVRAM_SUPPORT */
 
-
 /*
  *  Try reading Symbios or Tekram NVRAM
  */
@@ -9297,7 +9266,6 @@ static int sym_read_nvram(hcb_p np, struct sym_nvram *nvp)
 #endif
 	return nvp->type;
 }
-
 
 #ifdef SYM_CONF_NVRAM_SUPPORT
 /*
