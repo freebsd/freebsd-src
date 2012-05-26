@@ -131,6 +131,7 @@ struct nfsnode {
 	uint32_t		n_namelen;
 	int			n_directio_opens;
 	int                     n_directio_asyncwr;
+	struct ucred		*n_writecred;	/* Cred. for putpages */
 };
 
 #define n_atim		n_un1.nf_atim
