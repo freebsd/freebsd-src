@@ -475,7 +475,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	bcopy(&p2->p_comm, &td2->td_name, sizeof(td2->td_name));
 	td2->td_sigstk = td->td_sigstk;
-	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
 	td2->td_lend_user_pri = PRI_MAX;
 
