@@ -197,21 +197,40 @@ static void
 at91_identify(driver_t *drv, device_t parent)
 {
 
-	if (at91_cpu_is(AT91_CPU_SAM9260)) {
+	switch (AT91_CPU(at91_chip_id)) {
+	case AT91_CPU_SAM9260:
+	case AT91_CPU_SAM9XE128:
+	case AT91_CPU_SAM9XE256:
+	case AT91_CPU_SAM9XE512:
 		at91_add_child(parent, 0, "at91sam9260", 0, 0, 0, -1, 0, 0);
 		at91_cpu_add_builtin_children(parent);
+		break;
 	}
 }
 
 static int
 at91_probe(device_t dev)
 {
+	const char *desc;
 
-	if (at91_cpu_is(AT91_CPU_SAM9260)) {
-		device_set_desc(dev, "AT91SAM9260");
-		return (0);
+	switch (AT91_CPU(at91_chip_id)) {
+	case AT91_CPU_SAM9260:
+		desc = "AT91SAM9260";
+		break;
+	case AT91_CPU_SAM9XE128:
+		desc = "AT91SAM9XE128";
+		break;
+	case AT91_CPU_SAM9XE256:
+		desc = "AT91SAM9XE256";
+		break;
+	case AT91_CPU_SAM9XE512:
+		desc = "AT91SAM9XE512";
+		break;
+	default:
+		return (ENXIO);
 	}
-	return (ENXIO);
+	device_set_desc(dev, desc);
+	return (0);
 }
 
 static int
@@ -227,10 +246,6 @@ at91_attach(device_t dev)
 	sc->sc_sh = at91sc->sc_sh;
 	sc->dev = dev;
 
-	/*
-	 * XXX These values work for the RM9200, SAM926[01], and SAM9260
-	 * will have to fix this when we want to support anything else. XXX
-	 */
 	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9260_SYS_BASE,
 	    AT91SAM9260_SYS_SIZE, &sc->sc_sys_sh) != 0)
 		panic("Enable to map system registers");
