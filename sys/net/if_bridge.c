@@ -333,6 +333,9 @@ static int	bridge_ip6_checkbasic(struct mbuf **mp);
 #endif /* INET6 */
 static int	bridge_fragment(struct ifnet *, struct mbuf *,
 		    struct ether_header *, int, struct llc *);
+static void	bridge_linkstate(struct ifnet *ifp);
+
+extern void (*bridge_linkstate_p)(struct ifnet *ifp);
 
 /* The default bridge vlan is 1 (IEEE 802.1Q-2003 Table 9-2) */
 #define	VLANTAGOF(_m)	\
@@ -489,6 +492,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = bridge_input;
 		bridge_output_p = bridge_output;
 		bridge_dn_p = bridge_dummynet;
+		bridge_linkstate_p = bridge_linkstate;
 		bridge_detach_cookie = EVENTHANDLER_REGISTER(
 		    ifnet_departure_event, bridge_ifdetach, NULL,
 		    EVENTHANDLER_PRI_ANY);
@@ -501,6 +505,7 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
 		bridge_dn_p = NULL;
+		bridge_linkstate_p = NULL;
 		mtx_destroy(&bridge_list_mtx);
 		break;
 	default:
@@ -981,6 +986,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
 	}
 	bstp_destroy(&bif->bif_stp);	/* prepare to free */
+	bridge_linkstate(ifs);
 	BRIDGE_LOCK(sc);
 	free(bif, M_DEVBUF);
 }
@@ -1080,17 +1086,17 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	/* Set interface capabilities to the intersection set of all members */
 	bridge_mutecaps(sc);
 
+	BRIDGE_UNLOCK(sc);
+	/* Update the linkstate for the bridge */
+	bridge_linkstate(ifs);
+	/* Place the interface into promiscuous mode */
 	switch (ifs->if_type) {
-	case IFT_ETHER:
-	case IFT_L2VLAN:
-		/*
-		 * Place the interface into promiscuous mode.
-		 */
-		BRIDGE_UNLOCK(sc);
-		error = ifpromisc(ifs, 1);
-		BRIDGE_LOCK(sc);
-		break;
+		case IFT_ETHER:
+		case IFT_L2VLAN:
+			error = ifpromisc(ifs, 1);
+			break;
 	}
+	BRIDGE_LOCK(sc);
 	if (error)
 		bridge_delete_member(sc, bif, 0);
 out:
@@ -3468,3 +3474,38 @@ out:
 		m_freem(m);
 	return (error);
 }
+
+static void
+bridge_linkstate(struct ifnet *ifp)
+{
+	struct bridge_softc *sc = ifp->if_bridge;
+	struct bridge_iflist *bif, *bif2;
+	int new_link, hasls;
+
+	BRIDGE_LOCK(sc);
+	bif = bridge_lookup_member_if(sc, ifp);
+	if (bif == NULL) {
+		BRIDGE_UNLOCK(sc);
+		return;
+	}
+	new_link = LINK_STATE_DOWN;
+	hasls = 0;
+	/* Our link is considered up if at least one of our ports is active */
+	LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
+		if (bif2->bif_ifp->if_capabilities & IFCAP_LINKSTATE)
+			hasls++;
+		if (bif2->bif_ifp->if_link_state == LINK_STATE_UP) {
+			new_link = LINK_STATE_UP;
+			break;
+		}
+	}
+	if (!LIST_EMPTY(&sc->sc_iflist) && !hasls) {
+		/* If no interfaces support link-state then we default to up */
+		new_link = LINK_STATE_UP;
+	}
+	if_link_state_change(sc->sc_ifp, new_link);
+	BRIDGE_UNLOCK(sc);
+
+	bstp_linkstate(&bif->bif_stp);
+}
+
