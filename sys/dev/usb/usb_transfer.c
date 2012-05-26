@@ -217,12 +217,12 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 	 * Try multi-allocation chunks to reduce the number of DMA
 	 * allocations, hence DMA allocations are slow.
 	 */
-	if (size >= PAGE_SIZE) {
+	if (size >= USB_PAGE_SIZE) {
 		n_dma_pc = count;
 		n_obj = 1;
 	} else {
 		/* compute number of objects per page */
-		n_obj = (PAGE_SIZE / size);
+		n_obj = (USB_PAGE_SIZE / size);
 		/*
 		 * Compute number of DMA chunks, rounded up
 		 * to nearest one:
