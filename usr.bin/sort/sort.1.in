@@ -501,27 +501,6 @@ option is still supported, except for
 which has no
 .Fl k
 equivalent.
-.Sh EXIT STATUS
-The
-.Nm
-utility shall exit with one of the following values:
-.Pp
-.Bl -tag -width flag -compact
-.It 0
-Successfully sorted the input files or if used with
-.Fl c
-or
-.Fl C ,
-the input file already met the sorting criteria.
-.It 1
-On disorder (or non-uniqueness) with the
-.Fl c
-or
-.Fl C
-options.
-.It 2
-An error occurred.
-.El
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
 .It Ev LC_COLLATE
@@ -577,6 +556,27 @@ This environment variable enables the old behavior.
 Temporary files.
 .It Pa /dev/random
 Default seed file for the random sort.
+.El
+.Sh EXIT STATUS
+The
+.Nm
+utility shall exit with one of the following values:
+.Pp
+.Bl -tag -width flag -compact
+.It 0
+Successfully sorted the input files or if used with
+.Fl c
+or
+.Fl C ,
+the input file already met the sorting criteria.
+.It 1
+On disorder (or non-uniqueness) with the
+.Fl c
+or
+.Fl C
+options.
+.It 2
+An error occurred.
 .El
 .Sh SEE ALSO
 .Xr comm 1 ,
