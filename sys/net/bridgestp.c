@@ -1767,28 +1767,16 @@ bstp_notify_rtage(void *arg, int pending)
 }
 
 void
-bstp_linkstate(struct ifnet *ifp, int state)
+bstp_linkstate(struct bstp_port *bp)
 {
-	struct bstp_state *bs;
-	struct bstp_port *bp;
+	struct bstp_state *bs = bp->bp_bs;
 
-	/* search for the stp port */
-	mtx_lock(&bstp_list_mtx);
-	LIST_FOREACH(bs, &bstp_list, bs_list) {
-		BSTP_LOCK(bs);
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
-			if (bp->bp_ifp == ifp) {
-				bstp_ifupdstatus(bs, bp);
-				bstp_update_state(bs, bp);
-				/* it only exists once so return */
-				BSTP_UNLOCK(bs);
-				mtx_unlock(&bstp_list_mtx);
-				return;
-			}
-		}
-		BSTP_UNLOCK(bs);
+	BSTP_LOCK(bs);
+	if (bp->bp_active) {
+		bstp_ifupdstatus(bs, bp);
+		bstp_update_state(bs, bp);
 	}
-	mtx_unlock(&bstp_list_mtx);
+	BSTP_UNLOCK(bs);
 }
 
 static void
@@ -2103,10 +2091,8 @@ bstp_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		mtx_init(&bstp_list_mtx, "bridgestp list", NULL, MTX_DEF);
 		LIST_INIT(&bstp_list);
-		bstp_linkstate_p = bstp_linkstate;
 		break;
 	case MOD_UNLOAD:
-		bstp_linkstate_p = NULL;
 		mtx_destroy(&bstp_list_mtx);
 		break;
 	default:
