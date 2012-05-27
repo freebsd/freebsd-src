@@ -271,7 +271,11 @@ ncl_putpages(struct vop_putpages_args *ap)
 	vp = ap->a_vp;
 	np = VTONFS(vp);
 	td = curthread;				/* XXX */
-	cred = curthread->td_ucred;		/* XXX */
+	/* Set the cred to n_writecred for the write rpcs. */
+	if (np->n_writecred != NULL)
+		cred = crhold(np->n_writecred);
+	else
+		cred = crhold(curthread->td_ucred);	/* XXX */
 	nmp = VFSTONFS(vp->v_mount);
 	pages = ap->a_m;
 	count = ap->a_count;
@@ -335,6 +339,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 	    iomode = NFSWRITE_FILESYNC;
 
 	error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit, 0);
+	crfree(cred);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &ncl_pbuf_freecnt);

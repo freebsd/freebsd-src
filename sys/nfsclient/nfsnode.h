@@ -141,6 +141,7 @@ struct nfsnode {
 	struct nfs_attrcache_timestamp n_unused;
 	struct timespec		n_unused4;
 	struct timespec		n_unused5;
+	struct ucred		*n_writecred;	/* Cred. for putpages */
 };
 
 #define n_atim		n_un1.nf_atim
