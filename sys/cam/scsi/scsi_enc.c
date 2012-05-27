@@ -93,7 +93,7 @@ static struct cdevsw enc_cdevsw = {
 	.d_close =	enc_close,
 	.d_ioctl =	enc_ioctl,
 	.d_name =	"ses",
-	.d_flags =	0,
+	.d_flags =	D_TRACKCLOSE,
 };
 
 static void
@@ -254,12 +254,12 @@ enc_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 		error = ENXIO;
 		goto out;
 	}
-
 out:
+	if (error != 0)
+		cam_periph_release_locked(periph);
+
 	cam_periph_unlock(periph);
-	if (error) {
-		cam_periph_release(periph);
-	}
+
 	return (error);
 }
 
@@ -267,17 +267,11 @@ static int
 enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
-	struct enc_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
-	cam_periph_lock(periph);
-
-	softc = (struct enc_softc *)periph->softc;
-
-	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 
 	return (0);
