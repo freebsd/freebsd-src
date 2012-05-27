@@ -24,7 +24,7 @@
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
@@ -237,6 +237,7 @@ typedef struct splitflags {
 extern int zpool_scan(zpool_handle_t *, pool_scan_func_t);
 extern int zpool_clear(zpool_handle_t *, const char *, nvlist_t *);
 extern int zpool_reguid(zpool_handle_t *);
+extern int zpool_reopen(zpool_handle_t *);
 
 extern int zpool_vdev_online(zpool_handle_t *, const char *, int,
     vdev_state_t *);
