@@ -537,6 +537,8 @@ value of 1.76 indicates that 1.76 units of data were stored but only 1 unit of d
 for a description of the deduplication feature.
 .It Sy free
 Number of blocks within the pool that are not allocated.
+.It Sy expandsize
+This property has currently no value on FreeBSD.
 .It Sy guid
 A unique identifier for the pool.
 .It Sy health
@@ -1275,7 +1277,7 @@ Treat exported or foreign devices as inactive.
 .It Xo
 .Nm
 .Cm list
-.Op Fl H
+.Op Fl Hv
 .Op Fl o Ar property Ns Op , Ns Ar ...
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
