@@ -934,6 +934,10 @@ _ar=		usr.bin/ar
 _lex=		usr.bin/lex
 .endif
 
+.if ${BOOTSTRAPPING} >= 1000013
+_yacc=		usr.bin/yacc
+.endif
+
 .if ${BOOTSTRAPPING} < 800013
 _mklocale=	usr.bin/mklocale
 .endif
@@ -959,6 +963,7 @@ bootstrap-tools:
     ${_gperf} \
     ${_groff} \
     ${_ar} \
+    ${_yacc} \
     ${_lex} \
     usr.bin/lorder \
     usr.bin/makewhatis \
