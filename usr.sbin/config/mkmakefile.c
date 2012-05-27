@@ -742,15 +742,20 @@ do_rules(FILE *f)
 				break;
 			}
 			snprintf(cmd, sizeof(cmd),
-			    "${%s_%c%s}\n.if defined(NORMAL_CTFCONVERT) && "
-			    "!empty(NORMAL_CTFCONVERT)\n"
-			    "\t${NORMAL_CTFCONVERT}\n.endif", ftype,
+			    "${%s_%c%s}\n", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;
 		}
 		*cp = och;
-		fprintf(f, "\t%s\n\n", compilewith);
+		fprintf(f, "\t%s\n", compilewith);
+
+		if (!(ftp->f_flags & NO_OBJ))
+			fprintf(f, ".if defined(NORMAL_CTFCONVERT) && "
+			    "!empty(NORMAL_CTFCONVERT)\n"
+			    "\t${NORMAL_CTFCONVERT}\n.endif\n\n");
+		else
+			fprintf(f, "\n");
 	}
 }
 
