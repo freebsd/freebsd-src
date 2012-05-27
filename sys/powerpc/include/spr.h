@@ -455,7 +455,7 @@
 #define	SPR_DAC1		0x3f6	/* 4.. Data Address Compare 1 */
 #define	SPR_DAC2		0x3f7	/* 4.. Data Address Compare 2 */
 #define	SPR_PIR			0x3ff	/* .6. Processor Identification Register */
-#elif defined(E500)
+#elif defined(BOOKE)
 #define	SPR_PIR			0x11e	/* ..8 Processor Identification Register */
 #define	SPR_DBSR		0x130	/* ..8 Debug Status Register */
 #define	  DBSR_IDE		  0x80000000 /* Imprecise debug event. */
@@ -628,7 +628,7 @@
 #define	  ESR_DIZ		  0x00800000 /* Data/instruction storage interrupt - zone fault */
 #define	  ESR_U0F		  0x00008000 /* Data storage interrupt - U0 fault */
 
-#elif defined(E500)
+#elif defined(BOOKE)
 
 #define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
 
@@ -642,11 +642,19 @@
 #define	  ESR_BO		  0x00020000 /* Data/instruction storage, byte ordering */
 #define	  ESR_SPE		  0x00000080 /* SPE exception bit */
 
-
 #define	SPR_CSRR0		0x03a	/* ..8 58 Critical SRR0 */
 #define	SPR_CSRR1		0x03b	/* ..8 59 Critical SRR1 */
 #define	SPR_MCSRR0		0x23a	/* ..8 570 Machine check SRR0 */
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
+
+#define	SPR_MMUCR		0x3b2	/* 4.. MMU Control Register */
+#define	  MMUCR_SWOA		(0x80000000 >> 7)
+#define	  MMUCR_U1TE		(0x80000000 >> 9)
+#define	  MMUCR_U2SWOAE		(0x80000000 >> 10)
+#define	  MMUCR_DULXE		(0x80000000 >> 12)
+#define	  MMUCR_IULXE		(0x80000000 >> 13)
+#define	  MMUCR_STS		(0x80000000 >> 15)
+#define	  MMUCR_STID_MASK	(0xFF000000 >> 24)
 
 #define	SPR_MMUCSR0		0x3f4	/* ..8 1012 MMU Control and Status Register 0 */
 #define	  MMUCSR0_L2TLB0_FI	0x04	/*  TLB0 flash invalidate */
@@ -758,6 +766,5 @@
 #define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
 #define	  BUCSR_BBFI		0x00000200	/* Branch Buffer Flash Invalidate */
 
-#endif /* #elif defined(E500) */
-
+#endif /* BOOKE */
 #endif /* !_POWERPC_SPR_H_ */

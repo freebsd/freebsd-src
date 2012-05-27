@@ -446,6 +446,7 @@ cpu_6xx_print_cacheinfo(u_int cpuid, uint16_t vers)
 static void
 cpu_booke_setup(int cpuid, uint16_t vers)
 {
+#ifdef BOOKE_E500
 	register_t hid0;
 
 	hid0 = mfspr(SPR_HID0);
@@ -457,6 +458,7 @@ cpu_booke_setup(int cpuid, uint16_t vers)
 	mtspr(SPR_HID0, hid0);
 
 	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
+#endif
 
 	if (cpu_idle_hook == NULL)
 		cpu_idle_hook = cpu_idle_booke;
