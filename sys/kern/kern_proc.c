@@ -1136,6 +1136,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_estcpu);
 	CP(*ki, *ki32, ki_slptime);
 	CP(*ki, *ki32, ki_swtime);
+	CP(*ki, *ki32, ki_cow);
 	CP(*ki, *ki32, ki_runtime);
 	TV_CP(*ki, *ki32, ki_start);
 	TV_CP(*ki, *ki32, ki_childtime);
