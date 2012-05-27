@@ -101,10 +101,6 @@ __FBSDID("$FreeBSD$");
 
 #define TODO			panic("%s: not implemented", __func__);
 
-#include "opt_sched.h"
-#ifndef SCHED_4BSD
-#error "e500 only works with SCHED_4BSD which uses a global scheduler lock."
-#endif
 extern struct mtx sched_lock;
 
 extern int dumpsys_minidump;
