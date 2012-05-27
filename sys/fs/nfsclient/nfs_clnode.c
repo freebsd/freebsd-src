@@ -297,6 +297,8 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 			FREE((caddr_t)dp2, M_NFSDIROFF);
 		}
 	}
+	if (np->n_writecred != NULL)
+		crfree(np->n_writecred);
 	FREE((caddr_t)np->n_fhp, M_NFSFH);
 	if (np->n_v4 != NULL)
 		FREE((caddr_t)np->n_v4, M_NFSV4NODE);

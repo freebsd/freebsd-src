@@ -136,6 +136,7 @@ struct nfsnode {
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
 	struct timespec		n_unused4;
 	struct timespec		n_unused5;
+	struct ucred		*n_writecred;	/* Cred. for putpages */
 };
 
 #define	n_atim		n_un1.nf_atim
