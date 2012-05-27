@@ -3143,6 +3143,11 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		return (curthread->td_errno);
 #endif
 	}
+#if !defined(sun)
+	case DIF_VAR_CPU: {
+		return curcpu;
+	}
+#endif
 	default:
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
 		return (0);
