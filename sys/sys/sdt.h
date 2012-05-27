@@ -258,6 +258,10 @@ int sdt_argtype_listall(struct sdt_probe *, sdt_argtype_listall_func_t, void *);
 int sdt_probe_listall(struct sdt_provider *, sdt_probe_listall_func_t, void *);
 int sdt_provider_listall(sdt_provider_listall_func_t,void *);
 
+void sdt_register_callbacks(sdt_provider_listall_func_t, void *,
+    sdt_provider_listall_func_t, void *, sdt_probe_listall_func_t, void *);
+void sdt_deregister_callbacks(void);
+
 #endif /* KDTRACE_HOOKS */
 
 #endif /* _KERNEL */

@@ -52,6 +52,8 @@ static void	sdt_destroy(void *, dtrace_id_t, void *);
 static void	sdt_enable(void *, dtrace_id_t, void *);
 static void	sdt_disable(void *, dtrace_id_t, void *);
 static void	sdt_load(void *);
+static int	sdt_provider_unreg_callback(struct sdt_provider *prov, 
+		    void *arg);
 
 static struct cdevsw sdt_cdevsw = {
 	.d_version	= D_VERSION,
@@ -190,7 +192,8 @@ sdt_load(void *dummy)
 
 	sdt_probe_func = dtrace_probe;
 
-	(void) sdt_provider_listall(sdt_provider_reg_callback, NULL);
+	sdt_register_callbacks(sdt_provider_reg_callback, NULL,
+	    sdt_provider_unreg_callback, NULL, sdt_probe_callback, NULL);
 }
 
 static int
@@ -206,7 +209,7 @@ sdt_unload()
 
 	sdt_probe_func = sdt_probe_stub;
 
-	(void) sdt_provider_listall(sdt_provider_unreg_callback, NULL);
+	sdt_deregister_callbacks();
 	
 	destroy_dev(sdt_cdev);
 
