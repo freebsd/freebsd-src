@@ -1042,6 +1042,8 @@ nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
+	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
+		nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1081,6 +1083,8 @@ out:
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
+	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
+		nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
