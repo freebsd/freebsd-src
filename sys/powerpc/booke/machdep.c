@@ -392,6 +392,7 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	debugf(" kernel ccsrbar = 0x%08x\n", CCSRBAR_VA);
 	debugf(" MSR = 0x%08x\n", mfmsr());
+#if defined(BOOKE_E500)
 	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));
 	debugf(" HID1 = 0x%08x\n", mfspr(SPR_HID1));
 	debugf(" BUCSR = 0x%08x\n", mfspr(SPR_BUCSR));
@@ -399,13 +400,16 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	__asm __volatile("msync; isync");
 	csr = ccsr_read4(OCP85XX_L2CTL);
 	debugf(" L2CTL = 0x%08x\n", csr);
+#endif
 
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 
 	print_kernel_section_addr();
 	print_kenv();
+#if defined(BOOKE_E500)
 	//tlb1_print_entries();
 	//tlb1_print_tlbentries();
+#endif
 
 	kdb_init();
 
@@ -421,8 +425,10 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
 	pmap_bootstrap((uintptr_t)kernel_text, end);
 	debugf("MSR = 0x%08x\n", mfmsr());
+#if defined(BOOKE_E500)
 	//tlb1_print_entries();
 	//tlb1_print_tlbentries();
+#endif
 
 	/* Initialize params/tunables that are derived from memsize. */
 	init_param2(physmem);

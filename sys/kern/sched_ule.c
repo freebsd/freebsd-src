@@ -77,7 +77,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__powerpc__) && defined(E500)
+#if defined(__powerpc__) && defined(BOOKE_E500)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
