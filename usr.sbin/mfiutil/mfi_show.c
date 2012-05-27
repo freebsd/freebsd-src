@@ -219,7 +219,29 @@ show_battery(int ac, char **av)
 	}
 	if (stat.fw_status & MFI_BBU_STATE_DISCHARGE_ACTIVE) {
 		printf("%s DISCHARGING", comma ? "," : "");
+		comma = 1;
 	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_REQ) {
+		printf("%s LEARN_CYCLE_REQUESTED", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_ACTIVE) {
+		printf("%s LEARN_CYCLE_ACTIVE", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_FAIL) {
+		printf("%s LEARN_CYCLE_FAIL", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_LEARN_CYC_TIMEOUT) {
+		printf("%s LEARN_CYCLE_TIMEOUT", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_I2C_ERR_DETECT) {
+		printf("%s I2C_ERROR_DETECT", comma ? "," : "");
+		comma = 1;
+	}
+
 	if (!comma)
 		printf(" normal");
 	printf("\n");
