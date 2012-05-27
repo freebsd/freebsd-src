@@ -102,7 +102,7 @@ struct db_variable db_regs[] = {
 	{ "dar", DB_OFFSET(cpu.aim.dar),	db_frame },
 	{ "dsisr", DB_OFFSET(cpu.aim.dsisr),	db_frame },
 #endif
-#ifdef E500
+#if defined(BOOKE)
 	{ "dear", DB_OFFSET(cpu.booke.dear),	db_frame },
 	{ "esr", DB_OFFSET(cpu.booke.esr),	db_frame },
 #endif
@@ -243,7 +243,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			case EXC_SC: trapstr = "SC"; break;
 			case EXC_EXI: trapstr = "EXI"; break;
 			case EXC_MCHK: trapstr = "MCHK"; break;
-#ifndef E500
+#if !defined(BOOKE)
 			case EXC_VEC: trapstr = "VEC"; break;
 			case EXC_FPA: trapstr = "FPA"; break;
 			case EXC_BPT: trapstr = "BPT"; break;

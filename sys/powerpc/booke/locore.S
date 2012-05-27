@@ -218,7 +218,7 @@ done_mapping:
 	mr	%r3, %r30
 	mr	%r4, %r31
 
-	/* Prepare e500 core */
+	/* Prepare core */
 	bl	booke_init
 
 	/* Switch to thread0.td_kstack now */

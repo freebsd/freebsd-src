@@ -97,17 +97,17 @@ powerpc/aim/swtch64.S		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
 powerpc/aim/vm_machdep.c	optional	aim
-powerpc/booke/clock.c		optional	e500
-powerpc/booke/copyinout.c	optional	e500
-powerpc/booke/interrupt.c	optional	e500
-powerpc/booke/locore.S		optional	e500 no-obj
-powerpc/booke/machdep.c		optional	e500
-powerpc/booke/mp_cpudep.c	optional	e500 smp
+powerpc/booke/clock.c		optional	booke
+powerpc/booke/copyinout.c	optional	booke
+powerpc/booke/interrupt.c	optional	booke
+powerpc/booke/locore.S		optional	booke no-obj
+powerpc/booke/machdep.c		optional	booke
+powerpc/booke/mp_cpudep.c	optional	booke smp
 powerpc/booke/platform_bare.c	optional	mpc85xx
-powerpc/booke/pmap.c		optional	e500
-powerpc/booke/swtch.S		optional	e500
-powerpc/booke/trap.c		optional	e500
-powerpc/booke/vm_machdep.c	optional	e500
+powerpc/booke/pmap.c		optional	booke
+powerpc/booke/swtch.S		optional	booke
+powerpc/booke/trap.c		optional	booke
+powerpc/booke/vm_machdep.c	optional	booke
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/fpu/fpu_add.c		optional	fpu_emu powerpc
