@@ -585,7 +585,6 @@ PfInterfacesIfEntry ::= SEQUENCE {
     pfInterfacesIfDescr		    OCTET STRING,
     pfInterfacesIfType		    INTEGER,
     pfInterfacesIfTZero		    TimeTicks,
-    pfInterfacesIfRefsState	    Unsigned32,
     pfInterfacesIfRefsRule	    Unsigned32,
     pfInterfacesIf4BytesInPass	    Counter64,
     pfInterfacesIf4BytesInBlock	    Counter64,
