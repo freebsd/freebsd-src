@@ -2428,8 +2428,8 @@ retry:
 		}
 	}
 	/*
-	 * Access to the ptelist "pv_vafree" is synchronized by the page
-	 * queues lock.  If "pv_vafree" is currently non-empty, it will
+	 * Access to the ptelist "pv_vafree" is synchronized by the pvh
+	 * global lock.  If "pv_vafree" is currently non-empty, it will
 	 * remain non-empty until pmap_ptelist_alloc() completes.
 	 */
 	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
