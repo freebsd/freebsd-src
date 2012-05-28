@@ -190,7 +190,7 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 	u_short csum;
 
 	csum = in_cksum_skip(m, offset + plen, offset);
-	if (m->m_pkthdr.csum_flags & CSUM_UDP && csum == 0)
+	if (m->m_pkthdr.csum_flags & CSUM_UDP_IPV6 && csum == 0)
 		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
@@ -885,9 +885,9 @@ again:
 			m->m_flags |= M_FASTFWD_OURS;
 			if (m->m_pkthdr.rcvif == NULL)
 				m->m_pkthdr.rcvif = V_loif;
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
 				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 #ifdef SCTP
@@ -905,9 +905,9 @@ again:
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
 			m->m_pkthdr.rcvif = V_loif;
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
 			m->m_pkthdr.csum_flags |=
-			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 #ifdef SCTP
@@ -960,8 +960,8 @@ passout:
 	 * XXX-BZ  Need a framework to know when the NIC can handle it, even
 	 * with ext. hdrs.
 	 */
-	if (sw_csum & CSUM_DELAY_DATA) {
-		sw_csum &= ~CSUM_DELAY_DATA;
+	if (sw_csum & CSUM_DELAY_DATA_IPV6) {
+		sw_csum &= ~CSUM_DELAY_DATA_IPV6;
 		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
 	}
 #ifdef SCTP
@@ -1076,9 +1076,9 @@ passout:
 		 * fragmented packets, then do it here.
 		 * XXX-BZ handle the hw offloading case.  Need flags.
 		 */
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
 			in6_delayed_cksum(m, plen, hlen);
-			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 		}
 #ifdef SCTP
 		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
