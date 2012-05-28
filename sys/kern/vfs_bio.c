@@ -2640,8 +2640,8 @@ loop:
 	if (bp != NULL) {
 		int lockflags;
 		/*
-		 * Buffer is in-core.  If the buffer is not busy, it must
-		 * be on a queue.
+		 * Buffer is in-core.  If the buffer is not busy nor managed,
+		 * it must be on a queue.
 		 */
 		lockflags = LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK;
 
@@ -2671,9 +2671,13 @@ loop:
 			bp->b_flags &= ~B_CACHE;
 		else if ((bp->b_flags & (B_VMIO | B_INVAL)) == 0)
 			bp->b_flags |= B_CACHE;
-		BO_LOCK(bo);
-		bremfree(bp);
-		BO_UNLOCK(bo);
+		if (bp->b_flags & B_MANAGED)
+			MPASS(bp->b_qindex == QUEUE_NONE);
+		else {
+			BO_LOCK(bo);
+			bremfree(bp);
+			BO_UNLOCK(bo);
+		}
 
 		/*
 		 * check for size inconsistancies for non-VMIO case.

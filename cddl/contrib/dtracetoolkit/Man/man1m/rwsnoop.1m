@@ -1,0 +1,104 @@
+.TH rwsnoop 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+rwsnoop \- snoop read/write events. Uses DTrace.
+.SH SYNOPSIS
+.B rwsnoop
+[\-jPtvZ] [\-n name] [\-p PID]
+.SH DESCRIPTION
+This is measuring reads and writes at the application level. This
+matches the syscalls read, write, pread and pwrite.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH OPTIONS
+.TP
+\-j
+print project ID
+.TP
+\-P
+print parent process ID
+.TP
+\-t
+print timestamp, us
+.TP
+\-v
+print time, string
+.TP
+\-Z
+print zone ID
+.TP
+\-n name
+process name to track
+.TP
+\-p PID
+PID to track
+.PP
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B rwsnoop
+.TP
+Print zone ID,
+# 
+.B rwsnoop
+-\Z
+.TP
+Monitor processes named "bash",
+#
+.B rwsnoop
+\-n bash
+.PP
+.SH FIELDS
+.TP
+TIME
+timestamp, us
+.TP
+TIMESTR
+time, string
+.TP
+ZONE
+zone ID
+.TP
+PROJ
+project ID
+.TP
+UID
+user ID
+.TP
+PID
+process ID
+.TP
+PPID
+parent process ID
+.TP
+CMD
+command name for the process
+.TP
+D
+direction, Read or Write
+.TP
+BYTES
+total bytes during sample
+.TP
+FILE
+filename, if file based. 
+Reads and writes that are not file based, for example with sockets, will
+print "<unknown>" as the filename.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+rwsnoop will run forever until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+rwtop(1M), dtrace(1M)
+

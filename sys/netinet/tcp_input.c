@@ -577,13 +577,31 @@ tcp_input(struct mbuf *m, int off0)
 #ifdef INET6
 	if (isipv6) {
 		/* IP6_EXTHDR_CHECK() is already done at tcp6_input(). */
+
+		if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
+			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
+			if (m == NULL) {
+				TCPSTAT_INC(tcps_rcvshort);
+				return;
+			}
+		}
+
 		ip6 = mtod(m, struct ip6_hdr *);
+		th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		tlen = sizeof(*ip6) + ntohs(ip6->ip6_plen) - off0;
-		if (in6_cksum(m, IPPROTO_TCP, off0, tlen)) {
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
+			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+				th->th_sum = m->m_pkthdr.csum_data;
+			else
+				th->th_sum = in6_cksum_pseudo(ip6, tlen,
+				    IPPROTO_TCP, m->m_pkthdr.csum_data);
+			th->th_sum ^= 0xffff;
+		} else
+			th->th_sum = in6_cksum(m, IPPROTO_TCP, off0, tlen);
+		if (th->th_sum) {
 			TCPSTAT_INC(tcps_rcvbadsum);
 			goto drop;
 		}
-		th = (struct tcphdr *)((caddr_t)ip6 + off0);
 
 		/*
 		 * Be proactive about unspecified IPv6 address in source.
@@ -3542,7 +3560,6 @@ tcp_mssopt(struct in_conninfo *inc)
 	if (inc->inc_flags & INC_ISIPV6) {
 		mss = V_tcp_v6mssdflt;
 		maxmtu = tcp_maxmtu6(inc, NULL);
-		thcmtu = tcp_hc_getmtu(inc); /* IPv4 and IPv6 */
 		min_protoh = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 	}
 #endif
@@ -3553,10 +3570,13 @@ tcp_mssopt(struct in_conninfo *inc)
 	{
 		mss = V_tcp_mssdflt;
 		maxmtu = tcp_maxmtu(inc, NULL);
-		thcmtu = tcp_hc_getmtu(inc); /* IPv4 and IPv6 */
 		min_protoh = sizeof(struct tcpiphdr);
 	}
 #endif
+#if defined(INET6) || defined(INET)
+	thcmtu = tcp_hc_getmtu(inc); /* IPv4 and IPv6 */
+#endif
+
 	if (maxmtu && thcmtu)
 		mss = min(maxmtu, thcmtu) - min_protoh;
 	else if (maxmtu || thcmtu)

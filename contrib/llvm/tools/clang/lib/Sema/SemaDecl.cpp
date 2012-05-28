@@ -7635,7 +7635,7 @@ NamedDecl *Sema::ImplicitlyDefineFunction(SourceLocation Loc,
                                              SourceLocation(), SourceLocation(),
                                              SourceLocation(),
                                              EST_None, SourceLocation(),
-                                             0, 0, 0, 0, 0, Loc, Loc, D),
+                                             0, 0, 0, 0, Loc, Loc, D),
                 DS.getAttributes(),
                 SourceLocation());
   D.SetIdentifier(&II, Loc);
@@ -9783,21 +9783,6 @@ void Sema::ActOnFields(Scope* S,
     
     if (!Completed)
       Record->completeDefinition();
-
-    // Now that the record is complete, do any delayed exception spec checks
-    // we were missing.
-    while (!DelayedDestructorExceptionSpecChecks.empty()) {
-      const CXXDestructorDecl *Dtor =
-              DelayedDestructorExceptionSpecChecks.back().first;
-      if (Dtor->getParent() != Record)
-        break;
-
-      assert(!Dtor->getParent()->isDependentType() &&
-          "Should not ever add destructors of templates into the list.");
-      CheckOverridingFunctionExceptionSpec(Dtor,
-          DelayedDestructorExceptionSpecChecks.back().second);
-      DelayedDestructorExceptionSpecChecks.pop_back();
-    }
 
   } else {
     ObjCIvarDecl **ClsFields =

@@ -1290,7 +1290,6 @@ mfi_process_fw_state_chg_isr(void *arg)
 	mtx_unlock(&sc->mfi_io_lock);
 }
 
-
 /*
  * The ThunderBolt HW has an option for the driver to directly
  * access the underlying disks and operate on the RAID.  To
@@ -1362,13 +1361,21 @@ mfi_tbolt_sync_map_info(struct mfi_softc *sc)
 	mtx_unlock(&sc->mfi_io_lock);
 	ld_sync = (union mfi_ld_ref *) malloc(ld_size, M_MFIBUF,
 	     M_WAITOK | M_ZERO);
+	if (ld_sync == NULL) {
+		device_printf(sc->mfi_dev, "Failed to allocate sync\n");
+		goto out;
+	}
 	for (i = 0; i < list->ld_count; i++) {
 		ld_sync[i].ref = list->ld_list[i].ld.ref;
 	}
 
 	mtx_lock(&sc->mfi_io_lock);
-	if ((cmd = mfi_dequeue_free(sc)) == NULL)
-		return;
+	if ((cmd = mfi_dequeue_free(sc)) == NULL) {
+		device_printf(sc->mfi_dev, "Failed to get command\n");
+		free(ld_sync, M_MFIBUF);
+		goto out;
+	}
+	
 	context = cmd->cm_frame->header.context;
 	bzero(cmd->cm_frame, sizeof(union mfi_frame));
 	cmd->cm_frame->header.context = context;
@@ -1396,7 +1403,10 @@ mfi_tbolt_sync_map_info(struct mfi_softc *sc)
 
 	if ((error = mfi_mapcmd(sc, cmd)) != 0) {
 		device_printf(sc->mfi_dev, "failed to send map sync\n");
-		return;
+		free(ld_sync, M_MFIBUF);
+		sc->mfi_map_sync_cm = NULL;
+		mfi_requeue_ready(cmd);
+		goto out;
 	}
 
 out:
@@ -1405,10 +1415,7 @@ out:
 	if (cm)
 		mfi_release_command(cm);
 	mtx_unlock(&sc->mfi_io_lock);
-
-	return;
 }
-
 
 static void
 mfi_sync_map_complete(struct mfi_command *cm)

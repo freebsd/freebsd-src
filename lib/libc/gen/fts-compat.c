@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include "fts-compat.h"
 #include "un-namespace.h"
 
+#include "gen-private.h"
+
 FTSENT	*__fts_children_44bsd(FTS *, int);
 int	 __fts_close_44bsd(FTS *);
 void	*__fts_get_clientptr_44bsd(FTS *);
@@ -711,7 +713,7 @@ fts_build(sp, type)
 	 */
 	cderrno = 0;
 	if (nlinks || type == BREAD) {
-		if (fts_safe_changedir(sp, cur, dirfd(dirp), NULL)) {
+		if (fts_safe_changedir(sp, cur, _dirfd(dirp), NULL)) {
 			if (nlinks && type == BREAD)
 				cur->fts_errno = errno;
 			cur->fts_flags |= FTS_DONTCHDIR;

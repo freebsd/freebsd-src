@@ -1,0 +1,59 @@
+.TH sh_stat.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+sh_stat.d - Bourne shell operation stats using DTrace.
+.SH SYNOPSIS
+.B sh_stat.d
+[interval [count]]
+.SH DESCRIPTION
+This traces activity from all sh processes on the system that are running
+with sh provider support.
+
+The numbers are counts for the interval specified. The default interval
+is 1 second.
+
+If you see a count in "EXECS" but not in the other columns, then sh
+scripts may be running without the DTrace sh provider. See Shell/Readme.
+
+Filename and function names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Shell provider, which may change 
+as additional features are introduced. Check Shell/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B sh_stat.d
+.PP
+.SH FIELDS
+.TP
+EXEC/s
+Bourne shells executed per second, including
+those without sh provider support
+.TP
+FUNC/s
+Functions called, per second
+.TP
+BLTIN/s
+Builtins called, per second
+.TP
+SUB-SH/s
+Sub-shells called, per second
+.TP
+CMD/s
+External commands called, per second
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+sh_stat.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

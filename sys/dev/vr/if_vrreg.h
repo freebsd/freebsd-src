@@ -738,6 +738,7 @@ struct vr_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
+	struct task		vr_inttask;
 };
 
 #define	VR_LOCK(_sc)		mtx_lock(&(_sc)->vr_mtx)

@@ -4136,7 +4136,8 @@ sys_getdirentries(td, uap)
 	long base;
 	int error;
 
-	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
+	    NULL, UIO_USERSPACE);
 	if (error)
 		return (error);
 	if (uap->basep != NULL)
@@ -4146,7 +4147,7 @@ sys_getdirentries(td, uap)
 
 int
 kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
-    long *basep)
+    long *basep, ssize_t *residp, enum uio_seg bufseg)
 {
 	struct vnode *vp;
 	struct file *fp;
@@ -4180,7 +4181,7 @@ unionread:
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_segflg = bufseg;
 	auio.uio_td = td;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
@@ -4213,6 +4214,8 @@ unionread:
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 	*basep = loff;
+	if (residp != NULL)
+		*residp = auio.uio_resid;
 	td->td_retval[0] = count - auio.uio_resid;
 fail:
 	fdrop(fp, td);
@@ -4679,16 +4682,28 @@ sys_fhstat(td, uap)
 	} */ *uap;
 {
 	struct stat sb;
-	fhandle_t fh;
+	struct fhandle fh;
+	int error;
+
+	error = copyin(uap->u_fhp, &fh, sizeof(fh));
+	if (error != 0)
+		return (error);
+	error = kern_fhstat(td, fh, &sb);
+	if (error != 0)
+		return (error);
+	error = copyout(&sb, uap->sb, sizeof(sb));
+	return (error);
+}
+
+int
+kern_fhstat(struct thread *td, struct fhandle fh, struct stat *sb)
+{
 	struct mount *mp;
 	struct vnode *vp;
 	int vfslocked;
 	int error;
 
 	error = priv_check(td, PRIV_VFS_FHSTAT);
-	if (error)
-		return (error);
-	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
 	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
@@ -4700,12 +4715,9 @@ sys_fhstat(td, uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
+	error = vn_stat(vp, sb, td->td_ucred, NOCRED, td);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	if (error)
-		return (error);
-	error = copyout(&sb, uap->sb, sizeof(sb));
 	return (error);
 }
 

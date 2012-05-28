@@ -87,6 +87,7 @@ SUBDIR=	${_3dfx} \
 	${_dpms} \
 	${_dpt} \
 	${_drm} \
+	${_drm2} \
 	${_dtrace} \
 	dummynet \
 	${_ed} \
@@ -217,6 +218,8 @@ SUBDIR=	${_3dfx} \
 	${_mwlfw} \
 	mxge \
 	my \
+	${_nandfs} \
+	${_nandsim} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
@@ -335,7 +338,6 @@ SUBDIR=	${_3dfx} \
 	vx \
 	${_vxge} \
 	wb \
-	${_wbwd} \
 	${_wi} \
 	wlan \
 	wlan_acl \
@@ -398,6 +400,11 @@ _ipdivert=	ipdivert
 _ipfw=		ipfw
 .endif
 
+.if ${MK_NAND} != "no" || defined(ALL_MODULES)
+_nandfs=	nandfs
+_nandsim=	nandsim
+.endif
+
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
 _netgraph=	netgraph
 .endif
@@ -455,6 +462,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
@@ -513,7 +521,6 @@ _stg=		stg
 _streams=	streams
 _svr4=		svr4
 _vxge=  	vxge
-_wbwd=		wbwd
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -625,6 +632,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
@@ -708,7 +716,6 @@ _viawd=		viawd
 _virtio=	virtio
 _vxge=  	vxge
 _x86bios=	x86bios
-_wbwd=		wbwd
 _wi=		wi
 _wpi=		wpi
 .if ${MK_SOURCELESS_UCODE} != "no"

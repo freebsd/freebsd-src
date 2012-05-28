@@ -355,8 +355,8 @@ struct ath_hal_private {
 	AH_PRIVATE(_ah)->ah_getNfAdjust(_ah, _c)
 #define	ath_hal_getNoiseFloor(_ah, _nfArray) \
 	AH_PRIVATE(_ah)->ah_getNoiseFloor(_ah, _nfArray)
-#define	ath_hal_configPCIE(_ah, _reset) \
-	(_ah)->ah_configPCIE(_ah, _reset)
+#define	ath_hal_configPCIE(_ah, _reset, _poweroff) \
+	(_ah)->ah_configPCIE(_ah, _reset, _poweroff)
 #define	ath_hal_disablePCIE(_ah) \
 	(_ah)->ah_disablePCIE(_ah)
 #define	ath_hal_setInterrupts(_ah, _mask) \

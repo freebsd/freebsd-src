@@ -561,7 +561,7 @@ static void maybeSynthesizeBlockSignature(TypeProcessingState &state,
                              /*const qualifier*/SourceLocation(),
                              /*volatile qualifier*/SourceLocation(),
                              /*mutable qualifier*/SourceLocation(),
-                             /*EH*/ EST_None, SourceLocation(), 0, 0, 0, 0, 0,
+                             /*EH*/ EST_None, SourceLocation(), 0, 0, 0, 0,
                              /*parens*/ loc, loc,
                              declarator));
 
@@ -4195,7 +4195,8 @@ bool Sema::RequireCompleteType(SourceLocation Loc, QualType T,
   // class template specialization, or an array with known size of such,
   // try to instantiate it.
   QualType MaybeTemplate = T;
-  if (const ConstantArrayType *Array = Context.getAsConstantArrayType(T))
+  while (const ConstantArrayType *Array
+           = Context.getAsConstantArrayType(MaybeTemplate))
     MaybeTemplate = Array->getElementType();
   if (const RecordType *Record = MaybeTemplate->getAs<RecordType>()) {
     if (ClassTemplateSpecializationDecl *ClassTemplateSpec

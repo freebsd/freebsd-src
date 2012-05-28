@@ -5,21 +5,17 @@ hint.argemdio.0.at="nexus0"
 hint.argemdio.0.maddr=0x19000000
 hint.argemdio.0.msize=0x1000
 hint.argemdio.0.order=0
+# This creates an automatic mdioproxy0!
 
-# Create two mdioproxy instances - by default only one is created
-# per mdiobus above.
-hint.mdioproxy.0.at="mdio0"
-hint.mdioproxy.1.at="mdio0"
+
+# The switch automatically probes off of mdio0, and will
+# create an mdioproxy1.
 
 # TODO: RGMII
-# XXX this port currently doesn't work with the current configuration.
-hint.arge.0.phymask=0x0f
+hint.arge.0.phymask=0x0		# Nothing attached here (XXX?)
 hint.arge.0.media=1000
 hint.arge.0.fduplex=1
 hint.arge.0.miimode=3		# RGMII
-# For now, rendezouvs this on the arge0 mdiobus.
-# Later, this will rendezvous via the AR8316 switch.
-hint.arge.0.mdio=mdioproxy0
 
 # TODO: RGMII
 hint.arge.1.phymask=0x10
@@ -27,7 +23,7 @@ hint.arge.1.phymask=0x10
 # For now, rendezouvs this on the arge0 mdiobus.
 # Later, this will rendezvous via the AR8316 switch.
 hint.arge.1.miimode=3		# RGMII
-hint.arge.1.mdio=mdioproxy1
+hint.arge.1.mdio=mdioproxy1	# off the switch mdiobus
 
 # ath0 - slot 17
 hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1fff1000

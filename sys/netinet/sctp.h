@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,13 +29,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $KAME: sctp.h,v 1.18 2005/03/06 16:04:16 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #ifndef _NETINET_SCTP_H_
 #define _NETINET_SCTP_H_
+
 
 #include <sys/types.h>
 
@@ -265,8 +265,6 @@ struct sctp_paramhdr {
 #define SCTP_PEELOFF                    0x0000800a
 /* the real worker for sctp_getaddrlen() */
 #define SCTP_GET_ADDR_LEN               0x0000800b
-/* temporary workaround for Apple listen() issue, no args used */
-#define SCTP_LISTEN_FIX			0x0000800c
 /* Debug things that need to be purged */
 #define SCTP_SET_INITIAL_DBG_SEQ	0x00009f00
 
@@ -526,7 +524,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_RECVASSOCEVNT     0x00000800
 #define SCTP_PCB_FLAGS_RECVPADDREVNT     0x00001000
 #define SCTP_PCB_FLAGS_RECVPEERERR       0x00002000
-#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT  0x00004000
+#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT  0x00004000	/* deprecated */
 #define SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT  0x00008000
 #define SCTP_PCB_FLAGS_ADAPTATIONEVNT    0x00010000
 #define SCTP_PCB_FLAGS_PDAPIEVNT         0x00020000
@@ -542,6 +540,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_RECVNXTINFO       0x10000000
 #define SCTP_PCB_FLAGS_ASSOC_RESETEVNT   0x20000000
 #define SCTP_PCB_FLAGS_STREAM_CHANGEEVNT 0x40000000
+#define SCTP_PCB_FLAGS_RECVNSENDFAILEVNT 0x80000000
 
 /*-
  * mobility_features parameters (by micchie).Note
@@ -556,6 +555,8 @@ struct sctp_error_unrecognized_chunk {
 
 #define SCTP_SMALLEST_PMTU 512	/* smallest pmtu allowed when disabling PMTU
 				 * discovery */
+
+#undef SCTP_PACKED
 
 #include <netinet/sctp_uio.h>
 
@@ -607,8 +608,5 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_LOG_AT_SEND_2_SCTP				0x04000000
 #define SCTP_LOG_AT_SEND_2_OUTQ				0x08000000
 #define SCTP_LOG_TRY_ADVANCE				0x10000000
-
-
-#undef SCTP_PACKED
 
 #endif				/* !_NETINET_SCTP_H_ */

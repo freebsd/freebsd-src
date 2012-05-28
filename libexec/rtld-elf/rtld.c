@@ -3480,13 +3480,15 @@ symlook_obj(SymLook *req, const Obj_Entry *obj)
     int flags, res, mres;
 
     /*
-     * There is at least one valid hash at this point, and we prefer to use
-     * the faster GNU version if available.
+     * If there is at least one valid hash at this point, we prefer to
+     * use the faster GNU version if available.
      */
     if (obj->valid_hash_gnu)
 	mres = symlook_obj1_gnu(req, obj);
-    else
+    else if (obj->valid_hash_sysv)
 	mres = symlook_obj1_sysv(req, obj);
+    else
+	return (EINVAL);
 
     if (mres == 0) {
 	if (obj->needed_filtees != NULL) {

@@ -79,16 +79,16 @@ to a properly configured switch port.
 The VLAN tag should match one of those set up in the switched
 network.
 .Pp
-Initially
 .Nm
-assumes the same minimum length for tagged and untagged frames.
-This mode is selected by the
+initially assumes the same minimum length for tagged and untagged frames.
+This mode is selected by setting the
 .Xr sysctl 8
 variable
 .Va net.link.vlan.soft_pad
-set to 0 (default).
-However, there are network devices that fail to adjust frame length,
-should it fall below the allowed minimum due to untagging.
+to 0
+.Pq default .
+However, there are network devices that fail to adjust frame length
+when it falls below the allowed minimum due to untagging.
 Such devices should be able to interoperate with
 .Nm
 after changing the value of
@@ -97,7 +97,7 @@ to 1.
 In the latter mode,
 .Nm
 will pad short frames before tagging them
-so that their length stays not less than the minimum value
+so that their length is not less than the minimum value
 after untagging by the non-compliant devices.
 .Sh HARDWARE
 The
@@ -111,7 +111,7 @@ receive and transmit long frames (up to 1522 bytes including an Ethernet
 header and FCS).
 The capabilities may be user-controlled by the respective parameters to
 .Xr ifconfig 8 ,
-.Cm vlanhwtag
+.Cm vlanhwtag ,
 and
 .Cm vlanmtu .
 However, a physical interface is not obliged to react to them:
@@ -119,8 +119,8 @@ It may have either capability enabled permanently without
 a way to turn it off.
 The whole issue is very specific to a particular device and its driver.
 .Pp
-By now, the list of physical interfaces able of full VLAN processing
-in the hardware is limited to the following devices:
+At present, physical interfaces capable of full VLAN processing
+in the hardware is limited to these devices:
 .Xr ae 4 ,
 .Xr age 4 ,
 .Xr alc 4 ,
@@ -146,11 +146,10 @@ in the hardware is limited to the following devices:
 and
 .Xr vge 4 .
 .Pp
-The rest of the Ethernet interfaces can run
-VLANs using software emulation in the
+Other Ethernet interfaces can run VLANs using software emulation in the
 .Nm
 driver.
-However, some of them lack the capability
+However, some lack the capability
 of transmitting and receiving long frames.
 Assigning such an interface as the parent to
 .Nm
@@ -163,9 +162,8 @@ connectivity problems due to massive, inadequate
 .Xr icmp 4
 filtering that breaks the Path MTU Discovery mechanism.
 .Pp
-The following interfaces support long frames for
-.Nm
-natively:
+These interfaces natively support long frames for
+.Nm :
 .Xr axe 4 ,
 .Xr bfe 4 ,
 .Xr cas 4 ,

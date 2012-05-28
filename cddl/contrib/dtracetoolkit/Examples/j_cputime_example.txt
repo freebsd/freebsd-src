@@ -1,0 +1,75 @@
+The following are examples of j_cputime.d.
+
+This script traces the on-CPU time of Java methods and prints a report. Here 
+it traces the example program, Code/Java/Func_abc
+
+# j_cputime.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Top 10 counts,
+      PID TYPE       NAME                                                COUNT
+   311374 method     java/lang/String.equals                               202
+   311374 method     java/lang/Math.min                                    208
+   311374 method     java/lang/String.hashCode                             213
+   311374 method     java/lang/String.indexOf                              302
+   311374 method     java/lang/System.arraycopy                            360
+   311374 method     java/lang/StringBuilder.append                        533
+   311374 method     java/lang/AbstractStringBuilder.append                549
+   311374 method     java/lang/Object.<init>                               823
+   311374 method     java/lang/String.charAt                              1960
+        0 total      -                                                   12020
+
+Top 10 on-CPU times (us),
+      PID TYPE       NAME                                                TOTAL
+
+Top 10 exclusive method on-CPU times (us),
+      PID TYPE       NAME                                                TOTAL
+   311374 method     java/io/FilePermission$1.run                         1055
+   311374 method     java/util/Arrays.copyOf                              1110
+   311374 method     sun/net/www/ParseUtil.decode                         1161
+   311374 method     java/io/File.<clinit>                                1212
+   311374 method     java/lang/StringBuilder.append                       1228
+   311374 method     java/io/UnixFileSystem.normalize                     1402
+   311374 method     java/lang/String.<init>                              2251
+   311374 method     java/lang/String.charAt                              2262
+   311374 method     java/lang/System.initializeSystemClass               2751
+        0 total      -                                                   99868
+
+Top 10 inclusive method on-CPU times (us),
+      PID TYPE       NAME                                                TOTAL
+   311374 method     java/lang/ClassLoader.loadClassInternal             25826
+   311374 method     sun/misc/Launcher$ExtClassLoader.getExtClassLoader    25914
+   311374 method     java/net/URL.<init>                                 27677
+   311374 method     sun/misc/Launcher.<init>                            28566
+   311374 method     sun/misc/Launcher.<clinit>                          28744
+   311374 method     java/lang/ClassLoader.initSystemClassLoader         29241
+   311374 method     java/lang/ClassLoader.getSystemClassLoader          29249
+   311374 method     java/lang/System.initializeSystemClass              33814
+   311374 method     java/lang/ClassLoader.loadClass                     66564
+   311374 method     java/security/AccessController.doPrivileged         67499
+
+You can see that it prints the top ten results in each of four categories.
+
+The first section reports how many times each subroutine was called, and it's
+type.
+
+The second section reports on the on-CPU time of anything that was not of type
+"method", in this case - none. 
+
+The exclusive method on-CPU times shows, amongst other results, that
+java/lang/String.charAt spent around 2,200 microseconds on-CPU.  This times 
+excludes time spent in other subroutines.
+
+The inclusive method on-CPU times show the times that various methods
+spent on-CPU.  This includes the time spent in other subroutines called.
+
+These on-CPU times are the time the thread spent running on a CPU, from when
+the subroutine began to when it completed. This does not include time
+spent off-CPU time such as sleeping for I/O or waiting for scheduling.
+
+On-CPU times are useful for showing who is causing the CPUs to be busy.
+See Notes/ALLoncpu_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive subroutine time.
+

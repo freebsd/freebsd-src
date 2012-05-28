@@ -584,7 +584,8 @@ run_command(struct cfjail *j)
 			term = getenv("TERM");
 			environ = &cleanenv;
 			setenv("PATH", "/bin:/usr/bin", 0);
-			setenv("TERM", term, 1);
+			if (term != NULL)
+				setenv("TERM", term, 1);
 		}
 		if (setusercontext(lcap, pwd, pwd->pw_uid, username
 		    ? LOGIN_SETALL & ~LOGIN_SETGROUP & ~LOGIN_SETLOGIN

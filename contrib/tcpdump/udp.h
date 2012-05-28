@@ -90,4 +90,6 @@ struct udphdr {
 #define RIPNG_PORT 521		/*XXX*/
 #define DHCP6_SERV_PORT 546	/*XXX*/
 #define DHCP6_CLI_PORT 547	/*XXX*/
+#define BABEL_PORT 6696
+#define BABEL_PORT_OLD 6697
 #endif

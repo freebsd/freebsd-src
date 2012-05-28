@@ -359,7 +359,7 @@ void sati_inquiry_block_device_translate_data(
     );
 
     //bytes 8-63 are reserved
-    for(offset = 8; offset < 63; offset++)
+    for(offset = 8; offset < 64; offset++)
     {
        sati_set_data_byte(sequence, scsi_io, offset, 0x00);
     }

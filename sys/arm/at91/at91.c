@@ -69,11 +69,11 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	vm_paddr_t pa, endpa;
 
 	pa = trunc_page(bpa);
-	if (pa >= 0xfff00000) {
-		*bshp = pa - 0xf0000000 + 0xd0000000;
+	if (pa >= AT91_PA_BASE + 0xff00000) {
+		*bshp = pa - AT91_PA_BASE + AT91_BASE;
 		return (0);
 	}
-	if (pa >= 0xdff00000)
+	if (pa >= AT91_BASE + 0xff00000)
 		return (0);
 	endpa = round_page(bpa + size);
 
@@ -269,7 +269,7 @@ at91_attach(device_t dev)
 	sc->sc_mem_rman.rm_descr = "AT91 Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0)
 		panic("at91_attach: failed to set up memory rman");
-	for ( pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
+	for (pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
 		if (rman_manage_region(&sc->sc_mem_rman, pdevmap->pd_va,
 		    pdevmap->pd_va + pdevmap->pd_size - 1) != 0)
 			panic("at91_attach: failed to set up memory rman");

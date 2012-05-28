@@ -1,0 +1,127 @@
+**************************************************************************
+* The following are additional notes on all programs that print a colorized
+* ("colourised") output, *color*.d.
+*
+* $Id: ALLcolors_notes.txt 58 2007-10-01 13:36:29Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+* The colors aren't working, I see rubbish characters
+
+Try using a terminal that supports colors, such as gnome-terminal or dtterm.
+
+The following text should test the spectrum of colors for your terminal.
+Read this using "more" or "cat" (not "less" or "vim") to check if your
+terminal will print colors, and what they will look like:
+
+	Color		Test String		Dark Background
+	---------------------------------------------------------
+	black		[30mcolor test[0m		[30;40mcolor test[0m
+	red		[31mcolor test[0m		[31;40mcolor test[0m
+	green		[32mcolor test[0m		[32;40mcolor test[0m
+	yellow		[33mcolor test[0m		[33;40mcolor test[0m
+	blue		[34mcolor test[0m		[34;40mcolor test[0m
+	magenta		[35mcolor test[0m		[35;40mcolor test[0m
+	cyan		[36mcolor test[0m		[36;40mcolor test[0m
+	white		[37mcolor test[0m		[37;40mcolor test[0m
+
+and now for a test of attributes:
+
+	Color		Bold			Faint
+	---------------------------------------------------------
+	black		[1;30mcolor test[0m		[2;30mcolor test[0m
+	red		[1;31mcolor test[0m		[2;31mcolor test[0m
+	green		[1;32mcolor test[0m		[2;32mcolor test[0m
+	yellow		[1;33mcolor test[0m		[2;33mcolor test[0m
+	blue		[1;34mcolor test[0m		[2;34mcolor test[0m
+	magenta		[1;35mcolor test[0m		[2;35mcolor test[0m
+	cyan		[1;36mcolor test[0m		[2;36mcolor test[0m
+	white		[1;37mcolor test[0m		[2;37mcolor test[0m
+
+
+* Why so much green and violet in the toolkit scripts?
+
+As DTrace can examine the entire software stack, it is conceivable that
+your script could print events from many different layers each with their
+own color. Color scripts in the DTraceToolkit generally start by tracing
+two layers, with extra layers added by the end user as needed (you). The
+general plan is:
+
+	Software Layer		Example	Provider	Color
+	-------------------------------------------------------
+	Dynamic Language	perl			violet
+	User Library		pid:libperl		blue
+	OS Library		pid:libc		cyan
+	System Calls		syscall			green
+	Kernel and Drivers	fbt			red
+
+How these colors will look will depend on your terminal software. Useful
+variations can be made, for example using red/bold for kernel abstraction
+providers (io, vminfo, ...); and red/faint for raw kernel tracing (fbt).
+
+The color examples in this toolkit usually trace the syscall and dynamic
+language layers, hense the green and violet.
+
+
+* I don't like the choosen terminal colors / your colors suck
+
+It should be easy to customize them by tweaking the script. I've tried
+to use the following convention for declaring colors in D scripts:
+
+   dtrace:::BEGIN
+   {
+           color_shell = "\033[2;35m";             /* violet, faint */
+           color_line = "\033[1;35m";              /* violet, bold */
+           color_syscall = "\033[2;32m";           /* green, faint */
+           color_off = "\033[0m";                  /* default */
+   }
+
+That way, printf() statements can print these string variables to turn
+on and off colors, as needed. These strings contain an escape sequence to
+inform your terminal software to change the output color. Customizations
+can be made by tweaking the variables; refer to documentation for your
+terminal software to see what numbers will print what colors.
+
+For my terminal (dtterm), the numbers are (from dtterm(5)):
+
+	Attributes
+
+		1	bold
+		2	faint
+
+	Forground colors
+
+		30	black
+		31	red
+		32	green
+		33	yellow
+		34	blue
+		35	magenta
+		36	cyan
+		37	white
+
+	Background colors
+
+		40	black
+		41	red
+		...	etc, as above
+
+
+* I'd like to use this colored output on a website.
+
+The easiest way would be to change the script to output HTML rather than
+escape sequences. eg:
+
+   dtrace:::BEGIN
+   {
+           color_shell = "<font color=\"#FFAAFF\">";     /* violet, faint */
+           color_line = "<font color=\"#FF44FF\">";      /* violet, bold */
+           color_syscall = "<font color=\"#44CC44\">";   /* green, faint */
+           color_off = "</font>";                        /* default */
+   }
+
+Other tweaks can be made to either print the output in a <pre> tagged block;
+or as seperate lines ending in <br> along with changing the font to be
+fixed width.
+

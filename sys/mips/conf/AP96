@@ -44,3 +44,6 @@ device		firmware		# Used by the above
 # Options required for miiproxy and mdiobus
 options 	ARGE_MDIO		# Export an MDIO bus separate from arge
 device		miiproxy		# MDIO bus <-> MII PHY rendezvous
+
+device		etherswitch
+device		arswitch

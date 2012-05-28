@@ -544,9 +544,11 @@ ata_interrupt(void *data)
     struct ata_channel *ch = (struct ata_channel *)data;
 
     mtx_lock(&ch->state_mtx);
+    xpt_batch_start(ch->sim);
 #endif
     ata_interrupt_locked(data);
 #ifdef ATA_CAM
+    xpt_batch_done(ch->sim);
     mtx_unlock(&ch->state_mtx);
 #endif
 }
@@ -885,7 +887,7 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 {
     device_t child;
 
-    if ((child = device_add_child(parent, NULL, unit))) {
+    if ((child = device_add_child(parent, (unit < 0) ? NULL : "ad", unit))) {
 	device_set_softc(child, atadev);
 	device_quiet(child);
 	atadev->dev = child;

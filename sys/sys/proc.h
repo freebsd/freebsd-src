@@ -247,6 +247,7 @@ struct thread {
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
 	int		td_swvoltick;	/* (t) Time at last SW_VOL switch. */
+	u_int		td_cow;		/* (*) Number of copy-on-write faults */
 	struct rusage	td_ru;		/* (t) rusage information. */
 	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
@@ -257,7 +258,6 @@ struct thread {
 	u_int		td_uticks;	/* (t) Statclock hits in user mode. */
 	int		td_intrval;	/* (t) Return value for sleepq. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
-	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	volatile u_int	td_generation;	/* (k) For detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
 	int		td_xsig;	/* (c) Signal for ptrace */
@@ -271,10 +271,11 @@ struct thread {
 	struct osd	td_osd;		/* (k) Object specific data. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
-#define	td_endzero td_rqindex
+#define	td_endzero td_sigmask
 
-/* Copied during fork1() or thread_sched_upcall(). */
+/* Copied during fork1() or create_thread(). */
 #define	td_startcopy td_endzero
+	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	u_char		td_rqindex;	/* (t) Run queue index. */
 	u_char		td_base_pri;	/* (t) Thread base kernel priority. */
 	u_char		td_priority;	/* (t) Thread active priority. */
@@ -284,7 +285,7 @@ struct thread {
 #define	td_endcopy td_pcb
 
 /*
- * Fields that must be manually set in fork1() or thread_sched_upcall()
+ * Fields that must be manually set in fork1() or create_thread()
  * or already have been set in the allocator, constructor, etc.
  */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */

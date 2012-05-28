@@ -709,3 +709,13 @@ ar5211GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 
 	return (AH_FALSE);
 }
+
+void
+ar5211EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+}
+
+void
+ar5211GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+}
