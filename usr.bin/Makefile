@@ -205,6 +205,7 @@ SUBDIR=	alias \
 	unexpand \
 	${_unifdef} \
 	uniq \
+	unzip \
 	units \
 	unvis \
 	${_usbhidaction} \
