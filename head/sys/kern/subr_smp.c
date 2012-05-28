@@ -209,7 +209,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	int i;
 
 	KASSERT(
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
 #else
 	    type == IPI_STOP || type == IPI_STOP_HARD,
@@ -260,7 +260,7 @@ stop_cpus_hard(cpuset_t map)
 	return (generic_stop_cpus(map, IPI_STOP_HARD));
 }
 
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 int
 suspend_cpus(cpuset_t map)
 {

@@ -44,6 +44,7 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
+#include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
 #include "offload.h"

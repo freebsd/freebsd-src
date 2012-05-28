@@ -215,6 +215,20 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
 }
 
 void
+AcpiOsWaitEventsComplete(void)
+{
+	int i;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	for (i = 0; i < acpi_max_tasks; i++)
+		if ((atomic_load_acq_int(&acpi_tasks[i].at_flag) &
+		    ACPI_TASK_ENQUEUED) != 0)
+			taskqueue_drain(acpi_taskq, &acpi_tasks[i].at_task);
+	return_VOID;
+}
+
+void
 AcpiOsSleep(UINT64 Milliseconds)
 {
     int		timo;

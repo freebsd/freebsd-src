@@ -1,0 +1,35 @@
+Shell - DTracing Shell Scripting
+
+   These scripts trace activity of various shell programming languages,
+   and make use of specific shell DTrace providers, which are either
+   integrated or available for download from the shells page listed below.
+   Each script has a prefix to make the shell language clear. 
+
+	http://www.opensolaris.org/os/community/dtrace/shells/
+
+   sh - the Bourne Shell. This provider was written by Alan Hargreaves and
+   is currently available both as a diff and in binary form from the shells
+   page.
+
+   Since the DTrace Shell providers are under development, there is a chance
+   that they have changed slightly by the time you are reading this, causing
+   these scripts to either break or behave oddly. Firstly, check for newer
+   versions of the DTraceToolkit; if it hasn't been updated and you need
+   to use these scripts immediately, then updating them shouldn't take
+   too long. The following was the state of the providers when these scripts
+   were written - check for changes and update the scripts accordingly,
+
+	provider sh {
+	    probe function-entry(file, function, lineno);
+	    probe function-return(file, function, rval);
+	    probe builtin-entry(file, function, lineno);
+	    probe builtin-return(file, function, rval);
+	    probe command-entry(file, function, lineno);
+	    probe command-return(file, function, rval);
+	    probe script-start(file);
+	    probe script-done(file, rval);
+	    probe subshell-entry(file, childpid);
+	    probe subshell-return(file, rval);
+	    probe line(file, lineno);
+	};
+

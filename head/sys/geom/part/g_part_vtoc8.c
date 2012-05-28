@@ -114,6 +114,11 @@ vtoc8_parse_type(const char *type, uint16_t *tag)
 		*tag = (uint16_t)lt;
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS);
+	if (!strcasecmp(type, alias)) {
+		*tag = VTOC_TAG_FREEBSD_NANDFS;
+		return (0);
+	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
 	if (!strcasecmp(type, alias)) {
 		*tag = VTOC_TAG_FREEBSD_SWAP;
@@ -487,6 +492,8 @@ g_part_vtoc8_type(struct g_part_table *basetable, struct g_part_entry *entry,
 
 	table = (struct g_part_vtoc8_table *)basetable;
 	tag = be16dec(&table->vtoc.part[entry->gpe_index - 1].tag);
+	if (tag == VTOC_TAG_FREEBSD_NANDFS)
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS));
 	if (tag == VTOC_TAG_FREEBSD_SWAP)
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
 	if (tag == VTOC_TAG_FREEBSD_UFS)

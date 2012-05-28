@@ -20,11 +20,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/dirent.h>
+
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 
-#define _PATH_LOADER	"/boot/loader"
-#define _PATH_KERNEL	"/boot/kernel/kernel"
+#define	_PATH_LOADER	"/boot/loader"
+#define	_PATH_KERNEL	"/boot/kernel/kernel"
+#define	READ_BUF_SIZE	8192
 
 typedef int putc_func_t(char c, void *arg);
 typedef int32_t ofwh_t;
@@ -45,17 +47,21 @@ static ofwh_t bootdev;
 static uint32_t fs_off;
 
 int main(int ac, char **av);
-
 static void exit(int) __dead2;
-static void load(const char *);
-static int dskread(void *, u_int64_t, int);
-
 static void usage(void);
+
+#ifdef ZFSBOOT
+static void loadzfs(void);
+static int zbread(char *buf, off_t off, size_t bytes);
+#else
+static void load(const char *);
+#endif
 
 static void bcopy(const void *src, void *dst, size_t len);
 static void bzero(void *b, size_t len);
 
 static int mount(const char *device);
+static int dskread(void *buf, u_int64_t lba, int nblk);
 
 static void panic(const char *fmt, ...) __dead2;
 static int printf(const char *fmt, ...);
@@ -312,8 +318,6 @@ strcmp(const char *s1, const char *s2)
 	return ((u_char)*s1 - (u_char)*s2);
 }
 
-#include "ufsread.c"
-
 int
 main(int ac, char **av)
 {
@@ -335,14 +339,22 @@ main(int ac, char **av)
 		}
 	}
 
-	printf(" \n>> FreeBSD/sparc64 boot block\n"
-	"   Boot path:   %s\n"
-	"   Boot loader: %s\n", bootpath, path);
+#ifdef ZFSBOOT
+	printf(" \n>> FreeBSD/sparc64 ZFS boot block\n    Boot path:   %s\n",
+	    bootpath);
+#else
+	printf(" \n>> FreeBSD/sparc64 boot block\n    Boot path:   %s\n"
+	    "   Boot loader: %s\n", "", bootpath, path);
+#endif
 
 	if (mount(bootpath) == -1)
 		panic("mount");
 
+#ifdef ZFSBOOT
+	loadzfs();
+#else
 	load(path);
+#endif
 	return (1);
 }
 
@@ -361,23 +373,84 @@ exit(int code)
 	ofw_exit();
 }
 
-static struct dmadat __dmadat;
+#ifdef ZFSBOOT
+
+#define	VDEV_BOOT_OFFSET	(2 * 256 * 1024)
+static char zbuf[READ_BUF_SIZE];
 
 static int
-mount(const char *device)
+zbread(char *buf, off_t off, size_t bytes)
 {
+	size_t len;
+	off_t poff;
+	off_t soff;
+	char *p;
+	unsigned int nb;
+	unsigned int lb;
 
-	dmadat = &__dmadat;
-	if ((bootdev = ofw_open(device)) == -1) {
-		printf("mount: can't open device\n");
-		return (-1);
+	p = buf;
+	soff = VDEV_BOOT_OFFSET + off;
+	lb = (soff + bytes + DEV_BSIZE - 1) / DEV_BSIZE;
+	poff = soff;
+	while (poff < soff + bytes) {
+		nb = lb - poff / DEV_BSIZE;
+		if (nb > READ_BUF_SIZE / DEV_BSIZE)
+			nb = READ_BUF_SIZE / DEV_BSIZE;
+		if (dskread(zbuf, poff / DEV_BSIZE, nb))
+			break;
+		if ((poff / DEV_BSIZE + nb) * DEV_BSIZE > soff + bytes)
+			len = soff + bytes - poff;
+		else
+			len = (poff / DEV_BSIZE + nb) * DEV_BSIZE - poff;
+		memcpy(p, zbuf + poff % DEV_BSIZE, len);
+		p += len;
+		poff += len;
 	}
-	if (fsread(0, NULL, 0)) {
-		printf("mount: can't read superblock\n");
-		return (-1);
-	}
-	return (0);
+	return (poff - soff);
 }
+
+static void
+loadzfs(void)
+{
+	Elf64_Ehdr eh;
+	Elf64_Phdr ph;
+	caddr_t p;
+	int i;
+
+	if (zbread((char *)&eh, 0, sizeof(eh)) != sizeof(eh)) {
+		printf("Can't read elf header\n");
+		return;
+	}
+	if (!IS_ELF(eh)) {
+		printf("Not an ELF file\n");
+		return;
+	}
+	for (i = 0; i < eh.e_phnum; i++) {
+		fs_off = eh.e_phoff + i * eh.e_phentsize;
+		if (zbread((char *)&ph, fs_off, sizeof(ph)) != sizeof(ph)) {
+			printf("Can't read program header %d\n", i);
+			return;
+		}
+		if (ph.p_type != PT_LOAD)
+			continue;
+		fs_off = ph.p_offset;
+		p = (caddr_t)ph.p_vaddr;
+		if (zbread(p, fs_off, ph.p_filesz) != ph.p_filesz) {
+			printf("Can't read content of section %d\n", i);
+			return;
+		}
+		if (ph.p_filesz != ph.p_memsz)
+			bzero(p + ph.p_filesz, ph.p_memsz - ph.p_filesz);
+	}
+	ofw_close(bootdev);
+	(*(void (*)(int, int, int, int, ofwfp_t))eh.e_entry)(0, 0, 0, 0, ofw);
+}
+
+#else
+
+#include "ufsread.c"
+
+static struct dmadat __dmadat;
 
 static void
 load(const char *fname)
@@ -385,7 +458,7 @@ load(const char *fname)
 	Elf64_Ehdr eh;
 	Elf64_Phdr ph;
 	caddr_t p;
-	ino_t ino;
+	ufs_ino_t ino;
 	int i;
 
 	if ((ino = lookup(fname)) == 0) {
@@ -419,6 +492,26 @@ load(const char *fname)
 	}
 	ofw_close(bootdev);
 	(*(void (*)(int, int, int, int, ofwfp_t))eh.e_entry)(0, 0, 0, 0, ofw);
+}
+
+#endif /* ZFSBOOT */
+
+static int
+mount(const char *device)
+{
+
+	if ((bootdev = ofw_open(device)) == -1) {
+		printf("mount: can't open device\n");
+		return (-1);
+	}
+#ifndef ZFSBOOT
+	dmadat = &__dmadat;
+	if (fsread(0, NULL, 0)) {
+		printf("mount: can't read superblock\n");
+		return (-1);
+	}
+#endif
+	return (0);
 }
 
 static int

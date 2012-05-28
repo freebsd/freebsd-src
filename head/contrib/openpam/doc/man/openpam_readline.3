@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt OPENPAM_READLINE 3
 .Os
 .Sh NAME
@@ -44,27 +44,32 @@
 .Lb libpam
 .Sh SYNOPSIS
 .In sys/types.h
+.In stdio.h
 .In security/pam_appl.h
 .In security/openpam.h
 .Ft "char *"
 .Fn openpam_readline "FILE *f" "int *lineno" "size_t *lenp"
 .Sh DESCRIPTION
+.Bf Sy
+This function is deprecated and may be removed in a future release without further warning.
 The
-.Nm
+.Fn openpam_readlinev
+function may be used to achieve similar results.
+.Ef
+.Pp
+The
+.Fn openpam_readline
 function reads a line from a file, and returns it
 in a NUL-terminated buffer allocated with
 .Xr malloc 3 .
 .Pp
 The
-.Nm
+.Fn openpam_readline
 function performs a certain amount of processing
 on the data it reads:
 .Bl -bullet
 .It
-Comments (introduced by a hash sign) are stripped, as is leading and
-trailing whitespace.
-.It
-Any amount of linear whitespace is collapsed to a single space.
+Comments (introduced by a hash sign) are stripped.
 .It
 Blank lines are ignored.
 .It
@@ -89,27 +94,28 @@ terminating NUL character) is stored in the variable it points to.
 The caller is responsible for releasing the returned buffer by passing
 it to
 .Xr free 3 .
+.Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn openpam_readline
 function returns
 .Dv NULL
 on failure.
 .Sh SEE ALSO
-.Xr free 3 ,
-.Xr malloc 3 ,
+.Xr openpam_readlinev 3 ,
+.Xr openpam_readword 3 ,
 .Xr pam 3
 .Sh STANDARDS
 The
-.Nm
+.Fn openpam_readline
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn openpam_readline
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

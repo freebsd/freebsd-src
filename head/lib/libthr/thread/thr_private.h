@@ -710,6 +710,7 @@ extern size_t	_thr_stack_initial __hidden;
 extern int	_thr_page_size __hidden;
 extern int	_thr_spinloops __hidden;
 extern int	_thr_yieldloops __hidden;
+extern int	_thr_queuefifo __hidden;
 
 /* Garbage thread count. */
 extern int	_gc_count __hidden;

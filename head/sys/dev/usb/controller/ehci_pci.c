@@ -243,6 +243,7 @@ ehci_pci_via_quirk(device_t self)
 		val = pci_read_config(self, 0x4b, 1);
 		if (val & 0x20)
 			return;
+		val |= 0x20;
 		pci_write_config(self, 0x4b, val, 1);
 		device_printf(self, "VIA-quirk applied\n");
 	}

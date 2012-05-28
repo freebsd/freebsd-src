@@ -14,6 +14,9 @@
 /* Directories clang will search for headers */
 #define C_INCLUDE_DIRS ""
 
+/* Default <path> to all compiler invocations for --sysroot=<path>. */
+/* #undef DEFAULT_SYSROOT */
+
 /* Define if position independent code is enabled */
 #define ENABLE_PIC 0
 
@@ -660,13 +663,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.1svn"
+#define PACKAGE_STRING "LLVM 3.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.1svn"
+#define PACKAGE_VERSION "3.1"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

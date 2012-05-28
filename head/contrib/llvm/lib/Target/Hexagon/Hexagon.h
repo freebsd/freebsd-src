@@ -40,7 +40,6 @@ namespace llvm {
   FunctionPass *createHexagonHardwareLoops();
   FunctionPass *createHexagonPeephole();
   FunctionPass *createHexagonFixupHwLoops();
-  FunctionPass *createHexagonPacketizer();
 
 /* TODO: object output.
   MCCodeEmitter *createHexagonMCCodeEmitter(const Target &,

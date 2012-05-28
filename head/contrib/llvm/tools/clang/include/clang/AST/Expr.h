@@ -581,16 +581,6 @@ public:
   /// member expression.
   static QualType findBoundMemberType(const Expr *expr);
 
-  /// \brief Result type of CanThrow().
-  enum CanThrowResult {
-    CT_Cannot,
-    CT_Dependent,
-    CT_Can
-  };
-  /// \brief Test if this expression, if evaluated, might throw, according to
-  ///        the rules of C++ [expr.unary.noexcept].
-  CanThrowResult CanThrow(ASTContext &C) const;
-
   /// IgnoreImpCasts - Skip past any implicit casts which might
   /// surround this expression.  Only skips ImplicitCastExprs.
   Expr *IgnoreImpCasts() LLVM_READONLY;
@@ -3607,6 +3597,10 @@ public:
   bool isExplicit() {
     return LBraceLoc.isValid() && RBraceLoc.isValid();
   }
+
+  // Is this an initializer for an array of characters, initialized by a string
+  // literal or an @encode?
+  bool isStringLiteralInit() const;
 
   SourceLocation getLBraceLoc() const { return LBraceLoc; }
   void setLBraceLoc(SourceLocation Loc) { LBraceLoc = Loc; }

@@ -217,12 +217,12 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 	 * Try multi-allocation chunks to reduce the number of DMA
 	 * allocations, hence DMA allocations are slow.
 	 */
-	if (size >= PAGE_SIZE) {
+	if (size >= USB_PAGE_SIZE) {
 		n_dma_pc = count;
 		n_obj = 1;
 	} else {
 		/* compute number of objects per page */
-		n_obj = (PAGE_SIZE / size);
+		n_obj = (USB_PAGE_SIZE / size);
 		/*
 		 * Compute number of DMA chunks, rounded up
 		 * to nearest one:
@@ -1681,10 +1681,11 @@ usbd_pipe_enter(struct usb_xfer *xfer)
 
 	DPRINTF("enter\n");
 
+	/* the transfer can now be cancelled */
+	xfer->flags_int.can_cancel_immed = 1;
+
 	/* enter the transfer */
 	(ep->methods->enter) (xfer);
-
-	xfer->flags_int.can_cancel_immed = 1;
 
 	/* check for transfer error */
 	if (xfer->error) {
@@ -2418,13 +2419,15 @@ usbd_transfer_start_cb(void *arg)
 #if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
 #endif
+
+	/* the transfer can now be cancelled */
+	xfer->flags_int.can_cancel_immed = 1;
+
 	/* start USB transfer, if no error */
 	if (xfer->error == 0)
 		(ep->methods->start) (xfer);
 
-	xfer->flags_int.can_cancel_immed = 1;
-
-	/* check for error */
+	/* check for transfer error */
 	if (xfer->error) {
 		/* some error has happened */
 		usbd_transfer_done(xfer, 0);
@@ -2599,13 +2602,14 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 #if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
 #endif
+	/* the transfer can now be cancelled */
+	xfer->flags_int.can_cancel_immed = 1;
+
 	/* start USB transfer, if no error */
 	if (xfer->error == 0)
 		(ep->methods->start) (xfer);
 
-	xfer->flags_int.can_cancel_immed = 1;
-
-	/* check for error */
+	/* check for transfer error */
 	if (xfer->error) {
 		/* some error has happened */
 		usbd_transfer_done(xfer, 0);

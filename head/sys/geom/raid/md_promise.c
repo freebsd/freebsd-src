@@ -1955,6 +1955,8 @@ g_raid_md_free_volume_promise(struct g_raid_md_object *md,
 		pv->pv_started = 1;
 		callout_stop(&pv->pv_start_co);
 	}
+	free(pv, M_MD_PROMISE);
+	vol->v_md_data = NULL;
 	return (0);
 }
 

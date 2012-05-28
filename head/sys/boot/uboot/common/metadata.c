@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 
 #if defined(LOADER_FDT_SUPPORT)
-extern int fdt_fixup(void);
+extern vm_offset_t fdt_fixup(void);
 #endif
 
 /*
@@ -72,6 +72,7 @@ static int
 md_getboothowto(char *kargs)
 {
 	char	*cp;
+	char	*p;
 	int	howto;
 	int	active;
 	int	i;
@@ -132,10 +133,12 @@ md_getboothowto(char *kargs)
 		if (getenv(howto_names[i].ev) != NULL)
 			howto |= howto_names[i].mask;
 	}
-	if (!strcmp(getenv("console"), "comconsole"))
-		howto |= RB_SERIAL;
-	if (!strcmp(getenv("console"), "nullconsole"))
-		howto |= RB_MUTE;
+	if ((p = getenv("console"))) {
+		if (!strcmp(p, "comconsole"))
+			howto |= RB_SERIAL;
+		if (!strcmp(p, "nullconsole"))
+			howto |= RB_MUTE;
+	}
 
 	return(howto);
 }
@@ -334,7 +337,7 @@ md_load(char *args, vm_offset_t *modulep)
 #if defined(LOADER_FDT_SUPPORT)
 	/* Handle device tree blob */
 	dtbp = fdt_fixup();
-	if (dtbp != (vm_offset_t)NULL)
+	if (dtbp != 0)
 		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
 	else
 		pager_output("WARNING! Trying to fire up the kernel, but no "

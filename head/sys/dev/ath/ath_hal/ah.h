@@ -832,7 +832,8 @@ struct ath_hal {
 				HAL_BOOL bChannelChange, HAL_STATUS *status);
 	HAL_BOOL  __ahdecl(*ah_phyDisable)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_disable)(struct ath_hal *);
-	void	  __ahdecl(*ah_configPCIE)(struct ath_hal *, HAL_BOOL restore);
+	void	  __ahdecl(*ah_configPCIE)(struct ath_hal *, HAL_BOOL restore,
+				HAL_BOOL power_off);
 	void	  __ahdecl(*ah_disablePCIE)(struct ath_hal *);
 	void	  __ahdecl(*ah_setPCUConfig)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*,
@@ -1034,8 +1035,8 @@ struct ath_hal {
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
-	uint32_t  __ahdecl(*ah_get_mib_cycle_counts_pct) (struct ath_hal *,
-				uint32_t *, uint32_t *, uint32_t *, uint32_t *);
+	HAL_BOOL  __ahdecl(*ah_getMibCycleCounts) (struct ath_hal *,
+				HAL_SURVEY_SAMPLE *);
 
 	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
 	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,

@@ -30,6 +30,7 @@ SRCS=	APFloat.cpp \
 	IntervalMap.cpp \
 	IntEqClasses.cpp \
 	IntrusiveRefCntPtr.cpp \
+	Locale.cpp \
 	LockFileManager.cpp \
 	ManagedStatic.cpp \
 	Memory.cpp \

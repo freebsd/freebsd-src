@@ -830,7 +830,6 @@ ext2_sync(struct mount *mp, int waitfor)
 	/*
 	 * Write back each (modified) inode.
 	 */
-	MNT_ILOCK(mp);
 loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
@@ -847,7 +846,6 @@ loop:
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;

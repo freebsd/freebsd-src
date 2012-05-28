@@ -456,7 +456,7 @@ getdevtree(void)
 			case DEV_MATCH_DEVICE: {
 				struct device_match_result *dev_result;
 				char vendor[16], product[48], revision[16];
-				char tmpstr[256];
+				char fw[5], tmpstr[256];
 
 				dev_result =
 				     &ccb.cdm.matches[i].result.device_result;
@@ -495,6 +495,25 @@ getdevtree(void)
 					   sizeof(revision));
 				    sprintf(tmpstr, "<%s %s>", product,
 					revision);
+				} else if (dev_result->protocol == PROTO_SEMB) {
+					struct sep_identify_data *sid;
+
+					sid = (struct sep_identify_data *)
+					    &dev_result->ident_data;
+					cam_strvis(vendor, sid->vendor_id,
+					    sizeof(sid->vendor_id),
+					    sizeof(vendor));
+					cam_strvis(product, sid->product_id,
+					    sizeof(sid->product_id),
+					    sizeof(product));
+					cam_strvis(revision, sid->product_rev,
+					    sizeof(sid->product_rev),
+					    sizeof(revision));
+					cam_strvis(fw, sid->firmware_rev,
+					    sizeof(sid->firmware_rev),
+					    sizeof(fw));
+					sprintf(tmpstr, "<%s %s %s %s>",
+					    vendor, product, revision, fw);
 				} else {
 				    sprintf(tmpstr, "<>");
 				}

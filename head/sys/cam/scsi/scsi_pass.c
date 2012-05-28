@@ -111,7 +111,7 @@ PERIPHDRIVER_DECLARE(pass, passdriver);
 
 static struct cdevsw pass_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	0,
+	.d_flags =	D_TRACKCLOSE,
 	.d_open =	passopen,
 	.d_close =	passclose,
 	.d_ioctl =	passioctl,
@@ -377,8 +377,8 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	softc = (struct pass_softc *)periph->softc;
 
 	if (softc->flags & PASS_FLAG_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(ENXIO);
 	}
 
@@ -387,8 +387,8 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 */
 	error = securelevel_gt(td->td_ucred, 1);
 	if (error) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(error);
 	}
 
@@ -396,8 +396,8 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * Only allow read-write access.
 	 */
 	if (((flags & FWRITE) == 0) || ((flags & FREAD) == 0)) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(EPERM);
 	}
 
@@ -406,19 +406,12 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 */
 	if ((flags & O_NONBLOCK) != 0) {
 		xpt_print(periph->path, "can't do nonblocking access\n");
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(EINVAL);
 	}
 
-	if ((softc->flags & PASS_FLAG_OPEN) == 0) {
-		softc->flags |= PASS_FLAG_OPEN;
-		cam_periph_unlock(periph);
-	} else {
-		/* Device closes aren't symmertical, so fix up the refcount */
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-	}
+	cam_periph_unlock(periph);
 
 	return (error);
 }
@@ -427,18 +420,11 @@ static int
 passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct 	cam_periph *periph;
-	struct	pass_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
-	cam_periph_lock(periph);
-
-	softc = (struct pass_softc *)periph->softc;
-	softc->flags &= ~PASS_FLAG_OPEN;
-
-	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 
 	return (0);

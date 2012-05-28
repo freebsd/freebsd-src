@@ -36,26 +36,28 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-/* NOTE: lwsync is equivalent to sync on systems without lwsync */
-#define mb()		__asm __volatile("lwsync" : : : "memory")
-#ifdef __powerpc64__
-#define rmb()		__asm __volatile("lwsync" : : : "memory")
-#define wmb()		__asm __volatile("lwsync" : : : "memory")
-#else
-#define rmb()		__asm __volatile("lwsync" : : : "memory")
-#define wmb()		__asm __volatile("eieio" : : : "memory")
-#endif
-
 /*
  * The __ATOMIC_REL/ACQ() macros provide memory barriers only in conjunction
- * with the atomic lXarx/stXcx. sequences below. See Appendix B.2 of Book II
- * of the architecture manual.
+ * with the atomic lXarx/stXcx. sequences below. They are not exposed outside
+ * of this file. See also Appendix B.2 of Book II of the architecture manual.
+ *
+ * Note that not all Book-E processors accept the light-weight sync variant.
+ * In particular, early models of E500 cores are known to wedge. Bank on all
+ * 64-bit capable CPUs to accept lwsync properly and pressimize 32-bit CPUs
+ * to use the heavier-weight sync.
  */
+
 #ifdef __powerpc64__
+#define mb()		__asm __volatile("lwsync" : : : "memory")
+#define rmb()		__asm __volatile("lwsync" : : : "memory")
+#define wmb()		__asm __volatile("lwsync" : : : "memory")
 #define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
-#define __ATOMIC_ACQ()	__asm __volatile("lwsync" : : : "memory")
+#define __ATOMIC_ACQ()	__asm __volatile("isync" : : : "memory")
 #else
-#define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
+#define mb()		__asm __volatile("sync" : : : "memory")
+#define rmb()		__asm __volatile("sync" : : : "memory")
+#define wmb()		__asm __volatile("sync" : : : "memory")
+#define __ATOMIC_REL()	__asm __volatile("sync" : : : "memory")
 #define __ATOMIC_ACQ()	__asm __volatile("isync" : : : "memory")
 #endif
 
@@ -687,5 +689,8 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 #ifdef __powerpc64__
 #define	atomic_fetchadd_64	atomic_fetchadd_long
 #endif
+
+#undef __ATOMIC_REL
+#undef __ATOMIC_ACQ
 
 #endif /* ! _MACHINE_ATOMIC_H_ */

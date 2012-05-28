@@ -105,7 +105,6 @@ struct mfi_command {
 #define MFI_ON_MFIQ_READY	(1<<6)
 #define MFI_ON_MFIQ_BUSY	(1<<7)
 #define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
-	int			cm_aen_abort;
 	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
@@ -177,7 +176,7 @@ struct mfi_softc {
 	// Start: LSIP200113393
 	bus_dma_tag_t			verbuf_h_dmat;
 	bus_dmamap_t			verbuf_h_dmamap;
-	uint32_t			verbuf_h_busaddr;
+	bus_addr_t			verbuf_h_busaddr;
 	uint32_t			*verbuf;
 	void				*kbuff_arr[MAX_IOCTL_SGE];
 	bus_dma_tag_t			mfi_kbuff_arr_dmat[2];
@@ -216,9 +215,13 @@ struct mfi_softc {
 
 	TAILQ_HEAD(,mfi_evt_queue_elm)	mfi_evt_queue;
 	struct task			mfi_evt_task;
+	struct task			mfi_map_sync_task;
 	TAILQ_HEAD(,mfi_aen)		mfi_aen_pids;
 	struct mfi_command		*mfi_aen_cm;
 	struct mfi_command		*mfi_skinny_cm;
+	struct mfi_command		*mfi_map_sync_cm;
+	int				cm_aen_abort;
+	int				cm_map_abort;
 	uint32_t			mfi_aen_triggered;
 	uint32_t			mfi_poll_waiting;
 	uint32_t			mfi_boot_seq_num;
@@ -229,7 +232,7 @@ struct mfi_softc {
 
 	bus_dma_tag_t			mfi_sense_dmat;
 	bus_dmamap_t			mfi_sense_dmamap;
-	uint32_t			mfi_sense_busaddr;
+	bus_addr_t			mfi_sense_busaddr;
 	struct mfi_sense		*mfi_sense;
 
 	struct resource			*mfi_irq;
@@ -303,8 +306,6 @@ struct mfi_softc {
 	/* ThunderBolt */
 	uint32_t			mfi_tbolt;
 	uint32_t			MFA_enabled;
-	uint64_t			map_id;
-	struct mfi_command 		*map_update_cmd;
 	/* Single Reply structure size */
 	uint16_t			reply_size;
 	/* Singler message size. */
@@ -318,7 +319,6 @@ struct mfi_softc {
 	uint8_t	*			request_message_pool;
 	uint8_t *			request_message_pool_align;
 	uint8_t *			request_desc_pool;
-	//uint32_t			request_desc_busaddr;
 	bus_addr_t			request_msg_busaddr;
 	bus_addr_t			reply_frame_busaddr;
 	bus_addr_t			sg_frame_busaddr;
@@ -417,7 +417,10 @@ extern int mfi_tbolt_alloc_cmd(struct mfi_softc *sc);
 extern int mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm);
 extern int mfi_tbolt_adp_reset(struct mfi_softc *sc);
 extern int mfi_tbolt_reset(struct mfi_softc *sc);
-extern int mfi_tbolt_sync_map_info(struct mfi_softc *sc);
+extern void mfi_tbolt_sync_map_info(struct mfi_softc *sc);
+extern void mfi_handle_map_sync(void *context, int pending);
+extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
+		    uint32_t, void **, size_t);
 
 #define MFIQ_ADD(sc, qname)					\
 	do {							\

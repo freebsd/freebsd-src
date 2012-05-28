@@ -5634,6 +5634,7 @@ multiclass Lengthen_HalfSingle<string DestLanes, string DestTy, string SrcTy,
 
 // extload, zextload and sextload for a lengthening load followed by another
 // lengthening load, to quadruple the initial length.
+//
 // Lengthen_Double<"4", "i32", "i8", "8", "i16", "4", "i32", qsub_0> =
 //     Pat<(v4i32 (extloadvi8 addrmode5:$addr))
 //         (EXTRACT_SUBREG (VMOVLuv4i32 
@@ -5644,28 +5645,63 @@ multiclass Lengthen_HalfSingle<string DestLanes, string DestTy, string SrcTy,
 //           qsub_0)>;
 multiclass Lengthen_Double<string DestLanes, string DestTy, string SrcTy,
                            string Insn1Lanes, string Insn1Ty, string Insn2Lanes,
-                           string Insn2Ty, SubRegIndex RegType> {
+                           string Insn2Ty> {
+  def _Any : Pat<(!cast<ValueType>("v" # DestLanes # DestTy)
+                   (!cast<PatFrag>("extloadv" # SrcTy) addrmode5:$addr)),
+         (!cast<Instruction>("VMOVLuv" # Insn2Lanes # Insn2Ty)
+           (EXTRACT_SUBREG (!cast<Instruction>("VMOVLuv" # Insn1Lanes # Insn1Ty)
+             (INSERT_SUBREG (f64 (IMPLICIT_DEF)), (VLDRS addrmode5:$addr),
+              ssub_0)), dsub_0))>;
+  def _Z   : Pat<(!cast<ValueType>("v" # DestLanes # DestTy)
+                   (!cast<PatFrag>("zextloadv" # SrcTy) addrmode5:$addr)),
+         (!cast<Instruction>("VMOVLuv" # Insn2Lanes # Insn2Ty)
+           (EXTRACT_SUBREG (!cast<Instruction>("VMOVLuv" # Insn1Lanes # Insn1Ty)
+             (INSERT_SUBREG (f64 (IMPLICIT_DEF)), (VLDRS addrmode5:$addr),
+              ssub_0)), dsub_0))>;
+  def _S   : Pat<(!cast<ValueType>("v" # DestLanes # DestTy)
+                   (!cast<PatFrag>("sextloadv" # SrcTy) addrmode5:$addr)),
+         (!cast<Instruction>("VMOVLsv" # Insn2Lanes # Insn2Ty)
+           (EXTRACT_SUBREG (!cast<Instruction>("VMOVLsv" # Insn1Lanes # Insn1Ty)
+             (INSERT_SUBREG (f64 (IMPLICIT_DEF)), (VLDRS addrmode5:$addr),
+              ssub_0)), dsub_0))>;
+}
+
+// extload, zextload and sextload for a lengthening load followed by another
+// lengthening load, to quadruple the initial length, but which ends up only
+// requiring half the available lanes (a 64-bit outcome instead of a 128-bit).
+//
+// Lengthen_HalfDouble<"2", "i32", "i8", "8", "i16", "4", "i32"> =
+//     Pat<(v4i32 (extloadvi8 addrmode5:$addr))
+//         (EXTRACT_SUBREG (VMOVLuv4i32 
+//           (EXTRACT_SUBREG (VMOVLuv8i16 (INSERT_SUBREG (f64 (IMPLICIT_DEF)),
+//                                                       (VLDRS addrmode5:$addr),
+//                                                       ssub_0)),
+//                           dsub_0)),
+//           dsub_0)>;
+multiclass Lengthen_HalfDouble<string DestLanes, string DestTy, string SrcTy,
+                           string Insn1Lanes, string Insn1Ty, string Insn2Lanes,
+                           string Insn2Ty> {
   def _Any : Pat<(!cast<ValueType>("v" # DestLanes # DestTy)
                    (!cast<PatFrag>("extloadv" # SrcTy) addrmode5:$addr)),
          (EXTRACT_SUBREG (!cast<Instruction>("VMOVLuv" # Insn2Lanes # Insn2Ty)
            (EXTRACT_SUBREG (!cast<Instruction>("VMOVLuv" # Insn1Lanes # Insn1Ty)
              (INSERT_SUBREG (f64 (IMPLICIT_DEF)), (VLDRS addrmode5:$addr),
               ssub_0)), dsub_0)),
-          RegType)>;
+          dsub_0)>;
   def _Z   : Pat<(!cast<ValueType>("v" # DestLanes # DestTy)
                    (!cast<PatFrag>("zextloadv" # SrcTy) addrmode5:$addr)),
          (EXTRACT_SUBREG (!cast<Instruction>("VMOVLuv" # Insn2Lanes # Insn2Ty)
            (EXTRACT_SUBREG (!cast<Instruction>("VMOVLuv" # Insn1Lanes # Insn1Ty)
              (INSERT_SUBREG (f64 (IMPLICIT_DEF)), (VLDRS addrmode5:$addr),
               ssub_0)), dsub_0)),
-          RegType)>;
+          dsub_0)>;
   def _S   : Pat<(!cast<ValueType>("v" # DestLanes # DestTy)
                    (!cast<PatFrag>("sextloadv" # SrcTy) addrmode5:$addr)),
          (EXTRACT_SUBREG (!cast<Instruction>("VMOVLsv" # Insn2Lanes # Insn2Ty)
            (EXTRACT_SUBREG (!cast<Instruction>("VMOVLsv" # Insn1Lanes # Insn1Ty)
              (INSERT_SUBREG (f64 (IMPLICIT_DEF)), (VLDRS addrmode5:$addr),
               ssub_0)), dsub_0)),
-          RegType)>;
+          dsub_0)>;
 }
 
 defm : Lengthen_Single<"8", "i16", "i8">; // v8i8 -> v8i16
@@ -5676,12 +5712,12 @@ defm : Lengthen_HalfSingle<"4", "i16", "i8", "8", "i16">; // v4i8 -> v4i16
 defm : Lengthen_HalfSingle<"2", "i16", "i8", "8", "i16">; // v2i8 -> v2i16
 defm : Lengthen_HalfSingle<"2", "i32", "i16", "4", "i32">; // v2i16 -> v2i32
 
-// Double lengthening - v4i8 -> v4i16 -> v4i32 
-defm : Lengthen_Double<"4", "i32", "i8", "8", "i16", "4", "i32", qsub_0>;
+// Double lengthening - v4i8 -> v4i16 -> v4i32
+defm : Lengthen_Double<"4", "i32", "i8", "8", "i16", "4", "i32">;
 // v2i8 -> v2i16 -> v2i32
-defm : Lengthen_Double<"2", "i32", "i8", "8", "i16", "4", "i32", dsub_0>;
+defm : Lengthen_HalfDouble<"2", "i32", "i8", "8", "i16", "4", "i32">;
 // v2i16 -> v2i32 -> v2i64
-defm : Lengthen_Double<"2", "i64", "i16", "4", "i32", "2", "i64", qsub_0>;
+defm : Lengthen_Double<"2", "i64", "i16", "4", "i32", "2", "i64">;
 
 // Triple lengthening - v2i8 -> v2i16 -> v2i32 -> v2i64
 def : Pat<(v2i64 (extloadvi8 addrmode5:$addr)),
@@ -5951,7 +5987,7 @@ def : NEONInstAlias<"vshl${p}.u32 $Vdn, $Vm",
 def : NEONInstAlias<"vshl${p}.u64 $Vdn, $Vm",
                     (VSHLuv2i64 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
 
-// VSHL (immediate) two-operand aliases.
+// VSHR (immediate) two-operand aliases.
 def : NEONInstAlias<"vshr${p}.s8 $Vdn, $imm",
                     (VSHRsv8i8 DPR:$Vdn, DPR:$Vdn, shr_imm8:$imm, pred:$p)>;
 def : NEONInstAlias<"vshr${p}.s16 $Vdn, $imm",
@@ -5987,6 +6023,41 @@ def : NEONInstAlias<"vshr${p}.u32 $Vdn, $imm",
                     (VSHRuv4i32 QPR:$Vdn, QPR:$Vdn, shr_imm32:$imm, pred:$p)>;
 def : NEONInstAlias<"vshr${p}.u64 $Vdn, $imm",
                     (VSHRuv2i64 QPR:$Vdn, QPR:$Vdn, shr_imm64:$imm, pred:$p)>;
+
+// VRSHL two-operand aliases.
+def : NEONInstAlias<"vrshl${p}.s8 $Vdn, $Vm",
+                    (VRSHLsv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.s16 $Vdn, $Vm",
+                    (VRSHLsv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.s32 $Vdn, $Vm",
+                    (VRSHLsv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.s64 $Vdn, $Vm",
+                    (VRSHLsv1i64 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u8 $Vdn, $Vm",
+                    (VRSHLuv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u16 $Vdn, $Vm",
+                    (VRSHLuv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u32 $Vdn, $Vm",
+                    (VRSHLuv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u64 $Vdn, $Vm",
+                    (VRSHLuv1i64 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+
+def : NEONInstAlias<"vrshl${p}.s8 $Vdn, $Vm",
+                    (VRSHLsv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.s16 $Vdn, $Vm",
+                    (VRSHLsv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.s32 $Vdn, $Vm",
+                    (VRSHLsv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.s64 $Vdn, $Vm",
+                    (VRSHLsv2i64 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u8 $Vdn, $Vm",
+                    (VRSHLuv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u16 $Vdn, $Vm",
+                    (VRSHLuv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u32 $Vdn, $Vm",
+                    (VRSHLuv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vrshl${p}.u64 $Vdn, $Vm",
+                    (VRSHLuv2i64 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
 
 // VLD1 single-lane pseudo-instructions. These need special handling for
 // the lane index that an InstAlias can't handle, so we use these instead.
@@ -6950,6 +7021,100 @@ def : NEONInstAlias<"vsli${p}.32 $Vdm, $imm",
                     (VSLIv4i32 QPR:$Vdm, QPR:$Vdm, shr_imm32:$imm, pred:$p)>;
 def : NEONInstAlias<"vsli${p}.64 $Vdm, $imm",
                     (VSLIv2i64 QPR:$Vdm, QPR:$Vdm, shr_imm64:$imm, pred:$p)>;
+
+// Two-operand variants for VHSUB.
+    // Signed.
+def : NEONInstAlias<"vhsub${p}.s8 $Vdn, $Vm",
+                    (VHSUBsv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.s16 $Vdn, $Vm",
+                    (VHSUBsv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.s32 $Vdn, $Vm",
+                    (VHSUBsv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+
+def : NEONInstAlias<"vhsub${p}.s8 $Vdn, $Vm",
+                    (VHSUBsv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.s16 $Vdn, $Vm",
+                    (VHSUBsv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.s32 $Vdn, $Vm",
+                    (VHSUBsv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+
+    // Unsigned.
+def : NEONInstAlias<"vhsub${p}.u8 $Vdn, $Vm",
+                    (VHSUBuv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.u16 $Vdn, $Vm",
+                    (VHSUBuv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.u32 $Vdn, $Vm",
+                    (VHSUBuv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+
+def : NEONInstAlias<"vhsub${p}.u8 $Vdn, $Vm",
+                    (VHSUBuv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.u16 $Vdn, $Vm",
+                    (VHSUBuv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhsub${p}.u32 $Vdn, $Vm",
+                    (VHSUBuv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+
+
+// Two-operand variants for VHADD.
+    // Signed.
+def : NEONInstAlias<"vhadd${p}.s8 $Vdn, $Vm",
+                    (VHADDsv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.s16 $Vdn, $Vm",
+                    (VHADDsv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.s32 $Vdn, $Vm",
+                    (VHADDsv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+
+def : NEONInstAlias<"vhadd${p}.s8 $Vdn, $Vm",
+                    (VHADDsv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.s16 $Vdn, $Vm",
+                    (VHADDsv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.s32 $Vdn, $Vm",
+                    (VHADDsv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+
+    // Unsigned.
+def : NEONInstAlias<"vhadd${p}.u8 $Vdn, $Vm",
+                    (VHADDuv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.u16 $Vdn, $Vm",
+                    (VHADDuv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.u32 $Vdn, $Vm",
+                    (VHADDuv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Vm, pred:$p)>;
+
+def : NEONInstAlias<"vhadd${p}.u8 $Vdn, $Vm",
+                    (VHADDuv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.u16 $Vdn, $Vm",
+                    (VHADDuv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+def : NEONInstAlias<"vhadd${p}.u32 $Vdn, $Vm",
+                    (VHADDuv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Vm, pred:$p)>;
+
+// Two-operand variants for VRHADD.
+    // Signed.
+def : NEONInstAlias<"vrhadd${p}.s8 $Vdn, $Rm",
+                    (VRHADDsv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.s16 $Vdn, $Rm",
+                    (VRHADDsv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.s32 $Vdn, $Rm",
+                    (VRHADDsv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Rm, pred:$p)>;
+
+def : NEONInstAlias<"vrhadd${p}.s8 $Vdn, $Rm",
+                    (VRHADDsv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.s16 $Vdn, $Rm",
+                    (VRHADDsv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.s32 $Vdn, $Rm",
+                    (VRHADDsv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Rm, pred:$p)>;
+
+    // Unsigned.
+def : NEONInstAlias<"vrhadd${p}.u8 $Vdn, $Rm",
+                    (VRHADDuv8i8 DPR:$Vdn, DPR:$Vdn, DPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.u16 $Vdn, $Rm",
+                    (VRHADDuv4i16 DPR:$Vdn, DPR:$Vdn, DPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.u32 $Vdn, $Rm",
+                    (VRHADDuv2i32 DPR:$Vdn, DPR:$Vdn, DPR:$Rm, pred:$p)>;
+
+def : NEONInstAlias<"vrhadd${p}.u8 $Vdn, $Rm",
+                    (VRHADDuv16i8 QPR:$Vdn, QPR:$Vdn, QPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.u16 $Vdn, $Rm",
+                    (VRHADDuv8i16 QPR:$Vdn, QPR:$Vdn, QPR:$Rm, pred:$p)>;
+def : NEONInstAlias<"vrhadd${p}.u32 $Vdn, $Rm",
+                    (VRHADDuv4i32 QPR:$Vdn, QPR:$Vdn, QPR:$Rm, pred:$p)>;
 
 // VSWP allows, but does not require, a type suffix.
 defm : NEONDTAnyInstAlias<"vswp${p}", "$Vd, $Vm",

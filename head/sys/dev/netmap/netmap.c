@@ -1067,7 +1067,8 @@ netmap_start(struct ifnet *ifp, struct mbuf *m)
 			kring->nr_hwcur + kring->nr_hwavail, len);
 	na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
 	if (kring->nr_hwavail >= lim) {
-		D("stack ring %s full\n", ifp->if_xname);
+		if (netmap_verbose)
+			D("stack ring %s full\n", ifp->if_xname);
 		goto done;	/* no space */
 	}
 	if (len > NETMAP_BUF_SIZE) {

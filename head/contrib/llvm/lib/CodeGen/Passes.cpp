@@ -37,8 +37,9 @@ static cl::opt<bool> DisableTailDuplicate("disable-tail-duplicate", cl::Hidden,
     cl::desc("Disable tail duplication"));
 static cl::opt<bool> DisableEarlyTailDup("disable-early-taildup", cl::Hidden,
     cl::desc("Disable pre-register allocation tail duplication"));
-static cl::opt<bool> EnableBlockPlacement("enable-block-placement",
-    cl::Hidden, cl::desc("Enable probability-driven block placement"));
+static cl::opt<bool> DisableBlockPlacement("disable-block-placement",
+    cl::Hidden, cl::desc("Disable the probability-driven block placement, and "
+                         "re-enable the old code placement pass"));
 static cl::opt<bool> EnableBlockPlacementStats("enable-block-placement-stats",
     cl::Hidden, cl::desc("Collect probability-driven block placement stats"));
 static cl::opt<bool> DisableCodePlace("disable-code-place", cl::Hidden,
@@ -206,7 +207,7 @@ TargetPassConfig::~TargetPassConfig() {
 // Out of line constructor provides default values for pass options and
 // registers all common codegen passes.
 TargetPassConfig::TargetPassConfig(TargetMachine *tm, PassManagerBase &pm)
-  : ImmutablePass(ID), TM(tm), PM(pm), Impl(0), Initialized(false),
+  : ImmutablePass(ID), TM(tm), PM(&pm), Impl(0), Initialized(false),
     DisableVerify(false),
     EnableTailMerge(true) {
 
@@ -233,7 +234,7 @@ TargetPassConfig *LLVMTargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 TargetPassConfig::TargetPassConfig()
-  : ImmutablePass(ID), PM(*(PassManagerBase*)0) {
+  : ImmutablePass(ID), PM(0) {
   llvm_unreachable("TargetPassConfig should not be constructed on-the-fly");
 }
 
@@ -268,16 +269,16 @@ AnalysisID TargetPassConfig::addPass(char &ID) {
   Pass *P = Pass::createPass(FinalID);
   if (!P)
     llvm_unreachable("Pass ID not registered");
-  PM.add(P);
+  PM->add(P);
   return FinalID;
 }
 
 void TargetPassConfig::printAndVerify(const char *Banner) const {
   if (TM->shouldPrintMachineCode())
-    PM.add(createMachineFunctionPrinterPass(dbgs(), Banner));
+    PM->add(createMachineFunctionPrinterPass(dbgs(), Banner));
 
   if (VerifyMachineCode)
-    PM.add(createMachineVerifierPass(Banner));
+    PM->add(createMachineVerifierPass(Banner));
 }
 
 /// Add common target configurable passes that perform LLVM IR to IR transforms
@@ -287,46 +288,46 @@ void TargetPassConfig::addIRPasses() {
   // Add TypeBasedAliasAnalysis before BasicAliasAnalysis so that
   // BasicAliasAnalysis wins if they disagree. This is intended to help
   // support "obvious" type-punning idioms.
-  PM.add(createTypeBasedAliasAnalysisPass());
-  PM.add(createBasicAliasAnalysisPass());
+  PM->add(createTypeBasedAliasAnalysisPass());
+  PM->add(createBasicAliasAnalysisPass());
 
   // Before running any passes, run the verifier to determine if the input
   // coming from the front-end and/or optimizer is valid.
   if (!DisableVerify)
-    PM.add(createVerifierPass());
+    PM->add(createVerifierPass());
 
   // Run loop strength reduction before anything else.
   if (getOptLevel() != CodeGenOpt::None && !DisableLSR) {
-    PM.add(createLoopStrengthReducePass(getTargetLowering()));
+    PM->add(createLoopStrengthReducePass(getTargetLowering()));
     if (PrintLSR)
-      PM.add(createPrintFunctionPass("\n\n*** Code after LSR ***\n", &dbgs()));
+      PM->add(createPrintFunctionPass("\n\n*** Code after LSR ***\n", &dbgs()));
   }
 
-  PM.add(createGCLoweringPass());
+  PM->add(createGCLoweringPass());
 
   // Make sure that no unreachable blocks are instruction selected.
-  PM.add(createUnreachableBlockEliminationPass());
+  PM->add(createUnreachableBlockEliminationPass());
 }
 
 /// Add common passes that perform LLVM IR to IR transforms in preparation for
 /// instruction selection.
 void TargetPassConfig::addISelPrepare() {
   if (getOptLevel() != CodeGenOpt::None && !DisableCGP)
-    PM.add(createCodeGenPreparePass(getTargetLowering()));
+    PM->add(createCodeGenPreparePass(getTargetLowering()));
 
-  PM.add(createStackProtectorPass(getTargetLowering()));
+  PM->add(createStackProtectorPass(getTargetLowering()));
 
   addPreISel();
 
   if (PrintISelInput)
-    PM.add(createPrintFunctionPass("\n\n"
-                                   "*** Final LLVM Code input to ISel ***\n",
-                                   &dbgs()));
+    PM->add(createPrintFunctionPass("\n\n"
+                                    "*** Final LLVM Code input to ISel ***\n",
+                                    &dbgs()));
 
   // All passes which modify the LLVM IR are now complete; run the verifier
   // to ensure that the IR is valid.
   if (!DisableVerify)
-    PM.add(createVerifierPass());
+    PM->add(createVerifierPass());
 }
 
 /// Add the complete set of target-independent postISel code generator passes.
@@ -404,7 +405,7 @@ void TargetPassConfig::addMachinePasses() {
   // GC
   addPass(GCMachineCodeAnalysisID);
   if (PrintGCInfo)
-    PM.add(createGCInfoPrinter(dbgs()));
+    PM->add(createGCInfoPrinter(dbgs()));
 
   // Basic block placement.
   if (getOptLevel() != CodeGenOpt::None)
@@ -521,7 +522,7 @@ void TargetPassConfig::addFastRegAlloc(FunctionPass *RegAllocPass) {
   addPass(PHIEliminationID);
   addPass(TwoAddressInstructionPassID);
 
-  PM.add(RegAllocPass);
+  PM->add(RegAllocPass);
   printAndVerify("After Register Allocation");
 }
 
@@ -563,7 +564,7 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
     printAndVerify("After Machine Scheduling");
 
   // Add the selected register allocation pass.
-  PM.add(RegAllocPass);
+  PM->add(RegAllocPass);
   printAndVerify("After Register Allocation");
 
   // FinalizeRegAlloc is convenient until MachineInstrBundles is more mature,
@@ -610,10 +611,10 @@ void TargetPassConfig::addMachineLateOptimization() {
 /// Add standard basic block placement passes.
 void TargetPassConfig::addBlockPlacement() {
   AnalysisID ID = &NoPassID;
-  if (EnableBlockPlacement) {
-    // MachineBlockPlacement is an experimental pass which is disabled by
-    // default currently. Eventually it should subsume CodePlacementOpt, so
-    // when enabled, the other is disabled.
+  if (!DisableBlockPlacement) {
+    // MachineBlockPlacement is a new pass which subsumes the functionality of
+    // CodPlacementOpt. The old code placement pass can be restored by
+    // disabling block placement, but eventually it will be removed.
     ID = addPass(MachineBlockPlacementID);
   } else {
     ID = addPass(CodePlacementOptID);

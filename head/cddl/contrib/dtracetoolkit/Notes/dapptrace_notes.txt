@@ -1,0 +1,19 @@
+**************************************************************************
+* The following are extra notes on the dapptrace command.
+*
+* $Id: dapptrace_notes.txt 44 2007-09-17 07:47:20Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+
+* Can I trust the elapsed and on-cpu times?
+
+See the documentation for this point in the dtruss_notes.txt file.
+
+
+
+* The output appears shuffled?
+
+Read the answer to this in ALLsnoop_notes.txt.
+
