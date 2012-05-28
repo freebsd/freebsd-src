@@ -888,6 +888,10 @@ _colldef=	usr.bin/colldef
 _gencat=	usr.bin/gencat
 .endif
 
+.if ${BOOTSTRAPPING} >= 1000013
+_yacc=		usr.bin/yacc
+.endif
+
 .if ${BOOTSTRAPPING} < 600016
 _mklocale=	usr.bin/mklocale
 .endif
@@ -922,6 +926,7 @@ bootstrap-tools:
     ${_gencat} \
     usr.bin/lorder \
     usr.bin/makewhatis \
+    ${_yacc} \
     ${_mklocale} \
     usr.bin/rpcgen \
     usr.bin/xinstall \
