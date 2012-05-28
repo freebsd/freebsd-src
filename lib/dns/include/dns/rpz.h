@@ -194,5 +194,7 @@ dns_rpz_cidr_find(dns_rpz_cidr_t *cidr, const isc_netaddr_t *netaddr,
 dns_rpz_policy_t
 dns_rpz_decode_cname(dns_rdataset_t *, dns_name_t *selfname);
 
+ISC_LANG_ENDDECLS
+
 #endif /* DNS_RPZ_H */
 
