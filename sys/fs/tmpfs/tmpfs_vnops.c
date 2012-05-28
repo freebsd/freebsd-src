@@ -755,7 +755,8 @@ tmpfs_write(struct vop_write_args *v)
 
 	extended = uio->uio_offset + uio->uio_resid > node->tn_size;
 	if (extended) {
-		error = tmpfs_reg_resize(vp, uio->uio_offset + uio->uio_resid);
+		error = tmpfs_reg_resize(vp, uio->uio_offset + uio->uio_resid,
+		    FALSE);
 		if (error != 0)
 			goto out;
 	}
@@ -781,7 +782,7 @@ tmpfs_write(struct vop_write_args *v)
 	}
 
 	if (error != 0)
-		(void)tmpfs_reg_resize(vp, oldsize);
+		(void)tmpfs_reg_resize(vp, oldsize, TRUE);
 
 out:
 	MPASS(IMPLIES(error == 0, uio->uio_resid == 0));
