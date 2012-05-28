@@ -2780,15 +2780,22 @@ DIOCCHANGEADDR_error:
 
 	case DIOCRGETASTATS: {
 		struct pfioc_table *io = (struct pfioc_table *)addr;
+		struct pfr_astats *pfrastats;
+		size_t totlen;
 
 		if (io->pfrio_esize != sizeof(struct pfr_astats)) {
 			error = ENODEV;
 			break;
 		}
+		totlen = io->pfrio_size * sizeof(struct pfr_astats);
+		pfrastats = malloc(totlen, M_TEMP, M_WAITOK);
 		PF_RULES_RLOCK();
-		error = pfr_get_astats(&io->pfrio_table, io->pfrio_buffer,
+		error = pfr_get_astats(&io->pfrio_table, pfrastats,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_RULES_RUNLOCK();
+		if (error == 0)
+			error = copyout(pfrastats, io->pfrio_buffer, totlen);
+		free(pfrastats, M_TEMP);
 		break;
 	}
 
