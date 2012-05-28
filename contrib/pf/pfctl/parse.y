@@ -2909,26 +2909,6 @@ host		: STRING			{
 			$$->next = NULL;
 			$$->tail = $$;
 		}
-		| ROUTE	STRING		{
-			$$ = calloc(1, sizeof(struct node_host));
-			if ($$ == NULL) {
-				free($2);
-				err(1, "host: calloc");
-			}
-			$$->addr.type = PF_ADDR_RTLABEL;
-			if (strlcpy($$->addr.v.rtlabelname, $2,
-			    sizeof($$->addr.v.rtlabelname)) >=
-			    sizeof($$->addr.v.rtlabelname)) {
-				yyerror("route label too long, max %u chars",
-				    sizeof($$->addr.v.rtlabelname) - 1);
-				free($2);
-				free($$);
-				YYERROR;
-			}
-			$$->next = NULL;
-			$$->tail = $$;
-			free($2);
-		}
 		;
 
 number		: NUMBER
