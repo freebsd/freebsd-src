@@ -1069,7 +1069,8 @@ i915_gem_fix_mi_batchbuffer_end(struct drm_i915_gem_object *batch_obj,
 		po_r -= 4;
 	mkva = pmap_mapdev_attr(trunc_page(po_r), 2 * PAGE_SIZE,
 	    PAT_WRITE_COMBINING);
-	cmd = *(uint32_t *)(mkva + (po_r & PAGE_MASK));
+	po_r &= PAGE_MASK;
+	cmd = *(uint32_t *)(mkva + po_r);
 
 	if (cmd != MI_BATCH_BUFFER_END) {
 		/*
@@ -1083,8 +1084,7 @@ i915_gem_fix_mi_batchbuffer_end(struct drm_i915_gem_object *batch_obj,
 			po_w = po_r;
 DRM_DEBUG("batchbuffer does not end by MI_BATCH_BUFFER_END, overwriting last bo cmd !\n");
 		}
-
-		*(uint32_t *)(mkva + (po_w & PAGE_MASK)) = MI_BATCH_BUFFER_END;
+		*(uint32_t *)(mkva + po_w) = MI_BATCH_BUFFER_END;
 	}
 
 	pmap_unmapdev((vm_offset_t)mkva, 2 * PAGE_SIZE);
