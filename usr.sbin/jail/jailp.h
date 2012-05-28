@@ -227,6 +227,7 @@ extern struct cfjails cfjails;
 extern struct cfjails ready;
 extern struct cfjails depend;
 extern const char *cfname;
+extern int iflag;
 extern int note_remove;
 extern int paralimit;
 extern int verbose;

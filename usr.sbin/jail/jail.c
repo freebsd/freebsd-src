@@ -55,6 +55,7 @@ struct permspec {
 };
 
 const char *cfname;
+int iflag;
 int note_remove;
 int verbose;
 
@@ -129,7 +130,7 @@ main(int argc, char **argv)
 	size_t sysvallen;
 	unsigned op, pi;
 	int ch, docf, error, i, oldcl, sysval;
-	int dflag, iflag, Rflag;
+	int dflag, Rflag;
 	char enforce_statfs[4];
 #if defined(INET) || defined(INET6)
 	char *cs, *ncs;
@@ -139,7 +140,7 @@ main(int argc, char **argv)
 #endif
 
 	op = 0;
-	dflag = iflag = Rflag = 0;
+	dflag = Rflag = 0;
 	docf = 1;
 	cfname = CONF_FILE;
 	JidFile = NULL;
@@ -415,8 +416,6 @@ main(int argc, char **argv)
 				continue;
 		jail_create_done:
 			clear_persist(j);
-			if (iflag)
-				printf("%d\n", j->jid);
 			if (jfp != NULL)
 				print_jail(jfp, j, oldcl);
 			dep_done(j, 0);
