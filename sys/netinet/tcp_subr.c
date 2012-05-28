@@ -619,10 +619,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		nth->th_win = htons((u_short)win);
 	nth->th_urp = 0;
 
-	m->m_pkthdr.csum_flags = CSUM_TCP;
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
 	if (isipv6) {
+		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
 		nth->th_sum = in6_cksum_pseudo(ip6,
 		    tlen - sizeof(struct ip6_hdr), IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(tp != NULL ? tp->t_inpcb :
@@ -634,6 +634,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #endif
 #ifdef INET
 	{
+		m->m_pkthdr.csum_flags = CSUM_TCP;
 		nth->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons((u_short)(tlen - sizeof(struct ip) + ip->ip_p)));
 	}
