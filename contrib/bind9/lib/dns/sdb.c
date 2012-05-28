@@ -841,10 +841,17 @@ find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 		 */
 		dns_name_getlabelsequence(name, nlabels - i, i, xname);
 		result = findnode(db, xname, ISC_FALSE, &node);
-		if (result != ISC_R_SUCCESS) {
+		if (result == ISC_R_NOTFOUND) {
+			/*
+			 * No data at zone apex?
+			 */
+			if (i == olabels)
+				return (DNS_R_BADDB);
 			result = DNS_R_NXDOMAIN;
 			continue;
 		}
+		if (result != ISC_R_SUCCESS)
+			return (result);
 
 		/*
 		 * Look for a DNAME at the current label, unless this is

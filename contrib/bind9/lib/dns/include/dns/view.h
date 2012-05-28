@@ -878,4 +878,6 @@ dns_view_getresquerystats(dns_view_t *view, dns_stats_t **statsp);
  *\li	'statsp' != NULL && '*statsp' != NULL
  */
 
+ISC_LANG_ENDDECLS
+
 #endif /* DNS_VIEW_H */

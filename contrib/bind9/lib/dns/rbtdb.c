@@ -7277,7 +7277,7 @@ dns_rbtdb_create
 		for (i = 0 ; i < (int)rbtdb->node_lock_count ; i++)
 			if (rbtdb->heaps[i] != NULL)
 				isc_heap_destroy(&rbtdb->heaps[i]);
-		isc_mem_put(mctx, rbtdb->heaps,
+		isc_mem_put(hmctx, rbtdb->heaps,
 			    rbtdb->node_lock_count * sizeof(isc_heap_t *));
 	}
 
