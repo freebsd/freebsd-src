@@ -1,3 +1,37 @@
+2012-05-26  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* package/debian/changelog, package/byacc.spec, VERSION: bump
+
+	* reader.c:
+	some versions of gcc may warn that bp is not set in mark_symbol, e.g.,
+	if GCC_NORETURN is not handled; appease the compiler.
+
+	* reader.c:
+	use the declared types Assoc_t and Value_t in some places where compiler only
+	cared about char versus short.
+
+	* reader.c:
+	use TMALLOC() and TREALLOC() macros to simplify allocation/reallocation
+	(no object change)
+
+	* defs.h:
+	add fallbacks for GCC_NORETURN and GCC_UNUSED to make it simpler for *BSD
+	packagers to build without configure script.  Also remove duplicate declaration
+	of pure_parser variable (prompted by patch by Baptiste Daroussin).
+
+	Also define new TMALLOC and TREALLOC macros to simplify/replace MALLOC and
+	REALLOC macros.
+
+	* symtab.c:
+	use TMALLOC() and TREALLOC() macros to simplify allocation/reallocation
+	(no object change)
+
+2012-05-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* output.c, main.c, verbose.c, mkpar.c, lr0.c:
+	use TMALLOC() and TREALLOC() macros to simplify allocation/reallocation
+	(no object change)
+
 2012-01-15  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* package/debian/copyright: bump

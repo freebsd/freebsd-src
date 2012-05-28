@@ -1,3 +1,9 @@
+byacc (20120526) unstable; urgency=low
+
+  * minor code-cleanup.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 May 2012 12:14:17 -0400
+
 byacc (20120115) unstable; urgency=low
 
   * add testcases, improve documentation for "-s" option.
