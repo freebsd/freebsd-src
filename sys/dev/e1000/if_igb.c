@@ -364,6 +364,13 @@ TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
 SYSCTL_INT(_hw_igb, OID_AUTO, num_queues, CTLFLAG_RDTUN, &igb_num_queues, 0,
     "Number of queues to configure, 0 indicates autoconfigure");
 
+/*
+** Global variable to store last used CPU when binding queues
+** to CPUs in igb_allocate_msix.  Starts at CPU_FIRST and increments when a
+** queue is bound to a cpu.
+*/
+static int igb_last_bind_cpu = -1;
+
 /* How many packets rxeof tries to clean at a time */
 static int igb_rx_process_limit = 100;
 TUNABLE_INT("hw.igb.rx_process_limit", &igb_rx_process_limit);
@@ -2493,8 +2500,16 @@ igb_allocate_msix(struct adapter *adapter)
 		** Bind the msix vector, and thus the
 		** rings to the corresponding cpu.
 		*/
-		if (adapter->num_queues > 1)
-			bus_bind_intr(dev, que->res, i);
+		if (adapter->num_queues > 1) {
+			if (igb_last_bind_cpu < 0)
+				igb_last_bind_cpu = CPU_FIRST();
+			bus_bind_intr(dev, que->res, igb_last_bind_cpu);
+			device_printf(dev,
+				"Bound queue %d to cpu %d\n",
+				i,igb_last_bind_cpu);
+			igb_last_bind_cpu = CPU_NEXT(igb_last_bind_cpu);
+			igb_last_bind_cpu = igb_last_bind_cpu % mp_ncpus;
+		}
 #if __FreeBSD_version >= 800000
 		TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start,
 		    que->txr);

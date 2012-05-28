@@ -22,8 +22,9 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/Frontend/CodeGenOptions.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Intrinsics.h"
+#include "llvm/Support/MDBuilder.h"
+#include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -362,8 +363,12 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
                                         LambdaThisCaptureField);
       if (LambdaThisCaptureField) {
         // If this lambda captures this, load it.
-        LValue ThisLValue = EmitLValueForField(CXXABIThisValue,
-                                               LambdaThisCaptureField, 0);
+        QualType LambdaTagType =
+            getContext().getTagDeclType(LambdaThisCaptureField->getParent());
+        LValue LambdaLV = MakeNaturalAlignAddrLValue(CXXABIThisValue,
+                                                     LambdaTagType);
+        LValue ThisLValue = EmitLValueForField(LambdaLV,
+                                               LambdaThisCaptureField);
         CXXThisValue = EmitLoadOfLValue(ThisLValue).getScalarVal();
       }
     } else {

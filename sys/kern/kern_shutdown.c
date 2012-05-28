@@ -151,7 +151,7 @@ static struct dumperinfo dumper;	/* our selected dumper */
 
 /* Context information for dump-debuggers. */
 static struct pcb dumppcb;		/* Registers. */
-static lwpid_t dumptid;			/* Thread ID. */
+lwpid_t dumptid;			/* Thread ID. */
 
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);

@@ -522,6 +522,11 @@ public:
   QualType Transform##CLASS##Type(TypeLocBuilder &TLB, CLASS##TypeLoc T);
 #include "clang/AST/TypeLocNodes.def"
 
+  QualType TransformFunctionProtoType(TypeLocBuilder &TLB,
+                                      FunctionProtoTypeLoc TL,
+                                      CXXRecordDecl *ThisContext,
+                                      unsigned ThisTypeQuals);
+
   StmtResult
   TransformSEHHandler(Stmt *Handler);
 
@@ -1042,6 +1047,15 @@ public:
   StmtResult RebuildLabelStmt(SourceLocation IdentLoc, LabelDecl *L,
                               SourceLocation ColonLoc, Stmt *SubStmt) {
     return SemaRef.ActOnLabelStmt(IdentLoc, L, ColonLoc, SubStmt);
+  }
+
+  /// \brief Build a new label statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildAttributedStmt(SourceLocation AttrLoc, const AttrVec &Attrs,
+                                   Stmt *SubStmt) {
+    return SemaRef.ActOnAttributedStmt(AttrLoc, Attrs, SubStmt);
   }
 
   /// \brief Build a new "if" statement.
@@ -4156,12 +4170,18 @@ template<typename Derived>
 QualType
 TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
                                                    FunctionProtoTypeLoc TL) {
+  return getDerived().TransformFunctionProtoType(TLB, TL, 0, 0);
+}
+
+template<typename Derived>
+QualType
+TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
+                                                   FunctionProtoTypeLoc TL,
+                                                   CXXRecordDecl *ThisContext,
+                                                   unsigned ThisTypeQuals) {
   // Transform the parameters and return type.
   //
-  // We instantiate in source order, with the return type first followed by
-  // the parameters, because users tend to expect this (even if they shouldn't
-  // rely on it!).
-  //
+  // We are required to instantiate the params and return type in source order.
   // When the function has a trailing return type, we instantiate the
   // parameters before the return type,  since the return type can then refer
   // to the parameters themselves (via decltype, sizeof, etc.).
@@ -4180,9 +4200,19 @@ TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
                                                  ParamTypes, &ParamDecls))
       return QualType();
 
-    ResultType = getDerived().TransformType(TLB, TL.getResultLoc());
-    if (ResultType.isNull())
-      return QualType();
+    {
+      // C++11 [expr.prim.general]p3:
+      //   If a declaration declares a member function or member function 
+      //   template of a class X, the expression this is a prvalue of type 
+      //   "pointer to cv-qualifier-seq X" between the optional cv-qualifer-seq
+      //   and the end of the function-definition, member-declarator, or 
+      //   declarator.
+      Sema::CXXThisScopeRAII ThisScope(SemaRef, ThisContext, ThisTypeQuals);
+      
+      ResultType = getDerived().TransformType(TLB, TL.getResultLoc());
+      if (ResultType.isNull())
+        return QualType();
+    }
   }
   else {
     ResultType = getDerived().TransformType(TLB, TL.getResultLoc());
@@ -4196,6 +4226,8 @@ TreeTransform<Derived>::TransformFunctionProtoType(TypeLocBuilder &TLB,
                                                  ParamTypes, &ParamDecls))
       return QualType();
   }
+
+  // FIXME: Need to transform the exception-specification too.
 
   QualType Result = TL.getType();
   if (getDerived().AlwaysRebuild() ||
@@ -5154,12 +5186,28 @@ TreeTransform<Derived>::TransformLabelStmt(LabelStmt *S) {
                                         S->getDecl());
   if (!LD)
     return StmtError();
-  
-  
+
+
   // FIXME: Pass the real colon location in.
   return getDerived().RebuildLabelStmt(S->getIdentLoc(),
                                        cast<LabelDecl>(LD), SourceLocation(),
                                        SubStmt.get());
+}
+
+template<typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformAttributedStmt(AttributedStmt *S) {
+  StmtResult SubStmt = getDerived().TransformStmt(S->getSubStmt());
+  if (SubStmt.isInvalid())
+    return StmtError();
+
+  // TODO: transform attributes
+  if (SubStmt.get() == S->getSubStmt() /* && attrs are the same */)
+    return S;
+
+  return getDerived().RebuildAttributedStmt(S->getAttrLoc(),
+                                            S->getAttrs(),
+                                            SubStmt.get());
 }
 
 template<typename Derived>

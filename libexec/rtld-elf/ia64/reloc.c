@@ -104,7 +104,7 @@ alloc_fptrs(Obj_Entry *obj, bool mapped)
 	struct fptr **fptrs;
 	size_t fbytes;
 
-	fbytes = obj->nchains * sizeof(struct fptr *);
+	fbytes = obj->dynsymcount * sizeof(struct fptr *);
 
 	/*
 	 * Avoid malloc, if requested. Happens when relocating
@@ -138,7 +138,7 @@ free_fptrs(Obj_Entry *obj, bool mapped)
 	if (fptrs == NULL)
 		return;
 
-	fbytes = obj->nchains * sizeof(struct fptr *);
+	fbytes = obj->dynsymcount * sizeof(struct fptr *);
 	if (mapped)
 		munmap(fptrs, fbytes);
 	else
@@ -348,7 +348,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	SymCache *cache;
-	int bytes = obj->nchains * sizeof(SymCache);
+	int bytes = obj->dynsymcount * sizeof(SymCache);
 	int r = -1;
 
 	/*

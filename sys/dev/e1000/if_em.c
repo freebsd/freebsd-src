@@ -4046,7 +4046,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	struct em_buffer	*rxbuf;
 	bus_dma_segment_t	seg[1];
-	int			rsize, nsegs, error;
+	int			rsize, nsegs, error = 0;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_slot *slot;

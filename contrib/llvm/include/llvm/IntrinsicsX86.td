@@ -1091,20 +1091,6 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
         GCCBuiltin<"__builtin_ia32_vperm2f128_si256">,
         Intrinsic<[llvm_v8i32_ty], [llvm_v8i32_ty,
                   llvm_v8i32_ty, llvm_i8_ty], [IntrNoMem]>;
-
-  def int_x86_avx_vpermil_pd :
-        Intrinsic<[llvm_v2f64_ty], [llvm_v2f64_ty,
-                  llvm_i8_ty], [IntrNoMem]>;
-  def int_x86_avx_vpermil_ps :
-        Intrinsic<[llvm_v4f32_ty], [llvm_v4f32_ty,
-                  llvm_i8_ty], [IntrNoMem]>;
-
-  def int_x86_avx_vpermil_pd_256 :
-        Intrinsic<[llvm_v4f64_ty], [llvm_v4f64_ty,
-                  llvm_i8_ty], [IntrNoMem]>;
-  def int_x86_avx_vpermil_ps_256 :
-        Intrinsic<[llvm_v8f32_ty], [llvm_v8f32_ty,
-                  llvm_i8_ty], [IntrNoMem]>;
 }
 
 // Vector blend
@@ -1659,14 +1645,8 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_avx2_permd : GCCBuiltin<"__builtin_ia32_permvarsi256">,
               Intrinsic<[llvm_v8i32_ty], [llvm_v8i32_ty, llvm_v8i32_ty],
                         [IntrNoMem]>;
-  def int_x86_avx2_permq : GCCBuiltin<"__builtin_ia32_permdi256">,
-              Intrinsic<[llvm_v4i64_ty], [llvm_v4i64_ty, llvm_i8_ty],
-                        [IntrNoMem]>;
   def int_x86_avx2_permps : GCCBuiltin<"__builtin_ia32_permvarsf256">,
               Intrinsic<[llvm_v8f32_ty], [llvm_v8f32_ty, llvm_v8f32_ty],
-                        [IntrNoMem]>;
-  def int_x86_avx2_permpd : GCCBuiltin<"__builtin_ia32_permdf256">,
-              Intrinsic<[llvm_v4f64_ty], [llvm_v4f64_ty, llvm_i8_ty],
                         [IntrNoMem]>;
   def int_x86_avx2_vperm2i128 : GCCBuiltin<"__builtin_ia32_permti256">,
               Intrinsic<[llvm_v4i64_ty], [llvm_v4i64_ty,

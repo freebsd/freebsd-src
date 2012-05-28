@@ -18,6 +18,7 @@ include/jemalloc/internal/jemalloc_internal.h.in
 include/jemalloc/internal/size_classes.sh
 include/jemalloc/jemalloc.h.in
 include/jemalloc/jemalloc_defs.h.in
+include/msvc_compat/
 install-sh
 src/zone.c
 test/

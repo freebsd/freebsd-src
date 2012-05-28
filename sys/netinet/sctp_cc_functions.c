@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_sysctl.h>
@@ -44,8 +47,6 @@
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctp_dtrace_declare.h>
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #define SHIFT_MPTCP_MULTI_N 40
 #define SHIFT_MPTCP_MULTI_Z 16
@@ -1594,9 +1595,7 @@ sctp_hs_cwnd_increase(struct sctp_tcb *stcb, struct sctp_nets *net)
 
 	cur_val = net->cwnd >> 10;
 	indx = SCTP_HS_TABLE_SIZE - 1;
-#ifdef SCTP_DEBUG
-	printf("HS CC CAlled.\n");
-#endif
+
 	if (cur_val < sctp_cwnd_adjust[0].cwnd) {
 		/* normal mode */
 		if (net->net_ack > net->mtu) {

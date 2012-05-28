@@ -4,7 +4,8 @@
 # $FreeBSD$
 #
 
-cpu		E500
+cpu		BOOKE
+cpu		BOOKE_E500
 ident		MPC85XX
 
 machine		powerpc	powerpc

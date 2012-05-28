@@ -354,7 +354,7 @@ MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	kern/bus_if.m kern/clock_if.m \
 	kern/cpufreq_if.m kern/device_if.m kern/serdev_if.m \
 	libkern/iconv_converter_if.m opencrypto/cryptodev_if.m \
-	pc98/pc98/canbus_if.m
+	pc98/pc98/canbus_if.m dev/etherswitch/mdio_if.m
 
 .for _srcsrc in ${MFILES}
 .for _ext in c h

@@ -339,8 +339,9 @@ enum {
 
 struct ieee80211req_mesh_route {
 	uint8_t		imr_flags;
-#define	IEEE80211_MESHRT_FLAGS_VALID	0x01
-#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02
+#define	IEEE80211_MESHRT_FLAGS_DISCOVER	0x01
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x02
+#define	IEEE80211_MESHRT_FLAGS_PROXY	0x04
 	uint8_t		imr_dest[IEEE80211_ADDR_LEN];
 	uint8_t		imr_nexthop[IEEE80211_ADDR_LEN];
 	uint16_t	imr_nhops;
@@ -709,6 +710,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_MESH_PR_SIG	178	/* mesh sig protocol */
 #define	IEEE80211_IOC_MESH_PR_CC	179	/* mesh congestion protocol */
 #define	IEEE80211_IOC_MESH_PR_AUTH	180	/* mesh auth protocol */
+#define	IEEE80211_IOC_MESH_GATE		181	/* mesh gate XXX: 173? */
 
 #define	IEEE80211_IOC_HWMP_ROOTMODE	190	/* HWMP root mode */
 #define	IEEE80211_IOC_HWMP_MAXHOPS	191	/* number of hops before drop */

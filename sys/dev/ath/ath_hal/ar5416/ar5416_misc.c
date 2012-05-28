@@ -184,11 +184,11 @@ ar5416SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 /*
  * Return the busy for rx_frame, rx_clear, and tx_frame
  */
-uint32_t
+HAL_BOOL
 ar5416GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
-	u_int32_t good = 1;
+	u_int32_t good = AH_TRUE;
 
 	/* XXX freeze/unfreeze mib counters */
 	uint32_t rc = OS_REG_READ(ah, AR_RCCNT);
@@ -205,7 +205,7 @@ ar5416GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 		 */
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 			    "%s: cycle counter wrap. ExtBusy = 0\n", __func__);
-			good = 0;
+			good = AH_FALSE;
 	} else {
 		hsample->cycle_count = cc - ahp->ah_cycleCount;
 		hsample->chan_busy = rc - ahp->ah_ctlBusy;
@@ -224,7 +224,7 @@ ar5416GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 	ahp->ah_txBusy = tf;
 	ahp->ah_extBusy = ec;
 
-	return good;
+	return (good);
 }
 
 /*

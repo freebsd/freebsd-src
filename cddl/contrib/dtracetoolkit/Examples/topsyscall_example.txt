@@ -1,0 +1,65 @@
+The following is a demonstration of the topsyscall command,
+
+
+Here topsyscall is run with no arguments,
+
+   # topsyscall
+   2005 Jun 13 22:13:21, load average: 1.24, 1.24, 1.22   syscalls: 1287
+   
+      SYSCALL                          COUNT
+      getgid                               4
+      getuid                               5
+      waitsys                              5
+      xstat                                7
+      munmap                               7
+      sysconfig                            8
+      brk                                  8
+      setcontext                           8
+      open                                 8
+      getpid                               9
+      close                                9
+      resolvepath                         10
+      lwp_sigmask                         22
+      mmap                                26
+      lwp_park                            43
+      read                                59
+      write                               72
+      sigaction                          113
+      pollsys                            294
+      ioctl                              520
+
+The screen updates every second, and continues until Ctrl-C is hit to 
+end the program.
+
+In the above output we can see that the ioctl() system call occured 520 times,
+pollsys() 294 times and sigaction() 113 times.
+
+
+
+Here the command is run with a 10 second interval,
+
+   # topsyscall 10
+   2005 Jun 13 22:15:35, load average: 1.21, 1.22, 1.22   syscalls: 10189
+   
+      SYSCALL                          COUNT
+      writev                               6
+      close                                7
+      lseek                                7
+      open                                 7
+      brk                                  8
+      nanosleep                            9
+      portfs                              10
+      llseek                              14
+      lwp_cond_wait                       21
+      p_online                            21
+      gtime                               27
+      rusagesys                           71
+      setcontext                          92
+      lwp_sigmask                         98
+      setitimer                          183
+      lwp_park                           375
+      write                              438
+      read                               551
+      pollsys                           3071
+      ioctl                             5144
+

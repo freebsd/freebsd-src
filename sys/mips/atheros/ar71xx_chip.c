@@ -176,27 +176,57 @@ ar71xx_chip_set_mii_speed(uint32_t unit, uint32_t speed)
 	ATH_WRITE_REG(reg, val);
 }
 
-/* Speed is either 10, 100 or 1000 */
-static void
-ar71xx_chip_set_pll_ge(int unit, int speed)
+void
+ar71xx_chip_set_mii_if(uint32_t unit, uint32_t mii_mode)
 {
-	uint32_t pll;
+	uint32_t val, reg, mii_if;
 
-	switch (speed) {
-	case 10:
-		pll = PLL_ETH_INT_CLK_10;
+	switch (unit) {
+	case 0:
+		reg = AR71XX_MII0_CTRL;
+		if (mii_mode == AR71XX_MII_MODE_GMII)
+			mii_if = MII0_CTRL_IF_GMII;
+		else if (mii_mode == AR71XX_MII_MODE_MII)
+			mii_if = MII0_CTRL_IF_MII;
+		else if (mii_mode == AR71XX_MII_MODE_RGMII)
+			mii_if = MII0_CTRL_IF_RGMII;
+		else if (mii_mode == AR71XX_MII_MODE_RMII)
+			mii_if = MII0_CTRL_IF_RMII;
+		else {
+			printf("%s: invalid MII mode (%d) for unit %d\n",
+			    __func__, mii_mode, unit);
+			return;
+		}
 		break;
-	case 100:
-		pll = PLL_ETH_INT_CLK_100;
-		break;
-	case 1000:
-		pll = PLL_ETH_INT_CLK_1000;
+	case 1:
+		reg = AR71XX_MII1_CTRL;
+		if (mii_mode == AR71XX_MII_MODE_RGMII)
+			mii_if = MII1_CTRL_IF_RGMII;
+		else if (mii_mode == AR71XX_MII_MODE_RMII)
+			mii_if = MII1_CTRL_IF_RMII;
+		else {
+			printf("%s: invalid MII mode (%d) for unit %d\n",
+			    __func__, mii_mode, unit);
+			return;
+		}
 		break;
 	default:
-		printf("%s%d: invalid speed %d\n",
-		    __func__, unit, speed);
+		printf("%s: invalid MII unit set for arge unit: %d\n",
+		    __func__, unit);
 		return;
 	}
+
+	val = ATH_READ_REG(reg);
+	val &= ~(MII_CTRL_IF_MASK << MII_CTRL_IF_SHIFT);
+	val |= (mii_if & MII_CTRL_IF_MASK) << MII_CTRL_IF_SHIFT;
+	ATH_WRITE_REG(reg, val);
+}
+
+/* Speed is either 10, 100 or 1000 */
+static void
+ar71xx_chip_set_pll_ge(int unit, int speed, uint32_t pll)
+{
+
 	switch (unit) {
 	case 0:
 		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG,
@@ -242,7 +272,24 @@ ar71xx_chip_ddr_flush_ip2(void)
 static uint32_t
 ar71xx_chip_get_eth_pll(unsigned int mac, int speed)
 {
-	return 0;
+	uint32_t pll;
+
+	switch (speed) {
+	case 10:
+		pll = PLL_ETH_INT_CLK_10;
+		break;
+	case 100:
+		pll = PLL_ETH_INT_CLK_100;
+		break;
+	case 1000:
+		pll = PLL_ETH_INT_CLK_1000;
+		break;
+	default:
+		printf("%s%d: invalid speed %d\n", __func__, mac, speed);
+		pll = 0;
+	}
+
+	return (pll);
 }
 
 static void
@@ -278,6 +325,7 @@ struct ar71xx_cpu_def ar71xx_chip_def = {
 	&ar71xx_chip_device_stopped,
 	&ar71xx_chip_set_pll_ge,
 	&ar71xx_chip_set_mii_speed,
+	&ar71xx_chip_set_mii_if,
 	&ar71xx_chip_ddr_flush_ge,
 	&ar71xx_chip_get_eth_pll,
 	&ar71xx_chip_ddr_flush_ip2,

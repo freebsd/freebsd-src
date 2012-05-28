@@ -1,0 +1,71 @@
+The following is a demonstration of the dappprof command,
+
+This is the usage for version 0.60,
+
+   # dappprof -h
+   USAGE: dappprof [-cehoTU] [-u lib] { -p PID | command }
+   
+             -p PID          # examine this PID
+             -a              # print all details
+             -c              # print syscall counts
+             -e              # print elapsed times (us)
+             -o              # print on cpu times
+             -T              # print totals
+             -u lib          # trace this library instead
+             -U              # trace all libraries + user funcs
+             -b bufsize      # dynamic variable buf size
+      eg,
+          dappprof df -h       # run and examine "df -h"
+          dappprof -p 1871     # examine PID 1871
+          dappprof -ap 1871    # print all data
+
+
+
+The following shows running dappprof with the "banner hello" command.
+Elapsed and on-cpu times are printed (-eo), as well as counts (-c) and 
+totals (-T),
+
+   # dappprof -eocT banner hello
+   
+    #    #  ######  #       #        ####
+    #    #  #       #       #       #    #
+    ######  #####   #       #       #    #
+    #    #  #       #       #       #    #
+    #    #  #       #       #       #    #
+    #    #  ######  ######  ######   ####
+   
+   
+   CALL                                                         COUNT
+   __fsr                                                            1
+   main                                                             1
+   banprt                                                           1
+   banner                                                           1
+   banset                                                           1
+   convert                                                          5
+   banfil                                                           5
+   TOTAL:                                                          15
+   
+   CALL                                                       ELAPSED
+   banset                                                       37363
+   banfil                                                      147407
+   convert                                                     149606
+   banprt                                                      423507
+   banner                                                      891088
+   __fsr                                                      1694349
+   TOTAL:                                                     3343320
+   
+   CALL                                                           CPU
+   banset                                                        7532
+   convert                                                       8805
+   banfil                                                       11092
+   __fsr                                                        15708
+   banner                                                       48696
+   banprt                                                      388853
+   TOTAL:                                                      480686
+
+The above output has analysed user functions (the default). It makes it
+easy to identify which function is being called the most (COUNT), which
+is taking the most time (ELAPSED), and which is consuming the most CPU (CPU).
+These times are totals for all the functions called.
+
+

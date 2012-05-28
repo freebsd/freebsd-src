@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,8 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_output.c,v 1.46 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -3062,7 +3060,7 @@ again_with_private_addresses_allowed:
 				continue;
 			}
 		} else {
-			printf("Stcb is null - no print\n");
+			SCTP_PRINTF("Stcb is null - no print\n");
 		}
 		atomic_add_int(&sifa->refcount, 1);
 		goto out;
@@ -3430,7 +3428,7 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 					}
 					m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_authinfo), (caddr_t)&authinfo);
 					sndrcvinfo->sinfo_keynumber_valid = 1;
-					sndrcvinfo->sinfo_keynumber = authinfo.auth_keyid;
+					sndrcvinfo->sinfo_keynumber = authinfo.auth_keynumber;
 					break;
 				default:
 					return (found);
@@ -3815,8 +3813,7 @@ sctp_handle_no_route(struct sctp_tcb *stcb,
 			if ((net->dest_state & SCTP_ADDR_REACHABLE) && stcb) {
 				SCTPDBG(SCTP_DEBUG_OUTPUT1, "no route takes interface %p down\n", net);
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-				    stcb,
-				    SCTP_FAILED_THRESHOLD,
+				    stcb, 0,
 				    (void *)net,
 				    so_locked);
 				net->dest_state &= ~SCTP_ADDR_REACHABLE;
@@ -4119,14 +4116,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #if defined(SCTP_WITH_NO_CSUM)
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-				if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-				    (stcb) &&
-				    (stcb->asoc.loopback_scope))) {
-					sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip) + sizeof(struct udphdr));
-					SCTP_STAT_INCR(sctps_sendswcrc);
-				} else {
-					SCTP_STAT_INCR(sctps_sendnocrc);
-				}
+				sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip) + sizeof(struct udphdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
 				if (V_udp_cksum) {
 					SCTP_ENABLE_UDP_CSUM(o_pak);
@@ -4477,14 +4468,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #if defined(SCTP_WITH_NO_CSUM)
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-				if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-				    (stcb) &&
-				    (stcb->asoc.loopback_scope))) {
-					sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
-					SCTP_STAT_INCR(sctps_sendswcrc);
-				} else {
-					SCTP_STAT_INCR(sctps_sendnocrc);
-				}
+				sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
 				if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), packet_length - sizeof(struct ip6_hdr))) == 0) {
 					udp->uh_sum = 0xffff;
@@ -6092,14 +6077,14 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 						 * if the mbuf is here
 						 */
 						int ret_spc;
-						int cause;
+						uint8_t sent;
 
 						if (chk->sent > SCTP_DATAGRAM_UNSENT)
-							cause = SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT;
+							sent = 1;
 						else
-							cause = SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_UNSENT;
+							sent = 0;
 						ret_spc = sctp_release_pr_sctp_chunk(stcb, chk,
-						    cause,
+						    sent,
 						    SCTP_SO_LOCKED);
 						freed_spc += ret_spc;
 						if (freed_spc >= dataout) {
@@ -6122,8 +6107,7 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 						int ret_spc;
 
 						ret_spc = sctp_release_pr_sctp_chunk(stcb, chk,
-						    SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_UNSENT,
-						    SCTP_SO_LOCKED);
+						    0, SCTP_SO_LOCKED);
 
 						freed_spc += ret_spc;
 						if (freed_spc >= dataout) {
@@ -6573,9 +6557,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			 * dis-appearing on us.
 			 */
 			atomic_add_int(&stcb->asoc.refcnt, 1);
-			sctp_abort_an_association(inp, stcb,
-			    SCTP_RESPONSE_TO_USER_REQ,
-			    m, SCTP_SO_NOT_LOCKED);
+			sctp_abort_an_association(inp, stcb, m, SCTP_SO_NOT_LOCKED);
 			/*
 			 * sctp_abort_an_association calls sctp_free_asoc()
 			 * free association will NOT free it since we
@@ -6669,7 +6651,6 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 				abort_anyway:
 						atomic_add_int(&stcb->asoc.refcnt, 1);
 						sctp_abort_an_association(stcb->sctp_ep, stcb,
-						    SCTP_RESPONSE_TO_USER_REQ,
 						    NULL, SCTP_SO_NOT_LOCKED);
 						atomic_add_int(&stcb->asoc.refcnt, -1);
 						goto no_chunk_output;
@@ -9493,7 +9474,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 			continue;
 		}
 		if (chk->data == NULL) {
-			printf("TSN:%x chk->snd_count:%d chk->sent:%d can't retran - no data\n",
+			SCTP_PRINTF("TSN:%x chk->snd_count:%d chk->sent:%d can't retran - no data\n",
 			    chk->rec.data.TSN_seq, chk->snd_count, chk->sent);
 			continue;
 		}
@@ -9504,7 +9485,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 			    chk->snd_count,
 			    SCTP_BASE_SYSCTL(sctp_max_retran_chunk));
 			atomic_add_int(&stcb->asoc.refcnt, 1);
-			sctp_abort_an_association(stcb->sctp_ep, stcb, 0, NULL, so_locked);
+			sctp_abort_an_association(stcb->sctp_ep, stcb, NULL, so_locked);
 			SCTP_TCB_LOCK(stcb);
 			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 			return (SCTP_RETRAN_EXIT);
@@ -13138,9 +13119,7 @@ sctp_lower_sosend(struct socket *so,
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		free_cnt_applied = 0;
 		/* release this lock, otherwise we hang on ourselves */
-		sctp_abort_an_association(stcb->sctp_ep, stcb,
-		    SCTP_RESPONSE_TO_USER_REQ,
-		    mm, SCTP_SO_LOCKED);
+		sctp_abort_an_association(stcb->sctp_ep, stcb, mm, SCTP_SO_LOCKED);
 		/* now relock the stcb so everything is sane */
 		hold_tcblock = 0;
 		stcb = NULL;
@@ -13617,8 +13596,7 @@ skip_preblock:
 dataless_eof:
 	/* EOF thing ? */
 	if ((srcv->sinfo_flags & SCTP_EOF) &&
-	    (got_all_of_the_send == 1) &&
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE)) {
+	    (got_all_of_the_send == 1)) {
 		int cnt;
 
 		SCTP_STAT_INCR(sctps_sends_with_eof);
@@ -13695,7 +13673,6 @@ dataless_eof:
 						free_cnt_applied = 0;
 					}
 					sctp_abort_an_association(stcb->sctp_ep, stcb,
-					    SCTP_RESPONSE_TO_USER_REQ,
 					    NULL, SCTP_SO_LOCKED);
 					/*
 					 * now relock the stcb so everything
@@ -13840,7 +13817,7 @@ out_unlocked:
 	if (inp) {
 		sctp_validate_no_locks(inp);
 	} else {
-		printf("Warning - inp is NULL so cant validate locks\n");
+		SCTP_PRINTF("Warning - inp is NULL so cant validate locks\n");
 	}
 #endif
 	if (top) {

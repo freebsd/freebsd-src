@@ -1984,7 +1984,6 @@ static void
 sf_init_locked(struct sf_softc *sc)
 {
 	struct ifnet		*ifp;
-	struct mii_data		*mii;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	bus_addr_t		addr;
 	int			i;
@@ -1993,7 +1992,6 @@ sf_init_locked(struct sf_softc *sc)
 	ifp = sc->sf_ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
-	mii = device_get_softc(sc->sf_miibus);
 
 	sf_stop(sc);
 	/* Reset the hardware to a known state. */

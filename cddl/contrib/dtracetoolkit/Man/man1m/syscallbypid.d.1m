@@ -1,0 +1,50 @@
+.TH syscallbypid.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+syscallbypid.d \- syscalls by process ID. Uses DTrace.
+.SH SYNOPSIS
+.B syscallbypid.d
+.SH DESCRIPTION
+This reports the number of each type of system call made by PID.
+This is useful to identify which process is causing the most 
+system calls.
+
+This is based on a script from DExplorer.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B syscallbypid.d
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+CMD
+process name
+.TP
+SYSCALL
+system call name
+.TP
+COUNT
+number of system calls made in this sample
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+syscallbypid.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+procsystime(1M), dtrace(1M), truss(1)
+

@@ -289,7 +289,7 @@ boolean_t moea_is_modified(mmu_t, vm_page_t);
 boolean_t moea_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
 boolean_t moea_is_referenced(mmu_t, vm_page_t);
 boolean_t moea_ts_referenced(mmu_t, vm_page_t);
-vm_offset_t moea_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
+vm_offset_t moea_map(mmu_t, vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 boolean_t moea_page_exists_quick(mmu_t, pmap_t, vm_page_t);
 int moea_page_wired_mappings(mmu_t, vm_page_t);
 void moea_pinit(mmu_t, pmap_t);
@@ -308,14 +308,14 @@ void moea_activate(mmu_t, struct thread *);
 void moea_deactivate(mmu_t, struct thread *);
 void moea_cpu_bootstrap(mmu_t, int);
 void moea_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
-void *moea_mapdev(mmu_t, vm_offset_t, vm_size_t);
+void *moea_mapdev(mmu_t, vm_paddr_t, vm_size_t);
 void *moea_mapdev_attr(mmu_t, vm_offset_t, vm_size_t, vm_memattr_t);
 void moea_unmapdev(mmu_t, vm_offset_t, vm_size_t);
-vm_offset_t moea_kextract(mmu_t, vm_offset_t);
+vm_paddr_t moea_kextract(mmu_t, vm_offset_t);
 void moea_kenter_attr(mmu_t, vm_offset_t, vm_offset_t, vm_memattr_t);
-void moea_kenter(mmu_t, vm_offset_t, vm_offset_t);
+void moea_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 void moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma);
-boolean_t moea_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
+boolean_t moea_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 
 static mmu_method_t moea_methods[] = {
@@ -857,7 +857,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
 	CPU_FILL(&kernel_pmap->pm_active);
-	LIST_INIT(&kernel_pmap->pmap_pvo);
+	RB_INIT(&kernel_pmap->pmap_pvo);
 
 	/*
 	 * Set up the Open Firmware mappings
@@ -1436,7 +1436,7 @@ moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
  * Map a wired page into kernel virtual address space.
  */
 void
-moea_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
+moea_kenter(mmu_t mmu, vm_offset_t va, vm_paddr_t pa)
 {
 
 	moea_kenter_attr(mmu, va, pa, VM_MEMATTR_DEFAULT);
@@ -1471,7 +1471,7 @@ moea_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
  * Extract the physical page address associated with the given kernel virtual
  * address.
  */
-vm_offset_t
+vm_paddr_t
 moea_kextract(mmu_t mmu, vm_offset_t va)
 {
 	struct		pvo_entry *pvo;
@@ -1512,8 +1512,8 @@ moea_kremove(mmu_t mmu, vm_offset_t va)
  * first usable address after the mapped region.
  */
 vm_offset_t
-moea_map(mmu_t mmu, vm_offset_t *virt, vm_offset_t pa_start,
-    vm_offset_t pa_end, int prot)
+moea_map(mmu_t mmu, vm_offset_t *virt, vm_paddr_t pa_start,
+    vm_paddr_t pa_end, int prot)
 {
 	vm_offset_t	sva, va;
 
@@ -1587,7 +1587,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
 	PMAP_LOCK_INIT(pmap);
-	LIST_INIT(&pmap->pmap_pvo);
+	RB_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
@@ -1661,9 +1661,8 @@ void
 moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
     vm_prot_t prot)
 {
-	struct	pvo_entry *pvo;
+	struct	pvo_entry *pvo, *tpvo, key;
 	struct	pte *pt;
-	int	pteidx;
 
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("moea_protect: non current pmap"));
@@ -1675,11 +1674,10 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = moea_pvo_find_va(pm, sva, &pteidx);
-		if (pvo == NULL)
-			continue;
-
+	key.pvo_vaddr = sva;
+	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
+	    pvo != NULL && PVO_VADDR(pvo) < eva; pvo = tpvo) {
+		tpvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo);
 		if ((prot & VM_PROT_EXECUTE) == 0)
 			pvo->pvo_vaddr &= ~PVO_EXECUTABLE;
 
@@ -1687,7 +1685,7 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 		 * Grab the PTE pointer before we diddle with the cached PTE
 		 * copy.
 		 */
-		pt = moea_pvo_to_pte(pvo, pteidx);
+		pt = moea_pvo_to_pte(pvo, -1);
 		/*
 		 * Change the protection of the page.
 		 */
@@ -1766,23 +1764,15 @@ moea_release(mmu_t mmu, pmap_t pmap)
 void
 moea_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	struct	pvo_entry *pvo, *tpvo;
-	int	pteidx;
+	struct	pvo_entry *pvo, *tpvo, key;
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	if ((eva - sva)/PAGE_SIZE < 10) {
-		for (; sva < eva; sva += PAGE_SIZE) {
-			pvo = moea_pvo_find_va(pm, sva, &pteidx);
-			if (pvo != NULL)
-				moea_pvo_remove(pvo, pteidx);
-		}
-	} else {
-		LIST_FOREACH_SAFE(pvo, &pm->pmap_pvo, pvo_plink, tpvo) {
-			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
-				continue;
-			moea_pvo_remove(pvo, -1);
-		}
+	key.pvo_vaddr = sva;
+	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
+	    pvo != NULL && PVO_VADDR(pvo) < eva; pvo = tpvo) {
+		tpvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo);
+		moea_pvo_remove(pvo, -1);
 	}
 	PMAP_UNLOCK(pm);
 	vm_page_unlock_queues();
@@ -1946,7 +1936,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	/*
 	 * Add to pmap list
 	 */
-	LIST_INSERT_HEAD(&pm->pmap_pvo, pvo, pvo_plink);
+	RB_INSERT(pvo_tree, &pm->pmap_pvo, pvo);
 
 	/*
 	 * Remember if the list was empty and therefore will be the first
@@ -2017,7 +2007,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * Remove this PVO from the PV and pmap lists.
 	 */
 	LIST_REMOVE(pvo, pvo_vlink);
-	LIST_REMOVE(pvo, pvo_plink);
+	RB_REMOVE(pvo_tree, &pvo->pvo_pmap->pmap_pvo, pvo);
 
 	/*
 	 * Remove this from the overflow list and return it to the pool
@@ -2418,7 +2408,7 @@ moea_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
 }
 
 boolean_t
-moea_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+moea_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
 	int i;
 
@@ -2441,7 +2431,7 @@ moea_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
  * NOT real memory.
  */
 void *
-moea_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
+moea_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
 
 	return (moea_mapdev_attr(mmu, pa, size, VM_MEMATTR_DEFAULT));

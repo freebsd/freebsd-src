@@ -83,6 +83,7 @@ struct g_part_alias_list {
 	{ "fat32", G_PART_ALIAS_MS_FAT32 },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
+	{ "freebsd-nandfs", G_PART_ALIAS_FREEBSD_NANDFS },
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },

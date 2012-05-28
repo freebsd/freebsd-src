@@ -1,0 +1,67 @@
+Following are examples of running tcl_cputime.d.
+
+Here it runs while we execute Code/Tcl/func_slow.tcl
+
+# tcl_cputime.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Top 10 counts,
+      PID TYPE       NAME                                                COUNT
+    16038 cmd        set                                                     2
+    16038 cmd        namespace                                               3
+    16038 cmd        puts                                                    3
+    16038 cmd        lappend                                                 4
+    16038 cmd        lsearch                                                 4
+    16038 cmd        if                                                      8
+    16038 cmd        info                                                   11
+    16038 cmd        file                                                   12
+    16038 cmd        proc                                                   12
+        0 total      -                                                      82
+
+Top 10 exclusive on-CPU times (us),
+      PID TYPE       NAME                                                TOTAL
+    16038 cmd        namespace                                             130
+    16038 cmd        puts                                                  232
+    16038 cmd        if                                                    310
+    16038 cmd        tclInit                                               315
+    16038 cmd        file                                                  411
+    16038 cmd        source                                                760
+    16038 proc       func_a                                             535521
+    16038 proc       func_b                                            1071082
+    16038 proc       func_c                                            1619323
+        0 total      -                                                 3228670
+
+Top 10 inclusive on-CPU times (us),
+      PID TYPE       NAME                                                TOTAL
+    16038 cmd        source                                               1359
+    16038 cmd        uplevel                                              1367
+    16038 proc       tclInit                                              1865
+    16038 cmd        tclInit                                              2180
+    16038 proc       func_c                                            1619360
+    16038 cmd        func_c                                            1619404
+    16038 proc       func_b                                            2690525
+    16038 cmd        func_b                                            2690568
+    16038 proc       func_a                                            3226247
+    16038 cmd        func_a                                            3226275
+
+We can see that the output is in three sections.  The first section represents
+the ten most commonly executed commands while the script is tracing.
+
+The exclusive function on-CPU times show that func_a spent around 0.5 seconds
+on-CPU, func_b spent about 1.0 seconds, and func_c, 1.6 seconds. This excludes
+time spent in other procedures or commands.
+
+The inclusive function on-CPU times show the time spent by these procedures in
+total, including the time spent in other functions called, and since func_a
+called func_b which called func_c, these times make sense.
+
+These on-CPU times are the time the thread spent running on a CPU, from when
+the function began to when it completed. This does not include time
+spent off-CPU time such as sleeping for I/O or waiting for scheduling.
+
+On-CPU times are useful for showing who is causing the CPUs to be busy.
+See Notes/ALLoncpu_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive function time.
+

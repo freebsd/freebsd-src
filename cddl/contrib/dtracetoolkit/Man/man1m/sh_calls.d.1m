@@ -1,0 +1,49 @@
+.TH sh_calls.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+sh_calls.d - count Bourne calls (func/builtin/cmd/subsh) using DTrace.
+.SH SYNOPSIS
+.B sh_calls.d
+
+.SH DESCRIPTION
+This traces shell activity from all Bourne shells on the system that are
+running with sh provider support.
+
+Filename and function names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Shell provider, which may change 
+as additional features are introduced. Check Shell/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B sh_calls.d
+.PP
+.SH FIELDS
+.TP
+FILE
+Filename of the shell or shellscript
+.TP
+TYPE
+Type of call (func/builtin/cmd/subsh)
+.TP
+NAME
+Name of call
+.TP
+COUNT
+Number of calls during sample
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+sh_calls.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

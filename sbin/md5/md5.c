@@ -372,6 +372,6 @@ static void
 usage(Algorithm_t *alg)
 {
 
-	fprintf(stderr, "usage: %s [-pqrtx] [-s string] [files ...]\n", alg->progname);
+	fprintf(stderr, "usage: %s [-pqrtx] [-c string] [-s string] [files ...]\n", alg->progname);
 	exit(1);
 }

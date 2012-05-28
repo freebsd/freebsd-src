@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_c;		/* Show connected sockets */
+static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
 static int	 opt_u;		/* Show Unix domain sockets */
@@ -549,6 +550,27 @@ getprocname(pid_t pid)
 }
 
 static int
+getprocjid(pid_t pid)
+{
+	static struct kinfo_proc proc;
+	size_t len;
+	int mib[4];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = (int)pid;
+	len = sizeof proc;
+	if (sysctl(mib, 4, &proc, &len, NULL, 0) == -1) {
+		/* Do not warn if the process exits before we get its jid. */
+		if (errno != ESRCH)
+			warn("sysctl()");
+		return (-1);
+	}
+	return (proc.ki_jid);
+}
+
+static int
 check_ports(struct sock *s)
 {
 	int port;
@@ -643,6 +665,8 @@ display(void)
 	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
 		if (xf->xf_data == NULL)
 			continue;
+		if (opt_j >= 0 && opt_j != getprocjid(xf->xf_pid))
+			continue;
 		hash = (int)((uintptr_t)xf->xf_data % HASHSIZE);
 		for (s = sockhash[hash]; s != NULL; s = s->next)
 			if ((void *)s->socket == xf->xf_data)
@@ -668,6 +692,8 @@ display(void)
 		pos += xprintf("%d ", xf->xf_fd);
 		displaysock(s, pos);
 	}
+	if (opt_j >= 0)
+		return;
 	for (hash = 0; hash < HASHSIZE; hash++) {
 		for (s = sockhash[hash]; s != NULL; s = s->next) {
 			if (s->shown)
@@ -716,7 +742,8 @@ main(int argc, char *argv[])
 	int protos_defined = -1;
 	int o, i;
 
-	while ((o = getopt(argc, argv, "46cLlp:P:uv")) != -1)
+	opt_j = -1;
+	while ((o = getopt(argc, argv, "46cj:Llp:P:uv")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -726,6 +753,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = 1;
+			break;
+		case 'j':
+			opt_j = atoi(optarg);
 			break;
 		case 'L':
 			opt_L = 1;

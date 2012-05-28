@@ -105,6 +105,7 @@ SUBDIR=	alias \
 	mkfifo \
 	mklocale \
 	mktemp \
+	mkulzma \
 	mkuzip \
 	mt \
 	ncal \
@@ -141,6 +142,7 @@ SUBDIR=	alias \
 	shar \
 	showmount \
 	sockstat \
+	sort \
 	split \
 	stat \
 	stdbuf \

@@ -33,7 +33,7 @@
 
 KMOD=	if_mwl
 SRCS=	if_mwl.c if_mwl_pci.c mwlhal.c
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_mwl.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_mwl.h opt_wlan.h
 
 opt_mwl.h:
 	echo '#define MWL_DEBUG 1'> $@

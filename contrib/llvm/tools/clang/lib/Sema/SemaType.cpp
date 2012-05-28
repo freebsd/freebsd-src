@@ -2371,34 +2371,33 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
           EPI.ConsumedArguments = ConsumedArguments.data();
 
         SmallVector<QualType, 4> Exceptions;
-        EPI.ExceptionSpecType = FTI.getExceptionSpecType();
+        SmallVector<ParsedType, 2> DynamicExceptions;
+        SmallVector<SourceRange, 2> DynamicExceptionRanges;
+        Expr *NoexceptExpr = 0;
+        
         if (FTI.getExceptionSpecType() == EST_Dynamic) {
-          Exceptions.reserve(FTI.NumExceptions);
-          for (unsigned ei = 0, ee = FTI.NumExceptions; ei != ee; ++ei) {
-            // FIXME: Preserve type source info.
-            QualType ET = S.GetTypeFromParser(FTI.Exceptions[ei].Ty);
-            // Check that the type is valid for an exception spec, and
-            // drop it if not.
-            if (!S.CheckSpecifiedExceptionType(ET, FTI.Exceptions[ei].Range))
-              Exceptions.push_back(ET);
+          // FIXME: It's rather inefficient to have to split into two vectors
+          // here.
+          unsigned N = FTI.NumExceptions;
+          DynamicExceptions.reserve(N);
+          DynamicExceptionRanges.reserve(N);
+          for (unsigned I = 0; I != N; ++I) {
+            DynamicExceptions.push_back(FTI.Exceptions[I].Ty);
+            DynamicExceptionRanges.push_back(FTI.Exceptions[I].Range);
           }
-          EPI.NumExceptions = Exceptions.size();
-          EPI.Exceptions = Exceptions.data();
         } else if (FTI.getExceptionSpecType() == EST_ComputedNoexcept) {
-          // If an error occurred, there's no expression here.
-          if (Expr *NoexceptExpr = FTI.NoexceptExpr) {
-            assert((NoexceptExpr->isTypeDependent() ||
-                    NoexceptExpr->getType()->getCanonicalTypeUnqualified() ==
-                        Context.BoolTy) &&
-                 "Parser should have made sure that the expression is boolean");
-            if (!NoexceptExpr->isValueDependent())
-              NoexceptExpr = S.VerifyIntegerConstantExpression(NoexceptExpr, 0,
-                S.PDiag(diag::err_noexcept_needs_constant_expression),
-                /*AllowFold*/ false).take();
-            EPI.NoexceptExpr = NoexceptExpr;
-          }
-        } else if (FTI.getExceptionSpecType() == EST_None &&
-                   ImplicitlyNoexcept && chunkIndex == 0) {
+          NoexceptExpr = FTI.NoexceptExpr;
+        }
+              
+        S.checkExceptionSpecification(FTI.getExceptionSpecType(),
+                                      DynamicExceptions,
+                                      DynamicExceptionRanges,
+                                      NoexceptExpr,
+                                      Exceptions,
+                                      EPI);
+        
+        if (FTI.getExceptionSpecType() == EST_None &&
+            ImplicitlyNoexcept && chunkIndex == 0) {
           // Only the outermost chunk is marked noexcept, of course.
           EPI.ExceptionSpecType = EST_BasicNoexcept;
         }
@@ -4196,7 +4195,8 @@ bool Sema::RequireCompleteType(SourceLocation Loc, QualType T,
   // class template specialization, or an array with known size of such,
   // try to instantiate it.
   QualType MaybeTemplate = T;
-  if (const ConstantArrayType *Array = Context.getAsConstantArrayType(T))
+  while (const ConstantArrayType *Array
+           = Context.getAsConstantArrayType(MaybeTemplate))
     MaybeTemplate = Array->getElementType();
   if (const RecordType *Record = MaybeTemplate->getAs<RecordType>()) {
     if (ClassTemplateSpecializationDecl *ClassTemplateSpec

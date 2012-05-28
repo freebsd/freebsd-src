@@ -36,6 +36,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaOverload.cpp \
 	SemaPseudoObject.cpp \
 	SemaStmt.cpp \
+	SemaStmtAttr.cpp \
 	SemaTemplate.cpp \
 	SemaTemplateDeduction.cpp \
 	SemaTemplateInstantiate.cpp \

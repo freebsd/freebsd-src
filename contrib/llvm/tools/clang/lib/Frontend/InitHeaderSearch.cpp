@@ -29,9 +29,6 @@
 
 #include "clang/Config/config.h" // C_INCLUDE_DIRS
 
-#ifndef CLANG_PREFIX
-#define CLANG_PREFIX
-#endif
 using namespace clang;
 using namespace clang::frontend;
 
@@ -319,7 +316,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     }
     break;
   case llvm::Triple::FreeBSD:
-    AddPath(CLANG_PREFIX "/usr/include/clang/" CLANG_VERSION_STRING,
+    AddPath("/usr/include/clang/" CLANG_VERSION_STRING,
       System, false, false, false);
     break;
       
@@ -328,7 +325,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
   }
 
   if ( os != llvm::Triple::RTEMS )
-    AddPath(CLANG_PREFIX "/usr/include", System, false, false, false);
+    AddPath("/usr/include", System, false, false, false);
 }
 
 void InitHeaderSearch::
@@ -408,9 +405,8 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
   case llvm::Triple::FreeBSD:
     // FreeBSD 8.0
     // FreeBSD 7.3
-    AddGnuCPlusPlusIncludePaths(CLANG_PREFIX "/usr/include/c++/4.2",
-                                "", "", "", triple);
-    AddGnuCPlusPlusIncludePaths(CLANG_PREFIX "/usr/include/c++/4.2/backward",
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2", "", "", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2/backward",
                                 "", "", "", triple);
     break;
   case llvm::Triple::NetBSD:

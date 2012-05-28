@@ -1,0 +1,23 @@
+Following are examples of running php_malloc.d.
+
+Here it is running on Code/Php/func_abc.php
+
+   # php_malloc.d -p 18523
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   
+   PHP malloc byte distributions by engine caller,
+   
+   
+   PHP malloc byte distributions by PHP file and function,
+
+
+Theoretically this should show you mallocs.  However there weren't any in this
+example.  The rest of these example files would have been so much easier to
+write if they were all like this.  I would have been finished by now and would
+have been flicking through the TV channels with a nice, cold beer in hand.
+
+
+... Fixing this example is on my todo list.  Check for newer versions of the
+toolkit.
+

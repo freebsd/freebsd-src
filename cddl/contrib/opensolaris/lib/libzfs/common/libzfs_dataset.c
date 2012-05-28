@@ -25,6 +25,7 @@
  * Copyright (c) 2011 by Delphix. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
+ * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #include <ctype.h>
@@ -3721,7 +3722,8 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 
 	} else {
 		if ((cl = changelist_gather(zhp, ZFS_PROP_NAME,
-		    flags.nounmount ? CL_GATHER_DONT_UNMOUNT : 0, 0)) == NULL) {
+		    flags.nounmount ? CL_GATHER_DONT_UNMOUNT : 0,
+		    flags.forceunmount ? MS_FORCE : 0)) == NULL) {
 			return (-1);
 		}
 

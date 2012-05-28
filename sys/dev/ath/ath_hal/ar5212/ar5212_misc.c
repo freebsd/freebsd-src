@@ -1248,3 +1248,13 @@ ar5212Get11nExtBusy(struct ath_hal *ah)
 {
 	return 0;
 }
+
+/*
+ * There's no channel survey support for the AR5211.
+ */
+HAL_BOOL
+ar5212GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
+{
+
+	return (AH_FALSE);
+}

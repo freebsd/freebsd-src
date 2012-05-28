@@ -244,7 +244,7 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 		for (d = devs; d != NULL; d = d->next)
 			if (d->fsid == vn.vn_fsid) {
 				fsmatch = 1;
-				if ((unsigned)d->ino == vn.vn_fileid) {
+				if (d->ino == vn.vn_fileid) {
 					filename = d->name;
 					break;
 				}

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 13, 2009
+.Dd May 11, 2012
 .Dt KENV 1
 .Os
 .Sh NAME
@@ -32,9 +32,9 @@
 .Nd dump or modify the kernel environment
 .Sh SYNOPSIS
 .Nm
-.Op Fl hq
+.Op Fl hNq
 .Nm
-.Op Fl q
+.Op Fl qv
 .Ar variable Ns Op = Ns Ar value
 .Nm
 .Op Fl q
@@ -54,6 +54,11 @@ name is specified,
 .Nm
 will only report that value.
 If the
+.Fl N
+option is specified,
+.Nm
+will only display variable names and not their values.
+If the
 .Fl u
 option is specified,
 .Nm
@@ -67,6 +72,13 @@ If the
 .Fl q
 option is set, warnings normally printed as a result of being unable to
 perform the requested operation will be suppressed.
+.Pp
+If the
+.Fl v
+option is set, the variable name will be printed out for the
+environment variable in addition to the value when
+.Nm
+is executed with a variable name.
 .Pp
 Variables can be added to the kernel environment using the
 .Pa /boot/loader.conf

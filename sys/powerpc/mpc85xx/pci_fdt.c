@@ -816,8 +816,13 @@ fsl_pcib_set_range(struct fsl_pcib_softc *sc, int type, int wnd, u_long start,
 	}
 
 	*allocp = pci_start + alloc;
-	*vap = (uintptr_t)pmap_mapdev(start, size);
-	fsl_pcib_outbound(sc, wnd, type, start, size, pci_start);
+	if (size > 0) {
+		*vap = (uintptr_t)pmap_mapdev(start, size);
+		fsl_pcib_outbound(sc, wnd, type, start, size, pci_start);
+	} else {
+		*vap = 0;
+		fsl_pcib_outbound(sc, wnd, -1, 0, 0, 0);
+	}
 	return (0);
 }
 

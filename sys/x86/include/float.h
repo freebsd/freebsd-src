@@ -42,7 +42,7 @@ __END_DECLS
 #define FLT_RADIX	2		/* b */
 #define FLT_ROUNDS	__flt_rounds()
 #if __ISO_C_VISIBLE >= 1999
-#ifdef _LP64
+#ifdef __LP64__
 #define	FLT_EVAL_METHOD	0		/* no promotions */
 #else
 #define	FLT_EVAL_METHOD	(-1)		/* i387 semantics are...interesting */

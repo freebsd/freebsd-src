@@ -654,21 +654,42 @@ ExprResult Sema::CheckCXXThrowOperand(SourceLocation ThrowLoc, Expr *E,
 
 QualType Sema::getCurrentThisType() {
   DeclContext *DC = getFunctionLevelDeclContext();
-  QualType ThisTy;
+  QualType ThisTy = CXXThisTypeOverride;
   if (CXXMethodDecl *method = dyn_cast<CXXMethodDecl>(DC)) {
     if (method && method->isInstance())
       ThisTy = method->getThisType(Context);
-  } else if (CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(DC)) {
-    // C++0x [expr.prim]p4:
-    //   Otherwise, if a member-declarator declares a non-static data member
-    // of a class X, the expression this is a prvalue of type "pointer to X"
-    // within the optional brace-or-equal-initializer.
-    Scope *S = getScopeForContext(DC);
-    if (!S || S->getFlags() & Scope::ThisScope)
-      ThisTy = Context.getPointerType(Context.getRecordType(RD));
   }
-
+  
   return ThisTy;
+}
+
+Sema::CXXThisScopeRAII::CXXThisScopeRAII(Sema &S, 
+                                         Decl *ContextDecl,
+                                         unsigned CXXThisTypeQuals,
+                                         bool Enabled) 
+  : S(S), OldCXXThisTypeOverride(S.CXXThisTypeOverride), Enabled(false)
+{
+  if (!Enabled || !ContextDecl)
+    return;
+  
+  CXXRecordDecl *Record = 0;
+  if (ClassTemplateDecl *Template = dyn_cast<ClassTemplateDecl>(ContextDecl))
+    Record = Template->getTemplatedDecl();
+  else
+    Record = cast<CXXRecordDecl>(ContextDecl);
+    
+  S.CXXThisTypeOverride
+    = S.Context.getPointerType(
+        S.Context.getRecordType(Record).withCVRQualifiers(CXXThisTypeQuals));
+  
+  this->Enabled = true;
+}
+
+
+Sema::CXXThisScopeRAII::~CXXThisScopeRAII() {
+  if (Enabled) {
+    S.CXXThisTypeOverride = OldCXXThisTypeOverride;
+  }
 }
 
 void Sema::CheckCXXThisCapture(SourceLocation Loc, bool Explicit) {
@@ -737,6 +758,18 @@ ExprResult Sema::ActOnCXXThis(SourceLocation Loc) {
 
   CheckCXXThisCapture(Loc);
   return Owned(new (Context) CXXThisExpr(Loc, ThisTy, /*isImplicit=*/false));
+}
+
+bool Sema::isThisOutsideMemberFunctionBody(QualType BaseType) {
+  // If we're outside the body of a member function, then we'll have a specified
+  // type for 'this'.
+  if (CXXThisTypeOverride.isNull())
+    return false;
+  
+  // Determine whether we're looking into a class that's currently being
+  // defined.
+  CXXRecordDecl *Class = BaseType->getAsCXXRecordDecl();
+  return Class && Class->isBeingDefined();
 }
 
 ExprResult
@@ -3102,6 +3135,9 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, UnaryTypeTrait UTT,
             FoundAssign = true;
             const FunctionProtoType *CPT
                 = Operator->getType()->getAs<FunctionProtoType>();
+            CPT = Self.ResolveExceptionSpec(KeyLoc, CPT);
+            if (!CPT)
+              return false;
             if (CPT->getExceptionSpecType() == EST_Delayed)
               return false;
             if (!CPT->isNothrow(Self.Context))
@@ -3141,6 +3177,9 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, UnaryTypeTrait UTT,
           FoundConstructor = true;
           const FunctionProtoType *CPT
               = Constructor->getType()->getAs<FunctionProtoType>();
+          CPT = Self.ResolveExceptionSpec(KeyLoc, CPT);
+          if (!CPT)
+            return false;
           if (CPT->getExceptionSpecType() == EST_Delayed)
             return false;
           // FIXME: check whether evaluating default arguments can throw.
@@ -3176,6 +3215,9 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, UnaryTypeTrait UTT,
         if (Constructor->isDefaultConstructor()) {
           const FunctionProtoType *CPT
               = Constructor->getType()->getAs<FunctionProtoType>();
+          CPT = Self.ResolveExceptionSpec(KeyLoc, CPT);
+          if (!CPT)
+            return false;
           if (CPT->getExceptionSpecType() == EST_Delayed)
             return false;
           // TODO: check whether evaluating default arguments can throw.
@@ -4784,8 +4826,13 @@ Sema::ActOnStartCXXMemberReference(Scope *S, Expr *Base, SourceLocation OpLoc,
     return Owned(Base);
   }
 
-  // The object type must be complete (or dependent).
+  // The object type must be complete (or dependent), or
+  // C++11 [expr.prim.general]p3:
+  //   Unlike the object expression in other contexts, *this is not required to
+  //   be of complete type for purposes of class member access (5.2.5) outside 
+  //   the member function body.
   if (!BaseType->isDependentType() &&
+      !isThisOutsideMemberFunctionBody(BaseType) &&
       RequireCompleteType(OpLoc, BaseType,
                           PDiag(diag::err_incomplete_member_access)))
     return ExprError();
@@ -5165,9 +5212,9 @@ ExprResult Sema::BuildCXXMemberCallExpr(Expr *E, NamedDecl *FoundDecl,
 
 ExprResult Sema::BuildCXXNoexceptExpr(SourceLocation KeyLoc, Expr *Operand,
                                       SourceLocation RParen) {
+  CanThrowResult CanThrow = canThrow(Operand);
   return Owned(new (Context) CXXNoexceptExpr(Context.BoolTy, Operand,
-                                             Operand->CanThrow(Context),
-                                             KeyLoc, RParen));
+                                             CanThrow, KeyLoc, RParen));
 }
 
 ExprResult Sema::ActOnNoexceptExpr(SourceLocation KeyLoc, SourceLocation,

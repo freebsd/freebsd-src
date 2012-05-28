@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/queue.h>
 #include <sys/types.h>
+#ifdef LOADER_ZFS_SUPPORT
+#include <sys/vtoc.h>
+#include "../zfs/libzfs.h"
+#endif
 
 #include <vm/vm.h>
 #include <machine/asi.h>
@@ -71,11 +75,7 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "dev_net.h"
 
-#ifndef CTASSERT
-#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
-#define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
-#endif
+#define	MAXDEV	31
 
 extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
@@ -154,6 +154,9 @@ struct devsw *devsw[] = {
 #ifdef LOADER_NET_SUPPORT
 	&netdev,
 #endif
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_dev,
+#endif
 	0
 };
 struct arch_switch archsw;
@@ -166,12 +169,16 @@ struct file_format *file_formats[] = {
 	&sparc64_elf,
 	0
 };
+
 struct fs_ops *file_system[] = {
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
 #ifdef LOADER_CD9660_SUPPORT
 	&cd9660_fsops,
+#endif
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_fsops,
 #endif
 #ifdef LOADER_ZIP_SUPPORT
 	&zipfs_fsops,
@@ -721,6 +728,57 @@ tlb_init_sun4u(void)
 		panic("%s: can't allocate TLB store", __func__);
 }
 
+#ifdef LOADER_ZFS_SUPPORT
+static void
+sparc64_zfs_probe(void)
+{
+	struct vtoc8 vtoc;
+	struct zfs_devdesc zfs_currdev;
+	char devname[32];
+	uint64_t guid;
+	int fd, part, unit;
+
+	/* Get the GUID of the ZFS pool on the boot device. */
+	guid = 0;
+	zfs_probe_dev(getenv("currdev"), &guid);
+
+	for (unit = 0; unit < MAXDEV; unit++) {
+		/* Find freebsd-zfs slices in the VTOC. */
+		sprintf(devname, "disk%d:", unit);
+		fd = open(devname, O_RDONLY);
+		if (fd == -1)
+			continue;
+		lseek(fd, 0, SEEK_SET);
+		if (read(fd, &vtoc, sizeof(vtoc)) != sizeof(vtoc)) {
+			close(fd);
+			continue;
+		}
+		close(fd);
+
+		for (part = 0; part < 8; part++) {
+			if (part == 2 || vtoc.part[part].tag !=
+			     VTOC_TAG_FREEBSD_ZFS)
+				continue;
+			sprintf(devname, "disk%d:%c", unit, part + 'a');
+			if (zfs_probe_dev(devname, NULL) == ENXIO)
+				break;
+		}
+	}
+
+	if (guid != 0) {
+		zfs_currdev.pool_guid = guid;
+		zfs_currdev.root_guid = 0;
+		zfs_currdev.d_dev = &zfs_dev;
+		zfs_currdev.d_type = zfs_currdev.d_dev->dv_type;
+		/* Update the environment for ZFS. */
+		env_setenv("currdev", EV_VOLATILE, zfs_fmtdev(&zfs_currdev),
+		    ofw_setcurrdev, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, zfs_fmtdev(&zfs_currdev),
+		    env_noset, env_nounset);
+	}
+}
+#endif /* LOADER_ZFS_SUPPORT */
+
 int
 main(int (*openfirm)(void *))
 {
@@ -738,6 +796,9 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = sparc64_readin;
 	archsw.arch_autoload = sparc64_autoload;
+#ifdef LOADER_ZFS_SUPPORT
+	archsw.arch_zfs_probe = sparc64_zfs_probe;
+#endif
 
 	if (init_heap() == (vm_offset_t)-1)
 		OF_exit();
@@ -756,14 +817,6 @@ main(int (*openfirm)(void *))
 	mmu_ops->tlb_init();
 
 	/*
-	 * Initialize devices.
-	 */
-	for (dp = devsw; *dp != 0; dp++) {
-		if ((*dp)->dv_init != 0)
-			(*dp)->dv_init();
-	}
-
-	/*
 	 * Set up the current device.
 	 */
 	OF_getprop(chosen, "bootpath", bootpath, sizeof(bootpath));
@@ -780,7 +833,8 @@ main(int (*openfirm)(void *))
 	 * needs to be altered.
 	 */
 	if (bootpath[strlen(bootpath) - 2] == ':' &&
-	    bootpath[strlen(bootpath) - 1] == 'f') {
+	    bootpath[strlen(bootpath) - 1] == 'f' &&
+	    strstr(bootpath, "cdrom")) {
 		bootpath[strlen(bootpath) - 1] = 'a';
 		printf("Boot path set to %s\n", bootpath);
 	}
@@ -790,6 +844,13 @@ main(int (*openfirm)(void *))
 	env_setenv("loaddev", EV_VOLATILE, bootpath,
 	    env_noset, env_nounset);
 
+	/*
+	 * Initialize devices.
+	 */
+	for (dp = devsw; *dp != 0; dp++)
+		if ((*dp)->dv_init != 0)
+			(*dp)->dv_init();
+
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
@@ -798,6 +859,18 @@ main(int (*openfirm)(void *))
 	/* Give control to the machine independent loader code. */
 	interact();
 	return (1);
+}
+
+COMMAND_SET(heap, "heap", "show heap usage", command_heap);
+
+static int
+command_heap(int argc, char *argv[])
+{
+
+	mallocstats();
+	printf("heap base at %p, top at %p, upper limit at %p\n", heapva,
+	    sbrk(0), heapva + HEAPSZ);
+	return(CMD_OK);
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);

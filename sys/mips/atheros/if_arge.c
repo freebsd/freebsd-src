@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_device_polling.h"
 #endif
 
+#include "opt_arge.h"
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
@@ -72,8 +74,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include "opt_arge.h"
+
+#if defined(ARGE_MDIO)
+#include <dev/etherswitch/mdio.h>
+#include <dev/etherswitch/miiproxy.h>
+#include "mdio_if.h"
+#endif
+
+
 MODULE_DEPEND(arge, ether, 1, 1, 1);
 MODULE_DEPEND(arge, miibus, 1, 1, 1);
+MODULE_VERSION(arge, 1);
 
 #include "miibus_if.h"
 
@@ -89,7 +101,16 @@ typedef enum {
 	ARGE_DBG_RX	=	0x00000008,
 	ARGE_DBG_ERR	=	0x00000010,
 	ARGE_DBG_RESET	=	0x00000020,
+	ARGE_DBG_PLL	=	0x00000040,
 } arge_debug_flags;
+
+static const char * arge_miicfg_str[] = {
+	"NONE",
+	"GMII",
+	"MII",
+	"RGMII",
+	"RMII"
+};
 
 #ifdef ARGE_DEBUG
 #define	ARGEDEBUG(_sc, _m, ...) 					\
@@ -136,6 +157,8 @@ static void arge_intr(void *);
 static int arge_intr_filter(void *);
 static void arge_tick(void *);
 
+static void arge_hinted_child(device_t bus, const char *dname, int dunit);
+
 /*
  * ifmedia callbacks for multiPHY MAC
  */
@@ -162,6 +185,10 @@ static device_method_t arge_methods[] = {
 	DEVMETHOD(miibus_writereg,	arge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	arge_miibus_statchg),
 
+	/* bus interface */
+	DEVMETHOD(bus_add_child,	device_add_child_ordered),
+	DEVMETHOD(bus_hinted_child,	arge_hinted_child),
+
 	DEVMETHOD_END
 };
 
@@ -175,6 +202,37 @@ static devclass_t arge_devclass;
 
 DRIVER_MODULE(arge, nexus, arge_driver, arge_devclass, 0, 0);
 DRIVER_MODULE(miibus, arge, miibus_driver, miibus_devclass, 0, 0);
+
+#if defined(ARGE_MDIO)
+static int argemdio_probe(device_t);
+static int argemdio_attach(device_t);
+static int argemdio_detach(device_t);
+
+/*
+ * Declare an additional, separate driver for accessing the MDIO bus.
+ */
+static device_method_t argemdio_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		argemdio_probe),
+	DEVMETHOD(device_attach,	argemdio_attach),
+	DEVMETHOD(device_detach,	argemdio_detach),
+
+	/* bus interface */
+	DEVMETHOD(bus_add_child,	device_add_child_ordered),
+	
+	/* MDIO access */
+	DEVMETHOD(mdio_readreg,		arge_miibus_readreg),
+	DEVMETHOD(mdio_writereg,	arge_miibus_writereg),
+};
+
+DEFINE_CLASS_0(argemdio, argemdio_driver, argemdio_methods,
+    sizeof(struct arge_softc));
+static devclass_t argemdio_devclass;
+
+DRIVER_MODULE(miiproxy, arge, miiproxy_driver, miiproxy_devclass, 0, 0);
+DRIVER_MODULE(argemdio, nexus, argemdio_driver, argemdio_devclass, 0, 0);
+DRIVER_MODULE(mdio, argemdio, mdio_driver, mdio_devclass, 0, 0);
+#endif
 
 /*
  * RedBoot passes MAC address to entry point as environment
@@ -235,17 +293,84 @@ arge_attach_sysctl(device_t dev)
 #endif
 }
 
+static void
+arge_reset_mac(struct arge_softc *sc)
+{
+	uint32_t reg;
+
+	/* Step 1. Soft-reset MAC */
+	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
+	DELAY(20);
+
+	/* Step 2. Punt the MAC core from the central reset register */
+	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
+	    RST_RESET_GE1_MAC);
+	DELAY(100);
+	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
+	    RST_RESET_GE1_MAC);
+
+	/* Step 3. Reconfigure MAC block */
+	ARGE_WRITE(sc, AR71XX_MAC_CFG1,
+		MAC_CFG1_SYNC_RX | MAC_CFG1_RX_ENABLE |
+		MAC_CFG1_SYNC_TX | MAC_CFG1_TX_ENABLE);
+
+	reg = ARGE_READ(sc, AR71XX_MAC_CFG2);
+	reg |= MAC_CFG2_ENABLE_PADCRC | MAC_CFG2_LENGTH_FIELD ;
+	ARGE_WRITE(sc, AR71XX_MAC_CFG2, reg);
+
+	ARGE_WRITE(sc, AR71XX_MAC_MAX_FRAME_LEN, 1536);
+}
+
+static void
+arge_reset_miibus(struct arge_softc *sc)
+{
+
+	/* Reset MII bus */
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET);
+	DELAY(100);
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_CLOCK_DIV_28);
+	DELAY(100);
+}
+
+static void
+arge_fetch_pll_config(struct arge_softc *sc)
+{
+	long int val;
+
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_10", &val) == 0) {
+		sc->arge_pllcfg.pll_10 = val;
+		device_printf(sc->arge_dev, "%s: pll_10 = 0x%x\n",
+		    __func__, (int) val);
+	}
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_100", &val) == 0) {
+		sc->arge_pllcfg.pll_100 = val;
+		device_printf(sc->arge_dev, "%s: pll_100 = 0x%x\n",
+		    __func__, (int) val);
+	}
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_1000", &val) == 0) {
+		sc->arge_pllcfg.pll_1000 = val;
+		device_printf(sc->arge_dev, "%s: pll_1000 = 0x%x\n",
+		    __func__, (int) val);
+	}
+}
+
 static int
 arge_attach(device_t dev)
 {
-	uint8_t			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	struct arge_softc	*sc;
-	int			error = 0, rid, phymask;
-	uint32_t		reg, rnd;
-	int			is_base_mac_empty, i, phys_total;
+	int			error = 0, rid;
+	uint32_t		rnd;
+	int			is_base_mac_empty, i;
 	uint32_t		hint;
 	long			eeprom_mac_addr = 0;
+	int			miicfg = 0;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
@@ -276,22 +401,37 @@ arge_attach(device_t dev)
 	    ("if_arge: Only MAC0 and MAC1 supported"));
 
 	/*
-	 *  Get which PHY of 5 available we should use for this unit
+	 * Fetch the PLL configuration.
+	 */
+	arge_fetch_pll_config(sc);
+
+	/*
+	 * Get the MII configuration, if applicable.
 	 */
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "phymask", &phymask) != 0) {
+	    "miimode", &miicfg) == 0) {
+		/* XXX bounds check? */
+		device_printf(dev, "%s: overriding MII mode to '%s'\n",
+		    __func__, arge_miicfg_str[miicfg]);
+		sc->arge_miicfg = miicfg;
+	}
+
+	/*
+	 *  Get which PHY of 5 available we should use for this unit
+	 */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
+	    "phymask", &sc->arge_phymask) != 0) {
 		/*
 		 * Use port 4 (WAN) for GE0. For any other port use
 		 * its PHY the same as its unit number
 		 */
 		if (sc->arge_mac_unit == 0)
-			phymask = (1 << 4);
+			sc->arge_phymask = (1 << 4);
 		else
 			/* Use all phys up to 4 */
-			phymask = (1 << 4) - 1;
+			sc->arge_phymask = (1 << 4) - 1;
 
-		device_printf(dev, "No PHY specified, using mask %d\n",
-		    phymask);
+		device_printf(dev, "No PHY specified, using mask %d\n", sc->arge_phymask);
 	}
 
 	/*
@@ -316,8 +456,6 @@ arge_attach(device_t dev)
 	else
 		sc->arge_duplex_mode = 0;
 
-	sc->arge_phymask = phymask;
-
 	mtx_init(&sc->arge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->arge_stat_callout, &sc->arge_mtx, 0);
@@ -325,8 +463,8 @@ arge_attach(device_t dev)
 
 	/* Map control/status registers. */
 	sc->arge_rid = 0;
-	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->arge_rid, RF_ACTIVE);
+	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	    &sc->arge_rid, RF_ACTIVE | RF_SHAREABLE);
 
 	if (sc->arge_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
@@ -374,8 +512,8 @@ arge_attach(device_t dev)
 
 	is_base_mac_empty = 1;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		eaddr[i] = ar711_base_mac[i] & 0xff;
-		if (eaddr[i] != 0)
+		sc->arge_eaddr[i] = ar711_base_mac[i] & 0xff;
+		if (sc->arge_eaddr[i] != 0)
 			is_base_mac_empty = 0;
 	}
 
@@ -388,59 +526,44 @@ arge_attach(device_t dev)
 			    "Generating random ethernet address.\n");
 
 		rnd = arc4random();
-		eaddr[0] = 'b';
-		eaddr[1] = 's';
-		eaddr[2] = 'd';
-		eaddr[3] = (rnd >> 24) & 0xff;
-		eaddr[4] = (rnd >> 16) & 0xff;
-		eaddr[5] = (rnd >> 8) & 0xff;
+		sc->arge_eaddr[0] = 'b';
+		sc->arge_eaddr[1] = 's';
+		sc->arge_eaddr[2] = 'd';
+		sc->arge_eaddr[3] = (rnd >> 24) & 0xff;
+		sc->arge_eaddr[4] = (rnd >> 16) & 0xff;
+		sc->arge_eaddr[5] = (rnd >> 8) & 0xff;
 	}
-
 	if (sc->arge_mac_unit != 0)
-		eaddr[5] +=  sc->arge_mac_unit;
+		sc->arge_eaddr[5] +=  sc->arge_mac_unit;
 
 	if (arge_dma_alloc(sc) != 0) {
 		error = ENXIO;
 		goto fail;
 	}
 
+	/*
+	 * Don't do this for the MDIO bus case - it's already done
+	 * as part of the MDIO bus attachment.
+	 */
+#if !defined(ARGE_MDIO)
 	/* Initialize the MAC block */
+	arge_reset_mac(sc);
+	arge_reset_miibus(sc);
+#endif
 
-	/* Step 1. Soft-reset MAC */
-	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
-	DELAY(20);
-
-	/* Step 2. Punt the MAC core from the central reset register */
-	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
-	    RST_RESET_GE1_MAC);
-	DELAY(100);
-	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
-	    RST_RESET_GE1_MAC);
-
-	/* Step 3. Reconfigure MAC block */
-	ARGE_WRITE(sc, AR71XX_MAC_CFG1,
-		MAC_CFG1_SYNC_RX | MAC_CFG1_RX_ENABLE |
-		MAC_CFG1_SYNC_TX | MAC_CFG1_TX_ENABLE);
-
-	reg = ARGE_READ(sc, AR71XX_MAC_CFG2);
-	reg |= MAC_CFG2_ENABLE_PADCRC | MAC_CFG2_LENGTH_FIELD ;
-	ARGE_WRITE(sc, AR71XX_MAC_CFG2, reg);
-
-	ARGE_WRITE(sc, AR71XX_MAC_MAX_FRAME_LEN, 1536);
-
-	/* Reset MII bus */
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET);
-	DELAY(100);
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_CLOCK_DIV_28);
-	DELAY(100);
+	/* Configure MII mode, just for convienence */
+	if (sc->arge_miicfg != 0)
+		ar71xx_device_set_mii_if(sc->arge_mac_unit, sc->arge_miicfg);
 
 	/*
 	 * Set all Ethernet address registers to the same initial values
 	 * set all four addresses to 66-88-aa-cc-dd-ee
 	 */
-	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR1,
-	    (eaddr[2] << 24) | (eaddr[3] << 16) | (eaddr[4] << 8) | eaddr[5]);
-	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR2, (eaddr[0] << 8) | eaddr[1]);
+	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR1, (sc->arge_eaddr[2] << 24)
+	    | (sc->arge_eaddr[3] << 16) | (sc->arge_eaddr[4] << 8)
+	    | sc->arge_eaddr[5]);
+	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR2, (sc->arge_eaddr[0] << 8)
+	    | sc->arge_eaddr[1]);
 
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG0,
 	    FIFO_CFG0_ALL << FIFO_CFG0_ENABLE_SHIFT);
@@ -463,31 +586,30 @@ arge_attach(device_t dev)
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK,
 	    FIFO_RX_FILTMASK_DEFAULT);
 
-	/*
-	 * Check if we have single-PHY MAC or multi-PHY
-	 */
-	phys_total = 0;
-	for (i = 0; i < ARGE_NPHY; i++)
-		if (phymask & (1 << i))
-			phys_total ++;
+#if defined(ARGE_MDIO)
+	sc->arge_miiproxy = mii_attach_proxy(sc->arge_dev);
+#endif
 
-	if (phys_total == 0) {
-		error = EINVAL;
-		goto fail;
-	}
-
-	if (phys_total == 1) {
-		/* Do MII setup. */
-		error = mii_attach(dev, &sc->arge_miibus, ifp,
-		    arge_ifmedia_upd, arge_ifmedia_sts, BMSR_DEFCAPMASK,
-		    MII_PHY_ANY, MII_OFFSET_ANY, 0);
-		if (error != 0) {
-			device_printf(dev, "attaching PHYs failed\n");
-			goto fail;
+	device_printf(sc->arge_dev, "finishing attachment, phymask %04x"
+	    ", proxy %s \n", sc->arge_phymask, sc->arge_miiproxy == NULL ?
+	    "null" : "set");
+	for (i = 0; i < ARGE_NPHY; i++) {
+		if (((1 << i) & sc->arge_phymask) != 0) {
+			error = mii_attach(sc->arge_miiproxy != NULL ?
+			    sc->arge_miiproxy : sc->arge_dev,
+			    &sc->arge_miibus, sc->arge_ifp,
+			    arge_ifmedia_upd, arge_ifmedia_sts,
+			    BMSR_DEFCAPMASK, i, MII_OFFSET_ANY, 0);
+			if (error != 0) {
+				device_printf(sc->arge_dev, "unable to attach"
+				    " PHY %d: %d\n", i, error);
+				goto fail;
+			}
 		}
 	}
-	else {
-		ifmedia_init(&sc->arge_ifmedia, 0,
+	if (sc->arge_miibus == NULL) {
+		/* no PHY, so use hard-coded values */
+		ifmedia_init(&sc->arge_ifmedia, 0, 
 		    arge_multiphy_mediachange,
 		    arge_multiphy_mediastatus);
 		ifmedia_add(&sc->arge_ifmedia,
@@ -499,23 +621,23 @@ arge_attach(device_t dev)
 	}
 
 	/* Call MI attach routine. */
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach(sc->arge_ifp, sc->arge_eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->arge_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	error = bus_setup_intr(sc->arge_dev, sc->arge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    arge_intr_filter, arge_intr, sc, &sc->arge_intrhand);
 
 	if (error) {
-		device_printf(dev, "couldn't set up irq\n");
-		ether_ifdetach(ifp);
+		device_printf(sc->arge_dev, "couldn't set up irq\n");
+		ether_ifdetach(sc->arge_ifp);
 		goto fail;
 	}
 
 	/* setup sysctl variables */
-	arge_attach_sysctl(dev);
+	arge_attach_sysctl(sc->arge_dev);
 
 fail:
-	if (error)
+	if (error) 
 		arge_detach(dev);
 
 	return (error);
@@ -547,6 +669,9 @@ arge_detach(device_t dev)
 
 	if (sc->arge_miibus)
 		device_delete_child(dev, sc->arge_miibus);
+
+	if (sc->arge_miiproxy)
+		device_delete_child(dev, sc->arge_miiproxy);
 
 	bus_generic_detach(dev);
 
@@ -598,6 +723,13 @@ arge_shutdown(device_t dev)
 	return (0);
 }
 
+static void
+arge_hinted_child(device_t bus, const char *dname, int dunit)
+{
+	BUS_ADD_CHILD(bus, 0, dname, dunit);
+	device_printf(bus, "hinted child %s%d\n", dname, dunit);
+}
+
 static int
 arge_miibus_readreg(device_t dev, int phy, int reg)
 {
@@ -606,16 +738,13 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 	uint32_t addr = (phy << MAC_MII_PHY_ADDR_SHIFT)
 	    | (reg & MAC_MII_REG_MASK);
 
-	if ((sc->arge_phymask  & (1 << phy)) == 0)
-		return (0);
-
 	mtx_lock(&miibus_mtx);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_ADDR, addr);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_READ);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_READ);
 
 	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_MII_READ(AR71XX_MAC_MII_INDICATOR) &
+	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
 	    MAC_MII_INDICATOR_BUSY) && (i--))
 		DELAY(5);
 
@@ -626,8 +755,8 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 		return (-1);
 	}
 
-	result = ARGE_MII_READ(AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	result = ARGE_MDIO_READ(sc, AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
 	mtx_unlock(&miibus_mtx);
 
 	ARGEDEBUG(sc, ARGE_DBG_MII,
@@ -645,19 +774,15 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	uint32_t addr =
 	    (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
 
-
-	if ((sc->arge_phymask  & (1 << phy)) == 0)
-		return (-1);
-
-	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n",
-	    __func__, phy, reg, data);
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
+	    phy, reg, data);
 
 	mtx_lock(&miibus_mtx);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_ADDR, addr);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CONTROL, data);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CONTROL, data);
 
 	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_MII_READ(AR71XX_MAC_MII_INDICATOR) &
+	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
 	    MAC_MII_INDICATOR_BUSY) && (i--))
 		DELAY(5);
 
@@ -709,10 +834,13 @@ arge_update_link_locked(struct arge_softc *sc)
 	if (mii->mii_media_status & IFM_ACTIVE) {
 
 		media = IFM_SUBTYPE(mii->mii_media_active);
-
 		if (media != IFM_NONE) {
 			sc->arge_link_status = 1;
 			duplex = mii->mii_media_active & IFM_GMASK;
+			ARGEDEBUG(sc, ARGE_DBG_MII, "%s: media=%d, duplex=%d\n",
+			    __func__,
+			    media,
+			    duplex);
 			arge_set_pll(sc, media, duplex);
 		}
 	} else {
@@ -724,9 +852,11 @@ static void
 arge_set_pll(struct arge_softc *sc, int media, int duplex)
 {
 	uint32_t		cfg, ifcontrol, rx_filtmask;
-	uint32_t		fifo_tx;
+	uint32_t		fifo_tx, pll;
 	int if_speed;
 
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "set_pll(%04x, %s)\n", media,
+	    duplex == IFM_FDX ? "full" : "half");
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
 	cfg &= ~(MAC_CFG2_IFACE_MODE_1000
 	    | MAC_CFG2_IFACE_MODE_10_100
@@ -763,6 +893,8 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		    "Unknown media %d\n", media);
 	}
 
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: if_speed=%d\n", __func__, if_speed);
+
 	switch (ar71xx_soc) {
 		case AR71XX_SOC_AR7240:
 		case AR71XX_SOC_AR7241:
@@ -783,8 +915,36 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	    rx_filtmask);
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD, fifo_tx);
 
-	/* set PLL registers */
-	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed);
+	/* fetch PLL registers */
+	pll = ar71xx_device_get_eth_pll(sc->arge_mac_unit, if_speed);
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: pll=0x%x\n", __func__, pll);
+
+	/* Override if required by platform data */
+	if (if_speed == 10 && sc->arge_pllcfg.pll_10 != 0)
+		pll = sc->arge_pllcfg.pll_10;
+	else if (if_speed == 100 && sc->arge_pllcfg.pll_100 != 0)
+		pll = sc->arge_pllcfg.pll_100;
+	else if (if_speed == 1000 && sc->arge_pllcfg.pll_1000 != 0)
+		pll = sc->arge_pllcfg.pll_1000;
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: final pll=0x%x\n", __func__, pll);
+
+	/* XXX ensure pll != 0 */
+	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed, pll);
+
+	/* set MII registers */
+	/*
+	 * This was introduced to match what the Linux ag71xx ethernet
+	 * driver does.  For the AR71xx case, it does set the port
+	 * MII speed.  However, if this is done, non-gigabit speeds
+	 * are not at all reliable when speaking via RGMII through
+	 * 'bridge' PHY port that's pretending to be a local PHY.
+	 *
+	 * Until that gets root caused, and until an AR71xx + normal
+	 * PHY board is tested, leave this disabled.
+	 */
+#if 0
+	ar71xx_device_set_mii_speed(sc->arge_mac_unit, if_speed);
+#endif
 }
 
 
@@ -1990,3 +2150,48 @@ arge_multiphy_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	    sc->arge_duplex_mode;
 }
 
+#if defined(ARGE_MDIO)
+static int
+argemdio_probe(device_t dev)
+{
+	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface, MDIO controller");
+	return (0);
+}
+
+static int
+argemdio_attach(device_t dev)
+{
+	struct arge_softc	*sc;
+	int			error = 0;
+
+	sc = device_get_softc(dev);
+	sc->arge_dev = dev;
+	sc->arge_mac_unit = device_get_unit(dev);
+	sc->arge_rid = 0;
+	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	    &sc->arge_rid, RF_ACTIVE | RF_SHAREABLE);
+	if (sc->arge_res == NULL) {
+		device_printf(dev, "couldn't map memory\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	/* Reset MAC - required for AR71xx MDIO to successfully occur */
+	arge_reset_mac(sc);
+	/* Reset MII bus */
+	arge_reset_miibus(sc);
+
+	bus_generic_probe(dev);
+	bus_enumerate_hinted_children(dev);
+	error = bus_generic_attach(dev);
+fail:
+	return (error);
+}
+
+static int
+argemdio_detach(device_t dev)
+{
+	return (0);
+}
+
+#endif
