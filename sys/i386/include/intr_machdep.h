@@ -60,10 +60,10 @@
  * - 1 ??? dummy counter.
  * - 2 counters for each I/O interrupt.
  * - 1 counter for each CPU for lapic timer.
- * - 7 counters for each CPU for IPI counters for SMP.
+ * - 9 counters for each CPU for IPI counters for SMP.
  */
 #ifdef SMP
-#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 7) * MAXCPU)
+#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 9) * MAXCPU)
 #else
 #define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + 1)
 #endif
@@ -131,9 +131,7 @@ int	elcr_probe(void);
 enum intr_trigger elcr_read_trigger(u_int irq);
 void	elcr_resume(void);
 void	elcr_write_trigger(u_int irq, enum intr_trigger trigger);
-#ifdef SMP
 void	intr_add_cpu(u_int cpu);
-#endif
 int	intr_add_handler(const char *name, int vector, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);
 #ifdef SMP

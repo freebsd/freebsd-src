@@ -56,29 +56,12 @@ __FBSDID("$FreeBSD$");
 #include "ofw_bus_if.h"
 #include "lbc.h"
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
 #else
 #define debugf(fmt, args...)
 #endif
-
-static __inline void
-lbc_write_reg(struct lbc_softc *sc, bus_size_t off, uint32_t val)
-{
-
-	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
-}
-
-static __inline uint32_t
-lbc_read_reg(struct lbc_softc *sc, bus_size_t off)
-{
-
-	return (bus_space_read_4(sc->sc_bst, sc->sc_bsh, off));
-}
 
 static MALLOC_DEFINE(M_LBC, "localbus", "localbus devices information");
 
@@ -161,46 +144,123 @@ lbc_address_mask(uint32_t size)
 static void
 lbc_banks_unmap(struct lbc_softc *sc)
 {
-	int i;
+	int r;
 
-	for (i = 0; i < LBC_DEV_MAX; i++) {
-		if (sc->sc_banks[i].size == 0)
-			continue;
+	r = 0;
+	while (r < LBC_DEV_MAX) {
+		if (sc->sc_range[r].size == 0)
+			return;
 
-		law_disable(OCP85XX_TGTIF_LBC, sc->sc_banks[i].pa,
-		    sc->sc_banks[i].size);
-		pmap_unmapdev(sc->sc_banks[i].va, sc->sc_banks[i].size);
+		pmap_unmapdev(sc->sc_range[r].kva, sc->sc_range[r].size);
+		law_disable(OCP85XX_TGTIF_LBC, sc->sc_range[r].addr,
+		    sc->sc_range[r].size);
+		r++;
 	}
 }
 
 static int
 lbc_banks_map(struct lbc_softc *sc)
 {
-	u_long start, size;
-	int error, i;
+	vm_paddr_t end, start;
+	vm_size_t size;
+	u_int i, r, ranges, s;
+	int error;
 
+	bzero(sc->sc_range, sizeof(sc->sc_range));
+
+	/*
+	 * Determine number of discontiguous address ranges to program.
+	 */
+	ranges = 0;
 	for (i = 0; i < LBC_DEV_MAX; i++) {
-		if (sc->sc_banks[i].size == 0)
+		size = sc->sc_banks[i].size;
+		if (size == 0)
 			continue;
 
-		/* Physical address start/size. */
-		start = sc->sc_banks[i].pa;
-		size = sc->sc_banks[i].size;
+		start = sc->sc_banks[i].addr;
+		for (r = 0; r < ranges; r++) {
+			/* Avoid wrap-around bugs. */
+			end = sc->sc_range[r].addr - 1 + sc->sc_range[r].size;
+			if (start > 0 && end == start - 1) {
+				sc->sc_range[r].size += size;
+				break;
+			}
+			/* Avoid wrap-around bugs. */
+			end = start - 1 + size;
+			if (sc->sc_range[r].addr > 0 &&
+			    end == sc->sc_range[r].addr - 1) {
+				sc->sc_range[r].addr = start;
+				sc->sc_range[r].size += size;
+				break;
+			}
+		}
+		if (r == ranges) {
+			/* New range; add using insertion sort */
+			r = 0;
+			while (r < ranges && sc->sc_range[r].addr < start)
+				r++;
+			for (s = ranges; s > r; s--)
+				sc->sc_range[s] = sc->sc_range[s-1];
+			sc->sc_range[r].addr = start;
+			sc->sc_range[r].size = size;
+			ranges++;
+		}
+	}
 
-		/*
-		 * Configure LAW for this LBC bank (CS) and map its physical
-		 * memory region into KVA.
-		 */
+	/*
+	 * Ranges are sorted so quickly go over the list to merge ranges
+	 * that grew toward each other while building the ranges.
+	 */
+	r = 0;
+	while (r < ranges - 1) {
+		end = sc->sc_range[r].addr + sc->sc_range[r].size;
+		if (end != sc->sc_range[r+1].addr) {
+			r++;
+			continue;
+		}
+		sc->sc_range[r].size += sc->sc_range[r+1].size;
+		for (s = r + 1; s < ranges - 1; s++)
+			sc->sc_range[s] = sc->sc_range[s+1];
+		bzero(&sc->sc_range[s], sizeof(sc->sc_range[s]));
+		ranges--;
+	}
+
+	/*
+	 * Configure LAW for the LBC ranges and map the physical memory
+	 * range into KVA.
+	 */
+	for (r = 0; r < ranges; r++) {
+		start = sc->sc_range[r].addr;
+		size = sc->sc_range[r].size;
 		error = law_enable(OCP85XX_TGTIF_LBC, start, size);
 		if (error)
 			return (error);
+		sc->sc_range[r].kva = (vm_offset_t)pmap_mapdev(start, size);
+	}
 
-		sc->sc_banks[i].va = (vm_offset_t)pmap_mapdev(start, size);
-		if (sc->sc_banks[i].va == 0) {
-			lbc_banks_unmap(sc);
-			return (ENOSPC);
+	/* XXX: need something better here? */
+	if (ranges == 0)
+		return (EINVAL);
+
+	/* Assign KVA to banks based on the enclosing range. */
+	for (i = 0; i < LBC_DEV_MAX; i++) {
+		size = sc->sc_banks[i].size;
+		if (size == 0)
+			continue;
+
+		start = sc->sc_banks[i].addr;
+		for (r = 0; r < ranges; r++) {
+			end = sc->sc_range[r].addr - 1 + sc->sc_range[r].size;
+			if (start >= sc->sc_range[r].addr &&
+			    start - 1 + size <= end)
+				break;
+		}
+		if (r < ranges) {
+			sc->sc_banks[i].kva = sc->sc_range[r].kva +
+			    (start - sc->sc_range[r].addr);
 		}
 	}
+
 	return (0);
 }
 
@@ -213,14 +273,18 @@ lbc_banks_enable(struct lbc_softc *sc)
 
 	for (i = 0; i < LBC_DEV_MAX; i++) {
 		size = sc->sc_banks[i].size;
-		if (size == 0)
+		if (size == 0) {
+			bus_space_write_4(sc->sc_bst, sc->sc_bsh,
+			    LBC85XX_BR(i), 0);
+			bus_space_write_4(sc->sc_bst, sc->sc_bsh,
+			    LBC85XX_OR(i), 0);
 			continue;
+		}
+
 		/*
 		 * Compute and program BR value.
 		 */
-		regval = 0;
-		regval |= sc->sc_banks[i].pa;
-
+		regval = sc->sc_banks[i].addr;
 		switch (sc->sc_banks[i].width) {
 		case 8:
 			regval |= (1 << 11);
@@ -240,24 +304,22 @@ lbc_banks_enable(struct lbc_softc *sc)
 		regval |= (sc->sc_banks[i].msel << 5);
 		regval |= (sc->sc_banks[i].atom << 2);
 		regval |= 1;
-
-		lbc_write_reg(sc, LBC85XX_BR(i), regval);
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh,
+		    LBC85XX_BR(i), regval);
 
 		/*
 		 * Compute and program OR value.
 		 */
-		regval = 0;
-		regval |= lbc_address_mask(size);
-
+		regval = lbc_address_mask(size);
 		switch (sc->sc_banks[i].msel) {
 		case LBCRES_MSEL_GPCM:
 			/* TODO Add flag support for option registers */
-			regval |= 0x00000ff7;
+			regval |= 0x0ff7;
 			break;
 		case LBCRES_MSEL_FCM:
-			printf("FCM mode not supported yet!");
-			error = ENOSYS;
-			goto fail;
+			/* TODO Add flag support for options register */
+			regval |= 0x0796;
+			break;
 		case LBCRES_MSEL_UPMA:
 		case LBCRES_MSEL_UPMB:
 		case LBCRES_MSEL_UPMC:
@@ -265,7 +327,8 @@ lbc_banks_enable(struct lbc_softc *sc)
 			error = ENOSYS;
 			goto fail;
 		}
-		lbc_write_reg(sc, LBC85XX_OR(i), regval);
+		bus_space_write_4(sc->sc_bst, sc->sc_bsh,
+		    LBC85XX_OR(i), regval);
 	}
 
 	/*
@@ -276,7 +339,7 @@ lbc_banks_enable(struct lbc_softc *sc)
 	 * - set ECC parity type
 	 * - set bus monitor timing and timer prescale
 	 */
-	lbc_write_reg(sc, LBC85XX_LBCR, 0);
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LBCR, 0);
 
 	/*
 	 * Initialize clock ratio register:
@@ -284,8 +347,7 @@ lbc_banks_enable(struct lbc_softc *sc)
 	 * - configure LCLK delay cycles for the assertion of LALE
 	 * - set system clock divider
 	 */
-	lbc_write_reg(sc, LBC85XX_LCRR, 0x00030008);
-
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, LBC85XX_LCRR, 0x00030008);
 	return (0);
 
 fail:
@@ -348,7 +410,7 @@ fdt_lbc_reg_decode(phandle_t node, struct lbc_softc *sc,
 		reg += addr_cells - 1 + size_cells;
 
 		/* Calculate address range relative to VA base. */
-		start = sc->sc_banks[bank].va + start;
+		start = sc->sc_banks[bank].kva + start;
 		end = start + count - 1;
 
 		debugf("reg addr bank = %d, start = %lx, end = %lx, "
@@ -479,7 +541,7 @@ lbc_attach(device_t dev)
 		debugf("bank = %d, start = %lx, size = %lx\n", bank,
 		    start, size);
 
-		sc->sc_banks[bank].pa = start + offset;
+		sc->sc_banks[bank].addr = start + offset;
 		sc->sc_banks[bank].size = size;
 
 		/*
@@ -675,4 +737,22 @@ lbc_get_devinfo(device_t bus, device_t child)
 
 	di = device_get_ivars(child);
 	return (&di->di_ofw);
+}
+
+void
+lbc_write_reg(device_t child, u_int off, uint32_t val)
+{
+	struct lbc_softc *sc;
+
+	sc = device_get_softc(device_get_parent(child));
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
+}
+
+uint32_t
+lbc_read_reg(device_t child, u_int off)
+{
+	struct lbc_softc *sc;
+
+	sc = device_get_softc(device_get_parent(child));
+	return (bus_space_read_4(sc->sc_bst, sc->sc_bsh, off));
 }

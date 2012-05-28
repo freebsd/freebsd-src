@@ -104,7 +104,7 @@ ugen20_path_convert_one(const char **pp)
 		temp += (*ptr - '0');
 		if (temp >= 1000000) {
 			/* catch overflow early */
-			return (0 - 1);
+			return (0xFFFFFFFF);
 		}
 		ptr++;
 	}

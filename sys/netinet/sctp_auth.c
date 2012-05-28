@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -284,16 +284,16 @@ sctp_print_key(sctp_key_t * key, const char *str)
 	uint32_t i;
 
 	if (key == NULL) {
-		printf("%s: [Null key]\n", str);
+		SCTP_PRINTF("%s: [Null key]\n", str);
 		return;
 	}
-	printf("%s: len %u, ", str, key->keylen);
+	SCTP_PRINTF("%s: len %u, ", str, key->keylen);
 	if (key->keylen) {
 		for (i = 0; i < key->keylen; i++)
-			printf("%02x", key->key[i]);
-		printf("\n");
+			SCTP_PRINTF("%02x", key->key[i]);
+		SCTP_PRINTF("\n");
 	} else {
-		printf("[Null key]\n");
+		SCTP_PRINTF("[Null key]\n");
 	}
 }
 
@@ -303,16 +303,16 @@ sctp_show_key(sctp_key_t * key, const char *str)
 	uint32_t i;
 
 	if (key == NULL) {
-		printf("%s: [Null key]\n", str);
+		SCTP_PRINTF("%s: [Null key]\n", str);
 		return;
 	}
-	printf("%s: len %u, ", str, key->keylen);
+	SCTP_PRINTF("%s: len %u, ", str, key->keylen);
 	if (key->keylen) {
 		for (i = 0; i < key->keylen; i++)
-			printf("%02x", key->key[i]);
-		printf("\n");
+			SCTP_PRINTF("%02x", key->key[i]);
+		SCTP_PRINTF("\n");
 	} else {
-		printf("[Null key]\n");
+		SCTP_PRINTF("[Null key]\n");
 	}
 }
 
@@ -1801,7 +1801,7 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 			 * shared_key_id, (void
 			 * *)stcb->asoc.authinfo.recv_keyid);
 			 */
-			sctp_notify_authentication(stcb, SCTP_AUTH_NEWKEY,
+			sctp_notify_authentication(stcb, SCTP_AUTH_NEW_KEY,
 			    shared_key_id, stcb->asoc.authinfo.recv_keyid,
 			    SCTP_SO_NOT_LOCKED);
 		/* compute a new recv assoc key and cache it */

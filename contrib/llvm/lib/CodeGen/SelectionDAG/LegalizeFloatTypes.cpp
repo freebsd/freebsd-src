@@ -479,8 +479,8 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_LOAD(SDNode *N) {
   if (L->getExtensionType() == ISD::NON_EXTLOAD) {
     NewL = DAG.getLoad(L->getAddressingMode(), L->getExtensionType(),
                        NVT, dl, L->getChain(), L->getBasePtr(), L->getOffset(),
-                       L->getPointerInfo(), NVT,
-                       L->isVolatile(), L->isNonTemporal(), L->getAlignment());
+                       L->getPointerInfo(), NVT, L->isVolatile(), 
+                       L->isNonTemporal(), false, L->getAlignment());
     // Legalized the chain result - switch anything that used the old chain to
     // use the new one.
     ReplaceValueWith(SDValue(N, 1), NewL.getValue(1));
@@ -492,7 +492,7 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_LOAD(SDNode *N) {
                      L->getMemoryVT(), dl, L->getChain(),
                      L->getBasePtr(), L->getOffset(), L->getPointerInfo(),
                      L->getMemoryVT(), L->isVolatile(),
-                     L->isNonTemporal(), L->getAlignment());
+                     L->isNonTemporal(), false, L->getAlignment());
   // Legalized the chain result - switch anything that used the old chain to
   // use the new one.
   ReplaceValueWith(SDValue(N, 1), NewL.getValue(1));
@@ -672,7 +672,7 @@ void DAGTypeLegalizer::SoftenSetCCOperands(SDValue &NewLHS, SDValue &NewRHS,
     case ISD::SETUEQ:
       LC2 = (VT == MVT::f32) ? RTLIB::OEQ_F32 : RTLIB::OEQ_F64;
       break;
-    default: assert(false && "Do not know how to soften this setcc!");
+    default: llvm_unreachable("Do not know how to soften this setcc!");
     }
   }
 
@@ -1212,7 +1212,7 @@ void DAGTypeLegalizer::ExpandFloatRes_XINT_TO_FP(SDNode *N, SDValue &Lo,
 
   switch (SrcVT.getSimpleVT().SimpleTy) {
   default:
-    assert(false && "Unsupported UINT_TO_FP!");
+    llvm_unreachable("Unsupported UINT_TO_FP!");
   case MVT::i32:
     Parts = TwoE32;
     break;

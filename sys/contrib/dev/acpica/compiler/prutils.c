@@ -49,100 +49,6 @@
         ACPI_MODULE_NAME    ("prutils")
 
 
-/*******************************************************************************
- *
- * FUNCTION:    PrSetLineNumber
- *
- * PARAMETERS:  OriginalLineNumber      - Line number in original source file,
- *                                        or include file
- *              PreprocessorLineNumber  - Line number in the preprocessed file
- *
- * RETURN:      None
- *
- * DESCRIPTION: Insert this mapping into the mapping data structure, for use
- *              in possible error/warning messages.
- *
- * Line number mapping functions.
- * For error messages, we need to keep track of the line number in the
- * original file, versus the preprocessed (.i) file.
- *
- ******************************************************************************/
-
-void
-PrSetLineNumber (
-    UINT32                  OriginalLineNumber,
-    UINT32                  PreprocessorLineNumber)
-{
-    UINT32                  Entry;
-    PR_LINE_MAPPING         *Block;
-    UINT32                  Index;
-    UINT32                  i;
-
-
-    Entry = PreprocessorLineNumber / PR_LINES_PER_BLOCK;
-    Index = PreprocessorLineNumber % PR_LINES_PER_BLOCK;
-    Block = Gbl_MapBlockHead;
-
-    for (i = 0; i < Entry; i++)
-    {
-        /* Allocate new mapping blocks as necessary */
-
-        if (!Block->Next)
-        {
-            Block->Next = UtLocalCalloc (sizeof (PR_LINE_MAPPING));
-            Block->Next->Map = UtLocalCalloc (PR_LINES_PER_BLOCK * sizeof (UINT32));
-        }
-
-        Block = Block->Next;
-    }
-
-    Block->Map[Index] = OriginalLineNumber;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    PrGetLineNumber
- *
- * PARAMETERS:  PreprocessorLineNumber  - Line number in the preprocessed file
- *                                        (or, the "logical line number)
- *
- * RETURN:      The line number in the original source file or include file.
- *
- * DESCRIPTION: Return the mapped value of a line number in the preprocessed
- *              source file to the actual line number in the original source
- *              file.
- *
- ******************************************************************************/
-
-UINT32
-PrGetLineNumber (
-    UINT32                  PreprocessorLineNumber)
-{
-    UINT32                  Entry;
-    PR_LINE_MAPPING         *Block;
-    UINT32                  Index;
-    UINT32                  i;
-
-
-    Entry = PreprocessorLineNumber / PR_LINES_PER_BLOCK;
-    Index = PreprocessorLineNumber % PR_LINES_PER_BLOCK;
-    Block = Gbl_MapBlockHead;
-
-    for (i = 0; i < Entry; i++)
-    {
-        Block = Block->Next;
-        if (!Block)
-        {
-            /* Bad error, should not happen */
-            return (0);
-        }
-    }
-
-    return (Block->Map[Index]);
-}
-
-
 /******************************************************************************
  *
  * FUNCTION:    PrGetNextToken
@@ -340,13 +246,11 @@ PrOpenIncludeFile (
     ASL_INCLUDE_DIR         *NextDir;
 
 
-    /*
-     * start the actual include file on the next line
-     */
+    /* Start the actual include file on the next line */
+
     Gbl_CurrentLineOffset++;
 
     /* Attempt to open the include file */
-
     /* If the file specifies an absolute path, just open it */
 
     if ((Filename[0] == '/')  ||
@@ -424,13 +328,10 @@ PrOpenIncludeWithPrefix (
 
     /* Build the full pathname to the file */
 
-    Pathname = ACPI_ALLOCATE (strlen (PrefixDir) + strlen (Filename) + 1);
+    Pathname = FlMergePathnames (PrefixDir, Filename);
 
-    strcpy (Pathname, PrefixDir);
-    strcat (Pathname, Filename);
-
-    DbgPrint (ASL_PARSE_OUTPUT, "\n" PR_PREFIX_ID
-        "Opening include file: path %s\n",
+    DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
+        "Include: Opening file - \"%s\"\n",
         Gbl_CurrentLineNumber, Pathname);
 
     /* Attempt to open the file, push if successful */
@@ -486,14 +387,20 @@ PrPushInputFileStack (
     Gbl_InputFileList = Fnode;
 
     DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
-        "Push InputFile Stack, returning %p\n\n",
+        "Push InputFile Stack: handle %p\n\n",
         Gbl_CurrentLineNumber, InputFile);
 
     /* Reset the global line count and filename */
 
     Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
     Gbl_Files[ASL_FILE_INPUT].Handle = InputFile;
-    Gbl_CurrentLineNumber = 1;
+    Gbl_PreviousLineNumber = 0;
+    Gbl_CurrentLineNumber = 0;
+
+    /* Emit a new #line directive for the include file */
+
+    FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n",
+        1, Filename);
 }
 
 
@@ -542,6 +449,12 @@ PrPopInputFileStack (
     Gbl_Files[ASL_FILE_INPUT].Filename = Fnode->Filename;
     Gbl_Files[ASL_FILE_INPUT].Handle = Fnode->File;
     Gbl_CurrentLineNumber = Fnode->CurrentLineNumber;
+    Gbl_PreviousLineNumber = 0;
+
+    /* Emit a new #line directive after the include file */
+
+    FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n",
+        Gbl_CurrentLineNumber + 1, Fnode->Filename);
 
     /* All done with this node */
 

@@ -35,8 +35,12 @@ namespace llvm {
   ///
   class ScheduleDAGSDNodes : public ScheduleDAG {
   public:
+    MachineBasicBlock *BB;
     SelectionDAG *DAG;                    // DAG of the current basic block
     const InstrItineraryData *InstrItins;
+
+    /// The schedule. Null SUnit*'s represent noop instructions.
+    std::vector<SUnit*> Sequence;
 
     explicit ScheduleDAGSDNodes(MachineFunction &mf);
 
@@ -44,8 +48,7 @@ namespace llvm {
 
     /// Run - perform scheduling.
     ///
-    void Run(SelectionDAG *dag, MachineBasicBlock *bb,
-             MachineBasicBlock::iterator insertPos);
+    void Run(SelectionDAG *dag, MachineBasicBlock *bb);
 
     /// isPassiveNode - Return true if the node is a non-scheduled leaf.
     ///
@@ -53,6 +56,7 @@ namespace llvm {
       if (isa<ConstantSDNode>(Node))       return true;
       if (isa<ConstantFPSDNode>(Node))     return true;
       if (isa<RegisterSDNode>(Node))       return true;
+      if (isa<RegisterMaskSDNode>(Node))   return true;
       if (isa<GlobalAddressSDNode>(Node))  return true;
       if (isa<BasicBlockSDNode>(Node))     return true;
       if (isa<FrameIndexSDNode>(Node))     return true;
@@ -67,7 +71,7 @@ namespace llvm {
 
     /// NewSUnit - Creates a new SUnit and return a ptr to it.
     ///
-    SUnit *NewSUnit(SDNode *N);
+    SUnit *newSUnit(SDNode *N);
 
     /// Clone - Creates a clone of the specified SUnit. It does not copy the
     /// predecessors / successors info nor the temporary scheduling states.
@@ -78,7 +82,7 @@ namespace llvm {
     /// are input.  This SUnit graph is similar to the SelectionDAG, but
     /// excludes nodes that aren't interesting to scheduling, and represents
     /// flagged together nodes with a single SUnit.
-    virtual void BuildSchedGraph(AliasAnalysis *AA);
+    void BuildSchedGraph(AliasAnalysis *AA);
 
     /// InitVRegCycleFlag - Set isVRegCycle if this node's single use is
     /// CopyToReg and its only active data operands are CopyFromReg within a
@@ -90,29 +94,40 @@ namespace llvm {
     ///
     void InitNumRegDefsLeft(SUnit *SU);
 
-    /// ComputeLatency - Compute node latency.
+    /// computeLatency - Compute node latency.
     ///
-    virtual void ComputeLatency(SUnit *SU);
+    virtual void computeLatency(SUnit *SU);
 
-    /// ComputeOperandLatency - Override dependence edge latency using
+    /// computeOperandLatency - Override dependence edge latency using
     /// operand use/def information
     ///
-    virtual void ComputeOperandLatency(SUnit *Def, SUnit *Use,
+    virtual void computeOperandLatency(SUnit *Def, SUnit *Use,
                                        SDep& dep) const { }
 
-    virtual void ComputeOperandLatency(SDNode *Def, SDNode *Use,
+    virtual void computeOperandLatency(SDNode *Def, SDNode *Use,
                                        unsigned OpIdx, SDep& dep) const;
-
-    virtual MachineBasicBlock *EmitSchedule();
 
     /// Schedule - Order nodes according to selected style, filling
     /// in the Sequence member.
     ///
     virtual void Schedule() = 0;
 
+    /// VerifyScheduledSequence - Verify that all SUnits are scheduled and
+    /// consistent with the Sequence of scheduled instructions.
+    void VerifyScheduledSequence(bool isBottomUp);
+
+    /// EmitSchedule - Insert MachineInstrs into the MachineBasicBlock
+    /// according to the order specified in Sequence.
+    ///
+    MachineBasicBlock *EmitSchedule(MachineBasicBlock::iterator &InsertPos);
+
     virtual void dumpNode(const SUnit *SU) const;
 
+    void dumpSchedule() const;
+
     virtual std::string getGraphNodeLabel(const SUnit *SU) const;
+
+    virtual std::string getDAGName() const;
 
     virtual void getCustomGraphFeatures(GraphWriter<ScheduleDAG*> &GW) const;
 
@@ -159,6 +174,9 @@ namespace llvm {
     /// BuildSchedUnits, AddSchedEdges - Helper functions for BuildSchedGraph.
     void BuildSchedUnits();
     void AddSchedEdges();
+
+    void EmitPhysRegCopy(SUnit *SU, DenseMap<SUnit*, unsigned> &VRBaseMap,
+                         MachineBasicBlock::iterator InsertPos);
   };
 }
 

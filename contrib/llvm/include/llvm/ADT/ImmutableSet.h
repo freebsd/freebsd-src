@@ -18,6 +18,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <functional>
 #include <vector>
@@ -346,7 +347,7 @@ public:
       if (prev)
         prev->next = next;
       else
-        factory->Cache[computeDigest()] = next;
+        factory->Cache[factory->maskCacheIndex(computeDigest())] = next;
     }
     
     // We need to clear the mutability bit in case we are
@@ -427,6 +428,11 @@ protected:
   TreeTy*         getLeft(TreeTy* T) const { return T->getLeft(); }
   TreeTy*         getRight(TreeTy* T) const { return T->getRight(); }
   value_type_ref  getValue(TreeTy* T) const { return T->value; }
+
+  // Make sure the index is not the Tombstone or Entry key of the DenseMap.
+  static inline unsigned maskCacheIndex(unsigned I) {
+	return (I & ~0x02);
+  }
 
   unsigned incrementHeight(TreeTy* L, TreeTy* R) const {
     unsigned hl = getHeight(L);
@@ -610,7 +616,7 @@ public:
     // Search the hashtable for another tree with the same digest, and
     // if find a collision compare those trees by their contents.
     unsigned digest = TNew->computeDigest();
-    TreeTy *&entry = Cache[digest];
+    TreeTy *&entry = Cache[maskCacheIndex(digest)];
     do {
       if (!entry)
         break;
@@ -686,7 +692,7 @@ public:
         stack.back() |= VisitedRight;
         break;
       default:
-        assert(false && "Unreachable.");
+        llvm_unreachable("Unreachable.");
     }
   }
 
@@ -722,7 +728,7 @@ public:
         skipToParent();
         break;
       default:
-        assert(false && "Unreachable.");
+        llvm_unreachable("Unreachable.");
     }
     return *this;
   }
@@ -747,7 +753,7 @@ public:
           stack.push_back(reinterpret_cast<uintptr_t>(R) | VisitedRight);
         break;
       default:
-        assert(false && "Unreachable.");
+        llvm_unreachable("Unreachable.");
     }
     return *this;
   }

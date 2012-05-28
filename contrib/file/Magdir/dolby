@@ -1,3 +1,6 @@
+
+#------------------------------------------------------------------------------
+# $File: dolby,v 1.5 2009/09/19 16:28:08 christos Exp $
 # ATSC A/53 aka AC-3 aka Dolby Digital <ashitaka@gmx.at>
 # from http://www.atsc.org/standards/a_52a.pdf
 # corrections, additions, etc. are always welcome!

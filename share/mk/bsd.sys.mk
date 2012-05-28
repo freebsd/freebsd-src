@@ -62,12 +62,15 @@ CWARNFLAGS+=	-Wno-pointer-sign
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
 .if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if ${WARNS} <= 6
+CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int
+.endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
 		-Wno-parentheses-equality -Wno-unused-function -Wno-conversion
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
-CWARNFLAGS+=	-Wno-switch-enum -Wno-empty-body
+CWARNFLAGS+=	-Wno-switch -Wno-switch-enum
 .endif # WARNS <= 2
 .if ${WARNS} <= 1
 CWARNFLAGS+=	-Wno-parentheses
@@ -85,6 +88,11 @@ WFORMAT=	1
 .if ${WFORMAT} > 0
 #CWARNFLAGS+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CWARNFLAGS+=	-Wformat=2 -Wno-format-extra-args
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if ${WARNS} <= 3
+CWARNFLAGS+=	-Wno-format-nonliteral
+.endif # WARNS <= 3
+.endif # CLANG
 .if !defined(NO_WERROR) && ((${MK_CLANG_IS_CC} == "no" && \
     ${CC:T:Mclang} != "clang") || !defined(NO_WERROR.clang))
 CWARNFLAGS+=	-Werror
@@ -103,8 +111,9 @@ CWARNFLAGS+=	-Wno-unknown-pragmas
 
 .if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 CLANG_NO_IAS=	 -no-integrated-as
-CLANG_OPT_SMALL= -mllvm -stack-alignment=8 -mllvm -inline-threshold=3\
+CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
+CFLAGS+=	 -Qunused-arguments
 .endif # CLANG
 
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \

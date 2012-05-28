@@ -60,8 +60,8 @@ public:
   explicit X86FastISel(FunctionLoweringInfo &funcInfo) : FastISel(funcInfo) {
     Subtarget = &TM.getSubtarget<X86Subtarget>();
     StackPtr = Subtarget->is64Bit() ? X86::RSP : X86::ESP;
-    X86ScalarSSEf64 = Subtarget->hasSSE2() || Subtarget->hasAVX();
-    X86ScalarSSEf32 = Subtarget->hasSSE1() || Subtarget->hasAVX();
+    X86ScalarSSEf64 = Subtarget->hasSSE2();
+    X86ScalarSSEf32 = Subtarget->hasSSE1();
   }
 
   virtual bool TargetSelectInstruction(const Instruction *I);
@@ -257,6 +257,18 @@ X86FastISel::X86FastEmitStore(EVT VT, unsigned Val, const X86AddressMode &AM) {
   case MVT::f64:
     Opc = X86ScalarSSEf64 ?
           (Subtarget->hasAVX() ? X86::VMOVSDmr : X86::MOVSDmr) : X86::ST_Fp64m;
+    break;
+  case MVT::v4f32:
+    Opc = X86::MOVAPSmr;
+    break;
+  case MVT::v2f64:
+    Opc = X86::MOVAPDmr;
+    break;
+  case MVT::v4i32:
+  case MVT::v2i64:
+  case MVT::v8i16:
+  case MVT::v16i8:
+    Opc = X86::MOVDQAmr;
     break;
   }
 
@@ -671,7 +683,14 @@ bool X86FastISel::X86SelectCallAddress(const Value *V, X86AddressMode &AM) {
 /// X86SelectStore - Select and emit code to implement store instructions.
 bool X86FastISel::X86SelectStore(const Instruction *I) {
   // Atomic stores need special handling.
-  if (cast<StoreInst>(I)->isAtomic())
+  const StoreInst *S = cast<StoreInst>(I);
+
+  if (S->isAtomic())
+    return false;
+
+  unsigned SABIAlignment =
+    TD.getABITypeAlignment(S->getValueOperand()->getType());
+  if (S->getAlignment() != 0 && S->getAlignment() < SABIAlignment)
     return false;
 
   MVT VT;
@@ -709,7 +728,7 @@ bool X86FastISel::X86SelectRet(const Instruction *I) {
 
   // fastcc with -tailcallopt is intended to provide a guaranteed
   // tail call optimization. Fastisel doesn't know how to do that.
-  if (CC == CallingConv::Fast && GuaranteedTailCallOpt)
+  if (CC == CallingConv::Fast && TM.Options.GuaranteedTailCallOpt)
     return false;
 
   // Let SDISel handle vararg functions.
@@ -818,8 +837,8 @@ bool X86FastISel::X86SelectLoad(const Instruction *I)  {
 
 static unsigned X86ChooseCmpOpcode(EVT VT, const X86Subtarget *Subtarget) {
   bool HasAVX = Subtarget->hasAVX();
-  bool X86ScalarSSEf32 = HasAVX || Subtarget->hasSSE1();
-  bool X86ScalarSSEf64 = HasAVX || Subtarget->hasSSE2();
+  bool X86ScalarSSEf32 = Subtarget->hasSSE1();
+  bool X86ScalarSSEf64 = Subtarget->hasSSE2();
 
   switch (VT.getSimpleVT().SimpleTy) {
   default:       return 0;
@@ -1510,7 +1529,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
 
   // fastcc with -tailcallopt is intended to provide a guaranteed
   // tail call optimization. Fastisel doesn't know how to do that.
-  if (CC == CallingConv::Fast && GuaranteedTailCallOpt)
+  if (CC == CallingConv::Fast && TM.Options.GuaranteedTailCallOpt)
     return false;
 
   PointerType *PT = cast<PointerType>(CS.getCalledValue()->getType());
@@ -1524,7 +1543,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
 
   // Fast-isel doesn't know about callee-pop yet.
   if (X86::isCalleePop(CC, Subtarget->is64Bit(), isVarArg,
-                       GuaranteedTailCallOpt))
+                       TM.Options.GuaranteedTailCallOpt))
     return false;
 
   // Check whether the function can return without sret-demotion.
@@ -1557,10 +1576,11 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
   SmallVector<unsigned, 8> Args;
   SmallVector<MVT, 8> ArgVTs;
   SmallVector<ISD::ArgFlagsTy, 8> ArgFlags;
-  Args.reserve(CS.arg_size());
-  ArgVals.reserve(CS.arg_size());
-  ArgVTs.reserve(CS.arg_size());
-  ArgFlags.reserve(CS.arg_size());
+  unsigned arg_size = CS.arg_size();
+  Args.reserve(arg_size);
+  ArgVals.reserve(arg_size);
+  ArgVTs.reserve(arg_size);
+  ArgFlags.reserve(arg_size);
   for (ImmutableCallSite::arg_iterator i = CS.arg_begin(), e = CS.arg_end();
        i != e; ++i) {
     // If we're lowering a mem intrinsic instead of a regular call, skip the
@@ -1740,9 +1760,11 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
         // If this is a really simple value, emit this with the Value* version
         // of X86FastEmitStore.  If it isn't simple, we don't want to do this,
         // as it can cause us to reevaluate the argument.
-        X86FastEmitStore(ArgVT, ArgVal, AM);
+        if (!X86FastEmitStore(ArgVT, ArgVal, AM))
+          return false;
       } else {
-        X86FastEmitStore(ArgVT, Arg, AM);
+        if (!X86FastEmitStore(ArgVT, Arg, AM))
+          return false;
       }
     }
   }
@@ -1757,7 +1779,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
 
   if (Subtarget->is64Bit() && isVarArg && !Subtarget->isTargetWin64()) {
     // Count the number of XMM registers allocated.
-    static const unsigned XMMArgRegs[] = {
+    static const uint16_t XMMArgRegs[] = {
       X86::XMM0, X86::XMM1, X86::XMM2, X86::XMM3,
       X86::XMM4, X86::XMM5, X86::XMM6, X86::XMM7
     };
@@ -1771,9 +1793,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
   if (CalleeOp) {
     // Register-indirect call.
     unsigned CallOpc;
-    if (Subtarget->isTargetWin64())
-      CallOpc = X86::WINCALL64r;
-    else if (Subtarget->is64Bit())
+    if (Subtarget->is64Bit())
       CallOpc = X86::CALL64r;
     else
       CallOpc = X86::CALL32r;
@@ -1784,9 +1804,7 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
     // Direct call.
     assert(GV && "Not a direct call");
     unsigned CallOpc;
-    if (Subtarget->isTargetWin64())
-      CallOpc = X86::WINCALL64pcrel32;
-    else if (Subtarget->is64Bit())
+    if (Subtarget->is64Bit())
       CallOpc = X86::CALL64pcrel32;
     else
       CallOpc = X86::CALLpcrel32;
@@ -1831,10 +1849,15 @@ bool X86FastISel::DoSelectCall(const Instruction *I, const char *MemIntName) {
   for (unsigned i = 0, e = RegArgs.size(); i != e; ++i)
     MIB.addReg(RegArgs[i]);
 
+  // Add a register mask with the call-preserved registers.
+  // Proper defs for return values will be added by setPhysRegsDeadExcept().
+  MIB.addRegMask(TRI.getCallPreservedMask(CS.getCallingConv()));
+
   // Issue CALLSEQ_END
   unsigned AdjStackUp = TII.getCallFrameDestroyOpcode();
   unsigned NumBytesCallee = 0;
-  if (!Subtarget->is64Bit() && CS.paramHasAttr(1, Attribute::StructRet))
+  if (!Subtarget->is64Bit() && !Subtarget->isTargetWindows() &&
+      CS.paramHasAttr(1, Attribute::StructRet))
     NumBytesCallee = 4;
   BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(AdjStackUp))
     .addImm(NumBytes).addImm(NumBytesCallee);
@@ -2081,7 +2104,7 @@ unsigned X86FastISel::TargetMaterializeAlloca(const AllocaInst *C) {
   if (!X86SelectAddress(C, AM))
     return 0;
   unsigned Opc = Subtarget->is64Bit() ? X86::LEA64r : X86::LEA32r;
-  TargetRegisterClass* RC = TLI.getRegClassFor(TLI.getPointerTy());
+  const TargetRegisterClass* RC = TLI.getRegClassFor(TLI.getPointerTy());
   unsigned ResultReg = createResultReg(RC);
   addFullAddress(BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
                          TII.get(Opc), ResultReg), AM);
@@ -2100,7 +2123,7 @@ unsigned X86FastISel::TargetMaterializeFloatZero(const ConstantFP *CF) {
     default: return false;
     case MVT::f32:
       if (X86ScalarSSEf32) {
-        Opc = Subtarget->hasAVX() ? X86::VFsFLD0SS : X86::FsFLD0SS;
+        Opc = X86::FsFLD0SS;
         RC  = X86::FR32RegisterClass;
       } else {
         Opc = X86::LD_Fp032;
@@ -2109,7 +2132,7 @@ unsigned X86FastISel::TargetMaterializeFloatZero(const ConstantFP *CF) {
       break;
     case MVT::f64:
       if (X86ScalarSSEf64) {
-        Opc = Subtarget->hasAVX() ? X86::VFsFLD0SD : X86::FsFLD0SD;
+        Opc = X86::FsFLD0SD;
         RC  = X86::FR64RegisterClass;
       } else {
         Opc = X86::LD_Fp064;
@@ -2156,7 +2179,7 @@ bool X86FastISel::TryToFoldLoad(MachineInstr *MI, unsigned OpNo,
 
 
 namespace llvm {
-  llvm::FastISel *X86::createFastISel(FunctionLoweringInfo &funcInfo) {
+  FastISel *X86::createFastISel(FunctionLoweringInfo &funcInfo) {
     return new X86FastISel(funcInfo);
   }
 }

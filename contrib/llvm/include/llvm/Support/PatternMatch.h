@@ -31,6 +31,7 @@
 
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
+#include "llvm/Operator.h"
 
 namespace llvm {
 namespace PatternMatch {
@@ -97,7 +98,14 @@ struct apint_match {
       Res = &CI->getValue();
       return true;
     }
+    // FIXME: Remove this.
     if (ConstantVector *CV = dyn_cast<ConstantVector>(V))
+      if (ConstantInt *CI =
+          dyn_cast_or_null<ConstantInt>(CV->getSplatValue())) {
+        Res = &CI->getValue();
+        return true;
+      }
+    if (ConstantDataVector *CV = dyn_cast<ConstantDataVector>(V))
       if (ConstantInt *CI =
           dyn_cast_or_null<ConstantInt>(CV->getSplatValue())) {
         Res = &CI->getValue();
@@ -143,7 +151,11 @@ struct cst_pred_ty : public Predicate {
   bool match(ITy *V) {
     if (const ConstantInt *CI = dyn_cast<ConstantInt>(V))
       return this->isValue(CI->getValue());
+    // FIXME: Remove this.
     if (const ConstantVector *CV = dyn_cast<ConstantVector>(V))
+      if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
+        return this->isValue(CI->getValue());
+    if (const ConstantDataVector *CV = dyn_cast<ConstantDataVector>(V))
       if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
         return this->isValue(CI->getValue());
     return false;
@@ -163,12 +175,22 @@ struct api_pred_ty : public Predicate {
         Res = &CI->getValue();
         return true;
       }
+    
+    // FIXME: remove.
     if (const ConstantVector *CV = dyn_cast<ConstantVector>(V))
       if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
         if (this->isValue(CI->getValue())) {
           Res = &CI->getValue();
           return true;
         }
+    
+    if (const ConstantDataVector *CV = dyn_cast<ConstantDataVector>(V))
+      if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
+        if (this->isValue(CI->getValue())) {
+          Res = &CI->getValue();
+          return true;
+        }
+
     return false;
   }
 };
@@ -441,6 +463,26 @@ m_IDiv(const LHS &L, const RHS &R) {
 }
 
 //===----------------------------------------------------------------------===//
+// Class that matches exact binary ops.
+//
+template<typename SubPattern_t>
+struct Exact_match {
+  SubPattern_t SubPattern;
+
+  Exact_match(const SubPattern_t &SP) : SubPattern(SP) {}
+
+  template<typename OpTy>
+  bool match(OpTy *V) {
+    if (PossiblyExactOperator *PEO = dyn_cast<PossiblyExactOperator>(V))
+      return PEO->isExact() && SubPattern.match(V);
+    return false;
+  }
+};
+
+template<typename T>
+inline Exact_match<T> m_Exact(const T &SubPattern) { return SubPattern; }
+
+//===----------------------------------------------------------------------===//
 // Matchers for CmpInst classes
 //
 
@@ -529,10 +571,8 @@ struct CastClass_match {
 
   template<typename OpTy>
   bool match(OpTy *V) {
-    if (CastInst *I = dyn_cast<CastInst>(V))
-      return I->getOpcode() == Opcode && Op.match(I->getOperand(0));
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
-      return CE->getOpcode() == Opcode && Op.match(CE->getOperand(0));
+    if (Operator *O = dyn_cast<Operator>(V))
+      return O->getOpcode() == Opcode && Op.match(O->getOperand(0));
     return false;
   }
 };
@@ -585,21 +625,18 @@ struct not_match {
 
   template<typename OpTy>
   bool match(OpTy *V) {
-    if (Instruction *I = dyn_cast<Instruction>(V))
-      if (I->getOpcode() == Instruction::Xor)
-        return matchIfNot(I->getOperand(0), I->getOperand(1));
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
-      if (CE->getOpcode() == Instruction::Xor)
-        return matchIfNot(CE->getOperand(0), CE->getOperand(1));
+    if (Operator *O = dyn_cast<Operator>(V))
+      if (O->getOpcode() == Instruction::Xor)
+        return matchIfNot(O->getOperand(0), O->getOperand(1));
     return false;
   }
 private:
   bool matchIfNot(Value *LHS, Value *RHS) {
-    if (ConstantInt *CI = dyn_cast<ConstantInt>(RHS))
-      return CI->isAllOnesValue() && L.match(LHS);
-    if (ConstantVector *CV = dyn_cast<ConstantVector>(RHS))
-      return CV->isAllOnesValue() && L.match(LHS);
-    return false;
+    return (isa<ConstantInt>(RHS) || isa<ConstantDataVector>(RHS) ||
+            // FIXME: Remove CV.
+            isa<ConstantVector>(RHS)) &&
+           cast<Constant>(RHS)->isAllOnesValue() &&
+           L.match(LHS);
   }
 };
 
@@ -615,19 +652,16 @@ struct neg_match {
 
   template<typename OpTy>
   bool match(OpTy *V) {
-    if (Instruction *I = dyn_cast<Instruction>(V))
-      if (I->getOpcode() == Instruction::Sub)
-        return matchIfNeg(I->getOperand(0), I->getOperand(1));
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
-      if (CE->getOpcode() == Instruction::Sub)
-        return matchIfNeg(CE->getOperand(0), CE->getOperand(1));
+    if (Operator *O = dyn_cast<Operator>(V))
+      if (O->getOpcode() == Instruction::Sub)
+        return matchIfNeg(O->getOperand(0), O->getOperand(1));
     return false;
   }
 private:
   bool matchIfNeg(Value *LHS, Value *RHS) {
-    if (ConstantInt *C = dyn_cast<ConstantInt>(LHS))
-      return C->isZero() && L.match(RHS);
-    return false;
+    return ((isa<ConstantInt>(LHS) && cast<ConstantInt>(LHS)->isZero()) ||
+            isa<ConstantAggregateZero>(LHS)) &&
+           L.match(RHS);
   }
 };
 
@@ -644,12 +678,9 @@ struct fneg_match {
 
   template<typename OpTy>
   bool match(OpTy *V) {
-    if (Instruction *I = dyn_cast<Instruction>(V))
-      if (I->getOpcode() == Instruction::FSub)
-        return matchIfFNeg(I->getOperand(0), I->getOperand(1));
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
-      if (CE->getOpcode() == Instruction::FSub)
-        return matchIfFNeg(CE->getOperand(0), CE->getOperand(1));
+    if (Operator *O = dyn_cast<Operator>(V))
+      if (O->getOpcode() == Instruction::FSub)
+        return matchIfFNeg(O->getOperand(0), O->getOperand(1));
     return false;
   }
 private:

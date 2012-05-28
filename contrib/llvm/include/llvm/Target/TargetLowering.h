@@ -25,7 +25,6 @@
 #include "llvm/CallingConv.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Attributes.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/RuntimeLibcalls.h"
 #include "llvm/Support/DebugLoc.h"
@@ -36,41 +35,34 @@
 #include <vector>
 
 namespace llvm {
-  class AllocaInst;
-  class APFloat;
   class CallInst;
   class CCState;
-  class Function;
   class FastISel;
   class FunctionLoweringInfo;
   class ImmutableCallSite;
+  class IntrinsicInst;
   class MachineBasicBlock;
   class MachineFunction;
-  class MachineFrameInfo;
   class MachineInstr;
   class MachineJumpTableInfo;
   class MCContext;
   class MCExpr;
-  class SDNode;
-  class SDValue;
-  class SelectionDAG;
   template<typename T> class SmallVectorImpl;
   class TargetData;
-  class TargetMachine;
   class TargetRegisterClass;
   class TargetLoweringObjectFile;
   class Value;
 
-  // FIXME: should this be here?
-  namespace TLSModel {
-    enum Model {
-      GeneralDynamic,
-      LocalDynamic,
-      InitialExec,
-      LocalExec
+  namespace Sched {
+    enum Preference {
+      None,             // No preference
+      Source,           // Follow source order.
+      RegPressure,      // Scheduling for lowest register pressure.
+      Hybrid,           // Scheduling for both latency and register pressure.
+      ILP,              // Scheduling for ILP in low register pressure mode.
+      VLIW              // Scheduling for VLIW targets.
     };
   }
-  TLSModel::Model getTLSModel(const GlobalValue *GV, Reloc::Model reloc);
 
 
 //===----------------------------------------------------------------------===//
@@ -94,7 +86,7 @@ public:
     Custom      // Use the LowerOperation hook to implement custom lowering.
   };
 
-  /// LegalizeAction - This enum indicates whether a types are legal for a
+  /// LegalizeTypeAction - This enum indicates whether a types are legal for a
   /// target, and if not, what action should be used to make them valid.
   enum LegalizeTypeAction {
     TypeLegal,           // The target natively supports this type.
@@ -115,8 +107,6 @@ public:
 
   static ISD::NodeType getExtendForContent(BooleanContent Content) {
     switch (Content) {
-    default:
-      assert(false && "Unknown BooleanContent!");
     case UndefinedBooleanContent:
       // Extend by adding rubbish bits.
       return ISD::ANY_EXTEND;
@@ -127,6 +117,7 @@ public:
       // Extend by copying the sign bit.
       return ISD::SIGN_EXTEND;
     }
+    llvm_unreachable("Invalid content kind");
   }
 
   /// NOTE: The constructor takes ownership of TLOF.
@@ -199,9 +190,9 @@ public:
 
   /// getRegClassFor - Return the register class that should be used for the
   /// specified value type.
-  virtual TargetRegisterClass *getRegClassFor(EVT VT) const {
+  virtual const TargetRegisterClass *getRegClassFor(EVT VT) const {
     assert(VT.isSimple() && "getRegClassFor called on illegal type!");
-    TargetRegisterClass *RC = RegClassForVT[VT.getSimpleVT().SimpleTy];
+    const TargetRegisterClass *RC = RegClassForVT[VT.getSimpleVT().SimpleTy];
     assert(RC && "This value type is not natively supported!");
     return RC;
   }
@@ -292,11 +283,9 @@ public:
         VT = getTypeToTransformTo(Context, VT);
         break;
       default:
-        assert(false && "Type is not legal nor is it to be expanded!");
-        return VT;
+        llvm_unreachable("Type is not legal nor is it to be expanded!");
       }
     }
-    return VT;
   }
 
   /// getVectorTypeBreakdown - Vector types are broken down into some number of
@@ -520,8 +509,19 @@ public:
   /// AllowUnknown is true, this will return MVT::Other for types with no EVT
   /// counterpart (e.g. structs), otherwise it will assert.
   EVT getValueType(Type *Ty, bool AllowUnknown = false) const {
-    EVT VT = EVT::getEVT(Ty, AllowUnknown);
-    return VT == MVT::iPTR ? PointerTy : VT;
+    // Lower scalar pointers to native pointer types.
+    if (Ty->isPointerTy()) return PointerTy;
+
+    if (Ty->isVectorTy()) {
+      VectorType *VTy = cast<VectorType>(Ty);
+      Type *Elm = VTy->getElementType();
+      // Lower vectors of pointers to native pointer types.
+      if (Elm->isPointerTy()) 
+        Elm = EVT(PointerTy).getTypeForEVT(Ty->getContext());
+      return EVT::getVectorVT(Ty->getContext(), EVT::getEVT(Elm, false),
+                       VTy->getNumElements());
+    }
+    return EVT::getEVT(Ty, AllowUnknown);
   }
 
   /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
@@ -554,8 +554,7 @@ public:
     if (VT.isInteger()) {
       return getRegisterType(Context, getTypeToTransformTo(Context, VT));
     }
-    assert(0 && "Unsupported extended type!");
-    return EVT(MVT::Other); // Not reached
+    llvm_unreachable("Unsupported extended type!");
   }
 
   /// getNumRegisters - Return the number of registers that this ValueType will
@@ -580,8 +579,7 @@ public:
       unsigned RegWidth = getRegisterType(Context, VT).getSizeInBits();
       return (BitWidth + RegWidth - 1) / RegWidth;
     }
-    assert(0 && "Unsupported extended type!");
-    return 0; // Not reached
+    llvm_unreachable("Unsupported extended type!");
   }
 
   /// ShouldShrinkFPConstant - If true, then instruction selection should
@@ -646,7 +644,7 @@ public:
   /// alignment can satisfy any constraint. Similarly if SrcAlign is zero it
   /// means there isn't a need to check it against alignment requirement,
   /// probably because the source does not need to be loaded. If
-  /// 'NonScalarIntSafe' is true, that means it's safe to return a
+  /// 'IsZeroVal' is true, that means it's safe to return a
   /// non-scalar-integer type, e.g. empty string source, constant, or loaded
   /// from memory. 'MemcpyStrSrc' indicates whether the memcpy source is
   /// constant so it does not need to be loaded.
@@ -654,7 +652,7 @@ public:
   /// target-independent logic.
   virtual EVT getOptimalMemOpType(uint64_t /*Size*/,
                                   unsigned /*DstAlign*/, unsigned /*SrcAlign*/,
-                                  bool /*NonScalarIntSafe*/,
+                                  bool /*IsZeroVal*/,
                                   bool /*MemcpyStrSrc*/,
                                   MachineFunction &/*MF*/) const {
     return MVT::Other;
@@ -679,10 +677,10 @@ public:
     return StackPointerRegisterToSaveRestore;
   }
 
-  /// getExceptionAddressRegister - If a physical register, this returns
+  /// getExceptionPointerRegister - If a physical register, this returns
   /// the register that receives the exception address on entry to a landing
   /// pad.
-  unsigned getExceptionAddressRegister() const {
+  unsigned getExceptionPointerRegister() const {
     return ExceptionPointerRegister;
   }
 
@@ -772,8 +770,7 @@ public:
   LowerCustomJumpTableEntry(const MachineJumpTableInfo * /*MJTI*/,
                             const MachineBasicBlock * /*MBB*/, unsigned /*uid*/,
                             MCContext &/*Ctx*/) const {
-    assert(0 && "Need to implement this hook if target has custom JTIs");
-    return 0;
+    llvm_unreachable("Need to implement this hook if target has custom JTIs");
   }
 
   /// getPICJumpTableRelocaBase - Returns relocation base for the given PIC
@@ -865,7 +862,6 @@ public:
   /// Mask are known to be either zero or one and return them in the
   /// KnownZero/KnownOne bitsets.
   virtual void computeMaskedBitsForTargetNode(const SDValue Op,
-                                              const APInt &Mask,
                                               APInt &KnownZero,
                                               APInt &KnownOne,
                                               const SelectionDAG &DAG,
@@ -1035,7 +1031,7 @@ protected:
   /// addRegisterClass - Add the specified register class as an available
   /// regclass for the specified value type.  This indicates the selector can
   /// handle values of that class natively.
-  void addRegisterClass(EVT VT, TargetRegisterClass *RC) {
+  void addRegisterClass(EVT VT, const TargetRegisterClass *RC) {
     assert((unsigned)VT.getSimpleVT().SimpleTy < array_lengthof(RegClassForVT));
     AvailableRegClasses.push_back(std::make_pair(VT, RC));
     RegClassForVT[VT.getSimpleVT().SimpleTy] = RC;
@@ -1141,26 +1137,28 @@ protected:
     JumpBufAlignment = Align;
   }
 
-  /// setMinFunctionAlignment - Set the target's minimum function alignment.
+  /// setMinFunctionAlignment - Set the target's minimum function alignment (in
+  /// log2(bytes))
   void setMinFunctionAlignment(unsigned Align) {
     MinFunctionAlignment = Align;
   }
 
   /// setPrefFunctionAlignment - Set the target's preferred function alignment.
   /// This should be set if there is a performance benefit to
-  /// higher-than-minimum alignment
+  /// higher-than-minimum alignment (in log2(bytes))
   void setPrefFunctionAlignment(unsigned Align) {
     PrefFunctionAlignment = Align;
   }
 
   /// setPrefLoopAlignment - Set the target's preferred loop alignment. Default
   /// alignment is zero, it means the target does not care about loop alignment.
+  /// The alignment is specified in log2(bytes).
   void setPrefLoopAlignment(unsigned Align) {
     PrefLoopAlignment = Align;
   }
 
   /// setMinStackArgumentAlignment - Set the minimum stack alignment of an
-  /// argument.
+  /// argument (in log2(bytes)).
   void setMinStackArgumentAlignment(unsigned Align) {
     MinStackArgumentAlignment = Align;
   }
@@ -1196,8 +1194,7 @@ public:
                          const SmallVectorImpl<ISD::InputArg> &/*Ins*/,
                          DebugLoc /*dl*/, SelectionDAG &/*DAG*/,
                          SmallVectorImpl<SDValue> &/*InVals*/) const {
-    assert(0 && "Not Implemented");
-    return SDValue();    // this is here to silence compiler errors
+    llvm_unreachable("Not Implemented");
   }
 
   /// LowerCallTo - This function lowers an abstract call to a function into an
@@ -1224,7 +1221,8 @@ public:
   LowerCallTo(SDValue Chain, Type *RetTy, bool RetSExt, bool RetZExt,
               bool isVarArg, bool isInreg, unsigned NumFixedArgs,
               CallingConv::ID CallConv, bool isTailCall,
-              bool isReturnValueUsed, SDValue Callee, ArgListTy &Args,
+              bool doesNotRet, bool isReturnValueUsed,
+              SDValue Callee, ArgListTy &Args,
               SelectionDAG &DAG, DebugLoc dl) const;
 
   /// LowerCall - This hook must be implemented to lower calls into the
@@ -1236,14 +1234,13 @@ public:
   virtual SDValue
     LowerCall(SDValue /*Chain*/, SDValue /*Callee*/,
               CallingConv::ID /*CallConv*/, bool /*isVarArg*/,
-              bool &/*isTailCall*/,
+              bool /*doesNotRet*/, bool &/*isTailCall*/,
               const SmallVectorImpl<ISD::OutputArg> &/*Outs*/,
               const SmallVectorImpl<SDValue> &/*OutVals*/,
               const SmallVectorImpl<ISD::InputArg> &/*Ins*/,
               DebugLoc /*dl*/, SelectionDAG &/*DAG*/,
               SmallVectorImpl<SDValue> &/*InVals*/) const {
-    assert(0 && "Not Implemented");
-    return SDValue();    // this is here to silence compiler errors
+    llvm_unreachable("Not Implemented");
   }
 
   /// HandleByVal - Target-specific cleanup for formal ByVal parameters.
@@ -1273,14 +1270,15 @@ public:
                 const SmallVectorImpl<ISD::OutputArg> &/*Outs*/,
                 const SmallVectorImpl<SDValue> &/*OutVals*/,
                 DebugLoc /*dl*/, SelectionDAG &/*DAG*/) const {
-    assert(0 && "Not Implemented");
-    return SDValue();    // this is here to silence compiler errors
+    llvm_unreachable("Not Implemented");
   }
 
   /// isUsedByReturnOnly - Return true if result of the specified node is used
-  /// by a return node only. This is used to determine whether it is possible
+  /// by a return node only. It also compute and return the input chain for the
+  /// tail call.
+  /// This is used to determine whether it is possible
   /// to codegen a libcall as tail call at legalization time.
-  virtual bool isUsedByReturnOnly(SDNode *) const {
+  virtual bool isUsedByReturnOnly(SDNode *, SDValue &Chain) const {
     return false;
   }
 
@@ -1339,7 +1337,7 @@ public:
   virtual void ReplaceNodeResults(SDNode * /*N*/,
                                   SmallVectorImpl<SDValue> &/*Results*/,
                                   SelectionDAG &/*DAG*/) const {
-    assert(0 && "ReplaceNodeResults not implemented for this target!");
+    llvm_unreachable("ReplaceNodeResults not implemented for this target!");
   }
 
   /// getTargetNodeName() - This method returns the name of a target specific
@@ -1531,6 +1529,17 @@ public:
     AddrMode() : BaseGV(0), BaseOffs(0), HasBaseReg(false), Scale(0) {}
   };
 
+  /// GetAddrModeArguments - CodeGenPrepare sinks address calculations into the
+  /// same BB as Load/Store instructions reading the address.  This allows as
+  /// much computation as possible to be done in the address mode for that
+  /// operand.  This hook lets targets also pass back when this should be done
+  /// on intrinsics which load/store.
+  virtual bool GetAddrModeArguments(IntrinsicInst *I,
+                                    SmallVectorImpl<Value*> &Ops,
+                                    Type *&AccessTy) const {
+    return false;
+  }
+
   /// isLegalAddressingMode - Return true if the addressing mode represented by
   /// AM is legal for this target, for a load/store of the specified type.
   /// The type may be VoidTy, in which case only return true if the addressing
@@ -1581,6 +1590,18 @@ public:
     return false;
   }
 
+  /// isFNegFree - Return true if an fneg operation is free to the point where
+  /// it is never worthwhile to replace it with a bitwise operation.
+  virtual bool isFNegFree(EVT) const {
+    return false;
+  }
+
+  /// isFAbsFree - Return true if an fneg operation is free to the point where
+  /// it is never worthwhile to replace it with a bitwise operation.
+  virtual bool isFAbsFree(EVT) const {
+    return false;
+  }
+
   /// isNarrowingProfitable - Return true if it's profitable to narrow
   /// operations of type VT1 to VT2. e.g. on x86, it's profitable to narrow
   /// from i32 to i8 but not from i32 to i16.
@@ -1593,9 +1614,9 @@ public:
   //
   SDValue BuildExactSDIV(SDValue Op1, SDValue Op2, DebugLoc dl,
                          SelectionDAG &DAG) const;
-  SDValue BuildSDIV(SDNode *N, SelectionDAG &DAG,
+  SDValue BuildSDIV(SDNode *N, SelectionDAG &DAG, bool IsAfterLegalization,
                       std::vector<SDNode*>* Created) const;
-  SDValue BuildUDIV(SDNode *N, SelectionDAG &DAG,
+  SDValue BuildUDIV(SDNode *N, SelectionDAG &DAG, bool IsAfterLegalization,
                       std::vector<SDNode*>* Created) const;
 
 
@@ -1753,7 +1774,7 @@ private:
 
   /// RegClassForVT - This indicates the default register class to use for
   /// each ValueType the target supports natively.
-  TargetRegisterClass *RegClassForVT[MVT::LAST_VALUETYPE];
+  const TargetRegisterClass *RegClassForVT[MVT::LAST_VALUETYPE];
   unsigned char NumRegistersForVT[MVT::LAST_VALUETYPE];
   EVT RegisterTypeForVT[MVT::LAST_VALUETYPE];
 
@@ -1925,12 +1946,9 @@ private:
     // Vectors with illegal element types are expanded.
     EVT NVT = EVT::getVectorVT(Context, EltVT, VT.getVectorNumElements() / 2);
     return LegalizeKind(TypeSplitVector, NVT);
-
-    assert(false && "Unable to handle this kind of vector type");
-    return LegalizeKind(TypeLegal, VT);
   }
 
-  std::vector<std::pair<EVT, TargetRegisterClass*> > AvailableRegClasses;
+  std::vector<std::pair<EVT, const TargetRegisterClass*> > AvailableRegClasses;
 
   /// TargetDAGCombineArray - Targets can specify ISD nodes that they would
   /// like PerformDAGCombine callbacks for by calling setTargetDAGCombine(),

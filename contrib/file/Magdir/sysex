@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------
+# $File: sysex,v 1.6 2009/09/19 16:28:12 christos Exp $
 # sysex: file(1) magic for MIDI sysex files
 #
 # 

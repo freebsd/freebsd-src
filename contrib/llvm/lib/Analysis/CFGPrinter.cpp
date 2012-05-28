@@ -77,7 +77,7 @@ namespace {
     }
 
     virtual bool runOnFunction(Function &F) {
-      std::string Filename = "cfg." + F.getNameStr() + ".dot";
+      std::string Filename = "cfg." + F.getName().str() + ".dot";
       errs() << "Writing '" << Filename << "'...";
       
       std::string ErrorInfo;
@@ -111,7 +111,7 @@ namespace {
     }
     
     virtual bool runOnFunction(Function &F) {
-      std::string Filename = "cfg." + F.getNameStr() + ".dot";
+      std::string Filename = "cfg." + F.getName().str() + ".dot";
       errs() << "Writing '" << Filename << "'...";
 
       std::string ErrorInfo;
@@ -143,7 +143,7 @@ INITIALIZE_PASS(CFGOnlyPrinter, "dot-cfg-only",
 /// being a 'dot' and 'gv' program in your path.
 ///
 void Function::viewCFG() const {
-  ViewGraph(this, "cfg" + getNameStr());
+  ViewGraph(this, "cfg" + getName());
 }
 
 /// viewCFGOnly - This function is meant for use from the debugger.  It works
@@ -152,7 +152,7 @@ void Function::viewCFG() const {
 /// his can make the graph smaller.
 ///
 void Function::viewCFGOnly() const {
-  ViewGraph(this, "cfg" + getNameStr(), true);
+  ViewGraph(this, "cfg" + getName(), true);
 }
 
 FunctionPass *llvm::createCFGPrinterPass () {

@@ -28,6 +28,8 @@
 #ifndef	_LINUX_IN_H_
 #define	_LINUX_IN_H_
 
+#include "opt_inet.h"
+
 #include <netinet/in.h>
 #include <asm/byteorder.h>
 

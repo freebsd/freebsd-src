@@ -293,8 +293,8 @@ mfip_start(void *data)
 	pt->header.data_len = csio->dxfer_len;
 	pt->header.sense_len = MFI_SENSE_LEN;
 	pt->header.cdb_len = csio->cdb_len;
-	pt->sense_addr_lo = cm->cm_sense_busaddr;
-	pt->sense_addr_hi = 0;
+	pt->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
+	pt->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	if (ccbh->flags & CAM_CDB_POINTER)
 		bcopy(csio->cdb_io.cdb_ptr, &pt->cdb[0], csio->cdb_len);
 	else

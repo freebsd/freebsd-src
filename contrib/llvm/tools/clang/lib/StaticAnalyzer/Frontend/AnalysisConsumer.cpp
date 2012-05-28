@@ -11,13 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define DEBUG_TYPE "AnalysisConsumer"
+
 #include "AnalysisConsumer.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ParentMap.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Analysis/CFG.h"
+#include "clang/Analysis/CallGraph.h"
 #include "clang/StaticAnalyzer/Frontend/CheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
@@ -34,12 +38,25 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/Timer.h"
+#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/Statistic.h"
+
+#include <queue>
 
 using namespace clang;
 using namespace ento;
+using llvm::SmallPtrSet;
 
 static ExplodedNode::Auditor* CreateUbiViz();
+
+STATISTIC(NumFunctionTopLevel, "The # of functions at top level.");
+STATISTIC(NumFunctionsAnalyzed, "The # of functions analysed (as top level).");
+STATISTIC(NumBlocksInAnalyzedFunctions,
+                     "The # of basic blocks in the analyzed functions.");
+STATISTIC(PercentReachableBlocks, "The % of reachable basic blocks.");
 
 //===----------------------------------------------------------------------===//
 // Special PathDiagnosticConsumers.
@@ -59,7 +76,19 @@ createPlistHTMLDiagnosticConsumer(const std::string& prefix,
 
 namespace {
 
-class AnalysisConsumer : public ASTConsumer {
+class AnalysisConsumer : public ASTConsumer,
+                         public RecursiveASTVisitor<AnalysisConsumer> {
+  enum AnalysisMode {
+    ANALYSIS_SYNTAX,
+    ANALYSIS_PATH,
+    ANALYSIS_ALL
+  };
+
+  /// Mode of the analyzes while recursively visiting Decls.
+  AnalysisMode RecVisitorMode;
+  /// Bug Reporter to use while recursively visiting Decls.
+  BugReporter *RecVisitorBR;
+
 public:
   ASTContext *Ctx;
   const Preprocessor &PP;
@@ -67,21 +96,45 @@ public:
   AnalyzerOptions Opts;
   ArrayRef<std::string> Plugins;
 
+  /// \brief Stores the declarations from the local translation unit.
+  /// Note, we pre-compute the local declarations at parse time as an
+  /// optimization to make sure we do not deserialize everything from disk.
+  /// The local declaration to all declarations ratio might be very small when
+  /// working with a PCH file.
+  SetOfDecls LocalTUDecls;
+
   // PD is owned by AnalysisManager.
   PathDiagnosticConsumer *PD;
 
   StoreManagerCreator CreateStoreMgr;
   ConstraintManagerCreator CreateConstraintMgr;
 
-  llvm::OwningPtr<CheckerManager> checkerMgr;
-  llvm::OwningPtr<AnalysisManager> Mgr;
+  OwningPtr<CheckerManager> checkerMgr;
+  OwningPtr<AnalysisManager> Mgr;
+
+  /// Time the analyzes time of each translation unit.
+  static llvm::Timer* TUTotalTimer;
+
+  /// The information about analyzed functions shared throughout the
+  /// translation unit.
+  FunctionSummariesTy FunctionSummaries;
 
   AnalysisConsumer(const Preprocessor& pp,
                    const std::string& outdir,
                    const AnalyzerOptions& opts,
                    ArrayRef<std::string> plugins)
-    : Ctx(0), PP(pp), OutDir(outdir), Opts(opts), Plugins(plugins), PD(0) {
+    : RecVisitorMode(ANALYSIS_ALL), RecVisitorBR(0),
+      Ctx(0), PP(pp), OutDir(outdir), Opts(opts), Plugins(plugins), PD(0) {
     DigestAnalyzerOptions();
+    if (Opts.PrintStats) {
+      llvm::EnableStatistics();
+      TUTotalTimer = new llvm::Timer("Analyzer Total Time");
+    }
+  }
+
+  ~AnalysisConsumer() {
+    if (Opts.PrintStats)
+      delete TUTotalTimer;
   }
 
   void DigestAnalyzerOptions() {
@@ -117,15 +170,20 @@ public:
     }
   }
 
-  void DisplayFunction(const Decl *D) {
+  void DisplayFunction(const Decl *D, AnalysisMode Mode) {
     if (!Opts.AnalyzerDisplayProgress)
       return;
 
     SourceManager &SM = Mgr->getASTContext().getSourceManager();
     PresumedLoc Loc = SM.getPresumedLoc(D->getLocation());
     if (Loc.isValid()) {
-      llvm::errs() << "ANALYZE: " << Loc.getFilename();
-
+      llvm::errs() << "ANALYZE";
+      switch (Mode) {
+        case ANALYSIS_SYNTAX: llvm::errs() << "(Syntax)"; break;
+        case ANALYSIS_PATH: llvm::errs() << "(Path Sensitive)"; break;
+        case ANALYSIS_ALL: break;
+      };
+      llvm::errs() << ": " << Loc.getFilename();
       if (isa<FunctionDecl>(D) || isa<ObjCMethodDecl>(D)) {
         const NamedDecl *ND = cast<NamedDecl>(D);
         llvm::errs() << ' ' << *ND << '\n';
@@ -143,112 +201,235 @@ public:
 
   virtual void Initialize(ASTContext &Context) {
     Ctx = &Context;
-    checkerMgr.reset(createCheckerManager(Opts, PP.getLangOptions(), Plugins,
+    checkerMgr.reset(createCheckerManager(Opts, PP.getLangOpts(), Plugins,
                                           PP.getDiagnostics()));
     Mgr.reset(new AnalysisManager(*Ctx, PP.getDiagnostics(),
-                                  PP.getLangOptions(), PD,
+                                  PP.getLangOpts(), PD,
                                   CreateStoreMgr, CreateConstraintMgr,
                                   checkerMgr.get(),
-                                  /* Indexer */ 0, 
                                   Opts.MaxNodes, Opts.MaxLoop,
                                   Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
                                   Opts.AnalysisPurgeOpt, Opts.EagerlyAssume,
-                                  Opts.TrimGraph, Opts.InlineCall,
+                                  Opts.TrimGraph,
                                   Opts.UnoptimizedCFG, Opts.CFGAddImplicitDtors,
                                   Opts.CFGAddInitializers,
-                                  Opts.EagerlyTrimEGraph));
+                                  Opts.EagerlyTrimEGraph,
+                                  Opts.IPAMode,
+                                  Opts.InlineMaxStackDepth,
+                                  Opts.InlineMaxFunctionSize,
+                                  Opts.InliningMode,
+                                  Opts.NoRetryExhausted));
   }
 
-  virtual void HandleTranslationUnit(ASTContext &C);
-  void HandleDeclContext(ASTContext &C, DeclContext *dc);
-  void HandleDeclContextDecl(ASTContext &C, Decl *D);
+  /// \brief Store the top level decls in the set to be processed later on.
+  /// (Doing this pre-processing avoids deserialization of data from PCH.)
+  virtual bool HandleTopLevelDecl(DeclGroupRef D);
+  virtual void HandleTopLevelDeclInObjCContainer(DeclGroupRef D);
 
-  void HandleCode(Decl *D);
+  virtual void HandleTranslationUnit(ASTContext &C);
+
+  /// \brief Build the call graph for all the top level decls of this TU and
+  /// use it to define the order in which the functions should be visited.
+  void HandleDeclsGallGraph();
+
+  /// \brief Run analyzes(syntax or path sensitive) on the given function.
+  /// \param Mode - determines if we are requesting syntax only or path
+  /// sensitive only analysis.
+  /// \param VisitedCallees - The output parameter, which is populated with the
+  /// set of functions which should be considered analyzed after analyzing the
+  /// given root function.
+  void HandleCode(Decl *D, AnalysisMode Mode,
+                  SetOfConstDecls *VisitedCallees = 0);
+
+  void RunPathSensitiveChecks(Decl *D, SetOfConstDecls *VisitedCallees);
+  void ActionExprEngine(Decl *D, bool ObjCGCEnabled,
+                        SetOfConstDecls *VisitedCallees);
+
+  /// Visitors for the RecursiveASTVisitor.
+
+  /// Handle callbacks for arbitrary Decls.
+  bool VisitDecl(Decl *D) {
+    checkerMgr->runCheckersOnASTDecl(D, *Mgr, *RecVisitorBR);
+    return true;
+  }
+
+  bool VisitFunctionDecl(FunctionDecl *FD) {
+    IdentifierInfo *II = FD->getIdentifier();
+    if (II && II->getName().startswith("__inline"))
+      return true;
+
+    // We skip function template definitions, as their semantics is
+    // only determined when they are instantiated.
+    if (FD->isThisDeclarationADefinition() &&
+        !FD->isDependentContext()) {
+      HandleCode(FD, RecVisitorMode);
+    }
+    return true;
+  }
+
+  bool VisitObjCMethodDecl(ObjCMethodDecl *MD) {
+    checkerMgr->runCheckersOnASTDecl(MD, *Mgr, *RecVisitorBR);
+    if (MD->isThisDeclarationADefinition())
+      HandleCode(MD, RecVisitorMode);
+    return true;
+  }
+
+private:
+  void storeTopLevelDecls(DeclGroupRef DG);
+
+  /// \brief Check if we should skip (not analyze) the given function.
+  bool skipFunction(Decl *D);
+
 };
 } // end anonymous namespace
+
 
 //===----------------------------------------------------------------------===//
 // AnalysisConsumer implementation.
 //===----------------------------------------------------------------------===//
+llvm::Timer* AnalysisConsumer::TUTotalTimer = 0;
 
-void AnalysisConsumer::HandleDeclContext(ASTContext &C, DeclContext *dc) {
-  for (DeclContext::decl_iterator I = dc->decls_begin(), E = dc->decls_end();
-       I != E; ++I) {
-    HandleDeclContextDecl(C, *I);
+bool AnalysisConsumer::HandleTopLevelDecl(DeclGroupRef DG) {
+  storeTopLevelDecls(DG);
+  return true;
+}
+
+void AnalysisConsumer::HandleTopLevelDeclInObjCContainer(DeclGroupRef DG) {
+  storeTopLevelDecls(DG);
+}
+
+void AnalysisConsumer::storeTopLevelDecls(DeclGroupRef DG) {
+  for (DeclGroupRef::iterator I = DG.begin(), E = DG.end(); I != E; ++I) {
+
+    // Skip ObjCMethodDecl, wait for the objc container to avoid
+    // analyzing twice.
+    if (isa<ObjCMethodDecl>(*I))
+      continue;
+
+    LocalTUDecls.insert(*I);
   }
 }
 
-void AnalysisConsumer::HandleDeclContextDecl(ASTContext &C, Decl *D) {
-  { // Handle callbacks for arbitrary decls.
-    BugReporter BR(*Mgr);
-    checkerMgr->runCheckersOnASTDecl(D, *Mgr, BR);
+void AnalysisConsumer::HandleDeclsGallGraph() {
+  // Otherwise, use the Callgraph to derive the order.
+  // Build the Call Graph.
+  CallGraph CG;
+  // Add all the top level declarations to the graph.
+  for (SetOfDecls::iterator I = LocalTUDecls.begin(),
+                            E = LocalTUDecls.end(); I != E; ++I)
+    CG.addToCallGraph(*I);
+
+  // Find the top level nodes - children of root + the unreachable (parentless)
+  // nodes.
+  llvm::SmallVector<CallGraphNode*, 24> TopLevelFunctions;
+  for (CallGraph::nodes_iterator TI = CG.parentless_begin(),
+                                 TE = CG.parentless_end(); TI != TE; ++TI) {
+    TopLevelFunctions.push_back(*TI);
+    NumFunctionTopLevel++;
+  }
+  CallGraphNode *Entry = CG.getRoot();
+  for (CallGraphNode::iterator I = Entry->begin(),
+                               E = Entry->end(); I != E; ++I) {
+    TopLevelFunctions.push_back(*I);
+    NumFunctionTopLevel++;
   }
 
-  switch (D->getKind()) {
-    case Decl::Namespace: {
-      HandleDeclContext(C, cast<NamespaceDecl>(D));
-      break;
-    }
-    case Decl::CXXConstructor:
-    case Decl::CXXDestructor:
-    case Decl::CXXConversion:
-    case Decl::CXXMethod:
-    case Decl::Function: {
-      FunctionDecl *FD = cast<FunctionDecl>(D);
-      // We skip function template definitions, as their semantics is
-      // only determined when they are instantiated.
-      if (FD->isThisDeclarationADefinition() &&
-          !FD->isDependentContext()) {
-        if (!Opts.AnalyzeSpecificFunction.empty() &&
-            FD->getDeclName().getAsString() != Opts.AnalyzeSpecificFunction)
-          break;
-        DisplayFunction(FD);
-        HandleCode(FD);
-      }
-      break;
-    }
-     
-    case Decl::ObjCCategoryImpl:
-    case Decl::ObjCImplementation: {
-      ObjCImplDecl *ID = cast<ObjCImplDecl>(D);
-      HandleCode(ID);
-      
-      for (ObjCContainerDecl::method_iterator MI = ID->meth_begin(), 
-           ME = ID->meth_end(); MI != ME; ++MI) {
-        BugReporter BR(*Mgr);
-        checkerMgr->runCheckersOnASTDecl(*MI, *Mgr, BR);
+  // Make sure the nodes are sorted in order reverse of their definition in the 
+  // translation unit. This step is very important for performance. It ensures 
+  // that we analyze the root functions before the externally available 
+  // subroutines.
+  std::queue<CallGraphNode*> BFSQueue;
+  for (llvm::SmallVector<CallGraphNode*, 24>::reverse_iterator
+         TI = TopLevelFunctions.rbegin(), TE = TopLevelFunctions.rend();
+         TI != TE; ++TI)
+    BFSQueue.push(*TI);
 
-        if ((*MI)->isThisDeclarationADefinition()) {
-          if (!Opts.AnalyzeSpecificFunction.empty() &&
-              Opts.AnalyzeSpecificFunction != 
-                (*MI)->getSelector().getAsString())
-            continue;
-          DisplayFunction(*MI);
-          HandleCode(*MI);
-        }
-      }
-      break;
+  // BFS over all of the functions, while skipping the ones inlined into
+  // the previously processed functions. Use external Visited set, which is
+  // also modified when we inline a function.
+  SmallPtrSet<CallGraphNode*,24> Visited;
+  while(!BFSQueue.empty()) {
+    CallGraphNode *N = BFSQueue.front();
+    BFSQueue.pop();
+
+    // Skip the functions which have been processed already or previously
+    // inlined.
+    if (Visited.count(N))
+      continue;
+
+    // Analyze the function.
+    SetOfConstDecls VisitedCallees;
+    Decl *D = N->getDecl();
+    assert(D);
+    HandleCode(D, ANALYSIS_PATH,
+               (Mgr->InliningMode == All ? 0 : &VisitedCallees));
+
+    // Add the visited callees to the global visited set.
+    for (SetOfConstDecls::const_iterator I = VisitedCallees.begin(),
+                                         E = VisitedCallees.end(); I != E; ++I){
+      CallGraphNode *VN = CG.getNode(*I);
+      if (VN)
+        Visited.insert(VN);
     }
-      
-    default:
-      break;
+    Visited.insert(N);
+
+    // Push the children into the queue.
+    for (CallGraphNode::const_iterator CI = N->begin(),
+                                       CE = N->end(); CI != CE; ++CI) {
+      BFSQueue.push(*CI);
+    }
   }
 }
 
 void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
-  BugReporter BR(*Mgr);
-  TranslationUnitDecl *TU = C.getTranslationUnitDecl();
-  checkerMgr->runCheckersOnASTDecl(TU, *Mgr, BR);
-  HandleDeclContext(C, TU);
+  // Don't run the actions if an error has occurred with parsing the file.
+  DiagnosticsEngine &Diags = PP.getDiagnostics();
+  if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
+    return;
 
-  // After all decls handled, run checkers on the entire TranslationUnit.
-  checkerMgr->runCheckersOnEndOfTranslationUnit(TU, *Mgr, BR);
+  {
+    if (TUTotalTimer) TUTotalTimer->startTimer();
+
+    // Introduce a scope to destroy BR before Mgr.
+    BugReporter BR(*Mgr);
+    TranslationUnitDecl *TU = C.getTranslationUnitDecl();
+    checkerMgr->runCheckersOnASTDecl(TU, *Mgr, BR);
+
+    // Run the AST-only checks using the order in which functions are defined.
+    // If inlining is not turned on, use the simplest function order for path
+    // sensitive analyzes as well.
+    RecVisitorMode = (Mgr->shouldInlineCall() ? ANALYSIS_SYNTAX : ANALYSIS_ALL);
+    RecVisitorBR = &BR;
+
+    // Process all the top level declarations.
+    for (SetOfDecls::iterator I = LocalTUDecls.begin(),
+                              E = LocalTUDecls.end(); I != E; ++I)
+      TraverseDecl(*I);
+
+    if (Mgr->shouldInlineCall())
+      HandleDeclsGallGraph();
+
+    // After all decls handled, run checkers on the entire TranslationUnit.
+    checkerMgr->runCheckersOnEndOfTranslationUnit(TU, *Mgr, BR);
+
+    RecVisitorBR = 0;
+  }
 
   // Explicitly destroy the PathDiagnosticConsumer.  This will flush its output.
   // FIXME: This should be replaced with something that doesn't rely on
   // side-effects in PathDiagnosticConsumer's destructor. This is required when
   // used with option -disable-free.
   Mgr.reset(NULL);
+
+  if (TUTotalTimer) TUTotalTimer->stopTimer();
+
+  // Count how many basic blocks we have not covered.
+  NumBlocksInAnalyzedFunctions = FunctionSummaries.getTotalNumBasicBlocks();
+  if (NumBlocksInAnalyzedFunctions > 0)
+    PercentReachableBlocks =
+      (FunctionSummaries.getTotalNumVisitedBasicBlocks() * 100) /
+        NumBlocksInAnalyzedFunctions;
+
 }
 
 static void FindBlocks(DeclContext *D, SmallVectorImpl<Decl*> &WL) {
@@ -261,24 +442,41 @@ static void FindBlocks(DeclContext *D, SmallVectorImpl<Decl*> &WL) {
       FindBlocks(DC, WL);
 }
 
-static void RunPathSensitiveChecks(AnalysisConsumer &C, AnalysisManager &mgr,
-                                   Decl *D);
+static std::string getFunctionName(const Decl *D) {
+  if (const ObjCMethodDecl *ID = dyn_cast<ObjCMethodDecl>(D)) {
+    return ID->getSelector().getAsString();
+  }
+  if (const FunctionDecl *ND = dyn_cast<FunctionDecl>(D)) {
+    IdentifierInfo *II = ND->getIdentifier();
+    if (II)
+      return II->getName();
+  }
+  return "";
+}
 
-void AnalysisConsumer::HandleCode(Decl *D) {
-
-  // Don't run the actions if an error has occurred with parsing the file.
-  DiagnosticsEngine &Diags = PP.getDiagnostics();
-  if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
-    return;
+bool AnalysisConsumer::skipFunction(Decl *D) {
+  if (!Opts.AnalyzeSpecificFunction.empty() &&
+      getFunctionName(D) != Opts.AnalyzeSpecificFunction)
+    return true;
 
   // Don't run the actions on declarations in header files unless
   // otherwise specified.
   SourceManager &SM = Ctx->getSourceManager();
   SourceLocation SL = SM.getExpansionLoc(D->getLocation());
   if (!Opts.AnalyzeAll && !SM.isFromMainFile(SL))
+    return true;
+
+  return false;
+}
+
+void AnalysisConsumer::HandleCode(Decl *D, AnalysisMode Mode,
+                                  SetOfConstDecls *VisitedCallees) {
+  if (skipFunction(D))
     return;
 
-  // Clear the AnalysisManager of old AnalysisContexts.
+  DisplayFunction(D, Mode);
+
+  // Clear the AnalysisManager of old AnalysisDeclContexts.
   Mgr->ClearContexts();
 
   // Dispatch on the actions.
@@ -292,9 +490,12 @@ void AnalysisConsumer::HandleCode(Decl *D) {
   for (SmallVectorImpl<Decl*>::iterator WI=WL.begin(), WE=WL.end();
        WI != WE; ++WI)
     if ((*WI)->hasBody()) {
-      checkerMgr->runCheckersOnASTBody(*WI, *Mgr, BR);
-      if (checkerMgr->hasPathSensitiveCheckers())
-        RunPathSensitiveChecks(*this, *Mgr, *WI);
+      if (Mode != ANALYSIS_PATH)
+        checkerMgr->runCheckersOnASTBody(*WI, *Mgr, BR);
+      if (Mode != ANALYSIS_SYNTAX && checkerMgr->hasPathSensitiveCheckers()) {
+        RunPathSensitiveChecks(*WI, VisitedCallees);
+        NumFunctionsAnalyzed++;
+      }
     }
 }
 
@@ -302,53 +503,53 @@ void AnalysisConsumer::HandleCode(Decl *D) {
 // Path-sensitive checking.
 //===----------------------------------------------------------------------===//
 
-static void ActionExprEngine(AnalysisConsumer &C, AnalysisManager &mgr,
-                             Decl *D, bool ObjCGCEnabled) {
+void AnalysisConsumer::ActionExprEngine(Decl *D, bool ObjCGCEnabled,
+                                        SetOfConstDecls *VisitedCallees) {
   // Construct the analysis engine.  First check if the CFG is valid.
   // FIXME: Inter-procedural analysis will need to handle invalid CFGs.
-  if (!mgr.getCFG(D))
+  if (!Mgr->getCFG(D))
     return;
-  ExprEngine Eng(mgr, ObjCGCEnabled);
+
+  ExprEngine Eng(*Mgr, ObjCGCEnabled, VisitedCallees, &FunctionSummaries);
 
   // Set the graph auditor.
-  llvm::OwningPtr<ExplodedNode::Auditor> Auditor;
-  if (mgr.shouldVisualizeUbigraph()) {
+  OwningPtr<ExplodedNode::Auditor> Auditor;
+  if (Mgr->shouldVisualizeUbigraph()) {
     Auditor.reset(CreateUbiViz());
     ExplodedNode::SetAuditor(Auditor.get());
   }
 
   // Execute the worklist algorithm.
-  Eng.ExecuteWorkList(mgr.getStackFrame(D, 0), mgr.getMaxNodes());
+  Eng.ExecuteWorkList(Mgr->getAnalysisDeclContextManager().getStackFrame(D, 0),
+                      Mgr->getMaxNodes());
 
   // Release the auditor (if any) so that it doesn't monitor the graph
   // created BugReporter.
   ExplodedNode::SetAuditor(0);
 
   // Visualize the exploded graph.
-  if (mgr.shouldVisualizeGraphviz())
-    Eng.ViewGraph(mgr.shouldTrimGraph());
+  if (Mgr->shouldVisualizeGraphviz())
+    Eng.ViewGraph(Mgr->shouldTrimGraph());
 
   // Display warnings.
   Eng.getBugReporter().FlushReports();
 }
 
-static void RunPathSensitiveChecks(AnalysisConsumer &C, AnalysisManager &mgr,
-                                   Decl *D) {
+void AnalysisConsumer::RunPathSensitiveChecks(Decl *D,
+                                              SetOfConstDecls *Visited) {
 
-  switch (mgr.getLangOptions().getGC()) {
-  default:
-    llvm_unreachable("Invalid GC mode.");
+  switch (Mgr->getLangOpts().getGC()) {
   case LangOptions::NonGC:
-    ActionExprEngine(C, mgr, D, false);
+    ActionExprEngine(D, false, Visited);
     break;
   
   case LangOptions::GCOnly:
-    ActionExprEngine(C, mgr, D, true);
+    ActionExprEngine(D, true, Visited);
     break;
   
   case LangOptions::HybridGC:
-    ActionExprEngine(C, mgr, D, false);
-    ActionExprEngine(C, mgr, D, true);
+    ActionExprEngine(D, false, Visited);
+    ActionExprEngine(D, true, Visited);
     break;
   }
 }
@@ -374,7 +575,7 @@ ASTConsumer* ento::CreateAnalysisConsumer(const Preprocessor& pp,
 namespace {
 
 class UbigraphViz : public ExplodedNode::Auditor {
-  llvm::OwningPtr<raw_ostream> Out;
+  OwningPtr<raw_ostream> Out;
   llvm::sys::Path Dir, Filename;
   unsigned Cntr;
 
@@ -408,7 +609,7 @@ static ExplodedNode::Auditor* CreateUbiViz() {
 
   llvm::errs() << "Writing '" << Filename.str() << "'.\n";
 
-  llvm::OwningPtr<llvm::raw_fd_ostream> Stream;
+  OwningPtr<llvm::raw_fd_ostream> Stream;
   Stream.reset(new llvm::raw_fd_ostream(Filename.c_str(), ErrMsg));
 
   if (!ErrMsg.empty())

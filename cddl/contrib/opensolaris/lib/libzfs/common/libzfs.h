@@ -24,8 +24,9 @@
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
- * All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #ifndef	_LIBZFS_H
@@ -236,6 +237,7 @@ typedef struct splitflags {
 extern int zpool_scan(zpool_handle_t *, pool_scan_func_t);
 extern int zpool_clear(zpool_handle_t *, const char *, nvlist_t *);
 extern int zpool_reguid(zpool_handle_t *);
+extern int zpool_reopen(zpool_handle_t *);
 
 extern int zpool_vdev_online(zpool_handle_t *, const char *, int,
     vdev_state_t *);
@@ -541,6 +543,9 @@ typedef struct renameflags {
 
 	/* don't unmount file systems */
 	int nounmount : 1;
+
+	/* force unmount file systems */
+	int forceunmount : 1;
 } renameflags_t;
 
 extern int zfs_rename(zfs_handle_t *, const char *, renameflags_t flags);
@@ -569,6 +574,9 @@ typedef struct sendflags {
 
 	/* parsable verbose output (ie. -P) */
 	boolean_t parsable;
+
+	/* show progress (ie. -v) */
+	boolean_t progress;
 } sendflags_t;
 
 typedef boolean_t (snapfilter_cb_t)(zfs_handle_t *, void *);

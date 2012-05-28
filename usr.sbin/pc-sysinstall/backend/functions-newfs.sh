@@ -44,6 +44,23 @@ setup_zfs_filesystem()
   sleep 5
   sync
 
+  # Check if we have multiple zfs mounts specified
+  for i in `echo ${PARTMNT} | sed 's|,| |g'`
+  do
+    # Check if we ended up with needing a zfs bootable partition
+    if [ "${i}" = "/" -o "${i}" = "/boot" ]
+    then
+      if [ "$HAVEBOOT" = "YES" ] ; then continue ; fi
+      if [ "${PARTGEOM}" = "MBR" ] ; then
+        # Lets stamp the proper ZFS boot loader
+        echo_log "Setting up ZFS boot loader support" 
+        rc_halt "dd if=/boot/zfsboot of=${ROOTSLICE} count=1"
+        rc_halt "dd if=/boot/zfsboot of=${PART}${EXT} skip=1 seek=1024"
+      fi
+    fi
+  done 
+
+
   # Check if we have some custom zpool arguments and use them if so
   if [ ! -z "${ZPOOLOPTS}" ] ; then
     rc_halt "zpool create -m none -f ${ZPOOLNAME} ${ZPOOLOPTS}"
@@ -55,23 +72,13 @@ setup_zfs_filesystem()
   # Disable atime for this zfs partition, speed increase
   rc_nohalt "zfs set atime=off ${ZPOOLNAME}"
 
-  # Check if we have multiple zfs mounts specified
+  # Check if we need to set a bootable zpool
   for i in `echo ${PARTMNT} | sed 's|,| |g'`
   do
-    # Check if we ended up with needing a zfs bootable partition
-    if [ "${i}" = "/" -o "${i}" = "/boot" ]
-    then
+    if [ "${i}" = "/" -o "${i}" = "/boot" ] ; then
       if [ "$HAVEBOOT" = "YES" ] ; then continue ; fi
-      if [ "${PARTGEOM}" = "MBR" ]
-      then
-        # Lets stamp the proper ZFS boot loader
-        echo_log "Setting up ZFS boot loader support" 
-        rc_halt "zpool set bootfs=${ZPOOLNAME} ${ZPOOLNAME}"
-        rc_halt "zpool export ${ZPOOLNAME}"
-        rc_halt "dd if=/boot/zfsboot of=${ROOTSLICE} count=1"
-        rc_halt "dd if=/boot/zfsboot of=${PART}${EXT} skip=1 seek=1024"
-        rc_halt "zpool import ${ZPOOLNAME}"
-      fi
+      echo_log "Stamping zpool as bootfs" 
+      rc_halt "zpool set bootfs=${ZPOOLNAME} ${ZPOOLNAME}"
     fi
   done 
 
@@ -90,11 +97,6 @@ setup_filesystems()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV="`echo $PART | sed 's|-|/|g'`"
-    if [ ! -e "${PARTDEV}" ]
-    then
-      exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
-    fi 
-     
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
@@ -102,6 +104,10 @@ setup_filesystems()
     PARTGEOM="`cat ${PARTDIR}/${PART} | cut -d '#' -f 5`"
     PARTXTRAOPTS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 6`"
     PARTIMAGE="`cat ${PARTDIR}/${PART} | cut -d '#' -f 7`"
+
+    if [ ! -e "${PARTDEV}" ] ; then
+      exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
+    fi 
 
     # Make sure journaling isn't enabled on this device
     if [ -e "${PARTDEV}.journal" ]

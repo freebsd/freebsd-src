@@ -109,9 +109,12 @@ main(int argc, char *argv[])
 		if (argv[2][0] == '-') {
 			proc = parseint(argv[2], "pid");
 			proc = abs(proc);
-			if (rtprio(RTP_SET, proc, &rtp) != 0)
-				err(1, "RTP_SET");
-		} else {
+		}
+
+		if (rtprio(RTP_SET, proc, &rtp) != 0)
+			err(1, "RTP_SET");
+
+		if (proc == 0) {
 			execvp(argv[2], &argv[2]);
 			err(1, "execvp: %s", argv[2]);
 		}

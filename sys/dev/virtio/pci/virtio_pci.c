@@ -189,7 +189,7 @@ static device_method_t vtpci_methods[] = {
 	DEVMETHOD(virtio_bus_read_device_config,  vtpci_read_dev_config),
 	DEVMETHOD(virtio_bus_write_device_config, vtpci_write_dev_config),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t vtpci_driver = {

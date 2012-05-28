@@ -15,7 +15,9 @@
 #include "llvm/TableGen/Record.h"
 using namespace llvm;
 
-void TableGenBackend::EmitSourceFileHeader(const std::string &Desc,
+void TableGenBackend::anchor() { }
+
+void TableGenBackend::EmitSourceFileHeader(StringRef Desc,
                                            raw_ostream &OS) const {
   OS << "//===- TableGen'erated file -------------------------------------*-"
        " C++ -*-===//\n//\n// " << Desc << "\n//\n// Automatically generate"

@@ -1,4 +1,4 @@
-//===-- X86/X86CodeEmitter.cpp - Convert X86 code to machine code ---------===//
+//===-- X86CodeEmitter.cpp - Convert X86 code to machine code -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -664,15 +664,14 @@ void Emitter<CodeEmitter>::emitInstruction(MachineInstr &MI,
   case X86II::A7:  // 0F A7
     Need0FPrefix = true;
     break;
-  case X86II::TF: // F2 0F 38
-    MCE.emitByte(0xF2);
-    Need0FPrefix = true;
-    break;
   case X86II::REP: break; // already handled.
+  case X86II::T8XS: // F3 0F 38
   case X86II::XS:   // F3 0F
     MCE.emitByte(0xF3);
     Need0FPrefix = true;
     break;
+  case X86II::T8XD: // F2 0F 38
+  case X86II::TAXD: // F2 0F 3A
   case X86II::XD:   // F2 0F
     MCE.emitByte(0xF2);
     Need0FPrefix = true;
@@ -698,10 +697,12 @@ void Emitter<CodeEmitter>::emitInstruction(MachineInstr &MI,
     MCE.emitByte(0x0F);
 
   switch (Desc->TSFlags & X86II::Op0Mask) {
-  case X86II::TF:    // F2 0F 38
+  case X86II::T8XD:  // F2 0F 38
+  case X86II::T8XS:  // F3 0F 38
   case X86II::T8:    // 0F 38
     MCE.emitByte(0x38);
     break;
+  case X86II::TAXD:  // F2 0F 38
   case X86II::TA:    // 0F 3A
     MCE.emitByte(0x3A);
     break;
@@ -805,8 +806,7 @@ void Emitter<CodeEmitter>::emitInstruction(MachineInstr &MI,
     }
     
     assert(MO.isImm() && "Unknown RawFrm operand!");
-    if (Opcode == X86::CALLpcrel32 || Opcode == X86::CALL64pcrel32 ||
-        Opcode == X86::WINCALL64pcrel32) {
+    if (Opcode == X86::CALLpcrel32 || Opcode == X86::CALL64pcrel32) {
       // Fix up immediate operand for pc relative calls.
       intptr_t Imm = (intptr_t)MO.getImm();
       Imm = Imm - MCE.getCurrentPCValue() - 4;
@@ -1003,7 +1003,7 @@ void Emitter<CodeEmitter>::emitInstruction(MachineInstr &MI,
     break;
   }
 
-  if (!Desc->isVariadic() && CurOp != NumOps) {
+  if (!MI.isVariadic() && CurOp != NumOps) {
 #ifndef NDEBUG
     dbgs() << "Cannot encode all operands of: " << MI << "\n";
 #endif

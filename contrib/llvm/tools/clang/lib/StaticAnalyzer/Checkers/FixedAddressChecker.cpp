@@ -25,7 +25,7 @@ using namespace ento;
 namespace {
 class FixedAddressChecker 
   : public Checker< check::PreStmt<BinaryOperator> > {
-  mutable llvm::OwningPtr<BuiltinBug> BT;
+  mutable OwningPtr<BuiltinBug> BT;
 
 public:
   void checkPreStmt(const BinaryOperator *B, CheckerContext &C) const;
@@ -44,14 +44,13 @@ void FixedAddressChecker::checkPreStmt(const BinaryOperator *B,
   if (!T->isPointerType())
     return;
 
-  const ProgramState *state = C.getState();
-
-  SVal RV = state->getSVal(B->getRHS());
+  ProgramStateRef state = C.getState();
+  SVal RV = state->getSVal(B->getRHS(), C.getLocationContext());
 
   if (!RV.isConstant() || RV.isZeroConstant())
     return;
 
-  if (ExplodedNode *N = C.generateNode()) {
+  if (ExplodedNode *N = C.addTransition()) {
     if (!BT)
       BT.reset(new BuiltinBug("Use fixed address", 
                           "Using a fixed address is not portable because that "

@@ -1,4 +1,4 @@
-//===- Mips.td - Describe the Mips Target Machine ----------*- tablegen -*-===//
+//===-- Mips.td - Describe the Mips Target Machine ---------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -63,7 +63,7 @@ def FeatureMips32      : SubtargetFeature<"mips32", "MipsArchVersion", "Mips32",
                                 [FeatureCondMov, FeatureBitCount]>;
 def FeatureMips32r2    : SubtargetFeature<"mips32r2", "MipsArchVersion",
                                 "Mips32r2", "Mips32r2 ISA Support",
-                                [FeatureMips32, FeatureSEInReg]>;
+                                [FeatureMips32, FeatureSEInReg, FeatureSwap]>;
 def FeatureMips64      : SubtargetFeature<"mips64", "MipsArchVersion",
                                 "Mips64", "Mips64 ISA Support",
                                 [FeatureGP64Bit, FeatureFP64Bit,
@@ -79,9 +79,9 @@ def FeatureMips64r2    : SubtargetFeature<"mips64r2", "MipsArchVersion",
 class Proc<string Name, list<SubtargetFeature> Features>
  : Processor<Name, MipsGenericItineraries, Features>;
 
-def : Proc<"mips32r1", [FeatureMips32]>;
-def : Proc<"4ke", [FeatureMips32r2]>;
-def : Proc<"mips64r1", [FeatureMips64]>;
+def : Proc<"mips32", [FeatureMips32]>;
+def : Proc<"mips32r2", [FeatureMips32r2]>;
+def : Proc<"mips64", [FeatureMips64]>;
 def : Proc<"mips64r2", [FeatureMips64r2]>;
 
 def MipsAsmWriter : AsmWriter {

@@ -98,6 +98,9 @@ intsmb_probe(device_t dev)
 #endif
 		device_set_desc(dev, "Intel PIIX4 SMBUS Interface");
 		break;
+	case 0x43721002:
+		device_set_desc(dev, "ATI IXP400 SMBus Controller");
+		break;
 	case 0x43851002:
 		/* SB800 and newer can not be configured in a compatible way. */
 		if (pci_get_revid(dev) >= 0x40)

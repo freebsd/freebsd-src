@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: cddb,v 1.4 2009/09/19 16:28:08 christos Exp $
 # CDDB: file(1) magic for CDDB(tm) format CD text data files
 #
 # From <steve@gracenote.com>
@@ -7,4 +9,4 @@
 # CDDB-enabled CD player applications.
 #
 
-0	search/1/b	#\040xmcd	CDDB(tm) format CD text data
+0	search/1/w	#\040xmcd	CDDB(tm) format CD text data

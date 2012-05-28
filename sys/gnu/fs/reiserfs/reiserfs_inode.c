@@ -104,12 +104,10 @@ reiserfs_inactive(struct vop_inactive_args *ap)
 {
 	int error;
 	struct vnode *vp;
-	struct thread *td;
 	struct reiserfs_node *ip;
 
 	error = 0;
 	vp = ap->a_vp;
-	td = ap->a_td;
 	ip = VTOI(vp);
 
 	reiserfs_log(LOG_DEBUG, "deactivating inode used %d times\n",
@@ -129,7 +127,7 @@ out:
 	 */
 	if (ip->i_mode == 0) {
 		reiserfs_log(LOG_DEBUG, "recyling\n");
-		vrecycle(vp, td);
+		vrecycle(vp);
 	}
 
 	return (error);

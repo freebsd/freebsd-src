@@ -22,6 +22,7 @@
 namespace llvm {
   class CallSite;
   class TargetData;
+  class TargetLibraryInfo;
   class DbgDeclareInst;
   class MemIntrinsic;
   class MemSetInst;
@@ -71,6 +72,7 @@ class LLVM_LIBRARY_VISIBILITY InstCombiner
                              : public FunctionPass,
                                public InstVisitor<InstCombiner, Instruction*> {
   TargetData *TD;
+  TargetLibraryInfo *TLI;
   bool MadeIRChange;
 public:
   /// Worklist - All of the instructions that need to be simplified.
@@ -92,8 +94,10 @@ public:
   bool DoOneIteration(Function &F, unsigned ItNum);
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-                                 
+
   TargetData *getTargetData() const { return TD; }
+
+  TargetLibraryInfo *getTargetLibraryInfo() const { return TLI; }
 
   // Visitation implementation - Implement instruction combining for different
   // instruction types.  The semantics are as follows:
@@ -287,9 +291,9 @@ public:
     return 0;  // Don't do anything with FI
   }
       
-  void ComputeMaskedBits(Value *V, const APInt &Mask, APInt &KnownZero,
+  void ComputeMaskedBits(Value *V, APInt &KnownZero,
                          APInt &KnownOne, unsigned Depth = 0) const {
-    return llvm::ComputeMaskedBits(V, Mask, KnownZero, KnownOne, TD, Depth);
+    return llvm::ComputeMaskedBits(V, KnownZero, KnownOne, TD, Depth);
   }
   
   bool MaskedValueIsZero(Value *V, const APInt &Mask, 

@@ -18,6 +18,8 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/raw_ostream.h"
+#include <climits>
+
 using namespace clang;
 
 VerifyDiagnosticConsumer::VerifyDiagnosticConsumer(DiagnosticsEngine &_Diags)
@@ -38,7 +40,7 @@ VerifyDiagnosticConsumer::~VerifyDiagnosticConsumer() {
 // DiagnosticConsumer interface.
 
 void VerifyDiagnosticConsumer::BeginSourceFile(const LangOptions &LangOpts,
-                                             const Preprocessor *PP) {
+                                               const Preprocessor *PP) {
   // FIXME: Const hack, we screw up the preprocessor but in practice its ok
   // because it doesn't get reused. It would be better if we could make a copy
   // though.
@@ -82,6 +84,9 @@ public:
   static Directive* Create(bool RegexKind, const SourceLocation &Location,
                            const std::string &Text, unsigned Count);
 public:
+  /// Constant representing one or more matches aka regex "+".
+  static const unsigned OneOrMoreCount =  UINT_MAX;
+
   SourceLocation Location;
   const std::string Text;
   unsigned Count;
@@ -119,8 +124,7 @@ public:
   }
 
   virtual bool Match(const std::string &S) {
-    return S.find(Text) != std::string::npos ||
-           Text.find(S) != std::string::npos;
+    return S.find(Text) != std::string::npos;
   }
 };
 
@@ -277,10 +281,14 @@ static void ParseDirective(const char *CommentStart, unsigned CommentLen,
     // skip optional whitespace
     PH.SkipWhitespace();
 
-    // next optional token: positive integer
+    // next optional token: positive integer or a '+'.
     unsigned Count = 1;
     if (PH.Next(Count))
       PH.Advance();
+    else if (PH.Next("+")) {
+      Count = Directive::OneOrMoreCount;
+      PH.Advance();
+    }
 
     // skip optional whitespace
     PH.SkipWhitespace();
@@ -340,7 +348,7 @@ static void FindExpectedDiags(Preprocessor &PP, ExpectedData &ED, FileID FID) {
   SourceManager& SM = PP.getSourceManager();
   // Create a lexer to lex all the tokens of the main file in raw mode.
   const llvm::MemoryBuffer *FromFile = SM.getBuffer(FID);
-  Lexer RawLex(FID, FromFile, SM, PP.getLangOptions());
+  Lexer RawLex(FID, FromFile, SM, PP.getLangOpts());
 
   // Return comments as tokens, this is how we find expected diagnostics.
   RawLex.SetCommentRetentionState(true);
@@ -370,7 +378,7 @@ static unsigned PrintProblem(DiagnosticsEngine &Diags, SourceManager *SourceMgr,
                              const char *Kind, bool Expected) {
   if (diag_begin == diag_end) return 0;
 
-  llvm::SmallString<256> Fmt;
+  SmallString<256> Fmt;
   llvm::raw_svector_ostream OS(Fmt);
   for (const_diag_iterator I = diag_begin, E = diag_end; I != E; ++I) {
     if (I->first.isInvalid() || !SourceMgr)
@@ -391,7 +399,7 @@ static unsigned PrintProblem(DiagnosticsEngine &Diags, SourceManager *SourceMgr,
   if (DL.empty())
     return 0;
 
-  llvm::SmallString<256> Fmt;
+  SmallString<256> Fmt;
   llvm::raw_svector_ostream OS(Fmt);
   for (DirectiveList::iterator I = DL.begin(), E = DL.end(); I != E; ++I) {
     Directive& D = **I;
@@ -421,6 +429,7 @@ static unsigned CheckLists(DiagnosticsEngine &Diags, SourceManager &SourceMgr,
   for (DirectiveList::iterator I = Left.begin(), E = Left.end(); I != E; ++I) {
     Directive& D = **I;
     unsigned LineNo1 = SourceMgr.getPresumedLineNumber(D.Location);
+    bool FoundOnce = false;
 
     for (unsigned i = 0; i < D.Count; ++i) {
       DiagList::iterator II, IE;
@@ -434,19 +443,26 @@ static unsigned CheckLists(DiagnosticsEngine &Diags, SourceManager &SourceMgr,
           break;
       }
       if (II == IE) {
+        if (D.Count == D.OneOrMoreCount) {
+          if (!FoundOnce)
+            LeftOnly.push_back(*I);
+          // We are only interested in at least one match, so exit the loop.
+          break;
+        }
         // Not found.
         LeftOnly.push_back(*I);
       } else {
         // Found. The same cannot be found twice.
         Right.erase(II);
+        FoundOnce = true;
       }
     }
   }
   // Now all that's left in Right are those that were not matched.
-
-  return (PrintProblem(Diags, &SourceMgr, LeftOnly, Label, true) +
-          PrintProblem(Diags, &SourceMgr, Right.begin(), Right.end(),
-                       Label, false));
+  unsigned num = PrintProblem(Diags, &SourceMgr, LeftOnly, Label, true);
+  num += PrintProblem(Diags, &SourceMgr, Right.begin(), Right.end(),
+                      Label, false);
+  return num;
 }
 
 /// CheckResults - This compares the expected results to those that

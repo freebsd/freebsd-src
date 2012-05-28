@@ -12,6 +12,7 @@ LIBDEPS=llvmbitwriter \
 	llvmarchive \
 	llvmbitreader \
 	llvmipo \
+	llvmvectorize \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
@@ -19,6 +20,7 @@ LIBDEPS=llvmbitwriter \
 	llvmanalysis \
 	llvmtarget \
 	llvmmc \
+	llvmobject \
 	llvmcore \
 	llvmsupport
 

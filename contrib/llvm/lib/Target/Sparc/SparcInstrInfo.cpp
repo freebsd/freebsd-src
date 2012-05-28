@@ -1,4 +1,4 @@
-//===- SparcInstrInfo.cpp - Sparc Instruction Information -------*- C++ -*-===//
+//===-- SparcInstrInfo.cpp - Sparc Instruction Information ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -79,7 +79,6 @@ static bool IsIntegerCC(unsigned CC)
 static SPCC::CondCodes GetOppositeBranchCondition(SPCC::CondCodes CC)
 {
   switch(CC) {
-  default: llvm_unreachable("Unknown condition code");
   case SPCC::ICC_NE:   return SPCC::ICC_E;
   case SPCC::ICC_E:    return SPCC::ICC_NE;
   case SPCC::ICC_G:    return SPCC::ICC_LE;
@@ -110,6 +109,18 @@ static SPCC::CondCodes GetOppositeBranchCondition(SPCC::CondCodes CC)
   case SPCC::FCC_NE:   return SPCC::FCC_E;
   case SPCC::FCC_E:    return SPCC::FCC_NE;
   }
+  llvm_unreachable("Invalid cond code");
+}
+
+MachineInstr *
+SparcInstrInfo::emitFrameIndexDebugValue(MachineFunction &MF,
+                                         int FrameIx,
+                                         uint64_t Offset,
+                                         const MDNode *MDPtr,
+                                         DebugLoc dl) const {
+  MachineInstrBuilder MIB = BuildMI(MF, dl, get(SP::DBG_VALUE))
+    .addFrameIndex(FrameIx).addImm(0).addImm(Offset).addMetadata(MDPtr);
+  return &*MIB;
 }
 
 
@@ -133,7 +144,7 @@ bool SparcInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
       break;
 
     //Terminator is not a branch
-    if (!I->getDesc().isBranch())
+    if (!I->isBranch())
       return true;
 
     //Handle Unconditional branches
@@ -195,7 +206,7 @@ bool SparcInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
           .addMBB(UnCondBrIter->getOperand(0).getMBB()).addImm(BranchCode);
         BuildMI(MBB, UnCondBrIter, MBB.findDebugLoc(I), get(SP::BA))
           .addMBB(TargetBB);
-        MBB.addSuccessor(TargetBB);
+
         OldInst->eraseFromParent();
         UnCondBrIter->eraseFromParent();
 

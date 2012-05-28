@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -682,11 +683,13 @@ g_raid_md_intel_supported(int level, int qual, int disks, int force)
 			return (0);
 		if (!force && disks > 6)
 			return (0);
+		if (qual != G_RAID_VOLUME_RLQ_R5LA)
+			return (0);
 		break;
 	default:
 		return (0);
 	}
-	if (qual != G_RAID_VOLUME_RLQ_NONE)
+	if (level != G_RAID_VOLUME_RL_RAID5 && qual != G_RAID_VOLUME_RLQ_NONE)
 		return (0);
 	return (1);
 }
@@ -1029,6 +1032,7 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 		mmap = intel_get_map(mvol, 0);
 		vol = g_raid_create_volume(sc, mvol->name, -1);
 		vol->v_md_data = (void *)(intptr_t)i;
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 		if (mmap->type == INTEL_T_RAID0)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 		else if (mmap->type == INTEL_T_RAID1 &&
@@ -1045,11 +1049,11 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
 			else
 				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
-		} else if (mmap->type == INTEL_T_RAID5)
+		} else if (mmap->type == INTEL_T_RAID5) {
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
-		else
+			vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_R5LA;
+		} else
 			vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 		vol->v_strip_size = (u_int)mmap->strip_sectors * 512; //ZZZ
 		vol->v_disks_count = mmap->total_disks;
 		vol->v_mediasize = (off_t)mvol->total_sectors * 512; //ZZZ
@@ -1485,6 +1489,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			gctl_error(req, "No RAID level.");
 			return (-3);
 		}
+		if (strcasecmp(levelname, "RAID5") == 0)
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1631,7 +1637,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_raid_level_qualifier = qual;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0)
@@ -1658,8 +1664,12 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			if (sd->sd_disk->d_consumer != NULL) {
 				g_raid_change_disk_state(disk,
 				    G_RAID_DISK_S_ACTIVE);
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
+				if (level == G_RAID_VOLUME_RL_RAID5)
+					g_raid_change_subdisk_state(sd,
+					    G_RAID_SUBDISK_S_UNINITIALIZED);
+				else
+					g_raid_change_subdisk_state(sd,
+					    G_RAID_SUBDISK_S_ACTIVE);
 				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 				    G_RAID_EVENT_SUBDISK);
 			} else {
@@ -1694,6 +1704,8 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			gctl_error(req, "No RAID level.");
 			return (-3);
 		}
+		if (strcasecmp(levelname, "RAID5") == 0)
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1818,7 +1830,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)i;
 		vol->v_raid_level = level;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_raid_level_qualifier = qual;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0)
@@ -1843,8 +1855,12 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			sd->sd_size = size;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 			if (disk->d_state == G_RAID_DISK_S_ACTIVE) {
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
+				if (level == G_RAID_VOLUME_RL_RAID5)
+					g_raid_change_subdisk_state(sd,
+					    G_RAID_SUBDISK_S_UNINITIALIZED);
+				else
+					g_raid_change_subdisk_state(sd,
+					    G_RAID_SUBDISK_S_ACTIVE);
 				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 				    G_RAID_EVENT_SUBDISK);
 			}
@@ -2245,6 +2261,9 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			mmap0->status = INTEL_S_FAILURE;
 		else if (vol->v_state == G_RAID_VOLUME_S_DEGRADED)
 			mmap0->status = INTEL_S_DEGRADED;
+		else if (g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_UNINITIALIZED)
+		    == g_raid_nsubdisks(vol, -1))
+			mmap0->status = INTEL_S_UNINITIALIZED;
 		else
 			mmap0->status = INTEL_S_READY;
 		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0)
@@ -2288,7 +2307,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			    sd->sd_state == G_RAID_SUBDISK_S_RESYNC) {
 				mmap1->disk_idx[sdi] |= INTEL_DI_RBLD;
 			} else if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE &&
-			    sd->sd_state != G_RAID_SUBDISK_S_STALE) {
+			    sd->sd_state != G_RAID_SUBDISK_S_STALE &&
+			    sd->sd_state != G_RAID_SUBDISK_S_UNINITIALIZED) {
 				mmap0->disk_idx[sdi] |= INTEL_DI_RBLD;
 				if (mvol->migr_state)
 					mmap1->disk_idx[sdi] |= INTEL_DI_RBLD;

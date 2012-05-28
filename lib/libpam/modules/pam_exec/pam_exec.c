@@ -60,22 +60,17 @@ static struct {
 	ENV_ITEM(PAM_RUSER),
 };
 
+struct pe_opts {
+	int	return_prog_exit_status;
+};
+
 #define	PAM_RV_COUNT 24
 
 static int
-_pam_exec(pam_handle_t *pamh __unused,
-    const char *func, int flags __unused, int argc, const char *argv[])
+parse_options(const char *func, int *argc, const char **argv[],
+    struct pe_opts *options)
 {
-	int envlen, i, nitems, pam_err, status, return_prog_exit_status;
-	int nitems_rv;
-	char *env, **envlist, **tmp, *envstr;
-	volatile int childerr;
-	pid_t pid;
-
-	/*
-	 * XXX For additional credit, divert child's stdin/stdout/stderr
-	 * to the conversation function.
-	 */
+	int i;
 
 	/*
 	 * Parse options:
@@ -84,25 +79,45 @@ _pam_exec(pam_handle_t *pamh __unused,
 	 *   --:
 	 *     stop options parsing; what follows is the command to execute
 	 */
-	return_prog_exit_status = 0;
-	for (i = 0; i < argc; ++i) {
-		if (strcmp(argv[i], "return_prog_exit_status") == 0) {
+	options->return_prog_exit_status = 0;
+
+	for (i = 0; i < *argc; ++i) {
+		if (strcmp((*argv)[i], "return_prog_exit_status") == 0) {
 			openpam_log(PAM_LOG_DEBUG,
 			    "%s: Option \"return_prog_exit_status\" enabled",
 			    func);
-			return_prog_exit_status = 1;
+			options->return_prog_exit_status = 1;
 		} else {
-			if (strcmp(argv[i], "--") == 0) {
-				argc--;
-				argv++;
+			if (strcmp((*argv)[i], "--") == 0) {
+				(*argc)--;
+				(*argv)++;
 			}
 
 			break;
 		}
 	}
 
-	argc -= i;
-	argv += i;
+	(*argc) -= i;
+	(*argv) += i;
+
+	return (0);
+}
+
+static int
+_pam_exec(pam_handle_t *pamh __unused,
+    const char *func, int flags __unused, int argc, const char *argv[],
+    struct pe_opts *options)
+{
+	int envlen, i, nitems, pam_err, status;
+	int nitems_rv;
+	char **envlist, **tmp, *envstr;
+	volatile int childerr;
+	pid_t pid;
+
+	/*
+	 * XXX For additional credit, divert child's stdin/stdout/stderr
+	 * to the conversation function.
+	 */
 
 	/* Check there's a program name left after parsing options. */
 	if (argc < 1) {
@@ -122,7 +137,7 @@ _pam_exec(pam_handle_t *pamh __unused,
 		/* nothing */ ;
 	nitems = sizeof(env_items) / sizeof(*env_items);
 	/* Count PAM return values put in the environment. */
-	nitems_rv = return_prog_exit_status ? PAM_RV_COUNT : 0;
+	nitems_rv = options->return_prog_exit_status ? PAM_RV_COUNT : 0;
 	tmp = realloc(envlist, (envlen + nitems + 1 + nitems_rv + 1) *
 	    sizeof(*envlist));
 	if (tmp == NULL) {
@@ -136,7 +151,8 @@ _pam_exec(pam_handle_t *pamh __unused,
 		pam_err = pam_get_item(pamh, env_items[i].item, &item);
 		if (pam_err != PAM_SUCCESS || item == NULL)
 			continue;
-		asprintf(&envstr, "%s=%s", env_items[i].name, item);
+		asprintf(&envstr, "%s=%s", env_items[i].name,
+		    (const char *)item);
 		if (envstr == NULL) {
 			openpam_free_envlist(envlist);
 			return (PAM_BUF_ERR);
@@ -154,7 +170,7 @@ _pam_exec(pam_handle_t *pamh __unused,
 	envlist[envlen++] = envstr;
 
 	/* Add the PAM return values to the environment. */
-	if (return_prog_exit_status) {
+	if (options->return_prog_exit_status) {
 #define	ADD_PAM_RV_TO_ENV(name)						\
 		asprintf(&envstr, #name "=%d", name);			\
 		if (envstr == NULL) {					\
@@ -232,7 +248,7 @@ _pam_exec(pam_handle_t *pamh __unused,
 		return (PAM_SERVICE_ERR);
 	}
 
-	if (return_prog_exit_status) {
+	if (options->return_prog_exit_status) {
 		openpam_log(PAM_LOG_DEBUG,
 		    "%s: Use program exit status as return value: %d",
 		    func, WEXITSTATUS(status));
@@ -248,8 +264,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 	int ret;
+	struct pe_opts options;
 
-	ret = _pam_exec(pamh, __func__, flags, argc, argv);
+	ret = parse_options(__func__, &argc, &argv, &options);
+	if (ret != 0)
+		return (PAM_SERVICE_ERR);
+
+	ret = _pam_exec(pamh, __func__, flags, argc, argv, &options);
 
 	/*
 	 * We must check that the program returned a valid code for this
@@ -284,8 +305,13 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 	int ret;
+	struct pe_opts options;
 
-	ret = _pam_exec(pamh, __func__, flags, argc, argv);
+	ret = parse_options(__func__, &argc, &argv, &options);
+	if (ret != 0)
+		return (PAM_SERVICE_ERR);
+
+	ret = _pam_exec(pamh, __func__, flags, argc, argv, &options);
 
 	/*
 	 * We must check that the program returned a valid code for this
@@ -319,8 +345,13 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 	int ret;
+	struct pe_opts options;
 
-	ret = _pam_exec(pamh, __func__, flags, argc, argv);
+	ret = parse_options(__func__, &argc, &argv, &options);
+	if (ret != 0)
+		return (PAM_SERVICE_ERR);
+
+	ret = _pam_exec(pamh, __func__, flags, argc, argv, &options);
 
 	/*
 	 * We must check that the program returned a valid code for this
@@ -354,8 +385,13 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 	int ret;
+	struct pe_opts options;
 
-	ret = _pam_exec(pamh, __func__, flags, argc, argv);
+	ret = parse_options(__func__, &argc, &argv, &options);
+	if (ret != 0)
+		return (PAM_SERVICE_ERR);
+
+	ret = _pam_exec(pamh, __func__, flags, argc, argv, &options);
 
 	/*
 	 * We must check that the program returned a valid code for this
@@ -386,8 +422,13 @@ pam_sm_close_session(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 	int ret;
+	struct pe_opts options;
 
-	ret = _pam_exec(pamh, __func__, flags, argc, argv);
+	ret = parse_options(__func__, &argc, &argv, &options);
+	if (ret != 0)
+		return (PAM_SERVICE_ERR);
+
+	ret = _pam_exec(pamh, __func__, flags, argc, argv, &options);
 
 	/*
 	 * We must check that the program returned a valid code for this
@@ -418,8 +459,13 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
     int argc, const char *argv[])
 {
 	int ret;
+	struct pe_opts options;
 
-	ret = _pam_exec(pamh, __func__, flags, argc, argv);
+	ret = parse_options(__func__, &argc, &argv, &options);
+	if (ret != 0)
+		return (PAM_SERVICE_ERR);
+
+	ret = _pam_exec(pamh, __func__, flags, argc, argv, &options);
 
 	/*
 	 * We must check that the program returned a valid code for this

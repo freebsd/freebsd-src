@@ -172,6 +172,9 @@ mfi_print_dcmd(struct mfi_softc *sc, device_t dev, struct mfi_command *cm)
 	case MFI_DCMD_CLUSTER_RESET_LD:
 		opcode = "CLUSTER_RESET_LD";
 		break;
+	case MFI_DCMD_LD_MAP_GET_INFO:
+		opcode = "LD_MAP_GET_INFO";
+		break;
 	default:
 		opcode = "UNKNOWN";
 		break;

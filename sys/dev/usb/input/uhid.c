@@ -87,6 +87,7 @@ SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RW,
 #define	UHID_FRAME_NUM 	  50		/* bytes, frame number */
 
 enum {
+	UHID_INTR_DT_WR,
 	UHID_INTR_DT_RD,
 	UHID_CTRL_DT_WR,
 	UHID_CTRL_DT_RD,
@@ -128,7 +129,8 @@ static device_probe_t uhid_probe;
 static device_attach_t uhid_attach;
 static device_detach_t uhid_detach;
 
-static usb_callback_t uhid_intr_callback;
+static usb_callback_t uhid_intr_write_callback;
+static usb_callback_t uhid_intr_read_callback;
 static usb_callback_t uhid_write_callback;
 static usb_callback_t uhid_read_callback;
 
@@ -152,7 +154,36 @@ static struct usb_fifo_methods uhid_fifo_methods = {
 };
 
 static void
-uhid_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+uhid_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct uhid_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+	case USB_ST_SETUP:
+tr_setup:
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (usb_fifo_get_data(sc->sc_fifo.fp[USB_FIFO_TX], pc,
+		    0, usbd_xfer_max_len(xfer), &actlen, 0)) {
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
+		}
+		return;
+
+	default:			/* Error */
+		if (error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			usbd_xfer_set_stall(xfer);
+			goto tr_setup;
+		}
+		return;
+	}
+}
+
+static void
+uhid_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uhid_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
@@ -327,13 +358,22 @@ uhid_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 static const struct usb_config uhid_config[UHID_N_TRANSFER] = {
 
+	[UHID_INTR_DT_WR] = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_OUT,
+		.flags = {.pipe_bof = 1,.no_pipe_ok = 1, },
+		.bufsize = UHID_BSIZE,
+		.callback = &uhid_intr_write_callback,
+	},
+
 	[UHID_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.bufsize = UHID_BSIZE,
-		.callback = &uhid_intr_callback,
+		.callback = &uhid_intr_read_callback,
 	},
 
 	[UHID_CTRL_DT_WR] = {
@@ -381,7 +421,12 @@ uhid_start_write(struct usb_fifo *fifo)
 {
 	struct uhid_softc *sc = usb_fifo_softc(fifo);
 
-	usbd_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	if ((sc->sc_flags & UHID_FLAG_IMMED) ||
+	    sc->sc_xfer[UHID_INTR_DT_WR] == NULL) {
+		usbd_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	} else {
+		usbd_transfer_start(sc->sc_xfer[UHID_INTR_DT_WR]);
+	}
 }
 
 static void
@@ -390,6 +435,7 @@ uhid_stop_write(struct usb_fifo *fifo)
 	struct uhid_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UHID_INTR_DT_WR]);
 }
 
 static int

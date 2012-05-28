@@ -16,14 +16,18 @@
 #include "llvm-objdump.h"
 #include "MCFunction.h"
 #include "llvm/Object/Archive.h"
+#include "llvm/Object/COFF.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
+#include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -43,6 +47,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 using namespace llvm;
 using namespace object;
@@ -59,6 +64,12 @@ Disassembled("d", cl::desc("Alias for --disassemble"),
 
 static cl::opt<bool>
 Relocations("r", cl::desc("Display the relocation entries in the file"));
+
+static cl::opt<bool>
+SectionContents("s", cl::desc("Display the content of each section"));
+
+static cl::opt<bool>
+SymbolTable("t", cl::desc("Display the symbol table"));
 
 static cl::opt<bool>
 MachO("macho", cl::desc("Use MachO specific object file parser"));
@@ -118,6 +129,8 @@ static const Target *GetTarget(const ObjectFile *Obj = NULL) {
   return 0;
 }
 
+void llvm::StringRefMemoryObject::anchor() { }
+
 void llvm::DumpBytes(StringRef bytes) {
   static const char hex_rep[] = "0123456789abcdef";
   // FIXME: The real way to do this is to figure out the longest instruction
@@ -158,10 +171,6 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     return;
   }
 
-  outs() << '\n';
-  outs() << Obj->getFileName()
-         << ":\tfile format " << Obj->getFileFormatName() << "\n\n";
-
   error_code ec;
   for (section_iterator i = Obj->begin_sections(),
                         e = Obj->end_sections();
@@ -182,7 +191,9 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
       bool contains;
       if (!error(i->containsSymbol(*si, contains)) && contains) {
         uint64_t Address;
-        if (error(si->getOffset(Address))) break;
+        if (error(si->getAddress(Address))) break;
+        Address -= SectionAddr;
+
         StringRef Name;
         if (error(si->getName(Name))) break;
         Symbols.push_back(std::make_pair(Address, Name));
@@ -238,9 +249,21 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
       return;
     }
 
+    OwningPtr<const MCRegisterInfo> MRI(TheTarget->createMCRegInfo(TripleName));
+    if (!MRI) {
+      errs() << "error: no register info for target " << TripleName << "\n";
+      return;
+    }
+
+    OwningPtr<const MCInstrInfo> MII(TheTarget->createMCInstrInfo());
+    if (!MII) {
+      errs() << "error: no instruction info for target " << TripleName << "\n";
+      return;
+    }
+
     int AsmPrinterVariant = AsmInfo->getAssemblerDialect();
     OwningPtr<MCInstPrinter> IP(TheTarget->createMCInstPrinter(
-                                AsmPrinterVariant, *AsmInfo, *STI));
+                                AsmPrinterVariant, *AsmInfo, *MII, *MRI, *STI));
     if (!IP) {
       errs() << "error: no instruction printer for target " << TripleName
              << '\n';
@@ -285,7 +308,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 
         if (DisAsm->getInstruction(Inst, Size, memoryObject, Index,
                                    DebugOut, nulls())) {
-          outs() << format("%8"PRIx64":\t", SectionAddr + Index);
+          outs() << format("%8" PRIx64 ":\t", SectionAddr + Index);
           DumpBytes(StringRef(Bytes.data() + Index, Size));
           IP->printInst(&Inst, outs(), "");
           outs() << "\n";
@@ -297,17 +320,23 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 
         // Print relocation for instruction.
         while (rel_cur != rel_end) {
+          bool hidden = false;
           uint64_t addr;
           SmallString<16> name;
           SmallString<32> val;
+
+          // If this relocation is hidden, skip it.
+          if (error(rel_cur->getHidden(hidden))) goto skip_print_rel;
+          if (hidden) goto skip_print_rel;
+
           if (error(rel_cur->getAddress(addr))) goto skip_print_rel;
           // Stop when rel_cur's address is past the current instruction.
-          if (addr > Index + Size) break;
+          if (addr >= Index + Size) break;
           if (error(rel_cur->getTypeName(name))) goto skip_print_rel;
           if (error(rel_cur->getValueString(val))) goto skip_print_rel;
 
-          outs() << format("\t\t\t%8"PRIx64": ", SectionAddr + addr) << name << "\t"
-                 << val << "\n";
+          outs() << format("\t\t\t%8" PRIx64 ": ", SectionAddr + addr) << name
+                 << "\t" << val << "\n";
 
         skip_print_rel:
           ++rel_cur;
@@ -332,9 +361,12 @@ static void PrintRelocations(const ObjectFile *o) {
                              ri != re; ri.increment(ec)) {
       if (error(ec)) return;
 
+      bool hidden;
       uint64_t address;
       SmallString<32> relocname;
       SmallString<32> valuestr;
+      if (error(ri->getHidden(hidden))) continue;
+      if (hidden) continue;
       if (error(ri->getTypeName(relocname))) continue;
       if (error(ri->getAddress(address))) continue;
       if (error(ri->getValueString(valuestr))) continue;
@@ -364,19 +396,179 @@ static void PrintSectionHeaders(const ObjectFile *o) {
     if (error(si->isBSS(BSS))) return;
     std::string Type = (std::string(Text ? "TEXT " : "") +
                         (Data ? "DATA " : "") + (BSS ? "BSS" : ""));
-    outs() << format("%3d %-13s %09"PRIx64" %017"PRIx64" %s\n", i, Name.str().c_str(), Size,
-                     Address, Type.c_str());
+    outs() << format("%3d %-13s %09" PRIx64 " %017" PRIx64 " %s\n",
+                     i, Name.str().c_str(), Size, Address, Type.c_str());
     ++i;
   }
 }
 
+static void PrintSectionContents(const ObjectFile *o) {
+  error_code ec;
+  for (section_iterator si = o->begin_sections(),
+                        se = o->end_sections();
+                        si != se; si.increment(ec)) {
+    if (error(ec)) return;
+    StringRef Name;
+    StringRef Contents;
+    uint64_t BaseAddr;
+    if (error(si->getName(Name))) continue;
+    if (error(si->getContents(Contents))) continue;
+    if (error(si->getAddress(BaseAddr))) continue;
+
+    outs() << "Contents of section " << Name << ":\n";
+
+    // Dump out the content as hex and printable ascii characters.
+    for (std::size_t addr = 0, end = Contents.size(); addr < end; addr += 16) {
+      outs() << format(" %04" PRIx64 " ", BaseAddr + addr);
+      // Dump line of hex.
+      for (std::size_t i = 0; i < 16; ++i) {
+        if (i != 0 && i % 4 == 0)
+          outs() << ' ';
+        if (addr + i < end)
+          outs() << hexdigit((Contents[addr + i] >> 4) & 0xF, true)
+                 << hexdigit(Contents[addr + i] & 0xF, true);
+        else
+          outs() << "  ";
+      }
+      // Print ascii.
+      outs() << "  ";
+      for (std::size_t i = 0; i < 16 && addr + i < end; ++i) {
+        if (std::isprint(Contents[addr + i] & 0xFF))
+          outs() << Contents[addr + i];
+        else
+          outs() << ".";
+      }
+      outs() << "\n";
+    }
+  }
+}
+
+static void PrintCOFFSymbolTable(const COFFObjectFile *coff) {
+  const coff_file_header *header;
+  if (error(coff->getHeader(header))) return;
+  int aux_count = 0;
+  const coff_symbol *symbol = 0;
+  for (int i = 0, e = header->NumberOfSymbols; i != e; ++i) {
+    if (aux_count--) {
+      // Figure out which type of aux this is.
+      if (symbol->StorageClass == COFF::IMAGE_SYM_CLASS_STATIC
+          && symbol->Value == 0) { // Section definition.
+        const coff_aux_section_definition *asd;
+        if (error(coff->getAuxSymbol<coff_aux_section_definition>(i, asd)))
+          return;
+        outs() << "AUX "
+               << format("scnlen 0x%x nreloc %d nlnno %d checksum 0x%x "
+                         , unsigned(asd->Length)
+                         , unsigned(asd->NumberOfRelocations)
+                         , unsigned(asd->NumberOfLinenumbers)
+                         , unsigned(asd->CheckSum))
+               << format("assoc %d comdat %d\n"
+                         , unsigned(asd->Number)
+                         , unsigned(asd->Selection));
+      } else {
+        outs() << "AUX Unknown\n";
+      }
+    } else {
+      StringRef name;
+      if (error(coff->getSymbol(i, symbol))) return;
+      if (error(coff->getSymbolName(symbol, name))) return;
+      outs() << "[" << format("%2d", i) << "]"
+             << "(sec " << format("%2d", int(symbol->SectionNumber)) << ")"
+             << "(fl 0x00)" // Flag bits, which COFF doesn't have.
+             << "(ty " << format("%3x", unsigned(symbol->Type)) << ")"
+             << "(scl " << format("%3x", unsigned(symbol->StorageClass)) << ") "
+             << "(nx " << unsigned(symbol->NumberOfAuxSymbols) << ") "
+             << "0x" << format("%08x", unsigned(symbol->Value)) << " "
+             << name << "\n";
+      aux_count = symbol->NumberOfAuxSymbols;
+    }
+  }
+}
+
+static void PrintSymbolTable(const ObjectFile *o) {
+  outs() << "SYMBOL TABLE:\n";
+
+  if (const COFFObjectFile *coff = dyn_cast<const COFFObjectFile>(o))
+    PrintCOFFSymbolTable(coff);
+  else {
+    error_code ec;
+    for (symbol_iterator si = o->begin_symbols(),
+                         se = o->end_symbols(); si != se; si.increment(ec)) {
+      if (error(ec)) return;
+      StringRef Name;
+      uint64_t Address;
+      SymbolRef::Type Type;
+      uint64_t Size;
+      uint32_t Flags;
+      section_iterator Section = o->end_sections();
+      if (error(si->getName(Name))) continue;
+      if (error(si->getAddress(Address))) continue;
+      if (error(si->getFlags(Flags))) continue;
+      if (error(si->getType(Type))) continue;
+      if (error(si->getSize(Size))) continue;
+      if (error(si->getSection(Section))) continue;
+
+      bool Global = Flags & SymbolRef::SF_Global;
+      bool Weak = Flags & SymbolRef::SF_Weak;
+      bool Absolute = Flags & SymbolRef::SF_Absolute;
+
+      if (Address == UnknownAddressOrSize)
+        Address = 0;
+      if (Size == UnknownAddressOrSize)
+        Size = 0;
+      char GlobLoc = ' ';
+      if (Type != SymbolRef::ST_Unknown)
+        GlobLoc = Global ? 'g' : 'l';
+      char Debug = (Type == SymbolRef::ST_Debug || Type == SymbolRef::ST_File)
+                   ? 'd' : ' ';
+      char FileFunc = ' ';
+      if (Type == SymbolRef::ST_File)
+        FileFunc = 'f';
+      else if (Type == SymbolRef::ST_Function)
+        FileFunc = 'F';
+
+      outs() << format("%08" PRIx64, Address) << " "
+             << GlobLoc // Local -> 'l', Global -> 'g', Neither -> ' '
+             << (Weak ? 'w' : ' ') // Weak?
+             << ' ' // Constructor. Not supported yet.
+             << ' ' // Warning. Not supported yet.
+             << ' ' // Indirect reference to another symbol.
+             << Debug // Debugging (d) or dynamic (D) symbol.
+             << FileFunc // Name of function (F), file (f) or object (O).
+             << ' ';
+      if (Absolute)
+        outs() << "*ABS*";
+      else if (Section == o->end_sections())
+        outs() << "*UND*";
+      else {
+        StringRef SectionName;
+        if (error(Section->getName(SectionName)))
+          SectionName = "";
+        outs() << SectionName;
+      }
+      outs() << '\t'
+             << format("%08" PRIx64 " ", Size)
+             << Name
+             << '\n';
+    }
+  }
+}
+
 static void DumpObject(const ObjectFile *o) {
+  outs() << '\n';
+  outs() << o->getFileName()
+         << ":\tfile format " << o->getFileFormatName() << "\n\n";
+
   if (Disassemble)
     DisassembleObject(o, Relocations);
   if (Relocations && !Disassemble)
     PrintRelocations(o);
   if (SectionHeaders)
     PrintSectionHeaders(o);
+  if (SectionContents)
+    PrintSectionContents(o);
+  if (SymbolTable)
+    PrintSymbolTable(o);
 }
 
 /// @brief Dump each object file in \a a;
@@ -385,8 +577,10 @@ static void DumpArchive(const Archive *a) {
                                e = a->end_children(); i != e; ++i) {
     OwningPtr<Binary> child;
     if (error_code ec = i->getAsBinary(child)) {
-      errs() << ToolName << ": '" << a->getFileName() << "': " << ec.message()
-             << ".\n";
+      // Ignore non-object files.
+      if (ec != object_error::invalid_file_type)
+        errs() << ToolName << ": '" << a->getFileName() << "': " << ec.message()
+               << ".\n";
       continue;
     }
     if (ObjectFile *o = dyn_cast<ObjectFile>(child.get()))
@@ -447,7 +641,11 @@ int main(int argc, char **argv) {
   if (InputFilenames.size() == 0)
     InputFilenames.push_back("a.out");
 
-  if (!Disassemble && !Relocations && !SectionHeaders) {
+  if (!Disassemble
+      && !Relocations
+      && !SectionHeaders
+      && !SectionContents
+      && !SymbolTable) {
     cl::PrintHelpMessage();
     return 2;
   }

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2011
+.Dd April 18, 2012
 .Dt GMULTIPATH 8
 .Os
 .Sh NAME
@@ -33,14 +33,18 @@
 .Sh SYNOPSIS
 .Nm
 .Cm create
-.Op Fl Av
+.Op Fl ARv
 .Ar name
 .Ar prov ...
 .Nm
 .Cm label
-.Op Fl Av
+.Op Fl ARv
 .Ar name
 .Ar prov ...
+.Nm
+.Cm configure
+.Op Fl APRv
+.Ar name
 .Nm
 .Cm add
 .Op Fl v
@@ -121,7 +125,9 @@ Kernel will only check that all given providers have same media and
 sector sizes.
 .Pp
 .Fl A
-option enables Active/Active mode, otherwise Active/Passive mode is used
+option enables Active/Active mode,
+.Fl R
+option enables Active/Read mode, otherwise Active/Passive mode is used
 by default.
 .It Cm label
 Create multipath device with
@@ -134,8 +140,19 @@ It reliably protects against specifying unrelated providers.
 Providers with no matching metadata detected will not be added to the device.
 .Pp
 .Fl A
-option enables Active/Active mode, otherwise Active/Passive mode is used
+option enables Active/Active mode,
+.Fl R
+option enables Active/Read mode, otherwise Active/Passive mode is used
 by default.
+.It Cm configure
+Configure the given multipath device.
+.Pp
+.Fl A
+option enables Active/Active mode,
+.Fl P
+option enables Active/Passive mode,
+.Fl R
+option enables Active/Read mode.
 .It Cm add
 Add the given provider as a path to the given multipath device.
 Should normally be used only for devices created with
@@ -221,7 +238,8 @@ of multiple pathnames refer to the same device should be left to the
 system operator who will use tools and knowledge of their own storage
 subsystem to make the correct configuration selection.
 .Pp
-There are Active/Passive and Active/Active operation modes supported.
+There are Active/Passive, Active/Read and Active/Active operation modes
+supported.
 In Active/Passive mode only one path has I/O moving on it
 at any point in time.
 This I/O continues until an I/O is returned with
@@ -231,6 +249,12 @@ in a list is selected as active and the failed I/O reissued.
 In Active/Active mode all paths not marked FAIL may handle I/O same time.
 Requests are distributed between paths to equalize load.
 For capable devices it allows to utilize bandwidth of all paths.
+In Active/Read mode all paths not marked FAIL may handle reads same time,
+but unlike Active/Active only one path handles write requests at any
+point in time.
+It allows to closer follow original write request order if above layer
+needs it for data consistency (not waiting for requisite write completion
+before sending dependent write).
 .Pp
 When new devices are added to the system the
 .Nm MULTIPATH

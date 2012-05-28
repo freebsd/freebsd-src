@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: mkid,v 1.6 2009/09/19 16:28:10 christos Exp $
 # mkid:  file(1) magic for mkid(1) databases
 #
 # ID is the binary tags database produced by mkid(1).

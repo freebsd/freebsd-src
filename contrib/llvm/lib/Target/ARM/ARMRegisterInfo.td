@@ -1,4 +1,4 @@
-//===- ARMRegisterInfo.td - ARM Register defs --------------*- tablegen -*-===//
+//===-- ARMRegisterInfo.td - ARM Register defs -------------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,6 +16,8 @@ class ARMReg<bits<4> num, string n, list<Register> subregs = []> : Register<n> {
   field bits<4> Num;
   let Namespace = "ARM";
   let SubRegs = subregs;
+  // All bits of ARM registers with sub-registers are covered by sub-registers.
+  let CoveredBySubRegs = 1;
 }
 
 class ARMFReg<bits<6> num, string n> : Register<n> {
@@ -25,28 +27,30 @@ class ARMFReg<bits<6> num, string n> : Register<n> {
 
 // Subregister indices.
 let Namespace = "ARM" in {
+def qqsub_0 : SubRegIndex;
+def qqsub_1 : SubRegIndex;
+
 // Note: Code depends on these having consecutive numbers.
-def ssub_0  : SubRegIndex;
-def ssub_1  : SubRegIndex;
-def ssub_2  : SubRegIndex; // In a Q reg.
-def ssub_3  : SubRegIndex;
+def qsub_0 : SubRegIndex;
+def qsub_1 : SubRegIndex;
+def qsub_2 : SubRegIndex<[qqsub_1, qsub_0]>;
+def qsub_3 : SubRegIndex<[qqsub_1, qsub_1]>;
 
 def dsub_0 : SubRegIndex;
 def dsub_1 : SubRegIndex;
-def dsub_2 : SubRegIndex;
-def dsub_3 : SubRegIndex;
-def dsub_4 : SubRegIndex;
-def dsub_5 : SubRegIndex;
-def dsub_6 : SubRegIndex;
-def dsub_7 : SubRegIndex;
+def dsub_2 : SubRegIndex<[qsub_1, dsub_0]>;
+def dsub_3 : SubRegIndex<[qsub_1, dsub_1]>;
+def dsub_4 : SubRegIndex<[qsub_2, dsub_0]>;
+def dsub_5 : SubRegIndex<[qsub_2, dsub_1]>;
+def dsub_6 : SubRegIndex<[qsub_3, dsub_0]>;
+def dsub_7 : SubRegIndex<[qsub_3, dsub_1]>;
 
-def qsub_0 : SubRegIndex;
-def qsub_1 : SubRegIndex;
-def qsub_2 : SubRegIndex;
-def qsub_3 : SubRegIndex;
-
-def qqsub_0 : SubRegIndex;
-def qqsub_1 : SubRegIndex;
+def ssub_0  : SubRegIndex;
+def ssub_1  : SubRegIndex;
+def ssub_2  : SubRegIndex<[dsub_1, ssub_0]>;
+def ssub_3  : SubRegIndex<[dsub_1, ssub_1]>;
+// Let TableGen synthesize the remaining 12 ssub_* indices.
+// We don't need to name them.
 }
 
 // Integer registers
@@ -127,9 +131,7 @@ def D30 : ARMFReg<30, "d30">, DwarfRegNum<[286]>;
 def D31 : ARMFReg<31, "d31">, DwarfRegNum<[287]>;
 
 // Advanced SIMD (NEON) defines 16 quad-word aliases
-let SubRegIndices = [dsub_0, dsub_1],
- CompositeIndices = [(ssub_2 dsub_1, ssub_0),
-                     (ssub_3 dsub_1, ssub_1)] in {
+let SubRegIndices = [dsub_0, dsub_1] in {
 def Q0  : ARMReg< 0,  "q0", [D0,   D1]>;
 def Q1  : ARMReg< 1,  "q1", [D2,   D3]>;
 def Q2  : ARMReg< 2,  "q2", [D4,   D5]>;
@@ -150,45 +152,22 @@ def Q14 : ARMReg<14, "q14", [D28, D29]>;
 def Q15 : ARMReg<15, "q15", [D30, D31]>;
 }
 
-// Pseudo 256-bit registers to represent pairs of Q registers. These should
-// never be present in the emitted code.
-// These are used for NEON load / store instructions, e.g., vld4, vst3.
-// NOTE: It's possible to define more QQ registers since technically the
-// starting D register number doesn't have to be multiple of 4, e.g.,
-// D1, D2, D3, D4 would be a legal quad, but that would make the subregister
-// stuff very messy.
-let SubRegIndices = [qsub_0, qsub_1],
- CompositeIndices = [(dsub_2 qsub_1, dsub_0), (dsub_3 qsub_1, dsub_1)] in {
-def QQ0 : ARMReg<0, "qq0", [Q0,  Q1]>;
-def QQ1 : ARMReg<1, "qq1", [Q2,  Q3]>;
-def QQ2 : ARMReg<2, "qq2", [Q4,  Q5]>;
-def QQ3 : ARMReg<3, "qq3", [Q6,  Q7]>;
-def QQ4 : ARMReg<4, "qq4", [Q8,  Q9]>;
-def QQ5 : ARMReg<5, "qq5", [Q10, Q11]>;
-def QQ6 : ARMReg<6, "qq6", [Q12, Q13]>;
-def QQ7 : ARMReg<7, "qq7", [Q14, Q15]>;
-}
-
-// Pseudo 512-bit registers to represent four consecutive Q registers.
-let SubRegIndices = [qqsub_0, qqsub_1],
- CompositeIndices = [(qsub_2  qqsub_1, qsub_0), (qsub_3  qqsub_1, qsub_1),
-                     (dsub_4  qqsub_1, dsub_0), (dsub_5  qqsub_1, dsub_1),
-                     (dsub_6  qqsub_1, dsub_2), (dsub_7  qqsub_1, dsub_3)] in {
-def QQQQ0 : ARMReg<0, "qqqq0", [QQ0, QQ1]>;
-def QQQQ1 : ARMReg<1, "qqqq1", [QQ2, QQ3]>;
-def QQQQ2 : ARMReg<2, "qqqq2", [QQ4, QQ5]>;
-def QQQQ3 : ARMReg<3, "qqqq3", [QQ6, QQ7]>;
-}
-
 // Current Program Status Register.
-def CPSR    : ARMReg<0, "cpsr">;
-def APSR    : ARMReg<1, "apsr">;
-def SPSR    : ARMReg<2, "spsr">;
-def FPSCR   : ARMReg<3, "fpscr">;
-def ITSTATE : ARMReg<4, "itstate">;
+// We model fpscr with two registers: FPSCR models the control bits and will be
+// reserved. FPSCR_NZCV models the flag bits and will be unreserved. 
+def CPSR       : ARMReg<0, "cpsr">;
+def APSR       : ARMReg<1, "apsr">;
+def SPSR       : ARMReg<2, "spsr">;
+def FPSCR      : ARMReg<3, "fpscr">;
+def FPSCR_NZCV : ARMReg<3, "fpscr_nzcv"> {
+  let Aliases = [FPSCR];
+}
+def ITSTATE    : ARMReg<4, "itstate">;
 
 // Special Registers - only available in privileged mode.
 def FPSID   : ARMReg<0, "fpsid">;
+def MVFR1   : ARMReg<6, "mvfr1">;
+def MVFR0   : ARMReg<7, "mvfr0">;
 def FPEXC   : ARMReg<8, "fpexc">;
 
 // Register classes.
@@ -261,6 +240,12 @@ def tcGPR : RegisterClass<"ARM", [i32], 32, (add R0, R1, R2, R3, R9, R12)> {
   }];
 }
 
+// Condition code registers.
+def CCR : RegisterClass<"ARM", [i32], 32, (add CPSR)> {
+  let CopyCost = -1;  // Don't allow copying of status registers.
+  let isAllocatable = 0;
+}
+
 // Scalar single precision floating point register class..
 def SPR : RegisterClass<"ARM", [f32], 32, (sequence "S%u", 0, 31)>;
 
@@ -316,37 +301,100 @@ def QPR_8 : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
                        (DPR_8 dsub_0, dsub_1)];
 }
 
-// Pseudo 256-bit vector register class to model pairs of Q registers
-// (4 consecutive D registers).
-def QQPR : RegisterClass<"ARM", [v4i64], 256, (sequence "QQ%u", 0, 7)> {
-  let SubRegClasses = [(DPR dsub_0, dsub_1, dsub_2, dsub_3),
-                       (QPR qsub_0, qsub_1)];
-  // Allocate non-VFP2 aliases first.
-  let AltOrders = [(rotl QQPR, 4)];
+// Pseudo-registers representing odd-even pairs of D registers. The even-odd
+// pairs are already represented by the Q registers.
+// These are needed by NEON instructions requiring two consecutive D registers.
+// There is no D31_D0 register as that is always an UNPREDICTABLE encoding.
+def TuplesOE2D : RegisterTuples<[dsub_0, dsub_1],
+                                [(decimate (shl DPR, 1), 2),
+                                 (decimate (shl DPR, 2), 2)]>;
+
+// Register class representing a pair of consecutive D registers.
+// Use the Q registers for the even-odd pairs.
+def DPair : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+                          128, (interleave QPR, TuplesOE2D)> {
+  // Allocate starting at non-VFP2 registers D16-D31 first.
+  // Prefer even-odd pairs as they are easier to copy.
+  let AltOrders = [(add (rotl QPR, 8), (rotl DPair, 16))];
   let AltOrderSelect = [{ return 1; }];
 }
 
-// Subset of QQPR that have 32-bit SPR subregs.
-def QQPR_VFP2 : RegisterClass<"ARM", [v4i64], 256, (trunc QQPR, 4)> {
-  let SubRegClasses = [(SPR      ssub_0, ssub_1, ssub_2, ssub_3),
-                       (DPR_VFP2 dsub_0, dsub_1, dsub_2, dsub_3),
-                       (QPR_VFP2 qsub_0, qsub_1)];
+// Pseudo-registers representing 3 consecutive D registers.
+def Tuples3D : RegisterTuples<[dsub_0, dsub_1, dsub_2],
+                              [(shl DPR, 0),
+                               (shl DPR, 1),
+                               (shl DPR, 2)]>;
 
+// 3 consecutive D registers.
+def DTriple : RegisterClass<"ARM", [untyped], 64, (add Tuples3D)> {
+  let Size = 192; // 3 x 64 bits, we have no predefined type of that size.
 }
+
+// Pseudo 256-bit registers to represent pairs of Q registers. These should
+// never be present in the emitted code.
+// These are used for NEON load / store instructions, e.g., vld4, vst3.
+def Tuples2Q : RegisterTuples<[qsub_0, qsub_1], [(shl QPR, 0), (shl QPR, 1)]>;
+
+// Pseudo 256-bit vector register class to model pairs of Q registers
+// (4 consecutive D registers).
+def QQPR : RegisterClass<"ARM", [v4i64], 256, (add Tuples2Q)> {
+  let SubRegClasses = [(DPR dsub_0, dsub_1, dsub_2, dsub_3),
+                       (QPR qsub_0, qsub_1)];
+  // Allocate non-VFP2 aliases first.
+  let AltOrders = [(rotl QQPR, 8)];
+  let AltOrderSelect = [{ return 1; }];
+}
+
+// Tuples of 4 D regs that isn't also a pair of Q regs.
+def TuplesOE4D : RegisterTuples<[dsub_0, dsub_1, dsub_2, dsub_3],
+                                [(decimate (shl DPR, 1), 2),
+                                 (decimate (shl DPR, 2), 2),
+                                 (decimate (shl DPR, 3), 2),
+                                 (decimate (shl DPR, 4), 2)]>;
+
+// 4 consecutive D registers.
+def DQuad : RegisterClass<"ARM", [v4i64], 256,
+                          (interleave Tuples2Q, TuplesOE4D)>;
+
+// Pseudo 512-bit registers to represent four consecutive Q registers.
+def Tuples2QQ : RegisterTuples<[qqsub_0, qqsub_1],
+                               [(shl QQPR, 0), (shl QQPR, 2)]>;
 
 // Pseudo 512-bit vector register class to model 4 consecutive Q registers
 // (8 consecutive D registers).
-def QQQQPR : RegisterClass<"ARM", [v8i64], 256, (sequence "QQQQ%u", 0, 3)> {
+def QQQQPR : RegisterClass<"ARM", [v8i64], 256, (add Tuples2QQ)> {
   let SubRegClasses = [(DPR dsub_0, dsub_1, dsub_2, dsub_3,
                             dsub_4, dsub_5, dsub_6, dsub_7),
                        (QPR qsub_0, qsub_1, qsub_2, qsub_3)];
   // Allocate non-VFP2 aliases first.
-  let AltOrders = [(rotl QQQQPR, 2)];
+  let AltOrders = [(rotl QQQQPR, 8)];
   let AltOrderSelect = [{ return 1; }];
 }
 
-// Condition code registers.
-def CCR : RegisterClass<"ARM", [i32], 32, (add CPSR)> {
-  let CopyCost = -1;  // Don't allow copying of status registers.
-  let isAllocatable = 0;
+
+// Pseudo-registers representing 2-spaced consecutive D registers.
+def Tuples2DSpc : RegisterTuples<[dsub_0, dsub_2],
+                                 [(shl DPR, 0),
+                                  (shl DPR, 2)]>;
+
+// Spaced pairs of D registers.
+def DPairSpc : RegisterClass<"ARM", [v2i64], 64, (add Tuples2DSpc)>;
+
+def Tuples3DSpc : RegisterTuples<[dsub_0, dsub_2, dsub_4],
+                                 [(shl DPR, 0),
+                                  (shl DPR, 2),
+                                  (shl DPR, 4)]>;
+
+// Spaced triples of D registers.
+def DTripleSpc : RegisterClass<"ARM", [untyped], 64, (add Tuples3DSpc)> {
+  let Size = 192; // 3 x 64 bits, we have no predefined type of that size.
 }
+
+def Tuples4DSpc : RegisterTuples<[dsub_0, dsub_2, dsub_4, dsub_6],
+                                 [(shl DPR, 0),
+                                  (shl DPR, 2),
+                                  (shl DPR, 4),
+                                  (shl DPR, 6)]>;
+
+// Spaced quads of D registers.
+def DQuadSpc : RegisterClass<"ARM", [v4i64], 64, (add Tuples3DSpc)>;

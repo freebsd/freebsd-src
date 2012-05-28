@@ -58,6 +58,7 @@ class JIT : public ExecutionEngine {
   TargetMachine &TM;       // The current target we are compiling to
   TargetJITInfo &TJI;      // The JITInfo for the target we are compiling to
   JITCodeEmitter *JCE;     // JCE object
+  JITMemoryManager *JMM;
   std::vector<JITEventListener*> EventListeners;
 
   /// AllocateGVsWithCode - Some applications require that global variables and
@@ -78,8 +79,7 @@ class JIT : public ExecutionEngine {
 
 
   JIT(Module *M, TargetMachine &tm, TargetJITInfo &tji,
-      JITMemoryManager *JMM, CodeGenOpt::Level OptLevel,
-      bool AllocateGVsWithCode);
+      JITMemoryManager *JMM, bool AllocateGVsWithCode);
 public:
   ~JIT();
 
@@ -118,15 +118,15 @@ public:
                                    const std::vector<GenericValue> &ArgValues);
 
   /// getPointerToNamedFunction - This method returns the address of the
-  /// specified function by using the dlsym function call.  As such it is only
+  /// specified function by using the MemoryManager. As such it is only
   /// useful for resolving library symbols, not code generated symbols.
   ///
   /// If AbortOnFailure is false and no function with the given name is
   /// found, this function silently returns a null pointer. Otherwise,
   /// it prints a message to stderr and aborts.
   ///
-  void *getPointerToNamedFunction(const std::string &Name,
-                                  bool AbortOnFailure = true);
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true);
 
   // CompilationCallback - Invoked the first time that a call site is found,
   // which causes lazy compilation of the target function.
@@ -185,7 +185,6 @@ public:
   static ExecutionEngine *createJIT(Module *M,
                                     std::string *ErrorStr,
                                     JITMemoryManager *JMM,
-                                    CodeGenOpt::Level OptLevel,
                                     bool GVsWithCode,
                                     TargetMachine *TM);
 

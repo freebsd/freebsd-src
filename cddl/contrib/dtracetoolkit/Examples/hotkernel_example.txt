@@ -1,0 +1,153 @@
+The following are demonstrations of the hotkernel DTrace program.
+
+
+Here hotkernel is run for a couple of seconds then Ctrl-C is hit,
+
+   # ./hotkernel
+   Sampling... Hit Ctrl-C to end.
+   ^C
+   FUNCTION                                                COUNT   PCNT
+   unix`swtch                                                  1   0.1%
+   pcplusmp`apic_redistribute_compute                          1   0.1%
+   genunix`strrput                                             1   0.1%
+   unix`sys_call                                               1   0.1%
+   genunix`fsflush_do_pages                                    1   0.1%
+   TS`ts_wakeup                                                1   0.1%
+   genunix`callout_schedule_1                                  1   0.1%
+   unix`page_create_putback                                    1   0.1%
+   unix`mutex_enter                                            4   0.3%
+   unix`cpu_halt                                            1575  99.2%
+
+The output summarises which kernel-level function was sampled on the
+CPU the most. This report shows that unix`cpu_halt was sampled 1575 
+times, which was 99.2% of the kernel-level samples.
+
+As it turns out, unix`cpu_halt is called on this x86 server as part of the
+kernel idle thread - explaining why it is so often found on the CPU,
+
+   # dtrace -n 'fbt::cpu_halt:entry { @[stack()] = count(); }'
+   dtrace: description 'fbt::cpu_halt:entry ' matched 1 probe
+   ^C
+   
+                 unix`idle+0x3b
+                 unix`thread_start+0x3
+                 956
+
+This kernel stack trace indicates that cpu_halt() is called by idle().
+
+The following is a SPARC example,
+
+   # ./hotkernel 
+   Sampling... Hit Ctrl-C to end.
+   ^C
+   FUNCTION                                                COUNT   PCNT
+   genunix`fop_ioctl                                           1   0.1%
+   genunix`allocb_cred                                         1   0.1%
+   genunix`poll_common                                         1   0.1%
+   genunix`cv_block                                            1   0.1%
+   genunix`strioctl                                            1   0.1%
+   genunix`disp_lock_exit                                      1   0.1%
+   genunix`crfree                                              1   0.1%
+   ufs`ufs_getpage                                             1   0.1%
+   SUNW,UltraSPARC-IIi`copyin                                  1   0.1%
+   genunix`strmakedata                                         1   0.1%
+   genunix`cv_waituntil_sig                                    1   0.1%
+   SUNW,UltraSPARC-IIi`prefetch_page_r                         1   0.1%
+   unix`set_freemem                                            1   0.1%
+   unix`page_trylock                                           1   0.1%
+   genunix`anon_get_ptr                                        1   0.1%
+   unix`page_hashin                                            1   0.1%
+   genunix`bt_getlowbit                                        1   0.1%
+   unix`pp_load_tlb                                            1   0.1%
+   unix`_resume_from_idle                                      1   0.1%
+   unix`hat_pageunload                                         1   0.1%
+   genunix`strrput                                             1   0.1%
+   genunix`strpoll                                             1   0.1%
+   unix`page_do_hashin                                         1   0.1%
+   unix`cpu_vm_stats_ks_update                                 1   0.1%
+   genunix`sleepq_wakeone_chan                                 1   0.1%
+   unix`lock_set_spl                                           1   0.1%
+   tl`tl_wput                                                  1   0.1%
+   genunix`kstrgetmsg                                          1   0.1%
+   genunix`qbackenable                                         1   0.1%
+   genunix`releasef                                            1   0.1%
+   genunix`callout_execute                                     1   0.1%
+   uata`ata_hba_start                                          1   0.1%
+   genunix`pcacheset_cmp                                       1   0.1%
+   genunix`sleepq_insert                                       1   0.1%
+   genunix`syscall_mstate                                      1   0.1%
+   sockfs`sotpi_recvmsg                                        1   0.1%
+   genunix`strput                                              1   0.1%
+   genunix`timespectohz                                        1   0.1%
+   unix`lock_clear_splx                                        1   0.1%
+   genunix`read                                                1   0.1%
+   genunix`as_segcompar                                        1   0.1%
+   unix`atomic_cas_64                                          1   0.1%
+   unix`mutex_exit                                             1   0.1%
+   genunix`cv_unsleep                                          1   0.1%
+   unix`putnext                                                1   0.1%
+   unix`intr_thread                                            1   0.1%
+   genunix`hrt2tv                                              1   0.1%
+   sockfs`socktpi_poll                                         1   0.1%
+   unix`sfmmu_mlspl_enter                                      1   0.1%
+   SUNW,UltraSPARC-IIi`get_ecache_tag                          1   0.1%
+   SUNW,UltraSPARC-IIi`gethrestime                             1   0.1%
+   genunix`cv_timedwait_sig                                    1   0.1%
+   genunix`getq_noenab                                         1   0.1%
+   SUNW,UltraSPARC-IIi`flushecacheline                         1   0.1%
+   unix`utl0                                                   1   0.1%
+   genunix`anon_alloc                                          1   0.1%
+   unix`page_downgrade                                         1   0.1%
+   unix`setfrontdq                                             1   0.1%
+   genunix`timeout_common                                      1   0.1%
+   unix`bzero                                                  1   0.1%
+   unix`ktl0                                                   2   0.1%
+   genunix`canputnext                                          2   0.1%
+   genunix`clear_active_fd                                     2   0.1%
+   unix`sfmmu_tlb_demap                                        2   0.1%
+   unix`page_vpadd                                             2   0.1%
+   SUNW,UltraSPARC-IIi`check_ecache_line                       2   0.1%
+   genunix`cyclic_softint                                      2   0.1%
+   genunix`restore_mstate                                      2   0.1%
+   genunix`anon_map_getpages                                   2   0.1%
+   genunix`putq                                                2   0.1%
+   unix`page_lookup_create                                     2   0.1%
+   dtrace`dtrace_dynvar_clean                                  2   0.1%
+   unix`sfmmu_pageunload                                       2   0.1%
+   genunix`cpu_decay                                           2   0.1%
+   genunix`kmem_cache_alloc                                    3   0.2%
+   unix`rw_exit                                                3   0.2%
+   tl`tl_wput_data_ser                                         3   0.2%
+   unix`page_get_replacement_page                              3   0.2%
+   unix`page_sub                                               3   0.2%
+   genunix`clock                                               3   0.2%
+   SUNW,UltraSPARC-IIi`copyout                                 3   0.2%
+   unix`mutex_enter                                            4   0.2%
+   genunix`pcache_poll                                         5   0.3%
+   SUNW,UltraSPARC-IIi`scrub_ecache_line                       5   0.3%
+   SUNW,UltraSPARC-IIi`hwblkpagecopy                          22   1.2%
+   SUNW,UltraSPARC-IIi`hwblkclr                               39   2.1%
+   unix`generic_idle_cpu                                     506  26.8%
+   unix`idle                                                1199  63.5%
+
+Which shows the most common function is unix`idle.
+
+
+
+
+Now the hotkernel tool is demonstrated with the -m option, to only print
+out samples by module,
+
+   # ./hotkernel -m
+   Sampling... Hit Ctrl-C to end.
+   ^C
+   MODULE                                                  COUNT   PCNT
+   usbms                                                       1   0.0%
+   specfs                                                      1   0.0%
+   uhci                                                        1   0.0%
+   sockfs                                                      2   0.0%
+   genunix                                                    28   0.6%
+   unix                                                     4539  99.3%
+
+Here, genunix and unix (the two core parts of the kernel) were the most
+common module to be executing on-CPU.

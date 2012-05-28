@@ -42,6 +42,7 @@ namespace llvm {
   class DISubprogram;
   class DITemplateTypeParameter;
   class DITemplateValueParameter;
+  class DIObjCProperty;
 
   class DIBuilder {
     private:
@@ -190,6 +191,39 @@ namespace llvm {
                           StringRef PropertySetterName = StringRef(),
                           unsigned PropertyAttributes = 0);
 
+    /// createObjCIVar - Create debugging information entry for Objective-C
+    /// instance variable.
+    /// @param Name         Member name.
+    /// @param File         File where this member is defined.
+    /// @param LineNo       Line number.
+    /// @param SizeInBits   Member size.
+    /// @param AlignInBits  Member alignment.
+    /// @param OffsetInBits Member offset.
+    /// @param Flags        Flags to encode member attribute, e.g. private
+    /// @param Ty           Parent type.
+    /// @param Property     Property associated with this ivar.
+    DIType createObjCIVar(StringRef Name, DIFile File,
+                          unsigned LineNo, uint64_t SizeInBits, 
+                          uint64_t AlignInBits, uint64_t OffsetInBits, 
+                          unsigned Flags, DIType Ty,
+                          MDNode *PropertyNode);
+
+    /// createObjCProperty - Create debugging information entry for Objective-C
+    /// property.
+    /// @param Name         Property name.
+    /// @param File         File where this property is defined.
+    /// @param LineNumber   Line number.
+    /// @param GetterName   Name of the Objective C property getter selector.
+    /// @param SetterName   Name of the Objective C property setter selector.
+    /// @param PropertyAttributes Objective C property attributes.
+    /// @param Ty           Type.
+    DIObjCProperty createObjCProperty(StringRef Name,
+				      DIFile File, unsigned LineNumber,
+				      StringRef GetterName,
+				      StringRef SetterName,
+				      unsigned PropertyAttributes,
+				      DIType Ty);
+      
     /// createClassType - Create debugging information entry for a class.
     /// @param Scope        Scope in which this class is defined.
     /// @param Name         class name.
@@ -313,6 +347,10 @@ namespace llvm {
     DIType createTemporaryType();
     DIType createTemporaryType(DIFile F);
 
+    /// createForwardDecl - Create a temporary forward-declared type.
+    DIType createForwardDecl(unsigned Tag, StringRef Name, DIFile F,
+                             unsigned Line, unsigned RuntimeLang = 0);
+
     /// retainType - Retain DIType in a module even if it is not referenced 
     /// through debug info anchors.
     void retainType(DIType T);
@@ -407,6 +445,7 @@ namespace llvm {
     /// @param Ty            Function type.
     /// @param isLocalToUnit True if this function is not externally visible..
     /// @param isDefinition  True if this is a function definition.
+    /// @param ScopeLine     Set to the beginning of the scope this starts
     /// @param Flags         e.g. is this function prototyped or not.
     ///                      This flags are used to emit dwarf attributes.
     /// @param isOptimized   True if optimization is ON.
@@ -417,6 +456,7 @@ namespace llvm {
                                 DIFile File, unsigned LineNo,
                                 DIType Ty, bool isLocalToUnit,
                                 bool isDefinition,
+                                unsigned ScopeLine,
                                 unsigned Flags = 0,
                                 bool isOptimized = false,
                                 Function *Fn = 0,
@@ -470,7 +510,7 @@ namespace llvm {
     /// @param Scope       Lexical block.
     /// @param File        Source file.
     DILexicalBlockFile createLexicalBlockFile(DIDescriptor Scope,
-					      DIFile File);
+                                              DIFile File);
     
     /// createLexicalBlock - This creates a descriptor for a lexical block
     /// with the specified parent context.

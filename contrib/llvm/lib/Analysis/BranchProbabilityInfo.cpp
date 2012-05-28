@@ -12,11 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Constants.h"
+#include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Metadata.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
@@ -29,121 +32,118 @@ INITIALIZE_PASS_END(BranchProbabilityInfo, "branch-prob",
 
 char BranchProbabilityInfo::ID = 0;
 
-namespace {
-// Please note that BranchProbabilityAnalysis is not a FunctionPass.
-// It is created by BranchProbabilityInfo (which is a FunctionPass), which
-// provides a clear interface. Thanks to that, all heuristics and other
-// private methods are hidden in the .cpp file.
-class BranchProbabilityAnalysis {
+// Weights are for internal use only. They are used by heuristics to help to
+// estimate edges' probability. Example:
+//
+// Using "Loop Branch Heuristics" we predict weights of edges for the
+// block BB2.
+//         ...
+//          |
+//          V
+//         BB1<-+
+//          |   |
+//          |   | (Weight = 124)
+//          V   |
+//         BB2--+
+//          |
+//          | (Weight = 4)
+//          V
+//         BB3
+//
+// Probability of the edge BB2->BB1 = 124 / (124 + 4) = 0.96875
+// Probability of the edge BB2->BB3 = 4 / (124 + 4) = 0.03125
+static const uint32_t LBH_TAKEN_WEIGHT = 124;
+static const uint32_t LBH_NONTAKEN_WEIGHT = 4;
 
-  typedef std::pair<const BasicBlock *, const BasicBlock *> Edge;
+/// \brief Unreachable-terminating branch taken weight.
+///
+/// This is the weight for a branch being taken to a block that terminates
+/// (eventually) in unreachable. These are predicted as unlikely as possible.
+static const uint32_t UR_TAKEN_WEIGHT = 1;
 
-  DenseMap<Edge, uint32_t> *Weights;
+/// \brief Unreachable-terminating branch not-taken weight.
+///
+/// This is the weight for a branch not being taken toward a block that
+/// terminates (eventually) in unreachable. Such a branch is essentially never
+/// taken. Set the weight to an absurdly high value so that nested loops don't
+/// easily subsume it.
+static const uint32_t UR_NONTAKEN_WEIGHT = 1024*1024 - 1;
 
-  BranchProbabilityInfo *BP;
+static const uint32_t PH_TAKEN_WEIGHT = 20;
+static const uint32_t PH_NONTAKEN_WEIGHT = 12;
 
-  LoopInfo *LI;
+static const uint32_t ZH_TAKEN_WEIGHT = 20;
+static const uint32_t ZH_NONTAKEN_WEIGHT = 12;
+
+static const uint32_t FPH_TAKEN_WEIGHT = 20;
+static const uint32_t FPH_NONTAKEN_WEIGHT = 12;
+
+// Standard weight value. Used when none of the heuristics set weight for
+// the edge.
+static const uint32_t NORMAL_WEIGHT = 16;
+
+// Minimum weight of an edge. Please note, that weight is NEVER 0.
+static const uint32_t MIN_WEIGHT = 1;
+
+static uint32_t getMaxWeightFor(BasicBlock *BB) {
+  return UINT32_MAX / BB->getTerminator()->getNumSuccessors();
+}
 
 
-  // Weights are for internal use only. They are used by heuristics to help to
-  // estimate edges' probability. Example:
-  //
-  // Using "Loop Branch Heuristics" we predict weights of edges for the
-  // block BB2.
-  //         ...
-  //          |
-  //          V
-  //         BB1<-+
-  //          |   |
-  //          |   | (Weight = 124)
-  //          V   |
-  //         BB2--+
-  //          |
-  //          | (Weight = 4)
-  //          V
-  //         BB3
-  //
-  // Probability of the edge BB2->BB1 = 124 / (124 + 4) = 0.96875
-  // Probability of the edge BB2->BB3 = 4 / (124 + 4) = 0.03125
-
-  static const uint32_t LBH_TAKEN_WEIGHT = 124;
-  static const uint32_t LBH_NONTAKEN_WEIGHT = 4;
-
-  static const uint32_t RH_TAKEN_WEIGHT = 24;
-  static const uint32_t RH_NONTAKEN_WEIGHT = 8;
-
-  static const uint32_t PH_TAKEN_WEIGHT = 20;
-  static const uint32_t PH_NONTAKEN_WEIGHT = 12;
-
-  static const uint32_t ZH_TAKEN_WEIGHT = 20;
-  static const uint32_t ZH_NONTAKEN_WEIGHT = 12;
-
-  // Standard weight value. Used when none of the heuristics set weight for
-  // the edge.
-  static const uint32_t NORMAL_WEIGHT = 16;
-
-  // Minimum weight of an edge. Please note, that weight is NEVER 0.
-  static const uint32_t MIN_WEIGHT = 1;
-
-  // Return TRUE if BB leads directly to a Return Instruction.
-  static bool isReturningBlock(BasicBlock *BB) {
-    SmallPtrSet<BasicBlock *, 8> Visited;
-
-    while (true) {
-      TerminatorInst *TI = BB->getTerminator();
-      if (isa<ReturnInst>(TI))
-        return true;
-
-      if (TI->getNumSuccessors() > 1)
-        break;
-
-      // It is unreachable block which we can consider as a return instruction.
-      if (TI->getNumSuccessors() == 0)
-        return true;
-
-      Visited.insert(BB);
-      BB = TI->getSuccessor(0);
-
-      // Stop if cycle is detected.
-      if (Visited.count(BB))
-        return false;
-    }
-
+/// \brief Calculate edge weights for successors lead to unreachable.
+///
+/// Predict that a successor which leads necessarily to an
+/// unreachable-terminated block as extremely unlikely.
+bool BranchProbabilityInfo::calcUnreachableHeuristics(BasicBlock *BB) {
+  TerminatorInst *TI = BB->getTerminator();
+  if (TI->getNumSuccessors() == 0) {
+    if (isa<UnreachableInst>(TI))
+      PostDominatedByUnreachable.insert(BB);
     return false;
   }
 
-  uint32_t getMaxWeightFor(BasicBlock *BB) const {
-    return UINT32_MAX / BB->getTerminator()->getNumSuccessors();
+  SmallPtrSet<BasicBlock *, 4> UnreachableEdges;
+  SmallPtrSet<BasicBlock *, 4> ReachableEdges;
+
+  for (succ_iterator I = succ_begin(BB), E = succ_end(BB); I != E; ++I) {
+    if (PostDominatedByUnreachable.count(*I))
+      UnreachableEdges.insert(*I);
+    else
+      ReachableEdges.insert(*I);
   }
 
-public:
-  BranchProbabilityAnalysis(DenseMap<Edge, uint32_t> *W,
-                            BranchProbabilityInfo *BP, LoopInfo *LI)
-    : Weights(W), BP(BP), LI(LI) {
-  }
+  // If all successors are in the set of blocks post-dominated by unreachable,
+  // this block is too.
+  if (UnreachableEdges.size() == TI->getNumSuccessors())
+    PostDominatedByUnreachable.insert(BB);
 
-  // Metadata Weights
-  bool calcMetadataWeights(BasicBlock *BB);
+  // Skip probabilities if this block has a single successor or if all were
+  // reachable.
+  if (TI->getNumSuccessors() == 1 || UnreachableEdges.empty())
+    return false;
 
-  // Return Heuristics
-  bool calcReturnHeuristics(BasicBlock *BB);
+  uint32_t UnreachableWeight =
+    std::max(UR_TAKEN_WEIGHT / UnreachableEdges.size(), MIN_WEIGHT);
+  for (SmallPtrSet<BasicBlock *, 4>::iterator I = UnreachableEdges.begin(),
+                                              E = UnreachableEdges.end();
+       I != E; ++I)
+    setEdgeWeight(BB, *I, UnreachableWeight);
 
-  // Pointer Heuristics
-  bool calcPointerHeuristics(BasicBlock *BB);
+  if (ReachableEdges.empty())
+    return true;
+  uint32_t ReachableWeight =
+    std::max(UR_NONTAKEN_WEIGHT / ReachableEdges.size(), NORMAL_WEIGHT);
+  for (SmallPtrSet<BasicBlock *, 4>::iterator I = ReachableEdges.begin(),
+                                              E = ReachableEdges.end();
+       I != E; ++I)
+    setEdgeWeight(BB, *I, ReachableWeight);
 
-  // Loop Branch Heuristics
-  bool calcLoopBranchHeuristics(BasicBlock *BB);
-
-  // Zero Heurestics
-  bool calcZeroHeuristics(BasicBlock *BB);
-
-  bool runOnFunction(Function &F);
-};
-} // end anonymous namespace
+  return true;
+}
 
 // Propagate existing explicit probabilities from either profile data or
 // 'expect' intrinsic processing.
-bool BranchProbabilityAnalysis::calcMetadataWeights(BasicBlock *BB) {
+bool BranchProbabilityInfo::calcMetadataWeights(BasicBlock *BB) {
   TerminatorInst *TI = BB->getTerminator();
   if (TI->getNumSuccessors() == 1)
     return false;
@@ -174,54 +174,14 @@ bool BranchProbabilityAnalysis::calcMetadataWeights(BasicBlock *BB) {
   }
   assert(Weights.size() == TI->getNumSuccessors() && "Checked above");
   for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i)
-    BP->setEdgeWeight(BB, TI->getSuccessor(i), Weights[i]);
+    setEdgeWeight(BB, TI->getSuccessor(i), Weights[i]);
 
   return true;
 }
 
-// Calculate Edge Weights using "Return Heuristics". Predict a successor which
-// leads directly to Return Instruction will not be taken.
-bool BranchProbabilityAnalysis::calcReturnHeuristics(BasicBlock *BB){
-  if (BB->getTerminator()->getNumSuccessors() == 1)
-    return false;
-
-  SmallPtrSet<BasicBlock *, 4> ReturningEdges;
-  SmallPtrSet<BasicBlock *, 4> StayEdges;
-
-  for (succ_iterator I = succ_begin(BB), E = succ_end(BB); I != E; ++I) {
-    BasicBlock *Succ = *I;
-    if (isReturningBlock(Succ))
-      ReturningEdges.insert(Succ);
-    else
-      StayEdges.insert(Succ);
-  }
-
-  if (uint32_t numStayEdges = StayEdges.size()) {
-    uint32_t stayWeight = RH_TAKEN_WEIGHT / numStayEdges;
-    if (stayWeight < NORMAL_WEIGHT)
-      stayWeight = NORMAL_WEIGHT;
-
-    for (SmallPtrSet<BasicBlock *, 4>::iterator I = StayEdges.begin(),
-         E = StayEdges.end(); I != E; ++I)
-      BP->setEdgeWeight(BB, *I, stayWeight);
-  }
-
-  if (uint32_t numRetEdges = ReturningEdges.size()) {
-    uint32_t retWeight = RH_NONTAKEN_WEIGHT / numRetEdges;
-    if (retWeight < MIN_WEIGHT)
-      retWeight = MIN_WEIGHT;
-    for (SmallPtrSet<BasicBlock *, 4>::iterator I = ReturningEdges.begin(),
-         E = ReturningEdges.end(); I != E; ++I) {
-      BP->setEdgeWeight(BB, *I, retWeight);
-    }
-  }
-
-  return ReturningEdges.size() > 0;
-}
-
 // Calculate Edge Weights using "Pointer Heuristics". Predict a comparsion
 // between two pointer or pointer and NULL will fail.
-bool BranchProbabilityAnalysis::calcPointerHeuristics(BasicBlock *BB) {
+bool BranchProbabilityInfo::calcPointerHeuristics(BasicBlock *BB) {
   BranchInst * BI = dyn_cast<BranchInst>(BB->getTerminator());
   if (!BI || !BI->isConditional())
     return false;
@@ -249,16 +209,14 @@ bool BranchProbabilityAnalysis::calcPointerHeuristics(BasicBlock *BB) {
   if (!isProb)
     std::swap(Taken, NonTaken);
 
-  BP->setEdgeWeight(BB, Taken, PH_TAKEN_WEIGHT);
-  BP->setEdgeWeight(BB, NonTaken, PH_NONTAKEN_WEIGHT);
+  setEdgeWeight(BB, Taken, PH_TAKEN_WEIGHT);
+  setEdgeWeight(BB, NonTaken, PH_NONTAKEN_WEIGHT);
   return true;
 }
 
 // Calculate Edge Weights using "Loop Branch Heuristics". Predict backedges
 // as taken, exiting edges as not-taken.
-bool BranchProbabilityAnalysis::calcLoopBranchHeuristics(BasicBlock *BB) {
-  uint32_t numSuccs = BB->getTerminator()->getNumSuccessors();
-
+bool BranchProbabilityInfo::calcLoopBranchHeuristics(BasicBlock *BB) {
   Loop *L = LI->getLoopFor(BB);
   if (!L)
     return false;
@@ -267,17 +225,13 @@ bool BranchProbabilityAnalysis::calcLoopBranchHeuristics(BasicBlock *BB) {
   SmallPtrSet<BasicBlock *, 8> ExitingEdges;
   SmallPtrSet<BasicBlock *, 8> InEdges; // Edges from header to the loop.
 
-  bool isHeader = BB == L->getHeader();
-
   for (succ_iterator I = succ_begin(BB), E = succ_end(BB); I != E; ++I) {
-    BasicBlock *Succ = *I;
-    Loop *SuccL = LI->getLoopFor(Succ);
-    if (SuccL != L)
-      ExitingEdges.insert(Succ);
-    else if (Succ == L->getHeader())
-      BackEdges.insert(Succ);
-    else if (isHeader)
-      InEdges.insert(Succ);
+    if (!L->contains(*I))
+      ExitingEdges.insert(*I);
+    else if (L->getHeader() == *I)
+      BackEdges.insert(*I);
+    else
+      InEdges.insert(*I);
   }
 
   if (uint32_t numBackEdges = BackEdges.size()) {
@@ -288,7 +242,7 @@ bool BranchProbabilityAnalysis::calcLoopBranchHeuristics(BasicBlock *BB) {
     for (SmallPtrSet<BasicBlock *, 8>::iterator EI = BackEdges.begin(),
          EE = BackEdges.end(); EI != EE; ++EI) {
       BasicBlock *Back = *EI;
-      BP->setEdgeWeight(BB, Back, backWeight);
+      setEdgeWeight(BB, Back, backWeight);
     }
   }
 
@@ -300,27 +254,26 @@ bool BranchProbabilityAnalysis::calcLoopBranchHeuristics(BasicBlock *BB) {
     for (SmallPtrSet<BasicBlock *, 8>::iterator EI = InEdges.begin(),
          EE = InEdges.end(); EI != EE; ++EI) {
       BasicBlock *Back = *EI;
-      BP->setEdgeWeight(BB, Back, inWeight);
+      setEdgeWeight(BB, Back, inWeight);
     }
   }
 
-  uint32_t numExitingEdges = ExitingEdges.size();
-  if (uint32_t numNonExitingEdges = numSuccs - numExitingEdges) {
-    uint32_t exitWeight = LBH_NONTAKEN_WEIGHT / numNonExitingEdges;
+  if (uint32_t numExitingEdges = ExitingEdges.size()) {
+    uint32_t exitWeight = LBH_NONTAKEN_WEIGHT / numExitingEdges;
     if (exitWeight < MIN_WEIGHT)
       exitWeight = MIN_WEIGHT;
 
     for (SmallPtrSet<BasicBlock *, 8>::iterator EI = ExitingEdges.begin(),
          EE = ExitingEdges.end(); EI != EE; ++EI) {
       BasicBlock *Exiting = *EI;
-      BP->setEdgeWeight(BB, Exiting, exitWeight);
+      setEdgeWeight(BB, Exiting, exitWeight);
     }
   }
 
   return true;
 }
 
-bool BranchProbabilityAnalysis::calcZeroHeuristics(BasicBlock *BB) {
+bool BranchProbabilityInfo::calcZeroHeuristics(BasicBlock *BB) {
   BranchInst * BI = dyn_cast<BranchInst>(BB->getTerminator());
   if (!BI || !BI->isConditional())
     return false;
@@ -375,45 +328,94 @@ bool BranchProbabilityAnalysis::calcZeroHeuristics(BasicBlock *BB) {
   if (!isProb)
     std::swap(Taken, NonTaken);
 
-  BP->setEdgeWeight(BB, Taken, ZH_TAKEN_WEIGHT);
-  BP->setEdgeWeight(BB, NonTaken, ZH_NONTAKEN_WEIGHT);
+  setEdgeWeight(BB, Taken, ZH_TAKEN_WEIGHT);
+  setEdgeWeight(BB, NonTaken, ZH_NONTAKEN_WEIGHT);
 
   return true;
 }
 
+bool BranchProbabilityInfo::calcFloatingPointHeuristics(BasicBlock *BB) {
+  BranchInst *BI = dyn_cast<BranchInst>(BB->getTerminator());
+  if (!BI || !BI->isConditional())
+    return false;
 
-bool BranchProbabilityAnalysis::runOnFunction(Function &F) {
+  Value *Cond = BI->getCondition();
+  FCmpInst *FCmp = dyn_cast<FCmpInst>(Cond);
+  if (!FCmp)
+    return false;
 
-  for (Function::iterator I = F.begin(), E = F.end(); I != E; ) {
-    BasicBlock *BB = I++;
-
-    if (calcMetadataWeights(BB))
-      continue;
-
-    if (calcLoopBranchHeuristics(BB))
-      continue;
-
-    if (calcReturnHeuristics(BB))
-      continue;
-
-    if (calcPointerHeuristics(BB))
-      continue;
-
-    calcZeroHeuristics(BB);
+  bool isProb;
+  if (FCmp->isEquality()) {
+    // f1 == f2 -> Unlikely
+    // f1 != f2 -> Likely
+    isProb = !FCmp->isTrueWhenEqual();
+  } else if (FCmp->getPredicate() == FCmpInst::FCMP_ORD) {
+    // !isnan -> Likely
+    isProb = true;
+  } else if (FCmp->getPredicate() == FCmpInst::FCMP_UNO) {
+    // isnan -> Unlikely
+    isProb = false;
+  } else {
+    return false;
   }
 
-  return false;
+  BasicBlock *Taken = BI->getSuccessor(0);
+  BasicBlock *NonTaken = BI->getSuccessor(1);
+
+  if (!isProb)
+    std::swap(Taken, NonTaken);
+
+  setEdgeWeight(BB, Taken, FPH_TAKEN_WEIGHT);
+  setEdgeWeight(BB, NonTaken, FPH_NONTAKEN_WEIGHT);
+
+  return true;
 }
 
 void BranchProbabilityInfo::getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequired<LoopInfo>();
-    AU.setPreservesAll();
+  AU.addRequired<LoopInfo>();
+  AU.setPreservesAll();
 }
 
 bool BranchProbabilityInfo::runOnFunction(Function &F) {
-  LoopInfo &LI = getAnalysis<LoopInfo>();
-  BranchProbabilityAnalysis BPA(&Weights, this, &LI);
-  return BPA.runOnFunction(F);
+  LastF = &F; // Store the last function we ran on for printing.
+  LI = &getAnalysis<LoopInfo>();
+  assert(PostDominatedByUnreachable.empty());
+
+  // Walk the basic blocks in post-order so that we can build up state about
+  // the successors of a block iteratively.
+  for (po_iterator<BasicBlock *> I = po_begin(&F.getEntryBlock()),
+                                 E = po_end(&F.getEntryBlock());
+       I != E; ++I) {
+    DEBUG(dbgs() << "Computing probabilities for " << I->getName() << "\n");
+    if (calcUnreachableHeuristics(*I))
+      continue;
+    if (calcMetadataWeights(*I))
+      continue;
+    if (calcLoopBranchHeuristics(*I))
+      continue;
+    if (calcPointerHeuristics(*I))
+      continue;
+    if (calcZeroHeuristics(*I))
+      continue;
+    calcFloatingPointHeuristics(*I);
+  }
+
+  PostDominatedByUnreachable.clear();
+  return false;
+}
+
+void BranchProbabilityInfo::print(raw_ostream &OS, const Module *) const {
+  OS << "---- Branch Probabilities ----\n";
+  // We print the probabilities from the last function the analysis ran over,
+  // or the function it is currently running over.
+  assert(LastF && "Cannot print prior to running over a function");
+  for (Function::const_iterator BI = LastF->begin(), BE = LastF->end();
+       BI != BE; ++BI) {
+    for (succ_const_iterator SI = succ_begin(BI), SE = succ_end(BI);
+         SI != SE; ++SI) {
+      printEdgeProbability(OS << "  ", BI, *SI);
+    }
+  }
 }
 
 uint32_t BranchProbabilityInfo::getSumForBlock(const BasicBlock *BB) const {
@@ -434,12 +436,8 @@ uint32_t BranchProbabilityInfo::getSumForBlock(const BasicBlock *BB) const {
 bool BranchProbabilityInfo::
 isEdgeHot(const BasicBlock *Src, const BasicBlock *Dst) const {
   // Hot probability is at least 4/5 = 80%
-  uint32_t Weight = getEdgeWeight(Src, Dst);
-  uint32_t Sum = getSumForBlock(Src);
-
-  // FIXME: Implement BranchProbability::compare then change this code to
-  // compare this BranchProbability against a static "hot" BranchProbability.
-  return (uint64_t)Weight * 5 > (uint64_t)Sum * 4;
+  // FIXME: Compare against a static "hot" BranchProbability.
+  return getEdgeProbability(Src, Dst) > BranchProbability(4, 5);
 }
 
 BasicBlock *BranchProbabilityInfo::getHotSucc(BasicBlock *BB) const {
@@ -461,8 +459,8 @@ BasicBlock *BranchProbabilityInfo::getHotSucc(BasicBlock *BB) const {
     }
   }
 
-  // FIXME: Use BranchProbability::compare.
-  if ((uint64_t)MaxWeight * 5 > (uint64_t)Sum * 4)
+  // Hot probability is at least 4/5 = 80%
+  if (BranchProbability(MaxWeight, Sum) > BranchProbability(4, 5))
     return MaxSucc;
 
   return 0;
@@ -483,8 +481,8 @@ getEdgeWeight(const BasicBlock *Src, const BasicBlock *Dst) const {
 void BranchProbabilityInfo::
 setEdgeWeight(const BasicBlock *Src, const BasicBlock *Dst, uint32_t Weight) {
   Weights[std::make_pair(Src, Dst)] = Weight;
-  DEBUG(dbgs() << "set edge " << Src->getNameStr() << " -> "
-               << Dst->getNameStr() << " weight to " << Weight
+  DEBUG(dbgs() << "set edge " << Src->getName() << " -> "
+               << Dst->getName() << " weight to " << Weight
                << (isEdgeHot(Src, Dst) ? " [is HOT now]\n" : "\n"));
 }
 
@@ -499,11 +497,12 @@ getEdgeProbability(const BasicBlock *Src, const BasicBlock *Dst) const {
 }
 
 raw_ostream &
-BranchProbabilityInfo::printEdgeProbability(raw_ostream &OS, BasicBlock *Src,
-                                            BasicBlock *Dst) const {
+BranchProbabilityInfo::printEdgeProbability(raw_ostream &OS,
+                                            const BasicBlock *Src,
+                                            const BasicBlock *Dst) const {
 
   const BranchProbability Prob = getEdgeProbability(Src, Dst);
-  OS << "edge " << Src->getNameStr() << " -> " << Dst->getNameStr()
+  OS << "edge " << Src->getName() << " -> " << Dst->getName()
      << " probability is " << Prob
      << (isEdgeHot(Src, Dst) ? " [HOT edge]\n" : "\n");
 

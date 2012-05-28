@@ -528,9 +528,6 @@ intr_shuffle_irqs(void *arg __unused)
 	struct intr_vector *iv;
 	int i;
 
-	/* The BSP is always a valid target. */
-	CPU_SETOF(0, &intr_cpus);
-
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)
 		return;
@@ -557,4 +554,11 @@ intr_shuffle_irqs(void *arg __unused)
 }
 SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
     NULL);
+#else /* !SMP */
+/* Use an empty stub for compatibility. */
+void
+intr_add_cpu(u_int cpu __unused)
+{
+
+}
 #endif

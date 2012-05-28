@@ -16,6 +16,7 @@
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
 
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Path.h" // FIXME: Kill when CompilationInfo
@@ -35,7 +36,6 @@ namespace driver {
   class Command;
   class Compilation;
   class DerivedArgList;
-  class HostInfo;
   class InputArgList;
   class InputInfo;
   class JobAction;
@@ -86,18 +86,14 @@ public:
   /// If the standard library is used
   bool UseStdLib;
 
-  /// Default host triple.
-  std::string DefaultHostTriple;
+  /// Default target triple.
+  std::string DefaultTargetTriple;
 
   /// Default name for linked images (e.g., "a.out").
   std::string DefaultImageName;
 
   /// Driver title to use with help.
   std::string DriverTitle;
-
-  /// Host information for the platform the driver is running as. This
-  /// will generally be the actual host platform, but not always.
-  const HostInfo *Host;
 
   /// Information about the host which can be overridden by the user.
   std::string HostBits, HostMachine, HostSystem, HostRelease;
@@ -117,7 +113,7 @@ public:
   /// Whether the driver should follow g++ like behavior.
   unsigned CCCIsCXX : 1;
 
-  /// Whether the driver is just the preprocessor
+  /// Whether the driver is just the preprocessor.
   unsigned CCCIsCPP : 1;
 
   /// Echo commands while executing (in -v style).
@@ -175,6 +171,13 @@ private:
   std::list<std::string> TempFiles;
   std::list<std::string> ResultFiles;
 
+  /// \brief Cache of all the ToolChains in use by the driver.
+  ///
+  /// This maps from the string representation of a triple to a ToolChain
+  /// created targetting that triple. The driver owns all the ToolChain objects
+  /// stored in it, and will clean them up when torn down.
+  mutable llvm::StringMap<ToolChain *> ToolChains;
+
 private:
   /// TranslateInputArgs - Create a new derived argument list from the input
   /// arguments, after applying the standard argument translations.
@@ -187,7 +190,7 @@ private:
 
 public:
   Driver(StringRef _ClangExecutable,
-         StringRef _DefaultHostTriple,
+         StringRef _DefaultTargetTriple,
          StringRef _DefaultImageName,
          bool IsProduction,
          DiagnosticsEngine &_Diags);
@@ -379,10 +382,6 @@ public:
   /// GCC goes to extra lengths here to be a bit more robust.
   std::string GetTemporaryPath(StringRef Prefix, const char *Suffix) const;
 
-  /// GetHostInfo - Construct a new host info object for the given
-  /// host triple.
-  const HostInfo *GetHostInfo(const char *HostTriple) const;
-
   /// ShouldUseClangCompilar - Should the clang compiler be used to
   /// handle this action.
   bool ShouldUseClangCompiler(const Compilation &C, const JobAction &JA,
@@ -390,8 +389,17 @@ public:
 
   bool IsUsingLTO(const ArgList &Args) const;
 
+private:
+  /// \brief Retrieves a ToolChain for a particular target triple.
+  ///
+  /// Will cache ToolChains for the life of the driver object, and create them
+  /// on-demand.
+  const ToolChain &getToolChain(const ArgList &Args,
+                                StringRef DarwinArchName = "") const;
+
   /// @}
 
+public:
   /// GetReleaseVersion - Parse (([0-9]+)(.([0-9]+)(.([0-9]+)?))?)? and
   /// return the grouped values as integers. Numbers which are not
   /// provided are set to 0.

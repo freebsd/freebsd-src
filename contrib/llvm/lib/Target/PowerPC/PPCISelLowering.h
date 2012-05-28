@@ -15,10 +15,10 @@
 #ifndef LLVM_TARGET_POWERPC_PPC32ISELLOWERING_H
 #define LLVM_TARGET_POWERPC_PPC32ISELLOWERING_H
 
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/CodeGen/SelectionDAG.h"
 #include "PPC.h"
 #include "PPCSubtarget.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/CodeGen/SelectionDAG.h"
 
 namespace llvm {
   namespace PPCISD {
@@ -95,7 +95,9 @@ namespace llvm {
       EXTSW_32,
 
       /// CALL - A direct function call.
-      CALL_Darwin, CALL_SVR4,
+      /// CALL_NOP_SVR4 is a call with the special  NOP which follows 64-bit
+      /// SVR4 calls.
+      CALL_Darwin, CALL_SVR4, CALL_NOP_SVR4,
 
       /// NOP - Special NOP which follows 64-bit SVR4 calls.
       NOP,
@@ -279,6 +281,7 @@ namespace llvm {
     bool SelectAddressRegImmShift(SDValue N, SDValue &Disp, SDValue &Base,
                                   SelectionDAG &DAG) const;
 
+    Sched::Preference getSchedulingPreference(SDNode *N) const;
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
     ///
@@ -293,7 +296,6 @@ namespace llvm {
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
     virtual void computeMaskedBitsForTargetNode(const SDValue Op,
-                                                const APInt &Mask,
                                                 APInt &KnownZero,
                                                 APInt &KnownOne,
                                                 const SelectionDAG &DAG,
@@ -353,7 +355,7 @@ namespace llvm {
     /// alignment can satisfy any constraint. Similarly if SrcAlign is zero it
     /// means there isn't a need to check it against alignment requirement,
     /// probably because the source does not need to be loaded. If
-    /// 'NonScalarIntSafe' is true, that means it's safe to return a
+    /// 'IsZeroVal' is true, that means it's safe to return a
     /// non-scalar-integer type, e.g. empty string source, constant, or loaded
     /// from memory. 'MemcpyStrSrc' indicates whether the memcpy source is
     /// constant so it does not need to be loaded.
@@ -361,7 +363,7 @@ namespace llvm {
     /// target-independent logic.
     virtual EVT
     getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
-                        bool NonScalarIntSafe, bool MemcpyStrSrc,
+                        bool IsZeroVal, bool MemcpyStrSrc,
                         MachineFunction &MF) const;
 
   private:
@@ -437,8 +439,8 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
-      LowerCall(SDValue Chain, SDValue Callee,
-                CallingConv::ID CallConv, bool isVarArg, bool &isTailCall,
+      LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
+                bool isVarArg, bool doesNotRet, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<SDValue> &OutVals,
                 const SmallVectorImpl<ISD::InputArg> &Ins,
@@ -472,21 +474,21 @@ namespace llvm {
                                 SmallVectorImpl<SDValue> &InVals) const;
 
     SDValue
-      LowerCall_Darwin(SDValue Chain, SDValue Callee,
-                       CallingConv::ID CallConv, bool isVarArg, bool isTailCall,
+      LowerCall_Darwin(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
+                       bool isVarArg, bool isTailCall,
                        const SmallVectorImpl<ISD::OutputArg> &Outs,
                        const SmallVectorImpl<SDValue> &OutVals,
                        const SmallVectorImpl<ISD::InputArg> &Ins,
                        DebugLoc dl, SelectionDAG &DAG,
                        SmallVectorImpl<SDValue> &InVals) const;
     SDValue
-      LowerCall_SVR4(SDValue Chain, SDValue Callee,
-                     CallingConv::ID CallConv, bool isVarArg, bool isTailCall,
-                     const SmallVectorImpl<ISD::OutputArg> &Outs,
-                     const SmallVectorImpl<SDValue> &OutVals,
-                     const SmallVectorImpl<ISD::InputArg> &Ins,
-                     DebugLoc dl, SelectionDAG &DAG,
-                     SmallVectorImpl<SDValue> &InVals) const;
+    LowerCall_SVR4(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
+                   bool isVarArg, bool isTailCall,
+                   const SmallVectorImpl<ISD::OutputArg> &Outs,
+                   const SmallVectorImpl<SDValue> &OutVals,
+                   const SmallVectorImpl<ISD::InputArg> &Ins,
+                   DebugLoc dl, SelectionDAG &DAG,
+                   SmallVectorImpl<SDValue> &InVals) const;
   };
 }
 

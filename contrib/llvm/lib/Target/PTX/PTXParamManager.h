@@ -1,4 +1,4 @@
-//===- PTXParamManager.h - Manager for .param variables ----------*- C++ -*-==//
+//===-- PTXParamManager.h - Manager for .param variables --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,6 +17,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include <string>
 
 namespace llvm {
 

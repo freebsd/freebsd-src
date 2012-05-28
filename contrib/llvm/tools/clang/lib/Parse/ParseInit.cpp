@@ -21,18 +21,92 @@
 using namespace clang;
 
 
-/// MayBeDesignationStart - Return true if this token might be the start of a
-/// designator.  If we can tell it is impossible that it is a designator, return
-/// false.
-static bool MayBeDesignationStart(tok::TokenKind K, Preprocessor &PP) {
-  switch (K) {
-  default: return false;
+/// MayBeDesignationStart - Return true if the current token might be the start 
+/// of a designator.  If we can tell it is impossible that it is a designator, 
+/// return false.
+bool Parser::MayBeDesignationStart() {
+  switch (Tok.getKind()) {
+  default: 
+    return false;
+      
   case tok::period:      // designator: '.' identifier
-  case tok::l_square:    // designator: array-designator
+    return true;
+      
+  case tok::l_square: {  // designator: array-designator
+    if (!PP.getLangOpts().CPlusPlus0x)
       return true;
+    
+    // C++11 lambda expressions and C99 designators can be ambiguous all the
+    // way through the closing ']' and to the next character. Handle the easy
+    // cases here, and fall back to tentative parsing if those fail.
+    switch (PP.LookAhead(0).getKind()) {
+    case tok::equal:
+    case tok::r_square:
+      // Definitely starts a lambda expression.
+      return false;
+      
+    case tok::amp:
+    case tok::kw_this:
+    case tok::identifier:
+      // We have to do additional analysis, because these could be the
+      // start of a constant expression or a lambda capture list.
+      break;
+        
+    default:
+      // Anything not mentioned above cannot occur following a '[' in a 
+      // lambda expression.
+      return true;        
+    }
+    
+    // Handle the complicated case below.
+    break;    
+  }
   case tok::identifier:  // designation: identifier ':'
     return PP.LookAhead(0).is(tok::colon);
   }
+  
+  // Parse up to (at most) the token after the closing ']' to determine 
+  // whether this is a C99 designator or a lambda.
+  TentativeParsingAction Tentative(*this);
+  ConsumeBracket();
+  while (true) {
+    switch (Tok.getKind()) {
+    case tok::equal:
+    case tok::amp:
+    case tok::identifier:
+    case tok::kw_this:
+      // These tokens can occur in a capture list or a constant-expression.
+      // Keep looking.
+      ConsumeToken();
+      continue;
+      
+    case tok::comma:
+      // Since a comma cannot occur in a constant-expression, this must
+      // be a lambda.
+      Tentative.Revert();
+      return false;
+      
+    case tok::r_square: {
+      // Once we hit the closing square bracket, we look at the next
+      // token. If it's an '=', this is a designator. Otherwise, it's a
+      // lambda expression. This decision favors lambdas over the older
+      // GNU designator syntax, which allows one to omit the '=', but is
+      // consistent with GCC.
+      ConsumeBracket();
+      tok::TokenKind Kind = Tok.getKind();
+      Tentative.Revert();
+      return Kind == tok::equal;
+    }
+      
+    default:
+      // Anything else cannot occur in a lambda capture list, so it
+      // must be a designator.
+      Tentative.Revert();
+      return true;
+    }
+  }
+  
+  return true;
 }
 
 static void CheckArrayDesignatorSyntax(Parser &P, SourceLocation Loc,
@@ -81,7 +155,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
   if (Tok.is(tok::identifier)) {
     const IdentifierInfo *FieldName = Tok.getIdentifierInfo();
 
-    llvm::SmallString<256> NewSyntax;
+    SmallString<256> NewSyntax;
     llvm::raw_svector_ostream(NewSyntax) << '.' << FieldName->getName()
                                          << " = ";
 
@@ -137,6 +211,11 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     //   [foo ... bar]     -> array designator
     //   [4][foo bar]      -> obsolete GNU designation with objc message send.
     //
+    // We do not need to check for an expression starting with [[ here. If it
+    // contains an Objective-C message send, then it is not an ill-formed
+    // attribute. If it is a lambda-expression within an array-designator, then
+    // it will be rejected because a constant-expression cannot begin with a
+    // lambda-expression.
     InMessageExpressionRAIIObject InMessage(*this, true);
     
     BalancedDelimiterTracker T(*this, tok::l_square);
@@ -149,7 +228,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     // send) or send to 'super', parse this as a message send
     // expression.  We handle C++ and C separately, since C++ requires
     // much more complicated parsing.
-    if  (getLang().ObjC1 && getLang().CPlusPlus) {
+    if  (getLangOpts().ObjC1 && getLangOpts().CPlusPlus) {
       // Send to 'super'.
       if (Tok.is(tok::identifier) && Tok.getIdentifierInfo() == Ident_super &&
           NextToken().isNot(tok::period) && 
@@ -184,7 +263,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
       // adopt the expression for further analysis below.
       // FIXME: potentially-potentially evaluated expression above?
       Idx = ExprResult(static_cast<Expr*>(TypeOrExpr));
-    } else if (getLang().ObjC1 && Tok.is(tok::identifier)) {
+    } else if (getLangOpts().ObjC1 && Tok.is(tok::identifier)) {
       IdentifierInfo *II = Tok.getIdentifierInfo();
       SourceLocation IILoc = Tok.getLocation();
       ParsedType ReceiverType;
@@ -242,7 +321,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     // tokens are '...' or ']' or an objc message send.  If this is an objc
     // message send, handle it now.  An objc-message send is the start of
     // an assignment-expression production.
-    if (getLang().ObjC1 && Tok.isNot(tok::ellipsis) &&
+    if (getLangOpts().ObjC1 && Tok.isNot(tok::ellipsis) &&
         Tok.isNot(tok::r_square)) {
       CheckArrayDesignatorSyntax(*this, Tok.getLocation(), Desig);
       return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
@@ -330,7 +409,7 @@ ExprResult Parser::ParseBraceInitializer() {
 
   if (Tok.is(tok::r_brace)) {
     // Empty initializers are a C++ feature and a GNU extension to C.
-    if (!getLang().CPlusPlus)
+    if (!getLangOpts().CPlusPlus)
       Diag(LBraceLoc, diag::ext_gnu_empty_initializer);
     // Match the '}'.
     return Actions.ActOnInitList(LBraceLoc, MultiExprArg(Actions),
@@ -340,12 +419,23 @@ ExprResult Parser::ParseBraceInitializer() {
   bool InitExprsOk = true;
 
   while (1) {
+    // Handle Microsoft __if_exists/if_not_exists if necessary.
+    if (getLangOpts().MicrosoftExt && (Tok.is(tok::kw___if_exists) ||
+        Tok.is(tok::kw___if_not_exists))) {
+      if (ParseMicrosoftIfExistsBraceInitializer(InitExprs, InitExprsOk)) {
+        if (Tok.isNot(tok::comma)) break;
+        ConsumeToken();
+      }
+      if (Tok.is(tok::r_brace)) break;
+      continue;
+    }
+
     // Parse: designation[opt] initializer
 
     // If we know that this cannot be a designation, just parse the nested
     // initializer directly.
     ExprResult SubElt;
-    if (MayBeDesignationStart(Tok.getKind(), PP))
+    if (MayBeDesignationStart())
       SubElt = ParseInitializerWithPotentialDesignator();
     else
       SubElt = ParseInitializer();
@@ -392,3 +482,66 @@ ExprResult Parser::ParseBraceInitializer() {
   return ExprError(); // an error occurred.
 }
 
+
+// Return true if a comma (or closing brace) is necessary after the
+// __if_exists/if_not_exists statement.
+bool Parser::ParseMicrosoftIfExistsBraceInitializer(ExprVector &InitExprs,
+                                                    bool &InitExprsOk) {
+  bool trailingComma = false;
+  IfExistsCondition Result;
+  if (ParseMicrosoftIfExistsCondition(Result))
+    return false;
+  
+  BalancedDelimiterTracker Braces(*this, tok::l_brace);
+  if (Braces.consumeOpen()) {
+    Diag(Tok, diag::err_expected_lbrace);
+    return false;
+  }
+
+  switch (Result.Behavior) {
+  case IEB_Parse:
+    // Parse the declarations below.
+    break;
+        
+  case IEB_Dependent:
+    Diag(Result.KeywordLoc, diag::warn_microsoft_dependent_exists)
+      << Result.IsIfExists;
+    // Fall through to skip.
+      
+  case IEB_Skip:
+    Braces.skipToEnd();
+    return false;
+  }
+
+  while (Tok.isNot(tok::eof)) {
+    trailingComma = false;
+    // If we know that this cannot be a designation, just parse the nested
+    // initializer directly.
+    ExprResult SubElt;
+    if (MayBeDesignationStart())
+      SubElt = ParseInitializerWithPotentialDesignator();
+    else
+      SubElt = ParseInitializer();
+
+    if (Tok.is(tok::ellipsis))
+      SubElt = Actions.ActOnPackExpansion(SubElt.get(), ConsumeToken());
+    
+    // If we couldn't parse the subelement, bail out.
+    if (!SubElt.isInvalid())
+      InitExprs.push_back(SubElt.release());
+    else
+      InitExprsOk = false;
+
+    if (Tok.is(tok::comma)) {
+      ConsumeToken();
+      trailingComma = true;
+    }
+
+    if (Tok.is(tok::r_brace))
+      break;
+  }
+
+  Braces.consumeClose();
+
+  return !trailingComma;
+}

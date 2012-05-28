@@ -106,6 +106,7 @@ struct ath_tid {
 	TAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
 	int			paused;	/* >0 if the TID has been paused */
+	int			addba_tx_pending;	/* TX ADDBA pending */
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
 
@@ -237,7 +238,6 @@ struct ath_buf {
 		int bfs_txpower;	/* tx power */
 		int bfs_txantenna;	/* TX antenna config */
 		enum ieee80211_protmode bfs_protmode;
-		HAL_11N_RATE_SERIES bfs_rc11n[ATH_RC_NUM];	/* 11n TX series */
 		int bfs_ctsrate;	/* CTS rate */
 		int bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
 		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
@@ -351,7 +351,7 @@ struct ath_softc {
 	struct ath_stats	sc_stats;	/* interface statistics */
 	struct ath_tx_aggr_stats	sc_aggr_stats;
 	struct ath_intr_stats	sc_intr_stats;
-	int			sc_debug;
+	uint64_t		sc_debug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
 	int			sc_nmeshvaps;	/* # mbss vaps */
@@ -508,6 +508,7 @@ struct ath_softc {
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
 	struct task		sc_resettask;	/* interface reset task */
+	struct task		sc_fataltask;	/* fatal task */
 	enum {
 		OK,				/* no change needed */
 		UPDATE,				/* update pending */
@@ -994,6 +995,14 @@ void	ath_intr(void *);
 	((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
 
 /*
+ * PCIe suspend/resume/poweron/poweroff related macros
+ */
+#define	ath_hal_enablepcie(_ah, _restore, _poweroff) \
+	((*(_ah)->ah_configPCIE)((_ah), (_restore), (_poweroff)))
+#define	ath_hal_disablepcie(_ah) \
+	((*(_ah)->ah_disablePCIE)((_ah)))
+
+/*
  * This is badly-named; you need to set the correct parameters
  * to begin to receive useful radar events; and even then
  * it doesn't "enable" DFS. See the ath_dfs/null/ module for
@@ -1010,6 +1019,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_isFastClockEnabled)((_ah)))
 #define	ath_hal_radar_wait(_ah, _chan) \
 	((*(_ah)->ah_radarWait)((_ah), (_chan)))
+#define	ath_hal_get_mib_cycle_counts(_ah, _sample) \
+	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
 

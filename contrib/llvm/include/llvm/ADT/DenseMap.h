@@ -30,12 +30,11 @@ namespace llvm {
 
 template<typename KeyT, typename ValueT,
          typename KeyInfoT = DenseMapInfo<KeyT>,
-         typename ValueInfoT = DenseMapInfo<ValueT>, bool IsConst = false>
+         bool IsConst = false>
 class DenseMapIterator;
 
 template<typename KeyT, typename ValueT,
-         typename KeyInfoT = DenseMapInfo<KeyT>,
-         typename ValueInfoT = DenseMapInfo<ValueT> >
+         typename KeyInfoT = DenseMapInfo<KeyT> >
 class DenseMap {
   typedef std::pair<KeyT, ValueT> BucketT;
   unsigned NumBuckets;
@@ -80,19 +79,19 @@ public:
 
   typedef DenseMapIterator<KeyT, ValueT, KeyInfoT> iterator;
   typedef DenseMapIterator<KeyT, ValueT,
-                           KeyInfoT, ValueInfoT, true> const_iterator;
+                           KeyInfoT, true> const_iterator;
   inline iterator begin() {
     // When the map is empty, avoid the overhead of AdvancePastEmptyBuckets().
     return empty() ? end() : iterator(Buckets, Buckets+NumBuckets);
   }
   inline iterator end() {
-    return iterator(Buckets+NumBuckets, Buckets+NumBuckets);
+    return iterator(Buckets+NumBuckets, Buckets+NumBuckets, true);
   }
   inline const_iterator begin() const {
     return empty() ? end() : const_iterator(Buckets, Buckets+NumBuckets);
   }
   inline const_iterator end() const {
-    return const_iterator(Buckets+NumBuckets, Buckets+NumBuckets);
+    return const_iterator(Buckets+NumBuckets, Buckets+NumBuckets, true);
   }
 
   bool empty() const { return NumEntries == 0; }
@@ -137,13 +136,33 @@ public:
   iterator find(const KeyT &Val) {
     BucketT *TheBucket;
     if (LookupBucketFor(Val, TheBucket))
-      return iterator(TheBucket, Buckets+NumBuckets);
+      return iterator(TheBucket, Buckets+NumBuckets, true);
     return end();
   }
   const_iterator find(const KeyT &Val) const {
     BucketT *TheBucket;
     if (LookupBucketFor(Val, TheBucket))
-      return const_iterator(TheBucket, Buckets+NumBuckets);
+      return const_iterator(TheBucket, Buckets+NumBuckets, true);
+    return end();
+  }
+
+  /// Alternate version of find() which allows a different, and possibly
+  /// less expensive, key type.
+  /// The DenseMapInfo is responsible for supplying methods
+  /// getHashValue(LookupKeyT) and isEqual(LookupKeyT, KeyT) for each key
+  /// type used.
+  template<class LookupKeyT>
+  iterator find_as(const LookupKeyT &Val) {
+    BucketT *TheBucket;
+    if (LookupBucketFor(Val, TheBucket))
+      return iterator(TheBucket, Buckets+NumBuckets, true);
+    return end();
+  }
+  template<class LookupKeyT>
+  const_iterator find_as(const LookupKeyT &Val) const {
+    BucketT *TheBucket;
+    if (LookupBucketFor(Val, TheBucket))
+      return const_iterator(TheBucket, Buckets+NumBuckets, true);
     return end();
   }
 
@@ -162,13 +181,12 @@ public:
   std::pair<iterator, bool> insert(const std::pair<KeyT, ValueT> &KV) {
     BucketT *TheBucket;
     if (LookupBucketFor(KV.first, TheBucket))
-      return std::make_pair(iterator(TheBucket, Buckets+NumBuckets),
+      return std::make_pair(iterator(TheBucket, Buckets+NumBuckets, true),
                             false); // Already in map.
 
     // Otherwise, insert the new element.
     TheBucket = InsertIntoBucket(KV.first, KV.second, TheBucket);
-    return std::make_pair(iterator(TheBucket, Buckets+NumBuckets),
-                          true);
+    return std::make_pair(iterator(TheBucket, Buckets+NumBuckets, true), true);
   }
 
   /// insert - Range insertion of pairs.
@@ -237,7 +255,7 @@ public:
 private:
   void CopyFrom(const DenseMap& other) {
     if (NumBuckets != 0 &&
-        (!isPodLike<KeyInfoT>::value || !isPodLike<ValueInfoT>::value)) {
+        (!isPodLike<KeyT>::value || !isPodLike<ValueT>::value)) {
       const KeyT EmptyKey = getEmptyKey(), TombstoneKey = getTombstoneKey();
       for (BucketT *P = Buckets, *E = Buckets+NumBuckets; P != E; ++P) {
         if (!KeyInfoT::isEqual(P->first, EmptyKey) &&
@@ -266,7 +284,7 @@ private:
 
     Buckets = static_cast<BucketT*>(operator new(sizeof(BucketT) * NumBuckets));
 
-    if (isPodLike<KeyInfoT>::value && isPodLike<ValueInfoT>::value)
+    if (isPodLike<KeyT>::value && isPodLike<ValueT>::value)
       memcpy(Buckets, other.Buckets, NumBuckets * sizeof(BucketT));
     else
       for (size_t i = 0; i < NumBuckets; ++i) {
@@ -310,6 +328,10 @@ private:
   static unsigned getHashValue(const KeyT &Val) {
     return KeyInfoT::getHashValue(Val);
   }
+  template<typename LookupKeyT>
+  static unsigned getHashValue(const LookupKeyT &Val) {
+    return KeyInfoT::getHashValue(Val);
+  }
   static const KeyT getEmptyKey() {
     return KeyInfoT::getEmptyKey();
   }
@@ -321,7 +343,8 @@ private:
   /// FoundBucket.  If the bucket contains the key and a value, this returns
   /// true, otherwise it returns a bucket with an empty marker or tombstone and
   /// returns false.
-  bool LookupBucketFor(const KeyT &Val, BucketT *&FoundBucket) const {
+  template<typename LookupKeyT>
+  bool LookupBucketFor(const LookupKeyT &Val, BucketT *&FoundBucket) const {
     unsigned BucketNo = getHashValue(Val);
     unsigned ProbeAmt = 1;
     BucketT *BucketsPtr = Buckets;
@@ -342,7 +365,7 @@ private:
     while (1) {
       BucketT *ThisBucket = BucketsPtr + (BucketNo & (NumBuckets-1));
       // Found Val's bucket?  If so, return it.
-      if (KeyInfoT::isEqual(ThisBucket->first, Val)) {
+      if (KeyInfoT::isEqual(Val, ThisBucket->first)) {
         FoundBucket = ThisBucket;
         return true;
       }
@@ -478,12 +501,12 @@ public:
 };
 
 template<typename KeyT, typename ValueT,
-         typename KeyInfoT, typename ValueInfoT, bool IsConst>
+         typename KeyInfoT, bool IsConst>
 class DenseMapIterator {
   typedef std::pair<KeyT, ValueT> Bucket;
   typedef DenseMapIterator<KeyT, ValueT,
-                           KeyInfoT, ValueInfoT, true> ConstIterator;
-  friend class DenseMapIterator<KeyT, ValueT, KeyInfoT, ValueInfoT, true>;
+                           KeyInfoT, true> ConstIterator;
+  friend class DenseMapIterator<KeyT, ValueT, KeyInfoT, true>;
 public:
   typedef ptrdiff_t difference_type;
   typedef typename conditional<IsConst, const Bucket, Bucket>::type value_type;
@@ -495,15 +518,16 @@ private:
 public:
   DenseMapIterator() : Ptr(0), End(0) {}
 
-  DenseMapIterator(pointer Pos, pointer E) : Ptr(Pos), End(E) {
-    AdvancePastEmptyBuckets();
+  DenseMapIterator(pointer Pos, pointer E, bool NoAdvance = false)
+    : Ptr(Pos), End(E) {
+    if (!NoAdvance) AdvancePastEmptyBuckets();
   }
 
   // If IsConst is true this is a converting constructor from iterator to
   // const_iterator and the default copy constructor is used.
   // Otherwise this is a copy constructor for iterator.
   DenseMapIterator(const DenseMapIterator<KeyT, ValueT,
-                                          KeyInfoT, ValueInfoT, false>& I)
+                                          KeyInfoT, false>& I)
     : Ptr(I.Ptr), End(I.End) {}
 
   reference operator*() const {
@@ -541,9 +565,9 @@ private:
   }
 };
   
-template<typename KeyT, typename ValueT, typename KeyInfoT, typename ValueInfoT>
+template<typename KeyT, typename ValueT, typename KeyInfoT>
 static inline size_t
-capacity_in_bytes(const DenseMap<KeyT, ValueT, KeyInfoT, ValueInfoT> &X) {
+capacity_in_bytes(const DenseMap<KeyT, ValueT, KeyInfoT> &X) {
   return X.getMemorySize();
 }
 

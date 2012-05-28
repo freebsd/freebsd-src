@@ -1,4 +1,4 @@
-//===- PPCRegisterInfo.h - PowerPC Register Information Impl -----*- C++ -*-==//
+//===-- PPCRegisterInfo.h - PowerPC Register Information Impl ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -37,8 +37,12 @@ public:
   /// This is used for addressing modes.
   virtual const TargetRegisterClass *getPointerRegClass(unsigned Kind=0) const;  
 
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const;
+
   /// Code Generation virtual methods...
-  const unsigned *getCalleeSavedRegs(const MachineFunction* MF = 0) const;
+  const uint16_t *getCalleeSavedRegs(const MachineFunction* MF = 0) const;
+  const unsigned *getCallPreservedMask(CallingConv::ID CC) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
@@ -53,6 +57,8 @@ public:
   void lowerDynamicAlloc(MachineBasicBlock::iterator II,
                          int SPAdj, RegScavenger *RS) const;
   void lowerCRSpilling(MachineBasicBlock::iterator II, unsigned FrameIndex,
+                       int SPAdj, RegScavenger *RS) const;
+  void lowerCRRestore(MachineBasicBlock::iterator II, unsigned FrameIndex,
                        int SPAdj, RegScavenger *RS) const;
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, RegScavenger *RS = NULL) const;

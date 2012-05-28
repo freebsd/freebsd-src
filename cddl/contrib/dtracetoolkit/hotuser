@@ -1,0 +1,139 @@
+#!/usr/bin/perl -w
+#
+# hotuser - sample on-CPU user-level functions and libraries.
+#           Written using Perl and DTrace (Solaris 10 03/05)
+#
+# This samples the on-CPU function at 1001 Hertz, for a simple yet
+# effective user-level profiling tool for sampling exclusive function time.
+# The output will identify which function is on the CPU the most - which
+# is the hottest. See Notes/ALLexclusive_notes.txt for an explanation of
+# exclusive time.
+#
+# $Id: hotuser 65 2007-10-04 11:09:40Z brendan $
+#
+# USAGE:        hotuser [-hl] { -c command | -p PID }
+#
+#		-h              # help
+#		-l              # match libraries, not functions
+#		-p PID          # examine this PID
+#		-c command      # run and examine this command
+#       eg,
+#		hotuser -p 81   # sample user functions from PID 81
+#		hotuser -lp 81  # sample user libraries from PID 81
+#		hotuser -p `pgrep -n Xorg`	# sample Xorg
+#
+# FIELDS:
+#		FUNCTION        Function name
+#		LIBRARY         Library name
+#		COUNT           Number of samples
+#		PCNT            Percentage of total samples
+#
+# COPYRIGHT: Copyright (c) 2006 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 29-Jun-2006	Brendan Gregg	Created this.
+# 29-Jun-2006	   "      "	Last update.
+#
+
+use strict;
+use Getopt::Std;
+
+#
+# Command Line Arguments
+#
+my $args;
+usage() if defined $ARGV[0] and $ARGV[0] eq "--help";
+getopts('c:hlp:') or usage();
+usage() if defined $main::opt_h and $main::opt_h;
+my $libs = defined $main::opt_l and $main::opt_l ? 1 : 0;
+if (defined $main::opt_c) {
+    $args = "-c $main::opt_c";
+}
+elsif (defined $main::opt_p) {
+    $args = "-p $main::opt_p";
+}
+else {
+    usage();
+}
+
+#
+# Cleanup on signals
+#
+$SIG{INT} = \&cleanupsig;    # Ctrl-C
+$SIG{QUIT} = \&cleanupsig;   # Ctrl-\
+$SIG{TERM} = \&cleanupsig;   # TERM
+
+#
+# Declare DTrace script
+#
+my $dtrace = <<END;
+/usr/sbin/dtrace -n '
+	#pragma D option quiet
+	profile:::profile-1001hz
+	/pid == \$target/ 
+	{
+		\@pc[arg1] = count();
+	}
+	dtrace:::END
+	{
+		printa("OUT: %A %\@d\\n", \@pc);
+	}
+' '$args'
+END
+
+#
+# Run DTrace, process output
+#
+my %Count;
+my $total;
+open DTRACE, "$dtrace |" or die "ERROR1: Can't run dtrace (perms?): $!\n";
+print "Sampling... Hit Ctrl-C to end.\n";
+while (my $line = <DTRACE>) {
+    next if $line =~ /^\s*$/;
+    next if $line !~ /^OUT: /;
+    my ($tag, $addr, $count) = split ' ', $line;
+    my ($name, $offset) = split /\+/, $addr;
+    next if $name eq "0x0";
+    $name =~ s/\`.*// if $libs;
+    $Count{$name} += $count;
+    $total += $count;
+}
+close DTRACE;
+
+#
+# Print final report
+#
+printf "\n%-52s %8s %6s\n", $libs ? "LIBRARY" : "FUNCTION", "COUNT", "PCNT";
+foreach my $name (sort { $Count{$a} <=> $Count{$b} } keys %Count) {
+    printf "%-52s %8d %5.1f%%\n", $name, $Count{$name},
+                                  100 * $Count{$name} / ($total ? $total : 1);
+}
+
+#
+# Subroutines
+#
+sub cleanupsig {
+}
+sub usage {
+    print STDERR "USAGE: hotuser [-hl] { -c command | -p PID }\n";
+    print STDERR "   eg,\n";
+    print STDERR "       hotuser -p 81     # sample user funcs for PID 81\n";
+    print STDERR "       hotuser -lp 81    # sample user libs for PID 81\n";
+    print STDERR "       hotuser -p `pgrep -n Xorg`     # sample Xorg\n";
+    exit 1;
+}

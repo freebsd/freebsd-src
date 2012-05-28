@@ -1883,6 +1883,12 @@ DECL_CMD_FUNC(set80211meshforward, val, d)
 }
 
 static
+DECL_CMD_FUNC(set80211meshgate, val, d)
+{
+	set80211(s, IEEE80211_IOC_MESH_GATE, d, 0, NULL);
+}
+
+static
 DECL_CMD_FUNC(set80211meshpeering, val, d)
 {
 	set80211(s, IEEE80211_IOC_MESH_AP, d, 0, NULL);
@@ -4014,6 +4020,8 @@ list_mesh(int s)
 			ether_ntoa((const struct ether_addr *)rt->imr_nexthop),
 			rt->imr_nhops, rt->imr_metric, rt->imr_lifetime,
 			rt->imr_lastmseq,
+			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_DISCOVER) ?
+			    'D' :
 			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_VALID) ?
 			    'V' : '!',
 			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_PROXY) ?
@@ -4832,6 +4840,12 @@ end:
 			else
 				LINE_CHECK("-meshforward");
 		}
+		if (get80211val(s, IEEE80211_IOC_MESH_GATE, &val) != -1) {
+			if (val)
+				LINE_CHECK("meshgate");
+			else
+				LINE_CHECK("-meshgate");
+		}
 		if (get80211len(s, IEEE80211_IOC_MESH_PR_METRIC, data, 12,
 		    &len) != -1) {
 			data[len] = '\0';
@@ -5271,6 +5285,8 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("meshttl",		set80211meshttl),
 	DEF_CMD("meshforward",	1,	set80211meshforward),
 	DEF_CMD("-meshforward",	0,	set80211meshforward),
+	DEF_CMD("meshgate",	1,	set80211meshgate),
+	DEF_CMD("-meshgate",	0,	set80211meshgate),
 	DEF_CMD("meshpeering",	1,	set80211meshpeering),
 	DEF_CMD("-meshpeering",	0,	set80211meshpeering),
 	DEF_CMD_ARG("meshmetric",	set80211meshmetric),

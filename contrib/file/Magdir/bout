@@ -1,4 +1,6 @@
-#
+
+#------------------------------------------------------------------------------
+# $File: bout,v 1.5 2009/09/19 16:28:08 christos Exp $
 # i80960 b.out objects and archives
 #
 0	long		0x10d		i960 b.out relocatable object

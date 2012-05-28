@@ -1,0 +1,94 @@
+The following is an example of the statsnoop tool.
+
+
+statsnoop is a companion to opensnoop, which traces a variety of stat()
+calls rather than open() calls.
+
+Here I run statsnoop on my idle laptop for about 3 seconds,
+
+   # statsnoop 
+     UID    PID COMM          FD PATH                 
+       0   1485 dtrace         0 /devices/pseudo/pts@0:6 
+     100    791 dtwm          -1 /usr/mail/brendan    
+     100    791 dtwm          -1 /usr/mail/brendan    
+     100    791 dtwm          -1 /usr/mail/brendan    
+     100    791 dtwm          -1 /usr/mail/brendan    
+     100    795 sdtperfmeter   0 /devices/pseudo/mm@0:null 
+       0    803 rpc.rstatd     0 /devices/pseudo/udp@0:udp 
+       0    803 rpc.rstatd     0 /devices/pseudo/udp@0:udp 
+     100    795 sdtperfmeter   0 /devices/pseudo/mm@0:null 
+     100    791 dtwm           0 /export/home/brendan/.dt/Trash/.trashinfo 
+     100    791 dtwm           0 /export/home/brendan/.dt/Trash/.trashinfo 
+     100    791 dtwm           0 /devices/pseudo/mm@0:null 
+     100    783 ttsession      0 /devices/pseudo/pts@0:3 
+     100    783 ttsession      0 /devices/pseudo/pts@0:3 
+     100    783 ttsession      0 /devices/pseudo/pts@0:3 
+     100    791 dtwm           0 /devices/pseudo/mm@0:null 
+     100    783 ttsession      0 /devices/pseudo/pts@0:3 
+     100    783 ttsession      0 /devices/pseudo/pts@0:3 
+     100    791 dtwm           0 /devices/pseudo/mm@0:null 
+     100    791 dtwm           0 /devices/pseudo/mm@0:null 
+     100    792 dtfile         0 /devices/pseudo/mm@0:null 
+     100    783 ttsession      0 /devices/pseudo/pts@0:3 
+   ^C
+
+It is interesting what turns up. In the above output, a "dtwm" process
+with process ID 791 called stat on /usr/mail/brendan and received -1 as
+a return value - as this file does not exist. (when were mailboxes ever
+stored in /usr/mail??).
+
+
+statsnoop has a variety of options, as opensnoop does. Here I trace stat()s
+from processes called "bash", while a new bash shell is executed,
+
+   # statsnoop -n bash
+     UID    PID COMM          FD PATH                 
+     100   1493 bash           0 /usr/bin/bash        
+     100   1493 bash           0 /devices/pseudo/pts@0:8 
+     100   1493 bash           0 /lib/libcurses.so.1  
+     100   1493 bash           0 /lib/libsocket.so.1  
+     100   1493 bash           0 /lib/libnsl.so.1     
+     100   1493 bash           0 /lib/libdl.so.1      
+     100   1493 bash           0 /lib/libc.so.1       
+     100   1493 bash           0 /devices/pseudo/pts@0:8 
+     100   1493 bash           0 /devices/pseudo/pts@0:8 
+     100   1493 bash           0 /export/home/brendan 
+     100   1493 bash           0 .                    
+     100   1493 bash           0 /export/home/brendan/.bashrc 
+     100   1493 bash          -1 /usr/mail/brendan    
+     100   1493 bash           0 /export/home/brendan/.bash_history 
+     100   1493 bash           0 /export/home/brendan/.bash_history 
+     100   1493 bash           0 /export/home/brendan/.bash_history 
+     100   1493 bash          -1 /export/home/brendan/.inputrc 
+     100   1493 bash           0 .                    
+   ^C
+
+bash also checked /usr/mail/brendan? hmm...
+
+   $ echo $MAIL 
+   /usr/mail/brendan
+
+hmmmmm...
+
+   $ cat .profile
+   #       This is the default standard profile provided to a user.
+   #       They are expected to edit it to meet their own needs.
+   
+   MAIL=/usr/mail/${LOGNAME:?}
+
+huh?
+
+   $ cat /etc/skel/.profile 
+   #       This is the default standard profile provided to a user.
+   #       They are expected to edit it to meet their own needs.
+   
+   MAIL=/usr/mail/${LOGNAME:?}
+
+   $ cat /var/sadm/pkg/SUNWcsr/save/pspool/SUNWcsr/reloc/etc/skel/.profile
+   #       This is the default standard profile provided to a user.
+   #       They are expected to edit it to meet their own needs.
+   
+   MAIL=/usr/mail/${LOGNAME:?}
+
+oh.
+

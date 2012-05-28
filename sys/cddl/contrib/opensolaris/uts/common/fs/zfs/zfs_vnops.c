@@ -838,6 +838,12 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		rl = zfs_range_lock(zp, woff, n, RL_WRITER);
 	}
 
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td)) {
+		zfs_range_unlock(rl);
+		ZFS_EXIT(zfsvfs);
+		return (EFBIG);
+	}
+
 	if (woff >= limit) {
 		zfs_range_unlock(rl);
 		ZFS_EXIT(zfsvfs);
@@ -4556,7 +4562,7 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		ASSERT(vp->v_count <= 1);
 		vp->v_count = 0;
 		VI_UNLOCK(vp);
-		vrecycle(vp, curthread);
+		vrecycle(vp);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
 		return;
 	}
@@ -5695,9 +5701,6 @@ zfs_freebsd_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-
-	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
-		return (EFBIG);
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
 	    ap->a_cred, NULL));

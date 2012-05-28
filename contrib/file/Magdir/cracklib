@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: cracklib,v 1.7 2009/09/19 16:28:08 christos Exp $
 # cracklib:  file (1) magic for cracklib v2.7
 
 0	lelong	0x70775631	Cracklib password index, little endian

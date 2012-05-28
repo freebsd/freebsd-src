@@ -1,4 +1,4 @@
-//===-- ARM/ARMFixupKinds.h - ARM Specific Fixup Entries --------*- C++ -*-===//
+//===-- ARMFixupKinds.h - ARM Specific Fixup Entries ------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -23,6 +23,9 @@ enum Fixups {
   // the 16-bit halfwords reordered.
   fixup_t2_ldst_pcrel_12,
 
+  // fixup_arm_pcrel_10_unscaled - 10-bit PC relative relocation for symbol
+  // addresses used in LDRD/LDRH/LDRB/etc. instructions. All bits are encoded.
+  fixup_arm_pcrel_10_unscaled,
   // fixup_arm_pcrel_10 - 10-bit PC relative relocation for symbol addresses
   // used in VFP instructions where the lower 2 bits are not encoded
   // (so it's encoded as an 8-bit immediate).
@@ -55,6 +58,25 @@ enum Fixups {
 
   // fixup_arm_thumb_br - 12-bit fixup for Thumb B instructions.
   fixup_arm_thumb_br,
+
+  // The following fixups handle the ARM BL instructions. These can be
+  // conditionalised; however, the ARM ELF ABI requires a different relocation
+  // in that case: R_ARM_JUMP24 instead of R_ARM_CALL. The difference is that
+  // R_ARM_CALL is allowed to change the instruction to a BLX inline, which has
+  // no conditional version; R_ARM_JUMP24 would have to insert a veneer.
+  //
+  // MachO does not draw a distinction between the two cases, so it will treat
+  // fixup_arm_uncondbl and fixup_arm_condbl as identical fixups.
+
+  // fixup_arm_uncondbl - Fixup for unconditional ARM BL instructions.
+  fixup_arm_uncondbl,
+
+  // fixup_arm_condbl - Fixup for ARM BL instructions with nontrivial
+  // conditionalisation.
+  fixup_arm_condbl,
+
+  // fixup_arm_blx - Fixup for ARM BLX instructions.
+  fixup_arm_blx,
 
   // fixup_arm_thumb_bl - Fixup for Thumb BL instructions.
   fixup_arm_thumb_bl,

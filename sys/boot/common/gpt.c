@@ -337,16 +337,16 @@ gptread(const uuid_t *uuid, struct dsk *dskp, char *buf)
 		gpttable = table_primary;
 	}
 
-	altlba = drvsize(dskp);
-	if (altlba > 0)
-		altlba--;
-	else if (hdr_primary_lba > 0) {
+	if (hdr_primary_lba > 0) {
 		/*
-		 * If we cannot obtain disk size, but primary header
-		 * is valid, we can get backup header location from
-		 * there.
+		 * If primary header is valid, we can get backup
+		 * header location from there.
 		 */
 		altlba = hdr_primary.hdr_lba_alt;
+	} else {
+		altlba = drvsize(dskp);
+		if (altlba > 0)
+			altlba--;
 	}
 	if (altlba == 0)
 		printf("%s: unable to locate backup GPT header\n", BOOTPROG);

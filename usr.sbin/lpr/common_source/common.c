@@ -130,7 +130,7 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 		seteuid(uid);
 		return (-1);
 	}
-	if (fstat(dirp->dd_fd, &stbuf) < 0)
+	if (fstat(dirfd(dirp), &stbuf) < 0)
 		goto errdone;
 	seteuid(uid);
 

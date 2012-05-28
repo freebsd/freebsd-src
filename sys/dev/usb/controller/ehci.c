@@ -2398,9 +2398,9 @@ ehci_device_isoc_fs_open(struct usb_xfer *xfer)
 	    EHCI_SITD_SET_HUBA(xfer->xroot->udev->hs_hub_addr) |
 	    EHCI_SITD_SET_PORT(xfer->xroot->udev->hs_port_no);
 
-	if (UE_GET_DIR(xfer->endpointno) == UE_DIR_IN) {
+	if (UE_GET_DIR(xfer->endpointno) == UE_DIR_IN)
 		sitd_portaddr |= EHCI_SITD_SET_DIR_IN;
-	}
+
 	sitd_portaddr = htohc32(sc, sitd_portaddr);
 
 	/* initialize all TD's */
@@ -2436,9 +2436,6 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 {
 	struct usb_page_search buf_res;
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-	struct usb_fs_isoc_schedule *fss_start;
-	struct usb_fs_isoc_schedule *fss_end;
-	struct usb_fs_isoc_schedule *fss;
 	ehci_sitd_t *td;
 	ehci_sitd_t *td_last = NULL;
 	ehci_sitd_t **pp_last;
@@ -2450,7 +2447,6 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	uint16_t tlen;
 	uint8_t sa;
 	uint8_t sb;
-	uint8_t error;
 
 #ifdef USB_DEBUG
 	uint8_t once = 1;
@@ -2495,9 +2491,8 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	 * pre-compute when the isochronous transfer will be finished:
 	 */
 	xfer->isoc_time_complete =
-	    usbd_fs_isoc_schedule_isoc_time_expand
-	    (xfer->xroot->udev, &fss_start, &fss_end, nframes) + buf_offset +
-	    xfer->nframes;
+	    usb_isoc_time_expand(&sc->sc_bus, nframes) +
+	    buf_offset + xfer->nframes;
 
 	/* get the real number of frames */
 
@@ -2520,19 +2515,14 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 
 	xfer->qh_pos = xfer->endpoint->isoc_next;
 
-	fss = fss_start + (xfer->qh_pos % USB_ISOC_TIME_MAX);
-
 	while (nframes--) {
 		if (td == NULL) {
 			panic("%s:%d: out of TD's\n",
 			    __FUNCTION__, __LINE__);
 		}
-		if (pp_last >= &sc->sc_isoc_fs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT]) {
+		if (pp_last >= &sc->sc_isoc_fs_p_last[EHCI_VIRTUAL_FRAMELIST_COUNT])
 			pp_last = &sc->sc_isoc_fs_p_last[0];
-		}
-		if (fss >= fss_end) {
-			fss = fss_start;
-		}
+
 		/* reuse sitd_portaddr and sitd_back from last transfer */
 
 		if (*plen > xfer->max_frame_size) {
@@ -2547,17 +2537,19 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 #endif
 			*plen = xfer->max_frame_size;
 		}
-		/*
-		 * We currently don't care if the ISOCHRONOUS schedule is
-		 * full!
-		 */
-		error = usbd_fs_isoc_schedule_alloc(fss, &sa, *plen);
-		if (error) {
+
+		/* allocate a slot */
+
+		sa = usbd_fs_isoc_schedule_alloc_slot(xfer,
+		    xfer->isoc_time_complete - nframes - 1);
+
+		if (sa == 255) {
 			/*
-			 * The FULL speed schedule is FULL! Set length
-			 * to zero.
+			 * Schedule is FULL, set length to zero:
 			 */
+
 			*plen = 0;
+			sa = USB_FS_ISOC_UFRAME_MAX - 1;
 		}
 		if (*plen) {
 			/*
@@ -2637,7 +2629,6 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 		pp_last++;
 
 		plen++;
-		fss++;
 		td_last = td;
 		td = td->obj_next;
 	}
@@ -2647,11 +2638,29 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	/* update isoc_next */
 	xfer->endpoint->isoc_next = (pp_last - &sc->sc_isoc_fs_p_last[0]) &
 	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
+
+	/*
+	 * We don't allow cancelling of the SPLIT transaction USB FULL
+	 * speed transfer, because it disturbs the bandwidth
+	 * computation algorithm.
+	 */
+	xfer->flags_int.can_cancel_immed = 0;
 }
 
 static void
 ehci_device_isoc_fs_start(struct usb_xfer *xfer)
 {
+	/*
+	 * We don't allow cancelling of the SPLIT transaction USB FULL
+	 * speed transfer, because it disturbs the bandwidth
+	 * computation algorithm.
+	 */
+	xfer->flags_int.can_cancel_immed = 0;
+
+	/* set a default timeout */
+	if (xfer->timeout == 0)
+		xfer->timeout = 500; /* ms */
+
 	/* put transfer on interrupt queue */
 	ehci_transfer_intr_enqueue(xfer);
 }

@@ -521,6 +521,7 @@ private:
   SDValue ScalarizeVecRes_LOAD(LoadSDNode *N);
   SDValue ScalarizeVecRes_SCALAR_TO_VECTOR(SDNode *N);
   SDValue ScalarizeVecRes_SIGN_EXTEND_INREG(SDNode *N);
+  SDValue ScalarizeVecRes_VSELECT(SDNode *N);
   SDValue ScalarizeVecRes_SELECT(SDNode *N);
   SDValue ScalarizeVecRes_SELECT_CC(SDNode *N);
   SDValue ScalarizeVecRes_SETCC(SDNode *N);
@@ -633,6 +634,7 @@ private:
   SDValue WidenVecOp_EXTRACT_VECTOR_ELT(SDNode *N);
   SDValue WidenVecOp_EXTRACT_SUBVECTOR(SDNode *N);
   SDValue WidenVecOp_STORE(SDNode* N);
+  SDValue WidenVecOp_SETCC(SDNode* N);
 
   SDValue WidenVecOp_Convert(SDNode *N);
 

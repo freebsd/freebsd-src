@@ -19,6 +19,7 @@
 #include "llvm/Instructions.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopIterator.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
@@ -95,7 +96,7 @@ bool Loop::makeLoopInvariant(Instruction *I, bool &Changed,
   // Test if the value is already loop-invariant.
   if (isLoopInvariant(I))
     return true;
-  if (!I->isSafeToSpeculativelyExecute())
+  if (!isSafeToSpeculativelyExecute(I))
     return false;
   if (I->mayReadFromMemory())
     return false;
@@ -165,99 +166,6 @@ PHINode *Loop::getCanonicalInductionVariable() const {
   return 0;
 }
 
-/// getTripCount - Return a loop-invariant LLVM value indicating the number of
-/// times the loop will be executed.  Note that this means that the backedge
-/// of the loop executes N-1 times.  If the trip-count cannot be determined,
-/// this returns null.
-///
-/// The IndVarSimplify pass transforms loops to have a form that this
-/// function easily understands.
-///
-Value *Loop::getTripCount() const {
-  // Canonical loops will end with a 'cmp ne I, V', where I is the incremented
-  // canonical induction variable and V is the trip count of the loop.
-  PHINode *IV = getCanonicalInductionVariable();
-  if (IV == 0 || IV->getNumIncomingValues() != 2) return 0;
-
-  bool P0InLoop = contains(IV->getIncomingBlock(0));
-  Value *Inc = IV->getIncomingValue(!P0InLoop);
-  BasicBlock *BackedgeBlock = IV->getIncomingBlock(!P0InLoop);
-
-  if (BranchInst *BI = dyn_cast<BranchInst>(BackedgeBlock->getTerminator()))
-    if (BI->isConditional()) {
-      if (ICmpInst *ICI = dyn_cast<ICmpInst>(BI->getCondition())) {
-        if (ICI->getOperand(0) == Inc) {
-          if (BI->getSuccessor(0) == getHeader()) {
-            if (ICI->getPredicate() == ICmpInst::ICMP_NE)
-              return ICI->getOperand(1);
-          } else if (ICI->getPredicate() == ICmpInst::ICMP_EQ) {
-            return ICI->getOperand(1);
-          }
-        }
-      }
-    }
-
-  return 0;
-}
-
-/// getSmallConstantTripCount - Returns the trip count of this loop as a
-/// normal unsigned value, if possible. Returns 0 if the trip count is unknown
-/// or not constant. Will also return 0 if the trip count is very large
-/// (>= 2^32)
-unsigned Loop::getSmallConstantTripCount() const {
-  Value* TripCount = this->getTripCount();
-  if (TripCount) {
-    if (ConstantInt *TripCountC = dyn_cast<ConstantInt>(TripCount)) {
-      // Guard against huge trip counts.
-      if (TripCountC->getValue().getActiveBits() <= 32) {
-        return (unsigned)TripCountC->getZExtValue();
-      }
-    }
-  }
-  return 0;
-}
-
-/// getSmallConstantTripMultiple - Returns the largest constant divisor of the
-/// trip count of this loop as a normal unsigned value, if possible. This
-/// means that the actual trip count is always a multiple of the returned
-/// value (don't forget the trip count could very well be zero as well!).
-///
-/// Returns 1 if the trip count is unknown or not guaranteed to be the
-/// multiple of a constant (which is also the case if the trip count is simply
-/// constant, use getSmallConstantTripCount for that case), Will also return 1
-/// if the trip count is very large (>= 2^32).
-unsigned Loop::getSmallConstantTripMultiple() const {
-  Value* TripCount = this->getTripCount();
-  // This will hold the ConstantInt result, if any
-  ConstantInt *Result = NULL;
-  if (TripCount) {
-    // See if the trip count is constant itself
-    Result = dyn_cast<ConstantInt>(TripCount);
-    // if not, see if it is a multiplication
-    if (!Result)
-      if (BinaryOperator *BO = dyn_cast<BinaryOperator>(TripCount)) {
-        switch (BO->getOpcode()) {
-        case BinaryOperator::Mul:
-          Result = dyn_cast<ConstantInt>(BO->getOperand(1));
-          break;
-        case BinaryOperator::Shl:
-          if (ConstantInt *CI = dyn_cast<ConstantInt>(BO->getOperand(1)))
-            if (CI->getValue().getActiveBits() <= 5)
-              return 1u << CI->getZExtValue();
-          break;
-        default:
-          break;
-        }
-      }
-  }
-  // Guard against huge trip counts.
-  if (Result && Result->getValue().getActiveBits() <= 32) {
-    return (unsigned)Result->getZExtValue();
-  } else {
-    return 1;
-  }
-}
-
 /// isLCSSAForm - Return true if the Loop is in LCSSA form
 bool Loop::isLCSSAForm(DominatorTree &DT) const {
   // Sort the blocks vector so that we can use binary search to do quick
@@ -295,6 +203,17 @@ bool Loop::isLoopSimplifyForm() const {
   // Normal-form loops have a preheader, a single backedge, and all of their
   // exits have all their predecessors inside the loop.
   return getLoopPreheader() && getLoopLatch() && hasDedicatedExits();
+}
+
+/// isSafeToClone - Return true if the loop body is safe to clone in practice.
+/// Routines that reform the loop CFG and split edges often fail on indirectbr.
+bool Loop::isSafeToClone() const {
+  // Return false if any loop blocks contain indirectbrs.
+  for (Loop::block_iterator I = block_begin(), E = block_end(); I != E; ++I) {
+    if (isa<IndirectBrInst>((*I)->getTerminator()))
+      return false;
+  }
+  return true;
 }
 
 /// hasDedicatedExits - Return true if no exit block for the loop
@@ -477,21 +396,19 @@ void UnloopUpdater::updateBlockParents() {
 /// removeBlocksFromAncestors - Remove unloop's blocks from all ancestors below
 /// their new parents.
 void UnloopUpdater::removeBlocksFromAncestors() {
-  // Remove unloop's blocks from all ancestors below their new parents.
+  // Remove all unloop's blocks (including those in nested subloops) from
+  // ancestors below the new parent loop.
   for (Loop::block_iterator BI = Unloop->block_begin(),
          BE = Unloop->block_end(); BI != BE; ++BI) {
-    Loop *NewParent = LI->getLoopFor(*BI);
-    // If this block is an immediate subloop, remove all blocks (including
-    // nested subloops) from ancestors below the new parent loop.
-    // Otherwise, if this block is in a nested subloop, skip it.
-    if (SubloopParents.count(NewParent))
-      NewParent = SubloopParents[NewParent];
-    else if (Unloop->contains(NewParent))
-      continue;
-
+    Loop *OuterParent = LI->getLoopFor(*BI);
+    if (Unloop->contains(OuterParent)) {
+      while (OuterParent->getParentLoop() != Unloop)
+        OuterParent = OuterParent->getParentLoop();
+      OuterParent = SubloopParents[OuterParent];
+    }
     // Remove blocks from former Ancestors except Unloop itself which will be
     // deleted.
-    for (Loop *OldParent = Unloop->getParentLoop(); OldParent != NewParent;
+    for (Loop *OldParent = Unloop->getParentLoop(); OldParent != OuterParent;
          OldParent = OldParent->getParentLoop()) {
       assert(OldParent && "new loop is not an ancestor of the original");
       OldParent->removeBlockFromLoop(*BI);

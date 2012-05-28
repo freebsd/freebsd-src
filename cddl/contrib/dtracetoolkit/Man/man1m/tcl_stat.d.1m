@@ -1,0 +1,61 @@
+.TH tcl_stat.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+tcl_stat.d - Tcl operation stats using DTrace.
+.SH SYNOPSIS
+.B tcl_stat.d
+[interval [count]]
+.SH DESCRIPTION
+This traces activity from all Tcl processes on the system with DTrace
+provider support (tcl8.4.16).
+
+The numbers are counts for the interval specified. The default interval
+is 1 second.
+
+If you see a count in "EXECS" but not in the other columns, then you
+may have older Tcl software that does not have the integrated DTrace
+provider (or newer software where the provider has changed).
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Tcl provider, which may change 
+as additional features are introduced. Check Tcl/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B tcl_stat.d
+.PP
+.SH FIELDS
+.TP
+EXEC/s
+Tcl programs executed per second, including
+those without Tcl provider support
+.TP
+PROC/s
+Procedures called, per second
+.TP
+CMD/s
+Commands created, per second
+.TP
+OBJNEW/s
+Objects created, per second
+.TP
+OBJFRE/s
+Objects freed, per second
+.TP
+OP/s
+Bytecode operations, per second
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+tcl_stat.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

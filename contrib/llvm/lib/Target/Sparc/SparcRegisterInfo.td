@@ -1,10 +1,10 @@
-//===- SparcRegisterInfo.td - Sparc Register defs ----------*- tablegen -*-===//
-// 
+//===-- SparcRegisterInfo.td - Sparc Register defs ---------*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
@@ -39,6 +39,7 @@ class Rd<bits<5> num, string n, list<Register> subregs> : SparcReg<n> {
   let Num = num;
   let SubRegs = subregs;
   let SubRegIndices = [sub_even, sub_odd];
+  let CoveredBySubRegs = 1;
 }
 
 // Control Registers

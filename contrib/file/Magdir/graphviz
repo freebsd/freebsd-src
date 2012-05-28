@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: graphviz,v 1.7 2009/09/19 16:28:09 christos Exp $
 # graphviz:  file(1) magic for http://www.graphviz.org/
 
 # FIXME: These patterns match too generally. For example, the first

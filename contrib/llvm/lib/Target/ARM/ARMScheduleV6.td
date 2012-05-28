@@ -1,10 +1,10 @@
-//===- ARMScheduleV6.td - ARM v6 Scheduling Definitions ----*- tablegen -*-===//
-// 
+//===-- ARMScheduleV6.td - ARM v6 Scheduling Definitions ---*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file defines the itinerary class data for the ARM v6 processors.
@@ -242,6 +242,12 @@ def ARMV6Itineraries : ProcessorItineraries<
   //
   // Double-precision FP MAC
   InstrItinData<IIC_fpMAC64 , [InstrStage<2, [V6_Pipe]>], [9, 2, 2, 2]>,
+  //
+  // Single-precision Fused FP MAC
+  InstrItinData<IIC_fpFMAC32, [InstrStage<1, [V6_Pipe]>], [9, 2, 2, 2]>,
+  //
+  // Double-precision Fused FP MAC
+  InstrItinData<IIC_fpFMAC64, [InstrStage<2, [V6_Pipe]>], [9, 2, 2, 2]>,
   //
   // Single-precision FP DIV
   InstrItinData<IIC_fpDIV32 , [InstrStage<15, [V6_Pipe]>], [20, 2, 2]>,

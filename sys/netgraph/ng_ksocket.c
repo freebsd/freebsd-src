@@ -524,7 +524,9 @@ ng_ksocket_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_WAITOK | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
+	if (priv == NULL)
+		return (ENOMEM);
 
 	LIST_INIT(&priv->embryos);
 	/* cross link them */

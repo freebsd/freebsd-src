@@ -1,4 +1,4 @@
-//===- SPUInstrInfo.h - Cell SPU Instruction Information --------*- C++ -*-===//
+//===-- SPUInstrInfo.h - Cell SPU Instruction Information -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,8 +15,8 @@
 #define SPU_INSTRUCTIONINFO_H
 
 #include "SPU.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "SPURegisterInfo.h"
+#include "llvm/Target/TargetInstrInfo.h"
 
 #define GET_INSTRINFO_HEADER
 #include "SPUGenInstrInfo.inc"

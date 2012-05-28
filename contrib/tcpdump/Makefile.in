@@ -26,6 +26,7 @@
 # Top level hierarchy
 prefix = @prefix@
 exec_prefix = @exec_prefix@
+datarootdir = @datarootdir@
 # Pathname of directory to install the binary
 sbindir = @sbindir@
 # Pathname of directory to install the man page
@@ -46,7 +47,8 @@ INCLS = -I. @V_INCLS@
 DEFS = @DEFS@ @CPPFLAGS@ @V_DEFS@
 
 # Standard CFLAGS
-CFLAGS = $(CCOPT) $(DEFS) $(INCLS)
+CFLAGS = @CFLAGS@
+FULL_CFLAGS = $(CCOPT) $(DEFS) $(INCLS) $(CFLAGS)
 
 # Standard LDFLAGS
 LDFLAGS = @LDFLAGS@
@@ -64,15 +66,15 @@ RANLIB = @RANLIB@
 # problem if you don't own the file but can write to the directory.
 .c.o:
 	@rm -f $@
-	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
+	$(CC) $(FULL_CFLAGS) -c $(srcdir)/$*.c
 
 CSRC =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c \
-        nlpid.c l2vpn.c machdep.c parsenfsfh.c \
-	print-802_11.c print-ap1394.c print-ah.c print-arcnet.c \
-	print-aodv.c print-arp.c print-ascii.c print-atalk.c print-atm.c \
-	print-beep.c print-bfd.c print-bgp.c print-bootp.c print-bt.c \
-	print-cdp.c print-cfm.c print-chdlc.c print-cip.c print-cnfp.c \
-	print-dccp.c print-decnet.c \
+        nlpid.c l2vpn.c machdep.c parsenfsfh.c in_cksum.c \
+	print-802_11.c print-802_15_4.c print-ap1394.c print-ah.c \
+	print-arcnet.c print-aodv.c print-arp.c print-ascii.c print-atalk.c \
+	print-atm.c print-beep.c print-bfd.c print-bgp.c \
+	print-bootp.c print-bt.c print-carp.c print-cdp.c print-cfm.c \
+	print-chdlc.c print-cip.c print-cnfp.c print-dccp.c print-decnet.c \
 	print-domain.c print-dtp.c print-dvmrp.c print-enc.c print-egp.c \
 	print-eap.c print-eigrp.c\
 	print-esp.c print-ether.c print-fddi.c print-fr.c \
@@ -83,8 +85,9 @@ CSRC =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c 
         print-lmp.c print-lspping.c print-lwapp.c \
 	print-lwres.c print-mobile.c print-mpcp.c print-mpls.c print-msdp.c \
 	print-nfs.c print-ntp.c print-null.c print-olsr.c print-ospf.c \
-	print-pgm.c print-pim.c print-ppp.c print-pppoe.c print-pptp.c \
-	print-radius.c print-raw.c print-rip.c print-rrcp.c print-rsvp.c \
+	print-pgm.c print-pim.c \
+	print-ppi.c print-ppp.c print-pppoe.c print-pptp.c \
+	print-radius.c print-raw.c print-rip.c print-rpki-rtr.c print-rrcp.c print-rsvp.c \
 	print-rx.c print-sctp.c print-sflow.c print-sip.c print-sl.c print-sll.c \
 	print-slow.c print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
 	print-symantec.c print-syslog.c print-tcp.c print-telnet.c print-tftp.c \
@@ -165,6 +168,7 @@ HDR = \
 	oui.h \
 	pcap-missing.h \
 	pmap_prot.h \
+	ppi.h \
 	ppp.h \
 	route6d.h \
 	rpc_auth.h \
@@ -226,16 +230,12 @@ EXTRA_DIST = \
 	lbl/os-ultrix4.h \
 	makemib \
 	missing/addrinfo.h \
-	missing/addrsize.h \
-	missing/bittypes.h \
 	missing/dlnames.c \
 	missing/datalinks.c \
 	missing/getnameinfo.c \
 	missing/inet_aton.c \
 	missing/inet_ntop.c \
 	missing/inet_pton.c \
-	missing/resolv6.h \
-	missing/resolv_ext.h \
 	missing/snprintf.c \
 	missing/sockstorage.h \
 	missing/strdup.c \
@@ -245,6 +245,7 @@ EXTRA_DIST = \
 	mkdep \
 	packetdat.awk \
 	pcap_dump_ftell.c \
+	print-babel.c \
 	print-dhcp6.c \
 	print-frag6.c \
 	print-icmp6.c \
@@ -262,12 +263,18 @@ EXTRA_DIST = \
 	stime.awk \
 	strcasecmp.c \
 	tcpdump.1.in \
-	tests/02-sunrise-sunset-esp.puu \
-	tests/08-sunrise-sunset-aes.puu \
-	tests/08-sunrise-sunset-esp2.puu \
+	tests/02-sunrise-sunset-esp.pcap \
+	tests/08-sunrise-sunset-aes.pcap \
+	tests/08-sunrise-sunset-esp2.pcap \
+	tests/QinQpacket.out \
+	tests/QinQpacket.pcap \
+	tests/QinQpacketv.out \
 	tests/TESTLIST \
 	tests/TESTonce \
 	tests/TESTrun.sh \
+	tests/babel.pcap \
+	tests/babel1.out \
+	tests/babel1v.out \
 	tests/bgp-infinite-loop.pcap \
 	tests/bgp_vpn_attrset.out \
 	tests/bgp_vpn_attrset.pcap \
@@ -279,8 +286,8 @@ EXTRA_DIST = \
 	tests/e1000g.pcap \
 	tests/eapon1.gdbinit \
 	tests/eapon1.out \
-	tests/eapon1.puu \
-	tests/eapon2.puu \
+	tests/eapon1.pcap \
+	tests/empty.uu \
 	tests/esp-secrets.txt \
 	tests/esp0.out \
 	tests/esp1.gdbinit \
@@ -292,61 +299,57 @@ EXTRA_DIST = \
 	tests/esp5.gdbinit \
 	tests/esp5.out \
 	tests/espudp1.out \
-	tests/espudp1.puu \
+	tests/espudp1.pcap \
 	tests/forces1.out \
 	tests/forces1.pcap \
 	tests/forces1vvv.out \
 	tests/forces1vvvv.out \
 	tests/forces2.out \
-	tests/forces2.pcap \
 	tests/forces2v.out \
 	tests/forces2vv.out \
-	tests/ikev2.puu \
+	tests/forces3vvv.out \
 	tests/ikev2four.out \
-	tests/ikev2four.puu \
+	tests/ikev2four.pcap \
 	tests/ikev2fourv.out \
 	tests/ikev2fourv4.out \
 	tests/ikev2pI2-secrets.txt \
 	tests/ikev2pI2.out \
-	tests/ikev2pI2.puu \
-	tests/isakmp-delete-segfault.puu \
-	tests/isakmp-identification-segfault.puu \
-	tests/isakmp-pointer-loop.puu \
+	tests/ikev2pI2.pcap \
+	tests/isakmp-delete-segfault.pcap \
+	tests/isakmp-identification-segfault.pcap \
+	tests/isakmp-pointer-loop.pcap \
 	tests/isakmp1.out \
 	tests/isakmp2.out \
 	tests/isakmp3.out \
 	tests/isakmp4.out \
-	tests/isakmp4500.puu \
+	tests/isakmp4500.pcap \
 	tests/isis-infinite-loop.pcap \
 	tests/ldp-infinite-loop.pcap \
 	tests/lmp.out \
-	tests/lmp.puu \
+	tests/lmp.pcap \
 	tests/lmp.sh \
 	tests/lspping-fec-ldp.pcap \
 	tests/lspping-fec-rsvp.pcap \
 	tests/mpls-ldp-hello.out \
-	tests/mpls-ldp-hello.puu \
+	tests/mpls-ldp-hello.pcap \
 	tests/mpls-traceroute.pcap \
 	tests/ospf-gmpls.out \
-	tests/ospf-gmpls.puu \
+	tests/ospf-gmpls.pcap \
 	tests/print-A.out \
 	tests/print-AA.out \
 	tests/print-capX.out \
 	tests/print-capXX.out \
-	tests/print-flags.puu \
+	tests/print-flags.pcap \
 	tests/print-flags.sh \
 	tests/print-x.out \
 	tests/print-xx.out \
 	tests/rsvp-infinite-loop.pcap \
+	tests/sflow_multiple_counter_30_pdus.out \
+	tests/sflow_multiple_counter_30_pdus.pcap \
 	vfprintf.c \
-	win32/Include/Arpa/tftp.h \
 	win32/Include/errno.h \
 	win32/Include/getopt.h \
-	win32/Include/inetprivate.h \
-	win32/Include/telnet.h \
 	win32/Include/w32_fzs.h \
-	win32/Include/Netinet/in_systm.h \
-	win32/Include/Netinet/ip.h \
 	win32/Src/getopt.c \
 	win32/prj/GNUmakefile \
 	win32/prj/WinDump.dsp \
@@ -356,7 +359,7 @@ all: $(PROG)
 
 $(PROG): $(OBJ) @V_PCAPDEP@
 	@rm -f $@
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
+	$(CC) $(FULL_CFLAGS) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
 $(LIBNETDISSECT): $(LIBNETDISSECT_OBJ)
 	@rm -f $@
@@ -364,30 +367,30 @@ $(LIBNETDISSECT): $(LIBNETDISSECT_OBJ)
 	$(RANLIB) $@
 
 datalinks.o: $(srcdir)/missing/datalinks.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/datalinks.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/datalinks.c
 dlnames.o: $(srcdir)/missing/dlnames.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/dlnames.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/dlnames.c
 getnameinfo.o: $(srcdir)/missing/getnameinfo.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/getnameinfo.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/getnameinfo.c
 getaddrinfo.o: $(srcdir)/missing/getaddrinfo.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/getaddrinfo.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/getaddrinfo.c
 inet_pton.o: $(srcdir)/missing/inet_pton.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_pton.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/inet_pton.c
 inet_ntop.o: $(srcdir)/missing/inet_ntop.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_ntop.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/inet_ntop.c
 inet_aton.o: $(srcdir)/missing/inet_aton.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_aton.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/inet_aton.c
 snprintf.o: $(srcdir)/missing/snprintf.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/snprintf.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/snprintf.c
 strlcat.o: $(srcdir)/missing/strlcat.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strlcat.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/strlcat.c
 strlcpy.o: $(srcdir)/missing/strlcpy.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strlcpy.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/strlcpy.c
 strsep.o: $(srcdir)/missing/strsep.c
-	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strsep.c
+	$(CC) $(FULL_CFLAGS) -o $@ -c $(srcdir)/missing/strsep.c
 
 version.o: version.c
-	$(CC) $(CFLAGS) -c version.c
+	$(CC) $(FULL_CFLAGS) -c version.c
 
 version.c: $(srcdir)/VERSION
 	@rm -f $@
@@ -423,9 +426,9 @@ clean:
 distclean:
 	rm -f $(CLEANFILES) Makefile config.cache config.log config.status \
 	    config.h gnuc.h os-proto.h stamp-h stamp-h.in $(PROG).1
+	rm -rf autom4te.cache
 
 check: tcpdump
-	uudecode --help || (echo "No uudecode program found, not running tests"; echo "apt-get/rpm install sharutils?"; exit 1)
 	(cd tests && ./TESTrun.sh)
 
 tags: $(TAGFILES)

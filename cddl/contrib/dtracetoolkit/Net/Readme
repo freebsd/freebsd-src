@@ -1,0 +1,4 @@
+Net - Network based analysis
+
+   These scripts analyse activity of the network interfaces, the TCP/IP
+   stack, socket activity, etc.

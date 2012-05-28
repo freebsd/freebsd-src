@@ -41,6 +41,8 @@
 #ifndef AT91RM9200_H
 #define	AT91RM9200_H
 
+#define ATMEL_ENV
+
 typedef volatile unsigned int AT91_REG;// Hardware register definition
 
 // *****************************************************************************

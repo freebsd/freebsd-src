@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,13 +29,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $KAME: sctp.h,v 1.18 2005/03/06 16:04:16 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #ifndef _NETINET_SCTP_H_
 #define _NETINET_SCTP_H_
+
 
 #include <sys/types.h>
 
@@ -265,8 +265,6 @@ struct sctp_paramhdr {
 #define SCTP_PEELOFF                    0x0000800a
 /* the real worker for sctp_getaddrlen() */
 #define SCTP_GET_ADDR_LEN               0x0000800b
-/* temporary workaround for Apple listen() issue, no args used */
-#define SCTP_LISTEN_FIX			0x0000800c
 /* Debug things that need to be purged */
 #define SCTP_SET_INITIAL_DBG_SEQ	0x00009f00
 
@@ -511,35 +509,38 @@ struct sctp_error_unrecognized_chunk {
 /*
  * PCB Features (in sctp_features bitmask)
  */
-#define SCTP_PCB_FLAGS_DO_NOT_PMTUD     0x00000001
-#define SCTP_PCB_FLAGS_EXT_RCVINFO      0x00000002	/* deprecated */
-#define SCTP_PCB_FLAGS_DONOT_HEARTBEAT  0x00000004
-#define SCTP_PCB_FLAGS_FRAG_INTERLEAVE  0x00000008
-#define SCTP_PCB_FLAGS_INTERLEAVE_STRMS	0x00000010
-#define SCTP_PCB_FLAGS_DO_ASCONF	0x00000020
-#define SCTP_PCB_FLAGS_AUTO_ASCONF	0x00000040
-#define SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE 0x00000080
+#define SCTP_PCB_FLAGS_DO_NOT_PMTUD      0x00000001
+#define SCTP_PCB_FLAGS_EXT_RCVINFO       0x00000002	/* deprecated */
+#define SCTP_PCB_FLAGS_DONOT_HEARTBEAT   0x00000004
+#define SCTP_PCB_FLAGS_FRAG_INTERLEAVE   0x00000008
+#define SCTP_PCB_FLAGS_INTERLEAVE_STRMS  0x00000010
+#define SCTP_PCB_FLAGS_DO_ASCONF         0x00000020
+#define SCTP_PCB_FLAGS_AUTO_ASCONF       0x00000040
+#define SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE  0x00000080
 /* socket options */
-#define SCTP_PCB_FLAGS_NODELAY		0x00000100
-#define SCTP_PCB_FLAGS_AUTOCLOSE	0x00000200
-#define SCTP_PCB_FLAGS_RECVDATAIOEVNT	0x00000400	/* deprecated */
-#define SCTP_PCB_FLAGS_RECVASSOCEVNT	0x00000800
-#define SCTP_PCB_FLAGS_RECVPADDREVNT	0x00001000
-#define SCTP_PCB_FLAGS_RECVPEERERR	0x00002000
-#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT	0x00004000
-#define SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT	0x00008000
-#define SCTP_PCB_FLAGS_ADAPTATIONEVNT	0x00010000
-#define SCTP_PCB_FLAGS_PDAPIEVNT	0x00020000
-#define SCTP_PCB_FLAGS_AUTHEVNT		0x00040000
-#define SCTP_PCB_FLAGS_STREAM_RESETEVNT 0x00080000
-#define SCTP_PCB_FLAGS_NO_FRAGMENT	0x00100000
-#define SCTP_PCB_FLAGS_EXPLICIT_EOR     0x00400000
-#define SCTP_PCB_FLAGS_NEEDS_MAPPED_V4	0x00800000
-#define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS	0x01000000
-#define SCTP_PCB_FLAGS_PORTREUSE        0x02000000
-#define SCTP_PCB_FLAGS_DRYEVNT          0x04000000
-#define SCTP_PCB_FLAGS_RECVRCVINFO      0x08000000
-#define SCTP_PCB_FLAGS_RECVNXTINFO      0x10000000
+#define SCTP_PCB_FLAGS_NODELAY           0x00000100
+#define SCTP_PCB_FLAGS_AUTOCLOSE         0x00000200
+#define SCTP_PCB_FLAGS_RECVDATAIOEVNT    0x00000400	/* deprecated */
+#define SCTP_PCB_FLAGS_RECVASSOCEVNT     0x00000800
+#define SCTP_PCB_FLAGS_RECVPADDREVNT     0x00001000
+#define SCTP_PCB_FLAGS_RECVPEERERR       0x00002000
+#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT  0x00004000	/* deprecated */
+#define SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT  0x00008000
+#define SCTP_PCB_FLAGS_ADAPTATIONEVNT    0x00010000
+#define SCTP_PCB_FLAGS_PDAPIEVNT         0x00020000
+#define SCTP_PCB_FLAGS_AUTHEVNT          0x00040000
+#define SCTP_PCB_FLAGS_STREAM_RESETEVNT  0x00080000
+#define SCTP_PCB_FLAGS_NO_FRAGMENT       0x00100000
+#define SCTP_PCB_FLAGS_EXPLICIT_EOR      0x00400000
+#define SCTP_PCB_FLAGS_NEEDS_MAPPED_V4   0x00800000
+#define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS  0x01000000
+#define SCTP_PCB_FLAGS_PORTREUSE         0x02000000
+#define SCTP_PCB_FLAGS_DRYEVNT           0x04000000
+#define SCTP_PCB_FLAGS_RECVRCVINFO       0x08000000
+#define SCTP_PCB_FLAGS_RECVNXTINFO       0x10000000
+#define SCTP_PCB_FLAGS_ASSOC_RESETEVNT   0x20000000
+#define SCTP_PCB_FLAGS_STREAM_CHANGEEVNT 0x40000000
+#define SCTP_PCB_FLAGS_RECVNSENDFAILEVNT 0x80000000
 
 /*-
  * mobility_features parameters (by micchie).Note
@@ -547,13 +548,15 @@ struct sctp_error_unrecognized_chunk {
  * sctp_mobility_features flags.. not the sctp_features
  * flags.
  */
-#define SCTP_MOBILITY_BASE		0x00000001
-#define SCTP_MOBILITY_FASTHANDOFF	0x00000002
-#define SCTP_MOBILITY_PRIM_DELETED	0x00000004
+#define SCTP_MOBILITY_BASE               0x00000001
+#define SCTP_MOBILITY_FASTHANDOFF        0x00000002
+#define SCTP_MOBILITY_PRIM_DELETED       0x00000004
 
 
 #define SCTP_SMALLEST_PMTU 512	/* smallest pmtu allowed when disabling PMTU
 				 * discovery */
+
+#undef SCTP_PACKED
 
 #include <netinet/sctp_uio.h>
 
@@ -605,8 +608,5 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_LOG_AT_SEND_2_SCTP				0x04000000
 #define SCTP_LOG_AT_SEND_2_OUTQ				0x08000000
 #define SCTP_LOG_TRY_ADVANCE				0x10000000
-
-
-#undef SCTP_PACKED
 
 #endif				/* !_NETINET_SCTP_H_ */

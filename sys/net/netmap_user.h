@@ -70,7 +70,7 @@
 
 #define NETMAP_RXRING(nifp, index)			\
 	((struct netmap_ring *)((char *)(nifp) +	\
-	    (nifp)->ring_ofs[index + (nifp)->ni_tx_queues+1] ) )
+	    (nifp)->ring_ofs[index + (nifp)->ni_tx_rings + 1] ) )
 
 #define NETMAP_BUF(ring, index)				\
 	((char *)(ring) + (ring)->buf_ofs + ((index)*(ring)->nr_buf_size))

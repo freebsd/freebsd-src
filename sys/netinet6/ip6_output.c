@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/ucred.h>
 
+#include <machine/in_cksum.h>
+
 #include <net/if.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -182,6 +184,29 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 	}\
     } while (/*CONSTCOND*/ 0)
 
+static void
+in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
+{
+	u_short csum;
+
+	csum = in_cksum_skip(m, offset + plen, offset);
+	if (m->m_pkthdr.csum_flags & CSUM_UDP && csum == 0)
+		csum = 0xffff;
+	offset += m->m_pkthdr.csum_data;	/* checksum offset */
+
+	if (offset + sizeof(u_short) > m->m_len) {
+		printf("%s: delayed m_pullup, m->len: %d off: %d\n",
+		    __func__, m->m_len, offset);
+		/*
+		 * XXX this should not happen, but if it does, the correct
+		 * behavior may be to insert the checksum in the appropriate
+		 * next mbuf in the chain.
+		 */
+		return;
+	}
+	*(u_short *)(m->m_data + offset) = csum;
+}
+
 /*
  * IP6 output. The packet in mbuf chain m contains a skeletal IP6
  * header (with pri, len, nxt, hlim, src, dst).
@@ -221,9 +246,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int flevalid = 0;
 	int hdrsplit = 0;
 	int needipsec = 0;
-#ifdef SCTP
-	int sw_csum;
-#endif
+	int sw_csum, tso;
 #ifdef IPSEC
 	struct ipsec_output_state state;
 	struct ip6_rthdr *rh = NULL;
@@ -867,8 +890,6 @@ again:
 				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 				m->m_pkthdr.csum_data = 0xffff;
 			}
-			m->m_pkthdr.csum_flags |=
-			    CSUM_IP_CHECKED | CSUM_IP_VALID;
 #ifdef SCTP
 			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
 				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
@@ -891,7 +912,7 @@ again:
 		}
 #ifdef SCTP
 		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 #endif   
 		error = netisr_queue(NETISR_IPV6, m);
 		goto done;
@@ -927,16 +948,32 @@ passout:
 	 * 4: if dontfrag == 1 && alwaysfrag == 1
 	 *	error, as we cannot handle this conflicting request
 	 */
+	sw_csum = m->m_pkthdr.csum_flags;
+	if (!hdrsplit) {
+		tso = ((sw_csum & ifp->if_hwassist & CSUM_TSO) != 0) ? 1 : 0;
+		sw_csum &= ~ifp->if_hwassist;
+	} else
+		tso = 0;
+	/*
+	 * If we added extension headers, we will not do TSO and calculate the
+	 * checksums ourselves for now.
+	 * XXX-BZ  Need a framework to know when the NIC can handle it, even
+	 * with ext. hdrs.
+	 */
+	if (sw_csum & CSUM_DELAY_DATA) {
+		sw_csum &= ~CSUM_DELAY_DATA;
+		in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
+	}
 #ifdef SCTP
-	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
 	if (sw_csum & CSUM_SCTP) {
-		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 		sw_csum &= ~CSUM_SCTP;
+		sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
 	}
 #endif
+	m->m_pkthdr.csum_flags &= ifp->if_hwassist;
 	tlen = m->m_pkthdr.len;
 
-	if (opt && (opt->ip6po_flags & IP6PO_DONTFRAG))
+	if ((opt && (opt->ip6po_flags & IP6PO_DONTFRAG)) || tso)
 		dontfrag = 1;
 	else
 		dontfrag = 0;
@@ -945,7 +982,7 @@ passout:
 		error = EMSGSIZE;
 		goto bad;
 	}
-	if (dontfrag && tlen > IN6_LINKMTU(ifp)) {	/* case 2-b */
+	if (dontfrag && tlen > IN6_LINKMTU(ifp) && !tso) {	/* case 2-b */
 		/*
 		 * Even if the DONTFRAG option is specified, we cannot send the
 		 * packet when the data length is larger than the MTU of the
@@ -1033,6 +1070,22 @@ passout:
 			goto bad;
 		}
 
+
+		/*
+		 * If the interface will not calculate checksums on
+		 * fragmented packets, then do it here.
+		 * XXX-BZ handle the hw offloading case.  Need flags.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in6_delayed_cksum(m, plen, hlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+			sctp_delayed_cksum(m, hlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
+		}
+#endif
 		mnext = &m->m_nextpkt;
 
 		/*

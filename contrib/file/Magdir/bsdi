@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: bsdi,v 1.5 2009/09/19 16:28:08 christos Exp $
 # bsdi:  file(1) magic for BSD/OS (from BSDI) objects
 #
 

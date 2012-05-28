@@ -11,6 +11,8 @@
 #define LLVM_MC_MCFIXUP_H
 
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SMLoc.h"
 #include <cassert>
 
 namespace llvm {
@@ -26,6 +28,14 @@ enum MCFixupKind {
   FK_PCRel_2,    ///< A two-byte pc relative fixup.
   FK_PCRel_4,    ///< A four-byte pc relative fixup.
   FK_PCRel_8,    ///< A eight-byte pc relative fixup.
+  FK_GPRel_1,    ///< A one-byte gp relative fixup.
+  FK_GPRel_2,    ///< A two-byte gp relative fixup.
+  FK_GPRel_4,    ///< A four-byte gp relative fixup.
+  FK_GPRel_8,    ///< A eight-byte gp relative fixup.
+  FK_SecRel_1,   ///< A one-byte section relative fixup.
+  FK_SecRel_2,   ///< A two-byte section relative fixup.
+  FK_SecRel_4,   ///< A four-byte section relative fixup.
+  FK_SecRel_8,   ///< A eight-byte section relative fixup.
 
   FirstTargetFixupKind = 128,
 
@@ -61,14 +71,17 @@ class MCFixup {
   /// determine how the operand value should be encoded into the instruction.
   unsigned Kind;
 
+  /// The source location which gave rise to the fixup, if any.
+  SMLoc Loc;
 public:
   static MCFixup Create(uint32_t Offset, const MCExpr *Value,
-                        MCFixupKind Kind) {
+                        MCFixupKind Kind, SMLoc Loc = SMLoc()) {
     assert(unsigned(Kind) < MaxTargetFixupKind && "Kind out of range!");
     MCFixup FI;
     FI.Value = Value;
     FI.Offset = Offset;
     FI.Kind = unsigned(Kind);
+    FI.Loc = Loc;
     return FI;
   }
 
@@ -83,13 +96,15 @@ public:
   /// size. It is an error to pass an unsupported size.
   static MCFixupKind getKindForSize(unsigned Size, bool isPCRel) {
     switch (Size) {
-    default: assert(0 && "Invalid generic fixup size!");
+    default: llvm_unreachable("Invalid generic fixup size!");
     case 1: return isPCRel ? FK_PCRel_1 : FK_Data_1;
     case 2: return isPCRel ? FK_PCRel_2 : FK_Data_2;
     case 4: return isPCRel ? FK_PCRel_4 : FK_Data_4;
     case 8: return isPCRel ? FK_PCRel_8 : FK_Data_8;
     }
   }
+
+  SMLoc getLoc() const { return Loc; }
 };
 
 } // End llvm namespace

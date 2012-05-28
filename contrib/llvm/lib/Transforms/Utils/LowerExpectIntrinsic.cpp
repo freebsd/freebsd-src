@@ -1,3 +1,16 @@
+//===- LowerExpectIntrinsic.cpp - Lower expect intrinsic ------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// This pass lowers the 'expect' intrinsic to LLVM metadata.
+//
+//===----------------------------------------------------------------------===//
+
 #define DEBUG_TYPE "lower-expect-intrinsic"
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
@@ -60,14 +73,17 @@ bool LowerExpectIntrinsic::HandleSwitchExpect(SwitchInst *SI) {
   LLVMContext &Context = CI->getContext();
   Type *Int32Ty = Type::getInt32Ty(Context);
 
-  unsigned caseNo = SI->findCaseValue(ExpectedValue);
+  SwitchInst::CaseIt Case = SI->findCaseValue(ExpectedValue);
   std::vector<Value *> Vec;
   unsigned n = SI->getNumCases();
-  Vec.resize(n + 1); // +1 for MDString
+  Vec.resize(n + 1 + 1); // +1 for MDString and +1 for default case
 
   Vec[0] = MDString::get(Context, "branch_weights");
+  Vec[1] = ConstantInt::get(Int32Ty, Case == SI->case_default() ?
+                            LikelyBranchWeight : UnlikelyBranchWeight);
   for (unsigned i = 0; i < n; ++i) {
-    Vec[i + 1] = ConstantInt::get(Int32Ty, i == caseNo ? LikelyBranchWeight : UnlikelyBranchWeight);
+    Vec[i + 1 + 1] = ConstantInt::get(Int32Ty, i == Case.getCaseIndex() ?
+        LikelyBranchWeight : UnlikelyBranchWeight);
   }
 
   MDNode *WeightsNode = llvm::MDNode::get(Context, Vec);

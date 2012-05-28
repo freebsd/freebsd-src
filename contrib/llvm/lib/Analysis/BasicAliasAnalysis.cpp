@@ -42,22 +42,6 @@ using namespace llvm;
 // Useful predicates
 //===----------------------------------------------------------------------===//
 
-/// isKnownNonNull - Return true if we know that the specified value is never
-/// null.
-static bool isKnownNonNull(const Value *V) {
-  // Alloca never returns null, malloc might.
-  if (isa<AllocaInst>(V)) return true;
-  
-  // A byval argument is never null.
-  if (const Argument *A = dyn_cast<Argument>(V))
-    return A->hasByValAttr();
-
-  // Global values are not null unless extern weak.
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
-    return !GV->hasExternalWeakLinkage();
-  return false;
-}
-
 /// isNonEscapingLocalObject - Return true if the pointer is to a function-local
 /// object that never escapes from the function.
 static bool isNonEscapingLocalObject(const Value *V) {
@@ -100,42 +84,59 @@ static bool isEscapeSource(const Value *V) {
 
 /// getObjectSize - Return the size of the object specified by V, or
 /// UnknownSize if unknown.
-static uint64_t getObjectSize(const Value *V, const TargetData &TD) {
+static uint64_t getObjectSize(const Value *V, const TargetData &TD,
+                              bool RoundToAlign = false) {
   Type *AccessTy;
+  unsigned Align;
   if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(V)) {
     if (!GV->hasDefinitiveInitializer())
       return AliasAnalysis::UnknownSize;
     AccessTy = GV->getType()->getElementType();
+    Align = GV->getAlignment();
   } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(V)) {
     if (!AI->isArrayAllocation())
       AccessTy = AI->getType()->getElementType();
     else
       return AliasAnalysis::UnknownSize;
+    Align = AI->getAlignment();
   } else if (const CallInst* CI = extractMallocCall(V)) {
-    if (!isArrayMalloc(V, &TD))
+    if (!RoundToAlign && !isArrayMalloc(V, &TD))
       // The size is the argument to the malloc call.
       if (const ConstantInt* C = dyn_cast<ConstantInt>(CI->getArgOperand(0)))
         return C->getZExtValue();
     return AliasAnalysis::UnknownSize;
   } else if (const Argument *A = dyn_cast<Argument>(V)) {
-    if (A->hasByValAttr())
+    if (A->hasByValAttr()) {
       AccessTy = cast<PointerType>(A->getType())->getElementType();
-    else
+      Align = A->getParamAlignment();
+    } else {
       return AliasAnalysis::UnknownSize;
+    }
   } else {
     return AliasAnalysis::UnknownSize;
   }
-  
-  if (AccessTy->isSized())
-    return TD.getTypeAllocSize(AccessTy);
-  return AliasAnalysis::UnknownSize;
+
+  if (!AccessTy->isSized())
+    return AliasAnalysis::UnknownSize;
+
+  uint64_t Size = TD.getTypeAllocSize(AccessTy);
+  // If there is an explicitly specified alignment, and we need to
+  // take alignment into account, round up the size. (If the alignment
+  // is implicit, getTypeAllocSize is sufficient.)
+  if (RoundToAlign && Align)
+    Size = RoundUpToAlignment(Size, Align);
+
+  return Size;
 }
 
 /// isObjectSmallerThan - Return true if we can prove that the object specified
 /// by V is smaller than Size.
 static bool isObjectSmallerThan(const Value *V, uint64_t Size,
                                 const TargetData &TD) {
-  uint64_t ObjectSize = getObjectSize(V, TD);
+  // This function needs to use the aligned object size because we allow
+  // reads a bit past the end given sufficient alignment.
+  uint64_t ObjectSize = getObjectSize(V, TD, /*RoundToAlign*/true);
+  
   return ObjectSize != AliasAnalysis::UnknownSize && ObjectSize < Size;
 }
 
@@ -706,8 +707,7 @@ BasicAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
       // pointer were passed to arguments that were neither of these, then it
       // couldn't be no-capture.
       if (!(*CI)->getType()->isPointerTy() ||
-          (!CS.paramHasAttr(ArgNo+1, Attribute::NoCapture) &&
-           !CS.paramHasAttr(ArgNo+1, Attribute::ByVal)))
+          (!CS.doesNotCapture(ArgNo) && !CS.isByValArgument(ArgNo)))
         continue;
       
       // If this is a no-capture pointer argument, see if we can tell that it
@@ -978,10 +978,7 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
   //
   // TODO: Returning PartialAlias instead of MayAlias is a mild hack; the
   // practical effect of this is protecting TBAA in the case of dynamic
-  // indices into arrays of unions. An alternative way to solve this would
-  // be to have clang emit extra metadata for unions and/or union accesses.
-  // A union-specific solution wouldn't handle the problem for malloc'd
-  // memory however.
+  // indices into arrays of unions or malloc'd memory.
   return PartialAlias;
 }
 

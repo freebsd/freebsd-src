@@ -28,8 +28,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifdef CROSS_DEBUGGER
+#include <sys/powerpc/include/pcb.h>
+#include <sys/powerpc/include/frame.h>
+#else
 #include <machine/pcb.h>
 #include <machine/frame.h>
+#endif
 #include <err.h>
 #include <kvm.h>
 #include <string.h>

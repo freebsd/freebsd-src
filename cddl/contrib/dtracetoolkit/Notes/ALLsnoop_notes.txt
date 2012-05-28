@@ -1,0 +1,94 @@
+**************************************************************************
+* The following are additional notes on ALL of the *snoop programs (such as
+* execsnoop, iosnoop, ..., and dapptrace, dtruss).
+*
+* $Id: ALLsnoop_notes.txt 44 2007-09-17 07:47:20Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+
+* The output seems shuffled?
+
+Beware - due to the (current) way DTrace works, on multi-CPU systems there
+is no guarentee that if you print traced events the output is in the same
+order that the events occured.
+
+This is because events details are placed in kernel per-CPU buffers, and then
+dumped in sequence by the DTrace consumer (/usr/sbin/dtrace) whenever it
+wakes up ("switchrate" tunable). The DTrace consumer reads and prints the
+buffers one by one, it doesn't combine them and sort them. 
+
+To demonstrate this,
+
+   # dtrace -n 'profile:::profile-3hz { trace(timestamp); }'
+   dtrace: description 'profile-3hz ' matched 1 probe
+   CPU     ID                    FUNCTION:NAME
+     0  41241                     :profile-3hz  1898015274778547
+     0  41241                     :profile-3hz  1898015608118262
+     0  41241                     :profile-3hz  1898015941430060
+     1  41241                     :profile-3hz  1898015275499014
+     1  41241                     :profile-3hz  1898015609173485
+     1  41241                     :profile-3hz  1898015942505828
+     2  41241                     :profile-3hz  1898015275351257
+     2  41241                     :profile-3hz  1898015609180861
+     2  41241                     :profile-3hz  1898015942512708
+     3  41241                     :profile-3hz  1898015274803528
+     3  41241                     :profile-3hz  1898015608120522
+     3  41241                     :profile-3hz  1898015941449884
+   ^C
+
+If you read the timestamps carefully, you'll see that they aren't quite
+in chronological order. If you look at the CPU column while reading the
+timestamps, the way DTrace works should become clear.
+
+Most of the snoop tools have a switchrate of 10hz, so events may be shuffled
+within a tenth of a second - not hugely noticable.
+
+This isn't really a problem anyway. If you must have the output in the correct
+order, find the switch that prints timestamps and then sort the output.
+As an example,
+
+   # iosnoop -t > out.iosnoop
+   ^C
+   # sort -n out.iosnoop
+   
+   TIME             UID   PID D    BLOCK   SIZE       COMM PATHNAME
+   183710958520       0  3058 W 10507848   4096       sync /var/log/pool/poold
+   183710990358       0  3058 W  6584858   1024       sync /etc/motd
+   183711013469       0  3058 W    60655   9216       sync <none>
+   183711020149       0  3058 W    60673   1024       sync <none>
+
+All shell-wrapped scripts should have some way to print timestamps, and
+many DTrace-only scripts print timestamps by default. If you find a script
+that doesn't print timestamps, it should be trivial for you to add an
+extra column.
+
+To add a microsecond-since-boot time column to a script, try adding this
+before every printf() you find,
+
+	printf("%-16d ", timestamp / 1000);
+
+except for the header line, where you can add this,
+
+	printf("%-16s ", "TIME(us)");
+
+Now you will be able to post sort the script output on the TIME(us) column.
+
+In practise, I find post sorting the output a little annoying at times,
+and use a couple of other ways to prevent shuffling from happening in the
+first place:
+
+- offline all CPUs but one when running flow scripts. Naturally, you
+  probably don't want to do this on production servers, this is a trick
+  that may be handy for when developing on workstations or laptops. Bear
+  in mind that if you are trying to DTrace certain issues, such as
+  multi-thread locking contention, then offlining most CPUs may eliminate
+  the issue you are trying to observe.
+- pbind the target process of interest to a single CPU. Most OSes provide
+  a way to glue a process to a single CPU; Solaris has both pbind and psrset.
+
+Another way to solve this problem would be to enhance DTrace to always print
+in-order output. Maybe this will be done one day; maybe by the time you
+are reading this it has already been done?
+

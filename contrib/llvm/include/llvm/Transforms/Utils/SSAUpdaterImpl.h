@@ -15,8 +15,16 @@
 #ifndef LLVM_TRANSFORMS_UTILS_SSAUPDATERIMPL_H
 #define LLVM_TRANSFORMS_UTILS_SSAUPDATERIMPL_H
 
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ValueHandle.h"
+
 namespace llvm {
 
+class CastInst;
+class PHINode;
 template<typename T> class SSAUpdaterTraits;
 
 template<typename UpdaterT>
@@ -372,7 +380,7 @@ public:
       if (!SomePHI)
         break;
       if (CheckIfPHIMatches(SomePHI)) {
-        RecordMatchingPHI(SomePHI);
+        RecordMatchingPHIs(BlockList);
         break;
       }
       // Match failed: clear all the PHITag values.
@@ -429,38 +437,17 @@ public:
     return true;
   }
 
-  /// RecordMatchingPHI - For a PHI node that matches, record it and its input
-  /// PHIs in both the BBMap and the AvailableVals mapping.
-  void RecordMatchingPHI(PhiT *PHI) {
-    SmallVector<PhiT*, 20> WorkList;
-    WorkList.push_back(PHI);
-
-    // Record this PHI.
-    BlkT *BB = PHI->getParent();
-    ValT PHIVal = Traits::GetPHIValue(PHI);
-    (*AvailableVals)[BB] = PHIVal;
-    BBMap[BB]->AvailableVal = PHIVal;
-
-    while (!WorkList.empty()) {
-      PHI = WorkList.pop_back_val();
-
-      // Iterate through the PHI's incoming values.
-      for (typename Traits::PHI_iterator I = Traits::PHI_begin(PHI),
-             E = Traits::PHI_end(PHI); I != E; ++I) {
-        ValT IncomingVal = I.getIncomingValue();
-        PhiT *IncomingPHI = Traits::ValueIsPHI(IncomingVal, Updater);
-        if (!IncomingPHI) continue;
-        BB = IncomingPHI->getParent();
-        BBInfo *Info = BBMap[BB];
-        if (!Info || Info->AvailableVal)
-          continue;
-
-        // Record the PHI and add it to the worklist.
-        (*AvailableVals)[BB] = IncomingVal;
-        Info->AvailableVal = IncomingVal;
-        WorkList.push_back(IncomingPHI);
+  /// RecordMatchingPHIs - For each PHI node that matches, record it in both
+  /// the BBMap and the AvailableVals mapping.
+  void RecordMatchingPHIs(BlockListTy *BlockList) {
+    for (typename BlockListTy::iterator I = BlockList->begin(),
+           E = BlockList->end(); I != E; ++I)
+      if (PhiT *PHI = (*I)->PHITag) {
+        BlkT *BB = PHI->getParent();
+        ValT PHIVal = Traits::GetPHIValue(PHI);
+        (*AvailableVals)[BB] = PHIVal;
+        BBMap[BB]->AvailableVal = PHIVal;
       }
-    }
   }
 };
 

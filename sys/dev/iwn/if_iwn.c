@@ -92,6 +92,9 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, 0x0885, "Intel Centrino Wireless-N + WiMAX 6150"	},
 	{ 0x8086, 0x0886, "Intel Centrino Wireless-N + WiMAX 6150"	},
 	{ 0x8086, 0x0896, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x0887, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x08ae, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, 0x08af, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, 0x4229, "Intel Wireless WiFi Link 4965"		},
 	{ 0x8086, 0x422b, "Intel Centrino Ultimate-N 6300"		},
 	{ 0x8086, 0x422c, "Intel Centrino Advanced-N 6200"		},
@@ -2445,7 +2448,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	txq = &sc->txq[le16toh(ba->qid)];
 	tap = sc->qid2tap[le16toh(ba->qid)];
-	tid = WME_AC_TO_TID(tap->txa_ac);
+	tid = tap->txa_tid;
 	ni = tap->txa_ni;
 	wn = (void *)ni;
 
@@ -2764,7 +2767,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	struct mbuf *m;
 	struct iwn_node *wn;
 	struct ieee80211_node *ni;
-	struct ieee80211vap *vap;
 	struct ieee80211_tx_ampdu *tap;
 	uint64_t bitmap;
 	uint32_t *status = stat;
@@ -2804,7 +2806,7 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	}
 	tap = sc->qid2tap[qid];
 	if (tap != NULL) {
-		tid = WME_AC_TO_TID(tap->txa_ac);
+		tid = tap->txa_tid;
 		wn = (void *)tap->txa_ni;
 		wn->agg[tid].bitmap = bitmap;
 		wn->agg[tid].startidx = start;
@@ -2823,7 +2825,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		bus_dmamap_unload(ring->data_dmat, data->map);
 		m = data->m, data->m = NULL;
 		ni = data->ni, data->ni = NULL;
-		vap = ni->ni_vap;
 
 		if (m->m_flags & M_TXCB)
 			ieee80211_process_callback(ni, m, 1);
@@ -3308,18 +3309,20 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		tid = 0;
 	}
 	ac = M_WME_GETAC(m);
-
-	if (IEEE80211_QOS_HAS_SEQ(wh) &&
-	    IEEE80211_AMPDU_RUNNING(&ni->ni_tx_ampdu[ac])) {
+	if (m->m_flags & M_AMPDU_MPDU) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
-		ring = &sc->txq[*(int *)tap->txa_private];
+		if (!IEEE80211_AMPDU_RUNNING(tap)) {
+			m_freem(m);
+			return EINVAL;
+		}
+
+		ac = *(int *)tap->txa_private;
 		*(uint16_t *)wh->i_seq =
 		    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
 		ni->ni_txseqs[tid]++;
-	} else {
-		ring = &sc->txq[ac];
 	}
+	ring = &sc->txq[ac];
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 
@@ -5588,7 +5591,7 @@ iwn_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 {
 	struct iwn_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int qid = *(int *)tap->txa_private;
-	uint8_t tid = WME_AC_TO_TID(tap->txa_ac);
+	uint8_t tid = tap->txa_tid;
 	int ret;
 
 	if (code == IEEE80211_STATUS_SUCCESS) {
@@ -5612,7 +5615,7 @@ static int
 iwn_ampdu_tx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
     uint8_t tid)
 {
-	struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[TID_TO_WME_AC(tid)];
+	struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
 	struct iwn_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_node *wn = (void *)ni;
@@ -5645,7 +5648,7 @@ iwn_ampdu_tx_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 	struct iwn_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	struct iwn_ops *ops = &sc->ops;
-	uint8_t tid = WME_AC_TO_TID(tap->txa_ac);
+	uint8_t tid = tap->txa_tid;
 	int qid;
 
 	if (tap->txa_private == NULL)

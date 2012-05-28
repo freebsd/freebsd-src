@@ -373,25 +373,20 @@ AcpiDbSendNotify (
         return;
     }
 
-    /* Decode Named object type */
+    /* Dispatch the notify if legal */
 
-    switch (Node->Type)
+    if (AcpiEvIsNotifyObject (Node))
     {
-    case ACPI_TYPE_DEVICE:
-    case ACPI_TYPE_THERMAL:
-
-         /* Send the notify */
-
         Status = AcpiEvQueueNotifyRequest (Node, Value);
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("Could not queue notify\n");
         }
-        break;
-
-    default:
-        AcpiOsPrintf ("Named object is not a device or a thermal object\n");
-        break;
+    }
+    else
+    {
+        AcpiOsPrintf ("Named object [%4.4s] Type %s, must be Device/Thermal/Processor type\n",
+            AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type));
     }
 }
 

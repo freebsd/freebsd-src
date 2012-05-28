@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,7 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*	$KAME: sctp6_usrreq.c,v 1.38 2005/08/24 08:08:56 suz Exp $	*/
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -151,11 +150,6 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 		goto sctp_skip_csum;
 	}
 	check = sh->checksum;	/* save incoming checksum */
-	if ((check == 0) && (SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback)) &&
-	    (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &ip6->ip6_dst))) {
-		SCTP_STAT_INCR(sctps_recvnocrc);
-		goto sctp_skip_csum;
-	}
 	sh->checksum = 0;	/* prepare for calc */
 	calc_check = sctp_calculate_cksum(m, iphlen);
 	SCTP_STAT_INCR(sctps_recvswcrc);
@@ -388,10 +382,8 @@ sctp6_notify(struct sctp_inpcb *inp,
 	struct socket *so;
 
 #endif
+
 	/* protection */
-	int reason;
-
-
 	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
 	    (sh == NULL) || (to == NULL)) {
 		if (stcb)
@@ -428,8 +420,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 			net->dest_state &= ~SCTP_ADDR_REACHABLE;
 			net->dest_state &= ~SCTP_ADDR_PF;
 			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-			    stcb, SCTP_FAILED_THRESHOLD,
-			    (void *)net, SCTP_SO_NOT_LOCKED);
+			    stcb, 0, (void *)net, SCTP_SO_NOT_LOCKED);
 		}
 		SCTP_TCB_UNLOCK(stcb);
 	} else if ((icmph->icmp6_code == ICMP_UNREACH_PROTOCOL) ||
@@ -441,8 +432,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 		 * now is dead. In either case treat it like a OOTB abort
 		 * with no TCB
 		 */
-		reason = SCTP_PEER_FAULTY;
-		sctp_abort_notification(stcb, reason, SCTP_SO_NOT_LOCKED);
+		sctp_abort_notification(stcb, 1, 0, NULL, SCTP_SO_NOT_LOCKED);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(inp);
 		atomic_add_int(&stcb->asoc.refcnt, 1);

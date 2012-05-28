@@ -456,17 +456,16 @@ adaclose(struct disk *dp)
 	struct	cam_periph *periph;
 	struct	ada_softc *softc;
 	union ccb *ccb;
-	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
 	cam_periph_lock(periph);
-	if ((error = cam_periph_hold(periph, PRIBIO)) != 0) {
+	if (cam_periph_hold(periph, PRIBIO) != 0) {
 		cam_periph_unlock(periph);
 		cam_periph_release(periph);
-		return (error);
+		return (0);
 	}
 
 	softc = (struct ada_softc *)periph->softc;
@@ -775,6 +774,20 @@ adaasync(void *callback_arg, u_int32_t code,
 		 && status != CAM_REQ_INPROG)
 			printf("adaasync: Unable to attach to new device "
 				"due to status 0x%x\n", status);
+		break;
+	}
+	case AC_ADVINFO_CHANGED:
+	{
+		uintptr_t buftype;
+
+		buftype = (uintptr_t)arg;
+		if (buftype == CDAI_TYPE_PHYS_PATH) {
+			struct ada_softc *softc;
+
+			softc = periph->softc;
+			disk_attr_changed(softc->disk, "GEOM::physpath",
+					  M_NOWAIT);
+		}
 		break;
 	}
 	case AC_SENT_BDR:
@@ -1089,8 +1102,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * them and the only alternative would be to
 	 * not attach the device on failure.
 	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
-			   adaasync, periph, periph->path);
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE |
+	    AC_ADVINFO_CHANGED, adaasync, periph, periph->path);
 
 	/*
 	 * Schedule a periodic event to occasionally send an

@@ -17,9 +17,12 @@
 #include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/Debug.h"
-#include <set>
+#include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
+#include <cstdio>
+#include <set>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -629,11 +632,11 @@ TreePredicateFn::TreePredicateFn(TreePattern *N) : PatFragRec(N) {
 }
 
 std::string TreePredicateFn::getPredCode() const {
-  return PatFragRec->getRecord()->getValueAsCode("PredicateCode");
+  return PatFragRec->getRecord()->getValueAsString("PredicateCode");
 }
 
 std::string TreePredicateFn::getImmCode() const {
-  return PatFragRec->getRecord()->getValueAsCode("ImmediateCode");
+  return PatFragRec->getRecord()->getValueAsString("ImmediateCode");
 }
 
 
@@ -748,7 +751,7 @@ std::string PatternToMatch::getPredicateCheck() const {
 #ifndef NDEBUG
         Def->dump();
 #endif
-        assert(0 && "Unknown predicate type!");
+        llvm_unreachable("Unknown predicate type!");
       }
       if (!PredicateCheck.empty())
         PredicateCheck += " && ";
@@ -839,7 +842,6 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
   TreePatternNode *NodeToApply = getOperandNum(OperandNo, N, NodeInfo, ResNo);
 
   switch (ConstraintType) {
-  default: assert(0 && "Unknown constraint type!");
   case SDTCisVT:
     // Operand must be a particular type.
     return NodeToApply->UpdateNodeType(ResNo, x.SDTCisVT_Info.VT, TP);
@@ -913,7 +915,7 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
       EnforceVectorSubVectorTypeIs(NodeToApply->getExtType(ResNo), TP);
   }
   }
-  return false;
+  llvm_unreachable("Invalid ConstraintType!");
 }
 
 //===----------------------------------------------------------------------===//
@@ -1609,10 +1611,9 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
         MadeChange |= Child->UpdateNodeType(ChildResNo, MVT::iPTR, TP);
       } else if (OperandNode->getName() == "unknown") {
         // Nothing to do.
-      } else {
-        assert(0 && "Unknown operand type!");
-        abort();
-      }
+      } else
+        llvm_unreachable("Unknown operand type!");
+
       MadeChange |= Child->ApplyTypeConstraints(TP, NotRegisters);
     }
 
@@ -2071,7 +2072,7 @@ void CodeGenDAGPatterns::ParseNodeTransforms() {
   while (!Xforms.empty()) {
     Record *XFormNode = Xforms.back();
     Record *SDNode = XFormNode->getValueAsDef("Opcode");
-    std::string Code = XFormNode->getValueAsCode("XFormFunction");
+    std::string Code = XFormNode->getValueAsString("XFormFunction");
     SDNodeXForms.insert(std::make_pair(XFormNode, NodeXForm(SDNode, Code)));
 
     Xforms.pop_back();
@@ -2483,10 +2484,9 @@ static void InferFromPattern(const CodeGenInstruction &Inst,
     // If we decided that this is a store from the pattern, then the .td file
     // entry is redundant.
     if (MayStore)
-      fprintf(stderr,
-              "Warning: mayStore flag explicitly set on instruction '%s'"
-              " but flag already inferred from pattern.\n",
-              Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "mayStore flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     MayStore = true;
   }
 
@@ -2494,24 +2494,25 @@ static void InferFromPattern(const CodeGenInstruction &Inst,
     // If we decided that this is a load from the pattern, then the .td file
     // entry is redundant.
     if (MayLoad)
-      fprintf(stderr,
-              "Warning: mayLoad flag explicitly set on instruction '%s'"
-              " but flag already inferred from pattern.\n",
-              Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "mayLoad flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     MayLoad = true;
   }
 
   if (Inst.neverHasSideEffects) {
     if (HadPattern)
-      fprintf(stderr, "Warning: neverHasSideEffects set on instruction '%s' "
-              "which already has a pattern\n", Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "neverHasSideEffects flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     HasSideEffects = false;
   }
 
   if (Inst.hasSideEffects) {
     if (HasSideEffects)
-      fprintf(stderr, "Warning: hasSideEffects set on instruction '%s' "
-              "which already inferred this.\n", Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "hasSideEffects flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     HasSideEffects = true;
   }
 

@@ -41,8 +41,9 @@ void DWARFDebugLine::Prologue::dump(raw_ostream &OS) const {
           "----------------\n";
     for (uint32_t i = 0; i < FileNames.size(); ++i) {
       const FileNameEntry& fileEntry = FileNames[i];
-      OS << format("file_names[%3u] %4u ", i+1, fileEntry.DirIdx)
-         << format("0x%8.8x 0x%8.8x ", fileEntry.ModTime, fileEntry.Length)
+      OS << format("file_names[%3u] %4" PRIu64 " ", i+1, fileEntry.DirIdx)
+         << format("0x%8.8" PRIx64 " 0x%8.8" PRIx64 " ",
+                   fileEntry.ModTime, fileEntry.Length)
          << fileEntry.Name << '\n';
     }
   }
@@ -68,7 +69,7 @@ void DWARFDebugLine::Row::reset(bool default_is_stmt) {
 }
 
 void DWARFDebugLine::Row::dump(raw_ostream &OS) const {
-  OS << format("0x%16.16llx %6u %6u", Address, Line, Column)
+  OS << format("0x%16.16" PRIx64 " %6u %6u", Address, Line, Column)
      << format(" %6u %3u ", File, Isa)
      << (IsStmt ? " is_stmt" : "")
      << (BasicBlock ? " basic_block" : "")

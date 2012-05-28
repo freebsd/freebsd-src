@@ -615,9 +615,10 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
   default:
     // Otherwise, make the default destination of the switch instruction be one
     // of the other successors.
-    TheSwitch->setOperand(0, call);
-    TheSwitch->setSuccessor(0, TheSwitch->getSuccessor(NumExitBlocks));
-    TheSwitch->removeCase(NumExitBlocks);  // Remove redundant case
+    TheSwitch->setCondition(call);
+    TheSwitch->setDefaultDest(TheSwitch->getSuccessor(NumExitBlocks));
+    // Remove redundant case
+    TheSwitch->removeCase(SwitchInst::CaseIt(TheSwitch, NumExitBlocks-1));
     break;
   }
 }

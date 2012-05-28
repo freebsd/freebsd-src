@@ -25,9 +25,11 @@
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/Lex/Token.h"
 #include "clang/Basic/ExceptionSpecificationType.h"
+#include "clang/Basic/Lambda.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace clang {
@@ -243,6 +245,7 @@ public:
   static const TST TST_char16 = clang::TST_char16;
   static const TST TST_char32 = clang::TST_char32;
   static const TST TST_int = clang::TST_int;
+  static const TST TST_int128 = clang::TST_int128;
   static const TST TST_half = clang::TST_half;
   static const TST TST_float = clang::TST_float;
   static const TST TST_double = clang::TST_double;
@@ -445,7 +448,10 @@ public:
   CXXScopeSpec &getTypeSpecScope() { return TypeScope; }
   const CXXScopeSpec &getTypeSpecScope() const { return TypeScope; }
 
-  const SourceRange &getSourceRange() const { return Range; }
+  const SourceRange &getSourceRange() const LLVM_READONLY { return Range; }
+  SourceLocation getLocStart() const LLVM_READONLY { return Range.getBegin(); }
+  SourceLocation getLocEnd() const LLVM_READONLY { return Range.getEnd(); }
+
   SourceLocation getTypeSpecWidthLoc() const { return TSWLoc; }
   SourceLocation getTypeSpecComplexLoc() const { return TSCLoc; }
   SourceLocation getTypeSpecSignLoc() const { return TSSLoc; }
@@ -608,6 +614,11 @@ public:
   
   bool isConstexprSpecified() const { return Constexpr_specified; }
   SourceLocation getConstexprSpecLoc() const { return ConstexprLoc; }
+
+  void ClearConstexprSpec() {
+    Constexpr_specified = false;
+    ConstexprLoc = SourceLocation();
+  }
 
   AttributePool &getAttributePool() const {
     return Attrs.getPool();
@@ -962,9 +973,11 @@ public:
   void setTemplateId(TemplateIdAnnotation *TemplateId);
 
   /// \brief Return the source range that covers this unqualified-id.
-  SourceRange getSourceRange() const { 
+  SourceRange getSourceRange() const LLVM_READONLY { 
     return SourceRange(StartLocation, EndLocation); 
   }
+  SourceLocation getLocStart() const LLVM_READONLY { return StartLocation; }
+  SourceLocation getLocEnd() const LLVM_READONLY { return EndLocation; }
 };
   
 /// CachedTokens - A set of tokens that has been cached for later
@@ -1105,6 +1118,16 @@ struct DeclaratorChunk {
     /// If this is an invalid location, there is no ref-qualifier.
     unsigned RefQualifierLoc;
 
+    /// \brief The location of the const-qualifier, if any.
+    ///
+    /// If this is an invalid location, there is no const-qualifier.
+    unsigned ConstQualifierLoc;
+
+    /// \brief The location of the volatile-qualifier, if any.
+    ///
+    /// If this is an invalid location, there is no volatile-qualifier.
+    unsigned VolatileQualifierLoc;
+
     /// \brief The location of the 'mutable' qualifer in a lambda-declarator, if
     /// any.
     unsigned MutableLoc;
@@ -1170,6 +1193,16 @@ struct DeclaratorChunk {
       return SourceLocation::getFromRawEncoding(RefQualifierLoc);
     }
 
+    /// \brief Retrieve the location of the ref-qualifier, if any.
+    SourceLocation getConstQualifierLoc() const {
+      return SourceLocation::getFromRawEncoding(ConstQualifierLoc);
+    }
+
+    /// \brief Retrieve the location of the ref-qualifier, if any.
+    SourceLocation getVolatileQualifierLoc() const {
+      return SourceLocation::getFromRawEncoding(VolatileQualifierLoc);
+    }
+
     /// \brief Retrieve the location of the 'mutable' qualifier, if any.
     SourceLocation getMutableLoc() const {
       return SourceLocation::getFromRawEncoding(MutableLoc);
@@ -1230,7 +1263,6 @@ struct DeclaratorChunk {
 
   void destroy() {
     switch (Kind) {
-    default: llvm_unreachable("Unknown decl type!");
     case DeclaratorChunk::Function:      return Fun.destroy();
     case DeclaratorChunk::Pointer:       return Ptr.destroy();
     case DeclaratorChunk::BlockPointer:  return Cls.destroy();
@@ -1306,6 +1338,8 @@ struct DeclaratorChunk {
                                      unsigned TypeQuals, 
                                      bool RefQualifierIsLvalueRef,
                                      SourceLocation RefQualifierLoc,
+                                     SourceLocation ConstQualifierLoc,
+                                     SourceLocation VolatileQualifierLoc,
                                      SourceLocation MutableLoc,
                                      ExceptionSpecificationType ESpecType,
                                      SourceLocation ESpecLoc,
@@ -1357,6 +1391,15 @@ struct DeclaratorChunk {
 
 };
 
+/// \brief Described the kind of function definition (if any) provided for
+/// a function.
+enum FunctionDefinitionKind {
+  FDK_Declaration,
+  FDK_Definition,
+  FDK_Defaulted,
+  FDK_Deleted
+};
+  
 /// Declarator - Information about one declarator, including the parsed type
 /// information and the identifier.  When the declarator is fully formed, this
 /// is turned into the appropriate Decl object.
@@ -1385,9 +1428,11 @@ public:
     CXXCatchContext,     // C++ catch exception-declaration
     ObjCCatchContext,    // Objective-C catch exception-declaration
     BlockLiteralContext,  // Block literal declarator.
+    LambdaExprContext,   // Lambda-expression declarator.
+    TrailingReturnContext, // C++11 trailing-type-specifier.
     TemplateTypeArgContext, // Template type argument.
-    AliasDeclContext,    // C++0x alias-declaration.
-    AliasTemplateContext // C++0x alias-declaration template.
+    AliasDeclContext,    // C++11 alias-declaration.
+    AliasTemplateContext // C++11 alias-declaration template.
   };
 
 private:
@@ -1412,8 +1457,11 @@ private:
   /// GroupingParens - Set by Parser::ParseParenDeclarator().
   bool GroupingParens : 1;
 
-  /// FunctionDefinition - Is this Declarator for a function or member defintion
-  bool FunctionDefinition : 1;
+  /// FunctionDefinition - Is this Declarator for a function or member 
+  /// definition and, if so, what kind?
+  ///
+  /// Actually a FunctionDefinitionKind.
+  unsigned FunctionDefinition : 2;
 
   // Redeclaration - Is this Declarator is a redeclaration.
   bool Redeclaration : 1;
@@ -1433,6 +1481,10 @@ private:
   /// Extension - true if the declaration is preceded by __extension__.
   bool Extension : 1;
 
+  /// \brief If this is the second or subsequent declarator in this declaration,
+  /// the location of the comma before this declarator.
+  SourceLocation CommaLoc;
+
   /// \brief If provided, the source location of the ellipsis used to describe
   /// this declarator as a parameter pack.
   SourceLocation EllipsisLoc;
@@ -1443,7 +1495,8 @@ public:
   Declarator(const DeclSpec &ds, TheContext C)
     : DS(ds), Range(ds.getSourceRange()), Context(C),
       InvalidType(DS.getTypeSpecType() == DeclSpec::TST_error),
-      GroupingParens(false), FunctionDefinition(false), Redeclaration(false),
+      GroupingParens(false), FunctionDefinition(FDK_Declaration), 
+      Redeclaration(false),
       Attrs(ds.getAttributePool().getFactory()), AsmLabel(0),
       InlineParamsUsed(false), Extension(false) {
   }
@@ -1484,7 +1537,9 @@ public:
   }
 
   /// getSourceRange - Get the source range that spans this declarator.
-  const SourceRange &getSourceRange() const { return Range; }
+  const SourceRange &getSourceRange() const LLVM_READONLY { return Range; }
+  SourceLocation getLocStart() const LLVM_READONLY { return Range.getBegin(); }
+  SourceLocation getLocEnd() const LLVM_READONLY { return Range.getEnd(); }
 
   void SetSourceRange(SourceRange R) { Range = R; }
   /// SetRangeBegin - Set the start of the source range to Loc, unless it's
@@ -1521,6 +1576,8 @@ public:
     Attrs.clear();
     AsmLabel = 0;
     InlineParamsUsed = false;
+    CommaLoc = SourceLocation();
+    EllipsisLoc = SourceLocation();
   }
 
   /// mayOmitIdentifier - Return true if the identifier is either optional or
@@ -1547,7 +1604,9 @@ public:
     case CXXCatchContext:
     case ObjCCatchContext:
     case BlockLiteralContext:
+    case LambdaExprContext:
     case TemplateTypeArgContext:
+    case TrailingReturnContext:
       return true;
     }
     llvm_unreachable("unknown context kind!");
@@ -1577,7 +1636,9 @@ public:
     case ObjCParameterContext:
     case ObjCResultContext:
     case BlockLiteralContext:
+    case LambdaExprContext:
     case TemplateTypeArgContext:
+    case TrailingReturnContext:
       return false;
     }
     llvm_unreachable("unknown context kind!");
@@ -1588,15 +1649,31 @@ public:
   bool mayBeFollowedByCXXDirectInit() const {
     if (hasGroupingParens()) return false;
 
+    if (getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef)
+      return false;
+
+    if (getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_extern &&
+        Context != FileContext)
+      return false;
+
+    // Special names can't have direct initializers.
+    if (Name.getKind() != UnqualifiedId::IK_Identifier)
+      return false;
+
     switch (Context) {
     case FileContext:
     case BlockContext:
     case ForContext:
       return true;
 
+    case ConditionContext:
+      // This may not be followed by a direct initializer, but it can't be a
+      // function declaration either, and we'd prefer to perform a tentative
+      // parse in order to produce the right diagnostic.
+      return true;
+
     case KNRTypeListContext:
     case MemberContext:
-    case ConditionContext:
     case PrototypeContext:
     case ObjCParameterContext:
     case ObjCResultContext:
@@ -1608,7 +1685,9 @@ public:
     case AliasDeclContext:
     case AliasTemplateContext:
     case BlockLiteralContext:
+    case LambdaExprContext:
     case TemplateTypeArgContext:
+    case TrailingReturnContext:
       return false;
     }
     llvm_unreachable("unknown context kind!");
@@ -1696,7 +1775,6 @@ public:
         return !DeclTypeInfo[i].Arr.NumElts;
       }
       llvm_unreachable("Invalid type chunk");
-      return false;
     }
     return false;
   }
@@ -1721,7 +1799,6 @@ public:
         return false;
       }
       llvm_unreachable("Invalid type chunk");
-      return false;
     }
     return false;
   }
@@ -1800,13 +1877,26 @@ public:
 
   void setGroupingParens(bool flag) { GroupingParens = flag; }
   bool hasGroupingParens() const { return GroupingParens; }
-  
+
+  bool isFirstDeclarator() const { return !CommaLoc.isValid(); }
+  SourceLocation getCommaLoc() const { return CommaLoc; }
+  void setCommaLoc(SourceLocation CL) { CommaLoc = CL; }
+
   bool hasEllipsis() const { return EllipsisLoc.isValid(); }
   SourceLocation getEllipsisLoc() const { return EllipsisLoc; }
   void setEllipsisLoc(SourceLocation EL) { EllipsisLoc = EL; }
 
-  void setFunctionDefinition(bool Val) { FunctionDefinition = Val; }
-  bool isFunctionDefinition() const { return FunctionDefinition; }
+  void setFunctionDefinitionKind(FunctionDefinitionKind Val) { 
+    FunctionDefinition = Val; 
+  }
+  
+  bool isFunctionDefinition() const {
+    return getFunctionDefinitionKind() != FDK_Declaration;
+  }
+  
+  FunctionDefinitionKind getFunctionDefinitionKind() const { 
+    return (FunctionDefinitionKind)FunctionDefinition; 
+  }
 
   void setRedeclaration(bool Val) { Redeclaration = Val; }
   bool isRedeclaration() const { return Redeclaration; }
@@ -1855,38 +1945,24 @@ private:
   SourceLocation LastLocation;
 };
 
-/// LambdaCaptureDefault - The default, if any, capture method for a
-/// lambda expression.
-enum LambdaCaptureDefault {
-  LCD_None,
-  LCD_ByCopy,
-  LCD_ByRef
-};
-
-/// LambdaCaptureKind - The different capture forms in a lambda
-/// introducer: 'this' or a copied or referenced variable.
-enum LambdaCaptureKind {
-  LCK_This,
-  LCK_ByCopy,
-  LCK_ByRef
-};
-
 /// LambdaCapture - An individual capture in a lambda introducer.
 struct LambdaCapture {
   LambdaCaptureKind Kind;
   SourceLocation Loc;
   IdentifierInfo* Id;
-
-  LambdaCapture(LambdaCaptureKind Kind,
-                     SourceLocation Loc,
-                     IdentifierInfo* Id = 0)
-    : Kind(Kind), Loc(Loc), Id(Id)
+  SourceLocation EllipsisLoc;
+  
+  LambdaCapture(LambdaCaptureKind Kind, SourceLocation Loc,
+                IdentifierInfo* Id = 0,
+                SourceLocation EllipsisLoc = SourceLocation())
+    : Kind(Kind), Loc(Loc), Id(Id), EllipsisLoc(EllipsisLoc)
   {}
 };
 
 /// LambdaIntroducer - Represents a complete lambda introducer.
 struct LambdaIntroducer {
   SourceRange Range;
+  SourceLocation DefaultLoc;
   LambdaCaptureDefault Default;
   llvm::SmallVector<LambdaCapture, 4> Captures;
 
@@ -1896,8 +1972,9 @@ struct LambdaIntroducer {
   /// addCapture - Append a capture in a lambda introducer.
   void addCapture(LambdaCaptureKind Kind,
                   SourceLocation Loc,
-                  IdentifierInfo* Id = 0) {
-    Captures.push_back(LambdaCapture(Kind, Loc, Id));
+                  IdentifierInfo* Id = 0, 
+                  SourceLocation EllipsisLoc = SourceLocation()) {
+    Captures.push_back(LambdaCapture(Kind, Loc, Id, EllipsisLoc));
   }
 
 };

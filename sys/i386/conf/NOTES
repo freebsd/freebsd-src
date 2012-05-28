@@ -260,6 +260,19 @@ options 	DEVICE_POLLING
 
 options 	BPF_JITTER
 
+# OpenFabrics Enterprise Distribution (Infiniband).
+options 	OFED
+options 	OFED_DEBUG_INIT
+
+# Sockets Direct Protocol
+options 	SDP
+options 	SDP_DEBUG
+
+# IP over Inifiband
+options 	IPOIB
+options 	IPOIB_DEBUG
+options 	IPOIB_CM
+
 
 #####################################################################
 # CLOCK OPTIONS
@@ -561,6 +574,9 @@ hint.mse.0.irq="5"
 #	Requires the iwi firmware module
 # iwn:	Intel Wireless WiFi Link 4965AGN 802.11 network adapters
 #	Requires the iwn firmware module
+# mlx4ib: Mellanox ConnectX HCA InfiniBand
+# mlxen: Mellanox ConnectX HCA Ethernet
+# mthca: Mellanox HCA InfiniBand
 # mwl:	Marvell 88W8363 IEEE 802.11 adapter
 #	Requires the mwl firmware module
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
@@ -605,6 +621,9 @@ hint.le.0.at="isa"
 hint.le.0.port="0x280"
 hint.le.0.irq="10"
 hint.le.0.drq="0"
+device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
+device  	mlxen		# Mellanox ConnectX HCA Ethernet
+device  	mthca		# Mellanox HCA InfiniBand
 device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		nve		# nVidia nForce MCP on-board Ethernet Networking

@@ -1,4 +1,4 @@
-//===-- XCoreFrameLowering.cpp - Frame info for XCore Target -----*- C++ -*-==//
+//===-- XCoreFrameLowering.cpp - Frame info for XCore Target --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "XCore.h"
 #include "XCoreFrameLowering.h"
+#include "XCore.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreMachineFunctionInfo.h"
 #include "llvm/Function.h"
@@ -84,7 +84,8 @@ XCoreFrameLowering::XCoreFrameLowering(const XCoreSubtarget &sti)
 }
 
 bool XCoreFrameLowering::hasFP(const MachineFunction &MF) const {
-  return DisableFramePointerElim(MF) || MF.getFrameInfo()->hasVarSizedObjects();
+  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
+    MF.getFrameInfo()->hasVarSizedObjects();
 }
 
 void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
@@ -92,8 +93,6 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
   MachineBasicBlock::iterator MBBI = MBB.begin();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineModuleInfo *MMI = &MF.getMMI();
-  const XCoreRegisterInfo *RegInfo =
-    static_cast<const XCoreRegisterInfo*>(MF.getTarget().getRegisterInfo());
   const XCoreInstrInfo &TII =
     *static_cast<const XCoreInstrInfo*>(MF.getTarget().getInstrInfo());
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
@@ -118,7 +117,7 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
     // FIXME could emit multiple instructions.
     report_fatal_error("emitPrologue Frame size too big: " + Twine(FrameSize));
   }
-  bool emitFrameMoves = RegInfo->needsFrameMoves(MF);
+  bool emitFrameMoves = XCoreRegisterInfo::needsFrameMoves(MF);
 
   // Do we need to allocate space on the stack?
   if (FrameSize) {

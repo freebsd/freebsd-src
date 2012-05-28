@@ -19,8 +19,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	includes various WITNESS- related kernel options, INVARIANTS, malloc
 	debugging flags in userland, and various verbose features in the
 	kernel.  Many developers choose to disable these features on build
-	machines to maximize performance.  (To disable malloc debugging, run
-	ln -s aj /etc/malloc.conf.)
+	machines to maximize performance.  (To completely disable malloc
+	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
+	disable the most expensive debugging functionality run
+	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20120417:
+	The malloc(3) implementation embedded in libc now uses sources imported
+	as contrib/jemalloc.  The most disruptive API change is to
+	/etc/malloc.conf.  If your system has an old-style /etc/malloc.conf,
+	delete it prior to installworld, and optionally re-create it using the
+	new format after rebooting.  See malloc.conf(5) for details
+	(specifically the TUNING section and the "opt.*" entries in the MALLCTL
+	NAMESPACE section).
 
 20120328:
 	Big-endian MIPS TARGET_ARCH values no longer end in "eb".  mips64eb

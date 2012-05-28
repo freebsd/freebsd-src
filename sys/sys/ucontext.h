@@ -71,7 +71,7 @@ struct ucontext4 {
 
 __BEGIN_DECLS
 
-int	getcontext(ucontext_t *);
+int	getcontext(ucontext_t *) __returns_twice;
 ucontext_t *getcontextx(void);
 int	setcontext(const ucontext_t *);
 void	makecontext(ucontext_t *, void (*)(void), int, ...);

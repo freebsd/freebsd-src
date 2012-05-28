@@ -334,6 +334,7 @@ __DEFAULT_YES_OPTIONS = \
     CXX \
     DICT \
     DYNAMICROOT \
+    ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
     FORTH \
@@ -366,6 +367,7 @@ __DEFAULT_YES_OPTIONS = \
     LOCALES \
     LOCATE \
     LPR \
+    LS_COLORS \
     MAIL \
     MAILWRAPPER \
     MAKE \
@@ -413,6 +415,7 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
+    BSD_SORT \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
@@ -425,7 +428,9 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
-    OFED
+    NAND \
+    OFED \
+    SHARED_TOOLCHAIN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately

@@ -143,7 +143,7 @@ public:
   
   /// getMetadata - Get the metadata of given kind attached to this Instruction.
   /// If the metadata is not found then return null.
-  MDNode *getMetadata(const char *Kind) const {
+  MDNode *getMetadata(StringRef Kind) const {
     if (!hasMetadata()) return 0;
     return getMetadataImpl(Kind);
   }
@@ -168,7 +168,7 @@ public:
   /// node.  This updates/replaces metadata if already present, or removes it if
   /// Node is null.
   void setMetadata(unsigned KindID, MDNode *Node);
-  void setMetadata(const char *Kind, MDNode *Node);
+  void setMetadata(StringRef Kind, MDNode *Node);
 
   /// setDebugLoc - Set the debug location information for this instruction.
   void setDebugLoc(const DebugLoc &Loc) { DbgLoc = Loc; }
@@ -185,7 +185,7 @@ private:
   
   // These are all implemented in Metadata.cpp.
   MDNode *getMetadataImpl(unsigned KindID) const;
-  MDNode *getMetadataImpl(const char *Kind) const;
+  MDNode *getMetadataImpl(StringRef Kind) const;
   void getAllMetadataImpl(SmallVectorImpl<std::pair<unsigned,MDNode*> > &)const;
   void getAllMetadataOtherThanDebugLocImpl(SmallVectorImpl<std::pair<unsigned,
                                            MDNode*> > &) const;
@@ -243,26 +243,6 @@ public:
   bool mayHaveSideEffects() const {
     return mayWriteToMemory() || mayThrow();
   }
-
-  /// isSafeToSpeculativelyExecute - Return true if the instruction does not
-  /// have any effects besides calculating the result and does not have
-  /// undefined behavior.
-  ///
-  /// This method never returns true for an instruction that returns true for
-  /// mayHaveSideEffects; however, this method also does some other checks in
-  /// addition. It checks for undefined behavior, like dividing by zero or
-  /// loading from an invalid pointer (but not for undefined results, like a
-  /// shift with a shift amount larger than the width of the result). It checks
-  /// for malloc and alloca because speculatively executing them might cause a
-  /// memory leak. It also returns false for instructions related to control
-  /// flow, specifically terminators and PHI nodes.
-  ///
-  /// This method only looks at the instruction itself and its operands, so if
-  /// this method returns true, it is safe to move the instruction as long as
-  /// the correct dominance relationships for the operands and users hold.
-  /// However, this method can return true for instructions that read memory;
-  /// for such instructions, moving them may change the resulting value.
-  bool isSafeToSpeculativelyExecute() const;
 
   /// clone() - Create a copy of 'this' instruction that is identical in all
   /// ways except the following:

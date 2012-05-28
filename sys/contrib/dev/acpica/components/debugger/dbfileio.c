@@ -51,6 +51,10 @@
 #include <contrib/dev/acpica/include/actables.h>
 #endif
 
+#ifdef ACPI_ASL_COMPILER
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#endif
+
 #if (defined ACPI_DEBUGGER || defined ACPI_DISASSEMBLER)
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
@@ -309,6 +313,15 @@ AcpiDbReadTable (
             AcpiOsPrintf (
                 "TableHeader length [0x%X] greater than the input file size [0x%X]\n",
                 TableHeader.Length, FileSize);
+
+#ifdef ACPI_ASL_COMPILER
+            Status = FlCheckForAscii (fp, NULL, FALSE);
+            if (ACPI_SUCCESS (Status))
+            {
+                AcpiOsPrintf ("File appears to be ASCII only, must be binary\n",
+                    TableHeader.Length, FileSize);
+            }
+#endif
             return (AE_BAD_HEADER);
         }
 

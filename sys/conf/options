@@ -213,6 +213,7 @@ FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
 HPFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
+NANDFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 NWFS		opt_dontuse.h
@@ -780,6 +781,7 @@ ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
 ATH_ENABLE_11N		opt_ath.h
 ATH_ENABLE_DFS		opt_ath.h
+ATH_EEPROM_FIRMWARE	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h

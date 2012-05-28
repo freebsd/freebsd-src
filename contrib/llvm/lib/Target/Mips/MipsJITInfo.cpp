@@ -1,4 +1,4 @@
-//===- MipsJITInfo.cpp - Implement the JIT interfaces for the Mips target -===//
+//===-- MipsJITInfo.cpp - Implement the Mips JIT Interface ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -200,7 +200,7 @@ void MipsJITInfo::relocate(void *Function, MachineRelocation *MR,
     intptr_t ResultPtr = (intptr_t) MR->getResultPointer();
 
     switch ((Mips::RelocationType) MR->getRelocationType()) {
-    case Mips::reloc_mips_branch:
+    case Mips::reloc_mips_pc16:
       ResultPtr = (((ResultPtr - (intptr_t) RelocPos) - 4) >> 2) & 0xffff;
       *((unsigned*) RelocPos) |= (unsigned) ResultPtr;
       break;
@@ -218,13 +218,16 @@ void MipsJITInfo::relocate(void *Function, MachineRelocation *MR,
       *((unsigned*) RelocPos) |= (unsigned) ResultPtr;
       break;
 
-    case Mips::reloc_mips_lo:
-      ResultPtr = ResultPtr & 0xffff;
+    case Mips::reloc_mips_lo: {
+      // Addend is needed for unaligned load/store instructions, where offset
+      // for the second load/store in the expanded instruction sequence must
+      // be modified by +1 or +3. Otherwise, Addend is 0.
+      int Addend = *((unsigned*) RelocPos) & 0xffff;
+      ResultPtr = (ResultPtr + Addend) & 0xffff;
+      *((unsigned*) RelocPos) &= 0xffff0000;
       *((unsigned*) RelocPos) |= (unsigned) ResultPtr;
       break;
-
-    default:
-      llvm_unreachable("ERROR: Unknown Mips relocation.");
+    }
     }
   }
 }

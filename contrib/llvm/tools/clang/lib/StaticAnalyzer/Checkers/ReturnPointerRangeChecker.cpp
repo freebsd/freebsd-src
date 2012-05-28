@@ -25,7 +25,7 @@ using namespace ento;
 namespace {
 class ReturnPointerRangeChecker : 
     public Checker< check::PreStmt<ReturnStmt> > {
-  mutable llvm::OwningPtr<BuiltinBug> BT;
+  mutable OwningPtr<BuiltinBug> BT;
 public:
     void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
 };
@@ -33,13 +33,13 @@ public:
 
 void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
                                              CheckerContext &C) const {
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
 
   const Expr *RetE = RS->getRetValue();
   if (!RetE)
     return;
  
-  SVal V = state->getSVal(RetE);
+  SVal V = state->getSVal(RetE, C.getLocationContext());
   const MemRegion *R = V.getAsRegion();
 
   const ElementRegion *ER = dyn_cast_or_null<ElementRegion>(R);
@@ -58,8 +58,8 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
     = C.getStoreManager().getSizeInElements(state, ER->getSuperRegion(),
                                            ER->getValueType());
 
-  const ProgramState *StInBound = state->assumeInBound(Idx, NumElements, true);
-  const ProgramState *StOutBound = state->assumeInBound(Idx, NumElements, false);
+  ProgramStateRef StInBound = state->assumeInBound(Idx, NumElements, true);
+  ProgramStateRef StOutBound = state->assumeInBound(Idx, NumElements, false);
   if (StOutBound && !StInBound) {
     ExplodedNode *N = C.generateSink(StOutBound);
 

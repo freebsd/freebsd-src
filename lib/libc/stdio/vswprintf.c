@@ -39,6 +39,7 @@ __FBSDID("FreeBSD: src/lib/libc/stdio/vasprintf.c,v 1.16 2002/08/21 16:19:57 mik
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -61,11 +62,17 @@ vswprintf_l(wchar_t * __restrict s, size_t n, locale_t locale,
 		errno = EINVAL;
 		return (-1);
 	}
+	if (n - 1 > INT_MAX) {
+		errno = EOVERFLOW;
+		*s = L'\0';
+		return (-1);
+	}
 
 	f._flags = __SWR | __SSTR | __SALC;
 	f._bf._base = f._p = (unsigned char *)malloc(128);
 	if (f._bf._base == NULL) {
 		errno = ENOMEM;
+		*s = L'\0';
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
@@ -74,6 +81,7 @@ vswprintf_l(wchar_t * __restrict s, size_t n, locale_t locale,
 		sverrno = errno;
 		free(f._bf._base);
 		errno = sverrno;
+		*s = L'\0';
 		return (-1);
 	}
 	*f._p = '\0';
@@ -87,6 +95,7 @@ vswprintf_l(wchar_t * __restrict s, size_t n, locale_t locale,
 	free(f._bf._base);
 	if (nwc == (size_t)-1) {
 		errno = EILSEQ;
+		*s = L'\0';
 		return (-1);
 	}
 	if (nwc == n) {

@@ -174,9 +174,7 @@ nd6_ifattach(struct ifnet *ifp)
 {
 	struct nd_ifinfo *nd;
 
-	nd = (struct nd_ifinfo *)malloc(sizeof(*nd), M_IP6NDP, M_WAITOK);
-	bzero(nd, sizeof(*nd));
-
+	nd = (struct nd_ifinfo *)malloc(sizeof(*nd), M_IP6NDP, M_WAITOK|M_ZERO);
 	nd->initialized = 1;
 
 	nd->chlim = IPV6_DEFHLIM;
@@ -284,10 +282,9 @@ nd6_option(union nd_opts *ndopts)
 	struct nd_opt_hdr *nd_opt;
 	int olen;
 
-	if (ndopts == NULL)
-		panic("ndopts == NULL in nd6_option");
-	if (ndopts->nd_opts_last == NULL)
-		panic("uninitialized ndopts in nd6_option");
+	KASSERT(ndopts != NULL, ("%s: ndopts == NULL", __func__));
+	KASSERT(ndopts->nd_opts_last != NULL, ("%s: uninitialized ndopts",
+	    __func__));
 	if (ndopts->nd_opts_search == NULL)
 		return NULL;
 	if (ndopts->nd_opts_done)
@@ -335,10 +332,9 @@ nd6_options(union nd_opts *ndopts)
 	struct nd_opt_hdr *nd_opt;
 	int i = 0;
 
-	if (ndopts == NULL)
-		panic("ndopts == NULL in nd6_options");
-	if (ndopts->nd_opts_last == NULL)
-		panic("uninitialized ndopts in nd6_options");
+	KASSERT(ndopts != NULL, ("%s: ndopts == NULL", __func__));
+	KASSERT(ndopts->nd_opts_last != NULL, ("%s: uninitialized ndopts",
+	    __func__));
 	if (ndopts->nd_opts_search == NULL)
 		return 0;
 
@@ -1174,11 +1170,13 @@ done:
 void
 nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 {
-	struct sockaddr_in6 *gateway = (struct sockaddr_in6 *)rt->rt_gateway;
+	struct sockaddr_in6 *gateway;
 	struct nd_defrouter *dr;
-	struct ifnet *ifp = rt->rt_ifp;
+	struct ifnet *ifp;
 
 	RT_LOCK_ASSERT(rt);
+	gateway = (struct sockaddr_in6 *)rt->rt_gateway;
+	ifp = rt->rt_ifp;
 
 	switch (req) {
 	case RTM_ADD:
@@ -1547,10 +1545,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 
-	if (ifp == NULL)
-		panic("ifp == NULL in nd6_cache_lladdr");
-	if (from == NULL)
-		panic("from == NULL in nd6_cache_lladdr");
+	KASSERT(ifp != NULL, ("%s: ifp == NULL", __func__));
+	KASSERT(from != NULL, ("%s: from == NULL", __func__));
 
 	/* nothing must be updated for unspecified address */
 	if (IN6_IS_ADDR_UNSPECIFIED(from))
@@ -2074,6 +2070,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		}
 		return (error);
 	}
+	/* Reset layer specific mbuf flags to avoid confusing lower layers. */
+	m->m_flags &= ~(M_PROTOFLAGS);  
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
 		    NULL));
@@ -2239,7 +2237,6 @@ clear_llinfo_pqueue(struct llentry *ln)
 
 	for (m_hold = ln->la_hold; m_hold; m_hold = m_hold_next) {
 		m_hold_next = m_hold->m_nextpkt;
-		m_hold->m_nextpkt = NULL;
 		m_freem(m_hold);
 	}
 
@@ -2262,128 +2259,101 @@ SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
 static int
 nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	char buf[1024] __aligned(4);
-	struct in6_defrouter *d, *de;
+	struct in6_defrouter d;
 	struct nd_defrouter *dr;
+	int error;
 
 	if (req->newptr)
-		return EPERM;
-	error = 0;
+		return (EPERM);
 
+	bzero(&d, sizeof(d));
+	d.rtaddr.sin6_family = AF_INET6;
+	d.rtaddr.sin6_len = sizeof(d.rtaddr);
+
+	/*
+	 * XXX locking
+	 */
 	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
-		d = (struct in6_defrouter *)buf;
-		de = (struct in6_defrouter *)(buf + sizeof(buf));
-
-		if (d + 1 <= de) {
-			bzero(d, sizeof(*d));
-			d->rtaddr.sin6_family = AF_INET6;
-			d->rtaddr.sin6_len = sizeof(d->rtaddr);
-			d->rtaddr.sin6_addr = dr->rtaddr;
-			error = sa6_recoverscope(&d->rtaddr);
-			if (error != 0)
-				return (error);
-			d->flags = dr->flags;
-			d->rtlifetime = dr->rtlifetime;
-			d->expire = dr->expire;
-			d->if_index = dr->ifp->if_index;
-		} else
-			panic("buffer too short");
-
-		error = SYSCTL_OUT(req, buf, sizeof(*d));
-		if (error)
-			break;
+		d.rtaddr.sin6_addr = dr->rtaddr;
+		error = sa6_recoverscope(&d.rtaddr);
+		if (error != 0)
+			return (error);
+		d.flags = dr->flags;
+		d.rtlifetime = dr->rtlifetime;
+		d.expire = dr->expire;
+		d.if_index = dr->ifp->if_index;
+		error = SYSCTL_OUT(req, &d, sizeof(d));
+		if (error != 0)
+			return (error);
 	}
-
-	return (error);
+	return (0);
 }
 
 static int
 nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 {
-	int error;
-	char buf[1024] __aligned(4);
-	struct in6_prefix *p, *pe;
+	struct in6_prefix p;
+	struct sockaddr_in6 s6;
 	struct nd_prefix *pr;
+	struct nd_pfxrouter *pfr;
+	time_t maxexpire;
+	int error;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	if (req->newptr)
-		return EPERM;
-	error = 0;
+		return (EPERM);
 
+	bzero(&p, sizeof(p));
+	p.origin = PR_ORIG_RA;
+	bzero(&s6, sizeof(s6));
+	s6.sin6_family = AF_INET6;
+	s6.sin6_len = sizeof(s6);
+
+	/*
+	 * XXX locking
+	 */
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
-		u_short advrtrs;
-		size_t advance;
-		struct sockaddr_in6 *sin6, *s6;
-		struct nd_pfxrouter *pfr;
-
-		p = (struct in6_prefix *)buf;
-		pe = (struct in6_prefix *)(buf + sizeof(buf));
-
-		if (p + 1 <= pe) {
-			bzero(p, sizeof(*p));
-			sin6 = (struct sockaddr_in6 *)(p + 1);
-
-			p->prefix = pr->ndpr_prefix;
-			if (sa6_recoverscope(&p->prefix)) {
+		p.prefix = pr->ndpr_prefix;
+		if (sa6_recoverscope(&p.prefix)) {
+			log(LOG_ERR, "scope error in prefix list (%s)\n",
+			    ip6_sprintf(ip6buf, &p.prefix.sin6_addr));
+			/* XXX: press on... */
+		}
+		p.raflags = pr->ndpr_raf;
+		p.prefixlen = pr->ndpr_plen;
+		p.vltime = pr->ndpr_vltime;
+		p.pltime = pr->ndpr_pltime;
+		p.if_index = pr->ndpr_ifp->if_index;
+		if (pr->ndpr_vltime == ND6_INFINITE_LIFETIME)
+			p.expire = 0;
+		else {
+			/* XXX: we assume time_t is signed. */
+			maxexpire = (-1) &
+			    ~((time_t)1 << ((sizeof(maxexpire) * 8) - 1));
+			if (pr->ndpr_vltime < maxexpire - pr->ndpr_lastupdate)
+				p.expire = pr->ndpr_lastupdate +
+				    pr->ndpr_vltime;
+			else
+				p.expire = maxexpire;
+		}
+		p.refcnt = pr->ndpr_refcnt;
+		p.flags = pr->ndpr_stateflags;
+		p.advrtrs = 0;
+		LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry)
+			p.advrtrs++;
+		error = SYSCTL_OUT(req, &p, sizeof(p));
+		if (error != 0)
+			return (error);
+		LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
+			s6.sin6_addr = pfr->router->rtaddr;
+			if (sa6_recoverscope(&s6))
 				log(LOG_ERR,
 				    "scope error in prefix list (%s)\n",
-				    ip6_sprintf(ip6buf, &p->prefix.sin6_addr));
-				/* XXX: press on... */
-			}
-			p->raflags = pr->ndpr_raf;
-			p->prefixlen = pr->ndpr_plen;
-			p->vltime = pr->ndpr_vltime;
-			p->pltime = pr->ndpr_pltime;
-			p->if_index = pr->ndpr_ifp->if_index;
-			if (pr->ndpr_vltime == ND6_INFINITE_LIFETIME)
-				p->expire = 0;
-			else {
-				time_t maxexpire;
-
-				/* XXX: we assume time_t is signed. */
-				maxexpire = (-1) &
-				    ~((time_t)1 <<
-				    ((sizeof(maxexpire) * 8) - 1));
-				if (pr->ndpr_vltime <
-				    maxexpire - pr->ndpr_lastupdate) {
-				    p->expire = pr->ndpr_lastupdate +
-				        pr->ndpr_vltime;
-				} else
-					p->expire = maxexpire;
-			}
-			p->refcnt = pr->ndpr_refcnt;
-			p->flags = pr->ndpr_stateflags;
-			p->origin = PR_ORIG_RA;
-			advrtrs = 0;
-			LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
-				if ((void *)&sin6[advrtrs + 1] > (void *)pe) {
-					advrtrs++;
-					continue;
-				}
-				s6 = &sin6[advrtrs];
-				bzero(s6, sizeof(*s6));
-				s6->sin6_family = AF_INET6;
-				s6->sin6_len = sizeof(*sin6);
-				s6->sin6_addr = pfr->router->rtaddr;
-				if (sa6_recoverscope(s6)) {
-					log(LOG_ERR,
-					    "scope error in "
-					    "prefix list (%s)\n",
-					    ip6_sprintf(ip6buf,
-						    &pfr->router->rtaddr));
-				}
-				advrtrs++;
-			}
-			p->advrtrs = advrtrs;
-		} else
-			panic("buffer too short");
-
-		advance = sizeof(*p) + sizeof(*sin6) * advrtrs;
-		error = SYSCTL_OUT(req, buf, advance);
-		if (error)
-			break;
+				    ip6_sprintf(ip6buf, &pfr->router->rtaddr));
+			error = SYSCTL_OUT(req, &s6, sizeof(s6));
+			if (error != 0)
+				return (error);
+		}
 	}
-
-	return (error);
+	return (0);
 }

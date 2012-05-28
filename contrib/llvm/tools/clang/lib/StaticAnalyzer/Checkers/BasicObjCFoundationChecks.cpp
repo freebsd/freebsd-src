@@ -28,6 +28,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ASTContext.h"
+#include "llvm/ADT/SmallString.h"
 
 using namespace clang;
 using namespace ento;
@@ -70,7 +71,7 @@ static inline bool isNil(SVal X) {
 
 namespace {
   class NilArgChecker : public Checker<check::PreObjCMessage> {
-    mutable llvm::OwningPtr<APIMisuse> BT;
+    mutable OwningPtr<APIMisuse> BT;
 
     void WarnNilArg(CheckerContext &C,
                     const ObjCMessage &msg, unsigned Arg) const;
@@ -88,7 +89,7 @@ void NilArgChecker::WarnNilArg(CheckerContext &C,
     BT.reset(new APIMisuse("nil argument"));
   
   if (ExplodedNode *N = C.generateSink()) {
-    llvm::SmallString<128> sbuf;
+    SmallString<128> sbuf;
     llvm::raw_svector_ostream os(sbuf);
     os << "Argument to '" << GetReceiverNameType(msg) << "' method '"
        << msg.getSelector().getAsString() << "' cannot be nil";
@@ -129,7 +130,7 @@ void NilArgChecker::checkPreObjCMessage(ObjCMessage msg,
         Name == "compare:options:range:locale:" ||
         Name == "componentsSeparatedByCharactersInSet:" ||
         Name == "initWithFormat:") {
-      if (isNil(msg.getArgSVal(0, C.getState())))
+      if (isNil(msg.getArgSVal(0, C.getLocationContext(), C.getState())))
         WarnNilArg(C, msg, 0);
     }
   }
@@ -141,7 +142,7 @@ void NilArgChecker::checkPreObjCMessage(ObjCMessage msg,
 
 namespace {
 class CFNumberCreateChecker : public Checker< check::PreStmt<CallExpr> > {
-  mutable llvm::OwningPtr<APIMisuse> BT;
+  mutable OwningPtr<APIMisuse> BT;
   mutable IdentifierInfo* II;
 public:
   CFNumberCreateChecker() : II(0) {}
@@ -249,11 +250,8 @@ static const char* GetCFNumberTypeStr(uint64_t i) {
 
 void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
                                          CheckerContext &C) const {
-  const Expr *Callee = CE->getCallee();
-  const ProgramState *state = C.getState();
-  SVal CallV = state->getSVal(Callee);
-  const FunctionDecl *FD = CallV.getAsFunctionDecl();
-
+  ProgramStateRef state = C.getState();
+  const FunctionDecl *FD = C.getCalleeDecl(CE);
   if (!FD)
     return;
   
@@ -265,7 +263,8 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
     return;
 
   // Get the value of the "theType" argument.
-  SVal TheTypeVal = state->getSVal(CE->getArg(1));
+  const LocationContext *LCtx = C.getLocationContext();
+  SVal TheTypeVal = state->getSVal(CE->getArg(1), LCtx);
 
   // FIXME: We really should allow ranges of valid theType values, and
   //   bifurcate the state appropriately.
@@ -283,7 +282,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
   // Look at the value of the integer being passed by reference.  Essentially
   // we want to catch cases where the value passed in is not equal to the
   // size of the type being created.
-  SVal TheValueExpr = state->getSVal(CE->getArg(2));
+  SVal TheValueExpr = state->getSVal(CE->getArg(2), LCtx);
 
   // FIXME: Eventually we should handle arbitrary locations.  We can do this
   //  by having an enhanced memory model that does low-level typing.
@@ -316,8 +315,8 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
   //  the bits initialized to the provided values.
   //
   if (ExplodedNode *N = SourceSize < TargetSize ? C.generateSink() 
-                                                : C.generateNode()) {
-    llvm::SmallString<128> sbuf;
+                                                : C.addTransition()) {
+    SmallString<128> sbuf;
     llvm::raw_svector_ostream os(sbuf);
     
     os << (SourceSize == 8 ? "An " : "A ")
@@ -348,7 +347,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
 
 namespace {
 class CFRetainReleaseChecker : public Checker< check::PreStmt<CallExpr> > {
-  mutable llvm::OwningPtr<APIMisuse> BT;
+  mutable OwningPtr<APIMisuse> BT;
   mutable IdentifierInfo *Retain, *Release;
 public:
   CFRetainReleaseChecker(): Retain(0), Release(0) {}
@@ -363,11 +362,8 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
   if (CE->getNumArgs() != 1)
     return;
 
-  // Get the function declaration of the callee.
-  const ProgramState *state = C.getState();
-  SVal X = state->getSVal(CE->getCallee());
-  const FunctionDecl *FD = X.getAsFunctionDecl();
-
+  ProgramStateRef state = C.getState();
+  const FunctionDecl *FD = C.getCalleeDecl(CE);
   if (!FD)
     return;
   
@@ -388,7 +384,7 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
 
   // Get the argument's value.
   const Expr *Arg = CE->getArg(0);
-  SVal ArgVal = state->getSVal(Arg);
+  SVal ArgVal = state->getSVal(Arg, C.getLocationContext());
   DefinedSVal *DefArgVal = dyn_cast<DefinedSVal>(&ArgVal);
   if (!DefArgVal)
     return;
@@ -401,7 +397,7 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
   DefinedOrUnknownSVal ArgIsNull = svalBuilder.evalEQ(state, zero, *DefArgVal);
 
   // Are they equal?
-  const ProgramState *stateTrue, *stateFalse;
+  ProgramStateRef stateTrue, stateFalse;
   llvm::tie(stateTrue, stateFalse) = state->assume(ArgIsNull);
 
   if (stateTrue && !stateFalse) {
@@ -415,7 +411,8 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
 
     BugReport *report = new BugReport(*BT, description, N);
     report->addRange(Arg->getSourceRange());
-    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Arg));
+    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Arg,
+                                                                    report));
     C.EmitReport(report);
     return;
   }
@@ -434,7 +431,7 @@ class ClassReleaseChecker : public Checker<check::PreObjCMessage> {
   mutable Selector retainS;
   mutable Selector autoreleaseS;
   mutable Selector drainS;
-  mutable llvm::OwningPtr<BugType> BT;
+  mutable OwningPtr<BugType> BT;
 
 public:
   void checkPreObjCMessage(ObjCMessage msg, CheckerContext &C) const;
@@ -464,8 +461,8 @@ void ClassReleaseChecker::checkPreObjCMessage(ObjCMessage msg,
   if (!(S == releaseS || S == retainS || S == autoreleaseS || S == drainS))
     return;
   
-  if (ExplodedNode *N = C.generateNode()) {
-    llvm::SmallString<200> buf;
+  if (ExplodedNode *N = C.addTransition()) {
+    SmallString<200> buf;
     llvm::raw_svector_ostream os(buf);
 
     os << "The '" << S.getAsString() << "' message should be sent to instances "
@@ -488,9 +485,10 @@ class VariadicMethodTypeChecker : public Checker<check::PreObjCMessage> {
   mutable Selector arrayWithObjectsS;
   mutable Selector dictionaryWithObjectsAndKeysS;
   mutable Selector setWithObjectsS;
+  mutable Selector orderedSetWithObjectsS;
   mutable Selector initWithObjectsS;
   mutable Selector initWithObjectsAndKeysS;
-  mutable llvm::OwningPtr<BugType> BT;
+  mutable OwningPtr<BugType> BT;
 
   bool isVariadicMessage(const ObjCMessage &msg) const;
 
@@ -533,6 +531,11 @@ VariadicMethodTypeChecker::isVariadicMessage(const ObjCMessage &msg) const {
     if (isReceiverClassOrSuperclass(Class, "NSSet") &&
         S == initWithObjectsS)
       return true;
+
+    // -[NSOrderedSet initWithObjects:]
+    if (isReceiverClassOrSuperclass(Class, "NSOrderedSet") &&
+        S == initWithObjectsS)
+      return true;
   } else {
     const ObjCInterfaceDecl *Class = msg.getReceiverInterface();
 
@@ -550,6 +553,11 @@ VariadicMethodTypeChecker::isVariadicMessage(const ObjCMessage &msg) const {
     if (isReceiverClassOrSuperclass(Class, "NSSet") &&
         S == setWithObjectsS)
       return true;
+
+    // -[NSOrderedSet orderedSetWithObjects:]
+    if (isReceiverClassOrSuperclass(Class, "NSOrderedSet") &&
+        S == orderedSetWithObjectsS)
+      return true;
   }
 
   return false;
@@ -566,6 +574,7 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(ObjCMessage msg,
     dictionaryWithObjectsAndKeysS = 
       GetUnarySelector("dictionaryWithObjectsAndKeys", Ctx);
     setWithObjectsS = GetUnarySelector("setWithObjects", Ctx);
+    orderedSetWithObjectsS = GetUnarySelector("orderedSetWithObjects", Ctx);
 
     initWithObjectsS = GetUnarySelector("initWithObjects", Ctx);
     initWithObjectsAndKeysS = GetUnarySelector("initWithObjectsAndKeys", Ctx);
@@ -587,7 +596,7 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(ObjCMessage msg,
 
   // Verify that all arguments have Objective-C types.
   llvm::Optional<ExplodedNode*> errorNode;
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
   
   for (unsigned I = variadicArgsBegin; I != variadicArgsEnd; ++I) {
     QualType ArgTy = msg.getArgType(I);
@@ -599,7 +608,8 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(ObjCMessage msg,
       continue;
 
     // Ignore pointer constants.
-    if (isa<loc::ConcreteInt>(msg.getArgSVal(I, state)))
+    if (isa<loc::ConcreteInt>(msg.getArgSVal(I, C.getLocationContext(),
+                                             state)))
       continue;
     
     // Ignore pointer types annotated with 'NSObject' attribute.
@@ -612,13 +622,13 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(ObjCMessage msg,
 
     // Generate only one error node to use for all bug reports.
     if (!errorNode.hasValue()) {
-      errorNode = C.generateNode();
+      errorNode = C.addTransition();
     }
 
     if (!errorNode.getValue())
       continue;
 
-    llvm::SmallString<128> sbuf;
+    SmallString<128> sbuf;
     llvm::raw_svector_ostream os(sbuf);
 
     if (const char *TypeName = GetReceiverNameType(msg))

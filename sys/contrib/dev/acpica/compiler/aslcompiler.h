@@ -100,11 +100,11 @@ AslCompilerlex(
     void);
 
 void
-ResetCurrentLineBuffer (
+AslResetCurrentLineBuffer (
     void);
 
 void
-InsertLineBuffer (
+AslInsertLineBuffer (
     int                     SourceChar);
 
 int
@@ -136,6 +136,11 @@ ACPI_STATUS
 AslDoOneFile (
     char                    *Filename);
 
+ACPI_STATUS
+AslCheckForErrorExit (
+    void);
+
+
 /*
  * aslcompile - compile mainline
  */
@@ -161,7 +166,9 @@ CmCleanupAndExit (
 
 ACPI_STATUS
 FlCheckForAscii (
-    ASL_FILE_INFO           *FileInfo);
+    FILE                    *Handle,
+    char                    *Filename,
+    BOOLEAN                 DisplayErrors);
 
 
 /*
@@ -603,6 +610,11 @@ void
 FlAddIncludeDirectory (
     char                    *Dir);
 
+char *
+FlMergePathnames (
+    char                    *PrefixDir,
+    char                    *FilePathname);
+
 void
 FlOpenIncludeFile (
     ACPI_PARSE_OBJECT       *Op);
@@ -645,7 +657,11 @@ FlPrintFile (
 
 void
 FlSetLineNumber (
-    ACPI_PARSE_OBJECT       *Op);
+    UINT32                  LineNumber);
+
+void
+FlSetFilename (
+    char                    *Filename);
 
 ACPI_STATUS
 FlOpenInputFile (

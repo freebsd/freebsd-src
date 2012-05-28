@@ -77,296 +77,9 @@ static int depth1_metaflush;
 
 extern void yyrestart(FILE *);
 
-static int
-isitme(const char *name)
-{
-	char buf[MAXHOSTNAMELEN];
-	char *pos;
-	size_t bufsize;
-
-	/*
-	 * First check if the given name matches our full hostname.
-	 */
-	if (gethostname(buf, sizeof(buf)) < 0) {
-		pjdlog_errno(LOG_ERR, "gethostname() failed");
-		return (-1);
-	}
-	if (strcmp(buf, name) == 0)
-		return (1);
-
-	/*
-	 * Now check if it matches first part of the host name.
-	 */
-	pos = strchr(buf, '.');
-	if (pos != NULL && (size_t)(pos - buf) == strlen(name) &&
-	    strncmp(buf, name, pos - buf) == 0) {
-		return (1);
-	}
-
-	/*
-	 * At the end check if name is equal to our host's UUID.
-	 */
-	bufsize = sizeof(buf);
-	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0) {
-		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostuuid) failed");
-		return (-1);
-	}
-	if (strcasecmp(buf, name) == 0)
-		return (1);
-
-	/*
-	 * Looks like this isn't about us.
-	 */
-	return (0);
-}
-
-static bool
-family_supported(int family)
-{
-	int sock;
-
-	sock = socket(family, SOCK_STREAM, 0);
-	if (sock == -1 && errno == EPROTONOSUPPORT)
-		return (false);
-	if (sock >= 0)
-		(void)close(sock);
-	return (true);
-}
-
-static int
-node_names(char **namesp)
-{
-	static char names[MAXHOSTNAMELEN * 3];
-	char buf[MAXHOSTNAMELEN];
-	char *pos;
-	size_t bufsize;
-
-	if (gethostname(buf, sizeof(buf)) < 0) {
-		pjdlog_errno(LOG_ERR, "gethostname() failed");
-		return (-1);
-	}
-
-	/* First component of the host name. */
-	pos = strchr(buf, '.');
-	if (pos != NULL && pos != buf) {
-		(void)strlcpy(names, buf, MIN((size_t)(pos - buf + 1),
-		    sizeof(names)));
-		(void)strlcat(names, ", ", sizeof(names));
-	}
-
-	/* Full host name. */
-	(void)strlcat(names, buf, sizeof(names));
-	(void)strlcat(names, ", ", sizeof(names));
-
-	/* Host UUID. */
-	bufsize = sizeof(buf);
-	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0) {
-		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostuuid) failed");
-		return (-1);
-	}
-	(void)strlcat(names, buf, sizeof(names));
-
-	*namesp = names;
-
-	return (0);
-}
-
-void
-yyerror(const char *str)
-{
-
-	pjdlog_error("Unable to parse configuration file at line %d near '%s': %s",
-	    lineno, yytext, str);
-}
-
-struct hastd_config *
-yy_config_parse(const char *config, bool exitonerror)
-{
-	int ret;
-
-	curres = NULL;
-	mynode = false;
-	depth = 0;
-	lineno = 0;
-
-	depth0_timeout = HAST_TIMEOUT;
-	depth0_replication = HAST_REPLICATION_FULLSYNC;
-	depth0_checksum = HAST_CHECKSUM_NONE;
-	depth0_compression = HAST_COMPRESSION_HOLE;
-	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
-	strlcpy(depth0_pidfile, HASTD_PIDFILE, sizeof(depth0_pidfile));
-	TAILQ_INIT(&depth0_listen);
-	strlcpy(depth0_listen_tcp4, HASTD_LISTEN_TCP4,
-	    sizeof(depth0_listen_tcp4));
-	strlcpy(depth0_listen_tcp6, HASTD_LISTEN_TCP6,
-	    sizeof(depth0_listen_tcp6));
-	depth0_exec[0] = '\0';
-	depth0_metaflush = 1;
-
-	lconfig = calloc(1, sizeof(*lconfig));
-	if (lconfig == NULL) {
-		pjdlog_error("Unable to allocate memory for configuration.");
-		if (exitonerror)
-			exit(EX_TEMPFAIL);
-		return (NULL);
-	}
-
-	TAILQ_INIT(&lconfig->hc_listen);
-	TAILQ_INIT(&lconfig->hc_resources);
-
-	yyin = fopen(config, "r");
-	if (yyin == NULL) {
-		pjdlog_errno(LOG_ERR, "Unable to open configuration file %s",
-		    config);
-		yy_config_free(lconfig);
-		if (exitonerror)
-			exit(EX_OSFILE);
-		return (NULL);
-	}
-	yyrestart(yyin);
-	ret = yyparse();
-	fclose(yyin);
-	if (ret != 0) {
-		yy_config_free(lconfig);
-		if (exitonerror)
-			exit(EX_CONFIG);
-		return (NULL);
-	}
-
-	/*
-	 * Let's see if everything is set up.
-	 */
-	if (lconfig->hc_controladdr[0] == '\0') {
-		strlcpy(lconfig->hc_controladdr, depth0_control,
-		    sizeof(lconfig->hc_controladdr));
-	}
-	if (lconfig->hc_pidfile[0] == '\0') {
-		strlcpy(lconfig->hc_pidfile, depth0_pidfile,
-		    sizeof(lconfig->hc_pidfile));
-	}
-	if (!TAILQ_EMPTY(&depth0_listen))
-		TAILQ_CONCAT(&lconfig->hc_listen, &depth0_listen, hl_next);
-	if (TAILQ_EMPTY(&lconfig->hc_listen)) {
-		struct hastd_listen *lst;
-
-		if (family_supported(AF_INET)) {
-			lst = calloc(1, sizeof(*lst));
-			if (lst == NULL) {
-				pjdlog_error("Unable to allocate memory for listen address.");
-				yy_config_free(lconfig);
-				if (exitonerror)
-					exit(EX_TEMPFAIL);
-				return (NULL);
-			}
-			(void)strlcpy(lst->hl_addr, depth0_listen_tcp4,
-			    sizeof(lst->hl_addr));
-			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
-		} else {
-			pjdlog_debug(1,
-			    "No IPv4 support in the kernel, not listening on IPv4 address.");
-		}
-		if (family_supported(AF_INET6)) {
-			lst = calloc(1, sizeof(*lst));
-			if (lst == NULL) {
-				pjdlog_error("Unable to allocate memory for listen address.");
-				yy_config_free(lconfig);
-				if (exitonerror)
-					exit(EX_TEMPFAIL);
-				return (NULL);
-			}
-			(void)strlcpy(lst->hl_addr, depth0_listen_tcp6,
-			    sizeof(lst->hl_addr));
-			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
-		} else {
-			pjdlog_debug(1,
-			    "No IPv6 support in the kernel, not listening on IPv6 address.");
-		}
-		if (TAILQ_EMPTY(&lconfig->hc_listen)) {
-			pjdlog_error("No address to listen on.");
-			yy_config_free(lconfig);
-			if (exitonerror)
-				exit(EX_TEMPFAIL);
-			return (NULL);
-		}
-	}
-	TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
-		PJDLOG_ASSERT(curres->hr_provname[0] != '\0');
-		PJDLOG_ASSERT(curres->hr_localpath[0] != '\0');
-		PJDLOG_ASSERT(curres->hr_remoteaddr[0] != '\0');
-
-		if (curres->hr_replication == -1) {
-			/*
-			 * Replication is not set at resource-level.
-			 * Use global or default setting.
-			 */
-			curres->hr_replication = depth0_replication;
-		}
-		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC) {
-			pjdlog_warning("Replication mode \"%s\" is not implemented, falling back to \"%s\".",
-			    "memsync", "fullsync");
-			curres->hr_replication = HAST_REPLICATION_FULLSYNC;
-		}
-		if (curres->hr_checksum == -1) {
-			/*
-			 * Checksum is not set at resource-level.
-			 * Use global or default setting.
-			 */
-			curres->hr_checksum = depth0_checksum;
-		}
-		if (curres->hr_compression == -1) {
-			/*
-			 * Compression is not set at resource-level.
-			 * Use global or default setting.
-			 */
-			curres->hr_compression = depth0_compression;
-		}
-		if (curres->hr_timeout == -1) {
-			/*
-			 * Timeout is not set at resource-level.
-			 * Use global or default setting.
-			 */
-			curres->hr_timeout = depth0_timeout;
-		}
-		if (curres->hr_exec[0] == '\0') {
-			/*
-			 * Exec is not set at resource-level.
-			 * Use global or default setting.
-			 */
-			strlcpy(curres->hr_exec, depth0_exec,
-			    sizeof(curres->hr_exec));
-		}
-		if (curres->hr_metaflush == -1) {
-			/*
-			 * Metaflush is not set at resource-level.
-			 * Use global or default setting.
-			 */
-			curres->hr_metaflush = depth0_metaflush;
-		}
-	}
-
-	return (lconfig);
-}
-
-void
-yy_config_free(struct hastd_config *config)
-{
-	struct hastd_listen *lst;
-	struct hast_resource *res;
-
-	while ((lst = TAILQ_FIRST(&depth0_listen)) != NULL) {
-		TAILQ_REMOVE(&depth0_listen, lst, hl_next);
-		free(lst);
-	}
-	while ((lst = TAILQ_FIRST(&config->hc_listen)) != NULL) {
-		TAILQ_REMOVE(&config->hc_listen, lst, hl_next);
-		free(lst);
-	}
-	while ((res = TAILQ_FIRST(&config->hc_resources)) != NULL) {
-		TAILQ_REMOVE(&config->hc_resources, res, hr_next);
-		free(res);
-	}
-	free(config);
-}
+static int isitme(const char *name);
+static bool family_supported(int family);
+static int node_names(char **namesp);
 %}
 
 %token CONTROL PIDFILE LISTEN REPLICATION CHECKSUM COMPRESSION METAFLUSH
@@ -1004,3 +717,296 @@ source_statement:	SOURCE STR
 		free($2);
 	}
 	;
+
+%%
+
+static int
+isitme(const char *name)
+{
+	char buf[MAXHOSTNAMELEN];
+	char *pos;
+	size_t bufsize;
+
+	/*
+	 * First check if the given name matches our full hostname.
+	 */
+	if (gethostname(buf, sizeof(buf)) < 0) {
+		pjdlog_errno(LOG_ERR, "gethostname() failed");
+		return (-1);
+	}
+	if (strcmp(buf, name) == 0)
+		return (1);
+
+	/*
+	 * Now check if it matches first part of the host name.
+	 */
+	pos = strchr(buf, '.');
+	if (pos != NULL && (size_t)(pos - buf) == strlen(name) &&
+	    strncmp(buf, name, pos - buf) == 0) {
+		return (1);
+	}
+
+	/*
+	 * At the end check if name is equal to our host's UUID.
+	 */
+	bufsize = sizeof(buf);
+	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0) {
+		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostuuid) failed");
+		return (-1);
+	}
+	if (strcasecmp(buf, name) == 0)
+		return (1);
+
+	/*
+	 * Looks like this isn't about us.
+	 */
+	return (0);
+}
+
+static bool
+family_supported(int family)
+{
+	int sock;
+
+	sock = socket(family, SOCK_STREAM, 0);
+	if (sock == -1 && errno == EPROTONOSUPPORT)
+		return (false);
+	if (sock >= 0)
+		(void)close(sock);
+	return (true);
+}
+
+static int
+node_names(char **namesp)
+{
+	static char names[MAXHOSTNAMELEN * 3];
+	char buf[MAXHOSTNAMELEN];
+	char *pos;
+	size_t bufsize;
+
+	if (gethostname(buf, sizeof(buf)) < 0) {
+		pjdlog_errno(LOG_ERR, "gethostname() failed");
+		return (-1);
+	}
+
+	/* First component of the host name. */
+	pos = strchr(buf, '.');
+	if (pos != NULL && pos != buf) {
+		(void)strlcpy(names, buf, MIN((size_t)(pos - buf + 1),
+		    sizeof(names)));
+		(void)strlcat(names, ", ", sizeof(names));
+	}
+
+	/* Full host name. */
+	(void)strlcat(names, buf, sizeof(names));
+	(void)strlcat(names, ", ", sizeof(names));
+
+	/* Host UUID. */
+	bufsize = sizeof(buf);
+	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0) {
+		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostuuid) failed");
+		return (-1);
+	}
+	(void)strlcat(names, buf, sizeof(names));
+
+	*namesp = names;
+
+	return (0);
+}
+
+void
+yyerror(const char *str)
+{
+
+	pjdlog_error("Unable to parse configuration file at line %d near '%s': %s",
+	    lineno, yytext, str);
+}
+
+struct hastd_config *
+yy_config_parse(const char *config, bool exitonerror)
+{
+	int ret;
+
+	curres = NULL;
+	mynode = false;
+	depth = 0;
+	lineno = 0;
+
+	depth0_timeout = HAST_TIMEOUT;
+	depth0_replication = HAST_REPLICATION_FULLSYNC;
+	depth0_checksum = HAST_CHECKSUM_NONE;
+	depth0_compression = HAST_COMPRESSION_HOLE;
+	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
+	strlcpy(depth0_pidfile, HASTD_PIDFILE, sizeof(depth0_pidfile));
+	TAILQ_INIT(&depth0_listen);
+	strlcpy(depth0_listen_tcp4, HASTD_LISTEN_TCP4,
+	    sizeof(depth0_listen_tcp4));
+	strlcpy(depth0_listen_tcp6, HASTD_LISTEN_TCP6,
+	    sizeof(depth0_listen_tcp6));
+	depth0_exec[0] = '\0';
+	depth0_metaflush = 1;
+
+	lconfig = calloc(1, sizeof(*lconfig));
+	if (lconfig == NULL) {
+		pjdlog_error("Unable to allocate memory for configuration.");
+		if (exitonerror)
+			exit(EX_TEMPFAIL);
+		return (NULL);
+	}
+
+	TAILQ_INIT(&lconfig->hc_listen);
+	TAILQ_INIT(&lconfig->hc_resources);
+
+	yyin = fopen(config, "r");
+	if (yyin == NULL) {
+		pjdlog_errno(LOG_ERR, "Unable to open configuration file %s",
+		    config);
+		yy_config_free(lconfig);
+		if (exitonerror)
+			exit(EX_OSFILE);
+		return (NULL);
+	}
+	yyrestart(yyin);
+	ret = yyparse();
+	fclose(yyin);
+	if (ret != 0) {
+		yy_config_free(lconfig);
+		if (exitonerror)
+			exit(EX_CONFIG);
+		return (NULL);
+	}
+
+	/*
+	 * Let's see if everything is set up.
+	 */
+	if (lconfig->hc_controladdr[0] == '\0') {
+		strlcpy(lconfig->hc_controladdr, depth0_control,
+		    sizeof(lconfig->hc_controladdr));
+	}
+	if (lconfig->hc_pidfile[0] == '\0') {
+		strlcpy(lconfig->hc_pidfile, depth0_pidfile,
+		    sizeof(lconfig->hc_pidfile));
+	}
+	if (!TAILQ_EMPTY(&depth0_listen))
+		TAILQ_CONCAT(&lconfig->hc_listen, &depth0_listen, hl_next);
+	if (TAILQ_EMPTY(&lconfig->hc_listen)) {
+		struct hastd_listen *lst;
+
+		if (family_supported(AF_INET)) {
+			lst = calloc(1, sizeof(*lst));
+			if (lst == NULL) {
+				pjdlog_error("Unable to allocate memory for listen address.");
+				yy_config_free(lconfig);
+				if (exitonerror)
+					exit(EX_TEMPFAIL);
+				return (NULL);
+			}
+			(void)strlcpy(lst->hl_addr, depth0_listen_tcp4,
+			    sizeof(lst->hl_addr));
+			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
+		} else {
+			pjdlog_debug(1,
+			    "No IPv4 support in the kernel, not listening on IPv4 address.");
+		}
+		if (family_supported(AF_INET6)) {
+			lst = calloc(1, sizeof(*lst));
+			if (lst == NULL) {
+				pjdlog_error("Unable to allocate memory for listen address.");
+				yy_config_free(lconfig);
+				if (exitonerror)
+					exit(EX_TEMPFAIL);
+				return (NULL);
+			}
+			(void)strlcpy(lst->hl_addr, depth0_listen_tcp6,
+			    sizeof(lst->hl_addr));
+			TAILQ_INSERT_TAIL(&lconfig->hc_listen, lst, hl_next);
+		} else {
+			pjdlog_debug(1,
+			    "No IPv6 support in the kernel, not listening on IPv6 address.");
+		}
+		if (TAILQ_EMPTY(&lconfig->hc_listen)) {
+			pjdlog_error("No address to listen on.");
+			yy_config_free(lconfig);
+			if (exitonerror)
+				exit(EX_TEMPFAIL);
+			return (NULL);
+		}
+	}
+	TAILQ_FOREACH(curres, &lconfig->hc_resources, hr_next) {
+		PJDLOG_ASSERT(curres->hr_provname[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_localpath[0] != '\0');
+		PJDLOG_ASSERT(curres->hr_remoteaddr[0] != '\0');
+
+		if (curres->hr_replication == -1) {
+			/*
+			 * Replication is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			curres->hr_replication = depth0_replication;
+		}
+		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC) {
+			pjdlog_warning("Replication mode \"%s\" is not implemented, falling back to \"%s\".",
+			    "memsync", "fullsync");
+			curres->hr_replication = HAST_REPLICATION_FULLSYNC;
+		}
+		if (curres->hr_checksum == -1) {
+			/*
+			 * Checksum is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			curres->hr_checksum = depth0_checksum;
+		}
+		if (curres->hr_compression == -1) {
+			/*
+			 * Compression is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			curres->hr_compression = depth0_compression;
+		}
+		if (curres->hr_timeout == -1) {
+			/*
+			 * Timeout is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			curres->hr_timeout = depth0_timeout;
+		}
+		if (curres->hr_exec[0] == '\0') {
+			/*
+			 * Exec is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			strlcpy(curres->hr_exec, depth0_exec,
+			    sizeof(curres->hr_exec));
+		}
+		if (curres->hr_metaflush == -1) {
+			/*
+			 * Metaflush is not set at resource-level.
+			 * Use global or default setting.
+			 */
+			curres->hr_metaflush = depth0_metaflush;
+		}
+	}
+
+	return (lconfig);
+}
+
+void
+yy_config_free(struct hastd_config *config)
+{
+	struct hastd_listen *lst;
+	struct hast_resource *res;
+
+	while ((lst = TAILQ_FIRST(&depth0_listen)) != NULL) {
+		TAILQ_REMOVE(&depth0_listen, lst, hl_next);
+		free(lst);
+	}
+	while ((lst = TAILQ_FIRST(&config->hc_listen)) != NULL) {
+		TAILQ_REMOVE(&config->hc_listen, lst, hl_next);
+		free(lst);
+	}
+	while ((res = TAILQ_FIRST(&config->hc_resources)) != NULL) {
+		TAILQ_REMOVE(&config->hc_resources, res, hr_next);
+		free(res);
+	}
+	free(config);
+}

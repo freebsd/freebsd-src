@@ -21,9 +21,11 @@
 namespace llvm {
 
 class AllocaInst;
+class Constant;
 class ConstantFP;
 class FunctionLoweringInfo;
 class Instruction;
+class LoadInst;
 class MachineBasicBlock;
 class MachineConstantPool;
 class MachineFunction;
@@ -36,7 +38,8 @@ class TargetLowering;
 class TargetMachine;
 class TargetRegisterClass;
 class TargetRegisterInfo;
-class LoadInst;
+class User;
+class Value;
 
 /// FastISel - This is a fast-path instruction selection class that
 /// generates poor code and doesn't support illegal types or non-trivial
@@ -358,6 +361,8 @@ private:
 
   bool SelectExtractValue(const User *I);
 
+  bool SelectInsertValue(const User *I);
+
   /// HandlePHINodesInSuccessorBlocks - Handle PHI nodes in successor blocks.
   /// Emit code to ensure constants are copied into registers when needed.
   /// Remember the virtual registers that need to be added to the Machine PHI
@@ -378,6 +383,10 @@ private:
 
   /// hasTrivialKill - Test whether the given value has exactly one use.
   bool hasTrivialKill(const Value *V) const;
+
+  /// removeDeadCode - Remove all dead instructions between the I and E.
+  void removeDeadCode(MachineBasicBlock::iterator I,
+                      MachineBasicBlock::iterator E);
 };
 
 }

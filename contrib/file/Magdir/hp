@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: hp,v 1.23 2009/09/19 16:28:09 christos Exp $
 # hp:  file(1) magic for Hewlett Packard machines (see also "printer")
 #
 # XXX - somebody should figure out whether any byte order needs to be
