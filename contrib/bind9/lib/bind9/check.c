@@ -434,7 +434,7 @@ check_dns64(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
 	int nbytes;
 	int i;
 
-	static const char *acls[] = { "client", "exclude", "mapped", NULL};
+	static const char *acls[] = { "clients", "exclude", "mapped", NULL};
 
 	if (voptions != NULL)
 		cfg_map_get(voptions, "dns64", &dns64);
