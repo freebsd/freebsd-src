@@ -291,6 +291,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
+		 * XXX-BZ CSUM_DELAY_DATA_IPV6?
 		 */
 		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			ipseclog((LOG_DEBUG,

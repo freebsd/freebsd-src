@@ -1047,7 +1047,6 @@ send:
 	 * checksum extended header and data.
 	 */
 	m->m_pkthdr.len = hdrlen + len; /* in6_cksum() need this */
-	m->m_pkthdr.csum_flags = CSUM_TCP;
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
 	if (isipv6) {
@@ -1055,6 +1054,7 @@ send:
 		 * ip6_plen is not need to be filled now, and will be filled
 		 * in ip6_output.
 		 */
+		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
 		th->th_sum = in6_cksum_pseudo(ip6, sizeof(struct tcphdr) +
 		    optlen + len, IPPROTO_TCP, 0);
 	}
@@ -1064,6 +1064,7 @@ send:
 #endif
 #ifdef INET
 	{
+		m->m_pkthdr.csum_flags = CSUM_TCP;
 		th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(sizeof(struct tcphdr) + IPPROTO_TCP + len + optlen));
 
