@@ -2206,7 +2206,7 @@ DIOCGETSTATES_full:
 	case DIOCADDADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 		struct pf_pooladdr	*pa;
-		struct pfi_kif		*kif;
+		struct pfi_kif		*kif = NULL;
 
 #ifndef INET
 		if (pp->af == AF_INET) {
