@@ -445,18 +445,20 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
     vm_offset_t offset, size_t tlen, struct uio *uio)
 {
 	vm_page_t	m;
-	int		error;
+	int		error, rv;
 
 	VM_OBJECT_LOCK(tobj);
-	vm_object_pip_add(tobj, 1);
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
-			error = vm_pager_get_pages(tobj, &m, 1, 0);
-			if (error != 0) {
-				printf("tmpfs get pages from pager error [read]\n");
-				goto out;
+			rv = vm_pager_get_pages(tobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK) {
+				vm_page_lock(m);
+				vm_page_free(m);
+				vm_page_unlock(m);
+				VM_OBJECT_UNLOCK(tobj);
+				return (EIO);
 			}
 		} else
 			vm_page_zero_invalid(m, TRUE);
@@ -464,12 +466,10 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	VM_OBJECT_UNLOCK(tobj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
 	VM_OBJECT_LOCK(tobj);
-out:
 	vm_page_lock(m);
 	vm_page_unwire(m, TRUE);
 	vm_page_unlock(m);
 	vm_page_wakeup(m);
-	vm_object_pip_subtract(tobj, 1);
 	VM_OBJECT_UNLOCK(tobj);
 
 	return (error);
@@ -632,7 +632,7 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	vm_offset_t	offset;
 	off_t		addr;
 	size_t		tlen;
-	int		error;
+	int		error, rv;
 
 	error = 0;
 	
@@ -672,14 +672,16 @@ lookupvpg:
 	}
 nocache:
 	VM_OBJECT_LOCK(tobj);
-	vm_object_pip_add(tobj, 1);
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (tpg->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
-			error = vm_pager_get_pages(tobj, &tpg, 1, 0);
-			if (error != 0) {
-				printf("tmpfs get pages from pager error [write]\n");
+			rv = vm_pager_get_pages(tobj, &tpg, 1, 0);
+			if (rv != VM_PAGER_OK) {
+				vm_page_lock(tpg);
+				vm_page_free(tpg);
+				vm_page_unlock(tpg);
+				error = EIO;
 				goto out;
 			}
 		} else
@@ -693,9 +695,6 @@ nocache:
 		pmap_copy_page(vpg, tpg);
 	}
 	VM_OBJECT_LOCK(tobj);
-out:
-	if (vobj != NULL)
-		VM_OBJECT_LOCK(vobj);
 	if (error == 0) {
 		KASSERT(tpg->valid == VM_PAGE_BITS_ALL,
 		    ("parts of tpg invalid"));
@@ -705,12 +704,13 @@ out:
 	vm_page_unwire(tpg, TRUE);
 	vm_page_unlock(tpg);
 	vm_page_wakeup(tpg);
-	if (vpg != NULL)
-		vm_page_wakeup(vpg);
-	if (vobj != NULL)
-		VM_OBJECT_UNLOCK(vobj);
-	vm_object_pip_subtract(tobj, 1);
+out:
 	VM_OBJECT_UNLOCK(tobj);
+	if (vpg != NULL) {
+		VM_OBJECT_LOCK(vobj);
+		vm_page_wakeup(vpg);
+		VM_OBJECT_UNLOCK(vobj);
+	}
 
 	return	(error);
 }

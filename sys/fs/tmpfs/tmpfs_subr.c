@@ -1002,6 +1002,7 @@ retry:
 					vm_page_sleep(m, "tmfssz");
 					goto retry;
 				}
+				MPASS(m->valid == VM_PAGE_BITS_ALL);
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
@@ -1034,7 +1035,6 @@ retry:
 			}
 			if (m != NULL) {
 				pmap_zero_page_area(m, base, PAGE_SIZE - base);
-				MPASS(m->valid == VM_PAGE_BITS_ALL);
 				vm_page_dirty(m);
 				vm_pager_page_unswapped(m);
 			}
