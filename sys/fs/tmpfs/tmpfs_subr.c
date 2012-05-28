@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
@@ -954,15 +955,15 @@ tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
  * Returns zero on success or an appropriate error code on failure.
  */
 int
-tmpfs_reg_resize(struct vnode *vp, off_t newsize)
+tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 {
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
 	vm_object_t uobj;
-	vm_page_t m;
-	vm_pindex_t newpages, oldpages;
+	vm_page_t m, ma[1];
+	vm_pindex_t idx, newpages, oldpages;
 	off_t oldsize;
-	size_t zerolen;
+	int base, rv;
 
 	MPASS(vp->v_type == VREG);
 	MPASS(newsize >= 0);
@@ -985,14 +986,60 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
 
-	TMPFS_LOCK(tmp);
-	tmp->tm_pages_used += (newpages - oldpages);
-	TMPFS_UNLOCK(tmp);
-
-	node->tn_size = newsize;
-	vnode_pager_setsize(vp, newsize);
 	VM_OBJECT_LOCK(uobj);
 	if (newsize < oldsize) {
+		/*
+		 * Zero the truncated part of the last page.
+		 */
+		base = newsize & PAGE_MASK;
+		if (base != 0) {
+			idx = OFF_TO_IDX(newsize);
+retry:
+			m = vm_page_lookup(uobj, idx);
+			if (m != NULL) {
+				if ((m->oflags & VPO_BUSY) != 0 ||
+				    m->busy != 0) {
+					vm_page_sleep(m, "tmfssz");
+					goto retry;
+				}
+			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
+				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
+				if (m == NULL) {
+					VM_OBJECT_UNLOCK(uobj);
+					VM_WAIT;
+					VM_OBJECT_LOCK(uobj);
+					goto retry;
+				} else if (m->valid != VM_PAGE_BITS_ALL) {
+					ma[0] = m;
+					rv = vm_pager_get_pages(uobj, ma, 1, 0);
+					m = vm_page_lookup(uobj, idx);
+				} else
+					/* A cached page was reactivated. */
+					rv = VM_PAGER_OK;
+				vm_page_lock(m);
+				if (rv == VM_PAGER_OK) {
+					vm_page_deactivate(m);
+					vm_page_unlock(m);
+					vm_page_wakeup(m);
+				} else {
+					vm_page_free(m);
+					vm_page_unlock(m);
+					if (ignerr)
+						m = NULL;
+					else {
+						VM_OBJECT_UNLOCK(uobj);
+						return (EIO);
+					}
+				}
+			}
+			if (m != NULL) {
+				pmap_zero_page_area(m, base, PAGE_SIZE - base);
+				MPASS(m->valid == VM_PAGE_BITS_ALL);
+				vm_page_dirty(m);
+				vm_pager_page_unswapped(m);
+			}
+		}
+
 		/*
 		 * Release any swap space and free any whole pages.
 		 */
@@ -1001,19 +1048,16 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 			    newpages);
 			vm_object_page_remove(uobj, newpages, 0, 0);
 		}
-
-		/*
-		 * Zero the truncated part of the last page.
-		 */
-		zerolen = round_page(newsize) - newsize;
-		if (zerolen > 0) {
-			m = vm_page_grab(uobj, OFF_TO_IDX(newsize),
-			    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-			pmap_zero_page_area(m, PAGE_SIZE - zerolen, zerolen);
-		}
 	}
 	uobj->size = newpages;
 	VM_OBJECT_UNLOCK(uobj);
+
+	TMPFS_LOCK(tmp);
+	tmp->tm_pages_used += (newpages - oldpages);
+	TMPFS_UNLOCK(tmp);
+
+	node->tn_size = newsize;
+	vnode_pager_setsize(vp, newsize);
 	return (0);
 }
 
@@ -1384,7 +1428,7 @@ tmpfs_truncate(struct vnode *vp, off_t length)
 	if (length > VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
-	error = tmpfs_reg_resize(vp, length);
+	error = tmpfs_reg_resize(vp, length, FALSE);
 	if (error == 0) {
 		node->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
 	}
