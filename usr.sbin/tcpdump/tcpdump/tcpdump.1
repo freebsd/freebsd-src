@@ -30,7 +30,7 @@ tcpdump \- dump traffic on a network
 .na
 .B tcpdump
 [
-.B \-AbdDefIKlLnNOpqRStuUvxX
+.B \-AbdDefhHIJKlLnNOpqRStuUvxX
 ] [
 .B \-B
 .I buffer_size
@@ -55,6 +55,10 @@ tcpdump \- dump traffic on a network
 [
 .B \-i
 .I interface
+]
+[
+.B \-j
+.I tstamp_type
 ]
 [
 .B \-m
@@ -257,7 +261,7 @@ Print the link-level header on each dump line.
 .B \-E
 Use \fIspi@ipaddr algo:secret\fP for decrypting IPsec ESP packets that
 are addressed to \fIaddr\fP and contain Security Parameter Index value
-\fIspi\fP. This combination may be repeated with comma or newline seperation.
+\fIspi\fP. This combination may be repeated with comma or newline separation.
 .IP
 Note that setting the secret for IPv4 ESP packets is supported at this time.
 .IP
@@ -273,7 +277,7 @@ The ability to decrypt packets is only present if \fItcpdump\fP was compiled
 with cryptography enabled.
 .IP
 \fIsecret\fP is the ASCII text for ESP secret key. 
-If preceeded by 0x, then a hex value will be read.
+If preceded by 0x, then a hex value will be read.
 .IP
 The option assumes RFC2406 ESP, not RFC1827 ESP.
 The option is only for debugging purposes, and
@@ -320,6 +324,13 @@ If used in conjunction with the
 .B \-C
 option, filenames will take the form of `\fIfile\fP<count>'.
 .TP
+.B \-h
+Print the tcpdump and libpcap version strings, print a usage message,
+and exit.
+.TP
+.B \-H
+Attempt to detect 802.11s draft mesh headers.
+.TP
 .B \-i
 Listen on \fIinterface\fP.
 If unspecified, \fItcpdump\fP searches the system interface list for the
@@ -359,6 +370,18 @@ monitor mode will be shown; if
 .B \-I
 is specified, only those link-layer types available when in monitor mode
 will be shown.
+.TP
+.B \-j
+Set the time stamp type for the capture to \fItstamp_type\fP.  The names
+to use for the time stamp types are given in
+.BR pcap-tstamp-type (7);
+not all the types listed there will necessarily be valid for any given
+interface.
+.TP
+.B \-J
+List the supported time stamp types for the interface and exit.  If the
+time stamp type cannot be set for the interface, no time stamp types are
+listed.
 .TP
 .B \-K
 Don't attempt to verify IP, TCP, or UDP checksums.  This is useful for
@@ -616,7 +639,10 @@ savefile name as the only argument, make the flags & arguments arrangements
 and execute the command that you want.
 .TP
 .B \-Z
-Drops privileges (if root) and changes user ID to
+If
+.I tcpdump
+is running as root, after opening the capture device or input savefile,
+but before opening any savefiles for output, change the user ID to
 .I user
 and the group ID to the primary group of
 .IR user .
@@ -872,8 +898,8 @@ The general format of a tcp protocol line is:
 \fISrc\fP and \fIdst\fP are the source and destination IP
 addresses and ports.
 \fIFlags\fP are some combination of S (SYN),
-F (FIN), P (PUSH), R (RST), W (ECN CWR) or E (ECN-Echo), or a single
-`.' (no flags).
+F (FIN), P (PUSH), R (RST), U (URG), W (ECN CWR), E (ECN-Echo) or
+`.' (ACK), or `none' if no flags are set.
 \fIData-seqno\fP describes the portion of sequence space covered
 by the data in this packet (see example below).
 \fIAck\fP is sequence number of the next data expected the other
@@ -920,8 +946,7 @@ bytes and there was a max-segment-size option requesting an mss of
 Csam replies with a similar packet except it includes a piggy-backed
 ack for rtsg's SYN.
 Rtsg then acks csam's SYN.
-The `.' means no
-flags were set.
+The `.' means the ACK flag was set.
 The packet contained no data so there is no data sequence number.
 Note that the ack sequence
 number is a small integer (1).
@@ -1267,7 +1292,6 @@ RA, \fInot\fP set) and `|' (truncated message, TC, set).
 If the
 `question' section doesn't contain exactly one entry, `[\fIn\fPq]'
 is printed.
-
 .HD
 SMB/CIFS decoding
 .LP
@@ -1275,19 +1299,18 @@ SMB/CIFS decoding
 on UDP/137, UDP/138 and TCP/139.
 Some primitive decoding of IPX and
 NetBEUI SMB data is also done.
-
+.LP
 By default a fairly minimal decode is done, with a much more detailed
 decode done if -v is used.
 Be warned that with -v a single SMB packet
 may take up a page or more, so only use -v if you really want all the
 gory details.
-
-For information on SMB packet formats and what all te fields mean see
+.LP
+For information on SMB packet formats and what all the fields mean see
 www.cifs.org or the pub/samba/specs/ directory on your favorite
 samba.org mirror site.
 The SMB patches were written by Andrew Tridgell
 (tridge@samba.org).
-
 .HD
 NFS Requests and Replies
 .LP
@@ -1640,7 +1663,7 @@ Ethernet interface removed the packet from the wire and when the kernel
 serviced the `new packet' interrupt.
 .SH "SEE ALSO"
 stty(1), pcap(3PCAP), bpf(4), nit(4P), pcap-savefile(5),
-pcap-filter(7)
+pcap-filter(7), pcap-tstamp-type(7)
 .SH AUTHORS
 The original authors are:
 .LP
