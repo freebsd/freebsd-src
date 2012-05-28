@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2012
+.Dd May 27, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -372,16 +372,32 @@ This is useful for devices which have multiple physical layer interfaces
 .It Cm name Ar name
 Set the interface name to
 .Ar name .
-.It Cm rxcsum , txcsum
+.It Cm rxcsum , txcsum , rxcsum6 , txcsum6
 If the driver supports user-configurable checksum offloading,
 enable receive (or transmit) checksum offloading on the interface.
+The feature can be turned on selectively per protocol family.
+Use
+.Cm rxcsum6 , txcsum6
+for
+.Xr ip6 4
+or
+.Cm rxcsum , txcsum
+otherwise.
 Some drivers may not be able to enable these flags independently
 of each other, so setting one may also set the other.
 The driver will offload as much checksum work as it can reliably
 support, the exact level of offloading varies between drivers.
-.It Fl rxcsum , txcsum
+.It Fl rxcsum , txcsum , rxcsum6 , txcsum6
 If the driver supports user-configurable checksum offloading,
 disable receive (or transmit) checksum offloading on the interface.
+The feature can be turned off selectively per protocol family.
+Use
+.Fl rxcsum6 , txcsum6
+for
+.Xr ip6 4
+or
+.Fl rxcsum , txcsum
+otherwise.
 These settings may not always be independent of each other.
 .It Cm tso
 If the driver supports
