@@ -468,9 +468,9 @@ process_gsstkey(dns_name_t *name, dns_rdata_tkey_t *tkeyin,
 		tkeyout->error = dns_tsigerror_badkey;
 		tkey_log("process_gsstkey(): dns_tsigerror_badkey");    /* XXXSRA */
 		return (ISC_R_SUCCESS);
-	} else if (result == ISC_R_FAILURE)
+	}
+	if (result != DNS_R_CONTINUE && result != ISC_R_SUCCESS)
 		goto failure;
-	ENSURE(result == DNS_R_CONTINUE || result == ISC_R_SUCCESS);
 	/*
 	 * XXXDCL Section 4.1.3: Limit GSS_S_CONTINUE_NEEDED to 10 times.
 	 */

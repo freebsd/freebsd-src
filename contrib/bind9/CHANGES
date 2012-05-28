@@ -1,3 +1,43 @@
+	--- 9.6-ESV-R7 released ---
+
+3318.	[tuning]	Reduce the amount of work performed while holding a
+			bucket lock when finshed with a fetch context.
+			[RT #29239]
+
+3314.	[bug]		The masters list could be updated while refesh_callback
+			and stub_callback were using it. [RT #26732]
+
+3313.	[protocol]	Add TLSA record type. [RT #28989]
+
+3311.	[bug]		Abort the zone dump if zone->db is NULL in
+			zone.c:zone_gotwritehandle. [RT #29028]
+
+3310.	[test]		Increase table size for mutex profiling. [RT #28809]
+
+3309.	[bug]		resolver.c:fctx_finddone() was not threadsafe.
+			[RT #27995]
+
+3307.	[bug]		Add missing ISC_LANG_BEGINDECLS and ISC_LANG_ENDDECLS.
+			[RT #28956]
+
+3304.	[bug]		Use hmctx, not mctx when freeing rbtdb->heaps.
+			[RT #28571]
+
+3301.	[contrib]	Update queryperf to build on darwin.  Add -R flag
+			for non-recursive queries. [RT #28565]
+
+3300.	[bug]		Named could die if gssapi was enabled in named.conf
+			but was not compiled in. [RT #28338]
+
+3299.	[bug]		Make SDB handle errors from database drivers better.
+			[RT #28534]
+
+3232.	[bug]		Zero zone->curmaster before return in
+			dns_zone_setmasterswithkeys(). [RT #26732]
+
+3197.	[bug]		Don't try to log the filename and line number when
+			the config parser can't open a file. [RT #22263]
+
 	--- 9.6-ESV-R6 released ---
 
 3298.	[bug]		Named could dereference a NULL pointer in
@@ -168,7 +208,7 @@
 
 3189.	[test]		Added a summary report after system tests. [RT #25517]
 
-3187.	[port]		win32: support for Visual Studio 2008.	[RT #26356]
+3187.	[port]		win32: support for Visual Studio 2008.  [RT #26356]
 
 3179.	[port]		kfreebsd: build issues. [RT #26273]
 
@@ -201,7 +241,7 @@
 			an assert. [RT #25452]
 
 3151.	[bug]		Queries for type RRSIG or SIG could be handled
-                        incorrectly.  [RT #21050]
+			incorrectly.  [RT #21050]
 
 3149.	[tuning]	Improve scalability by allocating one zone
 			task per 100 zones at startup time.  (The
@@ -213,7 +253,7 @@
 3148.	[bug]		Processing of normal queries could be stalled when
 			forwarding a UPDATE message. [RT #24711]
 
-3146.   [test]		Fixed gcc4.6.0 errors in ATF. [RT #25598]
+3146.	[test]		Fixed gcc4.6.0 errors in ATF. [RT #25598]
 
 3145.	[test]		Capture output of ATF unit tests in "./atf.out" if
 			there were any errors while running them. [RT #25527]
@@ -273,10 +313,10 @@
 			dns_rdataset_totext() that could cause named to
 			crash with an assertion failure. [RT #24777]
 
-3121.   [security]      An authoritative name server sending a negative
-                        response containing a very large RRset could
-                        trigger an off-by-one error in the ncache code
-                        and crash named. [RT #24650]
+3121.	[security]	An authoritative name server sending a negative
+			response containing a very large RRset could
+			trigger an off-by-one error in the ncache code
+			and crash named. [RT #24650]
 
 3120.	[bug]		Named could fail to validate zones listed in a DLV
 			that validated insecure without using DLV and had
@@ -370,9 +410,9 @@
 
 3043.	[test]		Merged in the NetBSD ATF test framework (currently
 			version 0.12) for development of future unit tests.
-                        Use configure --with-atf to build ATF internally
-                        or configure --with-atf=prefix to use an external
-                        copy.  [RT #23209]
+			Use configure --with-atf to build ATF internally
+			or configure --with-atf=prefix to use an external
+			copy.  [RT #23209]
 
 3042.	[bug]		dig +trace could fail attempting to use IPv6
 			addresses on systems with only IPv4 connectivity.
@@ -562,7 +602,7 @@
 2929.	[bug]		Improved handling of GSS security contexts:
 			 - added LRU expiration for generated TSIGs
 			 - added the ability to use a non-default realm
-                         - added new "realm" keyword in nsupdate
+			 - added new "realm" keyword in nsupdate
 			 - limited lifetime of generated keys to 1 hour
 			   or the lifetime of the context (whichever is
 			   smaller)
@@ -927,11 +967,11 @@
 			trigger an assert. [RT #20368]
 
 2705.	[bug]		Reconcile the XML stats version number with a later
-                        BIND9 release, by adding a "name" attribute to
-                        "cache" elements and increasing the version number
-                        to 2.2.  (This is a minor version change, but may
-                        affect XML parsers if they assume the cache element
-                        doesn't take an attribute.)
+			BIND9 release, by adding a "name" attribute to
+			"cache" elements and increasing the version number
+			to 2.2.  (This is a minor version change, but may
+			affect XML parsers if they assume the cache element
+			doesn't take an attribute.)
 
 2704.	[bug]		Serial of dynamic and stub zones could be inconsistent
 			with their SOA serial.  [RT #19387]
@@ -1590,10 +1630,10 @@
 			time. [RT #18277]
 
 2423.	[security]	Randomize server selection on queries, so as to
-                        make forgery a little more difficult.  Instead of
-                        always preferring the server with the lowest RTT,
-                        pick a server with RTT within the same 128
-                        millisecond band.  [RT #18441]
+			make forgery a little more difficult.  Instead of
+			always preferring the server with the lowest RTT,
+			pick a server with RTT within the same 128
+			millisecond band.  [RT #18441]
 
 2422.	[bug]		Handle the special return value of a empty node as
 			if it was a NXRRSET in the validator. [RT #18447]
@@ -1674,7 +1714,7 @@
 
 2399.	[placeholder]
 
-2398.	[bug]           Improve file descriptor management.  New,
+2398.	[bug]		Improve file descriptor management.  New,
 			temporary, named.conf option reserved-sockets,
 			default 512. [RT #18344]
 

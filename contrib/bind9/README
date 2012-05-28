@@ -48,6 +48,11 @@ BIND 9
         For up-to-date release notes and errata, see
         http://www.isc.org/software/bind9/releasenotes
 
+BIND 9.6-ESV-R7 (Extended Support Version)
+
+	BIND 9.4-ESV-R7 is a maintenance release, fixing bugs in BIND
+	9.6-ESV-R6.
+
 BIND 9.6-ESV-R6 (Extended Support Version)
 
 	BIND 9.6-ESV-R6 includes a number of bug fixes and prevents a
