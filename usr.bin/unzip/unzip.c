@@ -426,7 +426,7 @@ handle_existing_file(char **path)
 		fprintf(stderr,
 		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
 		    *path);
-		if (fgets(buf, sizeof(buf), stdin) == 0) {
+		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			clearerr(stdin);
 			printf("NULL\n(EOF or read error, "
 			    "treating as \"[N]one\"...)\n");
