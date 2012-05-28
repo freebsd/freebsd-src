@@ -40,7 +40,8 @@ setlaggport(const char *val, int d, int s, const struct afswtch *afp)
 	strlcpy(rp.rp_ifname, name, sizeof(rp.rp_ifname));
 	strlcpy(rp.rp_portname, val, sizeof(rp.rp_portname));
 
-	if (ioctl(s, SIOCSLAGGPORT, &rp))
+	/* Don't choke if the port is already in this lagg. */
+	if (ioctl(s, SIOCSLAGGPORT, &rp) && errno != EEXIST)
 		err(1, "SIOCSLAGGPORT");
 }
 
