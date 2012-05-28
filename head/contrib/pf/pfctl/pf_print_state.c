@@ -119,9 +119,6 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 	case PF_ADDR_URPFFAILED:
 		printf("urpf-failed");
 		return;
-	case PF_ADDR_RTLABEL:
-		printf("route \"%s\"", addr->v.rtlabelname);
-		return;
 	default:
 		printf("?");
 		return;
