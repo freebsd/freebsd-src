@@ -195,7 +195,7 @@ space_map_remove(space_map_t *sm, uint64_t start, uint64_t size)
 	}
 	VERIFY3U(ss->ss_start, <=, start);
 	VERIFY3U(ss->ss_end, >=, end);
-	VERIFY(sm->sm_space - size <= sm->sm_size);
+	VERIFY(sm->sm_space - size < sm->sm_size);
 
 	left_over = (ss->ss_start != start);
 	right_over = (ss->ss_end != end);
