@@ -3663,8 +3663,6 @@ bge_reset(struct bge_softc *sc)
 		/* Clear enable no snoop and disable relaxed ordering. */
 		devctl &= ~(PCIM_EXP_CTL_RELAXED_ORD_ENABLE |
 		    PCIM_EXP_CTL_NOSNOOP_ENABLE);
-		/* Set PCIE max payload size to 128. */
-		devctl &= ~PCIM_EXP_CTL_MAX_PAYLOAD;
 		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
 		    devctl, 2);
 		/* Clear error status. */
