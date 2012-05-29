@@ -85,7 +85,9 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 	struct ISCI_CONTROLLER *isci_controller;
 	struct ISCI_REMOTE_DEVICE *isci_remote_device;
 	union ccb *ccb;
+	BOOL complete_ccb;
 
+	complete_ccb = TRUE;
 	isci_controller = (struct ISCI_CONTROLLER *) sci_object_get_association(scif_controller);
 	isci_remote_device =
 		(struct ISCI_REMOTE_DEVICE *) sci_object_get_association(remote_device);
@@ -163,9 +165,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 
 	case SCI_IO_FAILURE_INVALID_STATE:
 	case SCI_IO_FAILURE_INSUFFICIENT_RESOURCES:
-		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
-		isci_remote_device_freeze_lun_queue(isci_remote_device,
-		    ccb->ccb_h.target_lun);
+		complete_ccb = FALSE;
 		break;
 
 	case SCI_IO_FAILURE_INVALID_REMOTE_DEVICE:
@@ -189,7 +189,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 			    scif_remote_device_get_max_queue_depth(remote_device);
 			xpt_action((union ccb *)&ccb_relsim);
 			xpt_free_path(path);
-			ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+			complete_ccb = FALSE;
 		}
 		break;
 
@@ -209,17 +209,6 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		break;
 	}
 
-	if (ccb->ccb_h.status != CAM_REQ_CMP) {
-		/* ccb will be completed with some type of non-success
-		 *  status.  So temporarily freeze the queue until the
-		 *  upper layers can act on the status.  The CAM_DEV_QFRZN
-		 *  flag will then release the queue after the status is
-		 *  acted upon.
-		 */
-		ccb->ccb_h.status |= CAM_DEV_QFRZN;
-		xpt_freeze_devq(ccb->ccb_h.path, 1);
-	}
-
 	callout_stop(&isci_request->parent.timer);
 	bus_dmamap_sync(isci_request->parent.dma_tag,
 	    isci_request->parent.dma_map,
@@ -228,20 +217,82 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 	bus_dmamap_unload(isci_request->parent.dma_tag,
 	    isci_request->parent.dma_map);
 
-	if (isci_remote_device->frozen_lun_mask != 0 &&
-	    !(ccb->ccb_h.status & CAM_REQUEUE_REQ))
-		isci_remote_device_release_device_queue(isci_remote_device);
-
-	xpt_done(ccb);
 	isci_request->ccb = NULL;
-
-	if (isci_controller->is_frozen == TRUE) {
-		isci_controller->is_frozen = FALSE;
-		xpt_release_simq(isci_controller->sim, TRUE);
-	}
 
 	sci_pool_put(isci_controller->request_pool,
 	    (struct ISCI_REQUEST *)isci_request);
+
+	if (complete_ccb) {
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			/* ccb will be completed with some type of non-success
+			 *  status.  So temporarily freeze the queue until the
+			 *  upper layers can act on the status.  The
+			 *  CAM_DEV_QFRZN flag will then release the queue
+			 *  after the status is acted upon.
+			 */
+			ccb->ccb_h.status |= CAM_DEV_QFRZN;
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
+		}
+
+		if (ccb->ccb_h.status & CAM_SIM_QUEUED) {
+
+			KASSERT(ccb == isci_remote_device->queued_ccb_in_progress,
+			    ("multiple internally queued ccbs in flight"));
+
+			TAILQ_REMOVE(&isci_remote_device->queued_ccbs,
+			    &ccb->ccb_h, sim_links.tqe);
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+
+			/*
+			 * This CCB that was in the queue was completed, so
+			 *  set the in_progress pointer to NULL denoting that
+			 *  we can retry another CCB from the queue.  We only
+			 *  allow one CCB at a time from the queue to be
+			 *  in progress so that we can effectively maintain
+			 *  ordering.
+			 */
+			isci_remote_device->queued_ccb_in_progress = NULL;
+		}
+
+		if (isci_remote_device->frozen_lun_mask != 0) {
+			isci_remote_device_release_device_queue(isci_remote_device);
+		}
+
+		xpt_done(ccb);
+
+		if (isci_controller->is_frozen == TRUE) {
+			isci_controller->is_frozen = FALSE;
+			xpt_release_simq(isci_controller->sim, TRUE);
+		}
+	} else {
+		isci_remote_device_freeze_lun_queue(isci_remote_device,
+		    ccb->ccb_h.target_lun);
+
+		if (ccb->ccb_h.status & CAM_SIM_QUEUED) {
+
+			KASSERT(ccb == isci_remote_device->queued_ccb_in_progress,
+			    ("multiple internally queued ccbs in flight"));
+
+			/*
+			 *  Do nothing, CCB is already on the device's queue.
+			 *   We leave it on the queue, to be retried again
+			 *   next time a CCB on this device completes, or we
+			 *   get a ready notification for this device.
+			 */
+			isci_log_message(1, "ISCI", "already queued %p %x\n",
+			    ccb, ccb->csio.cdb_io.cdb_bytes[0]);
+
+			isci_remote_device->queued_ccb_in_progress = NULL;
+
+		} else {
+			isci_log_message(1, "ISCI", "queue %p %x\n", ccb,
+			    ccb->csio.cdb_io.cdb_bytes[0]);
+			ccb->ccb_h.status |= CAM_SIM_QUEUED;
+
+			TAILQ_INSERT_TAIL(&isci_remote_device->queued_ccbs,
+			    &ccb->ccb_h, sim_links.tqe);
+		}
+	}
 }
 
 /**
