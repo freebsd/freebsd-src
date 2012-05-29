@@ -162,12 +162,10 @@ pmc_intel_initialize(void)
 		return (NULL);
 	}
 
-	pmc_mdep = malloc(sizeof(struct pmc_mdep) + nclasses *
-	    sizeof(struct pmc_classdep), M_PMC, M_WAITOK|M_ZERO);
+	/* Allocate base class and initialize machine dependent struct */
+	pmc_mdep = pmc_mdep_alloc(nclasses);
 
 	pmc_mdep->pmd_cputype 	 = cputype;
-	pmc_mdep->pmd_nclass	 = nclasses;
-
 	pmc_mdep->pmd_switch_in	 = intel_switch_in;
 	pmc_mdep->pmd_switch_out = intel_switch_out;
 
@@ -198,10 +196,6 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_PIV:
 		error = pmc_p4_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P4_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -216,10 +210,6 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PIII:
 	case PMC_CPU_INTEL_PM:
 		error = pmc_p6_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P6_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 
 		/*
@@ -228,10 +218,6 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_P5:
 		error = pmc_p5_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 

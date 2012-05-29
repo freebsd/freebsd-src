@@ -2599,6 +2599,15 @@ __PMC_EV_ALIAS("SQ_MISC.SPLIT_LOCK", IAP_EVENT_F4H_10H)
 #define	PMC_EV_TSC_FIRST	PMC_EV_TSC_TSC
 #define	PMC_EV_TSC_LAST		PMC_EV_TSC_TSC
 
+/*
+ * Software events are dynamicaly defined.
+ */
+
+#define	PMC_EV_DYN_COUNT	0x1000
+
+#define	PMC_EV_SOFT_FIRST	0x20000
+#define	PMC_EV_SOFT_LAST	(PMC_EV_SOFT_FIRST + PMC_EV_DYN_COUNT - 1)
+
 #define	__PMC_EV_UCF()				\
 __PMC_EV(UCF, UCLOCK)
 
@@ -3655,6 +3664,7 @@ __PMC_EV_ALIAS("IMPC_C0H_TRK_REQUEST.ALL", UCP_EVENT_84H_01H)
  * 0x11100	0x0100		INTEL Pentium Pro/P-II/P-III/Pentium-M events
  * 0x11200	0x00FF		INTEL XScale events
  * 0x11300      0x00FF          MIPS 24K events
+ * 0x20000	0x1000		Software events
  */
 #define	__PMC_EVENTS()				\
 	__PMC_EV_BLOCK(TSC,	0x01000)	\
@@ -3685,6 +3695,6 @@ __PMC_EV_ALIAS("IMPC_C0H_TRK_REQUEST.ALL", UCP_EVENT_84H_01H)
 	__PMC_EV_PPC7450()			\
 
 #define	PMC_EVENT_FIRST	PMC_EV_TSC_TSC
-#define	PMC_EVENT_LAST	PMC_EV_UCP_LAST
+#define	PMC_EVENT_LAST	PMC_EV_SOFT_LAST
 
 #endif /* _DEV_HWPMC_PMC_EVENTS_H_ */
