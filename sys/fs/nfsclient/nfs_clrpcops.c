@@ -3550,13 +3550,13 @@ nfsmout:
  */
 APPLESTATIC int
 nfsrpc_commit(vnode_t vp, u_quad_t offset, int cnt, struct ucred *cred,
-    NFSPROC_T *p, u_char *verfp, struct nfsvattr *nap, int *attrflagp,
-    void *stuff)
+    NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	nfsattrbit_t attrbits;
 	int error;
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	
 	*attrflagp = 0;
 	NFSCL_REQSTART(nd, NFSPROC_COMMIT, vp);
@@ -3579,7 +3579,12 @@ nfsrpc_commit(vnode_t vp, u_quad_t offset, int cnt, struct ucred *cred,
 	error = nfscl_wcc_data(nd, vp, nap, attrflagp, NULL, stuff);
 	if (!error && !nd->nd_repstat) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
-		NFSBCOPY((caddr_t)tl, verfp, NFSX_VERF);
+		NFSLOCKMNT(nmp);
+		if (NFSBCMP(nmp->nm_verf, tl, NFSX_VERF)) {
+			NFSBCOPY(tl, nmp->nm_verf, NFSX_VERF);
+			nd->nd_repstat = NFSERR_STALEWRITEVERF;
+		}
+		NFSUNLOCKMNT(nmp);
 		if (nd->nd_flag & ND_NFSV4)
 			error = nfscl_postop_attr(nd, nap, attrflagp, stuff);
 	}

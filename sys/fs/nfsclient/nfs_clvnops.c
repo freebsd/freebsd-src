@@ -2539,7 +2539,6 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error, attrflag;
-	u_char verf[NFSX_VERF];
 
 	mtx_lock(&nmp->nm_mtx);
 	if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0) {
@@ -2547,21 +2546,13 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 		return (0);
 	}
 	mtx_unlock(&nmp->nm_mtx);
-	error = nfsrpc_commit(vp, offset, cnt, cred, td, verf, &nfsva,
+	error = nfsrpc_commit(vp, offset, cnt, cred, td, &nfsva,
 	    &attrflag, NULL);
-	if (!error) {
-		mtx_lock(&nmp->nm_mtx);
-		if (NFSBCMP((caddr_t)nmp->nm_verf, verf, NFSX_VERF)) {
-			NFSBCOPY(verf, (caddr_t)nmp->nm_verf, NFSX_VERF);
-			error = NFSERR_STALEWRITEVERF;
-		}
-		mtx_unlock(&nmp->nm_mtx);
-		if (!error && attrflag)
-			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL,
-			    0, 1);
-	} else if (NFS_ISV4(vp)) {
+	if (attrflag != 0)
+		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL,
+		    0, 1);
+	if (error != 0 && NFS_ISV4(vp))
 		error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
-	}
 	return (error);
 }
 

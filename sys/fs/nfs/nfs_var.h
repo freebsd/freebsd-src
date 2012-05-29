@@ -411,7 +411,7 @@ int nfsrpc_readdir(vnode_t, struct uio *, nfsuint64 *, struct ucred *,
 int nfsrpc_readdirplus(vnode_t, struct uio *, nfsuint64 *, 
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, int *, void *);
 int nfsrpc_commit(vnode_t, u_quad_t, int, struct ucred *,
-    NFSPROC_T *, u_char *, struct nfsvattr *, int *, void *);
+    NFSPROC_T *, struct nfsvattr *, int *, void *);
 int nfsrpc_advlock(vnode_t, off_t, int, struct flock *, int,
     struct ucred *, NFSPROC_T *, void *, int);
 int nfsrpc_lockt(struct nfsrv_descript *, vnode_t,
