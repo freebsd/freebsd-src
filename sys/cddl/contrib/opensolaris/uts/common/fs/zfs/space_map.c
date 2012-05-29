@@ -173,7 +173,6 @@ again:
 void
 space_map_remove(space_map_t *sm, uint64_t start, uint64_t size)
 {
-	avl_index_t where;
 	space_seg_t ssearch, *ss, *newseg;
 	uint64_t end = start + size;
 	int left_over, right_over;
@@ -185,7 +184,7 @@ space_map_remove(space_map_t *sm, uint64_t start, uint64_t size)
 
 	ssearch.ss_start = start;
 	ssearch.ss_end = end;
-	ss = avl_find(&sm->sm_root, &ssearch, &where);
+	ss = avl_find(&sm->sm_root, &ssearch, NULL);
 
 	/* Make sure we completely overlap with someone */
 	if (ss == NULL) {
