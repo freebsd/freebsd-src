@@ -213,7 +213,14 @@ pfi_kif_attach(struct pfi_kif *kif, const char *kif_name)
 
 	bzero(kif, sizeof(*kif));
 	strlcpy(kif->pfik_name, kif_name, sizeof(kif->pfik_name));
-	kif->pfik_tzero = time_second;
+	/*
+	 * It seems that the value of time_second is in unintialzied state
+	 * when pf sets interface statistics clear time in boot phase if pf
+	 * was statically linked to kernel. Instead of setting the bogus
+	 * time value have pfi_get_ifaces handle this case. In
+	 * pfi_get_ifaces it uses time_second if it sees the time is 0.
+	 */
+        kif->pfik_tzero = time_second > 1 ? time_second : 0;
 	TAILQ_INIT(&kif->pfik_dynaddrs);
 
 	RB_INSERT(pfi_ifhead, &V_pfi_ifs, kif);
