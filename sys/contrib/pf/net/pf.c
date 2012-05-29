@@ -1048,7 +1048,6 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 	refcount_init(&s->refs, 2);
 
 	V_pf_status.fcounters[FCNT_STATE_INSERT]++;
-	V_pf_status.states++;
 	if (pfsync_insert_state_ptr != NULL)
 		pfsync_insert_state_ptr(s);
 
@@ -1289,7 +1288,7 @@ pf_purge_thread(void *v)
 	CURVNET_SET((struct vnet *)v);
 
 	for (;;) {
-		tsleep(pf_purge_thread, PWAIT, "pftm", 1 * hz);
+		tsleep(pf_purge_thread, PWAIT, "pftm", hz / 10);
 
 		PF_LOCK();
 
@@ -1303,9 +1302,9 @@ pf_purge_thread(void *v)
 			kproc_exit(0);
 		}
 
-		/* Process a fraction of the state table every second. */
+		/* Process 1/interval fraction of the state table every run. */
 		fullrun = pf_purge_expired_states(V_pf_hashmask /
-			    V_pf_default_rule.timeout[PFTM_INTERVAL]);
+			    (V_pf_default_rule.timeout[PFTM_INTERVAL] * 10));
 
 		/* Purge other expired types every PFTM_INTERVAL seconds. */
 		if (fullrun) {
@@ -1349,7 +1348,7 @@ pf_state_expires(const struct pf_state *state)
 	start = state->rule.ptr->timeout[PFTM_ADAPTIVE_START];
 	if (start) {
 		end = state->rule.ptr->timeout[PFTM_ADAPTIVE_END];
-		states = state->rule.ptr->states_cur;
+		states = state->rule.ptr->states_cur;	/* XXXGL */
 	} else {
 		start = V_pf_default_rule.timeout[PFTM_ADAPTIVE_START];
 		end = V_pf_default_rule.timeout[PFTM_ADAPTIVE_END];
@@ -1421,7 +1420,7 @@ pf_src_tree_remove_state(struct pf_state *s)
  * called with ID hash row locked, but always returns
  * unlocked, since it needs to go through key hash locking.
  */
-void
+int
 pf_unlink_state(struct pf_state *s, u_int flags)
 {
 	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(s)];
@@ -1457,7 +1456,7 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	pf_detach_state(s);
 	refcount_release(&s->refs);
 
-	pf_release_state(s);
+	return (pf_release_state(s));
 }
 
 void
@@ -1475,7 +1474,6 @@ pf_free_state(struct pf_state *cur)
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
 	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;
-	V_pf_status.states--;
 }
 
 /*
@@ -1489,6 +1487,8 @@ pf_purge_expired_states(int maxcheck)
 	struct pf_idhash *ih;
 	struct pf_state *s;
 	int rv = 0;
+
+	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
 	/*
 	 * Go through hash and unlink states that expire now.
@@ -1506,7 +1506,8 @@ relock:
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
 			if (pf_state_expires(s) <= time_uptime) {
-				pf_unlink_state(s, PF_ENTER_LOCKED);
+				V_pf_status.states -=
+				    pf_unlink_state(s, PF_ENTER_LOCKED);
 				goto relock;
 			}
 			s->rule.ptr->rule_flag |= PFRULE_REFS;
@@ -1522,6 +1523,8 @@ relock:
 		i++;
 		maxcheck--;
 	}
+
+	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
 	return (rv);
 }

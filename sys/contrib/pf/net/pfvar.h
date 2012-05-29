@@ -1757,7 +1757,7 @@ extern void			 pf_purge_thread(void *);
 extern void			 pf_intr(void *);
 extern void			 pf_purge_expired_src_nodes(void);
 
-extern void			 pf_unlink_state(struct pf_state *, u_int);
+extern int			 pf_unlink_state(struct pf_state *, u_int);
 #define	PF_ENTER_LOCKED		0x00000001
 #define	PF_RETURN_LOCKED	0x00000002
 extern int			 pf_state_insert(struct pfi_kif *,
@@ -1794,12 +1794,15 @@ pf_ref_state(struct pf_state *s)
 	refcount_acquire(&s->refs);
 }
 
-static __inline void
+static __inline int
 pf_release_state(struct pf_state *s)
 {
 
-	if (refcount_release(&s->refs))
+	if (refcount_release(&s->refs)) {
 		pf_free_state(s);
+		return (1);
+	} else
+		return (0);
 }
 
 extern struct pf_state		*pf_find_state_byid(uint64_t, uint32_t);
