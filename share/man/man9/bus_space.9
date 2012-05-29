@@ -1380,7 +1380,8 @@ functions may be executed in any order.
 They may also be executed out
 of order with respect to other pending read and write operations unless
 order is enforced by use of the
-.Fn bus_space_barrier function .
+.Fn bus_space_barrier
+function.
 There is no way to insert barriers between reads or writes of
 individual bus space locations executed by the
 .Fn bus_space_copy_region_N
