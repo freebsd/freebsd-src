@@ -1711,7 +1711,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	struct bpf_insn *fcode, *old;
 	u_int wfilter, flen, size;
 #ifdef BPF_JITTER
-	bpf_jit_filter *ofunc, *jfunc;
+	bpf_jit_filter *jfunc, *ofunc;
 #endif
 	int need_upgrade;
 #ifdef COMPAT_FREEBSD32
@@ -1737,13 +1737,20 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 
 	need_upgrade = 0;
 	size = flen * sizeof(*fp->bf_insns);
-	if (size > 0)
+	if (size > 0) {
+		/* We're setting up new filter. Copy and check actual data */
 		fcode = (struct bpf_insn *)malloc(size, M_BPF, M_WAITOK);
-	else
+		if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) != 0 ||
+		    bpf_validate(fcode, (int)flen) == 0) {
+			free(fcode, M_BPF);
+			return (EINVAL);
+		}
+		/* Filter is copied inside fcode and is perfectly valid */
+	} else
 		fcode = NULL; /* Make compiler happy */
 
 #ifdef BPF_JITTER
-	if (fp->bf_insns != NULL)
+	if (fcode != NULL)
 		jfunc = bpf_jitter(fcode, flen);
 	else
 		jfunc = NULL; /* Make compiler happy */
@@ -1764,7 +1771,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		ofunc = d->bd_bfilter;
 #endif
 	}
-	if (fp->bf_insns == NULL) {
+	if (fcode == NULL) {
 		/* 
 		 * Protect filter removal by interface lock.
 		 * Additionally, we are protected by global lock here.
@@ -1795,55 +1802,50 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		return (0);
 	}
 
-	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
-	    bpf_validate(fcode, (int)flen)) {
-		/* 
-		 * Protect filter change by interface lock
-		 * Additionally, we are protected by global lock here.
+	/* 
+	 * Set up new filter.
+	 * Protect filter change by interface lock
+	 * Additionally, we are protected by global lock here.
+	 */
+	if (d->bd_bif != NULL)
+		BPFIF_WLOCK(d->bd_bif);
+	BPFD_LOCK(d);
+	if (wfilter)
+		d->bd_wfilter = fcode;
+	else {
+		d->bd_rfilter = fcode;
+#ifdef BPF_JITTER
+		d->bd_bfilter = jfunc;
+#endif
+		if (cmd == BIOCSETF)
+			reset_d(d);
+
+		/*
+		 * Do not require upgrade by first BIOCSETF
+		 * (used to set snaplen) by pcap_open_live()
 		 */
-		if (d->bd_bif != NULL)
-			BPFIF_WLOCK(d->bd_bif);
-		BPFD_LOCK(d);
-		if (wfilter)
-			d->bd_wfilter = fcode;
-		else {
-			d->bd_rfilter = fcode;
-#ifdef BPF_JITTER
-			d->bd_bfilter = jfunc;
-#endif
-			if (cmd == BIOCSETF)
-				reset_d(d);
-
-			/*
-			 * Do not require upgrade by first BIOCSETF
-			 * (used to set snaplen) by pcap_open_live()
-			 */
-			if ((d->bd_writer != 0) && (--d->bd_writer == 0))
-				need_upgrade = 1;
-			CTR4(KTR_NET, "%s: filter function set by pid %d, "
-			    "bd_writer counter %d, need_upgrade %d",
-			    __func__, d->bd_pid, d->bd_writer, need_upgrade);
-		}
-		BPFD_UNLOCK(d);
-		if (d->bd_bif != NULL)
-			BPFIF_WUNLOCK(d->bd_bif);
-		if (old != NULL)
-			free((caddr_t)old, M_BPF);
-#ifdef BPF_JITTER
-		if (ofunc != NULL)
-			bpf_destroy_jit_filter(ofunc);
-#endif
-
-		/* Move d to active readers list */
-		if (need_upgrade != 0)
-			bpf_upgraded(d);
-
-		BPF_UNLOCK();
-		return (0);
+		if ((d->bd_writer != 0) && (--d->bd_writer == 0))
+			need_upgrade = 1;
+		CTR4(KTR_NET, "%s: filter function set by pid %d, "
+		    "bd_writer counter %d, need_upgrade %d",
+		    __func__, d->bd_pid, d->bd_writer, need_upgrade);
 	}
-	free((caddr_t)fcode, M_BPF);
+	BPFD_UNLOCK(d);
+	if (d->bd_bif != NULL)
+		BPFIF_WUNLOCK(d->bd_bif);
+	if (old != NULL)
+		free((caddr_t)old, M_BPF);
+#ifdef BPF_JITTER
+	if (ofunc != NULL)
+		bpf_destroy_jit_filter(ofunc);
+#endif
+
+	/* Move d to active readers list */
+	if (need_upgrade != 0)
+		bpf_upgraded(d);
+
 	BPF_UNLOCK();
-	return (EINVAL);
+	return (0);
 }
 
 /*
