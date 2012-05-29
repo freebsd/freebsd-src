@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define	WB_LDN8_CRF5		0xF5
 #define	WB_LDN8_CRF5_SCALE	0x08	/* 0: 1s, 1: 60s */
 #define	WB_LDN8_CRF5_KEYB_P20	0x04	/* 1: keyb P20 forces timeout */
+#define	WB_LDN8_CRF5_KBRST	0x02	/* 1: timeout causes pin60 kbd reset */
 
 /* CRF6: Watchdog Timeout (0 == off). Mapped to reg_timeout. */
 #define	WB_LDN8_CRF6		0xF6
@@ -179,6 +180,12 @@ struct winbond_vendor_device_id {
 		.device_id	= 0xa0,
 		.device_rev	= 0x25,
 		.descr		= "Winbond 83627DHG IC ver. 5",   
+	},
+	{
+		.vendor_id	= 0x5ca3,
+		.device_id	= 0xb0,
+		.device_rev	= 0x73,
+		.descr		= "Winbond 83627DHG-P",   
 	},
 };
 
@@ -637,6 +644,7 @@ wb_attach(device_t dev)
 	 * Disable all all interrupt reset sources (defaults).
 	 */
 	sc->reg_1 &= ~(WB_LDN8_CRF5_KEYB_P20);
+	sc->reg_1 |= WB_LDN8_CRF5_KBRST;
 	write_efir_1(sc, WB_LDN8_CRF5);
 	write_efdr_1(sc, sc->reg_1);
 
