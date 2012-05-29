@@ -2297,13 +2297,13 @@ DIOCGETSTATES_full:
 			nr++;
 		}
 		if (pa == NULL) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = EBUSY;
 			break;
 		}
 		bcopy(pa, &pp->addr, sizeof(struct pf_pooladdr));
 		pf_addr_copyout(&pp->addr.addr);
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
