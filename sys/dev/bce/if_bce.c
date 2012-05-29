@@ -2062,6 +2062,11 @@ bce_miibus_statchg(device_t dev)
 		media_status = mii->mii_media_status;
 	}
 
+	/* Ignore invalid media status. */
+	if ((media_status & (IFM_ACTIVE | IFM_AVALID)) !=
+	    (IFM_ACTIVE | IFM_AVALID))
+		goto bce_miibus_statchg_exit;
+
 	val = REG_RD(sc, BCE_EMAC_MODE);
 	val &= ~(BCE_EMAC_MODE_PORT | BCE_EMAC_MODE_HALF_DUPLEX |
 	    BCE_EMAC_MODE_MAC_LOOP | BCE_EMAC_MODE_FORCE_LINK |
@@ -2131,6 +2136,7 @@ bce_miibus_statchg(device_t dev)
 
 	/* ToDo: Update watermarks in bce_init_rx_context(). */
 
+bce_miibus_statchg_exit:
 	DBEXIT(BCE_VERBOSE_PHY);
 }
 
@@ -4997,13 +5003,24 @@ bce_stop(struct bce_softc *sc)
 static int
 bce_reset(struct bce_softc *sc, u32 reset_code)
 {
-	u32 val;
+	u32 emac_mode_save, val;
 	int i, rc = 0;
+	static const u32 emac_mode_mask = BCE_EMAC_MODE_PORT |
+	    BCE_EMAC_MODE_HALF_DUPLEX | BCE_EMAC_MODE_25G;
 
 	DBENTER(BCE_VERBOSE_RESET);
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "%s(): reset_code = 0x%08X\n",
 	    __FUNCTION__, reset_code);
+
+	/*
+	 * If ASF/IPMI is operational, then the EMAC Mode register already
+	 * contains appropriate values for the link settings that have
+	 * been auto-negotiated.  Resetting the chip will clobber those
+	 * values.  Save the important bits so we can restore them after
+	 * the reset.
+	 */
+	emac_mode_save = REG_RD(sc, BCE_EMAC_MODE) & emac_mode_mask;
 
 	/* Wait for pending PCI transactions to complete. */
 	REG_WR(sc, BCE_MISC_ENABLE_CLR_BITS,
@@ -5094,6 +5111,11 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 	bce_fw_cap_init(sc);
 
 bce_reset_exit:
+	/* Restore EMAC Mode bits needed to keep ASF/IPMI running. */
+	val = REG_RD(sc, BCE_EMAC_MODE);
+	val = (val & ~emac_mode_mask) | emac_mode_save;
+	REG_WR(sc, BCE_EMAC_MODE, val);
+
 	DBEXIT(BCE_VERBOSE_RESET);
 	return (rc);
 }
