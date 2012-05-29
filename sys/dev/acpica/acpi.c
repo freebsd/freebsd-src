@@ -2773,12 +2773,12 @@ backout:
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
     }
+    if (slp_state >= ACPI_SS_DEV_SUSPEND)
+	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLP_PREP) {
 	AcpiLeaveSleepStatePrep(state, acpi_sleep_flags);
 	AcpiLeaveSleepState(state);
     }
-    if (slp_state >= ACPI_SS_DEV_SUSPEND)
-	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLEPT) {
 	acpi_resync_clock(sc);
 	acpi_enable_fixed_events(sc);
