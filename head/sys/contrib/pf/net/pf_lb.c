@@ -356,10 +356,6 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	struct pf_addr		*rmask = &rpool->cur->addr.v.a.mask;
 	struct pf_pooladdr	*acur = rpool->cur;
 
-	KASSERT((r->rule_flag & PFRULE_RULESRCTRACK ||
-	    r->rpool.opts & PF_POOL_STICKYADDR),
-	    ("%s for non-tracking rule %p", __func__, r));
-
 	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
 	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
 		*sn = pf_find_src_node(saddr, r, af, 0);
