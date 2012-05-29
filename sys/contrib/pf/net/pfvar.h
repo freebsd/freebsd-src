@@ -1336,7 +1336,6 @@ struct pf_status {
 	u_int64_t	scounters[SCNT_MAX];
 	u_int64_t	pcounters[2][2][3];
 	u_int64_t	bcounters[2][2];
-	u_int64_t	stateid;
 	u_int32_t	running;
 	u_int32_t	states;
 	u_int32_t	src_nodes;
@@ -1706,6 +1705,9 @@ VNET_DECLARE(u_long, pf_srchashmask);
 
 VNET_DECLARE(void *, pf_swi_cookie);
 #define V_pf_swi_cookie	VNET(pf_swi_cookie)
+
+VNET_DECLARE(uint64_t, pf_stateid[MAXCPU]);
+#define	V_pf_stateid	VNET(pf_stateid)
 
 TAILQ_HEAD(pf_altqqueue, pf_altq);
 VNET_DECLARE(struct pf_altqqueue,	 pf_altqs[2]);
