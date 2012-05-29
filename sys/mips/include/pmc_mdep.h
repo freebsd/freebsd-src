@@ -8,7 +8,7 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_MIPS24K	0
+#define	PMC_MDEP_CLASS_INDEX_MIPS24K	1
 #include <dev/hwpmc/hwpmc_mips24k.h>
 
 union pmc_md_op_pmcallocate {

@@ -796,7 +796,9 @@ main(int argc, char **argv)
 			break;
 
 		case 'o':	/* outputfile */
-			if (args.pa_printfile != NULL)
+			if (args.pa_printfile != NULL &&
+			    args.pa_printfile != stdout &&
+			    args.pa_printfile != stderr)
 				(void) fclose(args.pa_printfile);
 			if ((args.pa_printfile = fopen(optarg, "w")) == NULL)
 				errx(EX_OSERR, "ERROR: cannot open \"%s\" for "
@@ -1394,7 +1396,7 @@ main(int argc, char **argv)
 
 		case EVFILT_TIMER: /* print out counting PMCs */
 			if ((args.pa_flags & FLAG_DO_TOP) &&
-			     pmc_flush_logfile() != ENOBUFS)
+			     pmc_flush_logfile() == 0)
 				do_read = 1;
 			do_print = 1;
 			break;
