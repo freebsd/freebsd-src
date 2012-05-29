@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Joseph Koshy
+ * Copyright (c) 2012 Fabien Thomas
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,62 +23,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _DEV_HWPMC_SOFT_H_
+#define _DEV_HWPMC_SOFT_H_ 1
 
-#include <sys/param.h>
-#include <sys/pmc.h>
-#include <sys/systm.h>
+#include <sys/pmckern.h>
 
-#include <machine/pmc_mdep.h>
-#include <machine/md_var.h>
+#ifdef	_KERNEL
 
-struct pmc_mdep *
-pmc_md_initialize()
-{
-#ifdef CPU_XSCALE_IXP425
-	if (cpu_class == CPU_CLASS_XSCALE)
-		return pmc_xscale_initialize();
-	else
-#endif
-		return NULL;
-}
+#define	PMC_CLASS_INDEX_SOFT	0
+#define	SOFT_NPMCS		16
 
-void
-pmc_md_finalize(struct pmc_mdep *md)
-{
-#ifdef CPU_XSCALE_IXP425
-	if (cpu_class == CPU_CLASS_XSCALE)
-		pmc_xscale_finalize(md);
-	else
-		KASSERT(0, ("[arm,%d] Unknown CPU Class 0x%x", __LINE__,
-		    cpu_class));
-#endif
-}
+/*
+ * Prototypes.
+ */
 
-static int
-pmc_save_callchain(uintptr_t *cc, int maxsamples,
-    struct trapframe *tf)
-{
+void pmc_soft_initialize(struct pmc_mdep *md);
+void pmc_soft_finalize(struct pmc_mdep *md);
+int pmc_soft_intr(struct pmckern_soft *ks);
 
-	*cc = PMC_TRAPFRAME_TO_PC(tf);
-	return (1);
-}
-
-int
-pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
-    struct trapframe *tf)
-{
-
-	return pmc_save_callchain(cc, maxsamples, tf);
-}
-
-int
-pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
-    struct trapframe *tf)
-{
-
-	return pmc_save_callchain(cc, maxsamples, tf);
-}
+#endif	/* _KERNEL */
+#endif	/* _DEV_HWPMC_SOFT_H */

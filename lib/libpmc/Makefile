@@ -20,6 +20,7 @@ MAN+=	pmc_read.3
 MAN+=	pmc_set.3
 MAN+=	pmc_start.3
 MAN+=	pmclog.3
+MAN+=	pmc.soft.3
 
 # PMC-dependent manual pages
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"

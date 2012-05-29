@@ -37,6 +37,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_no_adaptive_sx.h"
 
@@ -66,6 +67,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 CTASSERT((SX_NOADAPTIVE & LO_CLASSFLAGS) == SX_NOADAPTIVE);
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+PMC_SOFT_DECLARE( , , lock, failed);
+#endif
 
 /* Handy macros for sleep queues. */
 #define	SQ_EXCLUSIVE_QUEUE	0
@@ -521,6 +527,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 #ifdef KDTRACE_HOOKS
 		spin_cnt++;
 #endif
+#ifdef HWPMC_HOOKS
+		PMC_SOFT_CALL( , , lock, failed);
+#endif
 		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
 		    &waittime);
 #ifdef ADAPTIVE_SX
@@ -808,6 +817,9 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			}
 			continue;
 		}
+#ifdef HWPMC_HOOKS
+		PMC_SOFT_CALL( , , lock, failed);
+#endif
 		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
 		    &waittime);
 

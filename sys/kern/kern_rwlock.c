@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_no_adaptive_rwlocks.h"
 
@@ -53,6 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #if defined(SMP) && !defined(NO_ADAPTIVE_RWLOCKS)
 #define	ADAPTIVE_RWLOCKS
+#endif
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+PMC_SOFT_DECLARE( , , lock, failed);
 #endif
 
 #ifdef ADAPTIVE_RWLOCKS
@@ -362,6 +368,9 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			}
 			continue;
 		}
+#ifdef HWPMC_HOOKS
+		PMC_SOFT_CALL( , , lock, failed);
+#endif
 		lock_profile_obtain_lock_failed(&rw->lock_object,
 		    &contested, &waittime);
 
@@ -682,6 +691,9 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	while (!_rw_write_lock(rw, tid)) {
 #ifdef KDTRACE_HOOKS
 		spin_cnt++;
+#endif
+#ifdef HWPMC_HOOKS
+		PMC_SOFT_CALL( , , lock, failed);
 #endif
 		lock_profile_obtain_lock_failed(&rw->lock_object,
 		    &contested, &waittime);

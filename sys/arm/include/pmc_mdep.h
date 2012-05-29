@@ -29,7 +29,7 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_XSCALE	0
+#define	PMC_MDEP_CLASS_INDEX_XSCALE	1
 /*
  * On the ARM platform we support the following PMCs.
  *
@@ -53,6 +53,12 @@ union pmc_md_pmc {
 #define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_pc)
 #define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_usr_lr)
 #define	PMC_TRAPFRAME_TO_SP(TF)	((TF)->tf_usr_sp)
+
+/* Build a fake kernel trapframe from current instruction pointer. */
+#define PMC_FAKE_TRAPFRAME(TF)						\
+	do {								\
+	__asm __volatile("mov %0, pc" : "=r" ((TF)->tf_pc));		\
+	} while (0)
 
 /*
  * Prototypes

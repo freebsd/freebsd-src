@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+PMC_SOFT_DEFINE( , , clock, hard);
+PMC_SOFT_DEFINE( , , clock, stat);
 #endif
 
 #ifdef DEVICE_POLLING
@@ -445,9 +447,11 @@ hardclock_cpu(int usermode)
 	td->td_flags |= flags;
 	thread_unlock(td);
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
+	if (td->td_intr_frame != NULL)
+		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
 	callout_tick();
 }
@@ -536,6 +540,8 @@ hardclock_cnt(int cnt, int usermode)
 #ifdef	HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
+	if (td->td_intr_frame != NULL)
+		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
 	callout_tick();
 	/* We are in charge to handle this tick duty. */
@@ -757,6 +763,10 @@ statclock_cnt(int cnt, int usermode)
 	for ( ; cnt > 0; cnt--)
 		sched_clock(td);
 	thread_unlock(td);
+#ifdef HWPMC_HOOKS
+	if (td->td_intr_frame != NULL)
+		PMC_SOFT_CALL_TF( , , clock, stat, td->td_intr_frame);
+#endif
 }
 
 void
