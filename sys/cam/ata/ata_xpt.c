@@ -65,6 +65,7 @@ struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
 	u_int8_t quirks;
 #define	CAM_QUIRK_MAXTAGS	0x01
+	u_int mintags;
 	u_int maxtags;
 };
 
@@ -153,7 +154,7 @@ static struct ata_quirk_entry ata_quirk_table[] =
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
 		  /*vendor*/"*", /*product*/"*", /*revision*/"*"
 		},
-		/*quirks*/0, /*maxtags*/0
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
 };
 
@@ -1019,7 +1020,8 @@ noerror:
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
 		}
 		if (ident_buf->satacapabilities & ATA_SUPPORT_NCQ) {
-			path->device->mintags = path->device->maxtags =
+			path->device->mintags = 2;
+			path->device->maxtags =
 			    ATA_QUEUE_LEN(ident_buf->queue) + 1;
 		}
 		ata_find_quirk(path->device);
@@ -1355,8 +1357,10 @@ ata_find_quirk(struct cam_ed *device)
 
 	quirk = (struct ata_quirk_entry *)match;
 	device->quirk = quirk;
-	if (quirk->quirks & CAM_QUIRK_MAXTAGS)
-		device->mintags = device->maxtags = quirk->maxtags;
+	if (quirk->quirks & CAM_QUIRK_MAXTAGS) {
+		device->mintags = quirk->mintags;
+		device->maxtags = quirk->maxtags;
+	}
 }
 
 typedef struct {
