@@ -363,6 +363,7 @@ initarm(void *arg, void *arg2)
 
 	cninit();
 
+        at91_pmc_init_clock();
 	/* Get chip id so device drivers know about differences */
 	at91_chip_id = *(volatile uint32_t *)
 		(AT91_BASE + AT91_DBGU_BASE + DBGU_C1R);
