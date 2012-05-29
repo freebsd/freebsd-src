@@ -67,12 +67,6 @@ static vdev_ops_t *vdev_ops_table[] = {
 	NULL
 };
 
-/* maximum scrub/resilver I/O queue per leaf vdev */
-int zfs_scrub_limit = 10;
-
-TUNABLE_INT("vfs.zfs.scrub_limit", &zfs_scrub_limit);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, scrub_limit, CTLFLAG_RDTUN, &zfs_scrub_limit, 0,
-    "Maximum scrub/resilver I/O queue");
 
 /*
  * Given a vdev type, return the appropriate ops vector.
