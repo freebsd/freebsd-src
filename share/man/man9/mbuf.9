@@ -670,7 +670,8 @@ are contiguous and lay in the data area of
 .Fa mbuf ,
 so they are accessible with
 .Fn mtod mbuf type .
-.Fa len must be smaller than, or equal to, the size of an
+.Fa len
+must be smaller than, or equal to, the size of an
 .Vt mbuf cluster .
 Return a pointer to an intermediate
 .Vt mbuf

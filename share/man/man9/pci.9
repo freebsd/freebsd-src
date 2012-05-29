@@ -439,7 +439,7 @@ The
 .Fn pci_count_msi
 function returns the maximum number of MSI messages supported by the
 device
-.Fa dev.
+.Fa dev .
 If the device does not support MSI,
 then
 .Fn pci_count_msi
@@ -518,7 +518,8 @@ is set to the number of messages allocated and
 returns zero.
 For MSI-X messages,
 the resource ID for each
-.Dv SYS_RES_IRQ resource identifies the index in the MSI-X table of the
+.Dv SYS_RES_IRQ
+resource identifies the index in the MSI-X table of the
 corresponding message.
 A resource ID of one maps to the first index of the MSI-X table;
 a resource ID two identifies the second index in the table, etc.
@@ -559,7 +560,7 @@ A driver may use a different distribution of available messages to
 table entries via the
 .Fn pci_remap_msix
 function.
-Note that this function must be called after a succesful call to
+Note that this function must be called after a successful call to
 .Fn pci_alloc_msix
 but before any of the
 .Dv SYS_RES_IRQ
@@ -600,7 +601,8 @@ above for
 .Fn pci_alloc_msix .
 MSI-X table entries that with a vector of zero will not have an
 associated
-.Dv SYS_RES_IRQ resource.
+.Dv SYS_RES_IRQ
+resource.
 Additionally,
 if any of the original messages allocated by
 .Fn pci_alloc_msix
