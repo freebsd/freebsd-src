@@ -56,11 +56,7 @@ extern const struct pmap_devmap at91_devmap[];
 
 uint32_t at91_chip_id;
 
-#ifdef AT91C_MASTER_CLOCK
-uint32_t at91_master_clock = AT91C_MASTER_CLOCK;
-#else
 uint32_t at91_master_clock;
-#endif
 
 static int
 at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
