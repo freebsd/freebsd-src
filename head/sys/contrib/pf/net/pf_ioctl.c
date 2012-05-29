@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/kthread.h>
+#include <sys/smp.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -1125,6 +1126,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (V_pf_status.running)
 			error = EEXIST;
 		else {
+			int cpu;
+
 			PF_UNLOCK();
 			error = hook_pf();
 			PF_LOCK();
@@ -1137,10 +1140,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
 
-			if (V_pf_status.stateid == 0) {
-				V_pf_status.stateid = time_second;
-				V_pf_status.stateid = V_pf_status.stateid << 32;
-			}
+			CPU_FOREACH(cpu)
+				V_pf_stateid[cpu] = time_second;
+
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
 		}
 		PF_UNLOCK();
