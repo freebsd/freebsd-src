@@ -609,7 +609,17 @@ run_top_sort_level(struct sort_level *sl)
 			pthread_attr_setdetachstate(&attr,
 			    PTHREAD_DETACHED);
 
-			pthread_create(&pth, &attr, sort_thread, NULL);
+			for (;;) {
+				int res = pthread_create(&pth, &attr,
+				    sort_thread, NULL);
+				if (res >= 0)
+					break;
+				if (errno == EAGAIN) {
+					pthread_yield();
+					continue;
+				}
+				err(2, NULL);
+			}
 
 			pthread_attr_destroy(&attr);
 		}
@@ -626,6 +636,10 @@ run_sort(struct sort_list_item **base, size_t nmemb)
 	struct sort_level *sl;
 
 #if defined(SORT_THREADS)
+	size_t nthreads_save = nthreads;
+	if (nmemb < MT_SORT_THRESHOLD)
+		nthreads = 1;
+
 	if (nthreads > 1) {
 		pthread_mutexattr_t mattr;
 
@@ -663,6 +677,7 @@ run_sort(struct sort_list_item **base, size_t nmemb)
 		pthread_mutex_destroy(&g_ls_mutex);
 		pthread_mutex_destroy(&sort_left_mutex);
 	}
+	nthreads = nthreads_save;
 #endif
 }
 

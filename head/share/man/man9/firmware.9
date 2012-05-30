@@ -101,11 +101,13 @@ they want as an argument. If a matching image is not already registered,
 the firmware subsystem will try to load it using the
 mechanisms specified below (typically, a kernel module
 with
-.Nm the same name
+.Nm
+the same name
 as the image).
 .Sh API DESCRIPTION
 The kernel
-.Nm firmware API
+.Nm
+firmware API
 is made of the following functions:
 .Pp
 .Fn firmware_register
@@ -225,7 +227,7 @@ in the module, the imagename and version of each firmware image.
 If you need to embed firmware images into a system, you should write
 appropriate entries in the <files.arch> file, e.g. this example is
 from
-.Nm sys/arm/xscale/ixp425/files.ixp425:
+.Nm sys/arm/xscale/ixp425/files.ixp425 :
 .Bd -literal
 ixp425_npe_fw.c                         optional npe_fw                 \\
         compile-with    "${AWK} -f $S/tools/fw_stub.awk			\\

@@ -2905,17 +2905,13 @@ xpt_action_default(union ccb *start_ccb)
 
 		if ((crs->release_flags & RELSIM_ADJUST_OPENINGS) != 0) {
 
- 			if (INQ_DATA_TQ_ENABLED(&dev->inq_data)) {
-				/* Don't ever go below one opening */
-				if (crs->openings > 0) {
-					xpt_dev_ccbq_resize(path,
-							    crs->openings);
-
-					if (bootverbose) {
-						xpt_print(path,
-						    "tagged openings now %d\n",
-						    crs->openings);
-					}
+			/* Don't ever go below one opening */
+			if (crs->openings > 0) {
+				xpt_dev_ccbq_resize(path, crs->openings);
+				if (bootverbose) {
+					xpt_print(path,
+					    "number of openings is now %d\n",
+					    crs->openings);
 				}
 			}
 		}
@@ -4862,7 +4858,8 @@ xpt_finishconfig_task(void *context, int pending)
 	 * attached.  For any devices like that, announce the
 	 * passthrough driver so the user will see something.
 	 */
-	xpt_for_all_devices(xptpassannouncefunc, NULL);
+	if (!bootverbose)
+		xpt_for_all_devices(xptpassannouncefunc, NULL);
 
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(xsoftc.xpt_config_hook);

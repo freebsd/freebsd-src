@@ -15,7 +15,7 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-.if ${TARGET_CPUARCH} == "sparc64" || ${TARGET_CPUARCH} == "mips"
+.if ${TARGET_CPUARCH} == "mips"
 LIB=		gcc
 .endif
 

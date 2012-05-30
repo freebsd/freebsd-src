@@ -265,7 +265,7 @@ EOF
 	cat <<EOF
 .El
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -compact -width Pa
 .It Pa /etc/src.conf
 .It Pa /usr/share/mk/bsd.own.mk
 .El

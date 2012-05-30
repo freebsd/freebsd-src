@@ -1,4 +1,4 @@
-/* $FreeBSD: head/sys/cam/scsi/scsi_enc.h 154504 2006-01-18 08:37:27Z mjacob $ */
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.
@@ -125,10 +125,10 @@ typedef struct encioc_element {
 	unsigned int	elm_idx;	
 
 	/* ID of SubEnclosure containing Element*/
-	unsigned char	elm_subenc_id;
+	unsigned int	elm_subenc_id;
 
 	/* Element Type */
-	unsigned char	elm_type;
+	elm_type_t	elm_type;
 } encioc_element_t;
 
 /*

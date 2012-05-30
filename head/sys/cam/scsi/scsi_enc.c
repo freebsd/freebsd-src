@@ -93,7 +93,7 @@ static struct cdevsw enc_cdevsw = {
 	.d_close =	enc_close,
 	.d_ioctl =	enc_ioctl,
 	.d_name =	"ses",
-	.d_flags =	0,
+	.d_flags =	D_TRACKCLOSE,
 };
 
 static void
@@ -136,15 +136,8 @@ enc_oninvalidate(struct cam_periph *periph)
 	 */
 	enc->enc_flags |= ENC_FLAG_SHUTDOWN;
 	if (enc->enc_daemon != NULL) {
-		/* Signal and wait for the ses daemon to terminate. */
+		/* Signal the ses daemon to terminate. */
 		wakeup(enc->enc_daemon);
-		/*
-		 * We're called with the SIM mutex held, but we're dropping
-		 * the update mutex here on sleep.  So we have to manually
-		 * drop the SIM mutex.
-		 */
-		cam_periph_sleep(enc->periph, enc->enc_daemon,
-				 PUSER, "thtrm", 0);
 	}
 	callout_drain(&enc->status_updater);
 
@@ -172,7 +165,6 @@ enc_dtor(struct cam_periph *periph)
 		enc->enc_boot_hold_ch.ich_func = NULL;
 	}
 
-	sx_destroy(&enc->enc_cache_lock);
 	ENC_FREE(enc);
 }
 
@@ -262,12 +254,12 @@ enc_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 		error = ENXIO;
 		goto out;
 	}
-
 out:
+	if (error != 0)
+		cam_periph_release_locked(periph);
+
 	cam_periph_unlock(periph);
-	if (error) {
-		cam_periph_release(periph);
-	}
+
 	return (error);
 }
 
@@ -275,17 +267,11 @@ static int
 enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
-	struct enc_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
-	cam_periph_lock(periph);
-
-	softc = (struct enc_softc *)periph->softc;
-
-	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 
 	return (0);
@@ -840,6 +826,7 @@ enc_daemon(void *arg)
 	}
 	enc->enc_daemon = NULL;
 	cam_periph_unlock(enc->periph);
+	cam_periph_release(enc->periph);
 	kproc_exit(0);
 }
 
@@ -850,6 +837,9 @@ enc_kproc_init(enc_softc_t *enc)
 
 	callout_init_mtx(&enc->status_updater, enc->periph->sim->mtx, 0);
 
+	if (cam_periph_acquire(enc->periph) != CAM_REQ_CMP)
+		return (ENXIO);
+
 	result = kproc_create(enc_daemon, enc, &enc->enc_daemon, /*flags*/0,
 			      /*stackpgs*/0, "enc_daemon%d",
 			      enc->periph->unit_number);
@@ -858,7 +848,8 @@ enc_kproc_init(enc_softc_t *enc)
 		cam_periph_lock(enc->periph);
 		enc->enc_vec.poll_status(enc);
 		cam_periph_unlock(enc->periph);
-	}
+	} else
+		cam_periph_release(enc->periph);
 	return (result);
 }
  
@@ -956,7 +947,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		err = enc_kproc_init(enc);
 		if (err) {
 			xpt_print(periph->path,
-				  "error %d string enc_daemon\n", err);
+				  "error %d starting enc_daemon\n", err);
 			goto out;
 		}
 	}

@@ -63,7 +63,7 @@ ASSYM(PC_TEMPSAVE, offsetof(struct pcpu, pc_tempsave));
 ASSYM(PC_DISISAVE, offsetof(struct pcpu, pc_disisave));
 ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
 
-#ifdef E500
+#if defined(BOOKE)
 ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke_critsave));
 ASSYM(PC_BOOKE_MCHKSAVE, offsetof(struct pcpu, pc_booke_mchksave));
 ASSYM(PC_BOOKE_TLBSAVE, offsetof(struct pcpu, pc_booke_tlbsave));
@@ -116,14 +116,13 @@ ASSYM(SEGMENT_MASK, SEGMENT_MASK);
 ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
 ASSYM(USER_SR, USER_SR);
 #endif
-#elif defined(E500)
+#elif defined(BOOKE)
 ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
-#endif
-
-#if defined(E500)
 ASSYM(PTE_RPN, offsetof(struct pte, rpn));
 ASSYM(PTE_FLAGS, offsetof(struct pte, flags));
+#if defined(BOOKE_E500)
 ASSYM(TLB0_ENTRY_SIZE, sizeof(struct tlb_entry));
+#endif
 #endif
 
 #ifdef __powerpc64__
@@ -215,18 +214,20 @@ ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 
-#ifdef E500
+#if defined(BOOKE)
+ASSYM(PSL_DE, PSL_DE);
+ASSYM(PSL_DS, PSL_DS);
+ASSYM(PSL_IS, PSL_IS);
+ASSYM(PSL_CE, PSL_CE);
+#endif
+#if defined(BOOKE_E500)
 ASSYM(PSL_UCLE, PSL_UCLE);
 ASSYM(PSL_SPE, PSL_SPE);
 ASSYM(PSL_WE, PSL_WE);
-ASSYM(PSL_CE, PSL_CE);
 ASSYM(PSL_UBLE, PSL_UBLE);
-ASSYM(PSL_DS, PSL_DS);
-ASSYM(PSL_IS, PSL_IS);
-ASSYM(PSL_DE, PSL_DE);
 
 ASSYM(PSL_KERNSET_INIT, PSL_KERNSET_INIT);
-#else /* AIM */
+#elif defined(AIM)
 #ifdef __powerpc64__
 ASSYM(PSL_SF, PSL_SF);
 ASSYM(PSL_HV, PSL_HV);
@@ -256,8 +257,9 @@ ASSYM(PSL_FE1, PSL_FE1);
 ASSYM(PSL_FP, PSL_FP);
 ASSYM(PSL_ME, PSL_ME);
 ASSYM(PSL_PR, PSL_PR);
+#if defined(BOOKE_E500)
 ASSYM(PSL_PMM, PSL_PMM);
-
+#endif
 ASSYM(PSL_KERNSET, PSL_KERNSET);
 ASSYM(PSL_USERSET, PSL_USERSET);
 

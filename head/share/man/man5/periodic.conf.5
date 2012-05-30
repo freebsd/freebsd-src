@@ -504,6 +504,12 @@ Set to
 .Dq Li YES
 to compare the modes and modification times of setuid executables with
 the previous day's values.
+.It Va daily_status_security_chkportsum_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to verify checksums of all installed packages against the known checksums in
+.Pa /var/db/pkg .
 .It Va daily_status_security_neggrpperm_enable
 .Pq Vt bool
 Set to

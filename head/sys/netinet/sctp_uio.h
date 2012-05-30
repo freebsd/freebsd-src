@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,12 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_uio.h,v 1.11 2005/03/06 16:04:18 itojun Exp $	 */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_uio_h__
-#define __sctp_uio_h__
+#ifndef _NETINET_SCTP_UIO_H_
+#define _NETINET_SCTP_UIO_H_
 
 
 #if ! defined(_KERNEL)
@@ -524,10 +523,10 @@ union sctp_notification {
 	struct sctp_pdapi_event sn_pdapi_event;
 	struct sctp_authkey_event sn_auth_event;
 	struct sctp_sender_dry_event sn_sender_dry_event;
+	struct sctp_send_failed_event sn_send_failed_event;
 	struct sctp_stream_reset_event sn_strreset_event;
 	struct sctp_assoc_reset_event sn_assocreset_event;
 	struct sctp_stream_change_event sn_strchange_event;
-
 };
 
 /* notification types */

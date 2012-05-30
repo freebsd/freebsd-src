@@ -148,6 +148,7 @@ struct vfsopt {
  * Lock reference:
  *	m - mountlist_mtx
  *	i - interlock
+ *	v - vnode freelist mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
@@ -164,8 +165,8 @@ struct mount {
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
-	struct vnodelst	mnt_activevnodelist;	/* (i) list of active vnodes */
-	int		mnt_activevnodelistsize;/* (i) # of active vnodes */
+	struct vnodelst	mnt_activevnodelist;	/* (v) list of active vnodes */
+	int		mnt_activevnodelistsize;/* (v) # of active vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */

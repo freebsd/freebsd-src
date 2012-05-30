@@ -131,7 +131,7 @@ TUNABLE_INT("vm.boot_pages", &boot_pages);
 SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
 
-int pa_tryrelock_restart;
+static int pa_tryrelock_restart;
 SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
     &pa_tryrelock_restart, 0, "Number of tryrelock restarts");
 
@@ -647,7 +647,7 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 	long pi;
 
 	pi = atop(pa);
-	if (pi >= first_page && pi < vm_page_array_size) {
+	if (pi >= first_page && (pi - first_page) < vm_page_array_size) {
 		m = &vm_page_array[pi - first_page];
 		return (m);
 	}

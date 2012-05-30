@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_load.c 491 2011-11-12 00:12:32Z des $
+ * $Id: openpam_load.c 547 2012-04-01 15:01:21Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -108,9 +108,7 @@ openpam_destroy_chain(pam_chain_t *chain)
 		return;
 	openpam_destroy_chain(chain->next);
 	chain->next = NULL;
-	while (chain->optc--)
-		FREE(chain->optv[chain->optc]);
-	FREE(chain->optv);
+	FREEV(chain->optc, chain->optv);
 	openpam_release_module(chain->module);
 	chain->module = NULL;
 	FREE(chain);

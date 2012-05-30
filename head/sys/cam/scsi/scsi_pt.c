@@ -148,8 +148,8 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	cam_periph_lock(periph);
 	if (softc->flags & PT_FLAG_DEVICE_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(ENXIO);
 	}
 
@@ -182,8 +182,8 @@ ptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	cam_periph_lock(periph);
 
 	softc->flags &= ~PT_FLAG_OPEN;
+	cam_periph_release_locked(periph);
 	cam_periph_unlock(periph);
-	cam_periph_release(periph);
 	return (0);
 }
 

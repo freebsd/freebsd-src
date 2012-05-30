@@ -501,8 +501,8 @@ ath_sysctlattach(struct ath_softc *sc)
 		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
 		"EEPROM regdomain code");
 #ifdef	ATH_DEBUG
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"debug", CTLFLAG_RW, &sc->sc_debug, 0,
+	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debug", CTLFLAG_RW, &sc->sc_debug,
 		"control debugging printfs");
 #endif
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,

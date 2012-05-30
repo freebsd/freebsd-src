@@ -51,6 +51,7 @@
 #define	VTOC_TAG_FREEBSD_UFS	0x0902
 #define	VTOC_TAG_FREEBSD_VINUM	0x0903
 #define	VTOC_TAG_FREEBSD_ZFS	0x0904
+#define	VTOC_TAG_FREEBSD_NANDFS	0x0905
 
 #define	VTOC_FLAG_UNMNT		0x01	/* unmountable partition */
 #define	VTOC_FLAG_RDONLY	0x10    /* partition is read/only */

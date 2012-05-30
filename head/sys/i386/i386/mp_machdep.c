@@ -146,6 +146,7 @@ void *bootstacks[MAXCPU];
 static void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
+struct pcb **susppcbs = NULL;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -587,6 +588,9 @@ cpu_mp_start(void)
 	setidt(IPI_STOP, IDTVEC(cpustop),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
+	/* Install an inter-CPU IPI for CPU suspend/resume */
+	setidt(IPI_SUSPEND, IDTVEC(cpususpend),
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
@@ -1497,6 +1501,38 @@ cpustop_handler(void)
 	}
 }
 
+/*
+ * Handle an IPI_SUSPEND by saving our current context and spinning until we
+ * are resumed.
+ */
+void
+cpususpend_handler(void)
+{
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+
+	if (suspendctx(susppcbs[cpu])) {
+		wbinvd();
+		CPU_SET_ATOMIC(cpu, &stopped_cpus);
+	} else {
+		pmap_init_pat();
+		PCPU_SET(switchtime, 0);
+		PCPU_SET(switchticks, ticks);
+		susppcbs[cpu]->pcb_eip = 0;
+	}
+
+	/* Wait for resume */
+	while (!CPU_ISSET(cpu, &started_cpus))
+		ia32_pause();
+
+	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+
+	/* Resume MCA and local APIC */
+	mca_resume();
+	lapic_setup(0);
+}
 /*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
