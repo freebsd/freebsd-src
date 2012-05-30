@@ -3404,6 +3404,7 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
 			else
 				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+			didsettings++;
 		}
 		if (scsi && tag_enable != -1) {
 			if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0) {
