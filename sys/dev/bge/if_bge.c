@@ -2368,7 +2368,6 @@ bge_dma_free(struct bge_softc *sc)
 	if (sc->bge_cdata.bge_tx_mtag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_mtag);
 
-
 	/* Destroy standard RX ring. */
 	if (sc->bge_cdata.bge_rx_std_ring_map)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_std_ring_tag,
@@ -2869,8 +2868,6 @@ bge_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
 
-	bge_add_sysctls(sc);
-
 	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
 
 	/*
@@ -3015,6 +3012,9 @@ bge_attach(device_t dev)
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
 		break;
 	}
+
+	/* Add SYSCTLs, requires the chipset family to be set. */
+	bge_add_sysctls(sc);
 
 	/* Set various PHY bug flags. */
 	if (sc->bge_chipid == BGE_CHIPID_BCM5701_A0 ||
