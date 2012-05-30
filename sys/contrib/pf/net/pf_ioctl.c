@@ -535,6 +535,8 @@ pf_begin_altq(u_int32_t *ticket)
 	struct pf_altq	*altq;
 	int		 error = 0;
 
+	PF_RULES_WASSERT();
+
 	/* Purge the old altq list */
 	while ((altq = TAILQ_FIRST(V_pf_altqs_inactive)) != NULL) {
 		TAILQ_REMOVE(V_pf_altqs_inactive, altq, entries);
@@ -559,6 +561,8 @@ pf_rollback_altq(u_int32_t ticket)
 	struct pf_altq	*altq;
 	int		 error = 0;
 
+	PF_RULES_WASSERT();
+
 	if (!V_altqs_inactive_open || ticket != V_ticket_altqs_inactive)
 		return (0);
 	/* Purge the old altq list */
@@ -582,6 +586,8 @@ pf_commit_altq(u_int32_t ticket)
 	struct pf_altqqueue	*old_altqs;
 	struct pf_altq		*altq;
 	int			 err, error = 0;
+
+	PF_RULES_WASSERT();
 
 	if (!V_altqs_inactive_open || ticket != V_ticket_altqs_inactive)
 		return (EBUSY);
@@ -2005,7 +2011,7 @@ DIOCGETSTATES_full:
 	case DIOCSTARTALTQ: {
 		struct pf_altq		*altq;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		/* enable all altq interfaces on active list */
 		TAILQ_FOREACH(altq, V_pf_altqs_active, entries) {
 			if (altq->qname[0] == 0 && (altq->local_flags &
@@ -2017,7 +2023,7 @@ DIOCGETSTATES_full:
 		}
 		if (error == 0)
 			V_pf_altq_running = 1;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: started\n"));
 		break;
 	}
@@ -2025,7 +2031,7 @@ DIOCGETSTATES_full:
 	case DIOCSTOPALTQ: {
 		struct pf_altq		*altq;
 
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		/* disable all altq interfaces on active list */
 		TAILQ_FOREACH(altq, V_pf_altqs_active, entries) {
 			if (altq->qname[0] == 0 && (altq->local_flags &
@@ -2037,7 +2043,7 @@ DIOCGETSTATES_full:
 		}
 		if (error == 0)
 			V_pf_altq_running = 0;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: stopped\n"));
 		break;
 	}
@@ -2047,20 +2053,17 @@ DIOCGETSTATES_full:
 		struct pf_altq		*altq, *a;
 		struct ifnet		*ifp;
 
-		PF_LOCK();
+		altq = uma_zalloc(V_pf_altq_z, M_WAITOK);
+		bcopy(&pa->altq, altq, sizeof(struct pf_altq));
+		altq->local_flags = 0;
+
+		PF_RULES_WLOCK();
 		if (pa->ticket != V_ticket_altqs_inactive) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
+			uma_zfree(V_pf_altq_z, altq);
 			error = EBUSY;
 			break;
 		}
-		altq = uma_zalloc(V_pf_altq_z, M_NOWAIT);
-		if (altq == NULL) {
-			PF_UNLOCK();
-			error = ENOMEM;
-			break;
-		}
-		bcopy(&pa->altq, altq, sizeof(struct pf_altq));
-		altq->local_flags = 0;
 
 		/*
 		 * if this is for a queue, find the discipline and
@@ -2068,7 +2071,7 @@ DIOCGETSTATES_full:
 		 */
 		if (altq->qname[0] != 0) {
 			if ((altq->qid = pf_qname2qid(altq->qname)) == 0) {
-				PF_UNLOCK();
+				PF_RULES_WUNLOCK();
 				error = EBUSY;
 				uma_zfree(V_pf_altq_z, altq);
 				break;
@@ -2089,14 +2092,14 @@ DIOCGETSTATES_full:
 			error = altq_add(altq);
 
 		if (error) {
-			PF_UNLOCK();
+			PF_RULES_WUNLOCK();
 			uma_zfree(V_pf_altq_z, altq);
 			break;
 		}
 
 		TAILQ_INSERT_TAIL(V_pf_altqs_inactive, altq, entries);
 		bcopy(altq, &pa->altq, sizeof(struct pf_altq));
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	}
 
@@ -2104,12 +2107,12 @@ DIOCGETSTATES_full:
 		struct pfioc_altq	*pa = (struct pfioc_altq *)addr;
 		struct pf_altq		*altq;
 
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		pa->nr = 0;
 		TAILQ_FOREACH(altq, V_pf_altqs_active, entries)
 			pa->nr++;
 		pa->ticket = V_ticket_altqs_active;
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -2118,9 +2121,9 @@ DIOCGETSTATES_full:
 		struct pf_altq		*altq;
 		u_int32_t		 nr;
 
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		if (pa->ticket != V_ticket_altqs_active) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -2131,12 +2134,12 @@ DIOCGETSTATES_full:
 			nr++;
 		}
 		if (altq == NULL) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = EBUSY;
 			break;
 		}
 		bcopy(altq, &pa->altq, sizeof(struct pf_altq));
-		PF_UNLOCK();
+		PF_RULES_RUNLOCK();
 		break;
 	}
 
@@ -2151,9 +2154,9 @@ DIOCGETSTATES_full:
 		u_int32_t		 nr;
 		int			 nbytes;
 
-		PF_LOCK();
+		PF_RULES_RLOCK();
 		if (pq->ticket != V_ticket_altqs_active) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = EBUSY;
 			break;
 		}
@@ -2165,24 +2168,22 @@ DIOCGETSTATES_full:
 			nr++;
 		}
 		if (altq == NULL) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = EBUSY;
 			break;
 		}
 
 		if ((altq->local_flags & PFALTQ_FLAG_IF_REMOVED) != 0) {
-			PF_UNLOCK();
+			PF_RULES_RUNLOCK();
 			error = ENXIO;
 			break;
 		}
-		PF_UNLOCK();	/* XXX */
+		PF_RULES_RUNLOCK();
 		error = altq_getqstats(altq, pq->buf, &nbytes);
-		PF_LOCK();
 		if (error == 0) {
 			pq->scheduler = altq->scheduler;
 			pq->nbytes = nbytes;
 		}
-		PF_UNLOCK();
 		break;
 	}
 #endif /* ALTQ */
@@ -2911,13 +2912,13 @@ DIOCCHANGEADDR_error:
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					error = EINVAL;
 					goto fail;
 				}
 				if ((error = pf_begin_altq(&ioe->ticket))) {
-					PF_UNLOCK();
+					PF_RULES_WUNLOCK();
 					free(ioes, M_TEMP);
 					goto fail;
 				}

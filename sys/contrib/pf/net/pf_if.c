@@ -795,11 +795,11 @@ pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 
 	CURVNET_SET(ifp->if_vnet);
 	pfi_attach_ifnet(ifp);
-	PF_LOCK();
 #ifdef ALTQ
+	PF_RULES_WLOCK();
 	pf_altq_ifnet_event(ifp, 0);
+	PF_RULES_WUNLOCK();
 #endif
-	PF_UNLOCK();
 	CURVNET_RESTORE();
 }
 
@@ -815,13 +815,10 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 
 	kif->pfik_ifp = NULL;
 	ifp->if_pf_kif = NULL;
-	PF_RULES_WUNLOCK();
-
-	PF_LOCK();
 #ifdef ALTQ
 	pf_altq_ifnet_event(ifp, 1);
 #endif
-	PF_UNLOCK();
+	PF_RULES_WUNLOCK();
 	CURVNET_RESTORE();
 }
 
