@@ -30,16 +30,9 @@ INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
 
 CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
 
-#NO_SHARED?=	YES
-
 DPADD=  ${LIBZFS} ${LIBUTIL} ${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} \
 	${LIBNVPAIR} ${LIBUUTIL}
 LDADD=  -lzfs -lutil -lgeom -lbsdxml -lsbuf -lnvpair -luutil
-
-#DPADD=  ${LIBAVL} ${LIBZFS} ${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} \
-#        ${LIBM} ${LIBNVPAIR} ${LIBUUTIL} ${LIBUTIL}
-#LDADD=  -lavl -lzfs -lgeom -lbsdxml -lsbuf \
-#        -lm -lnvpair -luutil -lutil
 
 cscope:
 	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \
