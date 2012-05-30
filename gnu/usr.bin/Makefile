@@ -53,12 +53,14 @@ _man=		man
 _rcs=		rcs
 .endif
 
-.if ${MK_TOOLCHAIN} != "no"
+.if ${MK_BINUTILS} != "no"
 _binutils=	binutils
+.endif
+.if ${MK_GCC} != "no"
 _cc=		cc
+.endif
 .if ${MK_GDB} != "no"
 _gdb=		gdb
-.endif
 .endif
 
 .include <bsd.subdir.mk>

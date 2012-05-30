@@ -315,6 +315,7 @@ WITH_IDEA=
     BIND_MTREE \
     BIND_NAMED \
     BIND_UTILS \
+    BINUTILS \
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
@@ -335,6 +336,7 @@ WITH_IDEA=
     FP_LIBC \
     FREEBSD_UPDATE \
     GAMES \
+    GCC \
     GCOV \
     GDB \
     GNU \
@@ -504,6 +506,8 @@ MK_GROFF:=	no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
+MK_BINUTILS:=	no
+MK_GCC:=	no
 MK_GDB:=	no
 .endif
 
