@@ -1746,6 +1746,19 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 		case 'C':
 			newStr = modifier_C(vp, value, v);
 			break;
+		case 't':
+			/* :tl :tu for OSF ODE & NetBSD make compatibility */
+			switch (vp->ptr[1]) {
+			case 'l':
+				vp->ptr++;
+				goto mod_lower;
+				break;
+			case 'u':
+				vp->ptr++;
+				goto mod_upper;
+				break;
+			}
+			/* FALLTHROUGH */
 		default:
 			if (vp->ptr[1] != endc && vp->ptr[1] != ':') {
 #ifdef SUNSHCMD
@@ -1774,6 +1787,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 
 			switch (vp->ptr[0]) {
 			case 'L':
+			mod_lower:
 				{
 				const char	*cp;
 				Buffer		*buf;
@@ -1799,6 +1813,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 				vp->ptr++;
 				break;
 			case 'U':
+			mod_upper:
 				{
 				const char	*cp;
 				Buffer		*buf;

@@ -902,6 +902,7 @@ Replaces each word in the variable with its suffix.
 Replaces each word in the variable with everything but the last component.
 .It Cm :L
 Converts variable to lower-case letters.
+(deprecated)
 .It Cm :M Ns Ar pattern
 Select only those words that match the rest of the modifier.
 The standard shell wildcard characters
@@ -993,8 +994,13 @@ to be replaced in
 .Ar new_string .
 .It Cm :T
 Replaces each word in the variable with its last component.
+.It Cm :tl
+Converts variable to lower-case letters.
+.It Cm :tu
+Converts variable to upper-case letters.
 .It Cm :U
 Converts variable to upper-case letters.
+(deprecated)
 .It Cm :u
 Remove adjacent duplicate words (like
 .Xr uniq 1 ) .
@@ -1741,6 +1747,19 @@ The internal variable
 is set to the same value as
 .Va .MAKE ;
 support for this may be removed in the future.
+.Pp
+The use of the
+.Cm :L
+and
+.Cm :U
+modifiers are deprecated
+in
+.Fx 10.0
+and the more portable (among Pmake decedents)
+.Cm :tl
+and
+.Cm :tu
+should be used instead.
 .Pp
 Most of the more esoteric features of
 .Nm
