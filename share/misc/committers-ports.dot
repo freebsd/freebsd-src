@@ -100,6 +100,7 @@ ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
+jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
@@ -246,6 +247,8 @@ clsung -> tabthorpe
 crees -> jgh
 crees -> madpilot
 
+culot -> jase
+
 decke -> sperber
 
 delphij -> nemoliu
@@ -277,6 +280,8 @@ fjoe -> danfe
 fjoe -> flo
 fjoe -> krion
 fjoe -> osa
+
+flo -> jase
 
 flz -> garga
 flz -> johans
