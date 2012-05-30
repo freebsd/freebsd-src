@@ -681,6 +681,8 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
 
+int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
+
 #define	vn_rangelock_unlock(vp, cookie)					\
 	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
 #define	vn_rangelock_unlock_range(vp, cookie, start, end)		\
