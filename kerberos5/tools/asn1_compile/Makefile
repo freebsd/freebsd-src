@@ -6,9 +6,8 @@ LIBROKEN_A=	${.OBJDIR}/../../lib/libroken/libroken.a
 LDADD=	${LIBROKEN_A} ${LIBVERS}
 DPADD=	${LIBROKEN_A} ${LIBVERS}
 
-SRCS=	asn1_queue.h \
+SRCS=	\
 	asn1parse.y \
-	der.h \
 	gen.c \
 	gen_copy.c \
 	gen_decode.c \
@@ -16,18 +15,13 @@ SRCS=	asn1_queue.h \
 	gen_free.c \
 	gen_glue.c \
 	gen_length.c \
-	gen_locl.h \
 	gen_seq.c \
 	gen_template.c \
 	hash.c \
-	hash.h \
 	lex.l \
-	lex.h \
 	main.c \
-	asn1-template.h \
 	roken.h \
-	symbol.c \
-	symbol.h
+	symbol.c
 
 CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/asn1 -I.
 

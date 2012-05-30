@@ -9,7 +9,6 @@ SRCS=	add.c \
 	destroy.c \
 	get.c \
 	ktutil.c \
-	ktutil_locl.h \
 	ktutil-commands.c \
 	ktutil-commands.h \
 	list.c \
@@ -25,7 +24,11 @@ LDADD=	-lkadm5clnt -lkrb5 ${LIBSL} -lroken ${LIBVERS} \
 
 .include <bsd.prog.mk>
 
-ktutil-commands.c ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in
+ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in
 	slc ${.ALLSRC:M*.in}
+
+.for ext in c o
+ktutil-commands.${ext}: ktutil-commands.h
+.endfor
 
 .PATH: ${KRB5DIR}/admin
