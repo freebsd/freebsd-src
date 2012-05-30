@@ -4189,7 +4189,7 @@ pci_activate_resource(device_t dev, device_t child, int type, int rid,
 	if (device_get_parent(child) == dev) {
 		/* Device ROMs need their decoding explicitly enabled. */
 		dinfo = device_get_ivars(child);
-		if (PCIR_IS_BIOS(&dinfo->cfg, rid))
+		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
 			pci_write_bar(child, pci_find_bar(child, rid),
 			    rman_get_start(r) | PCIM_BIOS_ENABLE);
 		switch (type) {
@@ -4216,7 +4216,7 @@ pci_deactivate_resource(device_t dev, device_t child, int type,
 	/* Disable decoding for device ROMs. */	
 	if (device_get_parent(child) == dev) {
 		dinfo = device_get_ivars(child);
-		if (PCIR_IS_BIOS(&dinfo->cfg, rid))
+		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
 			pci_write_bar(child, pci_find_bar(child, rid),
 			    rman_get_start(r));
 	}
