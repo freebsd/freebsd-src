@@ -38,6 +38,7 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/mutex.h>
+#include <sys/rangelock.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
@@ -165,6 +166,7 @@ struct vnode {
 	struct vpollinfo *v_pollinfo;		/* i Poll events, p for *v_pi */
 	struct label *v_label;			/* MAC label for vnode */
 	struct lockf *v_lockf;		/* Byte-level advisory lock list */
+	struct rangelock v_rl;			/* Byte-range lock */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
@@ -679,6 +681,15 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
 
+#define	vn_rangelock_unlock(vp, cookie)					\
+	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
+#define	vn_rangelock_unlock_range(vp, cookie, start, end)		\
+	rangelock_unlock_range(&(vp)->v_rl, (cookie), (start), (end), 	\
+	    VI_MTX(vp))
+#define	vn_rangelock_rlock(vp, start, end)				\
+	rangelock_rlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+#define	vn_rangelock_wlock(vp, start, end)				\
+	rangelock_wlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
 
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
