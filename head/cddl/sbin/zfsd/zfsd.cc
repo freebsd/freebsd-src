@@ -108,7 +108,8 @@ EventBuffer::EventBuffer(int fd)
  : m_fd(fd),
    m_validLen(0),
    m_parsedLen(0),
-   m_nextEventOffset(0)
+   m_nextEventOffset(0),
+   m_synchronized(true)
 {
 }
 
@@ -127,24 +128,18 @@ EventBuffer::ExtractEvent(string &eventString)
 			continue;
 		}
 
-		char   *nextEvent(m_buf + m_nextEventOffset);
-		size_t startLen(strcspn(nextEvent, s_eventStartTokens));
-		bool   aligned(startLen == 0);
-		if (aligned == false) {
-			syslog(LOG_WARNING,
-			       "Re-synchronizing with devd event stream");
-			m_nextEventOffset += startLen;
+		char  *nextEvent(m_buf + m_nextEventOffset);
+		bool   truncated(true);
+		size_t eventLen(strcspn(nextEvent, s_eventEndTokens));
+
+		if (!m_synchronized) {
+			/* Discard data until an end token is read. */ 
+			if (nextEvent[eventLen] != '\0')
+				m_synchronized = true;
+			m_nextEventOffset += eventLen;
 			m_parsedLen = m_nextEventOffset;
 			continue;
-		}
-
-		/*
-		 * Start tokens may be end tokens too, so skip the start
-		 * token when trying to find the end of the event.
-		 */
-		bool   truncated(true);
-		size_t eventLen(strcspn(nextEvent + 1, s_eventEndTokens) + 1);
-		if (nextEvent[eventLen] == '\0') {
+		} else if (nextEvent[eventLen] == '\0') {
 
 			m_parsedLen += eventLen;
 			if (m_parsedLen < MAX_EVENT_SIZE) {
@@ -156,9 +151,6 @@ EventBuffer::ExtractEvent(string &eventString)
 			}
 			syslog(LOG_WARNING,
 			       "Event exceeds event size limit of %d bytes.");
-		} else if (nextEvent[eventLen] != '\n') {
-			syslog(LOG_WARNING,
-			       "Improperly terminated event encountered.");
 		} else {
 			/*
 			 * Include the normal terminator in the extracted
@@ -175,8 +167,13 @@ EventBuffer::ExtractEvent(string &eventString)
 		if (truncated) {
 			size_t fieldEnd;
 
+			/* Break cleanly at the end of a key<=>value pair. */
 			fieldEnd = eventString.find_last_of(s_keyPairSepTokens);
-			eventString.erase(fieldEnd);
+			if (fieldEnd != string::npos)
+				eventString.erase(fieldEnd);
+			eventString += '\n';
+
+			m_synchronized = false;
 			syslog(LOG_WARNING,
 			       "Truncated %d characters from event.",
 			       eventLen - fieldEnd);

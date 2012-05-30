@@ -531,7 +531,8 @@ CaseFile::DeSerializeFile(const char *fileName)
 		EventBuffer eventBuffer(fd);
 		while (eventBuffer.ExtractEvent(evString)) {
 			DevCtlEvent *event(DevCtlEvent::CreateEvent(evString));
-			caseFile->m_events.push_back(event);
+			if (event != NULL)
+				caseFile->m_events.push_back(event);
 		}
 		close(fd);
 	} catch (const ParseException &exp) {
