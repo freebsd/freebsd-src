@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 CXGB = ${.CURDIR}/../../../dev/cxgb
 .PATH: ${CXGB} ${CXGB}/common ${CXGB}/sys
 
