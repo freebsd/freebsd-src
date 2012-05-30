@@ -13,9 +13,6 @@ SRCS=	accept_sec_context.c \
 	external.c \
 	init_sec_context.c \
 	freebsd_compat.c \
-	spnego-private.h \
-	spnego_locl.h \
-	spnego_asn1.h \
 	${GEN:S/.x$/.c/:S/.hx$/.h/} \
 	gss_oid.c
 
