@@ -5,7 +5,7 @@ INTERNALLIB=
 SRCS=	print_version.c roken.h
 CFLAGS+=-I. -I${KRB5DIR}/lib/roken
 
-CLEANFILES= roken.h print_version.h
+CLEANFILES= roken.h
 
 MAKE_ROKEN=	make-roken
 
