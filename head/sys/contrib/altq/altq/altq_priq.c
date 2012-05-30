@@ -132,11 +132,9 @@ priq_add_altq(struct pf_altq *a)
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);
 
-	pif = malloc(sizeof(struct priq_if),
-	    M_DEVBUF, M_WAITOK);
+	pif = malloc(sizeof(struct priq_if), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (pif == NULL)
 		return (ENOMEM);
-	bzero(pif, sizeof(struct priq_if));
 	pif->pif_bandwidth = a->ifbandwidth;
 	pif->pif_maxpri = -1;
 	pif->pif_ifq = &ifp->if_snd;

@@ -200,10 +200,9 @@ hfsc_add_altq(struct pf_altq *a)
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);
 
-	hif = malloc(sizeof(struct hfsc_if), M_DEVBUF, M_WAITOK);
+	hif = malloc(sizeof(struct hfsc_if), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (hif == NULL)
 		return (ENOMEM);
-	bzero(hif, sizeof(struct hfsc_if));
 
 	hif->hif_eligible = ellist_alloc();
 	if (hif->hif_eligible == NULL) {
