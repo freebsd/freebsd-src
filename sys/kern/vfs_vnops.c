@@ -65,10 +65,15 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
+static fo_rdwr_t	vn_io_fault;
 static fo_truncate_t	vn_truncate;
 static fo_ioctl_t	vn_ioctl;
 static fo_poll_t	vn_poll;
@@ -77,8 +82,8 @@ static fo_stat_t	vn_statfile;
 static fo_close_t	vn_closefile;
 
 struct 	fileops vnops = {
-	.fo_read = vn_read,
-	.fo_write = vn_write,
+	.fo_read = vn_io_fault,
+	.fo_write = vn_io_fault,
 	.fo_truncate = vn_truncate,
 	.fo_ioctl = vn_ioctl,
 	.fo_poll = vn_poll,
@@ -367,47 +372,19 @@ sequential_heuristic(struct uio *uio, struct file *fp)
  * Package up an I/O request on a vnode into a uio and do it.
  */
 int
-vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
-    aresid, td)
-	enum uio_rw rw;
-	struct vnode *vp;
-	void *base;
-	int len;
-	off_t offset;
-	enum uio_seg segflg;
-	int ioflg;
-	struct ucred *active_cred;
-	struct ucred *file_cred;
-	ssize_t *aresid;
-	struct thread *td;
+vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
+    enum uio_seg segflg, int ioflg, struct ucred *active_cred,
+    struct ucred *file_cred, ssize_t *aresid, struct thread *td)
 {
 	struct uio auio;
 	struct iovec aiov;
 	struct mount *mp;
 	struct ucred *cred;
+	void *rl_cookie;
 	int error, lock_flags;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
-	if ((ioflg & IO_NODELOCKED) == 0) {
-		mp = NULL;
-		if (rw == UIO_WRITE) { 
-			if (vp->v_type != VCHR &&
-			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
-			    != 0)
-				return (error);
-			if (MNT_SHARED_WRITES(mp) ||
-			    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) {
-				lock_flags = LK_SHARED;
-			} else {
-				lock_flags = LK_EXCLUSIVE;
-			}
-			vn_lock(vp, lock_flags | LK_RETRY);
-		} else
-			vn_lock(vp, LK_SHARED | LK_RETRY);
-
-	}
-	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = base;
@@ -418,6 +395,33 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	auio.uio_rw = rw;
 	auio.uio_td = td;
 	error = 0;
+
+	if ((ioflg & IO_NODELOCKED) == 0) {
+		if (rw == UIO_READ) {
+			rl_cookie = vn_rangelock_rlock(vp, offset,
+			    offset + len);
+		} else {
+			rl_cookie = vn_rangelock_wlock(vp, offset,
+			    offset + len);
+		}
+		mp = NULL;
+		if (rw == UIO_WRITE) { 
+			if (vp->v_type != VCHR &&
+			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
+			    != 0)
+				goto out;
+			if (MNT_SHARED_WRITES(mp) ||
+			    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount)))
+				lock_flags = LK_SHARED;
+			else
+				lock_flags = LK_EXCLUSIVE;
+		} else
+			lock_flags = LK_SHARED;
+		vn_lock(vp, lock_flags | LK_RETRY);
+	} else
+		rl_cookie = NULL;
+
+	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
 #ifdef MAC
 	if ((ioflg & IO_NOMACCHECK) == 0) {
 		if (rw == UIO_READ)
@@ -429,7 +433,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	}
 #endif
 	if (error == 0) {
-		if (file_cred)
+		if (file_cred != NULL)
 			cred = file_cred;
 		else
 			cred = active_cred;
@@ -444,10 +448,13 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 		if (auio.uio_resid && error == 0)
 			error = EIO;
 	if ((ioflg & IO_NODELOCKED) == 0) {
-		if (rw == UIO_WRITE && vp->v_type != VCHR)
-			vn_finished_write(mp);
 		VOP_UNLOCK(vp, 0);
+		if (mp != NULL)
+			vn_finished_write(mp);
 	}
+ out:
+	if (rl_cookie != NULL)
+		vn_rangelock_unlock(vp, rl_cookie);
 	return (error);
 }
 
@@ -688,29 +695,269 @@ unlock:
 	return (error);
 }
 
+static const int io_hold_cnt = 16;
+
+/*
+ * The vn_io_fault() is a wrapper around vn_read() and vn_write() to
+ * prevent the following deadlock:
+ *
+ * Assume that the thread A reads from the vnode vp1 into userspace
+ * buffer buf1 backed by the pages of vnode vp2.  If a page in buf1 is
+ * currently not resident, then system ends up with the call chain
+ *   vn_read() -> VOP_READ(vp1) -> uiomove() -> [Page Fault] ->
+ *     vm_fault(buf1) -> vnode_pager_getpages(vp2) -> VOP_GETPAGES(vp2)
+ * which establishes lock order vp1->vn_lock, then vp2->vn_lock.
+ * If, at the same time, thread B reads from vnode vp2 into buffer buf2
+ * backed by the pages of vnode vp1, and some page in buf2 is not
+ * resident, we get a reversed order vp2->vn_lock, then vp1->vn_lock.
+ *
+ * To prevent the lock order reversal and deadlock, vn_io_fault() does
+ * not allow page faults to happen during VOP_READ() or VOP_WRITE().
+ * Instead, it first tries to do the whole range i/o with pagefaults
+ * disabled. If all pages in the i/o buffer are resident and mapped,
+ * VOP will succeed (ignoring the genuine filesystem errors).
+ * Otherwise, we get back EFAULT, and vn_io_fault() falls back to do
+ * i/o in chunks, with all pages in the chunk prefaulted and held
+ * using vm_fault_quick_hold_pages().
+ *
+ * Filesystems using this deadlock avoidance scheme should use the
+ * array of the held pages from uio, saved in the curthread->td_ma,
+ * instead of doing uiomove().  A helper function
+ * vn_io_fault_uiomove() converts uiomove request into
+ * uiomove_fromphys() over td_ma array.
+ *
+ * Since vnode locks do not cover the whole i/o anymore, rangelocks
+ * make the current i/o request atomic with respect to other i/os and
+ * truncations.
+ */
+static int
+vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
+{
+	vm_page_t ma[io_hold_cnt + 2];
+	struct uio *uio_clone, short_uio;
+	struct iovec short_iovec[1];
+	fo_rdwr_t *doio;
+	struct vnode *vp;
+	void *rl_cookie;
+	struct mount *mp;
+	vm_page_t *prev_td_ma;
+	int cnt, error, save, saveheld, prev_td_ma_cnt;
+	vm_offset_t addr, end;
+	vm_prot_t prot;
+	size_t len, resid;
+	ssize_t adv;
+
+	if (uio->uio_rw == UIO_READ)
+		doio = vn_read;
+	else
+		doio = vn_write;
+	vp = fp->f_vnode;
+	if (uio->uio_segflg != UIO_USERSPACE || vp->v_type != VREG ||
+	    ((mp = vp->v_mount) != NULL &&
+	    (mp->mnt_kern_flag & MNTK_NO_IOPF) == 0))
+		return (doio(fp, uio, active_cred, flags, td));
+
+	/*
+	 * The UFS follows IO_UNIT directive and replays back both
+	 * uio_offset and uio_resid if an error is encountered during the
+	 * operation.  But, since the iovec may be already advanced,
+	 * uio is still in an inconsistent state.
+	 *
+	 * Cache a copy of the original uio, which is advanced to the redo
+	 * point using UIO_NOCOPY below.
+	 */
+	uio_clone = cloneuio(uio);
+	resid = uio->uio_resid;
+
+	short_uio.uio_segflg = UIO_USERSPACE;
+	short_uio.uio_rw = uio->uio_rw;
+	short_uio.uio_td = uio->uio_td;
+
+	if (uio->uio_rw == UIO_READ) {
+		prot = VM_PROT_WRITE;
+		rl_cookie = vn_rangelock_rlock(vp, uio->uio_offset,
+		    uio->uio_offset + uio->uio_resid);
+	} else {
+		prot = VM_PROT_READ;
+		if ((fp->f_flag & O_APPEND) != 0 || (flags & FOF_OFFSET) == 0)
+			/* For appenders, punt and lock the whole range. */
+			rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
+		else
+			rl_cookie = vn_rangelock_wlock(vp, uio->uio_offset,
+			    uio->uio_offset + uio->uio_resid);
+	}
+
+	save = vm_fault_disable_pagefaults();
+	error = doio(fp, uio, active_cred, flags, td);
+	if (error != EFAULT)
+		goto out;
+
+	uio_clone->uio_segflg = UIO_NOCOPY;
+	uiomove(NULL, resid - uio->uio_resid, uio_clone);
+	uio_clone->uio_segflg = uio->uio_segflg;
+
+	saveheld = curthread_pflags_set(TDP_UIOHELD);
+	prev_td_ma = td->td_ma;
+	prev_td_ma_cnt = td->td_ma_cnt;
+
+	while (uio_clone->uio_resid != 0) {
+		len = uio_clone->uio_iov->iov_len;
+		if (len == 0) {
+			KASSERT(uio_clone->uio_iovcnt >= 1,
+			    ("iovcnt underflow"));
+			uio_clone->uio_iov++;
+			uio_clone->uio_iovcnt--;
+			continue;
+		}
+
+		addr = (vm_offset_t)uio_clone->uio_iov->iov_base;
+		end = round_page(addr + len);
+		cnt = howmany(end - trunc_page(addr), PAGE_SIZE);
+		/*
+		 * A perfectly misaligned address and length could cause
+		 * both the start and the end of the chunk to use partial
+		 * page.  +2 accounts for such a situation.
+		 */
+		if (cnt > io_hold_cnt + 2) {
+			len = io_hold_cnt * PAGE_SIZE;
+			KASSERT(howmany(round_page(addr + len) -
+			    trunc_page(addr), PAGE_SIZE) <= io_hold_cnt + 2,
+			    ("cnt overflow"));
+		}
+		cnt = vm_fault_quick_hold_pages(&td->td_proc->p_vmspace->vm_map,
+		    addr, len, prot, ma, io_hold_cnt + 2);
+		if (cnt == -1) {
+			error = EFAULT;
+			break;
+		}
+		short_uio.uio_iov = &short_iovec[0];
+		short_iovec[0].iov_base = (void *)addr;
+		short_uio.uio_iovcnt = 1;
+		short_uio.uio_resid = short_iovec[0].iov_len = len;
+		short_uio.uio_offset = uio_clone->uio_offset;
+		td->td_ma = ma;
+		td->td_ma_cnt = cnt;
+
+		error = doio(fp, &short_uio, active_cred, flags, td);
+		vm_page_unhold_pages(ma, cnt);
+		adv = len - short_uio.uio_resid;
+
+		uio_clone->uio_iov->iov_base =
+		    (char *)uio_clone->uio_iov->iov_base + adv;
+		uio_clone->uio_iov->iov_len -= adv;
+		uio_clone->uio_resid -= adv;
+		uio_clone->uio_offset += adv;
+
+		uio->uio_resid -= adv;
+		uio->uio_offset += adv;
+
+		if (error != 0 || adv == 0)
+			break;
+	}
+	td->td_ma = prev_td_ma;
+	td->td_ma_cnt = prev_td_ma_cnt;
+	curthread_pflags_restore(saveheld);
+out:
+	vm_fault_enable_pagefaults(save);
+	vn_rangelock_unlock(vp, rl_cookie);
+	free(uio_clone, M_IOV);
+	return (error);
+}
+
+/*
+ * Helper function to perform the requested uiomove operation using
+ * the held pages for io->uio_iov[0].iov_base buffer instead of
+ * copyin/copyout.  Access to the pages with uiomove_fromphys()
+ * instead of iov_base prevents page faults that could occur due to
+ * pmap_collect() invalidating the mapping created by
+ * vm_fault_quick_hold_pages(), or pageout daemon, page laundry or
+ * object cleanup revoking the write access from page mappings.
+ *
+ * Filesystems specified MNTK_NO_IOPF shall use vn_io_fault_uiomove()
+ * instead of plain uiomove().
+ */
+int
+vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio)
+{
+	struct uio transp_uio;
+	struct iovec transp_iov[1];
+	struct thread *td;
+	size_t adv;
+	int error, pgadv;
+
+	td = curthread;
+	if ((td->td_pflags & TDP_UIOHELD) == 0 ||
+	    uio->uio_segflg != UIO_USERSPACE)
+		return (uiomove(data, xfersize, uio));
+
+	KASSERT(uio->uio_iovcnt == 1, ("uio_iovcnt %d", uio->uio_iovcnt));
+	transp_iov[0].iov_base = data;
+	transp_uio.uio_iov = &transp_iov[0];
+	transp_uio.uio_iovcnt = 1;
+	if (xfersize > uio->uio_resid)
+		xfersize = uio->uio_resid;
+	transp_uio.uio_resid = transp_iov[0].iov_len = xfersize;
+	transp_uio.uio_offset = 0;
+	transp_uio.uio_segflg = UIO_SYSSPACE;
+	/*
+	 * Since transp_iov points to data, and td_ma page array
+	 * corresponds to original uio->uio_iov, we need to invert the
+	 * direction of the i/o operation as passed to
+	 * uiomove_fromphys().
+	 */
+	switch (uio->uio_rw) {
+	case UIO_WRITE:
+		transp_uio.uio_rw = UIO_READ;
+		break;
+	case UIO_READ:
+		transp_uio.uio_rw = UIO_WRITE;
+		break;
+	}
+	transp_uio.uio_td = uio->uio_td;
+	error = uiomove_fromphys(td->td_ma,
+	    ((vm_offset_t)uio->uio_iov->iov_base) & PAGE_MASK,
+	    xfersize, &transp_uio);
+	adv = xfersize - transp_uio.uio_resid;
+	pgadv =
+	    (((vm_offset_t)uio->uio_iov->iov_base + adv) >> PAGE_SHIFT) -
+	    (((vm_offset_t)uio->uio_iov->iov_base) >> PAGE_SHIFT);
+	td->td_ma += pgadv;
+	KASSERT(td->td_ma_cnt >= pgadv, ("consumed pages %d %d", td->td_ma_cnt,
+	    pgadv));
+	td->td_ma_cnt -= pgadv;
+	uio->uio_iov->iov_base = (char *)uio->uio_iov->iov_base + adv;
+	uio->uio_iov->iov_len -= adv;
+	uio->uio_resid -= adv;
+	uio->uio_offset += adv;
+	return (error);
+}
+
 /*
  * File table truncate routine.
  */
 static int
-vn_truncate(fp, length, active_cred, td)
-	struct file *fp;
-	off_t length;
-	struct ucred *active_cred;
-	struct thread *td;
+vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct vattr vattr;
 	struct mount *mp;
 	struct vnode *vp;
+	void *rl_cookie;
 	int vfslocked;
 	int error;
 
 	vp = fp->f_vnode;
+
+	/*
+	 * Lock the whole range for truncation.  Otherwise split i/o
+	 * might happen partly before and partly after the truncation.
+	 */
+	rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
-	if (error) {
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (error);
-	}
+	if (error)
+		goto out1;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_type == VDIR) {
 		error = EISDIR;
@@ -730,7 +977,9 @@ vn_truncate(fp, length, active_cred, td)
 out:
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
+out1:
 	VFS_UNLOCK_GIANT(vfslocked);
+	vn_rangelock_unlock(vp, rl_cookie);
 	return (error);
 }
 
