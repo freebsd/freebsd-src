@@ -535,6 +535,10 @@ static struct scsi_quirk_entry scsi_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "Garmin", "*", "*" },
+		CAM_QUIRK_NORPTLUNS, /*mintags*/2, /*maxtags*/255
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
