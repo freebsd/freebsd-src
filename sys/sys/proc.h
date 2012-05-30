@@ -313,7 +313,9 @@ struct thread {
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 	struct trapframe *td_intr_frame;/* (k) Frame of the current irq */
-	struct proc *td_rfppwait_p;	/* (k) The vforked child */
+	struct proc	*td_rfppwait_p;	/* (k) The vforked child */
+	struct vm_page	**td_ma;	/* (k) uio pages held */
+	int		td_ma_cnt;	/* (k) size of *td_ma */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -421,6 +423,7 @@ do {									\
 #define	TDP_RFPPWAIT	0x02000000 /* Handle RFPPWAIT on syscall exit */
 #define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
 #define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
+#define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
 
 /*
  * Reasons that the current thread can not be run yet.
