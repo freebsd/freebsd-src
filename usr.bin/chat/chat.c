@@ -408,6 +408,7 @@ chat_logf(const char *fmt, ...)
 
     va_start(args, fmt);
     vfmtmsg(line, sizeof(line), fmt, args);
+    va_end(args);
     if (to_log)
 	syslog(LOG_INFO, "%s", line);
     if (to_stderr)
@@ -425,6 +426,7 @@ fatal(int code, const char *fmt, ...)
 
     va_start(args, fmt);
     vfmtmsg(line, sizeof(line), fmt, args);
+    va_end(args);
     if (to_log)
 	syslog(LOG_ERR, "%s", line);
     if (to_stderr)

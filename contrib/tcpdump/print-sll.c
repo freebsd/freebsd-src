@@ -218,7 +218,7 @@ recurse:
 		caplen -= 4;
 		goto recurse;
 	} else {
-		if (ethertype_print(ether_type, p, length, caplen) == 0) {
+		if (ethertype_print(gndo, ether_type, p, length, caplen) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!eflag)
 				sll_print(sllp, length + SLL_HDR_LEN);

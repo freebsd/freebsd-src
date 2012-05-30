@@ -334,6 +334,7 @@ __DEFAULT_YES_OPTIONS = \
     CXX \
     DICT \
     DYNAMICROOT \
+    ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
     FORTH \
@@ -366,6 +367,7 @@ __DEFAULT_YES_OPTIONS = \
     LOCALES \
     LOCATE \
     LPR \
+    LS_COLORS \
     MAIL \
     MAILWRAPPER \
     MAKE \
@@ -426,6 +428,7 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
+    NAND \
     OFED \
     SHARED_TOOLCHAIN
 

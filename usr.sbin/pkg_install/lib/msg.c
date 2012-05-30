@@ -71,5 +71,6 @@ y_or_n(Boolean def, const char *msg, ...)
 	    ch = (def) ? 'Y' : 'N';
     }
     fclose(tty) ;
+    va_end(args);
     return (ch == 'Y') ? TRUE : FALSE;
 }

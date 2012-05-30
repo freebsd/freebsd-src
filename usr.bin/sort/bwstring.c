@@ -499,6 +499,22 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 		}
 		return (bwssbdup(ret, *len));
 
+	} else if (!zero_ended && (MB_CUR_MAX == 1)) {
+		char *ret;
+
+		ret = fgetln(f, len);
+
+		if (ret == NULL) {
+			if (!feof(f))
+				err(2, NULL);
+			return (NULL);
+		}
+		if (*len > 0) {
+			if (ret[*len - 1] == '\n')
+				--(*len);
+		}
+		return (bwscsbdup(ret, *len));
+
 	} else {
 		wchar_t c = 0;
 

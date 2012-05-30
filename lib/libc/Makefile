@@ -26,7 +26,9 @@ SHLIB_MAJOR= 7
 WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${LIBC_ARCH}
+.if ${MK_NLS} != "no"
 CFLAGS+=-DNLS
+.endif
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
 PRECIOUSLIB=
@@ -41,7 +43,11 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 #
 DPADD+=	${LIBGCC}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lgcc -lssp_nonshared
+LDADD+= -lgcc
+
+.if ${MK_SSP} != "no"
+LDADD+= -lssp_nonshared
+.endif
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:

@@ -111,7 +111,6 @@ cdev_pager_lookup(void *handle)
 
 	mtx_lock(&dev_pager_mtx);
 	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
-	vm_object_reference(object);
 	mtx_unlock(&dev_pager_mtx);
 	return (object);
 }

@@ -521,6 +521,7 @@ AcpiDmFindOrphanDescending (
 
         if ((OpInfo->Class != AML_CLASS_EXECUTE) &&
             (OpInfo->Class != AML_CLASS_CREATE) &&
+            (OpInfo->ObjectType != ACPI_TYPE_LOCAL_ALIAS) &&
             (ParentOp->Common.AmlOpcode != AML_INT_METHODCALL_OP) &&
             !Op->Common.Node)
         {
@@ -743,19 +744,31 @@ AcpiDmXrefDescendingOp (
 
     if (OpInfo->Flags & AML_NAMED)
     {
-        if ((Op->Common.AmlOpcode == AML_ALIAS_OP) ||
-            (Op->Common.AmlOpcode == AML_SCOPE_OP))
+        /*
+         * Only these two operators (Alias, Scope) refer to an existing
+         * name, it is the first argument
+         */
+        if (Op->Common.AmlOpcode == AML_ALIAS_OP)
         {
-            /*
-             * Only these two operators refer to an existing name,
-             * first argument
-             */
+            ObjectType = ACPI_TYPE_ANY;
+
+            NextOp = Op->Common.Value.Arg;
+            NextOp = NextOp->Common.Value.Arg;
+            if (NextOp->Common.AmlOpcode == AML_INT_NAMEPATH_OP)
+            {
+                Path = NextOp->Common.Value.String;
+            }
+        }
+        else if (Op->Common.AmlOpcode == AML_SCOPE_OP)
+        {
             Path = (char *) Op->Named.Path;
         }
     }
     else if (OpInfo->Flags & AML_CREATE)
     {
         /* Referenced Buffer Name is the first child */
+
+        ObjectType = ACPI_TYPE_BUFFER; /* Change from TYPE_BUFFER_FIELD */
 
         NextOp = Op->Common.Value.Arg;
         if (NextOp->Common.AmlOpcode == AML_INT_NAMEPATH_OP)
@@ -783,6 +796,11 @@ AcpiDmXrefDescendingOp (
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_ANY,
                 ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
                 WalkState, &Node);
+    if (ACPI_SUCCESS (Status) && (Node->Flags & ANOBJ_IS_EXTERNAL))
+    {
+        Status = AE_NOT_FOUND;
+    }
+
     if (ACPI_FAILURE (Status))
     {
         if (Status == AE_NOT_FOUND)

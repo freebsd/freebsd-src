@@ -60,10 +60,18 @@ struct xlat16_table {
 static struct xlat16_table kiconv_xlat16_open(const char *, const char *, int);
 static int chklocale(int, const char *);
 
+#ifdef ICONV_DLOPEN
 static int my_iconv_init(void);
 static iconv_t (*my_iconv_open)(const char *, const char *);
 static size_t (*my_iconv)(iconv_t, const char **, size_t *, char **, size_t *);
 static int (*my_iconv_close)(iconv_t);
+#else
+#include <iconv.h>
+#define my_iconv_init() 0
+#define my_iconv_open iconv_open
+#define my_iconv iconv
+#define my_iconv_close iconv_close
+#endif
 static size_t my_iconv_char(iconv_t, const u_char **, size_t *, u_char **, size_t *);
 
 int
@@ -310,6 +318,7 @@ chklocale(int category, const char *code)
 	return (error);
 }
 
+#ifdef ICONV_DLOPEN
 static int
 my_iconv_init(void)
 {
@@ -327,6 +336,7 @@ my_iconv_init(void)
 
 	return (0);
 }
+#endif
 
 static size_t
 my_iconv_char(iconv_t cd, const u_char **ibuf, size_t * ilen, u_char **obuf,

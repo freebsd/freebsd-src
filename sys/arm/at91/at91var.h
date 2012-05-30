@@ -97,4 +97,6 @@ at91_cpu_is(u_int cpu)
 extern uint32_t at91_irq_system;
 extern uint32_t at91_master_clock;
 
+void at91_pmc_init_clock(void);
+
 #endif /* _AT91VAR_H_ */

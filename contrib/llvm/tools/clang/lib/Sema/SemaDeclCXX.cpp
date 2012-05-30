@@ -7319,15 +7319,42 @@ void Sema::DefineImplicitDestructor(SourceLocation CurrentLocation,
   }
 }
 
+/// \brief Perform any semantic analysis which needs to be delayed until all
+/// pending class member declarations have been parsed.
+void Sema::ActOnFinishCXXMemberDecls() {
+  // Now we have parsed all exception specifications, determine the implicit
+  // exception specifications for destructors.
+  for (unsigned i = 0, e = DelayedDestructorExceptionSpecs.size();
+       i != e; ++i) {
+    CXXDestructorDecl *Dtor = DelayedDestructorExceptionSpecs[i];
+    AdjustDestructorExceptionSpec(Dtor->getParent(), Dtor, true);
+  }
+  DelayedDestructorExceptionSpecs.clear();
+
+  // Perform any deferred checking of exception specifications for virtual
+  // destructors.
+  for (unsigned i = 0, e = DelayedDestructorExceptionSpecChecks.size();
+       i != e; ++i) {
+    const CXXDestructorDecl *Dtor =
+        DelayedDestructorExceptionSpecChecks[i].first;
+    assert(!Dtor->getParent()->isDependentType() &&
+           "Should not ever add destructors of templates into the list.");
+    CheckOverridingFunctionExceptionSpec(Dtor,
+        DelayedDestructorExceptionSpecChecks[i].second);
+  }
+  DelayedDestructorExceptionSpecChecks.clear();
+}
+
 void Sema::AdjustDestructorExceptionSpec(CXXRecordDecl *classDecl,
-                                         CXXDestructorDecl *destructor) {
+                                         CXXDestructorDecl *destructor,
+                                         bool WasDelayed) {
   // C++11 [class.dtor]p3:
   //   A declaration of a destructor that does not have an exception-
   //   specification is implicitly considered to have the same exception-
   //   specification as an implicit declaration.
   const FunctionProtoType *dtorType = destructor->getType()->
                                         getAs<FunctionProtoType>();
-  if (dtorType->hasExceptionSpec())
+  if (!WasDelayed && dtorType->hasExceptionSpec())
     return;
 
   ImplicitExceptionSpecification exceptSpec =
@@ -7343,6 +7370,14 @@ void Sema::AdjustDestructorExceptionSpec(CXXRecordDecl *classDecl,
   QualType ty = Context.getFunctionType(Context.VoidTy, 0, 0, epi);
 
   destructor->setType(ty);
+
+  // If we can't compute the exception specification for this destructor yet
+  // (because it depends on an exception specification which we have not parsed
+  // yet), make a note that we need to try again when the class is complete.
+  if (epi.ExceptionSpecType == EST_Delayed) {
+    assert(!WasDelayed && "couldn't compute destructor exception spec");
+    DelayedDestructorExceptionSpecs.push_back(destructor);
+  }
 
   // FIXME: If the destructor has a body that could throw, and the newly created
   // spec doesn't allow exceptions, we should emit a warning, because this
@@ -7579,8 +7614,9 @@ Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
     assert(!Base->getType()->isDependentType() &&
            "Cannot generate implicit members for class with dependent bases.");
     CXXRecordDecl *BaseClassDecl = Base->getType()->getAsCXXRecordDecl();
-    LookupCopyingAssignment(BaseClassDecl, Qualifiers::Const, false, 0,
-                            &HasConstCopyAssignment);
+    HasConstCopyAssignment &=
+      (bool)LookupCopyingAssignment(BaseClassDecl, Qualifiers::Const,
+                                    false, 0);
   }
 
   // In C++11, the above citation has "or virtual" added
@@ -7591,8 +7627,9 @@ Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
       assert(!Base->getType()->isDependentType() &&
              "Cannot generate implicit members for class with dependent bases.");
       CXXRecordDecl *BaseClassDecl = Base->getType()->getAsCXXRecordDecl();
-      LookupCopyingAssignment(BaseClassDecl, Qualifiers::Const, false, 0,
-                              &HasConstCopyAssignment);
+      HasConstCopyAssignment &=
+        (bool)LookupCopyingAssignment(BaseClassDecl, Qualifiers::Const,
+                                      false, 0);
     }
   }
   
@@ -7606,8 +7643,9 @@ Sema::ComputeDefaultedCopyAssignmentExceptionSpecAndConst(
        ++Field) {
     QualType FieldType = Context.getBaseElementType((*Field)->getType());
     if (CXXRecordDecl *FieldClassDecl = FieldType->getAsCXXRecordDecl()) {
-      LookupCopyingAssignment(FieldClassDecl, Qualifiers::Const, false, 0,
-                              &HasConstCopyAssignment);
+      HasConstCopyAssignment &=
+        (bool)LookupCopyingAssignment(FieldClassDecl, Qualifiers::Const,
+                                      false, 0);
     }
   }
   
@@ -8610,8 +8648,8 @@ Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
     
     CXXRecordDecl *BaseClassDecl
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
-    LookupCopyingConstructor(BaseClassDecl, Qualifiers::Const,
-                             &HasConstCopyConstructor);
+    HasConstCopyConstructor &=
+      (bool)LookupCopyingConstructor(BaseClassDecl, Qualifiers::Const);
   }
 
   for (CXXRecordDecl::base_class_iterator Base = ClassDecl->vbases_begin(),
@@ -8620,8 +8658,8 @@ Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
        ++Base) {
     CXXRecordDecl *BaseClassDecl
       = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
-    LookupCopyingConstructor(BaseClassDecl, Qualifiers::Const,
-                             &HasConstCopyConstructor);
+    HasConstCopyConstructor &=
+      (bool)LookupCopyingConstructor(BaseClassDecl, Qualifiers::Const);
   }
   
   //     -- for all the nonstatic data members of X that are of a
@@ -8634,8 +8672,8 @@ Sema::ComputeDefaultedCopyCtorExceptionSpecAndConst(CXXRecordDecl *ClassDecl) {
        ++Field) {
     QualType FieldType = Context.getBaseElementType((*Field)->getType());
     if (CXXRecordDecl *FieldClassDecl = FieldType->getAsCXXRecordDecl()) {
-      LookupCopyingConstructor(FieldClassDecl, Qualifiers::Const,
-                               &HasConstCopyConstructor);
+      HasConstCopyConstructor &=
+        (bool)LookupCopyingConstructor(FieldClassDecl, Qualifiers::Const);
     }
   }
   //   Otherwise, the implicitly declared copy constructor will have
@@ -11257,66 +11295,6 @@ Sema::checkExceptionSpecification(ExceptionSpecificationType EST,
       EPI.NoexceptExpr = NoexceptExpr;
     }
     return;
-  }
-}
-
-void Sema::actOnDelayedExceptionSpecification(Decl *MethodD,
-             ExceptionSpecificationType EST,
-             SourceRange SpecificationRange,
-             ArrayRef<ParsedType> DynamicExceptions,
-             ArrayRef<SourceRange> DynamicExceptionRanges,
-             Expr *NoexceptExpr) {
-  if (!MethodD)
-    return;
-  
-  // Dig out the method we're referring to.
-  CXXMethodDecl *Method = 0;
-  if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(MethodD))
-    Method = dyn_cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl());
-  else
-    Method = dyn_cast<CXXMethodDecl>(MethodD);
-  
-  if (!Method)
-    return;
-  
-  // Dig out the prototype. This should never fail.
-  const FunctionProtoType *Proto
-    = dyn_cast<FunctionProtoType>(Method->getType());
-  if (!Proto)
-    return;
-  
-  // Check the exception specification.
-  llvm::SmallVector<QualType, 4> Exceptions;
-  FunctionProtoType::ExtProtoInfo EPI = Proto->getExtProtoInfo();
-  checkExceptionSpecification(EST, DynamicExceptions, DynamicExceptionRanges,
-                              NoexceptExpr, Exceptions, EPI);
-  
-  // Rebuild the function type.
-  QualType T = Context.getFunctionType(Proto->getResultType(),
-                                       Proto->arg_type_begin(),
-                                       Proto->getNumArgs(),
-                                       EPI);
-  if (TypeSourceInfo *TSInfo = Method->getTypeSourceInfo()) {
-    // FIXME: When we get proper type location information for exceptions,
-    // we'll also have to rebuild the TypeSourceInfo. For now, we just patch
-    // up the TypeSourceInfo;
-    assert(TypeLoc::getFullDataSizeForType(T)
-             == TypeLoc::getFullDataSizeForType(Method->getType()) &&
-           "TypeLoc size mismatch with delayed exception specification");
-    TSInfo->overrideType(T);
-  }
-
-  Method->setType(T);
-  
-  if (Method->isStatic())
-    checkThisInStaticMemberFunctionExceptionSpec(Method);
-  
-  if (Method->isVirtual()) {
-    // Check overrides, which we previously had to delay.
-    for (CXXMethodDecl::method_iterator O = Method->begin_overridden_methods(),
-                                     OEnd = Method->end_overridden_methods();
-         O != OEnd; ++O)
-      CheckOverridingFunctionExceptionSpec(Method, *O);
   }
 }
 

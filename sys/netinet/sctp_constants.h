@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_constants.h,v 1.17 2005/03/06 16:04:17 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_constants_h__
-#define __sctp_constants_h__
+#ifndef _NETINET_SCTP_CONSTANTS_H_
+#define _NETINET_SCTP_CONSTANTS_H_
 
 /* IANA assigned port number for SCTP over UDP encapsulation */
 /* For freebsd we cannot bind the port at
@@ -348,7 +346,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NO_FR_UNLESS_SEGMENT_SMALLER 1
 
 /* default max I can burst out after a fast retransmit, 0 disables it */
-#define SCTP_DEF_MAX_BURST 0
+#define SCTP_DEF_MAX_BURST 4
 #define SCTP_DEF_HBMAX_BURST 4
 #define SCTP_DEF_FRMAX_BURST 4
 

@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "gen-private.h"
+
 static FTSENT	*fts_alloc(FTS *, char *, size_t);
 static FTSENT	*fts_build(FTS *, int);
 static void	 fts_lfree(FTSENT *);
@@ -697,7 +699,7 @@ fts_build(FTS *sp, int type)
 	 */
 	cderrno = 0;
 	if (nlinks || type == BREAD) {
-		if (fts_safe_changedir(sp, cur, dirfd(dirp), NULL)) {
+		if (fts_safe_changedir(sp, cur, _dirfd(dirp), NULL)) {
 			if (nlinks && type == BREAD)
 				cur->fts_errno = errno;
 			cur->fts_flags |= FTS_DONTCHDIR;

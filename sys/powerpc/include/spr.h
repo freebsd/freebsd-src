@@ -115,9 +115,9 @@
 #define	  SRR1_ISI_NOEXECUTE	0x10000000 /* Memory marked no-execute */
 #define	  SRR1_ISI_PP		0x08000000 /* PP bits forbid access */
 #define	SPR_DECAR		0x036	/* ..8 Decrementer auto reload */
-#define SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
-#define SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
-#define SPR_NRI			0x052	/* ..8 Exception Interrupt ??? */
+#define	SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
+#define	SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
+#define	SPR_NRI			0x052	/* ..8 Exception Interrupt ??? */
 #define	SPR_USPRG0		0x100	/* 4.. User SPR General 0 */
 #define	SPR_VRSAVE		0x100	/* .6. AltiVec VRSAVE */
 #define	SPR_SPRG0		0x110	/* 468 SPR General 0 */
@@ -184,6 +184,8 @@
 #define	  MPC8245		  0x8081
 #define	  FSL_E500v1		  0x8020
 #define	  FSL_E500v2		  0x8021
+#define	  FSL_E500mc		  0x8023
+#define	  FSL_E5500		  0x8024
 
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
@@ -202,49 +204,49 @@
 #define	SPR_DBAT2L		0x21d	/* .6. Data BAT Reg 2 Lower */
 #define	SPR_DBAT3U		0x21e	/* .6. Data BAT Reg 3 Upper */
 #define	SPR_DBAT3L		0x21f	/* .6. Data BAT Reg 3 Lower */
-#define SPR_IC_CST		0x230	/* ..8 Instruction Cache CSR */
-#define  IC_CST_IEN		0x80000000 /* I cache is ENabled   (RO) */
-#define  IC_CST_CMD_INVALL	0x0c000000 /* I cache invalidate all */
-#define  IC_CST_CMD_UNLOCKALL	0x0a000000 /* I cache unlock all */
-#define  IC_CST_CMD_UNLOCK	0x08000000 /* I cache unlock block */
-#define  IC_CST_CMD_LOADLOCK	0x06000000 /* I cache load & lock block */
-#define  IC_CST_CMD_DISABLE	0x04000000 /* I cache disable */
-#define  IC_CST_CMD_ENABLE	0x02000000 /* I cache enable */
-#define  IC_CST_CCER1		0x00200000 /* I cache error type 1 (RO) */
-#define  IC_CST_CCER2		0x00100000 /* I cache error type 2 (RO) */
-#define  IC_CST_CCER3		0x00080000 /* I cache error type 3 (RO) */
+#define	SPR_IC_CST		0x230	/* ..8 Instruction Cache CSR */
+#define	  IC_CST_IEN		0x80000000 /* I cache is ENabled   (RO) */
+#define	  IC_CST_CMD_INVALL	0x0c000000 /* I cache invalidate all */
+#define	  IC_CST_CMD_UNLOCKALL	0x0a000000 /* I cache unlock all */
+#define	  IC_CST_CMD_UNLOCK	0x08000000 /* I cache unlock block */
+#define	  IC_CST_CMD_LOADLOCK	0x06000000 /* I cache load & lock block */
+#define	  IC_CST_CMD_DISABLE	0x04000000 /* I cache disable */
+#define	  IC_CST_CMD_ENABLE	0x02000000 /* I cache enable */
+#define	  IC_CST_CCER1		0x00200000 /* I cache error type 1 (RO) */
+#define	  IC_CST_CCER2		0x00100000 /* I cache error type 2 (RO) */
+#define	  IC_CST_CCER3		0x00080000 /* I cache error type 3 (RO) */
 #define	SPR_IBAT4U		0x230	/* .6. Instruction BAT Reg 4 Upper */
-#define SPR_IC_ADR		0x231	/* ..8 Instruction Cache Address */
+#define	SPR_IC_ADR		0x231	/* ..8 Instruction Cache Address */
 #define	SPR_IBAT4L		0x231	/* .6. Instruction BAT Reg 4 Lower */
-#define SPR_IC_DAT		0x232	/* ..8 Instruction Cache Data */
+#define	SPR_IC_DAT		0x232	/* ..8 Instruction Cache Data */
 #define	SPR_IBAT5U		0x232	/* .6. Instruction BAT Reg 5 Upper */
 #define	SPR_IBAT5L		0x233	/* .6. Instruction BAT Reg 5 Lower */
 #define	SPR_IBAT6U		0x234	/* .6. Instruction BAT Reg 6 Upper */
 #define	SPR_IBAT6L		0x235	/* .6. Instruction BAT Reg 6 Lower */
 #define	SPR_IBAT7U		0x236	/* .6. Instruction BAT Reg 7 Upper */
 #define	SPR_IBAT7L		0x237	/* .6. Instruction BAT Reg 7 Lower */
-#define SPR_DC_CST		0x230	/* ..8 Data Cache CSR */
-#define  DC_CST_DEN		0x80000000 /* D cache ENabled (RO) */
-#define  DC_CST_DFWT		0x40000000 /* D cache Force Write-Thru (RO) */
-#define  DC_CST_LES		0x20000000 /* D cache Little Endian Swap (RO) */
-#define  DC_CST_CMD_FLUSH	0x0e000000 /* D cache invalidate all */
-#define  DC_CST_CMD_INVALL	0x0c000000 /* D cache invalidate all */
-#define  DC_CST_CMD_UNLOCKALL	0x0a000000 /* D cache unlock all */
-#define  DC_CST_CMD_UNLOCK	0x08000000 /* D cache unlock block */
-#define  DC_CST_CMD_CLRLESWAP	0x07000000 /* D cache clr little-endian swap */
-#define  DC_CST_CMD_LOADLOCK	0x06000000 /* D cache load & lock block */
-#define  DC_CST_CMD_SETLESWAP	0x05000000 /* D cache set little-endian swap */
-#define  DC_CST_CMD_DISABLE	0x04000000 /* D cache disable */
-#define  DC_CST_CMD_CLRFWT	0x03000000 /* D cache clear forced write-thru */
-#define  DC_CST_CMD_ENABLE	0x02000000 /* D cache enable */
-#define  DC_CST_CMD_SETFWT	0x01000000 /* D cache set forced write-thru */
-#define  DC_CST_CCER1		0x00200000 /* D cache error type 1 (RO) */
-#define  DC_CST_CCER2		0x00100000 /* D cache error type 2 (RO) */
-#define  DC_CST_CCER3		0x00080000 /* D cache error type 3 (RO) */
+#define	SPR_DC_CST		0x230	/* ..8 Data Cache CSR */
+#define	  DC_CST_DEN		0x80000000 /* D cache ENabled (RO) */
+#define	  DC_CST_DFWT		0x40000000 /* D cache Force Write-Thru (RO) */
+#define	  DC_CST_LES		0x20000000 /* D cache Little Endian Swap (RO) */
+#define	  DC_CST_CMD_FLUSH	0x0e000000 /* D cache invalidate all */
+#define	  DC_CST_CMD_INVALL	0x0c000000 /* D cache invalidate all */
+#define	  DC_CST_CMD_UNLOCKALL	0x0a000000 /* D cache unlock all */
+#define	  DC_CST_CMD_UNLOCK	0x08000000 /* D cache unlock block */
+#define	  DC_CST_CMD_CLRLESWAP	0x07000000 /* D cache clr little-endian swap */
+#define	  DC_CST_CMD_LOADLOCK	0x06000000 /* D cache load & lock block */
+#define	  DC_CST_CMD_SETLESWAP	0x05000000 /* D cache set little-endian swap */
+#define	  DC_CST_CMD_DISABLE	0x04000000 /* D cache disable */
+#define	  DC_CST_CMD_CLRFWT	0x03000000 /* D cache clear forced write-thru */
+#define	  DC_CST_CMD_ENABLE	0x02000000 /* D cache enable */
+#define	  DC_CST_CMD_SETFWT	0x01000000 /* D cache set forced write-thru */
+#define	  DC_CST_CCER1		0x00200000 /* D cache error type 1 (RO) */
+#define	  DC_CST_CCER2		0x00100000 /* D cache error type 2 (RO) */
+#define	  DC_CST_CCER3		0x00080000 /* D cache error type 3 (RO) */
 #define	SPR_DBAT4U		0x238	/* .6. Data BAT Reg 4 Upper */
-#define SPR_DC_ADR		0x231	/* ..8 Data Cache Address */
+#define	SPR_DC_ADR		0x231	/* ..8 Data Cache Address */
 #define	SPR_DBAT4L		0x239	/* .6. Data BAT Reg 4 Lower */
-#define SPR_DC_DAT		0x232	/* ..8 Data Cache Data */
+#define	SPR_DC_DAT		0x232	/* ..8 Data Cache Data */
 #define	SPR_DBAT5U		0x23a	/* .6. Data BAT Reg 5 Upper */
 #define	SPR_DBAT5L		0x23b	/* .6. Data BAT Reg 5 Lower */
 #define	SPR_DBAT6U		0x23c	/* .6. Data BAT Reg 6 Upper */
@@ -252,46 +254,46 @@
 #define	SPR_DBAT7U		0x23e	/* .6. Data BAT Reg 7 Upper */
 #define	SPR_DBAT7L		0x23f	/* .6. Data BAT Reg 7 Lower */
 #define	SPR_MI_CTR		0x310	/* ..8 IMMU control */
-#define  Mx_CTR_GPM		0x80000000 /* Group Protection Mode */
-#define  Mx_CTR_PPM		0x40000000 /* Page Protection Mode */
-#define  Mx_CTR_CIDEF		0x20000000 /* Cache-Inhibit DEFault */
-#define  MD_CTR_WTDEF		0x20000000 /* Write-Through DEFault */
-#define  Mx_CTR_RSV4		0x08000000 /* Reserve 4 TLB entries */
-#define  MD_CTR_TWAM		0x04000000 /* TableWalk Assist Mode */
-#define  Mx_CTR_PPCS		0x02000000 /* Priv/user state compare mode */
-#define  Mx_CTR_TLB_INDX	0x000001f0 /* TLB index mask */
-#define  Mx_CTR_TLB_INDX_BITPOS	8	  /* TLB index shift */
+#define	  Mx_CTR_GPM		0x80000000 /* Group Protection Mode */
+#define	  Mx_CTR_PPM		0x40000000 /* Page Protection Mode */
+#define	  Mx_CTR_CIDEF		0x20000000 /* Cache-Inhibit DEFault */
+#define	  MD_CTR_WTDEF		0x20000000 /* Write-Through DEFault */
+#define	  Mx_CTR_RSV4		0x08000000 /* Reserve 4 TLB entries */
+#define	  MD_CTR_TWAM		0x04000000 /* TableWalk Assist Mode */
+#define	  Mx_CTR_PPCS		0x02000000 /* Priv/user state compare mode */
+#define	  Mx_CTR_TLB_INDX	0x000001f0 /* TLB index mask */
+#define	  Mx_CTR_TLB_INDX_BITPOS	8	  /* TLB index shift */
 #define	SPR_MI_AP		0x312	/* ..8 IMMU access protection */
-#define  Mx_GP_SUPER(n)		(0 << (2*(15-(n)))) /* access is supervisor */
-#define  Mx_GP_PAGE		(1 << (2*(15-(n)))) /* access is page protect */
-#define  Mx_GP_SWAPPED		(2 << (2*(15-(n)))) /* access is swapped */
-#define  Mx_GP_USER		(3 << (2*(15-(n)))) /* access is user */
+#define	  Mx_GP_SUPER(n)	(0 << (2*(15-(n)))) /* access is supervisor */
+#define	  Mx_GP_PAGE		(1 << (2*(15-(n)))) /* access is page protect */
+#define	  Mx_GP_SWAPPED		(2 << (2*(15-(n)))) /* access is swapped */
+#define	  Mx_GP_USER		(3 << (2*(15-(n)))) /* access is user */
 #define	SPR_MI_EPN		0x313	/* ..8 IMMU effective number */
-#define  Mx_EPN_EPN		0xfffff000 /* Effective Page Number mask */
-#define  Mx_EPN_EV		0x00000020 /* Entry Valid */
-#define  Mx_EPN_ASID		0x0000000f /* Address Space ID */
+#define	  Mx_EPN_EPN		0xfffff000 /* Effective Page Number mask */
+#define	  Mx_EPN_EV		0x00000020 /* Entry Valid */
+#define	  Mx_EPN_ASID		0x0000000f /* Address Space ID */
 #define	SPR_MI_TWC		0x315	/* ..8 IMMU tablewalk control */
-#define  MD_TWC_L2TB		0xfffff000 /* Level-2 Tablewalk Base */
-#define  Mx_TWC_APG		0x000001e0 /* Access Protection Group */
-#define  Mx_TWC_G		0x00000010 /* Guarded memory */
-#define  Mx_TWC_PS		0x0000000c /* Page Size (L1) */
-#define  MD_TWC_WT		0x00000002 /* Write-Through */
-#define  Mx_TWC_V		0x00000001 /* Entry Valid */
+#define	  MD_TWC_L2TB		0xfffff000 /* Level-2 Tablewalk Base */
+#define	  Mx_TWC_APG		0x000001e0 /* Access Protection Group */
+#define	  Mx_TWC_G		0x00000010 /* Guarded memory */
+#define	  Mx_TWC_PS		0x0000000c /* Page Size (L1) */
+#define	  MD_TWC_WT		0x00000002 /* Write-Through */
+#define	  Mx_TWC_V		0x00000001 /* Entry Valid */
 #define	SPR_MI_RPN		0x316	/* ..8 IMMU real (phys) page number */
-#define  Mx_RPN_RPN		0xfffff000 /* Real Page Number */
-#define  Mx_RPN_PP		0x00000ff0 /* Page Protection */
-#define  Mx_RPN_SPS		0x00000008 /* Small Page Size */
-#define  Mx_RPN_SH		0x00000004 /* SHared page */
-#define  Mx_RPN_CI		0x00000002 /* Cache Inhibit */
-#define  Mx_RPN_V		0x00000001 /* Valid */
+#define	  Mx_RPN_RPN		0xfffff000 /* Real Page Number */
+#define	  Mx_RPN_PP		0x00000ff0 /* Page Protection */
+#define	  Mx_RPN_SPS		0x00000008 /* Small Page Size */
+#define	  Mx_RPN_SH		0x00000004 /* SHared page */
+#define	  Mx_RPN_CI		0x00000002 /* Cache Inhibit */
+#define	  Mx_RPN_V		0x00000001 /* Valid */
 #define	SPR_MD_CTR		0x318	/* ..8 DMMU control */
 #define	SPR_M_CASID		0x319	/* ..8 CASID */
-#define  M_CASID		0x0000000f /* Current AS Id */
+#define	  M_CASID		0x0000000f /* Current AS Id */
 #define	SPR_MD_AP		0x31a	/* ..8 DMMU access protection */
 #define	SPR_MD_EPN		0x31b	/* ..8 DMMU effective number */
 #define	SPR_M_TWB		0x31c	/* ..8 MMU tablewalk base */
-#define  M_TWB_L1TB		0xfffff000 /* level-1 translation base */
-#define  M_TWB_L1INDX		0x00000ffc /* level-1 index */
+#define	  M_TWB_L1TB		0xfffff000 /* level-1 translation base */
+#define	  M_TWB_L1INDX		0x00000ffc /* level-1 index */
 #define	SPR_MD_TWC		0x31d	/* ..8 DMMU tablewalk control */
 #define	SPR_MD_RPN		0x31e	/* ..8 DMMU real (phys) page number */
 #define	SPR_MD_TW		0x31f	/* ..8 MMU tablewalk scratch */
@@ -307,8 +309,8 @@
 #define	SPR_UMMCR1		0x3ac	/* .6. User Monitor Mode Control Register 1 */
 #define	SPR_ZPR			0x3b0	/* 4.. Zone Protection Register */
 #define	SPR_MMCR2		0x3b0	/* .6. Monitor Mode Control Register 2 */
-#define	 SPR_MMCR2_THRESHMULT_32  0x80000000 /* Multiply MMCR0 threshold by 32 */
-#define	 SPR_MMCR2_THRESHMULT_2	  0x00000000 /* Multiply MMCR0 threshold by 2 */
+#define	  SPR_MMCR2_THRESHMULT_32	  0x80000000 /* Multiply MMCR0 threshold by 32 */
+#define	  SPR_MMCR2_THRESHMULT_2	  0x00000000 /* Multiply MMCR0 threshold by 2 */
 #define	SPR_PID			0x3b1	/* 4.. Process ID */
 #define	SPR_PMC5		0x3b1	/* .6. Performance Counter Register 5 */
 #define	SPR_PMC6		0x3b2	/* .6. Performance Counter Register 6 */
@@ -323,14 +325,14 @@
 #define	SPR_970MMCR1		0x31e	/* ... Monitor Mode Control Register 1 (PPC 970) */
 #define	SPR_970MMCRA		0x312	/* ... Monitor Mode Control Register 2 (PPC 970) */
 #define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
-#define SPR_970PMC1		0x313	/* ... PMC 1 */
-#define SPR_970PMC2		0x314	/* ... PMC 2 */
-#define SPR_970PMC3		0x315	/* ... PMC 3 */
-#define SPR_970PMC4		0x316	/* ... PMC 4 */
-#define SPR_970PMC5		0x317	/* ... PMC 5 */
-#define SPR_970PMC6		0x318	/* ... PMC 6 */
-#define SPR_970PMC7		0x319	/* ... PMC 7 */
-#define SPR_970PMC8		0x31a	/* ... PMC 8 */
+#define	SPR_970PMC1		0x313	/* ... PMC 1 */
+#define	SPR_970PMC2		0x314	/* ... PMC 2 */
+#define	SPR_970PMC3		0x315	/* ... PMC 3 */
+#define	SPR_970PMC4		0x316	/* ... PMC 4 */
+#define	SPR_970PMC5		0x317	/* ... PMC 5 */
+#define	SPR_970PMC6		0x318	/* ... PMC 6 */
+#define	SPR_970PMC7		0x319	/* ... PMC 7 */
+#define	SPR_970PMC8		0x31a	/* ... PMC 8 */
 
 #define	  SPR_MMCR0_FC		  0x80000000 /* Freeze counters */
 #define	  SPR_MMCR0_FCS		  0x40000000 /* Freeze counters in supervisor mode */
@@ -421,6 +423,7 @@
 #define	SPR_SRR3		0x3df	/* 4.. Save/Restore Register 3 */
 #define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
+#define	SPR_HID2		0x3f3	/* ..8 Hardware Implementation Register 2 */
 #define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
 #define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
 #define	SPR_HID6		0x3f9	/* ..8 Hardware Implementation Register 6 */
@@ -452,7 +455,7 @@
 #define	SPR_DAC1		0x3f6	/* 4.. Data Address Compare 1 */
 #define	SPR_DAC2		0x3f7	/* 4.. Data Address Compare 2 */
 #define	SPR_PIR			0x3ff	/* .6. Processor Identification Register */
-#elif defined(E500)
+#elif defined(BOOKE)
 #define	SPR_PIR			0x11e	/* ..8 Processor Identification Register */
 #define	SPR_DBSR		0x130	/* ..8 Debug Status Register */
 #define	  DBSR_IDE		  0x80000000 /* Imprecise debug event. */
@@ -554,7 +557,6 @@
 #define	  L2CR_L2DRO		  0x00000100 /* 23: L2DLL rollover checkstop enable. */
 #define	  L2CR_L2IP		  0x00000001 /* 31: L2 global invalidate in */
 					     /*     progress (read only). */
-
 #define	SPR_L3CR		0x3fa	/* .6. L3 Control Register */
 #define	  L3CR_L3E		  0x80000000 /* 0: L3 enable */
 #define	  L3CR_L3PE		  0x40000000 /* 1: L3 data parity enable */
@@ -582,15 +584,15 @@
 #define	SPR_ICCR		0x3fb	/* 4.. Instruction Cache Cachability Register */
 #define	SPR_THRM1		0x3fc	/* .6. Thermal Management Register */
 #define	SPR_THRM2		0x3fd	/* .6. Thermal Management Register */
-#define	 SPR_THRM_TIN		  0x80000000 /* Thermal interrupt bit (RO) */
-#define	 SPR_THRM_TIV		  0x40000000 /* Thermal interrupt valid (RO) */
-#define	 SPR_THRM_THRESHOLD(x)	  ((x) << 23) /* Thermal sensor threshold */
-#define	 SPR_THRM_TID		  0x00000004 /* Thermal interrupt direction */
-#define	 SPR_THRM_TIE		  0x00000002 /* Thermal interrupt enable */
-#define	 SPR_THRM_VALID		  0x00000001 /* Valid bit */
+#define	  SPR_THRM_TIN		  0x80000000 /* Thermal interrupt bit (RO) */
+#define	  SPR_THRM_TIV		  0x40000000 /* Thermal interrupt valid (RO) */
+#define	  SPR_THRM_THRESHOLD(x)	  ((x) << 23) /* Thermal sensor threshold */
+#define	  SPR_THRM_TID		  0x00000004 /* Thermal interrupt direction */
+#define	  SPR_THRM_TIE		  0x00000002 /* Thermal interrupt enable */
+#define	  SPR_THRM_VALID		  0x00000001 /* Valid bit */
 #define	SPR_THRM3		0x3fe	/* .6. Thermal Management Register */
-#define	 SPR_THRM_TIMER(x)	  ((x) << 1) /* Sampling interval timer */
-#define	 SPR_THRM_ENABLE       	  0x00000001 /* TAU Enable */
+#define	  SPR_THRM_TIMER(x)	  ((x) << 1) /* Sampling interval timer */
+#define	  SPR_THRM_ENABLE	  0x00000001 /* TAU Enable */
 #define	SPR_FPECR		0x3fe	/* .6. Floating-Point Exception Cause Register */
 
 /* Time Base Register declarations */
@@ -600,7 +602,7 @@
 #define	TBR_TBWU		0x11d	/* 468 Time Base Upper - supervisor, write */
 
 /* Performance counter declarations */
-#define	PMC_OVERFLOW	  	0x80000000 /* Counter has overflowed */
+#define	PMC_OVERFLOW		0x80000000 /* Counter has overflowed */
 
 /* The first five countable [non-]events are common to many PMC's */
 #define	PMCN_NONE		 0 /* Count nothing */
@@ -616,7 +618,7 @@
 
 #if defined(AIM)
 
-#define SPR_ESR			0x3d4	/* 4.. Exception Syndrome Register */
+#define	SPR_ESR			0x3d4	/* 4.. Exception Syndrome Register */
 #define	  ESR_MCI		  0x80000000 /* Machine check - instruction */
 #define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
 #define	  ESR_PPR		  0x04000000 /* Program interrupt - privileged */
@@ -626,7 +628,9 @@
 #define	  ESR_DIZ		  0x00800000 /* Data/instruction storage interrupt - zone fault */
 #define	  ESR_U0F		  0x00008000 /* Data storage interrupt - U0 fault */
 
-#elif defined(E500)
+#elif defined(BOOKE)
+
+#define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
 
 #define	SPR_ESR			0x003e	/* ..8 Exception Syndrome Register */
 #define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */
@@ -642,6 +646,19 @@
 #define	SPR_CSRR1		0x03b	/* ..8 59 Critical SRR1 */
 #define	SPR_MCSRR0		0x23a	/* ..8 570 Machine check SRR0 */
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
+
+#define	SPR_MMUCR		0x3b2	/* 4.. MMU Control Register */
+#define	  MMUCR_SWOA		(0x80000000 >> 7)
+#define	  MMUCR_U1TE		(0x80000000 >> 9)
+#define	  MMUCR_U2SWOAE		(0x80000000 >> 10)
+#define	  MMUCR_DULXE		(0x80000000 >> 12)
+#define	  MMUCR_IULXE		(0x80000000 >> 13)
+#define	  MMUCR_STS		(0x80000000 >> 15)
+#define	  MMUCR_STID_MASK	(0xFF000000 >> 24)
+
+#define	SPR_MMUCSR0		0x3f4	/* ..8 1012 MMU Control and Status Register 0 */
+#define	  MMUCSR0_L2TLB0_FI	0x04	/*  TLB0 flash invalidate */
+#define	  MMUCSR0_L2TLB1_FI	0x02	/*  TLB1 flash invalidate */
 
 #define	SPR_SVR			0x3ff	/* ..8 1023 System Version Register */
 #define	  SVR_MPC8533		  0x8034
@@ -662,10 +679,16 @@
 #define	  SVR_P2010E		  0x80eb
 #define	  SVR_P2020		  0x80e2
 #define	  SVR_P2020E		  0x80ea
+#define	  SVR_P2041		  0x8210
+#define	  SVR_P2041E		  0x8218
+#define	  SVR_P3041		  0x8211
+#define	  SVR_P3041E		  0x8219
 #define	  SVR_P4040		  0x8200
 #define	  SVR_P4040E		  0x8208
 #define	  SVR_P4080		  0x8201
 #define	  SVR_P4080E		  0x8209
+#define	  SVR_P5020		  0x8220
+#define	  SVR_P5020E		  0x8228
 #define	SVR_VER(svr)		(((svr) >> 16) & 0xffff)
 
 #define	SPR_PID0		0x030	/* ..8 Process ID Register 0 */
@@ -708,6 +731,18 @@
 #define	SPR_MAS5		0x275	/* ..8 MMU Assist Register 5 Book-E */
 #define	SPR_MAS6		0x276	/* ..8 MMU Assist Register 6 Book-E/e500 */
 #define	SPR_MAS7		0x3B0	/* ..8 MMU Assist Register 7 Book-E/e500 */
+#define	SPR_MAS8		0x155	/* ..8 MMU Assist Register 8 Book-E/e500 */
+
+#define	SPR_L1CFG0		0x203	/* ..8 L1 cache configuration register 0 */
+#define	SPR_L1CFG1		0x204	/* ..8 L1 cache configuration register 1 */
+
+#define	SPR_CCR1		0x378
+#define	  CCR1_L2COBE		0x00000040
+
+#define	DCR_L2DCDCRAI		0x0000	/* L2 D-Cache DCR Address Pointer */
+#define	DCR_L2DCDCRDI		0x0001	/* L2 D-Cache DCR Data Indirect */
+#define	DCR_L2CR0		0x00	/* L2 Cache Configuration Register 0 */
+#define	  L2CR0_AS		0x30000000
 
 #define	SPR_L1CSR0		0x3F2	/* ..8 L1 Cache Control and Status Register 0 */
 #define	  L1CSR0_DCPE		0x00010000	/* Data Cache Parity Enable */
@@ -716,13 +751,20 @@
 #define	  L1CSR0_DCE		0x00000001	/* Data Cache Enable */
 #define	SPR_L1CSR1		0x3F3	/* ..8 L1 Cache Control and Status Register 1 */
 #define	  L1CSR1_ICPE		0x00010000	/* Instruction Cache Parity Enable */
+#define	  L1CSR1_ICUL		0x00000400      /* Instr Cache Unable to Lock */
 #define	  L1CSR1_ICLFR		0x00000100	/* Instruction Cache Lock Bits Flash Reset */
 #define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
 
+#define	SPR_L2CSR0		0x3F9	/* ..8 L2 Cache Control and Status Register 0 */
+#define	  L2CSR0_L2E		0x80000000	/* L2 Cache Enable */
+#define	  L2CSR0_L2PE		0x40000000	/* L2 Cache Parity Enable */
+#define	  L2CSR0_L2FI		0x00200000	/* L2 Cache Flash Invalidate */
+#define	  L2CSR0_L2LFC		0x00000400	/* L2 Cache Lock Flags Clear */
+
 #define	SPR_BUCSR		0x3F5	/* ..8 Branch Unit Control and Status Register */
 #define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
+#define	  BUCSR_BBFI		0x00000200	/* Branch Buffer Flash Invalidate */
 
-#endif /* #elif defined(E500) */
-
+#endif /* BOOKE */
 #endif /* !_POWERPC_SPR_H_ */

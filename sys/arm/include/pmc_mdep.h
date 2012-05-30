@@ -54,6 +54,12 @@ union pmc_md_pmc {
 #define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_usr_lr)
 #define	PMC_TRAPFRAME_TO_SP(TF)	((TF)->tf_usr_sp)
 
+/* Build a fake kernel trapframe from current instruction pointer. */
+#define PMC_FAKE_TRAPFRAME(TF)						\
+	do {								\
+	__asm __volatile("mov %0, pc" : "=r" ((TF)->tf_pc));		\
+	} while (0)
+
 /*
  * Prototypes
  */

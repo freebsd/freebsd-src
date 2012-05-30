@@ -1466,3 +1466,56 @@ vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
 	vm_object_page_remove(object, start, end, 0);
 	VM_OBJECT_UNLOCK(object);
 }
+
+int
+vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off, struct ucred *cred)
+{
+	struct vattr va;
+	daddr_t bn, bnp;
+	uint64_t bsize;
+	off_t noff;
+	int error;
+
+	KASSERT(cmd == FIOSEEKHOLE || cmd == FIOSEEKDATA,
+	    ("Wrong command %lu", cmd));
+
+	if (vn_lock(vp, LK_SHARED) != 0)
+		return (EBADF);
+	if (vp->v_type != VREG) {
+		error = ENOTTY;
+		goto unlock;
+	}
+	error = VOP_GETATTR(vp, &va, cred);
+	if (error != 0)
+		goto unlock;
+	noff = *off;
+	if (noff >= va.va_size) {
+		error = ENXIO;
+		goto unlock;
+	}
+	bsize = vp->v_mount->mnt_stat.f_iosize;
+	for (bn = noff / bsize; noff < va.va_size; bn++, noff += bsize) {
+		error = VOP_BMAP(vp, bn, NULL, &bnp, NULL, NULL);
+		if (error == EOPNOTSUPP) {
+			error = ENOTTY;
+			goto unlock;
+		}
+		if ((bnp == -1 && cmd == FIOSEEKHOLE) ||
+		    (bnp != -1 && cmd == FIOSEEKDATA)) {
+			noff = bn * bsize;
+			if (noff < *off)
+				noff = *off;
+			goto unlock;
+		}
+	}
+	if (noff > va.va_size)
+		noff = va.va_size;
+	/* noff == va.va_size. There is an implicit hole at the end of file. */
+	if (cmd == FIOSEEKDATA)
+		error = ENXIO;
+unlock:
+	VOP_UNLOCK(vp, 0);
+	if (error == 0)
+		*off = noff;
+	return (error);
+}

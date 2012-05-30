@@ -36,7 +36,6 @@
 #error "no user-serviceable parts inside"
 #endif
 
-void	bpf_buffer_alloc(struct bpf_d *d);
 void	bpf_buffer_append_bytes(struct bpf_d *d, caddr_t buf, u_int offset,
 	    void *src, u_int len);
 void	bpf_buffer_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset,

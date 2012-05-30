@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt OPENPAM_FREE_DATA 3
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Fn openpam_free_data "pam_handle_t *pamh" "void *data" "int status"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn openpam_free_data
 function is a cleanup function suitable for
 passing to
 .Xr pam_set_data 3 .
@@ -64,15 +64,15 @@ argument to
 .Xr pam_set_data 3
 .Sh STANDARDS
 The
-.Nm
+.Fn openpam_free_data
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn openpam_free_data
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

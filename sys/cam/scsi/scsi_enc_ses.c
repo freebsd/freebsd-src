@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/cam/scsi/scsi_ses.c 201758 2010-01-07 21:01:37Z mbr $");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 

@@ -356,7 +356,6 @@ perform_shutdown(void)
 	syslog(LOG_NOTICE, "%s by %s: %s",
 	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" : 
 	    "shutdown", whom, mbuf);
-	(void)sleep(2);
 
 	(void)printf("\r\nSystem shutdown time has arrived\007\007\r\n");
 	if (killflg) {

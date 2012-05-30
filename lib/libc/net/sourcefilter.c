@@ -120,7 +120,7 @@ __inaddr_to_index(in_addr_t ifaddr)
 		psu = (sockunion_t *)ifa->ifa_addr;
 		if (psu && psu->ss.ss_family == AF_LINK &&
 		    strcmp(ifa->ifa_name, ifname) == 0) {
-			ifindex = psu->sdl.sdl_index;
+			ifindex = LLINDEX(&psu->sdl);
 			break;
 		}
 	}

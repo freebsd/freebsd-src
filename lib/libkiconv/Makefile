@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=		kiconv
 SHLIBDIR?=	/lib
 SRCS=		kiconv_sysctl.c xlat16_iconv.c xlat16_sysctl.c
@@ -16,5 +18,9 @@ MLINKS+=	kiconv.3 kiconv_add_xlat16_cspair.3 \
 CFLAGS+=	-I${.CURDIR}/../../sys
 
 WARNS?=		1
+
+.if ${MK_ICONV} == "no"
+CFLAGS+=	-DICONV_DLOPEN
+.endif
 
 .include <bsd.lib.mk>
