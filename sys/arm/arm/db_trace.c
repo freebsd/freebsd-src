@@ -79,14 +79,13 @@ __FBSDID("$FreeBSD$");
  */
 
 static void
-db_stack_trace_cmd(db_expr_t addr, db_expr_t count)
+db_stack_trace_cmd(db_expr_t addr, db_expr_t count, boolean_t kernel_only)
 {
 	u_int32_t	*frame, *lastframe;
 	c_db_sym_t sym;
 	const char *name;
 	db_expr_t value;
 	db_expr_t offset;
-	boolean_t	kernel_only = TRUE;
 	int	scp_offset;
 
 	frame = (u_int32_t *)addr;
@@ -196,8 +195,11 @@ db_trace_thread(struct thread *thr, int count)
 {
 	struct pcb *ctx;
 
-	ctx = kdb_thr_ctx(thr);
-	db_stack_trace_cmd(ctx->un_32.pcb32_r11, -1);
+	if (thr != curthread) {
+		ctx = kdb_thr_ctx(thr);
+		db_stack_trace_cmd(ctx->un_32.pcb32_r11, -1, TRUE);
+	} else
+		db_trace_self();
 	return (0);
 }
 
@@ -207,5 +209,5 @@ db_trace_self(void)
 	db_addr_t addr;
 
 	addr = (db_addr_t)__builtin_frame_address(0);
-	db_stack_trace_cmd(addr, -1);
+	db_stack_trace_cmd(addr, -1, FALSE);
 }
