@@ -645,9 +645,7 @@ pf_enable_altq(struct pf_altq *altq)
 	if (error == 0 && ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		tb.rate = altq->ifbandwidth;
 		tb.depth = altq->tbrsize;
-		PF_UNLOCK();
 		error = tbr_set(&ifp->if_snd, &tb);
-		PF_LOCK();
 	}
 
 	return (error);
@@ -675,9 +673,7 @@ pf_disable_altq(struct pf_altq *altq)
 	if (error == 0) {
 		/* clear tokenbucket regulator */
 		tb.rate = 0;
-		PF_UNLOCK();
 		error = tbr_set(&ifp->if_snd, &tb);
-		PF_LOCK();
 	}
 
 	return (error);
@@ -729,9 +725,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 		    (remove && ifp1 == ifp)) {
 			a2->local_flags |= PFALTQ_FLAG_IF_REMOVED;
 		} else {
-			PF_UNLOCK();
 			error = altq_add(a2);
-			PF_LOCK();
 
 			if (ticket != V_ticket_altqs_inactive)
 				error = EBUSY;
@@ -749,7 +743,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 		pf_rollback_altq(ticket);
 	else
 		pf_commit_altq(ticket);
-	}
+}
 #endif /* ALTQ */
 
 static int
@@ -2089,13 +2083,11 @@ DIOCGETSTATES_full:
 			}
 		}
 
-		if ((ifp = ifunit(altq->ifname)) == NULL) {
+		if ((ifp = ifunit(altq->ifname)) == NULL)
 			altq->local_flags |= PFALTQ_FLAG_IF_REMOVED;
-		} else {
-			PF_UNLOCK();	/* XXX */
-		error = altq_add(altq);
-			PF_LOCK();
-		}
+		else
+			error = altq_add(altq);
+
 		if (error) {
 			PF_UNLOCK();
 			uma_zfree(V_pf_altq_z, altq);
@@ -3520,13 +3512,13 @@ shutdown_pf(void)
 		if ((error = pf_clear_tables()) != 0)
 			break;
 
-	#ifdef ALTQ
+#ifdef ALTQ
 		if ((error = pf_begin_altq(&t[0])) != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: ALTQ\n"));
 			break;
 		}
 		pf_commit_altq(t[0]);
-	#endif
+#endif
 
 		pf_clear_states();
 
