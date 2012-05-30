@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2001
+.Dd May 30, 2012
 .Dt WITNESS 4
 .Os
 .Sh NAME
@@ -52,11 +52,8 @@ violation occurs.
 The
 .Nm
 code also checks various other conditions such as verifying that one
-does not recurse on a non-recursive lock.
-For sleep locks,
-.Nm
-verifies that a new process would not be switched to when a lock is released
-or a lock is blocked on during an acquire while any spin locks are held.
+does not recurse on a non-recursive lock,
+or attempt an upgrade on a shared lock held by another thread.
 If any of these checks fail, then the kernel will panic.
 .Pp
 The flag that controls whether or not the kernel debugger is entered when a
@@ -97,7 +94,7 @@ specifies the level of witness involvement in the system.
 A value of 1 specifies that witness is enabled.
 A value of 0 specifies that witness is disabled, but that can be enabled
 again.  This will maintain a small amount of overhead in the system.
-A value of -1 specifies that witness is disabled permanently and that
+A value of -1 specifies that witness is disabled permanently and
 cannot be enabled again.
 The sysctl
 .Va debug.witness.watch
@@ -114,10 +111,22 @@ and
 .Xr ddb 4
 are compiled into the kernel:
 .Bl -ohang
-.It Ic show locks
-Outputs the list of locks held by the current thread to the kernel console
+.It Ic show locks Op thread
+Outputs the list of locks held by a thread to the kernel console
 along with the filename and line number at which each lock was last acquired
-by this thread.
+by the thread.
+The optional
+.Ar thread
+argument may be either a TID,
+PID,
+or pointer to a thread structure.
+If
+.Ar thread
+is not specified,
+then the locks held by the current thread are displayed.
+.It Ic show all locks
+Outputs the list of locks held by all threads in the system to the
+kernel console.
 .It Ic show witness
 Dump the current order list to the kernel console.
 The code first displays the lock order tree for all of the sleep locks.
@@ -136,9 +145,3 @@ code first appeared in
 .Bsx 5.0
 and was imported from there into
 .Fx 5.0 .
-.Sh BUGS
-The
-.Nm
-code currently does not handle recursion of shared
-.Xr sx 9
-locks properly.
