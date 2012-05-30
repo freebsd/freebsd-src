@@ -143,10 +143,10 @@ private:
 	};
 
 	/** The amount of data in m_buf we have yet to look at. */
-	size_t UnParsed();
+	size_t UnParsed()        const;
 
 	/** The amount of data in m_buf available for the next event. */
-	size_t NextEventMaxLen();
+	size_t NextEventMaxLen() const;
 
 	/** Fill the event buffer with event data from Devd. */
 	bool Fill();
@@ -174,17 +174,20 @@ private:
 
 	/** Offset to the start token of the next event. */
 	size_t		    m_nextEventOffset;
+
+	/** The EventBuffer is aligned and tracking event records. */
+	bool		    m_synchronized;
 };
 
 //- EventBuffer Inline Private Methods -----------------------------------------
 inline size_t
-EventBuffer::UnParsed()
+EventBuffer::UnParsed() const
 {
 	return (m_validLen - m_parsedLen);
 }
 
 inline size_t
-EventBuffer::NextEventMaxLen()
+EventBuffer::NextEventMaxLen() const
 {
 	return (m_validLen - m_nextEventOffset);
 }
