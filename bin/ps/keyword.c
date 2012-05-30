@@ -83,6 +83,7 @@ static VAR var[] = {
 		COMMLEN + OCOMMLEN + 1, 0, CHAR, NULL, 0},
 	{"command", "COMMAND", NULL, COMM|LJUST|USER, command, NULL, 16, 0,
 		CHAR, NULL, 0},
+	{"cow", "COW", NULL, 0, kvar, NULL, 8, KOFF(ki_cow), UINT, "u", 0},
 	{"cpu", "CPU", NULL, 0, kvar, NULL, 3, KOFF(ki_estcpu), UINT, "d",
 		0},
 	{"cputime", "", "time", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
