@@ -788,6 +788,7 @@ vnode_locked:
 			if (!is_first_object_locked)
 				VM_OBJECT_LOCK(fs.object);
 			PCPU_INC(cnt.v_cow_faults);
+			curthread->td_cow++;
 		} else {
 			prot &= ~VM_PROT_WRITE;
 		}
