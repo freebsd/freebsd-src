@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
@@ -243,12 +244,31 @@ SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
 	   "allow threads to share a quantum");
 #endif
 
+SDT_PROVIDER_DEFINE(sched);
+
+SDT_PROBE_DEFINE3(sched, , , change_pri, change-pri, "struct thread *", 
+    "struct proc *", "uint8_t");
+SDT_PROBE_DEFINE3(sched, , , dequeue, dequeue, "struct thread *", 
+    "struct proc *", "void *");
+SDT_PROBE_DEFINE4(sched, , , enqueue, enqueue, "struct thread *", 
+    "struct proc *", "void *", "int");
+SDT_PROBE_DEFINE4(sched, , , lend_pri, lend-pri, "struct thread *", 
+    "struct proc *", "uint8_t", "struct thread *");
+SDT_PROBE_DEFINE2(sched, , , load_change, load-change, "int", "int");
+SDT_PROBE_DEFINE2(sched, , , off_cpu, off-cpu, "struct thread *",
+    "struct proc *");
+SDT_PROBE_DEFINE(sched, , , on_cpu, on-cpu);
+SDT_PROBE_DEFINE(sched, , , remain_cpu, remain-cpu);
+SDT_PROBE_DEFINE2(sched, , , surrender, surrender, "struct thread *",
+    "struct proc *");
+
 static __inline void
 sched_load_add(void)
 {
 
 	sched_tdcnt++;
 	KTR_COUNTER0(KTR_SCHED, "load", "global load", sched_tdcnt);
+	SDT_PROBE2(sched, , , load_change, NOCPU, sched_tdcnt);
 }
 
 static __inline void
@@ -257,6 +277,7 @@ sched_load_rem(void)
 
 	sched_tdcnt--;
 	KTR_COUNTER0(KTR_SCHED, "load", "global load", sched_tdcnt);
+	SDT_PROBE2(sched, , , load_change, NOCPU, sched_tdcnt);
 }
 /*
  * Arrange to reschedule if necessary, taking the priorities and
@@ -794,10 +815,13 @@ sched_priority(struct thread *td, u_char prio)
 	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "priority change",
 	    "prio:%d", td->td_priority, "new prio:%d", prio, KTR_ATTR_LINKED,
 	    sched_tdname(curthread));
+	SDT_PROBE3(sched, , , change_pri, td, td->td_proc, prio);
 	if (td != curthread && prio > td->td_priority) {
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));
+		SDT_PROBE4(sched, , , lend_pri, td, td->td_proc, prio, 
+		    curthread);
 	}
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
@@ -986,6 +1010,9 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
+
+		SDT_PROBE2(sched, , , off_cpu, td, td->td_proc);
+
                 /* I feel sleepy */
 		lock_profile_release_lock(&sched_lock.lock_object);
 #ifdef KDTRACE_HOOKS
@@ -1017,11 +1044,14 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * needed to, or the thread_wait() or wait() will
 		 * need to reap it.
 		 */
+
+		SDT_PROBE0(sched, , , on_cpu);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
 #endif
-	}
+	} else
+		SDT_PROBE0(sched, , , remain_cpu);
 
 #ifdef SMP
 	if (td->td_flags & TDF_IDLETD)
@@ -1222,6 +1252,8 @@ sched_add(struct thread *td, int flags)
 	    sched_tdname(curthread));
 	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
 	    KTR_ATTR_LINKED, sched_tdname(td));
+	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
+	    flags & SRQ_PREEMPTED);
 
 
 	/*
@@ -1314,6 +1346,8 @@ sched_add(struct thread *td, int flags)
 	    sched_tdname(curthread));
 	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
 	    KTR_ATTR_LINKED, sched_tdname(td));
+	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
+	    flags & SRQ_PREEMPTED);
 
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
@@ -1361,6 +1395,7 @@ sched_rem(struct thread *td)
 	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq rem",
 	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
 	    sched_tdname(curthread));
+	SDT_PROBE3(sched, , , dequeue, td, td->td_proc, NULL);
 
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
@@ -1424,6 +1459,8 @@ sched_choose(void)
 void
 sched_preempt(struct thread *td)
 {
+
+	SDT_PROBE2(sched, , , surrender, td, td->td_proc);
 	thread_lock(td);
 	if (td->td_critnest > 1)
 		td->td_owepreempt = 1;
