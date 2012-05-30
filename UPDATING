@@ -15,6 +15,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20120530:	p8	FreeBSD-SA-12:01.openssl (revised),
+			FreeBSD-SA-12:02.crypt
+	Update the previous openssl fix. [12:01]
+
+	Fix a bug in crypt(3) ignoring characters of a passphrase. [12:02]
+
 20120503:	p7	FreeBSD-SA-12:01.openssl
 	Fix multiple OpenSSL vulnerabilities.
 
