@@ -60,6 +60,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include "opt_turnstile_profiling.h"
 #include "opt_sched.h"
 
@@ -73,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
 
@@ -165,6 +167,11 @@ static void	turnstile_dtor(void *mem, int size, void *arg);
 #endif
 static int	turnstile_init(void *mem, int size, int flags);
 static void	turnstile_fini(void *mem, int size);
+
+SDT_PROVIDER_DECLARE(sched);
+SDT_PROBE_DEFINE(sched, , , sleep, sleep);
+SDT_PROBE_DEFINE2(sched, , , wakeup, wakeup, "struct thread *", 
+    "struct proc *");
 
 /*
  * Walks the chain of turnstiles and their owners to propagate the priority
@@ -739,6 +746,8 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 		CTR4(KTR_LOCK, "%s: td %d blocked on [%p] %s", __func__,
 		    td->td_tid, lock, lock->lo_name);
 
+	SDT_PROBE0(sched, , , sleep);
+
 	THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 	mi_switch(SW_VOL | SWT_TURNSTILE, NULL);
 
@@ -915,6 +924,7 @@ turnstile_unpend(struct turnstile *ts, int owner_type)
 	while (!TAILQ_EMPTY(&pending_threads)) {
 		td = TAILQ_FIRST(&pending_threads);
 		TAILQ_REMOVE(&pending_threads, td, td_lockq);
+		SDT_PROBE2(sched, , , wakeup, td, td->td_proc);
 		thread_lock(td);
 		THREAD_LOCKPTR_ASSERT(td, &ts->ts_lock);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
