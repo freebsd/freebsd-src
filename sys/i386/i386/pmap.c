@@ -287,7 +287,7 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 static struct mtx PMAP2mutex;
 
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
-static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
+static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 static void	pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
@@ -2152,6 +2152,7 @@ pmap_growkernel(vm_offset_t addr)
 
 CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
 CTASSERT(_NPCM == 11);
+CTASSERT(_NPCPV == 336);
 
 static __inline struct pv_chunk *
 pv_to_chunk(pv_entry_t pv)
@@ -2165,7 +2166,7 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE0_9	0xfffffffful	/* Free values for index 0 through 9 */
 #define	PC_FREE10	0x0000fffful	/* Free values for index 10 */
 
-static uint32_t pc_freemask[11] = {
+static uint32_t pc_freemask[_NPCM] = {
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
@@ -2336,7 +2337,6 @@ out:
 	return (m_pc);
 }
 
-
 /*
  * free the pv_entry back to the free list
  */
@@ -2381,7 +2381,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
  * when needed.
  */
 static pv_entry_t
-get_pv_entry(pmap_t pmap, int try)
+get_pv_entry(pmap_t pmap, boolean_t try)
 {
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
