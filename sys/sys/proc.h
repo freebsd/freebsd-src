@@ -240,6 +240,7 @@ struct thread {
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
+	u_int		td_cow;		/* (*) Number of copy-on-write faults */
 	struct rusage	td_ru;		/* (t) rusage information. */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 	uint64_t	td_runtime;	/* (t) How many cpu ticks we've run. */
