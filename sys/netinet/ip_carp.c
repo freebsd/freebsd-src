@@ -1061,13 +1061,13 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 			IF_ADDR_RUNLOCK(ifp);
 
 			mtag = m_tag_get(PACKET_TAG_CARP,
-			    sizeof(struct ifnet *), M_NOWAIT);
+			    sizeof(struct carp_softc *), M_NOWAIT);
 			if (mtag == NULL)
 				/* Better a bit than nothing. */
 				return (LLADDR(&sc->sc_addr));
 
-			bcopy(&ifp, (caddr_t)(mtag + 1),
-			    sizeof(struct ifnet *));
+			bcopy(&sc, (caddr_t)(mtag + 1),
+			    sizeof(struct carp_softc *));
 			m_tag_prepend(m, mtag);
 
 			return (LLADDR(&sc->sc_addr));
