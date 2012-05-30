@@ -991,12 +991,20 @@ static int mlx4_en_calc_media(struct mlx4_en_priv *priv)
 	active |= IFM_FDX;
 	trans_type = priv->port_state.transciver;
 	/* XXX I don't know all of the transceiver values. */
-	if (priv->port_state.link_speed == 1000)
+	switch (priv->port_state.link_speed) {
+	case 1000:
 		active |= IFM_1000_T;
-	else if (trans_type > 0 && trans_type <= 0xC)
-		active |= IFM_10G_SR;
-	else if (trans_type == 0x80 || trans_type == 0)
-		active |= IFM_10G_CX4;
+		break;
+	case 10000:
+		if (trans_type > 0 && trans_type <= 0xC)
+			active |= IFM_10G_SR;
+		else if (trans_type == 0x80 || trans_type == 0)
+			active |= IFM_10G_CX4;
+		break;
+	case 40000:
+		active |= IFM_40G_CR4;
+		break;
+	}
 	if (priv->prof->tx_pause)
 		active |= IFM_ETH_TXPAUSE;
 	if (priv->prof->rx_pause)
