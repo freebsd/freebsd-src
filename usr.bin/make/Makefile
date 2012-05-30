@@ -15,7 +15,7 @@ NO_SHARED?=	YES
 .endif
 
 # Version has the RYYYYMMDDX format, where R is from RELENG_<R>
-CFLAGS+=-DMAKE_VERSION=\"5201111300\"
+CFLAGS+=-DMAKE_VERSION=\"10201120530\"
 
 # There is no obvious performance improvement currently.
 # CFLAGS+=-DUSE_KQUEUE
