@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 
@@ -72,7 +73,7 @@ static void		getnextcpuevent(struct bintime *event, int idle);
 static void		getnextevent(struct bintime *event);
 static int		handleevents(struct bintime *now, int fake);
 #ifdef SMP
-static void		cpu_new_callout(int cpu, int ticks);
+static void		cpu_new_callout(int cpu, struct bintime bt);
 #endif
 
 static struct mtx	et_hw_mtx;
@@ -135,6 +136,7 @@ struct pcpu_state {
 	struct bintime	nexthard;	/* Next hardlock() event. */
 	struct bintime	nextstat;	/* Next statclock() event. */
 	struct bintime	nextprof;	/* Next profclock() event. */
+	struct bintime	nextcall;	/* Next callout event. */
 #ifdef KDTRACE_HOOKS
 	struct bintime	nextcyc;	/* Next OpenSolaris cyclics event. */
 #endif
@@ -236,6 +238,11 @@ handleevents(struct bintime *now, int fake)
 		}
 	} else
 		state->nextprof = state->nextstat;
+	if (bintime_cmp(now, &state->nextcall, >=) &&
+		(state->nextcall.sec != -1)) {
+		state->nextcall.sec = -1;
+		callout_tick();
+	}
 
 #ifdef KDTRACE_HOOKS
 	if (fake == 0 && cyclic_clock_func != NULL &&
@@ -269,21 +276,21 @@ getnextcpuevent(struct bintime *event, int idle)
 {
 	struct bintime tmp;
 	struct pcpu_state *state;
-	int skip;
 
 	state = DPCPU_PTR(timerstate);
 	/* Handle hardclock() events. */
 	*event = state->nexthard;
-	if (idle || (!activetick && !profiling &&
-	    (timer->et_flags & ET_FLAGS_PERCPU) == 0)) {
-		skip = idle ? 4 : (stathz / 2);
-		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > skip)
-			skip = tc_min_ticktock_freq;
-		skip = callout_tickstofirst(hz / skip) - 1;
-		CTR2(KTR_SPARE2, "skip   at %d: %d", curcpu, skip);
-		tmp = hardperiod;
-		bintime_mul(&tmp, skip);
-		bintime_add(event, &tmp);
+	/* Handle callout events. */
+	tmp = callout_tickstofirst();
+	if (state->nextcall.sec == -1)
+		state->nextcall = tmp;
+	if (bintime_cmp(&tmp, &state->nextcall, <) && 	
+	    (tmp.sec != -1)) {
+		state->nextcall = tmp;
+	}	
+	if (bintime_cmp(event, &state->nextcall, >) && 
+	    (state->nextcall.sec != -1)) {
+		*event = state->nextcall;
 	}
 	if (!idle) { /* If CPU is active - handle other types of events. */
 		if (bintime_cmp(event, &state->nextstat, >))
@@ -625,6 +632,7 @@ cpu_initclocks_bsp(void)
 #ifdef KDTRACE_HOOKS
 		state->nextcyc.sec = -1;
 #endif
+		state->nextcall.sec = -1;
 	}
 #ifdef SMP
 	callout_new_inserted = cpu_new_callout;
@@ -858,9 +866,9 @@ clocksource_cyc_set(const struct bintime *t)
 
 #ifdef SMP
 static void
-cpu_new_callout(int cpu, int ticks)
+cpu_new_callout(int cpu, struct bintime bt)
 {
-	struct bintime tmp;
+	struct bintime now;
 	struct pcpu_state *state;
 
 	CTR3(KTR_SPARE2, "new co at %d:    on %d in %d",
@@ -876,17 +884,39 @@ cpu_new_callout(int cpu, int ticks)
 	 * If timer is global - there is chance it is already programmed.
 	 */
 	if (periodic || (timer->et_flags & ET_FLAGS_PERCPU) == 0) {
-		tmp = hardperiod;
-		bintime_mul(&tmp, ticks - 1);
-		bintime_add(&tmp, &state->nexthard);
-		if (bintime_cmp(&tmp, &state->nextevent, <))
-			state->nextevent = tmp;
+		/* 
+		 * Update next callout time. We can do this only if 
+		 * this one on which we're running is the target CPU.
+		 */
+		if (!periodic) {
+			if (bintime_cmp(&bt, &state->nextcall, ==)) {
+				ET_HW_UNLOCK(state);
+				return;
+			}
+			if (state->nextcall.sec == -1 ||
+			    bintime_cmp(&bt, &state->nextcall, <))
+				state->nextcall = bt;
+			if (bintime_cmp(&state->nextcall, &state->nextevent, >=)) {
+				ET_HW_UNLOCK(state);
+				return;
+			}	
+			state->nextevent = state->nextcall;
+			if (cpu == curcpu) {
+				loadtimer(&now, 0);
+				ET_HW_UNLOCK(state);
+			}
+			else
+				goto out;
+		}
+		if (bintime_cmp(&state->nexthard, &state->nextevent, <))
+			state->nextevent = state->nexthard;
 		if (periodic ||
 		    bintime_cmp(&state->nextevent, &nexttick, >=)) {
 			ET_HW_UNLOCK(state);
 			return;
 		}
 	}
+out:
 	/*
 	 * Otherwise we have to wake that CPU up, as we can't get present
 	 * bintime to reprogram global timer from here. If timer is per-CPU,

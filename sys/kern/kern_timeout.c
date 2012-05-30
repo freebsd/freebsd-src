@@ -68,9 +68,6 @@ SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end, callout-end);
 SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_end, 0,
     "struct callout *");
 
-static int avg_depth;
-SYSCTL_INT(_debug, OID_AUTO, to_avg_depth, CTLFLAG_RD, &avg_depth, 0,
-    "Average number of items examined per softclock call. Units = 1/1000");
 static int avg_gcalls;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_gcalls, CTLFLAG_RD, &avg_gcalls, 0,
     "Average number of Giant callouts made per softclock call. Units = 1/1000");
@@ -94,10 +91,10 @@ int callwheelsize, callwheelbits, callwheelmask;
  */
 struct cc_mig_ent {
 #ifdef SMP
-	void	(*ce_migration_func)(void *);
-	void	*ce_migration_arg;
-	int	ce_migration_cpu;
-	int	ce_migration_ticks;
+	void			(*ce_migration_func)(void *);
+	void			*ce_migration_arg;
+	int			ce_migration_cpu;
+	struct bintime		ce_migration_time;
 #endif
 };
 	
@@ -127,18 +124,19 @@ struct callout_cpu {
 	struct callout		*cc_next;
 	struct callout		*cc_curr;
 	void			*cc_cookie;
-	int 			cc_ticks;
-	int 			cc_softticks;
+	struct bintime 		cc_ticks;
+	struct bintime 		cc_softticks;
 	int			cc_cancel;
 	int			cc_waiting;
-	int 			cc_firsttick;
+	struct bintime 		cc_firsttick;
+	struct callout_tailq	*cc_localexp;		  
 };
 
 #ifdef SMP
 #define	cc_migration_func	cc_migrating_entity.ce_migration_func
 #define	cc_migration_arg	cc_migrating_entity.ce_migration_arg
 #define	cc_migration_cpu	cc_migrating_entity.ce_migration_cpu
-#define	cc_migration_ticks	cc_migrating_entity.ce_migration_ticks
+#define	cc_migration_time	cc_migrating_entity.ce_migration_time
 
 struct callout_cpu cc_cpu[MAXCPU];
 #define	CPUBLOCK	MAXCPU
@@ -153,8 +151,14 @@ struct callout_cpu cc_cpu;
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
 #define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
 
+#define FREQ2BT(freq, bt)                                               \
+{                                                                       \
+        (bt)->sec = 0;                                                  \
+        (bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
+}
+
 static int timeout_cpu;
-void (*callout_new_inserted)(int cpu, int ticks) = NULL;
+void (*callout_new_inserted)(int cpu, struct bintime bt) = NULL;
 
 static MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 
@@ -184,7 +188,8 @@ cc_cme_cleanup(struct callout_cpu *cc)
 
 #ifdef SMP
 	cc->cc_migration_cpu = CPUBLOCK;
-	cc->cc_migration_ticks = 0;
+	cc->cc_migration_time.sec = 0;
+	cc->cc_migration_time.frac = 0;
 	cc->cc_migration_func = NULL;
 	cc->cc_migration_arg = NULL;
 #endif
@@ -230,6 +235,8 @@ kern_timeout_callwheel_alloc(caddr_t v)
 	v = (caddr_t)(cc->cc_callout + ncallout);
 	cc->cc_callwheel = (struct callout_tailq *)v;
 	v = (caddr_t)(cc->cc_callwheel + callwheelsize);
+	cc->cc_localexp = (struct callout_tailq *)v;
+	v = (caddr_t)(cc->cc_localexp + 1);
 	return(v);
 }
 
@@ -244,6 +251,7 @@ callout_cpu_init(struct callout_cpu *cc)
 	for (i = 0; i < callwheelsize; i++) {
 		TAILQ_INIT(&cc->cc_callwheel[i]);
 	}
+	TAILQ_INIT(cc->cc_localexp);
 	cc_cme_cleanup(cc);
 	if (cc->cc_callout == NULL)
 		return;
@@ -325,6 +333,8 @@ start_softclock(void *dummy)
 		cc->cc_callwheel = malloc(
 		    sizeof(struct callout_tailq) * callwheelsize, M_CALLOUT,
 		    M_WAITOK);
+		cc->cc_localexp = malloc(
+		    sizeof(struct callout_tailq), M_CALLOUT, M_WAITOK);
 		callout_cpu_init(cc);
 	}
 #endif
@@ -332,10 +342,23 @@ start_softclock(void *dummy)
 
 SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
 
+static int
+get_bucket(struct bintime *bt) 
+{
+	time_t sec;
+	uint64_t frac;
+	sec = bt->sec;
+	frac = bt->frac;
+	return (int) (((sec<<10)+(frac>>54)) & callwheelmask);
+} 
+
 void
 callout_tick(void)
 {
+	struct callout *tmp;
 	struct callout_cpu *cc;
+	struct callout_tailq *sc;
+	struct bintime now;
 	int need_softclock;
 	int bucket;
 
@@ -346,48 +369,63 @@ callout_tick(void)
 	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	cc->cc_firsttick = cc->cc_ticks = ticks;
-	for (; (cc->cc_softticks - cc->cc_ticks) <= 0; cc->cc_softticks++) {
-		bucket = cc->cc_softticks & callwheelmask;
-		if (!TAILQ_EMPTY(&cc->cc_callwheel[bucket])) {
-			need_softclock = 1;
-			break;
+	binuptime(&now);
+	for (bucket = 0; bucket < callwheelsize; ++bucket) {
+		sc = &cc->cc_callwheel[bucket];
+		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
+			if (bintime_cmp(&tmp->c_time,&now, <=)) {
+				TAILQ_INSERT_TAIL(cc->cc_localexp,tmp,c_staiter);
+				TAILQ_REMOVE(sc, tmp, c_links.tqe);
+				need_softclock = 1;
+			}	
 		}
 	}
+	cc->cc_softticks = now;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	/*
 	 * swi_sched acquires the thread lock, so we don't want to call it
 	 * with cc_lock held; incorrect locking order.
 	 */
-	if (need_softclock)
+	if (need_softclock) {
 		swi_sched(cc->cc_cookie, 0);
+	}
 }
 
-int
-callout_tickstofirst(int limit)
+struct bintime
+callout_tickstofirst(void)
 {
 	struct callout_cpu *cc;
 	struct callout *c;
 	struct callout_tailq *sc;
-	int curticks;
-	int skip = 1;
+	struct bintime tmp;
+	struct bintime now;
+	int bucket;
 
+	tmp.sec = 0;
+	tmp.frac = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	curticks = cc->cc_ticks;
-	while( skip < ncallout && skip < limit ) {
-		sc = &cc->cc_callwheel[ (curticks+skip) & callwheelmask ];
-		/* search scanning ticks */
-		TAILQ_FOREACH( c, sc, c_links.tqe ){
-			if (c->c_time - curticks <= ncallout)
-				goto out;
+	binuptime(&now);
+	for (bucket = 0; bucket < callwheelsize; ++bucket) {
+		sc = &cc->cc_callwheel[bucket];
+		TAILQ_FOREACH( c, sc, c_links.tqe ) {
+			if (tmp.sec == 0 && tmp.frac == 0) 
+				tmp = c->c_time;
+			if (bintime_cmp(&c->c_time, &now, <)) 
+				tmp = now;
+			if (bintime_cmp(&c->c_time, &tmp, <=)) 
+				tmp = c->c_time;
+			
 		}
-		skip++;
 	}
-out:
-	cc->cc_firsttick = curticks + skip;
+	if (tmp.sec == 0 && tmp.frac == 0) {
+		cc->cc_firsttick.sec = -1;
+		cc->cc_firsttick.frac = -1;
+	}
+	else
+		cc->cc_firsttick = tmp;
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	return (skip);
+	return (cc->cc_firsttick);
 }
 
 static struct callout_cpu *
@@ -415,26 +453,35 @@ callout_lock(struct callout *c)
 }
 
 static void
-callout_cc_add(struct callout *c, struct callout_cpu *cc, int to_ticks,
-    void (*func)(void *), void *arg, int cpu)
+callout_cc_add(struct callout *c, struct callout_cpu *cc, 
+    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu)
 {
-
+	int bucket;	
+	struct bintime now;
+	struct bintime tmp;
+	
+	tmp.sec = 1;
+	tmp.frac = 0;
 	CC_LOCK_ASSERT(cc);
-
-	if (to_ticks <= 0)
-		to_ticks = 1;
+	binuptime(&now);
+	if (bintime_cmp(&to_bintime, &now, <)) {
+		bintime_add(&now, &tmp);
+		to_bintime = now;
+	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 	c->c_func = func;
-	c->c_time = ticks + to_ticks;
-	TAILQ_INSERT_TAIL(&cc->cc_callwheel[c->c_time & callwheelmask], 
+	c->c_time = to_bintime; 
+	bucket = get_bucket(&c->c_time);	
+	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket & callwheelmask], 
 	    c, c_links.tqe);
-	if ((c->c_time - cc->cc_firsttick) < 0 &&
-	    callout_new_inserted != NULL) {
-		cc->cc_firsttick = c->c_time;
-		(*callout_new_inserted)(cpu,
-		    to_ticks + (ticks - cc->cc_ticks));
-	}
+	/*
+	 * Inform the eventtimers(4) subsystem there's a new callout 
+	 * that has been inserted.
+	 */
+	if (callout_new_inserted != NULL)
+	(*callout_new_inserted)(cpu,
+	    to_bintime);
 }
 
 static void
@@ -442,7 +489,7 @@ callout_cc_del(struct callout *c, struct callout_cpu *cc)
 {
 
 	if (cc->cc_next == c)
-		cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
+		cc->cc_next = TAILQ_NEXT(c, c_staiter);
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 		c->c_func = NULL;
 		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
@@ -462,7 +509,8 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	struct callout_cpu *new_cc;
 	void (*new_func)(void *);
 	void *new_arg;
-	int new_cpu, new_ticks;
+	int new_cpu;
+	struct bintime new_time;
 #endif
 #ifdef DIAGNOSTIC
 	struct bintime bt1, bt2;
@@ -471,7 +519,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	static timeout_t *lastfunc;
 #endif
 
-	cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
+	cc->cc_next = TAILQ_NEXT(c, c_staiter);
 	class = (c->c_lock != NULL) ? LOCK_CLASS(c->c_lock) : NULL;
 	sharedlock = (c->c_flags & CALLOUT_SHAREDLOCK) ? 0 : 1;
 	c_lock = c->c_lock;
@@ -574,7 +622,7 @@ skip:
 		 * migration just perform it now.
 		 */
 		new_cpu = cc->cc_migration_cpu;
-		new_ticks = cc->cc_migration_ticks;
+		new_time = cc->cc_migration_time;
 		new_func = cc->cc_migration_func;
 		new_arg = cc->cc_migration_arg;
 		cc_cme_cleanup(cc);
@@ -598,7 +646,7 @@ skip:
 		 * is not easy.
 		 */
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
-		callout_cc_add(c, new_cc, new_ticks, new_func, new_arg,
+		callout_cc_add(c, new_cc, new_time, new_func, new_arg,
 		    new_cpu);
 		CC_UNLOCK(new_cc);
 		CC_LOCK(cc);
@@ -633,10 +681,7 @@ softclock(void *arg)
 {
 	struct callout_cpu *cc;
 	struct callout *c;
-	struct callout_tailq *bucket;
-	int curticks;
 	int steps;	/* #steps since we last allowed interrupts */
-	int depth;
 	int mpcalls;
 	int lockcalls;
 	int gcalls;
@@ -644,46 +689,34 @@ softclock(void *arg)
 #ifndef MAX_SOFTCLOCK_STEPS
 #define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
 #endif /* MAX_SOFTCLOCK_STEPS */
-
+	
 	mpcalls = 0;
 	lockcalls = 0;
 	gcalls = 0;
-	depth = 0;
 	steps = 0;
 	cc = (struct callout_cpu *)arg;
 	CC_LOCK(cc);
-	while (cc->cc_softticks - 1 != cc->cc_ticks) {
-		/*
-		 * cc_softticks may be modified by hard clock, so cache
-		 * it while we work on a given bucket.
-		 */
-		curticks = cc->cc_softticks;
-		cc->cc_softticks++;
-		bucket = &cc->cc_callwheel[curticks & callwheelmask];
-		c = TAILQ_FIRST(bucket);
-		while (c != NULL) {
-			depth++;
-			if (c->c_time != curticks) {
-				c = TAILQ_NEXT(c, c_links.tqe);
-				++steps;
-				if (steps >= MAX_SOFTCLOCK_STEPS) {
-					cc->cc_next = c;
-					/* Give interrupts a chance. */
-					CC_UNLOCK(cc);
-					;	/* nothing */
-					CC_LOCK(cc);
-					c = cc->cc_next;
-					steps = 0;
-				}
-			} else {
-				TAILQ_REMOVE(bucket, c, c_links.tqe);
-				c = softclock_call_cc(c, cc, &mpcalls,
-				    &lockcalls, &gcalls);
-				steps = 0;
-			}
+
+	c = TAILQ_FIRST(cc->cc_localexp);
+	while (c != NULL) {
+		++steps;
+		if (steps >= MAX_SOFTCLOCK_STEPS) {
+			cc->cc_next = c;
+			/* Give interrupts a chance. */
+			CC_UNLOCK(cc);
+			;	/* nothing */
+			CC_LOCK(cc);
+			c = cc->cc_next;
+			steps = 0;
 		}
+		else {
+			TAILQ_REMOVE(cc->cc_localexp, c, c_staiter);	
+			c = softclock_call_cc(c, cc, &mpcalls,
+			    &lockcalls, &gcalls);
+			steps = 0;
+		}	
 	}
-	avg_depth += (depth * 1000 - avg_depth) >> 8;
+
 	avg_mpcalls += (mpcalls * 1000 - avg_mpcalls) >> 8;
 	avg_lockcalls += (lockcalls * 1000 - avg_lockcalls) >> 8;
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
@@ -781,8 +814,19 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
     void *arg, int cpu)
 {
 	struct callout_cpu *cc;
+	struct bintime bt;
+	struct bintime now;
 	int cancelled = 0;
+	int bucket; 
+	
+	/*
+	 * Convert ticks to struct bintime.
+	 */
 
+	FREQ2BT(hz,&bt);
+	binuptime(&now);
+	bintime_mul(&bt,to_ticks);
+	bintime_add(&bt,&now);
 	/*
 	 * Don't allow migration of pre-allocated callouts lest they
 	 * become unbalanced.
@@ -814,7 +858,8 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 		if (cc->cc_next == c) {
 			cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
 		}
-		TAILQ_REMOVE(&cc->cc_callwheel[c->c_time & callwheelmask], c,
+		bucket = get_bucket(&c->c_time);	
+		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 		    c_links.tqe);
 
 		cancelled = 1;
@@ -830,13 +875,13 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 	if (c->c_cpu != cpu) {
 		if (cc->cc_curr == c) {
 			cc->cc_migration_cpu = cpu;
-			cc->cc_migration_ticks = to_ticks;
+			cc->cc_migration_time = bt;
 			cc->cc_migration_func = ftn;
 			cc->cc_migration_arg = arg;
 			c->c_flags |= CALLOUT_DFRMIGRATION;
-			CTR5(KTR_CALLOUT,
-		    "migration of %p func %p arg %p in %d to %u deferred",
-			    c, c->c_func, c->c_arg, to_ticks, cpu);
+			CTR6(KTR_CALLOUT,
+		    "migration of %p func %p arg %p in %ld %ld to %u deferred",
+			    c, c->c_func, c->c_arg, bt.sec, bt.frac, cpu);
 			CC_UNLOCK(cc);
 			return (cancelled);
 		}
@@ -844,9 +889,9 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 	}
 #endif
 
-	callout_cc_add(c, cc, to_ticks, ftn, arg, cpu);
-	CTR5(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d",
-	    cancelled ? "re" : "", c, c->c_func, c->c_arg, to_ticks);
+	callout_cc_add(c, cc, bt, ftn, arg, cpu);
+	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %ld %ld",
+	    cancelled ? "re" : "", c, c->c_func, c->c_arg, bt.sec, bt.frac);
 	CC_UNLOCK(cc);
 
 	return (cancelled);
@@ -874,7 +919,7 @@ _callout_stop_safe(c, safe)
 {
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
-	int use_lock, sq_locked;
+	int use_lock, sq_locked, bucket;
 
 	/*
 	 * Some old subsystems don't hold Giant while running a callout_stop(),
@@ -1024,7 +1069,8 @@ again:
 
 	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 	    c, c->c_func, c->c_arg);
-	TAILQ_REMOVE(&cc->cc_callwheel[c->c_time & callwheelmask], c,
+	bucket = get_bucket(&c->c_time);
+	TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 	    c_links.tqe);
 	callout_cc_del(c, cc);
 

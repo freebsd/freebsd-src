@@ -662,21 +662,54 @@ tcp_timer_active(struct tcpcb *tp, int timer_type)
 
 #define	ticks_to_msecs(t)	(1000*(t) / hz)
 
+#define bintime_to_msecs(bt)						\
+	(((uint64_t)1000 *						\
+	(uint32_t)  (bt.frac >> 32)) >> 32) + (bt.sec * 1000); 
+
 void
 tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer, struct xtcp_timer *xtimer)
 {
+	struct bintime now;
+	struct bintime tmp;
+	
 	bzero(xtimer, sizeof(struct xtcp_timer));
 	if (timer == NULL)
 		return;
-	if (callout_active(&timer->tt_delack))
-		xtimer->tt_delack = ticks_to_msecs(timer->tt_delack.c_time - ticks);
-	if (callout_active(&timer->tt_rexmt))
-		xtimer->tt_rexmt = ticks_to_msecs(timer->tt_rexmt.c_time - ticks);
-	if (callout_active(&timer->tt_persist))
-		xtimer->tt_persist = ticks_to_msecs(timer->tt_persist.c_time - ticks);
-	if (callout_active(&timer->tt_keep))
-		xtimer->tt_keep = ticks_to_msecs(timer->tt_keep.c_time - ticks);
-	if (callout_active(&timer->tt_2msl))
-		xtimer->tt_2msl = ticks_to_msecs(timer->tt_2msl.c_time - ticks);
+	
+	if (callout_active(&timer->tt_delack)) {
+		binuptime(&now);
+		tmp = timer->tt_delack.c_time;		
+		bintime_sub(&tmp,&now);
+		xtimer->tt_delack = bintime_to_msecs(tmp);
+	}
+	
+	if (callout_active(&timer->tt_rexmt)) {
+		binuptime(&now);
+		tmp = timer->tt_rexmt.c_time;
+		bintime_sub(&tmp,&now);
+		xtimer->tt_rexmt = bintime_to_msecs(tmp);
+	}
+	
+	if (callout_active(&timer->tt_persist)) {
+		binuptime(&now);
+		tmp = timer->tt_persist.c_time;
+		bintime_sub(&tmp,&now);
+		xtimer->tt_persist = bintime_to_msecs(tmp);
+	}
+	
+	if (callout_active(&timer->tt_keep)) {
+		binuptime(&now);
+		tmp = timer->tt_keep.c_time;
+		bintime_sub(&tmp,&now); 
+		xtimer->tt_keep = bintime_to_msecs(tmp);
+	}
+
+	if (callout_active(&timer->tt_2msl)) {
+		binuptime(&now);
+		tmp = timer->tt_2msl.c_time;
+		bintime_sub(&tmp,&now);
+		xtimer->tt_2msl = bintime_to_msecs(tmp);
+	}
+
 	xtimer->t_rcvtime = ticks_to_msecs(ticks - tp->t_rcvtime);
 }
