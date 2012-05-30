@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdb.h"
 #include "opt_device_polling.h"
 #include "opt_hwpmc_hooks.h"
+#include "opt_kdtrace.h"
 #include "opt_ntp.h"
 #include "opt_watchdog.h"
 
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
@@ -85,6 +87,9 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL);
 
 /* Spin-lock protecting profiling statistics. */
 static struct mtx time_lock;
+
+SDT_PROVIDER_DECLARE(sched);
+SDT_PROBE_DEFINE2(sched, , , tick, tick, "struct thread *", "struct proc *");
 
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
@@ -654,6 +659,7 @@ statclock(int usermode)
 		ru->ru_maxrss = rss;
 	KTR_POINT2(KTR_SCHED, "thread", sched_tdname(td), "statclock",
 	    "prio:%d", td->td_priority, "stathz:%d", (stathz)?stathz:hz);
+	SDT_PROBE2(sched, , , tick, td, td->td_proc);
 	thread_lock_flags(td, MTX_QUIET);
 	sched_clock(td);
 	thread_unlock(td);

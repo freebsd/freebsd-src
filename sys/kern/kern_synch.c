@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_sched.h"
 
@@ -51,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
@@ -104,6 +106,20 @@ static int      fscale __unused = FSCALE;
 SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 
 static void	loadav(void *arg);
+
+SDT_PROVIDER_DECLARE(sched);
+SDT_PROBE_DEFINE(sched, , , preempt, preempt);
+
+/*
+ * These probes reference Solaris features that are not implemented in FreeBSD.
+ * Create the probes anyway for compatibility with existing D scripts; they'll
+ * just never fire.
+ */
+SDT_PROBE_DEFINE(sched, , , cpucaps_sleep, cpucaps-sleep);
+SDT_PROBE_DEFINE(sched, , , cpucaps_wakeup, cpucaps-wakeup);
+SDT_PROBE_DEFINE(sched, , , schedctl_nopreempt, schedctl-nopreempt);
+SDT_PROBE_DEFINE(sched, , , schedctl_preempt, schedctl-preempt);
+SDT_PROBE_DEFINE(sched, , , schedctl_yield, schedctl-yield);
 
 void
 sleepinit(void)
@@ -443,6 +459,7 @@ mi_switch(int flags, struct thread *newtd)
 		    "prio:%d", td->td_priority, "wmesg:\"%s\"", td->td_wmesg,
 		    "lockname:\"%s\"", td->td_lockname);
 #endif
+	SDT_PROBE0(sched, , , preempt);
 #ifdef XEN
 	PT_UPDATES_FLUSH();
 #endif

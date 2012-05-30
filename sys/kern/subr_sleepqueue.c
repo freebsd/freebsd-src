@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_sleepqueue_profiling.h"
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
@@ -165,6 +167,9 @@ static int	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td,
 		    int pri);
 static void	sleepq_switch(void *wchan, int pri);
 static void	sleepq_timeout(void *arg);
+
+SDT_PROBE_DECLARE(sched, , , sleep);
+SDT_PROBE_DECLARE(sched, , , wakeup);
 
 /*
  * Early initialization of sleep queues that is called from the sleepinit()
@@ -526,6 +531,7 @@ sleepq_switch(void *wchan, int pri)
 	MPASS(td->td_sleepqueue == NULL);
 	sched_sleep(td, pri);
 	thread_lock_set(td, &sc->sc_lock);
+	SDT_PROBE0(sched, , , sleep);
 	TD_SET_SLEEPING(td);
 	mi_switch(SW_VOL | SWT_SLEEPQ, NULL);
 	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
@@ -706,6 +712,8 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	sc = SC_LOOKUP(sq->sq_wchan);
 	mtx_assert(&sc->sc_lock, MA_OWNED);
+
+	SDT_PROBE2(sched, , , wakeup, td, td->td_proc);
 
 	/* Remove the thread from the queue. */
 	sq->sq_blockedcnt[td->td_sqqueue]--;
