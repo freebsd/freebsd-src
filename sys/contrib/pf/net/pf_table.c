@@ -179,7 +179,6 @@ struct pfr_walktree {
 VNET_DEFINE(uma_zone_t,			pfr_ktable_pl);
 VNET_DEFINE(uma_zone_t,			pfr_kentry_pl);
 VNET_DEFINE(uma_zone_t,			pfr_kcounters_pl);
-#define	V_pfr_kcounters_pl		VNET(pfr_kcounters_pl)
 VNET_DEFINE(struct sockaddr_in,		pfr_sin);
 #define	V_pfr_sin			VNET(pfr_sin)
 VNET_DEFINE(struct sockaddr_in6,	pfr_sin6);
