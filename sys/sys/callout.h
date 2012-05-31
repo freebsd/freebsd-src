@@ -47,6 +47,7 @@
 #define	CALLOUT_RETURNUNLOCKED	0x0010 /* handler returns with mtx unlocked */
 #define	CALLOUT_SHAREDLOCK	0x0020 /* callout lock held in shared mode */
 #define	CALLOUT_DFRMIGRATION	0x0040 /* callout in deferred migration mode */
+#define	CALLOUT_PROCESSED	0x0080 /* callout in wheel or processing list? */
 
 struct callout_handle {
 	struct callout *callout;

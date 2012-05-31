@@ -376,6 +376,7 @@ callout_tick(void)
 			if (bintime_cmp(&tmp->c_time,&now, <=)) {
 				TAILQ_INSERT_TAIL(cc->cc_localexp,tmp,c_staiter);
 				TAILQ_REMOVE(sc, tmp, c_links.tqe);
+				tmp->c_flags |= CALLOUT_PROCESSED;
 				need_softclock = 1;
 			}	
 		}
@@ -470,6 +471,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	}
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
+	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
 	c->c_time = to_bintime; 
 	bucket = get_bucket(&c->c_time);	
@@ -855,13 +857,19 @@ callout_reset_on(struct callout *c, int to_ticks, void (*ftn)(void *),
 		}
 	}
 	if (c->c_flags & CALLOUT_PENDING) {
-		if (cc->cc_next == c) {
-			cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
+		if ((c->c_flags & CALLOUT_PROCESSED) == 0) {	
+			if (cc->cc_next == c)
+				cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
+			bucket = get_bucket(&c->c_time);
+			TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
+			    c_links.tqe);
 		}
-		bucket = get_bucket(&c->c_time);	
-		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
-		    c_links.tqe);
-
+		else {
+			if (cc->cc_next == c)
+				cc->cc_next = TAILQ_NEXT(c, c_staiter);
+			TAILQ_REMOVE(cc->cc_localexp, c, 
+			    c_staiter);
+		}
 		cancelled = 1;
 		c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 	}
@@ -1069,9 +1077,14 @@ again:
 
 	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 	    c, c->c_func, c->c_arg);
-	bucket = get_bucket(&c->c_time);
-	TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
-	    c_links.tqe);
+	if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
+		bucket = get_bucket(&c->c_time);
+		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
+		    c_links.tqe);
+	}
+	else 
+		TAILQ_REMOVE(cc->cc_localexp, c, 
+		    c_staiter);
 	callout_cc_del(c, cc);
 
 	CC_UNLOCK(cc);
