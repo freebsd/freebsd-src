@@ -36,6 +36,7 @@
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -118,7 +119,7 @@ powermac_nvram_probe(device_t dev)
 	if (strcmp(type, "nvram") != 0)
 		return ENXIO;
 	if (strcmp(compatible, "amd-0137") != 0 &&
-	    strcmp(compatible, "nvram,flash") != 0)
+	    !ofw_bus_is_compatible(dev, "nvram,flash"))
 		return ENXIO;
 
 	device_set_desc(dev, "Apple NVRAM");
