@@ -2776,17 +2776,9 @@ bge_mbox_reorder(struct bge_softc *sc)
 	for (;;) {
 		dev = device_get_parent(bus);
 		bus = device_get_parent(dev);
-		device_printf(sc->bge_dev, "dev : %s%d, bus : %s%d\n",
-		    device_get_name(dev), device_get_unit(dev),
-		    device_get_name(bus), device_get_unit(bus));
 		if (device_get_devclass(dev) != pcib)
 			break;
 		for (i = 0; i < count; i++) {
-			device_printf(sc->bge_dev,
-			    "probing dev : %s%d, vendor : 0x%04x "
-			    "device : 0x%04x\n",
-			    device_get_name(dev), device_get_unit(dev),
-			    pci_get_vendor(dev), pci_get_device(dev));
 			if (pci_get_vendor(dev) ==
 			    mbox_reorder_lists[i].vendor &&
 			    pci_get_device(dev) ==
