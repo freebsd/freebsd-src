@@ -218,6 +218,7 @@ caddr_t CADDR1 = 0;
  */
 static caddr_t crashdumpmap;
 
+static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
@@ -2174,7 +2175,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
-	vm_page_t m;
 	struct pv_chunk *pc;
 	int idx, field, bit;
 
@@ -2198,6 +2198,14 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 		return;
 	}
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+	free_pv_chunk(pc);
+}
+
+static void
+free_pv_chunk(struct pv_chunk *pc)
+{
+	vm_page_t m;
+
  	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
@@ -4211,15 +4219,8 @@ pmap_remove_pages(pmap_t pmap)
 			}
 		}
 		if (allfree) {
-			PV_STAT(pv_entry_spare -= _NPCPV);
-			PV_STAT(pc_chunk_count--);
-			PV_STAT(pc_chunk_frees++);
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
-			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
-			dump_drop_page(m->phys_addr);
-			vm_page_unwire(m, 0);
-			vm_page_free(m);
+			free_pv_chunk(pc);
 		}
 	}
 	pmap_invalidate_all(pmap);
