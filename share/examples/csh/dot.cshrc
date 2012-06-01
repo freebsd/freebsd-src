@@ -5,7 +5,7 @@
 
 # Sets SSH_AUTH_SOCK to the user's ssh-agent socket path if running
 if (${?SSH_AUTH_SOCK} != "1") then
-	setenv SSH_AUTH_SOCK `sockstat | grep "${USER}" | cut -d ' ' -f 6` 
+	setenv SSH_AUTH_SOCK `sockstat | grep "^${USER} " | awk '/ssh-agent/ { print $6 }'`
 endif
 
 # Change only root's prompt
