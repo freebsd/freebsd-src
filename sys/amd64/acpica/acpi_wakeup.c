@@ -283,14 +283,14 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 }
 
 int
-acpi_wakeup_machdep(struct acpi_softc *sc, int state,
-    int sleep_result, int intr_enabled)
+acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
+    int intr_enabled)
 {
 
 	if (sleep_result == -1)
 		return (sleep_result);
 
-	if (intr_enabled == 0) {
+	if (!intr_enabled) {
 		/* Wakeup MD procedures in interrupt disabled context */
 		if (sleep_result == 1) {
 			pmap_init_pat();
