@@ -2692,3 +2692,18 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	    NODEV);
 	return (0);
 }
+
+static int
+sysctl_vm_swap_free(SYSCTL_HANDLER_ARGS) {
+	int swap_free, used;
+	int total;
+
+	swap_pager_status(&total, &used);
+
+	swap_free = (total - used) * PAGE_SIZE;
+	return SYSCTL_OUT(req, &swap_free, sizeof(swap_free));
+}
+
+SYSCTL_OID(_vm, OID_AUTO, swap_free, CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_MPSAFE,
+		NULL, 0, sysctl_vm_swap_free, "Q",
+		"Blocks of free swap storage.");
