@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,41 +14,22 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ecdb.h,v 1.3 2009/09/02 23:48:02 tbox Exp $ */
+/* $Id$ */
 
-#ifndef DNS_ECDB_H
-#define DNS_ECDB_H 1
+#ifndef GENERIC_TLSA_52_H
+#define GENERIC_TLSA_52_H 1
 
-/*****
- ***** Module Info
- *****/
+/*!
+ *  \brief per draft-ietf-dane-protocol-19.txt
+ */
+typedef struct dns_rdata_tlsa {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	isc_uint8_t		usage;
+	isc_uint8_t		selector;
+	isc_uint8_t		match;
+	isc_uint16_t		length;
+	unsigned char		*data;
+} dns_rdata_tlsa_t;
 
-/* TBD */
-
-/***
- *** Imports
- ***/
-
-#include <dns/types.h>
-
-/***
- *** Types
- ***/
-
-/***
- *** Functions
- ***/
-
-ISC_LANG_BEGINDECLS
-
-/* TBD: describe those */
-
-isc_result_t
-dns_ecdb_register(isc_mem_t *mctx, dns_dbimplementation_t **dbimp);
-
-void
-dns_ecdb_unregister(dns_dbimplementation_t **dbimp);
-
-ISC_LANG_ENDDECLS
-
-#endif /* DNS_ECDB_H */
+#endif /* GENERIC_TLSA_52_H */
